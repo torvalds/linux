@@ -8,10 +8,10 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
@@ -253,7 +253,7 @@ static void __init omap_serial_set_port_wakeup(int gpio_nr)
 	}
 	omap_set_gpio_direction(gpio_nr, 1);
 	ret = request_irq(OMAP_GPIO_IRQ(gpio_nr), &omap_serial_wake_interrupt,
-			  SA_TRIGGER_RISING, "serial wakeup", NULL);
+			  IRQF_TRIGGER_RISING, "serial wakeup", NULL);
 	if (ret) {
 		omap_free_gpio(gpio_nr);
 		printk(KERN_ERR "No interrupt for UART wake GPIO: %i\n",

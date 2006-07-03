@@ -34,7 +34,6 @@
  * $Id: mthca_main.c 1396 2004-12-28 04:10:27Z roland $
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -172,8 +171,9 @@ static int __devinit mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim 
 
 	if (dev_lim->uar_size > pci_resource_len(mdev->pdev, 2)) {
 		mthca_err(mdev, "HCA reported UAR size of 0x%x bigger than "
-			  "PCI resource 2 size of 0x%lx, aborting.\n",
-			  dev_lim->uar_size, pci_resource_len(mdev->pdev, 2));
+			  "PCI resource 2 size of 0x%llx, aborting.\n",
+			  dev_lim->uar_size,
+			  (unsigned long long)pci_resource_len(mdev->pdev, 2));
 		return -ENODEV;
 	}
 

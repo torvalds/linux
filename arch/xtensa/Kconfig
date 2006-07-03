@@ -34,10 +34,6 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
-config RWSEM_GENERIC_SPINLOCK
-       bool
-       default y
-
 source "init/Kconfig"
 
 menu "Processor type and features"

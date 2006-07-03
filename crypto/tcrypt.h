@@ -65,6 +65,11 @@ struct cipher_speed {
 	unsigned int blen;
 };
 
+struct digest_speed {
+	unsigned int blen;	/* buffer length */
+	unsigned int plen;	/* per-update length */
+};
+
 /*
  * MD4 test vectors from RFC1320
  */
@@ -2973,6 +2978,37 @@ static struct cipher_speed des_speed_template[] = {
 
 	/* End marker */
 	{  .klen = 0, .blen = 0, }
+};
+
+/*
+ * Digest speed tests
+ */
+static struct digest_speed generic_digest_speed_template[] = {
+	{ .blen = 16, 	.plen = 16, },
+	{ .blen = 64,	.plen = 16, },
+	{ .blen = 64,	.plen = 64, },
+	{ .blen = 256,	.plen = 16, },
+	{ .blen = 256,	.plen = 64, },
+	{ .blen = 256,	.plen = 256, },
+	{ .blen = 1024,	.plen = 16, },
+	{ .blen = 1024,	.plen = 256, },
+	{ .blen = 1024,	.plen = 1024, },
+	{ .blen = 2048,	.plen = 16, },
+	{ .blen = 2048,	.plen = 256, },
+	{ .blen = 2048,	.plen = 1024, },
+	{ .blen = 2048,	.plen = 2048, },
+	{ .blen = 4096,	.plen = 16, },
+	{ .blen = 4096,	.plen = 256, },
+	{ .blen = 4096,	.plen = 1024, },
+	{ .blen = 4096,	.plen = 4096, },
+	{ .blen = 8192,	.plen = 16, },
+	{ .blen = 8192,	.plen = 256, },
+	{ .blen = 8192,	.plen = 1024, },
+	{ .blen = 8192,	.plen = 4096, },
+	{ .blen = 8192,	.plen = 8192, },
+
+	/* End marker */
+	{  .blen = 0,	.plen = 0, }
 };
 
 #endif	/* _CRYPTO_TCRYPT_H */

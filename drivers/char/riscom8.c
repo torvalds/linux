@@ -625,7 +625,7 @@ static inline int rc_setup_board(struct riscom_board * bp)
 	if (bp->flags & RC_BOARD_ACTIVE) 
 		return 0;
 	
-	error = request_irq(bp->irq, rc_interrupt, SA_INTERRUPT,
+	error = request_irq(bp->irq, rc_interrupt, IRQF_DISABLED,
 			    "RISCom/8", NULL);
 	if (error) 
 		return error;
@@ -1634,7 +1634,6 @@ static inline int rc_init_drivers(void)
 	memset(IRQ_to_board, 0, sizeof(IRQ_to_board));
 	riscom_driver->owner = THIS_MODULE;
 	riscom_driver->name = "ttyL";
-	riscom_driver->devfs_name = "tts/L";
 	riscom_driver->major = RISCOM8_NORMAL_MAJOR;
 	riscom_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	riscom_driver->subtype = SERIAL_TYPE_NORMAL;

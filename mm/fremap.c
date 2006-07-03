@@ -83,6 +83,7 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	page_add_file_rmap(page);
 	pte_val = *pte;
 	update_mmu_cache(vma, addr, pte_val);
+	lazy_mmu_prot_update(pte_val);
 	err = 0;
 unlock:
 	pte_unmap_unlock(pte, ptl);
@@ -114,7 +115,13 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
 	pte_val = *pte;
-	update_mmu_cache(vma, addr, pte_val);
+	/*
+	 * We don't need to run update_mmu_cache() here because the "file pte"
+	 * being installed by install_file_pte() is not a real pte - it's a
+	 * non-present entry (like a swap entry), noting what file offset should
+	 * be mapped there when there's a fault (in a non-linear vma where
+	 * that's not obvious).
+	 */
 	pte_unmap_unlock(pte, ptl);
 	err = 0;
 out:

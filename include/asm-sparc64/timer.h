@@ -9,7 +9,6 @@
 
 #include <linux/types.h>
 
-#include <linux/config.h>
 
 struct sparc64_tick_ops {
 	void (*init_tick)(unsigned long);

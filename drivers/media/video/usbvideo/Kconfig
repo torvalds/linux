@@ -36,3 +36,15 @@ config USB_KONICAWC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called konicawc.
+
+config USB_QUICKCAM_MESSENGER
+	tristate "USB Logitech Quickcam Messenger"
+	depends on USB && VIDEO_DEV
+	select VIDEO_USBVIDEO
+	---help---
+	  Say Y or M here to enable support for the USB Logitech Quickcam
+	  Messenger webcam.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called quickcam_messenger.
+

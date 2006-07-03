@@ -48,6 +48,7 @@
 #define CALLEE_SAVE_FRAME_SIZE (CALLEE_REG_FRAME_SIZE + CALLEE_FLOAT_FRAME_SIZE)
 
 #ifdef CONFIG_PA20
+#define LDCW		ldcw,co
 #define BL		b,l
 # ifdef CONFIG_64BIT
 #  define LEVEL		2.0w
@@ -55,6 +56,7 @@
 #  define LEVEL		2.0
 # endif
 #else
+#define LDCW		ldcw
 #define BL		bl
 #define LEVEL		1.1
 #endif

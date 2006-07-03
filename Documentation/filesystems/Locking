@@ -99,7 +99,7 @@ prototypes:
 	int (*sync_fs)(struct super_block *sb, int wait);
 	void (*write_super_lockfs) (struct super_block *);
 	void (*unlockfs) (struct super_block *);
-	int (*statfs) (struct super_block *, struct kstatfs *);
+	int (*statfs) (struct dentry *, struct kstatfs *);
 	int (*remount_fs) (struct super_block *, int *, char *);
 	void (*clear_inode) (struct inode *);
 	void (*umount_begin) (struct super_block *);
@@ -142,15 +142,16 @@ see also dquot_operations section.
 
 --------------------------- file_system_type ---------------------------
 prototypes:
-	struct super_block *(*get_sb) (struct file_system_type *, int,
-			const char *, void *);
+	struct int (*get_sb) (struct file_system_type *, int,
+			const char *, void *, struct vfsmount *);
 	void (*kill_sb) (struct super_block *);
 locking rules:
 		may block	BKL
 get_sb		yes		yes
 kill_sb		yes		yes
 
-->get_sb() returns error or a locked superblock (exclusive on ->s_umount).
+->get_sb() returns error or 0 with locked superblock attached to the vfsmount
+(exclusive on ->s_umount).
 ->kill_sb() takes a write-locked superblock, does all shutdown work on it,
 unlocks and drops the reference.
 

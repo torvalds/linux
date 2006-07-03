@@ -183,7 +183,7 @@ config IBM_EMAC4
 
 config BIOS_FIXUP
 	bool
-	depends on BUBINGA || EP405 || SYCAMORE || WALNUT
+	depends on BUBINGA || EP405 || SYCAMORE || WALNUT || CPCI405
 	default y
 
 # OAK doesn't exist but wanted to keep this around for any future 403GCX boards

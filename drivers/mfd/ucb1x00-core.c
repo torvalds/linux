@@ -16,7 +16,6 @@
  *  Note that all locks are private to this file.  Nothing else may
  *  touch them.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -420,8 +419,10 @@ static int ucb1x00_detect_irq(struct ucb1x00 *ucb)
 	unsigned long mask;
 
 	mask = probe_irq_on();
-	if (!mask)
+	if (!mask) {
+		probe_irq_off(mask);
 		return NO_IRQ;
+	}
 
 	/*
 	 * Enable the ADC interrupt.
@@ -507,7 +508,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 		goto err_free;
 	}
 
-	ret = request_irq(ucb->irq, ucb1x00_irq, SA_TRIGGER_RISING,
+	ret = request_irq(ucb->irq, ucb1x00_irq, IRQF_TRIGGER_RISING,
 			  "UCB1x00", ucb);
 	if (ret) {
 		printk(KERN_ERR "ucb1x00: unable to grab irq%d: %d\n",

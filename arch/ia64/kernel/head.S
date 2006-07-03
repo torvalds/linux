@@ -19,7 +19,6 @@
  *   Support for CPU Hotplug
  */
 
-#include <linux/config.h>
 
 #include <asm/asmmacro.h>
 #include <asm/fpu.h>

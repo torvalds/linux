@@ -32,7 +32,6 @@
 
 #include <linux/module.h>
 #include <linux/ioport.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/gameport.h>
 #include <linux/slab.h>

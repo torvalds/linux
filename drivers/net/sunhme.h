@@ -8,7 +8,6 @@
 #ifndef _SUNHME_H
 #define _SUNHME_H
 
-#include <linux/config.h>
 #include <linux/pci.h>
 
 /* Happy Meal global registers. */
@@ -461,7 +460,6 @@ struct happy_meal {
 	struct net_device	 *dev;		/* Backpointer                       */
 	struct quattro		 *qfe_parent;	/* For Quattro cards                 */
 	int			  qfe_ent;	/* Which instance on quattro         */
-	struct happy_meal         *next_module;
 };
 
 /* Here are the happy flags. */

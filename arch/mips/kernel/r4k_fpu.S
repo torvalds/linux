@@ -12,7 +12,6 @@
  * Copyright (C) 2000 MIPS Technologies, Inc.
  * Copyright (C) 1999, 2001 Silicon Graphics, Inc.
  */
-#include <linux/config.h>
 #include <asm/asm.h>
 #include <asm/errno.h>
 #include <asm/fpregdef.h>

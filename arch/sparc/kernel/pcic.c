@@ -10,7 +10,6 @@
  * CP-1200 by Eric Brower.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -31,6 +30,7 @@
 
 #include <asm/irq.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 #include <asm/pcic.h>
 #include <asm/timer.h>
 #include <asm/uaccess.h>
@@ -665,7 +665,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 		/* cookies */
 		pcp = pci_devcookie_alloc();
 		pcp->pbm = &pcic->pbm;
-		pcp->prom_node = node;
+		pcp->prom_node = of_find_node_by_phandle(node);
 		dev->sysdata = pcp;
 
 		/* fixing I/O to look like memory */
@@ -745,7 +745,7 @@ void __init pci_time_init(void)
 	writel (PCI_COUNTER_IRQ_SET(timer_irq, 0),
 		pcic->pcic_regs+PCI_COUNTER_IRQ);
 	irq = request_irq(timer_irq, pcic_timer_handler,
-			  (SA_INTERRUPT | SA_STATIC_ALLOC), "timer", NULL);
+			  (IRQF_DISABLED | SA_STATIC_ALLOC), "timer", NULL);
 	if (irq) {
 		prom_printf("time_init: unable to attach IRQ%d\n", timer_irq);
 		prom_halt();
@@ -859,7 +859,7 @@ char * __init pcibios_setup(char *str)
 }
 
 void pcibios_align_resource(void *data, struct resource *res,
-			    unsigned long size, unsigned long align)
+			    resource_size_t size, resource_size_t align)
 {
 }
 
@@ -894,13 +894,6 @@ void pcic_nmi(unsigned int pend, struct pt_regs *regs)
 static inline unsigned long get_irqmask(int irq_nr)
 {
 	return 1 << irq_nr;
-}
-
-static inline char *pcic_irq_itoa(unsigned int irq)
-{
-	static char buff[16];
-	sprintf(buff, "%d", irq);
-	return buff;
 }
 
 static void pcic_disable_irq(unsigned int irq_nr)
@@ -955,7 +948,6 @@ void __init sun4m_pci_init_IRQ(void)
 	BTFIXUPSET_CALL(clear_clock_irq, pcic_clear_clock_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(clear_profile_irq, pcic_clear_profile_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(load_profile_irq, pcic_load_profile_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(__irq_itoa, pcic_irq_itoa, BTFIXUPCALL_NORM);
 }
 
 int pcibios_assign_resource(struct pci_dev *pdev, int resource)

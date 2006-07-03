@@ -2,7 +2,6 @@
  * Copyright 2000 by Hans Reiser, licensing governed by reiserfs/README
  */
 
-#include <linux/config.h>
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/reiserfs_fs.h>
@@ -2933,6 +2932,11 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 			}
 			if (error)
 				goto out;
+			/*
+			 * file size is changed, ctime and mtime are
+			 * to be updated
+			 */
+			attr->ia_valid |= (ATTR_MTIME | ATTR_CTIME);
 		}
 	}
 
@@ -2996,7 +3000,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 	return error;
 }
 
-struct address_space_operations reiserfs_address_space_operations = {
+const struct address_space_operations reiserfs_address_space_operations = {
 	.writepage = reiserfs_writepage,
 	.readpage = reiserfs_readpage,
 	.readpages = reiserfs_readpages,

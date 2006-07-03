@@ -11,7 +11,6 @@
  *  Copyright (C) 1998-2000 Anton Blanchard (anton@samba.org)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -192,11 +191,11 @@ int show_interrupts(struct seq_file *p, void *v)
 		}
 #endif
 		seq_printf(p, " %c %s",
-			(action->flags & SA_INTERRUPT) ? '+' : ' ',
+			(action->flags & IRQF_DISABLED) ? '+' : ' ',
 			action->name);
 		for (action=action->next; action; action = action->next) {
 			seq_printf(p, ",%s %s",
-				(action->flags & SA_INTERRUPT) ? " +" : "",
+				(action->flags & IRQF_DISABLED) ? " +" : "",
 				action->name);
 		}
 		seq_putc(p, '\n');
@@ -244,7 +243,7 @@ void free_irq(unsigned int irq, void *dev_id)
 			printk("Trying to free free shared IRQ%d\n",irq);
 			goto out_unlock;
 		}
-	} else if (action->flags & SA_SHIRQ) {
+	} else if (action->flags & IRQF_SHARED) {
 		printk("Trying to free shared IRQ%d with NULL device ID\n", irq);
 		goto out_unlock;
 	}
@@ -396,9 +395,9 @@ int request_fast_irq(unsigned int irq,
 
 	action = sparc_irq[cpu_irq].action;
 	if(action) {
-		if(action->flags & SA_SHIRQ)
+		if(action->flags & IRQF_SHARED)
 			panic("Trying to register fast irq when already shared.\n");
-		if(irqflags & SA_SHIRQ)
+		if(irqflags & IRQF_SHARED)
 			panic("Trying to register fast irq as shared.\n");
 
 		/* Anyway, someone already owns it so cannot be made fast. */
@@ -498,11 +497,11 @@ int request_irq(unsigned int irq,
 	actionp = &sparc_irq[cpu_irq].action;
 	action = *actionp;
 	if (action) {
-		if (!(action->flags & SA_SHIRQ) || !(irqflags & SA_SHIRQ)) {
+		if (!(action->flags & IRQF_SHARED) || !(irqflags & IRQF_SHARED)) {
 			ret = -EBUSY;
 			goto out_unlock;
 		}
-		if ((action->flags & SA_INTERRUPT) != (irqflags & SA_INTERRUPT)) {
+		if ((action->flags & IRQF_DISABLED) != (irqflags & IRQF_DISABLED)) {
 			printk("Attempt to mix fast and slow interrupts on IRQ%d denied\n", irq);
 			ret = -EBUSY;
 			goto out_unlock;

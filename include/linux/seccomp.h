@@ -1,7 +1,6 @@
 #ifndef _LINUX_SECCOMP_H
 #define _LINUX_SECCOMP_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_SECCOMP
 

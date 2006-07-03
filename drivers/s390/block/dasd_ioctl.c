@@ -9,7 +9,6 @@
  *
  * i/o controls for the dasd driver.
  */
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
 #include <linux/fs.h>
@@ -90,10 +89,10 @@ static int
 dasd_ioctl_quiesce(struct dasd_device *device)
 {
 	unsigned long flags;
-	
+
 	if (!capable (CAP_SYS_ADMIN))
 		return -EACCES;
-	
+
 	DEV_MESSAGE (KERN_DEBUG, device, "%s",
 		     "Quiesce IO on device");
 	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
@@ -110,13 +109,13 @@ static int
 dasd_ioctl_resume(struct dasd_device *device)
 {
 	unsigned long flags;
-	
-	if (!capable (CAP_SYS_ADMIN)) 
+
+	if (!capable (CAP_SYS_ADMIN))
 		return -EACCES;
 
 	DEV_MESSAGE (KERN_DEBUG, device, "%s",
 		     "resume IO on device");
-	
+
 	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	device->stopped &= ~DASD_STOPPED_QUIESCE;
 	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
@@ -287,7 +286,7 @@ dasd_ioctl_information(struct dasd_device *device,
 	dasd_info->open_count = atomic_read(&device->open_count);
 	if (!device->bdev)
 		dasd_info->open_count++;
-	
+
 	/*
 	 * check if device is really formatted
 	 * LDL / CDL was returned by 'fill_info'

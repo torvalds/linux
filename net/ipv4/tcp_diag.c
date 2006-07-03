@@ -11,7 +11,6 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 
 #include <linux/module.h>
 #include <linux/inet_diag.h>
@@ -26,7 +25,10 @@ static void tcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_info *info = _info;
 
-	r->idiag_rqueue = tp->rcv_nxt - tp->copied_seq;
+	if (sk->sk_state == TCP_LISTEN)
+		r->idiag_rqueue = sk->sk_ack_backlog;
+	else
+		r->idiag_rqueue = tp->rcv_nxt - tp->copied_seq;
 	r->idiag_wqueue = tp->write_seq - tp->snd_una;
 	if (info != NULL)
 		tcp_get_info(sk, info);

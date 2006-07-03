@@ -47,11 +47,10 @@ struct acpi_pci_data {
 static void acpi_pci_data_handler(acpi_handle handle, u32 function,
 				  void *context)
 {
-	ACPI_FUNCTION_TRACE("acpi_pci_data_handler");
 
 	/* TBD: Anything we need to do here? */
 
-	return_VOID;
+	return;
 }
 
 /**
@@ -68,25 +67,24 @@ acpi_status acpi_get_pci_id(acpi_handle handle, struct acpi_pci_id *id)
 	struct acpi_device *device = NULL;
 	struct acpi_pci_data *data = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_get_pci_id");
 
 	if (!id)
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid ACPI Bus context for device %s\n",
-				  acpi_device_bid(device)));
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		printk(KERN_ERR PREFIX
+			    "Invalid ACPI Bus context for device %s\n",
+			    acpi_device_bid(device));
+		return AE_NOT_EXIST;
 	}
 
 	status = acpi_get_data(handle, acpi_pci_data_handler, (void **)&data);
 	if (ACPI_FAILURE(status) || !data) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid ACPI-PCI context for device %s\n",
-				  acpi_device_bid(device)));
-		return_ACPI_STATUS(status);
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Invalid ACPI-PCI context for device %s",
+				acpi_device_bid(device)));
+		return status;
 	}
 
 	*id = data->id;
@@ -103,7 +101,7 @@ acpi_status acpi_get_pci_id(acpi_handle handle, struct acpi_pci_id *id)
 			  acpi_device_bid(device), id->segment, id->bus,
 			  id->device, id->function));
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 EXPORT_SYMBOL(acpi_get_pci_id);
@@ -120,14 +118,13 @@ int acpi_pci_bind(struct acpi_device *device)
 	struct pci_dev *dev;
 	struct pci_bus *bus;
 
-	ACPI_FUNCTION_TRACE("acpi_pci_bind");
 
 	if (!device || !device->parent)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	pathname = kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
 	if (!pathname)
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	memset(pathname, 0, ACPI_PATHNAME_MAX);
 	buffer.length = ACPI_PATHNAME_MAX;
 	buffer.pointer = pathname;
@@ -135,7 +132,7 @@ int acpi_pci_bind(struct acpi_device *device)
 	data = kmalloc(sizeof(struct acpi_pci_data), GFP_KERNEL);
 	if (!data) {
 		kfree(pathname);
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	}
 	memset(data, 0, sizeof(struct acpi_pci_data));
 
@@ -151,9 +148,9 @@ int acpi_pci_bind(struct acpi_device *device)
 	status = acpi_get_data(device->parent->handle, acpi_pci_data_handler,
 			       (void **)&pdata);
 	if (ACPI_FAILURE(status) || !pdata || !pdata->bus) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid ACPI-PCI context for parent device %s\n",
-				  acpi_device_bid(device->parent)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Invalid ACPI-PCI context for parent device %s",
+				acpi_device_bid(device->parent)));
 		result = -ENODEV;
 		goto end;
 	}
@@ -206,10 +203,10 @@ int acpi_pci_bind(struct acpi_device *device)
 		goto end;
 	}
 	if (!data->dev->bus) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Device %02x:%02x:%02x.%02x has invalid 'bus' field\n",
-				  data->id.segment, data->id.bus,
-				  data->id.device, data->id.function));
+		printk(KERN_ERR PREFIX
+			    "Device %02x:%02x:%02x.%02x has invalid 'bus' field\n",
+			    data->id.segment, data->id.bus,
+			    data->id.device, data->id.function);
 		result = -ENODEV;
 		goto end;
 	}
@@ -237,9 +234,9 @@ int acpi_pci_bind(struct acpi_device *device)
 	 */
 	status = acpi_attach_data(device->handle, acpi_pci_data_handler, data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to attach ACPI-PCI context to device %s\n",
-				  acpi_device_bid(device)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to attach ACPI-PCI context to device %s",
+				acpi_device_bid(device)));
 		result = -ENODEV;
 		goto end;
 	}
@@ -269,7 +266,7 @@ int acpi_pci_bind(struct acpi_device *device)
 	if (result)
 		kfree(data);
 
-	return_VALUE(result);
+	return result;
 }
 
 int acpi_pci_unbind(struct acpi_device *device)
@@ -280,14 +277,13 @@ int acpi_pci_unbind(struct acpi_device *device)
 	char *pathname = NULL;
 	struct acpi_buffer buffer = { 0, NULL };
 
-	ACPI_FUNCTION_TRACE("acpi_pci_unbind");
 
 	if (!device || !device->parent)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	pathname = (char *)kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
 	if (!pathname)
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	memset(pathname, 0, ACPI_PATHNAME_MAX);
 
 	buffer.length = ACPI_PATHNAME_MAX;
@@ -301,18 +297,18 @@ int acpi_pci_unbind(struct acpi_device *device)
 	    acpi_get_data(device->handle, acpi_pci_data_handler,
 			  (void **)&data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to get data from device %s\n",
-				  acpi_device_bid(device)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to get data from device %s",
+				acpi_device_bid(device)));
 		result = -ENODEV;
 		goto end;
 	}
 
 	status = acpi_detach_data(device->handle, acpi_pci_data_handler);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to detach data from device %s\n",
-				  acpi_device_bid(device)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to detach data from device %s",
+				acpi_device_bid(device)));
 		result = -ENODEV;
 		goto end;
 	}
@@ -322,7 +318,7 @@ int acpi_pci_unbind(struct acpi_device *device)
 	kfree(data);
 
       end:
-	return_VALUE(result);
+	return result;
 }
 
 int
@@ -335,11 +331,10 @@ acpi_pci_bind_root(struct acpi_device *device,
 	char *pathname = NULL;
 	struct acpi_buffer buffer = { 0, NULL };
 
-	ACPI_FUNCTION_TRACE("acpi_pci_bind_root");
 
 	pathname = (char *)kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
 	if (!pathname)
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	memset(pathname, 0, ACPI_PATHNAME_MAX);
 
 	buffer.length = ACPI_PATHNAME_MAX;
@@ -347,13 +342,13 @@ acpi_pci_bind_root(struct acpi_device *device,
 
 	if (!device || !id || !bus) {
 		kfree(pathname);
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 	}
 
 	data = kmalloc(sizeof(struct acpi_pci_data), GFP_KERNEL);
 	if (!data) {
 		kfree(pathname);
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	}
 	memset(data, 0, sizeof(struct acpi_pci_data));
 
@@ -369,9 +364,9 @@ acpi_pci_bind_root(struct acpi_device *device,
 
 	status = acpi_attach_data(device->handle, acpi_pci_data_handler, data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to attach ACPI-PCI context to device %s\n",
-				  pathname));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to attach ACPI-PCI context to device %s",
+				pathname));
 		result = -ENODEV;
 		goto end;
 	}
@@ -381,5 +376,5 @@ acpi_pci_bind_root(struct acpi_device *device,
 	if (result != 0)
 		kfree(data);
 
-	return_VALUE(result);
+	return result;
 }

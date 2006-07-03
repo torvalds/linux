@@ -137,8 +137,6 @@
  */
 #define u32 unsigned int
 
-#define lapic ((volatile struct local_apic *)APIC_BASE)
-
 struct local_apic {
 
 /*000*/	struct { u32 __reserved[4]; } __reserved_01;

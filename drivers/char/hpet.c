@@ -11,7 +11,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -396,7 +395,7 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 
 		sprintf(devp->hd_name, "hpet%d", (int)(devp - hpetp->hp_dev));
 		irq_flags = devp->hd_flags & HPET_SHARED_IRQ
-						? SA_SHIRQ : SA_INTERRUPT;
+						? IRQF_SHARED : IRQF_DISABLED;
 		if (request_irq(irq, hpet_interrupt, irq_flags,
 				devp->hd_name, (void *)devp)) {
 			printk(KERN_ERR "hpet: IRQ %d is not free\n", irq);
@@ -925,11 +924,8 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 	status = acpi_resource_to_address64(res, &addr);
 
 	if (ACPI_SUCCESS(status)) {
-		unsigned long size;
-
-		size = addr.maximum - addr.minimum + 1;
 		hdp->hd_phys_address = addr.minimum;
-		hdp->hd_address = ioremap(addr.minimum, size);
+		hdp->hd_address = ioremap(addr.minimum, addr.address_length);
 
 		if (hpet_is_known(hdp)) {
 			printk(KERN_DEBUG "%s: 0x%lx is busy\n",

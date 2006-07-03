@@ -112,39 +112,42 @@ int  tipc_register_media(u32 media_type,
 		goto exit;
 
 	if (!media_name_valid(name)) {
-		warn("Media registration error: illegal name <%s>\n", name);
+		warn("Media <%s> rejected, illegal name\n", name);
 		goto exit;
 	}
 	if (!bcast_addr) {
-		warn("Media registration error: no broadcast address supplied\n");
+		warn("Media <%s> rejected, no broadcast address\n", name);
 		goto exit;
 	}
 	if ((bearer_priority < TIPC_MIN_LINK_PRI) &&
 	    (bearer_priority > TIPC_MAX_LINK_PRI)) {
-		warn("Media registration error: priority %u\n", bearer_priority);
+		warn("Media <%s> rejected, illegal priority (%u)\n", name, 
+		     bearer_priority);
 		goto exit;
 	}
 	if ((link_tolerance < TIPC_MIN_LINK_TOL) || 
 	    (link_tolerance > TIPC_MAX_LINK_TOL)) {
-		warn("Media registration error: tolerance %u\n", link_tolerance);
+		warn("Media <%s> rejected, illegal tolerance (%u)\n", name,
+		     link_tolerance);
 		goto exit;
 	}
 
 	media_id = media_count++;
 	if (media_id >= MAX_MEDIA) {
-		warn("Attempt to register more than %u media\n", MAX_MEDIA);
+		warn("Media <%s> rejected, media limit reached (%u)\n", name,
+		     MAX_MEDIA);
 		media_count--;
 		goto exit;
 	}
 	for (i = 0; i < media_id; i++) {
 		if (media_list[i].type_id == media_type) {
-			warn("Attempt to register second media with type %u\n", 
+			warn("Media <%s> rejected, duplicate type (%u)\n", name,
 			     media_type);
 			media_count--;
 			goto exit;
 		}
 		if (!strcmp(name, media_list[i].name)) {
-			warn("Attempt to re-register media name <%s>\n", name);
+			warn("Media <%s> rejected, duplicate name\n", name);
 			media_count--;
 			goto exit;
 		}
@@ -282,6 +285,9 @@ static struct bearer *bearer_find(const char *name)
 {
 	struct bearer *b_ptr;
 	u32 i;
+
+	if (tipc_mode != TIPC_NET_MODE)
+		return NULL;
 
 	for (i = 0, b_ptr = tipc_bearers; i < MAX_BEARERS; i++, b_ptr++) {
 		if (b_ptr->active && (!strcmp(b_ptr->publ.name, name)))
@@ -475,26 +481,33 @@ int tipc_enable_bearer(const char *name, u32 bcast_scope, u32 priority)
 	u32 i;
 	int res = -EINVAL;
 
-	if (tipc_mode != TIPC_NET_MODE)
+	if (tipc_mode != TIPC_NET_MODE) {
+		warn("Bearer <%s> rejected, not supported in standalone mode\n",
+		     name);
 		return -ENOPROTOOPT;
-
-	if (!bearer_name_validate(name, &b_name) ||
-	    !tipc_addr_domain_valid(bcast_scope) ||
-	    !in_scope(bcast_scope, tipc_own_addr))
+	}
+	if (!bearer_name_validate(name, &b_name)) {
+		warn("Bearer <%s> rejected, illegal name\n", name);
 		return -EINVAL;
-
+	}
+	if (!tipc_addr_domain_valid(bcast_scope) || 
+	    !in_scope(bcast_scope, tipc_own_addr)) {
+		warn("Bearer <%s> rejected, illegal broadcast scope\n", name);
+		return -EINVAL;
+	}
 	if ((priority < TIPC_MIN_LINK_PRI ||
 	     priority > TIPC_MAX_LINK_PRI) &&
-	    (priority != TIPC_MEDIA_LINK_PRI))
+	    (priority != TIPC_MEDIA_LINK_PRI)) {
+		warn("Bearer <%s> rejected, illegal priority\n", name);
 		return -EINVAL;
+	}
 
 	write_lock_bh(&tipc_net_lock);
-	if (!tipc_bearers)
-		goto failed;
 
 	m_ptr = media_find(b_name.media_name);
 	if (!m_ptr) {
-		warn("No media <%s>\n", b_name.media_name);
+		warn("Bearer <%s> rejected, media <%s> not registered\n", name,
+		     b_name.media_name);
 		goto failed;
 	}
 
@@ -510,23 +523,24 @@ restart:
 			continue;
 		}
 		if (!strcmp(name, tipc_bearers[i].publ.name)) {
-			warn("Bearer <%s> already enabled\n", name);
+			warn("Bearer <%s> rejected, already enabled\n", name);
 			goto failed;
 		}
 		if ((tipc_bearers[i].priority == priority) &&
 		    (++with_this_prio > 2)) {
 			if (priority-- == 0) {
-				warn("Third bearer <%s> with priority %u, unable to lower to %u\n",
-				     name, priority + 1, priority);
+				warn("Bearer <%s> rejected, duplicate priority\n",
+				     name);
 				goto failed;
 			}
-			warn("Third bearer <%s> with priority %u, lowering to %u\n",
+			warn("Bearer <%s> priority adjustment required %u->%u\n",
 			     name, priority + 1, priority);
 			goto restart;
 		}
 	}
 	if (bearer_id >= MAX_BEARERS) {
-		warn("Attempt to enable more than %d bearers\n", MAX_BEARERS);
+		warn("Bearer <%s> rejected, bearer limit reached (%u)\n", 
+		     name, MAX_BEARERS);
 		goto failed;
 	}
 
@@ -536,7 +550,7 @@ restart:
 	strcpy(b_ptr->publ.name, name);
 	res = m_ptr->enable_bearer(&b_ptr->publ);
 	if (res) {
-		warn("Failed to enable bearer <%s>\n", name);
+		warn("Bearer <%s> rejected, enable failure (%d)\n", name, -res);
 		goto failed;
 	}
 
@@ -552,7 +566,7 @@ restart:
 		b_ptr->link_req = tipc_disc_init_link_req(b_ptr, &m_ptr->bcast_addr,
 							  bcast_scope, 2);
 	}
-	b_ptr->publ.lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&b_ptr->publ.lock);
 	write_unlock_bh(&tipc_net_lock);
 	info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
 	     name, addr_string_fill(addr_string, bcast_scope), priority);
@@ -573,9 +587,6 @@ int tipc_block_bearer(const char *name)
 	struct link *l_ptr;
 	struct link *temp_l_ptr;
 
-	if (tipc_mode != TIPC_NET_MODE)
-		return -ENOPROTOOPT;
-
 	read_lock_bh(&tipc_net_lock);
 	b_ptr = bearer_find(name);
 	if (!b_ptr) {
@@ -584,6 +595,7 @@ int tipc_block_bearer(const char *name)
 		return -EINVAL;
 	}
 
+	info("Blocking bearer <%s>\n", name);
 	spin_lock_bh(&b_ptr->publ.lock);
 	b_ptr->publ.blocked = 1;
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
@@ -595,7 +607,6 @@ int tipc_block_bearer(const char *name)
 	}
 	spin_unlock_bh(&b_ptr->publ.lock);
 	read_unlock_bh(&tipc_net_lock);
-	info("Blocked bearer <%s>\n", name);
 	return TIPC_OK;
 }
 
@@ -611,15 +622,13 @@ static int bearer_disable(const char *name)
 	struct link *l_ptr;
 	struct link *temp_l_ptr;
 
-	if (tipc_mode != TIPC_NET_MODE)
-		return -ENOPROTOOPT;
-
 	b_ptr = bearer_find(name);
 	if (!b_ptr) {
 		warn("Attempt to disable unknown bearer <%s>\n", name);
 		return -EINVAL;
 	}
 
+	info("Disabling bearer <%s>\n", name);
 	tipc_disc_stop_link_req(b_ptr->link_req);
 	spin_lock_bh(&b_ptr->publ.lock);
 	b_ptr->link_req = NULL;
@@ -635,7 +644,6 @@ static int bearer_disable(const char *name)
 		tipc_link_delete(l_ptr);
 	}
 	spin_unlock_bh(&b_ptr->publ.lock);
-	info("Disabled bearer <%s>\n", name);
 	memset(b_ptr, 0, sizeof(struct bearer));
 	return TIPC_OK;
 }

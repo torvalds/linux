@@ -34,7 +34,6 @@
 **		        from within kupdate, it will ignore the immediate flag
 */
 
-#include <linux/config.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
@@ -834,8 +833,7 @@ static int write_ordered_buffers(spinlock_t * lock,
 		get_bh(bh);
 		if (test_set_buffer_locked(bh)) {
 			if (!buffer_dirty(bh)) {
-				list_del_init(&jh->list);
-				list_add(&jh->list, &tmp);
+				list_move(&jh->list, &tmp);
 				goto loop_next;
 			}
 			spin_unlock(lock);
@@ -855,8 +853,7 @@ static int write_ordered_buffers(spinlock_t * lock,
 			ret = -EIO;
 		}
 		if (buffer_dirty(bh)) {
-			list_del_init(&jh->list);
-			list_add(&jh->list, &tmp);
+			list_move(&jh->list, &tmp);
 			add_to_chunk(&chunk, bh, lock, write_ordered_chunk);
 		} else {
 			reiserfs_free_jh(bh);

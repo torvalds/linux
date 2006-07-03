@@ -14,10 +14,7 @@
 #define NR_IRQS		256
 #define NR_IRQ_VECTORS	NR_IRQS
 
-/*
- * IRQ line status macro IRQ_PER_CPU is used
- */
-#define ARCH_HAS_IRQ_PER_CPU
+#define IRQF_PERCPU	0x02000000
 
 static __inline__ int
 irq_canonicalize (int irq)

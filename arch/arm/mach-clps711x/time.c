@@ -19,6 +19,7 @@
 #include <linux/timex.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/sched.h>
 
 #include <asm/hardware.h>
@@ -57,7 +58,7 @@ p720t_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction clps711x_timer_irq = {
 	.name		= "CLPS711x Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= p720t_timer_interrupt,
 };
 

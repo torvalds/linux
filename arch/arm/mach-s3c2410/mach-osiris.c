@@ -95,8 +95,7 @@ static struct s3c24xx_uart_clksrc osiris_serial_clocks[] = {
 	}
 };
 
-
-static struct s3c2410_uartcfg osiris_uartcfgs[] = {
+static struct s3c2410_uartcfg osiris_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport	     = 0,
 		.flags	     = 0,
@@ -107,7 +106,7 @@ static struct s3c2410_uartcfg osiris_uartcfgs[] = {
 		.clocks_size = ARRAY_SIZE(osiris_serial_clocks)
 	},
 	[1] = {
-		.hwport	     = 2,
+		.hwport	     = 1,
 		.flags	     = 0,
 		.ucon	     = UCON,
 		.ulcon	     = ULCON,

@@ -7,7 +7,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/config.h>
 
 #include <asm/unistd.h>
 
@@ -271,7 +270,7 @@ ENTRY(sys_call_table)
 @ r8 = syscall table
 		.type	sys_syscall, #function
 sys_syscall:
-		eor	scno, r0, #__NR_OABI_SYSCALL_BASE
+		bic	scno, r0, #__NR_OABI_SYSCALL_BASE
 		cmp	scno, #__NR_syscall - __NR_SYSCALL_BASE
 		cmpne	scno, #NR_syscalls	@ check range
 		stmloia	sp, {r5, r6}		@ shuffle args
@@ -340,7 +339,7 @@ sys_mmap2:
 		streq	r5, [sp, #4]
 		beq	do_mmap2
 		mov	r0, #-EINVAL
-		RETINSTR(mov,pc, lr)
+		mov	pc, lr
 #else
 		str	r5, [sp, #4]
 		b	do_mmap2

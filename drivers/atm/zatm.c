@@ -3,7 +3,6 @@
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -1271,7 +1270,7 @@ static int __init zatm_start(struct atm_dev *dev)
 	zatm_dev->rx_map = zatm_dev->tx_map = NULL;
  	for (i = 0; i < NR_MBX; i++)
  		zatm_dev->mbx_start[i] = 0;
- 	error = request_irq(zatm_dev->irq, zatm_int, SA_SHIRQ, DEV_LABEL, dev);
+ 	error = request_irq(zatm_dev->irq, zatm_int, IRQF_SHARED, DEV_LABEL, dev);
 	if (error < 0) {
  		printk(KERN_ERR DEV_LABEL "(itf %d): IRQ%d is already in use\n",
  		    dev->number,zatm_dev->irq);

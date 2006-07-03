@@ -12,7 +12,6 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
@@ -199,10 +198,6 @@ void switch_stab(struct task_struct *tsk, struct mm_struct *mm)
 	asm volatile("sync; slbia; sync":::"memory");
 
 	__get_cpu_var(stab_cache_ptr) = 0;
-
-#ifdef CONFIG_PPC_64K_PAGES
-	get_paca()->pgdir = mm->pgd;
-#endif /* CONFIG_PPC_64K_PAGES */
 
 	/* Now preload some entries for the new task */
 	if (test_tsk_thread_flag(tsk, TIF_32BIT))

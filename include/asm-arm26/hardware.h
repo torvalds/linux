@@ -16,7 +16,6 @@
 #ifndef __ASM_HARDWARE_H
 #define __ASM_HARDWARE_H
 
-#include <linux/config.h>
 
 
 /*

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -54,6 +55,8 @@ struct ipath_layer_counters {
 	u64 port_rcv_data;
 	u64 port_xmit_packets;
 	u64 port_rcv_packets;
+	u32 local_link_integrity_errors;
+	u32 excessive_buffer_overrun_errors;
 };
 
 /*
@@ -126,7 +129,7 @@ u16 ipath_layer_get_bcast(struct ipath_devdata *dd);
 u32 ipath_layer_get_cr_errpkey(struct ipath_devdata *dd);
 int ipath_layer_set_linkstate(struct ipath_devdata *dd, u8 state);
 int ipath_layer_set_mtu(struct ipath_devdata *, u16);
-int ipath_set_sps_lid(struct ipath_devdata *, u32, u8);
+int ipath_set_lid(struct ipath_devdata *, u32, u8);
 int ipath_layer_send_hdr(struct ipath_devdata *dd,
 			 struct ether_header *hdr);
 int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,
@@ -143,11 +146,13 @@ int ipath_layer_want_buffer(struct ipath_devdata *dd);
 int ipath_layer_set_guid(struct ipath_devdata *, __be64 guid);
 __be64 ipath_layer_get_guid(struct ipath_devdata *);
 u32 ipath_layer_get_nguid(struct ipath_devdata *);
-int ipath_layer_query_device(struct ipath_devdata *, u32 * vendor,
-			     u32 * boardrev, u32 * majrev, u32 * minrev);
+u32 ipath_layer_get_majrev(struct ipath_devdata *);
+u32 ipath_layer_get_minrev(struct ipath_devdata *);
+u32 ipath_layer_get_pcirev(struct ipath_devdata *);
 u32 ipath_layer_get_flags(struct ipath_devdata *dd);
 struct device *ipath_layer_get_device(struct ipath_devdata *dd);
 u16 ipath_layer_get_deviceid(struct ipath_devdata *dd);
+u32 ipath_layer_get_vendorid(struct ipath_devdata *);
 u64 ipath_layer_get_lastibcstat(struct ipath_devdata *dd);
 u32 ipath_layer_get_ibmtu(struct ipath_devdata *dd);
 int ipath_layer_enable_timer(struct ipath_devdata *dd);

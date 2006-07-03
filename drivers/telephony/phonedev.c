@@ -28,7 +28,6 @@
 
 #include <linux/kmod.h>
 #include <linux/sem.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/mutex.h>
 
 #define PHONE_NUM_DEVICES	256
@@ -106,8 +105,6 @@ int phone_register_device(struct phone_device *p, int unit)
 		if (phone_device[i] == NULL) {
 			phone_device[i] = p;
 			p->minor = i;
-			devfs_mk_cdev(MKDEV(PHONE_MAJOR,i),
-				S_IFCHR|S_IRUSR|S_IWUSR, "phone/%d", i);
 			mutex_unlock(&phone_lock);
 			return 0;
 		}
@@ -125,7 +122,6 @@ void phone_unregister_device(struct phone_device *pfd)
 	mutex_lock(&phone_lock);
 	if (phone_device[pfd->minor] != pfd)
 		panic("phone: bad unregister");
-	devfs_remove("phone/%d", pfd->minor);
 	phone_device[pfd->minor] = NULL;
 	mutex_unlock(&phone_lock);
 }

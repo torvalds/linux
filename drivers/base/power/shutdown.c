@@ -8,7 +8,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/device.h>
 #include <asm/semaphore.h>
 

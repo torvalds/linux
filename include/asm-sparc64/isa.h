@@ -9,37 +9,32 @@
 
 #include <asm/pbm.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 
 struct sparc_isa_bridge;
 
 struct sparc_isa_device {
+	struct of_device	ofdev;
 	struct sparc_isa_device	*next;
 	struct sparc_isa_device	*child;
 	struct sparc_isa_bridge	*bus;
-	int			prom_node;
-	char			prom_name[64];
-	char			compatible[64];
+	struct device_node	*prom_node;
 	struct resource		resource;
 	unsigned int		irq;
 };
+#define to_isa_device(d) container_of(d, struct sparc_isa_device, ofdev.dev)
 
 struct sparc_isa_bridge {
+	struct of_device	ofdev;
 	struct sparc_isa_bridge	*next;
 	struct sparc_isa_device	*devices;
 	struct pci_pbm_info	*parent;
 	struct pci_dev		*self;
 	int			index;
-	int			prom_node;
-	char			prom_name[64];
-#define linux_prom_isa_ranges linux_prom_ebus_ranges
-	struct linux_prom_isa_ranges	isa_ranges[PROMREG_MAX];
-	int			num_isa_ranges;
-#define linux_prom_isa_intmap	linux_prom_ebus_intmap
-	struct linux_prom_isa_intmap	isa_intmap[PROMREG_MAX];
-	int			num_isa_intmap;
-#define linux_prom_isa_intmask	linux_prom_ebus_intmask
-	struct linux_prom_isa_intmap	isa_intmask;
+	struct device_node	*prom_node;
 };
+#define to_isa_bridge(d) container_of(d, struct sparc_isa_bridge, ofdev.dev)
 
 extern struct sparc_isa_bridge	*isa_chain;
 

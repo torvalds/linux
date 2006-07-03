@@ -35,32 +35,15 @@
 #define TCE_PAGE_SIZE	(1 << TCE_SHIFT)
 #define TCE_PAGE_FACTOR	(PAGE_SHIFT - TCE_SHIFT)
 
+#define TCE_ENTRY_SIZE		8		/* each TCE is 64 bits */
 
-/* tce_entry
- * Used by pSeries (SMP) and iSeries/pSeries LPAR, but there it's
- * abstracted so layout is irrelevant.
- */
-union tce_entry {
-   	unsigned long te_word;
-	struct {
-		unsigned int  tb_cacheBits :6;	/* Cache hash bits - not used */
-		unsigned int  tb_rsvd      :6;
-		unsigned long tb_rpn       :40;	/* Real page number */
-		unsigned int  tb_valid     :1;	/* Tce is valid (vb only) */
-		unsigned int  tb_allio     :1;	/* Tce is valid for all lps (vb only) */
-		unsigned int  tb_lpindex   :8;	/* LpIndex for user of TCE (vb only) */
-		unsigned int  tb_pciwr     :1;	/* Write allowed (pci only) */
-		unsigned int  tb_rdwr      :1;	/* Read allowed  (pci), Write allowed (vb) */
-	} te_bits;
-#define te_cacheBits te_bits.tb_cacheBits
-#define te_rpn       te_bits.tb_rpn
-#define te_valid     te_bits.tb_valid
-#define te_allio     te_bits.tb_allio
-#define te_lpindex   te_bits.tb_lpindex
-#define te_pciwr     te_bits.tb_pciwr
-#define te_rdwr      te_bits.tb_rdwr
-};
-
+#define TCE_RPN_MASK		0xfffffffffful  /* 40-bit RPN (4K pages) */
+#define TCE_RPN_SHIFT		12
+#define TCE_VALID		0x800		/* TCE valid */
+#define TCE_ALLIO		0x400		/* TCE valid for all lpars */
+#define TCE_PCI_WRITE		0x2		/* write from PCI allowed */
+#define TCE_PCI_READ		0x1		/* read from PCI allowed */
+#define TCE_VB_WRITE		0x1		/* write from VB allowed */
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_TCE_H */

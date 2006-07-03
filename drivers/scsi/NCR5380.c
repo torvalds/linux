@@ -296,7 +296,7 @@ static __inline__ void initialize_SCp(Scsi_Cmnd * cmd)
 	 */
 
 	if (cmd->use_sg) {
-		cmd->SCp.buffer = (struct scatterlist *) cmd->buffer;
+		cmd->SCp.buffer = (struct scatterlist *) cmd->request_buffer;
 		cmd->SCp.buffers_residual = cmd->use_sg - 1;
 		cmd->SCp.ptr = page_address(cmd->SCp.buffer->page)+
 			       cmd->SCp.buffer->offset;
@@ -500,7 +500,7 @@ static void NCR5380_print_phase(struct Scsi_Host *instance)
 /* 
  * Function : int should_disconnect (unsigned char cmd)
  *
- * Purpose : decide weather a command would normally disconnect or 
+ * Purpose : decide whether a command would normally disconnect or 
  *      not, since if it won't disconnect we should go to sleep.
  *
  * Input : cmd - opcode of SCSI command
@@ -585,7 +585,7 @@ static int __init NCR5380_probe_irq(struct Scsi_Host *instance, int possible)
 	NCR5380_setup(instance);
 
 	for (trying_irqs = i = 0, mask = 1; i < 16; ++i, mask <<= 1)
-		if ((mask & possible) && (request_irq(i, &probe_intr, SA_INTERRUPT, "NCR-probe", NULL) == 0))
+		if ((mask & possible) && (request_irq(i, &probe_intr, IRQF_DISABLED, "NCR-probe", NULL) == 0))
 			trying_irqs |= mask;
 
 	timeout = jiffies + (250 * HZ / 1000);

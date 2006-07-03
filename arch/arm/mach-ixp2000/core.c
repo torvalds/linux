@@ -14,12 +14,12 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/bitops.h>
@@ -211,7 +211,8 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/* clear timer 1 */
 	ixp2000_reg_wrb(IXP2000_T1_CLR, 1);
 
-	while ((next_jiffy_time - *missing_jiffy_timer_csr) > ticks_per_jiffy) {
+	while ((signed long)(next_jiffy_time - *missing_jiffy_timer_csr)
+							>= ticks_per_jiffy) {
 		timer_tick(regs);
 		next_jiffy_time -= ticks_per_jiffy;
 	}
@@ -223,7 +224,7 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction ixp2000_timer_irq = {
 	.name		= "IXP2000 Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= ixp2000_timer_interrupt,
 };
 
@@ -301,6 +302,7 @@ void gpio_line_config(int line, int direction)
 	}
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL(gpio_line_config);
 
 
 /*************************************************************************
@@ -407,7 +409,7 @@ static void ixp2000_err_irq_handler(unsigned int irq, struct irqdesc *desc,  str
 	for(i = 31; i >= 0; i--) {
 		if(status & (1 << i)) {
 			desc = irq_desc + IRQ_IXP2000_DRAM0_MIN_ERR + i;
-			desc->handle(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc, regs);
+			desc_handle_irq(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc, regs);
 		}
 	}
 }

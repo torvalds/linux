@@ -476,7 +476,7 @@ static inline int cma_zero_addr(struct sockaddr *addr)
 	else {
 		ip6 = &((struct sockaddr_in6 *) addr)->sin6_addr;
 		return (ip6->s6_addr32[0] | ip6->s6_addr32[1] |
-			ip6->s6_addr32[3] | ip6->s6_addr32[4]) == 0;
+			ip6->s6_addr32[2] | ip6->s6_addr32[3]) == 0;
 	}
 }
 

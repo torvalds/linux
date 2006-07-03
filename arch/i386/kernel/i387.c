@@ -8,7 +8,6 @@
  *	Gareth Hughes <gareth@valinux.com>, May 2000
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <asm/processor.h>
@@ -25,7 +24,7 @@
 #define HAVE_HWFP 1
 #endif
 
-static unsigned long mxcsr_feature_mask = 0xffffffff;
+static unsigned long mxcsr_feature_mask __read_mostly = 0xffffffff;
 
 void mxcsr_feature_mask_init(void)
 {

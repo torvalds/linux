@@ -10,7 +10,6 @@
 /*
  * This handles all read/write requests to block devices
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/backing-dev.h>
@@ -638,7 +637,7 @@ void blk_queue_bounce_limit(request_queue_t *q, u64 dma_addr)
 	/* Assume anything <= 4GB can be handled by IOMMU.
 	   Actually some IOMMUs can handle everything, but I don't
 	   know of a way to test this here. */
-	if (bounce_pfn < (0xffffffff>>PAGE_SHIFT))
+	if (bounce_pfn < (min_t(u64,0xffffffff,BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
 		dma = 1;
 	q->bounce_pfn = max_low_pfn;
 #else
@@ -1663,6 +1662,8 @@ static void blk_unplug_timeout(unsigned long data)
  **/
 void blk_start_queue(request_queue_t *q)
 {
+	WARN_ON(!irqs_disabled());
+
 	clear_bit(QUEUE_FLAG_STOPPED, &q->queue_flags);
 
 	/*
@@ -1878,7 +1879,8 @@ EXPORT_SYMBOL(blk_alloc_queue_node);
  *    get dealt with eventually.
  *
  *    The queue spin lock must be held while manipulating the requests on the
- *    request queue.
+ *    request queue; this lock will be taken also from interrupt context, so irq
+ *    disabling is needed for it.
  *
  *    Function returns a pointer to the initialized request queue, or NULL if
  *    it didn't succeed.
@@ -2742,7 +2744,7 @@ static int attempt_merge(request_queue_t *q, struct request *req,
 		return 0;
 
 	/*
-	 * not contigious
+	 * not contiguous
 	 */
 	if (req->sector + req->nr_sectors != next->sector)
 		return 0;
@@ -2823,6 +2825,9 @@ static void init_request_from_bio(struct request *req, struct bio *bio)
 	 */
 	if (unlikely(bio_barrier(bio)))
 		req->flags |= (REQ_HARDBARRIER | REQ_NOMERGE);
+
+	if (bio_sync(bio))
+		req->flags |= REQ_RW_SYNC;
 
 	req->errors = 0;
 	req->hard_sector = req->sector = bio->bi_sector;
@@ -3111,9 +3116,9 @@ void submit_bio(int rw, struct bio *bio)
 	BIO_BUG_ON(!bio->bi_io_vec);
 	bio->bi_rw |= rw;
 	if (rw & WRITE)
-		mod_page_state(pgpgout, count);
+		count_vm_events(PGPGOUT, count);
 	else
-		mod_page_state(pgpgin, count);
+		count_vm_events(PGPGIN, count);
 
 	if (unlikely(block_dump)) {
 		char b[BDEVNAME_SIZE];
@@ -3359,12 +3364,11 @@ EXPORT_SYMBOL(end_that_request_chunk);
  */
 static void blk_done_softirq(struct softirq_action *h)
 {
-	struct list_head *cpu_list;
-	LIST_HEAD(local_list);
+	struct list_head *cpu_list, local_list;
 
 	local_irq_disable();
 	cpu_list = &__get_cpu_var(blk_cpu_done);
-	list_splice_init(cpu_list, &local_list);
+	list_replace_init(cpu_list, &local_list);
 	local_irq_enable();
 
 	while (!list_empty(&local_list)) {
@@ -3398,7 +3402,7 @@ static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 }
 
 
-static struct notifier_block blk_cpu_notifier = {
+static struct notifier_block __devinitdata blk_cpu_notifier = {
 	.notifier_call	= blk_cpu_notify,
 };
 
@@ -3410,7 +3414,7 @@ static struct notifier_block blk_cpu_notifier = {
  *
  * Description:
  *     Ends all I/O on a request. It does not handle partial completions,
- *     unless the driver actually implements this in its completionc callback
+ *     unless the driver actually implements this in its completion callback
  *     through requeueing. Theh actual completion happens out-of-order,
  *     through a softirq handler. The user must have registered a completion
  *     callback through blk_queue_softirq_done().
@@ -3536,9 +3540,7 @@ int __init blk_dev_init(void)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));
 
 	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq, NULL);
-#ifdef CONFIG_HOTPLUG_CPU
-	register_cpu_notifier(&blk_cpu_notifier);
-#endif
+	register_hotcpu_notifier(&blk_cpu_notifier);
 
 	blk_max_low_pfn = max_low_pfn;
 	blk_max_pfn = max_pfn;

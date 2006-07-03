@@ -260,7 +260,7 @@ static int __init xt_tcpudp_init(void)
 	return ret;
 
 out_unreg_udp:
-	xt_unregister_match(&tcp_matchstruct);
+	xt_unregister_match(&udp_matchstruct);
 out_unreg_tcp6:
 	xt_unregister_match(&tcp6_matchstruct);
 out_unreg_tcp:

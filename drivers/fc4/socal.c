@@ -761,13 +761,13 @@ static inline void socal_init(struct sbus_dev *sdev, int no)
 	
 	irq = sdev->irqs[0];
 
-	if (request_irq (irq, socal_intr, SA_SHIRQ, "SOCAL", (void *)s)) {
+	if (request_irq (irq, socal_intr, IRQF_SHARED, "SOCAL", (void *)s)) {
 		socal_printk ("Cannot order irq %d to go\n", irq);
 		socals = s->next;
 		return;
 	}
 
-	SOD(("SOCAL uses IRQ %s\n", __irq_itoa(irq)))
+	SOD(("SOCAL uses IRQ %d\n", irq))
 	
 	s->port[0].fc.irq = irq;
 	s->port[1].fc.irq = irq;

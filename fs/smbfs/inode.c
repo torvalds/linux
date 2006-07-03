@@ -7,7 +7,6 @@
  *  Please add a note about your changes to smbfs in the ChangeLog file.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/time.h>
 #include <linux/kernel.h>
@@ -48,7 +47,7 @@
 
 static void smb_delete_inode(struct inode *);
 static void smb_put_super(struct super_block *);
-static int  smb_statfs(struct super_block *, struct kstatfs *);
+static int  smb_statfs(struct dentry *, struct kstatfs *);
 static int  smb_show_options(struct seq_file *, struct vfsmount *);
 
 static kmem_cache_t *smb_inode_cachep;
@@ -641,13 +640,13 @@ out_no_server:
 }
 
 static int
-smb_statfs(struct super_block *sb, struct kstatfs *buf)
+smb_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	int result;
 	
 	lock_kernel();
 
-	result = smb_proc_dskattr(sb, buf);
+	result = smb_proc_dskattr(dentry, buf);
 
 	unlock_kernel();
 
@@ -782,10 +781,10 @@ out:
 	return error;
 }
 
-static struct super_block *smb_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int smb_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_nodev(fs_type, flags, data, smb_fill_super);
+	return get_sb_nodev(fs_type, flags, data, smb_fill_super, mnt);
 }
 
 static struct file_system_type smb_fs_type = {

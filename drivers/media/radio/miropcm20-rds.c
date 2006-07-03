@@ -48,7 +48,7 @@ static int rds_f_release(struct inode *in, struct file *fi)
 
 static void print_matrix(char *ch, char out[])
 {
-        int j;
+	int j;
 
 	for (j=7; j>=0; j--) {
 		 out[7-j] = ((*ch >> j) & 0x1) + '0';
@@ -115,7 +115,6 @@ static struct file_operations rds_fops = {
 static struct miscdevice rds_miscdev = {
 	.minor		= MISC_DYNAMIC_MINOR,
 	.name		= "radiotext",
-	.devfs_name	= "v4l/rds/radiotext",
 	.fops		= &rds_fops,
 };
 

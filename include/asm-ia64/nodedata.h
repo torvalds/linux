@@ -11,7 +11,6 @@
 #ifndef _ASM_IA64_NODEDATA_H
 #define _ASM_IA64_NODEDATA_H
 
-#include <linux/config.h>
 #include <linux/numa.h>
 
 #include <asm/percpu.h>
@@ -46,6 +45,18 @@ struct ia64_node_data {
  *		  completes.
  */
 #define NODE_DATA(nid)		(local_node_data->pg_data_ptrs[nid])
+
+/*
+ * LOCAL_DATA_ADDR - This is to calculate the address of other node's
+ *		     "local_node_data" at hot-plug phase. The local_node_data
+ *		     is pointed by per_cpu_page. Kernel usually use it for
+ *		     just executing cpu. However, when new node is hot-added,
+ *		     the addresses of local data for other nodes are necessary
+ *		     to update all of them.
+ */
+#define LOCAL_DATA_ADDR(pgdat)  			\
+	((struct ia64_node_data *)((u64)(pgdat) + 	\
+				   L1_CACHE_ALIGN(sizeof(struct pglist_data))))
 
 #endif /* CONFIG_NUMA */
 

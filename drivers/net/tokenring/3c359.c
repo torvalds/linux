@@ -42,7 +42,6 @@
 
 #define XL_DEBUG 0
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -577,7 +576,7 @@ static int xl_open(struct net_device *dev)
 
 	u16 switchsettings, switchsettings_eeprom  ;
  
-	if(request_irq(dev->irq, &xl_interrupt, SA_SHIRQ , "3c359", dev)) {
+	if(request_irq(dev->irq, &xl_interrupt, IRQF_SHARED , "3c359", dev)) {
 		return -EAGAIN;
 	}
 

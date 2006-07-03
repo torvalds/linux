@@ -1,4 +1,3 @@
-#include <linux/config.h>
 
 /*
  * Preserved registers that are shared between code in ivt.S and
@@ -23,6 +22,7 @@
 
 #define PT(f)		(IA64_PT_REGS_##f##_OFFSET)
 #define SW(f)		(IA64_SWITCH_STACK_##f##_OFFSET)
+#define SOS(f)		(IA64_SAL_OS_STATE_##f##_OFFSET)
 
 #define PT_REGS_SAVES(off)			\
 	.unwabi 3, 'i';				\

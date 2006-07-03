@@ -9,7 +9,6 @@
  * Copyright (C) 2001, 2002, 2003 by Liam Davies (ldavies@agile.tv)
  *
  */
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>

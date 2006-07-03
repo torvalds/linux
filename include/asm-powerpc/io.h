@@ -40,12 +40,6 @@ extern int check_legacy_ioport(unsigned long base_port);
 
 extern unsigned long isa_io_base;
 extern unsigned long pci_io_base;
-extern unsigned long io_page_mask;
-
-#define MAX_ISA_PORT 0x10000
-
-#define _IO_IS_VALID(port) ((port) >= MAX_ISA_PORT || (1 << (port>>PAGE_SHIFT)) \
-			    & io_page_mask)
 
 #ifdef CONFIG_PPC_ISERIES
 /* __raw_* accessors aren't supported on iSeries */

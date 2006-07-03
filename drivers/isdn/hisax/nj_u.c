@@ -5,7 +5,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include "hisax.h"
 #include "icc.h"
@@ -238,7 +237,7 @@ setup_netjet_u(struct IsdnCard *card)
 	cs->BC_Send_Data = &netjet_fill_dma;
 	cs->cardmsg = &NETjet_U_card_msg;
 	cs->irq_func = &netjet_u_interrupt;
-	cs->irq_flags |= SA_SHIRQ;
+	cs->irq_flags |= IRQF_SHARED;
 	ICCVersion(cs, "NETspider-U:");
 	return (1);
 }

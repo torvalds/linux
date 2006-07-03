@@ -17,7 +17,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -467,7 +466,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 	asn1_open(&ctx, security_blob, length);
 
 	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-		cFYI(1, ("Error decoding negTokenInit header "));
+		cFYI(1, ("Error decoding negTokenInit header"));
 		return 0;
 	} else if ((cls != ASN1_APL) || (con != ASN1_CON)
 		   || (tag != ASN1_EOC)) {
@@ -495,7 +494,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 		}
 
 		if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-			cFYI(1, ("Error decoding negTokenInit "));
+			cFYI(1, ("Error decoding negTokenInit"));
 			return 0;
 		} else if ((cls != ASN1_CTX) || (con != ASN1_CON)
 			   || (tag != ASN1_EOC)) {
@@ -505,7 +504,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 		}
 
 		if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-			cFYI(1, ("Error decoding negTokenInit "));
+			cFYI(1, ("Error decoding negTokenInit"));
 			return 0;
 		} else if ((cls != ASN1_UNI) || (con != ASN1_CON)
 			   || (tag != ASN1_SEQ)) {
@@ -515,7 +514,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 		}
 
 		if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-			cFYI(1, ("Error decoding 2nd part of negTokenInit "));
+			cFYI(1, ("Error decoding 2nd part of negTokenInit"));
 			return 0;
 		} else if ((cls != ASN1_CTX) || (con != ASN1_CON)
 			   || (tag != ASN1_EOC)) {
@@ -527,7 +526,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 
 		if (asn1_header_decode
 		    (&ctx, &sequence_end, &cls, &con, &tag) == 0) {
-			cFYI(1, ("Error decoding 2nd part of negTokenInit "));
+			cFYI(1, ("Error decoding 2nd part of negTokenInit"));
 			return 0;
 		} else if ((cls != ASN1_UNI) || (con != ASN1_CON)
 			   || (tag != ASN1_SEQ)) {

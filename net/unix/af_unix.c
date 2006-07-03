@@ -83,7 +83,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -127,6 +126,30 @@ static atomic_t unix_nr_socks = ATOMIC_INIT(0);
 #define unix_sockets_unbound	(&unix_socket_table[UNIX_HASH_SIZE])
 
 #define UNIX_ABSTRACT(sk)	(unix_sk(sk)->addr->hash != UNIX_HASH_SIZE)
+
+#ifdef CONFIG_SECURITY_NETWORK
+static void unix_get_peersec_dgram(struct sk_buff *skb)
+{
+	int err;
+
+	err = security_socket_getpeersec_dgram(skb, UNIXSECDATA(skb),
+					       UNIXSECLEN(skb));
+	if (err)
+		*(UNIXSECDATA(skb)) = NULL;
+}
+
+static inline void unix_set_secdata(struct scm_cookie *scm, struct sk_buff *skb)
+{
+	scm->secdata = *UNIXSECDATA(skb);
+	scm->seclen = *UNIXSECLEN(skb);
+}
+#else
+static void unix_get_peersec_dgram(struct sk_buff *skb)
+{ }
+
+static inline void unix_set_secdata(struct scm_cookie *scm, struct sk_buff *skb)
+{ }
+#endif /* CONFIG_SECURITY_NETWORK */
 
 /*
  *  SMP locking strategy:
@@ -1291,6 +1314,8 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (siocb->scm->fp)
 		unix_attach_fds(siocb->scm, skb);
 
+	unix_get_peersec_dgram(skb);
+
 	skb->h.raw = skb->data;
 	err = memcpy_fromiovec(skb_put(skb,len), msg->msg_iov, len);
 	if (err)
@@ -1570,6 +1595,7 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 		memset(&tmp_scm, 0, sizeof(tmp_scm));
 	}
 	siocb->scm->creds = *UNIXCREDS(skb);
+	unix_set_secdata(siocb->scm, skb);
 
 	if (!(flags & MSG_PEEK))
 	{

@@ -9,7 +9,6 @@
  *    Copyright (C) 2004  Hirokazu Takata <takata at linux-m32r.org>
  */
 
-#include <linux/config.h>
 #include <asm/assembler.h>
 #include <asm/system.h>
 

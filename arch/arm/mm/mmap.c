@@ -1,7 +1,6 @@
 /*
  *  linux/arch/arm/mm/mmap.c
  */
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/mman.h>

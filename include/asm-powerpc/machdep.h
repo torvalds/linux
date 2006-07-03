@@ -9,7 +9,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
@@ -82,6 +81,8 @@ struct machdep_calls {
 	void		(*tce_free)(struct iommu_table *tbl,
 				    long index,
 				    long npages);
+	unsigned long	(*tce_get)(struct iommu_table *tbl,
+				    long index);
 	void		(*tce_flush)(struct iommu_table *tbl);
 	void		(*iommu_dev_setup)(struct pci_dev *dev);
 	void		(*iommu_bus_setup)(struct pci_bus *bus);
@@ -238,6 +239,11 @@ struct machdep_calls {
 	 */
 	void (*machine_kexec)(struct kimage *image);
 #endif /* CONFIG_KEXEC */
+
+#ifdef CONFIG_PCI_MSI
+	int (*enable_msi)(struct pci_dev *pdev);
+	void (*disable_msi)(struct pci_dev *pdev);
+#endif /* CONFIG_PCI_MSI */
 };
 
 extern void power4_idle(void);

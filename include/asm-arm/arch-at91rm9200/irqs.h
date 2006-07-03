@@ -37,8 +37,6 @@
  * symbols in gpio.h for ones handled indirectly as GPIOs.
  * We make provision for 4 banks of GPIO.
  */
-#include <asm/arch/gpio.h>
-
 #define	NR_IRQS		(NR_AIC_IRQS + (4 * 32))
 
 

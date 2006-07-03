@@ -27,7 +27,6 @@
  * MPCBL0010 ATCA computer.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -209,7 +208,7 @@ static int tlclk_open(struct inode *inode, struct file *filp)
 	/* This device is wired through the FPGA IO space of the ATCA blade
 	 * we can't share this IRQ */
 	result = request_irq(telclk_interrupt, &tlclk_interrupt,
-			     SA_INTERRUPT, "telco_clock", tlclk_interrupt);
+			     IRQF_DISABLED, "telco_clock", tlclk_interrupt);
 	if (result == -EBUSY) {
 		printk(KERN_ERR "tlclk: Interrupt can't be reserved.\n");
 		return -EBUSY;
@@ -343,7 +342,7 @@ static ssize_t store_received_ref_clk3b(struct device *d,
 
 	val = (unsigned char)tmp;
 	spin_lock_irqsave(&event_lock, flags);
-	SET_PORT_BITS(TLCLK_REG1, 0xef, val << 1);
+	SET_PORT_BITS(TLCLK_REG1, 0xdf, val << 1);
 	spin_unlock_irqrestore(&event_lock, flags);
 
 	return strnlen(buf, count);

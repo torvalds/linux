@@ -26,6 +26,8 @@
 #include "md5.h"
 #include "cifs_unicode.h"
 #include "cifsproto.h"
+#include <linux/ctype.h>
+#include <linux/random.h>
 
 /* Calculate and return the CIFS signature based on the mac key and the smb pdu */
 /* the 16 byte signature must be allocated by the caller  */
@@ -35,6 +37,8 @@
 
 extern void mdfour(unsigned char *out, unsigned char *in, int n);
 extern void E_md4hash(const unsigned char *passwd, unsigned char *p16);
+extern void SMBencrypt(unsigned char *passwd, unsigned char *c8,
+                       unsigned char *p24);
 	
 static int cifs_calculate_signature(const struct smb_hdr * cifs_pdu, 
 				    const char * key, char * signature)
@@ -45,7 +49,7 @@ static int cifs_calculate_signature(const struct smb_hdr * cifs_pdu,
 		return -EINVAL;
 
 	MD5Init(&context);
-	MD5Update(&context,key,CIFS_SESSION_KEY_SIZE+16);
+	MD5Update(&context,key,CIFS_SESS_KEY_SIZE+16);
 	MD5Update(&context,cifs_pdu->Protocol,cifs_pdu->smb_buf_length);
 	MD5Final(signature,&context);
 	return 0;
@@ -90,7 +94,7 @@ static int cifs_calc_signature2(const struct kvec * iov, int n_vec,
 		return -EINVAL;
 
 	MD5Init(&context);
-	MD5Update(&context,key,CIFS_SESSION_KEY_SIZE+16);
+	MD5Update(&context,key,CIFS_SESS_KEY_SIZE+16);
 	for(i=0;i<n_vec;i++) {
 		if(iov[i].iov_base == NULL) {
 			cERROR(1,("null iovec entry"));
@@ -204,11 +208,12 @@ int cifs_calculate_mac_key(char * key, const char * rn, const char * password)
 
 	E_md4hash(password, temp_key);
 	mdfour(key,temp_key,16);
-	memcpy(key+16,rn, CIFS_SESSION_KEY_SIZE);
+	memcpy(key+16,rn, CIFS_SESS_KEY_SIZE);
 	return 0;
 }
 
-int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, struct nls_table * nls_info)
+int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, 
+				const struct nls_table * nls_info)
 {
 	char temp_hash[16];
 	struct HMACMD5Context ctx;
@@ -225,6 +230,8 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, struct nls_table * nls_
 	user_name_len = strlen(ses->userName);
 	if(user_name_len > MAX_USERNAME_SIZE)
 		return -EINVAL;
+	if(ses->domainName == NULL)
+		return -EINVAL; /* BB should we use CIFS_LINUX_DOM */
 	dom_name_len = strlen(ses->domainName);
 	if(dom_name_len > MAX_USERNAME_SIZE)
 		return -EINVAL;
@@ -259,16 +266,131 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, struct nls_table * nls_
 	kfree(unicode_buf);
 	return 0;
 }
-void CalcNTLMv2_response(const struct cifsSesInfo * ses,char * v2_session_response)
+
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key)
+{
+	int i;
+	char password_with_pad[CIFS_ENCPWD_SIZE];
+
+	if(ses->server == NULL)
+		return;
+
+	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
+	strncpy(password_with_pad, ses->password, CIFS_ENCPWD_SIZE);
+
+	if((ses->server->secMode & SECMODE_PW_ENCRYPT) == 0)
+		if(extended_security & CIFSSEC_MAY_PLNTXT) {
+			memcpy(lnm_session_key, password_with_pad, CIFS_ENCPWD_SIZE); 
+			return;
+		}
+
+	/* calculate old style session key */
+	/* calling toupper is less broken than repeatedly
+	calling nls_toupper would be since that will never
+	work for UTF8, but neither handles multibyte code pages
+	but the only alternative would be converting to UCS-16 (Unicode)
+	(using a routine something like UniStrupr) then
+	uppercasing and then converting back from Unicode - which
+	would only worth doing it if we knew it were utf8. Basically
+	utf8 and other multibyte codepages each need their own strupper
+	function since a byte at a time will ont work. */
+
+	for(i = 0; i < CIFS_ENCPWD_SIZE; i++) {
+		password_with_pad[i] = toupper(password_with_pad[i]);
+	}
+
+	SMBencrypt(password_with_pad, ses->server->cryptKey, lnm_session_key);
+	/* clear password before we return/free memory */
+	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
+}
+#endif /* CIFS_WEAK_PW_HASH */
+
+static int calc_ntlmv2_hash(struct cifsSesInfo *ses, 
+			    const struct nls_table * nls_cp)
+{
+	int rc = 0;
+	int len;
+	char nt_hash[16];
+	struct HMACMD5Context * pctxt;
+	wchar_t * user;
+	wchar_t * domain;
+
+	pctxt = kmalloc(sizeof(struct HMACMD5Context), GFP_KERNEL);
+
+	if(pctxt == NULL)
+		return -ENOMEM;
+
+	/* calculate md4 hash of password */
+	E_md4hash(ses->password, nt_hash);
+
+	/* convert Domainname to unicode and uppercase */
+	hmac_md5_init_limK_to_64(nt_hash, 16, pctxt);
+
+	/* convert ses->userName to unicode and uppercase */
+	len = strlen(ses->userName);
+	user = kmalloc(2 + (len * 2), GFP_KERNEL);
+	if(user == NULL)
+		goto calc_exit_2;
+	len = cifs_strtoUCS(user, ses->userName, len, nls_cp);
+	UniStrupr(user);
+	hmac_md5_update((char *)user, 2*len, pctxt);
+
+	/* convert ses->domainName to unicode and uppercase */
+	if(ses->domainName) {
+		len = strlen(ses->domainName);
+
+        	domain = kmalloc(2 + (len * 2), GFP_KERNEL);
+		if(domain == NULL)
+			goto calc_exit_1;
+		len = cifs_strtoUCS(domain, ses->domainName, len, nls_cp);
+		UniStrupr(domain);
+
+		hmac_md5_update((char *)domain, 2*len, pctxt);
+	
+		kfree(domain);
+	}
+calc_exit_1:
+	kfree(user);
+calc_exit_2:
+	/* BB FIXME what about bytes 24 through 40 of the signing key? 
+	   compare with the NTLM example */
+	hmac_md5_final(ses->server->mac_signing_key, pctxt);
+
+	return rc;
+}
+
+void setup_ntlmv2_rsp(struct cifsSesInfo * ses, char * resp_buf, 
+		      const struct nls_table * nls_cp)
+{
+	int rc;
+	struct ntlmv2_resp * buf = (struct ntlmv2_resp *)resp_buf;
+
+	buf->blob_signature = cpu_to_le32(0x00000101);
+	buf->reserved = 0;
+	buf->time = cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
+	get_random_bytes(&buf->client_chal, sizeof(buf->client_chal));
+	buf->reserved2 = 0;
+	buf->names[0].type = 0;
+	buf->names[0].length = 0;
+
+	/* calculate buf->ntlmv2_hash */
+	rc = calc_ntlmv2_hash(ses, nls_cp);
+	if(rc)
+		cERROR(1,("could not get v2 hash rc %d",rc));
+	CalcNTLMv2_response(ses, resp_buf);
+}
+
+void CalcNTLMv2_response(const struct cifsSesInfo * ses, char * v2_session_response)
 {
 	struct HMACMD5Context context;
+	/* rest of v2 struct already generated */
 	memcpy(v2_session_response + 8, ses->server->cryptKey,8);
-	/* gen_blob(v2_session_response + 16); */
 	hmac_md5_init_limK_to_64(ses->server->mac_signing_key, 16, &context);
 
-	hmac_md5_update(ses->server->cryptKey,8,&context);
-/*	hmac_md5_update(v2_session_response+16)client thing,8,&context); */ /* BB fix */
+	hmac_md5_update(v2_session_response+8, 
+			sizeof(struct ntlmv2_resp) - 8, &context);
 
 	hmac_md5_final(v2_session_response,&context);
-	cifs_dump_mem("v2_sess_rsp: ", v2_session_response, 32); /* BB removeme BB */
+/*	cifs_dump_mem("v2_sess_rsp: ", v2_session_response, 32); */
 }

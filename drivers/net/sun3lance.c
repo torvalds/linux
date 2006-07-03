@@ -55,7 +55,7 @@ static char *version = "sun3lance.c: v1.2 1/12/2001  Sam Creasey (sammy@sammy.ne
 /* sun3/60 addr/irq for the lance chip.  If your sun is different,
    change this. */
 #define LANCE_OBIO 0x120000
-#define LANCE_IRQ IRQ3
+#define LANCE_IRQ IRQ_AUTO_3
 
 /* Debug level:
  *  0 = silent, print only serious errors
@@ -341,7 +341,7 @@ static int __init lance_probe( struct net_device *dev)
 
 	REGA(CSR0) = CSR0_STOP; 
 
-	request_irq(LANCE_IRQ, lance_interrupt, SA_INTERRUPT, "SUN3 Lance", dev);
+	request_irq(LANCE_IRQ, lance_interrupt, IRQF_DISABLED, "SUN3 Lance", dev);
 	dev->irq = (unsigned short)LANCE_IRQ;
 
 

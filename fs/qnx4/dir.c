@@ -11,7 +11,6 @@
  * 20-06-1998 by Frank Denis : Linux 2.1.99+ & dcache support.
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/fs.h>

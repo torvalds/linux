@@ -68,7 +68,6 @@
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 static int max_interrupt_work = 10;
 
-#include <linux/config.h>
 #include <linux/module.h>
 #ifdef CONFIG_MCA
 #include <linux/mca.h>

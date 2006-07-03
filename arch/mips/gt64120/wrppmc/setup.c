@@ -125,7 +125,7 @@ static void wrppmc_setup_serial(void)
 }
 #endif
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	extern void wrppmc_time_init(void);
 	extern void wrppmc_timer_setup(struct irqaction *);

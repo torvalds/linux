@@ -7,18 +7,19 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * S3C2440 Signal Drive Strength Control
- *
- *  Changelog:
- *    11-Aug-2004     BJD     Created file
- *    25-Aug-2004     BJD     Added the _SELECT_* defs for using with functions
+ * S3C2440/S3C2412 Signal Drive Strength Control
 */
 
 
 #ifndef __ASM_ARCH_REGS_DSC_H
 #define __ASM_ARCH_REGS_DSC_H "2440-dsc"
 
-#ifdef CONFIG_CPU_S3C2440
+#if defined(CONFIG_CPU_S3C2412)
+#define S3C2412_DSC0	   S3C2410_GPIOREG(0xdc)
+#define S3C2412_DSC1	   S3C2410_GPIOREG(0xe0)
+#endif
+
+#if defined(CONFIG_CPU_S3C2440)
 
 #define S3C2440_DSC0	   S3C2410_GPIOREG(0xc4)
 #define S3C2440_DSC1	   S3C2410_GPIOREG(0xc8)
@@ -170,7 +171,7 @@
 #define S3C2440_DSC1_CS1_4mA    (3<<2)
 #define S3C2440_DSC1_CS1_MASK   (3<<2)
 
-#define S3C2440_DSC1_CS0        (S3C2440_SELECT_DSC1 | 0
+#define S3C2440_DSC1_CS0        (S3C2440_SELECT_DSC1 | 0)
 #define S3C2440_DSC1_CS0_10mA   (0<<0)
 #define S3C2440_DSC1_CS0_8mA    (1<<0)
 #define S3C2440_DSC1_CS0_6mA    (2<<0)

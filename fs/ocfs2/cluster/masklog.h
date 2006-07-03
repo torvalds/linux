@@ -123,6 +123,17 @@
 #define MLOG_MASK_PREFIX 0
 #endif
 
+/*
+ * When logging is disabled, force the bit test to 0 for anything other
+ * than errors and notices, allowing gcc to remove the code completely.
+ * When enabled, allow all masks.
+ */
+#if defined(CONFIG_OCFS2_DEBUG_MASKLOG)
+#define ML_ALLOWED_BITS ~0
+#else
+#define ML_ALLOWED_BITS (ML_ERROR|ML_NOTICE)
+#endif
+
 #define MLOG_MAX_BITS 64
 
 struct mlog_bits {
@@ -187,7 +198,8 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 
 #define mlog(mask, fmt, args...) do {					\
 	u64 __m = MLOG_MASK_PREFIX | (mask);				\
-	if (__mlog_test_u64(__m, mlog_and_bits) &&			\
+	if ((__m & ML_ALLOWED_BITS) &&					\
+	    __mlog_test_u64(__m, mlog_and_bits) &&			\
 	    !__mlog_test_u64(__m, mlog_not_bits)) {			\
 		if (__m & ML_ERROR)					\
 			__mlog_printk(KERN_ERR, "ERROR: "fmt , ##args);	\
@@ -204,6 +216,7 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 		mlog(ML_ERROR, "status = %lld\n", (long long)_st);	\
 } while (0)
 
+#if defined(CONFIG_OCFS2_DEBUG_MASKLOG)
 #define mlog_entry(fmt, args...) do {					\
 	mlog(ML_ENTRY, "ENTRY:" fmt , ##args);				\
 } while (0)
@@ -247,6 +260,13 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 #define mlog_exit_void() do {						\
 	mlog(ML_EXIT, "EXIT\n");					\
 } while (0)
+#else
+#define mlog_entry(...)  do { } while (0)
+#define mlog_entry_void(...)  do { } while (0)
+#define mlog_exit(...)  do { } while (0)
+#define mlog_exit_ptr(...)  do { } while (0)
+#define mlog_exit_void(...)  do { } while (0)
+#endif  /* defined(CONFIG_OCFS2_DEBUG_MASKLOG) */
 
 #define mlog_bug_on_msg(cond, fmt, args...) do {			\
 	if (cond) {							\

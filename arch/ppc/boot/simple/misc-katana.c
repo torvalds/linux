@@ -9,7 +9,6 @@
  * or implied.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/io.h>
 #include <asm/mv64x60_defs.h>

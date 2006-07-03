@@ -30,7 +30,6 @@
 #define IOC3_NAME	"ioc3-eth"
 #define IOC3_VERSION	"2.6.3-3"
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
@@ -145,7 +144,7 @@ static inline struct sk_buff * ioc3_alloc_skb(unsigned long length,
 static inline unsigned long ioc3_map(void *ptr, unsigned long vdev)
 {
 #ifdef CONFIG_SGI_IP27
-	vdev <<= 58;   /* Shift to PCI64_ATTR_VIRTUAL */
+	vdev <<= 57;   /* Shift to PCI64_ATTR_VIRTUAL */
 
 	return vdev | (0xaUL << PCI64_ATTR_TARG_SHFT) | PCI64_ATTR_PREF |
 	       ((unsigned long)ptr & TO_PHYS_MASK);
@@ -1064,7 +1063,7 @@ static int ioc3_open(struct net_device *dev)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 
-	if (request_irq(dev->irq, ioc3_interrupt, SA_SHIRQ, ioc3_str, dev)) {
+	if (request_irq(dev->irq, ioc3_interrupt, IRQF_SHARED, ioc3_str, dev)) {
 		printk(KERN_ERR "%s: Can't get irq %d\n", dev->name, dev->irq);
 
 		return -EAGAIN;

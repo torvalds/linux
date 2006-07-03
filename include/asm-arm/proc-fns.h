@@ -13,7 +13,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 /*
  * Work out if we need multiple CPU support
@@ -166,6 +165,8 @@
 
 #include <asm/memory.h>
 
+#ifdef CONFIG_MMU
+
 #define cpu_switch_mm(pgd,mm) cpu_do_switch_mm(virt_to_phys(pgd),mm)
 
 #define cpu_get_pgd()	\
@@ -176,6 +177,8 @@
 		pg &= ~0x3fff;				\
 		(pgd_t *)phys_to_virt(pg);		\
 	})
+
+#endif
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

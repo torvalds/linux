@@ -6,7 +6,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -241,7 +240,7 @@ int pnp_check_port(struct pnp_dev * dev, int idx)
 {
 	int tmp;
 	struct pnp_dev *tdev;
-	unsigned long *port, *end, *tport, *tend;
+	resource_size_t *port, *end, *tport, *tend;
 	port = &dev->res.port_resource[idx].start;
 	end = &dev->res.port_resource[idx].end;
 
@@ -297,7 +296,7 @@ int pnp_check_mem(struct pnp_dev * dev, int idx)
 {
 	int tmp;
 	struct pnp_dev *tdev;
-	unsigned long *addr, *end, *taddr, *tend;
+	resource_size_t *addr, *end, *taddr, *tend;
 	addr = &dev->res.mem_resource[idx].start;
 	end = &dev->res.mem_resource[idx].end;
 
@@ -358,7 +357,7 @@ int pnp_check_irq(struct pnp_dev * dev, int idx)
 {
 	int tmp;
 	struct pnp_dev *tdev;
-	unsigned long * irq = &dev->res.irq_resource[idx].start;
+	resource_size_t * irq = &dev->res.irq_resource[idx].start;
 
 	/* if the resource doesn't exist, don't complain about it */
 	if (cannot_compare(dev->res.irq_resource[idx].flags))
@@ -396,7 +395,8 @@ int pnp_check_irq(struct pnp_dev * dev, int idx)
 	/* check if the resource is already in use, skip if the
 	 * device is active because it itself may be in use */
 	if(!dev->active) {
-		if (request_irq(*irq, pnp_test_handler, SA_INTERRUPT, "pnp", NULL))
+		if (request_irq(*irq, pnp_test_handler,
+				IRQF_DISABLED|IRQF_PROBE_SHARED, "pnp", NULL))
 			return 0;
 		free_irq(*irq, NULL);
 	}
@@ -423,7 +423,7 @@ int pnp_check_dma(struct pnp_dev * dev, int idx)
 #ifndef CONFIG_IA64
 	int tmp;
 	struct pnp_dev *tdev;
-	unsigned long * dma = &dev->res.dma_resource[idx].start;
+	resource_size_t * dma = &dev->res.dma_resource[idx].start;
 
 	/* if the resource doesn't exist, don't complain about it */
 	if (cannot_compare(dev->res.dma_resource[idx].flags))

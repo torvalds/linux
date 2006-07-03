@@ -90,7 +90,7 @@ config MD_RAID10
 	depends on BLK_DEV_MD && EXPERIMENTAL
 	---help---
 	  RAID-10 provides a combination of striping (RAID-0) and
-	  mirroring (RAID-1) with easier configuration and more flexable
+	  mirroring (RAID-1) with easier configuration and more flexible
 	  layout.
 	  Unlike RAID-0, but like RAID-1, RAID-10 requires all devices to
 	  be the same size (or at least, only as much as the smallest device
@@ -104,8 +104,8 @@ config MD_RAID10
 
 	  If unsure, say Y.
 
-config MD_RAID5
-	tristate "RAID-4/RAID-5 mode"
+config MD_RAID456
+	tristate "RAID-4/RAID-5/RAID-6 mode"
 	depends on BLK_DEV_MD
 	---help---
 	  A RAID-5 set of N drives with a capacity of C MB per drive provides
@@ -116,20 +116,28 @@ config MD_RAID5
 	  while a RAID-5 set distributes the parity across the drives in one
 	  of the available parity distribution methods.
 
+	  A RAID-6 set of N drives with a capacity of C MB per drive
+	  provides the capacity of C * (N - 2) MB, and protects
+	  against a failure of any two drives. For a given sector
+	  (row) number, (N - 2) drives contain data sectors, and two
+	  drives contains two independent redundancy syndromes.  Like
+	  RAID-5, RAID-6 distributes the syndromes across the drives
+	  in one of the available parity distribution methods.
+
 	  Information about Software RAID on Linux is contained in the
 	  Software-RAID mini-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>. There you will also
 	  learn where to get the supporting user space utilities raidtools.
 
-	  If you want to use such a RAID-4/RAID-5 set, say Y.  To
+	  If you want to use such a RAID-4/RAID-5/RAID-6 set, say Y.  To
 	  compile this code as a module, choose M here: the module
-	  will be called raid5.
+	  will be called raid456.
 
 	  If unsure, say Y.
 
 config MD_RAID5_RESHAPE
 	bool "Support adding drives to a raid-5 array (experimental)"
-	depends on MD_RAID5 && EXPERIMENTAL
+	depends on MD_RAID456 && EXPERIMENTAL
 	---help---
 	  A RAID-5 set can be expanded by adding extra drives. This
 	  requires "restriping" the array which means (almost) every
@@ -139,7 +147,7 @@ config MD_RAID5_RESHAPE
 	  is online.  However it is still EXPERIMENTAL code.  It should
 	  work, but please be sure that you have backups.
 
-	  You will need mdadm verion 2.4.1 or later to use this
+	  You will need mdadm version 2.4.1 or later to use this
 	  feature safely.  During the early stage of reshape there is
 	  a critical section where live data is being over-written.  A
 	  crash during this time needs extra care for recovery.  The
@@ -153,28 +161,6 @@ config MD_RAID5_RESHAPE
 	  Note: The array can only be expanded, not contracted.
 	  There should be enough spares already present to make the new
 	  array workable.
-
-config MD_RAID6
-	tristate "RAID-6 mode"
-	depends on BLK_DEV_MD
-	---help---
-	  A RAID-6 set of N drives with a capacity of C MB per drive
-	  provides the capacity of C * (N - 2) MB, and protects
-	  against a failure of any two drives. For a given sector
-	  (row) number, (N - 2) drives contain data sectors, and two
-	  drives contains two independent redundancy syndromes.  Like
-	  RAID-5, RAID-6 distributes the syndromes across the drives
-	  in one of the available parity distribution methods.
-
-	  RAID-6 requires mdadm-1.5.0 or later, available at:
-
-	  ftp://ftp.kernel.org/pub/linux/utils/raid/mdadm/
-
-	  If you want to use such a RAID-6 set, say Y.  To compile
-	  this code as a module, choose M here: the module will be
-	  called raid6.
-
-	  If unsure, say Y.
 
 config MD_MULTIPATH
 	tristate "Multipath I/O support"
@@ -235,7 +221,7 @@ config DM_SNAPSHOT
        tristate "Snapshot target (EXPERIMENTAL)"
        depends on BLK_DEV_DM && EXPERIMENTAL
        ---help---
-         Allow volume managers to take writeable snapshots of a device.
+         Allow volume managers to take writable snapshots of a device.
 
 config DM_MIRROR
        tristate "Mirror target (EXPERIMENTAL)"

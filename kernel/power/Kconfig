@@ -36,6 +36,24 @@ config PM_DEBUG
 	code. This is helpful when debugging and reporting various PM bugs, 
 	like suspend support.
 
+config PM_TRACE
+	bool "Suspend/resume event tracing"
+	depends on PM && PM_DEBUG && X86_32 && EXPERIMENTAL
+	default n
+	---help---
+	This enables some cheesy code to save the last PM event point in the
+	RTC across reboots, so that you can debug a machine that just hangs
+	during suspend (or more commonly, during resume).
+
+	To use this debugging feature you should attempt to suspend the machine,
+	then reboot it, then run
+
+		dmesg -s 1000000 | grep 'hash matches'
+
+	CAUTION: this option will cause your machine's real-time clock to be
+	set to an invalid time after a resume.
+
+
 config SOFTWARE_SUSPEND
 	bool "Software Suspend"
 	depends on PM && SWAP && (X86 && (!SMP || SUSPEND_SMP)) || ((FRV || PPC32) && !SMP)
@@ -81,18 +99,6 @@ config PM_STD_PARTITION
 	  Note there is currently not a way to specify which device to save the
 	  suspended image to. It will simply pick the first available swap 
 	  device.
-
-config SWSUSP_ENCRYPT
-	bool "Encrypt suspend image"
-	depends on SOFTWARE_SUSPEND && CRYPTO=y && (CRYPTO_AES=y || CRYPTO_AES_586=y || CRYPTO_AES_X86_64=y)
-	default ""
-	---help---
-	  To prevent data gathering from swap after resume you can encrypt
-	  the suspend image with a temporary key that is deleted on
-	  resume.
-
-	  Note that the temporary key is stored unencrypted on disk while the
-	  system is suspended.
 
 config SUSPEND_SMP
 	bool

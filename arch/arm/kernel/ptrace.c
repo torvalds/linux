@@ -9,7 +9,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -634,6 +633,32 @@ static int ptrace_setwmmxregs(struct task_struct *tsk, void __user *ufp)
 
 #endif
 
+#ifdef CONFIG_CRUNCH
+/*
+ * Get the child Crunch state.
+ */
+static int ptrace_getcrunchregs(struct task_struct *tsk, void __user *ufp)
+{
+	struct thread_info *thread = task_thread_info(tsk);
+
+	crunch_task_disable(thread);  /* force it to ram */
+	return copy_to_user(ufp, &thread->crunchstate, CRUNCH_SIZE)
+		? -EFAULT : 0;
+}
+
+/*
+ * Set the child Crunch state.
+ */
+static int ptrace_setcrunchregs(struct task_struct *tsk, void __user *ufp)
+{
+	struct thread_info *thread = task_thread_info(tsk);
+
+	crunch_task_release(thread);  /* force a reload */
+	return copy_from_user(&thread->crunchstate, ufp, CRUNCH_SIZE)
+		? -EFAULT : 0;
+}
+#endif
+
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	unsigned long tmp;
@@ -764,6 +789,16 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = 0;
 			child->ptrace_message = data;
 			break;
+
+#ifdef CONFIG_CRUNCH
+		case PTRACE_GETCRUNCHREGS:
+			ret = ptrace_getcrunchregs(child, (void __user *)data);
+			break;
+
+		case PTRACE_SETCRUNCHREGS:
+			ret = ptrace_setcrunchregs(child, (void __user *)data);
+			break;
+#endif
 
 		default:
 			ret = ptrace_request(child, request, addr, data);

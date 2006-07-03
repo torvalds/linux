@@ -6,7 +6,6 @@
 
 #define __KERNEL_SYSCALLS__
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -17,9 +16,10 @@
 #include <linux/pm.h>
 
 #include <asm/system.h>
-#include <asm/ebus.h>
-#include <asm/isa.h>
 #include <asm/auxio.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
+#include <asm/io.h>
 
 #include <linux/unistd.h>
 
@@ -30,6 +30,7 @@
 int scons_pwroff = 1; 
 
 #ifdef CONFIG_PCI
+#include <linux/pci.h>
 static void __iomem *power_reg;
 
 static DECLARE_WAIT_QUEUE_HEAD(powerd_wait);
@@ -105,87 +106,61 @@ again:
 	return 0;
 }
 
-static int __init has_button_interrupt(unsigned int irq, int prom_node)
+static int __init has_button_interrupt(unsigned int irq, struct device_node *dp)
 {
 	if (irq == PCI_IRQ_NONE)
 		return 0;
-	if (!prom_node_has_property(prom_node, "button"))
+	if (!of_find_property(dp, "button", NULL))
 		return 0;
 
 	return 1;
 }
 
-static int __init power_probe_ebus(struct resource **resp, unsigned int *irq_p, int *prom_node_p)
+static int __devinit power_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct linux_ebus *ebus;
-	struct linux_ebus_device *edev;
+	struct resource *res = &op->resource[0];
+	unsigned int irq= op->irqs[0];
 
-	for_each_ebus(ebus) {
-		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, "power")) {
-				*resp = &edev->resource[0];
-				*irq_p = edev->irqs[0];
-				*prom_node_p = edev->prom_node;
-				return 0;
-			}
-		}
-	}
-	return -ENODEV;
-}
+	power_reg = of_ioremap(res, 0, 0x4, "power");
 
-static int __init power_probe_isa(struct resource **resp, unsigned int *irq_p, int *prom_node_p)
-{
-	struct sparc_isa_bridge *isa_bus;
-	struct sparc_isa_device *isa_dev;
+	printk("%s: Control reg at %lx ... ",
+	       op->node->name, res->start);
 
-	for_each_isa(isa_bus) {
-		for_each_isadev(isa_dev, isa_bus) {
-			if (!strcmp(isa_dev->prom_name, "power")) {
-				*resp = &isa_dev->resource;
-				*irq_p = isa_dev->irq;
-				*prom_node_p = isa_dev->prom_node;
-				return 0;
-			}
-		}
-	}
-	return -ENODEV;
-}
-
-void __init power_init(void)
-{
-	struct resource *res = NULL;
-	unsigned int irq;
-	int prom_node;
-	static int invoked;
-
-	if (invoked)
-		return;
-	invoked = 1;
-
-	if (!power_probe_ebus(&res, &irq, &prom_node))
-		goto found;
-
-	if (!power_probe_isa(&res, &irq, &prom_node))
-		goto found;
-
-	return;
-
-found:
-	power_reg = ioremap(res->start, 0x4);
-	printk("power: Control reg at %p ... ", power_reg);
 	poweroff_method = machine_halt;  /* able to use the standard halt */
-	if (has_button_interrupt(irq, prom_node)) {
+
+	if (has_button_interrupt(irq, op->node)) {
 		if (kernel_thread(powerd, NULL, CLONE_FS) < 0) {
 			printk("Failed to start power daemon.\n");
-			return;
+			return 0;
 		}
 		printk("powerd running.\n");
 
 		if (request_irq(irq,
-				power_handler, SA_SHIRQ, "power", NULL) < 0)
+				power_handler, 0, "power", NULL) < 0)
 			printk("power: Error, cannot register IRQ handler.\n");
 	} else {
 		printk("not using powerd.\n");
 	}
+
+	return 0;
+}
+
+static struct of_device_id power_match[] = {
+	{
+		.name = "power",
+	},
+	{},
+};
+
+static struct of_platform_driver power_driver = {
+	.name		= "power",
+	.match_table	= power_match,
+	.probe		= power_probe,
+};
+
+void __init power_init(void)
+{
+	of_register_driver(&power_driver, &of_bus_type);
+	return;
 }
 #endif /* CONFIG_PCI */

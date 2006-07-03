@@ -8,7 +8,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <asm/processor.h>

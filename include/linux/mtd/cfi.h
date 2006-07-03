@@ -7,7 +7,6 @@
 #ifndef __MTD_CFI_H__
 #define __MTD_CFI_H__
 
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>

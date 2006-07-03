@@ -385,67 +385,6 @@ static int msp_mode_v4l1_to_v4l2(int mode)
 	return V4L2_TUNER_MODE_MONO;
 }
 
-static struct v4l2_queryctrl msp_qctrl_std[] = {
-	{
-		.id            = V4L2_CID_AUDIO_VOLUME,
-		.name          = "Volume",
-		.minimum       = 0,
-		.maximum       = 65535,
-		.step          = 65535/100,
-		.default_value = 58880,
-		.flags         = 0,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_AUDIO_MUTE,
-		.name          = "Mute",
-		.minimum       = 0,
-		.maximum       = 1,
-		.step          = 1,
-		.default_value = 1,
-		.flags         = 0,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	},
-};
-
-static struct v4l2_queryctrl msp_qctrl_sound_processing[] = {
-	{
-		.id            = V4L2_CID_AUDIO_BALANCE,
-		.name          = "Balance",
-		.minimum       = 0,
-		.maximum       = 65535,
-		.step          = 65535/100,
-		.default_value = 32768,
-		.flags         = 0,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_AUDIO_BASS,
-		.name          = "Bass",
-		.minimum       = 0,
-		.maximum       = 65535,
-		.step          = 65535/100,
-		.default_value = 32768,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_AUDIO_TREBLE,
-		.name          = "Treble",
-		.minimum       = 0,
-		.maximum       = 65535,
-		.step          = 65535/100,
-		.default_value = 32768,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_AUDIO_LOUDNESS,
-		.name          = "Loudness",
-		.minimum       = 0,
-		.maximum       = 1,
-		.step          = 1,
-		.default_value = 1,
-		.flags         = 0,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	},
-};
-
-
 static int msp_get_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
@@ -674,22 +613,31 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		int sc1_out = rt->output & 0xf;
 		int sc2_out = (rt->output >> 4) & 0xf;
 		u16 val, reg;
+		int i;
+		int extern_input = 1;
 
 		if (state->routing.input == rt->input &&
 		    state->routing.output == rt->output)
 			break;
 		state->routing = *rt;
+		/* check if the tuner input is used */
+		for (i = 0; i < 5; i++) {
+			if (((rt->input >> (4 + i * 4)) & 0xf) == 0)
+				extern_input = 0;
+		}
+		if (extern_input)
+			state->mode = MSP_MODE_EXTERN;
+		else
+			state->mode = MSP_MODE_AM_DETECT;
 		msp_set_scart(client, sc_in, 0);
 		msp_set_scart(client, sc1_out, 1);
 		msp_set_scart(client, sc2_out, 2);
 		msp_set_audmode(client);
 		reg = (state->opmode == OPMODE_AUTOSELECT) ? 0x30 : 0xbb;
 		val = msp_read_dem(client, reg);
-		if (tuner != ((val >> 8) & 1)) {
-			msp_write_dem(client, reg, (val & ~0x100) | (tuner << 8));
-			/* wake thread when a new tuner input is chosen */
-			msp_wake_thread(client);
-		}
+		msp_write_dem(client, reg, (val & ~0x100) | (tuner << 8));
+		/* wake thread when a new input is chosen */
+		msp_wake_thread(client);
 		break;
 	}
 
@@ -744,21 +692,25 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	case VIDIOC_QUERYCTRL:
 	{
 		struct v4l2_queryctrl *qc = arg;
-		int i;
 
-		for (i = 0; i < ARRAY_SIZE(msp_qctrl_std); i++)
-			if (qc->id && qc->id == msp_qctrl_std[i].id) {
-				memcpy(qc, &msp_qctrl_std[i], sizeof(*qc));
-				return 0;
-			}
+		switch (qc->id) {
+			case V4L2_CID_AUDIO_VOLUME:
+			case V4L2_CID_AUDIO_MUTE:
+				return v4l2_ctrl_query_fill_std(qc);
+			default:
+				break;
+		}
 		if (!state->has_sound_processing)
 			return -EINVAL;
-		for (i = 0; i < ARRAY_SIZE(msp_qctrl_sound_processing); i++)
-			if (qc->id && qc->id == msp_qctrl_sound_processing[i].id) {
-				memcpy(qc, &msp_qctrl_sound_processing[i], sizeof(*qc));
-				return 0;
-			}
-		return -EINVAL;
+		switch (qc->id) {
+			case V4L2_CID_AUDIO_LOUDNESS:
+			case V4L2_CID_AUDIO_BALANCE:
+			case V4L2_CID_AUDIO_BASS:
+			case V4L2_CID_AUDIO_TREBLE:
+				return v4l2_ctrl_query_fill_std(qc);
+			default:
+				return -EINVAL;
+		}
 	}
 
 	case VIDIOC_G_CTRL:
@@ -794,7 +746,9 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		case MSP_MODE_EXTERN: p = "External input"; break;
 		default: p = "unknown"; break;
 		}
-		if (state->opmode == OPMODE_MANUAL) {
+		if (state->mode == MSP_MODE_EXTERN) {
+			v4l_info(client, "Mode:     %s\n", p);
+		} else if (state->opmode == OPMODE_MANUAL) {
 			v4l_info(client, "Mode:     %s (%s%s)\n", p,
 				(state->rxsubchans & V4L2_TUNER_SUB_STEREO) ? "stereo" : "mono",
 				(state->rxsubchans & V4L2_TUNER_SUB_LANG2) ? ", dual" : "");

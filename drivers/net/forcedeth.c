@@ -1495,8 +1495,8 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	np->tx_skbuff[nr] = skb;
 
 #ifdef NETIF_F_TSO
-	if (skb_shinfo(skb)->tso_size)
-		tx_flags_extra = NV_TX2_TSO | (skb_shinfo(skb)->tso_size << NV_TX2_TSO_SHIFT);
+	if (skb_shinfo(skb)->gso_size)
+		tx_flags_extra = NV_TX2_TSO | (skb_shinfo(skb)->gso_size << NV_TX2_TSO_SHIFT);
 	else
 #endif
 	tx_flags_extra = (skb->ip_summed == CHECKSUM_HW ? (NV_TX2_CHECKSUM_L3|NV_TX2_CHECKSUM_L4) : 0);
@@ -2076,7 +2076,7 @@ static void nv_set_multicast(struct net_device *dev)
 	spin_unlock_irq(&np->lock);
 }
 
-void nv_update_pause(struct net_device *dev, u32 pause_flags)
+static void nv_update_pause(struct net_device *dev, u32 pause_flags)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
@@ -2622,21 +2622,21 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 			np->msi_flags |= NV_MSI_X_ENABLED;
 			if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT && !intr_test) {
 				/* Request irq for rx handling */
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector, &nv_nic_irq_rx, SA_SHIRQ, dev->name, dev) != 0) {
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector, &nv_nic_irq_rx, IRQF_SHARED, dev->name, dev) != 0) {
 					printk(KERN_INFO "forcedeth: request_irq failed for rx %d\n", ret);
 					pci_disable_msix(np->pci_dev);
 					np->msi_flags &= ~NV_MSI_X_ENABLED;
 					goto out_err;
 				}
 				/* Request irq for tx handling */
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector, &nv_nic_irq_tx, SA_SHIRQ, dev->name, dev) != 0) {
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector, &nv_nic_irq_tx, IRQF_SHARED, dev->name, dev) != 0) {
 					printk(KERN_INFO "forcedeth: request_irq failed for tx %d\n", ret);
 					pci_disable_msix(np->pci_dev);
 					np->msi_flags &= ~NV_MSI_X_ENABLED;
 					goto out_free_rx;
 				}
 				/* Request irq for link and timer handling */
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector, &nv_nic_irq_other, SA_SHIRQ, dev->name, dev) != 0) {
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector, &nv_nic_irq_other, IRQF_SHARED, dev->name, dev) != 0) {
 					printk(KERN_INFO "forcedeth: request_irq failed for link %d\n", ret);
 					pci_disable_msix(np->pci_dev);
 					np->msi_flags &= ~NV_MSI_X_ENABLED;
@@ -2651,9 +2651,9 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 			} else {
 				/* Request irq for all interrupts */
 				if ((!intr_test &&
-				     request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0) ||
+				     request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector, &nv_nic_irq, IRQF_SHARED, dev->name, dev) != 0) ||
 				    (intr_test &&
-				     request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector, &nv_nic_irq_test, SA_SHIRQ, dev->name, dev) != 0)) {
+				     request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector, &nv_nic_irq_test, IRQF_SHARED, dev->name, dev) != 0)) {
 					printk(KERN_INFO "forcedeth: request_irq failed %d\n", ret);
 					pci_disable_msix(np->pci_dev);
 					np->msi_flags &= ~NV_MSI_X_ENABLED;
@@ -2669,8 +2669,8 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 	if (ret != 0 && np->msi_flags & NV_MSI_CAPABLE) {
 		if ((ret = pci_enable_msi(np->pci_dev)) == 0) {
 			np->msi_flags |= NV_MSI_ENABLED;
-			if ((!intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0) ||
-			    (intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq_test, SA_SHIRQ, dev->name, dev) != 0)) {
+			if ((!intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq, IRQF_SHARED, dev->name, dev) != 0) ||
+			    (intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq_test, IRQF_SHARED, dev->name, dev) != 0)) {
 				printk(KERN_INFO "forcedeth: request_irq failed %d\n", ret);
 				pci_disable_msi(np->pci_dev);
 				np->msi_flags &= ~NV_MSI_ENABLED;
@@ -2685,8 +2685,8 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 		}
 	}
 	if (ret != 0) {
-		if ((!intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0) ||
-		    (intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq_test, SA_SHIRQ, dev->name, dev) != 0))
+		if ((!intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq, IRQF_SHARED, dev->name, dev) != 0) ||
+		    (intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq_test, IRQF_SHARED, dev->name, dev) != 0))
 			goto out_err;
 
 	}
@@ -2991,13 +2991,13 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	netif_carrier_off(dev);
 	if (netif_running(dev)) {
 		nv_disable_irq(dev);
-		spin_lock_bh(&dev->xmit_lock);
+		netif_tx_lock_bh(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
 		nv_stop_rx(dev);
 		nv_stop_tx(dev);
 		spin_unlock(&np->lock);
-		spin_unlock_bh(&dev->xmit_lock);
+		netif_tx_unlock_bh(dev);
 	}
 
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
@@ -3131,13 +3131,13 @@ static int nv_nway_reset(struct net_device *dev)
 		netif_carrier_off(dev);
 		if (netif_running(dev)) {
 			nv_disable_irq(dev);
-			spin_lock_bh(&dev->xmit_lock);
+			netif_tx_lock_bh(dev);
 			spin_lock(&np->lock);
 			/* stop engines */
 			nv_stop_rx(dev);
 			nv_stop_tx(dev);
 			spin_unlock(&np->lock);
-			spin_unlock_bh(&dev->xmit_lock);
+			netif_tx_unlock_bh(dev);
 			printk(KERN_INFO "%s: link down.\n", dev->name);
 		}
 
@@ -3244,7 +3244,7 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 
 	if (netif_running(dev)) {
 		nv_disable_irq(dev);
-		spin_lock_bh(&dev->xmit_lock);
+		netif_tx_lock_bh(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
 		nv_stop_rx(dev);
@@ -3303,7 +3303,7 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 		nv_start_rx(dev);
 		nv_start_tx(dev);
 		spin_unlock(&np->lock);
-		spin_unlock_bh(&dev->xmit_lock);
+		netif_tx_unlock_bh(dev);
 		nv_enable_irq(dev);
 	}
 	return 0;
@@ -3339,13 +3339,13 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 	netif_carrier_off(dev);
 	if (netif_running(dev)) {
 		nv_disable_irq(dev);
-		spin_lock_bh(&dev->xmit_lock);
+		netif_tx_lock_bh(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
 		nv_stop_rx(dev);
 		nv_stop_tx(dev);
 		spin_unlock(&np->lock);
-		spin_unlock_bh(&dev->xmit_lock);
+		netif_tx_unlock_bh(dev);
 	}
 
 	np->pause_flags &= ~(NV_PAUSEFRAME_RX_REQ|NV_PAUSEFRAME_TX_REQ);
@@ -3729,7 +3729,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 	if (test->flags & ETH_TEST_FL_OFFLINE) {
 		if (netif_running(dev)) {
 			netif_stop_queue(dev);
-			spin_lock_bh(&dev->xmit_lock);
+			netif_tx_lock_bh(dev);
 			spin_lock_irq(&np->lock);
 			nv_disable_hw_interrupts(dev, np->irqmask);
 			if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
@@ -3745,7 +3745,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 			nv_drain_rx(dev);
 			nv_drain_tx(dev);
 			spin_unlock_irq(&np->lock);
-			spin_unlock_bh(&dev->xmit_lock);
+			netif_tx_unlock_bh(dev);
 		}
 
 		if (!nv_register_test(dev)) {

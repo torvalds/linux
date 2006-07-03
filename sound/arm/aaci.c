@@ -360,7 +360,7 @@ static int aaci_pcm_open(struct aaci *aaci, struct snd_pcm_substream *substream,
 	if (ret)
 		goto out;
 
-	ret = request_irq(aaci->dev->irq[0], aaci_irq, SA_SHIRQ|SA_INTERRUPT,
+	ret = request_irq(aaci->dev->irq[0], aaci_irq, IRQF_SHARED|IRQF_DISABLED,
 			  DRIVER_NAME, aaci);
 	if (ret)
 		goto out;
@@ -779,8 +779,9 @@ static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
 	strlcpy(card->driver, DRIVER_NAME, sizeof(card->driver));
 	strlcpy(card->shortname, "ARM AC'97 Interface", sizeof(card->shortname));
 	snprintf(card->longname, sizeof(card->longname),
-		 "%s at 0x%08lx, irq %d",
-		 card->shortname, dev->res.start, dev->irq[0]);
+		 "%s at 0x%016llx, irq %d",
+		 card->shortname, (unsigned long long)dev->res.start,
+		 dev->irq[0]);
 
 	aaci = card->private_data;
 	mutex_init(&aaci->ac97_sem);

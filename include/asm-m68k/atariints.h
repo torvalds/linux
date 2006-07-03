@@ -45,17 +45,6 @@
 #define IRQ_TYPE_FAST     1
 #define IRQ_TYPE_PRIO     2
 
-#define	IRQ_SPURIOUS      (0)
-
-/* auto-vector interrupts */
-#define IRQ_AUTO_1        (1)
-#define IRQ_AUTO_2        (2)
-#define IRQ_AUTO_3        (3)
-#define IRQ_AUTO_4        (4)
-#define IRQ_AUTO_5        (5)
-#define IRQ_AUTO_6        (6)
-#define IRQ_AUTO_7        (7)
-
 /* ST-MFP interrupts */
 #define IRQ_MFP_BUSY      (8)
 #define IRQ_MFP_DCD       (9)

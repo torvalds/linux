@@ -20,7 +20,6 @@
 * Dec 13, 1996	Gene Kozin	Initial version (based on Sangoma's WANPIPE)
 *****************************************************************************/
 
-#include <linux/config.h>
 #include <linux/init.h>		/* __initfunc et al. */
 #include <linux/stddef.h>	/* offsetof(), etc. */
 #include <linux/errno.h>	/* return codes */

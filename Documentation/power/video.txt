@@ -90,6 +90,7 @@ Table of known working notebooks:
 Model                           hack (or "how to do it")
 ------------------------------------------------------------------------------
 Acer Aspire 1406LC		ole's late BIOS init (7), turn off DRI
+Acer TM 230			s3_bios (2)
 Acer TM 242FX			vbetool (6)
 Acer TM C110			video_post (8)
 Acer TM C300                    vga=normal (only suspend on console, not in X), vbetool (6) or video_post (8)
@@ -115,6 +116,7 @@ Dell D610			vga=normal and X (possibly vbestate (6) too, but not tested)
 Dell Inspiron 4000		??? (*)
 Dell Inspiron 500m		??? (*)
 Dell Inspiron 510m		???
+Dell Inspiron 5150		vbetool needed (6)
 Dell Inspiron 600m		??? (*)
 Dell Inspiron 8200		??? (*)
 Dell Inspiron 8500		??? (*)
@@ -125,6 +127,7 @@ HP NX7000			??? (*)
 HP Pavilion ZD7000		vbetool post needed, need open-source nv driver for X
 HP Omnibook XE3	athlon version	none (1)
 HP Omnibook XE3GC		none (1), video is S3 Savage/IX-MV
+HP Omnibook XE3L-GF		vbetool (6)
 HP Omnibook 5150		none (1), (S1 also works OK)
 IBM TP T20, model 2647-44G	none (1), video is S3 Inc. 86C270-294 Savage/IX-MV, vesafb gets "interesting" but X work.
 IBM TP A31 / Type 2652-M5G      s3_mode (3) [works ok with BIOS 1.04 2002-08-23, but not at all with BIOS 1.11 2004-11-05 :-(]
@@ -157,6 +160,7 @@ Sony Vaio vgn-s260		X or boot-radeon can init it (5)
 Sony Vaio vgn-S580BH		vga=normal, but suspend from X. Console will be blank unless you return to X.
 Sony Vaio vgn-FS115B		s3_bios (2),s3_mode (4)
 Toshiba Libretto L5		none (1)
+Toshiba Libretto 100CT/110CT    vbetool (6)
 Toshiba Portege 3020CT		s3_mode (3)
 Toshiba Satellite 4030CDT	s3_mode (3) (S1 also works OK)
 Toshiba Satellite 4080XCDT      s3_mode (3) (S1 also works OK)

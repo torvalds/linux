@@ -11,7 +11,6 @@
 #define	__M68KNOMMU_MCFCACHE_H
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	The different ColdFire families have different cache arrangments.
@@ -92,6 +91,21 @@
 	nop
 .endm
 #endif /* CONFIG_M5249 || CONFIG_M5307 */
+
+#if defined(CONFIG_M532x)
+.macro CACHE_ENABLE
+	movel	#0x01000000,%d0		/* invalidate cache cmd */
+	movec	%d0,%CACR		/* do invalidate cache */
+	nop
+	movel	#0x4001C000,%d0		/* set SDRAM cached (write-thru) */
+	movec	%d0,%ACR0
+	movel	#0x00000000,%d0		/* no other regions cached */
+	movec	%d0,%ACR1
+	movel	#0x80000200,%d0		/* setup cache mask */
+	movec	%d0,%CACR		/* enable cache */
+	nop
+.endm
+#endif /* CONFIG_M532x */
 
 #if defined(CONFIG_M5407)
 /*

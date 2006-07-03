@@ -6,7 +6,6 @@
  *  Support of BIGMEM added by Gerhard Wichert, Siemens AG, July 1999
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -23,12 +22,14 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
+#include <linux/poison.h>
 #include <linux/bootmem.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/efi.h>
 #include <linux/memory_hotplug.h>
 #include <linux/initrd.h>
+#include <linux/cpumask.h>
 
 #include <asm/processor.h>
 #include <asm/system.h>
@@ -384,7 +385,7 @@ static void __init pagetable_init (void)
 #endif
 }
 
-#ifdef CONFIG_SOFTWARE_SUSPEND
+#if defined(CONFIG_SOFTWARE_SUSPEND) || defined(CONFIG_ACPI_SLEEP)
 /*
  * Swap suspend & friends need this for resume because things like the intel-agp
  * driver might have split up a kernel 4MB mapping.
@@ -653,7 +654,7 @@ void __init mem_init(void)
  */
 #ifdef CONFIG_MEMORY_HOTPLUG
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-int add_memory(u64 start, u64 size)
+int arch_add_memory(int nid, u64 start, u64 size)
 {
 	struct pglist_data *pgdata = &contig_page_data;
 	struct zone *zone = pgdata->node_zones + MAX_NR_ZONES-1;
@@ -724,16 +725,15 @@ static int noinline do_test_wp_bit(void)
 
 #ifdef CONFIG_DEBUG_RODATA
 
-extern char __start_rodata, __end_rodata;
 void mark_rodata_ro(void)
 {
-	unsigned long addr = (unsigned long)&__start_rodata;
+	unsigned long addr = (unsigned long)__start_rodata;
 
-	for (; addr < (unsigned long)&__end_rodata; addr += PAGE_SIZE)
+	for (; addr < (unsigned long)__end_rodata; addr += PAGE_SIZE)
 		change_page_attr(virt_to_page(addr), 1, PAGE_KERNEL_RO);
 
-	printk ("Write protecting the kernel read-only data: %luk\n",
-			(unsigned long)(&__end_rodata - &__start_rodata) >> 10);
+	printk("Write protecting the kernel read-only data: %uk\n",
+			(__end_rodata - __start_rodata) >> 10);
 
 	/*
 	 * change_page_attr() requires a global_flush_tlb() call after it.
@@ -752,7 +752,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 	for (addr = begin; addr < end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
-		memset((void *)addr, 0xcc, PAGE_SIZE);
+		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
 		free_page(addr);
 		totalram_pages++;
 	}

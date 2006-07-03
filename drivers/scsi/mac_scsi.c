@@ -65,9 +65,6 @@
 #define RESET_BOOT
 #define DRIVER_SETUP
 
-#define	ENABLE_IRQ()	mac_enable_irq( IRQ_MAC_SCSI ); 
-#define	DISABLE_IRQ()	mac_disable_irq( IRQ_MAC_SCSI );
-
 extern void via_scsi_clear(void);
 
 #ifdef RESET_BOOT
@@ -351,7 +348,7 @@ static void mac_scsi_reset_boot(struct Scsi_Host *instance)
 	printk(KERN_INFO "Macintosh SCSI: resetting the SCSI bus..." );
 
 	/* switch off SCSI IRQ - catch an interrupt without IRQ bit set else */
-	mac_disable_irq(IRQ_MAC_SCSI);
+	disable_irq(IRQ_MAC_SCSI);
 
 	/* get in phase */
 	NCR5380_write( TARGET_COMMAND_REG,
@@ -369,7 +366,7 @@ static void mac_scsi_reset_boot(struct Scsi_Host *instance)
 		barrier();
 
 	/* switch on SCSI IRQ again */
-	mac_enable_irq(IRQ_MAC_SCSI);
+	enable_irq(IRQ_MAC_SCSI);
 
 	printk(KERN_INFO " done\n" );
 }

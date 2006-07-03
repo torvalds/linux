@@ -4,6 +4,7 @@
  *  Copyright (C) 2000 Steve Hill (sjhill@cotw.com)
  *                     Rob Scott (rscott@mtrob.fdns.net)
  *  Copyright (C) 2000 ARM Limited, Deep Blue Solutions Ltd.
+ *  hacked for non-paged-MM by Hyok S. Choi, 2004.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +30,7 @@
  *			out of 'proc-arm6,7.S' per RMK discussion
  *   07-25-2000 SJH	Added idle function.
  *   08-25-2000	DBS	Updated for integration of ARM Ltd version.
+ *   04-20-2004 HSC	modified for non-paged memory management mode.
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
@@ -38,6 +40,8 @@
 #include <asm/pgtable.h>
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
+
+#include "proc-macros.S"
 
 /*
  * Function: arm720_proc_init (void)
@@ -75,10 +79,12 @@ ENTRY(cpu_arm720_do_idle)
  *	     the new.
  */
 ENTRY(cpu_arm720_switch_mm)
+#ifdef CONFIG_MMU
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c7, 0		@ invalidate cache
 		mcr	p15, 0, r0, c2, c0, 0		@ update page table ptr
 		mcr	p15, 0, r1, c8, c7, 0		@ flush TLB (v4)
+#endif
 		mov	pc, lr
 
 /*
@@ -89,6 +95,7 @@ ENTRY(cpu_arm720_switch_mm)
  */
 		.align	5
 ENTRY(cpu_arm720_set_pte)
+#ifdef CONFIG_MMU
 		str	r1, [r0], #-2048		@ linux version
 
 		eor	r1, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
@@ -107,6 +114,7 @@ ENTRY(cpu_arm720_set_pte)
 		movne	r2, #0
 
 		str	r2, [r0]			@ hardware version
+#endif
 		mov	pc, lr
 
 /*
@@ -117,7 +125,9 @@ ENTRY(cpu_arm720_set_pte)
 ENTRY(cpu_arm720_reset)
 		mov	ip, #0
 		mcr	p15, 0, ip, c7, c7, 0		@ invalidate cache
+#ifdef CONFIG_MMU
 		mcr	p15, 0, ip, c8, c7, 0		@ flush TLB (v4)
+#endif
 		mrc	p15, 0, ip, c1, c0, 0		@ get ctrl register
 		bic	ip, ip, #0x000f			@ ............wcam
 		bic	ip, ip, #0x2100			@ ..v....s........
@@ -130,7 +140,9 @@ ENTRY(cpu_arm720_reset)
 __arm710_setup:
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c7, 0		@ invalidate caches
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7, 0		@ flush TLB (v4)
+#endif
 	mrc	p15, 0, r0, c1, c0		@ get control register
 	ldr	r5, arm710_cr1_clear
 	bic	r0, r0, r5
@@ -156,12 +168,14 @@ arm710_cr1_set:
 __arm720_setup:
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c7, 0		@ invalidate caches
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7, 0		@ flush TLB (v4)
+#endif
+	adr	r5, arm720_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0		@ get control register
-	ldr	r5, arm720_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, arm720_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 	mov	pc, lr				@ __ret (head.S)
 	.size	__arm720_setup, . - __arm720_setup
 
@@ -171,12 +185,9 @@ __arm720_setup:
 	 * ..1. 1001 ..11 1101
 	 * 
 	 */
-	.type	arm720_cr1_clear, #object
-	.type	arm720_cr1_set, #object
-arm720_cr1_clear:
-	.word	0x2f3f
-arm720_cr1_set:
-	.word	0x213d
+	.type	arm720_crval, #object
+arm720_crval:
+	crval	clear=0x00002f3f, mmuset=0x0000213d, ucset=0x00000130
 
 		__INITDATA
 
@@ -234,6 +245,10 @@ __arm710_proc_info:
 			PMD_BIT4 | \
 			PMD_SECT_AP_WRITE | \
 			PMD_SECT_AP_READ
+		.long   PMD_TYPE_SECT | \
+			PMD_BIT4 | \
+			PMD_SECT_AP_WRITE | \
+			PMD_SECT_AP_READ
 		b	__arm710_setup				@ cpu_flush
 		.long	cpu_arch_name				@ arch_name
 		.long	cpu_elf_name				@ elf_name
@@ -252,6 +267,10 @@ __arm720_proc_info:
 		.long   PMD_TYPE_SECT | \
 			PMD_SECT_BUFFERABLE | \
 			PMD_SECT_CACHEABLE | \
+			PMD_BIT4 | \
+			PMD_SECT_AP_WRITE | \
+			PMD_SECT_AP_READ
+		.long   PMD_TYPE_SECT | \
 			PMD_BIT4 | \
 			PMD_SECT_AP_WRITE | \
 			PMD_SECT_AP_READ

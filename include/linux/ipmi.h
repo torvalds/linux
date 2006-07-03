@@ -36,7 +36,6 @@
 
 #include <linux/ipmi_msgdefs.h>
 #include <linux/compiler.h>
-#include <linux/device.h>
 
 /*
  * This file describes an interface to an IPMI driver.  You have to
@@ -210,11 +209,8 @@ struct kernel_ipmi_msg
  */
 #include <linux/list.h>
 #include <linux/module.h>
-
-#ifdef CONFIG_PROC_FS
+#include <linux/device.h>
 #include <linux/proc_fs.h>
-extern struct proc_dir_entry *proc_ipmi_root;
-#endif /* CONFIG_PROC_FS */
 
 /* Opaque type for a IPMI message user.  One of these is needed to
    send and receive messages. */

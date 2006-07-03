@@ -28,7 +28,6 @@
  * is compatible with normal ttyS* devices.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1758,7 +1757,7 @@ int __init siccuart_init(void)
     siccnormal_driver->subtype = SERIAL_TYPE_NORMAL;
     siccnormal_driver->init_termios = tty_std_termios;
     siccnormal_driver->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-    siccnormal_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+    siccnormal_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
     tty_set_operations(siccnormal_driver, &sicc_ops);
 
     if (tty_register_driver(siccnormal_driver))

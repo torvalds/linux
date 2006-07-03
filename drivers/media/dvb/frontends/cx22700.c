@@ -34,8 +34,6 @@ struct cx22700_state {
 
 	struct i2c_adapter* i2c;
 
-	struct dvb_frontend_ops ops;
-
 	const struct cx22700_config* config;
 
 	struct dvb_frontend frontend;
@@ -136,6 +134,7 @@ static int cx22700_set_tps (struct cx22700_state *state, struct dvb_ofdm_paramet
 		return -EINVAL;
 
 	if (p->code_rate_LP < FEC_1_2 || p->code_rate_LP > FEC_7_8)
+		return -EINVAL;
 
 	if (p->code_rate_HP == FEC_4_5 || p->code_rate_LP == FEC_4_5)
 		return -EINVAL;
@@ -247,12 +246,6 @@ static int cx22700_init (struct dvb_frontend* fe)
 
 	cx22700_writereg (state, 0x00, 0x01);
 
-	if (state->config->pll_init) {
-		cx22700_writereg (state, 0x0a, 0x00);  /* open i2c bus switch */
-		state->config->pll_init(fe);
-		cx22700_writereg (state, 0x0a, 0x01);  /* close i2c bus switch */
-	}
-
 	return 0;
 }
 
@@ -333,9 +326,11 @@ static int cx22700_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	cx22700_writereg (state, 0x00, 0x02); /* XXX CHECKME: soft reset*/
 	cx22700_writereg (state, 0x00, 0x00);
 
-	cx22700_writereg (state, 0x0a, 0x00);  /* open i2c bus switch */
-	state->config->pll_set(fe, p);
-	cx22700_writereg (state, 0x0a, 0x01);  /* close i2c bus switch */
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+	}
+
 	cx22700_set_inversion (state, p->inversion);
 	cx22700_set_tps (state, &p->u.ofdm);
 	cx22700_writereg (state, 0x37, 0x01);  /* PAL loop filter off */
@@ -351,6 +346,17 @@ static int cx22700_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 
 	p->inversion = reg09 & 0x1 ? INVERSION_ON : INVERSION_OFF;
 	return cx22700_get_tps (state, &p->u.ofdm);
+}
+
+static int cx22700_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct cx22700_state* state = fe->demodulator_priv;
+
+	if (enable) {
+		return cx22700_writereg(state, 0x0a, 0x00);
+	} else {
+		return cx22700_writereg(state, 0x0a, 0x01);
+	}
 }
 
 static int cx22700_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fesettings)
@@ -381,13 +387,12 @@ struct dvb_frontend* cx22700_attach(const struct cx22700_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &cx22700_ops, sizeof(struct dvb_frontend_ops));
 
 	/* check if the demod is there */
 	if (cx22700_readreg(state, 0x07) < 0) goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &cx22700_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
@@ -413,6 +418,7 @@ static struct dvb_frontend_ops cx22700_ops = {
 	.release = cx22700_release,
 
 	.init = cx22700_init,
+	.i2c_gate_ctrl = cx22700_i2c_gate_ctrl,
 
 	.set_frontend = cx22700_set_frontend,
 	.get_frontend = cx22700_get_frontend,

@@ -1,6 +1,5 @@
 #ifndef _PARISC_PSW_H
 
-#include <linux/config.h>
 
 #define	PSW_I	0x00000001
 #define	PSW_D	0x00000002

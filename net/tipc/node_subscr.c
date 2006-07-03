@@ -47,18 +47,19 @@
 void tipc_nodesub_subscribe(struct node_subscr *node_sub, u32 addr, 
 		       void *usr_handle, net_ev_handler handle_down)
 {
-	node_sub->node = NULL;
-	if (addr == tipc_own_addr)
-		return;
-	if (!tipc_addr_node_valid(addr)) {
-		warn("node_subscr with illegal %x\n", addr);
+	if (addr == tipc_own_addr) {
+		node_sub->node = NULL;
 		return;
 	}
-
+	
+	node_sub->node = tipc_node_find(addr);
+	if (!node_sub->node) {
+		warn("Node subscription rejected, unknown node 0x%x\n", addr);
+		return;
+	}
 	node_sub->handle_node_down = handle_down;
 	node_sub->usr_handle = usr_handle;
-	node_sub->node = tipc_node_find(addr);
-	assert(node_sub->node);
+
 	tipc_node_lock(node_sub->node);
 	list_add_tail(&node_sub->nodesub_list, &node_sub->node->nsub);
 	tipc_node_unlock(node_sub->node);

@@ -4,7 +4,6 @@
  * Copyright (c) 2002, 2003 Axis Communications AB.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -411,8 +410,7 @@ static inline void urb_list_move_last(struct urb *urb, int epid)
 	urb_entry_t *urb_entry = __urb_list_entry(urb, epid);
 	assert(urb_entry);
 
-	list_del(&urb_entry->list);
-	list_add_tail(&urb_entry->list, &urb_list[epid]);
+	list_move_tail(&urb_entry->list, &urb_list[epid]);
 }
 
 /* Get the next urb in the list. */

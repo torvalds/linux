@@ -18,6 +18,7 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
+#include <asm/irqnode.h>
 #include <asm/traps.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
@@ -81,25 +82,6 @@ unsigned int local_irq_count[NR_CPUS];
 
 /* irq node variables for the 32 (potential) on chip sources */
 static irq_node_t int_irq_list[NR_IRQS];
-
-#if !defined(CONFIG_DRAGEN2)
-asm (".global _start, __ramend/n/t"
-     ".section .romvec/n"
-     "e_vectors:\n\t"
-     ".long __ramend-4, _start, buserr, trap, trap, trap, trap, trap\n\t"
-     ".long trap, trap, trap, trap, trap, trap, trap, trap\n\t"
-     ".long trap, trap, trap, trap, trap, trap, trap, trap\n\t"
-     ".long trap, trap, trap, trap\n\t"
-     ".long trap, trap, trap, trap\n\t"
-	/*.long inthandler, inthandler, inthandler, inthandler
-	.long inthandler4, inthandler, inthandler, inthandler   */
-	/* TRAP #0-15 */
-     ".long system_call, trap, trap, trap, trap, trap, trap, trap\n\t"
-     ".long trap, trap, trap, trap, trap, trap, trap, trap\n\t"
-     ".long 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n\t"
-     ".text\n"
-     "ignore: rte");
-#endif
 
 /*
  * This function should be called during kernel startup to initialize

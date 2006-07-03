@@ -13,7 +13,6 @@
  *   - Compression stats.
  *   - Adaptive compression.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <asm/scatterlist.h>
 #include <asm/semaphore.h>

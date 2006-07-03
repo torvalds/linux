@@ -15,6 +15,8 @@
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/iommu.h>
 
 /* The abstraction used here is that there are PCI controllers,
@@ -153,16 +155,15 @@ struct pci_pbm_info {
 	int				chip_revision;
 
 	/* Name used for top-level resources. */
-	char				name[64];
+	char				*name;
 
 	/* OBP specific information. */
-	int				prom_node;
-	char				prom_name[64];
-	struct linux_prom_pci_ranges	pbm_ranges[PROM_PCIRNG_MAX];
+	struct device_node		*prom_node;
+	struct linux_prom_pci_ranges	*pbm_ranges;
 	int				num_pbm_ranges;
-	struct linux_prom_pci_intmap	pbm_intmap[PROM_PCIIMAP_MAX];
+	struct linux_prom_pci_intmap	*pbm_intmap;
 	int				num_pbm_intmap;
-	struct linux_prom_pci_intmask	pbm_intmask;
+	struct linux_prom_pci_intmask	*pbm_intmask;
 	u64				ino_bitmap;
 
 	/* PBM I/O and Memory space resources. */
@@ -209,7 +210,6 @@ struct pci_controller_info {
 
 	/* Operations which are controller specific. */
 	void (*scan_bus)(struct pci_controller_info *);
-	unsigned int (*irq_build)(struct pci_pbm_info *, struct pci_dev *, unsigned int);
 	void (*base_address_update)(struct pci_dev *, int);
 	void (*resource_adjust)(struct pci_dev *, struct resource *, struct resource *);
 
@@ -217,8 +217,6 @@ struct pci_controller_info {
 	struct pci_ops			*pci_ops;
 	unsigned int			pci_first_busno;
 	unsigned int			pci_last_busno;
-
-	void				*starfire_cookie;
 };
 
 /* PCI devices which are not bridges have this placed in their pci_dev
@@ -227,8 +225,8 @@ struct pci_controller_info {
  */
 struct pcidev_cookie {
 	struct pci_pbm_info		*pbm;
-	char				prom_name[64];
-	int				prom_node;
+	struct device_node		*prom_node;
+	struct of_device		*op;
 	struct linux_prom_pci_registers	prom_regs[PROMREG_MAX];
 	int num_prom_regs;
 	struct linux_prom_pci_registers prom_assignments[PROMREG_MAX];

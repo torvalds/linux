@@ -12,10 +12,11 @@ obj-$(CONFIG_ARCH_LUBBOCK) += lubbock.o
 obj-$(CONFIG_MACH_LOGICPD_PXA270) += lpd270.o
 obj-$(CONFIG_MACH_MAINSTONE) += mainstone.o
 obj-$(CONFIG_ARCH_PXA_IDP) += idp.o
+obj-$(CONFIG_MACH_TRIZEPS4)	+= trizeps4.o
 obj-$(CONFIG_PXA_SHARP_C7xx)	+= corgi.o corgi_ssp.o corgi_lcd.o sharpsl_pm.o corgi_pm.o
 obj-$(CONFIG_PXA_SHARP_Cxx00)	+= spitz.o corgi_ssp.o corgi_lcd.o sharpsl_pm.o spitz_pm.o
 obj-$(CONFIG_MACH_AKITA)	+= akita-ioexp.o
-obj-$(CONFIG_MACH_POODLE)	+= poodle.o
+obj-$(CONFIG_MACH_POODLE)	+= poodle.o corgi_ssp.o
 obj-$(CONFIG_MACH_TOSA)         += tosa.o
 
 # Support for blinky lights
@@ -23,6 +24,7 @@ led-y := leds.o
 led-$(CONFIG_ARCH_LUBBOCK) += leds-lubbock.o
 led-$(CONFIG_MACH_MAINSTONE) += leds-mainstone.o
 led-$(CONFIG_ARCH_PXA_IDP) += leds-idp.o
+led-$(CONFIG_MACH_TRIZEPS4) += leds-trizeps4.o
 
 obj-$(CONFIG_LEDS) += $(led-y)
 

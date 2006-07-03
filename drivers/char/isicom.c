@@ -245,7 +245,7 @@ static int lock_card(struct isi_board *card)
 	printk(KERN_WARNING "ISICOM: Failed to lock Card (0x%lx)\n",
 		card->base);
 
-	return 0;	/* Failed to aquire the card! */
+	return 0;	/* Failed to acquire the card! */
 }
 
 static int lock_card_at_interrupt(struct isi_board *card)
@@ -262,7 +262,7 @@ static int lock_card_at_interrupt(struct isi_board *card)
 			spin_unlock_irqrestore(&card->card_lock, card->flags);
 	}
 	/* Failing in interrupt is an acceptable event */
-	return 0;	/* Failed to aquire the card! */
+	return 0;	/* Failed to acquire the card! */
 }
 
 static void unlock_card(struct isi_board *card)
@@ -1145,7 +1145,7 @@ static int isicom_write(struct tty_struct *tty,	const unsigned char *buf,
 	if (isicom_paranoia_check(port, tty->name, "isicom_write"))
 		return 0;
 
-	if (!tty || !port->xmit_buf)
+	if (!port->xmit_buf)
 		return 0;
 
 	spin_lock_irqsave(&card->card_lock, flags);
@@ -1180,7 +1180,7 @@ static void isicom_put_char(struct tty_struct *tty, unsigned char ch)
 	if (isicom_paranoia_check(port, tty->name, "isicom_put_char"))
 		return;
 
-	if (!tty || !port->xmit_buf)
+	if (!port->xmit_buf)
 		return;
 
 	spin_lock_irqsave(&card->card_lock, flags);
@@ -1581,7 +1581,6 @@ static int __devinit isicom_register_tty_driver(void)
 
 	isicom_normal->owner			= THIS_MODULE;
 	isicom_normal->name 			= "ttyM";
-	isicom_normal->devfs_name	 	= "isicom/";
 	isicom_normal->major			= ISICOM_NMAJOR;
 	isicom_normal->minor_start		= 0;
 	isicom_normal->type			= TTY_DRIVER_TYPE_SERIAL;
@@ -1615,14 +1614,14 @@ static int __devinit isicom_register_isr(struct pci_dev *pdev,
 	const unsigned int index)
 {
 	struct isi_board *board = pci_get_drvdata(pdev);
-	unsigned long irqflags = SA_INTERRUPT;
+	unsigned long irqflags = IRQF_DISABLED;
 	int retval = -EINVAL;
 
 	if (!board->base)
 		goto end;
 
 	if (board->isa == NO)
-		irqflags |= SA_SHIRQ;
+		irqflags |= IRQF_SHARED;
 
 	retval = request_irq(board->irq, isicom_interrupt, irqflags,
 		ISICOM_NAME, board);

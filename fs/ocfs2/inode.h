@@ -114,7 +114,7 @@ static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
 
 extern kmem_cache_t *ocfs2_inode_cache;
 
-extern struct address_space_operations ocfs2_aops;
+extern const struct address_space_operations ocfs2_aops;
 
 struct buffer_head *ocfs2_bread(struct inode *inode, int block,
 				int *err, int reada);

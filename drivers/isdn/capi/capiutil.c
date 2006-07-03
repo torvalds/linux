@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/config.h>
 #include <linux/isdn/capiutil.h>
 
 /* from CAPI2.0 DDK AVM Berlin GmbH */

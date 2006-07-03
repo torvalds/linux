@@ -24,14 +24,6 @@
 
 #undef memset
 #undef memcpy
-
-/*
- * Why do we do this? Don't ask me..
- *
- * Incomprehensible are the ways of bootloaders.
- */
-static void* memset(void *, int, size_t);
-static void* memcpy(void *, __const void *, size_t);
 #define memzero(s, n)     memset ((s), 0, (n))
 
 typedef unsigned char  uch;
@@ -93,7 +85,7 @@ static unsigned char *real_mode; /* Pointer to real-mode data */
 #endif
 #define RM_SCREEN_INFO (*(struct screen_info *)(real_mode+0))
 
-extern char input_data[];
+extern unsigned char input_data[];
 extern int input_len;
 
 static long bytes_out = 0;
@@ -102,6 +94,9 @@ static unsigned long output_ptr = 0;
 
 static void *malloc(int size);
 static void free(void *where);
+
+static void *memset(void *s, int c, unsigned n);
+static void *memcpy(void *dest, const void *src, unsigned n);
 
 static void putstr(const char *);
 
@@ -205,7 +200,7 @@ static void putstr(const char *s)
 	outb_p(0xff & (pos >> 1), vidport+1);
 }
 
-static void* memset(void* s, int c, size_t n)
+static void* memset(void* s, int c, unsigned n)
 {
 	int i;
 	char *ss = (char*)s;
@@ -214,14 +209,13 @@ static void* memset(void* s, int c, size_t n)
 	return s;
 }
 
-static void* memcpy(void* __dest, __const void* __src,
-			    size_t __n)
+static void* memcpy(void* dest, const void* src, unsigned n)
 {
 	int i;
-	char *d = (char *)__dest, *s = (char *)__src;
+	char *d = (char *)dest, *s = (char *)src;
 
-	for (i=0;i<__n;i++) d[i] = s[i];
-	return __dest;
+	for (i=0;i<n;i++) d[i] = s[i];
+	return dest;
 }
 
 /* ===========================================================================
@@ -309,7 +303,7 @@ static void setup_normal_output_buffer(void)
 #else
 	if ((RM_ALT_MEM_K > RM_EXT_MEM_K ? RM_ALT_MEM_K : RM_EXT_MEM_K) < 1024) error("Less than 2MB of memory");
 #endif
-	output_data = (char *)__PHYSICAL_START; /* Normally Points to 1M */
+	output_data = (unsigned char *)__PHYSICAL_START; /* Normally Points to 1M */
 	free_mem_end_ptr = (long)real_mode;
 }
 
@@ -324,11 +318,9 @@ static void setup_output_buffer_if_we_run_high(struct moveparams *mv)
 #ifdef STANDARD_MEMORY_BIOS_CALL
 	if (RM_EXT_MEM_K < (3*1024)) error("Less than 4MB of memory");
 #else
-	if ((RM_ALT_MEM_K > RM_EXT_MEM_K ? RM_ALT_MEM_K : RM_EXT_MEM_K) <
-			(3*1024))
-		error("Less than 4MB of memory");
+	if ((RM_ALT_MEM_K > RM_EXT_MEM_K ? RM_ALT_MEM_K : RM_EXT_MEM_K) < (3*1024)) error("Less than 4MB of memory");
 #endif	
-	mv->low_buffer_start = output_data = (char *)LOW_BUFFER_START;
+	mv->low_buffer_start = output_data = (unsigned char *)LOW_BUFFER_START;
 	low_buffer_end = ((unsigned int)real_mode > LOW_BUFFER_MAX
 	  ? LOW_BUFFER_MAX : (unsigned int)real_mode) & ~0xfff;
 	low_buffer_size = low_buffer_end - LOW_BUFFER_START;

@@ -9,7 +9,6 @@
  */
 
 #include <linux/compiler.h>
-#include <linux/config.h>
 #include <linux/inetdevice.h>
 #include <net/xfrm.h>
 #include <net/ip.h>

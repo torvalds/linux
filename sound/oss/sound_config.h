@@ -14,7 +14,6 @@
 #ifndef  _SOUND_CONFIG_H_
 #define  _SOUND_CONFIG_H_
 
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/sound.h>
 

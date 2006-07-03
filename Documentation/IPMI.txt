@@ -10,7 +10,7 @@ standard for controlling intelligent devices that monitor a system.
 It provides for dynamic discovery of sensors in the system and the
 ability to monitor the sensors and be informed when the sensor's
 values change or go outside certain boundaries.  It also has a
-standardized database for field-replacable units (FRUs) and a watchdog
+standardized database for field-replaceable units (FRUs) and a watchdog
 timer.
 
 To use this, you need an interface to an IPMI controller in your
@@ -64,7 +64,7 @@ situation, you need to read the section below named 'The SI Driver' or
 IPMI defines a standard watchdog timer.  You can enable this with the
 'IPMI Watchdog Timer' config option.  If you compile the driver into
 the kernel, then via a kernel command-line option you can have the
-watchdog timer start as soon as it intitializes.  It also have a lot
+watchdog timer start as soon as it initializes.  It also have a lot
 of other options, see the 'Watchdog' section below for more details.
 Note that you can also have the watchdog continue to run if it is
 closed (by default it is disabled on close).  Go into the 'Watchdog

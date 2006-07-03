@@ -21,6 +21,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/module.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
@@ -55,6 +56,8 @@ int copy_to_user_fromio(void __user *dst, const volatile void __iomem *src, size
 #endif
 }
 
+EXPORT_SYMBOL(copy_to_user_fromio);
+
 /**
  * copy_from_user_toio - copy data from user-space to mmio-space
  * @dst: the destination pointer on mmio-space
@@ -85,3 +88,5 @@ int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size
 	return 0;
 #endif
 }
+
+EXPORT_SYMBOL(copy_from_user_toio);

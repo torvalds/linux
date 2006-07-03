@@ -4,7 +4,6 @@
  * Copyright (C) 1997  Eddie C. Dost  (ecd@skynet.be)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -71,7 +70,6 @@ flash_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_end - (vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT)) > size)
 		size = vma->vm_end - (vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT));
 
-	vma->vm_flags |= (VM_SHM | VM_LOCKED);
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	if (io_remap_pfn_range(vma, vma->vm_start, addr, size, vma->vm_page_prot))
@@ -192,9 +190,11 @@ static int __init flash_init(void)
 	}
 	if (!sdev) {
 #ifdef CONFIG_PCI
+		struct linux_prom_registers *ebus_regs;
+
 		for_each_ebus(ebus) {
 			for_each_ebusdev(edev, ebus) {
-				if (!strcmp(edev->prom_name, "flashprom"))
+				if (!strcmp(edev->prom_node->name, "flashprom"))
 					goto ebus_done;
 			}
 		}
@@ -202,23 +202,23 @@ static int __init flash_init(void)
 		if (!edev)
 			return -ENODEV;
 
-		len = prom_getproperty(edev->prom_node, "reg", (void *)regs, sizeof(regs));
-		if ((len % sizeof(regs[0])) != 0) {
+		ebus_regs = of_get_property(edev->prom_node, "reg", &len);
+		if (!ebus_regs || (len % sizeof(regs[0])) != 0) {
 			printk("flash: Strange reg property size %d\n", len);
 			return -ENODEV;
 		}
 
-		nregs = len / sizeof(regs[0]);
+		nregs = len / sizeof(ebus_regs[0]);
 
 		flash.read_base = edev->resource[0].start;
-		flash.read_size = regs[0].reg_size;
+		flash.read_size = ebus_regs[0].reg_size;
 
 		if (nregs == 1) {
 			flash.write_base = edev->resource[0].start;
-			flash.write_size = regs[0].reg_size;
+			flash.write_size = ebus_regs[0].reg_size;
 		} else if (nregs == 2) {
 			flash.write_base = edev->resource[1].start;
-			flash.write_size = regs[1].reg_size;
+			flash.write_size = ebus_regs[1].reg_size;
 		} else {
 			printk("flash: Strange number of regs %d\n", nregs);
 			return -ENODEV;

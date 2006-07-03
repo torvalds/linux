@@ -11,7 +11,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/version.h>
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -28,9 +27,9 @@
 
 #include <asm/arch/clock.h>
 
-LIST_HEAD(clocks);
+static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
-DEFINE_SPINLOCK(clockfw_lock);
+static DEFINE_SPINLOCK(clockfw_lock);
 
 static struct clk_functions *arch_clock;
 

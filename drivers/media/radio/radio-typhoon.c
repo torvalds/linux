@@ -36,6 +36,7 @@
 #include <asm/io.h>		/* outb, outb_p                   */
 #include <asm/uaccess.h>	/* copy to/from user              */
 #include <linux/videodev.h>	/* kernel radio structs           */
+#include <media/v4l2-common.h>
 #include <linux/config.h>	/* CONFIG_RADIO_TYPHOON_*         */
 
 #define BANNER "Typhoon Radio Card driver v0.1\n"
@@ -361,8 +362,8 @@ static int __init typhoon_init(void)
 
 #ifdef CONFIG_RADIO_TYPHOON_PROC_FS
 	if (!create_proc_info_entry("driver/radio-typhoon", 0, NULL,
-				    typhoon_get_info)) 
-	    	printk(KERN_ERR "radio-typhoon: registering /proc/driver/radio-typhoon failed\n");
+				    typhoon_get_info))
+		printk(KERN_ERR "radio-typhoon: registering /proc/driver/radio-typhoon failed\n");
 #endif
 
 	return 0;

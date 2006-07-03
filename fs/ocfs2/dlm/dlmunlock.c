@@ -271,8 +271,7 @@ void dlm_commit_pending_unlock(struct dlm_lock_resource *res,
 void dlm_commit_pending_cancel(struct dlm_lock_resource *res,
 			       struct dlm_lock *lock)
 {
-	list_del_init(&lock->list);
-	list_add_tail(&lock->list, &res->granted);
+	list_move_tail(&lock->list, &res->granted);
 	lock->ml.convert_type = LKM_IVMODE;
 }
 
@@ -318,6 +317,16 @@ static enum dlm_status dlm_send_remote_unlock_request(struct dlm_ctxt *dlm,
 	size_t veclen = 1;
 
 	mlog_entry("%.*s\n", res->lockname.len, res->lockname.name);
+
+	if (owner == dlm->node_num) {
+		/* ended up trying to contact ourself.  this means
+		 * that the lockres had been remote but became local
+		 * via a migration.  just retry it, now as local */
+		mlog(0, "%s:%.*s: this node became the master due to a "
+		     "migration, re-evaluate now\n", dlm->name,
+		     res->lockname.len, res->lockname.name);
+		return DLM_FORWARD;
+	}
 
 	memset(&unlock, 0, sizeof(unlock));
 	unlock.node_idx = dlm->node_num;

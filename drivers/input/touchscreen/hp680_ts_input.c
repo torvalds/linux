@@ -109,7 +109,7 @@ static int __init hp680_ts_init(void)
 	input_register_device(hp680_ts_dev);
 
 	if (request_irq(HP680_TS_IRQ, hp680_ts_interrupt,
-			SA_INTERRUPT, MODNAME, 0) < 0) {
+			IRQF_DISABLED, MODNAME, 0) < 0) {
 		printk(KERN_ERR "hp680_touchscreen.c: Can't allocate irq %d\n",
 		       HP680_TS_IRQ);
 		input_unregister_device(hp680_ts_dev);

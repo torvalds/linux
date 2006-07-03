@@ -9,7 +9,6 @@
  * This file provides all the same external entries as smp.c but uses
  * the voyager hal to provide the functionality
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
@@ -661,6 +660,7 @@ do_boot_cpu(__u8 cpu)
 		print_cpu_info(&cpu_data[cpu]);
 		wmb();
 		cpu_set(cpu, cpu_callout_map);
+		cpu_set(cpu, cpu_present_map);
 	}
 	else {
 		printk("CPU%d FAILED TO BOOT: ", cpu);
@@ -1418,7 +1418,7 @@ smp_intr_init(void)
 	 * This is for later: first 16 correspond to PC IRQs; next 16
 	 * are Primary MC IRQs and final 16 are Secondary MC IRQs */
 	for(i = 0; i < 48; i++)
-		irq_desc[i].handler = &vic_irq_type;
+		irq_desc[i].chip = &vic_irq_type;
 }
 
 /* send a CPI at level cpi to a set of cpus in cpuset (set 1 bit per
@@ -1912,6 +1912,7 @@ void __devinit smp_prepare_boot_cpu(void)
 	cpu_set(smp_processor_id(), cpu_online_map);
 	cpu_set(smp_processor_id(), cpu_callout_map);
 	cpu_set(smp_processor_id(), cpu_possible_map);
+	cpu_set(smp_processor_id(), cpu_present_map);
 }
 
 int __devinit
@@ -1935,4 +1936,10 @@ void __init
 smp_cpus_done(unsigned int max_cpus)
 {
 	zap_low_mappings();
+}
+
+void __init
+smp_setup_processor_id(void)
+{
+	current_thread_info()->cpu = hard_smp_processor_id();
 }

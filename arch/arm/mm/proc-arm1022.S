@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2000 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd.
+ *  hacked for non-paged-MM by Hyok S. Choi, 2003.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +15,6 @@
  * functions on the ARM1022E.
  */
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
@@ -90,7 +90,9 @@ ENTRY(cpu_arm1022_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
+#ifdef CONFIG_MMU
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
+#endif
 	mrc	p15, 0, ip, c1, c0, 0		@ ctrl register
 	bic	ip, ip, #0x000f 		@ ............wcam
 	bic	ip, ip, #0x1100 		@ ...i...s........
@@ -333,6 +335,7 @@ ENTRY(cpu_arm1022_dcache_clean_area)
  */
 	.align	5
 ENTRY(cpu_arm1022_switch_mm)
+#ifdef CONFIG_MMU
 #ifndef CONFIG_CPU_DCACHE_DISABLE
 	mov	r1, #(CACHE_DSEGMENTS - 1) << 5	@ 16 segments
 1:	orr	r3, r1, #(CACHE_DENTRIES - 1) << 26 @ 64 entries
@@ -349,6 +352,7 @@ ENTRY(cpu_arm1022_switch_mm)
 	mcr	p15, 0, r1, c7, c10, 4		@ drain WB
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, r1, c8, c7, 0		@ invalidate I & D TLBs
+#endif
 	mov	pc, lr
         
 /*
@@ -358,6 +362,7 @@ ENTRY(cpu_arm1022_switch_mm)
  */
 	.align	5
 ENTRY(cpu_arm1022_set_pte)
+#ifdef CONFIG_MMU
 	str	r1, [r0], #-2048		@ linux version
 
 	eor	r1, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
@@ -385,6 +390,7 @@ ENTRY(cpu_arm1022_set_pte)
 #ifndef CONFIG_CPU_DCACHE_DISABLE
 	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 #endif
+#endif /* CONFIG_MMU */
 	mov	pc, lr
 
 	__INIT
@@ -394,12 +400,14 @@ __arm1022_setup:
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c7		@ invalidate I,D caches on v4
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer on v4
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7		@ invalidate I,D TLBs on v4
+#endif
+	adr	r5, arm1022_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
-	ldr	r5, arm1022_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, arm1022_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 #ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
 	orr	r0, r0, #0x4000 		@ .R..............
 #endif
@@ -412,12 +420,9 @@ __arm1022_setup:
 	 * .011 1001 ..11 0101
 	 * 
 	 */
-	.type	arm1022_cr1_clear, #object
-	.type	arm1022_cr1_set, #object
-arm1022_cr1_clear:
-	.word	0x7f3f
-arm1022_cr1_set:
-	.word	0x3935
+	.type	arm1022_crval, #object
+arm1022_crval:
+	crval	clear=0x00007f3f, mmuset=0x00003935, ucset=0x00001930
 
 	__INITDATA
 
@@ -451,25 +456,7 @@ cpu_elf_name:
 
 	.type	cpu_arm1022_name, #object
 cpu_arm1022_name:
-	.ascii	"arm1022"
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	.ascii	"i"
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	.ascii	"d"
-#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
-	.ascii	"(wt)"
-#else
-	.ascii	"(wb)"
-#endif
-#endif
-#ifndef CONFIG_CPU_BPREDICT_DISABLE
-	.ascii	"B"
-#endif
-#ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
-	.ascii	"RR"
-#endif
-	.ascii	"\0"
+	.asciz	"ARM1022"
 	.size	cpu_arm1022_name, . - cpu_arm1022_name
 
 	.align
@@ -480,6 +467,10 @@ cpu_arm1022_name:
 __arm1022_proc_info:
 	.long	0x4105a220			@ ARM 1022E (v5TE)
 	.long	0xff0ffff0
+	.long   PMD_TYPE_SECT | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	.long   PMD_TYPE_SECT | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \

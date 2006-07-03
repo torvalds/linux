@@ -2,7 +2,6 @@
 #ifndef __SPARC64_SYSTEM_H
 #define __SPARC64_SYSTEM_H
 
-#include <linux/config.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/visasm.h>

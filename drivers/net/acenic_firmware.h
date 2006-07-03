@@ -1,4 +1,3 @@
-#include <linux/config.h>
 /*
  * Declare these here even if Tigon I support is disabled to avoid
  * the compiler complaining about undefined symbols.

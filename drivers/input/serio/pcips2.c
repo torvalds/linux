@@ -107,7 +107,7 @@ static int pcips2_open(struct serio *io)
 	outb(PS2_CTRL_ENABLE, ps2if->base);
 	pcips2_flush_input(ps2if);
 
-	ret = request_irq(ps2if->dev->irq, pcips2_interrupt, SA_SHIRQ,
+	ret = request_irq(ps2if->dev->irq, pcips2_interrupt, IRQF_SHARED,
 			  "pcips2", ps2if);
 	if (ret == 0)
 		val = PS2_CTRL_ENABLE | PS2_CTRL_RXIRQ;

@@ -15,7 +15,6 @@
  *  more details.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/fb.h>
 #include <linux/string.h>
@@ -327,7 +326,6 @@ int mac_var_to_vmode(const struct fb_var_screeninfo *var, int *vmode,
     }
     return -EINVAL;
 }
-EXPORT_SYMBOL(mac_var_to_vmode);
 
 /**
  *	mac_map_monitor_sense - Convert monitor sense to vmode
@@ -371,8 +369,9 @@ EXPORT_SYMBOL(mac_map_monitor_sense);
  *
  */
 
-int __init mac_find_mode(struct fb_var_screeninfo *var, struct fb_info *info,
-			 const char *mode_option, unsigned int default_bpp)
+int __devinit mac_find_mode(struct fb_var_screeninfo *var,
+			    struct fb_info *info, const char *mode_option,
+			    unsigned int default_bpp)
 {
     const struct fb_videomode *db = NULL;
     unsigned int dbsize = 0;

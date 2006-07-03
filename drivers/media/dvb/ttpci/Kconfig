@@ -10,6 +10,7 @@ config DVB_AV7110
 	select DVB_SP8870
 	select DVB_STV0297
 	select DVB_L64781
+	select DVB_LNBP21
 	help
 	  Support for SAA7146 and AV7110 based DVB cards as produced
 	  by Fujitsu-Siemens, Technotrend, Hauppauge and others.
@@ -67,6 +68,7 @@ config DVB_BUDGET
 	select DVB_TDA8083
 	select DVB_TDA10021
 	select DVB_S5H1420
+	select DVB_LNBP21
 	help
 	  Support for simple SAA7146 based DVB cards
 	  (so called Budget- or Nova-PCI cards) without onboard
@@ -84,6 +86,7 @@ config DVB_BUDGET_CI
 	select DVB_STV0297
 	select DVB_STV0299
 	select DVB_TDA1004X
+	select DVB_LNBP21
 	help
 	  Support for simple SAA7146 based DVB cards
 	  (so called Budget- or Nova-PCI cards) without onboard

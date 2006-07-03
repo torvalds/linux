@@ -24,7 +24,6 @@
  *      - Jay Schulist <jschlst@samba.org>
  */
 
-#include <linux/config.h>
 
 #ifdef CONFIG_COPS_DAYNA
 

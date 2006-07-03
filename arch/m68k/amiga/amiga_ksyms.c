@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <asm/ptrace.h>
@@ -23,8 +22,6 @@ EXPORT_SYMBOL(amiga_chip_avail);
 EXPORT_SYMBOL(amiga_chip_size);
 EXPORT_SYMBOL(amiga_audio_period);
 EXPORT_SYMBOL(amiga_audio_min_period);
-EXPORT_SYMBOL(amiga_do_irq);
-EXPORT_SYMBOL(amiga_do_irq_list);
 
 #ifdef CONFIG_AMIGA_PCMCIA
   EXPORT_SYMBOL(pcmcia_reset);

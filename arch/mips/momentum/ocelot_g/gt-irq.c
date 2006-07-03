@@ -11,7 +11,6 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -59,7 +58,7 @@ void hook_irq_handler(int int_cause, int bit_num, void *isr_ptr)
  * bit_num   - Indicates which bit number in the cause register
  *
  * Outputs :
- * 1 if succesful, 0 if failure
+ * 1 if successful, 0 if failure
  */
 int enable_galileo_irq(int int_cause, int bit_num)
 {
@@ -83,7 +82,7 @@ int enable_galileo_irq(int int_cause, int bit_num)
  * bit_num   - Indicates which bit number in the cause register
  *
  * Outputs :
- * 1 if succesful, 0 if failure
+ * 1 if successful, 0 if failure
  */
 int disable_galileo_irq(int int_cause, int bit_num)
 {
@@ -174,7 +173,7 @@ void gt64240_time_init(void)
 	 * the values to the correct interrupt line.
 	 */
 	timer.handler = &gt64240_p0int_irq;
-	timer.flags = SA_SHIRQ | SA_INTERRUPT;
+	timer.flags = IRQF_SHARED | IRQF_DISABLED;
 	timer.name = "timer";
 	timer.dev_id = NULL;
 	timer.next = NULL;

@@ -9,7 +9,6 @@
 #ifndef __M68K_DVMA_H
 #define __M68K_DVMA_H
 
-#include <linux/config.h>
 
 #define DVMA_PAGE_SHIFT	13
 #define DVMA_PAGE_SIZE	(1UL << DVMA_PAGE_SHIFT)

@@ -31,7 +31,6 @@
 
 #include <linux/version.h>
 
-#include <linux/config.h>
 
 #include <linux/module.h>
 #include <linux/time.h>
@@ -343,7 +342,9 @@ static int cpia2_close(struct inode *inode, struct file *file)
 		cpia2_free_buffers(cam);
 		if (!cam->present) {
 			video_unregister_device(dev);
+			mutex_unlock(&cam->busy_lock);
 			kfree(cam);
+			return 0;
 		}
 	}
 
@@ -1167,9 +1168,9 @@ static int ioctl_g_ctrl(void *arg,struct camera_data *cam)
 		} else {
 		    if(cam->params.flicker_control.cam_register &
 		       CPIA2_VP_FLICKER_MODES_50HZ) {
-		    	mode = FLICKER_50;
+			mode = FLICKER_50;
 		    } else {
-		    	mode = FLICKER_60;
+			mode = FLICKER_60;
 		    }
 		}
 		for(i=0; i<NUM_FLICKER_CONTROLS; i++) {

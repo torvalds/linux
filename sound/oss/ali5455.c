@@ -3460,7 +3460,7 @@ static int __devinit ali_probe(struct pci_dev *pci_dev,
 	card->channel[4].num = 4;
 	/* claim our iospace and irq */
 	request_region(card->iobase, 256, card_names[pci_id->driver_data]);
-	if (request_irq(card->irq, &ali_interrupt, SA_SHIRQ,
+	if (request_irq(card->irq, &ali_interrupt, IRQF_SHARED,
 			card_names[pci_id->driver_data], card)) {
 		printk(KERN_ERR "ali_audio: unable to allocate irq %d\n",
 		       card->irq);

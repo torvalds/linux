@@ -1123,6 +1123,14 @@ The top Makefile exports the following variables:
 	$(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE).  The user may
 	override this value on the command line if desired.
 
+    INSTALL_MOD_STRIP
+
+	If this variable is specified, will cause modules to be stripped
+	after they are installed.  If INSTALL_MOD_STRIP is '1', then the
+	default option --strip-debug will be used.  Otherwise,
+	INSTALL_MOD_STRIP will used as the option(s) to the strip command.
+
+
 === 8 Makefile language
 
 The kernel Makefiles are designed to run with GNU Make.  The Makefiles

@@ -322,7 +322,7 @@ static __init struct slvl_board *slvl_init(int iobase, int irq,
 	/* We want a fast IRQ for this device. Actually we'd like an even faster
 	   IRQ ;) - This is one driver RtLinux is made for */
    
-	if(request_irq(irq, &z8530_interrupt, SA_INTERRUPT, "SeaLevel", dev)<0)
+	if(request_irq(irq, &z8530_interrupt, IRQF_DISABLED, "SeaLevel", dev)<0)
 	{
 		printk(KERN_WARNING "sealevel: IRQ %d already in use.\n", irq);
 		goto fail1_1;

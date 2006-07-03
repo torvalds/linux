@@ -23,7 +23,6 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
@@ -227,7 +226,7 @@ static void __init tx4927_irq_cp0_init(void)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &tx4927_irq_cp0_type;
+		irq_desc[i].chip = &tx4927_irq_cp0_type;
 	}
 
 	return;
@@ -435,7 +434,7 @@ static void __init tx4927_irq_pic_init(void)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 2;
-		irq_desc[i].handler = &tx4927_irq_pic_type;
+		irq_desc[i].chip = &tx4927_irq_pic_type;
 	}
 
 	setup_irq(TX4927_IRQ_NEST_PIC_ON_CP0, &tx4927_irq_pic_action);

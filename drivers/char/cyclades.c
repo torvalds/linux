@@ -633,7 +633,6 @@ static char rcsid[] =
 /*
  * Include section 
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
@@ -2833,9 +2832,8 @@ cy_write(struct tty_struct * tty, const unsigned char *buf, int count)
         return 0;
     }
         
-    if (!tty || !info->xmit_buf || !tmp_buf){
-        return 0;
-    }
+    if (!info->xmit_buf || !tmp_buf)
+	return 0;
 
     CY_LOCK(info, flags);
     while (1) {
@@ -2884,7 +2882,7 @@ cy_put_char(struct tty_struct *tty, unsigned char ch)
     if (serial_paranoia_check(info, tty->name, "cy_put_char"))
         return;
 
-    if (!tty || !info->xmit_buf)
+    if (!info->xmit_buf)
         return;
 
     CY_LOCK(info, flags);
@@ -4614,7 +4612,7 @@ cy_detect_isa(void)
 
                 /* allocate IRQ */
                 if(request_irq(cy_isa_irq, cyy_interrupt,
-				   SA_INTERRUPT, "Cyclom-Y", &cy_card[j]))
+				   IRQF_DISABLED, "Cyclom-Y", &cy_card[j]))
                 {
                         printk("Cyclom-Y/ISA found at 0x%lx ",
                                 (unsigned long) cy_isa_address);
@@ -4787,7 +4785,7 @@ cy_detect_pci(void)
 
                 /* allocate IRQ */
                 if(request_irq(cy_pci_irq, cyy_interrupt,
-		        SA_SHIRQ, "Cyclom-Y", &cy_card[j]))
+		        IRQF_SHARED, "Cyclom-Y", &cy_card[j]))
                 {
                         printk("Cyclom-Y/PCI found at 0x%lx ",
 			    (ulong) cy_pci_phys2);
@@ -4967,7 +4965,7 @@ cy_detect_pci(void)
                 /* allocate IRQ only if board has an IRQ */
 		if( (cy_pci_irq != 0) && (cy_pci_irq != 255) ) {
 		    if(request_irq(cy_pci_irq, cyz_interrupt,
-			SA_SHIRQ, "Cyclades-Z", &cy_card[j]))
+			IRQF_SHARED, "Cyclades-Z", &cy_card[j]))
 		    {
                         printk("Cyclom-8Zo/PCI found at 0x%lx ",
 			    (ulong) cy_pci_phys2);
@@ -5061,7 +5059,7 @@ cy_detect_pci(void)
                 /* allocate IRQ only if board has an IRQ */
 		if( (cy_pci_irq != 0) && (cy_pci_irq != 255) ) {
 		    if(request_irq(cy_pci_irq, cyz_interrupt,
-			SA_SHIRQ, "Cyclades-Z", &cy_card[j]))
+			IRQF_SHARED, "Cyclades-Z", &cy_card[j]))
 		    {
                         printk("Cyclom-Ze/PCI found at 0x%lx ",
 			    (ulong) cy_pci_phys2);
@@ -5251,7 +5249,6 @@ cy_init(void)
     cy_serial_driver->owner = THIS_MODULE;
     cy_serial_driver->driver_name = "cyclades";
     cy_serial_driver->name = "ttyC";
-    cy_serial_driver->devfs_name = "tts/C";
     cy_serial_driver->major = CYCLADES_MAJOR;
     cy_serial_driver->minor_start = 0;
     cy_serial_driver->type = TTY_DRIVER_TYPE_SERIAL;

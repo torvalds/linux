@@ -73,14 +73,14 @@ static struct HAUPPAUGE_TUNER_FMT
 }
 hauppauge_tuner_fmt[] =
 {
-	{ V4L2_STD_UNKNOWN," UNKNOWN" },
-	{ V4L2_STD_UNKNOWN," FM" },
-	{ V4L2_STD_PAL_BG, " PAL(B/G)" },
-	{ V4L2_STD_NTSC_M, " NTSC(M)" },
-	{ V4L2_STD_PAL_I,  " PAL(I)" },
-	{ V4L2_STD_SECAM_L," SECAM(L/L')" },
-	{ V4L2_STD_PAL_DK, " PAL(D/D1/K)" },
-	{ V4L2_STD_ATSC,   " ATSC/DVB Digital" },
+	{ V4L2_STD_UNKNOWN,                   " UNKNOWN" },
+	{ V4L2_STD_UNKNOWN,                   " FM" },
+	{ V4L2_STD_B|V4L2_STD_GH,             " PAL(B/G)" },
+	{ V4L2_STD_MN,                        " NTSC(M)" },
+	{ V4L2_STD_PAL_I,                     " PAL(I)" },
+	{ V4L2_STD_SECAM_L|V4L2_STD_SECAM_LC, " SECAM(L/L')" },
+	{ V4L2_STD_DK,                        " PAL(D/D1/K)" },
+	{ V4L2_STD_ATSC,                      " ATSC/DVB Digital" },
 };
 
 /* This is the full list of possible tuners. Many thanks to Hauppauge for
@@ -200,7 +200,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "Philips FQ1286A MK4"},
 	{ TUNER_ABSENT,        "Philips FQ1216ME MK5"},
 	{ TUNER_ABSENT,        "Philips FQ1236 MK5"},
-	{ TUNER_ABSENT,        "Samsung TCPG_6121P30A"},
+	{ TUNER_SAMSUNG_TCPG_6121P30A, "Samsung TCPG 6121P30A"},
 	{ TUNER_TCL_2002MB,    "TCL 2002MB_3H"},
 	{ TUNER_ABSENT,        "TCL 2002MI_3H"},
 	{ TUNER_TCL_2002N,     "TCL 2002N 5H"},
@@ -219,7 +219,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "Thompson DTT75105"},
 	{ TUNER_ABSENT,        "Conexant_CX24109"},
 	{ TUNER_TCL_2002N,     "TCL M2523_5N_E"},
-	{ TUNER_ABSENT,        "TCL M2523_3DB_E"},
+	{ TUNER_TCL_2002MB,    "TCL M2523_3DB_E"},
 	{ TUNER_ABSENT,        "Philips 8275A"},
 	{ TUNER_ABSENT,        "Microtune MT2060"},
 	{ TUNER_ABSENT,        "Philips FM1236 MK5"},

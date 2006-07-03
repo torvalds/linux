@@ -13,7 +13,6 @@
  * Steve Whitehouse - Memory buffer settings, like the tcp ones
  *
  */
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/sysctl.h>
 #include <linux/fs.h>

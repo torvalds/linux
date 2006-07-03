@@ -104,7 +104,6 @@ struct frag_hdr {
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <net/sock.h>
 
 /* sysctls */

@@ -436,7 +436,7 @@ static int __init dmascc_init(void)
 module_init(dmascc_init);
 module_exit(dmascc_exit);
 
-static void dev_setup(struct net_device *dev)
+static void __init dev_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_AX25;
 	dev->hard_header_len = AX25_MAX_HEADER_LEN;

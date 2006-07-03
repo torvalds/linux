@@ -3,6 +3,10 @@
 
 #ifdef __KERNEL__
 
+#include <asm/types.h>
+
+#include <linux/types.h>
+
 struct alt_instr {
 	u8 *instr; 		/* original instruction */
 	u8 *replacement;
@@ -15,11 +19,19 @@ struct alt_instr {
 extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 
 struct module;
+#ifdef CONFIG_SMP
 extern void alternatives_smp_module_add(struct module *mod, char *name,
 					void *locks, void *locks_end,
 					void *text, void *text_end);
 extern void alternatives_smp_module_del(struct module *mod);
 extern void alternatives_smp_switch(int smp);
+#else
+static inline void alternatives_smp_module_add(struct module *mod, char *name,
+					void *locks, void *locks_end,
+					void *text, void *text_end) {}
+static inline void alternatives_smp_module_del(struct module *mod) {}
+static inline void alternatives_smp_switch(int smp) {}
+#endif
 
 #endif
 

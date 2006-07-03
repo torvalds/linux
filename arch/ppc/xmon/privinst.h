@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 1996 Paul Mackerras.
  */
-#include <linux/config.h>
 
 #define GETREG(reg)		\
     static inline int get_ ## reg (void)	\

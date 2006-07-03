@@ -3,7 +3,6 @@
  * 
  * Generic x86 APIC driver probe layer.
  */  
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/string.h>

@@ -129,25 +129,3 @@ static void __exit alsa_seq_exit(void)
 
 module_init(alsa_seq_init)
 module_exit(alsa_seq_exit)
-
-  /* seq_clientmgr.c */
-EXPORT_SYMBOL(snd_seq_create_kernel_client);
-EXPORT_SYMBOL(snd_seq_delete_kernel_client);
-EXPORT_SYMBOL(snd_seq_kernel_client_enqueue);
-EXPORT_SYMBOL(snd_seq_kernel_client_enqueue_blocking);
-EXPORT_SYMBOL(snd_seq_kernel_client_dispatch);
-EXPORT_SYMBOL(snd_seq_kernel_client_ctl);
-EXPORT_SYMBOL(snd_seq_kernel_client_write_poll);
-EXPORT_SYMBOL(snd_seq_set_queue_tempo);
-  /* seq_memory.c */
-EXPORT_SYMBOL(snd_seq_expand_var_event);
-EXPORT_SYMBOL(snd_seq_dump_var_event);
-  /* seq_ports.c */
-EXPORT_SYMBOL(snd_seq_event_port_attach);
-EXPORT_SYMBOL(snd_seq_event_port_detach);
-  /* seq_lock.c */
-#if defined(CONFIG_SMP) || defined(CONFIG_SND_DEBUG)
-/*EXPORT_SYMBOL(snd_seq_sleep_in_lock);*/
-/*EXPORT_SYMBOL(snd_seq_sleep_timeout_in_lock);*/
-EXPORT_SYMBOL(snd_use_lock_sync_helper);
-#endif

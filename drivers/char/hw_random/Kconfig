@@ -1,0 +1,90 @@
+#
+# Hardware Random Number Generator (RNG) configuration
+#
+
+config HW_RANDOM
+	bool "Hardware Random Number Generator Core support"
+	default y
+	---help---
+	  Hardware Random Number Generator Core infrastructure.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_INTEL
+	tristate "Intel HW Random Number Generator support"
+	depends on HW_RANDOM && (X86 || IA64) && PCI
+	default y
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Intel i8xx-based motherboards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called intel-rng.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_AMD
+	tristate "AMD HW Random Number Generator support"
+	depends on HW_RANDOM && X86 && PCI
+	default y
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on AMD 76x-based motherboards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called amd-rng.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_GEODE
+	tristate "AMD Geode HW Random Number Generator support"
+	depends on HW_RANDOM && X86 && PCI
+	default y
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on the AMD Geode LX.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called geode-rng.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_VIA
+	tristate "VIA HW Random Number Generator support"
+	depends on HW_RANDOM && X86_32
+	default y
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on VIA based motherboards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called via-rng.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_IXP4XX
+	tristate "Intel IXP4xx NPU HW Random Number Generator support"
+	depends on HW_RANDOM && ARCH_IXP4XX
+	default y
+	---help---
+	  This driver provides kernel-side support for the Random
+	  Number Generator hardware found on the Intel IXP4xx NPU.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ixp4xx-rng.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_OMAP
+	tristate "OMAP Random Number Generator support"
+	depends on HW_RANDOM && (ARCH_OMAP16XX || ARCH_OMAP24XX)
+	default y
+ 	---help---
+ 	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on OMAP16xx and OMAP24xx multimedia
+	  processors.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called omap-rng.
+
+ 	  If unsure, say Y.

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -31,7 +32,6 @@
  */
 
 #include <linux/version.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -542,13 +542,14 @@ bail:
 	return ret;
 }
 
-static struct super_block *ipathfs_get_sb(struct file_system_type *fs_type,
-				        int flags, const char *dev_name,
-					void *data)
+static int ipathfs_get_sb(struct file_system_type *fs_type, int flags,
+			const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	ipath_super = get_sb_single(fs_type, flags, data,
-				    ipathfs_fill_super);
-	return ipath_super;
+	int ret = get_sb_single(fs_type, flags, data,
+				    ipathfs_fill_super, mnt);
+	if (ret >= 0)
+		ipath_super = mnt->mnt_sb;
+	return ret;
 }
 
 static void ipathfs_kill_super(struct super_block *s)

@@ -9,7 +9,6 @@
  * Copyright (C) 1996 Thomas K. Dyas (tdyas@eden.rutgers.edu)
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -38,16 +37,14 @@
 #include <asm/timer.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/sbus.h>
-#include <asm/fhc.h>
-#include <asm/pbm.h>
-#include <asm/ebus.h>
-#include <asm/isa.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/starfire.h>
 #include <asm/smp.h>
 #include <asm/sections.h>
 #include <asm/cpudata.h>
 #include <asm/uaccess.h>
+#include <asm/prom.h>
 
 DEFINE_SPINLOCK(mostek_lock);
 DEFINE_SPINLOCK(rtc_lock);
@@ -457,7 +454,7 @@ static inline void timer_check_rtc(void)
 	}
 }
 
-static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 {
 	unsigned long ticks, compare, pstate;
 
@@ -755,215 +752,60 @@ retry:
 	return -EOPNOTSUPP;
 }
 
-void __init clock_probe(void)
+static int __init clock_model_matches(char *model)
 {
-	struct linux_prom_registers clk_reg[2];
-	char model[128];
-	int node, busnd = -1, err;
-	unsigned long flags;
-	struct linux_central *cbus;
-#ifdef CONFIG_PCI
-	struct linux_ebus *ebus = NULL;
-	struct sparc_isa_bridge *isa_br = NULL;
-#endif
-	static int invoked;
+	if (strcmp(model, "mk48t02") &&
+	    strcmp(model, "mk48t08") &&
+	    strcmp(model, "mk48t59") &&
+	    strcmp(model, "m5819") &&
+	    strcmp(model, "m5819p") &&
+	    strcmp(model, "m5823") &&
+	    strcmp(model, "ds1287"))
+		return 0;
 
-	if (invoked)
-		return;
-	invoked = 1;
+	return 1;
+}
 
+static int __devinit clock_probe(struct of_device *op, const struct of_device_id *match)
+{
+	struct device_node *dp = op->node;
+	char *model = of_get_property(dp, "model", NULL);
+	unsigned long size, flags;
+	void __iomem *regs;
 
-	if (this_is_starfire) {
-		xtime.tv_sec = starfire_get_time();
-		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-		set_normalized_timespec(&wall_to_monotonic,
-		                        -xtime.tv_sec, -xtime.tv_nsec);
-		return;
+	if (!model || !clock_model_matches(model))
+		return -ENODEV;
+
+	/* On an Enterprise system there can be multiple mostek clocks.
+	 * We should only match the one that is on the central FHC bus.
+	 */
+	if (!strcmp(dp->parent->name, "fhc") &&
+	    strcmp(dp->parent->parent->name, "central") != 0)
+		return -ENODEV;
+
+	size = (op->resource[0].end - op->resource[0].start) + 1;
+	regs = of_ioremap(&op->resource[0], 0, size, "clock");
+	if (!regs)
+		return -ENOMEM;
+
+	if (!strcmp(model, "ds1287") ||
+	    !strcmp(model, "m5819") ||
+	    !strcmp(model, "m5819p") ||
+	    !strcmp(model, "m5823")) {
+		ds1287_regs = (unsigned long) regs;
+	} else if (model[5] == '0' && model[6] == '2') {
+		mstk48t02_regs = regs;
+	} else if(model[5] == '0' && model[6] == '8') {
+		mstk48t08_regs = regs;
+		mstk48t02_regs = mstk48t08_regs + MOSTEK_48T08_48T02;
+	} else {
+		mstk48t59_regs = regs;
+		mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
 	}
-	if (tlb_type == hypervisor) {
-		xtime.tv_sec = hypervisor_get_time();
-		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-		set_normalized_timespec(&wall_to_monotonic,
-		                        -xtime.tv_sec, -xtime.tv_nsec);
-		return;
-	}
+
+	printk(KERN_INFO "%s: Clock regs at %p\n", dp->full_name, regs);
 
 	local_irq_save(flags);
-
-	cbus = central_bus;
-	if (cbus != NULL)
-		busnd = central_bus->child->prom_node;
-
-	/* Check FHC Central then EBUSs then ISA bridges then SBUSs.
-	 * That way we handle the presence of multiple properly.
-	 *
-	 * As a special case, machines with Central must provide the
-	 * timer chip there.
-	 */
-#ifdef CONFIG_PCI
-	if (ebus_chain != NULL) {
-		ebus = ebus_chain;
-		if (busnd == -1)
-			busnd = ebus->prom_node;
-	}
-	if (isa_chain != NULL) {
-		isa_br = isa_chain;
-		if (busnd == -1)
-			busnd = isa_br->prom_node;
-	}
-#endif
-	if (sbus_root != NULL && busnd == -1)
-		busnd = sbus_root->prom_node;
-
-	if (busnd == -1) {
-		prom_printf("clock_probe: problem, cannot find bus to search.\n");
-		prom_halt();
-	}
-
-	node = prom_getchild(busnd);
-
-	while (1) {
-		if (!node)
-			model[0] = 0;
-		else
-			prom_getstring(node, "model", model, sizeof(model));
-		if (strcmp(model, "mk48t02") &&
-		    strcmp(model, "mk48t08") &&
-		    strcmp(model, "mk48t59") &&
-		    strcmp(model, "m5819") &&
-		    strcmp(model, "m5819p") &&
-		    strcmp(model, "m5823") &&
-		    strcmp(model, "ds1287")) {
-			if (cbus != NULL) {
-				prom_printf("clock_probe: Central bus lacks timer chip.\n");
-				prom_halt();
-			}
-
-		   	if (node != 0)
-				node = prom_getsibling(node);
-#ifdef CONFIG_PCI
-			while ((node == 0) && ebus != NULL) {
-				ebus = ebus->next;
-				if (ebus != NULL) {
-					busnd = ebus->prom_node;
-					node = prom_getchild(busnd);
-				}
-			}
-			while ((node == 0) && isa_br != NULL) {
-				isa_br = isa_br->next;
-				if (isa_br != NULL) {
-					busnd = isa_br->prom_node;
-					node = prom_getchild(busnd);
-				}
-			}
-#endif
-			if (node == 0) {
-				prom_printf("clock_probe: Cannot find timer chip\n");
-				prom_halt();
-			}
-			continue;
-		}
-
-		err = prom_getproperty(node, "reg", (char *)clk_reg,
-				       sizeof(clk_reg));
-		if(err == -1) {
-			prom_printf("clock_probe: Cannot get Mostek reg property\n");
-			prom_halt();
-		}
-
-		if (cbus != NULL) {
-			apply_fhc_ranges(central_bus->child, clk_reg, 1);
-			apply_central_ranges(central_bus, clk_reg, 1);
-		}
-#ifdef CONFIG_PCI
-		else if (ebus != NULL) {
-			struct linux_ebus_device *edev;
-
-			for_each_ebusdev(edev, ebus)
-				if (edev->prom_node == node)
-					break;
-			if (edev == NULL) {
-				if (isa_chain != NULL)
-					goto try_isa_clock;
-				prom_printf("%s: Mostek not probed by EBUS\n",
-					    __FUNCTION__);
-				prom_halt();
-			}
-
-			if (!strcmp(model, "ds1287") ||
-			    !strcmp(model, "m5819") ||
-			    !strcmp(model, "m5819p") ||
-			    !strcmp(model, "m5823")) {
-				ds1287_regs = edev->resource[0].start;
-			} else {
-				mstk48t59_regs = (void __iomem *)
-					edev->resource[0].start;
-				mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
-			}
-			break;
-		}
-		else if (isa_br != NULL) {
-			struct sparc_isa_device *isadev;
-
-try_isa_clock:
-			for_each_isadev(isadev, isa_br)
-				if (isadev->prom_node == node)
-					break;
-			if (isadev == NULL) {
-				prom_printf("%s: Mostek not probed by ISA\n");
-				prom_halt();
-			}
-			if (!strcmp(model, "ds1287") ||
-			    !strcmp(model, "m5819") ||
-			    !strcmp(model, "m5819p") ||
-			    !strcmp(model, "m5823")) {
-				ds1287_regs = isadev->resource.start;
-			} else {
-				mstk48t59_regs = (void __iomem *)
-					isadev->resource.start;
-				mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
-			}
-			break;
-		}
-#endif
-		else {
-			if (sbus_root->num_sbus_ranges) {
-				int nranges = sbus_root->num_sbus_ranges;
-				int rngc;
-
-				for (rngc = 0; rngc < nranges; rngc++)
-					if (clk_reg[0].which_io ==
-					    sbus_root->sbus_ranges[rngc].ot_child_space)
-						break;
-				if (rngc == nranges) {
-					prom_printf("clock_probe: Cannot find ranges for "
-						    "clock regs.\n");
-					prom_halt();
-				}
-				clk_reg[0].which_io =
-					sbus_root->sbus_ranges[rngc].ot_parent_space;
-				clk_reg[0].phys_addr +=
-					sbus_root->sbus_ranges[rngc].ot_parent_base;
-			}
-		}
-
-		if(model[5] == '0' && model[6] == '2') {
-			mstk48t02_regs = (void __iomem *)
-				(((u64)clk_reg[0].phys_addr) |
-				 (((u64)clk_reg[0].which_io)<<32UL));
-		} else if(model[5] == '0' && model[6] == '8') {
-			mstk48t08_regs = (void __iomem *)
-				(((u64)clk_reg[0].phys_addr) |
-				 (((u64)clk_reg[0].which_io)<<32UL));
-			mstk48t02_regs = mstk48t08_regs + MOSTEK_48T08_48T02;
-		} else {
-			mstk48t59_regs = (void __iomem *)
-				(((u64)clk_reg[0].phys_addr) |
-				 (((u64)clk_reg[0].which_io)<<32UL));
-			mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
-		}
-		break;
-	}
 
 	if (mstk48t02_regs != NULL) {
 		/* Report a low battery voltage condition. */
@@ -978,17 +820,63 @@ try_isa_clock:
 	set_system_time();
 	
 	local_irq_restore(flags);
+
+	return 0;
 }
+
+static struct of_device_id clock_match[] = {
+	{
+		.name = "eeprom",
+	},
+	{
+		.name = "rtc",
+	},
+	{},
+};
+
+static struct of_platform_driver clock_driver = {
+	.name		= "clock",
+	.match_table	= clock_match,
+	.probe		= clock_probe,
+};
+
+static int __init clock_init(void)
+{
+	if (this_is_starfire) {
+		xtime.tv_sec = starfire_get_time();
+		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+		set_normalized_timespec(&wall_to_monotonic,
+		                        -xtime.tv_sec, -xtime.tv_nsec);
+		return 0;
+	}
+	if (tlb_type == hypervisor) {
+		xtime.tv_sec = hypervisor_get_time();
+		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+		set_normalized_timespec(&wall_to_monotonic,
+		                        -xtime.tv_sec, -xtime.tv_nsec);
+		return 0;
+	}
+
+	return of_register_driver(&clock_driver, &of_bus_type);
+}
+
+/* Must be after subsys_initcall() so that busses are probed.  Must
+ * be before device_initcall() because things like the RTC driver
+ * need to see the clock registers.
+ */
+fs_initcall(clock_init);
 
 /* This is gets the master TICK_INT timer going. */
 static unsigned long sparc64_init_timers(void)
 {
+	struct device_node *dp;
+	struct property *prop;
 	unsigned long clock;
-	int node;
 #ifdef CONFIG_SMP
 	extern void smp_tick_init(void);
 #endif
 
+	dp = of_find_node_by_path("/");
 	if (tlb_type == spitfire) {
 		unsigned long ver, manuf, impl;
 
@@ -999,18 +887,17 @@ static unsigned long sparc64_init_timers(void)
 		if (manuf == 0x17 && impl == 0x13) {
 			/* Hummingbird, aka Ultra-IIe */
 			tick_ops = &hbtick_operations;
-			node = prom_root_node;
-			clock = prom_getint(node, "stick-frequency");
+			prop = of_find_property(dp, "stick-frequency", NULL);
 		} else {
 			tick_ops = &tick_operations;
-			cpu_find_by_instance(0, &node, NULL);
-			clock = prom_getint(node, "clock-frequency");
+			cpu_find_by_instance(0, &dp, NULL);
+			prop = of_find_property(dp, "clock-frequency", NULL);
 		}
 	} else {
 		tick_ops = &stick_operations;
-		node = prom_root_node;
-		clock = prom_getint(node, "stick-frequency");
+		prop = of_find_property(dp, "stick-frequency", NULL);
 	}
+	clock = *(unsigned int *) prop->value;
 	timer_tick_offset = clock / HZ;
 
 #ifdef CONFIG_SMP
@@ -1020,19 +907,9 @@ static unsigned long sparc64_init_timers(void)
 	return clock;
 }
 
-static void sparc64_start_timers(irqreturn_t (*cfunc)(int, void *, struct pt_regs *))
+static void sparc64_start_timers(void)
 {
 	unsigned long pstate;
-	int err;
-
-	/* Register IRQ handler. */
-	err = request_irq(build_irq(0, 0, 0UL, 0UL), cfunc, 0,
-			  "timer", NULL);
-
-	if (err) {
-		prom_printf("Serious problem, cannot register TICK_INT\n");
-		prom_halt();
-	}
 
 	/* Guarantee that the following sequences execute
 	 * uninterrupted.
@@ -1116,7 +993,7 @@ void __init time_init(void)
 	/* Now that the interpolator is registered, it is
 	 * safe to start the timer ticking.
 	 */
-	sparc64_start_timers(timer_interrupt);
+	sparc64_start_timers();
 
 	timer_ticks_per_nsec_quotient =
 		(((NSEC_PER_SEC << SPARC64_NSEC_PER_CYC_SHIFT) +

@@ -2,7 +2,6 @@
 #ifndef _SPARC64_TTABLE_H
 #define _SPARC64_TTABLE_H
 
-#include <linux/config.h>
 #include <asm/utrap.h>
 
 #ifdef __ASSEMBLY__

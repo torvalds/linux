@@ -10,10 +10,10 @@
  */
 
 #include <stdarg.h>
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/console.h>
+#include <linux/init.h>
 #include <asm/processor.h>
 #include <asm/udbg.h>
 
@@ -33,9 +33,12 @@ void __init udbg_early_init(void)
 #elif defined(CONFIG_PPC_EARLY_DEBUG_G5)
 	/* For use on Apple G5 machines */
 	udbg_init_pmac_realmode();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_RTAS)
+#elif defined(CONFIG_PPC_EARLY_DEBUG_RTAS_PANEL)
 	/* RTAS panel debug */
-	udbg_init_rtas();
+	udbg_init_rtas_panel();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_RTAS_CONSOLE)
+	/* RTAS console debug */
+	udbg_init_rtas_console();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_MAPLE)
 	/* Maple real mode debug */
 	udbg_init_maple_realmode();
@@ -141,12 +144,14 @@ static int early_console_initialized;
 
 void __init disable_early_printk(void)
 {
-#if 1
 	if (!early_console_initialized)
 		return;
+	if (strstr(saved_command_line, "udbg-immortal")) {
+		printk(KERN_INFO "early console immortal !\n");
+		return;
+	}
 	unregister_console(&udbg_console);
 	early_console_initialized = 0;
-#endif
 }
 
 /* called by setup_system */

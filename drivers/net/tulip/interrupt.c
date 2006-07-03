@@ -16,7 +16,6 @@
 
 #include <linux/pci.h>
 #include "tulip.h"
-#include <linux/config.h>
 #include <linux/etherdevice.h>
 
 int tulip_rx_copybreak;

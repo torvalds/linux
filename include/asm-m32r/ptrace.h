@@ -12,7 +12,6 @@
  *   Copyright (C) 2001-2002, 2004  Hirokazu Takata <takata at linux-m32r.org>
  */
 
-#include <linux/config.h>
 #include <asm/m32r.h>		/* M32R_PSW_BSM, M32R_PSW_BPM */
 
 /* 0 - 13 are integer registers (general purpose registers).  */

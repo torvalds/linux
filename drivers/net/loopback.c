@@ -74,7 +74,7 @@ static void emulate_large_send_offload(struct sk_buff *skb)
 	struct iphdr *iph = skb->nh.iph;
 	struct tcphdr *th = (struct tcphdr*)(skb->nh.raw + (iph->ihl * 4));
 	unsigned int doffset = (iph->ihl + th->doff) * 4;
-	unsigned int mtu = skb_shinfo(skb)->tso_size + doffset;
+	unsigned int mtu = skb_shinfo(skb)->gso_size + doffset;
 	unsigned int offset = 0;
 	u32 seq = ntohl(th->seq);
 	u16 id  = ntohs(iph->id);
@@ -139,7 +139,7 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 #ifdef LOOPBACK_TSO
-	if (skb_shinfo(skb)->tso_size) {
+	if (skb_shinfo(skb)->gso_size) {
 		BUG_ON(skb->protocol != htons(ETH_P_IP));
 		BUG_ON(skb->nh.iph->protocol != IPPROTO_TCP);
 

@@ -1565,7 +1565,7 @@ aic7xxx_check_patch(struct aic7xxx_host *p,
   struct sequencer_patch *last_patch;
   int num_patches;
 
-  num_patches = sizeof(sequencer_patches)/sizeof(struct sequencer_patch);
+  num_patches = ARRAY_SIZE(sequencer_patches);
   last_patch = &sequencer_patches[num_patches];
   cur_patch = *start_patch;
 
@@ -8322,11 +8322,11 @@ aic7xxx_register(struct scsi_host_template *template, struct aic7xxx_host *p,
   }
   else
   {
-    result = (request_irq(p->irq, do_aic7xxx_isr, SA_SHIRQ,
+    result = (request_irq(p->irq, do_aic7xxx_isr, IRQF_SHARED,
               "aic7xxx", p));
     if (result < 0)
     {
-      result = (request_irq(p->irq, do_aic7xxx_isr, SA_INTERRUPT | SA_SHIRQ,
+      result = (request_irq(p->irq, do_aic7xxx_isr, IRQF_DISABLED | IRQF_SHARED,
               "aic7xxx", p));
     }
   }

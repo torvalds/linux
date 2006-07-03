@@ -27,7 +27,6 @@
  *					if no match found.
  */
 
-#include <linux/config.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>

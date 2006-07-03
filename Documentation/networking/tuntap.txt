@@ -39,10 +39,13 @@ Copyright (C) 1999-2000 Maxim Krasnyansky <max_mk@yahoo.com>
      mknod /dev/net/tun c 10 200
   
   Set permissions:
-     e.g. chmod 0700 /dev/net/tun
-     if you want the device only accessible by root. Giving regular users the
-     right to assign network devices is NOT a good idea. Users could assign
-     bogus network interfaces to trick firewalls or administrators.
+     e.g. chmod 0666 /dev/net/tun
+     There's no harm in allowing the device to be accessible by non-root users,
+     since CAP_NET_ADMIN is required for creating network devices or for 
+     connecting to network devices which aren't owned by the user in question.
+     If you want to create persistent devices and give ownership of them to 
+     unprivileged users, then you need the /dev/net/tun device to be usable by
+     those users.
 
   Driver module autoloading
 

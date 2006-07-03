@@ -1,10 +1,6 @@
-#include <linux/config.h>
 
 	.global __main
-	.global __ram_start
-	.global __ram_end
 	.global __rom_start
-	.global __rom_end
 
         .global _rambase
         .global _ramstart
@@ -12,6 +8,7 @@
 	.global splash_bits
 	.global _start
 	.global _stext
+	.global _edata
 
 #define DEBUG
 #define ROM_OFFSET 0x10C00000
@@ -73,7 +70,7 @@ pclp1:
 #ifdef CONFIG_RELOCATE
 	/* Copy me to RAM */
 	moveal	#__rom_start, %a0
-	moveal	#__ram_start, %a1
+	moveal	#_stext, %a1
 	moveal	#_edata, %a2
 
 	/* Copy %a0 to %a1 until %a1 == %a2 */

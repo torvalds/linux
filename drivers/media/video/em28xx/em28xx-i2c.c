@@ -3,7 +3,7 @@
 
    Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
 		      Markus Rechberger <mrechberger@gmail.com>
-		      Mauro Carvalho Chehab <mchehab@brturbo.com.br>
+		      Mauro Carvalho Chehab <mchehab@infradead.org>
 		      Sascha Sommer <saschasommer@freenet.de>
 
    This program is free software; you can redistribute it and/or modify
@@ -399,17 +399,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-#ifndef I2C_PEC
-static void inc_use(struct i2c_adapter *adap)
-{
-	MOD_INC_USE_COUNT;
-}
-
-static void dec_use(struct i2c_adapter *adap)
-{
-	MOD_DEC_USE_COUNT;
-}
-#endif
 
 static int em28xx_set_tuner(int check_eeprom, struct i2c_client *client)
 {
@@ -436,9 +425,19 @@ static int attach_inform(struct i2c_client *client)
 	struct em28xx *dev = client->adapter->algo_data;
 
 	switch (client->addr << 1) {
-		case 0x86:
+		case 0x43:
+		case 0x4b:
+		{
+			struct tuner_setup tun_setup;
+
+			tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
+			tun_setup.type = TUNER_TDA9887;
+			tun_setup.addr = client->addr;
+
+			em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 			em28xx_i2c_call_clients(dev, TDA9887_SET_CONFIG, &dev->tda9887_conf);
 			break;
+		}
 		case 0x42:
 			dprintk1(1,"attach_inform: saa7114 detected.\n");
 			break;
@@ -464,6 +463,7 @@ static int attach_inform(struct i2c_client *client)
 		case 0xba:
 			dprintk1(1,"attach_inform: tvp5150 detected.\n");
 			break;
+
 		default:
 			dprintk1(1,"attach inform: detected I2C address %x\n", client->addr << 1);
 			dev->tuner_addr = client->addr;
@@ -480,12 +480,7 @@ static struct i2c_algorithm em28xx_algo = {
 };
 
 static struct i2c_adapter em28xx_adap_template = {
-#ifdef I2C_PEC
 	.owner = THIS_MODULE,
-#else
-	.inc_use = inc_use,
-	.dec_use = dec_use,
-#endif
 	.class = I2C_CLASS_TV_ANALOG,
 	.name = "em28xx",
 	.id = I2C_HW_B_EM28XX,

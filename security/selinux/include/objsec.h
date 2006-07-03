@@ -32,6 +32,8 @@ struct task_security_struct {
 	u32 sid;             /* current SID */
 	u32 exec_sid;        /* exec SID */
 	u32 create_sid;      /* fscreate SID */
+	u32 keycreate_sid;   /* keycreate SID */
+	u32 sockcreate_sid;  /* fscreate SID */
 	u32 ptrace_sid;      /* SID of ptrace parent */
 };
 
@@ -97,6 +99,11 @@ struct netif_security_struct {
 struct sk_security_struct {
 	struct sock *sk;		/* back pointer to sk object */
 	u32 peer_sid;			/* SID of peer */
+};
+
+struct key_security_struct {
+	struct key *obj; /* back pointer */
+	u32 sid;         /* SID of key */
 };
 
 extern unsigned int selinux_checkreqprot;

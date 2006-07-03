@@ -383,6 +383,8 @@
 #define __NR_inotify_add_watch		445
 #define __NR_inotify_rm_watch		446
 
+#ifdef __KERNEL__
+
 #define NR_SYSCALLS			447
 
 #if defined(__GNUC__)
@@ -565,9 +567,8 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5, type6 arg6)\
 	_syscall_return(type);						\
 }
 
-#endif /* __LIBRARY__ && __GNUC__ */
+#endif /* __GNUC__ */
 
-#ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_STAT64
@@ -578,7 +579,6 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5, type6 arg6)\
 #define __ARCH_WANT_SYS_OLD_GETRLIMIT
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
-#endif
 
 #ifdef __KERNEL_SYSCALLS__
 
@@ -661,4 +661,5 @@ asmlinkage long sys_rt_sigaction(int sig,
 
 #define cond_syscall(x)  asm(".weak\t" #x "\n" #x " = sys_ni_syscall")
 
+#endif /* __KERNEL__ */
 #endif /* _ALPHA_UNISTD_H */

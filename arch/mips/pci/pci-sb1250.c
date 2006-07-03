@@ -30,7 +30,6 @@
  * kernel mapped memory.  Hopefully neither of these should be a huge
  * problem.
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>

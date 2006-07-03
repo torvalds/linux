@@ -14,7 +14,6 @@
 #ifndef __V850_ATOMIC_H__
 #define __V850_ATOMIC_H__
 
-#include <linux/config.h>
 
 #include <asm/system.h>
 

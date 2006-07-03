@@ -49,14 +49,6 @@
 #include "swab.h"
 #include "util.h"
 
-#undef UFS_TRUNCATE_DEBUG
-
-#ifdef UFS_TRUNCATE_DEBUG
-#define UFSD(x) printk("(%s, %d), %s: ", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
- 
 /*
  * Secure deletion currently doesn't work. It interacts very badly
  * with buffers shared with memory mappings, and for that reason
@@ -82,7 +74,7 @@ static int ufs_trunc_direct (struct inode * inode)
 	unsigned i, tmp;
 	int retry;
 	
-	UFSD(("ENTER\n"))
+	UFSD("ENTER\n");
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -105,7 +97,7 @@ static int ufs_trunc_direct (struct inode * inode)
 		block2 = ufs_fragstoblks (frag3);
 	}
 
-	UFSD(("frag1 %u, frag2 %u, block1 %u, block2 %u, frag3 %u, frag4 %u\n", frag1, frag2, block1, block2, frag3, frag4))
+	UFSD("frag1 %u, frag2 %u, block1 %u, block2 %u, frag3 %u, frag4 %u\n", frag1, frag2, block1, block2, frag3, frag4);
 
 	if (frag1 >= frag2)
 		goto next1;		
@@ -120,9 +112,8 @@ static int ufs_trunc_direct (struct inode * inode)
 	frag1 = ufs_fragnum (frag1);
 	frag2 = ufs_fragnum (frag2);
 
-	inode->i_blocks -= (frag2-frag1) << uspi->s_nspfshift;
-	mark_inode_dirty(inode);
 	ufs_free_fragments (inode, tmp + frag1, frag2 - frag1);
+	mark_inode_dirty(inode);
 	frag_to_free = tmp + frag1;
 
 next1:
@@ -136,8 +127,7 @@ next1:
 			continue;
 
 		*p = 0;
-		inode->i_blocks -= uspi->s_nspb;
-		mark_inode_dirty(inode);
+
 		if (free_count == 0) {
 			frag_to_free = tmp;
 			free_count = uspi->s_fpb;
@@ -148,6 +138,7 @@ next1:
 			frag_to_free = tmp;
 			free_count = uspi->s_fpb;
 		}
+		mark_inode_dirty(inode);
 	}
 	
 	if (free_count > 0)
@@ -166,12 +157,12 @@ next1:
 	frag4 = ufs_fragnum (frag4);
 
 	*p = 0;
-	inode->i_blocks -= frag4 << uspi->s_nspfshift;
-	mark_inode_dirty(inode);
+
 	ufs_free_fragments (inode, tmp, frag4);
+	mark_inode_dirty(inode);
  next3:
 
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return retry;
 }
 
@@ -186,7 +177,7 @@ static int ufs_trunc_indirect (struct inode * inode, unsigned offset, __fs32 *p)
 	unsigned frag_to_free, free_count;
 	int retry;
 
-	UFSD(("ENTER\n"))
+	UFSD("ENTER\n");
 		
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -227,7 +218,7 @@ static int ufs_trunc_indirect (struct inode * inode, unsigned offset, __fs32 *p)
 			frag_to_free = tmp;
 			free_count = uspi->s_fpb;
 		}
-		inode->i_blocks -= uspi->s_nspb;
+
 		mark_inode_dirty(inode);
 	}
 
@@ -238,26 +229,21 @@ static int ufs_trunc_indirect (struct inode * inode, unsigned offset, __fs32 *p)
 		if (*ubh_get_addr32(ind_ubh,i))
 			break;
 	if (i >= uspi->s_apb) {
-		if (ubh_max_bcount(ind_ubh) != 1) {
-			retry = 1;
-		}
-		else {
-			tmp = fs32_to_cpu(sb, *p);
-			*p = 0;
-			inode->i_blocks -= uspi->s_nspb;
-			mark_inode_dirty(inode);
-			ufs_free_blocks (inode, tmp, uspi->s_fpb);
-			ubh_bforget(ind_ubh);
-			ind_ubh = NULL;
-		}
+		tmp = fs32_to_cpu(sb, *p);
+		*p = 0;
+
+		ufs_free_blocks (inode, tmp, uspi->s_fpb);
+		mark_inode_dirty(inode);
+		ubh_bforget(ind_ubh);
+		ind_ubh = NULL;
 	}
 	if (IS_SYNC(inode) && ind_ubh && ubh_buffer_dirty(ind_ubh)) {
-		ubh_ll_rw_block (SWRITE, 1, &ind_ubh);
+		ubh_ll_rw_block(SWRITE, ind_ubh);
 		ubh_wait_on_buffer (ind_ubh);
 	}
 	ubh_brelse (ind_ubh);
 	
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	
 	return retry;
 }
@@ -271,7 +257,7 @@ static int ufs_trunc_dindirect (struct inode *inode, unsigned offset, __fs32 *p)
 	__fs32 * dind;
 	int retry = 0;
 	
-	UFSD(("ENTER\n"))
+	UFSD("ENTER\n");
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -306,25 +292,21 @@ static int ufs_trunc_dindirect (struct inode *inode, unsigned offset, __fs32 *p)
 		if (*ubh_get_addr32 (dind_bh, i))
 			break;
 	if (i >= uspi->s_apb) {
-		if (ubh_max_bcount(dind_bh) != 1)
-			retry = 1;
-		else {
-			tmp = fs32_to_cpu(sb, *p);
-			*p = 0;
-			inode->i_blocks -= uspi->s_nspb;
-			mark_inode_dirty(inode);
-			ufs_free_blocks (inode, tmp, uspi->s_fpb);
-			ubh_bforget(dind_bh);
-			dind_bh = NULL;
-		}
+		tmp = fs32_to_cpu(sb, *p);
+		*p = 0;
+
+		ufs_free_blocks(inode, tmp, uspi->s_fpb);
+		mark_inode_dirty(inode);
+		ubh_bforget(dind_bh);
+		dind_bh = NULL;
 	}
 	if (IS_SYNC(inode) && dind_bh && ubh_buffer_dirty(dind_bh)) {
-		ubh_ll_rw_block (SWRITE, 1, &dind_bh);
+		ubh_ll_rw_block(SWRITE, dind_bh);
 		ubh_wait_on_buffer (dind_bh);
 	}
 	ubh_brelse (dind_bh);
 	
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	
 	return retry;
 }
@@ -339,7 +321,7 @@ static int ufs_trunc_tindirect (struct inode * inode)
 	__fs32 * tind, * p;
 	int retry;
 	
-	UFSD(("ENTER\n"))
+	UFSD("ENTER\n");
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -370,45 +352,114 @@ static int ufs_trunc_tindirect (struct inode * inode)
 		if (*ubh_get_addr32 (tind_bh, i))
 			break;
 	if (i >= uspi->s_apb) {
-		if (ubh_max_bcount(tind_bh) != 1)
-			retry = 1;
-		else {
-			tmp = fs32_to_cpu(sb, *p);
-			*p = 0;
-			inode->i_blocks -= uspi->s_nspb;
-			mark_inode_dirty(inode);
-			ufs_free_blocks (inode, tmp, uspi->s_fpb);
-			ubh_bforget(tind_bh);
-			tind_bh = NULL;
-		}
+		tmp = fs32_to_cpu(sb, *p);
+		*p = 0;
+
+		ufs_free_blocks(inode, tmp, uspi->s_fpb);
+		mark_inode_dirty(inode);
+		ubh_bforget(tind_bh);
+		tind_bh = NULL;
 	}
 	if (IS_SYNC(inode) && tind_bh && ubh_buffer_dirty(tind_bh)) {
-		ubh_ll_rw_block (SWRITE, 1, &tind_bh);
+		ubh_ll_rw_block(SWRITE, tind_bh);
 		ubh_wait_on_buffer (tind_bh);
 	}
 	ubh_brelse (tind_bh);
 	
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return retry;
 }
-		
-void ufs_truncate (struct inode * inode)
+
+static int ufs_alloc_lastblock(struct inode *inode)
+{
+	int err = 0;
+	struct address_space *mapping = inode->i_mapping;
+	struct ufs_sb_private_info *uspi = UFS_SB(inode->i_sb)->s_uspi;
+	struct ufs_inode_info *ufsi = UFS_I(inode);
+	unsigned lastfrag, i, end;
+	struct page *lastpage;
+	struct buffer_head *bh;
+
+	lastfrag = (i_size_read(inode) + uspi->s_fsize - 1) >> uspi->s_fshift;
+
+	if (!lastfrag) {
+		ufsi->i_lastfrag = 0;
+		goto out;
+	}
+	lastfrag--;
+
+	lastpage = ufs_get_locked_page(mapping, lastfrag >>
+				       (PAGE_CACHE_SHIFT - inode->i_blkbits));
+       if (IS_ERR(lastpage)) {
+               err = -EIO;
+               goto out;
+       }
+
+       end = lastfrag & ((1 << (PAGE_CACHE_SHIFT - inode->i_blkbits)) - 1);
+       bh = page_buffers(lastpage);
+       for (i = 0; i < end; ++i)
+               bh = bh->b_this_page;
+
+       if (!buffer_mapped(bh)) {
+               err = ufs_getfrag_block(inode, lastfrag, bh, 1);
+
+               if (unlikely(err))
+                       goto out_unlock;
+
+               if (buffer_new(bh)) {
+                       clear_buffer_new(bh);
+                       unmap_underlying_metadata(bh->b_bdev,
+						 bh->b_blocknr);
+		       /*
+			* we do not zeroize fragment, because of
+			* if it maped to hole, it already contains zeroes
+			*/
+                       set_buffer_uptodate(bh);
+                       mark_buffer_dirty(bh);
+                       set_page_dirty(lastpage);
+               }
+       }
+out_unlock:
+       ufs_put_locked_page(lastpage);
+out:
+       return err;
+}
+
+int ufs_truncate(struct inode *inode, loff_t old_i_size)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
-	struct super_block * sb;
-	struct ufs_sb_private_info * uspi;
-	int retry;
+	struct super_block *sb = inode->i_sb;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+	int retry, err = 0;
 	
-	UFSD(("ENTER\n"))
-	sb = inode->i_sb;
-	uspi = UFS_SB(sb)->s_uspi;
+	UFSD("ENTER\n");
 
-	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)))
-		return;
+	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+	      S_ISLNK(inode->i_mode)))
+		return -EINVAL;
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
-		return;
+		return -EPERM;
 
-	block_truncate_page(inode->i_mapping,	inode->i_size, ufs_getfrag_block);
+	if (inode->i_size > old_i_size) {
+		/*
+		 * if we expand file we should care about
+		 * allocation of block for last byte first of all
+		 */
+		err = ufs_alloc_lastblock(inode);
+
+		if (err) {
+			i_size_write(inode, old_i_size);
+			goto out;
+		}
+		/*
+		 * go away, because of we expand file, and we do not
+		 * need free blocks, and zeroizes page
+		 */
+		lock_kernel();
+		goto almost_end;
+	}
+
+	block_truncate_page(inode->i_mapping, inode->i_size, ufs_getfrag_block);
 
 	lock_kernel();
 	while (1) {
@@ -426,9 +477,58 @@ void ufs_truncate (struct inode * inode)
 		yield();
 	}
 
+	if (inode->i_size < old_i_size) {
+		/*
+		 * now we should have enough space
+		 * to allocate block for last byte
+		 */
+		err = ufs_alloc_lastblock(inode);
+		if (err)
+			/*
+			 * looks like all the same - we have no space,
+			 * but we truncate file already
+			 */
+			inode->i_size = (ufsi->i_lastfrag - 1) * uspi->s_fsize;
+	}
+almost_end:
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
-	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	unlock_kernel();
 	mark_inode_dirty(inode);
-	UFSD(("EXIT\n"))
+out:
+	UFSD("EXIT: err %d\n", err);
+	return err;
 }
+
+
+/*
+ * We don't define our `inode->i_op->truncate', and call it here,
+ * because of:
+ * - there is no way to know old size
+ * - there is no way inform user about error, if it happens in `truncate'
+ */
+static int ufs_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	struct inode *inode = dentry->d_inode;
+	unsigned int ia_valid = attr->ia_valid;
+	int error;
+
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+
+	if (ia_valid & ATTR_SIZE &&
+	    attr->ia_size != i_size_read(inode)) {
+		loff_t old_i_size = inode->i_size;
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
+		error = ufs_truncate(inode, old_i_size);
+		if (error)
+			return error;
+	}
+	return inode_setattr(inode, attr);
+}
+
+struct inode_operations ufs_file_inode_operations = {
+	.setattr = ufs_setattr,
+};

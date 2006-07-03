@@ -85,7 +85,7 @@ static int __devinit ibmasm_init_one(struct pci_dev *pdev, const struct pci_devi
 	}
 	memset(sp, 0, sizeof(struct service_processor));
 
-	sp->lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&sp->lock);
 	INIT_LIST_HEAD(&sp->command_queue);
 
 	pci_set_drvdata(pdev, (void *)sp);
@@ -113,7 +113,7 @@ static int __devinit ibmasm_init_one(struct pci_dev *pdev, const struct pci_devi
 		goto error_ioremap;
 	}
 
-	result = request_irq(sp->irq, ibmasm_interrupt_handler, SA_SHIRQ, sp->devname, (void*)sp);
+	result = request_irq(sp->irq, ibmasm_interrupt_handler, IRQF_SHARED, sp->devname, (void*)sp);
 	if (result) {
 		dev_err(sp->dev, "Failed to register interrupt handler\n");
 		goto error_request_irq;

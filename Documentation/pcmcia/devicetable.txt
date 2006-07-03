@@ -27,37 +27,7 @@ pcmcia:m0149cC1ABf06pfn00fn00pa725B842DpbF1EFEE84pc0877B627pd00000000
 The hex value after "pa" is the hash of product ID string 1, after "pb" for
 string 2 and so on.
 
-Alternatively, you can use this small tool to determine the crc32 hash.
-simply pass the string you want to evaluate as argument to this program,
-e.g.
+Alternatively, you can use crc32hash (see Documentation/pcmcia/crc32hash.c)
+to determine the crc32 hash.  Simply pass the string you want to evaluate
+as argument to this program, e.g.:
 $ ./crc32hash "Dual Speed"
-
--------------------------------------------------------------------------
-/* crc32hash.c - derived from linux/lib/crc32.c, GNU GPL v2 */
-#include <string.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <stdlib.h>
-
-unsigned int crc32(unsigned char const *p, unsigned int len)
-{
-	int i;
-	unsigned int crc = 0;
-	while (len--) {
-		crc ^= *p++;
-		for (i = 0; i < 8; i++)
-			crc = (crc >> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
-	}
-	return crc;
-}
-
-int main(int argc, char **argv) {
-	unsigned int result;
-	if (argc != 2) {
-		printf("no string passed as argument\n");
-		return -1;
-	}
-	result = crc32(argv[1], strlen(argv[1]));
-	printf("0x%x\n", result);
-	return 0;
-}

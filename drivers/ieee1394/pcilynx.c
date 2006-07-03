@@ -30,7 +30,6 @@
  *        Enhancements in async and iso send code
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -1252,13 +1251,9 @@ static int __devinit add_card(struct pci_dev *dev,
         /* Fix buggy cards with autoboot pin not tied low: */
         reg_write(lynx, DMA0_CHAN_CTRL, 0);
 
-#ifndef __sparc__
 	sprintf (irq_buf, "%d", dev->irq);
-#else
-	sprintf (irq_buf, "%s", __irq_itoa(dev->irq));
-#endif
 
-        if (!request_irq(dev->irq, lynx_irq_handler, SA_SHIRQ,
+        if (!request_irq(dev->irq, lynx_irq_handler, IRQF_SHARED,
                          PCILYNX_DRIVER_NAME, lynx)) {
                 PRINT(KERN_INFO, lynx->id, "allocated interrupt %s", irq_buf);
                 lynx->state = have_intr;

@@ -1454,7 +1454,7 @@ int snd_cs4231_create(struct snd_card *card,
 		return -ENODEV;
 	}
 	chip->cport = cport;
-	if (!(hwshare & CS4231_HWSHARE_IRQ) && request_irq(irq, snd_cs4231_interrupt, SA_INTERRUPT, "CS4231", (void *) chip)) {
+	if (!(hwshare & CS4231_HWSHARE_IRQ) && request_irq(irq, snd_cs4231_interrupt, IRQF_DISABLED, "CS4231", (void *) chip)) {
 		snd_printk(KERN_ERR "cs4231: can't grab IRQ %d\n", irq);
 		snd_cs4231_free(chip);
 		return -EBUSY;

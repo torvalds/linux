@@ -97,19 +97,19 @@
  *
  * The documentation is an adventure: it's close but not fully accurate. I
  * found out that after a reset some registers are *NOT* reset, though the
- * docs say the would be. Interresting ones are 0x7f, 0x7d and 0x7a. They are
- * related to the Audio 2 channel. I also was suprised about the consequenses
+ * docs say the would be. Interesting ones are 0x7f, 0x7d and 0x7a. They are
+ * related to the Audio 2 channel. I also was surprised about the consequences
  * of writing 0x00 to 0x7f (which should be done by reset): The ES1887 moves
  * into ES1888 mode. This means that it claims IRQ 11, which happens to be my
  * ISDN adapter. Needless to say it no longer worked. I now understand why
  * after rebooting 0x7f already was 0x05, the value of my choice: the BIOS
  * did it.
  *
- * Oh, and this is another trap: in ES1887 docs mixer register 0x70 is decribed
- * as if it's exactly the same as register 0xa1. This is *NOT* true. The
- * description of 0x70 in ES1869 docs is accurate however.
+ * Oh, and this is another trap: in ES1887 docs mixer register 0x70 is
+ * described as if it's exactly the same as register 0xa1. This is *NOT* true.
+ * The description of 0x70 in ES1869 docs is accurate however.
  * Well, the assumption about ES1869 was wrong: register 0x70 is very much
- * like register 0xa1, except that bit 7 is allways 1, whatever you want
+ * like register 0xa1, except that bit 7 is always 1, whatever you want
  * it to be.
  *
  * When using audio 2 mixer register 0x72 seems te be meaningless. Only 0xa2
@@ -117,10 +117,10 @@
  *
  * Software reset not being able to reset all registers is great! Especially
  * the fact that register 0x78 isn't reset is great when you wanna change back
- * to single dma operation (simplex): audio 2 is still operation, and uses the
- * same dma as audio 1: your ess changes into a funny echo machine.
+ * to single dma operation (simplex): audio 2 is still operational, and uses
+ * the same dma as audio 1: your ess changes into a funny echo machine.
  *
- * Received the new that ES1688 is detected as a ES1788. Did some thinking:
+ * Received the news that ES1688 is detected as a ES1788. Did some thinking:
  * the ES1887 detection scheme suggests in step 2 to try if bit 3 of register
  * 0x64 can be changed. This is inaccurate, first I inverted the * check: "If
  * can be modified, it's a 1688", which lead to a correct detection
@@ -135,7 +135,7 @@
  * About recognition of ESS chips
  *
  * The distinction of ES688, ES1688, ES1788, ES1887 and ES1888 is described in
- * a (preliminary ??) datasheet on ES1887. It's aim is to identify ES1887, but
+ * a (preliminary ??) datasheet on ES1887. Its aim is to identify ES1887, but
  * during detection the text claims that "this chip may be ..." when a step
  * fails. This scheme is used to distinct between the above chips.
  * It appears however that some PnP chips like ES1868 are recognized as ES1788
@@ -156,9 +156,9 @@
  *
  * The existing ES1688 support didn't take care of the ES1688+ recording
  * levels very well. Whenever a device was selected (recmask) for recording
- * it's recording level was loud, and it couldn't be changed. The fact that
+ * its recording level was loud, and it couldn't be changed. The fact that
  * internal register 0xb4 could take care of RECLEV, didn't work meaning until
- * it's value was restored every time the chip was reset; this reset the
+ * its value was restored every time the chip was reset; this reset the
  * value of 0xb4 too. I guess that's what 4front also had (have?) trouble with.
  *
  * About ES1887 support:
@@ -169,9 +169,9 @@
  * the latter case the recording volumes are 0.
  * Now recording levels of inputs can be controlled, by changing the playback
  * levels. Futhermore several devices can be recorded together (which is not
- * possible with the ES1688.
+ * possible with the ES1688).
  * Besides the separate recording level control for each input, the common
- * recordig level can also be controlled by RECLEV as described above.
+ * recording level can also be controlled by RECLEV as described above.
  *
  * Not only ES1887 have this recording mixer. I know the following from the
  * documentation:

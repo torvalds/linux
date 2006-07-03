@@ -78,6 +78,18 @@ config ADB_PMU
 	  this device; you should do so if your machine is one of those
 	  mentioned above.
 
+config ADB_PMU_LED
+	bool "Support for the Power/iBook front LED"
+	depends on ADB_PMU
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  Support the front LED on Power/iBooks as a generic LED that can
+	  be triggered by any of the supported triggers. To get the
+	  behaviour of the old CONFIG_BLK_DEV_IDE_PMAC_BLINK, select this
+	  and the ide-disk LED trigger and configure appropriately through
+	  sysfs.
+
 config PMAC_SMU
 	bool "Support for SMU  based PowerMacs"
 	depends on PPC_PMAC64
@@ -99,17 +111,22 @@ config PMAC_MEDIABAY
 	  devices are not fully supported in the bay as I never had one to
 	  try with
 
-# made a separate option since backlight may end up beeing used
-# on non-powerbook machines (but only on PMU based ones AFAIK)
 config PMAC_BACKLIGHT
 	bool "Backlight control for LCD screens"
 	depends on ADB_PMU && (BROKEN || !PPC64)
 	help
-	  Say Y here to build in code to manage the LCD backlight on a
-	  Macintosh PowerBook.  With this code, the backlight will be turned
-	  on and off appropriately on power-management and lid-open/lid-closed
-	  events; also, the PowerBook button device will be enabled so you can
-	  change the screen brightness.
+	  Say Y here to enable Macintosh specific extensions of the generic
+	  backlight code. With this enabled, the brightness keys on older
+	  PowerBooks will be enabled so you can change the screen brightness.
+	  Newer models should use an userspace daemon like pbbuttonsd.
+
+config PMAC_BACKLIGHT_LEGACY
+	bool "Provide legacy ioctl's on /dev/pmu for the backlight"
+	depends on PMAC_BACKLIGHT && (BROKEN || !PPC64)
+	help
+	  Say Y if you want to enable legacy ioctl's on /dev/pmu. This is for
+	  programs which use this old interface. New and updated programs
+	  should use the backlight classes in sysfs.
 
 config ADB_MACIO
 	bool "Include MacIO (CHRP) ADB driver"
@@ -171,6 +188,7 @@ config THERM_PM72
 
 config WINDFARM
 	tristate "New PowerMac thermal control infrastructure"
+	depends on PPC
 
 config WINDFARM_PM81
 	tristate "Support for thermal management on iMac G5"

@@ -232,7 +232,6 @@
 
 #include <linux/module.h>
 
-#include <linux/config.h>
 
 #include <linux/types.h>
 #include <asm/setup.h>
@@ -361,7 +360,7 @@ int CmdPageStart = (0 - Ent_dsa_zero - sizeof(struct NCR53c7x0_cmd)) & 0xff;
 static char *setup_strings[] =
 	{"","","","","","","",""};
 
-#define MAX_SETUP_STRINGS (sizeof(setup_strings) / sizeof(char *))
+#define MAX_SETUP_STRINGS ARRAY_SIZE(setup_strings)
 #define SETUP_BUFFER_SIZE 200
 static char setup_buffer[SETUP_BUFFER_SIZE];
 static char setup_used[MAX_SETUP_STRINGS];
@@ -709,7 +708,7 @@ request_synchronous (int host, int target) {
 	printk (KERN_ALERT "target %d is host ID\n", target);
 	return -1;
     } 
-    else if (target > h->max_id) {
+    else if (target >= h->max_id) {
 	printk (KERN_ALERT "target %d exceeds maximum of %d\n", target,
 	    h->max_id);
 	return -1;
@@ -1071,7 +1070,7 @@ NCR53c7x0_init (struct Scsi_Host *host) {
 
     NCR53c7x0_driver_init (host);
 
-    if (request_irq(host->irq, NCR53c7x0_intr, SA_SHIRQ, "53c7xx", host))
+    if (request_irq(host->irq, NCR53c7x0_intr, IRQF_SHARED, "53c7xx", host))
     {
 	printk("scsi%d : IRQ%d not free, detaching\n",
 		host->host_no, host->irq);
@@ -2190,15 +2189,15 @@ static const struct {
  */
 
 
-static void 
+static void
 synchronous (struct Scsi_Host *host, int target, char *msg) {
     struct NCR53c7x0_hostdata *hostdata = (struct NCR53c7x0_hostdata *)
 	host->hostdata[0];
     int desire, divisor, i, limit;
     unsigned char scntl3, sxfer;
 /* The diagnostic message fits on one line, even with max. width integers */
-    char buf[80];	
-   
+    char buf[80];
+
 /* Desired transfer clock in Hz */
     desire = 1000000000L / (msg[3] * 4);
 /* Scale the available SCSI clock by 10 so we get tenths */
@@ -2209,14 +2208,14 @@ synchronous (struct Scsi_Host *host, int target, char *msg) {
 	msg[4] = 8;
 
     if (hostdata->options & OPTION_DEBUG_SDTR)
-    	printk("scsi%d : optimal synchronous divisor of %d.%01d\n", 
+    	printk("scsi%d : optimal synchronous divisor of %d.%01d\n",
 	    host->host_no, divisor / 10, divisor % 10);
 
-    limit = (sizeof(syncs) / sizeof(syncs[0]) -1);
+    limit = ARRAY_SIZE(syncs) - 1;
     for (i = 0; (i < limit) && (divisor > syncs[i].div); ++i);
 
     if (hostdata->options & OPTION_DEBUG_SDTR)
-    	printk("scsi%d : selected synchronous divisor of %d.%01d\n", 
+    	printk("scsi%d : selected synchronous divisor of %d.%01d\n",
 	    host->host_no, syncs[i].div / 10, syncs[i].div % 10);
 
     msg[3] = ((1000000000L / hostdata->scsi_clock) * syncs[i].div / 10 / 4);
@@ -3622,7 +3621,7 @@ NCR53c7xx_queue_command (Scsi_Cmnd *cmd, void (* done)(Scsi_Cmnd *)) {
 #ifdef LINUX_1_2
 	|| cmd->device->id > 7
 #else
-	|| cmd->device->id > host->max_id
+	|| cmd->device->id >= host->max_id
 #endif
 	|| cmd->device->id == host->this_id
 	|| hostdata->state == STATE_DISABLED) {
@@ -4233,7 +4232,7 @@ restart:
  * Purpose : handle NCR53c7x0 interrupts for all NCR devices sharing
  *	the same IRQ line.  
  * 
- * Inputs : Since we're using the SA_INTERRUPT interrupt handler
+ * Inputs : Since we're using the IRQF_DISABLED interrupt handler
  *	semantics, irq indicates the interrupt which invoked 
  *	this handler.  
  *

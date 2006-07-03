@@ -820,7 +820,7 @@ int __init install_wf_mpu (void)
 
 	/* OK, now we're configured to handle an interrupt ... */
 
-	if (request_irq (phys_dev->irq, wf_mpuintr, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq (phys_dev->irq, wf_mpuintr, IRQF_DISABLED|IRQF_SHARED,
 			 "wavefront midi", phys_dev) < 0) {
 
 		printk (KERN_ERR "WF-MPU: Failed to allocate IRQ%d\n",

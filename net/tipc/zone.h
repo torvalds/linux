@@ -2,7 +2,7 @@
  * net/tipc/zone.h: Include file for TIPC zone management routines
  * 
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@
  * struct _zone - TIPC zone structure
  * @addr: network address of zone
  * @clusters: array of pointers to all clusters within zone
- * @links: (used for inter-zone communication)
+ * @links: number of (unicast) links to zone
  */
  
 struct _zone {

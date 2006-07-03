@@ -10,7 +10,7 @@ menuconfig BACKLIGHT_LCD_SUPPORT
 
 config BACKLIGHT_CLASS_DEVICE
         tristate "Lowlevel Backlight controls"
-	depends on BACKLIGHT_LCD_SUPPORT
+	depends on BACKLIGHT_LCD_SUPPORT && FB
 	default m
 	help
 	  This framework adds support for low-level control of the LCD
@@ -26,7 +26,7 @@ config BACKLIGHT_DEVICE
 
 config LCD_CLASS_DEVICE
         tristate "Lowlevel LCD controls"
-	depends on BACKLIGHT_LCD_SUPPORT
+	depends on BACKLIGHT_LCD_SUPPORT && FB
 	default m
 	help
 	  This framework adds support for low-level control of LCD.
@@ -49,6 +49,14 @@ config BACKLIGHT_CORGI
 	help
 	  If you have a Sharp Zaurus SL-C7xx, SL-Cxx00 or SL-6000x say y to enable the
 	  backlight driver.
+
+config BACKLIGHT_LOCOMO
+	tristate "Sharp LOCOMO LCD/Backlight Driver"
+	depends on BACKLIGHT_DEVICE && SHARP_LOCOMO
+	default y
+	help
+	  If you have a Sharp Zaurus SL-5500 (Collie) or SL-5600 (Poodle) say y to
+	  enable the LCD/backlight driver.
 
 config BACKLIGHT_HP680
 	tristate "HP Jornada 680 Backlight Driver"

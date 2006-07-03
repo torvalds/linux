@@ -13,7 +13,6 @@
 #include <linux/list.h>
 #include <linux/pagemap.h>
 #include <linux/wait.h>
-#include <linux/nfs_fs_sb.h>
 #include <linux/sunrpc/auth.h>
 #include <linux/nfs_xdr.h>
 
@@ -63,8 +62,8 @@ extern	void nfs_release_request(struct nfs_page *req);
 
 extern  int nfs_scan_lock_dirty(struct nfs_inode *nfsi, struct list_head *dst,
 				unsigned long idx_start, unsigned int npages);
-extern	int nfs_scan_list(struct list_head *, struct list_head *,
-			  unsigned long, unsigned int);
+extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head, struct list_head *dst,
+			  unsigned long idx_start, unsigned int npages);
 extern	int nfs_coalesce_requests(struct list_head *, struct list_head *,
 				  unsigned int);
 extern  int nfs_wait_on_request(struct nfs_page *);

@@ -15,7 +15,6 @@
 #ifndef __ASM_MPC885ADS_H__
 #define __ASM_MPC885ADS_H__
 
-#include <linux/config.h>
 
 #include <asm/ppcboot.h>
 

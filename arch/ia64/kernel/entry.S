@@ -31,7 +31,6 @@
  *	pNonSys:	!pSys
  */
 
-#include <linux/config.h>
 
 #include <asm/asmmacro.h>
 #include <asm/cache.h>
@@ -1584,7 +1583,7 @@ sys_call_table:
 	data8 sys_keyctl
 	data8 sys_ioprio_set
 	data8 sys_ioprio_get			// 1275
-	data8 sys_ni_syscall
+	data8 sys_move_pages
 	data8 sys_inotify_init
 	data8 sys_inotify_add_watch
 	data8 sys_inotify_rm_watch

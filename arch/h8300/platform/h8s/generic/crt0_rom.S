@@ -10,7 +10,6 @@
 
 #define ASSEMBLY
 
-#include <linux/config.h>
 #include <asm/linkage.h>
 #include <asm/regs267x.h>
 	

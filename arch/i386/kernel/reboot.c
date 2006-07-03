@@ -2,7 +2,6 @@
  *  linux/arch/i386/kernel/reboot.c
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/delay.h>

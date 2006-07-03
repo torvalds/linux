@@ -1973,7 +1973,7 @@ void reiserfs_unmap_buffer(struct buffer_head *);
 /* file.c */
 extern struct inode_operations reiserfs_file_inode_operations;
 extern const struct file_operations reiserfs_file_operations;
-extern struct address_space_operations reiserfs_address_space_operations;
+extern const struct address_space_operations reiserfs_address_space_operations;
 
 /* fix_nodes.c */
 

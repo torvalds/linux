@@ -7,7 +7,6 @@
  * Copyright (C) 1997 Miguel de Icaza (miguel@nuclecu.unam.mx)
  */
 
-#include <linux/config.h>
 #include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/threads.h>

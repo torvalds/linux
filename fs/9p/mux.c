@@ -23,7 +23,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -712,7 +711,7 @@ static void v9fs_read_work(void *a)
  * v9fs_send_request - send 9P request
  * The function can sleep until the request is scheduled for sending.
  * The function can be interrupted. Return from the function is not
- * a guarantee that the request is sent succesfully. Can return errors
+ * a guarantee that the request is sent successfully. Can return errors
  * that can be retrieved by PTR_ERR macros.
  *
  * @m: mux data
@@ -932,6 +931,8 @@ v9fs_mux_rpc(struct v9fs_mux_data *m, struct v9fs_fcall *tc,
 					r.rcall || r.err);
 			} while (!r.rcall && !r.err && err==-ERESTARTSYS &&
 				m->trans->status==Connected && !m->err);
+
+			err = -ERESTARTSYS;
 		}
 		sigpending = 1;
 	}

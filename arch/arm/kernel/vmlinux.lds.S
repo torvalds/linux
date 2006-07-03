@@ -4,7 +4,6 @@
  */
 
 #include <asm-generic/vmlinux.lds.h>
-#include <linux/config.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 	
@@ -80,6 +79,10 @@ SECTIONS
 		*(.exit.text)
 		*(.exit.data)
 		*(.exitcall.exit)
+#ifndef CONFIG_MMU
+		*(.fixup)
+		*(__ex_table)
+#endif
 	}
 
 	.text : {			/* Real text segment		*/
@@ -87,7 +90,9 @@ SECTIONS
 			*(.text)
 			SCHED_TEXT
 			LOCK_TEXT
+#ifdef CONFIG_MMU
 			*(.fixup)
+#endif
 			*(.gnu.warning)
 			*(.rodata)
 			*(.rodata.*)
@@ -142,7 +147,9 @@ SECTIONS
 		 */
 		. = ALIGN(32);
 		__start___ex_table = .;
+#ifdef CONFIG_MMU
 		*(__ex_table)
+#endif
 		__stop___ex_table = .;
 
 		/*

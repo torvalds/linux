@@ -18,9 +18,7 @@
 #ifndef _LINUX_NET_H
 #define _LINUX_NET_H
 
-#include <linux/config.h>
 #include <linux/wait.h>
-#include <linux/stringify.h>
 #include <asm/socket.h>
 
 struct poll_table_struct;
@@ -57,11 +55,13 @@ typedef enum {
 #define __SO_ACCEPTCON	(1 << 16)	/* performed a listen		*/
 
 #ifdef __KERNEL__
+#include <linux/stringify.h>
 
 #define SOCK_ASYNC_NOSPACE	0
 #define SOCK_ASYNC_WAITDATA	1
 #define SOCK_NOSPACE		2
 #define SOCK_PASSCRED		3
+#define SOCK_PASSSEC		4
 
 #ifndef ARCH_HAS_SOCKET_TYPES
 /**

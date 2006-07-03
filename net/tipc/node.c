@@ -2,7 +2,7 @@
  * net/tipc/node.c: TIPC node management routines
  * 
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,34 +61,37 @@ struct node *tipc_node_create(u32 addr)
         struct node **curr_node;
 
 	n_ptr = kmalloc(sizeof(*n_ptr),GFP_ATOMIC);
-        if (n_ptr != NULL) {
-                memset(n_ptr, 0, sizeof(*n_ptr));
-                n_ptr->addr = addr;
-                n_ptr->lock =  SPIN_LOCK_UNLOCKED;	
-                INIT_LIST_HEAD(&n_ptr->nsub);
-	
-		c_ptr = tipc_cltr_find(addr);
-                if (c_ptr == NULL)
-                        c_ptr = tipc_cltr_create(addr);
-                if (c_ptr != NULL) {
-                        n_ptr->owner = c_ptr;
-                        tipc_cltr_attach_node(c_ptr, n_ptr);
-                        n_ptr->last_router = -1;
+	if (!n_ptr) {
+		warn("Node creation failed, no memory\n");
+		return NULL;
+	}
 
-                        /* Insert node into ordered list */
-                        for (curr_node = &tipc_nodes; *curr_node; 
-			     curr_node = &(*curr_node)->next) {
-                                if (addr < (*curr_node)->addr) {
-                                        n_ptr->next = *curr_node;
-                                        break;
-                                }
-                        }
-                        (*curr_node) = n_ptr;
-                } else {
-                        kfree(n_ptr);
-                        n_ptr = NULL;
-                }
-        }
+	c_ptr = tipc_cltr_find(addr);
+	if (!c_ptr) {
+		c_ptr = tipc_cltr_create(addr);
+	}
+	if (!c_ptr) {
+		kfree(n_ptr);
+		return NULL;
+	}
+		
+	memset(n_ptr, 0, sizeof(*n_ptr));
+	n_ptr->addr = addr;
+                spin_lock_init(&n_ptr->lock);
+	INIT_LIST_HEAD(&n_ptr->nsub);
+	n_ptr->owner = c_ptr;
+	tipc_cltr_attach_node(c_ptr, n_ptr);
+	n_ptr->last_router = -1;
+
+	/* Insert node into ordered list */
+	for (curr_node = &tipc_nodes; *curr_node; 
+	     curr_node = &(*curr_node)->next) {
+		if (addr < (*curr_node)->addr) {
+			n_ptr->next = *curr_node;
+			break;
+		}
+	}
+	(*curr_node) = n_ptr;
 	return n_ptr;
 }
 
@@ -122,6 +125,8 @@ void tipc_node_link_up(struct node *n_ptr, struct link *l_ptr)
 {
 	struct link **active = &n_ptr->active_links[0];
 
+	n_ptr->working_links++;
+
 	info("Established link <%s> on network plane %c\n",
 	     l_ptr->name, l_ptr->b_ptr->net_plane);
 	
@@ -132,7 +137,7 @@ void tipc_node_link_up(struct node *n_ptr, struct link *l_ptr)
 		return;
 	}
 	if (l_ptr->priority < active[0]->priority) { 
-		info("Link is standby\n");
+		info("New link <%s> becomes standby\n", l_ptr->name);
 		return;
 	}
 	tipc_link_send_duplicate(active[0], l_ptr);
@@ -140,8 +145,9 @@ void tipc_node_link_up(struct node *n_ptr, struct link *l_ptr)
 		active[0] = l_ptr;
 		return;
 	}
-	info("Link <%s> on network plane %c becomes standby\n",
-	     active[0]->name, active[0]->b_ptr->net_plane);
+	info("Old link <%s> becomes standby\n", active[0]->name);
+	if (active[1] != active[0])
+		info("Old link <%s> becomes standby\n", active[1]->name);
 	active[0] = active[1] = l_ptr;
 }
 
@@ -181,6 +187,8 @@ void tipc_node_link_down(struct node *n_ptr, struct link *l_ptr)
 {
 	struct link **active;
 
+	n_ptr->working_links--;
+
 	if (!tipc_link_is_active(l_ptr)) {
 		info("Lost standby link <%s> on network plane %c\n",
 		     l_ptr->name, l_ptr->b_ptr->net_plane);
@@ -210,8 +218,7 @@ int tipc_node_has_active_links(struct node *n_ptr)
 
 int tipc_node_has_redundant_links(struct node *n_ptr)
 {
-	return (tipc_node_has_active_links(n_ptr) &&
-		(n_ptr->active_links[0] != n_ptr->active_links[1]));
+	return (n_ptr->working_links > 1);
 }
 
 static int tipc_node_has_active_routes(struct node *n_ptr)
@@ -234,7 +241,6 @@ struct node *tipc_node_attach_link(struct link *l_ptr)
 		u32 bearer_id = l_ptr->b_ptr->identity;
 		char addr_string[16];
 
-                assert(bearer_id < MAX_BEARERS);
                 if (n_ptr->link_cnt >= 2) {
 			char addr_string[16];
 
@@ -249,7 +255,7 @@ struct node *tipc_node_attach_link(struct link *l_ptr)
                         n_ptr->link_cnt++;
                         return n_ptr;
                 }
-                err("Attempt to establish second link on <%s> to <%s> \n",
+                err("Attempt to establish second link on <%s> to %s \n",
                     l_ptr->b_ptr->publ.name, 
 		    addr_string_fill(addr_string, l_ptr->addr));
         }
@@ -314,7 +320,7 @@ static void node_established_contact(struct node *n_ptr)
 	struct cluster *c_ptr;
 
 	dbg("node_established_contact:-> %x\n", n_ptr->addr);
-	if (!tipc_node_has_active_routes(n_ptr)) { 
+	if (!tipc_node_has_active_routes(n_ptr) && in_own_cluster(n_ptr->addr)) { 
 		tipc_k_signal((Handler)tipc_named_node_up, n_ptr->addr);
 	}
 
@@ -586,6 +592,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 	struct sk_buff *buf;
 	struct node *n_ptr;
         struct tipc_node_info node_info;
+	u32 payload_size;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
@@ -602,8 +609,11 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 	/* For now, get space for all other nodes 
 	   (will need to modify this when slave nodes are supported */
 
-	buf = tipc_cfg_reply_alloc(TLV_SPACE(sizeof(node_info)) *
-				   (tipc_max_nodes - 1));
+	payload_size = TLV_SPACE(sizeof(node_info)) * (tipc_max_nodes - 1);
+	if (payload_size > 32768u)
+		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+						   " (too many nodes)");
+	buf = tipc_cfg_reply_alloc(payload_size);
 	if (!buf)
 		return NULL;
 
@@ -627,6 +637,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	struct sk_buff *buf;
 	struct node *n_ptr;
         struct tipc_link_info link_info;
+	u32 payload_size;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
@@ -639,12 +650,15 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 
         if (!tipc_nodes)
                 return tipc_cfg_reply_none();
+	
+	/* Get space for all unicast links + multicast link */
 
-	/* For now, get space for 2 links to all other nodes + bcast link 
-	   (will need to modify this when slave nodes are supported */
-
-	buf = tipc_cfg_reply_alloc(TLV_SPACE(sizeof(link_info)) *
-				   (2 * (tipc_max_nodes - 1) + 1));
+	payload_size = TLV_SPACE(sizeof(link_info)) *
+		(tipc_net.zones[tipc_zone(tipc_own_addr)]->links + 1);
+	if (payload_size > 32768u)
+		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+						   " (too many links)");
+	buf = tipc_cfg_reply_alloc(payload_size);
 	if (!buf)
 		return NULL;
 

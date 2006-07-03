@@ -59,7 +59,6 @@ MODULE_LICENSE("GPL");
  * numbers 0-255 we get a maximum of 32 disks.
  */
 #define VIOD_GENHD_NAME		"iseries/vd"
-#define VIOD_GENHD_DEVFS_NAME	"iseries/disc"
 
 #define VIOD_VERS		"1.64"
 
@@ -523,8 +522,6 @@ retry:
 	else
 		snprintf(g->disk_name, sizeof(g->disk_name),
 				VIOD_GENHD_NAME "%c", 'a' + (dev_no % 26));
-	snprintf(g->devfs_name, sizeof(g->devfs_name),
-			"%s%d", VIOD_GENHD_DEVFS_NAME, dev_no);
 	g->fops = &viodasd_fops;
 	g->queue = q;
 	g->private_data = d;
@@ -747,7 +744,7 @@ static int viodasd_remove(struct vio_dev *vdev)
  * support.
  */
 static struct vio_device_id viodasd_device_table[] __devinitdata = {
-	{ "viodasd", "" },
+	{ "block", "IBM,iSeries-viodasd" },
 	{ "", "" }
 };
 MODULE_DEVICE_TABLE(vio, viodasd_device_table);

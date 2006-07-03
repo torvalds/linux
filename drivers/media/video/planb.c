@@ -40,6 +40,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/wait.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>

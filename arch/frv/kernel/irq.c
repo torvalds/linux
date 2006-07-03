@@ -16,7 +16,6 @@
  * Naturally it's not a 1:1 relation, but there are similarities.
  */
 
-#include <linux/config.h>
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
@@ -342,11 +341,11 @@ asmlinkage void do_NMI(void)
  *
  *	Flags:
  *
- *	SA_SHIRQ		Interrupt is shared
+ *	IRQF_SHARED		Interrupt is shared
  *
- *	SA_INTERRUPT		Disable local interrupts while processing
+ *	IRQF_DISABLED	Disable local interrupts while processing
  *
- *	SA_SAMPLE_RANDOM	The interrupt can be used for entropy
+ *	IRQF_SAMPLE_RANDOM	The interrupt can be used for entropy
  *
  */
 
@@ -366,7 +365,7 @@ int request_irq(unsigned int irq,
 	 * to figure out which interrupt is which (messes up the
 	 * interrupt freeing logic etc).
 	 */
-	if (irqflags & SA_SHIRQ) {
+	if (irqflags & IRQF_SHARED) {
 		if (!dev_id)
 			printk("Bad boy: %s (at 0x%x) called us without a dev_id!\n",
 			       devname, (&irq)[-1]);
@@ -577,7 +576,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	 * so we have to be careful not to interfere with a
 	 * running system.
 	 */
-	if (new->flags & SA_SAMPLE_RANDOM) {
+	if (new->flags & IRQF_SAMPLE_RANDOM) {
 		/*
 		 * This function might sleep, we want to call it first,
 		 * outside of the atomic block.
@@ -593,7 +592,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	spin_lock_irqsave(&level->lock, flags);
 
 	/* can't share interrupts unless all parties agree to */
-	if (level->usage != 0 && !(level->flags & new->flags & SA_SHIRQ)) {
+	if (level->usage != 0 && !(level->flags & new->flags & IRQF_SHARED)) {
 		spin_unlock_irqrestore(&level->lock,flags);
 		return -EBUSY;
 	}
@@ -625,7 +624,7 @@ static struct proc_dir_entry * irq_dir [NR_IRQS];
 
 #define HEX_DIGITS 8
 
-static unsigned int parse_hex_value (const char *buffer,
+static unsigned int parse_hex_value (const char __user *buffer,
 				     unsigned long count, unsigned long *ret)
 {
 	unsigned char hexnum [HEX_DIGITS];
@@ -672,7 +671,7 @@ static int prof_cpu_mask_read_proc (char *page, char **start, off_t off,
 	return sprintf (page, "%08lx\n", *mask);
 }
 
-static int prof_cpu_mask_write_proc (struct file *file, const char *buffer,
+static int prof_cpu_mask_write_proc (struct file *file, const char __user *buffer,
 					unsigned long count, void *data)
 {
 	unsigned long *mask = (unsigned long *) data, full_count = count, err;
@@ -711,7 +710,7 @@ void init_irq_proc (void)
 	int i;
 
 	/* create /proc/irq */
-	root_irq_dir = proc_mkdir("irq", 0);
+	root_irq_dir = proc_mkdir("irq", NULL);
 
 	/* create /proc/irq/prof_cpu_mask */
 	entry = create_proc_entry("prof_cpu_mask", 0600, root_irq_dir);

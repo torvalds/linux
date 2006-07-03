@@ -1,4 +1,4 @@
-/* 
+/*
  *  arch/arm/mach-lh7a40x/time.c
  *
  *  Copyright (C) 2004 Logic Product Development
@@ -8,10 +8,10 @@
  *  version 2 as published by the Free Software Foundation.
  *
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/time.h>
 
 #include <asm/hardware.h>
@@ -53,11 +53,11 @@ lh7a40x_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction lh7a40x_timer_irq = {
 	.name		= "LHA740x Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= lh7a40x_timer_interrupt,
 };
 
-static void __init lh7a40x_timer_init(void)
+static void __init lh7a40x_timer_init (void)
 {
 				/* Stop/disable all timers */
 	TIMER_CONTROL1 = 0;

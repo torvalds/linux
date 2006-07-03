@@ -23,7 +23,6 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111 USA
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -1012,7 +1011,7 @@ static void garmin_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 		garmin_data_p->flags |= CLEAR_HALT_REQUIRED;
 	}
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 

@@ -103,8 +103,7 @@ nfsd_cache_shutdown(void)
 static void
 lru_put_end(struct svc_cacherep *rp)
 {
-	list_del(&rp->c_lru);
-	list_add_tail(&rp->c_lru, &lru_head);
+	list_move_tail(&rp->c_lru, &lru_head);
 }
 
 /*

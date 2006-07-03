@@ -2760,7 +2760,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 
 	tasklet_init(&chip->hwvol_tq, snd_m3_update_hw_volume, (unsigned long)chip);
 
-	if (request_irq(pci->irq, snd_m3_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq(pci->irq, snd_m3_interrupt, IRQF_DISABLED|IRQF_SHARED,
 			card->driver, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_m3_free(chip);
@@ -2861,7 +2861,8 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 #if 0 /* TODO: not supported yet */
 	/* TODO enable MIDI IRQ and I/O */
 	err = snd_mpu401_uart_new(chip->card, 0, MPU401_HW_MPU401,
-				  chip->iobase + MPU401_DATA_PORT, 1,
+				  chip->iobase + MPU401_DATA_PORT,
+				  MPU401_INFO_INTEGRATED,
 				  chip->irq, 0, &chip->rmidi);
 	if (err < 0)
 		printk(KERN_WARNING "maestro3: no MIDI support.\n");

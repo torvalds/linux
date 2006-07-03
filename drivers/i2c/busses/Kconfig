@@ -163,7 +163,7 @@ config I2C_PXA_SLAVE
 	  I2C bus.
 
 config I2C_PIIX4
-	tristate "Intel PIIX4"
+	tristate "Intel PIIX4 and compatible (ATI/Serverworks/Broadcom/SMSC)"
 	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the Intel
@@ -172,6 +172,9 @@ config I2C_PIIX4
 	  of Broadcom):
 	    Intel PIIX4
 	    Intel 440MX
+	    ATI IXP200
+	    ATI IXP300
+	    ATI IXP400
 	    Serverworks OSB4
 	    Serverworks CSB5
 	    Serverworks CSB6
@@ -252,12 +255,12 @@ config I2C_POWERMAC
 	  will be called i2c-powermac.
 
 config I2C_MPC
-	tristate "MPC107/824x/85xx/52xx"
+	tristate "MPC107/824x/85xx/52xx/86xx"
 	depends on I2C && PPC32
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the MPC107/Tsi107/MPC8240/MPC8245 and
-	  MPC85xx family processors. The driver may also work on 52xx
+	  MPC85xx/MPC8641 family processors. The driver may also work on 52xx
 	  family processors, though interrupts are known not to work.
 
 	  This driver can also be built as a module.  If so, the module
@@ -272,6 +275,17 @@ config I2C_NFORCE2
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-nforce2.
+
+config I2C_OCORES
+	tristate "OpenCores I2C Controller"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes to this option, support will be included for the
+	  OpenCores I2C controller. For details see
+	  http://www.opencores.org/projects.cgi/web/i2c/overview
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-ocores.
 
 config I2C_PARPORT
 	tristate "Parallel port adapter"
@@ -500,12 +514,18 @@ config I2C_PCA_ISA
 	tristate "PCA9564 on an ISA bus"
 	depends on I2C
 	select I2C_ALGOPCA
+	default n
 	help
 	  This driver supports ISA boards using the Philips PCA 9564
 	  Parallel bus to I2C bus controller
 	  
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-pca-isa.
+
+	  This device is almost undetectable and using this driver on a
+	  system which doesn't have this device will result in long
+	  delays when I2C/SMBus chip drivers are loaded (e.g. at boot
+	  time).  If unsure, say N.
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"

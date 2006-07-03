@@ -63,7 +63,6 @@
  * Copyright (C) 1999, 2000, 2001, 2002, 2003 Axis Communications AB
  */
 
-#include <linux/config.h>
 #define ASSEMBLER_MACROS_ONLY
 #include <asm/arch/sv_addr_ag.h>
 

@@ -34,8 +34,8 @@ void cx8800_vbi_fmt(struct cx8800_dev *dev, struct v4l2_format *f)
 	if (dev->core->tvnorm->id & V4L2_STD_525_60) {
 		/* ntsc */
 		f->fmt.vbi.sampling_rate = 28636363;
-		f->fmt.vbi.start[0] = 10 -1;
-		f->fmt.vbi.start[1] = 273 -1;
+		f->fmt.vbi.start[0] = 10;
+		f->fmt.vbi.start[1] = 273;
 
 	} else if (dev->core->tvnorm->id & V4L2_STD_625_50) {
 		/* pal */

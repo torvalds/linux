@@ -11,17 +11,7 @@
 extern void mac_reset(void);
 extern void mac_poweroff(void);
 extern void mac_init_IRQ(void);
-extern int mac_request_irq (unsigned int, irqreturn_t (*)(int, void *,
-				struct pt_regs *),
-				unsigned long, const char *, void *);
-extern void mac_free_irq(unsigned int, void *);
-extern void mac_enable_irq(unsigned int);
-extern void mac_disable_irq(unsigned int);
 extern int mac_irq_pending(unsigned int);
-extern int show_mac_interrupts(struct seq_file *, void *);
-#if 0
-extern void mac_default_handler(int irq);
-#endif
 extern void mac_identify(void);
 extern void mac_report_hardware(void);
 extern void mac_debugging_penguin(int);

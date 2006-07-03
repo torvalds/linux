@@ -1,6 +1,6 @@
 /* cg3.c: CGTHREE frame buffer driver
  *
- * Copyright (C) 2003 David S. Miller (davem@redhat.com)
+ * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996,1998 Jakub Jelinek (jj@ultra.linux.cz)
  * Copyright (C) 1996 Miguel de Icaza (miguel@nuclecu.unam.mx)
  * Copyright (C) 1997 Eddie C. Dost (ecd@skynet.be)
@@ -19,8 +19,9 @@
 #include <linux/mm.h>
 
 #include <asm/io.h>
-#include <asm/sbus.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/fbio.h>
 
 #include "sbuslib.h"
@@ -80,30 +81,30 @@ enum cg3_type {
 };
 
 struct bt_regs {
-	volatile u32 addr;
-	volatile u32 color_map;
-	volatile u32 control;
-	volatile u32 cursor;
+	u32 addr;
+	u32 color_map;
+	u32 control;
+	u32 cursor;
 };
 
 struct cg3_regs {
 	struct bt_regs	cmap;
-	volatile u8	control;
-	volatile u8	status;
-	volatile u8	cursor_start;
-	volatile u8	cursor_end;
-	volatile u8	h_blank_start;
-	volatile u8	h_blank_end;
-	volatile u8	h_sync_start;
-	volatile u8	h_sync_end;
-	volatile u8	comp_sync_end;
-	volatile u8	v_blank_start_high;
-	volatile u8	v_blank_start_low;
-	volatile u8	v_blank_end;
-	volatile u8	v_sync_start;
-	volatile u8	v_sync_end;
-	volatile u8	xfer_holdoff_start;
-	volatile u8	xfer_holdoff_end;
+	u8	control;
+	u8	status;
+	u8	cursor_start;
+	u8	cursor_end;
+	u8	h_blank_start;
+	u8	h_blank_end;
+	u8	h_sync_start;
+	u8	h_sync_end;
+	u8	comp_sync_end;
+	u8	v_blank_start_high;
+	u8	v_blank_start_low;
+	u8	v_blank_end;
+	u8	v_sync_start;
+	u8	v_sync_end;
+	u8	xfer_holdoff_start;
+	u8	xfer_holdoff_end;
 };
 
 /* Offset of interesting structures in the OBIO space */
@@ -120,9 +121,8 @@ struct cg3_par {
 #define CG3_FLAG_RDI		0x00000002
 
 	unsigned long		physbase;
+	unsigned long		which_io;
 	unsigned long		fbsize;
-
-	struct sbus_dev		*sdev;
 };
 
 /**
@@ -235,7 +235,7 @@ static int cg3_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	return sbusfb_mmap_helper(cg3_mmap_map,
 				  par->physbase, par->fbsize,
-				  par->sdev->reg_addrs[0].which_io,
+				  par->which_io,
 				  vma);
 }
 
@@ -252,11 +252,9 @@ static int cg3_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
  */
 
 static void
-cg3_init_fix(struct fb_info *info, int linebytes)
+cg3_init_fix(struct fb_info *info, int linebytes, struct device_node *dp)
 {
-	struct cg3_par *par = (struct cg3_par *)info->par;
-
-	strlcpy(info->fix.id, par->sdev->prom_name, sizeof(info->fix.id));
+	strlcpy(info->fix.id, dp->name, sizeof(info->fix.id));
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
@@ -267,16 +265,15 @@ cg3_init_fix(struct fb_info *info, int linebytes)
 }
 
 static void cg3_rdi_maybe_fixup_var(struct fb_var_screeninfo *var,
-				    struct sbus_dev *sdev)
+				    struct device_node *dp)
 {
-	char buffer[40];
+	char *params;
 	char *p;
 	int ww, hh;
 
-	*buffer = 0;
-	prom_getstring(sdev->prom_node, "params", buffer, sizeof(buffer));
-	if (*buffer) {
-		ww = simple_strtoul(buffer, &p, 10);
+	params = of_get_property(dp, "params", NULL);
+	if (params) {
+		ww = simple_strtoul(params, &p, 10);
 		if (ww && *p == 'x') {
 			hh = simple_strtoul(p + 1, &p, 10);
 			if (hh && *p == '-') {
@@ -348,11 +345,11 @@ static void cg3_do_default_mode(struct cg3_par *par)
 		sbus_writeb(p[1], regp);
 	}
 	for (p = cg3_dacvals; *p; p += 2) {
-		volatile u8 __iomem *regp;
+		u8 __iomem *regp;
 
-		regp = (volatile u8 __iomem *)&par->regs->cmap.addr;
+		regp = (u8 __iomem *)&par->regs->cmap.addr;
 		sbus_writeb(p[0], regp);
-		regp = (volatile u8 __iomem *)&par->regs->cmap.control;
+		regp = (u8 __iomem *)&par->regs->cmap.control;
 		sbus_writeb(p[1], regp);
 	}
 }
@@ -360,129 +357,137 @@ static void cg3_do_default_mode(struct cg3_par *par)
 struct all_info {
 	struct fb_info info;
 	struct cg3_par par;
-	struct list_head list;
 };
-static LIST_HEAD(cg3_list);
 
-static void cg3_init_one(struct sbus_dev *sdev)
+static int __devinit cg3_init_one(struct of_device *op)
 {
+	struct device_node *dp = op->node;
 	struct all_info *all;
-	int linebytes;
+	int linebytes, err;
 
-	all = kmalloc(sizeof(*all), GFP_KERNEL);
-	if (!all) {
-		printk(KERN_ERR "cg3: Cannot allocate memory.\n");
-		return;
-	}
-	memset(all, 0, sizeof(*all));
-
-	INIT_LIST_HEAD(&all->list);
+	all = kzalloc(sizeof(*all), GFP_KERNEL);
+	if (!all)
+		return -ENOMEM;
 
 	spin_lock_init(&all->par.lock);
-	all->par.sdev = sdev;
 
-	all->par.physbase = sdev->reg_addrs[0].phys_addr;
+	all->par.physbase = op->resource[0].start;
+	all->par.which_io = op->resource[0].flags & IORESOURCE_BITS;
 
-	sbusfb_fill_var(&all->info.var, sdev->prom_node, 8);
+	sbusfb_fill_var(&all->info.var, dp->node, 8);
 	all->info.var.red.length = 8;
 	all->info.var.green.length = 8;
 	all->info.var.blue.length = 8;
-	if (!strcmp(sdev->prom_name, "cgRDI"))
+	if (!strcmp(dp->name, "cgRDI"))
 		all->par.flags |= CG3_FLAG_RDI;
 	if (all->par.flags & CG3_FLAG_RDI)
-		cg3_rdi_maybe_fixup_var(&all->info.var, sdev);
+		cg3_rdi_maybe_fixup_var(&all->info.var, dp);
 
-	linebytes = prom_getintdefault(sdev->prom_node, "linebytes",
-				       all->info.var.xres);
+	linebytes = of_getintprop_default(dp, "linebytes",
+					  all->info.var.xres);
 	all->par.fbsize = PAGE_ALIGN(linebytes * all->info.var.yres);
 
-	all->par.regs = sbus_ioremap(&sdev->resource[0], CG3_REGS_OFFSET,
-			     sizeof(struct cg3_regs), "cg3 regs");
+	all->par.regs = of_ioremap(&op->resource[0], CG3_REGS_OFFSET,
+				   sizeof(struct cg3_regs), "cg3 regs");
 
 	all->info.flags = FBINFO_DEFAULT;
 	all->info.fbops = &cg3_ops;
-#ifdef CONFIG_SPARC32
-	all->info.screen_base = (char __iomem *)
-		prom_getintdefault(sdev->prom_node, "address", 0);
-#endif
-	if (!all->info.screen_base)
-		all->info.screen_base =
-			sbus_ioremap(&sdev->resource[0], CG3_RAM_OFFSET,
-				     all->par.fbsize, "cg3 ram");
+	all->info.screen_base =
+		of_ioremap(&op->resource[0], CG3_RAM_OFFSET,
+			   all->par.fbsize, "cg3 ram");
 	all->info.par = &all->par;
 
 	cg3_blank(0, &all->info);
 
-	if (!prom_getbool(sdev->prom_node, "width"))
+	if (!of_find_property(dp, "width", NULL))
 		cg3_do_default_mode(&all->par);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		printk(KERN_ERR "cg3: Could not allocate color map.\n");
+		of_iounmap(all->par.regs, sizeof(struct cg3_regs));
+		of_iounmap(all->info.screen_base, all->par.fbsize);
 		kfree(all);
-		return;
+		return -ENOMEM;
 	}
 	fb_set_cmap(&all->info.cmap, &all->info);
 
-	cg3_init_fix(&all->info, linebytes);
+	cg3_init_fix(&all->info, linebytes, dp);
 
-	if (register_framebuffer(&all->info) < 0) {
-		printk(KERN_ERR "cg3: Could not register framebuffer.\n");
+	err = register_framebuffer(&all->info);
+	if (err < 0) {
 		fb_dealloc_cmap(&all->info.cmap);
+		of_iounmap(all->par.regs, sizeof(struct cg3_regs));
+		of_iounmap(all->info.screen_base, all->par.fbsize);
 		kfree(all);
-		return;
+		return err;
 	}
 
-	list_add(&all->list, &cg3_list);
+	dev_set_drvdata(&op->dev, all);
 
-	printk("cg3: %s at %lx:%lx\n",
-	       sdev->prom_name,
-	       (long) sdev->reg_addrs[0].which_io,
-	       (long) sdev->reg_addrs[0].phys_addr);
+	printk("%s: cg3 at %lx:%lx\n",
+	       dp->full_name, all->par.which_io, all->par.physbase);
+
+	return 0;
 }
 
-int __init cg3_init(void)
+static int __devinit cg3_probe(struct of_device *dev, const struct of_device_id *match)
 {
-	struct sbus_bus *sbus;
-	struct sbus_dev *sdev;
+	struct of_device *op = to_of_device(&dev->dev);
 
+	return cg3_init_one(op);
+}
+
+static int __devexit cg3_remove(struct of_device *dev)
+{
+	struct all_info *all = dev_get_drvdata(&dev->dev);
+
+	unregister_framebuffer(&all->info);
+	fb_dealloc_cmap(&all->info.cmap);
+
+	of_iounmap(all->par.regs, sizeof(struct cg3_regs));
+	of_iounmap(all->info.screen_base, all->par.fbsize);
+
+	kfree(all);
+
+	dev_set_drvdata(&dev->dev, NULL);
+
+	return 0;
+}
+
+static struct of_device_id cg3_match[] = {
+	{
+		.name = "cgthree",
+	},
+	{
+		.name = "cgRDI",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, cg3_match);
+
+static struct of_platform_driver cg3_driver = {
+	.name		= "cg3",
+	.match_table	= cg3_match,
+	.probe		= cg3_probe,
+	.remove		= __devexit_p(cg3_remove),
+};
+
+static int __init cg3_init(void)
+{
 	if (fb_get_options("cg3fb", NULL))
 		return -ENODEV;
 
-	for_all_sbusdev(sdev, sbus) {
-		if (!strcmp(sdev->prom_name, "cgthree") ||
-		    !strcmp(sdev->prom_name, "cgRDI"))
-			cg3_init_one(sdev);
-	}
-
-	return 0;
+	return of_register_driver(&cg3_driver, &of_bus_type);
 }
 
-void __exit cg3_exit(void)
+static void __exit cg3_exit(void)
 {
-	struct list_head *pos, *tmp;
-
-	list_for_each_safe(pos, tmp, &cg3_list) {
-		struct all_info *all = list_entry(pos, typeof(*all), list);
-
-		unregister_framebuffer(&all->info);
-		fb_dealloc_cmap(&all->info.cmap);
-		kfree(all);
-	}
-}
-
-int __init
-cg3_setup(char *arg)
-{
-	/* No cmdline options yet... */
-	return 0;
+	of_unregister_driver(&cg3_driver);
 }
 
 module_init(cg3_init);
-
-#ifdef MODULE
 module_exit(cg3_exit);
-#endif
 
 MODULE_DESCRIPTION("framebuffer driver for CGthree chipsets");
-MODULE_AUTHOR("David S. Miller <davem@redhat.com>");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
+MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");

@@ -12,7 +12,6 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
-#include <linux/config.h>
 #include <asm/arch/memory.h>
 
 #ifdef CONFIG_ARCH_FOOTBRIDGE

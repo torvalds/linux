@@ -31,7 +31,7 @@ ENTRY(__const_udelay)				@ 0 <= r0 <= 0x7fffff06
 		mov	r2, r2, lsr #10		@ max = 0x00007fff
 		mul	r0, r2, r0		@ max = 2^32-1
 		movs	r0, r0, lsr #6
-		RETINSTR(moveq,pc,lr)
+		moveq	pc, lr
 
 /*
  * loops = r0 * HZ * loops_per_jiffy / 1000000
@@ -43,20 +43,20 @@ ENTRY(__const_udelay)				@ 0 <= r0 <= 0x7fffff06
 ENTRY(__delay)
 		subs	r0, r0, #1
 #if 0
-		RETINSTR(movls,pc,lr)
+		movls	pc, lr
 		subs	r0, r0, #1
-		RETINSTR(movls,pc,lr)
+		movls	pc, lr
 		subs	r0, r0, #1
-		RETINSTR(movls,pc,lr)
+		movls	pc, lr
 		subs	r0, r0, #1
-		RETINSTR(movls,pc,lr)
+		movls	pc, lr
 		subs	r0, r0, #1
-		RETINSTR(movls,pc,lr)
+		movls	pc, lr
 		subs	r0, r0, #1
-		RETINSTR(movls,pc,lr)
+		movls	pc, lr
 		subs	r0, r0, #1
-		RETINSTR(movls,pc,lr)
+		movls	pc, lr
 		subs	r0, r0, #1
 #endif
 		bhi	__delay
-		RETINSTR(mov,pc,lr)
+		mov	pc, lr

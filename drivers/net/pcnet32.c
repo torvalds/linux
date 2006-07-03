@@ -309,12 +309,6 @@ static int pcnet32_alloc_ring(struct net_device *dev, char *name);
 static void pcnet32_free_ring(struct net_device *dev);
 static void pcnet32_check_media(struct net_device *dev, int verbose);
 
-enum pci_flags_bit {
-	PCI_USES_IO = 1, PCI_USES_MEM = 2, PCI_USES_MASTER = 4,
-	PCI_ADDR0 = 0x10 << 0, PCI_ADDR1 = 0x10 << 1, PCI_ADDR2 =
-	    0x10 << 2, PCI_ADDR3 = 0x10 << 3,
-};
-
 static u16 pcnet32_wio_read_csr(unsigned long addr, int index)
 {
 	outw(index, addr + PCNET32_WIO_RAP);
@@ -1547,7 +1541,7 @@ static int pcnet32_open(struct net_device *dev)
 	unsigned long flags;
 
 	if (request_irq(dev->irq, &pcnet32_interrupt,
-			lp->shared_irq ? SA_SHIRQ : 0, dev->name,
+			lp->shared_irq ? IRQF_SHARED : 0, dev->name,
 			(void *)dev)) {
 		return -EAGAIN;
 	}

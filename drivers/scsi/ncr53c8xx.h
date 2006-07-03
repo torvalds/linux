@@ -53,10 +53,8 @@
 #ifndef NCR53C8XX_H
 #define NCR53C8XX_H
 
-#include <linux/config.h>
 #include <scsi/scsi_host.h>
 
-#include <linux/config.h>
 
 /*
 **	If you want a driver as small as possible, donnot define the 

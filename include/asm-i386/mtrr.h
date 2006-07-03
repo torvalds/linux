@@ -23,7 +23,6 @@
 #ifndef _LINUX_MTRR_H
 #define _LINUX_MTRR_H
 
-#include <linux/config.h>
 #include <linux/ioctl.h>
 #include <linux/errno.h>
 
@@ -77,6 +76,8 @@ extern int mtrr_add_page (unsigned long base, unsigned long size,
 extern int mtrr_del (int reg, unsigned long base, unsigned long size);
 extern int mtrr_del_page (int reg, unsigned long base, unsigned long size);
 extern void mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi);
+extern void mtrr_ap_init(void);
+extern void mtrr_bp_init(void);
 #  else
 static __inline__ int mtrr_add (unsigned long base, unsigned long size,
 				unsigned int type, char increment)
@@ -101,6 +102,8 @@ static __inline__ int mtrr_del_page (int reg, unsigned long base,
 
 static __inline__ void mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi) {;}
 
+#define mtrr_ap_init() do {} while (0)
+#define mtrr_bp_init() do {} while (0)
 #  endif
 
 #endif

@@ -306,7 +306,7 @@ static int a3d_connect(struct gameport *gameport, struct gameport_driver *drv)
 	gameport_set_poll_handler(gameport, a3d_poll);
 	gameport_set_poll_interval(gameport, 20);
 
-	sprintf(a3d->phys, "%s/input0", gameport->phys);
+	snprintf(a3d->phys, sizeof(a3d->phys), "%s/input0", gameport->phys);
 
 	input_dev->name = a3d_names[a3d->mode];
 	input_dev->phys = a3d->phys;

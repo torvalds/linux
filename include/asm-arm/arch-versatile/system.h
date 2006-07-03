@@ -36,16 +36,14 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode)
 {
-	unsigned int hdr_ctrl =	(IO_ADDRESS(VERSATILE_SYS_BASE) + VERSATILE_SYS_RESETCTL_OFFSET);
-	unsigned int val;
+	u32 val;
 
-	/*
-	 * To reset, we hit the on-board reset register
-	 * in the system FPGA
-	 */
-	val = __raw_readl(hdr_ctrl);
-	val |= VERSATILE_SYS_CTRL_RESET_CONFIGCLR;
-	__raw_writel(val, hdr_ctrl);
+	val = __raw_readl(IO_ADDRESS(VERSATILE_SYS_RESETCTL)) & ~0x7;
+	val |= 0x105;
+
+	__raw_writel(0xa05f, IO_ADDRESS(VERSATILE_SYS_LOCK));
+	__raw_writel(val, IO_ADDRESS(VERSATILE_SYS_RESETCTL));
+	__raw_writel(0, IO_ADDRESS(VERSATILE_SYS_LOCK));
 }
 
 #endif

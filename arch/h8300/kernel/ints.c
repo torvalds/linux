@@ -158,7 +158,7 @@ int request_irq(unsigned int irq,
 	irq_handle->devname = devname;
 	irq_list[irq] = irq_handle;
 
-	if (irq_handle->flags & SA_SAMPLE_RANDOM)
+	if (irq_handle->flags & IRQF_SAMPLE_RANDOM)
 		rand_initialize_irq(irq);
 
 	enable_irq(irq);
@@ -222,7 +222,7 @@ asmlinkage void process_int(int irq, struct pt_regs *fp)
 		if (irq_list[irq]) {
 			irq_list[irq]->handler(irq, irq_list[irq]->dev_id, fp);
 			irq_list[irq]->count++;
-			if (irq_list[irq]->flags & SA_SAMPLE_RANDOM)
+			if (irq_list[irq]->flags & IRQF_SAMPLE_RANDOM)
 				add_interrupt_randomness(irq);
 		}
 	} else {

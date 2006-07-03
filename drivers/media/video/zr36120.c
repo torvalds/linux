@@ -1858,7 +1858,7 @@ int __init find_zoran(void)
 		DEBUG(printk(KERN_DEBUG "zoran: mapped-memory at 0x%p\n",ztv->zoran_mem));
 
 		result = request_irq(dev->irq, zoran_irq,
-			SA_SHIRQ|SA_INTERRUPT,"zoran", ztv);
+			IRQF_SHARED|IRQF_DISABLED,"zoran", ztv);
 		if (result==-EINVAL)
 		{
 			iounmap(ztv->zoran_mem);

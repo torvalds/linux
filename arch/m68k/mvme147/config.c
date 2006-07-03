@@ -36,15 +36,8 @@
 #include <asm/mvme147hw.h>
 
 
-extern irqreturn_t mvme147_process_int (int level, struct pt_regs *regs);
-extern void mvme147_init_IRQ (void);
-extern void mvme147_free_irq (unsigned int, void *);
-extern int  show_mvme147_interrupts (struct seq_file *, void *);
-extern void mvme147_enable_irq (unsigned int);
-extern void mvme147_disable_irq (unsigned int);
 static void mvme147_get_model(char *model);
 static int  mvme147_get_hardware_list(char *buffer);
-extern int mvme147_request_irq (unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_regs *), unsigned long flags, const char *devname, void *dev_id);
 extern void mvme147_sched_init(irqreturn_t (*handler)(int, void *, struct pt_regs *));
 extern unsigned long mvme147_gettimeoffset (void);
 extern int mvme147_hwclk (int, struct rtc_time *);
@@ -91,6 +84,15 @@ static int mvme147_get_hardware_list(char *buffer)
 	return 0;
 }
 
+/*
+ * This function is called during kernel startup to initialize
+ * the mvme147 IRQ handling routines.
+ */
+
+void mvme147_init_IRQ(void)
+{
+	m68k_setup_user_interrupt(VEC_USER, 192, NULL);
+}
 
 void __init config_mvme147(void)
 {
@@ -101,12 +103,6 @@ void __init config_mvme147(void)
 	mach_hwclk		= mvme147_hwclk;
 	mach_set_clock_mmss	= mvme147_set_clock_mmss;
 	mach_reset		= mvme147_reset;
-	mach_free_irq		= mvme147_free_irq;
-	mach_process_int	= mvme147_process_int;
-	mach_get_irq_list	= show_mvme147_interrupts;
-	mach_request_irq	= mvme147_request_irq;
-	enable_irq		= mvme147_enable_irq;
-	disable_irq		= mvme147_disable_irq;
 	mach_get_model		= mvme147_get_model;
 	mach_get_hardware_list	= mvme147_get_hardware_list;
 

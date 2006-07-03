@@ -76,7 +76,7 @@ sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize, struct pt_regs *r
 #ifdef __LP64__
 	compat_sigset_t newset32;
 
-	if(personality(current->personality) == PER_LINUX32){
+	if (is_compat_task()) {
 		/* XXX: Don't preclude handling different sized sigset_t's.  */
 		if (sigsetsize != sizeof(compat_sigset_t))
 			return -EINVAL;
@@ -153,7 +153,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 	compat_sigset_t compat_set;
 	struct compat_rt_sigframe __user * compat_frame;
 	
-	if(personality(current->personality) == PER_LINUX32)
+	if (is_compat_task())
 		sigframe_size = PARISC_RT_SIGFRAME_SIZE32;
 #endif
 
@@ -166,7 +166,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 #ifdef __LP64__
 	compat_frame = (struct compat_rt_sigframe __user *)frame;
 	
-	if(personality(current->personality) == PER_LINUX32){
+	if (is_compat_task()) {
 		DBG(2,"sys_rt_sigreturn: ELF32 process.\n");
 		if (__copy_from_user(&compat_set, &compat_frame->uc.uc_sigmask, sizeof(compat_set)))
 			goto give_sigsegv;
@@ -186,7 +186,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 
 	/* Good thing we saved the old gr[30], eh? */
 #ifdef __LP64__
-	if(personality(current->personality) == PER_LINUX32){
+	if (is_compat_task()) {
 		DBG(1,"sys_rt_sigreturn: compat_frame->uc.uc_mcontext 0x%p\n",
 				&compat_frame->uc.uc_mcontext);
 // FIXME: Load upper half from register file
@@ -248,7 +248,7 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 	DBG(1,"get_sigframe: ka = %#lx, sp = %#lx, frame_size = %#lx\n",
 			(unsigned long)ka, sp, frame_size);
 	
-	if ((ka->sa.sa_flags & SA_ONSTACK) != 0 && ! on_sig_stack(sp))
+	if ((ka->sa.sa_flags & SA_ONSTACK) != 0 && ! sas_ss_flags(sp))
 		sp = current->sas_ss_sp; /* Stacks grow up! */
 
 	DBG(1,"get_sigframe: Returning sp = %#lx\n", (unsigned long)sp);
@@ -315,7 +315,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	compat_frame = (struct compat_rt_sigframe __user *)frame;
 	
-	if(personality(current->personality) == PER_LINUX32) {
+	if (is_compat_task()) {
 		DBG(1,"setup_rt_frame: frame->info = 0x%p\n", &compat_frame->info);
 		err |= copy_siginfo_to_user32(&compat_frame->info, info);
 		DBG(1,"SETUP_RT_FRAME: 1\n");
@@ -392,7 +392,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	haddr = A(ka->sa.sa_handler);
 	/* The sa_handler may be a pointer to a function descriptor */
 #ifdef __LP64__
-	if(personality(current->personality) == PER_LINUX32) {
+	if (is_compat_task()) {
 #endif
 		if (haddr & PA_PLABEL_FDESC) {
 			Elf32_Fdesc fdesc;
@@ -427,19 +427,19 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 */
 	sigframe_size = PARISC_RT_SIGFRAME_SIZE;
 #ifdef __LP64__
-	if(personality(current->personality) == PER_LINUX32)
+	if (is_compat_task())
 		sigframe_size = PARISC_RT_SIGFRAME_SIZE32;
 #endif
 	if (in_syscall) {
 		regs->gr[31] = haddr;
 #ifdef __LP64__
-		if(personality(current->personality) == PER_LINUX)
+		if (personality(current->personality) == PER_LINUX)
 			sigframe_size |= 1;
 #endif
 	} else {
 		unsigned long psw = USER_PSW;
 #ifdef __LP64__
-		if(personality(current->personality) == PER_LINUX)
+		if (personality(current->personality) == PER_LINUX)
 			psw |= PSW_W;
 #endif
 
@@ -464,7 +464,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->gr[26] = sig;               /* signal number */
 	
 #ifdef __LP64__
-	if(personality(current->personality) == PER_LINUX32){
+	if (is_compat_task()) {
 		regs->gr[25] = A(&compat_frame->info); /* siginfo pointer */
 		regs->gr[24] = A(&compat_frame->uc);   /* ucontext pointer */
 	} else

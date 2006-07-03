@@ -513,7 +513,7 @@ static void mts_do_sg (struct urb* transfer, struct pt_regs *regs)
 		mts_transfer_cleanup(transfer);
         }
 
-	sg = context->srb->buffer;
+	sg = context->srb->request_buffer;
 	context->fragment++;
 	mts_int_submit_urb(transfer,
 			   context->data_pipe,
@@ -549,19 +549,19 @@ mts_build_transfer_context( Scsi_Cmnd *srb, struct mts_desc* desc )
 	desc->context.fragment = 0;
 
 	if (!srb->use_sg) {
-		if ( !srb->bufflen ){
+		if ( !srb->request_bufflen ){
 			desc->context.data = NULL;
 			desc->context.data_length = 0;
 			return;
 		} else {
-			desc->context.data = srb->buffer;
-			desc->context.data_length = srb->bufflen;
+			desc->context.data = srb->request_buffer;
+			desc->context.data_length = srb->request_bufflen;
 			MTS_DEBUG("length = %d or %d\n",
 				  srb->request_bufflen, srb->bufflen);
 		}
 	} else {
 		MTS_DEBUG("Using scatter/gather\n");
-		sg = srb->buffer;
+		sg = srb->request_buffer;
 		desc->context.data = page_address(sg[0].page) + sg[0].offset;
 		desc->context.data_length = sg[0].length;
 	}

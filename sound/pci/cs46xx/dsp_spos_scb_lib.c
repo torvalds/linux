@@ -267,7 +267,6 @@ void cs46xx_dsp_proc_register_scb_desc (struct snd_cs46xx *chip,
 			entry->private_data = scb_info;
 			entry->mode = S_IFREG | S_IRUGO | S_IWUSR;
       
-			entry->c.text.read_size = 512;
 			entry->c.text.read = cs46xx_dsp_proc_scb_info_read;
       
 			if (snd_info_register(entry) < 0) {

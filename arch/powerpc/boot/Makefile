@@ -29,8 +29,8 @@ OBJCOPYFLAGS    := contents,alloc,load,readonly,data
 OBJCOPY_COFF_ARGS := -O aixcoff-rs6000 --set-start 0x500000
 OBJCOPY_MIB_ARGS  := -O aixcoff-rs6000 -R .stab -R .stabstr -R .comment
 
-zlib       := infblock.c infcodes.c inffast.c inflate.c inftrees.c infutil.c
-zlibheader := infblock.h infcodes.h inffast.h inftrees.h infutil.h
+zlib       := inffast.c inflate.c inftrees.c
+zlibheader := inffast.h inffixed.h inflate.h inftrees.h infutil.h
 zliblinuxheader := zlib.h zconf.h zutil.h
 
 $(addprefix $(obj)/,$(zlib) main.o): $(addprefix $(obj)/,$(zliblinuxheader)) $(addprefix $(obj)/,$(zlibheader))

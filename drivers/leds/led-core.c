@@ -18,7 +18,7 @@
 #include <linux/leds.h>
 #include "leds.h"
 
-rwlock_t leds_list_lock = RW_LOCK_UNLOCKED;
+DEFINE_RWLOCK(leds_list_lock);
 LIST_HEAD(leds_list);
 
 EXPORT_SYMBOL_GPL(leds_list);

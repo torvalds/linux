@@ -7,7 +7,6 @@
 #ifndef _ASM_SPARC_DMA_H
 #define _ASM_SPARC_DMA_H
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 

@@ -34,7 +34,6 @@
 #include <asm/cache.h>
 #include <asm/byteorder.h>
 
-#include <linux/config.h>
 #include <linux/device.h>
 #include <linux/percpu.h>
 #include <linux/dmaengine.h>
@@ -233,6 +232,7 @@ enum netdev_state_t
 	__LINK_STATE_RX_SCHED,
 	__LINK_STATE_LINKWATCH_PENDING,
 	__LINK_STATE_DORMANT,
+	__LINK_STATE_QDISC_RUNNING,
 };
 
 
@@ -308,9 +308,17 @@ struct net_device
 #define NETIF_F_HW_VLAN_RX	256	/* Receive VLAN hw acceleration */
 #define NETIF_F_HW_VLAN_FILTER	512	/* Receive filtering on VLAN */
 #define NETIF_F_VLAN_CHALLENGED	1024	/* Device cannot handle VLAN packets */
-#define NETIF_F_TSO		2048	/* Can offload TCP/IP segmentation */
+#define NETIF_F_GSO		2048	/* Enable software GSO. */
 #define NETIF_F_LLTX		4096	/* LockLess TX */
-#define NETIF_F_UFO             8192    /* Can offload UDP Large Send*/
+
+	/* Segmentation offload features */
+#define NETIF_F_GSO_SHIFT	16
+#define NETIF_F_GSO_MASK	0xffff0000
+#define NETIF_F_TSO		(SKB_GSO_TCPV4 << NETIF_F_GSO_SHIFT)
+#define NETIF_F_UFO		(SKB_GSO_UDP << NETIF_F_GSO_SHIFT)
+#define NETIF_F_GSO_ROBUST	(SKB_GSO_DODGY << NETIF_F_GSO_SHIFT)
+#define NETIF_F_TSO_ECN		(SKB_GSO_TCP_ECN << NETIF_F_GSO_SHIFT)
+#define NETIF_F_TSO6		(SKB_GSO_TCPV6 << NETIF_F_GSO_SHIFT)
 
 #define NETIF_F_GEN_CSUM	(NETIF_F_NO_CSUM | NETIF_F_HW_CSUM)
 #define NETIF_F_ALL_CSUM	(NETIF_F_IP_CSUM | NETIF_F_GEN_CSUM)
@@ -401,6 +409,9 @@ struct net_device
 	struct Qdisc		*qdisc_sleeping;
 	struct list_head	qdisc_list;
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
+
+	/* Partially transmitted GSO packet. */
+	struct sk_buff		*gso_skb;
 
 	/* ingress path synchronizer */
 	spinlock_t		ingress_lock;
@@ -536,6 +547,8 @@ struct packet_type {
 					 struct net_device *,
 					 struct packet_type *,
 					 struct net_device *);
+	struct sk_buff		*(*gso_segment)(struct sk_buff *skb,
+						int features);
 	void			*af_packet_priv;
 	struct list_head	list;
 };
@@ -686,11 +699,11 @@ extern int		dev_change_name(struct net_device *, char *);
 extern int		dev_set_mtu(struct net_device *, int);
 extern int		dev_set_mac_address(struct net_device *,
 					    struct sockaddr *);
-extern void		dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev);
+extern int		dev_hard_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev);
 
 extern void		dev_init(void);
 
-extern int		netdev_nit;
 extern int		netdev_budget;
 
 /* Called by rtnetlink.c:rtnl_unlock() */
@@ -960,6 +973,7 @@ extern int		netdev_max_backlog;
 extern int		weight_p;
 extern int		netdev_set_master(struct net_device *dev, struct net_device *master);
 extern int skb_checksum_help(struct sk_buff *skb, int inward);
+extern struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features);
 #ifdef CONFIG_BUG
 extern void netdev_rx_csum_fault(struct net_device *dev);
 #else
@@ -978,6 +992,23 @@ extern void dev_seq_stop(struct seq_file *seq, void *v);
 #endif
 
 extern void linkwatch_run_queue(void);
+
+static inline int net_gso_ok(int features, int gso_type)
+{
+	int feature = gso_type << NETIF_F_GSO_SHIFT;
+	return (features & feature) == feature;
+}
+
+static inline int skb_gso_ok(struct sk_buff *skb, int features)
+{
+	return net_gso_ok(features, skb_shinfo(skb)->gso_size ?
+				    skb_shinfo(skb)->gso_type : 0);
+}
+
+static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
+{
+	return !skb_gso_ok(skb, dev->features);
+}
 
 #endif /* __KERNEL__ */
 

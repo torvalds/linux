@@ -1,7 +1,7 @@
-/* 
+/*
  * File...........: linux/drivers/s390/block/dasd_int.h
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
- *                  Horst Hummel <Horst.Hummel@de.ibm.com> 
+ *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
@@ -54,7 +54,6 @@
 #include <linux/module.h>
 #include <linux/wait.h>
 #include <linux/blkdev.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/genhd.h>
 #include <linux/hdreg.h>
 #include <linux/interrupt.h>
@@ -186,7 +185,7 @@ struct dasd_ccw_req {
         void *callback_data;
 };
 
-/* 
+/*
  * dasd_ccw_req -> status can be:
  */
 #define DASD_CQR_FILLED   0x00	/* request is ready to be processed */
@@ -248,7 +247,7 @@ struct dasd_discipline {
         /*
          * Error recovery functions. examine_error() returns a value that
          * indicates what to do for an error condition. If examine_error()
-         * returns 'dasd_era_recover' erp_action() is called to create a 
+	 * returns 'dasd_era_recover' erp_action() is called to create a
          * special error recovery ccw. erp_postaction() is called after
          * an error recovery ccw has finished its execution. dump_sense
          * is called for every error condition to print the sense data
@@ -302,11 +301,11 @@ struct dasd_device {
 	spinlock_t request_queue_lock;
 	struct block_device *bdev;
         unsigned int devindex;
-	unsigned long blocks;		/* size of volume in blocks */
-	unsigned int bp_block;		/* bytes per block */
-	unsigned int s2b_shift;		/* log2 (bp_block/512) */
-	unsigned long flags;		/* per device flags */
-	unsigned short features;        /* copy of devmap-features (read-only!) */
+	unsigned long blocks;	   /* size of volume in blocks */
+	unsigned int bp_block;	   /* bytes per block */
+	unsigned int s2b_shift;	   /* log2 (bp_block/512) */
+	unsigned long flags;	   /* per device flags */
+	unsigned short features;   /* copy of devmap-features (read-only!) */
 
 	/* extended error reporting stuff (eer) */
 	struct dasd_ccw_req *eer_cqr;
@@ -513,12 +512,12 @@ void dasd_generic_remove (struct ccw_device *cdev);
 int dasd_generic_set_online(struct ccw_device *, struct dasd_discipline *);
 int dasd_generic_set_offline (struct ccw_device *cdev);
 int dasd_generic_notify(struct ccw_device *, int);
-void dasd_generic_auto_online (struct ccw_driver *);
 
 /* externals in dasd_devmap.c */
 extern int dasd_max_devindex;
 extern int dasd_probeonly;
 extern int dasd_autodetect;
+extern int dasd_nopav;
 
 int dasd_devmap_init(void);
 void dasd_devmap_exit(void);
@@ -606,22 +605,3 @@ static inline int dasd_eer_enabled(struct dasd_device *device)
 #endif				/* __KERNEL__ */
 
 #endif				/* DASD_H */
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-indent-level: 4 
- * c-brace-imaginary-offset: 0
- * c-brace-offset: -4
- * c-argdecl-indent: 4
- * c-label-offset: -4
- * c-continued-statement-offset: 4
- * c-continued-brace-offset: 0
- * indent-tabs-mode: 1
- * tab-width: 8
- * End:
- */

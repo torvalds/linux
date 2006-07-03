@@ -181,6 +181,12 @@ M:	bcrl@kvack.org
 L:	linux-aio@kvack.org
 S:	Supported
 
+ABIT UGURU HARDWARE MONITOR DRIVER
+P:	Hans de Goede
+M:	j.w.r.degoede@hhs.nl
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 ACENIC DRIVER
 P:	Jes Sorensen
 M:	jes@trained-monkey.org
@@ -568,6 +574,12 @@ L:	linuxppc-dev@ozlabs.org
 W:	http://www.penguinppc.org/ppc64/
 S:	Supported
 
+BROADCOM B44 10/100 ETHERNET DRIVER
+P:	Gary Zambrano
+M:	zambrano@broadcom.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 BROADCOM BNX2 GIGABIT ETHERNET DRIVER
 P:	Michael Chan
 M:	mchan@broadcom.com
@@ -923,23 +935,21 @@ S:	Maintained
 
 EDAC-CORE
 P:	Doug Thompson
-M:	norsk5@xmission.com, dthompson@linuxnetworx.com
-P:	Dave Peterson
-M:	dsp@llnl.gov, dave_peterson@pobox.com
+M:	norsk5@xmission.com
 L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
-S:	Maintained
+S:	Supported
 
 EDAC-E752X
-P:	Dave Peterson
-M:	dsp@llnl.gov, dave_peterson@pobox.com
+P:	Mark Gross
+M:	mark.gross@intel.com
 L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 
 EDAC-E7XXX
-P:	Dave Peterson
-M:	dsp@llnl.gov, dave_peterson@pobox.com
+P:	Doug Thompson
+M:	norsk5@xmission.com
 L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
@@ -1124,6 +1134,11 @@ L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.nu/
 S:	Maintained
 
+HARDWARE RANDOM NUMBER GENERATOR CORE
+P:	Michael Buesch
+M:	mb@bu3sch.de
+S:	Maintained
+
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
 P:	Robert Love
 M:	rlove@rlove.org
@@ -1164,6 +1179,12 @@ M:	klaus.kudielka@ieee.org
 L:	linux-hams@vger.kernel.org
 W:	http://www.nt.tuwien.ac.at/~kkudielk/Linux/
 S:	Maintained
+
+HIGHPOINT ROCKETRAID 3xxx RAID DRIVER
+P:	HighPoint Linux Team
+M:	linux@highpoint-tech.com
+W:	http://www.highpoint-tech.com
+S:	Supported
 
 HIPPI
 P:	Jes Sorensen
@@ -1396,7 +1417,8 @@ S:	Supported
 
 INPUT (KEYBOARD, MOUSE, JOYSTICK) DRIVERS
 P:	Dmitry Torokhov
-M:	dtor_core@ameritech.net
+M:	dmitry.torokhov@gmail.com
+M:	dtor@mail.ru
 L:	linux-input@atrey.karlin.mff.cuni.cz
 L:	linux-joystick@atrey.karlin.mff.cuni.cz
 T:	git kernel.org:/pub/scm/linux/kernel/git/dtor/input.git
@@ -1434,6 +1456,11 @@ S:	Maintained
 INTEL IA32 MICROCODE UPDATE SUPPORT
 P:	Tigran Aivazian
 M:	tigran@veritas.com
+S:	Maintained
+
+INTEL IXP4XX RANDOM NUMBER GENERATOR SUPPORT
+P:	Deepak Saxena
+M:	dsaxena@plexity.net
 S:	Maintained
 
 INTEL PRO/100 ETHERNET SUPPORT
@@ -1861,12 +1888,12 @@ S:     linux-scsi@vger.kernel.org
 W:     http://megaraid.lsilogic.com
 S:     Maintained
 
-MEMORY TECHNOLOGY DEVICES
+MEMORY TECHNOLOGY DEVICES (MTD)
 P:	David Woodhouse
 M:	dwmw2@infradead.org
 W:	http://www.linux-mtd.infradead.org/
 L:	linux-mtd@lists.infradead.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/tglx/mtd-2.6.git
+T:	git git://git.infradead.org/mtd-2.6.git
 S:	Maintained
 
 MICROTEK X6 SCANNER
@@ -1913,7 +1940,7 @@ L:	linux-kernel@vger.kernel.org
 W:	http://www.atnf.csiro.au/~rgooch/linux/kernel-patches.html
 S:	Maintained
 
-MULTIMEDIA CARD SUBSYSTEM
+MULTIMEDIA CARD (MMC) SUBSYSTEM
 P:	Russell King
 M:	rmk+mmc@arm.linux.org.uk
 S:	Maintained
@@ -2068,6 +2095,12 @@ P:      Antonino Daplas
 M:      adaplas@pol.net
 L:      linux-fbdev-devel@lists.sourceforge.net
 S:      Maintained
+
+OPENCORES I2C BUS DRIVER
+P:	Peter Korsgaard
+M:	jacmet@sunsite.dk
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 P:	Mark Fasheh
@@ -2540,19 +2573,6 @@ M:	thomas@winischhofer.net
 W:	http://www.winischhofer.at/linuxsisusbvga.shtml
 S:	Maintained
 
-SMSC47M1 HARDWARE MONITOR DRIVER
-P:	Jean Delvare
-M:	khali@linux-fr.org
-L:	lm-sensors@lm-sensors.org
-S:	Odd Fixes
-
-SMB FILESYSTEM
-P:	Urban Widmark
-M:	urban@teststation.com
-W:	http://samba.org/
-L:	samba@samba.org
-S:	Maintained
-
 SMC91x ETHERNET DRIVER
 P:	Nicolas Pitre
 M:	nico@cam.org
@@ -2723,6 +2743,11 @@ S:	Maintained
 SYSV FILESYSTEM
 P:	Christoph Hellwig
 M:	hch@infradead.org
+S:	Maintained
+
+TI OMAP RANDOM NUMBER GENERATOR SUPPORT
+P:	Deepak Saxena
+M:	dsaxena@plexity.net
 S:	Maintained
 
 TI PARALLEL LINK CABLE DRIVER
@@ -3158,12 +3183,6 @@ L:	wbsd-devel@list.drzeus.cx
 W:	http://projects.drzeus.cx/wbsd
 S:	Maintained
 
-W83L785TS HARDWARE MONITOR DRIVER
-P:	Jean Delvare
-M:	khali@linux-fr.org
-L:	lm-sensors@lm-sensors.org
-S:	Odd Fixes
-
 WATCHDOG DEVICE DRIVERS
 P:	Wim Van Sebroeck
 M:	wim@iguana.be
@@ -3203,7 +3222,7 @@ XFS FILESYSTEM
 P:	Silicon Graphics Inc
 M:	xfs-masters@oss.sgi.com
 M:	nathans@sgi.com
-L:	linux-xfs@oss.sgi.com
+L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs
 S:	Supported
 

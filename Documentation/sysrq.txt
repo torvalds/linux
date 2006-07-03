@@ -115,8 +115,9 @@ trojan program is running at console and which could grab your password
 when you would try to login. It will kill all programs on given console
 and thus letting you make sure that the login prompt you see is actually
 the one from init, not some trojan program.
-IMPORTANT:In its true form it is not a true SAK like the one in   :IMPORTANT
-IMPORTANT:c2 compliant systems, and it should be mistook as such. :IMPORTANT
+IMPORTANT: In its true form it is not a true SAK like the one in a :IMPORTANT
+IMPORTANT: c2 compliant system, and it should not be mistaken as   :IMPORTANT
+IMPORTANT: such.                                                   :IMPORTANT
        It seems other find it useful as (System Attention Key) which is
 useful when you want to exit a program that will not let you switch consoles.
 (For example, X or a svgalib program.)

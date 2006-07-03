@@ -78,15 +78,12 @@
  *
  */
 
-struct bhv_head_lock;
-
 /*
  * Behavior head.  Head of the chain of behaviors.
  * Contained within each virtualized object data structure.
  */
 typedef struct bhv_head {
 	struct bhv_desc *bh_first;	/* first behavior in chain */
-	struct bhv_head_lock *bh_lockp;	/* pointer to lock info struct */
 } bhv_head_t;
 
 /*

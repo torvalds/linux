@@ -1,4 +1,3 @@
-#include <linux/config.h>
 	
 	.global _start
 	.global _stext
@@ -28,6 +27,8 @@ _ramstart:
 _ramend:
 .long   0
 
+#define	RAMEND	(CONFIG_RAMBASE + CONFIG_RAMSIZE)
+
 #ifdef CONFIG_INIT_LCD
 splash_bits:
 #include "bootlogo.rh"
@@ -48,7 +49,7 @@ _stext:	movew	#0x2700,%sr
 	moveb	#0x81,   0xfffffA27	/* LCKCON */
 	movew	#0xff00, 0xfffff412	/* LCD pins */
 #endif
-	moveal  #__ramend-CONFIG_MEMORY_RESERVE*0x100000 - 0x10, %sp
+	moveal  #RAMEND-CONFIG_MEMORY_RESERVE*0x100000 - 0x10, %sp
 	movew	#32767, %d0  /* PLL settle wait loop */
 1:	subq	#1, %d0
 	bne	1b
@@ -73,13 +74,13 @@ _stext:	movew	#0x2700,%sr
 	bhi	1b
 
         movel   #_sdata, %d0    
-        movel   %d0,    _rambase        
-        movel   #_ebss,  %d0
-        movel   %d0,    _ramstart
-	movel	#__ramend-CONFIG_MEMORY_RESERVE*0x100000, %d0
-	movel	%d0,	_ramend
-	movel	#__ramvec,	%d0
-	movel	%d0,	_ramvec
+        movel   %d0, _rambase        
+        movel   #_ebss, %d0
+        movel   %d0, _ramstart
+	movel	#RAMEND-CONFIG_MEMORY_RESERVE*0x100000, %d0
+	movel	%d0, _ramend
+	movel	#CONFIG_VECTORBASE,	%d0
+	movel	%d0, _ramvec
 	
 /*
  * load the current task pointer and stack

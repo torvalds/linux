@@ -753,7 +753,7 @@ snd_ad1889_proc_init(struct snd_ad1889 *chip)
 	struct snd_info_entry *entry;
 
 	if (!snd_card_proc_new(chip->card, chip->card->driver, &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_ad1889_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_ad1889_proc_read);
 }
 
 static struct ac97_quirk ac97_quirks[] = {
@@ -947,7 +947,7 @@ snd_ad1889_create(struct snd_card *card,
 	spin_lock_init(&chip->lock);	/* only now can we call ad1889_free */
 
 	if (request_irq(pci->irq, snd_ad1889_interrupt,
-			SA_INTERRUPT|SA_SHIRQ, card->driver, (void*)chip)) {
+			IRQF_DISABLED|IRQF_SHARED, card->driver, (void*)chip)) {
 		printk(KERN_ERR PFX "cannot obtain IRQ %d\n", pci->irq);
 		snd_ad1889_free(chip);
 		return -EBUSY;

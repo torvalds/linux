@@ -72,7 +72,7 @@ ENTRY(__raw_readsb)
 		bpl	.Linsb_16_lp
 
 		tst	r2, #15
-		LOADREGS(eqfd, sp!, {r4 - r6, pc})
+		ldmeqfd	sp!, {r4 - r6, pc}
 
 .Linsb_no_16:	tst	r2, #8
 		beq	.Linsb_no_8
@@ -109,7 +109,7 @@ ENTRY(__raw_readsb)
 		str	r3, [r1], #4
 
 .Linsb_no_4:	ands	r2, r2, #3
-		LOADREGS(eqfd, sp!, {r4 - r6, pc})
+		ldmeqfd	sp!, {r4 - r6, pc}
 
 		cmp	r2, #2
 		ldrb	r3, [r0]
@@ -119,4 +119,4 @@ ENTRY(__raw_readsb)
 		ldrgtb	r3, [r0]
 		strgtb	r3, [r1]
 
-		LOADREGS(fd, sp!, {r4 - r6, pc})
+		ldmfd	sp!, {r4 - r6, pc}

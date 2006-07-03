@@ -524,7 +524,7 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 	 * filter the internal and ioctl commands
 	 */
 	if((cmd->cmnd[0] == MEGA_INTERNAL_CMD)) {
-		return cmd->buffer;
+		return cmd->request_buffer;
 	}
 
 
@@ -1828,7 +1828,7 @@ mega_build_sglist(adapter_t *adapter, scb_t *scb, u32 *buf, u32 *len)
 
 	scb->dma_type = MEGA_SGLIST;
 
-	if( sgcnt > adapter->sglen ) BUG();
+	BUG_ON(sgcnt > adapter->sglen);
 
 	*len = 0;
 
@@ -4492,7 +4492,7 @@ mega_internal_command(adapter_t *adapter, megacmd_t *mc, mega_passthru *pthru)
 	scmd->device = sdev;
 
 	scmd->device->host = adapter->host;
-	scmd->buffer = (void *)scb;
+	scmd->request_buffer = (void *)scb;
 	scmd->cmnd[0] = MEGA_INTERNAL_CMD;
 
 	scb->state |= SCB_ACTIVE;
@@ -4714,7 +4714,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (request_irq(irq, (adapter->flag & BOARD_MEMMAP) ?
 				megaraid_isr_memmapped : megaraid_isr_iomapped,
-					SA_SHIRQ, "megaraid", adapter)) {
+					IRQF_SHARED, "megaraid", adapter)) {
 		printk(KERN_WARNING
 			"megaraid: Couldn't register IRQ %d!\n", irq);
 		goto out_free_scb_list;

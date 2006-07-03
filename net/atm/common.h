@@ -28,6 +28,8 @@ int atmpvc_init(void);
 void atmpvc_exit(void);
 int atmsvc_init(void);
 void atmsvc_exit(void);
+int atm_sysfs_init(void);
+void atm_sysfs_exit(void);
 
 #ifdef CONFIG_PROC_FS
 int atm_proc_init(void);

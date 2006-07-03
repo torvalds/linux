@@ -125,9 +125,9 @@ extern irqreturn_t crime_memerr_intr (int irq, void *dev_id,
 extern irqreturn_t crime_cpuerr_intr (int irq, void *dev_id,
 				      struct pt_regs *regs);
 
-struct irqaction memerr_irq = { crime_memerr_intr, SA_INTERRUPT,
+struct irqaction memerr_irq = { crime_memerr_intr, IRQF_DISABLED,
 			CPU_MASK_NONE, "CRIME memory error", NULL, NULL };
-struct irqaction cpuerr_irq = { crime_cpuerr_intr, SA_INTERRUPT,
+struct irqaction cpuerr_irq = { crime_cpuerr_intr, IRQF_DISABLED,
 			CPU_MASK_NONE, "CRIME CPU error", NULL, NULL };
 
 /*
@@ -316,9 +316,9 @@ static struct hw_interrupt_type ip32_macepci_interrupt = {
 				 MACEISA_KEYB_POLL_INT |	\
 				 MACEISA_MOUSE_INT |		\
 				 MACEISA_MOUSE_POLL_INT |	\
-				 MACEISA_TIMER0_INT |		\
-				 MACEISA_TIMER1_INT |		\
-				 MACEISA_TIMER2_INT)
+				 MACEIIRQF_TIMER0_INT |		\
+				 MACEIIRQF_TIMER1_INT |		\
+				 MACEIIRQF_TIMER2_INT)
 #define MACEISA_SUPERIO_INT	(MACEISA_PARALLEL_INT |		\
 				 MACEISA_PAR_CTXA_INT |		\
 				 MACEISA_PAR_CTXB_INT |		\
@@ -349,7 +349,7 @@ static void enable_maceisa_irq (unsigned int irq)
 	case MACEISA_AUDIO_SW_IRQ ... MACEISA_AUDIO3_MERR_IRQ:
 		crime_int = MACE_AUDIO_INT;
 		break;
-	case MACEISA_RTC_IRQ ... MACEISA_TIMER2_IRQ:
+	case MACEISA_RTC_IRQ ... MACEIIRQF_TIMER2_IRQ:
 		crime_int = MACE_MISC_INT;
 		break;
 	case MACEISA_PARALLEL_IRQ ... MACEISA_SERIAL2_RDMAOR_IRQ:
@@ -591,7 +591,7 @@ void __init arch_init_irq(void)
 		irq_desc[irq].status = IRQ_DISABLED;
 		irq_desc[irq].action = 0;
 		irq_desc[irq].depth = 0;
-		irq_desc[irq].handler = controller;
+		irq_desc[irq].chip = controller;
 	}
 	setup_irq(CRIME_MEMERR_IRQ, &memerr_irq);
 	setup_irq(CRIME_CPUERR_IRQ, &cpuerr_irq);

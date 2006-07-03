@@ -66,7 +66,6 @@
  * by default, the selective clear mask is set up to process rx packets.  
  */
 
-#include <linux/config.h>
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -2915,8 +2914,7 @@ static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	static int ring; 
 
-	skb = skb_padto(skb, cp->min_frame_size);
-	if (!skb)
+	if (skb_padto(skb, cp->min_frame_size))
 		return 0;
 
 	/* XXX: we need some higher-level QoS hooks to steer packets to
@@ -4351,7 +4349,7 @@ static int cas_open(struct net_device *dev)
 	 * mapping to expose them
 	 */
 	if (request_irq(cp->pdev->irq, cas_interrupt,
-			SA_SHIRQ, dev->name, (void *) dev)) {
+			IRQF_SHARED, dev->name, (void *) dev)) {
 		printk(KERN_ERR "%s: failed to request irq !\n", 
 		       cp->dev->name);
 		err = -EAGAIN;

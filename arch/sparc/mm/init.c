@@ -7,7 +7,6 @@
  *  Copyright (C) 2000 Anton Blanchard (anton@samba.org)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -31,6 +30,7 @@
 #include <asm/vaddrs.h>
 #include <asm/pgalloc.h>	/* bug in asm-generic/tlb.h: check_pgt_cache */
 #include <asm/tlb.h>
+#include <asm/prom.h>
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
@@ -349,6 +349,7 @@ void __init paging_init(void)
 	protection_map[14] = PAGE_SHARED;
 	protection_map[15] = PAGE_SHARED;
 	btfixup();
+	prom_build_devicetree();
 	device_scan();
 }
 

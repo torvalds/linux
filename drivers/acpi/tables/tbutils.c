@@ -71,7 +71,7 @@ acpi_status acpi_tb_is_table_installed(struct acpi_table_desc *new_table_desc)
 {
 	struct acpi_table_desc *table_desc;
 
-	ACPI_FUNCTION_TRACE("tb_is_table_installed");
+	ACPI_FUNCTION_TRACE(tb_is_table_installed);
 
 	/* Get the list descriptor and first table descriptor */
 
@@ -96,10 +96,11 @@ acpi_status acpi_tb_is_table_installed(struct acpi_table_desc *new_table_desc)
 		    (!ACPI_MEMCMP
 		     (table_desc->pointer, new_table_desc->pointer,
 		      new_table_desc->pointer->length))) {
+
 			/* Match: this table is already installed */
 
 			ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
-					  "Table [%4.4s] already installed: Rev %X oem_table_id [%8.8s]\n",
+					  "Table [%4.4s] already installed: Rev %X OemTableId [%8.8s]\n",
 					  new_table_desc->pointer->signature,
 					  new_table_desc->pointer->revision,
 					  new_table_desc->pointer->
@@ -159,12 +160,8 @@ acpi_tb_validate_table_header(struct acpi_table_header *table_header)
 
 	ACPI_MOVE_32_TO_32(&signature, table_header->signature);
 	if (!acpi_ut_valid_acpi_name(signature)) {
-		ACPI_ERROR((AE_INFO,
-			    "Table signature at %p [%p] has invalid characters",
-			    table_header, &signature));
-
-		ACPI_WARNING((AE_INFO, "Invalid table signature found: [%4.4s]",
-			      ACPI_CAST_PTR(char, &signature)));
+		ACPI_ERROR((AE_INFO, "Invalid table signature 0x%8.8X",
+			    signature));
 
 		ACPI_DUMP_BUFFER(table_header,
 				 sizeof(struct acpi_table_header));
@@ -175,12 +172,9 @@ acpi_tb_validate_table_header(struct acpi_table_header *table_header)
 
 	if (table_header->length < sizeof(struct acpi_table_header)) {
 		ACPI_ERROR((AE_INFO,
-			    "Invalid length in table header %p name %4.4s",
-			    table_header, (char *)&signature));
-
-		ACPI_WARNING((AE_INFO,
-			      "Invalid table header length (0x%X) found",
-			      (u32) table_header->length));
+			    "Invalid length 0x%X in table with signature %4.4s",
+			    (u32) table_header->length,
+			    ACPI_CAST_PTR(char, &signature)));
 
 		ACPI_DUMP_BUFFER(table_header,
 				 sizeof(struct acpi_table_header));
@@ -192,72 +186,119 @@ acpi_tb_validate_table_header(struct acpi_table_header *table_header)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_tb_verify_table_checksum
+ * FUNCTION:    acpi_tb_sum_table
  *
- * PARAMETERS:  *table_header           - ACPI table to verify
+ * PARAMETERS:  Buffer              - Buffer to sum
+ *              Length              - Size of the buffer
  *
- * RETURN:      8 bit checksum of table
+ * RETURN:      8 bit sum of buffer
  *
- * DESCRIPTION: Does an 8 bit checksum of table and returns status.  A correct
- *              table should have a checksum of 0.
+ * DESCRIPTION: Computes an 8 bit sum of the buffer(length) and returns it.
  *
  ******************************************************************************/
 
-acpi_status
-acpi_tb_verify_table_checksum(struct acpi_table_header * table_header)
+u8 acpi_tb_sum_table(void *buffer, u32 length)
 {
-	u8 checksum;
-	acpi_status status = AE_OK;
+	acpi_native_uint i;
+	u8 sum = 0;
 
-	ACPI_FUNCTION_TRACE("tb_verify_table_checksum");
-
-	/* Compute the checksum on the table */
-
-	checksum =
-	    acpi_tb_generate_checksum(table_header, table_header->length);
-
-	/* Return the appropriate exception */
-
-	if (checksum) {
-		ACPI_WARNING((AE_INFO,
-			      "Invalid checksum in table [%4.4s] (%02X, sum %02X is not zero)",
-			      table_header->signature,
-			      (u32) table_header->checksum, (u32) checksum));
-
-		status = AE_BAD_CHECKSUM;
+	if (!buffer || !length) {
+		return (0);
 	}
-	return_ACPI_STATUS(status);
+
+	for (i = 0; i < length; i++) {
+		sum = (u8) (sum + ((u8 *) buffer)[i]);
+	}
+	return (sum);
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_tb_generate_checksum
  *
- * PARAMETERS:  Buffer              - Buffer to checksum
- *              Length              - Size of the buffer
+ * PARAMETERS:  Table               - Pointer to a valid ACPI table (with a
+ *                                    standard ACPI header)
  *
  * RETURN:      8 bit checksum of buffer
  *
- * DESCRIPTION: Computes an 8 bit checksum of the buffer(length) and returns it.
+ * DESCRIPTION: Computes an 8 bit checksum of the table.
  *
  ******************************************************************************/
 
-u8 acpi_tb_generate_checksum(void *buffer, u32 length)
+u8 acpi_tb_generate_checksum(struct acpi_table_header * table)
 {
-	u8 *end_buffer;
-	u8 *rover;
-	u8 sum = 0;
+	u8 checksum;
 
-	if (buffer && length) {
-		/*  Buffer and Length are valid   */
+	/* Sum the entire table as-is */
 
-		end_buffer = ACPI_ADD_PTR(u8, buffer, length);
+	checksum = acpi_tb_sum_table(table, table->length);
 
-		for (rover = buffer; rover < end_buffer; rover++) {
-			sum = (u8) (sum + *rover);
-		}
+	/* Subtract off the existing checksum value in the table */
+
+	checksum = (u8) (checksum - table->checksum);
+
+	/* Compute the final checksum */
+
+	checksum = (u8) (0 - checksum);
+	return (checksum);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_set_checksum
+ *
+ * PARAMETERS:  Table               - Pointer to a valid ACPI table (with a
+ *                                    standard ACPI header)
+ *
+ * RETURN:      None. Sets the table checksum field
+ *
+ * DESCRIPTION: Computes an 8 bit checksum of the table and inserts the
+ *              checksum into the table header.
+ *
+ ******************************************************************************/
+
+void acpi_tb_set_checksum(struct acpi_table_header *table)
+{
+
+	table->checksum = acpi_tb_generate_checksum(table);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_verify_table_checksum
+ *
+ * PARAMETERS:  *table_header           - ACPI table to verify
+ *
+ * RETURN:      8 bit checksum of table
+ *
+ * DESCRIPTION: Generates an 8 bit checksum of table and returns and compares
+ *              it to the existing checksum value.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_tb_verify_table_checksum(struct acpi_table_header *table_header)
+{
+	u8 checksum;
+
+	ACPI_FUNCTION_TRACE(tb_verify_table_checksum);
+
+	/* Compute the checksum on the table */
+
+	checksum = acpi_tb_generate_checksum(table_header);
+
+	/* Checksum ok? */
+
+	if (checksum == table_header->checksum) {
+		return_ACPI_STATUS(AE_OK);
 	}
-	return (sum);
+
+	ACPI_WARNING((AE_INFO,
+		      "Incorrect checksum in table [%4.4s] - is %2.2X, should be %2.2X",
+		      table_header->signature, table_header->checksum,
+		      checksum));
+
+	return_ACPI_STATUS(AE_BAD_CHECKSUM);
 }
 
 #ifdef ACPI_OBSOLETE_FUNCTIONS
@@ -276,12 +317,12 @@ u8 acpi_tb_generate_checksum(void *buffer, u32 length)
 
 acpi_status
 acpi_tb_handle_to_object(u16 table_id,
-			 struct acpi_table_desc ** return_table_desc)
+			 struct acpi_table_desc **return_table_desc)
 {
 	u32 i;
 	struct acpi_table_desc *table_desc;
 
-	ACPI_FUNCTION_NAME("tb_handle_to_object");
+	ACPI_FUNCTION_NAME(tb_handle_to_object);
 
 	for (i = 0; i < ACPI_TABLE_MAX; i++) {
 		table_desc = acpi_gbl_table_lists[i].next;
@@ -295,7 +336,7 @@ acpi_tb_handle_to_object(u16 table_id,
 		}
 	}
 
-	ACPI_ERROR((AE_INFO, "table_id=%X does not exist", table_id));
+	ACPI_ERROR((AE_INFO, "TableId=%X does not exist", table_id));
 	return (AE_BAD_PARAMETER);
 }
 #endif

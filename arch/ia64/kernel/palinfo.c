@@ -17,7 +17,6 @@
  * 10/23/2001	S.Eranian	updated pal_perf_mon_info bug fixes
  * 03/24/2004	Ashok Raj	updated to work with CPU Hotplug
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -959,7 +958,7 @@ remove_palinfo_proc_entries(unsigned int hcpu)
 	}
 }
 
-static int palinfo_cpu_callback(struct notifier_block *nfb,
+static int __cpuinit palinfo_cpu_callback(struct notifier_block *nfb,
 								unsigned long action,
 								void *hcpu)
 {
@@ -978,7 +977,7 @@ static int palinfo_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block palinfo_cpu_notifier =
+static struct notifier_block __cpuinitdata palinfo_cpu_notifier =
 {
 	.notifier_call = palinfo_cpu_callback,
 	.priority = 0,
@@ -998,7 +997,7 @@ palinfo_init(void)
 	}
 
 	/* Register for future delivery via notify registration */
-	register_cpu_notifier(&palinfo_cpu_notifier);
+	register_hotcpu_notifier(&palinfo_cpu_notifier);
 
 	return 0;
 }

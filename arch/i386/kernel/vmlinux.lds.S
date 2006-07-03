@@ -37,6 +37,13 @@ SECTIONS
 
   RODATA
 
+  . = ALIGN(4);
+  __tracedata_start = .;
+  .tracedata : AT(ADDR(.tracedata) - LOAD_OFFSET) {
+	*(.tracedata)
+  }
+  __tracedata_end = .;
+
   /* writeable */
   .data : AT(ADDR(.data) - LOAD_OFFSET) {	/* Data */
 	*(.data)
@@ -63,6 +70,15 @@ SECTIONS
   . = ALIGN(32);
   .data.read_mostly : AT(ADDR(.data.read_mostly) - LOAD_OFFSET) { *(.data.read_mostly) }
   _edata = .;			/* End of data section */
+
+#ifdef CONFIG_STACK_UNWIND
+  . = ALIGN(4);
+  .eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {
+	__start_unwind = .;
+  	*(.eh_frame)
+	__end_unwind = .;
+  }
+#endif
 
   . = ALIGN(THREAD_SIZE);	/* init_task */
   .data.init_task : AT(ADDR(.data.init_task) - LOAD_OFFSET) {

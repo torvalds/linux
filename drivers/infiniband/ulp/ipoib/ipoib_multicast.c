@@ -864,8 +864,7 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 
 			if (mcast) {
 				/* Destroy the send only entry */
-				list_del(&mcast->list);
-				list_add_tail(&mcast->list, &remove_list);
+				list_move_tail(&mcast->list, &remove_list);
 
 				rb_replace_node(&mcast->rb_node,
 						&nmcast->rb_node,
@@ -890,8 +889,7 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 			rb_erase(&mcast->rb_node, &priv->multicast_tree);
 
 			/* Move to the remove list */
-			list_del(&mcast->list);
-			list_add_tail(&mcast->list, &remove_list);
+			list_move_tail(&mcast->list, &remove_list);
 		}
 	}
 

@@ -677,7 +677,7 @@ static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
 
 static unsigned int inline norm_vbipack(struct cx88_tvnorm *norm)
 {
-	return (norm->id & V4L2_STD_625_50) ? 511 : 288;
+	return (norm->id & V4L2_STD_625_50) ? 511 : 400;
 }
 
 int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int height,
@@ -932,9 +932,9 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 		htotal, cx_read(MO_HTOTAL), (u32)tmp64);
 	cx_write(MO_HTOTAL, htotal);
 
-	// vbi stuff
-	cx_write(MO_VBI_PACKET, ((1 << 11) | /* (norm_vdelay(norm)   << 11) | */
-				 norm_vbipack(norm)));
+	// vbi stuff, set vbi offset to 10 (for 20 Clk*2 pixels), this makes
+	// the effective vbi offset ~244 samples, the same as the Bt8x8
+	cx_write(MO_VBI_PACKET, (10<<11) | norm_vbipack(norm));
 
 	// this is needed as well to set all tvnorm parameter
 	cx88_set_scale(core, 320, 240, V4L2_FIELD_INTERLACED);
@@ -1031,8 +1031,8 @@ static int get_ressources(struct cx88_core *core, struct pci_dev *pci)
 			       pci_resource_len(pci,0),
 			       core->name))
 		return 0;
-	printk(KERN_ERR "%s: can't get MMIO memory @ 0x%lx\n",
-	       core->name,pci_resource_start(pci,0));
+	printk(KERN_ERR "%s: can't get MMIO memory @ 0x%llx\n",
+	       core->name,(unsigned long long)pci_resource_start(pci,0));
 	return -EBUSY;
 }
 
@@ -1181,8 +1181,6 @@ EXPORT_SYMBOL(cx88_set_scale);
 EXPORT_SYMBOL(cx88_vdev_init);
 EXPORT_SYMBOL(cx88_core_get);
 EXPORT_SYMBOL(cx88_core_put);
-EXPORT_SYMBOL(cx88_start_audio_dma);
-EXPORT_SYMBOL(cx88_stop_audio_dma);
 
 /*
  * Local variables:

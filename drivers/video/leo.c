@@ -1,6 +1,6 @@
 /* leo.c: LEO frame buffer driver
  *
- * Copyright (C) 2003 David S. Miller (davem@redhat.com)
+ * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996-1999 Jakub Jelinek (jj@ultra.linux.cz)
  * Copyright (C) 1997 Michal Rehacek (Michal.Rehacek@st.mff.cuni.cz)
  *
@@ -18,8 +18,8 @@
 #include <linux/mm.h>
 
 #include <asm/io.h>
-#include <asm/sbus.h>
-#include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/fbio.h>
 
 #include "sbuslib.h"
@@ -80,10 +80,10 @@ static struct fb_ops leo_ops = {
 
 struct leo_cursor {
 	u8		xxx0[16];
-	volatile u32	cur_type;
-	volatile u32	cur_misc;
-	volatile u32	cur_cursxy;
-	volatile u32	cur_data;
+	u32	cur_type;
+	u32	cur_misc;
+	u32	cur_cursxy;
+	u32	cur_data;
 };
 
 #define LEO_KRN_TYPE_CLUT0	0x00001000
@@ -99,27 +99,27 @@ struct leo_cursor {
 #define LEO_KRN_CSR_UNK2	0x00000001
 
 struct leo_lx_krn {
-	volatile u32	krn_type;
-	volatile u32	krn_csr;
-	volatile u32	krn_value;
+	u32	krn_type;
+	u32	krn_csr;
+	u32	krn_value;
 };
 
 struct leo_lc_ss0_krn {
-	volatile u32 	misc;
+	u32 	misc;
 	u8		xxx0[0x800-4];
-	volatile u32	rev;
+	u32	rev;
 };
 
 struct leo_lc_ss0_usr {
-	volatile u32	csr;
-	volatile u32	addrspace;
-	volatile u32 	fontmsk;
-	volatile u32	fontt;
-	volatile u32	extent;
-	volatile u32	src;
+	u32	csr;
+	u32	addrspace;
+	u32 	fontmsk;
+	u32	fontt;
+	u32	extent;
+	u32	src;
 	u32		dst;
-	volatile u32	copy;
-	volatile u32	fill;
+	u32	copy;
+	u32	fill;
 };
 
 struct leo_lc_ss1_krn {
@@ -132,47 +132,47 @@ struct leo_lc_ss1_usr {
 
 struct leo_ld {
 	u8		xxx0[0xe00];
-	volatile u32	csr;
-	volatile u32	wid;
-	volatile u32	wmask;
-	volatile u32	widclip;
-	volatile u32	vclipmin;
-	volatile u32	vclipmax;
-	volatile u32	pickmin;	/* SS1 only */
-	volatile u32	pickmax;	/* SS1 only */
-	volatile u32	fg;
-	volatile u32	bg;
-	volatile u32	src;		/* Copy/Scroll (SS0 only) */
-	volatile u32	dst;		/* Copy/Scroll/Fill (SS0 only) */
-	volatile u32	extent;		/* Copy/Scroll/Fill size (SS0 only) */
+	u32	csr;
+	u32	wid;
+	u32	wmask;
+	u32	widclip;
+	u32	vclipmin;
+	u32	vclipmax;
+	u32	pickmin;	/* SS1 only */
+	u32	pickmax;	/* SS1 only */
+	u32	fg;
+	u32	bg;
+	u32	src;		/* Copy/Scroll (SS0 only) */
+	u32	dst;		/* Copy/Scroll/Fill (SS0 only) */
+	u32	extent;		/* Copy/Scroll/Fill size (SS0 only) */
 	u32		xxx1[3];
-	volatile u32	setsem;		/* SS1 only */
-	volatile u32	clrsem;		/* SS1 only */
-	volatile u32	clrpick;	/* SS1 only */
-	volatile u32	clrdat;		/* SS1 only */
-	volatile u32	alpha;		/* SS1 only */
+	u32	setsem;		/* SS1 only */
+	u32	clrsem;		/* SS1 only */
+	u32	clrpick;	/* SS1 only */
+	u32	clrdat;		/* SS1 only */
+	u32	alpha;		/* SS1 only */
 	u8		xxx2[0x2c];
-	volatile u32	winbg;
-	volatile u32	planemask;
-	volatile u32	rop;
-	volatile u32	z;
-	volatile u32	dczf;		/* SS1 only */
-	volatile u32	dczb;		/* SS1 only */
-	volatile u32	dcs;		/* SS1 only */
-	volatile u32	dczs;		/* SS1 only */
-	volatile u32	pickfb;		/* SS1 only */
-	volatile u32	pickbb;		/* SS1 only */
-	volatile u32	dcfc;		/* SS1 only */
-	volatile u32	forcecol;	/* SS1 only */
-	volatile u32	door[8];	/* SS1 only */
-	volatile u32	pick[5];	/* SS1 only */
+	u32	winbg;
+	u32	planemask;
+	u32	rop;
+	u32	z;
+	u32	dczf;		/* SS1 only */
+	u32	dczb;		/* SS1 only */
+	u32	dcs;		/* SS1 only */
+	u32	dczs;		/* SS1 only */
+	u32	pickfb;		/* SS1 only */
+	u32	pickbb;		/* SS1 only */
+	u32	dcfc;		/* SS1 only */
+	u32	forcecol;	/* SS1 only */
+	u32	door[8];	/* SS1 only */
+	u32	pick[5];	/* SS1 only */
 };
 
 #define LEO_SS1_MISC_ENABLE	0x00000001
 #define LEO_SS1_MISC_STEREO	0x00000002
 struct leo_ld_ss1 {
-	u8		xxx0[0xef4];
-	volatile u32	ss1_misc;
+	u8	xxx0[0xef4];
+	u32	ss1_misc;
 };
 
 struct leo_ld_gbl {
@@ -193,9 +193,8 @@ struct leo_par {
 #define LEO_FLAG_BLANKED	0x00000001
 
 	unsigned long		physbase;
+	unsigned long		which_io;
 	unsigned long		fbsize;
-
-	struct sbus_dev		*sdev;
 };
 
 static void leo_wait(struct leo_lx_krn __iomem *lx_krn)
@@ -368,8 +367,7 @@ static int leo_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	return sbusfb_mmap_helper(leo_mmap_map,
 				  par->physbase, par->fbsize,
-				  par->sdev->reg_addrs[0].which_io,
-				  vma);
+				  par->which_io, vma);
 }
 
 static int leo_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
@@ -385,11 +383,9 @@ static int leo_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
  */
 
 static void
-leo_init_fix(struct fb_info *info)
+leo_init_fix(struct fb_info *info, struct device_node *dp)
 {
-	struct leo_par *par = (struct leo_par *)info->par;
-
-	strlcpy(info->fix.id, par->sdev->prom_name, sizeof(info->fix.id));
+	strlcpy(info->fix.id, dp->name, sizeof(info->fix.id));
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_TRUECOLOR;
@@ -532,60 +528,74 @@ static void leo_fixup_var_rgb(struct fb_var_screeninfo *var)
 struct all_info {
 	struct fb_info info;
 	struct leo_par par;
-	struct list_head list;
 };
-static LIST_HEAD(leo_list);
 
-static void leo_init_one(struct sbus_dev *sdev)
+static void leo_unmap_regs(struct all_info *all)
 {
+	if (all->par.lc_ss0_usr)
+		of_iounmap(all->par.lc_ss0_usr, 0x1000);
+	if (all->par.ld_ss0)
+		of_iounmap(all->par.ld_ss0, 0x1000);
+	if (all->par.ld_ss1)
+		of_iounmap(all->par.ld_ss1, 0x1000);
+	if (all->par.lx_krn)
+		of_iounmap(all->par.lx_krn, 0x1000);
+	if (all->par.cursor)
+		of_iounmap(all->par.cursor, sizeof(struct leo_cursor));
+	if (all->info.screen_base)
+		of_iounmap(all->info.screen_base, 0x800000);
+}
+
+static int __devinit leo_init_one(struct of_device *op)
+{
+	struct device_node *dp = op->node;
 	struct all_info *all;
-	int linebytes;
+	int linebytes, err;
 
-	all = kmalloc(sizeof(*all), GFP_KERNEL);
-	if (!all) {
-		printk(KERN_ERR "leo: Cannot allocate memory.\n");
-		return;
-	}
-	memset(all, 0, sizeof(*all));
-
-	INIT_LIST_HEAD(&all->list);
+	all = kzalloc(sizeof(*all), GFP_KERNEL);
+	if (!all)
+		return -ENOMEM;
 
 	spin_lock_init(&all->par.lock);
-	all->par.sdev = sdev;
 
-	all->par.physbase = sdev->reg_addrs[0].phys_addr;
+	all->par.physbase = op->resource[0].start;
+	all->par.which_io = op->resource[0].flags & IORESOURCE_BITS;
 
-	sbusfb_fill_var(&all->info.var, sdev->prom_node, 32);
+	sbusfb_fill_var(&all->info.var, dp->node, 32);
 	leo_fixup_var_rgb(&all->info.var);
 
-	linebytes = prom_getintdefault(sdev->prom_node, "linebytes",
-				       all->info.var.xres);
+	linebytes = of_getintprop_default(dp, "linebytes",
+					  all->info.var.xres);
 	all->par.fbsize = PAGE_ALIGN(linebytes * all->info.var.yres);
 
-#ifdef CONFIG_SPARC32
-	all->info.screen_base = (char __iomem *)
-		prom_getintdefault(sdev->prom_node, "address", 0);
-#endif
-	if (!all->info.screen_base)
-		all->info.screen_base = 
-			sbus_ioremap(&sdev->resource[0], LEO_OFF_SS0,
-				     0x800000, "leo ram");
-
 	all->par.lc_ss0_usr =
-		sbus_ioremap(&sdev->resource[0], LEO_OFF_LC_SS0_USR,
-			     0x1000, "leolc ss0usr");
+		of_ioremap(&op->resource[0], LEO_OFF_LC_SS0_USR,
+			   0x1000, "leolc ss0usr");
 	all->par.ld_ss0 =
-		sbus_ioremap(&sdev->resource[0], LEO_OFF_LD_SS0,
-			     0x1000, "leold ss0");
+		of_ioremap(&op->resource[0], LEO_OFF_LD_SS0,
+			   0x1000, "leold ss0");
 	all->par.ld_ss1 =
-		sbus_ioremap(&sdev->resource[0], LEO_OFF_LD_SS1,
-			     0x1000, "leold ss1");
+		of_ioremap(&op->resource[0], LEO_OFF_LD_SS1,
+			   0x1000, "leold ss1");
 	all->par.lx_krn =
-		sbus_ioremap(&sdev->resource[0], LEO_OFF_LX_KRN,
-			     0x1000, "leolx krn");
+		of_ioremap(&op->resource[0], LEO_OFF_LX_KRN,
+			   0x1000, "leolx krn");
 	all->par.cursor =
-		sbus_ioremap(&sdev->resource[0], LEO_OFF_LX_CURSOR,
-			     sizeof(struct leo_cursor), "leolx cursor");
+		of_ioremap(&op->resource[0], LEO_OFF_LX_CURSOR,
+			   sizeof(struct leo_cursor), "leolx cursor");
+	all->info.screen_base = 
+		of_ioremap(&op->resource[0], LEO_OFF_SS0,
+			   0x800000, "leo ram");
+	if (!all->par.lc_ss0_usr ||
+	    !all->par.ld_ss0 ||
+	    !all->par.ld_ss1 ||
+	    !all->par.lx_krn ||
+	    !all->par.cursor ||
+	    !all->info.screen_base) {
+		leo_unmap_regs(all);
+		kfree(all);
+		return -ENOMEM;
+	}
 
 	all->info.flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 	all->info.fbops = &leo_ops;
@@ -597,69 +607,85 @@ static void leo_init_one(struct sbus_dev *sdev)
 	leo_blank(0, &all->info);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		printk(KERN_ERR "leo: Could not allocate color map.\n");
+		leo_unmap_regs(all);
 		kfree(all);
-		return;
+		return -ENOMEM;;
 	}
 
-	leo_init_fix(&all->info);
+	leo_init_fix(&all->info, dp);
 
-	if (register_framebuffer(&all->info) < 0) {
-		printk(KERN_ERR "leo: Could not register framebuffer.\n");
+	err = register_framebuffer(&all->info);
+	if (err < 0) {
 		fb_dealloc_cmap(&all->info.cmap);
+		leo_unmap_regs(all);
 		kfree(all);
-		return;
+		return err;
 	}
 
-	list_add(&all->list, &leo_list);
+	dev_set_drvdata(&op->dev, all);
 
-	printk("leo: %s at %lx:%lx\n",
-	       sdev->prom_name,
-	       (long) sdev->reg_addrs[0].which_io,
-	       (long) sdev->reg_addrs[0].phys_addr);
+	printk("%s: leo at %lx:%lx\n",
+	       dp->full_name,
+	       all->par.which_io, all->par.physbase);
+
+	return 0;
 }
 
-int __init leo_init(void)
+static int __devinit leo_probe(struct of_device *dev, const struct of_device_id *match)
 {
-	struct sbus_bus *sbus;
-	struct sbus_dev *sdev;
+	struct of_device *op = to_of_device(&dev->dev);
 
+	return leo_init_one(op);
+}
+
+static int __devexit leo_remove(struct of_device *dev)
+{
+	struct all_info *all = dev_get_drvdata(&dev->dev);
+
+	unregister_framebuffer(&all->info);
+	fb_dealloc_cmap(&all->info.cmap);
+
+	leo_unmap_regs(all);
+
+	kfree(all);
+
+	dev_set_drvdata(&dev->dev, NULL);
+
+	return 0;
+}
+
+static struct of_device_id leo_match[] = {
+	{
+		.name = "leo",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, leo_match);
+
+static struct of_platform_driver leo_driver = {
+	.name		= "leo",
+	.match_table	= leo_match,
+	.probe		= leo_probe,
+	.remove		= __devexit_p(leo_remove),
+};
+
+static int __init leo_init(void)
+{
 	if (fb_get_options("leofb", NULL))
 		return -ENODEV;
 
-	for_all_sbusdev(sdev, sbus) {
-		if (!strcmp(sdev->prom_name, "leo"))
-			leo_init_one(sdev);
-	}
-
-	return 0;
+	return of_register_driver(&leo_driver, &of_bus_type);
 }
 
-void __exit leo_exit(void)
+static void __exit leo_exit(void)
 {
-	struct list_head *pos, *tmp;
-
-	list_for_each_safe(pos, tmp, &leo_list) {
-		struct all_info *all = list_entry(pos, typeof(*all), list);
-
-		unregister_framebuffer(&all->info);
-		fb_dealloc_cmap(&all->info.cmap);
-		kfree(all);
-	}
-}
-
-int __init
-leo_setup(char *arg)
-{
-	/* No cmdline options yet... */
-	return 0;
+	of_unregister_driver(&leo_driver);
 }
 
 module_init(leo_init);
-#ifdef MODULE
 module_exit(leo_exit);
-#endif
 
 MODULE_DESCRIPTION("framebuffer driver for LEO chipsets");
-MODULE_AUTHOR("David S. Miller <davem@redhat.com>");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
+MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");

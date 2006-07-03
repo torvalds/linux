@@ -12,7 +12,6 @@
  * "as is" without any warranty of any kind, whether express or implied.
  */
 
-#include <linux/config.h>
 
 #if defined(CONFIG_XILINX_ML300)
   #include "xparameters_ml300.h"

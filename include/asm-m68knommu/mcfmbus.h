@@ -11,7 +11,6 @@
 
 #ifndef mcfmbus_h
 #define mcfmbus_h
-#include <linux/config.h>
 
 
 #define MCFMBUS_BASE		0x280

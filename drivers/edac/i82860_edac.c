@@ -9,13 +9,15 @@
  * by Thayne Harbaugh of Linux Networx. (http://lnxi.com)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
 #include "edac_mc.h"
+
+#define  I82860_REVISION " Ver: 2.0.1 " __DATE__
+#define EDAC_MOD_STR	"i82860_edac"
 
 #define i82860_printk(level, fmt, arg...) \
 	edac_printk(level, "i82860", fmt, ##arg)
@@ -63,17 +65,21 @@ static struct pci_dev *mci_pdev = NULL;	/* init dev: in case that AGP code
 static void i82860_get_error_info(struct mem_ctl_info *mci,
 		struct i82860_error_info *info)
 {
+	struct pci_dev *pdev;
+
+	pdev = to_pci_dev(mci->dev);
+
 	/*
 	 * This is a mess because there is no atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
-	pci_read_config_word(mci->pdev, I82860_ERRSTS, &info->errsts);
-	pci_read_config_dword(mci->pdev, I82860_EAP, &info->eap);
-	pci_read_config_word(mci->pdev, I82860_DERRCTL_STS, &info->derrsyn);
-	pci_read_config_word(mci->pdev, I82860_ERRSTS, &info->errsts2);
+	pci_read_config_word(pdev, I82860_ERRSTS, &info->errsts);
+	pci_read_config_dword(pdev, I82860_EAP, &info->eap);
+	pci_read_config_word(pdev, I82860_DERRCTL_STS, &info->derrsyn);
+	pci_read_config_word(pdev, I82860_ERRSTS, &info->errsts2);
 
-	pci_write_bits16(mci->pdev, I82860_ERRSTS, 0x0003, 0x0003);
+	pci_write_bits16(pdev, I82860_ERRSTS, 0x0003, 0x0003);
 
 	/*
 	 * If the error is the same for both reads then the first set of reads
@@ -84,8 +90,8 @@ static void i82860_get_error_info(struct mem_ctl_info *mci,
 		return;
 
 	if ((info->errsts ^ info->errsts2) & 0x0003) {
-		pci_read_config_dword(mci->pdev, I82860_EAP, &info->eap);
-		pci_read_config_word(mci->pdev, I82860_DERRCTL_STS,
+		pci_read_config_dword(pdev, I82860_EAP, &info->eap);
+		pci_read_config_word(pdev, I82860_DERRCTL_STS,
 				&info->derrsyn);
 	}
 }
@@ -127,15 +133,50 @@ static void i82860_check(struct mem_ctl_info *mci)
 	i82860_process_error_info(mci, &info, 1);
 }
 
+static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
+{
+	unsigned long last_cumul_size;
+	u16 mchcfg_ddim;  /* DRAM Data Integrity Mode 0=none, 2=edac */
+	u16 value;
+	u32 cumul_size;
+	struct csrow_info *csrow;
+	int index;
+
+	pci_read_config_word(pdev, I82860_MCHCFG, &mchcfg_ddim);
+	mchcfg_ddim = mchcfg_ddim & 0x180;
+	last_cumul_size = 0;
+
+	/* The group row boundary (GRA) reg values are boundary address
+	 * for each DRAM row with a granularity of 16MB.  GRA regs are
+	 * cumulative; therefore GRA15 will contain the total memory contained
+	 * in all eight rows.
+	 */
+	for (index = 0; index < mci->nr_csrows; index++) {
+		csrow = &mci->csrows[index];
+		pci_read_config_word(pdev, I82860_GBA + index * 2, &value);
+		cumul_size = (value & I82860_GBA_MASK) <<
+		    (I82860_GBA_SHIFT - PAGE_SHIFT);
+		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
+			cumul_size);
+
+		if (cumul_size == last_cumul_size)
+			continue;	/* not populated */
+
+		csrow->first_page = last_cumul_size;
+		csrow->last_page = cumul_size - 1;
+		csrow->nr_pages = cumul_size - last_cumul_size;
+		last_cumul_size = cumul_size;
+		csrow->grain = 1 << 12;	/* I82860_EAP has 4KiB reolution */
+		csrow->mtype = MEM_RMBS;
+		csrow->dtype = DEV_UNKNOWN;
+		csrow->edac_mode = mchcfg_ddim ? EDAC_SECDED : EDAC_NONE;
+	}
+}
+
 static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 {
-	int rc = -ENODEV;
-	int index;
-	struct mem_ctl_info *mci = NULL;
-	unsigned long last_cumul_size;
+	struct mem_ctl_info *mci;
 	struct i82860_error_info discard;
-
-	u16 mchcfg_ddim;	/* DRAM Data Integrity Mode 0=none,2=edac */
 
 	/* RDRAM has channels but these don't map onto the abstractions that
 	   edac uses.
@@ -151,67 +192,35 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 		return -ENOMEM;
 
 	debugf3("%s(): init mci\n", __func__);
-	mci->pdev = pdev;
+	mci->dev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR;
-
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	/* I"m not sure about this but I think that all RDRAM is SECDED */
 	mci->edac_cap = EDAC_FLAG_SECDED;
-	/* adjust FLAGS */
-
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = "$Revision: 1.1.2.6 $";
+	mci->mod_ver = I82860_REVISION;
 	mci->ctl_name = i82860_devs[dev_idx].ctl_name;
 	mci->edac_check = i82860_check;
 	mci->ctl_page_to_phys = NULL;
-
-	pci_read_config_word(mci->pdev, I82860_MCHCFG, &mchcfg_ddim);
-	mchcfg_ddim = mchcfg_ddim & 0x180;
-
-	/*
-	 * The group row boundary (GRA) reg values are boundary address
-	 * for each DRAM row with a granularity of 16MB.  GRA regs are
-	 * cumulative; therefore GRA15 will contain the total memory contained
-	 * in all eight rows.
-	 */
-	for (last_cumul_size = index = 0; index < mci->nr_csrows; index++) {
-		u16 value;
-		u32 cumul_size;
-		struct csrow_info *csrow = &mci->csrows[index];
-
-		pci_read_config_word(mci->pdev, I82860_GBA + index * 2,
-				&value);
-
-		cumul_size = (value & I82860_GBA_MASK) <<
-		    (I82860_GBA_SHIFT - PAGE_SHIFT);
-		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
-			cumul_size);
-
-		if (cumul_size == last_cumul_size)
-			continue;	/* not populated */
-
-		csrow->first_page = last_cumul_size;
-		csrow->last_page = cumul_size - 1;
-		csrow->nr_pages = cumul_size - last_cumul_size;
-		last_cumul_size = cumul_size;
-		csrow->grain = 1 << 12;  /* I82860_EAP has 4KiB reolution */
-		csrow->mtype = MEM_RMBS;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = mchcfg_ddim ? EDAC_SECDED : EDAC_NONE;
-	}
-
+	i82860_init_csrows(mci, pdev);
 	i82860_get_error_info(mci, &discard);  /* clear counters */
 
-	if (edac_mc_add_mc(mci)) {
+	/* Here we assume that we will never see multiple instances of this
+	 * type of memory controller.  The ID is therefore hardcoded to 0.
+	 */
+	if (edac_mc_add_mc(mci,0)) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
-		edac_mc_free(mci);
-	} else {
-		/* get this far and it's successful */
-		debugf3("%s(): success\n", __func__);
-		rc = 0;
+		goto fail;
 	}
 
-	return rc;
+	/* get this far and it's successful */
+	debugf3("%s(): success\n", __func__);
+
+	return 0;
+
+fail:
+	edac_mc_free(mci);
+	return -ENODEV;
 }
 
 /* returns count (>= 0), or negative on error */
@@ -240,7 +249,7 @@ static void __devexit i82860_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	if ((mci = edac_mc_del_mc(pdev)) == NULL)
+	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;
 
 	edac_mc_free(mci);

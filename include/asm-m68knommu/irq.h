@@ -1,7 +1,6 @@
 #ifndef _M68K_IRQ_H_
 #define _M68K_IRQ_H_
 
-#include <linux/config.h>
 #include <asm/ptrace.h>
 
 #ifdef CONFIG_COLDFIRE
@@ -63,8 +62,8 @@ extern void (*mach_disable_irq)(unsigned int);
 
 /*
  * various flags for request_irq() - the Amiga now uses the standard
- * mechanism like all other architectures - SA_INTERRUPT and SA_SHIRQ
- * are your friends.
+ * mechanism like all other architectures - IRQF_DISABLED and
+ * IRQF_SHARED are your friends.
  */
 #define IRQ_FLG_LOCK	(0x0001)	/* handler is not replaceable	*/
 #define IRQ_FLG_REPLACE	(0x0002)	/* replace existing handler	*/
@@ -84,12 +83,8 @@ extern void (*mach_disable_irq)(unsigned int);
 /*
  * Some drivers want these entry points
  */
-#define enable_irq(x)	0
+#define enable_irq(x)	do { } while (0)
 #define disable_irq(x)	do { } while (0)
 #define disable_irq_nosync(x)	disable_irq(x)
-
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
 
 #endif /* _M68K_IRQ_H_ */

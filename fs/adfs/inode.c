@@ -72,7 +72,7 @@ static sector_t _adfs_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, adfs_get_block);
 }
 
-static struct address_space_operations adfs_aops = {
+static const struct address_space_operations adfs_aops = {
 	.readpage	= adfs_readpage,
 	.writepage	= adfs_writepage,
 	.sync_page	= block_sync_page,

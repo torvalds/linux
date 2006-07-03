@@ -1,6 +1,6 @@
 /* bw2.c: BWTWO frame buffer driver
  *
- * Copyright (C) 2003 David S. Miller (davem@redhat.com)
+ * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996,1998 Jakub Jelinek (jj@ultra.linux.cz)
  * Copyright (C) 1996 Miguel de Icaza (miguel@nuclecu.unam.mx)
  * Copyright (C) 1997 Eddie C. Dost (ecd@skynet.be)
@@ -19,13 +19,10 @@
 #include <linux/mm.h>
 
 #include <asm/io.h>
-#include <asm/sbus.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/fbio.h>
-
-#ifdef CONFIG_SPARC32
-#include <asm/sun4paddr.h>
-#endif
 
 #include "sbuslib.h"
 
@@ -59,30 +56,30 @@ static struct fb_ops bw2_ops = {
 #define BWTWO_REGISTER_OFFSET 0x400000
 
 struct bt_regs {
-	volatile u32 addr;
-	volatile u32 color_map;
-	volatile u32 control;
-	volatile u32 cursor;
+	u32 addr;
+	u32 color_map;
+	u32 control;
+	u32 cursor;
 };
 
 struct bw2_regs {
 	struct bt_regs	cmap;
-	volatile u8	control;
-	volatile u8	status;
-	volatile u8	cursor_start;
-	volatile u8	cursor_end;
-	volatile u8	h_blank_start;
-	volatile u8	h_blank_end;
-	volatile u8	h_sync_start;
-	volatile u8	h_sync_end;
-	volatile u8	comp_sync_end;
-	volatile u8	v_blank_start_high;
-	volatile u8	v_blank_start_low;
-	volatile u8	v_blank_end;
-	volatile u8	v_sync_start;
-	volatile u8	v_sync_end;
-	volatile u8	xfer_holdoff_start;
-	volatile u8	xfer_holdoff_end;
+	u8	control;
+	u8	status;
+	u8	cursor_start;
+	u8	cursor_end;
+	u8	h_blank_start;
+	u8	h_blank_end;
+	u8	h_sync_start;
+	u8	h_sync_end;
+	u8	comp_sync_end;
+	u8	v_blank_start_high;
+	u8	v_blank_start_low;
+	u8	v_blank_end;
+	u8	v_sync_start;
+	u8	v_sync_end;
+	u8	xfer_holdoff_start;
+	u8	xfer_holdoff_end;
 };
 
 /* Status Register Constants */
@@ -117,9 +114,8 @@ struct bw2_par {
 #define BW2_FLAG_BLANKED	0x00000001
 
 	unsigned long		physbase;
+	unsigned long		which_io;
 	unsigned long		fbsize;
-
-	struct sbus_dev		*sdev;
 };
 
 /**
@@ -174,9 +170,7 @@ static int bw2_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	return sbusfb_mmap_helper(bw2_mmap_map,
 				  par->physbase, par->fbsize,
-				  (par->sdev ?
-				   par->sdev->reg_addrs[0].which_io :
-				   0),
+				  par->which_io,
 				  vma);
 }
 
@@ -288,139 +282,124 @@ static void bw2_do_default_mode(struct bw2_par *par, struct fb_info *info,
 struct all_info {
 	struct fb_info info;
 	struct bw2_par par;
-	struct list_head list;
 };
-static LIST_HEAD(bw2_list);
 
-static void bw2_init_one(struct sbus_dev *sdev)
+static int __devinit bw2_init_one(struct of_device *op)
 {
+	struct device_node *dp = op->node;
 	struct all_info *all;
-	struct resource *resp;
-#ifdef CONFIG_SUN4
-	struct resource res;
-#endif
-	int linebytes;
+	int linebytes, err;
 
-	all = kmalloc(sizeof(*all), GFP_KERNEL);
-	if (!all) {
-		printk(KERN_ERR "bw2: Cannot allocate memory.\n");
-		return;
-	}
-	memset(all, 0, sizeof(*all));
-
-	INIT_LIST_HEAD(&all->list);
+	all = kzalloc(sizeof(*all), GFP_KERNEL);
+	if (!all)
+		return -ENOMEM;
 
 	spin_lock_init(&all->par.lock);
-	all->par.sdev = sdev;
 
-#ifdef CONFIG_SUN4
-	if (!sdev) {
-		all->par.physbase = sun4_bwtwo_physaddr;
-		res.start = sun4_bwtwo_physaddr;
-		res.end = res.start + BWTWO_REGISTER_OFFSET + sizeof(struct bw2_regs) - 1;
-		res.flags = IORESOURCE_IO;
-		resp = &res;
-		all->info.var.xres = all->info.var.xres_virtual = 1152;
-		all->info.var.yres = all->info.var.yres_virtual = 900;
-		all->info.var.bits_per_pixel = 1;
-		linebytes = 1152 / 8;
-	} else
-#else
-	{
-		BUG_ON(!sdev);
-		all->par.physbase = sdev->reg_addrs[0].phys_addr;
-		resp = &sdev->resource[0];
-		sbusfb_fill_var(&all->info.var, (sdev ? sdev->prom_node : 0), 1);
-		linebytes = prom_getintdefault(sdev->prom_node, "linebytes",
-					       all->info.var.xres);
-	}
-#endif
+	all->par.physbase = op->resource[0].start;
+	all->par.which_io = op->resource[0].flags & IORESOURCE_BITS;
+
+	sbusfb_fill_var(&all->info.var, dp->node, 1);
+	linebytes = of_getintprop_default(dp, "linebytes",
+					  all->info.var.xres);
+
 	all->info.var.red.length = all->info.var.green.length =
 		all->info.var.blue.length = all->info.var.bits_per_pixel;
 	all->info.var.red.offset = all->info.var.green.offset =
 		all->info.var.blue.offset = 0;
 
-	all->par.regs = sbus_ioremap(resp, BWTWO_REGISTER_OFFSET,
-			     sizeof(struct bw2_regs), "bw2 regs");
+	all->par.regs = of_ioremap(&op->resource[0], BWTWO_REGISTER_OFFSET,
+				   sizeof(struct bw2_regs), "bw2 regs");
 
-	if (sdev && !prom_getbool(sdev->prom_node, "width"))
+	if (!of_find_property(dp, "width", NULL))
 		bw2_do_default_mode(&all->par, &all->info, &linebytes);
 
 	all->par.fbsize = PAGE_ALIGN(linebytes * all->info.var.yres);
 
 	all->info.flags = FBINFO_DEFAULT;
 	all->info.fbops = &bw2_ops;
-#if defined(CONFIG_SPARC32)
-	if (sdev)
-		all->info.screen_base = (char __iomem *)
-			prom_getintdefault(sdev->prom_node, "address", 0);
-#endif
-	if (!all->info.screen_base)
-		all->info.screen_base =
-			sbus_ioremap(resp, 0, all->par.fbsize, "bw2 ram");
+
+	all->info.screen_base =
+		sbus_ioremap(&op->resource[0], 0, all->par.fbsize, "bw2 ram");
 	all->info.par = &all->par;
 
 	bw2_blank(0, &all->info);
 
 	bw2_init_fix(&all->info, linebytes);
 
-	if (register_framebuffer(&all->info) < 0) {
-		printk(KERN_ERR "bw2: Could not register framebuffer.\n");
+	err= register_framebuffer(&all->info);
+	if (err < 0) {
+		of_iounmap(all->par.regs, sizeof(struct bw2_regs));
+		of_iounmap(all->info.screen_base, all->par.fbsize);
 		kfree(all);
-		return;
+		return err;
 	}
 
-	list_add(&all->list, &bw2_list);
+	dev_set_drvdata(&op->dev, all);
 
-	printk("bw2: bwtwo at %lx:%lx\n",
-	       (long) (sdev ? sdev->reg_addrs[0].which_io : 0),
-	       (long) all->par.physbase);
+	printk("%s: bwtwo at %lx:%lx\n",
+	       dp->full_name,
+	       all->par.which_io, all->par.physbase);
+
+	return 0;
 }
 
-int __init bw2_init(void)
+static int __devinit bw2_probe(struct of_device *dev, const struct of_device_id *match)
 {
-	struct sbus_bus *sbus;
-	struct sbus_dev *sdev;
+	struct of_device *op = to_of_device(&dev->dev);
 
+	return bw2_init_one(op);
+}
+
+static int __devexit bw2_remove(struct of_device *dev)
+{
+	struct all_info *all = dev_get_drvdata(&dev->dev);
+
+	unregister_framebuffer(&all->info);
+
+	of_iounmap(all->par.regs, sizeof(struct bw2_regs));
+	of_iounmap(all->info.screen_base, all->par.fbsize);
+
+	kfree(all);
+
+	dev_set_drvdata(&dev->dev, NULL);
+
+	return 0;
+}
+
+static struct of_device_id bw2_match[] = {
+	{
+		.name = "bwtwo",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, bw2_match);
+
+static struct of_platform_driver bw2_driver = {
+	.name		= "bw2",
+	.match_table	= bw2_match,
+	.probe		= bw2_probe,
+	.remove		= __devexit_p(bw2_remove),
+};
+
+static int __init bw2_init(void)
+{
 	if (fb_get_options("bw2fb", NULL))
 		return -ENODEV;
 
-#ifdef CONFIG_SUN4
-	bw2_init_one(NULL);
-#endif
-	for_all_sbusdev(sdev, sbus) {
-		if (!strcmp(sdev->prom_name, "bwtwo"))
-			bw2_init_one(sdev);
-	}
-
-	return 0;
+	return of_register_driver(&bw2_driver, &of_bus_type);
 }
 
-void __exit bw2_exit(void)
+static void __exit bw2_exit(void)
 {
-	struct list_head *pos, *tmp;
-
-	list_for_each_safe(pos, tmp, &bw2_list) {
-		struct all_info *all = list_entry(pos, typeof(*all), list);
-
-		unregister_framebuffer(&all->info);
-		kfree(all);
-	}
+	return of_unregister_driver(&bw2_driver);
 }
 
-int __init
-bw2_setup(char *arg)
-{
-	/* No cmdline options yet... */
-	return 0;
-}
 
 module_init(bw2_init);
-
-#ifdef MODULE
 module_exit(bw2_exit);
-#endif
 
 MODULE_DESCRIPTION("framebuffer driver for BWTWO chipsets");
-MODULE_AUTHOR("David S. Miller <davem@redhat.com>");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
+MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");

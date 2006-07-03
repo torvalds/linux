@@ -14,7 +14,6 @@
 #ifndef __MACH_TQM85XX_H
 #define __MACH_TQM85XX_H
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/ppcboot.h>
 

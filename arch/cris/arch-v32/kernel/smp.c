@@ -62,7 +62,7 @@ static unsigned long irq_regs[NR_CPUS] =
 
 static irqreturn_t crisv32_ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 static int send_ipi(int vector, int wait, cpumask_t cpu_mask);
-static struct irqaction irq_ipi  = { crisv32_ipi_interrupt, SA_INTERRUPT,
+static struct irqaction irq_ipi  = { crisv32_ipi_interrupt, IRQF_DISABLED,
                                      CPU_MASK_NONE, "ipi", NULL, NULL};
 
 extern void cris_mmu_init(void);

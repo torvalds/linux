@@ -39,7 +39,6 @@
 #define DRV_DESCRIPTION	"Universal TUN/TAP device driver"
 #define DRV_COPYRIGHT	"(C) 1999-2004 Max Krasnyansky <maxk@qualcomm.com>"
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -490,6 +489,9 @@ static int tun_set_iff(struct file *file, struct ifreq *ifr)
 
 		err = -EINVAL;
 
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+
 		/* Set dev type */
 		if (ifr->ifr_flags & IFF_TUN) {
 			/* TUN device */
@@ -777,7 +779,6 @@ static struct miscdevice tun_miscdev = {
 	.minor = TUN_MINOR,
 	.name = "tun",
 	.fops = &tun_fops,
-	.devfs_name = "net/tun",
 };
 
 /* ethtool interface */

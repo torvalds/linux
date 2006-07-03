@@ -411,7 +411,6 @@ static struct miscdevice z90crypt_misc_device = {
 	.minor	    = Z90CRYPT_MINOR,
 	.name	    = DEV_NAME,
 	.fops	    = &z90crypt_fops,
-	.devfs_name = DEV_NAME
 };
 
 /**

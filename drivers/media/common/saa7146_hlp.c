@@ -158,7 +158,7 @@ static int calculate_h_scale_registers(struct saa7146_dev *dev,
 	}
 
 	/* the horizontal scaling increment controls the UV filter
-	   to reduce the bandwith to improve the display quality,
+	   to reduce the bandwidth to improve the display quality,
 	   so set it ... */
 	if ( xsci == 0x400)
 		pfuv = 0x00;
@@ -641,6 +641,7 @@ void saa7146_set_hps_source_and_sync(struct saa7146_dev *dev, int source, int sy
 	vv->current_hps_source = source;
 	vv->current_hps_sync = sync;
 }
+EXPORT_SYMBOL_GPL(saa7146_set_hps_source_and_sync);
 
 int saa7146_enable_overlay(struct saa7146_fh *fh)
 {

@@ -7,7 +7,6 @@
 
 #include <linux/mm.h>
 #include <linux/sysctl.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/socket.h>
 #include <net/sock.h>

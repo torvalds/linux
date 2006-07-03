@@ -366,7 +366,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for C-Media CMI8338 and 8738 PCI sound cards.
 
-    mpu_port	- 0x300,0x310,0x320,0x330, 0 = disable (default)
+    mpu_port	- 0x300,0x310,0x320,0x330 = legacy port,
+		  1 = integrated PCI port,
+		  0 = disable (default)
     fm_port     - 0x388 (default), 0 = disable (default)
     soft_ac3    - Software-conversion of raw SPDIF packets (model 033 only)
                   (default = 1)
@@ -468,7 +470,23 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for multifunction CS5535 companion PCI device
 
+    The power-management is supported.
+
+  Module snd-darla20
+  ------------------
+
+    Module for Echoaudio Darla20
+
     This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
+  Module snd-darla24
+  ------------------
+
+    Module for Echoaudio Darla24
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
 
   Module snd-dt019x
   -----------------
@@ -496,6 +514,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     requires a sound card (like RealPlayer).
 
     The power-management is supported.
+
+  Module snd-echo3g
+  -----------------
+
+    Module for Echoaudio 3G cards (Gina3G/Layla3G)
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
 
   Module snd-emu10k1
   ------------------
@@ -655,6 +681,22 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     
     The power-management is supported.
 
+  Module snd-gina20
+  -----------------
+
+    Module for Echoaudio Gina20
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
+  Module snd-gina24
+  -----------------
+
+    Module for Echoaudio Gina24
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
   Module snd-gusclassic
   ---------------------
 
@@ -707,8 +749,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-hda-intel
   --------------------
 
-    Module for Intel HD Audio (ICH6, ICH6M, ICH7), ATI SB450,
-	       VIA VT8251/VT8237A
+    Module for Intel HD Audio (ICH6, ICH6M, ESB2, ICH7, ICH8),
+		ATI SB450, SB600, RS600,
+		VIA VT8251/VT8237A,
+		SIS966, ULI M5461
 
     model	- force the model name
     position_fix - Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size)
@@ -756,12 +800,18 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  basic		fixed pin assignment w/o SPDIF
 	  auto		auto-config reading BIOS (default)
 
-	ALC882/883/885
+	ALC882/885
 	  3stack-dig	3-jack with SPDIF I/O
 	  6stck-dig	6-jack digital with SPDIF I/O
 	  auto		auto-config reading BIOS (default)
 
-	ALC861
+	ALC883/888
+	  3stack-dig	3-jack with SPDIF I/O
+	  6stack-dig	6-jack digital with SPDIF I/O
+	  6stack-dig-demo  6-stack digital for Intel demo board
+	  auto		auto-config reading BIOS (default)
+
+	ALC861/660
 	  3stack	3-jack
 	  3stack-dig	3-jack with SPDIF I/O
 	  6stack-dig	6-jack with SPDIF I/O
@@ -778,6 +828,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	AD1981
 	  basic		3-jack (default)
 	  hp		HP nx6320
+	  thinkpad	Lenovo Thinkpad T60/X60/Z60
 
 	AD1986A
 	  6stack	6-jack, separate surrounds (default)
@@ -932,6 +983,30 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  driver isn't configured properly or you want to try another
 	  type for testing.
 
+  Module snd-indigo
+  -----------------
+
+    Module for Echoaudio Indigo
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
+  Module snd-indigodj
+  -------------------
+
+    Module for Echoaudio Indigo DJ
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
+  Module snd-indigoio
+  -------------------
+
+    Module for Echoaudio Indigo IO
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
   Module snd-intel8x0
   -------------------
 
@@ -1031,6 +1106,22 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports multiple cards.
 
+  Module snd-layla20
+  ------------------
+
+    Module for Echoaudio Layla20
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
+  Module snd-layla24
+  ------------------
+
+    Module for Echoaudio Layla24
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
   Module snd-maestro3
   -------------------
 
@@ -1050,6 +1141,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     option.
 
     The power-management is supported.
+
+  Module snd-mia
+  ---------------
+
+    Module for Echoaudio Mia
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
 
   Module snd-miro
   ---------------
@@ -1082,6 +1181,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Install the necessary firmware files in alsa-firmware package.
     When no hotplug fw loader is available, you need to load the
     firmware via mixartloader utility in alsa-tools package.
+
+  Module snd-mona
+  ---------------
+
+    Module for Echoaudio Mona
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
 
   Module snd-mpu401
   -----------------
@@ -1633,9 +1740,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     About capture IBL, see the description of snd-vx222 module.
 
-    Note: the driver is build only when CONFIG_ISA is set.
-    
-    Note2: snd-vxp440 driver is merged to snd-vxpocket driver since
+    Note: snd-vxp440 driver is merged to snd-vxpocket driver since
            ALSA 1.0.10.
 
     The power-management is supported.
@@ -1661,8 +1766,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   --------------------
 
     Module for Sound Core PDAudioCF sound card.
-
-    Note: the driver is build only when CONFIG_ISA is set.
 
     The power-management is supported.
 

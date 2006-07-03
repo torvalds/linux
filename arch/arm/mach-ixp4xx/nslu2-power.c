@@ -20,10 +20,9 @@
 #include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/interrupt.h>
+#include <linux/reboot.h>
 
 #include <asm/mach-types.h>
-
-extern void ctrl_alt_del(void);
 
 static irqreturn_t nslu2_power_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -55,7 +54,7 @@ static int __init nslu2_power_init(void)
 	set_irq_type(NSLU2_PB_IRQ, IRQT_HIGH);
 
 	if (request_irq(NSLU2_RB_IRQ, &nslu2_reset_handler,
-		SA_INTERRUPT, "NSLU2 reset button", NULL) < 0) {
+		IRQF_DISABLED, "NSLU2 reset button", NULL) < 0) {
 
 		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
 			NSLU2_RB_IRQ);
@@ -64,7 +63,7 @@ static int __init nslu2_power_init(void)
 	}
 
 	if (request_irq(NSLU2_PB_IRQ, &nslu2_power_handler,
-		SA_INTERRUPT, "NSLU2 power button", NULL) < 0) {
+		IRQF_DISABLED, "NSLU2 power button", NULL) < 0) {
 
 		printk(KERN_DEBUG "Power Button IRQ %d not available\n",
 			NSLU2_PB_IRQ);

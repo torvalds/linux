@@ -2,7 +2,6 @@
 #define _LINUX_TYPES_H
 
 #ifdef	__KERNEL__
-#include <linux/config.h>
 
 #define BITS_TO_LONGS(bits) \
 	(((bits)+BITS_PER_LONG-1)/BITS_PER_LONG)
@@ -178,7 +177,14 @@ typedef __u64 __bitwise __be64;
 
 #ifdef __KERNEL__
 typedef unsigned __bitwise__ gfp_t;
+
+#ifdef CONFIG_RESOURCES_64BIT
+typedef u64 resource_size_t;
+#else
+typedef u32 resource_size_t;
 #endif
+
+#endif	/* __KERNEL__ */
 
 struct ustat {
 	__kernel_daddr_t	f_tfree;

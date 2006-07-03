@@ -48,8 +48,8 @@ struct Host {
 	unsigned char Ivec;		/* POLLED or ivec number */
 	unsigned char Mode;		/* Control stuff */
 	unsigned char Slot;		/* Slot */
-	caddr_t Caddr;			/* KV address of DPRAM */
-	struct DpRam *CardP;		/* KV address of DPRAM, with overlay */
+	void  __iomem *Caddr;		/* KV address of DPRAM */
+	struct DpRam __iomem *CardP;	/* KV address of DPRAM, with overlay */
 	unsigned long PaddrP;		/* Phys. address of DPRAM */
 	char Name[MAX_NAME_LEN];	/* The name of the host */
 	unsigned int UniqueNum;		/* host unique number */
@@ -57,7 +57,7 @@ struct Host {
 	unsigned int WorkToBeDone;	/* set to true each interrupt */
 	unsigned int InIntr;		/* Being serviced? */
 	unsigned int IntSrvDone;	/* host's interrupt has been serviced */
-	void (*Copy) (void *, void *, int);	/* copy func */
+	void (*Copy) (void *, void __iomem *, int);	/* copy func */
 	struct timer_list timer;
 	/*
 	 **               I M P O R T A N T !
@@ -83,11 +83,11 @@ struct Host {
 
 	struct Top Topology[LINKS_PER_UNIT];	/* one per link */
 	struct Map Mapping[MAX_RUP];		/* Mappings for host */
-	struct PHB *PhbP;			/* Pointer to the PHB array */
-	unsigned short *PhbNumP;		/* Ptr to Number of PHB's */
-	struct LPB *LinkStrP;			/* Link Structure Array */
-	struct RUP *RupP;			/* Sixteen real rups here */
-	struct PARM_MAP *ParmMapP;		/* points to the parmmap */
+	struct PHB __iomem *PhbP;		/* Pointer to the PHB array */
+	unsigned short __iomem *PhbNumP;	/* Ptr to Number of PHB's */
+	struct LPB __iomem *LinkStrP;		/* Link Structure Array */
+	struct RUP __iomem *RupP;		/* Sixteen real rups here */
+	struct PARM_MAP __iomem *ParmMapP;	/* points to the parmmap */
 	unsigned int ExtraUnits[MAX_EXTRA_UNITS];	/* unknown things */
 	unsigned int NumExtraBooted;		/* how many of the above */
 	/*

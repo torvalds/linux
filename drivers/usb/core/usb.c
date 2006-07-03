@@ -21,7 +21,6 @@
  * are evil.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
@@ -991,6 +990,8 @@ void usb_buffer_unmap_sg (struct usb_device *dev, unsigned pipe,
 
 static int verify_suspended(struct device *dev, void *unused)
 {
+	if (dev->driver == NULL)
+		return 0;
 	return (dev->power.power_state.event == PM_EVENT_ON) ? -EBUSY : 0;
 }
 
@@ -1207,6 +1208,7 @@ EXPORT_SYMBOL(usb_ifnum_to_if);
 EXPORT_SYMBOL(usb_altnum_to_altsetting);
 
 EXPORT_SYMBOL(usb_reset_device);
+EXPORT_SYMBOL(usb_reset_composite_device);
 
 EXPORT_SYMBOL(__usb_get_extra_descriptor);
 

@@ -8,10 +8,7 @@
 
 /*
  * Don't register by default -- as this registeres very early in the
- * boot process it becomes the default console.  And as this isn't a
- * real tty driver init isn't able to open /dev/console then.
- *
- * In most cases this isn't what you want ...
+ * boot process it becomes the default console.
  */
 static int use_stderr_console = 0;
 
@@ -43,3 +40,20 @@ static int stderr_setup(char *str)
 	return 1;
 }
 __setup("stderr=", stderr_setup);
+
+/* The previous behavior of not unregistering led to /dev/console being
+ * impossible to open.  My FC5 filesystem started having init die, and the
+ * system panicing because of this.  Unregistering causes the real
+ * console to become the default console, and /dev/console can then be
+ * opened.  Making this an initcall makes this happen late enough that
+ * there is no added value in dumping everything to stderr, and the
+ * normal console is good enough to show you all available output.
+ */
+static int __init unregister_stderr(void)
+{
+	unregister_console(&stderr_console);
+
+	return 0;
+}
+
+__initcall(unregister_stderr);

@@ -2,7 +2,6 @@
 #define __DMI_H__
 
 #include <linux/list.h>
-#include <linux/config.h>
 
 enum dmi_field {
 	DMI_NONE,

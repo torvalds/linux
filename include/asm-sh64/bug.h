@@ -1,7 +1,6 @@
 #ifndef __ASM_SH64_BUG_H
 #define __ASM_SH64_BUG_H
 
-#include <linux/config.h>
 
 /*
  * Tell the user there is some problem, then force a segfault (in process

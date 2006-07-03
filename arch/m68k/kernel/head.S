@@ -255,7 +255,6 @@
  * MAC_USE_SCC_B:	Use the SCC port B (printer) for serial debug (default).
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/bootinfo.h>

@@ -12,7 +12,6 @@
  * Chris Zankel <chris@zankel.net>
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <linux/timex.h>
@@ -29,7 +28,7 @@
 
 extern volatile unsigned long wall_jiffies;
 
-spinlock_t rtc_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
 
@@ -53,7 +52,7 @@ unsigned long long sched_clock(void)
 static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 static struct irqaction timer_irqaction = {
 	.handler =	timer_interrupt,
-	.flags =	SA_INTERRUPT,
+	.flags =	IRQF_DISABLED,
 	.name =		"timer",
 };
 

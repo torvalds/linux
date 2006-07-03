@@ -318,7 +318,17 @@ int av7110_set_volume(struct av7110 *av7110, int volleft, int volright)
 		msp_writereg(av7110, MSP_WR_DSP, 0x0000, val); /* loudspeaker */
 		msp_writereg(av7110, MSP_WR_DSP, 0x0006, val); /* headphonesr */
 		return 0;
+
+	case DVB_ADAC_MSP34x5:
+		vol = (volleft > volright) ? volleft : volright;
+		val = (vol * 0x73 / 255) << 8;
+		if (vol > 0)
+			balance = ((volright - volleft) * 127) / vol;
+		msp_writereg(av7110, MSP_WR_DSP, 0x0001, balance << 8);
+		msp_writereg(av7110, MSP_WR_DSP, 0x0000, val); /* loudspeaker */
+		return 0;
 	}
+
 	return 0;
 }
 
@@ -1267,23 +1277,32 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 		switch(av7110->audiostate.channel_select) {
 		case AUDIO_STEREO:
 			ret = audcom(av7110, AUDIO_CMD_STEREO);
-			if (!ret)
+			if (!ret) {
 				if (av7110->adac_type == DVB_ADAC_CRYSTAL)
 					i2c_writereg(av7110, 0x20, 0x02, 0x49);
+				else if (av7110->adac_type == DVB_ADAC_MSP34x5)
+					msp_writereg(av7110, MSP_WR_DSP, 0x0008, 0x0220);
+			}
 			break;
 
 		case AUDIO_MONO_LEFT:
 			ret = audcom(av7110, AUDIO_CMD_MONO_L);
-			if (!ret)
+			if (!ret) {
 				if (av7110->adac_type == DVB_ADAC_CRYSTAL)
 					i2c_writereg(av7110, 0x20, 0x02, 0x4a);
+				else if (av7110->adac_type == DVB_ADAC_MSP34x5)
+					msp_writereg(av7110, MSP_WR_DSP, 0x0008, 0x0200);
+			}
 			break;
 
 		case AUDIO_MONO_RIGHT:
 			ret = audcom(av7110, AUDIO_CMD_MONO_R);
-			if (!ret)
+			if (!ret) {
 				if (av7110->adac_type == DVB_ADAC_CRYSTAL)
 					i2c_writereg(av7110, 0x20, 0x02, 0x45);
+				else if (av7110->adac_type == DVB_ADAC_MSP34x5)
+					msp_writereg(av7110, MSP_WR_DSP, 0x0008, 0x0210);
+			}
 			break;
 
 		default:

@@ -1,7 +1,6 @@
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
 
-#include <linux/config.h>
 
 #if defined(CONFIG_SMP)
 

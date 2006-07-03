@@ -80,7 +80,6 @@
 #define OLYMPIC_DEBUG 0
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -217,7 +216,7 @@ static int __devinit olympic_probe(struct pci_dev *pdev, const struct pci_device
 	dev = alloc_trdev(sizeof(struct olympic_private)) ; 
 	if (!dev) {
 		i = -ENOMEM; 
-		goto op_free_dev;
+		goto op_release_dev;
 	}
 
 	olympic_priv = dev->priv ;
@@ -282,8 +281,8 @@ op_free_iomap:
 	if (olympic_priv->olympic_lap)
 		iounmap(olympic_priv->olympic_lap);
 
-op_free_dev:
 	free_netdev(dev);
+op_release_dev:
 	pci_release_regions(pdev); 
 
 op_disable_dev:
@@ -446,7 +445,7 @@ static int olympic_open(struct net_device *dev)
 
 	olympic_init(dev);
 
-	if(request_irq(dev->irq, &olympic_interrupt, SA_SHIRQ , "olympic", dev)) {
+	if(request_irq(dev->irq, &olympic_interrupt, IRQF_SHARED , "olympic", dev)) {
 		return -EAGAIN;
 	}
 

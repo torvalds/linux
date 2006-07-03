@@ -11,7 +11,6 @@
 /*
  * User space memory access functions
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/thread_info.h>
 #include <asm/page.h>

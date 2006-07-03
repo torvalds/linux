@@ -14,7 +14,6 @@
  *  the 64bit user space sees a FXSAVE frame directly. 
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <asm/processor.h>
@@ -24,7 +23,7 @@
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
 
-unsigned int mxcsr_feature_mask = 0xffffffff;
+unsigned int mxcsr_feature_mask __read_mostly = 0xffffffff;
 
 void mxcsr_feature_mask_init(void)
 {

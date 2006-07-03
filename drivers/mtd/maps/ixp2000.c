@@ -42,7 +42,6 @@ struct ixp2000_flash_info {
 	struct		map_info map;
 	struct		mtd_partition *partitions;
 	struct		resource *res;
-	int		nr_banks;
 };
 
 static inline unsigned long flash_bank_setup(struct map_info *map, unsigned long ofs)
@@ -183,7 +182,6 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 	 */
 	info->map.phys = NO_XIP;
 
-	info->nr_banks = ixp_data->nr_banks;
 	info->map.size = ixp_data->nr_banks * window_size;
 	info->map.bankwidth = 1;
 

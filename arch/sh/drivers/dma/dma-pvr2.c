@@ -70,7 +70,7 @@ static int pvr2_xfer_dma(struct dma_channel *chan)
 static struct irqaction pvr2_dma_irq = {
 	.name		= "pvr2 DMA handler",
 	.handler	= pvr2_dma_interrupt,
-	.flags		= SA_INTERRUPT,
+	.flags		= IRQF_DISABLED,
 };
 
 static struct dma_ops pvr2_dma_ops = {

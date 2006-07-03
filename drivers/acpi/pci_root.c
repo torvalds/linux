@@ -160,14 +160,13 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	unsigned long value = 0;
 	acpi_handle handle = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_pci_root_add");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	root = kmalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	memset(root, 0, sizeof(struct acpi_pci_root));
 	INIT_LIST_HEAD(&root->node);
 
@@ -198,7 +197,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 		root->id.segment = 0;
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _SEG\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _SEG"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -219,7 +218,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 		root->id.bus = 0;
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _BBN\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BBN"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -231,8 +230,9 @@ static int acpi_pci_root_add(struct acpi_device *device)
 			int bus = 0;
 			acpi_status status;
 
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Wrong _BBN value, please reboot and using option 'pci=noacpi'\n"));
+			printk(KERN_ERR PREFIX
+				    "Wrong _BBN value, reboot"
+				    " and use option 'pci=noacpi'\n");
 
 			status = try_get_root_bridge_busnr(root->handle, &bus);
 			if (ACPI_FAILURE(status))
@@ -273,9 +273,9 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	 */
 	root->bus = pci_acpi_scan_root(device, root->id.segment, root->id.bus);
 	if (!root->bus) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Bus %04x:%02x not present in PCI namespace\n",
-				  root->id.segment, root->id.bus));
+		printk(KERN_ERR PREFIX
+			    "Bus %04x:%02x not present in PCI namespace\n",
+			    root->id.segment, root->id.bus);
 		result = -ENODEV;
 		goto end;
 	}
@@ -306,46 +306,43 @@ static int acpi_pci_root_add(struct acpi_device *device)
 		kfree(root);
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_pci_root_start(struct acpi_device *device)
 {
 	struct acpi_pci_root *root;
 
-	ACPI_FUNCTION_TRACE("acpi_pci_root_start");
 
 	list_for_each_entry(root, &acpi_pci_roots, node) {
 		if (root->handle == device->handle) {
 			pci_bus_add_devices(root->bus);
-			return_VALUE(0);
+			return 0;
 		}
 	}
-	return_VALUE(-ENODEV);
+	return -ENODEV;
 }
 
 static int acpi_pci_root_remove(struct acpi_device *device, int type)
 {
 	struct acpi_pci_root *root = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_pci_root_remove");
 
 	if (!device || !acpi_driver_data(device))
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	root = (struct acpi_pci_root *)acpi_driver_data(device);
 
 	kfree(root);
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int __init acpi_pci_root_init(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_pci_root_init");
 
 	if (acpi_pci_disabled)
-		return_VALUE(0);
+		return 0;
 
 	/* DEBUG:
 	   acpi_dbg_layer = ACPI_PCI_COMPONENT;
@@ -353,9 +350,9 @@ static int __init acpi_pci_root_init(void)
 	 */
 
 	if (acpi_bus_register_driver(&acpi_pci_root_driver) < 0)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
-	return_VALUE(0);
+	return 0;
 }
 
 subsys_initcall(acpi_pci_root_init);

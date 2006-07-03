@@ -8,6 +8,7 @@
 #include "linux/kernel.h"
 #include "linux/string.h"
 #include "linux/fs.h"
+#include "linux/hardirq.h"
 #include "linux/highmem.h"
 #include "asm/page.h"
 #include "asm/pgtable.h"
@@ -38,7 +39,7 @@ static unsigned long maybe_map(unsigned long virt, int is_write)
 	return((unsigned long) phys);
 }
 
-static int do_op(unsigned long addr, int len, int is_write,
+static int do_op_one_page(unsigned long addr, int len, int is_write,
 		 int (*op)(unsigned long addr, int len, void *arg), void *arg)
 {
 	struct page *page;
@@ -49,9 +50,11 @@ static int do_op(unsigned long addr, int len, int is_write,
 		return(-1);
 
 	page = phys_to_page(addr);
-	addr = (unsigned long) kmap(page) + (addr & ~PAGE_MASK);
+	addr = (unsigned long) kmap_atomic(page, KM_UML_USERCOPY) + (addr & ~PAGE_MASK);
+
 	n = (*op)(addr, len, arg);
-	kunmap(page);
+
+	kunmap_atomic(page, KM_UML_USERCOPY);
 
 	return(n);
 }
@@ -77,7 +80,7 @@ static void do_buffer_op(void *jmpbuf, void *arg_ptr)
 	remain = len;
 
 	current->thread.fault_catcher = jmpbuf;
-	n = do_op(addr, size, is_write, op, arg);
+	n = do_op_one_page(addr, size, is_write, op, arg);
 	if(n != 0){
 		*res = (n < 0 ? remain : 0);
 		goto out;
@@ -91,7 +94,7 @@ static void do_buffer_op(void *jmpbuf, void *arg_ptr)
 	}
 
 	while(addr < ((addr + remain) & PAGE_MASK)){
-		n = do_op(addr, PAGE_SIZE, is_write, op, arg);
+		n = do_op_one_page(addr, PAGE_SIZE, is_write, op, arg);
 		if(n != 0){
 			*res = (n < 0 ? remain : 0);
 			goto out;
@@ -105,7 +108,7 @@ static void do_buffer_op(void *jmpbuf, void *arg_ptr)
 		goto out;
 	}
 
-	n = do_op(addr, remain, is_write, op, arg);
+	n = do_op_one_page(addr, remain, is_write, op, arg);
 	if(n != 0)
 		*res = (n < 0 ? remain : 0);
 	else *res = 0;

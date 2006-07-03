@@ -142,7 +142,7 @@ static void acpi_device_register(struct acpi_device *device,
 	create_sysfs_device_files(device);
 }
 
-static int acpi_device_unregister(struct acpi_device *device, int type)
+static void acpi_device_unregister(struct acpi_device *device, int type)
 {
 	spin_lock(&acpi_device_lock);
 	if (device->parent) {
@@ -158,16 +158,14 @@ static int acpi_device_unregister(struct acpi_device *device, int type)
 	acpi_detach_data(device->handle, acpi_bus_data_handler);
 	remove_sysfs_device_files(device);
 	kobject_unregister(&device->kobj);
-	return 0;
 }
 
 void acpi_bus_data_handler(acpi_handle handle, u32 function, void *context)
 {
-	ACPI_FUNCTION_TRACE("acpi_bus_data_handler");
 
 	/* TBD */
 
-	return_VOID;
+	return;
 }
 
 static int acpi_bus_get_power_flags(struct acpi_device *device)
@@ -176,7 +174,6 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 	acpi_handle handle = NULL;
 	u32 i = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_get_power_flags");
 
 	/*
 	 * Power Management Flags
@@ -229,17 +226,14 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 
 	device->power.state = ACPI_STATE_UNKNOWN;
 
-	return_VALUE(0);
+	return 0;
 }
 
 int acpi_match_ids(struct acpi_device *device, char *ids)
 {
-	int error = 0;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-
 	if (device->flags.hardware_id)
 		if (strstr(ids, device->pnp.hardware_id))
-			goto Done;
+			return 0;
 
 	if (device->flags.compatible_ids) {
 		struct acpi_compatible_id_list *cid_list = device->pnp.cid_list;
@@ -248,15 +242,10 @@ int acpi_match_ids(struct acpi_device *device, char *ids)
 		/* compare multiple _CID entries against driver ids */
 		for (i = 0; i < cid_list->count; i++) {
 			if (strstr(ids, cid_list->id[i].value))
-				goto Done;
+				return 0;
 		}
 	}
-	error = -ENOENT;
-
-      Done:
-	if (buffer.pointer)
-		acpi_os_free(buffer.pointer);
-	return error;
+	return -ENOENT;
 }
 
 static acpi_status
@@ -315,20 +304,18 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *package = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_get_wakeup_flags");
 
 	/* _PRW */
 	status = acpi_evaluate_object(device->handle, "_PRW", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _PRW\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRW"));
 		goto end;
 	}
 
 	package = (union acpi_object *)buffer.pointer;
 	status = acpi_bus_extract_wakeup_device_power_package(device, package);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error extracting _PRW package\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Extracting _PRW package"));
 		goto end;
 	}
 
@@ -342,7 +329,7 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
       end:
 	if (ACPI_FAILURE(status))
 		device->flags.wake_capable = 0;
-	return_VALUE(0);
+	return 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -441,10 +428,7 @@ acpi_eject_store(struct acpi_device *device, const char *buf, size_t count)
 	islockable = device->flags.lockable;
 	handle = device->handle;
 
-	if (type == ACPI_TYPE_PROCESSOR)
-		result = acpi_bus_trim(device, 0);
-	else
-		result = acpi_bus_trim(device, 1);
+	result = acpi_bus_trim(device, 1);
 
 	if (!result)
 		result = acpi_eject_operation(handle, islockable);
@@ -471,7 +455,6 @@ static int acpi_bus_get_perf_flags(struct acpi_device *device)
    -------------------------------------------------------------------------- */
 
 static LIST_HEAD(acpi_bus_drivers);
-static DECLARE_MUTEX(acpi_bus_drivers_lock);
 
 /**
  * acpi_bus_match - match device IDs to driver's supported IDs
@@ -502,19 +485,18 @@ acpi_bus_driver_init(struct acpi_device *device, struct acpi_driver *driver)
 {
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_driver_init");
 
 	if (!device || !driver)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (!driver->ops.add)
-		return_VALUE(-ENOSYS);
+		return -ENOSYS;
 
 	result = driver->ops.add(device);
 	if (result) {
 		device->driver = NULL;
 		acpi_driver_data(device) = NULL;
-		return_VALUE(result);
+		return result;
 	}
 
 	device->driver = driver;
@@ -526,7 +508,7 @@ acpi_bus_driver_init(struct acpi_device *device, struct acpi_driver *driver)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Driver successfully bound to device\n"));
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_start_single_object(struct acpi_device *device)
@@ -534,10 +516,9 @@ static int acpi_start_single_object(struct acpi_device *device)
 	int result = 0;
 	struct acpi_driver *driver;
 
-	ACPI_FUNCTION_TRACE("acpi_start_single_object");
 
 	if (!(driver = device->driver))
-		return_VALUE(0);
+		return 0;
 
 	if (driver->ops.start) {
 		result = driver->ops.start(device);
@@ -545,15 +526,13 @@ static int acpi_start_single_object(struct acpi_device *device)
 			driver->ops.remove(device, ACPI_BUS_REMOVAL_NORMAL);
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
-static int acpi_driver_attach(struct acpi_driver *drv)
+static void acpi_driver_attach(struct acpi_driver *drv)
 {
 	struct list_head *node, *next;
-	int count = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_driver_attach");
 
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_device_list) {
@@ -568,7 +547,6 @@ static int acpi_driver_attach(struct acpi_driver *drv)
 			if (!acpi_bus_driver_init(dev, drv)) {
 				acpi_start_single_object(dev);
 				atomic_inc(&drv->references);
-				count++;
 				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 						  "Found driver [%s] for device [%s]\n",
 						  drv->name, dev->pnp.bus_id));
@@ -577,14 +555,12 @@ static int acpi_driver_attach(struct acpi_driver *drv)
 		spin_lock(&acpi_device_lock);
 	}
 	spin_unlock(&acpi_device_lock);
-	return_VALUE(count);
 }
 
-static int acpi_driver_detach(struct acpi_driver *drv)
+static void acpi_driver_detach(struct acpi_driver *drv)
 {
 	struct list_head *node, *next;
 
-	ACPI_FUNCTION_TRACE("acpi_driver_detach");
 
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_device_list) {
@@ -602,7 +578,6 @@ static int acpi_driver_detach(struct acpi_driver *drv)
 		}
 	}
 	spin_unlock(&acpi_device_lock);
-	return_VALUE(0);
 }
 
 /**
@@ -610,28 +585,21 @@ static int acpi_driver_detach(struct acpi_driver *drv)
  * @driver: driver being registered
  *
  * Registers a driver with the ACPI bus.  Searches the namespace for all
- * devices that match the driver's criteria and binds.  Returns the
- * number of devices that were claimed by the driver, or a negative
- * error status for failure.
+ * devices that match the driver's criteria and binds.  Returns zero for
+ * success or a negative error status for failure.
  */
 int acpi_bus_register_driver(struct acpi_driver *driver)
 {
-	int count;
-
-	ACPI_FUNCTION_TRACE("acpi_bus_register_driver");
 
 	if (acpi_disabled)
-		return_VALUE(-ENODEV);
-
-	if (!driver)
-		return_VALUE(-EINVAL);
+		return -ENODEV;
 
 	spin_lock(&acpi_device_lock);
 	list_add_tail(&driver->node, &acpi_bus_drivers);
 	spin_unlock(&acpi_device_lock);
-	count = acpi_driver_attach(driver);
+	acpi_driver_attach(driver);
 
-	return_VALUE(count);
+	return 0;
 }
 
 EXPORT_SYMBOL(acpi_bus_register_driver);
@@ -643,23 +611,16 @@ EXPORT_SYMBOL(acpi_bus_register_driver);
  * Unregisters a driver with the ACPI bus.  Searches the namespace for all
  * devices that match the driver's criteria and unbinds.
  */
-int acpi_bus_unregister_driver(struct acpi_driver *driver)
+void acpi_bus_unregister_driver(struct acpi_driver *driver)
 {
-	int error = 0;
+	acpi_driver_detach(driver);
 
-	ACPI_FUNCTION_TRACE("acpi_bus_unregister_driver");
-
-	if (driver) {
-		acpi_driver_detach(driver);
-
-		if (!atomic_read(&driver->references)) {
-			spin_lock(&acpi_device_lock);
-			list_del_init(&driver->node);
-			spin_unlock(&acpi_device_lock);
-		}
-	} else
-		error = -EINVAL;
-	return_VALUE(error);
+	if (!atomic_read(&driver->references)) {
+		spin_lock(&acpi_device_lock);
+		list_del_init(&driver->node);
+		spin_unlock(&acpi_device_lock);
+	}
+	return;
 }
 
 EXPORT_SYMBOL(acpi_bus_unregister_driver);
@@ -676,7 +637,6 @@ static int acpi_bus_find_driver(struct acpi_device *device)
 	int result = 0;
 	struct list_head *node, *next;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_find_driver");
 
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_bus_drivers) {
@@ -696,19 +656,41 @@ static int acpi_bus_find_driver(struct acpi_device *device)
 	spin_unlock(&acpi_device_lock);
 
       Done:
-	return_VALUE(result);
+	return result;
 }
 
 /* --------------------------------------------------------------------------
                                  Device Enumeration
    -------------------------------------------------------------------------- */
 
+acpi_status
+acpi_bus_get_ejd(acpi_handle handle, acpi_handle *ejd)
+{
+	acpi_status status;
+	acpi_handle tmp;
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object *obj;
+
+	status = acpi_get_handle(handle, "_EJD", &tmp);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	status = acpi_evaluate_object(handle, "_EJD", NULL, &buffer);
+	if (ACPI_SUCCESS(status)) {
+		obj = buffer.pointer;
+		status = acpi_get_handle(NULL, obj->string.pointer, ejd);
+		kfree(buffer.pointer);
+	}
+	return status;
+}
+EXPORT_SYMBOL_GPL(acpi_bus_get_ejd);
+
+
 static int acpi_bus_get_flags(struct acpi_device *device)
 {
 	acpi_status status = AE_OK;
 	acpi_handle temp = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_get_flags");
 
 	/* Presence of _STA indicates 'dynamic_status' */
 	status = acpi_get_handle(device->handle, "_STA", &temp);
@@ -754,7 +736,7 @@ static int acpi_bus_get_flags(struct acpi_device *device)
 
 	/* TBD: Peformance management */
 
-	return_VALUE(0);
+	return 0;
 }
 
 static void acpi_device_get_busid(struct acpi_device *device,
@@ -948,10 +930,9 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 	int result = 0;
 	struct acpi_driver *driver;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_remove");
 
 	if (!dev)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	driver = dev->driver;
 
@@ -960,12 +941,12 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 		if (driver->ops.stop) {
 			result = driver->ops.stop(dev, ACPI_BUS_REMOVAL_EJECT);
 			if (result)
-				return_VALUE(result);
+				return result;
 		}
 
 		result = dev->driver->ops.remove(dev, ACPI_BUS_REMOVAL_EJECT);
 		if (result) {
-			return_VALUE(result);
+			return result;
 		}
 
 		atomic_dec(&dev->driver->references);
@@ -974,7 +955,7 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 	}
 
 	if (!rmdevice)
-		return_VALUE(0);
+		return 0;
 
 	if (dev->flags.bus_address) {
 		if ((dev->parent) && (dev->parent->ops.unbind))
@@ -983,7 +964,7 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 
 	acpi_device_unregister(dev, ACPI_BUS_REMOVAL_EJECT);
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int
@@ -993,15 +974,14 @@ acpi_add_single_object(struct acpi_device **child,
 	int result = 0;
 	struct acpi_device *device = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_add_single_object");
 
 	if (!child)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	device = kmalloc(sizeof(struct acpi_device), GFP_KERNEL);
 	if (!device) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Memory allocation error\n"));
-		return_VALUE(-ENOMEM);
+		printk(KERN_ERR PREFIX "Memory allocation error\n");
+		return -ENOMEM;
 	}
 	memset(device, 0, sizeof(struct acpi_device));
 
@@ -1126,7 +1106,7 @@ acpi_add_single_object(struct acpi_device **child,
 		kfree(device);
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_bus_scan(struct acpi_device *start, struct acpi_bus_ops *ops)
@@ -1139,10 +1119,9 @@ static int acpi_bus_scan(struct acpi_device *start, struct acpi_bus_ops *ops)
 	acpi_object_type type = 0;
 	u32 level = 1;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_scan");
 
 	if (!start)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	parent = start;
 	phandle = start->handle;
@@ -1239,7 +1218,7 @@ static int acpi_bus_scan(struct acpi_device *start, struct acpi_bus_ops *ops)
 		}
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 int
@@ -1249,7 +1228,6 @@ acpi_bus_add(struct acpi_device **child,
 	int result;
 	struct acpi_bus_ops ops;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_add");
 
 	result = acpi_add_single_object(child, parent, handle, type);
 	if (!result) {
@@ -1257,7 +1235,7 @@ acpi_bus_add(struct acpi_device **child,
 		ops.acpi_op_add = 1;
 		result = acpi_bus_scan(*child, &ops);
 	}
-	return_VALUE(result);
+	return result;
 }
 
 EXPORT_SYMBOL(acpi_bus_add);
@@ -1267,10 +1245,9 @@ int acpi_bus_start(struct acpi_device *device)
 	int result;
 	struct acpi_bus_ops ops;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_start");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	result = acpi_start_single_object(device);
 	if (!result) {
@@ -1278,7 +1255,7 @@ int acpi_bus_start(struct acpi_device *device)
 		ops.acpi_op_start = 1;
 		result = acpi_bus_scan(device, &ops);
 	}
-	return_VALUE(result);
+	return result;
 }
 
 EXPORT_SYMBOL(acpi_bus_start);
@@ -1344,10 +1321,9 @@ static int acpi_bus_scan_fixed(struct acpi_device *root)
 	int result = 0;
 	struct acpi_device *device = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_scan_fixed");
 
 	if (!root)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	/*
 	 * Enumerate all fixed-feature devices.
@@ -1368,20 +1344,119 @@ static int acpi_bus_scan_fixed(struct acpi_device *root)
 			result = acpi_start_single_object(device);
 	}
 
-	return_VALUE(result);
+	return result;
 }
+
+
+static inline struct acpi_device * to_acpi_dev(struct device * dev)
+{
+	return container_of(dev, struct acpi_device, dev);
+}
+
+
+static int root_suspend(struct acpi_device * acpi_dev, pm_message_t state)
+{
+	struct acpi_device * dev, * next;
+	int result;
+
+	spin_lock(&acpi_device_lock);
+	list_for_each_entry_safe_reverse(dev, next, &acpi_device_list, g_list) {
+		if (dev->driver && dev->driver->ops.suspend) {
+			spin_unlock(&acpi_device_lock);
+			result = dev->driver->ops.suspend(dev, 0);
+			if (result) {
+				printk(KERN_ERR PREFIX "[%s - %s] Suspend failed: %d\n",
+				       acpi_device_name(dev),
+				       acpi_device_bid(dev), result);
+			}
+			spin_lock(&acpi_device_lock);
+		}
+	}
+	spin_unlock(&acpi_device_lock);
+	return 0;
+}
+
+
+static int acpi_device_suspend(struct device * dev, pm_message_t state)
+{
+	struct acpi_device * acpi_dev = to_acpi_dev(dev);
+
+	/*
+	 * For now, we should only register 1 generic device -
+	 * the ACPI root device - and from there, we walk the
+	 * tree of ACPI devices to suspend each one using the
+	 * ACPI driver methods.
+	 */
+	if (acpi_dev->handle == ACPI_ROOT_OBJECT)
+		root_suspend(acpi_dev, state);
+	return 0;
+}
+
+
+
+static int root_resume(struct acpi_device * acpi_dev)
+{
+	struct acpi_device * dev, * next;
+	int result;
+
+	spin_lock(&acpi_device_lock);
+	list_for_each_entry_safe(dev, next, &acpi_device_list, g_list) {
+		if (dev->driver && dev->driver->ops.resume) {
+			spin_unlock(&acpi_device_lock);
+			result = dev->driver->ops.resume(dev, 0);
+			if (result) {
+				printk(KERN_ERR PREFIX "[%s - %s] resume failed: %d\n",
+				       acpi_device_name(dev),
+				       acpi_device_bid(dev), result);
+			}
+			spin_lock(&acpi_device_lock);
+		}
+	}
+	spin_unlock(&acpi_device_lock);
+	return 0;
+}
+
+
+static int acpi_device_resume(struct device * dev)
+{
+	struct acpi_device * acpi_dev = to_acpi_dev(dev);
+
+	/*
+	 * For now, we should only register 1 generic device -
+	 * the ACPI root device - and from there, we walk the
+	 * tree of ACPI devices to resume each one using the
+	 * ACPI driver methods.
+	 */
+	if (acpi_dev->handle == ACPI_ROOT_OBJECT)
+		root_resume(acpi_dev);
+	return 0;
+}
+
+
+static struct bus_type acpi_bus_type = {
+	.name		= "acpi",
+	.suspend	= acpi_device_suspend,
+	.resume		= acpi_device_resume,
+};
+
+
 
 static int __init acpi_scan_init(void)
 {
 	int result;
 	struct acpi_bus_ops ops;
 
-	ACPI_FUNCTION_TRACE("acpi_scan_init");
 
 	if (acpi_disabled)
-		return_VALUE(0);
+		return 0;
 
 	kset_register(&acpi_namespace_kset);
+
+	result = bus_register(&acpi_bus_type);
+	if (result) {
+		/* We don't want to quit even if we failed to add suspend/resume */
+		printk(KERN_ERR PREFIX "Could not register bus type\n");
+	}
 
 	/*
 	 * Create the root device in the bus's device tree
@@ -1392,6 +1467,16 @@ static int __init acpi_scan_init(void)
 		goto Done;
 
 	result = acpi_start_single_object(acpi_root);
+	if (result)
+		goto Done;
+
+	acpi_root->dev.bus = &acpi_bus_type;
+	snprintf(acpi_root->dev.bus_id, BUS_ID_SIZE, "%s", acpi_bus_type.name);
+	result = device_register(&acpi_root->dev);
+	if (result) {
+		/* We don't want to quit even if we failed to add suspend/resume */
+		printk(KERN_ERR PREFIX "Could not register device\n");
+	}
 
 	/*
 	 * Enumerate devices in the ACPI namespace.
@@ -1408,7 +1493,7 @@ static int __init acpi_scan_init(void)
 		acpi_device_unregister(acpi_root, ACPI_BUS_REMOVAL_NORMAL);
 
       Done:
-	return_VALUE(result);
+	return result;
 }
 
 subsys_initcall(acpi_scan_init);

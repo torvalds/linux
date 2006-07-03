@@ -11,7 +11,6 @@
 #ifndef __SPARC64_DELAY_H
 #define __SPARC64_DELAY_H
 
-#include <linux/config.h>
 #include <linux/param.h>
 #include <asm/cpudata.h>
 

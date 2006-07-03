@@ -7,7 +7,6 @@
  *	See net/ipx/ChangeLog.
  */
 
-#include <linux/config.h>
 #include <linux/list.h>
 #include <linux/route.h>
 #include <linux/spinlock.h>

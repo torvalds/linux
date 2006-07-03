@@ -14,10 +14,18 @@
 #define NFS_DEF_FILE_IO_SIZE	(4096U)
 #define NFS_MIN_FILE_IO_SIZE	(1024U)
 
-struct nfs4_fsid {
-	__u64 major;
-	__u64 minor;
+struct nfs_fsid {
+	uint64_t		major;
+	uint64_t		minor;
 };
+
+/*
+ * Helper for checking equality between 2 fsids.
+ */
+static inline int nfs_fsid_equal(const struct nfs_fsid *a, const struct nfs_fsid *b)
+{
+	return a->major == b->major && a->minor == b->minor;
+}
 
 struct nfs_fattr {
 	unsigned short		valid;		/* which fields are valid */
@@ -40,10 +48,7 @@ struct nfs_fattr {
 		} nfs3;
 	} du;
 	dev_t			rdev;
-	union {
-		__u64		nfs3;		/* also nfs2 */
-		struct nfs4_fsid nfs4;
-	} fsid_u;
+	struct nfs_fsid		fsid;
 	__u64			fileid;
 	struct timespec		atime;
 	struct timespec		mtime;
@@ -57,8 +62,8 @@ struct nfs_fattr {
 #define NFS_ATTR_WCC		0x0001		/* pre-op WCC data    */
 #define NFS_ATTR_FATTR		0x0002		/* post-op attributes */
 #define NFS_ATTR_FATTR_V3	0x0004		/* NFSv3 attributes */
-#define NFS_ATTR_FATTR_V4	0x0008
-#define NFS_ATTR_PRE_CHANGE	0x0010
+#define NFS_ATTR_FATTR_V4	0x0008		/* NFSv4 change attribute */
+#define NFS_ATTR_FATTR_V4_REFERRAL	0x0010		/* NFSv4 referral */
 
 /*
  * Info on the file system
@@ -675,6 +680,40 @@ struct nfs4_server_caps_res {
 	u32				has_symlinks;
 };
 
+struct nfs4_string {
+	unsigned int len;
+	char *data;
+};
+
+#define NFS4_PATHNAME_MAXCOMPONENTS 512
+struct nfs4_pathname {
+	unsigned int ncomponents;
+	struct nfs4_string components[NFS4_PATHNAME_MAXCOMPONENTS];
+};
+
+#define NFS4_FS_LOCATION_MAXSERVERS 10
+struct nfs4_fs_location {
+	unsigned int nservers;
+	struct nfs4_string servers[NFS4_FS_LOCATION_MAXSERVERS];
+	struct nfs4_pathname rootpath;
+};
+
+#define NFS4_FS_LOCATIONS_MAXENTRIES 10
+struct nfs4_fs_locations {
+	struct nfs_fattr fattr;
+	const struct nfs_server *server;
+	struct nfs4_pathname fs_path;
+	int nlocations;
+	struct nfs4_fs_location locations[NFS4_FS_LOCATIONS_MAXENTRIES];
+};
+
+struct nfs4_fs_locations_arg {
+	const struct nfs_fh *dir_fh;
+	const struct qstr *name;
+	struct page *page;
+	const u32 *bitmask;
+};
+
 #endif /* CONFIG_NFS_V4 */
 
 struct nfs_page;
@@ -695,7 +734,7 @@ struct nfs_read_data {
 #ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
-	struct page		*page_array[NFS_PAGEVEC_SIZE + 1];
+	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 
 struct nfs_write_data {
@@ -713,7 +752,7 @@ struct nfs_write_data {
 #ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
-	struct page		*page_array[NFS_PAGEVEC_SIZE + 1];
+	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 
 struct nfs_access_entry;

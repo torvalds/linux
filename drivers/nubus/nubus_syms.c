@@ -2,7 +2,6 @@
 
    (c) 1999 David Huggins-Daines <dhd@debian.org> */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/nubus.h>

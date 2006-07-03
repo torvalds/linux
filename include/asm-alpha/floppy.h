@@ -10,7 +10,6 @@
 #ifndef __ASM_ALPHA_FLOPPY_H
 #define __ASM_ALPHA_FLOPPY_H
 
-#include <linux/config.h>
 
 #define fd_inb(port)			inb_p(port)
 #define fd_outb(value,port)		outb_p(value,port)
@@ -26,9 +25,8 @@
 #define fd_enable_irq()         enable_irq(FLOPPY_IRQ)
 #define fd_disable_irq()        disable_irq(FLOPPY_IRQ)
 #define fd_cacheflush(addr,size) /* nothing */
-#define fd_request_irq()        request_irq(FLOPPY_IRQ, floppy_interrupt, \
-					    SA_INTERRUPT|SA_SAMPLE_RANDOM, \
-				            "floppy", NULL)
+#define fd_request_irq()        request_irq(FLOPPY_IRQ, floppy_interrupt,\
+					    IRQF_DISABLED, "floppy", NULL)
 #define fd_free_irq()           free_irq(FLOPPY_IRQ, NULL);
 
 #ifdef CONFIG_PCI

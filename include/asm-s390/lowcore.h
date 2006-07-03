@@ -124,7 +124,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/config.h>
 #include <asm/processor.h>
 #include <linux/types.h>
 #include <asm/sigp.h>

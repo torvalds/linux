@@ -15,7 +15,6 @@
  *  $Id: 8250.h,v 1.8 2002/07/21 21:32:30 rmk Exp $
  */
 
-#include <linux/config.h>
 #include <linux/serial_8250.h>
 
 struct old_serial_port {

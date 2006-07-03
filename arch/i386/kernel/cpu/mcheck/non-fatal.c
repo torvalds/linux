@@ -11,7 +11,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
-#include <linux/config.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>

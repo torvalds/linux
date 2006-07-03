@@ -14,7 +14,6 @@
 
 /***************************************************************************/
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -141,13 +140,13 @@ static void init_hardware(char *command, int size)
 static void m68vz328_reset(void)
 {
 	local_irq_disable();
-	asm volatile ("
-		moveal #0x10c00000, %a0;
-		moveb #0, 0xFFFFF300;
-		moveal 0(%a0), %sp;
-		moveal 4(%a0), %a0;
-		jmp (%a0);
-	");
+	asm volatile (
+		"moveal #0x10c00000, %a0;\n\t"
+		"moveb #0, 0xFFFFF300;\n\t"
+		"moveal 0(%a0), %sp;\n\t"
+		"moveal 4(%a0), %a0;\n\t"
+		"jmp (%a0);\n"
+	);
 }
 
 unsigned char *cs8900a_hwaddr;

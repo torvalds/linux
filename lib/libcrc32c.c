@@ -88,7 +88,7 @@ crc32c_le(u32 crc, unsigned char const *p, size_t len)
  * reflect output bytes = true
  */
 
-static u32 crc32c_table[256] = {
+static const u32 crc32c_table[256] = {
 	0x00000000L, 0xF26B8303L, 0xE13B70F7L, 0x1350F3F4L,
 	0xC79A971FL, 0x35F1141CL, 0x26A1E7E8L, 0xD4CA64EBL,
 	0x8AD958CFL, 0x78B2DBCCL, 0x6BE22838L, 0x9989AB3BL,

@@ -32,10 +32,6 @@ struct s5h1420_config
 
 	/* does the inversion require inversion? */
 	u8 invert:1;
-
-	/* PLL maintenance */
-	int (*pll_init)(struct dvb_frontend* fe);
-	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u32* freqout);
 };
 
 extern struct dvb_frontend* s5h1420_attach(const struct s5h1420_config* config,

@@ -1,7 +1,6 @@
 #ifndef __ASM_SH_DMA_MAPPING_H
 #define __ASM_SH_DMA_MAPPING_H
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <asm/scatterlist.h>
 #include <asm/io.h>

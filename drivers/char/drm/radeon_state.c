@@ -249,6 +249,7 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 	case R200_EMIT_PP_TXCTLALL_3:
 	case R200_EMIT_PP_TXCTLALL_4:
 	case R200_EMIT_PP_TXCTLALL_5:
+	case R200_EMIT_VAP_PVS_CNTL:
 		/* These packets don't contain memory offsets */
 		break;
 
@@ -626,6 +627,7 @@ static struct {
 	{R200_PP_TXFILTER_3, 8, "R200_PP_TXCTLALL_3"},
 	{R200_PP_TXFILTER_4, 8, "R200_PP_TXCTLALL_4"},
 	{R200_PP_TXFILTER_5, 8, "R200_PP_TXCTLALL_5"},
+	{R200_VAP_PVS_CNTL_1, 2, "R200_VAP_PVS_CNTL"},
 };
 
 /* ================================================================
@@ -2595,9 +2597,36 @@ static __inline__ int radeon_emit_vectors(drm_radeon_private_t *dev_priv,
 	int stride = header.vectors.stride;
 	RING_LOCALS;
 
-	BEGIN_RING(3 + sz);
+	BEGIN_RING(5 + sz);
+	OUT_RING_REG(RADEON_SE_TCL_STATE_FLUSH, 0);
 	OUT_RING(CP_PACKET0(RADEON_SE_TCL_VECTOR_INDX_REG, 0));
 	OUT_RING(start | (stride << RADEON_VEC_INDX_OCTWORD_STRIDE_SHIFT));
+	OUT_RING(CP_PACKET0_TABLE(RADEON_SE_TCL_VECTOR_DATA_REG, (sz - 1)));
+	OUT_RING_TABLE(cmdbuf->buf, sz);
+	ADVANCE_RING();
+
+	cmdbuf->buf += sz * sizeof(int);
+	cmdbuf->bufsz -= sz * sizeof(int);
+	return 0;
+}
+
+static __inline__ int radeon_emit_veclinear(drm_radeon_private_t *dev_priv,
+					  drm_radeon_cmd_header_t header,
+					  drm_radeon_kcmd_buffer_t *cmdbuf)
+{
+	int sz = header.veclinear.count * 4;
+	int start = header.veclinear.addr_lo | (header.veclinear.addr_hi << 8);
+	RING_LOCALS;
+
+        if (!sz)
+                return 0;
+        if (sz * 4 > cmdbuf->bufsz)
+                return DRM_ERR(EINVAL);
+
+	BEGIN_RING(5 + sz);
+	OUT_RING_REG(RADEON_SE_TCL_STATE_FLUSH, 0);
+	OUT_RING(CP_PACKET0(RADEON_SE_TCL_VECTOR_INDX_REG, 0));
+	OUT_RING(start | (1 << RADEON_VEC_INDX_OCTWORD_STRIDE_SHIFT));
 	OUT_RING(CP_PACKET0_TABLE(RADEON_SE_TCL_VECTOR_DATA_REG, (sz - 1)));
 	OUT_RING_TABLE(cmdbuf->buf, sz);
 	ADVANCE_RING();
@@ -2865,6 +2894,14 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
 				goto err;
 			}
 			break;
+		case RADEON_CMD_VECLINEAR:
+			DRM_DEBUG("RADEON_CMD_VECLINEAR\n");
+			if (radeon_emit_veclinear(dev_priv, header, &cmdbuf)) {
+				DRM_ERROR("radeon_emit_veclinear failed\n");
+				goto err;
+			}
+			break;
+
 		default:
 			DRM_ERROR("bad cmd_type %d at %p\n",
 				  header.header.cmd_type,

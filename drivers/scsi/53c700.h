@@ -163,6 +163,8 @@ struct NCR_700_command_slot {
 	#define NCR_700_SLOT_BUSY (1|NCR_700_SLOT_MAGIC) /* slot has command active on HA */
 	#define NCR_700_SLOT_QUEUED (2|NCR_700_SLOT_MAGIC) /* slot has command to be made active on HA */
 	__u8	state;
+	#define NCR_700_FLAG_AUTOSENSE	0x01
+	__u8	flags;
 	int	tag;
 	__u32	resume_offset;
 	struct scsi_cmnd *cmnd;
@@ -472,8 +474,7 @@ NCR_700_readl(struct Scsi_Host *host, __u32 reg)
 		ioread32(hostdata->base + reg);
 #if 1
 	/* sanity check the register */
-	if((reg & 0x3) != 0)
-		BUG();
+	BUG_ON((reg & 0x3) != 0);
 #endif
 
 	return value;
@@ -496,8 +497,7 @@ NCR_700_writel(__u32 value, struct Scsi_Host *host, __u32 reg)
 
 #if 1
 	/* sanity check the register */
-	if((reg & 0x3) != 0)
-		BUG();
+	BUG_ON((reg & 0x3) != 0);
 #endif
 
 	bEBus ? iowrite32be(value, hostdata->base + reg): 

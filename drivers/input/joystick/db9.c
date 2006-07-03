@@ -584,7 +584,7 @@ static struct db9 __init *db9_probe(int parport, int mode)
 		goto err_out;
 	}
 
-	if (db9_mode[mode].bidirectional && !(pp->modes & PARPORT_MODE_TRISTATE)) {
+	if (db9_mode->bidirectional && !(pp->modes & PARPORT_MODE_TRISTATE)) {
 		printk(KERN_ERR "db9.c: specified parport is not bidirectional\n");
 		err = -EINVAL;
 		goto err_put_pp;
@@ -620,7 +620,8 @@ static struct db9 __init *db9_probe(int parport, int mode)
 			goto err_unreg_devs;
 		}
 
-		sprintf(db9->phys[i], "%s/input%d", db9->pd->port->name, i);
+		snprintf(db9->phys[i], sizeof(db9->phys[i]),
+			 "%s/input%d", db9->pd->port->name, i);
 
 		input_dev->name = db9_mode->name;
 		input_dev->phys = db9->phys[i];

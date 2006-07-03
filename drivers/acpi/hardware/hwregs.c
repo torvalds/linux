@@ -43,8 +43,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acevents.h>
@@ -63,23 +61,21 @@ ACPI_MODULE_NAME("hwregs")
  * DESCRIPTION: Clears all fixed and general purpose status bits
  *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
+ * NOTE: TBD: Flags parameter is obsolete, to be removed
+ *
  ******************************************************************************/
 acpi_status acpi_hw_clear_acpi_status(u32 flags)
 {
 	acpi_status status;
+	acpi_cpu_flags lock_flags = 0;
 
-	ACPI_FUNCTION_TRACE("hw_clear_acpi_status");
+	ACPI_FUNCTION_TRACE(hw_clear_acpi_status);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_IO, "About to write %04X to %04X\n",
 			  ACPI_BITMASK_ALL_FIXED_STATUS,
 			  (u16) acpi_gbl_FADT->xpm1a_evt_blk.address));
 
-	if (flags & ACPI_MTX_LOCK) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
+	lock_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
 
 	status = acpi_hw_register_write(ACPI_MTX_DO_NOT_LOCK,
 					ACPI_REGISTER_PM1_STATUS,
@@ -104,9 +100,7 @@ acpi_status acpi_hw_clear_acpi_status(u32 flags)
 	status = acpi_ev_walk_gpe_list(acpi_hw_clear_gpe_block);
 
       unlock_and_exit:
-	if (flags & ACPI_MTX_LOCK) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
-	}
+	acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
 	return_ACPI_STATUS(status);
 }
 
@@ -129,10 +123,9 @@ acpi_status
 acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 {
 	acpi_status status = AE_OK;
-	struct acpi_parameter_info info;
-	char *sleep_state_name;
+	struct acpi_evaluate_info *info;
 
-	ACPI_FUNCTION_TRACE("acpi_get_sleep_type_data");
+	ACPI_FUNCTION_TRACE(acpi_get_sleep_type_data);
 
 	/* Validate parameters */
 
@@ -140,47 +133,52 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Evaluate the namespace object containing the values for this state */
+	/* Allocate the evaluation information block */
 
-	info.parameters = NULL;
-	info.return_object = NULL;
-	sleep_state_name =
+	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
+	if (!info) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	info->pathname =
 	    ACPI_CAST_PTR(char, acpi_gbl_sleep_state_names[sleep_state]);
 
-	status = acpi_ns_evaluate_by_name(sleep_state_name, &info);
+	/* Evaluate the namespace object containing the values for this state */
+
+	status = acpi_ns_evaluate(info);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "%s while evaluating sleep_state [%s]\n",
+				  "%s while evaluating SleepState [%s]\n",
 				  acpi_format_exception(status),
-				  sleep_state_name));
+				  info->pathname));
 
-		return_ACPI_STATUS(status);
+		goto cleanup;
 	}
 
 	/* Must have a return object */
 
-	if (!info.return_object) {
+	if (!info->return_object) {
 		ACPI_ERROR((AE_INFO, "No Sleep State object returned from [%s]",
-			    sleep_state_name));
+			    info->pathname));
 		status = AE_NOT_EXIST;
 	}
 
 	/* It must be of type Package */
 
-	else if (ACPI_GET_OBJECT_TYPE(info.return_object) != ACPI_TYPE_PACKAGE) {
+	else if (ACPI_GET_OBJECT_TYPE(info->return_object) != ACPI_TYPE_PACKAGE) {
 		ACPI_ERROR((AE_INFO,
 			    "Sleep State return object is not a Package"));
 		status = AE_AML_OPERAND_TYPE;
 	}
 
 	/*
-	 * The package must have at least two elements.  NOTE (March 2005): This
+	 * The package must have at least two elements. NOTE (March 2005): This
 	 * goes against the current ACPI spec which defines this object as a
-	 * package with one encoded DWORD element.  However, existing practice
+	 * package with one encoded DWORD element. However, existing practice
 	 * by BIOS vendors seems to be to have 2 or more elements, at least
 	 * one per sleep type (A/B).
 	 */
-	else if (info.return_object->package.count < 2) {
+	else if (info->return_object->package.count < 2) {
 		ACPI_ERROR((AE_INFO,
 			    "Sleep State return package does not have at least two elements"));
 		status = AE_AML_NO_OPERAND;
@@ -188,39 +186,42 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 
 	/* The first two elements must both be of type Integer */
 
-	else if ((ACPI_GET_OBJECT_TYPE(info.return_object->package.elements[0])
+	else if ((ACPI_GET_OBJECT_TYPE(info->return_object->package.elements[0])
 		  != ACPI_TYPE_INTEGER) ||
-		 (ACPI_GET_OBJECT_TYPE(info.return_object->package.elements[1])
+		 (ACPI_GET_OBJECT_TYPE(info->return_object->package.elements[1])
 		  != ACPI_TYPE_INTEGER)) {
 		ACPI_ERROR((AE_INFO,
 			    "Sleep State return package elements are not both Integers (%s, %s)",
-			    acpi_ut_get_object_type_name(info.return_object->
+			    acpi_ut_get_object_type_name(info->return_object->
 							 package.elements[0]),
-			    acpi_ut_get_object_type_name(info.return_object->
+			    acpi_ut_get_object_type_name(info->return_object->
 							 package.elements[1])));
 		status = AE_AML_OPERAND_TYPE;
 	} else {
 		/* Valid _Sx_ package size, type, and value */
 
 		*sleep_type_a = (u8)
-		    (info.return_object->package.elements[0])->integer.value;
+		    (info->return_object->package.elements[0])->integer.value;
 		*sleep_type_b = (u8)
-		    (info.return_object->package.elements[1])->integer.value;
+		    (info->return_object->package.elements[1])->integer.value;
 	}
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
-				"While evaluating sleep_state [%s], bad Sleep object %p type %s",
-				sleep_state_name, info.return_object,
-				acpi_ut_get_object_type_name(info.
+				"While evaluating SleepState [%s], bad Sleep object %p type %s",
+				info->pathname, info->return_object,
+				acpi_ut_get_object_type_name(info->
 							     return_object)));
 	}
 
-	acpi_ut_remove_reference(info.return_object);
+	acpi_ut_remove_reference(info->return_object);
+
+      cleanup:
+	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_get_sleep_type_data);
+ACPI_EXPORT_SYMBOL(acpi_get_sleep_type_data)
 
 /*******************************************************************************
  *
@@ -233,13 +234,12 @@ EXPORT_SYMBOL(acpi_get_sleep_type_data);
  * DESCRIPTION: Map register_id into a register bitmask.
  *
  ******************************************************************************/
-
 struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
 {
 	ACPI_FUNCTION_ENTRY();
 
 	if (register_id > ACPI_BITREG_MAX) {
-		ACPI_ERROR((AE_INFO, "Invalid bit_register ID: %X",
+		ACPI_ERROR((AE_INFO, "Invalid BitRegister ID: %X",
 			    register_id));
 		return (NULL);
 	}
@@ -255,10 +255,12 @@ struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
  *              return_value    - Value that was read from the register
  *              Flags           - Lock the hardware or not
  *
- * RETURN:      Status and the value read from specified Register.  Value
+ * RETURN:      Status and the value read from specified Register. Value
  *              returned is normalized to bit0 (is shifted all the way right)
  *
  * DESCRIPTION: ACPI bit_register read function.
+ *
+ * NOTE: TBD: Flags parameter is obsolete, to be removed
  *
  ******************************************************************************/
 
@@ -268,7 +270,7 @@ acpi_status acpi_get_register(u32 register_id, u32 * return_value, u32 flags)
 	struct acpi_bit_register_info *bit_reg_info;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_get_register");
+	ACPI_FUNCTION_TRACE(acpi_get_register);
 
 	/* Get the info structure corresponding to the requested ACPI Register */
 
@@ -277,24 +279,14 @@ acpi_status acpi_get_register(u32 register_id, u32 * return_value, u32 flags)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	if (flags & ACPI_MTX_LOCK) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-
 	/* Read from the register */
 
-	status = acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK,
+	status = acpi_hw_register_read(ACPI_MTX_LOCK,
 				       bit_reg_info->parent_register,
 				       &register_value);
 
-	if (flags & ACPI_MTX_LOCK) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
-	}
-
 	if (ACPI_SUCCESS(status)) {
+
 		/* Normalize the value that was read */
 
 		register_value =
@@ -311,7 +303,7 @@ acpi_status acpi_get_register(u32 register_id, u32 * return_value, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_get_register);
+ACPI_EXPORT_SYMBOL(acpi_get_register)
 
 /*******************************************************************************
  *
@@ -326,31 +318,28 @@ EXPORT_SYMBOL(acpi_get_register);
  *
  * DESCRIPTION: ACPI Bit Register write function.
  *
+ * NOTE: TBD: Flags parameter is obsolete, to be removed
+ *
  ******************************************************************************/
-
 acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 {
 	u32 register_value = 0;
 	struct acpi_bit_register_info *bit_reg_info;
 	acpi_status status;
+	acpi_cpu_flags lock_flags;
 
-	ACPI_FUNCTION_TRACE_U32("acpi_set_register", register_id);
+	ACPI_FUNCTION_TRACE_U32(acpi_set_register, register_id);
 
 	/* Get the info structure corresponding to the requested ACPI Register */
 
 	bit_reg_info = acpi_hw_get_bit_register_info(register_id);
 	if (!bit_reg_info) {
-		ACPI_ERROR((AE_INFO, "Bad ACPI HW register_id: %X",
+		ACPI_ERROR((AE_INFO, "Bad ACPI HW RegisterId: %X",
 			    register_id));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	if (flags & ACPI_MTX_LOCK) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
+	lock_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
 
 	/* Always do a register read first so we can insert the new bits  */
 
@@ -372,8 +361,8 @@ acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 	case ACPI_REGISTER_PM1_STATUS:
 
 		/*
-		 * Status Registers are different from the rest.  Clear by
-		 * writing 1, and writing 0 has no effect.  So, the only relevant
+		 * Status Registers are different from the rest. Clear by
+		 * writing 1, and writing 0 has no effect. So, the only relevant
 		 * information is the single bit we're interested in, all others should
 		 * be written as 0 so they will be left unchanged.
 		 */
@@ -458,9 +447,7 @@ acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 
       unlock_and_exit:
 
-	if (flags & ACPI_MTX_LOCK) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
-	}
+	acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
 
 	/* Normalize the value that was read */
 
@@ -474,37 +461,33 @@ acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_set_register);
+ACPI_EXPORT_SYMBOL(acpi_set_register)
 
 /******************************************************************************
  *
  * FUNCTION:    acpi_hw_register_read
  *
- * PARAMETERS:  use_lock            - Mutex hw access
- *              register_id         - register_iD + Offset
+ * PARAMETERS:  use_lock            - Lock hardware? True/False
+ *              register_id         - ACPI Register ID
  *              return_value        - Where the register value is returned
  *
  * RETURN:      Status and the value read.
  *
- * DESCRIPTION: Acpi register read function.  Registers are read at the
- *              given offset.
+ * DESCRIPTION: Read from the specified ACPI register
  *
  ******************************************************************************/
-
 acpi_status
 acpi_hw_register_read(u8 use_lock, u32 register_id, u32 * return_value)
 {
 	u32 value1 = 0;
 	u32 value2 = 0;
 	acpi_status status;
+	acpi_cpu_flags lock_flags = 0;
 
-	ACPI_FUNCTION_TRACE("hw_register_read");
+	ACPI_FUNCTION_TRACE(hw_register_read);
 
 	if (ACPI_MTX_LOCK == use_lock) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
+		lock_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
 	}
 
 	switch (register_id) {
@@ -582,7 +565,7 @@ acpi_hw_register_read(u8 use_lock, u32 register_id, u32 * return_value)
 
       unlock_and_exit:
 	if (ACPI_MTX_LOCK == use_lock) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
+		acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
 	}
 
 	if (ACPI_SUCCESS(status)) {
@@ -596,32 +579,59 @@ acpi_hw_register_read(u8 use_lock, u32 register_id, u32 * return_value)
  *
  * FUNCTION:    acpi_hw_register_write
  *
- * PARAMETERS:  use_lock            - Mutex hw access
- *              register_id         - register_iD + Offset
+ * PARAMETERS:  use_lock            - Lock hardware? True/False
+ *              register_id         - ACPI Register ID
  *              Value               - The value to write
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Acpi register Write function.  Registers are written at the
- *              given offset.
+ * DESCRIPTION: Write to the specified ACPI register
+ *
+ * NOTE: In accordance with the ACPI specification, this function automatically
+ * preserves the value of the following bits, meaning that these bits cannot be
+ * changed via this interface:
+ *
+ * PM1_CONTROL[0] = SCI_EN
+ * PM1_CONTROL[9]
+ * PM1_STATUS[11]
+ *
+ * ACPI References:
+ * 1) Hardware Ignored Bits: When software writes to a register with ignored
+ *      bit fields, it preserves the ignored bit fields
+ * 2) SCI_EN: OSPM always preserves this bit position
  *
  ******************************************************************************/
 
 acpi_status acpi_hw_register_write(u8 use_lock, u32 register_id, u32 value)
 {
 	acpi_status status;
+	acpi_cpu_flags lock_flags = 0;
+	u32 read_value;
 
-	ACPI_FUNCTION_TRACE("hw_register_write");
+	ACPI_FUNCTION_TRACE(hw_register_write);
 
 	if (ACPI_MTX_LOCK == use_lock) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
+		lock_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
 	}
 
 	switch (register_id) {
 	case ACPI_REGISTER_PM1_STATUS:	/* 16-bit access */
+
+		/* Perform a read first to preserve certain bits (per ACPI spec) */
+
+		status = acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK,
+					       ACPI_REGISTER_PM1_STATUS,
+					       &read_value);
+		if (ACPI_FAILURE(status)) {
+			goto unlock_and_exit;
+		}
+
+		/* Insert the bits to be preserved */
+
+		ACPI_INSERT_BITS(value, ACPI_PM1_STATUS_PRESERVED_BITS,
+				 read_value);
+
+		/* Now we can write the data */
 
 		status =
 		    acpi_hw_low_level_write(16, value,
@@ -652,6 +662,25 @@ acpi_status acpi_hw_register_write(u8 use_lock, u32 register_id, u32 value)
 		break;
 
 	case ACPI_REGISTER_PM1_CONTROL:	/* 16-bit access */
+
+		/*
+		 * Perform a read first to preserve certain bits (per ACPI spec)
+		 *
+		 * Note: This includes SCI_EN, we never want to change this bit
+		 */
+		status = acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK,
+					       ACPI_REGISTER_PM1_CONTROL,
+					       &read_value);
+		if (ACPI_FAILURE(status)) {
+			goto unlock_and_exit;
+		}
+
+		/* Insert the bits to be preserved */
+
+		ACPI_INSERT_BITS(value, ACPI_PM1_CONTROL_PRESERVED_BITS,
+				 read_value);
+
+		/* Now we can write the data */
 
 		status =
 		    acpi_hw_low_level_write(16, value,
@@ -707,7 +736,7 @@ acpi_status acpi_hw_register_write(u8 use_lock, u32 register_id, u32 value)
 
       unlock_and_exit:
 	if (ACPI_MTX_LOCK == use_lock) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
+		acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
 	}
 
 	return_ACPI_STATUS(status);
@@ -733,7 +762,7 @@ acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
 	u64 address;
 	acpi_status status;
 
-	ACPI_FUNCTION_NAME("hw_low_level_read");
+	ACPI_FUNCTION_NAME(hw_low_level_read);
 
 	/*
 	 * Must have a valid pointer to a GAS structure, and
@@ -744,7 +773,7 @@ acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
 		return (AE_OK);
 	}
 
-	/* Get a local copy of the address.  Handles possible alignment issues */
+	/* Get a local copy of the address. Handles possible alignment issues */
 
 	ACPI_MOVE_64_TO_64(&address, &reg->address);
 	if (!address) {
@@ -805,7 +834,7 @@ acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address * reg)
 	u64 address;
 	acpi_status status;
 
-	ACPI_FUNCTION_NAME("hw_low_level_write");
+	ACPI_FUNCTION_NAME(hw_low_level_write);
 
 	/*
 	 * Must have a valid pointer to a GAS structure, and
@@ -816,7 +845,7 @@ acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address * reg)
 		return (AE_OK);
 	}
 
-	/* Get a local copy of the address.  Handles possible alignment issues */
+	/* Get a local copy of the address. Handles possible alignment issues */
 
 	ACPI_MOVE_64_TO_64(&address, &reg->address);
 	if (!address) {

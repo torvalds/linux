@@ -24,7 +24,6 @@
  * 	This file is derived from net/ipv4/esp.c
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <net/ip.h>
 #include <net/xfrm.h>

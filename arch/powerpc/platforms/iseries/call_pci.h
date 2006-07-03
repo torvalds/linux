@@ -145,6 +145,25 @@ static inline u64 HvCallPci_configLoad16(u16 busNumber, u8 subBusNumber,
 	return retVal.rc;
 }
 
+static inline u64 HvCallPci_configLoad32(u16 busNumber, u8 subBusNumber,
+		u8 deviceId, u32 offset, u32 *value)
+{
+	struct HvCallPci_DsaAddr dsa;
+	struct HvCallPci_LoadReturn retVal;
+
+	*((u64*)&dsa) = 0;
+
+	dsa.busNumber = busNumber;
+	dsa.subBusNumber = subBusNumber;
+	dsa.deviceId = deviceId;
+
+	HvCall3Ret16(HvCallPciConfigLoad32, &retVal, *(u64 *)&dsa, offset, 0);
+
+	*value = retVal.value;
+
+	return retVal.rc;
+}
+
 static inline u64 HvCallPci_configStore8(u16 busNumber, u8 subBusNumber,
 		u8 deviceId, u32 offset, u8 value)
 {

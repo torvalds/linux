@@ -18,7 +18,6 @@
 #ifndef _ICMP_H
 #define	_ICMP_H
 
-#include <linux/config.h>
 #include <linux/icmp.h>
 
 #include <net/inet_sock.h>

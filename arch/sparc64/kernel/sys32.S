@@ -6,7 +6,6 @@
  * Copyright (C) 1998 Jakub Jelinek   (jj@ultra.linux.cz)
  */
 
-#include <linux/config.h>
 #include <asm/errno.h>
 
 /* NOTE: call as jump breaks return stack, we have to avoid that */

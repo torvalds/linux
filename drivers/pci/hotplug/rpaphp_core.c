@@ -22,7 +22,6 @@
  * Send feedback to <lxie@us.ibm.com>
  *
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>

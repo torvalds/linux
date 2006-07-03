@@ -11,7 +11,6 @@
  * expectation of later SuperIO and PCMCIA access.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <asm/io.h>

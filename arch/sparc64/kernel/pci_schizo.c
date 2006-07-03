@@ -16,6 +16,7 @@
 #include <asm/irq.h>
 #include <asm/upa.h>
 #include <asm/pstate.h>
+#include <asm/prom.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
@@ -216,210 +217,6 @@ static struct pci_ops schizo_ops = {
 	.write =	schizo_write_pci_cfg,
 };
 
-/* SCHIZO interrupt mapping support.  Unlike Psycho, for this controller the
- * imap/iclr registers are per-PBM.
- */
-#define SCHIZO_IMAP_BASE	0x1000UL
-#define SCHIZO_ICLR_BASE	0x1400UL
-
-static unsigned long schizo_imap_offset(unsigned long ino)
-{
-	return SCHIZO_IMAP_BASE + (ino * 8UL);
-}
-
-static unsigned long schizo_iclr_offset(unsigned long ino)
-{
-	return SCHIZO_ICLR_BASE + (ino * 8UL);
-}
-
-/* PCI SCHIZO INO number to Sparc PIL level.  This table only matters for
- * INOs which will not have an associated PCI device struct, ie. onboard
- * EBUS devices and PCI controller internal error interrupts.
- */
-static unsigned char schizo_pil_table[] = {
-/*0x00*/0, 0, 0, 0,	/* PCI slot 0  Int A, B, C, D	*/
-/*0x04*/0, 0, 0, 0,	/* PCI slot 1  Int A, B, C, D	*/
-/*0x08*/0, 0, 0, 0,	/* PCI slot 2  Int A, B, C, D	*/
-/*0x0c*/0, 0, 0, 0,	/* PCI slot 3  Int A, B, C, D	*/
-/*0x10*/0, 0, 0, 0,	/* PCI slot 4  Int A, B, C, D	*/
-/*0x14*/0, 0, 0, 0,	/* PCI slot 5  Int A, B, C, D	*/
-/*0x18*/5,		/* SCSI				*/
-/*0x19*/5,		/* second SCSI			*/
-/*0x1a*/0,		/* UNKNOWN			*/
-/*0x1b*/0,		/* UNKNOWN			*/
-/*0x1c*/8,		/* Parallel			*/
-/*0x1d*/5,		/* Ethernet			*/
-/*0x1e*/8,		/* Firewire-1394		*/
-/*0x1f*/9,		/* USB				*/
-/*0x20*/13,		/* Audio Record			*/
-/*0x21*/14,		/* Audio Playback		*/
-/*0x22*/12,		/* Serial			*/
-/*0x23*/5,		/* EBUS I2C 			*/
-/*0x24*/10,		/* RTC Clock			*/
-/*0x25*/11,		/* Floppy			*/
-/*0x26*/0,		/* UNKNOWN			*/
-/*0x27*/0,		/* UNKNOWN			*/
-/*0x28*/0,		/* UNKNOWN			*/
-/*0x29*/0,		/* UNKNOWN			*/
-/*0x2a*/10,		/* UPA 1			*/
-/*0x2b*/10,		/* UPA 2			*/
-/*0x2c*/0,		/* UNKNOWN			*/
-/*0x2d*/0,		/* UNKNOWN			*/
-/*0x2e*/0,		/* UNKNOWN			*/
-/*0x2f*/0,		/* UNKNOWN			*/
-/*0x30*/15,		/* Uncorrectable ECC		*/
-/*0x31*/15,		/* Correctable ECC		*/
-/*0x32*/15,		/* PCI Bus A Error		*/
-/*0x33*/15,		/* PCI Bus B Error		*/
-/*0x34*/15,		/* Safari Bus Error		*/
-/*0x35*/0,		/* Reserved			*/
-/*0x36*/0,		/* Reserved			*/
-/*0x37*/0,		/* Reserved			*/
-/*0x38*/0,		/* Reserved for NewLink		*/
-/*0x39*/0,		/* Reserved for NewLink		*/
-/*0x3a*/0,		/* Reserved for NewLink		*/
-/*0x3b*/0,		/* Reserved for NewLink		*/
-/*0x3c*/0,		/* Reserved for NewLink		*/
-/*0x3d*/0,		/* Reserved for NewLink		*/
-/*0x3e*/0,		/* Reserved for NewLink		*/
-/*0x3f*/0,		/* Reserved for NewLink		*/
-};
-
-static int schizo_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
-{
-	int ret;
-
-	if (pdev &&
-	    pdev->vendor == PCI_VENDOR_ID_SUN &&
-	    pdev->device == PCI_DEVICE_ID_SUN_RIO_USB)
-		return 9;
-
-	ret = schizo_pil_table[ino];
-	if (ret == 0 && pdev == NULL) {
-		ret = 5;
-	} else if (ret == 0) {
-		switch ((pdev->class >> 16) & 0xff) {
-		case PCI_BASE_CLASS_STORAGE:
-			ret = 5;
-			break;
-
-		case PCI_BASE_CLASS_NETWORK:
-			ret = 6;
-			break;
-
-		case PCI_BASE_CLASS_DISPLAY:
-			ret = 9;
-			break;
-
-		case PCI_BASE_CLASS_MULTIMEDIA:
-		case PCI_BASE_CLASS_MEMORY:
-		case PCI_BASE_CLASS_BRIDGE:
-		case PCI_BASE_CLASS_SERIAL:
-			ret = 10;
-			break;
-
-		default:
-			ret = 5;
-			break;
-		};
-	}
-
-	return ret;
-}
-
-static void tomatillo_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_arg2)
-{
-	unsigned long sync_reg = (unsigned long) _arg2;
-	u64 mask = 1UL << (__irq_ino(__irq(bucket)) & IMAP_INO);
-	u64 val;
-	int limit;
-
-	schizo_write(sync_reg, mask);
-
-	limit = 100000;
-	val = 0;
-	while (--limit) {
-		val = schizo_read(sync_reg);
-		if (!(val & mask))
-			break;
-	}
-	if (limit <= 0) {
-		printk("tomatillo_wsync_handler: DMA won't sync [%lx:%lx]\n",
-		       val, mask);
-	}
-
-	if (_arg1) {
-		static unsigned char cacheline[64]
-			__attribute__ ((aligned (64)));
-
-		__asm__ __volatile__("rd %%fprs, %0\n\t"
-				     "or %0, %4, %1\n\t"
-				     "wr %1, 0x0, %%fprs\n\t"
-				     "stda %%f0, [%5] %6\n\t"
-				     "wr %0, 0x0, %%fprs\n\t"
-				     "membar #Sync"
-				     : "=&r" (mask), "=&r" (val)
-				     : "0" (mask), "1" (val),
-				     "i" (FPRS_FEF), "r" (&cacheline[0]),
-				     "i" (ASI_BLK_COMMIT_P));
-	}
-}
-
-static unsigned int schizo_irq_build(struct pci_pbm_info *pbm,
-				     struct pci_dev *pdev,
-				     unsigned int ino)
-{
-	struct ino_bucket *bucket;
-	unsigned long imap, iclr;
-	unsigned long imap_off, iclr_off;
-	int pil, ign_fixup;
-
-	ino &= PCI_IRQ_INO;
-	imap_off = schizo_imap_offset(ino);
-
-	/* Now build the IRQ bucket. */
-	pil = schizo_ino_to_pil(pdev, ino);
-
-	if (PIL_RESERVED(pil))
-		BUG();
-
-	imap = pbm->pbm_regs + imap_off;
-	imap += 4;
-
-	iclr_off = schizo_iclr_offset(ino);
-	iclr = pbm->pbm_regs + iclr_off;
-	iclr += 4;
-
-	/* On Schizo, no inofixup occurs.  This is because each
-	 * INO has it's own IMAP register.  On Psycho and Sabre
-	 * there is only one IMAP register for each PCI slot even
-	 * though four different INOs can be generated by each
-	 * PCI slot.
-	 *
-	 * But, for JBUS variants (essentially, Tomatillo), we have
-	 * to fixup the lowest bit of the interrupt group number.
-	 */
-	ign_fixup = 0;
-	if (pbm->chip_type == PBM_CHIP_TYPE_TOMATILLO) {
-		if (pbm->portid & 1)
-			ign_fixup = (1 << 6);
-	}
-
-	bucket = __bucket(build_irq(pil, ign_fixup, iclr, imap));
-	bucket->flags |= IBF_PCI;
-
-	if (pdev && pbm->chip_type == PBM_CHIP_TYPE_TOMATILLO) {
-		struct irq_desc *p = bucket->irq_info;
-
-		p->pre_handler = tomatillo_wsync_handler;
-		p->pre_handler_arg1 = ((pbm->chip_version <= 4) ?
-				       (void *) 1 : (void *) 0);
-		p->pre_handler_arg2 = (void *) pbm->sync_reg;
-	}
-
-	return __irq(bucket);
-}
-
 /* SCHIZO error handling support. */
 enum schizo_error_type {
 	UE_ERR, CE_ERR, PCI_ERR, SAFARI_ERR
@@ -453,35 +250,6 @@ struct pci_pbm_info *pbm_for_ino(struct pci_controller_info *p, u32 ino)
 	       p->index);
 
 	return &p->pbm_A;
-}
-
-static void schizo_clear_other_err_intr(struct pci_controller_info *p, int irq)
-{
-	struct pci_pbm_info *pbm;
-	struct ino_bucket *bucket;
-	unsigned long iclr;
-
-	/* Do not clear the interrupt for the other PCI bus.
-	 *
-	 * This "ACK both PBM IRQs" only needs to be performed
-	 * for chip-wide error interrupts.
-	 */
-	if ((irq & IMAP_INO) == SCHIZO_PCIERR_A_INO ||
-	    (irq & IMAP_INO) == SCHIZO_PCIERR_B_INO)
-		return;
-
-	pbm = pbm_for_ino(p, irq);
-	if (pbm == &p->pbm_A)
-		pbm = &p->pbm_B;
-	else
-		pbm = &p->pbm_A;
-
-	irq = schizo_irq_build(pbm, NULL,
-			       (pbm->portid << 6) | (irq & IMAP_INO));
-	bucket = __bucket(irq);
-	iclr = bucket->iclr;
-
-	upa_writel(ICLR_IDLE, iclr);
 }
 
 #define SCHIZO_STC_ERR	0xb800UL /* --> 0xba00 */
@@ -814,8 +582,6 @@ static irqreturn_t schizo_ue_intr(int irq, void *dev_id, struct pt_regs *regs)
 	/* Interrogate IOMMU for error status. */
 	schizo_check_iommu_error(p, UE_ERR);
 
-	schizo_clear_other_err_intr(p, irq);
-
 	return IRQ_HANDLED;
 }
 
@@ -904,8 +670,6 @@ static irqreturn_t schizo_ce_intr(int irq, void *dev_id, struct pt_regs *regs)
 	if (!reported)
 		printk("(none)");
 	printk("]\n");
-
-	schizo_clear_other_err_intr(p, irq);
 
 	return IRQ_HANDLED;
 }
@@ -1127,8 +891,6 @@ static irqreturn_t schizo_pcierr_intr(int irq, void *dev_id, struct pt_regs *reg
 	if (error_bits & (SCHIZO_PCIAFSR_PPERR | SCHIZO_PCIAFSR_SPERR))
 		pci_scan_for_parity_error(p, pbm, pbm->pci_bus);
 
-	schizo_clear_other_err_intr(p, irq);
-
 	return IRQ_HANDLED;
 }
 
@@ -1184,7 +946,6 @@ static irqreturn_t schizo_safarierr_intr(int irq, void *dev_id, struct pt_regs *
 		printk("PCI%d: Unexpected Safari/JBUS error interrupt, errlog[%016lx]\n",
 		       p->index, errlog);
 
-		schizo_clear_other_err_intr(p, irq);
 		return IRQ_HANDLED;
 	}
 
@@ -1192,7 +953,6 @@ static irqreturn_t schizo_safarierr_intr(int irq, void *dev_id, struct pt_regs *
 	       p->index);
 	schizo_check_iommu_error(p, SAFARI_ERR);
 
-	schizo_clear_other_err_intr(p, irq);
 	return IRQ_HANDLED;
 }
 
@@ -1224,77 +984,47 @@ static irqreturn_t schizo_safarierr_intr(int irq, void *dev_id, struct pt_regs *
 static void tomatillo_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm;
-	unsigned int irq;
-	struct ino_bucket *bucket;
+	struct of_device *op;
 	u64 tmp, err_mask, err_no_mask;
 
-	/* Build IRQs and register handlers. */
+	/* Tomatillo IRQ property layout is:
+	 * 0: PCIERR
+	 * 1: UE ERR
+	 * 2: CE ERR
+	 * 3: SERR
+	 * 4: POWER FAIL?
+	 */
+
 	pbm = pbm_for_ino(p, SCHIZO_UE_INO);
-	irq = schizo_irq_build(pbm, NULL, (pbm->portid << 6) | SCHIZO_UE_INO);
-	if (request_irq(irq, schizo_ue_intr,
-			SA_SHIRQ, "TOMATILLO UE", p) < 0) {
-		prom_printf("%s: Cannot register UE interrupt.\n",
-			    pbm->name);
-		prom_halt();
-	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
-	upa_writel(tmp, (pbm->pbm_regs +
-			 schizo_imap_offset(SCHIZO_UE_INO) + 4));
+	op = of_find_device_by_node(pbm->prom_node);
+	if (op)
+		request_irq(op->irqs[1], schizo_ue_intr, IRQF_SHARED,
+			    "TOMATILLO_UE", p);
 
 	pbm = pbm_for_ino(p, SCHIZO_CE_INO);
-	irq = schizo_irq_build(pbm, NULL, (pbm->portid << 6) | SCHIZO_CE_INO);
-	if (request_irq(irq, schizo_ce_intr,
-			SA_SHIRQ, "TOMATILLO CE", p) < 0) {
-		prom_printf("%s: Cannot register CE interrupt.\n",
-			    pbm->name);
-		prom_halt();
-	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
-	upa_writel(tmp, (pbm->pbm_regs +
-			 schizo_imap_offset(SCHIZO_CE_INO) + 4));
+	op = of_find_device_by_node(pbm->prom_node);
+	if (op)
+		request_irq(op->irqs[2], schizo_ce_intr, IRQF_SHARED,
+			    "TOMATILLO CE", p);
 
 	pbm = pbm_for_ino(p, SCHIZO_PCIERR_A_INO);
-	irq = schizo_irq_build(pbm, NULL, ((pbm->portid << 6) |
-					   SCHIZO_PCIERR_A_INO));
-	if (request_irq(irq, schizo_pcierr_intr,
-			SA_SHIRQ, "TOMATILLO PCIERR", pbm) < 0) {
-		prom_printf("%s: Cannot register PBM A PciERR interrupt.\n",
-			    pbm->name);
-		prom_halt();
-	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
-	upa_writel(tmp, (pbm->pbm_regs +
-			 schizo_imap_offset(SCHIZO_PCIERR_A_INO) + 4));
+	op = of_find_device_by_node(pbm->prom_node);
+	if (op)
+		request_irq(op->irqs[0], schizo_pcierr_intr, IRQF_SHARED,
+			    "TOMATILLO PCIERR-A", pbm);
+
 
 	pbm = pbm_for_ino(p, SCHIZO_PCIERR_B_INO);
-	irq = schizo_irq_build(pbm, NULL, ((pbm->portid << 6) |
-					    SCHIZO_PCIERR_B_INO));
-	if (request_irq(irq, schizo_pcierr_intr,
-			SA_SHIRQ, "TOMATILLO PCIERR", pbm) < 0) {
-		prom_printf("%s: Cannot register PBM B PciERR interrupt.\n",
-			    pbm->name);
-		prom_halt();
-	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
-	upa_writel(tmp, (pbm->pbm_regs +
-			 schizo_imap_offset(SCHIZO_PCIERR_B_INO) + 4));
+	op = of_find_device_by_node(pbm->prom_node);
+	if (op)
+		request_irq(op->irqs[0], schizo_pcierr_intr, IRQF_SHARED,
+			    "TOMATILLO PCIERR-B", pbm);
 
 	pbm = pbm_for_ino(p, SCHIZO_SERR_INO);
-	irq = schizo_irq_build(pbm, NULL, (pbm->portid << 6) | SCHIZO_SERR_INO);
-	if (request_irq(irq, schizo_safarierr_intr,
-			SA_SHIRQ, "TOMATILLO SERR", p) < 0) {
-		prom_printf("%s: Cannot register SafariERR interrupt.\n",
-			    pbm->name);
-		prom_halt();
-	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
-	upa_writel(tmp, (pbm->pbm_regs +
-			 schizo_imap_offset(SCHIZO_SERR_INO) + 4));
+	op = of_find_device_by_node(pbm->prom_node);
+	if (op)
+		request_irq(op->irqs[3], schizo_safarierr_intr, IRQF_SHARED,
+			    "TOMATILLO SERR", p);
 
 	/* Enable UE and CE interrupts for controller. */
 	schizo_write(p->pbm_A.controller_regs + SCHIZO_ECC_CTRL,
@@ -1362,70 +1092,47 @@ static void tomatillo_register_error_handlers(struct pci_controller_info *p)
 static void schizo_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm;
-	unsigned int irq;
-	struct ino_bucket *bucket;
+	struct of_device *op;
 	u64 tmp, err_mask, err_no_mask;
 
-	/* Build IRQs and register handlers. */
+	/* Schizo IRQ property layout is:
+	 * 0: PCIERR
+	 * 1: UE ERR
+	 * 2: CE ERR
+	 * 3: SERR
+	 * 4: POWER FAIL?
+	 */
+
 	pbm = pbm_for_ino(p, SCHIZO_UE_INO);
-	irq = schizo_irq_build(pbm, NULL, (pbm->portid << 6) | SCHIZO_UE_INO);
-	if (request_irq(irq, schizo_ue_intr,
-			SA_SHIRQ, "SCHIZO UE", p) < 0) {
-		prom_printf("%s: Cannot register UE interrupt.\n",
-			    pbm->name);
-		prom_halt();
-	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
-	upa_writel(tmp, (pbm->pbm_regs + schizo_imap_offset(SCHIZO_UE_INO) + 4));
+	op = of_find_device_by_node(pbm->prom_node);
+	if (op)
+		request_irq(op->irqs[1], schizo_ue_intr, IRQF_SHARED,
+			    "SCHIZO_UE", p);
 
 	pbm = pbm_for_ino(p, SCHIZO_CE_INO);
-	irq = schizo_irq_build(pbm, NULL, (pbm->portid << 6) | SCHIZO_CE_INO);
-	if (request_irq(irq, schizo_ce_intr,
-			SA_SHIRQ, "SCHIZO CE", p) < 0) {
-		prom_printf("%s: Cannot register CE interrupt.\n",
-			    pbm->name);
-		prom_halt();
-	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
-	upa_writel(tmp, (pbm->pbm_regs + schizo_imap_offset(SCHIZO_CE_INO) + 4));
+	op = of_find_device_by_node(pbm->prom_node);
+	if (op)
+		request_irq(op->irqs[2], schizo_ce_intr, IRQF_SHARED,
+			    "SCHIZO CE", p);
 
 	pbm = pbm_for_ino(p, SCHIZO_PCIERR_A_INO);
-	irq = schizo_irq_build(pbm, NULL, (pbm->portid << 6) | SCHIZO_PCIERR_A_INO);
-	if (request_irq(irq, schizo_pcierr_intr,
-			SA_SHIRQ, "SCHIZO PCIERR", pbm) < 0) {
-		prom_printf("%s: Cannot register PBM A PciERR interrupt.\n",
-			    pbm->name);
-		prom_halt();
-	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
-	upa_writel(tmp, (pbm->pbm_regs + schizo_imap_offset(SCHIZO_PCIERR_A_INO) + 4));
+	op = of_find_device_by_node(pbm->prom_node);
+	if (op)
+		request_irq(op->irqs[0], schizo_pcierr_intr, IRQF_SHARED,
+			    "SCHIZO PCIERR-A", pbm);
+
 
 	pbm = pbm_for_ino(p, SCHIZO_PCIERR_B_INO);
-	irq = schizo_irq_build(pbm, NULL, (pbm->portid << 6) | SCHIZO_PCIERR_B_INO);
-	if (request_irq(irq, schizo_pcierr_intr,
-			SA_SHIRQ, "SCHIZO PCIERR", &p->pbm_B) < 0) {
-		prom_printf("%s: Cannot register PBM B PciERR interrupt.\n",
-			    pbm->name);
-		prom_halt();
-	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
-	upa_writel(tmp, (pbm->pbm_regs + schizo_imap_offset(SCHIZO_PCIERR_B_INO) + 4));
+	op = of_find_device_by_node(pbm->prom_node);
+	if (op)
+		request_irq(op->irqs[0], schizo_pcierr_intr, IRQF_SHARED,
+			    "SCHIZO PCIERR-B", pbm);
 
 	pbm = pbm_for_ino(p, SCHIZO_SERR_INO);
-	irq = schizo_irq_build(pbm, NULL, (pbm->portid << 6) | SCHIZO_SERR_INO);
-	if (request_irq(irq, schizo_safarierr_intr,
-			SA_SHIRQ, "SCHIZO SERR", p) < 0) {
-		prom_printf("%s: Cannot register SafariERR interrupt.\n",
-			    pbm->name);
-		prom_halt();
-	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
-	upa_writel(tmp, (pbm->pbm_regs + schizo_imap_offset(SCHIZO_SERR_INO) + 4));
+	op = of_find_device_by_node(pbm->prom_node);
+	if (op)
+		request_irq(op->irqs[3], schizo_safarierr_intr, IRQF_SHARED,
+			    "SCHIZO SERR", p);
 
 	/* Enable UE and CE interrupts for controller. */
 	schizo_write(p->pbm_A.controller_regs + SCHIZO_ECC_CTRL,
@@ -1560,10 +1267,12 @@ static void __schizo_scan_bus(struct pci_controller_info *p,
 
 	pbm_config_busmastering(&p->pbm_B);
 	p->pbm_B.is_66mhz_capable =
-		prom_getbool(p->pbm_B.prom_node, "66mhz-capable");
+		(of_find_property(p->pbm_B.prom_node, "66mhz-capable", NULL)
+		 != NULL);
 	pbm_config_busmastering(&p->pbm_A);
 	p->pbm_A.is_66mhz_capable =
-		prom_getbool(p->pbm_A.prom_node, "66mhz-capable");
+		(of_find_property(p->pbm_A.prom_node, "66mhz-capable", NULL)
+		 != NULL);
 	pbm_scan_bus(p, &p->pbm_B);
 	pbm_scan_bus(p, &p->pbm_A);
 
@@ -1765,13 +1474,18 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 {
 	struct pci_iommu *iommu = pbm->iommu;
 	unsigned long i, tagbase, database;
+	struct property *prop;
 	u32 vdma[2], dma_mask;
 	u64 control;
-	int err, tsbsize;
+	int tsbsize;
 
-	err = prom_getproperty(pbm->prom_node, "virtual-dma",
-			       (char *)&vdma[0], sizeof(vdma));
-	if (err == 0 || err == -1) {
+	prop = of_find_property(pbm->prom_node, "virtual-dma", NULL);
+	if (prop) {
+		u32 *val = prop->value;
+
+		vdma[0] = val[0];
+		vdma[1] = val[1];
+	} else {
 		/* No property, use default values. */
 		vdma[0] = 0xc0000000;
 		vdma[1] = 0x40000000;
@@ -1882,6 +1596,7 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 
 static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 {
+	struct property *prop;
 	u64 tmp;
 
 	schizo_write(pbm->pbm_regs + SCHIZO_PCI_IRQ_RETRY, 5);
@@ -1895,7 +1610,8 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	    pbm->chip_version >= 0x2)
 		tmp |= 0x3UL << SCHIZO_PCICTRL_PTO_SHIFT;
 
-	if (!prom_getbool(pbm->prom_node, "no-bus-parking"))
+	prop = of_find_property(pbm->prom_node, "no-bus-parking", NULL);
+	if (!prop)
 		tmp |= SCHIZO_PCICTRL_PARK;
 	else
 		tmp &= ~SCHIZO_PCICTRL_PARK;
@@ -1935,16 +1651,17 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 }
 
 static void schizo_pbm_init(struct pci_controller_info *p,
-			    int prom_node, u32 portid,
+			    struct device_node *dp, u32 portid,
 			    int chip_type)
 {
-	struct linux_prom64_registers pr_regs[4];
-	unsigned int busrange[2];
+	struct linux_prom64_registers *regs;
+	struct property *prop;
+	unsigned int *busrange;
 	struct pci_pbm_info *pbm;
 	const char *chipset_name;
-	u32 ino_bitmap[2];
+	u32 *ino_bitmap;
 	int is_pbm_a;
-	int err;
+	int len;
 
 	switch (chip_type) {
 	case PBM_CHIP_TYPE_TOMATILLO:
@@ -1972,16 +1689,10 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 	 * 3) PBM PCI config space
 	 * 4) Ichip regs
 	 */
-	err = prom_getproperty(prom_node, "reg",
-			       (char *)&pr_regs[0],
-			       sizeof(pr_regs));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no reg property.\n",
-			    chipset_name);
-		prom_halt();
-	}
+	prop = of_find_property(dp, "reg", NULL);
+	regs = prop->value;
 
-	is_pbm_a = ((pr_regs[0].phys_addr & 0x00700000) == 0x00600000);
+	is_pbm_a = ((regs[0].phys_addr & 0x00700000) == 0x00600000);
 
 	if (is_pbm_a)
 		pbm = &p->pbm_A;
@@ -1990,92 +1701,62 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 
 	pbm->portid = portid;
 	pbm->parent = p;
-	pbm->prom_node = prom_node;
+	pbm->prom_node = dp;
 	pbm->pci_first_slot = 1;
 
 	pbm->chip_type = chip_type;
-	pbm->chip_version =
-		prom_getintdefault(prom_node, "version#", 0);
-	pbm->chip_revision =
-		prom_getintdefault(prom_node, "module-revision#", 0);
+	pbm->chip_version = 0;
+	prop = of_find_property(dp, "version#", NULL);
+	if (prop)
+		pbm->chip_version = *(int *) prop->value;
+	pbm->chip_revision = 0;
+	prop = of_find_property(dp, "module-revision#", NULL);
+	if (prop)
+		pbm->chip_revision = *(int *) prop->value;
 
-	pbm->pbm_regs = pr_regs[0].phys_addr;
-	pbm->controller_regs = pr_regs[1].phys_addr - 0x10000UL;
+	pbm->pbm_regs = regs[0].phys_addr;
+	pbm->controller_regs = regs[1].phys_addr - 0x10000UL;
 
 	if (chip_type == PBM_CHIP_TYPE_TOMATILLO)
-		pbm->sync_reg = pr_regs[3].phys_addr + 0x1a18UL;
+		pbm->sync_reg = regs[3].phys_addr + 0x1a18UL;
 
-	sprintf(pbm->name,
-		(chip_type == PBM_CHIP_TYPE_TOMATILLO ?
-		 "TOMATILLO%d PBM%c" :
-		 "SCHIZO%d PBM%c"),
-		p->index,
-		(pbm == &p->pbm_A ? 'A' : 'B'));
+	pbm->name = dp->full_name;
 
-	printk("%s: ver[%x:%x], portid %x, "
-	       "cregs[%lx] pregs[%lx]\n",
+	printk("%s: %s PCI Bus Module ver[%x:%x]\n",
 	       pbm->name,
-	       pbm->chip_version, pbm->chip_revision,
-	       pbm->portid,
-	       pbm->controller_regs,
-	       pbm->pbm_regs);
+	       (chip_type == PBM_CHIP_TYPE_TOMATILLO ?
+		"TOMATILLO" : "SCHIZO"),
+	       pbm->chip_version, pbm->chip_revision);
 
 	schizo_pbm_hw_init(pbm);
 
-	prom_getstring(prom_node, "name",
-		       pbm->prom_name,
-		       sizeof(pbm->prom_name));
-
-	err = prom_getproperty(prom_node, "ranges",
-			       (char *) pbm->pbm_ranges,
-			       sizeof(pbm->pbm_ranges));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no ranges property.\n",
-			    pbm->name);
-		prom_halt();
-	}
-
+	prop = of_find_property(dp, "ranges", &len);
+	pbm->pbm_ranges = prop->value;
 	pbm->num_pbm_ranges =
-		(err / sizeof(struct linux_prom_pci_ranges));
+		(len / sizeof(struct linux_prom_pci_ranges));
 
 	schizo_determine_mem_io_space(pbm);
 	pbm_register_toplevel_resources(p, pbm);
 
-	err = prom_getproperty(prom_node, "interrupt-map",
-			       (char *)pbm->pbm_intmap,
-			       sizeof(pbm->pbm_intmap));
-	if (err != -1) {
-		pbm->num_pbm_intmap = (err / sizeof(struct linux_prom_pci_intmap));
-		err = prom_getproperty(prom_node, "interrupt-map-mask",
-				       (char *)&pbm->pbm_intmask,
-				       sizeof(pbm->pbm_intmask));
-		if (err == -1) {
-			prom_printf("%s: Fatal error, no "
-				    "interrupt-map-mask.\n", pbm->name);
-			prom_halt();
-		}
+	prop = of_find_property(dp, "interrupt-map", &len);
+	if (prop) {
+		pbm->pbm_intmap = prop->value;
+		pbm->num_pbm_intmap =
+			(len / sizeof(struct linux_prom_pci_intmap));
+
+		prop = of_find_property(dp, "interrupt-map-mask", NULL);
+		pbm->pbm_intmask = prop->value;
 	} else {
 		pbm->num_pbm_intmap = 0;
-		memset(&pbm->pbm_intmask, 0, sizeof(pbm->pbm_intmask));
 	}
 
-	err = prom_getproperty(prom_node, "ino-bitmap",
-			       (char *) &ino_bitmap[0],
-			       sizeof(ino_bitmap));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no ino-bitmap.\n", pbm->name);
-		prom_halt();
-	}
+	prop = of_find_property(dp, "ino-bitmap", NULL);
+	ino_bitmap = prop->value;
 	pbm->ino_bitmap = (((u64)ino_bitmap[1] << 32UL) |
 			   ((u64)ino_bitmap[0] <<  0UL));
 
-	err = prom_getproperty(prom_node, "bus-range",
-			       (char *)&busrange[0],
-			       sizeof(busrange));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no bus-range.\n", pbm->name);
-		prom_halt();
-	}
+	prop = of_find_property(dp, "bus-range", NULL);
+	busrange = prop->value;
 	pbm->pci_first_busno = busrange[0];
 	pbm->pci_last_busno = busrange[1];
 
@@ -2093,16 +1774,20 @@ static inline int portid_compare(u32 x, u32 y, int chip_type)
 	return (x == y);
 }
 
-static void __schizo_init(int node, char *model_name, int chip_type)
+static void __schizo_init(struct device_node *dp, char *model_name, int chip_type)
 {
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
+	struct property *prop;
 	int is_pbm_a;
 	u32 portid;
 
-	portid = prom_getintdefault(node, "portid", 0xff);
+	portid = 0xff;
+	prop = of_find_property(dp, "portid", NULL);
+	if (prop)
+		portid = *(u32 *) prop->value;
 
-	for(p = pci_controller_root; p; p = p->next) {
+	for (p = pci_controller_root; p; p = p->next) {
 		struct pci_pbm_info *pbm;
 
 		if (p->pbm_A.prom_node && p->pbm_B.prom_node)
@@ -2113,8 +1798,8 @@ static void __schizo_init(int node, char *model_name, int chip_type)
 		       &p->pbm_B);
 
 		if (portid_compare(pbm->portid, portid, chip_type)) {
-			is_pbm_a = (p->pbm_A.prom_node == 0);
-			schizo_pbm_init(p, node, portid, chip_type);
+			is_pbm_a = (p->pbm_A.prom_node == NULL);
+			schizo_pbm_init(p, dp, portid, chip_type);
 			return;
 		}
 	}
@@ -2147,7 +1832,6 @@ static void __schizo_init(int node, char *model_name, int chip_type)
 	p->scan_bus = (chip_type == PBM_CHIP_TYPE_TOMATILLO ?
 		       tomatillo_scan_bus :
 		       schizo_scan_bus);
-	p->irq_build = schizo_irq_build;
 	p->base_address_update = schizo_base_address_update;
 	p->resource_adjust = schizo_resource_adjust;
 	p->pci_ops = &schizo_ops;
@@ -2155,20 +1839,20 @@ static void __schizo_init(int node, char *model_name, int chip_type)
 	/* Like PSYCHO we have a 2GB aligned area for memory space. */
 	pci_memspace_mask = 0x7fffffffUL;
 
-	schizo_pbm_init(p, node, portid, chip_type);
+	schizo_pbm_init(p, dp, portid, chip_type);
 }
 
-void schizo_init(int node, char *model_name)
+void schizo_init(struct device_node *dp, char *model_name)
 {
-	__schizo_init(node, model_name, PBM_CHIP_TYPE_SCHIZO);
+	__schizo_init(dp, model_name, PBM_CHIP_TYPE_SCHIZO);
 }
 
-void schizo_plus_init(int node, char *model_name)
+void schizo_plus_init(struct device_node *dp, char *model_name)
 {
-	__schizo_init(node, model_name, PBM_CHIP_TYPE_SCHIZO_PLUS);
+	__schizo_init(dp, model_name, PBM_CHIP_TYPE_SCHIZO_PLUS);
 }
 
-void tomatillo_init(int node, char *model_name)
+void tomatillo_init(struct device_node *dp, char *model_name)
 {
-	__schizo_init(node, model_name, PBM_CHIP_TYPE_TOMATILLO);
+	__schizo_init(dp, model_name, PBM_CHIP_TYPE_TOMATILLO);
 }

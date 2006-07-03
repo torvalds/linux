@@ -71,7 +71,7 @@ archprepare: $(archinc)/.platform
 # Update machine cpu and platform symlinks if something which affects
 # them changed.
 
-$(archinc)/.platform: $(wildcard include/config/arch/*.h) include/config/MARKER
+$(archinc)/.platform: $(wildcard include/config/arch/*.h) include/config/auto.conf
 	@echo '  SYMLINK $(archinc)/xtensa/config -> $(archinc)/xtensa/config-$(CPU)'
 	$(Q)mkdir -p $(archinc)
 	$(Q)mkdir -p $(archinc)/xtensa

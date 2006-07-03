@@ -13,7 +13,6 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
 */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
@@ -276,7 +275,7 @@ void __init ppc4xx_pic_init(void)
 
 	/* Attach low-level handlers */
 	for (i = 0; i < (NR_UICS << 5); ++i) {
-		irq_desc[i].handler = &__uic[i >> 5].decl;
+		irq_desc[i].chip = &__uic[i >> 5].decl;
 		if (is_level_sensitive(i))
 			irq_desc[i].status |= IRQ_LEVEL;
 	}

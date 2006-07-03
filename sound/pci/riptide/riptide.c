@@ -1836,11 +1836,11 @@ static int snd_riptide_free(struct snd_riptide *chip)
 		UNSET_GRESET(cif->hwport);
 		kfree(chip->cif);
 	}
+	if (chip->irq >= 0)
+		free_irq(chip->irq, chip);
 	if (chip->fw_entry)
 		release_firmware(chip->fw_entry);
 	release_and_free_resource(chip->res_port);
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
 	kfree(chip);
 	return 0;
 }
@@ -1892,7 +1892,7 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 	UNSET_AIE(hwport);
 
 	if (request_irq
-	    (pci->irq, snd_riptide_interrupt, SA_INTERRUPT | SA_SHIRQ,
+	    (pci->irq, snd_riptide_interrupt, IRQF_DISABLED | IRQF_SHARED,
 	     "RIPTIDE", chip)) {
 		snd_printk(KERN_ERR "Riptide: unable to grab IRQ %d\n",
 			   pci->irq);
@@ -1992,7 +1992,7 @@ static void __devinit snd_riptide_proc_init(struct snd_riptide *chip)
 	struct snd_info_entry *entry;
 
 	if (!snd_card_proc_new(chip->card, "riptide", &entry))
-		snd_info_set_text_ops(entry, chip, 4096, snd_riptide_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_riptide_proc_read);
 }
 
 static int __devinit snd_riptide_mixer(struct snd_riptide *chip)

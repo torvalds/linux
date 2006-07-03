@@ -2138,7 +2138,7 @@ static void proc_pcm_format_add(struct snd_usb_stream *stream)
 
 	sprintf(name, "stream%d", stream->pcm_index);
 	if (! snd_card_proc_new(card, name, &entry))
-		snd_info_set_text_ops(entry, stream, 1024, proc_pcm_format_read);
+		snd_info_set_text_ops(entry, stream, proc_pcm_format_read);
 }
 
 #else
@@ -2627,9 +2627,10 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		if (!csep && altsd->bNumEndpoints >= 2)
 			csep = snd_usb_find_desc(alts->endpoint[1].extra, alts->endpoint[1].extralen, NULL, USB_DT_CS_ENDPOINT);
 		if (!csep || csep[0] < 7 || csep[2] != EP_GENERAL) {
-			snd_printk(KERN_ERR "%d:%u:%d : no or invalid class specific endpoint descriptor\n",
+			snd_printk(KERN_WARNING "%d:%u:%d : no or invalid"
+				   " class specific endpoint descriptor\n",
 				   dev->devnum, iface_no, altno);
-			continue;
+			csep = NULL;
 		}
 
 		fp = kmalloc(sizeof(*fp), GFP_KERNEL);
@@ -2648,7 +2649,7 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		if (snd_usb_get_speed(dev) == USB_SPEED_HIGH)
 			fp->maxpacksize = (((fp->maxpacksize >> 11) & 3) + 1)
 					* (fp->maxpacksize & 0x7ff);
-		fp->attributes = csep[3];
+		fp->attributes = csep ? csep[3] : 0;
 
 		/* some quirks for attributes here */
 
@@ -2980,7 +2981,7 @@ static int create_ua1000_quirk(struct snd_usb_audio *chip,
 		return -ENXIO;
 	alts = &iface->altsetting[1];
 	altsd = get_iface_desc(alts);
-	if (alts->extralen != 11 || alts->extra[1] != CS_AUDIO_INTERFACE ||
+	if (alts->extralen != 11 || alts->extra[1] != USB_DT_CS_INTERFACE ||
 	    altsd->bNumEndpoints != 1)
 		return -ENXIO;
 
@@ -3095,6 +3096,32 @@ static int snd_usb_audigy2nx_boot_quirk(struct usb_device *dev)
 }
 
 /*
+ * C-Media CM106/CM106+ have four 16-bit internal registers that are nicely
+ * documented in the device's data sheet.
+ */
+static int snd_usb_cm106_write_int_reg(struct usb_device *dev, int reg, u16 value)
+{
+	u8 buf[4];
+	buf[0] = 0x20;
+	buf[1] = value & 0xff;
+	buf[2] = (value >> 8) & 0xff;
+	buf[3] = reg;
+	return snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), USB_REQ_SET_CONFIGURATION,
+			       USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_ENDPOINT,
+			       0, 0, &buf, 4, 1000);
+}
+
+static int snd_usb_cm106_boot_quirk(struct usb_device *dev)
+{
+	/*
+	 * Enable line-out driver mode, set headphone source to front
+	 * channels, enable stereo mic.
+	 */
+	return snd_usb_cm106_write_int_reg(dev, 2, 0x8004);
+}
+
+
+/*
  * Setup quirks
  */
 #define AUDIOPHILE_SET			0x01 /* if set, parse device_setup */
@@ -3197,9 +3224,9 @@ static void snd_usb_audio_create_proc(struct snd_usb_audio *chip)
 {
 	struct snd_info_entry *entry;
 	if (! snd_card_proc_new(chip->card, "usbbus", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, proc_audio_usbbus_read);
+		snd_info_set_text_ops(entry, chip, proc_audio_usbbus_read);
 	if (! snd_card_proc_new(chip->card, "usbid", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, proc_audio_usbid_read);
+		snd_info_set_text_ops(entry, chip, proc_audio_usbid_read);
 }
 
 /*
@@ -3361,6 +3388,12 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 	/* SB Audigy 2 NX needs its own boot-up magic, too */
 	if (id == USB_ID(0x041e, 0x3020)) {
 		if (snd_usb_audigy2nx_boot_quirk(dev) < 0)
+			goto __err_val;
+	}
+
+	/* C-Media CM106 / Turtle Beach Audio Advantage Roadie */
+	if (id == USB_ID(0x10f5, 0x0200)) {
+		if (snd_usb_cm106_boot_quirk(dev) < 0)
 			goto __err_val;
 	}
 

@@ -9,7 +9,7 @@
 /*
  * The of_platform_bus_type is a bus type used by drivers that do not
  * attach to a macio or similar bus but still use OF probing
- * mecanism
+ * mechanism
  */
 extern struct bus_type of_platform_bus_type;
 

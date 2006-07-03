@@ -4,7 +4,6 @@
 
 #include <asm-generic/4level-fixup.h>
 
-#include <linux/config.h>
 
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>
@@ -663,7 +662,7 @@ static inline int __ptep_test_and_clear_young(unsigned int context, unsigned lon
 	return (old & _PAGE_ACCESSED) != 0;
 }
 #define ptep_test_and_clear_young(__vma, __addr, __ptep) \
-	__ptep_test_and_clear_young((__vma)->vm_mm->context, __addr, __ptep)
+	__ptep_test_and_clear_young((__vma)->vm_mm->context.id, __addr, __ptep)
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma,

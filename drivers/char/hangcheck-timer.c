@@ -117,12 +117,12 @@ __setup("hcheck_reboot", hangcheck_parse_reboot);
 __setup("hcheck_dump_tasks", hangcheck_parse_dump_tasks);
 #endif /* not MODULE */
 
-#if defined(CONFIG_X86) || defined(CONFIG_S390)
+#if defined(CONFIG_X86_64) || defined(CONFIG_S390)
 # define HAVE_MONOTONIC
 # define TIMER_FREQ 1000000000ULL
 #elif defined(CONFIG_IA64)
 # define TIMER_FREQ ((unsigned long long)local_cpu_data->itc_freq)
-#elif defined(CONFIG_PPC64)
+#else
 # define TIMER_FREQ (HZ*loops_per_jiffy)
 #endif
 

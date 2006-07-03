@@ -15,7 +15,6 @@
  *     and Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/smp.h>

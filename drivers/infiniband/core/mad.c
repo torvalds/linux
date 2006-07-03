@@ -1775,11 +1775,9 @@ ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv,
 void ib_mark_mad_done(struct ib_mad_send_wr_private *mad_send_wr)
 {
 	mad_send_wr->timeout = 0;
-	if (mad_send_wr->refcount == 1) {
-		list_del(&mad_send_wr->agent_list);
-		list_add_tail(&mad_send_wr->agent_list,
+	if (mad_send_wr->refcount == 1)
+		list_move_tail(&mad_send_wr->agent_list,
 			      &mad_send_wr->mad_agent_priv->done_list);
-	}
 }
 
 static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
@@ -2098,8 +2096,7 @@ retry:
 		queued_send_wr = container_of(mad_list,
 					struct ib_mad_send_wr_private,
 					mad_list);
-		list_del(&mad_list->list);
-		list_add_tail(&mad_list->list, &send_queue->list);
+		list_move_tail(&mad_list->list, &send_queue->list);
 	}
 	spin_unlock_irqrestore(&send_queue->lock, flags);
 

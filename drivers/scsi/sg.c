@@ -28,7 +28,6 @@ static int sg_version_num = 30533;	/* 2 digits for each component */
  *        (otherwise the macros compile to empty statements).
  *
  */
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/fs.h>
@@ -2635,8 +2634,7 @@ static int
 sg_proc_init(void)
 {
 	int k, mask;
-	int num_leaves =
-	    sizeof (sg_proc_leaf_arr) / sizeof (sg_proc_leaf_arr[0]);
+	int num_leaves = ARRAY_SIZE(sg_proc_leaf_arr);
 	struct proc_dir_entry *pdep;
 	struct sg_proc_leaf * leaf;
 
@@ -2661,8 +2659,7 @@ static void
 sg_proc_cleanup(void)
 {
 	int k;
-	int num_leaves =
-	    sizeof (sg_proc_leaf_arr) / sizeof (sg_proc_leaf_arr[0]);
+	int num_leaves = ARRAY_SIZE(sg_proc_leaf_arr);
 
 	if (!sg_proc_sgp)
 		return;

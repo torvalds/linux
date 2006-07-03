@@ -2,7 +2,6 @@
  * linux/arch/arm/mach-sa1100/shannon.c
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/kernel.h>

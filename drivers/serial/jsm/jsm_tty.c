@@ -589,13 +589,6 @@ void jsm_input(struct jsm_channel *ch)
 	ld = tty_ldisc_ref(tp);
 
 	/*
-	 * If the DONT_FLIP flag is on, don't flush our buffer, and act
-	 * like the ld doesn't have any space to put the data right now.
-	 */
-	if (test_bit(TTY_DONT_FLIP, &tp->flags))
-		len = 0;
-
-	/*
 	 * If we were unable to get a reference to the ld,
 	 * don't flush our buffer, and act like the ld doesn't
 	 * have any space to put the data right now.

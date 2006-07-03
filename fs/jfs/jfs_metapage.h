@@ -139,7 +139,7 @@ static inline void metapage_homeok(struct metapage *mp)
 	put_metapage(mp);
 }
 
-extern struct address_space_operations jfs_metapage_aops;
+extern const struct address_space_operations jfs_metapage_aops;
 
 /*
  * This routines invalidate all pages for an extent.

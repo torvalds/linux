@@ -49,13 +49,6 @@
 #define SHARPSL_CHARGE_CO_CHECK_TIME           5   /* 5 msec */
 #define SHARPSL_CHARGE_RETRY_CNT               1   /* eqv. 10 min */
 
-#define SHARPSL_CHARGE_ON_VOLT         0x99  /* 2.9V */
-#define SHARPSL_CHARGE_ON_TEMP         0xe0  /* 2.9V */
-#define SHARPSL_CHARGE_ON_ACIN_HIGH    0x9b  /* 6V */
-#define SHARPSL_CHARGE_ON_ACIN_LOW     0x34  /* 2V */
-#define SHARPSL_FATAL_ACIN_VOLT        182   /* 3.45V */
-#define SHARPSL_FATAL_NOACIN_VOLT      170   /* 3.40V */
-
 /*
  * Prototypes
  */
@@ -82,12 +75,13 @@ DEFINE_LED_TRIGGER(sharpsl_charge_led_trigger);
 static int get_percentage(int voltage)
 {
 	int i = sharpsl_pm.machinfo->bat_levels - 1;
+	int bl_status = sharpsl_pm.machinfo->backlight_get_status ? sharpsl_pm.machinfo->backlight_get_status() : 0;
 	struct battery_thresh *thresh;
 
 	if (sharpsl_pm.charge_mode == CHRG_ON)
-		thresh=sharpsl_pm.machinfo->bat_levels_acin;
+		thresh = bl_status ? sharpsl_pm.machinfo->bat_levels_acin_bl : sharpsl_pm.machinfo->bat_levels_acin;
 	else
-		thresh=sharpsl_pm.machinfo->bat_levels_noac;
+		thresh = bl_status ? sharpsl_pm.machinfo->bat_levels_noac_bl : sharpsl_pm.machinfo->bat_levels_noac;
 
 	while (i > 0 && (voltage > thresh[i].voltage))
 		i--;
@@ -131,7 +125,7 @@ static void sharpsl_battery_thread(void *private_)
 	sharpsl_pm.battstat.ac_status = (sharpsl_pm.machinfo->read_devdata(SHARPSL_STATUS_ACIN) ? APM_AC_ONLINE : APM_AC_OFFLINE);
 
 	/* Corgi cannot confirm when battery fully charged so periodically kick! */
-	if (machine_is_corgi() && (sharpsl_pm.charge_mode == CHRG_ON)
+	if (!sharpsl_pm.machinfo->batfull_irq && (sharpsl_pm.charge_mode == CHRG_ON)
 			&& time_after(jiffies, sharpsl_pm.charge_start_time +  SHARPSL_CHARGE_ON_TIME_INTERVAL))
 		schedule_work(&toggle_charger);
 
@@ -166,11 +160,11 @@ static void sharpsl_battery_thread(void *private_)
 			&& ((sharpsl_pm.battstat.mainbat_status == APM_BATTERY_STATUS_LOW) ||
 			(sharpsl_pm.battstat.mainbat_status == APM_BATTERY_STATUS_CRITICAL))) {
 		if (!(sharpsl_pm.flags & SHARPSL_BL_LIMIT)) {
-			corgibl_limit_intensity(1);
+			sharpsl_pm.machinfo->backlight_limit(1);
 			sharpsl_pm.flags |= SHARPSL_BL_LIMIT;
 		}
 	} else if (sharpsl_pm.flags & SHARPSL_BL_LIMIT) {
-		corgibl_limit_intensity(0);
+		sharpsl_pm.machinfo->backlight_limit(0);
 		sharpsl_pm.flags &= ~SHARPSL_BL_LIMIT;
 	}
 
@@ -418,7 +412,7 @@ static int sharpsl_check_battery_temp(void)
 	val = get_select_val(buff);
 
 	dev_dbg(sharpsl_pm.dev, "Temperature: %d\n", val);
-	if (val > SHARPSL_CHARGE_ON_TEMP)
+	if (val > sharpsl_pm.machinfo->charge_on_temp)
 		return -1;
 
 	return 0;
@@ -450,7 +444,7 @@ static int sharpsl_check_battery_voltage(void)
 	val = get_select_val(buff);
 	dev_dbg(sharpsl_pm.dev, "Battery Voltage: %d\n", val);
 
-	if (val < SHARPSL_CHARGE_ON_VOLT)
+	if (val < sharpsl_pm.machinfo->charge_on_volt)
 		return -1;
 
 	return 0;
@@ -468,7 +462,7 @@ static int sharpsl_ac_check(void)
 	temp = get_select_val(buff);
 	dev_dbg(sharpsl_pm.dev, "AC Voltage: %d\n",temp);
 
-	if ((temp > SHARPSL_CHARGE_ON_ACIN_HIGH) || (temp < SHARPSL_CHARGE_ON_ACIN_LOW)) {
+	if ((temp > sharpsl_pm.machinfo->charge_acin_high) || (temp < sharpsl_pm.machinfo->charge_acin_low)) {
 		dev_err(sharpsl_pm.dev, "Error: AC check failed.\n");
 		return -1;
 	}
@@ -627,8 +621,8 @@ static int sharpsl_fatal_check(void)
 	temp = get_select_val(buff);
 	dev_dbg(sharpsl_pm.dev, "sharpsl_fatal_check: acin: %d, discharge voltage: %d, no discharge: %d\n", acin, temp, sharpsl_pm.machinfo->read_devdata(SHARPSL_BATT_VOLT));
 
-	if ((acin && (temp < SHARPSL_FATAL_ACIN_VOLT)) ||
-			(!acin && (temp < SHARPSL_FATAL_NOACIN_VOLT)))
+	if ((acin && (temp < sharpsl_pm.machinfo->fatal_acin_volt)) ||
+			(!acin && (temp < sharpsl_pm.machinfo->fatal_noacin_volt)))
 		return -1;
 	return 0;
 }

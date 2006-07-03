@@ -41,7 +41,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 	char *tmp_path;
 
 	pTcon = cifs_sb->tcon;
-	cFYI(1, ("Getting info on %s ", search_path));
+	cFYI(1, ("Getting info on %s", search_path));
 	/* could have done a find first instead but this returns more info */
 	rc = CIFSSMBUnixQPathInfo(xid, pTcon, search_path, &findData,
 				  cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
@@ -97,9 +97,9 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		inode = *pinode;
 		cifsInfo = CIFS_I(inode);
 
-		cFYI(1, ("Old time %ld ", cifsInfo->time));
+		cFYI(1, ("Old time %ld", cifsInfo->time));
 		cifsInfo->time = jiffies;
-		cFYI(1, ("New time %ld ", cifsInfo->time));
+		cFYI(1, ("New time %ld", cifsInfo->time));
 		/* this is ok to set on every inode revalidate */
 		atomic_set(&cifsInfo->inUse,1);
 
@@ -180,11 +180,12 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 			else /* not direct, send byte range locks */ 
 				inode->i_fop = &cifs_file_ops;
 
-			inode->i_data.a_ops = &cifs_addr_ops;
 			/* check if server can support readpages */
 			if(pTcon->ses->server->maxBuf < 
-			    4096 + MAX_CIFS_HDR_SIZE)
-				inode->i_data.a_ops->readpages = NULL;
+			    PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE)
+				inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
+			else
+				inode->i_data.a_ops = &cifs_addr_ops;
 		} else if (S_ISDIR(inode->i_mode)) {
 			cFYI(1, ("Directory inode"));
 			inode->i_op = &cifs_dir_inode_ops;
@@ -421,23 +422,23 @@ int cifs_get_inode_info(struct inode **pinode,
 		inode = *pinode;
 		cifsInfo = CIFS_I(inode);
 		cifsInfo->cifsAttrs = attr;
-		cFYI(1, ("Old time %ld ", cifsInfo->time));
+		cFYI(1, ("Old time %ld", cifsInfo->time));
 		cifsInfo->time = jiffies;
-		cFYI(1, ("New time %ld ", cifsInfo->time));
+		cFYI(1, ("New time %ld", cifsInfo->time));
 
 		/* blksize needs to be multiple of two. So safer to default to
 		blksize and blkbits set in superblock so 2**blkbits and blksize
 		will match rather than setting to:
 		(pTcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE) & 0xFFFFFE00;*/
 
-		/* Linux can not store file creation time unfortunately so we ignore it */
+		/* Linux can not store file creation time so ignore it */
 		inode->i_atime =
 		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastAccessTime));
 		inode->i_mtime =
 		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastWriteTime));
 		inode->i_ctime =
 		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->ChangeTime));
-		cFYI(0, ("Attributes came in as 0x%x ", attr));
+		cFYI(0, ("Attributes came in as 0x%x", attr));
 
 		/* set default mode. will override for dirs below */
 		if (atomic_read(&cifsInfo->inUse) == 0)
@@ -519,10 +520,11 @@ int cifs_get_inode_info(struct inode **pinode,
 			else /* not direct, send byte range locks */
 				inode->i_fop = &cifs_file_ops;
 
-			inode->i_data.a_ops = &cifs_addr_ops;
 			if(pTcon->ses->server->maxBuf < 
-			     4096 + MAX_CIFS_HDR_SIZE)
-				inode->i_data.a_ops->readpages = NULL;
+			     PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE)
+				inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
+			else
+				inode->i_data.a_ops = &cifs_addr_ops;
 		} else if (S_ISDIR(inode->i_mode)) {
 			cFYI(1, ("Directory inode"));
 			inode->i_op = &cifs_dir_inode_ops;
@@ -731,7 +733,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 	rc = CIFSSMBMkDir(xid, pTcon, full_path, cifs_sb->local_nls,
 			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
-		cFYI(1, ("cifs_mkdir returned 0x%x ", rc));
+		cFYI(1, ("cifs_mkdir returned 0x%x", rc));
 		d_drop(direntry);
 	} else {
 		inode->i_nlink++;
@@ -798,7 +800,7 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	char *full_path = NULL;
 	struct cifsInodeInfo *cifsInode;
 
-	cFYI(1, ("cifs_rmdir, inode = 0x%p with ", inode));
+	cFYI(1, ("cifs_rmdir, inode = 0x%p", inode));
 
 	xid = GetXid();
 
@@ -1121,7 +1123,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 
 	xid = GetXid();
 
-	cFYI(1, ("In cifs_setattr, name = %s attrs->iavalid 0x%x ",
+	cFYI(1, ("setattr on file %s attrs->iavalid 0x%x",
 		 direntry->d_name.name, attrs->ia_valid));
 
 	cifs_sb = CIFS_SB(direntry->d_inode->i_sb);
@@ -1157,6 +1159,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		   when the local oplock break takes longer to flush
 		   writebehind data than the SMB timeout for the SetPathInfo
 		   request would allow */
+
 		open_file = find_writable_file(cifsInode);
 		if (open_file) {
 			__u16 nfid = open_file->netfid;
@@ -1289,7 +1292,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		it may be useful to Windows - but we do
 		not want to set ctime unless some other
 		timestamp is changing */
-		cFYI(1, ("CIFS - CTIME changed "));
+		cFYI(1, ("CIFS - CTIME changed"));
 		time_buf.ChangeTime =
 		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_ctime));
 	} else
@@ -1356,7 +1359,7 @@ cifs_setattr_exit:
 
 void cifs_delete_inode(struct inode *inode)
 {
-	cFYI(1, ("In cifs_delete_inode, inode = 0x%p ", inode));
+	cFYI(1, ("In cifs_delete_inode, inode = 0x%p", inode));
 	/* may have to add back in if and when safe distributed caching of
 	   directories added e.g. via FindNotify */
 }

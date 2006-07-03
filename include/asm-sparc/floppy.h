@@ -271,7 +271,8 @@ static int sun_fd_request_irq(void)
 
 	if(!once) {
 		once = 1;
-		error = request_fast_irq(FLOPPY_IRQ, floppy_hardint, SA_INTERRUPT, "floppy");
+		error = request_fast_irq(FLOPPY_IRQ, floppy_hardint,
+					 IRQF_DISABLED, "floppy");
 		return ((error == 0) ? 0 : -1);
 	} else return 0;
 }

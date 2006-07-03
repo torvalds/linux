@@ -1,16 +1,15 @@
-obj-y			+= interrupt.o iommu.o setup.o spider-pic.o
-obj-y			+= pervasive.o
+obj-$(CONFIG_PPC_CELL_NATIVE)		+= interrupt.o iommu.o setup.o \
+					   cbe_regs.o spider-pic.o pervasive.o
+obj-$(CONFIG_CBE_RAS)			+= ras.o
 
-obj-$(CONFIG_SMP)	+= smp.o
-obj-$(CONFIG_SPU_FS)	+= spu-base.o spufs/
-
-spu-base-y		+= spu_base.o spu_priv1.o
+ifeq ($(CONFIG_SMP),y)
+obj-$(CONFIG_PPC_CELL_NATIVE)		+= smp.o
+endif
 
 # needed only when building loadable spufs.ko
-spufs-modular-$(CONFIG_SPU_FS) += spu_syscalls.o
-obj-y			+= $(spufs-modular-m)
+spufs-modular-$(CONFIG_SPU_FS)		+= spu_syscalls.o
+spu-priv1-$(CONFIG_PPC_CELL_NATIVE)	+= spu_priv1_mmio.o
 
-# always needed in kernel
-spufs-builtin-$(CONFIG_SPU_FS) += spu_callbacks.o
-obj-y			+= $(spufs-builtin-y) $(spufs-builtin-m)
-
+obj-$(CONFIG_SPU_BASE)			+= spu_callbacks.o spu_base.o \
+					   $(spufs-modular-m) \
+					   $(spu-priv1-y) spufs/

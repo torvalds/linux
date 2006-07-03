@@ -13,7 +13,6 @@
 #error This is a kernel header. Perhaps include mtd-user.h instead?
 #endif
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/uio.h>
@@ -56,18 +55,69 @@ struct mtd_erase_region_info {
 	u_int32_t numblocks;		/* Number of blocks of erasesize in this region */
 };
 
+/*
+ * oob operation modes
+ *
+ * MTD_OOB_PLACE:	oob data are placed at the given offset
+ * MTD_OOB_AUTO:	oob data are automatically placed at the free areas
+ *			which are defined by the ecclayout
+ * MTD_OOB_RAW:		mode to read raw data+oob in one chunk. The oob data
+ *			is inserted into the data. Thats a raw image of the
+ *			flash contents.
+ */
+typedef enum {
+	MTD_OOB_PLACE,
+	MTD_OOB_AUTO,
+	MTD_OOB_RAW,
+} mtd_oob_mode_t;
+
+/**
+ * struct mtd_oob_ops - oob operation operands
+ * @mode:	operation mode
+ *
+ * @len:	number of bytes to write/read. When a data buffer is given
+ *		(datbuf != NULL) this is the number of data bytes. When
+ +		no data buffer is available this is the number of oob bytes.
+ *
+ * @retlen:	number of bytes written/read. When a data buffer is given
+ *		(datbuf != NULL) this is the number of data bytes. When
+ +		no data buffer is available this is the number of oob bytes.
+ *
+ * @ooblen:	number of oob bytes per page
+ * @ooboffs:	offset of oob data in the oob area (only relevant when
+ *		mode = MTD_OOB_PLACE)
+ * @datbuf:	data buffer - if NULL only oob data are read/written
+ * @oobbuf:	oob data buffer
+ */
+struct mtd_oob_ops {
+	mtd_oob_mode_t	mode;
+	size_t		len;
+	size_t		retlen;
+	size_t		ooblen;
+	uint32_t	ooboffs;
+	uint8_t		*datbuf;
+	uint8_t		*oobbuf;
+};
+
 struct mtd_info {
 	u_char type;
 	u_int32_t flags;
 	u_int32_t size;	 // Total size of the MTD
 
-	/* "Major" erase size for the device. Naïve users may take this
+	/* "Major" erase size for the device. NaÃ¯ve users may take this
 	 * to be the only erase size available, or may use the more detailed
 	 * information below if they desire
 	 */
 	u_int32_t erasesize;
+	/* Minimal writable flash unit size. In case of NOR flash it is 1 (even
+	 * though individual bits can be cleared), in case of NAND flash it is
+	 * one NAND page (or half, or one-fourths of it), in case of ECC-ed NOR
+	 * it is of ECC block size, etc. It is illegal to have writesize = 0.
+	 * Any driver registering a struct mtd_info must ensure a writesize of
+	 * 1 or larger.
+	 */
+	u_int32_t writesize;
 
-	u_int32_t oobblock;  // Size of OOB blocks (e.g. 512)
 	u_int32_t oobsize;   // Amount of OOB data per block (e.g. 16)
 	u_int32_t ecctype;
 	u_int32_t eccsize;
@@ -79,7 +129,6 @@ struct mtd_info {
 	 * MTD_PROGRAM_REGIONS flag is set.
 	 * (Maybe we should have an union for those?)
 	 */
-#define MTD_PROGREGION_SIZE(mtd)  (mtd)->oobblock
 #define MTD_PROGREGION_CTRLMODE_VALID(mtd)  (mtd)->oobsize
 #define MTD_PROGREGION_CTRLMODE_INVALID(mtd)  (mtd)->ecctype
 
@@ -87,9 +136,8 @@ struct mtd_info {
 	char *name;
 	int index;
 
-	// oobinfo is a nand_oobinfo structure, which can be set by iotcl (MEMSETOOBINFO)
-	struct nand_oobinfo oobinfo;
-	u_int32_t oobavail;  // Number of bytes in OOB area available for fs
+	/* ecc layout structure pointer - read only ! */
+	struct nand_ecclayout *ecclayout;
 
 	/* Data for variable erase regions. If numeraseregions is zero,
 	 * it means that the whole device has erasesize as given above.
@@ -112,11 +160,10 @@ struct mtd_info {
 	int (*read) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
 	int (*write) (struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf);
 
-	int (*read_ecc) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
-	int (*write_ecc) (struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
-
-	int (*read_oob) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
-	int (*write_oob) (struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf);
+	int (*read_oob) (struct mtd_info *mtd, loff_t from,
+			 struct mtd_oob_ops *ops);
+	int (*write_oob) (struct mtd_info *mtd, loff_t to,
+			 struct mtd_oob_ops *ops);
 
 	/*
 	 * Methods to access the protection register area, present in some
@@ -130,17 +177,11 @@ struct mtd_info {
 	int (*write_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
 	int (*lock_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len);
 
-	/* kvec-based read/write methods. We need these especially for NAND flash,
-	   with its limited number of write cycles per erase.
+	/* kvec-based read/write methods.
 	   NB: The 'count' parameter is the number of _vectors_, each of
 	   which contains an (ofs, len) tuple.
 	*/
-	int (*readv) (struct mtd_info *mtd, struct kvec *vecs, unsigned long count, loff_t from, size_t *retlen);
-	int (*readv_ecc) (struct mtd_info *mtd, struct kvec *vecs, unsigned long count, loff_t from,
-		size_t *retlen, u_char *eccbuf, struct nand_oobinfo *oobsel);
 	int (*writev) (struct mtd_info *mtd, const struct kvec *vecs, unsigned long count, loff_t to, size_t *retlen);
-	int (*writev_ecc) (struct mtd_info *mtd, const struct kvec *vecs, unsigned long count, loff_t to,
-		size_t *retlen, u_char *eccbuf, struct nand_oobinfo *oobsel);
 
 	/* Sync */
 	void (*sync) (struct mtd_info *mtd);
@@ -158,6 +199,9 @@ struct mtd_info {
 	int (*block_markbad) (struct mtd_info *mtd, loff_t ofs);
 
 	struct notifier_block reboot_notifier;  /* default mode before reboot */
+
+	/* ECC status information */
+	struct mtd_ecc_stats ecc_stats;
 
 	void *priv;
 
@@ -192,20 +236,6 @@ int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 int default_mtd_readv(struct mtd_info *mtd, struct kvec *vecs,
 		      unsigned long count, loff_t from, size_t *retlen);
 
-#define MTD_ERASE(mtd, args...) (*(mtd->erase))(mtd, args)
-#define MTD_POINT(mtd, a,b,c,d) (*(mtd->point))(mtd, a,b,c, (u_char **)(d))
-#define MTD_UNPOINT(mtd, arg) (*(mtd->unpoint))(mtd, (u_char *)arg)
-#define MTD_READ(mtd, args...) (*(mtd->read))(mtd, args)
-#define MTD_WRITE(mtd, args...) (*(mtd->write))(mtd, args)
-#define MTD_READV(mtd, args...) (*(mtd->readv))(mtd, args)
-#define MTD_WRITEV(mtd, args...) (*(mtd->writev))(mtd, args)
-#define MTD_READECC(mtd, args...) (*(mtd->read_ecc))(mtd, args)
-#define MTD_WRITEECC(mtd, args...) (*(mtd->write_ecc))(mtd, args)
-#define MTD_READOOB(mtd, args...) (*(mtd->read_oob))(mtd, args)
-#define MTD_WRITEOOB(mtd, args...) (*(mtd->write_oob))(mtd, args)
-#define MTD_SYNC(mtd) do { if (mtd->sync) (*(mtd->sync))(mtd);  } while (0)
-
-
 #ifdef CONFIG_MTD_PARTITIONS
 void mtd_erase_callback(struct erase_info *instr);
 #else
@@ -226,7 +256,7 @@ static inline void mtd_erase_callback(struct erase_info *instr)
 
 #ifdef CONFIG_MTD_DEBUG
 #define DEBUG(n, args...)				\
- 	do {						\
+	do {						\
 		if (n <= CONFIG_MTD_DEBUG_VERBOSE)	\
 			printk(KERN_INFO args);		\
 	} while(0)

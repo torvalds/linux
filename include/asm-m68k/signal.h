@@ -74,7 +74,6 @@ typedef unsigned long sigset_t;
  * SA_FLAGS values:
  *
  * SA_ONSTACK indicates that a registered stack_t will be used.
- * SA_INTERRUPT is a no-op, but left due to historical reasons. Use the
  * SA_RESTART flag to get restarting signals (which were the default long ago)
  * SA_NOCLDSTOP flag to turn off SIGCHLD when children stop.
  * SA_RESETHAND clears the handler when the signal is delivered.
@@ -94,7 +93,6 @@ typedef unsigned long sigset_t;
 
 #define SA_NOMASK	SA_NODEFER
 #define SA_ONESHOT	SA_RESETHAND
-#define SA_INTERRUPT	0x20000000 /* dummy -- ignored */
 
 /*
  * sigaltstack controls
@@ -156,13 +154,17 @@ typedef struct sigaltstack {
 
 static inline void sigaddset(sigset_t *set, int _sig)
 {
-	__asm__("bfset %0{%1,#1}" : "=m" (*set) : "id" ((_sig - 1) ^ 31)
+	asm ("bfset %0{%1,#1}"
+		: "+od" (*set)
+		: "id" ((_sig - 1) ^ 31)
 		: "cc");
 }
 
 static inline void sigdelset(sigset_t *set, int _sig)
 {
-	__asm__("bfclr %0{%1,#1}" : "=m"(*set) : "id"((_sig - 1) ^ 31)
+	asm ("bfclr %0{%1,#1}"
+		: "+od" (*set)
+		: "id" ((_sig - 1) ^ 31)
 		: "cc");
 }
 
@@ -175,8 +177,10 @@ static inline int __const_sigismember(sigset_t *set, int _sig)
 static inline int __gen_sigismember(sigset_t *set, int _sig)
 {
 	int ret;
-	__asm__("bfextu %1{%2,#1},%0"
-		: "=d"(ret) : "m"(*set), "id"((_sig-1) ^ 31));
+	asm ("bfextu %1{%2,#1},%0"
+		: "=d" (ret)
+		: "od" (*set), "id" ((_sig-1) ^ 31)
+		: "cc");
 	return ret;
 }
 
@@ -187,7 +191,10 @@ static inline int __gen_sigismember(sigset_t *set, int _sig)
 
 static inline int sigfindinword(unsigned long word)
 {
-	__asm__("bfffo %1{#0,#0},%0" : "=d"(word) : "d"(word & -word) : "cc");
+	asm ("bfffo %1{#0,#0},%0"
+		: "=d" (word)
+		: "d" (word & -word)
+		: "cc");
 	return word ^ 31;
 }
 

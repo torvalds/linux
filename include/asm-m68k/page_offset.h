@@ -1,4 +1,3 @@
-#include <linux/config.h>
 
 /* This handles the memory map.. */
 #ifndef CONFIG_SUN3

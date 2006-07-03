@@ -63,7 +63,6 @@
  *		Pasi Sarolahti:		F-RTO for dealing with spurious RTOs
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sysctl.h>
@@ -1073,7 +1072,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 				else
 					pkt_len = (end_seq -
 						   TCP_SKB_CB(skb)->seq);
-				if (tcp_fragment(sk, skb, pkt_len, skb_shinfo(skb)->tso_size))
+				if (tcp_fragment(sk, skb, pkt_len, skb_shinfo(skb)->gso_size))
 					break;
 				pcount = tcp_skb_pcount(skb);
 			}
@@ -4178,8 +4177,6 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		 */
 
 		TCP_ECN_rcv_synack(tp, th);
-		if (tp->ecn_flags&TCP_ECN_OK)
-			sock_set_flag(sk, SOCK_NO_LARGESEND);
 
 		tp->snd_wl1 = TCP_SKB_CB(skb)->seq;
 		tcp_ack(sk, skb, FLAG_SLOWPATH);
@@ -4322,8 +4319,6 @@ discard:
 		tp->max_window = tp->snd_wnd;
 
 		TCP_ECN_rcv_syn(tp, th);
-		if (tp->ecn_flags&TCP_ECN_OK)
-			sock_set_flag(sk, SOCK_NO_LARGESEND);
 
 		tcp_mtup_init(sk);
 		tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);

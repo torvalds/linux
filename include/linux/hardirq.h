@@ -1,7 +1,6 @@
 #ifndef LINUX_HARDIRQ_H
 #define LINUX_HARDIRQ_H
 
-#include <linux/config.h>
 #include <linux/preempt.h>
 #include <linux/smp_lock.h>
 #include <asm/hardirq.h>

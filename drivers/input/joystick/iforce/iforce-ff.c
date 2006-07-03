@@ -47,7 +47,7 @@ static int make_magnitude_modifier(struct iforce* iforce,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
 			mutex_unlock(&iforce->mem_mutex);
-			return -ENOMEM;
+			return -ENOSPC;
 		}
 		mutex_unlock(&iforce->mem_mutex);
 	}
@@ -80,7 +80,7 @@ static int make_period_modifier(struct iforce* iforce,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
 			mutex_unlock(&iforce->mem_mutex);
-			return -ENOMEM;
+			return -ENOSPC;
 		}
 		mutex_unlock(&iforce->mem_mutex);
 	}
@@ -120,7 +120,7 @@ static int make_envelope_modifier(struct iforce* iforce,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
 			mutex_unlock(&iforce->mem_mutex);
-			return -ENOMEM;
+			return -ENOSPC;
 		}
 		mutex_unlock(&iforce->mem_mutex);
 	}
@@ -157,7 +157,7 @@ static int make_condition_modifier(struct iforce* iforce,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
 			mutex_unlock(&iforce->mem_mutex);
-			return -ENOMEM;
+			return -ENOSPC;
 		}
 		mutex_unlock(&iforce->mem_mutex);
 	}

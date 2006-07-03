@@ -187,7 +187,7 @@ static unsigned int cbc_process_encrypt(const struct cipher_desc *desc,
 	void (*xor)(u8 *, const u8 *) = tfm->crt_u.cipher.cit_xor_block;
 	int bsize = crypto_tfm_alg_blocksize(tfm);
 
-	void (*fn)(void *, u8 *, const u8 *) = desc->crfn;
+	void (*fn)(struct crypto_tfm *, u8 *, const u8 *) = desc->crfn;
 	u8 *iv = desc->info;
 	unsigned int done = 0;
 
@@ -195,7 +195,7 @@ static unsigned int cbc_process_encrypt(const struct cipher_desc *desc,
 
 	do {
 		xor(iv, src);
-		fn(crypto_tfm_ctx(tfm), dst, iv);
+		fn(tfm, dst, iv);
 		memcpy(iv, dst, bsize);
 
 		src += bsize;
@@ -218,7 +218,7 @@ static unsigned int cbc_process_decrypt(const struct cipher_desc *desc,
 	u8 *buf = (u8 *)ALIGN((unsigned long)stack, alignmask + 1);
 	u8 **dst_p = src == dst ? &buf : &dst;
 
-	void (*fn)(void *, u8 *, const u8 *) = desc->crfn;
+	void (*fn)(struct crypto_tfm *, u8 *, const u8 *) = desc->crfn;
 	u8 *iv = desc->info;
 	unsigned int done = 0;
 
@@ -227,7 +227,7 @@ static unsigned int cbc_process_decrypt(const struct cipher_desc *desc,
 	do {
 		u8 *tmp_dst = *dst_p;
 
-		fn(crypto_tfm_ctx(tfm), tmp_dst, src);
+		fn(tfm, tmp_dst, src);
 		xor(tmp_dst, iv);
 		memcpy(iv, src, bsize);
 		if (tmp_dst != dst)
@@ -245,13 +245,13 @@ static unsigned int ecb_process(const struct cipher_desc *desc, u8 *dst,
 {
 	struct crypto_tfm *tfm = desc->tfm;
 	int bsize = crypto_tfm_alg_blocksize(tfm);
-	void (*fn)(void *, u8 *, const u8 *) = desc->crfn;
+	void (*fn)(struct crypto_tfm *, u8 *, const u8 *) = desc->crfn;
 	unsigned int done = 0;
 
 	nbytes -= bsize;
 
 	do {
-		fn(crypto_tfm_ctx(tfm), dst, src);
+		fn(tfm, dst, src);
 
 		src += bsize;
 		dst += bsize;
@@ -268,7 +268,7 @@ static int setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	} else
-		return cia->cia_setkey(crypto_tfm_ctx(tfm), key, keylen,
+		return cia->cia_setkey(tfm, key, keylen,
 		                       &tfm->crt_flags);
 }
 

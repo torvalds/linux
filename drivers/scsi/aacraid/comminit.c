@@ -103,9 +103,12 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	 * This assumes the memory is mapped zero->n, which isnt
 	 * always true on real computers. It also has some slight problems
 	 * with the GART on x86-64. I've btw never tried DMA from PCI space
-	 * on this platform but don't be suprised if its problematic.
+	 * on this platform but don't be surprised if its problematic.
+	 * [AK: something is very very wrong when a driver tests this symbol.
+ 	 *  Someone should figure out what the comment writer really meant here and fix
+	 *  the code. Or just remove that bad code. ]
 	 */
-#ifndef CONFIG_GART_IOMMU
+#ifndef CONFIG_IOMMU
 	if ((num_physpages << (PAGE_SHIFT - 12)) <= AAC_MAX_HOSTPHYSMEMPAGES) {
 		init->HostPhysMemPages = 
 			cpu_to_le32(num_physpages << (PAGE_SHIFT-12));
@@ -159,7 +162,6 @@ static void aac_queue_init(struct aac_dev * dev, struct aac_queue * q, u32 *mem,
 {
 	q->numpending = 0;
 	q->dev = dev;
-	INIT_LIST_HEAD(&q->pendingq);
 	init_waitqueue_head(&q->cmdready);
 	INIT_LIST_HEAD(&q->cmdq);
 	init_waitqueue_head(&q->qfull);

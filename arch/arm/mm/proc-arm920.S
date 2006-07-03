@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 1999,2000 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd.
+ *  hacked for non-paged-MM by Hyok S. Choi, 2003.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +26,6 @@
  *  CONFIG_CPU_ARM920_CPU_IDLE -> nohlt
  */
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
 #include <asm/pgtable-hwdef.h>
@@ -97,7 +97,9 @@ ENTRY(cpu_arm920_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
+#ifdef CONFIG_MMU
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
+#endif
 	mrc	p15, 0, ip, c1, c0, 0		@ ctrl register
 	bic	ip, ip, #0x000f			@ ............wcam
 	bic	ip, ip, #0x1100			@ ...i...s........
@@ -317,6 +319,7 @@ ENTRY(cpu_arm920_dcache_clean_area)
  */
 	.align	5
 ENTRY(cpu_arm920_switch_mm)
+#ifdef CONFIG_MMU
 	mov	ip, #0
 #ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
 	mcr	p15, 0, ip, c7, c6, 0		@ invalidate D cache
@@ -337,6 +340,7 @@ ENTRY(cpu_arm920_switch_mm)
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
+#endif
 	mov	pc, lr
 
 /*
@@ -346,6 +350,7 @@ ENTRY(cpu_arm920_switch_mm)
  */
 	.align	5
 ENTRY(cpu_arm920_set_pte)
+#ifdef CONFIG_MMU
 	str	r1, [r0], #-2048		@ linux version
 
 	eor	r1, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
@@ -372,6 +377,7 @@ ENTRY(cpu_arm920_set_pte)
 	mov	r0, r0
 	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
+#endif /* CONFIG_MMU */
 	mov	pc, lr
 
 	__INIT
@@ -381,12 +387,14 @@ __arm920_setup:
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c7		@ invalidate I,D caches on v4
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer on v4
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7		@ invalidate I,D TLBs on v4
+#endif
+	adr	r5, arm920_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
-	ldr	r5, arm920_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, arm920_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 	mov	pc, lr
 	.size	__arm920_setup, . - __arm920_setup
 
@@ -396,12 +404,9 @@ __arm920_setup:
 	 * ..11 0001 ..11 0101
 	 * 
 	 */
-	.type	arm920_cr1_clear, #object
-	.type	arm920_cr1_set, #object
-arm920_cr1_clear:
-	.word	0x3f3f
-arm920_cr1_set:
-	.word	0x3135
+	.type	arm920_crval, #object
+arm920_crval:
+	crval	clear=0x00003f3f, mmuset=0x00003135, ucset=0x00001130
 
 	__INITDATA
 
@@ -435,19 +440,7 @@ cpu_elf_name:
 
 	.type	cpu_arm920_name, #object
 cpu_arm920_name:
-	.ascii	"ARM920T"
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	.ascii	"i"
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	.ascii	"d"
-#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
-	.ascii	"(wt)"
-#else
-	.ascii	"(wb)"
-#endif
-#endif
-	.ascii	"\0"
+	.asciz	"ARM920T"
 	.size	cpu_arm920_name, . - cpu_arm920_name
 
 	.align
@@ -461,6 +454,10 @@ __arm920_proc_info:
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ

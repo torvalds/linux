@@ -50,6 +50,7 @@ struct sys_timer {
 #define DYN_TICK_ENABLED	(1 << 1)
 
 struct dyn_tick_timer {
+	spinlock_t	lock;
 	unsigned int	state;			/* Current state */
 	int		(*enable)(void);	/* Enables dynamic tick */
 	int		(*disable)(void);	/* Disables dynamic tick */
@@ -68,6 +69,7 @@ extern void timer_tick(struct pt_regs *);
 /*
  * Kernel time keeping support.
  */
+struct timespec;
 extern int (*set_rtc)(void);
 extern void save_time_delta(struct timespec *delta, struct timespec *rtc);
 extern void restore_time_delta(struct timespec *delta, struct timespec *rtc);

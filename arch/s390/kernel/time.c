@@ -12,7 +12,6 @@
  *    Copyright (C) 1991, 1992, 1995  Linus Torvalds
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>

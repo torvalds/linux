@@ -10,7 +10,6 @@
 #ifndef _OMAP_BOARD_H
 #define _OMAP_BOARD_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 /* Different peripheral ids */
@@ -23,6 +22,7 @@
 #define OMAP_TAG_UART		0x4f07
 #define OMAP_TAG_FBMEM		0x4f08
 #define OMAP_TAG_STI_CONSOLE	0x4f09
+#define OMAP_TAG_CAMERA_SENSOR	0x4f0a
 
 #define OMAP_TAG_BOOT_REASON    0x4f80
 #define OMAP_TAG_FLASH_PART	0x4f81
@@ -60,6 +60,12 @@ struct omap_serial_console_config {
 struct omap_sti_console_config {
 	unsigned enable:1;
 	u8 channel;
+};
+
+struct omap_camera_sensor_config {
+	u16 reset_gpio;
+	int (*power_on)(void * data);
+	int (*power_off)(void * data);
 };
 
 struct omap_usb_config {

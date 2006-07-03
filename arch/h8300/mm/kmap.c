@@ -8,7 +8,6 @@
  *  Copyright (C) 2000-2002 David McCullough <davidm@snapgear.com>
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

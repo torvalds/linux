@@ -298,7 +298,7 @@ static int gf2k_connect(struct gameport *gameport, struct gameport_driver *drv)
 	gameport_set_poll_handler(gameport, gf2k_poll);
 	gameport_set_poll_interval(gameport, 20);
 
-	sprintf(gf2k->phys, "%s/input0", gameport->phys);
+	snprintf(gf2k->phys, sizeof(gf2k->phys), "%s/input0", gameport->phys);
 
 	gf2k->length = gf2k_lens[gf2k->id];
 

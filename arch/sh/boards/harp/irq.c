@@ -9,7 +9,6 @@
  * Bases on the IPR irq system
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 
@@ -114,7 +113,7 @@ static void enable_harp_irq(unsigned int irq)
 static void __init make_harp_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &harp_irq_type;
+	irq_desc[irq].chip = &harp_irq_type;
 	disable_harp_irq(irq);
 }
 

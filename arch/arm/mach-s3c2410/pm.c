@@ -29,7 +29,6 @@
  *     10-Mar-2005 LCVR  Changed S3C2410_VA_UART to S3C24XX_VA_UART
 */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/suspend.h>
 #include <linux/errno.h>
@@ -58,7 +57,11 @@ unsigned long s3c_pm_flags;
 
 /* cache functions from arch/arm/mm/proc-arm920.S */
 
+#ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 extern void arm920_flush_kern_cache_all(void);
+#else
+static void arm920_flush_kern_cache_all(void) { }
+#endif
 
 #define PFX "s3c24xx-pm: "
 

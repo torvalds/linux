@@ -139,11 +139,11 @@ void __init rm9k_cpu_irq_init(int base)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &rm9k_irq_controller;
+		irq_desc[i].chip = &rm9k_irq_controller;
 	}
 
 	rm9000_perfcount_irq = base + 1;
-	irq_desc[rm9000_perfcount_irq].handler = &rm9k_perfcounter_irq;
+	irq_desc[rm9000_perfcount_irq].chip = &rm9k_perfcounter_irq;
 
 	irq_base = base;
 }

@@ -31,7 +31,6 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
-#include <linux/config.h>
 #include <linux/bitops.h>
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <asm/io.h>
@@ -2451,7 +2450,7 @@ static int sbmac_open(struct net_device *dev)
 	 */
 
 	__raw_readq(sc->sbm_isr);
-	if (request_irq(dev->irq, &sbmac_intr, SA_SHIRQ, dev->name, dev))
+	if (request_irq(dev->irq, &sbmac_intr, IRQF_SHARED, dev->name, dev))
 		return -EBUSY;
 
 	/*

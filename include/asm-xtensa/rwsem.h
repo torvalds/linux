@@ -172,4 +172,9 @@ static inline int rwsem_atomic_update(int delta, struct rw_semaphore *sem)
 	return atomic_add_return(delta, (atomic_t *)(&sem->count));
 }
 
-#endif	/* _XTENSA_RWSEM_XADD_H */
+static inline int rwsem_is_locked(struct rw_semaphore *sem)
+{
+	return (sem->count != 0);
+}
+
+#endif	/* _XTENSA_RWSEM_H */

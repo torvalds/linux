@@ -13,7 +13,6 @@
  */
 #define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <asm/types.h>
 #include <asm/segment.h>
@@ -79,19 +78,31 @@ struct thread_struct {
 }
 
 /*
+ * Coldfire stacks need to be re-aligned on trap exit, conventional
+ * 68k can handle this case cleanly.
+ */
+#if defined(CONFIG_COLDFIRE)
+#define	reformat(_regs)		do { (_regs)->format = 0x4; } while(0)
+#else
+#define	reformat(_regs)		do { } while (0)
+#endif
+
+/*
  * Do necessary setup to start up a newly executed thread.
  *
  * pass the data segment into user programs if it exists,
  * it can't hurt anything as far as I can tell
  */
-#define start_thread(_regs, _pc, _usp)           \
-do {                                             \
-	set_fs(USER_DS); /* reads from user space */ \
-	(_regs)->pc = (_pc);                         \
-	if (current->mm)                             \
-		(_regs)->d5 = current->mm->start_data;   \
-	(_regs)->sr &= ~0x2000;                      \
-	wrusp(_usp);                                 \
+#define start_thread(_regs, _pc, _usp)			\
+do {							\
+	set_fs(USER_DS); /* reads from user space */	\
+	(_regs)->pc = (_pc);				\
+	((struct switch_stack *)(_regs))[-1].a6 = 0;	\
+	reformat(_regs);				\
+	if (current->mm)				\
+		(_regs)->d5 = current->mm->start_data;	\
+	(_regs)->sr &= ~0x2000;				\
+	wrusp(_usp);					\
 } while(0)
 
 /* Forward declaration, a strange C thing */

@@ -4,7 +4,6 @@
 #include <linux/mmzone.h>
 #include <linux/stddef.h>
 #include <linux/linkage.h>
-#include <linux/config.h>
 
 struct vm_area_struct;
 

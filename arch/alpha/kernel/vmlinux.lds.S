@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #include <asm-generic/vmlinux.lds.h>
 
 OUTPUT_FORMAT("elf64-alpha")

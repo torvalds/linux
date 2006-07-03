@@ -7,7 +7,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/timex.h>
 #include <linux/time.h>
 #include <linux/jiffies.h>
@@ -252,11 +251,11 @@ timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
         return IRQ_HANDLED;
 }
 
-/* timer is SA_SHIRQ so drivers can add stuff to the timer irq chain
- * it needs to be SA_INTERRUPT to make the jiffies update work properly
+/* timer is IRQF_SHARED so drivers can add stuff to the timer irq chain
+ * it needs to be IRQF_DISABLED to make the jiffies update work properly
  */
 
-static struct irqaction irq2  = { timer_interrupt, SA_SHIRQ | SA_INTERRUPT,
+static struct irqaction irq2  = { timer_interrupt, IRQF_SHARED | IRQF_DISABLED,
 				  CPU_MASK_NONE, "timer", NULL, NULL};
 
 void __init

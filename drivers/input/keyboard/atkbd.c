@@ -55,7 +55,7 @@ static int atkbd_softraw = 1;
 module_param_named(softraw, atkbd_softraw, bool, 0);
 MODULE_PARM_DESC(softraw, "Use software generated rawmode");
 
-static int atkbd_scroll = 0;
+static int atkbd_scroll;
 module_param_named(scroll, atkbd_scroll, bool, 0);
 MODULE_PARM_DESC(scroll, "Enable scroll-wheel on MS Office and similar keyboards");
 
@@ -150,8 +150,8 @@ static unsigned char atkbd_unxlate_table[128] = {
 #define ATKBD_RET_EMUL0		0xe0
 #define ATKBD_RET_EMUL1		0xe1
 #define ATKBD_RET_RELEASE	0xf0
-#define ATKBD_RET_HANGUEL	0xf1
-#define ATKBD_RET_HANJA		0xf2
+#define ATKBD_RET_HANJA		0xf1
+#define ATKBD_RET_HANGEUL	0xf2
 #define ATKBD_RET_ERR		0xff
 
 #define ATKBD_KEY_UNKNOWN	  0
@@ -169,6 +169,13 @@ static unsigned char atkbd_unxlate_table[128] = {
 
 #define ATKBD_LED_EVENT_BIT	0
 #define ATKBD_REP_EVENT_BIT	1
+
+#define ATKBD_XL_ERR		0x01
+#define ATKBD_XL_BAT		0x02
+#define ATKBD_XL_ACK		0x04
+#define ATKBD_XL_NAK		0x08
+#define ATKBD_XL_HANGEUL	0x10
+#define ATKBD_XL_HANJA		0x20
 
 static struct {
 	unsigned char keycode;
@@ -211,8 +218,7 @@ struct atkbd {
 	unsigned char emul;
 	unsigned char resend;
 	unsigned char release;
-	unsigned char bat_xl;
-	unsigned char err_xl;
+	unsigned long xl_bit;
 	unsigned int last;
 	unsigned long time;
 
@@ -245,17 +251,65 @@ ATKBD_DEFINE_ATTR(set);
 ATKBD_DEFINE_ATTR(softrepeat);
 ATKBD_DEFINE_ATTR(softraw);
 
+static const unsigned int xl_table[] = {
+	ATKBD_RET_BAT, ATKBD_RET_ERR, ATKBD_RET_ACK,
+	ATKBD_RET_NAK, ATKBD_RET_HANJA, ATKBD_RET_HANGEUL,
+};
 
-static void atkbd_report_key(struct input_dev *dev, struct pt_regs *regs, int code, int value)
+/*
+ * Checks if we should mangle the scancode to extract 'release' bit
+ * in translated mode.
+ */
+static int atkbd_need_xlate(unsigned long xl_bit, unsigned char code)
 {
-	input_regs(dev, regs);
-	if (value == 3) {
-		input_report_key(dev, code, 1);
-		input_sync(dev);
-		input_report_key(dev, code, 0);
-	} else
-		input_event(dev, EV_KEY, code, value);
-	input_sync(dev);
+	int i;
+
+	if (code == ATKBD_RET_EMUL0 || code == ATKBD_RET_EMUL1)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(xl_table); i++)
+		if (code == xl_table[i])
+			return test_bit(i, &xl_bit);
+
+	return 1;
+}
+
+/*
+ * Calculates new value of xl_bit so the driver can distinguish
+ * between make/break pair of scancodes for select keys and PS/2
+ * protocol responses.
+ */
+static void atkbd_calculate_xl_bit(struct atkbd *atkbd, unsigned char code)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(xl_table); i++) {
+		if (!((code ^ xl_table[i]) & 0x7f)) {
+			if (code & 0x80)
+				__clear_bit(i, &atkbd->xl_bit);
+			else
+				__set_bit(i, &atkbd->xl_bit);
+			break;
+		}
+	}
+}
+
+/*
+ * Encode the scancode, 0xe0 prefix, and high bit into a single integer,
+ * keeping kernel 2.4 compatibility for set 2
+ */
+static unsigned int atkbd_compat_scancode(struct atkbd *atkbd, unsigned int code)
+{
+	if (atkbd->set == 3) {
+		if (atkbd->emul == 1)
+			code |= 0x100;
+        } else {
+		code = (code & 0x7f) | ((code & 0x80) << 1);
+		if (atkbd->emul == 1)
+			code |= 0x80;
+	}
+
+	return code;
 }
 
 /*
@@ -267,9 +321,11 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 			unsigned int flags, struct pt_regs *regs)
 {
 	struct atkbd *atkbd = serio_get_drvdata(serio);
+	struct input_dev *dev = atkbd->dev;
 	unsigned int code = data;
-	int scroll = 0, hscroll = 0, click = -1;
+	int scroll = 0, hscroll = 0, click = -1, add_release_event = 0;
 	int value;
+	unsigned char keycode;
 
 #ifdef ATKBD_DEBUG
 	printk(KERN_DEBUG "atkbd.c: Received %02x flags %02x\n", data, flags);
@@ -298,25 +354,17 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	if (!atkbd->enabled)
 		goto out;
 
-	input_event(atkbd->dev, EV_MSC, MSC_RAW, code);
+	input_event(dev, EV_MSC, MSC_RAW, code);
 
 	if (atkbd->translated) {
 
-		if (atkbd->emul ||
-		    (code != ATKBD_RET_EMUL0 && code != ATKBD_RET_EMUL1 &&
-		     code != ATKBD_RET_HANGUEL && code != ATKBD_RET_HANJA &&
-		     (code != ATKBD_RET_ERR || atkbd->err_xl) &&
-	             (code != ATKBD_RET_BAT || atkbd->bat_xl))) {
+		if (atkbd->emul || atkbd_need_xlate(atkbd->xl_bit, code)) {
 			atkbd->release = code >> 7;
 			code &= 0x7f;
 		}
 
-		if (!atkbd->emul) {
-		     if ((code & 0x7f) == (ATKBD_RET_BAT & 0x7f))
-			atkbd->bat_xl = !(data >> 7);
-		     if ((code & 0x7f) == (ATKBD_RET_ERR & 0x7f))
-			atkbd->err_xl = !(data >> 7);
-		}
+		if (!atkbd->emul)
+			atkbd_calculate_xl_bit(atkbd, data);
 	}
 
 	switch (code) {
@@ -333,47 +381,48 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 		case ATKBD_RET_RELEASE:
 			atkbd->release = 1;
 			goto out;
-		case ATKBD_RET_HANGUEL:
-			atkbd_report_key(atkbd->dev, regs, KEY_HANGUEL, 3);
+		case ATKBD_RET_ACK:
+		case ATKBD_RET_NAK:
+			printk(KERN_WARNING "atkbd.c: Spurious %s on %s. "
+			       "Some program might be trying access hardware directly.\n",
+			       data == ATKBD_RET_ACK ? "ACK" : "NAK", serio->phys);
 			goto out;
+		case ATKBD_RET_HANGEUL:
 		case ATKBD_RET_HANJA:
-			atkbd_report_key(atkbd->dev, regs, KEY_HANJA, 3);
-			goto out;
+			/*
+			 * These keys do not report release and thus need to be
+			 * flagged properly
+			 */
+			add_release_event = 1;
+			break;
 		case ATKBD_RET_ERR:
 			printk(KERN_DEBUG "atkbd.c: Keyboard on %s reports too many keys pressed.\n", serio->phys);
 			goto out;
 	}
 
-	if (atkbd->set != 3)
-		code = (code & 0x7f) | ((code & 0x80) << 1);
-	if (atkbd->emul) {
-		if (--atkbd->emul)
-			goto out;
-		code |= (atkbd->set != 3) ? 0x80 : 0x100;
-	}
+	code = atkbd_compat_scancode(atkbd, code);
 
-	if (atkbd->keycode[code] != ATKBD_KEY_NULL)
-		input_event(atkbd->dev, EV_MSC, MSC_SCAN, code);
+	if (atkbd->emul && --atkbd->emul)
+		goto out;
 
-	switch (atkbd->keycode[code]) {
+	keycode = atkbd->keycode[code];
+
+	if (keycode != ATKBD_KEY_NULL)
+		input_event(dev, EV_MSC, MSC_SCAN, code);
+
+	switch (keycode) {
 		case ATKBD_KEY_NULL:
 			break;
 		case ATKBD_KEY_UNKNOWN:
-			if (data == ATKBD_RET_ACK || data == ATKBD_RET_NAK) {
-				printk(KERN_WARNING "atkbd.c: Spurious %s on %s. Some program, "
-				       "like XFree86, might be trying access hardware directly.\n",
-				       data == ATKBD_RET_ACK ? "ACK" : "NAK", serio->phys);
-			} else {
-				printk(KERN_WARNING "atkbd.c: Unknown key %s "
-				       "(%s set %d, code %#x on %s).\n",
-				       atkbd->release ? "released" : "pressed",
-				       atkbd->translated ? "translated" : "raw",
-				       atkbd->set, code, serio->phys);
-				printk(KERN_WARNING "atkbd.c: Use 'setkeycodes %s%02x <keycode>' "
-				       "to make it known.\n",
-				       code & 0x80 ? "e0" : "", code & 0x7f);
-			}
-			input_sync(atkbd->dev);
+			printk(KERN_WARNING
+			       "atkbd.c: Unknown key %s (%s set %d, code %#x on %s).\n",
+			       atkbd->release ? "released" : "pressed",
+			       atkbd->translated ? "translated" : "raw",
+			       atkbd->set, code, serio->phys);
+			printk(KERN_WARNING
+			       "atkbd.c: Use 'setkeycodes %s%02x <keycode>' to make it known.\n",
+			       code & 0x80 ? "e0" : "", code & 0x7f);
+			input_sync(dev);
 			break;
 		case ATKBD_SCR_1:
 			scroll = 1 - atkbd->release * 2;
@@ -397,33 +446,35 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 			hscroll = 1;
 			break;
 		default:
-			value = atkbd->release ? 0 :
-				(1 + (!atkbd->softrepeat && test_bit(atkbd->keycode[code], atkbd->dev->key)));
-
-			switch (value) {	/* Workaround Toshiba laptop multiple keypress */
-				case 0:
-					atkbd->last = 0;
-					break;
-				case 1:
-					atkbd->last = code;
-					atkbd->time = jiffies + msecs_to_jiffies(atkbd->dev->rep[REP_DELAY]) / 2;
-					break;
-				case 2:
-					if (!time_after(jiffies, atkbd->time) && atkbd->last == code)
-						value = 1;
-					break;
+			if (atkbd->release) {
+				value = 0;
+				atkbd->last = 0;
+			} else if (!atkbd->softrepeat && test_bit(keycode, dev->key)) {
+				/* Workaround Toshiba laptop multiple keypress */
+				value = time_before(jiffies, atkbd->time) && atkbd->last == code ? 1 : 2;
+			} else {
+				value = 1;
+				atkbd->last = code;
+				atkbd->time = jiffies + msecs_to_jiffies(dev->rep[REP_DELAY]) / 2;
 			}
 
-			atkbd_report_key(atkbd->dev, regs, atkbd->keycode[code], value);
+			input_regs(dev, regs);
+			input_event(dev, EV_KEY, keycode, value);
+			input_sync(dev);
+
+			if (value && add_release_event) {
+				input_report_key(dev, keycode, 0);
+				input_sync(dev);
+			}
 	}
 
 	if (atkbd->scroll) {
-		input_regs(atkbd->dev, regs);
+		input_regs(dev, regs);
 		if (click != -1)
-			input_report_key(atkbd->dev, BTN_MIDDLE, click);
-		input_report_rel(atkbd->dev, REL_WHEEL, scroll);
-		input_report_rel(atkbd->dev, REL_HWHEEL, hscroll);
-		input_sync(atkbd->dev);
+			input_report_key(dev, BTN_MIDDLE, click);
+		input_report_rel(dev, REL_WHEEL, scroll);
+		input_report_rel(dev, REL_HWHEEL, hscroll);
+		input_sync(dev);
 	}
 
 	atkbd->release = 0;
@@ -764,6 +815,9 @@ static void atkbd_set_keycode_table(struct atkbd *atkbd)
 			for (i = 0; i < ARRAY_SIZE(atkbd_scroll_keys); i++)
 				atkbd->keycode[atkbd_scroll_keys[i].set2] = atkbd_scroll_keys[i].keycode;
 	}
+
+	atkbd->keycode[atkbd_compat_scancode(atkbd, ATKBD_RET_HANGEUL)] = KEY_HANGUEL;
+	atkbd->keycode[atkbd_compat_scancode(atkbd, ATKBD_RET_HANJA)] = KEY_HANJA;
 }
 
 /*
@@ -776,12 +830,15 @@ static void atkbd_set_device_attrs(struct atkbd *atkbd)
 	int i;
 
 	if (atkbd->extra)
-		sprintf(atkbd->name, "AT Set 2 Extra keyboard");
+		snprintf(atkbd->name, sizeof(atkbd->name),
+			 "AT Set 2 Extra keyboard");
 	else
-		sprintf(atkbd->name, "AT %s Set %d keyboard",
-			atkbd->translated ? "Translated" : "Raw", atkbd->set);
+		snprintf(atkbd->name, sizeof(atkbd->name),
+			 "AT %s Set %d keyboard",
+			 atkbd->translated ? "Translated" : "Raw", atkbd->set);
 
-	sprintf(atkbd->phys, "%s/input0", atkbd->ps2dev.serio->phys);
+	snprintf(atkbd->phys, sizeof(atkbd->phys),
+		 "%s/input0", atkbd->ps2dev.serio->phys);
 
 	input_dev->name = atkbd->name;
 	input_dev->phys = atkbd->phys;

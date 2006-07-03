@@ -25,7 +25,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
@@ -33,7 +32,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -794,7 +792,7 @@ xfs_inode_item_pushbuf(
 	 * inode flush completed and the inode was taken off the AIL.
 	 * So, just get out.
 	 */
-	if ((valusema(&(ip->i_flock)) > 0)  ||
+	if (!issemalocked(&(ip->i_flock)) ||
 	    ((iip->ili_item.li_flags & XFS_LI_IN_AIL) == 0)) {
 		iip->ili_pushbuf_flag = 0;
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -816,7 +814,7 @@ xfs_inode_item_pushbuf(
 			 * If not, we can flush it async.
 			 */
 			dopush = ((iip->ili_item.li_flags & XFS_LI_IN_AIL) &&
-				  (valusema(&(ip->i_flock)) <= 0));
+				  issemalocked(&(ip->i_flock)));
 			iip->ili_pushbuf_flag = 0;
 			xfs_iunlock(ip, XFS_ILOCK_SHARED);
 			xfs_buftrace("INODE ITEM PUSH", bp);
@@ -864,7 +862,7 @@ xfs_inode_item_push(
 	ip = iip->ili_inode;
 
 	ASSERT(ismrlocked(&(ip->i_lock), MR_ACCESS));
-	ASSERT(valusema(&(ip->i_flock)) <= 0);
+	ASSERT(issemalocked(&(ip->i_flock)));
 	/*
 	 * Since we were able to lock the inode's flush lock and
 	 * we found it on the AIL, the inode must be dirty.  This
@@ -1083,4 +1081,53 @@ xfs_istale_done(
 	xfs_inode_log_item_t	*iip)
 {
 	xfs_iflush_abort(iip->ili_inode);
+}
+
+/*
+ * convert an xfs_inode_log_format struct from either 32 or 64 bit versions
+ * (which can have different field alignments) to the native version
+ */
+int
+xfs_inode_item_format_convert(
+	xfs_log_iovec_t		*buf,
+	xfs_inode_log_format_t	*in_f)
+{
+	if (buf->i_len == sizeof(xfs_inode_log_format_32_t)) {
+		xfs_inode_log_format_32_t *in_f32;
+
+		in_f32 = (xfs_inode_log_format_32_t *)buf->i_addr;
+		in_f->ilf_type = in_f32->ilf_type;
+		in_f->ilf_size = in_f32->ilf_size;
+		in_f->ilf_fields = in_f32->ilf_fields;
+		in_f->ilf_asize = in_f32->ilf_asize;
+		in_f->ilf_dsize = in_f32->ilf_dsize;
+		in_f->ilf_ino = in_f32->ilf_ino;
+		/* copy biggest field of ilf_u */
+		memcpy(in_f->ilf_u.ilfu_uuid.__u_bits,
+		       in_f32->ilf_u.ilfu_uuid.__u_bits,
+		       sizeof(uuid_t));
+		in_f->ilf_blkno = in_f32->ilf_blkno;
+		in_f->ilf_len = in_f32->ilf_len;
+		in_f->ilf_boffset = in_f32->ilf_boffset;
+		return 0;
+	} else if (buf->i_len == sizeof(xfs_inode_log_format_64_t)){
+		xfs_inode_log_format_64_t *in_f64;
+
+		in_f64 = (xfs_inode_log_format_64_t *)buf->i_addr;
+		in_f->ilf_type = in_f64->ilf_type;
+		in_f->ilf_size = in_f64->ilf_size;
+		in_f->ilf_fields = in_f64->ilf_fields;
+		in_f->ilf_asize = in_f64->ilf_asize;
+		in_f->ilf_dsize = in_f64->ilf_dsize;
+		in_f->ilf_ino = in_f64->ilf_ino;
+		/* copy biggest field of ilf_u */
+		memcpy(in_f->ilf_u.ilfu_uuid.__u_bits,
+		       in_f64->ilf_u.ilfu_uuid.__u_bits,
+		       sizeof(uuid_t));
+		in_f->ilf_blkno = in_f64->ilf_blkno;
+		in_f->ilf_len = in_f64->ilf_len;
+		in_f->ilf_boffset = in_f64->ilf_boffset;
+		return 0;
+	}
+	return EFSCORRUPTED;
 }

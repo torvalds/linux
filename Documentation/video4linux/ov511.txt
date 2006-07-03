@@ -81,7 +81,7 @@ MODULE PARAMETERS:
   TYPE: integer (Boolean)
   DEFAULT: 1
   DESC: Brightness is normally under automatic control and can't be set
-        manually by the video app. Set to 0 for manual control.
+	manually by the video app. Set to 0 for manual control.
 
   NAME: autogain
   TYPE: integer (Boolean)
@@ -97,13 +97,13 @@ MODULE PARAMETERS:
   TYPE: integer (0-6)
   DEFAULT: 3
   DESC: Sets the threshold for printing debug messages. The higher the value,
-        the more is printed. The levels are cumulative, and are as follows:
-          0=no debug messages
-          1=init/detection/unload and other significant messages
-          2=some warning messages
-          3=config/control function calls
-          4=most function calls and data parsing messages
-          5=highly repetitive mesgs
+	the more is printed. The levels are cumulative, and are as follows:
+	  0=no debug messages
+	  1=init/detection/unload and other significant messages
+	  2=some warning messages
+	  3=config/control function calls
+	  4=most function calls and data parsing messages
+	  5=highly repetitive mesgs
 
   NAME: snapshot
   TYPE: integer (Boolean)
@@ -116,24 +116,24 @@ MODULE PARAMETERS:
   TYPE: integer (1-4 for OV511, 1-31 for OV511+)
   DEFAULT: 1
   DESC: Number of cameras allowed to stream simultaneously on a single bus.
-        Values higher than 1 reduce the data rate of each camera, allowing two
-        or more to be used at once. If you have a complicated setup involving
-        both OV511 and OV511+ cameras, trial-and-error may be necessary for
-        finding the optimum setting.
+	Values higher than 1 reduce the data rate of each camera, allowing two
+	or more to be used at once. If you have a complicated setup involving
+	both OV511 and OV511+ cameras, trial-and-error may be necessary for
+	finding the optimum setting.
 
   NAME: compress
   TYPE: integer (Boolean)
   DEFAULT: 0
   DESC: Set this to 1 to turn on the camera's compression engine. This can
-        potentially increase the frame rate at the expense of quality, if you
-        have a fast CPU. You must load the proper compression module for your
-        camera before starting your application (ov511_decomp or ov518_decomp).
+	potentially increase the frame rate at the expense of quality, if you
+	have a fast CPU. You must load the proper compression module for your
+	camera before starting your application (ov511_decomp or ov518_decomp).
 
   NAME: testpat
   TYPE: integer (Boolean)
   DEFAULT: 0
   DESC: This configures the camera's sensor to transmit a colored test-pattern
-        instead of an image. This does not work correctly yet.
+	instead of an image. This does not work correctly yet.
 
   NAME: dumppix
   TYPE: integer (0-2)

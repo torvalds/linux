@@ -12,7 +12,6 @@
  * for more details.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -91,7 +90,7 @@ static int sh_dmac_request_dma(struct dma_channel *chan)
 		 chan->chan);
 
 	return request_irq(get_dmte_irq(chan->chan), dma_tei,
-			   SA_INTERRUPT, name, chan);
+			   IRQF_DISABLED, name, chan);
 }
 
 static void sh_dmac_free_dma(struct dma_channel *chan)
@@ -259,7 +258,7 @@ static int __init sh_dmac_init(void)
 
 #ifdef CONFIG_CPU_SH4
 	make_ipr_irq(DMAE_IRQ, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY);
-	i = request_irq(DMAE_IRQ, dma_err, SA_INTERRUPT, "DMAC Address Error", 0);
+	i = request_irq(DMAE_IRQ, dma_err, IRQF_DISABLED, "DMAC Address Error", 0);
 	if (i < 0)
 		return i;
 #endif

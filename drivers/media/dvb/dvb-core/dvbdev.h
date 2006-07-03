@@ -27,7 +27,6 @@
 #include <linux/poll.h>
 #include <linux/fs.h>
 #include <linux/list.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/smp_lock.h>
 
 #define DVB_MAJOR 212
@@ -50,6 +49,8 @@ struct dvb_adapter {
 	const char *name;
 	u8 proposed_mac [6];
 	void* priv;
+
+	struct device *device;
 
 	struct module *module;
 };
@@ -76,7 +77,7 @@ struct dvb_device {
 };
 
 
-extern int dvb_register_adapter (struct dvb_adapter *adap, const char *name, struct module *module);
+extern int dvb_register_adapter (struct dvb_adapter *adap, const char *name, struct module *module, struct device *device);
 extern int dvb_unregister_adapter (struct dvb_adapter *adap);
 
 extern int dvb_register_device (struct dvb_adapter *adap,

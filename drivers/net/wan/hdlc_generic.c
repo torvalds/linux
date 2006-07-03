@@ -22,7 +22,6 @@
  * - proto.start() and stop() are called with spin_lock_irq held.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -259,7 +258,7 @@ int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 }
 
-static void hdlc_setup(struct net_device *dev)
+void hdlc_setup(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 
@@ -288,26 +287,6 @@ struct net_device *alloc_hdlcdev(void *priv)
 	return dev;
 }
 
-int register_hdlc_device(struct net_device *dev)
-{
-	int result = dev_alloc_name(dev, "hdlc%d");
-	if (result < 0)
-		return result;
-
-	result = register_netdev(dev);
-	if (result != 0)
-		return -EIO;
-
-#if 0
-	if (netif_carrier_ok(dev))
-		netif_carrier_off(dev); /* no carrier until DCD goes up */
-#endif
-
-	return 0;
-}
-
-
-
 void unregister_hdlc_device(struct net_device *dev)
 {
 	rtnl_lock();
@@ -326,8 +305,8 @@ EXPORT_SYMBOL(hdlc_open);
 EXPORT_SYMBOL(hdlc_close);
 EXPORT_SYMBOL(hdlc_set_carrier);
 EXPORT_SYMBOL(hdlc_ioctl);
+EXPORT_SYMBOL(hdlc_setup);
 EXPORT_SYMBOL(alloc_hdlcdev);
-EXPORT_SYMBOL(register_hdlc_device);
 EXPORT_SYMBOL(unregister_hdlc_device);
 
 static struct packet_type hdlc_packet_type = {

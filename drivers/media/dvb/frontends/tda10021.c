@@ -21,7 +21,6 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -36,7 +35,6 @@
 
 struct tda10021_state {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	/* configuration settings */
 	const struct tda10021_config* config;
 	struct dvb_frontend frontend;
@@ -89,6 +87,14 @@ static int tda10021_writereg (struct tda10021_state* state, u8 reg, u8 data)
 	msleep(10);
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
+
+int tda10021_write_byte(struct dvb_frontend* fe, int reg, int data)
+{
+	struct tda10021_state* state = fe->demodulator_priv;
+
+	return tda10021_writereg(state, reg, data);
+}
+EXPORT_SYMBOL(tda10021_write_byte);
 
 static u8 tda10021_readreg (struct tda10021_state* state, u8 reg)
 {
@@ -225,13 +231,6 @@ static int tda10021_init (struct dvb_frontend *fe)
 
 	//Activate PLL
 	tda10021_writereg(state, 0x2a, tda10021_inittab[0x2a] & 0xef);
-
-	if (state->config->pll_init) {
-		lock_tuner(state);
-		state->config->pll_init(fe);
-		unlock_tuner(state);
-	}
-
 	return 0;
 }
 
@@ -259,9 +258,10 @@ static int tda10021_set_parameters (struct dvb_frontend *fe,
 
 	//printk("tda10021: set frequency to %d qam=%d symrate=%d\n", p->frequency,qam,p->u.qam.symbol_rate);
 
-	lock_tuner(state);
-	state->config->pll_set(fe, p);
-	unlock_tuner(state);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+	}
 
 	tda10021_set_symbolrate (state, p->u.qam.symbol_rate);
 	tda10021_writereg (state, 0x34, state->pwm);
@@ -376,6 +376,18 @@ static int tda10021_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_pa
 	return 0;
 }
 
+static int tda10021_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct tda10021_state* state = fe->demodulator_priv;
+
+	if (enable) {
+		lock_tuner(state);
+	} else {
+		unlock_tuner(state);
+	}
+	return 0;
+}
+
 static int tda10021_sleep(struct dvb_frontend* fe)
 {
 	struct tda10021_state* state = fe->demodulator_priv;
@@ -407,7 +419,6 @@ struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &tda10021_ops, sizeof(struct dvb_frontend_ops));
 	state->pwm = pwm;
 	state->reg0 = tda10021_inittab[0];
 
@@ -415,7 +426,7 @@ struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
 	if ((tda10021_readreg(state, 0x1a) & 0xf0) != 0x70) goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &tda10021_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
@@ -448,6 +459,7 @@ static struct dvb_frontend_ops tda10021_ops = {
 
 	.init = tda10021_init,
 	.sleep = tda10021_sleep,
+	.i2c_gate_ctrl = tda10021_i2c_gate_ctrl,
 
 	.set_frontend = tda10021_set_parameters,
 	.get_frontend = tda10021_get_frontend,

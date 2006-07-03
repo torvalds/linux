@@ -79,7 +79,7 @@ config ARCH_A5K
         bool "A5000"
 	select ARCH_MAY_HAVE_PC_FDC
         help
-          Say Y here to to support the Acorn A5000.
+          Say Y here to support the Acorn A5000.
 
 	  Linux can support the
           internal IDE disk and CD-ROM interface, serial and parallel port,
@@ -129,7 +129,7 @@ config ZBOOT_ROM_BSS
 config XIP_KERNEL
 	bool "Execute In Place (XIP) kernel image"
 	help
-	  Select this option to create a kernel that can be programed into
+	  Select this option to create a kernel that can be programmed into
 	  the OS ROMs.
 
 comment "At least one math emulation must be selected"
@@ -140,7 +140,7 @@ config FPE_NWFPE
 	  Say Y to include the NWFPE floating point emulator in the kernel.
 	  This is necessary to run most binaries. Linux does not currently
 	  support floating point hardware so you need to say Y here even if
-	  your machine has an FPA or floating point co-processor podule.
+	  your machine has an FPA or floating point co-processor module.
 
 	  It is also possible to say M to build the emulator as a module
 	  (nwfpe) or indeed to leave it out altogether. However, unless you

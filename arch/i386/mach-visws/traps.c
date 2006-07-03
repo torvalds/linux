@@ -1,6 +1,5 @@
 /* VISWS traps */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

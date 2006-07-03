@@ -28,20 +28,6 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("Input core");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(input_allocate_device);
-EXPORT_SYMBOL(input_register_device);
-EXPORT_SYMBOL(input_unregister_device);
-EXPORT_SYMBOL(input_register_handler);
-EXPORT_SYMBOL(input_unregister_handler);
-EXPORT_SYMBOL(input_grab_device);
-EXPORT_SYMBOL(input_release_device);
-EXPORT_SYMBOL(input_open_device);
-EXPORT_SYMBOL(input_close_device);
-EXPORT_SYMBOL(input_accept_process);
-EXPORT_SYMBOL(input_flush_device);
-EXPORT_SYMBOL(input_event);
-EXPORT_SYMBOL_GPL(input_class);
-
 #define INPUT_DEVICES	256
 
 static LIST_HEAD(input_dev_list);
@@ -63,11 +49,13 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 		case EV_SYN:
 			switch (code) {
 				case SYN_CONFIG:
-					if (dev->event) dev->event(dev, type, code, value);
+					if (dev->event)
+						dev->event(dev, type, code, value);
 					break;
 
 				case SYN_REPORT:
-					if (dev->sync) return;
+					if (dev->sync)
+						return;
 					dev->sync = 1;
 					break;
 			}
@@ -136,7 +124,8 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 			if (code > MSC_MAX || !test_bit(code, dev->mscbit))
 				return;
 
-			if (dev->event) dev->event(dev, type, code, value);
+			if (dev->event)
+				dev->event(dev, type, code, value);
 
 			break;
 
@@ -146,7 +135,9 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 				return;
 
 			change_bit(code, dev->led);
-			if (dev->event) dev->event(dev, type, code, value);
+
+			if (dev->event)
+				dev->event(dev, type, code, value);
 
 			break;
 
@@ -158,21 +149,25 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 			if (!!test_bit(code, dev->snd) != !!value)
 				change_bit(code, dev->snd);
 
-			if (dev->event) dev->event(dev, type, code, value);
+			if (dev->event)
+				dev->event(dev, type, code, value);
 
 			break;
 
 		case EV_REP:
 
-			if (code > REP_MAX || value < 0 || dev->rep[code] == value) return;
+			if (code > REP_MAX || value < 0 || dev->rep[code] == value)
+				return;
 
 			dev->rep[code] = value;
-			if (dev->event) dev->event(dev, type, code, value);
+			if (dev->event)
+				dev->event(dev, type, code, value);
 
 			break;
 
 		case EV_FF:
-			if (dev->event) dev->event(dev, type, code, value);
+			if (dev->event)
+				dev->event(dev, type, code, value);
 			break;
 	}
 
@@ -186,6 +181,7 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 			if (handle->open)
 				handle->handler->event(handle, type, code, value);
 }
+EXPORT_SYMBOL(input_event);
 
 static void input_repeat_key(unsigned long data)
 {
@@ -208,6 +204,7 @@ int input_accept_process(struct input_handle *handle, struct file *file)
 
 	return 0;
 }
+EXPORT_SYMBOL(input_accept_process);
 
 int input_grab_device(struct input_handle *handle)
 {
@@ -217,12 +214,14 @@ int input_grab_device(struct input_handle *handle)
 	handle->dev->grab = handle;
 	return 0;
 }
+EXPORT_SYMBOL(input_grab_device);
 
 void input_release_device(struct input_handle *handle)
 {
 	if (handle->dev->grab == handle)
 		handle->dev->grab = NULL;
 }
+EXPORT_SYMBOL(input_release_device);
 
 int input_open_device(struct input_handle *handle)
 {
@@ -245,6 +244,7 @@ int input_open_device(struct input_handle *handle)
 
 	return err;
 }
+EXPORT_SYMBOL(input_open_device);
 
 int input_flush_device(struct input_handle* handle, struct file* file)
 {
@@ -253,6 +253,7 @@ int input_flush_device(struct input_handle* handle, struct file* file)
 
 	return 0;
 }
+EXPORT_SYMBOL(input_flush_device);
 
 void input_close_device(struct input_handle *handle)
 {
@@ -268,6 +269,7 @@ void input_close_device(struct input_handle *handle)
 
 	mutex_unlock(&dev->mutex);
 }
+EXPORT_SYMBOL(input_close_device);
 
 static void input_link_handle(struct input_handle *handle)
 {
@@ -335,9 +337,11 @@ static inline void input_wakeup_procfs_readers(void)
 static unsigned int input_proc_devices_poll(struct file *file, poll_table *wait)
 {
 	int state = input_devices_state;
+
 	poll_wait(file, &input_devices_poll_wait, wait);
 	if (state != input_devices_state)
 		return POLLIN | POLLRDNORM;
+
 	return 0;
 }
 
@@ -629,7 +633,7 @@ static ssize_t input_dev_show_modalias(struct class_device *dev, char *buf)
 
 	len = input_print_modalias(buf, PAGE_SIZE, id, 1);
 
-	return max_t(int, len, PAGE_SIZE);
+	return min_t(int, len, PAGE_SIZE);
 }
 static CLASS_DEVICE_ATTR(modalias, S_IRUGO, input_dev_show_modalias, NULL);
 
@@ -862,6 +866,7 @@ struct class input_class = {
 	.release		= input_dev_release,
 	.uevent			= input_dev_uevent,
 };
+EXPORT_SYMBOL_GPL(input_class);
 
 struct input_dev *input_allocate_device(void)
 {
@@ -872,12 +877,27 @@ struct input_dev *input_allocate_device(void)
 		dev->dynalloc = 1;
 		dev->cdev.class = &input_class;
 		class_device_initialize(&dev->cdev);
+		mutex_init(&dev->mutex);
 		INIT_LIST_HEAD(&dev->h_list);
 		INIT_LIST_HEAD(&dev->node);
 	}
 
 	return dev;
 }
+EXPORT_SYMBOL(input_allocate_device);
+
+void input_free_device(struct input_dev *dev)
+{
+	if (dev) {
+
+		mutex_lock(&dev->mutex);
+		dev->name = dev->phys = dev->uniq = NULL;
+		mutex_unlock(&dev->mutex);
+
+		input_put_device(dev);
+	}
+}
+EXPORT_SYMBOL(input_free_device);
 
 int input_register_device(struct input_dev *dev)
 {
@@ -895,7 +915,6 @@ int input_register_device(struct input_dev *dev)
 		return -EINVAL;
 	}
 
-	mutex_init(&dev->mutex);
 	set_bit(EV_SYN, dev->evbit);
 
 	/*
@@ -956,12 +975,14 @@ int input_register_device(struct input_dev *dev)
  fail1:	class_device_del(&dev->cdev);
 	return error;
 }
+EXPORT_SYMBOL(input_register_device);
 
 void input_unregister_device(struct input_dev *dev)
 {
-	struct list_head * node, * next;
+	struct list_head *node, *next;
 
-	if (!dev) return;
+	if (!dev)
+		return;
 
 	del_timer_sync(&dev->timer);
 
@@ -977,10 +998,16 @@ void input_unregister_device(struct input_dev *dev)
 	sysfs_remove_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
 	sysfs_remove_group(&dev->cdev.kobj, &input_dev_id_attr_group);
 	sysfs_remove_group(&dev->cdev.kobj, &input_dev_attr_group);
+
+	mutex_lock(&dev->mutex);
+	dev->name = dev->phys = dev->uniq = NULL;
+	mutex_unlock(&dev->mutex);
+
 	class_device_unregister(&dev->cdev);
 
 	input_wakeup_procfs_readers();
 }
+EXPORT_SYMBOL(input_unregister_device);
 
 void input_register_handler(struct input_handler *handler)
 {
@@ -988,7 +1015,8 @@ void input_register_handler(struct input_handler *handler)
 	struct input_handle *handle;
 	struct input_device_id *id;
 
-	if (!handler) return;
+	if (!handler)
+		return;
 
 	INIT_LIST_HEAD(&handler->h_list);
 
@@ -1005,10 +1033,11 @@ void input_register_handler(struct input_handler *handler)
 
 	input_wakeup_procfs_readers();
 }
+EXPORT_SYMBOL(input_register_handler);
 
 void input_unregister_handler(struct input_handler *handler)
 {
-	struct list_head * node, * next;
+	struct list_head *node, *next;
 
 	list_for_each_safe(node, next, &handler->h_list) {
 		struct input_handle * handle = to_handle_h(node);
@@ -1024,6 +1053,7 @@ void input_unregister_handler(struct input_handler *handler)
 
 	input_wakeup_procfs_readers();
 }
+EXPORT_SYMBOL(input_unregister_handler);
 
 static int input_open_file(struct inode *inode, struct file *file)
 {

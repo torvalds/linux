@@ -27,6 +27,7 @@ struct mon_bus {
 	struct kref ref;		/* Under mon_lock */
 
 	/* Stats */
+	unsigned int cnt_events;
 	unsigned int cnt_text_lost;
 };
 
@@ -39,6 +40,7 @@ struct mon_reader {
 	void *r_data;		/* Use container_of instead? */
 
 	void (*rnf_submit)(void *data, struct urb *urb);
+	void (*rnf_error)(void *data, struct urb *urb, int error);
 	void (*rnf_complete)(void *data, struct urb *urb);
 };
 

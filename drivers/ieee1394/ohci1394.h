@@ -443,6 +443,16 @@ static inline u32 reg_read(const struct ti_ohci *ohci, int offset)
 
 #define OHCI1394_TCODE_PHY               0xE
 
+/* Node offset map (phys DMA area, posted write area).
+ * The value of OHCI1394_PHYS_UPPER_BOUND_PROGRAMMED may be modified but must
+ * be lower than OHCI1394_MIDDLE_ADDRESS_SPACE.
+ * OHCI1394_PHYS_UPPER_BOUND_FIXED and OHCI1394_MIDDLE_ADDRESS_SPACE are
+ * constants given by the OHCI spec.
+ */
+#define OHCI1394_PHYS_UPPER_BOUND_FIXED		0x000100000000ULL /* 4 GB */
+#define OHCI1394_PHYS_UPPER_BOUND_PROGRAMMED	0x010000000000ULL /* 1 TB */
+#define OHCI1394_MIDDLE_ADDRESS_SPACE		0xffff00000000ULL
+
 void ohci1394_init_iso_tasklet(struct ohci1394_iso_tasklet *tasklet,
 			       int type,
 			       void (*func)(unsigned long),

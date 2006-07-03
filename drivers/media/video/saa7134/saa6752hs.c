@@ -39,6 +39,23 @@ enum saa6752hs_videoformat {
 	SAA6752HS_VF_UNKNOWN,
 };
 
+struct saa6752hs_mpeg_params {
+	/* transport streams */
+	__u16				ts_pid_pmt;
+	__u16				ts_pid_audio;
+	__u16				ts_pid_video;
+	__u16				ts_pid_pcr;
+
+	/* audio */
+	enum v4l2_mpeg_audio_l2_bitrate au_l2_bitrate;
+
+	/* video */
+	enum v4l2_mpeg_video_aspect	vi_aspect;
+	enum v4l2_mpeg_video_bitrate_mode vi_bitrate_mode;
+	__u32 				vi_bitrate;
+	__u32 				vi_bitrate_peak;
+};
+
 static const struct v4l2_format v4l2_format_table[] =
 {
 	[SAA6752HS_VF_D1] =
@@ -55,18 +72,19 @@ static const struct v4l2_format v4l2_format_table[] =
 
 struct saa6752hs_state {
 	struct i2c_client             client;
-	struct v4l2_mpeg_compression  params;
+	struct v4l2_mpeg_compression  old_params;
+	struct saa6752hs_mpeg_params  params;
 	enum saa6752hs_videoformat    video_format;
 	v4l2_std_id                   standard;
 };
 
 enum saa6752hs_command {
 	SAA6752HS_COMMAND_RESET = 0,
-    	SAA6752HS_COMMAND_STOP = 1,
-    	SAA6752HS_COMMAND_START = 2,
-    	SAA6752HS_COMMAND_PAUSE = 3,
-    	SAA6752HS_COMMAND_RECONFIGURE = 4,
-    	SAA6752HS_COMMAND_SLEEP = 5,
+	SAA6752HS_COMMAND_STOP = 1,
+	SAA6752HS_COMMAND_START = 2,
+	SAA6752HS_COMMAND_PAUSE = 3,
+	SAA6752HS_COMMAND_RECONFIGURE = 4,
+	SAA6752HS_COMMAND_SLEEP = 5,
 	SAA6752HS_COMMAND_RECONFIGURE_FORCE = 6,
 
 	SAA6752HS_COMMAND_MAX
@@ -129,7 +147,22 @@ static u8 PMT[] = {
 	0x00, 0x00, 0x00, 0x00 /* CRC32 */
 };
 
-static struct v4l2_mpeg_compression param_defaults =
+static struct saa6752hs_mpeg_params param_defaults =
+{
+	.ts_pid_pmt      = 16,
+	.ts_pid_video    = 260,
+	.ts_pid_audio    = 256,
+	.ts_pid_pcr      = 259,
+
+	.vi_aspect       = V4L2_MPEG_VIDEO_ASPECT_4x3,
+	.vi_bitrate      = 4000,
+	.vi_bitrate_peak = 6000,
+	.vi_bitrate_mode = V4L2_MPEG_VIDEO_BITRATE_MODE_VBR,
+
+	.au_l2_bitrate   = V4L2_MPEG_AUDIO_L2_BITRATE_256K,
+};
+
+static struct v4l2_mpeg_compression old_param_defaults =
 {
 	.st_type         = V4L2_MPEG_TS_2,
 	.st_bitrate      = {
@@ -228,45 +261,57 @@ static int saa6752hs_chip_command(struct i2c_client* client,
 
 
 static int saa6752hs_set_bitrate(struct i2c_client* client,
-				 struct v4l2_mpeg_compression* params)
+				 struct saa6752hs_mpeg_params* params)
 {
 	u8 buf[3];
+	int tot_bitrate;
 
 	/* set the bitrate mode */
 	buf[0] = 0x71;
-	buf[1] = (params->vi_bitrate.mode == V4L2_BITRATE_VBR) ? 0 : 1;
+	buf[1] = (params->vi_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR) ? 0 : 1;
 	i2c_master_send(client, buf, 2);
 
 	/* set the video bitrate */
-	if (params->vi_bitrate.mode == V4L2_BITRATE_VBR) {
+	if (params->vi_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR) {
 		/* set the target bitrate */
 		buf[0] = 0x80;
-	    	buf[1] = params->vi_bitrate.target >> 8;
-		buf[2] = params->vi_bitrate.target & 0xff;
+		buf[1] = params->vi_bitrate >> 8;
+		buf[2] = params->vi_bitrate & 0xff;
 		i2c_master_send(client, buf, 3);
 
 		/* set the max bitrate */
 		buf[0] = 0x81;
-	    	buf[1] = params->vi_bitrate.max >> 8;
-		buf[2] = params->vi_bitrate.max & 0xff;
+		buf[1] = params->vi_bitrate_peak >> 8;
+		buf[2] = params->vi_bitrate_peak & 0xff;
 		i2c_master_send(client, buf, 3);
+		tot_bitrate = params->vi_bitrate_peak;
 	} else {
 		/* set the target bitrate (no max bitrate for CBR) */
 		buf[0] = 0x81;
-	    	buf[1] = params->vi_bitrate.target >> 8;
-		buf[2] = params->vi_bitrate.target & 0xff;
+		buf[1] = params->vi_bitrate >> 8;
+		buf[2] = params->vi_bitrate & 0xff;
 		i2c_master_send(client, buf, 3);
+		tot_bitrate = params->vi_bitrate;
 	}
 
 	/* set the audio bitrate */
 	buf[0] = 0x94;
-	buf[1] = (256 == params->au_bitrate.target) ? 0 : 1;
+	buf[1] = (V4L2_MPEG_AUDIO_L2_BITRATE_256K == params->au_l2_bitrate) ? 0 : 1;
 	i2c_master_send(client, buf, 2);
+	tot_bitrate += (V4L2_MPEG_AUDIO_L2_BITRATE_256K == params->au_l2_bitrate) ? 256 : 384;
+
+	/* Note: the total max bitrate is determined by adding the video and audio
+	   bitrates together and also adding an extra 768kbit/s to stay on the
+	   safe side. If more control should be required, then an extra MPEG control
+	   should be added. */
+	tot_bitrate += 768;
+	if (tot_bitrate > MPEG_TOTAL_TARGET_BITRATE_MAX)
+		tot_bitrate = MPEG_TOTAL_TARGET_BITRATE_MAX;
 
 	/* set the total bitrate */
 	buf[0] = 0xb1;
-	buf[1] = params->st_bitrate.target >> 8;
-	buf[2] = params->st_bitrate.target & 0xff;
+	buf[1] = tot_bitrate >> 8;
+	buf[2] = tot_bitrate & 0xff;
 	i2c_master_send(client, buf, 3);
 
 	return 0;
@@ -318,50 +363,188 @@ static void saa6752hs_set_subsampling(struct i2c_client* client,
 }
 
 
-static void saa6752hs_set_params(struct i2c_client* client,
+static void saa6752hs_old_set_params(struct i2c_client* client,
 				 struct v4l2_mpeg_compression* params)
 {
 	struct saa6752hs_state *h = i2c_get_clientdata(client);
 
 	/* check PIDs */
-	if (params->ts_pid_pmt <= MPEG_PID_MAX)
+	if (params->ts_pid_pmt <= MPEG_PID_MAX) {
+		h->old_params.ts_pid_pmt = params->ts_pid_pmt;
 		h->params.ts_pid_pmt = params->ts_pid_pmt;
-	if (params->ts_pid_pcr <= MPEG_PID_MAX)
+	}
+	if (params->ts_pid_pcr <= MPEG_PID_MAX) {
+		h->old_params.ts_pid_pcr = params->ts_pid_pcr;
 		h->params.ts_pid_pcr = params->ts_pid_pcr;
-	if (params->ts_pid_video <= MPEG_PID_MAX)
+	}
+	if (params->ts_pid_video <= MPEG_PID_MAX) {
+		h->old_params.ts_pid_video = params->ts_pid_video;
 		h->params.ts_pid_video = params->ts_pid_video;
-	if (params->ts_pid_audio <= MPEG_PID_MAX)
+	}
+	if (params->ts_pid_audio <= MPEG_PID_MAX) {
+		h->old_params.ts_pid_audio = params->ts_pid_audio;
 		h->params.ts_pid_audio = params->ts_pid_audio;
+	}
 
 	/* check bitrate parameters */
 	if ((params->vi_bitrate.mode == V4L2_BITRATE_CBR) ||
-	    (params->vi_bitrate.mode == V4L2_BITRATE_VBR))
-		h->params.vi_bitrate.mode = params->vi_bitrate.mode;
+	    (params->vi_bitrate.mode == V4L2_BITRATE_VBR)) {
+		h->old_params.vi_bitrate.mode = params->vi_bitrate.mode;
+		h->params.vi_bitrate_mode = (params->vi_bitrate.mode == V4L2_BITRATE_VBR) ?
+		       V4L2_MPEG_VIDEO_BITRATE_MODE_VBR : V4L2_MPEG_VIDEO_BITRATE_MODE_CBR;
+	}
 	if (params->vi_bitrate.mode != V4L2_BITRATE_NONE)
-		h->params.st_bitrate.target = params->st_bitrate.target;
+		h->old_params.st_bitrate.target = params->st_bitrate.target;
 	if (params->vi_bitrate.mode != V4L2_BITRATE_NONE)
-		h->params.vi_bitrate.target = params->vi_bitrate.target;
+		h->old_params.vi_bitrate.target = params->vi_bitrate.target;
 	if (params->vi_bitrate.mode == V4L2_BITRATE_VBR)
-		h->params.vi_bitrate.max = params->vi_bitrate.max;
+		h->old_params.vi_bitrate.max = params->vi_bitrate.max;
 	if (params->au_bitrate.mode != V4L2_BITRATE_NONE)
-		h->params.au_bitrate.target = params->au_bitrate.target;
+		h->old_params.au_bitrate.target = params->au_bitrate.target;
 
 	/* aspect ratio */
 	if (params->vi_aspect_ratio == V4L2_MPEG_ASPECT_4_3 ||
-	    params->vi_aspect_ratio == V4L2_MPEG_ASPECT_16_9)
-		h->params.vi_aspect_ratio = params->vi_aspect_ratio;
+	    params->vi_aspect_ratio == V4L2_MPEG_ASPECT_16_9) {
+		h->old_params.vi_aspect_ratio = params->vi_aspect_ratio;
+		if (params->vi_aspect_ratio == V4L2_MPEG_ASPECT_4_3)
+			h->params.vi_aspect = V4L2_MPEG_VIDEO_ASPECT_4x3;
+		else
+			h->params.vi_aspect = V4L2_MPEG_VIDEO_ASPECT_16x9;
+	}
 
 	/* range checks */
-	if (h->params.st_bitrate.target > MPEG_TOTAL_TARGET_BITRATE_MAX)
-		h->params.st_bitrate.target = MPEG_TOTAL_TARGET_BITRATE_MAX;
-	if (h->params.vi_bitrate.target > MPEG_VIDEO_TARGET_BITRATE_MAX)
-		h->params.vi_bitrate.target = MPEG_VIDEO_TARGET_BITRATE_MAX;
-	if (h->params.vi_bitrate.max > MPEG_VIDEO_MAX_BITRATE_MAX)
-		h->params.vi_bitrate.max = MPEG_VIDEO_MAX_BITRATE_MAX;
-	if (h->params.au_bitrate.target <= 256)
-		h->params.au_bitrate.target = 256;
+	if (h->old_params.st_bitrate.target > MPEG_TOTAL_TARGET_BITRATE_MAX)
+		h->old_params.st_bitrate.target = MPEG_TOTAL_TARGET_BITRATE_MAX;
+	if (h->old_params.vi_bitrate.target > MPEG_VIDEO_TARGET_BITRATE_MAX)
+		h->old_params.vi_bitrate.target = MPEG_VIDEO_TARGET_BITRATE_MAX;
+	if (h->old_params.vi_bitrate.max > MPEG_VIDEO_MAX_BITRATE_MAX)
+		h->old_params.vi_bitrate.max = MPEG_VIDEO_MAX_BITRATE_MAX;
+	h->params.vi_bitrate = params->vi_bitrate.target;
+	h->params.vi_bitrate_peak = params->vi_bitrate.max;
+	if (h->old_params.au_bitrate.target <= 256) {
+		h->old_params.au_bitrate.target = 256;
+		h->params.au_l2_bitrate = V4L2_MPEG_AUDIO_L2_BITRATE_256K;
+	}
+	else {
+		h->old_params.au_bitrate.target = 384;
+		h->params.au_l2_bitrate = V4L2_MPEG_AUDIO_L2_BITRATE_384K;
+	}
+}
+
+static int handle_ctrl(struct saa6752hs_mpeg_params *params,
+		struct v4l2_ext_control *ctrl, unsigned int cmd)
+{
+	int old = 0, new;
+	int set = (cmd == VIDIOC_S_EXT_CTRLS);
+
+	new = ctrl->value;
+	switch (ctrl->id) {
+		case V4L2_CID_MPEG_STREAM_TYPE:
+			old = V4L2_MPEG_STREAM_TYPE_MPEG2_TS;
+			if (set && new != old)
+				return -ERANGE;
+			new = old;
+			break;
+		case V4L2_CID_MPEG_STREAM_PID_PMT:
+			old = params->ts_pid_pmt;
+			if (set && new > MPEG_PID_MAX)
+				return -ERANGE;
+			if (new > MPEG_PID_MAX)
+				new = MPEG_PID_MAX;
+			params->ts_pid_pmt = new;
+			break;
+		case V4L2_CID_MPEG_STREAM_PID_AUDIO:
+			old = params->ts_pid_audio;
+			if (set && new > MPEG_PID_MAX)
+				return -ERANGE;
+			if (new > MPEG_PID_MAX)
+				new = MPEG_PID_MAX;
+			params->ts_pid_audio = new;
+			break;
+		case V4L2_CID_MPEG_STREAM_PID_VIDEO:
+			old = params->ts_pid_video;
+			if (set && new > MPEG_PID_MAX)
+				return -ERANGE;
+			if (new > MPEG_PID_MAX)
+				new = MPEG_PID_MAX;
+			params->ts_pid_video = new;
+			break;
+		case V4L2_CID_MPEG_STREAM_PID_PCR:
+			old = params->ts_pid_pcr;
+			if (set && new > MPEG_PID_MAX)
+				return -ERANGE;
+			if (new > MPEG_PID_MAX)
+				new = MPEG_PID_MAX;
+			params->ts_pid_pcr = new;
+			break;
+		case V4L2_CID_MPEG_AUDIO_ENCODING:
+			old = V4L2_MPEG_AUDIO_ENCODING_LAYER_2;
+			if (set && new != old)
+				return -ERANGE;
+			new = old;
+			break;
+		case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
+			old = params->au_l2_bitrate;
+			if (set && new != V4L2_MPEG_AUDIO_L2_BITRATE_256K &&
+				   new != V4L2_MPEG_AUDIO_L2_BITRATE_384K)
+				return -ERANGE;
+			if (new <= V4L2_MPEG_AUDIO_L2_BITRATE_256K)
+				new = V4L2_MPEG_AUDIO_L2_BITRATE_256K;
+			else
+				new = V4L2_MPEG_AUDIO_L2_BITRATE_384K;
+			params->au_l2_bitrate = new;
+			break;
+		case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
+			old = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000;
+			if (set && new != old)
+				return -ERANGE;
+			new = old;
+			break;
+		case V4L2_CID_MPEG_VIDEO_ENCODING:
+			old = V4L2_MPEG_VIDEO_ENCODING_MPEG_2;
+			if (set && new != old)
+				return -ERANGE;
+			new = old;
+			break;
+		case V4L2_CID_MPEG_VIDEO_ASPECT:
+			old = params->vi_aspect;
+			if (set && new != V4L2_MPEG_VIDEO_ASPECT_16x9 &&
+				   new != V4L2_MPEG_VIDEO_ASPECT_4x3)
+				return -ERANGE;
+			if (new != V4L2_MPEG_VIDEO_ASPECT_16x9)
+				new = V4L2_MPEG_VIDEO_ASPECT_4x3;
+			params->vi_aspect = new;
+			break;
+		case V4L2_CID_MPEG_VIDEO_BITRATE:
+			old = params->vi_bitrate * 1000;
+			new = 1000 * (new / 1000);
+			if (set && new > MPEG_VIDEO_TARGET_BITRATE_MAX * 1000)
+				return -ERANGE;
+			if (new > MPEG_VIDEO_TARGET_BITRATE_MAX * 1000)
+				new = MPEG_VIDEO_TARGET_BITRATE_MAX * 1000;
+			params->vi_bitrate = new / 1000;
+			break;
+		case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
+			old = params->vi_bitrate_peak * 1000;
+			new = 1000 * (new / 1000);
+			if (set && new > MPEG_VIDEO_TARGET_BITRATE_MAX * 1000)
+				return -ERANGE;
+			if (new > MPEG_VIDEO_TARGET_BITRATE_MAX * 1000)
+				new = MPEG_VIDEO_TARGET_BITRATE_MAX * 1000;
+			params->vi_bitrate_peak = new / 1000;
+			break;
+		case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+			old = params->vi_bitrate_mode;
+			params->vi_bitrate_mode = new;
+			break;
+		default:
+			return -EINVAL;
+	}
+	if (cmd == VIDIOC_G_EXT_CTRLS)
+		ctrl->value = old;
 	else
-		h->params.au_bitrate.target = 384;
+		ctrl->value = new;
+	return 0;
 }
 
 static int saa6752hs_init(struct i2c_client* client)
@@ -395,22 +578,22 @@ static int saa6752hs_init(struct i2c_client* client)
 	buf[2] = 0x0D;
 	i2c_master_send(client,buf,3);
 
-    	/* Set minimum Q-scale {4} */
+	/* Set minimum Q-scale {4} */
 	buf[0] = 0x82;
 	buf[1] = 0x04;
 	i2c_master_send(client,buf,2);
 
-    	/* Set maximum Q-scale {12} */
+	/* Set maximum Q-scale {12} */
 	buf[0] = 0x83;
 	buf[1] = 0x0C;
 	i2c_master_send(client,buf,2);
 
-    	/* Set Output Protocol */
+	/* Set Output Protocol */
 	buf[0] = 0xD0;
 	buf[1] = 0x81;
 	i2c_master_send(client,buf,2);
 
-    	/* Set video output stream format {TS} */
+	/* Set video output stream format {TS} */
 	buf[0] = 0xB0;
 	buf[1] = 0x05;
 	i2c_master_send(client,buf,2);
@@ -441,7 +624,7 @@ static int saa6752hs_init(struct i2c_client* client)
 	localPMT[sizeof(PMT) - 2] = (crc >> 8) & 0xFF;
 	localPMT[sizeof(PMT) - 1] = crc & 0xFF;
 
-    	/* Set Audio PID */
+	/* Set Audio PID */
 	buf[0] = 0xC1;
 	buf[1] = (h->params.ts_pid_audio >> 8) & 0xFF;
 	buf[2] = h->params.ts_pid_audio & 0xFF;
@@ -489,11 +672,11 @@ static int saa6752hs_init(struct i2c_client* client)
 	buf[3] = 0x82;
 	buf[4] = 0xB0;
 	buf[5] = buf2[0];
-	switch(h->params.vi_aspect_ratio) {
-	case V4L2_MPEG_ASPECT_16_9:
+	switch(h->params.vi_aspect) {
+	case V4L2_MPEG_VIDEO_ASPECT_16x9:
 		buf[6] = buf2[1] | 0x40;
 		break;
-	case V4L2_MPEG_ASPECT_4_3:
+	case V4L2_MPEG_VIDEO_ASPECT_4x3:
 	default:
 		buf[6] = buf2[1] & 0xBF;
 		break;
@@ -515,6 +698,7 @@ static int saa6752hs_attach(struct i2c_adapter *adap, int addr, int kind)
 		return -ENOMEM;
 	h->client = client_template;
 	h->params = param_defaults;
+	h->old_params = old_param_defaults;
 	h->client.adapter = adap;
 	h->client.addr = addr;
 
@@ -550,20 +734,45 @@ static int
 saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct saa6752hs_state *h = i2c_get_clientdata(client);
-	struct v4l2_mpeg_compression *params = arg;
+	struct v4l2_ext_controls *ctrls = arg;
+	struct v4l2_mpeg_compression *old_params = arg;
+	struct saa6752hs_mpeg_params params;
 	int err = 0;
+	int i;
 
 	switch (cmd) {
 	case VIDIOC_S_MPEGCOMP:
-		if (NULL == params) {
+		if (NULL == old_params) {
 			/* apply settings and start encoder */
 			saa6752hs_init(client);
 			break;
 		}
-		saa6752hs_set_params(client, params);
+		saa6752hs_old_set_params(client, old_params);
 		/* fall through */
 	case VIDIOC_G_MPEGCOMP:
-		*params = h->params;
+		*old_params = h->old_params;
+		break;
+	case VIDIOC_S_EXT_CTRLS:
+		if (ctrls->ctrl_class != V4L2_CTRL_CLASS_MPEG)
+			return -EINVAL;
+		if (ctrls->count == 0) {
+			/* apply settings and start encoder */
+			saa6752hs_init(client);
+			break;
+		}
+		/* fall through */
+	case VIDIOC_TRY_EXT_CTRLS:
+	case VIDIOC_G_EXT_CTRLS:
+		if (ctrls->ctrl_class != V4L2_CTRL_CLASS_MPEG)
+			return -EINVAL;
+		params = h->params;
+		for (i = 0; i < ctrls->count; i++) {
+			if ((err = handle_ctrl(&params, ctrls->controls + i, cmd))) {
+				ctrls->error_idx = i;
+				return err;
+			}
+		}
+		h->params = params;
 		break;
 	case VIDIOC_G_FMT:
 	{

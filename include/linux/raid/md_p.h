@@ -265,9 +265,12 @@ struct mdp_superblock_1 {
 
 /* feature_map bits */
 #define MD_FEATURE_BITMAP_OFFSET	1
+#define	MD_FEATURE_RECOVERY_OFFSET	2 /* recovery_offset is present and
+					   * must be honoured
+					   */
 #define	MD_FEATURE_RESHAPE_ACTIVE	4
 
-#define	MD_FEATURE_ALL			5
+#define	MD_FEATURE_ALL			(1|2|4)
 
 #endif 
 

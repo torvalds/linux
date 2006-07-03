@@ -517,9 +517,9 @@ static void __devinit snd_uda1341_proc_init(struct snd_card *card, struct l3_cli
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(card, "uda1341", &entry))
-		snd_info_set_text_ops(entry, clnt, 1024, snd_uda1341_proc_read);
+		snd_info_set_text_ops(entry, clnt, snd_uda1341_proc_read);
 	if (! snd_card_proc_new(card, "uda1341-regs", &entry))
-		snd_info_set_text_ops(entry, clnt, 1024, snd_uda1341_proc_regs_read);
+		snd_info_set_text_ops(entry, clnt, snd_uda1341_proc_regs_read);
 }
 
 /* }}} */

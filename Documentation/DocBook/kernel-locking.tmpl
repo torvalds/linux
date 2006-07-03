@@ -1590,7 +1590,7 @@ the amount of locking which needs to be done.
     <para>
       Our final dilemma is this: when can we actually destroy the
       removed element?  Remember, a reader might be stepping through
-      this element in the list right now: it we free this element and
+      this element in the list right now: if we free this element and
       the <symbol>next</symbol> pointer changes, the reader will jump
       off into garbage and crash.  We need to wait until we know that
       all the readers who were traversing the list when we deleted the

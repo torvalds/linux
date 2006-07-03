@@ -7,7 +7,6 @@
  *                           Hitoshi Yamamoto, Mamoru Sakugawa
  */
 
-#include <linux/config.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -87,7 +86,7 @@ void __init init_IRQ(void)
 #if defined(CONFIG_SMC91X)
 	/* INT0 : LAN controller (SMC91111) */
 	irq_desc[M32R_IRQ_INT0].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_INT0].handler = &mappi2_irq_type;
+	irq_desc[M32R_IRQ_INT0].chip = &mappi2_irq_type;
 	irq_desc[M32R_IRQ_INT0].action = 0;
 	irq_desc[M32R_IRQ_INT0].depth = 1;
 	icu_data[M32R_IRQ_INT0].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD10;
@@ -96,7 +95,7 @@ void __init init_IRQ(void)
 
 	/* MFT2 : system timer */
 	irq_desc[M32R_IRQ_MFT2].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_MFT2].handler = &mappi2_irq_type;
+	irq_desc[M32R_IRQ_MFT2].chip = &mappi2_irq_type;
 	irq_desc[M32R_IRQ_MFT2].action = 0;
 	irq_desc[M32R_IRQ_MFT2].depth = 1;
 	icu_data[M32R_IRQ_MFT2].icucr = M32R_ICUCR_IEN;
@@ -105,7 +104,7 @@ void __init init_IRQ(void)
 #ifdef CONFIG_SERIAL_M32R_SIO
 	/* SIO0_R : uart receive data */
 	irq_desc[M32R_IRQ_SIO0_R].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO0_R].handler = &mappi2_irq_type;
+	irq_desc[M32R_IRQ_SIO0_R].chip = &mappi2_irq_type;
 	irq_desc[M32R_IRQ_SIO0_R].action = 0;
 	irq_desc[M32R_IRQ_SIO0_R].depth = 1;
 	icu_data[M32R_IRQ_SIO0_R].icucr = 0;
@@ -113,14 +112,14 @@ void __init init_IRQ(void)
 
 	/* SIO0_S : uart send data */
 	irq_desc[M32R_IRQ_SIO0_S].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO0_S].handler = &mappi2_irq_type;
+	irq_desc[M32R_IRQ_SIO0_S].chip = &mappi2_irq_type;
 	irq_desc[M32R_IRQ_SIO0_S].action = 0;
 	irq_desc[M32R_IRQ_SIO0_S].depth = 1;
 	icu_data[M32R_IRQ_SIO0_S].icucr = 0;
 	disable_mappi2_irq(M32R_IRQ_SIO0_S);
 	/* SIO1_R : uart receive data */
 	irq_desc[M32R_IRQ_SIO1_R].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO1_R].handler = &mappi2_irq_type;
+	irq_desc[M32R_IRQ_SIO1_R].chip = &mappi2_irq_type;
 	irq_desc[M32R_IRQ_SIO1_R].action = 0;
 	irq_desc[M32R_IRQ_SIO1_R].depth = 1;
 	icu_data[M32R_IRQ_SIO1_R].icucr = 0;
@@ -128,7 +127,7 @@ void __init init_IRQ(void)
 
 	/* SIO1_S : uart send data */
 	irq_desc[M32R_IRQ_SIO1_S].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO1_S].handler = &mappi2_irq_type;
+	irq_desc[M32R_IRQ_SIO1_S].chip = &mappi2_irq_type;
 	irq_desc[M32R_IRQ_SIO1_S].action = 0;
 	irq_desc[M32R_IRQ_SIO1_S].depth = 1;
 	icu_data[M32R_IRQ_SIO1_S].icucr = 0;
@@ -138,7 +137,7 @@ void __init init_IRQ(void)
 #if defined(CONFIG_USB)
 	/* INT1 : USB Host controller interrupt */
 	irq_desc[M32R_IRQ_INT1].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_INT1].handler = &mappi2_irq_type;
+	irq_desc[M32R_IRQ_INT1].chip = &mappi2_irq_type;
 	irq_desc[M32R_IRQ_INT1].action = 0;
 	irq_desc[M32R_IRQ_INT1].depth = 1;
 	icu_data[M32R_IRQ_INT1].icucr = M32R_ICUCR_ISMOD01;
@@ -147,7 +146,7 @@ void __init init_IRQ(void)
 
 	/* ICUCR40: CFC IREQ */
 	irq_desc[PLD_IRQ_CFIREQ].status = IRQ_DISABLED;
-	irq_desc[PLD_IRQ_CFIREQ].handler = &mappi2_irq_type;
+	irq_desc[PLD_IRQ_CFIREQ].chip = &mappi2_irq_type;
 	irq_desc[PLD_IRQ_CFIREQ].action = 0;
 	irq_desc[PLD_IRQ_CFIREQ].depth = 1;	/* disable nested irq */
 	icu_data[PLD_IRQ_CFIREQ].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD01;
@@ -156,7 +155,7 @@ void __init init_IRQ(void)
 #if defined(CONFIG_M32R_CFC)
 	/* ICUCR41: CFC Insert */
 	irq_desc[PLD_IRQ_CFC_INSERT].status = IRQ_DISABLED;
-	irq_desc[PLD_IRQ_CFC_INSERT].handler = &mappi2_irq_type;
+	irq_desc[PLD_IRQ_CFC_INSERT].chip = &mappi2_irq_type;
 	irq_desc[PLD_IRQ_CFC_INSERT].action = 0;
 	irq_desc[PLD_IRQ_CFC_INSERT].depth = 1;	/* disable nested irq */
 	icu_data[PLD_IRQ_CFC_INSERT].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD00;
@@ -164,7 +163,7 @@ void __init init_IRQ(void)
 
 	/* ICUCR42: CFC Eject */
 	irq_desc[PLD_IRQ_CFC_EJECT].status = IRQ_DISABLED;
-	irq_desc[PLD_IRQ_CFC_EJECT].handler = &mappi2_irq_type;
+	irq_desc[PLD_IRQ_CFC_EJECT].chip = &mappi2_irq_type;
 	irq_desc[PLD_IRQ_CFC_EJECT].action = 0;
 	irq_desc[PLD_IRQ_CFC_EJECT].depth = 1;	/* disable nested irq */
 	icu_data[PLD_IRQ_CFC_EJECT].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD10;

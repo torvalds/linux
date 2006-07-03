@@ -31,6 +31,8 @@
     nForce3 250Gb MCP		00E4
     nForce4 MCP			0052
     nForce4 MCP-04		0034
+    nForce4 MCP51		0264
+    nForce4 MCP55		0368
 
     This driver supports the 2 SMBuses that are included in the MCP of the
     nForce2/3/4 chipsets.
@@ -64,6 +66,7 @@ struct nforce2_smbus {
 
 /*
  * nVidia nForce2 SMBus control register definitions
+ * (Newer incarnations use standard BARs 4 and 5 instead)
  */
 #define NFORCE_PCI_SMB1	0x50
 #define NFORCE_PCI_SMB2	0x54
@@ -259,6 +262,8 @@ static struct pci_device_id nforce2_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE3S_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE4_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP04_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SMBUS) },
 	{ 0 }
 };
 
@@ -266,19 +271,29 @@ static struct pci_device_id nforce2_ids[] = {
 MODULE_DEVICE_TABLE (pci, nforce2_ids);
 
 
-static int __devinit nforce2_probe_smb (struct pci_dev *dev, int reg,
-	struct nforce2_smbus *smbus, char *name)
+static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
+	int alt_reg, struct nforce2_smbus *smbus, const char *name)
 {
-	u16 iobase;
 	int error;
 
-	if (pci_read_config_word(dev, reg, &iobase) != PCIBIOS_SUCCESSFUL) {
-		dev_err(&smbus->adapter.dev, "Error reading PCI config for %s\n", name);
-		return -1;
+	smbus->base = pci_resource_start(dev, bar);
+	if (smbus->base) {
+		smbus->size = pci_resource_len(dev, bar);
+	} else {
+		/* Older incarnations of the device used non-standard BARs */
+		u16 iobase;
+
+		if (pci_read_config_word(dev, alt_reg, &iobase)
+		    != PCIBIOS_SUCCESSFUL) {
+			dev_err(&dev->dev, "Error reading PCI config for %s\n",
+				name);
+			return -1;
+		}
+
+		smbus->base = iobase & PCI_BASE_ADDRESS_IO_MASK;
+		smbus->size = 8;
 	}
-	smbus->dev  = dev;
-	smbus->base = iobase & 0xfffc;
-	smbus->size = 8;
+	smbus->dev = dev;
 
 	if (!request_region(smbus->base, smbus->size, nforce2_driver.name)) {
 		dev_err(&smbus->adapter.dev, "Error requesting region %02x .. %02X for %s\n",
@@ -313,12 +328,13 @@ static int __devinit nforce2_probe(struct pci_dev *dev, const struct pci_device_
 	pci_set_drvdata(dev, smbuses);
 
 	/* SMBus adapter 1 */
-	res1 = nforce2_probe_smb (dev, NFORCE_PCI_SMB1, &smbuses[0], "SMB1");
+	res1 = nforce2_probe_smb(dev, 4, NFORCE_PCI_SMB1, &smbuses[0], "SMB1");
 	if (res1 < 0) {
 		dev_err(&dev->dev, "Error probing SMB1.\n");
 		smbuses[0].base = 0;	/* to have a check value */
 	}
-	res2 = nforce2_probe_smb (dev, NFORCE_PCI_SMB2, &smbuses[1], "SMB2");
+	/* SMBus adapter 2 */
+	res2 = nforce2_probe_smb(dev, 5, NFORCE_PCI_SMB2, &smbuses[1], "SMB2");
 	if (res2 < 0) {
 		dev_err(&dev->dev, "Error probing SMB2.\n");
 		smbuses[1].base = 0;	/* to have a check value */

@@ -152,7 +152,7 @@ void destroy_context_skas(struct mm_struct *mm)
 		free_page(mmu->id.stack);
 		pte_lock_deinit(virt_to_page(mmu->last_page_table));
 		pte_free_kernel((pte_t *) mmu->last_page_table);
-                dec_page_state(nr_page_table_pages);
+		dec_zone_page_state(virt_to_page(mmu->last_page_table), NR_PAGETABLE);
 #ifdef CONFIG_3_LEVEL_PGTABLES
 		pmd_free((pmd_t *) mmu->last_pmd);
 #endif

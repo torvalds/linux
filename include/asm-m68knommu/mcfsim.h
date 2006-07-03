@@ -12,7 +12,6 @@
 #define	mcfsim_h
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	Include 5204, 5206/e, 5235, 5249, 5270/5271, 5272, 5280/5282,
@@ -36,6 +35,8 @@
 #include <asm/m528xsim.h>
 #elif defined(CONFIG_M5307)
 #include <asm/m5307sim.h>
+#elif defined(CONFIG_M532x)
+#include <asm/m532xsim.h>
 #elif defined(CONFIG_M5407)
 #include <asm/m5407sim.h>
 #endif
@@ -100,6 +101,7 @@
 #ifndef MCFSIM_IMR_MASKALL
 #define	MCFSIM_IMR_MASKALL	0x3ffe		/* All intr sources */
 #endif
+
 
 /*
  *	PIT interrupt settings, if not found in mXXXXsim.h file.

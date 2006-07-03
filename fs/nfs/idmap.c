@@ -47,7 +47,6 @@
 #include <linux/workqueue.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
 
-#include <linux/nfs_fs_sb.h>
 #include <linux/nfs_fs.h>
 
 #include <linux/nfs_idmap.h>

@@ -8,7 +8,6 @@
 #include "linux/list.h"
 #include "linux/kd.h"
 #include "linux/interrupt.h"
-#include "linux/devfs_fs_kernel.h"
 #include "asm/uaccess.h"
 #include "chan_kern.h"
 #include "irq_user.h"
@@ -374,7 +373,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data,
 	int err;
 
 	/* Interrupts are enabled here because we registered the interrupt with
-	 * SA_INTERRUPT (see line_setup_irq).*/
+	 * IRQF_DISABLED (see line_setup_irq).*/
 
 	spin_lock_irq(&line->lock);
 	err = flush_buffer(line);
@@ -407,7 +406,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data,
 int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 {
 	struct line_driver *driver = line->driver;
-	int err = 0, flags = SA_INTERRUPT | SA_SHIRQ | SA_SAMPLE_RANDOM;
+	int err = 0, flags = IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM;
 
 	if (input)
 		err = um_request_irq(driver->read_irq, fd, IRQ_READ,
@@ -655,7 +654,6 @@ struct tty_driver *line_register_devfs(struct lines *set,
 
 	driver->driver_name = line_driver->name;
 	driver->name = line_driver->device_name;
-	driver->devfs_name = line_driver->devfs_name;
 	driver->major = line_driver->major;
 	driver->minor_start = line_driver->minor_start;
 	driver->type = line_driver->type;
@@ -769,7 +767,7 @@ void register_winch_irq(int fd, int tty_fd, int pid, struct tty_struct *tty)
 	spin_unlock(&winch_handler_lock);
 
 	if(um_request_irq(WINCH_IRQ, fd, IRQ_READ, winch_interrupt,
-			  SA_INTERRUPT | SA_SHIRQ | SA_SAMPLE_RANDOM,
+			  IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM,
 			  "winch", winch) < 0)
 		printk("register_winch_irq - failed to register IRQ\n");
 }

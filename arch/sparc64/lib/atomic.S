@@ -4,7 +4,6 @@
  * Copyright (C) 1999 David S. Miller (davem@redhat.com)
  */
 
-#include <linux/config.h>
 #include <asm/asi.h>
 
 	.text

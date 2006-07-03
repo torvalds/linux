@@ -18,7 +18,6 @@
 #ifndef _EDAC_MC_H_
 #define _EDAC_MC_H_
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -79,14 +78,16 @@ extern int edac_debug_level;
 
 #endif  /* !CONFIG_EDAC_DEBUG */
 
-#define edac_xstr(s) edac_str(s)
-#define edac_str(s) #s
-#define EDAC_MOD_STR edac_xstr(KBUILD_BASENAME)
-
 #define BIT(x) (1 << (x))
 
 #define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, \
 	PCI_DEVICE_ID_ ## vend ## _ ## dev
+
+#if defined(CONFIG_X86) && defined(CONFIG_PCI)
+#define dev_name(dev) pci_name(to_pci_dev(dev))
+#else
+#define dev_name(dev) to_platform_device(dev)->name
+#endif
 
 /* memory devices */
 enum dev_type {
@@ -327,10 +328,10 @@ struct mem_ctl_info {
 	struct csrow_info *csrows;
 	/*
 	 * FIXME - what about controllers on other busses? - IDs must be
-	 * unique.  pdev pointer should be sufficiently unique, but
+	 * unique.  dev pointer should be sufficiently unique, but
 	 * BUS:SLOT.FUNC numbers may not be unique.
 	 */
-	struct pci_dev *pdev;
+	struct device *dev;
 	const char *mod_name;
 	const char *mod_ver;
 	const char *ctl_name;
@@ -352,6 +353,8 @@ struct mem_ctl_info {
 	struct kobject edac_mci_kobj;
 	struct completion kobj_complete;
 };
+
+#ifdef CONFIG_PCI
 
 /* write all or some bits in a byte-register*/
 static inline void pci_write_bits8(struct pci_dev *pdev, int offset, u8 value,
@@ -401,14 +404,16 @@ static inline void pci_write_bits32(struct pci_dev *pdev, int offset,
 	pci_write_config_dword(pdev, offset, value);
 }
 
+#endif /* CONFIG_PCI */
+
 #ifdef CONFIG_EDAC_DEBUG
 void edac_mc_dump_channel(struct channel_info *chan);
 void edac_mc_dump_mci(struct mem_ctl_info *mci);
 void edac_mc_dump_csrow(struct csrow_info *csrow);
 #endif  /* CONFIG_EDAC_DEBUG */
 
-extern int edac_mc_add_mc(struct mem_ctl_info *mci);
-extern struct mem_ctl_info * edac_mc_del_mc(struct pci_dev *pdev);
+extern int edac_mc_add_mc(struct mem_ctl_info *mci,int mc_idx);
+extern struct mem_ctl_info * edac_mc_del_mc(struct device *dev);
 extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 					unsigned long page);
 extern void edac_mc_scrub_block(unsigned long page, unsigned long offset,

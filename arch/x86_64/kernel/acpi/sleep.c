@@ -26,7 +26,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -35,6 +34,8 @@
 #include <linux/pci.h>
 #include <linux/bootmem.h>
 #include <linux/acpi.h>
+#include <linux/cpumask.h>
+
 #include <asm/mpspec.h>
 #include <asm/io.h>
 #include <asm/apic.h>
@@ -66,7 +67,8 @@ static void init_low_mapping(void)
 	pgd_t *slot0 = pgd_offset(current->mm, 0UL);
 	low_ptr = *slot0;
 	set_pgd(slot0, *pgd_offset(current->mm, PAGE_OFFSET));
-	flush_tlb_all();
+	WARN_ON(num_online_cpus() != 1);
+	local_flush_tlb();
 }
 
 /**
@@ -92,7 +94,7 @@ int acpi_save_state_mem(void)
 void acpi_restore_state_mem(void)
 {
 	set_pgd(pgd_offset(current->mm, 0UL), low_ptr);
-	flush_tlb_all();
+	local_flush_tlb();
 }
 
 /**

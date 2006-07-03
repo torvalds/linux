@@ -352,7 +352,7 @@ static int __init corgikbd_probe(struct platform_device *pdev)
 	for (i = 0; i < CORGI_KEY_SENSE_NUM; i++) {
 		pxa_gpio_mode(CORGI_GPIO_KEY_SENSE(i) | GPIO_IN);
 		if (request_irq(CORGI_IRQ_GPIO_KEY_SENSE(i), corgikbd_interrupt,
-				SA_INTERRUPT | SA_TRIGGER_RISING,
+				IRQF_DISABLED | IRQF_TRIGGER_RISING,
 				"corgikbd", corgikbd))
 			printk(KERN_WARNING "corgikbd: Can't get IRQ: %d!\n", i);
 	}

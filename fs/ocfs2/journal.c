@@ -49,7 +49,7 @@
 
 #include "buffer_head_io.h"
 
-spinlock_t trans_inc_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(trans_inc_lock);
 
 static int ocfs2_force_read_journal(struct inode *inode);
 static int ocfs2_recover_node(struct ocfs2_super *osb,
@@ -222,8 +222,7 @@ void ocfs2_handle_add_inode(struct ocfs2_journal_handle *handle,
 	BUG_ON(!list_empty(&OCFS2_I(inode)->ip_handle_list));
 
 	OCFS2_I(inode)->ip_handle = handle;
-	list_del(&(OCFS2_I(inode)->ip_handle_list));
-	list_add_tail(&(OCFS2_I(inode)->ip_handle_list), &(handle->inode_list));
+	list_move_tail(&(OCFS2_I(inode)->ip_handle_list), &(handle->inode_list));
 }
 
 static void ocfs2_handle_unlock_inodes(struct ocfs2_journal_handle *handle)
@@ -785,8 +784,7 @@ int ocfs2_journal_load(struct ocfs2_journal *journal)
 	}
 
 	/* Launch the commit thread */
-	osb->commit_task = kthread_run(ocfs2_commit_thread, osb, "ocfs2cmt-%d",
-				       osb->osb_id);
+	osb->commit_task = kthread_run(ocfs2_commit_thread, osb, "ocfs2cmt");
 	if (IS_ERR(osb->commit_task)) {
 		status = PTR_ERR(osb->commit_task);
 		osb->commit_task = NULL;
@@ -1119,7 +1117,7 @@ void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)
 		goto out;
 
 	osb->recovery_thread_task =  kthread_run(__ocfs2_recovery_thread, osb,
-						 "ocfs2rec-%d", osb->osb_id);
+						 "ocfs2rec");
 	if (IS_ERR(osb->recovery_thread_task)) {
 		mlog_errno((int)PTR_ERR(osb->recovery_thread_task));
 		osb->recovery_thread_task = NULL;

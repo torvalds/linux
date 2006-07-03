@@ -63,12 +63,18 @@ enum symbol_type {
 	S_UNKNOWN, S_BOOLEAN, S_TRISTATE, S_INT, S_HEX, S_STRING, S_OTHER
 };
 
+enum {
+	S_DEF_USER,		/* main user value */
+	S_DEF_AUTO,
+};
+
 struct symbol {
 	struct symbol *next;
 	char *name;
 	char *help;
 	enum symbol_type type;
-	struct symbol_value curr, user;
+	struct symbol_value curr;
+	struct symbol_value def[4];
 	tristate visible;
 	int flags;
 	struct property *prop;
@@ -78,10 +84,7 @@ struct symbol {
 
 #define for_all_symbols(i, sym) for (i = 0; i < 257; i++) for (sym = symbol_hash[i]; sym; sym = sym->next) if (sym->type != S_OTHER)
 
-#define SYMBOL_YES		0x0001
-#define SYMBOL_MOD		0x0002
-#define SYMBOL_NO		0x0004
-#define SYMBOL_CONST		0x0007
+#define SYMBOL_CONST		0x0001
 #define SYMBOL_CHECK		0x0008
 #define SYMBOL_CHOICE		0x0010
 #define SYMBOL_CHOICEVAL	0x0020
@@ -90,10 +93,14 @@ struct symbol {
 #define SYMBOL_OPTIONAL		0x0100
 #define SYMBOL_WRITE		0x0200
 #define SYMBOL_CHANGED		0x0400
-#define SYMBOL_NEW		0x0800
 #define SYMBOL_AUTO		0x1000
 #define SYMBOL_CHECKED		0x2000
 #define SYMBOL_WARNED		0x8000
+#define SYMBOL_DEF		0x10000
+#define SYMBOL_DEF_USER		0x10000
+#define SYMBOL_DEF_AUTO		0x20000
+#define SYMBOL_DEF3		0x40000
+#define SYMBOL_DEF4		0x80000
 
 #define SYMBOL_MAXLENGTH	256
 #define SYMBOL_HASHSIZE		257
@@ -149,6 +156,7 @@ struct file *lookup_file(const char *name);
 
 extern struct symbol symbol_yes, symbol_no, symbol_mod;
 extern struct symbol *modules_sym;
+extern struct symbol *sym_defconfig_list;
 extern int cdebug;
 struct expr *expr_alloc_symbol(struct symbol *sym);
 struct expr *expr_alloc_one(enum expr_type type, struct expr *ce);

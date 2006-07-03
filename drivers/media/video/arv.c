@@ -18,9 +18,7 @@
  * 2003-09-01:	Support w3cam by Takeo Takahashi
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -31,6 +29,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/mutex.h>
 
 #include <asm/uaccess.h>
@@ -212,7 +211,7 @@ void init_iic(void)
 	ar_outl(0x0300, PLDI2CMOD); 	/* I2CMOD ACK/8b-data/7b-addr/auto */
 	ar_outl(0x1, PLDI2CACK);	/* I2CACK ACK                      */
 
-    	/* I2C CLK */
+	/* I2C CLK */
 	/* 50MH-100k */
 	if (freq == 75) {
 		ar_outl(369, PLDI2CFREQ);	/* BCLK = 75MHz */

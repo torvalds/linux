@@ -435,7 +435,7 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 	 *	Grab the IRQ
 	 */
 
-	err = request_irq(dev->irq, &mc32_interrupt, SA_SHIRQ | SA_SAMPLE_RANDOM, DRV_NAME, dev);
+	err = request_irq(dev->irq, &mc32_interrupt, IRQF_SHARED | IRQF_SAMPLE_RANDOM, DRV_NAME, dev);
 	if (err) {
 		release_region(dev->base_addr, MC32_IO_EXTENT);
 		printk(KERN_ERR "%s: unable to get IRQ %d.\n", DRV_NAME, dev->irq);
@@ -1031,8 +1031,7 @@ static int mc32_send_packet(struct sk_buff *skb, struct net_device *dev)
 		return 1;
 	}
 
-	skb = skb_padto(skb, ETH_ZLEN);
-	if (skb == NULL) {
+	if (skb_padto(skb, ETH_ZLEN)) {
 		netif_wake_queue(dev);
 		return 0;
 	}

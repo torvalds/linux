@@ -9,7 +9,6 @@
  * Copyright (C) 2000 YAEGASHI Takeshi
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -154,7 +153,7 @@ int hd64465_irq_demux(int irq)
 	return irq;
 }
 
-static struct irqaction irq0  = { hd64465_interrupt, SA_INTERRUPT, CPU_MASK_NONE, "HD64465", NULL, NULL};
+static struct irqaction irq0  = { hd64465_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "HD64465", NULL, NULL};
 
 
 static int __init setup_hd64465(void)
@@ -182,7 +181,7 @@ static int __init setup_hd64465(void)
 	outw(0xffff, HD64465_REG_NIMR); 	/* mask all interrupts */
 
 	for (i = 0; i < HD64465_IRQ_NUM ; i++) {
-		irq_desc[HD64465_IRQ_BASE + i].handler = &hd64465_irq_type;
+		irq_desc[HD64465_IRQ_BASE + i].chip = &hd64465_irq_type;
 	}
 
 	setup_irq(CONFIG_HD64465_IRQ, &irq0);

@@ -32,15 +32,8 @@
 
 static struct i386_cpu cpu_devices[NR_CPUS];
 
-int arch_register_cpu(int num){
-	struct node *parent = NULL;
-
-#ifdef CONFIG_NUMA
-	int node = cpu_to_node(num);
-	if (node_online(node))
-		parent = &node_devices[node].node;
-#endif /* CONFIG_NUMA */
-
+int arch_register_cpu(int num)
+{
 	/*
 	 * CPU0 cannot be offlined due to several
 	 * restrictions and assumptions in kernel. This basically
@@ -50,21 +43,13 @@ int arch_register_cpu(int num){
 	if (!num)
 		cpu_devices[num].cpu.no_control = 1;
 
-	return register_cpu(&cpu_devices[num].cpu, num, parent);
+	return register_cpu(&cpu_devices[num].cpu, num);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
 
 void arch_unregister_cpu(int num) {
-	struct node *parent = NULL;
-
-#ifdef CONFIG_NUMA
-	int node = cpu_to_node(num);
-	if (node_online(node))
-		parent = &node_devices[node].node;
-#endif /* CONFIG_NUMA */
-
-	return unregister_cpu(&cpu_devices[num].cpu, parent);
+	return unregister_cpu(&cpu_devices[num].cpu);
 }
 EXPORT_SYMBOL(arch_register_cpu);
 EXPORT_SYMBOL(arch_unregister_cpu);
@@ -74,16 +59,13 @@ EXPORT_SYMBOL(arch_unregister_cpu);
 
 #ifdef CONFIG_NUMA
 #include <linux/mmzone.h>
-#include <asm/node.h>
-
-struct i386_node node_devices[MAX_NUMNODES];
 
 static int __init topology_init(void)
 {
 	int i;
 
 	for_each_online_node(i)
-		arch_register_node(i);
+		register_one_node(i);
 
 	for_each_present_cpu(i)
 		arch_register_cpu(i);

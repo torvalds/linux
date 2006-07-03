@@ -10,17 +10,13 @@
  * TODO (sorted by decreasing priority)
  *  -- set readonly flag for CDs, set removable flag for CF readers
  *  -- do inquiry and verify we got a disk and not a tape (for LUN mismatch)
- *  -- special case some senses, e.g. 3a/0 -> no media present, reduce retries
  *  -- verify the 13 conditions and do bulk resets
- *  -- kill last_pipe and simply do two-state clearing on both pipes
  *  -- highmem
  *  -- move top_sense and work_bcs into separate allocations (if they survive)
  *     for cache purists and esoteric architectures.
  *  -- Allocate structure for LUN 0 before the first ub_sync_tur, avoid NULL. ?
  *  -- prune comments, they are too volumnous
- *  -- Exterminate P3 printks
  *  -- Resove XXX's
- *  -- Redo "benh's retries", perhaps have spin-up code to handle them. V:D=?
  *  -- CLEAR, CLR2STS, CLRRS seem to be ripe for refactoring.
  */
 #include <linux/kernel.h>
@@ -28,12 +24,10 @@
 #include <linux/usb.h>
 #include <linux/usb_usual.h>
 #include <linux/blkdev.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/timer.h>
 #include <scsi/scsi.h>
 
 #define DRV_NAME "ub"
-#define DEVFS_NAME DRV_NAME
 
 #define UB_MAJOR 180
 
@@ -180,7 +174,6 @@ struct ub_dev;
 #define UB_DIR_ILLEGAL2	2
 #define UB_DIR_WRITE	3
 
-/* P3 */
 #define UB_DIR_CHAR(c)  (((c)==UB_DIR_WRITE)? 'w': \
 			 (((c)==UB_DIR_READ)? 'r': 'n'))
 
@@ -669,8 +662,9 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 	 */
 	n_elem = blk_rq_map_sg(lun->disk->queue, rq, &urq->sgv[0]);
 	if (n_elem < 0) {
+		/* Impossible, because blk_rq_map_sg should not hit ENOMEM. */
 		printk(KERN_INFO "%s: failed request map (%d)\n",
-		    lun->name, n_elem); /* P3 */
+		    lun->name, n_elem);
 		goto drop;
 	}
 	if (n_elem > UB_MAX_REQ_SG) {	/* Paranoia */
@@ -824,7 +818,9 @@ static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
 	if (urq->current_try >= 3)
 		return -EIO;
 	urq->current_try++;
-	/* P3 */ printk("%s: dir %c len/act %d/%d "
+
+	/* Remove this if anyone complains of flooding. */
+	printk(KERN_DEBUG "%s: dir %c len/act %d/%d "
 	    "[sense %x %02x %02x] retry %d\n",
 	    sc->name, UB_DIR_CHAR(cmd->dir), cmd->len, cmd->act_len,
 	    cmd->key, cmd->asc, cmd->ascq, urq->current_try);
@@ -1241,8 +1237,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			 * to check. But it's not all right if the device
 			 * counts disagree with our counts.
 			 */
-			/* P3 */ printk("%s: resid %d len %d act %d\n",
-			    sc->name, len, cmd->len, cmd->act_len);
 			goto Bad_End;
 		}
 
@@ -1253,7 +1247,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			ub_state_sense(sc, cmd);
 			return;
 		case US_BULK_STAT_PHASE:
-			/* P3 */ printk("%s: status PHASE\n", sc->name);
 			goto Bad_End;
 		default:
 			printk(KERN_INFO "%s: unknown CSW status 0x%x\n",
@@ -1568,16 +1561,14 @@ static void ub_reset_task(void *arg)
 	}
 
 	if (atomic_read(&sc->poison)) {
-		printk(KERN_NOTICE "%s: Not resetting disconnected device\n",
-		    sc->name); /* P3 This floods. Remove soon. XXX */
+		;
 	} else if ((sc->reset & 1) == 0) {
 		ub_sync_reset(sc);
 		msleep(700);	/* usb-storage sleeps 6s (!) */
 		ub_probe_clear_stall(sc, sc->recv_bulk_pipe);
 		ub_probe_clear_stall(sc, sc->send_bulk_pipe);
 	} else if (sc->dev->actconfig->desc.bNumInterfaces != 1) {
-		printk(KERN_NOTICE "%s: Not resetting multi-interface device\n",
-		    sc->name); /* P3 This floods. Remove soon. XXX */
+		;
 	} else {
 		if ((lkr = usb_lock_device_for_reset(sc->dev, sc->intf)) < 0) {
 			printk(KERN_NOTICE
@@ -1651,14 +1642,10 @@ static void ub_revalidate(struct ub_dev *sc, struct ub_lun *lun)
 static int ub_bd_open(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ub_lun *lun;
-	struct ub_dev *sc;
+	struct ub_lun *lun = disk->private_data;
+	struct ub_dev *sc = lun->udev;
 	unsigned long flags;
 	int rc;
-
-	if ((lun = disk->private_data) == NULL)
-		return -ENXIO;
-	sc = lun->udev;
 
 	spin_lock_irqsave(&ub_lock, flags);
 	if (atomic_read(&sc->poison)) {
@@ -1823,10 +1810,8 @@ static int ub_sync_tur(struct ub_dev *sc, struct ub_lun *lun)
 	rc = ub_submit_scsi(sc, cmd);
 	spin_unlock_irqrestore(sc->lock, flags);
 
-	if (rc != 0) {
-		printk("ub: testing ready: submit error (%d)\n", rc); /* P3 */
+	if (rc != 0)
 		goto err_submit;
-	}
 
 	wait_for_completion(&compl);
 
@@ -1884,20 +1869,16 @@ static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
 	rc = ub_submit_scsi(sc, cmd);
 	spin_unlock_irqrestore(sc->lock, flags);
 
-	if (rc != 0) {
-		printk("ub: reading capacity: submit error (%d)\n", rc); /* P3 */
+	if (rc != 0)
 		goto err_submit;
-	}
 
 	wait_for_completion(&compl);
 
 	if (cmd->error != 0) {
-		printk("ub: reading capacity: error %d\n", cmd->error); /* P3 */
 		rc = -EIO;
 		goto err_read;
 	}
 	if (cmd->act_len != 8) {
-		printk("ub: reading capacity: size %d\n", cmd->act_len); /* P3 */
 		rc = -EIO;
 		goto err_read;
 	}
@@ -1911,7 +1892,6 @@ static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
 	case 2048:	shift = 2;	break;
 	case 4096:	shift = 3;	break;
 	default:
-		printk("ub: Bad sector size %u\n", bsize); /* P3 */
 		rc = -EDOM;
 		goto err_inv_bsize;
 	}
@@ -2023,17 +2003,8 @@ static int ub_sync_getmaxlun(struct ub_dev *sc)
 	sc->work_urb.error_count = 0;
 	sc->work_urb.status = 0;
 
-	if ((rc = usb_submit_urb(&sc->work_urb, GFP_KERNEL)) != 0) {
-		if (rc == -EPIPE) {
-			printk("%s: Stall submitting GetMaxLUN, using 1 LUN\n",
-			     sc->name); /* P3 */
-		} else {
-			printk(KERN_NOTICE
-			     "%s: Unable to submit GetMaxLUN (%d)\n",
-			     sc->name, rc);
-		}
+	if ((rc = usb_submit_urb(&sc->work_urb, GFP_KERNEL)) != 0)
 		goto err_submit;
-	}
 
 	init_timer(&timer);
 	timer.function = ub_probe_timeout;
@@ -2046,21 +2017,10 @@ static int ub_sync_getmaxlun(struct ub_dev *sc)
 	del_timer_sync(&timer);
 	usb_kill_urb(&sc->work_urb);
 
-	if ((rc = sc->work_urb.status) < 0) {
-		if (rc == -EPIPE) {
-			printk("%s: Stall at GetMaxLUN, using 1 LUN\n",
-			     sc->name); /* P3 */
-		} else {
-			printk(KERN_NOTICE
-			     "%s: Error at GetMaxLUN (%d)\n",
-			     sc->name, rc);
-		}
+	if ((rc = sc->work_urb.status) < 0)
 		goto err_io;
-	}
 
 	if (sc->work_urb.actual_length != 1) {
-		printk("%s: GetMaxLUN returned %d bytes\n", sc->name,
-		    sc->work_urb.actual_length); /* P3 */
 		nluns = 0;
 	} else {
 		if ((nluns = *p) == 55) {
@@ -2071,8 +2031,6 @@ static int ub_sync_getmaxlun(struct ub_dev *sc)
 			if (nluns > UB_MAX_LUNS)
 				nluns = UB_MAX_LUNS;
 		}
-		printk("%s: GetMaxLUN returned %d, using %d LUNs\n", sc->name,
-		    *p, nluns); /* P3 */
 	}
 
 	kfree(p);
@@ -2270,7 +2228,7 @@ static int ub_probe(struct usb_interface *intf,
 	 * has to succeed, so we clear checks with an additional one here.
 	 * In any case it's not our business how revaliadation is implemented.
 	 */
-	for (i = 0; i < 3; i++) {	/* Retries for benh's key */
+	for (i = 0; i < 3; i++) {  /* Retries for the schwag key from KS'04 */
 		if ((rc = ub_sync_tur(sc, NULL)) <= 0) break;
 		if (rc != 0x6) break;
 		msleep(10);
@@ -2318,7 +2276,6 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 		goto err_id;
 
 	lun->udev = sc;
-	list_add(&lun->link, &sc->luns);
 
 	snprintf(lun->name, 16, DRV_NAME "%c(%d.%d.%d)",
 	    lun->id + 'a', sc->dev->bus->busnum, sc->dev->devnum, lun->num);
@@ -2331,9 +2288,7 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	if ((disk = alloc_disk(UB_PARTS_PER_LUN)) == NULL)
 		goto err_diskalloc;
 
-	lun->disk = disk;
 	sprintf(disk->disk_name, DRV_NAME "%c", lun->id + 'a');
-	sprintf(disk->devfs_name, DEVFS_NAME "/%c", lun->id + 'a');
 	disk->major = UB_MAJOR;
 	disk->first_minor = lun->id * UB_PARTS_PER_LUN;
 	disk->fops = &ub_bd_fops;
@@ -2353,7 +2308,9 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	blk_queue_max_sectors(q, UB_MAX_SECTORS);
 	blk_queue_hardsect_size(q, lun->capacity.bsize);
 
+	lun->disk = disk;
 	q->queuedata = lun;
+	list_add(&lun->link, &sc->luns);
 
 	set_capacity(disk, lun->capacity.nsec);
 	if (lun->removable)
@@ -2366,7 +2323,6 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 err_blkqinit:
 	put_disk(disk);
 err_diskalloc:
-	list_del(&lun->link);
 	ub_id_put(lun->id);
 err_id:
 	kfree(lun);
@@ -2379,7 +2335,6 @@ static void ub_disconnect(struct usb_interface *intf)
 	struct ub_dev *sc = usb_get_intfdata(intf);
 	struct list_head *p;
 	struct ub_lun *lun;
-	struct gendisk *disk;
 	unsigned long flags;
 
 	/*
@@ -2435,9 +2390,7 @@ static void ub_disconnect(struct usb_interface *intf)
 	 */
 	list_for_each (p, &sc->luns) {
 		lun = list_entry(p, struct ub_lun, link);
-		disk = lun->disk;
-		if (disk->flags & GENHD_FL_UP)
-			del_gendisk(disk);
+		del_gendisk(lun->disk);
 		/*
 		 * I wish I could do:
 		 *    set_bit(QUEUE_FLAG_DEAD, &q->queue_flags);
@@ -2489,7 +2442,6 @@ static int __init ub_init(void)
 
 	if ((rc = register_blkdev(UB_MAJOR, DRV_NAME)) != 0)
 		goto err_regblkdev;
-	devfs_mk_dir(DEVFS_NAME);
 
 	if ((rc = usb_register(&ub_driver)) != 0)
 		goto err_register;
@@ -2498,7 +2450,6 @@ static int __init ub_init(void)
 	return 0;
 
 err_register:
-	devfs_remove(DEVFS_NAME);
 	unregister_blkdev(UB_MAJOR, DRV_NAME);
 err_regblkdev:
 	return rc;
@@ -2508,7 +2459,6 @@ static void __exit ub_exit(void)
 {
 	usb_deregister(&ub_driver);
 
-	devfs_remove(DEVFS_NAME);
 	unregister_blkdev(UB_MAJOR, DRV_NAME);
 	usb_usual_clear_present(USB_US_TYPE_UB);
 }

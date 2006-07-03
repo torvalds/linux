@@ -40,7 +40,8 @@ typedef struct mdk_rdev_s mdk_rdev_t;
  * options passed in raidrun:
  */
 
-#define MAX_CHUNK_SIZE (4096*1024)
+/* Currently this must fix in an 'int' */
+#define MAX_CHUNK_SIZE (1<<30)
 
 /*
  * MD's 'extended' device
@@ -57,6 +58,7 @@ struct mdk_rdev_s
 
 	struct page	*sb_page;
 	int		sb_loaded;
+	__u64		sb_events;
 	sector_t	data_offset;	/* start of data in array */
 	sector_t	sb_offset;
 	int		sb_size;	/* bytes in the superblock */
@@ -86,6 +88,10 @@ struct mdk_rdev_s
 	int saved_raid_disk;		/* role that device used to have in the
 					 * array and could again if we did a partial
 					 * resync from the bitmap
+					 */
+	sector_t	recovery_offset;/* If this device has been partially
+					 * recovered, this is where we were
+					 * up to.
 					 */
 
 	atomic_t	nr_pending;	/* number of pending requests.
@@ -182,6 +188,8 @@ struct mddev_s
 #define	MD_RECOVERY_REQUESTED	6
 #define	MD_RECOVERY_CHECK	7
 #define MD_RECOVERY_RESHAPE	8
+#define	MD_RECOVERY_FROZEN	9
+
 	unsigned long			recovery;
 
 	int				in_sync;	/* know to not need resync */

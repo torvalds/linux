@@ -16,7 +16,6 @@
 		   consoles 16 and higher (since it returns a short) */
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/major.h>
 #include <linux/termios.h>
@@ -58,7 +57,6 @@ struct tty_buffer {
 	unsigned char *flag_buf_ptr;
 	int used;
 	int size;
-	int active;
 	int commit;
 	int read;
 	/* Data points here */
@@ -260,7 +258,6 @@ struct tty_struct {
 #define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
 #define TTY_PUSH 		6	/* n_tty private */
 #define TTY_CLOSING 		7	/* ->close() in progress */
-#define TTY_DONT_FLIP 		8	/* Defer buffer flip */
 #define TTY_LDISC 		9	/* Line discipline attached */
 #define TTY_HW_COOK_OUT 	14	/* Hardware can do output cooking */
 #define TTY_HW_COOK_IN 		15	/* Hardware can do input cooking */
@@ -291,7 +288,9 @@ extern int tty_register_ldisc(int disc, struct tty_ldisc *new_ldisc);
 extern int tty_unregister_ldisc(int disc);
 extern int tty_register_driver(struct tty_driver *driver);
 extern int tty_unregister_driver(struct tty_driver *driver);
-extern void tty_register_device(struct tty_driver *driver, unsigned index, struct device *dev);
+extern struct class_device *tty_register_device(struct tty_driver *driver,
+						unsigned index,
+						struct device *dev);
 extern void tty_unregister_device(struct tty_driver *driver, unsigned index);
 extern int tty_read_raw_data(struct tty_struct *tty, unsigned char *bufp,
 			     int buflen);

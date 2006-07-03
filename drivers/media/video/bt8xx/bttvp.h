@@ -33,6 +33,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/pci.h>
 #include <linux/input.h>
 #include <linux/mutex.h>
@@ -214,7 +215,6 @@ extern struct videobuf_queue_ops bttv_vbi_qops;
 extern struct bus_type bttv_sub_bus_type;
 int bttv_sub_add_device(struct bttv_core *core, char *name);
 int bttv_sub_del_devices(struct bttv_core *core);
-void bttv_gpio_irq(struct bttv_core *core);
 
 
 /* ---------------------------------------------------------- */
@@ -360,7 +360,7 @@ struct bttv {
 	int mbox_csel;
 
 	/* risc memory management data
-	   - must aquire s_lock before changing these
+	   - must acquire s_lock before changing these
 	   - only the irq handler is supported to touch top + bottom + vcurr */
 	struct btcx_riscmem     main;
 	struct bttv_buffer      *screen;    /* overlay             */

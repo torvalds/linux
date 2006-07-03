@@ -1,7 +1,6 @@
 /*
  *  linux/include/asm-arm/arch-iop3xx/uncompress.h
  */
-#include <linux/config.h>
 #include <asm/types.h>
 #include <asm/mach-types.h>
 #include <linux/serial_reg.h>

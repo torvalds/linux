@@ -157,7 +157,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 static int pcmcia_schlvl = PCMCIA_SCHLVL;
 
-static spinlock_t events_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(events_lock);
 
 
 #define PCMCIA_SOCKET_KEY_5V 1
@@ -644,7 +644,7 @@ static struct platform_device m8xx_device = {
 };
 
 static u32 pending_events[PCMCIA_SOCKETS_NO];
-static spinlock_t pending_event_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(pending_event_lock);
 
 static irqreturn_t m8xx_interrupt(int irq, void *dev, struct pt_regs *regs)
 {

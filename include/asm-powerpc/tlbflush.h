@@ -17,7 +17,6 @@
  */
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 struct mm_struct;
 

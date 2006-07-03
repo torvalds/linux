@@ -3,7 +3,6 @@
 
 /* TLB flushing routines.... */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <asm/mmu_context.h>
 

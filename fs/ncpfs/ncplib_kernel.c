@@ -10,7 +10,6 @@
  */
 
 
-#include <linux/config.h>
 
 #include "ncplib_kernel.h"
 

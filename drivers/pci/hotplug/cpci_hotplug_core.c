@@ -25,7 +25,6 @@
  * Send feedback to <scottm@somanetworks.com>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -348,7 +347,7 @@ cpci_hp_intr(int irq, void *data, struct pt_regs *regs)
 	dbg("entered cpci_hp_intr");
 
 	/* Check to see if it was our interrupt */
-	if ((controller->irq_flags & SA_SHIRQ) &&
+	if ((controller->irq_flags & IRQF_SHARED) &&
 	    !controller->ops->check_irq(controller->dev_id)) {
 		dbg("exited cpci_hp_intr, not our interrupt");
 		return IRQ_NONE;

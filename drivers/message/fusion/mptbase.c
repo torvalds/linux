@@ -46,7 +46,6 @@
 */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -62,9 +61,6 @@
 #include <asm/io.h>
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
-#endif
-#ifdef __sparc__
-#include <asm/irq.h>			/* needed for __irq_itoa() proto */
 #endif
 
 #include "mptbase.h"
@@ -1188,7 +1184,6 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->pcidev = pdev;
 	ioc->diagPending = 0;
 	spin_lock_init(&ioc->diagLock);
-	spin_lock_init(&ioc->fc_rescan_work_lock);
 	spin_lock_init(&ioc->initializing_hba_lock);
 
 	/* Initialize the event logging.
@@ -1386,39 +1381,6 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Set lookup ptr. */
 	list_add_tail(&ioc->list, &ioc_list);
 
-	ioc->pci_irq = -1;
-	if (pdev->irq) {
-		if (mpt_msi_enable && !pci_enable_msi(pdev))
-			printk(MYIOC_s_INFO_FMT "PCI-MSI enabled\n", ioc->name);
-
-		r = request_irq(pdev->irq, mpt_interrupt, SA_SHIRQ, ioc->name, ioc);
-
-		if (r < 0) {
-#ifndef __sparc__
-			printk(MYIOC_s_ERR_FMT "Unable to allocate interrupt %d!\n",
-					ioc->name, pdev->irq);
-#else
-			printk(MYIOC_s_ERR_FMT "Unable to allocate interrupt %s!\n",
-					ioc->name, __irq_itoa(pdev->irq));
-#endif
-			list_del(&ioc->list);
-			iounmap(mem);
-			kfree(ioc);
-			return -EBUSY;
-		}
-
-		ioc->pci_irq = pdev->irq;
-
-		pci_set_master(pdev);			/* ?? */
-		pci_set_drvdata(pdev, ioc);
-
-#ifndef __sparc__
-		dprintk((KERN_INFO MYNAM ": %s installed at interrupt %d\n", ioc->name, pdev->irq));
-#else
-		dprintk((KERN_INFO MYNAM ": %s installed at interrupt %s\n", ioc->name, __irq_itoa(pdev->irq)));
-#endif
-	}
-
 	/* Check for "bound ports" (929, 929X, 1030, 1035) to reduce redundant resets.
 	 */
 	mpt_detect_bound_ports(ioc, pdev);
@@ -1428,11 +1390,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(KERN_WARNING MYNAM
 		  ": WARNING - %s did not initialize properly! (%d)\n",
 		  ioc->name, r);
-
 		list_del(&ioc->list);
-		free_irq(ioc->pci_irq, ioc);
-		if (mpt_msi_enable)
-			pci_disable_msi(pdev);
 		if (ioc->alt_ioc)
 			ioc->alt_ioc->alt_ioc = NULL;
 		iounmap(mem);
@@ -1651,6 +1609,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 	int	 handlers;
 	int	 ret = 0;
 	int	 reset_alt_ioc_active = 0;
+	int	 irq_allocated = 0;
 
 	printk(KERN_INFO MYNAM ": Initiating %s %s\n",
 			ioc->name, reason==MPT_HOSTEVENT_IOC_BRINGUP ? "bringup" : "recovery");
@@ -1731,6 +1690,36 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 			reset_alt_ioc_active = 0;
 		} else if (reason == MPT_HOSTEVENT_IOC_BRINGUP) {
 			MptDisplayIocCapabilities(ioc->alt_ioc);
+		}
+	}
+
+	/*
+	 * Device is reset now. It must have de-asserted the interrupt line
+	 * (if it was asserted) and it should be safe to register for the
+	 * interrupt now.
+	 */
+	if ((ret == 0) && (reason == MPT_HOSTEVENT_IOC_BRINGUP)) {
+		ioc->pci_irq = -1;
+		if (ioc->pcidev->irq) {
+			if (mpt_msi_enable && !pci_enable_msi(ioc->pcidev))
+				printk(MYIOC_s_INFO_FMT "PCI-MSI enabled\n",
+					ioc->name);
+			rc = request_irq(ioc->pcidev->irq, mpt_interrupt,
+					IRQF_SHARED, ioc->name, ioc);
+			if (rc < 0) {
+				printk(MYIOC_s_ERR_FMT "Unable to allocate "
+					"interrupt %d!\n", ioc->name,
+					ioc->pcidev->irq);
+				if (mpt_msi_enable)
+					pci_disable_msi(ioc->pcidev);
+				return -EBUSY;
+			}
+			irq_allocated = 1;
+			ioc->pci_irq = ioc->pcidev->irq;
+			pci_set_master(ioc->pcidev);		/* ?? */
+			pci_set_drvdata(ioc->pcidev, ioc);
+			dprintk((KERN_INFO MYNAM ": %s installed at interrupt "
+				"%d\n", ioc->name, ioc->pcidev->irq));
 		}
 	}
 
@@ -1833,7 +1822,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 				ret = mptbase_sas_persist_operation(ioc,
 				    MPI_SAS_OP_CLEAR_NOT_PRESENT);
 				if(ret != 0)
-					return -1;
+					goto out;
 			}
 
 			/* Find IM volumes
@@ -1841,14 +1830,6 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 			mpt_findImVolumes(ioc);
 
 		} else if (ioc->bus_type == FC) {
-			/*
-			 *  Pre-fetch FC port WWN and stuff...
-			 *  (FCPortPage0_t stuff)
-			 */
-			for (ii=0; ii < ioc->facts.NumberOfPorts; ii++) {
-				(void) mptbase_GetFcPortPage0(ioc, ii);
-			}
-
 			if ((ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_LAN) &&
 			    (ioc->lan_cnfg_page0.Header.PageLength == 0)) {
 				/*
@@ -1914,6 +1895,12 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 		/* FIXME?  Examine results here? */
 	}
 
+out:
+	if ((ret != 0) && irq_allocated) {
+		free_irq(ioc->pci_irq, ioc);
+		if (mpt_msi_enable)
+			pci_disable_msi(ioc->pcidev);
+	}
 	return ret;
 }
 
@@ -2288,7 +2275,7 @@ MakeIocReady(MPT_ADAPTER *ioc, int force, int sleepFlag)
 		}
 
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible(1);
+			msleep(1);
 		} else {
 			mdelay (1);	/* 1 msec delay */
 		}
@@ -2676,7 +2663,7 @@ SendIocInit(MPT_ADAPTER *ioc, int sleepFlag)
 	state = mpt_GetIocState(ioc, 1);
 	while (state != MPI_IOC_STATE_OPERATIONAL && --cntdn) {
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible(1);
+			msleep(1);
 		} else {
 			mdelay(1);
 		}
@@ -2928,7 +2915,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 
 	/* wait 1 msec */
 	if (sleepFlag == CAN_SLEEP) {
-		msleep_interruptible(1);
+		msleep(1);
 	} else {
 		mdelay (1);
 	}
@@ -2945,7 +2932,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 		}
 		/* wait .1 sec */
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (100);
+			msleep (100);
 		} else {
 			mdelay (100);
 		}
@@ -3035,7 +3022,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 
 		/* wait 1 msec */
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (1);
+			msleep (1);
 		} else {
 			mdelay (1);
 		}
@@ -3083,7 +3070,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 			return 0;
 		}
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (10);
+			msleep (10);
 		} else {
 			mdelay (10);
 		}
@@ -3134,7 +3121,7 @@ KickStart(MPT_ADAPTER *ioc, int force, int sleepFlag)
 		SendIocReset(ioc, MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET, sleepFlag);
 
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (1000);
+			msleep (1000);
 		} else {
 			mdelay (1000);
 		}
@@ -3156,7 +3143,7 @@ KickStart(MPT_ADAPTER *ioc, int force, int sleepFlag)
 			return hard_reset_done;
 		}
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (10);
+			msleep (10);
 		} else {
 			mdelay (10);
 		}
@@ -3227,7 +3214,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 			/* wait 100 msec */
 			if (sleepFlag == CAN_SLEEP) {
-				msleep_interruptible (100);
+				msleep (100);
 			} else {
 				mdelay (100);
 			}
@@ -3306,7 +3293,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 				/* wait 1 sec */
 				if (sleepFlag == CAN_SLEEP) {
-					msleep_interruptible (1000);
+					msleep (1000);
 				} else {
 					mdelay (1000);
 				}
@@ -3334,7 +3321,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 				/* wait 1 sec */
 				if (sleepFlag == CAN_SLEEP) {
-					msleep_interruptible (1000);
+					msleep (1000);
 				} else {
 					mdelay (1000);
 				}
@@ -3368,7 +3355,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 		/* wait 100 msec */
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (100);
+			msleep (100);
 		} else {
 			mdelay (100);
 		}
@@ -3462,7 +3449,7 @@ SendIocReset(MPT_ADAPTER *ioc, u8 reset_type, int sleepFlag)
 		}
 
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible(1);
+			msleep(1);
 		} else {
 			mdelay (1);	/* 1 msec delay */
 		}
@@ -3902,7 +3889,7 @@ WaitForDoorbellAck(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 			intstat = CHIPREG_READ32(&ioc->chip->IntStatus);
 			if (! (intstat & MPI_HIS_IOP_DOORBELL_STATUS))
 				break;
-			msleep_interruptible (1);
+			msleep (1);
 			count++;
 		}
 	} else {
@@ -3951,7 +3938,7 @@ WaitForDoorbellInt(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 			intstat = CHIPREG_READ32(&ioc->chip->IntStatus);
 			if (intstat & MPI_HIS_DOORBELL_INTERRUPT)
 				break;
-			msleep_interruptible(1);
+			msleep(1);
 			count++;
 		}
 	} else {
@@ -4167,108 +4154,6 @@ GetLanConfigPages(MPT_ADAPTER *ioc)
 		 *	by byte-swapping all > 1 byte fields!
 		 */
 
-	}
-
-	return rc;
-}
-
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	mptbase_GetFcPortPage0 - Fetch FCPort config Page0.
- *	@ioc: Pointer to MPT_ADAPTER structure
- *	@portnum: IOC Port number
- *
- *	Return: 0 for success
- *	-ENOMEM if no memory available
- *		-EPERM if not allowed due to ISR context
- *		-EAGAIN if no msg frames currently available
- *		-EFAULT for non-successful reply or no reply (timeout)
- */
-int
-mptbase_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
-{
-	ConfigPageHeader_t	 hdr;
-	CONFIGPARMS		 cfg;
-	FCPortPage0_t		*ppage0_alloc;
-	FCPortPage0_t		*pp0dest;
-	dma_addr_t		 page0_dma;
-	int			 data_sz;
-	int			 copy_sz;
-	int			 rc;
-	int			 count = 400;
-
-
-	/* Get FCPort Page 0 header */
-	hdr.PageVersion = 0;
-	hdr.PageLength = 0;
-	hdr.PageNumber = 0;
-	hdr.PageType = MPI_CONFIG_PAGETYPE_FC_PORT;
-	cfg.cfghdr.hdr = &hdr;
-	cfg.physAddr = -1;
-	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
-	cfg.dir = 0;
-	cfg.pageAddr = portnum;
-	cfg.timeout = 0;
-
-	if ((rc = mpt_config(ioc, &cfg)) != 0)
-		return rc;
-
-	if (hdr.PageLength == 0)
-		return 0;
-
-	data_sz = hdr.PageLength * 4;
-	rc = -ENOMEM;
-	ppage0_alloc = (FCPortPage0_t *) pci_alloc_consistent(ioc->pcidev, data_sz, &page0_dma);
-	if (ppage0_alloc) {
-
- try_again:
-		memset((u8 *)ppage0_alloc, 0, data_sz);
-		cfg.physAddr = page0_dma;
-		cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
-
-		if ((rc = mpt_config(ioc, &cfg)) == 0) {
-			/* save the data */
-			pp0dest = &ioc->fc_port_page0[portnum];
-			copy_sz = min_t(int, sizeof(FCPortPage0_t), data_sz);
-			memcpy(pp0dest, ppage0_alloc, copy_sz);
-
-			/*
-			 *	Normalize endianness of structure data,
-			 *	by byte-swapping all > 1 byte fields!
-			 */
-			pp0dest->Flags = le32_to_cpu(pp0dest->Flags);
-			pp0dest->PortIdentifier = le32_to_cpu(pp0dest->PortIdentifier);
-			pp0dest->WWNN.Low = le32_to_cpu(pp0dest->WWNN.Low);
-			pp0dest->WWNN.High = le32_to_cpu(pp0dest->WWNN.High);
-			pp0dest->WWPN.Low = le32_to_cpu(pp0dest->WWPN.Low);
-			pp0dest->WWPN.High = le32_to_cpu(pp0dest->WWPN.High);
-			pp0dest->SupportedServiceClass = le32_to_cpu(pp0dest->SupportedServiceClass);
-			pp0dest->SupportedSpeeds = le32_to_cpu(pp0dest->SupportedSpeeds);
-			pp0dest->CurrentSpeed = le32_to_cpu(pp0dest->CurrentSpeed);
-			pp0dest->MaxFrameSize = le32_to_cpu(pp0dest->MaxFrameSize);
-			pp0dest->FabricWWNN.Low = le32_to_cpu(pp0dest->FabricWWNN.Low);
-			pp0dest->FabricWWNN.High = le32_to_cpu(pp0dest->FabricWWNN.High);
-			pp0dest->FabricWWPN.Low = le32_to_cpu(pp0dest->FabricWWPN.Low);
-			pp0dest->FabricWWPN.High = le32_to_cpu(pp0dest->FabricWWPN.High);
-			pp0dest->DiscoveredPortsCount = le32_to_cpu(pp0dest->DiscoveredPortsCount);
-			pp0dest->MaxInitiators = le32_to_cpu(pp0dest->MaxInitiators);
-
-			/*
-			 * if still doing discovery,
-			 * hang loose a while until finished
-			 */
-			if (pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN) {
-				if (count-- > 0) {
-					msleep_interruptible(100);
-					goto try_again;
-				}
-				printk(MYIOC_s_INFO_FMT "Firmware discovery not"
-							" complete.\n",
-						ioc->name);
-			}
-		}
-
-		pci_free_consistent(ioc->pcidev, data_sz, (u8 *) ppage0_alloc, page0_dma);
 	}
 
 	return rc;
@@ -5647,11 +5532,7 @@ mpt_print_ioc_summary(MPT_ADAPTER *ioc, char *buffer, int *size, int len, int sh
 			a[5], a[4], a[3], a[2], a[1], a[0]);
 	}
 
-#ifndef __sparc__
 	y += sprintf(buffer+len+y, ", IRQ=%d", ioc->pci_irq);
-#else
-	y += sprintf(buffer+len+y, ", IRQ=%s", __irq_itoa(ioc->pci_irq));
-#endif
 
 	if (!ioc->active)
 		y += sprintf(buffer+len+y, " (disabled)");
@@ -5710,7 +5591,7 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 
 	/* The SCSI driver needs to adjust timeouts on all current
 	 * commands prior to the diagnostic reset being issued.
-	 * Prevents timeouts occuring during a diagnostic reset...very bad.
+	 * Prevents timeouts occurring during a diagnostic reset...very bad.
 	 * For all other protocol drivers, this is a no-op.
 	 */
 	{
@@ -6483,7 +6364,6 @@ EXPORT_SYMBOL(mpt_findImVolumes);
 EXPORT_SYMBOL(mpt_alloc_fw_memory);
 EXPORT_SYMBOL(mpt_free_fw_memory);
 EXPORT_SYMBOL(mptbase_sas_persist_operation);
-EXPORT_SYMBOL(mptbase_GetFcPortPage0);
 
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/

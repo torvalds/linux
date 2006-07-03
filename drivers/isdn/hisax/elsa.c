@@ -19,7 +19,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/config.h>
 #include "hisax.h"
 #include "arcofi.h"
 #include "isac.h"
@@ -86,8 +85,8 @@ static const char *ITACVer[] =
  ***                                                                    ***/
 
 /* Config-Register (Read) */
-#define ELSA_TIMER_RUN       0x02	/* Bit 1 des Config-Reg     */
-#define ELSA_TIMER_RUN_PCC8  0x01	/* Bit 0 des Config-Reg  bei PCC */
+#define ELIRQF_TIMER_RUN       0x02	/* Bit 1 des Config-Reg     */
+#define ELIRQF_TIMER_RUN_PCC8  0x01	/* Bit 0 des Config-Reg  bei PCC */
 #define ELSA_IRQ_IDX       0x38	/* Bit 3,4,5 des Config-Reg */
 #define ELSA_IRQ_IDX_PCC8  0x30	/* Bit 4,5 des Config-Reg */
 #define ELSA_IRQ_IDX_PC    0x0c	/* Bit 2,3 des Config-Reg */
@@ -103,7 +102,7 @@ static const char *ITACVer[] =
 #define ELSA_S0_POWER_BAD    0x08	/* Bit 3 S0-Bus Spannung fehlt */
 
 /* Status Flags */
-#define ELSA_TIMER_AKTIV 1
+#define ELIRQF_TIMER_AKTIV 1
 #define ELSA_BAD_PWR     2
 #define ELSA_ASSIGN      4
 
@@ -260,10 +259,10 @@ TimerRun(struct IsdnCardState *cs)
 
 	v = bytein(cs->hw.elsa.cfg);
 	if ((cs->subtyp == ELSA_QS1000) || (cs->subtyp == ELSA_QS3000))
-		return (0 == (v & ELSA_TIMER_RUN));
+		return (0 == (v & ELIRQF_TIMER_RUN));
 	else if (cs->subtyp == ELSA_PCC8)
-		return (v & ELSA_TIMER_RUN_PCC8);
-	return (v & ELSA_TIMER_RUN);
+		return (v & ELIRQF_TIMER_RUN_PCC8);
+	return (v & ELIRQF_TIMER_RUN);
 }
 /*
  * fast interrupt HSCX stuff goes here
@@ -335,7 +334,7 @@ elsa_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 	writereg(cs->hw.elsa.ale, cs->hw.elsa.hscx, HSCX_MASK, 0xFF);
 	writereg(cs->hw.elsa.ale, cs->hw.elsa.hscx, HSCX_MASK + 0x40, 0xFF);
 	writereg(cs->hw.elsa.ale, cs->hw.elsa.isac, ISAC_MASK, 0xFF);
-	if (cs->hw.elsa.status & ELSA_TIMER_AKTIV) {
+	if (cs->hw.elsa.status & ELIRQF_TIMER_AKTIV) {
 		if (!TimerRun(cs)) {
 			/* Timer Restart */
 			byteout(cs->hw.elsa.timer, 0);
@@ -686,7 +685,7 @@ Elsa_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 				spin_lock_irqsave(&cs->lock, flags);
 				cs->hw.elsa.counter = 0;
 				cs->hw.elsa.ctrl_reg |= ELSA_ENA_TIMER_INT;
-				cs->hw.elsa.status |= ELSA_TIMER_AKTIV;
+				cs->hw.elsa.status |= ELIRQF_TIMER_AKTIV;
 				byteout(cs->hw.elsa.ctrl, cs->hw.elsa.ctrl_reg);
 				byteout(cs->hw.elsa.timer, 0);
 				spin_unlock_irqrestore(&cs->lock, flags);
@@ -694,7 +693,7 @@ Elsa_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 				spin_lock_irqsave(&cs->lock, flags);
 				cs->hw.elsa.ctrl_reg &= ~ELSA_ENA_TIMER_INT;
 				byteout(cs->hw.elsa.ctrl, cs->hw.elsa.ctrl_reg);
-				cs->hw.elsa.status &= ~ELSA_TIMER_AKTIV;
+				cs->hw.elsa.status &= ~ELIRQF_TIMER_AKTIV;
 				spin_unlock_irqrestore(&cs->lock, flags);
 				printk(KERN_INFO "Elsa: %d timer tics in 110 msek\n",
 				       cs->hw.elsa.counter);
@@ -1013,7 +1012,7 @@ setup_elsa(struct IsdnCard *card)
 		cs->hw.elsa.timer = 0;
 		cs->hw.elsa.trig = 0;
 		cs->hw.elsa.ctrl = 0;
-		cs->irq_flags |= SA_SHIRQ;
+		cs->irq_flags |= IRQF_SHARED;
 		printk(KERN_INFO
 		       "Elsa: %s defined at %#lx IRQ %d\n",
 		       Elsa_Types[cs->subtyp],
@@ -1062,7 +1061,7 @@ setup_elsa(struct IsdnCard *card)
 		test_and_set_bit(HW_IPAC, &cs->HW_Flags);
 		cs->hw.elsa.timer = 0;
 		cs->hw.elsa.trig  = 0;
-		cs->irq_flags |= SA_SHIRQ;
+		cs->irq_flags |= IRQF_SHARED;
 		printk(KERN_INFO
 		       "Elsa: %s defined at %#lx/0x%x IRQ %d\n",
 		       Elsa_Types[cs->subtyp],

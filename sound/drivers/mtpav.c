@@ -590,7 +590,7 @@ static int __init snd_mtpav_get_ISA(struct mtpav * mcard)
 		return -EBUSY;
 	}
 	mcard->port = port;
-	if (request_irq(irq, snd_mtpav_irqh, SA_INTERRUPT, "MOTU MTPAV", mcard)) {
+	if (request_irq(irq, snd_mtpav_irqh, IRQF_DISABLED, "MOTU MTPAV", mcard)) {
 		snd_printk("MTVAP IRQ %d busy\n", irq);
 		return -EBUSY;
 	}
@@ -770,11 +770,15 @@ static int __init alsa_card_mtpav_init(void)
 		return err;
 
 	device = platform_device_register_simple(SND_MTPAV_DRIVER, -1, NULL, 0);
-	if (IS_ERR(device)) {
-		platform_driver_unregister(&snd_mtpav_driver);
-		return PTR_ERR(device);
-	}
-	return 0;
+	if (!IS_ERR(device)) {
+		if (platform_get_drvdata(device))
+			return 0;
+		platform_device_unregister(device);
+		err = -ENODEV;
+	} else
+		err = PTR_ERR(device);
+	platform_driver_unregister(&snd_mtpav_driver);
+	return err;
 }
 
 static void __exit alsa_card_mtpav_exit(void)

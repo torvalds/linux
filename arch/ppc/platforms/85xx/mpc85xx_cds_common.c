@@ -11,7 +11,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -137,7 +136,7 @@ static irqreturn_t cpm2_cascade(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction cpm2_irqaction = {
 	.handler = cpm2_cascade,
-	.flags = SA_INTERRUPT,
+	.flags = IRQF_DISABLED,
 	.mask = CPU_MASK_NONE,
 	.name = "cpm2_cascade",
 };
@@ -379,13 +378,12 @@ mpc85xx_cds_pcibios_fixup(void)
                                         PCI_DEVICE_ID_VIA_82C586_2, NULL))) {
                 dev->irq = 10;
                 pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 10);
-		pci_dev_put(dev);
-        }
 
-	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
+		if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
                                         PCI_DEVICE_ID_VIA_82C586_2, dev))) {
-                dev->irq = 11;
-                pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 11);
+	                dev->irq = 11;
+	                pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 11);
+		}
 		pci_dev_put(dev);
         }
 }

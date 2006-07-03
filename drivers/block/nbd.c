@@ -7,39 +7,9 @@
  * Copyright 1997-2000 Pavel Machek <pavel@ucw.cz>
  * Parts copyright 2001 Steven Whitehouse <steve@chygwyn.com>
  *
- * (part of code stolen from loop.c)
+ * This file is released under GPLv2 or later.
  *
- * 97-3-25 compiled 0-th version, not yet tested it 
- *   (it did not work, BTW) (later that day) HEY! it works!
- *   (bit later) hmm, not that much... 2:00am next day:
- *   yes, it works, but it gives something like 50kB/sec
- * 97-4-01 complete rewrite to make it possible for many requests at 
- *   once to be processed
- * 97-4-11 Making protocol independent of endianity etc.
- * 97-9-13 Cosmetic changes
- * 98-5-13 Attempt to make 64-bit-clean on 64-bit machines
- * 99-1-11 Attempt to make 64-bit-clean on 32-bit machines <ankry@mif.pg.gda.pl>
- * 01-2-27 Fix to store proper blockcount for kernel (calculated using
- *   BLOCK_SIZE_BITS, not device blocksize) <aga@permonline.ru>
- * 01-3-11 Make nbd work with new Linux block layer code. It now supports
- *   plugging like all the other block devices. Also added in MSG_MORE to
- *   reduce number of partial TCP segments sent. <steve@chygwyn.com>
- * 01-12-6 Fix deadlock condition by making queue locks independent of
- *   the transmit lock. <steve@chygwyn.com>
- * 02-10-11 Allow hung xmit to be aborted via SIGKILL & various fixes.
- *   <Paul.Clements@SteelEye.com> <James.Bottomley@SteelEye.com>
- * 03-06-22 Make nbd work with new linux 2.5 block layer design. This fixes
- *   memory corruption from module removal and possible memory corruption
- *   from sending/receiving disk data. <ldl@aros.net>
- * 03-06-23 Cosmetic changes. <ldl@aros.net>
- * 03-06-23 Enhance diagnostics support. <ldl@aros.net>
- * 03-06-24 Remove unneeded blksize_bits field from nbd_device struct.
- *   <ldl@aros.net>
- * 03-06-24 Cleanup PARANOIA usage & code. <ldl@aros.net>
- * 04-02-19 Remove PARANOIA, plus various cleanups (Paul Clements)
- * possible FIXME: make set_sock / set_blksize / set_size / do_it one syscall
- * why not: would need access_ok and friends, would share yet another
- *          structure with userland
+ * (part of code stolen from loop.c)
  */
 
 #include <linux/major.h>
@@ -58,8 +28,6 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <net/sock.h>
-
-#include <linux/devfs_fs_kernel.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -82,9 +50,9 @@
 #define DBG_RX          0x0200
 #define DBG_TX          0x0400
 static unsigned int debugflags;
-static unsigned int nbds_max = 16;
 #endif /* NDEBUG */
 
+static unsigned int nbds_max = 16;
 static struct nbd_device nbd_dev[MAX_NBD];
 
 /*
@@ -672,7 +640,6 @@ static int __init nbd_init(void)
 	printk(KERN_INFO "nbd: registered device at major %d\n", NBD_MAJOR);
 	dprintk(DBG_INIT, "nbd: debugflags=0x%x\n", debugflags);
 
-	devfs_mk_dir("nbd");
 	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = nbd_dev[i].disk;
 		nbd_dev[i].file = NULL;
@@ -690,7 +657,6 @@ static int __init nbd_init(void)
 		disk->private_data = &nbd_dev[i];
 		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
 		sprintf(disk->disk_name, "nbd%d", i);
-		sprintf(disk->devfs_name, "nbd/%d", i);
 		set_capacity(disk, 0x7ffffc00ULL << 1); /* 2 TB */
 		add_disk(disk);
 	}
@@ -716,7 +682,6 @@ static void __exit nbd_cleanup(void)
 			put_disk(disk);
 		}
 	}
-	devfs_remove("nbd");
 	unregister_blkdev(NBD_MAJOR, "nbd");
 	printk(KERN_INFO "nbd: unregistered device at major %d\n", NBD_MAJOR);
 }

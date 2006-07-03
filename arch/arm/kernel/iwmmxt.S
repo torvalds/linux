@@ -271,30 +271,27 @@ ENTRY(iwmmxt_task_restore)
 /*
  * Concan handling on task switch
  *
- * r0 = previous task_struct pointer (must be preserved)
- * r1 = previous thread_info pointer
- * r2 = next thread_info.cpu_domain pointer (must be preserved)
+ * r0 = next thread_info pointer
  *
- * Called only from __switch_to with task preemption disabled.
- * No need to care about preserving r4 and above.
+ * Called only from the iwmmxt notifier with task preemption disabled.
  */
 ENTRY(iwmmxt_task_switch)
 
-	mrc	p15, 0, r4, c15, c1, 0
-	tst	r4, #0x3			@ CP0 and CP1 accessible?
+	mrc	p15, 0, r1, c15, c1, 0
+	tst	r1, #0x3			@ CP0 and CP1 accessible?
 	bne	1f				@ yes: block them for next task
 
-	ldr	r5, =concan_owner
-	add	r6, r2, #(TI_IWMMXT_STATE - TI_CPU_DOMAIN) @ get next task Concan save area
-	ldr	r5, [r5]			@ get current Concan owner
-	teq	r5, r6				@ next task owns it?
+	ldr	r2, =concan_owner
+	add	r3, r0, #TI_IWMMXT_STATE	@ get next task Concan save area
+	ldr	r2, [r2]			@ get current Concan owner
+	teq	r2, r3				@ next task owns it?
 	movne	pc, lr				@ no: leave Concan disabled
 
-1:	eor	r4, r4, #3			@ flip Concan access
-	mcr	p15, 0, r4, c15, c1, 0
+1:	eor	r1, r1, #3			@ flip Concan access
+	mcr	p15, 0, r1, c15, c1, 0
 
-	mrc	p15, 0, r4, c2, c0, 0
-	sub	pc, lr, r4, lsr #32		@ cpwait and return
+	mrc	p15, 0, r1, c2, c0, 0
+	sub	pc, lr, r1, lsr #32		@ cpwait and return
 
 /*
  * Remove Concan ownership of given task

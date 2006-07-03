@@ -154,7 +154,7 @@ static unsigned gbus_int_startup_irq (unsigned irq)
 		/* First enable the CPU interrupt.  */
 		int rval =
 			request_irq (IRQ_GINT(gint), gbus_int_handle_irq,
-				     SA_INTERRUPT,
+				     IRQF_DISABLED,
 				     "gbus_int_handler",
 				     &gint_num_active_irqs[gint]);
 		if (rval != 0)

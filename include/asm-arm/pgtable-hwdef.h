@@ -28,6 +28,7 @@
  */
 #define PMD_SECT_BUFFERABLE	(1 << 2)
 #define PMD_SECT_CACHEABLE	(1 << 3)
+#define PMD_SECT_XN		(1 << 4)	/* v6 */
 #define PMD_SECT_AP_WRITE	(1 << 10)
 #define PMD_SECT_AP_READ	(1 << 11)
 #define PMD_SECT_TEX(x)		((x) << 12)	/* v5 */

@@ -154,6 +154,9 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 #define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
 
+#define __raw_read_can_lock(rw) (!((rw)->lock & 0xff))
+#define __raw_write_can_lock(rw) (!(rw)->lock)
+
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* __SPARC_SPINLOCK_H */

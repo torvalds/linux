@@ -21,7 +21,6 @@
 #ifndef __ASM_WALNUT_H__
 #define __ASM_WALNUT_H__
 
-#include <linux/config.h>
 #include <platforms/4xx/ibm405gp.h>
 #include <asm/ppcboot.h>
 

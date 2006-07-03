@@ -136,8 +136,8 @@ bast_irq_pc104_demux(unsigned int irq,
 		for (i = 0; stat != 0; i++, stat >>= 1) {
 			if (stat & 1) {
 				irqno = bast_pc104_irqs[i];
-
-				desc_handle_irq(irqno, irq_desc + irqno, regs);
+				desc = irq_desc + irqno;
+				desc_handle_irq(irqno, desc, regs);
 			}
 		}
 	}
@@ -156,7 +156,7 @@ static __init int bast_irq_init(void)
 
 		set_irq_chained_handler(IRQ_ISA, bast_irq_pc104_demux);
 
-		/* reigster our IRQs */
+		/* register our IRQs */
 
 		for (i = 0; i < 4; i++) {
 			unsigned int irqno = bast_pc104_irqs[i];

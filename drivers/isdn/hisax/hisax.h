@@ -6,7 +6,6 @@
  * of the GNU General Public License, incorporated herein by reference.
  *
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/major.h>

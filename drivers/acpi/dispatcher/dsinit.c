@@ -125,37 +125,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 		if (info->table_desc->pointer->revision == 1) {
 			node->flags |= ANOBJ_DATA_WIDTH_32;
 		}
-#ifdef ACPI_INIT_PARSE_METHODS
-		/*
-		 * Note 11/2005: Removed this code to parse all methods during table
-		 * load because it causes problems if there are any errors during the
-		 * parse. Also, it seems like overkill and we probably don't want to
-		 * abort a table load because of an issue with a single method.
-		 */
 
-		/*
-		 * Print a dot for each method unless we are going to print
-		 * the entire pathname
-		 */
-		if (!(acpi_dbg_level & ACPI_LV_INIT_NAMES)) {
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT, "."));
-		}
-
-		/*
-		 * Always parse methods to detect errors, we will delete
-		 * the parse tree below
-		 */
-		status = acpi_ds_parse_method(obj_handle);
-		if (ACPI_FAILURE(status)) {
-			ACPI_ERROR((AE_INFO,
-				    "Method %p [%4.4s] - parse failure, %s",
-				    obj_handle,
-				    acpi_ut_get_node_name(obj_handle),
-				    acpi_format_exception(status)));
-
-			/* This parse failed, but we will continue parsing more methods */
-		}
-#endif
 		info->method_count++;
 		break;
 
@@ -184,7 +154,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Walk the namespace starting at "start_node" and perform any
+ * DESCRIPTION: Walk the namespace starting at "StartNode" and perform any
  *              necessary initialization on the objects found therein
  *
  ******************************************************************************/
@@ -196,7 +166,7 @@ acpi_ds_initialize_objects(struct acpi_table_desc * table_desc,
 	acpi_status status;
 	struct acpi_init_walk_info info;
 
-	ACPI_FUNCTION_TRACE("ds_initialize_objects");
+	ACPI_FUNCTION_TRACE(ds_initialize_objects);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "**** Starting initialization of namespace objects ****\n"));
@@ -213,7 +183,7 @@ acpi_ds_initialize_objects(struct acpi_table_desc * table_desc,
 	status = acpi_walk_namespace(ACPI_TYPE_ANY, start_node, ACPI_UINT32_MAX,
 				     acpi_ds_init_one_object, &info, NULL);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "During walk_namespace"));
+		ACPI_EXCEPTION((AE_INFO, status, "During WalkNamespace"));
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,

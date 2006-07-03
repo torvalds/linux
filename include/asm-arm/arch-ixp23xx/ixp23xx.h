@@ -124,6 +124,7 @@
 
 #define IXP23XX_EXP_UNIT_FUSE		IXP23XX_EXP_CFG_REG(0x28)
 #define IXP23XX_EXP_MSF_MUX		IXP23XX_EXP_CFG_REG(0x30)
+#define IXP23XX_EXP_CFG_FUSE		IXP23XX_EXP_CFG_REG(0x34)
 
 #define IXP23XX_EXP_BUS_PHYS		0x90000000
 #define IXP23XX_EXP_BUS_WINDOW_SIZE	0x01000000
@@ -251,7 +252,7 @@
  * CAP CSRs.
  ****************************************************************************/
 #define IXP23XX_GLOBAL_REG(x)		((volatile unsigned long *)(IXP23XX_CAP_CSR_VIRT + 0x4a00 + (x)))
-#define IXP23XX_PROD_IDG		IXP23XX_GLOBAL_REG(0x00)
+#define IXP23XX_PRODUCT_ID		IXP23XX_GLOBAL_REG(0x00)
 #define IXP23XX_MISC_CONTROL		IXP23XX_GLOBAL_REG(0x04)
 #define IXP23XX_MSF_CLK_CNTRL		IXP23XX_GLOBAL_REG(0x08)
 #define IXP23XX_RESET0			IXP23XX_GLOBAL_REG(0x0c)
@@ -264,6 +265,8 @@
 #define IXP23XX_RESET_PCI		(1 << 2)
 #define IXP23XX_PCI_UNIT_RESET		(1 << 1)
 #define IXP23XX_XSCALE_RESET		(1 << 0)
+
+#define IXP23XX_UENGINE_CSR_VIRT_BASE	(IXP23XX_CAP_CSR_VIRT + 0x18000)
 
 
 /****************************************************************************
@@ -290,17 +293,6 @@
 #define IXP23XX_PCI_XSCALE_INT_STATUS	IXP23XX_PCI_CSR(0x0158)
 #define IXP23XX_PCI_XSCALE_INT_ENABLE	IXP23XX_PCI_CSR(0x015c)
 #define IXP23XX_PCI_CPP_ADDR_BITS	IXP23XX_PCI_CSR(0x0160)
-
-
-#ifndef __ASSEMBLY__
-/*
- * Is system memory on the XSI or CPP bus?
- */
-static inline unsigned ixp23xx_cpp_boot(void)
-{
-	return (*IXP23XX_EXP_CFG0 & IXP23XX_EXP_CFG0_XSI_NOT_PRES);
-}
-#endif
 
 
 #endif

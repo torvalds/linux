@@ -34,6 +34,7 @@
 #include <linux/suspend.h>
 #include <linux/pagemap.h>
 #include <linux/kthread.h>
+#include <linux/poison.h>
 #include <linux/proc_fs.h>
 
 #include <asm/uaccess.h>
@@ -1675,7 +1676,7 @@ static void journal_free_journal_head(struct journal_head *jh)
 {
 #ifdef CONFIG_JBD_DEBUG
 	atomic_dec(&nr_journal_heads);
-	memset(jh, 0x5b, sizeof(*jh));
+	memset(jh, JBD_POISON_FREE, sizeof(*jh));
 #endif
 	kmem_cache_free(journal_head_cache, jh);
 }

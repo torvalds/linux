@@ -27,7 +27,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -43,6 +42,7 @@
 #include <linux/seq_file.h>
 
 #include <linux/ctype.h>
+#include <linux/poll.h>
 #include <asm/io.h>
 
 #include "videocodec.h"

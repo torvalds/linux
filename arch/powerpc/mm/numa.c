@@ -334,7 +334,7 @@ out:
 	return nid;
 }
 
-static int cpu_numa_callback(struct notifier_block *nfb,
+static int __cpuinit cpu_numa_callback(struct notifier_block *nfb,
 			     unsigned long action,
 			     void *hcpu)
 {
@@ -487,9 +487,9 @@ static void __init setup_nonnuma(void)
 	unsigned long total_ram = lmb_phys_mem_size();
 	unsigned int i;
 
-	printk(KERN_INFO "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
+	printk(KERN_DEBUG "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
 	       top_of_ram, total_ram);
-	printk(KERN_INFO "Memory hole size: %ldMB\n",
+	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 
 	for (i = 0; i < lmb.memory.cnt; ++i)
@@ -507,7 +507,7 @@ void __init dump_numa_cpu_topology(void)
 		return;
 
 	for_each_online_node(node) {
-		printk(KERN_INFO "Node %d CPUs:", node);
+		printk(KERN_DEBUG "Node %d CPUs:", node);
 
 		count = 0;
 		/*
@@ -543,7 +543,7 @@ static void __init dump_numa_memory_topology(void)
 	for_each_online_node(node) {
 		unsigned long i;
 
-		printk(KERN_INFO "Node %d Memory:", node);
+		printk(KERN_DEBUG "Node %d Memory:", node);
 
 		count = 0;
 
@@ -609,14 +609,15 @@ static void __init *careful_allocation(int nid, unsigned long size,
 	return (void *)ret;
 }
 
+static struct notifier_block __cpuinitdata ppc64_numa_nb = {
+	.notifier_call = cpu_numa_callback,
+	.priority = 1 /* Must run before sched domains notifier. */
+};
+
 void __init do_init_bootmem(void)
 {
 	int nid;
 	unsigned int i;
-	static struct notifier_block ppc64_numa_nb = {
-		.notifier_call = cpu_numa_callback,
-		.priority = 1 /* Must run before sched domains notifier. */
-	};
 
 	min_low_pfn = 0;
 	max_low_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;

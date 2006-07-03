@@ -1,12 +1,12 @@
 /*
  * linux/kernel/irq/manage.c
  *
- * Copyright (C) 1992, 1998-2004 Linus Torvalds, Ingo Molnar
+ * Copyright (C) 1992, 1998-2006 Linus Torvalds, Ingo Molnar
+ * Copyright (C) 2005-2006 Thomas Gleixner
  *
  * This file contains driver APIs to the irq subsystem.
  */
 
-#include <linux/config.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/random.h>
@@ -15,12 +15,6 @@
 #include "internals.h"
 
 #ifdef CONFIG_SMP
-
-cpumask_t irq_affinity[NR_IRQS] = { [0 ... NR_IRQS-1] = CPU_MASK_ALL };
-
-#if defined (CONFIG_GENERIC_PENDING_IRQ) || defined (CONFIG_IRQBALANCE)
-cpumask_t __cacheline_aligned pending_irq_cpumask[NR_IRQS];
-#endif
 
 /**
  *	synchronize_irq - wait for pending IRQ handlers (on other CPUs)
@@ -42,7 +36,6 @@ void synchronize_irq(unsigned int irq)
 	while (desc->status & IRQ_INPROGRESS)
 		cpu_relax();
 }
-
 EXPORT_SYMBOL(synchronize_irq);
 
 #endif
@@ -60,7 +53,7 @@ EXPORT_SYMBOL(synchronize_irq);
  */
 void disable_irq_nosync(unsigned int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 
 	if (irq >= NR_IRQS)
@@ -69,11 +62,10 @@ void disable_irq_nosync(unsigned int irq)
 	spin_lock_irqsave(&desc->lock, flags);
 	if (!desc->depth++) {
 		desc->status |= IRQ_DISABLED;
-		desc->handler->disable(irq);
+		desc->chip->disable(irq);
 	}
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
-
 EXPORT_SYMBOL(disable_irq_nosync);
 
 /**
@@ -90,7 +82,7 @@ EXPORT_SYMBOL(disable_irq_nosync);
  */
 void disable_irq(unsigned int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 
 	if (irq >= NR_IRQS)
 		return;
@@ -99,7 +91,6 @@ void disable_irq(unsigned int irq)
 	if (desc->action)
 		synchronize_irq(irq);
 }
-
 EXPORT_SYMBOL(disable_irq);
 
 /**
@@ -114,7 +105,7 @@ EXPORT_SYMBOL(disable_irq);
  */
 void enable_irq(unsigned int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 
 	if (irq >= NR_IRQS)
@@ -123,17 +114,15 @@ void enable_irq(unsigned int irq)
 	spin_lock_irqsave(&desc->lock, flags);
 	switch (desc->depth) {
 	case 0:
+		printk(KERN_WARNING "Unbalanced enable for IRQ %d\n", irq);
 		WARN_ON(1);
 		break;
 	case 1: {
 		unsigned int status = desc->status & ~IRQ_DISABLED;
 
-		desc->status = status;
-		if ((status & (IRQ_PENDING | IRQ_REPLAY)) == IRQ_PENDING) {
-			desc->status = status | IRQ_REPLAY;
-			hw_resend_irq(desc->handler,irq);
-		}
-		desc->handler->enable(irq);
+		/* Prevent probing on this irq: */
+		desc->status = status | IRQ_NOPROBE;
+		check_irq_resend(desc, irq);
 		/* fall-through */
 	}
 	default:
@@ -141,8 +130,28 @@ void enable_irq(unsigned int irq)
 	}
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
-
 EXPORT_SYMBOL(enable_irq);
+
+/**
+ *	set_irq_wake - control irq power management wakeup
+ *	@irq:	interrupt to control
+ *	@on:	enable/disable power management wakeup
+ *
+ *	Enable/disable power management wakeup mode
+ */
+int set_irq_wake(unsigned int irq, unsigned int on)
+{
+	struct irq_desc *desc = irq_desc + irq;
+	unsigned long flags;
+	int ret = -ENXIO;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	if (desc->chip->set_wake)
+		ret = desc->chip->set_wake(irq, on);
+	spin_unlock_irqrestore(&desc->lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(set_irq_wake);
 
 /*
  * Internal function that tells the architecture code whether a
@@ -153,22 +162,33 @@ int can_request_irq(unsigned int irq, unsigned long irqflags)
 {
 	struct irqaction *action;
 
-	if (irq >= NR_IRQS)
+	if (irq >= NR_IRQS || irq_desc[irq].status & IRQ_NOREQUEST)
 		return 0;
 
 	action = irq_desc[irq].action;
 	if (action)
-		if (irqflags & action->flags & SA_SHIRQ)
+		if (irqflags & action->flags & IRQF_SHARED)
 			action = NULL;
 
 	return !action;
+}
+
+void compat_irq_chip_set_default_handler(struct irq_desc *desc)
+{
+	/*
+	 * If the architecture still has not overriden
+	 * the flow handler then zap the default. This
+	 * should catch incorrect flow-type setting.
+	 */
+	if (desc->handle_irq == &handle_bad_irq)
+		desc->handle_irq = NULL;
 }
 
 /*
  * Internal function to register an irqaction - typically used to
  * allocate special interrupts that are part of the architecture.
  */
-int setup_irq(unsigned int irq, struct irqaction * new)
+int setup_irq(unsigned int irq, struct irqaction *new)
 {
 	struct irq_desc *desc = irq_desc + irq;
 	struct irqaction *old, **p;
@@ -178,14 +198,14 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 	if (irq >= NR_IRQS)
 		return -EINVAL;
 
-	if (desc->handler == &no_irq_type)
+	if (desc->chip == &no_irq_chip)
 		return -ENOSYS;
 	/*
 	 * Some drivers like serial.c use request_irq() heavily,
 	 * so we have to be careful not to interfere with a
 	 * running system.
 	 */
-	if (new->flags & SA_SAMPLE_RANDOM) {
+	if (new->flags & IRQF_SAMPLE_RANDOM) {
 		/*
 		 * This function might sleep, we want to call it first,
 		 * outside of the atomic block.
@@ -200,16 +220,24 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 	/*
 	 * The following block of code has to be executed atomically
 	 */
-	spin_lock_irqsave(&desc->lock,flags);
+	spin_lock_irqsave(&desc->lock, flags);
 	p = &desc->action;
-	if ((old = *p) != NULL) {
-		/* Can't share interrupts unless both agree to */
-		if (!(old->flags & new->flags & SA_SHIRQ))
+	old = *p;
+	if (old) {
+		/*
+		 * Can't share interrupts unless both agree to and are
+		 * the same type (level, edge, polarity). So both flag
+		 * fields must have IRQF_SHARED set and the bits which
+		 * set the trigger type must match.
+		 */
+		if (!((old->flags & new->flags) & IRQF_SHARED) ||
+		    ((old->flags ^ new->flags) & IRQF_TRIGGER_MASK))
 			goto mismatch;
 
-#if defined(ARCH_HAS_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
+#if defined(CONFIG_IRQ_PER_CPU)
 		/* All handlers must agree on per-cpuness */
-		if ((old->flags & IRQ_PER_CPU) != (new->flags & IRQ_PER_CPU))
+		if ((old->flags & IRQF_PERCPU) !=
+		    (new->flags & IRQF_PERCPU))
 			goto mismatch;
 #endif
 
@@ -222,20 +250,45 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 	}
 
 	*p = new;
-#if defined(ARCH_HAS_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
-	if (new->flags & SA_PERCPU_IRQ)
+#if defined(CONFIG_IRQ_PER_CPU)
+	if (new->flags & IRQF_PERCPU)
 		desc->status |= IRQ_PER_CPU;
 #endif
 	if (!shared) {
-		desc->depth = 0;
-		desc->status &= ~(IRQ_DISABLED | IRQ_AUTODETECT |
-				  IRQ_WAITING | IRQ_INPROGRESS);
-		if (desc->handler->startup)
-			desc->handler->startup(irq);
-		else
-			desc->handler->enable(irq);
+		irq_chip_set_defaults(desc->chip);
+
+		/* Setup the type (level, edge polarity) if configured: */
+		if (new->flags & IRQF_TRIGGER_MASK) {
+			if (desc->chip && desc->chip->set_type)
+				desc->chip->set_type(irq,
+						new->flags & IRQF_TRIGGER_MASK);
+			else
+				/*
+				 * IRQF_TRIGGER_* but the PIC does not support
+				 * multiple flow-types?
+				 */
+				printk(KERN_WARNING "No IRQF_TRIGGER set_type "
+				       "function for IRQ %d (%s)\n", irq,
+				       desc->chip ? desc->chip->name :
+				       "unknown");
+		} else
+			compat_irq_chip_set_default_handler(desc);
+
+		desc->status &= ~(IRQ_AUTODETECT | IRQ_WAITING |
+				  IRQ_INPROGRESS);
+
+		if (!(desc->status & IRQ_NOAUTOEN)) {
+			desc->depth = 0;
+			desc->status &= ~IRQ_DISABLED;
+			if (desc->chip->startup)
+				desc->chip->startup(irq);
+			else
+				desc->chip->enable(irq);
+		} else
+			/* Undo nested disables: */
+			desc->depth = 1;
 	}
-	spin_unlock_irqrestore(&desc->lock,flags);
+	spin_unlock_irqrestore(&desc->lock, flags);
 
 	new->irq = irq;
 	register_irq_proc(irq);
@@ -246,8 +299,8 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 
 mismatch:
 	spin_unlock_irqrestore(&desc->lock, flags);
-	if (!(new->flags & SA_PROBEIRQ)) {
-		printk(KERN_ERR "%s: irq handler mismatch\n", __FUNCTION__);
+	if (!(new->flags & IRQF_PROBE_SHARED)) {
+		printk(KERN_ERR "IRQ handler type mismatch for IRQ %d\n", irq);
 		dump_stack();
 	}
 	return -EBUSY;
@@ -278,10 +331,10 @@ void free_irq(unsigned int irq, void *dev_id)
 		return;
 
 	desc = irq_desc + irq;
-	spin_lock_irqsave(&desc->lock,flags);
+	spin_lock_irqsave(&desc->lock, flags);
 	p = &desc->action;
 	for (;;) {
-		struct irqaction * action = *p;
+		struct irqaction *action = *p;
 
 		if (action) {
 			struct irqaction **pp = p;
@@ -295,18 +348,18 @@ void free_irq(unsigned int irq, void *dev_id)
 
 			/* Currently used only by UML, might disappear one day.*/
 #ifdef CONFIG_IRQ_RELEASE_METHOD
-			if (desc->handler->release)
-				desc->handler->release(irq, dev_id);
+			if (desc->chip->release)
+				desc->chip->release(irq, dev_id);
 #endif
 
 			if (!desc->action) {
 				desc->status |= IRQ_DISABLED;
-				if (desc->handler->shutdown)
-					desc->handler->shutdown(irq);
+				if (desc->chip->shutdown)
+					desc->chip->shutdown(irq);
 				else
-					desc->handler->disable(irq);
+					desc->chip->disable(irq);
 			}
-			spin_unlock_irqrestore(&desc->lock,flags);
+			spin_unlock_irqrestore(&desc->lock, flags);
 			unregister_handler_proc(irq, action);
 
 			/* Make sure it's not being used on another CPU */
@@ -314,12 +367,11 @@ void free_irq(unsigned int irq, void *dev_id)
 			kfree(action);
 			return;
 		}
-		printk(KERN_ERR "Trying to free free IRQ%d\n",irq);
-		spin_unlock_irqrestore(&desc->lock,flags);
+		printk(KERN_ERR "Trying to free already-free IRQ %d\n", irq);
+		spin_unlock_irqrestore(&desc->lock, flags);
 		return;
 	}
 }
-
 EXPORT_SYMBOL(free_irq);
 
 /**
@@ -346,16 +398,16 @@ EXPORT_SYMBOL(free_irq);
  *
  *	Flags:
  *
- *	SA_SHIRQ		Interrupt is shared
- *	SA_INTERRUPT		Disable local interrupts while processing
- *	SA_SAMPLE_RANDOM	The interrupt can be used for entropy
+ *	IRQF_SHARED		Interrupt is shared
+ *	IRQF_DISABLED	Disable local interrupts while processing
+ *	IRQF_SAMPLE_RANDOM	The interrupt can be used for entropy
  *
  */
 int request_irq(unsigned int irq,
 		irqreturn_t (*handler)(int, void *, struct pt_regs *),
-		unsigned long irqflags, const char * devname, void *dev_id)
+		unsigned long irqflags, const char *devname, void *dev_id)
 {
-	struct irqaction * action;
+	struct irqaction *action;
 	int retval;
 
 	/*
@@ -364,9 +416,11 @@ int request_irq(unsigned int irq,
 	 * which interrupt is which (messes up the interrupt freeing
 	 * logic etc).
 	 */
-	if ((irqflags & SA_SHIRQ) && !dev_id)
+	if ((irqflags & IRQF_SHARED) && !dev_id)
 		return -EINVAL;
 	if (irq >= NR_IRQS)
+		return -EINVAL;
+	if (irq_desc[irq].status & IRQ_NOREQUEST)
 		return -EINVAL;
 	if (!handler)
 		return -EINVAL;
@@ -390,6 +444,5 @@ int request_irq(unsigned int irq,
 
 	return retval;
 }
-
 EXPORT_SYMBOL(request_irq);
 

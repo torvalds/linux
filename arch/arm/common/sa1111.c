@@ -14,7 +14,6 @@
  * All initialization functions provided here are intended to be called
  * from machine specific code with proper arguments when required.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -151,7 +150,7 @@ static void
 sa1111_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 {
 	unsigned int stat0, stat1, i;
-	void __iomem *base = desc->data;
+	void __iomem *base = get_irq_data(irq);
 
 	stat0 = sa1111_readl(base + SA1111_INTSTATCLR0);
 	stat1 = sa1111_readl(base + SA1111_INTSTATCLR1);
@@ -169,11 +168,11 @@ sa1111_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 
 	for (i = IRQ_SA1111_START; stat0; i++, stat0 >>= 1)
 		if (stat0 & 1)
-			do_edge_IRQ(i, irq_desc + i, regs);
+			handle_edge_irq(i, irq_desc + i, regs);
 
 	for (i = IRQ_SA1111_START + 32; stat1; i++, stat1 >>= 1)
 		if (stat1 & 1)
-			do_edge_IRQ(i, irq_desc + i, regs);
+			handle_edge_irq(i, irq_desc + i, regs);
 
 	/* For level-based interrupts */
 	desc->chip->unmask(irq);

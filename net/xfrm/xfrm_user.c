@@ -1435,7 +1435,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *err
 	link = &xfrm_dispatch[type];
 
 	/* All operations require privileges, even GET */
-	if (security_netlink_recv(skb)) {
+	if (security_netlink_recv(skb, CAP_NET_ADMIN)) {
 		*errp = -EPERM;
 		return -1;
 	}

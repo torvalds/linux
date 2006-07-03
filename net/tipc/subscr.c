@@ -266,7 +266,8 @@ static void subscr_subscribe(struct tipc_subscr *s,
 	/* Refuse subscription if global limit exceeded */
 
 	if (atomic_read(&topsrv.subscription_count) >= tipc_max_subscriptions) {
-		warn("Failed: max %u subscriptions\n", tipc_max_subscriptions);
+		warn("Subscription rejected, subscription limit reached (%u)\n",
+		     tipc_max_subscriptions);
 		subscr_terminate(subscriber);
 		return;
 	}
@@ -274,8 +275,8 @@ static void subscr_subscribe(struct tipc_subscr *s,
 	/* Allocate subscription object */
 
 	sub = kmalloc(sizeof(*sub), GFP_ATOMIC);
-	if (sub == NULL) {
-		warn("Memory squeeze; ignoring subscription\n");
+	if (!sub) {
+		warn("Subscription rejected, no memory\n");
 		subscr_terminate(subscriber);
 		return;
 	}
@@ -298,8 +299,7 @@ static void subscr_subscribe(struct tipc_subscr *s,
 	if ((((sub->filter != TIPC_SUB_PORTS) 
 	      && (sub->filter != TIPC_SUB_SERVICE)))
 	    || (sub->seq.lower > sub->seq.upper)) {
-		warn("Rejecting illegal subscription %u,%u,%u\n",
-		     sub->seq.type, sub->seq.lower, sub->seq.upper);
+		warn("Subscription rejected, illegal request\n");
 		kfree(sub);
 		subscr_terminate(subscriber);
 		return;
@@ -387,7 +387,7 @@ static void subscr_named_msg_event(void *usr_handle,
 	dbg("subscr_named_msg_event: orig = %x own = %x,\n",
 	    orig->node, tipc_own_addr);
 	if (size && (size != sizeof(struct tipc_subscr))) {
-		warn("Received tipc_subscr of invalid size\n");
+		warn("Subscriber rejected, invalid subscription size\n");
 		return;
 	}
 
@@ -395,7 +395,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	subscriber = kmalloc(sizeof(struct subscriber), GFP_ATOMIC);
 	if (subscriber == NULL) {
-		warn("Memory squeeze; ignoring subscriber setup\n");
+		warn("Subscriber rejected, no memory\n");
 		return;
 	}
 	memset(subscriber, 0, sizeof(struct subscriber));
@@ -403,7 +403,7 @@ static void subscr_named_msg_event(void *usr_handle,
 	INIT_LIST_HEAD(&subscriber->subscriber_list);
 	subscriber->ref = tipc_ref_acquire(subscriber, &subscriber->lock);
 	if (subscriber->ref == 0) {
-		warn("Failed to acquire subscriber reference\n");
+		warn("Subscriber rejected, reference table exhausted\n");
 		kfree(subscriber);
 		return;
 	}
@@ -422,7 +422,7 @@ static void subscr_named_msg_event(void *usr_handle,
 			NULL,
 			&subscriber->port_ref);
 	if (subscriber->port_ref == 0) {
-		warn("Memory squeeze; failed to create subscription port\n");
+		warn("Subscriber rejected, unable to create port\n");
 		tipc_ref_discard(subscriber->ref);
 		kfree(subscriber);
 		return;
@@ -457,7 +457,7 @@ int tipc_subscr_start(void)
 	int res = -1;
 
 	memset(&topsrv, 0, sizeof (topsrv));
-	topsrv.lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&topsrv.lock);
 	INIT_LIST_HEAD(&topsrv.subscriber_list);
 
 	spin_lock_bh(&topsrv.lock);

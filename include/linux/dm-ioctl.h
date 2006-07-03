@@ -285,9 +285,9 @@ typedef char ioctl_struct[308];
 #define DM_DEV_SET_GEOMETRY	_IOWR(DM_IOCTL, DM_DEV_SET_GEOMETRY_CMD, struct dm_ioctl)
 
 #define DM_VERSION_MAJOR	4
-#define DM_VERSION_MINOR	6
+#define DM_VERSION_MINOR	7
 #define DM_VERSION_PATCHLEVEL	0
-#define DM_VERSION_EXTRA	"-ioctl (2006-02-17)"
+#define DM_VERSION_EXTRA	"-ioctl (2006-06-24)"
 
 /* Status bits */
 #define DM_READONLY_FLAG	(1 << 0) /* In/Out */
@@ -314,7 +314,7 @@ typedef char ioctl_struct[308];
 #define DM_BUFFER_FULL_FLAG	(1 << 8) /* Out */
 
 /*
- * Set this to improve performance when you aren't going to use open_count.
+ * This flag is now ignored.
  */
 #define DM_SKIP_BDGET_FLAG	(1 << 9) /* In */
 

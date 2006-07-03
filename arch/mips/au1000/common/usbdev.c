@@ -1465,14 +1465,14 @@ usbdev_init(struct usb_device_descriptor* dev_desc,
 	 */
 
 	/* request the USB device transfer complete interrupt */
-	if (request_irq(AU1000_USB_DEV_REQ_INT, req_sus_intr, SA_INTERRUPT,
+	if (request_irq(AU1000_USB_DEV_REQ_INT, req_sus_intr, IRQF_DISABLED,
 			"USBdev req", &usbdev)) {
 		err("Can't get device request intr");
 		ret = -ENXIO;
 		goto out;
 	}
 	/* request the USB device suspend interrupt */
-	if (request_irq(AU1000_USB_DEV_SUS_INT, req_sus_intr, SA_INTERRUPT,
+	if (request_irq(AU1000_USB_DEV_SUS_INT, req_sus_intr, IRQF_DISABLED,
 			"USBdev sus", &usbdev)) {
 		err("Can't get device suspend intr");
 		ret = -ENXIO;
@@ -1483,7 +1483,7 @@ usbdev_init(struct usb_device_descriptor* dev_desc,
 	if ((ep0->indma = request_au1000_dma(ep_dma_id[0].id,
 					     ep_dma_id[0].str,
 					     dma_done_ep0_intr,
-					     SA_INTERRUPT,
+					     IRQF_DISABLED,
 					     &usbdev)) < 0) {
 		err("Can't get %s DMA", ep_dma_id[0].str);
 		ret = -ENXIO;
@@ -1516,7 +1516,7 @@ usbdev_init(struct usb_device_descriptor* dev_desc,
 				request_au1000_dma(ep_dma_id[ep->address].id,
 						   ep_dma_id[ep->address].str,
 						   dma_done_ep_intr,
-						   SA_INTERRUPT,
+						   IRQF_DISABLED,
 						   &usbdev);
 			if (ep->indma < 0) {
 				err("Can't get %s DMA",

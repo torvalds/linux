@@ -32,7 +32,7 @@
 
 static void __iomem *mmio_nvram_start;
 static long mmio_nvram_len;
-static spinlock_t mmio_nvram_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(mmio_nvram_lock);
 
 static ssize_t mmio_nvram_read(char *buf, size_t count, loff_t *index)
 {

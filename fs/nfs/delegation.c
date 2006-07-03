@@ -6,7 +6,6 @@
  * NFS file delegation management
  *
  */
-#include <linux/config.h>
 #include <linux/completion.h>
 #include <linux/kthread.h>
 #include <linux/module.h>

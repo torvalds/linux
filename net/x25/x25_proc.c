@@ -17,7 +17,6 @@
  *	2002/10/06	Arnaldo Carvalho de Melo  seq_file support
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>

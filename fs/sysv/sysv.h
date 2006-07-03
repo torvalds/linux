@@ -161,7 +161,7 @@ extern struct inode_operations sysv_dir_inode_operations;
 extern struct inode_operations sysv_fast_symlink_inode_operations;
 extern const struct file_operations sysv_file_operations;
 extern const struct file_operations sysv_dir_operations;
-extern struct address_space_operations sysv_aops;
+extern const struct address_space_operations sysv_aops;
 extern struct super_operations sysv_sops;
 extern struct dentry_operations sysv_dentry_operations;
 

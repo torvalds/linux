@@ -1,6 +1,6 @@
 #include <linux/spinlock.h>
 
-u32 scx200_gpio_configure(int index, u32 set, u32 clear);
+u32 scx200_gpio_configure(unsigned index, u32 set, u32 clear);
 
 extern unsigned scx200_gpio_base;
 extern long scx200_gpio_shadow[2];
@@ -17,7 +17,7 @@ extern long scx200_gpio_shadow[2];
 
 /* returns the value of the GPIO pin */
 
-static inline int scx200_gpio_get(int index) {
+static inline int scx200_gpio_get(unsigned index) {
 	__SCx200_GPIO_BANK;
 	__SCx200_GPIO_IOADDR + 0x04;
 	__SCx200_GPIO_INDEX;
@@ -29,7 +29,7 @@ static inline int scx200_gpio_get(int index) {
    driven if the GPIO is configured as an output, it might not be the
    state of the GPIO right now if the GPIO is configured as an input) */
 
-static inline int scx200_gpio_current(int index) {
+static inline int scx200_gpio_current(unsigned index) {
         __SCx200_GPIO_BANK;
 	__SCx200_GPIO_INDEX;
 		
@@ -38,7 +38,7 @@ static inline int scx200_gpio_current(int index) {
 
 /* drive the GPIO signal high */
 
-static inline void scx200_gpio_set_high(int index) {
+static inline void scx200_gpio_set_high(unsigned index) {
 	__SCx200_GPIO_BANK;
 	__SCx200_GPIO_IOADDR;
 	__SCx200_GPIO_SHADOW;
@@ -49,7 +49,7 @@ static inline void scx200_gpio_set_high(int index) {
 
 /* drive the GPIO signal low */
 
-static inline void scx200_gpio_set_low(int index) {
+static inline void scx200_gpio_set_low(unsigned index) {
 	__SCx200_GPIO_BANK;
 	__SCx200_GPIO_IOADDR;
 	__SCx200_GPIO_SHADOW;
@@ -60,7 +60,7 @@ static inline void scx200_gpio_set_low(int index) {
 
 /* drive the GPIO signal to state */
 
-static inline void scx200_gpio_set(int index, int state) {
+static inline void scx200_gpio_set(unsigned index, int state) {
 	__SCx200_GPIO_BANK;
 	__SCx200_GPIO_IOADDR;
 	__SCx200_GPIO_SHADOW;
@@ -73,7 +73,7 @@ static inline void scx200_gpio_set(int index, int state) {
 }
 
 /* toggle the GPIO signal */
-static inline void scx200_gpio_change(int index) {
+static inline void scx200_gpio_change(unsigned index) {
 	__SCx200_GPIO_BANK;
 	__SCx200_GPIO_IOADDR;
 	__SCx200_GPIO_SHADOW;
@@ -87,10 +87,3 @@ static inline void scx200_gpio_change(int index) {
 #undef __SCx200_GPIO_SHADOW
 #undef __SCx200_GPIO_INDEX
 #undef __SCx200_GPIO_OUT
-
-/*
-    Local variables:
-        compile-command: "make -C ../.. bzImage modules"
-        c-basic-offset: 8
-    End:
-*/

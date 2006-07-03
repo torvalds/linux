@@ -16,7 +16,6 @@
  */
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -431,8 +430,7 @@ static struct fs_enet_mii_bus *create_bus(const struct fs_mii_bus_info *bi)
 	return bus;
 
 err:
-	if (bus)
-		kfree(bus);
+	kfree(bus);
 	return ERR_PTR(ret);
 }
 

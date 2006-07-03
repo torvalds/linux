@@ -91,7 +91,6 @@
 #define AUTOPROBE_IRQ
 #define AUTOSENSE
 
-#include <linux/config.h>
 
 #ifdef CONFIG_SCSI_GENERIC_NCR53C400
 #define NCR53C400_PSEUDO_DMA 1
@@ -138,10 +137,9 @@ static struct override {
 [1] __initdata = { { 0,},};
 #endif
 
+#define NO_OVERRIDES ARRAY_SIZE(overrides)
 
-#define NO_OVERRIDES (sizeof(overrides) / sizeof(struct override))
-
-#ifndef MODULE 
+#ifndef MODULE
 
 /**
  *	internal_setup		-	handle lilo command string override
@@ -210,7 +208,7 @@ static int __init do_NCR5380_setup(char *str)
 {
 	int ints[10];
 
-	get_options(str, sizeof(ints) / sizeof(int), ints);
+	get_options(str, ARRAY_SIZE(ints), ints);
 	internal_setup(BOARD_NCR5380, str, ints);
 	return 1;
 }
@@ -218,7 +216,7 @@ static int __init do_NCR5380_setup(char *str)
 /**
  * 	do_NCR53C400_setup		-	set up entry point
  *	@str: unused
- *	@ints: integer parameters from kernel setup code 
+ *	@ints: integer parameters from kernel setup code
  *
  *	Setup function invoked at boot to parse the ncr53c400= command
  *	line.
@@ -228,7 +226,7 @@ static int __init do_NCR53C400_setup(char *str)
 {
 	int ints[10];
 
-	get_options(str, sizeof(ints) / sizeof(int), ints);
+	get_options(str, ARRAY_SIZE(ints), ints);
 	internal_setup(BOARD_NCR53C400, str, ints);
 	return 1;
 }
@@ -236,7 +234,7 @@ static int __init do_NCR53C400_setup(char *str)
 /**
  * 	do_NCR53C400A_setup	-	set up entry point
  *	@str: unused
- *	@ints: integer parameters from kernel setup code 
+ *	@ints: integer parameters from kernel setup code
  *
  *	Setup function invoked at boot to parse the ncr53c400a= command
  *	line.
@@ -246,7 +244,7 @@ static int __init do_NCR53C400A_setup(char *str)
 {
 	int ints[10];
 
-	get_options(str, sizeof(ints) / sizeof(int), ints);
+	get_options(str, ARRAY_SIZE(ints), ints);
 	internal_setup(BOARD_NCR53C400A, str, ints);
 	return 1;
 }
@@ -254,7 +252,7 @@ static int __init do_NCR53C400A_setup(char *str)
 /**
  * 	do_DTC3181E_setup	-	set up entry point
  *	@str: unused
- *	@ints: integer parameters from kernel setup code 
+ *	@ints: integer parameters from kernel setup code
  *
  *	Setup function invoked at boot to parse the dtc3181e= command
  *	line.
@@ -264,7 +262,7 @@ static int __init do_DTC3181E_setup(char *str)
 {
 	int ints[10];
 
-	get_options(str, sizeof(ints) / sizeof(int), ints);
+	get_options(str, ARRAY_SIZE(ints), ints);
 	internal_setup(BOARD_DTC3181E, str, ints);
 	return 1;
 }
@@ -463,7 +461,7 @@ int __init generic_NCR5380_detect(struct scsi_host_template * tpnt)
 			instance->irq = NCR5380_probe_irq(instance, 0xffff);
 
 		if (instance->irq != SCSI_IRQ_NONE)
-			if (request_irq(instance->irq, generic_NCR5380_intr, SA_INTERRUPT, "NCR5380", instance)) {
+			if (request_irq(instance->irq, generic_NCR5380_intr, IRQF_DISABLED, "NCR5380", instance)) {
 				printk(KERN_WARNING "scsi%d : IRQ%d not free, interrupts disabled\n", instance->host_no, instance->irq);
 				instance->irq = SCSI_IRQ_NONE;
 			}

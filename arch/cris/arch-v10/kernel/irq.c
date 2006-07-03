@@ -15,7 +15,6 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/config.h>
 
 #define mask_irq(irq_nr) (*R_VECT_MASK_CLR = 1 << (irq_nr));
 #define unmask_irq(irq_nr) (*R_VECT_MASK_SET = 1 << (irq_nr));
@@ -172,7 +171,7 @@ init_IRQ(void)
 
 	/* Initialize IRQ handler descriptiors. */
 	for(i = 2; i < NR_IRQS; i++) {
-		irq_desc[i].handler = &crisv10_irq_type;
+		irq_desc[i].chip = &crisv10_irq_type;
 		set_int_vector(i, interrupt[i]);
 	}
 

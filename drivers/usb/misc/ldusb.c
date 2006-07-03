@@ -27,7 +27,6 @@
  * V0.13 (mh) Added support for LD X-Ray and Machine Test System
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>

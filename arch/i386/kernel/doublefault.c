@@ -44,7 +44,8 @@ static void doublefault_fn(void)
 		}
 	}
 
-	for (;;) /* nothing */;
+	for (;;)
+		cpu_relax();
 }
 
 struct tss_struct doublefault_tss __cacheline_aligned = {

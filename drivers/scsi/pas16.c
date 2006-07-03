@@ -156,7 +156,7 @@ static int default_irqs[] __initdata =
 static struct override {
     unsigned short io_port;
     int  irq;
-} overrides 
+} overrides
 #ifdef PAS16_OVERRIDE
     [] __initdata = PAS16_OVERRIDE;
 #else
@@ -164,19 +164,19 @@ static struct override {
 	{0,IRQ_AUTO}};
 #endif
 
-#define NO_OVERRIDES (sizeof(overrides) / sizeof(struct override))
+#define NO_OVERRIDES ARRAY_SIZE(overrides)
 
 static struct base {
     unsigned short io_port;
     int noauto;
-} bases[] __initdata = 
+} bases[] __initdata =
 	{ {PAS16_DEFAULT_BASE_1, 0},
 	  {PAS16_DEFAULT_BASE_2, 0},
 	  {PAS16_DEFAULT_BASE_3, 0},
 	  {PAS16_DEFAULT_BASE_4, 0}
 	};
 
-#define NO_BASES (sizeof (bases) / sizeof (struct base))
+#define NO_BASES ARRAY_SIZE(bases)
 
 static const unsigned short  pas16_offset[ 8 ] =
     {
@@ -454,7 +454,7 @@ int __init pas16_detect(struct scsi_host_template * tpnt)
 	    instance->irq = NCR5380_probe_irq(instance, PAS16_IRQS);
 
 	if (instance->irq != SCSI_IRQ_NONE) 
-	    if (request_irq(instance->irq, pas16_intr, SA_INTERRUPT, "pas16", instance)) {
+	    if (request_irq(instance->irq, pas16_intr, IRQF_DISABLED, "pas16", instance)) {
 		printk("scsi%d : IRQ%d not free, interrupts disabled\n", 
 		    instance->host_no, instance->irq);
 		instance->irq = SCSI_IRQ_NONE;

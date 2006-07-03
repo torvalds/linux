@@ -10,7 +10,6 @@
  * 24-03-1998 by Richard Frowijn : first release.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <linux/stat.h>

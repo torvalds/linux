@@ -58,6 +58,8 @@ char snd_opl3_regmap[MAX_OPL2_VOICES][4] =
 	{ 0x12, 0x15, 0x00, 0x00 }	/* is selected (only left reg block) */
 };
 
+EXPORT_SYMBOL(snd_opl3_regmap);
+
 /*
  * prototypes
  */
@@ -228,6 +230,7 @@ void snd_opl3_reset(struct snd_opl3 * opl3)
 	opl3->rhythm = 0;
 }
 
+EXPORT_SYMBOL(snd_opl3_reset);
 
 static int snd_opl3_play_note(struct snd_opl3 * opl3, struct snd_dm_fm_note * note)
 {
@@ -445,3 +448,4 @@ static int snd_opl3_set_connection(struct snd_opl3 * opl3, int connection)
 
 	return 0;
 }
+

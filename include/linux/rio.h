@@ -17,7 +17,6 @@
 #ifdef __KERNEL__
 
 #include <linux/types.h>
-#include <linux/config.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
 #include <linux/errno.h>

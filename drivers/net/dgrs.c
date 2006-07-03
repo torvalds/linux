@@ -1191,7 +1191,7 @@ dgrs_probe1(struct net_device *dev)
 	if (priv->plxreg)
 		OUTL(dev->base_addr + PLX_LCL2PCI_DOORBELL, 1);
 	
-	rc = request_irq(dev->irq, &dgrs_intr, SA_SHIRQ, "RightSwitch", dev);
+	rc = request_irq(dev->irq, &dgrs_intr, IRQF_SHARED, "RightSwitch", dev);
 	if (rc)
 		goto err_out;
 

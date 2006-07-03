@@ -3413,7 +3413,7 @@ static int __devinit i810_probe(struct pci_dev *pci_dev, const struct pci_device
 		goto out_iospace;
 	}
 
-	if (request_irq(card->irq, &i810_interrupt, SA_SHIRQ,
+	if (request_irq(card->irq, &i810_interrupt, IRQF_SHARED,
 			card_names[pci_id->driver_data], card)) {
 		printk(KERN_ERR "i810_audio: unable to allocate irq %d\n", card->irq);
 		goto out_iospace;

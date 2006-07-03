@@ -4,7 +4,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/capability.h>

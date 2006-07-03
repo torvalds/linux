@@ -5,7 +5,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/hdreg.h>
@@ -194,7 +193,7 @@ static struct hw_interrupt_type mpc1211_irq_type = {
 
 static void make_mpc1211_irq(unsigned int irq)
 {
-	irq_desc[irq].handler = &mpc1211_irq_type;
+	irq_desc[irq].chip = &mpc1211_irq_type;
 	irq_desc[irq].status  = IRQ_DISABLED;
 	irq_desc[irq].action  = 0;
 	irq_desc[irq].depth   = 1;

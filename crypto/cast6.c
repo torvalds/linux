@@ -381,13 +381,13 @@ static inline void W(u32 *key, unsigned int i) {
 	key[7] ^= F2(key[0], Tr[i % 4][7], Tm[i][7]);
 }
 
-static int
-cast6_setkey(void *ctx, const u8 * in_key, unsigned key_len, u32 * flags)
+static int cast6_setkey(struct crypto_tfm *tfm, const u8 *in_key,
+			unsigned key_len, u32 *flags)
 {
 	int i;
 	u32 key[8];
 	__be32 p_key[8]; /* padded key */
-	struct cast6_ctx *c = (struct cast6_ctx *) ctx;
+	struct cast6_ctx *c = crypto_tfm_ctx(tfm);
 
 	if (key_len < 16 || key_len > 32 || key_len % 4 != 0) {
 		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
@@ -444,8 +444,9 @@ static inline void QBAR (u32 * block, u8 * Kr, u32 * Km) {
         block[2] ^= F1(block[3], Kr[0], Km[0]);
 }
 
-static void cast6_encrypt (void * ctx, u8 * outbuf, const u8 * inbuf) {
-	struct cast6_ctx * c = (struct cast6_ctx *)ctx;
+static void cast6_encrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
+{
+	struct cast6_ctx *c = crypto_tfm_ctx(tfm);
 	const __be32 *src = (const __be32 *)inbuf;
 	__be32 *dst = (__be32 *)outbuf;
 	u32 block[4];
@@ -476,8 +477,8 @@ static void cast6_encrypt (void * ctx, u8 * outbuf, const u8 * inbuf) {
 	dst[3] = cpu_to_be32(block[3]);
 }	
 
-static void cast6_decrypt (void * ctx, u8 * outbuf, const u8 * inbuf) {
-	struct cast6_ctx * c = (struct cast6_ctx *)ctx;
+static void cast6_decrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf) {
+	struct cast6_ctx * c = crypto_tfm_ctx(tfm);
 	const __be32 *src = (const __be32 *)inbuf;
 	__be32 *dst = (__be32 *)outbuf;
 	u32 block[4];

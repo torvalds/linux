@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
 
@@ -90,7 +89,7 @@ dasd_default_erp_action(struct dasd_ccw_req * cqr)
 
         /* just retry - there is nothing to save ... I got no sense data.... */
         if (cqr->retries > 0) {
-                DEV_MESSAGE (KERN_DEBUG, device, 
+		DEV_MESSAGE (KERN_DEBUG, device,
                              "default ERP called (%i retries left)",
                              cqr->retries);
 		cqr->lpm    = LPM_ANYPATH;
@@ -155,7 +154,7 @@ dasd_default_erp_postaction(struct dasd_ccw_req * cqr)
 
 /*
  * Print the hex dump of the memory used by a request. This includes
- * all error recovery ccws that have been chained in from of the 
+ * all error recovery ccws that have been chained in from of the
  * real request.
  */
 static inline void
@@ -227,12 +226,12 @@ dasd_log_ccw(struct dasd_ccw_req * cqr, int caller, __u32 cpa)
 		/*
 		 * Log bytes arround failed CCW but only if we did
 		 * not log the whole CP of the CCW is outside the
-		 * logged CP. 
+		 * logged CP.
 		 */
 		if (cplength > 40 ||
 		    ((addr_t) cpa < (addr_t) lcqr->cpaddr &&
 		     (addr_t) cpa > (addr_t) (lcqr->cpaddr + cplength + 4))) {
-			
+
 			DEV_MESSAGE(KERN_ERR, device,
 				    "Failed CCW (%p) (area):",
 				    (void *) (long) cpa);

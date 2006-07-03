@@ -465,6 +465,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		flash->mtd.name = spi->dev.bus_id;
 
 	flash->mtd.type = MTD_NORFLASH;
+	flash->mtd.writesize = 1;
 	flash->mtd.flags = MTD_CAP_NORFLASH;
 	flash->mtd.size = info->sector_size * info->n_sectors;
 	flash->mtd.erasesize = info->sector_size;

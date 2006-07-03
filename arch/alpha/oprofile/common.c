@@ -112,7 +112,7 @@ op_axp_create_files(struct super_block * sb, struct dentry * root)
 
 	for (i = 0; i < model->num_counters; ++i) {
 		struct dentry *dir;
-		char buf[3];
+		char buf[4];
 
 		snprintf(buf, sizeof buf, "%d", i);
 		dir = oprofilefs_mkdir(sb, root, buf);

@@ -28,7 +28,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/types.h>

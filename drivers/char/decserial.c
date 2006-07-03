@@ -16,7 +16,6 @@
  *      console device I strongly recommend to use only one.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/dec/machtype.h>
 

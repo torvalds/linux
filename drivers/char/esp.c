@@ -883,7 +883,7 @@ static int startup(struct esp_struct * info)
 	 * Allocate the IRQ
 	 */
 
-	retval = request_irq(info->irq, rs_interrupt_single, SA_SHIRQ,
+	retval = request_irq(info->irq, rs_interrupt_single, IRQF_SHARED,
 			     "esp serial", info);
 
 	if (retval) {
@@ -1212,7 +1212,7 @@ static void rs_put_char(struct tty_struct *tty, unsigned char ch)
 	if (serial_paranoia_check(info, tty->name, "rs_put_char"))
 		return;
 
-	if (!tty || !info->xmit_buf)
+	if (!info->xmit_buf)
 		return;
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -1256,7 +1256,7 @@ static int rs_write(struct tty_struct * tty,
 	if (serial_paranoia_check(info, tty->name, "rs_write"))
 		return 0;
 
-	if (!tty || !info->xmit_buf)
+	if (!info->xmit_buf)
 		return 0;
 	    
 	while (1) {
@@ -2449,7 +2449,6 @@ static int __init espserial_init(void)
 	
 	esp_driver->owner = THIS_MODULE;
 	esp_driver->name = "ttyP";
-	esp_driver->devfs_name = "tts/P";
 	esp_driver->major = ESP_IN_MAJOR;
 	esp_driver->minor_start = 0;
 	esp_driver->type = TTY_DRIVER_TYPE_SERIAL;

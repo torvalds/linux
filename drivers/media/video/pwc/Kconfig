@@ -7,6 +7,7 @@ config USB_PWC
 	   * Philips PCA645, PCA646
 	   * Philips PCVC675, PCVC680, PCVC690
 	   * Philips PCVC720/40, PCVC730, PCVC740, PCVC750
+	   * Philips SPC900NC
 	   * Askey VC010
 	   * Logitech QuickCam Pro 3000, 4000, 'Zoom', 'Notebook Pro'
 	     and 'Orbit'/'Sphere'
@@ -19,10 +20,18 @@ config USB_PWC
 	  and never will be, but the 665 and 720/20 are supported by other
 	  drivers.
 
-	  See <file:Documentation/usb/philips.txt> for more information and
-	  installation instructions.
+	  Some newer logitech webcams are not handled by this driver but by the
+	  Usb Video Class driver (linux-uvc).
 
 	  The built-in microphone is enabled by selecting USB Audio support.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pwc.
+
+config USB_PWC_DEBUG
+	bool "USB Philips Cameras verbose debug"
+	depends USB_PWC
+	help
+	  Say Y here in order to have the pwc driver generate verbose debugging
+	  messages.
+	  A special module options 'trace' is used to control the verbosity.

@@ -17,7 +17,6 @@
 #ifndef _IBM_EMAC_TAH_H
 #define _IBM_EMAC_TAH_H
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/ocp.h>
 

@@ -40,7 +40,6 @@ struct hrtimer_base;
 
 /**
  * struct hrtimer - the basic hrtimer structure
- *
  * @node:	red black tree node for time ordered insertion
  * @expires:	the absolute expiry time in the hrtimers internal
  *		representation. The time is related to the clock on
@@ -59,7 +58,6 @@ struct hrtimer {
 
 /**
  * struct hrtimer_sleeper - simple sleeper structure
- *
  * @timer:	embedded timer structure
  * @task:	task to wake up
  *
@@ -72,7 +70,6 @@ struct hrtimer_sleeper {
 
 /**
  * struct hrtimer_base - the timer base for a specific clock
- *
  * @index:		clock type index for per_cpu support when moving a timer
  *			to a base on another cpu.
  * @lock:		lock protecting the base and associated timers
@@ -127,7 +124,7 @@ extern ktime_t hrtimer_get_next_event(void);
 
 static inline int hrtimer_active(const struct hrtimer *timer)
 {
-	return timer->node.rb_parent != HRTIMER_INACTIVE;
+	return rb_parent(&timer->node) != &timer->node;
 }
 
 /* Forward a hrtimer so it expires after now: */

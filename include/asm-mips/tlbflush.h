@@ -1,7 +1,6 @@
 #ifndef __ASM_TLBFLUSH_H
 #define __ASM_TLBFLUSH_H
 
-#include <linux/config.h>
 #include <linux/mm.h>
 
 /*

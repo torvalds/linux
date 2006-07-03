@@ -11,7 +11,6 @@
  */
 
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include "hisax.h"
 #include "isac.h"
@@ -375,7 +374,7 @@ setup_sct_quadro(struct IsdnCard *card)
 	pci_ioaddr5 &= PCI_BASE_ADDRESS_IO_MASK;
 	/* Take over */
 	cs->irq = pci_irq;
-	cs->irq_flags |= SA_SHIRQ;
+	cs->irq_flags |= IRQF_SHARED;
 	/* pci_ioaddr1 is unique to all subdevices */
 	/* pci_ioaddr2 is for the fourth subdevice only */
 	/* pci_ioaddr3 is for the third subdevice only */

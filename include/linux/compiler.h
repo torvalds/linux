@@ -78,6 +78,7 @@ extern void __chk_io_ptr(void __iomem *);
 
 #endif /* __ASSEMBLY__ */
 
+#ifdef __KERNEL__
 /*
  * Allow us to mark functions as 'deprecated' and have gcc emit a nice
  * warning for each use, in hopes of speeding the functions removal.
@@ -127,6 +128,16 @@ extern void __chk_io_ptr(void __iomem *);
 # define __attribute_pure__	/* unimplemented */
 #endif
 
+#ifndef noinline
+#define noinline
+#endif
+
+#ifndef __always_inline
+#define __always_inline inline
+#endif
+
+#endif /* __KERNEL__ */
+
 /*
  * From the GCC manual:
  *
@@ -143,14 +154,6 @@ extern void __chk_io_ptr(void __iomem *);
  */
 #ifndef __attribute_const__
 # define __attribute_const__	/* unimplemented */
-#endif
-
-#ifndef noinline
-#define noinline
-#endif
-
-#ifndef __always_inline
-#define __always_inline inline
 #endif
 
 #endif /* __LINUX_COMPILER_H */

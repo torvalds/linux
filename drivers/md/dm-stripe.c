@@ -12,6 +12,8 @@
 #include <linux/bio.h>
 #include <linux/slab.h>
 
+#define DM_MSG_PREFIX "striped"
+
 struct stripe {
 	struct dm_dev *dev;
 	sector_t physical_start;
@@ -78,19 +80,19 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	unsigned int i;
 
 	if (argc < 2) {
-		ti->error = "dm-stripe: Not enough arguments";
+		ti->error = "Not enough arguments";
 		return -EINVAL;
 	}
 
 	stripes = simple_strtoul(argv[0], &end, 10);
 	if (*end) {
-		ti->error = "dm-stripe: Invalid stripe count";
+		ti->error = "Invalid stripe count";
 		return -EINVAL;
 	}
 
 	chunk_size = simple_strtoul(argv[1], &end, 10);
 	if (*end) {
-		ti->error = "dm-stripe: Invalid chunk_size";
+		ti->error = "Invalid chunk_size";
 		return -EINVAL;
 	}
 
@@ -99,19 +101,19 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 */
 	if (!chunk_size || (chunk_size & (chunk_size - 1)) ||
 	    (chunk_size < (PAGE_SIZE >> SECTOR_SHIFT))) {
-		ti->error = "dm-stripe: Invalid chunk size";
+		ti->error = "Invalid chunk size";
 		return -EINVAL;
 	}
 
 	if (ti->len & (chunk_size - 1)) {
-		ti->error = "dm-stripe: Target length not divisible by "
+		ti->error = "Target length not divisible by "
 		    "chunk size";
 		return -EINVAL;
 	}
 
 	width = ti->len;
 	if (sector_div(width, stripes)) {
-		ti->error = "dm-stripe: Target length not divisible by "
+		ti->error = "Target length not divisible by "
 		    "number of stripes";
 		return -EINVAL;
 	}
@@ -120,14 +122,14 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 * Do we have enough arguments for that many stripes ?
 	 */
 	if (argc != (2 + 2 * stripes)) {
-		ti->error = "dm-stripe: Not enough destinations "
+		ti->error = "Not enough destinations "
 			"specified";
 		return -EINVAL;
 	}
 
 	sc = alloc_context(stripes);
 	if (!sc) {
-		ti->error = "dm-stripe: Memory allocation for striped context "
+		ti->error = "Memory allocation for striped context "
 		    "failed";
 		return -ENOMEM;
 	}
@@ -149,8 +151,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 		r = get_stripe(ti, sc, i, argv);
 		if (r < 0) {
-			ti->error = "dm-stripe: Couldn't parse stripe "
-				"destination";
+			ti->error = "Couldn't parse stripe destination";
 			while (i--)
 				dm_put_device(ti, sc->stripe[i].dev);
 			kfree(sc);
@@ -227,7 +228,7 @@ int __init dm_stripe_init(void)
 
 	r = dm_register_target(&stripe_target);
 	if (r < 0)
-		DMWARN("striped target registration failed");
+		DMWARN("target registration failed");
 
 	return r;
 }
@@ -235,7 +236,7 @@ int __init dm_stripe_init(void)
 void dm_stripe_exit(void)
 {
 	if (dm_unregister_target(&stripe_target))
-		DMWARN("striped target unregistration failed");
+		DMWARN("target unregistration failed");
 
 	return;
 }

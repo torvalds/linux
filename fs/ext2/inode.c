@@ -684,7 +684,7 @@ ext2_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	return mpage_writepages(mapping, wbc, ext2_get_block);
 }
 
-struct address_space_operations ext2_aops = {
+const struct address_space_operations ext2_aops = {
 	.readpage		= ext2_readpage,
 	.readpages		= ext2_readpages,
 	.writepage		= ext2_writepage,
@@ -697,12 +697,12 @@ struct address_space_operations ext2_aops = {
 	.migratepage		= buffer_migrate_page,
 };
 
-struct address_space_operations ext2_aops_xip = {
+const struct address_space_operations ext2_aops_xip = {
 	.bmap			= ext2_bmap,
 	.get_xip_page		= ext2_get_xip_page,
 };
 
-struct address_space_operations ext2_nobh_aops = {
+const struct address_space_operations ext2_nobh_aops = {
 	.readpage		= ext2_readpage,
 	.readpages		= ext2_readpages,
 	.writepage		= ext2_nobh_writepage,

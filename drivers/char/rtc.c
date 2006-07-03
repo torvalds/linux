@@ -61,7 +61,6 @@
  *	this driver.)
  */
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -221,7 +220,7 @@ static inline unsigned char rtc_is_updating(void)
 
 #ifdef RTC_IRQ
 /*
- *	A very tiny interrupt handler. It runs with SA_INTERRUPT set,
+ *	A very tiny interrupt handler. It runs with IRQF_DISABLED set,
  *	but there is possibility of conflicting with the set_rtc_mmss()
  *	call (the rtc irq and the timer irq can easily run at the same
  *	time in two different CPUs). So we need to serialize
@@ -928,7 +927,7 @@ static int __init rtc_init(void)
 #ifdef __sparc__
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if(strcmp(edev->prom_name, "rtc") == 0) {
+			if(strcmp(edev->prom_node->name, "rtc") == 0) {
 				rtc_port = edev->resource[0].start;
 				rtc_irq = edev->irqs[0];
 				goto found;
@@ -938,7 +937,7 @@ static int __init rtc_init(void)
 #ifdef __sparc_v9__
 	for_each_isa(isa_br) {
 		for_each_isadev(isa_dev, isa_br) {
-			if (strcmp(isa_dev->prom_name, "rtc") == 0) {
+			if (strcmp(isa_dev->prom_node->name, "rtc") == 0) {
 				rtc_port = isa_dev->resource.start;
 				rtc_irq = isa_dev->irq;
 				goto found;
@@ -959,11 +958,7 @@ found:
 	 * XXX Interrupt pin #7 in Espresso is shared between RTC and
 	 * PCI Slot 2 INTA# (and some INTx# in Slot 1).
 	 */
-	if (request_irq(rtc_irq, rtc_interrupt, SA_SHIRQ, "rtc", (void *)&rtc_port)) {
-		/*
-		 * Standard way for sparc to print irq's is to use
-		 * __irq_itoa(). I think for EBus it's ok to use %d.
-		 */
+	if (request_irq(rtc_irq, rtc_interrupt, IRQF_SHARED, "rtc", (void *)&rtc_port)) {
 		printk(KERN_ERR "rtc: cannot register IRQ %d\n", rtc_irq);
 		return -EIO;
 	}
@@ -981,7 +976,7 @@ no_irq:
 		rtc_int_handler_ptr = rtc_interrupt;
 	}
 
-	if(request_irq(RTC_IRQ, rtc_int_handler_ptr, SA_INTERRUPT, "rtc", NULL)) {
+	if(request_irq(RTC_IRQ, rtc_int_handler_ptr, IRQF_DISABLED, "rtc", NULL)) {
 		/* Yeah right, seeing as irq 8 doesn't even hit the bus. */
 		printk(KERN_ERR "rtc: IRQ %d is not free.\n", RTC_IRQ);
 		release_region(RTC_PORT(0), RTC_IO_EXTENT);

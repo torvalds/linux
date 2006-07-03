@@ -1,5 +1,5 @@
 /*
- * Read-Copy Update /proc-based torture test facility
+ * Read-Copy Update module-based torture test facility
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@ static int stat_interval;	/* Interval between stats, in seconds. */
 static int verbose;		/* Print more debug info. */
 static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
 static int shuffle_interval = 5; /* Interval between shuffles (in sec)*/
+static char *torture_type = "rcu"; /* What to torture. */
 
 module_param(nreaders, int, 0);
 MODULE_PARM_DESC(nreaders, "Number of RCU reader threads");
@@ -64,13 +65,16 @@ module_param(test_no_idle_hz, bool, 0);
 MODULE_PARM_DESC(test_no_idle_hz, "Test support for tickless idle CPUs");
 module_param(shuffle_interval, int, 0);
 MODULE_PARM_DESC(shuffle_interval, "Number of seconds between shuffles");
-#define TORTURE_FLAG "rcutorture: "
+module_param(torture_type, charp, 0);
+MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh)");
+
+#define TORTURE_FLAG "-torture:"
 #define PRINTK_STRING(s) \
-	do { printk(KERN_ALERT TORTURE_FLAG s "\n"); } while (0)
+	do { printk(KERN_ALERT "%s" TORTURE_FLAG s "\n", torture_type); } while (0)
 #define VERBOSE_PRINTK_STRING(s) \
-	do { if (verbose) printk(KERN_ALERT TORTURE_FLAG s "\n"); } while (0)
+	do { if (verbose) printk(KERN_ALERT "%s" TORTURE_FLAG s "\n", torture_type); } while (0)
 #define VERBOSE_PRINTK_ERRSTRING(s) \
-	do { if (verbose) printk(KERN_ALERT TORTURE_FLAG "!!! " s "\n"); } while (0)
+	do { if (verbose) printk(KERN_ALERT "%s" TORTURE_FLAG "!!! " s "\n", torture_type); } while (0)
 
 static char printk_buf[4096];
 
@@ -139,28 +143,6 @@ rcu_torture_free(struct rcu_torture *p)
 	spin_unlock_bh(&rcu_torture_lock);
 }
 
-static void
-rcu_torture_cb(struct rcu_head *p)
-{
-	int i;
-	struct rcu_torture *rp = container_of(p, struct rcu_torture, rtort_rcu);
-
-	if (fullstop) {
-		/* Test is ending, just drop callbacks on the floor. */
-		/* The next initialization will pick up the pieces. */
-		return;
-	}
-	i = rp->rtort_pipe_count;
-	if (i > RCU_TORTURE_PIPE_LEN)
-		i = RCU_TORTURE_PIPE_LEN;
-	atomic_inc(&rcu_torture_wcount[i]);
-	if (++rp->rtort_pipe_count >= RCU_TORTURE_PIPE_LEN) {
-		rp->rtort_mbtest = 0;
-		rcu_torture_free(rp);
-	} else
-		call_rcu(p, rcu_torture_cb);
-}
-
 struct rcu_random_state {
 	unsigned long rrs_state;
 	unsigned long rrs_count;
@@ -191,6 +173,119 @@ rcu_random(struct rcu_random_state *rrsp)
 }
 
 /*
+ * Operations vector for selecting different types of tests.
+ */
+
+struct rcu_torture_ops {
+	void (*init)(void);
+	void (*cleanup)(void);
+	int (*readlock)(void);
+	void (*readunlock)(int idx);
+	int (*completed)(void);
+	void (*deferredfree)(struct rcu_torture *p);
+	int (*stats)(char *page);
+	char *name;
+};
+static struct rcu_torture_ops *cur_ops = NULL;
+
+/*
+ * Definitions for rcu torture testing.
+ */
+
+static int rcu_torture_read_lock(void)
+{
+	rcu_read_lock();
+	return 0;
+}
+
+static void rcu_torture_read_unlock(int idx)
+{
+	rcu_read_unlock();
+}
+
+static int rcu_torture_completed(void)
+{
+	return rcu_batches_completed();
+}
+
+static void
+rcu_torture_cb(struct rcu_head *p)
+{
+	int i;
+	struct rcu_torture *rp = container_of(p, struct rcu_torture, rtort_rcu);
+
+	if (fullstop) {
+		/* Test is ending, just drop callbacks on the floor. */
+		/* The next initialization will pick up the pieces. */
+		return;
+	}
+	i = rp->rtort_pipe_count;
+	if (i > RCU_TORTURE_PIPE_LEN)
+		i = RCU_TORTURE_PIPE_LEN;
+	atomic_inc(&rcu_torture_wcount[i]);
+	if (++rp->rtort_pipe_count >= RCU_TORTURE_PIPE_LEN) {
+		rp->rtort_mbtest = 0;
+		rcu_torture_free(rp);
+	} else
+		cur_ops->deferredfree(rp);
+}
+
+static void rcu_torture_deferred_free(struct rcu_torture *p)
+{
+	call_rcu(&p->rtort_rcu, rcu_torture_cb);
+}
+
+static struct rcu_torture_ops rcu_ops = {
+	.init = NULL,
+	.cleanup = NULL,
+	.readlock = rcu_torture_read_lock,
+	.readunlock = rcu_torture_read_unlock,
+	.completed = rcu_torture_completed,
+	.deferredfree = rcu_torture_deferred_free,
+	.stats = NULL,
+	.name = "rcu"
+};
+
+/*
+ * Definitions for rcu_bh torture testing.
+ */
+
+static int rcu_bh_torture_read_lock(void)
+{
+	rcu_read_lock_bh();
+	return 0;
+}
+
+static void rcu_bh_torture_read_unlock(int idx)
+{
+	rcu_read_unlock_bh();
+}
+
+static int rcu_bh_torture_completed(void)
+{
+	return rcu_batches_completed_bh();
+}
+
+static void rcu_bh_torture_deferred_free(struct rcu_torture *p)
+{
+	call_rcu_bh(&p->rtort_rcu, rcu_torture_cb);
+}
+
+static struct rcu_torture_ops rcu_bh_ops = {
+	.init = NULL,
+	.cleanup = NULL,
+	.readlock = rcu_bh_torture_read_lock,
+	.readunlock = rcu_bh_torture_read_unlock,
+	.completed = rcu_bh_torture_completed,
+	.deferredfree = rcu_bh_torture_deferred_free,
+	.stats = NULL,
+	.name = "rcu_bh"
+};
+
+static struct rcu_torture_ops *torture_ops[] =
+	{ &rcu_ops, &rcu_bh_ops, NULL };
+
+/*
  * RCU torture writer kthread.  Repeatedly substitutes a new structure
  * for that pointed to by rcu_torture_current, freeing the old structure
  * after a series of grace periods (the "pipeline").
@@ -209,8 +304,6 @@ rcu_torture_writer(void *arg)
 
 	do {
 		schedule_timeout_uninterruptible(1);
-		if (rcu_batches_completed() == oldbatch)
-			continue;
 		if ((rp = rcu_torture_alloc()) == NULL)
 			continue;
 		rp->rtort_pipe_count = 0;
@@ -225,10 +318,10 @@ rcu_torture_writer(void *arg)
 				i = RCU_TORTURE_PIPE_LEN;
 			atomic_inc(&rcu_torture_wcount[i]);
 			old_rp->rtort_pipe_count++;
-			call_rcu(&old_rp->rtort_rcu, rcu_torture_cb);
+			cur_ops->deferredfree(old_rp);
 		}
 		rcu_torture_current_version++;
-		oldbatch = rcu_batches_completed();
+		oldbatch = cur_ops->completed();
 	} while (!kthread_should_stop() && !fullstop);
 	VERBOSE_PRINTK_STRING("rcu_torture_writer task stopping");
 	while (!kthread_should_stop())
@@ -246,6 +339,7 @@ static int
 rcu_torture_reader(void *arg)
 {
 	int completed;
+	int idx;
 	DEFINE_RCU_RANDOM(rand);
 	struct rcu_torture *p;
 	int pipe_count;
@@ -254,12 +348,12 @@ rcu_torture_reader(void *arg)
 	set_user_nice(current, 19);
 
 	do {
-		rcu_read_lock();
-		completed = rcu_batches_completed();
+		idx = cur_ops->readlock();
+		completed = cur_ops->completed();
 		p = rcu_dereference(rcu_torture_current);
 		if (p == NULL) {
 			/* Wait for rcu_torture_writer to get underway */
-			rcu_read_unlock();
+			cur_ops->readunlock(idx);
 			schedule_timeout_interruptible(HZ);
 			continue;
 		}
@@ -273,14 +367,14 @@ rcu_torture_reader(void *arg)
 			pipe_count = RCU_TORTURE_PIPE_LEN;
 		}
 		++__get_cpu_var(rcu_torture_count)[pipe_count];
-		completed = rcu_batches_completed() - completed;
+		completed = cur_ops->completed() - completed;
 		if (completed > RCU_TORTURE_PIPE_LEN) {
 			/* Should not happen, but... */
 			completed = RCU_TORTURE_PIPE_LEN;
 		}
 		++__get_cpu_var(rcu_torture_batch)[completed];
 		preempt_enable();
-		rcu_read_unlock();
+		cur_ops->readunlock(idx);
 		schedule();
 	} while (!kthread_should_stop() && !fullstop);
 	VERBOSE_PRINTK_STRING("rcu_torture_reader task stopping");
@@ -311,7 +405,7 @@ rcu_torture_printk(char *page)
 		if (pipesummary[i] != 0)
 			break;
 	}
-	cnt += sprintf(&page[cnt], "rcutorture: ");
+	cnt += sprintf(&page[cnt], "%s%s ", torture_type, TORTURE_FLAG);
 	cnt += sprintf(&page[cnt],
 		       "rtc: %p ver: %ld tfle: %d rta: %d rtaf: %d rtf: %d "
 		       "rtmbe: %d",
@@ -324,7 +418,7 @@ rcu_torture_printk(char *page)
 		       atomic_read(&n_rcu_torture_mberror));
 	if (atomic_read(&n_rcu_torture_mberror) != 0)
 		cnt += sprintf(&page[cnt], " !!!");
-	cnt += sprintf(&page[cnt], "\nrcutorture: ");
+	cnt += sprintf(&page[cnt], "\n%s%s ", torture_type, TORTURE_FLAG);
 	if (i > 1) {
 		cnt += sprintf(&page[cnt], "!!! ");
 		atomic_inc(&n_rcu_torture_error);
@@ -332,17 +426,19 @@ rcu_torture_printk(char *page)
 	cnt += sprintf(&page[cnt], "Reader Pipe: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
 		cnt += sprintf(&page[cnt], " %ld", pipesummary[i]);
-	cnt += sprintf(&page[cnt], "\nrcutorture: ");
+	cnt += sprintf(&page[cnt], "\n%s%s ", torture_type, TORTURE_FLAG);
 	cnt += sprintf(&page[cnt], "Reader Batch: ");
-	for (i = 0; i < RCU_TORTURE_PIPE_LEN; i++)
+	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
 		cnt += sprintf(&page[cnt], " %ld", batchsummary[i]);
-	cnt += sprintf(&page[cnt], "\nrcutorture: ");
+	cnt += sprintf(&page[cnt], "\n%s%s ", torture_type, TORTURE_FLAG);
 	cnt += sprintf(&page[cnt], "Free-Block Circulation: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++) {
 		cnt += sprintf(&page[cnt], " %d",
 			       atomic_read(&rcu_torture_wcount[i]));
 	}
 	cnt += sprintf(&page[cnt], "\n");
+	if (cur_ops->stats != NULL)
+		cnt += cur_ops->stats(&page[cnt]);
 	return cnt;
 }
 
@@ -444,11 +540,11 @@ rcu_torture_shuffle(void *arg)
 static inline void
 rcu_torture_print_module_parms(char *tag)
 {
-	printk(KERN_ALERT TORTURE_FLAG "--- %s: nreaders=%d "
+	printk(KERN_ALERT "%s" TORTURE_FLAG "--- %s: nreaders=%d "
 		"stat_interval=%d verbose=%d test_no_idle_hz=%d "
 		"shuffle_interval = %d\n",
-		tag, nrealreaders, stat_interval, verbose, test_no_idle_hz,
-		shuffle_interval);
+		torture_type, tag, nrealreaders, stat_interval, verbose,
+		test_no_idle_hz, shuffle_interval);
 }
 
 static void
@@ -493,6 +589,9 @@ rcu_torture_cleanup(void)
 	rcu_barrier();
 
 	rcu_torture_stats_print();  /* -After- the stats thread is stopped! */
+
+	if (cur_ops->cleanup != NULL)
+		cur_ops->cleanup();
 	if (atomic_read(&n_rcu_torture_error))
 		rcu_torture_print_module_parms("End of test: FAILURE");
 	else
@@ -507,6 +606,20 @@ rcu_torture_init(void)
 	int firsterr = 0;
 
 	/* Process args and tell the world that the torturer is on the job. */
+
+	for (i = 0; cur_ops = torture_ops[i], cur_ops != NULL; i++) {
+		cur_ops = torture_ops[i];
+		if (strcmp(torture_type, cur_ops->name) == 0) {
+			break;
+		}
+	}
+	if (cur_ops == NULL) {
+		printk(KERN_ALERT "rcutorture: invalid torture type: \"%s\"\n",
+		       torture_type);
+		return (-EINVAL);
+	}
+	if (cur_ops->init != NULL)
+		cur_ops->init(); /* no "goto unwind" prior to this point!!! */
 
 	if (nreaders >= 0)
 		nrealreaders = nreaders;

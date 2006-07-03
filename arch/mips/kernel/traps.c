@@ -11,7 +11,6 @@
  * Copyright (C) 2000, 01 MIPS Technologies, Inc.
  * Copyright (C) 2002, 2003, 2004, 2005  Maciej W. Rozycki
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -1050,7 +1049,7 @@ void *set_except_vector(int n, void *addr)
 	return (void *)old_handler;
 }
 
-#ifdef CONFIG_CPU_MIPSR2
+#ifdef CONFIG_CPU_MIPSR2_SRS
 /*
  * MIPSR2 shadow register set allocation
  * FIXME: SMP...
@@ -1069,11 +1068,9 @@ static struct shadow_registers {
 
 static void mips_srs_init(void)
 {
-#ifdef CONFIG_CPU_MIPSR2_SRS
 	shadow_registers.sr_supported = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
 	printk(KERN_INFO "%d MIPSR2 register sets available\n",
 	       shadow_registers.sr_supported);
-#endif
 	shadow_registers.sr_allocated = 1;	/* Set 0 used by kernel */
 }
 
@@ -1198,7 +1195,14 @@ void *set_vi_handler(int n, void *addr)
 {
 	return set_vi_srs_handler(n, addr, 0);
 }
-#endif
+
+#else
+
+static inline void mips_srs_init(void)
+{
+}
+
+#endif /* CONFIG_CPU_MIPSR2_SRS */
 
 /*
  * This is used by native signal handling
@@ -1388,9 +1392,7 @@ void __init trap_init(void)
 	else
 		ebase = CAC_BASE;
 
-#ifdef CONFIG_CPU_MIPSR2
 	mips_srs_init();
-#endif
 
 	per_cpu_trap_init();
 

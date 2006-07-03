@@ -19,7 +19,6 @@
  *	Skip non-WB memory and ignore empty memory ranges.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -601,8 +600,10 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 		res->end = res->start + ((md->num_pages << EFI_PAGE_SHIFT) - 1);
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		if (request_resource(&iomem_resource, res) < 0)
-			printk(KERN_ERR PFX "Failed to allocate res %s : 0x%lx-0x%lx\n",
-				res->name, res->start, res->end);
+			printk(KERN_ERR PFX "Failed to allocate res %s : "
+				"0x%llx-0x%llx\n", res->name,
+				(unsigned long long)res->start,
+				(unsigned long long)res->end);
 		/*
 		 * We don't know which region contains kernel data so we try
 		 * it repeatedly and let the resource manager test it.

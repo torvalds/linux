@@ -2,7 +2,7 @@
  * net/tipc/discover.c
  * 
  * Copyright (c) 2003-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -176,7 +176,6 @@ void tipc_disc_recv_msg(struct sk_buff *buf)
 			n_ptr = tipc_node_create(orig);
 		}
 		if (n_ptr == NULL) {
-			warn("Memory squeeze; Failed to create node\n");
 			return;
 		}
 		spin_lock_bh(&n_ptr->lock);
@@ -191,10 +190,8 @@ void tipc_disc_recv_msg(struct sk_buff *buf)
 		}
 		addr = &link->media_addr;
 		if (memcmp(addr, &media_addr, sizeof(*addr))) {
-			char addr_string[16];
-
-			warn("New bearer address for %s\n", 
-			     addr_string_fill(addr_string, orig));
+			warn("Resetting link <%s>, peer interface address changed\n",
+			     link->name);
 			memcpy(addr, &media_addr, sizeof(*addr));
 			tipc_link_reset(link);     
 		}
@@ -270,8 +267,8 @@ static void disc_timeout(struct link_req *req)
 		/* leave timer interval "as is" if already at a "normal" rate */
 	} else {
 		req->timer_intv *= 2;
-		if (req->timer_intv > TIPC_LINK_REQ_SLOW)
-			req->timer_intv = TIPC_LINK_REQ_SLOW;
+		if (req->timer_intv > TIPC_LINK_REQ_FAST)
+			req->timer_intv = TIPC_LINK_REQ_FAST;
 		if ((req->timer_intv == TIPC_LINK_REQ_FAST) && 
 		    (req->bearer->nodes.count))
 			req->timer_intv = TIPC_LINK_REQ_SLOW;

@@ -1504,7 +1504,7 @@ static void __devinit snd_atiixp_proc_init(struct atiixp *chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "atiixp", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_atiixp_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_atiixp_proc_read);
 }
 #else /* !CONFIG_PROC_FS */
 #define snd_atiixp_proc_init(chip)
@@ -1578,7 +1578,7 @@ static int __devinit snd_atiixp_create(struct snd_card *card,
 		return -EIO;
 	}
 
-	if (request_irq(pci->irq, snd_atiixp_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq(pci->irq, snd_atiixp_interrupt, IRQF_DISABLED|IRQF_SHARED,
 			card->shortname, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_atiixp_free(chip);

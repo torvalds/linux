@@ -1,23 +1,23 @@
 /***************************************************************************/
 
 /*
- *	pit.c -- Motorola ColdFire PIT timer. Currently this type of
- *	         hardware timer only exists in the Motorola ColdFire
+ *	pit.c -- Freescale ColdFire PIT timer. Currently this type of
+ *	         hardware timer only exists in the Freescale ColdFire
  *		 5270/5271, 5282 and other CPUs.
  *
- *	Copyright (C) 1999-2004, Greg Ungerer (gerg@snapgear.com)
+ *	Copyright (C) 1999-2006, Greg Ungerer (gerg@snapgear.com)
  *	Copyright (C) 2001-2004, SnapGear Inc. (www.snapgear.com)
  *
  */
 
 /***************************************************************************/
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/param.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/coldfire.h>
 #include <asm/mcfpit.h>
@@ -25,13 +25,20 @@
 
 /***************************************************************************/
 
+/*
+ *	By default use timer1 as the system clock timer.
+ */
+#define	TA(a)	(MCF_IPSBAR + MCFPIT_BASE1 + (a))
+
+/***************************************************************************/
+
 void coldfire_pit_tick(void)
 {
-	volatile struct mcfpit *tp;
+	unsigned short pcsr;
 
 	/* Reset the ColdFire timer */
-	tp = (volatile struct mcfpit *) (MCF_IPSBAR + MCFPIT_BASE1);
-	tp->pcsr |= MCFPIT_PCSR_PIF;
+	pcsr = __raw_readw(TA(MCFPIT_PCSR));
+	__raw_writew(pcsr | MCFPIT_PCSR_PIF, TA(MCFPIT_PCSR));
 }
 
 /***************************************************************************/
@@ -40,9 +47,8 @@ void coldfire_pit_init(irqreturn_t (*handler)(int, void *, struct pt_regs *))
 {
 	volatile unsigned char *icrp;
 	volatile unsigned long *imrp;
-	volatile struct mcfpit *tp;
 
-	request_irq(MCFINT_VECBASE + MCFINT_PIT1, handler, SA_INTERRUPT,
+	request_irq(MCFINT_VECBASE + MCFINT_PIT1, handler, IRQF_DISABLED,
 		"ColdFire Timer", NULL);
 
 	icrp = (volatile unsigned char *) (MCF_IPSBAR + MCFICM_INTC0 +
@@ -53,27 +59,23 @@ void coldfire_pit_init(irqreturn_t (*handler)(int, void *, struct pt_regs *))
 	*imrp &= ~MCFPIT_IMR_IBIT;
 
 	/* Set up PIT timer 1 as poll clock */
-	tp = (volatile struct mcfpit *) (MCF_IPSBAR + MCFPIT_BASE1);
-	tp->pcsr = MCFPIT_PCSR_DISABLE;
-
-	tp->pmr = ((MCF_CLK / 2) / 64) / HZ;
-	tp->pcsr = MCFPIT_PCSR_EN | MCFPIT_PCSR_PIE | MCFPIT_PCSR_OVW |
-		MCFPIT_PCSR_RLD | MCFPIT_PCSR_CLK64;
+	__raw_writew(MCFPIT_PCSR_DISABLE, TA(MCFPIT_PCSR));
+	__raw_writew(((MCF_CLK / 2) / 64) / HZ, TA(MCFPIT_PMR));
+	__raw_writew(MCFPIT_PCSR_EN | MCFPIT_PCSR_PIE | MCFPIT_PCSR_OVW |
+		MCFPIT_PCSR_RLD | MCFPIT_PCSR_CLK64, TA(MCFPIT_PCSR));
 }
 
 /***************************************************************************/
 
 unsigned long coldfire_pit_offset(void)
 {
-	volatile struct mcfpit *tp;
 	volatile unsigned long *ipr;
 	unsigned long pmr, pcntr, offset;
 
-	tp = (volatile struct mcfpit *) (MCF_IPSBAR + MCFPIT_BASE1);
 	ipr = (volatile unsigned long *) (MCF_IPSBAR + MCFICM_INTC0 + MCFPIT_IMR);
 
-	pmr = *(&tp->pmr);
-	pcntr = *(&tp->pcntr);
+	pmr = __raw_readw(TA(MCFPIT_PMR));
+	pcntr = __raw_readw(TA(MCFPIT_PCNTR));
 
 	/*
 	 * If we are still in the first half of the upcount and a

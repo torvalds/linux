@@ -169,17 +169,23 @@ psched_tod_diff(int delta_sec, int bound)
 
 #define PSCHED_TADD2(tv, delta, tv_res) \
 ({ \
-	   int __delta = (tv).tv_usec + (delta); \
-	   (tv_res).tv_sec = (tv).tv_sec; \
-	   if (__delta > USEC_PER_SEC) { (tv_res).tv_sec++; __delta -= USEC_PER_SEC; } \
+	   int __delta = (delta); \
+	   (tv_res) = (tv); \
+	   while(__delta >= USEC_PER_SEC){ \
+		 (tv_res).tv_sec++; \
+		 __delta -= USEC_PER_SEC; \
+	   } \
 	   (tv_res).tv_usec = __delta; \
 })
 
 #define PSCHED_TADD(tv, delta) \
 ({ \
-	   (tv).tv_usec += (delta); \
-	   if ((tv).tv_usec > USEC_PER_SEC) { (tv).tv_sec++; \
-		 (tv).tv_usec -= USEC_PER_SEC; } \
+	   int __delta = (delta); \
+	   while(__delta >= USEC_PER_SEC){ \
+		 (tv).tv_sec++; \
+		 __delta -= USEC_PER_SEC; \
+	   } \
+	   (tv).tv_usec = __delta; \
 })
 
 /* Set/check that time is in the "past perfect";
@@ -218,12 +224,13 @@ extern struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 		struct rtattr *tab);
 extern void qdisc_put_rtab(struct qdisc_rate_table *tab);
 
-extern int qdisc_restart(struct net_device *dev);
+extern void __qdisc_run(struct net_device *dev);
 
 static inline void qdisc_run(struct net_device *dev)
 {
-	while (!netif_queue_stopped(dev) && qdisc_restart(dev) < 0)
-		/* NOTHING */;
+	if (!netif_queue_stopped(dev) &&
+	    !test_and_set_bit(__LINK_STATE_QDISC_RUNNING, &dev->state))
+		__qdisc_run(dev);
 }
 
 extern int tc_classify(struct sk_buff *skb, struct tcf_proto *tp,

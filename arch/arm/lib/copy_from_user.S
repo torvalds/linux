@@ -16,7 +16,7 @@
 /*
  * Prototype:
  *
- *	size_t __arch_copy_from_user(void *to, const void *from, size_t n)
+ *	size_t __copy_from_user(void *to, const void *from, size_t n)
  *
  * Purpose:
  *
@@ -83,7 +83,7 @@
 
 	.text
 
-ENTRY(__arch_copy_from_user)
+ENTRY(__copy_from_user)
 
 #include "copy_template.S"
 

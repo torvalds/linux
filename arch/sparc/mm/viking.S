@@ -6,7 +6,6 @@
  * Copyright (C) 1999  Pavel Semerad  (semerad@ss1000.ms.mff.cuni.cz)
  */
 
-#include <linux/config.h>
 #include <asm/ptrace.h>
 #include <asm/psr.h>
 #include <asm/asm-offsets.h>

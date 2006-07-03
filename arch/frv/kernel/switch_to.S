@@ -11,7 +11,6 @@
 # 2 of the License, or (at your option) any later version.
 #
 ###############################################################################
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/processor.h>

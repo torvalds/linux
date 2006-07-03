@@ -49,7 +49,7 @@ static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
 static void befs_put_super(struct super_block *);
 static int befs_remount(struct super_block *, int *, char *);
-static int befs_statfs(struct super_block *, struct kstatfs *);
+static int befs_statfs(struct dentry *, struct kstatfs *);
 static int parse_options(char *, befs_mount_options *);
 
 static const struct super_operations befs_sops = {
@@ -73,7 +73,7 @@ static struct inode_operations befs_dir_inode_operations = {
 	.lookup		= befs_lookup,
 };
 
-static struct address_space_operations befs_aops = {
+static const struct address_space_operations befs_aops = {
 	.readpage	= befs_readpage,
 	.sync_page	= block_sync_page,
 	.bmap		= befs_bmap,
@@ -325,7 +325,7 @@ befs_read_inode(struct inode *inode)
 	if (!bh) {
 		befs_error(sb, "unable to read inode block - "
 			   "inode = %lu", inode->i_ino);
-		goto unaquire_none;
+		goto unacquire_none;
 	}
 
 	raw_inode = (befs_inode *) bh->b_data;
@@ -334,7 +334,7 @@ befs_read_inode(struct inode *inode)
 
 	if (befs_check_inode(sb, raw_inode, inode->i_ino) != BEFS_OK) {
 		befs_error(sb, "Bad inode: %lu", inode->i_ino);
-		goto unaquire_bh;
+		goto unacquire_bh;
 	}
 
 	inode->i_mode = (umode_t) fs32_to_cpu(sb, raw_inode->mode);
@@ -402,17 +402,17 @@ befs_read_inode(struct inode *inode)
 		befs_error(sb, "Inode %lu is not a regular file, "
 			   "directory or symlink. THAT IS WRONG! BeFS has no "
 			   "on disk special files", inode->i_ino);
-		goto unaquire_bh;
+		goto unacquire_bh;
 	}
 
 	brelse(bh);
 	befs_debug(sb, "<--- befs_read_inode()");
 	return;
 
-      unaquire_bh:
+      unacquire_bh:
 	brelse(bh);
 
-      unaquire_none:
+      unacquire_none:
 	make_bad_inode(inode);
 	befs_debug(sb, "<--- befs_read_inode() - Bad inode");
 	return;
@@ -761,14 +761,14 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 		printk(KERN_ERR
 		       "BeFS(%s): Unable to allocate memory for private "
 		       "portion of superblock. Bailing.\n", sb->s_id);
-		goto unaquire_none;
+		goto unacquire_none;
 	}
 	befs_sb = BEFS_SB(sb);
 	memset(befs_sb, 0, sizeof(befs_sb_info));
 
 	if (!parse_options((char *) data, &befs_sb->mount_opts)) {
 		befs_error(sb, "cannot parse mount options");
-		goto unaquire_priv_sbp;
+		goto unacquire_priv_sbp;
 	}
 
 	befs_debug(sb, "---> befs_fill_super()");
@@ -794,7 +794,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (!(bh = sb_bread(sb, sb_block))) {
 		befs_error(sb, "unable to read superblock");
-		goto unaquire_priv_sbp;
+		goto unacquire_priv_sbp;
 	}
 
 	/* account for offset of super block on x86 */
@@ -809,20 +809,20 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (befs_load_sb(sb, disk_sb) != BEFS_OK)
-		goto unaquire_bh;
+		goto unacquire_bh;
 
 	befs_dump_super_block(sb, disk_sb);
 
 	brelse(bh);
 
 	if (befs_check_sb(sb) != BEFS_OK)
-		goto unaquire_priv_sbp;
+		goto unacquire_priv_sbp;
 
 	if( befs_sb->num_blocks > ~((sector_t)0) ) {
 		befs_error(sb, "blocks count: %Lu "
 			"is larger than the host can use",
 			befs_sb->num_blocks);
-		goto unaquire_priv_sbp;
+		goto unacquire_priv_sbp;
 	}
 
 	/*
@@ -838,7 +838,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root) {
 		iput(root);
 		befs_error(sb, "get root inode failed");
-		goto unaquire_priv_sbp;
+		goto unacquire_priv_sbp;
 	}
 
 	/* load nls library */
@@ -860,13 +860,13 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 
 	return 0;
 /*****************/
-      unaquire_bh:
+      unacquire_bh:
 	brelse(bh);
 
-      unaquire_priv_sbp:
+      unacquire_priv_sbp:
 	kfree(sb->s_fs_info);
 
-      unaquire_none:
+      unacquire_none:
 	sb->s_fs_info = NULL;
 	return -EINVAL;
 }
@@ -880,8 +880,9 @@ befs_remount(struct super_block *sb, int *flags, char *data)
 }
 
 static int
-befs_statfs(struct super_block *sb, struct kstatfs *buf)
+befs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
 
 	befs_debug(sb, "---> befs_statfs()");
 
@@ -899,11 +900,12 @@ befs_statfs(struct super_block *sb, struct kstatfs *buf)
 	return 0;
 }
 
-static struct super_block *
+static int
 befs_get_sb(struct file_system_type *fs_type, int flags, const char *dev_name,
-	    void *data)
+	    void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, befs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, befs_fill_super,
+			   mnt);
 }
 
 static struct file_system_type befs_fs_type = {
@@ -923,18 +925,18 @@ init_befs_fs(void)
 
 	err = befs_init_inodecache();
 	if (err)
-		goto unaquire_none;
+		goto unacquire_none;
 
 	err = register_filesystem(&befs_fs_type);
 	if (err)
-		goto unaquire_inodecache;
+		goto unacquire_inodecache;
 
 	return 0;
 
-unaquire_inodecache:
+unacquire_inodecache:
 	befs_destroy_inodecache();
 
-unaquire_none:
+unacquire_none:
 	return err;
 }
 

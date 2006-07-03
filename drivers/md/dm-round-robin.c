@@ -14,6 +14,8 @@
 
 #include <linux/slab.h>
 
+#define DM_MSG_PREFIX "multipath round-robin"
+
 /*-----------------------------------------------------------------
  * Path-handling code, paths are held in lists
  *---------------------------------------------------------------*/
@@ -191,9 +193,9 @@ static int __init dm_rr_init(void)
 	int r = dm_register_path_selector(&rr_ps);
 
 	if (r < 0)
-		DMERR("round-robin: register failed %d", r);
+		DMERR("register failed %d", r);
 
-	DMINFO("dm-round-robin version 1.0.0 loaded");
+	DMINFO("version 1.0.0 loaded");
 
 	return r;
 }

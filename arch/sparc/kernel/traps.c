@@ -9,7 +9,6 @@
  * I hate traps on the sparc, grrr...
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>  /* for jiffies */
 #include <linux/kernel.h>
 #include <linux/kallsyms.h>

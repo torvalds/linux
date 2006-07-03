@@ -16,7 +16,6 @@
  *   - Split split split...
  *
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -2510,7 +2509,7 @@ found:
 		if (get_property(np, "flush-on-lock", NULL))
 			break;
 		powersave_nap = 1;
-		printk(KERN_INFO "Processor NAP mode on idle enabled.\n");
+		printk(KERN_DEBUG "Processor NAP mode on idle enabled.\n");
 		break;
 	}
 

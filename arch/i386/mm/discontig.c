@@ -22,7 +22,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 #include <linux/mmzone.h>
@@ -43,7 +42,7 @@ EXPORT_SYMBOL(node_data);
 bootmem_data_t node0_bdata;
 
 /*
- * numa interface - we expect the numa architecture specfic code to have
+ * numa interface - we expect the numa architecture specific code to have
  *                  populated the following initialisation.
  *
  * 1) node_online_map  - the map of all nodes configured (online) in the system

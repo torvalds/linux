@@ -6,11 +6,8 @@
  * (c) 1995,1996 Grant R. Guenther, grant@torque.net,
  * under the terms of the GNU General Public License.
  * 
- * Current Maintainer: David Campbell (Perth, Western Australia, GMT+0800)
- *                     campbell@torque.net
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

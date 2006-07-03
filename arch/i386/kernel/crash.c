@@ -114,19 +114,15 @@ static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 	atomic_dec(&waiting_for_crash_ipi);
 	/* Assume hlt works */
 	halt();
-	for(;;);
+	for (;;)
+		cpu_relax();
 
 	return 1;
 }
 
-/*
- * By using the NMI code instead of a vector we just sneak thru the
- * word generator coming out with just what we want.  AND it does
- * not matter if clustered_apic_mode is set or not.
- */
 static void smp_send_nmi_allbutself(void)
 {
-	send_IPI_allbutself(APIC_DM_NMI);
+	send_IPI_allbutself(NMI_VECTOR);
 }
 
 static void nmi_shootdown_cpus(void)
@@ -162,7 +158,7 @@ static void nmi_shootdown_cpus(void)
 void machine_crash_shutdown(struct pt_regs *regs)
 {
 	/* This function is only called after the system
-	 * has paniced or is otherwise in a critical state.
+	 * has panicked or is otherwise in a critical state.
 	 * The minimum amount of code to allow a kexec'd kernel
 	 * to run successfully needs to happen here.
 	 *

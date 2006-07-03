@@ -36,7 +36,6 @@
 #include <linux/hdreg.h>  /* HDIO_GETGEO */
 #include <linux/sysdev.h>
 #include <linux/bio.h>
-#include <linux/devfs_fs_kernel.h>
 #include <asm/uaccess.h>
 
 #define XPRAM_NAME	"xpram"
@@ -439,8 +438,6 @@ static int __init xpram_setup_blkdev(void)
 	if (rc < 0)
 		goto out;
 
-	devfs_mk_dir("slram");
-
 	/*
 	 * Assign the other needed values: make request function, sizes and
 	 * hardsect size. All the minor devices feature the same value.
@@ -469,14 +466,12 @@ static int __init xpram_setup_blkdev(void)
 		disk->private_data = &xpram_devices[i];
 		disk->queue = xpram_queue;
 		sprintf(disk->disk_name, "slram%d", i);
-		sprintf(disk->devfs_name, "slram/%d", i);
 		set_capacity(disk, xpram_sizes[i] << 1);
 		add_disk(disk);
 	}
 
 	return 0;
 out_unreg:
-	devfs_remove("slram");
 	unregister_blkdev(XPRAM_MAJOR, XPRAM_NAME);
 out:
 	while (i--)
@@ -495,7 +490,6 @@ static void __exit xpram_exit(void)
 		put_disk(xpram_disks[i]);
 	}
 	unregister_blkdev(XPRAM_MAJOR, XPRAM_NAME);
-	devfs_remove("slram");
 	blk_cleanup_queue(xpram_queue);
 	sysdev_unregister(&xpram_sys_device);
 	sysdev_class_unregister(&xpram_sysclass);

@@ -12,7 +12,6 @@
  * ioctls.
  */
 
-#include <linux/config.h>
 #include <linux/compat.h>
 #include <linux/videodev.h>
 #include <linux/videodev2.h>

@@ -12,7 +12,6 @@
  *		2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/types.h>

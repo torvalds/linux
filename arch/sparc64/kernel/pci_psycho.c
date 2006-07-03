@@ -17,6 +17,8 @@
 #include <asm/iommu.h>
 #include <asm/irq.h>
 #include <asm/starfire.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
@@ -206,187 +208,6 @@ static struct pci_ops psycho_ops = {
 	.read =		psycho_read_pci_cfg,
 	.write =	psycho_write_pci_cfg,
 };
-
-/* PSYCHO interrupt mapping support. */
-#define PSYCHO_IMAP_A_SLOT0	0x0c00UL
-#define PSYCHO_IMAP_B_SLOT0	0x0c20UL
-static unsigned long psycho_pcislot_imap_offset(unsigned long ino)
-{
-	unsigned int bus =  (ino & 0x10) >> 4;
-	unsigned int slot = (ino & 0x0c) >> 2;
-
-	if (bus == 0)
-		return PSYCHO_IMAP_A_SLOT0 + (slot * 8);
-	else
-		return PSYCHO_IMAP_B_SLOT0 + (slot * 8);
-}
-
-#define PSYCHO_IMAP_SCSI	0x1000UL
-#define PSYCHO_IMAP_ETH		0x1008UL
-#define PSYCHO_IMAP_BPP		0x1010UL
-#define PSYCHO_IMAP_AU_REC	0x1018UL
-#define PSYCHO_IMAP_AU_PLAY	0x1020UL
-#define PSYCHO_IMAP_PFAIL	0x1028UL
-#define PSYCHO_IMAP_KMS		0x1030UL
-#define PSYCHO_IMAP_FLPY	0x1038UL
-#define PSYCHO_IMAP_SHW		0x1040UL
-#define PSYCHO_IMAP_KBD		0x1048UL
-#define PSYCHO_IMAP_MS		0x1050UL
-#define PSYCHO_IMAP_SER		0x1058UL
-#define PSYCHO_IMAP_TIM0	0x1060UL
-#define PSYCHO_IMAP_TIM1	0x1068UL
-#define PSYCHO_IMAP_UE		0x1070UL
-#define PSYCHO_IMAP_CE		0x1078UL
-#define PSYCHO_IMAP_A_ERR	0x1080UL
-#define PSYCHO_IMAP_B_ERR	0x1088UL
-#define PSYCHO_IMAP_PMGMT	0x1090UL
-#define PSYCHO_IMAP_GFX		0x1098UL
-#define PSYCHO_IMAP_EUPA	0x10a0UL
-
-static unsigned long __onboard_imap_off[] = {
-/*0x20*/	PSYCHO_IMAP_SCSI,
-/*0x21*/	PSYCHO_IMAP_ETH,
-/*0x22*/	PSYCHO_IMAP_BPP,
-/*0x23*/	PSYCHO_IMAP_AU_REC,
-/*0x24*/	PSYCHO_IMAP_AU_PLAY,
-/*0x25*/	PSYCHO_IMAP_PFAIL,
-/*0x26*/	PSYCHO_IMAP_KMS,
-/*0x27*/	PSYCHO_IMAP_FLPY,
-/*0x28*/	PSYCHO_IMAP_SHW,
-/*0x29*/	PSYCHO_IMAP_KBD,
-/*0x2a*/	PSYCHO_IMAP_MS,
-/*0x2b*/	PSYCHO_IMAP_SER,
-/*0x2c*/	PSYCHO_IMAP_TIM0,
-/*0x2d*/	PSYCHO_IMAP_TIM1,
-/*0x2e*/	PSYCHO_IMAP_UE,
-/*0x2f*/	PSYCHO_IMAP_CE,
-/*0x30*/	PSYCHO_IMAP_A_ERR,
-/*0x31*/	PSYCHO_IMAP_B_ERR,
-/*0x32*/	PSYCHO_IMAP_PMGMT
-};
-#define PSYCHO_ONBOARD_IRQ_BASE		0x20
-#define PSYCHO_ONBOARD_IRQ_LAST		0x32
-#define psycho_onboard_imap_offset(__ino) \
-	__onboard_imap_off[(__ino) - PSYCHO_ONBOARD_IRQ_BASE]
-
-#define PSYCHO_ICLR_A_SLOT0	0x1400UL
-#define PSYCHO_ICLR_SCSI	0x1800UL
-
-#define psycho_iclr_offset(ino)					      \
-	((ino & 0x20) ? (PSYCHO_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
-			(PSYCHO_ICLR_A_SLOT0 + (((ino) & 0x1f)<<3)))
-
-/* PCI PSYCHO INO number to Sparc PIL level. */
-static unsigned char psycho_pil_table[] = {
-/*0x00*/0, 0, 0, 0,	/* PCI A slot 0  Int A, B, C, D */
-/*0x04*/0, 0, 0, 0,	/* PCI A slot 1  Int A, B, C, D */
-/*0x08*/0, 0, 0, 0,	/* PCI A slot 2  Int A, B, C, D */
-/*0x0c*/0, 0, 0, 0,	/* PCI A slot 3  Int A, B, C, D */
-/*0x10*/0, 0, 0, 0,	/* PCI B slot 0  Int A, B, C, D */
-/*0x14*/0, 0, 0, 0,	/* PCI B slot 1  Int A, B, C, D */
-/*0x18*/0, 0, 0, 0,	/* PCI B slot 2  Int A, B, C, D */
-/*0x1c*/0, 0, 0, 0,	/* PCI B slot 3  Int A, B, C, D */
-/*0x20*/5,		/* SCSI				*/
-/*0x21*/5,		/* Ethernet			*/
-/*0x22*/8,		/* Parallel Port		*/
-/*0x23*/13,		/* Audio Record			*/
-/*0x24*/14,		/* Audio Playback		*/
-/*0x25*/15,		/* PowerFail			*/
-/*0x26*/5,		/* second SCSI			*/
-/*0x27*/11,		/* Floppy			*/
-/*0x28*/5,		/* Spare Hardware		*/
-/*0x29*/9,		/* Keyboard			*/
-/*0x2a*/5,		/* Mouse			*/
-/*0x2b*/12,		/* Serial			*/
-/*0x2c*/10,		/* Timer 0			*/
-/*0x2d*/11,		/* Timer 1			*/
-/*0x2e*/15,		/* Uncorrectable ECC		*/
-/*0x2f*/15,		/* Correctable ECC		*/
-/*0x30*/15,		/* PCI Bus A Error		*/
-/*0x31*/15,		/* PCI Bus B Error		*/
-/*0x32*/15,		/* Power Management		*/
-};
-
-static int psycho_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
-{
-	int ret;
-
-	ret = psycho_pil_table[ino];
-	if (ret == 0 && pdev == NULL) {
-		ret = 5;
-	} else if (ret == 0) {
-		switch ((pdev->class >> 16) & 0xff) {
-		case PCI_BASE_CLASS_STORAGE:
-			ret = 5;
-			break;
-
-		case PCI_BASE_CLASS_NETWORK:
-			ret = 6;
-			break;
-
-		case PCI_BASE_CLASS_DISPLAY:
-			ret = 9;
-			break;
-
-		case PCI_BASE_CLASS_MULTIMEDIA:
-		case PCI_BASE_CLASS_MEMORY:
-		case PCI_BASE_CLASS_BRIDGE:
-		case PCI_BASE_CLASS_SERIAL:
-			ret = 10;
-			break;
-
-		default:
-			ret = 5;
-			break;
-		};
-	}
-
-	return ret;
-}
-
-static unsigned int psycho_irq_build(struct pci_pbm_info *pbm,
-				     struct pci_dev *pdev,
-				     unsigned int ino)
-{
-	struct ino_bucket *bucket;
-	unsigned long imap, iclr;
-	unsigned long imap_off, iclr_off;
-	int pil, inofixup = 0;
-
-	ino &= PCI_IRQ_INO;
-	if (ino < PSYCHO_ONBOARD_IRQ_BASE) {
-		/* PCI slot */
-		imap_off = psycho_pcislot_imap_offset(ino);
-	} else {
-		/* Onboard device */
-		if (ino > PSYCHO_ONBOARD_IRQ_LAST) {
-			prom_printf("psycho_irq_build: Wacky INO [%x]\n", ino);
-			prom_halt();
-		}
-		imap_off = psycho_onboard_imap_offset(ino);
-	}
-
-	/* Now build the IRQ bucket. */
-	pil = psycho_ino_to_pil(pdev, ino);
-
-	if (PIL_RESERVED(pil))
-		BUG();
-
-	imap = pbm->controller_regs + imap_off;
-	imap += 4;
-
-	iclr_off = psycho_iclr_offset(ino);
-	iclr = pbm->controller_regs + iclr_off;
-	iclr += 4;
-
-	if ((ino & 0x20) == 0)
-		inofixup = ino & 0x03;
-
-	bucket = __bucket(build_irq(pil, inofixup, iclr, imap));
-	bucket->flags |= IBF_PCI;
-
-	return __irq(bucket);
-}
 
 /* PSYCHO error handling support. */
 enum psycho_error_type {
@@ -1020,51 +841,34 @@ static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id, struct pt_regs *reg
 #define  PSYCHO_ECCCTRL_EE	 0x8000000000000000UL /* Enable ECC Checking */
 #define  PSYCHO_ECCCTRL_UE	 0x4000000000000000UL /* Enable UE Interrupts */
 #define  PSYCHO_ECCCTRL_CE	 0x2000000000000000UL /* Enable CE INterrupts */
-#define PSYCHO_UE_INO		0x2e
-#define PSYCHO_CE_INO		0x2f
-#define PSYCHO_PCIERR_A_INO	0x30
-#define PSYCHO_PCIERR_B_INO	0x31
 static void psycho_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm = &p->pbm_A; /* arbitrary */
+	struct of_device *op = of_find_device_by_node(pbm->prom_node);
 	unsigned long base = p->pbm_A.controller_regs;
-	unsigned int irq, portid = pbm->portid;
 	u64 tmp;
 
-	/* Build IRQs and register handlers. */
-	irq = psycho_irq_build(pbm, NULL, (portid << 6) | PSYCHO_UE_INO);
-	if (request_irq(irq, psycho_ue_intr,
-			SA_SHIRQ, "PSYCHO UE", p) < 0) {
-		prom_printf("PSYCHO%d: Cannot register UE interrupt.\n",
-			    p->index);
-		prom_halt();
-	}
+	if (!op)
+		return;
 
-	irq = psycho_irq_build(pbm, NULL, (portid << 6) | PSYCHO_CE_INO);
-	if (request_irq(irq, psycho_ce_intr,
-			SA_SHIRQ, "PSYCHO CE", p) < 0) {
-		prom_printf("PSYCHO%d: Cannot register CE interrupt.\n",
-			    p->index);
-		prom_halt();
-	}
+	/* Psycho interrupt property order is:
+	 * 0: PCIERR PBM B INO
+	 * 1: UE ERR
+	 * 2: CE ERR
+	 * 3: POWER FAIL
+	 * 4: SPARE HARDWARE
+	 * 5: PCIERR PBM A INO
+	 */
 
-	pbm = &p->pbm_A;
-	irq = psycho_irq_build(pbm, NULL, (portid << 6) | PSYCHO_PCIERR_A_INO);
-	if (request_irq(irq, psycho_pcierr_intr,
-			SA_SHIRQ, "PSYCHO PCIERR", &p->pbm_A) < 0) {
-		prom_printf("PSYCHO%d(PBMA): Cannot register PciERR interrupt.\n",
-			    p->index);
-		prom_halt();
-	}
+	if (op->num_irqs < 6)
+		return;
 
-	pbm = &p->pbm_B;
-	irq = psycho_irq_build(pbm, NULL, (portid << 6) | PSYCHO_PCIERR_B_INO);
-	if (request_irq(irq, psycho_pcierr_intr,
-			SA_SHIRQ, "PSYCHO PCIERR", &p->pbm_B) < 0) {
-		prom_printf("PSYCHO%d(PBMB): Cannot register PciERR interrupt.\n",
-			    p->index);
-		prom_halt();
-	}
+	request_irq(op->irqs[1], psycho_ue_intr, IRQF_SHARED, "PSYCHO UE", p);
+	request_irq(op->irqs[2], psycho_ce_intr, IRQF_SHARED, "PSYCHO CE", p);
+	request_irq(op->irqs[5], psycho_pcierr_intr, IRQF_SHARED,
+		    "PSYCHO PCIERR-A", &p->pbm_A);
+	request_irq(op->irqs[0], psycho_pcierr_intr, IRQF_SHARED,
+		    "PSYCHO PCIERR-B", &p->pbm_B);
 
 	/* Enable UE and CE interrupts for controller. */
 	psycho_write(base + PSYCHO_ECC_CTRL,
@@ -1247,9 +1051,7 @@ static void psycho_iommu_init(struct pci_controller_info *p)
 
 	/* If necessary, hook us up for starfire IRQ translations. */
 	if (this_is_starfire)
-		p->starfire_cookie = starfire_hookup(p->pbm_A.portid);
-	else
-		p->starfire_cookie = NULL;
+		starfire_hookup(p->pbm_A.portid);
 }
 
 #define PSYCHO_IRQ_RETRY	0x1a00UL
@@ -1368,11 +1170,12 @@ static void psycho_pbm_strbuf_init(struct pci_controller_info *p,
 #define PSYCHO_MEMSPACE_SIZE	0x07fffffffUL
 
 static void psycho_pbm_init(struct pci_controller_info *p,
-			    int prom_node, int is_pbm_a)
+			    struct device_node *dp, int is_pbm_a)
 {
-	unsigned int busrange[2];
+	unsigned int *busrange;
+	struct property *prop;
 	struct pci_pbm_info *pbm;
-	int err;
+	int len;
 
 	if (is_pbm_a) {
 		pbm = &p->pbm_A;
@@ -1387,10 +1190,14 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	}
 
 	pbm->chip_type = PBM_CHIP_TYPE_PSYCHO;
-	pbm->chip_version =
-		prom_getintdefault(prom_node, "version#", 0);
-	pbm->chip_revision =
-		prom_getintdefault(prom_node, "module-revision#", 0);
+	pbm->chip_version = 0;
+	prop = of_find_property(dp, "version#", NULL);
+	if (prop)
+		pbm->chip_version = *(int *) prop->value;
+	pbm->chip_revision = 0;
+	prop = of_find_property(dp, "module-revision#", NULL);
+	if (prop)
+		pbm->chip_revision = *(int *) prop->value;
 
 	pbm->io_space.end = pbm->io_space.start + PSYCHO_IOSPACE_SIZE;
 	pbm->io_space.flags = IORESOURCE_IO;
@@ -1399,45 +1206,36 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	pbm_register_toplevel_resources(p, pbm);
 
 	pbm->parent = p;
-	pbm->prom_node = prom_node;
-	prom_getstring(prom_node, "name",
-		       pbm->prom_name,
-		       sizeof(pbm->prom_name));
+	pbm->prom_node = dp;
+	pbm->name = dp->full_name;
 
-	err = prom_getproperty(prom_node, "ranges",
-			       (char *)pbm->pbm_ranges,
-			       sizeof(pbm->pbm_ranges));
-	if (err != -1)
+	printk("%s: PSYCHO PCI Bus Module ver[%x:%x]\n",
+	       pbm->name,
+	       pbm->chip_version, pbm->chip_revision);
+
+	prop = of_find_property(dp, "ranges", &len);
+	if (prop) {
+		pbm->pbm_ranges = prop->value;
 		pbm->num_pbm_ranges =
-			(err / sizeof(struct linux_prom_pci_ranges));
-	else
+			(len / sizeof(struct linux_prom_pci_ranges));
+	} else {
 		pbm->num_pbm_ranges = 0;
+	}
 
-	err = prom_getproperty(prom_node, "interrupt-map",
-			       (char *)pbm->pbm_intmap,
-			       sizeof(pbm->pbm_intmap));
-	if (err != -1) {
-		pbm->num_pbm_intmap = (err / sizeof(struct linux_prom_pci_intmap));
-		err = prom_getproperty(prom_node, "interrupt-map-mask",
-				       (char *)&pbm->pbm_intmask,
-				       sizeof(pbm->pbm_intmask));
-		if (err == -1) {
-			prom_printf("PSYCHO-PBM: Fatal error, no "
-				    "interrupt-map-mask.\n");
-			prom_halt();
-		}
+	prop = of_find_property(dp, "interrupt-map", &len);
+	if (prop) {
+		pbm->pbm_intmap = prop->value;
+		pbm->num_pbm_intmap =
+			(len / sizeof(struct linux_prom_pci_intmap));
+
+		prop = of_find_property(dp, "interrupt-map-mask", NULL);
+		pbm->pbm_intmask = prop->value;
 	} else {
 		pbm->num_pbm_intmap = 0;
-		memset(&pbm->pbm_intmask, 0, sizeof(pbm->pbm_intmask));
 	}
 
-	err = prom_getproperty(prom_node, "bus-range",
-			       (char *)&busrange[0],
-			       sizeof(busrange));
-	if (err == 0 || err == -1) {
-		prom_printf("PSYCHO-PBM: Fatal error, no bus-range.\n");
-		prom_halt();
-	}
+	prop = of_find_property(dp, "bus-range", NULL);
+	busrange = prop->value;
 	pbm->pci_first_busno = busrange[0];
 	pbm->pci_last_busno = busrange[1];
 
@@ -1446,20 +1244,24 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 
 #define PSYCHO_CONFIGSPACE	0x001000000UL
 
-void psycho_init(int node, char *model_name)
+void psycho_init(struct device_node *dp, char *model_name)
 {
-	struct linux_prom64_registers pr_regs[3];
+	struct linux_prom64_registers *pr_regs;
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
+	struct property *prop;
 	u32 upa_portid;
-	int is_pbm_a, err;
+	int is_pbm_a;
 
-	upa_portid = prom_getintdefault(node, "upa-portid", 0xff);
+	upa_portid = 0xff;
+	prop = of_find_property(dp, "upa-portid", NULL);
+	if (prop)
+		upa_portid = *(u32 *) prop->value;
 
 	for(p = pci_controller_root; p; p = p->next) {
 		if (p->pbm_A.portid == upa_portid) {
-			is_pbm_a = (p->pbm_A.prom_node == 0);
-			psycho_pbm_init(p, node, is_pbm_a);
+			is_pbm_a = (p->pbm_A.prom_node == NULL);
+			psycho_pbm_init(p, dp, is_pbm_a);
 			return;
 		}
 	}
@@ -1484,28 +1286,18 @@ void psycho_init(int node, char *model_name)
 	p->index = pci_num_controllers++;
 	p->pbms_same_domain = 0;
 	p->scan_bus = psycho_scan_bus;
-	p->irq_build = psycho_irq_build;
 	p->base_address_update = psycho_base_address_update;
 	p->resource_adjust = psycho_resource_adjust;
 	p->pci_ops = &psycho_ops;
 
-	err = prom_getproperty(node, "reg",
-			       (char *)&pr_regs[0],
-			       sizeof(pr_regs));
-	if (err == 0 || err == -1) {
-		prom_printf("PSYCHO: Fatal error, no reg property.\n");
-		prom_halt();
-	}
+	prop = of_find_property(dp, "reg", NULL);
+	pr_regs = prop->value;
 
 	p->pbm_A.controller_regs = pr_regs[2].phys_addr;
 	p->pbm_B.controller_regs = pr_regs[2].phys_addr;
-	printk("PCI: Found PSYCHO, control regs at %016lx\n",
-	       p->pbm_A.controller_regs);
 
 	p->pbm_A.config_space = p->pbm_B.config_space =
 		(pr_regs[2].phys_addr + PSYCHO_CONFIGSPACE);
-	printk("PSYCHO: Shared PCI config space at %016lx\n",
-	       p->pbm_A.config_space);
 
 	/*
 	 * Psycho's PCI MEM space is mapped to a 2GB aligned area, so
@@ -1518,5 +1310,5 @@ void psycho_init(int node, char *model_name)
 	psycho_iommu_init(p);
 
 	is_pbm_a = ((pr_regs[0].phys_addr & 0x6000) == 0x2000);
-	psycho_pbm_init(p, node, is_pbm_a);
+	psycho_pbm_init(p, dp, is_pbm_a);
 }

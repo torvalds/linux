@@ -10,7 +10,6 @@
  * Copyright (C) 1999 Silicon Graphics, Inc.
  * Copyright (C) 2000 2001, 2002  Maciej W. Rozycki
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -487,6 +486,9 @@ static void __init arch_mem_init(char **cmdline_p)
 static inline void resource_init(void)
 {
 	int i;
+
+	if (UNCAC_BASE != IO_BASE)
+		return;
 
 	code_resource.start = virt_to_phys(&_text);
 	code_resource.end = virt_to_phys(&_etext) - 1;

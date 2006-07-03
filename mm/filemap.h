@@ -13,18 +13,26 @@
 #include <linux/highmem.h>
 #include <linux/uio.h>
 #include <linux/config.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 size_t
-__filemap_copy_from_user_iovec(char *vaddr,
-			       const struct iovec *iov,
-			       size_t base,
-			       size_t bytes);
+__filemap_copy_from_user_iovec_inatomic(char *vaddr,
+					const struct iovec *iov,
+					size_t base,
+					size_t bytes);
 
 /*
  * Copy as much as we can into the page and return the number of bytes which
  * were sucessfully copied.  If a fault is encountered then clear the page
  * out to (offset+bytes) and return the number of bytes which were copied.
+ *
+ * NOTE: For this to work reliably we really want copy_from_user_inatomic_nocache
+ * to *NOT* zero any tail of the buffer that it failed to copy.  If it does,
+ * and if the following non-atomic copy succeeds, then there is a small window
+ * where the target page contains neither the data before the write, nor the
+ * data after the write (it contains zero).  A read at this time will see
+ * data that is inconsistent with any ordering of the read and the write.
+ * (This has been detected in practice).
  */
 static inline size_t
 filemap_copy_from_user(struct page *page, unsigned long offset,
@@ -34,13 +42,13 @@ filemap_copy_from_user(struct page *page, unsigned long offset,
 	int left;
 
 	kaddr = kmap_atomic(page, KM_USER0);
-	left = __copy_from_user_inatomic(kaddr + offset, buf, bytes);
+	left = __copy_from_user_inatomic_nocache(kaddr + offset, buf, bytes);
 	kunmap_atomic(kaddr, KM_USER0);
 
 	if (left != 0) {
 		/* Do it the slow way */
 		kaddr = kmap(page);
-		left = __copy_from_user(kaddr + offset, buf, bytes);
+		left = __copy_from_user_nocache(kaddr + offset, buf, bytes);
 		kunmap(page);
 	}
 	return bytes - left;
@@ -60,13 +68,15 @@ filemap_copy_from_user_iovec(struct page *page, unsigned long offset,
 	size_t copied;
 
 	kaddr = kmap_atomic(page, KM_USER0);
-	copied = __filemap_copy_from_user_iovec(kaddr + offset, iov,
-						base, bytes);
+	copied = __filemap_copy_from_user_iovec_inatomic(kaddr + offset, iov,
+							 base, bytes);
 	kunmap_atomic(kaddr, KM_USER0);
 	if (copied != bytes) {
 		kaddr = kmap(page);
-		copied = __filemap_copy_from_user_iovec(kaddr + offset, iov,
-							base, bytes);
+		copied = __filemap_copy_from_user_iovec_inatomic(kaddr + offset, iov,
+								 base, bytes);
+		if (bytes - copied)
+			memset(kaddr + offset + copied, 0, bytes - copied);
 		kunmap(page);
 	}
 	return copied;
@@ -78,7 +88,7 @@ filemap_set_next_iovec(const struct iovec **iovp, size_t *basep, size_t bytes)
 	const struct iovec *iov = *iovp;
 	size_t base = *basep;
 
-	while (bytes) {
+	do {
 		int copy = min(bytes, iov->iov_len - base);
 
 		bytes -= copy;
@@ -87,7 +97,7 @@ filemap_set_next_iovec(const struct iovec **iovp, size_t *basep, size_t bytes)
 			iov++;
 			base = 0;
 		}
-	}
+	} while (bytes);
 	*iovp = iov;
 	*basep = base;
 }

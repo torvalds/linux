@@ -58,7 +58,6 @@
  *			   Fixed proc entry removal bug.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/vmalloc.h>
@@ -66,6 +65,7 @@
 #include <linux/pagemap.h>
 #include <linux/errno.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
 

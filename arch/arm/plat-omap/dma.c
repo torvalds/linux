@@ -24,9 +24,9 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <asm/system.h>
-#include <asm/irq.h>
 #include <asm/hardware.h>
 #include <asm/dma.h>
 #include <asm/io.h>
@@ -43,6 +43,7 @@
 
 #define OMAP_DMA_ACTIVE		0x01
 #define OMAP_DMA_CCR_EN		(1 << 7)
+#define OMAP2_DMA_CSR_CLEAR_MASK	0xffe
 
 #define OMAP_FUNC_MUX_ARM_BASE	(0xfffe1000 + 0xec)
 
@@ -166,18 +167,24 @@ void omap_set_dma_transfer_params(int lch, int data_type, int elem_count,
 	if (cpu_is_omap24xx() && dma_trigger) {
 		u32 val = OMAP_DMA_CCR_REG(lch);
 
+		val &= ~(3 << 19);
 		if (dma_trigger > 63)
 			val |= 1 << 20;
 		if (dma_trigger > 31)
 			val |= 1 << 19;
 
+		val &= ~(0x1f);
 		val |= (dma_trigger & 0x1f);
 
 		if (sync_mode & OMAP_DMA_SYNC_FRAME)
 			val |= 1 << 5;
+		else
+			val &= ~(1 << 5);
 
 		if (sync_mode & OMAP_DMA_SYNC_BLOCK)
 			val |= 1 << 18;
+		else
+			val &= ~(1 << 18);
 
 		if (src_or_dst_synch)
 			val |= 1 << 24;		/* source synch */
@@ -286,22 +293,39 @@ void omap_set_dma_src_data_pack(int lch, int enable)
 
 void omap_set_dma_src_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 {
+	unsigned int burst = 0;
 	OMAP_DMA_CSDP_REG(lch) &= ~(0x03 << 7);
 
 	switch (burst_mode) {
 	case OMAP_DMA_DATA_BURST_DIS:
 		break;
 	case OMAP_DMA_DATA_BURST_4:
-		OMAP_DMA_CSDP_REG(lch) |= (0x02 << 7);
+		if (cpu_is_omap24xx())
+			burst = 0x1;
+		else
+			burst = 0x2;
 		break;
 	case OMAP_DMA_DATA_BURST_8:
-		/* not supported by current hardware
+		if (cpu_is_omap24xx()) {
+			burst = 0x2;
+			break;
+		}
+		/* not supported by current hardware on OMAP1
 		 * w |= (0x03 << 7);
+		 * fall through
+		 */
+	case OMAP_DMA_DATA_BURST_16:
+		if (cpu_is_omap24xx()) {
+			burst = 0x3;
+			break;
+		}
+		/* OMAP1 don't support burst 16
 		 * fall through
 		 */
 	default:
 		BUG();
 	}
+	OMAP_DMA_CSDP_REG(lch) |= (burst << 7);
 }
 
 /* Note that dest_port is only for OMAP1 */
@@ -348,30 +372,49 @@ void omap_set_dma_dest_data_pack(int lch, int enable)
 
 void omap_set_dma_dest_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 {
+	unsigned int burst = 0;
 	OMAP_DMA_CSDP_REG(lch) &= ~(0x03 << 14);
 
 	switch (burst_mode) {
 	case OMAP_DMA_DATA_BURST_DIS:
 		break;
 	case OMAP_DMA_DATA_BURST_4:
-		OMAP_DMA_CSDP_REG(lch) |= (0x02 << 14);
+		if (cpu_is_omap24xx())
+			burst = 0x1;
+		else
+			burst = 0x2;
 		break;
 	case OMAP_DMA_DATA_BURST_8:
-		OMAP_DMA_CSDP_REG(lch) |= (0x03 << 14);
+		if (cpu_is_omap24xx())
+			burst = 0x2;
+		else
+			burst = 0x3;
 		break;
+	case OMAP_DMA_DATA_BURST_16:
+		if (cpu_is_omap24xx()) {
+			burst = 0x3;
+			break;
+		}
+		/* OMAP1 don't support burst 16
+		 * fall through
+		 */
 	default:
 		printk(KERN_ERR "Invalid DMA burst mode\n");
 		BUG();
 		return;
 	}
+	OMAP_DMA_CSDP_REG(lch) |= (burst << 14);
 }
 
 static inline void omap_enable_channel_irq(int lch)
 {
 	u32 status;
 
-	/* Read CSR to make sure it's cleared. */
-	status = OMAP_DMA_CSR_REG(lch);
+	/* Clear CSR */
+	if (cpu_class_is_omap1())
+		status = OMAP_DMA_CSR_REG(lch);
+	else if (cpu_is_omap24xx())
+		OMAP_DMA_CSR_REG(lch) = OMAP2_DMA_CSR_CLEAR_MASK;
 
 	/* Enable some nice interrupts. */
 	OMAP_DMA_CICR_REG(lch) = dma_chan[lch].enabled_irqs;
@@ -470,11 +513,13 @@ int omap_request_dma(int dev_id, const char *dev_name,
 	chan->dev_name = dev_name;
 	chan->callback = callback;
 	chan->data = data;
-	chan->enabled_irqs = OMAP_DMA_TOUT_IRQ | OMAP_DMA_DROP_IRQ |
-				OMAP_DMA_BLOCK_IRQ;
+	chan->enabled_irqs = OMAP_DMA_DROP_IRQ | OMAP_DMA_BLOCK_IRQ;
 
-	if (cpu_is_omap24xx())
-		chan->enabled_irqs |= OMAP2_DMA_TRANS_ERR_IRQ;
+	if (cpu_class_is_omap1())
+		chan->enabled_irqs |= OMAP1_DMA_TOUT_IRQ;
+	else if (cpu_is_omap24xx())
+		chan->enabled_irqs |= OMAP2_DMA_MISALIGNED_ERR_IRQ |
+			OMAP2_DMA_TRANS_ERR_IRQ;
 
 	if (cpu_is_omap16xx()) {
 		/* If the sync device is set, configure it dynamically. */
@@ -494,7 +539,7 @@ int omap_request_dma(int dev_id, const char *dev_name,
 
 		omap_enable_channel_irq(free_ch);
 		/* Clear the CSR register and IRQ status register */
-		OMAP_DMA_CSR_REG(free_ch) = 0x0;
+		OMAP_DMA_CSR_REG(free_ch) = OMAP2_DMA_CSR_CLEAR_MASK;
 		omap_writel(~0x0, OMAP_DMA4_IRQSTATUS_L0);
 	}
 
@@ -534,7 +579,7 @@ void omap_free_dma(int lch)
 		omap_writel(val, OMAP_DMA4_IRQENABLE_L0);
 
 		/* Clear the CSR register and IRQ status register */
-		OMAP_DMA_CSR_REG(lch) = 0x0;
+		OMAP_DMA_CSR_REG(lch) = OMAP2_DMA_CSR_CLEAR_MASK;
 
 		val = omap_readl(OMAP_DMA4_IRQSTATUS_L0);
 		val |= 1 << lch;
@@ -798,7 +843,7 @@ static int omap1_dma_handle_ch(int ch)
 		       "%d (CSR %04x)\n", ch, csr);
 		return 0;
 	}
-	if (unlikely(csr & OMAP_DMA_TOUT_IRQ))
+	if (unlikely(csr & OMAP1_DMA_TOUT_IRQ))
 		printk(KERN_WARNING "DMA timeout with device %d\n",
 		       dma_chan[ch].dev_id);
 	if (unlikely(csr & OMAP_DMA_DROP_IRQ))
@@ -846,20 +891,21 @@ static int omap2_dma_handle_ch(int ch)
 		return 0;
 	if (unlikely(dma_chan[ch].dev_id == -1))
 		return 0;
-	/* REVISIT: According to 24xx TRM, there's no TOUT_IE */
-	if (unlikely(status & OMAP_DMA_TOUT_IRQ))
-		printk(KERN_INFO "DMA timeout with device %d\n",
-		       dma_chan[ch].dev_id);
 	if (unlikely(status & OMAP_DMA_DROP_IRQ))
 		printk(KERN_INFO
 		       "DMA synchronization event drop occurred with device "
 		       "%d\n", dma_chan[ch].dev_id);
-
 	if (unlikely(status & OMAP2_DMA_TRANS_ERR_IRQ))
 		printk(KERN_INFO "DMA transaction error with device %d\n",
 		       dma_chan[ch].dev_id);
+	if (unlikely(status & OMAP2_DMA_SECURE_ERR_IRQ))
+		printk(KERN_INFO "DMA secure error with device %d\n",
+		       dma_chan[ch].dev_id);
+	if (unlikely(status & OMAP2_DMA_MISALIGNED_ERR_IRQ))
+		printk(KERN_INFO "DMA misaligned error with device %d\n",
+		       dma_chan[ch].dev_id);
 
-	OMAP_DMA_CSR_REG(ch) = 0x20;
+	OMAP_DMA_CSR_REG(ch) = OMAP2_DMA_CSR_CLEAR_MASK;
 
 	val = omap_readl(OMAP_DMA4_IRQSTATUS_L0);
 	/* ch in this function is from 0-31 while in register it is 1-32 */
@@ -893,7 +939,7 @@ static irqreturn_t omap2_dma_irq_handler(int irq, void *dev_id,
 static struct irqaction omap24xx_dma_irq = {
 	.name = "DMA",
 	.handler = omap2_dma_irq_handler,
-	.flags = SA_INTERRUPT
+	.flags = IRQF_DISABLED
 };
 
 #else

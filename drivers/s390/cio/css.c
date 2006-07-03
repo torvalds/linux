@@ -19,9 +19,11 @@
 #include "cio_debug.h"
 #include "ioasm.h"
 #include "chsc.h"
+#include "device.h"
 
 int need_rescan = 0;
 int css_init_done = 0;
+static int need_reprobe = 0;
 static int max_ssid = 0;
 
 struct channel_subsystem *css[__MAX_CSSID + 1];
@@ -338,6 +340,67 @@ css_trigger_slow_path(void)
 typedef void (*workfunc)(void *);
 DECLARE_WORK(slow_path_work, (workfunc)css_trigger_slow_path, NULL);
 struct workqueue_struct *slow_path_wq;
+
+/* Reprobe subchannel if unregistered. */
+static int reprobe_subchannel(struct subchannel_id schid, void *data)
+{
+	struct subchannel *sch;
+	int ret;
+
+	CIO_DEBUG(KERN_INFO, 6, "cio: reprobe 0.%x.%04x\n",
+		  schid.ssid, schid.sch_no);
+	if (need_reprobe)
+		return -EAGAIN;
+
+	sch = get_subchannel_by_schid(schid);
+	if (sch) {
+		/* Already known. */
+		put_device(&sch->dev);
+		return 0;
+	}
+
+	ret = css_probe_device(schid);
+	switch (ret) {
+	case 0:
+		break;
+	case -ENXIO:
+	case -ENOMEM:
+		/* These should abort looping */
+		break;
+	default:
+		ret = 0;
+	}
+
+	return ret;
+}
+
+/* Work function used to reprobe all unregistered subchannels. */
+static void reprobe_all(void *data)
+{
+	int ret;
+
+	CIO_MSG_EVENT(2, "reprobe start\n");
+
+	need_reprobe = 0;
+	/* Make sure initial subchannel scan is done. */
+	wait_event(ccw_device_init_wq,
+		   atomic_read(&ccw_device_init_count) == 0);
+	ret = for_each_subchannel(reprobe_subchannel, NULL);
+
+	CIO_MSG_EVENT(2, "reprobe done (rc=%d, need_reprobe=%d)\n", ret,
+		      need_reprobe);
+}
+
+DECLARE_WORK(css_reprobe_work, reprobe_all, NULL);
+
+/* Schedule reprobing of all unregistered subchannels. */
+void css_schedule_reprobe(void)
+{
+	need_reprobe = 1;
+	queue_work(ccw_device_work, &css_reprobe_work);
+}
+
+EXPORT_SYMBOL_GPL(css_schedule_reprobe);
 
 /*
  * Rescan for new devices. FIXME: This is slow.

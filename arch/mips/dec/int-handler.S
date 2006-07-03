@@ -13,7 +13,6 @@
  * Rewritten extensively for controller-driven IRQ support
  * by Maciej W. Rozycki.
  */
-#include <linux/config.h>
 
 #include <asm/addrspace.h>
 #include <asm/asm.h>

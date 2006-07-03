@@ -2573,7 +2573,7 @@ static int __devinit ymf_probe_one(struct pci_dev *pcidev, const struct pci_devi
 		goto out_disable_dsp;
 	ymf_memload(codec);
 
-	if (request_irq(pcidev->irq, ymf_interrupt, SA_SHIRQ, "ymfpci", codec) != 0) {
+	if (request_irq(pcidev->irq, ymf_interrupt, IRQF_SHARED, "ymfpci", codec) != 0) {
 		printk(KERN_ERR "ymfpci: unable to request IRQ %d\n",
 		    pcidev->irq);
 		goto out_memfree;

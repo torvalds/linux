@@ -229,6 +229,9 @@ int rtc_irq_set_state(struct class_device *class_dev, struct rtc_task *task, int
 	unsigned long flags;
 	struct rtc_device *rtc = to_rtc_device(class_dev);
 
+	if (rtc->ops->irq_set_state == NULL)
+		return -ENXIO;
+
 	spin_lock_irqsave(&rtc->irq_task_lock, flags);
 	if (rtc->irq_task != task)
 		err = -ENXIO;
@@ -243,25 +246,12 @@ EXPORT_SYMBOL_GPL(rtc_irq_set_state);
 
 int rtc_irq_set_freq(struct class_device *class_dev, struct rtc_task *task, int freq)
 {
-	int err = 0, tmp = 0;
+	int err = 0;
 	unsigned long flags;
 	struct rtc_device *rtc = to_rtc_device(class_dev);
 
-	/* allowed range is 2-8192 */
-	if (freq < 2 || freq > 8192)
-		return -EINVAL;
-/*
-	FIXME: this does not belong here, will move where appropriate
-	at a later stage. It cannot hurt right now, trust me :)
-	if ((freq > rtc_max_user_freq) && (!capable(CAP_SYS_RESOURCE)))
-		return -EACCES;
-*/
-	/* check if freq is a power of 2 */
-	while (freq > (1 << tmp))
-		tmp++;
-
-	if (freq != (1 << tmp))
-		return -EINVAL;
+	if (rtc->ops->irq_set_freq == NULL)
+		return -ENXIO;
 
 	spin_lock_irqsave(&rtc->irq_task_lock, flags);
 	if (rtc->irq_task != task)

@@ -11,7 +11,6 @@
  *
  * See the GNU General Public License for more details.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <net/llc.h>

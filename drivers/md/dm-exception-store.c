@@ -16,6 +16,8 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 
+#define DM_MSG_PREFIX "snapshots"
+
 /*-----------------------------------------------------------------
  * Persistent snapshots, by persistent we mean that the snapshot
  * will survive a reboot.
@@ -91,7 +93,6 @@ struct pstore {
 	struct dm_snapshot *snap;	/* up pointer to my snapshot */
 	int version;
 	int valid;
-	uint32_t chunk_size;
 	uint32_t exceptions_per_area;
 
 	/*
@@ -133,7 +134,7 @@ static int alloc_area(struct pstore *ps)
 	int r = -ENOMEM;
 	size_t len;
 
-	len = ps->chunk_size << SECTOR_SHIFT;
+	len = ps->snap->chunk_size << SECTOR_SHIFT;
 
 	/*
 	 * Allocate the chunk_size block of memory that will hold
@@ -160,8 +161,8 @@ static int chunk_io(struct pstore *ps, uint32_t chunk, int rw)
 	unsigned long bits;
 
 	where.bdev = ps->snap->cow->bdev;
-	where.sector = ps->chunk_size * chunk;
-	where.count = ps->chunk_size;
+	where.sector = ps->snap->chunk_size * chunk;
+	where.count = ps->snap->chunk_size;
 
 	return dm_io_sync_vm(1, &where, rw, ps->area, &bits);
 }
@@ -188,7 +189,7 @@ static int area_io(struct pstore *ps, uint32_t area, int rw)
 
 static int zero_area(struct pstore *ps, uint32_t area)
 {
-	memset(ps->area, 0, ps->chunk_size << SECTOR_SHIFT);
+	memset(ps->area, 0, ps->snap->chunk_size << SECTOR_SHIFT);
 	return area_io(ps, area, WRITE);
 }
 
@@ -196,6 +197,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 {
 	int r;
 	struct disk_header *dh;
+	chunk_t chunk_size;
 
 	r = chunk_io(ps, 0, READ);
 	if (r)
@@ -210,8 +212,29 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 		*new_snapshot = 0;
 		ps->valid = le32_to_cpu(dh->valid);
 		ps->version = le32_to_cpu(dh->version);
-		ps->chunk_size = le32_to_cpu(dh->chunk_size);
+		chunk_size = le32_to_cpu(dh->chunk_size);
+		if (ps->snap->chunk_size != chunk_size) {
+			DMWARN("chunk size %llu in device metadata overrides "
+			       "table chunk size of %llu.",
+			       (unsigned long long)chunk_size,
+			       (unsigned long long)ps->snap->chunk_size);
 
+			/* We had a bogus chunk_size. Fix stuff up. */
+			dm_io_put(sectors_to_pages(ps->snap->chunk_size));
+			free_area(ps);
+
+			ps->snap->chunk_size = chunk_size;
+			ps->snap->chunk_mask = chunk_size - 1;
+			ps->snap->chunk_shift = ffs(chunk_size) - 1;
+
+			r = alloc_area(ps);
+			if (r)
+				return r;
+
+			r = dm_io_get(sectors_to_pages(chunk_size));
+			if (r)
+				return r;
+		}
 	} else {
 		DMWARN("Invalid/corrupt snapshot");
 		r = -ENXIO;
@@ -224,13 +247,13 @@ static int write_header(struct pstore *ps)
 {
 	struct disk_header *dh;
 
-	memset(ps->area, 0, ps->chunk_size << SECTOR_SHIFT);
+	memset(ps->area, 0, ps->snap->chunk_size << SECTOR_SHIFT);
 
 	dh = (struct disk_header *) ps->area;
 	dh->magic = cpu_to_le32(SNAP_MAGIC);
 	dh->valid = cpu_to_le32(ps->valid);
 	dh->version = cpu_to_le32(ps->version);
-	dh->chunk_size = cpu_to_le32(ps->chunk_size);
+	dh->chunk_size = cpu_to_le32(ps->snap->chunk_size);
 
 	return chunk_io(ps, 0, WRITE);
 }
@@ -365,7 +388,7 @@ static void persistent_destroy(struct exception_store *store)
 {
 	struct pstore *ps = get_info(store);
 
-	dm_io_put(sectors_to_pages(ps->chunk_size));
+	dm_io_put(sectors_to_pages(ps->snap->chunk_size));
 	vfree(ps->callbacks);
 	free_area(ps);
 	kfree(ps);
@@ -382,6 +405,16 @@ static int persistent_read_metadata(struct exception_store *store)
 	r = read_header(ps, &new_snapshot);
 	if (r)
 		return r;
+
+	/*
+	 * Now we know correct chunk_size, complete the initialisation.
+	 */
+	ps->exceptions_per_area = (ps->snap->chunk_size << SECTOR_SHIFT) /
+				  sizeof(struct disk_exception);
+	ps->callbacks = dm_vcalloc(ps->exceptions_per_area,
+			sizeof(*ps->callbacks));
+	if (!ps->callbacks)
+		return -ENOMEM;
 
 	/*
 	 * Do we need to setup a new snapshot ?
@@ -533,9 +566,6 @@ int dm_create_persistent(struct exception_store *store, uint32_t chunk_size)
 	ps->snap = store->snap;
 	ps->valid = 1;
 	ps->version = SNAPSHOT_DISK_VERSION;
-	ps->chunk_size = chunk_size;
-	ps->exceptions_per_area = (chunk_size << SECTOR_SHIFT) /
-	    sizeof(struct disk_exception);
 	ps->next_free = 2;	/* skipping the header and first area */
 	ps->current_committed = 0;
 
@@ -543,18 +573,9 @@ int dm_create_persistent(struct exception_store *store, uint32_t chunk_size)
 	if (r)
 		goto bad;
 
-	/*
-	 * Allocate space for all the callbacks.
-	 */
 	ps->callback_count = 0;
 	atomic_set(&ps->pending_count, 0);
-	ps->callbacks = dm_vcalloc(ps->exceptions_per_area,
-				   sizeof(*ps->callbacks));
-
-	if (!ps->callbacks) {
-		r = -ENOMEM;
-		goto bad;
-	}
+	ps->callbacks = NULL;
 
 	store->destroy = persistent_destroy;
 	store->read_metadata = persistent_read_metadata;

@@ -6,7 +6,6 @@
  * Rewritten by Richard Henderson <rth@tamu.edu> Dec 1996
  * Rewritten again by Rusty Russell, 2002
  */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
@@ -106,6 +105,8 @@ extern struct module __this_module;
  *	"GPL and additional rights"	[GNU Public License v2 rights and more]
  *	"Dual BSD/GPL"			[GNU Public License v2
  *					 or BSD license choice]
+ *	"Dual MIT/GPL"			[GNU Public License v2
+ *					 or MIT license choice]
  *	"Dual MPL/GPL"			[GNU Public License v2
  *					 or Mozilla license choice]
  *
@@ -202,6 +203,15 @@ void *__symbol_get_gpl(const char *symbol);
 #define EXPORT_SYMBOL_GPL_FUTURE(sym)				\
 	__EXPORT_SYMBOL(sym, "_gpl_future")
 
+
+#ifdef CONFIG_UNUSED_SYMBOLS
+#define EXPORT_UNUSED_SYMBOL(sym) __EXPORT_SYMBOL(sym, "_unused")
+#define EXPORT_UNUSED_SYMBOL_GPL(sym) __EXPORT_SYMBOL(sym, "_unused_gpl")
+#else
+#define EXPORT_UNUSED_SYMBOL(sym)
+#define EXPORT_UNUSED_SYMBOL_GPL(sym)
+#endif
+
 #endif
 
 struct module_ref
@@ -260,6 +270,15 @@ struct module
 	unsigned int num_gpl_syms;
 	const unsigned long *gpl_crcs;
 
+	/* unused exported symbols. */
+	const struct kernel_symbol *unused_syms;
+	unsigned int num_unused_syms;
+	const unsigned long *unused_crcs;
+	/* GPL-only, unused exported symbols. */
+	const struct kernel_symbol *unused_gpl_syms;
+	unsigned int num_unused_gpl_syms;
+	const unsigned long *unused_gpl_crcs;
+
 	/* symbols that will be GPL-only in the near future. */
 	const struct kernel_symbol *gpl_future_syms;
 	unsigned int num_gpl_future_syms;
@@ -283,6 +302,9 @@ struct module
 
 	/* The size of the executable code in each section.  */
 	unsigned long init_text_size, core_text_size;
+
+	/* The handle returned from unwind_add_table. */
+	void *unwind_info;
 
 	/* Arch-specific module values */
 	struct mod_arch_specific arch;
@@ -452,6 +474,8 @@ void module_remove_driver(struct device_driver *);
 #define EXPORT_SYMBOL(sym)
 #define EXPORT_SYMBOL_GPL(sym)
 #define EXPORT_SYMBOL_GPL_FUTURE(sym)
+#define EXPORT_UNUSED_SYMBOL(sym)
+#define EXPORT_UNUSED_SYMBOL_GPL(sym)
 
 /* Given an address, look for it in the exception tables. */
 static inline const struct exception_table_entry *
@@ -556,14 +580,5 @@ static inline void module_remove_driver(struct device_driver *driver)
 /* BELOW HERE ALL THESE ARE OBSOLETE AND WILL VANISH */
 
 #define __MODULE_STRING(x) __stringify(x)
-
-/* Use symbol_get and symbol_put instead.  You'll thank me. */
-#define HAVE_INTER_MODULE
-extern void __deprecated inter_module_register(const char *,
-		struct module *, const void *);
-extern void __deprecated inter_module_unregister(const char *);
-extern const void * __deprecated inter_module_get_request(const char *,
-		const char *);
-extern void __deprecated inter_module_put(const char *);
 
 #endif /* _LINUX_MODULE_H */

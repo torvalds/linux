@@ -7,7 +7,6 @@
  *
  * Copyright (C) 1996, 97, 98, 2000, 03, 04, 06 Ralf Baechle (ralf@linux-mips.org)
  */
-#include <linux/config.h>
 #include <linux/eisa.h>
 #include <linux/hdreg.h>
 #include <linux/ioport.h>

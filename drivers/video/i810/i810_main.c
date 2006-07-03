@@ -29,7 +29,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -2109,9 +2108,6 @@ static void i810fb_release_resource(struct fb_info *info,
 				   par->aperture.size);
 	if (par->res_flags & MMIO_REQ)
 		release_mem_region(par->mmio_start_phys, MMIO_SIZE);
-
-	if (par->res_flags & PCI_DEVICE_ENABLED)
-		pci_disable_device(par->dev);
 
 	framebuffer_release(info);
 

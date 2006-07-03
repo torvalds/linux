@@ -117,7 +117,7 @@ static int __devinit hydra_init(struct zorro_dev *z)
     dev->irq = IRQ_AMIGA_PORTS;
 
     /* Install the Interrupt handler */
-    if (request_irq(IRQ_AMIGA_PORTS, ei_interrupt, SA_SHIRQ, "Hydra Ethernet",
+    if (request_irq(IRQ_AMIGA_PORTS, ei_interrupt, IRQF_SHARED, "Hydra Ethernet",
 		    dev)) {
 	free_netdev(dev);
 	return -EAGAIN;

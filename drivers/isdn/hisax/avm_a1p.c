@@ -255,7 +255,7 @@ setup_avm_a1_pcmcia(struct IsdnCard *card)
 	cs->BC_Write_Reg = &WriteHSCX;
 	cs->BC_Send_Data = &hscx_fill_fifo;
 	cs->cardmsg = &AVM_card_msg;
-	cs->irq_flags = SA_SHIRQ;
+	cs->irq_flags = IRQF_SHARED;
 	cs->irq_func = &avm_a1p_interrupt;
 
 	ISACVersion(cs, "AVM A1 PCMCIA:");

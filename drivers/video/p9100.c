@@ -1,6 +1,6 @@
 /* p9100.c: P9100 frame buffer driver
  *
- * Copyright (C) 2003 David S. Miller (davem@redhat.com)
+ * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)
  * Copyright 1999 Derrick J Brashear (shadow@dementia.org)
  *
  * Driver layout based loosely on tgafb.c, see that file for credits.
@@ -17,8 +17,8 @@
 #include <linux/mm.h>
 
 #include <asm/io.h>
-#include <asm/sbus.h>
-#include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/fbio.h>
 
 #include "sbuslib.h"
@@ -72,60 +72,60 @@ static struct fb_ops p9100_ops = {
 
 struct p9100_regs {
 	/* Registers for the system control */
-	volatile u32 sys_base;
-	volatile u32 sys_config;
-	volatile u32 sys_intr;
-	volatile u32 sys_int_ena;
-	volatile u32 sys_alt_rd;
-	volatile u32 sys_alt_wr;
-	volatile u32 sys_xxx[58];
+	u32 sys_base;
+	u32 sys_config;
+	u32 sys_intr;
+	u32 sys_int_ena;
+	u32 sys_alt_rd;
+	u32 sys_alt_wr;
+	u32 sys_xxx[58];
 
 	/* Registers for the video control */
-	volatile u32 vid_base;
-	volatile u32 vid_hcnt;
-	volatile u32 vid_htotal;
-	volatile u32 vid_hsync_rise;
-	volatile u32 vid_hblank_rise;
-	volatile u32 vid_hblank_fall;
-	volatile u32 vid_hcnt_preload;
-	volatile u32 vid_vcnt;
-	volatile u32 vid_vlen;
-	volatile u32 vid_vsync_rise;
-	volatile u32 vid_vblank_rise;
-	volatile u32 vid_vblank_fall;
-	volatile u32 vid_vcnt_preload;
-	volatile u32 vid_screenpaint_addr;
-	volatile u32 vid_screenpaint_timectl1;
-	volatile u32 vid_screenpaint_qsfcnt;
-	volatile u32 vid_screenpaint_timectl2;
-	volatile u32 vid_xxx[15];
+	u32 vid_base;
+	u32 vid_hcnt;
+	u32 vid_htotal;
+	u32 vid_hsync_rise;
+	u32 vid_hblank_rise;
+	u32 vid_hblank_fall;
+	u32 vid_hcnt_preload;
+	u32 vid_vcnt;
+	u32 vid_vlen;
+	u32 vid_vsync_rise;
+	u32 vid_vblank_rise;
+	u32 vid_vblank_fall;
+	u32 vid_vcnt_preload;
+	u32 vid_screenpaint_addr;
+	u32 vid_screenpaint_timectl1;
+	u32 vid_screenpaint_qsfcnt;
+	u32 vid_screenpaint_timectl2;
+	u32 vid_xxx[15];
 
 	/* Registers for the video control */
-	volatile u32 vram_base;
-	volatile u32 vram_memcfg;
-	volatile u32 vram_refresh_pd;
-	volatile u32 vram_refresh_cnt;
-	volatile u32 vram_raslo_max;
-	volatile u32 vram_raslo_cur;
-	volatile u32 pwrup_cfg;
-	volatile u32 vram_xxx[25];
+	u32 vram_base;
+	u32 vram_memcfg;
+	u32 vram_refresh_pd;
+	u32 vram_refresh_cnt;
+	u32 vram_raslo_max;
+	u32 vram_raslo_cur;
+	u32 pwrup_cfg;
+	u32 vram_xxx[25];
 
 	/* Registers for IBM RGB528 Palette */
-	volatile u32 ramdac_cmap_wridx; 
-	volatile u32 ramdac_palette_data;
-	volatile u32 ramdac_pixel_mask;
-	volatile u32 ramdac_palette_rdaddr;
-	volatile u32 ramdac_idx_lo;
-	volatile u32 ramdac_idx_hi;
-	volatile u32 ramdac_idx_data;
-	volatile u32 ramdac_idx_ctl;
-	volatile u32 ramdac_xxx[1784];
+	u32 ramdac_cmap_wridx; 
+	u32 ramdac_palette_data;
+	u32 ramdac_pixel_mask;
+	u32 ramdac_palette_rdaddr;
+	u32 ramdac_idx_lo;
+	u32 ramdac_idx_hi;
+	u32 ramdac_idx_data;
+	u32 ramdac_idx_ctl;
+	u32 ramdac_xxx[1784];
 };
 
 struct p9100_cmd_parameng {
-	volatile u32 parameng_status;
-	volatile u32 parameng_bltcmd;
-	volatile u32 parameng_quadcmd;
+	u32 parameng_status;
+	u32 parameng_bltcmd;
+	u32 parameng_quadcmd;
 };
 
 struct p9100_par {
@@ -136,9 +136,8 @@ struct p9100_par {
 #define P9100_FLAG_BLANKED	0x00000001
 
 	unsigned long		physbase;
+	unsigned long		which_io;
 	unsigned long		fbsize;
-
-	struct sbus_dev		*sdev;
 };
 
 /**
@@ -227,8 +226,7 @@ static int p9100_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	return sbusfb_mmap_helper(p9100_mmap_map,
 				  par->physbase, par->fbsize,
-				  par->sdev->reg_addrs[0].which_io,
-				  vma);
+				  par->which_io, vma);
 }
 
 static int p9100_ioctl(struct fb_info *info, unsigned int cmd,
@@ -245,12 +243,9 @@ static int p9100_ioctl(struct fb_info *info, unsigned int cmd,
  *  Initialisation
  */
 
-static void
-p9100_init_fix(struct fb_info *info, int linebytes)
+static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_node *dp)
 {
-	struct p9100_par *par = (struct p9100_par *)info->par;
-
-	strlcpy(info->fix.id, par->sdev->prom_name, sizeof(info->fix.id));
+	strlcpy(info->fix.id, dp->name, sizeof(info->fix.id));
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
@@ -263,121 +258,137 @@ p9100_init_fix(struct fb_info *info, int linebytes)
 struct all_info {
 	struct fb_info info;
 	struct p9100_par par;
-	struct list_head list;
 };
-static LIST_HEAD(p9100_list);
 
-static void p9100_init_one(struct sbus_dev *sdev)
+static int __devinit p9100_init_one(struct of_device *op)
 {
+	struct device_node *dp = op->node;
 	struct all_info *all;
-	int linebytes;
+	int linebytes, err;
 
-	all = kmalloc(sizeof(*all), GFP_KERNEL);
-	if (!all) {
-		printk(KERN_ERR "p9100: Cannot allocate memory.\n");
-		return;
-	}
-	memset(all, 0, sizeof(*all));
-
-	INIT_LIST_HEAD(&all->list);
+	all = kzalloc(sizeof(*all), GFP_KERNEL);
+	if (!all)
+		return -ENOMEM;
 
 	spin_lock_init(&all->par.lock);
-	all->par.sdev = sdev;
 
 	/* This is the framebuffer and the only resource apps can mmap.  */
-	all->par.physbase = sdev->reg_addrs[2].phys_addr;
+	all->par.physbase = op->resource[2].start;
+	all->par.which_io = op->resource[2].flags & IORESOURCE_BITS;
 
-	sbusfb_fill_var(&all->info.var, sdev->prom_node, 8);
+	sbusfb_fill_var(&all->info.var, dp->node, 8);
 	all->info.var.red.length = 8;
 	all->info.var.green.length = 8;
 	all->info.var.blue.length = 8;
 
-	linebytes = prom_getintdefault(sdev->prom_node, "linebytes",
-				       all->info.var.xres);
+	linebytes = of_getintprop_default(dp, "linebytes",
+					  all->info.var.xres);
 	all->par.fbsize = PAGE_ALIGN(linebytes * all->info.var.yres);
 
-	all->par.regs = sbus_ioremap(&sdev->resource[0], 0,
-			     sizeof(struct p9100_regs), "p9100 regs");
+	all->par.regs = of_ioremap(&op->resource[0], 0,
+				   sizeof(struct p9100_regs), "p9100 regs");
+	if (!all->par.regs) {
+		kfree(all);
+		return -ENOMEM;
+	}
 
 	all->info.flags = FBINFO_DEFAULT;
 	all->info.fbops = &p9100_ops;
-#ifdef CONFIG_SPARC32
-	all->info.screen_base = (char __iomem *)
-		prom_getintdefault(sdev->prom_node, "address", 0);
-#endif
-	if (!all->info.screen_base)
-		all->info.screen_base = sbus_ioremap(&sdev->resource[2], 0,
-				     all->par.fbsize, "p9100 ram");
+	all->info.screen_base = of_ioremap(&op->resource[2], 0,
+					   all->par.fbsize, "p9100 ram");
+	if (!all->info.screen_base) {
+		of_iounmap(all->par.regs, sizeof(struct p9100_regs));
+		kfree(all);
+		return -ENOMEM;
+	}
 	all->info.par = &all->par;
 
 	p9100_blank(0, &all->info);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		printk(KERN_ERR "p9100: Could not allocate color map.\n");
+		of_iounmap(all->par.regs, sizeof(struct p9100_regs));
+		of_iounmap(all->info.screen_base, all->par.fbsize);
 		kfree(all);
-		return;
+		return -ENOMEM;
 	}
 
-	p9100_init_fix(&all->info, linebytes);
+	p9100_init_fix(&all->info, linebytes, dp);
 
-	if (register_framebuffer(&all->info) < 0) {
-		printk(KERN_ERR "p9100: Could not register framebuffer.\n");
+	err = register_framebuffer(&all->info);
+	if (err < 0) {
 		fb_dealloc_cmap(&all->info.cmap);
+		of_iounmap(all->par.regs, sizeof(struct p9100_regs));
+		of_iounmap(all->info.screen_base, all->par.fbsize);
 		kfree(all);
-		return;
+		return err;
 	}
 	fb_set_cmap(&all->info.cmap, &all->info);
 
-	list_add(&all->list, &p9100_list);
+	dev_set_drvdata(&op->dev, all);
 
-	printk("p9100: %s at %lx:%lx\n",
-	       sdev->prom_name,
-	       (long) sdev->reg_addrs[0].which_io,
-	       (long) sdev->reg_addrs[0].phys_addr);
+	printk("%s: p9100 at %lx:%lx\n",
+	       dp->full_name,
+	       all->par.which_io, all->par.physbase);
+
+	return 0;
 }
 
-int __init p9100_init(void)
+static int __devinit p9100_probe(struct of_device *dev, const struct of_device_id *match)
 {
-	struct sbus_bus *sbus;
-	struct sbus_dev *sdev;
+	struct of_device *op = to_of_device(&dev->dev);
 
+	return p9100_init_one(op);
+}
+
+static int __devexit p9100_remove(struct of_device *dev)
+{
+	struct all_info *all = dev_get_drvdata(&dev->dev);
+
+	unregister_framebuffer(&all->info);
+	fb_dealloc_cmap(&all->info.cmap);
+
+	of_iounmap(all->par.regs, sizeof(struct p9100_regs));
+	of_iounmap(all->info.screen_base, all->par.fbsize);
+
+	kfree(all);
+
+	dev_set_drvdata(&dev->dev, NULL);
+
+	return 0;
+}
+
+static struct of_device_id p9100_match[] = {
+	{
+		.name = "p9100",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, p9100_match);
+
+static struct of_platform_driver p9100_driver = {
+	.name		= "p9100",
+	.match_table	= p9100_match,
+	.probe		= p9100_probe,
+	.remove		= __devexit_p(p9100_remove),
+};
+
+static int __init p9100_init(void)
+{
 	if (fb_get_options("p9100fb", NULL))
 		return -ENODEV;
 
-	for_all_sbusdev(sdev, sbus) {
-		if (!strcmp(sdev->prom_name, "p9100"))
-			p9100_init_one(sdev);
-	}
-
-	return 0;
+	return of_register_driver(&p9100_driver, &of_bus_type);
 }
 
-void __exit p9100_exit(void)
+static void __exit p9100_exit(void)
 {
-	struct list_head *pos, *tmp;
-
-	list_for_each_safe(pos, tmp, &p9100_list) {
-		struct all_info *all = list_entry(pos, typeof(*all), list);
-
-		unregister_framebuffer(&all->info);
-		fb_dealloc_cmap(&all->info.cmap);
-		kfree(all);
-	}
-}
-
-int __init
-p9100_setup(char *arg)
-{
-	/* No cmdline options yet... */
-	return 0;
+	of_unregister_driver(&p9100_driver);
 }
 
 module_init(p9100_init);
-
-#ifdef MODULE
 module_exit(p9100_exit);
-#endif
 
 MODULE_DESCRIPTION("framebuffer driver for P9100 chipsets");
-MODULE_AUTHOR("David S. Miller <davem@redhat.com>");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
+MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");

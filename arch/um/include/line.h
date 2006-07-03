@@ -17,7 +17,6 @@
 struct line_driver {
 	char *name;
 	char *device_name;
-	char *devfs_name;
 	short major;
 	short minor_start;
 	short type;

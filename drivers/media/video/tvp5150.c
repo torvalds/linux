@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/video_decoder.h>
 #include <media/v4l2-common.h>
+#include <media/tvp5150.h>
 
 #include "tvp5150_reg.h"
 
@@ -89,7 +90,7 @@ struct tvp5150 {
 	struct i2c_client *client;
 
 	v4l2_std_id norm;	/* Current set standard */
-	int input;
+	struct v4l2_routing route;
 	int enable;
 	int bright;
 	int contrast;
@@ -283,29 +284,26 @@ static void dump_reg(struct i2c_client *c)
 /****************************************************************************
 			Basic functions
  ****************************************************************************/
-enum tvp5150_input {
-	TVP5150_ANALOG_CH0 = 0,
-	TVP5150_SVIDEO = 1,
-	TVP5150_ANALOG_CH1 = 2,
-	TVP5150_BLACK_SCREEN = 8
-};
 
-static inline void tvp5150_selmux(struct i2c_client *c,
-				  enum tvp5150_input input)
+static inline void tvp5150_selmux(struct i2c_client *c)
 {
 	int opmode=0;
-
 	struct tvp5150 *decoder = i2c_get_clientdata(c);
+	int input = 0;
 
-	if (!decoder->enable)
-		input |= TVP5150_BLACK_SCREEN;
+	if ((decoder->route.output & TVP5150_BLACK_SCREEN) || !decoder->enable)
+		input = 8;
 
 	switch (input) {
-	case TVP5150_ANALOG_CH0:
-	case TVP5150_ANALOG_CH1:
+	case TVP5150_COMPOSITE1:
+		input |= 2;
+		/* fall through */
+	case TVP5150_COMPOSITE0:
 		opmode=0x30;		/* TV Mode */
 		break;
+	case TVP5150_SVIDEO:
 	default:
+		input |= 1;
 		opmode=0;		/* Auto Mode */
 		break;
 	}
@@ -790,7 +788,7 @@ static inline void tvp5150_reset(struct i2c_client *c)
 	tvp5150_vdp_init(c, vbi_ram_default);
 
 	/* Selects decoder input */
-	tvp5150_selmux(c, decoder->input);
+	tvp5150_selmux(c);
 
 	/* Initializes TVP5150 to stream enabled values */
 	tvp5150_write_inittab(c, tvp5150_init_enable);
@@ -860,6 +858,21 @@ static int tvp5150_command(struct i2c_client *c,
 	case VIDIOC_INT_RESET:
 		tvp5150_reset(c);
 		break;
+	case VIDIOC_INT_G_VIDEO_ROUTING:
+	{
+		struct v4l2_routing *route = arg;
+
+		*route = decoder->route;
+		break;
+	}
+	case VIDIOC_INT_S_VIDEO_ROUTING:
+	{
+		struct v4l2_routing *route = arg;
+
+		decoder->route = *route;
+		tvp5150_selmux(c);
+		break;
+	}
 	case VIDIOC_S_STD:
 		if (decoder->norm == *(v4l2_std_id *)arg)
 			break;
@@ -1063,7 +1076,7 @@ static int tvp5150_detect_client(struct i2c_adapter *adapter,
 	rv = i2c_attach_client(c);
 
 	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
-	core->input = 2;
+	core->route.input = TVP5150_COMPOSITE1;
 	core->enable = 1;
 	core->bright = 32768;
 	core->contrast = 32768;

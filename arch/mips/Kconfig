@@ -308,6 +308,7 @@ config MIPS_ATLAS
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_MULTITHREADING if EXPERIMENTAL
 	help
 	  This enables support for the MIPS Technologies Atlas evaluation
 	  board.
@@ -324,6 +325,7 @@ config MIPS_MALTA
 	select I8259
 	select MIPS_BOARDS_GEN
 	select MIPS_BONITO64
+	select MIPS_CPU_SCACHE
 	select MIPS_GT64120
 	select MIPS_MSC
 	select SWAP_IO_SPACE
@@ -336,6 +338,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_MULTITHREADING
 	help
 	  This enables support for the MIPS Technologies Malta evaluation
 	  board.
@@ -358,7 +361,7 @@ config MIPS_SEAD
 	  board.
 
 config WR_PPMC
-	bool "Support for Wind River PPMC board"
+	bool "Wind River PPMC board"
 	select IRQ_CPU
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
@@ -536,6 +539,7 @@ config PMC_YOSEMITE
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_SMP
 	help
 	  Yosemite is an evaluation board for the RM9000x2 processor
 	  manufactured by PMC-Sierra.
@@ -590,6 +594,7 @@ config SGI_IP22
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_SMP
 	help
 	  This are the SGI Indy, Challenge S and Indigo2, as well as certain
 	  OEM variants like the Tandem CMN B006S. To compile a Linux kernel
@@ -601,6 +606,7 @@ config SGI_IP27
 	select ARC64
 	select BOOT_ELF64
 	select DMA_IP27
+	select EARLY_PRINTK
 	select HW_HAS_PCI
 	select PCI_DOMAINS
 	select SYS_HAS_CPU_R10000
@@ -1249,7 +1255,7 @@ config CPU_R6000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	help
 	  MIPS Technologies R6000 and R6000A series processors.  Note these
-	  processors are extremly rare and the support for them is incomplete.
+	  processors are extremely rare and the support for them is incomplete.
 
 config CPU_NEVADA
 	bool "RM52xx"
@@ -1370,7 +1376,7 @@ config SYS_HAS_CPU_SB1
 endmenu
 
 #
-# These two indicate any levelof the MIPS32 and MIPS64 architecture
+# These two indicate any level of the MIPS32 and MIPS64 architecture
 #
 config CPU_MIPS32
 	bool
@@ -1381,7 +1387,7 @@ config CPU_MIPS64
 	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2
 
 #
-# These two indicate the revision of the architecture, either 32 bot 64 bit.
+# These two indicate the revision of the architecture, either Release 1 or Release 2
 #
 config CPU_MIPSR1
 	bool
@@ -1474,6 +1480,13 @@ config IP22_CPU_SCACHE
 	bool
 	select BOARD_SCACHE
 
+#
+# Support for a MIPS32 / MIPS64 style S-caches
+#
+config MIPS_CPU_SCACHE
+	bool
+	select BOARD_SCACHE
+
 config R5000_CPU_SCACHE
 	bool
 	select BOARD_SCACHE
@@ -1493,31 +1506,56 @@ config SIBYTE_DMA_PAGEOPS
 config CPU_HAS_PREFETCH
 	bool
 
-config MIPS_MT
-	bool "Enable MIPS MT"
-
 choice
 	prompt "MIPS MT options"
-	depends on MIPS_MT
+
+config MIPS_MT_DISABLED
+	bool "Disable multithreading support."
+	help
+	  Use this option if your workload can't take advantage of
+	  MIPS hardware multithreading support.  On systems that don't have
+	  the option of an MT-enabled processor this option will be the only
+	  option in this menu.
 
 config MIPS_MT_SMTC
 	bool "SMTC: Use all TCs on all VPEs for SMP"
+	depends on CPU_MIPS32_R2
+	#depends on CPU_MIPS64_R2		# once there is hardware ...
+	depends on SYS_SUPPORTS_MULTITHREADING
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_SRS
+	select MIPS_MT
 	select SMP
+	help
+	  This is a kernel model which is known a SMTC or lately has been
+	  marketesed into SMVP.
 
 config MIPS_MT_SMP
 	bool "Use 1 TC on each available VPE for SMP"
+	depends on SYS_SUPPORTS_MULTITHREADING
+	select CPU_MIPSR2_IRQ_VI
+	select CPU_MIPSR2_SRS
+	select MIPS_MT
 	select SMP
+	help
+	  This is a kernel model which is also known a VSMP or lately
+	  has been marketesed into SMVP.
 
 config MIPS_VPE_LOADER
 	bool "VPE loader support."
-	depends on MIPS_MT
+	depends on SYS_SUPPORTS_MULTITHREADING
+	select MIPS_MT
 	help
 	  Includes a loader for loading an elf relocatable object
 	  onto another VPE and running it.
 
 endchoice
+
+config MIPS_MT
+	bool
+
+config SYS_SUPPORTS_MULTITHREADING
+	bool
 
 config MIPS_MT_FPAFF
 	bool "Dynamic FPU affinity for FP-intensive threads"
@@ -1575,32 +1613,23 @@ config CPU_HAS_LLSC
 config CPU_HAS_WB
 	bool
 
+#
+# Vectored interrupt mode is an R2 feature
+#
 config CPU_MIPSR2_IRQ_VI
-	bool "Vectored interrupt mode"
-	depends on CPU_MIPSR2
-	help
-	   Vectored interrupt mode allowing faster dispatching of interrupts.
-	   The board support code needs to be written to take advantage of this
-	   mode.  Compatibility code is included to allow the kernel to run on
-	   a CPU that does not support vectored interrupts.  It's safe to
-	   say Y here.
+	bool
 
+#
+# Extended interrupt mode is an R2 feature
+#
 config CPU_MIPSR2_IRQ_EI
-	bool "External interrupt controller mode"
-	depends on CPU_MIPSR2
-	help
-	   Extended interrupt mode takes advantage of an external interrupt
-	   controller to allow fast dispatching from many possible interrupt
-	   sources. Say N unless you know that external interrupt support is
-	   required.
+	bool
 
+#
+# Shadow registers are an R2 feature
+#
 config CPU_MIPSR2_SRS
-	bool "Make shadow set registers available for interrupt handlers"
-	depends on CPU_MIPSR2_IRQ_VI || CPU_MIPSR2_IRQ_EI
-	help
-	   Allow the kernel to use shadow register sets for fast interrupts.
-	   Interrupt handlers must be specially written to use shadow sets.
-	   Say N unless you know that shadow register set upport is needed.
+	bool
 
 config CPU_HAS_SYNC
 	bool
@@ -1615,6 +1644,11 @@ config GENERIC_HARDIRQS
 	default y
 
 config GENERIC_IRQ_PROBE
+	bool
+	default y
+
+config IRQ_PER_CPU
+	depends on SMP
 	bool
 	default y
 
@@ -1676,8 +1710,8 @@ source "mm/Kconfig"
 
 config SMP
 	bool "Multi-Processing support"
-	depends on CPU_RM9000 || ((SIBYTE_BCM1x80 || SIBYTE_BCM1x55 || SIBYTE_SB1250 || QEMU) && !SIBYTE_STANDALONE) || SGI_IP27 || MIPS_MT_SMP || MIPS_MT_SMTC
-	---help---
+	depends on SYS_SUPPORTS_SMP
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
 	  you have a system with more than one CPU, say Y.
@@ -1695,6 +1729,9 @@ config SMP
 	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config SYS_SUPPORTS_SMP
+	bool
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-64)"

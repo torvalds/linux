@@ -1,4 +1,4 @@
-/* 
+/*
  * File...........: linux/drivers/s390/block/dasd_diag.h
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  * Based on.......: linux/drivers/s390/block/mdisk.h

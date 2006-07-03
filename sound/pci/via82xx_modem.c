@@ -929,7 +929,7 @@ static void __devinit snd_via82xx_proc_init(struct via82xx_modem *chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "via82xx", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_via82xx_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_via82xx_proc_read);
 }
 
 /*
@@ -1118,7 +1118,7 @@ static int __devinit snd_via82xx_create(struct snd_card *card,
 		return err;
 	}
 	chip->port = pci_resource_start(pci, 0);
-	if (request_irq(pci->irq, snd_via82xx_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq(pci->irq, snd_via82xx_interrupt, IRQF_DISABLED|IRQF_SHARED,
 			card->driver, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_via82xx_free(chip);

@@ -8,7 +8,6 @@
  * Copyright (C) 2001 MIPS Technologies, Inc.
  * Copyright (C) 2002 Maciej W. Rozycki
  */
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/asm.h>
@@ -214,7 +213,7 @@ NESTED(except_vec_vi_handler, 0, sp)
 	mtc0	t0, CP0_TCCONTEXT
 	xor	t1, t1, t0
 	mtc0	t1, CP0_STATUS
-	ehb
+	_ehb
 #endif /* CONFIG_MIPS_MT_SMTC */
 	CLI
 	move	a0, sp

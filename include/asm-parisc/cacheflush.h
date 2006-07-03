@@ -1,7 +1,6 @@
 #ifndef _PARISC_CACHEFLUSH_H
 #define _PARISC_CACHEFLUSH_H
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <asm/cache.h>	/* for flush_user_dcache_range_asm() proto */
 

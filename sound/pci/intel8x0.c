@@ -66,7 +66,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel,82801AA-ICH},"
 
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
-static int ac97_clock = 0;
+static int ac97_clock;
 static char *ac97_quirk;
 static int buggy_semaphore;
 static int buggy_irq = -1; /* auto-check */
@@ -1807,6 +1807,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x1028,
+		.subdevice = 0x014e,
+		.name = "Dell D800", /* STAC9750/51 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x1028,
 		.subdevice = 0x0163,
 		.name = "Dell Unknown",	/* STAC9750/51 */
 		.type = AC97_TUNE_HP_ONLY
@@ -2469,7 +2475,7 @@ static int intel8x0_resume(struct pci_dev *pci)
 	pci_restore_state(pci);
 	pci_enable_device(pci);
 	pci_set_master(pci);
-	request_irq(pci->irq, snd_intel8x0_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	request_irq(pci->irq, snd_intel8x0_interrupt, IRQF_DISABLED|IRQF_SHARED,
 		    card->shortname, chip);
 	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
@@ -2645,7 +2651,7 @@ static void __devinit snd_intel8x0_proc_init(struct intel8x0 * chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "intel8x0", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_intel8x0_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_intel8x0_proc_read);
 }
 #else
 #define snd_intel8x0_proc_init(x)
@@ -2842,7 +2848,7 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 
 	/* request irq after initializaing int_sta_mask, etc */
 	if (request_irq(pci->irq, snd_intel8x0_interrupt,
-			SA_INTERRUPT|SA_SHIRQ, card->shortname, chip)) {
+			IRQF_DISABLED|IRQF_SHARED, card->shortname, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_intel8x0_free(chip);
 		return -EBUSY;

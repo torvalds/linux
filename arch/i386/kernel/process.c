@@ -28,7 +28,6 @@
 #include <linux/user.h>
 #include <linux/a.out.h>
 #include <linux/interrupt.h>
-#include <linux/config.h>
 #include <linux/utsname.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
@@ -102,7 +101,7 @@ void default_idle(void)
 	local_irq_enable();
 
 	if (!hlt_counter && boot_cpu_data.hlt_works_ok) {
-		clear_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status &= ~TS_POLLING;
 		smp_mb__after_clear_bit();
 		while (!need_resched()) {
 			local_irq_disable();
@@ -111,7 +110,7 @@ void default_idle(void)
 			else
 				local_irq_enable();
 		}
-		set_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status |= TS_POLLING;
 	} else {
 		while (!need_resched())
 			cpu_relax();
@@ -174,7 +173,7 @@ void cpu_idle(void)
 {
 	int cpu = smp_processor_id();
 
-	set_thread_flag(TIF_POLLING_NRFLAG);
+	current_thread_info()->status |= TS_POLLING;
 
 	/* endless idle loop with no priority at all */
 	while (1) {
@@ -312,7 +311,7 @@ void show_regs(struct pt_regs * regs)
 	cr3 = read_cr3();
 	cr4 = read_cr4_safe();
 	printk("CR0: %08lx CR2: %08lx CR3: %08lx CR4: %08lx\n", cr0, cr2, cr3, cr4);
-	show_trace(NULL, &regs->esp);
+	show_trace(NULL, regs, &regs->esp);
 }
 
 /*

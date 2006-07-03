@@ -44,7 +44,7 @@ static char *_unixrup_h_sccs_ = "@(#)unixrup.h	1.2";
 struct UnixRup {
 	struct CmdBlk *CmdsWaitingP;	/* Commands waiting to be done */
 	struct CmdBlk *CmdPendingP;	/* The command currently being sent */
-	struct RUP *RupP;	/* the Rup to send it to */
+	struct RUP __iomem *RupP;	/* the Rup to send it to */
 	unsigned int Id;		/* Id number */
 	unsigned int BaseSysPort;	/* SysPort of first tty on this RTA */
 	unsigned int ModTypes;		/* Modules on this RTA */

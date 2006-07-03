@@ -7,7 +7,6 @@
  * Copyright (C) 2003, 2004  Renesas Technology Corp.
  */
 
-#include <linux/config.h>
 
 /* Chip type */
 #if defined(CONFIG_CHIP_XNUX_MP) || defined(CONFIG_CHIP_XNUX2_MP)

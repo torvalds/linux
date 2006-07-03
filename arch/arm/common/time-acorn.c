@@ -16,6 +16,7 @@
 #include <linux/timex.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -76,7 +77,7 @@ ioc_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction ioc_timer_irq = {
 	.name		= "timer",
-	.flags		= SA_INTERRUPT,
+	.flags		= IRQF_DISABLED,
 	.handler	= ioc_timer_interrupt
 };
 

@@ -7,7 +7,6 @@
  * Derived from i386 and Alpha versions.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>

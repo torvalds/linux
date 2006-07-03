@@ -125,10 +125,11 @@ __mutex_lock_common(struct mutex *lock, long state __IP_DECL__)
 	struct task_struct *task = current;
 	struct mutex_waiter waiter;
 	unsigned int old_val;
+	unsigned long flags;
 
 	debug_mutex_init_waiter(&waiter);
 
-	spin_lock_mutex(&lock->wait_lock);
+	spin_lock_mutex(&lock->wait_lock, flags);
 
 	debug_mutex_add_waiter(lock, &waiter, task->thread_info, ip);
 
@@ -157,7 +158,7 @@ __mutex_lock_common(struct mutex *lock, long state __IP_DECL__)
 		if (unlikely(state == TASK_INTERRUPTIBLE &&
 						signal_pending(task))) {
 			mutex_remove_waiter(lock, &waiter, task->thread_info);
-			spin_unlock_mutex(&lock->wait_lock);
+			spin_unlock_mutex(&lock->wait_lock, flags);
 
 			debug_mutex_free_waiter(&waiter);
 			return -EINTR;
@@ -165,9 +166,9 @@ __mutex_lock_common(struct mutex *lock, long state __IP_DECL__)
 		__set_task_state(task, state);
 
 		/* didnt get the lock, go to sleep: */
-		spin_unlock_mutex(&lock->wait_lock);
+		spin_unlock_mutex(&lock->wait_lock, flags);
 		schedule();
-		spin_lock_mutex(&lock->wait_lock);
+		spin_lock_mutex(&lock->wait_lock, flags);
 	}
 
 	/* got the lock - rejoice! */
@@ -178,7 +179,7 @@ __mutex_lock_common(struct mutex *lock, long state __IP_DECL__)
 	if (likely(list_empty(&lock->wait_list)))
 		atomic_set(&lock->count, 0);
 
-	spin_unlock_mutex(&lock->wait_lock);
+	spin_unlock_mutex(&lock->wait_lock, flags);
 
 	debug_mutex_free_waiter(&waiter);
 
@@ -203,10 +204,11 @@ static fastcall noinline void
 __mutex_unlock_slowpath(atomic_t *lock_count __IP_DECL__)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
+	unsigned long flags;
 
 	DEBUG_WARN_ON(lock->owner != current_thread_info());
 
-	spin_lock_mutex(&lock->wait_lock);
+	spin_lock_mutex(&lock->wait_lock, flags);
 
 	/*
 	 * some architectures leave the lock unlocked in the fastpath failure
@@ -231,7 +233,7 @@ __mutex_unlock_slowpath(atomic_t *lock_count __IP_DECL__)
 
 	debug_mutex_clear_owner(lock);
 
-	spin_unlock_mutex(&lock->wait_lock);
+	spin_unlock_mutex(&lock->wait_lock, flags);
 }
 
 /*
@@ -276,9 +278,10 @@ __mutex_lock_interruptible_slowpath(atomic_t *lock_count __IP_DECL__)
 static inline int __mutex_trylock_slowpath(atomic_t *lock_count)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
+	unsigned long flags;
 	int prev;
 
-	spin_lock_mutex(&lock->wait_lock);
+	spin_lock_mutex(&lock->wait_lock, flags);
 
 	prev = atomic_xchg(&lock->count, -1);
 	if (likely(prev == 1))
@@ -287,7 +290,7 @@ static inline int __mutex_trylock_slowpath(atomic_t *lock_count)
 	if (likely(list_empty(&lock->wait_list)))
 		atomic_set(&lock->count, 0);
 
-	spin_unlock_mutex(&lock->wait_lock);
+	spin_unlock_mutex(&lock->wait_lock, flags);
 
 	return prev == 1;
 }

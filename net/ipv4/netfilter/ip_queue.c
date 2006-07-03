@@ -457,11 +457,19 @@ dev_cmp(struct ipq_queue_entry *entry, unsigned long ifindex)
 	if (entry->info->indev)
 		if (entry->info->indev->ifindex == ifindex)
 			return 1;
-			
 	if (entry->info->outdev)
 		if (entry->info->outdev->ifindex == ifindex)
 			return 1;
-
+#ifdef CONFIG_BRIDGE_NETFILTER
+	if (entry->skb->nf_bridge) {
+		if (entry->skb->nf_bridge->physindev &&
+		    entry->skb->nf_bridge->physindev->ifindex == ifindex)
+			return 1;
+		if (entry->skb->nf_bridge->physoutdev &&
+		    entry->skb->nf_bridge->physoutdev->ifindex == ifindex)
+		    	return 1;
+	}
+#endif
 	return 0;
 }
 
@@ -507,7 +515,7 @@ ipq_rcv_skb(struct sk_buff *skb)
 	if (type <= IPQM_BASE)
 		return;
 		
-	if (security_netlink_recv(skb))
+	if (security_netlink_recv(skb, CAP_NET_ADMIN))
 		RCV_SKB_FAIL(-EPERM);
 	
 	write_lock_bh(&queue_lock);

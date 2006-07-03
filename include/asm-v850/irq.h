@@ -62,8 +62,6 @@ extern void disable_irq (unsigned int irq);
 /* Disable an irq without waiting. */
 extern void disable_irq_nosync (unsigned int irq);
 
-extern int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
-
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __V850_IRQ_H__ */

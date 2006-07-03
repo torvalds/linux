@@ -611,7 +611,7 @@ int venus_pioctl(struct super_block *sb, struct CodaFid *fid,
 	return error;
 }
 
-int venus_statfs(struct super_block *sb, struct kstatfs *sfs) 
+int venus_statfs(struct dentry *dentry, struct kstatfs *sfs)
 { 
         union inputArgs *inp;
         union outputArgs *outp;
@@ -620,7 +620,7 @@ int venus_statfs(struct super_block *sb, struct kstatfs *sfs)
 	insize = max_t(unsigned int, INSIZE(statfs), OUTSIZE(statfs));
 	UPARG(CODA_STATFS);
 
-        error = coda_upcall(coda_sbp(sb), insize, &outsize, inp);
+        error = coda_upcall(coda_sbp(dentry->d_sb), insize, &outsize, inp);
 	
         if (!error) {
 		sfs->f_blocks = outp->coda_statfs.stat.f_blocks;
@@ -725,7 +725,7 @@ static int coda_upcall(struct coda_sb_info *sbi,
 	((union inputArgs *)buffer)->ih.unique = req->uc_unique;
 
 	/* Append msg to pending queue and poke Venus. */
-	list_add(&(req->uc_chain), vcommp->vc_pending.prev);
+	list_add_tail(&(req->uc_chain), &vcommp->vc_pending);
         
 	wake_up_interruptible(&vcommp->vc_waitq);
 	/* We can be interrupted while we wait for Venus to process

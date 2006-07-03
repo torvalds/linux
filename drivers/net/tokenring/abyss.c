@@ -123,7 +123,7 @@ static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_
 		goto err_out_trdev;
 	}
 		
-	ret = request_irq(pdev->irq, tms380tr_interrupt, SA_SHIRQ,
+	ret = request_irq(pdev->irq, tms380tr_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (ret)
 		goto err_out_region;

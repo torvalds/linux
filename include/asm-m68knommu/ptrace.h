@@ -46,10 +46,8 @@ struct pt_regs {
 #else
   unsigned short sr;
   unsigned long  pc;
-#ifndef NO_FORMAT_VEC
   unsigned format :  4; /* frame format specifier */
   unsigned vector : 12; /* vector offset */
-#endif
 #endif
 };
 
@@ -70,7 +68,7 @@ struct switch_stack {
 /* Arbitrarily choose the same ptrace numbers as used by the Sparc code. */
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13
-#ifdef COFNIG_FPU
+#ifdef CONFIG_FPU
 #define PTRACE_GETFPREGS          14
 #define PTRACE_SETFPREGS          15
 #endif

@@ -1291,7 +1291,7 @@ static int snd_opti93x_create(struct snd_card *card, struct snd_opti9xx *chip,
 	}
 	codec->dma2 = chip->dma2;
 
-	if (request_irq(chip->irq, snd_opti93x_interrupt, SA_INTERRUPT, DRIVER_NAME" - WSS", codec)) {
+	if (request_irq(chip->irq, snd_opti93x_interrupt, IRQF_DISABLED, DRIVER_NAME" - WSS", codec)) {
 		snd_printk(KERN_ERR "opti9xx: can't grab IRQ %d\n", chip->irq);
 		snd_opti93x_free(codec);
 		return -EBUSY;
@@ -1863,7 +1863,7 @@ static int __init snd_opti9xx_probe(struct snd_card *card)
 		rmidi = NULL;
 	else
 		if ((error = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
-				chip->mpu_port, 0, chip->mpu_irq, SA_INTERRUPT,
+				chip->mpu_port, 0, chip->mpu_irq, IRQF_DISABLED,
 				&rmidi)))
 			snd_printk(KERN_WARNING "no MPU-401 device at 0x%lx?\n",
 				   chip->mpu_port);

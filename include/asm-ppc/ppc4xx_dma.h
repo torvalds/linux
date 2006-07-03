@@ -24,7 +24,6 @@
 #ifndef __ASMPPC_PPC4xx_DMA_H
 #define __ASMPPC_PPC4xx_DMA_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/mmu.h>
 #include <asm/ibm4xx.h>

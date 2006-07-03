@@ -35,7 +35,6 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/config.h>
 #include "fp_emu.h"
 
 /*

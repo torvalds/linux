@@ -34,6 +34,7 @@
 #define I2C_NAME(x) (x)->name
 
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/video_decoder.h>
 
 #define I2C_VPX3220        0x86

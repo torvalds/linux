@@ -46,6 +46,7 @@ typedef struct xfs_param {
 	xfs_sysctl_val_t xfs_buf_age;	/* Metadata buffer age before flush. */
 	xfs_sysctl_val_t inherit_nosym;	/* Inherit the "nosymlinks" flag. */
 	xfs_sysctl_val_t rotorstep;	/* inode32 AG rotoring control knob */
+	xfs_sysctl_val_t inherit_nodfrg;/* Inherit the "nodefrag" inode flag. */
 } xfs_param_t;
 
 /*
@@ -84,6 +85,7 @@ enum {
 	/* XFS_IO_BYPASS = 18 */
 	XFS_INHERIT_NOSYM = 19,
 	XFS_ROTORSTEP = 20,
+	XFS_INHERIT_NODFRG = 21,
 };
 
 extern xfs_param_t	xfs_params;

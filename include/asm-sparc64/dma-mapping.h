@@ -1,7 +1,6 @@
 #ifndef _ASM_SPARC64_DMA_MAPPING_H
 #define _ASM_SPARC64_DMA_MAPPING_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_PCI
 
@@ -162,5 +161,48 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 }
 
 #endif /* PCI */
+
+
+/* Now for the API extensions over the pci_ one */
+
+#define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
+#define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
+#define dma_is_consistent(d)	(1)
+
+static inline int
+dma_get_cache_alignment(void)
+{
+	/* no easy way to get cache size on all processors, so return
+	 * the maximum possible, to be safe */
+	return (1 << INTERNODE_CACHE_SHIFT);
+}
+
+static inline void
+dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t dma_handle,
+			      unsigned long offset, size_t size,
+			      enum dma_data_direction direction)
+{
+	/* just sync everything, that's all the pci API can do */
+	dma_sync_single_for_cpu(dev, dma_handle, offset+size, direction);
+}
+
+static inline void
+dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_handle,
+				 unsigned long offset, size_t size,
+				 enum dma_data_direction direction)
+{
+	/* just sync everything, that's all the pci API can do */
+	dma_sync_single_for_device(dev, dma_handle, offset+size, direction);
+}
+
+static inline void
+dma_cache_sync(void *vaddr, size_t size,
+	       enum dma_data_direction direction)
+{
+	/* could define this in terms of the dma_cache ... operations,
+	 * but if you get this on a platform, you should convert the platform
+	 * to using the generic device DMA API */
+	BUG();
+}
 
 #endif /* _ASM_SPARC64_DMA_MAPPING_H */

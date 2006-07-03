@@ -1636,7 +1636,7 @@ static void nsp32_scsi_done(struct scsi_cmnd *SCpnt)
 
 	if (SCpnt->use_sg) {
 		pci_unmap_sg(data->Pci,
-			     (struct scatterlist *)SCpnt->buffer,
+			     (struct scatterlist *)SCpnt->request_buffer,
 			     SCpnt->use_sg, SCpnt->sc_data_direction);
 	} else {
 		pci_unmap_single(data->Pci,
@@ -2867,7 +2867,7 @@ static int nsp32_detect(struct scsi_host_template *sht)
 	nsp32_do_bus_reset(data);
 
 	ret = request_irq(host->irq, do_nsp32_isr,
-			  SA_SHIRQ | SA_SAMPLE_RANDOM, "nsp32", data);
+			  IRQF_SHARED | IRQF_SAMPLE_RANDOM, "nsp32", data);
 	if (ret < 0) {
 		nsp32_msg(KERN_ERR, "Unable to allocate IRQ for NinjaSCSI32 "
 			  "SCSI PCI controller. Interrupt: %d", host->irq);

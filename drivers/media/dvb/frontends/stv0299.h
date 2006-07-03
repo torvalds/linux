@@ -87,14 +87,9 @@ struct stv0299_config
 
 	/* Set the symbol rate */
 	int (*set_symbol_rate)(struct dvb_frontend* fe, u32 srate, u32 ratio);
-
-	/* PLL maintenance */
-	int (*pll_init)(struct dvb_frontend *fe, struct i2c_adapter *i2c);
-	int (*pll_set)(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters *params);
 };
 
 extern int stv0299_writereg (struct dvb_frontend* fe, u8 reg, u8 data);
-extern int stv0299_enable_plli2c (struct dvb_frontend* fe);
 
 extern struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
 					   struct i2c_adapter* i2c);

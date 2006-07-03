@@ -35,7 +35,6 @@ struct udphdr {
 #define UDP_ENCAP_ESPINUDP	2 /* draft-ietf-ipsec-udp-encaps-06 */
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 #include <linux/types.h>
 
 #include <net/inet_sock.h>
@@ -47,7 +46,7 @@ struct udp_sock {
 	unsigned int	 corkflag;	/* Cork is required */
   	__u16		 encap_type;	/* Is this an Encapsulation socket? */
 	/*
-	 * Following member retains the infomation to create a UDP header
+	 * Following member retains the information to create a UDP header
 	 * when the socket is uncorked.
 	 */
 	__u16		 len;		/* total length of pending frames */

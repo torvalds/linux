@@ -134,7 +134,6 @@ that only one external action is invoked at a time.
 */
 
 #include <linux/compiler.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -1485,7 +1484,7 @@ static int ipw2100_hw_stop_adapter(struct ipw2100_priv *priv)
 		 *
 		 * Sending the PREPARE_FOR_POWER_DOWN will restrict the
 		 * hardware from going into standby mode and will transition
-		 * out of D0-standy if it is already in that state.
+		 * out of D0-standby if it is already in that state.
 		 *
 		 * STATUS_PREPARE_POWER_DOWN_COMPLETE will be sent by the
 		 * driver upon completion.  Once received, the driver can
@@ -5358,7 +5357,7 @@ static int ipw2100_set_key(struct ipw2100_priv *priv,
 		     idx, keylen, len);
 
 	/* NOTE: We don't check cached values in case the firmware was reset
-	 * or some other problem is occuring.  If the user is setting the key,
+	 * or some other problem is occurring.  If the user is setting the key,
 	 * then we push the change */
 
 	wep_key->idx = idx;
@@ -6230,7 +6229,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	ipw2100_queues_initialize(priv);
 
 	err = request_irq(pci_dev->irq,
-			  ipw2100_interrupt, SA_SHIRQ, dev->name, priv);
+			  ipw2100_interrupt, IRQF_SHARED, dev->name, priv);
 	if (err) {
 		printk(KERN_WARNING DRV_NAME
 		       "Error calling request_irq: %d.\n", pci_dev->irq);

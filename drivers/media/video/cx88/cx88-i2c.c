@@ -138,13 +138,13 @@ void cx88_call_i2c_clients(struct cx88_core *core, unsigned int cmd, void *arg)
 		return;
 
 	if (core->dvbdev) {
-		if (core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl)
-			core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl(core->dvbdev->dvb.frontend, 1);
+		if (core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl)
+			core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl(core->dvbdev->dvb.frontend, 1);
 
 		i2c_clients_command(&core->i2c_adap, cmd, arg);
 
-		if (core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl)
-			core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl(core->dvbdev->dvb.frontend, 0);
+		if (core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl)
+			core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl(core->dvbdev->dvb.frontend, 0);
 	} else
 		i2c_clients_command(&core->i2c_adap, cmd, arg);
 }
@@ -234,7 +234,6 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 /* ----------------------------------------------------------------------- */
 
 EXPORT_SYMBOL(cx88_call_i2c_clients);
-EXPORT_SYMBOL(cx88_i2c_init);
 
 /*
  * Local variables:

@@ -24,7 +24,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/config.h>
 
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -183,7 +182,7 @@ static int cpuid_class_cpu_callback(struct notifier_block *nfb, unsigned long ac
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cpuid_class_cpu_notifier =
+static struct notifier_block __cpuinitdata cpuid_class_cpu_notifier =
 {
 	.notifier_call = cpuid_class_cpu_callback,
 };

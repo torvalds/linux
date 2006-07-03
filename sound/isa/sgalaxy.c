@@ -147,7 +147,7 @@ static int __init snd_sgalaxy_setup_wss(unsigned long port, int irq, int dma)
         if (tmp < 0)
                 return -EINVAL;
 
-	if (request_irq(irq, snd_sgalaxy_dummy_interrupt, SA_INTERRUPT, "sgalaxy", NULL)) {
+	if (request_irq(irq, snd_sgalaxy_dummy_interrupt, IRQF_DISABLED, "sgalaxy", NULL)) {
 		snd_printk(KERN_ERR "sgalaxy: can't grab irq %d\n", irq);
 		return -EIO;
 	}

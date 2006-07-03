@@ -2877,14 +2877,15 @@ static int snd_cs46xx_free(struct snd_cs46xx *chip)
 	if (chip->region.idx[0].resource)
 		snd_cs46xx_hw_stop(chip);
 
+	if (chip->irq >= 0)
+		free_irq(chip->irq, chip);
+
 	for (idx = 0; idx < 5; idx++) {
 		struct snd_cs46xx_region *region = &chip->region.idx[idx];
 		if (region->remap_addr)
 			iounmap(region->remap_addr);
 		release_and_free_resource(region->resource);
 	}
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
 
 	if (chip->active_ctrl)
 		chip->active_ctrl(chip, -chip->amplifier);
@@ -3852,7 +3853,7 @@ int __devinit snd_cs46xx_create(struct snd_card *card,
 		}
 	}
 
-	if (request_irq(pci->irq, snd_cs46xx_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq(pci->irq, snd_cs46xx_interrupt, IRQF_DISABLED|IRQF_SHARED,
 			"CS46XX", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_cs46xx_free(chip);

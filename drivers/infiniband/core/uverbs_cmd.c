@@ -1530,7 +1530,6 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 out_put:
 	put_qp_read(qp);
 
-out:
 	while (wr) {
 		if (is_ud && wr->wr.ud.ah)
 			put_ah_read(wr->wr.ud.ah);
@@ -1539,6 +1538,7 @@ out:
 		wr = next;
 	}
 
+out:
 	kfree(user_wr);
 
 	return ret ? ret : in_len;
@@ -1963,7 +1963,7 @@ ssize_t ib_uverbs_create_srq(struct ib_uverbs_file *file,
 	if (!obj)
 		return -ENOMEM;
 
-	init_uobj(&obj->uobject, 0, file->ucontext);
+	init_uobj(&obj->uobject, cmd.user_handle, file->ucontext);
 	down_write(&obj->uobject.mutex);
 
 	pd  = idr_read_pd(cmd.pd_handle, file->ucontext);

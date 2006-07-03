@@ -10,7 +10,6 @@
 
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 
 #if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
 # define PAGE_SHIFT	12	/* 4k */

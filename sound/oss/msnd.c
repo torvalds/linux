@@ -47,7 +47,7 @@
 static multisound_dev_t		*devs[MSND_MAX_DEVS];
 static int			num_devs;
 
-int __init msnd_register(multisound_dev_t *dev)
+int msnd_register(multisound_dev_t *dev)
 {
 	int i;
 

@@ -60,6 +60,9 @@ int main(void)
 #ifdef CONFIG_IWMMXT
   DEFINE(TI_IWMMXT_STATE,	offsetof(struct thread_info, fpstate.iwmmxt));
 #endif
+#ifdef CONFIG_CRUNCH
+  DEFINE(TI_CRUNCH_STATE,	offsetof(struct thread_info, crunchstate));
+#endif
   BLANK();
   DEFINE(S_R0,			offsetof(struct pt_regs, ARM_r0));
   DEFINE(S_R1,			offsetof(struct pt_regs, ARM_r1));
@@ -102,6 +105,7 @@ int main(void)
   BLANK();
   DEFINE(PROC_INFO_SZ,		sizeof(struct proc_info_list));
   DEFINE(PROCINFO_INITFUNC,	offsetof(struct proc_info_list, __cpu_flush));
-  DEFINE(PROCINFO_MMUFLAGS,	offsetof(struct proc_info_list, __cpu_mmu_flags));
+  DEFINE(PROCINFO_MM_MMUFLAGS,	offsetof(struct proc_info_list, __cpu_mm_mmu_flags));
+  DEFINE(PROCINFO_IO_MMUFLAGS,	offsetof(struct proc_info_list, __cpu_io_mmu_flags));
   return 0; 
 }

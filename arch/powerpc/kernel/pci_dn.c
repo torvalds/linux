@@ -31,6 +31,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/ppc-pci.h>
+#include <asm/firmware.h>
 
 /*
  * Traverse_func that inits the PCI fields of the device node.
@@ -58,6 +59,11 @@ static void * __devinit update_dn_pci_info(struct device_node *dn, void *data)
 		/* First register entry is addr (00BBSS00)  */
 		pdn->busno = (regs[0] >> 16) & 0xff;
 		pdn->devfn = (regs[0] >> 8) & 0xff;
+	}
+	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+		u32 *busp = (u32 *)get_property(dn, "linux,subbus", NULL);
+		if (busp)
+			pdn->bussubno = *busp;
 	}
 
 	pdn->pci_ext_config_space = (type && *type == 1);

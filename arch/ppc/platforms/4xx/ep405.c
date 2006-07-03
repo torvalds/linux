@@ -9,7 +9,6 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <asm/system.h>

@@ -14,7 +14,6 @@
 
 #define RTC_IO_EXTENT	0x10	/*Only really two ports, but... */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>

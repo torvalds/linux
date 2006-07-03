@@ -967,7 +967,7 @@ static void __init snd_miro_proc_init(struct snd_miro * miro)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(miro->card, "miro", &entry))
-		snd_info_set_text_ops(entry, miro, 1024, snd_miro_proc_read);
+		snd_info_set_text_ops(entry, miro, snd_miro_proc_read);
 }
 
 /*
@@ -1382,7 +1382,7 @@ static int __init snd_miro_probe(struct platform_device *devptr)
 		rmidi = NULL;
 	else
 		if ((error = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
-				miro->mpu_port, 0, miro->mpu_irq, SA_INTERRUPT,
+				miro->mpu_port, 0, miro->mpu_irq, IRQF_DISABLED,
 				&rmidi)))
 			snd_printk(KERN_WARNING "no MPU-401 device at 0x%lx?\n", miro->mpu_port);
 

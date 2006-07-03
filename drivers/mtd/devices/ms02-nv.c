@@ -219,12 +219,13 @@ static int __init ms02nv_init_one(ulong addr)
 	mp->uaddr = phys_to_virt(fixaddr);
 
 	mtd->type = MTD_RAM;
-	mtd->flags = MTD_CAP_RAM | MTD_XIP;
+	mtd->flags = MTD_CAP_RAM;
 	mtd->size = fixsize;
 	mtd->name = (char *)ms02nv_name;
 	mtd->owner = THIS_MODULE;
 	mtd->read = ms02nv_read;
 	mtd->write = ms02nv_write;
+	mtd->writesize = 1;
 
 	ret = -EIO;
 	if (add_mtd_device(mtd)) {

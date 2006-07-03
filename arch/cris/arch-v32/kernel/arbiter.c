@@ -1,15 +1,14 @@
 /*
- * Memory arbiter functions. Allocates bandwith through the
+ * Memory arbiter functions. Allocates bandwidth through the
  * arbiter and sets up arbiter breakpoints.
  *
  * The algorithm first assigns slots to the clients that has specified
- * bandwith (e.g. ethernet) and then the remaining slots are divided
+ * bandwidth (e.g. ethernet) and then the remaining slots are divided
  * on all the active clients.
  *
  * Copyright (c) 2004, 2005 Axis Communications AB.
  */
 
-#include <linux/config.h>
 #include <asm/arch/hwregs/reg_map.h>
 #include <asm/arch/hwregs/reg_rdwr.h>
 #include <asm/arch/hwregs/marb_defs.h>
@@ -120,7 +119,7 @@ static void crisv32_arbiter_init(void)
         crisv32_arbiter_config(EXT_REGION);
         crisv32_arbiter_config(INT_REGION);
 
-	if (request_irq(MEMARB_INTR_VECT, crisv32_arbiter_irq, SA_INTERRUPT,
+	if (request_irq(MEMARB_INTR_VECT, crisv32_arbiter_irq, IRQF_DISABLED,
                         "arbiter", NULL))
 		printk(KERN_ERR "Couldn't allocate arbiter IRQ\n");
 
@@ -133,8 +132,8 @@ static void crisv32_arbiter_init(void)
 
 
 
-int crisv32_arbiter_allocate_bandwith(int client, int region,
-	                              unsigned long bandwidth)
+int crisv32_arbiter_allocate_bandwidth(int client, int region,
+				       unsigned long bandwidth)
 {
 	int i;
 	int total_assigned = 0;

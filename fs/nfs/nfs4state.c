@@ -38,7 +38,6 @@
  * subsequent patch.
  */
 
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/nfs_fs.h>

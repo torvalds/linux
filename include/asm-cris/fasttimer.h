@@ -5,7 +5,6 @@
  * This may be useful in other OS than Linux so use 2 space indentation...
  * Copyright (C) 2000, 2002 Axis Communications AB
  */
-#include <linux/config.h>
 #include <linux/time.h> /* struct timeval */
 #include <linux/timex.h>
 

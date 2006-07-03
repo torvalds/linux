@@ -144,9 +144,47 @@ over a rather long period of time, but improvements are always welcome!
 	whether the increased speed is worth it.
 
 8.	Although synchronize_rcu() is a bit slower than is call_rcu(),
-	it usually results in simpler code.  So, unless update performance
-	is important or the updaters cannot block, synchronize_rcu()
-	should be used in preference to call_rcu().
+	it usually results in simpler code.  So, unless update
+	performance is critically important or the updaters cannot block,
+	synchronize_rcu() should be used in preference to call_rcu().
+
+	An especially important property of the synchronize_rcu()
+	primitive is that it automatically self-limits: if grace periods
+	are delayed for whatever reason, then the synchronize_rcu()
+	primitive will correspondingly delay updates.  In contrast,
+	code using call_rcu() should explicitly limit update rate in
+	cases where grace periods are delayed, as failing to do so can
+	result in excessive realtime latencies or even OOM conditions.
+
+	Ways of gaining this self-limiting property when using call_rcu()
+	include:
+
+	a.	Keeping a count of the number of data-structure elements
+		used by the RCU-protected data structure, including those
+		waiting for a grace period to elapse.  Enforce a limit
+		on this number, stalling updates as needed to allow
+		previously deferred frees to complete.
+
+		Alternatively, limit only the number awaiting deferred
+		free rather than the total number of elements.
+
+	b.	Limiting update rate.  For example, if updates occur only
+		once per hour, then no explicit rate limiting is required,
+		unless your system is already badly broken.  The dcache
+		subsystem takes this approach -- updates are guarded
+		by a global lock, limiting their rate.
+
+	c.	Trusted update -- if updates can only be done manually by
+		superuser or some other trusted user, then it might not
+		be necessary to automatically limit them.  The theory
+		here is that superuser already has lots of ways to crash
+		the machine.
+
+	d.	Use call_rcu_bh() rather than call_rcu(), in order to take
+		advantage of call_rcu_bh()'s faster grace periods.
+
+	e.	Periodically invoke synchronize_rcu(), permitting a limited
+		number of updates per grace period.
 
 9.	All RCU list-traversal primitives, which include
 	list_for_each_rcu(), list_for_each_entry_rcu(),

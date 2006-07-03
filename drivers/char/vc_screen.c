@@ -21,12 +21,10 @@
  *	 - making it shorter - scr_readw are macros which expand in PRETTY long code
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/errno.h>
 #include <linux/tty.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
@@ -478,12 +476,6 @@ static struct class *vc_class;
 
 void vcs_make_devfs(struct tty_struct *tty)
 {
-	devfs_mk_cdev(MKDEV(VCS_MAJOR, tty->index + 1),
-			S_IFCHR|S_IRUSR|S_IWUSR,
-			"vcc/%u", tty->index + 1);
-	devfs_mk_cdev(MKDEV(VCS_MAJOR, tty->index + 129),
-			S_IFCHR|S_IRUSR|S_IWUSR,
-			"vcc/a%u", tty->index + 1);
 	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 1),
 			NULL, "vcs%u", tty->index + 1);
 	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 129),
@@ -491,8 +483,6 @@ void vcs_make_devfs(struct tty_struct *tty)
 }
 void vcs_remove_devfs(struct tty_struct *tty)
 {
-	devfs_remove("vcc/%u", tty->index + 1);
-	devfs_remove("vcc/a%u", tty->index + 1);
 	class_device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 1));
 	class_device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 129));
 }
@@ -503,8 +493,6 @@ int __init vcs_init(void)
 		panic("unable to get major %d for vcs device", VCS_MAJOR);
 	vc_class = class_create(THIS_MODULE, "vc");
 
-	devfs_mk_cdev(MKDEV(VCS_MAJOR, 0), S_IFCHR|S_IRUSR|S_IWUSR, "vcc/0");
-	devfs_mk_cdev(MKDEV(VCS_MAJOR, 128), S_IFCHR|S_IRUSR|S_IWUSR, "vcc/a0");
 	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 0), NULL, "vcs");
 	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 128), NULL, "vcsa");
 	return 0;

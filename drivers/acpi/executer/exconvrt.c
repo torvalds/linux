@@ -79,7 +79,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 	u32 count;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_convert_to_integer", obj_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_convert_to_integer, obj_desc);
 
 	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
 	case ACPI_TYPE_INTEGER:
@@ -199,7 +199,7 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
 	union acpi_operand_object *return_desc;
 	u8 *new_buf;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_convert_to_buffer", obj_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_convert_to_buffer, obj_desc);
 
 	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
 	case ACPI_TYPE_BUFFER:
@@ -319,6 +319,7 @@ acpi_ex_convert_to_ascii(acpi_integer integer,
 		remainder = 0;
 
 		for (i = decimal_length; i > 0; i--) {
+
 			/* Divide by nth factor of 10 */
 
 			digit = integer;
@@ -346,6 +347,7 @@ acpi_ex_convert_to_ascii(acpi_integer integer,
 
 		hex_length = (acpi_native_uint) ACPI_MUL_2(data_width);
 		for (i = 0, j = (hex_length - 1); i < hex_length; i++, j--) {
+
 			/* Get one hex digit, most significant digits first */
 
 			string[k] =
@@ -400,7 +402,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 	u16 base = 16;
 	u8 separator = ',';
 
-	ACPI_FUNCTION_TRACE_PTR("ex_convert_to_string", obj_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_convert_to_string, obj_desc);
 
 	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
 	case ACPI_TYPE_STRING:
@@ -567,7 +569,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("ex_convert_to_target_type");
+	ACPI_FUNCTION_TRACE(ex_convert_to_target_type);
 
 	/* Default behavior */
 
@@ -657,7 +659,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 
 	default:
 		ACPI_ERROR((AE_INFO,
-			    "Unknown Target type ID 0x%X aml_opcode %X dest_type %s",
+			    "Unknown Target type ID 0x%X AmlOpcode %X DestType %s",
 			    GET_CURRENT_ARG_TYPE(walk_state->op_info->
 						 runtime_args),
 			    walk_state->opcode,

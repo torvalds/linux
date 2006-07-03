@@ -6,7 +6,6 @@
  * Copyright 2000 Grant Grundler (grundler@cup.hp.com)
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <asm/system.h>

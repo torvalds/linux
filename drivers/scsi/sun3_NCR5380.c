@@ -535,7 +535,6 @@ static __inline__ void initialize_SCp(Scsi_Cmnd *cmd)
     
 }
 
-#include <linux/config.h>
 #include <linux/delay.h>
 
 #if 1

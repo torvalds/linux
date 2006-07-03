@@ -203,7 +203,7 @@ void __init arch_init_irq(void)
 		irq_desc[i].status     = IRQ_DISABLED;
 		irq_desc[i].action     = 0;
 		irq_desc[i].depth      = 1;
-		irq_desc[i].handler    = &pciasic_irq_type;
+		irq_desc[i].chip    = &pciasic_irq_type;
 	}
 
 	change_c0_status(ST0_IM, IE_IRQ1|IE_IRQ2|IE_IRQ3|IE_IRQ4);

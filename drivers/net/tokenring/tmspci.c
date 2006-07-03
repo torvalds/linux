@@ -122,7 +122,7 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 		goto err_out_trdev;
 	}
 
-	ret = request_irq(pdev->irq, tms380tr_interrupt, SA_SHIRQ,
+	ret = request_irq(pdev->irq, tms380tr_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (ret)
 		goto err_out_region;

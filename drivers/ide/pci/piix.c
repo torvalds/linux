@@ -90,7 +90,6 @@
  *	ICH3	errata #18	- Don't use native mode
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -222,6 +221,8 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 	unsigned long flags;
 	u16 master_data;
 	u8 slave_data;
+	static DEFINE_SPINLOCK(tune_lock);
+
 				 /* ISP  RTC */
 	u8 timings[][2]	= { { 0, 0 },
 			    { 0, 0 },
@@ -230,7 +231,13 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 			    { 2, 3 }, };
 
 	pio = ide_get_best_pio_mode(drive, pio, 5, NULL);
-	spin_lock_irqsave(&ide_lock, flags);
+
+	/*
+	 * Master vs slave is synchronized above us but the slave register is
+	 * shared by the two hwifs so the corner case of two slave timeouts in
+	 * parallel must be locked.
+	 */
+	spin_lock_irqsave(&tune_lock, flags);
 	pci_read_config_word(dev, master_port, &master_data);
 	if (is_slave) {
 		master_data = master_data | 0x4000;
@@ -250,7 +257,7 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 	pci_write_config_word(dev, master_port, master_data);
 	if (is_slave)
 		pci_write_config_byte(dev, slave_port, slave_data);
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&tune_lock, flags);
 }
 
 /**

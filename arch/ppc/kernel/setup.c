@@ -2,7 +2,6 @@
  * Common prep boot and setup code.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/sched.h>
@@ -475,7 +474,7 @@ int __init ppc_init(void)
 
 	/* register CPU devices */
 	for_each_possible_cpu(i)
-		register_cpu(&cpu_devices[i], i, NULL);
+		register_cpu(&cpu_devices[i], i);
 
 	/* call platform init */
 	if (ppc_md.init != NULL) {

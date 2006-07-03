@@ -12,7 +12,6 @@
  *    for 32-bit CPUs which has a process ID register(CP15).
  *
  */
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 
@@ -39,7 +38,7 @@
 	__INIT
 	.type	stext, %function
 ENTRY(stext)
-	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | MODE_SVC @ ensure svc mode
+	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE @ ensure svc mode
 						@ and irqs disabled
 	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid

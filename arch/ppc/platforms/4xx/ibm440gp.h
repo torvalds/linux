@@ -18,7 +18,6 @@
 #ifndef __PPC_PLATFORMS_IBM440GP_H
 #define __PPC_PLATFORMS_IBM440GP_H
 
-#include <linux/config.h>
 
 /* UART */
 #define PPC440GP_UART0_ADDR	0x0000000140000200ULL

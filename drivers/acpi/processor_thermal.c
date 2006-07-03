@@ -54,13 +54,12 @@ static int acpi_processor_apply_limit(struct acpi_processor *pr)
 	u16 px = 0;
 	u16 tx = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_apply_limit");
 
 	if (!pr)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (!pr->flags.limit)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	if (pr->flags.throttling) {
 		if (pr->limit.user.tx > tx)
@@ -82,9 +81,9 @@ static int acpi_processor_apply_limit(struct acpi_processor *pr)
 
       end:
 	if (result)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unable to set limit\n"));
+		printk(KERN_ERR PREFIX "Unable to set limit\n");
 
-	return_VALUE(result);
+	return result;
 }
 
 #ifdef CONFIG_CPU_FREQ
@@ -200,19 +199,18 @@ int acpi_processor_set_thermal_limit(acpi_handle handle, int type)
 	struct acpi_device *device = NULL;
 	int tx = 0, max_tx_px = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_set_thermal_limit");
 
 	if ((type < ACPI_PROCESSOR_LIMIT_NONE)
 	    || (type > ACPI_PROCESSOR_LIMIT_DECREMENT))
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result)
-		return_VALUE(result);
+		return result;
 
 	pr = (struct acpi_processor *)acpi_driver_data(device);
 	if (!pr)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	/* Thermal limits are always relative to the current Px/Tx state. */
 	if (pr->flags.throttling)
@@ -289,30 +287,28 @@ int acpi_processor_set_thermal_limit(acpi_handle handle, int type)
 
 		result = acpi_processor_apply_limit(pr);
 		if (result)
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Unable to set thermal limit\n"));
+			printk(KERN_ERR PREFIX "Unable to set thermal limit\n");
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Thermal limit now (P%d:T%d)\n",
 				  pr->limit.thermal.px, pr->limit.thermal.tx));
 	} else
 		result = 0;
 	if (max_tx_px)
-		return_VALUE(1);
+		return 1;
 	else
-		return_VALUE(result);
+		return result;
 }
 
 int acpi_processor_get_limit_info(struct acpi_processor *pr)
 {
-	ACPI_FUNCTION_TRACE("acpi_processor_get_limit_info");
 
 	if (!pr)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (pr->flags.throttling)
 		pr->flags.limit = 1;
 
-	return_VALUE(0);
+	return 0;
 }
 
 /* /proc interface */
@@ -321,7 +317,6 @@ static int acpi_processor_limit_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_processor *pr = (struct acpi_processor *)seq->private;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_limit_seq_show");
 
 	if (!pr)
 		goto end;
@@ -339,7 +334,7 @@ static int acpi_processor_limit_seq_show(struct seq_file *seq, void *offset)
 		   pr->limit.thermal.px, pr->limit.thermal.tx);
 
       end:
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_processor_limit_open_fs(struct inode *inode, struct file *file)
@@ -359,36 +354,33 @@ static ssize_t acpi_processor_write_limit(struct file * file,
 	int px = 0;
 	int tx = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_write_limit");
 
 	if (!pr || (count > sizeof(limit_string) - 1)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid argument\n"));
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (copy_from_user(limit_string, buffer, count)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid data\n"));
-		return_VALUE(-EFAULT);
+		return -EFAULT;
 	}
 
 	limit_string[count] = '\0';
 
 	if (sscanf(limit_string, "%d:%d", &px, &tx) != 2) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid data format\n"));
-		return_VALUE(-EINVAL);
+		printk(KERN_ERR PREFIX "Invalid data format\n");
+		return -EINVAL;
 	}
 
 	if (pr->flags.throttling) {
 		if ((tx < 0) || (tx > (pr->throttling.state_count - 1))) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid tx\n"));
-			return_VALUE(-EINVAL);
+			printk(KERN_ERR PREFIX "Invalid tx\n");
+			return -EINVAL;
 		}
 		pr->limit.user.tx = tx;
 	}
 
 	result = acpi_processor_apply_limit(pr);
 
-	return_VALUE(count);
+	return count;
 }
 
 struct file_operations acpi_processor_limit_fops = {

@@ -1,5 +1,4 @@
 #include <linux/types.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>

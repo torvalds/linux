@@ -5,7 +5,6 @@
 #ifndef __ARCH_PARISC_CACHE_H
 #define __ARCH_PARISC_CACHE_H
 
-#include <linux/config.h>
 
 /*
  * PA 2.0 processors have 64-byte cachelines; PA 1.1 processors have

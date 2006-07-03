@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -600,8 +601,31 @@ void ipath_get_eeprom_info(struct ipath_devdata *dd)
 		guid = *(__be64 *) ifp->if_guid;
 	dd->ipath_guid = guid;
 	dd->ipath_nguid = ifp->if_numguid;
-	memcpy(dd->ipath_serial, ifp->if_serial,
-	       sizeof(ifp->if_serial));
+	/*
+	 * Things are slightly complicated by the desire to transparently
+	 * support both the Pathscale 10-digit serial number and the QLogic
+	 * 13-character version.
+	 */
+	if ((ifp->if_fversion > 1) && ifp->if_sprefix[0]
+		&& ((u8 *)ifp->if_sprefix)[0] != 0xFF) {
+		/* This board has a Serial-prefix, which is stored
+		 * elsewhere for backward-compatibility.
+		 */
+		char *snp = dd->ipath_serial;
+		int len;
+		memcpy(snp, ifp->if_sprefix, sizeof ifp->if_sprefix);
+		snp[sizeof ifp->if_sprefix] = '\0';
+		len = strlen(snp);
+		snp += len;
+		len = (sizeof dd->ipath_serial) - len;
+		if (len > sizeof ifp->if_serial) {
+			len = sizeof ifp->if_serial;
+		}
+		memcpy(snp, ifp->if_serial, len);
+	} else
+		memcpy(dd->ipath_serial, ifp->if_serial,
+		       sizeof ifp->if_serial);
+
 	ipath_cdbg(VERBOSE, "Initted GUID to %llx from eeprom\n",
 		   (unsigned long long) be64_to_cpu(dd->ipath_guid));
 

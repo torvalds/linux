@@ -714,7 +714,7 @@ megaraid_io_detach(adapter_t *adapter)
  * . Allocate memory required for all the commands
  * . Use internal library of FW routines, build up complete soft state
  */
-static int __init
+static int __devinit
 megaraid_init_mbox(adapter_t *adapter)
 {
 	struct pci_dev		*pdev;
@@ -767,7 +767,7 @@ megaraid_init_mbox(adapter_t *adapter)
 	//
 
 	// request IRQ and register the interrupt service routine
-	if (request_irq(adapter->irq, megaraid_isr, SA_SHIRQ, "megaraid",
+	if (request_irq(adapter->irq, megaraid_isr, IRQF_SHARED, "megaraid",
 		adapter)) {
 
 		con_log(CL_ANN, (KERN_WARNING

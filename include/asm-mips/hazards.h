@@ -10,7 +10,6 @@
 #ifndef _ASM_HAZARDS_H
 #define _ASM_HAZARDS_H
 
-#include <linux/config.h>
 
 #ifdef __ASSEMBLY__
 
@@ -70,10 +69,10 @@
  * Use a macro for ehb unless explicit support for MIPSR2 is enabled
  */
 
-#define irq_enable_hazard
+#define irq_enable_hazard						\
 	_ehb
 
-#define irq_disable_hazard
+#define irq_disable_hazard						\
 	_ehb
 
 #elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000)

@@ -119,7 +119,6 @@ void snd_emux_proc_init(struct snd_emux *emu, struct snd_card *card, int device)
 
 	entry->content = SNDRV_INFO_CONTENT_TEXT;
 	entry->private_data = emu;
-	entry->c.text.read_size = 1024;
 	entry->c.text.read = snd_emux_proc_info_read;
 	if (snd_info_register(entry) < 0)
 		snd_info_free_entry(entry);

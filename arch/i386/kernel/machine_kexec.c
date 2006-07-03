@@ -133,9 +133,9 @@ typedef asmlinkage NORET_TYPE void (*relocate_new_kernel_t)(
 					unsigned long start_address,
 					unsigned int has_pae) ATTRIB_NORET;
 
-const extern unsigned char relocate_new_kernel[];
+extern const unsigned char relocate_new_kernel[];
 extern void relocate_new_kernel_end(void);
-const extern unsigned int relocate_new_kernel_size;
+extern const unsigned int relocate_new_kernel_size;
 
 /*
  * A architecture hook called to validate the

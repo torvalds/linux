@@ -6,7 +6,6 @@
  *  Copyright (C) 2001 Andrea Arcangeli <andrea@suse.de> SuSE
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>

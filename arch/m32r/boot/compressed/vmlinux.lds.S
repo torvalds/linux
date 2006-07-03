@@ -1,4 +1,3 @@
-#include <linux/config.h>
 
 OUTPUT_ARCH(m32r)
 ENTRY(startup)

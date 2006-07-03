@@ -10,7 +10,6 @@
  * Copyright (c) 1999 D. Jeff Dionne <jeff@uclinux.org>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -20,6 +19,7 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
+#include <asm/irqnode.h>
 #include <asm/traps.h>
 #include <asm/io.h>
 #include <asm/machdep.h>

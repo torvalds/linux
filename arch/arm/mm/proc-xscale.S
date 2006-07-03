@@ -138,17 +138,23 @@ ENTRY(cpu_xscale_proc_fin)
  * to what would be the reset vector.
  *
  * loc: location to jump to for soft reset
+ *
+ * Beware PXA270 erratum E7.
  */
 	.align	5
 ENTRY(cpu_xscale_reset)
 	mov	r1, #PSR_F_BIT|PSR_I_BIT|SVC_MODE
 	msr	cpsr_c, r1			@ reset CPSR
+	mcr	p15, 0, r1, c10, c4, 1		@ unlock I-TLB
+	mcr	p15, 0, r1, c8, c5, 0		@ invalidate I-TLB
 	mrc	p15, 0, r1, c1, c0, 0		@ ctrl register
 	bic	r1, r1, #0x0086			@ ........B....CA.
 	bic	r1, r1, #0x3900			@ ..VIZ..S........
+	sub	pc, pc, #4			@ flush pipeline
+	@ *** cache line aligned ***
 	mcr	p15, 0, r1, c1, c0, 0		@ ctrl register
-	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches & BTB
 	bic	r1, r1, #0x0001			@ ...............M
+	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches & BTB
 	mcr	p15, 0, r1, c1, c0, 0		@ ctrl register
 	@ CAUTION: MMU turned off from this point. We count on the pipeline
 	@ already containing those two last instructions to survive.
@@ -475,11 +481,12 @@ __xscale_setup:
 	orr     r0, r0, #1 << 6			@ cp6 for IOP3xx and Bulverde
 	orr	r0, r0, #1 << 13		@ Its undefined whether this
 	mcr	p15, 0, r0, c15, c1, 0		@ affects USR or SVC modes
+
+	adr	r5, xscale_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0, 0		@ get control register
-	ldr	r5, xscale_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, xscale_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 	mov	pc, lr
 	.size	__xscale_setup, . - __xscale_setup
 
@@ -489,12 +496,9 @@ __xscale_setup:
 	 * ..11 1.01 .... .101
 	 * 
 	 */
-	.type	xscale_cr1_clear, #object
-	.type	xscale_cr1_set, #object
-xscale_cr1_clear:
-	.word	0x3b07
-xscale_cr1_set:
-	.word	0x3905
+	.type	xscale_crval, #object
+xscale_crval:
+	crval	clear=0x00003b07, mmuset=0x00003905, ucset=0x00001900
 
 	__INITDATA
 
@@ -595,6 +599,9 @@ __80200_proc_info:
 		PMD_SECT_CACHEABLE | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b	__xscale_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
@@ -613,6 +620,9 @@ __8032x_proc_info:
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
 	b	__xscale_setup
@@ -635,6 +645,9 @@ __8033x_proc_info:
 		PMD_SECT_CACHEABLE | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b	__xscale_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
@@ -653,6 +666,9 @@ __pxa250_proc_info:
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
 	b	__xscale_setup
@@ -675,6 +691,9 @@ __pxa210_proc_info:
 		PMD_SECT_CACHEABLE | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b	__xscale_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
@@ -693,6 +712,9 @@ __ixp2400_proc_info:
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
 	b       __xscale_setup
@@ -715,6 +737,9 @@ __ixp2800_proc_info:
 		PMD_SECT_CACHEABLE | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b       __xscale_setup
 	.long   cpu_arch_name
 	.long   cpu_elf_name
@@ -735,6 +760,9 @@ __ixp42x_proc_info:
 		PMD_SECT_CACHEABLE | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b       __xscale_setup
 	.long   cpu_arch_name
 	.long   cpu_elf_name
@@ -750,7 +778,14 @@ __ixp42x_proc_info:
 __ixp46x_proc_info:
 	.long   0x69054200
 	.long   0xffffff00
-	.long   0x00000c0e
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_BUFFERABLE | \
+		PMD_SECT_CACHEABLE | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b       __xscale_setup
 	.long   cpu_arch_name
 	.long   cpu_elf_name
@@ -771,6 +806,9 @@ __pxa255_proc_info:
 		PMD_SECT_CACHEABLE | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b	__xscale_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
@@ -789,6 +827,9 @@ __pxa270_proc_info:
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
 	b	__xscale_setup

@@ -130,7 +130,6 @@
 
 #define _IDE_C			/* Tell ide.h it's really us */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -147,7 +146,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/completion.h>
 #include <linux/reboot.h>
 #include <linux/cdrom.h>
@@ -592,13 +590,8 @@ void ide_unregister(unsigned int index)
 		goto abort;
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		drive = &hwif->drives[unit];
-		if (!drive->present) {
-			if (drive->devfs_name[0] != '\0') {
-				devfs_remove(drive->devfs_name);
-				drive->devfs_name[0] = '\0';
-			}
+		if (!drive->present)
 			continue;
-		}
 		spin_unlock_irq(&ide_lock);
 		device_unregister(&drive->gendev);
 		wait_for_completion(&drive->gendev_rel_comp);
@@ -726,6 +719,7 @@ void ide_setup_ports (	hw_regs_t *hw,
 {
 	int i;
 
+	memset(hw, 0, sizeof(hw_regs_t));
 	for (i = 0; i < IDE_NR_PORTS; i++) {
 		if (offsets[i] == -1) {
 			switch(i) {
@@ -1225,7 +1219,7 @@ static int generic_ide_suspend(struct device *dev, pm_message_t state)
 	memset(&args, 0, sizeof(args));
 	rq.flags = REQ_PM_SUSPEND;
 	rq.special = &args;
-	rq.pm = &rqpm;
+	rq.end_io_data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_suspend;
 	rqpm.pm_state = state.event;
 
@@ -1244,7 +1238,7 @@ static int generic_ide_resume(struct device *dev)
 	memset(&args, 0, sizeof(args));
 	rq.flags = REQ_PM_RESUME;
 	rq.special = &args;
-	rq.pm = &rqpm;
+	rq.end_io_data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_resume;
 	rqpm.pm_state = PM_EVENT_ON;
 
@@ -1366,8 +1360,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 
 			ide_abort(drive, "drive reset");
 
-			if(HWGROUP(drive)->handler)
-				BUG();
+			BUG_ON(HWGROUP(drive)->handler);
 				
 			/* Ensure nothing gets queued after we
 			   drop the lock. Reset will clear the busy */
@@ -1996,7 +1989,6 @@ EXPORT_SYMBOL_GPL(ide_bus_type);
 static int __init ide_init(void)
 {
 	printk(KERN_INFO "Uniform Multi-Platform E-IDE driver " REVISION "\n");
-	devfs_mk_dir("ide");
 	system_bus_speed = ide_system_bus_speed();
 
 	bus_register(&ide_bus_type);
@@ -2074,7 +2066,6 @@ void cleanup_module (void)
 #ifdef CONFIG_PROC_FS
 	proc_ide_destroy();
 #endif
-	devfs_remove("ide");
 
 	bus_unregister(&ide_bus_type);
 }

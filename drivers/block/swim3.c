@@ -16,7 +16,6 @@
  * handle GCR disks
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -25,7 +24,6 @@
 #include <linux/fd.h>
 #include <linux/ioctl.h>
 #include <linux/blkdev.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -1019,8 +1017,6 @@ int swim3_init(void)
 	int err = -ENOMEM;
 	int i;
 
-	devfs_mk_dir("floppy");
-
 	swim = find_devices("floppy");
 	while (swim && (floppy_count < MAX_FLOPPIES))
 	{
@@ -1064,7 +1060,6 @@ int swim3_init(void)
 		disk->queue = swim3_queue;
 		disk->flags |= GENHD_FL_REMOVABLE;
 		sprintf(disk->disk_name, "fd%d", i);
-		sprintf(disk->devfs_name, "floppy/%d", i);
 		set_capacity(disk, 2880);
 		add_disk(disk);
 	}

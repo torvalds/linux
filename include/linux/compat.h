@@ -4,7 +4,6 @@
  * These are the type definitions for the architecture specific
  * syscall compatibility layer.
  */
-#include <linux/config.h>
 
 #ifdef CONFIG_COMPAT
 
@@ -226,6 +225,8 @@ static inline int compat_timespec_compare(struct compat_timespec *lhs,
 }
 
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
+
+extern int compat_printk(const char *fmt, ...);
 
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */

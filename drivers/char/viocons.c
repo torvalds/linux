@@ -25,7 +25,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
 #include <linux/errno.h>
@@ -1152,7 +1151,6 @@ static int __init viocons_init2(void)
 	viotty_driver = alloc_tty_driver(VTTY_PORTS);
 	viotty_driver->owner = THIS_MODULE;
 	viotty_driver->driver_name = "vioconsole";
-	viotty_driver->devfs_name = "vcs/";
 	viotty_driver->name = "tty";
 	viotty_driver->name_base = 1;
 	viotty_driver->major = TTY_MAJOR;

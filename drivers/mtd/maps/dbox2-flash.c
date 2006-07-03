@@ -12,7 +12,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 
 /* partition_info gives details on the logical partitions that the split the
@@ -122,5 +121,5 @@ module_exit(cleanup_dbox2_flash);
 
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Kári Davíðsson <kd@flaga.is>, Bastian Blank <waldi@tuxbox.org>, Alexander Wild <wild@te-elektronik.com>");
+MODULE_AUTHOR("KÃ¡ri DavÃ­Ã°sson <kd@flaga.is>, Bastian Blank <waldi@tuxbox.org>, Alexander Wild <wild@te-elektronik.com>");
 MODULE_DESCRIPTION("MTD map driver for D-Box 2 board");

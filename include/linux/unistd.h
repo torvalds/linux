@@ -1,7 +1,9 @@
 #ifndef _LINUX_UNISTD_H_
 #define _LINUX_UNISTD_H_
 
+#ifdef __KERNEL__
 extern int errno;
+#endif
 
 /*
  * Include machine specific syscallX macros

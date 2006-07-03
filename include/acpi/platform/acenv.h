@@ -49,26 +49,11 @@
  */
 
 #ifdef ACPI_LIBRARY
+/*
+ * Note: The non-debug version of the acpi_library does not contain any
+ * debug support, for minimimal size. The debug version uses ACPI_FULL_DEBUG
+ */
 #define ACPI_USE_LOCAL_CACHE
-#endif
-
-#ifdef ACPI_DUMP_APP
-#ifndef MSDOS
-#define ACPI_DEBUG_OUTPUT
-#endif
-#define ACPI_APPLICATION
-#define ACPI_DISASSEMBLER
-#define ACPI_NO_METHOD_EXECUTION
-#endif
-
-#ifdef ACPI_EXEC_APP
-#undef DEBUGGER_THREADING
-#define DEBUGGER_THREADING      DEBUGGER_SINGLE_THREADED
-#define ACPI_DEBUG_OUTPUT
-#define ACPI_APPLICATION
-#define ACPI_DEBUGGER
-#define ACPI_DISASSEMBLER
-#define ACPI_MUTEX_DEBUG
 #endif
 
 #ifdef ACPI_ASL_COMPILER
@@ -76,11 +61,40 @@
 #define ACPI_APPLICATION
 #define ACPI_DISASSEMBLER
 #define ACPI_CONSTANT_EVAL_ONLY
+#define ACPI_LARGE_NAMESPACE_NODE
+#define ACPI_DATA_TABLE_DISASSEMBLY
+#endif
+
+#ifdef ACPI_EXEC_APP
+#undef DEBUGGER_THREADING
+#define DEBUGGER_THREADING      DEBUGGER_SINGLE_THREADED
+#define ACPI_FULL_DEBUG
+#define ACPI_APPLICATION
+#define ACPI_DEBUGGER
+#define ACPI_MUTEX_DEBUG
+#define ACPI_DBG_TRACK_ALLOCATIONS
+#endif
+
+#ifdef ACPI_DASM_APP
+#ifndef MSDOS
+#define ACPI_DEBUG_OUTPUT
+#endif
+#define ACPI_APPLICATION
+#define ACPI_DISASSEMBLER
+#define ACPI_NO_METHOD_EXECUTION
+#define ACPI_LARGE_NAMESPACE_NODE
+#define ACPI_DATA_TABLE_DISASSEMBLY
 #endif
 
 #ifdef ACPI_APPLICATION
 #define ACPI_USE_SYSTEM_CLIBRARY
 #define ACPI_USE_LOCAL_CACHE
+#endif
+
+#ifdef ACPI_FULL_DEBUG
+#define ACPI_DEBUGGER
+#define ACPI_DEBUG_OUTPUT
+#define ACPI_DISASSEMBLER
 #endif
 
 /*
@@ -137,7 +151,7 @@
 #elif defined(MSDOS)		/* Must appear after WIN32 and WIN64 check */
 #include "acdos16.h"
 
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include "acfreebsd.h"
 
 #elif defined(__NetBSD__)
@@ -161,17 +175,6 @@
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
 
-#endif
-
-/*
- * Memory allocation tracking.  Used only if
- * 1) This is the debug version
- * 2) This is NOT a 16-bit version of the code (not enough real-mode memory)
- */
-#ifdef ACPI_DEBUG_OUTPUT
-#if ACPI_MACHINE_WIDTH != 16
-#define ACPI_DBG_TRACK_ALLOCATIONS
-#endif
 #endif
 
 /*! [End] no source code translation !*/
@@ -271,8 +274,8 @@ typedef char *va_list;
 /*
  * Storage alignment properties
  */
-#define  _AUPBND                (sizeof (acpi_native_uint) - 1)
-#define  _ADNBND                (sizeof (acpi_native_uint) - 1)
+#define  _AUPBND                (sizeof (acpi_native_int) - 1)
+#define  _ADNBND                (sizeof (acpi_native_int) - 1)
 
 /*
  * Variable argument list macro definitions

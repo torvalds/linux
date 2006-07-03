@@ -1429,7 +1429,7 @@ static int es1938_resume(struct pci_dev *pci)
 	pci_restore_state(pci);
 	pci_enable_device(pci);
 	request_irq(pci->irq, snd_es1938_interrupt,
-		    SA_INTERRUPT|SA_SHIRQ, "ES1938", chip);
+		    IRQF_DISABLED|IRQF_SHARED, "ES1938", chip);
 	chip->irq = pci->irq;
 	snd_es1938_chip_init(chip);
 
@@ -1544,7 +1544,7 @@ static int __devinit snd_es1938_create(struct snd_card *card,
 	chip->vc_port = pci_resource_start(pci, 2);
 	chip->mpu_port = pci_resource_start(pci, 3);
 	chip->game_port = pci_resource_start(pci, 4);
-	if (request_irq(pci->irq, snd_es1938_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq(pci->irq, snd_es1938_interrupt, IRQF_DISABLED|IRQF_SHARED,
 			"ES1938", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_es1938_free(chip);
@@ -1756,7 +1756,8 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 		}
 	}
 	if (snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
-				chip->mpu_port, 1, chip->irq, 0, &chip->rmidi) < 0) {
+				chip->mpu_port, MPU401_INFO_INTEGRATED,
+				chip->irq, 0, &chip->rmidi) < 0) {
 		printk(KERN_ERR "es1938: unable to initialize MPU-401\n");
 	} else {
 		// this line is vital for MIDI interrupt handling on ess-solo1

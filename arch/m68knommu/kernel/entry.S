@@ -24,7 +24,6 @@
  * linux 2.4 support David McCullough <davidm@snapgear.com>
  */
 
-#include <linux/config.h>
 #include <linux/sys.h>
 #include <linux/linkage.h>
 #include <asm/thread_info.h>

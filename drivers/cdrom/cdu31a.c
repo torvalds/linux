@@ -161,7 +161,6 @@
 #include <linux/hdreg.h>
 #include <linux/genhd.h>
 #include <linux/ioport.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -3142,7 +3141,7 @@ int __init cdu31a_init(void)
 
 	if (cdu31a_irq > 0) {
 		if (request_irq
-		    (cdu31a_irq, cdu31a_interrupt, SA_INTERRUPT,
+		    (cdu31a_irq, cdu31a_interrupt, IRQF_DISABLED,
 		     "cdu31a", NULL)) {
 			printk(KERN_WARNING PFX "Unable to grab IRQ%d for "
 					"the CDU31A driver\n", cdu31a_irq);

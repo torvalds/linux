@@ -10,7 +10,6 @@
  * directory of the kernel sources for details.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/list.h>
@@ -19,6 +18,7 @@
 #include <linux/pci.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
+#include <linux/mutex.h>
 
 #include "csr1212.h"
 #include "ieee1394.h"
@@ -102,10 +102,10 @@ static int alloc_hostnum_cb(struct hpsb_host *host, void *__data)
  * driver specific parts, enable the controller and make it available
  * to the general subsystem using hpsb_add_host().
  *
- * Return Value: a pointer to the &hpsb_host if succesful, %NULL if
+ * Return Value: a pointer to the &hpsb_host if successful, %NULL if
  * no memory was available.
  */
-static DECLARE_MUTEX(host_num_alloc);
+static DEFINE_MUTEX(host_num_alloc);
 
 struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 				  struct device *dev)
@@ -148,7 +148,7 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	h->topology_map = h->csr.topology_map + 3;
 	h->speed_map = (u8 *)(h->csr.speed_map + 2);
 
-	down(&host_num_alloc);
+	mutex_lock(&host_num_alloc);
 
 	while (nodemgr_for_each_host(&hostnum, alloc_hostnum_cb))
 		hostnum++;
@@ -167,7 +167,7 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	class_device_register(&h->class_dev);
 	get_device(&h->device);
 
-	up(&host_num_alloc);
+	mutex_unlock(&host_num_alloc);
 
 	return h;
 }

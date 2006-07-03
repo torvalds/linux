@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
- *  Copyright (C) 2004       Dominik Brodowski <linux@brodo.de>
+ *  Copyright (C) 2004, 2005 Dominik Brodowski <linux@brodo.de>
  *  Copyright (C) 2004  Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
  *  			- Added processor hotplug support
  *  Copyright (C) 2005  Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
@@ -54,10 +54,10 @@ ACPI_MODULE_NAME("acpi_processor")
 #define US_TO_PM_TIMER_TICKS(t)		((t * (PM_TIMER_FREQUENCY/1000)) / 1000)
 #define C2_OVERHEAD			4	/* 1us (3.579 ticks per us) */
 #define C3_OVERHEAD			4	/* 1us (3.579 ticks per us) */
-static void (*pm_idle_save) (void);
+static void (*pm_idle_save) (void) __read_mostly;
 module_param(max_cstate, uint, 0644);
 
-static unsigned int nocst = 0;
+static unsigned int nocst __read_mostly;
 module_param(nocst, uint, 0000);
 
 /*
@@ -67,7 +67,7 @@ module_param(nocst, uint, 0000);
  * 100 HZ: 0x0000000F: 4 jiffies = 40ms
  * reduce history for more aggressive entry into C3
  */
-static unsigned int bm_history =
+static unsigned int bm_history __read_mostly =
     (HZ >= 800 ? 0xFFFFFFFF : ((1U << (HZ / 25)) - 1));
 module_param(bm_history, uint, 0644);
 /* --------------------------------------------------------------------------
@@ -97,6 +97,9 @@ static int set_max_cstate(struct dmi_system_id *id)
 /* Actually this shouldn't be __cpuinitdata, would be better to fix the
    callers to only run once -AK */
 static struct dmi_system_id __cpuinitdata processor_power_dmi_table[] = {
+	{ set_max_cstate, "IBM ThinkPad R40e", {
+	  DMI_MATCH(DMI_BIOS_VENDOR,"IBM"),
+	  DMI_MATCH(DMI_BIOS_VERSION,"1SET70WW")}, (void *)1},
 	{ set_max_cstate, "IBM ThinkPad R40e", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"IBM"),
 	  DMI_MATCH(DMI_BIOS_VERSION,"1SET60WW")}, (void *)1},
@@ -206,11 +209,11 @@ acpi_processor_power_activate(struct acpi_processor *pr,
 
 static void acpi_safe_halt(void)
 {
-	clear_thread_flag(TIF_POLLING_NRFLAG);
+	current_thread_info()->status &= ~TS_POLLING;
 	smp_mb__after_clear_bit();
 	if (!need_resched())
 		safe_halt();
-	set_thread_flag(TIF_POLLING_NRFLAG);
+	current_thread_info()->status |= TS_POLLING;
 }
 
 static atomic_t c3_cpu_count;
@@ -261,21 +264,15 @@ static void acpi_processor_idle(void)
 		u32 bm_status = 0;
 		unsigned long diff = jiffies - pr->power.bm_check_timestamp;
 
-		if (diff > 32)
-			diff = 32;
+		if (diff > 31)
+			diff = 31;
 
-		while (diff) {
-			/* if we didn't get called, assume there was busmaster activity */
-			diff--;
-			if (diff)
-				pr->power.bm_activity |= 0x1;
-			pr->power.bm_activity <<= 1;
-		}
+		pr->power.bm_activity <<= diff;
 
 		acpi_get_register(ACPI_BITREG_BUS_MASTER_STATUS,
 				  &bm_status, ACPI_MTX_DO_NOT_LOCK);
 		if (bm_status) {
-			pr->power.bm_activity++;
+			pr->power.bm_activity |= 0x1;
 			acpi_set_register(ACPI_BITREG_BUS_MASTER_STATUS,
 					  1, ACPI_MTX_DO_NOT_LOCK);
 		}
@@ -287,16 +284,16 @@ static void acpi_processor_idle(void)
 		else if (errata.piix4.bmisx) {
 			if ((inb_p(errata.piix4.bmisx + 0x02) & 0x01)
 			    || (inb_p(errata.piix4.bmisx + 0x0A) & 0x01))
-				pr->power.bm_activity++;
+				pr->power.bm_activity |= 0x1;
 		}
 
 		pr->power.bm_check_timestamp = jiffies;
 
 		/*
-		 * Apply bus mastering demotion policy.  Automatically demote
+		 * If bus mastering is or was active this jiffy, demote
 		 * to avoid a faulty transition.  Note that the processor
 		 * won't enter a low-power state during this call (to this
-		 * funciton) but should upon the next.
+		 * function) but should upon the next.
 		 *
 		 * TBD: A better policy might be to fallback to the demotion
 		 *      state (use it for this quantum only) istead of
@@ -304,7 +301,8 @@ static void acpi_processor_idle(void)
 		 *      qualification.  This may, however, introduce DMA
 		 *      issues (e.g. floppy DMA transfer overrun/underrun).
 		 */
-		if (pr->power.bm_activity & cx->demotion.threshold.bm) {
+		if ((pr->power.bm_activity & 0x1) &&
+		    cx->demotion.threshold.bm) {
 			local_irq_enable();
 			next_state = cx->demotion.state;
 			goto end;
@@ -322,18 +320,16 @@ static void acpi_processor_idle(void)
 		cx = &pr->power.states[ACPI_STATE_C1];
 #endif
 
-	cx->usage++;
-
 	/*
 	 * Sleep:
 	 * ------
 	 * Invoke the current Cx state to put the processor to sleep.
 	 */
 	if (cx->type == ACPI_STATE_C2 || cx->type == ACPI_STATE_C3) {
-		clear_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status &= ~TS_POLLING;
 		smp_mb__after_clear_bit();
 		if (need_resched()) {
-			set_thread_flag(TIF_POLLING_NRFLAG);
+			current_thread_info()->status |= TS_POLLING;
 			local_irq_enable();
 			return;
 		}
@@ -365,13 +361,20 @@ static void acpi_processor_idle(void)
 		t1 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Invoke C2 */
 		inb(cx->address);
-		/* Dummy op - must do something useless after P_LVL2 read */
+		/* Dummy wait op - must do something useless after P_LVL2 read
+		   because chipsets cannot guarantee that STPCLK# signal
+		   gets asserted in time to freeze execution properly. */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
+
+#ifdef CONFIG_GENERIC_TIME
+		/* TSC halts in C2, so notify users */
+		mark_tsc_unstable();
+#endif
 		/* Re-enable interrupts */
 		local_irq_enable();
-		set_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status |= TS_POLLING;
 		/* Compute time (ticks) that we were actually asleep */
 		sleep_ticks =
 		    ticks_elapsed(t1, t2) - cx->latency_ticks - C2_OVERHEAD;
@@ -398,7 +401,7 @@ static void acpi_processor_idle(void)
 		t1 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Invoke C3 */
 		inb(cx->address);
-		/* Dummy op - must do something useless after P_LVL3 read */
+		/* Dummy wait op (see above) */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
@@ -409,9 +412,13 @@ static void acpi_processor_idle(void)
 					  ACPI_MTX_DO_NOT_LOCK);
 		}
 
+#ifdef CONFIG_GENERIC_TIME
+		/* TSC halts in C3, so notify users */
+		mark_tsc_unstable();
+#endif
 		/* Re-enable interrupts */
 		local_irq_enable();
-		set_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status |= TS_POLLING;
 		/* Compute time (ticks) that we were actually asleep */
 		sleep_ticks =
 		    ticks_elapsed(t1, t2) - cx->latency_ticks - C3_OVERHEAD;
@@ -421,6 +428,9 @@ static void acpi_processor_idle(void)
 		local_irq_enable();
 		return;
 	}
+	cx->usage++;
+	if ((cx->type != ACPI_STATE_C1) && (sleep_ticks > 0))
+		cx->time += sleep_ticks;
 
 	next_state = pr->power.state;
 
@@ -508,10 +518,9 @@ static int acpi_processor_set_power_policy(struct acpi_processor *pr)
 	struct acpi_processor_cx *higher = NULL;
 	struct acpi_processor_cx *cx;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_set_power_policy");
 
 	if (!pr)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	/*
 	 * This function sets the default Cx state policy (OS idle handler).
@@ -535,7 +544,7 @@ static int acpi_processor_set_power_policy(struct acpi_processor *pr)
 	}
 
 	if (!state_is_set)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	/* demotion */
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER; i++) {
@@ -574,18 +583,17 @@ static int acpi_processor_set_power_policy(struct acpi_processor *pr)
 		higher = cx;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 {
-	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_fadt");
 
 	if (!pr)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (!pr->pblk)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	/* if info is obtained from pblk/fadt, type equals state */
 	pr->power.states[ACPI_STATE_C2].type = ACPI_STATE_C2;
@@ -597,7 +605,7 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	 * an SMP system. 
 	 */
 	if ((num_online_cpus() > 1) && !acpi_fadt.plvl2_up)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 #endif
 
 	/* determine C2 and C3 address from pblk */
@@ -613,12 +621,11 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 			  pr->power.states[ACPI_STATE_C2].address,
 			  pr->power.states[ACPI_STATE_C3].address));
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_processor_get_power_info_default_c1(struct acpi_processor *pr)
 {
-	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_default_c1");
 
 	/* Zero initialize all the C-states info. */
 	memset(pr->power.states, 0, sizeof(pr->power.states));
@@ -631,7 +638,7 @@ static int acpi_processor_get_power_info_default_c1(struct acpi_processor *pr)
 	pr->power.states[ACPI_STATE_C0].valid = 1;
 	pr->power.states[ACPI_STATE_C1].valid = 1;
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
@@ -643,10 +650,9 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *cst;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_cst");
 
 	if (nocst)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	current_count = 1;
 
@@ -658,15 +664,14 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 	status = acpi_evaluate_object(pr->handle, "_CST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No _CST, giving up\n"));
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	cst = (union acpi_object *)buffer.pointer;
 
 	/* There must be at least 2 elements */
 	if (!cst || (cst->type != ACPI_TYPE_PACKAGE) || cst->package.count < 2) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "not enough elements in _CST\n"));
+		printk(KERN_ERR PREFIX "not enough elements in _CST\n");
 		status = -EFAULT;
 		goto end;
 	}
@@ -675,8 +680,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 	/* Validate number of power states. */
 	if (count < 1 || count != cst->package.count - 1) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "count given by _CST is not valid\n"));
+		printk(KERN_ERR PREFIX "count given by _CST is not valid\n");
 		status = -EFAULT;
 		goto end;
 	}
@@ -766,15 +770,14 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
       end:
 	acpi_os_free(buffer.pointer);
 
-	return_VALUE(status);
+	return status;
 }
 
 static void acpi_processor_power_verify_c2(struct acpi_processor_cx *cx)
 {
-	ACPI_FUNCTION_TRACE("acpi_processor_get_power_verify_c2");
 
 	if (!cx->address)
-		return_VOID;
+		return;
 
 	/*
 	 * C2 latency must be less than or equal to 100
@@ -783,7 +786,7 @@ static void acpi_processor_power_verify_c2(struct acpi_processor_cx *cx)
 	else if (cx->latency > ACPI_PROCESSOR_MAX_C2_LATENCY) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "latency too large [%d]\n", cx->latency));
-		return_VOID;
+		return;
 	}
 
 	/*
@@ -793,7 +796,7 @@ static void acpi_processor_power_verify_c2(struct acpi_processor_cx *cx)
 	cx->valid = 1;
 	cx->latency_ticks = US_TO_PM_TIMER_TICKS(cx->latency);
 
-	return_VOID;
+	return;
 }
 
 static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
@@ -801,10 +804,9 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 {
 	static int bm_check_flag;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_get_power_verify_c3");
 
 	if (!cx->address)
-		return_VOID;
+		return;
 
 	/*
 	 * C3 latency must be less than or equal to 1000
@@ -813,7 +815,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	else if (cx->latency > ACPI_PROCESSOR_MAX_C3_LATENCY) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "latency too large [%d]\n", cx->latency));
-		return_VOID;
+		return;
 	}
 
 	/*
@@ -826,7 +828,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	else if (errata.piix4.fdma) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "C3 not supported on PIIX4 with Type-F DMA\n"));
-		return_VOID;
+		return;
 	}
 
 	/* All the logic here assumes flags.bm_check is same across all CPUs */
@@ -843,7 +845,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 		if (!pr->flags.bm_control) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "C3 support requires bus mastering control\n"));
-			return_VOID;
+			return;
 		}
 	} else {
 		/*
@@ -854,7 +856,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Cache invalidation should work properly"
 					  " for C3 to be enabled on SMP systems\n"));
-			return_VOID;
+			return;
 		}
 		acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD,
 				  0, ACPI_MTX_DO_NOT_LOCK);
@@ -869,7 +871,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	cx->valid = 1;
 	cx->latency_ticks = US_TO_PM_TIMER_TICKS(cx->latency);
 
-	return_VOID;
+	return;
 }
 
 static int acpi_processor_power_verify(struct acpi_processor *pr)
@@ -928,7 +930,6 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 	unsigned int i;
 	int result;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info");
 
 	/* NOTE: the idle thread may not be running while calling
 	 * this function */
@@ -951,7 +952,7 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 	 */
 	result = acpi_processor_set_power_policy(pr);
 	if (result)
-		return_VALUE(result);
+		return result;
 
 	/*
 	 * if one state of type C2 or C3 is available, mark this
@@ -965,24 +966,23 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 		}
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 {
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_cst_has_changed");
 
 	if (!pr)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (nocst) {
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	if (!pr->flags.power_setup_done)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	/* Fall back to the default idle loop */
 	pm_idle = pm_idle_save;
@@ -993,7 +993,7 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 	if ((pr->flags.power == 1) && (pr->flags.power_setup_done))
 		pm_idle = acpi_processor_idle;
 
-	return_VALUE(result);
+	return result;
 }
 
 /* proc interface */
@@ -1003,7 +1003,6 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 	struct acpi_processor *pr = (struct acpi_processor *)seq->private;
 	unsigned int i;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_power_seq_show");
 
 	if (!pr)
 		goto end;
@@ -1055,13 +1054,14 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 		else
 			seq_puts(seq, "demotion[--] ");
 
-		seq_printf(seq, "latency[%03d] usage[%08d]\n",
+		seq_printf(seq, "latency[%03d] usage[%08d] duration[%020llu]\n",
 			   pr->power.states[i].latency,
-			   pr->power.states[i].usage);
+			   pr->power.states[i].usage,
+			   pr->power.states[i].time);
 	}
 
       end:
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_processor_power_open_fs(struct inode *inode, struct file *file)
@@ -1081,11 +1081,10 @@ int acpi_processor_power_init(struct acpi_processor *pr,
 			      struct acpi_device *device)
 {
 	acpi_status status = 0;
-	static int first_run = 0;
+	static int first_run;
 	struct proc_dir_entry *entry = NULL;
 	unsigned int i;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_power_init");
 
 	if (!first_run) {
 		dmi_check_system(processor_power_dmi_table);
@@ -1097,14 +1096,14 @@ int acpi_processor_power_init(struct acpi_processor *pr,
 	}
 
 	if (!pr)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (acpi_fadt.cst_cnt && !nocst) {
 		status =
 		    acpi_os_write_port(acpi_fadt.smi_cmd, acpi_fadt.cst_cnt, 8);
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Notifying BIOS of _CST ability failed\n"));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Notifying BIOS of _CST ability failed"));
 		}
 	}
 
@@ -1133,9 +1132,7 @@ int acpi_processor_power_init(struct acpi_processor *pr,
 	entry = create_proc_entry(ACPI_PROCESSOR_FILE_POWER,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_PROCESSOR_FILE_POWER));
+		return -EIO;
 	else {
 		entry->proc_fops = &acpi_processor_power_fops;
 		entry->data = acpi_driver_data(device);
@@ -1144,13 +1141,12 @@ int acpi_processor_power_init(struct acpi_processor *pr,
 
 	pr->flags.power_setup_done = 1;
 
-	return_VALUE(0);
+	return 0;
 }
 
 int acpi_processor_power_exit(struct acpi_processor *pr,
 			      struct acpi_device *device)
 {
-	ACPI_FUNCTION_TRACE("acpi_processor_power_exit");
 
 	pr->flags.power_setup_done = 0;
 
@@ -1170,5 +1166,5 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 		cpu_idle_wait();
 	}
 
-	return_VALUE(0);
+	return 0;
 }

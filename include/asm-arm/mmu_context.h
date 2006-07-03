@@ -17,6 +17,8 @@
 #include <asm/cacheflush.h>
 #include <asm/proc-fns.h>
 
+void __check_kvm_seq(struct mm_struct *mm);
+
 #if __LINUX_ARM_ARCH__ >= 6
 
 /*
@@ -45,13 +47,21 @@ static inline void check_context(struct mm_struct *mm)
 {
 	if (unlikely((mm->context.id ^ cpu_last_asid) >> ASID_BITS))
 		__new_context(mm);
+
+	if (unlikely(mm->context.kvm_seq != init_mm.context.kvm_seq))
+		__check_kvm_seq(mm);
 }
 
 #define init_new_context(tsk,mm)	(__init_new_context(tsk,mm),0)
 
 #else
 
-#define check_context(mm)		do { } while (0)
+static inline void check_context(struct mm_struct *mm)
+{
+	if (unlikely(mm->context.kvm_seq != init_mm.context.kvm_seq))
+		__check_kvm_seq(mm);
+}
+
 #define init_new_context(tsk,mm)	0
 
 #endif
@@ -82,6 +92,7 @@ static inline void
 switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	  struct task_struct *tsk)
 {
+#ifdef CONFIG_MMU
 	unsigned int cpu = smp_processor_id();
 
 	if (prev != next) {
@@ -91,6 +102,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		if (cache_is_vivt())
 			cpu_clear(cpu, prev->cpu_vm_mask);
 	}
+#endif
 }
 
 #define deactivate_mm(tsk,mm)	do { } while (0)

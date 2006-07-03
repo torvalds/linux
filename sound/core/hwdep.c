@@ -486,7 +486,6 @@ static void __init snd_hwdep_proc_init(void)
 	struct snd_info_entry *entry;
 
 	if ((entry = snd_info_create_module_entry(THIS_MODULE, "hwdep", NULL)) != NULL) {
-		entry->c.text.read_size = PAGE_SIZE;
 		entry->c.text.read = snd_hwdep_proc_read;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);

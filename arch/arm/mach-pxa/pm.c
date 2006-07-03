@@ -10,7 +10,6 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/suspend.h>

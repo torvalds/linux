@@ -30,7 +30,6 @@
  * - jiffies wrapping
  */
 
-#include <linux/config.h>
 #include "../ccid.h"
 #include "../dccp.h"
 #include "ccid2.h"

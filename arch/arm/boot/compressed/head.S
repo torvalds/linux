@@ -8,7 +8,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/config.h>
 #include <linux/linkage.h>
 
 /*
@@ -448,8 +447,11 @@ __common_mmu_cache_on:
 		mov	r1, #-1
 		mcr	p15, 0, r3, c2, c0, 0	@ load page table pointer
 		mcr	p15, 0, r1, c3, c0, 0	@ load domain access control
-		mcr	p15, 0, r0, c1, c0, 0	@ load control register
-		mov	pc, lr
+		b	1f
+		.align	5			@ cache line aligned
+1:		mcr	p15, 0, r0, c1, c0, 0	@ load control register
+		mrc	p15, 0, r0, c1, c0, 0	@ and read it back to
+		sub	pc, lr, r0, lsr #32	@ properly flush pipeline
 
 /*
  * All code following this line is relocatable.  It is relocated by
@@ -605,8 +607,8 @@ proc_types:
 		b	__armv4_mmu_cache_off
 		b	__armv4_mmu_cache_flush
 
-		.word	0x00070000		@ ARMv6
-		.word	0x000f0000
+		.word	0x0007b000		@ ARMv6
+		.word	0x0007f000
 		b	__armv4_mmu_cache_on
 		b	__armv4_mmu_cache_off
 		b	__armv6_mmu_cache_flush

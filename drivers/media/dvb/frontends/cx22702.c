@@ -40,8 +40,6 @@ struct cx22702_state {
 
 	struct i2c_adapter* i2c;
 
-	struct dvb_frontend_ops ops;
-
 	/* configuration settings */
 	const struct cx22702_config* config;
 
@@ -211,22 +209,10 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 	u8 val;
 	struct cx22702_state* state = fe->demodulator_priv;
 
-	/* set PLL */
-	cx22702_i2c_gate_ctrl(fe, 1);
-	if (state->config->pll_set) {
-		state->config->pll_set(fe, p);
-	} else if (state->config->pll_desc) {
-		u8 pllbuf[4];
-		struct i2c_msg msg = { .addr = state->config->pll_address,
-				       .buf = pllbuf, .len = 4 };
-		dvb_pll_configure(state->config->pll_desc, pllbuf,
-				  p->frequency,
-				  p->u.ofdm.bandwidth);
-		i2c_transfer(state->i2c, &msg, 1);
-	} else {
-		BUG();
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
-	cx22702_i2c_gate_ctrl(fe, 0);
 
 	/* set inversion */
 	cx22702_set_inversion (state, p->inversion);
@@ -357,10 +343,6 @@ static int cx22702_init (struct dvb_frontend* fe)
 		cx22702_writereg (state, init_tab[i], init_tab[i+1]);
 
 	cx22702_writereg (state, 0xf8, (state->config->output_mode << 1) & 0x02);
-
-	/* init PLL */
-	if (state->config->pll_init)
-		state->config->pll_init(fe);
 
 	cx22702_i2c_gate_ctrl(fe, 0);
 
@@ -495,7 +477,6 @@ struct dvb_frontend* cx22702_attach(const struct cx22702_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &cx22702_ops, sizeof(struct dvb_frontend_ops));
 	state->prevUCBlocks = 0;
 
 	/* check if the demod is there */
@@ -503,7 +484,7 @@ struct dvb_frontend* cx22702_attach(const struct cx22702_config* config,
 		goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &cx22702_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
@@ -530,6 +511,7 @@ static struct dvb_frontend_ops cx22702_ops = {
 	.release = cx22702_release,
 
 	.init = cx22702_init,
+	.i2c_gate_ctrl = cx22702_i2c_gate_ctrl,
 
 	.set_frontend = cx22702_set_tps,
 	.get_frontend = cx22702_get_frontend,
@@ -540,7 +522,6 @@ static struct dvb_frontend_ops cx22702_ops = {
 	.read_signal_strength = cx22702_read_signal_strength,
 	.read_snr = cx22702_read_snr,
 	.read_ucblocks = cx22702_read_ucblocks,
-	.i2c_gate_ctrl = cx22702_i2c_gate_ctrl,
 };
 
 module_param(debug, int, 0644);

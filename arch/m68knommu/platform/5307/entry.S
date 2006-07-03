@@ -4,8 +4,8 @@
  *  Copyright (C) 1999-2002, Greg Ungerer (gerg@snapgear.com)
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
  *                      Kenneth Albanowski <kjahds@kjahds.com>,
- *  Copyright (C) 2000  Lineo Inc. (www.lineo.com) 
- *  Copyright (C) 2004  Macq Electronique SA. (www.macqel.com)
+ *  Copyright (C) 2000  Lineo Inc. (www.lineo.com)
+ *  Copyright (C) 2004-2006  Macq Electronique SA. (www.macqel.com)
  *
  * Based on:
  *
@@ -26,7 +26,6 @@
  * Bug, speed and maintainability fixes by Philippe De Muyter <phdm@macqel.be>
  */
 
-#include <linux/config.h>
 #include <linux/sys.h>
 #include <linux/linkage.h>
 #include <asm/unistd.h>
@@ -56,32 +55,27 @@ sw_usp:
 .globl inthandler
 .globl fasthandler
 
+enosys:
+	mov.l	#sys_ni_syscall,%d3
+	bra	1f
+
 ENTRY(system_call)
 	SAVE_ALL
 	move	#0x2000,%sr		/* enable intrs again */
 
-	movel	#-LENOSYS,%d2
-	movel	%d2,PT_D0(%sp)		/* default return value in d0 */
-					/* original D0 is in orig_d0 */
-	movel	%d0,%d2
-
-	/* save top of frame */
-	pea	%sp@
-	jbsr	set_esp0
-	addql	#4,%sp
-
-	cmpl	#NR_syscalls,%d2
-	jcc	ret_from_exception
+	cmpl	#NR_syscalls,%d0
+	jcc	enosys
 	lea	sys_call_table,%a0
-	lsll	#2,%d2			/* movel %a0@(%d2:l:4),%d3 */
-	movel	%a0@(%d2),%d3
-	jeq	ret_from_exception
-	lsrl	#2,%d2
+	lsll	#2,%d0			/* movel %a0@(%d0:l:4),%d3 */
+	movel	%a0@(%d0),%d3
+	jeq	enosys
 
+1:
 	movel	%sp,%d2			/* get thread_info pointer */
 	andl	#-THREAD_SIZE,%d2	/* at start of kernel stack */
 	movel	%d2,%a0
-	btst	#TIF_SYSCALL_TRACE,%a0@(TI_FLAGS)
+	movel	%sp,%a0@(THREAD_ESP0)	/* save top of frame */
+	btst	#(TIF_SYSCALL_TRACE%8),%a0@(TI_FLAGS+(31-TIF_SYSCALL_TRACE)/8)
 	bnes	1f
 
 	movel	%d3,%a0
@@ -126,8 +120,8 @@ Luser_return:
 	jne	Lwork_to_do		/* still work to do */
 
 Lreturn:
-	move    #0x2700,%sr		/* disable intrs */
-	movel   sw_usp,%a0		/* get usp */
+	move	#0x2700,%sr		/* disable intrs */
+	movel	sw_usp,%a0		/* get usp */
 	movel	%sp@(PT_PC),%a0@-	/* copy exception program counter */
 	movel	%sp@(PT_FORMATVEC),%a0@-/* copy exception format/vector/sr */
 	moveml	%sp@,%d1-%d5/%a0-%a2
@@ -170,7 +164,7 @@ ENTRY(inthandler)
 	movel	%d0,%sp@(PT_ORIG_D0)
 	addql	#1,local_irq_count
 
-	movew   %sp@(PT_FORMATVEC),%d0	/* put exception # in d0 */
+	movew	%sp@(PT_FORMATVEC),%d0	/* put exception # in d0 */
 	andl	#0x03fc,%d0		/* mask out vector only */
 
 	leal	per_cpu__kstat+STAT_IRQ,%a0
@@ -184,7 +178,7 @@ ENTRY(inthandler)
 
 	movel	%sp,%sp@-		/* push regs arg onto stack */
 	movel	%a0@(8),%sp@-		/* push devid arg */
-	movel	%d0,%sp@- 		/* push vector # on stack */
+	movel	%d0,%sp@-		/* push vector # on stack */
 
 	movel	%a0@,%a0		/* get function to call */
 	jbsr	%a0@			/* call vector handler */
@@ -201,7 +195,7 @@ ENTRY(inthandler)
 ENTRY(fasthandler)
 	SAVE_LOCAL
 
-	movew   %sp@(PT_FORMATVEC),%d0
+	movew	%sp@(PT_FORMATVEC),%d0
 	andl	#0x03fc,%d0		/* mask out vector only */
 
 	leal	per_cpu__kstat+STAT_IRQ,%a0
@@ -210,7 +204,7 @@ ENTRY(fasthandler)
 	movel	%sp,%sp@-		/* push regs arg onto stack */
 	clrl	%sp@-			/* push devid arg */
 	lsrl	#2,%d0			/* calculate real vector # */
-	movel	%d0,%sp@- 		/* push vector # on stack */
+	movel	%d0,%sp@-		/* push vector # on stack */
 
 	lsll	#4,%d0			/* adjust for array offset */
 	lea	irq_list,%a0
@@ -265,4 +259,3 @@ ENTRY(resume)
 	movew	%a1@(TASK_THREAD+THREAD_SR),%d0	/* restore thread status reg */
 	movew	%d0, %sr
 	rts
-

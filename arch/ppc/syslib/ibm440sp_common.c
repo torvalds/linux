@@ -13,7 +13,6 @@
  * option) any later version.
  *
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/serial.h>
 

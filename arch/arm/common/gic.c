@@ -33,6 +33,7 @@
 
 static void __iomem *gic_dist_base;
 static void __iomem *gic_cpu_base;
+static DEFINE_SPINLOCK(irq_controller_lock);
 
 /*
  * Routines to acknowledge, disable and enable interrupts
@@ -52,32 +53,45 @@ static void __iomem *gic_cpu_base;
 static void gic_ack_irq(unsigned int irq)
 {
 	u32 mask = 1 << (irq % 32);
+
+	spin_lock(&irq_controller_lock);
 	writel(mask, gic_dist_base + GIC_DIST_ENABLE_CLEAR + (irq / 32) * 4);
 	writel(irq, gic_cpu_base + GIC_CPU_EOI);
+	spin_unlock(&irq_controller_lock);
 }
 
 static void gic_mask_irq(unsigned int irq)
 {
 	u32 mask = 1 << (irq % 32);
+
+	spin_lock(&irq_controller_lock);
 	writel(mask, gic_dist_base + GIC_DIST_ENABLE_CLEAR + (irq / 32) * 4);
+	spin_unlock(&irq_controller_lock);
 }
 
 static void gic_unmask_irq(unsigned int irq)
 {
 	u32 mask = 1 << (irq % 32);
+
+	spin_lock(&irq_controller_lock);
 	writel(mask, gic_dist_base + GIC_DIST_ENABLE_SET + (irq / 32) * 4);
+	spin_unlock(&irq_controller_lock);
 }
 
 #ifdef CONFIG_SMP
-static void gic_set_cpu(struct irqdesc *desc, unsigned int irq, unsigned int cpu)
+static void gic_set_cpu(unsigned int irq, cpumask_t mask_val)
 {
 	void __iomem *reg = gic_dist_base + GIC_DIST_TARGET + (irq & ~3);
 	unsigned int shift = (irq % 4) * 8;
+	unsigned int cpu = first_cpu(mask_val);
 	u32 val;
 
+	spin_lock(&irq_controller_lock);
+	irq_desc[irq].cpu = cpu;
 	val = readl(reg) & ~(0xff << shift);
 	val |= 1 << (cpu + shift);
 	writel(val, reg);
+	spin_unlock(&irq_controller_lock);
 }
 #endif
 
@@ -86,7 +100,7 @@ static struct irqchip gic_chip = {
 	.mask		= gic_mask_irq,
 	.unmask		= gic_unmask_irq,
 #ifdef CONFIG_SMP
-	.set_cpu	= gic_set_cpu,
+	.set_affinity	= gic_set_cpu,
 #endif
 };
 

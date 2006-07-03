@@ -920,7 +920,7 @@ static int	eepro_grab_irq(struct net_device *dev)
 
 		eepro_sw2bank0(ioaddr); /* Switch back to Bank 0 */
 
-		if (request_irq (*irqp, NULL, SA_SHIRQ, "bogus", dev) != EBUSY) {
+		if (request_irq (*irqp, NULL, IRQF_SHARED, "bogus", dev) != EBUSY) {
 			unsigned long irq_mask;
 			/* Twinkle the interrupt, and check if it's seen */
 			irq_mask = probe_irq_on();
@@ -1154,8 +1154,7 @@ static int eepro_send_packet(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG  "%s: entering eepro_send_packet routine.\n", dev->name);
 
 	if (length < ETH_ZLEN) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL)
+		if (skb_padto(skb, ETH_ZLEN))
 			return 0;
 		length = ETH_ZLEN;
 	}

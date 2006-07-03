@@ -13,7 +13,6 @@
 #ifndef _XTENSA_ATOMIC_H
 #define _XTENSA_ATOMIC_H
 
-#include <linux/config.h>
 #include <linux/stringify.h>
 
 typedef struct { volatile int counter; } atomic_t;

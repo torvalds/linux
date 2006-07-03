@@ -14,7 +14,6 @@
 #ifndef __V850_MACHDEP_H__
 #define __V850_MACHDEP_H__
 
-#include <linux/config.h>
 
 /* chips */
 #ifdef CONFIG_V850E_MA1

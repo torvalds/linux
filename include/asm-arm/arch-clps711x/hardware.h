@@ -22,7 +22,6 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
-#include <linux/config.h>
 
 #define CLPS7111_VIRT_BASE	0xff000000
 #define CLPS7111_BASE		CLPS7111_VIRT_BASE

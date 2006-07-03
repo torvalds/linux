@@ -6,7 +6,6 @@
  * Contains common routines for sun3/sun3x DVMA management.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/list.h>
@@ -119,8 +118,7 @@ static inline int refill(void)
 		if(hole->end == prev->start) {
 			hole->size += prev->size;
 			hole->end = prev->end;
-			list_del(&(prev->list));
-			list_add(&(prev->list), &hole_cache);
+			list_move(&(prev->list), &hole_cache);
 			ret++;
 		}
 
@@ -182,8 +180,7 @@ static inline unsigned long get_baddr(int len, unsigned long align)
 #endif
 			return hole->end;
 		} else if(hole->size == newlen) {
-			list_del(&(hole->list));
-			list_add(&(hole->list), &hole_cache);
+			list_move(&(hole->list), &hole_cache);
 			dvma_entry_use(hole->start) = newlen;
 #ifdef DVMA_DEBUG
 			dvma_allocs++;

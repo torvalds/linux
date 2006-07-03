@@ -818,7 +818,7 @@ static int snd_saa7134_capsrc_put(struct snd_kcontrol * kcontrol,
 				break;
 		}
 
-	    	/* output xbar always main channel */
+		/* output xbar always main channel */
 		saa_dsp_writel(dev, SAA7133_DIGITAL_OUTPUT_SEL1, 0xbbbb10);
 
 		if (left || right) { // We've got data, turn the input on
@@ -929,7 +929,7 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 
 
 	err = request_irq(dev->pci->irq, saa7134_alsa_irq,
-				SA_SHIRQ | SA_INTERRUPT, dev->name,
+				IRQF_SHARED | IRQF_DISABLED, dev->name,
 				(void*) &dev->dmasound);
 
 	if (err < 0) {

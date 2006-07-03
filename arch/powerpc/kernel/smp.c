@@ -17,7 +17,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -492,7 +491,7 @@ int __devinit __cpu_up(unsigned int cpu)
 	 * -- Cort
 	 */
 	if (system_state < SYSTEM_RUNNING)
-		for (c = 5000; c && !cpu_callin_map[cpu]; c--)
+		for (c = 50000; c && !cpu_callin_map[cpu]; c--)
 			udelay(100);
 #ifdef CONFIG_HOTPLUG_CPU
 	else

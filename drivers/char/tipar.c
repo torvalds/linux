@@ -42,7 +42,6 @@
  */
 #undef DEBUG				/* change to #define to get debugging
 					 * output - for pr_debug() */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -56,7 +55,6 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 #include <linux/bitops.h>
-#include <linux/devfs_fs_kernel.h>	/* DevFs support */
 #include <linux/parport.h>		/* Our code depend on parport */
 #include <linux/device.h>
 
@@ -443,12 +441,6 @@ tipar_register(int nr, struct parport *port)
 
 	class_device_create(tipar_class, NULL, MKDEV(TIPAR_MAJOR,
 			TIPAR_MINOR + nr), NULL, "par%d", nr);
-	/* Use devfs, tree: /dev/ticables/par/[0..2] */
-	err = devfs_mk_cdev(MKDEV(TIPAR_MAJOR, TIPAR_MINOR + nr),
-			S_IFCHR | S_IRUGO | S_IWUGO,
-			"ticables/par/%d", nr);
-	if (err)
-		goto out_class;
 
 	/* Display informations */
 	pr_info("tipar%d: using %s (%s)\n", nr, port->name, (port->irq ==
@@ -460,11 +452,7 @@ tipar_register(int nr, struct parport *port)
 		pr_info("tipar%d: link cable not found\n", nr);
 
 	err = 0;
-	goto out;
 
-out_class:
-	class_device_destroy(tipar_class, MKDEV(TIPAR_MAJOR, TIPAR_MINOR + nr));
-	class_destroy(tipar_class);
 out:
 	return err;
 }
@@ -507,9 +495,6 @@ tipar_init_module(void)
 		goto out;
 	}
 
-	/* Use devfs with tree: /dev/ticables/par/[0..2] */
-	devfs_mk_dir("ticables/par");
-
 	tipar_class = class_create(THIS_MODULE, "ticables");
 	if (IS_ERR(tipar_class)) {
 		err = PTR_ERR(tipar_class);
@@ -528,7 +513,6 @@ out_class:
 	class_destroy(tipar_class);
 
 out_chrdev:
-	devfs_remove("ticables/par");
 	unregister_chrdev(TIPAR_MAJOR, "tipar");
 out:
 	return err;	
@@ -549,10 +533,8 @@ tipar_cleanup_module(void)
 			continue;
 		parport_unregister_device(table[i].dev);
 		class_device_destroy(tipar_class, MKDEV(TIPAR_MAJOR, i));
-		devfs_remove("ticables/par/%d", i);
 	}
 	class_destroy(tipar_class);
-	devfs_remove("ticables/par");
 
 	pr_info("tipar: module unloaded\n");
 }

@@ -642,10 +642,14 @@ struct spi_board_info {
 	u16		bus_num;
 	u16		chip_select;
 
+	/* mode becomes spi_device.mode, and is essential for chips
+	 * where the default of SPI_CS_HIGH = 0 is wrong.
+	 */
+	u8		mode;
+
 	/* ... may need additional spi_device chip config data here.
 	 * avoid stuff protocol drivers can set; but include stuff
 	 * needed to behave without being bound to a driver:
-	 *  - chipselect polarity
 	 *  - quirks like clock rate mattering when not selected
 	 */
 };

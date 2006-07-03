@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -92,6 +93,7 @@ static struct ipath_mcast *ipath_mcast_alloc(union ib_gid *mgid)
 	INIT_LIST_HEAD(&mcast->qp_list);
 	init_waitqueue_head(&mcast->wait);
 	atomic_set(&mcast->refcount, 0);
+	mcast->n_attached = 0;
 
 bail:
 	return mcast;
@@ -157,7 +159,8 @@ bail:
  * the table but the QP was added.  Return ESRCH if the QP was already
  * attached and neither structure was added.
  */
-static int ipath_mcast_add(struct ipath_mcast *mcast,
+static int ipath_mcast_add(struct ipath_ibdev *dev,
+			   struct ipath_mcast *mcast,
 			   struct ipath_mcast_qp *mqp)
 {
 	struct rb_node **n = &mcast_tree.rb_node;
@@ -188,16 +191,28 @@ static int ipath_mcast_add(struct ipath_mcast *mcast,
 		/* Search the QP list to see if this is already there. */
 		list_for_each_entry_rcu(p, &tmcast->qp_list, list) {
 			if (p->qp == mqp->qp) {
-				spin_unlock_irqrestore(&mcast_lock, flags);
 				ret = ESRCH;
 				goto bail;
 			}
 		}
+		if (tmcast->n_attached == ib_ipath_max_mcast_qp_attached) {
+			ret = ENOMEM;
+			goto bail;
+		}
+
+		tmcast->n_attached++;
+
 		list_add_tail_rcu(&mqp->list, &tmcast->qp_list);
-		spin_unlock_irqrestore(&mcast_lock, flags);
 		ret = EEXIST;
 		goto bail;
 	}
+
+	if (dev->n_mcast_grps_allocated == ib_ipath_max_mcast_grps) {
+		ret = ENOMEM;
+		goto bail;
+	}
+
+	dev->n_mcast_grps_allocated++;
 
 	list_add_tail_rcu(&mqp->list, &mcast->qp_list);
 
@@ -205,17 +220,18 @@ static int ipath_mcast_add(struct ipath_mcast *mcast,
 	rb_link_node(&mcast->rb_node, pn, n);
 	rb_insert_color(&mcast->rb_node, &mcast_tree);
 
-	spin_unlock_irqrestore(&mcast_lock, flags);
-
 	ret = 0;
 
 bail:
+	spin_unlock_irqrestore(&mcast_lock, flags);
+
 	return ret;
 }
 
 int ipath_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
 	struct ipath_qp *qp = to_iqp(ibqp);
+	struct ipath_ibdev *dev = to_idev(ibqp->device);
 	struct ipath_mcast *mcast;
 	struct ipath_mcast_qp *mqp;
 	int ret;
@@ -235,7 +251,7 @@ int ipath_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		ret = -ENOMEM;
 		goto bail;
 	}
-	switch (ipath_mcast_add(mcast, mqp)) {
+	switch (ipath_mcast_add(dev, mcast, mqp)) {
 	case ESRCH:
 		/* Neither was used: can't attach the same QP twice. */
 		ipath_mcast_qp_free(mqp);
@@ -245,6 +261,12 @@ int ipath_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	case EEXIST:		/* The mcast wasn't used */
 		ipath_mcast_free(mcast);
 		break;
+	case ENOMEM:
+		/* Exceeded the maximum number of mcast groups. */
+		ipath_mcast_qp_free(mqp);
+		ipath_mcast_free(mcast);
+		ret = -ENOMEM;
+		goto bail;
 	default:
 		break;
 	}
@@ -258,6 +280,7 @@ bail:
 int ipath_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
 	struct ipath_qp *qp = to_iqp(ibqp);
+	struct ipath_ibdev *dev = to_idev(ibqp->device);
 	struct ipath_mcast *mcast = NULL;
 	struct ipath_mcast_qp *p, *tmp;
 	struct rb_node *n;
@@ -272,7 +295,7 @@ int ipath_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	while (1) {
 		if (n == NULL) {
 			spin_unlock_irqrestore(&mcast_lock, flags);
-			ret = 0;
+			ret = -EINVAL;
 			goto bail;
 		}
 
@@ -296,6 +319,7 @@ int ipath_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		 * link until we are sure there are no list walkers.
 		 */
 		list_del_rcu(&p->list);
+		mcast->n_attached--;
 
 		/* If this was the last attached QP, remove the GID too. */
 		if (list_empty(&mcast->qp_list)) {
@@ -319,6 +343,7 @@ int ipath_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		atomic_dec(&mcast->refcount);
 		wait_event(mcast->wait, !atomic_read(&mcast->refcount));
 		ipath_mcast_free(mcast);
+		dev->n_mcast_grps_allocated--;
 	}
 
 	ret = 0;

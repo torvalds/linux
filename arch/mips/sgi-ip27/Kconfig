@@ -33,12 +33,13 @@ config MAPPED_KERNEL
 	depends on SGI_IP27
 	help
 	  Change the way a Linux kernel is loaded into memory on a MIPS64
-	  machine.  This is required in order to support text replication and
+	  machine.  This is required in order to support text replication on
 	  NUMA.  If you need to understand it, read the source code.
 
 config REPLICATE_KTEXT
 	bool "Kernel text replication support"
 	depends on SGI_IP27
+	select MAPPED_KERNEL
 	help
 	  Say Y here to enable replicating the kernel text across multiple
 	  nodes in a NUMA cluster.  This trades memory for speed.

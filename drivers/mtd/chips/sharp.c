@@ -140,6 +140,7 @@ static struct mtd_info *sharp_probe(struct map_info *map)
 	mtd->suspend = sharp_suspend;
 	mtd->resume = sharp_resume;
 	mtd->flags = MTD_CAP_NORFLASH;
+	mtd->writesize = 1;
 	mtd->name = map->name;
 
 	memset(sharp, 0, sizeof(*sharp));

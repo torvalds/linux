@@ -17,7 +17,6 @@
  * <linux/spinlock.h> we have to include <linux/spinlock.h> outside the
  * main big wrapper ...
  */
-#include <linux/config.h>
 #include <linux/spinlock.h>
 
 #ifndef _ASM_ATOMIC_H

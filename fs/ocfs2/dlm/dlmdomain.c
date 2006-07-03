@@ -41,13 +41,39 @@
 #include "dlmapi.h"
 #include "dlmcommon.h"
 
-#include "dlmdebug.h"
 #include "dlmdomain.h"
 
 #include "dlmver.h"
 
 #define MLOG_MASK_PREFIX (ML_DLM|ML_DLM_DOMAIN)
 #include "cluster/masklog.h"
+
+static void dlm_free_pagevec(void **vec, int pages)
+{
+	while (pages--)
+		free_page((unsigned long)vec[pages]);
+	kfree(vec);
+}
+
+static void **dlm_alloc_pagevec(int pages)
+{
+	void **vec = kmalloc(pages * sizeof(void *), GFP_KERNEL);
+	int i;
+
+	if (!vec)
+		return NULL;
+
+	for (i = 0; i < pages; i++)
+		if (!(vec[i] = (void *)__get_free_page(GFP_KERNEL)))
+			goto out_free;
+
+	mlog(0, "Allocated DLM hash pagevec; %d pages (%lu expected), %lu buckets per page\n",
+	     pages, DLM_HASH_PAGES, (unsigned long)DLM_BUCKETS_PER_PAGE);
+	return vec;
+out_free:
+	dlm_free_pagevec(vec, i);
+	return NULL;
+}
 
 /*
  *
@@ -62,7 +88,7 @@
  *
  */
 
-spinlock_t dlm_domain_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(dlm_domain_lock);
 LIST_HEAD(dlm_domains);
 static DECLARE_WAIT_QUEUE_HEAD(dlm_domain_events);
 
@@ -90,8 +116,7 @@ void __dlm_insert_lockres(struct dlm_ctxt *dlm,
 	assert_spin_locked(&dlm->spinlock);
 
 	q = &res->lockname;
-	q->hash = full_name_hash(q->name, q->len);
-	bucket = &(dlm->lockres_hash[q->hash % DLM_HASH_BUCKETS]);
+	bucket = dlm_lockres_hash(dlm, q->hash);
 
 	/* get a reference for our hashtable */
 	dlm_lockres_get(res);
@@ -100,34 +125,32 @@ void __dlm_insert_lockres(struct dlm_ctxt *dlm,
 }
 
 struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
-					 const char *name,
-					 unsigned int len)
+						const char *name,
+						unsigned int len,
+						unsigned int hash)
 {
-	unsigned int hash;
-	struct hlist_node *iter;
-	struct dlm_lock_resource *tmpres=NULL;
 	struct hlist_head *bucket;
+	struct hlist_node *list;
 
 	mlog_entry("%.*s\n", len, name);
 
 	assert_spin_locked(&dlm->spinlock);
 
-	hash = full_name_hash(name, len);
+	bucket = dlm_lockres_hash(dlm, hash);
 
-	bucket = &(dlm->lockres_hash[hash % DLM_HASH_BUCKETS]);
-
-	/* check for pre-existing lock */
-	hlist_for_each(iter, bucket) {
-		tmpres = hlist_entry(iter, struct dlm_lock_resource, hash_node);
-		if (tmpres->lockname.len == len &&
-		    memcmp(tmpres->lockname.name, name, len) == 0) {
-			dlm_lockres_get(tmpres);
-			break;
-		}
-
-		tmpres = NULL;
+	hlist_for_each(list, bucket) {
+		struct dlm_lock_resource *res = hlist_entry(list,
+			struct dlm_lock_resource, hash_node);
+		if (res->lockname.name[0] != name[0])
+			continue;
+		if (unlikely(res->lockname.len != len))
+			continue;
+		if (memcmp(res->lockname.name + 1, name + 1, len - 1))
+			continue;
+		dlm_lockres_get(res);
+		return res;
 	}
-	return tmpres;
+	return NULL;
 }
 
 struct dlm_lock_resource * dlm_lookup_lockres(struct dlm_ctxt *dlm,
@@ -135,9 +158,10 @@ struct dlm_lock_resource * dlm_lookup_lockres(struct dlm_ctxt *dlm,
 				    unsigned int len)
 {
 	struct dlm_lock_resource *res;
+	unsigned int hash = dlm_lockid_hash(name, len);
 
 	spin_lock(&dlm->spinlock);
-	res = __dlm_lookup_lockres(dlm, name, len);
+	res = __dlm_lookup_lockres(dlm, name, len, hash);
 	spin_unlock(&dlm->spinlock);
 	return res;
 }
@@ -194,7 +218,7 @@ static int dlm_wait_on_domain_helper(const char *domain)
 static void dlm_free_ctxt_mem(struct dlm_ctxt *dlm)
 {
 	if (dlm->lockres_hash)
-		free_page((unsigned long) dlm->lockres_hash);
+		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
 
 	if (dlm->name)
 		kfree(dlm->name);
@@ -278,11 +302,21 @@ int dlm_domain_fully_joined(struct dlm_ctxt *dlm)
 	return ret;
 }
 
+static void dlm_destroy_dlm_worker(struct dlm_ctxt *dlm)
+{
+	if (dlm->dlm_worker) {
+		flush_workqueue(dlm->dlm_worker);
+		destroy_workqueue(dlm->dlm_worker);
+		dlm->dlm_worker = NULL;
+	}
+}
+
 static void dlm_complete_dlm_shutdown(struct dlm_ctxt *dlm)
 {
 	dlm_unregister_domain_handlers(dlm);
 	dlm_complete_thread(dlm);
 	dlm_complete_recovery_thread(dlm);
+	dlm_destroy_dlm_worker(dlm);
 
 	/* We've left the domain. Now we can take ourselves out of the
 	 * list and allow the kref stuff to help us free the
@@ -304,8 +338,8 @@ static void dlm_migrate_all_locks(struct dlm_ctxt *dlm)
 restart:
 	spin_lock(&dlm->spinlock);
 	for (i = 0; i < DLM_HASH_BUCKETS; i++) {
-		while (!hlist_empty(&dlm->lockres_hash[i])) {
-			res = hlist_entry(dlm->lockres_hash[i].first,
+		while (!hlist_empty(dlm_lockres_hash(dlm, i))) {
+			res = hlist_entry(dlm_lockres_hash(dlm, i)->first,
 					  struct dlm_lock_resource, hash_node);
 			/* need reference when manually grabbing lockres */
 			dlm_lockres_get(res);
@@ -374,12 +408,13 @@ static void __dlm_print_nodes(struct dlm_ctxt *dlm)
 
 	assert_spin_locked(&dlm->spinlock);
 
-	mlog(ML_NOTICE, "Nodes in my domain (\"%s\"):\n", dlm->name);
+	printk(KERN_INFO "ocfs2_dlm: Nodes in domain (\"%s\"): ", dlm->name);
 
 	while ((node = find_next_bit(dlm->domain_map, O2NM_MAX_NODES,
 				     node + 1)) < O2NM_MAX_NODES) {
-		mlog(ML_NOTICE, " node %d\n", node);
+		printk("%d ", node);
 	}
+	printk("\n");
 }
 
 static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data)
@@ -395,7 +430,7 @@ static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	node = exit_msg->node_idx;
 
-	mlog(0, "Node %u leaves domain %s\n", node, dlm->name);
+	printk(KERN_INFO "ocfs2_dlm: Node %u leaves domain %s\n", node, dlm->name);
 
 	spin_lock(&dlm->spinlock);
 	clear_bit(node, dlm->domain_map);
@@ -644,6 +679,8 @@ static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data)
 		set_bit(assert->node_idx, dlm->domain_map);
 		__dlm_set_joining_node(dlm, DLM_LOCK_RES_OWNER_UNKNOWN);
 
+		printk(KERN_INFO "ocfs2_dlm: Node %u joins domain %s\n",
+		       assert->node_idx, dlm->name);
 		__dlm_print_nodes(dlm);
 
 		/* notify anything attached to the heartbeat events */
@@ -1126,6 +1163,13 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 		goto bail;
 	}
 
+	dlm->dlm_worker = create_singlethread_workqueue("dlm_wq");
+	if (!dlm->dlm_worker) {
+		status = -ENOMEM;
+		mlog_errno(status);
+		goto bail;
+	}
+
 	do {
 		unsigned int backoff;
 		status = dlm_try_to_join_domain(dlm);
@@ -1166,6 +1210,7 @@ bail:
 		dlm_unregister_domain_handlers(dlm);
 		dlm_complete_thread(dlm);
 		dlm_complete_recovery_thread(dlm);
+		dlm_destroy_dlm_worker(dlm);
 	}
 
 	return status;
@@ -1191,7 +1236,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 		goto leave;
 	}
 
-	dlm->lockres_hash = (struct hlist_head *) __get_free_page(GFP_KERNEL);
+	dlm->lockres_hash = (struct hlist_head **)dlm_alloc_pagevec(DLM_HASH_PAGES);
 	if (!dlm->lockres_hash) {
 		mlog_errno(-ENOMEM);
 		kfree(dlm->name);
@@ -1200,8 +1245,8 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 		goto leave;
 	}
 
-	for (i=0; i<DLM_HASH_BUCKETS; i++)
-		INIT_HLIST_HEAD(&dlm->lockres_hash[i]);
+	for (i = 0; i < DLM_HASH_BUCKETS; i++)
+		INIT_HLIST_HEAD(dlm_lockres_hash(dlm, i));
 
 	strcpy(dlm->name, domain);
 	dlm->key = key;
@@ -1231,6 +1276,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 
 	dlm->dlm_thread_task = NULL;
 	dlm->dlm_reco_thread_task = NULL;
+	dlm->dlm_worker = NULL;
 	init_waitqueue_head(&dlm->dlm_thread_wq);
 	init_waitqueue_head(&dlm->dlm_reco_thread_wq);
 	init_waitqueue_head(&dlm->reco.event);

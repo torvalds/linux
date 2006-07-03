@@ -33,7 +33,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/pci.h>
@@ -512,7 +511,7 @@ static struct sonypi_device {
 
 #ifdef CONFIG_ACPI
 static struct acpi_device *sonypi_acpi_device;
-static int acpi_enabled;
+static int acpi_driver_registered;
 #endif
 
 static int sonypi_ec_write(u8 addr, u8 value)
@@ -869,7 +868,7 @@ found:
 		sonypi_report_input_event(event);
 
 #ifdef CONFIG_ACPI
-	if (acpi_enabled)
+	if (sonypi_acpi_device)
 		acpi_bus_generate_event(sonypi_acpi_device, 1, event);
 #endif
 
@@ -1283,7 +1282,7 @@ static int __devinit sonypi_setup_irq(struct sonypi_device *dev,
 	while (irq_list->irq) {
 
 		if (!request_irq(irq_list->irq, sonypi_irq,
-				 SA_SHIRQ, "sonypi", sonypi_irq)) {
+				 IRQF_SHARED, "sonypi", sonypi_irq)) {
 			dev->irq = irq_list->irq;
 			dev->bits = irq_list->bits;
 			return 0;
@@ -1551,8 +1550,8 @@ static int __init sonypi_init(void)
 		goto err_free_device;
 
 #ifdef CONFIG_ACPI
-	if (acpi_bus_register_driver(&sonypi_acpi_driver) > 0)
-		acpi_enabled = 1;
+	if (acpi_bus_register_driver(&sonypi_acpi_driver) >= 0)
+		acpi_driver_registered = 1;
 #endif
 
 	return 0;
@@ -1567,7 +1566,7 @@ static int __init sonypi_init(void)
 static void __exit sonypi_exit(void)
 {
 #ifdef CONFIG_ACPI
-	if (acpi_enabled)
+	if (acpi_driver_registered)
 		acpi_bus_unregister_driver(&sonypi_acpi_driver);
 #endif
 	platform_device_unregister(sonypi_platform_device);

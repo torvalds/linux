@@ -9,7 +9,6 @@
 #ifndef __LINUX_USB_USUAL_H
 #define __LINUX_USB_USUAL_H
 
-#include <linux/config.h>
 
 /* We should do this for cleanliness... But other usb_foo.h do not do this. */
 /* #include <linux/usb.h> */

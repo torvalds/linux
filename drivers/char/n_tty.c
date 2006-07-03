@@ -1132,7 +1132,7 @@ static inline int input_available_p(struct tty_struct *tty, int amt)
  *	buffer, and once to drain the space from the (physical) beginning of
  *	the buffer to head pointer.
  *
- *	Called under the tty->atomic_read_lock sem and with TTY_DONT_FLIP set
+ *	Called under the tty->atomic_read_lock sem
  *
  */
  
@@ -1271,7 +1271,6 @@ do_it_again:
 	}
 
 	add_wait_queue(&tty->read_wait, &wait);
-	set_bit(TTY_DONT_FLIP, &tty->flags);
 	while (nr) {
 		/* First test for status change. */
 		if (tty->packet && tty->link->ctrl_status) {
@@ -1315,9 +1314,7 @@ do_it_again:
 				break;
 			}
 			n_tty_set_room(tty);
-			clear_bit(TTY_DONT_FLIP, &tty->flags);
 			timeout = schedule_timeout(timeout);
-			set_bit(TTY_DONT_FLIP, &tty->flags);
 			continue;
 		}
 		__set_current_state(TASK_RUNNING);
@@ -1394,7 +1391,6 @@ do_it_again:
 		if (time)
 			timeout = time;
 	}
-	clear_bit(TTY_DONT_FLIP, &tty->flags);
 	mutex_unlock(&tty->atomic_read_lock);
 	remove_wait_queue(&tty->read_wait, &wait);
 

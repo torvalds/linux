@@ -19,6 +19,7 @@ This document has the following sections:
 	- Key overview
 	- Key service overview
 	- Key access permissions
+	- SELinux support
 	- New procfs files
 	- Userspace system call interface
 	- Kernel services
@@ -232,6 +233,39 @@ For changing the ownership, group ID or permissions mask, being the owner of
 the key or having the sysadmin capability is sufficient.
 
 
+===============
+SELINUX SUPPORT
+===============
+
+The security class "key" has been added to SELinux so that mandatory access
+controls can be applied to keys created within various contexts.  This support
+is preliminary, and is likely to change quite significantly in the near future.
+Currently, all of the basic permissions explained above are provided in SELinux
+as well; SELinux is simply invoked after all basic permission checks have been
+performed.
+
+The value of the file /proc/self/attr/keycreate influences the labeling of
+newly-created keys.  If the contents of that file correspond to an SELinux
+security context, then the key will be assigned that context.  Otherwise, the
+key will be assigned the current context of the task that invoked the key
+creation request.  Tasks must be granted explicit permission to assign a
+particular context to newly-created keys, using the "create" permission in the
+key security class.
+
+The default keyrings associated with users will be labeled with the default
+context of the user if and only if the login programs have been instrumented to
+properly initialize keycreate during the login process.  Otherwise, they will
+be labeled with the context of the login program itself.
+
+Note, however, that the default keyrings associated with the root user are
+labeled with the default kernel context, since they are created early in the
+boot process, before root has a chance to log in.
+
+The keyrings associated with new threads are each labeled with the context of
+their associated thread, and both session and process keyrings are handled
+similarly.
+
+
 ================
 NEW PROCFS FILES
 ================
@@ -241,9 +275,17 @@ about the status of the key service:
 
  (*) /proc/keys
 
-     This lists all the keys on the system, giving information about their
-     type, description and permissions. The payload of the key is not available
-     this way:
+     This lists the keys that are currently viewable by the task reading the
+     file, giving information about their type, description and permissions.
+     It is not possible to view the payload of the key this way, though some
+     information about it may be given.
+
+     The only keys included in the list are those that grant View permission to
+     the reading process whether or not it possesses them.  Note that LSM
+     security checks are still performed, and may further filter out keys that
+     the current process is not authorised to view.
+
+     The contents of the file look like this:
 
 	SERIAL   FLAGS  USAGE EXPY PERM     UID   GID   TYPE      DESCRIPTION: SUMMARY
 	00000001 I-----    39 perm 1f3f0000     0     0 keyring   _uid_ses.0: 1/4
@@ -271,7 +313,7 @@ about the status of the key service:
  (*) /proc/key-users
 
      This file lists the tracking data for each user that has at least one key
-     on the system. Such data includes quota information and statistics:
+     on the system.  Such data includes quota information and statistics:
 
 	[root@andromeda root]# cat /proc/key-users
 	0:     46 45/45 1/100 13/10000
@@ -738,6 +780,17 @@ payload contents" for more information.
     See also Documentation/keys-request-key.txt.
 
 
+(*) To search for a key, passing auxiliary data to the upcaller, call:
+
+	struct key *request_key_with_auxdata(const struct key_type *type,
+					     const char *description,
+					     const char *callout_string,
+					     void *aux);
+
+    This is identical to request_key(), except that the auxiliary data is
+    passed to the key_type->request_key() op if it exists.
+
+
 (*) When it is no longer required, the key should be released using:
 
 	void key_put(struct key *key);
@@ -935,6 +988,16 @@ The structure has a number of fields, some of which are mandatory:
      It is not safe to sleep in this method; the caller may hold spinlocks.
 
 
+ (*) void (*revoke)(struct key *key);
+
+     This method is optional.  It is called to discard part of the payload
+     data upon a key being revoked.  The caller will have the key semaphore
+     write-locked.
+
+     It is safe to sleep in this method, though care should be taken to avoid
+     a deadlock against the key semaphore.
+
+
  (*) void (*destroy)(struct key *key);
 
      This method is optional. It is called to discard the payload data on a key
@@ -977,6 +1040,24 @@ The structure has a number of fields, some of which are mandatory:
      prevent the key's payload changing. It is not necessary to use RCU locking
      when accessing the key's payload. It is safe to sleep in this method, such
      as might happen when the userspace buffer is accessed.
+
+
+ (*) int (*request_key)(struct key *key, struct key *authkey, const char *op,
+			void *aux);
+
+     This method is optional.  If provided, request_key() and
+     request_key_with_auxdata() will invoke this function rather than
+     upcalling to /sbin/request-key to operate upon a key of this type.
+
+     The aux parameter is as passed to request_key_with_auxdata() or is NULL
+     otherwise.  Also passed are the key to be operated upon, the
+     authorisation key for this operation and the operation type (currently
+     only "create").
+
+     This function should return only when the upcall is complete.  Upon return
+     the authorisation key will be revoked, and the target key will be
+     negatively instantiated if it is still uninstantiated.  The error will be
+     returned to the caller of request_key*().
 
 
 ============================

@@ -194,7 +194,6 @@
  *		sem	-	guard dmabuf, write re-entry etc
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
@@ -4473,7 +4472,7 @@ trident_probe(struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 
 	/* claim our irq */
 	rc = -ENODEV;
-	if (request_irq(card->irq, &trident_interrupt, SA_SHIRQ, 
+	if (request_irq(card->irq, &trident_interrupt, IRQF_SHARED,
 			card_names[pci_id->driver_data], card)) {
 		printk(KERN_ERR "trident: unable to allocate irq %d\n", 
 		       card->irq);

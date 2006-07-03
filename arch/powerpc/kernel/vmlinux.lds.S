@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #ifdef CONFIG_PPC64
 #include <asm/page.h>
 #define PROVIDE32(x)	PROVIDE(__unused__##x)
@@ -93,6 +92,11 @@ SECTIONS
 		__ptov_table_begin = .;
 		*(.ptov_fixup);
 		__ptov_table_end = .;
+#ifdef CONFIG_PPC_ISERIES
+		__dt_strings_start = .;
+		*(.dt_strings);
+		__dt_strings_end = .;
+#endif
 	}
 
 	. = ALIGN(16);

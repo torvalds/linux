@@ -300,8 +300,6 @@ void mconsole_reboot(struct mc_request *req)
 	machine_restart(NULL);
 }
 
-extern void ctrl_alt_del(void);
-
 void mconsole_cad(struct mc_request *req)
 {
 	mconsole_reply(req, "", 0, 0);
@@ -779,7 +777,7 @@ static int mconsole_init(void)
 	register_reboot_notifier(&reboot_notifier);
 
 	err = um_request_irq(MCONSOLE_IRQ, sock, IRQ_READ, mconsole_interrupt,
-			     SA_INTERRUPT | SA_SHIRQ | SA_SAMPLE_RANDOM,
+			     IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM,
 			     "mconsole", (void *)sock);
 	if (err){
 		printk("Failed to get IRQ for management console\n");

@@ -17,8 +17,8 @@
  * These interrupt-safe spinlocks protect all accesses to RIO
  * configuration space and doorbell access.
  */
-static spinlock_t rio_config_lock = SPIN_LOCK_UNLOCKED;
-static spinlock_t rio_doorbell_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(rio_config_lock);
+static DEFINE_SPINLOCK(rio_doorbell_lock);
 
 /*
  *  Wrappers for all RIO configuration access functions.  They just check

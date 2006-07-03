@@ -4,11 +4,11 @@
 
    National Semiconductor SCx200 support. */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 
 #include <linux/scx200.h>
@@ -45,11 +45,19 @@ static struct pci_driver scx200_pci_driver = {
 	.probe = scx200_probe,
 };
 
-static DEFINE_SPINLOCK(scx200_gpio_config_lock);
+static DEFINE_MUTEX(scx200_gpio_config_lock);
+
+static void __devinit scx200_init_shadow(void)
+{
+	int bank;
+
+	/* read the current values driven on the GPIO signals */
+	for (bank = 0; bank < 2; ++bank)
+		scx200_gpio_shadow[bank] = inl(scx200_gpio_base + 0x10 * bank);
+}
 
 static int __devinit scx200_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	int bank;
 	unsigned base;
 
 	if (pdev->device == PCI_DEVICE_ID_NS_SCx200_BRIDGE ||
@@ -63,10 +71,7 @@ static int __devinit scx200_probe(struct pci_dev *pdev, const struct pci_device_
 		}
 
 		scx200_gpio_base = base;
-
-		/* read the current values driven on the GPIO signals */
-		for (bank = 0; bank < 2; ++bank)
-			scx200_gpio_shadow[bank] = inl(scx200_gpio_base + 0x10 * bank);
+		scx200_init_shadow();
 
 	} else {
 		/* find the base of the Configuration Block */
@@ -87,12 +92,11 @@ static int __devinit scx200_probe(struct pci_dev *pdev, const struct pci_device_
 	return 0;
 }
 
-u32 scx200_gpio_configure(int index, u32 mask, u32 bits)
+u32 scx200_gpio_configure(unsigned index, u32 mask, u32 bits)
 {
 	u32 config, new_config;
-	unsigned long flags;
 
-	spin_lock_irqsave(&scx200_gpio_config_lock, flags);
+	mutex_lock(&scx200_gpio_config_lock);
 
 	outl(index, scx200_gpio_base + 0x20);
 	config = inl(scx200_gpio_base + 0x24);
@@ -100,44 +104,10 @@ u32 scx200_gpio_configure(int index, u32 mask, u32 bits)
 	new_config = (config & mask) | bits;
 	outl(new_config, scx200_gpio_base + 0x24);
 
-	spin_unlock_irqrestore(&scx200_gpio_config_lock, flags);
+	mutex_unlock(&scx200_gpio_config_lock);
 
 	return config;
 }
-
-#if 0
-void scx200_gpio_dump(unsigned index)
-{
-	u32 config = scx200_gpio_configure(index, ~0, 0);
-	printk(KERN_DEBUG "GPIO%02u: 0x%08lx", index, (unsigned long)config);
-	
-	if (config & 1) 
-		printk(" OE"); /* output enabled */
-	else
-		printk(" TS"); /* tristate */
-	if (config & 2) 
-		printk(" PP"); /* push pull */
-	else
-		printk(" OD"); /* open drain */
-	if (config & 4) 
-		printk(" PUE"); /* pull up enabled */
-	else
-		printk(" PUD"); /* pull up disabled */
-	if (config & 8) 
-		printk(" LOCKED"); /* locked */
-	if (config & 16) 
-		printk(" LEVEL"); /* level input */
-	else
-		printk(" EDGE"); /* edge input */
-	if (config & 32) 
-		printk(" HI"); /* trigger on rising edge */
-	else
-		printk(" LO"); /* trigger on falling edge */
-	if (config & 64) 
-		printk(" DEBOUNCE"); /* debounce */
-	printk("\n");
-}
-#endif  /*  0  */
 
 static int __init scx200_init(void)
 {
@@ -159,10 +129,3 @@ EXPORT_SYMBOL(scx200_gpio_base);
 EXPORT_SYMBOL(scx200_gpio_shadow);
 EXPORT_SYMBOL(scx200_gpio_configure);
 EXPORT_SYMBOL(scx200_cb_base);
-
-/*
-    Local variables:
-        compile-command: "make -k -C ../../.. SUBDIRS=arch/i386/kernel modules"
-        c-basic-offset: 8
-    End:
-*/

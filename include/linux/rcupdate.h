@@ -163,14 +163,22 @@ extern int rcu_needs_cpu(int cpu);
  *
  * It is illegal to block while in an RCU read-side critical section.
  */
-#define rcu_read_lock()		preempt_disable()
+#define rcu_read_lock() \
+	do { \
+		preempt_disable(); \
+		__acquire(RCU); \
+	} while(0)
 
 /**
  * rcu_read_unlock - marks the end of an RCU read-side critical section.
  *
  * See rcu_read_lock() for more information.
  */
-#define rcu_read_unlock()	preempt_enable()
+#define rcu_read_unlock() \
+	do { \
+		__release(RCU); \
+		preempt_enable(); \
+	} while(0)
 
 /*
  * So where is rcu_write_lock()?  It does not exist, as there is no
@@ -193,14 +201,22 @@ extern int rcu_needs_cpu(int cpu);
  * can use just rcu_read_lock().
  *
  */
-#define rcu_read_lock_bh()	local_bh_disable()
+#define rcu_read_lock_bh() \
+	do { \
+		local_bh_disable(); \
+		__acquire(RCU_BH); \
+	} while(0)
 
 /*
  * rcu_read_unlock_bh - marks the end of a softirq-only RCU critical section
  *
  * See rcu_read_lock_bh() for more information.
  */
-#define rcu_read_unlock_bh()	local_bh_enable()
+#define rcu_read_unlock_bh() \
+	do { \
+		__release(RCU_BH); \
+		local_bh_enable(); \
+	} while(0)
 
 /**
  * rcu_dereference - fetch an RCU-protected pointer in an
@@ -246,7 +262,7 @@ extern int rcu_needs_cpu(int cpu);
  * softirq handlers will have completed, since in some kernels, these
  * handlers can run in process context, and can block.
  *
- * This primitive provides the guarantees made by the (deprecated)
+ * This primitive provides the guarantees made by the (now removed)
  * synchronize_kernel() API.  In contrast, synchronize_rcu() only
  * guarantees that rcu_read_lock() sections will have completed.
  * In "classic RCU", these two guarantees happen to be one and
@@ -258,13 +274,13 @@ extern void rcu_init(void);
 extern void rcu_check_callbacks(int cpu, int user);
 extern void rcu_restart_cpu(int cpu);
 extern long rcu_batches_completed(void);
+extern long rcu_batches_completed_bh(void);
 
 /* Exported interfaces */
 extern void FASTCALL(call_rcu(struct rcu_head *head, 
 				void (*func)(struct rcu_head *head)));
 extern void FASTCALL(call_rcu_bh(struct rcu_head *head,
 				void (*func)(struct rcu_head *head)));
-extern __deprecated_for_modules void synchronize_kernel(void);
 extern void synchronize_rcu(void);
 void synchronize_idle(void);
 extern void rcu_barrier(void);

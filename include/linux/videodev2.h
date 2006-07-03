@@ -1,35 +1,33 @@
-#ifndef __LINUX_VIDEODEV2_H
-#define __LINUX_VIDEODEV2_H
 /*
  *	Video for Linux Two
  *
- *	Header file for v4l or V4L2 drivers and applications, for
- *	Linux kernels 2.2.x or 2.4.x.
+ *	Header file for v4l or V4L2 drivers and applications
+ * with public API.
+ * All kernel-specific stuff were moved to media/v4l2-dev.h, so
+ * no #if __KERNEL tests are allowed here
  *
- *	See http://bytesex.org/v4l/ for API specs and other
- *	v4l2 documentation.
+ *	See http://linuxtv.org for more info
  *
  *	Author: Bill Dirks <bdirks@pacbell.net>
  *		Justin Schoeman
  *		et al.
  */
+#ifndef __LINUX_VIDEODEV2_H
+#define __LINUX_VIDEODEV2_H
 #ifdef __KERNEL__
-#include <linux/time.h> /* need struct timeval */
-#include <linux/poll.h>
-#include <linux/device.h>
-#include <linux/mutex.h>
-#endif
+#include <linux/time.h>     /* need struct timeval */
 #include <linux/compiler.h> /* need __user */
+#else
+#define __user
+#endif
+#include <linux/types.h>
 
-
-#define OBSOLETE_OWNER 1 /* It will be removed for 2.6.17 */
 #define HAVE_V4L2 1
 
 /*
  * Common stuff for both V4L1 and V4L2
  * Moved from videodev.h
  */
-
 #define VIDEO_MAX_FRAME               32
 
 #define VID_TYPE_CAPTURE	1	/* Can capture */
@@ -46,71 +44,6 @@
 #define VID_TYPE_MPEG_ENCODER	2048	/* Can encode MPEG streams */
 #define VID_TYPE_MJPEG_DECODER	4096	/* Can decode MJPEG streams */
 #define VID_TYPE_MJPEG_ENCODER	8192	/* Can encode MJPEG streams */
-
-#ifdef __KERNEL__
-
-/* Minor device allocation */
-#define MINOR_VFL_TYPE_GRABBER_MIN   0
-#define MINOR_VFL_TYPE_GRABBER_MAX  63
-#define MINOR_VFL_TYPE_RADIO_MIN    64
-#define MINOR_VFL_TYPE_RADIO_MAX   127
-#define MINOR_VFL_TYPE_VTX_MIN     192
-#define MINOR_VFL_TYPE_VTX_MAX     223
-#define MINOR_VFL_TYPE_VBI_MIN     224
-#define MINOR_VFL_TYPE_VBI_MAX     255
-
-#define VFL_TYPE_GRABBER	0
-#define VFL_TYPE_VBI		1
-#define VFL_TYPE_RADIO		2
-#define VFL_TYPE_VTX		3
-
-struct video_device
-{
-	/* device info */
-	struct device *dev;
-	char name[32];
-	int type;       /* v4l1 */
-	int type2;      /* v4l2 */
-	int hardware;
-	int minor;
-
-	/* device ops + callbacks */
-	const struct file_operations *fops;
-	void (*release)(struct video_device *vfd);
-
-
-#if OBSOLETE_OWNER /* to be removed in 2.6.15 */
-	/* obsolete -- fops->owner is used instead */
-	struct module *owner;
-	/* dev->driver_data will be used instead some day.
-	 * Use the video_{get|set}_drvdata() helper functions,
-	 * so the switch over will be transparent for you.
-	 * Or use {pci|usb}_{get|set}_drvdata() directly. */
-	void *priv;
-#endif
-
-	/* for videodev.c intenal usage -- please don't touch */
-	int users;                     /* video_exclusive_{open|close} ... */
-	struct mutex lock;             /* ... helper function uses these   */
-	char devfs_name[64];           /* devfs */
-	struct class_device class_dev; /* sysfs */
-};
-
-#define VIDEO_MAJOR	81
-
-extern int video_register_device(struct video_device *, int type, int nr);
-extern void video_unregister_device(struct video_device *);
-extern int video_usercopy(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg,
-			  int (*func)(struct inode *inode, struct file *file,
-				      unsigned int cmd, void *arg));
-
-/* helper functions to alloc / release struct video_device, the
-   later can be used for video_device->release() */
-struct video_device *video_device_alloc(void);
-void video_device_release(struct video_device *vfd);
-
-#endif
 
 /*
  *	M I S C E L L A N E O U S
@@ -172,6 +105,8 @@ enum v4l2_ctrl_type {
 	V4L2_CTRL_TYPE_BOOLEAN	     = 2,
 	V4L2_CTRL_TYPE_MENU	     = 3,
 	V4L2_CTRL_TYPE_BUTTON	     = 4,
+	V4L2_CTRL_TYPE_INTEGER64     = 5,
+	V4L2_CTRL_TYPE_CTRL_CLASS    = 6,
 };
 
 enum v4l2_tuner_type {
@@ -270,7 +205,6 @@ struct v4l2_capability
 /*
  *	V I D E O   I M A G E   F O R M A T
  */
-
 struct v4l2_pix_format
 {
 	__u32         		width;
@@ -283,7 +217,7 @@ struct v4l2_pix_format
 	__u32			priv;		/* private data, depends on pixelformat */
 };
 
-/*           Pixel format    FOURCC                  depth  Description   */
+/*      Pixel format         FOURCC                        depth  Description  */
 #define V4L2_PIX_FMT_RGB332  v4l2_fourcc('R','G','B','1') /*  8  RGB-3-3-2     */
 #define V4L2_PIX_FMT_RGB555  v4l2_fourcc('R','G','B','O') /* 16  RGB-5-5-5     */
 #define V4L2_PIX_FMT_RGB565  v4l2_fourcc('R','G','B','P') /* 16  RGB-5-6-5     */
@@ -311,6 +245,7 @@ struct v4l2_pix_format
 #define V4L2_PIX_FMT_YUV420  v4l2_fourcc('Y','U','1','2') /* 12  YUV 4:2:0     */
 #define V4L2_PIX_FMT_YYUV    v4l2_fourcc('Y','Y','U','V') /* 16  YUV 4:2:2     */
 #define V4L2_PIX_FMT_HI240   v4l2_fourcc('H','I','2','4') /*  8  8-bit color   */
+#define V4L2_PIX_FMT_HM12    v4l2_fourcc('H','M','1','2') /*  8  YUV 4:1:1 16x16 macroblocks */
 
 /* see http://www.siliconimaging.com/RGB%20Bayer.htm */
 #define V4L2_PIX_FMT_SBGGR8  v4l2_fourcc('B','A','8','1') /*  8  BGBG.. GRGR.. */
@@ -319,7 +254,7 @@ struct v4l2_pix_format
 #define V4L2_PIX_FMT_MJPEG    v4l2_fourcc('M','J','P','G') /* Motion-JPEG   */
 #define V4L2_PIX_FMT_JPEG     v4l2_fourcc('J','P','E','G') /* JFIF JPEG     */
 #define V4L2_PIX_FMT_DV       v4l2_fourcc('d','v','s','d') /* 1394          */
-#define V4L2_PIX_FMT_MPEG     v4l2_fourcc('M','P','E','G') /* MPEG          */
+#define V4L2_PIX_FMT_MPEG     v4l2_fourcc('M','P','E','G') /* MPEG-1/2/4    */
 
 /*  Vendor-specific formats   */
 #define V4L2_PIX_FMT_WNVA     v4l2_fourcc('W','N','V','A') /* Winnov hw compress */
@@ -342,7 +277,6 @@ struct v4l2_fmtdesc
 };
 
 #define V4L2_FMT_FLAG_COMPRESSED 0x0001
-
 
 /*
  *	T I M E C O D E
@@ -373,16 +307,15 @@ struct v4l2_timecode
 #define V4L2_TC_USERBITS_8BITCHARS	0x0008
 /* The above is based on SMPTE timecodes */
 
-
+#ifdef __KERNEL__
 /*
  *	M P E G   C O M P R E S S I O N   P A R A M E T E R S
  *
- *  ### WARNING: this is still work-in-progress right now, most likely
- *  ###          there will be some incompatible changes.
+ *  ### WARNING: This experimental MPEG compression API is obsolete.
+ *  ###          It is replaced by the MPEG controls API.
+ *  ###          This old API will disappear in the near future!
  *
  */
-
-
 enum v4l2_bitrate_mode {
 	V4L2_BITRATE_NONE = 0,	/* not specified */
 	V4L2_BITRATE_CBR,	/* constant bitrate */
@@ -460,6 +393,7 @@ struct v4l2_mpeg_compression {
 	/* I don't expect the above being perfect yet ;) */
 	__u32				reserved_5[8];
 };
+#endif
 
 struct v4l2_jpegcompression
 {
@@ -490,7 +424,6 @@ struct v4l2_jpegcompression
 #define V4L2_JPEG_MARKER_APP (1<<7)    /* App segment, driver will
 					* allways use APP0 */
 };
-
 
 /*
  *	M E M O R Y - M A P P I N G   B U F F E R S
@@ -573,7 +506,6 @@ struct v4l2_window
 	void			__user *bitmap;
 };
 
-
 /*
  *	C A P T U R E   P A R A M E T E R S
  */
@@ -586,6 +518,7 @@ struct v4l2_captureparm
 	__u32              readbuffers;   /*  # of buffers for read */
 	__u32		   reserved[4];
 };
+
 /*  Flags for 'capability' and 'capturemode' fields */
 #define V4L2_MODE_HIGHQUALITY	0x0001	/*  High quality imaging mode */
 #define V4L2_CAP_TIMEPERFRAME	0x1000	/*  timeperframe field is supported */
@@ -603,7 +536,6 @@ struct v4l2_outputparm
 /*
  *	I N P U T   I M A G E   C R O P P I N G
  */
-
 struct v4l2_cropcap {
 	enum v4l2_buf_type      type;
 	struct v4l2_rect        bounds;
@@ -710,7 +642,6 @@ struct v4l2_standard
 	__u32		     reserved[4];
 };
 
-
 /*
  *	V I D E O   I N P U T S
  */
@@ -725,6 +656,7 @@ struct v4l2_input
 	__u32	     status;
 	__u32	     reserved[4];
 };
+
 /*  Values for the 'type' field */
 #define V4L2_INPUT_TYPE_TUNER		1
 #define V4L2_INPUT_TYPE_CAMERA		2
@@ -775,6 +707,34 @@ struct v4l2_control
 	__s32		     value;
 };
 
+struct v4l2_ext_control
+{
+	__u32 id;
+	__u32 reserved2[2];
+	union {
+		__s32 value;
+		__s64 value64;
+		void *reserved;
+	};
+};
+
+struct v4l2_ext_controls
+{
+	__u32 ctrl_class;
+	__u32 count;
+	__u32 error_idx;
+	__u32 reserved[2];
+	struct v4l2_ext_control *controls;
+};
+
+/*  Values for ctrl_class field */
+#define V4L2_CTRL_CLASS_USER 0x00980000	/* Old-style 'user' controls */
+#define V4L2_CTRL_CLASS_MPEG 0x00990000	/* MPEG-compression controls */
+
+#define V4L2_CTRL_ID_MASK      	  (0x0fffffff)
+#define V4L2_CTRL_ID2CLASS(id)    ((id) & 0x0fff0000UL)
+#define V4L2_CTRL_DRIVER_PRIV(id) (((id) & 0xffff) >= 0x1000)
+
 /*  Used in the VIDIOC_QUERYCTRL ioctl for querying controls */
 struct v4l2_queryctrl
 {
@@ -801,12 +761,21 @@ struct v4l2_querymenu
 /*  Control flags  */
 #define V4L2_CTRL_FLAG_DISABLED		0x0001
 #define V4L2_CTRL_FLAG_GRABBED		0x0002
+#define V4L2_CTRL_FLAG_READ_ONLY 	0x0004
+#define V4L2_CTRL_FLAG_UPDATE 		0x0008
+#define V4L2_CTRL_FLAG_INACTIVE 	0x0010
+#define V4L2_CTRL_FLAG_SLIDER 		0x0020
 
-/*  Control IDs defined by V4L2 */
-#define V4L2_CID_BASE			0x00980900
+/*  Query flag, to be ORed with the control ID */
+#define V4L2_CTRL_FLAG_NEXT_CTRL	0x80000000
+
+/*  User-class control IDs defined by V4L2 */
+#define V4L2_CID_BASE			(V4L2_CTRL_CLASS_USER | 0x900)
+#define V4L2_CID_USER_BASE 		V4L2_CID_BASE
 /*  IDs reserved for driver specific controls */
 #define V4L2_CID_PRIVATE_BASE		0x08000000
 
+#define V4L2_CID_USER_CLASS 		(V4L2_CTRL_CLASS_USER | 1)
 #define V4L2_CID_BRIGHTNESS		(V4L2_CID_BASE+0)
 #define V4L2_CID_CONTRAST		(V4L2_CID_BASE+1)
 #define V4L2_CID_SATURATION		(V4L2_CID_BASE+2)
@@ -832,6 +801,188 @@ struct v4l2_querymenu
 #define V4L2_CID_HCENTER		(V4L2_CID_BASE+22)
 #define V4L2_CID_VCENTER		(V4L2_CID_BASE+23)
 #define V4L2_CID_LASTP1			(V4L2_CID_BASE+24) /* last CID + 1 */
+
+/*  MPEG-class control IDs defined by V4L2 */
+#define V4L2_CID_MPEG_BASE 			(V4L2_CTRL_CLASS_MPEG | 0x900)
+#define V4L2_CID_MPEG_CLASS 			(V4L2_CTRL_CLASS_MPEG | 1)
+
+/*  MPEG streams */
+#define V4L2_CID_MPEG_STREAM_TYPE 		(V4L2_CID_MPEG_BASE+0)
+enum v4l2_mpeg_stream_type {
+	V4L2_MPEG_STREAM_TYPE_MPEG2_PS   = 0, /* MPEG-2 program stream */
+	V4L2_MPEG_STREAM_TYPE_MPEG2_TS   = 1, /* MPEG-2 transport stream */
+	V4L2_MPEG_STREAM_TYPE_MPEG1_SS   = 2, /* MPEG-1 system stream */
+	V4L2_MPEG_STREAM_TYPE_MPEG2_DVD  = 3, /* MPEG-2 DVD-compatible stream */
+	V4L2_MPEG_STREAM_TYPE_MPEG1_VCD  = 4, /* MPEG-1 VCD-compatible stream */
+	V4L2_MPEG_STREAM_TYPE_MPEG2_SVCD = 5, /* MPEG-2 SVCD-compatible stream */
+};
+#define V4L2_CID_MPEG_STREAM_PID_PMT 		(V4L2_CID_MPEG_BASE+1)
+#define V4L2_CID_MPEG_STREAM_PID_AUDIO 		(V4L2_CID_MPEG_BASE+2)
+#define V4L2_CID_MPEG_STREAM_PID_VIDEO 		(V4L2_CID_MPEG_BASE+3)
+#define V4L2_CID_MPEG_STREAM_PID_PCR 		(V4L2_CID_MPEG_BASE+4)
+#define V4L2_CID_MPEG_STREAM_PES_ID_AUDIO 	(V4L2_CID_MPEG_BASE+5)
+#define V4L2_CID_MPEG_STREAM_PES_ID_VIDEO 	(V4L2_CID_MPEG_BASE+6)
+#define V4L2_CID_MPEG_STREAM_VBI_FMT 		(V4L2_CID_MPEG_BASE+7)
+enum v4l2_mpeg_stream_vbi_fmt {
+	V4L2_MPEG_STREAM_VBI_FMT_NONE = 0,  /* No VBI in the MPEG stream */
+	V4L2_MPEG_STREAM_VBI_FMT_IVTV = 1,  /* VBI in private packets, IVTV format */
+};
+
+/*  MPEG audio */
+#define V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ 	(V4L2_CID_MPEG_BASE+100)
+enum v4l2_mpeg_audio_sampling_freq {
+	V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100 = 0,
+	V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000 = 1,
+	V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000 = 2,
+};
+#define V4L2_CID_MPEG_AUDIO_ENCODING 		(V4L2_CID_MPEG_BASE+101)
+enum v4l2_mpeg_audio_encoding {
+	V4L2_MPEG_AUDIO_ENCODING_LAYER_1 = 0,
+	V4L2_MPEG_AUDIO_ENCODING_LAYER_2 = 1,
+	V4L2_MPEG_AUDIO_ENCODING_LAYER_3 = 2,
+};
+#define V4L2_CID_MPEG_AUDIO_L1_BITRATE 		(V4L2_CID_MPEG_BASE+102)
+enum v4l2_mpeg_audio_l1_bitrate {
+	V4L2_MPEG_AUDIO_L1_BITRATE_32K  = 0,
+	V4L2_MPEG_AUDIO_L1_BITRATE_64K  = 1,
+	V4L2_MPEG_AUDIO_L1_BITRATE_96K  = 2,
+	V4L2_MPEG_AUDIO_L1_BITRATE_128K = 3,
+	V4L2_MPEG_AUDIO_L1_BITRATE_160K = 4,
+	V4L2_MPEG_AUDIO_L1_BITRATE_192K = 5,
+	V4L2_MPEG_AUDIO_L1_BITRATE_224K = 6,
+	V4L2_MPEG_AUDIO_L1_BITRATE_256K = 7,
+	V4L2_MPEG_AUDIO_L1_BITRATE_288K = 8,
+	V4L2_MPEG_AUDIO_L1_BITRATE_320K = 9,
+	V4L2_MPEG_AUDIO_L1_BITRATE_352K = 10,
+	V4L2_MPEG_AUDIO_L1_BITRATE_384K = 11,
+	V4L2_MPEG_AUDIO_L1_BITRATE_416K = 12,
+	V4L2_MPEG_AUDIO_L1_BITRATE_448K = 13,
+};
+#define V4L2_CID_MPEG_AUDIO_L2_BITRATE 		(V4L2_CID_MPEG_BASE+103)
+enum v4l2_mpeg_audio_l2_bitrate {
+	V4L2_MPEG_AUDIO_L2_BITRATE_32K  = 0,
+	V4L2_MPEG_AUDIO_L2_BITRATE_48K  = 1,
+	V4L2_MPEG_AUDIO_L2_BITRATE_56K  = 2,
+	V4L2_MPEG_AUDIO_L2_BITRATE_64K  = 3,
+	V4L2_MPEG_AUDIO_L2_BITRATE_80K  = 4,
+	V4L2_MPEG_AUDIO_L2_BITRATE_96K  = 5,
+	V4L2_MPEG_AUDIO_L2_BITRATE_112K = 6,
+	V4L2_MPEG_AUDIO_L2_BITRATE_128K = 7,
+	V4L2_MPEG_AUDIO_L2_BITRATE_160K = 8,
+	V4L2_MPEG_AUDIO_L2_BITRATE_192K = 9,
+	V4L2_MPEG_AUDIO_L2_BITRATE_224K = 10,
+	V4L2_MPEG_AUDIO_L2_BITRATE_256K = 11,
+	V4L2_MPEG_AUDIO_L2_BITRATE_320K = 12,
+	V4L2_MPEG_AUDIO_L2_BITRATE_384K = 13,
+};
+#define V4L2_CID_MPEG_AUDIO_L3_BITRATE 		(V4L2_CID_MPEG_BASE+104)
+enum v4l2_mpeg_audio_l3_bitrate {
+	V4L2_MPEG_AUDIO_L3_BITRATE_32K  = 0,
+	V4L2_MPEG_AUDIO_L3_BITRATE_40K  = 1,
+	V4L2_MPEG_AUDIO_L3_BITRATE_48K  = 2,
+	V4L2_MPEG_AUDIO_L3_BITRATE_56K  = 3,
+	V4L2_MPEG_AUDIO_L3_BITRATE_64K  = 4,
+	V4L2_MPEG_AUDIO_L3_BITRATE_80K  = 5,
+	V4L2_MPEG_AUDIO_L3_BITRATE_96K  = 6,
+	V4L2_MPEG_AUDIO_L3_BITRATE_112K = 7,
+	V4L2_MPEG_AUDIO_L3_BITRATE_128K = 8,
+	V4L2_MPEG_AUDIO_L3_BITRATE_160K = 9,
+	V4L2_MPEG_AUDIO_L3_BITRATE_192K = 10,
+	V4L2_MPEG_AUDIO_L3_BITRATE_224K = 11,
+	V4L2_MPEG_AUDIO_L3_BITRATE_256K = 12,
+	V4L2_MPEG_AUDIO_L3_BITRATE_320K = 13,
+};
+#define V4L2_CID_MPEG_AUDIO_MODE 		(V4L2_CID_MPEG_BASE+105)
+enum v4l2_mpeg_audio_mode {
+	V4L2_MPEG_AUDIO_MODE_STEREO       = 0,
+	V4L2_MPEG_AUDIO_MODE_JOINT_STEREO = 1,
+	V4L2_MPEG_AUDIO_MODE_DUAL         = 2,
+	V4L2_MPEG_AUDIO_MODE_MONO         = 3,
+};
+#define V4L2_CID_MPEG_AUDIO_MODE_EXTENSION 	(V4L2_CID_MPEG_BASE+106)
+enum v4l2_mpeg_audio_mode_extension {
+	V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_4  = 0,
+	V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_8  = 1,
+	V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_12 = 2,
+	V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_16 = 3,
+};
+#define V4L2_CID_MPEG_AUDIO_EMPHASIS 		(V4L2_CID_MPEG_BASE+107)
+enum v4l2_mpeg_audio_emphasis {
+	V4L2_MPEG_AUDIO_EMPHASIS_NONE         = 0,
+	V4L2_MPEG_AUDIO_EMPHASIS_50_DIV_15_uS = 1,
+	V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17    = 2,
+};
+#define V4L2_CID_MPEG_AUDIO_CRC 		(V4L2_CID_MPEG_BASE+108)
+enum v4l2_mpeg_audio_crc {
+	V4L2_MPEG_AUDIO_CRC_NONE  = 0,
+	V4L2_MPEG_AUDIO_CRC_CRC16 = 1,
+};
+
+/*  MPEG video */
+#define V4L2_CID_MPEG_VIDEO_ENCODING 		(V4L2_CID_MPEG_BASE+200)
+enum v4l2_mpeg_video_encoding {
+	V4L2_MPEG_VIDEO_ENCODING_MPEG_1 = 0,
+	V4L2_MPEG_VIDEO_ENCODING_MPEG_2 = 1,
+};
+#define V4L2_CID_MPEG_VIDEO_ASPECT 		(V4L2_CID_MPEG_BASE+201)
+enum v4l2_mpeg_video_aspect {
+	V4L2_MPEG_VIDEO_ASPECT_1x1     = 0,
+	V4L2_MPEG_VIDEO_ASPECT_4x3     = 1,
+	V4L2_MPEG_VIDEO_ASPECT_16x9    = 2,
+	V4L2_MPEG_VIDEO_ASPECT_221x100 = 3,
+};
+#define V4L2_CID_MPEG_VIDEO_B_FRAMES 		(V4L2_CID_MPEG_BASE+202)
+#define V4L2_CID_MPEG_VIDEO_GOP_SIZE 		(V4L2_CID_MPEG_BASE+203)
+#define V4L2_CID_MPEG_VIDEO_GOP_CLOSURE 	(V4L2_CID_MPEG_BASE+204)
+#define V4L2_CID_MPEG_VIDEO_PULLDOWN 		(V4L2_CID_MPEG_BASE+205)
+#define V4L2_CID_MPEG_VIDEO_BITRATE_MODE 	(V4L2_CID_MPEG_BASE+206)
+enum v4l2_mpeg_video_bitrate_mode {
+	V4L2_MPEG_VIDEO_BITRATE_MODE_VBR = 0,
+	V4L2_MPEG_VIDEO_BITRATE_MODE_CBR = 1,
+};
+#define V4L2_CID_MPEG_VIDEO_BITRATE 		(V4L2_CID_MPEG_BASE+207)
+#define V4L2_CID_MPEG_VIDEO_BITRATE_PEAK 	(V4L2_CID_MPEG_BASE+208)
+#define V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION (V4L2_CID_MPEG_BASE+209)
+
+/*  MPEG-class control IDs specific to the CX2584x driver as defined by V4L2 */
+#define V4L2_CID_MPEG_CX2341X_BASE 				(V4L2_CTRL_CLASS_MPEG | 0x1000)
+#define V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE 	(V4L2_CID_MPEG_CX2341X_BASE+0)
+enum v4l2_mpeg_cx2341x_video_spatial_filter_mode {
+	V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_MANUAL = 0,
+	V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_AUTO   = 1,
+};
+#define V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER 		(V4L2_CID_MPEG_CX2341X_BASE+1)
+#define V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE 	(V4L2_CID_MPEG_CX2341X_BASE+2)
+enum v4l2_mpeg_cx2341x_video_luma_spatial_filter_type {
+	V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_OFF                  = 0,
+	V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_HOR               = 1,
+	V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_VERT              = 2,
+	V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_HV_SEPARABLE      = 3,
+	V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_NON_SEPARABLE = 4,
+};
+#define V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE 	(V4L2_CID_MPEG_CX2341X_BASE+3)
+enum v4l2_mpeg_cx2341x_video_chroma_spatial_filter_type {
+	V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_OFF    = 0,
+	V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_1D_HOR = 1,
+};
+#define V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE 	(V4L2_CID_MPEG_CX2341X_BASE+4)
+enum v4l2_mpeg_cx2341x_video_temporal_filter_mode {
+	V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_MANUAL = 0,
+	V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_AUTO   = 1,
+};
+#define V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER 		(V4L2_CID_MPEG_CX2341X_BASE+5)
+#define V4L2_CID_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE 		(V4L2_CID_MPEG_CX2341X_BASE+6)
+enum v4l2_mpeg_cx2341x_video_median_filter_type {
+	V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF      = 0,
+	V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_HOR      = 1,
+	V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_VERT     = 2,
+	V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_HOR_VERT = 3,
+	V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_DIAG     = 4,
+};
+#define V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_MEDIAN_FILTER_BOTTOM 	(V4L2_CID_MPEG_CX2341X_BASE+7)
+#define V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_MEDIAN_FILTER_TOP 	(V4L2_CID_MPEG_CX2341X_BASE+8)
+#define V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM	(V4L2_CID_MPEG_CX2341X_BASE+9)
+#define V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_TOP 	(V4L2_CID_MPEG_CX2341X_BASE+10)
 
 /*
  *	T U N I N G
@@ -904,6 +1055,7 @@ struct v4l2_audio
 	__u32	mode;
 	__u32	reserved[2];
 };
+
 /*  Flags for the 'capability' field */
 #define V4L2_AUDCAP_STEREO		0x00001
 #define V4L2_AUDCAP_AVL			0x00002
@@ -927,7 +1079,6 @@ struct v4l2_audioout
  */
 
 /* Raw VBI */
-
 struct v4l2_vbi_format
 {
 	__u32	sampling_rate;		/* in 1 Hz */
@@ -1034,8 +1185,6 @@ struct v4l2_streamparm
 	} parm;
 };
 
-
-
 /*
  *	I O C T L   C O D E S   F O R   V I D E O   D E V I C E S
  *
@@ -1045,8 +1194,10 @@ struct v4l2_streamparm
 #define VIDIOC_ENUM_FMT         _IOWR ('V',  2, struct v4l2_fmtdesc)
 #define VIDIOC_G_FMT		_IOWR ('V',  4, struct v4l2_format)
 #define VIDIOC_S_FMT		_IOWR ('V',  5, struct v4l2_format)
+#ifdef __KERNEL__
 #define VIDIOC_G_MPEGCOMP       _IOR  ('V',  6, struct v4l2_mpeg_compression)
 #define VIDIOC_S_MPEGCOMP     	_IOW  ('V',  7, struct v4l2_mpeg_compression)
+#endif
 #define VIDIOC_REQBUFS		_IOWR ('V',  8, struct v4l2_requestbuffers)
 #define VIDIOC_QUERYBUF		_IOWR ('V',  9, struct v4l2_buffer)
 #define VIDIOC_G_FBUF		_IOR  ('V', 10, struct v4l2_framebuffer)
@@ -1096,7 +1247,11 @@ struct v4l2_streamparm
 #define VIDIOC_G_SLICED_VBI_CAP _IOR  ('V', 69, struct v4l2_sliced_vbi_cap)
 #endif
 #define VIDIOC_LOG_STATUS       _IO   ('V', 70)
+#define VIDIOC_G_EXT_CTRLS	_IOWR ('V', 71, struct v4l2_ext_controls)
+#define VIDIOC_S_EXT_CTRLS	_IOWR ('V', 72, struct v4l2_ext_controls)
+#define VIDIOC_TRY_EXT_CTRLS	_IOWR ('V', 73, struct v4l2_ext_controls)
 
+#ifdef __OLD_VIDIOC_
 /* for compatibility, will go away some day */
 #define VIDIOC_OVERLAY_OLD     	_IOWR ('V', 14, int)
 #define VIDIOC_S_PARM_OLD      	_IOW  ('V', 22, struct v4l2_streamparm)
@@ -1104,57 +1259,10 @@ struct v4l2_streamparm
 #define VIDIOC_G_AUDIO_OLD     	_IOWR ('V', 33, struct v4l2_audio)
 #define VIDIOC_G_AUDOUT_OLD    	_IOWR ('V', 49, struct v4l2_audioout)
 #define VIDIOC_CROPCAP_OLD     	_IOR  ('V', 58, struct v4l2_cropcap)
+#endif
 
 #define BASE_VIDIOC_PRIVATE	192		/* 192-255 are private */
 
-
-#ifdef __KERNEL__
-/*
- *
- *	V 4 L 2   D R I V E R   H E L P E R   A P I
- *
- *	Some commonly needed functions for drivers (v4l2-common.o module)
- */
-#include <linux/fs.h>
-
-/*  Video standard functions  */
-extern unsigned int v4l2_video_std_fps(struct v4l2_standard *vs);
-extern int v4l2_video_std_construct(struct v4l2_standard *vs,
-				    int id, char *name);
-
-/* prority handling */
-struct v4l2_prio_state {
-	atomic_t prios[4];
-};
-int v4l2_prio_init(struct v4l2_prio_state *global);
-int v4l2_prio_change(struct v4l2_prio_state *global, enum v4l2_priority *local,
-		     enum v4l2_priority new);
-int v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local);
-int v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority *local);
-enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global);
-int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority *local);
-
-/* names for fancy debug output */
-extern char *v4l2_field_names[];
-extern char *v4l2_type_names[];
-
-/*  Compatibility layer interface  --  v4l1-compat module */
-typedef int (*v4l2_kioctl)(struct inode *inode, struct file *file,
-			   unsigned int cmd, void *arg);
-
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-int v4l_compat_translate_ioctl(struct inode *inode, struct file *file,
-			       int cmd, void *arg, v4l2_kioctl driver_ioctl);
-#else
-#define v4l_compat_translate_ioctl(inode,file,cmd,arg,ioctl) -EINVAL
-#endif
-
-/* 32 Bits compatibility layer for 64 bits processors */
-extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
-				unsigned long arg);
-
-
-#endif /* __KERNEL__ */
 #endif /* __LINUX_VIDEODEV2_H */
 
 /*

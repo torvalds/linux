@@ -14,7 +14,6 @@
 /***************************************************************************/
 
 #include <stdarg.h>
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -42,13 +41,13 @@ void m68328_timer_gettod(int *year, int *mon, int *day, int *hour, int *min, int
 void m68ez328_reset(void)
 {
   local_irq_disable();
-  asm volatile ("
-    moveal #0x10c00000, %a0;
-    moveb #0, 0xFFFFF300;
-    moveal 0(%a0), %sp;
-    moveal 4(%a0), %a0;
-    jmp (%a0);
-    ");
+  asm volatile (
+    "moveal #0x10c00000, %a0;\n"
+    "moveb #0, 0xFFFFF300;\n"
+    "moveal 0(%a0), %sp;\n"
+    "moveal 4(%a0), %a0;\n"
+    "jmp (%a0);\n"
+    );
 }
 
 /***************************************************************************/

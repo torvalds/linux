@@ -137,7 +137,7 @@ void make_intc2_irq(unsigned int irq,
 
 	local_irq_restore(flags);
 
-	irq_desc[irq].handler = &intc2_irq_type;
+	irq_desc[irq].chip = &intc2_irq_type;
 
 	disable_intc2_irq(irq);
 }

@@ -7,7 +7,7 @@
  * under the terms of version 2 of the GNU General Public License
  * as published by the Free Software Foundation.
  *
- * For information see http://hq.pm.waw.pl/hdlc/
+ * For information see <http://www.kernel.org/pub/linux/utils/net/hdlc/>
  *
  * Note: integrated CSU/DSU/DDS are not supported by this driver
  *
@@ -387,6 +387,11 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 	}
 	card->phy_winbase = winbase;
 	card->winbase = ioremap(winbase, USE_WINDOWSIZE);
+	if (!card->winbase) {
+		printk(KERN_ERR "n2: ioremap() failed\n");
+		n2_destroy_card(card);
+		return -EFAULT;
+	}
 
 	outb(0, io + N2_PCR);
 	outb(winbase >> 12, io + N2_BAR);

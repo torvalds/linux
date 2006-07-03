@@ -11,7 +11,6 @@
  *  Amiga specific stuff into mach/amiga.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -734,9 +733,9 @@ void apus_init_IRQ(void)
 	for ( i = 0 ; i < AMI_IRQS; i++ ) {
 		irq_desc[i].status = IRQ_LEVEL;
 		if (i < IRQ_AMIGA_AUTO) {
-			irq_desc[i].handler = &amiga_irqctrl;
+			irq_desc[i].chip = &amiga_irqctrl;
 		} else {
-			irq_desc[i].handler = &amiga_sys_irqctrl;
+			irq_desc[i].chip = &amiga_sys_irqctrl;
 			action = &amiga_sys_irqaction[i-IRQ_AMIGA_AUTO];
 			if (action->name)
 				setup_irq(i, action);

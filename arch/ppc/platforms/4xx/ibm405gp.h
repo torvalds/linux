@@ -11,7 +11,6 @@
 #ifndef __ASM_IBM405GP_H__
 #define __ASM_IBM405GP_H__
 
-#include <linux/config.h>
 
 /* ibm405.h at bottom of this file */
 

@@ -14,14 +14,13 @@
 	.text
 	.align	5
 
-/* Prototype: unsigned long __arch_strnlen_user(const char *str, long n)
+/* Prototype: unsigned long __strnlen_user(const char *str, long n)
  * Purpose  : get length of a string in user memory
  * Params   : str - address of string in user memory
  * Returns  : length of string *including terminator*
  *	      or zero on exception, or n + 1 if too long
  */
-ENTRY(__arch_strnlen_user)
-	save_lr
+ENTRY(__strnlen_user)
 	mov	r2, r0
 1:
 USER(	ldrbt	r3, [r0], #1)
@@ -31,10 +30,10 @@ USER(	ldrbt	r3, [r0], #1)
 	bne	1b
 	add	r0, r0, #1
 2:	sub	r0, r0, r2
-	restore_pc
+	mov	pc, lr
 
 	.section .fixup,"ax"
 	.align	0
 9001:	mov	r0, #0
-	restore_pc
+	mov	pc, lr
 	.previous

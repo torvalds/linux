@@ -212,6 +212,7 @@ struct raid5_private_data {
 	mddev_t			*mddev;
 	struct disk_info	*spare;
 	int			chunk_size, level, algorithm;
+	int			max_degraded;
 	int			raid_disks, working_disks, failed_disks;
 	int			max_nr_stripes;
 

@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pm.h>
@@ -137,7 +136,7 @@ unsigned long sleep_phys_sp(void *sp)
 #define CTL_PM_P0 4
 #define CTL_PM_CM 5
 
-static int user_atoi(char *ubuf, size_t len)
+static int user_atoi(char __user *ubuf, size_t len)
 {
 	char buf[16];
 	unsigned long ret;
@@ -159,7 +158,7 @@ static int user_atoi(char *ubuf, size_t len)
  * Send us to sleep.
  */
 static int sysctl_pm_do_suspend(ctl_table *ctl, int write, struct file *filp,
-				void *buffer, size_t *lenp, loff_t *fpos)
+				void __user *buffer, size_t *lenp, loff_t *fpos)
 {
 	int retval, mode;
 
@@ -215,7 +214,7 @@ static int try_set_cmode(int new_cmode)
 
 
 static int cmode_procctl(ctl_table *ctl, int write, struct file *filp,
-			 void *buffer, size_t *lenp, loff_t *fpos)
+			 void __user *buffer, size_t *lenp, loff_t *fpos)
 {
 	int new_cmode;
 
@@ -227,9 +226,9 @@ static int cmode_procctl(ctl_table *ctl, int write, struct file *filp,
 	return try_set_cmode(new_cmode)?:*lenp;
 }
 
-static int cmode_sysctl(ctl_table *table, int *name, int nlen,
-			void *oldval, size_t *oldlenp,
-			void *newval, size_t newlen, void **context)
+static int cmode_sysctl(ctl_table *table, int __user *name, int nlen,
+			void __user *oldval, size_t __user *oldlenp,
+			void __user *newval, size_t newlen, void **context)
 {
 	if (oldval && oldlenp) {
 		size_t oldlen;
@@ -240,7 +239,7 @@ static int cmode_sysctl(ctl_table *table, int *name, int nlen,
 		if (oldlen != sizeof(int))
 			return -EINVAL;
 
-		if (put_user(clock_cmode_current, (unsigned int *)oldval) ||
+		if (put_user(clock_cmode_current, (unsigned __user *)oldval) ||
 		    put_user(sizeof(int), oldlenp))
 			return -EFAULT;
 	}
@@ -250,7 +249,7 @@ static int cmode_sysctl(ctl_table *table, int *name, int nlen,
 		if (newlen != sizeof(int))
 			return -EINVAL;
 
-		if (get_user(new_cmode, (int *)newval))
+		if (get_user(new_cmode, (int __user *)newval))
 			return -EFAULT;
 
 		return try_set_cmode(new_cmode)?:1;
@@ -318,7 +317,7 @@ static int try_set_cm(int new_cm)
 }
 
 static int p0_procctl(ctl_table *ctl, int write, struct file *filp,
-		      void *buffer, size_t *lenp, loff_t *fpos)
+		      void __user *buffer, size_t *lenp, loff_t *fpos)
 {
 	int new_p0;
 
@@ -330,9 +329,9 @@ static int p0_procctl(ctl_table *ctl, int write, struct file *filp,
 	return try_set_p0(new_p0)?:*lenp;
 }
 
-static int p0_sysctl(ctl_table *table, int *name, int nlen,
-		     void *oldval, size_t *oldlenp,
-		     void *newval, size_t newlen, void **context)
+static int p0_sysctl(ctl_table *table, int __user *name, int nlen,
+		     void __user *oldval, size_t __user *oldlenp,
+		     void __user *newval, size_t newlen, void **context)
 {
 	if (oldval && oldlenp) {
 		size_t oldlen;
@@ -343,7 +342,7 @@ static int p0_sysctl(ctl_table *table, int *name, int nlen,
 		if (oldlen != sizeof(int))
 			return -EINVAL;
 
-		if (put_user(clock_p0_current, (unsigned int *)oldval) ||
+		if (put_user(clock_p0_current, (unsigned __user *)oldval) ||
 		    put_user(sizeof(int), oldlenp))
 			return -EFAULT;
 	}
@@ -353,7 +352,7 @@ static int p0_sysctl(ctl_table *table, int *name, int nlen,
 		if (newlen != sizeof(int))
 			return -EINVAL;
 
-		if (get_user(new_p0, (int *)newval))
+		if (get_user(new_p0, (int __user *)newval))
 			return -EFAULT;
 
 		return try_set_p0(new_p0)?:1;
@@ -362,7 +361,7 @@ static int p0_sysctl(ctl_table *table, int *name, int nlen,
 }
 
 static int cm_procctl(ctl_table *ctl, int write, struct file *filp,
-		      void *buffer, size_t *lenp, loff_t *fpos)
+		      void __user *buffer, size_t *lenp, loff_t *fpos)
 {
 	int new_cm;
 
@@ -374,9 +373,9 @@ static int cm_procctl(ctl_table *ctl, int write, struct file *filp,
 	return try_set_cm(new_cm)?:*lenp;
 }
 
-static int cm_sysctl(ctl_table *table, int *name, int nlen,
-		     void *oldval, size_t *oldlenp,
-		     void *newval, size_t newlen, void **context)
+static int cm_sysctl(ctl_table *table, int __user *name, int nlen,
+		     void __user *oldval, size_t __user *oldlenp,
+		     void __user *newval, size_t newlen, void **context)
 {
 	if (oldval && oldlenp) {
 		size_t oldlen;
@@ -387,7 +386,7 @@ static int cm_sysctl(ctl_table *table, int *name, int nlen,
 		if (oldlen != sizeof(int))
 			return -EINVAL;
 
-		if (put_user(clock_cm_current, (unsigned int *)oldval) ||
+		if (put_user(clock_cm_current, (unsigned __user *)oldval) ||
 		    put_user(sizeof(int), oldlenp))
 			return -EFAULT;
 	}
@@ -397,7 +396,7 @@ static int cm_sysctl(ctl_table *table, int *name, int nlen,
 		if (newlen != sizeof(int))
 			return -EINVAL;
 
-		if (get_user(new_cm, (int *)newval))
+		if (get_user(new_cm, (int __user *)newval))
 			return -EFAULT;
 
 		return try_set_cm(new_cm)?:1;

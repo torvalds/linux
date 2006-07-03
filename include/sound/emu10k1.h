@@ -245,6 +245,7 @@
 #define A_IOCFG_GPOUT0		0x0044		/* analog/digital				*/
 #define A_IOCFG_DISABLE_ANALOG	0x0040		/* = 'enable' for Audigy2 (chiprev=4)		*/
 #define A_IOCFG_ENABLE_DIGITAL	0x0004
+#define A_IOCFG_ENABLE_DIGITAL_AUDIGY4	0x0080
 #define A_IOCFG_UNKNOWN_20      0x0020
 #define A_IOCFG_DISABLE_AC97_FRONT      0x0080  /* turn off ac97 front -> front (10k2.1)	*/
 #define A_IOCFG_GPOUT1		0x0002		/* IR? drive's internal bypass (?)		*/
@@ -1065,6 +1066,7 @@ struct snd_emu_chip_details {
 	unsigned char emu1212m;     /* EMU 1212m card */
 	unsigned char spi_dac;      /* SPI interface for DAC */
 	unsigned char i2c_adc;      /* I2C interface for ADC */
+	unsigned char adc_1361t;    /* Use Philips 1361T ADC */
 	const char *driver;
 	const char *name;
 	const char *id;		/* for backward compatibility - can be NULL if not needed */

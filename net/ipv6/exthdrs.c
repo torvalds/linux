@@ -179,7 +179,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 
 static struct inet6_protocol destopt_protocol = {
 	.handler	=	ipv6_destopt_rcv,
-	.flags		=	INET6_PROTO_NOPOLICY,
+	.flags		=	INET6_PROTO_NOPOLICY | INET6_PROTO_GSO_EXTHDR,
 };
 
 void __init ipv6_destopt_init(void)
@@ -340,7 +340,7 @@ looped_back:
 
 static struct inet6_protocol rthdr_protocol = {
 	.handler	=	ipv6_rthdr_rcv,
-	.flags		=	INET6_PROTO_NOPOLICY,
+	.flags		=	INET6_PROTO_NOPOLICY | INET6_PROTO_GSO_EXTHDR,
 };
 
 void __init ipv6_rthdr_init(void)

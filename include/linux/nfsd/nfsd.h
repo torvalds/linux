@@ -10,7 +10,6 @@
 #ifndef LINUX_NFSD_NFSD_H
 #define LINUX_NFSD_NFSD_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/unistd.h>
 #include <linux/dirent.h>

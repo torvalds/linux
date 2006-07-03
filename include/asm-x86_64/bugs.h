@@ -10,7 +10,6 @@
  *	void check_bugs(void);
  */
 
-#include <linux/config.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/msr.h>

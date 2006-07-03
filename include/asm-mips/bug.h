@@ -1,7 +1,6 @@
 #ifndef __ASM_BUG_H
 #define __ASM_BUG_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_BUG
 

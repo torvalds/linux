@@ -264,7 +264,7 @@ static struct sv11_device *sv11_init(int iobase, int irq)
 	/* We want a fast IRQ for this device. Actually we'd like an even faster
 	   IRQ ;) - This is one driver RtLinux is made for */
 	   
-	if(request_irq(irq, &z8530_interrupt, SA_INTERRUPT, "Hostess SV11", dev)<0)
+	if(request_irq(irq, &z8530_interrupt, IRQF_DISABLED, "Hostess SV11", dev)<0)
 	{
 		printk(KERN_WARNING "hostess: IRQ %d already in use.\n", irq);
 		goto fail1;

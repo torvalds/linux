@@ -271,7 +271,7 @@ superio_init(struct pci_dev *pcidev)
 	else
 		printk(KERN_ERR PFX "USB regulator not initialized!\n");
 
-	if (request_irq(pdev->irq, superio_interrupt, SA_INTERRUPT,
+	if (request_irq(pdev->irq, superio_interrupt, IRQF_DISABLED,
 			SUPERIO, (void *)sio)) {
 
 		printk(KERN_ERR PFX "could not get irq\n");
@@ -360,7 +360,7 @@ int superio_fixup_irq(struct pci_dev *pcidev)
 #endif
 
 	for (i = 0; i < 16; i++) {
-		irq_desc[i].handler = &superio_interrupt_type;
+		irq_desc[i].chip = &superio_interrupt_type;
 	}
 
 	/*

@@ -187,13 +187,6 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 			goto out;
 		}
 
-		/* Set user creds for this exportpoint */
-		error = nfsd_setuser(rqstp, exp);
-		if (error) {
-			error = nfserrno(error);
-			goto out;
-		}
-
 		/*
 		 * Look up the dentry using the NFS file handle.
 		 */
@@ -250,6 +243,14 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 		exp = fhp->fh_export;
 	}
 	cache_get(&exp->h);
+
+	/* Set user creds for this exportpoint; necessary even in the "just
+	 * checking" case because this may be a filehandle that was created by
+	 * fh_compose, and that is about to be used in another nfsv4 compound
+	 * operation */
+	error = nfserrno(nfsd_setuser(rqstp, exp));
+	if (error)
+		goto out;
 
 	error = nfsd_mode_check(rqstp, dentry->d_inode->i_mode, type);
 	if (error)
@@ -312,8 +313,8 @@ int
 fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry, struct svc_fh *ref_fh)
 {
 	/* ref_fh is a reference file handle.
-	 * if it is non-null, then we should compose a filehandle which is
-	 * of the same version, where possible.
+	 * if it is non-null and for the same filesystem, then we should compose
+	 * a filehandle which is of the same version, where possible.
 	 * Currently, that means that if ref_fh->fh_handle.fh_version == 0xca
 	 * Then create a 32byte filehandle using nfs_fhbase_old
 	 *
@@ -332,7 +333,7 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry, st
 		parent->d_name.name, dentry->d_name.name,
 		(inode ? inode->i_ino : 0));
 
-	if (ref_fh) {
+	if (ref_fh && ref_fh->fh_export == exp) {
 		ref_fh_version = ref_fh->fh_handle.fh_version;
 		if (ref_fh_version == 0xca)
 			ref_fh_fsid_type = 0;
@@ -461,7 +462,7 @@ fh_update(struct svc_fh *fhp)
 	} else {
 		int size;
 		if (fhp->fh_handle.fh_fileid_type != 0)
-			goto out_uptodate;
+			goto out;
 		datap = fhp->fh_handle.fh_auth+
 			fhp->fh_handle.fh_size/4 -1;
 		size = (fhp->fh_maxsize - fhp->fh_handle.fh_size)/4;
@@ -479,10 +480,6 @@ out_bad:
 	goto out;
 out_negative:
 	printk(KERN_ERR "fh_update: %s/%s still negative!\n",
-		dentry->d_parent->d_name.name, dentry->d_name.name);
-	goto out;
-out_uptodate:
-	printk(KERN_ERR "fh_update: %s/%s already up-to-date!\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 	goto out;
 }

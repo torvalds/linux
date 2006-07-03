@@ -66,11 +66,6 @@ static const u8 cursor_bits_lookup[16] = {
 	0x01, 0x41, 0x11, 0x51, 0x05, 0x45, 0x15, 0x55
 };
 
-static const u8 cursor_mask_lookup[16] = {
-	0xaa, 0x2a, 0x8a, 0x0a, 0xa2, 0x22, 0x82, 0x02,
-	0xa8, 0x28, 0x88, 0x08, 0xa0, 0x20, 0x80, 0x00
-};
-
 static int atyfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
@@ -130,13 +125,13 @@ static int atyfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		fg_idx = cursor->image.fg_color;
 		bg_idx = cursor->image.bg_color;
 
-		fg = (info->cmap.red[fg_idx] << 24) |
-		     (info->cmap.green[fg_idx] << 16) |
-		     (info->cmap.blue[fg_idx] << 8) | 15;
+		fg = ((info->cmap.red[fg_idx] & 0xff) << 24) |
+		     ((info->cmap.green[fg_idx] & 0xff) << 16) |
+		     ((info->cmap.blue[fg_idx] & 0xff) << 8) | 0xff;
 
-		bg = (info->cmap.red[bg_idx] << 24) |
-		     (info->cmap.green[bg_idx] << 16) |
-		     (info->cmap.blue[bg_idx] << 8);
+		bg = ((info->cmap.red[bg_idx] & 0xff) << 24) |
+		     ((info->cmap.green[bg_idx] & 0xff) << 16) |
+		     ((info->cmap.blue[bg_idx] & 0xff) << 8);
 
 		wait_for_fifo(2, par);
 		aty_st_le32(CUR_CLR0, bg, par);
@@ -166,19 +161,17 @@ static int atyfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 			switch (cursor->rop) {
 			case ROP_XOR:
 			    // Upper 4 bits of mask data
-			    fb_writeb(cursor_mask_lookup[m >> 4 ] |
-				cursor_bits_lookup[(b ^ m) >> 4], dst++);
+			    fb_writeb(cursor_bits_lookup[(b ^ m) >> 4], dst++);
 			    // Lower 4 bits of mask
-			    fb_writeb(cursor_mask_lookup[m & 0x0f ] |
-				cursor_bits_lookup[(b ^ m) & 0x0f], dst++);
+			    fb_writeb(cursor_bits_lookup[(b ^ m) & 0x0f],
+				      dst++);
 			    break;
 			case ROP_COPY:
 			    // Upper 4 bits of mask data
-			    fb_writeb(cursor_mask_lookup[m >> 4 ] |
-				cursor_bits_lookup[(b & m) >> 4], dst++);
+			    fb_writeb(cursor_bits_lookup[(b & m) >> 4], dst++);
 			    // Lower 4 bits of mask
-			    fb_writeb(cursor_mask_lookup[m & 0x0f ] |
-				cursor_bits_lookup[(b & m) & 0x0f], dst++);
+			    fb_writeb(cursor_bits_lookup[(b & m) & 0x0f],
+				      dst++);
 			    break;
 			}
 		}
@@ -194,7 +187,7 @@ static int atyfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	return 0;
 }
 
-int __init aty_init_cursor(struct fb_info *info)
+int __devinit aty_init_cursor(struct fb_info *info)
 {
 	unsigned long addr;
 

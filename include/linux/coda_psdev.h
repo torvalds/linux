@@ -70,7 +70,7 @@ int venus_pioctl(struct super_block *sb, struct CodaFid *fid,
 		 unsigned int cmd, struct PioctlData *data);
 int coda_downcall(int opcode, union outputArgs *out, struct super_block *sb);
 int venus_fsync(struct super_block *sb, struct CodaFid *fid);
-int venus_statfs(struct super_block *sb, struct kstatfs *sfs);
+int venus_statfs(struct dentry *dentry, struct kstatfs *sfs);
 
 
 /* messages between coda filesystem in kernel and Venus */

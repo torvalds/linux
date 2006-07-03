@@ -15,7 +15,6 @@
  * we have switched the chip select.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/delay.h>

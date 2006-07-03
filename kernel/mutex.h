@@ -9,8 +9,10 @@
  * !CONFIG_DEBUG_MUTEXES case. Most of them are NOPs:
  */
 
-#define spin_lock_mutex(lock)			spin_lock(lock)
-#define spin_unlock_mutex(lock)			spin_unlock(lock)
+#define spin_lock_mutex(lock, flags) \
+		do { spin_lock(lock); (void)(flags); } while (0)
+#define spin_unlock_mutex(lock, flags) \
+		do { spin_unlock(lock); (void)(flags); } while (0)
 #define mutex_remove_waiter(lock, waiter, ti) \
 		__list_del((waiter)->list.prev, (waiter)->list.next)
 

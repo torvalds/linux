@@ -147,6 +147,6 @@ void cpci_irq_init(void)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 2;
-		irq_desc[i].handler = &cpci_irq_type;
+		irq_desc[i].chip = &cpci_irq_type;
 	}
 }

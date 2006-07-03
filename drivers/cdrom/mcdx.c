@@ -74,7 +74,6 @@ static const char *mcdx_c_version
 #include <linux/major.h>
 #define MAJOR_NR MITSUMI_X_CDROM_MAJOR
 #include <linux/blkdev.h>
-#include <linux/devfs_fs_kernel.h>
 
 #include "mcdx.h"
 
@@ -1006,7 +1005,7 @@ static int mcdx_talk(struct s_drive_stuff *stuffp,
 
 /* MODULE STUFF ***********************************************************/
 
-int __mcdx_init(void)
+static int __init __mcdx_init(void)
 {
 	int i;
 	int drives = 0;
@@ -1194,7 +1193,7 @@ static int __init mcdx_init_drive(int drive)
 	}
 
 	xtrace(INIT, "init() subscribe irq and i/o\n");
-	if (request_irq(stuffp->irq, mcdx_intr, SA_INTERRUPT, "mcdx", stuffp)) {
+	if (request_irq(stuffp->irq, mcdx_intr, IRQF_DISABLED, "mcdx", stuffp)) {
 		release_region(stuffp->wreg_data, MCDX_IO_SIZE);
 		xwarn("%s=0x%03x,%d: Init failed. Can't get irq (%d).\n",
 		      MCDX, stuffp->wreg_data, stuffp->irq, stuffp->irq);

@@ -16,7 +16,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -32,6 +31,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>

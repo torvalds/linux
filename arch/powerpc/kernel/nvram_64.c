@@ -204,7 +204,7 @@ static void nvram_print_partitions(char * label)
 	printk(KERN_WARNING "indx\t\tsig\tchks\tlen\tname\n");
 	list_for_each(p, &nvram_part->partition) {
 		tmp_part = list_entry(p, struct nvram_partition, partition);
-		printk(KERN_WARNING "%d    \t%02x\t%02x\t%d\t%s\n",
+		printk(KERN_WARNING "%4d    \t%02x\t%02x\t%d\t%s\n",
 		       tmp_part->index, tmp_part->header.signature,
 		       tmp_part->header.checksum, tmp_part->header.length,
 		       tmp_part->header.name);

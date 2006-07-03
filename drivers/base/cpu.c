@@ -8,6 +8,7 @@
 #include <linux/cpu.h>
 #include <linux/topology.h>
 #include <linux/device.h>
+#include <linux/node.h>
 
 #include "base.h"
 
@@ -57,13 +58,12 @@ static void __devinit register_cpu_control(struct cpu *cpu)
 {
 	sysdev_create_file(&cpu->sysdev, &attr_online);
 }
-void unregister_cpu(struct cpu *cpu, struct node *root)
+void unregister_cpu(struct cpu *cpu)
 {
 	int logical_cpu = cpu->sysdev.id;
 
-	if (root)
-		sysfs_remove_link(&root->sysdev.kobj,
-				  kobject_name(&cpu->sysdev.kobj));
+	unregister_cpu_under_node(logical_cpu, cpu_to_node(logical_cpu));
+
 	sysdev_remove_file(&cpu->sysdev, &attr_online);
 
 	sysdev_unregister(&cpu->sysdev);
@@ -109,23 +109,21 @@ static SYSDEV_ATTR(crash_notes, 0400, show_crash_notes, NULL);
  *
  * Initialize and register the CPU device.
  */
-int __devinit register_cpu(struct cpu *cpu, int num, struct node *root)
+int __devinit register_cpu(struct cpu *cpu, int num)
 {
 	int error;
-
 	cpu->node_id = cpu_to_node(num);
 	cpu->sysdev.id = num;
 	cpu->sysdev.cls = &cpu_sysdev_class;
 
 	error = sysdev_register(&cpu->sysdev);
-	if (!error && root)
-		error = sysfs_create_link(&root->sysdev.kobj,
-					  &cpu->sysdev.kobj,
-					  kobject_name(&cpu->sysdev.kobj));
+
 	if (!error && !cpu->no_control)
 		register_cpu_control(cpu);
 	if (!error)
 		cpu_sys_devices[num] = &cpu->sysdev;
+	if (!error)
+		register_cpu_under_node(num, cpu_to_node(num));
 
 #ifdef CONFIG_KEXEC
 	if (!error)
@@ -145,5 +143,13 @@ EXPORT_SYMBOL_GPL(get_cpu_sysdev);
 
 int __init cpu_dev_init(void)
 {
-	return sysdev_class_register(&cpu_sysdev_class);
+	int err;
+
+	err = sysdev_class_register(&cpu_sysdev_class);
+#if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
+	if (!err)
+		err = sched_create_sysfs_power_savings_entries(&cpu_sysdev_class);
+#endif
+
+	return err;
 }

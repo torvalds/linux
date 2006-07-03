@@ -672,7 +672,7 @@ struct dlm_ctxt *user_dlm_register_context(struct qstr *name)
 	u32 dlm_key;
 	char *domain;
 
-	domain = kmalloc(name->len + 1, GFP_KERNEL);
+	domain = kmalloc(name->len + 1, GFP_NOFS);
 	if (!domain) {
 		mlog_errno(-ENOMEM);
 		return ERR_PTR(-ENOMEM);

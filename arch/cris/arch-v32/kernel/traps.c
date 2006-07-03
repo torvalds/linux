@@ -2,7 +2,6 @@
  * Copyright (C) 2003, Axis Communications AB.
  */
 
-#include <linux/config.h>
 #include <linux/ptrace.h>
 #include <asm/uaccess.h>
 

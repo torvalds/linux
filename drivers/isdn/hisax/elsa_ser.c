@@ -7,7 +7,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/serial.h>
 #include <linux/serial_reg.h>
 

@@ -1,7 +1,6 @@
 #ifndef __x8664_PCI_H
 #define __x8664_PCI_H
 
-#include <linux/config.h>
 #include <asm/io.h>
 
 #ifdef __KERNEL__
@@ -40,8 +39,8 @@ int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
 #include <asm/scatterlist.h>
 #include <linux/string.h>
 #include <asm/page.h>
-#include <linux/dma-mapping.h> /* for have_iommu */
 
+extern void pci_iommu_alloc(void);
 extern int iommu_setup(char *opt);
 
 /* The PCI address space does equal the physical memory
@@ -53,7 +52,7 @@ extern int iommu_setup(char *opt);
  */
 #define PCI_DMA_BUS_IS_PHYS (dma_ops->is_phys)
 
-#ifdef CONFIG_GART_IOMMU
+#if defined(CONFIG_IOMMU) || defined(CONFIG_CALGARY_IOMMU)
 
 /*
  * x86-64 always supports DAC, but sometimes it is useful to force

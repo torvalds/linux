@@ -10,7 +10,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -118,7 +117,7 @@ pxa_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction pxa_timer_irq = {
 	.name		= "PXA Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= pxa_timer_interrupt,
 };
 

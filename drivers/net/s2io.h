@@ -652,7 +652,7 @@ typedef struct fifo_info {
 	nic_t *nic;
 }fifo_info_t;
 
-/* Infomation related to the Tx and Rx FIFOs and Rings of Xena
+/* Information related to the Tx and Rx FIFOs and Rings of Xena
  * is maintained in this structure.
  */
 typedef struct mac_info {

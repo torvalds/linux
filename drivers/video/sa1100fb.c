@@ -160,7 +160,6 @@
  *	- Add patch 681/1 and clean up stork definitions.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -1473,7 +1472,7 @@ static int __init sa1100fb_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed;
 
-	ret = request_irq(irq, sa1100fb_handle_irq, SA_INTERRUPT,
+	ret = request_irq(irq, sa1100fb_handle_irq, IRQF_DISABLED,
 			  "LCD", fbi);
 	if (ret) {
 		printk(KERN_ERR "sa1100fb: request_irq failed: %d\n", ret);

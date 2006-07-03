@@ -6,7 +6,6 @@
  * Based on the DEC Alpha bios32.c by Dave Rusling and David Mosberger.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 

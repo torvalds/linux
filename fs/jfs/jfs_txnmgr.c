@@ -842,7 +842,7 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	TXN_UNLOCK();
 	release_metapage(mp);
 	TXN_LOCK();
-	xtid = tlck->tid;	/* reaquire after dropping TXN_LOCK */
+	xtid = tlck->tid;	/* reacquire after dropping TXN_LOCK */
 
 	jfs_info("txLock: in waitLock, tid = %d, xtid = %d, lid = %d",
 		 tid, xtid, lid);

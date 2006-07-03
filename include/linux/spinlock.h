@@ -46,7 +46,6 @@
  *  linux/spinlock.h:     builds the final spin_*() APIs.
  */
 
-#include <linux/config.h>
 #include <linux/preempt.h>
 #include <linux/linkage.h>
 #include <linux/compiler.h>

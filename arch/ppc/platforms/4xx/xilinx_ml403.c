@@ -13,7 +13,6 @@
  * kind, whether express or implied.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/tty.h>

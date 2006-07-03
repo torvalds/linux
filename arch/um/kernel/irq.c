@@ -63,7 +63,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #endif
-		seq_printf(p, " %14s", irq_desc[i].handler->typename);
+		seq_printf(p, " %14s", irq_desc[i].chip->typename);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -451,13 +451,13 @@ void __init init_IRQ(void)
 	irq_desc[TIMER_IRQ].status = IRQ_DISABLED;
 	irq_desc[TIMER_IRQ].action = NULL;
 	irq_desc[TIMER_IRQ].depth = 1;
-	irq_desc[TIMER_IRQ].handler = &SIGVTALRM_irq_type;
+	irq_desc[TIMER_IRQ].chip = &SIGVTALRM_irq_type;
 	enable_irq(TIMER_IRQ);
 	for (i = 1; i < NR_IRQS; i++) {
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &normal_irq_type;
+		irq_desc[i].chip = &normal_irq_type;
 		enable_irq(i);
 	}
 }
@@ -474,7 +474,7 @@ int init_aio_irq(int irq, char *name, irqreturn_t (*handler)(int, void *,
 	}
 
 	err = um_request_irq(irq, fds[0], IRQ_READ, handler,
-			     SA_INTERRUPT | SA_SAMPLE_RANDOM, name,
+			     IRQF_DISABLED | IRQF_SAMPLE_RANDOM, name,
 			     (void *) (long) fds[0]);
 	if (err) {
 		printk("init_aio_irq - : um_request_irq failed, err = %d\n",

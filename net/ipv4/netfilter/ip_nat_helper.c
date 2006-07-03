@@ -15,7 +15,6 @@
  *		- make ip_nat_resize_packet more generic (TCP and UDP)
  *		- add ip_nat_mangle_udp_packet
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/types.h>

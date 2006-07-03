@@ -23,14 +23,13 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
 
-mm_context_t next_mmu_context;
+unsigned long next_mmu_context;
 unsigned long context_map[LAST_CONTEXT / BITS_PER_LONG + 1];
 #ifdef FEW_CONTEXTS
 atomic_t nr_free_contexts;

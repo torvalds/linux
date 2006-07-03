@@ -1,5 +1,5 @@
 /* (C) 1999-2003 Nemosoft Unv.
-   (C) 2004      Luc Saillard (luc@saillard.org)
+   (C) 2004-2006 Luc Saillard (luc@saillard.org)
 
    NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
    driver and thus may have bugs that are not present in the original version.
@@ -30,9 +30,8 @@
 #ifndef PWC_UNCOMPRESS_H
 #define PWC_UNCOMPRESS_H
 
-#include <linux/config.h>
 
-#include "pwc-ioctl.h"
+#include <media/pwc-ioctl.h>
 
 /* from pwc-dec.h */
 #define PWCX_FLAG_PLANAR        0x0001

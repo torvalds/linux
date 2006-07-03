@@ -22,19 +22,16 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
-#include "xfs_dir_leaf.h"
 #include "xfs_error.h"
 #include "xfs_dir2_data.h"
 #include "xfs_dir2_leaf.h"
@@ -117,13 +114,13 @@ xfs_dir2_block_sfsize(
 			dep->name[0] == '.' && dep->name[1] == '.';
 #if XFS_BIG_INUMS
 		if (!isdot)
-			i8count += INT_GET(dep->inumber, ARCH_CONVERT) > XFS_DIR2_MAX_SHORT_INUM;
+			i8count += be64_to_cpu(dep->inumber) > XFS_DIR2_MAX_SHORT_INUM;
 #endif
 		if (!isdot && !isdotdot) {
 			count++;
 			namelen += dep->namelen;
 		} else if (isdotdot)
-			parent = INT_GET(dep->inumber, ARCH_CONVERT);
+			parent = be64_to_cpu(dep->inumber);
 		/*
 		 * Calculate the new size, see if we should give up yet.
 		 */
@@ -229,13 +226,13 @@ xfs_dir2_block_to_sf(
 		 * Skip .
 		 */
 		if (dep->namelen == 1 && dep->name[0] == '.')
-			ASSERT(INT_GET(dep->inumber, ARCH_CONVERT) == dp->i_ino);
+			ASSERT(be64_to_cpu(dep->inumber) == dp->i_ino);
 		/*
 		 * Skip .., but make sure the inode number is right.
 		 */
 		else if (dep->namelen == 2 &&
 			 dep->name[0] == '.' && dep->name[1] == '.')
-			ASSERT(INT_GET(dep->inumber, ARCH_CONVERT) ==
+			ASSERT(be64_to_cpu(dep->inumber) ==
 			       XFS_DIR2_SF_GET_INUMBER(sfp, &sfp->hdr.parent));
 		/*
 		 * Normal entry, copy it into shortform.
@@ -246,7 +243,7 @@ xfs_dir2_block_to_sf(
 				(xfs_dir2_data_aoff_t)
 				((char *)dep - (char *)block));
 			memcpy(sfep->name, dep->name, dep->namelen);
-			temp=INT_GET(dep->inumber, ARCH_CONVERT);
+			temp = be64_to_cpu(dep->inumber);
 			XFS_DIR2_SF_PUT_INUMBER(sfp, &temp,
 				XFS_DIR2_SF_INUMBERP(sfep));
 			sfep = XFS_DIR2_SF_NEXTENTRY(sfp, sfep);

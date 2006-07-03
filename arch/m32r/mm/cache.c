@@ -4,7 +4,6 @@
  *  Copyright (C) 2002-2005  Hirokazu Takata, Hayato Fujiwara
  */
 
-#include <linux/config.h>
 #include <asm/pgtable.h>
 
 #undef MCCR

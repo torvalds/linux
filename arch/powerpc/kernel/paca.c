@@ -7,7 +7,6 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/threads.h>
 #include <linux/module.h>
@@ -16,7 +15,6 @@
 #include <asm/ptrace.h>
 #include <asm/page.h>
 #include <asm/lppaca.h>
-#include <asm/iseries/it_lp_queue.h>
 #include <asm/iseries/it_lp_reg_save.h>
 #include <asm/paca.h>
 

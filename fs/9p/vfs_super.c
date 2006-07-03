@@ -25,7 +25,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -99,12 +98,13 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
  * @flags: mount flags
  * @dev_name: device name that was mounted
  * @data: mount options
+ * @mnt: mountpoint record to be instantiated
  *
  */
 
-static struct super_block *v9fs_get_sb(struct file_system_type
-				       *fs_type, int flags,
-				       const char *dev_name, void *data)
+static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
+		       const char *dev_name, void *data,
+		       struct vfsmount *mnt)
 {
 	struct super_block *sb = NULL;
 	struct v9fs_fcall *fcall = NULL;
@@ -123,17 +123,19 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 
 	v9ses = kzalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
 	if (!v9ses)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	if ((newfid = v9fs_session_init(v9ses, dev_name, data)) < 0) {
 		dprintk(DEBUG_ERROR, "problem initiating session\n");
-		sb = ERR_PTR(newfid);
+		retval = newfid;
 		goto out_free_session;
 	}
 
 	sb = sget(fs_type, NULL, v9fs_set_super, v9ses);
-	if (IS_ERR(sb))
+	if (IS_ERR(sb)) {
+		retval = PTR_ERR(sb);
 		goto out_close_session;
+	}
 	v9fs_fill_super(sb, v9ses, flags);
 
 	inode = v9fs_get_inode(sb, S_IFDIR | mode);
@@ -184,19 +186,19 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 		goto put_back_sb;
 	}
 
-	return sb;
+	return simple_set_mnt(mnt, sb);
 
 out_close_session:
 	v9fs_session_close(v9ses);
 out_free_session:
 	kfree(v9ses);
-	return sb;
+	return retval;
 
 put_back_sb:
 	/* deactivate_super calls v9fs_kill_super which will frees the rest */
 	up_write(&sb->s_umount);
 	deactivate_super(sb);
-	return ERR_PTR(retval);
+	return retval;
 }
 
 /**
@@ -253,11 +255,12 @@ static int v9fs_show_options(struct seq_file *m, struct vfsmount *mnt)
 }
 
 static void
-v9fs_umount_begin(struct super_block *sb)
+v9fs_umount_begin(struct vfsmount *vfsmnt, int flags)
 {
-	struct v9fs_session_info *v9ses = sb->s_fs_info;
+	struct v9fs_session_info *v9ses = vfsmnt->mnt_sb->s_fs_info;
 
-	v9fs_session_cancel(v9ses);
+	if (flags & MNT_FORCE)
+		v9fs_session_cancel(v9ses);
 }
 
 static struct super_operations v9fs_super_ops = {

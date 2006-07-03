@@ -67,14 +67,15 @@ struct fsxattr {
 #define XFS_XFLAG_NOSYMLINKS	0x00000400	/* disallow symlink creation */
 #define XFS_XFLAG_EXTSIZE	0x00000800	/* extent size allocator hint */
 #define XFS_XFLAG_EXTSZINHERIT	0x00001000	/* inherit inode extent size */
+#define XFS_XFLAG_NODEFRAG	0x00002000  	/* do not defragment */
 #define XFS_XFLAG_HASATTR	0x80000000	/* no DIFLAG for this	*/
 
 /*
  * Structure for XFS_IOC_GETBMAP.
  * On input, fill in bmv_offset and bmv_length of the first structure
- * to indicate the area of interest in the file, and bmv_entry with the
- * number of array elements given.  The first structure is updated on
- * return to give the offset and length for the next call.
+ * to indicate the area of interest in the file, and bmv_entries with
+ * the number of array elements given back.  The first structure is
+ * updated on return to give the offset and length for the next call.
  */
 #ifndef HAVE_GETBMAP
 struct getbmap {

@@ -1,7 +1,6 @@
 /* ld script to make M32R Linux kernel
  */
 
-#include <linux/config.h>
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/addrspace.h>
 #include <asm/page.h>

@@ -262,9 +262,11 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 	int ngroups = sbi->s_groups_count;
 	int inodes_per_group = EXT3_INODES_PER_GROUP(sb);
 	int freei, avefreei;
-	int freeb, avefreeb;
-	int blocks_per_dir, ndirs;
-	int max_debt, max_dirs, min_blocks, min_inodes;
+	ext3_fsblk_t freeb, avefreeb;
+	ext3_fsblk_t blocks_per_dir;
+	int ndirs;
+	int max_debt, max_dirs, min_inodes;
+	ext3_grpblk_t min_blocks;
 	int group = -1, i;
 	struct ext3_group_desc *desc;
 	struct buffer_head *bh;
@@ -307,7 +309,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 	min_inodes = avefreei - inodes_per_group / 4;
 	min_blocks = avefreeb - EXT3_BLOCKS_PER_GROUP(sb) / 4;
 
-	max_debt = EXT3_BLOCKS_PER_GROUP(sb) / max(blocks_per_dir, BLOCK_COST);
+	max_debt = EXT3_BLOCKS_PER_GROUP(sb) / max(blocks_per_dir, (ext3_fsblk_t)BLOCK_COST);
 	if (max_debt * INODE_COST > inodes_per_group)
 		max_debt = inodes_per_group / INODE_COST;
 	if (max_debt > 255)

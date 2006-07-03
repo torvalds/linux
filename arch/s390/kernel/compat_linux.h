@@ -1,7 +1,6 @@
 #ifndef _ASM_S390X_S390_H
 #define _ASM_S390X_S390_H
 
-#include <linux/config.h>
 #include <linux/compat.h>
 #include <linux/socket.h>
 #include <linux/syscalls.h>

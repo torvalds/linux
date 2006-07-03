@@ -25,7 +25,6 @@
    SEGREL64LSB
  */
 
-#include <linux/config.h>
 
 #include <linux/kernel.h>
 #include <linux/sched.h>

@@ -20,7 +20,6 @@
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
-#include <linux/config.h>
 
 /*
  * Physical DRAM offset.

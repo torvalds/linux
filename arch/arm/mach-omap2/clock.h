@@ -1062,7 +1062,7 @@ static struct clk gpt2_ick = {
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.enable_reg	= (void __iomem *)&CM_ICLKEN1_CORE,	/* Bit4 */
-	.enable_bit	= 0,
+	.enable_bit	= 4,
 	.recalc		= &omap2_followparent_recalc,
 };
 

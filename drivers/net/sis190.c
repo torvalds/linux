@@ -1054,7 +1054,7 @@ static int sis190_open(struct net_device *dev)
 
 	sis190_request_timer(dev);
 
-	rc = request_irq(dev->irq, sis190_interrupt, SA_SHIRQ, dev->name, dev);
+	rc = request_irq(dev->irq, sis190_interrupt, IRQF_SHARED, dev->name, dev);
 	if (rc < 0)
 		goto err_release_timer_2;
 
@@ -1156,8 +1156,7 @@ static int sis190_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_addr_t mapping;
 
 	if (unlikely(skb->len < ETH_ZLEN)) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (!skb) {
+		if (skb_padto(skb, ETH_ZLEN)) {
 			tp->stats.tx_dropped++;
 			goto out;
 		}

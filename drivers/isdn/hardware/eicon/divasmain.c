@@ -9,12 +9,10 @@
  * of the GNU General Public License, incorporated herein by reference.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/devfs_fs_kernel.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <linux/ioport.h>
@@ -488,7 +486,7 @@ void __inline__ outpp(void __iomem *addr, word p)
 int diva_os_register_irq(void *context, byte irq, const char *name)
 {
 	int result = request_irq(irq, diva_os_irq_wrapper,
-				 SA_INTERRUPT | SA_SHIRQ, name, context);
+				 IRQF_DISABLED | IRQF_SHARED, name, context);
 	return (result);
 }
 
@@ -678,7 +676,6 @@ static struct file_operations divas_fops = {
 
 static void divas_unregister_chrdev(void)
 {
-	devfs_remove(DEVNAME);
 	unregister_chrdev(major, DEVNAME);
 }
 
@@ -690,7 +687,6 @@ static int DIVA_INIT_FUNCTION divas_register_chrdev(void)
 		       DRIVERLNAME);
 		return (0);
 	}
-	devfs_mk_cdev(MKDEV(major, 0), S_IFCHR|S_IRUSR|S_IWUSR, DEVNAME);
 
 	return (1);
 }

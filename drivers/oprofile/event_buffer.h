@@ -11,7 +11,7 @@
 #define EVENT_BUFFER_H
 
 #include <linux/types.h> 
-#include <asm/semaphore.h>
+#include <asm/mutex.h>
  
 int alloc_event_buffer(void);
 
@@ -46,6 +46,6 @@ extern struct file_operations event_buffer_fops;
 /* mutex between sync_cpu_buffers() and the
  * file reading code.
  */
-extern struct semaphore buffer_sem;
+extern struct mutex buffer_mutex;
  
 #endif /* EVENT_BUFFER_H */

@@ -637,13 +637,13 @@ static inline void soc_init(struct sbus_dev *sdev, int no)
 	
 	irq = sdev->irqs[0];
 
-	if (request_irq (irq, soc_intr, SA_SHIRQ, "SOC", (void *)s)) {
+	if (request_irq (irq, soc_intr, IRQF_SHARED, "SOC", (void *)s)) {
 		soc_printk ("Cannot order irq %d to go\n", irq);
 		socs = s->next;
 		return;
 	}
 
-	SOD(("SOC uses IRQ%s\n", __irq_itoa(irq)))
+	SOD(("SOC uses IRQ %d\n", irq))
 	
 	s->port[0].fc.irq = irq;
 	s->port[1].fc.irq = irq;

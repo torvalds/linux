@@ -76,11 +76,9 @@ static u_int
 ahd_calc_syncsrate(u_int period_factor)
 {
 	int i;
-	int num_syncrates;
 
-	num_syncrates = sizeof(scsi_syncrates) / sizeof(scsi_syncrates[0]);
 	/* See if the period is in the "exception" table */
-	for (i = 0; i < num_syncrates; i++) {
+	for (i = 0; i < ARRAY_SIZE(scsi_syncrates); i++) {
 
 		if (period_factor == scsi_syncrates[i].period_factor) {
 			/* Period in kHz */

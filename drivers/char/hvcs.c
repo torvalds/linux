@@ -899,7 +899,7 @@ static int hvcs_enable_device(struct hvcs_struct *hvcsd, uint32_t unit_address,
 	 * the conn was registered and now.
 	 */
 	if (!(rc = request_irq(irq, &hvcs_handle_interrupt,
-				SA_INTERRUPT, "ibmhvcs", hvcsd))) {
+				IRQF_DISABLED, "ibmhvcs", hvcsd))) {
 		/*
 		 * It is possible the vty-server was removed after the irq was
 		 * requested but before we have time to enable interrupts.
@@ -1320,11 +1320,12 @@ static struct tty_operations hvcs_ops = {
 static int hvcs_alloc_index_list(int n)
 {
 	int i;
+
 	hvcs_index_list = kmalloc(n * sizeof(hvcs_index_count),GFP_KERNEL);
 	if (!hvcs_index_list)
 		return -ENOMEM;
 	hvcs_index_count = n;
-	for(i = 0; i < hvcs_index_count; i++)
+	for (i = 0; i < hvcs_index_count; i++)
 		hvcs_index_list[i] = -1;
 	return 0;
 }
@@ -1332,11 +1333,9 @@ static int hvcs_alloc_index_list(int n)
 static void hvcs_free_index_list(void)
 {
 	/* Paranoia check to be thorough. */
-	if (hvcs_index_list) {
-		kfree(hvcs_index_list);
-		hvcs_index_list = NULL;
-		hvcs_index_count = 0;
-	}
+	kfree(hvcs_index_list);
+	hvcs_index_list = NULL;
+	hvcs_index_count = 0;
 }
 
 static int __init hvcs_module_init(void)
@@ -1364,7 +1363,6 @@ static int __init hvcs_module_init(void)
 
 	hvcs_tty_driver->driver_name = hvcs_driver_name;
 	hvcs_tty_driver->name = hvcs_device_node;
-	hvcs_tty_driver->devfs_name = hvcs_device_node;
 
 	/*
 	 * We'll let the system assign us a major number, indicated by leaving

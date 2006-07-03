@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -95,7 +94,7 @@ dasd_alloc_device(void)
 	spin_lock_init(&device->mem_lock);
 	spin_lock_init(&device->request_queue_lock);
 	atomic_set (&device->tasklet_scheduled, 0);
-	tasklet_init(&device->tasklet, 
+	tasklet_init(&device->tasklet,
 		     (void (*)(unsigned long)) dasd_tasklet,
 		     (unsigned long) device);
 	INIT_LIST_HEAD(&device->ccw_queue);
@@ -128,7 +127,7 @@ dasd_state_new_to_known(struct dasd_device *device)
 	int rc;
 
 	/*
-	 * As long as the device is not in state DASD_STATE_NEW we want to 
+	 * As long as the device is not in state DASD_STATE_NEW we want to
 	 * keep the reference count > 0.
 	 */
 	dasd_get_device(device);
@@ -336,7 +335,7 @@ dasd_decrease_state(struct dasd_device *device)
 	if (device->state == DASD_STATE_ONLINE &&
 	    device->target <= DASD_STATE_READY)
 		dasd_state_online_to_ready(device);
-	
+
 	if (device->state == DASD_STATE_READY &&
 	    device->target <= DASD_STATE_BASIC)
 		dasd_state_ready_to_basic(device);
@@ -348,7 +347,7 @@ dasd_decrease_state(struct dasd_device *device)
 	if (device->state == DASD_STATE_BASIC &&
 	    device->target <= DASD_STATE_KNOWN)
 		dasd_state_basic_to_known(device);
-	
+
 	if (device->state == DASD_STATE_KNOWN &&
 	    device->target <= DASD_STATE_NEW)
 		dasd_state_known_to_new(device);
@@ -994,7 +993,7 @@ dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		      ((irb->scsw.cstat << 8) | irb->scsw.dstat), cqr);
 
  	/* Find out the appropriate era_action. */
-	if (irb->scsw.fctl & SCSW_FCTL_HALT_FUNC) 
+	if (irb->scsw.fctl & SCSW_FCTL_HALT_FUNC)
 		era = dasd_era_fatal;
 	else if (irb->scsw.dstat == (DEV_STAT_CHN_END | DEV_STAT_DEV_END) &&
 		 irb->scsw.cstat == 0 &&
@@ -1004,7 +1003,7 @@ dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
  	        era = dasd_era_fatal; /* don't recover this request */
 	else if (irb->esw.esw0.erw.cons)
 		era = device->discipline->examine_error(cqr, irb);
-	else 
+	else
 		era = dasd_era_recover;
 
 	DBF_DEV_EVENT(DBF_DEBUG, device, "era_code %d", era);
@@ -1287,7 +1286,7 @@ __dasd_start_head(struct dasd_device * device)
 }
 
 /*
- * Remove requests from the ccw queue. 
+ * Remove requests from the ccw queue.
  */
 static void
 dasd_flush_ccw_queue(struct dasd_device * device, int all)
@@ -1450,23 +1449,23 @@ dasd_sleep_on(struct dasd_ccw_req * cqr)
 	wait_queue_head_t wait_q;
 	struct dasd_device *device;
 	int rc;
-	
+
 	device = cqr->device;
 	spin_lock_irq(get_ccwdev_lock(device->cdev));
-	
+
 	init_waitqueue_head (&wait_q);
 	cqr->callback = dasd_wakeup_cb;
 	cqr->callback_data = (void *) &wait_q;
 	cqr->status = DASD_CQR_QUEUED;
 	list_add_tail(&cqr->list, &device->ccw_queue);
-	
+
 	/* let the bh start the request to keep them in order */
 	dasd_schedule_bh(device);
-	
+
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 
 	wait_event(wait_q, _wait_for_wakeup(cqr));
-	
+
 	/* Request status is either done or failed. */
 	rc = (cqr->status == DASD_CQR_FAILED) ? -EIO : 0;
 	return rc;
@@ -1568,7 +1567,7 @@ dasd_sleep_on_immediatly(struct dasd_ccw_req * cqr)
 	wait_queue_head_t wait_q;
 	struct dasd_device *device;
 	int rc;
-	
+
 	device = cqr->device;
 	spin_lock_irq(get_ccwdev_lock(device->cdev));
 	rc = _dasd_term_running_cqr(device);
@@ -1576,20 +1575,20 @@ dasd_sleep_on_immediatly(struct dasd_ccw_req * cqr)
 		spin_unlock_irq(get_ccwdev_lock(device->cdev));
 		return rc;
 	}
-	
+
 	init_waitqueue_head (&wait_q);
 	cqr->callback = dasd_wakeup_cb;
 	cqr->callback_data = (void *) &wait_q;
 	cqr->status = DASD_CQR_QUEUED;
 	list_add(&cqr->list, &device->ccw_queue);
-	
+
 	/* let the bh start the request to keep them in order */
 	dasd_schedule_bh(device);
-	
+
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 
 	wait_event(wait_q, _wait_for_wakeup(cqr));
-	
+
 	/* Request status is either done or failed. */
 	rc = (cqr->status == DASD_CQR_FAILED) ? -EIO : 0;
 	return rc;
@@ -1725,7 +1724,7 @@ dasd_flush_request_queue(struct dasd_device * device)
 
 	if (!device->request_queue)
 		return;
-	
+
 	spin_lock_irq(&device->request_queue_lock);
 	while (!list_empty(&device->request_queue->queue_head)) {
 		req = elv_next_request(device->request_queue);
@@ -1834,7 +1833,6 @@ dasd_exit(void)
 	}
 	dasd_gendisk_exit();
 	dasd_devmap_exit();
-	devfs_remove("dasd");
 	if (dasd_debug_area != NULL) {
 		debug_unregister(dasd_debug_area);
 		dasd_debug_area = NULL;
@@ -1855,15 +1853,34 @@ dasd_generic_probe (struct ccw_device *cdev,
 {
 	int ret;
 
+	ret = ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP);
+	if (ret) {
+		printk(KERN_WARNING
+		       "dasd_generic_probe: could not set ccw-device options "
+		       "for %s\n", cdev->dev.bus_id);
+		return ret;
+	}
 	ret = dasd_add_sysfs_files(cdev);
 	if (ret) {
 		printk(KERN_WARNING
 		       "dasd_generic_probe: could not add sysfs entries "
 		       "for %s\n", cdev->dev.bus_id);
-	} else {
-		cdev->handler = &dasd_int_handler;
+		return ret;
 	}
+	cdev->handler = &dasd_int_handler;
 
+	/*
+	 * Automatically online either all dasd devices (dasd_autodetect)
+	 * or all devices specified with dasd= parameters during
+	 * initial probe.
+	 */
+	if ((dasd_get_feature(cdev, DASD_FEATURE_INITIAL_ONLINE) > 0 ) ||
+	    (dasd_autodetect && dasd_busid_known(cdev->dev.bus_id) != 0))
+		ret = ccw_device_set_online(cdev);
+	if (ret)
+		printk(KERN_WARNING
+		       "dasd_generic_probe: could not initially online "
+		       "ccw-device %s\n", cdev->dev.bus_id);
 	return ret;
 }
 
@@ -1911,6 +1928,8 @@ dasd_generic_set_online (struct ccw_device *cdev,
 	struct dasd_device *device;
 	int rc;
 
+	/* first online clears initial online feature flag */
+	dasd_set_feature(cdev, DASD_FEATURE_INITIAL_ONLINE, 0);
 	device = dasd_create_device(cdev);
 	if (IS_ERR(device))
 		return PTR_ERR(device);
@@ -2065,31 +2084,6 @@ dasd_generic_notify(struct ccw_device *cdev, int event)
 	return ret;
 }
 
-/*
- * Automatically online either all dasd devices (dasd_autodetect) or
- * all devices specified with dasd= parameters.
- */
-static int
-__dasd_auto_online(struct device *dev, void *data)
-{
-	struct ccw_device *cdev;
-
-	cdev = to_ccwdev(dev);
-	if (dasd_autodetect || dasd_busid_known(cdev->dev.bus_id) == 0)
-		ccw_device_set_online(cdev);
-	return 0;
-}
-
-void
-dasd_generic_auto_online (struct ccw_driver *dasd_discipline_driver)
-{
-	struct device_driver *drv;
-
-	drv = get_driver(&dasd_discipline_driver->driver);
-	driver_for_each_device(drv, NULL, NULL, __dasd_auto_online);
-	put_driver(drv);
-}
-
 
 static int __init
 dasd_init(void)
@@ -2111,9 +2105,6 @@ dasd_init(void)
 
 	dasd_diag_discipline_pointer = NULL;
 
-	rc = devfs_mk_dir("dasd");
-	if (rc)
-		goto failed;
 	rc = dasd_devmap_init();
 	if (rc)
 		goto failed;
@@ -2170,23 +2161,4 @@ EXPORT_SYMBOL_GPL(dasd_generic_remove);
 EXPORT_SYMBOL_GPL(dasd_generic_notify);
 EXPORT_SYMBOL_GPL(dasd_generic_set_online);
 EXPORT_SYMBOL_GPL(dasd_generic_set_offline);
-EXPORT_SYMBOL_GPL(dasd_generic_auto_online);
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-indent-level: 4
- * c-brace-imaginary-offset: 0
- * c-brace-offset: -4
- * c-argdecl-indent: 4
- * c-label-offset: -4
- * c-continued-statement-offset: 4
- * c-continued-brace-offset: 0
- * indent-tabs-mode: 1
- * tab-width: 8
- * End:
- */

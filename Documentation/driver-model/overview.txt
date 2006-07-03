@@ -18,7 +18,7 @@ Traditional driver models implemented some sort of tree-like structure
 (sometimes just a list) for the devices they control. There wasn't any
 uniformity across the different bus types.
 
-The current driver model provides a comon, uniform data model for describing
+The current driver model provides a common, uniform data model for describing
 a bus and the devices that can appear under the bus. The unified bus
 model includes a set of common attributes which all busses carry, and a set
 of common callbacks, such as device discovery during bus probing, bus

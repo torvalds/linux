@@ -69,12 +69,12 @@
 
 #define OSS_IRQLEV_DISABLED	0
 #define OSS_IRQLEV_IOPISM	1	/* ADB? */
-#define OSS_IRQLEV_SCSI		2
-#define OSS_IRQLEV_NUBUS	3	/* keep this on its own level */
-#define OSS_IRQLEV_IOPSCC	4	/* matches VIA alternate mapping */
-#define OSS_IRQLEV_SOUND	5	/* matches VIA alternate mapping */
+#define OSS_IRQLEV_SCSI		IRQ_AUTO_2
+#define OSS_IRQLEV_NUBUS	IRQ_AUTO_3	/* keep this on its own level */
+#define OSS_IRQLEV_IOPSCC	IRQ_AUTO_4	/* matches VIA alternate mapping */
+#define OSS_IRQLEV_SOUND	IRQ_AUTO_5	/* matches VIA alternate mapping */
 #define OSS_IRQLEV_60HZ		6	/* matches VIA alternate mapping */
-#define OSS_IRQLEV_VIA1		6	/* matches VIA alternate mapping */
+#define OSS_IRQLEV_VIA1		IRQ_AUTO_6	/* matches VIA alternate mapping */
 #define OSS_IRQLEV_PARITY	7	/* matches VIA alternate mapping */
 
 #ifndef __ASSEMBLY__

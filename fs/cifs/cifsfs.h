@@ -32,7 +32,8 @@
 #define TRUE 1
 #endif
 
-extern struct address_space_operations cifs_addr_ops;
+extern const struct address_space_operations cifs_addr_ops;
+extern const struct address_space_operations cifs_addr_ops_smallbuf;
 
 /* Functions related to super block operations */
 extern struct super_operations cifs_super_ops;
@@ -74,7 +75,7 @@ extern ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 			 size_t write_size, loff_t * poffset);
 extern int cifs_lock(struct file *, int, struct file_lock *);
 extern int cifs_fsync(struct file *, struct dentry *, int);
-extern int cifs_flush(struct file *);
+extern int cifs_flush(struct file *, fl_owner_t id);
 extern int cifs_file_mmap(struct file * , struct vm_area_struct *);
 extern const struct file_operations cifs_dir_ops;
 extern int cifs_dir_open(struct inode *inode, struct file *file);
@@ -99,5 +100,5 @@ extern ssize_t	cifs_getxattr(struct dentry *, const char *, void *, size_t);
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
 extern int cifs_ioctl (struct inode * inode, struct file * filep,
 		       unsigned int command, unsigned long arg);
-#define CIFS_VERSION   "1.43"
+#define CIFS_VERSION   "1.44"
 #endif				/* _CIFSFS_H */

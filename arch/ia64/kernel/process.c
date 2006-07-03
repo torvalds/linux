@@ -9,7 +9,6 @@
  *	      Add notify_die() hooks.
  */
 #define __KERNEL_SYSCALLS__	/* see <asm/unistd.h> */
-#include <linux/config.h>
 
 #include <linux/cpu.h>
 #include <linux/pm.h>
@@ -272,9 +271,9 @@ cpu_idle (void)
 	/* endless idle loop with no priority at all */
 	while (1) {
 		if (can_do_pal_halt)
-			clear_thread_flag(TIF_POLLING_NRFLAG);
+			current_thread_info()->status &= ~TS_POLLING;
 		else
-			set_thread_flag(TIF_POLLING_NRFLAG);
+			current_thread_info()->status |= TS_POLLING;
 
 		if (!need_resched()) {
 			void (*idle)(void);

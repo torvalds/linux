@@ -15,13 +15,13 @@
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
 
-static int efs_statfs(struct super_block *s, struct kstatfs *buf);
+static int efs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int efs_fill_super(struct super_block *s, void *d, int silent);
 
-static struct super_block *efs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int efs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, efs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, efs_fill_super, mnt);
 }
 
 static struct file_system_type efs_fs_type = {
@@ -322,8 +322,8 @@ out_no_fs:
 	return -EINVAL;
 }
 
-static int efs_statfs(struct super_block *s, struct kstatfs *buf) {
-	struct efs_sb_info *sb = SUPER_INFO(s);
+static int efs_statfs(struct dentry *dentry, struct kstatfs *buf) {
+	struct efs_sb_info *sb = SUPER_INFO(dentry->d_sb);
 
 	buf->f_type    = EFS_SUPER_MAGIC;	/* efs magic number */
 	buf->f_bsize   = EFS_BLOCKSIZE;		/* blocksize */

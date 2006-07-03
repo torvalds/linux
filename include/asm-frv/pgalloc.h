@@ -15,7 +15,6 @@
 #ifndef _ASM_PGALLOC_H
 #define _ASM_PGALLOC_H
 
-#include <linux/config.h>
 #include <asm/setup.h>
 #include <asm/virtconvert.h>
 

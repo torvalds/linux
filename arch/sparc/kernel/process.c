@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/a.out.h>
-#include <linux/config.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/reboot.h>

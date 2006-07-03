@@ -367,7 +367,7 @@ void mipsmt_prepare_cpus(void)
 	dvpe();
 	dmt();
 
-	freeIPIq.lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&freeIPIq.lock);
 
 	/*
 	 * We probably don't have as many VPEs as we do SMP "CPUs",
@@ -375,7 +375,7 @@ void mipsmt_prepare_cpus(void)
 	 */
 	for (i=0; i<NR_CPUS; i++) {
 		IPIQ[i].head = IPIQ[i].tail = NULL;
-		IPIQ[i].lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&IPIQ[i].lock);
 		IPIQ[i].depth = 0;
 		ipi_timer_latch[i] = 0;
 	}
@@ -1002,7 +1002,7 @@ void setup_cross_vpe_interrupts(void)
 	set_vi_handler(MIPS_CPU_IPI_IRQ, ipi_irq_dispatch);
 
 	irq_ipi.handler = ipi_interrupt;
-	irq_ipi.flags = SA_INTERRUPT;
+	irq_ipi.flags = IRQF_DISABLED;
 	irq_ipi.name = "SMTC_IPI";
 
 	setup_irq_smtc(cpu_ipi_irq, &irq_ipi, (0x100 << MIPS_CPU_IPI_IRQ));

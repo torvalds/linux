@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #endif
+#include <linux/err.h>
 #include <linux/string.h>
 #include <linux/idr.h>
 
@@ -48,15 +49,21 @@ static struct idr_layer *alloc_layer(struct idr *idp)
 	return(p);
 }
 
+/* only called when idp->lock is held */
+static void __free_layer(struct idr *idp, struct idr_layer *p)
+{
+	p->ary[0] = idp->id_free;
+	idp->id_free = p;
+	idp->id_free_cnt++;
+}
+
 static void free_layer(struct idr *idp, struct idr_layer *p)
 {
 	/*
 	 * Depends on the return element being zeroed.
 	 */
 	spin_lock(&idp->lock);
-	p->ary[0] = idp->id_free;
-	idp->id_free = p;
-	idp->id_free_cnt++;
+	__free_layer(idp, p);
 	spin_unlock(&idp->lock);
 }
 
@@ -184,12 +191,14 @@ build_up:
 			 * The allocation failed.  If we built part of
 			 * the structure tear it down.
 			 */
+			spin_lock(&idp->lock);
 			for (new = p; p && p != idp->top; new = p) {
 				p = p->ary[0];
 				new->ary[0] = NULL;
 				new->bitmap = new->count = 0;
-				free_layer(idp, new);
+				__free_layer(idp, new);
 			}
+			spin_unlock(&idp->lock);
 			return -1;
 		}
 		new->ary[0] = p;
@@ -389,6 +398,48 @@ void *idr_find(struct idr *idp, int id)
 	return((void *)p);
 }
 EXPORT_SYMBOL(idr_find);
+
+/**
+ * idr_replace - replace pointer for given id
+ * @idp: idr handle
+ * @ptr: pointer you want associated with the id
+ * @id: lookup key
+ *
+ * Replace the pointer registered with an id and return the old value.
+ * A -ENOENT return indicates that @id was not found.
+ * A -EINVAL return indicates that @id was not within valid constraints.
+ *
+ * The caller must serialize vs idr_find(), idr_get_new(), and idr_remove().
+ */
+void *idr_replace(struct idr *idp, void *ptr, int id)
+{
+	int n;
+	struct idr_layer *p, *old_p;
+
+	n = idp->layers * IDR_BITS;
+	p = idp->top;
+
+	id &= MAX_ID_MASK;
+
+	if (id >= (1 << n))
+		return ERR_PTR(-EINVAL);
+
+	n -= IDR_BITS;
+	while ((n > 0) && p) {
+		p = p->ary[(id >> n) & IDR_MASK];
+		n -= IDR_BITS;
+	}
+
+	n = id & IDR_MASK;
+	if (unlikely(p == NULL || !test_bit(n, &p->bitmap)))
+		return ERR_PTR(-ENOENT);
+
+	old_p = p->ary[n];
+	p->ary[n] = ptr;
+
+	return old_p;
+}
+EXPORT_SYMBOL(idr_replace);
 
 static void idr_cache_ctor(void * idr_layer, kmem_cache_t *idr_layer_cache,
 		unsigned long flags)

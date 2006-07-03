@@ -24,14 +24,12 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -542,14 +540,13 @@ xfs_reserve_blocks(
 }
 
 void
-xfs_fs_log_dummy(xfs_mount_t *mp)
+xfs_fs_log_dummy(
+	xfs_mount_t	*mp)
 {
-	xfs_trans_t *tp;
-	xfs_inode_t *ip;
-
+	xfs_trans_t	*tp;
+	xfs_inode_t	*ip;
 
 	tp = _xfs_trans_alloc(mp, XFS_TRANS_DUMMY1);
-	atomic_inc(&mp->m_active_trans);
 	if (xfs_trans_reserve(tp, 0, XFS_ICHANGE_LOG_RES(mp), 0, 0, 0)) {
 		xfs_trans_cancel(tp, 0);
 		return;
@@ -574,21 +571,22 @@ xfs_fs_goingdown(
 {
 	switch (inflags) {
 	case XFS_FSOP_GOING_FLAGS_DEFAULT: {
-		struct vfs *vfsp = XFS_MTOVFS(mp);
+		struct bhv_vfs *vfsp = XFS_MTOVFS(mp);
 		struct super_block *sb = freeze_bdev(vfsp->vfs_super->s_bdev);
 
 		if (sb && !IS_ERR(sb)) {
-			xfs_force_shutdown(mp, XFS_FORCE_UMOUNT);
+			xfs_force_shutdown(mp, SHUTDOWN_FORCE_UMOUNT);
 			thaw_bdev(sb->s_bdev, sb);
 		}
 	
 		break;
 	}
 	case XFS_FSOP_GOING_FLAGS_LOGFLUSH:
-		xfs_force_shutdown(mp, XFS_FORCE_UMOUNT);
+		xfs_force_shutdown(mp, SHUTDOWN_FORCE_UMOUNT);
 		break;
 	case XFS_FSOP_GOING_FLAGS_NOLOGFLUSH:
-		xfs_force_shutdown(mp, XFS_FORCE_UMOUNT|XFS_LOG_IO_ERROR);
+		xfs_force_shutdown(mp,
+				SHUTDOWN_FORCE_UMOUNT | SHUTDOWN_LOG_IO_ERROR);
 		break;
 	default:
 		return XFS_ERROR(EINVAL);

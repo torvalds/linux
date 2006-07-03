@@ -13,7 +13,6 @@
 #ifndef __ASMARM_HARDWARE_IOMD_H
 #define __ASMARM_HARDWARE_IOMD_H
 
-#include <linux/config.h>
 
 #ifndef __ASSEMBLY__
 

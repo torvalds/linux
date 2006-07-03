@@ -23,10 +23,10 @@
 
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
+#include <linux/module.h>
 
 #include "w1.h"
 #include "w1_log.h"
-#include "w1_io.h"
 
 static int w1_delay_parm = 1;
 module_param_named(delay_coef, w1_delay_parm, int, 0);
@@ -50,7 +50,7 @@ static u8 w1_crc8_table[] = {
 	116, 42, 200, 150, 21, 75, 169, 247, 182, 232, 10, 84, 215, 137, 107, 53
 };
 
-void w1_delay(unsigned long tm)
+static void w1_delay(unsigned long tm)
 {
 	udelay(tm * w1_delay_parm);
 }
@@ -61,7 +61,7 @@ static u8 w1_read_bit(struct w1_master *dev);
 /**
  * Generates a write-0 or write-1 cycle and samples the level.
  */
-u8 w1_touch_bit(struct w1_master *dev, int bit)
+static u8 w1_touch_bit(struct w1_master *dev, int bit)
 {
 	if (dev->bus_master->touch_bit)
 		return dev->bus_master->touch_bit(dev->bus_master->data, bit);
@@ -108,6 +108,7 @@ void w1_write_8(struct w1_master *dev, u8 byte)
 		for (i = 0; i < 8; ++i)
 			w1_touch_bit(dev, (byte >> i) & 0x1);
 }
+EXPORT_SYMBOL_GPL(w1_write_8);
 
 
 /**
@@ -176,7 +177,7 @@ u8 w1_triplet(struct w1_master *dev, int bdir)
  * @param dev     the master device
  * @return        the byte read
  */
-u8 w1_read_8(struct w1_master * dev)
+static u8 w1_read_8(struct w1_master * dev)
 {
 	int i;
 	u8 res = 0;
@@ -208,6 +209,7 @@ void w1_write_block(struct w1_master *dev, const u8 *buf, int len)
 		for (i = 0; i < len; ++i)
 			w1_write_8(dev, buf[i]);
 }
+EXPORT_SYMBOL_GPL(w1_write_block);
 
 /**
  * Reads a series of bytes.
@@ -232,6 +234,7 @@ u8 w1_read_block(struct w1_master *dev, u8 *buf, int len)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(w1_read_block);
 
 /**
  * Issues a reset bus sequence.
@@ -257,6 +260,7 @@ int w1_reset_bus(struct w1_master *dev)
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(w1_reset_bus);
 
 u8 w1_calc_crc8(u8 * data, int len)
 {
@@ -267,14 +271,15 @@ u8 w1_calc_crc8(u8 * data, int len)
 
 	return crc;
 }
+EXPORT_SYMBOL_GPL(w1_calc_crc8);
 
-void w1_search_devices(struct w1_master *dev, w1_slave_found_callback cb)
+void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb)
 {
 	dev->attempts++;
 	if (dev->bus_master->search)
-		dev->bus_master->search(dev->bus_master->data, cb);
+		dev->bus_master->search(dev->bus_master->data, search_type, cb);
 	else
-		w1_search(dev, cb);
+		w1_search(dev, search_type, cb);
 }
 
 /**
@@ -299,14 +304,4 @@ int w1_reset_select_slave(struct w1_slave *sl)
 	}
 	return 0;
 }
-
-EXPORT_SYMBOL(w1_touch_bit);
-EXPORT_SYMBOL(w1_write_8);
-EXPORT_SYMBOL(w1_read_8);
-EXPORT_SYMBOL(w1_reset_bus);
-EXPORT_SYMBOL(w1_calc_crc8);
-EXPORT_SYMBOL(w1_delay);
-EXPORT_SYMBOL(w1_read_block);
-EXPORT_SYMBOL(w1_write_block);
-EXPORT_SYMBOL(w1_search_devices);
-EXPORT_SYMBOL(w1_reset_select_slave);
+EXPORT_SYMBOL_GPL(w1_reset_select_slave);

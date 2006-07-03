@@ -51,7 +51,6 @@
  * 
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -335,7 +334,7 @@ static void empeg_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 		return;
 	}
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 

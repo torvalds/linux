@@ -103,7 +103,7 @@ void __init init_cqreek_IRQ(void)
 		cqreek_irq_data[14].stat_port = BRIDGE_IDE_INTR_STAT;
 		cqreek_irq_data[14].bit = 1;
 
-		irq_desc[14].handler = &cqreek_irq_type;
+		irq_desc[14].chip = &cqreek_irq_type;
 		irq_desc[14].status = IRQ_DISABLED;
 		irq_desc[14].action = 0;
 		irq_desc[14].depth = 1;
@@ -117,7 +117,7 @@ void __init init_cqreek_IRQ(void)
 		cqreek_irq_data[10].bit = (1 << 10);
 
 		/* XXX: Err... we may need demultiplexer for ISA irq... */
-		irq_desc[10].handler = &cqreek_irq_type;
+		irq_desc[10].chip = &cqreek_irq_type;
 		irq_desc[10].status = IRQ_DISABLED;
 		irq_desc[10].action = 0;
 		irq_desc[10].depth = 1;

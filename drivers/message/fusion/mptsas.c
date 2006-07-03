@@ -1378,8 +1378,7 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc)
 	return 0;
 
  out_free_port_info:
-	if (hba)
-		kfree(hba);
+	kfree(hba);
  out:
 	return error;
 }

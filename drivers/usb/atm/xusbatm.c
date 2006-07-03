@@ -20,7 +20,6 @@
  ******************************************************************************/
 
 #include <linux/module.h>
-#include <linux/netdevice.h>		/* FIXME: required by linux/etherdevice.h */
 #include <linux/etherdevice.h>		/* for random_ether_addr() */
 
 #include "usbatm.h"

@@ -68,19 +68,23 @@ acpi_status acpi_ut_mutex_initialize(void)
 	u32 i;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_mutex_initialize");
+	ACPI_FUNCTION_TRACE(ut_mutex_initialize);
 
 	/*
 	 * Create each of the predefined mutex objects
 	 */
-	for (i = 0; i < NUM_MUTEX; i++) {
+	for (i = 0; i < ACPI_NUM_MUTEX; i++) {
 		status = acpi_ut_create_mutex(i);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
 	}
 
-	status = acpi_os_create_lock(&acpi_gbl_gpe_lock);
+	/* Create the spinlocks for use at interrupt level */
+
+	spin_lock_init(acpi_gbl_gpe_lock);
+	spin_lock_init(acpi_gbl_hardware_lock);
+
 	return_ACPI_STATUS(status);
 }
 
@@ -100,16 +104,19 @@ void acpi_ut_mutex_terminate(void)
 {
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("ut_mutex_terminate");
+	ACPI_FUNCTION_TRACE(ut_mutex_terminate);
 
 	/*
 	 * Delete each predefined mutex object
 	 */
-	for (i = 0; i < NUM_MUTEX; i++) {
+	for (i = 0; i < ACPI_NUM_MUTEX; i++) {
 		(void)acpi_ut_delete_mutex(i);
 	}
 
+	/* Delete the spinlocks */
+
 	acpi_os_delete_lock(acpi_gbl_gpe_lock);
+	acpi_os_delete_lock(acpi_gbl_hardware_lock);
 	return_VOID;
 }
 
@@ -129,16 +136,15 @@ static acpi_status acpi_ut_create_mutex(acpi_mutex_handle mutex_id)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE_U32("ut_create_mutex", mutex_id);
+	ACPI_FUNCTION_TRACE_U32(ut_create_mutex, mutex_id);
 
-	if (mutex_id > MAX_MUTEX) {
+	if (mutex_id > ACPI_MAX_MUTEX) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	if (!acpi_gbl_mutex_info[mutex_id].mutex) {
-		status = acpi_os_create_semaphore(1, 1,
-						  &acpi_gbl_mutex_info
-						  [mutex_id].mutex);
+		status =
+		    acpi_os_create_mutex(&acpi_gbl_mutex_info[mutex_id].mutex);
 		acpi_gbl_mutex_info[mutex_id].thread_id =
 		    ACPI_MUTEX_NOT_ACQUIRED;
 		acpi_gbl_mutex_info[mutex_id].use_count = 0;
@@ -161,20 +167,19 @@ static acpi_status acpi_ut_create_mutex(acpi_mutex_handle mutex_id)
 
 static acpi_status acpi_ut_delete_mutex(acpi_mutex_handle mutex_id)
 {
-	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_U32("ut_delete_mutex", mutex_id);
+	ACPI_FUNCTION_TRACE_U32(ut_delete_mutex, mutex_id);
 
-	if (mutex_id > MAX_MUTEX) {
+	if (mutex_id > ACPI_MAX_MUTEX) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_os_delete_semaphore(acpi_gbl_mutex_info[mutex_id].mutex);
+	acpi_os_delete_mutex(acpi_gbl_mutex_info[mutex_id].mutex);
 
 	acpi_gbl_mutex_info[mutex_id].mutex = NULL;
 	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
 
-	return_ACPI_STATUS(status);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
@@ -192,11 +197,11 @@ static acpi_status acpi_ut_delete_mutex(acpi_mutex_handle mutex_id)
 acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 {
 	acpi_status status;
-	u32 this_thread_id;
+	acpi_thread_id this_thread_id;
 
-	ACPI_FUNCTION_NAME("ut_acquire_mutex");
+	ACPI_FUNCTION_NAME(ut_acquire_mutex);
 
-	if (mutex_id > MAX_MUTEX) {
+	if (mutex_id > ACPI_MAX_MUTEX) {
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -213,7 +218,7 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 		 * the mutex ordering rule.  This indicates a coding error somewhere in
 		 * the ACPI subsystem code.
 		 */
-		for (i = mutex_id; i < MAX_MUTEX; i++) {
+		for (i = mutex_id; i < ACPI_MAX_MUTEX; i++) {
 			if (acpi_gbl_mutex_info[i].thread_id == this_thread_id) {
 				if (i == mutex_id) {
 					ACPI_ERROR((AE_INFO,
@@ -241,8 +246,8 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 			  "Thread %X attempting to acquire Mutex [%s]\n",
 			  this_thread_id, acpi_ut_get_mutex_name(mutex_id)));
 
-	status = acpi_os_wait_semaphore(acpi_gbl_mutex_info[mutex_id].mutex,
-					1, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_mutex_info[mutex_id].mutex,
+				       ACPI_WAIT_FOREVER);
 	if (ACPI_SUCCESS(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
 				  "Thread %X acquired Mutex [%s]\n",
@@ -274,17 +279,16 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 
 acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 {
-	acpi_status status;
-	u32 this_thread_id;
+	acpi_thread_id this_thread_id;
 
-	ACPI_FUNCTION_NAME("ut_release_mutex");
+	ACPI_FUNCTION_NAME(ut_release_mutex);
 
 	this_thread_id = acpi_os_get_thread_id();
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
 			  "Thread %X releasing Mutex [%s]\n", this_thread_id,
 			  acpi_ut_get_mutex_name(mutex_id)));
 
-	if (mutex_id > MAX_MUTEX) {
+	if (mutex_id > ACPI_MAX_MUTEX) {
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -309,7 +313,7 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 		 * ordering rule.  This indicates a coding error somewhere in
 		 * the ACPI subsystem code.
 		 */
-		for (i = mutex_id; i < MAX_MUTEX; i++) {
+		for (i = mutex_id; i < ACPI_MAX_MUTEX; i++) {
 			if (acpi_gbl_mutex_info[i].thread_id == this_thread_id) {
 				if (i == mutex_id) {
 					continue;
@@ -330,19 +334,6 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 
 	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
 
-	status =
-	    acpi_os_signal_semaphore(acpi_gbl_mutex_info[mutex_id].mutex, 1);
-
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"Thread %X could not release Mutex [%X]",
-				this_thread_id, mutex_id));
-	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
-				  "Thread %X released Mutex [%s]\n",
-				  this_thread_id,
-				  acpi_ut_get_mutex_name(mutex_id)));
-	}
-
-	return (status);
+	acpi_os_release_mutex(acpi_gbl_mutex_info[mutex_id].mutex);
+	return (AE_OK);
 }

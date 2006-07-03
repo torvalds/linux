@@ -104,8 +104,7 @@ static void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
 					vnode->cb_expiry * HZ);
 
 		spin_lock(&afs_cb_hash_lock);
-		list_del(&vnode->cb_hash_link);
-		list_add_tail(&vnode->cb_hash_link,
+		list_move_tail(&vnode->cb_hash_link,
 			      &afs_cb_hash(server, &vnode->fid));
 		spin_unlock(&afs_cb_hash_lock);
 

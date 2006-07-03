@@ -1,6 +1,6 @@
-/* 
+/*
  * File...........: linux/drivers/s390/block/dasd_3990_erp.c
- * Author(s)......: Horst  Hummel    <Horst.Hummel@de.ibm.com> 
+ * Author(s)......: Horst  Hummel    <Horst.Hummel@de.ibm.com>
  *		    Holger Smolinski <Holger.Smolinski@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 2000, 2001
@@ -25,23 +25,23 @@ struct DCTL_data {
 } __attribute__ ((packed));
 
 /*
- ***************************************************************************** 
+ *****************************************************************************
  * SECTION ERP EXAMINATION
- ***************************************************************************** 
+ *****************************************************************************
  */
 
 /*
- * DASD_3990_ERP_EXAMINE_24 
+ * DASD_3990_ERP_EXAMINE_24
  *
  * DESCRIPTION
- *   Checks only for fatal (unrecoverable) error. 
+ *   Checks only for fatal (unrecoverable) error.
  *   A detailed examination of the sense data is done later outside
  *   the interrupt handler.
  *
  *   Each bit configuration leading to an action code 2 (Exit with
  *   programming error or unusual condition indication)
  *   are handled as fatal error´s.
- * 
+ *
  *   All other configurations are handled as recoverable errors.
  *
  * RETURN VALUES
@@ -93,15 +93,15 @@ dasd_3990_erp_examine_24(struct dasd_ccw_req * cqr, char *sense)
 }				/* END dasd_3990_erp_examine_24 */
 
 /*
- * DASD_3990_ERP_EXAMINE_32 
+ * DASD_3990_ERP_EXAMINE_32
  *
  * DESCRIPTION
- *   Checks only for fatal/no/recoverable error. 
+ *   Checks only for fatal/no/recoverable error.
  *   A detailed examination of the sense data is done later outside
  *   the interrupt handler.
  *
  * RETURN VALUES
- *   dasd_era_none	no error 
+ *   dasd_era_none	no error
  *   dasd_era_fatal	for all fatal (unrecoverable errors)
  *   dasd_era_recover	for recoverable others.
  */
@@ -128,10 +128,10 @@ dasd_3990_erp_examine_32(struct dasd_ccw_req * cqr, char *sense)
 }				/* end dasd_3990_erp_examine_32 */
 
 /*
- * DASD_3990_ERP_EXAMINE 
+ * DASD_3990_ERP_EXAMINE
  *
  * DESCRIPTION
- *   Checks only for fatal/no/recover error. 
+ *   Checks only for fatal/no/recover error.
  *   A detailed examination of the sense data is done later outside
  *   the interrupt handler.
  *
@@ -139,7 +139,7 @@ dasd_3990_erp_examine_32(struct dasd_ccw_req * cqr, char *sense)
  *   'Chapter 7. Error Recovery Procedures'.
  *
  * RETURN VALUES
- *   dasd_era_none	no error 
+ *   dasd_era_none	no error
  *   dasd_era_fatal	for all fatal (unrecoverable errors)
  *   dasd_era_recover	for all others.
  */
@@ -178,18 +178,18 @@ dasd_3990_erp_examine(struct dasd_ccw_req * cqr, struct irb * irb)
 }				/* END dasd_3990_erp_examine */
 
 /*
- ***************************************************************************** 
+ *****************************************************************************
  * SECTION ERP HANDLING
- ***************************************************************************** 
+ *****************************************************************************
  */
 /*
- ***************************************************************************** 
+ *****************************************************************************
  * 24 and 32 byte sense ERP functions
- ***************************************************************************** 
+ *****************************************************************************
  */
 
 /*
- * DASD_3990_ERP_CLEANUP 
+ * DASD_3990_ERP_CLEANUP
  *
  * DESCRIPTION
  *   Removes the already build but not necessary ERP request and sets
@@ -197,10 +197,10 @@ dasd_3990_erp_examine(struct dasd_ccw_req * cqr, struct irb * irb)
  *
  *  PARAMETER
  *   erp		request to be blocked
- *   final_status	either DASD_CQR_DONE or DASD_CQR_FAILED 
+ *   final_status	either DASD_CQR_DONE or DASD_CQR_FAILED
  *
  * RETURN VALUES
- *   cqr		original cqr		   
+ *   cqr		original cqr
  */
 static struct dasd_ccw_req *
 dasd_3990_erp_cleanup(struct dasd_ccw_req * erp, char final_status)
@@ -214,7 +214,7 @@ dasd_3990_erp_cleanup(struct dasd_ccw_req * erp, char final_status)
 }				/* end dasd_3990_erp_cleanup */
 
 /*
- * DASD_3990_ERP_BLOCK_QUEUE 
+ * DASD_3990_ERP_BLOCK_QUEUE
  *
  * DESCRIPTION
  *   Block the given device request queue to prevent from further
@@ -237,7 +237,7 @@ dasd_3990_erp_block_queue(struct dasd_ccw_req * erp, int expires)
 }
 
 /*
- * DASD_3990_ERP_INT_REQ 
+ * DASD_3990_ERP_INT_REQ
  *
  * DESCRIPTION
  *   Handles 'Intervention Required' error.
@@ -277,7 +277,7 @@ dasd_3990_erp_int_req(struct dasd_ccw_req * erp)
 }				/* end dasd_3990_erp_int_req */
 
 /*
- * DASD_3990_ERP_ALTERNATE_PATH 
+ * DASD_3990_ERP_ALTERNATE_PATH
  *
  * DESCRIPTION
  *   Repeat the operation on a different channel path.
@@ -330,15 +330,15 @@ dasd_3990_erp_alternate_path(struct dasd_ccw_req * erp)
  * DASD_3990_ERP_DCTL
  *
  * DESCRIPTION
- *   Setup cqr to do the Diagnostic Control (DCTL) command with an 
+ *   Setup cqr to do the Diagnostic Control (DCTL) command with an
  *   Inhibit Write subcommand (0x20) and the given modifier.
  *
  *  PARAMETER
  *   erp		pointer to the current (failed) ERP
  *   modifier		subcommand modifier
- *   
+ *
  * RETURN VALUES
- *   dctl_cqr		pointer to NEW dctl_cqr 
+ *   dctl_cqr		pointer to NEW dctl_cqr
  *
  */
 static struct dasd_ccw_req *
@@ -386,7 +386,7 @@ dasd_3990_erp_DCTL(struct dasd_ccw_req * erp, char modifier)
 }				/* end dasd_3990_erp_DCTL */
 
 /*
- * DASD_3990_ERP_ACTION_1 
+ * DASD_3990_ERP_ACTION_1
  *
  * DESCRIPTION
  *   Setup ERP to do the ERP action 1 (see Reference manual).
@@ -415,7 +415,7 @@ dasd_3990_erp_action_1(struct dasd_ccw_req * erp)
 }				/* end dasd_3990_erp_action_1 */
 
 /*
- * DASD_3990_ERP_ACTION_4 
+ * DASD_3990_ERP_ACTION_4
  *
  * DESCRIPTION
  *   Setup ERP to do the ERP action 4 (see Reference manual).
@@ -453,11 +453,11 @@ dasd_3990_erp_action_4(struct dasd_ccw_req * erp, char *sense)
 
 		if (sense[25] == 0x1D) {	/* state change pending */
 
-			DEV_MESSAGE(KERN_INFO, device, 
+			DEV_MESSAGE(KERN_INFO, device,
 				    "waiting for state change pending "
 				    "interrupt, %d retries left",
 				    erp->retries);
-			
+
 			dasd_3990_erp_block_queue(erp, 30*HZ);
 
                 } else if (sense[25] == 0x1E) {	/* busy */
@@ -469,9 +469,9 @@ dasd_3990_erp_action_4(struct dasd_ccw_req * erp, char *sense)
 		} else {
 
 			/* no state change pending - retry */
-			DEV_MESSAGE (KERN_INFO, device, 
+			DEV_MESSAGE (KERN_INFO, device,
 				     "redriving request immediately, "
-				     "%d retries left", 
+				     "%d retries left",
 				     erp->retries);
 			erp->status = DASD_CQR_QUEUED;
 		}
@@ -482,13 +482,13 @@ dasd_3990_erp_action_4(struct dasd_ccw_req * erp, char *sense)
 }				/* end dasd_3990_erp_action_4 */
 
 /*
- ***************************************************************************** 
+ *****************************************************************************
  * 24 byte sense ERP functions (only)
- ***************************************************************************** 
+ *****************************************************************************
  */
 
 /*
- * DASD_3990_ERP_ACTION_5 
+ * DASD_3990_ERP_ACTION_5
  *
  * DESCRIPTION
  *   Setup ERP to do the ERP action 5 (see Reference manual).
@@ -523,7 +523,7 @@ dasd_3990_erp_action_5(struct dasd_ccw_req * erp)
  *
  * PARAMETER
  *   sense		current sense data
- *   
+ *
  * RETURN VALUES
  *   void
  */
@@ -1150,9 +1150,9 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
  * PARAMETER
  *   erp		current erp_head
  *   sense		current sense data
- * 
+ *
  * RETURN VALUES
- *   erp		'new' erp_head - pointer to new ERP 
+ *   erp		'new' erp_head - pointer to new ERP
  */
 static struct dasd_ccw_req *
 dasd_3990_erp_com_rej(struct dasd_ccw_req * erp, char *sense)
@@ -1185,7 +1185,7 @@ dasd_3990_erp_com_rej(struct dasd_ccw_req * erp, char *sense)
 }				/* end dasd_3990_erp_com_rej */
 
 /*
- * DASD_3990_ERP_BUS_OUT 
+ * DASD_3990_ERP_BUS_OUT
  *
  * DESCRIPTION
  *   Handles 24 byte 'Bus Out Parity Check' error.
@@ -1483,7 +1483,7 @@ dasd_3990_erp_env_data(struct dasd_ccw_req * erp, char *sense)
  *
  * PARAMETER
  *   erp		already added default ERP
- *		
+ *
  * RETURN VALUES
  *   erp		new erp_head - pointer to new ERP
  */
@@ -1527,11 +1527,11 @@ dasd_3990_erp_file_prot(struct dasd_ccw_req * erp)
 }				/* end dasd_3990_erp_file_prot */
 
 /*
- * DASD_3990_ERP_INSPECT_24 
+ * DASD_3990_ERP_INSPECT_24
  *
  * DESCRIPTION
  *   Does a detailed inspection of the 24 byte sense data
- *   and sets up a related error recovery action.  
+ *   and sets up a related error recovery action.
  *
  * PARAMETER
  *   sense		sense data of the actual error
@@ -1602,13 +1602,13 @@ dasd_3990_erp_inspect_24(struct dasd_ccw_req * erp, char *sense)
 }				/* END dasd_3990_erp_inspect_24 */
 
 /*
- ***************************************************************************** 
+ *****************************************************************************
  * 32 byte sense ERP functions (only)
- ***************************************************************************** 
+ *****************************************************************************
  */
 
 /*
- * DASD_3990_ERPACTION_10_32 
+ * DASD_3990_ERPACTION_10_32
  *
  * DESCRIPTION
  *   Handles 32 byte 'Action 10' of Single Program Action Codes.
@@ -1616,7 +1616,7 @@ dasd_3990_erp_inspect_24(struct dasd_ccw_req * erp, char *sense)
  *
  * PARAMETER
  *   erp		current erp_head
- *   sense		current sense data 
+ *   sense		current sense data
  * RETURN VALUES
  *   erp		modified erp_head
  */
@@ -1640,18 +1640,18 @@ dasd_3990_erp_action_10_32(struct dasd_ccw_req * erp, char *sense)
  *
  * DESCRIPTION
  *   Handles 32 byte 'Action 1B' of Single Program Action Codes.
- *   A write operation could not be finished because of an unexpected 
+ *   A write operation could not be finished because of an unexpected
  *   condition.
- *   The already created 'default erp' is used to get the link to 
- *   the erp chain, but it can not be used for this recovery 
+ *   The already created 'default erp' is used to get the link to
+ *   the erp chain, but it can not be used for this recovery
  *   action because it contains no DE/LO data space.
  *
  * PARAMETER
  *   default_erp	already added default erp.
- *   sense		current sense data 
+ *   sense		current sense data
  *
  * RETURN VALUES
- *   erp		new erp or 
+ *   erp		new erp or
  *			default_erp in case of imprecise ending or error
  */
 static struct dasd_ccw_req *
@@ -1789,16 +1789,16 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
  * DASD_3990_UPDATE_1B
  *
  * DESCRIPTION
- *   Handles the update to the 32 byte 'Action 1B' of Single Program 
+ *   Handles the update to the 32 byte 'Action 1B' of Single Program
  *   Action Codes in case the first action was not successful.
  *   The already created 'previous_erp' is the currently not successful
- *   ERP. 
+ *   ERP.
  *
  * PARAMETER
  *   previous_erp	already created previous erp.
- *   sense		current sense data 
+ *   sense		current sense data
  * RETURN VALUES
- *   erp		modified erp 
+ *   erp		modified erp
  */
 static struct dasd_ccw_req *
 dasd_3990_update_1B(struct dasd_ccw_req * previous_erp, char *sense)
@@ -1897,7 +1897,7 @@ dasd_3990_update_1B(struct dasd_ccw_req * previous_erp, char *sense)
 }				/* end dasd_3990_update_1B */
 
 /*
- * DASD_3990_ERP_COMPOUND_RETRY 
+ * DASD_3990_ERP_COMPOUND_RETRY
  *
  * DESCRIPTION
  *   Handles the compound ERP action retry code.
@@ -1943,7 +1943,7 @@ dasd_3990_erp_compound_retry(struct dasd_ccw_req * erp, char *sense)
 }				/* end dasd_3990_erp_compound_retry */
 
 /*
- * DASD_3990_ERP_COMPOUND_PATH 
+ * DASD_3990_ERP_COMPOUND_PATH
  *
  * DESCRIPTION
  *   Handles the compound ERP action for retry on alternate
@@ -1965,7 +1965,7 @@ dasd_3990_erp_compound_path(struct dasd_ccw_req * erp, char *sense)
 		dasd_3990_erp_alternate_path(erp);
 
 		if (erp->status == DASD_CQR_FAILED) {
-			/* reset the lpm and the status to be able to 
+			/* reset the lpm and the status to be able to
 			 * try further actions. */
 
 			erp->lpm = 0;
@@ -1980,7 +1980,7 @@ dasd_3990_erp_compound_path(struct dasd_ccw_req * erp, char *sense)
 }				/* end dasd_3990_erp_compound_path */
 
 /*
- * DASD_3990_ERP_COMPOUND_CODE 
+ * DASD_3990_ERP_COMPOUND_CODE
  *
  * DESCRIPTION
  *   Handles the compound ERP action for retry code.
@@ -2001,18 +2001,18 @@ dasd_3990_erp_compound_code(struct dasd_ccw_req * erp, char *sense)
 
 		switch (sense[28]) {
 		case 0x17:
-			/* issue a Diagnostic Control command with an 
+			/* issue a Diagnostic Control command with an
 			 * Inhibit Write subcommand and controler modifier */
 			erp = dasd_3990_erp_DCTL(erp, 0x20);
 			break;
-			
+
 		case 0x25:
 			/* wait for 5 seconds and retry again */
 			erp->retries = 1;
-			
+
 			dasd_3990_erp_block_queue (erp, 5*HZ);
 			break;
-			
+
 		default:
 			/* should not happen - continue */
 			break;
@@ -2026,7 +2026,7 @@ dasd_3990_erp_compound_code(struct dasd_ccw_req * erp, char *sense)
 }				/* end dasd_3990_erp_compound_code */
 
 /*
- * DASD_3990_ERP_COMPOUND_CONFIG 
+ * DASD_3990_ERP_COMPOUND_CONFIG
  *
  * DESCRIPTION
  *   Handles the compound ERP action for configruation
@@ -2063,10 +2063,10 @@ dasd_3990_erp_compound_config(struct dasd_ccw_req * erp, char *sense)
 }				/* end dasd_3990_erp_compound_config */
 
 /*
- * DASD_3990_ERP_COMPOUND 
+ * DASD_3990_ERP_COMPOUND
  *
  * DESCRIPTION
- *   Does the further compound program action if 
+ *   Does the further compound program action if
  *   compound retry was not successful.
  *
  * PARAMETER
@@ -2110,11 +2110,11 @@ dasd_3990_erp_compound(struct dasd_ccw_req * erp, char *sense)
 }				/* end dasd_3990_erp_compound */
 
 /*
- * DASD_3990_ERP_INSPECT_32 
+ * DASD_3990_ERP_INSPECT_32
  *
  * DESCRIPTION
  *   Does a detailed inspection of the 32 byte sense data
- *   and sets up a related error recovery action.  
+ *   and sets up a related error recovery action.
  *
  * PARAMETER
  *   sense		sense data of the actual error
@@ -2228,9 +2228,9 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 }				/* end dasd_3990_erp_inspect_32 */
 
 /*
- ***************************************************************************** 
+ *****************************************************************************
  * main ERP control fuctions (24 and 32 byte sense)
- ***************************************************************************** 
+ *****************************************************************************
  */
 
 /*
@@ -2243,7 +2243,7 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
  * PARAMETER
  *   erp		pointer to the currently created default ERP
  * RETURN VALUES
- *   erp_new		contens was possibly modified 
+ *   erp_new		contens was possibly modified
  */
 static struct dasd_ccw_req *
 dasd_3990_erp_inspect(struct dasd_ccw_req * erp)
@@ -2272,14 +2272,14 @@ dasd_3990_erp_inspect(struct dasd_ccw_req * erp)
 
 /*
  * DASD_3990_ERP_ADD_ERP
- * 
+ *
  * DESCRIPTION
  *   This funtion adds an additional request block (ERP) to the head of
  *   the given cqr (or erp).
  *   This erp is initialized as an default erp (retry TIC)
  *
  * PARAMETER
- *   cqr		head of the current ERP-chain (or single cqr if 
+ *   cqr		head of the current ERP-chain (or single cqr if
  *			first error)
  * RETURN VALUES
  *   erp		pointer to new ERP-chain head
@@ -2332,15 +2332,15 @@ dasd_3990_erp_add_erp(struct dasd_ccw_req * cqr)
 }
 
 /*
- * DASD_3990_ERP_ADDITIONAL_ERP 
- * 
+ * DASD_3990_ERP_ADDITIONAL_ERP
+ *
  * DESCRIPTION
  *   An additional ERP is needed to handle the current error.
  *   Add ERP to the head of the ERP-chain containing the ERP processing
  *   determined based on the sense data.
  *
  * PARAMETER
- *   cqr		head of the current ERP-chain (or single cqr if 
+ *   cqr		head of the current ERP-chain (or single cqr if
  *			first error)
  *
  * RETURN VALUES
@@ -2376,7 +2376,7 @@ dasd_3990_erp_additional_erp(struct dasd_ccw_req * cqr)
  *   24 byte sense byte 25 and 27 is set as well.
  *
  * PARAMETER
- *   cqr1		first cqr, which will be compared with the 
+ *   cqr1		first cqr, which will be compared with the
  *   cqr2		second cqr.
  *
  * RETURN VALUES
@@ -2415,7 +2415,7 @@ dasd_3990_erp_error_match(struct dasd_ccw_req *cqr1, struct dasd_ccw_req *cqr2)
  *   cqr		failed cqr (either original cqr or already an erp)
  *
  * RETURN VALUES
- *   erp		erp-pointer to the already defined error 
+ *   erp		erp-pointer to the already defined error
  *			recovery procedure OR
  *			NULL if a 'new' error occurred.
  */
@@ -2451,10 +2451,10 @@ dasd_3990_erp_in_erp(struct dasd_ccw_req *cqr)
  * DASD_3990_ERP_FURTHER_ERP (24 & 32 byte sense)
  *
  * DESCRIPTION
- *   No retry is left for the current ERP. Check what has to be done 
+ *   No retry is left for the current ERP. Check what has to be done
  *   with the ERP.
  *     - do further defined ERP action or
- *     - wait for interrupt or	
+ *     - wait for interrupt or
  *     - exit with permanent error
  *
  * PARAMETER
@@ -2485,7 +2485,7 @@ dasd_3990_erp_further_erp(struct dasd_ccw_req *erp)
 
 		if (!(sense[2] & DASD_SENSE_BIT_0)) {
 
-			/* issue a Diagnostic Control command with an 
+			/* issue a Diagnostic Control command with an
 			 * Inhibit Write subcommand */
 
 			switch (sense[25]) {
@@ -2535,14 +2535,14 @@ dasd_3990_erp_further_erp(struct dasd_ccw_req *erp)
 }				/* end dasd_3990_erp_further_erp */
 
 /*
- * DASD_3990_ERP_HANDLE_MATCH_ERP 
+ * DASD_3990_ERP_HANDLE_MATCH_ERP
  *
  * DESCRIPTION
  *   An error occurred again and an ERP has been detected which is already
- *   used to handle this error (e.g. retries). 
+ *   used to handle this error (e.g. retries).
  *   All prior ERP's are asumed to be successful and therefore removed
  *   from queue.
- *   If retry counter of matching erp is already 0, it is checked if further 
+ *   If retry counter of matching erp is already 0, it is checked if further
  *   action is needed (besides retry) or if the ERP has failed.
  *
  * PARAMETER
@@ -2631,7 +2631,7 @@ dasd_3990_erp_handle_match_erp(struct dasd_ccw_req *erp_head,
  *   erp		erp-pointer to the head of the ERP action chain.
  *			This means:
  *			 - either a ptr to an additional ERP cqr or
- *			 - the original given cqr (which's status might 
+ *			 - the original given cqr (which's status might
  *			   be modified)
  */
 struct dasd_ccw_req *
@@ -2723,22 +2723,3 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 	return erp;
 
 }				/* end dasd_3990_erp_action */
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-indent-level: 4 
- * c-brace-imaginary-offset: 0
- * c-brace-offset: -4
- * c-argdecl-indent: 4
- * c-label-offset: -4
- * c-continued-statement-offset: 4
- * c-continued-brace-offset: 0
- * indent-tabs-mode: 1
- * tab-width: 8
- * End:
- */

@@ -1909,7 +1909,7 @@ static int __devinit vrc5477_ac97_probe(struct pci_dev *pcidev,
 		       s->io, s->io + pci_resource_len(pcidev,0)-1);
 		goto err_region;
 	}
-	if (request_irq(s->irq, vrc5477_ac97_interrupt, SA_INTERRUPT,
+	if (request_irq(s->irq, vrc5477_ac97_interrupt, IRQF_DISABLED,
 			VRC5477_AC97_MODULE_NAME, s)) {
 		printk(KERN_ERR PFX "irq %u in use\n", s->irq);
 		goto err_irq;

@@ -116,7 +116,7 @@ union acpi_ec {
 		struct acpi_generic_address command_addr;
 		struct acpi_generic_address data_addr;
 		unsigned long global_lock;
-		spinlock_t lock;
+		struct semaphore sem;
 	} poll;
 };
 
@@ -207,16 +207,15 @@ static int acpi_ec_intr_wait(union acpi_ec *ec, unsigned int event)
 {
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_wait");
 
 	ec->intr.expect_event = event;
 	smp_mb();
 
 	switch (event) {
 	case ACPI_EC_EVENT_IBE:
-		if (~acpi_ec_read_status(ec) & event) {
+		if (~acpi_ec_read_status(ec) & ACPI_EC_FLAG_IBF) {
 			ec->intr.expect_event = 0;
-			return_VALUE(0);
+			return 0;
 		}
 		break;
 	default:
@@ -238,16 +237,16 @@ static int acpi_ec_intr_wait(union acpi_ec *ec, unsigned int event)
 	switch (event) {
 	case ACPI_EC_EVENT_OBF:
 		if (acpi_ec_read_status(ec) & ACPI_EC_FLAG_OBF)
-			return_VALUE(0);
+			return 0;
 		break;
 
 	case ACPI_EC_EVENT_IBE:
 		if (~acpi_ec_read_status(ec) & ACPI_EC_FLAG_IBF)
-			return_VALUE(0);
+			return 0;
 		break;
 	}
 
-	return_VALUE(-ETIME);
+	return -ETIME;
 }
 
 #ifdef ACPI_FUTURE_USAGE
@@ -260,7 +259,6 @@ int acpi_ec_enter_burst_mode(union acpi_ec *ec)
 	u32 tmp = 0;
 	int status = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_enter_burst_mode");
 
 	status = acpi_ec_read_status(ec);
 	if (status != -EINVAL && !(status & ACPI_EC_FLAG_BURST)) {
@@ -272,22 +270,21 @@ int acpi_ec_enter_burst_mode(union acpi_ec *ec)
 		status = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
 		acpi_hw_low_level_read(8, &tmp, &ec->common.data_addr);
 		if (tmp != 0x90) {	/* Burst ACK byte */
-			return_VALUE(-EINVAL);
+			return -EINVAL;
 		}
 	}
 
 	atomic_set(&ec->intr.leaving_burst, 0);
-	return_VALUE(0);
+	return 0;
       end:
-	printk(KERN_WARNING PREFIX "Error in acpi_ec_wait\n");
-	return_VALUE(-1);
+	ACPI_EXCEPTION ((AE_INFO, status, "EC wait, burst mode");
+	return -1;
 }
 
 int acpi_ec_leave_burst_mode(union acpi_ec *ec)
 {
 	int status = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_leave_burst_mode");
 
 	status = acpi_ec_read_status(ec);
 	if (status != -EINVAL && (status & ACPI_EC_FLAG_BURST)){
@@ -298,10 +295,10 @@ int acpi_ec_leave_burst_mode(union acpi_ec *ec)
 		acpi_ec_wait(ec, ACPI_EC_FLAG_IBF);
 	} 
 	atomic_set(&ec->intr.leaving_burst, 1);
-	return_VALUE(0);
+	return 0;
 end:
-	printk(KERN_WARNING PREFIX "leave burst_mode:error\n");
-	return_VALUE(-1);
+	ACPI_EXCEPTION((AE_INFO, status, "EC leave burst mode");
+	return -1;
 }
 #endif /* ACPI_FUTURE_USAGE */
 
@@ -323,24 +320,25 @@ static int acpi_ec_poll_read(union acpi_ec *ec, u8 address, u32 * data)
 {
 	acpi_status status = AE_OK;
 	int result = 0;
-	unsigned long flags = 0;
 	u32 glk = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_read");
 
 	if (!ec || !data)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	*data = 0;
 
 	if (ec->common.global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
 		if (ACPI_FAILURE(status))
-			return_VALUE(-ENODEV);
+			return -ENODEV;
 	}
 
-	spin_lock_irqsave(&ec->poll.lock, flags);
-
+	if (down_interruptible(&ec->poll.sem)) {
+		result = -ERESTARTSYS;
+		goto end_nosem;
+	}
+	
 	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_READ,
 				&ec->common.command_addr);
 	result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
@@ -358,34 +356,35 @@ static int acpi_ec_poll_read(union acpi_ec *ec, u8 address, u32 * data)
 			  *data, address));
 
       end:
-	spin_unlock_irqrestore(&ec->poll.lock, flags);
-
+	up(&ec->poll.sem);
+end_nosem:
 	if (ec->common.global_lock)
 		acpi_release_global_lock(glk);
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_ec_poll_write(union acpi_ec *ec, u8 address, u8 data)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
-	unsigned long flags = 0;
 	u32 glk = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_write");
 
 	if (!ec)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (ec->common.global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
 		if (ACPI_FAILURE(status))
-			return_VALUE(-ENODEV);
+			return -ENODEV;
 	}
 
-	spin_lock_irqsave(&ec->poll.lock, flags);
-
+	if (down_interruptible(&ec->poll.sem)) {
+		result = -ERESTARTSYS;
+		goto end_nosem;
+	}
+	
 	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_WRITE,
 				&ec->common.command_addr);
 	result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
@@ -406,12 +405,12 @@ static int acpi_ec_poll_write(union acpi_ec *ec, u8 address, u8 data)
 			  data, address));
 
       end:
-	spin_unlock_irqrestore(&ec->poll.lock, flags);
-
+	up(&ec->poll.sem);
+end_nosem:
 	if (ec->common.global_lock)
 		acpi_release_global_lock(glk);
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_ec_intr_read(union acpi_ec *ec, u8 address, u32 * data)
@@ -419,17 +418,16 @@ static int acpi_ec_intr_read(union acpi_ec *ec, u8 address, u32 * data)
 	int status = 0;
 	u32 glk;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_read");
 
 	if (!ec || !data)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	*data = 0;
 
 	if (ec->common.global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
 		if (ACPI_FAILURE(status))
-			return_VALUE(-ENODEV);
+			return -ENODEV;
 	}
 
 	WARN_ON(in_interrupt());
@@ -463,7 +461,7 @@ static int acpi_ec_intr_read(union acpi_ec *ec, u8 address, u32 * data)
 	if (ec->common.global_lock)
 		acpi_release_global_lock(glk);
 
-	return_VALUE(status);
+	return status;
 }
 
 static int acpi_ec_intr_write(union acpi_ec *ec, u8 address, u8 data)
@@ -471,15 +469,14 @@ static int acpi_ec_intr_write(union acpi_ec *ec, u8 address, u8 data)
 	int status = 0;
 	u32 glk;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_write");
 
 	if (!ec)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (ec->common.global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
 		if (ACPI_FAILURE(status))
-			return_VALUE(-ENODEV);
+			return -ENODEV;
 	}
 
 	WARN_ON(in_interrupt());
@@ -512,7 +509,7 @@ static int acpi_ec_intr_write(union acpi_ec *ec, u8 address, u8 data)
 	if (ec->common.global_lock)
 		acpi_release_global_lock(glk);
 
-	return_VALUE(status);
+	return status;
 }
 
 /*
@@ -568,20 +565,18 @@ static int acpi_ec_poll_query(union acpi_ec *ec, u32 * data)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
-	unsigned long flags = 0;
 	u32 glk = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_query");
 
 	if (!ec || !data)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	*data = 0;
 
 	if (ec->common.global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
 		if (ACPI_FAILURE(status))
-			return_VALUE(-ENODEV);
+			return -ENODEV;
 	}
 
 	/*
@@ -589,8 +584,11 @@ static int acpi_ec_poll_query(union acpi_ec *ec, u32 * data)
 	 * Note that successful completion of the query causes the ACPI_EC_SCI
 	 * bit to be cleared (and thus clearing the interrupt source).
 	 */
-	spin_lock_irqsave(&ec->poll.lock, flags);
-
+	if (down_interruptible(&ec->poll.sem)) {
+		result = -ERESTARTSYS;
+		goto end_nosem;
+	}
+	
 	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_QUERY,
 				&ec->common.command_addr);
 	result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
@@ -602,28 +600,27 @@ static int acpi_ec_poll_query(union acpi_ec *ec, u32 * data)
 		result = -ENODATA;
 
       end:
-	spin_unlock_irqrestore(&ec->poll.lock, flags);
-
+	up(&ec->poll.sem);
+end_nosem:
 	if (ec->common.global_lock)
 		acpi_release_global_lock(glk);
 
-	return_VALUE(result);
+	return result;
 }
 static int acpi_ec_intr_query(union acpi_ec *ec, u32 * data)
 {
 	int status = 0;
 	u32 glk;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_query");
 
 	if (!ec || !data)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 	*data = 0;
 
 	if (ec->common.global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
 		if (ACPI_FAILURE(status))
-			return_VALUE(-ENODEV);
+			return -ENODEV;
 	}
 
 	down(&ec->intr.sem);
@@ -656,7 +653,7 @@ static int acpi_ec_intr_query(union acpi_ec *ec, u32 * data)
 	if (ec->common.global_lock)
 		acpi_release_global_lock(glk);
 
-	return_VALUE(status);
+	return status;
 }
 
 /* --------------------------------------------------------------------------
@@ -680,20 +677,20 @@ static void acpi_ec_gpe_poll_query(void *ec_cxt)
 {
 	union acpi_ec *ec = (union acpi_ec *)ec_cxt;
 	u32 value = 0;
-	unsigned long flags = 0;
 	static char object_name[5] = { '_', 'Q', '0', '0', '\0' };
 	const char hex[] = { '0', '1', '2', '3', '4', '5', '6', '7',
 		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 	};
 
-	ACPI_FUNCTION_TRACE("acpi_ec_gpe_query");
 
 	if (!ec_cxt)
 		goto end;
 
-	spin_lock_irqsave(&ec->poll.lock, flags);
+	if (down_interruptible (&ec->poll.sem)) {
+		return;
+	}
 	acpi_hw_low_level_read(8, &value, &ec->common.command_addr);
-	spin_unlock_irqrestore(&ec->poll.lock, flags);
+	up(&ec->poll.sem);
 
 	/* TBD: Implement asynch events!
 	 * NOTE: All we care about are EC-SCI's.  Other EC events are
@@ -727,7 +724,6 @@ static void acpi_ec_gpe_intr_query(void *ec_cxt)
 		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 	};
 
-	ACPI_FUNCTION_TRACE("acpi_ec_gpe_query");
 
 	if (acpi_ec_read_status(ec) & ACPI_EC_FLAG_SCI)
 		result = acpi_ec_query(ec, &value);
@@ -763,8 +759,7 @@ static u32 acpi_ec_gpe_poll_handler(void *data)
 
 	acpi_disable_gpe(NULL, ec->common.gpe_bit, ACPI_ISR);
 
-	status = acpi_os_queue_for_execution(OSD_PRIORITY_GPE,
-					     acpi_ec_gpe_query, ec);
+	status = acpi_os_execute(OSL_EC_POLL_HANDLER, acpi_ec_gpe_query, ec);
 
 	if (status == AE_OK)
 		return ACPI_INTERRUPT_HANDLED;
@@ -787,19 +782,22 @@ static u32 acpi_ec_gpe_intr_handler(void *data)
 	case ACPI_EC_EVENT_OBF:
 		if (!(value & ACPI_EC_FLAG_OBF))
 			break;
+		ec->intr.expect_event = 0;
+		wake_up(&ec->intr.wait);
+		break;
 	case ACPI_EC_EVENT_IBE:
 		if ((value & ACPI_EC_FLAG_IBF))
 			break;
 		ec->intr.expect_event = 0;
 		wake_up(&ec->intr.wait);
-		return ACPI_INTERRUPT_HANDLED;
+		break;
 	default:
 		break;
 	}
 
 	if (value & ACPI_EC_FLAG_SCI) {
 		atomic_add(1, &ec->intr.pending_gpe);
-		status = acpi_os_queue_for_execution(OSD_PRIORITY_GPE,
+		status = acpi_os_execute(OSL_EC_BURST_HANDLER,
 						     acpi_ec_gpe_query, ec);
 		return status == AE_OK ?
 		    ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;
@@ -840,15 +838,14 @@ acpi_ec_space_handler(u32 function,
 	acpi_integer f_v = 0;
 	int i = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_space_handler");
 
 	if ((address > 0xFF) || !value || !handler_context)
-		return_VALUE(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	if (bit_width != 8 && acpi_strict) {
 		printk(KERN_WARNING PREFIX
 		       "acpi_ec_space_handler: bit_width should be 8\n");
-		return_VALUE(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 	}
 
 	ec = (union acpi_ec *)handler_context;
@@ -887,16 +884,16 @@ acpi_ec_space_handler(u32 function,
       out:
 	switch (result) {
 	case -EINVAL:
-		return_VALUE(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 		break;
 	case -ENODEV:
-		return_VALUE(AE_NOT_FOUND);
+		return AE_NOT_FOUND;
 		break;
 	case -ETIME:
-		return_VALUE(AE_TIME);
+		return AE_TIME;
 		break;
 	default:
-		return_VALUE(AE_OK);
+		return AE_OK;
 	}
 }
 
@@ -910,7 +907,6 @@ static int acpi_ec_read_info(struct seq_file *seq, void *offset)
 {
 	union acpi_ec *ec = (union acpi_ec *)seq->private;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_read_info");
 
 	if (!ec)
 		goto end;
@@ -925,7 +921,7 @@ static int acpi_ec_read_info(struct seq_file *seq, void *offset)
 	acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
 
       end:
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_ec_info_open_fs(struct inode *inode, struct file *file)
@@ -945,33 +941,29 @@ static int acpi_ec_add_fs(struct acpi_device *device)
 {
 	struct proc_dir_entry *entry = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_add_fs");
 
 	if (!acpi_device_dir(device)) {
 		acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device),
 						     acpi_ec_dir);
 		if (!acpi_device_dir(device))
-			return_VALUE(-ENODEV);
+			return -ENODEV;
 	}
 
 	entry = create_proc_entry(ACPI_EC_FILE_INFO, S_IRUGO,
 				  acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_EC_FILE_INFO));
+		return -ENODEV;
 	else {
 		entry->proc_fops = &acpi_ec_info_ops;
 		entry->data = acpi_driver_data(device);
 		entry->owner = THIS_MODULE;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_ec_remove_fs(struct acpi_device *device)
 {
-	ACPI_FUNCTION_TRACE("acpi_ec_remove_fs");
 
 	if (acpi_device_dir(device)) {
 		remove_proc_entry(ACPI_EC_FILE_INFO, acpi_device_dir(device));
@@ -979,7 +971,7 @@ static int acpi_ec_remove_fs(struct acpi_device *device)
 		acpi_device_dir(device) = NULL;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -991,21 +983,19 @@ static int acpi_ec_poll_add(struct acpi_device *device)
 	int result = 0;
 	acpi_status status = AE_OK;
 	union acpi_ec *ec = NULL;
-	unsigned long uid;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_add");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	ec = kmalloc(sizeof(union acpi_ec), GFP_KERNEL);
 	if (!ec)
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	memset(ec, 0, sizeof(union acpi_ec));
 
 	ec->common.handle = device->handle;
 	ec->common.uid = -1;
-	spin_lock_init(&ec->poll.lock);
+	init_MUTEX(&ec->poll.sem);
 	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
 	acpi_driver_data(device) = ec;
@@ -1014,10 +1004,9 @@ static int acpi_ec_poll_add(struct acpi_device *device)
 	acpi_evaluate_integer(ec->common.handle, "_GLK", NULL,
 			      &ec->common.global_lock);
 
-	/* If our UID matches the UID for the ECDT-enumerated EC,
-	   we now have the *real* EC info, so kill the makeshift one. */
-	acpi_evaluate_integer(ec->common.handle, "_UID", NULL, &uid);
-	if (ec_ecdt && ec_ecdt->common.uid == uid) {
+	/* XXX we don't test uids, because on some boxes ecdt uid = 0, see:
+	   http://bugzilla.kernel.org/show_bug.cgi?id=6111 */
+	if (ec_ecdt) {
 		acpi_remove_address_space_handler(ACPI_ROOT_OBJECT,
 						  ACPI_ADR_SPACE_EC,
 						  &acpi_ec_space_handler);
@@ -1034,8 +1023,7 @@ static int acpi_ec_poll_add(struct acpi_device *device)
 	    acpi_evaluate_integer(ec->common.handle, "_GPE", NULL,
 				  &ec->common.gpe_bit);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error obtaining GPE bit assignment\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Obtaining GPE bit"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -1055,23 +1043,21 @@ static int acpi_ec_poll_add(struct acpi_device *device)
 	if (result)
 		kfree(ec);
 
-	return_VALUE(result);
+	return result;
 }
 static int acpi_ec_intr_add(struct acpi_device *device)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
 	union acpi_ec *ec = NULL;
-	unsigned long uid;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_add");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	ec = kmalloc(sizeof(union acpi_ec), GFP_KERNEL);
 	if (!ec)
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	memset(ec, 0, sizeof(union acpi_ec));
 
 	ec->common.handle = device->handle;
@@ -1088,10 +1074,9 @@ static int acpi_ec_intr_add(struct acpi_device *device)
 	acpi_evaluate_integer(ec->common.handle, "_GLK", NULL,
 			      &ec->common.global_lock);
 
-	/* If our UID matches the UID for the ECDT-enumerated EC,
-	   we now have the *real* EC info, so kill the makeshift one. */
-	acpi_evaluate_integer(ec->common.handle, "_UID", NULL, &uid);
-	if (ec_ecdt && ec_ecdt->common.uid == uid) {
+	/* XXX we don't test uids, because on some boxes ecdt uid = 0, see:
+	   http://bugzilla.kernel.org/show_bug.cgi?id=6111 */
+	if (ec_ecdt) {
 		acpi_remove_address_space_handler(ACPI_ROOT_OBJECT,
 						  ACPI_ADR_SPACE_EC,
 						  &acpi_ec_space_handler);
@@ -1108,8 +1093,7 @@ static int acpi_ec_intr_add(struct acpi_device *device)
 	    acpi_evaluate_integer(ec->common.handle, "_GPE", NULL,
 				  &ec->common.gpe_bit);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error obtaining GPE bit assignment\n"));
+		printk(KERN_ERR PREFIX "Obtaining GPE bit assignment\n");
 		result = -ENODEV;
 		goto end;
 	}
@@ -1129,17 +1113,16 @@ static int acpi_ec_intr_add(struct acpi_device *device)
 	if (result)
 		kfree(ec);
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_ec_remove(struct acpi_device *device, int type)
 {
 	union acpi_ec *ec = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_remove");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	ec = acpi_driver_data(device);
 
@@ -1147,7 +1130,7 @@ static int acpi_ec_remove(struct acpi_device *device, int type)
 
 	kfree(ec);
 
-	return_VALUE(0);
+	return 0;
 }
 
 static acpi_status
@@ -1186,15 +1169,14 @@ static int acpi_ec_start(struct acpi_device *device)
 	acpi_status status = AE_OK;
 	union acpi_ec *ec = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_start");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	ec = acpi_driver_data(device);
 
 	if (!ec)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	/*
 	 * Get I/O port addresses. Convert to GAS format.
@@ -1203,9 +1185,8 @@ static int acpi_ec_start(struct acpi_device *device)
 				     acpi_ec_io_ports, ec);
 	if (ACPI_FAILURE(status)
 	    || ec->common.command_addr.register_bit_width == 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error getting I/O port addresses"));
-		return_VALUE(-ENODEV);
+		printk(KERN_ERR PREFIX "Error getting I/O port addresses\n");
+		return -ENODEV;
 	}
 
 	ec->common.status_addr = ec->common.command_addr;
@@ -1222,7 +1203,7 @@ static int acpi_ec_start(struct acpi_device *device)
 					  ACPI_GPE_EDGE_TRIGGERED,
 					  &acpi_ec_gpe_handler, ec);
 	if (ACPI_FAILURE(status)) {
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 	acpi_set_gpe_type(NULL, ec->common.gpe_bit, ACPI_GPE_TYPE_RUNTIME);
 	acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
@@ -1234,10 +1215,10 @@ static int acpi_ec_start(struct acpi_device *device)
 	if (ACPI_FAILURE(status)) {
 		acpi_remove_gpe_handler(NULL, ec->common.gpe_bit,
 					&acpi_ec_gpe_handler);
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
-	return_VALUE(AE_OK);
+	return AE_OK;
 }
 
 static int acpi_ec_stop(struct acpi_device *device, int type)
@@ -1245,10 +1226,9 @@ static int acpi_ec_stop(struct acpi_device *device, int type)
 	acpi_status status = AE_OK;
 	union acpi_ec *ec = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_stop");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	ec = acpi_driver_data(device);
 
@@ -1256,15 +1236,15 @@ static int acpi_ec_stop(struct acpi_device *device, int type)
 						   ACPI_ADR_SPACE_EC,
 						   &acpi_ec_space_handler);
 	if (ACPI_FAILURE(status))
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	status =
 	    acpi_remove_gpe_handler(NULL, ec->common.gpe_bit,
 				    &acpi_ec_gpe_handler);
 	if (ACPI_FAILURE(status))
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
-	return_VALUE(0);
+	return 0;
 }
 
 static acpi_status __init
@@ -1300,7 +1280,7 @@ acpi_fake_ecdt_poll_callback(acpi_handle handle,
 				  &ec_ecdt->common.gpe_bit);
 	if (ACPI_FAILURE(status))
 		return status;
-	spin_lock_init(&ec_ecdt->poll.lock);
+	init_MUTEX(&ec_ecdt->poll.sem);
 	ec_ecdt->common.global_lock = TRUE;
 	ec_ecdt->common.handle = handle;
 
@@ -1416,7 +1396,7 @@ static int __init acpi_ec_poll_get_real_ecdt(void)
 	ec_ecdt->common.status_addr = ecdt_ptr->ec_control;
 	ec_ecdt->common.data_addr = ecdt_ptr->ec_data;
 	ec_ecdt->common.gpe_bit = ecdt_ptr->gpe_bit;
-	spin_lock_init(&ec_ecdt->poll.lock);
+	init_MUTEX(&ec_ecdt->poll.sem);
 	/* use the GL just to be safe */
 	ec_ecdt->common.global_lock = TRUE;
 	ec_ecdt->common.uid = ecdt_ptr->uid;
@@ -1534,23 +1514,22 @@ static int __init acpi_ec_init(void)
 {
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_init");
 
 	if (acpi_disabled)
-		return_VALUE(0);
+		return 0;
 
 	acpi_ec_dir = proc_mkdir(ACPI_EC_CLASS, acpi_root_dir);
 	if (!acpi_ec_dir)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	/* Now register the driver for the EC */
 	result = acpi_bus_register_driver(&acpi_ec_driver);
 	if (result < 0) {
 		remove_proc_entry(ACPI_EC_CLASS, acpi_root_dir);
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 subsys_initcall(acpi_ec_init);
@@ -1559,13 +1538,12 @@ subsys_initcall(acpi_ec_init);
 #if 0
 static void __exit acpi_ec_exit(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_ec_exit");
 
 	acpi_bus_unregister_driver(&acpi_ec_driver);
 
 	remove_proc_entry(ACPI_EC_CLASS, acpi_root_dir);
 
-	return_VOID;
+	return;
 }
 #endif				/* 0 */
 

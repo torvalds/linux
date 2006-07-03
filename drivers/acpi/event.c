@@ -48,18 +48,17 @@ acpi_system_read_event(struct file *file, char __user * buffer, size_t count,
 	static int chars_remaining = 0;
 	static char *ptr;
 
-	ACPI_FUNCTION_TRACE("acpi_system_read_event");
 
 	if (!chars_remaining) {
 		memset(&event, 0, sizeof(struct acpi_bus_event));
 
 		if ((file->f_flags & O_NONBLOCK)
 		    && (list_empty(&acpi_bus_event_list)))
-			return_VALUE(-EAGAIN);
+			return -EAGAIN;
 
 		result = acpi_bus_receive_event(&event);
 		if (result)
-			return_VALUE(result);
+			return result;
 
 		chars_remaining = sprintf(str, "%s %s %08x %08x\n",
 					  event.device_class ? event.
@@ -75,13 +74,13 @@ acpi_system_read_event(struct file *file, char __user * buffer, size_t count,
 	}
 
 	if (copy_to_user(buffer, ptr, count))
-		return_VALUE(-EFAULT);
+		return -EFAULT;
 
 	*ppos += count;
 	chars_remaining -= count;
 	ptr += count;
 
-	return_VALUE(count);
+	return count;
 }
 
 static int acpi_system_close_event(struct inode *inode, struct file *file)
@@ -112,22 +111,18 @@ static int __init acpi_event_init(void)
 	struct proc_dir_entry *entry;
 	int error = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_event_init");
 
 	if (acpi_disabled)
-		return_VALUE(0);
+		return 0;
 
 	/* 'event' [R] */
 	entry = create_proc_entry("event", S_IRUSR, acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_event_ops;
 	else {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' proc fs entry\n",
-				  "event"));
-		error = -EFAULT;
+		error = -ENODEV;
 	}
-	return_VALUE(error);
+	return error;
 }
 
 subsys_initcall(acpi_event_init);

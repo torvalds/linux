@@ -522,7 +522,7 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 			iowrite8(i, chip->vendor.iobase +
 				    TPM_INT_VECTOR(chip->vendor.locality));
 			if (request_irq
-			    (i, tis_int_probe, SA_SHIRQ,
+			    (i, tis_int_probe, IRQF_SHARED,
 			     chip->vendor.miscdev.name, chip) != 0) {
 				dev_info(chip->dev,
 					 "Unable to request irq: %d for probe\n",
@@ -557,7 +557,7 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 			 chip->vendor.iobase +
 			 TPM_INT_VECTOR(chip->vendor.locality));
 		if (request_irq
-		    (chip->vendor.irq, tis_int_handler, SA_SHIRQ,
+		    (chip->vendor.irq, tis_int_handler, IRQF_SHARED,
 		     chip->vendor.miscdev.name, chip) != 0) {
 			dev_info(chip->dev,
 				 "Unable to request irq: %d for use\n",
