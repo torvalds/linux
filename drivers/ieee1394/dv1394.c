@@ -110,15 +110,15 @@
 #include <linux/compat.h>
 #include <linux/cdev.h>
 
-#include "ieee1394.h"
-#include "ieee1394_types.h"
-#include "nodemgr.h"
-#include "hosts.h"
-#include "ieee1394_core.h"
-#include "highlevel.h"
 #include "dv1394.h"
 #include "dv1394-private.h"
-
+#include "highlevel.h"
+#include "hosts.h"
+#include "ieee1394.h"
+#include "ieee1394_core.h"
+#include "ieee1394_hotplug.h"
+#include "ieee1394_types.h"
+#include "nodemgr.h"
 #include "ohci1394.h"
 
 /* DEBUG LEVELS:

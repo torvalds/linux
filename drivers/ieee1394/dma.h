@@ -10,8 +10,11 @@
 #ifndef IEEE1394_DMA_H
 #define IEEE1394_DMA_H
 
-#include <linux/pci.h>
-#include <asm/scatterlist.h>
+#include <asm/types.h>
+
+struct pci_dev;
+struct scatterlist;
+struct vm_area_struct;
 
 /**
  * struct dma_prog_region - small contiguous DMA buffer

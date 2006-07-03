@@ -21,13 +21,14 @@
 #include <linux/moduleparam.h>
 #include <asm/atomic.h>
 
-#include "ieee1394_types.h"
+#include "csr.h"
+#include "highlevel.h"
+#include "hosts.h"
 #include "ieee1394.h"
 #include "ieee1394_core.h"
-#include "hosts.h"
+#include "ieee1394_hotplug.h"
+#include "ieee1394_types.h"
 #include "ieee1394_transactions.h"
-#include "highlevel.h"
-#include "csr.h"
 #include "nodemgr.h"
 
 static int ignore_drivers;

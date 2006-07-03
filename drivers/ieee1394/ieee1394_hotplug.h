@@ -1,9 +1,8 @@
 #ifndef _IEEE1394_HOTPLUG_H
 #define _IEEE1394_HOTPLUG_H
 
-#include <linux/kernel.h>
-#include <linux/types.h>
 #include <linux/mod_devicetable.h>
+#include <linux/types.h>
 
 /* Unit spec id and sw version entry for some protocols */
 #define AVC_UNIT_SPEC_ID_ENTRY		0x0000A02D

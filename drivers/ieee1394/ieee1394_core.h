@@ -1,12 +1,16 @@
-
 #ifndef _IEEE1394_CORE_H
 #define _IEEE1394_CORE_H
 
-#include <linux/slab.h>
+#include <linux/device.h>
+#include <linux/fs.h>
+#include <linux/list.h>
+#include <linux/skbuff.h>
+#include <linux/types.h>
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
-#include "hosts.h"
 
+#include "hosts.h"
+#include "ieee1394_types.h"
 
 struct hpsb_packet {
 	/* This struct is basically read-only for hosts with the exception of

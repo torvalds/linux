@@ -1,7 +1,12 @@
 #ifndef _IEEE1394_TRANSACTIONS_H
 #define _IEEE1394_TRANSACTIONS_H
 
-#include "ieee1394_core.h"
+#include <linux/types.h>
+
+#include "ieee1394_types.h"
+
+struct hpsb_packet;
+struct hpsb_host;
 
 int hpsb_get_tlabel(struct hpsb_packet *packet);
 void hpsb_free_tlabel(struct hpsb_packet *packet);

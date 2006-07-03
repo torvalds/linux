@@ -1,17 +1,14 @@
-
 #ifndef _IEEE1394_TYPES_H
 #define _IEEE1394_TYPES_H
 
 #include <linux/kernel.h>
-#include <linux/types.h>
 #include <linux/list.h>
-#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/types.h>
 
-#include <asm/semaphore.h>
 #include <asm/byteorder.h>
-
+#include <asm/semaphore.h>
 
 /* Transaction Label handling */
 struct hpsb_tlabel_pool {

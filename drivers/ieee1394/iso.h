@@ -12,8 +12,13 @@
 #ifndef IEEE1394_ISO_H
 #define IEEE1394_ISO_H
 
-#include "hosts.h"
+#include <linux/spinlock_types.h>
+#include <asm/atomic.h>
+#include <asm/types.h>
+
 #include "dma.h"
+
+struct hpsb_host;
 
 /* high-level ISO interface */
 

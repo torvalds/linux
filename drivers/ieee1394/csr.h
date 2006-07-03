@@ -1,12 +1,10 @@
-
 #ifndef _IEEE1394_CSR_H
 #define _IEEE1394_CSR_H
 
-#ifdef CONFIG_PREEMPT
-#include <linux/sched.h>
-#endif
+#include <linux/spinlock_types.h>
 
 #include "csr1212.h"
+#include "ieee1394_types.h"
 
 #define CSR_REGISTER_BASE		0xfffff0000000ULL
 

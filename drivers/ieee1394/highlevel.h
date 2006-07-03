@@ -1,6 +1,16 @@
 #ifndef IEEE1394_HIGHLEVEL_H
 #define IEEE1394_HIGHLEVEL_H
 
+#include <linux/list.h>
+#include <linux/spinlock_types.h>
+#include <linux/types.h>
+
+struct module;
+
+#include "ieee1394_types.h"
+
+struct hpsb_host;
+
 /* internal to ieee1394 core */
 struct hpsb_address_serve {
 	struct list_head host_list;	/* per host list */

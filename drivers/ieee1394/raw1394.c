@@ -44,14 +44,15 @@
 #include <linux/compat.h>
 
 #include "csr1212.h"
-#include "ieee1394.h"
-#include "ieee1394_types.h"
-#include "ieee1394_core.h"
-#include "nodemgr.h"
-#include "hosts.h"
 #include "highlevel.h"
-#include "iso.h"
+#include "hosts.h"
+#include "ieee1394.h"
+#include "ieee1394_core.h"
+#include "ieee1394_hotplug.h"
 #include "ieee1394_transactions.h"
+#include "ieee1394_types.h"
+#include "iso.h"
+#include "nodemgr.h"
 #include "raw1394.h"
 #include "raw1394-private.h"
 

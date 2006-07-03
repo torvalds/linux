@@ -9,8 +9,11 @@
  * directory of the kernel sources for details.
  */
 
-#include <linux/slab.h>
+#include <linux/pci.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
+
+#include "hosts.h"
 #include "iso.h"
 
 void hpsb_iso_stop(struct hpsb_iso *iso)

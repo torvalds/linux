@@ -2,16 +2,18 @@
 #define _IEEE1394_HOSTS_H
 
 #include <linux/device.h>
-#include <linux/wait.h>
 #include <linux/list.h>
-#include <linux/timer.h>
 #include <linux/skbuff.h>
+#include <linux/timer.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+#include <asm/atomic.h>
 
-#include <asm/semaphore.h>
+struct pci_dev;
+struct module;
 
 #include "ieee1394_types.h"
 #include "csr.h"
-
 
 struct hpsb_packet;
 struct hpsb_iso;
