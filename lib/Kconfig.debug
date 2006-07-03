@@ -107,7 +107,7 @@ config DEBUG_SLAB_LEAK
 
 config DEBUG_PREEMPT
 	bool "Debug preemptible kernel"
-	depends on DEBUG_KERNEL && PREEMPT
+	depends on DEBUG_KERNEL && PREEMPT && TRACE_IRQFLAGS_SUPPORT
 	default y
 	help
 	  If you say Y here then the kernel will use a debug variant of the
@@ -148,6 +148,10 @@ config DEBUG_SPINLOCK_SLEEP
 	help
 	  If you say Y here, various routines which may sleep will become very
 	  noisy if they are called with a spinlock held.
+
+config STACKTRACE
+	bool
+	depends on STACKTRACE_SUPPORT
 
 config DEBUG_KOBJECT
 	bool "kobject debugging"
