@@ -817,8 +817,8 @@ void hci_free_dev(struct hci_dev *hdev)
 {
 	skb_queue_purge(&hdev->driver_init);
 
-	/* will free via class release */
-	class_device_put(&hdev->class_dev);
+	/* will free via device release */
+	put_device(&hdev->dev);
 }
 EXPORT_SYMBOL(hci_free_dev);
 

@@ -2219,7 +2219,7 @@ static int __init l2cap_init(void)
 		goto error;
 	}
 
-	class_create_file(&bt_class, &class_attr_l2cap);
+	class_create_file(bt_class, &class_attr_l2cap);
 
 	BT_INFO("L2CAP ver %s", VERSION);
 	BT_INFO("L2CAP socket layer initialized");
@@ -2233,7 +2233,7 @@ error:
 
 static void __exit l2cap_exit(void)
 {
-	class_remove_file(&bt_class, &class_attr_l2cap);
+	class_remove_file(bt_class, &class_attr_l2cap);
 
 	if (bt_sock_unregister(BTPROTO_L2CAP) < 0)
 		BT_ERR("L2CAP socket unregistration failed");

@@ -124,8 +124,8 @@ struct hci_dev {
 
 	atomic_t 		promisc;
 
-	struct device		*dev;
-	struct class_device	class_dev;
+	struct device		*parent;
+	struct device		dev;
 
 	struct module 		*owner;
 
@@ -413,7 +413,7 @@ static inline int hci_recv_frame(struct sk_buff *skb)
 int hci_register_sysfs(struct hci_dev *hdev);
 void hci_unregister_sysfs(struct hci_dev *hdev);
 
-#define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->class_dev.dev = (pdev))
+#define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->parent = (pdev))
 
 /* ----- LMP capabilities ----- */
 #define lmp_rswitch_capable(dev)   ((dev)->features[0] & LMP_RSWITCH)

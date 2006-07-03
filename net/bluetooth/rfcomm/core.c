@@ -2035,7 +2035,7 @@ static int __init rfcomm_init(void)
 
 	kernel_thread(rfcomm_run, NULL, CLONE_KERNEL);
 
-	class_create_file(&bt_class, &class_attr_rfcomm_dlc);
+	class_create_file(bt_class, &class_attr_rfcomm_dlc);
 
 	rfcomm_init_sockets();
 
@@ -2050,7 +2050,7 @@ static int __init rfcomm_init(void)
 
 static void __exit rfcomm_exit(void)
 {
-	class_remove_file(&bt_class, &class_attr_rfcomm_dlc);
+	class_remove_file(bt_class, &class_attr_rfcomm_dlc);
 
 	hci_unregister_cb(&rfcomm_cb);
 

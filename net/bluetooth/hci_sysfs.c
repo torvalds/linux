@@ -13,35 +13,35 @@
 #define BT_DBG(D...)
 #endif
 
-static ssize_t show_name(struct class_device *cdev, char *buf)
+static ssize_t show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct hci_dev *hdev = class_get_devdata(cdev);
+	struct hci_dev *hdev = dev_get_drvdata(dev);
 	return sprintf(buf, "%s\n", hdev->name);
 }
 
-static ssize_t show_type(struct class_device *cdev, char *buf)
+static ssize_t show_type(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct hci_dev *hdev = class_get_devdata(cdev);
+	struct hci_dev *hdev = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", hdev->type);
 }
 
-static ssize_t show_address(struct class_device *cdev, char *buf)
+static ssize_t show_address(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct hci_dev *hdev = class_get_devdata(cdev);
+	struct hci_dev *hdev = dev_get_drvdata(dev);
 	bdaddr_t bdaddr;
 	baswap(&bdaddr, &hdev->bdaddr);
 	return sprintf(buf, "%s\n", batostr(&bdaddr));
 }
 
-static ssize_t show_flags(struct class_device *cdev, char *buf)
+static ssize_t show_flags(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct hci_dev *hdev = class_get_devdata(cdev);
+	struct hci_dev *hdev = dev_get_drvdata(dev);
 	return sprintf(buf, "0x%lx\n", hdev->flags);
 }
 
-static ssize_t show_inquiry_cache(struct class_device *cdev, char *buf)
+static ssize_t show_inquiry_cache(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct hci_dev *hdev = class_get_devdata(cdev);
+	struct hci_dev *hdev = dev_get_drvdata(dev);
 	struct inquiry_cache *cache = &hdev->inq_cache;
 	struct inquiry_entry *e;
 	int n = 0;
@@ -63,15 +63,15 @@ static ssize_t show_inquiry_cache(struct class_device *cdev, char *buf)
 	return n;
 }
 
-static ssize_t show_idle_timeout(struct class_device *cdev, char *buf)
+static ssize_t show_idle_timeout(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct hci_dev *hdev = class_get_devdata(cdev);
+	struct hci_dev *hdev = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", hdev->idle_timeout);
 }
 
-static ssize_t store_idle_timeout(struct class_device *cdev, const char *buf, size_t count)
+static ssize_t store_idle_timeout(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct hci_dev *hdev = class_get_devdata(cdev);
+	struct hci_dev *hdev = dev_get_drvdata(dev);
 	char *ptr;
 	__u32 val;
 
@@ -87,15 +87,15 @@ static ssize_t store_idle_timeout(struct class_device *cdev, const char *buf, si
 	return count;
 }
 
-static ssize_t show_sniff_max_interval(struct class_device *cdev, char *buf)
+static ssize_t show_sniff_max_interval(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct hci_dev *hdev = class_get_devdata(cdev);
+	struct hci_dev *hdev = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", hdev->sniff_max_interval);
 }
 
-static ssize_t store_sniff_max_interval(struct class_device *cdev, const char *buf, size_t count)
+static ssize_t store_sniff_max_interval(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct hci_dev *hdev = class_get_devdata(cdev);
+	struct hci_dev *hdev = dev_get_drvdata(dev);
 	char *ptr;
 	__u16 val;
 
@@ -114,15 +114,15 @@ static ssize_t store_sniff_max_interval(struct class_device *cdev, const char *b
 	return count;
 }
 
-static ssize_t show_sniff_min_interval(struct class_device *cdev, char *buf)
+static ssize_t show_sniff_min_interval(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct hci_dev *hdev = class_get_devdata(cdev);
+	struct hci_dev *hdev = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", hdev->sniff_min_interval);
 }
 
-static ssize_t store_sniff_min_interval(struct class_device *cdev, const char *buf, size_t count)
+static ssize_t store_sniff_min_interval(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct hci_dev *hdev = class_get_devdata(cdev);
+	struct hci_dev *hdev = dev_get_drvdata(dev);
 	char *ptr;
 	__u16 val;
 
@@ -141,64 +141,32 @@ static ssize_t store_sniff_min_interval(struct class_device *cdev, const char *b
 	return count;
 }
 
-static CLASS_DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
-static CLASS_DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
-static CLASS_DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
-static CLASS_DEVICE_ATTR(flags, S_IRUGO, show_flags, NULL);
-static CLASS_DEVICE_ATTR(inquiry_cache, S_IRUGO, show_inquiry_cache, NULL);
+static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
+static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
+static DEVICE_ATTR(flags, S_IRUGO, show_flags, NULL);
+static DEVICE_ATTR(inquiry_cache, S_IRUGO, show_inquiry_cache, NULL);
 
-static CLASS_DEVICE_ATTR(idle_timeout, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(idle_timeout, S_IRUGO | S_IWUSR,
 				show_idle_timeout, store_idle_timeout);
-static CLASS_DEVICE_ATTR(sniff_max_interval, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(sniff_max_interval, S_IRUGO | S_IWUSR,
 				show_sniff_max_interval, store_sniff_max_interval);
-static CLASS_DEVICE_ATTR(sniff_min_interval, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(sniff_min_interval, S_IRUGO | S_IWUSR,
 				show_sniff_min_interval, store_sniff_min_interval);
 
-static struct class_device_attribute *bt_attrs[] = {
-	&class_device_attr_name,
-	&class_device_attr_type,
-	&class_device_attr_address,
-	&class_device_attr_flags,
-	&class_device_attr_inquiry_cache,
-	&class_device_attr_idle_timeout,
-	&class_device_attr_sniff_max_interval,
-	&class_device_attr_sniff_min_interval,
+static struct device_attribute *bt_attrs[] = {
+	&dev_attr_name,
+	&dev_attr_type,
+	&dev_attr_address,
+	&dev_attr_flags,
+	&dev_attr_inquiry_cache,
+	&dev_attr_idle_timeout,
+	&dev_attr_sniff_max_interval,
+	&dev_attr_sniff_min_interval,
 	NULL
 };
 
-#ifdef CONFIG_HOTPLUG
-static int bt_uevent(struct class_device *cdev, char **envp, int num_envp, char *buf, int size)
-{
-	struct hci_dev *hdev = class_get_devdata(cdev);
-	int n, i = 0;
-
-	envp[i++] = buf;
-	n = snprintf(buf, size, "INTERFACE=%s", hdev->name) + 1;
-	buf += n;
-	size -= n;
-
-	if ((size <= 0) || (i >= num_envp))
-		return -ENOMEM;
-
-	envp[i] = NULL;
-	return 0;
-}
-#endif
-
-static void bt_release(struct class_device *cdev)
-{
-	struct hci_dev *hdev = class_get_devdata(cdev);
-
-	kfree(hdev);
-}
-
-struct class bt_class = {
-	.name		= "bluetooth",
-	.release	= bt_release,
-#ifdef CONFIG_HOTPLUG
-	.uevent		= bt_uevent,
-#endif
-};
+struct class *bt_class = NULL;
 EXPORT_SYMBOL_GPL(bt_class);
 
 static struct bus_type bt_bus = {
@@ -207,40 +175,50 @@ static struct bus_type bt_bus = {
 
 static struct platform_device *bt_platform;
 
+static void bt_release(struct device *dev)
+{
+	struct hci_dev *hdev = dev_get_drvdata(dev);
+	kfree(hdev);
+}
+
 int hci_register_sysfs(struct hci_dev *hdev)
 {
-	struct class_device *cdev = &hdev->class_dev;
+	struct device *dev = &hdev->dev;
 	unsigned int i;
 	int err;
 
 	BT_DBG("%p name %s type %d", hdev, hdev->name, hdev->type);
 
-	cdev->class = &bt_class;
-	class_set_devdata(cdev, hdev);
+	dev->class = bt_class;
 
-	if (!cdev->dev)
-		cdev->dev = &bt_platform->dev;
+	if (hdev->parent)
+		dev->parent = hdev->parent;
+	else
+		dev->parent = &bt_platform->dev;
 
-	hdev->dev = cdev->dev;
+	strlcpy(dev->bus_id, hdev->name, BUS_ID_SIZE);
 
-	strlcpy(cdev->class_id, hdev->name, BUS_ID_SIZE);
-	err = class_device_register(cdev);
+	dev->release = bt_release;
+
+	dev_set_drvdata(dev, hdev);
+
+	err = device_register(dev);
 	if (err < 0)
 		return err;
 
 	for (i = 0; bt_attrs[i]; i++)
-		class_device_create_file(cdev, bt_attrs[i]);
+		device_create_file(dev, bt_attrs[i]);
 
 	return 0;
 }
 
 void hci_unregister_sysfs(struct hci_dev *hdev)
 {
-	struct class_device * cdev = &hdev->class_dev;
+	struct device *dev = &hdev->dev;
 
 	BT_DBG("%p name %s type %d", hdev, hdev->name, hdev->type);
 
-	class_device_del(cdev);
+	device_del(dev);
 }
 
 int __init bt_sysfs_init(void)
@@ -257,11 +235,11 @@ int __init bt_sysfs_init(void)
 		return err;
 	}
 
-	err = class_register(&bt_class);
-	if (err < 0) {
+	bt_class = class_create(THIS_MODULE, "bluetooth");
+	if (IS_ERR(bt_class)) {
 		bus_unregister(&bt_bus);
 		platform_device_unregister(bt_platform);
-		return err;
+		return PTR_ERR(bt_class);
 	}
 
 	return 0;
@@ -269,7 +247,7 @@ int __init bt_sysfs_init(void)
 
 void __exit bt_sysfs_cleanup(void)
 {
-	class_unregister(&bt_class);
+	class_destroy(bt_class);
 
 	bus_unregister(&bt_bus);
 
