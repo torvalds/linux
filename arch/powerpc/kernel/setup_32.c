@@ -51,7 +51,6 @@
 
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
-boot_infos_t *boot_infos;
 struct ide_machdep_calls ppc_ide_md;
 
 int boot_cpuid;

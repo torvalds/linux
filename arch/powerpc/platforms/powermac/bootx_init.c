@@ -181,8 +181,25 @@ static void __init bootx_add_chosen_props(unsigned long base,
 static void __init bootx_add_display_props(unsigned long base,
 					   unsigned long *mem_end)
 {
+	boot_infos_t *bi = bootx_info;
+	u32 tmp;
+
 	bootx_dt_add_prop("linux,boot-display", NULL, 0, mem_end);
 	bootx_dt_add_prop("linux,opened", NULL, 0, mem_end);
+	tmp = bi->dispDeviceDepth;
+	bootx_dt_add_prop("linux,bootx-depth", &tmp, 4, mem_end);
+	tmp = bi->dispDeviceRect[2] - bi->dispDeviceRect[0];
+	bootx_dt_add_prop("linux,bootx-width", &tmp, 4, mem_end);
+	tmp = bi->dispDeviceRect[3] - bi->dispDeviceRect[1];
+	bootx_dt_add_prop("linux,bootx-height", &tmp, 4, mem_end);
+	tmp = bi->dispDeviceRowBytes;
+	bootx_dt_add_prop("linux,bootx-linebytes", &tmp, 4, mem_end);
+	tmp = (u32)bi->dispDeviceBase;
+	if (tmp == 0)
+		tmp = (u32)bi->logicalDisplayBase;
+	tmp += bi->dispDeviceRect[1] * bi->dispDeviceRowBytes;
+	tmp += bi->dispDeviceRect[0] * ((bi->dispDeviceDepth + 7) / 8);
+	bootx_dt_add_prop("linux,bootx-addr", &tmp, 4, mem_end);
 }
 
 static void __init bootx_dt_add_string(char *s, unsigned long *mem_end)
@@ -222,6 +239,11 @@ static void __init bootx_scan_dt_build_strings(unsigned long base,
 		DBG(" detected display ! adding properties names !\n");
 		bootx_dt_add_string("linux,boot-display", mem_end);
 		bootx_dt_add_string("linux,opened", mem_end);
+		bootx_dt_add_string("linux,bootx-depth", mem_end);
+		bootx_dt_add_string("linux,bootx-width", mem_end);
+		bootx_dt_add_string("linux,bootx-height", mem_end);
+		bootx_dt_add_string("linux,bootx-linebytes", mem_end);
+		bootx_dt_add_string("linux,bootx-addr", mem_end);
 		strncpy(bootx_disp_path, namep, 255);
 	}
 
@@ -443,7 +465,14 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 	if (!BOOT_INFO_IS_V2_COMPATIBLE(bi))
 		bi->logicalDisplayBase = bi->dispDeviceBase;
 
+	/* Fixup depth 16 -> 15 as that's what MacOS calls 16bpp */
+	if (bi->dispDeviceDepth == 16)
+		bi->dispDeviceDepth = 15;
+
 #ifdef CONFIG_BOOTX_TEXT
+	ptr = (unsigned long)bi->logicalDisplayBase;
+	ptr += bi->dispDeviceRect[1] * bi->dispDeviceRowBytes;
+	ptr += bi->dispDeviceRect[0] * ((bi->dispDeviceDepth + 7) / 8);
 	btext_setup_display(bi->dispDeviceRect[2] - bi->dispDeviceRect[0],
 			    bi->dispDeviceRect[3] - bi->dispDeviceRect[1],
 			    bi->dispDeviceDepth, bi->dispDeviceRowBytes,

@@ -97,13 +97,42 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			  u_int transp, struct fb_info *info)
 {
 	struct offb_par *par = (struct offb_par *) info->par;
+	int i, depth;
+	u32 *pal = info->pseudo_palette;
 
-	if (!par->cmap_adr || regno > 255)
+	depth = info->var.bits_per_pixel;
+	if (depth == 16)
+		depth = (info->var.green.length == 5) ? 15 : 16;
+
+	if (regno > 255 ||
+	    (depth == 16 && regno > 63) ||
+	    (depth == 15 && regno > 31))
 		return 1;
+
+	if (regno < 16) {
+		switch (depth) {
+		case 15:
+			pal[regno] = (regno << 10) | (regno << 5) | regno;
+			break;
+		case 16:
+			pal[regno] = (regno << 11) | (regno << 5) | regno;
+			break;
+		case 24:
+			pal[regno] = (regno << 16) | (regno << 8) | regno;
+			break;
+		case 32:
+			i = (regno << 8) | regno;
+			pal[regno] = (i << 16) | i;
+			break;
+		}
+	}
 
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
+
+	if (!par->cmap_adr)
+		return 0;
 
 	switch (par->cmap_type) {
 	case cmap_m64:
@@ -141,20 +170,6 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		break;
 	}
 
-	if (regno < 16)
-		switch (info->var.bits_per_pixel) {
-		case 16:
-			((u16 *) (info->pseudo_palette))[regno] =
-			    (regno << 10) | (regno << 5) | regno;
-			break;
-		case 32:
-			{
-				int i = (regno << 8) | regno;
-				((u32 *) (info->pseudo_palette))[regno] =
-				    (i << 16) | i;
-				break;
-			}
-		}
 	return 0;
 }
 
@@ -223,80 +238,8 @@ int __init offb_init(void)
 {
 	struct device_node *dp = NULL, *boot_disp = NULL;
 
-#if defined(CONFIG_BOOTX_TEXT) && defined(CONFIG_PPC32)
-	struct device_node *macos_display = NULL;
-#endif
 	if (fb_get_options("offb", NULL))
 		return -ENODEV;
-
-#if defined(CONFIG_BOOTX_TEXT) && defined(CONFIG_PPC32)
-	/* If we're booted from BootX... */
-	if (boot_infos != 0) {
-		unsigned long addr =
-		    (unsigned long) boot_infos->dispDeviceBase;
-		u32 *addrp;
-		u64 daddr, dsize;
-		unsigned int flags;
-
-		/* find the device node corresponding to the macos display */
-		while ((dp = of_find_node_by_type(dp, "display"))) {
-			int i;
-
-			/*
-			 * Look for an AAPL,address property first.
-			 */
-			unsigned int na;
-			unsigned int *ap =
-				(unsigned int *)get_property(dp, "AAPL,address",
-							     &na);
-			if (ap != 0) {
-				for (na /= sizeof(unsigned int); na > 0;
-				     --na, ++ap)
-					if (*ap <= addr &&
-					    addr < *ap + 0x1000000) {
-						macos_display = dp;
-						goto foundit;
-					}
-			}
-
-			/*
-			 * See if the display address is in one of the address
-			 * ranges for this display.
-			 */
-			i = 0;
-			for (;;) {
-				addrp = of_get_address(dp, i++, &dsize, &flags);
-				if (addrp == NULL)
-					break;
-				if (!(flags & IORESOURCE_MEM))
-					continue;
-				daddr = of_translate_address(dp, addrp);
-				if (daddr == OF_BAD_ADDR)
-					continue;
-				if (daddr <= addr && addr < (daddr + dsize)) {
-					macos_display = dp;
-					goto foundit;
-				}
-			}
-		foundit:
-			if (macos_display) {
-				printk(KERN_INFO "MacOS display is %s\n",
-				       dp->full_name);
-				break;
-			}
-		}
-
-		/* initialize it */
-		offb_init_fb(macos_display ? macos_display->
-			     name : "MacOS display",
-			     macos_display ? macos_display->
-			     full_name : "MacOS display",
-			     boot_infos->dispDeviceRect[2],
-			     boot_infos->dispDeviceRect[3],
-			     boot_infos->dispDeviceDepth,
-			     boot_infos->dispDeviceRowBytes, addr, NULL);
-	}
-#endif /* defined(CONFIG_BOOTX_TEXT) && defined(CONFIG_PPC32) */
 
 	for (dp = NULL; (dp = of_find_node_by_type(dp, "display"));) {
 		if (get_property(dp, "linux,opened", NULL) &&
@@ -317,94 +260,93 @@ int __init offb_init(void)
 
 static void __init offb_init_nodriver(struct device_node *dp)
 {
-	int *pp, i;
 	unsigned int len;
-	int width = 640, height = 480, depth = 8, pitch;
-	unsigned int flags, rsize, *up;
-	u64 address = OF_BAD_ADDR;
-	u32 *addrp;
+	int i, width = 640, height = 480, depth = 8, pitch = 640;
+	unsigned int flags, rsize, addr_prop = 0;
+	unsigned long max_size = 0;
+	u64 rstart, address = OF_BAD_ADDR;
+	u32 *pp, *addrp, *up;
 	u64 asize;
 
-	if ((pp = (int *) get_property(dp, "depth", &len)) != NULL
-	    && len == sizeof(int))
+	pp = (u32 *)get_property(dp, "linux,bootx-depth", &len);
+	if (pp == NULL)
+		pp = (u32 *)get_property(dp, "depth", &len);
+	if (pp && len == sizeof(u32))
 		depth = *pp;
-	if ((pp = (int *) get_property(dp, "width", &len)) != NULL
-	    && len == sizeof(int))
+
+	pp = (u32 *)get_property(dp, "linux,bootx-width", &len);
+	if (pp == NULL)
+		pp = (u32 *)get_property(dp, "width", &len);
+	if (pp && len == sizeof(u32))
 		width = *pp;
-	if ((pp = (int *) get_property(dp, "height", &len)) != NULL
-	    && len == sizeof(int))
+
+	pp = (u32 *)get_property(dp, "linux,bootx-height", &len);
+	if (pp == NULL)
+		pp = (u32 *)get_property(dp, "height", &len);
+	if (pp && len == sizeof(u32))
 		height = *pp;
-	if ((pp = (int *) get_property(dp, "linebytes", &len)) != NULL
-	    && len == sizeof(int)) {
+
+	pp = (u32 *)get_property(dp, "linux,bootx-linebytes", &len);
+	if (pp == NULL)
+		pp = (u32 *)get_property(dp, "linebytes", &len);
+	if (pp && len == sizeof(u32))
 		pitch = *pp;
-		if (pitch == 1)
-			pitch = 0x1000;
-	} else
-		pitch = width;
+	else
+		pitch = width * ((depth + 7) / 8);
 
-       rsize = (unsigned long)pitch * (unsigned long)height *
-               (unsigned long)(depth / 8);
+	rsize = (unsigned long)pitch * (unsigned long)height;
 
-       /* Try to match device to a PCI device in order to get a properly
-	* translated address rather then trying to decode the open firmware
-	* stuff in various incorrect ways
-	*/
-#ifdef CONFIG_PCI
-       /* First try to locate the PCI device if any */
-       {
-               struct pci_dev *pdev = NULL;
+	/* Ok, now we try to figure out the address of the framebuffer.
+	 *
+	 * Unfortunately, Open Firmware doesn't provide a standard way to do
+	 * so. All we can do is a dodgy heuristic that happens to work in
+	 * practice. On most machines, the "address" property contains what
+	 * we need, though not on Matrox cards found in IBM machines. What I've
+	 * found that appears to give good results is to go through the PCI
+	 * ranges and pick one that is both big enough and if possible encloses
+	 * the "address" property. If none match, we pick the biggest
+	 */
+	up = (u32 *)get_property(dp, "linux,bootx-addr", &len);
+	if (up == NULL)
+		up = (u32 *)get_property(dp, "address", &len);
+	if (up && len == sizeof(u32))
+		addr_prop = *up;
 
-	       for_each_pci_dev(pdev) {
-                       if (dp == pci_device_to_OF_node(pdev))
-                               break;
-	       }
-               if (pdev) {
-                       for (i = 0; i < 6 && address == OF_BAD_ADDR; i++) {
-                               if ((pci_resource_flags(pdev, i) &
-				    IORESOURCE_MEM) &&
-				   (pci_resource_len(pdev, i) >= rsize))
-                                       address = pci_resource_start(pdev, i);
-                       }
-		       pci_dev_put(pdev);
-               }
-        }
-#endif /* CONFIG_PCI */
+	for (i = 0; (addrp = of_get_address(dp, i, &asize, &flags))
+		     != NULL; i++) {
+		int match_addrp = 0;
 
-       /* This one is dodgy, we may drop it ... */
-       if (address == OF_BAD_ADDR &&
-	   (up = (unsigned *) get_property(dp, "address", &len)) != NULL &&
-	   len == sizeof(unsigned int))
-	       address = (u64) * up;
-
-       if (address == OF_BAD_ADDR) {
-	       for (i = 0; (addrp = of_get_address(dp, i, &asize, &flags))
-			    != NULL; i++) {
-		       if (!(flags & IORESOURCE_MEM))
-			       continue;
-		       if (asize >= pitch * height * depth / 8)
-			       break;
-	       }
-		if (addrp == NULL) {
-			printk(KERN_ERR
-			       "no framebuffer address found for %s\n",
-			       dp->full_name);
-			return;
+		if (!(flags & IORESOURCE_MEM))
+			continue;
+		if (asize < rsize)
+			continue;
+		rstart = of_translate_address(dp, addrp);
+		if (rstart == OF_BAD_ADDR)
+			continue;
+		if (addr_prop && (rstart <= addr_prop) &&
+		    ((rstart + asize) >= (addr_prop + rsize)))
+			match_addrp = 1;
+		if (match_addrp) {
+			address = addr_prop;
+			break;
 		}
-		address = of_translate_address(dp, addrp);
-		if (address == OF_BAD_ADDR) {
-			printk(KERN_ERR
-			       "can't translate framebuffer address for %s\n",
-			       dp->full_name);
-			return;
-		}
+		if (rsize > max_size) {
+			max_size = rsize;
+			address = OF_BAD_ADDR;
+ 		}
 
+		if (address == OF_BAD_ADDR)
+			address = rstart;
+	}
+	if (address == OF_BAD_ADDR && addr_prop)
+		address = (u64)addr_prop;
+	if (address != OF_BAD_ADDR) {
 		/* kludge for valkyrie */
 		if (strcmp(dp->name, "valkyrie") == 0)
 			address += 0x1000;
+		offb_init_fb(dp->name, dp->full_name, width, height, depth,
+			     pitch, address, dp);
 	}
-	offb_init_fb(dp->name, dp->full_name, width, height, depth,
-		     pitch, address, dp);
-
 }
 
 static void __init offb_init_fb(const char *name, const char *full_name,
@@ -412,7 +354,7 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 				int pitch, unsigned long address,
 				struct device_node *dp)
 {
-	unsigned long res_size = pitch * height * depth / 8;
+	unsigned long res_size = pitch * height * (depth + 7) / 8;
 	struct offb_par *par = &default_par;
 	unsigned long res_start = address;
 	struct fb_fix_screeninfo *fix;
@@ -426,7 +368,7 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 	printk(KERN_INFO
 	       "Using unsupported %dx%d %s at %lx, depth=%d, pitch=%d\n",
 	       width, height, name, address, depth, pitch);
-	if (depth != 8 && depth != 16 && depth != 32) {
+	if (depth != 8 && depth != 15 && depth != 16 && depth != 32) {
 		printk(KERN_ERR "%s: can't use depth = %d\n", full_name,
 		       depth);
 		release_mem_region(res_start, res_size);
@@ -502,7 +444,6 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 				   : */ FB_VISUAL_TRUECOLOR;
 
 	var->xoffset = var->yoffset = 0;
-	var->bits_per_pixel = depth;
 	switch (depth) {
 	case 8:
 		var->bits_per_pixel = 8;
@@ -515,12 +456,23 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 		var->transp.offset = 0;
 		var->transp.length = 0;
 		break;
-	case 16:		/* RGB 555 */
+	case 15:		/* RGB 555 */
 		var->bits_per_pixel = 16;
 		var->red.offset = 10;
 		var->red.length = 5;
 		var->green.offset = 5;
 		var->green.length = 5;
+		var->blue.offset = 0;
+		var->blue.length = 5;
+		var->transp.offset = 0;
+		var->transp.length = 0;
+		break;
+	case 16:		/* RGB 565 */
+		var->bits_per_pixel = 16;
+		var->red.offset = 11;
+		var->red.length = 5;
+		var->green.offset = 5;
+		var->green.length = 6;
 		var->blue.offset = 0;
 		var->blue.length = 5;
 		var->transp.offset = 0;
