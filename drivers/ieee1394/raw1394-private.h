@@ -29,9 +29,8 @@ struct file_info {
 
         struct list_head req_pending;
         struct list_head req_complete;
-        struct semaphore complete_sem;
         spinlock_t reqlists_lock;
-        wait_queue_head_t poll_wait_complete;
+        wait_queue_head_t wait_complete;
 
         struct list_head addr_list;
 
