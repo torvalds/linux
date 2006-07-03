@@ -1150,6 +1150,8 @@ static inline int rfcomm_check_link_mode(struct rfcomm_dlc *d)
 
 static void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 {
+	struct sock *sk = d->session->sock->sk;
+
 	BT_DBG("dlc %p", d);
 
 	rfcomm_send_ua(d->session, d->dlci);
@@ -1158,6 +1160,9 @@ static void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 	d->state = BT_CONNECTED;
 	d->state_change(d, 0);
 	rfcomm_dlc_unlock(d);
+
+	if (d->link_mode & RFCOMM_LM_MASTER)
+		hci_conn_switch_role(l2cap_pi(sk)->conn->hcon, 0x00);
 
 	rfcomm_send_msc(d->session, 1, d->dlci, d->v24_sig);
 }
