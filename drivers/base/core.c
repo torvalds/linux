@@ -736,3 +736,58 @@ void device_destroy(struct class *class, dev_t devt)
 		device_unregister(dev);
 }
 EXPORT_SYMBOL_GPL(device_destroy);
+
+/**
+ * device_rename - renames a device
+ * @dev: the pointer to the struct device to be renamed
+ * @new_name: the new name of the device
+ */
+int device_rename(struct device *dev, char *new_name)
+{
+	char *old_class_name = NULL;
+	char *new_class_name = NULL;
+	char *old_symlink_name = NULL;
+	int error;
+
+	dev = get_device(dev);
+	if (!dev)
+		return -EINVAL;
+
+	pr_debug("DEVICE: renaming '%s' to '%s'\n", dev->bus_id, new_name);
+
+	if ((dev->class) && (dev->parent))
+		old_class_name = make_class_name(dev->class->name, &dev->kobj);
+
+	if (dev->class) {
+		old_symlink_name = kmalloc(BUS_ID_SIZE, GFP_KERNEL);
+		if (!old_symlink_name)
+			return -ENOMEM;
+		strlcpy(old_symlink_name, dev->bus_id, BUS_ID_SIZE);
+	}
+
+	strlcpy(dev->bus_id, new_name, BUS_ID_SIZE);
+
+	error = kobject_rename(&dev->kobj, new_name);
+
+	if (old_class_name) {
+		new_class_name = make_class_name(dev->class->name, &dev->kobj);
+		if (new_class_name) {
+			sysfs_create_link(&dev->parent->kobj, &dev->kobj,
+					  new_class_name);
+			sysfs_remove_link(&dev->parent->kobj, old_class_name);
+		}
+	}
+	if (dev->class) {
+		sysfs_remove_link(&dev->class->subsys.kset.kobj,
+				  old_symlink_name);
+		sysfs_create_link(&dev->class->subsys.kset.kobj, &dev->kobj,
+				  dev->bus_id);
+	}
+	put_device(dev);
+
+	kfree(old_class_name);
+	kfree(new_class_name);
+	kfree(old_symlink_name);
+
+	return error;
+}

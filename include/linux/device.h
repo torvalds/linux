@@ -380,6 +380,7 @@ extern int device_add(struct device * dev);
 extern void device_del(struct device * dev);
 extern int device_for_each_child(struct device *, void *,
 		     int (*fn)(struct device *, void *));
+extern int device_rename(struct device *dev, char *new_name);
 
 /*
  * Manual binding of a device to driver. See drivers/base/bus.c
