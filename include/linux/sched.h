@@ -534,7 +534,6 @@ extern struct user_struct *find_user(uid_t);
 extern struct user_struct root_user;
 #define INIT_USER (&root_user)
 
-typedef struct prio_array prio_array_t;
 struct backing_dev_info;
 struct reclaim_state;
 
@@ -715,6 +714,8 @@ enum sleep_type {
 	SLEEP_INTERRUPTED,
 };
 
+struct prio_array;
+
 struct task_struct {
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	struct thread_info *thread_info;
@@ -732,7 +733,7 @@ struct task_struct {
 	int load_weight;	/* for niceness load balancing purposes */
 	int prio, static_prio, normal_prio;
 	struct list_head run_list;
-	prio_array_t *array;
+	struct prio_array *array;
 
 	unsigned short ioprio;
 	unsigned int btrace_seq;
