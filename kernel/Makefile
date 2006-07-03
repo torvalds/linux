@@ -14,6 +14,9 @@ obj-$(CONFIG_STACKTRACE) += stacktrace.o
 obj-y += time/
 obj-$(CONFIG_DEBUG_MUTEXES) += mutex-debug.o
 obj-$(CONFIG_LOCKDEP) += lockdep.o
+ifeq ($(CONFIG_PROC_FS),y)
+obj-$(CONFIG_LOCKDEP) += lockdep_proc.o
+endif
 obj-$(CONFIG_FUTEX) += futex.o
 ifeq ($(CONFIG_COMPAT),y)
 obj-$(CONFIG_FUTEX) += futex_compat.o
