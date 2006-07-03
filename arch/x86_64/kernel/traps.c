@@ -110,28 +110,31 @@ static int kstack_depth_to_print = 12;
 static int call_trace = 1;
 
 #ifdef CONFIG_KALLSYMS
-#include <linux/kallsyms.h> 
-int printk_address(unsigned long address)
-{ 
+# include <linux/kallsyms.h>
+void printk_address(unsigned long address)
+{
 	unsigned long offset = 0, symsize;
 	const char *symname;
 	char *modname;
-	char *delim = ":"; 
+	char *delim = ":";
 	char namebuf[128];
 
-	symname = kallsyms_lookup(address, &symsize, &offset, &modname, namebuf); 
-	if (!symname) 
-		return printk("[<%016lx>]", address);
-	if (!modname) 
+	symname = kallsyms_lookup(address, &symsize, &offset,
+					&modname, namebuf);
+	if (!symname) {
+		printk(" [<%016lx>]\n", address);
+		return;
+	}
+	if (!modname)
 		modname = delim = ""; 		
-        return printk("<%016lx>{%s%s%s%s%+ld}",
-		      address, delim, modname, delim, symname, offset); 
-} 
+	printk(" [<%016lx>] %s%s%s%s+0x%lx/0x%lx\n",
+		address, delim, modname, delim, symname, offset, symsize);
+}
 #else
-int printk_address(unsigned long address)
-{ 
-	return printk("[<%016lx>]", address);
-} 
+void printk_address(unsigned long address)
+{
+	printk(" [<%016lx>]\n", address);
+}
 #endif
 
 static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
@@ -193,20 +196,14 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 
 static int show_trace_unwind(struct unwind_frame_info *info, void *context)
 {
-	int i = 11, n = 0;
+	int n = 0;
 
 	while (unwind(info) == 0 && UNW_PC(info)) {
-		++n;
-		if (i > 50) {
-			printk("\n       ");
-			i = 7;
-		} else
-			i += printk(" ");
-		i += printk_address(UNW_PC(info));
+		n++;
+		printk_address(UNW_PC(info));
 		if (arch_unw_user_mode(info))
 			break;
 	}
-	printk("\n");
 	return n;
 }
 
@@ -224,7 +221,7 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 	int i = 11;
 	unsigned used = 0;
 
-	printk("\nCall Trace:");
+	printk("\nCall Trace:\n");
 
 	if (!tsk)
 		tsk = current;
@@ -254,12 +251,6 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 	do while (cond) { \
 		unsigned long addr = *stack++; \
 		if (kernel_text_address(addr)) { \
-			if (i > 50) { \
-				printk("\n       "); \
-				i = 0; \
-			} \
-			else \
-				i += printk(" "); \
 			/* \
 			 * If the address is either in the text segment of the \
 			 * kernel, or in the region which contains vmalloc'ed \
@@ -268,20 +259,20 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 			 * down the cause of the crash will be able to figure \
 			 * out the call path that was taken. \
 			 */ \
-			i += printk_address(addr); \
+			printk_address(addr); \
 		} \
 	} while (0)
 
-	for(; ; ) {
+	for( ; ; ) {
 		const char *id;
 		unsigned long *estack_end;
 		estack_end = in_exception_stack(cpu, (unsigned long)stack,
 						&used, &id);
 
 		if (estack_end) {
-			i += printk(" <%s>", id);
+			printk(" <%s>", id);
 			HANDLE_STACK (stack < estack_end);
-			i += printk(" <EOE>");
+			printk(" <EOE>");
 			stack = (unsigned long *) estack_end[-2];
 			continue;
 		}
@@ -291,11 +282,11 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 				(IRQSTACKSIZE - 64) / sizeof(*irqstack);
 
 			if (stack >= irqstack && stack < irqstack_end) {
-				i += printk(" <IRQ>");
+				printk(" <IRQ>");
 				HANDLE_STACK (stack < irqstack_end);
 				stack = (unsigned long *) (irqstack_end[-1]);
 				irqstack_end = NULL;
-				i += printk(" <EOI>");
+				printk(" <EOI>");
 				continue;
 			}
 		}
@@ -304,6 +295,7 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 
 	HANDLE_STACK (((long) stack & (THREAD_SIZE-1)) != 0);
 #undef HANDLE_STACK
+
 	printk("\n");
 }
 
@@ -337,8 +329,8 @@ static void _show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned 
 			break;
 		}
 		if (i && ((i % 4) == 0))
-			printk("\n       ");
-		printk("%016lx ", *stack++);
+			printk("\n");
+		printk(" %016lx", *stack++);
 		touch_nmi_watchdog();
 	}
 	show_trace(tsk, regs, rsp);
