@@ -2734,11 +2734,10 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "register_netdev failed: %d\n", status);
 		goto abort_with_irq;
 	}
-
-	printk(KERN_INFO "myri10ge: %s: %s IRQ %d, tx bndry %d, fw %s, WC %s\n",
-	       netdev->name, (mgp->msi_enabled ? "MSI" : "xPIC"),
-	       pdev->irq, mgp->tx.boundary, mgp->fw_name,
-	       (mgp->mtrr >= 0 ? "Enabled" : "Disabled"));
+	dev_info(dev, "%s IRQ %d, tx bndry %d, fw %s, WC %s\n",
+		 (mgp->msi_enabled ? "MSI" : "xPIC"),
+		 pdev->irq, mgp->tx.boundary, mgp->fw_name,
+		 (mgp->mtrr >= 0 ? "Enabled" : "Disabled"));
 
 	return 0;
 
