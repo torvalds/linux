@@ -1990,12 +1990,22 @@ static void __init flatten_device_tree(void)
 static void __init fixup_device_tree_maple(void)
 {
 	phandle isa;
+	u32 rloc = 0x01002000; /* IO space; PCI device = 4 */
 	u32 isa_ranges[6];
+	char *name;
 
-	isa = call_prom("finddevice", 1, 1, ADDR("/ht@0/isa@4"));
+	name = "/ht@0/isa@4";
+	isa = call_prom("finddevice", 1, 1, ADDR(name));
+	if (!PHANDLE_VALID(isa)) {
+		name = "/ht@0/isa@6";
+		isa = call_prom("finddevice", 1, 1, ADDR(name));
+		rloc = 0x01003000; /* IO space; PCI device = 6 */
+	}
 	if (!PHANDLE_VALID(isa))
 		return;
 
+	if (prom_getproplen(isa, "ranges") != 12)
+		return;
 	if (prom_getprop(isa, "ranges", isa_ranges, sizeof(isa_ranges))
 		== PROM_ERROR)
 		return;
@@ -2005,15 +2015,15 @@ static void __init fixup_device_tree_maple(void)
 		isa_ranges[2] != 0x00010000)
 		return;
 
-	prom_printf("fixing up bogus ISA range on Maple...\n");
+	prom_printf("Fixing up bogus ISA range on Maple/Apache...\n");
 
 	isa_ranges[0] = 0x1;
 	isa_ranges[1] = 0x0;
-	isa_ranges[2] = 0x01002000; /* IO space; PCI device = 4 */
+	isa_ranges[2] = rloc;
 	isa_ranges[3] = 0x0;
 	isa_ranges[4] = 0x0;
 	isa_ranges[5] = 0x00010000;
-	prom_setprop(isa, "/ht@0/isa@4", "ranges",
+	prom_setprop(isa, name, "ranges",
 			isa_ranges, sizeof(isa_ranges));
 }
 #else

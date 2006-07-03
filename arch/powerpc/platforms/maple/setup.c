@@ -11,7 +11,7 @@
  *
  */
 
-#define DEBUG
+#undef DEBUG
 
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -256,7 +256,9 @@ static void __init maple_progress(char *s, unsigned short hex)
 static int __init maple_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
-	if (!of_flat_dt_is_compatible(root, "Momentum,Maple"))
+
+	if (!of_flat_dt_is_compatible(root, "Momentum,Maple") &&
+	    !of_flat_dt_is_compatible(root, "Momentum,Apache"))
 		return 0;
 	/*
 	 * On U3, the DART (iommu) must be allocated now since it
