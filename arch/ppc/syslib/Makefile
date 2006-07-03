@@ -104,3 +104,5 @@ obj-$(CONFIG_PPC_MPC52xx)	+= mpc52xx_setup.o mpc52xx_pic.o \
 ifeq ($(CONFIG_PPC_MPC52xx),y)
 obj-$(CONFIG_PCI)		+= mpc52xx_pci.o
 endif
+
+obj-$(CONFIG_PPC_I8259)		+= i8259.o
