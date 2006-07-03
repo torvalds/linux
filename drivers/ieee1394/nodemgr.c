@@ -158,7 +158,7 @@ static struct csr1212_bus_ops nodemgr_csr_ops = {
  * but now we are much simpler because of the LDM.
  */
 
-static DECLARE_MUTEX(nodemgr_serialize);
+static DEFINE_MUTEX(nodemgr_serialize);
 
 struct host_info {
 	struct hpsb_host *host;
@@ -1621,7 +1621,7 @@ static int nodemgr_host_thread(void *__hi)
 		if (kthread_should_stop())
 			goto exit;
 
-		if (down_interruptible(&nodemgr_serialize)) {
+		if (mutex_lock_interruptible(&nodemgr_serialize)) {
 			if (try_to_freeze())
 				continue;
 			goto exit;
@@ -1650,7 +1650,7 @@ static int nodemgr_host_thread(void *__hi)
 		if (!nodemgr_check_irm_capability(host, reset_cycles) ||
 		    !nodemgr_do_irm_duties(host, reset_cycles)) {
 			reset_cycles++;
-			up(&nodemgr_serialize);
+			mutex_unlock(&nodemgr_serialize);
 			continue;
 		}
 		reset_cycles = 0;
@@ -1668,10 +1668,10 @@ static int nodemgr_host_thread(void *__hi)
 		/* Update some of our sysfs symlinks */
 		nodemgr_update_host_dev_links(host);
 
-		up(&nodemgr_serialize);
+		mutex_unlock(&nodemgr_serialize);
 	}
 unlock_exit:
-	up(&nodemgr_serialize);
+	mutex_unlock(&nodemgr_serialize);
 exit:
 	HPSB_VERBOSE("NodeMgr: Exiting thread");
 	return 0;
