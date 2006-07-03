@@ -6,7 +6,6 @@
  *  Heavily based on arch/sparc/kernel/irq.c.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>
 #include <linux/kernel_stat.h>
@@ -108,13 +107,13 @@ found_it:	seq_printf(p, "%3d: ", i);
 			       kstat_cpu(cpu_logical_map(x)).irqs[i]);
 #endif
 		seq_printf(p, "%c %s",
-			(action->flags & SA_INTERRUPT) ? '+' : ' ',
+			(action->flags & IRQF_DISABLED) ? '+' : ' ',
 			action->name);
 		action = action->next;
 		for (;;) {
 			for (; action; action = action->next) {
 				seq_printf(p, ",%s %s",
-					(action->flags & SA_INTERRUPT) ? " +" : "",
+					(action->flags & IRQF_DISABLED) ? " +" : "",
 					action->name);
 			}
 			if (!sbusl) break;
@@ -161,7 +160,7 @@ void sun4d_free_irq(unsigned int irq, void *dev_id)
 			printk("Trying to free free shared IRQ%d\n",irq);
 			goto out_unlock;
 		}
-	} else if (action->flags & SA_SHIRQ) {
+	} else if (action->flags & IRQF_SHARED) {
 		printk("Trying to free shared IRQ%d with NULL device ID\n", irq);
 		goto out_unlock;
 	}
@@ -299,13 +298,13 @@ int sun4d_request_irq(unsigned int irq,
 	action = *actionp;
 	
 	if (action) {
-		if ((action->flags & SA_SHIRQ) && (irqflags & SA_SHIRQ)) {
+		if ((action->flags & IRQF_SHARED) && (irqflags & IRQF_SHARED)) {
 			for (tmp = action; tmp->next; tmp = tmp->next);
 		} else {
 			ret = -EBUSY;
 			goto out_unlock;
 		}
-		if ((action->flags & SA_INTERRUPT) ^ (irqflags & SA_INTERRUPT)) {
+		if ((action->flags & IRQF_DISABLED) ^ (irqflags & IRQF_DISABLED)) {
 			printk("Attempt to mix fast and slow interrupts on IRQ%d denied\n", irq);
 			ret = -EBUSY;
 			goto out_unlock;
@@ -491,7 +490,7 @@ static void __init sun4d_init_timers(irqreturn_t (*counter_fn)(int, void *, stru
 
 	irq = request_irq(TIMER_IRQ,
 			  counter_fn,
-			  (SA_INTERRUPT | SA_STATIC_ALLOC),
+			  (IRQF_DISABLED | SA_STATIC_ALLOC),
 			  "timer", NULL);
 	if (irq) {
 		prom_printf("time_init: unable to attach IRQ%d\n",TIMER_IRQ);

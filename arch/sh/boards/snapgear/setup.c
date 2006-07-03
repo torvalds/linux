@@ -14,7 +14,6 @@
  */
 /****************************************************************************/
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -51,7 +50,7 @@ static int __init eraseconfig_init(void)
 {
 	printk("SnapGear: EraseConfig init\n");
 	/* Setup "EraseConfig" switch on external IRQ 0 */
-	if (request_irq(IRL0_IRQ, eraseconfig_interrupt, SA_INTERRUPT,
+	if (request_irq(IRL0_IRQ, eraseconfig_interrupt, IRQF_DISABLED,
 				"Erase Config", NULL))
 		printk("SnapGear: failed to register IRQ%d for Reset witch\n",
 				IRL0_IRQ);

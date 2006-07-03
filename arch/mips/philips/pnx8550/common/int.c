@@ -23,7 +23,6 @@
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/sched.h>
@@ -220,13 +219,13 @@ static struct hw_interrupt_type level_irq_type = {
 
 static struct irqaction gic_action = {
 	.handler =	no_action,
-	.flags =	SA_INTERRUPT,
+	.flags =	IRQF_DISABLED,
 	.name =		"GIC",
 };
 
 static struct irqaction timer_action = {
 	.handler =	no_action,
-	.flags =	SA_INTERRUPT,
+	.flags =	IRQF_DISABLED,
 	.name =		"Timer",
 };
 

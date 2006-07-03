@@ -36,7 +36,7 @@ static int misrouted_irq(int irq, struct pt_regs *regs)
 			 * Already running: If it is shared get the other
 			 * CPU to go looking for our mystery interrupt too
 			 */
-			if (desc->action && (desc->action->flags & SA_SHIRQ))
+			if (desc->action && (desc->action->flags & IRQF_SHARED))
 				desc->status |= IRQ_PENDING;
 			spin_unlock(&desc->lock);
 			continue;
@@ -48,7 +48,7 @@ static int misrouted_irq(int irq, struct pt_regs *regs)
 
 		while (action) {
 			/* Only shared IRQ handlers are safe to call */
-			if (action->flags & SA_SHIRQ) {
+			if (action->flags & IRQF_SHARED) {
 				if (action->handler(i, action->dev_id, regs) ==
 						IRQ_HANDLED)
 					ok = 1;

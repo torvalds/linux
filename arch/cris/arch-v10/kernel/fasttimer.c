@@ -111,7 +111,6 @@
 #include <asm/delay.h>
 #include <asm/rtc.h>
 
-#include <linux/config.h>
 
 #include <asm/arch/svinto.h>
 #include <asm/fasttimer.h>

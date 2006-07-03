@@ -7,7 +7,6 @@
  *                                  Hitoshi Yamamoto
  */
 
-#include <linux/config.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

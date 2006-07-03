@@ -100,8 +100,10 @@ struct cpufreq_policy {
 #define CPUFREQ_INCOMPATIBLE	(1)
 #define CPUFREQ_NOTIFY		(2)
 
-#define CPUFREQ_SHARED_TYPE_ALL	(0) /* All dependent CPUs should set freq */
-#define CPUFREQ_SHARED_TYPE_ANY	(1) /* Freq can be set from any dependent CPU */
+#define CPUFREQ_SHARED_TYPE_NONE (0) /* None */
+#define CPUFREQ_SHARED_TYPE_HW	 (1) /* HW does needed coordination */
+#define CPUFREQ_SHARED_TYPE_ALL	 (2) /* All dependent CPUs should set freq */
+#define CPUFREQ_SHARED_TYPE_ANY	 (3) /* Freq can be set from any dependent CPU*/
 
 /******************** cpufreq transition notifiers *******************/
 

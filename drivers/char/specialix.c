@@ -75,7 +75,6 @@
  * Documentation/specialix.txt
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <asm/io.h>
@@ -1016,9 +1015,9 @@ static inline int sx_setup_board(struct specialix_board * bp)
 		return 0;
 
 	if (bp->flags & SX_BOARD_IS_PCI)
-		error = request_irq(bp->irq, sx_interrupt, SA_INTERRUPT | SA_SHIRQ, "specialix IO8+", bp);
+		error = request_irq(bp->irq, sx_interrupt, IRQF_DISABLED | IRQF_SHARED, "specialix IO8+", bp);
 	else
-		error = request_irq(bp->irq, sx_interrupt, SA_INTERRUPT, "specialix IO8+", bp);
+		error = request_irq(bp->irq, sx_interrupt, IRQF_DISABLED, "specialix IO8+", bp);
 
 	if (error)
 		return error;

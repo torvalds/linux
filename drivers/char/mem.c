@@ -8,7 +8,6 @@
  *  Shared /dev/zero mmaping support, Feb 2000, Kanoj Sarcar <kanoj@sgi.com>
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>

@@ -751,7 +751,7 @@ static inline int tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
 	if (in_flight >= tp->snd_cwnd)
 		return 1;
 
-	if (!(sk->sk_route_caps & NETIF_F_TSO))
+	if (!sk_can_gso(sk))
 		return 0;
 
 	left = tp->snd_cwnd - in_flight;

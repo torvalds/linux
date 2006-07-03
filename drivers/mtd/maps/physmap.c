@@ -18,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
-#include <linux/config.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <asm/io.h>

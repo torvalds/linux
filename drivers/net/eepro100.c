@@ -87,7 +87,6 @@ static int options[] = {-1, -1, -1, -1, -1, -1, -1, -1};
 /* Size of an pre-allocated Rx buffer: <Ethernet MTU> + slack.*/
 #define PKT_BUF_SZ		1536
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/kernel.h>
@@ -978,7 +977,7 @@ speedo_open(struct net_device *dev)
 	sp->in_interrupt = 0;
 
 	/* .. we can safely take handler calls during init. */
-	retval = request_irq(dev->irq, &speedo_interrupt, SA_SHIRQ, dev->name, dev);
+	retval = request_irq(dev->irq, &speedo_interrupt, IRQF_SHARED, dev->name, dev);
 	if (retval) {
 		return retval;
 	}

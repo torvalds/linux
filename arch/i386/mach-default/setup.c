@@ -2,7 +2,6 @@
  *	Machine specific setup for generic
  */
 
-#include <linux/config.h>
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -80,7 +79,7 @@ void __init trap_init_hook(void)
 {
 }
 
-static struct irqaction irq0  = { timer_interrupt, SA_INTERRUPT, CPU_MASK_NONE, "timer", NULL, NULL};
+static struct irqaction irq0  = { timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL};
 
 /**
  * time_init_hook - do any specific initialisations for the system timer.

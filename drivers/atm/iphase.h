@@ -43,7 +43,6 @@
 #ifndef IPHASE_H  
 #define IPHASE_H  
 
-#include <linux/config.h>
 
 /************************ IADBG DEFINE *********************************/
 /* IADebugFlag Bit Map */ 

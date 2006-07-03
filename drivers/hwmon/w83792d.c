@@ -35,7 +35,6 @@
     w83792d	9	7	7	3	0x7a	0x5ca3	yes	no
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>

@@ -10,7 +10,6 @@
  *
  * Extended to all five netfilter hooks by Brad Chapman & Harald Welte
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netdevice.h>

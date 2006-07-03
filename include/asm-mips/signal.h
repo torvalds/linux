@@ -64,7 +64,6 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
  * SA_FLAGS values:
  *
  * SA_ONSTACK indicates that a registered stack_t will be used.
- * SA_INTERRUPT is a no-op, but left due to historical reasons. Use the
  * SA_RESTART flag to get restarting signals (which were the default long ago)
  * SA_NOCLDSTOP flag to turn off SIGCHLD when children stop.
  * SA_RESETHAND clears the handler when the signal is delivered.
@@ -84,7 +83,6 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 
 #define SA_NOMASK	SA_NODEFER
 #define SA_ONESHOT	SA_RESETHAND
-#define SA_INTERRUPT	0x20000000	/* dummy -- ignored */
 
 #define SA_RESTORER	0x04000000	/* Only for o32 */
 
@@ -98,15 +96,6 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 #define SIGSTKSZ       8192
 
 #ifdef __KERNEL__
-
-/*
- * These values of sa_flags are used only by the kernel as part of the
- * irq handling routines.
- *
- * SA_INTERRUPT is also used by the irq handling routines.
- * SA_SHIRQ flag is for shared interrupt support on PCI and EISA.
- */
-#define SA_SAMPLE_RANDOM	SA_RESTART
 
 #ifdef CONFIG_TRAD_SIGNALS
 #define sig_uses_siginfo(ka)	((ka)->sa.sa_flags & SA_SIGINFO)

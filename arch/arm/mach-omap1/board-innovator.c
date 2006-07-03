@@ -37,6 +37,8 @@
 #include <asm/arch/usb.h>
 #include <asm/arch/keypad.h>
 #include <asm/arch/common.h>
+#include <asm/arch/mcbsp.h>
+#include <asm/arch/omap-alsa.h>
 
 static int innovator_keymap[] = {
 	KEY(0, 0, KEY_F1),
@@ -112,6 +114,42 @@ static struct platform_device innovator_flash_device = {
 	.resource	= &innovator_flash_resource,
 };
 
+#define DEFAULT_BITPERSAMPLE 16
+
+static struct omap_mcbsp_reg_cfg mcbsp_regs = {
+	.spcr2 = FREE | FRST | GRST | XRST | XINTM(3),
+	.spcr1 = RINTM(3) | RRST,
+	.rcr2 = RPHASE | RFRLEN2(OMAP_MCBSP_WORD_8) |
+	    RWDLEN2(OMAP_MCBSP_WORD_16) | RDATDLY(0),
+	.rcr1 = RFRLEN1(OMAP_MCBSP_WORD_8) | RWDLEN1(OMAP_MCBSP_WORD_16),
+	.xcr2 = XPHASE | XFRLEN2(OMAP_MCBSP_WORD_8) |
+	    XWDLEN2(OMAP_MCBSP_WORD_16) | XDATDLY(0) | XFIG,
+	.xcr1 = XFRLEN1(OMAP_MCBSP_WORD_8) | XWDLEN1(OMAP_MCBSP_WORD_16),
+	.srgr1 = FWID(DEFAULT_BITPERSAMPLE - 1),
+	.srgr2 = GSYNC | CLKSP | FSGM | FPER(DEFAULT_BITPERSAMPLE * 2 - 1),
+	/*.pcr0 = FSXM | FSRM | CLKXM | CLKRM | CLKXP | CLKRP,*/ /* mcbsp: master */
+	.pcr0 = CLKXP | CLKRP,  /* mcbsp: slave */
+};
+
+static struct omap_alsa_codec_config alsa_config = {
+	.name			= "OMAP Innovator AIC23",
+	.mcbsp_regs_alsa	= &mcbsp_regs,
+	.codec_configure_dev	= NULL, // aic23_configure,
+	.codec_set_samplerate	= NULL, // aic23_set_samplerate,
+	.codec_clock_setup	= NULL, // aic23_clock_setup,
+	.codec_clock_on		= NULL, // aic23_clock_on,
+	.codec_clock_off	= NULL, // aic23_clock_off,
+	.get_default_samplerate	= NULL, // aic23_get_default_samplerate,
+};
+
+static struct platform_device innovator_mcbsp1_device = {
+	.name	= "omap_alsa_mcbsp",
+ 	.id	= 1,
+	.dev = {
+		.platform_data	= &alsa_config,
+	},
+};
+
 static struct resource innovator_kp_resources[] = {
 	[0] = {
 		.start	= INT_KEYBOARD,
@@ -138,6 +176,10 @@ static struct platform_device innovator_kp_device = {
 
 
 #ifdef CONFIG_ARCH_OMAP15XX
+
+#include <linux/spi/spi.h>
+#include <linux/spi/ads7846.h>
+
 
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
 static struct map_desc innovator1510_io_desc[] __initdata = {
@@ -174,12 +216,43 @@ static struct platform_device innovator1510_lcd_device = {
 	.id		= -1,
 };
 
+static struct platform_device innovator1510_spi_device = {
+	.name		= "spi_inn1510",
+	.id		= -1,
+};
+
 static struct platform_device *innovator1510_devices[] __initdata = {
 	&innovator_flash_device,
 	&innovator1510_smc91x_device,
+	&innovator_mcbsp1_device,
 	&innovator_kp_device,
 	&innovator1510_lcd_device,
+	&innovator1510_spi_device,
 };
+
+static int innovator_get_pendown_state(void)
+{
+	return !(fpga_read(OMAP1510_FPGA_TOUCHSCREEN) & (1 << 5));
+}
+
+static const struct ads7846_platform_data innovator1510_ts_info = {
+	.model			= 7846,
+	.vref_delay_usecs	= 100,	/* internal, no capacitor */
+	.x_plate_ohms		= 419,
+	.y_plate_ohms		= 486,
+	.get_pendown_state	= innovator_get_pendown_state,
+};
+
+static struct spi_board_info __initdata innovator1510_boardinfo[] = { {
+	/* FPGA (bus "10") CS0 has an ads7846e */
+	.modalias		= "ads7846",
+	.platform_data		= &innovator1510_ts_info,
+	.irq			= OMAP1510_INT_FPGA_TS,
+	.max_speed_hz		= 120000 /* max sample rate at 3V */
+					* 26 /* command + data + overhead */,
+	.bus_num		= 10,
+	.chip_select		= 0,
+} };
 
 #endif /* CONFIG_ARCH_OMAP15XX */
 
@@ -311,6 +384,8 @@ static void __init innovator_init(void)
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		platform_add_devices(innovator1510_devices, ARRAY_SIZE(innovator1510_devices));
+		spi_register_board_info(innovator1510_boardinfo,
+				ARRAY_SIZE(innovator1510_boardinfo));
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP16XX

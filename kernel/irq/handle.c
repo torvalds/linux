@@ -92,6 +92,22 @@ struct irq_chip no_irq_chip = {
 };
 
 /*
+ * Generic dummy implementation which can be used for
+ * real dumb interrupt sources
+ */
+struct irq_chip dummy_irq_chip = {
+	.name		= "dummy",
+	.startup	= noop_ret,
+	.shutdown	= noop,
+	.enable		= noop,
+	.disable	= noop,
+	.ack		= noop,
+	.mask		= noop,
+	.unmask		= noop,
+	.end		= noop,
+};
+
+/*
  * Special, empty irq handler:
  */
 irqreturn_t no_action(int cpl, void *dev_id, struct pt_regs *regs)
@@ -113,7 +129,9 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 	irqreturn_t ret, retval = IRQ_NONE;
 	unsigned int status = 0;
 
-	if (!(action->flags & SA_INTERRUPT))
+	handle_dynamic_tick(action);
+
+	if (!(action->flags & IRQF_DISABLED))
 		local_irq_enable();
 
 	do {
@@ -124,7 +142,7 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 		action = action->next;
 	} while (action);
 
-	if (status & SA_SAMPLE_RANDOM)
+	if (status & IRQF_SAMPLE_RANDOM)
 		add_interrupt_randomness(irq);
 	local_irq_disable();
 

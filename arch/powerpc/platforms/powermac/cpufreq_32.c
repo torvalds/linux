@@ -13,7 +13,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -68,7 +67,7 @@ static unsigned int cur_freq;
 static unsigned int sleep_freq;
 
 /*
- * Different models uses different mecanisms to switch the frequency
+ * Different models uses different mechanisms to switch the frequency
  */
 static int (*set_speed_proc)(int low_speed);
 static unsigned int (*get_speed_proc)(void);
@@ -268,7 +267,7 @@ static int pmu_set_cpu_speed(int low_speed)
 
 	/* Make sure the decrementer won't interrupt us */
 	asm volatile("mtdec %0" : : "r" (0x7fffffff));
-	/* Make sure any pending DEC interrupt occuring while we did
+	/* Make sure any pending DEC interrupt occurring while we did
 	 * the above didn't re-enable the DEC */
 	mb();
 	asm volatile("mtdec %0" : : "r" (0x7fffffff));

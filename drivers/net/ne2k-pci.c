@@ -420,7 +420,7 @@ static int ne2k_pci_set_fdx(struct net_device *dev)
 
 static int ne2k_pci_open(struct net_device *dev)
 {
-	int ret = request_irq(dev->irq, ei_interrupt, SA_SHIRQ, dev->name, dev);
+	int ret = request_irq(dev->irq, ei_interrupt, IRQF_SHARED, dev->name, dev);
 	if (ret)
 		return ret;
 

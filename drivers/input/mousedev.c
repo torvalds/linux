@@ -19,7 +19,6 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/input.h>
-#include <linux/config.h>
 #include <linux/smp_lock.h>
 #include <linux/random.h>
 #include <linux/major.h>

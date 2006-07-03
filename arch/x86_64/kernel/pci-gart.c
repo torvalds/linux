@@ -10,7 +10,6 @@
  * Copyright 2002 Andi Kleen, SuSE Labs.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/ctype.h>
 #include <linux/agp_backend.h>

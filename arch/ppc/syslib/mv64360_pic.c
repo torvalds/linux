@@ -380,7 +380,7 @@ mv64360_register_hdlrs(void)
 	/* Clear old errors and register CPU interface error intr handler */
 	mv64x60_write(&bh, MV64x60_CPU_ERR_CAUSE, 0);
 	if ((rc = request_irq(MV64x60_IRQ_CPU_ERR + mv64360_irq_base,
-		mv64360_cpu_error_int_handler, SA_INTERRUPT, CPU_INTR_STR, 0)))
+		mv64360_cpu_error_int_handler, IRQF_DISABLED, CPU_INTR_STR, 0)))
 		printk(KERN_WARNING "Can't register cpu error handler: %d", rc);
 
 	mv64x60_write(&bh, MV64x60_CPU_ERR_MASK, 0);
@@ -389,14 +389,14 @@ mv64360_register_hdlrs(void)
 	/* Clear old errors and register internal SRAM error intr handler */
 	mv64x60_write(&bh, MV64360_SRAM_ERR_CAUSE, 0);
 	if ((rc = request_irq(MV64360_IRQ_SRAM_PAR_ERR + mv64360_irq_base,
-		mv64360_sram_error_int_handler,SA_INTERRUPT,SRAM_INTR_STR, 0)))
+		mv64360_sram_error_int_handler,IRQF_DISABLED,SRAM_INTR_STR, 0)))
 		printk(KERN_WARNING "Can't register SRAM error handler: %d",rc);
 
 	/* Clear old errors and register PCI 0 error intr handler */
 	mv64x60_write(&bh, MV64x60_PCI0_ERR_CAUSE, 0);
 	if ((rc = request_irq(MV64360_IRQ_PCI0 + mv64360_irq_base,
 			mv64360_pci_error_int_handler,
-			SA_INTERRUPT, PCI0_INTR_STR, (void *)0)))
+			IRQF_DISABLED, PCI0_INTR_STR, (void *)0)))
 		printk(KERN_WARNING "Can't register pci 0 error handler: %d",
 			rc);
 
@@ -411,7 +411,7 @@ mv64360_register_hdlrs(void)
 	mv64x60_write(&bh, MV64x60_PCI1_ERR_CAUSE, 0);
 	if ((rc = request_irq(MV64360_IRQ_PCI1 + mv64360_irq_base,
 			mv64360_pci_error_int_handler,
-			SA_INTERRUPT, PCI1_INTR_STR, (void *)1)))
+			IRQF_DISABLED, PCI1_INTR_STR, (void *)1)))
 		printk(KERN_WARNING "Can't register pci 1 error handler: %d",
 			rc);
 

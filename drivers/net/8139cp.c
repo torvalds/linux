@@ -52,7 +52,6 @@
 #define DRV_RELDATE		"Mar 22, 2004"
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -1204,7 +1203,7 @@ static int cp_open (struct net_device *dev)
 
 	cp_init_hw(cp);
 
-	rc = request_irq(dev->irq, cp_interrupt, SA_SHIRQ, dev->name, dev);
+	rc = request_irq(dev->irq, cp_interrupt, IRQF_SHARED, dev->name, dev);
 	if (rc)
 		goto err_out_hw;
 

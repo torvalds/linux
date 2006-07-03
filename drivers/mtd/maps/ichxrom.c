@@ -14,7 +14,6 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/cfi.h>
 #include <linux/mtd/flashchip.h>
-#include <linux/config.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/list.h>

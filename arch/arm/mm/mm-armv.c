@@ -9,7 +9,6 @@
  *
  *  Page table sludge for ARM v3 and v4 processor architectures.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -303,16 +302,16 @@ static struct mem_types mem_types[] __initdata = {
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
 				L_PTE_WRITE,
 		.prot_l1   = PMD_TYPE_TABLE,
-		.prot_sect = PMD_TYPE_SECT | PMD_SECT_UNCACHED |
+		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_UNCACHED |
 				PMD_SECT_AP_WRITE,
 		.domain    = DOMAIN_IO,
 	},
 	[MT_CACHECLEAN] = {
-		.prot_sect = PMD_TYPE_SECT,
+		.prot_sect = PMD_TYPE_SECT | PMD_BIT4,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_MINICLEAN] = {
-		.prot_sect = PMD_TYPE_SECT | PMD_SECT_MINICACHE,
+		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_MINICACHE,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_LOW_VECTORS] = {
@@ -328,25 +327,25 @@ static struct mem_types mem_types[] __initdata = {
 		.domain    = DOMAIN_USER,
 	},
 	[MT_MEMORY] = {
-		.prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE,
+		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_AP_WRITE,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_ROM] = {
-		.prot_sect = PMD_TYPE_SECT,
+		.prot_sect = PMD_TYPE_SECT | PMD_BIT4,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_IXP2000_DEVICE] = { /* IXP2400 requires XCB=101 for on-chip I/O */
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
 				L_PTE_WRITE,
 		.prot_l1   = PMD_TYPE_TABLE,
-		.prot_sect = PMD_TYPE_SECT | PMD_SECT_UNCACHED |
+		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_UNCACHED |
 				PMD_SECT_AP_WRITE | PMD_SECT_BUFFERABLE |
 				PMD_SECT_TEX(1),
 		.domain    = DOMAIN_IO,
 	},
 	[MT_NONSHARED_DEVICE] = {
 		.prot_l1   = PMD_TYPE_TABLE,
-		.prot_sect = PMD_TYPE_SECT | PMD_SECT_NONSHARED_DEV |
+		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_NONSHARED_DEV |
 				PMD_SECT_AP_WRITE,
 		.domain    = DOMAIN_IO,
 	}
@@ -376,14 +375,21 @@ void __init build_mem_type_table(void)
 		ecc_mask = 0;
 	}
 
-	if (cpu_arch <= CPU_ARCH_ARMv5TEJ && !cpu_is_xscale()) {
-		for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
+	/*
+	 * Xscale must not have PMD bit 4 set for section mappings.
+	 */
+	if (cpu_is_xscale())
+		for (i = 0; i < ARRAY_SIZE(mem_types); i++)
+			mem_types[i].prot_sect &= ~PMD_BIT4;
+
+	/*
+	 * ARMv5 and lower, excluding Xscale, bit 4 must be set for
+	 * page tables.
+	 */
+	if (cpu_arch < CPU_ARCH_ARMv6 && !cpu_is_xscale())
+		for (i = 0; i < ARRAY_SIZE(mem_types); i++)
 			if (mem_types[i].prot_l1)
 				mem_types[i].prot_l1 |= PMD_BIT4;
-			if (mem_types[i].prot_sect)
-				mem_types[i].prot_sect |= PMD_BIT4;
-		}
-	}
 
 	cp = &cache_policies[cachepolicy];
 	kern_pgprot = user_pgprot = cp->pte;
@@ -407,8 +413,8 @@ void __init build_mem_type_table(void)
 		 * bit 4 becomes XN which we must clear for the
 		 * kernel memory mapping.
 		 */
-		mem_types[MT_MEMORY].prot_sect &= ~PMD_BIT4;
-		mem_types[MT_ROM].prot_sect &= ~PMD_BIT4;
+		mem_types[MT_MEMORY].prot_sect &= ~PMD_SECT_XN;
+		mem_types[MT_ROM].prot_sect &= ~PMD_SECT_XN;
 
 		/*
 		 * Mark cache clean areas and XIP ROM read only

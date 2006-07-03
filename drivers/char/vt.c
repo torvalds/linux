@@ -86,7 +86,6 @@
 #include <linux/consolemap.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
-#include <linux/config.h>
 #include <linux/workqueue.h>
 #include <linux/bootmem.h>
 #include <linux/pm.h>

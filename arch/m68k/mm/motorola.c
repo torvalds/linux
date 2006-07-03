@@ -8,7 +8,6 @@
  * Moved 8/20/1999 Sam Creasey
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/sched.h>

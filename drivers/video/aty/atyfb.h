@@ -2,7 +2,6 @@
  *  ATI Frame Buffer Device Driver Core Definitions
  */
 
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
     /*

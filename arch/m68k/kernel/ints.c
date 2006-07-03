@@ -25,7 +25,6 @@
  *           which must be served                               /Roman Zippel
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -193,7 +192,7 @@ int setup_irq(unsigned int irq, struct irq_node *node)
 	prev = irq_list + irq;
 	if (*prev) {
 		/* Can't share interrupts unless both agree to */
-		if (!((*prev)->flags & node->flags & SA_SHIRQ)) {
+		if (!((*prev)->flags & node->flags & IRQF_SHARED)) {
 			spin_unlock_irqrestore(&contr->lock, flags);
 			return -EBUSY;
 		}

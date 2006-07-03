@@ -9,7 +9,6 @@
  * Copyright (C) 1996 Thomas K. Dyas (tdyas@eden.rutgers.edu)
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>

@@ -16,7 +16,6 @@
  *   08-09-2002 IM	Brought up to date for 2.5
  *   01-06-2003 JMA     Removed arc_fiq_chip
  */
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/irq.h>

@@ -274,7 +274,7 @@ static int i2o_pci_irq_enable(struct i2o_controller *c)
 	writel(0xffffffff, c->irq_mask);
 
 	if (pdev->irq) {
-		rc = request_irq(pdev->irq, i2o_pci_interrupt, SA_SHIRQ,
+		rc = request_irq(pdev->irq, i2o_pci_interrupt, IRQF_SHARED,
 				 c->name, c);
 		if (rc < 0) {
 			printk(KERN_ERR "%s: unable to allocate interrupt %d."

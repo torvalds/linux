@@ -375,7 +375,7 @@ ahc_pci_map_int(struct ahc_softc *ahc)
 	int error;
 
 	error = request_irq(ahc->dev_softc->irq, ahc_linux_isr,
-			    SA_SHIRQ, "aic7xxx", ahc);
+			    IRQF_SHARED, "aic7xxx", ahc);
 	if (error == 0)
 		ahc->platform_data->irq = ahc->dev_softc->irq;
 	

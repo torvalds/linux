@@ -49,7 +49,6 @@
  * reiserfs_insert_item
  */
 
-#include <linux/config.h>
 #include <linux/time.h>
 #include <linux/string.h>
 #include <linux/pagemap.h>

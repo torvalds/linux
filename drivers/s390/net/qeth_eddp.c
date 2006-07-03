@@ -8,7 +8,6 @@
  *    Author(s): Thomas Spatzier <tspat@de.ibm.com>
  *
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/ip.h>
 #include <linux/inetdevice.h>

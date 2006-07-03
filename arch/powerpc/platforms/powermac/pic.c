@@ -15,7 +15,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -382,7 +381,7 @@ static struct irqaction xmon_action = {
 
 static struct irqaction gatwick_cascade_action = {
 	.handler	= gatwick_action,
-	.flags		= SA_INTERRUPT,
+	.flags		= IRQF_DISABLED,
 	.mask		= CPU_MASK_NONE,
 	.name		= "cascade",
 };

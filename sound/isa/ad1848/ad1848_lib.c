@@ -902,7 +902,7 @@ int snd_ad1848_create(struct snd_card *card,
 		snd_ad1848_free(chip);
 		return -EBUSY;
 	}
-	if (request_irq(irq, snd_ad1848_interrupt, SA_INTERRUPT, "AD1848", (void *) chip)) {
+	if (request_irq(irq, snd_ad1848_interrupt, IRQF_DISABLED, "AD1848", (void *) chip)) {
 		snd_printk(KERN_ERR "ad1848: can't grab IRQ %d\n", irq);
 		snd_ad1848_free(chip);
 		return -EBUSY;

@@ -1,4 +1,3 @@
-#include <linux/config.h>
 
 /*
  * Preserved registers that are shared between code in ivt.S and

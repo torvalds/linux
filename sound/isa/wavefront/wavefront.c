@@ -467,7 +467,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 		return -EBUSY;
 	}
 	if (request_irq(ics2115_irq[dev], snd_wavefront_ics2115_interrupt,
-			SA_INTERRUPT, "ICS2115", acard)) {
+			IRQF_DISABLED, "ICS2115", acard)) {
 		snd_printk(KERN_ERR "unable to use ICS2115 IRQ %d\n", ics2115_irq[dev]);
 		return -EBUSY;
 	}
@@ -497,7 +497,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 		if ((err = snd_mpu401_uart_new(card, midi_dev, MPU401_HW_CS4232,
 					       cs4232_mpu_port[dev], 0,
 					       cs4232_mpu_irq[dev],
-					       SA_INTERRUPT,
+					       IRQF_DISABLED,
 					       NULL)) < 0) {
 			snd_printk (KERN_ERR "can't allocate CS4232 MPU-401 device\n");
 			return err;

@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/timex.h>
 #include <linux/signal.h>
 
@@ -110,7 +111,7 @@ sa1100_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction sa1100_timer_irq = {
 	.name		= "SA11xx Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= sa1100_timer_interrupt,
 };
 

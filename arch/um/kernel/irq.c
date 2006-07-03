@@ -474,7 +474,7 @@ int init_aio_irq(int irq, char *name, irqreturn_t (*handler)(int, void *,
 	}
 
 	err = um_request_irq(irq, fds[0], IRQ_READ, handler,
-			     SA_INTERRUPT | SA_SAMPLE_RANDOM, name,
+			     IRQF_DISABLED | IRQF_SAMPLE_RANDOM, name,
 			     (void *) (long) fds[0]);
 	if (err) {
 		printk("init_aio_irq - : um_request_irq failed, err = %d\n",

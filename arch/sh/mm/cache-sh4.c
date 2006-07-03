@@ -10,7 +10,6 @@
  * for more details.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/mman.h>
 #include <linux/mm.h>

@@ -5,7 +5,6 @@
  * derived from: arch/i386/kernel/pci-irq.c: (c) 1999--2000 Martin Mares <mj@suse.cz>
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>

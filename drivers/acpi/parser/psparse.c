@@ -469,6 +469,16 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 	}
 
 	walk_state->thread = thread;
+
+	/*
+	 * If executing a method, the starting sync_level is this method's
+	 * sync_level
+	 */
+	if (walk_state->method_desc) {
+		walk_state->thread->current_sync_level =
+		    walk_state->method_desc->method.sync_level;
+	}
+
 	acpi_ds_push_walk_state(walk_state, thread);
 
 	/*
@@ -505,6 +515,10 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			status =
 			    acpi_ds_call_control_method(thread, walk_state,
 							NULL);
+			if (ACPI_FAILURE(status)) {
+				status =
+				    acpi_ds_method_error(status, walk_state);
+			}
 
 			/*
 			 * If the transfer to the new method method call worked, a new walk
@@ -525,7 +539,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			/* Check for possible multi-thread reentrancy problem */
 
 			if ((status == AE_ALREADY_EXISTS) &&
-			    (!walk_state->method_desc->method.semaphore)) {
+			    (!walk_state->method_desc->method.mutex)) {
 				/*
 				 * Method tried to create an object twice. The probable cause is
 				 * that the method cannot handle reentrancy.
@@ -537,7 +551,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 				 */
 				walk_state->method_desc->method.method_flags |=
 				    AML_METHOD_SERIALIZED;
-				walk_state->method_desc->method.concurrency = 1;
+				walk_state->method_desc->method.sync_level = 0;
 			}
 		}
 

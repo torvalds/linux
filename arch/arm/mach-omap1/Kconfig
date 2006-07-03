@@ -62,6 +62,13 @@ config MACH_OMAP_PERSEUS2
 	  Support for TI OMAP 730 Perseus2 board. Say Y here if you have such
 	  a board.
 
+config MACH_OMAP_FSAMPLE
+	bool "TI F-Sample"
+	depends on ARCH_OMAP1 && ARCH_OMAP730
+    	help
+	  Support for TI OMAP 850 F-Sample board. Say Y here if you have such
+	  a board.
+
 config MACH_VOICEBLUE
 	bool "Voiceblue"
 	depends on ARCH_OMAP1 && ARCH_OMAP15XX

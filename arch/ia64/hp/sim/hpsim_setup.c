@@ -5,7 +5,6 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  * Copyright (C) 1999 Vijay Chander <vijay@engr.sgi.com>
  */
-#include <linux/config.h>
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/kdev_t.h>

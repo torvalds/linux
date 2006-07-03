@@ -9,7 +9,6 @@
  *
  * Module allocation method suggested by Andi Kleen.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleloader.h>
 #include <linux/kernel.h>

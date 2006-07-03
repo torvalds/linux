@@ -19,7 +19,6 @@
  *    of darwin, still need to reverse engineer that
  */
 
-#include <linux/config.h>
 
 #include <linux/module.h>
 

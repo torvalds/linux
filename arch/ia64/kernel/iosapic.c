@@ -79,7 +79,6 @@
  * describeinterrupts.  Now we use "IRQ" only for Linux IRQ's.  ISA IRQ
  * (isa_irq) is the only exception in this source code.
  */
-#include <linux/config.h>
 
 #include <linux/acpi.h>
 #include <linux/init.h>

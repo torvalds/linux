@@ -8,7 +8,6 @@
  * Copyright (C) 1997 Anton Blanchard (anton@progsoc.uts.edu.au)
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 
 #include <asm/head.h>

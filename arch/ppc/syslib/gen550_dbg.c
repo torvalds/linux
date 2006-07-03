@@ -14,7 +14,6 @@
  * or implied.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/serial.h>
 #include <linux/tty.h>		/* For linux/serial_core.h */

@@ -17,7 +17,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <linux/sys.h>
 #include <asm/unistd.h>

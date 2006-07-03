@@ -96,7 +96,6 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/config.h>
 
 #include <asm/etraxi2c.h>
 

@@ -60,7 +60,6 @@
  */
 
 
-#include <linux/config.h>
 #include "hisax.h"
 #include "isac.h"
 #include "isdnl1.h"
@@ -406,7 +405,7 @@ setup_enternow_pci(struct IsdnCard *card)
 	cs->BC_Send_Data = &netjet_fill_dma;
 	cs->cardmsg = &enpci_card_msg;
 	cs->irq_func = &enpci_interrupt;
-	cs->irq_flags |= SA_SHIRQ;
+	cs->irq_flags |= IRQF_SHARED;
 
         return (1);
 }

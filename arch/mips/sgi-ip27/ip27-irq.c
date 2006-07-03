@@ -8,7 +8,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/errno.h>
@@ -119,7 +118,7 @@ static int ms1bit(unsigned long x)
 }
 
 /*
- * This code is unnecessarily complex, because we do SA_INTERRUPT
+ * This code is unnecessarily complex, because we do IRQF_DISABLED
  * intr enabling. Basically, once we grab the set of intrs we need
  * to service, we must mask _all_ these interrupts; firstly, to make
  * sure the same intr does not intr again, causing recursion that

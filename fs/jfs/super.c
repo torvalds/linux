@@ -18,7 +18,6 @@
  */
 
 #include <linux/fs.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/parser.h>
 #include <linux/completion.h>

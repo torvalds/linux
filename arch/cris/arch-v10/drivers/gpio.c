@@ -135,7 +135,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -938,11 +937,11 @@ gpio_init(void)
 	 * in some tests.
 	 */  
 	if (request_irq(TIMER0_IRQ_NBR, gpio_poll_timer_interrupt,
-			SA_SHIRQ | SA_INTERRUPT,"gpio poll", NULL)) {
+			IRQF_SHARED | IRQF_DISABLED,"gpio poll", NULL)) {
 		printk(KERN_CRIT "err: timer0 irq for gpio\n");
 	}
 	if (request_irq(PA_IRQ_NBR, gpio_pa_interrupt,
-			SA_SHIRQ | SA_INTERRUPT,"gpio PA", NULL)) {
+			IRQF_SHARED | IRQF_DISABLED,"gpio PA", NULL)) {
 		printk(KERN_CRIT "err: PA irq for gpio\n");
 	}
 	

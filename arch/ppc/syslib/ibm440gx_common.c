@@ -10,7 +10,6 @@
  * option) any later version.
  *
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <asm/ibm44x.h>
@@ -150,7 +149,7 @@ void __init ibm440gx_l2c_enable(void){
 	unsigned long flags;
 
 	/* Install error handler */
-	if (request_irq(87, l2c_error_handler, SA_INTERRUPT, "L2C", 0) < 0){
+	if (request_irq(87, l2c_error_handler, IRQF_DISABLED, "L2C", 0) < 0){
 		printk(KERN_ERR "Cannot install L2C error handler, cache is not enabled\n");
 		return;
 	}

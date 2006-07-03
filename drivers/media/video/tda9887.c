@@ -590,8 +590,8 @@ int tda9887_tuner_init(struct i2c_client *c)
 	t->set_tv_freq = tda9887_set_freq;
 	t->set_radio_freq = tda9887_set_freq;
 	t->standby = tda9887_standby;
-	t->tuner_status=tda9887_tuner_status;
-	t->get_afc=tda9887_get_afc;
+	t->tuner_status = tda9887_tuner_status;
+	t->get_afc = tda9887_get_afc;
 
 	return 0;
 }

@@ -10,7 +10,6 @@
  *
  *  DMA functions specific to Archimedes and A5000 architecture
  */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 

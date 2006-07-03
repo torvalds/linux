@@ -111,7 +111,6 @@ SuperIO/PS2/Mouse, using INTR via ISA IRQ12 (mouse not currently supported)
 JP7 is not bus master -- do NOT use -- only 4 pci bus master's allowed -- SouthBridge, JP4, JP5, JP6
 */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -338,7 +337,7 @@ int toshiba_rbtx4927_irq_nested(int sw_irq)
 }
 
 //#define TOSHIBA_RBTX4927_PIC_ACTION(s) { no_action, 0, CPU_MASK_NONE, s, NULL, NULL }
-#define TOSHIBA_RBTX4927_PIC_ACTION(s) { no_action, SA_SHIRQ, CPU_MASK_NONE, s, NULL, NULL }
+#define TOSHIBA_RBTX4927_PIC_ACTION(s) { no_action, IRQF_SHARED, CPU_MASK_NONE, s, NULL, NULL }
 static struct irqaction toshiba_rbtx4927_irq_ioc_action =
 TOSHIBA_RBTX4927_PIC_ACTION(TOSHIBA_RBTX4927_IOC_NAME);
 #ifdef CONFIG_TOSHIBA_FPCIB0

@@ -373,7 +373,7 @@ powertecscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto out_free;
 
 	ret = request_irq(ec->irq, powertecscsi_intr,
-			  SA_INTERRUPT, "powertec", info);
+			  IRQF_DISABLED, "powertec", info);
 	if (ret) {
 		printk("scsi%d: IRQ%d not free: %d\n",
 		       host->host_no, ec->irq, ret);

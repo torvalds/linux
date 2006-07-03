@@ -229,7 +229,7 @@ static int __init applicom_init(void)
 			continue;
 		}
 
-		if (request_irq(dev->irq, &ac_interrupt, SA_SHIRQ, "Applicom PCI", &dummy)) {
+		if (request_irq(dev->irq, &ac_interrupt, IRQF_SHARED, "Applicom PCI", &dummy)) {
 			printk(KERN_INFO "Could not allocate IRQ %d for PCI Applicom device.\n", dev->irq);
 			iounmap(RamIO);
 			pci_disable_device(dev);
@@ -276,7 +276,7 @@ static int __init applicom_init(void)
 		printk(KERN_NOTICE "Applicom ISA card found at mem 0x%lx, irq %d\n", mem + (LEN_RAM_IO*i), irq);
 
 		if (!numisa) {
-			if (request_irq(irq, &ac_interrupt, SA_SHIRQ, "Applicom ISA", &dummy)) {
+			if (request_irq(irq, &ac_interrupt, IRQF_SHARED, "Applicom ISA", &dummy)) {
 				printk(KERN_WARNING "Could not allocate IRQ %d for ISA Applicom device.\n", irq);
 				iounmap(RamIO);
 				apbs[boardno - 1].RamIO = NULL;

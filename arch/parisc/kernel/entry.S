@@ -22,7 +22,6 @@
  *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <asm/asm-offsets.h>
 
 /* we have the following possibilities to act on an interruption:

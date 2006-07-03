@@ -13,7 +13,6 @@
  *     argument : macaddr=0x00,0x10,0x20,0x30,0x40,0x50
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -2195,7 +2194,7 @@ static int happy_meal_open(struct net_device *dev)
 	 */
 	if ((hp->happy_flags & (HFLAG_QUATTRO|HFLAG_PCI)) != HFLAG_QUATTRO) {
 		if (request_irq(dev->irq, &happy_meal_interrupt,
-				SA_SHIRQ, dev->name, (void *)dev)) {
+				IRQF_SHARED, dev->name, (void *)dev)) {
 			HMD(("EAGAIN\n"));
 			printk(KERN_ERR "happy_meal(SBUS): Can't order irq %d to go.\n",
 			       dev->irq);
@@ -2609,7 +2608,7 @@ static void __init quattro_sbus_register_irqs(void)
 
 		err = request_irq(sdev->irqs[0],
 				  quattro_sbus_interrupt,
-				  SA_SHIRQ, "Quattro",
+				  IRQF_SHARED, "Quattro",
 				  qp);
 		if (err != 0) {
 			printk(KERN_ERR "Quattro: Fatal IRQ registery error %d.\n", err);

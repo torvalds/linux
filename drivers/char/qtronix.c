@@ -33,7 +33,6 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 
 /* 
  * NOTE:  
@@ -145,7 +144,7 @@ void __init init_qtronix_990P_kbd(void)
 	cir_port_init(cir);
 
 	retval = request_irq(IT8172_CIR0_IRQ, kbd_int_handler, 
-			(unsigned long )(SA_INTERRUPT|SA_SHIRQ), 
+			(unsigned long )(IRQF_DISABLED|IRQF_SHARED),
 			(const char *)"Qtronix IR Keyboard", (void *)cir);
 
 	if (retval) {

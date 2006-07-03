@@ -11,7 +11,6 @@
  *
  * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

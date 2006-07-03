@@ -8150,7 +8150,7 @@ static int __devinit synclink_init_one (struct pci_dev *dev,
 				
 	info->bus_type = MGSL_BUS_TYPE_PCI;
 	info->io_addr_size = 8;
-	info->irq_flags = SA_SHIRQ;
+	info->irq_flags = IRQF_SHARED;
 
 	if (dev->device == 0x0210) {
 		/* Version 1 PCI9030 based universal PCI adapter */

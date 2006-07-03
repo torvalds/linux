@@ -8,7 +8,6 @@
  *  as published by the Free Software Foundation; either version
  *  2 of the License, or (at your option) any later version.
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/threads.h>
 #include <linux/kernel.h>
@@ -60,7 +59,7 @@ static struct radix_tree_root irq_map = RADIX_TREE_INIT(GFP_ATOMIC);
 
 /*
  * Mark IPIs as higher priority so we can take them inside interrupts that
- * arent marked SA_INTERRUPT
+ * arent marked IRQF_DISABLED
  */
 #define IPI_PRIORITY		4
 
@@ -587,9 +586,12 @@ void xics_request_IPIs(void)
 {
 	virt_irq_to_real_map[XICS_IPI] = XICS_IPI;
 
-	/* IPIs are marked SA_INTERRUPT as they must run with irqs disabled */
-	request_irq(irq_offset_up(XICS_IPI), xics_ipi_action, SA_INTERRUPT,
-		    "IPI", NULL);
+	/*
+	 * IPIs are marked IRQF_DISABLED as they must run with irqs
+	 * disabled
+	 */
+	request_irq(irq_offset_up(XICS_IPI), xics_ipi_action,
+		    IRQF_DISABLED, "IPI", NULL);
 	get_irq_desc(irq_offset_up(XICS_IPI))->status |= IRQ_PER_CPU;
 }
 #endif

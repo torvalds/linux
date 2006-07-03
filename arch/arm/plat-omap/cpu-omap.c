@@ -25,6 +25,14 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
+#define VERY_HI_RATE	900000000
+
+#ifdef CONFIG_ARCH_OMAP1
+#define MPU_CLK		"mpu"
+#else
+#define MPU_CLK		"virt_prcm_set"
+#endif
+
 /* TODO: Add support for SDRAM timing changes */
 
 int omap_verify_speed(struct cpufreq_policy *policy)
@@ -36,7 +44,7 @@ int omap_verify_speed(struct cpufreq_policy *policy)
 
 	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
 				     policy->cpuinfo.max_freq);
-	mpu_clk = clk_get(NULL, "mpu");
+	mpu_clk = clk_get(NULL, MPU_CLK);
 	if (IS_ERR(mpu_clk))
 		return PTR_ERR(mpu_clk);
 	policy->min = clk_round_rate(mpu_clk, policy->min * 1000) / 1000;
@@ -56,7 +64,7 @@ unsigned int omap_getspeed(unsigned int cpu)
 	if (cpu)
 		return 0;
 
-	mpu_clk = clk_get(NULL, "mpu");
+	mpu_clk = clk_get(NULL, MPU_CLK);
 	if (IS_ERR(mpu_clk))
 		return 0;
 	rate = clk_get_rate(mpu_clk) / 1000;
@@ -73,7 +81,7 @@ static int omap_target(struct cpufreq_policy *policy,
 	struct cpufreq_freqs freqs;
 	int ret = 0;
 
-	mpu_clk = clk_get(NULL, "mpu");
+	mpu_clk = clk_get(NULL, MPU_CLK);
 	if (IS_ERR(mpu_clk))
 		return PTR_ERR(mpu_clk);
 
@@ -93,7 +101,7 @@ static int __init omap_cpu_init(struct cpufreq_policy *policy)
 {
 	struct clk * mpu_clk;
 
-	mpu_clk = clk_get(NULL, "mpu");
+	mpu_clk = clk_get(NULL, MPU_CLK);
 	if (IS_ERR(mpu_clk))
 		return PTR_ERR(mpu_clk);
 
@@ -102,7 +110,7 @@ static int __init omap_cpu_init(struct cpufreq_policy *policy)
 	policy->cur = policy->min = policy->max = omap_getspeed(0);
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	policy->cpuinfo.min_freq = clk_round_rate(mpu_clk, 0) / 1000;
-	policy->cpuinfo.max_freq = clk_round_rate(mpu_clk, 216000000) / 1000;
+	policy->cpuinfo.max_freq = clk_round_rate(mpu_clk, VERY_HI_RATE) / 1000;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	clk_put(mpu_clk);
 

@@ -733,7 +733,7 @@ static int
 nm256_grabInterrupt (struct nm256_info *card)
 {
     if (card->has_irq++ == 0) {
-	if (request_irq (card->irq, card->introutine, SA_SHIRQ,
+	if (request_irq (card->irq, card->introutine, IRQF_SHARED,
 			 "NM256_audio", card) < 0) {
 	    printk (KERN_ERR "NM256: can't obtain IRQ %d\n", card->irq);
 	    return -1;

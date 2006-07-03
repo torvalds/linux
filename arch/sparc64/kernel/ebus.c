@@ -5,7 +5,6 @@
  * Copyright (C) 1999  David S. Miller (davem@redhat.com)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -141,7 +140,7 @@ int ebus_dma_irq_enable(struct ebus_dma_info *p, int on)
 
 	if (on) {
 		if (p->flags & EBUS_DMA_FLAG_USE_EBDMA_HANDLER) {
-			if (request_irq(p->irq, ebus_dma_irq, SA_SHIRQ, p->name, p))
+			if (request_irq(p->irq, ebus_dma_irq, IRQF_SHARED, p->name, p))
 				return -EBUSY;
 		}
 

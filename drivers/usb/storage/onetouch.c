@@ -28,7 +28,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/input.h>
 #include <linux/init.h>

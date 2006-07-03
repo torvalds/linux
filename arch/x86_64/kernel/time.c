@@ -889,7 +889,7 @@ int __init time_setup(char *str)
 }
 
 static struct irqaction irq0 = {
-	timer_interrupt, SA_INTERRUPT, CPU_MASK_NONE, "timer", NULL, NULL
+	timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL
 };
 
 void __init time_init(void)

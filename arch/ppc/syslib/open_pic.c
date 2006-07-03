@@ -6,7 +6,6 @@
  *  for more details.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -576,18 +575,21 @@ void openpic_request_IPIs(void)
 	if (OpenPIC == NULL)
 		return;
 
-	/* IPIs are marked SA_INTERRUPT as they must run with irqs disabled */
+	/*
+ 	 * IPIs are marked IRQF_DISABLED as they must run with irqs
+	 * disabled
+	 */
 	request_irq(OPENPIC_VEC_IPI+open_pic_irq_offset,
-		    openpic_ipi_action, SA_INTERRUPT,
+		    openpic_ipi_action, IRQF_DISABLED,
 		    "IPI0 (call function)", NULL);
 	request_irq(OPENPIC_VEC_IPI+open_pic_irq_offset+1,
-		    openpic_ipi_action, SA_INTERRUPT,
+		    openpic_ipi_action, IRQF_DISABLED,
 		    "IPI1 (reschedule)", NULL);
 	request_irq(OPENPIC_VEC_IPI+open_pic_irq_offset+2,
-		    openpic_ipi_action, SA_INTERRUPT,
+		    openpic_ipi_action, IRQF_DISABLED,
 		    "IPI2 (invalidate tlb)", NULL);
 	request_irq(OPENPIC_VEC_IPI+open_pic_irq_offset+3,
-		    openpic_ipi_action, SA_INTERRUPT,
+		    openpic_ipi_action, IRQF_DISABLED,
 		    "IPI3 (xmon break)", NULL);
 
 	for ( i = 0; i < OPENPIC_NUM_IPI ; i++ )
@@ -692,7 +694,7 @@ openpic_init_nmi_irq(u_int irq)
 
 static struct irqaction openpic_cascade_irqaction = {
 	.handler = no_action,
-	.flags = SA_INTERRUPT,
+	.flags = IRQF_DISABLED,
 	.mask = CPU_MASK_NONE,
 };
 

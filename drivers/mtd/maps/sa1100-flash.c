@@ -5,7 +5,6 @@
  *
  * $Id: sa1100-flash.c,v 1.51 2005/11/07 11:14:28 gleixner Exp $
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/ioport.h>

@@ -3,7 +3,6 @@
  *
  * Sysctl interface to NFS parameters
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/linkage.h>
 #include <linux/ctype.h>

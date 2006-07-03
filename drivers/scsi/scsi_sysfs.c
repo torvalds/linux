@@ -6,7 +6,6 @@
  * Created to pull SCSI mid layer sysfs routines into one file.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>

@@ -28,7 +28,6 @@
  * ENOTTY for unsupported ioctl request
  *
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/slab.h>

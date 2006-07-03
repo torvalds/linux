@@ -11,7 +11,6 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -174,7 +173,7 @@ void gt64240_time_init(void)
 	 * the values to the correct interrupt line.
 	 */
 	timer.handler = &gt64240_p0int_irq;
-	timer.flags = SA_SHIRQ | SA_INTERRUPT;
+	timer.flags = IRQF_SHARED | IRQF_DISABLED;
 	timer.name = "timer";
 	timer.dev_id = NULL;
 	timer.next = NULL;

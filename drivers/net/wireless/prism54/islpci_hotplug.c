@@ -189,7 +189,7 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* request for the interrupt before uploading the firmware */
 	rvalue = request_irq(pdev->irq, &islpci_interrupt,
-			     SA_SHIRQ, ndev->name, priv);
+			     IRQF_SHARED, ndev->name, priv);
 
 	if (rvalue) {
 		/* error, could not hook the handler to the irq */

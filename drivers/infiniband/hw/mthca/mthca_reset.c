@@ -32,7 +32,6 @@
  * $Id: mthca_reset.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/pci.h>

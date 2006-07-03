@@ -7,7 +7,6 @@
 **	Rewritten 15/9/2000 by Geert to use resource management
 */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

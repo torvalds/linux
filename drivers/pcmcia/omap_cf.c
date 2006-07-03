@@ -232,7 +232,7 @@ static int __init omap_cf_probe(struct device *dev)
 	dev_set_drvdata(dev, cf);
 
 	/* this primarily just shuts up irq handling noise */
-	status = request_irq(irq, omap_cf_irq, SA_SHIRQ,
+	status = request_irq(irq, omap_cf_irq, IRQF_SHARED,
 			driver_name, cf);
 	if (status < 0)
 		goto fail0;

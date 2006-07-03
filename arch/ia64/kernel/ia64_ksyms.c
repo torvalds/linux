@@ -5,7 +5,6 @@
  * All other exports should be put directly after the definition.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/string.h>

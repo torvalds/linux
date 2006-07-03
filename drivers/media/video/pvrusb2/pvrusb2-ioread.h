@@ -33,7 +33,6 @@ void pvr2_ioread_set_sync_key(struct pvr2_ioread *,
 			      const char *sync_key_ptr,
 			      unsigned int sync_key_len);
 int pvr2_ioread_set_enabled(struct pvr2_ioread *,int fl);
-int pvr2_ioread_get_enabled(struct pvr2_ioread *);
 int pvr2_ioread_read(struct pvr2_ioread *,void __user *buf,unsigned int cnt);
 int pvr2_ioread_avail(struct pvr2_ioread *);
 

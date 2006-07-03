@@ -65,7 +65,6 @@
 
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #define NDEBUG (0)

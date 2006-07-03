@@ -8,7 +8,6 @@
  *  Copyright (C) 1997,1998 Jakub Jelinek   (jj@sunsite.mff.cuni.cz)
  */
 
-#include <linux/config.h>
 #ifdef CONFIG_SPARC32_COMPAT
 #include <linux/compat.h>	/* for compat_old_sigset_t */
 #endif

@@ -9,7 +9,6 @@
  *	      Add notify_die() hooks.
  */
 #define __KERNEL_SYSCALLS__	/* see <asm/unistd.h> */
-#include <linux/config.h>
 
 #include <linux/cpu.h>
 #include <linux/pm.h>

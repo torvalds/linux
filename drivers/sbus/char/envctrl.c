@@ -22,7 +22,6 @@
 #define __KERNEL_SYSCALLS__
 static int errno;
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>

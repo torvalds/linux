@@ -27,7 +27,6 @@
  */
 #define ECARD_C
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -620,7 +619,7 @@ ecard_irqexp_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *reg
 		ecard_t *ec = slot_to_ecard(slot);
 
 		if (ec->claimed) {
-			struct irqdesc *d = irqdesc + ec->irq;
+			struct irq_desc *d = irq_desc + ec->irq;
 			/*
 			 * this ugly code is so that we can operate a
 			 * prioritorising system:

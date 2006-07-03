@@ -320,7 +320,7 @@ NCR_D700_probe(struct device *dev)
 	memset(p, '\0', sizeof(*p));
 	p->dev = dev;
 	snprintf(p->name, sizeof(p->name), "D700(%s)", dev->bus_id);
-	if (request_irq(irq, NCR_D700_intr, SA_SHIRQ, p->name, p)) {
+	if (request_irq(irq, NCR_D700_intr, IRQF_SHARED, p->name, p)) {
 		printk(KERN_ERR "D700: request_irq failed\n");
 		kfree(p);
 		return -EBUSY;

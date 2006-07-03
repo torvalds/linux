@@ -603,7 +603,7 @@ dm9000_open(struct net_device *dev)
 
 	PRINTK2("entering dm9000_open\n");
 
-	if (request_irq(dev->irq, &dm9000_interrupt, SA_SHIRQ, dev->name, dev))
+	if (request_irq(dev->irq, &dm9000_interrupt, IRQF_SHARED, dev->name, dev))
 		return -EAGAIN;
 
 	/* Initialize DM9000 board */

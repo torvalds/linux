@@ -10,7 +10,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>

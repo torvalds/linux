@@ -34,7 +34,6 @@
 
 #define MAX_DEVICES 12
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
@@ -3836,7 +3835,7 @@ static SLMP_INFO *alloc_dev(int adapter_num, int port_num, struct pci_dev *pdev)
 		info->phys_statctrl_base &= ~(PAGE_SIZE-1);
 
 		info->bus_type = MGSL_BUS_TYPE_PCI;
-		info->irq_flags = SA_SHIRQ;
+		info->irq_flags = IRQF_SHARED;
 
 		init_timer(&info->tx_timer);
 		info->tx_timer.data = (unsigned long)info;

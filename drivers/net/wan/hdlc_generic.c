@@ -22,7 +22,6 @@
  * - proto.start() and stop() are called with spin_lock_irq held.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>

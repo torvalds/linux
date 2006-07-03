@@ -3,7 +3,6 @@
  * Thanks to Ben LaHaise for precious feedback.
  */ 
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/highmem.h>

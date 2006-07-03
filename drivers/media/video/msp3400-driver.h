@@ -90,8 +90,8 @@ struct msp_state {
 	/* thread */
 	struct task_struct   *kthread;
 	wait_queue_head_t    wq;
-	int                  restart:1;
-	int                  watch_stereo:1;
+	unsigned int         restart:1;
+	unsigned int         watch_stereo:1;
 };
 
 /* msp3400-driver.c */

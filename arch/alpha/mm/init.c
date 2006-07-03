@@ -6,7 +6,6 @@
 
 /* 2.3.x zone allocator, 1999 Andrea Arcangeli <andrea@suse.de> */
 
-#include <linux/config.h>
 #include <linux/pagemap.h>
 #include <linux/signal.h>
 #include <linux/sched.h>

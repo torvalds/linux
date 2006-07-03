@@ -31,7 +31,6 @@
 #undef	VERBOSE
 #undef	PACKET_TRACE
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -1750,7 +1749,7 @@ sl811h_probe(struct platform_device *dev)
 	 * was on a system with single edge triggering, so most sorts of
 	 * triggering arrangement should work.
 	 */
-	retval = usb_add_hcd(hcd, irq, SA_INTERRUPT | SA_SHIRQ);
+	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
 	if (retval != 0)
 		goto err6;
 

@@ -767,7 +767,7 @@ megaraid_init_mbox(adapter_t *adapter)
 	//
 
 	// request IRQ and register the interrupt service routine
-	if (request_irq(adapter->irq, megaraid_isr, SA_SHIRQ, "megaraid",
+	if (request_irq(adapter->irq, megaraid_isr, IRQF_SHARED, "megaraid",
 		adapter)) {
 
 		con_log(CL_ANN, (KERN_WARNING

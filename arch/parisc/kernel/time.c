@@ -10,7 +10,6 @@
  * 1998-12-20  Updated NTP code according to technical memorandum Jan '96
  *             "A Kernel Model for Precision Timekeeping" by Dave Mills
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>

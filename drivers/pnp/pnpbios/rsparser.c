@@ -3,7 +3,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/ctype.h>
 #include <linux/pnp.h>
 #include <linux/pnpbios.h>

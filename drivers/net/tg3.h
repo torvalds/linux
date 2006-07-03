@@ -125,6 +125,7 @@
 #define  CHIPREV_ID_5750_A0		 0x4000
 #define  CHIPREV_ID_5750_A1		 0x4001
 #define  CHIPREV_ID_5750_A3		 0x4003
+#define  CHIPREV_ID_5750_C2		 0x4202
 #define  CHIPREV_ID_5752_A0_HW		 0x5000
 #define  CHIPREV_ID_5752_A0		 0x6000
 #define  CHIPREV_ID_5752_A1		 0x6001
@@ -760,6 +761,7 @@
 #define  RCVLPC_STATSCTRL_ENABLE	 0x00000001
 #define  RCVLPC_STATSCTRL_FASTUPD	 0x00000002
 #define RCVLPC_STATS_ENABLE		0x00002018
+#define  RCVLPC_STATSENAB_DACK_FIX	 0x00040000
 #define  RCVLPC_STATSENAB_LNGBRST_RFIX	 0x00400000
 #define RCVLPC_STATS_INCMASK		0x0000201c
 /* 0x2020 --> 0x2100 unused */
@@ -2137,6 +2139,7 @@ struct tg3 {
 	struct tg3_rx_buffer_desc	*rx_std;
 	struct ring_info		*rx_std_buffers;
 	dma_addr_t			rx_std_mapping;
+	u32				rx_std_max_post;
 
 	struct tg3_rx_buffer_desc	*rx_jumbo;
 	struct ring_info		*rx_jumbo_buffers;
@@ -2191,7 +2194,7 @@ struct tg3 {
 #define TG3_FLAG_INIT_COMPLETE		0x80000000
 	u32				tg3_flags2;
 #define TG3_FLG2_RESTART_TIMER		0x00000001
-/*					0x00000002 available */
+#define TG3_FLG2_HW_TSO_1_BUG		0x00000002
 #define TG3_FLG2_NO_ETH_WIRE_SPEED	0x00000004
 #define TG3_FLG2_IS_5788		0x00000008
 #define TG3_FLG2_MAX_RXPEND_64		0x00000010

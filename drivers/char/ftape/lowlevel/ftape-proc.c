@@ -26,7 +26,6 @@
  *	Old code removed, switched to dynamic proc entry.
  */
 
-#include <linux/config.h>
 
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_FT_PROC_FS)
 

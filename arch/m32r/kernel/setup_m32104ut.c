@@ -8,7 +8,6 @@
  *                           Naoto Sugai, Hayato Fujiwara
  */
 
-#include <linux/config.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

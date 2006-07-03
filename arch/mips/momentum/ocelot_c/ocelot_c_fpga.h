@@ -30,7 +30,6 @@
 #ifndef __OCELOT_C_FPGA_H__
 #define __OCELOT_C_FPGA_H__
 
-#include <linux/config.h>
 
 #ifdef CONFIG_64BIT
 #define OCELOT_C_CS0_ADDR       (0xfffffffffc000000)

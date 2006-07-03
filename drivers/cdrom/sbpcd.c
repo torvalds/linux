@@ -381,7 +381,6 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <stdarg.h>
-#include <linux/config.h>
 #include "sbpcd.h"
 
 #define MAJOR_NR MATSUSHITA_CDROM_MAJOR

@@ -170,7 +170,7 @@ static int __init hd64465_gpio_init(void)
 	if (!request_region(HD64465_REG_GPACR, 0x1000, MODNAME))
 		return -EBUSY;
 	if (request_irq(HD64465_IRQ_GPIO, hd64465_gpio_interrupt,
-	    		SA_INTERRUPT, MODNAME, 0))
+	    		IRQF_DISABLED, MODNAME, 0))
 		goto out_irqfailed;
 
     	printk("HD64465 GPIO layer on irq %d\n", HD64465_IRQ_GPIO);

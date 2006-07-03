@@ -488,7 +488,7 @@ static int __devinit bt878_probe(struct pci_dev *dev,
 	btwrite(0, BT848_INT_MASK);
 
 	result = request_irq(bt->irq, bt878_irq,
-			     SA_SHIRQ | SA_INTERRUPT, "bt878",
+			     IRQF_SHARED | IRQF_DISABLED, "bt878",
 			     (void *) bt);
 	if (result == -EINVAL) {
 		printk(KERN_ERR "bt878(%d): Bad irq number or handler\n",

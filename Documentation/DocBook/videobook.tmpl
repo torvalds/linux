@@ -976,7 +976,7 @@ static int camera_close(struct video_device *dev)
   <title>Interrupt Handling</title>
   <para>
         Our example handler is for an ISA bus device. If it was PCI you would be
-        able to share the interrupt and would have set SA_SHIRQ to indicate a 
+        able to share the interrupt and would have set IRQF_SHARED to indicate a
         shared IRQ. We pass the device pointer as the interrupt routine argument. We
         don't need to since we only support one card but doing this will make it
         easier to upgrade the driver for multiple devices in the future.

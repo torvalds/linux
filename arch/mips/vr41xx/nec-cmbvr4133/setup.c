@@ -14,7 +14,6 @@
  * Support for CMBVR4133 board in 2.6
  * Author: Manish Lachwani (mlachwani@mvista.com)
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/ide.h>
 #include <linux/ioport.h>

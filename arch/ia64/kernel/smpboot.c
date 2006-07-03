@@ -21,7 +21,6 @@
  * 05/01/30 Suresh Siddha <suresh.b.siddha@intel.com>
  *						Setup cpu_sibling_map and cpu_core_map
  */
-#include <linux/config.h>
 
 #include <linux/module.h>
 #include <linux/acpi.h>

@@ -2286,7 +2286,7 @@ static int __devinit amb_probe(struct pci_dev *pci_dev, const struct pci_device_
 	setup_pci_dev(pci_dev);
 
 	// grab (but share) IRQ and install handler
-	err = request_irq(irq, interrupt_handler, SA_SHIRQ, DEV_LABEL, dev);
+	err = request_irq(irq, interrupt_handler, IRQF_SHARED, DEV_LABEL, dev);
 	if (err < 0) {
 		PRINTK (KERN_ERR, "request IRQ failed!");
 		goto out_reset;

@@ -24,41 +24,40 @@
 
 /*
  * IRQ line status.
+ *
+ * Bits 0-16 are reserved for the IRQF_* bits in linux/interrupt.h
+ *
+ * IRQ types
  */
-#define IRQ_INPROGRESS	1	/* IRQ handler active - do not enter! */
-#define IRQ_DISABLED	2	/* IRQ disabled - do not enter! */
-#define IRQ_PENDING	4	/* IRQ pending - replay on enable */
-#define IRQ_REPLAY	8	/* IRQ has been replayed but not acked yet */
-#define IRQ_AUTODETECT	16	/* IRQ is being autodetected */
-#define IRQ_WAITING	32	/* IRQ not yet seen - for autodetection */
-#define IRQ_LEVEL	64	/* IRQ level triggered */
-#define IRQ_MASKED	128	/* IRQ masked - shouldn't be seen again */
+#define IRQ_TYPE_NONE		0x00000000	/* Default, unspecified type */
+#define IRQ_TYPE_EDGE_RISING	0x00000001	/* Edge rising type */
+#define IRQ_TYPE_EDGE_FALLING	0x00000002	/* Edge falling type */
+#define IRQ_TYPE_EDGE_BOTH (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING)
+#define IRQ_TYPE_LEVEL_HIGH	0x00000004	/* Level high type */
+#define IRQ_TYPE_LEVEL_LOW	0x00000008	/* Level low type */
+#define IRQ_TYPE_SENSE_MASK	0x0000000f	/* Mask of the above */
+#define IRQ_TYPE_PROBE		0x00000010	/* Probing in progress */
+
+/* Internal flags */
+#define IRQ_INPROGRESS		0x00010000	/* IRQ handler active - do not enter! */
+#define IRQ_DISABLED		0x00020000	/* IRQ disabled - do not enter! */
+#define IRQ_PENDING		0x00040000	/* IRQ pending - replay on enable */
+#define IRQ_REPLAY		0x00080000	/* IRQ has been replayed but not acked yet */
+#define IRQ_AUTODETECT		0x00100000	/* IRQ is being autodetected */
+#define IRQ_WAITING		0x00200000	/* IRQ not yet seen - for autodetection */
+#define IRQ_LEVEL		0x00400000	/* IRQ level triggered */
+#define IRQ_MASKED		0x00800000	/* IRQ masked - shouldn't be seen again */
 #ifdef CONFIG_IRQ_PER_CPU
-# define IRQ_PER_CPU	256	/* IRQ is per CPU */
+# define IRQ_PER_CPU		0x01000000	/* IRQ is per CPU */
 # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
 #else
 # define CHECK_IRQ_PER_CPU(var) 0
 #endif
 
-#define IRQ_NOPROBE	512	/* IRQ is not valid for probing */
-#define IRQ_NOREQUEST	1024	/* IRQ cannot be requested */
-#define IRQ_NOAUTOEN	2048	/* IRQ will not be enabled on request irq */
-#define IRQ_DELAYED_DISABLE \
-			4096	/* IRQ disable (masking) happens delayed. */
-
-/*
- * IRQ types, see also include/linux/interrupt.h
- */
-#define IRQ_TYPE_NONE		0x0000		/* Default, unspecified type */
-#define IRQ_TYPE_EDGE_RISING	0x0001		/* Edge rising type */
-#define IRQ_TYPE_EDGE_FALLING	0x0002		/* Edge falling type */
-#define IRQ_TYPE_EDGE_BOTH (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING)
-#define IRQ_TYPE_LEVEL_HIGH	0x0004		/* Level high type */
-#define IRQ_TYPE_LEVEL_LOW	0x0008		/* Level low type */
-#define IRQ_TYPE_SENSE_MASK	0x000f		/* Mask of the above */
-#define IRQ_TYPE_SIMPLE		0x0010		/* Simple type */
-#define IRQ_TYPE_PERCPU		0x0020		/* Per CPU type */
-#define IRQ_TYPE_PROBE		0x0040		/* Probing in progress */
+#define IRQ_NOPROBE		0x02000000	/* IRQ is not valid for probing */
+#define IRQ_NOREQUEST		0x04000000	/* IRQ cannot be requested */
+#define IRQ_NOAUTOEN		0x08000000	/* IRQ will not be enabled on request irq */
+#define IRQ_DELAYED_DISABLE	0x10000000	/* IRQ disable (masking) happens delayed. */
 
 struct proc_dir_entry;
 
@@ -182,6 +181,10 @@ typedef struct irq_desc		irq_desc_t;
 extern int setup_irq(unsigned int irq, struct irqaction *new);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
+
+#ifndef handle_dynamic_tick
+# define handle_dynamic_tick(a)		do { } while (0)
+#endif
 
 #ifdef CONFIG_SMP
 static inline void set_native_irq_info(int irq, cpumask_t mask)
@@ -348,8 +351,9 @@ extern int noirqdebug_setup(char *str);
 /* Checks whether the interrupt can be requested by request_irq(): */
 extern int can_request_irq(unsigned int irq, unsigned long irqflags);
 
-/* Dummy irq-chip implementation: */
+/* Dummy irq-chip implementations: */
 extern struct irq_chip no_irq_chip;
+extern struct irq_chip dummy_irq_chip;
 
 extern void
 set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,

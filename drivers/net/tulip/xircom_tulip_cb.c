@@ -98,7 +98,6 @@ static int csr0 = 0x00A00000 | 0x4800;
 /* PCI registers */
 #define PCI_POWERMGMT 	0x40
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -808,7 +807,7 @@ xircom_open(struct net_device *dev)
 {
 	struct xircom_private *tp = netdev_priv(dev);
 
-	if (request_irq(dev->irq, &xircom_interrupt, SA_SHIRQ, dev->name, dev))
+	if (request_irq(dev->irq, &xircom_interrupt, IRQF_SHARED, dev->name, dev))
 		return -EAGAIN;
 
 	xircom_up(dev);

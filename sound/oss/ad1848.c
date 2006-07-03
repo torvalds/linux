@@ -41,7 +41,6 @@
  *		Tested. Believed fully functional.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>

@@ -82,7 +82,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -3393,12 +3392,12 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	spin_lock_init(&ohci->event_lock);
 
 	/*
-	 * interrupts are disabled, all right, but... due to SA_SHIRQ we
+	 * interrupts are disabled, all right, but... due to IRQF_SHARED we
 	 * might get called anyway.  We'll see no event, of course, but
 	 * we need to get to that "no event", so enough should be initialized
 	 * by that point.
 	 */
-	if (request_irq(dev->irq, ohci_irq_handler, SA_SHIRQ,
+	if (request_irq(dev->irq, ohci_irq_handler, IRQF_SHARED,
 			 OHCI1394_DRIVER_NAME, ohci))
 		FAIL(-ENOMEM, "Failed to allocate shared interrupt %d", dev->irq);
 

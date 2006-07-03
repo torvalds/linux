@@ -5,7 +5,6 @@
  * This can also be tweaked for kernel stack overflow detection.
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 
 #include <asm/ptrace.h>

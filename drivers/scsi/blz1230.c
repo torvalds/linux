@@ -172,7 +172,7 @@ int __init blz1230_esp_detect(struct scsi_host_template *tpnt)
 
 		esp->irq = IRQ_AMIGA_PORTS;
 		esp->slot = board+REAL_BLZ1230_ESP_ADDR;
-		if (request_irq(IRQ_AMIGA_PORTS, esp_intr, SA_SHIRQ,
+		if (request_irq(IRQ_AMIGA_PORTS, esp_intr, IRQF_SHARED,
 				 "Blizzard 1230 SCSI IV", esp->ehost))
 			goto err_out;
 

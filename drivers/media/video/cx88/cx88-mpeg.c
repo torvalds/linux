@@ -438,7 +438,7 @@ int cx8802_init_common(struct cx8802_dev *dev)
 
 	/* get irq */
 	err = request_irq(dev->pci->irq, cx8802_irq,
-			  SA_SHIRQ | SA_INTERRUPT, dev->core->name, dev);
+			  IRQF_SHARED | IRQF_DISABLED, dev->core->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n",
 		       dev->core->name, dev->pci->irq);

@@ -32,7 +32,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/config.h>
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/inet.h>

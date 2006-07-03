@@ -6,7 +6,6 @@
  * Copyright (C) 1999,2001-2006 Silicon Graphics, Inc. All rights reserved.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>

@@ -1228,7 +1228,7 @@ static int dfx_open(struct net_device *dev)
 	
 	/* Register IRQ - support shared interrupts by passing device ptr */
 
-	ret = request_irq(dev->irq, dfx_interrupt, SA_SHIRQ, dev->name, dev);
+	ret = request_irq(dev->irq, dfx_interrupt, IRQF_SHARED, dev->name, dev);
 	if (ret) {
 		printk(KERN_ERR "%s: Requested IRQ %d is busy\n", dev->name, dev->irq);
 		return ret;

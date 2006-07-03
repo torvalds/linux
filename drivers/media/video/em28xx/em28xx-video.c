@@ -1574,8 +1574,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		request_module("tvp5150");
 	if (dev->has_tuner)
 		request_module("tuner");
-	if (dev->tda9887_conf)
-		request_module("tda9887");
 #endif
 	errCode = em28xx_config(dev);
 	if (errCode) {

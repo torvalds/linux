@@ -305,7 +305,7 @@ config NET_CLS_U32
 	tristate "Universal 32bit comparisons w/ hashing (U32)"
 	select NET_CLS
 	---help---
-	  Say Y here to be able to classify packetes using a universal
+	  Say Y here to be able to classify packets using a universal
 	  32bit pieces based comparison scheme.
 
 	  To compile this code as a module, choose M here: the
@@ -485,7 +485,7 @@ config NET_ACT_IPT
         tristate "IPtables targets"
         depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
         ---help---
-	  Say Y here to be able to invoke iptables targets after succesful
+	  Say Y here to be able to invoke iptables targets after successful
 	  classification.
 
 	  To compile this code as a module, choose M here: the
@@ -537,8 +537,8 @@ config NET_ESTIMATOR
 	---help---
 	  Say Y here to allow using rate estimators to estimate the current
 	  rate-of-flow for network devices, queues, etc. This module is
-	  automaticaly selected if needed but can be selected manually for
-	  statstical purposes.
+	  automatically selected if needed but can be selected manually for
+	  statistical purposes.
 
 endif # NET_SCHED
 

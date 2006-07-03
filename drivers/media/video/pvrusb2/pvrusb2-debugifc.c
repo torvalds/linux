@@ -82,7 +82,7 @@ static unsigned int debugifc_isolate_word(const char *buf,unsigned int count,
 	unsigned int wlen;
 	unsigned int scnt;
 
-	wptr = 0;
+	wptr = NULL;
 	wlen = 0;
 	scnt = debugifc_count_whitespace(buf,count);
 	consume_cnt += scnt; count -= scnt; buf += scnt;
@@ -337,8 +337,8 @@ int pvr2_debugifc_print_status(struct pvr2_hdw *hdw,
 }
 
 
-int pvr2_debugifc_do1cmd(struct pvr2_hdw *hdw,const char *buf,
-			 unsigned int count)
+static int pvr2_debugifc_do1cmd(struct pvr2_hdw *hdw,const char *buf,
+				unsigned int count)
 {
 	const char *wptr;
 	unsigned int wlen;

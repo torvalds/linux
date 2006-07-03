@@ -46,7 +46,6 @@
  *   20050816 henk	Merge 2.6.13-rc6
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>

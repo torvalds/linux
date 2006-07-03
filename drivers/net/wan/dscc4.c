@@ -752,7 +752,7 @@ static int __devinit dscc4_init_one(struct pci_dev *pdev,
 
 	priv = pci_get_drvdata(pdev);
 
-	rc = request_irq(pdev->irq, dscc4_irq, SA_SHIRQ, DRV_NAME, priv->root);
+	rc = request_irq(pdev->irq, dscc4_irq, IRQF_SHARED, DRV_NAME, priv->root);
 	if (rc < 0) {
 		printk(KERN_WARNING "%s: IRQ %d busy\n", DRV_NAME, pdev->irq);
 		goto err_release_4;

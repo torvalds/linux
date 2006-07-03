@@ -21,7 +21,6 @@
 #undef DEBUG
 #undef DEBUG_LOW
 
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/sched.h>

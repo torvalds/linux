@@ -260,7 +260,7 @@ MODULE_DESCRIPTION("Jazz SONIC ethernet driver");
 module_param(sonic_debug, int, 0);
 MODULE_PARM_DESC(sonic_debug, "jazzsonic debug level (1-4)");
 
-#define SONIC_IRQ_FLAG SA_INTERRUPT
+#define SONIC_IRQ_FLAG IRQF_DISABLED
 
 #include "sonic.c"
 

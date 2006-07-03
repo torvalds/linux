@@ -863,11 +863,11 @@ static void psycho_register_error_handlers(struct pci_controller_info *p)
 	if (op->num_irqs < 6)
 		return;
 
-	request_irq(op->irqs[1], psycho_ue_intr, SA_SHIRQ, "PSYCHO UE", p);
-	request_irq(op->irqs[2], psycho_ce_intr, SA_SHIRQ, "PSYCHO CE", p);
-	request_irq(op->irqs[5], psycho_pcierr_intr, SA_SHIRQ,
+	request_irq(op->irqs[1], psycho_ue_intr, IRQF_SHARED, "PSYCHO UE", p);
+	request_irq(op->irqs[2], psycho_ce_intr, IRQF_SHARED, "PSYCHO CE", p);
+	request_irq(op->irqs[5], psycho_pcierr_intr, IRQF_SHARED,
 		    "PSYCHO PCIERR-A", &p->pbm_A);
-	request_irq(op->irqs[0], psycho_pcierr_intr, SA_SHIRQ,
+	request_irq(op->irqs[0], psycho_pcierr_intr, IRQF_SHARED,
 		    "PSYCHO PCIERR-B", &p->pbm_B);
 
 	/* Enable UE and CE interrupts for controller. */

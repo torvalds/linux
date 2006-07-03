@@ -31,7 +31,6 @@
 #define DRV_VERSION		"0.7"
 #define DRV_RELDATE		"Mar 17, 2004"
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -1372,7 +1371,7 @@ static int de_open (struct net_device *dev)
 
 	dw32(IntrMask, 0);
 
-	rc = request_irq(dev->irq, de_interrupt, SA_SHIRQ, dev->name, dev);
+	rc = request_irq(dev->irq, de_interrupt, IRQF_SHARED, dev->name, dev);
 	if (rc) {
 		printk(KERN_ERR "%s: IRQ %d request failure, err=%d\n",
 		       dev->name, dev->irq, rc);

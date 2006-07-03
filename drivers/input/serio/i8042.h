@@ -1,7 +1,6 @@
 #ifndef _I8042_H
 #define _I8042_H
 
-#include <linux/config.h>
 
 /*
  *  Copyright (c) 1999-2002 Vojtech Pavlik

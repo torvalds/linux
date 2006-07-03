@@ -14,7 +14,6 @@
  *  Note:  there is a StrongARM bug in the STMIA rn, {regs}^ instruction that causes
  *  it to save wrong values...  Be aware!
  */
-#include <linux/config.h>
 
 #include <asm/memory.h>
 #include <asm/glue.h>
@@ -590,9 +589,7 @@ ENTRY(__switch_to)
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
 #endif
-#if defined(CONFIG_IWMMXT)
-	bl	iwmmxt_task_switch
-#elif defined(CONFIG_CPU_XSCALE)
+#if defined(CONFIG_CPU_XSCALE) && !defined(CONFIG_IWMMXT)
 	add	r4, r2, #TI_CPU_DOMAIN + 40	@ cpu_context_save->extra
 	ldmib	r4, {r4, r5}
 	mar	acc0, r4, r5

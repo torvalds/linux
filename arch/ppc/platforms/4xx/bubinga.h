@@ -19,7 +19,6 @@
 #ifndef __BUBINGA_H__
 #define __BUBINGA_H__
 
-#include <linux/config.h>
 #include <platforms/4xx/ibm405ep.h>
 #include <asm/ppcboot.h>
 

@@ -7,7 +7,6 @@
  * Copyright (C) 2000 Hewlett Packard (Paul Bame bame@puffin.external.hp.com)
  *
  */
-#include <linux/config.h>
 
 #include <asm/psw.h>
 #include <asm/assembly.h>

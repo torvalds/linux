@@ -16,7 +16,6 @@
  *  25/11/2002 - Updated for 2.5 by Andrey Panin <pazke@orbita1.ru>
  */
 
-#include <linux/config.h>
 #include <linux/kernel_stat.h>
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>

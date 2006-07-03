@@ -9,7 +9,6 @@
  * Internal I/O Port Management
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>

@@ -1951,7 +1951,7 @@ static __devinit int snd_echo_create(struct snd_card *card,
 	chip->dsp_registers = (volatile u32 __iomem *)
 		ioremap_nocache(chip->dsp_registers_phys, sz);
 
-	if (request_irq(pci->irq, snd_echo_interrupt, SA_INTERRUPT | SA_SHIRQ,
+	if (request_irq(pci->irq, snd_echo_interrupt, IRQF_DISABLED | IRQF_SHARED,
 						ECHOCARD_NAME, (void *)chip)) {
 		snd_echo_free(chip);
 		snd_printk(KERN_ERR "cannot grab irq\n");

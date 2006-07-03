@@ -3,7 +3,6 @@
  *
  *  S390 version
  */
-#include <linux/config.h>
 #include <linux/highuid.h>
 #include <linux/module.h>
 #include <linux/mm.h>

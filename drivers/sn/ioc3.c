@@ -7,7 +7,6 @@
  *   Pat Gefre <pfg@sgi.com> - IOC3 serial port IRQ demuxer
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -707,7 +706,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		writel(~0, &idd->vma->eisr);
 
 		idd->dual_irq = 1;
-		if (!request_irq(pdev->irq, ioc3_intr_eth, SA_SHIRQ,
+		if (!request_irq(pdev->irq, ioc3_intr_eth, IRQF_SHARED,
 				 "ioc3-eth", (void *)idd)) {
 			idd->irq_eth = pdev->irq;
 		} else {
@@ -715,7 +714,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 			       "%s : request_irq fails for IRQ 0x%x\n ",
 			       __FUNCTION__, pdev->irq);
 		}
-		if (!request_irq(pdev->irq+2, ioc3_intr_io, SA_SHIRQ,
+		if (!request_irq(pdev->irq+2, ioc3_intr_io, IRQF_SHARED,
 				 "ioc3-io", (void *)idd)) {
 			idd->irq_io = pdev->irq+2;
 		} else {
@@ -724,7 +723,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 			       __FUNCTION__, pdev->irq+2);
 		}
 	} else {
-		if (!request_irq(pdev->irq, ioc3_intr_io, SA_SHIRQ,
+		if (!request_irq(pdev->irq, ioc3_intr_io, IRQF_SHARED,
 				 "ioc3", (void *)idd)) {
 			idd->irq_io = pdev->irq;
 		} else {

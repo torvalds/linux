@@ -10,7 +10,6 @@
  * ioctls.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/compat.h>
 #include <linux/kernel.h>

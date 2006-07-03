@@ -16,7 +16,6 @@
  * Various hacks, Fred Barnes <frmb2@ukc.ac.uk>, 04/2000
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/threads.h>
 #include <linux/parport.h>

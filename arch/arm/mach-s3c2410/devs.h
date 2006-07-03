@@ -14,7 +14,6 @@
  *	27-Aug-2004 BJD  Added timers 0 through 3
  *	10-Feb-2005 BJD	 Added camera from guillaume.gourat@nexvision.tv
 */
-#include <linux/config.h>
 #include <linux/platform_device.h>
 
 struct s3c24xx_uart_resources {

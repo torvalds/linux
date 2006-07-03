@@ -496,6 +496,26 @@ static int kworld_dvbs_100_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t
 	return 0;
 }
 
+static int geniatech_dvbs_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx88_core *core = dev->core;
+
+	if (voltage == SEC_VOLTAGE_OFF) {
+		dprintk(1,"LNB Voltage OFF\n");
+		cx_write(MO_GP0_IO, 0x0000efff);
+	}
+
+	if (core->prev_set_voltage)
+		return core->prev_set_voltage(fe, voltage);
+	return 0;
+}
+
+static struct cx24123_config geniatech_dvbs_config = {
+	.demod_address  = 0x55,
+	.set_ts_params  = cx24123_set_ts_param,
+};
+
 static struct cx24123_config hauppauge_novas_config = {
 	.demod_address		= 0x55,
 	.set_ts_params		= cx24123_set_ts_param,
@@ -758,6 +778,14 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend) {
 			dev->core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
 			dev->dvb.frontend->ops.set_voltage = kworld_dvbs_100_set_voltage;
+		}
+		break;
+	case CX88_BOARD_GENIATECH_DVBS:
+		dev->dvb.frontend = cx24123_attach(&geniatech_dvbs_config,
+						   &dev->core->i2c_adap);
+		if (dev->dvb.frontend) {
+			dev->core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
+			dev->dvb.frontend->ops.set_voltage = geniatech_dvbs_set_voltage;
 		}
 		break;
 #endif

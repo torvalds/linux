@@ -7,7 +7,6 @@
  *
  *  $Id: 21285.c,v 1.37 2002/07/28 10:03:27 rmk Exp $
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>

@@ -1486,7 +1486,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 		goto errout;
 	}
 
-	if (request_irq(pci->irq, azx_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq(pci->irq, azx_interrupt, IRQF_DISABLED|IRQF_SHARED,
 			"HDA Intel", (void*)chip)) {
 		snd_printk(KERN_ERR SFX "unable to grab IRQ %d\n", pci->irq);
 		err = -EBUSY;

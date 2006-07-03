@@ -118,14 +118,14 @@ static struct acpi_exdump_info acpi_ex_dump_device[4] = {
 
 static struct acpi_exdump_info acpi_ex_dump_event[2] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_event), NULL},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(event.semaphore), "Semaphore"}
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(event.os_semaphore), "OsSemaphore"}
 };
 
 static struct acpi_exdump_info acpi_ex_dump_method[8] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_method), NULL},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.param_count), "ParamCount"},
-	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.concurrency), "Concurrency"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(method.semaphore), "Semaphore"},
+	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.sync_level), "Sync Level"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(method.mutex), "Mutex"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.owner_id), "Owner Id"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.thread_count), "Thread Count"},
 	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(method.aml_length), "Aml Length"},
@@ -138,7 +138,7 @@ static struct acpi_exdump_info acpi_ex_dump_mutex[5] = {
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(mutex.owner_thread), "Owner Thread"},
 	{ACPI_EXD_UINT16, ACPI_EXD_OFFSET(mutex.acquisition_depth),
 	 "Acquire Depth"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(mutex.semaphore), "Semaphore"}
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(mutex.os_mutex), "OsMutex"}
 };
 
 static struct acpi_exdump_info acpi_ex_dump_region[7] = {

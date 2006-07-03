@@ -18,7 +18,6 @@
  * 	- now capable of multiple expectations for one master
  * */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/icmp.h>
 #include <linux/ip.h>

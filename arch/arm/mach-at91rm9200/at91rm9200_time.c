@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-at91rm9200/time.c
+ * linux/arch/arm/mach-at91rm9200/at91rm9200_time.c
  *
  *  Copyright (C) 2003 SAN People
  *  Copyright (C) 2003 ATMEL
@@ -19,16 +19,15 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/time.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/mach/time.h>
 
 static unsigned long last_crtr;
@@ -86,7 +85,7 @@ static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id, struct pt_r
 
 static struct irqaction at91rm9200_timer_irq = {
 	.name		= "at91_tick",
-	.flags		= SA_SHIRQ | SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_SHARED | IRQF_DISABLED | IRQF_TIMER,
 	.handler	= at91rm9200_timer_interrupt
 };
 

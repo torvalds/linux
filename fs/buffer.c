@@ -18,7 +18,6 @@
  * async buffer flushing, 1999 Andrea Arcangeli <andrea@suse.de>
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/fs.h>

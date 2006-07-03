@@ -81,6 +81,7 @@ struct audit_krule {
 	u32			mask[AUDIT_BITMASK_SIZE];
 	u32			buflen; /* for data alloc on list rules */
 	u32			field_count;
+	char			*filterkey; /* ties events to rules */
 	struct audit_field	*fields;
 	struct audit_field	*inode_f; /* quick access to an inode field */
 	struct audit_watch	*watch;	/* associated watch */

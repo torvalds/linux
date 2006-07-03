@@ -11,7 +11,6 @@
  *              Init --  EINVAL when opt undefined
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>

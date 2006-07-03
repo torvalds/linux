@@ -131,7 +131,7 @@ lasi700_probe(struct parisc_device *dev)
 	host->this_id = 7;
 	host->base = base;
 	host->irq = dev->irq;
-	if(request_irq(dev->irq, NCR_700_intr, SA_SHIRQ, "lasi700", host)) {
+	if(request_irq(dev->irq, NCR_700_intr, IRQF_SHARED, "lasi700", host)) {
 		printk(KERN_ERR "lasi700: request_irq failed!\n");
 		goto out_put_host;
 	}

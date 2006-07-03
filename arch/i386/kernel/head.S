@@ -8,7 +8,6 @@
  */
 
 .text
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>

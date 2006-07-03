@@ -97,7 +97,7 @@ int sun3x_esp_detect(struct scsi_host_template *tpnt)
 	esp->esp_command_dvma = dvma_vtob((unsigned long)esp->esp_command);
 
 	esp->irq = 2;
-	if (request_irq(esp->irq, esp_intr, SA_INTERRUPT, 
+	if (request_irq(esp->irq, esp_intr, IRQF_DISABLED,
 			"SUN3X SCSI", esp->ehost)) {
 		esp_deallocate(esp);
 		return 0;

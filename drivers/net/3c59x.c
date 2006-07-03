@@ -236,7 +236,6 @@ static int vortex_debug = VORTEX_DEBUG;
 static int vortex_debug = 1;
 #endif
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -997,7 +996,7 @@ static int vortex_resume(struct pci_dev *pdev)
 		pci_enable_device(pdev);
 		pci_set_master(pdev);
 		if (request_irq(dev->irq, vp->full_bus_master_rx ?
-				&boomerang_interrupt : &vortex_interrupt, SA_SHIRQ, dev->name, dev)) {
+				&boomerang_interrupt : &vortex_interrupt, IRQF_SHARED, dev->name, dev)) {
 			printk(KERN_WARNING "%s: Could not reserve IRQ %d\n", dev->name, dev->irq);
 			pci_disable_device(pdev);
 			return -EBUSY;
@@ -1834,7 +1833,7 @@ vortex_open(struct net_device *dev)
 
 	/* Use the now-standard shared IRQ implementation. */
 	if ((retval = request_irq(dev->irq, vp->full_bus_master_rx ?
-				&boomerang_interrupt : &vortex_interrupt, SA_SHIRQ, dev->name, dev))) {
+				&boomerang_interrupt : &vortex_interrupt, IRQF_SHARED, dev->name, dev))) {
 		printk(KERN_ERR "%s: Could not reserve IRQ %d\n", dev->name, dev->irq);
 		goto out;
 	}

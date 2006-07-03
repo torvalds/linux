@@ -4562,7 +4562,7 @@ static int __devinit adapter_init(struct AdapterCtlBlk *acb,
 	acb->io_port_base = io_port;
 	acb->io_port_len = io_port_len;
 	
-	if (request_irq(irq, dc395x_interrupt, SA_SHIRQ, DC395X_NAME, acb)) {
+	if (request_irq(irq, dc395x_interrupt, IRQF_SHARED, DC395X_NAME, acb)) {
 	    	/* release the region we just claimed */
 		dprintkl(KERN_INFO, "Failed to register IRQ\n");
 		goto failed;

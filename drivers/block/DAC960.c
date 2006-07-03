@@ -3014,7 +3014,7 @@ DAC960_DetectController(struct pci_dev *PCI_Device,
      Acquire shared access to the IRQ Channel.
   */
   IRQ_Channel = PCI_Device->irq;
-  if (request_irq(IRQ_Channel, InterruptHandler, SA_SHIRQ,
+  if (request_irq(IRQ_Channel, InterruptHandler, IRQF_SHARED,
 		      Controller->FullModelName, Controller) < 0)
   {
 	DAC960_Error("Unable to acquire IRQ Channel %d for Controller at\n",

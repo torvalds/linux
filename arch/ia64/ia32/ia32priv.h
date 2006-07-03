@@ -1,7 +1,6 @@
 #ifndef _ASM_IA64_IA32_PRIV_H
 #define _ASM_IA64_IA32_PRIV_H
 
-#include <linux/config.h>
 
 #include <asm/ia32.h>
 

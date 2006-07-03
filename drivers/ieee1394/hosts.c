@@ -10,7 +10,6 @@
  * directory of the kernel sources for details.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/list.h>

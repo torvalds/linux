@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>

@@ -10,7 +10,6 @@
  * should be easier.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -95,12 +94,12 @@ show_interrupts(struct seq_file *p, void *v)
 #endif
 		seq_printf(p, " %14s", irq_desc[irq].chip->typename);
 		seq_printf(p, "  %c%s",
-			(action->flags & SA_INTERRUPT)?'+':' ',
+			(action->flags & IRQF_DISABLED)?'+':' ',
 			action->name);
 
 		for (action=action->next; action; action = action->next) {
 			seq_printf(p, ", %c%s",
-				  (action->flags & SA_INTERRUPT)?'+':' ',
+				  (action->flags & IRQF_DISABLED)?'+':' ',
 				   action->name);
 		}
 

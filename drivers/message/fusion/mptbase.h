@@ -49,7 +49,6 @@
 #define MPTBASE_H_INCLUDED
 /*{-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 

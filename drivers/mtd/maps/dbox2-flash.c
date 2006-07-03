@@ -12,7 +12,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 
 /* partition_info gives details on the logical partitions that the split the

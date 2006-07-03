@@ -24,7 +24,6 @@
 #ifndef _LINUX_NTFS_SYSCTL_H
 #define _LINUX_NTFS_SYSCTL_H
 
-#include <linux/config.h>
 
 #if defined(DEBUG) && defined(CONFIG_SYSCTL)
 

@@ -2122,7 +2122,7 @@ static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id 
 				     TW_PARAM_PORTCOUNT, TW_PARAM_PORTCOUNT_LENGTH)));
 
 	/* Now setup the interrupt handler */
-	retval = request_irq(pdev->irq, twa_interrupt, SA_SHIRQ, "3w-9xxx", tw_dev);
+	retval = request_irq(pdev->irq, twa_interrupt, IRQF_SHARED, "3w-9xxx", tw_dev);
 	if (retval) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x30, "Error requesting IRQ");
 		goto out_remove_host;

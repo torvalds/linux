@@ -341,13 +341,13 @@ static int s3c2410_rtc_open(void)
 	int ret;
 
 	ret = request_irq(s3c2410_rtc_alarmno, s3c2410_rtc_alarmirq,
-			  SA_INTERRUPT,  "s3c2410-rtc alarm", NULL);
+			  IRQF_DISABLED,  "s3c2410-rtc alarm", NULL);
 
 	if (ret)
 		printk(KERN_ERR "IRQ%d already in use\n", s3c2410_rtc_alarmno);
 
 	ret = request_irq(s3c2410_rtc_tickno, s3c2410_rtc_tickirq,
-			  SA_INTERRUPT,  "s3c2410-rtc tick", NULL);
+			  IRQF_DISABLED,  "s3c2410-rtc tick", NULL);
 
 	if (ret) {
 		printk(KERN_ERR "IRQ%d already in use\n", s3c2410_rtc_tickno);

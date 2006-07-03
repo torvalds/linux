@@ -11,7 +11,6 @@
  * namespace collision.  Mostly adapted the Mainstone version.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/hardware.h>

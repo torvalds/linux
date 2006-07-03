@@ -1268,7 +1268,7 @@ static int __devinit snd_ca0106_create(struct snd_card *card,
 	}
 
 	if (request_irq(pci->irq, snd_ca0106_interrupt,
-			SA_INTERRUPT|SA_SHIRQ, "snd_ca0106",
+			IRQF_DISABLED|IRQF_SHARED, "snd_ca0106",
 			(void *)chip)) {
 		snd_ca0106_free(chip);
 		printk(KERN_ERR "cannot grab irq\n");

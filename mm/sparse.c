@@ -1,7 +1,6 @@
 /*
  * sparse memory mappings.
  */
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/bootmem.h>

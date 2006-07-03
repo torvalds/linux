@@ -135,7 +135,6 @@ static inline int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
 
 #include <asm/processor.h>
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/elfcore.h>
 #include <linux/binfmts.h>
 #include <linux/compat.h>

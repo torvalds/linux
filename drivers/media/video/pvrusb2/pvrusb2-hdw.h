@@ -91,16 +91,12 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 void pvr2_hdw_poll(struct pvr2_hdw *);
 
 /* Trigger a poll to take place later at a convenient time */
-void pvr2_hdw_poll_trigger(struct pvr2_hdw *);
 void pvr2_hdw_poll_trigger_unlocked(struct pvr2_hdw *);
 
 /* Register a callback used to trigger a future poll */
 void pvr2_hdw_setup_poll_trigger(struct pvr2_hdw *,
 				 void (*func)(void *),
 				 void *data);
-
-/* Get pointer to structure given unit number */
-struct pvr2_hdw *pvr2_hdw_find(int unit_number);
 
 /* Destroy hardware interaction structure */
 void pvr2_hdw_destroy(struct pvr2_hdw *);
@@ -180,12 +176,6 @@ int pvr2_hdw_get_stdenum_value(struct pvr2_hdw *hdw,struct v4l2_standard *std,
 void pvr2_hdw_subsys_bit_chg(struct pvr2_hdw *hdw,
 			     unsigned long msk,unsigned long val);
 
-/* Shortcut for pvr2_hdw_subsys_bit_chg(hdw,msk,msk) */
-void pvr2_hdw_subsys_bit_set(struct pvr2_hdw *hdw,unsigned long msk);
-
-/* Shortcut for pvr2_hdw_subsys_bit_chg(hdw,msk,0) */
-void pvr2_hdw_subsys_bit_clr(struct pvr2_hdw *hdw,unsigned long msk);
-
 /* Retrieve mask indicating which pieces of hardware are currently enabled
    / configured. */
 unsigned long pvr2_hdw_subsys_get(struct pvr2_hdw *);
@@ -225,34 +215,18 @@ void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *,int);
 /* The following entry points are all lower level things you normally don't
    want to worry about. */
 
-/* Attempt to recover from a USB foul-up (in practice I find that if you
-   have to do this, then it's already too late). */
-void pvr2_reset_ctl_endpoints(struct pvr2_hdw *hdw);
-
 /* Issue a command and get a response from the device.  LOTS of higher
    level stuff is built on this. */
 int pvr2_send_request(struct pvr2_hdw *,
 		      void *write_ptr,unsigned int write_len,
 		      void *read_ptr,unsigned int read_len);
 
-/* Issue a command and get a response from the device.  This extended
-   version includes a probe flag (which if set means that device errors
-   should not be logged or treated as fatal) and a timeout in jiffies.
-   This can be used to non-lethally probe the health of endpoint 1. */
-int pvr2_send_request_ex(struct pvr2_hdw *,unsigned int timeout,int probe_fl,
-			 void *write_ptr,unsigned int write_len,
-			 void *read_ptr,unsigned int read_len);
-
 /* Slightly higher level device communication functions. */
 int pvr2_write_register(struct pvr2_hdw *, u16, u32);
-int pvr2_read_register(struct pvr2_hdw *, u16, u32 *);
-int pvr2_write_u16(struct pvr2_hdw *, u16, int);
-int pvr2_write_u8(struct pvr2_hdw *, u8, int);
 
 /* Call if for any reason we can't talk to the hardware anymore - this will
    cause the driver to stop flailing on the device. */
 void pvr2_hdw_render_useless(struct pvr2_hdw *);
-void pvr2_hdw_render_useless_unlocked(struct pvr2_hdw *);
 
 /* Set / clear 8051's reset bit */
 void pvr2_hdw_cpureset_assert(struct pvr2_hdw *,int);
@@ -270,12 +244,6 @@ int pvr2_hdw_cmd_powerup(struct pvr2_hdw *);
 
 /* Order decoder to reset */
 int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *);
-
-/* Stop / start video stream transport */
-int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl);
-
-/* Find I2C address of eeprom */
-int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *);
 
 /* Direct manipulation of GPIO bits */
 int pvr2_hdw_gpio_get_dir(struct pvr2_hdw *hdw,u32 *);

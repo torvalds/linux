@@ -400,7 +400,7 @@ static int fd_mcs_detect(struct scsi_host_template * tpnt)
 				mca_set_adapter_name(slot - 1, fd_mcs_adapters[loop].name);
 
 				/* check irq/region */
-				if (request_irq(irq, fd_mcs_intr, SA_SHIRQ, "fd_mcs", hosts)) {
+				if (request_irq(irq, fd_mcs_intr, IRQF_SHARED, "fd_mcs", hosts)) {
 					printk(KERN_ERR "fd_mcs: interrupt is not available, skipping...\n");
 					continue;
 				}

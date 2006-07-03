@@ -320,7 +320,7 @@ static int ariadne_open(struct net_device *dev)
 
     netif_start_queue(dev);
 
-    i = request_irq(IRQ_AMIGA_PORTS, ariadne_interrupt, SA_SHIRQ,
+    i = request_irq(IRQ_AMIGA_PORTS, ariadne_interrupt, IRQF_SHARED,
                     dev->name, dev);
     if (i) return i;
 

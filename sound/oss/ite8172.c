@@ -2019,7 +2019,7 @@ static int __devinit it8172_probe(struct pci_dev *pcidev,
 		    s->io, s->io + pci_resource_len(pcidev,0)-1);
 		goto err_region;
 	}
-	if (request_irq(s->irq, it8172_interrupt, SA_INTERRUPT,
+	if (request_irq(s->irq, it8172_interrupt, IRQF_DISABLED,
 			IT8172_MODULE_NAME, s)) {
 		err("irq %u in use", s->irq);
 		goto err_irq;

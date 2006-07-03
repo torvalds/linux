@@ -21,7 +21,6 @@
  *
  */
 #include <linux/compat.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/highuid.h>
 #include <linux/init.h>

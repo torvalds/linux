@@ -12,7 +12,6 @@
  *
  * rw semaphores implemented November 1999 by Benjamin LaHaise <bcrl@kvack.org>
  */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/err.h>
 #include <linux/init.h>

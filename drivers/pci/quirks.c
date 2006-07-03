@@ -15,7 +15,6 @@
  *  use the PowerTweak utility (see http://powertweak.sourceforge.net).
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>

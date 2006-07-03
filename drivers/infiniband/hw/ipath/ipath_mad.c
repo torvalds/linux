@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -34,7 +35,7 @@
 
 #include "ipath_kernel.h"
 #include "ipath_verbs.h"
-#include "ips_common.h"
+#include "ipath_common.h"
 
 #define IB_SMP_UNSUP_VERSION	__constant_htons(0x0004)
 #define IB_SMP_UNSUP_METHOD	__constant_htons(0x0008)
@@ -84,7 +85,7 @@ static int recv_subn_get_nodeinfo(struct ib_smp *smp,
 {
 	struct nodeinfo *nip = (struct nodeinfo *)&smp->data;
 	struct ipath_devdata *dd = to_idev(ibdev)->dd;
-	u32 vendor, boardid, majrev, minrev;
+	u32 vendor, majrev, minrev;
 
 	if (smp->attr_mod)
 		smp->status |= IB_SMP_INVALID_FIELD;
@@ -104,9 +105,11 @@ static int recv_subn_get_nodeinfo(struct ib_smp *smp,
 	nip->port_guid = nip->sys_guid;
 	nip->partition_cap = cpu_to_be16(ipath_layer_get_npkeys(dd));
 	nip->device_id = cpu_to_be16(ipath_layer_get_deviceid(dd));
-	ipath_layer_query_device(dd, &vendor, &boardid, &majrev, &minrev);
+	majrev = ipath_layer_get_majrev(dd);
+	minrev = ipath_layer_get_minrev(dd);
 	nip->revision = cpu_to_be32((majrev << 16) | minrev);
 	nip->local_port_num = port;
+	vendor = ipath_layer_get_vendorid(dd);
 	nip->vendor_id[0] = 0;
 	nip->vendor_id[1] = vendor >> 8;
 	nip->vendor_id[2] = vendor;
@@ -215,7 +218,7 @@ static int recv_subn_get_portinfo(struct ib_smp *smp,
 	/* P_KeyViolations are counted by hardware. */
 	pip->pkey_violations =
 		cpu_to_be16((ipath_layer_get_cr_errpkey(dev->dd) -
-			     dev->n_pkey_violations) & 0xFFFF);
+			     dev->z_pkey_violations) & 0xFFFF);
 	pip->qkey_violations = cpu_to_be16(dev->qkey_violations);
 	/* Only the hardware GUID is supported for now */
 	pip->guid_cap = 1;
@@ -303,9 +306,9 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	lid = be16_to_cpu(pip->lid);
 	if (lid != ipath_layer_get_lid(dev->dd)) {
 		/* Must be a valid unicast LID address. */
-		if (lid == 0 || lid >= IPS_MULTICAST_LID_BASE)
+		if (lid == 0 || lid >= IPATH_MULTICAST_LID_BASE)
 			goto err;
-		ipath_set_sps_lid(dev->dd, lid, pip->mkeyprot_resv_lmc & 7);
+		ipath_set_lid(dev->dd, lid, pip->mkeyprot_resv_lmc & 7);
 		event.event = IB_EVENT_LID_CHANGE;
 		ib_dispatch_event(&event);
 	}
@@ -313,7 +316,7 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	smlid = be16_to_cpu(pip->sm_lid);
 	if (smlid != dev->sm_lid) {
 		/* Must be a valid unicast LID address. */
-		if (smlid == 0 || smlid >= IPS_MULTICAST_LID_BASE)
+		if (smlid == 0 || smlid >= IPATH_MULTICAST_LID_BASE)
 			goto err;
 		dev->sm_lid = smlid;
 		event.event = IB_EVENT_SM_CHANGE;
@@ -389,7 +392,7 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	 * later.
 	 */
 	if (pip->pkey_violations == 0)
-		dev->n_pkey_violations =
+		dev->z_pkey_violations =
 			ipath_layer_get_cr_errpkey(dev->dd);
 
 	if (pip->qkey_violations == 0)
@@ -610,6 +613,9 @@ struct ib_pma_portcounters {
 #define IB_PMA_SEL_PORT_RCV_ERRORS		__constant_htons(0x0008)
 #define IB_PMA_SEL_PORT_RCV_REMPHYS_ERRORS	__constant_htons(0x0010)
 #define IB_PMA_SEL_PORT_XMIT_DISCARDS		__constant_htons(0x0040)
+#define IB_PMA_SEL_LOCAL_LINK_INTEGRITY_ERRORS	__constant_htons(0x0200)
+#define IB_PMA_SEL_EXCESSIVE_BUFFER_OVERRUNS	__constant_htons(0x0400)
+#define IB_PMA_SEL_PORT_VL15_DROPPED		__constant_htons(0x0800)
 #define IB_PMA_SEL_PORT_XMIT_DATA		__constant_htons(0x1000)
 #define IB_PMA_SEL_PORT_RCV_DATA		__constant_htons(0x2000)
 #define IB_PMA_SEL_PORT_XMIT_PACKETS		__constant_htons(0x4000)
@@ -844,18 +850,22 @@ static int recv_pma_get_portcounters(struct ib_perf *pmp,
 	ipath_layer_get_counters(dev->dd, &cntrs);
 
 	/* Adjust counters for any resets done. */
-	cntrs.symbol_error_counter -= dev->n_symbol_error_counter;
+	cntrs.symbol_error_counter -= dev->z_symbol_error_counter;
 	cntrs.link_error_recovery_counter -=
-		dev->n_link_error_recovery_counter;
-	cntrs.link_downed_counter -= dev->n_link_downed_counter;
+		dev->z_link_error_recovery_counter;
+	cntrs.link_downed_counter -= dev->z_link_downed_counter;
 	cntrs.port_rcv_errors += dev->rcv_errors;
-	cntrs.port_rcv_errors -= dev->n_port_rcv_errors;
-	cntrs.port_rcv_remphys_errors -= dev->n_port_rcv_remphys_errors;
-	cntrs.port_xmit_discards -= dev->n_port_xmit_discards;
-	cntrs.port_xmit_data -= dev->n_port_xmit_data;
-	cntrs.port_rcv_data -= dev->n_port_rcv_data;
-	cntrs.port_xmit_packets -= dev->n_port_xmit_packets;
-	cntrs.port_rcv_packets -= dev->n_port_rcv_packets;
+	cntrs.port_rcv_errors -= dev->z_port_rcv_errors;
+	cntrs.port_rcv_remphys_errors -= dev->z_port_rcv_remphys_errors;
+	cntrs.port_xmit_discards -= dev->z_port_xmit_discards;
+	cntrs.port_xmit_data -= dev->z_port_xmit_data;
+	cntrs.port_rcv_data -= dev->z_port_rcv_data;
+	cntrs.port_xmit_packets -= dev->z_port_xmit_packets;
+	cntrs.port_rcv_packets -= dev->z_port_rcv_packets;
+	cntrs.local_link_integrity_errors -=
+		dev->z_local_link_integrity_errors;
+	cntrs.excessive_buffer_overrun_errors -=
+		dev->z_excessive_buffer_overrun_errors;
 
 	memset(pmp->data, 0, sizeof(pmp->data));
 
@@ -893,6 +903,16 @@ static int recv_pma_get_portcounters(struct ib_perf *pmp,
 	else
 		p->port_xmit_discards =
 			cpu_to_be16((u16)cntrs.port_xmit_discards);
+	if (cntrs.local_link_integrity_errors > 0xFUL)
+		cntrs.local_link_integrity_errors = 0xFUL;
+	if (cntrs.excessive_buffer_overrun_errors > 0xFUL)
+		cntrs.excessive_buffer_overrun_errors = 0xFUL;
+	p->lli_ebor_errors = (cntrs.local_link_integrity_errors << 4) |
+		cntrs.excessive_buffer_overrun_errors;
+	if (dev->n_vl15_dropped > 0xFFFFUL)
+		p->vl15_dropped = __constant_cpu_to_be16(0xFFFF);
+	else
+		p->vl15_dropped = cpu_to_be16((u16)dev->n_vl15_dropped);
 	if (cntrs.port_xmit_data > 0xFFFFFFFFUL)
 		p->port_xmit_data = __constant_cpu_to_be32(0xFFFFFFFF);
 	else
@@ -928,10 +948,10 @@ static int recv_pma_get_portcounters_ext(struct ib_perf *pmp,
 				      &rpkts, &xwait);
 
 	/* Adjust counters for any resets done. */
-	swords -= dev->n_port_xmit_data;
-	rwords -= dev->n_port_rcv_data;
-	spkts -= dev->n_port_xmit_packets;
-	rpkts -= dev->n_port_rcv_packets;
+	swords -= dev->z_port_xmit_data;
+	rwords -= dev->z_port_rcv_data;
+	spkts -= dev->z_port_xmit_packets;
+	rpkts -= dev->z_port_rcv_packets;
 
 	memset(pmp->data, 0, sizeof(pmp->data));
 
@@ -967,37 +987,48 @@ static int recv_pma_set_portcounters(struct ib_perf *pmp,
 	ipath_layer_get_counters(dev->dd, &cntrs);
 
 	if (p->counter_select & IB_PMA_SEL_SYMBOL_ERROR)
-		dev->n_symbol_error_counter = cntrs.symbol_error_counter;
+		dev->z_symbol_error_counter = cntrs.symbol_error_counter;
 
 	if (p->counter_select & IB_PMA_SEL_LINK_ERROR_RECOVERY)
-		dev->n_link_error_recovery_counter =
+		dev->z_link_error_recovery_counter =
 			cntrs.link_error_recovery_counter;
 
 	if (p->counter_select & IB_PMA_SEL_LINK_DOWNED)
-		dev->n_link_downed_counter = cntrs.link_downed_counter;
+		dev->z_link_downed_counter = cntrs.link_downed_counter;
 
 	if (p->counter_select & IB_PMA_SEL_PORT_RCV_ERRORS)
-		dev->n_port_rcv_errors =
+		dev->z_port_rcv_errors =
 			cntrs.port_rcv_errors + dev->rcv_errors;
 
 	if (p->counter_select & IB_PMA_SEL_PORT_RCV_REMPHYS_ERRORS)
-		dev->n_port_rcv_remphys_errors =
+		dev->z_port_rcv_remphys_errors =
 			cntrs.port_rcv_remphys_errors;
 
 	if (p->counter_select & IB_PMA_SEL_PORT_XMIT_DISCARDS)
-		dev->n_port_xmit_discards = cntrs.port_xmit_discards;
+		dev->z_port_xmit_discards = cntrs.port_xmit_discards;
+
+	if (p->counter_select & IB_PMA_SEL_LOCAL_LINK_INTEGRITY_ERRORS)
+		dev->z_local_link_integrity_errors =
+			cntrs.local_link_integrity_errors;
+
+	if (p->counter_select & IB_PMA_SEL_EXCESSIVE_BUFFER_OVERRUNS)
+		dev->z_excessive_buffer_overrun_errors =
+			cntrs.excessive_buffer_overrun_errors;
+
+	if (p->counter_select & IB_PMA_SEL_PORT_VL15_DROPPED)
+		dev->n_vl15_dropped = 0;
 
 	if (p->counter_select & IB_PMA_SEL_PORT_XMIT_DATA)
-		dev->n_port_xmit_data = cntrs.port_xmit_data;
+		dev->z_port_xmit_data = cntrs.port_xmit_data;
 
 	if (p->counter_select & IB_PMA_SEL_PORT_RCV_DATA)
-		dev->n_port_rcv_data = cntrs.port_rcv_data;
+		dev->z_port_rcv_data = cntrs.port_rcv_data;
 
 	if (p->counter_select & IB_PMA_SEL_PORT_XMIT_PACKETS)
-		dev->n_port_xmit_packets = cntrs.port_xmit_packets;
+		dev->z_port_xmit_packets = cntrs.port_xmit_packets;
 
 	if (p->counter_select & IB_PMA_SEL_PORT_RCV_PACKETS)
-		dev->n_port_rcv_packets = cntrs.port_rcv_packets;
+		dev->z_port_rcv_packets = cntrs.port_rcv_packets;
 
 	return recv_pma_get_portcounters(pmp, ibdev, port);
 }
@@ -1014,16 +1045,16 @@ static int recv_pma_set_portcounters_ext(struct ib_perf *pmp,
 				      &rpkts, &xwait);
 
 	if (p->counter_select & IB_PMA_SELX_PORT_XMIT_DATA)
-		dev->n_port_xmit_data = swords;
+		dev->z_port_xmit_data = swords;
 
 	if (p->counter_select & IB_PMA_SELX_PORT_RCV_DATA)
-		dev->n_port_rcv_data = rwords;
+		dev->z_port_rcv_data = rwords;
 
 	if (p->counter_select & IB_PMA_SELX_PORT_XMIT_PACKETS)
-		dev->n_port_xmit_packets = spkts;
+		dev->z_port_xmit_packets = spkts;
 
 	if (p->counter_select & IB_PMA_SELX_PORT_RCV_PACKETS)
-		dev->n_port_rcv_packets = rpkts;
+		dev->z_port_rcv_packets = rpkts;
 
 	if (p->counter_select & IB_PMA_SELX_PORT_UNI_XMIT_PACKETS)
 		dev->n_unicast_xmit = 0;
@@ -1272,32 +1303,8 @@ int ipath_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		      struct ib_wc *in_wc, struct ib_grh *in_grh,
 		      struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
-	struct ipath_ibdev *dev = to_idev(ibdev);
 	int ret;
 
-	/*
-	 * Snapshot current HW counters to "clear" them.
-	 * This should be done when the driver is loaded except that for
-	 * some reason we get a zillion errors when brining up the link.
-	 */
-	if (dev->rcv_errors == 0) {
-		struct ipath_layer_counters cntrs;
-
-		ipath_layer_get_counters(to_idev(ibdev)->dd, &cntrs);
-		dev->rcv_errors++;
-		dev->n_symbol_error_counter = cntrs.symbol_error_counter;
-		dev->n_link_error_recovery_counter =
-			cntrs.link_error_recovery_counter;
-		dev->n_link_downed_counter = cntrs.link_downed_counter;
-		dev->n_port_rcv_errors = cntrs.port_rcv_errors + 1;
-		dev->n_port_rcv_remphys_errors =
-			cntrs.port_rcv_remphys_errors;
-		dev->n_port_xmit_discards = cntrs.port_xmit_discards;
-		dev->n_port_xmit_data = cntrs.port_xmit_data;
-		dev->n_port_rcv_data = cntrs.port_rcv_data;
-		dev->n_port_xmit_packets = cntrs.port_xmit_packets;
-		dev->n_port_rcv_packets = cntrs.port_rcv_packets;
-	}
 	switch (in_mad->mad_hdr.mgmt_class) {
 	case IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE:
 	case IB_MGMT_CLASS_SUBN_LID_ROUTED:

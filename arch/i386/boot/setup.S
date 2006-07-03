@@ -46,7 +46,6 @@
  * by Robert Schwebel, December 2001 <robert@schwebel.de>
  */
 
-#include <linux/config.h>
 #include <asm/segment.h>
 #include <linux/version.h>
 #include <linux/compile.h>

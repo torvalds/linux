@@ -23,7 +23,6 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>

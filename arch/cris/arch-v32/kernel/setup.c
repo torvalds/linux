@@ -4,7 +4,6 @@
  * Copyright (C) 2003, Axis Communications AB.
  */
 
-#include <linux/config.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
 #include <linux/delay.h>

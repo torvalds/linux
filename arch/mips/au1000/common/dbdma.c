@@ -30,7 +30,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -893,7 +892,7 @@ static void au1xxx_dbdma_init(void)
 	#error Unknown Au1x00 SOC
 #endif
 
-	if (request_irq(irq_nr, dbdma_interrupt, SA_INTERRUPT,
+	if (request_irq(irq_nr, dbdma_interrupt, IRQF_DISABLED,
 			"Au1xxx dbdma", (void *)dbdma_gptr))
 		printk("Can't get 1550 dbdma irq");
 }

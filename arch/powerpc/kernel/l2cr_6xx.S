@@ -40,7 +40,6 @@
 	Author:	Terry Greeniaus (tgree@phys.ualberta.ca)
 	Please e-mail updates to this file to me, thanks!
 */
-#include <linux/config.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/ppc_asm.h>

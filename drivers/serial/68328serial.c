@@ -23,7 +23,6 @@
 #include <linux/interrupt.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-#include <linux/config.h>
 #include <linux/major.h>
 #include <linux/string.h>
 #include <linux/fcntl.h>

@@ -10,7 +10,6 @@
  * Copyright (C) 2000 MIPS Technologies, Inc.
  *    written by Carsten Langgaard, carstenl@mips.com
  */
-#include <linux/config.h>
 #include <asm/asm.h>
 #include <asm/cachectl.h>
 #include <asm/fpregdef.h>

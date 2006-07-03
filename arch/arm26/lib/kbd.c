@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #include <linux/kd.h>
 //#include <linux/kbd_ll.h>
 #include <linux/kbd_kern.h>

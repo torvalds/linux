@@ -1436,7 +1436,7 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 	probe_ent->port_ops	= pdc_port_info[board_idx].port_ops;
 
        	probe_ent->irq = pdev->irq;
-       	probe_ent->irq_flags = SA_SHIRQ;
+       	probe_ent->irq_flags = IRQF_SHARED;
 	probe_ent->mmio_base = mmio_base;
 
 	probe_ent->private_data = hpriv;

@@ -15,7 +15,6 @@
  *      Copyright (C) 1991, 1992, 1995  Linus Torvalds
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>
@@ -485,8 +484,8 @@ static irqreturn_t sh64_rtc_interrupt(int irq, void *dev_id,
 	return IRQ_HANDLED;
 }
 
-static struct irqaction irq0  = { timer_interrupt, SA_INTERRUPT, CPU_MASK_NONE, "timer", NULL, NULL};
-static struct irqaction irq1  = { sh64_rtc_interrupt, SA_INTERRUPT, CPU_MASK_NONE, "rtc", NULL, NULL};
+static struct irqaction irq0  = { timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL};
+static struct irqaction irq1  = { sh64_rtc_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "rtc", NULL, NULL};
 
 void __init time_init(void)
 {

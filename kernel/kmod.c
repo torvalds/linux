@@ -20,7 +20,6 @@
 */
 #define __KERNEL_SYSCALLS__
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/syscalls.h>

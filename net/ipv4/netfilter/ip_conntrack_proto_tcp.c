@@ -19,7 +19,6 @@
  * version 2.2
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/timer.h>

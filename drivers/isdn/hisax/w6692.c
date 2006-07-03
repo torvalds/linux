@@ -10,7 +10,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include "hisax.h"
 #include "w6692.h"
@@ -1081,7 +1080,7 @@ setup_w6692(struct IsdnCard *card)
 	cs->BC_Send_Data = &W6692B_fill_fifo;
 	cs->cardmsg = &w6692_card_msg;
 	cs->irq_func = &W6692_interrupt;
-	cs->irq_flags |= SA_SHIRQ;
+	cs->irq_flags |= IRQF_SHARED;
 	W6692Version(cs, "W6692:");
 	printk(KERN_INFO "W6692 ISTA=0x%X\n", ReadW6692(cs, W_ISTA));
 	printk(KERN_INFO "W6692 IMASK=0x%X\n", ReadW6692(cs, W_IMASK));

@@ -1479,7 +1479,7 @@ static int hal2_init_card(struct hal2_card **phal2, struct hpc3_regs *hpc3)
 	hpc3->pbus_dmacfg[hal2->dac.pbus.pbusnr][0] = 0x8208844;
 	hpc3->pbus_dmacfg[hal2->adc.pbus.pbusnr][0] = 0x8208844;
 
-	if (request_irq(SGI_HPCDMA_IRQ, hal2_interrupt, SA_SHIRQ,
+	if (request_irq(SGI_HPCDMA_IRQ, hal2_interrupt, IRQF_SHARED,
 			hal2str, hal2)) {
 		printk(KERN_ERR "HAL2: Can't get irq %d\n", SGI_HPCDMA_IRQ);
 		ret = -EAGAIN;

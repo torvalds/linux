@@ -11,7 +11,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -537,6 +536,49 @@ static inline void _clear_gpio_irqstatus(struct gpio_bank *bank, int gpio)
 	_clear_gpio_irqbank(bank, 1 << get_gpio_index(gpio));
 }
 
+static u32 _get_gpio_irqbank_mask(struct gpio_bank *bank)
+{
+	void __iomem *reg = bank->base;
+	int inv = 0;
+	u32 l;
+	u32 mask;
+
+	switch (bank->method) {
+	case METHOD_MPUIO:
+		reg += OMAP_MPUIO_GPIO_MASKIT;
+		mask = 0xffff;
+		inv = 1;
+		break;
+	case METHOD_GPIO_1510:
+		reg += OMAP1510_GPIO_INT_MASK;
+		mask = 0xffff;
+		inv = 1;
+		break;
+	case METHOD_GPIO_1610:
+		reg += OMAP1610_GPIO_IRQENABLE1;
+		mask = 0xffff;
+		break;
+	case METHOD_GPIO_730:
+		reg += OMAP730_GPIO_INT_MASK;
+		mask = 0xffffffff;
+		inv = 1;
+		break;
+	case METHOD_GPIO_24XX:
+		reg += OMAP24XX_GPIO_IRQENABLE1;
+		mask = 0xffffffff;
+		break;
+	default:
+		BUG();
+		return 0;
+	}
+
+	l = __raw_readl(reg);
+	if (inv)
+		l = ~l;
+	l &= mask;
+	return l;
+}
+
 static void _enable_gpio_irqbank(struct gpio_bank *bank, int gpio_mask, int enable)
 {
 	void __iomem *reg = bank->base;
@@ -736,10 +778,12 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 	u32 isr;
 	unsigned int gpio_irq;
 	struct gpio_bank *bank;
+	u32 retrigger = 0;
+	int unmasked = 0;
 
 	desc->chip->ack(irq);
 
-	bank = (struct gpio_bank *) desc->data;
+	bank = get_irq_data(irq);
 	if (bank->method == METHOD_MPUIO)
 		isr_reg = bank->base + OMAP_MPUIO_GPIO_INT;
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -760,18 +804,22 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 #endif
 	while(1) {
 		u32 isr_saved, level_mask = 0;
+		u32 enabled;
 
-		isr_saved = isr = __raw_readl(isr_reg);
+		enabled = _get_gpio_irqbank_mask(bank);
+		isr_saved = isr = __raw_readl(isr_reg) & enabled;
 
 		if (cpu_is_omap15xx() && (bank->method == METHOD_MPUIO))
 			isr &= 0x0000ffff;
 
-		if (cpu_is_omap24xx())
+		if (cpu_is_omap24xx()) {
 			level_mask =
 				__raw_readl(bank->base +
 					OMAP24XX_GPIO_LEVELDETECT0) |
 				__raw_readl(bank->base +
 					OMAP24XX_GPIO_LEVELDETECT1);
+			level_mask &= enabled;
+		}
 
 		/* clear edge sensitive interrupts before handler(s) are
 		called so that we don't miss any interrupt occurred while
@@ -782,19 +830,55 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 
 		/* if there is only edge sensitive GPIO pin interrupts
 		configured, we could unmask GPIO bank interrupt immediately */
-		if (!level_mask)
+		if (!level_mask && !unmasked) {
+			unmasked = 1;
 			desc->chip->unmask(irq);
+		}
 
+		isr |= retrigger;
+		retrigger = 0;
 		if (!isr)
 			break;
 
 		gpio_irq = bank->virtual_irq_start;
 		for (; isr != 0; isr >>= 1, gpio_irq++) {
 			struct irqdesc *d;
+			int irq_mask;
 			if (!(isr & 1))
 				continue;
 			d = irq_desc + gpio_irq;
+			/* Don't run the handler if it's already running
+			 * or was disabled lazely.
+			 */
+			if (unlikely((d->depth ||
+				      (d->status & IRQ_INPROGRESS)))) {
+				irq_mask = 1 <<
+					(gpio_irq - bank->virtual_irq_start);
+				/* The unmasking will be done by
+				 * enable_irq in case it is disabled or
+				 * after returning from the handler if
+				 * it's already running.
+				 */
+				_enable_gpio_irqbank(bank, irq_mask, 0);
+				if (!d->depth) {
+					/* Level triggered interrupts
+					 * won't ever be reentered
+					 */
+					BUG_ON(level_mask & irq_mask);
+					d->status |= IRQ_PENDING;
+				}
+				continue;
+			}
+
 			desc_handle_irq(gpio_irq, d, regs);
+
+			if (unlikely((d->status & IRQ_PENDING) && !d->depth)) {
+				irq_mask = 1 <<
+					(gpio_irq - bank->virtual_irq_start);
+				d->status &= ~IRQ_PENDING;
+				_enable_gpio_irqbank(bank, irq_mask, 1);
+				retrigger |= irq_mask;
+			}
 		}
 
 		if (cpu_is_omap24xx()) {
@@ -804,13 +888,14 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 			_enable_gpio_irqbank(bank, isr_saved & level_mask, 1);
 		}
 
-		/* if bank has any level sensitive GPIO pin interrupt
-		configured, we must unmask the bank interrupt only after
-		handler(s) are executed in order to avoid spurious bank
-		interrupt */
-		if (level_mask)
-			desc->chip->unmask(irq);
 	}
+	/* if bank has any level sensitive GPIO pin interrupt
+	configured, we must unmask the bank interrupt only after
+	handler(s) are executed in order to avoid spurious bank
+	interrupt */
+	if (!unmasked)
+		desc->chip->unmask(irq);
+
 }
 
 static void gpio_ack_irq(unsigned int irq)

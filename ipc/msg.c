@@ -19,7 +19,6 @@
  */
 
 #include <linux/capability.h>
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/msg.h>
 #include <linux/spinlock.h>

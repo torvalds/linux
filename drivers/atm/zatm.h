@@ -6,7 +6,6 @@
 #ifndef DRIVER_ATM_ZATM_H
 #define DRIVER_ATM_ZATM_H
 
-#include <linux/config.h>
 #include <linux/skbuff.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>

@@ -18,7 +18,6 @@
 #ifndef _EDAC_MC_H_
 #define _EDAC_MC_H_
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -78,10 +77,6 @@ extern int edac_debug_level;
 #define debugf4( ... )
 
 #endif  /* !CONFIG_EDAC_DEBUG */
-
-#define edac_xstr(s) edac_str(s)
-#define edac_str(s) #s
-#define EDAC_MOD_STR edac_xstr(KBUILD_BASENAME)
 
 #define BIT(x) (1 << (x))
 

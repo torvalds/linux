@@ -7,7 +7,6 @@
 #ifndef __MACH_PCU_E_H
 #define __MACH_PCU_E_H
 
-#include <linux/config.h>
 
 #include <asm/ppcboot.h>
 

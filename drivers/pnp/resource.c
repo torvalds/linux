@@ -6,7 +6,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -396,7 +395,8 @@ int pnp_check_irq(struct pnp_dev * dev, int idx)
 	/* check if the resource is already in use, skip if the
 	 * device is active because it itself may be in use */
 	if(!dev->active) {
-		if (request_irq(*irq, pnp_test_handler, SA_INTERRUPT, "pnp", NULL))
+		if (request_irq(*irq, pnp_test_handler,
+				IRQF_DISABLED|IRQF_PROBE_SHARED, "pnp", NULL))
 			return 0;
 		free_irq(*irq, NULL);
 	}

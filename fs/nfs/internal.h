@@ -81,9 +81,9 @@ extern struct file_system_type clone_nfs_fs_type;
 #ifdef CONFIG_NFS_V4
 extern struct file_system_type clone_nfs4_fs_type;
 #endif
-#ifdef CONFIG_PROC_FS
+
 extern struct rpc_stat nfs_rpcstat;
-#endif
+
 extern int __init register_nfs_fs(void);
 extern void __exit unregister_nfs_fs(void);
 

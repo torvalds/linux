@@ -11,7 +11,6 @@
 
 #include <linux/sys.h>
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <asm/cache.h>
 #include <asm/lowcore.h>
 #include <asm/errno.h>
@@ -229,8 +228,9 @@ sysc_do_svc:
 sysc_nr_ok:
 	mvc	SP_ARGS(4,%r15),SP_R7(%r15)
 sysc_do_restart:
+	l	%r8,BASED(.Lsysc_table)
 	tm	__TI_flags+3(%r9),(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT)
-        l       %r8,sys_call_table-system_call(%r7,%r13) # get system call addr.
+	l	%r8,0(%r7,%r8)	  # get system call addr.
         bnz     BASED(sysc_tracesys)
         basr    %r14,%r8          # call sys_xxxx
         st      %r2,SP_R2(%r15)   # store return value (change R2 on stack)
@@ -331,9 +331,10 @@ sysc_tracesys:
 	basr	%r14,%r1
 	clc	SP_R2(4,%r15),BASED(.Lnr_syscalls)
 	bnl	BASED(sysc_tracenogo)
+	l	%r8,BASED(.Lsysc_table)
 	l	%r7,SP_R2(%r15)        # strace might have changed the 
 	sll	%r7,2                  #  system call
-	l	%r8,sys_call_table-system_call(%r7,%r13)
+	l	%r8,0(%r7,%r8)
 sysc_tracego:
 	lm	%r3,%r6,SP_R3(%r15)
 	l	%r2,SP_ORIG_R2(%r15)
@@ -1010,6 +1011,7 @@ cleanup_io_leave_insn:
 .Ltrace:       .long  syscall_trace
 .Lvfork:       .long  sys_vfork
 .Lschedtail:   .long  schedule_tail
+.Lsysc_table:  .long  sys_call_table
 
 .Lcritical_start:
                .long  __critical_start + 0x80000000
@@ -1018,8 +1020,8 @@ cleanup_io_leave_insn:
 .Lcleanup_critical:
                .long  cleanup_critical
 
+	       .section .rodata, "a"
 #define SYSCALL(esa,esame,emu)	.long esa
 sys_call_table:
 #include "syscalls.S"
 #undef SYSCALL
-

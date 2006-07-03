@@ -22,7 +22,6 @@
 #ifndef _LINUX_SLIP_H
 #define _LINUX_SLIP_H
 
-#include <linux/config.h>
 
 #if defined(CONFIG_INET) && defined(CONFIG_SLIP_COMPRESSED)
 # define SL_INCLUDE_CSLIP

@@ -1194,6 +1194,21 @@ struct cx88_board cx88_boards[] = {
 		}},
 		.dvb            = 1,
 	},
+	[CX88_BOARD_GENIATECH_DVBS] = {
+		.name          = "Geniatech DVB-S",
+		.tuner_type    = TUNER_ABSENT,
+		.radio_type    = UNSET,
+		.tuner_addr    = ADDR_UNSET,
+		.radio_addr    = ADDR_UNSET,
+		.input  = {{
+			.type  = CX88_VMUX_DVB,
+			.vmux  = 0,
+		},{
+			.type  = CX88_VMUX_COMPOSITE1,
+			.vmux  = 1,
+		}},
+		.dvb      = 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1439,6 +1454,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x18ac,
 		.subdevice = 0xd800, /* FusionHDTV 3 Gold (original revision) */
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q,
+	},{
+		.subvendor = 0x14f1,
+		.subdevice = 0x0084,
+		.card      = CX88_BOARD_GENIATECH_DVBS,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);

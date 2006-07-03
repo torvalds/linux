@@ -4,7 +4,6 @@
  *	(c) 1999--2000 Martin Mares <mj@ucw.cz>
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -865,7 +864,7 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 		for (i = 0; i < 16; i++) {
 			if (!(mask & (1 << i)))
 				continue;
-			if (pirq_penalty[i] < pirq_penalty[newirq] && can_request_irq(i, SA_SHIRQ))
+			if (pirq_penalty[i] < pirq_penalty[newirq] && can_request_irq(i, IRQF_SHARED))
 				newirq = i;
 		}
 	}

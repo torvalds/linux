@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -44,7 +45,7 @@
 
 /*
  * This file contains all the chip-specific register information and
- * access functions for the PathScale PE800, the PCI-Express chip.
+ * access functions for the QLogic InfiniPath PE800, the PCI-Express chip.
  *
  * This lists the InfiniPath PE800 registers, in the actual chip layout.
  * This structure should never be directly accessed.
@@ -532,7 +533,7 @@ static int ipath_pe_boardname(struct ipath_devdata *dd, char *name,
 	if (n)
 		snprintf(name, namelen, "%s", n);
 
-	if (dd->ipath_majrev != 4 || dd->ipath_minrev != 1) {
+	if (dd->ipath_majrev != 4 || !dd->ipath_minrev || dd->ipath_minrev>2) {
 		ipath_dev_err(dd, "Unsupported PE-800 revision %u.%u!\n",
 			      dd->ipath_majrev, dd->ipath_minrev);
 		ret = 1;

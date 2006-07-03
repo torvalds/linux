@@ -13,7 +13,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/config.h>
 #include "hisax.h"
 #include "isac.h"
 #include "hscx.h"
@@ -348,7 +347,7 @@ setup_telespci(struct IsdnCard *card)
 	cs->BC_Send_Data = &hscx_fill_fifo;
 	cs->cardmsg = &TelesPCI_card_msg;
 	cs->irq_func = &telespci_interrupt;
-	cs->irq_flags |= SA_SHIRQ;
+	cs->irq_flags |= IRQF_SHARED;
 	ISACVersion(cs, "TelesPCI:");
 	if (HscxVersion(cs, "TelesPCI:")) {
 		printk(KERN_WARNING

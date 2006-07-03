@@ -11,7 +11,6 @@
  * Copyright (C) 2000, 01 MIPS Technologies, Inc.
  * Copyright (C) 2002, 2003, 2004, 2005  Maciej W. Rozycki
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>

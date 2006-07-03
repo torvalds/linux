@@ -196,6 +196,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_PIXELVIEW_PLAYTV_P7000  49
 #define CX88_BOARD_NPGTECH_REALTV_TOP10FM  50
 #define CX88_BOARD_WINFAST_DTV2000H        51
+#define CX88_BOARD_GENIATECH_DVBS          52
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -590,6 +591,8 @@ int cx8802_resume_common(struct pci_dev *pci_dev);
 extern int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 				struct cx88_core *core, unsigned int cmd,
 				void *arg, v4l2_kioctl driver_ioctl);
+extern const u32 cx88_user_ctrls[];
+extern int cx8800_ctrl_query(struct v4l2_queryctrl *qctrl);
 
 /*
  * Local variables:

@@ -590,7 +590,7 @@ static int __init snd_mtpav_get_ISA(struct mtpav * mcard)
 		return -EBUSY;
 	}
 	mcard->port = port;
-	if (request_irq(irq, snd_mtpav_irqh, SA_INTERRUPT, "MOTU MTPAV", mcard)) {
+	if (request_irq(irq, snd_mtpav_irqh, IRQF_DISABLED, "MOTU MTPAV", mcard)) {
 		snd_printk("MTVAP IRQ %d busy\n", irq);
 		return -EBUSY;
 	}

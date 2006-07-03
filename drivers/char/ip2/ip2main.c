@@ -82,7 +82,6 @@
 /************/
 /* Includes */
 /************/
-#include <linux/config.h>
 
 #include <linux/ctype.h>
 #include <linux/string.h>
@@ -492,8 +491,8 @@ static struct tty_operations ip2_ops = {
 /* initialisation of the devices and driver structures, and registers itself  */
 /* with the relevant kernel modules.                                          */
 /******************************************************************************/
-/* SA_INTERRUPT- if set blocks all interrupts else only this line */
-/* SA_SHIRQ    - for shared irq PCI or maybe EISA only */
+/* IRQF_DISABLED - if set blocks all interrupts else only this line */
+/* IRQF_SHARED    - for shared irq PCI or maybe EISA only */
 /* SA_RANDOM   - can be source for cert. random number generators */
 #define IP2_SA_FLAGS	0
 
@@ -754,7 +753,7 @@ retry:
 				if (have_requested_irq(ip2config.irq[i]))
 					continue;
 				rc = request_irq( ip2config.irq[i], ip2_interrupt,
-					IP2_SA_FLAGS | (ip2config.type[i] == PCI ? SA_SHIRQ : 0),
+					IP2_SA_FLAGS | (ip2config.type[i] == PCI ? IRQF_SHARED : 0),
 					pcName, (void *)&pcName);
 				if (rc) {
 					printk(KERN_ERR "IP2: an request_irq failed: error %d\n",rc);

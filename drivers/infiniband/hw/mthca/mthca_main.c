@@ -34,7 +34,6 @@
  * $Id: mthca_main.c 1396 2004-12-28 04:10:27Z roland $
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>

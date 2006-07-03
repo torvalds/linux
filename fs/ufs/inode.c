@@ -843,14 +843,17 @@ int ufs_sync_inode (struct inode *inode)
 
 void ufs_delete_inode (struct inode * inode)
 {
+	loff_t old_i_size;
+
 	truncate_inode_pages(&inode->i_data, 0);
 	/*UFS_I(inode)->i_dtime = CURRENT_TIME;*/
 	lock_kernel();
 	mark_inode_dirty(inode);
 	ufs_update_inode(inode, IS_SYNC(inode));
+	old_i_size = inode->i_size;
 	inode->i_size = 0;
-	if (inode->i_blocks)
-		ufs_truncate (inode);
+	if (inode->i_blocks && ufs_truncate(inode, old_i_size))
+		ufs_warning(inode->i_sb, __FUNCTION__, "ufs_truncate failed\n");
 	ufs_free_inode (inode);
 	unlock_kernel();
 }

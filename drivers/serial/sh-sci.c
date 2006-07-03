@@ -20,7 +20,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
@@ -842,7 +841,7 @@ static int sci_request_irq(struct sci_port *port)
 			printk(KERN_ERR "sci: Cannot allocate irq.(IRQ=0)\n");
 			return -ENODEV;
 		}
-		if (request_irq(port->irqs[0], sci_mpxed_interrupt, SA_INTERRUPT,
+		if (request_irq(port->irqs[0], sci_mpxed_interrupt, IRQF_DISABLED,
 				"sci", port)) {
 			printk(KERN_ERR "sci: Cannot allocate irq.\n");
 			return -ENODEV;
@@ -851,7 +850,7 @@ static int sci_request_irq(struct sci_port *port)
 		for (i = 0; i < ARRAY_SIZE(handlers); i++) {
 			if (!port->irqs[i])
 				continue;
-			if (request_irq(port->irqs[i], handlers[i], SA_INTERRUPT,
+			if (request_irq(port->irqs[i], handlers[i], IRQF_DISABLED,
 					desc[i], port)) {
 				printk(KERN_ERR "sci: Cannot allocate irq.\n");
 				return -ENODEV;

@@ -39,7 +39,6 @@
  *     is shared with DSRS(DTE) at pin 23.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -1792,7 +1791,7 @@ int __init zs_init(void)
 		zs_soft[channel].clk_divisor = 16;
 		zs_soft[channel].zs_baud = get_zsbaud(&zs_soft[channel]);
 
-		if (request_irq(zs_soft[channel].irq, rs_interrupt, SA_SHIRQ,
+		if (request_irq(zs_soft[channel].irq, rs_interrupt, IRQF_SHARED,
 				"scc", &zs_soft[channel]))
 			printk(KERN_ERR "decserial: can't get irq %d\n",
 			       zs_soft[channel].irq);

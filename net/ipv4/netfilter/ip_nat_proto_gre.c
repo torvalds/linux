@@ -23,7 +23,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/netfilter_ipv4/ip_nat.h>

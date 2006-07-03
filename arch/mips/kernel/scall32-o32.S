@@ -7,7 +7,6 @@
  * Copyright (C) 2001 MIPS Technologies, Inc.
  * Copyright (C) 2004 Thiemo Seufer
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>

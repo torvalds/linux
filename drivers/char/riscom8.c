@@ -625,7 +625,7 @@ static inline int rc_setup_board(struct riscom_board * bp)
 	if (bp->flags & RC_BOARD_ACTIVE) 
 		return 0;
 	
-	error = request_irq(bp->irq, rc_interrupt, SA_INTERRUPT,
+	error = request_irq(bp->irq, rc_interrupt, IRQF_DISABLED,
 			    "RISCom/8", NULL);
 	if (error) 
 		return error;

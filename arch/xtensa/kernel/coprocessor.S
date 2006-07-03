@@ -24,7 +24,6 @@
  * assigned when the Xtensa processor is generated.
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/processor.h>
 

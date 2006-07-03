@@ -9,7 +9,6 @@
  *		 Arnd Bergmann (arndb@de.ibm.com)
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>

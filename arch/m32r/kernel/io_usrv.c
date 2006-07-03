@@ -12,7 +12,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/m32r.h>
 #include <asm/page.h>
 #include <asm/io.h>

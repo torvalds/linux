@@ -880,7 +880,7 @@ tc35815_open(struct net_device *dev)
 	 */
 
 	if (dev->irq == 0  ||
-	    request_irq(dev->irq, &tc35815_interrupt, SA_SHIRQ, cardname, dev)) {
+	    request_irq(dev->irq, &tc35815_interrupt, IRQF_SHARED, cardname, dev)) {
 		return -EAGAIN;
 	}
 

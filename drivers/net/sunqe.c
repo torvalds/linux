@@ -811,7 +811,7 @@ static struct sunqec * __init get_qec(struct sbus_dev *child_sdev)
 			qec_init_once(qecp, qec_sdev);
 
 			if (request_irq(qec_sdev->irqs[0], &qec_interrupt,
-					SA_SHIRQ, "qec", (void *) qecp)) {
+					IRQF_SHARED, "qec", (void *) qecp)) {
 				printk(KERN_ERR "qec: Can't register irq.\n");
 				goto fail;
 			}

@@ -2,14 +2,19 @@
 # Makefile for the linux kernel.
 #
 
-obj-y		:= clock.o irq.o time.o gpio.o common.o devices.o
+obj-y		:= clock.o irq.o gpio.o devices.o
 obj-m		:=
 obj-n		:=
 obj-		:=
 
 obj-$(CONFIG_PM)		+= pm.o
 
-# Board-specific support
+# CPU-specific support
+obj-$(CONFIG_ARCH_AT91RM9200)	+= at91rm9200.o at91rm9200_time.o
+obj-$(CONFIG_ARCH_AT91SAM9260)	+=
+obj-$(CONFIG_ARCH_AT91SAM9261)	+=
+
+# AT91RM9200 Board-specific support
 obj-$(CONFIG_MACH_ONEARM)	+= board-1arm.o
 obj-$(CONFIG_ARCH_AT91RM9200DK)	+= board-dk.o
 obj-$(CONFIG_MACH_AT91RM9200EK)	+= board-ek.o
@@ -19,6 +24,10 @@ obj-$(CONFIG_MACH_CARMEVA)	+= board-carmeva.o
 obj-$(CONFIG_MACH_KB9200)	+= board-kb9202.o
 obj-$(CONFIG_MACH_ATEB9200)	+= board-eb9200.o
 obj-$(CONFIG_MACH_KAFA)		+= board-kafa.o
+
+# AT91SAM9260 board-specific support
+
+# AT91SAM9261 board-specific support
 
 # LEDs support
 led-$(CONFIG_ARCH_AT91RM9200DK)	+= leds.o

@@ -11,7 +11,6 @@
 
 #include <linux/sys.h>
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <asm/cache.h>
 #include <asm/lowcore.h>
 #include <asm/errno.h>
@@ -992,6 +991,7 @@ cleanup_io_leave_insn:
 .Lcritical_end:
                .quad  __critical_end
 
+	       .section .rodata, "a"
 #define SYSCALL(esa,esame,emu)	.long esame
 sys_call_table:
 #include "syscalls.S"

@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -298,7 +297,7 @@ static int __init dac_audio_init(void)
 	dac_audio_set_rate();
 
 	retval =
-	    request_irq(TIMER1_IRQ, timer1_interrupt, SA_INTERRUPT, MODNAME, 0);
+	    request_irq(TIMER1_IRQ, timer1_interrupt, IRQF_DISABLED, MODNAME, 0);
 	if (retval < 0) {
 		printk(KERN_ERR "sh_dac_audio: IRQ %d request failed\n",
 		       TIMER1_IRQ);

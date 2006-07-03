@@ -35,7 +35,6 @@
 #define __KERNEL_SYSCALLS__
 #include <stdarg.h>
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/rwsem.h>
 #include <linux/mm.h>

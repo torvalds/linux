@@ -36,7 +36,6 @@
 #include <linux/slab.h>
 
 // kernel config is here (procfs flag)
-#include <linux/config.h>
 
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>

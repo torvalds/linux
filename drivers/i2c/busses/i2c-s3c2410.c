@@ -20,7 +20,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
@@ -829,7 +828,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	ret = request_irq(res->start, s3c24xx_i2c_irq, SA_INTERRUPT,
+	ret = request_irq(res->start, s3c24xx_i2c_irq, IRQF_DISABLED,
 			  pdev->name, i2c);
 
 	if (ret != 0) {

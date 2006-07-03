@@ -15,7 +15,6 @@
 
 */
 
-#include <linux/config.h>
 
 #ifndef CONFIG_SCSI_OMIT_FLASHPOINT
 

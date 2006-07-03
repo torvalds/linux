@@ -31,7 +31,6 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/serio.h>

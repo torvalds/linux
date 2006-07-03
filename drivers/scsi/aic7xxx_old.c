@@ -8322,11 +8322,11 @@ aic7xxx_register(struct scsi_host_template *template, struct aic7xxx_host *p,
   }
   else
   {
-    result = (request_irq(p->irq, do_aic7xxx_isr, SA_SHIRQ,
+    result = (request_irq(p->irq, do_aic7xxx_isr, IRQF_SHARED,
               "aic7xxx", p));
     if (result < 0)
     {
-      result = (request_irq(p->irq, do_aic7xxx_isr, SA_INTERRUPT | SA_SHIRQ,
+      result = (request_irq(p->irq, do_aic7xxx_isr, IRQF_DISABLED | IRQF_SHARED,
               "aic7xxx", p));
     }
   }

@@ -25,7 +25,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -136,6 +135,7 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 	printk("%s", buffer);
 #endif
 }
+
 
 extern int acpi_in_resume;
 void *acpi_os_allocate(acpi_size size)
@@ -280,7 +280,7 @@ acpi_os_install_interrupt_handler(u32 gsi, acpi_osd_handler handler,
 
 	acpi_irq_handler = handler;
 	acpi_irq_context = context;
-	if (request_irq(irq, acpi_irq, SA_SHIRQ, "acpi", acpi_irq)) {
+	if (request_irq(irq, acpi_irq, IRQF_SHARED, "acpi", acpi_irq)) {
 		printk(KERN_ERR PREFIX "SCI (IRQ%d) allocation failed\n", irq);
 		return AE_NOT_ACQUIRED;
 	}
@@ -586,19 +586,18 @@ static void acpi_os_execute_deferred(void *context)
 {
 	struct acpi_os_dpc *dpc = NULL;
 
-	ACPI_FUNCTION_TRACE("os_execute_deferred");
 
 	dpc = (struct acpi_os_dpc *)context;
 	if (!dpc) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid (NULL) context.\n"));
-		return_VOID;
+		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
+		return;
 	}
 
 	dpc->function(dpc->context);
 
 	kfree(dpc);
 
-	return_VOID;
+	return;
 }
 
 static int acpi_os_execute_thread(void *context)
@@ -688,35 +687,19 @@ EXPORT_SYMBOL(acpi_os_wait_events_complete);
 /*
  * Allocate the memory for a spinlock and initialize it.
  */
-acpi_status acpi_os_create_lock(acpi_handle * out_handle)
+acpi_status acpi_os_create_lock(acpi_spinlock * handle)
 {
-	spinlock_t *lock_ptr;
+	spin_lock_init(*handle);
 
-	ACPI_FUNCTION_TRACE("os_create_lock");
-
-	lock_ptr = acpi_os_allocate(sizeof(spinlock_t));
-
-	spin_lock_init(lock_ptr);
-
-	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Creating spinlock[%p].\n", lock_ptr));
-
-	*out_handle = lock_ptr;
-
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 /*
  * Deallocate the memory for a spinlock.
  */
-void acpi_os_delete_lock(acpi_handle handle)
+void acpi_os_delete_lock(acpi_spinlock handle)
 {
-	ACPI_FUNCTION_TRACE("os_create_lock");
-
-	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Deleting spinlock[%p].\n", handle));
-
-	acpi_os_free(handle);
-
-	return_VOID;
+	return;
 }
 
 acpi_status
@@ -724,11 +707,10 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 {
 	struct semaphore *sem = NULL;
 
-	ACPI_FUNCTION_TRACE("os_create_semaphore");
 
 	sem = acpi_os_allocate(sizeof(struct semaphore));
 	if (!sem)
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return AE_NO_MEMORY;
 	memset(sem, 0, sizeof(struct semaphore));
 
 	sema_init(sem, initial_units);
@@ -738,7 +720,7 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Creating semaphore[%p|%d].\n",
 			  *handle, initial_units));
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 EXPORT_SYMBOL(acpi_os_create_semaphore);
@@ -754,17 +736,16 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 {
 	struct semaphore *sem = (struct semaphore *)handle;
 
-	ACPI_FUNCTION_TRACE("os_delete_semaphore");
 
 	if (!sem)
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Deleting semaphore[%p].\n", handle));
 
 	acpi_os_free(sem);
 	sem = NULL;
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 EXPORT_SYMBOL(acpi_os_delete_semaphore);
@@ -784,13 +765,12 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 	struct semaphore *sem = (struct semaphore *)handle;
 	int ret = 0;
 
-	ACPI_FUNCTION_TRACE("os_wait_semaphore");
 
 	if (!sem || (units < 1))
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	if (units > 1)
-		return_ACPI_STATUS(AE_SUPPORT);
+		return AE_SUPPORT;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Waiting for semaphore[%p|%d|%d]\n",
 			  handle, units, timeout));
@@ -839,17 +819,17 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 	}
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Failed to acquire semaphore[%p|%d|%d], %s\n",
+		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
+				  "Failed to acquire semaphore[%p|%d|%d], %s",
 				  handle, units, timeout,
 				  acpi_format_exception(status)));
 	} else {
 		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
-				  "Acquired semaphore[%p|%d|%d]\n", handle,
+				  "Acquired semaphore[%p|%d|%d]", handle,
 				  units, timeout));
 	}
 
-	return_ACPI_STATUS(status);
+	return status;
 }
 
 EXPORT_SYMBOL(acpi_os_wait_semaphore);
@@ -861,20 +841,19 @@ acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
 {
 	struct semaphore *sem = (struct semaphore *)handle;
 
-	ACPI_FUNCTION_TRACE("os_signal_semaphore");
 
 	if (!sem || (units < 1))
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	if (units > 1)
-		return_ACPI_STATUS(AE_SUPPORT);
+		return AE_SUPPORT;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Signaling semaphore[%p|%d]\n", handle,
 			  units));
 
 	up(sem);
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 EXPORT_SYMBOL(acpi_os_signal_semaphore);
@@ -1043,10 +1022,10 @@ EXPORT_SYMBOL(max_cstate);
  * handle is a pointer to the spinlock_t.
  */
 
-acpi_cpu_flags acpi_os_acquire_lock(acpi_handle handle)
+acpi_cpu_flags acpi_os_acquire_lock(acpi_spinlock lockp)
 {
 	acpi_cpu_flags flags;
-	spin_lock_irqsave((spinlock_t *) handle, flags);
+	spin_lock_irqsave(lockp, flags);
 	return flags;
 }
 
@@ -1054,9 +1033,9 @@ acpi_cpu_flags acpi_os_acquire_lock(acpi_handle handle)
  * Release a spinlock. See above.
  */
 
-void acpi_os_release_lock(acpi_handle handle, acpi_cpu_flags flags)
+void acpi_os_release_lock(acpi_spinlock lockp, acpi_cpu_flags flags)
 {
-	spin_unlock_irqrestore((spinlock_t *) handle, flags);
+	spin_unlock_irqrestore(lockp, flags);
 }
 
 #ifndef ACPI_USE_LOCAL_CACHE

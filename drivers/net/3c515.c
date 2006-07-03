@@ -57,7 +57,6 @@ static int max_interrupt_work = 20;
 #define RX_RING_SIZE	16
 #define PKT_BUF_SZ		1536	/* Size of each temporary Rx buffer. */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/isapnp.h>
 #include <linux/kernel.h>
@@ -761,7 +760,7 @@ static int corkscrew_open(struct net_device *dev)
 				   vp->product_name, dev)) return -EAGAIN;
 		enable_dma(dev->dma);
 		set_dma_mode(dev->dma, DMA_MODE_CASCADE);
-	} else if (request_irq(dev->irq, &corkscrew_interrupt, SA_SHIRQ,
+	} else if (request_irq(dev->irq, &corkscrew_interrupt, IRQF_SHARED,
 			       vp->product_name, dev)) {
 		return -EAGAIN;
 	}

@@ -28,7 +28,6 @@
  *      QIC-40/80/3010/3020 floppy-tape driver "ftape" for Linux.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 
 /*

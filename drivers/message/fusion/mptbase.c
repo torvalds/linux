@@ -46,7 +46,6 @@
 */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -1706,7 +1705,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 				printk(MYIOC_s_INFO_FMT "PCI-MSI enabled\n",
 					ioc->name);
 			rc = request_irq(ioc->pcidev->irq, mpt_interrupt,
-					SA_SHIRQ, ioc->name, ioc);
+					IRQF_SHARED, ioc->name, ioc);
 			if (rc < 0) {
 				printk(MYIOC_s_ERR_FMT "Unable to allocate "
 					"interrupt %d!\n", ioc->name,
@@ -5592,7 +5591,7 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 
 	/* The SCSI driver needs to adjust timeouts on all current
 	 * commands prior to the diagnostic reset being issued.
-	 * Prevents timeouts occuring during a diagnostic reset...very bad.
+	 * Prevents timeouts occurring during a diagnostic reset...very bad.
 	 * For all other protocol drivers, this is a no-op.
 	 */
 	{

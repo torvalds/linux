@@ -155,21 +155,30 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	case ACPI_TYPE_MUTEX:
 
 		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
-				  "***** Mutex %p, Semaphore %p\n",
-				  object, object->mutex.semaphore));
+				  "***** Mutex %p, OS Mutex %p\n",
+				  object, object->mutex.os_mutex));
 
-		acpi_ex_unlink_mutex(object);
-		(void)acpi_os_delete_semaphore(object->mutex.semaphore);
+		if (object->mutex.os_mutex != ACPI_GLOBAL_LOCK) {
+			acpi_ex_unlink_mutex(object);
+			acpi_os_delete_mutex(object->mutex.os_mutex);
+		} else {
+			/* Global Lock "mutex" is actually a counting semaphore */
+
+			(void)
+			    acpi_os_delete_semaphore
+			    (acpi_gbl_global_lock_semaphore);
+			acpi_gbl_global_lock_semaphore = NULL;
+		}
 		break;
 
 	case ACPI_TYPE_EVENT:
 
 		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
-				  "***** Event %p, Semaphore %p\n",
-				  object, object->event.semaphore));
+				  "***** Event %p, OS Semaphore %p\n",
+				  object, object->event.os_semaphore));
 
-		(void)acpi_os_delete_semaphore(object->event.semaphore);
-		object->event.semaphore = NULL;
+		(void)acpi_os_delete_semaphore(object->event.os_semaphore);
+		object->event.os_semaphore = NULL;
 		break;
 
 	case ACPI_TYPE_METHOD:
@@ -177,12 +186,13 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
 				  "***** Method %p\n", object));
 
-		/* Delete the method semaphore if it exists */
+		/* Delete the method mutex if it exists */
 
-		if (object->method.semaphore) {
-			(void)acpi_os_delete_semaphore(object->method.
-						       semaphore);
-			object->method.semaphore = NULL;
+		if (object->method.mutex) {
+			acpi_os_delete_mutex(object->method.mutex->mutex.
+					     os_mutex);
+			acpi_ut_delete_object_desc(object->method.mutex);
+			object->method.mutex = NULL;
 		}
 		break;
 

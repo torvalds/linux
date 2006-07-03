@@ -394,6 +394,8 @@
 #define ACPI_REGISTER_PREPARE_BITS(val, pos, mask)      ((val << pos) & mask)
 #define ACPI_REGISTER_INSERT_VALUE(reg, pos, mask, val)  reg = (reg & (~(mask))) | ACPI_REGISTER_PREPARE_BITS(val, pos, mask)
 
+#define ACPI_INSERT_BITS(target, mask, source)          target = ((target & (~(mask))) | (source & mask))
+
 /* Generate a UUID */
 
 #define ACPI_INIT_UUID(a,b,c,d0,d1,d2,d3,d4,d5,d6,d7) \

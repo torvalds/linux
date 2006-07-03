@@ -602,7 +602,7 @@ Consider the following sequence of events:
 
 This sequence of events is committed to the memory coherence system in an order
 that the rest of the system might perceive as the unordered set of { STORE A,
-STORE B, STORE C } all occuring before the unordered set of { STORE D, STORE E
+STORE B, STORE C } all occurring before the unordered set of { STORE D, STORE E
 }:
 
 	+-------+       :      :

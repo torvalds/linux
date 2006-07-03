@@ -8,12 +8,6 @@
  * published by the Free Software Foundation.
  */
 
- /*
-  * Note that PIO transfer is rather crappy atm. The buffer full/empty
-  * interrupts aren't reliable so we currently transfer the entire buffer
-  * directly. Patches to solve the problem are welcome.
-  */
-
 #include <linux/delay.h>
 #include <linux/highmem.h>
 #include <linux/pci.h>
@@ -27,16 +21,50 @@
 #include "sdhci.h"
 
 #define DRIVER_NAME "sdhci"
-#define DRIVER_VERSION "0.11"
+#define DRIVER_VERSION "0.12"
 
 #define BUGMAIL "<sdhci-devel@list.drzeus.cx>"
 
 #define DBG(f, x...) \
 	pr_debug(DRIVER_NAME " [%s()]: " f, __func__,## x)
 
+static unsigned int debug_nodma = 0;
+static unsigned int debug_forcedma = 0;
+static unsigned int debug_quirks = 0;
+
+#define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
+#define SDHCI_QUIRK_FORCE_DMA				(1<<1)
+
 static const struct pci_device_id pci_ids[] __devinitdata = {
-	/* handle any SD host controller */
-	{PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)},
+	{
+		.vendor		= PCI_VENDOR_ID_RICOH,
+		.device		= PCI_DEVICE_ID_RICOH_R5C822,
+		.subvendor	= PCI_VENDOR_ID_IBM,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_CLOCK_BEFORE_RESET |
+				  SDHCI_QUIRK_FORCE_DMA,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_RICOH,
+		.device		= PCI_DEVICE_ID_RICOH_R5C822,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_TI,
+		.device		= PCI_DEVICE_ID_TI_XX21_XX11_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
+	},
+
+	{	/* Generic SD host controller */
+		PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)
+	},
+
 	{ /* end: all zeroes */ },
 };
 
@@ -94,12 +122,27 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 
 static void sdhci_reset(struct sdhci_host *host, u8 mask)
 {
+	unsigned long timeout;
+
 	writeb(mask, host->ioaddr + SDHCI_SOFTWARE_RESET);
 
-	if (mask & SDHCI_RESET_ALL) {
+	if (mask & SDHCI_RESET_ALL)
 		host->clock = 0;
 
-		mdelay(50);
+	/* Wait max 100 ms */
+	timeout = 100;
+
+	/* hw clears the bit when it's done */
+	while (readb(host->ioaddr + SDHCI_SOFTWARE_RESET) & mask) {
+		if (timeout == 0) {
+			printk(KERN_ERR "%s: Reset 0x%x never completed. "
+				"Please report this to " BUGMAIL ".\n",
+				mmc_hostname(host->mmc), (int)mask);
+			sdhci_dumpregs(host);
+			return;
+		}
+		timeout--;
+		mdelay(1);
 	}
 }
 
@@ -109,13 +152,15 @@ static void sdhci_init(struct sdhci_host *host)
 
 	sdhci_reset(host, SDHCI_RESET_ALL);
 
-	intmask = ~(SDHCI_INT_CARD_INT | SDHCI_INT_BUF_EMPTY | SDHCI_INT_BUF_FULL);
+	intmask = SDHCI_INT_BUS_POWER | SDHCI_INT_DATA_END_BIT |
+		SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_TIMEOUT | SDHCI_INT_INDEX |
+		SDHCI_INT_END_BIT | SDHCI_INT_CRC | SDHCI_INT_TIMEOUT |
+		SDHCI_INT_CARD_REMOVE | SDHCI_INT_CARD_INSERT |
+		SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL |
+		SDHCI_INT_DMA_END | SDHCI_INT_DATA_END | SDHCI_INT_RESPONSE;
 
 	writel(intmask, host->ioaddr + SDHCI_INT_ENABLE);
 	writel(intmask, host->ioaddr + SDHCI_SIGNAL_ENABLE);
-
-	/* This is unknown magic. */
-	writeb(0xE, host->ioaddr + SDHCI_TIMEOUT_CONTROL);
 }
 
 static void sdhci_activate_led(struct sdhci_host *host)
@@ -172,79 +217,46 @@ static inline int sdhci_next_sg(struct sdhci_host* host)
 	return host->num_sg;
 }
 
-static void sdhci_transfer_pio(struct sdhci_host *host)
+static void sdhci_read_block_pio(struct sdhci_host *host)
 {
+	int blksize, chunk_remain;
+	u32 data;
 	char *buffer;
-	u32 mask;
-	int bytes, size;
-	unsigned long max_jiffies;
+	int size;
 
-	BUG_ON(!host->data);
+	DBG("PIO reading\n");
 
-	if (host->num_sg == 0)
-		return;
-
-	bytes = 0;
-	if (host->data->flags & MMC_DATA_READ)
-		mask = SDHCI_DATA_AVAILABLE;
-	else
-		mask = SDHCI_SPACE_AVAILABLE;
+	blksize = host->data->blksz;
+	chunk_remain = 0;
+	data = 0;
 
 	buffer = sdhci_kmap_sg(host) + host->offset;
 
-	/* Transfer shouldn't take more than 5 s */
-	max_jiffies = jiffies + HZ * 5;
-
-	while (host->size > 0) {
-		if (time_after(jiffies, max_jiffies)) {
-			printk(KERN_ERR "%s: PIO transfer stalled. "
-				"Please report this to "
-				BUGMAIL ".\n", mmc_hostname(host->mmc));
-			sdhci_dumpregs(host);
-
-			sdhci_kunmap_sg(host);
-
-			host->data->error = MMC_ERR_FAILED;
-			sdhci_finish_data(host);
-			return;
+	while (blksize) {
+		if (chunk_remain == 0) {
+			data = readl(host->ioaddr + SDHCI_BUFFER);
+			chunk_remain = min(blksize, 4);
 		}
-
-		if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask))
-			continue;
 
 		size = min(host->size, host->remain);
+		size = min(size, chunk_remain);
 
-		if (size >= 4) {
-			if (host->data->flags & MMC_DATA_READ)
-				*(u32*)buffer = readl(host->ioaddr + SDHCI_BUFFER);
-			else
-				writel(*(u32*)buffer, host->ioaddr + SDHCI_BUFFER);
-			size = 4;
-		} else if (size >= 2) {
-			if (host->data->flags & MMC_DATA_READ)
-				*(u16*)buffer = readw(host->ioaddr + SDHCI_BUFFER);
-			else
-				writew(*(u16*)buffer, host->ioaddr + SDHCI_BUFFER);
-			size = 2;
-		} else {
-			if (host->data->flags & MMC_DATA_READ)
-				*(u8*)buffer = readb(host->ioaddr + SDHCI_BUFFER);
-			else
-				writeb(*(u8*)buffer, host->ioaddr + SDHCI_BUFFER);
-			size = 1;
-		}
-
-		buffer += size;
+		chunk_remain -= size;
+		blksize -= size;
 		host->offset += size;
 		host->remain -= size;
-
-		bytes += size;
 		host->size -= size;
+		while (size) {
+			*buffer = data & 0xFF;
+			buffer++;
+			data >>= 8;
+			size--;
+		}
 
 		if (host->remain == 0) {
 			sdhci_kunmap_sg(host);
 			if (sdhci_next_sg(host) == 0) {
-				DBG("PIO transfer: %d bytes\n", bytes);
+				BUG_ON(blksize != 0);
 				return;
 			}
 			buffer = sdhci_kmap_sg(host);
@@ -252,38 +264,137 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 	}
 
 	sdhci_kunmap_sg(host);
+}
 
-	DBG("PIO transfer: %d bytes\n", bytes);
+static void sdhci_write_block_pio(struct sdhci_host *host)
+{
+	int blksize, chunk_remain;
+	u32 data;
+	char *buffer;
+	int bytes, size;
+
+	DBG("PIO writing\n");
+
+	blksize = host->data->blksz;
+	chunk_remain = 4;
+	data = 0;
+
+	bytes = 0;
+	buffer = sdhci_kmap_sg(host) + host->offset;
+
+	while (blksize) {
+		size = min(host->size, host->remain);
+		size = min(size, chunk_remain);
+
+		chunk_remain -= size;
+		blksize -= size;
+		host->offset += size;
+		host->remain -= size;
+		host->size -= size;
+		while (size) {
+			data >>= 8;
+			data |= (u32)*buffer << 24;
+			buffer++;
+			size--;
+		}
+
+		if (chunk_remain == 0) {
+			writel(data, host->ioaddr + SDHCI_BUFFER);
+			chunk_remain = min(blksize, 4);
+		}
+
+		if (host->remain == 0) {
+			sdhci_kunmap_sg(host);
+			if (sdhci_next_sg(host) == 0) {
+				BUG_ON(blksize != 0);
+				return;
+			}
+			buffer = sdhci_kmap_sg(host);
+		}
+	}
+
+	sdhci_kunmap_sg(host);
+}
+
+static void sdhci_transfer_pio(struct sdhci_host *host)
+{
+	u32 mask;
+
+	BUG_ON(!host->data);
+
+	if (host->size == 0)
+		return;
+
+	if (host->data->flags & MMC_DATA_READ)
+		mask = SDHCI_DATA_AVAILABLE;
+	else
+		mask = SDHCI_SPACE_AVAILABLE;
+
+	while (readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask) {
+		if (host->data->flags & MMC_DATA_READ)
+			sdhci_read_block_pio(host);
+		else
+			sdhci_write_block_pio(host);
+
+		if (host->size == 0)
+			break;
+
+		BUG_ON(host->num_sg == 0);
+	}
+
+	DBG("PIO transfer complete.\n");
 }
 
 static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 {
-	u16 mode;
+	u8 count;
+	unsigned target_timeout, current_timeout;
 
 	WARN_ON(host->data);
 
-	if (data == NULL) {
-		writew(0, host->ioaddr + SDHCI_TRANSFER_MODE);
+	if (data == NULL)
 		return;
-	}
 
 	DBG("blksz %04x blks %04x flags %08x\n",
 		data->blksz, data->blocks, data->flags);
 	DBG("tsac %d ms nsac %d clk\n",
 		data->timeout_ns / 1000000, data->timeout_clks);
 
-	mode = SDHCI_TRNS_BLK_CNT_EN;
-	if (data->blocks > 1)
-		mode |= SDHCI_TRNS_MULTI;
-	if (data->flags & MMC_DATA_READ)
-		mode |= SDHCI_TRNS_READ;
-	if (host->flags & SDHCI_USE_DMA)
-		mode |= SDHCI_TRNS_DMA;
+	/* Sanity checks */
+	BUG_ON(data->blksz * data->blocks > 524288);
+	BUG_ON(data->blksz > host->max_block);
+	BUG_ON(data->blocks > 65535);
 
-	writew(mode, host->ioaddr + SDHCI_TRANSFER_MODE);
+	/* timeout in us */
+	target_timeout = data->timeout_ns / 1000 +
+		data->timeout_clks / host->clock;
 
-	writew(data->blksz, host->ioaddr + SDHCI_BLOCK_SIZE);
-	writew(data->blocks, host->ioaddr + SDHCI_BLOCK_COUNT);
+	/*
+	 * Figure out needed cycles.
+	 * We do this in steps in order to fit inside a 32 bit int.
+	 * The first step is the minimum timeout, which will have a
+	 * minimum resolution of 6 bits:
+	 * (1) 2^13*1000 > 2^22,
+	 * (2) host->timeout_clk < 2^16
+	 *     =>
+	 *     (1) / (2) > 2^6
+	 */
+	count = 0;
+	current_timeout = (1 << 13) * 1000 / host->timeout_clk;
+	while (current_timeout < target_timeout) {
+		count++;
+		current_timeout <<= 1;
+		if (count >= 0xF)
+			break;
+	}
+
+	if (count >= 0xF) {
+		printk(KERN_WARNING "%s: Too large timeout requested!\n",
+			mmc_hostname(host->mmc));
+		count = 0xE;
+	}
+
+	writeb(count, host->ioaddr + SDHCI_TIMEOUT_CONTROL);
 
 	if (host->flags & SDHCI_USE_DMA) {
 		int count;
@@ -302,12 +413,37 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 		host->offset = 0;
 		host->remain = host->cur_sg->length;
 	}
+
+	/* We do not handle DMA boundaries, so set it to max (512 KiB) */
+	writew(SDHCI_MAKE_BLKSZ(7, data->blksz),
+		host->ioaddr + SDHCI_BLOCK_SIZE);
+	writew(data->blocks, host->ioaddr + SDHCI_BLOCK_COUNT);
+}
+
+static void sdhci_set_transfer_mode(struct sdhci_host *host,
+	struct mmc_data *data)
+{
+	u16 mode;
+
+	WARN_ON(host->data);
+
+	if (data == NULL)
+		return;
+
+	mode = SDHCI_TRNS_BLK_CNT_EN;
+	if (data->blocks > 1)
+		mode |= SDHCI_TRNS_MULTI;
+	if (data->flags & MMC_DATA_READ)
+		mode |= SDHCI_TRNS_READ;
+	if (host->flags & SDHCI_USE_DMA)
+		mode |= SDHCI_TRNS_DMA;
+
+	writew(mode, host->ioaddr + SDHCI_TRANSFER_MODE);
 }
 
 static void sdhci_finish_data(struct sdhci_host *host)
 {
 	struct mmc_data *data;
-	u32 intmask;
 	u16 blocks;
 
 	BUG_ON(!host->data);
@@ -318,14 +454,6 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	if (host->flags & SDHCI_USE_DMA) {
 		pci_unmap_sg(host->chip->pdev, data->sg, data->sg_len,
 			(data->flags & MMC_DATA_READ)?PCI_DMA_FROMDEVICE:PCI_DMA_TODEVICE);
-	} else {
-		intmask = readl(host->ioaddr + SDHCI_SIGNAL_ENABLE);
-		intmask &= ~(SDHCI_INT_BUF_EMPTY | SDHCI_INT_BUF_FULL);
-		writel(intmask, host->ioaddr + SDHCI_SIGNAL_ENABLE);
-
-		intmask = readl(host->ioaddr + SDHCI_INT_ENABLE);
-		intmask &= ~(SDHCI_INT_BUF_EMPTY | SDHCI_INT_BUF_FULL);
-		writel(intmask, host->ioaddr + SDHCI_INT_ENABLE);
 	}
 
 	/*
@@ -342,9 +470,7 @@ static void sdhci_finish_data(struct sdhci_host *host)
 			"though there were blocks left. Please report this "
 			"to " BUGMAIL ".\n", mmc_hostname(host->mmc));
 		data->error = MMC_ERR_FAILED;
-	}
-
-	if (host->size != 0) {
+	} else if (host->size != 0) {
 		printk(KERN_ERR "%s: %d bytes were left untransferred. "
 			"Please report this to " BUGMAIL ".\n",
 			mmc_hostname(host->mmc), host->size);
@@ -371,27 +497,38 @@ static void sdhci_finish_data(struct sdhci_host *host)
 static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 {
 	int flags;
-	u32 present;
-	unsigned long max_jiffies;
+	u32 mask;
+	unsigned long timeout;
 
 	WARN_ON(host->cmd);
 
 	DBG("Sending cmd (%x)\n", cmd->opcode);
 
 	/* Wait max 10 ms */
-	max_jiffies = jiffies + (HZ + 99)/100;
-	do {
-		if (time_after(jiffies, max_jiffies)) {
+	timeout = 10;
+
+	mask = SDHCI_CMD_INHIBIT;
+	if ((cmd->data != NULL) || (cmd->flags & MMC_RSP_BUSY))
+		mask |= SDHCI_DATA_INHIBIT;
+
+	/* We shouldn't wait for data inihibit for stop commands, even
+	   though they might use busy signaling */
+	if (host->mrq->data && (cmd == host->mrq->data->stop))
+		mask &= ~SDHCI_DATA_INHIBIT;
+
+	while (readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask) {
+		if (timeout == 0) {
 			printk(KERN_ERR "%s: Controller never released "
-				"inhibit bits. Please report this to "
+				"inhibit bit(s). Please report this to "
 				BUGMAIL ".\n", mmc_hostname(host->mmc));
 			sdhci_dumpregs(host);
 			cmd->error = MMC_ERR_FAILED;
 			tasklet_schedule(&host->finish_tasklet);
 			return;
 		}
-		present = readl(host->ioaddr + SDHCI_PRESENT_STATE);
-	} while (present & (SDHCI_CMD_INHIBIT | SDHCI_DATA_INHIBIT));
+		timeout--;
+		mdelay(1);
+	}
 
 	mod_timer(&host->timer, jiffies + 10 * HZ);
 
@@ -400,6 +537,8 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	sdhci_prepare_data(host, cmd->data);
 
 	writel(cmd->arg, host->ioaddr + SDHCI_ARGUMENT);
+
+	sdhci_set_transfer_mode(host, cmd->data);
 
 	if ((cmd->flags & MMC_RSP_136) && (cmd->flags & MMC_RSP_BUSY)) {
 		printk(KERN_ERR "%s: Unsupported response type! "
@@ -456,31 +595,9 @@ static void sdhci_finish_command(struct sdhci_host *host)
 
 	DBG("Ending cmd (%x)\n", host->cmd->opcode);
 
-	if (host->cmd->data) {
-		u32 intmask;
-
+	if (host->cmd->data)
 		host->data = host->cmd->data;
-
-		if (!(host->flags & SDHCI_USE_DMA)) {
-			/*
-			 * Don't enable the interrupts until now to make sure we
-			 * get stable handling of the FIFO.
-			 */
-			intmask = readl(host->ioaddr + SDHCI_INT_ENABLE);
-			intmask |= SDHCI_INT_BUF_EMPTY | SDHCI_INT_BUF_FULL;
-			writel(intmask, host->ioaddr + SDHCI_INT_ENABLE);
-
-			intmask = readl(host->ioaddr + SDHCI_SIGNAL_ENABLE);
-			intmask |= SDHCI_INT_BUF_EMPTY | SDHCI_INT_BUF_FULL;
-			writel(intmask, host->ioaddr + SDHCI_SIGNAL_ENABLE);
-
-			/*
-			 * The buffer interrupts are to unreliable so we
-			 * start the transfer immediatly.
-			 */
-			sdhci_transfer_pio(host);
-		}
-	} else
+	else
 		tasklet_schedule(&host->finish_tasklet);
 
 	host->cmd = NULL;
@@ -490,7 +607,7 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	int div;
 	u16 clk;
-	unsigned long max_jiffies;
+	unsigned long timeout;
 
 	if (clock == host->clock)
 		return;
@@ -511,23 +628,65 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	writew(clk, host->ioaddr + SDHCI_CLOCK_CONTROL);
 
 	/* Wait max 10 ms */
-	max_jiffies = jiffies + (HZ + 99)/100;
-	do {
-		if (time_after(jiffies, max_jiffies)) {
+	timeout = 10;
+	while (!((clk = readw(host->ioaddr + SDHCI_CLOCK_CONTROL))
+		& SDHCI_CLOCK_INT_STABLE)) {
+		if (timeout == 0) {
 			printk(KERN_ERR "%s: Internal clock never stabilised. "
 				"Please report this to " BUGMAIL ".\n",
 				mmc_hostname(host->mmc));
 			sdhci_dumpregs(host);
 			return;
 		}
-		clk = readw(host->ioaddr + SDHCI_CLOCK_CONTROL);
-	} while (!(clk & SDHCI_CLOCK_INT_STABLE));
+		timeout--;
+		mdelay(1);
+	}
 
 	clk |= SDHCI_CLOCK_CARD_EN;
 	writew(clk, host->ioaddr + SDHCI_CLOCK_CONTROL);
 
 out:
 	host->clock = clock;
+}
+
+static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
+{
+	u8 pwr;
+
+	if (host->power == power)
+		return;
+
+	writeb(0, host->ioaddr + SDHCI_POWER_CONTROL);
+
+	if (power == (unsigned short)-1)
+		goto out;
+
+	pwr = SDHCI_POWER_ON;
+
+	switch (power) {
+	case MMC_VDD_170:
+	case MMC_VDD_180:
+	case MMC_VDD_190:
+		pwr |= SDHCI_POWER_180;
+		break;
+	case MMC_VDD_290:
+	case MMC_VDD_300:
+	case MMC_VDD_310:
+		pwr |= SDHCI_POWER_300;
+		break;
+	case MMC_VDD_320:
+	case MMC_VDD_330:
+	case MMC_VDD_340:
+		pwr |= SDHCI_POWER_330;
+		break;
+	default:
+		BUG();
+	}
+
+	writeb(pwr, host->ioaddr + SDHCI_POWER_CONTROL);
+
+out:
+	host->power = power;
 }
 
 /*****************************************************************************\
@@ -576,17 +735,15 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	 */
 	if (ios->power_mode == MMC_POWER_OFF) {
 		writel(0, host->ioaddr + SDHCI_SIGNAL_ENABLE);
-		spin_unlock_irqrestore(&host->lock, flags);
 		sdhci_init(host);
-		spin_lock_irqsave(&host->lock, flags);
 	}
 
 	sdhci_set_clock(host, ios->clock);
 
 	if (ios->power_mode == MMC_POWER_OFF)
-		writeb(0, host->ioaddr + SDHCI_POWER_CONTROL);
+		sdhci_set_power(host, -1);
 	else
-		writeb(0xFF, host->ioaddr + SDHCI_POWER_CONTROL);
+		sdhci_set_power(host, ios->vdd);
 
 	ctrl = readb(host->ioaddr + SDHCI_HOST_CONTROL);
 	if (ios->bus_width == MMC_BUS_WIDTH_4)
@@ -679,6 +836,19 @@ static void sdhci_tasklet_finish(unsigned long param)
 	if ((mrq->cmd->error != MMC_ERR_NONE) ||
 		(mrq->data && ((mrq->data->error != MMC_ERR_NONE) ||
 		(mrq->data->stop && (mrq->data->stop->error != MMC_ERR_NONE))))) {
+
+		/* Some controllers need this kick or reset won't work here */
+		if (host->chip->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET) {
+			unsigned int clock;
+
+			/* This is to force an update */
+			clock = host->clock;
+			host->clock = 0;
+			sdhci_set_clock(host, clock);
+		}
+
+		/* Spec says we should do both at the same time, but Ricoh
+		   controllers do not like that. */
 		sdhci_reset(host, SDHCI_RESET_CMD);
 		sdhci_reset(host, SDHCI_RESET_DATA);
 	}
@@ -793,7 +963,7 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 	if (host->data->error != MMC_ERR_NONE)
 		sdhci_finish_data(host);
 	else {
-		if (intmask & (SDHCI_INT_BUF_FULL | SDHCI_INT_BUF_EMPTY))
+		if (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL))
 			sdhci_transfer_pio(host);
 
 		if (intmask & SDHCI_INT_DATA_END)
@@ -818,50 +988,44 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id, struct pt_regs *regs)
 
 	DBG("*** %s got interrupt: 0x%08x\n", host->slot_descr, intmask);
 
-	if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE))
+	if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE)) {
+		writel(intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE),
+			host->ioaddr + SDHCI_INT_STATUS);
 		tasklet_schedule(&host->card_tasklet);
+	}
+
+	intmask &= ~(SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE);
 
 	if (intmask & SDHCI_INT_CMD_MASK) {
-		sdhci_cmd_irq(host, intmask & SDHCI_INT_CMD_MASK);
-
 		writel(intmask & SDHCI_INT_CMD_MASK,
 			host->ioaddr + SDHCI_INT_STATUS);
+		sdhci_cmd_irq(host, intmask & SDHCI_INT_CMD_MASK);
 	}
 
 	if (intmask & SDHCI_INT_DATA_MASK) {
-		sdhci_data_irq(host, intmask & SDHCI_INT_DATA_MASK);
-
 		writel(intmask & SDHCI_INT_DATA_MASK,
 			host->ioaddr + SDHCI_INT_STATUS);
+		sdhci_data_irq(host, intmask & SDHCI_INT_DATA_MASK);
 	}
 
 	intmask &= ~(SDHCI_INT_CMD_MASK | SDHCI_INT_DATA_MASK);
 
-	if (intmask & SDHCI_INT_CARD_INT) {
-		printk(KERN_ERR "%s: Unexpected card interrupt. Please "
-			"report this to " BUGMAIL ".\n",
-			mmc_hostname(host->mmc));
-		sdhci_dumpregs(host);
-	}
-
 	if (intmask & SDHCI_INT_BUS_POWER) {
-		printk(KERN_ERR "%s: Unexpected bus power interrupt. Please "
-			"report this to " BUGMAIL ".\n",
+		printk(KERN_ERR "%s: Card is consuming too much power!\n",
 			mmc_hostname(host->mmc));
-		sdhci_dumpregs(host);
+		writel(SDHCI_INT_BUS_POWER, host->ioaddr + SDHCI_INT_STATUS);
 	}
 
-	if (intmask & SDHCI_INT_ACMD12ERR) {
-		printk(KERN_ERR "%s: Unexpected auto CMD12 error. Please "
+	intmask &= SDHCI_INT_BUS_POWER;
+
+	if (intmask) {
+		printk(KERN_ERR "%s: Unexpected interrupt 0x%08x. Please "
 			"report this to " BUGMAIL ".\n",
-			mmc_hostname(host->mmc));
+			mmc_hostname(host->mmc), intmask);
 		sdhci_dumpregs(host);
 
-		writew(~0, host->ioaddr + SDHCI_ACMD12_ERR);
-	}
-
-	if (intmask)
 		writel(intmask, host->ioaddr + SDHCI_INT_STATUS);
+	}
 
 	result = IRQ_HANDLED;
 
@@ -954,6 +1118,7 @@ static int sdhci_resume (struct pci_dev *pdev)
 static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 {
 	int ret;
+	unsigned int version;
 	struct sdhci_chip *chip;
 	struct mmc_host *mmc;
 	struct sdhci_host *host;
@@ -985,6 +1150,16 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		return -ENODEV;
 	}
 
+	if ((pdev->class & 0x0000FF) == PCI_SDHCI_IFVENDOR) {
+		printk(KERN_ERR DRIVER_NAME ": Vendor specific interface. Aborting.\n");
+		return -ENODEV;
+	}
+
+	if ((pdev->class & 0x0000FF) > PCI_SDHCI_IFVENDOR) {
+		printk(KERN_ERR DRIVER_NAME ": Unknown interface. Aborting.\n");
+		return -ENODEV;
+	}
+
 	mmc = mmc_alloc_host(sizeof(struct sdhci_host), &pdev->dev);
 	if (!mmc)
 		return -ENOMEM;
@@ -1012,9 +1187,32 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		goto release;
 	}
 
+	sdhci_reset(host, SDHCI_RESET_ALL);
+
+	version = readw(host->ioaddr + SDHCI_HOST_VERSION);
+	version = (version & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;
+	if (version != 0) {
+		printk(KERN_ERR "%s: Unknown controller version (%d). "
+			"Cowardly refusing to continue.\n", host->slot_descr,
+			version);
+		ret = -ENODEV;
+		goto unmap;
+	}
+
 	caps = readl(host->ioaddr + SDHCI_CAPABILITIES);
 
-	if ((caps & SDHCI_CAN_DO_DMA) && ((pdev->class & 0x0000FF) == 0x01))
+	if (debug_nodma)
+		DBG("DMA forced off\n");
+	else if (debug_forcedma) {
+		DBG("DMA forced on\n");
+		host->flags |= SDHCI_USE_DMA;
+	} else if (chip->quirks & SDHCI_QUIRK_FORCE_DMA)
+		host->flags |= SDHCI_USE_DMA;
+	else if ((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA)
+		DBG("Controller doesn't have DMA interface\n");
+	else if (!(caps & SDHCI_CAN_DO_DMA))
+		DBG("Controller doesn't have DMA capability\n");
+	else
 		host->flags |= SDHCI_USE_DMA;
 
 	if (host->flags & SDHCI_USE_DMA) {
@@ -1030,8 +1228,35 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	else /* XXX: Hack to get MMC layer to avoid highmem */
 		pdev->dma_mask = 0;
 
-	host->max_clk = (caps & SDHCI_CLOCK_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT;
+	host->max_clk =
+		(caps & SDHCI_CLOCK_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT;
+	if (host->max_clk == 0) {
+		printk(KERN_ERR "%s: Hardware doesn't specify base clock "
+			"frequency.\n", host->slot_descr);
+		ret = -ENODEV;
+		goto unmap;
+	}
 	host->max_clk *= 1000000;
+
+	host->timeout_clk =
+		(caps & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
+	if (host->timeout_clk == 0) {
+		printk(KERN_ERR "%s: Hardware doesn't specify timeout clock "
+			"frequency.\n", host->slot_descr);
+		ret = -ENODEV;
+		goto unmap;
+	}
+	if (caps & SDHCI_TIMEOUT_CLK_UNIT)
+		host->timeout_clk *= 1000;
+
+	host->max_block = (caps & SDHCI_MAX_BLOCK_MASK) >> SDHCI_MAX_BLOCK_SHIFT;
+	if (host->max_block >= 3) {
+		printk(KERN_ERR "%s: Invalid maximum block size.\n",
+			host->slot_descr);
+		ret = -ENODEV;
+		goto unmap;
+	}
+	host->max_block = 512 << host->max_block;
 
 	/*
 	 * Set host parameters.
@@ -1039,8 +1264,22 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	mmc->ops = &sdhci_ops;
 	mmc->f_min = host->max_clk / 256;
 	mmc->f_max = host->max_clk;
-	mmc->ocr_avail = MMC_VDD_32_33|MMC_VDD_33_34;
 	mmc->caps = MMC_CAP_4_BIT_DATA;
+
+	mmc->ocr_avail = 0;
+	if (caps & SDHCI_CAN_VDD_330)
+		mmc->ocr_avail |= MMC_VDD_32_33|MMC_VDD_33_34;
+	else if (caps & SDHCI_CAN_VDD_300)
+		mmc->ocr_avail |= MMC_VDD_29_30|MMC_VDD_30_31;
+	else if (caps & SDHCI_CAN_VDD_180)
+		mmc->ocr_avail |= MMC_VDD_17_18|MMC_VDD_18_19;
+
+	if (mmc->ocr_avail == 0) {
+		printk(KERN_ERR "%s: Hardware doesn't report any "
+			"support voltages.\n", host->slot_descr);
+		ret = -ENODEV;
+		goto unmap;
+	}
 
 	spin_lock_init(&host->lock);
 
@@ -1054,10 +1293,10 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	mmc->max_phys_segs = 16;
 
 	/*
-	 * Maximum number of sectors in one transfer. Limited by sector
-	 * count register.
+	 * Maximum number of sectors in one transfer. Limited by DMA boundary
+	 * size (512KiB), which means (512 KiB/512=) 1024 entries.
 	 */
-	mmc->max_sectors = 0x3FFF;
+	mmc->max_sectors = 1024;
 
 	/*
 	 * Maximum segment size. Could be one segment with the maximum number
@@ -1075,10 +1314,10 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	setup_timer(&host->timer, sdhci_timeout_timer, (long)host);
 
-	ret = request_irq(host->irq, sdhci_irq, SA_SHIRQ,
+	ret = request_irq(host->irq, sdhci_irq, IRQF_SHARED,
 		host->slot_descr, host);
 	if (ret)
-		goto unmap;
+		goto untasklet;
 
 	sdhci_init(host);
 
@@ -1097,10 +1336,10 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	return 0;
 
-unmap:
+untasklet:
 	tasklet_kill(&host->card_tasklet);
 	tasklet_kill(&host->finish_tasklet);
-
+unmap:
 	iounmap(host->ioaddr);
 release:
 	pci_release_region(pdev, host->bar);
@@ -1144,13 +1383,18 @@ static int __devinit sdhci_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	int ret, i;
-	u8 slots;
+	u8 slots, rev;
 	struct sdhci_chip *chip;
 
 	BUG_ON(pdev == NULL);
 	BUG_ON(ent == NULL);
 
-	DBG("found at %s\n", pci_name(pdev));
+	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &rev);
+
+	printk(KERN_INFO DRIVER_NAME
+		": SDHCI controller found at %s [%04x:%04x] (rev %x)\n",
+		pci_name(pdev), (int)pdev->vendor, (int)pdev->device,
+		(int)rev);
 
 	ret = pci_read_config_byte(pdev, PCI_SLOT_INFO, &slots);
 	if (ret)
@@ -1173,6 +1417,10 @@ static int __devinit sdhci_probe(struct pci_dev *pdev,
 	}
 
 	chip->pdev = pdev;
+	chip->quirks = ent->driver_data;
+
+	if (debug_quirks)
+		chip->quirks = debug_quirks;
 
 	chip->num_slots = slots;
 	pci_set_drvdata(pdev, chip);
@@ -1251,7 +1499,15 @@ static void __exit sdhci_drv_exit(void)
 module_init(sdhci_drv_init);
 module_exit(sdhci_drv_exit);
 
+module_param(debug_nodma, uint, 0444);
+module_param(debug_forcedma, uint, 0444);
+module_param(debug_quirks, uint, 0444);
+
 MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Secure Digital Host Controller Interface driver");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
+
+MODULE_PARM_DESC(debug_nodma, "Forcefully disable DMA transfers. (default 0)");
+MODULE_PARM_DESC(debug_forcedma, "Forcefully enable DMA transfers. (default 0)");
+MODULE_PARM_DESC(debug_quirks, "Force certain quirks.");

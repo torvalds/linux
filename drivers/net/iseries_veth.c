@@ -56,7 +56,6 @@
  * number of packets outstanding to a remote partition at a time.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>

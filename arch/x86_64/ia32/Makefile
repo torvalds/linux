@@ -11,6 +11,9 @@ obj-$(CONFIG_IA32_EMULATION) += $(sysv-y)
 
 obj-$(CONFIG_IA32_AOUT) += ia32_aout.o
 
+audit-class-$(CONFIG_AUDIT) := audit.o
+obj-$(CONFIG_IA32_EMULATION) += $(audit-class-y)
+
 $(obj)/syscall32_syscall.o: \
 	$(foreach F,sysenter syscall,$(obj)/vsyscall-$F.so)
 

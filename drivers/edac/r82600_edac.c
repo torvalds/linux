@@ -15,7 +15,6 @@
  * references to this document given in []
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -23,7 +22,8 @@
 #include <linux/slab.h>
 #include "edac_mc.h"
 
-#define R82600_REVISION	" Ver: 2.0.0 " __DATE__
+#define R82600_REVISION	" Ver: 2.0.1 " __DATE__
+#define EDAC_MOD_STR	"r82600_edac"
 
 #define r82600_printk(level, fmt, arg...) \
 	edac_printk(level, "r82600", fmt, ##arg)

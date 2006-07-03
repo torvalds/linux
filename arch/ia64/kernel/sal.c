@@ -6,7 +6,6 @@
  * Copyright (C) 1999 VA Linux Systems
  * Copyright (C) 1999 Walt Drummond <drummond@valinux.com>
  */
-#include <linux/config.h>
 
 #include <linux/kernel.h>
 #include <linux/init.h>

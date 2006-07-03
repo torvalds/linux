@@ -21,7 +21,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>

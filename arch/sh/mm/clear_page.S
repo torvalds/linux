@@ -6,7 +6,6 @@
  * Copyright (C) 2001, 2002  Niibe Yutaka
  *
  */
-#include <linux/config.h>
 #include <linux/linkage.h>
 
 /*

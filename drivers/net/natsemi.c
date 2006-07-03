@@ -138,7 +138,6 @@
 	* big endian support with CFG:BEM instead of cpu_to_le32
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -1575,7 +1574,7 @@ static int netdev_open(struct net_device *dev)
 	/* Reset the chip, just in case. */
 	natsemi_reset(dev);
 
-	i = request_irq(dev->irq, &intr_handler, SA_SHIRQ, dev->name, dev);
+	i = request_irq(dev->irq, &intr_handler, IRQF_SHARED, dev->name, dev);
 	if (i) return i;
 
 	if (netif_msg_ifup(np))

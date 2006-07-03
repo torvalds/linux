@@ -12,7 +12,6 @@
  * to the pair and can be looked up from userspace.
  */
 
-#include <linux/config.h>
 #include <linux/syscalls.h>
 #include <linux/module.h>
 #include <linux/slab.h>

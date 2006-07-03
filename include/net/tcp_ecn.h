@@ -55,9 +55,7 @@ static inline void TCP_ECN_send(struct sock *sk, struct tcp_sock *tp,
 			if (tp->ecn_flags&TCP_ECN_QUEUE_CWR) {
 				tp->ecn_flags &= ~TCP_ECN_QUEUE_CWR;
 				skb->h.th->cwr = 1;
-				if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4)
-					skb_shinfo(skb)->gso_type |=
-						SKB_GSO_TCPV4_ECN;
+				skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
 			}
 		} else {
 			/* ACK or retransmitted segment: clear ECT|CE */

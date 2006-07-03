@@ -25,7 +25,6 @@
  * Copyright (c) 2004-2006 Macq Electronique SA.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

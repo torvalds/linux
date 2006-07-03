@@ -12,7 +12,6 @@
  *  (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <asm/div64.h>

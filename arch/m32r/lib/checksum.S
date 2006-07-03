@@ -28,7 +28,6 @@
 /* $Id$ */
 
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/errno.h>

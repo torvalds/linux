@@ -140,6 +140,7 @@ struct sock_common {
   *	@sk_flags: %SO_LINGER (l_onoff), %SO_BROADCAST, %SO_KEEPALIVE, %SO_OOBINLINE settings
   *	@sk_no_check: %SO_NO_CHECK setting, wether or not checkup packets
   *	@sk_route_caps: route capabilities (e.g. %NETIF_F_TSO)
+  *	@sk_gso_type: GSO type (e.g. %SKB_GSO_TCPV4)
   *	@sk_lingertime: %SO_LINGER l_linger setting
   *	@sk_backlog: always used with the per-socket spinlock held
   *	@sk_callback_lock: used with the callbacks in the end of this struct
@@ -211,6 +212,7 @@ struct sock {
 	gfp_t			sk_allocation;
 	int			sk_sndbuf;
 	int			sk_route_caps;
+	int			sk_gso_type;
 	int			sk_rcvlowat;
 	unsigned long 		sk_flags;
 	unsigned long	        sk_lingertime;
@@ -1025,15 +1027,20 @@ extern struct dst_entry *__sk_dst_check(struct sock *sk, u32 cookie);
 
 extern struct dst_entry *sk_dst_check(struct sock *sk, u32 cookie);
 
+static inline int sk_can_gso(const struct sock *sk)
+{
+	return net_gso_ok(sk->sk_route_caps, sk->sk_gso_type);
+}
+
 static inline void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 {
 	__sk_dst_set(sk, dst);
 	sk->sk_route_caps = dst->dev->features;
 	if (sk->sk_route_caps & NETIF_F_GSO)
-		sk->sk_route_caps |= NETIF_F_TSO;
-	if (sk->sk_route_caps & NETIF_F_TSO) {
+		sk->sk_route_caps |= NETIF_F_GSO_MASK;
+	if (sk_can_gso(sk)) {
 		if (dst->header_len)
-			sk->sk_route_caps &= ~NETIF_F_TSO;
+			sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
 		else 
 			sk->sk_route_caps |= NETIF_F_SG | NETIF_F_HW_CSUM;
 	}

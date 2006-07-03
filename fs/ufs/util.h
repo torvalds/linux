@@ -251,6 +251,14 @@ extern void _ubh_ubhcpymem_(struct ufs_sb_private_info *, unsigned char *, struc
 #define ubh_memcpyubh(ubh,mem,size) _ubh_memcpyubh_(uspi,ubh,mem,size)
 extern void _ubh_memcpyubh_(struct ufs_sb_private_info *, struct ufs_buffer_head *, unsigned char *, unsigned);
 
+/* This functions works with cache pages*/
+extern struct page *ufs_get_locked_page(struct address_space *mapping,
+					pgoff_t index);
+static inline void ufs_put_locked_page(struct page *page)
+{
+       unlock_page(page);
+       page_cache_release(page);
+}
 
 
 /*

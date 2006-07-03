@@ -724,7 +724,7 @@ static int __devinit snd_als300_create(snd_card_t *card,
 	else
 		irq_handler = snd_als300_interrupt;
 
-	if (request_irq(pci->irq, irq_handler, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq(pci->irq, irq_handler, IRQF_DISABLED|IRQF_SHARED,
 					card->shortname, (void *)chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_als300_free(chip);

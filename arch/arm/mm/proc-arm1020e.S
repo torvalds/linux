@@ -26,7 +26,6 @@
  *  CONFIG_CPU_ARM1020_CPU_IDLE -> nohlt
  */
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
@@ -422,11 +421,11 @@ __arm1020e_setup:
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7		@ invalidate I,D TLBs on v4
 #endif
+	adr	r5, arm1020e_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
-	ldr	r5, arm1020e_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, arm1020e_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 #ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
 	orr	r0, r0, #0x4000 		@ .R.. .... .... ....
 #endif
@@ -438,12 +437,9 @@ __arm1020e_setup:
 	 * .RVI ZFRS BLDP WCAM
 	 * .011 1001 ..11 0101
 	 */
-	.type	arm1020e_cr1_clear, #object
-	.type	arm1020e_cr1_set, #object
-arm1020e_cr1_clear:
-	.word	0x5f3f
-arm1020e_cr1_set:
-	.word	0x3935
+	.type	arm1020e_crval, #object
+arm1020e_crval:
+	crval	clear=0x00007f3f, mmuset=0x00003935, ucset=0x00001930
 
 	__INITDATA
 
@@ -477,25 +473,7 @@ cpu_elf_name:
 
 	.type	cpu_arm1020e_name, #object
 cpu_arm1020e_name:
-	.ascii	"ARM1020E"
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	.ascii	"i"
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	.ascii	"d"
-#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
-	.ascii	"(wt)"
-#else
-	.ascii	"(wb)"
-#endif
-#endif
-#ifndef CONFIG_CPU_BPREDICT_DISABLE
-	.ascii	"B"
-#endif
-#ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
-	.ascii	"RR"
-#endif
-	.ascii	"\0"
+	.asciz	"ARM1020E"
 	.size	cpu_arm1020e_name, . - cpu_arm1020e_name
 
 	.align
@@ -506,6 +484,10 @@ cpu_arm1020e_name:
 __arm1020e_proc_info:
 	.long	0x4105a200			@ ARM 1020TE (Architecture v5TE)
 	.long	0xff0ffff0
+	.long   PMD_TYPE_SECT | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	.long   PMD_TYPE_SECT | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \

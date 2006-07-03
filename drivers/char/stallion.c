@@ -26,7 +26,6 @@
 
 /*****************************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -2303,7 +2302,7 @@ static inline int stl_initeio(stlbrd_t *brdp)
 	brdp->nrpanels = 1;
 	brdp->state |= BRD_FOUND;
 	brdp->hwid = status;
-	if (request_irq(brdp->irq, stl_intr, SA_SHIRQ, name, brdp) != 0) {
+	if (request_irq(brdp->irq, stl_intr, IRQF_SHARED, name, brdp) != 0) {
 		printk("STALLION: failed to register interrupt "
 		    "routine for %s irq=%d\n", name, brdp->irq);
 		rc = -ENODEV;
@@ -2513,7 +2512,7 @@ static inline int stl_initech(stlbrd_t *brdp)
 		outb((brdp->ioctrlval | ECH_BRDDISABLE), brdp->ioctrl);
 
 	brdp->state |= BRD_FOUND;
-	if (request_irq(brdp->irq, stl_intr, SA_SHIRQ, name, brdp) != 0) {
+	if (request_irq(brdp->irq, stl_intr, IRQF_SHARED, name, brdp) != 0) {
 		printk("STALLION: failed to register interrupt "
 		    "routine for %s irq=%d\n", name, brdp->irq);
 		i = -ENODEV;

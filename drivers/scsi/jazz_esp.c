@@ -131,7 +131,7 @@ static int jazz_esp_detect(struct scsi_host_template *tpnt)
 	esp->esp_command_dvma = vdma_alloc(CPHYSADDR(cmd_buffer), sizeof (cmd_buffer));
 	
 	esp->irq = JAZZ_SCSI_IRQ;
-	request_irq(JAZZ_SCSI_IRQ, esp_intr, SA_INTERRUPT, "JAZZ SCSI",
+	request_irq(JAZZ_SCSI_IRQ, esp_intr, IRQF_DISABLED, "JAZZ SCSI",
 	            esp->ehost);
 
 	/*

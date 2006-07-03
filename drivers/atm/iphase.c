@@ -2488,7 +2488,7 @@ static int __devinit ia_start(struct atm_dev *dev)
 	u32 ctrl_reg;  
 	IF_EVENT(printk(">ia_start\n");)  
 	iadev = INPH_IA_DEV(dev);  
-        if (request_irq(iadev->irq, &ia_int, SA_SHIRQ, DEV_LABEL, dev)) {  
+        if (request_irq(iadev->irq, &ia_int, IRQF_SHARED, DEV_LABEL, dev)) {
                 printk(KERN_ERR DEV_LABEL "(itf %d): IRQ%d is already in use\n",  
                     dev->number, iadev->irq);  
 		error = -EAGAIN;

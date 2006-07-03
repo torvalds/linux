@@ -9,7 +9,6 @@
  * Machine vector for the Hitachi 7751 SolutionEngine
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/machvec.h>

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -31,7 +32,7 @@
  */
 
 #include "ipath_verbs.h"
-#include "ips_common.h"
+#include "ipath_common.h"
 
 /* cut down ridiculously long IB macro names */
 #define OP(x) IB_OPCODE_UC_##x
@@ -61,90 +62,40 @@ static void complete_last_send(struct ipath_qp *qp, struct ipath_swqe *wqe,
 }
 
 /**
- * ipath_do_uc_send - do a send on a UC queue
- * @data: contains a pointer to the QP to send on
+ * ipath_make_uc_req - construct a request packet (SEND, RDMA write)
+ * @qp: a pointer to the QP
+ * @ohdr: a pointer to the IB header being constructed
+ * @pmtu: the path MTU
+ * @bth0p: pointer to the BTH opcode word
+ * @bth2p: pointer to the BTH PSN word
  *
- * Process entries in the send work queue until the queue is exhausted.
- * Only allow one CPU to send a packet per QP (tasklet).
- * Otherwise, after we drop the QP lock, two threads could send
- * packets out of order.
- * This is similar to ipath_do_rc_send() below except we don't have
- * timeouts or resends.
+ * Return 1 if constructed; otherwise, return 0.
+ * Note the QP s_lock must be held and interrupts disabled.
  */
-void ipath_do_uc_send(unsigned long data)
+int ipath_make_uc_req(struct ipath_qp *qp,
+		      struct ipath_other_headers *ohdr,
+		      u32 pmtu, u32 *bth0p, u32 *bth2p)
 {
-	struct ipath_qp *qp = (struct ipath_qp *)data;
-	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
 	struct ipath_swqe *wqe;
-	unsigned long flags;
-	u16 lrh0;
 	u32 hwords;
-	u32 nwords;
-	u32 extra_bytes;
 	u32 bth0;
-	u32 bth2;
-	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
 	u32 len;
-	struct ipath_other_headers *ohdr;
 	struct ib_wc wc;
-
-	if (test_and_set_bit(IPATH_S_BUSY, &qp->s_flags))
-		goto bail;
-
-	if (unlikely(qp->remote_ah_attr.dlid ==
-		     ipath_layer_get_lid(dev->dd))) {
-		/* Pass in an uninitialized ib_wc to save stack space. */
-		ipath_ruc_loopback(qp, &wc);
-		clear_bit(IPATH_S_BUSY, &qp->s_flags);
-		goto bail;
-	}
-
-	ohdr = &qp->s_hdr.u.oth;
-	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
-		ohdr = &qp->s_hdr.u.l.oth;
-
-again:
-	/* Check for a constructed packet to be sent. */
-	if (qp->s_hdrwords != 0) {
-			/*
-			 * If no PIO bufs are available, return.
-			 * An interrupt will call ipath_ib_piobufavail()
-			 * when one is available.
-			 */
-			if (ipath_verbs_send(dev->dd, qp->s_hdrwords,
-					     (u32 *) &qp->s_hdr,
-					     qp->s_cur_size,
-					     qp->s_cur_sge)) {
-				ipath_no_bufs_available(qp, dev);
-				goto bail;
-			}
-			dev->n_unicast_xmit++;
-		/* Record that we sent the packet and s_hdr is empty. */
-		qp->s_hdrwords = 0;
-	}
-
-	lrh0 = IPS_LRH_BTH;
-	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
-	hwords = 5;
-
-	/*
-	 * The lock is needed to synchronize between
-	 * setting qp->s_ack_state and post_send().
-	 */
-	spin_lock_irqsave(&qp->s_lock, flags);
 
 	if (!(ib_ipath_state_ops[qp->state] & IPATH_PROCESS_SEND_OK))
 		goto done;
 
-	bth0 = ipath_layer_get_pkey(dev->dd, qp->s_pkey_index);
+	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
+	hwords = 5;
+	bth0 = 0;
 
-	/* Send a request. */
+	/* Get the next send request. */
 	wqe = get_swqe_ptr(qp, qp->s_last);
 	switch (qp->s_state) {
 	default:
 		/*
-		 * Signal the completion of the last send (if there is
-		 * one).
+		 * Signal the completion of the last send
+		 * (if there is one).
 		 */
 		if (qp->s_last != qp->s_tail)
 			complete_last_send(qp, wqe, &wc);
@@ -257,61 +208,16 @@ again:
 		}
 		break;
 	}
-	bth2 = qp->s_next_psn++ & IPS_PSN_MASK;
 	qp->s_len -= len;
-	bth0 |= qp->s_state << 24;
-
-	spin_unlock_irqrestore(&qp->s_lock, flags);
-
-	/* Construct the header. */
-	extra_bytes = (4 - len) & 3;
-	nwords = (len + extra_bytes) >> 2;
-	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
-		/* Header size in 32-bit words. */
-		hwords += 10;
-		lrh0 = IPS_LRH_GRH;
-		qp->s_hdr.u.l.grh.version_tclass_flow =
-			cpu_to_be32((6 << 28) |
-				    (qp->remote_ah_attr.grh.traffic_class
-				     << 20) |
-				    qp->remote_ah_attr.grh.flow_label);
-		qp->s_hdr.u.l.grh.paylen =
-			cpu_to_be16(((hwords - 12) + nwords +
-				     SIZE_OF_CRC) << 2);
-		/* next_hdr is defined by C8-7 in ch. 8.4.1 */
-		qp->s_hdr.u.l.grh.next_hdr = 0x1B;
-		qp->s_hdr.u.l.grh.hop_limit =
-			qp->remote_ah_attr.grh.hop_limit;
-		/* The SGID is 32-bit aligned. */
-		qp->s_hdr.u.l.grh.sgid.global.subnet_prefix =
-			dev->gid_prefix;
-		qp->s_hdr.u.l.grh.sgid.global.interface_id =
-			ipath_layer_get_guid(dev->dd);
-		qp->s_hdr.u.l.grh.dgid = qp->remote_ah_attr.grh.dgid;
-	}
 	qp->s_hdrwords = hwords;
 	qp->s_cur_sge = &qp->s_sge;
 	qp->s_cur_size = len;
-	lrh0 |= qp->remote_ah_attr.sl << 4;
-	qp->s_hdr.lrh[0] = cpu_to_be16(lrh0);
-	/* DEST LID */
-	qp->s_hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
-	qp->s_hdr.lrh[2] = cpu_to_be16(hwords + nwords + SIZE_OF_CRC);
-	qp->s_hdr.lrh[3] = cpu_to_be16(ipath_layer_get_lid(dev->dd));
-	bth0 |= extra_bytes << 20;
-	ohdr->bth[0] = cpu_to_be32(bth0);
-	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
-	ohdr->bth[2] = cpu_to_be32(bth2);
-
-	/* Check for more work to do. */
-	goto again;
+	*bth0p = bth0 | (qp->s_state << 24);
+	*bth2p = qp->s_next_psn++ & IPATH_PSN_MASK;
+	return 1;
 
 done:
-	spin_unlock_irqrestore(&qp->s_lock, flags);
-	clear_bit(IPATH_S_BUSY, &qp->s_flags);
-
-bail:
-	return;
+	return 0;
 }
 
 /**
@@ -335,7 +241,6 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	u32 hdrsize;
 	u32 psn;
 	u32 pad;
-	unsigned long flags;
 	struct ib_wc wc;
 	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
 	struct ib_reth *reth;
@@ -372,8 +277,6 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 
 	wc.imm_data = 0;
 	wc.wc_flags = 0;
-
-	spin_lock_irqsave(&qp->r_rq.lock, flags);
 
 	/* Compare the PSN verses the expected PSN. */
 	if (unlikely(ipath_cmp24(psn, qp->r_psn) != 0)) {
@@ -535,12 +438,13 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		if (qp->r_len != 0) {
 			u32 rkey = be32_to_cpu(reth->rkey);
 			u64 vaddr = be64_to_cpu(reth->vaddr);
+			int ok;
 
 			/* Check rkey */
-			if (unlikely(!ipath_rkey_ok(
-					     dev, &qp->r_sge, qp->r_len,
-					     vaddr, rkey,
-					     IB_ACCESS_REMOTE_WRITE))) {
+			ok = ipath_rkey_ok(dev, &qp->r_sge, qp->r_len,
+					   vaddr, rkey,
+					   IB_ACCESS_REMOTE_WRITE);
+			if (unlikely(!ok)) {
 				dev->n_pkt_drops++;
 				goto done;
 			}
@@ -558,8 +462,7 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		}
 		if (opcode == OP(RDMA_WRITE_ONLY))
 			goto rdma_last;
-		else if (opcode ==
-			 OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE))
+		else if (opcode == OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE))
 			goto rdma_last_imm;
 		/* FALLTHROUGH */
 	case OP(RDMA_WRITE_MIDDLE):
@@ -592,9 +495,9 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			dev->n_pkt_drops++;
 			goto done;
 		}
-		if (qp->r_reuse_sge) {
+		if (qp->r_reuse_sge)
 			qp->r_reuse_sge = 0;
-		} else if (!ipath_get_rwqe(qp, 1)) {
+		else if (!ipath_get_rwqe(qp, 1)) {
 			dev->n_pkt_drops++;
 			goto done;
 		}
@@ -631,15 +534,11 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 
 	default:
 		/* Drop packet for unknown opcodes. */
-		spin_unlock_irqrestore(&qp->r_rq.lock, flags);
 		dev->n_pkt_drops++;
-		goto bail;
+		goto done;
 	}
 	qp->r_psn++;
 	qp->r_state = opcode;
 done:
-	spin_unlock_irqrestore(&qp->r_rq.lock, flags);
-
-bail:
 	return;
 }

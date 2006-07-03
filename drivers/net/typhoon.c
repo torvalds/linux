@@ -2131,7 +2131,7 @@ typhoon_open(struct net_device *dev)
 		goto out_sleep;
 	}
 
-	err = request_irq(dev->irq, &typhoon_interrupt, SA_SHIRQ,
+	err = request_irq(dev->irq, &typhoon_interrupt, IRQF_SHARED,
 				dev->name, dev);
 	if(err < 0)
 		goto out_sleep;

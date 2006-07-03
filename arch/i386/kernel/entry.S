@@ -40,7 +40,6 @@
  * "current" is in register %ebx during any slow entries.
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/errno.h>

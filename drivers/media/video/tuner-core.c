@@ -416,7 +416,7 @@ static void tuner_status(struct i2c_client *client)
 
 /* ---------------------------------------------------------------------- */
 
-/* static var Used only in tuner_attach and tuner_probe */
+/* static vars: used only in tuner_attach and tuner_probe */
 static unsigned default_mode_mask;
 
 /* During client attach, set_type is called by adapter's attach_inform callback.
@@ -608,13 +608,13 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		tuner_dbg("VIDIOCSAUDIO not implemented.\n");
 		break;
 	case TDA9887_SET_CONFIG:
-	{
-		int *i = arg;
+		if (t->type == TUNER_TDA9887) {
+			int *i = arg;
 
-		t->tda9887_config = *i;
-		set_freq(client, t->tv_freq);
+			t->tda9887_config = *i;
+			set_freq(client, t->tv_freq);
+		}
 		break;
-	}
 	/* --- v4l ioctls --- */
 	/* take care: bttv does userspace copying, we'll get a
 	   kernel pointer here... */

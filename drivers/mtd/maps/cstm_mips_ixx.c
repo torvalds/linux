@@ -38,7 +38,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
-#include <linux/config.h>
 #include <linux/delay.h>
 
 #if defined(CONFIG_MIPS_ITE8172) || defined(CONFIG_MIPS_IVR)

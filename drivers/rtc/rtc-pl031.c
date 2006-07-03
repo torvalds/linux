@@ -173,7 +173,7 @@ static int pl031_probe(struct amba_device *adev, void *id)
 		goto out_no_remap;
 	}
 
-	if (request_irq(adev->irq[0], pl031_interrupt, SA_INTERRUPT,
+	if (request_irq(adev->irq[0], pl031_interrupt, IRQF_DISABLED,
 			"rtc-pl031", ldata->rtc)) {
 		ret = -EIO;
 		goto out_no_irq;

@@ -637,7 +637,7 @@ static inline void soc_init(struct sbus_dev *sdev, int no)
 	
 	irq = sdev->irqs[0];
 
-	if (request_irq (irq, soc_intr, SA_SHIRQ, "SOC", (void *)s)) {
+	if (request_irq (irq, soc_intr, IRQF_SHARED, "SOC", (void *)s)) {
 		soc_printk ("Cannot order irq %d to go\n", irq);
 		socs = s->next;
 		return;

@@ -9,7 +9,6 @@
  * I like traps on v9, :))))
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/sched.h>  /* for jiffies */
 #include <linux/kernel.h>

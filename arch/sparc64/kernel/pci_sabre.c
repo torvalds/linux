@@ -854,14 +854,14 @@ static void sabre_register_error_handlers(struct pci_controller_info *p)
 		     SABRE_UEAFSR_SDRD | SABRE_UEAFSR_SDWR |
 		     SABRE_UEAFSR_SDTE | SABRE_UEAFSR_PDTE));
 
-	request_irq(op->irqs[1], sabre_ue_intr, SA_SHIRQ, "SABRE UE", p);
+	request_irq(op->irqs[1], sabre_ue_intr, IRQF_SHARED, "SABRE UE", p);
 
 	sabre_write(base + SABRE_CE_AFSR,
 		    (SABRE_CEAFSR_PDRD | SABRE_CEAFSR_PDWR |
 		     SABRE_CEAFSR_SDRD | SABRE_CEAFSR_SDWR));
 
-	request_irq(op->irqs[2], sabre_ce_intr, SA_SHIRQ, "SABRE CE", p);
-	request_irq(op->irqs[0], sabre_pcierr_intr, SA_SHIRQ,
+	request_irq(op->irqs[2], sabre_ce_intr, IRQF_SHARED, "SABRE CE", p);
+	request_irq(op->irqs[0], sabre_pcierr_intr, IRQF_SHARED,
 		    "SABRE PCIERR", p);
 
 	tmp = sabre_read(base + SABRE_PCICTRL);

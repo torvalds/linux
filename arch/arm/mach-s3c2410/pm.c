@@ -29,7 +29,6 @@
  *     10-Mar-2005 LCVR  Changed S3C2410_VA_UART to S3C24XX_VA_UART
 */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/suspend.h>
 #include <linux/errno.h>

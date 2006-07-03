@@ -31,7 +31,6 @@
  *		Matt Domsch	:	Added nowayout module option
  */
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -581,7 +580,7 @@ static int __init wdt_init(void)
 		goto out;
 	}
 
-	ret = request_irq(irq, wdt_interrupt, SA_INTERRUPT, "wdt501p", NULL);
+	ret = request_irq(irq, wdt_interrupt, IRQF_DISABLED, "wdt501p", NULL);
 	if(ret) {
 		printk(KERN_ERR "wdt: IRQ %d is not free.\n", irq);
 		goto outreg;

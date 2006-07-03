@@ -3599,7 +3599,7 @@ int __devinit snd_trident_create(struct snd_card *card,
 	}
 	trident->port = pci_resource_start(pci, 0);
 
-	if (request_irq(pci->irq, snd_trident_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq(pci->irq, snd_trident_interrupt, IRQF_DISABLED|IRQF_SHARED,
 			"Trident Audio", trident)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_trident_free(trident);

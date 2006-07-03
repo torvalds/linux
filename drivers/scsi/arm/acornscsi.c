@@ -129,7 +129,6 @@
 #define STRx(x) STRINGIFY(x)
 #define NO_WRITE_STR STRx(NO_WRITE)
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -3031,7 +3030,7 @@ acornscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (!request_region(host->io_port, 2048, "acornscsi(ram)"))
 		goto err_5;
 
-	ret = request_irq(host->irq, acornscsi_intr, SA_INTERRUPT, "acornscsi", ashost);
+	ret = request_irq(host->irq, acornscsi_intr, IRQF_DISABLED, "acornscsi", ashost);
 	if (ret) {
 		printk(KERN_CRIT "scsi%d: IRQ%d not free: %d\n",
 			host->host_no, ashost->scsi.irq, ret);

@@ -301,7 +301,7 @@ static int __init snd_gusextreme_probe(struct platform_device *pdev)
 	    (err = snd_mpu401_uart_new(card, 0, MPU401_HW_ES1688,
 					       es1688->mpu_port, 0,
 					       xmpu_irq,
-					       SA_INTERRUPT,
+					       IRQF_DISABLED,
 					       NULL)) < 0)
 		goto out;
 

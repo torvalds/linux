@@ -58,7 +58,7 @@ static u8 *pvr2_eeprom_fetch(struct pvr2_hdw *hdw)
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Failed to allocate memory"
 			   " required to read eeprom");
-		return 0;
+		return NULL;
 	}
 
 	trace_eeprom("Value for eeprom addr from controller was 0x%x",
@@ -108,7 +108,7 @@ static u8 *pvr2_eeprom_fetch(struct pvr2_hdw *hdw)
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "eeprom fetch set offs err=%d",ret);
 			kfree(eeprom);
-			return 0;
+			return NULL;
 		}
 	}
 	return eeprom;

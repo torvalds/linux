@@ -883,7 +883,7 @@ static int startup(struct esp_struct * info)
 	 * Allocate the IRQ
 	 */
 
-	retval = request_irq(info->irq, rs_interrupt_single, SA_SHIRQ,
+	retval = request_irq(info->irq, rs_interrupt_single, IRQF_SHARED,
 			     "esp serial", info);
 
 	if (retval) {

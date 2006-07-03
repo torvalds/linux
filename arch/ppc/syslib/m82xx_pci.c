@@ -139,7 +139,7 @@ pq2pci_irq_demux(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction pq2pci_irqaction = {
 	.handler = pq2pci_irq_demux,
-	.flags 	 = SA_INTERRUPT,
+	.flags 	 = IRQF_DISABLED,
 	.mask	 = CPU_MASK_NONE,
 	.name	 = "PQ2 PCI cascade",
 };

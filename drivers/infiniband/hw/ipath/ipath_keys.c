@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -120,6 +121,7 @@ int ipath_lkey_ok(struct ipath_lkey_table *rkt, struct ipath_sge *isge,
 		  struct ib_sge *sge, int acc)
 {
 	struct ipath_mregion *mr;
+	unsigned n, m;
 	size_t off;
 	int ret;
 
@@ -151,20 +153,22 @@ int ipath_lkey_ok(struct ipath_lkey_table *rkt, struct ipath_sge *isge,
 	}
 
 	off += mr->offset;
-	isge->mr = mr;
-	isge->m = 0;
-	isge->n = 0;
-	while (off >= mr->map[isge->m]->segs[isge->n].length) {
-		off -= mr->map[isge->m]->segs[isge->n].length;
-		isge->n++;
-		if (isge->n >= IPATH_SEGSZ) {
-			isge->m++;
-			isge->n = 0;
+	m = 0;
+	n = 0;
+	while (off >= mr->map[m]->segs[n].length) {
+		off -= mr->map[m]->segs[n].length;
+		n++;
+		if (n >= IPATH_SEGSZ) {
+			m++;
+			n = 0;
 		}
 	}
-	isge->vaddr = mr->map[isge->m]->segs[isge->n].vaddr + off;
-	isge->length = mr->map[isge->m]->segs[isge->n].length - off;
+	isge->mr = mr;
+	isge->vaddr = mr->map[m]->segs[n].vaddr + off;
+	isge->length = mr->map[m]->segs[n].length - off;
 	isge->sge_length = sge->length;
+	isge->m = m;
+	isge->n = n;
 
 	ret = 1;
 
@@ -189,6 +193,7 @@ int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
 	struct ipath_lkey_table *rkt = &dev->lk_table;
 	struct ipath_sge *sge = &ss->sge;
 	struct ipath_mregion *mr;
+	unsigned n, m;
 	size_t off;
 	int ret;
 
@@ -206,20 +211,22 @@ int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
 	}
 
 	off += mr->offset;
-	sge->mr = mr;
-	sge->m = 0;
-	sge->n = 0;
-	while (off >= mr->map[sge->m]->segs[sge->n].length) {
-		off -= mr->map[sge->m]->segs[sge->n].length;
-		sge->n++;
-		if (sge->n >= IPATH_SEGSZ) {
-			sge->m++;
-			sge->n = 0;
+	m = 0;
+	n = 0;
+	while (off >= mr->map[m]->segs[n].length) {
+		off -= mr->map[m]->segs[n].length;
+		n++;
+		if (n >= IPATH_SEGSZ) {
+			m++;
+			n = 0;
 		}
 	}
-	sge->vaddr = mr->map[sge->m]->segs[sge->n].vaddr + off;
-	sge->length = mr->map[sge->m]->segs[sge->n].length - off;
+	sge->mr = mr;
+	sge->vaddr = mr->map[m]->segs[n].vaddr + off;
+	sge->length = mr->map[m]->segs[n].length - off;
 	sge->sge_length = len;
+	sge->m = m;
+	sge->n = n;
 	ss->sg_list = NULL;
 	ss->num_sge = 1;
 

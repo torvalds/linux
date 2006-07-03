@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -1571,7 +1572,6 @@ void ipath_init_ht400_funcs(struct ipath_devdata *dd)
 	dd->ipath_f_bus = ipath_setup_ht_config;
 	dd->ipath_f_reset = ipath_setup_ht_reset;
 	dd->ipath_f_get_boardname = ipath_ht_boardname;
-	dd->ipath_f_init_hwerrors = ipath_ht_init_hwerrors;
 	dd->ipath_f_init_hwerrors = ipath_ht_init_hwerrors;
 	dd->ipath_f_early_init = ipath_ht_early_init;
 	dd->ipath_f_handle_hwerrors = ipath_ht_handle_hwerrors;

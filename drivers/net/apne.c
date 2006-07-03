@@ -313,7 +313,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     dev->base_addr = ioaddr;
 
     /* Install the Interrupt handler */
-    i = request_irq(IRQ_AMIGA_PORTS, apne_interrupt, SA_SHIRQ, DRV_NAME, dev);
+    i = request_irq(IRQ_AMIGA_PORTS, apne_interrupt, IRQF_SHARED, DRV_NAME, dev);
     if (i) return i;
 
     for(i = 0; i < ETHER_ADDR_LEN; i++) {

@@ -247,7 +247,6 @@
  *	TCP_CLOSE		socket is finished
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
@@ -643,7 +642,7 @@ static inline int select_size(struct sock *sk, struct tcp_sock *tp)
 	int tmp = tp->mss_cache;
 
 	if (sk->sk_route_caps & NETIF_F_SG) {
-		if (sk->sk_route_caps & NETIF_F_TSO)
+		if (sk_can_gso(sk))
 			tmp = 0;
 		else {
 			int pgbreak = SKB_MAX_HEAD(MAX_TCP_HEADER);
@@ -2166,12 +2165,18 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	if (!pskb_may_pull(skb, thlen))
 		goto out;
 
-	segs = NULL;
-	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST))
-		goto out;
-
 	oldlen = (u16)~skb->len;
 	__skb_pull(skb, thlen);
+
+	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST)) {
+		/* Packet is from an untrusted source, reset gso_segs. */
+		int mss = skb_shinfo(skb)->gso_size;
+
+		skb_shinfo(skb)->gso_segs = (skb->len + mss - 1) / mss;
+
+		segs = NULL;
+		goto out;
+	}
 
 	segs = skb_segment(skb, features);
 	if (IS_ERR(segs))
@@ -2209,6 +2214,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 out:
 	return segs;
 }
+EXPORT_SYMBOL(tcp_tso_segment);
 
 extern void __skb_cb_too_small_for_tcp(int, int);
 extern struct tcp_congestion_ops tcp_reno;

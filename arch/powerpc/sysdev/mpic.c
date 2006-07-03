@@ -17,7 +17,6 @@
 #undef DEBUG_IRQ
 #undef DEBUG_LOW
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -541,7 +540,7 @@ static void mpic_end_ipi(unsigned int irq)
 	 * IPIs are marked IRQ_PER_CPU. This has the side effect of
 	 * preventing the IRQ_PENDING/IRQ_INPROGRESS logic from
 	 * applying to them. We EOI them late to avoid re-entering.
-	 * We mark IPI's with SA_INTERRUPT as they must run with
+	 * We mark IPI's with IRQF_DISABLED as they must run with
 	 * irqs disabled.
 	 */
 	mpic_eoi(mpic);
@@ -1028,14 +1027,17 @@ void mpic_request_ipis(void)
 	
 	printk("requesting IPIs ... \n");
 
-	/* IPIs are marked SA_INTERRUPT as they must run with irqs disabled */
-	request_irq(mpic->ipi_offset+0, mpic_ipi_action, SA_INTERRUPT,
+	/*
+	 * IPIs are marked IRQF_DISABLED as they must run with irqs
+	 * disabled
+	 */
+	request_irq(mpic->ipi_offset+0, mpic_ipi_action, IRQF_DISABLED,
 		    "IPI0 (call function)", mpic);
-	request_irq(mpic->ipi_offset+1, mpic_ipi_action, SA_INTERRUPT,
+	request_irq(mpic->ipi_offset+1, mpic_ipi_action, IRQF_DISABLED,
 		   "IPI1 (reschedule)", mpic);
-	request_irq(mpic->ipi_offset+2, mpic_ipi_action, SA_INTERRUPT,
+	request_irq(mpic->ipi_offset+2, mpic_ipi_action, IRQF_DISABLED,
 		   "IPI2 (unused)", mpic);
-	request_irq(mpic->ipi_offset+3, mpic_ipi_action, SA_INTERRUPT,
+	request_irq(mpic->ipi_offset+3, mpic_ipi_action, IRQF_DISABLED,
 		   "IPI3 (debugger break)", mpic);
 
 	printk("IPIs requested... \n");

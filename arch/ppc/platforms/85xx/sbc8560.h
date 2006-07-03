@@ -13,7 +13,6 @@
 #ifndef __MACH_SBC8560_H__
 #define __MACH_SBC8560_H__
  
-#include <linux/config.h>
 #include <platforms/85xx/sbc85xx.h>
 
 #define CPM_MAP_ADDR    (CCSRBAR + MPC85xx_CPM_OFFSET)

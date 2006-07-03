@@ -134,6 +134,7 @@ static int cx22700_set_tps (struct cx22700_state *state, struct dvb_ofdm_paramet
 		return -EINVAL;
 
 	if (p->code_rate_LP < FEC_1_2 || p->code_rate_LP > FEC_7_8)
+		return -EINVAL;
 
 	if (p->code_rate_HP == FEC_4_5 || p->code_rate_LP == FEC_4_5)
 		return -EINVAL;

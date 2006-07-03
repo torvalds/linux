@@ -19,7 +19,6 @@
  * Naturally it's not a 1:1 relation, but there are similarities.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/irq.h>
@@ -86,7 +85,7 @@ skip:
 /* called by the assembler IRQ entry functions defined in irq.h
  * to dispatch the interrupts to registred handlers
  * interrupts are disabled upon entry - depending on if the
- * interrupt was registred with SA_INTERRUPT or not, interrupts
+ * interrupt was registred with IRQF_DISABLED or not, interrupts
  * are re-enabled or not.
  */
 

@@ -9,7 +9,6 @@
  * of the GNU General Public License, incorporated herein by reference.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -487,7 +486,7 @@ void __inline__ outpp(void __iomem *addr, word p)
 int diva_os_register_irq(void *context, byte irq, const char *name)
 {
 	int result = request_irq(irq, diva_os_irq_wrapper,
-				 SA_INTERRUPT | SA_SHIRQ, name, context);
+				 IRQF_DISABLED | IRQF_SHARED, name, context);
 	return (result);
 }
 

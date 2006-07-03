@@ -9,7 +9,6 @@
  *  Enable the CF configuration.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/io.h>

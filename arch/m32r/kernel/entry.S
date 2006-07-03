@@ -54,7 +54,6 @@
  *       @(0x6c,sp) - orig_r0		ditto
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/irq.h>
 #include <asm/unistd.h>

@@ -5,7 +5,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #ifdef CONFIG_NCPFS_PACKET_SIGNING
 

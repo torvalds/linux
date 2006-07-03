@@ -46,7 +46,7 @@
  *
  * I've tried to stick to the following function naming conventions:
  * snd_*	ALSA stuff
- * cs4215_*	CS4215 codec specfic stuff
+ * cs4215_*	CS4215 codec specific stuff
  * dbri_*	DBRI high-level stuff
  * other	DBRI low-level stuff
  */
@@ -2569,7 +2569,7 @@ static int __init snd_dbri_create(struct snd_card *card,
 		return -EIO;
 	}
 
-	err = request_irq(dbri->irq, snd_dbri_interrupt, SA_SHIRQ,
+	err = request_irq(dbri->irq, snd_dbri_interrupt, IRQF_SHARED,
 			  "DBRI audio", dbri);
 	if (err) {
 		printk(KERN_ERR "DBRI: Can't get irq %d\n", dbri->irq);

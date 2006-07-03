@@ -7,7 +7,6 @@
  * Fixes for different platforms by Pete Zaitcev.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>

@@ -10,7 +10,6 @@
 
 #define ASSEMBLY
 
-#include <linux/config.h>
 #include <asm/linkage.h>
 	
 	.global SYMBOL_NAME(_start)

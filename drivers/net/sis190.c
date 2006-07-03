@@ -1054,7 +1054,7 @@ static int sis190_open(struct net_device *dev)
 
 	sis190_request_timer(dev);
 
-	rc = request_irq(dev->irq, sis190_interrupt, SA_SHIRQ, dev->name, dev);
+	rc = request_irq(dev->irq, sis190_interrupt, IRQF_SHARED, dev->name, dev);
 	if (rc < 0)
 		goto err_release_timer_2;
 

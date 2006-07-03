@@ -186,6 +186,7 @@ struct audit_context {
 	int		    auditable;  /* 1 if record should be written */
 	int		    name_count;
 	struct audit_names  names[AUDIT_NAMES];
+	char *		    filterkey;	/* key for rule that triggered record */
 	struct dentry *	    pwd;
 	struct vfsmount *   pwdmnt;
 	struct audit_context *previous; /* For nested syscalls */
@@ -320,11 +321,11 @@ static int audit_filter_rules(struct task_struct *tsk,
 			if (ctx)
 				result = audit_comparator(ctx->loginuid, f->op, f->val);
 			break;
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
 			/* NOTE: this may return negative values indicating
 			   a temporary error.  We simply treat this as a
 			   match for now to avoid losing information that
@@ -341,6 +342,46 @@ static int audit_filter_rules(struct task_struct *tsk,
 				                                  ctx);
 			}
 			break;
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
+			/* The above note for AUDIT_SUBJ_USER...AUDIT_SUBJ_CLR
+			   also applies here */
+			if (f->se_rule) {
+				/* Find files that match */
+				if (name) {
+					result = selinux_audit_rule_match(
+					           name->osid, f->type, f->op,
+					           f->se_rule, ctx);
+				} else if (ctx) {
+					for (j = 0; j < ctx->name_count; j++) {
+						if (selinux_audit_rule_match(
+						      ctx->names[j].osid,
+						      f->type, f->op,
+						      f->se_rule, ctx)) {
+							++result;
+							break;
+						}
+					}
+				}
+				/* Find ipc objects that match */
+				if (ctx) {
+					struct audit_aux_data *aux;
+					for (aux = ctx->aux; aux;
+					     aux = aux->next) {
+						if (aux->type == AUDIT_IPC) {
+							struct audit_aux_data_ipcctl *axi = (void *)aux;
+							if (selinux_audit_rule_match(axi->osid, f->type, f->op, f->se_rule, ctx)) {
+								++result;
+								break;
+							}
+						}
+					}
+				}
+			}
+			break;
 		case AUDIT_ARG0:
 		case AUDIT_ARG1:
 		case AUDIT_ARG2:
@@ -348,11 +389,17 @@ static int audit_filter_rules(struct task_struct *tsk,
 			if (ctx)
 				result = audit_comparator(ctx->argv[f->type-AUDIT_ARG0], f->op, f->val);
 			break;
+		case AUDIT_FILTERKEY:
+			/* ignore this field for filtering */
+			result = 1;
+			break;
 		}
 
 		if (!result)
 			return 0;
 	}
+	if (rule->filterkey)
+		ctx->filterkey = kstrdup(rule->filterkey, GFP_ATOMIC);
 	switch (rule->action) {
 	case AUDIT_NEVER:    *state = AUDIT_DISABLED;	    break;
 	case AUDIT_ALWAYS:   *state = AUDIT_RECORD_CONTEXT; break;
@@ -627,6 +674,7 @@ static inline void audit_free_context(struct audit_context *context)
 		}
 		audit_free_names(context);
 		audit_free_aux(context);
+		kfree(context->filterkey);
 		kfree(context);
 		context  = previous;
 	} while (context);
@@ -735,6 +783,11 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		  context->euid, context->suid, context->fsuid,
 		  context->egid, context->sgid, context->fsgid, tty);
 	audit_log_task_info(ab, tsk);
+	if (context->filterkey) {
+		audit_log_format(ab, " key=");
+		audit_log_untrustedstring(ab, context->filterkey);
+	} else
+		audit_log_format(ab, " key=(null)");
 	audit_log_end(ab);
 
 	for (aux = context->aux; aux; aux = aux->next) {
@@ -1060,6 +1113,8 @@ void audit_syscall_exit(int valid, long return_code)
 	} else {
 		audit_free_names(context);
 		audit_free_aux(context);
+		kfree(context->filterkey);
+		context->filterkey = NULL;
 		tsk->audit_context = context;
 	}
 }

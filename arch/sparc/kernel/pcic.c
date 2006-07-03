@@ -10,7 +10,6 @@
  * CP-1200 by Eric Brower.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -746,7 +745,7 @@ void __init pci_time_init(void)
 	writel (PCI_COUNTER_IRQ_SET(timer_irq, 0),
 		pcic->pcic_regs+PCI_COUNTER_IRQ);
 	irq = request_irq(timer_irq, pcic_timer_handler,
-			  (SA_INTERRUPT | SA_STATIC_ALLOC), "timer", NULL);
+			  (IRQF_DISABLED | SA_STATIC_ALLOC), "timer", NULL);
 	if (irq) {
 		prom_printf("time_init: unable to attach IRQ%d\n", timer_irq);
 		prom_halt();

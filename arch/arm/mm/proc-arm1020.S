@@ -26,7 +26,6 @@
  *  CONFIG_CPU_ARM1020_CPU_IDLE -> nohlt
  */
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
@@ -440,11 +439,12 @@ __arm1020_setup:
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7		@ invalidate I,D TLBs on v4
 #endif
+
+	adr	r5, arm1020_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
-	ldr	r5, arm1020_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, arm1020_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 #ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
 	orr	r0, r0, #0x4000 		@ .R.. .... .... ....
 #endif
@@ -456,12 +456,9 @@ __arm1020_setup:
 	 * .RVI ZFRS BLDP WCAM
 	 * .011 1001 ..11 0101
 	 */
-	.type	arm1020_cr1_clear, #object
-	.type	arm1020_cr1_set, #object
-arm1020_cr1_clear:
-	.word	0x593f
-arm1020_cr1_set:
-	.word	0x3935
+	.type	arm1020_crval, #object
+arm1020_crval:
+	crval	clear=0x0000593f, mmuset=0x00003935, ucset=0x00001930
 
 	__INITDATA
 
@@ -524,6 +521,9 @@ cpu_arm1020_name:
 __arm1020_proc_info:
 	.long	0x4104a200			@ ARM 1020T (Architecture v5T)
 	.long	0xff0ffff0
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ

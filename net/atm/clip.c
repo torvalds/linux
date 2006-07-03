@@ -2,7 +2,6 @@
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/kernel.h> /* for UINT_MAX */

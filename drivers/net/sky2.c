@@ -23,7 +23,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/crc32.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
@@ -3189,7 +3188,7 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 
 	sky2_write32(hw, B0_IMSK, Y2_IS_IRQ_SW);
 
-	err = request_irq(pdev->irq, sky2_test_intr, SA_SHIRQ, DRV_NAME, hw);
+	err = request_irq(pdev->irq, sky2_test_intr, IRQF_SHARED, DRV_NAME, hw);
 	if (err) {
 		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
 		       pci_name(pdev), pdev->irq);
@@ -3349,7 +3348,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 			goto err_out_unregister;
  	}
 
-	err = request_irq(pdev->irq,  sky2_intr, SA_SHIRQ, DRV_NAME, hw);
+	err = request_irq(pdev->irq,  sky2_intr, IRQF_SHARED, DRV_NAME, hw);
 	if (err) {
 		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
 		       pci_name(pdev), pdev->irq);

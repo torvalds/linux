@@ -26,7 +26,6 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/irq.h>
@@ -310,7 +309,7 @@ void startup_match20_interrupt(irqreturn_t (*handler)(int, void *, struct pt_reg
 	 * can avoid it.  --cgray
 	*/
 	action.dev_id = handler;
-	action.flags = SA_INTERRUPT;
+	action.flags = IRQF_DISABLED;
 	cpus_clear(action.mask);
 	action.name = "Au1xxx TOY";
 	action.handler = handler;

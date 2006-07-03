@@ -60,7 +60,3 @@ const struct file_operations ufs_file_operations = {
 	.fsync		= ufs_sync_file,
 	.sendfile	= generic_file_sendfile,
 };
-
-struct inode_operations ufs_file_inode_operations = {
-	.truncate	= ufs_truncate,
-};

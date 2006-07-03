@@ -1149,7 +1149,7 @@
           }
           chip->port = pci_resource_start(pci, 0);
           if (request_irq(pci->irq, snd_mychip_interrupt,
-                          SA_INTERRUPT|SA_SHIRQ, "My Chip", chip)) {
+                          IRQF_DISABLED|IRQF_SHARED, "My Chip", chip)) {
                   printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
                   snd_mychip_free(chip);
                   return -EBUSY;
@@ -1323,7 +1323,7 @@
           <programlisting>
 <![CDATA[
   if (request_irq(pci->irq, snd_mychip_interrupt,
-                  SA_INTERRUPT|SA_SHIRQ, "My Chip", chip)) {
+                  IRQF_DISABLED|IRQF_SHARED, "My Chip", chip)) {
           printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
           snd_mychip_free(chip);
           return -EBUSY;
@@ -1342,7 +1342,7 @@
 
       <para>
       On the PCI bus, the interrupts can be shared. Thus,
-      <constant>SA_SHIRQ</constant> is given as the interrupt flag of
+      <constant>IRQF_SHARED</constant> is given as the interrupt flag of
       <function>request_irq()</function>. 
       </para>
 
@@ -3048,7 +3048,7 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          If you aquire a spinlock in the interrupt handler, and the
+          If you acquire a spinlock in the interrupt handler, and the
         lock is used in other pcm callbacks, too, then you have to
         release the lock before calling
         <function>snd_pcm_period_elapsed()</function>, because

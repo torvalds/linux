@@ -8,7 +8,6 @@
  * Copyright (C) 2001 MIPS Technologies, Inc.
  * Copyright (C) 2002 Maciej W. Rozycki
  */
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/asm.h>

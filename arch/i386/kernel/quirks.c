@@ -1,7 +1,6 @@
 /*
  * This file contains work-arounds for x86 and x86_64 platform bugs.
  */
-#include <linux/config.h>
 #include <linux/pci.h>
 #include <linux/irq.h>
 

@@ -38,7 +38,6 @@
  *		Fix some spin_locks.
  *		Do not call uart_add_one_port for absent ports.
  */
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_TXX9_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -496,7 +495,7 @@ static int serial_txx9_startup(struct uart_port *port)
 	sio_out(up, TXX9_SIDISR, 0);
 
 	retval = request_irq(up->port.irq, serial_txx9_interrupt,
-			     SA_SHIRQ, "serial_txx9", up);
+			     IRQF_SHARED, "serial_txx9", up);
 	if (retval)
 		return retval;
 

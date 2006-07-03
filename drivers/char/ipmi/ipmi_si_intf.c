@@ -38,7 +38,6 @@
  * and drives the real SMI state machine.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <asm/system.h>
@@ -1042,7 +1041,7 @@ static int std_irq_setup(struct smi_info *info)
 	if (info->si_type == SI_BT) {
 		rv = request_irq(info->irq,
 				 si_bt_irq_handler,
-				 SA_INTERRUPT,
+				 IRQF_DISABLED,
 				 DEVICE_NAME,
 				 info);
 		if (!rv)
@@ -1052,7 +1051,7 @@ static int std_irq_setup(struct smi_info *info)
 	} else
 		rv = request_irq(info->irq,
 				 si_irq_handler,
-				 SA_INTERRUPT,
+				 IRQF_DISABLED,
 				 DEVICE_NAME,
 				 info);
 	if (rv) {

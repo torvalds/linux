@@ -11,7 +11,6 @@
  * of the GNU General Public License, incorporated herein by reference.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

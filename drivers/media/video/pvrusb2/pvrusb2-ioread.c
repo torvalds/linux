@@ -54,7 +54,7 @@ static int pvr2_ioread_init(struct pvr2_ioread *cp)
 {
 	unsigned int idx;
 
-	cp->stream = 0;
+	cp->stream = NULL;
 	mutex_init(&cp->mutex);
 
 	for (idx = 0; idx < BUFFER_COUNT; idx++) {
@@ -77,7 +77,7 @@ static void pvr2_ioread_done(struct pvr2_ioread *cp)
 {
 	unsigned int idx;
 
-	pvr2_ioread_setup(cp,0);
+	pvr2_ioread_setup(cp,NULL);
 	for (idx = 0; idx < BUFFER_COUNT; idx++) {
 		if (!(cp->buffer_storage[idx])) continue;
 		kfree(cp->buffer_storage[idx]);
@@ -88,12 +88,12 @@ struct pvr2_ioread *pvr2_ioread_create(void)
 {
 	struct pvr2_ioread *cp;
 	cp = kmalloc(sizeof(*cp),GFP_KERNEL);
-	if (!cp) return 0;
+	if (!cp) return NULL;
 	pvr2_trace(PVR2_TRACE_STRUCT,"pvr2_ioread_create id=%p",cp);
 	memset(cp,0,sizeof(*cp));
 	if (pvr2_ioread_init(cp) < 0) {
 		kfree(cp);
-		return 0;
+		return NULL;
 	}
 	return cp;
 }
@@ -105,7 +105,7 @@ void pvr2_ioread_destroy(struct pvr2_ioread *cp)
 	pvr2_trace(PVR2_TRACE_STRUCT,"pvr2_ioread_destroy id=%p",cp);
 	if (cp->sync_key_ptr) {
 		kfree(cp->sync_key_ptr);
-		cp->sync_key_ptr = 0;
+		cp->sync_key_ptr = NULL;
 	}
 	kfree(cp);
 }
@@ -124,7 +124,7 @@ void pvr2_ioread_set_sync_key(struct pvr2_ioread *cp,
 	if (sync_key_len != cp->sync_key_len) {
 		if (cp->sync_key_ptr) {
 			kfree(cp->sync_key_ptr);
-			cp->sync_key_ptr = 0;
+			cp->sync_key_ptr = NULL;
 		}
 		cp->sync_key_len = 0;
 		if (sync_key_len) {
@@ -144,8 +144,8 @@ static void pvr2_ioread_stop(struct pvr2_ioread *cp)
 	pvr2_trace(PVR2_TRACE_START_STOP,
 		   "/*---TRACE_READ---*/ pvr2_ioread_stop id=%p",cp);
 	pvr2_stream_kill(cp->stream);
-	cp->c_buf = 0;
-	cp->c_data_ptr = 0;
+	cp->c_buf = NULL;
+	cp->c_data_ptr = NULL;
 	cp->c_data_len = 0;
 	cp->c_data_offs = 0;
 	cp->enabled = 0;
@@ -179,8 +179,8 @@ static int pvr2_ioread_start(struct pvr2_ioread *cp)
 		}
 	}
 	cp->enabled = !0;
-	cp->c_buf = 0;
-	cp->c_data_ptr = 0;
+	cp->c_buf = NULL;
+	cp->c_data_ptr = NULL;
 	cp->c_data_len = 0;
 	cp->c_data_offs = 0;
 	cp->stream_running = 0;
@@ -214,7 +214,7 @@ int pvr2_ioread_setup(struct pvr2_ioread *cp,struct pvr2_stream *sp)
 			pvr2_ioread_stop(cp);
 			pvr2_stream_kill(cp->stream);
 			pvr2_stream_set_buffer_count(cp->stream,0);
-			cp->stream = 0;
+			cp->stream = NULL;
 		}
 		if (sp) {
 			pvr2_trace(PVR2_TRACE_START_STOP,
@@ -251,12 +251,8 @@ int pvr2_ioread_set_enabled(struct pvr2_ioread *cp,int fl)
 	return ret;
 }
 
-int pvr2_ioread_get_enabled(struct pvr2_ioread *cp)
-{
-	return cp->enabled != 0;
-}
 
-int pvr2_ioread_get_buffer(struct pvr2_ioread *cp)
+static int pvr2_ioread_get_buffer(struct pvr2_ioread *cp)
 {
 	int stat;
 
@@ -274,8 +270,8 @@ int pvr2_ioread_get_buffer(struct pvr2_ioread *cp)
 				pvr2_ioread_stop(cp);
 				return 0;
 			}
-			cp->c_buf = 0;
-			cp->c_data_ptr = 0;
+			cp->c_buf = NULL;
+			cp->c_data_ptr = NULL;
 			cp->c_data_len = 0;
 			cp->c_data_offs = 0;
 		}
@@ -307,7 +303,7 @@ int pvr2_ioread_get_buffer(struct pvr2_ioread *cp)
 	return !0;
 }
 
-void pvr2_ioread_filter(struct pvr2_ioread *cp)
+static void pvr2_ioread_filter(struct pvr2_ioread *cp)
 {
 	unsigned int idx;
 	if (!cp->enabled) return;

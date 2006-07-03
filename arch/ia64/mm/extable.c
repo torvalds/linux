@@ -5,7 +5,6 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
-#include <linux/config.h>
 #include <linux/sort.h>
 
 #include <asm/uaccess.h>

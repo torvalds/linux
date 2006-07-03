@@ -1246,7 +1246,7 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 		} else
 			php_ctlr->irq = pdev->irq;
 		
-		rc = request_irq(php_ctlr->irq, shpc_isr, SA_SHIRQ, MY_NAME, (void *) ctrl);
+		rc = request_irq(php_ctlr->irq, shpc_isr, IRQF_SHARED, MY_NAME, (void *) ctrl);
 		dbg("%s: request_irq %d for hpc%d (returns %d)\n", __FUNCTION__, php_ctlr->irq, ctlr_seq_num, rc);
 		if (rc) {
 			err("Can't get irq %d for the hotplug controller\n", php_ctlr->irq);

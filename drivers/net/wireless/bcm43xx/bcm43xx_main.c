@@ -2175,7 +2175,7 @@ static int bcm43xx_initialize_irq(struct bcm43xx_private *bcm)
 	}
 #endif
 	res = request_irq(bcm->irq, bcm43xx_interrupt_handler,
-			  SA_SHIRQ, KBUILD_MODNAME, bcm);
+			  IRQF_SHARED, KBUILD_MODNAME, bcm);
 	if (res) {
 		printk(KERN_ERR PFX "Cannot register IRQ%d\n", bcm->irq);
 		return -ENODEV;

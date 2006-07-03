@@ -41,6 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#include <linux/module.h>
+
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 
@@ -962,6 +964,7 @@ acpi_ut_exception(char *module_name,
 	acpi_os_vprintf(format, args);
 	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
 }
+EXPORT_SYMBOL(acpi_ut_exception);
 
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_warning(char *module_name, u32 line_number, char *format, ...)

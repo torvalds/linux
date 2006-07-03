@@ -4050,7 +4050,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	/* disable irqs, register irq handler */
 	btwrite(0, BT848_INT_MASK);
 	result = request_irq(btv->c.pci->irq, bttv_irq,
-			     SA_SHIRQ | SA_INTERRUPT,btv->c.name,(void *)btv);
+			     IRQF_SHARED | IRQF_DISABLED,btv->c.name,(void *)btv);
 	if (result < 0) {
 		printk(KERN_ERR "bttv%d: can't get IRQ %d\n",
 		       bttv_num,btv->c.pci->irq);

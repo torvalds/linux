@@ -118,7 +118,6 @@
 #include <linux/blkdev.h>
 #include <linux/spinlock.h>
 #include <linux/stat.h>
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
 #include <linux/string.h>
@@ -2868,7 +2867,7 @@ static int i91u_detect(struct scsi_host_template * tpnt)
 		hreg->sg_tablesize = TOTAL_SG_ENTRY;	/* Maximun support is 32 */
 
 		/* Initial tulip chip           */
-		ok = request_irq(pHCB->HCS_Intr, i91u_intr, SA_INTERRUPT | SA_SHIRQ, "i91u", hreg);
+		ok = request_irq(pHCB->HCS_Intr, i91u_intr, IRQF_DISABLED | IRQF_SHARED, "i91u", hreg);
 		if (ok < 0) {
 			printk(KERN_WARNING "i91u: unable to request IRQ %d\n\n", pHCB->HCS_Intr);
 			return 0;

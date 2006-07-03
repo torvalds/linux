@@ -38,7 +38,7 @@ extern int ixp4xx_pci_write(u32 addr, u32 cmd, u32 data);
  * 2) If > 64MB of memory space is required, the IXP4xx can be configured
  *    to use indirect registers to access PCI (as we do below for I/O
  *    transactions). This allows for up to 128MB (0x48000000 to 0x4fffffff)
- *    of memory on the bus. The disadvantadge of this is that every 
+ *    of memory on the bus. The disadvantage of this is that every 
  *    PCI access requires three local register accesses plus a spinlock,
  *    but in some cases the performance hit is acceptable. In addition,
  *    you cannot mmap() PCI devices in this case.

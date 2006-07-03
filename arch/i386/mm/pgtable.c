@@ -2,7 +2,6 @@
  *  linux/arch/i386/mm/pgtable.c
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>

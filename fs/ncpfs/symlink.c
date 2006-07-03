@@ -20,7 +20,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #include <asm/uaccess.h>
 

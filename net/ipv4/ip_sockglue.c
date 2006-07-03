@@ -17,7 +17,6 @@
  *		Mike McLagan	:	Routing by source
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/mm.h>

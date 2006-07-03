@@ -7,6 +7,7 @@ typedef struct {
 #if __LINUX_ARM_ARCH__ >= 6
 	unsigned int id;
 #endif
+	unsigned int kvm_seq;
 } mm_context_t;
 
 #if __LINUX_ARM_ARCH__ >= 6

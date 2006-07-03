@@ -29,7 +29,6 @@
 #define BusLogic_DriverVersion		"2.1.16"
 #define BusLogic_DriverDate		"18 July 2002"
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -1845,7 +1844,7 @@ static boolean __init BusLogic_AcquireResources(struct BusLogic_HostAdapter *Hos
 	/*
 	   Acquire shared access to the IRQ Channel.
 	 */
-	if (request_irq(HostAdapter->IRQ_Channel, BusLogic_InterruptHandler, SA_SHIRQ, HostAdapter->FullModelName, HostAdapter) < 0) {
+	if (request_irq(HostAdapter->IRQ_Channel, BusLogic_InterruptHandler, IRQF_SHARED, HostAdapter->FullModelName, HostAdapter) < 0) {
 		BusLogic_Error("UNABLE TO ACQUIRE IRQ CHANNEL %d - DETACHING\n", HostAdapter, HostAdapter->IRQ_Channel);
 		return false;
 	}

@@ -195,7 +195,7 @@ int __init timer_init(void)
 	int err;
 
 	user_time_init();
-	err = request_irq(TIMER_IRQ, um_timer, SA_INTERRUPT, "timer", NULL);
+	err = request_irq(TIMER_IRQ, um_timer, IRQF_DISABLED, "timer", NULL);
 	if(err != 0)
 		printk(KERN_ERR "timer_init : request_irq failed - "
 		       "errno = %d\n", -err);

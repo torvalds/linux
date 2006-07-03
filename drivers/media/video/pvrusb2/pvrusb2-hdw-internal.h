@@ -354,23 +354,6 @@ struct pvr2_hdw {
 	unsigned int control_cnt;
 };
 
-int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw);
-
-unsigned int pvr2_hdw_get_signal_status_internal(struct pvr2_hdw *);
-
-void pvr2_hdw_subsys_bit_chg_no_lock(struct pvr2_hdw *hdw,
-				     unsigned long msk,unsigned long val);
-void pvr2_hdw_subsys_stream_bit_chg_no_lock(struct pvr2_hdw *hdw,
-					    unsigned long msk,
-					    unsigned long val);
-
-void pvr2_hdw_internal_find_stdenum(struct pvr2_hdw *hdw);
-void pvr2_hdw_internal_set_std_avail(struct pvr2_hdw *hdw);
-
-int pvr2_i2c_basic_op(struct pvr2_hdw *,u8 i2c_addr,
-		      u8 *wdata,u16 wlen,
-		      u8 *rdata,u16 rlen);
-
 #endif /* __PVRUSB2_HDW_INTERNAL_H */
 
 /*

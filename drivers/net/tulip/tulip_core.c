@@ -14,7 +14,6 @@
 
 */
 
-#include <linux/config.h>
 
 #define DRV_NAME	"tulip"
 #ifdef CONFIG_TULIP_NAPI
@@ -490,7 +489,7 @@ tulip_open(struct net_device *dev)
 {
 	int retval;
 
-	if ((retval = request_irq(dev->irq, &tulip_interrupt, SA_SHIRQ, dev->name, dev)))
+	if ((retval = request_irq(dev->irq, &tulip_interrupt, IRQF_SHARED, dev->name, dev)))
 		return retval;
 
 	tulip_init_ring (dev);
@@ -1771,7 +1770,7 @@ static int tulip_resume(struct pci_dev *pdev)
 
 	pci_enable_device(pdev);
 
-	if ((retval = request_irq(dev->irq, &tulip_interrupt, SA_SHIRQ, dev->name, dev))) {
+	if ((retval = request_irq(dev->irq, &tulip_interrupt, IRQF_SHARED, dev->name, dev))) {
 		printk (KERN_ERR "tulip: request_irq failed in resume\n");
 		return retval;
 	}

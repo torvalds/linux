@@ -630,8 +630,10 @@ static int futex_wake(u32 __user *uaddr, int nr_wake)
 
 	list_for_each_entry_safe(this, next, head, list) {
 		if (match_futex (&this->key, &key)) {
-			if (this->pi_state)
-				return -EINVAL;
+			if (this->pi_state) {
+				ret = -EINVAL;
+				break;
+			}
 			wake_futex(this);
 			if (++ret >= nr_wake)
 				break;
@@ -1208,7 +1210,7 @@ static int do_futex_lock_pi(u32 __user *uaddr, int detect, int trylock,
 	}
 
 	down_read(&curr->mm->mmap_sem);
-	hb = queue_lock(&q, -1, NULL);
+	spin_lock(q.lock_ptr);
 
 	/*
 	 * Got the lock. We might not be the anticipated owner if we

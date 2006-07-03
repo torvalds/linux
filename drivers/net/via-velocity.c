@@ -47,7 +47,6 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
@@ -65,7 +64,6 @@
 #include <linux/wait.h>
 #include <asm/io.h>
 #include <linux/if.h>
-#include <linux/config.h>
 #include <asm/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/inetdevice.h>
@@ -1752,7 +1750,7 @@ static int velocity_open(struct net_device *dev)
 	
 	velocity_init_registers(vptr, VELOCITY_INIT_COLD);
 
-	ret = request_irq(vptr->pdev->irq, &velocity_intr, SA_SHIRQ,
+	ret = request_irq(vptr->pdev->irq, &velocity_intr, IRQF_SHARED,
 			  dev->name, dev);
 	if (ret < 0) {
 		/* Power down the chip */

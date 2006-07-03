@@ -14,7 +14,6 @@
  *  the 64bit user space sees a FXSAVE frame directly. 
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <asm/processor.h>

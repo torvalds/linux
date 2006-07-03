@@ -718,7 +718,7 @@ static int __init qpti_register_irq(struct qlogicpti *qpti)
 	 * sanely maintain.
 	 */
 	if (request_irq(qpti->irq, qpti_intr,
-			SA_SHIRQ, "Qlogic/PTI", qpti))
+			IRQF_SHARED, "Qlogic/PTI", qpti))
 		goto fail;
 
 	printk("qpti%d: IRQ %d ", qpti->qpti_id, qpti->irq);

@@ -8,7 +8,6 @@
  * Version 2.  See the file COPYING for more details.
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 
 #define PAGE_SIZE      4096 /* must be same value as in <asm/page.h> */

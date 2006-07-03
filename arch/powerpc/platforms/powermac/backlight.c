@@ -7,7 +7,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>

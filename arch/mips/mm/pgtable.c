@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/swap.h>

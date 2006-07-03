@@ -363,7 +363,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	saa7146_write(dev, MC2, 0xf8000000);
 
 	/* request an interrupt for the saa7146 */
-	err = request_irq(pci->irq, interrupt_hw, SA_SHIRQ | SA_INTERRUPT,
+	err = request_irq(pci->irq, interrupt_hw, IRQF_SHARED | IRQF_DISABLED,
 			  dev->name, dev);
 	if (err < 0) {
 		ERR(("request_irq() failed.\n"));

@@ -25,7 +25,6 @@
  * and http://www.ssv-embedded.de/ssv/pc104/p170.htm
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>

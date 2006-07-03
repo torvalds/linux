@@ -7,7 +7,6 @@
  *	     used by other architectures		/Roman Zippel
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

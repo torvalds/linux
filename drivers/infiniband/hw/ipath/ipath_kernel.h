@@ -1,6 +1,7 @@
 #ifndef _IPATH_KERNEL_H
 #define _IPATH_KERNEL_H
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -61,9 +62,7 @@ struct ipath_portdata {
 	/* rcvhdrq base, needs mmap before useful */
 	void *port_rcvhdrq;
 	/* kernel virtual address where hdrqtail is updated */
-	u64 *port_rcvhdrtail_kvaddr;
-	/* page * used for uaddr */
-	struct page *port_rcvhdrtail_pagep;
+	volatile __le64 *port_rcvhdrtail_kvaddr;
 	/*
 	 * temp buffer for expected send setup, allocated at open, instead
 	 * of each setup call
@@ -78,11 +77,7 @@ struct ipath_portdata {
 	dma_addr_t port_rcvegr_phys;
 	/* mmap of hdrq, must fit in 44 bits */
 	dma_addr_t port_rcvhdrq_phys;
-	/*
-	 * the actual user address that we ipath_mlock'ed, so we can
-	 * ipath_munlock it at close
-	 */
-	unsigned long port_rcvhdrtail_uaddr;
+	dma_addr_t port_rcvhdrqtailaddr_phys;
 	/*
 	 * number of opens on this instance (0 or 1; ignoring forks, dup,
 	 * etc. for now)
@@ -158,16 +153,10 @@ struct ipath_devdata {
 	/* base of memory alloced for ipath_kregbase, for free */
 	u64 *ipath_kregalloc;
 	/*
-	 * version of kregbase that doesn't have high bits set (for 32 bit
-	 * programs, so mmap64 44 bit works)
-	 */
-	u64 __iomem *ipath_kregvirt;
-	/*
 	 * virtual address where port0 rcvhdrqtail updated for this unit.
 	 * only written to by the chip, not the driver.
 	 */
 	volatile __le64 *ipath_hdrqtailptr;
-	dma_addr_t ipath_dma_addr;
 	/* ipath_cfgports pointers */
 	struct ipath_portdata **ipath_pd;
 	/* sk_buffs used by port 0 eager receive queue */
@@ -354,13 +343,17 @@ struct ipath_devdata {
 	char *ipath_freezemsg;
 	/* pci access data structure */
 	struct pci_dev *pcidev;
-	struct cdev *cdev;
-	struct class_device *class_dev;
+	struct cdev *user_cdev;
+	struct cdev *diag_cdev;
+	struct class_device *user_class_dev;
+	struct class_device *diag_class_dev;
 	/* timer used to prevent stats overflow, error throttling, etc. */
 	struct timer_list ipath_stats_timer;
 	/* check for stale messages in rcv queue */
 	/* only allow one intr at a time. */
 	unsigned long ipath_rcv_pending;
+	void *ipath_dummy_hdrq;	/* used after port close */
+	dma_addr_t ipath_dummy_hdrq_phys;
 
 	/*
 	 * Shadow copies of registers; size indicates read access size.
@@ -500,8 +493,11 @@ struct ipath_devdata {
 	u16 ipath_lid;
 	/* list of pkeys programmed; 0 if not set */
 	u16 ipath_pkeys[4];
-	/* ASCII serial number, from flash */
-	u8 ipath_serial[12];
+	/*
+	 * ASCII serial number, from flash, large enough for original
+	 * all digit strings, and longer QLogic serial number format
+	 */
+	u8 ipath_serial[16];
 	/* human readable board version */
 	u8 ipath_boardversion[80];
 	/* chip major rev, from ipath_revision */
@@ -516,12 +512,12 @@ struct ipath_devdata {
 	u8 ipath_pci_cacheline;
 	/* LID mask control */
 	u8 ipath_lmc;
+
+	/* local link integrity counter */
+	u32 ipath_lli_counter;
+	/* local link integrity errors */
+	u32 ipath_lli_errors;
 };
-
-extern volatile __le64 *ipath_port0_rcvhdrtail;
-extern dma_addr_t ipath_port0_rcvhdrtail_dma;
-
-#define IPATH_PORT0_RCVHDRTAIL_SIZE PAGE_SIZE
 
 extern struct list_head ipath_dev_list;
 extern spinlock_t ipath_devs_lock;
@@ -537,7 +533,7 @@ extern int __ipath_verbs_piobufavail(struct ipath_devdata *);
 extern int __ipath_verbs_rcv(struct ipath_devdata *, void *, void *, u32);
 
 void ipath_layer_add(struct ipath_devdata *);
-void ipath_layer_del(struct ipath_devdata *);
+void ipath_layer_remove(struct ipath_devdata *);
 
 int ipath_init_chip(struct ipath_devdata *, int);
 int ipath_enable_wc(struct ipath_devdata *dd);
@@ -551,14 +547,14 @@ int ipath_cdev_init(int minor, char *name, struct file_operations *fops,
 void ipath_cdev_cleanup(struct cdev **cdevp,
 			struct class_device **class_devp);
 
-int ipath_diag_init(void);
-void ipath_diag_cleanup(void);
+int ipath_diag_add(struct ipath_devdata *);
+void ipath_diag_remove(struct ipath_devdata *);
 void ipath_diag_bringup_link(struct ipath_devdata *);
 
 extern wait_queue_head_t ipath_sma_state_wait;
 
 int ipath_user_add(struct ipath_devdata *dd);
-void ipath_user_del(struct ipath_devdata *dd);
+void ipath_user_remove(struct ipath_devdata *dd);
 
 struct sk_buff *ipath_alloc_skb(struct ipath_devdata *dd, gfp_t);
 
@@ -582,7 +578,7 @@ void ipath_disarm_piobufs(struct ipath_devdata *, unsigned first,
 			  unsigned cnt);
 
 int ipath_create_rcvhdrq(struct ipath_devdata *, struct ipath_portdata *);
-void ipath_free_pddata(struct ipath_devdata *, u32, int);
+void ipath_free_pddata(struct ipath_devdata *, struct ipath_portdata *);
 
 int ipath_parse_ushort(const char *str, unsigned short *valp);
 
@@ -720,13 +716,8 @@ u64 ipath_read_kreg64_port(const struct ipath_devdata *, ipath_kreg,
  * @port: port number
  *
  * Return the contents of a register that is virtualized to be per port.
- * Prints a debug message and returns -1 on errors (not distinguishable from
- * valid contents at runtime; we may add a separate error variable at some
- * point).
- *
- * This is normally not used by the kernel, but may be for debugging, and
- * has a different implementation than user mode, which is why it's not in
- * _common.h.
+ * Returns -1 on errors (not distinguishable from valid contents at
+ * runtime; we may add a separate error variable at some point).
  */
 static inline u32 ipath_read_ureg32(const struct ipath_devdata *dd,
 				    ipath_ureg regno, int port)
@@ -842,9 +833,10 @@ extern struct mutex ipath_mutex;
 
 #define IPATH_DRV_NAME		"ipath_core"
 #define IPATH_MAJOR		233
+#define IPATH_USER_MINOR_BASE	0
 #define IPATH_SMA_MINOR		128
-#define IPATH_DIAG_MINOR	129
-#define IPATH_NMINORS		130
+#define IPATH_DIAG_MINOR_BASE	129
+#define IPATH_NMINORS		255
 
 #define ipath_dev_err(dd,fmt,...) \
 	do { \

@@ -126,8 +126,8 @@ static const struct pvr2_v4l_decoder_ops decoder_ops[] = {
 
 static void decoder_detach(struct pvr2_v4l_decoder *ctxt)
 {
-	ctxt->client->handler = 0;
-	ctxt->hdw->decoder_ctrl = 0;
+	ctxt->client->handler = NULL;
+	ctxt->hdw->decoder_ctrl = NULL;
 	kfree(ctxt);
 }
 

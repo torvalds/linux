@@ -16,7 +16,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/threads.h>
 #include <linux/smp.h>

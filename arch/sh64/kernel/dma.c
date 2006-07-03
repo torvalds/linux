@@ -115,7 +115,7 @@ static irqreturn_t dma_mte(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction irq_dmte = {
 	.handler	= dma_mte,
-	.flags		= SA_INTERRUPT,
+	.flags		= IRQF_DISABLED,
 	.name		= "DMA MTE",
 };
 
@@ -152,7 +152,7 @@ static irqreturn_t dma_err(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction irq_derr = {
 	.handler	= dma_err,
-	.flags		= SA_INTERRUPT,
+	.flags		= IRQF_DISABLED,
 	.name		= "DMA Error",
 };
 

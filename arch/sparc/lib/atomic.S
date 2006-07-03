@@ -3,7 +3,6 @@
  * Copyright (C) 1996 David S. Miller (davem@caipfs.rutgers.edu)
  */
 
-#include <linux/config.h>
 #include <asm/ptrace.h>
 #include <asm/psr.h>
 

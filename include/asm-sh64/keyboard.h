@@ -65,7 +65,7 @@ extern unsigned char pckbd_sysrq_xlate[128];
 #endif
 
 #define aux_request_irq(hand, dev_id)					\
-	request_irq(AUX_IRQ, hand, SA_SHIRQ, "PS2 Mouse", dev_id)
+	request_irq(AUX_IRQ, hand, IRQF_SHARED, "PS2 Mouse", dev_id)
 
 #define aux_free_irq(dev_id) free_irq(AUX_IRQ, dev_id)
 

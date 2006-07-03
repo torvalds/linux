@@ -691,7 +691,7 @@ static struct block_device_operations hd_fops = {
 };
 
 /*
- * This is the hard disk IRQ description. The SA_INTERRUPT in sa_flags
+ * This is the hard disk IRQ description. The IRQF_DISABLED in sa_flags
  * means we run the IRQ-handler with interrupts disabled:  this is bad for
  * interrupt latency, but anything else has led to problems on some
  * machines.
@@ -806,7 +806,7 @@ static int __init hd_init(void)
 			p->cyl, p->head, p->sect);
 	}
 
-	if (request_irq(HD_IRQ, hd_interrupt, SA_INTERRUPT, "hd", NULL)) {
+	if (request_irq(HD_IRQ, hd_interrupt, IRQF_DISABLED, "hd", NULL)) {
 		printk("hd: unable to get IRQ%d for the hard disk driver\n",
 			HD_IRQ);
 		goto out1;

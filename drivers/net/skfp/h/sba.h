@@ -13,7 +13,7 @@
  ******************************************************************************/
 
 /*
- * Synchronous Bandwith Allocation (SBA) structs
+ * Synchronous Bandwidth Allocation (SBA) structs
  */
  
 #ifndef _SBA_

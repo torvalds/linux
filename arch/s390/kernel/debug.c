@@ -10,7 +10,6 @@
  *    Bugreports to: <Linux390@de.ibm.com>
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>

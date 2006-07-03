@@ -24,7 +24,6 @@
  *        module options to "modprobe scsi_debug num_tgts=2" [20021221]
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/kernel.h>

@@ -11,7 +11,6 @@
  *  Copyright (c) 1999 Martin Mares <mj@ucw.cz>
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

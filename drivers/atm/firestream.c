@@ -1829,7 +1829,7 @@ static int __devinit fs_init (struct fs_dev *dev)
 		init_q (dev, &dev->rx_rq[i], RXB_RQ(i), RXRQ_NENTRIES, 1);
 
 	dev->irq = pci_dev->irq;
-	if (request_irq (dev->irq, fs_irq, SA_SHIRQ, "firestream", dev)) {
+	if (request_irq (dev->irq, fs_irq, IRQF_SHARED, "firestream", dev)) {
 		printk (KERN_WARNING "couldn't get irq %d for firestream.\n", pci_dev->irq);
 		/* XXX undo all previous stuff... */
 		return 1;

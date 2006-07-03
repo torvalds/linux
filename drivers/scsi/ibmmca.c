@@ -17,7 +17,6 @@
  
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -1511,7 +1510,7 @@ int ibmmca_detect(struct scsi_host_template * scsi_template)
 #endif
 
 	/* get interrupt request level */
-	if (request_irq(IM_IRQ, interrupt_handler, SA_SHIRQ, "ibmmcascsi", hosts)) {
+	if (request_irq(IM_IRQ, interrupt_handler, IRQF_SHARED, "ibmmcascsi", hosts)) {
 		printk(KERN_ERR "IBM MCA SCSI: Unable to get shared IRQ %d.\n", IM_IRQ);
 		return 0;
 	} else
@@ -1636,7 +1635,7 @@ int ibmmca_detect(struct scsi_host_template * scsi_template)
 				/* IRQ11 is used by SCSI-2 F/W Adapter/A */
 				printk(KERN_DEBUG "IBM MCA SCSI: SCSI-2 F/W adapter needs IRQ 11.\n");
 				/* get interrupt request level */
-				if (request_irq(IM_IRQ_FW, interrupt_handler, SA_SHIRQ, "ibmmcascsi", hosts)) {
+				if (request_irq(IM_IRQ_FW, interrupt_handler, IRQF_SHARED, "ibmmcascsi", hosts)) {
 					printk(KERN_ERR "IBM MCA SCSI: Unable to get shared IRQ %d.\n", IM_IRQ_FW);
 				} else
 					IRQ11_registered++;
@@ -1697,7 +1696,7 @@ int ibmmca_detect(struct scsi_host_template * scsi_template)
 				/* IRQ11 is used by SCSI-2 F/W Adapter/A */
 				printk(KERN_DEBUG  "IBM MCA SCSI: SCSI-2 F/W adapter needs IRQ 11.\n");
 				/* get interrupt request level */
-				if (request_irq(IM_IRQ_FW, interrupt_handler, SA_SHIRQ, "ibmmcascsi", hosts))
+				if (request_irq(IM_IRQ_FW, interrupt_handler, IRQF_SHARED, "ibmmcascsi", hosts))
 					printk(KERN_ERR "IBM MCA SCSI: Unable to get shared IRQ %d.\n", IM_IRQ_FW);
 				else
 					IRQ11_registered++;

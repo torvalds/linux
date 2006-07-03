@@ -11,7 +11,6 @@
  * Modified to use standard LinuxSH BIOS by Greg Banks 7Jul2000
  */
 
-#include <linux/config.h>
 #include <asm/uaccess.h>
 #ifdef CONFIG_SH_STANDARD_BIOS
 #include <asm/sh_bios.h>

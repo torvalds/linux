@@ -19,7 +19,6 @@
  */
 
 #include <linux/capability.h>
-#include <linux/config.h>
 #include <linux/in.h>
 #include <linux/skbuff.h>
 #include <linux/kmod.h>

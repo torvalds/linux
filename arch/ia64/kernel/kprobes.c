@@ -23,7 +23,6 @@
  *              <anil.s.keshavamurthy@intel.com> adapted from i386
  */
 
-#include <linux/config.h>
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
 #include <linux/string.h>

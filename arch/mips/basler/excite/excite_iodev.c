@@ -113,7 +113,7 @@ static int __exit iodev_remove(struct device *dev)
 
 static int iodev_open(struct inode *i, struct file *f)
 {
-	return request_irq(iodev_irq, iodev_irqhdl, SA_INTERRUPT,
+	return request_irq(iodev_irq, iodev_irqhdl, IRQF_DISABLED,
 			   iodev_name, &miscdev);
 }
 

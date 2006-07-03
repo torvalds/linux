@@ -1,4 +1,3 @@
-#include <linux/config.h>
 
 #if defined(CONFIG_REMOTE_DEBUG)
 

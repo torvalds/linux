@@ -6,7 +6,6 @@
  * Copyright (C) 2005 Stephen Hemminger <shemminger@osdl.org>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/types.h>

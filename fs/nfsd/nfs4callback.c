@@ -33,7 +33,6 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/inet.h>

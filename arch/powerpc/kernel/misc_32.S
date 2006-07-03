@@ -16,7 +16,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/sys.h>
 #include <asm/unistd.h>
 #include <asm/errno.h>

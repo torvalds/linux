@@ -1250,7 +1250,7 @@ static int wd7000_init(Adapter * host)
 		return 0;
 
 
-	if (request_irq(host->irq, wd7000_intr, SA_INTERRUPT, "wd7000", host)) {
+	if (request_irq(host->irq, wd7000_intr, IRQF_DISABLED, "wd7000", host)) {
 		printk("wd7000_init: can't get IRQ %d.\n", host->irq);
 		return (0);
 	}

@@ -25,7 +25,6 @@
  * /proc/bus_watcher if PROC_FS is on.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>

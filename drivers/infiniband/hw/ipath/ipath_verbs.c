@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -36,7 +37,7 @@
 
 #include "ipath_kernel.h"
 #include "ipath_verbs.h"
-#include "ips_common.h"
+#include "ipath_common.h"
 
 /* Not static, because we don't want the compiler removing it */
 const char ipath_verbs_version[] = "ipath_verbs " IPATH_IDSTR;
@@ -55,9 +56,62 @@ unsigned int ib_ipath_debug;	/* debug mask */
 module_param_named(debug, ib_ipath_debug, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(debug, "Verbs debug mask");
 
+static unsigned int ib_ipath_max_pds = 0xFFFF;
+module_param_named(max_pds, ib_ipath_max_pds, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_pds,
+		 "Maximum number of protection domains to support");
+
+static unsigned int ib_ipath_max_ahs = 0xFFFF;
+module_param_named(max_ahs, ib_ipath_max_ahs, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_ahs, "Maximum number of address handles to support");
+
+unsigned int ib_ipath_max_cqes = 0x2FFFF;
+module_param_named(max_cqes, ib_ipath_max_cqes, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_cqes,
+		 "Maximum number of completion queue entries to support");
+
+unsigned int ib_ipath_max_cqs = 0x1FFFF;
+module_param_named(max_cqs, ib_ipath_max_cqs, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_cqs, "Maximum number of completion queues to support");
+
+unsigned int ib_ipath_max_qp_wrs = 0x3FFF;
+module_param_named(max_qp_wrs, ib_ipath_max_qp_wrs, uint,
+		   S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_qp_wrs, "Maximum number of QP WRs to support");
+
+unsigned int ib_ipath_max_sges = 0x60;
+module_param_named(max_sges, ib_ipath_max_sges, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_sges, "Maximum number of SGEs to support");
+
+unsigned int ib_ipath_max_mcast_grps = 16384;
+module_param_named(max_mcast_grps, ib_ipath_max_mcast_grps, uint,
+		   S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_mcast_grps,
+		 "Maximum number of multicast groups to support");
+
+unsigned int ib_ipath_max_mcast_qp_attached = 16;
+module_param_named(max_mcast_qp_attached, ib_ipath_max_mcast_qp_attached,
+		   uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_mcast_qp_attached,
+		 "Maximum number of attached QPs to support");
+
+unsigned int ib_ipath_max_srqs = 1024;
+module_param_named(max_srqs, ib_ipath_max_srqs, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_srqs, "Maximum number of SRQs to support");
+
+unsigned int ib_ipath_max_srq_sges = 128;
+module_param_named(max_srq_sges, ib_ipath_max_srq_sges,
+		   uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_srq_sges, "Maximum number of SRQ SGEs to support");
+
+unsigned int ib_ipath_max_srq_wrs = 0x1FFFF;
+module_param_named(max_srq_wrs, ib_ipath_max_srq_wrs,
+		   uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_srq_wrs, "Maximum number of SRQ WRs support");
+
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("PathScale <support@pathscale.com>");
-MODULE_DESCRIPTION("Pathscale InfiniPath driver");
+MODULE_AUTHOR("QLogic <support@pathscale.com>");
+MODULE_DESCRIPTION("QLogic InfiniPath driver");
 
 const int ib_ipath_state_ops[IB_QPS_ERR + 1] = {
 	[IB_QPS_RESET] = 0,
@@ -193,7 +247,7 @@ static int ipath_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		switch (qp->ibqp.qp_type) {
 		case IB_QPT_UC:
 		case IB_QPT_RC:
-			err = ipath_post_rc_send(qp, wr);
+			err = ipath_post_ruc_send(qp, wr);
 			break;
 
 		case IB_QPT_SMI:
@@ -375,7 +429,7 @@ static void ipath_ib_rcv(void *arg, void *rhdr, void *data, u32 tlen)
 
 	/* Check for a valid destination LID (see ch. 7.11.1). */
 	lid = be16_to_cpu(hdr->lrh[1]);
-	if (lid < IPS_MULTICAST_LID_BASE) {
+	if (lid < IPATH_MULTICAST_LID_BASE) {
 		lid &= ~((1 << (dev->mkeyprot_resv_lmc & 7)) - 1);
 		if (unlikely(lid != ipath_layer_get_lid(dev->dd))) {
 			dev->rcv_errors++;
@@ -385,9 +439,9 @@ static void ipath_ib_rcv(void *arg, void *rhdr, void *data, u32 tlen)
 
 	/* Check for GRH */
 	lnh = be16_to_cpu(hdr->lrh[0]) & 3;
-	if (lnh == IPS_LRH_BTH)
+	if (lnh == IPATH_LRH_BTH)
 		ohdr = &hdr->u.oth;
-	else if (lnh == IPS_LRH_GRH)
+	else if (lnh == IPATH_LRH_GRH)
 		ohdr = &hdr->u.l.oth;
 	else {
 		dev->rcv_errors++;
@@ -399,8 +453,8 @@ static void ipath_ib_rcv(void *arg, void *rhdr, void *data, u32 tlen)
 	dev->opstats[opcode].n_packets++;
 
 	/* Get the destination QP number. */
-	qp_num = be32_to_cpu(ohdr->bth[1]) & IPS_QPN_MASK;
-	if (qp_num == IPS_MULTICAST_QPN) {
+	qp_num = be32_to_cpu(ohdr->bth[1]) & IPATH_QPN_MASK;
+	if (qp_num == IPATH_MULTICAST_QPN) {
 		struct ipath_mcast *mcast;
 		struct ipath_mcast_qp *p;
 
@@ -411,7 +465,7 @@ static void ipath_ib_rcv(void *arg, void *rhdr, void *data, u32 tlen)
 		}
 		dev->n_multicast_rcv++;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list)
-			ipath_qp_rcv(dev, hdr, lnh == IPS_LRH_GRH, data,
+			ipath_qp_rcv(dev, hdr, lnh == IPATH_LRH_GRH, data,
 				     tlen, p->qp);
 		/*
 		 * Notify ipath_multicast_detach() if it is waiting for us
@@ -423,7 +477,7 @@ static void ipath_ib_rcv(void *arg, void *rhdr, void *data, u32 tlen)
 		qp = ipath_lookup_qpn(&dev->qp_table, qp_num);
 		if (qp) {
 			dev->n_unicast_rcv++;
-			ipath_qp_rcv(dev, hdr, lnh == IPS_LRH_GRH, data,
+			ipath_qp_rcv(dev, hdr, lnh == IPATH_LRH_GRH, data,
 				     tlen, qp);
 			/*
 			 * Notify ipath_destroy_qp() if it is waiting
@@ -567,40 +621,38 @@ static int ipath_query_device(struct ib_device *ibdev,
 			      struct ib_device_attr *props)
 {
 	struct ipath_ibdev *dev = to_idev(ibdev);
-	u32 vendor, boardrev, majrev, minrev;
 
 	memset(props, 0, sizeof(*props));
 
 	props->device_cap_flags = IB_DEVICE_BAD_PKEY_CNTR |
 		IB_DEVICE_BAD_QKEY_CNTR | IB_DEVICE_SHUTDOWN_PORT |
 		IB_DEVICE_SYS_IMAGE_GUID;
-	ipath_layer_query_device(dev->dd, &vendor, &boardrev,
-				 &majrev, &minrev);
-	props->vendor_id = vendor;
-	props->vendor_part_id = boardrev;
-	props->hw_ver = boardrev << 16 | majrev << 8 | minrev;
+	props->vendor_id = ipath_layer_get_vendorid(dev->dd);
+	props->vendor_part_id = ipath_layer_get_deviceid(dev->dd);
+	props->hw_ver = ipath_layer_get_pcirev(dev->dd);
 
 	props->sys_image_guid = dev->sys_image_guid;
 
 	props->max_mr_size = ~0ull;
-	props->max_qp = 0xffff;
-	props->max_qp_wr = 0xffff;
-	props->max_sge = 255;
-	props->max_cq = 0xffff;
-	props->max_cqe = 0xffff;
-	props->max_mr = 0xffff;
-	props->max_pd = 0xffff;
+	props->max_qp = dev->qp_table.max;
+	props->max_qp_wr = ib_ipath_max_qp_wrs;
+	props->max_sge = ib_ipath_max_sges;
+	props->max_cq = ib_ipath_max_cqs;
+	props->max_ah = ib_ipath_max_ahs;
+	props->max_cqe = ib_ipath_max_cqes;
+	props->max_mr = dev->lk_table.max;
+	props->max_pd = ib_ipath_max_pds;
 	props->max_qp_rd_atom = 1;
 	props->max_qp_init_rd_atom = 1;
 	/* props->max_res_rd_atom */
-	props->max_srq = 0xffff;
-	props->max_srq_wr = 0xffff;
-	props->max_srq_sge = 255;
+	props->max_srq = ib_ipath_max_srqs;
+	props->max_srq_wr = ib_ipath_max_srq_wrs;
+	props->max_srq_sge = ib_ipath_max_srq_sges;
 	/* props->local_ca_ack_delay */
 	props->atomic_cap = IB_ATOMIC_HCA;
 	props->max_pkeys = ipath_layer_get_npkeys(dev->dd);
-	props->max_mcast_grp = 0xffff;
-	props->max_mcast_qp_attach = 0xffff;
+	props->max_mcast_grp = ib_ipath_max_mcast_grps;
+	props->max_mcast_qp_attach = ib_ipath_max_mcast_qp_attached;
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 		props->max_mcast_grp;
 
@@ -643,10 +695,10 @@ static int ipath_query_port(struct ib_device *ibdev,
 		ipath_layer_get_lastibcstat(dev->dd) & 0xf];
 	props->port_cap_flags = dev->port_cap_flags;
 	props->gid_tbl_len = 1;
-	props->max_msg_sz = 4096;
+	props->max_msg_sz = 0x80000000;
 	props->pkey_tbl_len = ipath_layer_get_npkeys(dev->dd);
 	props->bad_pkey_cntr = ipath_layer_get_cr_errpkey(dev->dd) -
-		dev->n_pkey_violations;
+		dev->z_pkey_violations;
 	props->qkey_viol_cntr = dev->qkey_violations;
 	props->active_width = IB_WIDTH_4X;
 	/* See rate_show() */
@@ -743,14 +795,29 @@ static struct ib_pd *ipath_alloc_pd(struct ib_device *ibdev,
 				    struct ib_ucontext *context,
 				    struct ib_udata *udata)
 {
+	struct ipath_ibdev *dev = to_idev(ibdev);
 	struct ipath_pd *pd;
 	struct ib_pd *ret;
+
+	/*
+	 * This is actually totally arbitrary.	Some correctness tests
+	 * assume there's a maximum number of PDs that can be allocated.
+	 * We don't actually have this limit, but we fail the test if
+	 * we allow allocations of more than we report for this value.
+	 */
+
+	if (dev->n_pds_allocated == ib_ipath_max_pds) {
+		ret = ERR_PTR(-ENOMEM);
+		goto bail;
+	}
 
 	pd = kmalloc(sizeof *pd, GFP_KERNEL);
 	if (!pd) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
 	}
+
+	dev->n_pds_allocated++;
 
 	/* ib_alloc_pd() will initialize pd->ibpd. */
 	pd->user = udata != NULL;
@@ -764,6 +831,9 @@ bail:
 static int ipath_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct ipath_pd *pd = to_ipd(ibpd);
+	struct ipath_ibdev *dev = to_idev(ibpd->device);
+
+	dev->n_pds_allocated--;
 
 	kfree(pd);
 
@@ -782,11 +852,28 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 {
 	struct ipath_ah *ah;
 	struct ib_ah *ret;
+	struct ipath_ibdev *dev = to_idev(pd->device);
+
+	if (dev->n_ahs_allocated == ib_ipath_max_ahs) {
+		ret = ERR_PTR(-ENOMEM);
+		goto bail;
+	}
 
 	/* A multicast address requires a GRH (see ch. 8.4.1). */
-	if (ah_attr->dlid >= IPS_MULTICAST_LID_BASE &&
-	    ah_attr->dlid != IPS_PERMISSIVE_LID &&
+	if (ah_attr->dlid >= IPATH_MULTICAST_LID_BASE &&
+	    ah_attr->dlid != IPATH_PERMISSIVE_LID &&
 	    !(ah_attr->ah_flags & IB_AH_GRH)) {
+		ret = ERR_PTR(-EINVAL);
+		goto bail;
+	}
+
+	if (ah_attr->dlid == 0) {
+		ret = ERR_PTR(-EINVAL);
+		goto bail;
+	}
+
+	if (ah_attr->port_num < 1 ||
+	    ah_attr->port_num > pd->device->phys_port_cnt) {
 		ret = ERR_PTR(-EINVAL);
 		goto bail;
 	}
@@ -796,6 +883,8 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
 	}
+
+	dev->n_ahs_allocated++;
 
 	/* ib_create_ah() will initialize ah->ibah. */
 	ah->attr = *ah_attr;
@@ -814,7 +903,10 @@ bail:
  */
 static int ipath_destroy_ah(struct ib_ah *ibah)
 {
+	struct ipath_ibdev *dev = to_idev(ibah->device);
 	struct ipath_ah *ah = to_iah(ibah);
+
+	dev->n_ahs_allocated--;
 
 	kfree(ah);
 
@@ -889,6 +981,7 @@ static int ipath_verbs_register_sysfs(struct ib_device *dev);
  */
 static void *ipath_register_ib_device(int unit, struct ipath_devdata *dd)
 {
+	struct ipath_layer_counters cntrs;
 	struct ipath_ibdev *idev;
 	struct ib_device *dev;
 	int ret;
@@ -938,6 +1031,25 @@ static void *ipath_register_ib_device(int unit, struct ipath_devdata *dd)
 	idev->pma_counter_select[3] = IB_PMA_PORT_RCV_PKTS;
 	idev->pma_counter_select[5] = IB_PMA_PORT_XMIT_WAIT;
 	idev->link_width_enabled = 3;	/* 1x or 4x */
+
+	/* Snapshot current HW counters to "clear" them. */
+	ipath_layer_get_counters(dd, &cntrs);
+	idev->z_symbol_error_counter = cntrs.symbol_error_counter;
+	idev->z_link_error_recovery_counter =
+		cntrs.link_error_recovery_counter;
+	idev->z_link_downed_counter = cntrs.link_downed_counter;
+	idev->z_port_rcv_errors = cntrs.port_rcv_errors;
+	idev->z_port_rcv_remphys_errors =
+		cntrs.port_rcv_remphys_errors;
+	idev->z_port_xmit_discards = cntrs.port_xmit_discards;
+	idev->z_port_xmit_data = cntrs.port_xmit_data;
+	idev->z_port_rcv_data = cntrs.port_rcv_data;
+	idev->z_port_xmit_packets = cntrs.port_xmit_packets;
+	idev->z_port_rcv_packets = cntrs.port_rcv_packets;
+	idev->z_local_link_integrity_errors =
+		cntrs.local_link_integrity_errors;
+	idev->z_excessive_buffer_overrun_errors =
+		cntrs.excessive_buffer_overrun_errors;
 
 	/*
 	 * The system image GUID is supposed to be the same for all
@@ -1109,11 +1221,8 @@ static ssize_t show_rev(struct class_device *cdev, char *buf)
 {
 	struct ipath_ibdev *dev =
 		container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
-	int vendor, boardrev, majrev, minrev;
 
-	ipath_layer_query_device(dev->dd, &vendor, &boardrev,
-				 &majrev, &minrev);
-	return sprintf(buf, "%d.%d\n", majrev, minrev);
+	return sprintf(buf, "%x\n", ipath_layer_get_pcirev(dev->dd));
 }
 
 static ssize_t show_hca(struct class_device *cdev, char *buf)

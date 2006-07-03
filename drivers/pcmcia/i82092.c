@@ -149,7 +149,7 @@ static int __devinit i82092aa_pci_probe(struct pci_dev *dev, const struct pci_de
 
 	/* Register the interrupt handler */
 	dprintk(KERN_DEBUG "Requesting interrupt %i \n",dev->irq);
-	if ((ret = request_irq(dev->irq, i82092aa_interrupt, SA_SHIRQ, "i82092aa", i82092aa_interrupt))) {
+	if ((ret = request_irq(dev->irq, i82092aa_interrupt, IRQF_SHARED, "i82092aa", i82092aa_interrupt))) {
 		printk(KERN_ERR "i82092aa: Failed to register IRQ %d, aborting\n", dev->irq);
 		goto err_out_free_res;
 	}

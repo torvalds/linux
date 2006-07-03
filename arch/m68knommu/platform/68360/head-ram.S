@@ -12,7 +12,6 @@
  *
  */
 #define ASSEMBLY
-#include <linux/config.h>
 
 .global _stext
 .global _start

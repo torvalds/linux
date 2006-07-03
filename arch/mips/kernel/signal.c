@@ -7,7 +7,6 @@
  * Copyright (C) 1994 - 2000  Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
-#include <linux/config.h>
 #include <linux/cache.h>
 #include <linux/sched.h>
 #include <linux/mm.h>

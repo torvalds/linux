@@ -8,7 +8,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kobject.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>

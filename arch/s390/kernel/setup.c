@@ -28,7 +28,6 @@
 #include <linux/tty.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/initrd.h>
 #include <linux/bootmem.h>

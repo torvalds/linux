@@ -138,7 +138,6 @@
  *	- Stratus87247: protect MDI control register manipulations
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -2064,7 +2063,7 @@ static int e100_up(struct nic *nic)
 	e100_set_multicast_list(nic->netdev);
 	e100_start_receiver(nic, NULL);
 	mod_timer(&nic->watchdog, jiffies);
-	if((err = request_irq(nic->pdev->irq, e100_intr, SA_SHIRQ,
+	if((err = request_irq(nic->pdev->irq, e100_intr, IRQF_SHARED,
 		nic->netdev->name, nic->netdev)))
 		goto err_no_irq;
 	netif_wake_queue(nic->netdev);

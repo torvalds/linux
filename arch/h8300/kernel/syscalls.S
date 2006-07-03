@@ -1,5 +1,4 @@
 /* Systemcall Entry Table */
-#include <linux/config.h>
 #include <linux/sys.h>
 #include <asm/linkage.h>
 #include <asm/unistd.h>

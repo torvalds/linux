@@ -18,7 +18,6 @@
 #include <asm/apic.h>
 
 #include <linux/timex.h>
-#include <linux/config.h>
 
 #include <asm/hpet.h>
 #include <linux/hpet.h>

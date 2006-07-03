@@ -16,7 +16,6 @@
  *   - Split split split...
  *
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/delay.h>

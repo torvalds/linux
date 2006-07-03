@@ -31,7 +31,6 @@
  *	pNonSys:	!pSys
  */
 
-#include <linux/config.h>
 
 #include <asm/asmmacro.h>
 #include <asm/cache.h>

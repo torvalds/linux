@@ -20,7 +20,7 @@
 
 /*
  * These are data structures found in platform_device.dev.platform_data,
- * and describing board-specfic data needed by drivers.  For example,
+ * and describing board-specific data needed by drivers.  For example,
  * which pin is used for a given GPIO role.
  *
  * In 2.6, drivers should strongly avoid board-specific knowledge so

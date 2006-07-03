@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -168,6 +169,11 @@ struct ib_mr *ipath_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	struct ib_umem_chunk *chunk;
 	int n, m, i;
 	struct ib_mr *ret;
+
+	if (region->length == 0) {
+		ret = ERR_PTR(-EINVAL);
+		goto bail;
+	}
 
 	n = 0;
 	list_for_each_entry(chunk, &region->chunk_list, list)

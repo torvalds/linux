@@ -45,7 +45,6 @@
  * Added long mode checking and SSE force. March 2003, Andi Kleen.		
  */
 
-#include <linux/config.h>
 #include <asm/segment.h>
 #include <linux/version.h>
 #include <linux/compile.h>

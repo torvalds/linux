@@ -234,17 +234,17 @@ static void __init apollon_sw_init(void)
 
 	set_irq_type(OMAP_GPIO_IRQ(SW_ENTER_GPIO16), IRQT_RISING);
 	if (request_irq(OMAP_GPIO_IRQ(SW_ENTER_GPIO16), &apollon_sw_interrupt,
-				SA_SHIRQ, "enter sw",
+				IRQF_SHARED, "enter sw",
 				&apollon_sw_interrupt))
 		return;
 	set_irq_type(OMAP_GPIO_IRQ(SW_UP_GPIO17), IRQT_RISING);
 	if (request_irq(OMAP_GPIO_IRQ(SW_UP_GPIO17), &apollon_sw_interrupt,
-				SA_SHIRQ, "up sw",
+				IRQF_SHARED, "up sw",
 				&apollon_sw_interrupt))
 		return;
 	set_irq_type(OMAP_GPIO_IRQ(SW_DOWN_GPIO58), IRQT_RISING);
 	if (request_irq(OMAP_GPIO_IRQ(SW_DOWN_GPIO58), &apollon_sw_interrupt,
-				SA_SHIRQ, "down sw",
+				IRQF_SHARED, "down sw",
 				&apollon_sw_interrupt))
 		return;
 }

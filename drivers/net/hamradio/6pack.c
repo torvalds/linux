@@ -12,7 +12,6 @@
  *		Fred N. van Kempen, <waltje@uwalt.nl.mugnet.org>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>

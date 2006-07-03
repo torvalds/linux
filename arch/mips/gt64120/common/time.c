@@ -8,7 +8,6 @@
  */
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <asm/ptrace.h>
@@ -78,7 +77,7 @@ void gt64120_time_init(void)
 	 * the values to the correct interrupt line.
 	 */
 	timer.handler = gt64120_irq;
-	timer.flags = SA_SHIRQ | SA_INTERRUPT;
+	timer.flags = IRQF_SHARED | IRQF_DISABLED;
 	timer.name = "timer";
 	timer.dev_id = NULL;
 	timer.next = NULL;

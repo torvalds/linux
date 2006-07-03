@@ -6,7 +6,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -269,7 +268,7 @@ void
 crisv32_do_IRQ(int irq, int block, struct pt_regs* regs)
 {
 	/* Interrupts that may not be moved to another CPU and
-         * are SA_INTERRUPT may skip blocking. This is currently
+         * are IRQF_DISABLED may skip blocking. This is currently
          * only valid for the timer IRQ and the IPI and is used
          * for the timer interrupt to avoid watchdog starvation.
          */

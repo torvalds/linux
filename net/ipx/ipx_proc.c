@@ -4,7 +4,6 @@
  * 	Copyright(C) Arnaldo Carvalho de Melo <acme@conectiva.com.br>, 2002
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>

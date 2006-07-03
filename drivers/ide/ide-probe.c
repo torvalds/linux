@@ -33,7 +33,6 @@
 
 #undef REALLY_SLOW_IO		/* most systems can safely undef this */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -1005,7 +1004,7 @@ static int ide_init_queue(ide_drive_t *drive)
  * and irq serialization situations.  This is somewhat complex because
  * it handles static as well as dynamic (PCMCIA) IDE interfaces.
  *
- * The SA_INTERRUPT in sa_flags means ide_intr() is always entered with
+ * The IRQF_DISABLED in sa_flags means ide_intr() is always entered with
  * interrupts completely disabled.  This can be bad for interrupt latency,
  * but anything else has led to problems on some machines.  We re-enable
  * interrupts as much as we can safely do in most places.
@@ -1091,15 +1090,15 @@ static int init_irq (ide_hwif_t *hwif)
 	 * Allocate the irq, if not already obtained for another hwif
 	 */
 	if (!match || match->irq != hwif->irq) {
-		int sa = SA_INTERRUPT;
+		int sa = IRQF_DISABLED;
 #if defined(__mc68000__) || defined(CONFIG_APUS)
-		sa = SA_SHIRQ;
+		sa = IRQF_SHARED;
 #endif /* __mc68000__ || CONFIG_APUS */
 
 		if (IDE_CHIPSET_IS_PCI(hwif->chipset)) {
-			sa = SA_SHIRQ;
+			sa = IRQF_SHARED;
 #ifndef CONFIG_IDEPCI_SHARE_IRQ
-			sa |= SA_INTERRUPT;
+			sa |= IRQF_DISABLED;
 #endif /* CONFIG_IDEPCI_SHARE_IRQ */
 		}
 

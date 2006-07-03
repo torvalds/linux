@@ -3122,7 +3122,7 @@ static int __devinit cm_probe(struct pci_dev *pcidev, const struct pci_device_id
 	wrmixer(s, DSP_MIX_DATARESETIDX, 0);
 
 	/* request irq */
-	if ((ret = request_irq(s->irq, cm_interrupt, SA_SHIRQ, "cmpci", s))) {
+	if ((ret = request_irq(s->irq, cm_interrupt, IRQF_SHARED, "cmpci", s))) {
 		printk(KERN_ERR "cmpci: irq %u in use\n", s->irq);
 		goto err_irq;
 	}

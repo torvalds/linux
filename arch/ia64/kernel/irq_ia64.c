@@ -14,7 +14,6 @@
  *						Added CPU Hotplug handling for IPF.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/jiffies.h>
@@ -236,7 +235,7 @@ extern irqreturn_t handle_IPI (int irq, void *dev_id, struct pt_regs *regs);
 
 static struct irqaction ipi_irqaction = {
 	.handler =	handle_IPI,
-	.flags =	SA_INTERRUPT,
+	.flags =	IRQF_DISABLED,
 	.name =		"IPI"
 };
 #endif

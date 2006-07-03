@@ -7,7 +7,6 @@
  * This file contains driver APIs to the irq subsystem.
  */
 
-#include <linux/config.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/random.h>
@@ -115,7 +114,7 @@ void enable_irq(unsigned int irq)
 	spin_lock_irqsave(&desc->lock, flags);
 	switch (desc->depth) {
 	case 0:
-		printk(KERN_WARNING "Unablanced enable_irq(%d)\n", irq);
+		printk(KERN_WARNING "Unbalanced enable for IRQ %d\n", irq);
 		WARN_ON(1);
 		break;
 	case 1: {
@@ -168,7 +167,7 @@ int can_request_irq(unsigned int irq, unsigned long irqflags)
 
 	action = irq_desc[irq].action;
 	if (action)
-		if (irqflags & action->flags & SA_SHIRQ)
+		if (irqflags & action->flags & IRQF_SHARED)
 			action = NULL;
 
 	return !action;
@@ -206,7 +205,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	 * so we have to be careful not to interfere with a
 	 * running system.
 	 */
-	if (new->flags & SA_SAMPLE_RANDOM) {
+	if (new->flags & IRQF_SAMPLE_RANDOM) {
 		/*
 		 * This function might sleep, we want to call it first,
 		 * outside of the atomic block.
@@ -228,16 +227,17 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		/*
 		 * Can't share interrupts unless both agree to and are
 		 * the same type (level, edge, polarity). So both flag
-		 * fields must have SA_SHIRQ set and the bits which
+		 * fields must have IRQF_SHARED set and the bits which
 		 * set the trigger type must match.
 		 */
-		if (!((old->flags & new->flags) & SA_SHIRQ) ||
-		    ((old->flags ^ new->flags) & SA_TRIGGER_MASK))
+		if (!((old->flags & new->flags) & IRQF_SHARED) ||
+		    ((old->flags ^ new->flags) & IRQF_TRIGGER_MASK))
 			goto mismatch;
 
-#if defined(CONFIG_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
+#if defined(CONFIG_IRQ_PER_CPU)
 		/* All handlers must agree on per-cpuness */
-		if ((old->flags & IRQ_PER_CPU) != (new->flags & IRQ_PER_CPU))
+		if ((old->flags & IRQF_PERCPU) !=
+		    (new->flags & IRQF_PERCPU))
 			goto mismatch;
 #endif
 
@@ -250,26 +250,27 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	}
 
 	*p = new;
-#if defined(CONFIG_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
-	if (new->flags & SA_PERCPU_IRQ)
+#if defined(CONFIG_IRQ_PER_CPU)
+	if (new->flags & IRQF_PERCPU)
 		desc->status |= IRQ_PER_CPU;
 #endif
 	if (!shared) {
 		irq_chip_set_defaults(desc->chip);
 
 		/* Setup the type (level, edge polarity) if configured: */
-		if (new->flags & SA_TRIGGER_MASK) {
+		if (new->flags & IRQF_TRIGGER_MASK) {
 			if (desc->chip && desc->chip->set_type)
 				desc->chip->set_type(irq,
-						new->flags & SA_TRIGGER_MASK);
+						new->flags & IRQF_TRIGGER_MASK);
 			else
 				/*
-				 * SA_TRIGGER_* but the PIC does not support
+				 * IRQF_TRIGGER_* but the PIC does not support
 				 * multiple flow-types?
 				 */
-				printk(KERN_WARNING "setup_irq(%d) SA_TRIGGER"
-				       "set. No set_type function available\n",
-				       irq);
+				printk(KERN_WARNING "No IRQF_TRIGGER set_type "
+				       "function for IRQ %d (%s)\n", irq,
+				       desc->chip ? desc->chip->name :
+				       "unknown");
 		} else
 			compat_irq_chip_set_default_handler(desc);
 
@@ -298,8 +299,8 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 
 mismatch:
 	spin_unlock_irqrestore(&desc->lock, flags);
-	if (!(new->flags & SA_PROBEIRQ)) {
-		printk(KERN_ERR "%s: irq handler mismatch\n", __FUNCTION__);
+	if (!(new->flags & IRQF_PROBE_SHARED)) {
+		printk(KERN_ERR "IRQ handler type mismatch for IRQ %d\n", irq);
 		dump_stack();
 	}
 	return -EBUSY;
@@ -366,7 +367,7 @@ void free_irq(unsigned int irq, void *dev_id)
 			kfree(action);
 			return;
 		}
-		printk(KERN_ERR "Trying to free free IRQ%d\n", irq);
+		printk(KERN_ERR "Trying to free already-free IRQ %d\n", irq);
 		spin_unlock_irqrestore(&desc->lock, flags);
 		return;
 	}
@@ -397,9 +398,9 @@ EXPORT_SYMBOL(free_irq);
  *
  *	Flags:
  *
- *	SA_SHIRQ		Interrupt is shared
- *	SA_INTERRUPT		Disable local interrupts while processing
- *	SA_SAMPLE_RANDOM	The interrupt can be used for entropy
+ *	IRQF_SHARED		Interrupt is shared
+ *	IRQF_DISABLED	Disable local interrupts while processing
+ *	IRQF_SAMPLE_RANDOM	The interrupt can be used for entropy
  *
  */
 int request_irq(unsigned int irq,
@@ -415,7 +416,7 @@ int request_irq(unsigned int irq,
 	 * which interrupt is which (messes up the interrupt freeing
 	 * logic etc).
 	 */
-	if ((irqflags & SA_SHIRQ) && !dev_id)
+	if ((irqflags & IRQF_SHARED) && !dev_id)
 		return -EINVAL;
 	if (irq >= NR_IRQS)
 		return -EINVAL;

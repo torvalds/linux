@@ -2,7 +2,6 @@
  * Miscellaneous Mac68K-specific stuff
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>

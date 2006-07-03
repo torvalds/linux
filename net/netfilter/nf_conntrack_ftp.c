@@ -15,7 +15,6 @@
  * Derived from net/ipv4/netfilter/ip_conntrack_ftp.c
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/netfilter.h>

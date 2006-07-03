@@ -2475,7 +2475,7 @@ static int intel8x0_resume(struct pci_dev *pci)
 	pci_restore_state(pci);
 	pci_enable_device(pci);
 	pci_set_master(pci);
-	request_irq(pci->irq, snd_intel8x0_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	request_irq(pci->irq, snd_intel8x0_interrupt, IRQF_DISABLED|IRQF_SHARED,
 		    card->shortname, chip);
 	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
@@ -2848,7 +2848,7 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 
 	/* request irq after initializaing int_sta_mask, etc */
 	if (request_irq(pci->irq, snd_intel8x0_interrupt,
-			SA_INTERRUPT|SA_SHIRQ, card->shortname, chip)) {
+			IRQF_DISABLED|IRQF_SHARED, card->shortname, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_intel8x0_free(chip);
 		return -EBUSY;
