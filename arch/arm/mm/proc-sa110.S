@@ -23,6 +23,8 @@
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
 
+#include "proc-macros.S"
+
 /*
  * the cache line size of the I and D cache
  */

@@ -27,6 +27,8 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 
+#include "proc-macros.S"
+
 /*
  * the cache line size of the I and D cache
  */

@@ -41,6 +41,8 @@
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
 
+#include "proc-macros.S"
+
 /*
  * Function: arm720_proc_init (void)
  *	   : arm720_proc_fin (void)
