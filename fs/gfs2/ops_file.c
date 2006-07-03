@@ -950,7 +950,7 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 		return do_flock(file, cmd, fl);
 }
 
-struct file_operations gfs2_file_fops = {
+const struct file_operations gfs2_file_fops = {
 	.llseek = gfs2_llseek,
 	.read = gfs2_read,
 	.readv = gfs2_file_readv,
@@ -970,7 +970,7 @@ struct file_operations gfs2_file_fops = {
 	.splice_write = generic_file_splice_write,
 };
 
-struct file_operations gfs2_dir_fops = {
+const struct file_operations gfs2_dir_fops = {
 	.readdir = gfs2_readdir,
 	.unlocked_ioctl = gfs2_ioctl,
 	.open = gfs2_open,
