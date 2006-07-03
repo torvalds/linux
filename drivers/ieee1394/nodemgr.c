@@ -405,26 +405,11 @@ static ssize_t fw_get_destroy_node(struct bus_type *bus, char *buf)
 }
 static BUS_ATTR(destroy_node, S_IWUSR | S_IRUGO, fw_get_destroy_node, fw_set_destroy_node);
 
-static int nodemgr_rescan_bus_thread(void *__unused)
-{
-	/* No userlevel access needed */
-	daemonize("kfwrescan");
-
-	bus_rescan_devices(&ieee1394_bus_type);
-
-	return 0;
-}
 
 static ssize_t fw_set_rescan(struct bus_type *bus, const char *buf, size_t count)
 {
-	int state = simple_strtoul(buf, NULL, 10);
-
-	/* Don't wait for this, or care about errors. Root could do
-	 * something stupid and spawn this a lot of times, but that's
-	 * root's fault. */
-	if (state == 1)
-		kernel_thread(nodemgr_rescan_bus_thread, NULL, CLONE_KERNEL);
-
+	if (simple_strtoul(buf, NULL, 10) == 1)
+		bus_rescan_devices(&ieee1394_bus_type);
 	return count;
 }
 static ssize_t fw_get_rescan(struct bus_type *bus, char *buf)
