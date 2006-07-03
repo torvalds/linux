@@ -1059,7 +1059,7 @@ ioctl_out:
 	return ret_val;
 }
 
-static struct file_operations agp_fops =
+static const struct file_operations agp_fops =
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,

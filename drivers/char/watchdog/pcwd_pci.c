@@ -625,7 +625,7 @@ static int pcipcwd_notify_sys(struct notifier_block *this, unsigned long code, v
  *	Kernel Interfaces
  */
 
-static struct file_operations pcipcwd_fops = {
+static const struct file_operations pcipcwd_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.write =	pcipcwd_write,
@@ -640,7 +640,7 @@ static struct miscdevice pcipcwd_miscdev = {
 	.fops =		&pcipcwd_fops,
 };
 
-static struct file_operations pcipcwd_temp_fops = {
+static const struct file_operations pcipcwd_temp_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.read =		pcipcwd_temp_read,

@@ -418,7 +418,7 @@ static int wdt977_notify_sys(struct notifier_block *this, unsigned long code,
 	return NOTIFY_DONE;
 }
 
-static struct file_operations wdt977_fops=
+static const struct file_operations wdt977_fops=
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,

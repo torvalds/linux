@@ -135,7 +135,7 @@ static int sa1100dog_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static struct file_operations sa1100dog_fops =
+static const struct file_operations sa1100dog_fops =
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,

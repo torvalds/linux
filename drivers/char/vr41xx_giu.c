@@ -605,7 +605,7 @@ static int gpio_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations gpio_fops = {
+static const struct file_operations gpio_fops = {
 	.owner		= THIS_MODULE,
 	.read		= gpio_read,
 	.write		= gpio_write,

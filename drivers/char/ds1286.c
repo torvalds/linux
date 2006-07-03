@@ -281,7 +281,7 @@ static unsigned int ds1286_poll(struct file *file, poll_table *wait)
  *	The various file operations we support.
  */
 
-static struct file_operations ds1286_fops = {
+static const struct file_operations ds1286_fops = {
 	.llseek		= no_llseek,
 	.read		= ds1286_read,
 	.poll		= ds1286_poll,

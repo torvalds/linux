@@ -776,7 +776,7 @@ static int open_port(struct inode * inode, struct file * filp)
 #define open_kmem	open_mem
 #define open_oldmem	open_mem
 
-static struct file_operations mem_fops = {
+static const struct file_operations mem_fops = {
 	.llseek		= memory_lseek,
 	.read		= read_mem,
 	.write		= write_mem,
@@ -784,7 +784,7 @@ static struct file_operations mem_fops = {
 	.open		= open_mem,
 };
 
-static struct file_operations kmem_fops = {
+static const struct file_operations kmem_fops = {
 	.llseek		= memory_lseek,
 	.read		= read_kmem,
 	.write		= write_kmem,
@@ -792,7 +792,7 @@ static struct file_operations kmem_fops = {
 	.open		= open_kmem,
 };
 
-static struct file_operations null_fops = {
+static const struct file_operations null_fops = {
 	.llseek		= null_lseek,
 	.read		= read_null,
 	.write		= write_null,
@@ -800,7 +800,7 @@ static struct file_operations null_fops = {
 };
 
 #if defined(CONFIG_ISA) || !defined(__mc68000__)
-static struct file_operations port_fops = {
+static const struct file_operations port_fops = {
 	.llseek		= memory_lseek,
 	.read		= read_port,
 	.write		= write_port,
@@ -808,7 +808,7 @@ static struct file_operations port_fops = {
 };
 #endif
 
-static struct file_operations zero_fops = {
+static const struct file_operations zero_fops = {
 	.llseek		= zero_lseek,
 	.read		= read_zero,
 	.write		= write_zero,
@@ -819,14 +819,14 @@ static struct backing_dev_info zero_bdi = {
 	.capabilities	= BDI_CAP_MAP_COPY,
 };
 
-static struct file_operations full_fops = {
+static const struct file_operations full_fops = {
 	.llseek		= full_lseek,
 	.read		= read_full,
 	.write		= write_full,
 };
 
 #ifdef CONFIG_CRASH_DUMP
-static struct file_operations oldmem_fops = {
+static const struct file_operations oldmem_fops = {
 	.read	= read_oldmem,
 	.open	= open_oldmem,
 };
@@ -853,7 +853,7 @@ static ssize_t kmsg_write(struct file * file, const char __user * buf,
 	return ret;
 }
 
-static struct file_operations kmsg_fops = {
+static const struct file_operations kmsg_fops = {
 	.write =	kmsg_write,
 };
 
@@ -903,7 +903,7 @@ static int memory_open(struct inode * inode, struct file * filp)
 	return 0;
 }
 
-static struct file_operations memory_fops = {
+static const struct file_operations memory_fops = {
 	.open		= memory_open,	/* just a selector for the real open */
 };
 

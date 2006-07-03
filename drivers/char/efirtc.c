@@ -285,7 +285,7 @@ efi_rtc_close(struct inode *inode, struct file *file)
  *	The various file operations we support.
  */
 
-static struct file_operations efi_rtc_fops = {
+static const struct file_operations efi_rtc_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= efi_rtc_ioctl,
 	.open		= efi_rtc_open,

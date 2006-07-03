@@ -357,7 +357,7 @@ DEB(printk("interrupt 0x%x %d\n",ITE_GPAISR, i));
 	}
 }
 
-static struct file_operations ite_gpio_fops = {
+static const struct file_operations ite_gpio_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= ite_gpio_ioctl,
 	.open		= ite_gpio_open,

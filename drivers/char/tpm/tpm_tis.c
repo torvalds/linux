@@ -330,7 +330,7 @@ out_err:
 	return rc;
 }
 
-static struct file_operations tis_ops = {
+static const struct file_operations tis_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.open = tpm_open,

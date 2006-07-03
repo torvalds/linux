@@ -227,7 +227,7 @@ advwdt_notify_sys(struct notifier_block *this, unsigned long code,
  *	Kernel Interfaces
  */
 
-static struct file_operations advwdt_fops = {
+static const struct file_operations advwdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= advwdt_write,
