@@ -6,11 +6,16 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+#undef DEBUG
+
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/i8259.h>
+#include <asm/prom.h>
 
 static volatile void __iomem *pci_intack; /* RO, gives us the irq vector */
 
@@ -20,7 +25,8 @@ static unsigned char cached_8259[2] = { 0xff, 0xff };
 
 static DEFINE_SPINLOCK(i8259_lock);
 
-static int i8259_pic_irq_offset;
+static struct device_node *i8259_node;
+static struct irq_host *i8259_host;
 
 /*
  * Acknowledge the IRQ using either the PCI host bridge's interrupt
@@ -28,16 +34,18 @@ static int i8259_pic_irq_offset;
  * which is called.  It should be noted that polling is broken on some
  * IBM and Motorola PReP boxes so we must use the int-ack feature on them.
  */
-int i8259_irq(struct pt_regs *regs)
+unsigned int i8259_irq(struct pt_regs *regs)
 {
 	int irq;
-
-	spin_lock(&i8259_lock);
+	int lock = 0;
 
 	/* Either int-ack or poll for the IRQ */
 	if (pci_intack)
 		irq = readb(pci_intack);
 	else {
+		spin_lock(&i8259_lock);
+		lock = 1;
+
 		/* Perform an interrupt acknowledge cycle on controller 1. */
 		outb(0x0C, 0x20);		/* prepare for poll */
 		irq = inb(0x20) & 7;
@@ -62,11 +70,13 @@ int i8259_irq(struct pt_regs *regs)
 		if (!pci_intack)
 			outb(0x0B, 0x20);	/* ISR register */
 		if(~inb(0x20) & 0x80)
-			irq = -1;
-	}
+			irq = NO_IRQ;
+	} else if (irq == 0xff)
+		irq = NO_IRQ;
 
-	spin_unlock(&i8259_lock);
-	return irq + i8259_pic_irq_offset;
+	if (lock)
+		spin_unlock(&i8259_lock);
+	return irq;
 }
 
 static void i8259_mask_and_ack_irq(unsigned int irq_nr)
@@ -74,7 +84,6 @@ static void i8259_mask_and_ack_irq(unsigned int irq_nr)
 	unsigned long flags;
 
 	spin_lock_irqsave(&i8259_lock, flags);
-	irq_nr -= i8259_pic_irq_offset;
 	if (irq_nr > 7) {
 		cached_A1 |= 1 << (irq_nr-8);
 		inb(0xA1); 	/* DUMMY */
@@ -100,8 +109,9 @@ static void i8259_mask_irq(unsigned int irq_nr)
 {
 	unsigned long flags;
 
+	pr_debug("i8259_mask_irq(%d)\n", irq_nr);
+
 	spin_lock_irqsave(&i8259_lock, flags);
-	irq_nr -= i8259_pic_irq_offset;
 	if (irq_nr < 8)
 		cached_21 |= 1 << irq_nr;
 	else
@@ -114,8 +124,9 @@ static void i8259_unmask_irq(unsigned int irq_nr)
 {
 	unsigned long flags;
 
+	pr_debug("i8259_unmask_irq(%d)\n", irq_nr);
+
 	spin_lock_irqsave(&i8259_lock, flags);
-	irq_nr -= i8259_pic_irq_offset;
 	if (irq_nr < 8)
 		cached_21 &= ~(1 << irq_nr);
 	else
@@ -152,25 +163,84 @@ static struct resource pic_edgectrl_iores = {
 	.flags = IORESOURCE_BUSY,
 };
 
-static struct irqaction i8259_irqaction = {
-	.handler = no_action,
-	.flags = IRQF_DISABLED,
-	.mask = CPU_MASK_NONE,
-	.name = "82c59 secondary cascade",
+static int i8259_host_match(struct irq_host *h, struct device_node *node)
+{
+	return i8259_node == NULL || i8259_node == node;
+}
+
+static int i8259_host_map(struct irq_host *h, unsigned int virq,
+			  irq_hw_number_t hw, unsigned int flags)
+{
+	pr_debug("i8259_host_map(%d, 0x%lx)\n", virq, hw);
+
+	/* We block the internal cascade */
+	if (hw == 2)
+		get_irq_desc(virq)->status |= IRQ_NOREQUEST;
+
+	/* We use the level stuff only for now, we might want to
+	 * be more cautious here but that works for now
+	 */
+	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	set_irq_chip_and_handler(virq, &i8259_pic, handle_level_irq);
+	return 0;
+}
+
+static void i8259_host_unmap(struct irq_host *h, unsigned int virq)
+{
+	/* Make sure irq is masked in hardware */
+	i8259_mask_irq(virq);
+
+	/* remove chip and handler */
+	set_irq_chip_and_handler(virq, NULL, NULL);
+
+	/* Make sure it's completed */
+	synchronize_irq(virq);
+}
+
+static int i8259_host_xlate(struct irq_host *h, struct device_node *ct,
+			    u32 *intspec, unsigned int intsize,
+			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
+{
+	static unsigned char map_isa_senses[4] = {
+		IRQ_TYPE_LEVEL_LOW,
+		IRQ_TYPE_LEVEL_HIGH,
+		IRQ_TYPE_EDGE_FALLING,
+		IRQ_TYPE_EDGE_RISING,
+	};
+
+	*out_hwirq = intspec[0];
+	if (intsize > 1 && intspec[1] < 4)
+		*out_flags = map_isa_senses[intspec[1]];
+	else
+		*out_flags = IRQ_TYPE_NONE;
+
+	return 0;
+}
+
+static struct irq_host_ops i8259_host_ops = {
+	.match = i8259_host_match,
+	.map = i8259_host_map,
+	.unmap = i8259_host_unmap,
+	.xlate = i8259_host_xlate,
 };
 
-/*
- * i8259_init()
- * intack_addr - PCI interrupt acknowledge (real) address which will return
- *               the active irq from the 8259
+/****
+ * i8259_init - Initialize the legacy controller
+ * @node: device node of the legacy PIC (can be NULL, but then, it will match
+ *        all interrupts, so beware)
+ * @intack_addr: PCI interrupt acknowledge (real) address which will return
+ *             	 the active irq from the 8259
  */
-void __init i8259_init(unsigned long intack_addr, int offset)
+void i8259_init(struct device_node *node, unsigned long intack_addr)
 {
 	unsigned long flags;
-	int i;
 
+	/* initialize the controller */
 	spin_lock_irqsave(&i8259_lock, flags);
-	i8259_pic_irq_offset = offset;
+
+	/* Mask all first */
+	outb(0xff, 0xA1);
+	outb(0xff, 0x21);
 
 	/* init master interrupt controller */
 	outb(0x11, 0x20); /* Start init sequence */
@@ -184,24 +254,36 @@ void __init i8259_init(unsigned long intack_addr, int offset)
 	outb(0x02, 0xA1); /* edge triggered, Cascade (slave) on IRQ2 */
 	outb(0x01, 0xA1); /* Select 8086 mode */
 
+	/* That thing is slow */
+	udelay(100);
+
 	/* always read ISR */
 	outb(0x0B, 0x20);
 	outb(0x0B, 0xA0);
 
-	/* Mask all interrupts */
+	/* Unmask the internal cascade */
+	cached_21 &= ~(1 << 2);
+
+	/* Set interrupt masks */
 	outb(cached_A1, 0xA1);
 	outb(cached_21, 0x21);
 
 	spin_unlock_irqrestore(&i8259_lock, flags);
 
-	for (i = 0; i < NUM_ISA_INTERRUPTS; ++i) {
-		set_irq_chip_and_handler(offset + i, &i8259_pic,
-					 handle_level_irq);
-		irq_desc[offset + i].status |= IRQ_LEVEL;
+	/* create a legacy host */
+	if (node)
+		i8259_node = of_node_get(node);
+	i8259_host = irq_alloc_host(IRQ_HOST_MAP_LEGACY, 0, &i8259_host_ops, 0);
+	if (i8259_host == NULL) {
+		printk(KERN_ERR "i8259: failed to allocate irq host !\n");
+		return;
 	}
 
 	/* reserve our resources */
-	setup_irq(offset + 2, &i8259_irqaction);
+	/* XXX should we continue doing that ? it seems to cause problems
+	 * with further requesting of PCI IO resources for that range...
+	 * need to look into it.
+	 */
 	request_resource(&ioport_resource, &pic1_iores);
 	request_resource(&ioport_resource, &pic2_iores);
 	request_resource(&ioport_resource, &pic_edgectrl_iores);
@@ -209,4 +291,5 @@ void __init i8259_init(unsigned long intack_addr, int offset)
 	if (intack_addr != 0)
 		pci_intack = ioremap(intack_addr, 1);
 
+	printk(KERN_INFO "i8259 legacy interrupt controller initialized\n");
 }

@@ -162,27 +162,6 @@ static void pci_event_handler(struct HvLpEvent *event, struct pt_regs *regs)
 		printk(KERN_ERR "pci_event_handler: NULL event received\n");
 }
 
-/*
- * This is called by init_IRQ.  set in ppc_md.init_IRQ by iSeries_setup.c
- * It must be called before the bus walk.
- */
-void __init iSeries_init_IRQ(void)
-{
-	/* Register PCI event handler and open an event path */
-	int ret;
-
-	ret = HvLpEvent_registerHandler(HvLpEvent_Type_PciIo,
-			&pci_event_handler);
-	if (ret == 0) {
-		ret = HvLpEvent_openPath(HvLpEvent_Type_PciIo, 0);
-		if (ret != 0)
-			printk(KERN_ERR "iseries_init_IRQ: open event path "
-					"failed with rc 0x%x\n", ret);
-	} else
-		printk(KERN_ERR "iseries_init_IRQ: register handler "
-				"failed with rc 0x%x\n", ret);
-}
-
 #define REAL_IRQ_TO_SUBBUS(irq)	(((irq) >> 14) & 0xff)
 #define REAL_IRQ_TO_BUS(irq)	((((irq) >> 6) & 0xff) + 1)
 #define REAL_IRQ_TO_IDSEL(irq)	((((irq) >> 3) & 7) + 1)
@@ -196,7 +175,7 @@ static void iseries_enable_IRQ(unsigned int irq)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = virt_irq_to_real_map[irq];
+	unsigned int rirq = (unsigned int)irq_map[irq].hwirq;
 
 	/* The IRQ has already been locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
@@ -213,7 +192,7 @@ static unsigned int iseries_startup_IRQ(unsigned int irq)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = virt_irq_to_real_map[irq];
+	unsigned int rirq = (unsigned int)irq_map[irq].hwirq;
 
 	bus = REAL_IRQ_TO_BUS(rirq);
 	function = REAL_IRQ_TO_FUNC(rirq);
@@ -254,7 +233,7 @@ static void iseries_shutdown_IRQ(unsigned int irq)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = virt_irq_to_real_map[irq];
+	unsigned int rirq = (unsigned int)irq_map[irq].hwirq;
 
 	/* irq should be locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
@@ -277,7 +256,7 @@ static void iseries_disable_IRQ(unsigned int irq)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = virt_irq_to_real_map[irq];
+	unsigned int rirq = (unsigned int)irq_map[irq].hwirq;
 
 	/* The IRQ has already been locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
@@ -291,7 +270,7 @@ static void iseries_disable_IRQ(unsigned int irq)
 
 static void iseries_end_IRQ(unsigned int irq)
 {
-	unsigned int rirq = virt_irq_to_real_map[irq];
+	unsigned int rirq = (unsigned int)irq_map[irq].hwirq;
 
 	HvCallPci_eoi(REAL_IRQ_TO_BUS(rirq), REAL_IRQ_TO_SUBBUS(rirq),
 		(REAL_IRQ_TO_IDSEL(rirq) << 4) + REAL_IRQ_TO_FUNC(rirq));
@@ -314,16 +293,14 @@ static struct irq_chip iseries_pic = {
 int __init iSeries_allocate_IRQ(HvBusNumber bus,
 		HvSubBusNumber sub_bus, u32 bsubbus)
 {
-	int virtirq;
 	unsigned int realirq;
 	u8 idsel = ISERIES_GET_DEVICE_FROM_SUBBUS(bsubbus);
 	u8 function = ISERIES_GET_FUNCTION_FROM_SUBBUS(bsubbus);
 
 	realirq = (((((sub_bus << 8) + (bus - 1)) << 3) + (idsel - 1)) << 3)
 		+ function;
-	virtirq = virt_irq_create_mapping(realirq);
-	set_irq_chip_and_handler(virtirq, &iseries_pic, handle_fasteoi_irq);
-	return virtirq;
+
+	return irq_create_mapping(NULL, realirq, IRQ_TYPE_NONE);
 }
 
 #endif /* CONFIG_PCI */
@@ -331,10 +308,9 @@ int __init iSeries_allocate_IRQ(HvBusNumber bus,
 /*
  * Get the next pending IRQ.
  */
-int iSeries_get_irq(struct pt_regs *regs)
+unsigned int iSeries_get_irq(struct pt_regs *regs)
 {
-	/* -2 means ignore this interrupt */
-	int irq = -2;
+	int irq = NO_IRQ_IGNORE;
 
 #ifdef CONFIG_SMP
 	if (get_lppaca()->int_dword.fields.ipi_cnt) {
@@ -357,9 +333,57 @@ int iSeries_get_irq(struct pt_regs *regs)
 		}
 		spin_unlock(&pending_irqs_lock);
 		if (irq >= NR_IRQS)
-			irq = -2;
+			irq = NO_IRQ_IGNORE;
 	}
 #endif
 
 	return irq;
 }
+
+static int iseries_irq_host_map(struct irq_host *h, unsigned int virq,
+				irq_hw_number_t hw, unsigned int flags)
+{
+	set_irq_chip_and_handler(virq, &iseries_pic, handle_fasteoi_irq);
+
+	return 0;
+}
+
+static struct irq_host_ops iseries_irq_host_ops = {
+	.map = iseries_irq_host_map,
+};
+
+/*
+ * This is called by init_IRQ.  set in ppc_md.init_IRQ by iSeries_setup.c
+ * It must be called before the bus walk.
+ */
+void __init iSeries_init_IRQ(void)
+{
+	/* Register PCI event handler and open an event path */
+	struct irq_host *host;
+	int ret;
+
+	/*
+	 * The Hypervisor only allows us up to 256 interrupt
+	 * sources (the irq number is passed in a u8).
+	 */
+	irq_set_virq_count(256);
+
+	/* Create irq host. No need for a revmap since HV will give us
+	 * back our virtual irq number
+	 */
+	host = irq_alloc_host(IRQ_HOST_MAP_NOMAP, 0, &iseries_irq_host_ops, 0);
+	BUG_ON(host == NULL);
+	irq_set_default_host(host);
+
+	ret = HvLpEvent_registerHandler(HvLpEvent_Type_PciIo,
+			&pci_event_handler);
+	if (ret == 0) {
+		ret = HvLpEvent_openPath(HvLpEvent_Type_PciIo, 0);
+		if (ret != 0)
+			printk(KERN_ERR "iseries_init_IRQ: open event path "
+					"failed with rc 0x%x\n", ret);
+	} else
+		printk(KERN_ERR "iseries_init_IRQ: register handler "
+				"failed with rc 0x%x\n", ret);
+}
+

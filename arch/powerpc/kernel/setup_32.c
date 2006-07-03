@@ -239,7 +239,6 @@ void __init setup_arch(char **cmdline_p)
 		ppc_md.init_early();
 
 	find_legacy_serial_ports();
-	finish_device_tree();
 
 	smp_setup_cpu_maps();
 

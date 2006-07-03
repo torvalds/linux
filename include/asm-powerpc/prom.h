@@ -64,11 +64,6 @@ struct boot_param_header
 typedef u32 phandle;
 typedef u32 ihandle;
 
-struct interrupt_info {
-	int	line;
-	int	sense;		/* +ve/-ve logic, edge or level, etc. */
-};
-
 struct property {
 	char	*name;
 	int	length;
@@ -81,8 +76,6 @@ struct device_node {
 	char	*type;
 	phandle	node;
 	phandle linux_phandle;
-	int	n_intrs;
-	struct	interrupt_info *intrs;
 	char	*full_name;
 
 	struct	property *properties;

@@ -162,6 +162,8 @@ static void __init bootx_add_chosen_props(unsigned long base,
 {
 	u32 val;
 
+	bootx_dt_add_prop("linux,bootx", NULL, 0, mem_end);
+
 	if (bootx_info->kernelParamsOffset) {
 		char *args = (char *)((unsigned long)bootx_info) +
 			bootx_info->kernelParamsOffset;
@@ -228,7 +230,7 @@ static void __init bootx_scan_dt_build_strings(unsigned long base,
 
 	if (!strcmp(namep, "/chosen")) {
 		DBG(" detected /chosen ! adding properties names !\n");
-		bootx_dt_add_string("linux,platform", mem_end);
+		bootx_dt_add_string("linux,bootx", mem_end);
 		bootx_dt_add_string("linux,stdout-path", mem_end);
 		bootx_dt_add_string("linux,initrd-start", mem_end);
 		bootx_dt_add_string("linux,initrd-end", mem_end);

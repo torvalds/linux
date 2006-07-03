@@ -37,23 +37,22 @@
  */
 
 enum {
-	IIC_EXT_OFFSET   = 0x00, /* Start of south bridge IRQs */
-	IIC_EXT_CASCADE  = 0x20, /* There is no interrupt 32 on spider */
-	IIC_NUM_EXT      = 0x40, /* Number of south bridge IRQs */
-	IIC_SPE_OFFSET   = 0x40, /* Start of SPE interrupts */
-	IIC_CLASS_STRIDE = 0x10, /* SPE IRQs per class    */
-	IIC_IPI_OFFSET   = 0x70, /* Start of IPI IRQs */
-	IIC_NUM_IPIS     = 0x10, /* IRQs reserved for IPI */
-	IIC_NODE_STRIDE  = 0x80, /* Total IRQs per node   */
+	IIC_IRQ_INVALID		= 0xff,
+	IIC_IRQ_MAX		= 0x3f,
+	IIC_IRQ_EXT_IOIF0	= 0x20,
+	IIC_IRQ_EXT_IOIF1	= 0x2b,
+	IIC_IRQ_IPI0		= 0x40,
+	IIC_NUM_IPIS    	= 0x10, /* IRQs reserved for IPI */
+	IIC_SOURCE_COUNT	= 0x50,
 };
 
 extern void iic_init_IRQ(void);
-extern int  iic_get_irq(struct pt_regs *regs);
 extern void iic_cause_IPI(int cpu, int mesg);
 extern void iic_request_IPIs(void);
 extern void iic_setup_cpu(void);
 
 extern u8 iic_get_target_id(int cpu);
+extern struct irq_host *iic_get_irq_host(int node);
 
 extern void spider_init_IRQ(void);
 

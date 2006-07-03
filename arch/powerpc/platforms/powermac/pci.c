@@ -46,6 +46,9 @@ static int has_uninorth;
 static struct pci_controller *u3_agp;
 static struct pci_controller *u4_pcie;
 static struct pci_controller *u3_ht;
+#define has_second_ohare 0
+#else
+static int has_second_ohare;
 #endif /* CONFIG_PPC64 */
 
 extern u8 pci_cache_line_size;
@@ -647,6 +650,33 @@ static void __init init_p2pbridge(void)
 	early_write_config_word(hose, bus, devfn, PCI_BRIDGE_CONTROL, val);
 }
 
+static void __init init_second_ohare(void)
+{
+	struct device_node *np = of_find_node_by_name(NULL, "pci106b,7");
+	unsigned char bus, devfn;
+	unsigned short cmd;
+
+	if (np == NULL)
+		return;
+
+	/* This must run before we initialize the PICs since the second
+	 * ohare hosts a PIC that will be accessed there.
+	 */
+	if (pci_device_from_OF_node(np, &bus, &devfn) == 0) {
+		struct pci_controller* hose =
+			pci_find_hose_for_OF_device(np);
+		if (!hose) {
+			printk(KERN_ERR "Can't find PCI hose for OHare2 !\n");
+			return;
+		}
+		early_read_config_word(hose, bus, devfn, PCI_COMMAND, &cmd);
+		cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
+		cmd &= ~PCI_COMMAND_IO;
+		early_write_config_word(hose, bus, devfn, PCI_COMMAND, cmd);
+	}
+	has_second_ohare = 1;
+}
+
 /*
  * Some Apple desktop machines have a NEC PD720100A USB2 controller
  * on the motherboard. Open Firmware, on these, will disable the
@@ -688,9 +718,6 @@ static void __init fixup_nec_usb2(void)
 			       " EHCI, fixing up...\n");
 			data &= ~1UL;
 			early_write_config_dword(hose, bus, devfn, 0xe4, data);
-			early_write_config_byte(hose, bus,
-						devfn | 2, PCI_INTERRUPT_LINE,
-				nec->intrs[0].line);
 		}
 	}
 }
@@ -958,30 +985,26 @@ static int __init add_bridge(struct device_node *dev)
 	return 0;
 }
 
-static void __init pcibios_fixup_OF_interrupts(void)
+void __init pmac_pcibios_fixup(void)
 {
 	struct pci_dev* dev = NULL;
 
-	/*
-	 * Open Firmware often doesn't initialize the
-	 * PCI_INTERRUPT_LINE config register properly, so we
-	 * should find the device node and apply the interrupt
-	 * obtained from the OF device-tree
-	 */
 	for_each_pci_dev(dev) {
-		struct device_node *node;
-		node = pci_device_to_OF_node(dev);
-		/* this is the node, see if it has interrupts */
-		if (node && node->n_intrs > 0)
-			dev->irq = node->intrs[0].line;
-		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
-	}
-}
+		/* Read interrupt from the device-tree */
+		pci_read_irq_line(dev);
 
-void __init pmac_pcibios_fixup(void)
-{
-	/* Fixup interrupts according to OF tree */
-	pcibios_fixup_OF_interrupts();
+		/* Fixup interrupt for the modem/ethernet combo controller.
+		 * on machines with a second ohare chip.
+		 * The number in the device tree (27) is bogus (correct for
+		 * the ethernet-only board but not the combo ethernet/modem
+		 * board). The real interrupt is 28 on the second controller
+		 * -> 28+32 = 60.
+		 */
+		if (has_second_ohare &&
+		    dev->vendor == PCI_VENDOR_ID_DEC &&
+		    dev->device == PCI_DEVICE_ID_DEC_TULIP_PLUS)
+			dev->irq = irq_create_mapping(NULL, 60, 0);
+	}
 }
 
 #ifdef CONFIG_PPC64
@@ -1071,6 +1094,7 @@ void __init pmac_pci_init(void)
 
 #else /* CONFIG_PPC64 */
 	init_p2pbridge();
+	init_second_ohare();
 	fixup_nec_usb2();
 
 	/* We are still having some issues with the Xserve G4, enabling

@@ -28,6 +28,7 @@ static struct legacy_serial_info {
 	struct device_node		*np;
 	unsigned int			speed;
 	unsigned int			clock;
+	int				irq_check_parent;
 	phys_addr_t			taddr;
 } legacy_serial_infos[MAX_LEGACY_SERIAL_PORTS];
 static unsigned int legacy_serial_count;
@@ -36,7 +37,7 @@ static int legacy_serial_console = -1;
 static int __init add_legacy_port(struct device_node *np, int want_index,
 				  int iotype, phys_addr_t base,
 				  phys_addr_t taddr, unsigned long irq,
-				  upf_t flags)
+				  upf_t flags, int irq_check_parent)
 {
 	u32 *clk, *spd, clock = BASE_BAUD * 16;
 	int index;
@@ -68,7 +69,7 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 	if (legacy_serial_infos[index].np != 0) {
 		/* if we still have some room, move it, else override */
 		if (legacy_serial_count < MAX_LEGACY_SERIAL_PORTS) {
-			printk(KERN_INFO "Moved legacy port %d -> %d\n",
+			printk(KERN_DEBUG "Moved legacy port %d -> %d\n",
 			       index, legacy_serial_count);
 			legacy_serial_ports[legacy_serial_count] =
 				legacy_serial_ports[index];
@@ -76,7 +77,7 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 				legacy_serial_infos[index];
 			legacy_serial_count++;
 		} else {
-			printk(KERN_INFO "Replacing legacy port %d\n", index);
+			printk(KERN_DEBUG "Replacing legacy port %d\n", index);
 		}
 	}
 
@@ -95,10 +96,11 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 	legacy_serial_infos[index].np = of_node_get(np);
 	legacy_serial_infos[index].clock = clock;
 	legacy_serial_infos[index].speed = spd ? *spd : 0;
+	legacy_serial_infos[index].irq_check_parent = irq_check_parent;
 
-	printk(KERN_INFO "Found legacy serial port %d for %s\n",
+	printk(KERN_DEBUG "Found legacy serial port %d for %s\n",
 	       index, np->full_name);
-	printk(KERN_INFO "  %s=%llx, taddr=%llx, irq=%lx, clk=%d, speed=%d\n",
+	printk(KERN_DEBUG "  %s=%llx, taddr=%llx, irq=%lx, clk=%d, speed=%d\n",
 	       (iotype == UPIO_PORT) ? "port" : "mem",
 	       (unsigned long long)base, (unsigned long long)taddr, irq,
 	       legacy_serial_ports[index].uartclk,
@@ -132,7 +134,7 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	/* Add port, irq will be dealt with later. We passed a translated
 	 * IO port value. It will be fixed up later along with the irq
 	 */
-	return add_legacy_port(np, -1, UPIO_MEM, addr, addr, NO_IRQ, flags);
+	return add_legacy_port(np, -1, UPIO_MEM, addr, addr, NO_IRQ, flags, 0);
 }
 
 static int __init add_legacy_isa_port(struct device_node *np,
@@ -170,7 +172,7 @@ static int __init add_legacy_isa_port(struct device_node *np,
 
 	/* Add port, irq will be dealt with later */
 	return add_legacy_port(np, index, UPIO_PORT, reg[1], taddr,
-			       NO_IRQ, UPF_BOOT_AUTOCONF);
+			       NO_IRQ, UPF_BOOT_AUTOCONF, 0);
 
 }
 
@@ -242,7 +244,8 @@ static int __init add_legacy_pci_port(struct device_node *np,
 	/* Add port, irq will be dealt with later. We passed a translated
 	 * IO port value. It will be fixed up later along with the irq
 	 */
-	return add_legacy_port(np, index, iotype, base, addr, NO_IRQ, UPF_BOOT_AUTOCONF);
+	return add_legacy_port(np, index, iotype, base, addr, NO_IRQ,
+			       UPF_BOOT_AUTOCONF, np != pci_dev);
 }
 #endif
 
@@ -373,27 +376,22 @@ static void __init fixup_port_irq(int index,
 				  struct device_node *np,
 				  struct plat_serial8250_port *port)
 {
+	unsigned int virq;
+
 	DBG("fixup_port_irq(%d)\n", index);
 
-	/* Check for interrupts in that node */
-	if (np->n_intrs > 0) {
-		port->irq = np->intrs[0].line;
-		DBG(" port %d (%s), irq=%d\n",
-		    index, np->full_name, port->irq);
-		return;
+	virq = irq_of_parse_and_map(np, 0);
+	if (virq == NO_IRQ && legacy_serial_infos[index].irq_check_parent) {
+		np = of_get_parent(np);
+		if (np == NULL)
+			return;
+		virq = irq_of_parse_and_map(np, 0);
+		of_node_put(np);
 	}
-
-	/* Check for interrupts in the parent */
-	np = of_get_parent(np);
-	if (np == NULL)
+	if (virq == NO_IRQ)
 		return;
 
-	if (np->n_intrs > 0) {
-		port->irq = np->intrs[0].line;
-		DBG(" port %d (%s), irq=%d\n",
-		    index, np->full_name, port->irq);
-	}
-	of_node_put(np);
+	port->irq = virq;
 }
 
 static void __init fixup_port_pio(int index,

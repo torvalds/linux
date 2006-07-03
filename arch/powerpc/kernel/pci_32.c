@@ -1404,6 +1404,43 @@ pcibios_update_irq(struct pci_dev *dev, int irq)
 	/* XXX FIXME - update OF device tree node interrupt property */
 }
 
+#ifdef CONFIG_PPC_MERGE
+/* XXX This is a copy of the ppc64 version. This is temporary until we start
+ * merging the 2 PCI layers
+ */
+/*
+ * Reads the interrupt pin to determine if interrupt is use by card.
+ * If the interrupt is used, then gets the interrupt line from the
+ * openfirmware and sets it in the pci_dev and pci_config line.
+ */
+int pci_read_irq_line(struct pci_dev *pci_dev)
+{
+	struct of_irq oirq;
+	unsigned int virq;
+
+	DBG("Try to map irq for %s...\n", pci_name(pci_dev));
+
+	if (of_irq_map_pci(pci_dev, &oirq)) {
+		DBG(" -> failed !\n");
+		return -1;
+	}
+
+	DBG(" -> got one, spec %d cells (0x%08x...) on %s\n",
+	    oirq.size, oirq.specifier[0], oirq.controller->full_name);
+
+	virq = irq_create_of_mapping(oirq.controller, oirq.specifier, oirq.size);
+	if(virq == NO_IRQ) {
+		DBG(" -> failed to map !\n");
+		return -1;
+	}
+	pci_dev->irq = virq;
+	pci_write_config_byte(pci_dev, PCI_INTERRUPT_LINE, virq);
+
+	return 0;
+}
+EXPORT_SYMBOL(pci_read_irq_line);
+#endif /* CONFIG_PPC_MERGE */
+
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
 	u16 cmd, old_cmd;

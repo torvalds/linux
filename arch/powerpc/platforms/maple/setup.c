@@ -198,50 +198,81 @@ static void __init maple_init_early(void)
 {
 	DBG(" -> maple_init_early\n");
 
-	/* Setup interrupt mapping options */
-	ppc64_interrupt_controller = IC_OPEN_PIC;
-
 	iommu_init_early_dart();
 
 	DBG(" <- maple_init_early\n");
 }
 
-
-static __init void maple_init_IRQ(void)
+/*
+ * This is almost identical to pSeries and CHRP. We need to make that
+ * code generic at one point, with appropriate bits in the device-tree to
+ * identify the presence of an HT APIC
+ */
+static void __init maple_init_IRQ(void)
 {
-	struct device_node *root;
+	struct device_node *root, *np, *mpic_node = NULL;
 	unsigned int *opprop;
-	unsigned long opic_addr;
+	unsigned long openpic_addr = 0;
+	int naddr, n, i, opplen, has_isus = 0;
 	struct mpic *mpic;
-	unsigned char senses[128];
-	int n;
+	unsigned int flags = MPIC_PRIMARY;
 
-	DBG(" -> maple_init_IRQ\n");
+	/* Locate MPIC in the device-tree. Note that there is a bug
+	 * in Maple device-tree where the type of the controller is
+	 * open-pic and not interrupt-controller
+	 */
+	for_each_node_by_type(np, "open-pic") {
+		mpic_node = np;
+		break;
+	}
+	if (mpic_node == NULL) {
+		printk(KERN_ERR
+		       "Failed to locate the MPIC interrupt controller\n");
+		return;
+	}
 
-	/* XXX: Non standard, replace that with a proper openpic/mpic node
-	 * in the device-tree. Find the Open PIC if present */
+	/* Find address list in /platform-open-pic */
 	root = of_find_node_by_path("/");
-	opprop = (unsigned int *) get_property(root,
-				"platform-open-pic", NULL);
-	if (opprop == 0)
-		panic("OpenPIC not found !\n");
-
-	n = prom_n_addr_cells(root);
-	for (opic_addr = 0; n > 0; --n)
-		opic_addr = (opic_addr << 32) + *opprop++;
+	naddr = prom_n_addr_cells(root);
+	opprop = (unsigned int *) get_property(root, "platform-open-pic",
+					       &opplen);
+	if (opprop != 0) {
+		openpic_addr = of_read_number(opprop, naddr);
+		has_isus = (opplen > naddr);
+		printk(KERN_DEBUG "OpenPIC addr: %lx, has ISUs: %d\n",
+		       openpic_addr, has_isus);
+	}
 	of_node_put(root);
 
-	/* Obtain sense values from device-tree */
-	prom_get_irq_senses(senses, 0, 128);
+	BUG_ON(openpic_addr == 0);
 
-	mpic = mpic_alloc(opic_addr,
-			  MPIC_PRIMARY | MPIC_BIG_ENDIAN |
-			  MPIC_BROKEN_U3 | MPIC_WANTS_RESET,
-			  0, 0, 128, 128, senses, 128, "U3-MPIC");
+	/* Check for a big endian MPIC */
+	if (get_property(np, "big-endian", NULL) != NULL)
+		flags |= MPIC_BIG_ENDIAN;
+
+	/* XXX Maple specific bits */
+	flags |= MPIC_BROKEN_U3 | MPIC_WANTS_RESET;
+
+	/* Setup the openpic driver. More device-tree junks, we hard code no
+	 * ISUs for now. I'll have to revisit some stuffs with the folks doing
+	 * the firmware for those
+	 */
+	mpic = mpic_alloc(mpic_node, openpic_addr, flags,
+			  /*has_isus ? 16 :*/ 0, 0, " MPIC     ");
 	BUG_ON(mpic == NULL);
-	mpic_init(mpic);
 
-	DBG(" <- maple_init_IRQ\n");
+	/* Add ISUs */
+	opplen /= sizeof(u32);
+	for (n = 0, i = naddr; i < opplen; i += naddr, n++) {
+		unsigned long isuaddr = of_read_number(opprop + i, naddr);
+		mpic_assign_isu(mpic, n, isuaddr);
+	}
+
+	/* All ISUs are setup, complete initialization */
+	mpic_init(mpic);
+	ppc_md.get_irq = mpic_get_irq;
+	of_node_put(mpic_node);
+	of_node_put(root);
 }
 
 static void __init maple_progress(char *s, unsigned short hex)
@@ -279,7 +310,6 @@ define_machine(maple_md) {
 	.setup_arch		= maple_setup_arch,
 	.init_early		= maple_init_early,
 	.init_IRQ		= maple_init_IRQ,
-	.get_irq		= mpic_get_irq,
 	.pcibios_fixup		= maple_pcibios_fixup,
 	.pci_get_legacy_ide_irq	= maple_pci_get_legacy_ide_irq,
 	.restart		= maple_restart,
