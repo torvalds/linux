@@ -2159,6 +2159,29 @@ const struct exception_table_entry *search_module_extables(unsigned long addr)
 	return e;
 }
 
+/*
+ * Is this a valid module address?
+ */
+int is_module_address(unsigned long addr)
+{
+	unsigned long flags;
+	struct module *mod;
+
+	spin_lock_irqsave(&modlist_lock, flags);
+
+	list_for_each_entry(mod, &modules, list) {
+		if (within(addr, mod->module_core, mod->core_size)) {
+			spin_unlock_irqrestore(&modlist_lock, flags);
+			return 1;
+		}
+	}
+
+	spin_unlock_irqrestore(&modlist_lock, flags);
+
+	return 0;
+}
+
+
 /* Is this a valid kernel address?  We don't grab the lock: we are oopsing. */
 struct module *__module_text_address(unsigned long addr)
 {

@@ -358,6 +358,7 @@ static inline int module_is_live(struct module *mod)
 /* Is this address in a module? (second is with no locks, for oops) */
 struct module *module_text_address(unsigned long addr);
 struct module *__module_text_address(unsigned long addr);
+int is_module_address(unsigned long addr);
 
 /* Returns module and fills in value, defined and namebuf, or NULL if
    symnum out of range. */
@@ -494,6 +495,11 @@ static inline struct module *module_text_address(unsigned long addr)
 static inline struct module *__module_text_address(unsigned long addr)
 {
 	return NULL;
+}
+
+static inline int is_module_address(unsigned long addr)
+{
+	return 0;
 }
 
 /* Get/put a kernel symbol (calls should be symmetric) */
