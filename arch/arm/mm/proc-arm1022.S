@@ -23,6 +23,8 @@
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
 
+#include "proc-macros.S"
+
 /*
  * This is the maximum size of an area which will be invalidated
  * using the single invalidate entry instructions.  Anything larger
