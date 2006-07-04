@@ -868,7 +868,9 @@ static void __init probe_pcache(void)
 		if (c->processor_id == 0x0c80U || c->processor_id == 0x0c81U ||
 		    c->processor_id == 0x0c82U) {
 			config &= ~0x00000030U;
-			config |= 0x00410000U;
+			config |= 0x00400000U;
+			if (c->processor_id == 0x0c80U)
+				config |= VR41_CONF_BP;
 			write_c0_config(config);
 		}
 		icache_size = 1 << (10 + ((config & CONF_IC) >> 9));
