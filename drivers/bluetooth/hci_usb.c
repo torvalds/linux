@@ -122,12 +122,18 @@ static struct usb_device_id blacklist_ids[] = {
 	/* RTX Telecom based adapter with buggy SCO support */
 	{ USB_DEVICE(0x0400, 0x0807), .driver_info = HCI_BROKEN_ISOC },
 
+	/* Belkin F8T012 */
+	{ USB_DEVICE(0x050d, 0x0012), .driver_info = HCI_WRONG_SCO_MTU },
+
 	/* Digianswer devices */
 	{ USB_DEVICE(0x08fd, 0x0001), .driver_info = HCI_DIGIANSWER },
 	{ USB_DEVICE(0x08fd, 0x0002), .driver_info = HCI_IGNORE },
 
 	/* CSR BlueCore Bluetooth Sniffer */
 	{ USB_DEVICE(0x0a12, 0x0002), .driver_info = HCI_SNIFFER },
+
+	/* Frontline ComProbe Bluetooth Sniffer */
+	{ USB_DEVICE(0x16d3, 0x0002), .driver_info = HCI_SNIFFER },
 
 	{ }	/* Terminating entry */
 };
@@ -984,6 +990,9 @@ static int hci_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (reset || id->driver_info & HCI_RESET)
 		set_bit(HCI_QUIRK_RESET_ON_INIT, &hdev->quirks);
 
+	if (id->driver_info & HCI_WRONG_SCO_MTU)
+		set_bit(HCI_QUIRK_FIXUP_BUFFER_SIZE, &hdev->quirks);
+
 	if (id->driver_info & HCI_SNIFFER) {
 		if (le16_to_cpu(udev->descriptor.bcdDevice) > 0x997)
 			set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
@@ -1042,10 +1051,81 @@ static void hci_usb_disconnect(struct usb_interface *intf)
 	hci_free_dev(hdev);
 }
 
+static int hci_usb_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct hci_usb *husb = usb_get_intfdata(intf);
+	struct list_head killed;
+	unsigned long flags;
+	int i;
+
+	if (!husb || intf == husb->isoc_iface)
+		return 0;
+
+	hci_suspend_dev(husb->hdev);
+
+	INIT_LIST_HEAD(&killed);
+
+	for (i = 0; i < 4; i++) {
+		struct _urb_queue *q = &husb->pending_q[i];
+		struct _urb *_urb, *_tmp;
+
+		while ((_urb = _urb_dequeue(q))) {
+			/* reset queue since _urb_dequeue sets it to NULL */
+			_urb->queue = q;
+			usb_kill_urb(&_urb->urb);
+			list_add(&_urb->list, &killed);
+		}
+
+		spin_lock_irqsave(&q->lock, flags);
+
+		list_for_each_entry_safe(_urb, _tmp, &killed, list) {
+			list_move_tail(&_urb->list, &q->head);
+		}
+
+		spin_unlock_irqrestore(&q->lock, flags);
+	}
+
+	return 0;
+}
+
+static int hci_usb_resume(struct usb_interface *intf)
+{
+	struct hci_usb *husb = usb_get_intfdata(intf);
+	unsigned long flags;
+	int i, err = 0;
+
+	if (!husb || intf == husb->isoc_iface)
+		return 0;
+	
+	for (i = 0; i < 4; i++) {
+		struct _urb_queue *q = &husb->pending_q[i];
+		struct _urb *_urb;
+
+		spin_lock_irqsave(&q->lock, flags);
+
+		list_for_each_entry(_urb, &q->head, list) {
+			err = usb_submit_urb(&_urb->urb, GFP_ATOMIC);
+			if (err)
+				break;
+		}
+
+		spin_unlock_irqrestore(&q->lock, flags);
+
+		if (err)
+			return -EIO;
+	}
+
+	hci_resume_dev(husb->hdev);
+
+	return 0;
+}
+
 static struct usb_driver hci_usb_driver = {
 	.name		= "hci_usb",
 	.probe		= hci_usb_probe,
 	.disconnect	= hci_usb_disconnect,
+	.suspend	= hci_usb_suspend,
+	.resume		= hci_usb_resume,
 	.id_table	= bluetooth_ids,
 };
 

@@ -2170,8 +2170,19 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 
 	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST)) {
 		/* Packet is from an untrusted source, reset gso_segs. */
-		int mss = skb_shinfo(skb)->gso_size;
+		int type = skb_shinfo(skb)->gso_type;
+		int mss;
 
+		if (unlikely(type &
+			     ~(SKB_GSO_TCPV4 |
+			       SKB_GSO_DODGY |
+			       SKB_GSO_TCP_ECN |
+			       SKB_GSO_TCPV6 |
+			       0) ||
+			     !(type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))))
+			goto out;
+
+		mss = skb_shinfo(skb)->gso_size;
 		skb_shinfo(skb)->gso_segs = (skb->len + mss - 1) / mss;
 
 		segs = NULL;

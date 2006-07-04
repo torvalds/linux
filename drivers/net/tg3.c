@@ -68,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.61"
-#define DRV_MODULE_RELDATE	"June 29, 2006"
+#define DRV_MODULE_VERSION	"3.62"
+#define DRV_MODULE_RELDATE	"June 30, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3798,18 +3798,24 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto out_unlock;
 		}
 
-		tcp_opt_len = ((skb->h.th->doff - 5) * 4);
-		ip_tcp_len = (skb->nh.iph->ihl * 4) + sizeof(struct tcphdr);
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
+			mss |= (skb_headlen(skb) - ETH_HLEN) << 9;
+		else {
+			tcp_opt_len = ((skb->h.th->doff - 5) * 4);
+			ip_tcp_len = (skb->nh.iph->ihl * 4) +
+				     sizeof(struct tcphdr);
+
+			skb->nh.iph->check = 0;
+			skb->nh.iph->tot_len = htons(mss + ip_tcp_len +
+						     tcp_opt_len);
+			mss |= (ip_tcp_len + tcp_opt_len) << 9;
+		}
 
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
 			       TXD_FLAG_CPU_POST_DMA);
 
-		skb->nh.iph->check = 0;
-		skb->nh.iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
-
 		skb->h.th->check = 0;
 
-		mss |= (ip_tcp_len + tcp_opt_len) << 9;
 	}
 	else if (skb->ip_summed == CHECKSUM_HW)
 		base_flags |= TXD_FLAG_TCPUDP_CSUM;
@@ -7887,6 +7893,12 @@ static int tg3_set_tso(struct net_device *dev, u32 value)
 			return -EINVAL;
 		return 0;
 	}
+	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO_2) {
+		if (value)
+			dev->features |= NETIF_F_TSO6;
+		else
+			dev->features &= ~NETIF_F_TSO6;
+	}
 	return ethtool_op_set_tso(dev, value);
 }
 #endif
@@ -11507,8 +11519,11 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 * Firmware TSO on older chips gives lower performance, so it
 	 * is off by default, but can be enabled using ethtool.
 	 */
-	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
+	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
 		dev->features |= NETIF_F_TSO;
+		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO_2)
+			dev->features |= NETIF_F_TSO6;
+	}
 
 #endif
 

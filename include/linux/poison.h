@@ -44,6 +44,11 @@
 
 /********** drivers/atm/ **********/
 #define ATM_POISON_FREE		0x12
+#define ATM_POISON		0xdeadbeef
+
+/********** net/ **********/
+#define NEIGHBOR_DEAD		0xdeadbeef
+#define NETFILTER_LINK_POISON	0xdead57ac
 
 /********** kernel/mutexes **********/
 #define MUTEX_DEBUG_INIT	0x11

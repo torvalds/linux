@@ -998,6 +998,8 @@ static int link_bundle_buf(struct link *l_ptr,
 		return 0;
 	if (skb_tailroom(bundler) < (pad + size))
 		return 0;
+	if (link_max_pkt(l_ptr) < (to_pos + size))
+		return 0;
 
 	skb_put(bundler, pad + size);
 	memcpy(bundler->data + to_pos, buf->data, size);

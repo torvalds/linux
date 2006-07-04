@@ -117,12 +117,13 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 			continue;
 
 		if (idx < s_idx)
-			continue;
+			goto cont;
 
 		err = br_fill_ifinfo(skb, p, NETLINK_CB(cb->skb).pid,
 				     cb->nlh->nlmsg_seq, RTM_NEWLINK, NLM_F_MULTI);
 		if (err <= 0)
 			break;
+cont:
 		++idx;
 	}
 	read_unlock(&dev_base_lock);
