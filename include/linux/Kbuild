@@ -8,7 +8,7 @@ header-y += affs_fs.h affs_hardblocks.h aio_abi.h a.out.h arcfb.h	\
 	atmppp.h atmsap.h atmsvc.h atm_zatm.h auto_fs4.h auxvec.h	\
 	awe_voice.h ax25.h b1lli.h baycom.h bfs_fs.h blkpg.h		\
 	bpqether.h cdk.h chio.h coda_psdev.h coff.h comstats.h		\
-	consolemap.h cycx_cfm.h devfs_fs.h dm-ioctl.h dn.h dqblk_v1.h	\
+	consolemap.h cycx_cfm.h dm-ioctl.h dn.h dqblk_v1.h		\
 	dqblk_v2.h dqblk_xfs.h efs_fs_sb.h elf-fdpic.h elf.h elf-em.h	\
 	fadvise.h fd.h fdreg.h ftape-header-segment.h ftape-vendors.h	\
 	fuse.h futex.h genetlink.h gen_stats.h gigaset_dev.h hdsmart.h	\
