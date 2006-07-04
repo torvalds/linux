@@ -185,34 +185,6 @@ static void __devinit pci_setup_pci_controller(struct pci_controller *hose)
 	spin_unlock(&hose_spinlock);
 }
 
-static void add_linux_pci_domain(struct device_node *dev,
-				 struct pci_controller *phb)
-{
-	struct property *of_prop;
-	unsigned int size;
-
-	of_prop = (struct property *)
-		get_property(dev, "linux,pci-domain", &size);
-	if (of_prop != NULL)
-		return;
-	WARN_ON(of_prop && size < sizeof(int));
-	if (of_prop && size < sizeof(int))
-		of_prop = NULL;
-	size = sizeof(struct property) + sizeof(int);
-	if (of_prop == NULL) {
-		if (mem_init_done)
-			of_prop = kmalloc(size, GFP_KERNEL);
-		else
-			of_prop = alloc_bootmem(size);
-	}
-	memset(of_prop, 0, sizeof(struct property));
-	of_prop->name = "linux,pci-domain";
-	of_prop->length = sizeof(int);
-	of_prop->value = (unsigned char *)&of_prop[1];
-	*((int *)of_prop->value) = phb->global_number;
-	prom_add_property(dev, of_prop);
-}
-
 struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *phb;
@@ -226,22 +198,13 @@ struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 	pci_setup_pci_controller(phb);
 	phb->arch_data = dev;
 	phb->is_dynamic = mem_init_done;
-	if (dev) {
+	if (dev)
 		PHB_SET_NODE(phb, of_node_to_nid(dev));
-		add_linux_pci_domain(dev, phb);
-	}
 	return phb;
 }
 
 void pcibios_free_controller(struct pci_controller *phb)
 {
-	if (phb->arch_data) {
-		struct device_node *np = phb->arch_data;
-		int *domain = (int *)get_property(np,
-						  "linux,pci-domain", NULL);
-		if (domain)
-			*domain = -1;
-	}
 	if (phb->is_dynamic)
 		kfree(phb);
 }
