@@ -44,6 +44,7 @@
 
 /********** drivers/atm/ **********/
 #define ATM_POISON_FREE		0x12
+#define ATM_POISON		0xdeadbeef
 
 /********** net/ **********/
 #define NEIGHBOR_DEAD		0xdeadbeef
