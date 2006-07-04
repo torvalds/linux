@@ -189,26 +189,8 @@ void of_release_dev(struct device *dev)
 int of_device_register(struct of_device *ofdev)
 {
 	int rc;
-	struct of_device **odprop;
 
 	BUG_ON(ofdev->node == NULL);
-
-	odprop = (struct of_device **)get_property(ofdev->node, "linux,device", NULL);
-	if (!odprop) {
-		struct property *new_prop;
-	
-		new_prop = kmalloc(sizeof(struct property) + sizeof(struct of_device *),
-			GFP_KERNEL);
-		if (new_prop == NULL)
-			return -ENOMEM;
-		new_prop->name = "linux,device";
-		new_prop->length = sizeof(sizeof(struct of_device *));
-		new_prop->value = (unsigned char *)&new_prop[1];
-		odprop = (struct of_device **)new_prop->value;
-		*odprop = NULL;
-		prom_add_property(ofdev->node, new_prop);
-	}
-	*odprop = ofdev;
 
 	rc = device_register(&ofdev->dev);
 	if (rc)
@@ -221,13 +203,7 @@ int of_device_register(struct of_device *ofdev)
 
 void of_device_unregister(struct of_device *ofdev)
 {
-	struct of_device **odprop;
-
 	device_remove_file(&ofdev->dev, &dev_attr_devspec);
-
-	odprop = (struct of_device **)get_property(ofdev->node, "linux,device", NULL);
-	if (odprop)
-		*odprop = NULL;
 
 	device_unregister(&ofdev->dev);
 }
