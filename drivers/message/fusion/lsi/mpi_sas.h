@@ -6,7 +6,7 @@
  *          Title:  MPI Serial Attached SCSI structures and definitions
  *  Creation Date:  August 19, 2004
  *
- *    mpi_sas.h Version:  01.05.02
+ *    mpi_sas.h Version:  01.05.03
  *
  *  Version History
  *  ---------------
@@ -17,6 +17,10 @@
  *  08-30-05  01.05.02  Added DeviceInfo bit for SEP.
  *                      Added PrimFlags and Primitive field to SAS IO Unit
  *                      Control request, and added a new operation code.
+ *  03-27-06  01.05.03  Added Force Full Discovery, Transmit Port Select Signal,
+ *                      and Remove Device operations to SAS IO Unit Control.
+ *                      Added DevHandle field to SAS IO Unit Control request and
+ *                      reply.
  *  --------------------------------------------------------------------------
  */
 
@@ -209,7 +213,7 @@ typedef struct _MSG_SAS_IOUNIT_CONTROL_REQUEST
     U8                      Reserved1;          /* 01h */
     U8                      ChainOffset;        /* 02h */
     U8                      Function;           /* 03h */
-    U16                     Reserved2;          /* 04h */
+    U16                     DevHandle;          /* 04h */
     U8                      Reserved3;          /* 06h */
     U8                      MsgFlags;           /* 07h */
     U32                     MsgContext;         /* 08h */
@@ -231,6 +235,9 @@ typedef struct _MSG_SAS_IOUNIT_CONTROL_REQUEST
 #define MPI_SAS_OP_PHY_CLEAR_ERROR_LOG          (0x08)
 #define MPI_SAS_OP_MAP_CURRENT                  (0x09)
 #define MPI_SAS_OP_SEND_PRIMITIVE               (0x0A)
+#define MPI_SAS_OP_FORCE_FULL_DISCOVERY         (0x0B)
+#define MPI_SAS_OP_TRANSMIT_PORT_SELECT_SIGNAL  (0x0C)
+#define MPI_SAS_OP_TRANSMIT_REMOVE_DEVICE       (0x0D)
 
 /* values for the PrimFlags field */
 #define MPI_SAS_PRIMFLAGS_SINGLE                (0x08)
@@ -245,7 +252,7 @@ typedef struct _MSG_SAS_IOUNIT_CONTROL_REPLY
     U8                      Reserved1;          /* 01h */
     U8                      MsgLength;          /* 02h */
     U8                      Function;           /* 03h */
-    U16                     Reserved2;          /* 04h */
+    U16                     DevHandle;          /* 04h */
     U8                      Reserved3;          /* 06h */
     U8                      MsgFlags;           /* 07h */
     U32                     MsgContext;         /* 08h */

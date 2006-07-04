@@ -116,7 +116,7 @@ extern struct bus_type scsi_bus_type;
  * classes.
  */
 
-#define SCSI_DEVICE_BLOCK_MAX_TIMEOUT	(HZ*60)
+#define SCSI_DEVICE_BLOCK_MAX_TIMEOUT	600	/* units in seconds */
 extern int scsi_internal_device_block(struct scsi_device *sdev);
 extern int scsi_internal_device_unblock(struct scsi_device *sdev);
 

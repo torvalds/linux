@@ -6,7 +6,7 @@
  *          Title:  MPI Config message, structures, and Pages
  *  Creation Date:  July 27, 2000
  *
- *    mpi_cnfg.h Version:  01.05.11
+ *    mpi_cnfg.h Version:  01.05.12
  *
  *  Version History
  *  ---------------
@@ -266,6 +266,16 @@
  *                      Added postpone SATA Init bit to SAS IO Unit Page 1
  *                      ControlFlags.
  *                      Changed LogEntry format for Log Page 0.
+ *  03-27-06  01.05.12  Added two new Flags defines for Manufacturing Page 4.
+ *                      Added Manufacturing Page 7.
+ *                      Added MPI_IOCPAGE2_CAP_FLAGS_RAID_64_BIT_ADDRESSING.
+ *                      Added IOC Page 6.
+ *                      Added PrevBootDeviceForm field to CONFIG_PAGE_BIOS_2.
+ *                      Added MaxLBAHigh field to RAID Volume Page 0.
+ *                      Added Nvdata version fields to SAS IO Unit Page 0.
+ *                      Added AdditionalControlFlags, MaxTargetPortConnectTime,
+ *                      ReportDeviceMissingDelay, and IODeviceMissingDelay
+ *                      fields to SAS IO Unit Page 1.
  *  --------------------------------------------------------------------------
  */
 
@@ -631,9 +641,11 @@ typedef struct _CONFIG_PAGE_MANUFACTURING_4
 } CONFIG_PAGE_MANUFACTURING_4, MPI_POINTER PTR_CONFIG_PAGE_MANUFACTURING_4,
   ManufacturingPage4_t, MPI_POINTER pManufacturingPage4_t;
 
-#define MPI_MANUFACTURING4_PAGEVERSION                  (0x03)
+#define MPI_MANUFACTURING4_PAGEVERSION                  (0x04)
 
 /* defines for the Flags field */
+#define MPI_MANPAGE4_FORCE_BAD_BLOCK_TABLE              (0x80)
+#define MPI_MANPAGE4_FORCE_OFFLINE_FAILOVER             (0x40)
 #define MPI_MANPAGE4_IME_DISABLE                        (0x20)
 #define MPI_MANPAGE4_IM_DISABLE                         (0x10)
 #define MPI_MANPAGE4_IS_DISABLE                         (0x08)
@@ -666,6 +678,66 @@ typedef struct _CONFIG_PAGE_MANUFACTURING_6
   ManufacturingPage6_t, MPI_POINTER pManufacturingPage6_t;
 
 #define MPI_MANUFACTURING6_PAGEVERSION                  (0x00)
+
+
+typedef struct _MPI_MANPAGE7_CONNECTOR_INFO
+{
+    U32                         Pinout;                 /* 00h */
+    U8                          Connector[16];          /* 04h */
+    U8                          Location;               /* 14h */
+    U8                          Reserved1;              /* 15h */
+    U16                         Slot;                   /* 16h */
+    U32                         Reserved2;              /* 18h */
+} MPI_MANPAGE7_CONNECTOR_INFO, MPI_POINTER PTR_MPI_MANPAGE7_CONNECTOR_INFO,
+  MpiManPage7ConnectorInfo_t, MPI_POINTER pMpiManPage7ConnectorInfo_t;
+
+/* defines for the Pinout field */
+#define MPI_MANPAGE7_PINOUT_SFF_8484_L4                 (0x00080000)
+#define MPI_MANPAGE7_PINOUT_SFF_8484_L3                 (0x00040000)
+#define MPI_MANPAGE7_PINOUT_SFF_8484_L2                 (0x00020000)
+#define MPI_MANPAGE7_PINOUT_SFF_8484_L1                 (0x00010000)
+#define MPI_MANPAGE7_PINOUT_SFF_8470_L4                 (0x00000800)
+#define MPI_MANPAGE7_PINOUT_SFF_8470_L3                 (0x00000400)
+#define MPI_MANPAGE7_PINOUT_SFF_8470_L2                 (0x00000200)
+#define MPI_MANPAGE7_PINOUT_SFF_8470_L1                 (0x00000100)
+#define MPI_MANPAGE7_PINOUT_SFF_8482                    (0x00000002)
+#define MPI_MANPAGE7_PINOUT_CONNECTION_UNKNOWN          (0x00000001)
+
+/* defines for the Location field */
+#define MPI_MANPAGE7_LOCATION_UNKNOWN                   (0x01)
+#define MPI_MANPAGE7_LOCATION_INTERNAL                  (0x02)
+#define MPI_MANPAGE7_LOCATION_EXTERNAL                  (0x04)
+#define MPI_MANPAGE7_LOCATION_SWITCHABLE                (0x08)
+#define MPI_MANPAGE7_LOCATION_AUTO                      (0x10)
+#define MPI_MANPAGE7_LOCATION_NOT_PRESENT               (0x20)
+#define MPI_MANPAGE7_LOCATION_NOT_CONNECTED             (0x80)
+
+/*
+ * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
+ * one and check NumPhys at runtime.
+ */
+#ifndef MPI_MANPAGE7_CONNECTOR_INFO_MAX
+#define MPI_MANPAGE7_CONNECTOR_INFO_MAX   (1)
+#endif
+
+typedef struct _CONFIG_PAGE_MANUFACTURING_7
+{
+    CONFIG_PAGE_HEADER          Header;                 /* 00h */
+    U32                         Reserved1;              /* 04h */
+    U32                         Reserved2;              /* 08h */
+    U32                         Flags;                  /* 0Ch */
+    U8                          EnclosureName[16];      /* 10h */
+    U8                          NumPhys;                /* 20h */
+    U8                          Reserved3;              /* 21h */
+    U16                         Reserved4;              /* 22h */
+    MPI_MANPAGE7_CONNECTOR_INFO ConnectorInfo[MPI_MANPAGE7_CONNECTOR_INFO_MAX]; /* 24h */
+} CONFIG_PAGE_MANUFACTURING_7, MPI_POINTER PTR_CONFIG_PAGE_MANUFACTURING_7,
+  ManufacturingPage7_t, MPI_POINTER pManufacturingPage7_t;
+
+#define MPI_MANUFACTURING7_PAGEVERSION                  (0x00)
+
+/* defines for the Flags field */
+#define MPI_MANPAGE7_FLAG_USE_SLOT_INFO                 (0x00000001)
 
 
 /****************************************************************************
@@ -867,7 +939,7 @@ typedef struct _CONFIG_PAGE_IOC_2
 } CONFIG_PAGE_IOC_2, MPI_POINTER PTR_CONFIG_PAGE_IOC_2,
   IOCPage2_t, MPI_POINTER pIOCPage2_t;
 
-#define MPI_IOCPAGE2_PAGEVERSION                        (0x03)
+#define MPI_IOCPAGE2_PAGEVERSION                        (0x04)
 
 /* IOC Page 2 Capabilities flags */
 
@@ -878,6 +950,7 @@ typedef struct _CONFIG_PAGE_IOC_2
 #define MPI_IOCPAGE2_CAP_FLAGS_RAID_6_SUPPORT           (0x00000010)
 #define MPI_IOCPAGE2_CAP_FLAGS_RAID_10_SUPPORT          (0x00000020)
 #define MPI_IOCPAGE2_CAP_FLAGS_RAID_50_SUPPORT          (0x00000040)
+#define MPI_IOCPAGE2_CAP_FLAGS_RAID_64_BIT_ADDRESSING   (0x10000000)
 #define MPI_IOCPAGE2_CAP_FLAGS_SES_SUPPORT              (0x20000000)
 #define MPI_IOCPAGE2_CAP_FLAGS_SAFTE_SUPPORT            (0x40000000)
 #define MPI_IOCPAGE2_CAP_FLAGS_CROSS_CHANNEL_SUPPORT    (0x80000000)
@@ -974,6 +1047,44 @@ typedef struct _CONFIG_PAGE_IOC_5
   IOCPage5_t, MPI_POINTER pIOCPage5_t;
 
 #define MPI_IOCPAGE5_PAGEVERSION                        (0x00)
+
+typedef struct _CONFIG_PAGE_IOC_6
+{
+    CONFIG_PAGE_HEADER          Header;                         /* 00h */
+    U32                         CapabilitiesFlags;              /* 04h */
+    U8                          MaxDrivesIS;                    /* 08h */
+    U8                          MaxDrivesIM;                    /* 09h */
+    U8                          MaxDrivesIME;                   /* 0Ah */
+    U8                          Reserved1;                      /* 0Bh */
+    U8                          MinDrivesIS;                    /* 0Ch */
+    U8                          MinDrivesIM;                    /* 0Dh */
+    U8                          MinDrivesIME;                   /* 0Eh */
+    U8                          Reserved2;                      /* 0Fh */
+    U8                          MaxGlobalHotSpares;             /* 10h */
+    U8                          Reserved3;                      /* 11h */
+    U16                         Reserved4;                      /* 12h */
+    U32                         Reserved5;                      /* 14h */
+    U32                         SupportedStripeSizeMapIS;       /* 18h */
+    U32                         SupportedStripeSizeMapIME;      /* 1Ch */
+    U32                         Reserved6;                      /* 20h */
+    U8                          MetadataSize;                   /* 24h */
+    U8                          Reserved7;                      /* 25h */
+    U16                         Reserved8;                      /* 26h */
+    U16                         MaxBadBlockTableEntries;        /* 28h */
+    U16                         Reserved9;                      /* 2Ah */
+    U16                         IRNvsramUsage;                  /* 2Ch */
+    U16                         Reserved10;                     /* 2Eh */
+    U32                         IRNvsramVersion;                /* 30h */
+    U32                         Reserved11;                     /* 34h */
+    U32                         Reserved12;                     /* 38h */
+} CONFIG_PAGE_IOC_6, MPI_POINTER PTR_CONFIG_PAGE_IOC_6,
+  IOCPage6_t, MPI_POINTER pIOCPage6_t;
+
+#define MPI_IOCPAGE6_PAGEVERSION                        (0x00)
+
+/* IOC Page 6 Capabilities Flags */
+
+#define MPI_IOCPAGE6_CAP_FLAGS_GLOBAL_HOT_SPARE         (0x00000001)
 
 
 /****************************************************************************
@@ -1218,13 +1329,13 @@ typedef struct _CONFIG_PAGE_BIOS_2
     U32                         Reserved5;              /* 14h */
     U32                         Reserved6;              /* 18h */
     U8                          BootDeviceForm;         /* 1Ch */
-    U8                          Reserved7;              /* 1Dh */
+    U8                          PrevBootDeviceForm;     /* 1Ch */
     U16                         Reserved8;              /* 1Eh */
     MPI_BIOSPAGE2_BOOT_DEVICE   BootDevice;             /* 20h */
 } CONFIG_PAGE_BIOS_2, MPI_POINTER PTR_CONFIG_PAGE_BIOS_2,
   BIOSPage2_t, MPI_POINTER pBIOSPage2_t;
 
-#define MPI_BIOSPAGE2_PAGEVERSION                       (0x01)
+#define MPI_BIOSPAGE2_PAGEVERSION                       (0x02)
 
 #define MPI_BIOSPAGE2_FORM_MASK                         (0x0F)
 #define MPI_BIOSPAGE2_FORM_ADAPTER_ORDER                (0x00)
@@ -2080,7 +2191,7 @@ typedef struct _CONFIG_PAGE_RAID_VOL_0
     RAID_VOL0_STATUS        VolumeStatus;   /* 08h */
     RAID_VOL0_SETTINGS      VolumeSettings; /* 0Ch */
     U32                     MaxLBA;         /* 10h */
-    U32                     Reserved1;      /* 14h */
+    U32                     MaxLBAHigh;     /* 14h */
     U32                     StripeSize;     /* 18h */
     U32                     Reserved2;      /* 1Ch */
     U32                     Reserved3;      /* 20h */
@@ -2092,7 +2203,7 @@ typedef struct _CONFIG_PAGE_RAID_VOL_0
 } CONFIG_PAGE_RAID_VOL_0, MPI_POINTER PTR_CONFIG_PAGE_RAID_VOL_0,
   RaidVolumePage0_t, MPI_POINTER pRaidVolumePage0_t;
 
-#define MPI_RAIDVOLPAGE0_PAGEVERSION                    (0x05)
+#define MPI_RAIDVOLPAGE0_PAGEVERSION                    (0x06)
 
 /* values for RAID Volume Page 0 InactiveStatus field */
 #define MPI_RAIDVOLPAGE0_UNKNOWN_INACTIVE               (0x00)
@@ -2324,7 +2435,8 @@ typedef struct _MPI_SAS_IO_UNIT0_PHY_DATA
 typedef struct _CONFIG_PAGE_SAS_IO_UNIT_0
 {
     CONFIG_EXTENDED_PAGE_HEADER     Header;                             /* 00h */
-    U32                             Reserved1;                          /* 08h */
+    U16                             NvdataVersionDefault;               /* 08h */
+    U16                             NvdataVersionPersistent;            /* 0Ah */
     U8                              NumPhys;                            /* 0Ch */
     U8                              Reserved2;                          /* 0Dh */
     U16                             Reserved3;                          /* 0Eh */
@@ -2332,7 +2444,7 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_0
 } CONFIG_PAGE_SAS_IO_UNIT_0, MPI_POINTER PTR_CONFIG_PAGE_SAS_IO_UNIT_0,
   SasIOUnitPage0_t, MPI_POINTER pSasIOUnitPage0_t;
 
-#define MPI_SASIOUNITPAGE0_PAGEVERSION      (0x03)
+#define MPI_SASIOUNITPAGE0_PAGEVERSION      (0x04)
 
 /* values for SAS IO Unit Page 0 PortFlags */
 #define MPI_SAS_IOUNIT0_PORT_FLAGS_DISCOVERY_IN_PROGRESS    (0x08)
@@ -2373,12 +2485,13 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_0
 
 typedef struct _MPI_SAS_IO_UNIT1_PHY_DATA
 {
-    U8          Port;                   /* 00h */
-    U8          PortFlags;              /* 01h */
-    U8          PhyFlags;               /* 02h */
-    U8          MaxMinLinkRate;         /* 03h */
-    U32         ControllerPhyDeviceInfo;/* 04h */
-    U32         Reserved1;              /* 08h */
+    U8          Port;                       /* 00h */
+    U8          PortFlags;                  /* 01h */
+    U8          PhyFlags;                   /* 02h */
+    U8          MaxMinLinkRate;             /* 03h */
+    U32         ControllerPhyDeviceInfo;    /* 04h */
+    U16         MaxTargetPortConnectTime;   /* 08h */
+    U16         Reserved1;                  /* 0Ah */
 } MPI_SAS_IO_UNIT1_PHY_DATA, MPI_POINTER PTR_MPI_SAS_IO_UNIT1_PHY_DATA,
   SasIOUnit1PhyData, MPI_POINTER pSasIOUnit1PhyData;
 
@@ -2395,15 +2508,17 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_1
     CONFIG_EXTENDED_PAGE_HEADER Header;                             /* 00h */
     U16                         ControlFlags;                       /* 08h */
     U16                         MaxNumSATATargets;                  /* 0Ah */
-    U32                         Reserved1;                          /* 0Ch */
+    U16                         AdditionalControlFlags;             /* 0Ch */
+    U16                         Reserved1;                          /* 0Eh */
     U8                          NumPhys;                            /* 10h */
     U8                          SATAMaxQDepth;                      /* 11h */
-    U16                         Reserved2;                          /* 12h */
+    U8                          ReportDeviceMissingDelay;           /* 12h */
+    U8                          IODeviceMissingDelay;               /* 13h */
     MPI_SAS_IO_UNIT1_PHY_DATA   PhyData[MPI_SAS_IOUNIT1_PHY_MAX];   /* 14h */
 } CONFIG_PAGE_SAS_IO_UNIT_1, MPI_POINTER PTR_CONFIG_PAGE_SAS_IO_UNIT_1,
   SasIOUnitPage1_t, MPI_POINTER pSasIOUnitPage1_t;
 
-#define MPI_SASIOUNITPAGE1_PAGEVERSION      (0x05)
+#define MPI_SASIOUNITPAGE1_PAGEVERSION      (0x06)
 
 /* values for SAS IO Unit Page 1 ControlFlags */
 #define MPI_SAS_IOUNIT1_CONTROL_DEVICE_SELF_TEST            (0x8000)
@@ -2427,6 +2542,13 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_1
 #define MPI_SAS_IOUNIT1_CONTROL_SUBTRACTIVE_ILLEGAL         (0x0004)
 #define MPI_SAS_IOUNIT1_CONTROL_FIRST_LVL_DISC_ONLY         (0x0002)
 #define MPI_SAS_IOUNIT1_CONTROL_CLEAR_AFFILIATION           (0x0001)
+
+/* values for SAS IO Unit Page 1 AdditionalControlFlags */
+#define MPI_SAS_IOUNIT1_ACONTROL_ALLOW_TABLE_TO_TABLE       (0x0001)
+
+/* defines for SAS IO Unit Page 1 ReportDeviceMissingDelay */
+#define MPI_SAS_IOUNIT1_REPORT_MISSING_TIMEOUT_MASK         (0x7F)
+#define MPI_SAS_IOUNIT1_REPORT_MISSING_UNIT_16              (0x80)
 
 /* values for SAS IO Unit Page 1 PortFlags */
 #define MPI_SAS_IOUNIT1_PORT_FLAGS_0_TARGET_IOC_NUM         (0x00)

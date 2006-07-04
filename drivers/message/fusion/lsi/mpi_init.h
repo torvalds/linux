@@ -6,7 +6,7 @@
  *          Title:  MPI initiator mode messages and structures
  *  Creation Date:  June 8, 2000
  *
- *    mpi_init.h Version:  01.05.06
+ *    mpi_init.h Version:  01.05.07
  *
  *  Version History
  *  ---------------
@@ -52,6 +52,7 @@
  *                      Added four new defines for SEP SlotStatus.
  *  08-03-05  01.05.06  Fixed some MPI_SCSIIO32_MSGFLGS_ defines to make them
  *                      unique in the first 32 characters.
+ *  03-27-06  01.05.07  Added Task Management type of Clear ACA.
  *  --------------------------------------------------------------------------
  */
 
@@ -427,6 +428,7 @@ typedef struct _MSG_SCSI_TASK_MGMT
 #define MPI_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET    (0x05)
 #define MPI_SCSITASKMGMT_TASKTYPE_CLEAR_TASK_SET        (0x06)
 #define MPI_SCSITASKMGMT_TASKTYPE_QUERY_TASK            (0x07)
+#define MPI_SCSITASKMGMT_TASKTYPE_CLEAR_ACA             (0x08)
 
 /* MsgFlags bits */
 #define MPI_SCSITASKMGMT_MSGFLAGS_TARGET_RESET_OPTION   (0x00)

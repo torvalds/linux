@@ -2866,8 +2866,7 @@ static int nsp32_detect(struct scsi_host_template *sht)
 	 */
 	nsp32_do_bus_reset(data);
 
-	ret = request_irq(host->irq, do_nsp32_isr,
-			  IRQF_SHARED | IRQF_SAMPLE_RANDOM, "nsp32", data);
+	ret = request_irq(host->irq, do_nsp32_isr, IRQF_SHARED, "nsp32", data);
 	if (ret < 0) {
 		nsp32_msg(KERN_ERR, "Unable to allocate IRQ for NinjaSCSI32 "
 			  "SCSI PCI controller. Interrupt: %d", host->irq);
@@ -2886,11 +2885,18 @@ static int nsp32_detect(struct scsi_host_template *sht)
         }
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,73))
-	scsi_add_host (host, &PCIDEV->dev);
+	ret = scsi_add_host(host, &PCIDEV->dev);
+	if (ret) {
+		nsp32_msg(KERN_ERR, "failed to add scsi host");
+		goto free_region;
+	}
 	scsi_scan_host(host);
 #endif
 	pci_set_drvdata(PCIDEV, host);
 	return DETECT_OK;
+
+ free_region:
+	release_region(host->io_port, host->n_io_port);
 
  free_irq:
 	free_irq(host->irq, data);

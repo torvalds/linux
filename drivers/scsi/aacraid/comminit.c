@@ -92,31 +92,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	init->AdapterFibsPhysicalAddress = cpu_to_le32((u32)phys);
 	init->AdapterFibsSize = cpu_to_le32(fibsize);
 	init->AdapterFibAlign = cpu_to_le32(sizeof(struct hw_fib));
-	/* 
-	 * number of 4k pages of host physical memory. The aacraid fw needs
-	 * this number to be less than 4gb worth of pages. num_physpages is in
-	 * system page units. New firmware doesn't have any issues with the
-	 * mapping system, but older Firmware did, and had *troubles* dealing
-	 * with the math overloading past 32 bits, thus we must limit this
-	 * field.
-	 *
-	 * This assumes the memory is mapped zero->n, which isnt
-	 * always true on real computers. It also has some slight problems
-	 * with the GART on x86-64. I've btw never tried DMA from PCI space
-	 * on this platform but don't be surprised if its problematic.
-	 * [AK: something is very very wrong when a driver tests this symbol.
- 	 *  Someone should figure out what the comment writer really meant here and fix
-	 *  the code. Or just remove that bad code. ]
-	 */
-#ifndef CONFIG_IOMMU
-	if ((num_physpages << (PAGE_SHIFT - 12)) <= AAC_MAX_HOSTPHYSMEMPAGES) {
-		init->HostPhysMemPages = 
-			cpu_to_le32(num_physpages << (PAGE_SHIFT-12));
-	} else 
-#endif	
-	{
-		init->HostPhysMemPages = cpu_to_le32(AAC_MAX_HOSTPHYSMEMPAGES);
-	}
+	init->HostPhysMemPages = cpu_to_le32(AAC_MAX_HOSTPHYSMEMPAGES);
 
 	init->InitFlags = 0;
 	if (dev->new_comm_interface) {

@@ -1623,7 +1623,7 @@ static int nsp_cs_probe(struct pcmcia_device *link)
 	/* Interrupt handler */
 	link->irq.Handler	 = &nspintr;
 	link->irq.Instance       = info;
-	link->irq.Attributes     |= (IRQF_SHARED | IRQF_SAMPLE_RANDOM);
+	link->irq.Attributes     |= IRQF_SHARED;
 
 	/* General socket configuration */
 	link->conf.Attributes	 = CONF_ENABLE_IRQ;

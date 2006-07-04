@@ -174,7 +174,6 @@ struct lpfc_hba {
 	dma_addr_t slim2p_mapping;
 	uint16_t pci_cfg_value;
 
-	struct semaphore hba_can_block;
 	int32_t hba_state;
 
 #define LPFC_STATE_UNKNOWN        0    /* HBA state is unknown */
