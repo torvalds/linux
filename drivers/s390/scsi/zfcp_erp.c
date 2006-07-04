@@ -2168,9 +2168,9 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 		atomic_clear_mask(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
 				  &adapter->status);
 		ZFCP_LOG_DEBUG("Doing exchange config data\n");
-		write_lock(&adapter->erp_lock);
+		write_lock_irq(&adapter->erp_lock);
 		zfcp_erp_action_to_running(erp_action);
-		write_unlock(&adapter->erp_lock);
+		write_unlock_irq(&adapter->erp_lock);
 		zfcp_erp_timeout_init(erp_action);
 		if (zfcp_fsf_exchange_config_data(erp_action)) {
 			retval = ZFCP_ERP_FAILED;
@@ -2236,9 +2236,9 @@ zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *erp_action)
 	adapter = erp_action->adapter;
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_XPORT_OK, &adapter->status);
 
-	write_lock(&adapter->erp_lock);
+	write_lock_irq(&adapter->erp_lock);
 	zfcp_erp_action_to_running(erp_action);
-	write_unlock(&adapter->erp_lock);
+	write_unlock_irq(&adapter->erp_lock);
 
 	zfcp_erp_timeout_init(erp_action);
 	ret = zfcp_fsf_exchange_port_data(erp_action, adapter, NULL);
