@@ -71,6 +71,26 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 				    struct inode *inode,
 				    struct buffer_head *fe_bh);
 
+void ocfs2_set_inode_flags(struct inode *inode)
+{
+	unsigned int flags = OCFS2_I(inode)->ip_attr;
+
+	inode->i_flags &= ~(S_IMMUTABLE |
+		S_SYNC | S_APPEND | S_NOATIME | S_DIRSYNC);
+
+	if (flags & OCFS2_IMMUTABLE_FL)
+		inode->i_flags |= S_IMMUTABLE;
+
+	if (flags & OCFS2_SYNC_FL)
+		inode->i_flags |= S_SYNC;
+	if (flags & OCFS2_APPEND_FL)
+		inode->i_flags |= S_APPEND;
+	if (flags & OCFS2_NOATIME_FL)
+		inode->i_flags |= S_NOATIME;
+	if (flags & OCFS2_DIRSYNC_FL)
+		inode->i_flags |= S_DIRSYNC;
+}
+
 struct inode *ocfs2_ilookup_for_vote(struct ocfs2_super *osb,
 				     u64 blkno,
 				     int delete_vote)
@@ -260,7 +280,6 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		inode->i_blocks =
 			ocfs2_align_bytes_to_sectors(le64_to_cpu(fe->i_size));
 	inode->i_mapping->a_ops = &ocfs2_aops;
-	inode->i_flags |= S_NOATIME;
 	inode->i_atime.tv_sec = le64_to_cpu(fe->i_atime);
 	inode->i_atime.tv_nsec = le32_to_cpu(fe->i_atime_nsec);
 	inode->i_mtime.tv_sec = le64_to_cpu(fe->i_mtime);
@@ -276,6 +295,7 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 
 	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
 	OCFS2_I(inode)->ip_orphaned_slot = OCFS2_INVALID_SLOT;
+	OCFS2_I(inode)->ip_attr = le32_to_cpu(fe->i_attr);
 
 	if (create_ino)
 		inode->i_ino = ino_from_blkno(inode->i_sb,
@@ -329,6 +349,9 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 				  OCFS2_LOCK_TYPE_META, inode);
 	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_data_lockres,
 				  OCFS2_LOCK_TYPE_DATA, inode);
+
+	ocfs2_set_inode_flags(inode);
+	inode->i_flags |= S_NOATIME;
 
 	status = 0;
 bail:
@@ -1131,6 +1154,7 @@ int ocfs2_mark_inode_dirty(struct ocfs2_journal_handle *handle,
 
 	spin_lock(&OCFS2_I(inode)->ip_lock);
 	fe->i_clusters = cpu_to_le32(OCFS2_I(inode)->ip_clusters);
+	fe->i_attr = cpu_to_le32(OCFS2_I(inode)->ip_attr);
 	spin_unlock(&OCFS2_I(inode)->ip_lock);
 
 	fe->i_size = cpu_to_le64(i_size_read(inode));
@@ -1169,6 +1193,8 @@ void ocfs2_refresh_inode(struct inode *inode,
 	spin_lock(&OCFS2_I(inode)->ip_lock);
 
 	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
+	OCFS2_I(inode)->ip_attr = le32_to_cpu(fe->i_attr);
+	ocfs2_set_inode_flags(inode);
 	i_size_write(inode, le64_to_cpu(fe->i_size));
 	inode->i_nlink = le16_to_cpu(fe->i_links_count);
 	inode->i_uid = le32_to_cpu(fe->i_uid);
