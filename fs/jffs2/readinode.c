@@ -968,6 +968,7 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 	struct jffs2_full_dirent *fd, *fds;
 	int deleted;
 
+	jffs2_clear_acl(f);
 	jffs2_xattr_delete_inode(c, f->inocache);
 	down(&f->sem);
 	deleted = f->inocache && !f->inocache->nlink;

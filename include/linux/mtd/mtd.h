@@ -77,11 +77,11 @@ typedef enum {
  *
  * @len:	number of bytes to write/read. When a data buffer is given
  *		(datbuf != NULL) this is the number of data bytes. When
- +		no data buffer is available this is the number of oob bytes.
+ *		no data buffer is available this is the number of oob bytes.
  *
  * @retlen:	number of bytes written/read. When a data buffer is given
  *		(datbuf != NULL) this is the number of data bytes. When
- +		no data buffer is available this is the number of oob bytes.
+ *		no data buffer is available this is the number of oob bytes.
  *
  * @ooblen:	number of oob bytes per page
  * @ooboffs:	offset of oob data in the oob area (only relevant when
