@@ -352,6 +352,18 @@ config ACPI_HOTPLUG_MEMORY
 	  If one selects "m," this driver can be loaded using the following
 	  command: 
 		$>modprobe acpi_memhotplug 
+
+config ACPI_SBS
+	tristate "Smart Battery System (EXPERIMENTAL)"
+	depends on X86 && I2C
+	depends on EXPERIMENTAL
+	default y
+	help
+	  This driver adds support for the Smart Battery System.
+	  Depends on I2C (Device Drivers ---> I2C support)
+	  A "Smart Battery" is quite old and quite rare compared
+	  to today's ACPI "Control Method" battery.
+
 endif	# ACPI
 
 endmenu

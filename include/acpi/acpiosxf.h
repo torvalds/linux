@@ -143,8 +143,6 @@ void acpi_os_release_mutex(acpi_mutex handle);
  */
 void *acpi_os_allocate(acpi_size size);
 
-void acpi_os_free(void *memory);
-
 acpi_status
 acpi_os_map_memory(acpi_physical_address physical_address,
 		   acpi_size size, void __iomem ** logical_address);

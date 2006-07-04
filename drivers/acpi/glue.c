@@ -152,7 +152,7 @@ static int get_root_bridge_busnr(acpi_handle handle)
 		bbn = bus;
 	}
       exit:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 	return (int)bbn;
 }
 
@@ -192,7 +192,7 @@ find_pci_rootbridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 		find->handle = handle;
 	status = AE_OK;
       exit:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 	return status;
 }
 
@@ -224,7 +224,7 @@ do_acpi_find_child(acpi_handle handle, u32 lvl, void *context, void **rv)
 		info = buffer.pointer;
 		if (info->address == find->address)
 			find->handle = handle;
-		acpi_os_free(buffer.pointer);
+		kfree(buffer.pointer);
 	}
 	return AE_OK;
 }
@@ -330,7 +330,7 @@ static int acpi_platform_notify(struct device *dev)
 
 		acpi_get_name(dev->firmware_data, ACPI_FULL_PATHNAME, &buffer);
 		DBG("Device %s -> %s\n", dev->bus_id, (char *)buffer.pointer);
-		acpi_os_free(buffer.pointer);
+		kfree(buffer.pointer);
 	} else
 		DBG("Device %s -> No ACPI support\n", dev->bus_id);
 #endif
