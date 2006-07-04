@@ -119,6 +119,12 @@ UNUSUAL_DEV(  0x0419, 0x0100, 0x0100, 0x0100,
                 US_SC_DEVICE, US_PR_DEVICE, NULL,
                 US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Orgad Shaneh <orgads@gmail.com> */
+UNUSUAL_DEV(  0x0419, 0xaace, 0x0100, 0x0100,
+		"Samsung", "MP3 Player",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Christian Leber <christian@leber.de> */
 UNUSUAL_DEV(  0x0419, 0xaaf5, 0x0100, 0x0100,
 		"TrekStor",
