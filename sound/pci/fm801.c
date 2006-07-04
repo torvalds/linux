@@ -160,6 +160,7 @@ struct fm801 {
 	unsigned int multichannel: 1,	/* multichannel support */
 		     secondary: 1;	/* secondary codec */
 	unsigned char secondary_addr;	/* address of the secondary codec */
+	unsigned int tea575x_tuner;	/* tuner flags */
 
 	unsigned short ply_ctrl; /* playback control */
 	unsigned short cap_ctrl; /* capture control */
@@ -1255,7 +1256,7 @@ static int snd_fm801_chip_init(struct fm801 *chip, int resume)
 	int id;
 	unsigned short cmdw;
 
-	if (tea575x_tuner & 0x0010)
+	if (chip->tea575x_tuner & 0x0010)
 		goto __ac97_ok;
 
 	/* codec cold reset + AC'97 warm reset */
@@ -1295,6 +1296,8 @@ static int snd_fm801_chip_init(struct fm801 *chip, int resume)
 		wait_for_codec(chip, 0, AC97_VENDOR_ID1, msecs_to_jiffies(750));
 	}
 
+      __ac97_ok:
+
 	/* init volume */
 	outw(0x0808, FM801_REG(chip, PCM_VOL));
 	outw(0x9f1f, FM801_REG(chip, FM_VOL));
@@ -1303,9 +1306,12 @@ static int snd_fm801_chip_init(struct fm801 *chip, int resume)
 	/* I2S control - I2S mode */
 	outw(0x0003, FM801_REG(chip, I2S_MODE));
 
-	/* interrupt setup - unmask MPU, PLAYBACK & CAPTURE */
+	/* interrupt setup */
 	cmdw = inw(FM801_REG(chip, IRQ_MASK));
-	cmdw &= ~0x0083;
+	if (chip->irq < 0)
+		cmdw |= 0x00c3;		/* mask everything, no PCM nor MPU */
+	else
+		cmdw &= ~0x0083;	/* unmask MPU, PLAYBACK & CAPTURE */
 	outw(cmdw, FM801_REG(chip, IRQ_MASK));
 
 	/* interrupt clear */
@@ -1370,20 +1376,23 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
+	chip->tea575x_tuner = tea575x_tuner;
 	if ((err = pci_request_regions(pci, "FM801")) < 0) {
 		kfree(chip);
 		pci_disable_device(pci);
 		return err;
 	}
 	chip->port = pci_resource_start(pci, 0);
-	if (request_irq(pci->irq, snd_fm801_interrupt, IRQF_DISABLED|IRQF_SHARED,
-			"FM801", chip)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", chip->irq);
-		snd_fm801_free(chip);
-		return -EBUSY;
+	if ((tea575x_tuner & 0x0010) == 0) {
+		if (request_irq(pci->irq, snd_fm801_interrupt, IRQF_DISABLED|IRQF_SHARED,
+				"FM801", chip)) {
+			snd_printk(KERN_ERR "unable to grab IRQ %d\n", chip->irq);
+			snd_fm801_free(chip);
+			return -EBUSY;
+		}
+		chip->irq = pci->irq;
+		pci_set_master(pci);
 	}
-	chip->irq = pci->irq;
-	pci_set_master(pci);
 
 	pci_read_config_byte(pci, PCI_REVISION_ID, &rev);
 	if (rev >= 0xb1)	/* FM801-AU */
@@ -1406,9 +1415,6 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 		chip->tea.private_data = chip;
 		chip->tea.ops = &snd_fm801_tea_ops[(tea575x_tuner & 0x000f) - 1];
 		snd_tea575x_init(&chip->tea);
-
-		/* Mute FM tuner */
-		outw(0xf800, FM801_REG(chip, GPIO_CTRL));
 	}
 #endif
 
