@@ -119,7 +119,8 @@ unlock:
 
 	for (skb = segs; skb; skb = skb->next) {
 		ipv6h = skb->nh.ipv6h;
-		ipv6h->payload_len = htons(skb->len - skb->mac_len);
+		ipv6h->payload_len = htons(skb->len - skb->mac_len -
+					   sizeof(*ipv6h));
 	}
 
 out:
