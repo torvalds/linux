@@ -557,7 +557,9 @@ unsigned long prom_memparse(const char *ptr, const char **retptr)
 static void __init early_cmdline_parse(void)
 {
 	struct prom_t *_prom = &RELOC(prom);
+#ifdef CONFIG_PPC64
 	const char *opt;
+#endif
 	char *p;
 	int l = 0;
 
