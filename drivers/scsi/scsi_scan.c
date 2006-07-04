@@ -134,59 +134,6 @@ static void scsi_unlock_floptical(struct scsi_device *sdev,
 }
 
 /**
- * print_inquiry - printk the inquiry information
- * @inq_result:	printk this SCSI INQUIRY
- *
- * Description:
- *     printk the vendor, model, and other information found in the
- *     INQUIRY data in @inq_result.
- *
- * Notes:
- *     Remove this, and replace with a hotplug event that logs any
- *     relevant information.
- **/
-static void print_inquiry(unsigned char *inq_result)
-{
-	int i;
-
-	printk(KERN_NOTICE "  Vendor: ");
-	for (i = 8; i < 16; i++)
-		if (inq_result[i] >= 0x20 && i < inq_result[4] + 5)
-			printk("%c", inq_result[i]);
-		else
-			printk(" ");
-
-	printk("  Model: ");
-	for (i = 16; i < 32; i++)
-		if (inq_result[i] >= 0x20 && i < inq_result[4] + 5)
-			printk("%c", inq_result[i]);
-		else
-			printk(" ");
-
-	printk("  Rev: ");
-	for (i = 32; i < 36; i++)
-		if (inq_result[i] >= 0x20 && i < inq_result[4] + 5)
-			printk("%c", inq_result[i]);
-		else
-			printk(" ");
-
-	printk("\n");
-
-	i = inq_result[0] & 0x1f;
-
-	printk(KERN_NOTICE "  Type:   %s ",
-	       i <
-	       MAX_SCSI_DEVICE_CODE ? scsi_device_types[i] :
-	       "Unknown          ");
-	printk("                 ANSI SCSI revision: %02x",
-	       inq_result[2] & 0x07);
-	if ((inq_result[2] & 0x07) == 1 && (inq_result[3] & 0x0f) == 1)
-		printk(" CCS\n");
-	else
-		printk("\n");
-}
-
-/**
  * scsi_alloc_sdev - allocate and setup a scsi_Device
  *
  * Description:
@@ -653,9 +600,8 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	if (*bflags & BLIST_ISROM) {
 		/*
 		 * It would be better to modify sdev->type, and set
-		 * sdev->removable, but then the print_inquiry() output
-		 * would not show TYPE_ROM; if print_inquiry() is removed
-		 * the issue goes away.
+		 * sdev->removable; this can now be done since
+		 * print_inquiry has gone away.
 		 */
 		inq_result[0] = TYPE_ROM;
 		inq_result[1] |= 0x80;	/* removable */
@@ -683,8 +629,6 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	default:
 		printk(KERN_INFO "scsi: unknown device type %d\n", sdev->type);
 	}
-
-	print_inquiry(inq_result);
 
 	/*
 	 * For a peripheral qualifier (PQ) value of 1 (001b), the SCSI
@@ -714,6 +658,12 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 		sdev->wdtr = 1;
 	if (inq_result[7] & 0x10)
 		sdev->sdtr = 1;
+
+	sdev_printk(KERN_NOTICE "scsi", sdev, "%s %.8s %.16s %.4s PQ: %d "
+			"ANSI: %d%s\n", scsi_device_type(sdev->type),
+			sdev->vendor, sdev->model, sdev->rev,
+			sdev->inq_periph_qual, inq_result[2] & 0x07,
+			(inq_result[3] & 0x0f) == 1 ? " CCS" : "");
 
 	/*
 	 * End sysfs code.

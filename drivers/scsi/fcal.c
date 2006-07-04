@@ -248,8 +248,7 @@ int fcal_proc_info (struct Scsi_Host *host, char *buffer, char **start, off_t of
 				if (scd->id == target) {
 					SPRINTF ("  [AL-PA: %02x, Id: %02d, Port WWN: %08x%08x, Node WWN: %08x%08x]  ",
 						alpa, target, u1[0], u1[1], u2[0], u2[1]);
-					SPRINTF ("%s ", (scd->type < MAX_SCSI_DEVICE_CODE) ?
-						scsi_device_types[(short) scd->type] : "Unknown device");
+					SPRINTF ("%s ", scsi_device_type(scd->type));
 
 					for (j = 0; (j < 8) && (scd->vendor[j] >= 0x20); j++)
 						SPRINTF ("%c", scd->vendor[j]);

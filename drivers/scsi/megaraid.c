@@ -2822,9 +2822,7 @@ mega_print_inquiry(char *page, char *scsi_inq)
 
 	i = scsi_inq[0] & 0x1f;
 
-	len += sprintf(page+len, "  Type:   %s ",
-		i < MAX_SCSI_DEVICE_CODE ? scsi_device_types[i] :
-		   "Unknown          ");
+	len += sprintf(page+len, "  Type:   %s ", scsi_device_type(i));
 
 	len += sprintf(page+len,
 	"                 ANSI SCSI revision: %02x", scsi_inq[2] & 0x07);

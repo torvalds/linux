@@ -96,24 +96,40 @@ unsigned int scsi_logging_level;
 EXPORT_SYMBOL(scsi_logging_level);
 #endif
 
-const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE] = {
-	"Direct-Access    ",
-	"Sequential-Access",
+static const char *const scsi_device_types[] = {
+	"Direct access    ",
+	"Sequential access",
 	"Printer          ",
 	"Processor        ",
 	"WORM             ",
-	"CD-ROM           ",
+	"CD/DVD           ",
 	"Scanner          ",
-	"Optical Device   ",
-	"Medium Changer   ",
+	"Optical memory   ",
+	"Media changer    ",
 	"Communications   ",
-	"Unknown          ",
-	"Unknown          ",
+	"ASC IT8          ",
+	"ASC IT8          ",
 	"RAID             ",
 	"Enclosure        ",
-	"Direct-Access-RBC",
+	"Direct access RBC",
+	"Optical card     ",
+	"Bridge controller",
+	"Object storage   ",
+	"Automation/Drive ",
 };
-EXPORT_SYMBOL(scsi_device_types);
+
+const char * scsi_device_type(unsigned type)
+{
+	if (type == 0x1e)
+		return "Well-known LUN   ";
+	if (type == 0x1f)
+		return "No Device        ";
+	if (type > ARRAY_SIZE(scsi_device_types))
+		return "Unknown          ";
+	return scsi_device_types[type];
+}
+
+EXPORT_SYMBOL(scsi_device_type);
 
 struct scsi_host_cmd_pool {
 	kmem_cache_t	*slab;
