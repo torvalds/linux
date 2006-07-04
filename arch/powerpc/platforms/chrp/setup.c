@@ -74,6 +74,9 @@ extern irqreturn_t xmon_irq(int, void *, struct pt_regs *);
 
 extern unsigned long loops_per_jiffy;
 
+/* To be replaced by RTAS when available */
+static unsigned int *briq_SPOR;
+
 #ifdef CONFIG_SMP
 extern struct smp_ops_t chrp_smp_ops;
 #endif
@@ -90,6 +93,15 @@ static const char *gg2_cachetypes[4] = {
 };
 static const char *gg2_cachemodes[4] = {
 	"Disabled", "Write-Through", "Copy-Back", "Transparent Mode"
+};
+
+static const char *chrp_names[] = {
+	"Unknown",
+	"","","",
+	"Motorola",
+	"IBM or Longtrail",
+	"Genesi Pegasos",
+	"Total Impact Briq"
 };
 
 void chrp_show_cpuinfo(struct seq_file *m)
@@ -229,6 +241,14 @@ static void __init pegasos_set_l2cr(void)
 	}
 }
 
+static void briq_restart(char *cmd)
+{
+	local_irq_disable();
+	if (briq_SPOR)
+		out_be32(briq_SPOR, 0);
+	for(;;);
+}
+
 void __init chrp_setup_arch(void)
 {
 	struct device_node *root = find_path_device ("/");
@@ -245,11 +265,16 @@ void __init chrp_setup_arch(void)
 		_chrp_type = _CHRP_IBM;
 	} else if (machine && strncmp(machine, "MOT", 3) == 0) {
 		_chrp_type = _CHRP_Motorola;
+	} else if (machine && strncmp(machine, "TotalImpact,BRIQ-1", 18) == 0) {
+		_chrp_type = _CHRP_briq;
+		/* Map the SPOR register on briq and change the restart hook */
+		briq_SPOR = (unsigned int *)ioremap(0xff0000e8, 4);
+		ppc_md.restart = briq_restart;
 	} else {
 		/* Let's assume it is an IBM chrp if all else fails */
 		_chrp_type = _CHRP_IBM;
 	}
-	printk("chrp type = %x\n", _chrp_type);
+	printk("chrp type = %x [%s]\n", _chrp_type, chrp_names[_chrp_type]);
 
 	rtas_initialize();
 	if (rtas_token("display-character") >= 0)

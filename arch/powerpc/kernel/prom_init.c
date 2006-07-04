@@ -2033,16 +2033,22 @@ static void __init fixup_device_tree_maple(void)
 #endif
 
 #ifdef CONFIG_PPC_CHRP
-/* Pegasos lacks the "ranges" property in the isa node */
+/* Pegasos and BriQ lacks the "ranges" property in the isa node */
 static void __init fixup_device_tree_chrp(void)
 {
 	phandle isa;
 	u32 isa_ranges[6];
+	u32 rloc = 0x01006000; /* IO space; PCI device = 12 */
 	char *name;
 	int rc;
 
 	name = "/pci@80000000/isa@c";
 	isa = call_prom("finddevice", 1, 1, ADDR(name));
+	if (!PHANDLE_VALID(isa)) {
+		name = "/pci@ff500000/isa@6";
+		isa = call_prom("finddevice", 1, 1, ADDR(name));
+		rloc = 0x01003000; /* IO space; PCI device = 6 */
+	}
 	if (!PHANDLE_VALID(isa))
 		return;
 
@@ -2054,7 +2060,7 @@ static void __init fixup_device_tree_chrp(void)
 
 	isa_ranges[0] = 0x1;
 	isa_ranges[1] = 0x0;
-	isa_ranges[2] = 0x01006000;
+	isa_ranges[2] = rloc;
 	isa_ranges[3] = 0x0;
 	isa_ranges[4] = 0x0;
 	isa_ranges[5] = 0x00010000;

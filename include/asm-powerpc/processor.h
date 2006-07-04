@@ -32,6 +32,7 @@
 #define _CHRP_Motorola	0x04	/* motorola chrp, the cobra */
 #define _CHRP_IBM	0x05	/* IBM chrp, the longtrail and longtrail 2 */
 #define _CHRP_Pegasos	0x06	/* Genesi/bplan's Pegasos and Pegasos2 */
+#define _CHRP_briq	0x07	/* TotalImpact's briQ */
 
 #if defined(__KERNEL__) && defined(CONFIG_PPC32)
 
