@@ -198,7 +198,7 @@ extern int release_OF_resource(struct device_node* node, int index);
 
 
 /* Helper to read a big number */
-static inline u64 of_read_number(u32 *cell, int size)
+static inline u64 of_read_number(const u32 *cell, int size)
 {
 	u64 r = 0;
 	while (size--)

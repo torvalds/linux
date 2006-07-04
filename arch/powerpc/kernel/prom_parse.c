@@ -27,7 +27,7 @@
 
 /* Debug utility */
 #ifdef DEBUG
-static void of_dump_addr(const char *s, u32 *addr, int na)
+static void of_dump_addr(const char *s, const u32 *addr, int na)
 {
 	printk("%s", s);
 	while(na--)
@@ -35,7 +35,7 @@ static void of_dump_addr(const char *s, u32 *addr, int na)
 	printk("\n");
 }
 #else
-static void of_dump_addr(const char *s, u32 *addr, int na) { }
+static void of_dump_addr(const char *s, const u32 *addr, int na) { }
 #endif
 
 
@@ -46,9 +46,10 @@ struct of_bus {
 	int		(*match)(struct device_node *parent);
 	void		(*count_cells)(struct device_node *child,
 				       int *addrc, int *sizec);
-	u64		(*map)(u32 *addr, u32 *range, int na, int ns, int pna);
+	u64		(*map)(u32 *addr, const u32 *range,
+				int na, int ns, int pna);
 	int		(*translate)(u32 *addr, u64 offset, int na);
-	unsigned int	(*get_flags)(u32 *addr);
+	unsigned int	(*get_flags)(const u32 *addr);
 };
 
 
@@ -65,7 +66,8 @@ static void of_bus_default_count_cells(struct device_node *dev,
 		*sizec = prom_n_size_cells(dev);
 }
 
-static u64 of_bus_default_map(u32 *addr, u32 *range, int na, int ns, int pna)
+static u64 of_bus_default_map(u32 *addr, const u32 *range,
+		int na, int ns, int pna)
 {
 	u64 cp, s, da;
 
@@ -93,7 +95,7 @@ static int of_bus_default_translate(u32 *addr, u64 offset, int na)
 	return 0;
 }
 
-static unsigned int of_bus_default_get_flags(u32 *addr)
+static unsigned int of_bus_default_get_flags(const u32 *addr)
 {
 	return IORESOURCE_MEM;
 }
@@ -118,7 +120,7 @@ static void of_bus_pci_count_cells(struct device_node *np,
 		*sizec = 2;
 }
 
-static u64 of_bus_pci_map(u32 *addr, u32 *range, int na, int ns, int pna)
+static u64 of_bus_pci_map(u32 *addr, const u32 *range, int na, int ns, int pna)
 {
 	u64 cp, s, da;
 
@@ -143,7 +145,7 @@ static int of_bus_pci_translate(u32 *addr, u64 offset, int na)
 	return of_bus_default_translate(addr + 1, offset, na - 1);
 }
 
-static unsigned int of_bus_pci_get_flags(u32 *addr)
+static unsigned int of_bus_pci_get_flags(const u32 *addr)
 {
 	unsigned int flags = 0;
 	u32 w = addr[0];
@@ -178,7 +180,7 @@ static void of_bus_isa_count_cells(struct device_node *child,
 		*sizec = 1;
 }
 
-static u64 of_bus_isa_map(u32 *addr, u32 *range, int na, int ns, int pna)
+static u64 of_bus_isa_map(u32 *addr, const u32 *range, int na, int ns, int pna)
 {
 	u64 cp, s, da;
 
@@ -203,7 +205,7 @@ static int of_bus_isa_translate(u32 *addr, u64 offset, int na)
 	return of_bus_default_translate(addr + 1, offset, na - 1);
 }
 
-static unsigned int of_bus_isa_get_flags(u32 *addr)
+static unsigned int of_bus_isa_get_flags(const u32 *addr)
 {
 	unsigned int flags = 0;
 	u32 w = addr[0];
