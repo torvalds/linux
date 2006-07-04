@@ -25,6 +25,7 @@
 #include <linux/vmalloc.h>
 #include <linux/netdevice.h>
 #include <linux/module.h>
+#include <linux/poison.h>
 #include <linux/icmpv6.h>
 #include <net/ipv6.h>
 #include <asm/uaccess.h>
@@ -376,7 +377,7 @@ ip6t_do_table(struct sk_buff **pskb,
 	} while (!hotdrop);
 
 #ifdef CONFIG_NETFILTER_DEBUG
-	((struct ip6t_entry *)table_base)->comefrom = 0xdead57ac;
+	((struct ip6t_entry *)table_base)->comefrom = NETFILTER_LINK_POISON;
 #endif
 	read_unlock_bh(&table->lock);
 

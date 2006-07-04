@@ -23,6 +23,7 @@
 #include <linux/if.h> /* for IFF_UP */
 #include <linux/inetdevice.h>
 #include <linux/bitops.h>
+#include <linux/poison.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/rcupdate.h>
@@ -266,7 +267,7 @@ static void clip_neigh_destroy(struct neighbour *neigh)
 	DPRINTK("clip_neigh_destroy (neigh %p)\n", neigh);
 	if (NEIGH2ENTRY(neigh)->vccs)
 		printk(KERN_CRIT "clip_neigh_destroy: vccs != NULL !!!\n");
-	NEIGH2ENTRY(neigh)->vccs = (void *) 0xdeadbeef;
+	NEIGH2ENTRY(neigh)->vccs = (void *) NEIGHBOR_DEAD;
 }
 
 static void clip_neigh_solicit(struct neighbour *neigh, struct sk_buff *skb)
