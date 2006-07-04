@@ -826,7 +826,7 @@ static int __init ioat_init_module(void)
 	/* if forced, worst case is that rmmod hangs */
 	__unsafe(THIS_MODULE);
 
-	pci_module_init(&ioat_pci_drv);
+	return pci_module_init(&ioat_pci_drv);
 }
 
 module_init(ioat_init_module);
