@@ -167,6 +167,7 @@ static int cpuid_class_device_create(int i)
 	return err;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static int cpuid_class_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
@@ -186,6 +187,7 @@ static struct notifier_block __cpuinitdata cpuid_class_cpu_notifier =
 {
 	.notifier_call = cpuid_class_cpu_callback,
 };
+#endif /* !CONFIG_HOTPLUG_CPU */
 
 static int __init cpuid_init(void)
 {
@@ -208,7 +210,7 @@ static int __init cpuid_init(void)
 		if (err != 0) 
 			goto out_class;
 	}
-	register_cpu_notifier(&cpuid_class_cpu_notifier);
+	register_hotcpu_notifier(&cpuid_class_cpu_notifier);
 
 	err = 0;
 	goto out;
@@ -233,7 +235,7 @@ static void __exit cpuid_exit(void)
 		class_device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, cpu));
 	class_destroy(cpuid_class);
 	unregister_chrdev(CPUID_MAJOR, "cpu/cpuid");
-	unregister_cpu_notifier(&cpuid_class_cpu_notifier);
+	unregister_hotcpu_notifier(&cpuid_class_cpu_notifier);
 }
 
 module_init(cpuid_init);
