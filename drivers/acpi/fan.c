@@ -120,7 +120,7 @@ acpi_fan_write_state(struct file *file, const char __user * buffer,
 	return count;
 }
 
-static struct file_operations acpi_fan_state_ops = {
+static const struct file_operations acpi_fan_state_ops = {
 	.open = acpi_fan_state_open_fs,
 	.read = seq_read,
 	.write = acpi_fan_write_state,

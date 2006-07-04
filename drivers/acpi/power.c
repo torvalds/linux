@@ -80,7 +80,7 @@ struct acpi_power_resource {
 
 static struct list_head acpi_power_resource_list;
 
-static struct file_operations acpi_power_fops = {
+static const struct file_operations acpi_power_fops = {
 	.open = acpi_power_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
