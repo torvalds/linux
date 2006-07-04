@@ -64,6 +64,14 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
 	struct inet6_protocol *ops;
 	int proto;
 
+	if (unlikely(skb_shinfo(skb)->gso_type &
+		     ~(SKB_GSO_UDP |
+		       SKB_GSO_DODGY |
+		       SKB_GSO_TCP_ECN |
+		       SKB_GSO_TCPV6 |
+		       0)))
+		goto out;
+
 	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
 		goto out;
 
