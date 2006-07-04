@@ -24,7 +24,7 @@
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/version.h>
+#include <linux/utsrelease.h>
 #include <linux/adb.h>
 #include <linux/module.h>
 #include <linux/delay.h>

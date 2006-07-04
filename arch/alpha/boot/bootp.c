@@ -9,7 +9,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/version.h>
+#include <linux/utsrelease.h>
 #include <linux/mm.h>
 
 #include <asm/system.h>
