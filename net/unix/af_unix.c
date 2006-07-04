@@ -144,7 +144,7 @@ static inline void unix_set_secdata(struct scm_cookie *scm, struct sk_buff *skb)
 	scm->seclen = *UNIXSECLEN(skb);
 }
 #else
-static void unix_get_peersec_dgram(struct sk_buff *skb)
+static inline void unix_get_peersec_dgram(struct sk_buff *skb)
 { }
 
 static inline void unix_set_secdata(struct scm_cookie *scm, struct sk_buff *skb)
