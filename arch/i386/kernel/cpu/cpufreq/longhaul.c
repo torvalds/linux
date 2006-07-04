@@ -688,6 +688,18 @@ static int __init longhaul_init(void)
 	if (c->x86_vendor != X86_VENDOR_CENTAUR || c->x86 != 6)
 		return -ENODEV;
 
+#ifdef CONFIG_SMP
+	if (num_online_cpus() > 1) {
+		return -ENODEV;
+		printk(KERN_ERR PFX "More than 1 CPU detected, longhaul disabled.\n");
+	}
+#endif
+#ifdef CONFIG_X86_IO_APIC
+	if (cpu_has_apic) {
+		printk(KERN_ERR PFX "APIC detected. Longhaul is currently broken in this configuration.\n");
+		return -ENODEV;
+	}
+#endif
 	switch (c->x86_model) {
 	case 6 ... 9:
 		return cpufreq_register_driver(&longhaul_driver);
