@@ -578,7 +578,7 @@ static int nfs_wait_on_requests(struct inode *inode, unsigned long idx_start, un
 	return ret;
 }
 
-static void nfs_cancel_requests(struct list_head *head)
+static void nfs_cancel_dirty_list(struct list_head *head)
 {
 	struct nfs_page *req;
 	while(!list_empty(head)) {
@@ -586,6 +586,19 @@ static void nfs_cancel_requests(struct list_head *head)
 		nfs_list_remove_request(req);
 		nfs_inode_remove_request(req);
 		nfs_clear_page_writeback(req);
+	}
+}
+
+static void nfs_cancel_commit_list(struct list_head *head)
+{
+	struct nfs_page *req;
+
+	while(!list_empty(head)) {
+		req = nfs_list_entry(head->next);
+		nfs_list_remove_request(req);
+		nfs_inode_remove_request(req);
+		nfs_clear_page_writeback(req);
+		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
 	}
 }
 
@@ -1381,6 +1394,7 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 		nfs_list_remove_request(req);
 		nfs_mark_request_commit(req);
 		nfs_clear_page_writeback(req);
+		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
 	}
 	return -ENOMEM;
 }
@@ -1499,7 +1513,7 @@ int nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
 		if (pages != 0) {
 			spin_unlock(&nfsi->req_lock);
 			if (how & FLUSH_INVALIDATE)
-				nfs_cancel_requests(&head);
+				nfs_cancel_dirty_list(&head);
 			else
 				ret = nfs_flush_list(inode, &head, pages, how);
 			spin_lock(&nfsi->req_lock);
@@ -1512,7 +1526,7 @@ int nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
 			break;
 		if (how & FLUSH_INVALIDATE) {
 			spin_unlock(&nfsi->req_lock);
-			nfs_cancel_requests(&head);
+			nfs_cancel_commit_list(&head);
 			spin_lock(&nfsi->req_lock);
 			continue;
 		}
