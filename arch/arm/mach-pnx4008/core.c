@@ -27,7 +27,6 @@
 #include <linux/spi/spi.h>
 
 #include <asm/hardware.h>
-#include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -36,7 +35,6 @@
 #include <asm/system.h>
 
 #include <asm/mach/arch.h>
-#include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 

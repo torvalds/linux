@@ -107,3 +107,48 @@ void __init at91rm9200_map_io(void)
 	iotable_init(at91rm9200_io_desc, ARRAY_SIZE(at91rm9200_io_desc));
 }
 
+/*
+ * The default interrupt priority levels (0 = lowest, 7 = highest).
+ */
+static unsigned int at91rm9200_default_irq_priority[NR_AIC_IRQS] __initdata = {
+	7,	/* Advanced Interrupt Controller (FIQ) */
+	7,	/* System Peripherals */
+	0,	/* Parallel IO Controller A */
+	0,	/* Parallel IO Controller B */
+	0,	/* Parallel IO Controller C */
+	0,	/* Parallel IO Controller D */
+	6,	/* USART 0 */
+	6,	/* USART 1 */
+	6,	/* USART 2 */
+	6,	/* USART 3 */
+	0,	/* Multimedia Card Interface */
+	4,	/* USB Device Port */
+	0,	/* Two-Wire Interface */
+	6,	/* Serial Peripheral Interface */
+	5,	/* Serial Synchronous Controller 0 */
+	5,	/* Serial Synchronous Controller 1 */
+	5,	/* Serial Synchronous Controller 2 */
+	0,	/* Timer Counter 0 */
+	0,	/* Timer Counter 1 */
+	0,	/* Timer Counter 2 */
+	0,	/* Timer Counter 3 */
+	0,	/* Timer Counter 4 */
+	0,	/* Timer Counter 5 */
+	3,	/* USB Host port */
+	3,	/* Ethernet MAC */
+	0,	/* Advanced Interrupt Controller (IRQ0) */
+	0,	/* Advanced Interrupt Controller (IRQ1) */
+	0,	/* Advanced Interrupt Controller (IRQ2) */
+	0,	/* Advanced Interrupt Controller (IRQ3) */
+	0,	/* Advanced Interrupt Controller (IRQ4) */
+	0,	/* Advanced Interrupt Controller (IRQ5) */
+	0	/* Advanced Interrupt Controller (IRQ6) */
+};
+
+void __init at91rm9200_init_irq(unsigned int priority[NR_AIC_IRQS])
+{
+	if (!priority)
+		priority = at91rm9200_default_irq_priority;
+
+	at91_aic_init(priority);
+}
