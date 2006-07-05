@@ -562,10 +562,13 @@ int ieee80211_tx_frame(struct ieee80211_device *ieee,
 	struct net_device_stats *stats = &ieee->stats;
 	struct sk_buff *skb_frag;
 	int priority = -1;
+	int fraglen = total_len;
+	int headroom = ieee->tx_headroom;
+	struct ieee80211_crypt_data *crypt = ieee->crypt[ieee->tx_keyidx];
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	if (encrypt_mpdu && !ieee->sec.encrypt)
+	if (encrypt_mpdu && (!ieee->sec.encrypt || !crypt))
 		encrypt_mpdu = 0;
 
 	/* If there is no driver handler to take the TXB, dont' bother
@@ -581,20 +584,24 @@ int ieee80211_tx_frame(struct ieee80211_device *ieee,
 		goto success;
 	}
 
-	if (encrypt_mpdu)
+	if (encrypt_mpdu) {
 		frame->frame_ctl |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+		fraglen += crypt->ops->extra_mpdu_prefix_len +
+			   crypt->ops->extra_mpdu_postfix_len;
+		headroom += crypt->ops->extra_mpdu_prefix_len;
+	}
 
 	/* When we allocate the TXB we allocate enough space for the reserve
 	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
 	 * postfix, header, FCS, etc.) */
-	txb = ieee80211_alloc_txb(1, total_len, ieee->tx_headroom, GFP_ATOMIC);
+	txb = ieee80211_alloc_txb(1, fraglen, headroom, GFP_ATOMIC);
 	if (unlikely(!txb)) {
 		printk(KERN_WARNING "%s: Could not allocate TXB\n",
 		       ieee->dev->name);
 		goto failed;
 	}
 	txb->encrypted = 0;
-	txb->payload_size = total_len;
+	txb->payload_size = fraglen;
 
 	skb_frag = txb->fragments[0];
 

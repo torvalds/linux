@@ -5575,20 +5575,20 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	/* enable device (incl. PCI PM wakeup), and bus-mastering */
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		printk(KERN_ERR PFX "Cannot enable PCI device, aborting.");
+		dev_err(&pdev->dev, "Cannot enable PCI device, aborting.");
 		goto err_out;
 	}
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX "Cannot find PCI device base address, "
-		       "aborting.\n");
+		dev_err(&pdev->dev,
+			"Cannot find PCI device base address, aborting.\n");
 		rc = -ENODEV;
 		goto err_out_disable;
 	}
 
 	rc = pci_request_regions(pdev, DRV_MODULE_NAME);
 	if (rc) {
-		printk(KERN_ERR PFX "Cannot obtain PCI resources, aborting.\n");
+		dev_err(&pdev->dev, "Cannot obtain PCI resources, aborting.\n");
 		goto err_out_disable;
 	}
 
@@ -5596,15 +5596,15 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	bp->pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	if (bp->pm_cap == 0) {
-		printk(KERN_ERR PFX "Cannot find power management capability, "
-			       "aborting.\n");
+		dev_err(&pdev->dev,
+			"Cannot find power management capability, aborting.\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
 
 	bp->pcix_cap = pci_find_capability(pdev, PCI_CAP_ID_PCIX);
 	if (bp->pcix_cap == 0) {
-		printk(KERN_ERR PFX "Cannot find PCIX capability, aborting.\n");
+		dev_err(&pdev->dev, "Cannot find PCIX capability, aborting.\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
@@ -5612,14 +5612,14 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) == 0) {
 		bp->flags |= USING_DAC_FLAG;
 		if (pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK) != 0) {
-			printk(KERN_ERR PFX "pci_set_consistent_dma_mask "
-			       "failed, aborting.\n");
+			dev_err(&pdev->dev,
+				"pci_set_consistent_dma_mask failed, aborting.\n");
 			rc = -EIO;
 			goto err_out_release;
 		}
 	}
 	else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0) {
-		printk(KERN_ERR PFX "System does not support DMA, aborting.\n");
+		dev_err(&pdev->dev, "System does not support DMA, aborting.\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
@@ -5639,7 +5639,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->regview = ioremap_nocache(dev->base_addr, mem_len);
 
 	if (!bp->regview) {
-		printk(KERN_ERR PFX "Cannot map register space, aborting.\n");
+		dev_err(&pdev->dev, "Cannot map register space, aborting.\n");
 		rc = -ENOMEM;
 		goto err_out_release;
 	}
@@ -5711,8 +5711,8 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	else if ((CHIP_ID(bp) == CHIP_ID_5706_A1) &&
 		!(bp->flags & PCIX_FLAG)) {
 
-		printk(KERN_ERR PFX "5706 A1 can only be used in a PCIX bus, "
-		       "aborting.\n");
+		dev_err(&pdev->dev,
+			"5706 A1 can only be used in a PCIX bus, aborting.\n");
 		goto err_out_unmap;
 	}
 
@@ -5733,7 +5733,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	if ((reg & BNX2_DEV_INFO_SIGNATURE_MAGIC_MASK) !=
 	    BNX2_DEV_INFO_SIGNATURE_MAGIC) {
-		printk(KERN_ERR PFX "Firmware not running, aborting.\n");
+		dev_err(&pdev->dev, "Firmware not running, aborting.\n");
 		rc = -ENODEV;
 		goto err_out_unmap;
 	}
@@ -5895,7 +5895,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	if ((rc = register_netdev(dev))) {
-		printk(KERN_ERR PFX "Cannot register net device\n");
+		dev_err(&pdev->dev, "Cannot register net device\n");
 		if (bp->regview)
 			iounmap(bp->regview);
 		pci_release_regions(pdev);

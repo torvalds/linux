@@ -22,129 +22,13 @@
 
 	Support and updates available at
 	http://www.scyld.com/network/starfire.html
+	[link no longer provides useful info -jgarzik]
 
-	-----------------------------------------------------------
-
-	Linux kernel-specific changes:
-
-	LK1.1.1 (jgarzik):
-	- Use PCI driver interface
-	- Fix MOD_xxx races
-	- softnet fixups
-
-	LK1.1.2 (jgarzik):
-	- Merge Becker version 0.15
-
-	LK1.1.3 (Andrew Morton)
-	- Timer cleanups
-
-	LK1.1.4 (jgarzik):
-	- Merge Becker version 1.03
-
-	LK1.2.1 (Ion Badulescu <ionut@cs.columbia.edu>)
-	- Support hardware Rx/Tx checksumming
-	- Use the GFP firmware taken from Adaptec's Netware driver
-
-	LK1.2.2 (Ion Badulescu)
-	- Backported to 2.2.x
-
-	LK1.2.3 (Ion Badulescu)
-	- Fix the flaky mdio interface
-	- More compat clean-ups
-
-	LK1.2.4 (Ion Badulescu)
-	- More 2.2.x initialization fixes
-
-	LK1.2.5 (Ion Badulescu)
-	- Several fixes from Manfred Spraul
-
-	LK1.2.6 (Ion Badulescu)
-	- Fixed ifup/ifdown/ifup problem in 2.4.x
-
-	LK1.2.7 (Ion Badulescu)
-	- Removed unused code
-	- Made more functions static and __init
-
-	LK1.2.8 (Ion Badulescu)
-	- Quell bogus error messages, inform about the Tx threshold
-	- Removed #ifdef CONFIG_PCI, this driver is PCI only
-
-	LK1.2.9 (Ion Badulescu)
-	- Merged Jeff Garzik's changes from 2.4.4-pre5
-	- Added 2.2.x compatibility stuff required by the above changes
-
-	LK1.2.9a (Ion Badulescu)
-	- More updates from Jeff Garzik
-
-	LK1.3.0 (Ion Badulescu)
-	- Merged zerocopy support
-
-	LK1.3.1 (Ion Badulescu)
-	- Added ethtool support
-	- Added GPIO (media change) interrupt support
-
-	LK1.3.2 (Ion Badulescu)
-	- Fixed 2.2.x compatibility issues introduced in 1.3.1
-	- Fixed ethtool ioctl returning uninitialized memory
-
-	LK1.3.3 (Ion Badulescu)
-	- Initialize the TxMode register properly
-	- Don't dereference dev->priv after freeing it
-
-	LK1.3.4 (Ion Badulescu)
-	- Fixed initialization timing problems
-	- Fixed interrupt mask definitions
-
-	LK1.3.5 (jgarzik)
-	- ethtool NWAY_RST, GLINK, [GS]MSGLVL support
-
-	LK1.3.6:
-	- Sparc64 support and fixes (Ion Badulescu)
-	- Better stats and error handling (Ion Badulescu)
-	- Use new pci_set_mwi() PCI API function (jgarzik)
-
-	LK1.3.7 (Ion Badulescu)
-	- minimal implementation of tx_timeout()
-	- correctly shutdown the Rx/Tx engines in netdev_close()
-	- added calls to netif_carrier_on/off
-	(patch from Stefan Rompf <srompf@isg.de>)
-	- VLAN support
-
-	LK1.3.8 (Ion Badulescu)
-	- adjust DMA burst size on sparc64
-	- 64-bit support
-	- reworked zerocopy support for 64-bit buffers
-	- working and usable interrupt mitigation/latency
-	- reduced Tx interrupt frequency for lower interrupt overhead
-
-	LK1.3.9 (Ion Badulescu)
-	- bugfix for mcast filter
-	- enable the right kind of Tx interrupts (TxDMADone, not TxDone)
-
-	LK1.4.0 (Ion Badulescu)
-	- NAPI support
-
-	LK1.4.1 (Ion Badulescu)
-	- flush PCI posting buffers after disabling Rx interrupts
-	- put the chip to a D3 slumber on driver unload
-	- added config option to enable/disable NAPI
-
-	LK1.4.2 (Ion Badulescu)
-	- finally added firmware (GPL'ed by Adaptec)
-	- removed compatibility code for 2.2.x
-
-	LK1.4.2.1 (Ion Badulescu)
-	- fixed 32/64 bit issues on i386 + CONFIG_HIGHMEM
-	- added 32-bit padding to outgoing skb's, removed previous workaround
-
-TODO:	- fix forced speed/duplexing code (broken a long time ago, when
-	somebody converted the driver to use the generic MII code)
-	- fix VLAN support
 */
 
 #define DRV_NAME	"starfire"
-#define DRV_VERSION	"1.03+LK1.4.2.1"
-#define DRV_RELDATE	"October 3, 2005"
+#define DRV_VERSION	"2.0"
+#define DRV_RELDATE	"June 27, 2006"
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -846,7 +730,6 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 		goto err_out_free_netdev;
 	}
 
-	/* ioremap is borken in Linux-2.2.x/sparc64 */
 	base = ioremap(ioaddr, io_size);
 	if (!base) {
 		printk(KERN_ERR DRV_NAME " %d: cannot remap %#x @ %#lx, aborting\n",

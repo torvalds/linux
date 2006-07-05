@@ -188,7 +188,6 @@ struct myri10ge_priv {
 	int vendor_specific_offset;
 	u32 devctl;
 	u16 msi_flags;
-	u32 pm_state[16];
 	u32 read_dma;
 	u32 write_dma;
 	u32 read_write_dma;
@@ -1289,6 +1288,7 @@ static const char myri10ge_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"tx_aborted_errors", "tx_carrier_errors", "tx_fifo_errors",
 	"tx_heartbeat_errors", "tx_window_errors",
 	/* device-specific stats */
+	"tx_boundary", "WC", "irq", "MSI",
 	"read_dma_bw_MBs", "write_dma_bw_MBs", "read_write_dma_bw_MBs",
 	"serial_number", "tx_pkt_start", "tx_pkt_done",
 	"tx_req", "tx_done", "rx_small_cnt", "rx_big_cnt",
@@ -1327,6 +1327,10 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	for (i = 0; i < MYRI10GE_NET_STATS_LEN; i++)
 		data[i] = ((unsigned long *)&mgp->stats)[i];
 
+	data[i++] = (unsigned int)mgp->tx.boundary;
+	data[i++] = (unsigned int)(mgp->mtrr >= 0);
+	data[i++] = (unsigned int)mgp->pdev->irq;
+	data[i++] = (unsigned int)mgp->msi_enabled;
 	data[i++] = (unsigned int)mgp->read_dma;
 	data[i++] = (unsigned int)mgp->write_dma;
 	data[i++] = (unsigned int)mgp->read_write_dma;
@@ -2197,8 +2201,6 @@ static int myri10ge_change_mtu(struct net_device *dev, int new_mtu)
  * any other device, except if forced with myri10ge_ecrc_enable > 1.
  */
 
-#define PCI_DEVICE_ID_NVIDIA_NFORCE_CK804_PCIE	0x005d
-
 static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 {
 	struct pci_dev *bridge = mgp->pdev->bus->self;
@@ -2737,11 +2739,10 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "register_netdev failed: %d\n", status);
 		goto abort_with_irq;
 	}
-
-	printk(KERN_INFO "myri10ge: %s: %s IRQ %d, tx bndry %d, fw %s, WC %s\n",
-	       netdev->name, (mgp->msi_enabled ? "MSI" : "xPIC"),
-	       pdev->irq, mgp->tx.boundary, mgp->fw_name,
-	       (mgp->mtrr >= 0 ? "Enabled" : "Disabled"));
+	dev_info(dev, "%s IRQ %d, tx bndry %d, fw %s, WC %s\n",
+		 (mgp->msi_enabled ? "MSI" : "xPIC"),
+		 pdev->irq, mgp->tx.boundary, mgp->fw_name,
+		 (mgp->mtrr >= 0 ? "Enabled" : "Disabled"));
 
 	return 0;
 

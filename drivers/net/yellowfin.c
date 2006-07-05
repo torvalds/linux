@@ -19,37 +19,13 @@
 
 	Support and updates available at
 	http://www.scyld.com/network/yellowfin.html
+	[link no longer provides useful info -jgarzik]
 
-
-	Linux kernel changelog:
-	-----------------------
-
-	LK1.1.1 (jgarzik): Port to 2.4 kernel
-
-	LK1.1.2 (jgarzik):
-	* Merge in becker version 1.05
-
-	LK1.1.3 (jgarzik):
-	* Various cleanups
-	* Update yellowfin_timer to correctly calculate duplex.
-	(suggested by Manfred Spraul)
-
-	LK1.1.4 (val@nmt.edu):
-	* Fix three endian-ness bugs
-	* Support dual function SYM53C885E ethernet chip
-	
-	LK1.1.5 (val@nmt.edu):
-	* Fix forced full-duplex bug I introduced
-
-	LK1.1.6 (val@nmt.edu):
-	* Only print warning on truly "oversized" packets
-	* Fix theoretical bug on gigabit cards - return to 1.1.3 behavior
-	
 */
 
 #define DRV_NAME	"yellowfin"
-#define DRV_VERSION	"1.05+LK1.1.6"
-#define DRV_RELDATE	"Feb 11, 2002"
+#define DRV_VERSION	"2.0"
+#define DRV_RELDATE	"Jun 27, 2006"
 
 #define PFX DRV_NAME ": "
 
@@ -239,8 +215,11 @@ enum capability_flags {
 	HasMACAddrBug=32, /* Only on early revs.  */
 	DontUseEeprom=64, /* Don't read the MAC from the EEPROm. */
 };
+
 /* The PCI I/O space extent. */
-#define YELLOWFIN_SIZE 0x100
+enum {
+	YELLOWFIN_SIZE	= 0x100,
+};
 
 struct pci_id_info {
         const char *name;
@@ -248,16 +227,14 @@ struct pci_id_info {
                 int     pci, pci_mask, subsystem, subsystem_mask;
                 int revision, revision_mask;                            /* Only 8 bits. */
         } id;
-        int io_size;                            /* Needed for I/O region check or ioremap(). */
         int drv_flags;                          /* Driver use, intended as capability flags. */
 };
 
 static const struct pci_id_info pci_id_tbl[] = {
 	{"Yellowfin G-NIC Gigabit Ethernet", { 0x07021000, 0xffffffff},
-	 YELLOWFIN_SIZE,
 	 FullTxStatus | IsGigabit | HasMulticastBug | HasMACAddrBug | DontUseEeprom},
 	{"Symbios SYM83C885", { 0x07011000, 0xffffffff},
-	 YELLOWFIN_SIZE, HasMII | DontUseEeprom },
+	  HasMII | DontUseEeprom },
 	{ }
 };
 
