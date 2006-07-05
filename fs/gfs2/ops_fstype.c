@@ -57,7 +57,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	gfs2_tune_init(&sdp->sd_tune);
 
 	for (x = 0; x < GFS2_GL_HASH_SIZE; x++) {
-		sdp->sd_gl_hash[x].hb_lock = RW_LOCK_UNLOCKED;
+		rwlock_init(&sdp->sd_gl_hash[x].hb_lock);
 		INIT_LIST_HEAD(&sdp->sd_gl_hash[x].hb_list);
 	}
 	INIT_LIST_HEAD(&sdp->sd_reclaim_list);
