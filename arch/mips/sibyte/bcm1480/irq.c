@@ -534,7 +534,7 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 		mask_l = __raw_readq(
 			IOADDR(base + R_BCM1480_IMR_INTERRUPT_STATUS_BASE_L));
 
-		if (!mask_h) {
+		if (mask_h) {
 			if (mask_h ^ 1)
 				do_IRQ(63 - dclz(mask_h), regs);
 			else
