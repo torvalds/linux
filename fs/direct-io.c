@@ -220,7 +220,8 @@ static void dio_complete(struct dio *dio, loff_t offset, ssize_t bytes)
 	if (dio->end_io && dio->result)
 		dio->end_io(dio->iocb, offset, bytes, dio->map_bh.b_private);
 	if (dio->lock_type == DIO_LOCKING)
-		up_read(&dio->inode->i_alloc_sem);
+		/* lockdep: non-owner release */
+		up_read_non_owner(&dio->inode->i_alloc_sem);
 }
 
 /*
@@ -1261,7 +1262,8 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 		}
 
 		if (dio_lock_type == DIO_LOCKING)
-			down_read(&inode->i_alloc_sem);
+			/* lockdep: not the owner will release it */
+			down_read_non_owner(&inode->i_alloc_sem);
 	}
 
 	/*

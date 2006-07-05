@@ -231,7 +231,7 @@ static int acq_notify_sys(struct notifier_block *this, unsigned long code,
  *	Kernel Interfaces
  */
 
-static struct file_operations acq_fops = {
+static const struct file_operations acq_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= acq_write,

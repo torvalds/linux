@@ -514,7 +514,7 @@ int snd_seq_port_connect(struct snd_seq_client *connector,
 	atomic_set(&subs->ref_count, 2);
 
 	down_write(&src->list_mutex);
-	down_write(&dest->list_mutex);
+	down_write_nested(&dest->list_mutex, SINGLE_DEPTH_NESTING);
 
 	exclusive = info->flags & SNDRV_SEQ_PORT_SUBS_EXCLUSIVE ? 1 : 0;
 	err = -EBUSY;
@@ -587,7 +587,7 @@ int snd_seq_port_disconnect(struct snd_seq_client *connector,
 	unsigned long flags;
 
 	down_write(&src->list_mutex);
-	down_write(&dest->list_mutex);
+	down_write_nested(&dest->list_mutex, SINGLE_DEPTH_NESTING);
 
 	/* look for the connection */
 	list_for_each(p, &src->list_head) {

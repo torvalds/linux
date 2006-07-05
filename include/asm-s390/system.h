@@ -301,34 +301,6 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 #define set_mb(var, value)      do { var = value; mb(); } while (0)
 #define set_wmb(var, value)     do { var = value; wmb(); } while (0)
 
-/* interrupt control.. */
-#define local_irq_enable() ({ \
-        unsigned long  __dummy; \
-        __asm__ __volatile__ ( \
-                "stosm 0(%1),0x03" \
-		: "=m" (__dummy) : "a" (&__dummy) : "memory" ); \
-        })
-
-#define local_irq_disable() ({ \
-        unsigned long __flags; \
-        __asm__ __volatile__ ( \
-                "stnsm 0(%1),0xfc" : "=m" (__flags) : "a" (&__flags) ); \
-        __flags; \
-        })
-
-#define local_save_flags(x) \
-        __asm__ __volatile__("stosm 0(%1),0" : "=m" (x) : "a" (&x), "m" (x) )
-
-#define local_irq_restore(x) \
-        __asm__ __volatile__("ssm   0(%0)" : : "a" (&x), "m" (x) : "memory")
-
-#define irqs_disabled()			\
-({					\
-	unsigned long flags;		\
-	local_save_flags(flags);	\
-        !((flags >> __FLAG_SHIFT) & 3);	\
-})
-
 #ifdef __s390x__
 
 #define __ctl_load(array, low, high) ({ \
@@ -442,8 +414,7 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
         })
 #endif /* __s390x__ */
 
-/* For spinlocks etc */
-#define local_irq_save(x)	((x) = local_irq_disable())
+#include <linux/irqflags.h>
 
 /*
  * Use to set psw mask except for the first byte which
@@ -482,4 +453,3 @@ extern void (*_machine_power_off)(void);
 #endif /* __KERNEL__ */
 
 #endif
-

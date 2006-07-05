@@ -1021,7 +1021,8 @@ static void drain_alien_cache(struct kmem_cache *cachep,
 	}
 }
 
-static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
+static inline int cache_free_alien(struct kmem_cache *cachep, void *objp,
+				   int nesting)
 {
 	struct slab *slabp = virt_to_slab(objp);
 	int nodeid = slabp->nodeid;
@@ -1039,7 +1040,7 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 	STATS_INC_NODEFREES(cachep);
 	if (l3->alien && l3->alien[nodeid]) {
 		alien = l3->alien[nodeid];
-		spin_lock(&alien->lock);
+		spin_lock_nested(&alien->lock, nesting);
 		if (unlikely(alien->avail == alien->limit)) {
 			STATS_INC_ACOVERFLOW(cachep);
 			__drain_alien_cache(cachep, alien, nodeid);
@@ -1068,7 +1069,8 @@ static inline void free_alien_cache(struct array_cache **ac_ptr)
 {
 }
 
-static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
+static inline int cache_free_alien(struct kmem_cache *cachep, void *objp,
+				   int nesting)
 {
 	return 0;
 }
@@ -1272,6 +1274,11 @@ static void init_list(struct kmem_cache *cachep, struct kmem_list3 *list,
 
 	local_irq_disable();
 	memcpy(ptr, list, sizeof(struct kmem_list3));
+	/*
+	 * Do not assume that spinlocks can be initialized via memcpy:
+	 */
+	spin_lock_init(&ptr->list_lock);
+
 	MAKE_ALL_LISTS(cachep, ptr, nodeid);
 	cachep->nodelists[nodeid] = ptr;
 	local_irq_enable();
@@ -1398,7 +1405,7 @@ void __init kmem_cache_init(void)
 	}
 	/* 4) Replace the bootstrap head arrays */
 	{
-		void *ptr;
+		struct array_cache *ptr;
 
 		ptr = kmalloc(sizeof(struct arraycache_init), GFP_KERNEL);
 
@@ -1406,6 +1413,11 @@ void __init kmem_cache_init(void)
 		BUG_ON(cpu_cache_get(&cache_cache) != &initarray_cache.cache);
 		memcpy(ptr, cpu_cache_get(&cache_cache),
 		       sizeof(struct arraycache_init));
+		/*
+		 * Do not assume that spinlocks can be initialized via memcpy:
+		 */
+		spin_lock_init(&ptr->lock);
+
 		cache_cache.array[smp_processor_id()] = ptr;
 		local_irq_enable();
 
@@ -1416,6 +1428,11 @@ void __init kmem_cache_init(void)
 		       != &initarray_generic.cache);
 		memcpy(ptr, cpu_cache_get(malloc_sizes[INDEX_AC].cs_cachep),
 		       sizeof(struct arraycache_init));
+		/*
+		 * Do not assume that spinlocks can be initialized via memcpy:
+		 */
+		spin_lock_init(&ptr->lock);
+
 		malloc_sizes[INDEX_AC].cs_cachep->array[smp_processor_id()] =
 		    ptr;
 		local_irq_enable();
@@ -1743,6 +1760,8 @@ static void slab_destroy_objs(struct kmem_cache *cachep, struct slab *slabp)
 }
 #endif
 
+static void __cache_free(struct kmem_cache *cachep, void *objp, int nesting);
+
 /**
  * slab_destroy - destroy and release all objects in a slab
  * @cachep: cache pointer being destroyed
@@ -1766,8 +1785,17 @@ static void slab_destroy(struct kmem_cache *cachep, struct slab *slabp)
 		call_rcu(&slab_rcu->head, kmem_rcu_free);
 	} else {
 		kmem_freepages(cachep, addr);
-		if (OFF_SLAB(cachep))
-			kmem_cache_free(cachep->slabp_cache, slabp);
+		if (OFF_SLAB(cachep)) {
+			unsigned long flags;
+
+			/*
+		 	 * lockdep: we may nest inside an already held
+			 * ac->lock, so pass in a nesting flag:
+			 */
+			local_irq_save(flags);
+			__cache_free(cachep->slabp_cache, slabp, 1);
+			local_irq_restore(flags);
+		}
 	}
 }
 
@@ -3072,7 +3100,16 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int nr_objects,
 		if (slabp->inuse == 0) {
 			if (l3->free_objects > l3->free_limit) {
 				l3->free_objects -= cachep->num;
+				/*
+				 * It is safe to drop the lock. The slab is
+				 * no longer linked to the cache. cachep
+				 * cannot disappear - we are using it and
+				 * all destruction of caches must be
+				 * serialized properly by the user.
+				 */
+				spin_unlock(&l3->list_lock);
 				slab_destroy(cachep, slabp);
+				spin_lock(&l3->list_lock);
 			} else {
 				list_add(&slabp->list, &l3->slabs_free);
 			}
@@ -3098,7 +3135,7 @@ static void cache_flusharray(struct kmem_cache *cachep, struct array_cache *ac)
 #endif
 	check_irq_off();
 	l3 = cachep->nodelists[node];
-	spin_lock(&l3->list_lock);
+	spin_lock_nested(&l3->list_lock, SINGLE_DEPTH_NESTING);
 	if (l3->shared) {
 		struct array_cache *shared_array = l3->shared;
 		int max = shared_array->limit - shared_array->avail;
@@ -3141,14 +3178,14 @@ free_done:
  * Release an obj back to its cache. If the obj has a constructed state, it must
  * be in this state _before_ it is released.  Called with disabled ints.
  */
-static inline void __cache_free(struct kmem_cache *cachep, void *objp)
+static void __cache_free(struct kmem_cache *cachep, void *objp, int nesting)
 {
 	struct array_cache *ac = cpu_cache_get(cachep);
 
 	check_irq_off();
 	objp = cache_free_debugcheck(cachep, objp, __builtin_return_address(0));
 
-	if (cache_free_alien(cachep, objp))
+	if (cache_free_alien(cachep, objp, nesting))
 		return;
 
 	if (likely(ac->avail < ac->limit)) {
@@ -3387,7 +3424,7 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 	BUG_ON(virt_to_cache(objp) != cachep);
 
 	local_irq_save(flags);
-	__cache_free(cachep, objp);
+	__cache_free(cachep, objp, 0);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(kmem_cache_free);
@@ -3412,7 +3449,7 @@ void kfree(const void *objp)
 	kfree_debugcheck(objp);
 	c = virt_to_cache(objp);
 	debug_check_no_locks_freed(objp, obj_size(c));
-	__cache_free(c, (void *)objp);
+	__cache_free(c, (void *)objp, 0);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(kfree);

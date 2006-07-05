@@ -90,22 +90,12 @@ int macio_init(void)
 {
 	struct device_node *adbs;
 	struct resource r;
+	unsigned int irq;
 
 	adbs = find_compatible_devices("adb", "chrp,adb0");
 	if (adbs == 0)
 		return -ENXIO;
 
-#if 0
-	{ int i = 0;
-
-	printk("macio_adb_init: node = %p, addrs =", adbs->node);
-	while(!of_address_to_resource(adbs, i, &r))
-		printk(" %x(%x)", r.start, r.end - r.start);
-	printk(", intrs =");
-	for (i = 0; i < adbs->n_intrs; ++i)
-		printk(" %x", adbs->intrs[i].line);
-	printk("\n"); }
-#endif
 	if (of_address_to_resource(adbs, 0, &r))
 		return -ENXIO;
 	adb = ioremap(r.start, sizeof(struct adb_regs));
@@ -117,10 +107,9 @@ int macio_init(void)
 	out_8(&adb->active_lo.r, 0xff);
 	out_8(&adb->autopoll.r, APE);
 
-	if (request_irq(adbs->intrs[0].line, macio_adb_interrupt,
-			0, "ADB", (void *)0)) {
-		printk(KERN_ERR "ADB: can't get irq %d\n",
-		       adbs->intrs[0].line);
+	irq = irq_of_parse_and_map(adbs, 0);
+	if (request_irq(irq, macio_adb_interrupt, 0, "ADB", (void *)0)) {
+		printk(KERN_ERR "ADB: can't get irq %d\n", irq);
 		return -EAGAIN;
 	}
 	out_8(&adb->intr_enb.r, DFB | TAG);

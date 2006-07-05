@@ -518,7 +518,9 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 		zap_locks();
 
 	/* This stops the holder of console_sem just where we want him */
-	spin_lock_irqsave(&logbuf_lock, flags);
+	local_irq_save(flags);
+	lockdep_off();
+	spin_lock(&logbuf_lock);
 	printk_cpu = smp_processor_id();
 
 	/* Emit the output into the temporary buffer */
@@ -588,7 +590,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 		 */
 		console_locked = 1;
 		printk_cpu = UINT_MAX;
-		spin_unlock_irqrestore(&logbuf_lock, flags);
+		spin_unlock(&logbuf_lock);
 
 		/*
 		 * Console drivers may assume that per-cpu resources have
@@ -604,6 +606,8 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 			console_locked = 0;
 			up(&console_sem);
 		}
+		lockdep_on();
+		local_irq_restore(flags);
 	} else {
 		/*
 		 * Someone else owns the drivers.  We drop the spinlock, which
@@ -611,7 +615,9 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 		 * console drivers with the output which we just produced.
 		 */
 		printk_cpu = UINT_MAX;
-		spin_unlock_irqrestore(&logbuf_lock, flags);
+		spin_unlock(&logbuf_lock);
+		lockdep_on();
+		local_irq_restore(flags);
 	}
 
 	preempt_enable();
@@ -809,8 +815,15 @@ void release_console_sem(void)
 	console_may_schedule = 0;
 	up(&console_sem);
 	spin_unlock_irqrestore(&logbuf_lock, flags);
-	if (wake_klogd && !oops_in_progress && waitqueue_active(&log_wait))
-		wake_up_interruptible(&log_wait);
+	if (wake_klogd && !oops_in_progress && waitqueue_active(&log_wait)) {
+		/*
+		 * If we printk from within the lock dependency code,
+		 * from within the scheduler code, then do not lock
+		 * up due to self-recursion:
+		 */
+		if (!lockdep_internal())
+			wake_up_interruptible(&log_wait);
+	}
 }
 EXPORT_SYMBOL(release_console_sem);
 

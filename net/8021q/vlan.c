@@ -364,6 +364,14 @@ static void vlan_transfer_operstate(const struct net_device *dev, struct net_dev
 	}
 }
 
+/*
+ * vlan network devices have devices nesting below it, and are a special
+ * "super class" of normal network devices; split their locks off into a
+ * separate class since they always nest.
+ */
+static struct lock_class_key vlan_netdev_xmit_lock_key;
+
+
 /*  Attach a VLAN device to a mac address (ie Ethernet Card).
  *  Returns the device that was created, or NULL if there was
  *  an error of some kind.
@@ -460,6 +468,7 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 		    
 	new_dev = alloc_netdev(sizeof(struct vlan_dev_info), name,
 			       vlan_setup);
+
 	if (new_dev == NULL)
 		goto out_unlock;
 
@@ -517,6 +526,8 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 	    
 	if (register_netdevice(new_dev))
 		goto out_free_newdev;
+
+	lockdep_set_class(&new_dev->_xmit_lock, &vlan_netdev_xmit_lock_key);
 
 	new_dev->iflink = real_dev->ifindex;
 	vlan_transfer_operstate(real_dev, new_dev);

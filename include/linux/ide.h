@@ -1359,7 +1359,7 @@ extern struct semaphore ide_cfg_sem;
  * ide_drive_t->hwif: constant, no locking
  */
 
-#define local_irq_set(flags)	do { local_save_flags((flags)); local_irq_enable(); } while (0)
+#define local_irq_set(flags)	do { local_save_flags((flags)); local_irq_enable_in_hardirq(); } while (0)
 
 extern struct bus_type ide_bus_type;
 

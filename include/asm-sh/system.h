@@ -12,7 +12,7 @@
  */
 
 #define switch_to(prev, next, last) do {				\
- task_t *__last;							\
+ struct task_struct *__last;						\
  register unsigned long *__ts1 __asm__ ("r1") = &prev->thread.sp;	\
  register unsigned long *__ts2 __asm__ ("r2") = &prev->thread.pc;	\
  register unsigned long *__ts4 __asm__ ("r4") = (unsigned long *)prev;	\

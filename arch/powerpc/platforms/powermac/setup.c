@@ -613,9 +613,6 @@ static void __init pmac_init_early(void)
 	udbg_adb_init(!!strstr(cmd_line, "btextdbg"));
 
 #ifdef CONFIG_PPC64
-	/* Setup interrupt mapping options */
-	ppc64_interrupt_controller = IC_OPEN_PIC;
-
 	iommu_init_early_dart();
 #endif
 }

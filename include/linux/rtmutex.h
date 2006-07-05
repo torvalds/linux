@@ -29,8 +29,6 @@ struct rt_mutex {
 	struct task_struct	*owner;
 #ifdef CONFIG_DEBUG_RT_MUTEXES
 	int			save_state;
-	struct list_head	held_list_entry;
-	unsigned long		acquire_ip;
 	const char 		*name, *file;
 	int			line;
 	void			*magic;
@@ -97,14 +95,6 @@ extern int rt_mutex_timed_lock(struct rt_mutex *lock,
 extern int rt_mutex_trylock(struct rt_mutex *lock);
 
 extern void rt_mutex_unlock(struct rt_mutex *lock);
-
-#ifdef CONFIG_DEBUG_RT_MUTEXES
-# define INIT_RT_MUTEX_DEBUG(tsk)					\
-	.held_list_head	= LIST_HEAD_INIT(tsk.held_list_head),		\
-	.held_list_lock	= SPIN_LOCK_UNLOCKED
-#else
-# define INIT_RT_MUTEX_DEBUG(tsk)
-#endif
 
 #ifdef CONFIG_RT_MUTEXES
 # define INIT_RT_MUTEXES(tsk)						\

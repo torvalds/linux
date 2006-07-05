@@ -34,6 +34,11 @@ cflags-$(CONFIG_MARCH_G5)   += $(call cc-option,-march=g5)
 cflags-$(CONFIG_MARCH_Z900) += $(call cc-option,-march=z900)
 cflags-$(CONFIG_MARCH_Z990) += $(call cc-option,-march=z990)
 
+#
+# Prevent tail-call optimizations, to get clearer backtraces:
+#
+cflags-$(CONFIG_FRAME_POINTER) += -fno-optimize-sibling-calls
+
 # old style option for packed stacks
 ifeq ($(call cc-option-yn,-mkernel-backchain),y)
 cflags-$(CONFIG_PACK_STACK)  += -mkernel-backchain -D__PACK_STACK

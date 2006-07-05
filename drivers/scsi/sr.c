@@ -292,7 +292,7 @@ static void rw_intr(struct scsi_cmnd * SCpnt)
 	 * how many actual sectors finished, and how many sectors we need
 	 * to say have failed.
 	 */
-	scsi_io_completion(SCpnt, good_bytes, block_sectors << 9);
+	scsi_io_completion(SCpnt, good_bytes);
 }
 
 static int sr_init_command(struct scsi_cmnd * SCpnt)

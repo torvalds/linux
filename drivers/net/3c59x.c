@@ -1897,7 +1897,7 @@ vortex_timer(unsigned long data)
 		printk(KERN_DEBUG "dev->watchdog_timeo=%d\n", dev->watchdog_timeo);
 	}
 
-	disable_irq(dev->irq);
+	disable_irq_lockdep(dev->irq);
 	old_window = ioread16(ioaddr + EL3_CMD) >> 13;
 	EL3WINDOW(4);
 	media_status = ioread16(ioaddr + Wn4_Media);
@@ -1978,7 +1978,7 @@ leave_media_alone:
 			 dev->name, media_tbl[dev->if_port].name);
 
 	EL3WINDOW(old_window);
-	enable_irq(dev->irq);
+	enable_irq_lockdep(dev->irq);
 	mod_timer(&vp->timer, RUN_AT(next_tick));
 	if (vp->deferred)
 		iowrite16(FakeIntr, ioaddr + EL3_CMD);

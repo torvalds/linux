@@ -535,6 +535,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 				   struct ibmvscsi_host_data *hostdata)
 {
 	u64 *crq_as_u64 = (u64 *) &evt_struct->crq;
+	int request_status;
 	int rc;
 
 	/* If we have exhausted our request limit, just fail this request.
@@ -542,9 +543,18 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	 * (such as task management requests) that the mid layer may think we
 	 * can handle more requests (can_queue) when we actually can't
 	 */
-	if ((evt_struct->crq.format == VIOSRP_SRP_FORMAT) &&
-	    (atomic_dec_if_positive(&hostdata->request_limit) < 0))
-		goto send_error;
+	if (evt_struct->crq.format == VIOSRP_SRP_FORMAT) {
+		request_status =
+			atomic_dec_if_positive(&hostdata->request_limit);
+		/* If request limit was -1 when we started, it is now even
+		 * less than that
+		 */
+		if (request_status < -1)
+			goto send_error;
+		/* Otherwise, if we have run out of requests */
+		else if (request_status < 0)
+			goto send_busy;
+	}
 
 	/* Copy the IU into the transfer area */
 	*evt_struct->xfer_iu = evt_struct->iu;
@@ -567,11 +577,23 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 
 	return 0;
 
- send_error:
+ send_busy:
 	unmap_cmd_data(&evt_struct->iu.srp.cmd, evt_struct, hostdata->dev);
 
 	free_event_struct(&hostdata->pool, evt_struct);
  	return SCSI_MLQUEUE_HOST_BUSY;
+
+ send_error:
+	unmap_cmd_data(&evt_struct->iu.srp.cmd, evt_struct, hostdata->dev);
+
+	if (evt_struct->cmnd != NULL) {
+		evt_struct->cmnd->result = DID_ERROR << 16;
+		evt_struct->cmnd_done(evt_struct->cmnd);
+	} else if (evt_struct->done)
+		evt_struct->done(evt_struct);
+
+	free_event_struct(&hostdata->pool, evt_struct);
+	return 0;
 }
 
 /**
@@ -1184,27 +1206,37 @@ void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 		return;
 	case 0xFF:	/* Hypervisor telling us the connection is closed */
 		scsi_block_requests(hostdata->host);
+		atomic_set(&hostdata->request_limit, 0);
 		if (crq->format == 0x06) {
 			/* We need to re-setup the interpartition connection */
 			printk(KERN_INFO
 			       "ibmvscsi: Re-enabling adapter!\n");
-			atomic_set(&hostdata->request_limit, -1);
 			purge_requests(hostdata, DID_REQUEUE);
-			if (ibmvscsi_reenable_crq_queue(&hostdata->queue,
-							hostdata) == 0)
-				if (ibmvscsi_send_crq(hostdata,
-						      0xC001000000000000LL, 0))
+			if ((ibmvscsi_reenable_crq_queue(&hostdata->queue,
+							hostdata) == 0) ||
+			    (ibmvscsi_send_crq(hostdata,
+					       0xC001000000000000LL, 0))) {
+					atomic_set(&hostdata->request_limit,
+						   -1);
 					printk(KERN_ERR
-					       "ibmvscsi: transmit error after"
+					       "ibmvscsi: error after"
 					       " enable\n");
+			}
 		} else {
 			printk(KERN_INFO
 			       "ibmvscsi: Virtual adapter failed rc %d!\n",
 			       crq->format);
 
-			atomic_set(&hostdata->request_limit, -1);
 			purge_requests(hostdata, DID_ERROR);
-			ibmvscsi_reset_crq_queue(&hostdata->queue, hostdata);
+			if ((ibmvscsi_reset_crq_queue(&hostdata->queue,
+							hostdata)) ||
+			    (ibmvscsi_send_crq(hostdata,
+					       0xC001000000000000LL, 0))) {
+					atomic_set(&hostdata->request_limit,
+						   -1);
+					printk(KERN_ERR
+					       "ibmvscsi: error after reset\n");
+			}
 		}
 		scsi_unblock_requests(hostdata->host);
 		return;
@@ -1467,6 +1499,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	struct Scsi_Host *host;
 	struct device *dev = &vdev->dev;
 	unsigned long wait_switch = 0;
+	int rc;
 
 	vdev->dev.driver_data = NULL;
 
@@ -1484,8 +1517,8 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	atomic_set(&hostdata->request_limit, -1);
 	hostdata->host->max_sectors = 32 * 8; /* default max I/O 32 pages */
 
-	if (ibmvscsi_init_crq_queue(&hostdata->queue, hostdata,
-				    max_requests) != 0) {
+	rc = ibmvscsi_init_crq_queue(&hostdata->queue, hostdata, max_requests);
+	if (rc != 0 && rc != H_RESOURCE) {
 		printk(KERN_ERR "ibmvscsi: couldn't initialize crq\n");
 		goto init_crq_failed;
 	}
@@ -1505,7 +1538,8 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	 * to fail if the other end is not acive.  In that case we don't
 	 * want to scan
 	 */
-	if (ibmvscsi_send_crq(hostdata, 0xC001000000000000LL, 0) == 0) {
+	if (ibmvscsi_send_crq(hostdata, 0xC001000000000000LL, 0) == 0
+	    || rc == H_RESOURCE) {
 		/*
 		 * Wait around max init_timeout secs for the adapter to finish
 		 * initializing. When we are done initializing, we will have a

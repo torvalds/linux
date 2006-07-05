@@ -28,7 +28,7 @@
  *
  * Must be called with the tasklist lock write-held.
  */
-void __ptrace_link(task_t *child, task_t *new_parent)
+void __ptrace_link(struct task_struct *child, struct task_struct *new_parent)
 {
 	BUG_ON(!list_empty(&child->ptrace_list));
 	if (child->parent == new_parent)
@@ -46,7 +46,7 @@ void __ptrace_link(task_t *child, task_t *new_parent)
  * TASK_TRACED, resume it now.
  * Requires that irqs be disabled.
  */
-void ptrace_untrace(task_t *child)
+void ptrace_untrace(struct task_struct *child)
 {
 	spin_lock(&child->sighand->siglock);
 	if (child->state == TASK_TRACED) {
@@ -65,7 +65,7 @@ void ptrace_untrace(task_t *child)
  *
  * Must be called with the tasklist lock write-held.
  */
-void __ptrace_unlink(task_t *child)
+void __ptrace_unlink(struct task_struct *child)
 {
 	BUG_ON(!child->ptrace);
 

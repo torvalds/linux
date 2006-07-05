@@ -88,7 +88,7 @@ static struct of_device_id sparc_i8042_match[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, i8042_match);
+MODULE_DEVICE_TABLE(of, sparc_i8042_match);
 
 static struct of_platform_driver sparc_i8042_driver = {
 	.name		= "i8042",

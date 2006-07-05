@@ -243,7 +243,7 @@ static int softdog_notify_sys(struct notifier_block *this, unsigned long code,
  *	Kernel Interfaces
  */
 
-static struct file_operations softdog_fops = {
+static const struct file_operations softdog_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= softdog_write,

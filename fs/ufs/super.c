@@ -1326,7 +1326,7 @@ static ssize_t ufs_quota_write(struct super_block *sb, int type,
 	size_t towrite = len;
 	struct buffer_head *bh;
 
-	mutex_lock(&inode->i_mutex);
+	mutex_lock_nested(&inode->i_mutex, I_MUTEX_QUOTA);
 	while (towrite > 0) {
 		tocopy = sb->s_blocksize - offset < towrite ?
 				sb->s_blocksize - offset : towrite;

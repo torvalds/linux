@@ -250,8 +250,6 @@ static int floppy_open(struct inode *inode, struct file *filp);
 static int floppy_release(struct inode *inode, struct file *filp);
 static int floppy_check_change(struct gendisk *disk);
 static int floppy_revalidate(struct gendisk *disk);
-static int swim3_add_device(struct device_node *swims);
-int swim3_init(void);
 
 #ifndef CONFIG_PMAC_MEDIABAY
 #define check_media_bay(which, what)	1
@@ -1011,114 +1009,63 @@ static struct block_device_operations floppy_fops = {
 	.revalidate_disk= floppy_revalidate,
 };
 
-int swim3_init(void)
+static int swim3_add_device(struct macio_dev *mdev, int index)
 {
-	struct device_node *swim;
-	int err = -ENOMEM;
-	int i;
-
-	swim = find_devices("floppy");
-	while (swim && (floppy_count < MAX_FLOPPIES))
-	{
-		swim3_add_device(swim);
-		swim = swim->next;
-	}
-
-	swim = find_devices("swim3");
-	while (swim && (floppy_count < MAX_FLOPPIES))
-	{
-		swim3_add_device(swim);
-		swim = swim->next;
-	}
-
-	if (!floppy_count)
-		return -ENODEV;
-
-	for (i = 0; i < floppy_count; i++) {
-		disks[i] = alloc_disk(1);
-		if (!disks[i])
-			goto out;
-	}
-
-	if (register_blkdev(FLOPPY_MAJOR, "fd")) {
-		err = -EBUSY;
-		goto out;
-	}
-
-	swim3_queue = blk_init_queue(do_fd_request, &swim3_lock);
-	if (!swim3_queue) {
-		err = -ENOMEM;
-		goto out_queue;
-	}
-
-	for (i = 0; i < floppy_count; i++) {
-		struct gendisk *disk = disks[i];
-		disk->major = FLOPPY_MAJOR;
-		disk->first_minor = i;
-		disk->fops = &floppy_fops;
-		disk->private_data = &floppy_states[i];
-		disk->queue = swim3_queue;
-		disk->flags |= GENHD_FL_REMOVABLE;
-		sprintf(disk->disk_name, "fd%d", i);
-		set_capacity(disk, 2880);
-		add_disk(disk);
-	}
-	return 0;
-
-out_queue:
-	unregister_blkdev(FLOPPY_MAJOR, "fd");
-out:
-	while (i--)
-		put_disk(disks[i]);
-	/* shouldn't we do something with results of swim_add_device()? */
-	return err;
-}
-
-static int swim3_add_device(struct device_node *swim)
-{
+	struct device_node *swim = mdev->ofdev.node;
 	struct device_node *mediabay;
-	struct floppy_state *fs = &floppy_states[floppy_count];
-	struct resource res_reg, res_dma;
+	struct floppy_state *fs = &floppy_states[index];
+	int rc = -EBUSY;
 
-	if (of_address_to_resource(swim, 0, &res_reg) ||
-	    of_address_to_resource(swim, 1, &res_dma)) {
-		printk(KERN_ERR "swim3: Can't get addresses\n");
-		return -EINVAL;
+	/* Check & Request resources */
+	if (macio_resource_count(mdev) < 2) {
+		printk(KERN_WARNING "ifd%d: no address for %s\n",
+		       index, swim->full_name);
+		return -ENXIO;
 	}
-	if (request_mem_region(res_reg.start, res_reg.end - res_reg.start + 1,
-			       " (reg)") == NULL) {
-		printk(KERN_ERR "swim3: Can't request register space\n");
-		return -EINVAL;
+	if (macio_irq_count(mdev) < 2) {
+		printk(KERN_WARNING "fd%d: no intrs for device %s\n",
+			index, swim->full_name);
 	}
-	if (request_mem_region(res_dma.start, res_dma.end - res_dma.start + 1,
-			       " (dma)") == NULL) {
-		release_mem_region(res_reg.start,
-				   res_reg.end - res_reg.start + 1);
-		printk(KERN_ERR "swim3: Can't request DMA space\n");
-		return -EINVAL;
+	if (macio_request_resource(mdev, 0, "swim3 (mmio)")) {
+		printk(KERN_ERR "fd%d: can't request mmio resource for %s\n",
+		       index, swim->full_name);
+		return -EBUSY;
 	}
+	if (macio_request_resource(mdev, 1, "swim3 (dma)")) {
+		printk(KERN_ERR "fd%d: can't request dma resource for %s\n",
+		       index, swim->full_name);
+		macio_release_resource(mdev, 0);
+		return -EBUSY;
+	}
+	dev_set_drvdata(&mdev->ofdev.dev, fs);
 
-	if (swim->n_intrs < 2) {
-		printk(KERN_INFO "swim3: expecting 2 intrs (n_intrs:%d)\n",
-		       swim->n_intrs);
-		release_mem_region(res_reg.start,
-				   res_reg.end - res_reg.start + 1);
-		release_mem_region(res_dma.start,
-				   res_dma.end - res_dma.start + 1);
-		return -EINVAL;
-	}
-
-	mediabay = (strcasecmp(swim->parent->type, "media-bay") == 0) ? swim->parent : NULL;
+	mediabay = (strcasecmp(swim->parent->type, "media-bay") == 0) ?
+		swim->parent : NULL;
 	if (mediabay == NULL)
 		pmac_call_feature(PMAC_FTR_SWIM3_ENABLE, swim, 0, 1);
 	
 	memset(fs, 0, sizeof(*fs));
 	spin_lock_init(&fs->lock);
 	fs->state = idle;
-	fs->swim3 = (struct swim3 __iomem *)ioremap(res_reg.start, 0x200);
-	fs->dma = (struct dbdma_regs __iomem *)ioremap(res_dma.start, 0x200);
-	fs->swim3_intr = swim->intrs[0].line;
-	fs->dma_intr = swim->intrs[1].line;
+	fs->swim3 = (struct swim3 __iomem *)
+		ioremap(macio_resource_start(mdev, 0), 0x200);
+	if (fs->swim3 == NULL) {
+		printk("fd%d: couldn't map registers for %s\n",
+		       index, swim->full_name);
+		rc = -ENOMEM;
+		goto out_release;
+	}
+	fs->dma = (struct dbdma_regs __iomem *)
+		ioremap(macio_resource_start(mdev, 1), 0x200);
+	if (fs->dma == NULL) {
+		printk("fd%d: couldn't map DMA for %s\n",
+		       index, swim->full_name);
+		iounmap(fs->swim3);
+		rc = -ENOMEM;
+		goto out_release;
+	}
+	fs->swim3_intr = macio_irq(mdev, 0);
+	fs->dma_intr = macio_irq(mdev, 1);;
 	fs->cur_cyl = -1;
 	fs->cur_sector = -1;
 	fs->secpercyl = 36;
@@ -1132,15 +1079,16 @@ static int swim3_add_device(struct device_node *swim)
 	st_le16(&fs->dma_cmd[1].command, DBDMA_STOP);
 
 	if (request_irq(fs->swim3_intr, swim3_interrupt, 0, "SWIM3", fs)) {
-		printk(KERN_ERR "Couldn't get irq %d for SWIM3\n", fs->swim3_intr);
+		printk(KERN_ERR "fd%d: couldn't request irq %d for %s\n",
+		       index, fs->swim3_intr, swim->full_name);
 		pmac_call_feature(PMAC_FTR_SWIM3_ENABLE, swim, 0, 0);
+		goto out_unmap;
 		return -EBUSY;
 	}
 /*
 	if (request_irq(fs->dma_intr, fd_dma_interrupt, 0, "SWIM3-dma", fs)) {
 		printk(KERN_ERR "Couldn't get irq %d for SWIM3 DMA",
 		       fs->dma_intr);
-		pmac_call_feature(PMAC_FTR_SWIM3_ENABLE, swim, 0, 0);
 		return -EBUSY;
 	}
 */
@@ -1150,8 +1098,90 @@ static int swim3_add_device(struct device_node *swim)
 	printk(KERN_INFO "fd%d: SWIM3 floppy controller %s\n", floppy_count,
 		mediabay ? "in media bay" : "");
 
-	floppy_count++;
-	
+	return 0;
+
+ out_unmap:
+	iounmap(fs->dma);
+	iounmap(fs->swim3);
+
+ out_release:
+	macio_release_resource(mdev, 0);
+	macio_release_resource(mdev, 1);
+
+	return rc;
+}
+
+static int __devinit swim3_attach(struct macio_dev *mdev, const struct of_device_id *match)
+{
+	int i, rc;
+	struct gendisk *disk;
+
+	/* Add the drive */
+	rc = swim3_add_device(mdev, floppy_count);
+	if (rc)
+		return rc;
+
+	/* Now create the queue if not there yet */
+	if (swim3_queue == NULL) {
+		/* If we failed, there isn't much we can do as the driver is still
+		 * too dumb to remove the device, just bail out
+		 */
+		if (register_blkdev(FLOPPY_MAJOR, "fd"))
+			return 0;
+		swim3_queue = blk_init_queue(do_fd_request, &swim3_lock);
+		if (swim3_queue == NULL) {
+			unregister_blkdev(FLOPPY_MAJOR, "fd");
+			return 0;
+		}
+	}
+
+	/* Now register that disk. Same comment about failure handling */
+	i = floppy_count++;
+	disk = disks[i] = alloc_disk(1);
+	if (disk == NULL)
+		return 0;
+
+	disk->major = FLOPPY_MAJOR;
+	disk->first_minor = i;
+	disk->fops = &floppy_fops;
+	disk->private_data = &floppy_states[i];
+	disk->queue = swim3_queue;
+	disk->flags |= GENHD_FL_REMOVABLE;
+	sprintf(disk->disk_name, "fd%d", i);
+	set_capacity(disk, 2880);
+	add_disk(disk);
+
+	return 0;
+}
+
+static struct of_device_id swim3_match[] =
+{
+	{
+	.name		= "swim3",
+	},
+	{
+	.compatible	= "ohare-swim3"
+	},
+	{
+	.compatible	= "swim3"
+	},
+};
+
+static struct macio_driver swim3_driver =
+{
+	.name 		= "swim3",
+	.match_table	= swim3_match,
+	.probe		= swim3_attach,
+#if 0
+	.suspend	= swim3_suspend,
+	.resume		= swim3_resume,
+#endif
+};
+
+
+int swim3_init(void)
+{
+	macio_register_driver(&swim3_driver);
 	return 0;
 }
 

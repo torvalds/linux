@@ -1,0 +1,10 @@
+include include/asm-generic/Kbuild.asm
+
+unifdef-y += a.out.h asm-compat.h bootx.h byteorder.h cputable.h elf.h	\
+	nvram.h param.h posix_types.h ptrace.h seccomp.h signal.h	\
+	termios.h types.h unistd.h
+
+header-y += auxvec.h ioctls.h mman.h sembuf.h siginfo.h stat.h errno.h	\
+	ipcbuf.h msgbuf.h shmbuf.h socket.h termbits.h fcntl.h ipc.h	\
+	poll.h shmparam.h sockios.h ucontext.h ioctl.h linkage.h	\
+	resource.h sigcontext.h statfs.h

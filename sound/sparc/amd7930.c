@@ -1033,10 +1033,10 @@ static int __init amd7930_attach_common(struct resource *rp, int irq)
 
 	strcpy(card->driver, "AMD7930");
 	strcpy(card->shortname, "Sun AMD7930");
-	sprintf(card->longname, "%s at 0x%02lx:0x%08lx, irq %d",
+	sprintf(card->longname, "%s at 0x%02lx:0x%08Lx, irq %d",
 		card->shortname,
 		rp->flags & 0xffL,
-		rp->start,
+		(unsigned long long)rp->start,
 		irq);
 
 	if ((err = snd_amd7930_create(card, rp,

@@ -297,19 +297,9 @@ unsigned long __init find_and_init_phbs(void)
 	struct device_node *node;
 	struct pci_controller *phb;
 	unsigned int index;
-	unsigned int root_size_cells = 0;
-	unsigned int *opprop = NULL;
 	struct device_node *root = of_find_node_by_path("/");
 
-	if (ppc64_interrupt_controller == IC_OPEN_PIC) {
-		opprop = (unsigned int *)get_property(root,
-				"platform-open-pic", NULL);
-	}
-
-	root_size_cells = prom_n_size_cells(root);
-
 	index = 0;
-
 	for (node = of_get_next_child(root, NULL);
 	     node != NULL;
 	     node = of_get_next_child(root, node)) {
@@ -324,13 +314,6 @@ unsigned long __init find_and_init_phbs(void)
 		setup_phb(node, phb);
 		pci_process_bridge_OF_ranges(phb, node, 0);
 		pci_setup_phb_io(phb, index == 0);
-#ifdef CONFIG_PPC_PSERIES
-		/* XXX This code need serious fixing ... --BenH */
-		if (ppc64_interrupt_controller == IC_OPEN_PIC && pSeries_mpic) {
-			int addr = root_size_cells * (index + 2) - 1;
-			mpic_assign_isu(pSeries_mpic, index, opprop[addr]);
-		}
-#endif
 		index++;
 	}
 

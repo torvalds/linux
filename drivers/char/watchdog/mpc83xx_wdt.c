@@ -129,7 +129,7 @@ static int mpc83xx_wdt_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-static struct file_operations mpc83xx_wdt_fops = {
+static const struct file_operations mpc83xx_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= mpc83xx_wdt_write,

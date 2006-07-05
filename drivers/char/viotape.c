@@ -292,7 +292,7 @@ static int proc_viotape_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_viotape_show, NULL);
 }
 
-static struct file_operations proc_viotape_operations = {
+static const struct file_operations proc_viotape_operations = {
 	.open		= proc_viotape_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

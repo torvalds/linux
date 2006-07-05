@@ -47,7 +47,7 @@
  */
 
 #include <asm/segment.h>
-#include <linux/version.h>
+#include <linux/utsrelease.h>
 #include <linux/compile.h>
 #include <asm/boot.h>
 #include <asm/e820.h>

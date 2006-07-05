@@ -437,7 +437,7 @@ nvram_read_proc(char *buffer, char **start, off_t offset,
 
 #endif /* CONFIG_PROC_FS */
 
-static struct file_operations nvram_fops = {
+static const struct file_operations nvram_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= nvram_llseek,
 	.read		= nvram_read,

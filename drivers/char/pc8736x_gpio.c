@@ -236,7 +236,7 @@ static int pc8736x_gpio_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static struct file_operations pc8736x_gpio_fops = {
+static const struct file_operations pc8736x_gpio_fops = {
 	.owner	= THIS_MODULE,
 	.open	= pc8736x_gpio_open,
 	.write	= nsc_gpio_write,

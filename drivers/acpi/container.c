@@ -236,7 +236,7 @@ container_walk_namespace_cb(acpi_handle handle,
 	}
 
       end:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	return AE_OK;
 }

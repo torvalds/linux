@@ -224,7 +224,7 @@ static void *get_send_wqe(struct mthca_qp *qp, int n)
 
 static void mthca_wq_init(struct mthca_wq *wq)
 {
-	spin_lock_init(&wq->lock);
+	/* mthca_alloc_qp_common() initializes the locks */
 	wq->next_ind  = 0;
 	wq->last_comp = wq->max - 1;
 	wq->head      = 0;
@@ -1114,6 +1114,9 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	qp->sq_policy    = send_policy;
 	mthca_wq_init(&qp->sq);
 	mthca_wq_init(&qp->rq);
+	/* these are initialized separately so lockdep can tell them apart */
+	spin_lock_init(&qp->sq.lock);
+	spin_lock_init(&qp->rq.lock);
 
 	ret = mthca_map_memfree(dev, qp);
 	if (ret)

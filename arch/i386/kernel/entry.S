@@ -42,6 +42,7 @@
 
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
+#include <asm/irqflags.h>
 #include <asm/errno.h>
 #include <asm/segment.h>
 #include <asm/smp.h>
@@ -76,11 +77,20 @@ NT_MASK		= 0x00004000
 VM_MASK		= 0x00020000
 
 #ifdef CONFIG_PREEMPT
-#define preempt_stop		cli
+#define preempt_stop		cli; TRACE_IRQS_OFF
 #else
 #define preempt_stop
 #define resume_kernel		restore_nocheck
 #endif
+
+.macro TRACE_IRQS_IRET
+#ifdef CONFIG_TRACE_IRQFLAGS
+	testl $IF_MASK,EFLAGS(%esp)     # interrupts off?
+	jz 1f
+	TRACE_IRQS_ON
+1:
+#endif
+.endm
 
 #ifdef CONFIG_VM86
 #define resume_userspace_sig	check_userspace
@@ -257,6 +267,10 @@ ENTRY(sysenter_entry)
 	CFI_REGISTER esp, ebp
 	movl TSS_sysenter_esp0(%esp),%esp
 sysenter_past_esp:
+	/*
+	 * No need to follow this irqs on/off section: the syscall
+	 * disabled irqs and here we enable it straight after entry:
+	 */
 	sti
 	pushl $(__USER_DS)
 	CFI_ADJUST_CFA_OFFSET 4
@@ -303,6 +317,7 @@ sysenter_past_esp:
 	call *sys_call_table(,%eax,4)
 	movl %eax,EAX(%esp)
 	cli
+	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testw $_TIF_ALLWORK_MASK, %cx
 	jne syscall_exit_work
@@ -310,6 +325,7 @@ sysenter_past_esp:
 	movl EIP(%esp), %edx
 	movl OLDESP(%esp), %ecx
 	xorl %ebp,%ebp
+	TRACE_IRQS_ON
 	sti
 	sysexit
 	CFI_ENDPROC
@@ -339,6 +355,7 @@ syscall_exit:
 	cli				# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
 					# between sampling and the iret
+	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testw $_TIF_ALLWORK_MASK, %cx	# current->work
 	jne syscall_exit_work
@@ -355,12 +372,15 @@ restore_all:
 	CFI_REMEMBER_STATE
 	je ldt_ss			# returning to user-space with LDT SS
 restore_nocheck:
+	TRACE_IRQS_IRET
+restore_nocheck_notrace:
 	RESTORE_REGS
 	addl $4, %esp
 	CFI_ADJUST_CFA_OFFSET -4
 1:	iret
 .section .fixup,"ax"
 iret_exc:
+	TRACE_IRQS_ON
 	sti
 	pushl $0			# no error code
 	pushl $do_iret_error
@@ -386,11 +406,13 @@ ldt_ss:
 	subl $8, %esp		# reserve space for switch16 pointer
 	CFI_ADJUST_CFA_OFFSET 8
 	cli
+	TRACE_IRQS_OFF
 	movl %esp, %eax
 	/* Set up the 16bit stack frame with switch32 pointer on top,
 	 * and a switch16 pointer on top of the current frame. */
 	call setup_x86_bogus_stack
 	CFI_ADJUST_CFA_OFFSET -8	# frame has moved
+	TRACE_IRQS_IRET
 	RESTORE_REGS
 	lss 20+4(%esp), %esp	# switch to 16bit stack
 1:	iret
@@ -411,6 +433,7 @@ work_resched:
 	cli				# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
 					# between sampling and the iret
+	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	andl $_TIF_WORK_MASK, %ecx	# is there any work to be done other
 					# than syscall tracing?
@@ -462,6 +485,7 @@ syscall_trace_entry:
 syscall_exit_work:
 	testb $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP), %cl
 	jz work_pending
+	TRACE_IRQS_ON
 	sti				# could let do_syscall_trace() call
 					# schedule() instead
 	movl %esp, %eax
@@ -535,9 +559,14 @@ ENTRY(irq_entries_start)
 vector=vector+1
 .endr
 
+/*
+ * the CPU automatically disables interrupts when executing an IRQ vector,
+ * so IRQ-flags tracing has to follow that:
+ */
 	ALIGN
 common_interrupt:
 	SAVE_ALL
+	TRACE_IRQS_OFF
 	movl %esp,%eax
 	call do_IRQ
 	jmp ret_from_intr
@@ -549,9 +578,10 @@ ENTRY(name)				\
 	pushl $~(nr);			\
 	CFI_ADJUST_CFA_OFFSET 4;	\
 	SAVE_ALL;			\
+	TRACE_IRQS_OFF			\
 	movl %esp,%eax;			\
 	call smp_/**/name;		\
-	jmp ret_from_intr;	\
+	jmp ret_from_intr;		\
 	CFI_ENDPROC
 
 /* The include is where all of the SMP etc. interrupts come from */
@@ -726,7 +756,7 @@ nmi_stack_correct:
 	xorl %edx,%edx		# zero error code
 	movl %esp,%eax		# pt_regs pointer
 	call do_nmi
-	jmp restore_all
+	jmp restore_nocheck_notrace
 	CFI_ENDPROC
 
 nmi_stack_fixup:

@@ -120,7 +120,7 @@ struct epoll_filefd {
  */
 struct wake_task_node {
 	struct list_head llink;
-	task_t *task;
+	struct task_struct *task;
 	wait_queue_head_t *wq;
 };
 
@@ -413,7 +413,7 @@ static void ep_poll_safewake(struct poll_safewake *psw, wait_queue_head_t *wq)
 {
 	int wake_nests = 0;
 	unsigned long flags;
-	task_t *this_task = current;
+	struct task_struct *this_task = current;
 	struct list_head *lsthead = &psw->wake_task_list, *lnk;
 	struct wake_task_node *tncur;
 	struct wake_task_node tnode;

@@ -177,7 +177,12 @@ static inline void __lock_kernel(void)
 
 static inline void __unlock_kernel(void)
 {
-	spin_unlock(&kernel_flag);
+	/*
+	 * the BKL is not covered by lockdep, so we open-code the
+	 * unlocking sequence (and thus avoid the dep-chain ops):
+	 */
+	_raw_spin_unlock(&kernel_flag);
+	preempt_enable();
 }
 
 /*

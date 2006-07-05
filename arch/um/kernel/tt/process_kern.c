@@ -119,7 +119,7 @@ void suspend_new_thread(int fd)
 		panic("read failed in suspend_new_thread, err = %d", -err);
 }
 
-void schedule_tail(task_t *prev);
+void schedule_tail(struct task_struct *prev);
 
 static void new_thread_handler(int sig)
 {

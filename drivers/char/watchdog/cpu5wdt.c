@@ -198,7 +198,7 @@ static ssize_t cpu5wdt_write(struct file *file, const char __user *buf, size_t c
 	return count;
 }
 
-static struct file_operations cpu5wdt_fops = {
+static const struct file_operations cpu5wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.ioctl		= cpu5wdt_ioctl,

@@ -249,7 +249,7 @@ void ei_tx_timeout(struct net_device *dev)
 
 	/* Ugly but a reset can be slow, yet must be protected */
 		
-	disable_irq_nosync(dev->irq);
+	disable_irq_nosync_lockdep(dev->irq);
 	spin_lock(&ei_local->page_lock);
 		
 	/* Try to restart the card.  Perhaps the user has fixed something. */
@@ -257,7 +257,7 @@ void ei_tx_timeout(struct net_device *dev)
 	NS8390_init(dev, 1);
 		
 	spin_unlock(&ei_local->page_lock);
-	enable_irq(dev->irq);
+	enable_irq_lockdep(dev->irq);
 	netif_wake_queue(dev);
 }
     

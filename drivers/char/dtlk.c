@@ -94,7 +94,7 @@ static int dtlk_release(struct inode *, struct file *);
 static int dtlk_ioctl(struct inode *inode, struct file *file,
 		      unsigned int cmd, unsigned long arg);
 
-static struct file_operations dtlk_fops =
+static const struct file_operations dtlk_fops =
 {
 	.owner		= THIS_MODULE,
 	.read		= dtlk_read,

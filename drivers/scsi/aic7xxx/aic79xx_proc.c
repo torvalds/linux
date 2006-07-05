@@ -47,7 +47,7 @@ static int	copy_info(struct info_str *info, char *fmt, ...);
 static void	ahd_dump_target_state(struct ahd_softc *ahd,
 				      struct info_str *info,
 				      u_int our_id, char channel,
-				      u_int target_id, u_int target_offset);
+				      u_int target_id);
 static void	ahd_dump_device_state(struct info_str *info,
 				      struct scsi_device *sdev);
 static int	ahd_proc_write_seeprom(struct ahd_softc *ahd,
@@ -204,10 +204,8 @@ ahd_format_transinfo(struct info_str *info, struct ahd_transinfo *tinfo)
 
 static void
 ahd_dump_target_state(struct ahd_softc *ahd, struct info_str *info,
-		      u_int our_id, char channel, u_int target_id,
-		      u_int target_offset)
+		      u_int our_id, char channel, u_int target_id)
 {
-	struct	ahd_linux_target *targ;
 	struct  scsi_target *starget;
 	struct	ahd_initiator_tinfo *tinfo;
 	struct	ahd_tmode_tstate *tstate;
@@ -218,10 +216,9 @@ ahd_dump_target_state(struct ahd_softc *ahd, struct info_str *info,
 	copy_info(info, "Target %d Negotiation Settings\n", target_id);
 	copy_info(info, "\tUser: ");
 	ahd_format_transinfo(info, &tinfo->user);
-	starget = ahd->platform_data->starget[target_offset];
+	starget = ahd->platform_data->starget[target_id];
 	if (starget == NULL)
 		return;
-	targ = scsi_transport_target_data(starget);
 
 	copy_info(info, "\tGoal: ");
 	ahd_format_transinfo(info, &tinfo->goal);
@@ -231,7 +228,7 @@ ahd_dump_target_state(struct ahd_softc *ahd, struct info_str *info,
 	for (lun = 0; lun < AHD_NUM_LUNS; lun++) {
 		struct scsi_device *dev;
 
-		dev = targ->sdev[lun];
+		dev = scsi_device_lookup_by_target(starget, lun);
 
 		if (dev == NULL)
 			continue;
@@ -355,7 +352,7 @@ ahd_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	copy_info(&info, "Allocated SCBs: %d, SG List Length: %d\n\n",
 		  ahd->scb_data.numscbs, AHD_NSEG);
 
-	max_targ = 15;
+	max_targ = 16;
 
 	if (ahd->seep_config == NULL)
 		copy_info(&info, "No Serial EEPROM\n");
@@ -373,12 +370,12 @@ ahd_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	copy_info(&info, "\n");
 
 	if ((ahd->features & AHD_WIDE) == 0)
-		max_targ = 7;
+		max_targ = 8;
 
-	for (i = 0; i <= max_targ; i++) {
+	for (i = 0; i < max_targ; i++) {
 
 		ahd_dump_target_state(ahd, &info, ahd->our_id, 'A',
-				      /*target_id*/i, /*target_offset*/i);
+				      /*target_id*/i);
 	}
 	retval = info.pos > info.offset ? info.pos - info.offset : 0;
 done:

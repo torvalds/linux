@@ -443,18 +443,23 @@ void __init maple_pci_init(void)
 int maple_pci_get_legacy_ide_irq(struct pci_dev *pdev, int channel)
 {
 	struct device_node *np;
-	int irq = channel ? 15 : 14;
+	unsigned int defirq = channel ? 15 : 14;
+	unsigned int irq;
 
 	if (pdev->vendor != PCI_VENDOR_ID_AMD ||
 	    pdev->device != PCI_DEVICE_ID_AMD_8111_IDE)
-		return irq;
+		return defirq;
 
 	np = pci_device_to_OF_node(pdev);
 	if (np == NULL)
-		return irq;
-	if (np->n_intrs < 2)
-		return irq;
-	return np->intrs[channel & 0x1].line;
+		return defirq;
+	irq = irq_of_parse_and_map(np, channel & 0x1);
+	if (irq == NO_IRQ) {
+		printk("Failed to map onboard IDE interrupt for channel %d\n",
+		       channel);
+		return defirq;
+	}
+	return irq;
 }
 
 /* XXX: To remove once all firmwares are ok */

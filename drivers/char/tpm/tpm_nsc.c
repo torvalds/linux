@@ -226,7 +226,7 @@ static u8 tpm_nsc_status(struct tpm_chip *chip)
 	return inb(chip->vendor.base + NSC_STATUS);
 }
 
-static struct file_operations nsc_ops = {
+static const struct file_operations nsc_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.open = tpm_open,

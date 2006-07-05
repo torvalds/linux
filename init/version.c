@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/uts.h>
 #include <linux/utsname.h>
+#include <linux/utsrelease.h>
 #include <linux/version.h>
 
 #define version(a) Version_ ## a

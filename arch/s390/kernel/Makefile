@@ -21,6 +21,7 @@ obj-$(CONFIG_COMPAT)		+= compat_linux.o compat_signal.o \
 obj-$(CONFIG_BINFMT_ELF32)	+= binfmt_elf32.o
 
 obj-$(CONFIG_VIRT_TIMER)	+= vtime.o
+obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 
 # Kexec part
 S390_KEXEC_OBJS := machine_kexec.o crash.o

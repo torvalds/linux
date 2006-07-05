@@ -332,7 +332,7 @@ acpi_evaluate_string(acpi_handle handle,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Return value [%s]\n", *data));
 
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	return AE_OK;
 }
@@ -418,7 +418,7 @@ acpi_evaluate_reference(acpi_handle handle,
 		//kfree(list->handles);
 	}
 
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	return status;
 }

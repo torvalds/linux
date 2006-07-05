@@ -410,6 +410,12 @@ int request_irq(unsigned int irq,
 	struct irqaction *action;
 	int retval;
 
+#ifdef CONFIG_LOCKDEP
+	/*
+	 * Lockdep wants atomic interrupt handlers:
+	 */
+	irqflags |= SA_INTERRUPT;
+#endif
 	/*
 	 * Sanity-check: shared interrupts must pass in a real dev-ID,
 	 * otherwise we'll have trouble later trying to figure out

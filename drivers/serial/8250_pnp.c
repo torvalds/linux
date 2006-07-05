@@ -431,6 +431,8 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 #endif
 
 	port.flags |= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;
+	if (pnp_irq_flags(dev, 0) & IORESOURCE_IRQ_SHAREABLE)
+		port.flags |= UPF_SHARE_IRQ;
 	port.uartclk = 1843200;
 	port.dev = &dev->dev;
 

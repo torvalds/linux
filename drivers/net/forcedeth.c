@@ -2735,21 +2735,21 @@ static void nv_do_nic_poll(unsigned long data)
 
 	if (!using_multi_irqs(dev)) {
 		if (np->msi_flags & NV_MSI_X_ENABLED)
-			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
+			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
 		else
-			disable_irq(dev->irq);
+			disable_irq_lockdep(dev->irq);
 		mask = np->irqmask;
 	} else {
 		if (np->nic_poll_irq & NVREG_IRQ_RX_ALL) {
-			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
+			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 			mask |= NVREG_IRQ_RX_ALL;
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_TX_ALL) {
-			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
+			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
 			mask |= NVREG_IRQ_TX_ALL;
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_OTHER) {
-			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
+			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
 			mask |= NVREG_IRQ_OTHER;
 		}
 	}
@@ -2761,23 +2761,23 @@ static void nv_do_nic_poll(unsigned long data)
 	pci_push(base);
 
 	if (!using_multi_irqs(dev)) {
-		nv_nic_irq((int) 0, (void *) data, (struct pt_regs *) NULL);
+		nv_nic_irq(0, dev, NULL);
 		if (np->msi_flags & NV_MSI_X_ENABLED)
-			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
+			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
 		else
-			enable_irq(dev->irq);
+			enable_irq_lockdep(dev->irq);
 	} else {
 		if (np->nic_poll_irq & NVREG_IRQ_RX_ALL) {
-			nv_nic_irq_rx((int) 0, (void *) data, (struct pt_regs *) NULL);
-			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
+			nv_nic_irq_rx(0, dev, NULL);
+			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_TX_ALL) {
-			nv_nic_irq_tx((int) 0, (void *) data, (struct pt_regs *) NULL);
-			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
+			nv_nic_irq_tx(0, dev, NULL);
+			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_OTHER) {
-			nv_nic_irq_other((int) 0, (void *) data, (struct pt_regs *) NULL);
-			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
+			nv_nic_irq_other(0, dev, NULL);
+			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
 		}
 	}
 }

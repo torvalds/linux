@@ -182,13 +182,25 @@ typedef struct {
 
 typedef struct ax25_route {
 	struct ax25_route	*next;
-	atomic_t		ref;
+	atomic_t		refcount;
 	ax25_address		callsign;
 	struct net_device	*dev;
 	ax25_digi		*digipeat;
 	char			ip_mode;
-	struct timer_list	timer;
 } ax25_route;
+
+static inline void ax25_hold_route(ax25_route *ax25_rt)
+{
+	atomic_inc(&ax25_rt->refcount);
+}
+
+extern void __ax25_put_route(ax25_route *ax25_rt);
+
+static inline void ax25_put_route(ax25_route *ax25_rt)
+{
+	if (atomic_dec_and_test(&ax25_rt->refcount))
+		__ax25_put_route(ax25_rt);
+}
 
 typedef struct {
 	char			slave;			/* slave_mode?   */
@@ -348,16 +360,10 @@ extern int  ax25_check_iframes_acked(ax25_cb *, unsigned short);
 extern void ax25_rt_device_down(struct net_device *);
 extern int  ax25_rt_ioctl(unsigned int, void __user *);
 extern struct file_operations ax25_route_fops;
+extern ax25_route *ax25_get_route(ax25_address *addr, struct net_device *dev);
 extern int  ax25_rt_autobind(ax25_cb *, ax25_address *);
-extern ax25_route *ax25_rt_find_route(ax25_route *, ax25_address *,
-	struct net_device *);
 extern struct sk_buff *ax25_rt_build_path(struct sk_buff *, ax25_address *, ax25_address *, ax25_digi *);
 extern void ax25_rt_free(void);
-
-static inline void ax25_put_route(ax25_route *ax25_rt)
-{
-	atomic_dec(&ax25_rt->ref);
-}
 
 /* ax25_std_in.c */
 extern int  ax25_std_frame_in(ax25_cb *, struct sk_buff *, int);

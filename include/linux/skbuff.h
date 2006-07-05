@@ -604,9 +604,12 @@ static inline __u32 skb_queue_len(const struct sk_buff_head *list_)
 	return list_->qlen;
 }
 
+extern struct lock_class_key skb_queue_lock_key;
+
 static inline void skb_queue_head_init(struct sk_buff_head *list)
 {
 	spin_lock_init(&list->lock);
+	lockdep_set_class(&list->lock, &skb_queue_lock_key);
 	list->prev = list->next = (struct sk_buff *)list;
 	list->qlen = 0;
 }

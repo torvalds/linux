@@ -103,11 +103,13 @@ int ax25_rebuild_header(struct sk_buff *skb)
 {
 	struct sk_buff *ourskb;
 	unsigned char *bp  = skb->data;
-	struct net_device *dev;
+	ax25_route *route;
+	struct net_device *dev = NULL;
 	ax25_address *src, *dst;
+	ax25_digi *digipeat = NULL;
 	ax25_dev *ax25_dev;
-	ax25_route _route, *route = &_route;
 	ax25_cb *ax25;
+	char ip_mode = ' ';
 
 	dst = (ax25_address *)(bp + 1);
 	src = (ax25_address *)(bp + 8);
@@ -115,8 +117,12 @@ int ax25_rebuild_header(struct sk_buff *skb)
   	if (arp_find(bp + 1, skb))
   		return 1;
 
-	route = ax25_rt_find_route(route, dst, NULL);
-	dev      = route->dev;
+	route = ax25_get_route(dst, NULL);
+	if (route) {
+		digipeat = route->digipeat;
+		dev = route->dev;
+		ip_mode = route->ip_mode;
+	};
 
 	if (dev == NULL)
 		dev = skb->dev;
@@ -126,7 +132,7 @@ int ax25_rebuild_header(struct sk_buff *skb)
 	}
 
 	if (bp[16] == AX25_P_IP) {
-		if (route->ip_mode == 'V' || (route->ip_mode == ' ' && ax25_dev->values[AX25_VALUES_IPDEFMODE])) {
+		if (ip_mode == 'V' || (ip_mode == ' ' && ax25_dev->values[AX25_VALUES_IPDEFMODE])) {
 			/*
 			 *	We copy the buffer and release the original thereby
 			 *	keeping it straight
@@ -172,7 +178,7 @@ int ax25_rebuild_header(struct sk_buff *skb)
 			    ourskb, 
 			    ax25_dev->values[AX25_VALUES_PACLEN], 
 			    &src_c,
-			    &dst_c, route->digipeat, dev);
+			    &dst_c, digipeat, dev);
 			if (ax25) {
 				ax25_cb_put(ax25);
 			}
@@ -190,7 +196,7 @@ int ax25_rebuild_header(struct sk_buff *skb)
 
 	skb_pull(skb, AX25_KISS_HEADER_LEN);
 
-	if (route->digipeat != NULL) {
+	if (digipeat != NULL) {
 		if ((ourskb = ax25_rt_build_path(skb, src, dst, route->digipeat)) == NULL) {
 			kfree_skb(skb);
 			goto put;
@@ -202,7 +208,8 @@ int ax25_rebuild_header(struct sk_buff *skb)
 	ax25_queue_xmit(skb, dev);
 
 put:
-	ax25_put_route(route);
+	if (route)
+		ax25_put_route(route);
 
   	return 1;
 }

@@ -59,6 +59,7 @@ static int rose_rebuild_header(struct sk_buff *skb)
 	struct net_device_stats *stats = netdev_priv(dev);
 	unsigned char *bp = (unsigned char *)skb->data;
 	struct sk_buff *skbn;
+	unsigned int len;
 
 #ifdef CONFIG_INET
 	if (arp_find(bp + 7, skb)) {
@@ -75,6 +76,8 @@ static int rose_rebuild_header(struct sk_buff *skb)
 
 	kfree_skb(skb);
 
+	len = skbn->len;
+
 	if (!rose_route_frame(skbn, NULL)) {
 		kfree_skb(skbn);
 		stats->tx_errors++;
@@ -82,7 +85,7 @@ static int rose_rebuild_header(struct sk_buff *skb)
 	}
 
 	stats->tx_packets++;
-	stats->tx_bytes += skbn->len;
+	stats->tx_bytes += len;
 #endif
 	return 1;
 }

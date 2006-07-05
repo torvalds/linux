@@ -1,4 +1,4 @@
-#include <linux/version.h>
+#include <linux/utsrelease.h>
 #include <linux/module.h>
 
 /* Simply sanity version stamp for modules. */

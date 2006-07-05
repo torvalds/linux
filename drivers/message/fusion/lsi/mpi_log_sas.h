@@ -13,6 +13,8 @@
 #ifndef IOPI_IOCLOGINFO_H_INCLUDED
 #define IOPI_IOCLOGINFO_H_INCLUDED
 
+#define SAS_LOGINFO_NEXUS_LOSS		0x31170000
+#define SAS_LOGINFO_MASK			0xFFFF0000
 
 /****************************************************************************/
 /*  IOC LOGINFO defines, 0x00000000 - 0x0FFFFFFF                            */
@@ -51,6 +53,9 @@
 #define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_DNM        (0x00030500) /* Device Not Mapped */
 #define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_PERSIST    (0x00030600) /* Persistent Page not found */
 #define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_DEFAULT    (0x00030700) /* Default Page not found */
+
+#define IOP_LOGINFO_CODE_DIAG_MSG_ERROR                 (0x00040000) /* Error handling diag msg - or'd with diag status */
+
 #define IOP_LOGINFO_CODE_TASK_TERMINATED                (0x00050000)
 
 #define IOP_LOGINFO_CODE_ENCL_MGMT_READ_ACTION_ERR0R    (0x00060001) /* Read Action not supported for SEP msg */
@@ -103,6 +108,7 @@
 #define PL_LOGINFO_CODE_IO_EXECUTED                         (0x00140000)
 #define PL_LOGINFO_CODE_PERS_RESV_OUT_NOT_AFFIL_OWNER       (0x00150000)
 #define PL_LOGINFO_CODE_OPEN_TXDMA_ABORT                    (0x00160000)
+#define PL_LOGINFO_CODE_IO_DEVICE_MISSING_DELAY_RETRY       (0x00170000)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAILURE                    (0x00000100)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_NO_DEST_TIMEOUT    (0x00000101)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_ORR_TIMEOUT        (0x0000011A) /* Open Reject (Retry) Timeout */
@@ -165,11 +171,81 @@
 /****************************************************************************/
 /* IR LOGINFO_CODE defines, valid if IOC_LOGINFO_ORIGINATOR = IR            */
 /****************************************************************************/
-#define IR_LOGINFO_CODE_UNUSED1                         (0x00010000)
-#define IR_LOGINFO_CODE_UNUSED2                         (0x00020000)
+#define IR_LOGINFO_RAID_ACTION_ERROR                           (0x00010000)
+#define IR_LOGINFO_CODE_UNUSED2                                (0x00020000)
+
+/* Amount of information passed down for Create Volume is too large */
+#define IR_LOGINFO_VOLUME_CREATE_INVALID_LENGTH                (0x00010001)
+/* Creation of duplicate volume attempted (Bus/Target ID checked) */
+#define IR_LOGINFO_VOLUME_CREATE_DUPLICATE                     (0x00010002)
+/* Creation failed due to maximum number of supported volumes exceeded */
+#define IR_LOGINFO_VOLUME_CREATE_NO_SLOTS                      (0x00010003)
+/* Creation failed due to DMA error in trying to read from host */
+#define IR_LOGINFO_VOLUME_CREATE_DMA_ERROR                     (0x00010004)
+/* Creation failed due to invalid volume type passed down */
+#define IR_LOGINFO_VOLUME_CREATE_INVALID_VOLUME_TYPE           (0x00010005)
+/* Creation failed due to error reading MFG Page 4 */
+#define IR_LOGINFO_VOLUME_MFG_PAGE4_ERROR                      (0x00010006)
+/* Creation failed when trying to create internal structures */
+#define IR_LOGINFO_VOLUME_INTERNAL_CONFIG_STRUCTURE_ERROR      (0x00010007)
+
+/* Activation failed due to trying to activate an already active volume */
+#define IR_LOGINFO_VOLUME_ACTIVATING_AN_ACTIVE_VOLUME          (0x00010010)
+/* Activation failed due to trying to active unsupported volume type  */
+#define IR_LOGINFO_VOLUME_ACTIVATING_INVALID_VOLUME_TYPE       (0x00010011)
+/* Activation failed due to trying to active too many volumes  */
+#define IR_LOGINFO_VOLUME_ACTIVATING_TOO_MANY_VOLUMES          (0x00010012)
+/* Activation failed due to Volume ID in use already */
+#define IR_LOGINFO_VOLUME_ACTIVATING_VOLUME_ID_IN_USE          (0x00010013)
+/* Activation failed call to activateVolume returned failure */
+#define IR_LOGINFO_VOLUME_ACTIVATE_VOLUME_FAILED               (0x00010014)
+/* Activation failed trying to import the volume */
+#define IR_LOGINFO_VOLUME_ACTIVATING_IMPORT_VOLUME_FAILED      (0x00010015)
+
+/* Phys Disk failed, too many phys disks */
+#define IR_LOGINFO_PHYSDISK_CREATE_TOO_MANY_DISKS              (0x00010020)
+/* Amount of information passed down for Create Pnysdisk is too large */
+#define IR_LOGINFO_PHYSDISK_CREATE_INVALID_LENGTH              (0x00010021)
+/* Creation failed due to DMA error in trying to read from host */
+#define IR_LOGINFO_PHYSDISK_CREATE_DMA_ERROR                   (0x00010022)
+/* Creation failed due to invalid Bus TargetID passed down */
+#define IR_LOGINFO_PHYSDISK_CREATE_BUS_TID_INVALID             (0x00010023)
+/* Creation failed due to error in creating RAID Phys Disk Config Page */
+#define IR_LOGINFO_PHYSDISK_CREATE_CONFIG_PAGE_ERROR           (0x00010024)
+
+
+/* Compatibility Error : IR Disabled */
+#define IR_LOGINFO_COMPAT_ERROR_RAID_DISABLED                  (0x00010030)
+/* Compatibility Error : Inquiry Comand failed */
+#define IR_LOGINFO_COMPAT_ERROR_INQUIRY_FAILED                 (0x00010031)
+/* Compatibility Error : Device not direct access device */
+#define IR_LOGINFO_COMPAT_ERROR_NOT_DIRECT_ACCESS              (0x00010032)
+/* Compatibility Error : Removable device found */
+#define IR_LOGINFO_COMPAT_ERROR_REMOVABLE_FOUND                (0x00010033)
+/* Compatibility Error : Device SCSI Version not 2 or higher */
+#define IR_LOGINFO_COMPAT_ERROR_NEED_SCSI_2_OR_HIGHER          (0x00010034)
+/* Compatibility Error : SATA device, 48 BIT LBA not supported */
+#define IR_LOGINFO_COMPAT_ERROR_SATA_48BIT_LBA_NOT_SUPPORTED   (0x00010035)
+/* Compatibility Error : Device does not have 512 byte block sizes */
+#define IR_LOGINFO_COMPAT_ERROR_DEVICE_NOT_512_BYTE_BLOCK      (0x00010036)
+/* Compatibility Error : Volume Type check failed */
+#define IR_LOGINFO_COMPAT_ERROR_VOLUME_TYPE_CHECK_FAILED       (0x00010037)
+/* Compatibility Error : Volume Type is unsupported by FW */
+#define IR_LOGINFO_COMPAT_ERROR_UNSUPPORTED_VOLUME_TYPE        (0x00010038)
+/* Compatibility Error : Disk drive too small for use in volume */
+#define IR_LOGINFO_COMPAT_ERROR_DISK_TOO_SMALL                 (0x00010039)
+/* Compatibility Error : Phys disk for Create Volume not found */
+#define IR_LOGINFO_COMPAT_ERROR_PHYS_DISK_NOT_FOUND            (0x0001003A)
+/* Compatibility Error : membership count error, too many or too few disks for volume type */
+#define IR_LOGINFO_COMPAT_ERROR_MEMBERSHIP_COUNT               (0x0001003B)
+/* Compatibility Error : Disk stripe sizes must be 64KB */
+#define IR_LOGINFO_COMPAT_ERROR_NON_64K_STRIPE_SIZE            (0x0001003C)
+/* Compatibility Error : IME size limited to < 2TB */
+#define IR_LOGINFO_COMPAT_ERROR_IME_VOL_NOT_CURRENTLY_SUPPORTED (0x0001003D)
+
 
 /****************************************************************************/
-/* Defines for convienence                                                  */
+/* Defines for convenience                                                  */
 /****************************************************************************/
 #define IOC_LOGINFO_PREFIX_IOP                          ((MPI_IOCLOGINFO_TYPE_SAS << MPI_IOCLOGINFO_TYPE_SHIFT) | IOC_LOGINFO_ORIGINATOR_IOP)
 #define IOC_LOGINFO_PREFIX_PL                           ((MPI_IOCLOGINFO_TYPE_SAS << MPI_IOCLOGINFO_TYPE_SHIFT) | IOC_LOGINFO_ORIGINATOR_PL)

@@ -114,6 +114,18 @@ struct dentry {
 	unsigned char d_iname[DNAME_INLINE_LEN_MIN];	/* small names */
 };
 
+/*
+ * dentry->d_lock spinlock nesting subclasses:
+ *
+ * 0: normal
+ * 1: nested
+ */
+enum dentry_d_lock_class
+{
+	DENTRY_D_LOCK_NORMAL, /* implicitly used by plain spin_lock() APIs. */
+	DENTRY_D_LOCK_NESTED
+};
+
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, struct nameidata *);
 	int (*d_hash) (struct dentry *, struct qstr *);

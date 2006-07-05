@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/debug_locks.h>
 
 /*
  * In the DEBUG case we are using the "NULL fastpath" for mutexes,
@@ -38,13 +39,14 @@
  *
  * It is not allowed to initialize an already locked mutex.
  */
-void fastcall __mutex_init(struct mutex *lock, const char *name)
+void
+__mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 {
 	atomic_set(&lock->count, 1);
 	spin_lock_init(&lock->wait_lock);
 	INIT_LIST_HEAD(&lock->wait_list);
 
-	debug_mutex_init(lock, name);
+	debug_mutex_init(lock, name, key);
 }
 
 EXPORT_SYMBOL(__mutex_init);
@@ -56,7 +58,7 @@ EXPORT_SYMBOL(__mutex_init);
  * branch is predicted by the CPU as default-untaken.
  */
 static void fastcall noinline __sched
-__mutex_lock_slowpath(atomic_t *lock_count __IP_DECL__);
+__mutex_lock_slowpath(atomic_t *lock_count);
 
 /***
  * mutex_lock - acquire the mutex
@@ -79,7 +81,7 @@ __mutex_lock_slowpath(atomic_t *lock_count __IP_DECL__);
  *
  * This function is similar to (but not equivalent to) down().
  */
-void fastcall __sched mutex_lock(struct mutex *lock)
+void inline fastcall __sched mutex_lock(struct mutex *lock)
 {
 	might_sleep();
 	/*
@@ -92,7 +94,7 @@ void fastcall __sched mutex_lock(struct mutex *lock)
 EXPORT_SYMBOL(mutex_lock);
 
 static void fastcall noinline __sched
-__mutex_unlock_slowpath(atomic_t *lock_count __IP_DECL__);
+__mutex_unlock_slowpath(atomic_t *lock_count);
 
 /***
  * mutex_unlock - release the mutex
@@ -120,18 +122,18 @@ EXPORT_SYMBOL(mutex_unlock);
  * Lock a mutex (possibly interruptible), slowpath:
  */
 static inline int __sched
-__mutex_lock_common(struct mutex *lock, long state __IP_DECL__)
+__mutex_lock_common(struct mutex *lock, long state, unsigned int subclass)
 {
 	struct task_struct *task = current;
 	struct mutex_waiter waiter;
 	unsigned int old_val;
 	unsigned long flags;
 
-	debug_mutex_init_waiter(&waiter);
-
 	spin_lock_mutex(&lock->wait_lock, flags);
 
-	debug_mutex_add_waiter(lock, &waiter, task->thread_info, ip);
+	debug_mutex_lock_common(lock, &waiter);
+	mutex_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
+	debug_mutex_add_waiter(lock, &waiter, task->thread_info);
 
 	/* add waiting tasks to the end of the waitqueue (FIFO): */
 	list_add_tail(&waiter.list, &lock->wait_list);
@@ -158,6 +160,7 @@ __mutex_lock_common(struct mutex *lock, long state __IP_DECL__)
 		if (unlikely(state == TASK_INTERRUPTIBLE &&
 						signal_pending(task))) {
 			mutex_remove_waiter(lock, &waiter, task->thread_info);
+			mutex_release(&lock->dep_map, 1, _RET_IP_);
 			spin_unlock_mutex(&lock->wait_lock, flags);
 
 			debug_mutex_free_waiter(&waiter);
@@ -173,7 +176,7 @@ __mutex_lock_common(struct mutex *lock, long state __IP_DECL__)
 
 	/* got the lock - rejoice! */
 	mutex_remove_waiter(lock, &waiter, task->thread_info);
-	debug_mutex_set_owner(lock, task->thread_info __IP__);
+	debug_mutex_set_owner(lock, task->thread_info);
 
 	/* set it to 0 if there are no waiters left: */
 	if (likely(list_empty(&lock->wait_list)))
@@ -183,32 +186,40 @@ __mutex_lock_common(struct mutex *lock, long state __IP_DECL__)
 
 	debug_mutex_free_waiter(&waiter);
 
-	DEBUG_WARN_ON(list_empty(&lock->held_list));
-	DEBUG_WARN_ON(lock->owner != task->thread_info);
-
 	return 0;
 }
 
 static void fastcall noinline __sched
-__mutex_lock_slowpath(atomic_t *lock_count __IP_DECL__)
+__mutex_lock_slowpath(atomic_t *lock_count)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
 
-	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE __IP__);
+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0);
 }
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+void __sched
+mutex_lock_nested(struct mutex *lock, unsigned int subclass)
+{
+	might_sleep();
+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, subclass);
+}
+
+EXPORT_SYMBOL_GPL(mutex_lock_nested);
+#endif
 
 /*
  * Release the lock, slowpath:
  */
-static fastcall noinline void
-__mutex_unlock_slowpath(atomic_t *lock_count __IP_DECL__)
+static fastcall inline void
+__mutex_unlock_common_slowpath(atomic_t *lock_count, int nested)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
 	unsigned long flags;
 
-	DEBUG_WARN_ON(lock->owner != current_thread_info());
-
 	spin_lock_mutex(&lock->wait_lock, flags);
+	mutex_release(&lock->dep_map, nested, _RET_IP_);
+	debug_mutex_unlock(lock);
 
 	/*
 	 * some architectures leave the lock unlocked in the fastpath failure
@@ -217,8 +228,6 @@ __mutex_unlock_slowpath(atomic_t *lock_count __IP_DECL__)
 	 */
 	if (__mutex_slowpath_needs_to_unlock())
 		atomic_set(&lock->count, 1);
-
-	debug_mutex_unlock(lock);
 
 	if (!list_empty(&lock->wait_list)) {
 		/* get the first entry from the wait-list: */
@@ -237,11 +246,20 @@ __mutex_unlock_slowpath(atomic_t *lock_count __IP_DECL__)
 }
 
 /*
+ * Release the lock, slowpath:
+ */
+static fastcall noinline void
+__mutex_unlock_slowpath(atomic_t *lock_count)
+{
+	__mutex_unlock_common_slowpath(lock_count, 1);
+}
+
+/*
  * Here come the less common (and hence less performance-critical) APIs:
  * mutex_lock_interruptible() and mutex_trylock().
  */
 static int fastcall noinline __sched
-__mutex_lock_interruptible_slowpath(atomic_t *lock_count __IP_DECL__);
+__mutex_lock_interruptible_slowpath(atomic_t *lock_count);
 
 /***
  * mutex_lock_interruptible - acquire the mutex, interruptable
@@ -264,11 +282,11 @@ int fastcall __sched mutex_lock_interruptible(struct mutex *lock)
 EXPORT_SYMBOL(mutex_lock_interruptible);
 
 static int fastcall noinline __sched
-__mutex_lock_interruptible_slowpath(atomic_t *lock_count __IP_DECL__)
+__mutex_lock_interruptible_slowpath(atomic_t *lock_count)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
 
-	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE __IP__);
+	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE, 0);
 }
 
 /*
@@ -284,8 +302,10 @@ static inline int __mutex_trylock_slowpath(atomic_t *lock_count)
 	spin_lock_mutex(&lock->wait_lock, flags);
 
 	prev = atomic_xchg(&lock->count, -1);
-	if (likely(prev == 1))
-		debug_mutex_set_owner(lock, current_thread_info() __RET_IP__);
+	if (likely(prev == 1)) {
+		debug_mutex_set_owner(lock, current_thread_info());
+		mutex_acquire(&lock->dep_map, 0, 1, _RET_IP_);
+	}
 	/* Set it back to 0 if there are no waiters: */
 	if (likely(list_empty(&lock->wait_list)))
 		atomic_set(&lock->count, 0);
@@ -309,7 +329,7 @@ static inline int __mutex_trylock_slowpath(atomic_t *lock_count)
  * This function must not be used in interrupt context. The
  * mutex must be released by the same task that acquired it.
  */
-int fastcall mutex_trylock(struct mutex *lock)
+int fastcall __sched mutex_trylock(struct mutex *lock)
 {
 	return __mutex_fastpath_trylock(&lock->count,
 					__mutex_trylock_slowpath);

@@ -944,7 +944,7 @@ int __init rfcomm_init_sockets(void)
 	if (err < 0)
 		goto error;
 
-	class_create_file(&bt_class, &class_attr_rfcomm);
+	class_create_file(bt_class, &class_attr_rfcomm);
 
 	BT_INFO("RFCOMM socket layer initialized");
 
@@ -958,7 +958,7 @@ error:
 
 void __exit rfcomm_cleanup_sockets(void)
 {
-	class_remove_file(&bt_class, &class_attr_rfcomm);
+	class_remove_file(bt_class, &class_attr_rfcomm);
 
 	if (bt_sock_unregister(BTPROTO_RFCOMM) < 0)
 		BT_ERR("RFCOMM socket layer unregistration failed");

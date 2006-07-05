@@ -31,6 +31,11 @@
 	"jmp 1b\n" \
 	"3:\n\t"
 
+/*
+ * NOTE: there's an irqs-on section here, which normally would have to be
+ * irq-traced, but on CONFIG_TRACE_IRQFLAGS we never use
+ * __raw_spin_lock_string_flags().
+ */
 #define __raw_spin_lock_string_flags \
 	"\n1:\t" \
 	"lock ; decb %0\n\t" \
@@ -63,6 +68,12 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		"=m" (lock->slock) : : "memory");
 }
 
+/*
+ * It is easier for the lock validator if interrupts are not re-enabled
+ * in the middle of a lock-acquire. This is a performance feature anyway
+ * so we turn it off:
+ */
+#ifndef CONFIG_PROVE_LOCKING
 static inline void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
 {
 	alternative_smp(
@@ -70,6 +81,7 @@ static inline void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long fla
 		__raw_spin_lock_string_up,
 		"=m" (lock->slock) : "r" (flags) : "memory");
 }
+#endif
 
 static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {

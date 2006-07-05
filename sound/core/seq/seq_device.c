@@ -380,6 +380,12 @@ static struct ops_list * create_driver(char *id)
 	/* set up driver entry */
 	strlcpy(ops->id, id, sizeof(ops->id));
 	mutex_init(&ops->reg_mutex);
+	/*
+	 * The ->reg_mutex locking rules are per-driver, so we create
+	 * separate per-driver lock classes:
+	 */
+	lockdep_set_class(&ops->reg_mutex, (struct lock_class_key *)id);
+
 	ops->driver = DRIVER_EMPTY;
 	INIT_LIST_HEAD(&ops->dev_list);
 	/* lock this instance */

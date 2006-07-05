@@ -515,7 +515,7 @@ rpc_depopulate(struct dentry *parent)
 	struct dentry *dentry, *dvec[10];
 	int n = 0;
 
-	mutex_lock(&dir->i_mutex);
+	mutex_lock_nested(&dir->i_mutex, I_MUTEX_CHILD);
 repeat:
 	spin_lock(&dcache_lock);
 	list_for_each_safe(pos, next, &parent->d_subdirs) {
@@ -631,7 +631,7 @@ rpc_lookup_negative(char *path, struct nameidata *nd)
 	if ((error = rpc_lookup_parent(path, nd)) != 0)
 		return ERR_PTR(error);
 	dir = nd->dentry->d_inode;
-	mutex_lock(&dir->i_mutex);
+	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_one_len(nd->last.name, nd->dentry, nd->last.len);
 	if (IS_ERR(dentry))
 		goto out_err;
@@ -693,7 +693,7 @@ rpc_rmdir(char *path)
 	if ((error = rpc_lookup_parent(path, &nd)) != 0)
 		return error;
 	dir = nd.dentry->d_inode;
-	mutex_lock(&dir->i_mutex);
+	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_one_len(nd.last.name, nd.dentry, nd.last.len);
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
@@ -754,7 +754,7 @@ rpc_unlink(char *path)
 	if ((error = rpc_lookup_parent(path, &nd)) != 0)
 		return error;
 	dir = nd.dentry->d_inode;
-	mutex_lock(&dir->i_mutex);
+	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_one_len(nd.last.name, nd.dentry, nd.last.len);
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);

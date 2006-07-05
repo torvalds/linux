@@ -1,0 +1,2 @@
+unifdef-y += generic.h swabb.h swab.h
+header-y += big_endian.h little_endian.h pdp_endian.h

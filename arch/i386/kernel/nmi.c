@@ -107,7 +107,7 @@ int nmi_active;
 static __init void nmi_cpu_busy(void *data)
 {
 	volatile int *endflag = data;
-	local_irq_enable();
+	local_irq_enable_in_hardirq();
 	/* Intentionally don't use cpu_relax here. This is
 	   to make sure that the performance counter really ticks,
 	   even if there is a simulator or similar that catches the

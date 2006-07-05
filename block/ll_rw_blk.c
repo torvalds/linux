@@ -2516,7 +2516,7 @@ EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
 int blk_execute_rq(request_queue_t *q, struct gendisk *bd_disk,
 		   struct request *rq, int at_head)
 {
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	int err = 0;
 

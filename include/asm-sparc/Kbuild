@@ -1,0 +1,6 @@
+include include/asm-generic/Kbuild.asm
+
+unifdef-y += fbio.h perfctr.h psr.h
+header-y += apc.h asi.h auxio.h bpp.h head.h ipc.h jsflash.h	\
+	openpromio.h pbm.h pconf.h pgtsun4.h reg.h traps.h	\
+	turbosparc.h vfc_ioctls.h winmacro.h

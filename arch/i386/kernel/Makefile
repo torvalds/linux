@@ -9,6 +9,7 @@ obj-y	:= process.o semaphore.o signal.o entry.o traps.o irq.o \
 		pci-dma.o i386_ksyms.o i387.o bootflag.o \
 		quirks.o i8237.o topology.o alternative.o i8253.o tsc.o
 
+obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 obj-y				+= cpu/
 obj-y				+= acpi/
 obj-$(CONFIG_X86_BIOS_REBOOT)	+= reboot.o

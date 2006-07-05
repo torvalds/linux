@@ -553,7 +553,7 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 	return err;
 }
 
-static struct file_operations hpet_fops = {
+static const struct file_operations hpet_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.read = hpet_read,

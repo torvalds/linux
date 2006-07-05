@@ -666,7 +666,7 @@ static int lp_ioctl(struct inode *inode, struct file *file,
 	return retval;
 }
 
-static struct file_operations lp_fops = {
+static const struct file_operations lp_fops = {
 	.owner		= THIS_MODULE,
 	.write		= lp_write,
 	.ioctl		= lp_ioctl,

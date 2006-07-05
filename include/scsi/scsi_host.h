@@ -542,6 +542,9 @@ struct Scsi_Host {
 	 */
 	unsigned ordered_tag:1;
 
+	/* task mgmt function in progress */
+	unsigned tmf_in_progress:1;
+
 	/*
 	 * Optional work queue to be utilized by the transport
 	 */
@@ -619,7 +622,8 @@ static inline int scsi_host_in_recovery(struct Scsi_Host *shost)
 {
 	return shost->shost_state == SHOST_RECOVERY ||
 		shost->shost_state == SHOST_CANCEL_RECOVERY ||
-		shost->shost_state == SHOST_DEL_RECOVERY;
+		shost->shost_state == SHOST_DEL_RECOVERY ||
+		shost->tmf_in_progress;
 }
 
 extern int scsi_queue_work(struct Scsi_Host *, struct work_struct *);

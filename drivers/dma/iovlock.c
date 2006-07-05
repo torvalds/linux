@@ -31,7 +31,7 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
-int num_pages_spanned(struct iovec *iov)
+static int num_pages_spanned(struct iovec *iov)
 {
 	return
 	((PAGE_ALIGN((unsigned long)iov->iov_base + iov->iov_len) -

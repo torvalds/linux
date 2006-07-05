@@ -693,7 +693,7 @@ static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
 	u8 stat = hwif->INB(IDE_STATUS_REG);
 	int retries = 10;
 
-	local_irq_enable();
+	local_irq_enable_in_hardirq();
 	if ((stat & DRQ_STAT) && args && args[3]) {
 		u8 io_32bit = drive->io_32bit;
 		drive->io_32bit = 0;
@@ -1286,7 +1286,7 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 		if (masked_irq != IDE_NO_IRQ && hwif->irq != masked_irq)
 			disable_irq_nosync(hwif->irq);
 		spin_unlock(&ide_lock);
-		local_irq_enable();
+		local_irq_enable_in_hardirq();
 			/* allow other IRQs while we start this request */
 		startstop = start_request(drive, rq);
 		spin_lock_irq(&ide_lock);
@@ -1631,7 +1631,7 @@ irqreturn_t ide_intr (int irq, void *dev_id, struct pt_regs *regs)
 	spin_unlock(&ide_lock);
 
 	if (drive->unmask)
-		local_irq_enable();
+		local_irq_enable_in_hardirq();
 	/* service this interrupt, may set handler for next interrupt */
 	startstop = handler(drive);
 	spin_lock_irq(&ide_lock);
@@ -1705,7 +1705,7 @@ int ide_do_drive_cmd (ide_drive_t *drive, struct request *rq, ide_action_t actio
 {
 	unsigned long flags;
 	ide_hwgroup_t *hwgroup = HWGROUP(drive);
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	int where = ELEVATOR_INSERT_BACK, err;
 	int must_wait = (action == ide_wait || action == ide_head_wait);
 

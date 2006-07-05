@@ -44,6 +44,7 @@
 #include <linux/timer.h>
 #include <linux/cache.h>
 #include <linux/module.h>
+#include <linux/lockdep.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>	/* struct sk_buff */
 #include <linux/security.h>
@@ -78,13 +79,16 @@ typedef struct {
 	spinlock_t		slock;
 	struct sock_iocb	*owner;
 	wait_queue_head_t	wq;
+	/*
+	 * We express the mutex-alike socket_lock semantics
+	 * to the lock validator by explicitly managing
+	 * the slock as a lock variant (in addition to
+	 * the slock itself):
+	 */
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map dep_map;
+#endif
 } socket_lock_t;
-
-#define sock_lock_init(__sk) \
-do {	spin_lock_init(&((__sk)->sk_lock.slock)); \
-	(__sk)->sk_lock.owner = NULL; \
-	init_waitqueue_head(&((__sk)->sk_lock.wq)); \
-} while(0)
 
 struct sock;
 struct proto;
@@ -747,6 +751,9 @@ extern void FASTCALL(release_sock(struct sock *sk));
 
 /* BH context may only use the following locking interface. */
 #define bh_lock_sock(__sk)	spin_lock(&((__sk)->sk_lock.slock))
+#define bh_lock_sock_nested(__sk) \
+				spin_lock_nested(&((__sk)->sk_lock.slock), \
+				SINGLE_DEPTH_NESTING)
 #define bh_unlock_sock(__sk)	spin_unlock(&((__sk)->sk_lock.slock))
 
 extern struct sock		*sk_alloc(int family,

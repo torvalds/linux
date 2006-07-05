@@ -91,6 +91,7 @@ struct hrtimer_base {
 	ktime_t			(*get_softirq_time)(void);
 	struct hrtimer		*curr_timer;
 	ktime_t			softirq_time;
+	struct lock_class_key lock_key;
 };
 
 /*

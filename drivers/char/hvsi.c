@@ -1299,13 +1299,12 @@ static int __init hvsi_console_init(void)
 		hp->inbuf_end = hp->inbuf;
 		hp->state = HVSI_CLOSED;
 		hp->vtermno = *vtermno;
-		hp->virq = virt_irq_create_mapping(irq[0]);
+		hp->virq = irq_create_mapping(NULL, irq[0], 0);
 		if (hp->virq == NO_IRQ) {
 			printk(KERN_ERR "%s: couldn't create irq mapping for 0x%x\n",
-				__FUNCTION__, hp->virq);
+				__FUNCTION__, irq[0]);
 			continue;
-		} else
-			hp->virq = irq_offset_up(hp->virq);
+		}
 
 		hvsi_count++;
 	}

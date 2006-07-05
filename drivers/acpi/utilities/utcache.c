@@ -162,7 +162,7 @@ acpi_status acpi_os_delete_cache(struct acpi_memory_list * cache)
 
 	/* Now we can delete the cache object */
 
-	acpi_os_free(cache);
+	ACPI_FREE(cache);
 	return (AE_OK);
 }
 
