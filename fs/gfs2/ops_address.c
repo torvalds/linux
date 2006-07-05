@@ -642,6 +642,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode = file->f_mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	int ret;
 
 	if (rw == WRITE)
 		return gfs2_direct_IO_write(iocb, iov, offset, nr_segs);
@@ -650,9 +651,12 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	    gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
 		return -EINVAL;
 
-	return __blockdev_direct_IO(READ, iocb, inode, inode->i_sb->s_bdev, iov,
-			 	    offset, nr_segs, gfs2_get_block, NULL,
-				    DIO_OWN_LOCKING);
+	mutex_lock(&inode->i_mutex);
+	ret = __blockdev_direct_IO(READ, iocb, inode, inode->i_sb->s_bdev, iov,
+			 	   offset, nr_segs, gfs2_get_block, NULL,
+				   DIO_OWN_LOCKING);
+	mutex_unlock(&inode->i_mutex);
+	return ret;
 }
 
 const struct address_space_operations gfs2_file_aops = {
