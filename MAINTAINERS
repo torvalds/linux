@@ -3183,6 +3183,12 @@ M:	johnpol@2ka.mipt.ru
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
+W83791D HARDWARE MONITORING DRIVER
+P:	Charles Spirakis
+M:	bezaur@gmail.com
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 W83L51xD SD/MMC CARD INTERFACE DRIVER
 P:	Pierre Ossman
 M:	drzeus-wbsd@drzeus.cx
