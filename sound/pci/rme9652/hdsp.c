@@ -568,7 +568,7 @@ static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_d
 }
 
 
-static struct pci_device_id snd_hdsp_ids[] __devinitdata = {
+static struct pci_device_id snd_hdsp_ids[] = {
 	{
 		.vendor = PCI_VENDOR_ID_XILINX,
 		.device = PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP, 
@@ -1356,7 +1356,7 @@ static struct snd_rawmidi_ops snd_hdsp_midi_input =
 	.trigger =	snd_hdsp_midi_input_trigger,
 };
 
-static int __devinit snd_hdsp_create_midi (struct snd_card *card, struct hdsp *hdsp, int id)
+static int snd_hdsp_create_midi (struct snd_card *card, struct hdsp *hdsp, int id)
 {
 	char buf[32];
 
