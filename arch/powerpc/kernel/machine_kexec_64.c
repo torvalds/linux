@@ -10,7 +10,6 @@
  */
 
 
-#include <linux/cpumask.h>
 #include <linux/kexec.h>
 #include <linux/smp.h>
 #include <linux/thread_info.h>

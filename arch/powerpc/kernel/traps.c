@@ -55,9 +55,6 @@
 
 #ifdef CONFIG_PPC64	/* XXX */
 #define _IO_BASE	pci_io_base
-#ifdef CONFIG_KEXEC
-cpumask_t cpus_in_sr = CPU_MASK_NONE;
-#endif
 #endif
 
 #ifdef CONFIG_DEBUGGER
