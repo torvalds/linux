@@ -460,25 +460,25 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 	pending = read_c0_cause();
 
 #ifdef CONFIG_SIBYTE_SB1250_PROF
-	if (pending & CAUSEF_IP7) { /* Cpu performance counter interrupt */
+	if (pending & CAUSEF_IP7) /* Cpu performance counter interrupt */
 		sbprof_cpu_intr(exception_epc(regs));
-	}
+	else
 #endif
 
 	if (pending & CAUSEF_IP4)
 		sb1250_timer_interrupt(regs);
 
 #ifdef CONFIG_SMP
-	if (pending & CAUSEF_IP3)
+	else if (pending & CAUSEF_IP3)
 		sb1250_mailbox_interrupt(regs);
 #endif
 
 #ifdef CONFIG_KGDB
-	if (pending & CAUSEF_IP6)			/* KGDB (uart 1) */
+	else if (pending & CAUSEF_IP6)			/* KGDB (uart 1) */
 		sb1250_kgdb_interrupt(regs);
 #endif
 
-	if (pending & CAUSEF_IP2) {
+	else if (pending & CAUSEF_IP2) {
 		unsigned long long mask;
 
 		/*

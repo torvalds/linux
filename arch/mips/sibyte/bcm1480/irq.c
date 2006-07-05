@@ -502,22 +502,23 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 #ifdef CONFIG_SIBYTE_BCM1480_PROF
 	if (pending & CAUSEF_IP7)	/* Cpu performance counter interrupt */
 		sbprof_cpu_intr(exception_epc(regs));
+	else
 #endif
 
 	if (pending & CAUSEF_IP4)
 		bcm1480_timer_interrupt(regs);
 
 #ifdef CONFIG_SMP
-	if (pending & CAUSEF_IP3)
+	else if (pending & CAUSEF_IP3)
 		bcm1480_mailbox_interrupt(regs);
 #endif
 
 #ifdef CONFIG_KGDB
-	if (pending & CAUSEF_IP6)
+	else if (pending & CAUSEF_IP6)
 		bcm1480_kgdb_interrupt(regs);		/* KGDB (uart 1) */
 #endif
 
-	if (pending & CAUSEF_IP2) {
+	else if (pending & CAUSEF_IP2) {
 		unsigned long long mask_h, mask_l;
 		unsigned long base;
 
