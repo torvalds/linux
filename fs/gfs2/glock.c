@@ -1967,8 +1967,11 @@ static void scan_glock(struct gfs2_glock *gl)
 	if (gfs2_glmutex_trylock(gl)) {
 		if (gl->gl_ops == &gfs2_inode_glops) {
 			struct gfs2_inode *ip = gl->gl_object;
-			if (ip)
+			if (ip == NULL) {
+				struct gfs2_sbd *sdp = gl->gl_sbd;
+				gfs2_assert_withdraw(sdp, gl->gl_state == LM_ST_UNLOCKED);
 				goto out_schedule;
+			}
 		}
 		if (queue_empty(gl, &gl->gl_holders) &&
 		    gl->gl_state != LM_ST_UNLOCKED &&
@@ -1982,7 +1985,7 @@ static void scan_glock(struct gfs2_glock *gl)
 
 	return;
 
- out_schedule:
+out_schedule:
 	gfs2_glmutex_unlock(gl);
 	gfs2_glock_schedule_for_reclaim(gl);
 	gfs2_glock_put(gl);
