@@ -472,10 +472,12 @@ static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
 #define CA_VOLUME(xname,chid,reg) \
 {								\
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |		\
+	          SNDRV_CTL_ELEM_ACCESS_TLV_READ,		\
 	.info =	 snd_ca0106_volume_info,			\
 	.get =   snd_ca0106_volume_get,				\
 	.put =   snd_ca0106_volume_put,				\
-	.tlv =	 snd_ca0106_db_scale,				\
+	.tlv.p = snd_ca0106_db_scale,				\
 	.private_value = ((chid) << 8) | (reg)			\
 }
 

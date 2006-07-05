@@ -29,6 +29,7 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include <sound/asoundef.h>
+#include <sound/tlv.h>
 #include <sound/initval.h>
 #include "hda_local.h"
 
@@ -839,6 +840,38 @@ int snd_hda_mixer_amp_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 		change |= snd_hda_codec_amp_update(codec, nid, 1, dir, idx,
 						   0x7f, *valp);
 	return change;
+}
+
+int snd_hda_mixer_amp_tlv(struct snd_kcontrol *kcontrol, int op_flag,
+			  unsigned int size, unsigned int __user *_tlv)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	int dir = get_amp_direction(kcontrol);
+	u32 caps, val1, val2;
+
+	if (size < 4 * sizeof(unsigned int))
+		return -ENOMEM;
+	caps = query_amp_caps(codec, nid, dir);
+	val2 = (((caps & AC_AMPCAP_STEP_SIZE) >> AC_AMPCAP_STEP_SIZE_SHIFT) + 1) * 25;
+	val1 = -((caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT);
+	val1 = ((int)val1) * ((int)val2);
+	if (caps & AC_AMPCAP_MUTE)
+		val2 |= 0x10000;
+	if ((val2 & 0x10000) == 0 && dir == HDA_OUTPUT) {
+		caps = query_amp_caps(codec, nid, HDA_INPUT);
+		if (caps & AC_AMPCAP_MUTE)
+			val2 |= 0x10000;
+	}
+	if (put_user(SNDRV_CTL_TLVT_DB_SCALE, _tlv))
+		return -EFAULT;
+	if (put_user(2 * sizeof(unsigned int), _tlv + 1))
+		return -EFAULT;
+	if (put_user(val1, _tlv + 2))
+		return -EFAULT;
+	if (put_user(val2, _tlv + 3))
+		return -EFAULT;
+	return 0;
 }
 
 /* switch */

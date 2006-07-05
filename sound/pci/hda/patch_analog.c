@@ -452,6 +452,19 @@ static int ad1986a_pcm_amp_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 	return change;
 }
 
+static int ad1986a_pcm_amp_tlv(struct snd_kcontrol *kcontrol, int op_flag,
+			       unsigned int size, unsigned int __user *_tlv)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ad198x_spec *ad = codec->spec;
+
+	mutex_lock(&ad->amp_mutex);
+	snd_hda_mixer_amp_tlv(kcontrol, op_flag, size, _tlv);
+	mutex_unlock(&ad->amp_mutex);
+	return 0;
+}
+
+
 #define ad1986a_pcm_amp_sw_info		snd_hda_mixer_amp_switch_info
 
 static int ad1986a_pcm_amp_sw_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -488,9 +501,13 @@ static struct snd_kcontrol_new ad1986a_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Volume",
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			  SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+			  SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK,
 		.info = ad1986a_pcm_amp_vol_info,
 		.get = ad1986a_pcm_amp_vol_get,
 		.put = ad1986a_pcm_amp_vol_put,
+		.tlv.c = ad1986a_pcm_amp_tlv,
 		.private_value = HDA_COMPOSE_AMP_VAL(AD1986A_FRONT_DAC, 3, 0, HDA_OUTPUT)
 	},
 	{
