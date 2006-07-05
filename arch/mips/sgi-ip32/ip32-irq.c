@@ -316,9 +316,9 @@ static struct irq_chip ip32_macepci_interrupt = {
 				 MACEISA_KEYB_POLL_INT |	\
 				 MACEISA_MOUSE_INT |		\
 				 MACEISA_MOUSE_POLL_INT |	\
-				 MACEIIRQF_TIMER0_INT |		\
-				 MACEIIRQF_TIMER1_INT |		\
-				 MACEIIRQF_TIMER2_INT)
+				 MACEISA_TIMER0_INT |		\
+				 MACEISA_TIMER1_INT |		\
+				 MACEISA_TIMER2_INT)
 #define MACEISA_SUPERIO_INT	(MACEISA_PARALLEL_INT |		\
 				 MACEISA_PAR_CTXA_INT |		\
 				 MACEISA_PAR_CTXB_INT |		\
@@ -349,7 +349,7 @@ static void enable_maceisa_irq (unsigned int irq)
 	case MACEISA_AUDIO_SW_IRQ ... MACEISA_AUDIO3_MERR_IRQ:
 		crime_int = MACE_AUDIO_INT;
 		break;
-	case MACEISA_RTC_IRQ ... MACEIIRQF_TIMER2_IRQ:
+	case MACEISA_RTC_IRQ ... MACEISA_TIMER2_IRQ:
 		crime_int = MACE_MISC_INT;
 		break;
 	case MACEISA_PARALLEL_IRQ ... MACEISA_SERIAL2_RDMAOR_IRQ:
