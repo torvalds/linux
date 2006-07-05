@@ -50,9 +50,10 @@
  *   is used to write xdatum to medium. xd->version will be incremented.
  * create_xattr_datum(c, xprefix, xname, xvalue, xsize)
  *   is used to create new xdatum and write to medium.
- * delete_xattr_datum(c, xd)
- *   is used to delete a xdatum. It marks xd JFFS2_XFLAGS_DEAD, and allows
- *   GC to reclaim those physical nodes.
+ * unrefer_xattr_datum(c, xd)
+ *   is used to delete a xdatum. When nobody refers this xdatum, JFFS2_XFLAGS_DEAD
+ *   is set on xd->flags and chained xattr_dead_list or release it immediately.
+ *   In the first case, the garbage collector release it later.
  * -------------------------------------------------- */
 static uint32_t xattr_datum_hashkey(int xprefix, const char *xname, const char *xvalue, int xsize)
 {
@@ -394,22 +395,24 @@ static struct jffs2_xattr_datum *create_xattr_datum(struct jffs2_sb_info *c,
 	return xd;
 }
 
-static void delete_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
+static void unrefer_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
 {
 	/* must be called under down_write(xattr_sem) */
-	BUG_ON(atomic_read(&xd->refcnt));
+	if (atomic_dec_and_lock(&xd->refcnt, &c->erase_completion_lock)) {
+		uint32_t xid = xd->xid, version = xd->version;
 
-	unload_xattr_datum(c, xd);
-	xd->flags |= JFFS2_XFLAGS_DEAD;
-	spin_lock(&c->erase_completion_lock);
-	if (xd->node == (void *)xd) {
-		BUG_ON(!(xd->flags & JFFS2_XFLAGS_INVALID));
-		jffs2_free_xattr_datum(xd);
-	} else {
-		list_add(&xd->xindex, &c->xattr_dead_list);
+		unload_xattr_datum(c, xd);
+		xd->flags |= JFFS2_XFLAGS_DEAD;
+		if (xd->node == (void *)xd) {
+			BUG_ON(!(xd->flags & JFFS2_XFLAGS_INVALID));
+			jffs2_free_xattr_datum(xd);
+		} else {
+			list_add(&xd->xindex, &c->xattr_dead_list);
+		}
+		spin_unlock(&c->erase_completion_lock);
+
+		dbg_xattr("xdatum(xid=%u, version=%u) was removed.\n", xid, version);
 	}
-	spin_unlock(&c->erase_completion_lock);
-	dbg_xattr("xdatum(xid=%u, version=%u) was removed.\n", xd->xid, xd->version);
 }
 
 /* -------- xref related functions ------------------
@@ -580,8 +583,7 @@ static void delete_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *re
 	dbg_xattr("xref(ino=%u, xid=%u, xseqno=%u) was removed.\n",
 		  ref->ino, ref->xid, ref->xseqno);
 
-	if (atomic_dec_and_test(&xd->refcnt))
-		delete_xattr_datum(c, xd);
+	unrefer_xattr_datum(c, xd);
 }
 
 void jffs2_xattr_delete_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
@@ -1119,8 +1121,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 					ref->next = c->xref_dead_list;
 					c->xref_dead_list = ref;
 					spin_unlock(&c->erase_completion_lock);
-					if (atomic_dec_and_test(&xd->refcnt))
-						delete_xattr_datum(c, xd);
+					unrefer_xattr_datum(c, xd);
 				} else {
 					ref->ic = ic;
 					ref->xd = xd;
@@ -1156,8 +1157,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 	down_write(&c->xattr_sem);
 	if (rc) {
 		JFFS2_WARNING("jffs2_reserve_space()=%d, request=%u\n", rc, request);
-		if (atomic_dec_and_test(&xd->refcnt))
-			delete_xattr_datum(c, xd);
+		unrefer_xattr_datum(c, xd);
 		up_write(&c->xattr_sem);
 		return rc;
 	}
@@ -1170,8 +1170,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 			ic->xref = ref;
 		}
 		rc = PTR_ERR(newref);
-		if (atomic_dec_and_test(&xd->refcnt))
-			delete_xattr_datum(c, xd);
+		unrefer_xattr_datum(c, xd);
 	} else if (ref) {
 		delete_xattr_ref(c, ref);
 	}

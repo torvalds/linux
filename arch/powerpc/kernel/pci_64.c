@@ -398,12 +398,8 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	} else {
 		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;
 		dev->rom_base_reg = PCI_ROM_ADDRESS;
+		/* Maybe do a default OF mapping here */
 		dev->irq = NO_IRQ;
-		if (node->n_intrs > 0) {
-			dev->irq = node->intrs[0].line;
-			pci_write_config_byte(dev, PCI_INTERRUPT_LINE,
-					      dev->irq);
-		}
 	}
 
 	pci_parse_of_addrs(node, dev);
@@ -1288,23 +1284,26 @@ EXPORT_SYMBOL(pcibios_fixup_bus);
  */
 int pci_read_irq_line(struct pci_dev *pci_dev)
 {
-	u8 intpin;
-	struct device_node *node;
+	struct of_irq oirq;
+	unsigned int virq;
 
-    	pci_read_config_byte(pci_dev, PCI_INTERRUPT_PIN, &intpin);
-	if (intpin == 0)
-		return 0;
+	DBG("Try to map irq for %s...\n", pci_name(pci_dev));
 
-	node = pci_device_to_OF_node(pci_dev);
-	if (node == NULL)
+	if (of_irq_map_pci(pci_dev, &oirq)) {
+		DBG(" -> failed !\n");
 		return -1;
+	}
 
-	if (node->n_intrs == 0)
+	DBG(" -> got one, spec %d cells (0x%08x...) on %s\n",
+	    oirq.size, oirq.specifier[0], oirq.controller->full_name);
+
+	virq = irq_create_of_mapping(oirq.controller, oirq.specifier, oirq.size);
+	if(virq == NO_IRQ) {
+		DBG(" -> failed to map !\n");
 		return -1;
-
-	pci_dev->irq = node->intrs[0].line;
-
-	pci_write_config_byte(pci_dev, PCI_INTERRUPT_LINE, pci_dev->irq);
+	}
+	pci_dev->irq = virq;
+	pci_write_config_byte(pci_dev, PCI_INTERRUPT_LINE, virq);
 
 	return 0;
 }

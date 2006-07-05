@@ -107,7 +107,7 @@ int proc_exe_link(struct inode *inode, struct dentry **dentry, struct vfsmount *
 {
 	struct vm_list_struct *vml;
 	struct vm_area_struct *vma;
-	struct task_struct *task = proc_task(inode);
+	struct task_struct *task = get_proc_task(inode);
 	struct mm_struct *mm = get_task_mm(task);
 	int result = -ENOENT;
 

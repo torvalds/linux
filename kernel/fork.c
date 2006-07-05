@@ -193,7 +193,10 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 
 	down_write(&oldmm->mmap_sem);
 	flush_cache_mm(oldmm);
-	down_write(&mm->mmap_sem);
+	/*
+	 * Not linked in yet - no deadlock potential:
+	 */
+	down_write_nested(&mm->mmap_sem, SINGLE_DEPTH_NESTING);
 
 	mm->locked_vm = 0;
 	mm->mmap = NULL;
@@ -919,10 +922,6 @@ static inline void rt_mutex_init_task(struct task_struct *p)
 	spin_lock_init(&p->pi_lock);
 	plist_head_init(&p->pi_waiters, &p->pi_lock);
 	p->pi_blocked_on = NULL;
-# ifdef CONFIG_DEBUG_RT_MUTEXES
-	spin_lock_init(&p->held_list_lock);
-	INIT_LIST_HEAD(&p->held_list_head);
-# endif
 #endif
 }
 
@@ -934,13 +933,13 @@ static inline void rt_mutex_init_task(struct task_struct *p)
  * parts of the process environment (as per the clone
  * flags). The actual kick-off is left to the caller.
  */
-static task_t *copy_process(unsigned long clone_flags,
-				 unsigned long stack_start,
-				 struct pt_regs *regs,
-				 unsigned long stack_size,
-				 int __user *parent_tidptr,
-				 int __user *child_tidptr,
-				 int pid)
+static struct task_struct *copy_process(unsigned long clone_flags,
+					unsigned long stack_start,
+					struct pt_regs *regs,
+					unsigned long stack_size,
+					int __user *parent_tidptr,
+					int __user *child_tidptr,
+					int pid)
 {
 	int retval;
 	struct task_struct *p = NULL;
@@ -972,6 +971,10 @@ static task_t *copy_process(unsigned long clone_flags,
 	if (!p)
 		goto fork_out;
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	DEBUG_LOCKS_WARN_ON(!p->hardirqs_enabled);
+	DEBUG_LOCKS_WARN_ON(!p->softirqs_enabled);
+#endif
 	retval = -EAGAIN;
 	if (atomic_read(&p->user->processes) >=
 			p->signal->rlim[RLIMIT_NPROC].rlim_cur) {
@@ -1045,6 +1048,26 @@ static task_t *copy_process(unsigned long clone_flags,
  		goto bad_fork_cleanup_cpuset;
  	}
 	mpol_fix_fork_child_flag(p);
+#endif
+#ifdef CONFIG_TRACE_IRQFLAGS
+	p->irq_events = 0;
+	p->hardirqs_enabled = 0;
+	p->hardirq_enable_ip = 0;
+	p->hardirq_enable_event = 0;
+	p->hardirq_disable_ip = _THIS_IP_;
+	p->hardirq_disable_event = 0;
+	p->softirqs_enabled = 1;
+	p->softirq_enable_ip = _THIS_IP_;
+	p->softirq_enable_event = 0;
+	p->softirq_disable_ip = 0;
+	p->softirq_disable_event = 0;
+	p->hardirq_context = 0;
+	p->softirq_context = 0;
+#endif
+#ifdef CONFIG_LOCKDEP
+	p->lockdep_depth = 0; /* no locks held yet */
+	p->curr_chain_key = 0;
+	p->lockdep_recursion = 0;
 #endif
 
 	rt_mutex_init_task(p);
@@ -1271,9 +1294,9 @@ struct pt_regs * __devinit __attribute__((weak)) idle_regs(struct pt_regs *regs)
 	return regs;
 }
 
-task_t * __devinit fork_idle(int cpu)
+struct task_struct * __devinit fork_idle(int cpu)
 {
-	task_t *task;
+	struct task_struct *task;
 	struct pt_regs regs;
 
 	task = copy_process(CLONE_VM, 0, idle_regs(&regs), 0, NULL, NULL, 0);

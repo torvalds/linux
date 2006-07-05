@@ -361,11 +361,14 @@ void __init setup_system(void)
 
 	/*
 	 * Fill the ppc64_caches & systemcfg structures with informations
-	 * retrieved from the device-tree. Need to be called before
-	 * finish_device_tree() since the later requires some of the
-	 * informations filled up here to properly parse the interrupt tree.
+ 	 * retrieved from the device-tree.
 	 */
 	initialize_cache_info();
+
+	/*
+	 * Initialize irq remapping subsystem
+	 */
+	irq_early_init();
 
 #ifdef CONFIG_PPC_RTAS
 	/*
@@ -392,12 +395,6 @@ void __init setup_system(void)
 	 * so that further code can be debugged
 	 */
 	find_legacy_serial_ports();
-
-	/*
-	 * "Finish" the device-tree, that is do the actual parsing of
-	 * some of the properties like the interrupt map
-	 */
-	finish_device_tree();
 
 	/*
 	 * Initialize xmon
@@ -427,8 +424,6 @@ void __init setup_system(void)
 
 	printk("-----------------------------------------------------\n");
 	printk("ppc64_pft_size                = 0x%lx\n", ppc64_pft_size);
-	printk("ppc64_interrupt_controller    = 0x%ld\n",
-	       ppc64_interrupt_controller);
 	printk("physicalMemorySize            = 0x%lx\n", lmb_phys_mem_size());
 	printk("ppc64_caches.dcache_line_size = 0x%x\n",
 	       ppc64_caches.dline_size);

@@ -912,7 +912,7 @@ static int hung_up_tty_ioctl(struct inode * inode, struct file * file,
 	return cmd == TIOCSPGRP ? -ENOTTY : -EIO;
 }
 
-static struct file_operations tty_fops = {
+static const struct file_operations tty_fops = {
 	.llseek		= no_llseek,
 	.read		= tty_read,
 	.write		= tty_write,
@@ -924,7 +924,7 @@ static struct file_operations tty_fops = {
 };
 
 #ifdef CONFIG_UNIX98_PTYS
-static struct file_operations ptmx_fops = {
+static const struct file_operations ptmx_fops = {
 	.llseek		= no_llseek,
 	.read		= tty_read,
 	.write		= tty_write,
@@ -936,7 +936,7 @@ static struct file_operations ptmx_fops = {
 };
 #endif
 
-static struct file_operations console_fops = {
+static const struct file_operations console_fops = {
 	.llseek		= no_llseek,
 	.read		= tty_read,
 	.write		= redirected_tty_write,
@@ -947,7 +947,7 @@ static struct file_operations console_fops = {
 	.fasync		= tty_fasync,
 };
 
-static struct file_operations hung_up_tty_fops = {
+static const struct file_operations hung_up_tty_fops = {
 	.llseek		= no_llseek,
 	.read		= hung_up_tty_read,
 	.write		= hung_up_tty_write,
@@ -2336,7 +2336,7 @@ static int fionbio(struct file *file, int __user *p)
 
 static int tiocsctty(struct tty_struct *tty, int arg)
 {
-	task_t *p;
+	struct task_struct *p;
 
 	if (current->signal->leader &&
 	    (current->signal->session == tty->session))

@@ -177,8 +177,10 @@ asmlinkage void do_softirq(void)
  	local_irq_save(flags);
  	pending = local_softirq_pending();
  	/* Switch to interrupt stack */
- 	if (pending)
+ 	if (pending) {
 		call_softirq();
+		WARN_ON_ONCE(softirq_count());
+	}
  	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(do_softirq);

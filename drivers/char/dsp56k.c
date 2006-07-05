@@ -483,7 +483,7 @@ static int dsp56k_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations dsp56k_fops = {
+static const struct file_operations dsp56k_fops = {
 	.owner		= THIS_MODULE,
 	.read		= dsp56k_read,
 	.write		= dsp56k_write,

@@ -861,6 +861,8 @@ S:	Maintained
 DOCBOOK FOR DOCUMENTATION
 P:	Martin Waitz
 M:	tali@admingilde.org
+P:	Randy Dunlap
+M:	rdunlap@xenotime.net
 T:	git http://tali.admingilde.org/git/linux-docbook.git
 S:	Maintained
 
@@ -2296,6 +2298,14 @@ PROMISE DC4030 CACHING DISK CONTROLLER DRIVER
 P:	Peter Denison
 M:	promise@pnd-pc.demon.co.uk
 W:	http://www.pnd-pc.demon.co.uk/promise/
+S:	Maintained
+
+PVRUSB2 VIDEO4LINUX DRIVER
+P:	Mike Isely
+M:	isely@pobox.com
+L:	pvrusb2@isely.net
+L:	video4linux-list@redhat.com
+W:	http://www.isely.net/pvrusb2/
 S:	Maintained
 
 PXA2xx SUPPORT

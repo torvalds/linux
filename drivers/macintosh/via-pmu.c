@@ -64,10 +64,6 @@
 #include <asm/backlight.h>
 #endif
 
-#ifdef CONFIG_PPC32
-#include <asm/open_pic.h>
-#endif
-
 #include "via-pmu-event.h"
 
 /* Some compile options */
@@ -151,7 +147,7 @@ static int pmu_fully_inited = 0;
 static int pmu_has_adb;
 static struct device_node *gpio_node;
 static unsigned char __iomem *gpio_reg = NULL;
-static int gpio_irq = -1;
+static int gpio_irq = NO_IRQ;
 static int gpio_irq_enabled = -1;
 static volatile int pmu_suspended = 0;
 static spinlock_t pmu_lock;
@@ -403,22 +399,21 @@ static int __init pmu_init(void)
  */
 static int __init via_pmu_start(void)
 {
+	unsigned int irq;
+
 	if (vias == NULL)
 		return -ENODEV;
 
 	batt_req.complete = 1;
 
-#ifndef CONFIG_PPC_MERGE
-	if (pmu_kind == PMU_KEYLARGO_BASED)
-		openpic_set_irq_priority(vias->intrs[0].line,
-					 OPENPIC_PRIORITY_DEFAULT + 1);
-#endif
-
-	if (request_irq(vias->intrs[0].line, via_pmu_interrupt, 0, "VIA-PMU",
-			(void *)0)) {
-		printk(KERN_ERR "VIA-PMU: can't get irq %d\n",
-		       vias->intrs[0].line);
-		return -EAGAIN;
+	irq = irq_of_parse_and_map(vias, 0);
+	if (irq == NO_IRQ) {
+		printk(KERN_ERR "via-pmu: can't map interruptn");
+		return -ENODEV;
+	}
+	if (request_irq(irq, via_pmu_interrupt, 0, "VIA-PMU", (void *)0)) {
+		printk(KERN_ERR "via-pmu: can't request irq %d\n", irq);
+		return -ENODEV;
 	}
 
 	if (pmu_kind == PMU_KEYLARGO_BASED) {
@@ -426,10 +421,10 @@ static int __init via_pmu_start(void)
 		if (gpio_node == NULL)
 			gpio_node = of_find_node_by_name(NULL,
 							 "pmu-interrupt");
-		if (gpio_node && gpio_node->n_intrs > 0)
-			gpio_irq = gpio_node->intrs[0].line;
+		if (gpio_node)
+			gpio_irq = irq_of_parse_and_map(gpio_node, 0);
 
-		if (gpio_irq != -1) {
+		if (gpio_irq != NO_IRQ) {
 			if (request_irq(gpio_irq, gpio1_interrupt, 0,
 					"GPIO1 ADB", (void *)0))
 				printk(KERN_ERR "pmu: can't get irq %d"

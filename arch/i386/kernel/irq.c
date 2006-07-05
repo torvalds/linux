@@ -166,7 +166,7 @@ void irq_ctx_init(int cpu)
 	irqctx->tinfo.task              = NULL;
 	irqctx->tinfo.exec_domain       = NULL;
 	irqctx->tinfo.cpu               = cpu;
-	irqctx->tinfo.preempt_count     = SOFTIRQ_OFFSET;
+	irqctx->tinfo.preempt_count     = 0;
 	irqctx->tinfo.addr_limit        = MAKE_MM_SEG(0);
 
 	softirq_ctx[cpu] = irqctx;
@@ -211,6 +211,10 @@ asmlinkage void do_softirq(void)
 			: "0"(isp)
 			: "memory", "cc", "edx", "ecx", "eax"
 		);
+		/*
+		 * Shouldnt happen, we returned above if in_interrupt():
+	 	 */
+		WARN_ON_ONCE(softirq_count());
 	}
 
 	local_irq_restore(flags);

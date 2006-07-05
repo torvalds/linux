@@ -2036,7 +2036,7 @@ static int __init cs4231_sbus_attach(struct sbus_dev *sdev)
 	if (err)
 		return err;
 
-	sprintf(card->longname, "%s at 0x%02lx:0x%016lx, irq %d",
+	sprintf(card->longname, "%s at 0x%02lx:0x%016Lx, irq %d",
 		card->shortname,
 		rp->flags & 0xffL,
 		(unsigned long long)rp->start,

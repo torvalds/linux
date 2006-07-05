@@ -133,7 +133,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 
 		/* Caller used ACPI_ALLOCATE_BUFFER, free the return buffer */
 
-		acpi_os_free(return_buffer->pointer);
+		ACPI_FREE(return_buffer->pointer);
 		return_buffer->pointer = NULL;
 	}
 

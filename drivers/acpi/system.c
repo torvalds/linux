@@ -86,7 +86,7 @@ acpi_system_read_dsdt(struct file *file,
 
 	res = simple_read_from_buffer(buffer, count, ppos,
 				      dsdt.pointer, dsdt.length);
-	acpi_os_free(dsdt.pointer);
+	kfree(dsdt.pointer);
 
 	return res;
 }
@@ -113,7 +113,7 @@ acpi_system_read_fadt(struct file *file,
 
 	res = simple_read_from_buffer(buffer, count, ppos,
 				      fadt.pointer, fadt.length);
-	acpi_os_free(fadt.pointer);
+	kfree(fadt.pointer);
 
 	return res;
 }

@@ -233,7 +233,7 @@ static void __call_usermodehelper(void *data)
 int call_usermodehelper_keys(char *path, char **argv, char **envp,
 			     struct key *session_keyring, int wait)
 {
-	DECLARE_COMPLETION(done);
+	DECLARE_COMPLETION_ONSTACK(done);
 	struct subprocess_info sub_info = {
 		.complete	= &done,
 		.path		= path,

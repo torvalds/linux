@@ -336,7 +336,7 @@ proc_therm_ds1620_read(char *buf, char **start, off_t offset,
 static struct proc_dir_entry *proc_therm_ds1620;
 #endif
 
-static struct file_operations ds1620_fops = {
+static const struct file_operations ds1620_fops = {
 	.owner		= THIS_MODULE,
 	.open		= nonseekable_open,
 	.read		= ds1620_read,

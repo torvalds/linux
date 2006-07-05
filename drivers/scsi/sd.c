@@ -207,6 +207,23 @@ static ssize_t sd_store_cache_type(struct class_device *cdev, const char *buf,
 	return count;
 }
 
+static ssize_t sd_store_allow_restart(struct class_device *cdev, const char *buf,
+				      size_t count)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(cdev);
+	struct scsi_device *sdp = sdkp->device;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	if (sdp->type != TYPE_DISK)
+		return -EINVAL;
+
+	sdp->allow_restart = simple_strtoul(buf, NULL, 10);
+
+	return count;
+}
+
 static ssize_t sd_show_cache_type(struct class_device *cdev, char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(cdev);
@@ -222,10 +239,19 @@ static ssize_t sd_show_fua(struct class_device *cdev, char *buf)
 	return snprintf(buf, 20, "%u\n", sdkp->DPOFUA);
 }
 
+static ssize_t sd_show_allow_restart(struct class_device *cdev, char *buf)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(cdev);
+
+	return snprintf(buf, 40, "%d\n", sdkp->device->allow_restart);
+}
+
 static struct class_device_attribute sd_disk_attrs[] = {
 	__ATTR(cache_type, S_IRUGO|S_IWUSR, sd_show_cache_type,
 	       sd_store_cache_type),
 	__ATTR(FUA, S_IRUGO, sd_show_fua, NULL),
+	__ATTR(allow_restart, S_IRUGO|S_IWUSR, sd_show_allow_restart,
+	       sd_store_allow_restart),
 	__ATTR_NULL,
 };
 
@@ -890,11 +916,10 @@ static struct block_device_operations sd_fops = {
 static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 {
 	int result = SCpnt->result;
-	int this_count = SCpnt->request_bufflen;
-	int good_bytes = (result == 0 ? this_count : 0);
-	sector_t block_sectors = 1;
-	u64 first_err_block;
-	sector_t error_sector;
+ 	unsigned int xfer_size = SCpnt->request_bufflen;
+ 	unsigned int good_bytes = result ? 0 : xfer_size;
+ 	u64 start_lba = SCpnt->request->sector;
+ 	u64 bad_lba;
 	struct scsi_sense_hdr sshdr;
 	int sense_valid = 0;
 	int sense_deferred = 0;
@@ -905,7 +930,6 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 		if (sense_valid)
 			sense_deferred = scsi_sense_is_deferred(&sshdr);
 	}
-
 #ifdef CONFIG_SCSI_LOGGING
 	SCSI_LOG_HLCOMPLETE(1, printk("sd_rw_intr: %s: res=0x%x\n", 
 				SCpnt->request->rq_disk->disk_name, result));
@@ -915,89 +939,72 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 				sshdr.sense_key, sshdr.asc, sshdr.ascq));
 	}
 #endif
-	/*
-	   Handle MEDIUM ERRORs that indicate partial success.  Since this is a
-	   relatively rare error condition, no care is taken to avoid
-	   unnecessary additional work such as memcpy's that could be avoided.
-	 */
-	if (driver_byte(result) != 0 &&
-		 sense_valid && !sense_deferred) {
-		switch (sshdr.sense_key) {
-		case MEDIUM_ERROR:
-			if (!blk_fs_request(SCpnt->request))
-				break;
-			info_valid = scsi_get_sense_info_fld(
-				SCpnt->sense_buffer, SCSI_SENSE_BUFFERSIZE,
-				&first_err_block);
-			/*
-			 * May want to warn and skip if following cast results
-			 * in actual truncation (if sector_t < 64 bits)
-			 */
-			error_sector = (sector_t)first_err_block;
-			if (SCpnt->request->bio != NULL)
-				block_sectors = bio_sectors(SCpnt->request->bio);
-			switch (SCpnt->device->sector_size) {
-			case 1024:
-				error_sector <<= 1;
-				if (block_sectors < 2)
-					block_sectors = 2;
-				break;
-			case 2048:
-				error_sector <<= 2;
-				if (block_sectors < 4)
-					block_sectors = 4;
-				break;
-			case 4096:
-				error_sector <<=3;
-				if (block_sectors < 8)
-					block_sectors = 8;
-				break;
-			case 256:
-				error_sector >>= 1;
-				break;
-			default:
-				break;
-			}
+	if (driver_byte(result) != DRIVER_SENSE &&
+	    (!sense_valid || sense_deferred))
+		goto out;
 
-			error_sector &= ~(block_sectors - 1);
-			good_bytes = (error_sector - SCpnt->request->sector) << 9;
-			if (good_bytes < 0 || good_bytes >= this_count)
-				good_bytes = 0;
+	switch (sshdr.sense_key) {
+	case HARDWARE_ERROR:
+	case MEDIUM_ERROR:
+		if (!blk_fs_request(SCpnt->request))
+			goto out;
+		info_valid = scsi_get_sense_info_fld(SCpnt->sense_buffer,
+						     SCSI_SENSE_BUFFERSIZE,
+						     &bad_lba);
+		if (!info_valid)
+			goto out;
+		if (xfer_size <= SCpnt->device->sector_size)
+			goto out;
+		switch (SCpnt->device->sector_size) {
+		case 256:
+			start_lba <<= 1;
 			break;
-
-		case RECOVERED_ERROR: /* an error occurred, but it recovered */
-		case NO_SENSE: /* LLDD got sense data */
-			/*
-			 * Inform the user, but make sure that it's not treated
-			 * as a hard error.
-			 */
-			scsi_print_sense("sd", SCpnt);
-			SCpnt->result = 0;
-			memset(SCpnt->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
-			good_bytes = this_count;
+		case 512:
 			break;
-
-		case ILLEGAL_REQUEST:
-			if (SCpnt->device->use_10_for_rw &&
-			    (SCpnt->cmnd[0] == READ_10 ||
-			     SCpnt->cmnd[0] == WRITE_10))
-				SCpnt->device->use_10_for_rw = 0;
-			if (SCpnt->device->use_10_for_ms &&
-			    (SCpnt->cmnd[0] == MODE_SENSE_10 ||
-			     SCpnt->cmnd[0] == MODE_SELECT_10))
-				SCpnt->device->use_10_for_ms = 0;
+		case 1024:
+			start_lba >>= 1;
 			break;
-
+		case 2048:
+			start_lba >>= 2;
+			break;
+		case 4096:
+			start_lba >>= 3;
+			break;
 		default:
+			/* Print something here with limiting frequency. */
+			goto out;
 			break;
 		}
+		/* This computation should always be done in terms of
+		 * the resolution of the device's medium.
+		 */
+		good_bytes = (bad_lba - start_lba)*SCpnt->device->sector_size;
+		break;
+	case RECOVERED_ERROR:
+	case NO_SENSE:
+		/* Inform the user, but make sure that it's not treated
+		 * as a hard error.
+		 */
+		scsi_print_sense("sd", SCpnt);
+		SCpnt->result = 0;
+		memset(SCpnt->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
+		good_bytes = xfer_size;
+		break;
+	case ILLEGAL_REQUEST:
+		if (SCpnt->device->use_10_for_rw &&
+		    (SCpnt->cmnd[0] == READ_10 ||
+		     SCpnt->cmnd[0] == WRITE_10))
+			SCpnt->device->use_10_for_rw = 0;
+		if (SCpnt->device->use_10_for_ms &&
+		    (SCpnt->cmnd[0] == MODE_SENSE_10 ||
+		     SCpnt->cmnd[0] == MODE_SELECT_10))
+			SCpnt->device->use_10_for_ms = 0;
+		break;
+	default:
+		break;
 	}
-	/*
-	 * This calls the generic completion function, now that we know
-	 * how many actual sectors finished, and how many sectors we need
-	 * to say have failed.
-	 */
-	scsi_io_completion(SCpnt, good_bytes, block_sectors << 9);
+ out:
+	scsi_io_completion(SCpnt, good_bytes);
 }
 
 static int media_not_present(struct scsi_disk *sdkp,

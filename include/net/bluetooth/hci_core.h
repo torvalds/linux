@@ -31,10 +31,7 @@
 #define HCI_PROTO_L2CAP	0
 #define HCI_PROTO_SCO	1
 
-#define HCI_INIT_TIMEOUT (HZ * 10)
-
 /* HCI Core structures */
-
 struct inquiry_data {
 	bdaddr_t	bdaddr;
 	__u8		pscan_rep_mode;
@@ -81,6 +78,10 @@ struct hci_dev {
 	__u16		link_policy;
 	__u16		link_mode;
 
+	__u32		idle_timeout;
+	__u16		sniff_min_interval;
+	__u16		sniff_max_interval;
+
 	unsigned long	quirks;
 
 	atomic_t	cmd_cnt;
@@ -123,7 +124,8 @@ struct hci_dev {
 
 	atomic_t 		promisc;
 
-	struct class_device	class_dev;
+	struct device		*parent;
+	struct device		dev;
 
 	struct module 		*owner;
 
@@ -145,18 +147,24 @@ struct hci_conn {
 	bdaddr_t	 dst;
 	__u16		 handle;
 	__u16		 state;
+	__u8             mode;
 	__u8		 type;
 	__u8		 out;
 	__u8		 dev_class[3];
+	__u8             features[8];
+	__u16            interval;
+	__u16            link_policy;
 	__u32		 link_mode;
+	__u8             power_save;
 	unsigned long	 pend;
-	
+
 	unsigned int	 sent;
-	
+
 	struct sk_buff_head data_q;
 
-	struct timer_list timer;
-	
+	struct timer_list disc_timer;
+	struct timer_list idle_timer;
+
 	struct hci_dev	*hdev;
 	void		*l2cap_data;
 	void		*sco_data;
@@ -211,7 +219,8 @@ void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data);
 enum {
 	HCI_CONN_AUTH_PEND,
 	HCI_CONN_ENCRYPT_PEND,
-	HCI_CONN_RSWITCH_PEND
+	HCI_CONN_RSWITCH_PEND,
+	HCI_CONN_MODE_CHANGE_PEND,
 };
 
 static inline void hci_conn_hash_init(struct hci_dev *hdev)
@@ -286,31 +295,27 @@ int hci_conn_encrypt(struct hci_conn *conn);
 int hci_conn_change_link_key(struct hci_conn *conn);
 int hci_conn_switch_role(struct hci_conn *conn, uint8_t role);
 
-static inline void hci_conn_set_timer(struct hci_conn *conn, unsigned long timeout)
-{
-	mod_timer(&conn->timer, jiffies + timeout);
-}
-
-static inline void hci_conn_del_timer(struct hci_conn *conn)
-{
-	del_timer(&conn->timer);
-}
+void hci_conn_enter_active_mode(struct hci_conn *conn);
+void hci_conn_enter_sniff_mode(struct hci_conn *conn);
 
 static inline void hci_conn_hold(struct hci_conn *conn)
 {
 	atomic_inc(&conn->refcnt);
-	hci_conn_del_timer(conn);
+	del_timer(&conn->disc_timer);
 }
 
 static inline void hci_conn_put(struct hci_conn *conn)
 {
 	if (atomic_dec_and_test(&conn->refcnt)) {
+		unsigned long timeo;
 		if (conn->type == ACL_LINK) {
-			unsigned long timeo = (conn->out) ?
-				HCI_DISCONN_TIMEOUT : HCI_DISCONN_TIMEOUT * 2;
-			hci_conn_set_timer(conn, timeo);
+			timeo = msecs_to_jiffies(HCI_DISCONN_TIMEOUT);
+			if (!conn->out)
+				timeo *= 2;
+			del_timer(&conn->idle_timer);
 		} else
-			hci_conn_set_timer(conn, HZ / 100);
+			timeo = msecs_to_jiffies(10);
+		mod_timer(&conn->disc_timer, jiffies + timeo);
 	}
 }
 
@@ -408,11 +413,13 @@ static inline int hci_recv_frame(struct sk_buff *skb)
 int hci_register_sysfs(struct hci_dev *hdev);
 void hci_unregister_sysfs(struct hci_dev *hdev);
 
-#define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->class_dev.dev = (pdev))
+#define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->parent = (pdev))
 
 /* ----- LMP capabilities ----- */
-#define lmp_rswitch_capable(dev) (dev->features[0] & LMP_RSWITCH)
-#define lmp_encrypt_capable(dev) (dev->features[0] & LMP_ENCRYPT)
+#define lmp_rswitch_capable(dev)   ((dev)->features[0] & LMP_RSWITCH)
+#define lmp_encrypt_capable(dev)   ((dev)->features[0] & LMP_ENCRYPT)
+#define lmp_sniff_capable(dev)     ((dev)->features[0] & LMP_SNIFF)
+#define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
 
 /* ----- HCI protocols ----- */
 struct hci_proto {

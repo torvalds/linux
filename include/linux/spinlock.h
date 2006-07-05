@@ -82,14 +82,40 @@ extern int __lockfunc generic__raw_read_trylock(raw_rwlock_t *lock);
 /*
  * Pull the __raw*() functions/declarations (UP-nondebug doesnt need them):
  */
-#if defined(CONFIG_SMP)
+#ifdef CONFIG_SMP
 # include <asm/spinlock.h>
 #else
 # include <linux/spinlock_up.h>
 #endif
 
-#define spin_lock_init(lock)	do { *(lock) = SPIN_LOCK_UNLOCKED; } while (0)
-#define rwlock_init(lock)	do { *(lock) = RW_LOCK_UNLOCKED; } while (0)
+#ifdef CONFIG_DEBUG_SPINLOCK
+  extern void __spin_lock_init(spinlock_t *lock, const char *name,
+			       struct lock_class_key *key);
+# define spin_lock_init(lock)					\
+do {								\
+	static struct lock_class_key __key;			\
+								\
+	__spin_lock_init((lock), #lock, &__key);		\
+} while (0)
+
+#else
+# define spin_lock_init(lock)					\
+	do { *(lock) = SPIN_LOCK_UNLOCKED; } while (0)
+#endif
+
+#ifdef CONFIG_DEBUG_SPINLOCK
+  extern void __rwlock_init(rwlock_t *lock, const char *name,
+			    struct lock_class_key *key);
+# define rwlock_init(lock)					\
+do {								\
+	static struct lock_class_key __key;			\
+								\
+	__rwlock_init((lock), #lock, &__key);			\
+} while (0)
+#else
+# define rwlock_init(lock)					\
+	do { *(lock) = RW_LOCK_UNLOCKED; } while (0)
+#endif
 
 #define spin_is_locked(lock)	__raw_spin_is_locked(&(lock)->raw_lock)
 
@@ -113,7 +139,6 @@ extern int __lockfunc generic__raw_read_trylock(raw_rwlock_t *lock);
 #define _raw_spin_lock_flags(lock, flags) _raw_spin_lock(lock)
  extern int _raw_spin_trylock(spinlock_t *lock);
  extern void _raw_spin_unlock(spinlock_t *lock);
-
  extern void _raw_read_lock(rwlock_t *lock);
  extern int _raw_read_trylock(rwlock_t *lock);
  extern void _raw_read_unlock(rwlock_t *lock);
@@ -121,17 +146,17 @@ extern int __lockfunc generic__raw_read_trylock(raw_rwlock_t *lock);
  extern int _raw_write_trylock(rwlock_t *lock);
  extern void _raw_write_unlock(rwlock_t *lock);
 #else
-# define _raw_spin_unlock(lock)		__raw_spin_unlock(&(lock)->raw_lock)
-# define _raw_spin_trylock(lock)	__raw_spin_trylock(&(lock)->raw_lock)
 # define _raw_spin_lock(lock)		__raw_spin_lock(&(lock)->raw_lock)
 # define _raw_spin_lock_flags(lock, flags) \
 		__raw_spin_lock_flags(&(lock)->raw_lock, *(flags))
+# define _raw_spin_trylock(lock)	__raw_spin_trylock(&(lock)->raw_lock)
+# define _raw_spin_unlock(lock)		__raw_spin_unlock(&(lock)->raw_lock)
 # define _raw_read_lock(rwlock)		__raw_read_lock(&(rwlock)->raw_lock)
-# define _raw_write_lock(rwlock)	__raw_write_lock(&(rwlock)->raw_lock)
-# define _raw_read_unlock(rwlock)	__raw_read_unlock(&(rwlock)->raw_lock)
-# define _raw_write_unlock(rwlock)	__raw_write_unlock(&(rwlock)->raw_lock)
 # define _raw_read_trylock(rwlock)	__raw_read_trylock(&(rwlock)->raw_lock)
+# define _raw_read_unlock(rwlock)	__raw_read_unlock(&(rwlock)->raw_lock)
+# define _raw_write_lock(rwlock)	__raw_write_lock(&(rwlock)->raw_lock)
 # define _raw_write_trylock(rwlock)	__raw_write_trylock(&(rwlock)->raw_lock)
+# define _raw_write_unlock(rwlock)	__raw_write_unlock(&(rwlock)->raw_lock)
 #endif
 
 #define read_can_lock(rwlock)		__raw_read_can_lock(&(rwlock)->raw_lock)
@@ -147,6 +172,13 @@ extern int __lockfunc generic__raw_read_trylock(raw_rwlock_t *lock);
 #define write_trylock(lock)		__cond_lock(_write_trylock(lock))
 
 #define spin_lock(lock)			_spin_lock(lock)
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+# define spin_lock_nested(lock, subclass) _spin_lock_nested(lock, subclass)
+#else
+# define spin_lock_nested(lock, subclass) _spin_lock(lock)
+#endif
+
 #define write_lock(lock)		_write_lock(lock)
 #define read_lock(lock)			_read_lock(lock)
 
@@ -172,21 +204,18 @@ extern int __lockfunc generic__raw_read_trylock(raw_rwlock_t *lock);
 /*
  * We inline the unlock functions in the nondebug case:
  */
-#if defined(CONFIG_DEBUG_SPINLOCK) || defined(CONFIG_PREEMPT) || !defined(CONFIG_SMP)
+#if defined(CONFIG_DEBUG_SPINLOCK) || defined(CONFIG_PREEMPT) || \
+	!defined(CONFIG_SMP)
 # define spin_unlock(lock)		_spin_unlock(lock)
 # define read_unlock(lock)		_read_unlock(lock)
 # define write_unlock(lock)		_write_unlock(lock)
-#else
-# define spin_unlock(lock)		__raw_spin_unlock(&(lock)->raw_lock)
-# define read_unlock(lock)		__raw_read_unlock(&(lock)->raw_lock)
-# define write_unlock(lock)		__raw_write_unlock(&(lock)->raw_lock)
-#endif
-
-#if defined(CONFIG_DEBUG_SPINLOCK) || defined(CONFIG_PREEMPT) || !defined(CONFIG_SMP)
 # define spin_unlock_irq(lock)		_spin_unlock_irq(lock)
 # define read_unlock_irq(lock)		_read_unlock_irq(lock)
 # define write_unlock_irq(lock)		_write_unlock_irq(lock)
 #else
+# define spin_unlock(lock)		__raw_spin_unlock(&(lock)->raw_lock)
+# define read_unlock(lock)		__raw_read_unlock(&(lock)->raw_lock)
+# define write_unlock(lock)		__raw_write_unlock(&(lock)->raw_lock)
 # define spin_unlock_irq(lock) \
     do { __raw_spin_unlock(&(lock)->raw_lock); local_irq_enable(); } while (0)
 # define read_unlock_irq(lock) \

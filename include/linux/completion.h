@@ -21,6 +21,18 @@ struct completion {
 #define DECLARE_COMPLETION(work) \
 	struct completion work = COMPLETION_INITIALIZER(work)
 
+/*
+ * Lockdep needs to run a non-constant initializer for on-stack
+ * completions - so we use the _ONSTACK() variant for those that
+ * are on the kernel stack:
+ */
+#ifdef CONFIG_LOCKDEP
+# define DECLARE_COMPLETION_ONSTACK(work) \
+	struct completion work = ({ init_completion(&work); work; })
+#else
+# define DECLARE_COMPLETION_ONSTACK(work) DECLARE_COMPLETION(work)
+#endif
+
 static inline void init_completion(struct completion *x)
 {
 	x->done = 0;

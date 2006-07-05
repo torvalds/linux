@@ -347,7 +347,7 @@ scdrv_poll(struct file *file, struct poll_table_struct *wait)
 	return mask;
 }
 
-static struct file_operations scdrv_fops = {
+static const struct file_operations scdrv_fops = {
 	.owner =	THIS_MODULE,
 	.read =		scdrv_read,
 	.write =	scdrv_write,

@@ -739,7 +739,7 @@ static unsigned int pp_poll (struct file * file, poll_table * wait)
 
 static struct class *ppdev_class;
 
-static struct file_operations pp_fops = {
+static const struct file_operations pp_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= pp_read,

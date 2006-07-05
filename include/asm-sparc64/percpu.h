@@ -11,6 +11,7 @@ extern unsigned long __per_cpu_base;
 extern unsigned long __per_cpu_shift;
 #define __per_cpu_offset(__cpu) \
 	(__per_cpu_base + ((unsigned long)(__cpu) << __per_cpu_shift))
+#define per_cpu_offset(x) (__per_cpu_offset(x))
 
 /* Separate out the type, so (int[3], foo) works. */
 #define DEFINE_PER_CPU(type, name) \

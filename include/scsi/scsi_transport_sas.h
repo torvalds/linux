@@ -3,6 +3,7 @@
 
 #include <linux/transport_class.h>
 #include <linux/types.h>
+#include <linux/mutex.h>
 
 struct scsi_transport_template;
 struct sas_rphy;
@@ -55,7 +56,6 @@ struct sas_phy {
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate_hw;
 	enum sas_linkrate	maximum_linkrate;
-	u8			port_identifier;
 
 	/* internal state */
 	unsigned int		local_attached : 1;
@@ -66,8 +66,8 @@ struct sas_phy {
 	u32			loss_of_dword_sync_count;
 	u32			phy_reset_problem_count;
 
-	/* the other end of the link */
-	struct sas_rphy		*rphy;
+	/* for the list of phys belonging to a port */
+	struct list_head	port_siblings;
 };
 
 #define dev_to_phy(d) \
@@ -124,6 +124,24 @@ struct sas_expander_device {
 #define rphy_to_expander_device(r) \
 	container_of((r), struct sas_expander_device, rphy)
 
+struct sas_port {
+	struct device		dev;
+
+	u8			port_identifier;
+	int			num_phys;
+
+	/* the other end of the link */
+	struct sas_rphy		*rphy;
+
+	struct mutex		phy_list_mutex;
+	struct list_head	phy_list;
+};
+
+#define dev_to_sas_port(d) \
+	container_of((d), struct sas_port, dev)
+#define transport_class_to_sas_port(cdev) \
+	dev_to_sas_port((cdev)->dev)
+
 /* The functions by which the transport class and the driver communicate */
 struct sas_function_template {
 	int (*get_linkerrors)(struct sas_phy *);
@@ -133,6 +151,7 @@ struct sas_function_template {
 };
 
 
+void sas_remove_children(struct device *);
 extern void sas_remove_host(struct Scsi_Host *);
 
 extern struct sas_phy *sas_phy_alloc(struct device *, int);
@@ -141,12 +160,20 @@ extern int sas_phy_add(struct sas_phy *);
 extern void sas_phy_delete(struct sas_phy *);
 extern int scsi_is_sas_phy(const struct device *);
 
-extern struct sas_rphy *sas_end_device_alloc(struct sas_phy *);
-extern struct sas_rphy *sas_expander_alloc(struct sas_phy *, enum sas_device_type);
+extern struct sas_rphy *sas_end_device_alloc(struct sas_port *);
+extern struct sas_rphy *sas_expander_alloc(struct sas_port *, enum sas_device_type);
 void sas_rphy_free(struct sas_rphy *);
 extern int sas_rphy_add(struct sas_rphy *);
 extern void sas_rphy_delete(struct sas_rphy *);
 extern int scsi_is_sas_rphy(const struct device *);
+
+struct sas_port *sas_port_alloc(struct device *, int);
+int sas_port_add(struct sas_port *);
+void sas_port_free(struct sas_port *);
+void sas_port_delete(struct sas_port *);
+void sas_port_add_phy(struct sas_port *, struct sas_phy *);
+void sas_port_delete_phy(struct sas_port *, struct sas_phy *);
+int scsi_is_sas_port(const struct device *);
 
 extern struct scsi_transport_template *
 sas_attach_transport(struct sas_function_template *);

@@ -20,6 +20,8 @@ int in_lock_functions(unsigned long addr);
 #define assert_spin_locked(x)	BUG_ON(!spin_is_locked(x))
 
 void __lockfunc _spin_lock(spinlock_t *lock)		__acquires(spinlock_t);
+void __lockfunc _spin_lock_nested(spinlock_t *lock, int subclass)
+							__acquires(spinlock_t);
 void __lockfunc _read_lock(rwlock_t *lock)		__acquires(rwlock_t);
 void __lockfunc _write_lock(rwlock_t *lock)		__acquires(rwlock_t);
 void __lockfunc _spin_lock_bh(spinlock_t *lock)		__acquires(spinlock_t);

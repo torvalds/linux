@@ -436,6 +436,21 @@ struct block_device {
 };
 
 /*
+ * bdev->bd_mutex nesting subclasses for the lock validator:
+ *
+ * 0: normal
+ * 1: 'whole'
+ * 2: 'partition'
+ */
+enum bdev_bd_mutex_lock_class
+{
+	BD_MUTEX_NORMAL,
+	BD_MUTEX_WHOLE,
+	BD_MUTEX_PARTITION
+};
+
+
+/*
  * Radix-tree tags, for tagging dirty and writeback pages within the pagecache
  * radix trees
  */
@@ -540,6 +555,25 @@ struct inode {
 #ifdef __NEED_I_SIZE_ORDERED
 	seqcount_t		i_size_seqcount;
 #endif
+};
+
+/*
+ * inode->i_mutex nesting subclasses for the lock validator:
+ *
+ * 0: the object of the current VFS operation
+ * 1: parent
+ * 2: child/target
+ * 3: quota file
+ *
+ * The locking order between these classes is
+ * parent -> child -> normal -> quota
+ */
+enum inode_i_mutex_lock_class
+{
+	I_MUTEX_NORMAL,
+	I_MUTEX_PARENT,
+	I_MUTEX_CHILD,
+	I_MUTEX_QUOTA
 };
 
 /*
@@ -1276,6 +1310,8 @@ struct file_system_type {
 	struct module *owner;
 	struct file_system_type * next;
 	struct list_head fs_supers;
+	struct lock_class_key s_lock_key;
+	struct lock_class_key s_umount_key;
 };
 
 extern int get_sb_bdev(struct file_system_type *fs_type,
@@ -1404,6 +1440,7 @@ extern void bd_set_size(struct block_device *, loff_t size);
 extern void bd_forget(struct inode *inode);
 extern void bdput(struct block_device *);
 extern struct block_device *open_by_devnum(dev_t, unsigned);
+extern struct block_device *open_partition_by_devnum(dev_t, unsigned);
 extern const struct file_operations def_blk_fops;
 extern const struct address_space_operations def_blk_aops;
 extern const struct file_operations def_chr_fops;
@@ -1414,6 +1451,7 @@ extern int blkdev_ioctl(struct inode *, struct file *, unsigned, unsigned long);
 extern long compat_blkdev_ioctl(struct file *, unsigned, unsigned long);
 extern int blkdev_get(struct block_device *, mode_t, unsigned);
 extern int blkdev_put(struct block_device *);
+extern int blkdev_put_partition(struct block_device *);
 extern int bd_claim(struct block_device *, void *);
 extern void bd_release(struct block_device *);
 #ifdef CONFIG_SYSFS

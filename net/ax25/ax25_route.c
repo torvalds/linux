@@ -41,8 +41,6 @@
 static ax25_route *ax25_route_list;
 static DEFINE_RWLOCK(ax25_route_lock);
 
-static ax25_route *ax25_get_route(ax25_address *, struct net_device *);
-
 void ax25_rt_device_down(struct net_device *dev)
 {
 	ax25_route *s, *t, *ax25_rt;
@@ -115,7 +113,7 @@ static int ax25_rt_add(struct ax25_routes_struct *route)
 		return -ENOMEM;
 	}
 
-	atomic_set(&ax25_rt->ref, 0);
+	atomic_set(&ax25_rt->refcount, 1);
 	ax25_rt->callsign     = route->dest_addr;
 	ax25_rt->dev          = ax25_dev->dev;
 	ax25_rt->digipeat     = NULL;
@@ -140,23 +138,10 @@ static int ax25_rt_add(struct ax25_routes_struct *route)
 	return 0;
 }
 
-static void ax25_rt_destroy(ax25_route *ax25_rt)
+void __ax25_put_route(ax25_route *ax25_rt)
 {
-	if (atomic_read(&ax25_rt->ref) == 0) {
-		kfree(ax25_rt->digipeat);
-		kfree(ax25_rt);
-		return;
-	}
-
-	/*
-	 * Uh...  Route is still in use; we can't yet destroy it.  Retry later.
-	 */
-	init_timer(&ax25_rt->timer);
-	ax25_rt->timer.data	= (unsigned long) ax25_rt;
-	ax25_rt->timer.function	= (void *) ax25_rt_destroy;
-	ax25_rt->timer.expires	= jiffies + 5 * HZ;
-
-	add_timer(&ax25_rt->timer);
+	kfree(ax25_rt->digipeat);
+	kfree(ax25_rt);
 }
 
 static int ax25_rt_del(struct ax25_routes_struct *route)
@@ -177,12 +162,12 @@ static int ax25_rt_del(struct ax25_routes_struct *route)
 		    ax25cmp(&route->dest_addr, &s->callsign) == 0) {
 			if (ax25_route_list == s) {
 				ax25_route_list = s->next;
-				ax25_rt_destroy(s);
+				ax25_put_route(s);
 			} else {
 				for (t = ax25_route_list; t != NULL; t = t->next) {
 					if (t->next == s) {
 						t->next = s->next;
-						ax25_rt_destroy(s);
+						ax25_put_route(s);
 						break;
 					}
 				}
@@ -362,7 +347,7 @@ struct file_operations ax25_route_fops = {
  *
  *	Only routes with a reference count of zero can be destroyed.
  */
-static ax25_route *ax25_get_route(ax25_address *addr, struct net_device *dev)
+ax25_route *ax25_get_route(ax25_address *addr, struct net_device *dev)
 {
 	ax25_route *ax25_spe_rt = NULL;
 	ax25_route *ax25_def_rt = NULL;
@@ -392,7 +377,7 @@ static ax25_route *ax25_get_route(ax25_address *addr, struct net_device *dev)
 		ax25_rt = ax25_spe_rt;
 
 	if (ax25_rt != NULL)
-		atomic_inc(&ax25_rt->ref);
+		ax25_hold_route(ax25_rt);
 
 	read_unlock(&ax25_route_lock);
 
@@ -465,24 +450,6 @@ put:
 	ax25_put_route(ax25_rt);
 
 	return 0;
-}
-
-ax25_route *ax25_rt_find_route(ax25_route * route, ax25_address *addr,
-	struct net_device *dev)
-{
-	ax25_route *ax25_rt;
-
-	if ((ax25_rt = ax25_get_route(addr, dev)))
-		return ax25_rt;
-
-	route->next     = NULL;
-	atomic_set(&route->ref, 1);
-	route->callsign = *addr;
-	route->dev      = dev;
-	route->digipeat = NULL;
-	route->ip_mode  = ' ';
-
-	return route;
 }
 
 struct sk_buff *ax25_rt_build_path(struct sk_buff *skb, ax25_address *src,

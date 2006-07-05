@@ -112,12 +112,7 @@ static struct device_node *get_gpio(char *name,
 
 static void get_irq(struct device_node * np, int *irqptr)
 {
-	*irqptr = -1;
-	if (!np)
-		return;
-	if (np->n_intrs != 1)
-		return;
-	*irqptr = np->intrs[0].line;
+	*irqptr = irq_of_parse_and_map(np, 0);
 }
 
 /* 0x4 is outenable, 0x1 is out, thus 4 or 5 */

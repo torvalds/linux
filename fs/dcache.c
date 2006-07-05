@@ -38,7 +38,7 @@ int sysctl_vfs_cache_pressure __read_mostly = 100;
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
 
  __cacheline_aligned_in_smp DEFINE_SPINLOCK(dcache_lock);
-static seqlock_t rename_lock __cacheline_aligned_in_smp = SEQLOCK_UNLOCKED;
+static __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
 
 EXPORT_SYMBOL(dcache_lock);
 
@@ -1339,10 +1339,10 @@ void d_move(struct dentry * dentry, struct dentry * target)
 	 */
 	if (target < dentry) {
 		spin_lock(&target->d_lock);
-		spin_lock(&dentry->d_lock);
+		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 	} else {
 		spin_lock(&dentry->d_lock);
-		spin_lock(&target->d_lock);
+		spin_lock_nested(&target->d_lock, DENTRY_D_LOCK_NESTED);
 	}
 
 	/* Move the dentry to the target hash queue, if on different bucket */

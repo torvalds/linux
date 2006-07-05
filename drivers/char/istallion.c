@@ -748,7 +748,7 @@ static int	stli_initpcibrd(int brdtype, struct pci_dev *devp);
  *	will give access to the shared memory on the Stallion intelligent
  *	board. This is also a very useful debugging tool.
  */
-static struct file_operations	stli_fsiomem = {
+static const struct file_operations	stli_fsiomem = {
 	.owner		= THIS_MODULE,
 	.read		= stli_memread,
 	.write		= stli_memwrite,

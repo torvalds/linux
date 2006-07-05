@@ -330,6 +330,8 @@ void __vunmap(void *addr, int deallocate_pages)
 		return;
 	}
 
+	debug_check_no_locks_freed(addr, area->size);
+
 	if (deallocate_pages) {
 		int i;
 

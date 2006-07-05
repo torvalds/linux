@@ -205,21 +205,27 @@ __u8 ip_tos2prio[16] = {
 struct rt_hash_bucket {
 	struct rtable	*chain;
 };
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK) || \
+	defined(CONFIG_PROVE_LOCKING)
 /*
  * Instead of using one spinlock for each rt_hash_bucket, we use a table of spinlocks
  * The size of this table is a power of two and depends on the number of CPUS.
+ * (on lockdep we have a quite big spinlock_t, so keep the size down there)
  */
-#if NR_CPUS >= 32
-#define RT_HASH_LOCK_SZ	4096
-#elif NR_CPUS >= 16
-#define RT_HASH_LOCK_SZ	2048
-#elif NR_CPUS >= 8
-#define RT_HASH_LOCK_SZ	1024
-#elif NR_CPUS >= 4
-#define RT_HASH_LOCK_SZ	512
+#ifdef CONFIG_LOCKDEP
+# define RT_HASH_LOCK_SZ	256
 #else
-#define RT_HASH_LOCK_SZ	256
+# if NR_CPUS >= 32
+#  define RT_HASH_LOCK_SZ	4096
+# elif NR_CPUS >= 16
+#  define RT_HASH_LOCK_SZ	2048
+# elif NR_CPUS >= 8
+#  define RT_HASH_LOCK_SZ	1024
+# elif NR_CPUS >= 4
+#  define RT_HASH_LOCK_SZ	512
+# else
+#  define RT_HASH_LOCK_SZ	256
+# endif
 #endif
 
 static spinlock_t	*rt_hash_locks;

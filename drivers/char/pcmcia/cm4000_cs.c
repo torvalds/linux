@@ -1938,7 +1938,7 @@ static void cm4000_detach(struct pcmcia_device *link)
 	return;
 }
 
-static struct file_operations cm4000_fops = {
+static const struct file_operations cm4000_fops = {
 	.owner	= THIS_MODULE,
 	.read	= cmm_read,
 	.write	= cmm_write,

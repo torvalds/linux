@@ -129,7 +129,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 	if (strncmp(np->name, "i2s-", 4))
 		return 0;
 
-	if (np->n_intrs != 3)
+	if (macio_irq_count(macio) != 3)
 		return 0;
 
 	dev = kzalloc(sizeof(struct i2sbus_dev), GFP_KERNEL);
@@ -183,9 +183,10 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		snprintf(dev->rnames[i], sizeof(dev->rnames[i]), rnames[i], np->name);
 	}
 	for (i=0;i<3;i++) {
-		if (request_irq(np->intrs[i].line, ints[i], 0, dev->rnames[i], dev))
+		if (request_irq(macio_irq(macio, i), ints[i], 0,
+				dev->rnames[i], dev))
 			goto err;
-		dev->interrupts[i] = np->intrs[i].line;
+		dev->interrupts[i] = macio_irq(macio, i);
 	}
 
 	for (i=0;i<3;i++) {

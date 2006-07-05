@@ -297,7 +297,10 @@ static inline struct tipc_msg *buf_msg(struct sk_buff *skb)
  * buf_acquire - creates a TIPC message buffer
  * @size: message size (including TIPC header)
  *
- * Returns a new buffer.  Space is reserved for a data link header.
+ * Returns a new buffer with data pointers set to the specified size.
+ * 
+ * NOTE: Headroom is reserved to allow prepending of a data link header.
+ *       There may also be unrequested tailroom present at the buffer's end.
  */
 
 static inline struct sk_buff *buf_acquire(u32 size)

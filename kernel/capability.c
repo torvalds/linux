@@ -46,7 +46,7 @@ asmlinkage long sys_capget(cap_user_header_t header, cap_user_data_t dataptr)
      int ret = 0;
      pid_t pid;
      __u32 version;
-     task_t *target;
+     struct task_struct *target;
      struct __user_cap_data_struct data;
 
      if (get_user(version, &header->version))
@@ -96,7 +96,7 @@ static inline int cap_set_pg(int pgrp, kernel_cap_t *effective,
 			      kernel_cap_t *inheritable,
 			      kernel_cap_t *permitted)
 {
-	task_t *g, *target;
+	struct task_struct *g, *target;
 	int ret = -EPERM;
 	int found = 0;
 
@@ -128,7 +128,7 @@ static inline int cap_set_all(kernel_cap_t *effective,
 			       kernel_cap_t *inheritable,
 			       kernel_cap_t *permitted)
 {
-     task_t *g, *target;
+     struct task_struct *g, *target;
      int ret = -EPERM;
      int found = 0;
 
@@ -172,7 +172,7 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 {
      kernel_cap_t inheritable, permitted, effective;
      __u32 version;
-     task_t *target;
+     struct task_struct *target;
      int ret;
      pid_t pid;
 

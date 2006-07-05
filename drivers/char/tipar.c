@@ -381,7 +381,7 @@ tipar_ioctl(struct inode *inode, struct file *file,
 
 /* ----- kernel module registering ------------------------------------ */
 
-static struct file_operations tipar_fops = {
+static const struct file_operations tipar_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.read = tipar_read,

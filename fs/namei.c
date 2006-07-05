@@ -1423,7 +1423,7 @@ struct dentry *lock_rename(struct dentry *p1, struct dentry *p2)
 	struct dentry *p;
 
 	if (p1 == p2) {
-		mutex_lock(&p1->d_inode->i_mutex);
+		mutex_lock_nested(&p1->d_inode->i_mutex, I_MUTEX_PARENT);
 		return NULL;
 	}
 
@@ -1431,22 +1431,22 @@ struct dentry *lock_rename(struct dentry *p1, struct dentry *p2)
 
 	for (p = p1; p->d_parent != p; p = p->d_parent) {
 		if (p->d_parent == p2) {
-			mutex_lock(&p2->d_inode->i_mutex);
-			mutex_lock(&p1->d_inode->i_mutex);
+			mutex_lock_nested(&p2->d_inode->i_mutex, I_MUTEX_PARENT);
+			mutex_lock_nested(&p1->d_inode->i_mutex, I_MUTEX_CHILD);
 			return p;
 		}
 	}
 
 	for (p = p2; p->d_parent != p; p = p->d_parent) {
 		if (p->d_parent == p1) {
-			mutex_lock(&p1->d_inode->i_mutex);
-			mutex_lock(&p2->d_inode->i_mutex);
+			mutex_lock_nested(&p1->d_inode->i_mutex, I_MUTEX_PARENT);
+			mutex_lock_nested(&p2->d_inode->i_mutex, I_MUTEX_CHILD);
 			return p;
 		}
 	}
 
-	mutex_lock(&p1->d_inode->i_mutex);
-	mutex_lock(&p2->d_inode->i_mutex);
+	mutex_lock_nested(&p1->d_inode->i_mutex, I_MUTEX_PARENT);
+	mutex_lock_nested(&p2->d_inode->i_mutex, I_MUTEX_CHILD);
 	return NULL;
 }
 
@@ -1751,7 +1751,7 @@ struct dentry *lookup_create(struct nameidata *nd, int is_dir)
 {
 	struct dentry *dentry = ERR_PTR(-EEXIST);
 
-	mutex_lock(&nd->dentry->d_inode->i_mutex);
+	mutex_lock_nested(&nd->dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	/*
 	 * Yucky last component or no last component at all?
 	 * (foo/., foo/.., /////)
@@ -2008,7 +2008,7 @@ static long do_rmdir(int dfd, const char __user *pathname)
 			error = -EBUSY;
 			goto exit1;
 	}
-	mutex_lock(&nd.dentry->d_inode->i_mutex);
+	mutex_lock_nested(&nd.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
@@ -2082,7 +2082,7 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 	error = -EISDIR;
 	if (nd.last_type != LAST_NORM)
 		goto exit1;
-	mutex_lock(&nd.dentry->d_inode->i_mutex);
+	mutex_lock_nested(&nd.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {

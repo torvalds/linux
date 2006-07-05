@@ -465,7 +465,7 @@ vcs_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations vcs_fops = {
+static const struct file_operations vcs_fops = {
 	.llseek		= vcs_lseek,
 	.read		= vcs_read,
 	.write		= vcs_write,

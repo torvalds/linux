@@ -807,7 +807,7 @@ static int ipmi_close(struct inode *ino, struct file *filep)
 	return 0;
 }
 
-static struct file_operations ipmi_wdog_fops = {
+static const struct file_operations ipmi_wdog_fops = {
 	.owner   = THIS_MODULE,
 	.read    = ipmi_read,
 	.poll    = ipmi_poll,

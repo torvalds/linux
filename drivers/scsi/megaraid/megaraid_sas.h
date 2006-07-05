@@ -18,9 +18,16 @@
 /**
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.02.04"
-#define MEGASAS_RELDATE				"Feb 03, 2006"
-#define MEGASAS_EXT_VERSION			"Fri Feb 03 14:31:44 PST 2006"
+#define MEGASAS_VERSION				"00.00.03.01"
+#define MEGASAS_RELDATE				"May 14, 2006"
+#define MEGASAS_EXT_VERSION			"Sun May 14 22:49:52 PDT 2006"
+
+/*
+ * Device IDs
+ */
+#define	PCI_DEVICE_ID_LSI_SAS1078R		0x0060
+#define	PCI_DEVICE_ID_LSI_VERDE_ZCR		0x0413
+
 /*
  * =====================================
  * MegaRAID SAS MFI firmware definitions
@@ -554,7 +561,11 @@ struct megasas_ctrl_info {
 #define MFI_POLL_TIMEOUT_SECS			10
 
 #define MFI_REPLY_1078_MESSAGE_INTERRUPT	0x80000000
-#define PCI_DEVICE_ID_LSI_SAS1078R		0x00000060
+
+/*
+* register set for both 1068 and 1078 controllers
+* structure extended for 1078 registers
+*/
  
 struct megasas_register_set {
 	u32 	reserved_0[4];			/*0000h*/
@@ -1150,10 +1161,10 @@ struct compat_megasas_iocpacket {
 	struct compat_iovec sgl[MAX_IOCTL_SGE];
 } __attribute__ ((packed));
 
+#define MEGASAS_IOC_FIRMWARE32	_IOWR('M', 1, struct compat_megasas_iocpacket)
 #endif
 
 #define MEGASAS_IOC_FIRMWARE	_IOWR('M', 1, struct megasas_iocpacket)
-#define MEGASAS_IOC_FIRMWARE32	_IOWR('M', 1, struct compat_megasas_iocpacket)
 #define MEGASAS_IOC_GET_AEN	_IOW('M', 3, struct megasas_aen)
 
 struct megasas_mgmt_info {

@@ -58,7 +58,7 @@ static struct acpi_driver acpi_pci_root_driver = {
 
 struct acpi_pci_root {
 	struct list_head node;
-	acpi_handle handle;
+	struct acpi_device * device;
 	struct acpi_pci_id id;
 	struct pci_bus *bus;
 };
@@ -83,7 +83,7 @@ int acpi_pci_register_driver(struct acpi_pci_driver *driver)
 	list_for_each(entry, &acpi_pci_roots) {
 		struct acpi_pci_root *root;
 		root = list_entry(entry, struct acpi_pci_root, node);
-		driver->add(root->handle);
+		driver->add(root->device->handle);
 		n++;
 	}
 
@@ -110,7 +110,7 @@ void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 	list_for_each(entry, &acpi_pci_roots) {
 		struct acpi_pci_root *root;
 		root = list_entry(entry, struct acpi_pci_root, node);
-		driver->remove(root->handle);
+		driver->remove(root->device->handle);
 	}
 }
 
@@ -170,7 +170,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	memset(root, 0, sizeof(struct acpi_pci_root));
 	INIT_LIST_HEAD(&root->node);
 
-	root->handle = device->handle;
+	root->device = device;
 	strcpy(acpi_device_name(device), ACPI_PCI_ROOT_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	acpi_driver_data(device) = root;
@@ -185,7 +185,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	 * -------
 	 * Obtained via _SEG, if exists, otherwise assumed to be zero (0).
 	 */
-	status = acpi_evaluate_integer(root->handle, METHOD_NAME__SEG, NULL,
+	status = acpi_evaluate_integer(device->handle, METHOD_NAME__SEG, NULL,
 				       &value);
 	switch (status) {
 	case AE_OK:
@@ -207,7 +207,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	 * ---
 	 * Obtained via _BBN, if exists, otherwise assumed to be zero (0).
 	 */
-	status = acpi_evaluate_integer(root->handle, METHOD_NAME__BBN, NULL,
+	status = acpi_evaluate_integer(device->handle, METHOD_NAME__BBN, NULL,
 				       &value);
 	switch (status) {
 	case AE_OK:
@@ -234,7 +234,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 				    "Wrong _BBN value, reboot"
 				    " and use option 'pci=noacpi'\n");
 
-			status = try_get_root_bridge_busnr(root->handle, &bus);
+			status = try_get_root_bridge_busnr(device->handle, &bus);
 			if (ACPI_FAILURE(status))
 				break;
 			if (bus != root->id.bus) {
@@ -294,9 +294,9 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	 * -----------------
 	 * Evaluate and parse _PRT, if exists.
 	 */
-	status = acpi_get_handle(root->handle, METHOD_NAME__PRT, &handle);
+	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
 	if (ACPI_SUCCESS(status))
-		result = acpi_pci_irq_add_prt(root->handle, root->id.segment,
+		result = acpi_pci_irq_add_prt(device->handle, root->id.segment,
 					      root->id.bus);
 
       end:
@@ -315,7 +315,7 @@ static int acpi_pci_root_start(struct acpi_device *device)
 
 
 	list_for_each_entry(root, &acpi_pci_roots, node) {
-		if (root->handle == device->handle) {
+		if (root->device == device) {
 			pci_bus_add_devices(root->bus);
 			return 0;
 		}

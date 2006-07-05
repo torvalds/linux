@@ -35,6 +35,7 @@ static char const rcsid[] =
 
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/poison.h>
 #include <linux/skbuff.h>
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
@@ -3657,7 +3658,7 @@ probe_sram(struct idt77252_dev *card)
 	writel(SAR_CMD_WRITE_SRAM | (0 << 2), SAR_REG_CMD);
 
 	for (addr = 0x4000; addr < 0x80000; addr += 0x4000) {
-		writel(0xdeadbeef, SAR_REG_DR0);
+		writel(ATM_POISON, SAR_REG_DR0);
 		writel(SAR_CMD_WRITE_SRAM | (addr << 2), SAR_REG_CMD);
 
 		writel(SAR_CMD_READ_SRAM | (0 << 2), SAR_REG_CMD);

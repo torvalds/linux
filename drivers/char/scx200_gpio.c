@@ -63,7 +63,7 @@ static int scx200_gpio_release(struct inode *inode, struct file *file)
 }
 
 
-static struct file_operations scx200_gpio_fops = {
+static const struct file_operations scx200_gpio_fops = {
 	.owner   = THIS_MODULE,
 	.write   = nsc_gpio_write,
 	.read    = nsc_gpio_read,

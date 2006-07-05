@@ -30,7 +30,7 @@ struct raw_device_data {
 static struct class *raw_class;
 static struct raw_device_data raw_devices[MAX_RAW_MINORS];
 static DEFINE_MUTEX(raw_mutex);
-static struct file_operations raw_ctl_fops;	     /* forward declaration */
+static const struct file_operations raw_ctl_fops; /* forward declaration */
 
 /*
  * Open/close code for raw IO.
@@ -261,7 +261,7 @@ static ssize_t raw_file_aio_write(struct kiocb *iocb, const char __user *buf,
 }
 
 
-static struct file_operations raw_fops = {
+static const struct file_operations raw_fops = {
 	.read	=	generic_file_read,
 	.aio_read = 	generic_file_aio_read,
 	.write	=	raw_file_write,
@@ -274,7 +274,7 @@ static struct file_operations raw_fops = {
 	.owner	=	THIS_MODULE,
 };
 
-static struct file_operations raw_ctl_fops = {
+static const struct file_operations raw_ctl_fops = {
 	.ioctl	=	raw_ctl_ioctl,
 	.open	=	raw_open,
 	.owner	=	THIS_MODULE,

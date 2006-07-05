@@ -177,7 +177,7 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 		return -1;
 	}
 
-	mutex_lock(&ps2dev->cmd_mutex);
+	mutex_lock_nested(&ps2dev->cmd_mutex, SINGLE_DEPTH_NESTING);
 
 	serio_pause_rx(ps2dev->serio);
 	ps2dev->flags = command == PS2_CMD_GETID ? PS2_FLAG_WAITID : 0;

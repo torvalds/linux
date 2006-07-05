@@ -10,9 +10,6 @@
  * Non-debug version.
  */
 
-#define __IP_DECL__
-#define __IP__
-#define __RET_IP__
 #define rt_mutex_deadlock_check(l)			(0)
 #define rt_mutex_deadlock_account_lock(m, t)		do { } while (0)
 #define rt_mutex_deadlock_account_unlock(l)		do { } while (0)

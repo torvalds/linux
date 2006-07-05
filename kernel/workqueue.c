@@ -51,7 +51,7 @@ struct cpu_workqueue_struct {
 	wait_queue_head_t work_done;
 
 	struct workqueue_struct *wq;
-	task_t *thread;
+	struct task_struct *thread;
 
 	int run_depth;		/* Detect run_workqueue() recursion depth */
 } ____cacheline_aligned;
@@ -114,6 +114,7 @@ int fastcall queue_work(struct workqueue_struct *wq, struct work_struct *work)
 	put_cpu();
 	return ret;
 }
+EXPORT_SYMBOL_GPL(queue_work);
 
 static void delayed_work_timer_fn(unsigned long __data)
 {
@@ -147,6 +148,29 @@ int fastcall queue_delayed_work(struct workqueue_struct *wq,
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(queue_delayed_work);
+
+int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
+			struct work_struct *work, unsigned long delay)
+{
+	int ret = 0;
+	struct timer_list *timer = &work->timer;
+
+	if (!test_and_set_bit(0, &work->pending)) {
+		BUG_ON(timer_pending(timer));
+		BUG_ON(!list_empty(&work->entry));
+
+		/* This stores wq for the moment, for the timer_fn */
+		work->wq_data = wq;
+		timer->expires = jiffies + delay;
+		timer->data = (unsigned long)work;
+		timer->function = delayed_work_timer_fn;
+		add_timer_on(timer, cpu);
+		ret = 1;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(queue_delayed_work_on);
 
 static void run_workqueue(struct cpu_workqueue_struct *cwq)
 {
@@ -281,6 +305,7 @@ void fastcall flush_workqueue(struct workqueue_struct *wq)
 		unlock_cpu_hotplug();
 	}
 }
+EXPORT_SYMBOL_GPL(flush_workqueue);
 
 static struct task_struct *create_workqueue_thread(struct workqueue_struct *wq,
 						   int cpu)
@@ -358,6 +383,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	}
 	return wq;
 }
+EXPORT_SYMBOL_GPL(__create_workqueue);
 
 static void cleanup_workqueue_thread(struct workqueue_struct *wq, int cpu)
 {
@@ -395,6 +421,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	free_percpu(wq->cpu_wq);
 	kfree(wq);
 }
+EXPORT_SYMBOL_GPL(destroy_workqueue);
 
 static struct workqueue_struct *keventd_wq;
 
@@ -402,31 +429,20 @@ int fastcall schedule_work(struct work_struct *work)
 {
 	return queue_work(keventd_wq, work);
 }
+EXPORT_SYMBOL(schedule_work);
 
 int fastcall schedule_delayed_work(struct work_struct *work, unsigned long delay)
 {
 	return queue_delayed_work(keventd_wq, work, delay);
 }
+EXPORT_SYMBOL(schedule_delayed_work);
 
 int schedule_delayed_work_on(int cpu,
 			struct work_struct *work, unsigned long delay)
 {
-	int ret = 0;
-	struct timer_list *timer = &work->timer;
-
-	if (!test_and_set_bit(0, &work->pending)) {
-		BUG_ON(timer_pending(timer));
-		BUG_ON(!list_empty(&work->entry));
-		/* This stores keventd_wq for the moment, for the timer_fn */
-		work->wq_data = keventd_wq;
-		timer->expires = jiffies + delay;
-		timer->data = (unsigned long)work;
-		timer->function = delayed_work_timer_fn;
-		add_timer_on(timer, cpu);
-		ret = 1;
-	}
-	return ret;
+	return queue_delayed_work_on(cpu, keventd_wq, work, delay);
 }
+EXPORT_SYMBOL(schedule_delayed_work_on);
 
 /**
  * schedule_on_each_cpu - call a function on each online CPU from keventd
@@ -463,6 +479,7 @@ void flush_scheduled_work(void)
 {
 	flush_workqueue(keventd_wq);
 }
+EXPORT_SYMBOL(flush_scheduled_work);
 
 /**
  * cancel_rearming_delayed_workqueue - reliably kill off a delayed
@@ -619,13 +636,3 @@ void init_workqueues(void)
 	BUG_ON(!keventd_wq);
 }
 
-EXPORT_SYMBOL_GPL(__create_workqueue);
-EXPORT_SYMBOL_GPL(queue_work);
-EXPORT_SYMBOL_GPL(queue_delayed_work);
-EXPORT_SYMBOL_GPL(flush_workqueue);
-EXPORT_SYMBOL_GPL(destroy_workqueue);
-
-EXPORT_SYMBOL(schedule_work);
-EXPORT_SYMBOL(schedule_delayed_work);
-EXPORT_SYMBOL(schedule_delayed_work_on);
-EXPORT_SYMBOL(flush_scheduled_work);

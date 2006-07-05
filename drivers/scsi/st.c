@@ -3599,7 +3599,6 @@ static struct st_buffer *
 	tb->use_sg = max_sg;
 	tb->frp = (struct st_buf_fragment *)(&(tb->sg[0]) + max_sg);
 
-	tb->in_use = 1;
 	tb->dma = need_dma;
 	tb->buffer_size = got;
 

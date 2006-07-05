@@ -2143,7 +2143,7 @@ static int lh7a40x_udc_remove(struct platform_device *pdev)
 
 static struct platform_driver udc_driver = {
 	.probe = lh7a40x_udc_probe,
-	.remove = lh7a40x_udc_remove
+	.remove = lh7a40x_udc_remove,
 	    /* FIXME power management support */
 	    /* .suspend = ... disable UDC */
 	    /* .resume = ... re-enable UDC */

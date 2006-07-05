@@ -1120,6 +1120,7 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	struct snd_pmac *chip;
 	struct device_node *np;
 	int i, err;
+	unsigned int irq;
 	unsigned long ctrl_addr, txdma_addr, rxdma_addr;
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_pmac_dev_free,
@@ -1153,10 +1154,6 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	if (chip->is_k2) {
 		static char *rnames[] = {
 			"Sound Control", "Sound DMA" };
-		if (np->n_intrs < 3) {
-			err = -ENODEV;
-			goto __error;
-		}
 		for (i = 0; i < 2; i ++) {
 			if (of_address_to_resource(np->parent, i,
 						   &chip->rsrc[i])) {
@@ -1185,10 +1182,6 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	} else {
 		static char *rnames[] = {
 			"Sound Control", "Sound Tx DMA", "Sound Rx DMA" };
-		if (np->n_intrs < 3) {
-			err = -ENODEV;
-			goto __error;
-		}
 		for (i = 0; i < 3; i ++) {
 			if (of_address_to_resource(np, i,
 						   &chip->rsrc[i])) {
@@ -1220,28 +1213,30 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	chip->playback.dma = ioremap(txdma_addr, 0x100);
 	chip->capture.dma = ioremap(rxdma_addr, 0x100);
 	if (chip->model <= PMAC_BURGUNDY) {
-		if (request_irq(np->intrs[0].line, snd_pmac_ctrl_intr, 0,
+		irq = irq_of_parse_and_map(np, 0);
+		if (request_irq(irq, snd_pmac_ctrl_intr, 0,
 				"PMac", (void*)chip)) {
-			snd_printk(KERN_ERR "pmac: unable to grab IRQ %d\n", np->intrs[0].line);
+			snd_printk(KERN_ERR "pmac: unable to grab IRQ %d\n",
+				   irq);
 			err = -EBUSY;
 			goto __error;
 		}
-		chip->irq = np->intrs[0].line;
+		chip->irq = irq;
 	}
-	if (request_irq(np->intrs[1].line, snd_pmac_tx_intr, 0,
-			"PMac Output", (void*)chip)) {
-		snd_printk(KERN_ERR "pmac: unable to grab IRQ %d\n", np->intrs[1].line);
+	irq = irq_of_parse_and_map(np, 1);
+	if (request_irq(irq, snd_pmac_tx_intr, 0, "PMac Output", (void*)chip)){
+		snd_printk(KERN_ERR "pmac: unable to grab IRQ %d\n", irq);
 		err = -EBUSY;
 		goto __error;
 	}
-	chip->tx_irq = np->intrs[1].line;
-	if (request_irq(np->intrs[2].line, snd_pmac_rx_intr, 0,
-			"PMac Input", (void*)chip)) {
-		snd_printk(KERN_ERR "pmac: unable to grab IRQ %d\n", np->intrs[2].line);
+	chip->tx_irq = irq;
+	irq = irq_of_parse_and_map(np, 2);
+	if (request_irq(irq, snd_pmac_rx_intr, 0, "PMac Input", (void*)chip)) {
+		snd_printk(KERN_ERR "pmac: unable to grab IRQ %d\n", irq);
 		err = -EBUSY;
 		goto __error;
 	}
-	chip->rx_irq = np->intrs[2].line;
+	chip->rx_irq = irq;
 
 	snd_pmac_sound_feature(chip, 1);
 

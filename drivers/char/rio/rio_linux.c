@@ -243,7 +243,7 @@ static struct real_driver rio_real_driver = {
  *
  */
 
-static struct file_operations rio_fw_fops = {
+static const struct file_operations rio_fw_fops = {
 	.owner = THIS_MODULE,
 	.ioctl = rio_fw_ioctl,
 };

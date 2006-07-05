@@ -1106,7 +1106,7 @@ static int sonypi_misc_ioctl(struct inode *ip, struct file *fp,
 	return ret;
 }
 
-static struct file_operations sonypi_misc_fops = {
+static const struct file_operations sonypi_misc_fops = {
 	.owner		= THIS_MODULE,
 	.read		= sonypi_misc_read,
 	.poll		= sonypi_misc_poll,

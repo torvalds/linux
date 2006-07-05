@@ -49,7 +49,7 @@ static inline int notify_die(enum die_val val, const char *str,
 	return atomic_notifier_call_chain(&die_chain, val, &args);
 } 
 
-extern int printk_address(unsigned long address);
+extern void printk_address(unsigned long address);
 extern void die(const char *,struct pt_regs *,long);
 extern void __die(const char *,struct pt_regs *,long);
 extern void show_registers(struct pt_regs *regs);

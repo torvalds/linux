@@ -1436,9 +1436,9 @@ platforms are moved over to use the flattened-device-tree model.
                interrupts = <1d 3>;
                interrupt-parent = <40000>;
                num-channels = <4>;
-               channel-fifo-len = <24>;
+               channel-fifo-len = <18>;
                exec-units-mask = <000000fe>;
-               descriptor-types-mask = <073f1127>;
+               descriptor-types-mask = <012b0ebf>;
        };
 
 

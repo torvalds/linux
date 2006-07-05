@@ -607,6 +607,22 @@ static int unlock_futex_pi(u32 __user *uaddr, u32 uval)
 }
 
 /*
+ * Express the locking dependencies for lockdep:
+ */
+static inline void
+double_lock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
+{
+	if (hb1 <= hb2) {
+		spin_lock(&hb1->lock);
+		if (hb1 < hb2)
+			spin_lock_nested(&hb2->lock, SINGLE_DEPTH_NESTING);
+	} else { /* hb1 > hb2 */
+		spin_lock(&hb2->lock);
+		spin_lock_nested(&hb1->lock, SINGLE_DEPTH_NESTING);
+	}
+}
+
+/*
  * Wake up all waiters hashed on the physical page that is mapped
  * to this virtual address:
  */
@@ -674,11 +690,7 @@ retryfull:
 	hb2 = hash_futex(&key2);
 
 retry:
-	if (hb1 < hb2)
-		spin_lock(&hb1->lock);
-	spin_lock(&hb2->lock);
-	if (hb1 > hb2)
-		spin_lock(&hb1->lock);
+	double_lock_hb(hb1, hb2);
 
 	op_ret = futex_atomic_op_inuser(op, uaddr2);
 	if (unlikely(op_ret < 0)) {
@@ -787,11 +799,7 @@ static int futex_requeue(u32 __user *uaddr1, u32 __user *uaddr2,
 	hb1 = hash_futex(&key1);
 	hb2 = hash_futex(&key2);
 
-	if (hb1 < hb2)
-		spin_lock(&hb1->lock);
-	spin_lock(&hb2->lock);
-	if (hb1 > hb2)
-		spin_lock(&hb1->lock);
+	double_lock_hb(hb1, hb2);
 
 	if (likely(cmpval != NULL)) {
 		u32 curval;

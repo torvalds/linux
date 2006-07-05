@@ -154,7 +154,7 @@ static int indydog_notify_sys(struct notifier_block *this, unsigned long code, v
 	return NOTIFY_DONE;
 }
 
-static struct file_operations indydog_fops = {
+static const struct file_operations indydog_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= indydog_write,

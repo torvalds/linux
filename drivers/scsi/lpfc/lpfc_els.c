@@ -821,7 +821,7 @@ lpfc_issue_els_plogi(struct lpfc_hba * phba, uint32_t did, uint8_t retry)
 	pring = &psli->ring[LPFC_ELS_RING];	/* ELS ring */
 
 	cmdsize = (sizeof (uint32_t) + sizeof (struct serv_parm));
-	elsiocb = lpfc_prep_els_iocb(phba, 1, cmdsize, retry, 0, did,
+	elsiocb = lpfc_prep_els_iocb(phba, 1, cmdsize, retry, NULL, did,
 								ELS_CMD_PLOGI);
 	if (!elsiocb)
 		return 1;
@@ -2791,8 +2791,8 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 
 	ndlp = (struct lpfc_nodelist *) pmb->context2;
 	xri = (uint16_t) ((unsigned long)(pmb->context1));
-	pmb->context1 = 0;
-	pmb->context2 = 0;
+	pmb->context1 = NULL;
+	pmb->context2 = NULL;
 
 	if (mb->mbxStatus) {
 		mempool_free( pmb, phba->mbox_mem_pool);

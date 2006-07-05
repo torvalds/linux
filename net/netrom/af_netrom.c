@@ -800,7 +800,7 @@ static int nr_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	/* Now attach up the new socket */
 	kfree_skb(skb);
-	sk->sk_ack_backlog--;
+	sk_acceptq_removed(sk);
 	newsock->sk = newsk;
 
 out:
@@ -985,7 +985,7 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	nr_make->vr        = 0;
 	nr_make->vl        = 0;
 	nr_make->state     = NR_STATE_3;
-	sk->sk_ack_backlog++;
+	sk_acceptq_added(sk);
 
 	nr_insert_socket(make);
 

@@ -510,7 +510,7 @@ static void spi_complete(void *arg)
  */
 int spi_sync(struct spi_device *spi, struct spi_message *message)
 {
-	DECLARE_COMPLETION(done);
+	DECLARE_COMPLETION_ONSTACK(done);
 	int status;
 
 	message->complete = spi_complete;

@@ -877,7 +877,7 @@ int rtc_control(rtc_task_t *task, unsigned int cmd, unsigned long arg)
  *	The various file operations we support.
  */
 
-static struct file_operations rtc_fops = {
+static const struct file_operations rtc_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= rtc_read,
@@ -896,7 +896,7 @@ static struct miscdevice rtc_dev = {
 	.fops		= &rtc_fops,
 };
 
-static struct file_operations rtc_proc_fops = {
+static const struct file_operations rtc_proc_fops = {
 	.owner = THIS_MODULE,
 	.open = rtc_proc_open,
 	.read  = seq_read,

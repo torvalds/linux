@@ -29,7 +29,6 @@
 #include <asm/smp.h>
 #include <asm/residual.h>
 #include <asm/time.h>
-#include <asm/open_pic.h>
 #include <asm/machdep.h>
 #include <asm/smp.h>
 #include <asm/mpic.h>

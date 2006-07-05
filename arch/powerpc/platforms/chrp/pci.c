@@ -18,7 +18,6 @@
 #include <asm/machdep.h>
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
-#include <asm/open_pic.h>
 #include <asm/grackle.h>
 #include <asm/rtas.h>
 
@@ -161,15 +160,9 @@ void __init
 chrp_pcibios_fixup(void)
 {
 	struct pci_dev *dev = NULL;
-	struct device_node *np;
 
-	/* PCI interrupts are controlled by the OpenPIC */
-	for_each_pci_dev(dev) {
-		np = pci_device_to_OF_node(dev);
-		if ((np != 0) && (np->n_intrs > 0) && (np->intrs[0].line != 0))
-			dev->irq = np->intrs[0].line;
-		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
-	}
+	for_each_pci_dev(dev)
+		pci_read_irq_line(dev);
 }
 
 #define PRG_CL_RESET_VALID 0x00010000

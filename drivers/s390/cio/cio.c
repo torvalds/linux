@@ -147,7 +147,7 @@ cio_tpi(void)
 		sch->driver->irq(&sch->dev);
 	spin_unlock(&sch->lock);
 	irq_exit ();
-	__local_bh_enable();
+	_local_bh_enable();
 	return 1;
 }
 

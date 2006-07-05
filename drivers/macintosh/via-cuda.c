@@ -34,13 +34,6 @@
 static volatile unsigned char __iomem *via;
 static DEFINE_SPINLOCK(cuda_lock);
 
-#ifdef CONFIG_MAC
-#define CUDA_IRQ IRQ_MAC_ADB
-#define eieio()
-#else
-#define CUDA_IRQ vias->intrs[0].line
-#endif
-
 /* VIA registers - spaced 0x200 bytes apart */
 #define RS		0x200		/* skip between registers */
 #define B		0		/* B-side data */
@@ -189,11 +182,24 @@ int __init find_via_cuda(void)
 
 static int __init via_cuda_start(void)
 {
+    unsigned int irq;
+
     if (via == NULL)
 	return -ENODEV;
 
-    if (request_irq(CUDA_IRQ, cuda_interrupt, 0, "ADB", cuda_interrupt)) {
-	printk(KERN_ERR "cuda_init: can't get irq %d\n", CUDA_IRQ);
+#ifdef CONFIG_MAC
+    irq = IRQ_MAC_ADB;
+#else /* CONFIG_MAC */
+    irq = irq_of_parse_and_map(vias, 0);
+    if (irq == NO_IRQ) {
+	printk(KERN_ERR "via-cuda: can't map interrupts for %s\n",
+	       vias->full_name);
+	return -ENODEV;
+    }
+#endif /* CONFIG_MAP */
+
+    if (request_irq(irq, cuda_interrupt, 0, "ADB", cuda_interrupt)) {
+	printk(KERN_ERR "via-cuda: can't request irq %d\n", irq);
 	return -EAGAIN;
     }
 

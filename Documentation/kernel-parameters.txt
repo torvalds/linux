@@ -435,6 +435,15 @@ running once the system is up.
 
 	debug		[KNL] Enable kernel debugging (events log level).
 
+	debug_locks_verbose=
+			[KNL] verbose self-tests
+			Format=<0|1>
+			Print debugging info while doing the locking API
+			self-tests.
+			We default to 0 (no extra messages), setting it to
+			1 will print _a lot_ more information - normally
+			only useful to kernel developers.
+
 	decnet=		[HW,NET]
 			Format: <area>[,<node>]
 			See also Documentation/networking/decnet.txt.

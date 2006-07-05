@@ -166,8 +166,8 @@ static struct dma_chan *dma_client_chan_alloc(struct dma_client *client)
 }
 
 /**
- * dma_client_chan_free - release a DMA channel
- * @chan: &dma_chan
+ * dma_chan_cleanup - release a DMA channel's resources
+ * @kref: kernel reference structure that contains the DMA channel device
  */
 void dma_chan_cleanup(struct kref *kref)
 {
@@ -199,7 +199,7 @@ static void dma_client_chan_free(struct dma_chan *chan)
  * dma_chans_rebalance - reallocate channels to clients
  *
  * When the number of DMA channel in the system changes,
- * channels need to be rebalanced among clients
+ * channels need to be rebalanced among clients.
  */
 static void dma_chans_rebalance(void)
 {
@@ -264,7 +264,7 @@ struct dma_client *dma_async_client_register(dma_event_callback event_callback)
 
 /**
  * dma_async_client_unregister - unregister a client and free the &dma_client
- * @client:
+ * @client: &dma_client to free
  *
  * Force frees any allocated DMA channels, frees the &dma_client memory
  */
@@ -306,7 +306,7 @@ void dma_async_client_chan_request(struct dma_client *client,
 }
 
 /**
- * dma_async_device_register -
+ * dma_async_device_register - registers DMA devices found
  * @device: &dma_device
  */
 int dma_async_device_register(struct dma_device *device)
@@ -348,8 +348,8 @@ int dma_async_device_register(struct dma_device *device)
 }
 
 /**
- * dma_async_device_unregister -
- * @device: &dma_device
+ * dma_async_device_cleanup - function called when all references are released
+ * @kref: kernel reference object
  */
 static void dma_async_device_cleanup(struct kref *kref)
 {
@@ -359,7 +359,11 @@ static void dma_async_device_cleanup(struct kref *kref)
 	complete(&device->done);
 }
 
-void dma_async_device_unregister(struct dma_device* device)
+/**
+ * dma_async_device_unregister - unregisters DMA devices
+ * @device: &dma_device
+ */
+void dma_async_device_unregister(struct dma_device *device)
 {
 	struct dma_chan *chan;
 	unsigned long flags;

@@ -752,7 +752,7 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 
 		rose_insert_socket(sk);		/* Finish the bind */
 	}
-
+rose_try_next_neigh:
 	rose->dest_addr   = addr->srose_addr;
 	rose->dest_call   = addr->srose_call;
 	rose->rand        = ((long)rose & 0xFFFF) + rose->lci;
@@ -810,6 +810,11 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 	}
 
 	if (sk->sk_state != TCP_ESTABLISHED) {
+	/* Try next neighbour */
+		rose->neighbour = rose_get_neigh(&addr->srose_addr, &cause, &diagnostic);
+		if (rose->neighbour)
+			goto rose_try_next_neigh;
+	/* No more neighbour */
 		sock->state = SS_UNCONNECTED;
 		return sock_error(sk);	/* Always set at this point */
 	}

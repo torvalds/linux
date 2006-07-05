@@ -18,7 +18,7 @@
  * switch_to(prev, next) should switch from task `prev' to `next'
  * `prev' will never be the same as `next'.
  *
- * `next' and `prev' should be task_t, but it isn't always defined
+ * `next' and `prev' should be struct task_struct, but it isn't always defined
  */
 
 #define switch_to(prev, next, last)  do { \

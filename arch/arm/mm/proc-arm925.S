@@ -454,7 +454,8 @@ __arm925_setup:
 	mcr	p15, 7, r0, c15, c0, 0
 #endif
 
-	adr	r5, {r5, r6}
+	adr	r5, arm925_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
 	bic	r0, r0, r5
 	orr	r0, r0, r6

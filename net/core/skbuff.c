@@ -71,6 +71,13 @@ static kmem_cache_t *skbuff_head_cache __read_mostly;
 static kmem_cache_t *skbuff_fclone_cache __read_mostly;
 
 /*
+ * lockdep: lock class key used by skb_queue_head_init():
+ */
+struct lock_class_key skb_queue_lock_key;
+
+EXPORT_SYMBOL(skb_queue_lock_key);
+
+/*
  *	Keep out-of-line to prevent kernel bloat.
  *	__builtin_return_address is not used because it is not always
  *	reliable.

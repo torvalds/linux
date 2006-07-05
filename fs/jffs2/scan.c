@@ -274,8 +274,8 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 	return ret;
 }
 
-int jffs2_fill_scan_buf (struct jffs2_sb_info *c, void *buf,
-				uint32_t ofs, uint32_t len)
+static int jffs2_fill_scan_buf(struct jffs2_sb_info *c, void *buf,
+			       uint32_t ofs, uint32_t len)
 {
 	int ret;
 	size_t retlen;

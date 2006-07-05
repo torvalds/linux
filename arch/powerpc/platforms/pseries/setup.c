@@ -76,6 +76,9 @@
 #define DBG(fmt...)
 #endif
 
+/* move those away to a .h */
+extern void smp_init_pseries_mpic(void);
+extern void smp_init_pseries_xics(void);
 extern void find_udbg_vterm(void);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
@@ -83,7 +86,7 @@ int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 static void pseries_shared_idle_sleep(void);
 static void pseries_dedicated_idle_sleep(void);
 
-struct mpic *pSeries_mpic;
+static struct device_node *pSeries_mpic_node;
 
 static void pSeries_show_cpuinfo(struct seq_file *m)
 {
@@ -118,63 +121,92 @@ static void __init fwnmi_init(void)
 		fwnmi_active = 1;
 }
 
-static void __init pSeries_init_mpic(void)
+void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc,
+			  struct pt_regs *regs)
 {
-        unsigned int *addrp;
-	struct device_node *np;
-	unsigned long intack = 0;
-
-	/* All ISUs are setup, complete initialization */
-	mpic_init(pSeries_mpic);
-
-	/* Check what kind of cascade ACK we have */
-        if (!(np = of_find_node_by_name(NULL, "pci"))
-            || !(addrp = (unsigned int *)
-                 get_property(np, "8259-interrupt-acknowledge", NULL)))
-                printk(KERN_ERR "Cannot find pci to get ack address\n");
-        else
-		intack = addrp[prom_n_addr_cells(np)-1];
-	of_node_put(np);
-
-	/* Setup the legacy interrupts & controller */
-	i8259_init(intack, 0);
-
-	/* Hook cascade to mpic */
-	mpic_setup_cascade(NUM_ISA_INTERRUPTS, i8259_irq_cascade, NULL);
+	unsigned int cascade_irq = i8259_irq(regs);
+	if (cascade_irq != NO_IRQ)
+		generic_handle_irq(cascade_irq, regs);
+	desc->chip->eoi(irq);
 }
 
-static void __init pSeries_setup_mpic(void)
+static void __init pseries_mpic_init_IRQ(void)
 {
+	struct device_node *np, *old, *cascade = NULL;
+        unsigned int *addrp;
+	unsigned long intack = 0;
 	unsigned int *opprop;
 	unsigned long openpic_addr = 0;
-        unsigned char senses[NR_IRQS - NUM_ISA_INTERRUPTS];
-        struct device_node *root;
-	int irq_count;
+	unsigned int cascade_irq;
+	int naddr, n, i, opplen;
+	struct mpic *mpic;
 
-	/* Find the Open PIC if present */
-	root = of_find_node_by_path("/");
-	opprop = (unsigned int *) get_property(root, "platform-open-pic", NULL);
+	np = of_find_node_by_path("/");
+	naddr = prom_n_addr_cells(np);
+	opprop = (unsigned int *) get_property(np, "platform-open-pic", &opplen);
 	if (opprop != 0) {
-		int n = prom_n_addr_cells(root);
-
-		for (openpic_addr = 0; n > 0; --n)
-			openpic_addr = (openpic_addr << 32) + *opprop++;
+		openpic_addr = of_read_number(opprop, naddr);
 		printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
 	}
-	of_node_put(root);
+	of_node_put(np);
 
 	BUG_ON(openpic_addr == 0);
 
-	/* Get the sense values from OF */
-	prom_get_irq_senses(senses, NUM_ISA_INTERRUPTS, NR_IRQS);
-	
 	/* Setup the openpic driver */
-	irq_count = NR_IRQS - NUM_ISA_INTERRUPTS - 4; /* leave room for IPIs */
-	pSeries_mpic = mpic_alloc(openpic_addr, MPIC_PRIMARY,
-				  16, 16, irq_count, /* isu size, irq offset, irq count */ 
-				  NR_IRQS - 4, /* ipi offset */
-				  senses, irq_count, /* sense & sense size */
-				  " MPIC     ");
+	mpic = mpic_alloc(pSeries_mpic_node, openpic_addr,
+			  MPIC_PRIMARY,
+			  16, 250, /* isu size, irq count */
+			  " MPIC     ");
+	BUG_ON(mpic == NULL);
+
+	/* Add ISUs */
+	opplen /= sizeof(u32);
+	for (n = 0, i = naddr; i < opplen; i += naddr, n++) {
+		unsigned long isuaddr = of_read_number(opprop + i, naddr);
+		mpic_assign_isu(mpic, n, isuaddr);
+	}
+
+	/* All ISUs are setup, complete initialization */
+	mpic_init(mpic);
+
+	/* Look for cascade */
+	for_each_node_by_type(np, "interrupt-controller")
+		if (device_is_compatible(np, "chrp,iic")) {
+			cascade = np;
+			break;
+		}
+	if (cascade == NULL)
+		return;
+
+	cascade_irq = irq_of_parse_and_map(cascade, 0);
+	if (cascade == NO_IRQ) {
+		printk(KERN_ERR "xics: failed to map cascade interrupt");
+		return;
+	}
+
+	/* Check ACK type */
+	for (old = of_node_get(cascade); old != NULL ; old = np) {
+		np = of_get_parent(old);
+		of_node_put(old);
+		if (np == NULL)
+			break;
+		if (strcmp(np->name, "pci") != 0)
+			continue;
+		addrp = (u32 *)get_property(np, "8259-interrupt-acknowledge",
+					    NULL);
+		if (addrp == NULL)
+			continue;
+		naddr = prom_n_addr_cells(np);
+		intack = addrp[naddr-1];
+		if (naddr > 1)
+			intack |= ((unsigned long)addrp[naddr-2]) << 32;
+	}
+	if (intack)
+		printk(KERN_DEBUG "mpic: PCI 8259 intack at 0x%016lx\n",
+		       intack);
+	i8259_init(cascade, intack);
+	of_node_put(cascade);
+	set_irq_chained_handler(cascade_irq, pseries_8259_cascade);
 }
 
 static void pseries_lpar_enable_pmcs(void)
@@ -192,23 +224,67 @@ static void pseries_lpar_enable_pmcs(void)
 		get_lppaca()->pmcregs_in_use = 1;
 }
 
+#ifdef CONFIG_KEXEC
+static void pseries_kexec_cpu_down_mpic(int crash_shutdown, int secondary)
+{
+	mpic_teardown_this_cpu(secondary);
+}
+
+static void pseries_kexec_cpu_down_xics(int crash_shutdown, int secondary)
+{
+	/* Don't risk a hypervisor call if we're crashing */
+	if (firmware_has_feature(FW_FEATURE_SPLPAR) && !crash_shutdown) {
+		unsigned long vpa = __pa(get_lppaca());
+
+		if (unregister_vpa(hard_smp_processor_id(), vpa)) {
+			printk("VPA deregistration of cpu %u (hw_cpu_id %d) "
+					"failed\n", smp_processor_id(),
+					hard_smp_processor_id());
+		}
+	}
+	xics_teardown_cpu(secondary);
+}
+#endif /* CONFIG_KEXEC */
+
+static void __init pseries_discover_pic(void)
+{
+	struct device_node *np;
+	char *typep;
+
+	for (np = NULL; (np = of_find_node_by_name(np,
+						   "interrupt-controller"));) {
+		typep = (char *)get_property(np, "compatible", NULL);
+		if (strstr(typep, "open-pic")) {
+			pSeries_mpic_node = of_node_get(np);
+			ppc_md.init_IRQ       = pseries_mpic_init_IRQ;
+			ppc_md.get_irq        = mpic_get_irq;
+#ifdef CONFIG_KEXEC
+			ppc_md.kexec_cpu_down = pseries_kexec_cpu_down_mpic;
+#endif
+#ifdef CONFIG_SMP
+			smp_init_pseries_mpic();
+#endif
+			return;
+		} else if (strstr(typep, "ppc-xicp")) {
+			ppc_md.init_IRQ       = xics_init_IRQ;
+#ifdef CONFIG_KEXEC
+			ppc_md.kexec_cpu_down = pseries_kexec_cpu_down_xics;
+#endif
+#ifdef CONFIG_SMP
+			smp_init_pseries_xics();
+#endif
+			return;
+		}
+	}
+	printk(KERN_ERR "pSeries_discover_pic: failed to recognize"
+	       " interrupt-controller\n");
+}
+
 static void __init pSeries_setup_arch(void)
 {
-	/* Fixup ppc_md depending on the type of interrupt controller */
-	if (ppc64_interrupt_controller == IC_OPEN_PIC) {
-		ppc_md.init_IRQ       = pSeries_init_mpic;
-		ppc_md.get_irq        = mpic_get_irq;
-		/* Allocate the mpic now, so that find_and_init_phbs() can
-		 * fill the ISUs */
-		pSeries_setup_mpic();
-	} else {
-		ppc_md.init_IRQ       = xics_init_IRQ;
-		ppc_md.get_irq        = xics_get_irq;
-	}
+	/* Discover PIC type and setup ppc_md accordingly */
+	pseries_discover_pic();
 
-#ifdef CONFIG_SMP
-	smp_init_pSeries();
-#endif
 	/* openpic global configuration register (64-bit format). */
 	/* openpic Interrupt Source Unit pointer (64-bit format). */
 	/* python0 facility area (mmio) (64-bit format) REAL address. */
@@ -260,41 +336,11 @@ static int __init pSeries_init_panel(void)
 }
 arch_initcall(pSeries_init_panel);
 
-static  void __init pSeries_discover_pic(void)
-{
-	struct device_node *np;
-	char *typep;
-
-	/*
-	 * Setup interrupt mapping options that are needed for finish_device_tree
-	 * to properly parse the OF interrupt tree & do the virtual irq mapping
-	 */
-	__irq_offset_value = NUM_ISA_INTERRUPTS;
-	ppc64_interrupt_controller = IC_INVALID;
-	for (np = NULL; (np = of_find_node_by_name(np, "interrupt-controller"));) {
-		typep = (char *)get_property(np, "compatible", NULL);
-		if (strstr(typep, "open-pic")) {
-			ppc64_interrupt_controller = IC_OPEN_PIC;
-			break;
-		} else if (strstr(typep, "ppc-xicp")) {
-			ppc64_interrupt_controller = IC_PPC_XIC;
-			break;
-		}
-	}
-	if (ppc64_interrupt_controller == IC_INVALID)
-		printk("pSeries_discover_pic: failed to recognize"
-			" interrupt-controller\n");
-
-}
-
 static void pSeries_mach_cpu_die(void)
 {
 	local_irq_disable();
 	idle_task_exit();
-	/* Some hardware requires clearing the CPPR, while other hardware does not
-	 * it is safe either way
-	 */
-	pSeriesLP_cppr_info(0, 0);
+	xics_teardown_cpu(0);
 	rtas_stop_self();
 	/* Should never get here... */
 	BUG();
@@ -331,8 +377,6 @@ static void __init pSeries_init_early(void)
 		ppc_md.set_dabr = pseries_set_xdabr;
 
 	iommu_init_early_pSeries();
-
-	pSeries_discover_pic();
 
 	DBG(" <- pSeries_init_early()\n");
 }
@@ -505,27 +549,6 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
 	return PCI_PROBE_NORMAL;
 }
 
-#ifdef CONFIG_KEXEC
-static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
-{
-	/* Don't risk a hypervisor call if we're crashing */
-	if (firmware_has_feature(FW_FEATURE_SPLPAR) && !crash_shutdown) {
-		unsigned long vpa = __pa(get_lppaca());
-
-		if (unregister_vpa(hard_smp_processor_id(), vpa)) {
-			printk("VPA deregistration of cpu %u (hw_cpu_id %d) "
-					"failed\n", smp_processor_id(),
-					hard_smp_processor_id());
-		}
-	}
-
-	if (ppc64_interrupt_controller == IC_OPEN_PIC)
-		mpic_teardown_this_cpu(secondary);
-	else
-		xics_teardown_cpu(secondary);
-}
-#endif
-
 define_machine(pseries) {
 	.name			= "pSeries",
 	.probe			= pSeries_probe,
@@ -550,7 +573,6 @@ define_machine(pseries) {
 	.system_reset_exception = pSeries_system_reset_exception,
 	.machine_check_exception = pSeries_machine_check_exception,
 #ifdef CONFIG_KEXEC
-	.kexec_cpu_down		= pseries_kexec_cpu_down,
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,
 	.machine_crash_shutdown	= default_machine_crash_shutdown,

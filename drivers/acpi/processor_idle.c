@@ -768,7 +768,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		status = -EFAULT;
 
       end:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	return status;
 }

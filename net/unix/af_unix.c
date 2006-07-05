@@ -144,7 +144,7 @@ static inline void unix_set_secdata(struct scm_cookie *scm, struct sk_buff *skb)
 	scm->seclen = *UNIXSECLEN(skb);
 }
 #else
-static void unix_get_peersec_dgram(struct sk_buff *skb)
+static inline void unix_get_peersec_dgram(struct sk_buff *skb)
 { }
 
 static inline void unix_set_secdata(struct scm_cookie *scm, struct sk_buff *skb)
@@ -565,6 +565,14 @@ static struct proto unix_proto = {
 	.obj_size = sizeof(struct unix_sock),
 };
 
+/*
+ * AF_UNIX sockets do not interact with hardware, hence they
+ * dont trigger interrupts - so it's safe for them to have
+ * bh-unsafe locking for their sk_receive_queue.lock. Split off
+ * this special lock-class by reinitializing the spinlock key:
+ */
+static struct lock_class_key af_unix_sk_receive_queue_lock_key;
+
 static struct sock * unix_create1(struct socket *sock)
 {
 	struct sock *sk = NULL;
@@ -580,6 +588,8 @@ static struct sock * unix_create1(struct socket *sock)
 	atomic_inc(&unix_nr_socks);
 
 	sock_init_data(sock,sk);
+	lockdep_set_class(&sk->sk_receive_queue.lock,
+				&af_unix_sk_receive_queue_lock_key);
 
 	sk->sk_write_space	= unix_write_space;
 	sk->sk_max_ack_backlog	= sysctl_unix_max_dgram_qlen;
@@ -1045,7 +1055,7 @@ restart:
 		goto out_unlock;
 	}
 
-	unix_state_wlock(sk);
+	unix_state_wlock_nested(sk);
 
 	if (sk->sk_state != st) {
 		unix_state_wunlock(sk);

@@ -362,7 +362,7 @@ static int __init ali_find_watchdog(void)
  *	Kernel Interfaces
  */
 
-static struct file_operations ali_fops = {
+static const struct file_operations ali_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.write =	ali_write,

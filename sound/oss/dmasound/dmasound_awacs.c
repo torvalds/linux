@@ -374,10 +374,7 @@ setup_audio_gpio(const char *name, const char* compatible, int *gpio_addr, int* 
 		*gpio_pol = *pp;
 	else
 		*gpio_pol = 1;
-	if (np->n_intrs > 0)
-		return np->intrs[0].line;
-	
-	return 0;
+	return irq_of_parse_and_map(np, 0);
 }
 
 static inline void
@@ -2864,14 +2861,13 @@ printk("dmasound_pmac: couldn't find a Codec we can handle\n");
 	 * other info if necessary (early AWACS we want to read chip ids)
 	 */
 
-	if (of_get_address(io, 2, NULL, NULL) == NULL || io->n_intrs < 3) {
+	if (of_get_address(io, 2, NULL, NULL) == NULL) {
 		/* OK - maybe we need to use the 'awacs' node (on earlier
 		 * machines).
 		 */
 		if (awacs_node) {
 			io = awacs_node ;
-			if (of_get_address(io, 2, NULL, NULL) == NULL ||
-			    io->n_intrs < 3) {
+			if (of_get_address(io, 2, NULL, NULL) == NULL) {
 				printk("dmasound_pmac: can't use %s\n",
 				       io->full_name);
 				return -ENODEV;
@@ -2940,9 +2936,9 @@ printk("dmasound_pmac: couldn't find a Codec we can handle\n");
 	if (awacs_revision == AWACS_SCREAMER && awacs)
 		awacs_recalibrate();
 
-	awacs_irq = io->intrs[0].line;
-	awacs_tx_irq = io->intrs[1].line;
-	awacs_rx_irq = io->intrs[2].line;
+	awacs_irq = irq_of_parse_and_map(io, 0);
+	awacs_tx_irq = irq_of_parse_and_map(io, 1);
+	awacs_rx_irq = irq_of_parse_and_map(io, 2);
 
 	/* Hack for legacy crap that will be killed someday */
 	awacs_node = io;

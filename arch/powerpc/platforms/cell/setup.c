@@ -49,6 +49,7 @@
 #include <asm/irq.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
+#include <asm/udbg.h>
 
 #include "interrupt.h"
 #include "iommu.h"
@@ -79,10 +80,22 @@ static void cell_progress(char *s, unsigned short hex)
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
 
+static void __init cell_pcibios_fixup(void)
+{
+	struct pci_dev *dev = NULL;
+
+	for_each_pci_dev(dev)
+		pci_read_irq_line(dev);
+}
+
+static void __init cell_init_irq(void)
+{
+	iic_init_IRQ();
+	spider_init_IRQ();
+}
+
 static void __init cell_setup_arch(void)
 {
-	ppc_md.init_IRQ       = iic_init_IRQ;
-	ppc_md.get_irq        = iic_get_irq;
 #ifdef CONFIG_SPU_BASE
 	spu_priv1_ops         = &spu_priv1_mmio_ops;
 #endif
@@ -108,7 +121,6 @@ static void __init cell_setup_arch(void)
 	/* Find and initialize PCI host bridges */
 	init_pci_config_tokens();
 	find_and_init_phbs();
-	spider_init_IRQ();
 	cbe_pervasive_init();
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -125,8 +137,6 @@ static void __init cell_init_early(void)
 	DBG(" -> cell_init_early()\n");
 
 	cell_init_iommu();
-
-	ppc64_interrupt_controller = IC_CELL_PIC;
 
 	DBG(" <- cell_init_early()\n");
 }
@@ -173,6 +183,8 @@ define_machine(cell) {
 	.calibrate_decr		= generic_calibrate_decr,
 	.check_legacy_ioport	= cell_check_legacy_ioport,
 	.progress		= cell_progress,
+	.init_IRQ       	= cell_init_irq,
+	.pcibios_fixup		= cell_pcibios_fixup,
 #ifdef CONFIG_KEXEC
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,

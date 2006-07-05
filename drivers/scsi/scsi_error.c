@@ -1672,7 +1672,9 @@ int
 scsi_reset_provider(struct scsi_device *dev, int flag)
 {
 	struct scsi_cmnd *scmd = scsi_get_command(dev, GFP_KERNEL);
+	struct Scsi_Host *shost = dev->host;
 	struct request req;
+	unsigned long flags;
 	int rtn;
 
 	scmd->request = &req;
@@ -1699,6 +1701,10 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	 */
 	scmd->pid			= 0;
 
+	spin_lock_irqsave(shost->host_lock, flags);
+	shost->tmf_in_progress = 1;
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
 	switch (flag) {
 	case SCSI_TRY_RESET_DEVICE:
 		rtn = scsi_try_bus_device_reset(scmd);
@@ -1716,6 +1722,22 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	default:
 		rtn = FAILED;
 	}
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	shost->tmf_in_progress = 0;
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	/*
+	 * be sure to wake up anyone who was sleeping or had their queue
+	 * suspended while we performed the TMF.
+	 */
+	SCSI_LOG_ERROR_RECOVERY(3,
+		printk("%s: waking up host to restart after TMF\n",
+		__FUNCTION__));
+
+	wake_up(&shost->host_wait);
+
+	scsi_run_host_queues(shost);
 
 	scsi_next_command(scmd);
 	return rtn;

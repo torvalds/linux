@@ -740,7 +740,7 @@ static int pcwd_notify_sys(struct notifier_block *this, unsigned long code, void
  *	Kernel Interfaces
  */
 
-static struct file_operations pcwd_fops = {
+static const struct file_operations pcwd_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= pcwd_write,
@@ -755,7 +755,7 @@ static struct miscdevice pcwd_miscdev = {
 	.fops =		&pcwd_fops,
 };
 
-static struct file_operations pcwd_temp_fops = {
+static const struct file_operations pcwd_temp_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= pcwd_temp_read,

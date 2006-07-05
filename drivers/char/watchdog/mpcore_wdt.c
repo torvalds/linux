@@ -297,7 +297,7 @@ static void mpcore_wdt_shutdown(struct platform_device *dev)
 /*
  *	Kernel Interfaces
  */
-static struct file_operations mpcore_wdt_fops = {
+static const struct file_operations mpcore_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= mpcore_wdt_write,

@@ -216,10 +216,11 @@ struct uart_port {
 	unsigned char __iomem	*membase;		/* read/write[bwl] */
 	unsigned int		irq;			/* irq number */
 	unsigned int		uartclk;		/* base uart clock */
-	unsigned char		fifosize;		/* tx fifo size */
+	unsigned int		fifosize;		/* tx fifo size */
 	unsigned char		x_char;			/* xon/xoff char */
 	unsigned char		regshift;		/* reg offset shift */
 	unsigned char		iotype;			/* io access style */
+	unsigned char		unused1;
 
 #define UPIO_PORT		(0)
 #define UPIO_HUB6		(1)

@@ -313,9 +313,19 @@ static void __meminit scatter_node_data(void)
 	pg_data_t **dst;
 	int node;
 
-	for_each_online_node(node) {
-		dst = LOCAL_DATA_ADDR(pgdat_list[node])->pg_data_ptrs;
-		memcpy(dst, pgdat_list, sizeof(pgdat_list));
+	/*
+	 * for_each_online_node() can't be used at here.
+	 * node_online_map is not set for hot-added nodes at this time,
+	 * because we are halfway through initialization of the new node's
+	 * structures.  If for_each_online_node() is used, a new node's
+	 * pg_data_ptrs will be not initialized. Insted of using it,
+	 * pgdat_list[] is checked.
+	 */
+	for_each_node(node) {
+		if (pgdat_list[node]) {
+			dst = LOCAL_DATA_ADDR(pgdat_list[node])->pg_data_ptrs;
+			memcpy(dst, pgdat_list, sizeof(pgdat_list));
+		}
 	}
 }
 

@@ -48,7 +48,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "2.8"
+#define VERSION "2.10"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
@@ -307,13 +307,21 @@ static struct net_proto_family bt_sock_family_ops = {
 
 static int __init bt_init(void)
 {
+	int err;
+
 	BT_INFO("Core ver %s", VERSION);
 
-	sock_register(&bt_sock_family_ops);
+	err = bt_sysfs_init();
+	if (err < 0)
+		return err;
+
+	err = sock_register(&bt_sock_family_ops);
+	if (err < 0) {
+		bt_sysfs_cleanup();
+		return err;
+	}
 
 	BT_INFO("HCI device and connection manager initialized");
-
-	bt_sysfs_init();
 
 	hci_sock_init();
 
@@ -324,9 +332,9 @@ static void __exit bt_exit(void)
 {
 	hci_sock_cleanup();
 
-	bt_sysfs_cleanup();
-
 	sock_unregister(PF_BLUETOOTH);
+
+	bt_sysfs_cleanup();
 }
 
 subsys_initcall(bt_init);
