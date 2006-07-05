@@ -375,10 +375,8 @@ static void int_urb_complete(struct urb *urb, struct pt_regs *pt_regs)
 	case -ENODEV:
 	case -ENOENT:
 	case -ECONNRESET:
-		goto kfree;
 	case -EPIPE:
-		usb_clear_halt(urb->dev, EP_INT_IN);
-		/* FALL-THROUGH */
+		goto kfree;
 	default:
 		goto resubmit;
 	}
@@ -580,10 +578,8 @@ static void rx_urb_complete(struct urb *urb, struct pt_regs *pt_regs)
 	case -ENODEV:
 	case -ENOENT:
 	case -ECONNRESET:
-		return;
 	case -EPIPE:
-		usb_clear_halt(urb->dev, EP_DATA_IN);
-		/* FALL-THROUGH */
+		return;
 	default:
 		dev_dbg_f(urb_dev(urb), "urb %p error %d\n", urb, urb->status);
 		goto resubmit;
@@ -749,11 +745,9 @@ static void tx_urb_complete(struct urb *urb, struct pt_regs *pt_regs)
 	case -ENODEV:
 	case -ENOENT:
 	case -ECONNRESET:
+	case -EPIPE:
 		dev_dbg_f(urb_dev(urb), "urb %p error %d\n", urb, urb->status);
 		break;
-	case -EPIPE:
-		usb_clear_halt(urb->dev, EP_DATA_OUT);
-		/* FALL-THROUGH */
 	default:
 		dev_dbg_f(urb_dev(urb), "urb %p error %d\n", urb, urb->status);
 		goto resubmit;
