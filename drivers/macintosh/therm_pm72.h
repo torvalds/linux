@@ -105,6 +105,7 @@ static char * critical_overtemp_path = "/sbin/critical_overtemp";
 #define DRIVES_DALLAS_ID	0x94
 #define BACKSIDE_MAX_ID		0x98
 #define XSERVE_DIMMS_LM87	0x25a
+#define XSERVE_SLOTS_LM75	0x290
 
 /*
  * Some MAX6690, DS1775, LM87 register definitions
@@ -198,7 +199,7 @@ struct drives_pid_state
 
 #define SLOTS_FAN_PWM_DEFAULT_ID	2
 #define SLOTS_FAN_PWM_INDEX		2
-#define	SLOTS_FAN_DEFAULT_PWM		50 /* Do better here ! */
+#define	SLOTS_FAN_DEFAULT_PWM		40 /* Do better here ! */
 
 
 /*
@@ -206,7 +207,7 @@ struct drives_pid_state
  */
 #define DIMM_PID_G_d			0
 #define DIMM_PID_G_p			0
-#define DIMM_PID_G_r			0x6553600
+#define DIMM_PID_G_r			0x06553600
 #define DIMM_PID_INPUT_TARGET		3276800
 #define DIMM_PID_INTERVAL    		1
 #define DIMM_PID_OUTPUT_MAX		14000
@@ -223,6 +224,31 @@ struct dimm_pid_state
 	s32			last_temp;
 	int			first;
 	int			output;
+};
+
+
+/*
+ * PID factors for the Xserve Slots control loop
+ */
+#define SLOTS_PID_G_d			0
+#define SLOTS_PID_G_p			0
+#define SLOTS_PID_G_r			0x00100000
+#define SLOTS_PID_INPUT_TARGET		3200000
+#define SLOTS_PID_INTERVAL    		1
+#define SLOTS_PID_OUTPUT_MAX		100
+#define SLOTS_PID_OUTPUT_MIN		20
+#define SLOTS_PID_HISTORY_SIZE		20
+
+struct slots_pid_state
+{
+	int			ticks;
+	struct i2c_client *	monitor;
+	s32	       		sample_history[SLOTS_PID_HISTORY_SIZE];
+	s32			error_history[SLOTS_PID_HISTORY_SIZE];
+	int			cur_sample;
+	s32			last_temp;
+	int			first;
+	int			pwm;
 };
 
 
@@ -282,6 +308,9 @@ struct cpu_pid_state
 	s32			pump_min;
 	s32			pump_max;
 };
+
+/* Tickle FCU every 10 seconds */
+#define FCU_TICKLE_TICKS	10
 
 /*
  * Driver state
