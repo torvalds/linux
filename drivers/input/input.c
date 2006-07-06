@@ -197,15 +197,6 @@ static void input_repeat_key(unsigned long data)
 		mod_timer(&dev->timer, jiffies + msecs_to_jiffies(dev->rep[REP_PERIOD]));
 }
 
-int input_accept_process(struct input_handle *handle, struct file *file)
-{
-	if (handle->dev->accept)
-		return handle->dev->accept(handle->dev, file);
-
-	return 0;
-}
-EXPORT_SYMBOL(input_accept_process);
-
 int input_grab_device(struct input_handle *handle)
 {
 	if (handle->dev->grab)

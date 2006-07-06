@@ -893,7 +893,6 @@ struct input_dev {
 
 	int (*open)(struct input_dev *dev);
 	void (*close)(struct input_dev *dev);
-	int (*accept)(struct input_dev *dev, struct file *file);
 	int (*flush)(struct input_dev *dev, struct file *file);
 	int (*event)(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 	int (*upload_effect)(struct input_dev *dev, struct ff_effect *effect);
@@ -1030,7 +1029,6 @@ void input_release_device(struct input_handle *);
 int input_open_device(struct input_handle *);
 void input_close_device(struct input_handle *);
 
-int input_accept_process(struct input_handle *handle, struct file *file);
 int input_flush_device(struct input_handle* handle, struct file* file);
 
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
