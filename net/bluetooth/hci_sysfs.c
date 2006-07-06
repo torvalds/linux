@@ -13,16 +13,30 @@
 #define BT_DBG(D...)
 #endif
 
-static ssize_t show_name(struct device *dev, struct device_attribute *attr, char *buf)
+static inline char *typetostr(int type)
 {
-	struct hci_dev *hdev = dev_get_drvdata(dev);
-	return sprintf(buf, "%s\n", hdev->name);
+	switch (type) {
+	case HCI_VHCI:
+		return "VIRTUAL";
+	case HCI_USB:
+		return "USB";
+	case HCI_PCCARD:
+		return "PCCARD";
+	case HCI_UART:
+		return "UART";
+	case HCI_RS232:
+		return "RS232";
+	case HCI_PCI:
+		return "PCI";
+	default:
+		return "UNKNOWN";
+	}
 }
 
 static ssize_t show_type(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	return sprintf(buf, "%d\n", hdev->type);
+	return sprintf(buf, "%s\n", typetostr(hdev->type));
 }
 
 static ssize_t show_address(struct device *dev, struct device_attribute *attr, char *buf)
@@ -31,12 +45,6 @@ static ssize_t show_address(struct device *dev, struct device_attribute *attr, c
 	bdaddr_t bdaddr;
 	baswap(&bdaddr, &hdev->bdaddr);
 	return sprintf(buf, "%s\n", batostr(&bdaddr));
-}
-
-static ssize_t show_flags(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct hci_dev *hdev = dev_get_drvdata(dev);
-	return sprintf(buf, "0x%lx\n", hdev->flags);
 }
 
 static ssize_t show_inquiry_cache(struct device *dev, struct device_attribute *attr, char *buf)
@@ -141,10 +149,8 @@ static ssize_t store_sniff_min_interval(struct device *dev, struct device_attrib
 	return count;
 }
 
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
 static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
-static DEVICE_ATTR(flags, S_IRUGO, show_flags, NULL);
 static DEVICE_ATTR(inquiry_cache, S_IRUGO, show_inquiry_cache, NULL);
 
 static DEVICE_ATTR(idle_timeout, S_IRUGO | S_IWUSR,
@@ -155,10 +161,8 @@ static DEVICE_ATTR(sniff_min_interval, S_IRUGO | S_IWUSR,
 				show_sniff_min_interval, store_sniff_min_interval);
 
 static struct device_attribute *bt_attrs[] = {
-	&dev_attr_name,
 	&dev_attr_type,
 	&dev_attr_address,
-	&dev_attr_flags,
 	&dev_attr_inquiry_cache,
 	&dev_attr_idle_timeout,
 	&dev_attr_sniff_max_interval,
@@ -214,11 +218,9 @@ int hci_register_sysfs(struct hci_dev *hdev)
 
 void hci_unregister_sysfs(struct hci_dev *hdev)
 {
-	struct device *dev = &hdev->dev;
-
 	BT_DBG("%p name %s type %d", hdev, hdev->name, hdev->type);
 
-	device_del(dev);
+	device_del(&hdev->dev);
 }
 
 int __init bt_sysfs_init(void)
