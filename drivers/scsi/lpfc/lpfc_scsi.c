@@ -153,22 +153,6 @@ static void
 lpfc_release_scsi_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * psb)
 {
 	unsigned long iflag = 0;
-	/*
-	 * There are only two special cases to consider.  (1) the scsi command
-	 * requested scatter-gather usage or (2) the scsi command allocated
-	 * a request buffer, but did not request use_sg.  There is a third
-	 * case, but it does not require resource deallocation.
-	 */
-	if ((psb->seg_cnt > 0) && (psb->pCmd->use_sg)) {
-		dma_unmap_sg(&phba->pcidev->dev, psb->pCmd->request_buffer,
-				psb->seg_cnt, psb->pCmd->sc_data_direction);
-	} else {
-		 if ((psb->nonsg_phys) && (psb->pCmd->request_bufflen)) {
-			dma_unmap_single(&phba->pcidev->dev, psb->nonsg_phys,
-						psb->pCmd->request_bufflen,
-						psb->pCmd->sc_data_direction);
-		 }
-	}
 
 	spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
 	psb->pCmd = NULL;
@@ -279,6 +263,27 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd)
 	iocb_cmd->ulpLe = 1;
 	fcp_cmnd->fcpDl = be32_to_cpu(scsi_cmnd->request_bufflen);
 	return 0;
+}
+
+static void
+lpfc_scsi_unprep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * psb)
+{
+	/*
+	 * There are only two special cases to consider.  (1) the scsi command
+	 * requested scatter-gather usage or (2) the scsi command allocated
+	 * a request buffer, but did not request use_sg.  There is a third
+	 * case, but it does not require resource deallocation.
+	 */
+	if ((psb->seg_cnt > 0) && (psb->pCmd->use_sg)) {
+		dma_unmap_sg(&phba->pcidev->dev, psb->pCmd->request_buffer,
+				psb->seg_cnt, psb->pCmd->sc_data_direction);
+	} else {
+		 if ((psb->nonsg_phys) && (psb->pCmd->request_bufflen)) {
+			dma_unmap_single(&phba->pcidev->dev, psb->nonsg_phys,
+						psb->pCmd->request_bufflen,
+						psb->pCmd->sc_data_direction);
+		 }
+	}
 }
 
 static void
@@ -454,6 +459,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	cmd->scsi_done(cmd);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
+		lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 		return;
 	}
@@ -511,6 +517,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		}
 	}
 
+	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }
 
@@ -822,6 +829,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	return 0;
 
  out_host_busy_free_buf:
+	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
  out_host_busy:
 	return SCSI_MLQUEUE_HOST_BUSY;
