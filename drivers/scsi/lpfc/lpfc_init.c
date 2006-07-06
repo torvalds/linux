@@ -405,19 +405,26 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 	}
 	/* MBOX buffer will be freed in mbox compl */
 
-	i = 0;
+	return (0);
+}
+
+static int
+lpfc_discovery_wait(struct lpfc_hba *phba)
+{
+	int i = 0;
+
 	while ((phba->hba_state != LPFC_HBA_READY) ||
 	       (phba->num_disc_nodes) || (phba->fc_prli_sent) ||
 	       ((phba->fc_map_cnt == 0) && (i<2)) ||
-	       (psli->sli_flag & LPFC_SLI_MBOX_ACTIVE)) {
+	       (phba->sli.sli_flag & LPFC_SLI_MBOX_ACTIVE)) {
 		/* Check every second for 30 retries. */
 		i++;
 		if (i > 30) {
-			break;
+			return -ETIMEDOUT;
 		}
 		if ((i >= 15) && (phba->hba_state <= LPFC_LINK_DOWN)) {
 			/* The link is down.  Set linkdown timeout */
-			break;
+			return -ETIMEDOUT;
 		}
 
 		/* Delay for 1 second to give discovery time to complete. */
@@ -425,12 +432,7 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 
 	}
 
-	/* Since num_disc_nodes keys off of PLOGI, delay a bit to let
-	 * any potential PRLIs to flush thru the SLI sub-system.
-	 */
-	msleep(50);
-
-	return (0);
+	return 0;
 }
 
 /************************************************************************/
@@ -1648,6 +1650,8 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		error = -ENODEV;
 		goto out_free_irq;
 	}
+
+	lpfc_discovery_wait(phba);
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
 		spin_lock_irq(phba->host->host_lock);
