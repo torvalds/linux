@@ -250,15 +250,17 @@ tcf_action_dump(struct sk_buff *skb, struct tc_action *act, int bind, int ref)
 		RTA_PUT(skb, a->order, 0, NULL);
 		err = tcf_action_dump_1(skb, a, bind, ref);
 		if (err < 0)
-			goto rtattr_failure;
+			goto errout;
 		r->rta_len = skb->tail - (u8*)r;
 	}
 
 	return 0;
 
 rtattr_failure:
+	err = -EINVAL;
+errout:
 	skb_trim(skb, b - skb->data);
-	return -err;
+	return err;
 }
 
 struct tc_action *tcf_action_init_1(struct rtattr *rta, struct rtattr *est,
