@@ -305,6 +305,7 @@ struct tc_action *tcf_action_init_1(struct rtattr *rta, struct rtattr *est,
 			goto err_mod;
 		}
 #endif
+		*err = -ENOENT;
 		goto err_out;
 	}
 
