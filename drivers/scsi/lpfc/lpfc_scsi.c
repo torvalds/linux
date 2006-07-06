@@ -1078,7 +1078,7 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 	 * targets known to the driver.  Should any target reset
 	 * fail, this routine returns failure to the midlayer.
 	 */
-	for (i = 0; i < MAX_FCP_TARGET; i++) {
+	for (i = 0; i < LPFC_MAX_TARGET; i++) {
 		/* Search the mapped list for this target ID */
 		match = 0;
 		list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
