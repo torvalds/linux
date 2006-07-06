@@ -170,6 +170,32 @@ static struct device_attribute *bt_attrs[] = {
 	NULL
 };
 
+static ssize_t show_conn_type(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hci_conn *conn = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", conn->type == ACL_LINK ? "ACL" : "SCO");
+}
+
+static ssize_t show_conn_address(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hci_conn *conn = dev_get_drvdata(dev);
+	bdaddr_t bdaddr;
+	baswap(&bdaddr, &conn->dst);
+	return sprintf(buf, "%s\n", batostr(&bdaddr));
+}
+
+#define CONN_ATTR(_name,_mode,_show,_store) \
+struct device_attribute conn_attr_##_name = __ATTR(_name,_mode,_show,_store)
+
+static CONN_ATTR(type, S_IRUGO, show_conn_type, NULL);
+static CONN_ATTR(address, S_IRUGO, show_conn_address, NULL);
+
+static struct device_attribute *conn_attrs[] = {
+	&conn_attr_type,
+	&conn_attr_address,
+	NULL
+};
+
 struct class *bt_class = NULL;
 EXPORT_SYMBOL_GPL(bt_class);
 
@@ -181,8 +207,57 @@ static struct platform_device *bt_platform;
 
 static void bt_release(struct device *dev)
 {
-	struct hci_dev *hdev = dev_get_drvdata(dev);
-	kfree(hdev);
+	void *data = dev_get_drvdata(dev);
+	kfree(data);
+}
+
+static void add_conn(void *data)
+{
+	struct hci_conn *conn = data;
+	int i;
+
+	device_register(&conn->dev);
+
+	for (i = 0; conn_attrs[i]; i++)
+		device_create_file(&conn->dev, conn_attrs[i]);
+}
+
+void hci_conn_add_sysfs(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	bdaddr_t *ba = &conn->dst;
+
+	BT_DBG("conn %p", conn);
+
+	conn->dev.parent  = &hdev->dev;
+	conn->dev.release = bt_release;
+
+	snprintf(conn->dev.bus_id, BUS_ID_SIZE,
+			"%s%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X",
+			conn->type == ACL_LINK ? "acl" : "sco",
+			ba->b[5], ba->b[4], ba->b[3],
+			ba->b[2], ba->b[1], ba->b[0]);
+
+	dev_set_drvdata(&conn->dev, conn);
+
+	INIT_WORK(&conn->work, add_conn, (void *) conn);
+
+	schedule_work(&conn->work);
+}
+
+static void del_conn(void *data)
+{
+	struct hci_conn *conn = data;
+	device_del(&conn->dev);
+}
+
+void hci_conn_del_sysfs(struct hci_conn *conn)
+{
+	BT_DBG("conn %p", conn);
+
+	INIT_WORK(&conn->work, del_conn, (void *) conn);
+
+	schedule_work(&conn->work);
 }
 
 int hci_register_sysfs(struct hci_dev *hdev)

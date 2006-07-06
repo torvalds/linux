@@ -165,6 +165,10 @@ struct hci_conn {
 	struct timer_list disc_timer;
 	struct timer_list idle_timer;
 
+	struct work_struct work;
+
+	struct device	dev;
+
 	struct hci_dev	*hdev;
 	void		*l2cap_data;
 	void		*sco_data;
@@ -412,6 +416,8 @@ static inline int hci_recv_frame(struct sk_buff *skb)
 
 int hci_register_sysfs(struct hci_dev *hdev);
 void hci_unregister_sysfs(struct hci_dev *hdev);
+void hci_conn_add_sysfs(struct hci_conn *conn);
+void hci_conn_del_sysfs(struct hci_conn *conn);
 
 #define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->parent = (pdev))
 

@@ -179,6 +179,8 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_CONN_ADD);
 
+	hci_conn_add_sysfs(conn);
+
 	tasklet_enable(&hdev->tx_task);
 
 	return conn;
@@ -211,6 +213,8 @@ int hci_conn_del(struct hci_conn *conn)
 
 	tasklet_disable(&hdev->tx_task);
 
+	hci_conn_del_sysfs(conn);
+
 	hci_conn_hash_del(hdev, conn);
 	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
@@ -221,7 +225,9 @@ int hci_conn_del(struct hci_conn *conn)
 
 	hci_dev_put(hdev);
 
-	kfree(conn);
+	/* will free via device release */
+	put_device(&conn->dev);
+
 	return 0;
 }
 
