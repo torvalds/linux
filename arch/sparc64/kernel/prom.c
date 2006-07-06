@@ -1032,7 +1032,9 @@ static void sun4v_vdev_irq_trans_init(struct device_node *dp)
 static void irq_trans_init(struct device_node *dp)
 {
 	const char *model;
+#ifdef CONFIG_PCI
 	int i;
+#endif
 
 	model = of_get_property(dp, "model", NULL);
 	if (!model)
