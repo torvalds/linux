@@ -243,6 +243,47 @@ lpfc_issue_lip(struct Scsi_Host *host)
 	return 0;
 }
 
+static int
+lpfc_selective_reset(struct lpfc_hba *phba)
+{
+	struct completion online_compl;
+	int status = 0;
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &status, &online_compl,
+			      LPFC_EVT_OFFLINE);
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &status, &online_compl,
+			      LPFC_EVT_ONLINE);
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	return 0;
+}
+
+static ssize_t
+lpfc_issue_reset(struct class_device *cdev, const char *buf, size_t count)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	int status = -EINVAL;
+
+	if (strncmp(buf, "selective", sizeof("selective") - 1) == 0)
+		status = lpfc_selective_reset(phba);
+
+	if (status == 0)
+		return strlen(buf);
+	else
+		return status;
+}
+
 static ssize_t
 lpfc_nport_evt_cnt_show(struct class_device *cdev, char *buf)
 {
@@ -546,6 +587,7 @@ static CLASS_DEVICE_ATTR(board_online, S_IRUGO | S_IWUSR,
 			 lpfc_board_online_show, lpfc_board_online_store);
 static CLASS_DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 			 lpfc_board_mode_show, lpfc_board_mode_store);
+static CLASS_DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
 
 static int lpfc_poll = 0;
 module_param(lpfc_poll, int, 0);
@@ -751,6 +793,7 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_management_version,
 	&class_device_attr_board_online,
 	&class_device_attr_board_mode,
+	&class_device_attr_issue_reset,
 	&class_device_attr_lpfc_poll,
 	&class_device_attr_lpfc_poll_tmo,
 	NULL,
