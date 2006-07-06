@@ -578,7 +578,7 @@ static inline void local_r4k_flush_icache_page(void *args)
 	 * secondary cache will result in any entries in the primary caches
 	 * also getting invalidated which hopefully is a bit more economical.
 	 */
-	if (cpu_has_subset_pcaches) {
+	if (cpu_has_inclusive_pcaches) {
 		unsigned long addr = (unsigned long) page_address(page);
 
 		r4k_blast_scache_page(addr);
@@ -634,7 +634,7 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
-	if (cpu_has_subset_pcaches) {
+	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size)
 			r4k_blast_scache();
 		else
@@ -662,7 +662,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
-	if (cpu_has_subset_pcaches) {
+	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size)
 			r4k_blast_scache();
 		else
@@ -1192,7 +1192,7 @@ static void __init setup_scache(void)
 	printk("Unified secondary cache %ldkB %s, linesize %d bytes.\n",
 	       scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
 
-	c->options |= MIPS_CPU_SUBSET_CACHES;
+	c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 }
 
 void au1x00_fixup_config_od(void)

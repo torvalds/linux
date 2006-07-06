@@ -195,8 +195,8 @@
 # define cpu_has_veic			0
 #endif
 
-#ifndef cpu_has_subset_pcaches
-#define cpu_has_subset_pcaches	(cpu_data[0].options & MIPS_CPU_SUBSET_CACHES)
+#ifndef cpu_has_inclusive_pcaches
+#define cpu_has_inclusive_pcaches	(cpu_data[0].options & MIPS_CPU_INCLUSIVE_CACHES)
 #endif
 
 #ifndef cpu_dcache_line_size
