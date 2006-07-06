@@ -71,6 +71,7 @@ lpfc_config_port_prep(struct lpfc_hba * phba)
 	uint16_t offset = 0;
 	static char licensed[56] =
 		    "key unlock for use with gnu public licensed code only\0";
+	static int init_key = 1;
 
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
@@ -82,10 +83,13 @@ lpfc_config_port_prep(struct lpfc_hba * phba)
 	phba->hba_state = LPFC_INIT_MBX_CMDS;
 
 	if (lpfc_is_LC_HBA(phba->pcidev->device)) {
-		uint32_t *ptext = (uint32_t *) licensed;
+		if (init_key) {
+			uint32_t *ptext = (uint32_t *) licensed;
 
-		for (i = 0; i < 56; i += sizeof (uint32_t), ptext++)
-			*ptext = cpu_to_be32(*ptext);
+			for (i = 0; i < 56; i += sizeof (uint32_t), ptext++)
+				*ptext = cpu_to_be32(*ptext);
+			init_key = 0;
+		}
 
 		lpfc_read_nv(phba, pmb);
 		memset((char*)mb->un.varRDnvp.rsvd3, 0,

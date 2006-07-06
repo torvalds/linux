@@ -1547,8 +1547,8 @@ lpfc_sli_brdready(struct lpfc_hba * phba, uint32_t mask)
 
 void lpfc_reset_barrier(struct lpfc_hba * phba)
 {
-	uint32_t * resp_buf;
-	uint32_t * mbox_buf;
+	uint32_t __iomem *resp_buf;
+	uint32_t __iomem *mbox_buf;
 	volatile uint32_t mbox;
 	uint32_t hc_copy;
 	int  i;
@@ -1564,7 +1564,7 @@ void lpfc_reset_barrier(struct lpfc_hba * phba)
 	 * Tell the other part of the chip to suspend temporarily all
 	 * its DMA activity.
 	 */
-	resp_buf =  (uint32_t *)phba->MBslimaddr;
+	resp_buf = phba->MBslimaddr;
 
 	/* Disable the error attention */
 	hc_copy = readl(phba->HCregaddr);
@@ -1582,7 +1582,7 @@ void lpfc_reset_barrier(struct lpfc_hba * phba)
 	((MAILBOX_t *)&mbox)->mbxOwner = OWN_CHIP;
 
 	writel(BARRIER_TEST_PATTERN, (resp_buf + 1));
-	mbox_buf = (uint32_t *)phba->MBslimaddr;
+	mbox_buf = phba->MBslimaddr;
 	writel(mbox, mbox_buf);
 
 	for (i = 0;
@@ -1782,7 +1782,7 @@ lpfc_sli_brdrestart(struct lpfc_hba * phba)
 		skip_post = 0;
 		word0 = 0;	/* This is really setting up word1 */
 	}
-	to_slim = (uint8_t *) phba->MBslimaddr + sizeof (uint32_t);
+	to_slim = phba->MBslimaddr + sizeof (uint32_t);
 	writel(*(uint32_t *) mb, to_slim);
 	readl(to_slim); /* flush */
 

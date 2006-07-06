@@ -706,12 +706,12 @@ LPFC_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands "
 		 "during discovery");
 
 /*
-# lpfc_max_luns: maximum number of LUNs per target driver will support
-# Value range is [1,32768]. Default value is 256.
-# NOTE: The SCSI layer will scan each target for this many luns
+# lpfc_max_luns: maximum allowed LUN.
+# Value range is [0,65535]. Default value is 255.
+# NOTE: The SCSI layer might probe all allowed LUN on some old targets.
 */
-LPFC_ATTR_R(max_luns, 256, 1, 32768,
-	     "Maximum number of LUNs per target driver will support");
+LPFC_ATTR_R(max_luns, 255, 0, 65535,
+	     "Maximum allowed LUN");
 
 /*
 # lpfc_poll_tmo: .Milliseconds driver will wait between polling FCP ring.
