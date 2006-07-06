@@ -2131,7 +2131,7 @@ eth_req_free (struct usb_ep *ep, struct usb_request *req)
 }
 
 
-static void __exit
+static void /* __init_or_exit */
 eth_unbind (struct usb_gadget *gadget)
 {
 	struct eth_dev		*dev = get_gadget_data (gadget);
@@ -2158,7 +2158,7 @@ eth_unbind (struct usb_gadget *gadget)
 	set_gadget_data (gadget, NULL);
 }
 
-static u8 __init nibble (unsigned char c)
+static u8 __devinit nibble (unsigned char c)
 {
 	if (likely (isdigit (c)))
 		return c - '0';
@@ -2168,7 +2168,7 @@ static u8 __init nibble (unsigned char c)
 	return 0;
 }
 
-static int __init get_ether_addr(const char *str, u8 *dev_addr)
+static int __devinit get_ether_addr(const char *str, u8 *dev_addr)
 {
 	if (str) {
 		unsigned	i;
@@ -2189,7 +2189,7 @@ static int __init get_ether_addr(const char *str, u8 *dev_addr)
 	return 1;
 }
 
-static int __init
+static int __devinit
 eth_bind (struct usb_gadget *gadget)
 {
 	struct eth_dev		*dev;

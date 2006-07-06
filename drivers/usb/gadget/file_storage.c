@@ -3691,7 +3691,7 @@ static void lun_release(struct device *dev)
 	kref_put(&fsg->ref, fsg_release);
 }
 
-static void __exit fsg_unbind(struct usb_gadget *gadget)
+static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
 {
 	struct fsg_dev		*fsg = get_gadget_data(gadget);
 	int			i;
