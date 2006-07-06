@@ -336,9 +336,8 @@ void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data)
 
 	if (!(e = hci_inquiry_cache_lookup(hdev, &data->bdaddr))) {
 		/* Entry not in the cache. Add new one. */
-		if (!(e = kmalloc(sizeof(struct inquiry_entry), GFP_ATOMIC)))
+		if (!(e = kzalloc(sizeof(struct inquiry_entry), GFP_ATOMIC)))
 			return;
-		memset(e, 0, sizeof(struct inquiry_entry));
 		e->next     = cache->list;
 		cache->list = e;
 	}
@@ -800,11 +799,9 @@ struct hci_dev *hci_alloc_dev(void)
 {
 	struct hci_dev *hdev;
 
-	hdev = kmalloc(sizeof(struct hci_dev), GFP_KERNEL);
+	hdev = kzalloc(sizeof(struct hci_dev), GFP_KERNEL);
 	if (!hdev)
 		return NULL;
-
-	memset(hdev, 0, sizeof(struct hci_dev));
 
 	skb_queue_head_init(&hdev->driver_init);
 
