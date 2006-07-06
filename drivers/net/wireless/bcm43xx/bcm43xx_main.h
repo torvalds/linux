@@ -112,30 +112,6 @@ int bcm43xx_channel_to_freq(struct bcm43xx_private *bcm,
 	return bcm43xx_channel_to_freq_bg(channel);
 }
 
-/* Lightweight function to check if a channel number is valid.
- * Note that this does _NOT_ check for geographical restrictions!
- */
-static inline
-int bcm43xx_is_valid_channel_a(u8 channel)
-{
-	return (channel >= IEEE80211_52GHZ_MIN_CHANNEL
-	       && channel <= IEEE80211_52GHZ_MAX_CHANNEL);
-}
-static inline
-int bcm43xx_is_valid_channel_bg(u8 channel)
-{
-	return (channel >= IEEE80211_24GHZ_MIN_CHANNEL
-	       && channel <= IEEE80211_24GHZ_MAX_CHANNEL);
-}
-static inline
-int bcm43xx_is_valid_channel(struct bcm43xx_private *bcm,
-			     u8 channel)
-{
-	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_A)
-		return bcm43xx_is_valid_channel_a(channel);
-	return bcm43xx_is_valid_channel_bg(channel);
-}
-
 void bcm43xx_tsf_read(struct bcm43xx_private *bcm, u64 *tsf);
 void bcm43xx_tsf_write(struct bcm43xx_private *bcm, u64 tsf);
 

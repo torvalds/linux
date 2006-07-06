@@ -550,6 +550,7 @@ config USB_ZD1201
 
 source "drivers/net/wireless/hostap/Kconfig"
 source "drivers/net/wireless/bcm43xx/Kconfig"
+source "drivers/net/wireless/zd1211rw/Kconfig"
 
 # yes, this works even when no drivers are selected
 config NET_WIRELESS

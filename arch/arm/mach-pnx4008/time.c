@@ -20,17 +20,15 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
+#include <linux/time.h>
+#include <linux/timex.h>
+#include <linux/irq.h>
 
 #include <asm/system.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/leds.h>
-#include <asm/irq.h>
-#include <asm/mach/irq.h>
 #include <asm/mach/time.h>
-
-#include <linux/time.h>
-#include <linux/timex.h>
 #include <asm/errno.h>
 
 /*! Note: all timers are UPCOUNTING */

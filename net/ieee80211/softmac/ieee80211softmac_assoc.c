@@ -47,9 +47,7 @@ ieee80211softmac_assoc(struct ieee80211softmac_device *mac, struct ieee80211soft
 	
 	dprintk(KERN_INFO PFX "sent association request!\n");
 
-	/* Change the state to associating */
 	spin_lock_irqsave(&mac->lock, flags);
-	mac->associnfo.associating = 1;
 	mac->associated = 0; /* just to make sure */
 
 	/* Set a timer for timeout */
@@ -63,6 +61,7 @@ void
 ieee80211softmac_assoc_timeout(void *d)
 {
 	struct ieee80211softmac_device *mac = (struct ieee80211softmac_device *)d;
+	struct ieee80211softmac_network *n;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mac->lock, flags);
@@ -75,11 +74,12 @@ ieee80211softmac_assoc_timeout(void *d)
 	mac->associnfo.associating = 0;
 	mac->associnfo.bssvalid = 0;
 	mac->associated = 0;
+
+	n = ieee80211softmac_get_network_by_bssid_locked(mac, mac->associnfo.bssid);
 	spin_unlock_irqrestore(&mac->lock, flags);
 
 	dprintk(KERN_INFO PFX "assoc request timed out!\n");
-	/* FIXME: we need to know the network here. that requires a bit of restructuring */
-	ieee80211softmac_call_events(mac, IEEE80211SOFTMAC_EVENT_ASSOCIATE_TIMEOUT, NULL);
+	ieee80211softmac_call_events(mac, IEEE80211SOFTMAC_EVENT_ASSOCIATE_TIMEOUT, n);
 }
 
 void
@@ -203,6 +203,10 @@ ieee80211softmac_assoc_work(void *d)
 	if (mac->associated)
 		ieee80211softmac_send_disassoc_req(mac, WLAN_REASON_DISASSOC_STA_HAS_LEFT);
 
+	spin_lock_irqsave(&mac->lock, flags);
+	mac->associnfo.associating = 1;
+	spin_unlock_irqrestore(&mac->lock, flags);
+
 	/* try to find the requested network in our list, if we found one already */
 	if (bssvalid || mac->associnfo.bssfixed)
 		found = ieee80211softmac_get_network_by_bssid(mac, mac->associnfo.bssid);	
@@ -295,19 +299,32 @@ ieee80211softmac_assoc_work(void *d)
 	memcpy(mac->associnfo.associate_essid.data, found->essid.data, IW_ESSID_MAX_SIZE + 1);
 	
 	/* we found a network! authenticate (if necessary) and associate to it. */
-	if (!found->authenticated) {
+	if (found->authenticating) {
+		dprintk(KERN_INFO PFX "Already requested authentication, waiting...\n");
+		if(!mac->associnfo.assoc_wait) {
+			mac->associnfo.assoc_wait = 1;
+			ieee80211softmac_notify_internal(mac, IEEE80211SOFTMAC_EVENT_ANY, found, ieee80211softmac_assoc_notify_auth, NULL, GFP_KERNEL);
+		}
+		return;
+	}
+	if (!found->authenticated && !found->authenticating) {
 		/* This relies on the fact that _auth_req only queues the work,
 		 * otherwise adding the notification would be racy. */
 		if (!ieee80211softmac_auth_req(mac, found)) {
-			dprintk(KERN_INFO PFX "cannot associate without being authenticated, requested authentication\n");
-			ieee80211softmac_notify_internal(mac, IEEE80211SOFTMAC_EVENT_ANY, found, ieee80211softmac_assoc_notify_auth, NULL, GFP_KERNEL);
+			if(!mac->associnfo.assoc_wait) {
+				dprintk(KERN_INFO PFX "Cannot associate without being authenticated, requested authentication\n");
+				mac->associnfo.assoc_wait = 1;
+				ieee80211softmac_notify_internal(mac, IEEE80211SOFTMAC_EVENT_ANY, found, ieee80211softmac_assoc_notify_auth, NULL, GFP_KERNEL);
+			}
 		} else {
 			printkl(KERN_WARNING PFX "Not authenticated, but requesting authentication failed. Giving up to associate\n");
+			mac->associnfo.assoc_wait = 0;
 			ieee80211softmac_call_events(mac, IEEE80211SOFTMAC_EVENT_ASSOCIATE_FAILED, found);
 		}
 		return;
 	}
 	/* finally! now we can start associating */
+	mac->associnfo.assoc_wait = 0;
 	ieee80211softmac_assoc(mac, found);
 }
 

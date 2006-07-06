@@ -39,12 +39,4 @@
  */
 #define	NR_IRQS		(NR_AIC_IRQS + (4 * 32))
 
-
-#ifndef __ASSEMBLY__
-/*
- * Initialize the IRQ controller.
- */
-extern void at91rm9200_init_irq(unsigned int priority[]);
-#endif
-
 #endif

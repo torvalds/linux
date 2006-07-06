@@ -22,8 +22,8 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
+#include <linux/irq.h>
 #include <asm/hardware.h>
-#include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -96,26 +96,24 @@ void __init pnx4008_init_irq(void)
 {
 	unsigned int i;
 
-	/* configure and enable IRQ 0,1,30,31 (cascade interrupts) mask all others */
+	/* configure IRQ's */
+	for (i = 0; i < NR_IRQS; i++) {
+		set_irq_flags(i, IRQF_VALID);
+		set_irq_chip(i, &pnx4008_irq_chip);
+		pnx4008_set_irq_type(i, pnx4008_irq_type[i]);
+	}
+
+	/* configure and enable IRQ 0,1,30,31 (cascade interrupts) */
 	pnx4008_set_irq_type(SUB1_IRQ_N, pnx4008_irq_type[SUB1_IRQ_N]);
 	pnx4008_set_irq_type(SUB2_IRQ_N, pnx4008_irq_type[SUB2_IRQ_N]);
 	pnx4008_set_irq_type(SUB1_FIQ_N, pnx4008_irq_type[SUB1_FIQ_N]);
 	pnx4008_set_irq_type(SUB2_FIQ_N, pnx4008_irq_type[SUB2_FIQ_N]);
 
+	/* mask all others */
 	__raw_writel((1 << SUB2_FIQ_N) | (1 << SUB1_FIQ_N) |
 			(1 << SUB2_IRQ_N) | (1 << SUB1_IRQ_N),
 		INTC_ER(MAIN_BASE_INT));
 	__raw_writel(0, INTC_ER(SIC1_BASE_INT));
 	__raw_writel(0, INTC_ER(SIC2_BASE_INT));
-
-	/* configure all other IRQ's */
-	for (i = 0; i < NR_IRQS; i++) {
-		if (i == SUB2_FIQ_N || i == SUB1_FIQ_N ||
-			i == SUB2_IRQ_N || i == SUB1_IRQ_N)
-			continue;
-		set_irq_flags(i, IRQF_VALID);
-		set_irq_chip(i, &pnx4008_irq_chip);
-		pnx4008_set_irq_type(i, pnx4008_irq_type[i]);
-	}
 }
 
