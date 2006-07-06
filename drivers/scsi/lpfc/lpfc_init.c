@@ -1339,7 +1339,8 @@ lpfc_offline(struct lpfc_hba * phba)
 	struct lpfc_sli_ring *pring;
 	struct lpfc_sli *psli;
 	unsigned long iflag;
-	int i = 0;
+	int i;
+	int cnt = 0;
 
 	if (!phba)
 		return 0;
@@ -1348,16 +1349,25 @@ lpfc_offline(struct lpfc_hba * phba)
 		return 0;
 
 	psli = &phba->sli;
-	pring = &psli->ring[psli->fcp_ring];
 
 	lpfc_linkdown(phba);
 
-	/* The linkdown event takes 30 seconds to timeout. */
-	while (pring->txcmplq_cnt) {
-		mdelay(10);
-		if (i++ > 3000)
-			break;
+	for (i = 0; i < psli->num_rings; i++) {
+		pring = &psli->ring[i];
+		/* The linkdown event takes 30 seconds to timeout. */
+		while (pring->txcmplq_cnt) {
+			mdelay(10);
+			if (cnt++ > 3000) {
+				lpfc_printf_log(phba,
+					KERN_WARNING, LOG_INIT,
+					"%d:0466 Outstanding IO when "
+					"bringing Adapter offline\n",
+					phba->brd_no);
+				break;
+			}
+		}
 	}
+
 
 	/* stop all timers associated with this hba */
 	lpfc_stop_timer(phba);
