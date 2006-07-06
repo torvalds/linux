@@ -988,7 +988,7 @@ static inline unsigned char getleds(void)
  * interrupt routines for this thing allows us to easily mask
  * this when we don't want any of the above to happen.
  * This allows for easy and efficient race-condition prevention
- * for kbd_refresh_leds => input_event(dev, EV_LED, ...) => ...
+ * for kbd_start => input_event(dev, EV_LED, ...) => ...
  */
 
 static void kbd_bh(unsigned long dummy)
@@ -1010,23 +1010,6 @@ static void kbd_bh(unsigned long dummy)
 }
 
 DECLARE_TASKLET_DISABLED(keyboard_tasklet, kbd_bh, 0);
-
-/*
- * This allows a newly plugged keyboard to pick the LED state.
- */
-static void kbd_refresh_leds(struct input_handle *handle)
-{
-	unsigned char leds = ledstate;
-
-	tasklet_disable(&keyboard_tasklet);
-	if (leds != 0xff) {
-		input_event(handle->dev, EV_LED, LED_SCROLLL, !!(leds & 0x01));
-		input_event(handle->dev, EV_LED, LED_NUML,    !!(leds & 0x02));
-		input_event(handle->dev, EV_LED, LED_CAPSL,   !!(leds & 0x04));
-		input_sync(handle->dev);
-	}
-	tasklet_enable(&keyboard_tasklet);
-}
 
 #if defined(CONFIG_X86) || defined(CONFIG_IA64) || defined(CONFIG_ALPHA) ||\
     defined(CONFIG_MIPS) || defined(CONFIG_PPC) || defined(CONFIG_SPARC) ||\
@@ -1307,7 +1290,6 @@ static struct input_handle *kbd_connect(struct input_handler *handler,
 	handle->name = "kbd";
 
 	input_open_device(handle);
-	kbd_refresh_leds(handle);
 
 	return handle;
 }
@@ -1316,6 +1298,24 @@ static void kbd_disconnect(struct input_handle *handle)
 {
 	input_close_device(handle);
 	kfree(handle);
+}
+
+/*
+ * Start keyboard handler on the new keyboard by refreshing LED state to
+ * match the rest of the system.
+ */
+static void kbd_start(struct input_handle *handle)
+{
+	unsigned char leds = ledstate;
+
+	tasklet_disable(&keyboard_tasklet);
+	if (leds != 0xff) {
+		input_event(handle->dev, EV_LED, LED_SCROLLL, !!(leds & 0x01));
+		input_event(handle->dev, EV_LED, LED_NUML,    !!(leds & 0x02));
+		input_event(handle->dev, EV_LED, LED_CAPSL,   !!(leds & 0x04));
+		input_sync(handle->dev);
+	}
+	tasklet_enable(&keyboard_tasklet);
 }
 
 static struct input_device_id kbd_ids[] = {
@@ -1338,6 +1338,7 @@ static struct input_handler kbd_handler = {
 	.event		= kbd_event,
 	.connect	= kbd_connect,
 	.disconnect	= kbd_disconnect,
+	.start		= kbd_start,
 	.name		= "kbd",
 	.id_table	= kbd_ids,
 };

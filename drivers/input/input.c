@@ -209,8 +209,13 @@ EXPORT_SYMBOL(input_grab_device);
 
 void input_release_device(struct input_handle *handle)
 {
-	if (handle->dev->grab == handle)
+	if (handle->dev->grab == handle) {
 		handle->dev->grab = NULL;
+
+		list_for_each_entry(handle, &handle->dev->h_list, d_node)
+			if (handle->handler->start)
+				handle->handler->start(handle);
+	}
 }
 EXPORT_SYMBOL(input_release_device);
 
@@ -954,8 +959,11 @@ int input_register_device(struct input_dev *dev)
 	list_for_each_entry(handler, &input_handler_list, node)
 		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
 			if ((id = input_match_device(handler->id_table, dev)))
-				if ((handle = handler->connect(handler, dev, id)))
+				if ((handle = handler->connect(handler, dev, id))) {
 					input_link_handle(handle);
+					if (handler->start)
+						handler->start(handle);
+				}
 
 	input_wakeup_procfs_readers();
 
