@@ -644,7 +644,6 @@ typedef struct _MPT_ADAPTER
 	struct work_struct	 fc_rescan_work;
 	char			 fc_rescan_work_q_name[KOBJ_NAME_LEN];
 	struct workqueue_struct *fc_rescan_work_q;
-	u8		port_serial_number;
 } MPT_ADAPTER;
 
 /*
