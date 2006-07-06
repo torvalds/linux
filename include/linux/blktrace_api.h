@@ -19,6 +19,7 @@ enum blktrace_cat {
 	BLK_TC_FS	= 1 << 8,	/* fs requests */
 	BLK_TC_PC	= 1 << 9,	/* pc requests */
 	BLK_TC_NOTIFY	= 1 << 10,	/* special message */
+	BLK_TC_AHEAD	= 1 << 11,	/* readahead */
 
 	BLK_TC_END	= 1 << 15,	/* only 16-bits, reminder */
 };
