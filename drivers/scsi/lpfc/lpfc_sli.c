@@ -578,7 +578,7 @@ lpfc_sli_handle_mb_event(struct lpfc_hba * phba)
 			/* Stray Mailbox Interrupt, mbxCommand <cmd> mbxStatus
 			   <status> */
 			lpfc_printf_log(phba,
-					KERN_ERR,
+					KERN_WARNING,
 					LOG_MBOX | LOG_SLI,
 					"%d:0304 Stray Mailbox Interrupt "
 					"mbxCommand x%x mbxStatus x%x\n",
@@ -3083,6 +3083,24 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&done_q, &wq_entry);
 	return retval;
+}
+
+int
+lpfc_sli_flush_mbox_queue(struct lpfc_hba * phba)
+{
+	int i = 0;
+
+	while (phba->sli.sli_flag & LPFC_SLI_MBOX_ACTIVE && !phba->stopped) {
+		if (i++ > LPFC_MBOX_TMO * 1000)
+			return 1;
+
+		if (lpfc_sli_handle_mb_event(phba) == 0)
+			i = 0;
+
+		msleep(1);
+	}
+
+	return (phba->sli.sli_flag & LPFC_SLI_MBOX_ACTIVE) ? 1 : 0;
 }
 
 irqreturn_t

@@ -1353,6 +1353,7 @@ lpfc_offline(struct lpfc_hba * phba)
 	psli = &phba->sli;
 
 	lpfc_linkdown(phba);
+	lpfc_sli_flush_mbox_queue(phba);
 
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
