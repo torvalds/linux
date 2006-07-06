@@ -219,8 +219,18 @@ lpfc_issue_lip(struct Scsi_Host *host)
 		return -ENOMEM;
 
 	memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));
-	lpfc_init_link(phba, pmboxq, phba->cfg_topology, phba->cfg_link_speed);
+	pmboxq->mb.mbxCommand = MBX_DOWN_LINK;
+	pmboxq->mb.mbxOwner = OWN_HOST;
+
 	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
+
+	if ((mbxstatus == MBX_SUCCESS) && (pmboxq->mb.mbxStatus == 0)) {
+		memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));
+		lpfc_init_link(phba, pmboxq, phba->cfg_topology,
+			       phba->cfg_link_speed);
+		mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq,
+						     phba->fc_ratov * 2);
+	}
 
 	if (mbxstatus == MBX_TIMEOUT)
 		pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
