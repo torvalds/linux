@@ -139,10 +139,36 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 extern void pagetable_init(void);
 
+static int __init page_is_ram(unsigned long pagenr)
+{
+	int i;
+
+	for (i = 0; i < boot_mem_map.nr_map; i++) {
+		unsigned long addr, end;
+
+		if (boot_mem_map.map[i].type != BOOT_MEM_RAM)
+			/* not usable memory */
+			continue;
+
+		addr = PFN_UP(boot_mem_map.map[i].addr);
+		end = PFN_DOWN(boot_mem_map.map[i].addr +
+			       boot_mem_map.map[i].size);
+
+		if (pagenr >= addr && pagenr < end)
+			return 1;
+	}
+
+	return 0;
+}
+
 void __init paging_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+	unsigned long zones_size[] = { [0 ... MAX_NR_ZONES - 1] = 0 };
 	unsigned long max_dma, high, low;
+#ifndef CONFIG_FLATMEM
+	unsigned long zholes_size[] = { [0 ... MAX_NR_ZONES - 1] = 0 };
+	unsigned long i, j, pfn;
+#endif
 
 	pagetable_init();
 
@@ -174,29 +200,16 @@ void __init paging_init(void)
 		zones_size[ZONE_HIGHMEM] = high - low;
 #endif
 
+#ifdef CONFIG_FLATMEM
 	free_area_init(zones_size);
-}
-
-static inline int page_is_ram(unsigned long pagenr)
-{
-	int i;
-
-	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		unsigned long addr, end;
-
-		if (boot_mem_map.map[i].type != BOOT_MEM_RAM)
-			/* not usable memory */
-			continue;
-
-		addr = PFN_UP(boot_mem_map.map[i].addr);
-		end = PFN_DOWN(boot_mem_map.map[i].addr +
-			       boot_mem_map.map[i].size);
-
-		if (pagenr >= addr && pagenr < end)
-			return 1;
-	}
-
-	return 0;
+#else
+	pfn = 0;
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		for (j = 0; j < zones_size[i]; j++, pfn++)
+			if (!page_is_ram(pfn))
+				zholes_size[i]++;
+	free_area_init_node(0, NODE_DATA(0), zones_size, 0, zholes_size);
+#endif
 }
 
 static struct kcore_list kcore_mem, kcore_vmalloc;
@@ -213,9 +226,9 @@ void __init mem_init(void)
 #ifdef CONFIG_DISCONTIGMEM
 #error "CONFIG_HIGHMEM and CONFIG_DISCONTIGMEM dont work together yet"
 #endif
-	max_mapnr = num_physpages = highend_pfn;
+	max_mapnr = highend_pfn;
 #else
-	max_mapnr = num_physpages = max_low_pfn;
+	max_mapnr = max_low_pfn;
 #endif
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 
@@ -229,6 +242,7 @@ void __init mem_init(void)
 			if (PageReserved(pfn_to_page(tmp)))
 				reservedpages++;
 		}
+	num_physpages = ram;
 
 #ifdef CONFIG_HIGHMEM
 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
@@ -247,6 +261,7 @@ void __init mem_init(void)
 		totalhigh_pages++;
 	}
 	totalram_pages += totalhigh_pages;
+	num_physpages += totalhigh_pages;
 #endif
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
