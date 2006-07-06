@@ -1053,6 +1053,7 @@ void input_close_device(struct input_handle *);
 int input_flush_device(struct input_handle* handle, struct file* file);
 
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
+void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 
 static inline void input_report_key(struct input_dev *dev, unsigned int code, int value)
 {

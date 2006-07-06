@@ -256,7 +256,7 @@ static ssize_t evdev_write(struct file * file, const char __user * buffer, size_
 
 		if (evdev_event_from_user(buffer + retval, &event))
 			return -EFAULT;
-		input_event(list->evdev->handle.dev, event.type, event.code, event.value);
+		input_inject_event(&list->evdev->handle, event.type, event.code, event.value);
 		retval += evdev_event_size();
 	}
 
@@ -424,8 +424,8 @@ static long evdev_ioctl_handler(struct file *file, unsigned int cmd,
 			if (get_user(v, ip + 1))
 				return -EFAULT;
 
-			input_event(dev, EV_REP, REP_DELAY, u);
-			input_event(dev, EV_REP, REP_PERIOD, v);
+			input_inject_event(&evdev->handle, EV_REP, REP_DELAY, u);
+			input_inject_event(&evdev->handle, EV_REP, REP_PERIOD, v);
 
 			return 0;
 

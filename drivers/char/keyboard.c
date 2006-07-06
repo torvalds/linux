@@ -223,13 +223,13 @@ static void kd_nosound(unsigned long ignored)
 {
 	struct list_head *node;
 
-	list_for_each(node,&kbd_handler.h_list) {
+	list_for_each(node, &kbd_handler.h_list) {
 		struct input_handle *handle = to_handle_h(node);
 		if (test_bit(EV_SND, handle->dev->evbit)) {
 			if (test_bit(SND_TONE, handle->dev->sndbit))
-				input_event(handle->dev, EV_SND, SND_TONE, 0);
+				input_inject_event(handle, EV_SND, SND_TONE, 0);
 			if (test_bit(SND_BELL, handle->dev->sndbit))
-				input_event(handle->dev, EV_SND, SND_BELL, 0);
+				input_inject_event(handle, EV_SND, SND_BELL, 0);
 		}
 	}
 }
@@ -247,11 +247,11 @@ void kd_mksound(unsigned int hz, unsigned int ticks)
 			struct input_handle *handle = to_handle_h(node);
 			if (test_bit(EV_SND, handle->dev->evbit)) {
 				if (test_bit(SND_TONE, handle->dev->sndbit)) {
-					input_event(handle->dev, EV_SND, SND_TONE, hz);
+					input_inject_event(handle, EV_SND, SND_TONE, hz);
 					break;
 				}
 				if (test_bit(SND_BELL, handle->dev->sndbit)) {
-					input_event(handle->dev, EV_SND, SND_BELL, 1);
+					input_inject_event(handle, EV_SND, SND_BELL, 1);
 					break;
 				}
 			}
@@ -272,15 +272,15 @@ int kbd_rate(struct kbd_repeat *rep)
 	unsigned int d = 0;
 	unsigned int p = 0;
 
-	list_for_each(node,&kbd_handler.h_list) {
+	list_for_each(node, &kbd_handler.h_list) {
 		struct input_handle *handle = to_handle_h(node);
 		struct input_dev *dev = handle->dev;
 
 		if (test_bit(EV_REP, dev->evbit)) {
 			if (rep->delay > 0)
-				input_event(dev, EV_REP, REP_DELAY, rep->delay);
+				input_inject_event(handle, EV_REP, REP_DELAY, rep->delay);
 			if (rep->period > 0)
-				input_event(dev, EV_REP, REP_PERIOD, rep->period);
+				input_inject_event(handle, EV_REP, REP_PERIOD, rep->period);
 			d = dev->rep[REP_DELAY];
 			p = dev->rep[REP_PERIOD];
 		}
@@ -988,7 +988,7 @@ static inline unsigned char getleds(void)
  * interrupt routines for this thing allows us to easily mask
  * this when we don't want any of the above to happen.
  * This allows for easy and efficient race-condition prevention
- * for kbd_start => input_event(dev, EV_LED, ...) => ...
+ * for kbd_start => input_inject_event(dev, EV_LED, ...) => ...
  */
 
 static void kbd_bh(unsigned long dummy)
@@ -998,11 +998,11 @@ static void kbd_bh(unsigned long dummy)
 
 	if (leds != ledstate) {
 		list_for_each(node, &kbd_handler.h_list) {
-			struct input_handle * handle = to_handle_h(node);
-			input_event(handle->dev, EV_LED, LED_SCROLLL, !!(leds & 0x01));
-			input_event(handle->dev, EV_LED, LED_NUML,    !!(leds & 0x02));
-			input_event(handle->dev, EV_LED, LED_CAPSL,   !!(leds & 0x04));
-			input_sync(handle->dev);
+			struct input_handle *handle = to_handle_h(node);
+			input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
+			input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
+			input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
+			input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
 		}
 	}
 
@@ -1310,10 +1310,10 @@ static void kbd_start(struct input_handle *handle)
 
 	tasklet_disable(&keyboard_tasklet);
 	if (leds != 0xff) {
-		input_event(handle->dev, EV_LED, LED_SCROLLL, !!(leds & 0x01));
-		input_event(handle->dev, EV_LED, LED_NUML,    !!(leds & 0x02));
-		input_event(handle->dev, EV_LED, LED_CAPSL,   !!(leds & 0x04));
-		input_sync(handle->dev);
+		input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
+		input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
+		input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
+		input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
 	}
 	tasklet_enable(&keyboard_tasklet);
 }
