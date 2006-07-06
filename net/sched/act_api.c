@@ -776,7 +776,7 @@ replay:
 	return ret;
 }
 
-static char *
+static struct rtattr *
 find_dump_kind(struct nlmsghdr *n)
 {
 	struct rtattr *tb1, *tb2[TCA_ACT_MAX+1];
@@ -804,7 +804,7 @@ find_dump_kind(struct nlmsghdr *n)
 		return NULL;
 	kind = tb2[TCA_ACT_KIND-1];
 
-	return (char *) RTA_DATA(kind);
+	return kind;
 }
 
 static int
@@ -817,16 +817,15 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	struct tc_action a;
 	int ret = 0;
 	struct tcamsg *t = (struct tcamsg *) NLMSG_DATA(cb->nlh);
-	char *kind = find_dump_kind(cb->nlh);
+	struct rtattr *kind = find_dump_kind(cb->nlh);
 
 	if (kind == NULL) {
 		printk("tc_dump_action: action bad kind\n");
 		return 0;
 	}
 
-	a_o = tc_lookup_action_n(kind);
+	a_o = tc_lookup_action(kind);
 	if (a_o == NULL) {
-		printk("failed to find %s\n", kind);
 		return 0;
 	}
 
@@ -834,7 +833,7 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	a.ops = a_o;
 
 	if (a_o->walk == NULL) {
-		printk("tc_dump_action: %s !capable of dumping table\n", kind);
+		printk("tc_dump_action: %s !capable of dumping table\n", a_o->kind);
 		goto rtattr_failure;
 	}
 
