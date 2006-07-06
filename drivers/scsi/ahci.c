@@ -1052,7 +1052,7 @@ static void ahci_thaw(struct ata_port *ap)
 
 static void ahci_error_handler(struct ata_port *ap)
 {
-	if (!(ap->flags & ATA_FLAG_FROZEN)) {
+	if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
 		/* restart engine */
 		ahci_stop_engine(ap);
 		ahci_start_engine(ap);
@@ -1323,6 +1323,17 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
+	/* JMicron-specific fixup: make sure we're in AHCI mode */
+	/* This is protected from races with ata_jmicron by the pci probe
+	   locking */
+	if (pdev->vendor == PCI_VENDOR_ID_JMICRON) {
+		/* AHCI enable, AHCI on function 0 */
+		pci_write_config_byte(pdev, 0x41, 0xa1);
+		/* Function 1 is the PATA controller */
+		if (PCI_FUNC(pdev->devfn))
+			return -ENODEV;
+	}
+
 	rc = pci_enable_device(pdev);
 	if (rc)
 		return rc;
@@ -1377,10 +1388,6 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (have_msi)
 		hpriv->flags |= AHCI_FLAG_MSI;
-
-	/* JMicron-specific fixup: make sure we're in AHCI mode */
-	if (pdev->vendor == 0x197b)
-		pci_write_config_byte(pdev, 0x41, 0xa1);
 
 	/* initialize adapter */
 	rc = ahci_host_init(probe_ent);
