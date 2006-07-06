@@ -60,7 +60,7 @@ static ssize_t
 set_bConfigurationValue (struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	struct usb_device	*udev = udev = to_usb_device (dev);
+	struct usb_device	*udev = to_usb_device (dev);
 	int			config, value;
 
 	if (sscanf (buf, "%u", &config) != 1 || config > 255)
@@ -186,6 +186,7 @@ usb_descriptor_attr (bMaxPacketSize0, "%d\n")
 
 static struct attribute *dev_attrs[] = {
 	/* current configuration's attributes */
+	&dev_attr_configuration.attr,
 	&dev_attr_bNumInterfaces.attr,
 	&dev_attr_bConfigurationValue.attr,
 	&dev_attr_bmAttributes.attr,
@@ -221,7 +222,6 @@ void usb_create_sysfs_dev_files (struct usb_device *udev)
 		device_create_file (dev, &dev_attr_product);
 	if (udev->serial)
 		device_create_file (dev, &dev_attr_serial);
-	device_create_file (dev, &dev_attr_configuration);
 	usb_create_ep_files(dev, &udev->ep0, udev);
 }
 
@@ -238,7 +238,6 @@ void usb_remove_sysfs_dev_files (struct usb_device *udev)
 		device_remove_file(dev, &dev_attr_product);
 	if (udev->serial)
 		device_remove_file(dev, &dev_attr_serial);
-	device_remove_file (dev, &dev_attr_configuration);
 }
 
 /* Interface fields */
