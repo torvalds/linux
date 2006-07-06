@@ -271,8 +271,10 @@ enum {
 #define NVREG_LINKSPEED_MASK	(0xFFF)
 	NvRegUnknownSetupReg5 = 0x130,
 #define NVREG_UNKSETUP5_BIT31	(1<<31)
-	NvRegUnknownSetupReg3 = 0x13c,
-#define NVREG_UNKSETUP3_VAL1	0x200010
+	NvRegTxWatermark = 0x13c,
+#define NVREG_TX_WM_DESC1_DEFAULT	0x0200010
+#define NVREG_TX_WM_DESC2_3_DEFAULT	0x1e08000
+#define NVREG_TX_WM_DESC2_3_1000	0xfe08000
 	NvRegTxRxControl = 0x144,
 #define NVREG_TXRXCTL_KICK	0x0001
 #define NVREG_TXRXCTL_BIT1	0x0002
@@ -660,7 +662,7 @@ static const struct register_test nv_registers_test[] = {
 	{ NvRegMisc1, 0x03c },
 	{ NvRegOffloadConfig, 0x03ff },
 	{ NvRegMulticastAddrA, 0xffffffff },
-	{ NvRegUnknownSetupReg3, 0x0ff },
+	{ NvRegTxWatermark, 0x0ff },
 	{ NvRegWakeUpFlags, 0x07777 },
 	{ 0,0 }
 };
@@ -2256,6 +2258,16 @@ set_speed:
 		txreg = NVREG_TX_DEFERRAL_DEFAULT;
 	}
 	writel(txreg, base + NvRegTxDeferral);
+
+	if (np->desc_ver == DESC_VER_1) {
+		txreg = NVREG_TX_WM_DESC1_DEFAULT;
+	} else {
+		if ((np->linkspeed & NVREG_LINKSPEED_MASK) == NVREG_LINKSPEED_1000)
+			txreg = NVREG_TX_WM_DESC2_3_1000;
+		else
+			txreg = NVREG_TX_WM_DESC2_3_DEFAULT;
+	}
+	writel(txreg, base + NvRegTxWatermark);
 
 	writel(NVREG_MISC1_FORCE | ( np->duplex ? 0 : NVREG_MISC1_HD),
 		base + NvRegMisc1);
@@ -3922,7 +3934,10 @@ static int nv_open(struct net_device *dev)
 
 	/* 5) continue setup */
 	writel(np->linkspeed, base + NvRegLinkSpeed);
-	writel(NVREG_UNKSETUP3_VAL1, base + NvRegUnknownSetupReg3);
+	if (np->desc_ver == DESC_VER_1)
+		writel(NVREG_TX_WM_DESC1_DEFAULT, base + NvRegTxWatermark);
+	else
+		writel(NVREG_TX_WM_DESC2_3_DEFAULT, base + NvRegTxWatermark);
 	writel(np->txrxctl_bits, base + NvRegTxRxControl);
 	writel(np->vlanctl_bits, base + NvRegVlanControl);
 	pci_push(base);
