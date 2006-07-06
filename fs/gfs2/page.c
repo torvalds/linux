@@ -256,8 +256,7 @@ void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 	struct buffer_head *bh;
 	unsigned int start, end;
 
-	for (bh = head, start = 0;
-	     bh != head || !start;
+	for (bh = head, start = 0; bh != head || !start;
 	     bh = bh->b_this_page, start = end) {
 		end = start + bsize;
 		if (end <= from || start >= to)

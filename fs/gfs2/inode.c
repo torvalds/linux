@@ -325,6 +325,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	uint32_t nlink;
 	int error;
 
+	BUG_ON(ip->i_di.di_nlink != ip->i_inode.i_nlink);
 	nlink = ip->i_di.di_nlink + diff;
 
 	/* If we are reducing the nlink count, but the new value ends up being
@@ -341,6 +342,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 
 	ip->i_di.di_nlink = nlink;
 	ip->i_di.di_ctime = get_seconds();
+	ip->i_inode.i_nlink = nlink;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);

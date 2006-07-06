@@ -1965,19 +1965,13 @@ static int examine_bucket(glock_examiner examiner, struct gfs2_sbd *sdp,
 static void scan_glock(struct gfs2_glock *gl)
 {
 	if (gfs2_glmutex_trylock(gl)) {
-		if (gl->gl_ops == &gfs2_inode_glops) {
-			struct gfs2_inode *ip = gl->gl_object;
-			if (ip == NULL) {
-				struct gfs2_sbd *sdp = gl->gl_sbd;
-				gfs2_assert_withdraw(sdp, gl->gl_state == LM_ST_UNLOCKED);
-				goto out_schedule;
-			}
-		}
+		if (gl->gl_ops == &gfs2_inode_glops)
+			goto out;
 		if (queue_empty(gl, &gl->gl_holders) &&
 		    gl->gl_state != LM_ST_UNLOCKED &&
 		    demote_ok(gl))
 			goto out_schedule;
-
+out:
 		gfs2_glmutex_unlock(gl);
 	}
 

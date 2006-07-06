@@ -250,6 +250,7 @@ out:
 	gfs2_holder_uninit(ghs + 1);
 
 	if (!error) {
+		atomic_inc(&inode->i_count);
 		d_instantiate(dentry, inode);
 		mark_inode_dirty(inode);
 	}
