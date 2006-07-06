@@ -3282,10 +3282,9 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 		} else
 			lpfc_sli_release_iocbq(phba, piocb);
 	}
-	if (phba->sli.ring[LPFC_ELS_RING].txcmplq_cnt) {
-		phba->els_tmofunc.expires = jiffies + HZ * timeout;
-		add_timer(&phba->els_tmofunc);
-	}
+	if (phba->sli.ring[LPFC_ELS_RING].txcmplq_cnt)
+		mod_timer(&phba->els_tmofunc, jiffies + HZ * timeout);
+
 	spin_unlock_irq(phba->host->host_lock);
 }
 
