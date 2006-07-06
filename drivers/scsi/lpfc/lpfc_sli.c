@@ -191,35 +191,12 @@ static int
 lpfc_sli_ringtxcmpl_put(struct lpfc_hba * phba,
 			struct lpfc_sli_ring * pring, struct lpfc_iocbq * piocb)
 {
-	uint16_t iotag;
-
 	list_add_tail(&piocb->list, &pring->txcmplq);
 	pring->txcmplq_cnt++;
 	if (unlikely(pring->ringno == LPFC_ELS_RING))
 		mod_timer(&phba->els_tmofunc,
 					jiffies + HZ * (phba->fc_ratov << 1));
 
-	if (pring->fast_lookup) {
-		/* Setup fast lookup based on iotag for completion */
-		iotag = piocb->iocb.ulpIoTag;
-		if (iotag && (iotag < pring->fast_iotag))
-			*(pring->fast_lookup + iotag) = piocb;
-		else {
-
-			/* Cmd ring <ringno> put: iotag <iotag> greater then
-			   configured max <fast_iotag> wd0 <icmd> */
-			lpfc_printf_log(phba,
-					KERN_ERR,
-					LOG_SLI,
-					"%d:0316 Cmd ring %d put: iotag x%x "
-					"greater then configured max x%x "
-					"wd0 x%x\n",
-					phba->brd_no,
-					pring->ringno, iotag,
-					pring->fast_iotag,
-					*(((uint32_t *)(&piocb->iocb)) + 7));
-		}
-	}
 	return (0);
 }
 
@@ -2659,8 +2636,6 @@ lpfc_sli_hba_down(struct lpfc_hba * phba)
 
 		INIT_LIST_HEAD(&(pring->txq));
 
-		kfree(pring->fast_lookup);
-		pring->fast_lookup = NULL;
 	}
 
 	spin_unlock_irqrestore(phba->host->host_lock, flags);
