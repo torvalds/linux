@@ -181,8 +181,9 @@ static __init unsigned long get_m48t35_time(void)
         return mktime(year, month, date, hour, min, sec);
 }
 
-static void startup_rt_irq(unsigned int irq)
+static unsigned int startup_rt_irq(unsigned int irq)
 {
+	return 0;
 }
 
 static void shutdown_rt_irq(unsigned int irq)
