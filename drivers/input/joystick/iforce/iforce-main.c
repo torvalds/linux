@@ -222,22 +222,22 @@ static int iforce_erase_effect(struct input_dev *dev, int effect_id)
 	int err = 0;
 	struct iforce_core_effect* core_effect;
 
-	/* Check who is trying to erase this effect */
-	if (iforce->core_effects[effect_id].owner != current->pid) {
-		printk(KERN_WARNING "iforce-main.c: %d tried to erase an effect belonging to %d\n", current->pid, iforce->core_effects[effect_id].owner);
-		return -EACCES;
-	}
-
 	if (effect_id < 0 || effect_id >= FF_EFFECTS_MAX)
 		return -EINVAL;
 
-	core_effect = iforce->core_effects + effect_id;
+	core_effect = &iforce->core_effects[effect_id];
+
+	/* Check who is trying to erase this effect */
+	if (core_effect->owner != current->pid) {
+		printk(KERN_WARNING "iforce-main.c: %d tried to erase an effect belonging to %d\n", current->pid, core_effect->owner);
+		return -EACCES;
+	}
 
 	if (test_bit(FF_MOD1_IS_USED, core_effect->flags))
-		err = release_resource(&(iforce->core_effects[effect_id].mod1_chunk));
+		err = release_resource(&core_effect->mod1_chunk);
 
 	if (!err && test_bit(FF_MOD2_IS_USED, core_effect->flags))
-		err = release_resource(&(iforce->core_effects[effect_id].mod2_chunk));
+		err = release_resource(&core_effect->mod2_chunk);
 
 	/*TODO: remember to change that if more FF_MOD* bits are added */
 	core_effect->flags[0] = 0;
