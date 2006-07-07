@@ -862,7 +862,7 @@ static void __init probe_pcache(void)
 		break;
 
 	case CPU_VR4133:
-		write_c0_config(config & ~CONF_EB);
+		write_c0_config(config & ~VR41_CONF_P4K);
 	case CPU_VR4131:
 		/* Workaround for cache instruction bug of VR4131 */
 		if (c->processor_id == 0x0c80U || c->processor_id == 0x0c81U ||
