@@ -244,6 +244,10 @@ static void ip27_timer_setup(struct irqaction *irq)
 	irq_desc[irqno].status |= IRQ_PER_CPU;
 
 	rt_timer_irq = irqno;
+	/*
+	 * Only needed to get /proc/interrupt to display timer irq stats
+	 */
+	setup_irq(irqno, &rt_irqaction);
 }
 
 void __init ip27_time_init(void)
