@@ -234,7 +234,7 @@ static void ip27_timer_setup(struct irqaction *irq)
 	irq_desc[irqno].status = IRQ_DISABLED;
 	irq_desc[irqno].action = NULL;
 	irq_desc[irqno].depth = 1;
-	irq_desc[irqno].handler = &rt_irq_type;
+	irq_desc[irqno].chip = &rt_irq_type;
 
 	/* over-write the handler, we use our own way */
 	irq->handler = no_action;
