@@ -867,12 +867,13 @@ static void __init probe_pcache(void)
 		/* Workaround for cache instruction bug of VR4131 */
 		if (c->processor_id == 0x0c80U || c->processor_id == 0x0c81U ||
 		    c->processor_id == 0x0c82U) {
-			config &= ~0x00000030U;
 			config |= 0x00400000U;
 			if (c->processor_id == 0x0c80U)
 				config |= VR41_CONF_BP;
 			write_c0_config(config);
-		}
+		} else
+			c->options |= MIPS_CPU_CACHE_CDEX_P;
+
 		icache_size = 1 << (10 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
 		c->icache.ways = 2;
@@ -882,8 +883,6 @@ static void __init probe_pcache(void)
 		c->dcache.linesz = 16 << ((config & CONF_DB) >> 4);
 		c->dcache.ways = 2;
 		c->dcache.waybit = __ffs(dcache_size/2);
-
-		c->options |= MIPS_CPU_CACHE_CDEX_P;
 		break;
 
 	case CPU_VR41XX:
