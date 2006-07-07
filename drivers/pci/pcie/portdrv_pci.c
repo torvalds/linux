@@ -56,8 +56,10 @@ static int __devinit pcie_portdrv_probe (struct pci_dev *dev,
 		"%s->Dev[%04x:%04x] has invalid IRQ. Check vendor BIOS\n", 
 		__FUNCTION__, dev->device, dev->vendor);
 	}
-	if (pcie_port_device_register(dev)) 
+	if (pcie_port_device_register(dev)) {
+		pci_disable_device(dev);
 		return -ENOMEM;
+	}
 
 	return 0;
 }
