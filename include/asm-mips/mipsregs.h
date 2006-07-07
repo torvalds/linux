@@ -1417,7 +1417,7 @@ change_c0_##name(unsigned int change, unsigned int new)		\
 
 #else /* SMTC versions that manage MT scheduling */
 
-#include <asm/interrupt.h>
+#include <linux/irqflags.h>
 
 /*
  * This is a duplicate of dmt() in mipsmtregs.h to avoid problems with

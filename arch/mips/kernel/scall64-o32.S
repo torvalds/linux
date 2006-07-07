@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
+#include <asm/irqflags.h>
 #include <asm/mipsregs.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
@@ -27,6 +28,7 @@
 NESTED(handle_sys, PT_SIZE, sp)
 	.set	noat
 	SAVE_SOME
+	TRACE_IRQS_ON
 	STI
 	.set	at
 	ld	t1, PT_EPC(sp)		# skip syscall on return
