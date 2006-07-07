@@ -139,6 +139,14 @@ UNUSUAL_DEV(  0x0420, 0x0001, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Sumedha Swamy <sumedhaswamy@gmail.com> and
+ * Einar Th. Einarsson <einarthered@gmail.com> */
+UNUSUAL_DEV(  0x0421, 0x0444, 0x0100, 0x0100,
+		"Nokia",
+		"N91",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+
 /* Reported by Jiri Slaby <jirislaby@gmail.com> and
  * Rene C. Castberg <Rene@Castberg.org> */
 UNUSUAL_DEV(  0x0421, 0x0446, 0x0100, 0x0100,
