@@ -220,8 +220,8 @@ __xchg_u32(volatile void *p, unsigned long val)
 "	stwcx.	%3,0,%2 \n\
 	bne-	1b"
 	ISYNC_ON_SMP
-	: "=&r" (prev), "=m" (*(volatile unsigned int *)p)
-	: "r" (p), "r" (val), "m" (*(volatile unsigned int *)p)
+	: "=&r" (prev), "+m" (*(volatile unsigned int *)p)
+	: "r" (p), "r" (val)
 	: "cc", "memory");
 
 	return prev;
@@ -240,8 +240,8 @@ __xchg_u64(volatile void *p, unsigned long val)
 "	stdcx.	%3,0,%2 \n\
 	bne-	1b"
 	ISYNC_ON_SMP
-	: "=&r" (prev), "=m" (*(volatile unsigned long *)p)
-	: "r" (p), "r" (val), "m" (*(volatile unsigned long *)p)
+	: "=&r" (prev), "+m" (*(volatile unsigned long *)p)
+	: "r" (p), "r" (val)
 	: "cc", "memory");
 
 	return prev;
@@ -299,8 +299,8 @@ __cmpxchg_u32(volatile unsigned int *p, unsigned long old, unsigned long new)
 	ISYNC_ON_SMP
 	"\n\
 2:"
-	: "=&r" (prev), "=m" (*p)
-	: "r" (p), "r" (old), "r" (new), "m" (*p)
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (old), "r" (new)
 	: "cc", "memory");
 
 	return prev;
@@ -322,8 +322,8 @@ __cmpxchg_u64(volatile unsigned long *p, unsigned long old, unsigned long new)
 	ISYNC_ON_SMP
 	"\n\
 2:"
-	: "=&r" (prev), "=m" (*p)
-	: "r" (p), "r" (old), "r" (new), "m" (*p)
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (old), "r" (new)
 	: "cc", "memory");
 
 	return prev;
