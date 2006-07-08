@@ -1276,8 +1276,6 @@ static int ata_eh_speed_down(struct ata_device *dev, int is_io,
 static void ata_eh_autopsy(struct ata_port *ap)
 {
 	struct ata_eh_context *ehc = &ap->eh_context;
-	unsigned int action = ehc->i.action;
-	struct ata_device *failed_dev = NULL;
 	unsigned int all_err_mask = 0;
 	int tag, is_io = 0;
 	u32 serror;
@@ -1294,7 +1292,7 @@ static void ata_eh_autopsy(struct ata_port *ap)
 		ehc->i.serror |= serror;
 		ata_eh_analyze_serror(ap);
 	} else if (rc != -EOPNOTSUPP)
-		action |= ATA_EH_HARDRESET;
+		ehc->i.action |= ATA_EH_HARDRESET;
 
 	/* analyze NCQ failure */
 	ata_eh_analyze_ncq_error(ap);
@@ -1315,7 +1313,7 @@ static void ata_eh_autopsy(struct ata_port *ap)
 		qc->err_mask |= ehc->i.err_mask;
 
 		/* analyze TF */
-		action |= ata_eh_analyze_tf(qc, &qc->result_tf);
+		ehc->i.action |= ata_eh_analyze_tf(qc, &qc->result_tf);
 
 		/* DEV errors are probably spurious in case of ATA_BUS error */
 		if (qc->err_mask & AC_ERR_ATA_BUS)
@@ -1329,11 +1327,11 @@ static void ata_eh_autopsy(struct ata_port *ap)
 		/* SENSE_VALID trumps dev/unknown error and revalidation */
 		if (qc->flags & ATA_QCFLAG_SENSE_VALID) {
 			qc->err_mask &= ~(AC_ERR_DEV | AC_ERR_OTHER);
-			action &= ~ATA_EH_REVALIDATE;
+			ehc->i.action &= ~ATA_EH_REVALIDATE;
 		}
 
 		/* accumulate error info */
-		failed_dev = qc->dev;
+		ehc->i.dev = qc->dev;
 		all_err_mask |= qc->err_mask;
 		if (qc->flags & ATA_QCFLAG_IO)
 			is_io = 1;
@@ -1342,24 +1340,21 @@ static void ata_eh_autopsy(struct ata_port *ap)
 	/* enforce default EH actions */
 	if (ap->pflags & ATA_PFLAG_FROZEN ||
 	    all_err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT))
-		action |= ATA_EH_SOFTRESET;
+		ehc->i.action |= ATA_EH_SOFTRESET;
 	else if (all_err_mask)
-		action |= ATA_EH_REVALIDATE;
+		ehc->i.action |= ATA_EH_REVALIDATE;
 
 	/* if we have offending qcs and the associated failed device */
-	if (failed_dev) {
+	if (ehc->i.dev) {
 		/* speed down */
-		action |= ata_eh_speed_down(failed_dev, is_io, all_err_mask);
+		ehc->i.action |= ata_eh_speed_down(ehc->i.dev, is_io,
+						   all_err_mask);
 
 		/* perform per-dev EH action only on the offending device */
-		ehc->i.dev_action[failed_dev->devno] |=
-			action & ATA_EH_PERDEV_MASK;
-		action &= ~ATA_EH_PERDEV_MASK;
+		ehc->i.dev_action[ehc->i.dev->devno] |=
+			ehc->i.action & ATA_EH_PERDEV_MASK;
+		ehc->i.action &= ~ATA_EH_PERDEV_MASK;
 	}
-
-	/* record autopsy result */
-	ehc->i.dev = failed_dev;
-	ehc->i.action |= action;
 
 	DPRINTK("EXIT\n");
 }
