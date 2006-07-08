@@ -460,18 +460,66 @@ static void scsi_eh_done(struct scsi_cmnd *scmd)
  * Return value:
  *    SUCCESS or FAILED or NEEDS_RETRY
  **/
-static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
+static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout, int copy_sense)
 {
 	struct scsi_device *sdev = scmd->device;
 	struct Scsi_Host *shost = sdev->host;
+	int old_result = scmd->result;
 	DECLARE_COMPLETION(done);
 	unsigned long timeleft;
 	unsigned long flags;
+	unsigned char old_cmnd[MAX_COMMAND_SIZE];
+	enum dma_data_direction old_data_direction;
+	unsigned short old_use_sg;
+	unsigned char old_cmd_len;
+	unsigned old_bufflen;
+	void *old_buffer;
 	int rtn;
+
+	/*
+	 * We need saved copies of a number of fields - this is because
+	 * error handling may need to overwrite these with different values
+	 * to run different commands, and once error handling is complete,
+	 * we will need to restore these values prior to running the actual
+	 * command.
+	 */
+	old_buffer = scmd->request_buffer;
+	old_bufflen = scmd->request_bufflen;
+	memcpy(old_cmnd, scmd->cmnd, sizeof(scmd->cmnd));
+	old_data_direction = scmd->sc_data_direction;
+	old_cmd_len = scmd->cmd_len;
+	old_use_sg = scmd->use_sg;
+
+	if (copy_sense) {
+		int gfp_mask = GFP_ATOMIC;
+
+		if (shost->hostt->unchecked_isa_dma)
+			gfp_mask |= __GFP_DMA;
+
+		scmd->sc_data_direction = DMA_FROM_DEVICE;
+		scmd->request_bufflen = 252;
+		scmd->request_buffer = kzalloc(scmd->request_bufflen, gfp_mask);
+		if (!scmd->request_buffer)
+			return FAILED;
+	} else {
+		scmd->request_buffer = NULL;
+		scmd->request_bufflen = 0;
+		scmd->sc_data_direction = DMA_NONE;
+	}
+
+	scmd->underflow = 0;
+	scmd->use_sg = 0;
+	scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
 
 	if (sdev->scsi_level <= SCSI_2)
 		scmd->cmnd[1] = (scmd->cmnd[1] & 0x1f) |
 			(sdev->lun << 5 & 0xe0);
+
+	/*
+	 * Zero the sense buffer.  The scsi spec mandates that any
+	 * untransferred sense data should be interpreted as being zero.
+	 */
+	memset(scmd->sense_buffer, 0, sizeof(scmd->sense_buffer));
 
 	shost->eh_action = &done;
 
@@ -522,6 +570,29 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 		rtn = FAILED;
 	}
 
+
+	/*
+	 * Last chance to have valid sense data.
+	 */
+	if (copy_sense) {
+		if (!SCSI_SENSE_VALID(scmd)) {
+			memcpy(scmd->sense_buffer, scmd->request_buffer,
+			       sizeof(scmd->sense_buffer));
+		}
+		kfree(scmd->request_buffer);
+	}
+
+
+	/*
+	 * Restore original data
+	 */
+	scmd->request_buffer = old_buffer;
+	scmd->request_bufflen = old_bufflen;
+	memcpy(scmd->cmnd, old_cmnd, sizeof(scmd->cmnd));
+	scmd->sc_data_direction = old_data_direction;
+	scmd->cmd_len = old_cmd_len;
+	scmd->use_sg = old_use_sg;
+	scmd->result = old_result;
 	return rtn;
 }
 
@@ -537,56 +608,10 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 static int scsi_request_sense(struct scsi_cmnd *scmd)
 {
 	static unsigned char generic_sense[6] =
-	{REQUEST_SENSE, 0, 0, 0, 252, 0};
-	unsigned char *scsi_result;
-	int saved_result;
-	int rtn;
+		{REQUEST_SENSE, 0, 0, 0, 252, 0};
 
 	memcpy(scmd->cmnd, generic_sense, sizeof(generic_sense));
-
-	scsi_result = kmalloc(252, GFP_ATOMIC | ((scmd->device->host->hostt->unchecked_isa_dma) ? __GFP_DMA : 0));
-
-
-	if (unlikely(!scsi_result)) {
-		printk(KERN_ERR "%s: cannot allocate scsi_result.\n",
-		       __FUNCTION__);
-		return FAILED;
-	}
-
-	/*
-	 * zero the sense buffer.  some host adapters automatically always
-	 * request sense, so it is not a good idea that
-	 * scmd->request_buffer and scmd->sense_buffer point to the same
-	 * address (db).  0 is not a valid sense code. 
-	 */
-	memset(scmd->sense_buffer, 0, sizeof(scmd->sense_buffer));
-	memset(scsi_result, 0, 252);
-
-	saved_result = scmd->result;
-	scmd->request_buffer = scsi_result;
-	scmd->request_bufflen = 252;
-	scmd->use_sg = 0;
-	scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
-	scmd->sc_data_direction = DMA_FROM_DEVICE;
-	scmd->underflow = 0;
-
-	rtn = scsi_send_eh_cmnd(scmd, SENSE_TIMEOUT);
-
-	/* last chance to have valid sense data */
-	if(!SCSI_SENSE_VALID(scmd)) {
-		memcpy(scmd->sense_buffer, scmd->request_buffer,
-		       sizeof(scmd->sense_buffer));
-	}
-
-	kfree(scsi_result);
-
-	/*
-	 * when we eventually call scsi_finish, we really wish to complete
-	 * the original request, so let's restore the original data. (db)
-	 */
-	scsi_setup_cmd_retry(scmd);
-	scmd->result = saved_result;
-	return rtn;
+	return scsi_send_eh_cmnd(scmd, SENSE_TIMEOUT, 1);
 }
 
 /**
@@ -605,12 +630,6 @@ void scsi_eh_finish_cmd(struct scsi_cmnd *scmd, struct list_head *done_q)
 {
 	scmd->device->host->host_failed--;
 	scmd->eh_eflags = 0;
-
-	/*
-	 * set this back so that the upper level can correctly free up
-	 * things.
-	 */
-	scsi_setup_cmd_retry(scmd);
 	list_move_tail(&scmd->eh_entry, done_q);
 }
 EXPORT_SYMBOL(scsi_eh_finish_cmd);
@@ -715,47 +734,26 @@ static int scsi_eh_tur(struct scsi_cmnd *scmd)
 {
 	static unsigned char tur_command[6] = {TEST_UNIT_READY, 0, 0, 0, 0, 0};
 	int retry_cnt = 1, rtn;
-	int saved_result;
 
 retry_tur:
 	memcpy(scmd->cmnd, tur_command, sizeof(tur_command));
 
-	/*
-	 * zero the sense buffer.  the scsi spec mandates that any
-	 * untransferred sense data should be interpreted as being zero.
-	 */
-	memset(scmd->sense_buffer, 0, sizeof(scmd->sense_buffer));
 
-	saved_result = scmd->result;
-	scmd->request_buffer = NULL;
-	scmd->request_bufflen = 0;
-	scmd->use_sg = 0;
-	scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
-	scmd->underflow = 0;
-	scmd->sc_data_direction = DMA_NONE;
+	rtn = scsi_send_eh_cmnd(scmd, SENSE_TIMEOUT, 0);
 
-	rtn = scsi_send_eh_cmnd(scmd, SENSE_TIMEOUT);
-
-	/*
-	 * when we eventually call scsi_finish, we really wish to complete
-	 * the original request, so let's restore the original data. (db)
-	 */
-	scsi_setup_cmd_retry(scmd);
-	scmd->result = saved_result;
-
-	/*
-	 * hey, we are done.  let's look to see what happened.
-	 */
 	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: scmd %p rtn %x\n",
 		__FUNCTION__, scmd, rtn));
-	if (rtn == SUCCESS)
-		return 0;
-	else if (rtn == NEEDS_RETRY) {
+
+	switch (rtn) {
+	case NEEDS_RETRY:
 		if (retry_cnt--)
 			goto retry_tur;
+		/*FALLTHRU*/
+	case SUCCESS:
 		return 0;
+	default:
+		return 1;
 	}
-	return 1;
 }
 
 /**
@@ -837,44 +835,16 @@ static int scsi_try_bus_device_reset(struct scsi_cmnd *scmd)
 static int scsi_eh_try_stu(struct scsi_cmnd *scmd)
 {
 	static unsigned char stu_command[6] = {START_STOP, 0, 0, 0, 1, 0};
-	int rtn;
-	int saved_result;
 
-	if (!scmd->device->allow_restart)
-		return 1;
+	if (scmd->device->allow_restart) {
+		int rtn;
 
-	memcpy(scmd->cmnd, stu_command, sizeof(stu_command));
+		memcpy(scmd->cmnd, stu_command, sizeof(stu_command));
+		rtn = scsi_send_eh_cmnd(scmd, START_UNIT_TIMEOUT, 0);
+		if (rtn == SUCCESS)
+			return 0;
+	}
 
-	/*
-	 * zero the sense buffer.  the scsi spec mandates that any
-	 * untransferred sense data should be interpreted as being zero.
-	 */
-	memset(scmd->sense_buffer, 0, sizeof(scmd->sense_buffer));
-
-	saved_result = scmd->result;
-	scmd->request_buffer = NULL;
-	scmd->request_bufflen = 0;
-	scmd->use_sg = 0;
-	scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
-	scmd->underflow = 0;
-	scmd->sc_data_direction = DMA_NONE;
-
-	rtn = scsi_send_eh_cmnd(scmd, START_UNIT_TIMEOUT);
-
-	/*
-	 * when we eventually call scsi_finish, we really wish to complete
-	 * the original request, so let's restore the original data. (db)
-	 */
-	scsi_setup_cmd_retry(scmd);
-	scmd->result = saved_result;
-
-	/*
-	 * hey, we are done.  let's look to see what happened.
-	 */
-	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: scmd %p rtn %x\n",
-		__FUNCTION__, scmd, rtn));
-	if (rtn == SUCCESS)
-		return 0;
 	return 1;
 }
 
@@ -1684,8 +1654,6 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
     
 	scmd->scsi_done		= scsi_reset_provider_done_command;
 	scmd->done			= NULL;
-	scmd->buffer			= NULL;
-	scmd->bufflen			= 0;
 	scmd->request_buffer		= NULL;
 	scmd->request_bufflen		= 0;
 
