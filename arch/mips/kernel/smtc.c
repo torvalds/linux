@@ -127,7 +127,7 @@ static int __init stlb_disable(char *s)
 static int __init asidmask_set(char *str)
 {
 	get_option(&str, &asidmask);
-	switch(asidmask) {
+	switch (asidmask) {
 	case 0x1:
 	case 0x3:
 	case 0x7:
@@ -249,7 +249,7 @@ void smtc_configure_tlb(void)
 			/*
 			 * Only count if the MMU Type indicated is TLB
 			 */
-			if(((read_vpe_c0_config() & MIPS_CONF_MT) >> 7) == 1) {
+			if (((read_vpe_c0_config() & MIPS_CONF_MT) >> 7) == 1) {
 				config1val = read_vpe_c0_config1();
 				tlbsiz += ((config1val >> 25) & 0x3f) + 1;
 			}
@@ -500,7 +500,7 @@ void mipsmt_prepare_cpus(void)
 	/* Set up coprocessor affinity CPU mask(s) */
 
 	for (tc = 0; tc < ntc; tc++) {
-		if(cpu_data[tc].options & MIPS_CPU_FPU)
+		if (cpu_data[tc].options & MIPS_CPU_FPU)
 			cpu_set(tc, mt_fpu_cpumask);
 	}
 
@@ -582,8 +582,8 @@ void smtc_init_secondary(void)
 	 * SMTC init code assigns TCs consdecutively and in ascending order
 	 * to across available VPEs.
 	 */
-	if(((read_c0_tcbind() & TCBIND_CURTC) != 0)
-	&& ((read_c0_tcbind() & TCBIND_CURVPE)
+	if (((read_c0_tcbind() & TCBIND_CURTC) != 0) &&
+	    ((read_c0_tcbind() & TCBIND_CURVPE)
 	    != cpu_data[smp_processor_id() - 1].vpe_id)){
 		write_c0_compare (read_c0_count() + mips_hpt_frequency/HZ);
 	}
@@ -757,8 +757,8 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 			write_tc_c0_tchalt(0);
 			UNLOCK_CORE_PRA();
 			/* Try to reduce redundant timer interrupt messages */
-			if(type == SMTC_CLOCK_TICK) {
-			    if(atomic_postincrement(&ipi_timer_latch[cpu])!=0) {
+			if (type == SMTC_CLOCK_TICK) {
+			    if (atomic_postincrement(&ipi_timer_latch[cpu])!=0){
 				smtc_ipi_nq(&freeIPIq, pipi);
 				return;
 			    }
@@ -797,7 +797,7 @@ void post_direct_ipi(int cpu, struct smtc_ipi *pipi)
 	 * CU bit of Status is indicator that TC was
 	 * already running on a kernel stack...
 	 */
-	if(tcstatus & ST0_CU0)  {
+	if (tcstatus & ST0_CU0)  {
 		/* Note that this "- 1" is pointer arithmetic */
 		kstack = ((struct pt_regs *)read_tc_gpr_sp()) - 1;
 	} else {
@@ -840,31 +840,31 @@ void ipi_decode(struct pt_regs *regs, struct smtc_ipi *pipi)
 
 	smtc_ipi_nq(&freeIPIq, pipi);
 	switch (type_copy) {
-		case SMTC_CLOCK_TICK:
-			/* Invoke Clock "Interrupt" */
-			ipi_timer_latch[dest_copy] = 0;
+	case SMTC_CLOCK_TICK:
+		/* Invoke Clock "Interrupt" */
+		ipi_timer_latch[dest_copy] = 0;
 #ifdef SMTC_IDLE_HOOK_DEBUG
-			clock_hang_reported[dest_copy] = 0;
+		clock_hang_reported[dest_copy] = 0;
 #endif /* SMTC_IDLE_HOOK_DEBUG */
-			local_timer_interrupt(0, NULL, regs);
+		local_timer_interrupt(0, NULL, regs);
+		break;
+	case LINUX_SMP_IPI:
+		switch ((int)arg_copy) {
+		case SMP_RESCHEDULE_YOURSELF:
+			ipi_resched_interrupt(regs);
 			break;
-		case LINUX_SMP_IPI:
-			switch ((int)arg_copy) {
-			case SMP_RESCHEDULE_YOURSELF:
-				ipi_resched_interrupt(regs);
-				break;
-			case SMP_CALL_FUNCTION:
-				ipi_call_interrupt(regs);
-				break;
-			default:
-				printk("Impossible SMTC IPI Argument 0x%x\n",
-					(int)arg_copy);
-				break;
-			}
+		case SMP_CALL_FUNCTION:
+			ipi_call_interrupt(regs);
 			break;
 		default:
-			printk("Impossible SMTC IPI Type 0x%x\n", type_copy);
+			printk("Impossible SMTC IPI Argument 0x%x\n",
+				(int)arg_copy);
 			break;
+		}
+		break;
+	default:
+		printk("Impossible SMTC IPI Type 0x%x\n", type_copy);
+		break;
 	}
 }
 
@@ -879,7 +879,7 @@ void deferred_smtc_ipi(struct pt_regs *regs)
 	 * Test is not atomic, but much faster than a dequeue,
 	 * and the vast majority of invocations will have a null queue.
 	 */
-	if(IPIQ[q].head != NULL) {
+	if (IPIQ[q].head != NULL) {
 		while((pipi = smtc_ipi_dq(&IPIQ[q])) != NULL) {
 			/* ipi_decode() should be called with interrupts off */
 			local_irq_save(flags);
@@ -1254,7 +1254,7 @@ void smtc_flush_tlb_asid(unsigned long asid)
 		tlb_read();
 		ehb();
 		ehi = read_c0_entryhi();
-		if((ehi & ASID_MASK) == asid) {
+		if ((ehi & ASID_MASK) == asid) {
 		    /*
 		     * Invalidate only entries with specified ASID,
 		     * makiing sure all entries differ.
