@@ -33,8 +33,6 @@
 
 unsigned long cpu_khz;
 
-extern asmlinkage void ll_local_timer_interrupt(int irq, struct pt_regs *regs);
-
 irqreturn_t sim_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 #ifdef CONFIG_SMP
