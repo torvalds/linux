@@ -221,10 +221,17 @@ static void __init maple_init_IRQ(void)
 	 * in Maple device-tree where the type of the controller is
 	 * open-pic and not interrupt-controller
 	 */
-	for_each_node_by_type(np, "open-pic") {
-		mpic_node = np;
-		break;
-	}
+
+	for_each_node_by_type(np, "interrupt-controller")
+		if (device_is_compatible(np, "open-pic")) {
+			mpic_node = np;
+			break;
+		}
+	if (mpic_node == NULL)
+		for_each_node_by_type(np, "open-pic") {
+			mpic_node = np;
+			break;
+		}
 	if (mpic_node == NULL) {
 		printk(KERN_ERR
 		       "Failed to locate the MPIC interrupt controller\n");
