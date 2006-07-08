@@ -297,6 +297,16 @@ static inline const char *crypto_tfm_alg_name(struct crypto_tfm *tfm)
 	return tfm->__crt_alg->cra_name;
 }
 
+static inline const char *crypto_tfm_alg_driver_name(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_driver_name;
+}
+
+static inline int crypto_tfm_alg_priority(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_priority;
+}
+
 static inline const char *crypto_tfm_alg_modname(struct crypto_tfm *tfm)
 {
 	return module_name(tfm->__crt_alg->cra_module);
