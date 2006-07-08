@@ -552,6 +552,24 @@ static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 	}
 }
 
+static int tcp_v6_gso_send_check(struct sk_buff *skb)
+{
+	struct ipv6hdr *ipv6h;
+	struct tcphdr *th;
+
+	if (!pskb_may_pull(skb, sizeof(*th)))
+		return -EINVAL;
+
+	ipv6h = skb->nh.ipv6h;
+	th = skb->h.th;
+
+	th->check = 0;
+	th->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr, skb->len,
+				     IPPROTO_TCP, 0);
+	skb->csum = offsetof(struct tcphdr, check);
+	skb->ip_summed = CHECKSUM_HW;
+	return 0;
+}
 
 static void tcp_v6_send_reset(struct sk_buff *skb)
 {
@@ -1603,6 +1621,7 @@ struct proto tcpv6_prot = {
 static struct inet6_protocol tcpv6_protocol = {
 	.handler	=	tcp_v6_rcv,
 	.err_handler	=	tcp_v6_err,
+	.gso_send_check	=	tcp_v6_gso_send_check,
 	.gso_segment	=	tcp_tso_segment,
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };

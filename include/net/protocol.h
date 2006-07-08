@@ -36,6 +36,7 @@
 struct net_protocol {
 	int			(*handler)(struct sk_buff *skb);
 	void			(*err_handler)(struct sk_buff *skb, u32 info);
+	int			(*gso_send_check)(struct sk_buff *skb);
 	struct sk_buff	       *(*gso_segment)(struct sk_buff *skb,
 					       int features);
 	int			no_policy;
@@ -51,6 +52,7 @@ struct inet6_protocol
 			       int type, int code, int offset,
 			       __u32 info);
 
+	int	(*gso_send_check)(struct sk_buff *skb);
 	struct sk_buff *(*gso_segment)(struct sk_buff *skb,
 				       int features);
 
