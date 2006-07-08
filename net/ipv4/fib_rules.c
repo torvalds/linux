@@ -457,13 +457,13 @@ int inet_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
 
 	rcu_read_lock();
 	hlist_for_each_entry(r, node, &fib_rules, hlist) {
-
 		if (idx < s_idx)
-			continue;
+			goto next;
 		if (inet_fill_rule(skb, r, NETLINK_CB(cb->skb).pid,
 				   cb->nlh->nlmsg_seq,
 				   RTM_NEWRULE, NLM_F_MULTI) < 0)
 			break;
+next:
 		idx++;
 	}
 	rcu_read_unlock();
