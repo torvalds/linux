@@ -77,7 +77,7 @@ static int indy_rtc_set_time(unsigned long tim)
 	save_control = hpc3c0->rtcregs[RTC_CMD] & 0xff;
 	hpc3c0->rtcregs[RTC_CMD] = save_control | RTC_TE;
 
-	hpc3c0->rtcregs[RTC_YEAR] = BIN2BCD(tm.tm_sec);
+	hpc3c0->rtcregs[RTC_YEAR] = BIN2BCD(tm.tm_year);
 	hpc3c0->rtcregs[RTC_MONTH] = BIN2BCD(tm.tm_mon);
 	hpc3c0->rtcregs[RTC_DATE] = BIN2BCD(tm.tm_mday);
 	hpc3c0->rtcregs[RTC_HOURS] = BIN2BCD(tm.tm_hour);
