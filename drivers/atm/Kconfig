@@ -398,7 +398,7 @@ config ATM_FORE200E_USE_TASKLET
 	default n
 	help
 	  This defers work to be done by the interrupt handler to a
-	  tasklet instead of hanlding everything at interrupt time.  This
+	  tasklet instead of handling everything at interrupt time.  This
 	  may improve the responsive of the host.
 
 config ATM_FORE200E_TX_RETRY
