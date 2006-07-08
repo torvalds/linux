@@ -44,12 +44,13 @@
 #define HCI_NOTIFY_VOICE_SETTING	3
 
 /* HCI device types */
-#define HCI_VHCI	0
+#define HCI_VIRTUAL	0
 #define HCI_USB		1
 #define HCI_PCCARD	2
 #define HCI_UART	3
 #define HCI_RS232	4
 #define HCI_PCI		5
+#define HCI_SDIO	6
 
 /* HCI device quirks */
 enum {

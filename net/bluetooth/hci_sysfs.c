@@ -16,7 +16,7 @@
 static inline char *typetostr(int type)
 {
 	switch (type) {
-	case HCI_VHCI:
+	case HCI_VIRTUAL:
 		return "VIRTUAL";
 	case HCI_USB:
 		return "USB";
@@ -28,6 +28,8 @@ static inline char *typetostr(int type)
 		return "RS232";
 	case HCI_PCI:
 		return "PCI";
+	case HCI_SDIO:
+		return "SDIO";
 	default:
 		return "UNKNOWN";
 	}
