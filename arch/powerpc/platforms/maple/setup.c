@@ -252,6 +252,8 @@ static void __init maple_init_IRQ(void)
 
 	/* XXX Maple specific bits */
 	flags |= MPIC_BROKEN_U3 | MPIC_WANTS_RESET;
+	/* All U3/U4 are big-endian, older SLOF firmware doesn't encode this */
+	flags |= MPIC_BIG_ENDIAN;
 
 	/* Setup the openpic driver. More device-tree junks, we hard code no
 	 * ISUs for now. I'll have to revisit some stuffs with the folks doing
