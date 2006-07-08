@@ -139,7 +139,7 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 #ifdef LOOPBACK_TSO
-	if (skb_shinfo(skb)->gso_size) {
+	if (skb_is_gso(skb)) {
 		BUG_ON(skb->protocol != htons(ETH_P_IP));
 		BUG_ON(skb->nh.iph->protocol != IPPROTO_TCP);
 

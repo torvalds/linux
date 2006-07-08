@@ -2394,7 +2394,7 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 	uint8_t ipcss, ipcso, tucss, tucso, hdr_len;
 	int err;
 
-	if (skb_shinfo(skb)->gso_size) {
+	if (skb_is_gso(skb)) {
 		if (skb_header_cloned(skb)) {
 			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 			if (err)
@@ -2519,7 +2519,7 @@ e1000_tx_map(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		 * tso gets written back prematurely before the data is fully
 		 * DMA'd to the controller */
 		if (!skb->data_len && tx_ring->last_tx_tso &&
-		    !skb_shinfo(skb)->gso_size) {
+		    !skb_is_gso(skb)) {
 			tx_ring->last_tx_tso = 0;
 			size -= 4;
 		}
@@ -2806,8 +2806,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 #ifdef NETIF_F_TSO
 	/* Controller Erratum workaround */
-	if (!skb->data_len && tx_ring->last_tx_tso &&
-	    !skb_shinfo(skb)->gso_size)
+	if (!skb->data_len && tx_ring->last_tx_tso && !skb_is_gso(skb))
 		count++;
 #endif
 

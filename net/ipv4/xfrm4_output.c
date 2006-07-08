@@ -134,7 +134,7 @@ static int xfrm4_output_finish(struct sk_buff *skb)
 	}
 #endif
 
-	if (!skb_shinfo(skb)->gso_size)
+	if (!skb_is_gso(skb))
 		return xfrm4_output_finish2(skb);
 
 	skb->protocol = htons(ETH_P_IP);

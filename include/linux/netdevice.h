@@ -1001,7 +1001,7 @@ static inline int net_gso_ok(int features, int gso_type)
 
 static inline int skb_gso_ok(struct sk_buff *skb, int features)
 {
-	return net_gso_ok(features, skb_shinfo(skb)->gso_size ?
+	return net_gso_ok(features, skb_is_gso(skb) ?
 				    skb_shinfo(skb)->gso_type : 0);
 }
 

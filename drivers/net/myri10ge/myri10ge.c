@@ -2116,7 +2116,7 @@ abort_linearize:
 		}
 		idx = (idx + 1) & tx->mask;
 	} while (idx != last_idx);
-	if (skb_shinfo(skb)->gso_size) {
+	if (skb_is_gso(skb)) {
 		printk(KERN_ERR
 		       "myri10ge: %s: TSO but wanted to linearize?!?!?\n",
 		       mgp->dev->name);
