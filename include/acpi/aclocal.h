@@ -127,7 +127,7 @@ typedef u8 acpi_owner_id;
 
 /* This Thread ID means that the mutex is not in use (unlocked) */
 
-#define ACPI_MUTEX_NOT_ACQUIRED         (u32) -1
+#define ACPI_MUTEX_NOT_ACQUIRED         (acpi_thread_id) 0
 
 /* Table for the global mutexes */
 
