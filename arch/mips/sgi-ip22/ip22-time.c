@@ -12,6 +12,7 @@
 #include <linux/bcd.h>
 #include <linux/ds1286.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
@@ -197,8 +198,6 @@ void indy_r4k_timer_interrupt(struct pt_regs *regs)
 	timer_interrupt(irq, NULL, regs);
 	irq_exit();
 }
-
-extern int setup_irq(unsigned int irq, struct irqaction *irqaction);
 
 static void indy_timer_setup(struct irqaction *irq)
 {

@@ -40,6 +40,7 @@
 #include <linux/sched.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
+#include <linux/irq.h>
 #include <linux/ioport.h>
 #include <linux/param.h>	/* for HZ */
 #include <linux/delay.h>
@@ -183,7 +184,6 @@ static void __init jmr3927_time_init(void)
 }
 
 unsigned long jmr3927_do_gettimeoffset(void);
-extern int setup_irq(unsigned int irq, struct irqaction *irqaction);
 
 static void __init jmr3927_timer_setup(struct irqaction *irq)
 {
