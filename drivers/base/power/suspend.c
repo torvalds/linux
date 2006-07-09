@@ -102,11 +102,6 @@ static int suspend_device_late(struct device *dev, pm_message_t state)
 {
 	int error = 0;
 
-	if (dev->power.power_state.event) {
-		dev_dbg(dev, "PM: suspend_late %d-->%d\n",
-			dev->power.power_state.event, state.event);
-	}
-
 	if (dev->bus && dev->bus->suspend_late && !dev->power.power_state.event) {
 		dev_dbg(dev, "LATE %s%s\n",
 			suspend_verb(state.event),
