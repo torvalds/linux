@@ -28,9 +28,4 @@ struct cword {
 
 #define PFX	"padlock: "
 
-#ifdef CONFIG_CRYPTO_DEV_PADLOCK_AES
-int padlock_init_aes(void);
-void padlock_fini_aes(void);
-#endif
-
 #endif	/* _CRYPTO_PADLOCK_H */
