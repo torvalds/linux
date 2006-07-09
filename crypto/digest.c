@@ -66,14 +66,18 @@ static void update(struct crypto_tfm *tfm,
 static void final(struct crypto_tfm *tfm, u8 *out)
 {
 	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
+	struct digest_alg *digest = &tfm->__crt_alg->cra_digest;
+
 	if (unlikely((unsigned long)out & alignmask)) {
-		unsigned int size = crypto_tfm_alg_digestsize(tfm);
-		u8 buffer[size + alignmask];
-		u8 *dst = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
-		tfm->__crt_alg->cra_digest.dia_final(tfm, dst);
-		memcpy(out, dst, size);
+		unsigned long align = alignmask + 1;
+		unsigned long addr = (unsigned long)crypto_tfm_ctx(tfm);
+		u8 *dst = (u8 *)ALIGN(addr, align) +
+			  ALIGN(tfm->__crt_alg->cra_ctxsize, align);
+
+		digest->dia_final(tfm, dst);
+		memcpy(out, dst, digest->dia_digestsize);
 	} else
-		tfm->__crt_alg->cra_digest.dia_final(tfm, out);
+		digest->dia_final(tfm, out);
 }
 
 static int nosetkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)

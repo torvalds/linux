@@ -99,7 +99,14 @@ static inline void crypto_exit_proc(void)
 static inline unsigned int crypto_digest_ctxsize(struct crypto_alg *alg,
 						 int flags)
 {
-	return alg->cra_ctxsize;
+	unsigned int len = alg->cra_ctxsize;
+
+	if (alg->cra_alignmask) {
+		len = ALIGN(len, (unsigned long)alg->cra_alignmask + 1);
+		len += alg->cra_digest.dia_digestsize;
+	}
+
+	return len;
 }
 
 static inline unsigned int crypto_cipher_ctxsize(struct crypto_alg *alg,
