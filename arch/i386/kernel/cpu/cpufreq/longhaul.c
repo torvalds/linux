@@ -524,9 +524,9 @@ static unsigned int longhaul_get(unsigned int cpu)
 	return calc_speed(longhaul_get_cpu_mult());
 }
 
-acpi_status longhaul_walk_callback(acpi_handle obj_handle,
-				  u32 nesting_level,
-				  void *context, void **return_value)
+static acpi_status longhaul_walk_callback(acpi_handle obj_handle,
+					  u32 nesting_level,
+					  void *context, void **return_value)
 {
 	struct acpi_device *d;
 
