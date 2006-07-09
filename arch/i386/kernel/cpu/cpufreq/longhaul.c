@@ -162,6 +162,7 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 	longhaul.bits.RevisionKey = longhaul.bits.RevisionID;
 	longhaul.bits.SoftBusRatio = clock_ratio_index & 0xf;
 	longhaul.bits.SoftBusRatio4 = (clock_ratio_index & 0x10) >> 4;
+	longhaul.bits.EnableSoftBusRatio = 1;
 
 	/* Sync to timer tick */
 	safe_halt();
