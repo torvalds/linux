@@ -228,9 +228,7 @@ unsigned long __init mips_rtc_get_time(void)
 
 void __init mips_time_init(void)
 {
-	unsigned int est_freq, flags;
-
-	local_irq_save(flags);
+	unsigned int est_freq;
 
         /* Set Data mode - binary. */
         CMOS_WRITE(CMOS_READ(RTC_CONTROL) | RTC_DM_BINARY, RTC_CONTROL);
@@ -241,8 +239,6 @@ void __init mips_time_init(void)
 	       (est_freq%1000000)*100/1000000);
 
         cpu_khz = est_freq / 1000;
-
-	local_irq_restore(flags);
 }
 
 void __init plat_timer_setup(struct irqaction *irq)
