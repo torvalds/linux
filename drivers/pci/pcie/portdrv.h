@@ -39,7 +39,7 @@ extern int pcie_port_device_suspend(struct pci_dev *dev, pm_message_t state);
 extern int pcie_port_device_resume(struct pci_dev *dev);
 #endif
 extern void pcie_port_device_remove(struct pci_dev *dev);
-extern void pcie_port_bus_register(void);
+extern int pcie_port_bus_register(void);
 extern void pcie_port_bus_unregister(void);
 
 #endif /* _PORTDRV_H_ */

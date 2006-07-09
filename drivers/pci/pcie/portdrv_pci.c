@@ -129,12 +129,17 @@ static struct pci_driver pcie_portdrv = {
 
 static int __init pcie_portdrv_init(void)
 {
-	int retval = 0;
+	int retval;
 
-	pcie_port_bus_register();
+	retval = pcie_port_bus_register();
+	if (retval) {
+		printk(KERN_WARNING "PCIE: bus_register error: %d\n", retval);
+		goto out;
+	}
 	retval = pci_register_driver(&pcie_portdrv);
 	if (retval)
 		pcie_port_bus_unregister();
+ out:
 	return retval;
 }
 
