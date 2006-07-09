@@ -692,6 +692,13 @@ void sas_port_delete(struct sas_port *port)
 	}
 	mutex_unlock(&port->phy_list_mutex);
 
+	if (port->is_backlink) {
+		struct device *parent = port->dev.parent;
+
+		sysfs_remove_link(&port->dev.kobj, parent->bus_id);
+		port->is_backlink = 0;
+	}
+
 	transport_remove_device(dev);
 	device_del(dev);
 	transport_destroy_device(dev);
@@ -766,6 +773,19 @@ void sas_port_delete_phy(struct sas_port *port, struct sas_phy *phy)
 	mutex_unlock(&port->phy_list_mutex);
 }
 EXPORT_SYMBOL(sas_port_delete_phy);
+
+void sas_port_mark_backlink(struct sas_port *port)
+{
+	struct device *parent = port->dev.parent->parent->parent;
+
+	if (port->is_backlink)
+		return;
+	port->is_backlink = 1;
+	sysfs_create_link(&port->dev.kobj, &parent->kobj,
+			  parent->bus_id);
+
+}
+EXPORT_SYMBOL(sas_port_mark_backlink);
 
 /*
  * SAS remote PHY attributes.

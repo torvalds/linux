@@ -130,6 +130,8 @@ struct sas_port {
 
 	int			port_identifier;
 	int			num_phys;
+	/* port flags */
+	unsigned int		is_backlink:1;
 
 	/* the other end of the link */
 	struct sas_rphy		*rphy;
@@ -175,6 +177,7 @@ void sas_port_free(struct sas_port *);
 void sas_port_delete(struct sas_port *);
 void sas_port_add_phy(struct sas_port *, struct sas_phy *);
 void sas_port_delete_phy(struct sas_port *, struct sas_phy *);
+void sas_port_mark_backlink(struct sas_port *);
 int scsi_is_sas_port(const struct device *);
 
 extern struct scsi_transport_template *
