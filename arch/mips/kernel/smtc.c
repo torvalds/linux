@@ -577,7 +577,7 @@ void smtc_init_secondary(void)
 {
 	/*
 	 * Start timer on secondary VPEs if necessary.
-	 * mips_timer_setup should already have been invoked by init/main
+	 * plat_timer_setup has already have been invoked by init/main
 	 * on "boot" TC.  Like per_cpu_trap_init() hack, this assumes that
 	 * SMTC init code assigns TCs consdecutively and in ascending order
 	 * to across available VPEs.

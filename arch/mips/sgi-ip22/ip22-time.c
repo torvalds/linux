@@ -7,7 +7,7 @@
  * Ralf Baechle or David S. Miller (sorry guys, i'm really not sure)
  *
  * Copyright (C) 2001 by Ladislav Michl
- * Copyright (C) 2003 Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 2003, 06 Ralf Baechle (ralf@linux-mips.org)
  */
 #include <linux/bcd.h>
 #include <linux/ds1286.h>
@@ -199,7 +199,7 @@ void indy_r4k_timer_interrupt(struct pt_regs *regs)
 	irq_exit();
 }
 
-static void indy_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* over-write the handler, we use our own way */
 	irq->handler = no_action;
@@ -215,5 +215,4 @@ void __init ip22_time_init(void)
 	rtc_mips_set_time = indy_rtc_set_time;
 
 	board_time_init = indy_time_init;
-	board_timer_setup = indy_timer_setup;
 }

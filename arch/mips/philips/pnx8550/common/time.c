@@ -70,16 +70,7 @@ void pnx8550_time_init(void)
 	mips_hpt_frequency = 27UL * ((1000000UL * n)/(m * pow2p));
 }
 
-/*
- * pnx8550_timer_setup() - it does the following things:
- *
- * 5) board_timer_setup() -
- *	a) (optional) over-write any choices made above by time_init().
- *	b) machine specific code should setup the timer irqaction.
- *	c) enable the timer interrupt
- */
-
-void __init pnx8550_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	int configPR;
 

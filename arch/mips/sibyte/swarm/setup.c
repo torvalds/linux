@@ -77,7 +77,7 @@ void __init swarm_time_init(void)
 #endif
 }
 
-void __init swarm_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
         /*
          * we don't set up irqaction, because we will deliver timer
@@ -117,7 +117,6 @@ void __init plat_mem_setup(void)
 	panic_timeout = 5;  /* For debug.  */
 
 	board_time_init = swarm_time_init;
-	board_timer_setup = swarm_timer_setup;
 	board_be_handler = swarm_be_handler;
 
 	if (xicor_probe()) {

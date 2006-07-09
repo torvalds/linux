@@ -186,7 +186,7 @@ void __init dec_time_init(void)
 
 EXPORT_SYMBOL(do_settimeofday);
 
-void __init dec_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	setup_irq(dec_interrupt[DEC_IRQ_RTC], irq);
 

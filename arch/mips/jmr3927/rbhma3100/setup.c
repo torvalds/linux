@@ -185,7 +185,7 @@ static void __init jmr3927_time_init(void)
 
 unsigned long jmr3927_do_gettimeoffset(void);
 
-static void __init jmr3927_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	do_gettimeoffset = jmr3927_do_gettimeoffset;
 
@@ -244,7 +244,6 @@ void __init plat_mem_setup(void)
 	set_io_port_base(JMR3927_PORT_BASE + JMR3927_PCIIO);
 
 	board_time_init = jmr3927_time_init;
-	board_timer_setup = jmr3927_timer_setup;
 
 	_machine_restart = jmr3927_machine_restart;
 	_machine_halt = jmr3927_machine_halt;

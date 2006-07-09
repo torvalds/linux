@@ -47,7 +47,7 @@ static void __init setup_timer_frequency(void)
 		mips_hpt_frequency = tclock / 4;
 }
 
-static void __init setup_timer_irq(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	setup_irq(TIMER_IRQ, irq);
 }
@@ -55,7 +55,6 @@ static void __init setup_timer_irq(struct irqaction *irq)
 static void __init timer_init(void)
 {
 	board_time_init = setup_timer_frequency;
-	board_timer_setup = setup_timer_irq;
 }
 
 void __init plat_mem_setup(void)

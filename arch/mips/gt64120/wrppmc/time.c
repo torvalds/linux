@@ -26,7 +26,7 @@
 
 #define WRPPMC_CPU_CLK_FREQ 40000000 /* 40MHZ */
 
-void __init wrppmc_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* Install ISR for timer interrupt */
 	setup_irq(WRPPMC_MIPS_TIMER_IRQ, irq);

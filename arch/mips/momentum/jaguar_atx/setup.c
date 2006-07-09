@@ -212,7 +212,7 @@ int m48t37y_set_time(unsigned long sec)
 	return 0;
 }
 
-void momenco_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	setup_irq(8, irq);
 }
@@ -226,7 +226,6 @@ void momenco_time_init(void)
 	wire_stupidity_into_tlb();
 
 	mips_hpt_frequency = cpu_clock / 2;
-	board_timer_setup = momenco_timer_setup;
 
 	rtc_mips_get_time = m48t37y_get_time;
 	rtc_mips_set_time = m48t37y_set_time;

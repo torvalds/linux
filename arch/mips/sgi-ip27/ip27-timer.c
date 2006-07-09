@@ -1,5 +1,5 @@
 /*
- * Copytight (C) 1999, 2000, 05 Ralf Baechle (ralf@linux-mips.org)
+ * Copytight (C) 1999, 2000, 05, 06 Ralf Baechle (ralf@linux-mips.org)
  * Copytight (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/bcd.h>
@@ -225,7 +225,7 @@ static struct irqaction rt_irqaction = {
 
 extern int allocate_irqno(void);
 
-static void ip27_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	int irqno  = allocate_irqno();
 
@@ -256,8 +256,6 @@ void __init ip27_time_init(void)
 	xtime.tv_nsec = 0;
 
 	do_gettimeoffset = ip27_do_gettimeoffset;
-
-	board_timer_setup = ip27_timer_setup;
 }
 
 void __init cpu_time_init(void)

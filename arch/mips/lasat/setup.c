@@ -115,12 +115,9 @@ static void lasat_time_init(void)
 	mips_hpt_frequency = lasat_board_info.li_cpu_hz / 2;
 }
 
-static void lasat_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
-
-	write_c0_compare(
-		read_c0_count() +
-		mips_hpt_frequency / HZ);
+	write_c0_compare( read_c0_count() + mips_hpt_frequency / HZ);
 	change_c0_status(ST0_IM, IE_IRQ0 | IE_IRQ5);
 }
 
@@ -170,7 +167,6 @@ void __init plat_mem_setup(void)
 	lasat_reboot_setup();
 
 	board_time_init = lasat_time_init;
-	board_timer_setup = lasat_timer_setup;
 
 #ifdef CONFIG_DS1603
 	ds1603 = &ds_defs[mips_machtype];

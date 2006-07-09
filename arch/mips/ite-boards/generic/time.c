@@ -233,7 +233,8 @@ void __init it8172_time_init(void)
 }
 
 #define ALLINTS (IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3 | IE_IRQ4 | IE_IRQ5)
-void __init it8172_timer_setup(struct irqaction *irq)
+
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	puts("timer_setup\n");
 	put32(NR_IRQS);

@@ -78,7 +78,7 @@ static void excite_timer_init(void)
 	mips_hpt_frequency = EXCITE_CPU_EXT_CLOCK * mult / div / 2;
 }
 
-static void excite_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* The eXcite platform uses the alternate timer interrupt */
 	set_c0_intcontrol(0x80);
@@ -262,7 +262,6 @@ void __init plat_mem_setup(void)
 
 	/* Set up timer initialization hooks */
 	board_time_init = excite_timer_init;
-	board_timer_setup = excite_timer_setup;
 
 	/* Set up the peripheral address map */
 	*(boot_ocd_base + (LKB9 / sizeof (u32))) = 0;

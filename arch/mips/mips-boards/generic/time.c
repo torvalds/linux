@@ -245,7 +245,7 @@ void __init mips_time_init(void)
 	local_irq_restore(flags);
 }
 
-void __init mips_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	if (cpu_has_veic) {
 		set_vi_handler (MSC01E_INT_CPUCTR, mips_timer_dispatch);
