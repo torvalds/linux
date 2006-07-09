@@ -14,6 +14,7 @@ obj-$(CONFIG_USB_LD)		+= ldusb.o
 obj-$(CONFIG_USB_LED)		+= usbled.o
 obj-$(CONFIG_USB_LEGOTOWER)	+= legousbtower.o
 obj-$(CONFIG_USB_PHIDGETKIT)	+= phidgetkit.o
+obj-$(CONFIG_USB_PHIDGETMOTORCONTROL)	+= phidgetmotorcontrol.o
 obj-$(CONFIG_USB_PHIDGETSERVO)	+= phidgetservo.o
 obj-$(CONFIG_USB_RIO500)	+= rio500.o
 obj-$(CONFIG_USB_TEST)		+= usbtest.o
