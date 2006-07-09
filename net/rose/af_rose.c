@@ -1490,14 +1490,13 @@ static int __init rose_proto_init(void)
 
 	rose_callsign = null_ax25_address;
 
-	dev_rose = kmalloc(rose_ndevs * sizeof(struct net_device *), GFP_KERNEL);
+	dev_rose = kzalloc(rose_ndevs * sizeof(struct net_device *), GFP_KERNEL);
 	if (dev_rose == NULL) {
 		printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate device structure\n");
 		rc = -ENOMEM;
 		goto out_proto_unregister;
 	}
 
-	memset(dev_rose, 0x00, rose_ndevs * sizeof(struct net_device*));
 	for (i = 0; i < rose_ndevs; i++) {
 		struct net_device *dev;
 		char name[IFNAMSIZ];
