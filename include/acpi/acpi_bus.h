@@ -334,7 +334,7 @@ int acpi_bus_add(struct acpi_device **child, struct acpi_device *parent,
 		 acpi_handle handle, int type);
 int acpi_bus_trim(struct acpi_device *start, int rmdevice);
 int acpi_bus_start(struct acpi_device *device);
-acpi_status acpi_bus_get_ejd(acpi_handle handle, acpi_handle *ejd);
+
 int acpi_match_ids(struct acpi_device *device, char *ids);
 int acpi_create_dir(struct acpi_device *);
 void acpi_remove_dir(struct acpi_device *);

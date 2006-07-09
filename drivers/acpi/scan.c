@@ -663,29 +663,6 @@ static int acpi_bus_find_driver(struct acpi_device *device)
                                  Device Enumeration
    -------------------------------------------------------------------------- */
 
-acpi_status
-acpi_bus_get_ejd(acpi_handle handle, acpi_handle *ejd)
-{
-	acpi_status status;
-	acpi_handle tmp;
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
-	union acpi_object *obj;
-
-	status = acpi_get_handle(handle, "_EJD", &tmp);
-	if (ACPI_FAILURE(status))
-		return status;
-
-	status = acpi_evaluate_object(handle, "_EJD", NULL, &buffer);
-	if (ACPI_SUCCESS(status)) {
-		obj = buffer.pointer;
-		status = acpi_get_handle(NULL, obj->string.pointer, ejd);
-		kfree(buffer.pointer);
-	}
-	return status;
-}
-EXPORT_SYMBOL_GPL(acpi_bus_get_ejd);
-
-
 static int acpi_bus_get_flags(struct acpi_device *device)
 {
 	acpi_status status = AE_OK;
