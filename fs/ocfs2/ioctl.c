@@ -18,6 +18,8 @@
 #include "journal.h"
 
 #include "ocfs2_fs.h"
+#include "ioctl.h"
+
 #include <linux/ext2_fs.h>
 
 static int ocfs2_get_inode_attr(struct inode *inode, unsigned *flags)
