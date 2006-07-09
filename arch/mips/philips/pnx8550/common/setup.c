@@ -49,7 +49,6 @@ extern void pnx8550_machine_halt(void);
 extern void pnx8550_machine_power_off(void);
 extern struct resource ioport_resource;
 extern struct resource iomem_resource;
-extern void (*board_time_init)(void);
 extern void pnx8550_time_init(void);
 extern void pnx8550_timer_setup(struct irqaction *irq);
 extern void rs_kgdb_hook(int tty_no);

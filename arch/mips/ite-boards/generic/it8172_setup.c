@@ -59,7 +59,6 @@ extern void it8172_restart(char *command);
 extern void it8172_halt(void);
 extern void it8172_power_off(void);
 
-extern void (*board_time_init)(void);
 extern void it8172_time_init(void);
 extern void it8172_timer_setup(struct irqaction *irq);
 
