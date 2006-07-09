@@ -133,6 +133,13 @@ config ACPI_FAN
 	  This driver adds support for ACPI fan devices, allowing user-mode 
 	  applications to perform basic fan control (on, off, status).
 
+config ACPI_DOCK
+	tristate "Dock"
+	depends on !ACPI_IBM_DOCK
+	default y
+	help
+	  This driver adds support for ACPI controlled docking stations
+
 config ACPI_PROCESSOR
 	tristate "Processor"
 	default y
