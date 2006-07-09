@@ -36,7 +36,7 @@ static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION "7.0.38-k4"DRIVERNAPI
+#define DRV_VERSION "7.1.9-k2"DRIVERNAPI
 char e1000_driver_version[] = DRV_VERSION;
 static char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
@@ -73,6 +73,11 @@ static struct pci_device_id e1000_pci_tbl[] = {
 	INTEL_E1000_ETHERNET_DEVICE(0x1026),
 	INTEL_E1000_ETHERNET_DEVICE(0x1027),
 	INTEL_E1000_ETHERNET_DEVICE(0x1028),
+	INTEL_E1000_ETHERNET_DEVICE(0x1049),
+	INTEL_E1000_ETHERNET_DEVICE(0x104A),
+	INTEL_E1000_ETHERNET_DEVICE(0x104B),
+	INTEL_E1000_ETHERNET_DEVICE(0x104C),
+	INTEL_E1000_ETHERNET_DEVICE(0x104D),
 	INTEL_E1000_ETHERNET_DEVICE(0x105E),
 	INTEL_E1000_ETHERNET_DEVICE(0x105F),
 	INTEL_E1000_ETHERNET_DEVICE(0x1060),
@@ -96,6 +101,8 @@ static struct pci_device_id e1000_pci_tbl[] = {
 	INTEL_E1000_ETHERNET_DEVICE(0x109A),
 	INTEL_E1000_ETHERNET_DEVICE(0x10B5),
 	INTEL_E1000_ETHERNET_DEVICE(0x10B9),
+	INTEL_E1000_ETHERNET_DEVICE(0x10BA),
+	INTEL_E1000_ETHERNET_DEVICE(0x10BB),
 	/* required last entry */
 	{0,}
 };
@@ -133,7 +140,6 @@ static void e1000_clean_rx_ring(struct e1000_adapter *adapter,
 static void e1000_set_multi(struct net_device *netdev);
 static void e1000_update_phy_info(unsigned long data);
 static void e1000_watchdog(unsigned long data);
-static void e1000_watchdog_task(struct e1000_adapter *adapter);
 static void e1000_82547_tx_fifo_stall(unsigned long data);
 static int e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 static struct net_device_stats * e1000_get_stats(struct net_device *netdev);
@@ -178,8 +184,8 @@ static void e1000_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid);
 static void e1000_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid);
 static void e1000_restore_vlan(struct e1000_adapter *adapter);
 
-#ifdef CONFIG_PM
 static int e1000_suspend(struct pci_dev *pdev, pm_message_t state);
+#ifdef CONFIG_PM
 static int e1000_resume(struct pci_dev *pdev);
 #endif
 static void e1000_shutdown(struct pci_dev *pdev);
@@ -206,8 +212,8 @@ static struct pci_driver e1000_driver = {
 	.probe    = e1000_probe,
 	.remove   = __devexit_p(e1000_remove),
 	/* Power Managment Hooks */
-#ifdef CONFIG_PM
 	.suspend  = e1000_suspend,
+#ifdef CONFIG_PM
 	.resume   = e1000_resume,
 #endif
 	.shutdown = e1000_shutdown,
@@ -260,6 +266,44 @@ e1000_exit_module(void)
 }
 
 module_exit(e1000_exit_module);
+
+static int e1000_request_irq(struct e1000_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	int flags, err = 0;
+
+	flags = IRQF_SHARED;
+#ifdef CONFIG_PCI_MSI
+	if (adapter->hw.mac_type > e1000_82547_rev_2) {
+		adapter->have_msi = TRUE;
+		if ((err = pci_enable_msi(adapter->pdev))) {
+			DPRINTK(PROBE, ERR,
+			 "Unable to allocate MSI interrupt Error: %d\n", err);
+			adapter->have_msi = FALSE;
+		}
+	}
+	if (adapter->have_msi)
+		flags &= ~SA_SHIRQ;
+#endif
+	if ((err = request_irq(adapter->pdev->irq, &e1000_intr, flags,
+	                       netdev->name, netdev)))
+		DPRINTK(PROBE, ERR,
+		        "Unable to allocate interrupt Error: %d\n", err);
+
+	return err;
+}
+
+static void e1000_free_irq(struct e1000_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	free_irq(adapter->pdev->irq, netdev);
+
+#ifdef CONFIG_PCI_MSI
+	if (adapter->have_msi)
+		pci_disable_msi(adapter->pdev);
+#endif
+}
 
 /**
  * e1000_irq_disable - Mask off interrupt generation on the NIC
@@ -329,6 +373,7 @@ e1000_release_hw_control(struct e1000_adapter *adapter)
 {
 	uint32_t ctrl_ext;
 	uint32_t swsm;
+	uint32_t extcnf;
 
 	/* Let firmware taken over control of h/w */
 	switch (adapter->hw.mac_type) {
@@ -343,6 +388,11 @@ e1000_release_hw_control(struct e1000_adapter *adapter)
 		swsm = E1000_READ_REG(&adapter->hw, SWSM);
 		E1000_WRITE_REG(&adapter->hw, SWSM,
 				swsm & ~E1000_SWSM_DRV_LOAD);
+	case e1000_ich8lan:
+		extcnf = E1000_READ_REG(&adapter->hw, CTRL_EXT);
+		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
+				extcnf & ~E1000_CTRL_EXT_DRV_LOAD);
+		break;
 	default:
 		break;
 	}
@@ -364,6 +414,7 @@ e1000_get_hw_control(struct e1000_adapter *adapter)
 {
 	uint32_t ctrl_ext;
 	uint32_t swsm;
+	uint32_t extcnf;
 	/* Let firmware know the driver has taken over */
 	switch (adapter->hw.mac_type) {
 	case e1000_82571:
@@ -378,6 +429,11 @@ e1000_get_hw_control(struct e1000_adapter *adapter)
 		E1000_WRITE_REG(&adapter->hw, SWSM,
 				swsm | E1000_SWSM_DRV_LOAD);
 		break;
+	case e1000_ich8lan:
+		extcnf = E1000_READ_REG(&adapter->hw, EXTCNF_CTRL);
+		E1000_WRITE_REG(&adapter->hw, EXTCNF_CTRL,
+				extcnf | E1000_EXTCNF_CTRL_SWFLAG);
+		break;
 	default:
 		break;
 	}
@@ -387,17 +443,9 @@ int
 e1000_up(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	int i, err;
+	int i;
 
 	/* hardware has been reset, we need to reload some things */
-
-	/* Reset the PHY if it was previously powered down */
-	if (adapter->hw.media_type == e1000_media_type_copper) {
-		uint16_t mii_reg;
-		e1000_read_phy_reg(&adapter->hw, PHY_CTRL, &mii_reg);
-		if (mii_reg & MII_CR_POWER_DOWN)
-			e1000_phy_hw_reset(&adapter->hw);
-	}
 
 	e1000_set_multi(netdev);
 
@@ -415,24 +463,6 @@ e1000_up(struct e1000_adapter *adapter)
 		                      E1000_DESC_UNUSED(ring));
 	}
 
-#ifdef CONFIG_PCI_MSI
-	if (adapter->hw.mac_type > e1000_82547_rev_2) {
-		adapter->have_msi = TRUE;
-		if ((err = pci_enable_msi(adapter->pdev))) {
-			DPRINTK(PROBE, ERR,
-			 "Unable to allocate MSI interrupt Error: %d\n", err);
-			adapter->have_msi = FALSE;
-		}
-	}
-#endif
-	if ((err = request_irq(adapter->pdev->irq, &e1000_intr,
-		              IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-		              netdev->name, netdev))) {
-		DPRINTK(PROBE, ERR,
-		    "Unable to allocate interrupt Error: %d\n", err);
-		return err;
-	}
-
 	adapter->tx_queue_len = netdev->tx_queue_len;
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
@@ -445,21 +475,60 @@ e1000_up(struct e1000_adapter *adapter)
 	return 0;
 }
 
+/**
+ * e1000_power_up_phy - restore link in case the phy was powered down
+ * @adapter: address of board private structure
+ *
+ * The phy may be powered down to save power and turn off link when the
+ * driver is unloaded and wake on lan is not enabled (among others)
+ * *** this routine MUST be followed by a call to e1000_reset ***
+ *
+ **/
+
+static void e1000_power_up_phy(struct e1000_adapter *adapter)
+{
+	uint16_t mii_reg = 0;
+
+	/* Just clear the power down bit to wake the phy back up */
+	if (adapter->hw.media_type == e1000_media_type_copper) {
+		/* according to the manual, the phy will retain its
+		 * settings across a power-down/up cycle */
+		e1000_read_phy_reg(&adapter->hw, PHY_CTRL, &mii_reg);
+		mii_reg &= ~MII_CR_POWER_DOWN;
+		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, mii_reg);
+	}
+}
+
+static void e1000_power_down_phy(struct e1000_adapter *adapter)
+{
+	boolean_t mng_mode_enabled = (adapter->hw.mac_type >= e1000_82571) &&
+	                              e1000_check_mng_mode(&adapter->hw);
+	/* Power down the PHY so no link is implied when interface is down
+	 * The PHY cannot be powered down if any of the following is TRUE
+	 * (a) WoL is enabled
+	 * (b) AMT is active
+	 * (c) SoL/IDER session is active */
+	if (!adapter->wol && adapter->hw.mac_type >= e1000_82540 &&
+	    adapter->hw.mac_type != e1000_ich8lan &&
+	    adapter->hw.media_type == e1000_media_type_copper &&
+	    !(E1000_READ_REG(&adapter->hw, MANC) & E1000_MANC_SMBUS_EN) &&
+	    !mng_mode_enabled &&
+	    !e1000_check_phy_reset_block(&adapter->hw)) {
+		uint16_t mii_reg = 0;
+		e1000_read_phy_reg(&adapter->hw, PHY_CTRL, &mii_reg);
+		mii_reg |= MII_CR_POWER_DOWN;
+		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, mii_reg);
+		mdelay(1);
+	}
+}
+
 void
 e1000_down(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	boolean_t mng_mode_enabled = (adapter->hw.mac_type >= e1000_82571) &&
-				     e1000_check_mng_mode(&adapter->hw);
 
 	e1000_irq_disable(adapter);
 
-	free_irq(adapter->pdev->irq, netdev);
-#ifdef CONFIG_PCI_MSI
-	if (adapter->hw.mac_type > e1000_82547_rev_2 &&
-	   adapter->have_msi == TRUE)
-		pci_disable_msi(adapter->pdev);
-#endif
 	del_timer_sync(&adapter->tx_fifo_stall_timer);
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
@@ -476,23 +545,17 @@ e1000_down(struct e1000_adapter *adapter)
 	e1000_reset(adapter);
 	e1000_clean_all_tx_rings(adapter);
 	e1000_clean_all_rx_rings(adapter);
+}
 
-	/* Power down the PHY so no link is implied when interface is down *
-	 * The PHY cannot be powered down if any of the following is TRUE *
-	 * (a) WoL is enabled
-	 * (b) AMT is active
-	 * (c) SoL/IDER session is active */
-	if (!adapter->wol && adapter->hw.mac_type >= e1000_82540 &&
-	   adapter->hw.media_type == e1000_media_type_copper &&
-	   !(E1000_READ_REG(&adapter->hw, MANC) & E1000_MANC_SMBUS_EN) &&
-	   !mng_mode_enabled &&
-	   !e1000_check_phy_reset_block(&adapter->hw)) {
-		uint16_t mii_reg;
-		e1000_read_phy_reg(&adapter->hw, PHY_CTRL, &mii_reg);
-		mii_reg |= MII_CR_POWER_DOWN;
-		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, mii_reg);
-		mdelay(1);
-	}
+void
+e1000_reinit_locked(struct e1000_adapter *adapter)
+{
+	WARN_ON(in_interrupt());
+	while (test_and_set_bit(__E1000_RESETTING, &adapter->flags))
+		msleep(1);
+	e1000_down(adapter);
+	e1000_up(adapter);
+	clear_bit(__E1000_RESETTING, &adapter->flags);
 }
 
 void
@@ -518,6 +581,9 @@ e1000_reset(struct e1000_adapter *adapter)
 	case e1000_82573:
 		pba = E1000_PBA_12K;
 		break;
+	case e1000_ich8lan:
+		pba = E1000_PBA_8K;
+		break;
 	default:
 		pba = E1000_PBA_48K;
 		break;
@@ -542,6 +608,12 @@ e1000_reset(struct e1000_adapter *adapter)
 	/* Set the FC high water mark to 90% of the FIFO size.
 	 * Required to clear last 3 LSB */
 	fc_high_water_mark = ((pba * 9216)/10) & 0xFFF8;
+	/* We can't use 90% on small FIFOs because the remainder
+	 * would be less than 1 full frame.  In this case, we size
+	 * it to allow at least a full frame above the high water
+	 *  mark. */
+	if (pba < E1000_PBA_16K)
+		fc_high_water_mark = (pba * 1024) - 1600;
 
 	adapter->hw.fc_high_water = fc_high_water_mark;
 	adapter->hw.fc_low_water = fc_high_water_mark - 8;
@@ -564,6 +636,23 @@ e1000_reset(struct e1000_adapter *adapter)
 
 	e1000_reset_adaptive(&adapter->hw);
 	e1000_phy_get_info(&adapter->hw, &adapter->phy_info);
+
+	if (!adapter->smart_power_down &&
+	    (adapter->hw.mac_type == e1000_82571 ||
+	     adapter->hw.mac_type == e1000_82572)) {
+		uint16_t phy_data = 0;
+		/* speed up time to link by disabling smart power down, ignore
+		 * the return value of this function because there is nothing
+		 * different we would do if it failed */
+		e1000_read_phy_reg(&adapter->hw, IGP02E1000_PHY_POWER_MGMT,
+		                   &phy_data);
+		phy_data &= ~IGP02E1000_PM_SPD;
+		e1000_write_phy_reg(&adapter->hw, IGP02E1000_PHY_POWER_MGMT,
+		                    phy_data);
+	}
+
+	if (adapter->hw.mac_type < e1000_ich8lan)
+	/* FIXME: this code is duplicate and wrong for PCI Express */
 	if (adapter->en_mng_pt) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		manc |= (E1000_MANC_ARP_EN | E1000_MANC_EN_MNG2HOST);
@@ -590,6 +679,7 @@ e1000_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct e1000_adapter *adapter;
 	unsigned long mmio_start, mmio_len;
+	unsigned long flash_start, flash_len;
 
 	static int cards_found = 0;
 	static int e1000_ksp3_port_a = 0; /* global ksp3 port a indication */
@@ -599,10 +689,12 @@ e1000_probe(struct pci_dev *pdev,
 	if ((err = pci_enable_device(pdev)))
 		return err;
 
-	if (!(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK))) {
+	if (!(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK)) &&
+	    !(err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))) {
 		pci_using_dac = 1;
 	} else {
-		if ((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK))) {
+		if ((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) &&
+		    (err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))) {
 			E1000_ERR("No usable DMA configuration, aborting\n");
 			return err;
 		}
@@ -682,6 +774,19 @@ e1000_probe(struct pci_dev *pdev,
 	if ((err = e1000_sw_init(adapter)))
 		goto err_sw_init;
 
+	/* Flash BAR mapping must happen after e1000_sw_init
+	 * because it depends on mac_type */
+	if ((adapter->hw.mac_type == e1000_ich8lan) &&
+	   (pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
+		flash_start = pci_resource_start(pdev, 1);
+		flash_len = pci_resource_len(pdev, 1);
+		adapter->hw.flash_address = ioremap(flash_start, flash_len);
+		if (!adapter->hw.flash_address) {
+			err = -EIO;
+			goto err_flashmap;
+		}
+	}
+
 	if ((err = e1000_check_phy_reset_block(&adapter->hw)))
 		DPRINTK(PROBE, INFO, "PHY reset is blocked due to SOL/IDER session.\n");
 
@@ -700,6 +805,8 @@ e1000_probe(struct pci_dev *pdev,
 				   NETIF_F_HW_VLAN_TX |
 				   NETIF_F_HW_VLAN_RX |
 				   NETIF_F_HW_VLAN_FILTER;
+		if (adapter->hw.mac_type == e1000_ich8lan)
+			netdev->features &= ~NETIF_F_HW_VLAN_FILTER;
 	}
 
 #ifdef NETIF_F_TSO
@@ -715,10 +822,16 @@ e1000_probe(struct pci_dev *pdev,
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-	/* hard_start_xmit is safe against parallel locking */
 	netdev->features |= NETIF_F_LLTX;
 
 	adapter->en_mng_pt = e1000_enable_mng_pass_thru(&adapter->hw);
+
+	/* initialize eeprom parameters */
+
+	if (e1000_init_eeprom_params(&adapter->hw)) {
+		E1000_ERR("EEPROM initialization failed\n");
+		return -EIO;
+	}
 
 	/* before reading the EEPROM, reset the controller to
 	 * put the device in a known good starting state */
@@ -758,9 +871,6 @@ e1000_probe(struct pci_dev *pdev,
 	adapter->watchdog_timer.function = &e1000_watchdog;
 	adapter->watchdog_timer.data = (unsigned long) adapter;
 
-	INIT_WORK(&adapter->watchdog_task,
-		(void (*)(void *))e1000_watchdog_task, adapter);
-
 	init_timer(&adapter->phy_info_timer);
 	adapter->phy_info_timer.function = &e1000_update_phy_info;
 	adapter->phy_info_timer.data = (unsigned long) adapter;
@@ -789,6 +899,11 @@ e1000_probe(struct pci_dev *pdev,
 		e1000_read_eeprom(&adapter->hw,
 			EEPROM_INIT_CONTROL2_REG, 1, &eeprom_data);
 		eeprom_apme_mask = E1000_EEPROM_82544_APM;
+		break;
+	case e1000_ich8lan:
+		e1000_read_eeprom(&adapter->hw,
+			EEPROM_INIT_CONTROL1_REG, 1, &eeprom_data);
+		eeprom_apme_mask = E1000_EEPROM_ICH8_APME;
 		break;
 	case e1000_82546:
 	case e1000_82546_rev_3:
@@ -849,6 +964,9 @@ e1000_probe(struct pci_dev *pdev,
 	return 0;
 
 err_register:
+	if (adapter->hw.flash_address)
+		iounmap(adapter->hw.flash_address);
+err_flashmap:
 err_sw_init:
 err_eeprom:
 	iounmap(adapter->hw.hw_addr);
@@ -882,6 +1000,7 @@ e1000_remove(struct pci_dev *pdev)
 	flush_scheduled_work();
 
 	if (adapter->hw.mac_type >= e1000_82540 &&
+	   adapter->hw.mac_type != e1000_ich8lan &&
 	   adapter->hw.media_type == e1000_media_type_copper) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		if (manc & E1000_MANC_SMBUS_EN) {
@@ -910,6 +1029,8 @@ e1000_remove(struct pci_dev *pdev)
 #endif
 
 	iounmap(adapter->hw.hw_addr);
+	if (adapter->hw.flash_address)
+		iounmap(adapter->hw.flash_address);
 	pci_release_regions(pdev);
 
 	free_netdev(netdev);
@@ -957,13 +1078,6 @@ e1000_sw_init(struct e1000_adapter *adapter)
 
 	if (e1000_set_mac_type(hw)) {
 		DPRINTK(PROBE, ERR, "Unknown MAC Type\n");
-		return -EIO;
-	}
-
-	/* initialize eeprom parameters */
-
-	if (e1000_init_eeprom_params(hw)) {
-		E1000_ERR("EEPROM initialization failed\n");
 		return -EIO;
 	}
 
@@ -1078,6 +1192,10 @@ e1000_open(struct net_device *netdev)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	int err;
 
+	/* disallow open during test */
+	if (test_bit(__E1000_DRIVER_TESTING, &adapter->flags))
+		return -EBUSY;
+
 	/* allocate transmit descriptors */
 
 	if ((err = e1000_setup_all_tx_resources(adapter)))
@@ -1087,6 +1205,12 @@ e1000_open(struct net_device *netdev)
 
 	if ((err = e1000_setup_all_rx_resources(adapter)))
 		goto err_setup_rx;
+
+	err = e1000_request_irq(adapter);
+	if (err)
+		goto err_up;
+
+	e1000_power_up_phy(adapter);
 
 	if ((err = e1000_up(adapter)))
 		goto err_up;
@@ -1131,7 +1255,10 @@ e1000_close(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
+	WARN_ON(test_bit(__E1000_RESETTING, &adapter->flags));
 	e1000_down(adapter);
+	e1000_power_down_phy(adapter);
+	e1000_free_irq(adapter);
 
 	e1000_free_all_tx_resources(adapter);
 	e1000_free_all_rx_resources(adapter);
@@ -1189,8 +1316,7 @@ e1000_setup_tx_resources(struct e1000_adapter *adapter,
 	int size;
 
 	size = sizeof(struct e1000_buffer) * txdr->count;
-
-	txdr->buffer_info = vmalloc_node(size, pcibus_to_node(pdev->bus));
+	txdr->buffer_info = vmalloc(size);
 	if (!txdr->buffer_info) {
 		DPRINTK(PROBE, ERR,
 		"Unable to allocate memory for the transmit descriptor ring\n");
@@ -1302,11 +1428,11 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 		tdba = adapter->tx_ring[0].dma;
 		tdlen = adapter->tx_ring[0].count *
 			sizeof(struct e1000_tx_desc);
-		E1000_WRITE_REG(hw, TDBAL, (tdba & 0x00000000ffffffffULL));
-		E1000_WRITE_REG(hw, TDBAH, (tdba >> 32));
 		E1000_WRITE_REG(hw, TDLEN, tdlen);
-		E1000_WRITE_REG(hw, TDH, 0);
+		E1000_WRITE_REG(hw, TDBAH, (tdba >> 32));
+		E1000_WRITE_REG(hw, TDBAL, (tdba & 0x00000000ffffffffULL));
 		E1000_WRITE_REG(hw, TDT, 0);
+		E1000_WRITE_REG(hw, TDH, 0);
 		adapter->tx_ring[0].tdh = E1000_TDH;
 		adapter->tx_ring[0].tdt = E1000_TDT;
 		break;
@@ -1418,7 +1544,7 @@ e1000_setup_rx_resources(struct e1000_adapter *adapter,
 	int size, desc_len;
 
 	size = sizeof(struct e1000_buffer) * rxdr->count;
-	rxdr->buffer_info = vmalloc_node(size, pcibus_to_node(pdev->bus));
+	rxdr->buffer_info = vmalloc(size);
 	if (!rxdr->buffer_info) {
 		DPRINTK(PROBE, ERR,
 		"Unable to allocate memory for the receive descriptor ring\n");
@@ -1560,9 +1686,6 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
 		(adapter->hw.mc_filter_type << E1000_RCTL_MO_SHIFT);
 
-	if (adapter->hw.mac_type > e1000_82543)
-		rctl |= E1000_RCTL_SECRC;
-
 	if (adapter->hw.tbi_compatibility_on == 1)
 		rctl |= E1000_RCTL_SBP;
 	else
@@ -1628,7 +1751,7 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		rfctl |= E1000_RFCTL_IPV6_DIS;
 		E1000_WRITE_REG(&adapter->hw, RFCTL, rfctl);
 
-		rctl |= E1000_RCTL_DTYP_PS | E1000_RCTL_SECRC;
+		rctl |= E1000_RCTL_DTYP_PS;
 
 		psrctl |= adapter->rx_ps_bsize0 >>
 			E1000_PSRCTL_BSIZE0_SHIFT;
@@ -1712,11 +1835,11 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 	case 1:
 	default:
 		rdba = adapter->rx_ring[0].dma;
-		E1000_WRITE_REG(hw, RDBAL, (rdba & 0x00000000ffffffffULL));
-		E1000_WRITE_REG(hw, RDBAH, (rdba >> 32));
 		E1000_WRITE_REG(hw, RDLEN, rdlen);
-		E1000_WRITE_REG(hw, RDH, 0);
+		E1000_WRITE_REG(hw, RDBAH, (rdba >> 32));
+		E1000_WRITE_REG(hw, RDBAL, (rdba & 0x00000000ffffffffULL));
 		E1000_WRITE_REG(hw, RDT, 0);
+		E1000_WRITE_REG(hw, RDH, 0);
 		adapter->rx_ring[0].rdh = E1000_RDH;
 		adapter->rx_ring[0].rdt = E1000_RDT;
 		break;
@@ -1740,9 +1863,6 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 		}
 		E1000_WRITE_REG(hw, RXCSUM, rxcsum);
 	}
-
-	if (hw->mac_type == e1000_82573)
-		E1000_WRITE_REG(hw, ERT, 0x0100);
 
 	/* Enable Receives */
 	E1000_WRITE_REG(hw, RCTL, rctl);
@@ -2083,6 +2203,12 @@ e1000_set_multi(struct net_device *netdev)
 	uint32_t rctl;
 	uint32_t hash_value;
 	int i, rar_entries = E1000_RAR_ENTRIES;
+	int mta_reg_count = (hw->mac_type == e1000_ich8lan) ?
+				E1000_NUM_MTA_REGISTERS_ICH8LAN :
+				E1000_NUM_MTA_REGISTERS;
+
+	if (adapter->hw.mac_type == e1000_ich8lan)
+		rar_entries = E1000_RAR_ENTRIES_ICH8LAN;
 
 	/* reserve RAR[14] for LAA over-write work-around */
 	if (adapter->hw.mac_type == e1000_82571)
@@ -2121,14 +2247,18 @@ e1000_set_multi(struct net_device *netdev)
 			mc_ptr = mc_ptr->next;
 		} else {
 			E1000_WRITE_REG_ARRAY(hw, RA, i << 1, 0);
+			E1000_WRITE_FLUSH(hw);
 			E1000_WRITE_REG_ARRAY(hw, RA, (i << 1) + 1, 0);
+			E1000_WRITE_FLUSH(hw);
 		}
 	}
 
 	/* clear the old settings from the multicast hash table */
 
-	for (i = 0; i < E1000_NUM_MTA_REGISTERS; i++)
+	for (i = 0; i < mta_reg_count; i++) {
 		E1000_WRITE_REG_ARRAY(hw, MTA, i, 0);
+		E1000_WRITE_FLUSH(hw);
+	}
 
 	/* load any remaining addresses into the hash table */
 
@@ -2201,19 +2331,19 @@ static void
 e1000_watchdog(unsigned long data)
 {
 	struct e1000_adapter *adapter = (struct e1000_adapter *) data;
-
-	/* Do the rest outside of interrupt context */
-	schedule_work(&adapter->watchdog_task);
-}
-
-static void
-e1000_watchdog_task(struct e1000_adapter *adapter)
-{
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_tx_ring *txdr = adapter->tx_ring;
 	uint32_t link, tctl;
+	int32_t ret_val;
 
-	e1000_check_for_link(&adapter->hw);
+	ret_val = e1000_check_for_link(&adapter->hw);
+	if ((ret_val == E1000_ERR_PHY) &&
+	    (adapter->hw.phy_type == e1000_phy_igp_3) &&
+	    (E1000_READ_REG(&adapter->hw, CTRL) & E1000_PHY_CTRL_GBE_DISABLE)) {
+		/* See e1000_kumeran_lock_loss_workaround() */
+		DPRINTK(LINK, INFO,
+			"Gigabit has been disabled, downgrading speed\n");
+	}
 	if (adapter->hw.mac_type == e1000_82573) {
 		e1000_enable_tx_pkt_filtering(&adapter->hw);
 		if (adapter->mng_vlan_id != adapter->hw.mng_cookie.vlan_id)
@@ -2779,9 +2909,10 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			case e1000_82571:
 			case e1000_82572:
 			case e1000_82573:
+			case e1000_ich8lan:
 				pull_size = min((unsigned int)4, skb->data_len);
 				if (!__pskb_pull_tail(skb, pull_size)) {
-					printk(KERN_ERR
+					DPRINTK(DRV, ERR,
 						"__pskb_pull_tail failed.\n");
 					dev_kfree_skb_any(skb);
 					return NETDEV_TX_OK;
@@ -2919,8 +3050,7 @@ e1000_reset_task(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	e1000_down(adapter);
-	e1000_up(adapter);
+	e1000_reinit_locked(adapter);
 }
 
 /**
@@ -2964,6 +3094,7 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	/* Adapter-specific max frame size limits. */
 	switch (adapter->hw.mac_type) {
 	case e1000_undefined ... e1000_82542_rev2_1:
+	case e1000_ich8lan:
 		if (max_frame > MAXIMUM_ETHERNET_FRAME_SIZE) {
 			DPRINTK(PROBE, ERR, "Jumbo Frames not supported.\n");
 			return -EINVAL;
@@ -3026,10 +3157,8 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 
 	netdev->mtu = new_mtu;
 
-	if (netif_running(netdev)) {
-		e1000_down(adapter);
-		e1000_up(adapter);
-	}
+	if (netif_running(netdev))
+		e1000_reinit_locked(adapter);
 
 	adapter->hw.max_frame_size = max_frame;
 
@@ -3074,12 +3203,15 @@ e1000_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.bprc += E1000_READ_REG(hw, BPRC);
 	adapter->stats.mprc += E1000_READ_REG(hw, MPRC);
 	adapter->stats.roc += E1000_READ_REG(hw, ROC);
+
+	if (adapter->hw.mac_type != e1000_ich8lan) {
 	adapter->stats.prc64 += E1000_READ_REG(hw, PRC64);
 	adapter->stats.prc127 += E1000_READ_REG(hw, PRC127);
 	adapter->stats.prc255 += E1000_READ_REG(hw, PRC255);
 	adapter->stats.prc511 += E1000_READ_REG(hw, PRC511);
 	adapter->stats.prc1023 += E1000_READ_REG(hw, PRC1023);
 	adapter->stats.prc1522 += E1000_READ_REG(hw, PRC1522);
+	}
 
 	adapter->stats.symerrs += E1000_READ_REG(hw, SYMERRS);
 	adapter->stats.mpc += E1000_READ_REG(hw, MPC);
@@ -3107,12 +3239,16 @@ e1000_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.totl += E1000_READ_REG(hw, TOTL);
 	adapter->stats.toth += E1000_READ_REG(hw, TOTH);
 	adapter->stats.tpr += E1000_READ_REG(hw, TPR);
+
+	if (adapter->hw.mac_type != e1000_ich8lan) {
 	adapter->stats.ptc64 += E1000_READ_REG(hw, PTC64);
 	adapter->stats.ptc127 += E1000_READ_REG(hw, PTC127);
 	adapter->stats.ptc255 += E1000_READ_REG(hw, PTC255);
 	adapter->stats.ptc511 += E1000_READ_REG(hw, PTC511);
 	adapter->stats.ptc1023 += E1000_READ_REG(hw, PTC1023);
 	adapter->stats.ptc1522 += E1000_READ_REG(hw, PTC1522);
+	}
+
 	adapter->stats.mptc += E1000_READ_REG(hw, MPTC);
 	adapter->stats.bptc += E1000_READ_REG(hw, BPTC);
 
@@ -3134,6 +3270,8 @@ e1000_update_stats(struct e1000_adapter *adapter)
 	if (hw->mac_type > e1000_82547_rev_2) {
 		adapter->stats.iac += E1000_READ_REG(hw, IAC);
 		adapter->stats.icrxoc += E1000_READ_REG(hw, ICRXOC);
+
+		if (adapter->hw.mac_type != e1000_ich8lan) {
 		adapter->stats.icrxptc += E1000_READ_REG(hw, ICRXPTC);
 		adapter->stats.icrxatc += E1000_READ_REG(hw, ICRXATC);
 		adapter->stats.ictxptc += E1000_READ_REG(hw, ICTXPTC);
@@ -3141,6 +3279,7 @@ e1000_update_stats(struct e1000_adapter *adapter)
 		adapter->stats.ictxqec += E1000_READ_REG(hw, ICTXQEC);
 		adapter->stats.ictxqmtc += E1000_READ_REG(hw, ICTXQMTC);
 		adapter->stats.icrxdmtc += E1000_READ_REG(hw, ICRXDMTC);
+		}
 	}
 
 	/* Fill out the OS statistics structure */
@@ -3547,7 +3686,8 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			/* All receives must fit into a single buffer */
 			E1000_DBG("%s: Receive packet consumed multiple"
 				  " buffers\n", netdev->name);
-			dev_kfree_skb_irq(skb);
+			/* recycle */
+			buffer_info-> skb = skb;
 			goto next_desc;
 		}
 
@@ -3675,7 +3815,6 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 	buffer_info = &rx_ring->buffer_info[i];
 
 	while (staterr & E1000_RXD_STAT_DD) {
-		buffer_info = &rx_ring->buffer_info[i];
 		ps_page = &rx_ring->ps_page[i];
 		ps_page_dma = &rx_ring->ps_page_dma[i];
 #ifdef CONFIG_E1000_NAPI
@@ -4180,10 +4319,9 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 						return retval;
 					}
 				}
-				if (netif_running(adapter->netdev)) {
-					e1000_down(adapter);
-					e1000_up(adapter);
-				} else
+				if (netif_running(adapter->netdev))
+					e1000_reinit_locked(adapter);
+				else
 					e1000_reset(adapter);
 				break;
 			case M88E1000_PHY_SPEC_CTRL:
@@ -4200,10 +4338,9 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 			case PHY_CTRL:
 				if (mii_reg & MII_CR_POWER_DOWN)
 					break;
-				if (netif_running(adapter->netdev)) {
-					e1000_down(adapter);
-					e1000_up(adapter);
-				} else
+				if (netif_running(adapter->netdev))
+					e1000_reinit_locked(adapter);
+				else
 					e1000_reset(adapter);
 				break;
 			}
@@ -4277,18 +4414,21 @@ e1000_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 		ctrl |= E1000_CTRL_VME;
 		E1000_WRITE_REG(&adapter->hw, CTRL, ctrl);
 
+		if (adapter->hw.mac_type != e1000_ich8lan) {
 		/* enable VLAN receive filtering */
 		rctl = E1000_READ_REG(&adapter->hw, RCTL);
 		rctl |= E1000_RCTL_VFE;
 		rctl &= ~E1000_RCTL_CFIEN;
 		E1000_WRITE_REG(&adapter->hw, RCTL, rctl);
 		e1000_update_mng_vlan(adapter);
+		}
 	} else {
 		/* disable VLAN tag insert/strip */
 		ctrl = E1000_READ_REG(&adapter->hw, CTRL);
 		ctrl &= ~E1000_CTRL_VME;
 		E1000_WRITE_REG(&adapter->hw, CTRL, ctrl);
 
+		if (adapter->hw.mac_type != e1000_ich8lan) {
 		/* disable VLAN filtering */
 		rctl = E1000_READ_REG(&adapter->hw, RCTL);
 		rctl &= ~E1000_RCTL_VFE;
@@ -4296,6 +4436,7 @@ e1000_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 		if (adapter->mng_vlan_id != (uint16_t)E1000_MNG_VLAN_NONE) {
 			e1000_vlan_rx_kill_vid(netdev, adapter->mng_vlan_id);
 			adapter->mng_vlan_id = E1000_MNG_VLAN_NONE;
+		}
 		}
 	}
 
@@ -4458,12 +4599,16 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	uint32_t ctrl, ctrl_ext, rctl, manc, status;
 	uint32_t wufc = adapter->wol;
+#ifdef CONFIG_PM
 	int retval = 0;
+#endif
 
 	netif_device_detach(netdev);
 
-	if (netif_running(netdev))
+	if (netif_running(netdev)) {
+		WARN_ON(test_bit(__E1000_RESETTING, &adapter->flags));
 		e1000_down(adapter);
+	}
 
 #ifdef CONFIG_PM
 	/* Implement our own version of pci_save_state(pdev) because pci-
@@ -4521,7 +4666,9 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
 
+	/* FIXME: this code is incorrect for PCI Express */
 	if (adapter->hw.mac_type >= e1000_82540 &&
+	   adapter->hw.mac_type != e1000_ich8lan &&
 	   adapter->hw.media_type == e1000_media_type_copper) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		if (manc & E1000_MANC_SMBUS_EN) {
@@ -4531,6 +4678,9 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 			pci_enable_wake(pdev, PCI_D3cold, 1);
 		}
 	}
+
+	if (adapter->hw.phy_type == e1000_phy_igp_3)
+		e1000_phy_powerdown_workaround(&adapter->hw);
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant. */
@@ -4567,7 +4717,9 @@ e1000_resume(struct pci_dev *pdev)
 
 	netif_device_attach(netdev);
 
+	/* FIXME: this code is incorrect for PCI Express */
 	if (adapter->hw.mac_type >= e1000_82540 &&
+	   adapter->hw.mac_type != e1000_ich8lan &&
 	   adapter->hw.media_type == e1000_media_type_copper) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		manc &= ~(E1000_MANC_ARP_EN);

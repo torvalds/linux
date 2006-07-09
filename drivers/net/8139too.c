@@ -1709,6 +1709,7 @@ static int rtl8139_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	void __iomem *ioaddr = tp->mmio_addr;
 	unsigned int entry;
 	unsigned int len = skb->len;
+	unsigned long flags;
 
 	/* Calculate the next Tx descriptor entry. */
 	entry = tp->cur_tx % NUM_TX_DESC;
@@ -1725,7 +1726,7 @@ static int rtl8139_start_xmit (struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	}
 
-	spin_lock_irq(&tp->lock);
+	spin_lock_irqsave(&tp->lock, flags);
 	RTL_W32_F (TxStatus0 + (entry * sizeof (u32)),
 		   tp->tx_flag | max(len, (unsigned int)ETH_ZLEN));
 
@@ -1736,7 +1737,7 @@ static int rtl8139_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 	if ((tp->cur_tx - NUM_TX_DESC) == tp->dirty_tx)
 		netif_stop_queue (dev);
-	spin_unlock_irq(&tp->lock);
+	spin_unlock_irqrestore(&tp->lock, flags);
 
 	if (netif_msg_tx_queued(tp))
 		printk (KERN_DEBUG "%s: Queued Tx packet size %u to slot %d.\n",
