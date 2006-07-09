@@ -1173,7 +1173,7 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	uint16_t ipcse, tucse, mss;
 	int err;
 
-	if(likely(skb_shinfo(skb)->gso_size)) {
+	if (likely(skb_is_gso(skb))) {
 		if (skb_header_cloned(skb)) {
 			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 			if (err)

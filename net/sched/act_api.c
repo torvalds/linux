@@ -602,8 +602,8 @@ static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
 	return err;
 
 rtattr_failure:
-	module_put(a->ops->owner);
 nlmsg_failure:
+	module_put(a->ops->owner);
 err_out:
 	kfree_skb(skb);
 	kfree(a);

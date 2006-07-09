@@ -962,7 +962,6 @@ static struct file_operations arp_seq_fops = {
 
 static int __init atm_clip_init(void)
 {
-	struct proc_dir_entry *p;
 	neigh_table_init_no_netlink(&clip_tbl);
 
 	clip_tbl_hook = &clip_tbl;
@@ -972,9 +971,15 @@ static int __init atm_clip_init(void)
 
 	setup_timer(&idle_timer, idle_timer_check, 0);
 
-	p = create_proc_entry("arp", S_IRUGO, atm_proc_root);
-	if (p)
-		p->proc_fops = &arp_seq_fops;
+#ifdef CONFIG_PROC_FS
+	{
+		struct proc_dir_entry *p;
+
+		p = create_proc_entry("arp", S_IRUGO, atm_proc_root);
+		if (p)
+			p->proc_fops = &arp_seq_fops;
+	}
+#endif
 
 	return 0;
 }

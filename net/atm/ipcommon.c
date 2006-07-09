@@ -25,22 +25,27 @@
 /*
  * skb_migrate appends the list at "from" to "to", emptying "from" in the
  * process. skb_migrate is atomic with respect to all other skb operations on
- * "from" and "to". Note that it locks both lists at the same time, so beware
- * of potential deadlocks.
+ * "from" and "to". Note that it locks both lists at the same time, so to deal
+ * with the lock ordering, the locks are taken in address order.
  *
  * This function should live in skbuff.c or skbuff.h.
  */
 
 
-void skb_migrate(struct sk_buff_head *from,struct sk_buff_head *to)
+void skb_migrate(struct sk_buff_head *from, struct sk_buff_head *to)
 {
 	unsigned long flags;
 	struct sk_buff *skb_from = (struct sk_buff *) from;
 	struct sk_buff *skb_to = (struct sk_buff *) to;
 	struct sk_buff *prev;
 
-	spin_lock_irqsave(&from->lock,flags);
-	spin_lock(&to->lock);
+	if ((unsigned long) from < (unsigned long) to) {
+		spin_lock_irqsave(&from->lock, flags);
+		spin_lock_nested(&to->lock, SINGLE_DEPTH_NESTING);
+	} else {
+		spin_lock_irqsave(&to->lock, flags);
+		spin_lock_nested(&from->lock, SINGLE_DEPTH_NESTING);
+	}
 	prev = from->prev;
 	from->next->prev = to->prev;
 	prev->next = skb_to;
@@ -51,7 +56,7 @@ void skb_migrate(struct sk_buff_head *from,struct sk_buff_head *to)
 	from->prev = skb_from;
 	from->next = skb_from;
 	from->qlen = 0;
-	spin_unlock_irqrestore(&from->lock,flags);
+	spin_unlock_irqrestore(&from->lock, flags);
 }
 
 

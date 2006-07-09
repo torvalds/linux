@@ -4457,7 +4457,7 @@ qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 	queue = card->qdio.out_qs
 		[qeth_get_priority_queue(card, skb, ipv, cast_type)];
 
-	if (skb_shinfo(skb)->gso_size)
+	if (skb_is_gso(skb))
 		large_send = card->options.large_send;
 
 	/*are we able to do TSO ? If so ,prepare and send it from here */

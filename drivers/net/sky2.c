@@ -1159,7 +1159,7 @@ static unsigned tx_le_req(const struct sk_buff *skb)
 	count = sizeof(dma_addr_t) / sizeof(u32);
 	count += skb_shinfo(skb)->nr_frags * count;
 
-	if (skb_shinfo(skb)->gso_size)
+	if (skb_is_gso(skb))
 		++count;
 
 	if (skb->ip_summed == CHECKSUM_HW)

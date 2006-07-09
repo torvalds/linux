@@ -1417,7 +1417,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct cpl_tx_pkt *cpl;
 
 #ifdef NETIF_F_TSO
-	if (skb_shinfo(skb)->gso_size) {
+	if (skb_is_gso(skb)) {
 		int eth_type;
 		struct cpl_tx_pkt_lso *hdr;
 
