@@ -311,8 +311,10 @@ static atomic_t io_done = ATOMIC_INIT(0);
 
 static int end_io(struct bio *bio, unsigned int num, int err)
 {
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-		panic("I/O error reading memory image");
+	if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
+		printk(KERN_ERR "I/O error reading swsusp image.\n");
+		return -EIO;
+	}
 	atomic_set(&io_done, 0);
 	return 0;
 }
