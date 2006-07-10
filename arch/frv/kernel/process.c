@@ -371,3 +371,11 @@ int elf_check_arch(const struct elf32_hdr *hdr)
 
 	return 1;
 }
+
+int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpregs)
+{
+	memcpy(fpregs,
+	       &current->thread.user->f,
+	       sizeof(current->thread.user->f));
+	return 1;
+}
