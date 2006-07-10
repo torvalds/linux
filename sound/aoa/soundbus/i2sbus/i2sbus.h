@@ -45,6 +45,12 @@ struct pcm_info {
 	volatile struct dbdma_regs __iomem *dbdma;
 };
 
+enum {
+	aoa_resource_i2smmio = 0,
+	aoa_resource_txdbdma,
+	aoa_resource_rxdbdma,
+};
+
 struct i2sbus_dev {
 	struct soundbus_dev sound;
 	struct macio_dev *macio;
