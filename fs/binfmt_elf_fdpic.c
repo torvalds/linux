@@ -459,6 +459,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	 */
 	hwcap = ELF_HWCAP;
 	k_platform = ELF_PLATFORM;
+	u_platform = NULL;
 
 	if (k_platform) {
 		platform_len = strlen(k_platform) + 1;
