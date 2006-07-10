@@ -72,6 +72,7 @@ MODULE_DESCRIPTION("tas codec driver for snd-aoa");
 
 #include "snd-aoa-codec-tas.h"
 #include "snd-aoa-codec-tas-gain-table.h"
+#include "snd-aoa-codec-tas-basstreble.h"
 #include "../aoa.h"
 #include "../soundbus/soundbus.h"
 
@@ -87,6 +88,7 @@ struct tas {
 				hw_enabled:1;
 	u8			cached_volume_l, cached_volume_r;
 	u8			mixer_l[3], mixer_r[3];
+	u8			bass, treble;
 	u8			acr;
 	int			drc_range;
 };
@@ -126,6 +128,22 @@ static void tas3004_set_drc(struct tas *tas)
 	val[5] = 0xa0;
 
 	tas_write_reg(tas, TAS_REG_DRC, 6, val);
+}
+
+static void tas_set_treble(struct tas *tas)
+{
+	u8 tmp;
+
+	tmp = tas3004_treble(tas->treble);
+	tas_write_reg(tas, TAS_REG_TREBLE, 1, &tmp);
+}
+
+static void tas_set_bass(struct tas *tas)
+{
+	u8 tmp;
+
+	tmp = tas3004_bass(tas->bass);
+	tas_write_reg(tas, TAS_REG_BASS, 1, &tmp);
 }
 
 static void tas_set_volume(struct tas *tas)
@@ -485,6 +503,89 @@ static struct snd_kcontrol_new capture_source_control = {
 	.put = tas_snd_capture_source_put,
 };
 
+static int tas_snd_treble_info(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = TAS3004_TREBLE_MIN;
+	uinfo->value.integer.max = TAS3004_TREBLE_MAX;
+	return 0;
+}
+
+static int tas_snd_treble_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct tas *tas = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = tas->treble;
+	return 0;
+}
+
+static int tas_snd_treble_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct tas *tas = snd_kcontrol_chip(kcontrol);
+
+	if (tas->treble == ucontrol->value.integer.value[0])
+		return 0;
+
+	tas->treble = ucontrol->value.integer.value[0];
+	if (tas->hw_enabled)
+		tas_set_treble(tas);
+	return 1;
+}
+
+static struct snd_kcontrol_new treble_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Treble",
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = tas_snd_treble_info,
+	.get = tas_snd_treble_get,
+	.put = tas_snd_treble_put,
+};
+
+static int tas_snd_bass_info(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = TAS3004_BASS_MIN;
+	uinfo->value.integer.max = TAS3004_BASS_MAX;
+	return 0;
+}
+
+static int tas_snd_bass_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct tas *tas = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = tas->bass;
+	return 0;
+}
+
+static int tas_snd_bass_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct tas *tas = snd_kcontrol_chip(kcontrol);
+
+	if (tas->bass == ucontrol->value.integer.value[0])
+		return 0;
+
+	tas->bass = ucontrol->value.integer.value[0];
+	if (tas->hw_enabled)
+		tas_set_bass(tas);
+	return 1;
+}
+
+static struct snd_kcontrol_new bass_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Bass",
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = tas_snd_bass_info,
+	.get = tas_snd_bass_get,
+	.put = tas_snd_bass_put,
+};
 
 static struct transfer_info tas_transfers[] = {
 	{
@@ -541,9 +642,10 @@ static int tas_reset_init(struct tas *tas)
 	tas3004_set_drc(tas);
 
 	/* Set treble & bass to 0dB */
-	tmp = 114;
-	tas_write_reg(tas, TAS_REG_TREBLE, 1, &tmp);
-	tas_write_reg(tas, TAS_REG_BASS, 1, &tmp);
+	tas->treble = TAS3004_TREBLE_ZERO;
+	tas->bass = TAS3004_BASS_ZERO;
+	tas_set_treble(tas);
+	tas_set_bass(tas);
 
 	tas->acr &= ~TAS_ACR_ANALOG_PDOWN;
 	if (tas_write_reg(tas, TAS_REG_ACR, 1, &tas->acr))
@@ -679,6 +781,14 @@ static int tas_init_codec(struct aoa_codec *codec)
 		goto error;
 
 	err = aoa_snd_ctl_add(snd_ctl_new1(&drc_switch_control, tas));
+	if (err)
+		goto error;
+
+	err = aoa_snd_ctl_add(snd_ctl_new1(&treble_control, tas));
+	if (err)
+		goto error;
+
+	err = aoa_snd_ctl_add(snd_ctl_new1(&bass_control, tas));
 	if (err)
 		goto error;
 
