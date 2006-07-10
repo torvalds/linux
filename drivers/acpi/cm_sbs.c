@@ -39,50 +39,43 @@ ACPI_MODULE_NAME("cm_sbs")
 static struct proc_dir_entry *acpi_ac_dir;
 static struct proc_dir_entry *acpi_battery_dir;
 
-static struct semaphore cm_sbs_sem;
+static DEFINE_MUTEX(cm_sbs_mutex);
 
-static int lock_ac_dir_cnt = 0;
-static int lock_battery_dir_cnt = 0;
+static int lock_ac_dir_cnt;
+static int lock_battery_dir_cnt;
 
 struct proc_dir_entry *acpi_lock_ac_dir(void)
 {
-
-	down(&cm_sbs_sem);
-	if (!acpi_ac_dir) {
+	mutex_lock(&cm_sbs_mutex);
+	if (!acpi_ac_dir)
 		acpi_ac_dir = proc_mkdir(ACPI_AC_CLASS, acpi_root_dir);
-	}
 	if (acpi_ac_dir) {
 		lock_ac_dir_cnt++;
 	} else {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Cannot create %s\n", ACPI_AC_CLASS));
 	}
-	up(&cm_sbs_sem);
+	mutex_unlock(&cm_sbs_mutex);
 	return acpi_ac_dir;
 }
-
 EXPORT_SYMBOL(acpi_lock_ac_dir);
 
 void acpi_unlock_ac_dir(struct proc_dir_entry *acpi_ac_dir_param)
 {
-
-	down(&cm_sbs_sem);
-	if (acpi_ac_dir_param) {
+	mutex_lock(&cm_sbs_mutex);
+	if (acpi_ac_dir_param)
 		lock_ac_dir_cnt--;
-	}
 	if (lock_ac_dir_cnt == 0 && acpi_ac_dir_param && acpi_ac_dir) {
 		remove_proc_entry(ACPI_AC_CLASS, acpi_root_dir);
 		acpi_ac_dir = 0;
 	}
-	up(&cm_sbs_sem);
+	mutex_unlock(&cm_sbs_mutex);
 }
-
 EXPORT_SYMBOL(acpi_unlock_ac_dir);
 
 struct proc_dir_entry *acpi_lock_battery_dir(void)
 {
-
-	down(&cm_sbs_sem);
+	mutex_lock(&cm_sbs_mutex);
 	if (!acpi_battery_dir) {
 		acpi_battery_dir =
 		    proc_mkdir(ACPI_BATTERY_CLASS, acpi_root_dir);
@@ -93,39 +86,28 @@ struct proc_dir_entry *acpi_lock_battery_dir(void)
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Cannot create %s\n", ACPI_BATTERY_CLASS));
 	}
-	up(&cm_sbs_sem);
+	mutex_unlock(&cm_sbs_mutex);
 	return acpi_battery_dir;
 }
-
 EXPORT_SYMBOL(acpi_lock_battery_dir);
 
 void acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir_param)
 {
-
-	down(&cm_sbs_sem);
-	if (acpi_battery_dir_param) {
+	mutex_lock(&cm_sbs_mutex);
+	if (acpi_battery_dir_param)
 		lock_battery_dir_cnt--;
-	}
 	if (lock_battery_dir_cnt == 0 && acpi_battery_dir_param
 	    && acpi_battery_dir) {
 		remove_proc_entry(ACPI_BATTERY_CLASS, acpi_root_dir);
 		acpi_battery_dir = 0;
 	}
-	up(&cm_sbs_sem);
+	mutex_unlock(&cm_sbs_mutex);
 	return;
 }
-
 EXPORT_SYMBOL(acpi_unlock_battery_dir);
 
 static int __init acpi_cm_sbs_init(void)
 {
-
-	if (acpi_disabled)
-		return 0;
-
-	init_MUTEX(&cm_sbs_sem);
-
 	return 0;
 }
-
 subsys_initcall(acpi_cm_sbs_init);
