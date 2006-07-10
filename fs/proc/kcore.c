@@ -42,8 +42,6 @@ const struct file_operations proc_kcore_operations = {
 #define	kc_offset_to_vaddr(o) ((o) + PAGE_OFFSET)
 #endif
 
-#define roundup(x, y)  ((((x)+((y)-1))/(y))*(y))
-
 /* An ELF note in memory */
 struct memelfnote
 {
