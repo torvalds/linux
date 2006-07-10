@@ -20,6 +20,8 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 
+#include "phidget.h"
+
 #define DRIVER_AUTHOR "Sean Young <sean@mess.org>"
 #define DRIVER_DESC "USB PhidgetInterfaceKit Driver"
 
@@ -57,11 +59,15 @@ ifkit(8, 8, 4, 0);
 ifkit(0, 8, 8, 1);
 ifkit(0, 16, 16, 0);
 
+static unsigned long device_no;
+
 struct interfacekit {
 	struct usb_device *udev;
 	struct usb_interface *intf;
 	struct driver_interfacekit *ifkit;
+	struct device *dev;
 	unsigned long outputs;
+	int dev_no;
 	u8 inputs[MAX_INTERFACES];
 	u16 sensors[MAX_INTERFACES];
 	u8 lcd_files_on;
@@ -180,21 +186,21 @@ exit:
 }
 
 #define set_lcd_line(number)	\
-static ssize_t lcd_line_##number(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
-{											\
-	struct usb_interface *intf = to_usb_interface(dev);				\
-	struct interfacekit *kit = usb_get_intfdata(intf);				\
-	change_string(kit, buf, number - 1);						\
-	return count;									\
-}											\
+static ssize_t lcd_line_##number(struct device *dev,			\
+					struct device_attribute *attr,	\
+					const char *buf, size_t count)	\
+{									\
+	struct interfacekit *kit = dev_get_drvdata(dev);		\
+	change_string(kit, buf, number - 1);				\
+	return count;							\
+}									\
 static DEVICE_ATTR(lcd_line_##number, S_IWUGO, NULL, lcd_line_##number);
 set_lcd_line(1);
 set_lcd_line(2);
 
 static ssize_t set_backlight(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct interfacekit *kit = usb_get_intfdata(intf);
+	struct interfacekit *kit = dev_get_drvdata(dev);
 	int enabled;
 	unsigned char *buffer;
 	int retval = -ENOMEM;
@@ -232,16 +238,15 @@ static void remove_lcd_files(struct interfacekit *kit)
 {
 	if (kit->lcd_files_on) {
 		dev_dbg(&kit->udev->dev, "Removing lcd files\n");
-		device_remove_file(&kit->intf->dev, &dev_attr_lcd_line_1);
-		device_remove_file(&kit->intf->dev, &dev_attr_lcd_line_2);
-		device_remove_file(&kit->intf->dev, &dev_attr_backlight);
+		device_remove_file(kit->dev, &dev_attr_lcd_line_1);
+		device_remove_file(kit->dev, &dev_attr_lcd_line_2);
+		device_remove_file(kit->dev, &dev_attr_backlight);
 	}
 }
 
 static ssize_t enable_lcd_files(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct interfacekit *kit = usb_get_intfdata(intf);
+	struct interfacekit *kit = dev_get_drvdata(dev);
 	int enable;
 	
 	if (kit->ifkit->has_lcd == 0)
@@ -253,9 +258,9 @@ static ssize_t enable_lcd_files(struct device *dev, struct device_attribute *att
 	if (enable) {
 		if (!kit->lcd_files_on) {
 			dev_dbg(&kit->udev->dev, "Adding lcd files\n");
-			device_create_file(&kit->intf->dev, &dev_attr_lcd_line_1);
-			device_create_file(&kit->intf->dev, &dev_attr_lcd_line_2);
-			device_create_file(&kit->intf->dev, &dev_attr_backlight);
+			device_create_file(kit->dev, &dev_attr_lcd_line_1);
+			device_create_file(kit->dev, &dev_attr_lcd_line_2);
+			device_create_file(kit->dev, &dev_attr_backlight);
 			kit->lcd_files_on = 1;
 		}
 	} else {
@@ -362,24 +367,24 @@ static void do_notify(void *data)
 	for (i=0; i<kit->ifkit->inputs; i++) {
 		if (test_and_clear_bit(i, &kit->input_events)) {
 			sprintf(sysfs_file, "input%d", i + 1);
-			sysfs_notify(&kit->intf->dev.kobj, NULL, sysfs_file);
+			sysfs_notify(&kit->dev->kobj, NULL, sysfs_file);
 		}
 	}
 
 	for (i=0; i<kit->ifkit->sensors; i++) {
 		if (test_and_clear_bit(i, &kit->sensor_events)) {
 			sprintf(sysfs_file, "sensor%d", i + 1);
-			sysfs_notify(&kit->intf->dev.kobj, NULL, sysfs_file);
+			sysfs_notify(&kit->dev->kobj, NULL, sysfs_file);
 		}
 	}
 }
 
 #define show_set_output(value)		\
-static ssize_t set_output##value(struct device *dev, struct device_attribute *attr, const char *buf,	\
-							size_t count)	\
+static ssize_t set_output##value(struct device *dev,			\
+					struct device_attribute *attr,	\
+					const char *buf, size_t count)	\
 {									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct interfacekit *kit = usb_get_intfdata(intf);		\
+	struct interfacekit *kit = dev_get_drvdata(dev);		\
 	int enabled;							\
 	int retval;							\
 									\
@@ -391,10 +396,11 @@ static ssize_t set_output##value(struct device *dev, struct device_attribute *at
 	return retval ? retval : count;					\
 }									\
 									\
-static ssize_t show_output##value(struct device *dev, struct device_attribute *attr, char *buf)	\
+static ssize_t show_output##value(struct device *dev, 			\
+					struct device_attribute *attr,	\
+					char *buf)			\
 {									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct interfacekit *kit = usb_get_intfdata(intf);		\
+	struct interfacekit *kit = dev_get_drvdata(dev);		\
 									\
 	return sprintf(buf, "%d\n", !!test_bit(value - 1, &kit->outputs));\
 }									\
@@ -420,8 +426,7 @@ show_set_output(16);
 #define show_input(value)	\
 static ssize_t show_input##value(struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct interfacekit *kit = usb_get_intfdata(intf);		\
+	struct interfacekit *kit = dev_get_drvdata(dev);		\
 									\
 	return sprintf(buf, "%d\n", (int)kit->inputs[value - 1]);	\
 }									\
@@ -445,10 +450,11 @@ show_input(15);
 show_input(16);
 
 #define show_sensor(value)	\
-static ssize_t show_sensor##value(struct device *dev, struct device_attribute *attr, char *buf)	\
+static ssize_t show_sensor##value(struct device *dev,			\
+					struct device_attribute *attr,	\
+					char *buf)			\
 {									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct interfacekit *kit = usb_get_intfdata(intf);		\
+	struct interfacekit *kit = dev_get_drvdata(dev);		\
 									\
 	return sprintf(buf, "%d\n", (int)kit->sensors[value - 1]);	\
 }									\
@@ -471,6 +477,7 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
 	struct interfacekit *kit;
 	struct driver_interfacekit *ifkit;
 	int pipe, maxp, rc = -ENOMEM;
+	int bit, value;
 
 	ifkit = (struct driver_interfacekit *)id->driver_info;
 	if (!ifkit)
@@ -493,6 +500,7 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
 	if (!kit)
 		goto out;
 
+	kit->dev_no = -1;
 	kit->ifkit = ifkit;
 	kit->data = usb_buffer_alloc(dev, URB_INT_SIZE, SLAB_ATOMIC, &kit->data_dma);
 	if (!kit->data)
@@ -513,73 +521,88 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
 
 	usb_set_intfdata(intf, kit);
 
+        do {
+                bit = find_first_zero_bit(&device_no, sizeof(device_no));
+                value = test_and_set_bit(bit, &device_no);
+        } while(value);
+        kit->dev_no = bit;
+
+        kit->dev = device_create(phidget_class, &kit->udev->dev, 0,
+               		"interfacekit%d", kit->dev_no);
+        if (IS_ERR(kit->dev)) {
+                rc = PTR_ERR(kit->dev);
+                kit->dev = NULL;
+                goto out;
+        }
+	dev_set_drvdata(kit->dev, kit);
+
 	if (usb_submit_urb(kit->irq, GFP_KERNEL)) {
 		rc = -EIO;
 		goto out;
 	}
 
 	if (ifkit->outputs >= 4) {
-		device_create_file(&intf->dev, &dev_attr_output1);
-		device_create_file(&intf->dev, &dev_attr_output2);
-		device_create_file(&intf->dev, &dev_attr_output3);
-		device_create_file(&intf->dev, &dev_attr_output4);
+		device_create_file(kit->dev, &dev_attr_output1);
+		device_create_file(kit->dev, &dev_attr_output2);
+		device_create_file(kit->dev, &dev_attr_output3);
+		device_create_file(kit->dev, &dev_attr_output4);
 	}
 	if (ifkit->outputs >= 8) {
-		device_create_file(&intf->dev, &dev_attr_output5);
-		device_create_file(&intf->dev, &dev_attr_output6);
-		device_create_file(&intf->dev, &dev_attr_output7);
-		device_create_file(&intf->dev, &dev_attr_output8);
+		device_create_file(kit->dev, &dev_attr_output5);
+		device_create_file(kit->dev, &dev_attr_output6);
+		device_create_file(kit->dev, &dev_attr_output7);
+		device_create_file(kit->dev, &dev_attr_output8);
 	} 
 	if (ifkit->outputs == 16) {
-		device_create_file(&intf->dev, &dev_attr_output9);
-		device_create_file(&intf->dev, &dev_attr_output10);
-		device_create_file(&intf->dev, &dev_attr_output11);
-		device_create_file(&intf->dev, &dev_attr_output12);
-		device_create_file(&intf->dev, &dev_attr_output13);
-		device_create_file(&intf->dev, &dev_attr_output14);
-		device_create_file(&intf->dev, &dev_attr_output15);
-		device_create_file(&intf->dev, &dev_attr_output16);
+		device_create_file(kit->dev, &dev_attr_output9);
+		device_create_file(kit->dev, &dev_attr_output10);
+		device_create_file(kit->dev, &dev_attr_output11);
+		device_create_file(kit->dev, &dev_attr_output12);
+		device_create_file(kit->dev, &dev_attr_output13);
+		device_create_file(kit->dev, &dev_attr_output14);
+		device_create_file(kit->dev, &dev_attr_output15);
+		device_create_file(kit->dev, &dev_attr_output16);
 	}
 
 	if (ifkit->inputs >= 4) {
-		device_create_file(&intf->dev, &dev_attr_input1);
-		device_create_file(&intf->dev, &dev_attr_input2);
-		device_create_file(&intf->dev, &dev_attr_input3);
-		device_create_file(&intf->dev, &dev_attr_input4);
+		device_create_file(kit->dev, &dev_attr_input1);
+		device_create_file(kit->dev, &dev_attr_input2);
+		device_create_file(kit->dev, &dev_attr_input3);
+		device_create_file(kit->dev, &dev_attr_input4);
 	}
 	if (ifkit->inputs >= 8) {
-		device_create_file(&intf->dev, &dev_attr_input5);
-		device_create_file(&intf->dev, &dev_attr_input6);
-		device_create_file(&intf->dev, &dev_attr_input7);
-		device_create_file(&intf->dev, &dev_attr_input8);
+		device_create_file(kit->dev, &dev_attr_input5);
+		device_create_file(kit->dev, &dev_attr_input6);
+		device_create_file(kit->dev, &dev_attr_input7);
+		device_create_file(kit->dev, &dev_attr_input8);
 	}
 	if (ifkit->inputs == 16) {
-		device_create_file(&intf->dev, &dev_attr_input9);
-		device_create_file(&intf->dev, &dev_attr_input10);
-		device_create_file(&intf->dev, &dev_attr_input11);
-		device_create_file(&intf->dev, &dev_attr_input12);
-		device_create_file(&intf->dev, &dev_attr_input13);
-		device_create_file(&intf->dev, &dev_attr_input14);
-		device_create_file(&intf->dev, &dev_attr_input15);
-		device_create_file(&intf->dev, &dev_attr_input16);
+		device_create_file(kit->dev, &dev_attr_input9);
+		device_create_file(kit->dev, &dev_attr_input10);
+		device_create_file(kit->dev, &dev_attr_input11);
+		device_create_file(kit->dev, &dev_attr_input12);
+		device_create_file(kit->dev, &dev_attr_input13);
+		device_create_file(kit->dev, &dev_attr_input14);
+		device_create_file(kit->dev, &dev_attr_input15);
+		device_create_file(kit->dev, &dev_attr_input16);
 	}
 
 	if (ifkit->sensors >= 4) {
-		device_create_file(&intf->dev, &dev_attr_sensor1);
-		device_create_file(&intf->dev, &dev_attr_sensor2);
-		device_create_file(&intf->dev, &dev_attr_sensor3);
-		device_create_file(&intf->dev, &dev_attr_sensor4);
+		device_create_file(kit->dev, &dev_attr_sensor1);
+		device_create_file(kit->dev, &dev_attr_sensor2);
+		device_create_file(kit->dev, &dev_attr_sensor3);
+		device_create_file(kit->dev, &dev_attr_sensor4);
 	}
 	if (ifkit->sensors >= 7) {
-		device_create_file(&intf->dev, &dev_attr_sensor5);
-		device_create_file(&intf->dev, &dev_attr_sensor6);
-		device_create_file(&intf->dev, &dev_attr_sensor7);
+		device_create_file(kit->dev, &dev_attr_sensor5);
+		device_create_file(kit->dev, &dev_attr_sensor6);
+		device_create_file(kit->dev, &dev_attr_sensor7);
 	}
 	if (ifkit->sensors == 8)
-		device_create_file(&intf->dev, &dev_attr_sensor8);
+		device_create_file(kit->dev, &dev_attr_sensor8);
 
 	if (ifkit->has_lcd)
-		device_create_file(&intf->dev, &dev_attr_lcd);
+		device_create_file(kit->dev, &dev_attr_lcd);
 
 	dev_info(&intf->dev, "USB PhidgetInterfaceKit %d/%d/%d attached\n",
 			ifkit->sensors, ifkit->inputs, ifkit->outputs);
@@ -592,6 +615,11 @@ out:
 			usb_free_urb(kit->irq);
 		if (kit->data)
 			usb_buffer_free(dev, URB_INT_SIZE, kit->data, kit->data_dma);
+		if (kit->dev)
+			device_unregister(kit->dev);
+		if (kit->dev_no >= 0)
+			clear_bit(kit->dev_no, &device_no);
+
 		kfree(kit);
 	}
 
@@ -614,72 +642,76 @@ static void interfacekit_disconnect(struct usb_interface *interface)
 	cancel_delayed_work(&kit->do_notify);
 
 	if (kit->ifkit->outputs >= 4) {
-		device_remove_file(&interface->dev, &dev_attr_output1);
-		device_remove_file(&interface->dev, &dev_attr_output2);
-		device_remove_file(&interface->dev, &dev_attr_output3);
-		device_remove_file(&interface->dev, &dev_attr_output4);
+		device_remove_file(kit->dev, &dev_attr_output1);
+		device_remove_file(kit->dev, &dev_attr_output2);
+		device_remove_file(kit->dev, &dev_attr_output3);
+		device_remove_file(kit->dev, &dev_attr_output4);
 	}
 	if (kit->ifkit->outputs >= 8) {
-		device_remove_file(&interface->dev, &dev_attr_output5);
-		device_remove_file(&interface->dev, &dev_attr_output6);
-		device_remove_file(&interface->dev, &dev_attr_output7);
-		device_remove_file(&interface->dev, &dev_attr_output8);
+		device_remove_file(kit->dev, &dev_attr_output5);
+		device_remove_file(kit->dev, &dev_attr_output6);
+		device_remove_file(kit->dev, &dev_attr_output7);
+		device_remove_file(kit->dev, &dev_attr_output8);
 	}
 	if (kit->ifkit->outputs == 16) {
-		device_remove_file(&interface->dev, &dev_attr_output9);
-		device_remove_file(&interface->dev, &dev_attr_output10);
-		device_remove_file(&interface->dev, &dev_attr_output11);
-		device_remove_file(&interface->dev, &dev_attr_output12);
-		device_remove_file(&interface->dev, &dev_attr_output13);
-		device_remove_file(&interface->dev, &dev_attr_output14);
-		device_remove_file(&interface->dev, &dev_attr_output15);
-		device_remove_file(&interface->dev, &dev_attr_output16);
+		device_remove_file(kit->dev, &dev_attr_output9);
+		device_remove_file(kit->dev, &dev_attr_output10);
+		device_remove_file(kit->dev, &dev_attr_output11);
+		device_remove_file(kit->dev, &dev_attr_output12);
+		device_remove_file(kit->dev, &dev_attr_output13);
+		device_remove_file(kit->dev, &dev_attr_output14);
+		device_remove_file(kit->dev, &dev_attr_output15);
+		device_remove_file(kit->dev, &dev_attr_output16);
 	}
 
 	if (kit->ifkit->inputs >= 4) {
-		device_remove_file(&interface->dev, &dev_attr_input1);
-		device_remove_file(&interface->dev, &dev_attr_input2);
-		device_remove_file(&interface->dev, &dev_attr_input3);
-		device_remove_file(&interface->dev, &dev_attr_input4);
+		device_remove_file(kit->dev, &dev_attr_input1);
+		device_remove_file(kit->dev, &dev_attr_input2);
+		device_remove_file(kit->dev, &dev_attr_input3);
+		device_remove_file(kit->dev, &dev_attr_input4);
 	}
 	if (kit->ifkit->inputs >= 8) {
-		device_remove_file(&interface->dev, &dev_attr_input5);
-		device_remove_file(&interface->dev, &dev_attr_input6);
-		device_remove_file(&interface->dev, &dev_attr_input7);
-		device_remove_file(&interface->dev, &dev_attr_input8);
+		device_remove_file(kit->dev, &dev_attr_input5);
+		device_remove_file(kit->dev, &dev_attr_input6);
+		device_remove_file(kit->dev, &dev_attr_input7);
+		device_remove_file(kit->dev, &dev_attr_input8);
 	}
 	if (kit->ifkit->inputs == 16) {
-		device_remove_file(&interface->dev, &dev_attr_input9);
-		device_remove_file(&interface->dev, &dev_attr_input10);
-		device_remove_file(&interface->dev, &dev_attr_input11);
-		device_remove_file(&interface->dev, &dev_attr_input12);
-		device_remove_file(&interface->dev, &dev_attr_input13);
-		device_remove_file(&interface->dev, &dev_attr_input14);
-		device_remove_file(&interface->dev, &dev_attr_input15);
-		device_remove_file(&interface->dev, &dev_attr_input16);
+		device_remove_file(kit->dev, &dev_attr_input9);
+		device_remove_file(kit->dev, &dev_attr_input10);
+		device_remove_file(kit->dev, &dev_attr_input11);
+		device_remove_file(kit->dev, &dev_attr_input12);
+		device_remove_file(kit->dev, &dev_attr_input13);
+		device_remove_file(kit->dev, &dev_attr_input14);
+		device_remove_file(kit->dev, &dev_attr_input15);
+		device_remove_file(kit->dev, &dev_attr_input16);
 	}
 
 	if (kit->ifkit->sensors >= 4) {
-		device_remove_file(&interface->dev, &dev_attr_sensor1);
-		device_remove_file(&interface->dev, &dev_attr_sensor2);
-		device_remove_file(&interface->dev, &dev_attr_sensor3);
-		device_remove_file(&interface->dev, &dev_attr_sensor4);
+		device_remove_file(kit->dev, &dev_attr_sensor1);
+		device_remove_file(kit->dev, &dev_attr_sensor2);
+		device_remove_file(kit->dev, &dev_attr_sensor3);
+		device_remove_file(kit->dev, &dev_attr_sensor4);
 	}
 	if (kit->ifkit->sensors >= 7) {
-		device_remove_file(&interface->dev, &dev_attr_sensor5);
-		device_remove_file(&interface->dev, &dev_attr_sensor6);
-		device_remove_file(&interface->dev, &dev_attr_sensor7);
+		device_remove_file(kit->dev, &dev_attr_sensor5);
+		device_remove_file(kit->dev, &dev_attr_sensor6);
+		device_remove_file(kit->dev, &dev_attr_sensor7);
 	}
 	if (kit->ifkit->sensors == 8)
-		device_remove_file(&interface->dev, &dev_attr_sensor8);
+		device_remove_file(kit->dev, &dev_attr_sensor8);
 
 	if (kit->ifkit->has_lcd)
-		device_remove_file(&interface->dev, &dev_attr_lcd);
+		device_remove_file(kit->dev, &dev_attr_lcd);
+
+	device_unregister(kit->dev);
 
 	dev_info(&interface->dev, "USB PhidgetInterfaceKit %d/%d/%d detached\n",
 		kit->ifkit->sensors, kit->ifkit->inputs, kit->ifkit->outputs);
 
 	usb_put_dev(kit->udev);
+	clear_bit(kit->dev_no, &device_no);
+
 	kfree(kit);
 }
 

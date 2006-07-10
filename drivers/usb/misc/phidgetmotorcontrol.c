@@ -15,6 +15,8 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 
+#include "phidget.h"
+
 #define DRIVER_AUTHOR "Sean Young <sean@mess.org>"
 #define DRIVER_DESC "USB PhidgetMotorControl Driver"
 
@@ -23,9 +25,13 @@
 
 #define URB_INT_SIZE			8
 
+static unsigned long device_no;
+
 struct motorcontrol {
 	struct usb_device *udev;
 	struct usb_interface *intf;
+	struct device *dev;
+	int dev_no;
 	u8 inputs[4];
 	s8 desired_speed[2];
 	s8 speed[2];
@@ -162,14 +168,14 @@ static void do_notify(void *data)
 	for (i=0; i<4; i++) {
 		if (test_and_clear_bit(i, &mc->input_events)) {
 			sprintf(sysfs_file, "input%d", i);
-			sysfs_notify(&mc->intf->dev.kobj, NULL, sysfs_file);
+			sysfs_notify(&mc->dev->kobj, NULL, sysfs_file);
 		}
 	}
 
 	for (i=0; i<2; i++) {
 		if (test_and_clear_bit(i, &mc->speed_events)) {
 			sprintf(sysfs_file, "speed%d", i);
-			sysfs_notify(&mc->intf->dev.kobj, NULL, sysfs_file);
+			sysfs_notify(&mc->dev->kobj, NULL, sysfs_file);
 		}
 	}
 
@@ -181,11 +187,11 @@ static void do_notify(void *data)
 }
 
 #define show_set_speed(value)		\
-static ssize_t set_speed##value(struct device *dev, 			\
-	struct device_attribute *attr, const char *buf,	size_t count)	\
+static ssize_t set_speed##value(struct device *dev,			\
+					struct device_attribute *attr,	\
+					const char *buf, size_t count)	\
 {									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct motorcontrol *mc = usb_get_intfdata(intf);		\
+	struct motorcontrol *mc = dev_get_drvdata(dev);			\
 	int speed;							\
 	int retval;							\
 									\
@@ -202,11 +208,11 @@ static ssize_t set_speed##value(struct device *dev, 			\
 	return retval ? retval : count;					\
 }									\
 									\
-static ssize_t show_speed##value(struct device *dev, 			\
-			struct device_attribute *attr, char *buf)	\
+static ssize_t show_speed##value(struct device *dev,			\
+					struct device_attribute *attr,	\
+					char *buf)			\
 {									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct motorcontrol *mc = usb_get_intfdata(intf);		\
+	struct motorcontrol *mc = dev_get_drvdata(dev);			\
 									\
 	return sprintf(buf, "%d\n", mc->speed[value]);			\
 }									\
@@ -217,10 +223,10 @@ show_set_speed(1);
 
 #define show_set_acceleration(value)		\
 static ssize_t set_acceleration##value(struct device *dev, 		\
-	struct device_attribute *attr, const char *buf,	size_t count)	\
+					struct device_attribute *attr,	\
+					const char *buf, size_t count)	\
 {									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct motorcontrol *mc = usb_get_intfdata(intf);		\
+	struct motorcontrol *mc = dev_get_drvdata(dev);			\
 	int acceleration;						\
 	int retval;							\
 									\
@@ -237,11 +243,11 @@ static ssize_t set_acceleration##value(struct device *dev, 		\
 	return retval ? retval : count;					\
 }									\
 									\
-static ssize_t show_acceleration##value(struct device *dev, 		\
-			struct device_attribute *attr, char *buf)	\
+static ssize_t show_acceleration##value(struct device *dev,	 	\
+					struct device_attribute *attr,	\
+							char *buf)	\
 {									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct motorcontrol *mc = usb_get_intfdata(intf);		\
+	struct motorcontrol *mc = dev_get_drvdata(dev);			\
 									\
 	return sprintf(buf, "%d\n", mc->acceleration[value]);		\
 }									\
@@ -251,11 +257,11 @@ show_set_acceleration(0);
 show_set_acceleration(1);
 
 #define show_current(value)	\
-static ssize_t show_current##value(struct device *dev, 			\
-			struct device_attribute *attr, char *buf)	\
+static ssize_t show_current##value(struct device *dev,			\
+					struct device_attribute *attr,	\
+					char *buf)			\
 {									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct motorcontrol *mc = usb_get_intfdata(intf);		\
+	struct motorcontrol *mc = dev_get_drvdata(dev);			\
 									\
 	return sprintf(buf, "%dmA\n", (int)mc->_current[value]);	\
 }									\
@@ -265,11 +271,11 @@ show_current(0);
 show_current(1);
 
 #define show_input(value)	\
-static ssize_t show_input##value(struct device *dev, 			\
-			struct device_attribute *attr, char *buf)	\
+static ssize_t show_input##value(struct device *dev,			\
+					struct device_attribute *attr,	\
+					char *buf)			\
 {									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct motorcontrol *mc = usb_get_intfdata(intf);		\
+	struct motorcontrol *mc = dev_get_drvdata(dev);			\
 									\
 	return sprintf(buf, "%d\n", (int)mc->inputs[value]);		\
 }									\
@@ -287,6 +293,7 @@ static int motorcontrol_probe(struct usb_interface *intf, const struct usb_devic
 	struct usb_endpoint_descriptor *endpoint;
 	struct motorcontrol *mc;
 	int pipe, maxp, rc = -ENOMEM;
+	int bit, value;
 
 	interface = intf->cur_altsetting;
 	if (interface->desc.bNumEndpoints != 1)
@@ -306,6 +313,7 @@ static int motorcontrol_probe(struct usb_interface *intf, const struct usb_devic
 	if (!mc)
 		goto out;
 
+	mc->dev_no = -1;
 	mc->data = usb_buffer_alloc(dev, URB_INT_SIZE, SLAB_ATOMIC, &mc->data_dma);
 	if (!mc->data)
 		goto out;
@@ -326,26 +334,42 @@ static int motorcontrol_probe(struct usb_interface *intf, const struct usb_devic
 
 	usb_set_intfdata(intf, mc);
 
+	do {
+		bit = find_first_zero_bit(&device_no, sizeof(device_no));
+		value = test_and_set_bit(bit, &device_no);
+	} while(value);
+	mc->dev_no = bit;
+
+	mc->dev = device_create(phidget_class, &mc->udev->dev, 0,
+				"motorcontrol%d", mc->dev_no);
+	if (IS_ERR(mc->dev)) {
+		rc = PTR_ERR(mc->dev);
+		mc->dev = NULL;
+		goto out;
+	}
+
+	dev_set_drvdata(mc->dev, mc);
+
 	if (usb_submit_urb(mc->irq, GFP_KERNEL)) {
 		rc = -EIO;
 		goto out;
 	}
 
-	device_create_file(&intf->dev, &dev_attr_input0);
-	device_create_file(&intf->dev, &dev_attr_input1);
-	device_create_file(&intf->dev, &dev_attr_input2);
-	device_create_file(&intf->dev, &dev_attr_input3);
+	device_create_file(mc->dev, &dev_attr_input0);
+	device_create_file(mc->dev, &dev_attr_input1);
+	device_create_file(mc->dev, &dev_attr_input2);
+	device_create_file(mc->dev, &dev_attr_input3);
 
-	device_create_file(&intf->dev, &dev_attr_speed0);
-	device_create_file(&intf->dev, &dev_attr_speed1);
+	device_create_file(mc->dev, &dev_attr_speed0);
+	device_create_file(mc->dev, &dev_attr_speed1);
 
-	device_create_file(&intf->dev, &dev_attr_acceleration0);
-	device_create_file(&intf->dev, &dev_attr_acceleration1);
+	device_create_file(mc->dev, &dev_attr_acceleration0);
+	device_create_file(mc->dev, &dev_attr_acceleration1);
 
-	device_create_file(&intf->dev, &dev_attr_current0);
-	device_create_file(&intf->dev, &dev_attr_current1);
+	device_create_file(mc->dev, &dev_attr_current0);
+	device_create_file(mc->dev, &dev_attr_current1);
 
-	dev_info(&intf->dev, "USB Phidget MotorControl attached\n");
+	dev_info(&intf->dev, "USB PhidgetMotorControl attached\n");
 
 	return 0;
 
@@ -355,6 +379,11 @@ out:
 			usb_free_urb(mc->irq);
 		if (mc->data)
 			usb_buffer_free(dev, URB_INT_SIZE, mc->data, mc->data_dma);
+		if (mc->dev)
+			device_unregister(mc->dev);
+		if (mc->dev_no >= 0)
+			clear_bit(mc->dev_no, &device_no);
+
 		kfree(mc);
 	}
 
@@ -376,24 +405,27 @@ static void motorcontrol_disconnect(struct usb_interface *interface)
 
 	cancel_delayed_work(&mc->do_notify);
 
-	device_remove_file(&interface->dev, &dev_attr_input0);
-	device_remove_file(&interface->dev, &dev_attr_input1);
-	device_remove_file(&interface->dev, &dev_attr_input2);
-	device_remove_file(&interface->dev, &dev_attr_input3);
+	device_remove_file(mc->dev, &dev_attr_input0);
+	device_remove_file(mc->dev, &dev_attr_input1);
+	device_remove_file(mc->dev, &dev_attr_input2);
+	device_remove_file(mc->dev, &dev_attr_input3);
 
-	device_remove_file(&interface->dev, &dev_attr_speed0);
-	device_remove_file(&interface->dev, &dev_attr_speed1);
+	device_remove_file(mc->dev, &dev_attr_speed0);
+	device_remove_file(mc->dev, &dev_attr_speed1);
 
-	device_remove_file(&interface->dev, &dev_attr_acceleration0);
-	device_remove_file(&interface->dev, &dev_attr_acceleration1);
+	device_remove_file(mc->dev, &dev_attr_acceleration0);
+	device_remove_file(mc->dev, &dev_attr_acceleration1);
 
-	device_remove_file(&interface->dev, &dev_attr_current0);
-	device_remove_file(&interface->dev, &dev_attr_current1);
+	device_remove_file(mc->dev, &dev_attr_current0);
+	device_remove_file(mc->dev, &dev_attr_current1);
 
-	dev_info(&interface->dev, "USB Phidget MotorControl disconnected\n");
+	device_unregister(mc->dev);
 
 	usb_put_dev(mc->udev);
+	clear_bit(mc->dev_no, &device_no);
 	kfree(mc);
+
+	dev_info(&interface->dev, "USB PhidgetMotorControl detached\n");
 }
 
 static struct usb_driver motorcontrol_driver = {
