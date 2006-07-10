@@ -342,6 +342,90 @@ static struct snd_kcontrol_new n##_control = {		\
 MIXER_CONTROL(pcm1, "PCM", 0);
 MIXER_CONTROL(monitor, "Monitor", 2);
 
+static int tas_snd_drc_range_info(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = TAS3004_DRC_MAX;
+	return 0;
+}
+
+static int tas_snd_drc_range_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct tas *tas = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = tas->drc_range;
+	return 0;
+}
+
+static int tas_snd_drc_range_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct tas *tas = snd_kcontrol_chip(kcontrol);
+
+	if (tas->drc_range == ucontrol->value.integer.value[0])
+		return 0;
+
+	tas->drc_range = ucontrol->value.integer.value[0];
+	if (tas->hw_enabled)
+		tas3004_set_drc(tas);
+	return 1;
+}
+
+static struct snd_kcontrol_new drc_range_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "DRC Range",
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = tas_snd_drc_range_info,
+	.get = tas_snd_drc_range_get,
+	.put = tas_snd_drc_range_put,
+};
+
+static int tas_snd_drc_switch_info(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}
+
+static int tas_snd_drc_switch_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct tas *tas = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = tas->drc_enabled;
+	return 0;
+}
+
+static int tas_snd_drc_switch_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct tas *tas = snd_kcontrol_chip(kcontrol);
+
+	if (tas->drc_enabled == ucontrol->value.integer.value[0])
+		return 0;
+
+	tas->drc_enabled = ucontrol->value.integer.value[0];
+	if (tas->hw_enabled)
+		tas3004_set_drc(tas);
+	return 1;
+}
+
+static struct snd_kcontrol_new drc_switch_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "DRC Range Switch",
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = tas_snd_drc_switch_info,
+	.get = tas_snd_drc_switch_get,
+	.put = tas_snd_drc_switch_put,
+};
+
 static int tas_snd_capture_source_info(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo)
 {
@@ -590,6 +674,14 @@ static int tas_init_codec(struct aoa_codec *codec)
 	if (err)
 		goto error;
 
+	err = aoa_snd_ctl_add(snd_ctl_new1(&drc_range_control, tas));
+	if (err)
+		goto error;
+
+	err = aoa_snd_ctl_add(snd_ctl_new1(&drc_switch_control, tas));
+	if (err)
+		goto error;
+
 	return 0;
  error:
 	tas->codec.soundbus_dev->detach_codec(tas->codec.soundbus_dev, tas);
@@ -623,7 +715,8 @@ static int tas_create(struct i2c_adapter *adapter,
 	tas->i2c.driver = &tas_driver;
 	tas->i2c.adapter = adapter;
 	tas->i2c.addr = addr;
-	tas->drc_range = TAS3004_DRC_MAX;
+	/* seems that half is a saner default */
+	tas->drc_range = TAS3004_DRC_MAX / 2;
 	strlcpy(tas->i2c.name, "tas audio codec", I2C_NAME_SIZE-1);
 
 	if (i2c_attach_client(&tas->i2c)) {
