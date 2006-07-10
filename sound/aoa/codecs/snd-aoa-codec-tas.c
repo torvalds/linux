@@ -309,7 +309,7 @@ static struct snd_kcontrol_new n##_control = {		\
 	.private_value = idx,				\
 }
 
-MIXER_CONTROL(pcm1, "PCM1", 0);
+MIXER_CONTROL(pcm1, "PCM", 0);
 MIXER_CONTROL(monitor, "Monitor", 2);
 
 static int tas_snd_capture_source_info(struct snd_kcontrol *kcontrol,
