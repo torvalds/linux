@@ -72,7 +72,7 @@ struct acpi_ac {
 	unsigned long state;
 };
 
-static struct file_operations acpi_ac_fops = {
+static const struct file_operations acpi_ac_fops = {
 	.open = acpi_ac_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,

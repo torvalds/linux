@@ -176,21 +176,21 @@ struct acpi_thermal {
 	struct timer_list timer;
 };
 
-static struct file_operations acpi_thermal_state_fops = {
+static const struct file_operations acpi_thermal_state_fops = {
 	.open = acpi_thermal_state_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations acpi_thermal_temp_fops = {
+static const struct file_operations acpi_thermal_temp_fops = {
 	.open = acpi_thermal_temp_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations acpi_thermal_trip_fops = {
+static const struct file_operations acpi_thermal_trip_fops = {
 	.open = acpi_thermal_trip_open_fs,
 	.read = seq_read,
 	.write = acpi_thermal_write_trip_points,
@@ -198,7 +198,7 @@ static struct file_operations acpi_thermal_trip_fops = {
 	.release = single_release,
 };
 
-static struct file_operations acpi_thermal_cooling_fops = {
+static const struct file_operations acpi_thermal_cooling_fops = {
 	.open = acpi_thermal_cooling_open_fs,
 	.read = seq_read,
 	.write = acpi_thermal_write_cooling_mode,
@@ -206,7 +206,7 @@ static struct file_operations acpi_thermal_cooling_fops = {
 	.release = single_release,
 };
 
-static struct file_operations acpi_thermal_polling_fops = {
+static const struct file_operations acpi_thermal_polling_fops = {
 	.open = acpi_thermal_polling_open_fs,
 	.read = seq_read,
 	.write = acpi_thermal_write_polling,
