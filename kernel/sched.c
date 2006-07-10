@@ -3384,7 +3384,7 @@ EXPORT_SYMBOL(schedule);
 
 #ifdef CONFIG_PREEMPT
 /*
- * this is is the entry point to schedule() from in-kernel preemption
+ * this is the entry point to schedule() from in-kernel preemption
  * off of preempt_enable.  Kernel preemptions off return from interrupt
  * occur there and call schedule directly.
  */
@@ -3427,7 +3427,7 @@ need_resched:
 EXPORT_SYMBOL(preempt_schedule);
 
 /*
- * this is is the entry point to schedule() from kernel preemption
+ * this is the entry point to schedule() from kernel preemption
  * off of irq context.
  * Note, that this is called and return with irqs disabled. This will
  * protect us against recursive calling from irq.
@@ -3439,7 +3439,7 @@ asmlinkage void __sched preempt_schedule_irq(void)
 	struct task_struct *task = current;
 	int saved_lock_depth;
 #endif
-	/* Catch callers which need to be fixed*/
+	/* Catch callers which need to be fixed */
 	BUG_ON(ti->preempt_count || !irqs_disabled());
 
 need_resched:
@@ -4650,7 +4650,7 @@ static inline struct task_struct *younger_sibling(struct task_struct *p)
 	return list_entry(p->sibling.next,struct task_struct,sibling);
 }
 
-static const char *stat_nam[] = { "R", "S", "D", "T", "t", "Z", "X" };
+static const char stat_nam[] = "RSDTtZX";
 
 static void show_task(struct task_struct *p)
 {
@@ -4658,12 +4658,9 @@ static void show_task(struct task_struct *p)
 	unsigned long free = 0;
 	unsigned state;
 
-	printk("%-13.13s ", p->comm);
 	state = p->state ? __ffs(p->state) + 1 : 0;
-	if (state < ARRAY_SIZE(stat_nam))
-		printk(stat_nam[state]);
-	else
-		printk("?");
+	printk("%-13.13s %c", p->comm,
+		state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?');
 #if (BITS_PER_LONG == 32)
 	if (state == TASK_RUNNING)
 		printk(" running ");
@@ -5776,7 +5773,7 @@ static unsigned long long measure_migration_cost(int cpu1, int cpu2)
 	cache = vmalloc(max_size);
 	if (!cache) {
 		printk("could not vmalloc %d bytes for cache!\n", 2*max_size);
-		return 1000000; // return 1 msec on very small boxen
+		return 1000000; /* return 1 msec on very small boxen */
 	}
 
 	while (size <= max_size) {
