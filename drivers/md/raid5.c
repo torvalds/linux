@@ -88,12 +88,14 @@ static void __release_stripe(raid5_conf_t *conf, struct stripe_head *sh)
 		BUG_ON(!list_empty(&sh->lru));
 		BUG_ON(atomic_read(&conf->active_stripes)==0);
 		if (test_bit(STRIPE_HANDLE, &sh->state)) {
-			if (test_bit(STRIPE_DELAYED, &sh->state))
+			if (test_bit(STRIPE_DELAYED, &sh->state)) {
 				list_add_tail(&sh->lru, &conf->delayed_list);
-			else if (test_bit(STRIPE_BIT_DELAY, &sh->state) &&
-				 conf->seq_write == sh->bm_seq)
+				blk_plug_device(conf->mddev->queue);
+			} else if (test_bit(STRIPE_BIT_DELAY, &sh->state) &&
+				   conf->seq_write == sh->bm_seq) {
 				list_add_tail(&sh->lru, &conf->bitmap_list);
-			else {
+				blk_plug_device(conf->mddev->queue);
+			} else {
 				clear_bit(STRIPE_BIT_DELAY, &sh->state);
 				list_add_tail(&sh->lru, &conf->handle_list);
 			}
@@ -2555,13 +2557,6 @@ static int raid5_issue_flush(request_queue_t *q, struct gendisk *disk,
 	return ret;
 }
 
-static inline void raid5_plug_device(raid5_conf_t *conf)
-{
-	spin_lock_irq(&conf->device_lock);
-	blk_plug_device(conf->mddev->queue);
-	spin_unlock_irq(&conf->device_lock);
-}
-
 static int make_request(request_queue_t *q, struct bio * bi)
 {
 	mddev_t *mddev = q->queuedata;
@@ -2671,7 +2666,6 @@ static int make_request(request_queue_t *q, struct bio * bi)
 				goto retry;
 			}
 			finish_wait(&conf->wait_for_overlap, &w);
-			raid5_plug_device(conf);
 			handle_stripe(sh, NULL);
 			release_stripe(sh);
 		} else {
