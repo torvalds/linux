@@ -3246,9 +3246,6 @@ static int run(mddev_t *mddev)
 		set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 		mddev->sync_thread = md_register_thread(md_do_sync, mddev,
 							"%s_reshape");
-		/* FIXME if md_register_thread fails?? */
-		md_wakeup_thread(mddev->sync_thread);
-
 	}
 
 	/* read-ahead size must cover two whole stripes, which is

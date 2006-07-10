@@ -3095,7 +3095,6 @@ static int do_md_run(mddev_t * mddev)
 		}
 	
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-	md_wakeup_thread(mddev->thread);
 	
 	if (mddev->sb_dirty)
 		md_update_sb(mddev);
@@ -3116,7 +3115,7 @@ static int do_md_run(mddev_t * mddev)
 	 * start recovery here.  If we leave it to md_check_recovery,
 	 * it will remove the drives and not do the right thing
 	 */
-	if (mddev->degraded) {
+	if (mddev->degraded && !mddev->sync_thread) {
 		struct list_head *rtmp;
 		int spares = 0;
 		ITERATE_RDEV(mddev,rdev,rtmp)
@@ -3137,10 +3136,11 @@ static int do_md_run(mddev_t * mddev)
 				       mdname(mddev));
 				/* leave the spares where they are, it shouldn't hurt */
 				mddev->recovery = 0;
-			} else
-				md_wakeup_thread(mddev->sync_thread);
+			}
 		}
 	}
+	md_wakeup_thread(mddev->thread);
+	md_wakeup_thread(mddev->sync_thread); /* possibly kick off a reshape */
 
 	mddev->changed = 1;
 	md_new_event(mddev);
