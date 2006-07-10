@@ -1926,6 +1926,8 @@ rdev_attr_store(struct kobject *kobj, struct attribute *attr,
 
 	if (!entry->store)
 		return -EIO;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
 	return entry->store(rdev, page, length);
 }
 
@@ -2859,6 +2861,8 @@ md_attr_store(struct kobject *kobj, struct attribute *attr,
 
 	if (!entry->store)
 		return -EIO;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
 	rv = mddev_lock(mddev);
 	if (!rv) {
 		rv = entry->store(mddev, page, length);
