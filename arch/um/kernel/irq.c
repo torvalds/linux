@@ -350,6 +350,7 @@ int deactivate_all_fds(void)
 	return 0;
 }
 
+#ifdef CONFIG_MODE_TT
 void forward_interrupts(int pid)
 {
 	struct irq_fd *irq;
@@ -371,6 +372,7 @@ void forward_interrupts(int pid)
 	}
 	irq_unlock(flags);
 }
+#endif
 
 /*
  * do_IRQ handles all normal device IRQ's (the special
