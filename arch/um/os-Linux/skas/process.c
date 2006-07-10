@@ -159,7 +159,7 @@ static int userspace_tramp(void *stack)
 
 	ptrace(PTRACE_TRACEME, 0, 0, 0);
 
-	init_new_thread_signals(1);
+	init_new_thread_signals();
 	enable_timer();
 
 	if(!proc_mm){

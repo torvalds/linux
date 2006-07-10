@@ -199,7 +199,7 @@ extern int os_getpid(void);
 extern int os_getpgrp(void);
 
 extern void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int));
-extern void init_new_thread_signals(int altstack);
+extern void init_new_thread_signals(void);
 extern int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr);
 
 extern int os_map_memory(void *virt, int fd, unsigned long long off,
