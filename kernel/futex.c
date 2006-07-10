@@ -476,6 +476,12 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb, struct futex_q *me)
 			 * the refcount and return its pi_state:
 			 */
 			pi_state = this->pi_state;
+			/*
+			 * Userspace might have messed up non PI and PI futexes
+			 */
+			if (unlikely(!pi_state))
+				return -EINVAL;
+
 			atomic_inc(&pi_state->refcount);
 			me->pi_state = pi_state;
 
