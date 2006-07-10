@@ -4420,8 +4420,10 @@ qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 	enum qeth_large_send_types large_send = QETH_LARGE_SEND_NO;
 	struct qeth_eddp_context *ctx = NULL;
 	int tx_bytes = skb->len;
+#ifdef CONFIG_QETH_PERF_STATS
 	unsigned short nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned short tso_size = skb_shinfo(skb)->gso_size;
+#endif
 	int rc;
 
 	QETH_DBF_TEXT(trace, 6, "sendpkt");
