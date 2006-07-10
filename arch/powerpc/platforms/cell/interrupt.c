@@ -159,7 +159,7 @@ static void iic_request_ipi(int ipi, const char *name)
 		if (iic_hosts[node] == NULL)
 			continue;
 		virq = irq_create_mapping(iic_hosts[node],
-					  iic_ipi_to_irq(ipi), 0);
+					  iic_ipi_to_irq(ipi));
 		if (virq == NO_IRQ) {
 			printk(KERN_ERR
 			       "iic: failed to map IPI %s on node %d\n",
@@ -197,7 +197,7 @@ static int iic_host_match(struct irq_host *h, struct device_node *node)
 }
 
 static int iic_host_map(struct irq_host *h, unsigned int virq,
-			irq_hw_number_t hw, unsigned int flags)
+			irq_hw_number_t hw)
 {
 	if (hw < IIC_IRQ_IPI0)
 		set_irq_chip_and_handler(virq, &iic_chip, handle_fasteoi_irq);

@@ -391,15 +391,14 @@ struct irq_host *irq_alloc_host(unsigned int revmap_type,
 			irq_map[i].host = host;
 			smp_wmb();
 
-			/* Clear some flags */
-			get_irq_desc(i)->status
-				&= ~(IRQ_NOREQUEST | IRQ_LEVEL);
+			/* Clear norequest flags */
+			get_irq_desc(i)->status &= ~IRQ_NOREQUEST;
 
 			/* Legacy flags are left to default at this point,
 			 * one can then use irq_create_mapping() to
 			 * explicitely change them
 			 */
-			ops->map(host, i, i, 0);
+			ops->map(host, i, i);
 		}
 		break;
 	case IRQ_HOST_MAP_LINEAR:
@@ -457,13 +456,11 @@ void irq_set_virq_count(unsigned int count)
 }
 
 unsigned int irq_create_mapping(struct irq_host *host,
-				irq_hw_number_t hwirq,
-				unsigned int flags)
+				irq_hw_number_t hwirq)
 {
 	unsigned int virq, hint;
 
-	pr_debug("irq: irq_create_mapping(0x%p, 0x%lx, 0x%x)\n",
-		 host, hwirq, flags);
+	pr_debug("irq: irq_create_mapping(0x%p, 0x%lx)\n", host, hwirq);
 
 	/* Look for default host if nececssary */
 	if (host == NULL)
@@ -482,7 +479,6 @@ unsigned int irq_create_mapping(struct irq_host *host,
 	virq = irq_find_mapping(host, hwirq);
 	if (virq != IRQ_NONE) {
 		pr_debug("irq: -> existing mapping on virq %d\n", virq);
-		host->ops->map(host, virq, hwirq, flags);
 		return virq;
 	}
 
@@ -504,18 +500,18 @@ unsigned int irq_create_mapping(struct irq_host *host,
 	}
 	pr_debug("irq: -> obtained virq %d\n", virq);
 
-	/* Clear some flags */
-	get_irq_desc(virq)->status &= ~(IRQ_NOREQUEST | IRQ_LEVEL);
+	/* Clear IRQ_NOREQUEST flag */
+	get_irq_desc(virq)->status &= ~IRQ_NOREQUEST;
 
 	/* map it */
-	if (host->ops->map(host, virq, hwirq, flags)) {
+	smp_wmb();
+	irq_map[virq].hwirq = hwirq;
+	smp_mb();
+	if (host->ops->map(host, virq, hwirq)) {
 		pr_debug("irq: -> mapping failed, freeing\n");
 		irq_free_virt(virq, 1);
 		return NO_IRQ;
 	}
-	smp_wmb();
-	irq_map[virq].hwirq = hwirq;
-	smp_mb();
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_mapping);
@@ -525,25 +521,38 @@ extern unsigned int irq_create_of_mapping(struct device_node *controller,
 {
 	struct irq_host *host;
 	irq_hw_number_t hwirq;
-	unsigned int flags = IRQ_TYPE_NONE;
+	unsigned int type = IRQ_TYPE_NONE;
+	unsigned int virq;
 
 	if (controller == NULL)
 		host = irq_default_host;
 	else
 		host = irq_find_host(controller);
-	if (host == NULL)
+	if (host == NULL) {
+		printk(KERN_WARNING "irq: no irq host found for %s !\n",
+		       controller->full_name);
 		return NO_IRQ;
+	}
 
 	/* If host has no translation, then we assume interrupt line */
 	if (host->ops->xlate == NULL)
 		hwirq = intspec[0];
 	else {
 		if (host->ops->xlate(host, controller, intspec, intsize,
-				     &hwirq, &flags))
+				     &hwirq, &type))
 			return NO_IRQ;
 	}
 
-	return irq_create_mapping(host, hwirq, flags);
+	/* Create mapping */
+	virq = irq_create_mapping(host, hwirq);
+	if (virq == NO_IRQ)
+		return virq;
+
+	/* Set type if specified and different than the current one */
+	if (type != IRQ_TYPE_NONE &&
+	    type != (get_irq_desc(virq)->status & IRQF_TRIGGER_MASK))
+		set_irq_type(virq, type);
+	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_of_mapping);
 

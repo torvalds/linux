@@ -583,9 +583,9 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 	spu->isrc = isrc = tmp[0];
 
 	/* Now map interrupts of all 3 classes */
-	spu->irqs[0] = irq_create_mapping(host, 0x00 | isrc, 0);
-	spu->irqs[1] = irq_create_mapping(host, 0x10 | isrc, 0);
-	spu->irqs[2] = irq_create_mapping(host, 0x20 | isrc, 0);
+	spu->irqs[0] = irq_create_mapping(host, 0x00 | isrc);
+	spu->irqs[1] = irq_create_mapping(host, 0x10 | isrc);
+	spu->irqs[2] = irq_create_mapping(host, 0x20 | isrc);
 
 	/* Right now, we only fail if class 2 failed */
 	return spu->irqs[2] == NO_IRQ ? -EINVAL : 0;
