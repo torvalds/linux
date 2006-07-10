@@ -374,7 +374,7 @@ int linux_main(int argc, char **argv)
 
 	printf("UML running in %s mode\n", mode);
 
-	uml_start = CHOOSE_MODE_PROC(set_task_sizes_tt, set_task_sizes_skas, 0,
+	uml_start = CHOOSE_MODE_PROC(set_task_sizes_tt, set_task_sizes_skas,
 				     &host_task_size, &task_size);
 
 	/*
