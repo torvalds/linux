@@ -59,6 +59,7 @@
 #include <asm/acpi.h>
 #include <linux/slab.h>
 #include <linux/spinlock_types.h>
+#include <asm/current.h>
 
 /* Host-dependent types and defines */
 
@@ -100,8 +101,8 @@
 
 #define acpi_cpu_flags unsigned long
 
-#define acpi_thread_id u32
+#define acpi_thread_id struct task_struct *
 
-static inline acpi_thread_id acpi_os_get_thread_id(void) { return 0; }
+static inline acpi_thread_id acpi_os_get_thread_id(void) { return current; }
 
 #endif				/* __ACLINUX_H__ */
