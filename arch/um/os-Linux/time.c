@@ -81,14 +81,6 @@ void uml_idle_timer(void)
 	set_interval(ITIMER_REAL);
 }
 
-void time_init(void)
-{
-	if(signal(SIGVTALRM, boot_timer_handler) == SIG_ERR)
-		panic("Couldn't set SIGVTALRM handler");
-	set_interval(ITIMER_VIRTUAL);
-	time_init_kern();
-}
-
 unsigned long long os_nsecs(void)
 {
 	struct timeval tv;
@@ -106,15 +98,7 @@ void idle_sleep(int secs)
 	nanosleep(&ts, NULL);
 }
 
-/* XXX This partly duplicates init_irq_signals */
-
 void user_time_init(void)
 {
-	set_handler(SIGVTALRM, (__sighandler_t) alarm_handler,
-		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH,
-		    SIGALRM, SIGUSR2, -1);
-	set_handler(SIGALRM, (__sighandler_t) alarm_handler,
-		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH,
-		    SIGVTALRM, SIGUSR2, -1);
 	set_interval(ITIMER_VIRTUAL);
 }
