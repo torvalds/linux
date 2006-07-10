@@ -3,18 +3,18 @@
    National Semiconductor PC8736x GPIO driver.  Allows a user space
    process to play with the GPIO pins.
 
-   Copyright (c) 2005 Jim Cromie <jim.cromie@gmail.com>
+   Copyright (c) 2005,2006 Jim Cromie <jim.cromie@gmail.com>
 
    adapted from linux/drivers/char/scx200_gpio.c
    Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>,
 */
 
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/cdev.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/mutex.h>
@@ -255,6 +255,8 @@ static void __init pc8736x_init_shadow(void)
 
 }
 
+static struct cdev pc8736x_gpio_cdev;
+
 static int __init pc8736x_gpio_init(void)
 {
 	int rc = 0;
@@ -308,7 +310,7 @@ static int __init pc8736x_gpio_init(void)
 	rc = register_chrdev(major, DEVNAME, &pc8736x_gpio_fops);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "register-chrdev failed: %d\n", rc);
-		goto undo_platform_dev_add;
+		goto undo_request_region;
 	}
 	if (!major) {
 		major = rc;
@@ -318,6 +320,8 @@ static int __init pc8736x_gpio_init(void)
 	pc8736x_init_shadow();
 	return 0;
 
+undo_request_region:
+	release_region(pc8736x_gpio_base, PC8736X_GPIO_RANGE);
 undo_platform_dev_add:
 	platform_device_del(pdev);
 undo_platform_dev_alloc:
@@ -328,11 +332,14 @@ undo_platform_dev_alloc:
 
 static void __exit pc8736x_gpio_cleanup(void)
 {
-	dev_dbg(&pdev->dev, " cleanup\n");
+	dev_dbg(&pdev->dev, "cleanup\n");
 
-	release_region(pc8736x_gpio_base, 16);
+	cdev_del(&pc8736x_gpio_cdev);
+	unregister_chrdev_region(MKDEV(major,0), PC8736X_GPIO_CT);
+	release_region(pc8736x_gpio_base, PC8736X_GPIO_RANGE);
 
-	unregister_chrdev(major, DEVNAME);
+	platform_device_del(pdev);
+	platform_device_put(pdev);
 }
 
 EXPORT_SYMBOL(pc8736x_access);
