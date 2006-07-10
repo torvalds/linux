@@ -191,6 +191,13 @@ int ignore_sigio_fd(int fd)
 	struct pollfd *p;
 	int err = 0, i, n = 0;
 
+	/* This is called from exitcalls elsewhere in UML - if
+	 * sigio_cleanup has already run, then update_thread will hang
+	 * or fail because the thread is no longer running.
+	 */
+	if(write_sigio_pid == -1)
+		return -EIO;
+
 	sigio_lock();
 	for(i = 0; i < current_poll.used; i++){
 		if(current_poll.poll[i].fd == fd) break;
@@ -215,7 +222,7 @@ int ignore_sigio_fd(int fd)
 	update_thread();
  out:
 	sigio_unlock();
-	return(err);
+	return err;
 }
 
 static struct pollfd *setup_initial_poll(int fd)
