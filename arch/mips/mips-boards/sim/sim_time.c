@@ -183,7 +183,7 @@ static void mips_timer_dispatch (struct pt_regs *regs)
 }
 
 
-void __init sim_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	if (cpu_has_veic) {
 		set_vi_handler(MSC01E_INT_CPUCTR, mips_timer_dispatch);
