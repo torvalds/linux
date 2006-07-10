@@ -57,7 +57,7 @@ static inline void __count_vm_events(enum vm_event_item item, long delta)
 
 static inline void count_vm_events(enum vm_event_item item, long delta)
 {
-	get_cpu_var(vm_event_states.event[item])++;
+	get_cpu_var(vm_event_states.event[item]) += delta;
 	put_cpu();
 }
 
