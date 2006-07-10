@@ -950,11 +950,12 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	layout_id = (unsigned int *) get_property(sound, "layout-id", NULL);
 	if (!layout_id)
 		goto outnodev;
-	printk(KERN_INFO "snd-aoa-fabric-layout: found bus with layout %d ", *layout_id);
+	printk(KERN_INFO "snd-aoa-fabric-layout: found bus with layout %d\n",
+	       *layout_id);
 
 	layout = find_layout_by_id(*layout_id);
 	if (!layout) {
-		printk("(no idea how to handle)\n");
+		printk(KERN_ERR "snd-aoa-fabric-layout: unknown layout\n");
 		goto outnodev;
 	}
 
@@ -972,15 +973,17 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	case 51: /* PowerBook5,4 */
 	case 58: /* Mac Mini */
 		ldev->gpio.methods = ftr_gpio_methods;
+		printk(KERN_DEBUG
+		       "snd-aoa-fabric-layout: Using direct GPIOs\n");
 		break;
 	default:
 		ldev->gpio.methods = pmf_gpio_methods;
+		printk(KERN_DEBUG
+		       "snd-aoa-fabric-layout: Using PMF GPIOs\n");
 	}
 	ldev->selfptr_headphone.ptr = ldev;
 	ldev->selfptr_lineout.ptr = ldev;
 	sdev->ofdev.dev.driver_data = ldev;
-
-	printk("(using)\n");
 	list_add(&ldev->list, &layouts_list);
 	layouts_list_items++;
 
