@@ -2551,7 +2551,7 @@ static inline int in_range(const void *start, const void *addr, const void *end)
 
 static void
 print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
-		     const void *mem_to)
+		     const void *mem_to, struct held_lock *hlock)
 {
 	if (!debug_locks_off())
 		return;
@@ -2563,6 +2563,7 @@ print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
 	printk(  "-------------------------\n");
 	printk("%s/%d is freeing memory %p-%p, with a lock still held there!\n",
 		curr->comm, curr->pid, mem_from, mem_to-1);
+	print_lock(hlock);
 	lockdep_print_held_locks(curr);
 
 	printk("\nstack backtrace:\n");
@@ -2596,7 +2597,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 					!in_range(mem_from, lock_to, mem_to))
 			continue;
 
-		print_freed_lock_bug(curr, mem_from, mem_to);
+		print_freed_lock_bug(curr, mem_from, mem_to, hlock);
 		break;
 	}
 	local_irq_restore(flags);
