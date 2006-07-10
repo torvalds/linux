@@ -43,13 +43,13 @@ struct pollfds {
 /* Protected by sigio_lock().  Used by the sigio thread, but the UML thread
  * synchronizes with it.
  */
-struct pollfds current_poll = {
+static struct pollfds current_poll = {
 	.poll  		= NULL,
 	.size 		= 0,
 	.used 		= 0
 };
 
-struct pollfds next_poll = {
+static struct pollfds next_poll = {
 	.poll  		= NULL,
 	.size 		= 0,
 	.used 		= 0
@@ -156,7 +156,7 @@ static void update_thread(void)
 	set_signals(flags);
 }
 
-int add_sigio_fd(int fd, int read)
+static int add_sigio_fd(int fd, int read)
 {
 	int err = 0, i, n, events;
 
@@ -333,10 +333,12 @@ void maybe_sigio_broken(int fd, int read)
 	add_sigio_fd(fd, read);
 }
 
-void sigio_cleanup(void)
+static void sigio_cleanup(void)
 {
 	if(write_sigio_pid != -1){
 		os_kill_process(write_sigio_pid, 1);
 		write_sigio_pid = -1;
 	}
 }
+
+__uml_exitcall(sigio_cleanup);
