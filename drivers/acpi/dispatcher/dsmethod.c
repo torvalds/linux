@@ -134,7 +134,7 @@ acpi_ds_create_method_mutex(union acpi_operand_object *method_desc)
 	union acpi_operand_object *mutex_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_NAME(ds_create_method_mutex);
+	ACPI_FUNCTION_TRACE(ds_create_method_mutex);
 
 	/* Create the new mutex object */
 
@@ -493,7 +493,7 @@ acpi_ds_restart_control_method(struct acpi_walk_state *walk_state,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "****Restart [%4.4s] Op %p ReturnValueFromCallee %p\n",
-			  (char *)&walk_state->method_node->name,
+			  acpi_ut_get_node_name(walk_state->method_node),
 			  walk_state->method_call_op, return_desc));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
@@ -610,6 +610,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 
 			acpi_os_release_mutex(method_desc->method.mutex->mutex.
 					      os_mutex);
+			method_desc->method.mutex->mutex.owner_thread = NULL;
 		}
 	}
 
@@ -620,27 +621,11 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		 */
 		method_node = walk_state->method_node;
 
-		/* Lock namespace for possible update */
-
-		status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-		if (ACPI_FAILURE(status)) {
-			return_VOID;
-		}
-
 		/*
-		 * Delete any namespace entries created immediately underneath
-		 * the method
-		 */
-		if (method_node && method_node->child) {
-			acpi_ns_delete_namespace_subtree(method_node);
-		}
-
-		/*
-		 * Delete any namespace entries created anywhere else within
+		 * Delete any namespace objects created anywhere within
 		 * the namespace by the execution of this method
 		 */
 		acpi_ns_delete_namespace_by_owner(method_desc->method.owner_id);
-		status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	}
 
 	/* Decrement the thread count on the method */

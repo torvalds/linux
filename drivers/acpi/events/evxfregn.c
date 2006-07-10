@@ -155,7 +155,11 @@ acpi_remove_address_space_handler(acpi_handle device,
 	/* Convert and validate the device handle */
 
 	node = acpi_ns_map_handle_to_node(device);
-	if (!node) {
+	if (!node ||
+	    ((node->type != ACPI_TYPE_DEVICE) &&
+	     (node->type != ACPI_TYPE_PROCESSOR) &&
+	     (node->type != ACPI_TYPE_THERMAL) &&
+	     (node != acpi_gbl_root_node))) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
@@ -177,6 +181,13 @@ acpi_remove_address_space_handler(acpi_handle device,
 		/* We have a handler, see if user requested this one */
 
 		if (handler_obj->address_space.space_id == space_id) {
+
+			/* Handler must be the same as the installed handler */
+
+			if (handler_obj->address_space.handler != handler) {
+				status = AE_BAD_PARAMETER;
+				goto unlock_and_exit;
+			}
 
 			/* Matched space_id, first dereference this in the Regions */
 

@@ -183,6 +183,17 @@ acpi_status acpi_tb_validate_rsdt(struct acpi_table_header *table_ptr)
 
 	ACPI_FUNCTION_ENTRY();
 
+	/* Validate minimum length */
+
+	if (table_ptr->length < sizeof(struct acpi_table_header)) {
+		ACPI_ERROR((AE_INFO,
+			    "RSDT/XSDT length (%X) is smaller than minimum (%X)",
+			    table_ptr->length,
+			    sizeof(struct acpi_table_header)));
+
+		return (AE_INVALID_TABLE_LENGTH);
+	}
+
 	/* Search for appropriate signature, RSDT or XSDT */
 
 	if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
@@ -210,7 +221,7 @@ acpi_status acpi_tb_validate_rsdt(struct acpi_table_header *table_ptr)
 			ACPI_ERROR((AE_INFO, "Looking for XSDT"));
 		}
 
-		ACPI_DUMP_BUFFER((char *)table_ptr, 48);
+		ACPI_DUMP_BUFFER(ACPI_CAST_PTR(char, table_ptr), 48);
 		return (AE_BAD_SIGNATURE);
 	}
 
@@ -258,7 +269,7 @@ acpi_status acpi_tb_get_table_rsdt(void)
 
 	status = acpi_tb_validate_rsdt(table_info.pointer);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		goto error_cleanup;
 	}
 
 	/* Get the number of tables defined in the RSDT or XSDT */
@@ -270,19 +281,27 @@ acpi_status acpi_tb_get_table_rsdt(void)
 
 	status = acpi_tb_convert_to_xsdt(&table_info);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		goto error_cleanup;
 	}
 
 	/* Save the table pointers and allocation info */
 
 	status = acpi_tb_init_table_descriptor(ACPI_TABLE_ID_XSDT, &table_info);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		goto error_cleanup;
 	}
 
 	acpi_gbl_XSDT =
 	    ACPI_CAST_PTR(struct xsdt_descriptor, table_info.pointer);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "XSDT located at %p\n", acpi_gbl_XSDT));
+	return_ACPI_STATUS(status);
+
+      error_cleanup:
+
+	/* Free table allocated by acpi_tb_get_table */
+
+	acpi_tb_delete_single_table(&table_info);
+
 	return_ACPI_STATUS(status);
 }
