@@ -38,7 +38,6 @@ unsigned long long sched_clock(void)
 /* Changed at early boot */
 int timer_irq_inited = 0;
 
-static int first_tick;
 static unsigned long long prev_nsecs;
 #ifdef CONFIG_UML_REAL_TIME_CLOCK
 static long long delta;   		/* Deviation per interval */
@@ -48,15 +47,8 @@ void timer_irq(union uml_pt_regs *regs)
 {
 	unsigned long long ticks = 0;
 
-	if(!timer_irq_inited){
-		/* This is to ensure that ticks don't pile up when
-		 * the timer handler is suspended */
-		first_tick = 0;
-		return;
-	}
-
-	if(first_tick){
 #ifdef CONFIG_UML_REAL_TIME_CLOCK
+	if(prev_nsecs){
 		/* We've had 1 tick */
 		unsigned long long nsecs = os_nsecs();
 
@@ -69,15 +61,11 @@ void timer_irq(union uml_pt_regs *regs)
 
 		ticks += (delta * HZ) / BILLION;
 		delta -= (ticks * BILLION) / HZ;
+	}
+	else prev_nsecs = os_nsecs();
 #else
-		ticks = 1;
+	ticks = 1;
 #endif
-	}
-	else {
-		prev_nsecs = os_nsecs();
-		first_tick = 1;
-	}
-
 	while(ticks > 0){
 		do_IRQ(TIMER_IRQ, regs);
 		ticks--;
