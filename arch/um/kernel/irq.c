@@ -110,19 +110,6 @@ void sigio_handler(int sig, union uml_pt_regs *regs)
 	free_irqs();
 }
 
-static void maybe_sigio_broken(int fd, int type)
-{
-	if (os_isatty(fd)) {
-		if ((type == IRQ_WRITE) && !pty_output_sigio) {
-			write_sigio_workaround();
-			add_sigio_fd(fd, 0);
-		} else if ((type == IRQ_READ) && !pty_close_sigio) {
-			write_sigio_workaround();
-			add_sigio_fd(fd, 1);
-		}
-	}
-}
-
 static DEFINE_SPINLOCK(irq_lock);
 
 int activate_fd(int irq, int fd, int type, void *dev_id)
@@ -221,7 +208,7 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 	/* This calls activate_fd, so it has to be outside the critical
 	 * section.
 	 */
-	maybe_sigio_broken(fd, type);
+	maybe_sigio_broken(fd, (type == IRQ_READ));
 
 	return(0);
 
@@ -318,7 +305,7 @@ void reactivate_fd(int fd, int irqnum)
 	/* This calls activate_fd, so it has to be outside the critical
 	 * section.
 	 */
-	maybe_sigio_broken(fd, irq->type);
+	maybe_sigio_broken(fd, (irq->type == IRQ_READ));
 }
 
 void deactivate_fd(int fd, int irqnum)

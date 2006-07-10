@@ -233,7 +233,7 @@ static struct pollfd *setup_initial_poll(int fd)
 	return p;
 }
 
-void write_sigio_workaround(void)
+static void write_sigio_workaround(void)
 {
 	unsigned long stack;
 	struct pollfd *p;
@@ -312,6 +312,18 @@ out_close2:
 out_close1:
 	close(l_write_sigio_fds[0]);
 	close(l_write_sigio_fds[1]);
+}
+
+void maybe_sigio_broken(int fd, int read)
+{
+	if(!isatty(fd))
+		return;
+
+	if((read || pty_output_sigio) && (!read || pty_close_sigio))
+		return;
+
+	write_sigio_workaround();
+	add_sigio_fd(fd, read);
 }
 
 void sigio_cleanup(void)

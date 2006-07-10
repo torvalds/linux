@@ -52,11 +52,6 @@ int os_waiting_for_events(struct irq_fd *active_fds)
 	return n;
 }
 
-int os_isatty(int fd)
-{
-	return isatty(fd);
-}
-
 int os_create_pollfd(int fd, int events, void *tmp_pfd, int size_tmpfds)
 {
 	if (pollfds_num == pollfds_size) {

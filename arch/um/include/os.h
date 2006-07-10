@@ -318,7 +318,6 @@ extern void reboot_skas(void);
 
 /* irq.c */
 extern int os_waiting_for_events(struct irq_fd *active_fds);
-extern int os_isatty(int fd);
 extern int os_create_pollfd(int fd, int events, void *tmp_pfd, int size_tmpfds);
 extern void os_free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg,
 		struct irq_fd *active_fds, struct irq_fd ***last_irq_ptr2);
@@ -330,9 +329,9 @@ extern void os_set_ioignore(void);
 extern void init_irq_signals(int on_sigstack);
 
 /* sigio.c */
-extern void write_sigio_workaround(void);
 extern int add_sigio_fd(int fd, int read);
 extern int ignore_sigio_fd(int fd);
+extern void maybe_sigio_broken(int fd, int read);
 
 /* skas/trap */
 extern void sig_handler_common_skas(int sig, void *sc_ptr);
