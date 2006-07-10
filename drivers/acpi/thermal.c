@@ -1359,13 +1359,28 @@ static int acpi_thermal_remove(struct acpi_device *device, int type)
 static int acpi_thermal_resume(struct acpi_device *device, int state)
 {
 	struct acpi_thermal *tz = NULL;
+	int i;
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
 	tz = (struct acpi_thermal *)acpi_driver_data(device);
 
-	acpi_thermal_check(tz);
+	acpi_thermal_get_temperature(tz);
+
+	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
+		if (tz->trips.active[i].flags.valid) {
+ 			tz->temperature = tz->trips.active[i].temperature;
+			tz->trips.active[i].flags.enabled = 0;
+
+			acpi_thermal_active(tz);
+
+			tz->state.active |= tz->trips.active[i].flags.enabled;
+			tz->state.active_index = i;
+		}
+	}
+
+ 	acpi_thermal_check(tz);
 
 	return AE_OK;
 }
