@@ -1703,7 +1703,7 @@ hfc4s8s_module_init(void)
 /* driver module exit :              */
 /* release the HFC-4s/8s hardware    */
 /*************************************/
-static void
+static void __exit
 hfc4s8s_module_exit(void)
 {
 	pci_unregister_driver(&hfc4s8s_driver);
