@@ -26,7 +26,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/ioport.h>
 #include <linux/acpi.h>
 #include <linux/apm_bios.h>

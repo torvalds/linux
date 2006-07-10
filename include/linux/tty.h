@@ -12,7 +12,6 @@
 #include <linux/workqueue.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_ldisc.h>
-#include <linux/screen_info.h>
 #include <linux/mutex.h>
 
 #include <asm/system.h>

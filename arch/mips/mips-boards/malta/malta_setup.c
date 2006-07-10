@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 
 #ifdef CONFIG_MTD
 #include <linux/mtd/partitions.h>

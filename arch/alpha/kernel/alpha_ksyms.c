@@ -14,6 +14,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/pci.h>
+#include <linux/screen_info.h>
 #include <linux/tty.h>
 #include <linux/mm.h>
 #include <linux/delay.h>

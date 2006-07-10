@@ -18,7 +18,7 @@
 #include <linux/pci.h>
 #include <linux/console.h>
 #include <linux/fb.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 
 #ifdef CONFIG_ARC
 #include <asm/arc/types.h>
