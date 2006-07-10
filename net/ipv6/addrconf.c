@@ -508,6 +508,25 @@ void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp)
 	kfree(ifp);
 }
 
+static void
+ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
+{
+	struct inet6_ifaddr *ifa, **ifap;
+
+	/*
+	 * Each device address list is sorted in order of scope -
+	 * global before linklocal.
+	 */
+	for (ifap = &idev->addr_list; (ifa = *ifap) != NULL;
+	     ifap = &ifa->if_next) {
+		if (ifp->scope > ifa->scope)
+			break;
+	}
+
+	ifp->if_next = *ifap;
+	*ifap = ifp;
+}
+
 /* On success it returns ifp with increased reference count */
 
 static struct inet6_ifaddr *
@@ -573,8 +592,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 
 	write_lock(&idev->lock);
 	/* Add to inet6_dev unicast addr list. */
-	ifa->if_next = idev->addr_list;
-	idev->addr_list = ifa;
+	ipv6_link_dev_addr(idev, ifa);
 
 #ifdef CONFIG_IPV6_PRIVACY
 	if (ifa->flags&IFA_F_TEMPORARY) {
@@ -987,7 +1005,7 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 					continue;
 			} else if (score.scope < hiscore.scope) {
 				if (score.scope < daddr_scope)
-					continue;
+					break; /* addresses sorted by scope */
 				else {
 					score.rule = 2;
 					goto record_it;
