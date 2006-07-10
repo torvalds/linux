@@ -246,6 +246,7 @@ static int superblock_alloc_security(struct super_block *sb)
 	sbsec->sb = sb;
 	sbsec->sid = SECINITSID_UNLABELED;
 	sbsec->def_sid = SECINITSID_FILE;
+	sbsec->mntpoint_sid = SECINITSID_UNLABELED;
 	sb->s_security = sbsec;
 
 	return 0;
@@ -329,9 +330,26 @@ static match_table_t tokens = {
 
 #define SEL_MOUNT_FAIL_MSG "SELinux:  duplicate or incompatible mount options\n"
 
+static int may_context_mount_sb_relabel(u32 sid,
+			struct superblock_security_struct *sbsec,
+			struct task_security_struct *tsec)
+{
+	int rc;
+
+	rc = avc_has_perm(tsec->sid, sbsec->sid, SECCLASS_FILESYSTEM,
+			  FILESYSTEM__RELABELFROM, NULL);
+	if (rc)
+		return rc;
+
+	rc = avc_has_perm(tsec->sid, sid, SECCLASS_FILESYSTEM,
+			  FILESYSTEM__RELABELTO, NULL);
+	return rc;
+}
+
 static int try_context_mount(struct super_block *sb, void *data)
 {
 	char *context = NULL, *defcontext = NULL;
+	char *fscontext = NULL;
 	const char *name;
 	u32 sid;
 	int alloc = 0, rc = 0, seen = 0;
@@ -374,7 +392,7 @@ static int try_context_mount(struct super_block *sb, void *data)
 
 			switch (token) {
 			case Opt_context:
-				if (seen) {
+				if (seen & (Opt_context|Opt_defcontext)) {
 					rc = -EINVAL;
 					printk(KERN_WARNING SEL_MOUNT_FAIL_MSG);
 					goto out_free;
@@ -390,13 +408,13 @@ static int try_context_mount(struct super_block *sb, void *data)
 				break;
 
 			case Opt_fscontext:
-				if (seen & (Opt_context|Opt_fscontext)) {
+				if (seen & Opt_fscontext) {
 					rc = -EINVAL;
 					printk(KERN_WARNING SEL_MOUNT_FAIL_MSG);
 					goto out_free;
 				}
-				context = match_strdup(&args[0]);
-				if (!context) {
+				fscontext = match_strdup(&args[0]);
+				if (!fscontext) {
 					rc = -ENOMEM;
 					goto out_free;
 				}
@@ -441,6 +459,28 @@ static int try_context_mount(struct super_block *sb, void *data)
 	if (!seen)
 		goto out;
 
+	/* sets the context of the superblock for the fs being mounted. */
+	if (fscontext) {
+		rc = security_context_to_sid(fscontext, strlen(fscontext), &sid);
+		if (rc) {
+			printk(KERN_WARNING "SELinux: security_context_to_sid"
+			       "(%s) failed for (dev %s, type %s) errno=%d\n",
+			       fscontext, sb->s_id, name, rc);
+			goto out_free;
+		}
+
+		rc = may_context_mount_sb_relabel(sid, sbsec, tsec);
+		if (rc)
+			goto out_free;
+
+		sbsec->sid = sid;
+	}
+
+	/*
+	 * Switch to using mount point labeling behavior.
+	 * sets the label used on all file below the mountpoint, and will set
+	 * the superblock context if not already set.
+	 */
 	if (context) {
 		rc = security_context_to_sid(context, strlen(context), &sid);
 		if (rc) {
@@ -450,20 +490,15 @@ static int try_context_mount(struct super_block *sb, void *data)
 			goto out_free;
 		}
 
-		rc = avc_has_perm(tsec->sid, sbsec->sid, SECCLASS_FILESYSTEM,
-		                  FILESYSTEM__RELABELFROM, NULL);
+		rc = may_context_mount_sb_relabel(sid, sbsec, tsec);
 		if (rc)
 			goto out_free;
 
-		rc = avc_has_perm(tsec->sid, sid, SECCLASS_FILESYSTEM,
-		                  FILESYSTEM__RELABELTO, NULL);
-		if (rc)
-			goto out_free;
+		if (!fscontext)
+			sbsec->sid = sid;
+		sbsec->mntpoint_sid = sid;
 
-		sbsec->sid = sid;
-
-		if (seen & Opt_context)
-			sbsec->behavior = SECURITY_FS_USE_MNTPOINT;
+		sbsec->behavior = SECURITY_FS_USE_MNTPOINT;
 	}
 
 	if (defcontext) {
@@ -495,6 +530,7 @@ out_free:
 	if (alloc) {
 		kfree(context);
 		kfree(defcontext);
+		kfree(fscontext);
 	}
 out:
 	return rc;
@@ -876,8 +912,11 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			goto out;
 		isec->sid = sid;
 		break;
+	case SECURITY_FS_USE_MNTPOINT:
+		isec->sid = sbsec->mntpoint_sid;
+		break;
 	default:
-		/* Default to the fs SID. */
+		/* Default to the fs superblock SID. */
 		isec->sid = sbsec->sid;
 
 		if (sbsec->proc) {
