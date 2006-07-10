@@ -281,7 +281,8 @@ static struct stripe_head *get_active_stripe(raid5_conf_t *conf, sector_t sector
 			} else {
 				if (!test_bit(STRIPE_HANDLE, &sh->state))
 					atomic_inc(&conf->active_stripes);
-				if (list_empty(&sh->lru))
+				if (list_empty(&sh->lru) &&
+				    !test_bit(STRIPE_EXPANDING, &sh->state))
 					BUG();
 				list_del_init(&sh->lru);
 			}

@@ -2719,7 +2719,7 @@ static ssize_t
 sync_speed_show(mddev_t *mddev, char *page)
 {
 	unsigned long resync, dt, db;
-	resync = (mddev->curr_resync - atomic_read(&mddev->recovery_active));
+	resync = (mddev->curr_mark_cnt - atomic_read(&mddev->recovery_active));
 	dt = ((jiffies - mddev->resync_mark) / HZ);
 	if (!dt) dt++;
 	db = resync - (mddev->resync_mark_cnt);
@@ -4687,12 +4687,13 @@ static void status_resync(struct seq_file *seq, mddev_t * mddev)
 	 */
 	dt = ((jiffies - mddev->resync_mark) / HZ);
 	if (!dt) dt++;
-	db = resync - (mddev->resync_mark_cnt/2);
-	rt = (dt * ((unsigned long)(max_blocks-resync) / (db/100+1)))/100;
+	db = (mddev->curr_mark_cnt - atomic_read(&mddev->recovery_active))
+		- mddev->resync_mark_cnt;
+	rt = (dt * ((unsigned long)(max_blocks-resync) / (db/2/100+1)))/100;
 
 	seq_printf(seq, " finish=%lu.%lumin", rt / 60, (rt % 60)/6);
 
-	seq_printf(seq, " speed=%ldK/sec", db/dt);
+	seq_printf(seq, " speed=%ldK/sec", db/2/dt);
 }
 
 static void *md_seq_start(struct seq_file *seq, loff_t *pos)
@@ -5203,6 +5204,7 @@ void md_do_sync(mddev_t *mddev)
 
 		j += sectors;
 		if (j>1) mddev->curr_resync = j;
+		mddev->curr_mark_cnt = io_sectors;
 		if (last_check == 0)
 			/* this is the earliers that rebuilt will be
 			 * visible in /proc/mdstat
