@@ -986,18 +986,18 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	nr_make->vl        = 0;
 	nr_make->state     = NR_STATE_3;
 	sk_acceptq_added(sk);
-
-	nr_insert_socket(make);
-
 	skb_queue_head(&sk->sk_receive_queue, skb);
-
-	nr_start_heartbeat(make);
-	nr_start_idletimer(make);
 
 	if (!sock_flag(sk, SOCK_DEAD))
 		sk->sk_data_ready(sk, skb->len);
 
 	bh_unlock_sock(sk);
+
+	nr_insert_socket(make);
+
+	nr_start_heartbeat(make);
+	nr_start_idletimer(make);
+
 	return 1;
 }
 
