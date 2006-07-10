@@ -1,8 +1,10 @@
 /*
- * Copyright (C) 2006 Muli Ben-Yehuda <muli@il.ibm.com>, IBM Corporation
- * Copyright (C) 2006 Jon Mason <jdmason@us.ibm.com>, IBM Corporation
- *
  * This file is derived from asm-powerpc/tce.h.
+ *
+ * Copyright (C) IBM Corporation, 2006
+ *
+ * Author: Muli Ben-Yehuda <muli@il.ibm.com>
+ * Author: Jon Mason <jdmason@us.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
