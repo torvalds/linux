@@ -66,6 +66,7 @@ void switch_timers(int to_real)
 		       errno);
 }
 
+#ifdef UML_CONFIG_MODE_TT
 void uml_idle_timer(void)
 {
 	if(signal(SIGVTALRM, SIG_IGN) == SIG_ERR)
@@ -75,6 +76,7 @@ void uml_idle_timer(void)
 		    SA_RESTART, SIGUSR1, SIGIO, SIGWINCH, SIGVTALRM, -1);
 	set_interval(ITIMER_REAL);
 }
+#endif
 
 unsigned long long os_nsecs(void)
 {

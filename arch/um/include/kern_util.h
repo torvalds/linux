@@ -72,7 +72,6 @@ extern void init_flush_vm(void);
 extern void *syscall_sp(void *t);
 extern void syscall_trace(union uml_pt_regs *regs, int entryexit);
 extern int hz(void);
-extern void uml_idle_timer(void);
 extern unsigned int do_IRQ(int irq, union uml_pt_regs *regs);
 extern int external_pid(void *t);
 extern void interrupt_end(void);
