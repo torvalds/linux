@@ -4592,6 +4592,8 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 		__builtin_return_address(0),__builtin_return_address(1),
 		__builtin_return_address(2),__builtin_return_address(3));
 */
+	if (!mddev->pers)
+		return;
 	if (!mddev->pers->error_handler)
 		return;
 	mddev->pers->error_handler(mddev,rdev);
