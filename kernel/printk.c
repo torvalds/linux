@@ -52,7 +52,7 @@ int console_printk[4] = {
 	DEFAULT_CONSOLE_LOGLEVEL,	/* default_console_loglevel */
 };
 
-EXPORT_SYMBOL(console_printk);
+EXPORT_UNUSED_SYMBOL(console_printk);  /*  June 2006  */
 
 /*
  * Low lever drivers may need that to know if they can schedule in
@@ -773,7 +773,7 @@ int is_console_locked(void)
 {
 	return console_locked;
 }
-EXPORT_SYMBOL(is_console_locked);
+EXPORT_UNUSED_SYMBOL(is_console_locked);  /*  June 2006  */
 
 /**
  * release_console_sem - unlock the console system
