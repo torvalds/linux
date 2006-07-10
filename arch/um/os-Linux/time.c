@@ -17,11 +17,6 @@
 #include "kern_constants.h"
 #include "os.h"
 
-/* XXX This really needs to be declared and initialized in a kernel file since
- * it's in <linux/time.h>
- */
-extern struct timespec wall_to_monotonic;
-
 static void set_interval(int timer_type)
 {
 	int usec = 1000000/hz();
