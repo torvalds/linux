@@ -15,9 +15,9 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/screen_info.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/tty.h>
 
 #include <asm/io.h>
 

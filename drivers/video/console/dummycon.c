@@ -7,7 +7,6 @@
 
 #include <linux/types.h>
 #include <linux/kdev_t.h>
-#include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/vt_kern.h>
 #include <linux/init.h>
