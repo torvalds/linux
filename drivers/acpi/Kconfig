@@ -135,8 +135,7 @@ config ACPI_FAN
 
 config ACPI_DOCK
 	tristate "Dock"
-	depends on !ACPI_IBM_DOCK
-	default y
+	depends on EXPERIMENTAL
 	help
 	  This driver adds support for ACPI controlled docking stations
 
@@ -214,6 +213,7 @@ config ACPI_IBM
 config ACPI_IBM_DOCK
 	bool "Legacy Docking Station Support"
 	depends on ACPI_IBM
+	depends on ACPI_DOCK=n
 	default n
 	---help---
 	  Allows the ibm_acpi driver to handle docking station events.
