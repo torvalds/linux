@@ -759,7 +759,7 @@ valid_phys_addr_range (unsigned long phys_addr, unsigned long size)
 }
 
 int
-valid_mmap_phys_addr_range (unsigned long phys_addr, unsigned long size)
+valid_mmap_phys_addr_range (unsigned long pfn, unsigned long size)
 {
 	/*
 	 * MMIO regions are often missing from the EFI memory map.
