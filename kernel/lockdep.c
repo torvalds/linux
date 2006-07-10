@@ -169,22 +169,17 @@ EXPORT_SYMBOL(lockdep_internal);
  */
 static int class_filter(struct lock_class *class)
 {
+#if 0
+	/* Example */
 	if (class->name_version == 1 &&
-			!strcmp(class->name, "&rl->lock"))
+			!strcmp(class->name, "lockname"))
 		return 1;
 	if (class->name_version == 1 &&
-			!strcmp(class->name, "&ni->mrec_lock"))
+			!strcmp(class->name, "&struct->lockfield"))
 		return 1;
-	if (class->name_version == 1 &&
-			!strcmp(class->name, "mft_ni_runlist_lock"))
-		return 1;
-	if (class->name_version == 1 &&
-			!strcmp(class->name, "mft_ni_mrec_lock"))
-		return 1;
-	if (class->name_version == 1 &&
-			!strcmp(class->name, "&vol->lcnbmp_lock"))
-		return 1;
-	return 0;
+#endif
+	/* Allow everything else. 0 would be filter everything else */
+	return 1;
 }
 #endif
 
@@ -408,23 +403,12 @@ static void lockdep_print_held_locks(struct task_struct *curr)
 		print_lock(curr->held_locks + i);
 	}
 }
-/*
- * Helper to print a nice hierarchy of lock dependencies:
- */
-static void print_spaces(int nr)
-{
-	int i;
-
-	for (i = 0; i < nr; i++)
-		printk("  ");
-}
 
 static void print_lock_class_header(struct lock_class *class, int depth)
 {
 	int bit;
 
-	print_spaces(depth);
-	printk("->");
+	printk("%*s->", depth, "");
 	print_lock_name(class);
 	printk(" ops: %lu", class->ops);
 	printk(" {\n");
@@ -433,17 +417,14 @@ static void print_lock_class_header(struct lock_class *class, int depth)
 		if (class->usage_mask & (1 << bit)) {
 			int len = depth;
 
-			print_spaces(depth);
-			len += printk("   %s", usage_str[bit]);
+			len += printk("%*s   %s", depth, "", usage_str[bit]);
 			len += printk(" at:\n");
 			print_stack_trace(class->usage_traces + bit, len);
 		}
 	}
-	print_spaces(depth);
-	printk(" }\n");
+	printk("%*s }\n", depth, "");
 
-	print_spaces(depth);
-	printk(" ... key      at: ");
+	printk("%*s ... key      at: ",depth,"");
 	print_ip_sym((unsigned long)class->key);
 }
 
@@ -463,8 +444,7 @@ static void print_lock_dependencies(struct lock_class *class, int depth)
 		DEBUG_LOCKS_WARN_ON(!entry->class);
 		print_lock_dependencies(entry->class, depth + 1);
 
-		print_spaces(depth);
-		printk(" ... acquired at:\n");
+		printk("%*s ... acquired at:\n",depth,"");
 		print_stack_trace(&entry->trace, 2);
 		printk("\n");
 	}
