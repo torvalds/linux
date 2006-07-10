@@ -197,7 +197,7 @@ CONFIG_PM=y
 # CONFIG_PM_LEGACY is not set
 # CONFIG_PM_DEBUG is not set
 CONFIG_SOFTWARE_SUSPEND=y
-CONFIG_PM_STD_PARTITION="/dev/hda2"
+CONFIG_PM_STD_PARTITION=""
 
 #
 # ACPI (Advanced Configuration and Power Interface) Support
