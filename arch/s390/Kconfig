@@ -119,7 +119,7 @@ config SYSVIPC_COMPAT
 	default y
 
 config BINFMT_ELF32
-	tristate "Kernel support for 31 bit ELF binaries"
+	bool "Kernel support for 31 bit ELF binaries"
 	depends on COMPAT
 	help
 	  This allows you to run 32-bit Linux/ELF binaries on your zSeries
