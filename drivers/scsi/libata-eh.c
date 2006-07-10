@@ -1843,15 +1843,16 @@ static int ata_eh_skip_recovery(struct ata_port *ap)
 	for (i = 0; i < ata_port_max_devices(ap); i++) {
 		struct ata_device *dev = &ap->device[i];
 
-		if (ata_dev_absent(dev) || ata_dev_ready(dev))
+		if (!(dev->flags & ATA_DFLAG_SUSPENDED))
 			break;
 	}
 
 	if (i == ata_port_max_devices(ap))
 		return 1;
 
-	/* always thaw frozen port and recover failed devices */
-	if (ap->pflags & ATA_PFLAG_FROZEN || ata_port_nr_enabled(ap))
+	/* thaw frozen port, resume link and recover failed devices */
+	if ((ap->pflags & ATA_PFLAG_FROZEN) ||
+	    (ehc->i.flags & ATA_EHI_RESUME_LINK) || ata_port_nr_enabled(ap))
 		return 0;
 
 	/* skip if class codes for all vacant slots are ATA_DEV_NONE */
