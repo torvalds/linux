@@ -10,6 +10,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -37,6 +38,9 @@
 asmlinkage void ret_from_fork(void);
 
 #include <asm/pgalloc.h>
+
+void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
 
 struct task_struct *alloc_task_struct(void)
 {
