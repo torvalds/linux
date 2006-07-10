@@ -85,6 +85,9 @@ extern int audit_enabled;
 /* Indicates that audit should log the full pathname. */
 #define AUDIT_NAME_FULL -1
 
+/* number of audit rules */
+int audit_n_rules;
+
 /* When fs/namei.c:getname() is called, we store the pointer in name and
  * we don't let putname() free it (instead we free all of the saved
  * pointers at syscall exit time).
