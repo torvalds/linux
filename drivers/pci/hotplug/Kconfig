@@ -6,8 +6,7 @@ menu "PCI Hotplug Support"
 
 config HOTPLUG_PCI
 	tristate "Support for PCI Hotplug (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
-	select HOTPLUG
+	depends on PCI && EXPERIMENTAL && HOTPLUG
 	---help---
 	  Say Y here if you have a motherboard with a PCI Hotplug controller.
 	  This allows you to add and remove PCI cards while the machine is
