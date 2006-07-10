@@ -204,7 +204,7 @@ static void mpic_startup_ht_interrupt(struct mpic *mpic, unsigned int source,
 	if (fixup->base == NULL)
 		return;
 
-	DBG("startup_ht_interrupt(%u, %u) index: %d\n",
+	DBG("startup_ht_interrupt(0x%x, 0x%x) index: %d\n",
 	    source, irqflags, fixup->index);
 	spin_lock_irqsave(&mpic->fixup_lock, flags);
 	/* Enable and configure */
@@ -227,7 +227,7 @@ static void mpic_shutdown_ht_interrupt(struct mpic *mpic, unsigned int source,
 	if (fixup->base == NULL)
 		return;
 
-	DBG("shutdown_ht_interrupt(%u, %u)\n", source, irqflags);
+	DBG("shutdown_ht_interrupt(0x%x, 0x%x)\n", source, irqflags);
 
 	/* Disable */
 	spin_lock_irqsave(&mpic->fixup_lock, flags);
@@ -588,8 +588,8 @@ static int mpic_set_irq_type(unsigned int virq, unsigned int flow_type)
 	struct irq_desc *desc = get_irq_desc(virq);
 	unsigned int vecpri, vold, vnew;
 
-	pr_debug("mpic: set_irq_type(mpic:@%p,virq:%d,src:%d,type:0x%x)\n",
-		 mpic, virq, src, flow_type);
+	DBG("mpic: set_irq_type(mpic:@%p,virq:%d,src:0x%x,type:0x%x)\n",
+	    mpic, virq, src, flow_type);
 
 	if (src >= mpic->irq_count)
 		return -EINVAL;
@@ -661,15 +661,16 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 	struct mpic *mpic = h->host_data;
 	struct irq_chip *chip;
 
-	pr_debug("mpic: map virq %d, hwirq 0x%lx\n", virq, hw);
+	DBG("mpic: map virq %d, hwirq 0x%lx\n", virq, hw);
 
 	if (hw == MPIC_VEC_SPURRIOUS)
 		return -EINVAL;
+
 #ifdef CONFIG_SMP
 	else if (hw >= MPIC_VEC_IPI_0) {
 		WARN_ON(!(mpic->flags & MPIC_PRIMARY));
 
-		pr_debug("mpic: mapping as IPI\n");
+		DBG("mpic: mapping as IPI\n");
 		set_irq_chip_data(virq, mpic);
 		set_irq_chip_and_handler(virq, &mpic->hc_ipi,
 					 handle_percpu_irq);
@@ -689,7 +690,7 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 		chip = &mpic->hc_ht_irq;
 #endif /* CONFIG_MPIC_BROKEN_U3 */
 
-	pr_debug("mpic: mapping to irq chip @%p\n", chip);
+	DBG("mpic: mapping to irq chip @%p\n", chip);
 
 	set_irq_chip_data(virq, mpic);
 	set_irq_chip_and_handler(virq, chip, handle_fasteoi_irq);
@@ -713,10 +714,27 @@ static int mpic_host_xlate(struct irq_host *h, struct device_node *ct,
 	};
 
 	*out_hwirq = intspec[0];
-	if (intsize > 1 && intspec[1] < 4)
-		*out_flags = map_mpic_senses[intspec[1]];
-	else
+	if (intsize > 1) {
+		u32 mask = 0x3;
+
+		/* Apple invented a new race of encoding on machines with
+		 * an HT APIC. They encode, among others, the index within
+		 * the HT APIC. We don't care about it here since thankfully,
+		 * it appears that they have the APIC already properly
+		 * configured, and thus our current fixup code that reads the
+		 * APIC config works fine. However, we still need to mask out
+		 * bits in the specifier to make sure we only get bit 0 which
+		 * is the level/edge bit (the only sense bit exposed by Apple),
+		 * as their bit 1 means something else.
+		 */
+		if (machine_is(powermac))
+			mask = 0x1;
+		*out_flags = map_mpic_senses[intspec[1] & mask];
+	} else
 		*out_flags = IRQ_TYPE_NONE;
+
+	DBG("mpic: xlate (%d cells: 0x%08x 0x%08x) to line 0x%lx sense 0x%x\n",
+	    intsize, intspec[0], intspec[1], *out_hwirq, *out_flags);
 
 	return 0;
 }
