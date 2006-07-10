@@ -249,8 +249,6 @@ out_unlock:
 	goto out;
 }
 
-#define list_to_page(head) (list_entry((head)->prev, struct page, lru))
-
 /**
  * gfs2_readpages - Read a bunch of pages at once
  *
@@ -290,7 +288,8 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 		struct pagevec lru_pvec;
 		pagevec_init(&lru_pvec, 0);
 		for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-			struct page *page = list_to_page(pages);
+			struct page *page = list_entry(pages->prev, struct page, lru);
+			prefetchw(&page->flags);
 			list_del(&page->lru);
 			if (!add_to_page_cache(page, mapping,
 					       page->index, GFP_KERNEL)) {
@@ -298,8 +297,9 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 				unlock_page(page);
 				if (!pagevec_add(&lru_pvec, page))
 					 __pagevec_lru_add(&lru_pvec);
+			} else {
+				page_cache_release(page);
 			}
-			page_cache_release(page);
 		}
 		pagevec_lru_add(&lru_pvec);
 		ret = 0;
@@ -321,7 +321,7 @@ out_noerror:
 out_unlock:
 	/* unlock all pages, we can't do any I/O right now */
 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-		struct page *page = list_to_page(pages);
+		struct page *page = list_entry(pages->prev, struct page, lru);
 		list_del(&page->lru);
 		unlock_page(page);
 		page_cache_release(page);
