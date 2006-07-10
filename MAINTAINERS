@@ -2666,6 +2666,11 @@ M:	shemminger@osdl.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+SOEKRIS NET48XX LED SUPPORT
+P:	Chris Boot
+M:	bootc@bootc.net
+S:	Maintained
+
 SPARC (sparc32):
 P:	William L. Irwin
 M:	wli@holomorphy.com
