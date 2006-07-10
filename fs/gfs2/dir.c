@@ -78,13 +78,8 @@
 #define IS_LEAF     1 /* Hashed (leaf) directory */
 #define IS_DINODE   2 /* Linear (stuffed dinode block) directory */
 
-#if 1
 #define gfs2_disk_hash2offset(h) (((uint64_t)(h)) >> 1)
 #define gfs2_dir_offset2hash(p) ((uint32_t)(((uint64_t)(p)) << 1))
-#else
-#define gfs2_disk_hash2offset(h) (((uint64_t)(h)))
-#define gfs2_dir_offset2hash(p) ((uint32_t)(((uint64_t)(p))))
-#endif
 
 typedef int (*leaf_call_t) (struct gfs2_inode *dip,
 			    uint32_t index, uint32_t len, uint64_t leaf_no,
