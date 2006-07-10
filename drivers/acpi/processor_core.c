@@ -102,7 +102,7 @@ static struct acpi_driver acpi_processor_driver = {
 #define INSTALL_NOTIFY_HANDLER		1
 #define UNINSTALL_NOTIFY_HANDLER	2
 
-static struct file_operations acpi_processor_info_fops = {
+static const struct file_operations acpi_processor_info_fops = {
 	.open = acpi_processor_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
