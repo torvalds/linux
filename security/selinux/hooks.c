@@ -320,12 +320,14 @@ enum {
 	Opt_context = 1,
 	Opt_fscontext = 2,
 	Opt_defcontext = 4,
+	Opt_rootcontext = 8,
 };
 
 static match_table_t tokens = {
 	{Opt_context, "context=%s"},
 	{Opt_fscontext, "fscontext=%s"},
 	{Opt_defcontext, "defcontext=%s"},
+	{Opt_rootcontext, "rootcontext=%s"},
 };
 
 #define SEL_MOUNT_FAIL_MSG "SELinux:  duplicate or incompatible mount options\n"
@@ -346,10 +348,25 @@ static int may_context_mount_sb_relabel(u32 sid,
 	return rc;
 }
 
+static int may_context_mount_inode_relabel(u32 sid,
+			struct superblock_security_struct *sbsec,
+			struct task_security_struct *tsec)
+{
+	int rc;
+	rc = avc_has_perm(tsec->sid, sbsec->sid, SECCLASS_FILESYSTEM,
+			  FILESYSTEM__RELABELFROM, NULL);
+	if (rc)
+		return rc;
+
+	rc = avc_has_perm(sid, sbsec->sid, SECCLASS_FILESYSTEM,
+			  FILESYSTEM__ASSOCIATE, NULL);
+	return rc;
+}
+
 static int try_context_mount(struct super_block *sb, void *data)
 {
 	char *context = NULL, *defcontext = NULL;
-	char *fscontext = NULL;
+	char *fscontext = NULL, *rootcontext = NULL;
 	const char *name;
 	u32 sid;
 	int alloc = 0, rc = 0, seen = 0;
@@ -421,6 +438,22 @@ static int try_context_mount(struct super_block *sb, void *data)
 				if (!alloc)
 					alloc = 1;
 				seen |= Opt_fscontext;
+				break;
+
+			case Opt_rootcontext:
+				if (seen & Opt_rootcontext) {
+					rc = -EINVAL;
+					printk(KERN_WARNING SEL_MOUNT_FAIL_MSG);
+					goto out_free;
+				}
+				rootcontext = match_strdup(&args[0]);
+				if (!rootcontext) {
+					rc = -ENOMEM;
+					goto out_free;
+				}
+				if (!alloc)
+					alloc = 1;
+				seen |= Opt_rootcontext;
 				break;
 
 			case Opt_defcontext:
@@ -501,6 +534,25 @@ static int try_context_mount(struct super_block *sb, void *data)
 		sbsec->behavior = SECURITY_FS_USE_MNTPOINT;
 	}
 
+	if (rootcontext) {
+		struct inode *inode = sb->s_root->d_inode;
+		struct inode_security_struct *isec = inode->i_security;
+		rc = security_context_to_sid(rootcontext, strlen(rootcontext), &sid);
+		if (rc) {
+			printk(KERN_WARNING "SELinux: security_context_to_sid"
+			       "(%s) failed for (dev %s, type %s) errno=%d\n",
+			       rootcontext, sb->s_id, name, rc);
+			goto out_free;
+		}
+
+		rc = may_context_mount_inode_relabel(sid, sbsec, tsec);
+		if (rc)
+			goto out_free;
+
+		isec->sid = sid;
+		isec->initialized = 1;
+	}
+
 	if (defcontext) {
 		rc = security_context_to_sid(defcontext, strlen(defcontext), &sid);
 		if (rc) {
@@ -513,13 +565,7 @@ static int try_context_mount(struct super_block *sb, void *data)
 		if (sid == sbsec->def_sid)
 			goto out_free;
 
-		rc = avc_has_perm(tsec->sid, sbsec->sid, SECCLASS_FILESYSTEM,
-				  FILESYSTEM__RELABELFROM, NULL);
-		if (rc)
-			goto out_free;
-
-		rc = avc_has_perm(sid, sbsec->sid, SECCLASS_FILESYSTEM,
-				  FILESYSTEM__ASSOCIATE, NULL);
+		rc = may_context_mount_inode_relabel(sid, sbsec, tsec);
 		if (rc)
 			goto out_free;
 
@@ -531,6 +577,7 @@ out_free:
 		kfree(context);
 		kfree(defcontext);
 		kfree(fscontext);
+		kfree(rootcontext);
 	}
 out:
 	return rc;
@@ -1882,7 +1929,8 @@ static inline int selinux_option(char *option, int len)
 {
 	return (match_prefix("context=", sizeof("context=")-1, option, len) ||
 	        match_prefix("fscontext=", sizeof("fscontext=")-1, option, len) ||
-	        match_prefix("defcontext=", sizeof("defcontext=")-1, option, len));
+	        match_prefix("defcontext=", sizeof("defcontext=")-1, option, len) ||
+		match_prefix("rootcontext=", sizeof("rootcontext=")-1, option, len));
 }
 
 static inline void take_option(char **to, char *from, int *first, int len)
