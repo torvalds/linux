@@ -601,6 +601,15 @@ W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
 S:	Maintained
 
+CALGARY x86-64 IOMMU
+P:	Muli Ben-Yehuda
+M:	muli@il.ibm.com
+P:	Jon D. Mason
+M:	jdmason@us.ibm.com
+L:	linux-kernel@vger.kernel.org
+L:	discuss@x86-64.org
+S:	Maintained
+
 COMMON INTERNET FILE SYSTEM (CIFS)
 P:	Steve French
 M:	sfrench@samba.org
