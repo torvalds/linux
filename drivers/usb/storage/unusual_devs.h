@@ -495,10 +495,11 @@ UNUSUAL_DEV(  0x054c, 0x0010, 0x0106, 0x0450,
 		US_SC_SCSI, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN | US_FL_NOT_LOCKABLE | US_FL_NO_WP_DETECT ),
 
-/* This entry is needed because the device reports Sub=ff */
-UNUSUAL_DEV(  0x054c, 0x0010, 0x0500, 0x0600,
+/* Submitted by Lars Jacob <jacob.lars@googlemail.com>
+ * This entry is needed because the device reports Sub=ff */
+UNUSUAL_DEV(  0x054c, 0x0010, 0x0500, 0x0610,
 		"Sony",
-		"DSC-T1/T5",
+		"DSC-T1/T5/H5",
 		US_SC_8070, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
