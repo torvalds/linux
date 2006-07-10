@@ -4877,7 +4877,7 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 		p->timestamp = p->timestamp - rq_src->timestamp_last_tick
 				+ rq_dest->timestamp_last_tick;
 		deactivate_task(p, rq_src);
-		activate_task(p, rq_dest, 0);
+		__activate_task(p, rq_dest);
 		if (TASK_PREEMPTS_CURR(p, rq_dest))
 			resched_task(rq_dest->curr);
 	}
