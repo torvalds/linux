@@ -18,6 +18,7 @@
 #include "os.h"
 #include "user.h"
 #include "kern_util.h"
+#include "user_util.h"
 
 static void copy_stat(struct uml_stat *dst, struct stat64 *src)
 {
@@ -42,10 +43,7 @@ int os_stat_fd(const int fd, struct uml_stat *ubuf)
 	struct stat64 sbuf;
 	int err;
 
-	do {
-		err = fstat64(fd, &sbuf);
-	} while((err < 0) && (errno == EINTR)) ;
-
+	CATCH_EINTR(err = fstat64(fd, &sbuf));
 	if(err < 0)
 		return -errno;
 

@@ -105,9 +105,7 @@ int net_recvfrom(int fd, void *buf, int len)
 {
 	int n;
 
-	while(((n = recvfrom(fd,  buf,  len, 0, NULL, NULL)) < 0) && 
-	      (errno == EINTR)) ;
-
+	CATCH_EINTR(n = recvfrom(fd,  buf,  len, 0, NULL, NULL));
 	if(n < 0){
 		if(errno == EAGAIN)
 			return 0;
@@ -135,7 +133,7 @@ int net_send(int fd, void *buf, int len)
 {
 	int n;
 
-	while(((n = send(fd, buf, len, 0)) < 0) && (errno == EINTR)) ;
+	CATCH_EINTR(n = send(fd, buf, len, 0));
 	if(n < 0){
 		if(errno == EAGAIN)
 			return 0;
@@ -150,8 +148,8 @@ int net_sendto(int fd, void *buf, int len, void *to, int sock_len)
 {
 	int n;
 
-	while(((n = sendto(fd, buf, len, 0, (struct sockaddr *) to,
-			   sock_len)) < 0) && (errno == EINTR)) ;
+	CATCH_EINTR(n = sendto(fd, buf, len, 0, (struct sockaddr *) to,
+			       sock_len));
 	if(n < 0){
 		if(errno == EAGAIN)
 			return 0;
