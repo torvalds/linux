@@ -3950,13 +3950,11 @@ static u16 issuecommand(struct airo_info *ai, Cmd *pCmd, Resp *pRsp) {
 	pRsp->rsp0 = IN4500(ai, RESP0);
 	pRsp->rsp1 = IN4500(ai, RESP1);
 	pRsp->rsp2 = IN4500(ai, RESP2);
-	if ((pRsp->status & 0xff00)!=0 && pCmd->cmd != CMD_SOFTRESET) {
-		airo_print_err(ai->dev->name, "cmd= %x\n", pCmd->cmd);
-		airo_print_err(ai->dev->name, "status= %x\n", pRsp->status);
-		airo_print_err(ai->dev->name, "Rsp0= %x\n", pRsp->rsp0);
-		airo_print_err(ai->dev->name, "Rsp1= %x\n", pRsp->rsp1);
-		airo_print_err(ai->dev->name, "Rsp2= %x\n", pRsp->rsp2);
-	}
+	if ((pRsp->status & 0xff00)!=0 && pCmd->cmd != CMD_SOFTRESET)
+		airo_print_err(ai->dev->name,
+			"cmd:%x status:%x rsp0:%x rsp1:%x rsp2:%x",
+			pCmd->cmd, pRsp->status, pRsp->rsp0, pRsp->rsp1,
+			pRsp->rsp2);
 
 	// clear stuck command busy if necessary
 	if (IN4500(ai, COMMAND) & COMMAND_BUSY) {
