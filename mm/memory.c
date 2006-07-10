@@ -1853,7 +1853,7 @@ int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
 
 	return 0;
 }
-EXPORT_SYMBOL(vmtruncate_range);
+EXPORT_UNUSED_SYMBOL(vmtruncate_range);  /*  June 2006  */
 
 /* 
  * Primitive swap readahead code. We simply read an aligned block of
