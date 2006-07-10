@@ -136,16 +136,6 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 #endif
 }
 
-
-extern int acpi_in_resume;
-void *acpi_os_allocate(acpi_size size)
-{
-	if (acpi_in_resume)
-		return kmalloc(size, GFP_ATOMIC);
-	else
-		return kmalloc(size, GFP_KERNEL);
-}
-
 acpi_status acpi_os_get_root_pointer(u32 flags, struct acpi_pointer *addr)
 {
 	if (efi_enabled) {
@@ -1113,26 +1103,6 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
 {
 	kmem_cache_free(cache, object);
 	return (AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_os_acquire_object
- *
- * PARAMETERS:  Cache           - Handle to cache object
- *              ReturnObject    - Where the object is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Return a zero-filled object.
- *
- ******************************************************************************/
-
-void *acpi_os_acquire_object(acpi_cache_t * cache)
-{
-	void *object = kmem_cache_zalloc(cache, GFP_KERNEL);
-	WARN_ON(!object);
-	return object;
 }
 
 /******************************************************************************
