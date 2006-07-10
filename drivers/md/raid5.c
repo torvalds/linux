@@ -270,7 +270,7 @@ static struct stripe_head *get_active_stripe(raid5_conf_t *conf, sector_t sector
 						     < (conf->max_nr_stripes *3/4)
 						     || !conf->inactive_blocked),
 						    conf->device_lock,
-						    unplug_slaves(conf->mddev)
+						    raid5_unplug_device(conf->mddev->queue)
 					);
 				conf->inactive_blocked = 0;
 			} else
