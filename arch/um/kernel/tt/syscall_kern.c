@@ -21,18 +21,11 @@ void syscall_handler_tt(int sig, struct pt_regs *regs)
 	void *sc;
 	long result;
 	int syscall;
-#ifdef CONFIG_SYSCALL_DEBUG
-	int index;
-#endif
+
 	sc = UPT_SC(&regs->regs);
 	SC_START_SYSCALL(sc);
 
 	syscall = UPT_SYSCALL_NR(&regs->regs);
-
-#ifdef CONFIG_SYSCALL_DEBUG
-	index = record_syscall_start(syscall);
-#endif
-
 	syscall_trace(&regs->regs, 0);
 
 	current->thread.nsyscalls++;
@@ -50,7 +43,4 @@ void syscall_handler_tt(int sig, struct pt_regs *regs)
 	SC_SET_SYSCALL_RETURN(sc, result);
 
 	syscall_trace(&regs->regs, 1);
-#ifdef CONFIG_SYSCALL_DEBUG
-  	record_syscall_end(index, result);
-#endif
 }
