@@ -9,11 +9,11 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/sys.h>
 #include <linux/linkage.h>
 #include <asm/setup.h>
 #include <asm/segment.h>
 #include <asm/ptrace.h>
+#include <asm/thread_info.h>
 #include <asm/spr-regs.h>
 
 #include <asm/errno.h>
@@ -23,13 +23,11 @@
 #
 	.section	.bss.stack
 	.globl		__break_user_context
-	.balign		8192
+	.balign		THREAD_SIZE
 __break_stack:
-	.space		(8192 - (USER_CONTEXT_SIZE + REG__DEBUG_XTRA)) & ~7
-__break_stack_tos:
-	.space		REG__DEBUG_XTRA
-__break_user_context:
-	.space		USER_CONTEXT_SIZE
+	.space		THREAD_SIZE - FRV_FRAME0_SIZE
+__break_frame_0:
+	.space		FRV_FRAME0_SIZE
 
 #
 # miscellaneous variables
@@ -74,8 +72,8 @@ __entry_break:
 #endif
 	LEDS		0x1001,gr31
 
-	sethi.p		%hi(__break_user_context),gr31
-	setlo		%lo(__break_user_context),gr31
+	sethi.p		%hi(__break_frame_0),gr31
+	setlo		%lo(__break_frame_0),gr31
 
 	stdi		gr2,@(gr31,#REG_GR(2))
 	movsg		ccr,gr3
@@ -585,8 +583,8 @@ __break_continue:
 	# set up the kernel stack pointer
 	sti		sp,@(gr31,#REG_SP)
 
-	sethi.p		%hi(__break_stack_tos),sp
-	setlo		%lo(__break_stack_tos),sp
+	sethi.p		%hi(__break_frame_0),sp
+	setlo		%lo(__break_frame_0),sp
 
 	# finish building the exception frame
 	stdi		gr4 ,@(gr31,#REG_GR(4))
@@ -651,9 +649,12 @@ __break_continue:
 	movsg		nmar,gr5
 	movsg		dcr,gr6
 
-	stdi		gr4 ,@(gr31,#REG_BRR)
-	sti		gr19,@(gr31,#REG_BPSR)
-	sti.p		gr6 ,@(gr31,#REG_DCR)
+	sethi.p		%hi(__debug_status),gr7
+	setlo		%lo(__debug_status),gr7
+
+	stdi		gr4 ,@(gr7,#DEBUG_BRR)
+	sti		gr19,@(gr7,#DEBUG_BPSR)
+	sti.p		gr6 ,@(gr7,#DEBUG_DCR)
 
 	# trap exceptions during break handling and disable h/w breakpoints/watchpoints
 	sethi		%hi(DCR_EBE),gr5
@@ -698,7 +699,10 @@ __break_continue:
 	lddi		@(gr31,#REG_PSR) ,gr22
 	ldi		@(gr31,#REG_PC)  ,gr21
 	ldi		@(gr31,#REG_TBR) ,gr20
-	ldi.p		@(gr31,#REG_DCR) ,gr6
+
+	sethi.p		%hi(__debug_status),gr6
+	setlo		%lo(__debug_status),gr6
+	ldi.p		@(gr6,#DEBUG_DCR) ,gr6
 
 	andi		gr22,#PSR_S,gr19		/* rebuild BPSR */
 	andi.p		gr22,#PSR_ET,gr5

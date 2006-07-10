@@ -26,6 +26,7 @@
 #include <linux/reboot.h>
 #include <linux/interrupt.h>
 
+#include <asm/asm-offsets.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/setup.h>
@@ -207,7 +208,7 @@ int copy_thread(int nr, unsigned long clone_flags,
 
 	regs0 = __kernel_frame0_ptr;
 	childregs0 = (struct pt_regs *)
-		(task_stack_page(p) + THREAD_SIZE - USER_CONTEXT_SIZE);
+		(task_stack_page(p) + THREAD_SIZE - FRV_FRAME0_SIZE);
 	childregs = childregs0;
 
 	/* set up the userspace frame (the only place that the USP is stored) */
