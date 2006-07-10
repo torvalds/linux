@@ -24,6 +24,11 @@ MODULE_DESCRIPTION("Apple Soundbus: I2S support");
  * string that macio puts into the relevant device */
 MODULE_ALIAS("of:Ni2sTi2sC");
 
+static int force;
+module_param(force, int, 0444);
+MODULE_PARM_DESC(force, "Force loading i2sbus even when"
+			" no layout-id property is present");
+
 static struct of_device_id i2sbus_match[] = {
 	{ .name = "i2s" },
 	{ }
@@ -100,11 +105,6 @@ static irqreturn_t i2sbus_bus_intr(int irq, void *devid, struct pt_regs *regs)
 
 	return IRQ_HANDLED;
 }
-
-static int force;
-module_param(force, int, 0444);
-MODULE_PARM_DESC(force, "Force loading i2sbus even when"
-			" no layout-id property is present");
 
 /* FIXME: look at device node refcounting */
 static int i2sbus_add_dev(struct macio_dev *macio,
