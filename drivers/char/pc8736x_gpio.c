@@ -259,7 +259,8 @@ static struct cdev pc8736x_gpio_cdev;
 
 static int __init pc8736x_gpio_init(void)
 {
-	int rc = 0;
+	int rc;
+	dev_t devid;
 
 	pdev = platform_device_alloc(DEVNAME, 0);
 	if (!pdev)
@@ -307,7 +308,14 @@ static int __init pc8736x_gpio_init(void)
 	}
 	dev_info(&pdev->dev, "GPIO ioport %x reserved\n", pc8736x_gpio_base);
 
-	rc = register_chrdev(major, DEVNAME, &pc8736x_gpio_fops);
+	if (major) {
+		devid = MKDEV(major, 0);
+		rc = register_chrdev_region(devid, PC8736X_GPIO_CT, DEVNAME);
+	} else {
+		rc = alloc_chrdev_region(&devid, 0, PC8736X_GPIO_CT, DEVNAME);
+		major = MAJOR(devid);
+	}
+
 	if (rc < 0) {
 		dev_err(&pdev->dev, "register-chrdev failed: %d\n", rc);
 		goto undo_request_region;
@@ -318,6 +326,11 @@ static int __init pc8736x_gpio_init(void)
 	}
 
 	pc8736x_init_shadow();
+
+	/* ignore minor errs, and succeed */
+	cdev_init(&pc8736x_gpio_cdev, &pc8736x_gpio_fops);
+	cdev_add(&pc8736x_gpio_cdev, devid, PC8736X_GPIO_CT);
+
 	return 0;
 
 undo_request_region:
