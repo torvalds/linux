@@ -107,7 +107,6 @@ config ACPI_BUTTON
 config ACPI_VIDEO
 	tristate "Video"
 	depends on X86
-	default y
 	help
 	  This driver implement the ACPI Extensions For Display Adapters
 	  for integrated graphics devices on motherboard, as specified in
@@ -350,7 +349,6 @@ config ACPI_SBS
 	tristate "Smart Battery System (EXPERIMENTAL)"
 	depends on X86 && I2C
 	depends on EXPERIMENTAL
-	default y
 	help
 	  This driver adds support for the Smart Battery System.
 	  Depends on I2C (Device Drivers ---> I2C support)
