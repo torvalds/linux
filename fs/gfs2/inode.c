@@ -696,6 +696,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	}
 
 	di->__pad1 = 0;
+	di->di_payload_format = cpu_to_be32(0);
 	di->di_height = cpu_to_be32(0);
 	di->__pad2 = 0;
 	di->__pad3 = 0;
