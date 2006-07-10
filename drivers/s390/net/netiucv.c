@@ -2029,7 +2029,7 @@ remove_write (struct device_driver *drv, const char *buf, size_t count)
                 count = IFNAMSIZ-1;
 
         for (i=0, p=(char *)buf; i<count && *p; i++, p++) {
-                if ((*p == '\n') | (*p == ' ')) {
+                if ((*p == '\n') || (*p == ' ')) {
                         /* trailing lf, grr */
                         break;
                 } else {
