@@ -25,7 +25,7 @@
 #define DEVNAME "pc8736x_gpio"
 
 MODULE_AUTHOR("Jim Cromie <jim.cromie@gmail.com>");
-MODULE_DESCRIPTION("NatSemi PC-8736x GPIO Pin Driver");
+MODULE_DESCRIPTION("NatSemi/Winbond PC-8736x GPIO Pin Driver");
 MODULE_LICENSE("GPL");
 
 static int major;		/* default to dynamic major */
@@ -38,14 +38,14 @@ static u8 pc8736x_gpio_shadow[4];
 
 #define SIO_BASE1       0x2E	/* 1st command-reg to check */
 #define SIO_BASE2       0x4E	/* alt command-reg to check */
-#define SIO_BASE_OFFSET 0x20
 
 #define SIO_SID		0x20	/* SuperI/O ID Register */
 #define SIO_SID_VALUE	0xe9	/* Expected value in SuperI/O ID Register */
 
 #define SIO_CF1		0x21	/* chip config, bit0 is chip enable */
 
-#define PC8736X_GPIO_SIZE	16
+#define PC8736X_GPIO_RANGE	16 /* ioaddr range */
+#define PC8736X_GPIO_CT		32 /* minors matching 4 8 bit ports */
 
 #define SIO_UNIT_SEL	0x7	/* unit select reg */
 #define SIO_UNIT_ACT	0x30	/* unit enable */
@@ -231,7 +231,7 @@ static int pc8736x_gpio_open(struct inode *inode, struct file *file)
 
 	dev_dbg(&pdev->dev, "open %d\n", m);
 
-	if (m > 63)
+	if (m >= PC8736X_GPIO_CT)
 		return -EINVAL;
 	return nonseekable_open(inode, file);
 }
@@ -297,7 +297,7 @@ static int __init pc8736x_gpio_init(void)
 	pc8736x_gpio_base = (superio_inb(SIO_BASE_HADDR) << 8
 			     | superio_inb(SIO_BASE_LADDR));
 
-	if (!request_region(pc8736x_gpio_base, 16, DEVNAME)) {
+	if (!request_region(pc8736x_gpio_base, PC8736X_GPIO_RANGE, DEVNAME)) {
 		rc = -ENODEV;
 		dev_err(&pdev->dev, "GPIO ioport %x busy\n",
 			pc8736x_gpio_base);
