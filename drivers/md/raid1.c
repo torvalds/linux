@@ -1509,6 +1509,9 @@ static void raid1d(mddev_t *mddev)
 									 s<<9, conf->tmppage, READ) == 0)
 								/* Well, this device is dead */
 								md_error(mddev, rdev);
+							else
+								printk(KERN_INFO "raid1:%s: read error corrected (%d sectors at %llu on %s)\n",
+								       mdname(mddev), s, (unsigned long long)(sect + rdev->data_offset), bdevname(rdev->bdev, b));
 						}
 					}
 				} else {

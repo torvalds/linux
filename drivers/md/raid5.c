@@ -523,6 +523,8 @@ static int raid5_end_read_request(struct bio * bi, unsigned int bytes_done,
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks, i;
 	int uptodate = test_bit(BIO_UPTODATE, &bi->bi_flags);
+	char b[BDEVNAME_SIZE];
+	mdk_rdev_t *rdev;
 
 	if (bi->bi_size)
 		return 1;
@@ -570,25 +572,39 @@ static int raid5_end_read_request(struct bio * bi, unsigned int bytes_done,
 		set_bit(R5_UPTODATE, &sh->dev[i].flags);
 #endif
 		if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
-			printk(KERN_INFO "raid5: read error corrected!!\n");
+			rdev = conf->disks[i].rdev;
+			printk(KERN_INFO "raid5:%s: read error corrected (%lu sectors at %llu on %s)\n",
+			       mdname(conf->mddev), STRIPE_SECTORS,
+			       (unsigned long long)sh->sector + rdev->data_offset,
+			       bdevname(rdev->bdev, b));
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
 		}
 		if (atomic_read(&conf->disks[i].rdev->read_errors))
 			atomic_set(&conf->disks[i].rdev->read_errors, 0);
 	} else {
+		const char *bdn = bdevname(conf->disks[i].rdev->bdev, b);
 		int retry = 0;
+		rdev = conf->disks[i].rdev;
+
 		clear_bit(R5_UPTODATE, &sh->dev[i].flags);
-		atomic_inc(&conf->disks[i].rdev->read_errors);
+		atomic_inc(&rdev->read_errors);
 		if (conf->mddev->degraded)
-			printk(KERN_WARNING "raid5: read error not correctable.\n");
+			printk(KERN_WARNING "raid5:%s: read error not correctable (sector %llu on %s).\n",
+			       mdname(conf->mddev),
+			       (unsigned long long)sh->sector + rdev->data_offset,
+			       bdn);
 		else if (test_bit(R5_ReWrite, &sh->dev[i].flags))
 			/* Oh, no!!! */
-			printk(KERN_WARNING "raid5: read error NOT corrected!!\n");
-		else if (atomic_read(&conf->disks[i].rdev->read_errors)
+			printk(KERN_WARNING "raid5:%s: read error NOT corrected!! (sector %llu on %s).\n",
+			       mdname(conf->mddev),
+			       (unsigned long long)sh->sector + rdev->data_offset,
+			       bdn);
+		else if (atomic_read(&rdev->read_errors)
 			 > conf->max_nr_stripes)
 			printk(KERN_WARNING
-			       "raid5: Too many read errors, failing device.\n");
+			       "raid5:%s: Too many read errors, failing device %s.\n",
+			       mdname(conf->mddev), bdn);
 		else
 			retry = 1;
 		if (retry)
@@ -596,7 +612,7 @@ static int raid5_end_read_request(struct bio * bi, unsigned int bytes_done,
 		else {
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
-			md_error(conf->mddev, conf->disks[i].rdev);
+			md_error(conf->mddev, rdev);
 		}
 	}
 	rdev_dec_pending(conf->disks[i].rdev, conf->mddev);
