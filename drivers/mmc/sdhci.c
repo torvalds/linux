@@ -565,7 +565,7 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	if (cmd->data)
 		flags |= SDHCI_CMD_DATA;
 
-	writel(SDHCI_MAKE_CMD(cmd->opcode, flags),
+	writew(SDHCI_MAKE_CMD(cmd->opcode, flags),
 		host->ioaddr + SDHCI_COMMAND);
 }
 
