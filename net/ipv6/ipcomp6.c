@@ -109,7 +109,8 @@ static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 		goto out_put_cpu;
 	}
 
-	skb_put(skb, dlen - plen);
+	skb->truesize += dlen - plen;
+	__skb_put(skb, dlen - plen);
 	memcpy(skb->data, scratch, dlen);
 	err = ipch->nexthdr;
 
