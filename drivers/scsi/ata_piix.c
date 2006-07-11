@@ -126,6 +126,7 @@ enum {
 	ich6_sata		= 4,
 	ich6_sata_ahci		= 5,
 	ich6m_sata_ahci		= 6,
+	ich8_sata_ahci		= 7,
 
 	/* constants for mapping table */
 	P0			= 0,  /* port 0 */
@@ -142,11 +143,13 @@ enum {
 struct piix_map_db {
 	const u32 mask;
 	const u32 port_enable;
+	const int present_shift;
 	const int map[][4];
 };
 
 struct piix_host_priv {
 	const int *map;
+	const struct piix_map_db *map_db;
 };
 
 static int piix_init_one (struct pci_dev *pdev,
@@ -192,11 +195,11 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	/* Enterprise Southbridge 2 (where's the datasheet?) */
 	{ 0x8086, 0x2680, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
 	/* SATA Controller 1 IDE (ICH8, no datasheet yet) */
-	{ 0x8086, 0x2820, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
+	{ 0x8086, 0x2820, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata_ahci },
 	/* SATA Controller 2 IDE (ICH8, ditto) */
-	{ 0x8086, 0x2825, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
+	{ 0x8086, 0x2825, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata_ahci },
 	/* Mobile SATA Controller IDE (ICH8M, ditto) */
-	{ 0x8086, 0x2828, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6m_sata_ahci },
+	{ 0x8086, 0x2828, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata_ahci },
 
 	{ }	/* terminate list */
 };
@@ -296,6 +299,7 @@ static const struct ata_port_operations piix_sata_ops = {
 static const struct piix_map_db ich5_map_db = {
 	.mask = 0x7,
 	.port_enable = 0x3,
+	.present_shift = 4,
 	.map = {
 		/* PM   PS   SM   SS       MAP  */
 		{  P0,  NA,  P1,  NA }, /* 000b */
@@ -312,6 +316,7 @@ static const struct piix_map_db ich5_map_db = {
 static const struct piix_map_db ich6_map_db = {
 	.mask = 0x3,
 	.port_enable = 0xf,
+	.present_shift = 4,
 	.map = {
 		/* PM   PS   SM   SS       MAP */
 		{  P0,  P2,  P1,  P3 }, /* 00b */
@@ -324,11 +329,25 @@ static const struct piix_map_db ich6_map_db = {
 static const struct piix_map_db ich6m_map_db = {
 	.mask = 0x3,
 	.port_enable = 0x5,
+	.present_shift = 4,
 	.map = {
 		/* PM   PS   SM   SS       MAP */
 		{  P0,  P2,  RV,  RV }, /* 00b */
 		{  RV,  RV,  RV,  RV },
 		{  P0,  P2, IDE, IDE }, /* 10b */
+		{  RV,  RV,  RV,  RV },
+	},
+};
+
+static const struct piix_map_db ich8_map_db = {
+	.mask = 0x3,
+	.port_enable = 0x3,
+	.present_shift = 8,
+	.map = {
+		/* PM   PS   SM   SS       MAP */
+		{  P0,  RV,  P1,  RV }, /* 00b (hardwired) */
+		{  RV,  RV,  RV,  RV },
+		{  RV,  RV,  RV,  RV }, /* 10b (never) */
 		{  RV,  RV,  RV,  RV },
 	},
 };
@@ -339,6 +358,7 @@ static const struct piix_map_db *piix_map_db_table[] = {
 	[ich6_sata]		= &ich6_map_db,
 	[ich6_sata_ahci]	= &ich6_map_db,
 	[ich6m_sata_ahci]	= &ich6m_map_db,
+	[ich8_sata_ahci]	= &ich8_map_db,
 };
 
 static struct ata_port_info piix_port_info[] = {
@@ -416,6 +436,18 @@ static struct ata_port_info piix_port_info[] = {
 	},
 
 	/* ich6m_sata_ahci */
+	{
+		.sht		= &piix_sht,
+		.host_flags	= ATA_FLAG_SATA | PIIX_FLAG_COMBINED_ICH6 |
+				  PIIX_FLAG_CHECKINTR | PIIX_FLAG_SCR |
+				  PIIX_FLAG_AHCI,
+		.pio_mask	= 0x1f,	/* pio0-4 */
+		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.udma_mask	= 0x7f,	/* udma0-6 */
+		.port_ops	= &piix_sata_ops,
+	},
+
+	/* ich8_sata_ahci */
 	{
 		.sht		= &piix_sht,
 		.host_flags	= ATA_FLAG_SATA | PIIX_FLAG_COMBINED_ICH6 |
@@ -534,7 +566,8 @@ static int piix_sata_prereset(struct ata_port *ap)
 		port = map[base + i];
 		if (port < 0)
 			continue;
-		if (ap->flags & PIIX_FLAG_IGNORE_PCS || pcs & 1 << (4 + port))
+		if ((ap->flags & PIIX_FLAG_IGNORE_PCS) ||
+		    (pcs & 1 << (hpriv->map_db->present_shift + port)))
 			present = 1;
 	}
 
@@ -817,6 +850,7 @@ static void __devinit piix_init_sata_map(struct pci_dev *pdev,
 			   "invalid MAP value %u\n", map_value);
 
 	hpriv->map = map;
+	hpriv->map_db = map_db;
 }
 
 /**
