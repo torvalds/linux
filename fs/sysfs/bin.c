@@ -10,6 +10,7 @@
 
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -176,7 +177,6 @@ const struct file_operations bin_fops = {
  *	sysfs_create_bin_file - create binary file for object.
  *	@kobj:	object.
  *	@attr:	attribute descriptor.
- *
  */
 
 int sysfs_create_bin_file(struct kobject * kobj, struct bin_attribute * attr)
@@ -191,13 +191,16 @@ int sysfs_create_bin_file(struct kobject * kobj, struct bin_attribute * attr)
  *	sysfs_remove_bin_file - remove binary file for object.
  *	@kobj:	object.
  *	@attr:	attribute descriptor.
- *
  */
 
-int sysfs_remove_bin_file(struct kobject * kobj, struct bin_attribute * attr)
+void sysfs_remove_bin_file(struct kobject * kobj, struct bin_attribute * attr)
 {
-	sysfs_hash_and_remove(kobj->dentry,attr->attr.name);
-	return 0;
+	if (sysfs_hash_and_remove(kobj->dentry, attr->attr.name) < 0) {
+		printk(KERN_ERR "%s: "
+			"bad dentry or inode or no such file: \"%s\"\n",
+			__FUNCTION__, attr->attr.name);
+		dump_stack();
+	}
 }
 
 EXPORT_SYMBOL_GPL(sysfs_create_bin_file);

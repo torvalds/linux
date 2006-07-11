@@ -12,6 +12,7 @@
 #include <linux/namei.h>
 #include <linux/backing-dev.h>
 #include <linux/capability.h>
+#include <linux/errno.h>
 #include "sysfs.h"
 
 extern struct super_block * sysfs_sb;
@@ -234,17 +235,18 @@ void sysfs_drop_dentry(struct sysfs_dirent * sd, struct dentry * parent)
 	}
 }
 
-void sysfs_hash_and_remove(struct dentry * dir, const char * name)
+int sysfs_hash_and_remove(struct dentry * dir, const char * name)
 {
 	struct sysfs_dirent * sd;
 	struct sysfs_dirent * parent_sd;
+	int found = 0;
 
 	if (!dir)
-		return;
+		return -ENOENT;
 
 	if (dir->d_inode == NULL)
 		/* no inode means this hasn't been made visible yet */
-		return;
+		return -ENOENT;
 
 	parent_sd = dir->d_fsdata;
 	mutex_lock(&dir->d_inode->i_mutex);
@@ -255,8 +257,11 @@ void sysfs_hash_and_remove(struct dentry * dir, const char * name)
 			list_del_init(&sd->s_sibling);
 			sysfs_drop_dentry(sd, dir);
 			sysfs_put(sd);
+			found = 1;
 			break;
 		}
 	}
 	mutex_unlock(&dir->d_inode->i_mutex);
+
+	return found ? 0 : -ENOENT;
 }

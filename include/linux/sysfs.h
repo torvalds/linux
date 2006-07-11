@@ -114,7 +114,7 @@ extern void
 sysfs_remove_link(struct kobject *, const char * name);
 
 int sysfs_create_bin_file(struct kobject * kobj, struct bin_attribute * attr);
-int sysfs_remove_bin_file(struct kobject * kobj, struct bin_attribute * attr);
+void sysfs_remove_bin_file(struct kobject *kobj, struct bin_attribute *attr);
 
 int sysfs_create_group(struct kobject *, const struct attribute_group *);
 void sysfs_remove_group(struct kobject *, const struct attribute_group *);
