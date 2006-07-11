@@ -75,7 +75,7 @@ struct inode *gfs2_aspace_get(struct gfs2_sbd *sdp)
 
 	aspace = new_inode(sdp->sd_vfs);
 	if (aspace) {
-		mapping_set_gfp_mask(aspace->i_mapping, GFP_KERNEL);
+		mapping_set_gfp_mask(aspace->i_mapping, GFP_NOFS);
 		aspace->i_mapping->a_ops = &aspace_aops;
 		aspace->i_size = ~0ULL;
 		aspace->u.generic_ip = NULL;
