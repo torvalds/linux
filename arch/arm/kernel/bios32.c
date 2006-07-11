@@ -370,17 +370,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 			features &= ~(PCI_COMMAND_SERR | PCI_COMMAND_PARITY);
 
 		switch (dev->class >> 8) {
-#if defined(CONFIG_ISA) || defined(CONFIG_EISA)
-		case PCI_CLASS_BRIDGE_ISA:
-		case PCI_CLASS_BRIDGE_EISA:
-			/*
-			 * If this device is an ISA bridge, set isa_bridge
-			 * to point at this device.  We will then go looking
-			 * for things like keyboard, etc.
-			 */
-			isa_bridge = dev;
-			break;
-#endif
 		case PCI_CLASS_BRIDGE_PCI:
 			pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &status);
 			status |= PCI_BRIDGE_CTL_PARITY|PCI_BRIDGE_CTL_MASTER_ABORT;
