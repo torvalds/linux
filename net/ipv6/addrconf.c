@@ -512,6 +512,7 @@ static void
 ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
 {
 	struct inet6_ifaddr *ifa, **ifap;
+	int ifp_scope = ipv6_addr_src_scope(&ifp->addr);
 
 	/*
 	 * Each device address list is sorted in order of scope -
@@ -519,7 +520,7 @@ ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
 	 */
 	for (ifap = &idev->addr_list; (ifa = *ifap) != NULL;
 	     ifap = &ifa->if_next) {
-		if (ifp->scope > ifa->scope)
+		if (ifp_scope >= ipv6_addr_src_scope(&ifa->addr))
 			break;
 	}
 
