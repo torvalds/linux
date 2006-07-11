@@ -42,7 +42,6 @@ static DEFINE_SPINLOCK(cfq_exit_lock);
 #define list_entry_qhash(entry)	hlist_entry((entry), struct cfq_queue, cfq_hash)
 
 #define list_entry_cfqq(ptr)	list_entry((ptr), struct cfq_queue, cfq_list)
-#define list_entry_fifo(ptr)	list_entry((ptr), struct request, queuelist)
 
 #define RQ_DATA(rq)		(rq)->elevator_private
 
@@ -840,7 +839,7 @@ static inline struct cfq_rq *cfq_check_fifo(struct cfq_queue *cfqq)
 	if (!list_empty(&cfqq->fifo)) {
 		int fifo = cfq_cfqq_class_sync(cfqq);
 
-		crq = RQ_DATA(list_entry_fifo(cfqq->fifo.next));
+		crq = RQ_DATA(rq_entry_fifo(cfqq->fifo.next));
 		rq = crq->request;
 		if (time_after(jiffies, rq->start_time + cfqd->cfq_fifo_expire[fifo])) {
 			cfq_mark_cfqq_fifo_expire(cfqq);
