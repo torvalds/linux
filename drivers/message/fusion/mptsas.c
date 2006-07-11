@@ -76,16 +76,10 @@ MODULE_AUTHOR(MODULEAUTHOR);
 MODULE_DESCRIPTION(my_NAME);
 MODULE_LICENSE("GPL");
 
-static int mpt_pq_filter;
-module_param(mpt_pq_filter, int, 0);
-MODULE_PARM_DESC(mpt_pq_filter,
-		"Enable peripheral qualifier filter: enable=1  "
-		"(default=0)");
-
 static int mpt_pt_clear;
 module_param(mpt_pt_clear, int, 0);
 MODULE_PARM_DESC(mpt_pt_clear,
-		"Clear persistency table: enable=1  "
+		" Clear persistency table: enable=1  "
 		"(default=MPTSCSIH_PT_CLEAR=0)");
 
 static int	mptsasDoneCtx = -1;
@@ -2703,19 +2697,12 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hd->timer.data = (unsigned long) hd;
 	hd->timer.function = mptscsih_timer_expired;
 
-	hd->mpt_pq_filter = mpt_pq_filter;
 	ioc->sas_data.ptClear = mpt_pt_clear;
 
 	if (ioc->sas_data.ptClear==1) {
 		mptbase_sas_persist_operation(
 		    ioc, MPI_SAS_OP_CLEAR_ALL_PERSISTENT);
 	}
-
-	ddvprintk((MYIOC_s_INFO_FMT
-		"mpt_pq_filter %x mpt_pq_filter %x\n",
-		ioc->name,
-		mpt_pq_filter,
-		mpt_pq_filter));
 
 	init_waitqueue_head(&hd->scandv_waitq);
 	hd->scandv_wait_done = 0;

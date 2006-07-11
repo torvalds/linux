@@ -77,10 +77,6 @@ MODULE_DESCRIPTION(my_NAME);
 MODULE_LICENSE("GPL");
 
 /* Command line args */
-static int mpt_pq_filter = 0;
-module_param(mpt_pq_filter, int, 0);
-MODULE_PARM_DESC(mpt_pq_filter, " Enable peripheral qualifier filter: enable=1  (default=0)");
-
 #define MPTFC_DEV_LOSS_TMO (60)
 static int mptfc_dev_loss_tmo = MPTFC_DEV_LOSS_TMO;	/* reasonable default */
 module_param(mptfc_dev_loss_tmo, int, 0);
@@ -513,8 +509,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 
 	if (vtarget->num_luns == 0) {
 		vtarget->ioc_id = hd->ioc->id;
-		vtarget->tflags = MPT_TARGET_FLAGS_Q_YES |
-		    		  MPT_TARGET_FLAGS_VALID_INQUIRY;
+		vtarget->tflags = MPT_TARGET_FLAGS_Q_YES;
 		hd->Targets[sdev->id] = vtarget;
 	}
 
@@ -1128,13 +1123,6 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_timer(&hd->timer);
 	hd->timer.data = (unsigned long) hd;
 	hd->timer.function = mptscsih_timer_expired;
-
-	hd->mpt_pq_filter = mpt_pq_filter;
-
-	ddvprintk((MYIOC_s_INFO_FMT
-		"mpt_pq_filter %x\n",
-		ioc->name, 
-		mpt_pq_filter));
 
 	init_waitqueue_head(&hd->scandv_waitq);
 	hd->scandv_wait_done = 0;

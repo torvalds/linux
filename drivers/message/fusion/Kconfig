@@ -48,10 +48,8 @@ config FUSION_SAS
 	  List of supported controllers:
 
 	  LSISAS1064
-	  LSISAS1066
 	  LSISAS1068
 	  LSISAS1064E
-	  LSISAS1066E
 	  LSISAS1068E
 
 config FUSION_MAX_SGE

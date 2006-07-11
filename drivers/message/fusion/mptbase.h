@@ -981,7 +981,6 @@ typedef struct _MPT_SCSI_HOST {
 	wait_queue_head_t	  scandv_waitq;
 	int			  scandv_wait_done;
 	long			  last_queue_full;
-	u8			  mpt_pq_filter;
 	u16			  tm_iocstatus;
 } MPT_SCSI_HOST;
 
