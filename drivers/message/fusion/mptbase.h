@@ -307,8 +307,8 @@ typedef struct _SYSIF_REGS
 	u32	HostIndex;	/* 50     Host Index register        */
 	u32	Reserved4[15];	/* 54-8F                             */
 	u32	Fubar;		/* 90     For Fubar usage            */
-	u32     Reserved5[1050];/* 94-10F8                           */
-	u32     Reset_1078;     /* 10FC   Reset 1078                 */
+	u32	Reserved5[1050];/* 94-10F8                           */
+	u32	Reset_1078;	/* 10FC   Reset 1078                 */
 } SYSIF_REGS;
 
 /*
@@ -981,7 +981,8 @@ typedef struct _MPT_SCSI_HOST {
 	wait_queue_head_t	  scandv_waitq;
 	int			  scandv_wait_done;
 	long			  last_queue_full;
-	u8		 	  mpt_pq_filter;
+	u8			  mpt_pq_filter;
+	u16			  tm_iocstatus;
 } MPT_SCSI_HOST;
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
