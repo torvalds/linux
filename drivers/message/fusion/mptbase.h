@@ -363,6 +363,7 @@ typedef struct _VirtDevice {
 #define MPT_TARGET_FLAGS_VALID_56	0x10
 #define MPT_TARGET_FLAGS_SAF_TE_ISSUED	0x20
 #define MPT_TARGET_FLAGS_RAID_COMPONENT	0x40
+#define MPT_TARGET_FLAGS_LED_ON		0x80
 
 /*
  *	/proc/mpt interface

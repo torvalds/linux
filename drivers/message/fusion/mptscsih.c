@@ -497,6 +497,34 @@ nextSGEset:
 	return SUCCESS;
 } /* mptscsih_AddSGE() */
 
+static void
+mptscsih_issue_sep_command(MPT_ADAPTER *ioc, VirtTarget *vtarget,
+    U32 SlotStatus)
+{
+	MPT_FRAME_HDR *mf;
+	SEPRequest_t 	 *SEPMsg;
+
+	if (ioc->bus_type == FC)
+		return;
+
+	if ((mf = mpt_get_msg_frame(ioc->InternalCtx, ioc)) == NULL) {
+		dfailprintk((MYIOC_s_WARN_FMT "%s: no msg frames!!\n",
+		    ioc->name,__FUNCTION__));
+		return;
+	}
+
+	SEPMsg = (SEPRequest_t *)mf;
+	SEPMsg->Function = MPI_FUNCTION_SCSI_ENCLOSURE_PROCESSOR;
+	SEPMsg->Bus = vtarget->bus_id;
+	SEPMsg->TargetID = vtarget->target_id;
+	SEPMsg->Action = MPI_SEP_REQ_ACTION_WRITE_STATUS;
+	SEPMsg->SlotStatus = SlotStatus;
+	devtverboseprintk((MYIOC_s_WARN_FMT
+	    "Sending SEP cmd=%x id=%d bus=%d\n",
+	    ioc->name, SlotStatus, SEPMsg->TargetID, SEPMsg->Bus));
+	mpt_put_msg_frame(ioc->DoneCtx, ioc, mf);
+}
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *	mptscsih_io_done - Main SCSI IO callback routine registered to
@@ -520,6 +548,8 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 	SCSIIORequest_t	*pScsiReq;
 	SCSIIOReply_t	*pScsiReply;
 	u16		 req_idx, req_idx_MR;
+	VirtDevice	 *vdev;
+	VirtTarget	 *vtarget;
 
 	hd = (MPT_SCSI_HOST *) ioc->sh->hostdata;
 
@@ -640,6 +670,16 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 
 			if (hd->sel_timeout[pScsiReq->TargetID] < 0xFFFF)
 				hd->sel_timeout[pScsiReq->TargetID]++;
+
+			vdev = sc->device->hostdata;
+			if (!vdev)
+				break;
+			vtarget = vdev->vtarget;
+			if (vtarget->tflags & MPT_TARGET_FLAGS_LED_ON) {
+				mptscsih_issue_sep_command(ioc, vtarget,
+				    MPI_SEP_REQ_SLOTSTATUS_UNCONFIGURED);
+				vtarget->tflags &= ~MPT_TARGET_FLAGS_LED_ON;
+			}
 			break;
 
 		case MPI_IOCSTATUS_SCSI_TASK_TERMINATED:	/* 0x0048 */
@@ -2401,6 +2441,13 @@ mptscsih_copy_sense_data(struct scsi_cmnd *sc, MPT_SCSI_HOST *hd, MPT_FRAME_HDR 
 				ioc->events[idx].data[1] = (sense_data[13] << 8) || sense_data[12];
 
 				ioc->eventContext++;
+				if (hd->ioc->pcidev->vendor ==
+				    PCI_VENDOR_ID_IBM) {
+					mptscsih_issue_sep_command(hd->ioc,
+					    vdev->vtarget, MPI_SEP_REQ_SLOTSTATUS_PREDICTED_FAULT);
+					vdev->vtarget->tflags |=
+					    MPT_TARGET_FLAGS_LED_ON;
+				}
 			}
 		}
 	} else {
