@@ -634,7 +634,6 @@ typedef struct _MPT_ADAPTER
 	u16			 handle;
 	int			 sas_index; /* index refrencing */
 	MPT_SAS_MGMT		 sas_mgmt;
-	int			 num_ports;
 	struct work_struct	 sas_persist_task;
 
 	struct work_struct	 fc_setup_reset_work;

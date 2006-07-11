@@ -67,6 +67,11 @@
 #define my_VERSION	MPT_LINUX_VERSION_COMMON
 #define MYNAM		"mptsas"
 
+/*
+ * Reserved channel for integrated raid
+ */
+#define MPTSAS_RAID_CHANNEL	1
+
 MODULE_AUTHOR(MODULEAUTHOR);
 MODULE_DESCRIPTION(my_NAME);
 MODULE_LICENSE("GPL");
@@ -644,16 +649,13 @@ mptsas_sas_enclosure_pg0(MPT_ADAPTER *ioc, struct mptsas_enclosure *enclosure,
 static int
 mptsas_slave_configure(struct scsi_device *sdev)
 {
-	struct Scsi_Host	*host = sdev->host;
-	MPT_SCSI_HOST		*hd = (MPT_SCSI_HOST *)host->hostdata;
 
-	/*
-	 * RAID volumes placed beyond the last expected port.
-	 * Ignore sending sas mode pages in that case..
-	 */
-	if (sdev->channel < hd->ioc->num_ports)
-		sas_read_port_mode_page(sdev);
+	if (sdev->channel == MPTSAS_RAID_CHANNEL)
+		goto out;
 
+	sas_read_port_mode_page(sdev);
+
+ out:
 	return mptscsih_slave_configure(sdev);
 }
 
@@ -682,10 +684,7 @@ mptsas_target_alloc(struct scsi_target *starget)
 
 	hd->Targets[target_id] = vtarget;
 
-	/*
-	 * RAID volumes placed beyond the last expected port.
-	 */
-	if (starget->channel == hd->ioc->num_ports)
+	if (starget->channel == MPTSAS_RAID_CHANNEL)
 		goto out;
 
 	rphy = dev_to_rphy(starget->dev.parent);
@@ -736,7 +735,7 @@ mptsas_target_destroy(struct scsi_target *starget)
 	if (!starget->hostdata)
 		return;
 
-	if (starget->channel == hd->ioc->num_ports)
+	if (starget->channel == MPTSAS_RAID_CHANNEL)
 		goto out;
 
 	rphy = dev_to_rphy(starget->dev.parent);
@@ -776,10 +775,7 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	starget = scsi_target(sdev);
 	vdev->vtarget = starget->hostdata;
 
-	/*
-	 * RAID volumes placed beyond the last expected port.
-	 */
-	if (sdev->channel == hd->ioc->num_ports)
+	if (sdev->channel == MPTSAS_RAID_CHANNEL)
 		goto out;
 
 	rphy = dev_to_rphy(sdev->sdev_target->dev.parent);
@@ -1728,7 +1724,6 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc)
 		hba = NULL;
 	}
 	mutex_unlock(&ioc->sas_topology_mutex);
-	ioc->num_ports = port_info->num_phys;
 
 	for (i = 0; i < port_info->num_phys; i++) {
 		mptsas_sas_phy_pg0(ioc, &port_info->phy_info[i],
@@ -1977,7 +1972,7 @@ mptsas_scan_sas_topology(MPT_ADAPTER *ioc)
 	if (!ioc->raid_data.pIocPg2->NumActiveVolumes)
 		goto out;
 	for (i=0; i<ioc->raid_data.pIocPg2->NumActiveVolumes; i++) {
-		scsi_add_device(ioc->sh, ioc->num_ports,
+		scsi_add_device(ioc->sh, MPTSAS_RAID_CHANNEL,
 		    ioc->raid_data.pIocPg2->RaidVolume[i].VolumeID, 0);
 	}
  out:
@@ -2283,35 +2278,26 @@ mptsas_hotplug_work(void *arg)
 		mptsas_set_rphy(phy_info, rphy);
 		break;
 	case MPTSAS_ADD_RAID:
-		sdev = scsi_device_lookup(
-			ioc->sh,
-			ioc->num_ports,
-			ev->id,
-			0);
+		sdev = scsi_device_lookup(ioc->sh, MPTSAS_RAID_CHANNEL,
+		    ev->id, 0);
 		if (sdev) {
 			scsi_device_put(sdev);
 			break;
 		}
 		printk(MYIOC_s_INFO_FMT
 		       "attaching raid volume, channel %d, id %d\n",
-		       ioc->name, ioc->num_ports, ev->id);
-		scsi_add_device(ioc->sh,
-			ioc->num_ports,
-			ev->id,
-			0);
+		       ioc->name, MPTSAS_RAID_CHANNEL, ev->id);
+		scsi_add_device(ioc->sh, MPTSAS_RAID_CHANNEL, ev->id, 0);
 		mpt_findImVolumes(ioc);
 		break;
 	case MPTSAS_DEL_RAID:
-		sdev = scsi_device_lookup(
-			ioc->sh,
-			ioc->num_ports,
-			ev->id,
-			0);
+		sdev = scsi_device_lookup(ioc->sh, MPTSAS_RAID_CHANNEL,
+	    	    ev->id, 0);
 		if (!sdev)
 			break;
 		printk(MYIOC_s_INFO_FMT
 		       "removing raid volume, channel %d, id %d\n",
-		       ioc->name, ioc->num_ports, ev->id);
+		       ioc->name, MPTSAS_RAID_CHANNEL, ev->id);
 		vdevice = sdev->hostdata;
 		vdevice->vtarget->deleted = 1;
 		mptsas_target_reset(ioc, vdevice->vtarget);

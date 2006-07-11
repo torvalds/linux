@@ -1194,7 +1194,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 
 	if (identify->device_type == SAS_END_DEVICE &&
 	    rphy->scsi_target_id != -1) {
-		scsi_scan_target(&rphy->dev, parent->port_identifier,
+		scsi_scan_target(&rphy->dev, 0,
 				rphy->scsi_target_id, ~0, 0);
 	}
 
@@ -1296,15 +1296,13 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 
 	mutex_lock(&sas_host->lock);
 	list_for_each_entry(rphy, &sas_host->rphy_list, list) {
-		struct sas_port *parent = dev_to_sas_port(rphy->dev.parent);
-
 		if (rphy->identify.device_type != SAS_END_DEVICE ||
 		    rphy->scsi_target_id == -1)
 			continue;
 
-		if ((channel == SCAN_WILD_CARD || channel == parent->port_identifier) &&
+		if ((channel == SCAN_WILD_CARD || channel == 0) &&
 		    (id == SCAN_WILD_CARD || id == rphy->scsi_target_id)) {
-			scsi_scan_target(&rphy->dev, parent->port_identifier,
+			scsi_scan_target(&rphy->dev, 0,
 					 rphy->scsi_target_id, lun, 1);
 		}
 	}
