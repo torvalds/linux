@@ -1193,10 +1193,8 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	version = (version & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;
 	if (version != 0) {
 		printk(KERN_ERR "%s: Unknown controller version (%d). "
-			"Cowardly refusing to continue.\n", host->slot_descr,
+			"You may experience problems.\n", host->slot_descr,
 			version);
-		ret = -ENODEV;
-		goto unmap;
 	}
 
 	caps = readl(host->ioaddr + SDHCI_CAPABILITIES);
