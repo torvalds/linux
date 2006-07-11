@@ -333,7 +333,7 @@ static int filldir_reg_func(void *opaque, const char *name, unsigned int length,
 	int error;
 
 	error = fdr->fdr_filldir(fdr->fdr_opaque, name, length, offset,
-				 inum->no_formal_ino, type);
+				 inum->no_addr, type);
 	if (error)
 		return 1;
 

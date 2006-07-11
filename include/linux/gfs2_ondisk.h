@@ -170,8 +170,10 @@ struct gfs2_rgrp {
 	__be32 rg_flags;
 	__be32 rg_free;
 	__be32 rg_dinodes;
+	__be32 __pad;
+	__be64 rg_igeneration;
 
-	__u8 rg_reserved[92]; /* Several fields from gfs1 now reserved */
+	__u8 rg_reserved[80]; /* Several fields from gfs1 now reserved */
 };
 
 /*
@@ -248,7 +250,7 @@ struct gfs2_dinode {
 	 */
 	__be64 di_goal_meta;	/* rgrp to alloc from next */
 	__be64 di_goal_data;	/* data block goal */
-	__u32 __pad[2];
+	__be64 di_generation;	/* generation number for NFS */
 
 	__be32 di_flags;	/* GFS2_DIF_... */
 	__be32 di_payload_format;  /* GFS2_FORMAT_... */

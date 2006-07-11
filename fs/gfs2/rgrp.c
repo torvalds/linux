@@ -1205,7 +1205,7 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, uint64_t bstart,
  * Returns: the allocated block
  */
 
-uint64_t gfs2_alloc_data(struct gfs2_inode *ip)
+u64 gfs2_alloc_data(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = &ip->i_alloc;
@@ -1249,7 +1249,7 @@ uint64_t gfs2_alloc_data(struct gfs2_inode *ip)
  * Returns: the allocated block
  */
 
-uint64_t gfs2_alloc_meta(struct gfs2_inode *ip)
+u64 gfs2_alloc_meta(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = &ip->i_alloc;
@@ -1294,13 +1294,13 @@ uint64_t gfs2_alloc_meta(struct gfs2_inode *ip)
  * Returns: the block allocated
  */
 
-uint64_t gfs2_alloc_di(struct gfs2_inode *dip)
+u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_alloc *al = &dip->i_alloc;
 	struct gfs2_rgrpd *rgd = al->al_rgd;
-	uint32_t blk;
-	uint64_t block;
+	u32 blk;
+	u64 block;
 
 	blk = rgblk_search(rgd, rgd->rd_last_alloc_meta,
 			   GFS2_BLKST_FREE, GFS2_BLKST_DINODE);
@@ -1312,7 +1312,7 @@ uint64_t gfs2_alloc_di(struct gfs2_inode *dip)
 	gfs2_assert_withdraw(sdp, rgd->rd_rg.rg_free);
 	rgd->rd_rg.rg_free--;
 	rgd->rd_rg.rg_dinodes++;
-
+	*generation = rgd->rd_rg.rg_igeneration++;
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
 	gfs2_rgrp_out(&rgd->rd_rg, rgd->rd_bits[0].bi_bh->b_data);
 

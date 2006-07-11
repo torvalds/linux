@@ -38,15 +38,17 @@
 #include "util.h"
 
 /**
- * inode_attr_in - Copy attributes from the dinode into the VFS inode
+ * gfs2_inode_attr_in - Copy attributes from the dinode into the VFS inode
  * @ip: The GFS2 inode (with embedded disk inode data)
  * @inode:  The Linux VFS inode
  *
  */
 
-static void inode_attr_in(struct gfs2_inode *ip, struct inode *inode)
+void gfs2_inode_attr_in(struct gfs2_inode *ip)
 {
-	inode->i_ino = ip->i_num.no_formal_ino;
+	struct inode *inode = &ip->i_inode;
+
+	inode->i_ino = ip->i_num.no_addr;
 
 	switch (ip->i_di.di_mode & S_IFMT) {
 	case S_IFBLK:
@@ -82,18 +84,6 @@ static void inode_attr_in(struct gfs2_inode *ip, struct inode *inode)
 		inode->i_flags |= S_APPEND;
 	else
 		inode->i_flags &= ~S_APPEND;
-}
-
-/**
- * gfs2_inode_attr_in - Copy attributes from the dinode into the VFS inode
- * @ip: The GFS2 inode (with embedded disk inode data)
- *
- */
-
-void gfs2_inode_attr_in(struct gfs2_inode *ip)
-{
-	struct inode *inode = &ip->i_inode;
-	inode_attr_in(ip, inode);
 }
 
 /**
@@ -621,7 +611,8 @@ static void munge_mode_uid_gid(struct gfs2_inode *dip, unsigned int *mode,
 		*gid = current->fsgid;
 }
 
-static int alloc_dinode(struct gfs2_inode *dip, struct gfs2_inum *inum)
+static int alloc_dinode(struct gfs2_inode *dip, struct gfs2_inum *inum,
+			u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	int error;
@@ -637,14 +628,14 @@ static int alloc_dinode(struct gfs2_inode *dip, struct gfs2_inum *inum)
 	if (error)
 		goto out_ipreserv;
 
-	inum->no_addr = gfs2_alloc_di(dip);
+	inum->no_addr = gfs2_alloc_di(dip, generation);
 
 	gfs2_trans_end(sdp);
 
- out_ipreserv:
+out_ipreserv:
 	gfs2_inplace_release(dip);
 
- out:
+out:
 	gfs2_alloc_put(dip);
 
 	return error;
@@ -662,8 +653,9 @@ static int alloc_dinode(struct gfs2_inode *dip, struct gfs2_inum *inum)
  */
 
 static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
-			struct gfs2_inum *inum, unsigned int mode,
-			unsigned int uid, unsigned int gid)
+			const struct gfs2_inum *inum, unsigned int mode,
+			unsigned int uid, unsigned int gid,
+			const u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_dinode *di;
@@ -686,7 +678,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	di->di_atime = di->di_mtime = di->di_ctime = cpu_to_be64(get_seconds());
 	di->di_major = di->di_minor = cpu_to_be32(0);
 	di->di_goal_meta = di->di_goal_data = cpu_to_be64(inum->no_addr);
-	di->__pad[0] = di->__pad[1] = 0;
+	di->di_generation = cpu_to_be64(*generation);
 	di->di_flags = cpu_to_be32(0);
 
 	if (S_ISREG(mode)) {
@@ -717,7 +709,8 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 }
 
 static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
-		       unsigned int mode, struct gfs2_inum *inum)
+		       unsigned int mode, const struct gfs2_inum *inum,
+		       const u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	unsigned int uid, gid;
@@ -738,7 +731,7 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	if (error)
 		goto out_quota;
 
-	init_dinode(dip, gl, inum, mode, uid, gid);
+	init_dinode(dip, gl, inum, mode, uid, gid, generation);
 	gfs2_quota_change(dip, +1, uid, gid);
 	gfs2_trans_end(sdp);
 
@@ -844,6 +837,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_inum inum;
 	int error;
+	u64 generation;
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -861,7 +855,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock;
 
-	error = alloc_dinode(dip, &inum);
+	error = alloc_dinode(dip, &inum, &generation);
 	if (error)
 		goto fail_gunlock;
 
@@ -893,7 +887,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 			goto fail_gunlock;
 	}
 
-	error = make_dinode(dip, ghs[1].gh_gl, mode, &inum);
+	error = make_dinode(dip, ghs[1].gh_gl, mode, &inum, &generation);
 	if (error)
 		goto fail_gunlock2;
 

@@ -128,6 +128,7 @@ void gfs2_rgrp_in(struct gfs2_rgrp *rg, char *buf)
 	rg->rg_flags = be32_to_cpu(str->rg_flags);
 	rg->rg_free = be32_to_cpu(str->rg_free);
 	rg->rg_dinodes = be32_to_cpu(str->rg_dinodes);
+	rg->rg_igeneration = be64_to_cpu(str->rg_igeneration);
 }
 
 void gfs2_rgrp_out(struct gfs2_rgrp *rg, char *buf)
@@ -138,7 +139,8 @@ void gfs2_rgrp_out(struct gfs2_rgrp *rg, char *buf)
 	str->rg_flags = cpu_to_be32(rg->rg_flags);
 	str->rg_free = cpu_to_be32(rg->rg_free);
 	str->rg_dinodes = cpu_to_be32(rg->rg_dinodes);
-
+	str->__pad = cpu_to_be32(0);
+	str->rg_igeneration = cpu_to_be64(rg->rg_igeneration);
 	memset(&str->rg_reserved, 0, sizeof(str->rg_reserved));
 }
 
@@ -172,6 +174,7 @@ void gfs2_dinode_in(struct gfs2_dinode *di, char *buf)
 
 	di->di_goal_meta = be64_to_cpu(str->di_goal_meta);
 	di->di_goal_data = be64_to_cpu(str->di_goal_data);
+	di->di_generation = be64_to_cpu(str->di_generation);
 
 	di->di_flags = be32_to_cpu(str->di_flags);
 	di->di_payload_format = be32_to_cpu(str->di_payload_format);
@@ -205,6 +208,7 @@ void gfs2_dinode_out(struct gfs2_dinode *di, char *buf)
 
 	str->di_goal_meta = cpu_to_be64(di->di_goal_meta);
 	str->di_goal_data = cpu_to_be64(di->di_goal_data);
+	str->di_generation = cpu_to_be64(di->di_generation);
 
 	str->di_flags = cpu_to_be32(di->di_flags);
 	str->di_payload_format = cpu_to_be32(di->di_payload_format);

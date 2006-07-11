@@ -37,9 +37,9 @@ void gfs2_inplace_release(struct gfs2_inode *ip);
 
 unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, uint64_t block);
 
-uint64_t gfs2_alloc_data(struct gfs2_inode *ip);
-uint64_t gfs2_alloc_meta(struct gfs2_inode *ip);
-uint64_t gfs2_alloc_di(struct gfs2_inode *ip);
+u64 gfs2_alloc_data(struct gfs2_inode *ip);
+u64 gfs2_alloc_meta(struct gfs2_inode *ip);
+u64 gfs2_alloc_di(struct gfs2_inode *ip, u64 *generation);
 
 void gfs2_free_data(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen);
 void gfs2_free_meta(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen);
