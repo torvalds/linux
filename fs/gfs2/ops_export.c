@@ -34,30 +34,34 @@ static struct dentry *gfs2_decode_fh(struct super_block *sb,
 						       struct dentry *dentry),
 				     void *context)
 {
-	struct gfs2_inum this, parent;
+	struct gfs2_fh_obj fh_obj;
+	struct gfs2_inum *this, parent;
 
 	if (fh_type != fh_len)
 		return NULL;
 
+	this 		= &fh_obj.this;
+	fh_obj.imode 	= DT_UNKNOWN;
 	memset(&parent, 0, sizeof(struct gfs2_inum));
 
 	switch (fh_type) {
-	case 8:
+	case 10:
 		parent.no_formal_ino = ((uint64_t)be32_to_cpu(fh[4])) << 32;
 		parent.no_formal_ino |= be32_to_cpu(fh[5]);
 		parent.no_addr = ((uint64_t)be32_to_cpu(fh[6])) << 32;
 		parent.no_addr |= be32_to_cpu(fh[7]);
+		fh_obj.imode = be32_to_cpu(fh[8]);
 	case 4:
-		this.no_formal_ino = ((uint64_t)be32_to_cpu(fh[0])) << 32;
-		this.no_formal_ino |= be32_to_cpu(fh[1]);
-		this.no_addr = ((uint64_t)be32_to_cpu(fh[2])) << 32;
-		this.no_addr |= be32_to_cpu(fh[3]);
+		this->no_formal_ino = ((uint64_t)be32_to_cpu(fh[0])) << 32;
+		this->no_formal_ino |= be32_to_cpu(fh[1]);
+		this->no_addr = ((uint64_t)be32_to_cpu(fh[2])) << 32;
+		this->no_addr |= be32_to_cpu(fh[3]);
 		break;
 	default:
 		return NULL;
 	}
 
-	return gfs2_export_ops.find_exported_dentry(sb, &this, &parent,
+	return gfs2_export_ops.find_exported_dentry(sb, &fh_obj, &parent,
 						    acceptable, context);
 }
 
@@ -68,7 +72,7 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	struct super_block *sb = inode->i_sb;
 	struct gfs2_inode *ip = GFS2_I(inode);
 
-	if (*len < 4 || (connectable && *len < 8))
+	if (*len < 4 || (connectable && *len < 10))
 		return 255;
 
 	fh[0] = ip->i_num.no_formal_ino >> 32;
@@ -98,7 +102,10 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	fh[6] = cpu_to_be32(fh[6]);
 	fh[7] = ip->i_num.no_addr & 0xFFFFFFFF;
 	fh[7] = cpu_to_be32(fh[7]);
-	*len = 8;
+
+	fh[8]  = cpu_to_be32(inode->i_mode);
+	fh[9]  = 0;	/* pad to double word */
+	*len = 10;
 
 	iput(inode);
 
@@ -186,10 +193,11 @@ static struct dentry *gfs2_get_parent(struct dentry *child)
 	return dentry;
 }
 
-static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_p)
+static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_obj)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	struct gfs2_inum *inum = inum_p;
+	struct gfs2_fh_obj *fh_obj = (struct gfs2_fh_obj *)inum_obj;
+	struct gfs2_inum *inum = &fh_obj->this;
 	struct gfs2_holder i_gh, ri_gh, rgd_gh;
 	struct gfs2_rgrpd *rgd;
 	struct inode *inode;
@@ -233,7 +241,7 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_p)
 	gfs2_glock_dq_uninit(&rgd_gh);
 	gfs2_glock_dq_uninit(&ri_gh);
 
-	inode = gfs2_inode_lookup(sb, inum, DT_UNKNOWN);
+	inode = gfs2_inode_lookup(sb, inum, fh_obj->imode);
 	if (!inode)
 		goto fail;
 	if (IS_ERR(inode)) {

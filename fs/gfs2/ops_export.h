@@ -11,5 +11,9 @@
 #define __OPS_EXPORT_DOT_H__
 
 extern struct export_operations gfs2_export_ops;
+struct gfs2_fh_obj {
+	struct gfs2_inum this;
+	__u32            imode;
+};
 
 #endif /* __OPS_EXPORT_DOT_H__ */
