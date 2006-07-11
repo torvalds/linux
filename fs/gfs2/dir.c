@@ -936,7 +936,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	struct gfs2_inode *dip = GFS2_I(inode);
 	struct buffer_head *nbh, *obh, *dibh;
 	struct gfs2_leaf *nleaf, *oleaf;
-	struct gfs2_dirent *dent, *prev = NULL, *next = NULL, *new;
+	struct gfs2_dirent *dent = NULL, *prev = NULL, *next = NULL, *new;
 	uint32_t start, len, half_len, divider;
 	uint64_t bn, *lp, leaf_no;
 	uint32_t index;
@@ -1356,7 +1356,7 @@ static int dir_e_read(struct inode *inode, uint64_t *offset, void *opaque,
 	uint64_t *lp;
 	int copied = 0;
 	int error = 0;
-	unsigned depth;
+	unsigned depth = 0;
 
 	hsize = 1 << dip->i_di.di_depth;
 	if (hsize * sizeof(uint64_t) != dip->i_di.di_size) {
