@@ -1760,9 +1760,9 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 						 * chips (mpt_adapter_disable,
 						 * mpt_diag_reset)
 						 */
-						ioc->cached_fw = NULL;
 						ddlprintk((MYIOC_s_INFO_FMT ": mpt_upload:  alt_%s has cached_fw=%p \n",
 							ioc->name, ioc->alt_ioc->name, ioc->alt_ioc->cached_fw));
+						ioc->alt_ioc->cached_fw = NULL;
 					}
 				} else {
 					printk(KERN_WARNING MYNAM ": firmware upload failure!\n");
@@ -1883,7 +1883,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 		/* FIXME?  Examine results here? */
 	}
 
-out:
+ out:
 	if ((ret != 0) && irq_allocated) {
 		free_irq(ioc->pci_irq, ioc);
 		if (mpt_msi_enable)
@@ -2735,6 +2735,8 @@ mpt_alloc_fw_memory(MPT_ADAPTER *ioc, int size)
 	if (ioc->alt_ioc && ioc->alt_ioc->cached_fw) {
 		ioc->cached_fw = ioc->alt_ioc->cached_fw;  /* use alt_ioc's memory */
 		ioc->cached_fw_dma = ioc->alt_ioc->cached_fw_dma;
+		ioc->alloc_total += size;
+		ioc->alt_ioc->alloc_total -= size;
 	} else {
 		if ( (ioc->cached_fw = pci_alloc_consistent(ioc->pcidev, size, &ioc->cached_fw_dma) ) )
 			ioc->alloc_total += size;
@@ -3164,6 +3166,7 @@ KickStart(MPT_ADAPTER *ioc, int force, int sleepFlag)
 static int
 mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 {
+	MPT_ADAPTER	*iocp=NULL;
 	u32 diag0val;
 	u32 doorbell;
 	int hard_reset_done = 0;
@@ -3299,17 +3302,23 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 			/* FIXME?  Examine results here? */
 		}
 
-		if (ioc->cached_fw) {
+		if (ioc->cached_fw)
+			iocp = ioc;
+		else if (ioc->alt_ioc && ioc->alt_ioc->cached_fw)
+			iocp = ioc->alt_ioc;
+		if (iocp) {
 			/* If the DownloadBoot operation fails, the
 			 * IOC will be left unusable. This is a fatal error
 			 * case.  _diag_reset will return < 0
 			 */
 			for (count = 0; count < 30; count ++) {
-				diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
+				diag0val = CHIPREG_READ32(&iocp->chip->Diagnostic);
 				if (!(diag0val & MPI_DIAG_RESET_ADAPTER)) {
 					break;
 				}
 
+				dprintk((MYIOC_s_INFO_FMT "cached_fw: diag0val=%x count=%d\n",
+					iocp->name, diag0val, count));
 				/* wait 1 sec */
 				if (sleepFlag == CAN_SLEEP) {
 					msleep (1000);
@@ -3318,7 +3327,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 				}
 			}
 			if ((count = mpt_downloadboot(ioc,
-				(MpiFwHeader_t *)ioc->cached_fw, sleepFlag)) < 0) {
+				(MpiFwHeader_t *)iocp->cached_fw, sleepFlag)) < 0) {
 				printk(KERN_WARNING MYNAM
 					": firmware downloadboot failure (%d)!\n", count);
 			}
@@ -3905,18 +3914,18 @@ WaitForDoorbellAck(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 
 	if (sleepFlag == CAN_SLEEP) {
 		while (--cntdn) {
+			msleep (1);
 			intstat = CHIPREG_READ32(&ioc->chip->IntStatus);
 			if (! (intstat & MPI_HIS_IOP_DOORBELL_STATUS))
 				break;
-			msleep (1);
 			count++;
 		}
 	} else {
 		while (--cntdn) {
+			mdelay (1);
 			intstat = CHIPREG_READ32(&ioc->chip->IntStatus);
 			if (! (intstat & MPI_HIS_IOP_DOORBELL_STATUS))
 				break;
-			mdelay (1);
 			count++;
 		}
 	}
@@ -4881,6 +4890,7 @@ mpt_read_ioc_pg_4(MPT_ADAPTER *ioc)
 		pIoc4 = pci_alloc_consistent(ioc->pcidev, iocpage4sz, &ioc4_dma);
 		if (!pIoc4)
 			return;
+		ioc->alloc_total += iocpage4sz;
 	} else {
 		ioc4_dma = ioc->spi_data.IocPg4_dma;
 		iocpage4sz = ioc->spi_data.IocPg4Sz;
@@ -4897,6 +4907,7 @@ mpt_read_ioc_pg_4(MPT_ADAPTER *ioc)
 	} else {
 		pci_free_consistent(ioc->pcidev, iocpage4sz, pIoc4, ioc4_dma);
 		ioc->spi_data.pIocPg4 = NULL;
+		ioc->alloc_total -= iocpage4sz;
 	}
 }
 
@@ -6403,7 +6414,6 @@ EXPORT_SYMBOL(mpt_findImVolumes);
 EXPORT_SYMBOL(mpt_alloc_fw_memory);
 EXPORT_SYMBOL(mpt_free_fw_memory);
 EXPORT_SYMBOL(mptbase_sas_persist_operation);
-
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
