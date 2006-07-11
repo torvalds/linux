@@ -336,7 +336,7 @@ static void as_add_arq_rb(struct as_data *ad, struct as_rq *arq)
 
 static inline void as_del_arq_rb(struct as_data *ad, struct as_rq *arq)
 {
-	if (!RB_EMPTY_NODE(&arq->rb_node)) {
+	if (RB_EMPTY_NODE(&arq->rb_node)) {
 		WARN_ON(1);
 		return;
 	}
@@ -1039,7 +1039,7 @@ static void as_move_to_dispatch(struct as_data *ad, struct as_rq *arq)
 	struct request *rq = arq->request;
 	const int data_dir = arq->is_sync;
 
-	BUG_ON(!RB_EMPTY_NODE(&arq->rb_node));
+	BUG_ON(RB_EMPTY_NODE(&arq->rb_node));
 
 	as_antic_stop(ad);
 	ad->antic_status = ANTIC_OFF;
