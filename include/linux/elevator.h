@@ -166,4 +166,16 @@ enum {
 #define rq_end_sector(rq)	((rq)->sector + (rq)->nr_sectors)
 #define rb_entry_rq(node)	rb_entry((node), struct request, rb_node)
 
+/*
+ * Hack to reuse the donelist list_head as the fifo time holder while
+ * the request is in the io scheduler. Saves an unsigned long in rq.
+ */
+#define rq_fifo_time(rq)	((unsigned long) (rq)->donelist.next)
+#define rq_set_fifo_time(rq,exp)	((rq)->donelist.next = (void *) (exp))
+#define rq_entry_fifo(ptr)	list_entry((ptr), struct request, queuelist)
+#define rq_fifo_clear(rq)	do {		\
+	list_del_init(&(rq)->queuelist);	\
+	INIT_LIST_HEAD(&(rq)->donelist);	\
+	} while (0)
+
 #endif
