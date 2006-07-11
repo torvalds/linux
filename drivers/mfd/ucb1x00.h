@@ -94,6 +94,7 @@
 #define UCB_ID		0x0c
 #define UCB_ID_1200		0x1004
 #define UCB_ID_1300		0x1005
+#define UCB_ID_TC35143          0x9712
 
 #define UCB_MODE	0x0d
 #define UCB_MODE_DYN_VFLAG_ENA	(1 << 12)
