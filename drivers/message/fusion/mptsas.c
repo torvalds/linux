@@ -1642,14 +1642,18 @@ static int mptsas_probe_one_phy(struct device *dev,
 
 			for (i = 0; i < port_info->num_phys; i++)
 				if (port_info->phy_info[i].identify.sas_address ==
-				    identify.sas_address)
+				    identify.sas_address) {
+					sas_port_mark_backlink(port);
 					goto out;
+				}
 
 		} else if (scsi_is_sas_rphy(parent)) {
 			struct sas_rphy *parent_rphy = dev_to_rphy(parent);
 			if (identify.sas_address ==
-			    parent_rphy->identify.sas_address)
+			    parent_rphy->identify.sas_address) {
+				sas_port_mark_backlink(port);
 				goto out;
+			}
 		}
 
 		switch (identify.device_type) {
