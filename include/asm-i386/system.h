@@ -82,10 +82,6 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 #define savesegment(seg, value) \
 	asm volatile("mov %%" #seg ",%0":"=rm" (value))
 
-/*
- * Clear and set 'TS' bit respectively
- */
-#define clts() __asm__ __volatile__ ("clts")
 #define read_cr0() ({ \
 	unsigned int __dummy; \
 	__asm__ __volatile__( \
@@ -94,7 +90,7 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 	__dummy; \
 })
 #define write_cr0(x) \
-	__asm__ __volatile__("movl %0,%%cr0": :"r" (x));
+	__asm__ __volatile__("movl %0,%%cr0": :"r" (x))
 
 #define read_cr2() ({ \
 	unsigned int __dummy; \
@@ -104,7 +100,7 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 	__dummy; \
 })
 #define write_cr2(x) \
-	__asm__ __volatile__("movl %0,%%cr2": :"r" (x));
+	__asm__ __volatile__("movl %0,%%cr2": :"r" (x))
 
 #define read_cr3() ({ \
 	unsigned int __dummy; \
@@ -114,7 +110,7 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 	__dummy; \
 })
 #define write_cr3(x) \
-	__asm__ __volatile__("movl %0,%%cr3": :"r" (x));
+	__asm__ __volatile__("movl %0,%%cr3": :"r" (x))
 
 #define read_cr4() ({ \
 	unsigned int __dummy; \
@@ -123,7 +119,6 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 		:"=r" (__dummy)); \
 	__dummy; \
 })
-
 #define read_cr4_safe() ({			      \
 	unsigned int __dummy;			      \
 	/* This could fault if %cr4 does not exist */ \
@@ -135,15 +130,19 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 		: "=r" (__dummy): "0" (0));	      \
 	__dummy;				      \
 })
-
 #define write_cr4(x) \
-	__asm__ __volatile__("movl %0,%%cr4": :"r" (x));
+	__asm__ __volatile__("movl %0,%%cr4": :"r" (x))
+
+/*
+ * Clear and set 'TS' bit respectively
+ */
+#define clts() __asm__ __volatile__ ("clts")
 #define stts() write_cr0(8 | read_cr0())
 
 #endif	/* __KERNEL__ */
 
 #define wbinvd() \
-	__asm__ __volatile__ ("wbinvd": : :"memory");
+	__asm__ __volatile__ ("wbinvd": : :"memory")
 
 static inline unsigned long get_limit(unsigned long segment)
 {
