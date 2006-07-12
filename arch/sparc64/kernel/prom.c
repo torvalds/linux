@@ -539,6 +539,25 @@ static unsigned long __sabre_onboard_imap_off[] = {
 	((ino & 0x20) ? (SABRE_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
 			(SABRE_ICLR_A_SLOT0 + (((ino) & 0x1f)<<3)))
 
+static int parent_is_sabre_or_simba(struct device_node *dp)
+{
+	char *parent_model, *parent_compat;
+
+	parent_model = of_get_property(dp->parent, "model", NULL);
+	if (parent_model &&
+	    (!strcmp(parent_model, "SUNW,sabre") ||
+	     !strcmp(parent_model, "SUNW,simba")))
+		return 1;
+
+	parent_compat = of_get_property(dp->parent, "compatible", NULL);
+	if (parent_compat &&
+	    (!strcmp(parent_compat, "pci108e,a000") ||
+	     !strcmp(parent_compat, "pci108e,a001")))
+		return 1;
+
+	return 0;
+}
+
 static unsigned int sabre_irq_build(struct device_node *dp,
 				    unsigned int ino,
 				    void *_data)
@@ -577,15 +596,18 @@ static unsigned int sabre_irq_build(struct device_node *dp,
 
 	virt_irq = build_irq(inofixup, iclr, imap);
 
+	/* If the parent device is a PCI<->PCI bridge other than
+	 * APB, we have to install a pre-handler to ensure that
+	 * all pending DMA is drained before the interrupt handler
+	 * is run.
+	 */
 	regs = of_get_property(dp, "reg", NULL);
 	if (regs &&
-	    ((regs->phys_hi >> 16) & 0xff) != irq_data->pci_first_busno) {
+	    !parent_is_sabre_or_simba(dp)) {
 		irq_install_pre_handler(virt_irq,
 					sabre_wsync_handler,
 					(void *) (long) regs->phys_hi,
-					(void *)
-					controller_regs +
-					SABRE_WRSYNC);
+					(void *) irq_data);
 	}
 
 	return virt_irq;
