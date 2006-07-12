@@ -214,11 +214,11 @@ void __init
 chrp_find_bridges(void)
 {
 	struct device_node *dev;
-	int *bus_range;
+	const int *bus_range;
 	int len, index = -1;
 	struct pci_controller *hose;
-	unsigned int *dma;
-	char *model, *machine;
+	const unsigned int *dma;
+	const char *model, *machine;
 	int is_longtrail = 0, is_mot = 0, is_pegasos = 0;
 	struct device_node *root = find_path_device("/");
 	struct resource r;
@@ -246,7 +246,7 @@ chrp_find_bridges(void)
 			       dev->full_name);
 			continue;
 		}
-		bus_range = (int *) get_property(dev, "bus-range", &len);
+		bus_range = get_property(dev, "bus-range", &len);
 		if (bus_range == NULL || len < 2 * sizeof(int)) {
 			printk(KERN_WARNING "Can't get bus-range for %s\n",
 				dev->full_name);
@@ -312,8 +312,7 @@ chrp_find_bridges(void)
 
 		/* check the first bridge for a property that we can
 		   use to set pci_dram_offset */
-		dma = (unsigned int *)
-			get_property(dev, "ibm,dma-ranges", &len);
+		dma = get_property(dev, "ibm,dma-ranges", &len);
 		if (index == 0 && dma != NULL && len >= 6 * sizeof(*dma)) {
 			pci_dram_offset = dma[2] - dma[3];
 			printk("pci_dram_offset = %lx\n", pci_dram_offset);
