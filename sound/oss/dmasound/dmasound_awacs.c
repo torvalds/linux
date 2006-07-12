@@ -347,8 +347,8 @@ int
 setup_audio_gpio(const char *name, const char* compatible, int *gpio_addr, int* gpio_pol)
 {
 	struct device_node *np;
-	u32* pp;
-	
+	const u32* pp;
+
 	np = find_devices("gpio");
 	if (!np)
 		return -ENODEV;
@@ -356,7 +356,8 @@ setup_audio_gpio(const char *name, const char* compatible, int *gpio_addr, int* 
 	np = np->child;
 	while(np != 0) {
 		if (name) {
-			char *property = get_property(np,"audio-gpio",NULL);
+			const char *property =
+				get_property(np,"audio-gpio",NULL);
 			if (property != 0 && strcmp(property,name) == 0)
 				break;
 		} else if (compatible && device_is_compatible(np, compatible))
@@ -365,11 +366,11 @@ setup_audio_gpio(const char *name, const char* compatible, int *gpio_addr, int* 
 	}
 	if (!np)
 		return -ENODEV;
-	pp = (u32 *)get_property(np, "AAPL,address", NULL);
+	pp = get_property(np, "AAPL,address", NULL);
 	if (!pp)
 		return -ENODEV;
 	*gpio_addr = (*pp) & 0x0000ffff;
-	pp = (u32 *)get_property(np, "audio-gpio-active-state", NULL);
+	pp = get_property(np, "audio-gpio-active-state", NULL);
 	if (pp)
 		*gpio_pol = *pp;
 	else

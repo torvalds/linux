@@ -56,7 +56,7 @@ static struct device_node *get_gpio(char *name,
 {
 	struct device_node *np, *gpio;
 	u32 *reg;
-	char *audio_gpio;
+	const char *audio_gpio;
 
 	*gpioptr = -1;
 
