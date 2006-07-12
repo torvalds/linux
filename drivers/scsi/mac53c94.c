@@ -431,7 +431,7 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
 	struct fsc_state *state;
 	struct Scsi_Host *host;
 	void *dma_cmd_space;
-	unsigned char *clkprop;
+	const unsigned char *clkprop;
 	int proplen, rc = -ENODEV;
 
 	if (macio_resource_count(mdev) != 2 || macio_irq_count(mdev) != 2) {
