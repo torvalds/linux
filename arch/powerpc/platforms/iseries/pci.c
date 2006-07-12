@@ -176,12 +176,12 @@ void iSeries_pcibios_init(void)
 	}
 	while ((node = of_get_next_child(root, node)) != NULL) {
 		HvBusNumber bus;
-		u32 *busp;
+		const u32 *busp;
 
 		if ((node->type == NULL) || (strcmp(node->type, "pci") != 0))
 			continue;
 
-		busp = (u32 *)get_property(node, "bus-range", NULL);
+		busp = get_property(node, "bus-range", NULL);
 		if (busp == NULL)
 			continue;
 		bus = *busp;
@@ -221,10 +221,9 @@ void __init iSeries_pci_final_fixup(void)
 
 		if (node != NULL) {
 			struct pci_dn *pdn = PCI_DN(node);
-			u32 *agent;
+			const u32 *agent;
 
-			agent = (u32 *)get_property(node, "linux,agent-id",
-					NULL);
+			agent = get_property(node, "linux,agent-id", NULL);
 			if ((pdn != NULL) && (agent != NULL)) {
 				u8 irq = iSeries_allocate_IRQ(pdn->busno, 0,
 						pdn->bussubno);
