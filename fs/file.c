@@ -240,7 +240,7 @@ static struct fdtable *alloc_fdtable(int nr)
 	if (!fdt)
   		goto out;
 
-	nfds = max_t(int, 8 * L1_CACHE_BYTES, roundup_pow_of_two(nfds));
+	nfds = max_t(int, 8 * L1_CACHE_BYTES, roundup_pow_of_two(nr + 1));
 	if (nfds > NR_OPEN)
 		nfds = NR_OPEN;
 
