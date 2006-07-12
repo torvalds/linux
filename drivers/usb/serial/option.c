@@ -72,6 +72,7 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define AUDIOVOX_VENDOR_ID              0x0F3D
 #define SIERRAWIRELESS_VENDOR_ID        0x1199
 #define NOVATELWIRELESS_VENDOR_ID       0x1410
+#define ANYDATA_VENDOR_ID               0x16d5
 
 #define OPTION_PRODUCT_OLD              0x5000
 #define OPTION_PRODUCT_FUSION           0x6000
@@ -82,6 +83,7 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define AUDIOVOX_PRODUCT_AIRCARD        0x0112
 #define SIERRAWIRELESS_PRODUCT_MC8755   0x6802
 #define NOVATELWIRELESS_PRODUCT_U740    0x1400
+#define ANYDATA_PRODUCT_ID              0x6501
 
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_OLD) },
@@ -93,6 +95,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
 	{ USB_DEVICE(SIERRAWIRELESS_VENDOR_ID, SIERRAWIRELESS_PRODUCT_MC8755) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
+	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
 	{ } /* Terminating entry */
 };
 
@@ -105,6 +108,7 @@ static struct usb_device_id option_ids1[] = {
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
 	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
+	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
 	{ } /* Terminating entry */
 };
 static struct usb_device_id option_ids3[] = {
