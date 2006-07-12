@@ -27,4 +27,18 @@ config CRYPTO_DEV_PADLOCK_AES
 	  If unsure say M. The compiled module will be
 	  called padlock-aes.ko
 
+config CRYPTO_DEV_PADLOCK_SHA
+	tristate "PadLock driver for SHA1 and SHA256 algorithms"
+	depends on CRYPTO_DEV_PADLOCK
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	default m
+	help
+	  Use VIA PadLock for SHA1/SHA256 algorithms.
+
+	  Available in VIA C7 and newer processors.
+
+	  If unsure say M. The compiled module will be
+	  called padlock-sha.ko
+
 endmenu
