@@ -3437,17 +3437,14 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 		return -EINVAL;
 
 	del_timer_sync(&hw->idle_timer);
+	netif_poll_disable(hw->dev[0]);
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 
-		if (dev) {
-			if (!netif_running(dev))
-				continue;
-
+		if (netif_running(dev)) {
 			sky2_down(dev);
 			netif_device_detach(dev);
-			netif_poll_disable(dev);
 		}
 	}
 
@@ -3474,9 +3471,8 @@ static int sky2_resume(struct pci_dev *pdev)
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
-		if (dev && netif_running(dev)) {
+		if (netif_running(dev)) {
 			netif_device_attach(dev);
-			netif_poll_enable(dev);
 
 			err = sky2_up(dev);
 			if (err) {
@@ -3488,6 +3484,7 @@ static int sky2_resume(struct pci_dev *pdev)
 		}
 	}
 
+	netif_poll_enable(hw->dev[0]);
 	sky2_idle_start(hw);
 out:
 	return err;
