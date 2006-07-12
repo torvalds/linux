@@ -145,7 +145,7 @@ struct sock *ax25_find_listener(ax25_address *addr, int digi,
 	ax25_cb *s;
 	struct hlist_node *node;
 
-	spin_lock_bh(&ax25_list_lock);
+	spin_lock(&ax25_list_lock);
 	ax25_for_each(s, node, &ax25_list) {
 		if ((s->iamdigi && !digi) || (!s->iamdigi && digi))
 			continue;
@@ -154,12 +154,12 @@ struct sock *ax25_find_listener(ax25_address *addr, int digi,
 			/* If device is null we match any device */
 			if (s->ax25_dev == NULL || s->ax25_dev->dev == dev) {
 				sock_hold(s->sk);
-				spin_unlock_bh(&ax25_list_lock);
+				spin_unlock(&ax25_list_lock);
 				return s->sk;
 			}
 		}
 	}
-	spin_unlock_bh(&ax25_list_lock);
+	spin_unlock(&ax25_list_lock);
 
 	return NULL;
 }
@@ -174,7 +174,7 @@ struct sock *ax25_get_socket(ax25_address *my_addr, ax25_address *dest_addr,
 	ax25_cb *s;
 	struct hlist_node *node;
 
-	spin_lock_bh(&ax25_list_lock);
+	spin_lock(&ax25_list_lock);
 	ax25_for_each(s, node, &ax25_list) {
 		if (s->sk && !ax25cmp(&s->source_addr, my_addr) &&
 		    !ax25cmp(&s->dest_addr, dest_addr) &&
@@ -185,7 +185,7 @@ struct sock *ax25_get_socket(ax25_address *my_addr, ax25_address *dest_addr,
 		}
 	}
 
-	spin_unlock_bh(&ax25_list_lock);
+	spin_unlock(&ax25_list_lock);
 
 	return sk;
 }
@@ -235,7 +235,7 @@ void ax25_send_to_raw(ax25_address *addr, struct sk_buff *skb, int proto)
 	struct sk_buff *copy;
 	struct hlist_node *node;
 
-	spin_lock_bh(&ax25_list_lock);
+	spin_lock(&ax25_list_lock);
 	ax25_for_each(s, node, &ax25_list) {
 		if (s->sk != NULL && ax25cmp(&s->source_addr, addr) == 0 &&
 		    s->sk->sk_type == SOCK_RAW &&
@@ -248,7 +248,7 @@ void ax25_send_to_raw(ax25_address *addr, struct sk_buff *skb, int proto)
 				kfree_skb(copy);
 		}
 	}
-	spin_unlock_bh(&ax25_list_lock);
+	spin_unlock(&ax25_list_lock);
 }
 
 /*

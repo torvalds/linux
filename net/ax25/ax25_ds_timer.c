@@ -85,7 +85,7 @@ static void ax25_ds_timeout(unsigned long arg)
 		return;
 	}
 
-	spin_lock_bh(&ax25_list_lock);
+	spin_lock(&ax25_list_lock);
 	ax25_for_each(ax25, node, &ax25_list) {
 		if (ax25->ax25_dev != ax25_dev || !(ax25->condition & AX25_COND_DAMA_MODE))
 			continue;
@@ -93,7 +93,7 @@ static void ax25_ds_timeout(unsigned long arg)
 		ax25_send_control(ax25, AX25_DISC, AX25_POLLON, AX25_COMMAND);
 		ax25_disconnect(ax25, ETIMEDOUT);
 	}
-	spin_unlock_bh(&ax25_list_lock);
+	spin_unlock(&ax25_list_lock);
 
 	ax25_dev_dama_off(ax25_dev);
 }
