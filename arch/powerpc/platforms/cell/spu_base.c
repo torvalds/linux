@@ -488,10 +488,10 @@ int spu_irq_class_1_bottom(struct spu *spu)
 
 static int __init find_spu_node_id(struct device_node *spe)
 {
-	unsigned int *id;
+	const unsigned int *id;
 	struct device_node *cpu;
 	cpu = spe->parent->parent;
-	id = (unsigned int *)get_property(cpu, "node-id", NULL);
+	id = get_property(cpu, "node-id", NULL);
 	return id ? *id : 0;
 }
 
@@ -500,7 +500,7 @@ static int __init cell_spuprop_present(struct spu *spu, struct device_node *spe,
 {
 	static DEFINE_MUTEX(add_spumem_mutex);
 
-	struct address_prop {
+	const struct address_prop {
 		unsigned long address;
 		unsigned int len;
 	} __attribute__((packed)) *p;
@@ -511,7 +511,7 @@ static int __init cell_spuprop_present(struct spu *spu, struct device_node *spe,
 	struct zone *zone;
 	int ret;
 
-	p = (void*)get_property(spe, prop, &proplen);
+	p = get_property(spe, prop, &proplen);
 	WARN_ON(proplen != sizeof (*p));
 
 	start_pfn = p->address >> PAGE_SHIFT;
@@ -531,12 +531,12 @@ static int __init cell_spuprop_present(struct spu *spu, struct device_node *spe,
 static void __iomem * __init map_spe_prop(struct spu *spu,
 		struct device_node *n, const char *name)
 {
-	struct address_prop {
+	const struct address_prop {
 		unsigned long address;
 		unsigned int len;
 	} __attribute__((packed)) *prop;
 
-	void *p;
+	const void *p;
 	int proplen;
 	void* ret = NULL;
 	int err = 0;
@@ -570,14 +570,14 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 {
 	struct irq_host *host;
 	unsigned int isrc;
-	u32 *tmp;
+	const u32 *tmp;
 
 	host = iic_get_irq_host(spu->node);
 	if (host == NULL)
 		return -ENODEV;
 
 	/* Get the interrupt source from the device-tree */
-	tmp = (u32 *)get_property(np, "isrc", NULL);
+	tmp = get_property(np, "isrc", NULL);
 	if (!tmp)
 		return -ENODEV;
 	spu->isrc = isrc = tmp[0];
@@ -593,7 +593,7 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 
 static int __init spu_map_device(struct spu *spu, struct device_node *node)
 {
-	char *prop;
+	const char *prop;
 	int ret;
 
 	ret = -ENODEV;

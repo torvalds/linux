@@ -308,15 +308,16 @@ static void cell_do_map_iommu(struct cell_iommu *iommu,
 
 static void iommu_devnode_setup(struct device_node *d)
 {
-	unsigned int *ioid;
-	unsigned long *dma_window, map_start, map_size, token;
+	const unsigned int *ioid;
+	unsigned long map_start, map_size, token;
+	const unsigned long *dma_window;
 	struct cell_iommu *iommu;
 
-	ioid = (unsigned int *)get_property(d, "ioid", NULL);
+	ioid = get_property(d, "ioid", NULL);
 	if (!ioid)
 		pr_debug("No ioid entry found !\n");
 
-	dma_window = (unsigned long *)get_property(d, "ibm,dma-window", NULL);
+	dma_window = get_property(d, "ibm,dma-window", NULL);
 	if (!dma_window)
 		pr_debug("No ibm,dma-window entry found !\n");
 
@@ -371,8 +372,9 @@ static int cell_map_iommu_hardcoded(int num_nodes)
 
 static int cell_map_iommu(void)
 {
-	unsigned int num_nodes = 0, *node_id;
-	unsigned long *base, *mmio_base;
+	unsigned int num_nodes = 0;
+	const unsigned int *node_id;
+	const unsigned long *base, *mmio_base;
 	struct device_node *dn;
 	struct cell_iommu *iommu = NULL;
 
@@ -381,7 +383,7 @@ static int cell_map_iommu(void)
 	for(dn = of_find_node_by_type(NULL, "cpu");
 	    dn;
 	    dn = of_find_node_by_type(dn, "cpu")) {
-		node_id = (unsigned int *)get_property(dn, "node-id", NULL);
+		node_id = get_property(dn, "node-id", NULL);
 
 		if (num_nodes < *node_id)
 			num_nodes = *node_id;
@@ -396,9 +398,9 @@ static int cell_map_iommu(void)
 	    dn;
 	    dn = of_find_node_by_type(dn, "cpu")) {
 
-		node_id = (unsigned int *)get_property(dn, "node-id", NULL);
-		base = (unsigned long *)get_property(dn, "ioc-cache", NULL);
-		mmio_base = (unsigned long *)get_property(dn, "ioc-translation", NULL);
+		node_id = get_property(dn, "node-id", NULL);
+		base = get_property(dn, "ioc-cache", NULL);
+		mmio_base = get_property(dn, "ioc-translation", NULL);
 
 		if (!base || !mmio_base || !node_id)
 			return cell_map_iommu_hardcoded(num_nodes);

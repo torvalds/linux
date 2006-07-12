@@ -250,15 +250,14 @@ static int __init setup_iic(void)
 	struct resource r0, r1;
 	struct irq_host *host;
 	int found = 0;
- 	u32 *np;
+ 	const u32 *np;
 
 	for (dn = NULL;
 	     (dn = of_find_node_by_name(dn,"interrupt-controller")) != NULL;) {
 		if (!device_is_compatible(dn,
 				     "IBM,CBEA-Internal-Interrupt-Controller"))
 			continue;
- 		np = (u32 *)get_property(dn, "ibm,interrupt-server-ranges",
-					 NULL);
+		np = get_property(dn, "ibm,interrupt-server-ranges", NULL);
  		if (np == NULL) {
 			printk(KERN_WARNING "IIC: CPU association not found\n");
 			of_node_put(dn);
