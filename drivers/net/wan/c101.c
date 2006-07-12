@@ -116,27 +116,33 @@ static inline void openwin(card_t *card, u8 page)
 #include "hd6457x.c"
 
 
+static inline void set_carrier(port_t *port)
+{
+	if (!sca_in(MSCI1_OFFSET + ST3, port) & ST3_DCD)
+		netif_carrier_on(port_to_dev(port));
+	else
+		netif_carrier_off(port_to_dev(port));
+}
+
+
 static void sca_msci_intr(port_t *port)
 {
-	struct net_device *dev = port_to_dev(port);
-	card_t* card = port_to_card(port);
-	u8 stat = sca_in(MSCI1_OFFSET + ST1, card); /* read MSCI ST1 status */
+	u8 stat = sca_in(MSCI1_OFFSET + ST1, port); /* read MSCI ST1 status */
 
 	/* Reset MSCI TX underrun status bit */
-	sca_out(stat & ST1_UDRN, MSCI0_OFFSET + ST1, card);
+	sca_out(stat & ST1_UDRN, MSCI0_OFFSET + ST1, port);
 
 	if (stat & ST1_UDRN) {
-		struct net_device_stats *stats = hdlc_stats(dev);
+		struct net_device_stats *stats = hdlc_stats(port_to_dev(port));
 		stats->tx_errors++; /* TX Underrun error detected */
 		stats->tx_fifo_errors++;
 	}
 
 	/* Reset MSCI CDCD status bit - uses ch#2 DCD input */
-	sca_out(stat & ST1_CDCD, MSCI1_OFFSET + ST1, card);
+	sca_out(stat & ST1_CDCD, MSCI1_OFFSET + ST1, port);
 
 	if (stat & ST1_CDCD)
-		hdlc_set_carrier(!(sca_in(MSCI1_OFFSET + ST3, card) & ST3_DCD),
-				 dev);
+		set_carrier(port);
 }
 
 
@@ -190,7 +196,7 @@ static int c101_open(struct net_device *dev)
 	sca_out(IE1_UDRN, MSCI0_OFFSET + IE1, port);
 	sca_out(IE0_TXINT, MSCI0_OFFSET + IE0, port);
 
-	hdlc_set_carrier(!(sca_in(MSCI1_OFFSET + ST3, port) & ST3_DCD), dev);
+	set_carrier(port);
 	printk(KERN_DEBUG "0x%X\n", sca_in(MSCI1_OFFSET + ST3, port));
 
 	/* enable MSCI1 CDCD interrupt */
@@ -378,7 +384,7 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 	}
 
 	sca_init_sync_port(card); /* Set up C101 memory */
-	hdlc_set_carrier(!(sca_in(MSCI1_OFFSET + ST3, card) & ST3_DCD), dev);
+	set_carrier(card);
 
 	printk(KERN_INFO "%s: Moxa C101 on IRQ%u,"
 	       " using %u TX + %u RX packets rings\n",
