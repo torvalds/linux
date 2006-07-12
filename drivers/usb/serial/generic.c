@@ -17,8 +17,8 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/usb.h>
+#include <linux/usb/serial.h>
 #include <asm/uaccess.h>
-#include "usb-serial.h"
 
 static int debug;
 

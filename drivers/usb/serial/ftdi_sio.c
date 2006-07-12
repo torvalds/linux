@@ -257,7 +257,7 @@
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/serial.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 #include "ftdi_sio.h"
 
 /*

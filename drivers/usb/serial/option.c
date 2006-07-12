@@ -65,7 +65,7 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 
 /* Function prototypes */
 static int  option_open(struct usb_serial_port *port, struct file *filp);

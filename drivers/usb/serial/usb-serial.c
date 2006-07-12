@@ -31,7 +31,7 @@
 #include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 #include "pl2303.h"
 
 /*

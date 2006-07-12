@@ -13,7 +13,7 @@
 #include <linux/tty.h>
 #include <linux/module.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x16d5, 0x6501) },	/* AirData CDMA device */

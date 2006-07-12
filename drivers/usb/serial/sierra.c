@@ -14,7 +14,7 @@
 #include <linux/tty.h>
 #include <linux/module.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x0018) },	/* Sierra Wireless MC5720 */
