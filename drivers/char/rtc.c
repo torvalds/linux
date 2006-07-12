@@ -1245,7 +1245,7 @@ static int rtc_proc_open(struct inode *inode, struct file *file)
 
 void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 {
-	unsigned long uip_watchdog = jiffies;
+	unsigned long uip_watchdog = jiffies, flags;
 	unsigned char ctrl;
 #ifdef CONFIG_MACH_DECSTATION
 	unsigned int real_year;
@@ -1272,7 +1272,7 @@ void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 	 * RTC has RTC_DAY_OF_WEEK, we should usually ignore it, as it is
 	 * only updated by the RTC when initially set to a non-zero value.
 	 */
-	spin_lock_irq(&rtc_lock);
+	spin_lock_irqsave(&rtc_lock, flags);
 	rtc_tm->tm_sec = CMOS_READ(RTC_SECONDS);
 	rtc_tm->tm_min = CMOS_READ(RTC_MINUTES);
 	rtc_tm->tm_hour = CMOS_READ(RTC_HOURS);
@@ -1286,7 +1286,7 @@ void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 	real_year = CMOS_READ(RTC_DEC_YEAR);
 #endif
 	ctrl = CMOS_READ(RTC_CONTROL);
-	spin_unlock_irq(&rtc_lock);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
 	{
