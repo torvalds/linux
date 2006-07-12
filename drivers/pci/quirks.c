@@ -1175,6 +1175,55 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_962,		quirk_sis_96x_
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_963,		quirk_sis_96x_smbus );
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_LPC,		quirk_sis_96x_smbus );
 
+#if defined(CONFIG_SCSI_SATA) || defined(CONFIG_SCSI_SATA_MODULE)
+
+/*
+ *	If we are using libata we can drive this chip properly but must
+ *	do this early on to make the additional device appear during
+ *	the PCI scanning.
+ */
+
+static void __devinit quirk_jmicron_dualfn(struct pci_dev *pdev)
+{
+	u32 conf;
+	u8 hdr;
+
+	/* Only poke fn 0 */
+	if (PCI_FUNC(pdev->devfn))
+		return;
+
+	switch(pdev->device) {
+		case PCI_DEVICE_ID_JMICRON_JMB365:
+		case PCI_DEVICE_ID_JMICRON_JMB366:
+			/* Redirect IDE second PATA port to the right spot */
+			pci_read_config_dword(pdev, 0x80, &conf);
+			conf |= (1 << 24);
+			/* Fall through */
+			pci_write_config_dword(pdev, 0x80, conf);
+		case PCI_DEVICE_ID_JMICRON_JMB361:
+		case PCI_DEVICE_ID_JMICRON_JMB363:
+			pci_read_config_dword(pdev, 0x40, &conf);
+			/* Enable dual function mode, AHCI on fn 0, IDE fn1 */
+			/* Set the class codes correctly and then direct IDE 0 */
+			conf &= ~0x000F0200;	/* Clear bit 9 and 16-19 */
+			conf |=  0x00C20002;	/* Set bit 1, 17, 22, 23 */
+			pci_write_config_dword(pdev, 0x40, conf);
+
+			/* Reconfigure so that the PCI scanner discovers the
+			   device is now multifunction */
+
+			pci_read_config_byte(pdev, PCI_HEADER_TYPE, &hdr);
+			pdev->hdr_type = hdr & 0x7f;
+			pdev->multifunction = !!(hdr & 0x80);
+
+			break;
+	}
+}
+
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_JMICRON, PCI_ANY_ID, quirk_jmicron_dualfn);
+
+#endif
+
 #ifdef CONFIG_X86_IO_APIC
 static void __init quirk_alder_ioapic(struct pci_dev *pdev)
 {
