@@ -460,17 +460,19 @@ config SND_FM801
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-fm801.
 
-config SND_FM801_TEA575X
-	tristate "ForteMedia FM801 + TEA5757 tuner"
+config SND_FM801_TEA575X_BOOL
+	bool "ForteMedia FM801 + TEA5757 tuner"
 	depends on SND_FM801
-        select VIDEO_DEV
 	help
 	  Say Y here to include support for soundcards based on the ForteMedia
 	  FM801 chip with a TEA5757 tuner connected to GPIO1-3 pins (Media
-	  Forte SF256-PCS-02).
+	  Forte SF256-PCS-02) into the snd-fm801 driver.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-fm801-tea575x.
+config SND_FM801_TEA575X
+	tristate
+	depends on SND_FM801_TEA575X_BOOL
+	default SND_FM801
+	select VIDEO_DEV
 
 config SND_HDA_INTEL
 	tristate "Intel HD Audio"

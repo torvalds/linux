@@ -1629,7 +1629,7 @@ static void __devexit azx_remove(struct pci_dev *pci)
 }
 
 /* PCI IDs */
-static struct pci_device_id azx_ids[] __devinitdata = {
+static struct pci_device_id azx_ids[] = {
 	{ 0x8086, 0x2668, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ICH }, /* ICH6 */
 	{ 0x8086, 0x27d8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ICH }, /* ICH7 */
 	{ 0x8086, 0x269a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ICH }, /* ESB2 */

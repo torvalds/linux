@@ -628,8 +628,9 @@ static void snd_timer_tasklet(unsigned long arg)
 	struct snd_timer_instance *ti;
 	struct list_head *p;
 	unsigned long resolution, ticks;
+	unsigned long flags;
 
-	spin_lock(&timer->lock);
+	spin_lock_irqsave(&timer->lock, flags);
 	/* now process all callbacks */
 	while (!list_empty(&timer->sack_list_head)) {
 		p = timer->sack_list_head.next;		/* get first item */
@@ -649,7 +650,7 @@ static void snd_timer_tasklet(unsigned long arg)
 		spin_lock(&timer->lock);
 		ti->flags &= ~SNDRV_TIMER_IFLG_CALLBACK;
 	}
-	spin_unlock(&timer->lock);
+	spin_unlock_irqrestore(&timer->lock, flags);
 }
 
 /*
