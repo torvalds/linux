@@ -382,7 +382,7 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 				 */
 				if (n) { 
 					if (clear_user(buffer + tsz - n,
-								tsz - n))
+								n))
 						return -EFAULT;
 				}
 			} else {
