@@ -232,7 +232,13 @@ struct request {
 	struct hlist_node hash;	/* merge hash */
 	struct rb_node rb_node;	/* sort/lookup */
 
+	/*
+	 * two pointers are available for the IO schedulers, if they need
+	 * more they have to dynamically allocate it.
+	 */
 	void *elevator_private;
+	void *elevator_private2;
+
 	void *completion_data;
 
 	int rq_status;	/* should split this into a few status bits */
