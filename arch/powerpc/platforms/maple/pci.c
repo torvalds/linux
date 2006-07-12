@@ -38,16 +38,16 @@ static struct pci_controller *u3_agp, *u3_ht;
 static int __init fixup_one_level_bus_range(struct device_node *node, int higher)
 {
 	for (; node != 0;node = node->sibling) {
-		int * bus_range;
-		unsigned int *class_code;
+		const int *bus_range;
+		const unsigned int *class_code;
 		int len;
 
 		/* For PCI<->PCI bridges or CardBus bridges, we go down */
-		class_code = (unsigned int *) get_property(node, "class-code", NULL);
+		class_code = get_property(node, "class-code", NULL);
 		if (!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS))
 			continue;
-		bus_range = (int *) get_property(node, "bus-range", &len);
+		bus_range = get_property(node, "bus-range", &len);
 		if (bus_range != NULL && len > 2 * sizeof(int)) {
 			if (bus_range[1] > higher)
 				higher = bus_range[1];
@@ -65,16 +65,18 @@ static int __init fixup_one_level_bus_range(struct device_node *node, int higher
  */
 static void __init fixup_bus_range(struct device_node *bridge)
 {
-	int * bus_range;
+	int *bus_range;
+	struct property *prop;
 	int len;
 
 	/* Lookup the "bus-range" property for the hose */
-	bus_range = (int *) get_property(bridge, "bus-range", &len);
-	if (bus_range == NULL || len < 2 * sizeof(int)) {
+	prop = of_find_property(bridge, "bus-range", &len);
+	if (prop == NULL  || prop->value == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %s\n",
 			       bridge->full_name);
 		return;
 	}
+	bus_range = (int *)prop->value;
 	bus_range[1] = fixup_one_level_bus_range(bridge->child, bus_range[1]);
 }
 
@@ -314,12 +316,12 @@ static int __init add_bridge(struct device_node *dev)
 	int len;
 	struct pci_controller *hose;
 	char* disp_name;
-	int *bus_range;
+	const int *bus_range;
 	int primary = 1;
 
 	DBG("Adding PCI host bridge %s\n", dev->full_name);
 
-	bus_range = (int *) get_property(dev, "bus-range", &len);
+	bus_range = get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %s, assume bus 0\n",
 		dev->full_name);
