@@ -65,6 +65,7 @@
 #define RX_MAX_PENDING		(RX_LE_SIZE/2 - 2)
 #define RX_DEF_PENDING		RX_MAX_PENDING
 #define RX_SKB_ALIGN		8
+#define RX_BUF_WRITE		16
 
 #define TX_RING_SIZE		512
 #define TX_DEF_PENDING		(TX_RING_SIZE - 1)
@@ -234,7 +235,6 @@ static void sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 		}
 
 		if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
-			sky2_write16(hw, B0_CTST, Y2_HW_WOL_ON);
 			sky2_pci_write32(hw, PCI_DEV_REG3, 0);
 			reg1 = sky2_pci_read32(hw, PCI_DEV_REG4);
 			reg1 &= P_ASPM_CONTROL_MSK;
@@ -243,6 +243,7 @@ static void sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 		}
 
 		sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
+		udelay(100);
 
 		break;
 
@@ -255,6 +256,7 @@ static void sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 		else
 			reg1 |= (PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
 		sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
+		udelay(100);
 
 		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
 			sky2_write8(hw, B2_Y2_CLK_GATE, 0);
@@ -1389,7 +1391,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 	}
 
 	sky2->tx_cons = put;
-	if (tx_avail(sky2) > MAX_SKB_TX_LE)
+	if (tx_avail(sky2) > MAX_SKB_TX_LE + 4)
 		netif_wake_queue(dev);
 }
 
@@ -1888,9 +1890,6 @@ resubmit:
 	re->skb->ip_summed = CHECKSUM_NONE;
 	sky2_rx_add(sky2, re->mapaddr);
 
-	/* Tell receiver about new buffers. */
-	sky2_put_idx(sky2->hw, rxqaddr[sky2->port], sky2->rx_put);
-
 	return skb;
 
 oversize:
@@ -1937,7 +1936,9 @@ static inline int sky2_more_work(const struct sky2_hw *hw)
 /* Process status response ring */
 static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 {
+	struct sky2_port *sky2;
 	int work_done = 0;
+	unsigned buf_write[2] = { 0, 0 };
 	u16 hwidx = sky2_read16(hw, STAT_PUT_IDX);
 
 	rmb();
@@ -1945,7 +1946,6 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 	while (hw->st_idx != hwidx) {
 		struct sky2_status_le *le  = hw->st_le + hw->st_idx;
 		struct net_device *dev;
-		struct sky2_port *sky2;
 		struct sk_buff *skb;
 		u32 status;
 		u16 length;
@@ -1978,6 +1978,14 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 #endif
 				netif_receive_skb(skb);
 
+			/* Update receiver after 16 frames */
+			if (++buf_write[le->link] == RX_BUF_WRITE) {
+				sky2_put_idx(hw, rxqaddr[le->link],
+					     sky2->rx_put);
+				buf_write[le->link] = 0;
+			}
+
+			/* Stop after net poll weight */
 			if (++work_done >= to_do)
 				goto exit_loop;
 			break;
@@ -2016,6 +2024,16 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 	}
 
 exit_loop:
+	if (buf_write[0]) {
+		sky2 = netdev_priv(hw->dev[0]);
+		sky2_put_idx(hw, Q_R1, sky2->rx_put);
+	}
+
+	if (buf_write[1]) {
+		sky2 = netdev_priv(hw->dev[1]);
+		sky2_put_idx(hw, Q_R2, sky2->rx_put);
+	}
+
 	return work_done;
 }
 
@@ -2286,7 +2304,7 @@ static inline u32 sky2_clk2us(const struct sky2_hw *hw, u32 clk)
 }
 
 
-static int __devinit sky2_reset(struct sky2_hw *hw)
+static int sky2_reset(struct sky2_hw *hw)
 {
 	u16 status;
 	u8 t8, pmd_type;
@@ -3437,17 +3455,14 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 		return -EINVAL;
 
 	del_timer_sync(&hw->idle_timer);
+	netif_poll_disable(hw->dev[0]);
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 
-		if (dev) {
-			if (!netif_running(dev))
-				continue;
-
+		if (netif_running(dev)) {
 			sky2_down(dev);
 			netif_device_detach(dev);
-			netif_poll_disable(dev);
 		}
 	}
 
@@ -3474,9 +3489,8 @@ static int sky2_resume(struct pci_dev *pdev)
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
-		if (dev && netif_running(dev)) {
+		if (netif_running(dev)) {
 			netif_device_attach(dev);
-			netif_poll_enable(dev);
 
 			err = sky2_up(dev);
 			if (err) {
@@ -3488,6 +3502,7 @@ static int sky2_resume(struct pci_dev *pdev)
 		}
 	}
 
+	netif_poll_enable(hw->dev[0]);
 	sky2_idle_start(hw);
 out:
 	return err;

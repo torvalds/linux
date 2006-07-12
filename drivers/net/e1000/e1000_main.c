@@ -283,7 +283,7 @@ static int e1000_request_irq(struct e1000_adapter *adapter)
 		}
 	}
 	if (adapter->have_msi)
-		flags &= ~SA_SHIRQ;
+		flags &= ~IRQF_SHARED;
 #endif
 	if ((err = request_irq(adapter->pdev->irq, &e1000_intr, flags,
 	                       netdev->name, netdev)))

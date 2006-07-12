@@ -2412,14 +2412,20 @@ static int myri10ge_resume(struct pci_dev *pdev)
 		return -EIO;
 	}
 	myri10ge_restore_state(mgp);
-	pci_enable_device(pdev);
+
+	status = pci_enable_device(pdev);
+	if (status < 0) {
+		dev_err(&pdev->dev, "failed to enable device\n");
+		return -EIO;
+	}
+
 	pci_set_master(pdev);
 
 	status = request_irq(pdev->irq, myri10ge_intr, IRQF_SHARED,
 			     netdev->name, mgp);
 	if (status != 0) {
 		dev_err(&pdev->dev, "failed to allocate IRQ\n");
-		goto abort_with_msi;
+		goto abort_with_enabled;
 	}
 
 	myri10ge_reset(mgp);
@@ -2438,7 +2444,8 @@ static int myri10ge_resume(struct pci_dev *pdev)
 
 	return 0;
 
-abort_with_msi:
+abort_with_enabled:
+	pci_disable_device(pdev);
 	return -EIO;
 
 }

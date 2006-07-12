@@ -240,10 +240,12 @@ enum {
 #define NVREG_RNDSEED_FORCE2	0x2d00
 #define NVREG_RNDSEED_FORCE3	0x7400
 
-	NvRegUnknownSetupReg1 = 0xA0,
-#define NVREG_UNKSETUP1_VAL	0x16070f
-	NvRegUnknownSetupReg2 = 0xA4,
-#define NVREG_UNKSETUP2_VAL	0x16
+	NvRegTxDeferral = 0xA0,
+#define NVREG_TX_DEFERRAL_DEFAULT	0x15050f
+#define NVREG_TX_DEFERRAL_RGMII_10_100	0x16070f
+#define NVREG_TX_DEFERRAL_RGMII_1000	0x14050f
+	NvRegRxDeferral = 0xA4,
+#define NVREG_RX_DEFERRAL_DEFAULT	0x16
 	NvRegMacAddrA = 0xA8,
 	NvRegMacAddrB = 0xAC,
 	NvRegMulticastAddrA = 0xB0,
@@ -269,8 +271,10 @@ enum {
 #define NVREG_LINKSPEED_MASK	(0xFFF)
 	NvRegUnknownSetupReg5 = 0x130,
 #define NVREG_UNKSETUP5_BIT31	(1<<31)
-	NvRegUnknownSetupReg3 = 0x13c,
-#define NVREG_UNKSETUP3_VAL1	0x200010
+	NvRegTxWatermark = 0x13c,
+#define NVREG_TX_WM_DESC1_DEFAULT	0x0200010
+#define NVREG_TX_WM_DESC2_3_DEFAULT	0x1e08000
+#define NVREG_TX_WM_DESC2_3_1000	0xfe08000
 	NvRegTxRxControl = 0x144,
 #define NVREG_TXRXCTL_KICK	0x0001
 #define NVREG_TXRXCTL_BIT1	0x0002
@@ -658,7 +662,7 @@ static const struct register_test nv_registers_test[] = {
 	{ NvRegMisc1, 0x03c },
 	{ NvRegOffloadConfig, 0x03ff },
 	{ NvRegMulticastAddrA, 0xffffffff },
-	{ NvRegUnknownSetupReg3, 0x0ff },
+	{ NvRegTxWatermark, 0x0ff },
 	{ NvRegWakeUpFlags, 0x07777 },
 	{ 0,0 }
 };
@@ -2127,7 +2131,7 @@ static int nv_update_linkspeed(struct net_device *dev)
 	int newdup = np->duplex;
 	int mii_status;
 	int retval = 0;
-	u32 control_1000, status_1000, phyreg, pause_flags;
+	u32 control_1000, status_1000, phyreg, pause_flags, txreg;
 
 	/* BMSR_LSTATUS is latched, read it twice:
 	 * we want the current value.
@@ -2244,6 +2248,26 @@ set_speed:
 	else if ((np->linkspeed & NVREG_LINKSPEED_MASK) == NVREG_LINKSPEED_1000)
 		phyreg |= PHY_1000;
 	writel(phyreg, base + NvRegPhyInterface);
+
+	if (phyreg & PHY_RGMII) {
+		if ((np->linkspeed & NVREG_LINKSPEED_MASK) == NVREG_LINKSPEED_1000)
+			txreg = NVREG_TX_DEFERRAL_RGMII_1000;
+		else
+			txreg = NVREG_TX_DEFERRAL_RGMII_10_100;
+	} else {
+		txreg = NVREG_TX_DEFERRAL_DEFAULT;
+	}
+	writel(txreg, base + NvRegTxDeferral);
+
+	if (np->desc_ver == DESC_VER_1) {
+		txreg = NVREG_TX_WM_DESC1_DEFAULT;
+	} else {
+		if ((np->linkspeed & NVREG_LINKSPEED_MASK) == NVREG_LINKSPEED_1000)
+			txreg = NVREG_TX_WM_DESC2_3_1000;
+		else
+			txreg = NVREG_TX_WM_DESC2_3_DEFAULT;
+	}
+	writel(txreg, base + NvRegTxWatermark);
 
 	writel(NVREG_MISC1_FORCE | ( np->duplex ? 0 : NVREG_MISC1_HD),
 		base + NvRegMisc1);
@@ -3910,7 +3934,10 @@ static int nv_open(struct net_device *dev)
 
 	/* 5) continue setup */
 	writel(np->linkspeed, base + NvRegLinkSpeed);
-	writel(NVREG_UNKSETUP3_VAL1, base + NvRegUnknownSetupReg3);
+	if (np->desc_ver == DESC_VER_1)
+		writel(NVREG_TX_WM_DESC1_DEFAULT, base + NvRegTxWatermark);
+	else
+		writel(NVREG_TX_WM_DESC2_3_DEFAULT, base + NvRegTxWatermark);
 	writel(np->txrxctl_bits, base + NvRegTxRxControl);
 	writel(np->vlanctl_bits, base + NvRegVlanControl);
 	pci_push(base);
@@ -3932,8 +3959,8 @@ static int nv_open(struct net_device *dev)
 	writel(readl(base + NvRegReceiverStatus), base + NvRegReceiverStatus);
 	get_random_bytes(&i, sizeof(i));
 	writel(NVREG_RNDSEED_FORCE | (i&NVREG_RNDSEED_MASK), base + NvRegRandomSeed);
-	writel(NVREG_UNKSETUP1_VAL, base + NvRegUnknownSetupReg1);
-	writel(NVREG_UNKSETUP2_VAL, base + NvRegUnknownSetupReg2);
+	writel(NVREG_TX_DEFERRAL_DEFAULT, base + NvRegTxDeferral);
+	writel(NVREG_RX_DEFERRAL_DEFAULT, base + NvRegRxDeferral);
 	if (poll_interval == -1) {
 		if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT)
 			writel(NVREG_POLL_DEFAULT_THROUGHPUT, base + NvRegPollingInterval);
