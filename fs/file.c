@@ -273,11 +273,13 @@ static struct fdtable *alloc_fdtable(int nr)
 	} while (nfds <= nr);
 	new_fds = alloc_fd_array(nfds);
 	if (!new_fds)
-		goto out;
+		goto out2;
 	fdt->fd = new_fds;
 	fdt->max_fds = nfds;
 	fdt->free_files = NULL;
 	return fdt;
+out2:
+	nfds = fdt->max_fdset;
 out:
   	if (new_openset)
   		free_fdset(new_openset, nfds);
