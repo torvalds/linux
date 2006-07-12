@@ -106,7 +106,7 @@ static int smt_enabled_cmdline;
 static void check_smt_enabled(void)
 {
 	struct device_node *dn;
-	char *smt_option;
+	const char *smt_option;
 
 	/* Allow the command line to overrule the OF option */
 	if (smt_enabled_cmdline)
@@ -115,7 +115,7 @@ static void check_smt_enabled(void)
 	dn = of_find_node_by_path("/options");
 
 	if (dn) {
-		smt_option = (char *)get_property(dn, "ibm,smt-enabled", NULL);
+		smt_option = get_property(dn, "ibm,smt-enabled", NULL);
 
                 if (smt_option) {
 			if (!strcmp(smt_option, "on"))
@@ -292,7 +292,7 @@ static void __init initialize_cache_info(void)
 		 */
 
 		if ( num_cpus == 1 ) {
-			u32 *sizep, *lsizep;
+			const u32 *sizep, *lsizep;
 			u32 size, lsize;
 			const char *dc, *ic;
 
@@ -307,10 +307,10 @@ static void __init initialize_cache_info(void)
 
 			size = 0;
 			lsize = cur_cpu_spec->dcache_bsize;
-			sizep = (u32 *)get_property(np, "d-cache-size", NULL);
+			sizep = get_property(np, "d-cache-size", NULL);
 			if (sizep != NULL)
 				size = *sizep;
-			lsizep = (u32 *) get_property(np, dc, NULL);
+			lsizep = get_property(np, dc, NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
 			if (sizep == 0 || lsizep == 0)
@@ -324,10 +324,10 @@ static void __init initialize_cache_info(void)
 
 			size = 0;
 			lsize = cur_cpu_spec->icache_bsize;
-			sizep = (u32 *)get_property(np, "i-cache-size", NULL);
+			sizep = get_property(np, "i-cache-size", NULL);
 			if (sizep != NULL)
 				size = *sizep;
-			lsizep = (u32 *)get_property(np, ic, NULL);
+			lsizep = get_property(np, ic, NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
 			if (sizep == 0 || lsizep == 0)

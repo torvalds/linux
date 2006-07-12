@@ -167,7 +167,7 @@ static DEVICE_ATTR(name, S_IRUSR | S_IRGRP | S_IROTH, ibmebusdev_show_name,
 		   NULL);
 
 static struct ibmebus_dev* __devinit ibmebus_register_device_common(
-	struct ibmebus_dev *dev, char *name)
+	struct ibmebus_dev *dev, const char *name)
 {
 	int err = 0;
 
@@ -194,10 +194,10 @@ static struct ibmebus_dev* __devinit ibmebus_register_device_node(
 	struct device_node *dn)
 {
 	struct ibmebus_dev *dev;
-	char *loc_code;
+	const char *loc_code;
 	int length;
 
-	loc_code = (char *)get_property(dn, "ibm,loc-code", NULL);
+	loc_code = get_property(dn, "ibm,loc-code", NULL);
 	if (!loc_code) {
                 printk(KERN_WARNING "%s: node %s missing 'ibm,loc-code'\n",
 		       __FUNCTION__, dn->name ? dn->name : "<unknown>");

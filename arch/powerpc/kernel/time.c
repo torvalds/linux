@@ -859,14 +859,14 @@ EXPORT_SYMBOL(do_settimeofday);
 static int __init get_freq(char *name, int cells, unsigned long *val)
 {
 	struct device_node *cpu;
-	unsigned int *fp;
+	const unsigned int *fp;
 	int found = 0;
 
 	/* The cpu node should have timebase and clock frequency properties */
 	cpu = of_find_node_by_type(NULL, "cpu");
 
 	if (cpu) {
-		fp = (unsigned int *)get_property(cpu, name, NULL);
+		fp = get_property(cpu, name, NULL);
 		if (fp) {
 			found = 1;
 			*val = 0;

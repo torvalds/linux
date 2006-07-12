@@ -80,7 +80,7 @@ static ssize_t mmio_nvram_get_size(void)
 int __init mmio_nvram_init(void)
 {
 	struct device_node *nvram_node;
-	unsigned long *buffer;
+	const unsigned long *buffer;
 	int proplen;
 	unsigned long nvram_addr;
 	int ret;
@@ -91,7 +91,7 @@ int __init mmio_nvram_init(void)
 		goto out;
 
 	ret = -EIO;
-	buffer = (unsigned long *)get_property(nvram_node, "reg", &proplen);
+	buffer = get_property(nvram_node, "reg", &proplen);
 	if (proplen != 2*sizeof(unsigned long))
 		goto out;
 

@@ -40,8 +40,8 @@
 static void * __devinit update_dn_pci_info(struct device_node *dn, void *data)
 {
 	struct pci_controller *phb = data;
-	int *type = (int *)get_property(dn, "ibm,pci-config-space-type", NULL);
-	u32 *regs;
+	const int *type = get_property(dn, "ibm,pci-config-space-type", NULL);
+	const u32 *regs;
 	struct pci_dn *pdn;
 
 	if (mem_init_done)
@@ -54,14 +54,14 @@ static void * __devinit update_dn_pci_info(struct device_node *dn, void *data)
 	dn->data = pdn;
 	pdn->node = dn;
 	pdn->phb = phb;
-	regs = (u32 *)get_property(dn, "reg", NULL);
+	regs = get_property(dn, "reg", NULL);
 	if (regs) {
 		/* First register entry is addr (00BBSS00)  */
 		pdn->busno = (regs[0] >> 16) & 0xff;
 		pdn->devfn = (regs[0] >> 8) & 0xff;
 	}
 	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
-		u32 *busp = (u32 *)get_property(dn, "linux,subbus", NULL);
+		const u32 *busp = get_property(dn, "linux,subbus", NULL);
 		if (busp)
 			pdn->bussubno = *busp;
 	}
@@ -96,10 +96,11 @@ void *traverse_pci_devices(struct device_node *start, traverse_func pre,
 
 	/* We started with a phb, iterate all childs */
 	for (dn = start->child; dn; dn = nextdn) {
-		u32 *classp, class;
+		const u32 *classp;
+		u32 class;
 
 		nextdn = NULL;
-		classp = (u32 *)get_property(dn, "class-code", NULL);
+		classp = get_property(dn, "class-code", NULL);
 		class = classp ? *classp : 0;
 
 		if (pre && ((ret = pre(dn, data)) != NULL))

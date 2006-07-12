@@ -158,35 +158,35 @@ int btext_initialize(struct device_node *np)
 {
 	unsigned int width, height, depth, pitch;
 	unsigned long address = 0;
-	u32 *prop;
+	const u32 *prop;
 
-	prop = (u32 *)get_property(np, "linux,bootx-width", NULL);
+	prop = get_property(np, "linux,bootx-width", NULL);
 	if (prop == NULL)
-		prop = (u32 *)get_property(np, "width", NULL);
+		prop = get_property(np, "width", NULL);
 	if (prop == NULL)
 		return -EINVAL;
 	width = *prop;
-	prop = (u32 *)get_property(np, "linux,bootx-height", NULL);
+	prop = get_property(np, "linux,bootx-height", NULL);
 	if (prop == NULL)
-		prop = (u32 *)get_property(np, "height", NULL);
+		prop = get_property(np, "height", NULL);
 	if (prop == NULL)
 		return -EINVAL;
 	height = *prop;
-	prop = (u32 *)get_property(np, "linux,bootx-depth", NULL);
+	prop = get_property(np, "linux,bootx-depth", NULL);
 	if (prop == NULL)
-		prop = (u32 *)get_property(np, "depth", NULL);
+		prop = get_property(np, "depth", NULL);
 	if (prop == NULL)
 		return -EINVAL;
 	depth = *prop;
 	pitch = width * ((depth + 7) / 8);
-	prop = (u32 *)get_property(np, "linux,bootx-linebytes", NULL);
+	prop = get_property(np, "linux,bootx-linebytes", NULL);
 	if (prop == NULL)
-		prop = (u32 *)get_property(np, "linebytes", NULL);
+		prop = get_property(np, "linebytes", NULL);
 	if (prop)
 		pitch = *prop;
 	if (pitch == 1)
 		pitch = 0x1000;
-	prop = (u32 *)get_property(np, "address", NULL);
+	prop = get_property(np, "address", NULL);
 	if (prop)
 		address = *prop;
 
@@ -214,11 +214,11 @@ int btext_initialize(struct device_node *np)
 
 int __init btext_find_display(int allow_nonstdout)
 {
-	char *name;
+	const char *name;
 	struct device_node *np = NULL; 
 	int rc = -ENODEV;
 
-	name = (char *)get_property(of_chosen, "linux,stdout-path", NULL);
+	name = get_property(of_chosen, "linux,stdout-path", NULL);
 	if (name != NULL) {
 		np = of_find_node_by_path(name);
 		if (np != NULL) {

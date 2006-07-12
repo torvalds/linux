@@ -72,8 +72,8 @@ struct property {
 };
 
 struct device_node {
-	char	*name;
-	char	*type;
+	const char *name;
+	const char *type;
 	phandle	node;
 	phandle linux_phandle;
 	char	*full_name;
@@ -209,15 +209,15 @@ static inline u64 of_read_number(const u32 *cell, int size)
 /* Translate an OF address block into a CPU physical address
  */
 #define OF_BAD_ADDR	((u64)-1)
-extern u64 of_translate_address(struct device_node *np, u32 *addr);
+extern u64 of_translate_address(struct device_node *np, const u32 *addr);
 
 /* Extract an address from a device, returns the region size and
  * the address space flags too. The PCI version uses a BAR number
  * instead of an absolute index
  */
-extern u32 *of_get_address(struct device_node *dev, int index,
+extern const u32 *of_get_address(struct device_node *dev, int index,
 			   u64 *size, unsigned int *flags);
-extern u32 *of_get_pci_address(struct device_node *dev, int bar_no,
+extern const u32 *of_get_pci_address(struct device_node *dev, int bar_no,
 			       u64 *size, unsigned int *flags);
 
 /* Get an address as a resource. Note that if your address is
@@ -234,7 +234,7 @@ extern int of_pci_address_to_resource(struct device_node *dev, int bar,
 /* Parse the ibm,dma-window property of an OF node into the busno, phys and
  * size parameters.
  */
-void of_parse_dma_window(struct device_node *dn, unsigned char *dma_window_prop,
+void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
 		unsigned long *busno, unsigned long *phys, unsigned long *size);
 
 extern void kdump_move_device_tree(void);
@@ -288,8 +288,8 @@ extern void of_irq_map_init(unsigned int flags);
  *
  */
 
-extern int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 *addr,
-			  struct of_irq *out_irq);
+extern int of_irq_map_raw(struct device_node *parent, const u32 *intspec,
+			  const u32 *addr, struct of_irq *out_irq);
 
 
 /***

@@ -177,10 +177,12 @@ void __init udbg_init_rtas_console(void)
 void rtas_progress(char *s, unsigned short hex)
 {
 	struct device_node *root;
-	int width, *p;
+	int width;
+	const int *p;
 	char *os;
 	static int display_character, set_indicator;
-	static int display_width, display_lines, *row_width, form_feed;
+	static int display_width, display_lines, form_feed;
+	const static int *row_width;
 	static DEFINE_SPINLOCK(progress_lock);
 	static int current_line;
 	static int pending_newline = 0;  /* did last write end with unprinted newline? */
@@ -191,16 +193,16 @@ void rtas_progress(char *s, unsigned short hex)
 	if (display_width == 0) {
 		display_width = 0x10;
 		if ((root = find_path_device("/rtas"))) {
-			if ((p = (unsigned int *)get_property(root,
+			if ((p = get_property(root,
 					"ibm,display-line-length", NULL)))
 				display_width = *p;
-			if ((p = (unsigned int *)get_property(root,
+			if ((p = get_property(root,
 					"ibm,form-feed", NULL)))
 				form_feed = *p;
-			if ((p = (unsigned int *)get_property(root,
+			if ((p = get_property(root,
 					"ibm,display-number-of-lines", NULL)))
 				display_lines = *p;
-			row_width = (unsigned int *)get_property(root,
+			row_width = get_property(root,
 					"ibm,display-truncation-length", NULL);
 		}
 		display_character = rtas_token("display-character");
@@ -293,10 +295,10 @@ EXPORT_SYMBOL(rtas_progress);		/* needed by rtas_flash module */
 
 int rtas_token(const char *service)
 {
-	int *tokp;
+	const int *tokp;
 	if (rtas.dev == NULL)
 		return RTAS_UNKNOWN_SERVICE;
-	tokp = (int *) get_property(rtas.dev, service, NULL);
+	tokp = get_property(rtas.dev, service, NULL);
 	return tokp ? *tokp : RTAS_UNKNOWN_SERVICE;
 }
 EXPORT_SYMBOL(rtas_token);
@@ -824,15 +826,15 @@ void __init rtas_initialize(void)
 	 */
 	rtas.dev = of_find_node_by_name(NULL, "rtas");
 	if (rtas.dev) {
-		u32 *basep, *entryp;
-		u32 *sizep;
+		const u32 *basep, *entryp, *sizep;
 
-		basep = (u32 *)get_property(rtas.dev, "linux,rtas-base", NULL);
-		sizep = (u32 *)get_property(rtas.dev, "rtas-size", NULL);
+		basep = get_property(rtas.dev, "linux,rtas-base", NULL);
+		sizep = get_property(rtas.dev, "rtas-size", NULL);
 		if (basep != NULL && sizep != NULL) {
 			rtas.base = *basep;
 			rtas.size = *sizep;
-			entryp = (u32 *)get_property(rtas.dev, "linux,rtas-entry", NULL);
+			entryp = get_property(rtas.dev,
+					"linux,rtas-entry", NULL);
 			if (entryp == NULL) /* Ugh */
 				rtas.entry = rtas.base;
 			else

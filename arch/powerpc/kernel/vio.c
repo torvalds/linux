@@ -77,7 +77,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	} else
 #endif
 	{
-		unsigned char *dma_window;
+		const unsigned char *dma_window;
 		struct iommu_table *tbl;
 		unsigned long offset, size;
 
@@ -217,7 +217,7 @@ static void __devinit vio_dev_release(struct device *dev)
 struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 {
 	struct vio_dev *viodev;
-	unsigned int *unit_address;
+	const unsigned int *unit_address;
 
 	/* we need the 'device_type' property, in order to match with drivers */
 	if (of_node->type == NULL) {
@@ -227,7 +227,7 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 		return NULL;
 	}
 
-	unit_address = (unsigned int *)get_property(of_node, "reg", NULL);
+	unit_address = get_property(of_node, "reg", NULL);
 	if (unit_address == NULL) {
 		printk(KERN_WARNING "%s: node %s missing 'reg'\n",
 				__FUNCTION__,
@@ -249,7 +249,7 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 	viodev->type = of_node->type;
 	viodev->unit_address = *unit_address;
 	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
-		unit_address = (unsigned int *)get_property(of_node,
+		unit_address = get_property(of_node,
 				"linux,unit_address", NULL);
 		if (unit_address != NULL)
 			viodev->unit_address = *unit_address;
@@ -423,7 +423,7 @@ static int vio_hotplug(struct device *dev, char **envp, int num_envp,
 {
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
 	struct device_node *dn = dev->platform_data;
-	char *cp;
+	const char *cp;
 	int length;
 
 	if (!num_envp)
@@ -431,7 +431,7 @@ static int vio_hotplug(struct device *dev, char **envp, int num_envp,
 
 	if (!dn)
 		return -ENODEV;
-	cp = (char *)get_property(dn, "compatible", &length);
+	cp = get_property(dn, "compatible", &length);
 	if (!cp)
 		return -ENODEV;
 
@@ -493,11 +493,11 @@ static struct vio_dev *vio_find_name(const char *kobj_name)
  */
 struct vio_dev *vio_find_node(struct device_node *vnode)
 {
-	uint32_t *unit_address;
+	const uint32_t *unit_address;
 	char kobj_name[BUS_ID_SIZE];
 
 	/* construct the kobject name from the device node */
-	unit_address = (uint32_t *)get_property(vnode, "reg", NULL);
+	unit_address = get_property(vnode, "reg", NULL);
 	if (!unit_address)
 		return NULL;
 	snprintf(kobj_name, BUS_ID_SIZE, "%x", *unit_address);

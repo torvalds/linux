@@ -33,8 +33,8 @@ int default_machine_kexec_prepare(struct kimage *image)
 	unsigned long begin, end;	/* limits of segment */
 	unsigned long low, high;	/* limits of blocked memory range */
 	struct device_node *node;
-	unsigned long *basep;
-	unsigned int *sizep;
+	const unsigned long *basep;
+	const unsigned int *sizep;
 
 	if (!ppc_md.hpte_clear_all)
 		return -ENOENT;
@@ -74,10 +74,8 @@ int default_machine_kexec_prepare(struct kimage *image)
 	/* We also should not overwrite the tce tables */
 	for (node = of_find_node_by_type(NULL, "pci"); node != NULL;
 			node = of_find_node_by_type(node, "pci")) {
-		basep = (unsigned long *)get_property(node, "linux,tce-base",
-							NULL);
-		sizep = (unsigned int *)get_property(node, "linux,tce-size",
-							NULL);
+		basep = get_property(node, "linux,tce-base", NULL);
+		sizep = get_property(node, "linux,tce-size", NULL);
 		if (basep == NULL || sizep == NULL)
 			continue;
 
