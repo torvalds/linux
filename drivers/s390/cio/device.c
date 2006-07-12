@@ -280,7 +280,7 @@ ccw_device_remove_disconnected(struct ccw_device *cdev)
 	 * 'throw away device'.
 	 */
 	sch = to_subchannel(cdev->dev.parent);
-	device_unregister(&sch->dev);
+	css_sch_device_unregister(sch);
 	/* Reset intparm to zeroes. */
 	sch->schib.pmcw.intparm = 0;
 	cio_modify(sch);
@@ -625,7 +625,7 @@ ccw_device_do_unreg_rereg(void *data)
 					other_sch->schib.pmcw.intparm = 0;
 					cio_modify(other_sch);
 				}
-				device_unregister(&other_sch->dev);
+				css_sch_device_unregister(other_sch);
 			}
 		}
 		/* Update ssd info here. */
@@ -709,7 +709,7 @@ ccw_device_call_sch_unregister(void *data)
 	struct subchannel *sch;
 
 	sch = to_subchannel(cdev->dev.parent);
-	device_unregister(&sch->dev);
+	css_sch_device_unregister(sch);
 	/* Reset intparm to zeroes. */
 	sch->schib.pmcw.intparm = 0;
 	cio_modify(sch);

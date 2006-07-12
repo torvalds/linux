@@ -2,6 +2,7 @@
 #define S390_CIO_H
 
 #include "schid.h"
+#include <linux/mutex.h>
 
 /*
  * where we put the ssd info
@@ -87,7 +88,7 @@ struct orb {
 struct subchannel {
 	struct subchannel_id schid;
 	spinlock_t lock;	/* subchannel lock */
-
+	struct mutex reg_mutex;
 	enum {
 		SUBCHANNEL_TYPE_IO = 0,
 		SUBCHANNEL_TYPE_CHSC = 1,
