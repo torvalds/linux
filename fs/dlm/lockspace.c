@@ -270,12 +270,36 @@ struct dlm_ls *dlm_find_lockspace_global(uint32_t id)
 	return ls;
 }
 
-struct dlm_ls *dlm_find_lockspace_local(void *id)
+struct dlm_ls *dlm_find_lockspace_local(dlm_lockspace_t *lockspace)
 {
-	struct dlm_ls *ls = id;
+	struct dlm_ls *ls;
 
 	spin_lock(&lslist_lock);
-	ls->ls_count++;
+	list_for_each_entry(ls, &lslist, ls_list) {
+		if (ls->ls_local_handle == lockspace) {
+			ls->ls_count++;
+			goto out;
+		}
+	}
+	ls = NULL;
+ out:
+	spin_unlock(&lslist_lock);
+	return ls;
+}
+
+struct dlm_ls *dlm_find_lockspace_device(int minor)
+{
+	struct dlm_ls *ls;
+
+	spin_lock(&lslist_lock);
+	list_for_each_entry(ls, &lslist, ls_list) {
+		if (ls->ls_device.minor == minor) {
+			ls->ls_count++;
+			goto out;
+		}
+	}
+	ls = NULL;
+ out:
 	spin_unlock(&lslist_lock);
 	return ls;
 }
@@ -436,6 +460,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	init_rwsem(&ls->ls_in_recovery);
 	INIT_LIST_HEAD(&ls->ls_requestqueue);
 	mutex_init(&ls->ls_requestqueue_mutex);
+	mutex_init(&ls->ls_clear_proc_locks);
 
 	ls->ls_recover_buf = kmalloc(dlm_config.buffer_size, GFP_KERNEL);
 	if (!ls->ls_recover_buf)
@@ -444,6 +469,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	INIT_LIST_HEAD(&ls->ls_recover_list);
 	spin_lock_init(&ls->ls_recover_list_lock);
 	ls->ls_recover_list_count = 0;
+	ls->ls_local_handle = ls;
 	init_waitqueue_head(&ls->ls_wait_general);
 	INIT_LIST_HEAD(&ls->ls_root_list);
 	init_rwsem(&ls->ls_root_sem);

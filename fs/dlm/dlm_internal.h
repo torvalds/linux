@@ -35,6 +35,7 @@
 #include <linux/kref.h>
 #include <linux/kernel.h>
 #include <linux/jhash.h>
+#include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
@@ -68,6 +69,7 @@ struct dlm_mhandle;
 #define log_error(ls, fmt, args...) \
 	printk(KERN_ERR "dlm: %s: " fmt "\n", (ls)->ls_name , ##args)
 
+#define DLM_LOG_DEBUG
 #ifdef DLM_LOG_DEBUG
 #define log_debug(ls, fmt, args...) log_error(ls, fmt, ##args)
 #else
@@ -204,6 +206,9 @@ struct dlm_args {
 
 #define DLM_IFL_MSTCPY		0x00010000
 #define DLM_IFL_RESEND		0x00020000
+#define DLM_IFL_DEAD		0x00040000
+#define DLM_IFL_USER		0x00000001
+#define DLM_IFL_ORPHAN		0x00000002
 
 struct dlm_lkb {
 	struct dlm_rsb		*lkb_resource;	/* the rsb */
@@ -231,6 +236,7 @@ struct dlm_lkb {
 	struct list_head	lkb_rsb_lookup;	/* waiting for rsb lookup */
 	struct list_head	lkb_wait_reply;	/* waiting for remote reply */
 	struct list_head	lkb_astqueue;	/* need ast to be sent */
+	struct list_head	lkb_ownqueue;	/* list of locks for a process */
 
 	char			*lkb_lvbptr;
 	struct dlm_lksb		*lkb_lksb;      /* caller's status block */
@@ -409,6 +415,7 @@ struct rcom_lock {
 
 struct dlm_ls {
 	struct list_head	ls_list;	/* list of lockspaces */
+	dlm_lockspace_t		*ls_local_handle;
 	uint32_t		ls_global_id;	/* global unique lockspace ID */
 	uint32_t		ls_exflags;
 	int			ls_lvblen;
@@ -444,6 +451,8 @@ struct dlm_ls {
 	wait_queue_head_t	ls_uevent_wait;	/* user part of join/leave */
 	int			ls_uevent_result;
 
+	struct miscdevice       ls_device;
+
 	/* recovery related */
 
 	struct timer_list	ls_timer;
@@ -461,6 +470,7 @@ struct dlm_ls {
 	spinlock_t		ls_recover_list_lock;
 	int			ls_recover_list_count;
 	wait_queue_head_t	ls_wait_general;
+	struct mutex		ls_clear_proc_locks;
 
 	struct list_head	ls_root_list;	/* root resources */
 	struct rw_semaphore	ls_root_sem;	/* protect root_list */
@@ -474,6 +484,40 @@ struct dlm_ls {
 #define LSFL_RECOVERY_STOP	2
 #define LSFL_RCOM_READY		3
 #define LSFL_UEVENT_WAIT	4
+
+/* much of this is just saving user space pointers associated with the
+   lock that we pass back to the user lib with an ast */
+
+struct dlm_user_args {
+	struct dlm_user_proc	*proc; /* each process that opens the lockspace
+					  device has private data
+					  (dlm_user_proc) on the struct file,
+					  the process's locks point back to it*/
+	struct dlm_lksb		lksb;
+	int			old_mode;
+	int			update_user_lvb;
+	struct dlm_lksb __user	*user_lksb;
+	void __user		*castparam;
+	void __user		*castaddr;
+	void __user		*bastparam;
+	void __user		*bastaddr;
+};
+
+#define DLM_PROC_FLAGS_CLOSING 1
+#define DLM_PROC_FLAGS_COMPAT  2
+
+/* locks list is kept so we can remove all a process's locks when it
+   exits (or orphan those that are persistent) */
+
+struct dlm_user_proc {
+	dlm_lockspace_t		*lockspace;
+	unsigned long		flags; /* DLM_PROC_FLAGS */
+	struct list_head	asts;
+	spinlock_t		asts_spin;
+	struct list_head	locks;
+	spinlock_t		locks_spin;
+	wait_queue_head_t	wait;
+};
 
 static inline int dlm_locking_stopped(struct dlm_ls *ls)
 {

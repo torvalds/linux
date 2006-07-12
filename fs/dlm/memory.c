@@ -84,6 +84,15 @@ struct dlm_lkb *allocate_lkb(struct dlm_ls *ls)
 
 void free_lkb(struct dlm_lkb *lkb)
 {
+	if (lkb->lkb_flags & DLM_IFL_USER) {
+		struct dlm_user_args *ua;
+		ua = (struct dlm_user_args *)lkb->lkb_astparam;
+		if (ua) {
+			if (ua->lksb.sb_lvbptr)
+				kfree(ua->lksb.sb_lvbptr);
+			kfree(ua);
+		}
+	}
 	kmem_cache_free(lkb_cache, lkb);
 }
 

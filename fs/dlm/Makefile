@@ -1,6 +1,4 @@
 obj-$(CONFIG_DLM) +=		dlm.o
-obj-$(CONFIG_DLM_DEVICE) +=	dlm_device.o
-
 dlm-y :=			ast.o \
 				config.o \
 				dir.o \
@@ -15,7 +13,7 @@ dlm-y :=			ast.o \
 				recover.o \
 				recoverd.o \
 				requestqueue.o \
+				user.o \
 				util.o
 dlm-$(CONFIG_DLM_DEBUG) +=	debug_fs.o
 
-dlm_device-y :=			device.o

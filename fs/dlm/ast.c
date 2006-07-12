@@ -13,7 +13,7 @@
 
 #include "dlm_internal.h"
 #include "lock.h"
-#include "ast.h"
+#include "user.h"
 
 #define WAKE_ASTS  0
 
@@ -34,6 +34,11 @@ void dlm_del_ast(struct dlm_lkb *lkb)
 
 void dlm_add_ast(struct dlm_lkb *lkb, int type)
 {
+	if (lkb->lkb_flags & DLM_IFL_USER) {
+		dlm_user_add_ast(lkb, type);
+		return;
+	}
+
 	spin_lock(&ast_queue_lock);
 	if (!(lkb->lkb_ast_type & (AST_COMP | AST_BAST))) {
 		kref_get(&lkb->lkb_ref);
