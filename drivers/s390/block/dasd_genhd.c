@@ -84,9 +84,9 @@ void
 dasd_gendisk_free(struct dasd_device *device)
 {
 	del_gendisk(device->gdp);
-	device->gdp->queue = 0;
+	device->gdp->queue = NULL;
 	put_disk(device->gdp);
-	device->gdp = 0;
+	device->gdp = NULL;
 }
 
 /*
@@ -136,7 +136,7 @@ dasd_destroy_partitions(struct dasd_device * device)
 	 * device->bdev to lower the offline open_count limit again.
 	 */
 	bdev = device->bdev;
-	device->bdev = 0;
+	device->bdev = NULL;
 
 	/*
 	 * See fs/partition/check.c:delete_partition
@@ -145,7 +145,7 @@ dasd_destroy_partitions(struct dasd_device * device)
 	 */
 	memset(&bpart, 0, sizeof(struct blkpg_partition));
 	memset(&barg, 0, sizeof(struct blkpg_ioctl_arg));
-	barg.data = &bpart;
+	barg.data = (void __user *) &bpart;
 	barg.op = BLKPG_DEL_PARTITION;
 	for (bpart.pno = device->gdp->minors - 1; bpart.pno > 0; bpart.pno--)
 		ioctl_by_bdev(bdev, BLKPG, (unsigned long) &barg);

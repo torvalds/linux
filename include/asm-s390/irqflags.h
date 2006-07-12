@@ -25,16 +25,22 @@
 	__flags; \
 	})
 
-#define raw_local_save_flags(x) \
-	__asm__ __volatile__("stosm 0(%1),0" : "=m" (x) : "a" (&x), "m" (x) )
+#define raw_local_save_flags(x)							\
+do {										\
+	typecheck(unsigned long, x);						\
+	__asm__ __volatile__("stosm 0(%1),0" : "=m" (x) : "a" (&x), "m" (x) );	\
+} while (0)
 
-#define raw_local_irq_restore(x) \
-	__asm__ __volatile__("ssm   0(%0)" : : "a" (&x), "m" (x) : "memory")
+#define raw_local_irq_restore(x)						\
+do {										\
+	typecheck(unsigned long, x);						\
+	__asm__ __volatile__("ssm   0(%0)" : : "a" (&x), "m" (x) : "memory");	\
+} while (0)
 
 #define raw_irqs_disabled()		\
 ({					\
 	unsigned long flags;		\
-	local_save_flags(flags);	\
+	raw_local_save_flags(flags);	\
 	!((flags >> __FLAG_SHIFT) & 3);	\
 })
 

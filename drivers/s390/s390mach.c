@@ -111,6 +111,16 @@ repeat:
 			break;
 		case CRW_RSC_CPATH:
 			pr_debug("source is channel path %02X\n", crw[0].rsid);
+			/*
+			 * Check for solicited machine checks. These are
+			 * created by reset channel path and need not be
+			 * reported to the common I/O layer.
+			 */
+			if (crw[chain].slct) {
+				DBG(KERN_INFO"solicited machine check for "
+				    "channel path %02X\n", crw[0].rsid);
+				break;
+			}
 			switch (crw[0].erc) {
 			case CRW_ERC_IPARM: /* Path has come. */
 				ret = chp_process_crw(crw[0].rsid, 1);
