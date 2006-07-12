@@ -100,7 +100,7 @@ struct ccw_device_private {
 	struct qdio_irq *qdio_data;
 	struct irb irb;		/* device status */
 	struct senseid senseid;	/* SenseID info */
-	struct pgid pgid;	/* path group ID */
+	struct pgid pgid[8];	/* path group IDs per chpid*/
 	struct ccw1 iccws[2];	/* ccws for SNID/SID/SPGID commands */
 	struct work_struct kick_work;
 	wait_queue_head_t wait_q;

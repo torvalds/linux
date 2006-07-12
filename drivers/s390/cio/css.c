@@ -623,9 +623,13 @@ init_channel_subsystem (void)
 		ret = device_register(&css[i]->device);
 		if (ret)
 			goto out_free;
-		if (css_characteristics_avail && css_chsc_characteristics.secm)
-			device_create_file(&css[i]->device,
-					   &dev_attr_cm_enable);
+		if (css_characteristics_avail &&
+		    css_chsc_characteristics.secm) {
+			ret = device_create_file(&css[i]->device,
+						 &dev_attr_cm_enable);
+			if (ret)
+				goto out_device;
+		}
 	}
 	css_init_done = 1;
 
@@ -633,6 +637,8 @@ init_channel_subsystem (void)
 
 	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;
+out_device:
+	device_unregister(&css[i]->device);
 out_free:
 	kfree(css[i]);
 out_unregister:
