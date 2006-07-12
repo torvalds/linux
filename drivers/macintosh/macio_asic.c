@@ -139,7 +139,9 @@ static int macio_uevent(struct device *dev, char **envp, int num_envp,
 {
 	struct macio_dev * macio_dev;
 	struct of_device * of;
-	char *scratch, *compat, *compat2;
+	char *scratch;
+	const char *compat, *compat2;
+
 	int i = 0;
 	int length, cplen, cplen2, seen = 0;
 
@@ -173,7 +175,7 @@ static int macio_uevent(struct device *dev, char **envp, int num_envp,
          * it's not really legal to split it out with commas. We split it
          * up using a number of environment variables instead. */
 
-	compat = (char *) get_property(of->node, "compatible", &cplen);
+	compat = get_property(of->node, "compatible", &cplen);
 	compat2 = compat;
 	cplen2= cplen;
 	while (compat && cplen > 0) {
@@ -454,7 +456,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 					       struct resource *parent_res)
 {
 	struct macio_dev *dev;
-	u32 *reg;
+	const u32 *reg;
 	
 	if (np == NULL)
 		return NULL;
@@ -489,7 +491,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 #endif
 			MAX_NODE_NAME_SIZE, np->name);
 	} else {
-		reg = (u32 *)get_property(np, "reg", NULL);
+		reg = get_property(np, "reg", NULL);
 		sprintf(dev->ofdev.dev.bus_id, "%1d.%08x:%.*s",
 			chip->lbus.index,
 			reg ? *reg : 0, MAX_NODE_NAME_SIZE, np->name);

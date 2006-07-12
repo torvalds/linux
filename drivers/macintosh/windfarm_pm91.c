@@ -144,7 +144,7 @@ static struct wf_smu_slots_fans_state *wf_smu_slots_fans;
 static void wf_smu_create_cpu_fans(void)
 {
 	struct wf_cpu_pid_param pid_param;
-	struct smu_sdbp_header *hdr;
+	const struct smu_sdbp_header *hdr;
 	struct smu_sdbp_cpupiddata *piddata;
 	struct smu_sdbp_fvt *fvt;
 	s32 tmax, tdelta, maxpow, powadj;

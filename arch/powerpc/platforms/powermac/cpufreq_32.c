@@ -421,7 +421,7 @@ static int pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 static u32 read_gpio(struct device_node *np)
 {
-	u32 *reg = (u32 *)get_property(np, "reg", NULL);
+	const u32 *reg = get_property(np, "reg", NULL);
 	u32 offset;
 
 	if (reg == NULL)
@@ -497,7 +497,7 @@ static int pmac_cpufreq_init_MacRISC3(struct device_node *cpunode)
 								"frequency-gpio");
 	struct device_node *slew_done_gpio_np = of_find_node_by_name(NULL,
 								     "slewing-done");
-	u32 *value;
+	const u32 *value;
 
 	/*
 	 * Check to see if it's GPIO driven or PMU only
@@ -519,15 +519,15 @@ static int pmac_cpufreq_init_MacRISC3(struct device_node *cpunode)
 	 */
 	if (frequency_gpio && slew_done_gpio) {
 		int lenp, rc;
-		u32 *freqs, *ratio;
+		const u32 *freqs, *ratio;
 
-		freqs = (u32 *)get_property(cpunode, "bus-frequencies", &lenp);
+		freqs = get_property(cpunode, "bus-frequencies", &lenp);
 		lenp /= sizeof(u32);
 		if (freqs == NULL || lenp != 2) {
 			printk(KERN_ERR "cpufreq: bus-frequencies incorrect or missing\n");
 			return 1;
 		}
-		ratio = (u32 *)get_property(cpunode, "processor-to-bus-ratio*2", NULL);
+		ratio = get_property(cpunode, "processor-to-bus-ratio*2", NULL);
 		if (ratio == NULL) {
 			printk(KERN_ERR "cpufreq: processor-to-bus-ratio*2 missing\n");
 			return 1;
@@ -562,7 +562,7 @@ static int pmac_cpufreq_init_MacRISC3(struct device_node *cpunode)
 	/* If we use the PMU, look for the min & max frequencies in the
 	 * device-tree
 	 */
-	value = (u32 *)get_property(cpunode, "min-clock-frequency", NULL);
+	value = get_property(cpunode, "min-clock-frequency", NULL);
 	if (!value)
 		return 1;
 	low_freq = (*value) / 1000;
@@ -571,7 +571,7 @@ static int pmac_cpufreq_init_MacRISC3(struct device_node *cpunode)
 	if (low_freq < 100000)
 		low_freq *= 10;
 
-	value = (u32 *)get_property(cpunode, "max-clock-frequency", NULL);
+	value = get_property(cpunode, "max-clock-frequency", NULL);
 	if (!value)
 		return 1;
 	hi_freq = (*value) / 1000;
@@ -611,13 +611,14 @@ static int pmac_cpufreq_init_7447A(struct device_node *cpunode)
 static int pmac_cpufreq_init_750FX(struct device_node *cpunode)
 {
 	struct device_node *volt_gpio_np;
-	u32 pvr, *value;
+	u32 pvr;
+	const u32 *value;
 
 	if (get_property(cpunode, "dynamic-power-step", NULL) == NULL)
 		return 1;
 
 	hi_freq = cur_freq;
-	value = (u32 *)get_property(cpunode, "reduced-clock-frequency", NULL);
+	value = get_property(cpunode, "reduced-clock-frequency", NULL);
 	if (!value)
 		return 1;
 	low_freq = (*value) / 1000;
@@ -650,7 +651,7 @@ static int pmac_cpufreq_init_750FX(struct device_node *cpunode)
 static int __init pmac_cpufreq_setup(void)
 {
 	struct device_node	*cpunode;
-	u32			*value;
+	const u32		*value;
 
 	if (strstr(cmd_line, "nocpufreq"))
 		return 0;
@@ -661,7 +662,7 @@ static int __init pmac_cpufreq_setup(void)
 		goto out;
 
 	/* Get current cpu clock freq */
-	value = (u32 *)get_property(cpunode, "clock-frequency", NULL);
+	value = get_property(cpunode, "clock-frequency", NULL);
 	if (!value)
 		goto out;
 	cur_freq = (*value) / 1000;

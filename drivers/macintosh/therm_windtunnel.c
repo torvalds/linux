@@ -484,14 +484,14 @@ struct apple_thermal_info {
 static int __init
 g4fan_init( void )
 {
-	struct apple_thermal_info *info;
+	const struct apple_thermal_info *info;
 	struct device_node *np;
 
 	init_MUTEX( &x.lock );
 
 	if( !(np=of_find_node_by_name(NULL, "power-mgt")) )
 		return -ENODEV;
-	info = (struct apple_thermal_info*)get_property(np, "thermal-info", NULL);
+	info = get_property(np, "thermal-info", NULL);
 	of_node_put(np);
 
 	if( !info || !machine_is_compatible("PowerMac3,6") )

@@ -123,7 +123,7 @@ int __init find_via_cuda(void)
 {
     struct adb_request req;
     phys_addr_t taddr;
-    u32 *reg;
+    const u32 *reg;
     int err;
 
     if (vias != 0)
@@ -132,7 +132,7 @@ int __init find_via_cuda(void)
     if (vias == 0)
 	return 0;
 
-    reg = (u32 *)get_property(vias, "reg", NULL);
+    reg = get_property(vias, "reg", NULL);
     if (reg == NULL) {
 	    printk(KERN_ERR "via-cuda: No \"reg\" property !\n");
 	    goto fail;

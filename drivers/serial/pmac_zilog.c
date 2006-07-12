@@ -1400,8 +1400,8 @@ static struct uart_ops pmz_pops = {
 static int __init pmz_init_port(struct uart_pmac_port *uap)
 {
 	struct device_node *np = uap->node;
-	char *conn;
-	struct slot_names_prop {
+	const char *conn;
+	const struct slot_names_prop {
 		int	count;
 		char	name[1];
 	} *slots;
@@ -1458,7 +1458,7 @@ no_dma:
 		uap->flags |= PMACZILOG_FLAG_IS_IRDA;
 	uap->port_type = PMAC_SCC_ASYNC;
 	/* 1999 Powerbook G3 has slot-names property instead */
-	slots = (struct slot_names_prop *)get_property(np, "slot-names", &len);
+	slots = get_property(np, "slot-names", &len);
 	if (slots && slots->count > 0) {
 		if (strcmp(slots->name, "IrDA") == 0)
 			uap->flags |= PMACZILOG_FLAG_IS_IRDA;
@@ -1470,7 +1470,8 @@ no_dma:
 	if (ZS_IS_INTMODEM(uap)) {
 		struct device_node* i2c_modem = find_devices("i2c-modem");
 		if (i2c_modem) {
-			char* mid = get_property(i2c_modem, "modem-id", NULL);
+			const char* mid =
+				get_property(i2c_modem, "modem-id", NULL);
 			if (mid) switch(*mid) {
 			case 0x04 :
 			case 0x05 :

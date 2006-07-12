@@ -116,7 +116,7 @@ extern struct smp_ops_t core99_smp_ops;
 static void pmac_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *np;
-	char *pp;
+	const char *pp;
 	int plen;
 	int mbmodel;
 	unsigned int mbflags;
@@ -134,12 +134,12 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "machine\t\t: ");
 	np = of_find_node_by_path("/");
 	if (np != NULL) {
-		pp = (char *) get_property(np, "model", NULL);
+		pp = get_property(np, "model", NULL);
 		if (pp != NULL)
 			seq_printf(m, "%s\n", pp);
 		else
 			seq_printf(m, "PowerMac\n");
-		pp = (char *) get_property(np, "compatible", &plen);
+		pp = get_property(np, "compatible", &plen);
 		if (pp != NULL) {
 			seq_printf(m, "motherboard\t:");
 			while (plen > 0) {
@@ -163,10 +163,8 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 	if (np == NULL)
 		np = of_find_node_by_type(NULL, "cache");
 	if (np != NULL) {
-		unsigned int *ic = (unsigned int *)
-			get_property(np, "i-cache-size", NULL);
-		unsigned int *dc = (unsigned int *)
-			get_property(np, "d-cache-size", NULL);
+		const unsigned int *ic = get_property(np, "i-cache-size", NULL);
+		const unsigned int *dc = get_property(np, "d-cache-size", NULL);
 		seq_printf(m, "L2 cache\t:");
 		has_l2cache = 1;
 		if (get_property(np, "cache-unified", NULL) != 0 && dc) {
@@ -254,7 +252,7 @@ static void __init l2cr_init(void)
 		if (np == 0)
 			np = find_type_devices("cpu");
 		if (np != 0) {
-			unsigned int *l2cr = (unsigned int *)
+			const unsigned int *l2cr =
 				get_property(np, "l2cr-value", NULL);
 			if (l2cr != 0) {
 				ppc_override_l2cr = 1;
@@ -277,7 +275,7 @@ static void __init l2cr_init(void)
 static void __init pmac_setup_arch(void)
 {
 	struct device_node *cpu, *ic;
-	int *fp;
+	const int *fp;
 	unsigned long pvr;
 
 	pvr = PVR_VER(mfspr(SPRN_PVR));
@@ -287,7 +285,7 @@ static void __init pmac_setup_arch(void)
 	loops_per_jiffy = 50000000 / HZ;
 	cpu = of_find_node_by_type(NULL, "cpu");
 	if (cpu != NULL) {
-		fp = (int *) get_property(cpu, "clock-frequency", NULL);
+		fp = get_property(cpu, "clock-frequency", NULL);
 		if (fp != NULL) {
 			if (pvr >= 0x30 && pvr < 0x80)
 				/* PPC970 etc. */

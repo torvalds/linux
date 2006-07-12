@@ -47,7 +47,7 @@ static u8 FAN_SPD_SET[2] = {0x30, 0x31};
 
 static u8 default_limits_local[3] = {70, 50, 70};    /* local, sensor1, sensor2 */
 static u8 default_limits_chip[3] = {80, 65, 80};    /* local, sensor1, sensor2 */
-static char *sensor_location[3] = {NULL, NULL, NULL};
+static const char *sensor_location[3] = {NULL, NULL, NULL};
 
 static int limit_adjust = 0;
 static int fan_speed = -1;
@@ -553,7 +553,7 @@ static int __init
 thermostat_init(void)
 {
 	struct device_node* np;
-	u32 *prop;
+	const u32 *prop;
 	int i = 0, offset = 0;
 	
 	np = of_find_node_by_name(NULL, "fan");
@@ -566,13 +566,13 @@ thermostat_init(void)
 	else
 		return -ENODEV;
 
-	prop = (u32 *)get_property(np, "hwsensor-params-version", NULL);
+	prop = get_property(np, "hwsensor-params-version", NULL);
 	printk(KERN_INFO "adt746x: version %d (%ssupported)\n", *prop,
 			 (*prop == 1)?"":"un");
 	if (*prop != 1)
 		return -ENODEV;
 
-	prop = (u32 *)get_property(np, "reg", NULL);
+	prop = get_property(np, "reg", NULL);
 	if (!prop)
 		return -ENODEV;
 

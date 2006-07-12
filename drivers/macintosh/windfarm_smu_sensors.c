@@ -198,14 +198,14 @@ static struct wf_sensor_ops smu_slotspow_ops = {
 static struct smu_ad_sensor *smu_ads_create(struct device_node *node)
 {
 	struct smu_ad_sensor *ads;
-	char *c, *l;
-	u32 *v;
+	const char *c, *l;
+	const u32 *v;
 
 	ads = kmalloc(sizeof(struct smu_ad_sensor), GFP_KERNEL);
 	if (ads == NULL)
 		return NULL;
-	c = (char *)get_property(node, "device_type", NULL);
-	l = (char *)get_property(node, "location", NULL);
+	c = get_property(node, "device_type", NULL);
+	l = get_property(node, "location", NULL);
 	if (c == NULL || l == NULL)
 		goto fail;
 
@@ -255,7 +255,7 @@ static struct smu_ad_sensor *smu_ads_create(struct device_node *node)
 	} else
 		goto fail;
 
-	v = (u32 *)get_property(node, "reg", NULL);
+	v = get_property(node, "reg", NULL);
 	if (v == NULL)
 		goto fail;
 	ads->reg = *v;
@@ -382,7 +382,7 @@ smu_cpu_power_create(struct wf_sensor *volts, struct wf_sensor *amps)
 
 static void smu_fetch_param_partitions(void)
 {
-	struct smu_sdbp_header *hdr;
+	const struct smu_sdbp_header *hdr;
 
 	/* Get CPU voltage/current/power calibration data */
 	hdr = smu_get_sdb_partition(SMU_SDB_CPUVCP_ID, NULL);
