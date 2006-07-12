@@ -469,6 +469,20 @@ config SCSI_IN2000
 	  To compile this driver as a module, choose M here: the
 	  module will be called in2000.
 
+config SCSI_ARCMSR
+	tristate "ARECA ARC11X0[PCI-X]/ARC12X0[PCI-EXPRESS] SATA-RAID support"
+	depends on PCI && SCSI
+	help
+	  This driver supports all of ARECA's SATA RAID controller cards.
+	  This is an ARECA-maintained driver by Erich Chen.
+	  If you have any problems, please mail to: < erich@areca.com.tw >
+	  Areca supports Linux RAID config tools.
+
+	  < http://www.areca.com.tw >
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called arcmsr (modprobe arcmsr).
+
 source "drivers/scsi/megaraid/Kconfig.megaraid"
 
 config SCSI_SATA

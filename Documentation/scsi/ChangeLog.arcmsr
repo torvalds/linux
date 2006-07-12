@@ -1,0 +1,56 @@
+**************************************************************************
+** History
+**
+**   REV#         DATE             NAME         DESCRIPTION
+** 1.00.00.00    3/31/2004       Erich Chen     First release
+** 1.10.00.04    7/28/2004       Erich Chen     modify for ioctl
+** 1.10.00.06    8/28/2004       Erich Chen     modify for 2.6.x
+** 1.10.00.08    9/28/2004       Erich Chen     modify for x86_64
+** 1.10.00.10   10/10/2004       Erich Chen     bug fix for SMP & ioctl
+** 1.20.00.00   11/29/2004       Erich Chen     bug fix with arcmsr_bus_reset when PHY error
+** 1.20.00.02   12/09/2004       Erich Chen     bug fix with over 2T bytes RAID Volume
+** 1.20.00.04    1/09/2005       Erich Chen     fits for Debian linux kernel version 2.2.xx
+** 1.20.00.05    2/20/2005       Erich Chen     cleanly as look like a Linux driver at 2.6.x
+**                                              thanks for peoples kindness comment
+**						Kornel Wieliczek
+**						Christoph Hellwig
+**						Adrian Bunk
+**						Andrew Morton
+**						Christoph Hellwig
+**						James Bottomley
+**						Arjan van de Ven
+** 1.20.00.06    3/12/2005       Erich Chen     fix with arcmsr_pci_unmap_dma "unsigned long" cast,
+**						modify PCCB POOL allocated by "dma_alloc_coherent"
+**						(Kornel Wieliczek's comment)
+** 1.20.00.07    3/23/2005       Erich Chen     bug fix with arcmsr_scsi_host_template_init
+**						occur segmentation fault,
+**						if RAID adapter does not on PCI slot
+**						and modprobe/rmmod this driver twice.
+**						bug fix enormous stack usage (Adrian Bunk's comment)
+** 1.20.00.08    6/23/2005       Erich Chen     bug fix with abort command,
+**						in case of heavy loading when sata cable
+**						working on low quality connection
+** 1.20.00.09    9/12/2005       Erich Chen     bug fix with abort command handling, firmware version check
+**						and firmware update notify for hardware bug fix
+** 1.20.00.10    9/23/2005       Erich Chen     enhance sysfs function for change driver's max tag Q number.
+**						add DMA_64BIT_MASK for backward compatible with all 2.6.x
+**						add some useful message for abort command
+**						add ioctl code 'ARCMSR_IOCTL_FLUSH_ADAPTER_CACHE'
+**						customer can send this command for sync raid volume data
+** 1.20.00.11    9/29/2005       Erich Chen     by comment of Arjan van de Ven fix incorrect msleep redefine
+**						cast off sizeof(dma_addr_t) condition for 64bit pci_set_dma_mask
+** 1.20.00.12    9/30/2005       Erich Chen     bug fix with 64bit platform's ccbs using if over 4G system memory
+**						change 64bit pci_set_consistent_dma_mask into 32bit
+**						increcct adapter count if adapter initialize fail.
+**						miss edit at arcmsr_build_ccb....
+**						psge += sizeof(struct _SG64ENTRY *) =>
+**						psge += sizeof(struct _SG64ENTRY)
+**						64 bits sg entry would be incorrectly calculated
+**						thanks Kornel Wieliczek give me kindly notify
+**						and detail description
+** 1.20.00.13   11/15/2005       Erich Chen     scheduling pending ccb with FIFO
+**						change the architecture of arcmsr command queue list
+**						for linux standard list
+**						enable usage of pci message signal interrupt
+**						follow Randy.Danlup kindness suggestion cleanup this code
+**************************************************************************
