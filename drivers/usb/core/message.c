@@ -23,59 +23,44 @@ static void usb_api_blocking_completion(struct urb *urb, struct pt_regs *regs)
 }
 
 
-static void timeout_kill(unsigned long data)
-{
-	struct urb	*urb = (struct urb *) data;
-
-	usb_unlink_urb(urb);
-}
-
-// Starts urb and waits for completion or timeout
-// note that this call is NOT interruptible, while
-// many device driver i/o requests should be interruptible
-static int usb_start_wait_urb(struct urb *urb, int timeout, int* actual_length)
+/*
+ * Starts urb and waits for completion or timeout. Note that this call
+ * is NOT interruptible. Many device driver i/o requests should be
+ * interruptible and therefore these drivers should implement their
+ * own interruptible routines.
+ */
+static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 { 
-	struct completion	done;
-	struct timer_list	timer;
-	int			status;
+	struct completion done;
+	unsigned long expire;
+	int status;
 
 	init_completion(&done); 	
 	urb->context = &done;
 	urb->actual_length = 0;
 	status = usb_submit_urb(urb, GFP_NOIO);
+	if (unlikely(status))
+		goto out;
 
-	if (status == 0) {
-		if (timeout > 0) {
-			init_timer(&timer);
-			timer.expires = jiffies + msecs_to_jiffies(timeout);
-			timer.data = (unsigned long)urb;
-			timer.function = timeout_kill;
-			/* grr.  timeout _should_ include submit delays. */
-			add_timer(&timer);
-		}
-		wait_for_completion(&done);
+	expire = timeout ? msecs_to_jiffies(timeout) : MAX_SCHEDULE_TIMEOUT;
+	if (!wait_for_completion_timeout(&done, expire)) {
+
+		dev_dbg(&urb->dev->dev,
+			"%s timed out on ep%d%s len=%d/%d\n",
+			current->comm,
+			usb_pipeendpoint(urb->pipe),
+			usb_pipein(urb->pipe) ? "in" : "out",
+			urb->actual_length,
+			urb->transfer_buffer_length);
+
+		usb_kill_urb(urb);
+		status = urb->status == -ENOENT ? -ETIMEDOUT : urb->status;
+	} else
 		status = urb->status;
-		/* note:  HCDs return ETIMEDOUT for other reasons too */
-		if (status == -ECONNRESET) {
-			dev_dbg(&urb->dev->dev,
-				"%s timed out on ep%d%s len=%d/%d\n",
-				current->comm,
-				usb_pipeendpoint(urb->pipe),
-				usb_pipein(urb->pipe) ? "in" : "out",
-				urb->actual_length,
-				urb->transfer_buffer_length
-				);
-			if (urb->actual_length > 0)
-				status = 0;
-			else
-				status = -ETIMEDOUT;
-		}
-		if (timeout > 0)
-			del_timer_sync(&timer);
-	}
-
+out:
 	if (actual_length)
 		*actual_length = urb->actual_length;
+
 	usb_free_urb(urb);
 	return status;
 }
