@@ -47,7 +47,7 @@ extern int pci_msi_quirk;
 #else
 #define pci_msi_quirk 0
 #endif
-
+extern unsigned int pci_pm_d3_delay;
 #ifdef CONFIG_PCI_MSI
 void disable_msi_mode(struct pci_dev *dev, int pos, int type);
 void pci_no_msi(void);
@@ -66,7 +66,15 @@ static inline int pci_save_msix_state(struct pci_dev *dev) { return 0; }
 static inline void pci_restore_msi_state(struct pci_dev *dev) {}
 static inline void pci_restore_msix_state(struct pci_dev *dev) {}
 #endif
+static inline int pci_no_d1d2(struct pci_dev *dev)
+{
+	unsigned int parent_dstates = 0;
 
+	if (dev->bus->self)
+		parent_dstates = dev->bus->self->no_d1d2;
+	return (dev->no_d1d2 || parent_dstates);
+
+}
 extern int pcie_mch_quirk;
 extern struct device_attribute pci_dev_attrs[];
 extern struct class_device_attribute class_device_attr_cpuaffinity;
