@@ -359,11 +359,11 @@ static int enable_surveillance(int timeout)
 static int get_eventscan_parms(void)
 {
 	struct device_node *node;
-	int *ip;
+	const int *ip;
 
 	node = of_find_node_by_path("/rtas");
 
-	ip = (int *)get_property(node, "rtas-event-scan-rate", NULL);
+	ip = get_property(node, "rtas-event-scan-rate", NULL);
 	if (ip == NULL) {
 		printk(KERN_ERR "rtasd: no rtas-event-scan-rate\n");
 		of_node_put(node);

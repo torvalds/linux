@@ -68,7 +68,7 @@ firmware_features_table[FIRMWARE_MAX_FEATURES] = {
 void __init fw_feature_init(void)
 {
 	struct device_node *dn;
-	char *hypertas, *s;
+	const char *hypertas, *s;
 	int len, i;
 
 	DBG(" -> fw_feature_init()\n");

@@ -60,7 +60,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pcibios_name_device);
 static void __devinit check_s7a(void)
 {
 	struct device_node *root;
-	char *model;
+	const char *model;
 
 	s7a_workaround = 0;
 	root = of_find_node_by_path("/");

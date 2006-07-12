@@ -141,7 +141,7 @@ static int hvc_find_vtys(void)
 
 	for (vty = of_find_node_by_name(NULL, "vty"); vty != NULL;
 			vty = of_find_node_by_name(vty, "vty")) {
-		uint32_t *vtermno;
+		const uint32_t *vtermno;
 
 		/* We have statically defined space for only a certain number
 		 * of console adapters.
@@ -149,7 +149,7 @@ static int hvc_find_vtys(void)
 		if (num_found >= MAX_NR_HVC_CONSOLES)
 			break;
 
-		vtermno = (uint32_t *)get_property(vty, "reg", NULL);
+		vtermno = get_property(vty, "reg", NULL);
 		if (!vtermno)
 			continue;
 

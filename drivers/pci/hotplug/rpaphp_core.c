@@ -176,16 +176,16 @@ static int get_max_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_spe
 	return 0;
 }
 
-static int get_children_props(struct device_node *dn, int **drc_indexes,
-		int **drc_names, int **drc_types, int **drc_power_domains)
+static int get_children_props(struct device_node *dn, const int **drc_indexes,
+		const int **drc_names, const int **drc_types,
+		const int **drc_power_domains)
 {
-	int *indexes, *names;
-	int *types, *domains;
+	const int *indexes, *names, *types, *domains;
 
-	indexes = (int *) get_property(dn, "ibm,drc-indexes", NULL);
-	names = (int *) get_property(dn, "ibm,drc-names", NULL);
-	types = (int *) get_property(dn, "ibm,drc-types", NULL);
-	domains = (int *) get_property(dn, "ibm,drc-power-domains", NULL);
+	indexes = get_property(dn, "ibm,drc-indexes", NULL);
+	names = get_property(dn, "ibm,drc-names", NULL);
+	types = get_property(dn, "ibm,drc-types", NULL);
+	domains = get_property(dn, "ibm,drc-power-domains", NULL);
 
 	if (!indexes || !names || !types || !domains) {
 		/* Slot does not have dynamically-removable children */
@@ -212,13 +212,13 @@ static int get_children_props(struct device_node *dn, int **drc_indexes,
 int rpaphp_get_drc_props(struct device_node *dn, int *drc_index,
 		char **drc_name, char **drc_type, int *drc_power_domain)
 {
-	int *indexes, *names;
-	int *types, *domains;
-	unsigned int *my_index;
+	const int *indexes, *names;
+	const int *types, *domains;
+	const unsigned int *my_index;
 	char *name_tmp, *type_tmp;
 	int i, rc;
 
-	my_index = (int *) get_property(dn, "ibm,my-drc-index", NULL);
+	my_index = get_property(dn, "ibm,my-drc-index", NULL);
 	if (!my_index) {
 		/* Node isn't DLPAR/hotplug capable */
 		return -EINVAL;
@@ -265,10 +265,10 @@ static int is_php_type(char *drc_type)
 	return 1;
 }
 
-static int is_php_dn(struct device_node *dn, int **indexes, int **names,
-		int **types, int **power_domains)
+static int is_php_dn(struct device_node *dn, const int **indexes,
+		const int **names, const int **types, const int **power_domains)
 {
-	int *drc_types;
+	const int *drc_types;
 	int rc;
 
 	rc = get_children_props(dn, indexes, names, &drc_types, power_domains);
@@ -296,7 +296,7 @@ int rpaphp_add_slot(struct device_node *dn)
 	struct slot *slot;
 	int retval = 0;
 	int i;
-	int *indexes, *names, *types, *power_domains;
+	const int *indexes, *names, *types, *power_domains;
 	char *name, *type;
 
 	dbg("Entry %s: dn->full_name=%s\n", __FUNCTION__, dn->full_name);

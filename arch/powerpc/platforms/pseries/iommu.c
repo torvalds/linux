@@ -267,13 +267,12 @@ static void iommu_table_setparms(struct pci_controller *phb,
 				 struct iommu_table *tbl)
 {
 	struct device_node *node;
-	unsigned long *basep;
-	unsigned int *sizep;
+	const unsigned long *basep, *sizep;
 
 	node = (struct device_node *)phb->arch_data;
 
-	basep = (unsigned long *)get_property(node, "linux,tce-base", NULL);
-	sizep = (unsigned int *)get_property(node, "linux,tce-size", NULL);
+	basep = get_property(node, "linux,tce-base", NULL);
+	sizep = get_property(node, "linux,tce-size", NULL);
 	if (basep == NULL || sizep == NULL) {
 		printk(KERN_ERR "PCI_DMA: iommu_table_setparms: %s has "
 				"missing tce entries !\n", dn->full_name);
@@ -315,7 +314,7 @@ static void iommu_table_setparms(struct pci_controller *phb,
 static void iommu_table_setparms_lpar(struct pci_controller *phb,
 				      struct device_node *dn,
 				      struct iommu_table *tbl,
-				      unsigned char *dma_window)
+				      const void *dma_window)
 {
 	unsigned long offset, size;
 
@@ -415,7 +414,7 @@ static void iommu_bus_setup_pSeriesLP(struct pci_bus *bus)
 	struct iommu_table *tbl;
 	struct device_node *dn, *pdn;
 	struct pci_dn *ppci;
-	unsigned char *dma_window = NULL;
+	const void *dma_window = NULL;
 
 	DBG("iommu_bus_setup_pSeriesLP, bus %p, bus->self %p\n", bus, bus->self);
 
@@ -519,7 +518,7 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 {
 	struct device_node *pdn, *dn;
 	struct iommu_table *tbl;
-	unsigned char *dma_window = NULL;
+	const void *dma_window = NULL;
 	struct pci_dn *pci;
 
 	DBG("iommu_dev_setup_pSeriesLP, dev %p (%s)\n", dev, pci_name(dev));

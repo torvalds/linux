@@ -691,11 +691,11 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 {
 	struct eeh_early_enable_info *info = data;
 	int ret;
-	char *status = get_property(dn, "status", NULL);
-	u32 *class_code = (u32 *)get_property(dn, "class-code", NULL);
-	u32 *vendor_id = (u32 *)get_property(dn, "vendor-id", NULL);
-	u32 *device_id = (u32 *)get_property(dn, "device-id", NULL);
-	u32 *regs;
+	const char *status = get_property(dn, "status", NULL);
+	const u32 *class_code = get_property(dn, "class-code", NULL);
+	const u32 *vendor_id = get_property(dn, "vendor-id", NULL);
+	const u32 *device_id = get_property(dn, "device-id", NULL);
+	const u32 *regs;
 	int enable;
 	struct pci_dn *pdn = PCI_DN(dn);
 
@@ -737,7 +737,7 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 
 	/* Ok... see if this device supports EEH.  Some do, some don't,
 	 * and the only way to find out is to check each and every one. */
-	regs = (u32 *)get_property(dn, "reg", NULL);
+	regs = get_property(dn, "reg", NULL);
 	if (regs) {
 		/* First register entry is addr (00BBSS00)  */
 		/* Try to enable eeh */

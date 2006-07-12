@@ -145,9 +145,9 @@ static int pSeries_add_processor(struct device_node *np)
 	unsigned int cpu;
 	cpumask_t candidate_map, tmp = CPU_MASK_NONE;
 	int err = -ENOSPC, len, nthreads, i;
-	u32 *intserv;
+	const u32 *intserv;
 
-	intserv = (u32 *)get_property(np, "ibm,ppc-interrupt-server#s", &len);
+	intserv = get_property(np, "ibm,ppc-interrupt-server#s", &len);
 	if (!intserv)
 		return 0;
 
@@ -205,9 +205,9 @@ static void pSeries_remove_processor(struct device_node *np)
 {
 	unsigned int cpu;
 	int len, nthreads, i;
-	u32 *intserv;
+	const u32 *intserv;
 
-	intserv = (u32 *)get_property(np, "ibm,ppc-interrupt-server#s", &len);
+	intserv = get_property(np, "ibm,ppc-interrupt-server#s", &len);
 	if (!intserv)
 		return;
 

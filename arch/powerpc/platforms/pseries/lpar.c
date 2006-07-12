@@ -204,20 +204,20 @@ void __init udbg_init_debug_lpar(void)
 void __init find_udbg_vterm(void)
 {
 	struct device_node *stdout_node;
-	u32 *termno;
-	char *name;
+	const u32 *termno;
+	const char *name;
 	int add_console;
 
 	/* find the boot console from /chosen/stdout */
 	if (!of_chosen)
 		return;
-	name = (char *)get_property(of_chosen, "linux,stdout-path", NULL);
+	name = get_property(of_chosen, "linux,stdout-path", NULL);
 	if (name == NULL)
 		return;
 	stdout_node = of_find_node_by_path(name);
 	if (!stdout_node)
 		return;
-	name = (char *)get_property(stdout_node, "name", NULL);
+	name = get_property(stdout_node, "name", NULL);
 	if (!name) {
 		printk(KERN_WARNING "stdout node missing 'name' property!\n");
 		goto out;
@@ -228,7 +228,7 @@ void __init find_udbg_vterm(void)
 	/* Check if it's a virtual terminal */
 	if (strncmp(name, "vty", 3) != 0)
 		goto out;
-	termno = (u32 *)get_property(stdout_node, "reg", NULL);
+	termno = get_property(stdout_node, "reg", NULL);
 	if (termno == NULL)
 		goto out;
 	vtermno = termno[0];

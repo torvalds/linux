@@ -79,7 +79,7 @@ static void request_ras_irqs(struct device_node *np,
 {
 	int i, index, count = 0;
 	struct of_irq oirq;
-	u32 *opicprop;
+	const u32 *opicprop;
 	unsigned int opicplen;
 	unsigned int virqs[16];
 
@@ -87,7 +87,7 @@ static void request_ras_irqs(struct device_node *np,
 	 * map those interrupts using the default interrupt host and default
 	 * trigger
 	 */
-	opicprop = (u32 *)get_property(np, "open-pic-interrupt", &opicplen);
+	opicprop = get_property(np, "open-pic-interrupt", &opicplen);
 	if (opicprop) {
 		opicplen /= sizeof(u32);
 		for (i = 0; i < opicplen; i++) {
