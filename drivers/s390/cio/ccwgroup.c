@@ -319,7 +319,7 @@ ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const 
 	if (!try_module_get(gdrv->owner))
 		return -EINVAL;
 
-	value = simple_strtoul(buf, 0, 0);
+	value = simple_strtoul(buf, NULL, 0);
 	ret = count;
 	if (value == 1)
 		ccwgroup_set_online(gdev);

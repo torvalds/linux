@@ -100,7 +100,7 @@ ccw_uevent (struct device *dev, char **envp, int num_envp,
 	if ((buffer_size - length <= 0) || (i >= num_envp))
 		return -ENOMEM;
 
-	envp[i] = 0;
+	envp[i] = NULL;
 
 	return 0;
 }
@@ -1057,7 +1057,7 @@ get_ccwdev_by_busid(struct ccw_driver *cdrv, const char *bus_id)
 				 __ccwdev_check_busid);
 	put_driver(drv);
 
-	return dev ? to_ccwdev(dev) : 0;
+	return dev ? to_ccwdev(dev) : NULL;
 }
 
 /************************** device driver handling ************************/
@@ -1082,7 +1082,7 @@ ccw_device_probe (struct device *dev)
 	ret = cdrv->probe ? cdrv->probe(cdev) : -ENODEV;
 
 	if (ret) {
-		cdev->drv = 0;
+		cdev->drv = NULL;
 		return ret;
 	}
 
@@ -1113,7 +1113,7 @@ ccw_device_remove (struct device *dev)
 				 ret, cdev->dev.bus_id);
 	}
 	ccw_device_set_timeout(cdev, 0);
-	cdev->drv = 0;
+	cdev->drv = NULL;
 	return 0;
 }
 

@@ -4804,7 +4804,7 @@ static struct qeth_cmd_buffer *
 qeth_get_setassparms_cmd(struct qeth_card *, enum qeth_ipa_funcs,
 			 __u16, __u16, enum qeth_prot_versions);
 static int
-qeth_arp_query(struct qeth_card *card, char *udata)
+qeth_arp_query(struct qeth_card *card, char __user *udata)
 {
 	struct qeth_cmd_buffer *iob;
 	struct qeth_arp_query_info qinfo = {0, };
@@ -4937,7 +4937,7 @@ qeth_get_adapter_cmd(struct qeth_card *card, __u32 command, __u32 cmdlen)
  * function to send SNMP commands to OSA-E card
  */
 static int
-qeth_snmp_command(struct qeth_card *card, char *udata)
+qeth_snmp_command(struct qeth_card *card, char __user *udata)
 {
 	struct qeth_cmd_buffer *iob;
 	struct qeth_ipa_cmd *cmd;
@@ -7909,9 +7909,9 @@ qeth_set_online(struct ccwgroup_device *gdev)
 }
 
 static struct ccw_device_id qeth_ids[] = {
-	{CCW_DEVICE(0x1731, 0x01), driver_info:QETH_CARD_TYPE_OSAE},
-	{CCW_DEVICE(0x1731, 0x05), driver_info:QETH_CARD_TYPE_IQD},
-	{CCW_DEVICE(0x1731, 0x06), driver_info:QETH_CARD_TYPE_OSN},
+	{CCW_DEVICE(0x1731, 0x01), .driver_info = QETH_CARD_TYPE_OSAE},
+	{CCW_DEVICE(0x1731, 0x05), .driver_info = QETH_CARD_TYPE_IQD},
+	{CCW_DEVICE(0x1731, 0x06), .driver_info = QETH_CARD_TYPE_OSN},
 	{},
 };
 MODULE_DEVICE_TABLE(ccw, qeth_ids);
@@ -8380,7 +8380,7 @@ out:
 
 static struct notifier_block qeth_ip_notifier = {
 	qeth_ip_event,
-	0
+	NULL,
 };
 
 #ifdef CONFIG_QETH_IPV6
@@ -8433,7 +8433,7 @@ out:
 
 static struct notifier_block qeth_ip6_notifier = {
 	qeth_ip6_event,
-	0
+	NULL,
 };
 #endif
 
@@ -8460,7 +8460,7 @@ qeth_reboot_event(struct notifier_block *this, unsigned long event, void *ptr)
 
 static struct notifier_block qeth_reboot_notifier = {
 	qeth_reboot_event,
-	0
+	NULL,
 };
 
 static int

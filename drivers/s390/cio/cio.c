@@ -798,7 +798,7 @@ struct subchannel *
 cio_get_console_subchannel(void)
 {
 	if (!console_subchannel_in_use)
-		return 0;
+		return NULL;
 	return &console_subchannel;
 }
 
