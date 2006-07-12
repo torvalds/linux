@@ -1264,7 +1264,8 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 {
 	int j, rev, ret;
 	struct bmac_data *bp;
-	unsigned char *addr;
+	const unsigned char *prop_addr;
+	unsigned char addr[6];
 	struct net_device *dev;
 	int is_bmac_plus = ((int)match->data) != 0;
 
@@ -1272,14 +1273,16 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 		printk(KERN_ERR "BMAC: can't use, need 3 addrs and 3 intrs\n");
 		return -ENODEV;
 	}
-	addr = get_property(macio_get_of_node(mdev), "mac-address", NULL);
-	if (addr == NULL) {
-		addr = get_property(macio_get_of_node(mdev), "local-mac-address", NULL);
-		if (addr == NULL) {
+	prop_addr = get_property(macio_get_of_node(mdev), "mac-address", NULL);
+	if (prop_addr == NULL) {
+		prop_addr = get_property(macio_get_of_node(mdev),
+				"local-mac-address", NULL);
+		if (prop_addr == NULL) {
 			printk(KERN_ERR "BMAC: Can't get mac-address\n");
 			return -ENODEV;
 		}
 	}
+	memcpy(addr, prop_addr, sizeof(addr));
 
 	dev = alloc_etherdev(PRIV_BYTES);
 	if (!dev) {

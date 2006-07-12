@@ -1812,10 +1812,10 @@ spider_net_setup_phy(struct spider_net_card *card)
  */
 static int
 spider_net_download_firmware(struct spider_net_card *card,
-			     u8 *firmware_ptr)
+			     const void *firmware_ptr)
 {
 	int sequencer, i;
-	u32 *fw_ptr = (u32 *)firmware_ptr;
+	const u32 *fw_ptr = firmware_ptr;
 
 	/* stop sequencers */
 	spider_net_write_reg(card, SPIDER_NET_GSINIT,
@@ -1872,7 +1872,7 @@ spider_net_init_firmware(struct spider_net_card *card)
 {
 	struct firmware *firmware = NULL;
 	struct device_node *dn;
-	u8 *fw_prop = NULL;
+	const u8 *fw_prop = NULL;
 	int err = -ENOENT;
 	int fw_size;
 
@@ -1898,7 +1898,7 @@ try_host_fw:
 	if (!dn)
 		goto out_err;
 
-	fw_prop = (u8 *)get_property(dn, "firmware", &fw_size);
+	fw_prop = get_property(dn, "firmware", &fw_size);
 	if (!fw_prop)
 		goto out_err;
 
@@ -2058,7 +2058,7 @@ spider_net_setup_netdev(struct spider_net_card *card)
 	struct net_device *netdev = card->netdev;
 	struct device_node *dn;
 	struct sockaddr addr;
-	u8 *mac;
+	const u8 *mac;
 
 	SET_MODULE_OWNER(netdev);
 	SET_NETDEV_DEV(netdev, &card->pdev->dev);
@@ -2089,7 +2089,7 @@ spider_net_setup_netdev(struct spider_net_card *card)
 	if (!dn)
 		return -EIO;
 
-	mac = (u8 *)get_property(dn, "local-mac-address", NULL);
+	mac = get_property(dn, "local-mac-address", NULL);
 	if (!mac)
 		return -EIO;
 	memcpy(addr.sa_data, mac, ETH_ALEN);

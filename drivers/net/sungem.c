@@ -2896,7 +2896,7 @@ static int __devinit gem_get_device_address(struct gem *gp)
 	if (use_idprom)
 		memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
 #elif defined(CONFIG_PPC_PMAC)
-	unsigned char *addr;
+	const unsigned char *addr;
 
 	addr = get_property(gp->of_node, "local-mac-address", NULL);
 	if (addr == NULL) {
