@@ -559,20 +559,20 @@ static void device_create_release(struct device *dev)
 
 /**
  * device_create - creates a device and registers it with sysfs
- * @cs: pointer to the struct class that this device should be registered to.
- * @parent: pointer to the parent struct device of this new device, if any.
- * @dev: the dev_t for the char device to be added.
- * @fmt: string for the class device's name
+ * @class: pointer to the struct class that this device should be registered to
+ * @parent: pointer to the parent struct device of this new device, if any
+ * @devt: the dev_t for the char device to be added
+ * @fmt: string for the device's name
  *
- * This function can be used by char device classes.  A struct
- * device will be created in sysfs, registered to the specified
- * class.
+ * This function can be used by char device classes.  A struct device
+ * will be created in sysfs, registered to the specified class.
+ *
  * A "dev" file will be created, showing the dev_t for the device, if
  * the dev_t is not 0,0.
- * If a pointer to a parent struct device is passed in, the newly
- * created struct device will be a child of that device in sysfs.  The
- * pointer to the struct device will be returned from the call.  Any
- * further sysfs files that might be required can be created using this
+ * If a pointer to a parent struct device is passed in, the newly created
+ * struct device will be a child of that device in sysfs.
+ * The pointer to the struct device will be returned from the call.
+ * Any further sysfs files that might be required can be created using this
  * pointer.
  *
  * Note: the struct class passed to this function must have previously
@@ -620,11 +620,11 @@ EXPORT_SYMBOL_GPL(device_create);
 
 /**
  * device_destroy - removes a device that was created with device_create()
- * @class: the pointer to the struct class that this device was registered * with.
- * @dev: the dev_t of the device that was previously registered.
+ * @class: pointer to the struct class that this device was registered with
+ * @devt: the dev_t of the device that was previously registered
  *
- * This call unregisters and cleans up a class device that was created with a
- * call to class_device_create()
+ * This call unregisters and cleans up a device that was created with a
+ * call to device_create().
  */
 void device_destroy(struct class *class, dev_t devt)
 {
