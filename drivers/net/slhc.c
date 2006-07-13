@@ -696,20 +696,6 @@ EXPORT_SYMBOL(slhc_compress);
 EXPORT_SYMBOL(slhc_uncompress);
 EXPORT_SYMBOL(slhc_toss);
 
-#ifdef MODULE
-
-int init_module(void)
-{
-	printk(KERN_INFO "CSLIP: code copyright 1989 Regents of the University of California\n");
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	return;
-}
-
-#endif /* MODULE */
 #else /* CONFIG_INET */
 
 
