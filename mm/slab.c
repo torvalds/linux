@@ -3119,16 +3119,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int nr_objects,
 		if (slabp->inuse == 0) {
 			if (l3->free_objects > l3->free_limit) {
 				l3->free_objects -= cachep->num;
-				/*
-				 * It is safe to drop the lock. The slab is
-				 * no longer linked to the cache. cachep
-				 * cannot disappear - we are using it and
-				 * all destruction of caches must be
-				 * serialized properly by the user.
-				 */
-				spin_unlock(&l3->list_lock);
 				slab_destroy(cachep, slabp);
-				spin_lock(&l3->list_lock);
 			} else {
 				list_add(&slabp->list, &l3->slabs_free);
 			}
