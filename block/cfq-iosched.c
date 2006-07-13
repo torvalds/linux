@@ -182,8 +182,6 @@ struct cfq_rq {
 
 	struct cfq_queue *cfq_queue;
 	struct cfq_io_context *io_context;
-
-	unsigned int crq_flags;
 };
 
 enum cfqq_state_flags {
@@ -220,27 +218,6 @@ CFQ_CFQQ_FNS(fifo_expire);
 CFQ_CFQQ_FNS(idle_window);
 CFQ_CFQQ_FNS(prio_changed);
 #undef CFQ_CFQQ_FNS
-
-enum cfq_rq_state_flags {
-	CFQ_CRQ_FLAG_is_sync = 0,
-};
-
-#define CFQ_CRQ_FNS(name)						\
-static inline void cfq_mark_crq_##name(struct cfq_rq *crq)		\
-{									\
-	crq->crq_flags |= (1 << CFQ_CRQ_FLAG_##name);			\
-}									\
-static inline void cfq_clear_crq_##name(struct cfq_rq *crq)		\
-{									\
-	crq->crq_flags &= ~(1 << CFQ_CRQ_FLAG_##name);			\
-}									\
-static inline int cfq_crq_##name(const struct cfq_rq *crq)		\
-{									\
-	return (crq->crq_flags & (1 << CFQ_CRQ_FLAG_##name)) != 0;	\
-}
-
-CFQ_CRQ_FNS(is_sync);
-#undef CFQ_CRQ_FNS
 
 static struct cfq_queue *cfq_find_cfq_hash(struct cfq_data *, unsigned int, unsigned short);
 static void cfq_dispatch_insert(request_queue_t *, struct cfq_rq *);
@@ -290,9 +267,9 @@ cfq_choose_req(struct cfq_data *cfqd, struct cfq_rq *crq1, struct cfq_rq *crq2)
 	if (crq2 == NULL)
 		return crq1;
 
-	if (cfq_crq_is_sync(crq1) && !cfq_crq_is_sync(crq2))
+	if (rq_is_sync(crq1->request) && !rq_is_sync(crq2->request))
 		return crq1;
-	else if (cfq_crq_is_sync(crq2) && !cfq_crq_is_sync(crq1))
+	else if (rq_is_sync(crq2->request) && !rq_is_sync(crq1->request))
 		return crq2;
 
 	s1 = crq1->request->sector;
@@ -477,7 +454,7 @@ static inline void cfq_del_crq_rb(struct cfq_rq *crq)
 {
 	struct cfq_queue *cfqq = crq->cfq_queue;
 	struct cfq_data *cfqd = cfqq->cfqd;
-	const int sync = cfq_crq_is_sync(crq);
+	const int sync = rq_is_sync(crq->request);
 
 	BUG_ON(!cfqq->queued[sync]);
 	cfqq->queued[sync]--;
@@ -495,7 +472,7 @@ static void cfq_add_crq_rb(struct cfq_rq *crq)
 	struct request *rq = crq->request;
 	struct request *__alias;
 
-	cfqq->queued[cfq_crq_is_sync(crq)]++;
+	cfqq->queued[rq_is_sync(rq)]++;
 
 	/*
 	 * looks a little odd, but the first insert might return an alias.
@@ -508,8 +485,10 @@ static void cfq_add_crq_rb(struct cfq_rq *crq)
 static inline void
 cfq_reposition_crq_rb(struct cfq_queue *cfqq, struct cfq_rq *crq)
 {
-	elv_rb_del(&cfqq->sort_list, crq->request);
-	cfqq->queued[cfq_crq_is_sync(crq)]--;
+	struct request *rq = crq->request;
+
+	elv_rb_del(&cfqq->sort_list, rq);
+	cfqq->queued[rq_is_sync(rq)]--;
 	cfq_add_crq_rb(crq);
 }
 
@@ -814,11 +793,11 @@ static void cfq_dispatch_insert(request_queue_t *q, struct cfq_rq *crq)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct cfq_queue *cfqq = crq->cfq_queue;
-	struct request *rq;
+	struct request *rq = crq->request;
 
-	cfq_remove_request(crq->request);
-	cfqq->on_dispatch[cfq_crq_is_sync(crq)]++;
-	elv_dispatch_sort(q, crq->request);
+	cfq_remove_request(rq);
+	cfqq->on_dispatch[rq_is_sync(rq)]++;
+	elv_dispatch_sort(q, rq);
 
 	rq = list_entry(q->queue_head.prev, struct request, queuelist);
 	cfqd->last_sector = rq->sector + rq->nr_sectors;
@@ -1585,7 +1564,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 */
 	if (new_cfqq->slice_left < cfqd->cfq_slice_idle)
 		return 0;
-	if (cfq_crq_is_sync(crq) && !cfq_cfqq_sync(cfqq))
+	if (rq_is_sync(crq->request) && !cfq_cfqq_sync(cfqq))
 		return 1;
 
 	return 0;
@@ -1634,7 +1613,7 @@ cfq_crq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	struct cfq_io_context *cic = crq->io_context;
 
 	/*
-	 * check if this request is a better next-serve candidate
+	 * check if this request is a better next-serve candidate)) {
 	 */
 	cfqq->next_crq = cfq_choose_req(cfqd, cfqq->next_crq, crq);
 	BUG_ON(!cfqq->next_crq);
@@ -1643,7 +1622,7 @@ cfq_crq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	 * we never wait for an async request and we don't allow preemption
 	 * of an async request. so just return early
 	 */
-	if (!cfq_crq_is_sync(crq)) {
+	if (!rq_is_sync(crq->request)) {
 		/*
 		 * sync process issued an async request, if it's waiting
 		 * then expire it and kick rq handling.
@@ -1709,7 +1688,7 @@ static void cfq_completed_request(request_queue_t *q, struct request *rq)
 	struct cfq_rq *crq = RQ_DATA(rq);
 	struct cfq_queue *cfqq = crq->cfq_queue;
 	struct cfq_data *cfqd = cfqq->cfqd;
-	const int sync = cfq_crq_is_sync(crq);
+	const int sync = rq_is_sync(rq);
 	unsigned long now;
 
 	now = jiffies;
@@ -1904,11 +1883,6 @@ cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 		crq->request = rq;
 		crq->cfq_queue = cfqq;
 		crq->io_context = cic;
-
-		if (is_sync)
-			cfq_mark_crq_is_sync(crq);
-		else
-			cfq_clear_crq_is_sync(crq);
 
 		rq->elevator_private = crq;
 		return 0;
