@@ -131,8 +131,6 @@ struct as_data {
 	unsigned long antic_expire;
 };
 
-#define list_entry_fifo(ptr)	list_entry((ptr), struct as_rq, fifo)
-
 /*
  * per-request data.
  */
@@ -152,12 +150,6 @@ struct as_rq {
 	struct request *request;
 
 	struct io_context *io_context;	/* The submitting task */
-
-	/*
-	 * expire fifo
-	 */
-	struct list_head fifo;
-	unsigned long expires;
 
 	unsigned int is_sync;
 	enum arq_state state;
@@ -893,7 +885,7 @@ static void as_remove_queued_request(request_queue_t *q, struct request *rq)
 	if (ad->next_arq[data_dir] == arq)
 		ad->next_arq[data_dir] = as_find_next_arq(ad, arq);
 
-	list_del_init(&arq->fifo);
+	rq_fifo_clear(rq);
 	as_del_arq_rb(ad, rq);
 }
 
@@ -907,7 +899,7 @@ static void as_remove_queued_request(request_queue_t *q, struct request *rq)
  */
 static int as_fifo_expired(struct as_data *ad, int adir)
 {
-	struct as_rq *arq;
+	struct request *rq;
 	long delta_jif;
 
 	delta_jif = jiffies - ad->last_check_fifo[adir];
@@ -921,9 +913,9 @@ static int as_fifo_expired(struct as_data *ad, int adir)
 	if (list_empty(&ad->fifo_list[adir]))
 		return 0;
 
-	arq = list_entry_fifo(ad->fifo_list[adir].next);
+	rq = rq_entry_fifo(ad->fifo_list[adir].next);
 
-	return time_after(jiffies, arq->expires);
+	return time_after(jiffies, rq_fifo_time(rq));
 }
 
 /*
@@ -1089,7 +1081,7 @@ static int as_dispatch_request(request_queue_t *q, int force)
 			ad->changed_batch = 1;
 		}
 		ad->batch_data_dir = REQ_SYNC;
-		arq = list_entry_fifo(ad->fifo_list[ad->batch_data_dir].next);
+		arq = RQ_DATA(rq_entry_fifo(ad->fifo_list[REQ_SYNC].next));
 		ad->last_check_fifo[ad->batch_data_dir] = jiffies;
 		goto dispatch_request;
 	}
@@ -1129,8 +1121,7 @@ dispatch_request:
 
 	if (as_fifo_expired(ad, ad->batch_data_dir)) {
 fifo_expired:
-		arq = list_entry_fifo(ad->fifo_list[ad->batch_data_dir].next);
-		BUG_ON(arq == NULL);
+		arq = RQ_DATA(rq_entry_fifo(ad->fifo_list[ad->batch_data_dir].next));
 	}
 
 	if (ad->changed_batch) {
@@ -1186,8 +1177,8 @@ static void as_add_request(request_queue_t *q, struct request *rq)
 	/*
 	 * set expire time (only used for reads) and add to fifo list
 	 */
-	arq->expires = jiffies + ad->fifo_expire[data_dir];
-	list_add_tail(&arq->fifo, &ad->fifo_list[data_dir]);
+	rq_set_fifo_time(rq, jiffies + ad->fifo_expire[data_dir]);
+	list_add_tail(&rq->queuelist, &ad->fifo_list[data_dir]);
 
 	as_update_arq(ad, arq); /* keep state machine up to date */
 	arq->state = AS_RQ_QUEUED;
@@ -1277,10 +1268,10 @@ static void as_merged_requests(request_queue_t *q, struct request *req,
 	 * if anext expires before arq, assign its expire time to arq
 	 * and move into anext position (anext will be deleted) in fifo
 	 */
-	if (!list_empty(&arq->fifo) && !list_empty(&anext->fifo)) {
-		if (time_before(anext->expires, arq->expires)) {
-			list_move(&arq->fifo, &anext->fifo);
-			arq->expires = anext->expires;
+	if (!list_empty(&req->queuelist) && !list_empty(&next->queuelist)) {
+		if (time_before(rq_fifo_time(next), rq_fifo_time(req))) {
+			list_move(&req->queuelist, &next->queuelist);
+			rq_set_fifo_time(req, rq_fifo_time(next));
 			/*
 			 * Don't copy here but swap, because when anext is
 			 * removed below, it must contain the unused context
@@ -1350,7 +1341,6 @@ static int as_set_request(request_queue_t *q, struct request *rq,
 		arq->request = rq;
 		arq->state = AS_RQ_PRESCHED;
 		arq->io_context = NULL;
-		INIT_LIST_HEAD(&arq->fifo);
 		rq->elevator_private = arq;
 		return 0;
 	}
