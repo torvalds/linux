@@ -940,7 +940,6 @@ static void vioHandleTapeEvent(struct HvLpEvent *event)
 
 static int viotape_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 {
-	char tapename[32];
 	int i = vdev->unit_address;
 	int j;
 
@@ -956,10 +955,9 @@ static int viotape_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 			"iseries!vt%d", i);
 	class_device_create(tape_class, NULL, MKDEV(VIOTAPE_MAJOR, i | 0x80),
 			NULL, "iseries!nvt%d", i);
-	sprintf(tapename, "iseries/vt%d", i);
-	printk(VIOTAPE_KERN_INFO "tape %s is iSeries "
+	printk(VIOTAPE_KERN_INFO "tape iseries/vt%d is iSeries "
 			"resource %10.10s type %4.4s, model %3.3s\n",
-			tapename, viotape_unitinfo[i].rsrcname,
+			i, viotape_unitinfo[i].rsrcname,
 			viotape_unitinfo[i].type, viotape_unitinfo[i].model);
 	return 0;
 }
