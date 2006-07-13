@@ -40,7 +40,6 @@
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #include <asm/lppaca.h>
-#include <asm/iseries/hv_lp_event.h>
 #include <asm/cache.h>
 #include <asm/compat.h>
 #endif

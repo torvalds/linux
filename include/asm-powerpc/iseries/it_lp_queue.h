@@ -27,8 +27,6 @@
 #include <asm/types.h>
 #include <asm/ptrace.h>
 
-struct HvLpEvent;
-
 #define IT_LP_MAX_QUEUES	8
 
 #define IT_LP_NOT_USED		0	/* Queue will not be used by PLIC */
