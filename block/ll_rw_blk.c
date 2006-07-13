@@ -281,11 +281,12 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
 {
 	INIT_LIST_HEAD(&rq->queuelist);
 	INIT_LIST_HEAD(&rq->donelist);
-	INIT_HLIST_NODE(&rq->hash);
 
 	rq->errors = 0;
 	rq->rq_status = RQ_ACTIVE;
 	rq->bio = rq->biotail = NULL;
+	INIT_HLIST_NODE(&rq->hash);
+	RB_CLEAR_NODE(&rq->rb_node);
 	rq->ioprio = 0;
 	rq->buffer = NULL;
 	rq->ref_count = 1;
@@ -2943,7 +2944,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 			req->ioprio = ioprio_best(req->ioprio, prio);
 			drive_stat_acct(req, nr_sectors, 0);
 			if (!attempt_back_merge(q, req))
-				elv_merged_request(q, req);
+				elv_merged_request(q, req, el_ret);
 			goto out;
 
 		case ELEVATOR_FRONT_MERGE:
@@ -2970,7 +2971,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 			req->ioprio = ioprio_best(req->ioprio, prio);
 			drive_stat_acct(req, nr_sectors, 0);
 			if (!attempt_front_merge(q, req))
-				elv_merged_request(q, req);
+				elv_merged_request(q, req, el_ret);
 			goto out;
 
 		/* ELV_NO_MERGE: elevator says don't/can't merge. */

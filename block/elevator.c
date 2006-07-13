@@ -239,6 +239,8 @@ int elevator_init(request_queue_t *q, char *name)
 	return ret;
 }
 
+EXPORT_SYMBOL(elevator_init);
+
 void elevator_exit(elevator_t *e)
 {
 	mutex_lock(&e->sysfs_lock);
@@ -249,6 +251,8 @@ void elevator_exit(elevator_t *e)
 
 	kobject_put(&e->kobj);
 }
+
+EXPORT_SYMBOL(elevator_exit);
 
 static inline void __elv_rqhash_del(struct request *rq)
 {
@@ -298,9 +302,68 @@ static struct request *elv_rqhash_find(request_queue_t *q, sector_t offset)
 }
 
 /*
+ * RB-tree support functions for inserting/lookup/removal of requests
+ * in a sorted RB tree.
+ */
+struct request *elv_rb_add(struct rb_root *root, struct request *rq)
+{
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+	struct request *__rq;
+
+	while (*p) {
+		parent = *p;
+		__rq = rb_entry(parent, struct request, rb_node);
+
+		if (rq->sector < __rq->sector)
+			p = &(*p)->rb_left;
+		else if (rq->sector > __rq->sector)
+			p = &(*p)->rb_right;
+		else
+			return __rq;
+	}
+
+	rb_link_node(&rq->rb_node, parent, p);
+	rb_insert_color(&rq->rb_node, root);
+	return NULL;
+}
+
+EXPORT_SYMBOL(elv_rb_add);
+
+void elv_rb_del(struct rb_root *root, struct request *rq)
+{
+	BUG_ON(RB_EMPTY_NODE(&rq->rb_node));
+	rb_erase(&rq->rb_node, root);
+	RB_CLEAR_NODE(&rq->rb_node);
+}
+
+EXPORT_SYMBOL(elv_rb_del);
+
+struct request *elv_rb_find(struct rb_root *root, sector_t sector)
+{
+	struct rb_node *n = root->rb_node;
+	struct request *rq;
+
+	while (n) {
+		rq = rb_entry(n, struct request, rb_node);
+
+		if (sector < rq->sector)
+			n = n->rb_left;
+		else if (sector > rq->sector)
+			n = n->rb_right;
+		else
+			return rq;
+	}
+
+	return NULL;
+}
+
+EXPORT_SYMBOL(elv_rb_find);
+
+/*
  * Insert rq into dispatch queue of q.  Queue lock must be held on
- * entry.  If sort != 0, rq is sort-inserted; otherwise, rq will be
- * appended to the dispatch queue.  To be used by specific elevators.
+ * entry.  rq is sort insted into the dispatch queue. To be used by
+ * specific elevators.
  */
 void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 {
@@ -335,8 +398,12 @@ void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 	list_add(&rq->queuelist, entry);
 }
 
+EXPORT_SYMBOL(elv_dispatch_sort);
+
 /*
- * This should be in elevator.h, but that requires pulling in rq and q
+ * Insert rq into dispatch queue of q.  Queue lock must be held on
+ * entry.  rq is added to the back of the dispatch queue. To be used by
+ * specific elevators.
  */
 void elv_dispatch_add_tail(struct request_queue *q, struct request *rq)
 {
@@ -351,6 +418,8 @@ void elv_dispatch_add_tail(struct request_queue *q, struct request *rq)
 	q->boundary_rq = rq;
 	list_add_tail(&rq->queuelist, &q->queue_head);
 }
+
+EXPORT_SYMBOL(elv_dispatch_add_tail);
 
 int elv_merge(request_queue_t *q, struct request **req, struct bio *bio)
 {
@@ -384,14 +453,15 @@ int elv_merge(request_queue_t *q, struct request **req, struct bio *bio)
 	return ELEVATOR_NO_MERGE;
 }
 
-void elv_merged_request(request_queue_t *q, struct request *rq)
+void elv_merged_request(request_queue_t *q, struct request *rq, int type)
 {
 	elevator_t *e = q->elevator;
 
 	if (e->ops->elevator_merged_fn)
-		e->ops->elevator_merged_fn(q, rq);
+		e->ops->elevator_merged_fn(q, rq, type);
 
-	elv_rqhash_reposition(q, rq);
+	if (type == ELEVATOR_BACK_MERGE)
+		elv_rqhash_reposition(q, rq);
 
 	q->last_merge = rq;
 }
@@ -577,6 +647,8 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 	elv_insert(q, rq, where);
 }
 
+EXPORT_SYMBOL(__elv_add_request);
+
 void elv_add_request(request_queue_t *q, struct request *rq, int where,
 		     int plug)
 {
@@ -586,6 +658,8 @@ void elv_add_request(request_queue_t *q, struct request *rq, int where,
 	__elv_add_request(q, rq, where, plug);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
+
+EXPORT_SYMBOL(elv_add_request);
 
 static inline struct request *__elv_next_request(request_queue_t *q)
 {
@@ -670,6 +744,8 @@ struct request *elv_next_request(request_queue_t *q)
 	return rq;
 }
 
+EXPORT_SYMBOL(elv_next_request);
+
 void elv_dequeue_request(request_queue_t *q, struct request *rq)
 {
 	BUG_ON(list_empty(&rq->queuelist));
@@ -686,6 +762,8 @@ void elv_dequeue_request(request_queue_t *q, struct request *rq)
 		q->in_flight++;
 }
 
+EXPORT_SYMBOL(elv_dequeue_request);
+
 int elv_queue_empty(request_queue_t *q)
 {
 	elevator_t *e = q->elevator;
@@ -698,6 +776,8 @@ int elv_queue_empty(request_queue_t *q)
 
 	return 1;
 }
+
+EXPORT_SYMBOL(elv_queue_empty);
 
 struct request *elv_latter_request(request_queue_t *q, struct request *rq)
 {
@@ -1025,11 +1105,26 @@ ssize_t elv_iosched_show(request_queue_t *q, char *name)
 	return len;
 }
 
-EXPORT_SYMBOL(elv_dispatch_sort);
-EXPORT_SYMBOL(elv_add_request);
-EXPORT_SYMBOL(__elv_add_request);
-EXPORT_SYMBOL(elv_next_request);
-EXPORT_SYMBOL(elv_dequeue_request);
-EXPORT_SYMBOL(elv_queue_empty);
-EXPORT_SYMBOL(elevator_exit);
-EXPORT_SYMBOL(elevator_init);
+struct request *elv_rb_former_request(request_queue_t *q, struct request *rq)
+{
+	struct rb_node *rbprev = rb_prev(&rq->rb_node);
+
+	if (rbprev)
+		return rb_entry_rq(rbprev);
+
+	return NULL;
+}
+
+EXPORT_SYMBOL(elv_rb_former_request);
+
+struct request *elv_rb_latter_request(request_queue_t *q, struct request *rq)
+{
+	struct rb_node *rbnext = rb_next(&rq->rb_node);
+
+	if (rbnext)
+		return rb_entry_rq(rbnext);
+
+	return NULL;
+}
+
+EXPORT_SYMBOL(elv_rb_latter_request);

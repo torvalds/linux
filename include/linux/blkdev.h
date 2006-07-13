@@ -230,6 +230,7 @@ struct request {
 	struct bio *biotail;
 
 	struct hlist_node hash;	/* merge hash */
+	struct rb_node rb_node;	/* sort/lookup */
 
 	void *elevator_private;
 	void *completion_data;

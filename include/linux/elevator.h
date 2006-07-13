@@ -6,7 +6,7 @@ typedef int (elevator_merge_fn) (request_queue_t *, struct request **,
 
 typedef void (elevator_merge_req_fn) (request_queue_t *, struct request *, struct request *);
 
-typedef void (elevator_merged_fn) (request_queue_t *, struct request *);
+typedef void (elevator_merged_fn) (request_queue_t *, struct request *, int);
 
 typedef int (elevator_dispatch_fn) (request_queue_t *, int);
 
@@ -96,7 +96,7 @@ extern void elv_insert(request_queue_t *, struct request *, int);
 extern int elv_merge(request_queue_t *, struct request **, struct bio *);
 extern void elv_merge_requests(request_queue_t *, struct request *,
 			       struct request *);
-extern void elv_merged_request(request_queue_t *, struct request *);
+extern void elv_merged_request(request_queue_t *, struct request *, int);
 extern void elv_dequeue_request(request_queue_t *, struct request *);
 extern void elv_requeue_request(request_queue_t *, struct request *);
 extern int elv_queue_empty(request_queue_t *);
@@ -127,6 +127,19 @@ extern void elevator_exit(elevator_t *);
 extern int elv_rq_merge_ok(struct request *, struct bio *);
 
 /*
+ * Helper functions.
+ */
+extern struct request *elv_rb_former_request(request_queue_t *, struct request *);
+extern struct request *elv_rb_latter_request(request_queue_t *, struct request *);
+
+/*
+ * rb support functions.
+ */
+extern struct request *elv_rb_add(struct rb_root *, struct request *);
+extern void elv_rb_del(struct rb_root *, struct request *);
+extern struct request *elv_rb_find(struct rb_root *, sector_t);
+
+/*
  * Return values from elevator merger
  */
 #define ELEVATOR_NO_MERGE	0
@@ -151,5 +164,6 @@ enum {
 };
 
 #define rq_end_sector(rq)	((rq)->sector + (rq)->nr_sectors)
+#define rb_entry_rq(node)	rb_entry((node), struct request, rb_node)
 
 #endif
