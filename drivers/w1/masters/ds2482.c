@@ -218,7 +218,7 @@ static int ds2482_wait_1wire_idle(struct ds2482_data *pdev)
 		do {
 			temp = i2c_smbus_read_byte(&pdev->client);
 		} while ((temp >= 0) && (temp & DS2482_REG_STS_1WB) &&
-			 (++retries > DS2482_WAIT_IDLE_TIMEOUT));
+			 (++retries < DS2482_WAIT_IDLE_TIMEOUT));
 	}
 
 	if (retries > DS2482_WAIT_IDLE_TIMEOUT)

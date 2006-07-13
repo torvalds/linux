@@ -3180,7 +3180,6 @@ S:	Maintained
 W1 DALLAS'S 1-WIRE BUS
 P:	Evgeniy Polyakov
 M:	johnpol@2ka.mipt.ru
-L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 W83L51xD SD/MMC CARD INTERFACE DRIVER
