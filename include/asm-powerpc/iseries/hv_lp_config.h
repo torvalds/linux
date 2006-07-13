@@ -25,7 +25,6 @@
 
 #include <asm/iseries/hv_call_sc.h>
 #include <asm/iseries/hv_types.h>
-#include <asm/iseries/it_lp_naca.h>
 
 enum {
 	HvCallCfg_Cur	= 0,
@@ -44,16 +43,8 @@ enum {
 #define HvCallCfgGetHostingLpIndex			HvCallCfg + 32
 
 extern HvLpIndex HvLpConfig_getLpIndex_outline(void);
-
-static inline HvLpIndex	HvLpConfig_getLpIndex(void)
-{
-	return itLpNaca.xLpIndex;
-}
-
-static inline HvLpIndex	HvLpConfig_getPrimaryLpIndex(void)
-{
-	return itLpNaca.xPrimaryLpIndex;
-}
+extern HvLpIndex HvLpConfig_getLpIndex(void);
+extern HvLpIndex HvLpConfig_getPrimaryLpIndex(void);
 
 static inline u64 HvLpConfig_getMsChunks(void)
 {

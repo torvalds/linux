@@ -48,6 +48,7 @@
 #include <asm/iseries/hv_call_event.h>
 #include <asm/iseries/hv_call_xm.h>
 #include <asm/iseries/it_lp_queue.h>
+#include <asm/iseries/it_lp_naca.h>
 #include <asm/iseries/mf.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/lpar_map.h>
