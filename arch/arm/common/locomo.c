@@ -506,7 +506,7 @@ locomo_init_one_child(struct locomo *lchip, struct locomo_dev_info *info)
 		goto out;
 	}
 
-	strncpy(dev->dev.bus_id,info->name,sizeof(dev->dev.bus_id));
+	strncpy(dev->dev.bus_id, info->name, sizeof(dev->dev.bus_id));
 	/*
 	 * If the parent device has a DMA mask associated with it,
 	 * propagate it down to the children.
@@ -729,7 +729,6 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 
 	for (i = 0; i < ARRAY_SIZE(locomo_devices); i++)
 		locomo_init_one_child(lchip, &locomo_devices[i]);
-
 	return 0;
 
  out:
