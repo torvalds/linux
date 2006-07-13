@@ -610,6 +610,13 @@ config HVC_CONSOLE
 	  console. This driver allows each pSeries partition to have a console
 	  which is accessed via the HMC.
 
+config HVC_ISERIES
+	bool "iSeries Hypervisor Virtual Console support"
+	depends on PPC_ISERIES && !VIOCONS
+	select HVC_DRIVER
+	help
+	  iSeries machines support a hypervisor virtual console.
+
 config HVC_RTAS
 	bool "IBM RTAS Console support"
 	depends on PPC_RTAS

@@ -3,13 +3,17 @@ menu "iSeries device drivers"
 	depends on PPC_ISERIES
 
 config VIOCONS
-	tristate "iSeries Virtual Console Support"
+	tristate "iSeries Virtual Console Support (Obsolete)"
+	help
+	  This is the old virtual console driver for legacy iSeries.
+	  You should use the iSeries Hypervisor Virtual Console
+	  support instead.
 
 config VIODASD
 	tristate "iSeries Virtual I/O disk support"
 	help
 	  If you are running on an iSeries system and you want to use
- 	  virtual disks created and managed by OS/400, say Y.
+	  virtual disks created and managed by OS/400, say Y.
 
 config VIOCD
 	tristate "iSeries Virtual I/O CD support"
