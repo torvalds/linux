@@ -273,10 +273,10 @@ static void rfcomm_dlc_clear_state(struct rfcomm_dlc *d)
 
 struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio)
 {
-	struct rfcomm_dlc *d = kmalloc(sizeof(*d), prio);
+	struct rfcomm_dlc *d = kzalloc(sizeof(*d), prio);
+
 	if (!d)
 		return NULL;
-	memset(d, 0, sizeof(*d));
 
 	init_timer(&d->timer);
 	d->timer.function = rfcomm_dlc_timeout;
@@ -289,6 +289,7 @@ struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio)
 	rfcomm_dlc_clear_state(d);
 	
 	BT_DBG("%p", d);
+
 	return d;
 }
 
@@ -522,10 +523,10 @@ int rfcomm_dlc_get_modem_status(struct rfcomm_dlc *d, u8 *v24_sig)
 /* ---- RFCOMM sessions ---- */
 static struct rfcomm_session *rfcomm_session_add(struct socket *sock, int state)
 {
-	struct rfcomm_session *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct rfcomm_session *s = kzalloc(sizeof(*s), GFP_KERNEL);
+
 	if (!s)
 		return NULL;
-	memset(s, 0, sizeof(*s));
 
 	BT_DBG("session %p sock %p", s, sock);
 

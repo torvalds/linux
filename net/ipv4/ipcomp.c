@@ -70,7 +70,8 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 	if (err)
 		goto out;
 		
-	skb_put(skb, dlen - plen);
+	skb->truesize += dlen - plen;
+	__skb_put(skb, dlen - plen);
 	memcpy(skb->data, scratch, dlen);
 out:	
 	put_cpu();

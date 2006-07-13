@@ -2752,6 +2752,12 @@ P:	Christoph Hellwig
 M:	hch@infradead.org
 S:	Maintained
 
+TC CLASSIFIER
+P:	Jamal Hadi Salim
+M:	hadi@cyberus.ca
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 TI OMAP RANDOM NUMBER GENERATOR SUPPORT
 P:	Deepak Saxena
 M:	dsaxena@plexity.net

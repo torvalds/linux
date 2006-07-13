@@ -67,6 +67,14 @@ static struct proto_ops rose_proto_ops;
 ax25_address rose_callsign;
 
 /*
+ * ROSE network devices are virtual network devices encapsulating ROSE
+ * frames into AX.25 which will be sent through an AX.25 device, so form a
+ * special "super class" of normal net devices; split their locks off into a
+ * separate class since they always nest.
+ */
+static struct lock_class_key rose_netdev_xmit_lock_key;
+
+/*
  *	Convert a ROSE address into text.
  */
 const char *rose2asc(const rose_address *addr)
@@ -1515,6 +1523,7 @@ static int __init rose_proto_init(void)
 			free_netdev(dev);
 			goto fail;
 		}
+		lockdep_set_class(&dev->_xmit_lock, &rose_netdev_xmit_lock_key);
 		dev_rose[i] = dev;
 	}
 
