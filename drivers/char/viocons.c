@@ -43,7 +43,6 @@
 #include <linux/sysrq.h>
 
 #include <asm/iseries/vio.h>
-
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_event.h>
 #include <asm/iseries/hv_lp_config.h>
@@ -66,35 +65,6 @@ static DEFINE_SPINLOCK(consoleloglock);
 static int vio_sysrq_pressed;
 extern int sysrq_enabled;
 #endif
-
-/*
- * The structure of the events that flow between us and OS/400.  You can't
- * mess with this unless the OS/400 side changes too
- */
-struct viocharlpevent {
-	struct HvLpEvent event;
-	u32 reserved;
-	u16 version;
-	u16 subtype_result_code;
-	u8 virtual_device;
-	u8 len;
-	u8 data[VIOCHAR_MAX_DATA];
-};
-
-#define VIOCHAR_WINDOW		10
-#define VIOCHAR_HIGHWATERMARK	3
-
-enum viocharsubtype {
-	viocharopen = 0x0001,
-	viocharclose = 0x0002,
-	viochardata = 0x0003,
-	viocharack = 0x0004,
-	viocharconfig = 0x0005
-};
-
-enum viochar_rc {
-	viochar_rc_ebusy = 1
-};
 
 #define VIOCHAR_NUM_BUF		16
 
@@ -1183,6 +1153,7 @@ static int __init viocons_init(void)
 		port_info[i].magic = VIOTTY_MAGIC;
 	}
 	HvCall_setLogBufferFormatAndCodepage(HvCall_LogBuffer_ASCII, 437);
+	add_preferred_console("viocons", 0, NULL);
 	register_console(&viocons_early);
 	return 0;
 }

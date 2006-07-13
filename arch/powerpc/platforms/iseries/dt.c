@@ -298,7 +298,8 @@ static void __init dt_vdevices(struct iseries_flat_dt *dt)
 	dt_prop_u32(dt, "#address-cells", 1);
 	dt_prop_u32(dt, "#size-cells", 0);
 
-	dt_do_vdevice(dt, "vty", reg, -1, device_type_serial, NULL, 1);
+	dt_do_vdevice(dt, "vty", reg, -1, device_type_serial,
+			"IBM,iSeries-vty", 1);
 	reg++;
 
 	dt_do_vdevice(dt, "v-scsi", reg, -1, device_type_vscsi,
