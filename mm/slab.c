@@ -674,6 +674,37 @@ static struct kmem_cache cache_cache = {
 #endif
 };
 
+#ifdef CONFIG_LOCKDEP
+
+/*
+ * Slab sometimes uses the kmalloc slabs to store the slab headers
+ * for other slabs "off slab".
+ * The locking for this is tricky in that it nests within the locks
+ * of all other slabs in a few places; to deal with this special
+ * locking we put on-slab caches into a separate lock-class.
+ */
+static struct lock_class_key on_slab_key;
+
+static inline void init_lock_keys(struct cache_sizes *s)
+{
+	int q;
+
+	for (q = 0; q < MAX_NUMNODES; q++) {
+		if (!s->cs_cachep->nodelists[q] || OFF_SLAB(s->cs_cachep))
+			continue;
+		lockdep_set_class(&s->cs_cachep->nodelists[q]->list_lock,
+				  &on_slab_key);
+	}
+}
+
+#else
+static inline void init_lock_keys(struct cache_sizes *s)
+{
+}
+#endif
+
+
+
 /* Guard access to the cache-chain. */
 static DEFINE_MUTEX(cache_chain_mutex);
 static struct list_head cache_chain;
@@ -1391,6 +1422,7 @@ void __init kmem_cache_init(void)
 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
 					NULL, NULL);
 		}
+		init_lock_keys(sizes);
 
 		sizes->cs_dmacachep = kmem_cache_create(names->name_dma,
 					sizes->cs_size,
