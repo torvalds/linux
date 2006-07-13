@@ -36,7 +36,6 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
-#include <linux/kthread.h>
 #include <acpi/acpi.h>
 #include <asm/io.h>
 #include <acpi/acpi_bus.h>
@@ -583,16 +582,6 @@ static void acpi_os_execute_deferred(void *context)
 	return;
 }
 
-static int acpi_os_execute_thread(void *context)
-{
-	struct acpi_os_dpc *dpc = (struct acpi_os_dpc *)context;
-	if (dpc) {
-		dpc->function(dpc->context);
-		kfree(dpc);
-	}
-	do_exit(0);
-}
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_os_execute
@@ -614,10 +603,16 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
 	struct work_struct *task;
-	struct task_struct *p;
+
+	ACPI_FUNCTION_TRACE("os_queue_for_execution");
+
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "Scheduling function [%p(%p)] for deferred execution.\n",
+			  function, context));
 
 	if (!function)
-		return AE_BAD_PARAMETER;
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+
 	/*
 	 * Allocate/initialize DPC structure.  Note that this memory will be
 	 * freed by the callee.  The kernel handles the tq_struct list  in a
@@ -628,34 +623,27 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	 * We can save time and code by allocating the DPC and tq_structs
 	 * from the same memory.
 	 */
-	if (type == OSL_NOTIFY_HANDLER) {
-		dpc = kmalloc(sizeof(struct acpi_os_dpc), GFP_KERNEL);
-	} else {
-		dpc = kmalloc(sizeof(struct acpi_os_dpc) +
-				sizeof(struct work_struct), GFP_ATOMIC);
-	}
+
+	dpc =
+	    kmalloc(sizeof(struct acpi_os_dpc) + sizeof(struct work_struct),
+		    GFP_ATOMIC);
 	if (!dpc)
-		return AE_NO_MEMORY;
+		return_ACPI_STATUS(AE_NO_MEMORY);
+
 	dpc->function = function;
 	dpc->context = context;
 
-	if (type == OSL_NOTIFY_HANDLER) {
-		p = kthread_create(acpi_os_execute_thread, dpc, "kacpid_notify");
-		if (!IS_ERR(p)) {
-			wake_up_process(p);
-		} else {
-			status = AE_NO_MEMORY;
-			kfree(dpc);
-		}
-	} else {
-		task = (void *)(dpc + 1);
-		INIT_WORK(task, acpi_os_execute_deferred, (void *)dpc);
-		if (!queue_work(kacpid_wq, task)) {
-			status = AE_ERROR;
-			kfree(dpc);
-		}
+	task = (void *)(dpc + 1);
+	INIT_WORK(task, acpi_os_execute_deferred, (void *)dpc);
+
+	if (!queue_work(kacpid_wq, task)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Call to queue_work() failed.\n"));
+		kfree(dpc);
+		status = AE_ERROR;
 	}
-	return status;
+
+	return_ACPI_STATUS(status);
 }
 
 EXPORT_SYMBOL(acpi_os_execute);
