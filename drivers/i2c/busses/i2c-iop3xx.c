@@ -21,6 +21,9 @@
  * - Make it work with IXP46x chips
  * - Cleanup function names, coding style, etc
  *
+ * - writing to slave address causes latchup on iop331.
+ *	fix: driver refuses to address self.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 2.
@@ -71,12 +74,6 @@ iop3xx_i2c_reset(struct i2c_algo_iop3xx_data *iop3xx_adap)
 	__raw_writel(IOP3XX_ISR_CLEARBITS, iop3xx_adap->ioaddr + SR_OFFSET);
 	__raw_writel(0, iop3xx_adap->ioaddr + CR_OFFSET);
 } 
-
-static void 
-iop3xx_i2c_set_slave_addr(struct i2c_algo_iop3xx_data *iop3xx_adap)
-{
-	__raw_writel(MYSAR, iop3xx_adap->ioaddr + SAR_OFFSET);
-}
 
 static void 
 iop3xx_i2c_enable(struct i2c_algo_iop3xx_data *iop3xx_adap)
@@ -247,6 +244,13 @@ iop3xx_i2c_send_target_addr(struct i2c_algo_iop3xx_data *iop3xx_adap,
 	unsigned long cr = __raw_readl(iop3xx_adap->ioaddr + CR_OFFSET);
 	int status;
 	int rc;
+
+	/* avoid writing to my slave address (hangs on 80331),
+	 * forbidden in Intel developer manual
+	 */
+	if (msg->addr == MYSAR) {
+		return -EBUSY;
+	}
 
 	__raw_writel(iic_cook_addr(msg), iop3xx_adap->ioaddr + DBR_OFFSET);
 	
@@ -498,7 +502,6 @@ iop3xx_i2c_probe(struct platform_device *pdev)
 	spin_lock_init(&adapter_data->lock);
 
 	iop3xx_i2c_reset(adapter_data);
-	iop3xx_i2c_set_slave_addr(adapter_data);
 	iop3xx_i2c_enable(adapter_data);
 
 	platform_set_drvdata(pdev, new_adapter);

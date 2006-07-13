@@ -247,3 +247,14 @@ Why:	The interrupt related SA_* flags are replaced by IRQF_* to move them
 Who:	Thomas Gleixner <tglx@linutronix.de>
 
 ---------------------------
+
+What:	i2c-ite and i2c-algo-ite drivers
+When:	September 2006
+Why:	These drivers never compiled since they were added to the kernel
+	tree 5 years ago. This feature removal can be reevaluated if
+	someone shows interest in the drivers, fixes them and takes over
+	maintenance.
+	http://marc.theaimsgroup.com/?l=linux-mips&m=115040510817448
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
