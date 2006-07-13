@@ -550,7 +550,7 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	if (pr == NULL) goto err_acpi;
 
 	cx = &pr->power.states[ACPI_STATE_C3];
-	if (cx == NULL || cx->latency > 1000) goto err_acpi;
+	if (cx->address == 0 || cx->latency > 1000) goto err_acpi;
 
 	/* Now check what we have on this motherboard */
 	switch (c->x86_model) {
