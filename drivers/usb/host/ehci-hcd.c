@@ -625,10 +625,11 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd, struct pt_regs *regs)
 			writel (status | CMD_RUN, &ehci->regs->command);
 
 		while (i--) {
-			status = readl (&ehci->regs->port_status [i]);
-			if (status & PORT_OWNER)
+			int pstatus = readl (&ehci->regs->port_status [i]);
+
+			if (pstatus & PORT_OWNER)
 				continue;
-			if (!(status & PORT_RESUME)
+			if (!(pstatus & PORT_RESUME)
 					|| ehci->reset_done [i] != 0)
 				continue;
 

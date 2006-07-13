@@ -200,10 +200,8 @@ static ssize_t lcd_write(struct file *file, const char __user * user_buffer, siz
 
 	/* create a urb, and a buffer for it, and copy the data to the urb */
 	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb) {
-		retval = -ENOMEM;
-		goto error;
-	}
+	if (!urb)
+		return -ENOMEM;
 	
 	buf = usb_buffer_alloc(dev->udev, count, GFP_KERNEL, &urb->transfer_dma);
 	if (!buf) {

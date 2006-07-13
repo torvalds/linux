@@ -176,8 +176,4 @@ extern void fill_inquiry_response(struct us_data *us,
 #define scsi_unlock(host)	spin_unlock_irq(host->host_lock)
 #define scsi_lock(host)		spin_lock_irq(host->host_lock)
 
-
-/* Vendor ID list for devices that require special handling */
-#define USB_VENDOR_ID_GENESYS		0x05e3	/* Genesys Logic */
-
 #endif

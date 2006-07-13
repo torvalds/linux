@@ -31,9 +31,6 @@ config USB_DEVICEFS
 	  For the format of the various /proc/bus/usb/ files, please read
 	  <file:Documentation/usb/proc_usb_info.txt>.
 
-	  Please note that this code is completely unrelated to devfs, the
-	  "/dev file system support".
-
 	  Most users want to say Y here.
 
 config USB_BANDWIDTH

@@ -83,8 +83,8 @@
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #include <linux/usb.h>
+#include <linux/usb/serial.h>
 
-#include "usb-serial.h"
 #include "ti_usb_3410_5052.h"
 #include "ti_fw_3410.h"		/* firmware image for 3410 */
 #include "ti_fw_5052.h"		/* firmware image for 5052 */

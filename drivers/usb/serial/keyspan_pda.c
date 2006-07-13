@@ -78,6 +78,7 @@
 #include <linux/workqueue.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
+#include <linux/usb/serial.h>
 
 static int debug;
 
@@ -106,8 +107,6 @@ struct ezusb_hex_record {
 #ifdef XIRCOM
 #include "xircom_pgs_fw.h"
 #endif
-
-#include "usb-serial.h"
 
 /*
  * Version Information

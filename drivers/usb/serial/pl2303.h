@@ -10,6 +10,7 @@
 #define PL2303_VENDOR_ID	0x067b
 #define PL2303_PRODUCT_ID	0x2303
 #define PL2303_PRODUCT_ID_RSAQ2		0x04bb
+#define PL2303_PRODUCT_ID_DCU11		0x1234
 #define PL2303_PRODUCT_ID_PHAROS	0xaaa0
 #define PL2303_PRODUCT_ID_RSAQ3		0xaaa2
 
@@ -84,3 +85,7 @@
 /* Ours Technology Inc DKU-5 clone, chipset: Prolific Technology Inc */
 #define OTI_VENDOR_ID	0x0ea0
 #define OTI_PRODUCT_ID	0x6858
+
+/* DATAPILOT Universal-2 Phone Cable */
+#define DATAPILOT_U2_VENDOR_ID	0x0731
+#define DATAPILOT_U2_PRODUCT_ID	0x2003

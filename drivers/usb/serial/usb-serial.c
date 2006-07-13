@@ -31,7 +31,7 @@
 #include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 #include "pl2303.h"
 
 /*
@@ -39,6 +39,8 @@
  */
 #define DRIVER_AUTHOR "Greg Kroah-Hartman, greg@kroah.com, http://www.kroah.com/linux/"
 #define DRIVER_DESC "USB Serial Driver core"
+
+static void port_free(struct usb_serial_port *port);
 
 /* Driver structure we register with the USB core */
 static struct usb_driver usb_serial_driver = {
@@ -146,22 +148,9 @@ static void destroy_serial(struct kref *kref)
 			port = serial->port[i];
 			if (!port)
 				continue;
-			usb_kill_urb(port->read_urb);
-			usb_free_urb(port->read_urb);
-			usb_kill_urb(port->write_urb);
-			usb_free_urb(port->write_urb);
-			usb_kill_urb(port->interrupt_in_urb);
-			usb_free_urb(port->interrupt_in_urb);
-			usb_kill_urb(port->interrupt_out_urb);
-			usb_free_urb(port->interrupt_out_urb);
-			kfree(port->bulk_in_buffer);
-			kfree(port->bulk_out_buffer);
-			kfree(port->interrupt_in_buffer);
-			kfree(port->interrupt_out_buffer);
+			port_free(port);
 		}
 	}
-
-	flush_scheduled_work();		/* port->work */
 
 	usb_put_dev(serial->dev);
 
@@ -564,6 +553,11 @@ static void port_release(struct device *dev)
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 
 	dbg ("%s - %s", __FUNCTION__, dev->bus_id);
+	port_free(port);
+}
+
+static void port_free(struct usb_serial_port *port)
+{
 	usb_kill_urb(port->read_urb);
 	usb_free_urb(port->read_urb);
 	usb_kill_urb(port->write_urb);
@@ -576,6 +570,7 @@ static void port_release(struct device *dev)
 	kfree(port->bulk_out_buffer);
 	kfree(port->interrupt_in_buffer);
 	kfree(port->interrupt_out_buffer);
+	flush_scheduled_work();		/* port->work */
 	kfree(port);
 }
 

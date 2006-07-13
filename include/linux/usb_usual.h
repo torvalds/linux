@@ -43,6 +43,8 @@
 		/* Need delay after Command phase */		\
 	US_FLAG(NO_WP_DETECT,	0x00000200)			\
 		/* Don't check for write-protect */		\
+	US_FLAG(MAX_SECTORS_64,	0x00000400)			\
+		/* Sets max_sectors to 64    */
 
 #define US_FLAG(name, value)	US_FL_##name = value ,
 enum { US_DO_ALL_FLAGS };

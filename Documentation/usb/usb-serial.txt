@@ -399,10 +399,10 @@ REINER SCT cyberJack pinpad/e-com USB chipcard reader
 
 Prolific PL2303 Driver
 
-  This driver support any device that has the PL2303 chip from Prolific
+  This driver supports any device that has the PL2303 chip from Prolific
   in it.  This includes a number of single port USB to serial
   converters and USB GPS devices.  Devices from Aten (the UC-232) and
-  IO-Data work with this driver.
+  IO-Data work with this driver, as does the DCU-11 mobile-phone cable.
 
   For any questions or problems with this driver, please contact Greg
   Kroah-Hartman at greg@kroah.com
