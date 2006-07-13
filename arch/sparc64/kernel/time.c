@@ -928,8 +928,6 @@ static void sparc64_start_timers(void)
 	__asm__ __volatile__("wrpr	%0, 0x0, %%pstate"
 			     : /* no outputs */
 			     : "r" (pstate));
-
-	local_irq_enable();
 }
 
 struct freq_table {
