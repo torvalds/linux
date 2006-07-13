@@ -28,6 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
+#include <asm/vr41xx/irq.h>
 #include <asm/vr41xx/vr41xx.h>
 #include <asm/vr41xx/vrc4173.h>
 

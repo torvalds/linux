@@ -21,7 +21,6 @@
 #include <linux/pci.h>
 
 #include <asm/vr41xx/mpc30x.h>
-#include <asm/vr41xx/vrc4173.h>
 
 static const int internal_func_irqs[] __initdata = {
 	VRC4173_CASCADE_IRQ,

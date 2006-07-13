@@ -22,7 +22,7 @@
 
 #include <asm/irq_cpu.h>
 #include <asm/system.h>
-#include <asm/vr41xx/vr41xx.h>
+#include <asm/vr41xx/irq.h>
 
 typedef struct irq_cascade {
 	int (*get_irq)(unsigned int, struct pt_regs *);

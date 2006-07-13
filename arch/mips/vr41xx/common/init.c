@@ -24,6 +24,7 @@
 
 #include <asm/bootinfo.h>
 #include <asm/time.h>
+#include <asm/vr41xx/irq.h>
 #include <asm/vr41xx/vr41xx.h>
 
 #define IO_MEM_RESOURCE_START	0UL
