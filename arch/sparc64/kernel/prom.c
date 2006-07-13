@@ -539,23 +539,43 @@ static unsigned long __sabre_onboard_imap_off[] = {
 	((ino & 0x20) ? (SABRE_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
 			(SABRE_ICLR_A_SLOT0 + (((ino) & 0x1f)<<3)))
 
-static int parent_is_sabre_or_simba(struct device_node *dp)
+static int sabre_device_needs_wsync(struct device_node *dp)
 {
+	struct device_node *parent = dp->parent;
 	char *parent_model, *parent_compat;
 
-	parent_model = of_get_property(dp->parent, "model", NULL);
+	/* This traversal up towards the root is meant to
+	 * handle two cases:
+	 *
+	 * 1) non-PCI bus sitting under PCI, such as 'ebus'
+	 * 2) the PCI controller interrupts themselves, which
+	 *    will use the sabre_irq_build but do not need
+	 *    the DMA synchronization handling
+	 */
+	while (parent) {
+		if (!strcmp(parent->type, "pci"))
+			break;
+		parent = parent->parent;
+	}
+
+	if (!parent)
+		return 0;
+
+	parent_model = of_get_property(parent,
+				       "model", NULL);
 	if (parent_model &&
 	    (!strcmp(parent_model, "SUNW,sabre") ||
 	     !strcmp(parent_model, "SUNW,simba")))
-		return 1;
+		return 0;
 
-	parent_compat = of_get_property(dp->parent, "compatible", NULL);
+	parent_compat = of_get_property(parent,
+					"compatible", NULL);
 	if (parent_compat &&
 	    (!strcmp(parent_compat, "pci108e,a000") ||
 	     !strcmp(parent_compat, "pci108e,a001")))
-		return 1;
+		return 0;
 
-	return 0;
+	return 1;
 }
 
 static unsigned int sabre_irq_build(struct device_node *dp,
@@ -602,8 +622,7 @@ static unsigned int sabre_irq_build(struct device_node *dp,
 	 * is run.
 	 */
 	regs = of_get_property(dp, "reg", NULL);
-	if (regs &&
-	    !parent_is_sabre_or_simba(dp)) {
+	if (regs && sabre_device_needs_wsync(dp)) {
 		irq_install_pre_handler(virt_irq,
 					sabre_wsync_handler,
 					(void *) (long) regs->phys_hi,
