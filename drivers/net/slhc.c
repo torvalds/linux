@@ -94,14 +94,13 @@ slhc_init(int rslots, int tslots)
 	register struct cstate *ts;
 	struct slcompress *comp;
 
-	comp = (struct slcompress *)kzalloc(sizeof(struct slcompress),
-					    GFP_KERNEL);
+	comp = kzalloc(sizeof(struct slcompress), GFP_KERNEL);
 	if (! comp)
 		goto out_fail;
 
 	if ( rslots > 0  &&  rslots < 256 ) {
 		size_t rsize = rslots * sizeof(struct cstate);
-		comp->rstate = (struct cstate *) kzalloc(rsize, GFP_KERNEL);
+		comp->rstate = kzalloc(rsize, GFP_KERNEL);
 		if (! comp->rstate)
 			goto out_free;
 		comp->rslot_limit = rslots - 1;
@@ -109,7 +108,7 @@ slhc_init(int rslots, int tslots)
 
 	if ( tslots > 0  &&  tslots < 256 ) {
 		size_t tsize = tslots * sizeof(struct cstate);
-		comp->tstate = (struct cstate *) kzalloc(tsize, GFP_KERNEL);
+		comp->tstate = kzalloc(tsize, GFP_KERNEL);
 		if (! comp->tstate)
 			goto out_free2;
 		comp->tslot_limit = tslots - 1;
@@ -138,9 +137,9 @@ slhc_init(int rslots, int tslots)
 	return comp;
 
 out_free2:
-	kfree((unsigned char *)comp->rstate);
+	kfree(comp->rstate);
 out_free:
-	kfree((unsigned char *)comp);
+	kfree(comp);
 out_fail:
 	return NULL;
 }
