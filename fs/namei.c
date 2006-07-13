@@ -1659,6 +1659,7 @@ do_last:
 	 * It already exists.
 	 */
 	mutex_unlock(&dir->d_inode->i_mutex);
+	audit_inode_update(path.dentry->d_inode);
 
 	error = -EEXIST;
 	if (flag & O_EXCL)
@@ -1669,6 +1670,7 @@ do_last:
 		if (flag & O_NOFOLLOW)
 			goto exit_dput;
 	}
+
 	error = -ENOENT;
 	if (!path.dentry->d_inode)
 		goto exit_dput;

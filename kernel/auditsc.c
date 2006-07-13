@@ -1199,13 +1199,17 @@ void audit_putname(const char *name)
 #endif
 }
 
-static void audit_inode_context(int idx, const struct inode *inode)
+/* Copy inode data into an audit_names. */
+static void audit_copy_inode(struct audit_names *name, const struct inode *inode)
 {
-	struct audit_context *context = current->audit_context;
-
-	selinux_get_inode_sid(inode, &context->names[idx].osid);
+	name->ino   = inode->i_ino;
+	name->dev   = inode->i_sb->s_dev;
+	name->mode  = inode->i_mode;
+	name->uid   = inode->i_uid;
+	name->gid   = inode->i_gid;
+	name->rdev  = inode->i_rdev;
+	selinux_get_inode_sid(inode, &name->osid);
 }
-
 
 /**
  * audit_inode - store the inode and device from a lookup
@@ -1240,13 +1244,7 @@ void __audit_inode(const char *name, const struct inode *inode)
 		++context->ino_count;
 #endif
 	}
-	context->names[idx].ino   = inode->i_ino;
-	context->names[idx].dev	  = inode->i_sb->s_dev;
-	context->names[idx].mode  = inode->i_mode;
-	context->names[idx].uid   = inode->i_uid;
-	context->names[idx].gid   = inode->i_gid;
-	context->names[idx].rdev  = inode->i_rdev;
-	audit_inode_context(idx, inode);
+	audit_copy_inode(&context->names[idx], inode);
 }
 
 /**
@@ -1302,16 +1300,37 @@ update_context:
 	context->names[idx].name_len = AUDIT_NAME_FULL;
 	context->names[idx].name_put = 0;	/* don't call __putname() */
 
-	if (inode) {
-		context->names[idx].ino   = inode->i_ino;
-		context->names[idx].dev	  = inode->i_sb->s_dev;
-		context->names[idx].mode  = inode->i_mode;
-		context->names[idx].uid   = inode->i_uid;
-		context->names[idx].gid   = inode->i_gid;
-		context->names[idx].rdev  = inode->i_rdev;
-		audit_inode_context(idx, inode);
-	} else
-		context->names[idx].ino   = (unsigned long)-1;
+	if (!inode)
+		context->names[idx].ino = (unsigned long)-1;
+	else
+		audit_copy_inode(&context->names[idx], inode);
+}
+
+/**
+ * audit_inode_update - update inode info for last collected name
+ * @inode: inode being audited
+ *
+ * When open() is called on an existing object with the O_CREAT flag, the inode
+ * data audit initially collects is incorrect.  This additional hook ensures
+ * audit has the inode data for the actual object to be opened.
+ */
+void __audit_inode_update(const struct inode *inode)
+{
+	struct audit_context *context = current->audit_context;
+	int idx;
+
+	if (!context->in_syscall || !inode)
+		return;
+
+	if (context->name_count == 0) {
+		context->name_count++;
+#if AUDIT_DEBUG
+		context->ino_count++;
+#endif
+	}
+	idx = context->name_count - 1;
+
+	audit_copy_inode(&context->names[idx], inode);
 }
 
 /**

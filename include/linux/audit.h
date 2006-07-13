@@ -328,6 +328,7 @@ extern void audit_putname(const char *name);
 extern void __audit_inode(const char *name, const struct inode *inode);
 extern void __audit_inode_child(const char *dname, const struct inode *inode,
 				unsigned long pino);
+extern void __audit_inode_update(const struct inode *inode);
 static inline void audit_getname(const char *name)
 {
 	if (unlikely(current->audit_context))
@@ -342,6 +343,10 @@ static inline void audit_inode_child(const char *dname,
 				     unsigned long pino) {
 	if (unlikely(current->audit_context))
 		__audit_inode_child(dname, inode, pino);
+}
+static inline void audit_inode_update(const struct inode *inode) {
+	if (unlikely(current->audit_context))
+		__audit_inode_update(inode);
 }
 
 				/* Private API (for audit.c only) */
@@ -414,8 +419,10 @@ static inline int audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 #define audit_putname(n) do { ; } while (0)
 #define __audit_inode(n,i) do { ; } while (0)
 #define __audit_inode_child(d,i,p) do { ; } while (0)
+#define __audit_inode_update(i) do { ; } while (0)
 #define audit_inode(n,i) do { ; } while (0)
 #define audit_inode_child(d,i,p) do { ; } while (0)
+#define audit_inode_update(i) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
 #define audit_ipc_obj(i) ({ 0; })
