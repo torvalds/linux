@@ -569,6 +569,8 @@ asmlinkage void do_ov(struct pt_regs *regs)
  */
 asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 {
+	die_if_kernel("FP exception in kernel code", regs);
+
 	if (fcr31 & FPU_CSR_UNI_X) {
 		int sig;
 
@@ -847,31 +849,29 @@ asmlinkage void do_mt(struct pt_regs *regs)
 {
 	int subcode;
 
-	die_if_kernel("MIPS MT Thread exception in kernel", regs);
-
 	subcode = (read_vpe_c0_vpecontrol() & VPECONTROL_EXCPT)
 			>> VPECONTROL_EXCPT_SHIFT;
 	switch (subcode) {
 	case 0:
-		printk(KERN_ERR "Thread Underflow\n");
+		printk(KERN_DEBUG "Thread Underflow\n");
 		break;
 	case 1:
-		printk(KERN_ERR "Thread Overflow\n");
+		printk(KERN_DEBUG "Thread Overflow\n");
 		break;
 	case 2:
-		printk(KERN_ERR "Invalid YIELD Qualifier\n");
+		printk(KERN_DEBUG "Invalid YIELD Qualifier\n");
 		break;
 	case 3:
-		printk(KERN_ERR "Gating Storage Exception\n");
+		printk(KERN_DEBUG "Gating Storage Exception\n");
 		break;
 	case 4:
-		printk(KERN_ERR "YIELD Scheduler Exception\n");
+		printk(KERN_DEBUG "YIELD Scheduler Exception\n");
 		break;
 	case 5:
-		printk(KERN_ERR "Gating Storage Schedulier Exception\n");
+		printk(KERN_DEBUG "Gating Storage Schedulier Exception\n");
 		break;
 	default:
-		printk(KERN_ERR "*** UNKNOWN THREAD EXCEPTION %d ***\n",
+		printk(KERN_DEBUG "*** UNKNOWN THREAD EXCEPTION %d ***\n",
 			subcode);
 		break;
 	}
@@ -980,10 +980,10 @@ void ejtag_exception_handler(struct pt_regs *regs)
 	unsigned long depc, old_epc;
 	unsigned int debug;
 
-	printk("SDBBP EJTAG debug exception - not handled yet, just ignored!\n");
+	printk(KERN_DEBUG "SDBBP EJTAG debug exception - not handled yet, just ignored!\n");
 	depc = read_c0_depc();
 	debug = read_c0_debug();
-	printk("c0_depc = %0*lx, DEBUG = %08x\n", field, depc, debug);
+	printk(KERN_DEBUG "c0_depc = %0*lx, DEBUG = %08x\n", field, depc, debug);
 	if (debug & 0x80000000) {
 		/*
 		 * In branch delay slot.
@@ -1001,7 +1001,7 @@ void ejtag_exception_handler(struct pt_regs *regs)
 	write_c0_depc(depc);
 
 #if 0
-	printk("\n\n----- Enable EJTAG single stepping ----\n\n");
+	printk(KERN_DEBUG "\n\n----- Enable EJTAG single stepping ----\n\n");
 	write_c0_debug(debug | 0x100);
 #endif
 }

@@ -104,7 +104,7 @@ static void end_ev64120_irq(unsigned int irq)
 		enable_ev64120_irq(irq);
 }
 
-static struct hw_interrupt_type ev64120_irq_type = {
+static struct irq_chip ev64120_irq_type = {
 	.typename	= "EV64120",
 	.startup	= startup_ev64120_irq,
 	.shutdown	= shutdown_ev64120_irq,
@@ -138,7 +138,7 @@ void __init arch_init_irq(void)
 	/*  Let's initialize our IRQ descriptors  */
 	for (i = 0; i < NR_IRQS; i++) {
 		irq_desc[i].status = 0;
-		irq_desc[i].chip = &no_irq_type;
+		irq_desc[i].chip = &no_irq_chip;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 0;
 		spin_lock_init(&irq_desc[i].lock);

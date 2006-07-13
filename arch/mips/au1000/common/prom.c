@@ -1,7 +1,7 @@
 /*
  *
  * BRIEF MODULE DESCRIPTION
- *    PROM library initialisation code, assuming YAMON is the boot loader.
+ *    PROM library initialisation code, supports YAMON and U-Boot.
  *
  * Copyright 2000, 2001, 2006 MontaVista Software Inc.
  * Author: MontaVista Software, Inc.
@@ -46,12 +46,6 @@
 extern int prom_argc;
 extern char **prom_argv, **prom_envp;
 
-typedef struct
-{
-	char *name;
-	char *val;
-} t_env_var;
-
 
 char * prom_getcmdline(void)
 {
@@ -84,13 +78,21 @@ char *prom_getenv(char *envname)
 {
 	/*
 	 * Return a pointer to the given environment variable.
+	 * YAMON uses "name", "value" pairs, while U-Boot uses "name=value".
 	 */
 
-	t_env_var *env = (t_env_var *)prom_envp;
+	char **env = prom_envp;
+	int i = strlen(envname);
+	int yamon = (*env && strchr(*env, '=') == NULL);
 
-	while (env->name) {
-		if (strcmp(envname, env->name) == 0)
-			return env->val;
+	while (*env) {
+		if (yamon) {
+			if (strcmp(envname, *env++) == 0)
+				return *env;
+		} else {
+			if (strncmp(envname, *env, i) == 0 && (*env)[i] == '=')
+				return *env + i + 1;
+		}
 		env++;
 	}
 	return NULL;

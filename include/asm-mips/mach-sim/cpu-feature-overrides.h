@@ -34,7 +34,7 @@
 #define cpu_has_nofpuex		0
 /* #define cpu_has_64bits	? */
 /* #define cpu_has_64bit_zero_reg ? */
-/* #define cpu_has_subset_pcaches ? */
+/* #define cpu_has_inclusive_pcaches ? */
 #endif
 
 #ifdef CONFIG_CPU_MIPS64
@@ -59,7 +59,7 @@
 #define cpu_has_nofpuex		0
 /* #define cpu_has_64bits	? */
 /* #define cpu_has_64bit_zero_reg ? */
-/* #define cpu_has_subset_pcaches ? */
+/* #define cpu_has_inclusive_pcaches ? */
 #endif
 
 #endif /* __ASM_MACH_MIPS_CPU_FEATURE_OVERRIDES_H */

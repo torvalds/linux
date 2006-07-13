@@ -49,7 +49,7 @@ const char *get_system_type(void)
 	return "MIPS Cobalt";
 }
 
-static void __init cobalt_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* Load timer value for 1KHz (TCLK is 50MHz) */
 	GALILEO_OUTL(50*1000*1000 / 1000, GT_TC0_OFS);
@@ -128,8 +128,6 @@ void __init plat_mem_setup(void)
 	_machine_restart = cobalt_machine_restart;
 	_machine_halt = cobalt_machine_halt;
 	pm_power_off = cobalt_machine_power_off;
-
-	board_timer_setup = cobalt_timer_setup;
 
         set_io_port_base(CKSEG1ADDR(GT64111_IO_BASE));
 

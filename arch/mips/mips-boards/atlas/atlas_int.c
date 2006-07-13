@@ -73,7 +73,7 @@ static void end_atlas_irq(unsigned int irq)
 		enable_atlas_irq(irq);
 }
 
-static struct hw_interrupt_type atlas_irq_type = {
+static struct irq_chip atlas_irq_type = {
 	.typename = "Atlas",
 	.startup = startup_atlas_irq,
 	.shutdown = shutdown_atlas_irq,

@@ -49,6 +49,7 @@ static inline unsigned int r_c0_ ## r ## n(void)			\
 	default:							\
 		BUG();							\
 	}								\
+	return 0;							\
 }									\
 									\
 static inline void w_c0_ ## r ## n(unsigned int value)			\
@@ -65,6 +66,7 @@ static inline void w_c0_ ## r ## n(unsigned int value)			\
 	default:							\
 		BUG();							\
 	}								\
+	return;								\
 }									\
 
 __define_perf_accessors(perfcntr, 0, 2)

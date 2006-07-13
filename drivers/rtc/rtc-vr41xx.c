@@ -30,7 +30,7 @@
 #include <asm/div64.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <asm/vr41xx/vr41xx.h>
+#include <asm/vr41xx/irq.h>
 
 MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
 MODULE_DESCRIPTION("NEC VR4100 series RTC driver");

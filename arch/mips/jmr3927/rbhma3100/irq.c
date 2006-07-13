@@ -416,7 +416,7 @@ void __init arch_init_irq(void)
 	set_c0_status(ST0_IM);	/* IE bit is still 0. */
 }
 
-static hw_irq_controller jmr3927_irq_controller = {
+static struct irq_chip jmr3927_irq_controller = {
 	.typename = "jmr3927_irq",
 	.startup = jmr3927_irq_startup,
 	.shutdown = jmr3927_irq_shutdown,

@@ -251,7 +251,7 @@ void restore_local_and_enable(int controller, unsigned long mask)
 }
 
 
-static struct hw_interrupt_type rise_edge_irq_type = {
+static struct irq_chip rise_edge_irq_type = {
 	.typename = "Au1000 Rise Edge",
 	.startup = startup_irq,
 	.shutdown = shutdown_irq,
@@ -261,7 +261,7 @@ static struct hw_interrupt_type rise_edge_irq_type = {
 	.end = end_irq,
 };
 
-static struct hw_interrupt_type fall_edge_irq_type = {
+static struct irq_chip fall_edge_irq_type = {
 	.typename = "Au1000 Fall Edge",
 	.startup = startup_irq,
 	.shutdown = shutdown_irq,
@@ -271,7 +271,7 @@ static struct hw_interrupt_type fall_edge_irq_type = {
 	.end = end_irq,
 };
 
-static struct hw_interrupt_type either_edge_irq_type = {
+static struct irq_chip either_edge_irq_type = {
 	.typename = "Au1000 Rise or Fall Edge",
 	.startup = startup_irq,
 	.shutdown = shutdown_irq,
@@ -281,7 +281,7 @@ static struct hw_interrupt_type either_edge_irq_type = {
 	.end = end_irq,
 };
 
-static struct hw_interrupt_type level_irq_type = {
+static struct irq_chip level_irq_type = {
 	.typename = "Au1000 Level",
 	.startup = startup_irq,
 	.shutdown = shutdown_irq,

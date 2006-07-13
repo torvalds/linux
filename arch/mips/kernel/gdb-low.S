@@ -7,6 +7,7 @@
 
 #include <asm/asm.h>
 #include <asm/errno.h>
+#include <asm/irqflags.h>
 #include <asm/mipsregs.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
@@ -120,6 +121,7 @@
 		LONG_S	$31, GDB_FR_REG31(sp)
 
 		CLI				/* disable interrupts */
+		TRACE_IRQS_OFF
 
 /*
  * Followed by the floating point registers

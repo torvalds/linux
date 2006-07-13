@@ -15,8 +15,7 @@
 #ifndef __NEC_CMBVR4133_H
 #define __NEC_CMBVR4133_H
 
-#include <asm/addrspace.h>
-#include <asm/vr41xx/vr41xx.h>
+#include <asm/vr41xx/irq.h>
 
 /*
  * General-Purpose I/O Pin Number
@@ -54,8 +53,5 @@
 #define IDE_PRIMARY_IRQ			I8259_IRQ(14)
 #define IDE_SECONDARY_IRQ		I8259_IRQ(15)
 #define I8259_IRQ_LAST			IDE_SECONDARY_IRQ
-
-#define RTC_PORT(x)	(0xaf000100 + (x))
-#define RTC_IO_EXTENT	0x140
 
 #endif /* __NEC_CMBVR4133_H */

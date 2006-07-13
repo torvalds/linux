@@ -55,7 +55,7 @@ static void end_r4030_irq(unsigned int irq)
 		enable_r4030_irq(irq);
 }
 
-static struct hw_interrupt_type r4030_irq_type = {
+static struct irq_chip r4030_irq_type = {
 	.typename = "R4030",
 	.startup = startup_r4030_irq,
 	.shutdown = shutdown_r4030_irq,
