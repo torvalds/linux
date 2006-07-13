@@ -18,6 +18,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/buffer_head.h>
 #include <linux/mutex.h>
+#include <linux/mount.h>
 
 #define VERSION "$Revision: 1.30 $"
 
@@ -236,6 +237,8 @@ static int _block2mtd_write(struct block2mtd_dev *dev, const u_char *buf,
 	}
 	return 0;
 }
+
+
 static int block2mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 		size_t *retlen, const u_char *buf)
 {
@@ -299,6 +302,19 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 
 	/* Get a handle on the device */
 	bdev = open_bdev_excl(devname, O_RDWR, NULL);
+#ifndef MODULE
+	if (IS_ERR(bdev)) {
+
+		/* We might not have rootfs mounted at this point. Try
+		   to resolve the device name by other means. */
+
+		dev_t dev = name_to_dev_t(devname);
+		if (dev != 0) {
+			bdev = open_by_devnum(dev, FMODE_WRITE | FMODE_READ);
+		}
+	}
+#endif
+
 	if (IS_ERR(bdev)) {
 		ERROR("error: cannot open device %s", devname);
 		goto devinit_err;
@@ -393,26 +409,6 @@ static int parse_num(size_t *num, const char *token)
 }
 
 
-static int parse_name(char **pname, const char *token, size_t limit)
-{
-	size_t len;
-	char *name;
-
-	len = strlen(token) + 1;
-	if (len > limit)
-		return -ENOSPC;
-
-	name = kmalloc(len, GFP_KERNEL);
-	if (!name)
-		return -ENOMEM;
-
-	strcpy(name, token);
-
-	*pname = name;
-	return 0;
-}
-
-
 static inline void kill_final_newline(char *str)
 {
 	char *newline = strrchr(str, '\n');
@@ -426,9 +422,15 @@ static inline void kill_final_newline(char *str)
 	return 0;				\
 } while (0)
 
-static int block2mtd_setup(const char *val, struct kernel_param *kp)
+#ifndef MODULE
+static int block2mtd_init_called = 0;
+static __initdata char block2mtd_paramline[80 + 12]; /* 80 for device, 12 for erase size */
+#endif
+
+
+static int block2mtd_setup2(const char *val)
 {
-	char buf[80+12]; /* 80 for device, 12 for erase size */
+	char buf[80 + 12]; /* 80 for device, 12 for erase size */
 	char *str = buf;
 	char *token[2];
 	char *name;
@@ -450,13 +452,9 @@ static int block2mtd_setup(const char *val, struct kernel_param *kp)
 	if (!token[0])
 		parse_err("no argument");
 
-	ret = parse_name(&name, token[0], 80);
-	if (ret == -ENOMEM)
-		parse_err("out of memory");
-	if (ret == -ENOSPC)
-		parse_err("name too long");
-	if (ret)
-		return 0;
+	name = token[0];
+	if (strlen(name) + 1 > 80)
+		parse_err("device name too long");
 
 	if (token[1]) {
 		ret = parse_num(&erase_size, token[1]);
@@ -472,13 +470,48 @@ static int block2mtd_setup(const char *val, struct kernel_param *kp)
 }
 
 
+static int block2mtd_setup(const char *val, struct kernel_param *kp)
+{
+#ifdef MODULE
+	return block2mtd_setup2(val);
+#else
+	/* If more parameters are later passed in via
+	   /sys/module/block2mtd/parameters/block2mtd
+	   and block2mtd_init() has already been called,
+	   we can parse the argument now. */
+
+	if (block2mtd_init_called)
+		return block2mtd_setup2(val);
+
+	/* During early boot stage, we only save the parameters
+	   here. We must parse them later: if the param passed
+	   from kernel boot command line, block2mtd_setup() is
+	   called so early that it is not possible to resolve
+	   the device (even kmalloc() fails). Deter that work to
+	   block2mtd_setup2(). */
+
+	strlcpy(block2mtd_paramline, val, sizeof(block2mtd_paramline));
+
+	return 0;
+#endif
+}
+
+
 module_param_call(block2mtd, block2mtd_setup, NULL, NULL, 0200);
 MODULE_PARM_DESC(block2mtd, "Device to use. \"block2mtd=<dev>[,<erasesize>]\"");
 
 static int __init block2mtd_init(void)
 {
+	int ret = 0;
 	INFO("version " VERSION);
-	return 0;
+
+#ifndef MODULE
+	if (strlen(block2mtd_paramline))
+		ret = block2mtd_setup2(block2mtd_paramline);
+	block2mtd_init_called = 1;
+#endif
+
+	return ret;
 }
 
 
