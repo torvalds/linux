@@ -32,7 +32,6 @@
 #include <asm/rtas.h>
 #include <asm/system.h>
 #include <asm/time.h>
-#include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/prom.h>
 #include <asm/vdso_datapage.h>
 

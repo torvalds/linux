@@ -18,7 +18,6 @@
 #include <asm/iseries/it_lp_reg_save.h>
 #include <asm/paca.h>
 #include <asm/iseries/lpar_map.h>
-#include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/iseries/it_lp_queue.h>
 
 #include "naca.h"
@@ -27,6 +26,7 @@
 #include "ipl_parms.h"
 #include "processor_vpd.h"
 #include "release_data.h"
+#include "it_exp_vpd_panel.h"
 
 /* The HvReleaseData is the root of the information shared between
  * the hypervisor and Linux.
@@ -134,7 +134,6 @@ struct ItIplParmsReal xItIplParmsReal __attribute__((__section__(".data")));
 
 /* May be filled in by the hypervisor so cannot end up in the BSS */
 struct ItExtVpdPanel xItExtVpdPanel __attribute__((__section__(".data")));
-EXPORT_SYMBOL(xItExtVpdPanel);
 
 #define maxPhysicalProcessors 32
 

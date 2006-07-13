@@ -34,13 +34,13 @@
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/iseries/hv_call_xm.h>
-#include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/udbg.h>
 
 #include "processor_vpd.h"
 #include "call_hpt.h"
 #include "call_pci.h"
 #include "pci.h"
+#include "it_exp_vpd_panel.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
