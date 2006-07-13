@@ -188,7 +188,7 @@ static void __init iSeries_Parse_Vpd(u8 *VpdData, int VpdDataLen,
 {
 	u8 *TagPtr = VpdData;
 	int DataLen = VpdDataLen - 3;
-	u8 PhbId;
+	u8 PhbId = 0xff;
 
 	while ((*TagPtr != VpdEndOfAreaTag) && (DataLen > 0)) {
 		int AreaLen = *(TagPtr + 1) + (*(TagPtr + 2) * 256);
