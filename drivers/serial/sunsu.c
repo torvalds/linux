@@ -1406,25 +1406,35 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 	struct device_node *dp = op->node;
 	struct uart_sunsu_port *up;
 	struct resource *rp;
+	enum su_type type;
 	int err;
 
-	if (inst >= UART_NR)
-		return -EINVAL;
+	type = su_get_type(dp);
+	if (type == SU_PORT_PORT) {
+		if (inst >= UART_NR)
+			return -EINVAL;
+		up = &sunsu_ports[inst];
+	} else {
+		up = kzalloc(sizeof(*up), GFP_KERNEL);
+		if (!up)
+			return -ENOMEM;
+	}
 
-	up = &sunsu_ports[inst];
 	up->port.line = inst;
 
 	spin_lock_init(&up->port.lock);
 
-	up->su_type = su_get_type(dp);
+	up->su_type = type;
 
 	rp = &op->resource[0];
-	up->port.mapbase = op->resource[0].start;
-
+	up->port.mapbase = rp->start;
 	up->reg_size = (rp->end - rp->start) + 1;
 	up->port.membase = of_ioremap(rp, 0, up->reg_size, "su");
-	if (!up->port.membase)
+	if (!up->port.membase) {
+		if (type != SU_PORT_PORT)
+			kfree(up);
 		return -ENOMEM;
+	}
 
 	up->port.irq = op->irqs[0];
 
@@ -1436,8 +1446,11 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 	err = 0;
 	if (up->su_type == SU_PORT_KBD || up->su_type == SU_PORT_MS) {
 		err = sunsu_kbd_ms_init(up);
-		if (err)
+		if (err) {
+			kfree(up);
 			goto out_unmap;
+		}
+		dev_set_drvdata(&op->dev, up);
 
 		return 0;
 	}
@@ -1476,8 +1489,12 @@ static int __devexit su_remove(struct of_device *dev)
 #ifdef CONFIG_SERIO
 		serio_unregister_port(&up->serio);
 #endif
-	} else if (up->port.type != PORT_UNKNOWN)
+		kfree(up);
+	} else if (up->port.type != PORT_UNKNOWN) {
 		uart_remove_one_port(&sunsu_reg, &up->port);
+	}
+
+	dev_set_drvdata(&dev->dev, NULL);
 
 	return 0;
 }
