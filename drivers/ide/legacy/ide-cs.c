@@ -146,16 +146,7 @@ static void ide_detach(struct pcmcia_device *link)
     kfree(link->priv);
 } /* ide_detach */
 
-static void idecs_mmio_fixup(ide_hwif_t *hwif)
-{
-	default_hwif_mmiops(hwif);
-	hwif->mmio = 2;
-
-	ide_undecoded_slave(hwif);
-}
-
-static int idecs_register(unsigned long io, unsigned long ctl,
-	unsigned long irq, struct pcmcia_device *handle, int is_mmio)
+static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq, struct pcmcia_device *handle)
 {
     hw_regs_t hw;
     memset(&hw, 0, sizeof(hw));
@@ -163,19 +154,7 @@ static int idecs_register(unsigned long io, unsigned long ctl,
     hw.irq = irq;
     hw.chipset = ide_pci;
     hw.dev = &handle->dev;
-
-    if(is_mmio)
-    	return ide_register_hw_with_fixup(&hw, NULL, idecs_mmio_fixup);
-    else
-        return ide_register_hw_with_fixup(&hw, NULL, ide_undecoded_slave);
-}
-
-void outb_io(unsigned char value, unsigned long port) {
-	outb(value, port);
-}
-
-void outb_mem(unsigned char value, unsigned long port) {
-	writeb(value, (void __iomem *) port);
+    return ide_register_hw_with_fixup(&hw, NULL, ide_undecoded_slave);
 }
 
 /*======================================================================
@@ -201,8 +180,7 @@ static int ide_config(struct pcmcia_device *link)
     } *stk = NULL;
     cistpl_cftable_entry_t *cfg;
     int i, pass, last_ret = 0, last_fn = 0, hd, is_kme = 0;
-    unsigned long io_base, ctl_base, is_mmio, try_slave;
-    void (*my_outb)(unsigned char, unsigned long);
+    unsigned long io_base, ctl_base;
 
     DEBUG(0, "ide_config(0x%p)\n", link);
 
@@ -232,7 +210,7 @@ static int ide_config(struct pcmcia_device *link)
     /* Not sure if this is right... look up the current Vcc */
     CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &stk->conf));
 
-    pass = io_base = ctl_base = is_mmio = try_slave = 0;
+    pass = io_base = ctl_base = 0;
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
     CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
@@ -280,42 +258,8 @@ static int ide_config(struct pcmcia_device *link)
 			goto next_entry;
 		io_base = link->io.BasePort1;
 		ctl_base = link->io.BasePort1 + 0x0e;
-
-		if (io->win[0].len >= 0x20)
-			try_slave = 1;
-
 	    } else goto next_entry;
 	    /* If we've got this far, we're done */
-	    break;
-	}
-
-	if ((cfg->mem.nwin > 0) || (stk->dflt.mem.nwin > 0)) {
-	    win_req_t req;
-	    memreq_t map;
-	    cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &stk->dflt.mem;
-
-	    if (mem->win[0].len < 16)
-	    	goto next_entry;
-
-	    req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
-	    req.Attributes |= WIN_ENABLE;
-	    req.Base = mem->win[0].host_addr;
-	    req.Size = 0;
-
-	    req.AccessSpeed = 0;
-	    if (pcmcia_request_window(&link, &req, &link->win) != 0)
-		goto next_entry;
-	    map.Page = 0; map.CardOffset = mem->win[0].card_addr;
-	    if (pcmcia_map_mem_page(link->win, &map) != 0)
-		goto next_entry;
-
-      	    io_base = (unsigned long) ioremap(req.Base, req.Size);
-    	    ctl_base = io_base + 0x0e;
-    	    is_mmio = 1;
-
-    	    if (mem->win[0].len >= 0x20)
-    	    	try_slave = 1;
-
 	    break;
 	}
 
@@ -334,26 +278,21 @@ static int ide_config(struct pcmcia_device *link)
     CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
     CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
-    if(is_mmio)
-    	my_outb = outb_mem;
-    else
-    	my_outb = outb_io;
-
     /* disable drive interrupts during IDE probe */
-    my_outb(0x02, ctl_base);
+    outb(0x02, ctl_base);
 
     /* special setup for KXLC005 card */
     if (is_kme)
-	my_outb(0x81, ctl_base+1);
+	outb(0x81, ctl_base+1);
 
     /* retry registration in case device is still spinning up */
     for (hd = -1, i = 0; i < 10; i++) {
-	hd = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link, is_mmio);
+	hd = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
 	if (hd >= 0) break;
-	if (try_slave) {
-	    my_outb(0x02, ctl_base + 0x10);
+	if (link->io.NumPorts1 == 0x20) {
+	    outb(0x02, ctl_base + 0x10);
 	    hd = idecs_register(io_base + 0x10, ctl_base + 0x10,
-				link->irq.AssignedIRQ, link, is_mmio);
+				link->irq.AssignedIRQ, link);
 	    if (hd >= 0) {
 		io_base += 0x10;
 		ctl_base += 0x10;
