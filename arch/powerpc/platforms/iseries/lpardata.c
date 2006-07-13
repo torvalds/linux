@@ -13,7 +13,6 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/abs_addr.h>
-#include <asm/iseries/it_lp_naca.h>
 #include <asm/lppaca.h>
 #include <asm/iseries/it_lp_reg_save.h>
 #include <asm/paca.h>
@@ -27,6 +26,7 @@
 #include "processor_vpd.h"
 #include "release_data.h"
 #include "it_exp_vpd_panel.h"
+#include "it_lp_naca.h"
 
 /* The HvReleaseData is the root of the information shared between
  * the hypervisor and Linux.
@@ -127,7 +127,6 @@ struct ItLpNaca itLpNaca = {
 		(u64)instruction_access_slb_iSeries /* 0x480 I-SLB */
 	}
 };
-EXPORT_SYMBOL(itLpNaca);
 
 /* May be filled in by the hypervisor so cannot end up in the BSS */
 struct ItIplParmsReal xItIplParmsReal __attribute__((__section__(".data")));

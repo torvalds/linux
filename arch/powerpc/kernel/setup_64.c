@@ -56,7 +56,6 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/lmb.h>
-#include <asm/iseries/it_lp_naca.h>
 #include <asm/firmware.h>
 #include <asm/xmon.h>
 #include <asm/udbg.h>

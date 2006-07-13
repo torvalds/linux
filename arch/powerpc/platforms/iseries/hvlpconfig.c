@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <asm/iseries/hv_lp_config.h>
-#include <asm/iseries/it_lp_naca.h>
+#include "it_lp_naca.h"
 
 HvLpIndex HvLpConfig_getLpIndex_outline(void)
 {

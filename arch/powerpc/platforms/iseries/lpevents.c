@@ -20,7 +20,7 @@
 #include <asm/iseries/it_lp_queue.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_event.h>
-#include <asm/iseries/it_lp_naca.h>
+#include "it_lp_naca.h"
 
 /*
  * The LpQueue is used to pass event data from the hypervisor to

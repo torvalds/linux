@@ -48,7 +48,6 @@
 #include <asm/iseries/hv_call_event.h>
 #include <asm/iseries/hv_call_xm.h>
 #include <asm/iseries/it_lp_queue.h>
-#include <asm/iseries/it_lp_naca.h>
 #include <asm/iseries/mf.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/lpar_map.h>
@@ -60,6 +59,7 @@
 #include "irq.h"
 #include "vpd_areas.h"
 #include "processor_vpd.h"
+#include "it_lp_naca.h"
 #include "main_store.h"
 #include "call_sm.h"
 #include "call_hpt.h"
