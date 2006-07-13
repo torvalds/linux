@@ -1938,7 +1938,7 @@ spider_net_workaround_rxramfull(struct spider_net_card *card)
 	/* empty sequencer data */
 	for (sequencer = 0; sequencer < SPIDER_NET_FIRMWARE_SEQS;
 	     sequencer++) {
-		spider_net_write_reg(card, SPIDER_NET_GSnPRGDAT +
+		spider_net_write_reg(card, SPIDER_NET_GSnPRGADR +
 				     sequencer * 8, 0x0);
 		for (i = 0; i < SPIDER_NET_FIRMWARE_SEQWORDS; i++) {
 			spider_net_write_reg(card, SPIDER_NET_GSnPRGDAT +
