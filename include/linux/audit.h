@@ -327,7 +327,7 @@ extern void __audit_getname(const char *name);
 extern void audit_putname(const char *name);
 extern void __audit_inode(const char *name, const struct inode *inode);
 extern void __audit_inode_child(const char *dname, const struct inode *inode,
-				unsigned long pino);
+				const struct inode *parent);
 extern void __audit_inode_update(const struct inode *inode);
 static inline void audit_getname(const char *name)
 {
@@ -339,10 +339,10 @@ static inline void audit_inode(const char *name, const struct inode *inode) {
 		__audit_inode(name, inode);
 }
 static inline void audit_inode_child(const char *dname, 
-				     const struct inode *inode, 
-				     unsigned long pino) {
+				     const struct inode *inode,
+				     const struct inode *parent) {
 	if (unlikely(current->audit_context))
-		__audit_inode_child(dname, inode, pino);
+		__audit_inode_child(dname, inode, parent);
 }
 static inline void audit_inode_update(const struct inode *inode) {
 	if (unlikely(current->audit_context))

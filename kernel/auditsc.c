@@ -1251,7 +1251,7 @@ void __audit_inode(const char *name, const struct inode *inode)
  * audit_inode_child - collect inode info for created/removed objects
  * @dname: inode's dentry name
  * @inode: inode being audited
- * @pino: inode number of dentry parent
+ * @parent: inode of dentry parent
  *
  * For syscalls that create or remove filesystem objects, audit_inode
  * can only collect information for the filesystem object's parent.
@@ -1262,7 +1262,7 @@ void __audit_inode(const char *name, const struct inode *inode)
  * unsuccessful attempts.
  */
 void __audit_inode_child(const char *dname, const struct inode *inode,
-			 unsigned long pino)
+			 const struct inode *parent)
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
@@ -1276,7 +1276,7 @@ void __audit_inode_child(const char *dname, const struct inode *inode,
 	if (!dname)
 		goto update_context;
 	for (idx = 0; idx < context->name_count; idx++)
-		if (context->names[idx].ino == pino) {
+		if (context->names[idx].ino == parent->i_ino) {
 			const char *name = context->names[idx].name;
 
 			if (!name)
@@ -1304,6 +1304,16 @@ update_context:
 		context->names[idx].ino = (unsigned long)-1;
 	else
 		audit_copy_inode(&context->names[idx], inode);
+
+	/* A parent was not found in audit_names, so copy the inode data for the
+	 * provided parent. */
+	if (!found_name) {
+		idx = context->name_count++;
+#if AUDIT_DEBUG
+		context->ino_count++;
+#endif
+		audit_copy_inode(&context->names[idx], parent);
+	}
 }
 
 /**

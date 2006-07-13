@@ -1357,7 +1357,7 @@ static int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 		return -ENOENT;
 
 	BUG_ON(victim->d_parent->d_inode != dir);
-	audit_inode_child(victim->d_name.name, victim->d_inode, dir->i_ino);
+	audit_inode_child(victim->d_name.name, victim->d_inode, dir);
 
 	error = permission(dir,MAY_WRITE | MAY_EXEC, NULL);
 	if (error)
