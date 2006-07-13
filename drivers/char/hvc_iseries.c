@@ -221,7 +221,8 @@ static int __devinit hvc_vio_probe(struct vio_dev *vdev,
 
 	pi = &port_info[vdev->unit_address];
 
-	hp = hvc_alloc(vdev->unit_address, vdev->irq, &hvc_get_put_ops);
+	hp = hvc_alloc(vdev->unit_address, vdev->irq, &hvc_get_put_ops,
+			VIOCHAR_MAX_DATA);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
 	pi->hp = hp;
