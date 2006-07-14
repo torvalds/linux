@@ -67,7 +67,6 @@ struct snd_kcontrol {
 	snd_kcontrol_info_t *info;
 	snd_kcontrol_get_t *get;
 	snd_kcontrol_put_t *put;
-	snd_kcontrol_tlv_rw_t *tlv_rw;
 	union {
 		snd_kcontrol_tlv_rw_t *c;
 		unsigned int *p;
