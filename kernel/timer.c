@@ -969,6 +969,7 @@ void __init timekeeping_init(void)
 }
 
 
+static int timekeeping_suspended;
 /*
  * timekeeping_resume - Resumes the generic timekeeping subsystem.
  * @dev:	unused
@@ -984,6 +985,18 @@ static int timekeeping_resume(struct sys_device *dev)
 	write_seqlock_irqsave(&xtime_lock, flags);
 	/* restart the last cycle value */
 	clock->cycle_last = clocksource_read(clock);
+	clock->error = 0;
+	timekeeping_suspended = 0;
+	write_sequnlock_irqrestore(&xtime_lock, flags);
+	return 0;
+}
+
+static int timekeeping_suspend(struct sys_device *dev, pm_message_t state)
+{
+	unsigned long flags;
+
+	write_seqlock_irqsave(&xtime_lock, flags);
+	timekeeping_suspended = 1;
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 	return 0;
 }
@@ -991,6 +1004,7 @@ static int timekeeping_resume(struct sys_device *dev)
 /* sysfs resume/suspend bits for timekeeping */
 static struct sysdev_class timekeeping_sysclass = {
 	.resume		= timekeeping_resume,
+	.suspend	= timekeeping_suspend,
 	set_kset_name("timekeeping"),
 };
 
@@ -1101,13 +1115,16 @@ static void update_wall_time(void)
 {
 	cycle_t offset;
 
-	clock->xtime_nsec += (s64)xtime.tv_nsec << clock->shift;
+	/* Make sure we're fully resumed: */
+	if (unlikely(timekeeping_suspended))
+		return;
 
 #ifdef CONFIG_GENERIC_TIME
 	offset = (clocksource_read(clock) - clock->cycle_last) & clock->mask;
 #else
 	offset = clock->cycle_interval;
 #endif
+	clock->xtime_nsec += (s64)xtime.tv_nsec << clock->shift;
 
 	/* normally this loop will run just once, however in the
 	 * case of lost or late ticks, it will accumulate correctly.
