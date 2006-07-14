@@ -15,8 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _ASM_POWERPC_ISERIES_IT_LP_NACA_H
-#define _ASM_POWERPC_ISERIES_IT_LP_NACA_H
+#ifndef _PLATFORMS_ISERIES_IT_LP_NACA_H
+#define _PLATFORMS_ISERIES_IT_LP_NACA_H
 
 #include <linux/types.h>
 
@@ -77,4 +77,4 @@ extern struct ItLpNaca		itLpNaca;
 #define ITLPNACA_HWSYNCEDTBS	0x20	/* Hardware synced TBs */
 #define ITLPNACA_HMTINT		0x10	/* Utilize MHT for interrupts */
 
-#endif /* _ASM_POWERPC_ISERIES_IT_LP_NACA_H */
+#endif /* _PLATFORMS_ISERIES_IT_LP_NACA_H */

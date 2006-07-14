@@ -1,5 +1,6 @@
 /*
- *    Copyright (c) 2005-2006 Michael Ellerman, IBM Corporation
+ *    Copyright (C) 2005-2006 Michael Ellerman, IBM Corporation
+ *    Copyright (C) 2000-2004, IBM Corporation
  *
  *    Description:
  *      This file contains all the routines to build a flattened device
@@ -33,13 +34,13 @@
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/iseries/hv_call_xm.h>
-#include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/udbg.h>
 
 #include "processor_vpd.h"
 #include "call_hpt.h"
 #include "call_pci.h"
 #include "pci.h"
+#include "it_exp_vpd_panel.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -75,6 +76,43 @@ static char __initdata device_type_byte[] = "byte";
 static char __initdata device_type_pci[] = "pci";
 static char __initdata device_type_vdevice[] = "vdevice";
 static char __initdata device_type_vscsi[] = "vscsi";
+
+
+/* EBCDIC to ASCII conversion routines */
+
+static unsigned char __init e2a(unsigned char x)
+{
+	switch (x) {
+	case 0x81 ... 0x89:
+		return x - 0x81 + 'a';
+	case 0x91 ... 0x99:
+		return x - 0x91 + 'j';
+	case 0xA2 ... 0xA9:
+		return x - 0xA2 + 's';
+	case 0xC1 ... 0xC9:
+		return x - 0xC1 + 'A';
+	case 0xD1 ... 0xD9:
+		return x - 0xD1 + 'J';
+	case 0xE2 ... 0xE9:
+		return x - 0xE2 + 'S';
+	case 0xF0 ... 0xF9:
+		return x - 0xF0 + '0';
+	}
+	return ' ';
+}
+
+static unsigned char * __init strne2a(unsigned char *dest,
+		const unsigned char *src, size_t n)
+{
+	int i;
+
+	n = strnlen(src, n);
+
+	for (i = 0; i < n; i++)
+		dest[i] = e2a(src[i]);
+
+	return dest;
+}
 
 static struct iseries_flat_dt * __init dt_init(void)
 {

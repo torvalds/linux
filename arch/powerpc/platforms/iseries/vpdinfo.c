@@ -188,7 +188,7 @@ static void __init iSeries_Parse_Vpd(u8 *VpdData, int VpdDataLen,
 {
 	u8 *TagPtr = VpdData;
 	int DataLen = VpdDataLen - 3;
-	u8 PhbId;
+	u8 PhbId = 0xff;
 
 	while ((*TagPtr != VpdEndOfAreaTag) && (DataLen > 0)) {
 		int AreaLen = *(TagPtr + 1) + (*(TagPtr + 2) * 256);
@@ -205,15 +205,16 @@ static void __init iSeries_Parse_Vpd(u8 *VpdData, int VpdDataLen,
 	}
 }
 
-static void __init iSeries_Get_Location_Code(u16 bus, HvAgentId agent,
+static int __init iSeries_Get_Location_Code(u16 bus, HvAgentId agent,
 		u8 *frame, char card[4])
 {
+	int status = 0;
 	int BusVpdLen = 0;
 	u8 *BusVpdPtr = kmalloc(BUS_VPDSIZE, GFP_KERNEL);
 
 	if (BusVpdPtr == NULL) {
 		printk("PCI: Bus VPD Buffer allocation failure.\n");
-		return;
+		return 0;
 	}
 	BusVpdLen = HvCallPci_getBusVpd(bus, iseries_hv_addr(BusVpdPtr),
 					BUS_VPDSIZE);
@@ -228,8 +229,10 @@ static void __init iSeries_Get_Location_Code(u16 bus, HvAgentId agent,
 		goto out_free;
 	}
 	iSeries_Parse_Vpd(BusVpdPtr, BusVpdLen, agent, frame, card);
+	status = 1;
 out_free:
 	kfree(BusVpdPtr);
+	return status;
 }
 
 /*
@@ -246,7 +249,7 @@ void __init iSeries_Device_Information(struct pci_dev *PciDev, int count)
 	struct device_node *DevNode = PciDev->sysdata;
 	struct pci_dn *pdn;
 	u16 bus;
-	u8 frame;
+	u8 frame = 0;
 	char card[4];
 	HvSubBusNumber subbus;
 	HvAgentId agent;
@@ -262,10 +265,11 @@ void __init iSeries_Device_Information(struct pci_dev *PciDev, int count)
 	subbus = pdn->bussubno;
 	agent = ISERIES_PCI_AGENTID(ISERIES_GET_DEVICE_FROM_SUBBUS(subbus),
 			ISERIES_GET_FUNCTION_FROM_SUBBUS(subbus));
-	iSeries_Get_Location_Code(bus, agent, &frame, card);
 
-	printk("%d. PCI: Bus%3d, Device%3d, Vendor %04X Frame%3d, Card %4s  ",
-			count, bus, PCI_SLOT(PciDev->devfn), PciDev->vendor,
-			frame, card);
-	printk("0x%04X\n", (int)(PciDev->class >> 8));
+	if (iSeries_Get_Location_Code(bus, agent, &frame, card)) {
+		printk("%d. PCI: Bus%3d, Device%3d, Vendor %04X Frame%3d, "
+			"Card %4s  0x%04X\n", count, bus,
+			PCI_SLOT(PciDev->devfn), PciDev->vendor, frame,
+			card, (int)(PciDev->class >> 8));
+	}
 }

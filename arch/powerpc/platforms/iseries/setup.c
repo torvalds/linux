@@ -59,6 +59,7 @@
 #include "irq.h"
 #include "vpd_areas.h"
 #include "processor_vpd.h"
+#include "it_lp_naca.h"
 #include "main_store.h"
 #include "call_sm.h"
 #include "call_hpt.h"
