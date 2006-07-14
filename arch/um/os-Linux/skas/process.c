@@ -435,7 +435,6 @@ void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 {
 	unsigned long flags;
 	jmp_buf switch_buf, fork_buf;
-	int enable;
 
 	*switch_buf_ptr = &switch_buf;
 	*fork_buf_ptr = &fork_buf;
@@ -450,7 +449,7 @@ void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 	 */
 	flags = get_signals();
 	block_signals();
-	if(UML_SETJMP(&fork_buf, enable) == 0)
+	if(UML_SETJMP(&fork_buf) == 0)
 		new_thread_proc(stack, handler);
 
 	remove_sigstack();
@@ -467,21 +466,19 @@ void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 void thread_wait(void *sw, void *fb)
 {
 	jmp_buf buf, **switch_buf = sw, *fork_buf;
-	int enable;
 
 	*switch_buf = &buf;
 	fork_buf = fb;
-	if(UML_SETJMP(&buf, enable) == 0)
+	if(UML_SETJMP(&buf) == 0)
 		siglongjmp(*fork_buf, INIT_JMP_REMOVE_SIGSTACK);
 }
 
 void switch_threads(void *me, void *next)
 {
 	jmp_buf my_buf, **me_ptr = me, *next_buf = next;
-	int enable;
 
 	*me_ptr = &my_buf;
-	if(UML_SETJMP(&my_buf, enable) == 0)
+	if(UML_SETJMP(&my_buf) == 0)
 		UML_LONGJMP(next_buf, 1);
 }
 
@@ -495,14 +492,14 @@ static jmp_buf *cb_back;
 int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 {
 	jmp_buf **switch_buf = switch_buf_ptr;
-	int n, enable;
+	int n;
 
 	set_handler(SIGWINCH, (__sighandler_t) sig_handler,
 		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGALRM,
 		    SIGVTALRM, -1);
 
 	*fork_buf_ptr = &initial_jmpbuf;
-	n = UML_SETJMP(&initial_jmpbuf, enable);
+	n = UML_SETJMP(&initial_jmpbuf);
 	switch(n){
 	case INIT_JMP_NEW_THREAD:
 		new_thread_proc((void *) stack, new_thread_handler);
@@ -529,14 +526,13 @@ int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 {
 	jmp_buf here;
-	int enable;
 
 	cb_proc = proc;
 	cb_arg = arg;
 	cb_back = &here;
 
 	block_signals();
-	if(UML_SETJMP(&here, enable) == 0)
+	if(UML_SETJMP(&here) == 0)
 		UML_LONGJMP(&initial_jmpbuf, INIT_JMP_CALLBACK);
 	unblock_signals();
 

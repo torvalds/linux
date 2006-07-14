@@ -273,12 +273,12 @@ void init_new_thread_signals(void)
 int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr)
 {
 	jmp_buf buf;
-	int n, enable;
+	int n;
 
 	*jmp_ptr = &buf;
-	n = UML_SETJMP(&buf, enable);
+	n = UML_SETJMP(&buf);
 	if(n != 0)
-		return(n);
+		return n;
 	(*fn)(arg);
-	return(0);
+	return 0;
 }
