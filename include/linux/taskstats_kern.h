@@ -9,6 +9,7 @@
 
 #include <linux/taskstats.h>
 #include <linux/sched.h>
+#include <net/genetlink.h>
 
 enum {
 	TASKSTATS_MSG_UNICAST,		/* send data only to requester */
@@ -19,9 +20,19 @@ enum {
 extern kmem_cache_t *taskstats_cache;
 extern struct mutex taskstats_exit_mutex;
 
+static inline int taskstats_has_listeners(void)
+{
+	if (!genl_sock)
+		return 0;
+	return netlink_has_listeners(genl_sock, TASKSTATS_LISTEN_GROUP);
+}
+
+
 static inline void taskstats_exit_alloc(struct taskstats **ptidstats)
 {
-	*ptidstats = kmem_cache_zalloc(taskstats_cache, SLAB_KERNEL);
+	*ptidstats = NULL;
+	if (taskstats_has_listeners())
+		*ptidstats = kmem_cache_zalloc(taskstats_cache, SLAB_KERNEL);
 }
 
 static inline void taskstats_exit_free(struct taskstats *tidstats)
