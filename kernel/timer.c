@@ -374,6 +374,7 @@ int del_timer_sync(struct timer_list *timer)
 		int ret = try_to_del_timer_sync(timer);
 		if (ret >= 0)
 			return ret;
+		cpu_relax();
 	}
 }
 
