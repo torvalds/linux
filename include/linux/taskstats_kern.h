@@ -17,6 +17,7 @@ enum {
 
 #ifdef CONFIG_TASKSTATS
 extern kmem_cache_t *taskstats_cache;
+extern struct mutex taskstats_exit_mutex;
 
 static inline void taskstats_exit_alloc(struct taskstats **ptidstats,
 					struct taskstats **ptgidstats)

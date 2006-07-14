@@ -18,13 +18,13 @@
 
 #include <linux/kernel.h>
 #include <linux/taskstats_kern.h>
+#include <linux/delayacct.h>
 #include <net/genetlink.h>
 #include <asm/atomic.h>
 
 static DEFINE_PER_CPU(__u32, taskstats_seqnum) = { 0 };
 static int family_registered;
 kmem_cache_t *taskstats_cache;
-static DEFINE_MUTEX(taskstats_exit_mutex);
 
 static struct genl_family family = {
 	.id		= GENL_ID_GENERATE,
@@ -120,7 +120,10 @@ static int fill_pid(pid_t pid, struct task_struct *pidtsk,
 	 *		goto err;
 	 */
 
-err:
+	rc = delayacct_add_tsk(stats, tsk);
+	stats->version = TASKSTATS_VERSION;
+
+	/* Define err: label here if needed */
 	put_task_struct(tsk);
 	return rc;
 
@@ -152,8 +155,14 @@ static int fill_tgid(pid_t tgid, struct task_struct *tgidtsk,
 		 *		break;
 		 */
 
+		rc = delayacct_add_tsk(stats, tsk);
+		if (rc)
+			break;
+
 	} while_each_thread(first, tsk);
 	read_unlock(&tasklist_lock);
+	stats->version = TASKSTATS_VERSION;
+
 
 	/*
 	 * Accounting subsytems can also add calls here if they don't
@@ -233,8 +242,6 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 	if (!family_registered || !tidstats)
 		return;
 
-	mutex_lock(&taskstats_exit_mutex);
-
 	is_thread_group = !thread_group_empty(tsk);
 	rc = 0;
 
@@ -292,7 +299,6 @@ nla_put_failure:
 err_skb:
 	nlmsg_free(rep_skb);
 ret:
-	mutex_unlock(&taskstats_exit_mutex);
 	return;
 }
 

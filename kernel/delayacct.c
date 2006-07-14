@@ -41,6 +41,10 @@ void delayacct_init(void)
 
 void __delayacct_tsk_init(struct task_struct *tsk)
 {
+	spin_lock_init(&tsk->delays_lock);
+	/* No need to acquire tsk->delays_lock for allocation here unless
+	   __delayacct_tsk_init called after tsk is attached to tasklist
+	*/
 	tsk->delays = kmem_cache_zalloc(delayacct_cache, SLAB_KERNEL);
 	if (tsk->delays)
 		spin_lock_init(&tsk->delays->lock);
@@ -48,8 +52,11 @@ void __delayacct_tsk_init(struct task_struct *tsk)
 
 void __delayacct_tsk_exit(struct task_struct *tsk)
 {
-	kmem_cache_free(delayacct_cache, tsk->delays);
+	struct task_delay_info *delays = tsk->delays;
+	spin_lock(&tsk->delays_lock);
 	tsk->delays = NULL;
+	spin_unlock(&tsk->delays_lock);
+	kmem_cache_free(delayacct_cache, delays);
 }
 
 /*
@@ -103,4 +110,57 @@ void __delayacct_blkio_end(void)
 			&current->delays->blkio_end,
 			&current->delays->blkio_delay,
 			&current->delays->blkio_count);
+}
+
+int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
+{
+	s64 tmp;
+	struct timespec ts;
+	unsigned long t1,t2,t3;
+
+	spin_lock(&tsk->delays_lock);
+
+	/* Though tsk->delays accessed later, early exit avoids
+	 * unnecessary returning of other data
+	 */
+	if (!tsk->delays)
+		goto done;
+
+	tmp = (s64)d->cpu_run_real_total;
+	cputime_to_timespec(tsk->utime + tsk->stime, &ts);
+	tmp += timespec_to_ns(&ts);
+	d->cpu_run_real_total = (tmp < (s64)d->cpu_run_real_total) ? 0 : tmp;
+
+	/*
+	 * No locking available for sched_info (and too expensive to add one)
+	 * Mitigate by taking snapshot of values
+	 */
+	t1 = tsk->sched_info.pcnt;
+	t2 = tsk->sched_info.run_delay;
+	t3 = tsk->sched_info.cpu_time;
+
+	d->cpu_count += t1;
+
+	jiffies_to_timespec(t2, &ts);
+	tmp = (s64)d->cpu_delay_total + timespec_to_ns(&ts);
+	d->cpu_delay_total = (tmp < (s64)d->cpu_delay_total) ? 0 : tmp;
+
+	tmp = (s64)d->cpu_run_virtual_total + (s64)jiffies_to_usecs(t3) * 1000;
+	d->cpu_run_virtual_total =
+		(tmp < (s64)d->cpu_run_virtual_total) ?	0 : tmp;
+
+	/* zero XXX_total, non-zero XXX_count implies XXX stat overflowed */
+
+	spin_lock(&tsk->delays->lock);
+	tmp = d->blkio_delay_total + tsk->delays->blkio_delay;
+	d->blkio_delay_total = (tmp < d->blkio_delay_total) ? 0 : tmp;
+	tmp = d->swapin_delay_total + tsk->delays->swapin_delay;
+	d->swapin_delay_total = (tmp < d->swapin_delay_total) ? 0 : tmp;
+	d->blkio_count += tsk->delays->blkio_count;
+	d->swapin_count += tsk->delays->swapin_count;
+	spin_unlock(&tsk->delays->lock);
+
+done:
+	spin_unlock(&tsk->delays_lock);
+	return 0;
 }

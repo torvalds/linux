@@ -18,6 +18,7 @@
 #define _LINUX_DELAYACCT_H
 
 #include <linux/sched.h>
+#include <linux/taskstats_kern.h>
 
 /*
  * Per-task flags relevant to delay accounting
@@ -35,6 +36,7 @@ extern void __delayacct_tsk_init(struct task_struct *);
 extern void __delayacct_tsk_exit(struct task_struct *);
 extern void __delayacct_blkio_start(void);
 extern void __delayacct_blkio_end(void);
+extern int __delayacct_add_tsk(struct taskstats *, struct task_struct *);
 
 static inline void delayacct_set_flag(int flag)
 {
@@ -74,6 +76,16 @@ static inline void delayacct_blkio_end(void)
 		__delayacct_blkio_end();
 }
 
+static inline int delayacct_add_tsk(struct taskstats *d,
+					struct task_struct *tsk)
+{
+	if (likely(!delayacct_on))
+		return -EINVAL;
+	if (!tsk->delays)
+		return 0;
+	return __delayacct_add_tsk(d, tsk);
+}
+
 #else
 static inline void delayacct_set_flag(int flag)
 {}
@@ -89,6 +101,9 @@ static inline void delayacct_blkio_start(void)
 {}
 static inline void delayacct_blkio_end(void)
 {}
+static inline int delayacct_add_tsk(struct taskstats *d,
+					struct task_struct *tsk)
+{ return 0; }
 #endif /* CONFIG_TASK_DELAY_ACCT */
 
 #endif
