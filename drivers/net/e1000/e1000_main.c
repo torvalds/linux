@@ -3387,8 +3387,8 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 		E1000_WRITE_REG(hw, IMC, ~0);
 		E1000_WRITE_FLUSH(hw);
 	}
-	if (likely(netif_rx_schedule_prep(&adapter->polling_netdev[0])))
-		__netif_rx_schedule(&adapter->polling_netdev[0]);
+	if (likely(netif_rx_schedule_prep(netdev)))
+		__netif_rx_schedule(netdev);
 	else
 		e1000_irq_enable(adapter);
 #else
@@ -3431,34 +3431,26 @@ e1000_clean(struct net_device *poll_dev, int *budget)
 {
 	struct e1000_adapter *adapter;
 	int work_to_do = min(*budget, poll_dev->quota);
-	int tx_cleaned = 0, i = 0, work_done = 0;
+	int tx_cleaned = 0, work_done = 0;
 
 	/* Must NOT use netdev_priv macro here. */
 	adapter = poll_dev->priv;
 
 	/* Keep link state information with original netdev */
-	if (!netif_carrier_ok(adapter->netdev))
+	if (!netif_carrier_ok(poll_dev))
 		goto quit_polling;
 
-	while (poll_dev != &adapter->polling_netdev[i]) {
-		i++;
-		BUG_ON(i == adapter->num_rx_queues);
+	/* e1000_clean is called per-cpu.  This lock protects
+	 * tx_ring[0] from being cleaned by multiple cpus
+	 * simultaneously.  A failure obtaining the lock means
+	 * tx_ring[0] is currently being cleaned anyway. */
+	if (spin_trylock(&adapter->tx_queue_lock)) {
+		tx_cleaned = e1000_clean_tx_irq(adapter,
+		                                &adapter->tx_ring[0]);
+		spin_unlock(&adapter->tx_queue_lock);
 	}
 
-	if (likely(adapter->num_tx_queues == 1)) {
-		/* e1000_clean is called per-cpu.  This lock protects
-		 * tx_ring[0] from being cleaned by multiple cpus
-		 * simultaneously.  A failure obtaining the lock means
-		 * tx_ring[0] is currently being cleaned anyway. */
-		if (spin_trylock(&adapter->tx_queue_lock)) {
-			tx_cleaned = e1000_clean_tx_irq(adapter,
-							&adapter->tx_ring[0]);
-			spin_unlock(&adapter->tx_queue_lock);
-		}
-	} else
-		tx_cleaned = e1000_clean_tx_irq(adapter, &adapter->tx_ring[i]);
-
-	adapter->clean_rx(adapter, &adapter->rx_ring[i],
+	adapter->clean_rx(adapter, &adapter->rx_ring[0],
 	                  &work_done, work_to_do);
 
 	*budget -= work_done;
@@ -3466,7 +3458,7 @@ e1000_clean(struct net_device *poll_dev, int *budget)
 
 	/* If no Tx and not enough Rx work done, exit the polling mode */
 	if ((!tx_cleaned && (work_done == 0)) ||
-	   !netif_running(adapter->netdev)) {
+	   !netif_running(poll_dev)) {
 quit_polling:
 		netif_rx_complete(poll_dev);
 		e1000_irq_enable(adapter);
@@ -4752,6 +4744,7 @@ static void
 e1000_netpoll(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+
 	disable_irq(adapter->pdev->irq);
 	e1000_intr(adapter->pdev->irq, netdev, NULL);
 	e1000_clean_tx_irq(adapter, adapter->tx_ring);
