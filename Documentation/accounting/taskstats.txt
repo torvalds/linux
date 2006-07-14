@@ -39,6 +39,8 @@ belongs (the task does not need to be the thread group leader). The need for
 per-tgid stats to be sent for each exiting task is explained in the per-tgid
 stats section below.
 
+getdelays.c is a simple utility demonstrating usage of the taskstats interface
+for reporting delay accounting statistics.
 
 Interface
 ---------
