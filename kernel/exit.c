@@ -847,6 +847,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	struct task_struct *tsk = current;
 	struct taskstats *tidstats;
 	int group_dead;
+	unsigned int mycpu;
 
 	profile_task_exit(tsk);
 
@@ -884,7 +885,7 @@ fastcall NORET_TYPE void do_exit(long code)
 				current->comm, current->pid,
 				preempt_count());
 
-	taskstats_exit_alloc(&tidstats);
+	taskstats_exit_alloc(&tidstats, &mycpu);
 
 	acct_update_integrals(tsk);
 	if (tsk->mm) {
@@ -905,7 +906,7 @@ fastcall NORET_TYPE void do_exit(long code)
 #endif
 	if (unlikely(tsk->audit_context))
 		audit_free(tsk);
-	taskstats_exit_send(tsk, tidstats, group_dead);
+	taskstats_exit_send(tsk, tidstats, group_dead, mycpu);
 	taskstats_exit_free(tidstats);
 	delayacct_tsk_exit(tsk);
 

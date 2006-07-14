@@ -11,29 +11,9 @@
 #include <linux/sched.h>
 #include <net/genetlink.h>
 
-enum {
-	TASKSTATS_MSG_UNICAST,		/* send data only to requester */
-	TASKSTATS_MSG_MULTICAST,	/* send data to a group */
-};
-
 #ifdef CONFIG_TASKSTATS
 extern kmem_cache_t *taskstats_cache;
 extern struct mutex taskstats_exit_mutex;
-
-static inline int taskstats_has_listeners(void)
-{
-	if (!genl_sock)
-		return 0;
-	return netlink_has_listeners(genl_sock, TASKSTATS_LISTEN_GROUP);
-}
-
-
-static inline void taskstats_exit_alloc(struct taskstats **ptidstats)
-{
-	*ptidstats = NULL;
-	if (taskstats_has_listeners())
-		*ptidstats = kmem_cache_zalloc(taskstats_cache, SLAB_KERNEL);
-}
 
 static inline void taskstats_exit_free(struct taskstats *tidstats)
 {
@@ -82,17 +62,18 @@ static inline void taskstats_tgid_free(struct signal_struct *sig)
 		kmem_cache_free(taskstats_cache, stats);
 }
 
-extern void taskstats_exit_send(struct task_struct *, struct taskstats *, int);
+extern void taskstats_exit_alloc(struct taskstats **, unsigned int *);
+extern void taskstats_exit_send(struct task_struct *, struct taskstats *, int, unsigned int);
 extern void taskstats_init_early(void);
 extern void taskstats_tgid_alloc(struct signal_struct *);
 #else
-static inline void taskstats_exit_alloc(struct taskstats **ptidstats)
+static inline void taskstats_exit_alloc(struct taskstats **ptidstats, unsigned int *mycpu)
 {}
 static inline void taskstats_exit_free(struct taskstats *ptidstats)
 {}
 static inline void taskstats_exit_send(struct task_struct *tsk,
 				       struct taskstats *tidstats,
-				       int group_dead)
+				       int group_dead, unsigned int cpu)
 {}
 static inline void taskstats_tgid_init(struct signal_struct *sig)
 {}

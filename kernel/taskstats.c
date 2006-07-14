@@ -19,8 +19,16 @@
 #include <linux/kernel.h>
 #include <linux/taskstats_kern.h>
 #include <linux/delayacct.h>
+#include <linux/cpumask.h>
+#include <linux/percpu.h>
 #include <net/genetlink.h>
 #include <asm/atomic.h>
+
+/*
+ * Maximum length of a cpumask that can be specified in
+ * the TASKSTATS_CMD_ATTR_REGISTER/DEREGISTER_CPUMASK attribute
+ */
+#define TASKSTATS_CPUMASK_MAXLEN	(100+6*NR_CPUS)
 
 static DEFINE_PER_CPU(__u32, taskstats_seqnum) = { 0 };
 static int family_registered;
@@ -37,8 +45,25 @@ static struct nla_policy taskstats_cmd_get_policy[TASKSTATS_CMD_ATTR_MAX+1]
 __read_mostly = {
 	[TASKSTATS_CMD_ATTR_PID]  = { .type = NLA_U32 },
 	[TASKSTATS_CMD_ATTR_TGID] = { .type = NLA_U32 },
+	[TASKSTATS_CMD_ATTR_REGISTER_CPUMASK] = { .type = NLA_STRING },
+	[TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK] = { .type = NLA_STRING },};
+
+struct listener {
+	struct list_head list;
+	pid_t pid;
 };
 
+struct listener_list {
+	struct rw_semaphore sem;
+	struct list_head list;
+};
+static DEFINE_PER_CPU(struct listener_list, listener_array);
+
+enum actions {
+	REGISTER,
+	DEREGISTER,
+	CPU_DONT_CARE
+};
 
 static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
 			void **replyp, size_t size)
@@ -74,13 +99,14 @@ static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
 	return 0;
 }
 
-static int send_reply(struct sk_buff *skb, pid_t pid, int event)
+/*
+ * Send taskstats data in @skb to listener with nl_pid @pid
+ */
+static int send_reply(struct sk_buff *skb, pid_t pid)
 {
 	struct genlmsghdr *genlhdr = nlmsg_data((struct nlmsghdr *)skb->data);
-	void *reply;
+	void *reply = genlmsg_data(genlhdr);
 	int rc;
-
-	reply = genlmsg_data(genlhdr);
 
 	rc = genlmsg_end(skb, reply);
 	if (rc < 0) {
@@ -88,9 +114,51 @@ static int send_reply(struct sk_buff *skb, pid_t pid, int event)
 		return rc;
 	}
 
-	if (event == TASKSTATS_MSG_MULTICAST)
-		return genlmsg_multicast(skb, pid, TASKSTATS_LISTEN_GROUP);
 	return genlmsg_unicast(skb, pid);
+}
+
+/*
+ * Send taskstats data in @skb to listeners registered for @cpu's exit data
+ */
+static int send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
+{
+	struct genlmsghdr *genlhdr = nlmsg_data((struct nlmsghdr *)skb->data);
+	struct listener_list *listeners;
+	struct listener *s, *tmp;
+	struct sk_buff *skb_next, *skb_cur = skb;
+	void *reply = genlmsg_data(genlhdr);
+	int rc, ret;
+
+	rc = genlmsg_end(skb, reply);
+	if (rc < 0) {
+		nlmsg_free(skb);
+		return rc;
+	}
+
+	rc = 0;
+	listeners = &per_cpu(listener_array, cpu);
+	down_write(&listeners->sem);
+	list_for_each_entry_safe(s, tmp, &listeners->list, list) {
+		skb_next = NULL;
+		if (!list_is_last(&s->list, &listeners->list)) {
+			skb_next = skb_clone(skb_cur, GFP_KERNEL);
+			if (!skb_next) {
+				nlmsg_free(skb_cur);
+				rc = -ENOMEM;
+				break;
+			}
+		}
+		ret = genlmsg_unicast(skb_cur, s->pid);
+		if (ret == -ECONNREFUSED) {
+			list_del(&s->list);
+			kfree(s);
+			rc = ret;
+		}
+		skb_cur = skb_next;
+	}
+	up_write(&listeners->sem);
+
+	return rc;
 }
 
 static int fill_pid(pid_t pid, struct task_struct *pidtsk,
@@ -204,8 +272,73 @@ ret:
 	return;
 }
 
+static int add_del_listener(pid_t pid, cpumask_t *maskp, int isadd)
+{
+	struct listener_list *listeners;
+	struct listener *s, *tmp;
+	unsigned int cpu;
+	cpumask_t mask = *maskp;
 
-static int taskstats_send_stats(struct sk_buff *skb, struct genl_info *info)
+	if (!cpus_subset(mask, cpu_possible_map))
+		return -EINVAL;
+
+	if (isadd == REGISTER) {
+		for_each_cpu_mask(cpu, mask) {
+			s = kmalloc_node(sizeof(struct listener), GFP_KERNEL,
+					 cpu_to_node(cpu));
+			if (!s)
+				goto cleanup;
+			s->pid = pid;
+			INIT_LIST_HEAD(&s->list);
+
+			listeners = &per_cpu(listener_array, cpu);
+			down_write(&listeners->sem);
+			list_add(&s->list, &listeners->list);
+			up_write(&listeners->sem);
+		}
+		return 0;
+	}
+
+	/* Deregister or cleanup */
+cleanup:
+	for_each_cpu_mask(cpu, mask) {
+		listeners = &per_cpu(listener_array, cpu);
+		down_write(&listeners->sem);
+		list_for_each_entry_safe(s, tmp, &listeners->list, list) {
+			if (s->pid == pid) {
+				list_del(&s->list);
+				kfree(s);
+				break;
+			}
+		}
+		up_write(&listeners->sem);
+	}
+	return 0;
+}
+
+static int parse(struct nlattr *na, cpumask_t *mask)
+{
+	char *data;
+	int len;
+	int ret;
+
+	if (na == NULL)
+		return 1;
+	len = nla_len(na);
+	if (len > TASKSTATS_CPUMASK_MAXLEN)
+		return -E2BIG;
+	if (len < 1)
+		return -EINVAL;
+	data = kmalloc(len, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+	nla_strlcpy(data, na, len);
+	ret = cpulist_parse(data, *mask);
+	kfree(data);
+	return ret;
+}
+
+static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	int rc = 0;
 	struct sk_buff *rep_skb;
@@ -213,6 +346,19 @@ static int taskstats_send_stats(struct sk_buff *skb, struct genl_info *info)
 	void *reply;
 	size_t size;
 	struct nlattr *na;
+	cpumask_t mask;
+
+	rc = parse(info->attrs[TASKSTATS_CMD_ATTR_REGISTER_CPUMASK], &mask);
+	if (rc < 0)
+		return rc;
+	if (rc == 0)
+		return add_del_listener(info->snd_pid, &mask, REGISTER);
+
+	rc = parse(info->attrs[TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK], &mask);
+	if (rc < 0)
+		return rc;
+	if (rc == 0)
+		return add_del_listener(info->snd_pid, &mask, DEREGISTER);
 
 	/*
 	 * Size includes space for nested attributes
@@ -252,7 +398,7 @@ static int taskstats_send_stats(struct sk_buff *skb, struct genl_info *info)
 
 	nla_nest_end(rep_skb, na);
 
-	return send_reply(rep_skb, info->snd_pid, TASKSTATS_MSG_UNICAST);
+	return send_reply(rep_skb, info->snd_pid);
 
 nla_put_failure:
 	return genlmsg_cancel(rep_skb, reply);
@@ -261,9 +407,35 @@ err:
 	return rc;
 }
 
+void taskstats_exit_alloc(struct taskstats **ptidstats, unsigned int *mycpu)
+{
+	struct listener_list *listeners;
+	struct taskstats *tmp;
+	/*
+	 * This is the cpu on which the task is exiting currently and will
+	 * be the one for which the exit event is sent, even if the cpu
+	 * on which this function is running changes later.
+	 */
+	*mycpu = raw_smp_processor_id();
+
+	*ptidstats = NULL;
+	tmp = kmem_cache_zalloc(taskstats_cache, SLAB_KERNEL);
+	if (!tmp)
+		return;
+
+	listeners = &per_cpu(listener_array, *mycpu);
+	down_read(&listeners->sem);
+	if (!list_empty(&listeners->list)) {
+		*ptidstats = tmp;
+		tmp = NULL;
+	}
+	up_read(&listeners->sem);
+	kfree(tmp);
+}
+
 /* Send pid data out on exit */
 void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
-			int group_dead)
+			int group_dead, unsigned int mycpu)
 {
 	int rc;
 	struct sk_buff *rep_skb;
@@ -324,7 +496,7 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 	nla_nest_end(rep_skb, na);
 
 send:
-	send_reply(rep_skb, 0, TASKSTATS_MSG_MULTICAST);
+	send_cpu_listeners(rep_skb, mycpu);
 	return;
 
 nla_put_failure:
@@ -338,16 +510,22 @@ ret:
 
 static struct genl_ops taskstats_ops = {
 	.cmd		= TASKSTATS_CMD_GET,
-	.doit		= taskstats_send_stats,
+	.doit		= taskstats_user_cmd,
 	.policy		= taskstats_cmd_get_policy,
 };
 
 /* Needed early in initialization */
 void __init taskstats_init_early(void)
 {
+	unsigned int i;
+
 	taskstats_cache = kmem_cache_create("taskstats_cache",
 						sizeof(struct taskstats),
 						0, SLAB_PANIC, NULL, NULL);
+	for_each_possible_cpu(i) {
+		INIT_LIST_HEAD(&(per_cpu(listener_array, i).list));
+		init_rwsem(&(per_cpu(listener_array, i).sem));
+	}
 }
 
 static int __init taskstats_init(void)

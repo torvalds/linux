@@ -91,8 +91,6 @@ struct taskstats {
 };
 
 
-#define TASKSTATS_LISTEN_GROUP	0x1
-
 /*
  * Commands sent from userspace
  * Not versioned. New commands should only be inserted at the enum's end
@@ -124,6 +122,8 @@ enum {
 	TASKSTATS_CMD_ATTR_UNSPEC = 0,
 	TASKSTATS_CMD_ATTR_PID,
 	TASKSTATS_CMD_ATTR_TGID,
+	TASKSTATS_CMD_ATTR_REGISTER_CPUMASK,
+	TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK,
 	__TASKSTATS_CMD_ATTR_MAX,
 };
 
