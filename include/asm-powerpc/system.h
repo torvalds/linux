@@ -39,7 +39,6 @@
 #define read_barrier_depends()  do { } while(0)
 
 #define set_mb(var, value)	do { var = value; mb(); } while (0)
-#define set_wmb(var, value)	do { var = value; wmb(); } while (0)
 
 #ifdef __KERNEL__
 #ifdef CONFIG_SMP

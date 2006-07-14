@@ -90,7 +90,6 @@ extern unsigned int user_debug;
 
 #define read_barrier_depends() do { } while(0)
 #define set_mb(var, value)  do { var = value; mb(); } while (0)
-#define set_wmb(var, value) do { var = value; wmb(); } while (0)
 
 /*
  * We assume knowledge of how

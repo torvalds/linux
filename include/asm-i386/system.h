@@ -453,8 +453,6 @@ static inline unsigned long long __cmpxchg64(volatile void *ptr, unsigned long l
 #define set_mb(var, value) do { var = value; barrier(); } while (0)
 #endif
 
-#define set_wmb(var, value) do { var = value; wmb(); } while (0)
-
 #include <linux/irqflags.h>
 
 /*

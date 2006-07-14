@@ -143,9 +143,6 @@
 #define set_mb(var, value) \
 do { var = value; mb(); } while (0)
 
-#define set_wmb(var, value) \
-do { var = value; wmb(); } while (0)
-
 /*
  * switch_to(n) should switch tasks to task nr n, first
  * checking that n isn't the current task, in which case it does nothing.

@@ -299,7 +299,6 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 
 
 #define set_mb(var, value)      do { var = value; mb(); } while (0)
-#define set_wmb(var, value)     do { var = value; wmb(); } while (0)
 
 #ifdef __s390x__
 
