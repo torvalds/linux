@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -15,9 +15,9 @@
 #include "irq_user.h"
 #include "sysdep/tls.h"
 
-#define OS_TYPE_FILE 1 
-#define OS_TYPE_DIR 2 
-#define OS_TYPE_SYMLINK 3 
+#define OS_TYPE_FILE 1
+#define OS_TYPE_DIR 2
+#define OS_TYPE_SYMLINK 3
 #define OS_TYPE_CHARDEV 4
 #define OS_TYPE_BLOCKDEV 5
 #define OS_TYPE_FIFO 6
@@ -61,68 +61,68 @@ struct openflags {
 };
 
 #define OPENFLAGS() ((struct openflags) { .r = 0, .w = 0, .s = 0, .c = 0, \
- 					  .t = 0, .a = 0, .e = 0, .cl = 0 })
+					  .t = 0, .a = 0, .e = 0, .cl = 0 })
 
 static inline struct openflags of_read(struct openflags flags)
 {
-	flags.r = 1; 
-	return(flags);
+	flags.r = 1;
+	return flags;
 }
 
 static inline struct openflags of_write(struct openflags flags)
 {
-	flags.w = 1; 
-	return(flags); 
+	flags.w = 1;
+	return flags;
 }
 
 static inline struct openflags of_rdwr(struct openflags flags)
 {
-	return(of_read(of_write(flags)));
+	return of_read(of_write(flags));
 }
 
 static inline struct openflags of_set_rw(struct openflags flags, int r, int w)
 {
 	flags.r = r;
 	flags.w = w;
-	return(flags);
+	return flags;
 }
 
 static inline struct openflags of_sync(struct openflags flags)
-{ 
-	flags.s = 1; 
-	return(flags); 
+{
+	flags.s = 1;
+	return flags;
 }
 
 static inline struct openflags of_create(struct openflags flags)
-{ 
-	flags.c = 1; 
-	return(flags); 
+{
+	flags.c = 1;
+	return flags;
 }
- 
+
 static inline struct openflags of_trunc(struct openflags flags)
-{ 
-	flags.t = 1; 
-	return(flags); 
+{
+	flags.t = 1;
+	return flags;
 }
- 
+
 static inline struct openflags of_append(struct openflags flags)
-{ 
-	flags.a = 1; 
-	return(flags); 
+{
+	flags.a = 1;
+	return flags;
 }
- 
+
 static inline struct openflags of_excl(struct openflags flags)
-{ 
-	flags.e = 1; 
-	return(flags); 
+{
+	flags.e = 1;
+	return flags;
 }
 
 static inline struct openflags of_cloexec(struct openflags flags)
-{ 
-	flags.cl = 1; 
-	return(flags); 
+{
+	flags.cl = 1;
+	return flags;
 }
-  
+
 /* file.c */
 extern int os_stat_file(const char *file_name, struct uml_stat *buf);
 extern int os_stat_fd(const int fd, struct uml_stat *buf);
@@ -204,7 +204,7 @@ extern int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr);
 
 extern int os_map_memory(void *virt, int fd, unsigned long long off,
 			 unsigned long len, int r, int w, int x);
-extern int os_protect_memory(void *addr, unsigned long len, 
+extern int os_protect_memory(void *addr, unsigned long len,
 			     int r, int w, int x);
 extern int os_unmap_memory(void *addr, int len);
 extern int os_drop_memory(void *addr, int length);
