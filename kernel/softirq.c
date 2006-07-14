@@ -311,8 +311,6 @@ void open_softirq(int nr, void (*action)(struct softirq_action*), void *data)
 	softirq_vec[nr].action = action;
 }
 
-EXPORT_UNUSED_SYMBOL(open_softirq);  /*  June 2006  */
-
 /* Tasklets */
 struct tasklet_head
 {
