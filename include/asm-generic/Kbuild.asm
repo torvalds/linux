@@ -4,8 +4,5 @@ unifdef-y += a.out.h auxvec.h byteorder.h errno.h fcntl.h ioctl.h	\
 	sigcontext.h siginfo.h signal.h socket.h sockios.h stat.h	\
 	statfs.h termbits.h termios.h timex.h types.h unistd.h user.h
 
-# These really shouldn't be exported
-unifdef-y += io.h
-
 # These probably shouldn't be exported
 unifdef-y += elf.h page.h
