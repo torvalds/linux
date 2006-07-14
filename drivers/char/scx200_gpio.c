@@ -5,7 +5,6 @@
 
    Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com> */
 
-#include <linux/config.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/module.h>
@@ -22,18 +21,19 @@
 #include <linux/scx200_gpio.h>
 #include <linux/nsc_gpio.h>
 
-#define NAME "scx200_gpio"
-#define DEVNAME NAME
+#define DRVNAME "scx200_gpio"
 
 static struct platform_device *pdev;
 
 MODULE_AUTHOR("Christer Weinigel <wingel@nano-system.com>");
-MODULE_DESCRIPTION("NatSemi SCx200 GPIO Pin Driver");
+MODULE_DESCRIPTION("NatSemi/AMD SCx200 GPIO Pin Driver");
 MODULE_LICENSE("GPL");
 
 static int major = 0;		/* default to dynamic major */
 module_param(major, int, 0);
 MODULE_PARM_DESC(major, "Major device number");
+
+#define MAX_PINS 32		/* 64 later, when known ok */
 
 struct nsc_gpio_ops scx200_access = {
 	.owner		= THIS_MODULE,
@@ -46,13 +46,14 @@ struct nsc_gpio_ops scx200_access = {
 	.gpio_change	= scx200_gpio_change,
 	.gpio_current	= scx200_gpio_current
 };
+EXPORT_SYMBOL(scx200_access);
 
 static int scx200_gpio_open(struct inode *inode, struct file *file)
 {
 	unsigned m = iminor(inode);
 	file->private_data = &scx200_access;
 
-	if (m > 63)
+	if (m >= MAX_PINS)
 		return -EINVAL;
 	return nonseekable_open(inode, file);
 }
@@ -72,20 +73,19 @@ static const struct file_operations scx200_gpio_fops = {
 };
 
 struct cdev *scx200_devices;
-static int num_pins = 32;
 
 static int __init scx200_gpio_init(void)
 {
 	int rc, i;
-	dev_t dev = MKDEV(major, 0);
+	dev_t devid;
 
 	if (!scx200_gpio_present()) {
-		printk(KERN_ERR NAME ": no SCx200 gpio present\n");
+		printk(KERN_ERR DRVNAME ": no SCx200 gpio present\n");
 		return -ENODEV;
 	}
 
 	/* support dev_dbg() with pdev->dev */
-	pdev = platform_device_alloc(DEVNAME, 0);
+	pdev = platform_device_alloc(DRVNAME, 0);
 	if (!pdev)
 		return -ENOMEM;
 
@@ -96,22 +96,23 @@ static int __init scx200_gpio_init(void)
 	/* nsc_gpio uses dev_dbg(), so needs this */
 	scx200_access.dev = &pdev->dev;
 
-	if (major)
-		rc = register_chrdev_region(dev, num_pins, "scx200_gpio");
-	else {
-		rc = alloc_chrdev_region(&dev, 0, num_pins, "scx200_gpio");
-		major = MAJOR(dev);
+	if (major) {
+		devid = MKDEV(major, 0);
+		rc = register_chrdev_region(devid, MAX_PINS, "scx200_gpio");
+	} else {
+		rc = alloc_chrdev_region(&devid, 0, MAX_PINS, "scx200_gpio");
+		major = MAJOR(devid);
 	}
 	if (rc < 0) {
 		dev_err(&pdev->dev, "SCx200 chrdev_region err: %d\n", rc);
 		goto undo_platform_device_add;
 	}
-	scx200_devices = kzalloc(num_pins * sizeof(struct cdev), GFP_KERNEL);
+	scx200_devices = kzalloc(MAX_PINS * sizeof(struct cdev), GFP_KERNEL);
 	if (!scx200_devices) {
 		rc = -ENOMEM;
 		goto undo_chrdev_region;
 	}
-	for (i = 0; i < num_pins; i++) {
+	for (i = 0; i < MAX_PINS; i++) {
 		struct cdev *cdev = &scx200_devices[i];
 		cdev_init(cdev, &scx200_gpio_fops);
 		cdev->owner = THIS_MODULE;
@@ -124,7 +125,7 @@ static int __init scx200_gpio_init(void)
 	return 0; /* succeed */
 
 undo_chrdev_region:
-	unregister_chrdev_region(dev, num_pins);
+	unregister_chrdev_region(devid, MAX_PINS);
 undo_platform_device_add:
 	platform_device_del(pdev);
 undo_malloc:
@@ -136,9 +137,8 @@ undo_malloc:
 static void __exit scx200_gpio_cleanup(void)
 {
 	kfree(scx200_devices);
-	unregister_chrdev_region(MKDEV(major, 0), num_pins);
+	unregister_chrdev_region(MKDEV(major, 0), MAX_PINS);
 	platform_device_unregister(pdev);
-	/* kfree(pdev); */
 }
 
 module_init(scx200_gpio_init);
