@@ -63,7 +63,6 @@ static int scx200_gpio_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-
 static const struct file_operations scx200_gpio_fops = {
 	.owner   = THIS_MODULE,
 	.write   = nsc_gpio_write,
@@ -72,11 +71,11 @@ static const struct file_operations scx200_gpio_fops = {
 	.release = scx200_gpio_release,
 };
 
-struct cdev *scx200_devices;
+struct cdev scx200_gpio_cdev;  /* use 1 cdev for all pins */
 
 static int __init scx200_gpio_init(void)
 {
-	int rc, i;
+	int rc;
 	dev_t devid;
 
 	if (!scx200_gpio_present()) {
@@ -107,25 +106,12 @@ static int __init scx200_gpio_init(void)
 		dev_err(&pdev->dev, "SCx200 chrdev_region err: %d\n", rc);
 		goto undo_platform_device_add;
 	}
-	scx200_devices = kzalloc(MAX_PINS * sizeof(struct cdev), GFP_KERNEL);
-	if (!scx200_devices) {
-		rc = -ENOMEM;
-		goto undo_chrdev_region;
-	}
-	for (i = 0; i < MAX_PINS; i++) {
-		struct cdev *cdev = &scx200_devices[i];
-		cdev_init(cdev, &scx200_gpio_fops);
-		cdev->owner = THIS_MODULE;
-		rc = cdev_add(cdev, MKDEV(major, i), 1);
-		/* tolerate 'minor' errors */
-		if (rc)
-			dev_err(&pdev->dev, "Error %d on minor %d", rc, i);
-	}
+
+	cdev_init(&scx200_gpio_cdev, &scx200_gpio_fops);
+	cdev_add(&scx200_gpio_cdev, devid, MAX_PINS);
 
 	return 0; /* succeed */
 
-undo_chrdev_region:
-	unregister_chrdev_region(devid, MAX_PINS);
 undo_platform_device_add:
 	platform_device_del(pdev);
 undo_malloc:
@@ -136,7 +122,9 @@ undo_malloc:
 
 static void __exit scx200_gpio_cleanup(void)
 {
-	kfree(scx200_devices);
+	cdev_del(&scx200_gpio_cdev);
+	/* cdev_put(&scx200_gpio_cdev); */
+
 	unregister_chrdev_region(MKDEV(major, 0), MAX_PINS);
 	platform_device_unregister(pdev);
 }
