@@ -432,7 +432,8 @@ static int interrupts = 1;
 module_param(interrupts, bool, 0444);
 MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
-static int tpm_tis_init(struct device *dev, unsigned long start, unsigned long len)
+static int tpm_tis_init(struct device *dev, resource_size_t start,
+			resource_size_t len)
 {
 	u32 vendor, intfcaps, intmask;
 	int rc, i;
@@ -593,7 +594,7 @@ out_err:
 static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 				      const struct pnp_device_id *pnp_id)
 {
-	unsigned long start, len;
+	resource_size_t start, len;
 	start = pnp_mem_start(pnp_dev, 0);
 	len = pnp_mem_len(pnp_dev, 0);
 
