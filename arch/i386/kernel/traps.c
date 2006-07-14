@@ -324,35 +324,35 @@ void show_registers(struct pt_regs *regs)
 
 static void handle_BUG(struct pt_regs *regs)
 {
+	unsigned long eip = regs->eip;
 	unsigned short ud2;
-	unsigned short line;
-	char *file;
-	char c;
-	unsigned long eip;
-
-	eip = regs->eip;
 
 	if (eip < PAGE_OFFSET)
-		goto no_bug;
+		return;
 	if (__get_user(ud2, (unsigned short __user *)eip))
-		goto no_bug;
+		return;
 	if (ud2 != 0x0b0f)
-		goto no_bug;
-	if (__get_user(line, (unsigned short __user *)(eip + 2)))
-		goto bug;
-	if (__get_user(file, (char * __user *)(eip + 4)) ||
-		(unsigned long)file < PAGE_OFFSET || __get_user(c, file))
-		file = "<bad filename>";
+		return;
 
 	printk(KERN_EMERG "------------[ cut here ]------------\n");
-	printk(KERN_EMERG "kernel BUG at %s:%d!\n", file, line);
 
-no_bug:
-	return;
+#ifdef CONFIG_DEBUG_BUGVERBOSE
+	do {
+		unsigned short line;
+		char *file;
+		char c;
 
-	/* Here we know it was a BUG but file-n-line is unavailable */
-bug:
-	printk(KERN_EMERG "Kernel BUG\n");
+		if (__get_user(line, (unsigned short __user *)(eip + 2)))
+			break;
+		if (__get_user(file, (char * __user *)(eip + 4)) ||
+		    (unsigned long)file < PAGE_OFFSET || __get_user(c, file))
+			file = "<bad filename>";
+
+		printk(KERN_EMERG "kernel BUG at %s:%d!\n", file, line);
+		return;
+	} while (0);
+#endif
+	printk(KERN_EMERG "Kernel BUG at [verbose debug info unavailable]\n");
 }
 
 /* This is gone through when something in the kernel
