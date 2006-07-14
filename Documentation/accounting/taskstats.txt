@@ -26,20 +26,28 @@ leader - a process is deemed alive as long as it has any task belonging to it.
 Usage
 -----
 
-To get statistics during task's lifetime, userspace opens a unicast netlink
+To get statistics during a task's lifetime, userspace opens a unicast netlink
 socket (NETLINK_GENERIC family) and sends commands specifying a pid or a tgid.
 The response contains statistics for a task (if pid is specified) or the sum of
 statistics for all tasks of the process (if tgid is specified).
 
-To obtain statistics for tasks which are exiting, userspace opens a multicast
-netlink socket. Each time a task exits, its per-pid statistics is always sent
-by the kernel to each listener on the multicast socket. In addition, if it is
-the last thread exiting its thread group, an additional record containing the
-per-tgid stats are also sent. The latter contains the sum of per-pid stats for
-all threads in the thread group, both past and present.
+To obtain statistics for tasks which are exiting, the userspace listener
+sends a register command and specifies a cpumask. Whenever a task exits on
+one of the cpus in the cpumask, its per-pid statistics are sent to the
+registered listener. Using cpumasks allows the data received by one listener
+to be limited and assists in flow control over the netlink interface and is
+explained in more detail below.
+
+If the exiting task is the last thread exiting its thread group,
+an additional record containing the per-tgid stats is also sent to userspace.
+The latter contains the sum of per-pid stats for all threads in the thread
+group, both past and present.
 
 getdelays.c is a simple utility demonstrating usage of the taskstats interface
-for reporting delay accounting statistics.
+for reporting delay accounting statistics. Users can register cpumasks,
+send commands and process responses, listen for per-tid/tgid exit data,
+write the data received to a file and do basic flow control by increasing
+receive buffer sizes.
 
 Interface
 ---------
@@ -66,10 +74,20 @@ The messages are in the format
 
 The taskstats payload is one of the following three kinds:
 
-1. Commands: Sent from user to kernel. The payload is one attribute, of type
-TASKSTATS_CMD_ATTR_PID/TGID, containing a u32 pid or tgid in the attribute
-payload. The pid/tgid denotes the task/process for which userspace wants
-statistics.
+1. Commands: Sent from user to kernel. Commands to get data on
+a pid/tgid consist of one attribute, of type TASKSTATS_CMD_ATTR_PID/TGID,
+containing a u32 pid or tgid in the attribute payload. The pid/tgid denotes
+the task/process for which userspace wants statistics.
+
+Commands to register/deregister interest in exit data from a set of cpus
+consist of one attribute, of type
+TASKSTATS_CMD_ATTR_REGISTER/DEREGISTER_CPUMASK and contain a cpumask in the
+attribute payload. The cpumask is specified as an ascii string of
+comma-separated cpu ranges e.g. to listen to exit data from cpus 1,2,3,5,7,8
+the cpumask would be "1-3,5,7-8". If userspace forgets to deregister interest
+in cpus before closing the listening socket, the kernel cleans up its interest
+set over time. However, for the sake of efficiency, an explicit deregistration
+is advisable.
 
 2. Response for a command: sent from the kernel in response to a userspace
 command. The payload is a series of three attributes of type:
@@ -137,5 +155,27 @@ processing new netlink attributes. But if the new fields expand the existing
 struct too much, requiring disparate userspace accounting utilities to
 unnecessarily receive large structures whose fields are of no interest, then
 extending the attributes structure would be worthwhile.
+
+Flow control for taskstats
+--------------------------
+
+When the rate of task exits becomes large, a listener may not be able to keep
+up with the kernel's rate of sending per-tid/tgid exit data leading to data
+loss. This possibility gets compounded when the taskstats structure gets
+extended and the number of cpus grows large.
+
+To avoid losing statistics, userspace should do one or more of the following:
+
+- increase the receive buffer sizes for the netlink sockets opened by
+listeners to receive exit data.
+
+- create more listeners and reduce the number of cpus being listened to by
+each listener. In the extreme case, there could be one listener for each cpu.
+Users may also consider setting the cpu affinity of the listener to the subset
+of cpus to which it listens, especially if they are listening to just one cpu.
+
+Despite these measures, if the userspace receives ENOBUFS error messages
+indicated overflow of receive buffers, it should take measures to handle the
+loss of data.
 
 ----
