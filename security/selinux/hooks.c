@@ -523,12 +523,16 @@ static int try_context_mount(struct super_block *sb, void *data)
 			goto out_free;
 		}
 
-		rc = may_context_mount_sb_relabel(sid, sbsec, tsec);
-		if (rc)
-			goto out_free;
-
-		if (!fscontext)
+		if (!fscontext) {
+			rc = may_context_mount_sb_relabel(sid, sbsec, tsec);
+			if (rc)
+				goto out_free;
 			sbsec->sid = sid;
+		} else {
+			rc = may_context_mount_inode_relabel(sid, sbsec, tsec);
+			if (rc)
+				goto out_free;
+		}
 		sbsec->mntpoint_sid = sid;
 
 		sbsec->behavior = SECURITY_FS_USE_MNTPOINT;
