@@ -771,6 +771,7 @@ M:	aliakc@web.de
 P:	Jamie Lenehan
 M:	lenehan@twibble.org
 W:	http://twibble.org/dist/dc395x/
+L:	dc395x@twibble.org
 L:	http://lists.twibble.org/mailman/listinfo/dc395x/
 S:	Maintained
 
@@ -1501,6 +1502,7 @@ P:	Yi Zhu
 M:	yi.zhu@intel.com
 P:	James Ketrenos
 M:	jketreno@linux.intel.com
+L:	ipw2100-devel@lists.sourceforge.net
 L:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
 W:	http://ipw2100.sourceforge.net
 S:	Supported
@@ -1510,6 +1512,7 @@ P:	Yi Zhu
 M:	yi.zhu@intel.com
 P:	James Ketrenos
 M:	jketreno@linux.intel.com
+L:	ipw2100-devel@lists.sourceforge.net
 L:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
 W:	http://ipw2200.sourceforge.net
 S:	Supported
@@ -2226,6 +2229,7 @@ S:	Maintained
 
 PCMCIA SUBSYSTEM
 P:	Linux PCMCIA Team
+L:	linux-pcmcia@lists.infradead.org
 L:	http://lists.infradead.org/mailman/listinfo/linux-pcmcia
 T:	git kernel.org:/pub/scm/linux/kernel/git/brodo/pcmcia-2.6.git
 S:	Maintained
