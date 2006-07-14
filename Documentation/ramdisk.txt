@@ -6,7 +6,7 @@ Contents:
 	1) Overview
 	2) Kernel Command Line Parameters
 	3) Using "rdev -r"
-	4) An Example of Creating a Compressed RAM Disk 
+	4) An Example of Creating a Compressed RAM Disk
 
 
 1) Overview
@@ -34,7 +34,7 @@ make it clearer.  The original "ramdisk=<ram_size>" has been kept around for
 compatibility reasons, but it may be removed in the future.
 
 The new RAM disk also has the ability to load compressed RAM disk images,
-allowing one to squeeze more programs onto an average installation or 
+allowing one to squeeze more programs onto an average installation or
 rescue floppy disk.
 
 
@@ -51,7 +51,7 @@ default is 4096 (4 MB) (8192 (8 MB) on S390).
 	===================
 
 This parameter tells the RAM disk driver how many bytes to use per block.  The
-default is 512.
+default is 1024 (BLOCK_SIZE).
 
 
 3) Using "rdev -r"
@@ -70,7 +70,7 @@ These numbers are no magical secrets, as seen below:
 ./arch/i386/kernel/setup.c:#define RAMDISK_PROMPT_FLAG          0x8000
 ./arch/i386/kernel/setup.c:#define RAMDISK_LOAD_FLAG            0x4000
 
-Consider a typical two floppy disk setup, where you will have the 
+Consider a typical two floppy disk setup, where you will have the
 kernel on disk one, and have already put a RAM disk image onto disk #2.
 
 Hence you want to set bits 0 to 13 as 0, meaning that your RAM disk
@@ -97,12 +97,12 @@ Since the default start = 0 and the default prompt = 1, you could use:
 	append = "load_ramdisk=1"
 
 
-4) An Example of Creating a Compressed RAM Disk 
+4) An Example of Creating a Compressed RAM Disk
 ----------------------------------------------
 
 To create a RAM disk image, you will need a spare block device to
 construct it on. This can be the RAM disk device itself, or an
-unused disk partition (such as an unmounted swap partition). For this 
+unused disk partition (such as an unmounted swap partition). For this
 example, we will use the RAM disk device, "/dev/ram0".
 
 Note: This technique should not be done on a machine with less than 8 MB
