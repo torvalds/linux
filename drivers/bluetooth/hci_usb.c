@@ -67,6 +67,8 @@ static int ignore = 0;
 static int ignore_dga = 0;
 static int ignore_csr = 0;
 static int ignore_sniffer = 0;
+static int disable_scofix = 0;
+static int force_scofix = 0;
 static int reset = 0;
 
 #ifdef CONFIG_BT_HCIUSB_SCO
@@ -109,6 +111,9 @@ static struct usb_device_id blacklist_ids[] = {
 	/* Broadcom BCM2035 */
 	{ USB_DEVICE(0x0a5c, 0x200a), .driver_info = HCI_RESET | HCI_BROKEN_ISOC },
 	{ USB_DEVICE(0x0a5c, 0x2009), .driver_info = HCI_BCM92035 },
+
+	/* IBM/Lenovo ThinkPad with Broadcom chip */
+	{ USB_DEVICE(0x0a5c, 0x201e), .driver_info = HCI_WRONG_SCO_MTU },
 
 	/* Microsoft Wireless Transceiver for Bluetooth 2.0 */
 	{ USB_DEVICE(0x045e, 0x009c), .driver_info = HCI_RESET },
@@ -990,8 +995,10 @@ static int hci_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (reset || id->driver_info & HCI_RESET)
 		set_bit(HCI_QUIRK_RESET_ON_INIT, &hdev->quirks);
 
-	if (id->driver_info & HCI_WRONG_SCO_MTU)
-		set_bit(HCI_QUIRK_FIXUP_BUFFER_SIZE, &hdev->quirks);
+	if (force_scofix || id->driver_info & HCI_WRONG_SCO_MTU) {
+		if (!disable_scofix)
+			set_bit(HCI_QUIRK_FIXUP_BUFFER_SIZE, &hdev->quirks);
+	}
 
 	if (id->driver_info & HCI_SNIFFER) {
 		if (le16_to_cpu(udev->descriptor.bcdDevice) > 0x997)
@@ -1160,6 +1167,12 @@ MODULE_PARM_DESC(ignore_csr, "Ignore devices with id 0a12:0001");
 
 module_param(ignore_sniffer, bool, 0644);
 MODULE_PARM_DESC(ignore_sniffer, "Ignore devices with id 0a12:0002");
+
+module_param(disable_scofix, bool, 0644);
+MODULE_PARM_DESC(disable_scofix, "Disable fixup of wrong SCO buffer size");
+
+module_param(force_scofix, bool, 0644);
+MODULE_PARM_DESC(force_scofix, "Force fixup of wrong SCO buffers size");
 
 module_param(reset, bool, 0644);
 MODULE_PARM_DESC(reset, "Send HCI reset command on initialization");
