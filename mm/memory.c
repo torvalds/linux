@@ -47,6 +47,7 @@
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
 #include <linux/module.h>
+#include <linux/delayacct.h>
 #include <linux/init.h>
 
 #include <asm/pgalloc.h>
@@ -1934,6 +1935,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		migration_entry_wait(mm, pmd, address);
 		goto out;
 	}
+	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
 	page = lookup_swap_cache(entry);
 	if (!page) {
  		swapin_readahead(entry, address, vma);
@@ -1946,6 +1948,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
 			if (likely(pte_same(*page_table, orig_pte)))
 				ret = VM_FAULT_OOM;
+			delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
 			goto unlock;
 		}
 
@@ -1955,6 +1958,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		grab_swap_token();
 	}
 
+	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
 	mark_page_accessed(page);
 	lock_page(page);
 

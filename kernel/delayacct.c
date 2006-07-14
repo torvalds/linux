@@ -85,3 +85,22 @@ static void delayacct_end(struct timespec *start, struct timespec *end,
 	spin_unlock(&current->delays->lock);
 }
 
+void __delayacct_blkio_start(void)
+{
+	delayacct_start(&current->delays->blkio_start);
+}
+
+void __delayacct_blkio_end(void)
+{
+	if (current->delays->flags & DELAYACCT_PF_SWAPIN)
+		/* Swapin block I/O */
+		delayacct_end(&current->delays->blkio_start,
+			&current->delays->blkio_end,
+			&current->delays->swapin_delay,
+			&current->delays->swapin_count);
+	else	/* Other block I/O */
+		delayacct_end(&current->delays->blkio_start,
+			&current->delays->blkio_end,
+			&current->delays->blkio_delay,
+			&current->delays->blkio_count);
+}

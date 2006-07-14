@@ -51,6 +51,7 @@
 #include <linux/times.h>
 #include <linux/acct.h>
 #include <linux/kprobes.h>
+#include <linux/delayacct.h>
 #include <asm/tlb.h>
 
 #include <asm/unistd.h>
@@ -4534,9 +4535,11 @@ void __sched io_schedule(void)
 {
 	struct rq *rq = &__raw_get_cpu_var(runqueues);
 
+	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
 	schedule();
 	atomic_dec(&rq->nr_iowait);
+	delayacct_blkio_end();
 }
 EXPORT_SYMBOL(io_schedule);
 
@@ -4545,9 +4548,11 @@ long __sched io_schedule_timeout(long timeout)
 	struct rq *rq = &__raw_get_cpu_var(runqueues);
 	long ret;
 
+	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
 	ret = schedule_timeout(timeout);
 	atomic_dec(&rq->nr_iowait);
+	delayacct_blkio_end();
 	return ret;
 }
 

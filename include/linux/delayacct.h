@@ -19,6 +19,13 @@
 
 #include <linux/sched.h>
 
+/*
+ * Per-task flags relevant to delay accounting
+ * maintained privately to avoid exhausting similar flags in sched.h:PF_*
+ * Used to set current->delays->flags
+ */
+#define DELAYACCT_PF_SWAPIN	0x00000001	/* I am doing a swapin */
+
 #ifdef CONFIG_TASK_DELAY_ACCT
 
 extern int delayacct_on;	/* Delay accounting turned on/off */
@@ -26,6 +33,8 @@ extern kmem_cache_t *delayacct_cache;
 extern void delayacct_init(void);
 extern void __delayacct_tsk_init(struct task_struct *);
 extern void __delayacct_tsk_exit(struct task_struct *);
+extern void __delayacct_blkio_start(void);
+extern void __delayacct_blkio_end(void);
 
 static inline void delayacct_set_flag(int flag)
 {
@@ -53,6 +62,18 @@ static inline void delayacct_tsk_exit(struct task_struct *tsk)
 		__delayacct_tsk_exit(tsk);
 }
 
+static inline void delayacct_blkio_start(void)
+{
+	if (current->delays)
+		__delayacct_blkio_start();
+}
+
+static inline void delayacct_blkio_end(void)
+{
+	if (current->delays)
+		__delayacct_blkio_end();
+}
+
 #else
 static inline void delayacct_set_flag(int flag)
 {}
@@ -63,6 +84,10 @@ static inline void delayacct_init(void)
 static inline void delayacct_tsk_init(struct task_struct *tsk)
 {}
 static inline void delayacct_tsk_exit(struct task_struct *tsk)
+{}
+static inline void delayacct_blkio_start(void)
+{}
+static inline void delayacct_blkio_end(void)
 {}
 #endif /* CONFIG_TASK_DELAY_ACCT */
 
