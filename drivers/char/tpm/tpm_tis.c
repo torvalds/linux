@@ -424,6 +424,7 @@ static irqreturn_t tis_int_handler(int irq, void *dev_id, struct pt_regs *regs)
 	iowrite32(interrupt,
 		  chip->vendor.iobase +
 		  TPM_INT_STATUS(chip->vendor.locality));
+	ioread32(chip->vendor.iobase + TPM_INT_STATUS(chip->vendor.locality));
 	return IRQ_HANDLED;
 }
 
