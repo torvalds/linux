@@ -35,7 +35,7 @@ MODULE_PARM_DESC(major, "Major device number");
 
 #define MAX_PINS 32		/* 64 later, when known ok */
 
-struct nsc_gpio_ops scx200_access = {
+struct nsc_gpio_ops scx200_gpio_ops = {
 	.owner		= THIS_MODULE,
 	.gpio_config	= scx200_gpio_configure,
 	.gpio_dump	= nsc_gpio_dump,
@@ -44,12 +44,12 @@ struct nsc_gpio_ops scx200_access = {
 	.gpio_change	= scx200_gpio_change,
 	.gpio_current	= scx200_gpio_current
 };
-EXPORT_SYMBOL(scx200_access);
+EXPORT_SYMBOL(scx200_gpio_ops);
 
 static int scx200_gpio_open(struct inode *inode, struct file *file)
 {
 	unsigned m = iminor(inode);
-	file->private_data = &scx200_access;
+	file->private_data = &scx200_gpio_ops;
 
 	if (m >= MAX_PINS)
 		return -EINVAL;
@@ -61,7 +61,7 @@ static int scx200_gpio_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations scx200_gpio_fops = {
+static const struct file_operations scx200_gpio_fileops = {
 	.owner   = THIS_MODULE,
 	.write   = nsc_gpio_write,
 	.read    = nsc_gpio_read,
@@ -91,7 +91,7 @@ static int __init scx200_gpio_init(void)
 		goto undo_malloc;
 
 	/* nsc_gpio uses dev_dbg(), so needs this */
-	scx200_access.dev = &pdev->dev;
+	scx200_gpio_ops.dev = &pdev->dev;
 
 	if (major) {
 		devid = MKDEV(major, 0);
@@ -105,7 +105,7 @@ static int __init scx200_gpio_init(void)
 		goto undo_platform_device_add;
 	}
 
-	cdev_init(&scx200_gpio_cdev, &scx200_gpio_fops);
+	cdev_init(&scx200_gpio_cdev, &scx200_gpio_fileops);
 	cdev_add(&scx200_gpio_cdev, devid, MAX_PINS);
 
 	return 0; /* succeed */

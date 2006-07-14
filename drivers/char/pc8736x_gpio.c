@@ -212,7 +212,7 @@ static void pc8736x_gpio_change(unsigned index)
 	pc8736x_gpio_set(index, !pc8736x_gpio_current(index));
 }
 
-static struct nsc_gpio_ops pc8736x_access = {
+static struct nsc_gpio_ops pc8736x_gpio_ops = {
 	.owner		= THIS_MODULE,
 	.gpio_config	= pc8736x_gpio_configure,
 	.gpio_dump	= nsc_gpio_dump,
@@ -221,11 +221,12 @@ static struct nsc_gpio_ops pc8736x_access = {
 	.gpio_change	= pc8736x_gpio_change,
 	.gpio_current	= pc8736x_gpio_current
 };
+EXPORT_SYMBOL(pc8736x_gpio_ops);
 
 static int pc8736x_gpio_open(struct inode *inode, struct file *file)
 {
 	unsigned m = iminor(inode);
-	file->private_data = &pc8736x_access;
+	file->private_data = &pc8736x_gpio_ops;
 
 	dev_dbg(&pdev->dev, "open %d\n", m);
 
@@ -234,7 +235,7 @@ static int pc8736x_gpio_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static const struct file_operations pc8736x_gpio_fops = {
+static const struct file_operations pc8736x_gpio_fileops = {
 	.owner	= THIS_MODULE,
 	.open	= pc8736x_gpio_open,
 	.write	= nsc_gpio_write,
@@ -276,7 +277,7 @@ static int __init pc8736x_gpio_init(void)
 		dev_err(&pdev->dev, "no device found\n");
 		goto undo_platform_dev_add;
 	}
-	pc8736x_access.dev = &pdev->dev;
+	pc8736x_gpio_ops.dev = &pdev->dev;
 
 	/* Verify that chip and it's GPIO unit are both enabled.
 	   My BIOS does this, so I take minimum action here
@@ -326,7 +327,7 @@ static int __init pc8736x_gpio_init(void)
 	pc8736x_init_shadow();
 
 	/* ignore minor errs, and succeed */
-	cdev_init(&pc8736x_gpio_cdev, &pc8736x_gpio_fops);
+	cdev_init(&pc8736x_gpio_cdev, &pc8736x_gpio_fileops);
 	cdev_add(&pc8736x_gpio_cdev, devid, PC8736X_GPIO_CT);
 
 	return 0;
@@ -352,8 +353,6 @@ static void __exit pc8736x_gpio_cleanup(void)
 	platform_device_del(pdev);
 	platform_device_put(pdev);
 }
-
-EXPORT_SYMBOL(pc8736x_access);
 
 module_init(pc8736x_gpio_init);
 module_exit(pc8736x_gpio_cleanup);
