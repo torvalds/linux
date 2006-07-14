@@ -492,16 +492,15 @@ int bcm43xx_rx(struct bcm43xx_private *bcm,
 
 	memset(&stats, 0, sizeof(stats));
 	stats.mac_time = le16_to_cpu(rxhdr->mactime);
-	stats.rssi = bcm43xx_rssi_postprocess(bcm, rxhdr->rssi, is_ofdm,
+	stats.rssi = rxhdr->rssi;
+	stats.signal = bcm43xx_rssi_postprocess(bcm, rxhdr->rssi, is_ofdm,
 					      !!(rxflags1 & BCM43xx_RXHDR_FLAGS1_2053RSSIADJ),
 					      !!(rxflags3 & BCM43xx_RXHDR_FLAGS3_2050RSSIADJ));
-	stats.signal = rxhdr->signal_quality;	//FIXME
 //TODO	stats.noise = 
 	if (is_ofdm)
 		stats.rate = bcm43xx_plcp_get_bitrate_ofdm(plcp);
 	else
 		stats.rate = bcm43xx_plcp_get_bitrate_cck(plcp);
-//printk("RX ofdm %d, rate == %u\n", is_ofdm, stats.rate);
 	stats.received_channel = radio->channel;
 //TODO	stats.control = 
 	stats.mask = IEEE80211_STATMASK_SIGNAL |
