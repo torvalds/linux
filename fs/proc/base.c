@@ -1338,6 +1338,7 @@ static int pid_revalidate(struct dentry *dentry, struct nameidata *nd)
 		} else {
 			inode->i_uid = 0;
 			inode->i_gid = 0;
+			inode->i_mode = 0;
 		}
 		security_task_to_inode(task, inode);
 		put_task_struct(task);
