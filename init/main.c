@@ -41,6 +41,7 @@
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
 #include <linux/efi.h>
+#include <linux/taskstats_kern.h>
 #include <linux/delayacct.h>
 #include <linux/unistd.h>
 #include <linux/rmap.h>
@@ -575,6 +576,7 @@ asmlinkage void __init start_kernel(void)
 	proc_root_init();
 #endif
 	cpuset_init();
+	taskstats_init_early();
 	delayacct_init();
 
 	check_bugs();

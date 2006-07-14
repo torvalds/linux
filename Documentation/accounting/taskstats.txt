@@ -1,0 +1,146 @@
+Per-task statistics interface
+-----------------------------
+
+
+Taskstats is a netlink-based interface for sending per-task and
+per-process statistics from the kernel to userspace.
+
+Taskstats was designed for the following benefits:
+
+- efficiently provide statistics during lifetime of a task and on its exit
+- unified interface for multiple accounting subsystems
+- extensibility for use by future accounting patches
+
+Terminology
+-----------
+
+"pid", "tid" and "task" are used interchangeably and refer to the standard
+Linux task defined by struct task_struct.  per-pid stats are the same as
+per-task stats.
+
+"tgid", "process" and "thread group" are used interchangeably and refer to the
+tasks that share an mm_struct i.e. the traditional Unix process. Despite the
+use of tgid, there is no special treatment for the task that is thread group
+leader - a process is deemed alive as long as it has any task belonging to it.
+
+Usage
+-----
+
+To get statistics during task's lifetime, userspace opens a unicast netlink
+socket (NETLINK_GENERIC family) and sends commands specifying a pid or a tgid.
+The response contains statistics for a task (if pid is specified) or the sum of
+statistics for all tasks of the process (if tgid is specified).
+
+To obtain statistics for tasks which are exiting, userspace opens a multicast
+netlink socket. Each time a task exits, two records are sent by the kernel to
+each listener on the multicast socket. The first the per-pid task's statistics
+and the second is the sum for all tasks of the process to which the task
+belongs (the task does not need to be the thread group leader). The need for
+per-tgid stats to be sent for each exiting task is explained in the per-tgid
+stats section below.
+
+
+Interface
+---------
+
+The user-kernel interface is encapsulated in include/linux/taskstats.h
+
+To avoid this documentation becoming obsolete as the interface evolves, only
+an outline of the current version is given. taskstats.h always overrides the
+description here.
+
+struct taskstats is the common accounting structure for both per-pid and
+per-tgid data. It is versioned and can be extended by each accounting subsystem
+that is added to the kernel. The fields and their semantics are defined in the
+taskstats.h file.
+
+The data exchanged between user and kernel space is a netlink message belonging
+to the NETLINK_GENERIC family and using the netlink attributes interface.
+The messages are in the format
+
+    +----------+- - -+-------------+-------------------+
+    | nlmsghdr | Pad |  genlmsghdr | taskstats payload |
+    +----------+- - -+-------------+-------------------+
+
+
+The taskstats payload is one of the following three kinds:
+
+1. Commands: Sent from user to kernel. The payload is one attribute, of type
+TASKSTATS_CMD_ATTR_PID/TGID, containing a u32 pid or tgid in the attribute
+payload. The pid/tgid denotes the task/process for which userspace wants
+statistics.
+
+2. Response for a command: sent from the kernel in response to a userspace
+command. The payload is a series of three attributes of type:
+
+a) TASKSTATS_TYPE_AGGR_PID/TGID : attribute containing no payload but indicates
+a pid/tgid will be followed by some stats.
+
+b) TASKSTATS_TYPE_PID/TGID: attribute whose payload is the pid/tgid whose stats
+is being returned.
+
+c) TASKSTATS_TYPE_STATS: attribute with a struct taskstsats as payload. The
+same structure is used for both per-pid and per-tgid stats.
+
+3. New message sent by kernel whenever a task exits. The payload consists of a
+   series of attributes of the following type:
+
+a) TASKSTATS_TYPE_AGGR_PID: indicates next two attributes will be pid+stats
+b) TASKSTATS_TYPE_PID: contains exiting task's pid
+c) TASKSTATS_TYPE_STATS: contains the exiting task's per-pid stats
+d) TASKSTATS_TYPE_AGGR_TGID: indicates next two attributes will be tgid+stats
+e) TASKSTATS_TYPE_TGID: contains tgid of process to which task belongs
+f) TASKSTATS_TYPE_STATS: contains the per-tgid stats for exiting task's process
+
+
+per-tgid stats
+--------------
+
+Taskstats provides per-process stats, in addition to per-task stats, since
+resource management is often done at a process granularity and aggregating task
+stats in userspace alone is inefficient and potentially inaccurate (due to lack
+of atomicity).
+
+However, maintaining per-process, in addition to per-task stats, within the
+kernel has space and time overheads. Hence the taskstats implementation
+dynamically sums up the per-task stats for each task belonging to a process
+whenever per-process stats are needed.
+
+Not maintaining per-tgid stats creates a problem when userspace is interested
+in getting these stats when the process dies i.e. the last thread of
+a process exits. It isn't possible to simply return some aggregated per-process
+statistic from the kernel.
+
+The approach taken by taskstats is to return the per-tgid stats *each* time
+a task exits, in addition to the per-pid stats for that task. Userspace can
+maintain task<->process mappings and use them to maintain the per-process stats
+in userspace, updating the aggregate appropriately as the tasks of a process
+exit.
+
+Extending taskstats
+-------------------
+
+There are two ways to extend the taskstats interface to export more
+per-task/process stats as patches to collect them get added to the kernel
+in future:
+
+1. Adding more fields to the end of the existing struct taskstats. Backward
+   compatibility is ensured by the version number within the
+   structure. Userspace will use only the fields of the struct that correspond
+   to the version its using.
+
+2. Defining separate statistic structs and using the netlink attributes
+   interface to return them. Since userspace processes each netlink attribute
+   independently, it can always ignore attributes whose type it does not
+   understand (because it is using an older version of the interface).
+
+
+Choosing between 1. and 2. is a matter of trading off flexibility and
+overhead. If only a few fields need to be added, then 1. is the preferable
+path since the kernel and userspace don't need to incur the overhead of
+processing new netlink attributes. But if the new fields expand the existing
+struct too much, requiring disparate userspace accounting utilities to
+unnecessarily receive large structures whose fields are of no interest, then
+extending the attributes structure would be worthwhile.
+
+----
