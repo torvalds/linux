@@ -32,12 +32,11 @@ The response contains statistics for a task (if pid is specified) or the sum of
 statistics for all tasks of the process (if tgid is specified).
 
 To obtain statistics for tasks which are exiting, userspace opens a multicast
-netlink socket. Each time a task exits, two records are sent by the kernel to
-each listener on the multicast socket. The first the per-pid task's statistics
-and the second is the sum for all tasks of the process to which the task
-belongs (the task does not need to be the thread group leader). The need for
-per-tgid stats to be sent for each exiting task is explained in the per-tgid
-stats section below.
+netlink socket. Each time a task exits, its per-pid statistics is always sent
+by the kernel to each listener on the multicast socket. In addition, if it is
+the last thread exiting its thread group, an additional record containing the
+per-tgid stats are also sent. The latter contains the sum of per-pid stats for
+all threads in the thread group, both past and present.
 
 getdelays.c is a simple utility demonstrating usage of the taskstats interface
 for reporting delay accounting statistics.
@@ -104,20 +103,14 @@ stats in userspace alone is inefficient and potentially inaccurate (due to lack
 of atomicity).
 
 However, maintaining per-process, in addition to per-task stats, within the
-kernel has space and time overheads. Hence the taskstats implementation
-dynamically sums up the per-task stats for each task belonging to a process
-whenever per-process stats are needed.
+kernel has space and time overheads. To address this, the taskstats code
+accumalates each exiting task's statistics into a process-wide data structure.
+When the last task of a process exits, the process level data accumalated also
+gets sent to userspace (along with the per-task data).
 
-Not maintaining per-tgid stats creates a problem when userspace is interested
-in getting these stats when the process dies i.e. the last thread of
-a process exits. It isn't possible to simply return some aggregated per-process
-statistic from the kernel.
-
-The approach taken by taskstats is to return the per-tgid stats *each* time
-a task exits, in addition to the per-pid stats for that task. Userspace can
-maintain task<->process mappings and use them to maintain the per-process stats
-in userspace, updating the aggregate appropriately as the tasks of a process
-exit.
+When a user queries to get per-tgid data, the sum of all other live threads in
+the group is added up and added to the accumalated total for previously exited
+threads of the same thread group.
 
 Extending taskstats
 -------------------

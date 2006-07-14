@@ -463,6 +463,10 @@ struct signal_struct {
 #ifdef CONFIG_BSD_PROCESS_ACCT
 	struct pacct_struct pacct;	/* per-process accounting information */
 #endif
+#ifdef CONFIG_TASKSTATS
+	spinlock_t stats_lock;
+	struct taskstats *stats;
+#endif
 };
 
 /* Context switch must be unlocked if interrupts are to be enabled */

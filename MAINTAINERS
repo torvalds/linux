@@ -2240,6 +2240,12 @@ M:	tsbogend@alpha.franken.de
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+PER-TASK DELAY ACCOUNTING
+P:	Shailabh Nagar
+M:	nagar@watson.ibm.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 PERSONALITY HANDLING
 P:	Christoph Hellwig
 M:	hch@infradead.org
@@ -2765,6 +2771,12 @@ S:	Maintained
 TI OMAP RANDOM NUMBER GENERATOR SUPPORT
 P:	Deepak Saxena
 M:	dsaxena@plexity.net
+S:	Maintained
+
+TASKSTATS STATISTICS INTERFACE
+P:	Shailabh Nagar
+M:	nagar@watson.ibm.com
+L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 TI PARALLEL LINK CABLE DRIVER

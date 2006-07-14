@@ -132,45 +132,78 @@ static int fill_pid(pid_t pid, struct task_struct *pidtsk,
 static int fill_tgid(pid_t tgid, struct task_struct *tgidtsk,
 		struct taskstats *stats)
 {
-	int rc;
 	struct task_struct *tsk, *first;
+	unsigned long flags;
 
+	/*
+	 * Add additional stats from live tasks except zombie thread group
+	 * leaders who are already counted with the dead tasks
+	 */
 	first = tgidtsk;
-	read_lock(&tasklist_lock);
 	if (!first) {
+		read_lock(&tasklist_lock);
 		first = find_task_by_pid(tgid);
 		if (!first) {
 			read_unlock(&tasklist_lock);
 			return -ESRCH;
 		}
-	}
+		get_task_struct(first);
+		read_unlock(&tasklist_lock);
+	} else
+		get_task_struct(first);
+
+	/* Start with stats from dead tasks */
+	spin_lock_irqsave(&first->signal->stats_lock, flags);
+	if (first->signal->stats)
+		memcpy(stats, first->signal->stats, sizeof(*stats));
+	spin_unlock_irqrestore(&first->signal->stats_lock, flags);
+
 	tsk = first;
+	read_lock(&tasklist_lock);
 	do {
+		if (tsk->exit_state == EXIT_ZOMBIE && thread_group_leader(tsk))
+			continue;
 		/*
-		 * Each accounting subsystem adds calls its functions to
+		 * Accounting subsystem can call its functions here to
 		 * fill in relevant parts of struct taskstsats as follows
 		 *
-		 *	rc = per-task-foo(stats, tsk);
-		 *	if (rc)
-		 *		break;
+		 *	per-task-foo(stats, tsk);
 		 */
-
-		rc = delayacct_add_tsk(stats, tsk);
-		if (rc)
-			break;
+		delayacct_add_tsk(stats, tsk);
 
 	} while_each_thread(first, tsk);
 	read_unlock(&tasklist_lock);
 	stats->version = TASKSTATS_VERSION;
 
-
 	/*
-	 * Accounting subsytems can also add calls here if they don't
-	 * wish to aggregate statistics for per-tgid stats
+	 * Accounting subsytems can also add calls here to modify
+	 * fields of taskstats.
 	 */
 
-	return rc;
+	return 0;
 }
+
+
+static void fill_tgid_exit(struct task_struct *tsk)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&tsk->signal->stats_lock, flags);
+	if (!tsk->signal->stats)
+		goto ret;
+
+	/*
+	 * Each accounting subsystem calls its functions here to
+	 * accumalate its per-task stats for tsk, into the per-tgid structure
+	 *
+	 *	per-task-foo(tsk->signal->stats, tsk);
+	 */
+	delayacct_add_tsk(tsk->signal->stats, tsk);
+ret:
+	spin_unlock_irqrestore(&tsk->signal->stats_lock, flags);
+	return;
+}
+
 
 static int taskstats_send_stats(struct sk_buff *skb, struct genl_info *info)
 {
@@ -230,7 +263,7 @@ err:
 
 /* Send pid data out on exit */
 void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
-			struct taskstats *tgidstats)
+			int group_dead)
 {
 	int rc;
 	struct sk_buff *rep_skb;
@@ -238,13 +271,16 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 	size_t size;
 	int is_thread_group;
 	struct nlattr *na;
+	unsigned long flags;
 
 	if (!family_registered || !tidstats)
 		return;
 
-	is_thread_group = !thread_group_empty(tsk);
-	rc = 0;
+	spin_lock_irqsave(&tsk->signal->stats_lock, flags);
+	is_thread_group = tsk->signal->stats ? 1 : 0;
+	spin_unlock_irqrestore(&tsk->signal->stats_lock, flags);
 
+	rc = 0;
 	/*
 	 * Size includes space for nested attributes
 	 */
@@ -268,30 +304,28 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 			*tidstats);
 	nla_nest_end(rep_skb, na);
 
-	if (!is_thread_group || !tgidstats) {
-		send_reply(rep_skb, 0, TASKSTATS_MSG_MULTICAST);
-		goto ret;
-	}
+	if (!is_thread_group)
+		goto send;
 
-	rc = fill_tgid(tsk->pid, tsk, tgidstats);
 	/*
-	 * If fill_tgid() failed then one probable reason could be that the
-	 * thread group leader has exited. fill_tgid() will fail, send out
-	 * the pid statistics collected earlier.
+	 * tsk has/had a thread group so fill the tsk->signal->stats structure
+	 * Doesn't matter if tsk is the leader or the last group member leaving
 	 */
-	if (rc < 0) {
-		send_reply(rep_skb, 0, TASKSTATS_MSG_MULTICAST);
-		goto ret;
-	}
+
+	fill_tgid_exit(tsk);
+	if (!group_dead)
+		goto send;
 
 	na = nla_nest_start(rep_skb, TASKSTATS_TYPE_AGGR_TGID);
 	NLA_PUT_U32(rep_skb, TASKSTATS_TYPE_TGID, (u32)tsk->tgid);
+	/* No locking needed for tsk->signal->stats since group is dead */
 	NLA_PUT_TYPE(rep_skb, struct taskstats, TASKSTATS_TYPE_STATS,
-			*tgidstats);
+			*tsk->signal->stats);
 	nla_nest_end(rep_skb, na);
 
+send:
 	send_reply(rep_skb, 0, TASKSTATS_MSG_MULTICAST);
-	goto ret;
+	return;
 
 nla_put_failure:
 	genlmsg_cancel(rep_skb, reply);

@@ -48,9 +48,10 @@ counter (say cpu_delay_total) for a task will give the delay
 experienced by the task waiting for the corresponding resource
 in that interval.
 
-When a task exits, records containing the per-task and per-process statistics
-are sent to userspace without requiring a command. More details are given in
-the taskstats interface description.
+When a task exits, records containing the per-task statistics
+are sent to userspace without requiring a command. If it is the last exiting
+task of a thread group, the per-tgid statistics are also sent. More details
+are given in the taskstats interface description.
 
 The getdelays.c userspace utility in this directory allows simple commands to
 be run and the corresponding delay statistics to be displayed. It also serves
@@ -107,9 +108,3 @@ IO	count	delay total
 	0	0
 MEM	count	delay total
 	0	0
-
-
-
-
-
-
