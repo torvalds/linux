@@ -422,7 +422,6 @@ static inline int crypto_cipher_encrypt_iv(struct crypto_tfm *tfm,
                                            unsigned int nbytes, u8 *iv)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
-	BUG_ON(tfm->crt_cipher.cit_mode == CRYPTO_TFM_MODE_ECB);
 	return tfm->crt_cipher.cit_encrypt_iv(tfm, dst, src, nbytes, iv);
 }                                        
 
@@ -441,7 +440,6 @@ static inline int crypto_cipher_decrypt_iv(struct crypto_tfm *tfm,
                                            unsigned int nbytes, u8 *iv)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
-	BUG_ON(tfm->crt_cipher.cit_mode == CRYPTO_TFM_MODE_ECB);
 	return tfm->crt_cipher.cit_decrypt_iv(tfm, dst, src, nbytes, iv);
 }
 

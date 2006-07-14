@@ -399,6 +399,8 @@ int crypto_init_cipher_ops(struct crypto_tfm *tfm)
 	case CRYPTO_TFM_MODE_ECB:
 		ops->cit_encrypt = ecb_encrypt;
 		ops->cit_decrypt = ecb_decrypt;
+		ops->cit_encrypt_iv = nocrypt_iv;
+		ops->cit_decrypt_iv = nocrypt_iv;
 		break;
 		
 	case CRYPTO_TFM_MODE_CBC:
