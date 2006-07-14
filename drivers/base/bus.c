@@ -467,7 +467,7 @@ static void remove_bind_files(struct device_driver *drv)
 	driver_remove_file(drv, &driver_attr_unbind);
 }
 #else
-static inline void add_bind_files(struct device_driver *drv) {}
+static inline int add_bind_files(struct device_driver *drv) { return 0; }
 static inline void remove_bind_files(struct device_driver *drv) {}
 #endif
 
