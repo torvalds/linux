@@ -37,6 +37,7 @@ extern void __delayacct_tsk_exit(struct task_struct *);
 extern void __delayacct_blkio_start(void);
 extern void __delayacct_blkio_end(void);
 extern int __delayacct_add_tsk(struct taskstats *, struct task_struct *);
+extern __u64 __delayacct_blkio_ticks(struct task_struct *);
 
 static inline void delayacct_set_flag(int flag)
 {
@@ -86,6 +87,13 @@ static inline int delayacct_add_tsk(struct taskstats *d,
 	return __delayacct_add_tsk(d, tsk);
 }
 
+static inline __u64 delayacct_blkio_ticks(struct task_struct *tsk)
+{
+	if (tsk->delays)
+		return __delayacct_blkio_ticks(tsk);
+	return 0;
+}
+
 #else
 static inline void delayacct_set_flag(int flag)
 {}
@@ -103,6 +111,8 @@ static inline void delayacct_blkio_end(void)
 {}
 static inline int delayacct_add_tsk(struct taskstats *d,
 					struct task_struct *tsk)
+{ return 0; }
+static inline __u64 delayacct_blkio_ticks(struct task_struct *tsk)
 { return 0; }
 #endif /* CONFIG_TASK_DELAY_ACCT */
 

@@ -164,3 +164,15 @@ done:
 	spin_unlock(&tsk->delays_lock);
 	return 0;
 }
+
+__u64 __delayacct_blkio_ticks(struct task_struct *tsk)
+{
+	__u64 ret;
+
+	spin_lock(&tsk->delays->lock);
+	ret = nsec_to_clock_t(tsk->delays->blkio_delay +
+				tsk->delays->swapin_delay);
+	spin_unlock(&tsk->delays->lock);
+	return ret;
+}
+
