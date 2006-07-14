@@ -41,8 +41,6 @@ struct nsc_gpio_ops scx200_access = {
 	.gpio_dump	= nsc_gpio_dump,
 	.gpio_get	= scx200_gpio_get,
 	.gpio_set	= scx200_gpio_set,
-	.gpio_set_high	= scx200_gpio_set_high,
-	.gpio_set_low	= scx200_gpio_set_low,
 	.gpio_change	= scx200_gpio_change,
 	.gpio_current	= scx200_gpio_current
 };

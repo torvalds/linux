@@ -218,8 +218,6 @@ static struct nsc_gpio_ops pc8736x_access = {
 	.gpio_dump	= nsc_gpio_dump,
 	.gpio_get	= pc8736x_gpio_get,
 	.gpio_set	= pc8736x_gpio_set,
-	.gpio_set_high	= pc8736x_gpio_set_high,
-	.gpio_set_low	= pc8736x_gpio_set_low,
 	.gpio_change	= pc8736x_gpio_change,
 	.gpio_current	= pc8736x_gpio_current
 };
