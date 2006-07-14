@@ -618,6 +618,7 @@ static int srp_map_fmr(struct srp_device *dev, struct scatterlist *scat,
 					dma_pages, page_cnt, &io_addr);
 	if (IS_ERR(req->fmr)) {
 		ret = PTR_ERR(req->fmr);
+		req->fmr = NULL;
 		goto out;
 	}
 
