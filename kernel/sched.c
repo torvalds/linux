@@ -1788,7 +1788,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
 		WARN_ON(rq->prev_mm);
 		rq->prev_mm = oldmm;
 	}
+	/*
+	 * Since the runqueue lock will be released by the next
+	 * task (which is an invalid locking op but in the case
+	 * of the scheduler it's an obvious special-case), so we
+	 * do an early lockdep release here:
+	 */
+#ifndef __ARCH_WANT_UNLOCKED_CTXSW
 	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
+#endif
 
 	/* Here we just switch the register state and the stack. */
 	switch_to(prev, next, prev);
