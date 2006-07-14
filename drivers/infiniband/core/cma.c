@@ -812,6 +812,7 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		cma_modify_qp_err(&id_priv->id);
 		status = ib_event->param.rej_rcvd.reason;
 		event = RDMA_CM_EVENT_REJECTED;
+		private_data_len = IB_CM_REJ_PRIVATE_DATA_SIZE;
 		break;
 	default:
 		printk(KERN_ERR "RDMA CMA: unexpected IB CM event: %d",
