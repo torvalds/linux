@@ -1397,7 +1397,7 @@ static void esp_get_dmabufs(struct esp *esp, struct scsi_cmnd *sp)
 			sp->SCp.ptr = NULL;
 		}
 	} else {
-		sp->SCp.buffer = (struct scatterlist *) sp->buffer;
+		sp->SCp.buffer = (struct scatterlist *) sp->request_buffer;
 		sp->SCp.buffers_residual = sbus_map_sg(esp->sdev,
 						       sp->SCp.buffer,
 						       sp->use_sg,
@@ -1410,7 +1410,7 @@ static void esp_get_dmabufs(struct esp *esp, struct scsi_cmnd *sp)
 static void esp_release_dmabufs(struct esp *esp, struct scsi_cmnd *sp)
 {
 	if (sp->use_sg) {
-		sbus_unmap_sg(esp->sdev, sp->buffer, sp->use_sg,
+		sbus_unmap_sg(esp->sdev, sp->request_buffer, sp->use_sg,
 			      sp->sc_data_direction);
 	} else if (sp->request_bufflen) {
 		sbus_unmap_single(esp->sdev,
