@@ -5,7 +5,7 @@ unifdef-y += a.out.h auxvec.h byteorder.h errno.h fcntl.h ioctl.h	\
 	statfs.h termbits.h termios.h timex.h types.h unistd.h user.h
 
 # These really shouldn't be exported
-unifdef-y += atomic.h io.h
+unifdef-y += io.h
 
 # These probably shouldn't be exported
 unifdef-y += elf.h page.h
