@@ -502,9 +502,36 @@ struct file_operations proc_schedstat_operations = {
 	.release = single_release,
 };
 
+/*
+ * Expects runqueue lock to be held for atomicity of update
+ */
+static inline void
+rq_sched_info_arrive(struct rq *rq, unsigned long delta_jiffies)
+{
+	if (rq) {
+		rq->rq_sched_info.run_delay += delta_jiffies;
+		rq->rq_sched_info.pcnt++;
+	}
+}
+
+/*
+ * Expects runqueue lock to be held for atomicity of update
+ */
+static inline void
+rq_sched_info_depart(struct rq *rq, unsigned long delta_jiffies)
+{
+	if (rq)
+		rq->rq_sched_info.cpu_time += delta_jiffies;
+}
 # define schedstat_inc(rq, field)	do { (rq)->field++; } while (0)
 # define schedstat_add(rq, field, amt)	do { (rq)->field += (amt); } while (0)
 #else /* !CONFIG_SCHEDSTATS */
+static inline void
+rq_sched_info_arrive(struct rq *rq, unsigned long delta_jiffies)
+{}
+static inline void
+rq_sched_info_depart(struct rq *rq, unsigned long delta_jiffies)
+{}
 # define schedstat_inc(rq, field)	do { } while (0)
 # define schedstat_add(rq, field, amt)	do { } while (0)
 #endif
@@ -524,7 +551,7 @@ static inline struct rq *this_rq_lock(void)
 	return rq;
 }
 
-#ifdef CONFIG_SCHEDSTATS
+#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 /*
  * Called when a process is dequeued from the active array and given
  * the cpu.  We should note that with the exception of interactive
@@ -552,21 +579,16 @@ static inline void sched_info_dequeued(struct task_struct *t)
  */
 static void sched_info_arrive(struct task_struct *t)
 {
-	unsigned long now = jiffies, diff = 0;
-	struct rq *rq = task_rq(t);
+	unsigned long now = jiffies, delta_jiffies = 0;
 
 	if (t->sched_info.last_queued)
-		diff = now - t->sched_info.last_queued;
+		delta_jiffies = now - t->sched_info.last_queued;
 	sched_info_dequeued(t);
-	t->sched_info.run_delay += diff;
+	t->sched_info.run_delay += delta_jiffies;
 	t->sched_info.last_arrival = now;
 	t->sched_info.pcnt++;
 
-	if (!rq)
-		return;
-
-	rq->rq_sched_info.run_delay += diff;
-	rq->rq_sched_info.pcnt++;
+	rq_sched_info_arrive(task_rq(t), delta_jiffies);
 }
 
 /*
@@ -586,8 +608,9 @@ static void sched_info_arrive(struct task_struct *t)
  */
 static inline void sched_info_queued(struct task_struct *t)
 {
-	if (!t->sched_info.last_queued)
-		t->sched_info.last_queued = jiffies;
+	if (unlikely(sched_info_on()))
+		if (!t->sched_info.last_queued)
+			t->sched_info.last_queued = jiffies;
 }
 
 /*
@@ -596,13 +619,10 @@ static inline void sched_info_queued(struct task_struct *t)
  */
 static inline void sched_info_depart(struct task_struct *t)
 {
-	struct rq *rq = task_rq(t);
-	unsigned long diff = jiffies - t->sched_info.last_arrival;
+	unsigned long delta_jiffies = jiffies - t->sched_info.last_arrival;
 
-	t->sched_info.cpu_time += diff;
-
-	if (rq)
-		rq->rq_sched_info.cpu_time += diff;
+	t->sched_info.cpu_time += delta_jiffies;
+	rq_sched_info_depart(task_rq(t), delta_jiffies);
 }
 
 /*
@@ -611,7 +631,7 @@ static inline void sched_info_depart(struct task_struct *t)
  * the idle task.)  We are only called when prev != next.
  */
 static inline void
-sched_info_switch(struct task_struct *prev, struct task_struct *next)
+__sched_info_switch(struct task_struct *prev, struct task_struct *next)
 {
 	struct rq *rq = task_rq(prev);
 
@@ -626,10 +646,16 @@ sched_info_switch(struct task_struct *prev, struct task_struct *next)
 	if (next != rq->idle)
 		sched_info_arrive(next);
 }
+static inline void
+sched_info_switch(struct task_struct *prev, struct task_struct *next)
+{
+	if (unlikely(sched_info_on()))
+		__sched_info_switch(prev, next);
+}
 #else
 #define sched_info_queued(t)		do { } while (0)
 #define sched_info_switch(t, next)	do { } while (0)
-#endif /* CONFIG_SCHEDSTATS */
+#endif /* CONFIG_SCHEDSTATS || CONFIG_TASK_DELAY_ACCT */
 
 /*
  * Adding/removing a task to/from a priority array:
@@ -1531,8 +1557,9 @@ void fastcall sched_fork(struct task_struct *p, int clone_flags)
 
 	INIT_LIST_HEAD(&p->run_list);
 	p->array = NULL;
-#ifdef CONFIG_SCHEDSTATS
-	memset(&p->sched_info, 0, sizeof(p->sched_info));
+#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
+	if (unlikely(sched_info_on()))
+		memset(&p->sched_info, 0, sizeof(p->sched_info));
 #endif
 #if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
 	p->oncpu = 0;
