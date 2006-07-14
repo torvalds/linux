@@ -444,8 +444,9 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	if(timeout != MAX_SCHEDULE_TIMEOUT) {
 		timeout += jiffies;
 		wait_event(ses->server->response_q,
-			(!(midQ->midState & MID_REQUEST_SUBMITTED)) || 
-			time_after(jiffies, timeout) || 
+			(!(midQ->midState & MID_REQUEST_SUBMITTED)) ||
+			(time_after(jiffies, timeout) &&
+				time_after(jiffies, ses->server->lstrp + HZ)) ||
 			((ses->server->tcpStatus != CifsGood) &&
 			 (ses->server->tcpStatus != CifsNew)));
 	} else {
@@ -710,9 +711,18 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	/* No user interrupts in wait - wreaks havoc with performance */
 	if(timeout != MAX_SCHEDULE_TIMEOUT) {
 		timeout += jiffies;
+		/* although we prefer not to time out if the server is still
+		responding - we will time out if the server takes
+		more than 15 (or 45 or 180) seconds to respond to this request
+		and has not responded to any request from other threads
+		on this client within a second (note that it is not worth
+		grabbing the GlobalMid_Lock and slowing things down in this
+		wait event to more accurately check the lstrsp field on some 
+		arch since we are already in an error path that will retry */
 		wait_event(ses->server->response_q,
 			(!(midQ->midState & MID_REQUEST_SUBMITTED)) || 
-			time_after(jiffies, timeout) || 
+			(time_after(jiffies, timeout) &&
+				time_after(jiffies, ses->server->lstrp + HZ)) ||
 			((ses->server->tcpStatus != CifsGood) &&
 			 (ses->server->tcpStatus != CifsNew)));
 	} else {

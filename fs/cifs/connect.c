@@ -612,6 +612,10 @@ multi_t2_fnd:
 #ifdef CONFIG_CIFS_STATS2
 				mid_entry->when_received = jiffies;
 #endif
+				/* so we do not time out requests to  server
+				which is still responding (since server could
+				be busy but not dead) */
+				server->lstrp = jiffies;
 				break;
 			}
 		}
@@ -1969,7 +1973,18 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				}
 					
 				cFYI(1,("Negotiate caps 0x%x",(int)cap));
-
+#ifdef CONFIG_CIFS_DEBUG2
+				if(cap & CIFS_UNIX_FCNTL_CAP)
+					cFYI(1,("FCNTL cap"));
+				if(cap & CIFS_UNIX_EXTATTR_CAP)
+					cFYI(1,("EXTATTR cap"));
+				if(cap & CIFS_UNIX_POSIX_PATHNAMES_CAP)
+					cFYI(1,("POSIX path cap"));
+				if(cap & CIFS_UNIX_XATTR_CAP)
+					cFYI(1,("XATTR cap"));
+				if(cap & CIFS_UNIX_POSIX_ACL_CAP)
+					cFYI(1,("POSIX ACL cap"));
+#endif /* CIFS_DEBUG2 */
 				if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
 					cFYI(1,("setting capabilities failed"));
 				}

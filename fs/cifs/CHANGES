@@ -1,3 +1,9 @@
+Version 1.45
+------------
+Do not time out lockw calls when using posix extensions. Do not
+time out requests if server still responding reasonably fast
+on requests on other threads
+
 Version 1.44
 ------------
 Rewritten sessionsetup support, including support for legacy SMB

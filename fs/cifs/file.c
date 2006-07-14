@@ -644,8 +644,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 	account for negative length which we can not accept over the
 	wire */
 	if (IS_GETLK(cmd)) {
-		if(experimEnabled && 
-		   (cifs_sb->tcon->ses->capabilities & CAP_UNIX) &&
+		if((cifs_sb->tcon->ses->capabilities & CAP_UNIX) &&
 		   (CIFS_UNIX_FCNTL_CAP & 
 			le64_to_cpu(cifs_sb->tcon->fsUnixInfo.Capability))) {
 			int posix_lock_type;
@@ -683,8 +682,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 		FreeXid(xid);
 		return rc;
 	}
-	if (experimEnabled &&
-		(cifs_sb->tcon->ses->capabilities & CAP_UNIX) &&
+	if ((cifs_sb->tcon->ses->capabilities & CAP_UNIX) &&
 		(CIFS_UNIX_FCNTL_CAP &
 			 le64_to_cpu(cifs_sb->tcon->fsUnixInfo.Capability))) {
 		int posix_lock_type;
