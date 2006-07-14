@@ -552,6 +552,23 @@ struct sched_info {
 extern struct file_operations proc_schedstat_operations;
 #endif
 
+#ifdef CONFIG_TASK_DELAY_ACCT
+struct task_delay_info {
+	spinlock_t	lock;
+	unsigned int	flags;	/* Private per-task flags */
+
+	/* For each stat XXX, add following, aligned appropriately
+	 *
+	 * struct timespec XXX_start, XXX_end;
+	 * u64 XXX_delay;
+	 * u32 XXX_count;
+	 *
+	 * Atomicity of updates to XXX_delay, XXX_count protected by
+	 * single lock above (split into XXX_lock if contention is an issue).
+	 */
+};
+#endif
+
 enum idle_type
 {
 	SCHED_IDLE,
@@ -945,6 +962,9 @@ struct task_struct {
 	 * cache last used pipe for splice
 	 */
 	struct pipe_inode_info *splice_pipe;
+#ifdef	CONFIG_TASK_DELAY_ACCT
+	struct task_delay_info *delays;
+#endif
 };
 
 static inline pid_t process_group(struct task_struct *tsk)

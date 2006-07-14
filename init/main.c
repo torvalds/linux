@@ -41,6 +41,7 @@
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
 #include <linux/efi.h>
+#include <linux/delayacct.h>
 #include <linux/unistd.h>
 #include <linux/rmap.h>
 #include <linux/mempolicy.h>
@@ -574,6 +575,7 @@ asmlinkage void __init start_kernel(void)
 	proc_root_init();
 #endif
 	cpuset_init();
+	delayacct_init();
 
 	check_bugs();
 

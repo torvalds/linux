@@ -25,6 +25,7 @@
 #include <linux/mount.h>
 #include <linux/proc_fs.h>
 #include <linux/mempolicy.h>
+#include <linux/delayacct.h>
 #include <linux/cpuset.h>
 #include <linux/syscalls.h>
 #include <linux/signal.h>
@@ -900,6 +901,7 @@ fastcall NORET_TYPE void do_exit(long code)
 #endif
 	if (unlikely(tsk->audit_context))
 		audit_free(tsk);
+	delayacct_tsk_exit(tsk);
 	exit_mm(tsk);
 
 	if (group_dead)
