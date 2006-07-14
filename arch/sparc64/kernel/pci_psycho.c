@@ -1099,9 +1099,6 @@ static void pbm_register_toplevel_resources(struct pci_controller_info *p,
 {
 	char *name = pbm->name;
 
-	sprintf(name, "PSYCHO%d PBM%c",
-		p->index,
-		(pbm == &p->pbm_A ? 'A' : 'B'));
 	pbm->io_space.name = pbm->mem_space.name = name;
 
 	request_resource(&ioport_resource, &pbm->io_space);
