@@ -99,10 +99,6 @@
 #include <asm/system.h>
 #include <linux/pci.h>
 
-#ifndef CONFIG_PCI
-#error Enable PCI in your kernel config
-#endif
-
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/pmc551.h>
 #include <linux/mtd/compatmac.h>
