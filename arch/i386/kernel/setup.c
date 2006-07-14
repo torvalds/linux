@@ -1327,7 +1327,10 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 		res->start = e820.map[i].addr;
 		res->end = res->start + e820.map[i].size - 1;
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		request_resource(&iomem_resource, res);
+		if (request_resource(&iomem_resource, res)) {
+			kfree(res);
+			continue;
+		}
 		if (e820.map[i].type == E820_RAM) {
 			/*
 			 *  We don't know which RAM region contains kernel data,
