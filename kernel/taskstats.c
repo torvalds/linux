@@ -51,6 +51,7 @@ __read_mostly = {
 struct listener {
 	struct list_head list;
 	pid_t pid;
+	char valid;
 };
 
 struct listener_list {
@@ -127,7 +128,7 @@ static int send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
 	struct listener *s, *tmp;
 	struct sk_buff *skb_next, *skb_cur = skb;
 	void *reply = genlmsg_data(genlhdr);
-	int rc, ret;
+	int rc, ret, delcount = 0;
 
 	rc = genlmsg_end(skb, reply);
 	if (rc < 0) {
@@ -137,7 +138,7 @@ static int send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
 
 	rc = 0;
 	listeners = &per_cpu(listener_array, cpu);
-	down_write(&listeners->sem);
+	down_read(&listeners->sem);
 	list_for_each_entry_safe(s, tmp, &listeners->list, list) {
 		skb_next = NULL;
 		if (!list_is_last(&s->list, &listeners->list)) {
@@ -150,14 +151,26 @@ static int send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
 		}
 		ret = genlmsg_unicast(skb_cur, s->pid);
 		if (ret == -ECONNREFUSED) {
-			list_del(&s->list);
-			kfree(s);
+			s->valid = 0;
+			delcount++;
 			rc = ret;
 		}
 		skb_cur = skb_next;
 	}
-	up_write(&listeners->sem);
+	up_read(&listeners->sem);
 
+	if (!delcount)
+		return rc;
+
+	/* Delete invalidated entries */
+	down_write(&listeners->sem);
+	list_for_each_entry_safe(s, tmp, &listeners->list, list) {
+		if (!s->valid) {
+			list_del(&s->list);
+			kfree(s);
+		}
+	}
+	up_write(&listeners->sem);
 	return rc;
 }
 
@@ -290,6 +303,7 @@ static int add_del_listener(pid_t pid, cpumask_t *maskp, int isadd)
 				goto cleanup;
 			s->pid = pid;
 			INIT_LIST_HEAD(&s->list);
+			s->valid = 1;
 
 			listeners = &per_cpu(listener_array, cpu);
 			down_write(&listeners->sem);
