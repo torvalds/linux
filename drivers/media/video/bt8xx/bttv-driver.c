@@ -3909,6 +3909,8 @@ static void bttv_unregister_video(struct bttv *btv)
 /* register video4linux devices */
 static int __devinit bttv_register_video(struct bttv *btv)
 {
+	int ret;
+
 	if (no_overlay <= 0) {
 		bttv_video_template.type |= VID_TYPE_OVERLAY;
 	} else {
@@ -3923,7 +3925,10 @@ static int __devinit bttv_register_video(struct bttv *btv)
 		goto err;
 	printk(KERN_INFO "bttv%d: registered device video%d\n",
 	       btv->c.nr,btv->video_dev->minor & 0x1f);
-	video_device_create_file(btv->video_dev, &class_device_attr_card);
+	ret = video_device_create_file(btv->video_dev, &class_device_attr_card);
+	if (ret < 0)
+		printk(KERN_WARNING "bttv: video_device_create_file error: "
+			"%d\n", ret);
 
 	/* vbi */
 	btv->vbi_dev = vdev_init(btv, &bttv_vbi_template, "vbi");
@@ -4287,6 +4292,8 @@ static struct pci_driver bttv_pci_driver = {
 
 static int bttv_init_module(void)
 {
+	int ret;
+
 	bttv_num = 0;
 
 	printk(KERN_INFO "bttv: driver version %d.%d.%d loaded\n",
@@ -4308,7 +4315,11 @@ static int bttv_init_module(void)
 
 	bttv_check_chipset();
 
-	bus_register(&bttv_sub_bus_type);
+	ret = bus_register(&bttv_sub_bus_type);
+	if (ret < 0) {
+		printk(KERN_WARNING "bttv: bus_register error: %d\n", ret);
+		return ret;
+	}
 	return pci_register_driver(&bttv_pci_driver);
 }
 
