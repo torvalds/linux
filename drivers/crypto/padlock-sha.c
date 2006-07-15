@@ -112,7 +112,7 @@ static inline void padlock_output_block(uint32_t *src,
 		*dst++ = swab32(*src++);
 }
 
-void padlock_do_sha1(const char *in, char *out, int count)
+static void padlock_do_sha1(const char *in, char *out, int count)
 {
 	/* We can't store directly to *out as it may be unaligned. */
 	/* BTW Don't reduce the buffer size below 128 Bytes!
@@ -133,7 +133,7 @@ void padlock_do_sha1(const char *in, char *out, int count)
 	padlock_output_block((uint32_t *)result, (uint32_t *)out, 5);
 }
 
-void padlock_do_sha256(const char *in, char *out, int count)
+static void padlock_do_sha256(const char *in, char *out, int count)
 {
 	/* We can't store directly to *out as it may be unaligned. */
 	/* BTW Don't reduce the buffer size below 128 Bytes!
