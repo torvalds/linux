@@ -322,9 +322,11 @@ static int guess_fsb(void)
 static int __init longhaul_get_ranges(void)
 {
 	unsigned long invalue;
-	unsigned int multipliers[32]= {
-		50,30,40,100,55,35,45,95,90,70,80,60,120,75,85,65,
-		-1,110,120,-1,135,115,125,105,130,150,160,140,-1,155,-1,145 };
+	unsigned int ezra_t_multipliers[32]= {
+			90,  30,  40, 100,  55,  35,  45,  95,
+			50,  70,  80,  60, 120,  75,  85,  65,
+			-1, 110, 120,  -1, 135, 115, 125, 105,
+			130, 150, 160, 140,  -1, 155,  -1, 145 };
 	unsigned int j, k = 0;
 	union msr_longhaul longhaul;
 	unsigned long lo, hi;
@@ -353,13 +355,13 @@ static int __init longhaul_get_ranges(void)
 			invalue = longhaul.bits.MaxMHzBR;
 			if (longhaul.bits.MaxMHzBR4)
 				invalue += 16;
-			maxmult=multipliers[invalue];
+			maxmult=ezra_t_multipliers[invalue];
 
 			invalue = longhaul.bits.MinMHzBR;
 			if (longhaul.bits.MinMHzBR4 == 1)
 				minmult = 30;
 			else
-				minmult = multipliers[invalue];
+				minmult = ezra_t_multipliers[invalue];
 			fsb = eblcr_fsb_table_v2[longhaul.bits.MaxMHzFSB];
 			break;
 		}
