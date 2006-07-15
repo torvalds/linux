@@ -1601,7 +1601,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		/* set class to be in HTB_CAN_SEND state */
 		cl->tokens = hopt->buffer;
 		cl->ctokens = hopt->cbuffer;
-		cl->mbuffer = PSCHED_JIFFIE2US(HZ*60) /* 1min */
+		cl->mbuffer = PSCHED_JIFFIE2US(HZ*60); /* 1min */
 		PSCHED_GET_TIME(cl->t_c);
 		cl->cmode = HTB_CAN_SEND;
 
