@@ -236,10 +236,12 @@ EXPORT_SYMBOL(input_grab_device);
 
 void input_release_device(struct input_handle *handle)
 {
-	if (handle->dev->grab == handle) {
-		handle->dev->grab = NULL;
+	struct input_dev *dev = handle->dev;
 
-		list_for_each_entry(handle, &handle->dev->h_list, d_node)
+	if (dev->grab == handle) {
+		dev->grab = NULL;
+
+		list_for_each_entry(handle, &dev->h_list, d_node)
 			if (handle->handler->start)
 				handle->handler->start(handle);
 	}
