@@ -59,6 +59,17 @@
 #define AES_EXTENDED_KEY_SIZE	64	/* in uint32_t units */
 #define AES_EXTENDED_KEY_SIZE_B	(AES_EXTENDED_KEY_SIZE * sizeof(uint32_t))
 
+/* Control word. */
+struct cword {
+	unsigned int __attribute__ ((__packed__))
+		rounds:4,
+		algo:3,
+		keygen:1,
+		interm:1,
+		encdec:1,
+		ksize:2;
+} __attribute__ ((__aligned__(PADLOCK_ALIGNMENT)));
+
 /* Whenever making any changes to the following
  * structure *make sure* you keep E, d_data
  * and cword aligned on 16 Bytes boundaries!!! */
@@ -473,7 +484,7 @@ static unsigned int aes_decrypt_cbc(const struct cipher_desc *desc, u8 *out,
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
 	.cra_driver_name	=	"aes-padlock",
-	.cra_priority		=	300,
+	.cra_priority		=	PADLOCK_CRA_PRIORITY,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct aes_ctx),
