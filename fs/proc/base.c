@@ -551,6 +551,27 @@ static int proc_fd_access_allowed(struct inode *inode)
 	return allowed;
 }
 
+static int proc_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	int error;
+	struct inode *inode = dentry->d_inode;
+
+	if (attr->ia_valid & ATTR_MODE)
+		return -EPERM;
+
+	error = inode_change_ok(inode, attr);
+	if (!error) {
+		error = security_inode_setattr(dentry, attr);
+		if (!error)
+			error = inode_setattr(inode, attr);
+	}
+	return error;
+}
+
+static struct inode_operations proc_def_inode_operations = {
+	.setattr	= proc_setattr,
+};
+
 extern struct seq_operations mounts_op;
 struct proc_mounts {
 	struct seq_file m;
@@ -1111,7 +1132,8 @@ out:
 
 static struct inode_operations proc_pid_link_inode_operations = {
 	.readlink	= proc_pid_readlink,
-	.follow_link	= proc_pid_follow_link
+	.follow_link	= proc_pid_follow_link,
+	.setattr	= proc_setattr,
 };
 
 static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
@@ -1285,6 +1307,7 @@ static struct inode *proc_pid_make_inode(struct super_block * sb, struct task_st
 	ei = PROC_I(inode);
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	inode->i_ino = fake_ino(task->pid, ino);
+	inode->i_op = &proc_def_inode_operations;
 
 	/*
 	 * grab the reference to task.
@@ -1529,11 +1552,13 @@ static struct file_operations proc_task_operations = {
  */
 static struct inode_operations proc_fd_inode_operations = {
 	.lookup		= proc_lookupfd,
+	.setattr	= proc_setattr,
 };
 
 static struct inode_operations proc_task_inode_operations = {
 	.lookup		= proc_task_lookup,
 	.getattr	= proc_task_getattr,
+	.setattr	= proc_setattr,
 };
 
 #ifdef CONFIG_SECURITY
@@ -1847,11 +1872,13 @@ static struct file_operations proc_tid_base_operations = {
 static struct inode_operations proc_tgid_base_inode_operations = {
 	.lookup		= proc_tgid_base_lookup,
 	.getattr	= pid_getattr,
+	.setattr	= proc_setattr,
 };
 
 static struct inode_operations proc_tid_base_inode_operations = {
 	.lookup		= proc_tid_base_lookup,
 	.getattr	= pid_getattr,
+	.setattr	= proc_setattr,
 };
 
 #ifdef CONFIG_SECURITY
@@ -1894,11 +1921,13 @@ static struct dentry *proc_tid_attr_lookup(struct inode *dir,
 static struct inode_operations proc_tgid_attr_inode_operations = {
 	.lookup		= proc_tgid_attr_lookup,
 	.getattr	= pid_getattr,
+	.setattr	= proc_setattr,
 };
 
 static struct inode_operations proc_tid_attr_inode_operations = {
 	.lookup		= proc_tid_attr_lookup,
 	.getattr	= pid_getattr,
+	.setattr	= proc_setattr,
 };
 #endif
 
