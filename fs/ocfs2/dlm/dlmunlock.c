@@ -155,7 +155,7 @@ static enum dlm_status dlmunlock_common(struct dlm_ctxt *dlm,
 	else
 		status = dlm_get_unlock_actions(dlm, res, lock, lksb, &actions);
 
-	if (status != DLM_NORMAL && status != DLM_CANCELGRANT)
+	if (status != DLM_NORMAL && (status != DLM_CANCELGRANT || !master_node))
 		goto leave;
 
 	/* By now this has been masked out of cancel requests. */
