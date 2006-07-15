@@ -106,12 +106,12 @@ EXPORT_SYMBOL_GPL(device_resume);
 
 
 /**
- *	device_power_up_irq - Power on some devices.
+ *	dpm_power_up - Power on some devices.
  *
  *	Walk the dpm_off_irq list and power each device up. This
  *	is used for devices that required they be powered down with
- *	interrupts disabled. As devices are powered on, they are moved to
- *	the dpm_suspended list.
+ *	interrupts disabled. As devices are powered on, they are moved
+ *	to the dpm_active list.
  *
  *	Interrupts must be disabled when calling this.
  */
@@ -129,7 +129,7 @@ void dpm_power_up(void)
 
 
 /**
- *	device_pm_power_up - Turn on all devices that need special attention.
+ *	device_power_up - Turn on all devices that need special attention.
  *
  *	Power on system devices then devices that required we shut them down
  *	with interrupts disabled.
