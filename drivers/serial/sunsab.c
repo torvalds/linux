@@ -1052,7 +1052,7 @@ static int __devinit sab_probe(struct of_device *op, const struct of_device_id *
 	if (err)
 		return err;
 
-	err = sunsab_init_one(&up[0], op, 0,
+	err = sunsab_init_one(&up[1], op, 0,
 			      (inst * 2) + 1);
 	if (err) {
 		of_iounmap(up[0].port.membase,
