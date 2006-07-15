@@ -607,7 +607,8 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 	}
 
-	if (usage->hat_min < usage->hat_max || usage->hat_dir) {
+	if (usage->type == EV_ABS &&
+	    (usage->hat_min < usage->hat_max || usage->hat_dir)) {
 		int i;
 		for (i = usage->code; i < usage->code + 2 && i <= max; i++) {
 			input_set_abs_params(input, i, -1, 1, 0, 0);
