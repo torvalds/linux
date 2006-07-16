@@ -262,28 +262,28 @@ static struct crypto_alg sha256_alg = {
 
 static void __init padlock_sha_check_fallbacks(void)
 {
-	static struct crypto_tfm *tfm_sha1, *tfm_sha256;
+	struct crypto_tfm *tfm;
 
 	/* We'll try to allocate one TFM for each fallback
 	 * to test that the modules are available. */
-	tfm_sha1 = crypto_alloc_tfm(sha1_fallback, 0);
-	if (!tfm_sha1) {
+	tfm = crypto_alloc_tfm(sha1_fallback, 0);
+	if (!tfm) {
 		printk(KERN_WARNING PFX "Couldn't load fallback module for '%s'. Tried '%s'.\n",
 		       sha1_alg.cra_name, sha1_fallback);
 	} else {
 		printk(KERN_NOTICE PFX "Fallback for '%s' is driver '%s' (prio=%d)\n", sha1_alg.cra_name,
-		       crypto_tfm_alg_driver_name(tfm_sha1), crypto_tfm_alg_priority(tfm_sha1));
-		crypto_free_tfm(tfm_sha1);
+		       crypto_tfm_alg_driver_name(tfm), crypto_tfm_alg_priority(tfm));
+		crypto_free_tfm(tfm);
 	}
 
-	tfm_sha256 = crypto_alloc_tfm(sha256_fallback, 0);
-	if (!tfm_sha256) {
+	tfm = crypto_alloc_tfm(sha256_fallback, 0);
+	if (!tfm) {
 		printk(KERN_WARNING PFX "Couldn't load fallback module for '%s'. Tried '%s'.\n",
 		       sha256_alg.cra_name, sha256_fallback);
 	} else {
 		printk(KERN_NOTICE PFX "Fallback for '%s' is driver '%s' (prio=%d)\n", sha256_alg.cra_name,
-		       crypto_tfm_alg_driver_name(tfm_sha256), crypto_tfm_alg_priority(tfm_sha256));
-		crypto_free_tfm(tfm_sha256);
+		       crypto_tfm_alg_driver_name(tfm), crypto_tfm_alg_priority(tfm));
+		crypto_free_tfm(tfm);
 	}
 }
 
