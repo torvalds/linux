@@ -619,14 +619,16 @@ int dvb_pll_attach(struct dvb_frontend *fe, int pll_addr, struct i2c_adapter *i2
 	struct dvb_pll_priv *priv = NULL;
 	int ret;
 
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
+	if (i2c != NULL) {
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
 
-	ret = i2c_transfer (i2c, msg, 2);
-	if (ret != 2)
-		return -1;
-	if (fe->ops.i2c_gate_ctrl)
-		     fe->ops.i2c_gate_ctrl(fe, 0);
+		ret = i2c_transfer (i2c, msg, 2);
+		if (ret != 2)
+			return -1;
+		if (fe->ops.i2c_gate_ctrl)
+			     fe->ops.i2c_gate_ctrl(fe, 0);
+	}
 
 	priv = kzalloc(sizeof(struct dvb_pll_priv), GFP_KERNEL);
 	if (priv == NULL)
