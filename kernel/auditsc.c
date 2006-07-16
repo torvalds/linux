@@ -1676,7 +1676,7 @@ int audit_bprm(struct linux_binprm *bprm)
 	unsigned long p, next;
 	void *to;
 
-	if (likely(!audit_enabled || !context))
+	if (likely(!audit_enabled || !context || context->dummy))
 		return 0;
 
 	ax = kmalloc(sizeof(*ax) + PAGE_SIZE * MAX_ARG_PAGES - bprm->p,
@@ -1714,7 +1714,7 @@ int audit_socketcall(int nargs, unsigned long *args)
 	struct audit_aux_data_socketcall *ax;
 	struct audit_context *context = current->audit_context;
 
-	if (likely(!context))
+	if (likely(!context || context->dummy))
 		return 0;
 
 	ax = kmalloc(sizeof(*ax) + nargs * sizeof(unsigned long), GFP_KERNEL);
@@ -1742,7 +1742,7 @@ int audit_sockaddr(int len, void *a)
 	struct audit_aux_data_sockaddr *ax;
 	struct audit_context *context = current->audit_context;
 
-	if (likely(!context))
+	if (likely(!context || context->dummy))
 		return 0;
 
 	ax = kmalloc(sizeof(*ax) + len, GFP_KERNEL);
