@@ -448,13 +448,13 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		for (;;) {
 			curr_timeout = timeout + jiffies;
 			wait_event(ses->server->response_q,
-				(!(midQ->midState & MID_REQUEST_SUBMITTED)) || 
+				(!(midQ->midState == MID_REQUEST_SUBMITTED)) || 
 				time_after(jiffies, curr_timeout) || 
 				((ses->server->tcpStatus != CifsGood) &&
 				 (ses->server->tcpStatus != CifsNew)));
 
 			if (time_after(jiffies, curr_timeout) &&
-				(midQ->midState & MID_REQUEST_SUBMITTED) &&
+				(midQ->midState == MID_REQUEST_SUBMITTED) &&
 				((ses->server->tcpStatus == CifsGood) ||
 				 (ses->server->tcpStatus == CifsNew))) {
 
@@ -485,7 +485,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		}
 	} else {
 		wait_event(ses->server->response_q,
-			(!(midQ->midState & MID_REQUEST_SUBMITTED)) || 
+			(!(midQ->midState == MID_REQUEST_SUBMITTED)) || 
 			((ses->server->tcpStatus != CifsGood) &&
 			 (ses->server->tcpStatus != CifsNew)));
 	}
@@ -749,13 +749,13 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		for (;;) {
 			curr_timeout = timeout + jiffies;
 			wait_event(ses->server->response_q,
-				(!(midQ->midState & MID_REQUEST_SUBMITTED)) || 
+				(!(midQ->midState == MID_REQUEST_SUBMITTED)) || 
 				time_after(jiffies, curr_timeout) || 
 				((ses->server->tcpStatus != CifsGood) &&
 				 (ses->server->tcpStatus != CifsNew)));
 
 			if (time_after(jiffies, curr_timeout) &&
-				(midQ->midState & MID_REQUEST_SUBMITTED) &&
+				(midQ->midState == MID_REQUEST_SUBMITTED) &&
 				((ses->server->tcpStatus == CifsGood) ||
 				 (ses->server->tcpStatus == CifsNew))) {
 
@@ -780,7 +780,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		}
 	} else {
 		wait_event(ses->server->response_q,
-			(!(midQ->midState & MID_REQUEST_SUBMITTED)) || 
+			(!(midQ->midState == MID_REQUEST_SUBMITTED)) || 
 			((ses->server->tcpStatus != CifsGood) &&
 			 (ses->server->tcpStatus != CifsNew)));
 	}
