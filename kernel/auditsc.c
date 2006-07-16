@@ -534,17 +534,7 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 	}
 
 get_context:
-	context->pid = tsk->pid;
-	context->ppid = sys_getppid();	/* sic.  tsk == current in all cases */
-	context->uid = tsk->uid;
-	context->gid = tsk->gid;
-	context->euid = tsk->euid;
-	context->suid = tsk->suid;
-	context->fsuid = tsk->fsuid;
-	context->egid = tsk->egid;
-	context->sgid = tsk->sgid;
-	context->fsgid = tsk->fsgid;
-	context->personality = tsk->personality;
+
 	tsk->audit_context = NULL;
 	return context;
 }
@@ -753,6 +743,17 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 	const char *tty;
 
 	/* tsk == current */
+	context->pid = tsk->pid;
+	context->ppid = sys_getppid();	/* sic.  tsk == current in all cases */
+	context->uid = tsk->uid;
+	context->gid = tsk->gid;
+	context->euid = tsk->euid;
+	context->suid = tsk->suid;
+	context->fsuid = tsk->fsuid;
+	context->egid = tsk->egid;
+	context->sgid = tsk->sgid;
+	context->fsgid = tsk->fsgid;
+	context->personality = tsk->personality;
 
 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_SYSCALL);
 	if (!ab)
