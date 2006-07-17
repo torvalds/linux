@@ -34,3 +34,7 @@ include/linux/utsrelease.h
 
 # stgit generated dirs
 patches-*
+
+# quilt's files
+patches
+series
