@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000, 2001 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -31,18 +31,27 @@ void start_thread(struct pt_regs *regs, unsigned long eip, unsigned long esp)
 	CHOOSE_MODE_PROC(start_thread_tt, start_thread_skas, regs, eip, esp);
 }
 
+#ifdef CONFIG_TTY_LOG
+extern void log_exec(char **argv, void *tty);
+#endif
+
 static long execve1(char *file, char __user * __user *argv,
 		    char __user *__user *env)
 {
         long error;
 
 #ifdef CONFIG_TTY_LOG
-	log_exec(argv, current->tty);
+	task_lock(current);
+	log_exec(argv, current->signal->tty);
+	task_unlock(current);
 #endif
         error = do_execve(file, argv, env, &current->thread.regs);
         if (error == 0){
 		task_lock(current);
                 current->ptrace &= ~PT_DTRACE;
+#ifdef SUBARCH_EXECVE1
+		SUBARCH_EXECVE1(&current->thread.regs.regs);
+#endif
 		task_unlock(current);
                 set_cmdline(current_cmd());
         }

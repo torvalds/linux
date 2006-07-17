@@ -701,7 +701,7 @@ static void cm_reset_to_idle(struct cm_id_private *cm_id_priv)
 	}
 }
 
-void ib_destroy_cm_id(struct ib_cm_id *cm_id)
+static void cm_destroy_id(struct ib_cm_id *cm_id, int err)
 {
 	struct cm_id_private *cm_id_priv;
 	struct cm_work *work;
@@ -735,12 +735,22 @@ retest:
 			       sizeof cm_id_priv->av.port->cm_dev->ca_guid,
 			       NULL, 0);
 		break;
+	case IB_CM_REQ_RCVD:
+		if (err == -ENOMEM) {
+			/* Do not reject to allow future retries. */
+			cm_reset_to_idle(cm_id_priv);
+			spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+		} else {
+			spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+			ib_send_cm_rej(cm_id, IB_CM_REJ_CONSUMER_DEFINED,
+				       NULL, 0, NULL, 0);
+		}
+		break;
 	case IB_CM_MRA_REQ_RCVD:
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		/* Fall through */
-	case IB_CM_REQ_RCVD:
 	case IB_CM_MRA_REQ_SENT:
 	case IB_CM_REP_RCVD:
 	case IB_CM_MRA_REP_SENT:
@@ -774,6 +784,11 @@ retest:
 	kfree(cm_id_priv->compare_data);
 	kfree(cm_id_priv->private_data);
 	kfree(cm_id_priv);
+}
+
+void ib_destroy_cm_id(struct ib_cm_id *cm_id)
+{
+	cm_destroy_id(cm_id, 0);
 }
 EXPORT_SYMBOL(ib_destroy_cm_id);
 
@@ -1163,7 +1178,7 @@ static void cm_process_work(struct cm_id_private *cm_id_priv,
 	}
 	cm_deref_id(cm_id_priv);
 	if (ret)
-		ib_destroy_cm_id(&cm_id_priv->id);
+		cm_destroy_id(&cm_id_priv->id, ret);
 }
 
 static void cm_format_mra(struct cm_mra_msg *mra_msg,

@@ -270,7 +270,8 @@ static void vortex_mix_setvolumebyte(vortex_t * vortex, unsigned char mix,
 
 /* A3D functions. */
 #ifndef CHIP_AU8820
-static void vortex_Vort3D(vortex_t * v, int en);
+static void vortex_Vort3D_enable(vortex_t * v);
+static void vortex_Vort3D_disable(vortex_t * v);
 static void vortex_Vort3D_connect(vortex_t * vortex, int en);
 static void vortex_Vort3D_InitializeSource(a3dsrc_t * a, int en);
 #endif

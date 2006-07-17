@@ -35,7 +35,7 @@
 #include "os.h"
 
 /* Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by segv(). */
-int handle_page_fault(unsigned long address, unsigned long ip, 
+int handle_page_fault(unsigned long address, unsigned long ip,
 		      int is_write, int is_user, int *code_out)
 {
 	struct mm_struct *mm = current->mm;
@@ -55,20 +55,20 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
-	if(!vma) 
+	if(!vma)
 		goto out;
-	else if(vma->vm_start <= address) 
+	else if(vma->vm_start <= address)
 		goto good_area;
-	else if(!(vma->vm_flags & VM_GROWSDOWN)) 
+	else if(!(vma->vm_flags & VM_GROWSDOWN))
 		goto out;
 	else if(is_user && !ARCH_IS_STACKGROW(address))
 		goto out;
-	else if(expand_stack(vma, address)) 
+	else if(expand_stack(vma, address))
 		goto out;
 
 good_area:
 	*code_out = SEGV_ACCERR;
-	if(is_write && !(vma->vm_flags & VM_WRITE)) 
+	if(is_write && !(vma->vm_flags & VM_WRITE))
 		goto out;
 
 	/* Don't require VM_READ|VM_EXEC for write faults! */
@@ -184,14 +184,14 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
 	else if(catcher != NULL){
 		current->thread.fault_addr = (void *) address;
 		do_longjmp(catcher, 1);
-	} 
+	}
 	else if(current->thread.fault_addr != NULL)
 		panic("fault_addr set but no fault catcher");
         else if(!is_user && arch_fixup(ip, sc))
 		return(0);
 
- 	if(!is_user) 
-		panic("Kernel mode fault at addr 0x%lx, ip 0x%lx", 
+ 	if(!is_user)
+		panic("Kernel mode fault at addr 0x%lx, ip 0x%lx",
 		      address, ip);
 
 	if (err == -EACCES) {

@@ -19,6 +19,7 @@
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
+unsigned int pci_pm_d3_delay = 10;
 
 /**
  * pci_bus_max_busnr - returns maximum PCI bus number of given bus' children
@@ -313,6 +314,14 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	} else if (dev->current_state == state)
 		return 0;        /* we're already there */
 
+	/*
+	 * If the device or the parent bridge can't support PCI PM, ignore
+	 * the request if we're doing anything besides putting it into D0
+	 * (which would only happen on boot).
+	 */
+	if ((state == PCI_D1 || state == PCI_D2) && pci_no_d1d2(dev))
+		return 0;
+
 	/* find PCI PM capability in list */
 	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
 	
@@ -363,7 +372,7 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	/* Mandatory power management transition delays */
 	/* see PCI PM 1.1 5.6.1 table 18 */
 	if (state == PCI_D3hot || dev->current_state == PCI_D3hot)
-		msleep(10);
+		msleep(pci_pm_d3_delay);
 	else if (state == PCI_D2 || dev->current_state == PCI_D2)
 		udelay(200);
 

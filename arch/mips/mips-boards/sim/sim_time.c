@@ -33,8 +33,6 @@
 
 unsigned long cpu_khz;
 
-extern asmlinkage void ll_local_timer_interrupt(int irq, struct pt_regs *regs);
-
 irqreturn_t sim_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 #ifdef CONFIG_SMP
@@ -185,7 +183,7 @@ static void mips_timer_dispatch (struct pt_regs *regs)
 }
 
 
-void __init sim_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	if (cpu_has_veic) {
 		set_vi_handler(MSC01E_INT_CPUCTR, mips_timer_dispatch);

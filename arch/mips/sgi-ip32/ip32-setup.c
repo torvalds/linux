@@ -7,6 +7,7 @@
  *
  * Copyright (C) 2000 Harald Koerfgen
  * Copyright (C) 2002, 2003, 2005 Ilya A. Volynets
+ * Copyright (C) 2006 Ralf Baechle <ralf@linux-mips.org>
  */
 #include <linux/console.h>
 #include <linux/init.h>
@@ -80,7 +81,7 @@ void __init ip32_time_init(void)
 	printk("%d MHz CPU detected\n", mips_hpt_frequency * 2 / 1000000);
 }
 
-void __init ip32_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	irq->handler = no_action;
 	setup_irq(IP32_R4K_TIMER_IRQ, irq);
@@ -94,7 +95,6 @@ void __init plat_mem_setup(void)
 	rtc_mips_set_mmss = mc146818_set_rtc_mmss;
 
 	board_time_init = ip32_time_init;
-	board_timer_setup = ip32_timer_setup;
 
 #ifdef CONFIG_SERIAL_8250
 	{

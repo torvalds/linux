@@ -23,7 +23,13 @@
  *
  *	+0x2000	+----------------------
  *		| union {
- *		|	struct user_context
+ *		|	struct frv_frame0 {
+ *		|		struct user_context {
+ *		|			struct user_int_regs
+ *		|			struct user_fpmedia_regs
+ *		|		}
+ *		|		struct frv_debug_regs
+ *		|	}
  *		|	struct pt_regs [user exception]
  *		| }
  *		+---------------------- <-- __kernel_frame0_ptr (maybe GR28)
@@ -51,11 +57,11 @@
 #define _ASM_REGISTERS_H
 
 #ifndef __ASSEMBLY__
-#define __OFFSET(X)	(X)
+#define __OFFSET(X,N)	((X)+(N)*4)
 #define __OFFSETC(X,N)	xxxxxxxxxxxxxxxxxxxxxxxx
 #else
-#define __OFFSET(X)	((X)*4)
-#define __OFFSETC(X,N)	((X)*4+(N))
+#define __OFFSET(X,N)	((X)+(N)*4)
+#define __OFFSETC(X,N)	((X)+(N))
 #endif
 
 /*****************************************************************************/
@@ -117,30 +123,13 @@ struct pt_regs {
 
 #endif
 
-#define REG_PSR		__OFFSET( 0)	/* Processor Status Register */
-#define REG_ISR		__OFFSET( 1)	/* Integer Status Register */
-#define REG_CCR		__OFFSET( 2)	/* Condition Code Register */
-#define REG_CCCR	__OFFSET( 3)	/* Condition Code for Conditional Insns Register */
-#define REG_LR		__OFFSET( 4)	/* Link Register */
-#define REG_LCR		__OFFSET( 5)	/* Loop Count Register */
-#define REG_PC		__OFFSET( 6)	/* Program Counter */
-
-#define REG__STATUS	__OFFSET( 7)	/* exception status */
 #define REG__STATUS_STEP	0x00000001	/* - reenable single stepping on return */
 #define REG__STATUS_STEPPED	0x00000002	/* - single step caused exception */
 #define REG__STATUS_BROKE	0x00000004	/* - BREAK insn caused exception */
 #define REG__STATUS_SYSC_ENTRY	0x40000000	/* - T on syscall entry (ptrace.c only) */
 #define REG__STATUS_SYSC_EXIT	0x80000000	/* - T on syscall exit (ptrace.c only) */
 
-#define REG_SYSCALLNO	__OFFSET( 8)	/* syscall number or -1 */
-#define REG_ORIG_GR8	__OFFSET( 9)	/* saved GR8 for signal handling */
-#define REG_GNER0	__OFFSET(10)
-#define REG_GNER1	__OFFSET(11)
-#define REG_IACC0	__OFFSET(12)
-
-#define REG_TBR		__OFFSET(14)	/* Trap Vector Register */
-#define REG_GR(R)	__OFFSET((14+(R)))
-#define REG__END	REG_GR(32)
+#define REG_GR(R)	__OFFSET(REG_GR0, (R))
 
 #define REG_SP		REG_GR(1)
 #define REG_FP		REG_GR(2)
@@ -149,26 +138,20 @@ struct pt_regs {
 
 /*****************************************************************************/
 /*
- * extension tacked in front of the exception frame in debug mode
+ * debugging registers
  */
 #ifndef __ASSEMBLY__
 
-struct pt_debug_regs
+struct frv_debug_regs
 {
-	unsigned long		bpsr;
 	unsigned long		dcr;
-	unsigned long		brr;
-	unsigned long		nmar;
-	struct pt_regs		normal_regs;
+	unsigned long		ibar[4] __attribute__((aligned(8)));
+	unsigned long		dbar[4] __attribute__((aligned(8)));
+	unsigned long		dbdr[4][4] __attribute__((aligned(8)));
+	unsigned long		dbmr[4][4] __attribute__((aligned(8)));
 } __attribute__((aligned(8)));
 
 #endif
-
-#define REG_NMAR		__OFFSET(-1)
-#define REG_BRR			__OFFSET(-2)
-#define REG_DCR			__OFFSET(-3)
-#define REG_BPSR		__OFFSET(-4)
-#define REG__DEBUG_XTRA		__OFFSET(4)
 
 /*****************************************************************************/
 /*
@@ -223,33 +206,27 @@ struct user_context
 	void *extension;
 } __attribute__((aligned(8)));
 
+struct frv_frame0 {
+	union {
+		struct pt_regs		regs;
+		struct user_context	uc;
+	};
+
+	struct frv_debug_regs		debug;
+
+} __attribute__((aligned(32)));
+
 #endif
 
-#define NR_USER_INT_REGS	(14 + 64)
-#define NR_USER_FPMEDIA_REGS	(64 + 2 + 2 + 8 + 8/4 + 1)
-#define NR_USER_CONTEXT		(NR_USER_INT_REGS + NR_USER_FPMEDIA_REGS + 1)
+#define __INT_GR(R)		__OFFSET(__INT_GR0,		(R))
 
-#define USER_CONTEXT_SIZE	(((NR_USER_CONTEXT + 1) & ~1) * 4)
+#define __FPMEDIA_FR(R)		__OFFSET(__FPMEDIA_FR0,		(R))
+#define __FPMEDIA_FNER(R)	__OFFSET(__FPMEDIA_FNER0,	(R))
+#define __FPMEDIA_MSR(R)	__OFFSET(__FPMEDIA_MSR0,	(R))
+#define __FPMEDIA_ACC(R)	__OFFSET(__FPMEDIA_ACC0,	(R))
+#define __FPMEDIA_ACCG(R)	__OFFSETC(__FPMEDIA_ACCG0,	(R))
+#define __FPMEDIA_FSR(R)	__OFFSET(__FPMEDIA_FSR0,	(R))
 
-#define __THREAD_FRAME		__OFFSET(0)
-#define __THREAD_CURR		__OFFSET(1)
-#define __THREAD_SP		__OFFSET(2)
-#define __THREAD_FP		__OFFSET(3)
-#define __THREAD_LR		__OFFSET(4)
-#define __THREAD_PC		__OFFSET(5)
-#define __THREAD_GR(R)		__OFFSET(6 + (R) - 16)
-#define __THREAD_FRAME0		__OFFSET(19)
-#define __THREAD_USER		__OFFSET(19)
-
-#define __USER_INT		__OFFSET(0)
-#define __INT_GR(R)		__OFFSET(14 + (R))
-
-#define __USER_FPMEDIA		__OFFSET(NR_USER_INT_REGS)
-#define __FPMEDIA_FR(R)		__OFFSET(NR_USER_INT_REGS + (R))
-#define __FPMEDIA_FNER(R)	__OFFSET(NR_USER_INT_REGS + 64 + (R))
-#define __FPMEDIA_MSR(R)	__OFFSET(NR_USER_INT_REGS + 66 + (R))
-#define __FPMEDIA_ACC(R)	__OFFSET(NR_USER_INT_REGS + 68 + (R))
-#define __FPMEDIA_ACCG(R)	__OFFSETC(NR_USER_INT_REGS + 76, (R))
-#define __FPMEDIA_FSR(R)	__OFFSET(NR_USER_INT_REGS + 78 + (R))
+#define __THREAD_GR(R)		__OFFSET(__THREAD_GR16,		(R) - 16)
 
 #endif /* _ASM_REGISTERS_H */

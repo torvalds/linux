@@ -146,7 +146,7 @@ static int __init ali_ircc_init(void)
 {
 	ali_chip_t *chip;
 	chipio_t info;
-	int ret = -ENODEV;
+	int ret;
 	int cfg, cfg_base;
 	int reg, revision;
 	int i = 0;
@@ -160,6 +160,7 @@ static int __init ali_ircc_init(void)
                 return ret;
         }
 
+	ret = -ENODEV;
 	
 	/* Probe for all the ALi chipsets we know about */
 	for (chip= chips; chip->name; chip++, i++) 

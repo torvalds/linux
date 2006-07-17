@@ -16,7 +16,6 @@
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/tty.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/ioctl.h>

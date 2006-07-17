@@ -29,9 +29,7 @@ unsigned long max_low_pfn;
 unsigned long min_low_pfn;
 unsigned long max_pfn;
 
-EXPORT_SYMBOL(max_pfn);		/* This is exported so
-				 * dma_get_required_mask(), which uses
-				 * it, can be an inline function */
+EXPORT_UNUSED_SYMBOL(max_pfn);  /*  June 2006  */
 
 static LIST_HEAD(bdata_list);
 #ifdef CONFIG_CRASH_DUMP

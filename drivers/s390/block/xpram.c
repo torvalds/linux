@@ -71,11 +71,11 @@ static int xpram_devs;
 /*
  * Parameter parsing functions.
  */
-static int devs = XPRAM_DEVS;
-static unsigned int sizes[XPRAM_MAX_DEVS];
+static int __initdata devs = XPRAM_DEVS;
+static char __initdata *sizes[XPRAM_MAX_DEVS];
 
 module_param(devs, int, 0);
-module_param_array(sizes, int, NULL, 0);
+module_param_array(sizes, charp, NULL, 0);
 
 MODULE_PARM_DESC(devs, "number of devices (\"partitions\"), " \
 		 "the default is " __MODULE_STRING(XPRAM_DEVS) "\n");
@@ -85,59 +85,6 @@ MODULE_PARM_DESC(sizes, "list of device (partition) sizes " \
 		 "remaining space on the expanded strorage not "
 		 "claimed by explicit sizes\n");
 MODULE_LICENSE("GPL");
-
-#ifndef MODULE
-/*
- * Parses the kernel parameters given in the kernel parameter line.
- * The expected format is
- *           <number_of_partitions>[","<partition_size>]*
- * where
- *           devices is a positive integer that initializes xpram_devs
- *           each size is a non-negative integer possibly followed by a
- *           magnitude (k,K,m,M,g,G), the list of sizes initialises
- *           xpram_sizes
- *
- * Arguments
- *           str: substring of kernel parameter line that contains xprams
- *                kernel parameters.
- *
- * Result    0 on success, -EINVAL else -- only for Version > 2.3
- *
- * Side effects
- *           the global variabls devs is set to the value of
- *           <number_of_partitions> and sizes[i] is set to the i-th
- *           partition size (if provided). A parsing error of a value
- *           results in this value being set to -EINVAL.
- */
-static int __init xpram_setup (char *str)
-{
-	char *cp;
-	int i;
-
-	devs = simple_strtoul(str, &cp, 10);
-	if (cp <= str || devs > XPRAM_MAX_DEVS)
-		return 0;
-	for (i = 0; (i < devs) && (*cp++ == ','); i++) {
-		sizes[i] = simple_strtoul(cp, &cp, 10);
-		if (*cp == 'g' || *cp == 'G') {
-			sizes[i] <<= 20;
-			cp++;
-		} else if (*cp == 'm' || *cp == 'M') {
-			sizes[i] <<= 10;
-			cp++;
-		} else if (*cp == 'k' || *cp == 'K')
-			cp++;
-		while (isspace(*cp)) cp++;
-	}
-	if (*cp == ',' && i >= devs)
-		PRINT_WARN("partition sizes list has too many entries.\n");
-	else if (*cp != 0)
-		PRINT_WARN("ignored '%s' at end of parameter string.\n", cp);
-	return 1;
-}
-
-__setup("xpram_parts=", xpram_setup);
-#endif
 
 /*
  * Copy expanded memory page (4kB) into main memory                  
@@ -374,7 +321,9 @@ static int __init xpram_setup_sizes(unsigned long pages)
 	mem_needed = 0;
 	mem_auto_no = 0;
 	for (i = 0; i < xpram_devs; i++) {
-		xpram_sizes[i] = (sizes[i] + 3) & -4UL;
+		if (sizes[i])
+			xpram_sizes[i] =
+				(memparse(sizes[i], &sizes[i]) + 3) & -4UL;
 		if (xpram_sizes[i])
 			mem_needed += xpram_sizes[i];
 		else

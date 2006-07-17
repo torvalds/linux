@@ -18,6 +18,7 @@
 #include <linux/thread_info.h>
 #endif
 
+#include <linux/compiler.h>
 #include <asm/ptrace.h>
 #include <asm/entry.h>
 
@@ -106,7 +107,7 @@ unsigned long get_wchan (struct task_struct *p);
 #define KSTK_ESP(task)	task_sp (task)
 
 
-#define cpu_relax()    ((void)0)
+#define cpu_relax()    barrier()
 
 
 #else /* __ASSEMBLY__ */

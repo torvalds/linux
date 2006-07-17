@@ -91,7 +91,7 @@ static inline void *alloc_remap(int nid, unsigned long size)
 }
 #endif
 
-extern unsigned long nr_kernel_pages;
+extern unsigned long __meminitdata nr_kernel_pages;
 extern unsigned long nr_all_pages;
 
 extern void *__init alloc_large_system_hash(const char *tablename,

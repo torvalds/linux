@@ -47,13 +47,4 @@ config GCOV
         If you're involved in UML kernel development and want to use gcov,
         say Y.  If you're unsure, say N.
 
-config SYSCALL_DEBUG
-	bool "Enable system call debugging"
-	depends on DEBUG_INFO
-	help
-	This adds some system debugging to UML, including keeping a ring buffer
-	with recent system calls and some global and per-task statistics.
-
-	If unsure, say N
-
 endmenu

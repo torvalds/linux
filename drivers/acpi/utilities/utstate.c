@@ -199,6 +199,13 @@ struct acpi_thread_state *acpi_ut_create_thread_state(void)
 	state->common.descriptor_type = ACPI_DESC_TYPE_STATE_THREAD;
 	state->thread.thread_id = acpi_os_get_thread_id();
 
+	/* Check for invalid thread ID - zero is very bad, it will break things */
+
+	if (!state->thread.thread_id) {
+		ACPI_ERROR((AE_INFO, "Invalid zero ID from AcpiOsGetThreadId"));
+		state->thread.thread_id = (acpi_thread_id) 1;
+	}
+
 	return_PTR((struct acpi_thread_state *)state);
 }
 

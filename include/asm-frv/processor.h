@@ -21,6 +21,7 @@
  */
 #define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
+#include <linux/compiler.h>
 #include <linux/linkage.h>
 #include <asm/sections.h>
 #include <asm/segment.h>
@@ -139,7 +140,7 @@ unsigned long get_wchan(struct task_struct *p);
 extern struct task_struct *alloc_task_struct(void);
 extern void free_task_struct(struct task_struct *p);
 
-#define cpu_relax()    do { } while (0)
+#define cpu_relax()    barrier()
 
 /* data cache prefetch */
 #define ARCH_HAS_PREFETCH

@@ -206,15 +206,16 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 unsigned long get_cmos_time(void)
 {
 	unsigned long retval;
+	unsigned long flags;
 
-	spin_lock(&rtc_lock);
+	spin_lock_irqsave(&rtc_lock, flags);
 
 	if (efi_enabled)
 		retval = efi_get_time();
 	else
 		retval = mach_get_cmos_time();
 
-	spin_unlock(&rtc_lock);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return retval;
 }

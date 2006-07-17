@@ -60,7 +60,7 @@ ACPI_MODULE_NAME("exsystem")
  *
  * DESCRIPTION: Implements a semaphore wait with a check to see if the
  *              semaphore is available immediately.  If it is not, the
- *              interpreter is released.
+ *              interpreter is released before waiting.
  *
  ******************************************************************************/
 acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
@@ -110,9 +110,9 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Implements a semaphore wait with a check to see if the
- *              semaphore is available immediately.  If it is not, the
- *              interpreter is released.
+ * DESCRIPTION: Implements a mutex wait with a check to see if the
+ *              mutex is available immediately.  If it is not, the
+ *              interpreter is released before waiting.
  *
  ******************************************************************************/
 

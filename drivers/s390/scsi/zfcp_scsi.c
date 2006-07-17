@@ -44,30 +44,29 @@ struct scsi_transport_template *zfcp_transport_template;
 
 struct zfcp_data zfcp_data = {
 	.scsi_host_template = {
-	      name:	               ZFCP_NAME,
-	      proc_name:               "zfcp",
-	      proc_info:               NULL,
-	      detect:	               NULL,
-	      slave_alloc:             zfcp_scsi_slave_alloc,
-	      slave_configure:         zfcp_scsi_slave_configure,
-	      slave_destroy:           zfcp_scsi_slave_destroy,
-	      queuecommand:            zfcp_scsi_queuecommand,
-	      eh_abort_handler:        zfcp_scsi_eh_abort_handler,
-	      eh_device_reset_handler: zfcp_scsi_eh_device_reset_handler,
-	      eh_bus_reset_handler:    zfcp_scsi_eh_bus_reset_handler,
-	      eh_host_reset_handler:   zfcp_scsi_eh_host_reset_handler,
-			               /* FIXME(openfcp): Tune */
-	      can_queue:               4096,
-	      this_id:	               -1,
-	      /*
-	       * FIXME:
-	       * one less? can zfcp_create_sbale cope with it?
-	       */
-	      sg_tablesize:            ZFCP_MAX_SBALES_PER_REQ,
-	      cmd_per_lun:             1,
-	      unchecked_isa_dma:       0,
-	      use_clustering:          1,
-	      sdev_attrs:              zfcp_sysfs_sdev_attrs,
+		.name			= ZFCP_NAME,
+		.proc_name		= "zfcp",
+		.proc_info		= NULL,
+		.detect			= NULL,
+		.slave_alloc		= zfcp_scsi_slave_alloc,
+		.slave_configure	= zfcp_scsi_slave_configure,
+		.slave_destroy		= zfcp_scsi_slave_destroy,
+		.queuecommand		= zfcp_scsi_queuecommand,
+		.eh_abort_handler	= zfcp_scsi_eh_abort_handler,
+		.eh_device_reset_handler = zfcp_scsi_eh_device_reset_handler,
+		.eh_bus_reset_handler	= zfcp_scsi_eh_bus_reset_handler,
+		.eh_host_reset_handler	= zfcp_scsi_eh_host_reset_handler,
+		.can_queue		= 4096,
+		.this_id		= -1,
+		/*
+		 * FIXME:
+		 * one less? can zfcp_create_sbale cope with it?
+		 */
+		.sg_tablesize		= ZFCP_MAX_SBALES_PER_REQ,
+		.cmd_per_lun		= 1,
+		.unchecked_isa_dma	= 0,
+		.use_clustering		= 1,
+		.sdev_attrs		= zfcp_sysfs_sdev_attrs,
 	},
 	.driver_version = ZFCP_VERSION,
 	/* rest initialised with zeros */

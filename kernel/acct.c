@@ -488,7 +488,7 @@ static void do_acct_process(struct file *file)
 		old_encode_dev(tty_devnum(current->signal->tty)) : 0;
 	read_unlock(&tasklist_lock);
 
-	spin_lock(&current->sighand->siglock);
+	spin_lock_irq(&current->sighand->siglock);
 	ac.ac_utime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_utime)));
 	ac.ac_stime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_stime)));
 	ac.ac_flag = pacct->ac_flag;
@@ -496,7 +496,7 @@ static void do_acct_process(struct file *file)
 	ac.ac_minflt = encode_comp_t(pacct->ac_minflt);
 	ac.ac_majflt = encode_comp_t(pacct->ac_majflt);
 	ac.ac_exitcode = pacct->ac_exitcode;
-	spin_unlock(&current->sighand->siglock);
+	spin_unlock_irq(&current->sighand->siglock);
 	ac.ac_io = encode_comp_t(0 /* current->io_usage */);	/* %% */
 	ac.ac_rw = encode_comp_t(ac.ac_io / 1024);
 	ac.ac_swaps = encode_comp_t(0);

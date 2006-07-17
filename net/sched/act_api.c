@@ -602,8 +602,8 @@ static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
 	return err;
 
 rtattr_failure:
-	module_put(a->ops->owner);
 nlmsg_failure:
+	module_put(a->ops->owner);
 err_out:
 	kfree_skb(skb);
 	kfree(a);
@@ -884,8 +884,6 @@ static int __init tc_action_init(void)
 		link_p[RTM_GETACTION-RTM_BASE].dumpit = tc_dump_action;
 	}
 
-	printk("TC classifier action (bugs to netdev@vger.kernel.org cc "
-	       "hadi@cyberus.ca)\n");
 	return 0;
 }
 

@@ -496,6 +496,24 @@ void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 	}
 }
 
+int tcp_v4_gso_send_check(struct sk_buff *skb)
+{
+	struct iphdr *iph;
+	struct tcphdr *th;
+
+	if (!pskb_may_pull(skb, sizeof(*th)))
+		return -EINVAL;
+
+	iph = skb->nh.iph;
+	th = skb->h.th;
+
+	th->check = 0;
+	th->check = ~tcp_v4_check(th, skb->len, iph->saddr, iph->daddr, 0);
+	skb->csum = offsetof(struct tcphdr, check);
+	skb->ip_summed = CHECKSUM_HW;
+	return 0;
+}
+
 /*
  *	This routine will send an RST to the other tcp.
  *

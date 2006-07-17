@@ -1916,7 +1916,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	regs = ioremap(pciaddr, CP_REGS_SIZE);
 	if (!regs) {
 		rc = -EIO;
-		dev_err(&pdev->dev, "Cannot map PCI MMIO (%lx@%lx)\n",
+		dev_err(&pdev->dev, "Cannot map PCI MMIO (%Lx@%Lx)\n",
 		       (unsigned long long)pci_resource_len(pdev, 1),
 		       (unsigned long long)pciaddr);
 		goto err_out_res;

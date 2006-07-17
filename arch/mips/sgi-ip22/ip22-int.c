@@ -74,7 +74,7 @@ static void end_local0_irq (unsigned int irq)
 		enable_local0_irq(irq);
 }
 
-static struct hw_interrupt_type ip22_local0_irq_type = {
+static struct irq_chip ip22_local0_irq_type = {
 	.typename	= "IP22 local 0",
 	.startup	= startup_local0_irq,
 	.shutdown	= shutdown_local0_irq,
@@ -120,7 +120,7 @@ static void end_local1_irq (unsigned int irq)
 		enable_local1_irq(irq);
 }
 
-static struct hw_interrupt_type ip22_local1_irq_type = {
+static struct irq_chip ip22_local1_irq_type = {
 	.typename	= "IP22 local 1",
 	.startup	= startup_local1_irq,
 	.shutdown	= shutdown_local1_irq,
@@ -166,7 +166,7 @@ static void end_local2_irq (unsigned int irq)
 		enable_local2_irq(irq);
 }
 
-static struct hw_interrupt_type ip22_local2_irq_type = {
+static struct irq_chip ip22_local2_irq_type = {
 	.typename	= "IP22 local 2",
 	.startup	= startup_local2_irq,
 	.shutdown	= shutdown_local2_irq,
@@ -212,7 +212,7 @@ static void end_local3_irq (unsigned int irq)
 		enable_local3_irq(irq);
 }
 
-static struct hw_interrupt_type ip22_local3_irq_type = {
+static struct irq_chip ip22_local3_irq_type = {
 	.typename	= "IP22 local 3",
 	.startup	= startup_local3_irq,
 	.shutdown	= shutdown_local3_irq,
@@ -421,7 +421,7 @@ void __init arch_init_irq(void)
 	mips_cpu_irq_init(SGINT_CPU);
 
 	for (i = SGINT_LOCAL0; i < SGI_INTERRUPTS; i++) {
-		hw_irq_controller *handler;
+		struct irq_chip *handler;
 
 		if (i < SGINT_LOCAL1)
 			handler		= &ip22_local0_irq_type;

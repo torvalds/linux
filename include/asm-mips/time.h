@@ -83,11 +83,11 @@ extern asmlinkage void ll_local_timer_interrupt(int irq, struct pt_regs *regs);
 /*
  * board specific routines required by time_init().
  * board_time_init is defaulted to NULL and can remain so.
- * board_timer_setup must be setup properly in machine setup routine.
+ * plat_timer_setup must be setup properly in machine setup routine.
  */
 struct irqaction;
 extern void (*board_time_init)(void);
-extern void (*board_timer_setup)(struct irqaction *irq);
+extern void plat_timer_setup(struct irqaction *irq);
 
 /*
  * mips_hpt_frequency - must be set if you intend to use an R4k-compatible

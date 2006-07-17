@@ -20,6 +20,7 @@
 #include <xtensa/config/tie.h>
 #include <xtensa/config/system.h>
 
+#include <linux/compiler.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
 #include <asm/coprocessor.h>
@@ -191,7 +192,7 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_EIP(tsk)		(task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)		(task_pt_regs(tsk)->areg[1])
 
-#define cpu_relax()  do { } while (0)
+#define cpu_relax()  barrier()
 
 /* Special register access. */
 

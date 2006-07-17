@@ -69,7 +69,7 @@ extern char sb1250_duart_present[];
 #endif
 #endif
 
-static struct hw_interrupt_type sb1250_irq_type = {
+static struct irq_chip sb1250_irq_type = {
 	.typename = "SB1250-IMR",
 	.startup = startup_sb1250_irq,
 	.shutdown = shutdown_sb1250_irq,
@@ -120,7 +120,7 @@ static void sb1250_set_affinity(unsigned int irq, cpumask_t mask)
 {
 	int i = 0, old_cpu, cpu, int_on;
 	u64 cur_ints;
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 
 	i = first_cpu(mask);
@@ -248,7 +248,7 @@ void __init init_sb1250_irqs(void)
 			irq_desc[i].chip = &sb1250_irq_type;
 			sb1250_irq_owner[i] = 0;
 		} else {
-			irq_desc[i].chip = &no_irq_type;
+			irq_desc[i].chip = &no_irq_chip;
 		}
 	}
 }
@@ -271,7 +271,7 @@ static struct irqaction sb1250_dummy_action = {
 
 int sb1250_steal_irq(int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 	int retval = 0;
 
@@ -460,25 +460,25 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 	pending = read_c0_cause();
 
 #ifdef CONFIG_SIBYTE_SB1250_PROF
-	if (pending & CAUSEF_IP7) { /* Cpu performance counter interrupt */
+	if (pending & CAUSEF_IP7) /* Cpu performance counter interrupt */
 		sbprof_cpu_intr(exception_epc(regs));
-	}
+	else
 #endif
 
 	if (pending & CAUSEF_IP4)
 		sb1250_timer_interrupt(regs);
 
 #ifdef CONFIG_SMP
-	if (pending & CAUSEF_IP3)
+	else if (pending & CAUSEF_IP3)
 		sb1250_mailbox_interrupt(regs);
 #endif
 
 #ifdef CONFIG_KGDB
-	if (pending & CAUSEF_IP6)			/* KGDB (uart 1) */
+	else if (pending & CAUSEF_IP6)			/* KGDB (uart 1) */
 		sb1250_kgdb_interrupt(regs);
 #endif
 
-	if (pending & CAUSEF_IP2) {
+	else if (pending & CAUSEF_IP2) {
 		unsigned long long mask;
 
 		/*

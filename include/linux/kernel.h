@@ -34,6 +34,7 @@ extern const char linux_banner[];
 #define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+#define roundup(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
 
 #define	KERN_EMERG	"<0>"	/* system is unusable			*/
 #define	KERN_ALERT	"<1>"	/* action must be taken immediately	*/

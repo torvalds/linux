@@ -35,6 +35,7 @@
   2006-06-01  v0.6.2 add backwards-compatibility stuff
   2006-06-01  v0.6.3 add Novatel Wireless
   2006-06-01  v0.7   Option => GSM
+  2006-06-01  v0.7.1 add COBRA2
 
   Work sponsored by: Sigos GmbH, Germany <info@sigos.de>
 
@@ -53,7 +54,7 @@
   device features.
 */
 
-#define DRIVER_VERSION "v0.7.0"
+#define DRIVER_VERSION "v0.7.1"
 #define DRIVER_AUTHOR "Matthias Urlichs <smurf@smurf.noris.de>"
 #define DRIVER_DESC "USB Driver for GSM modems"
 
@@ -64,7 +65,7 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 
 /* Function prototypes */
 static int  option_open(struct usb_serial_port *port, struct file *filp);
@@ -102,6 +103,7 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define OPTION_PRODUCT_FUSION           0x6000
 #define OPTION_PRODUCT_FUSION2          0x6300
 #define OPTION_PRODUCT_COBRA            0x6500
+#define OPTION_PRODUCT_COBRA2           0x6600
 #define HUAWEI_PRODUCT_E600             0x1001
 #define AUDIOVOX_PRODUCT_AIRCARD        0x0112
 #define SIERRAWIRELESS_PRODUCT_MC8755   0x6802
@@ -112,6 +114,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION2) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA) },
+	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA2) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
 	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
 	{ USB_DEVICE(SIERRAWIRELESS_VENDOR_ID, SIERRAWIRELESS_PRODUCT_MC8755) },
@@ -124,6 +127,7 @@ static struct usb_device_id option_ids1[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION2) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA) },
+	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA2) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
 	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },

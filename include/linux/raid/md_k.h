@@ -148,9 +148,10 @@ struct mddev_s
 
 	struct mdk_thread_s		*thread;	/* management thread */
 	struct mdk_thread_s		*sync_thread;	/* doing resync or reconstruct */
-	sector_t			curr_resync;	/* blocks scheduled */
+	sector_t			curr_resync;	/* last block scheduled */
 	unsigned long			resync_mark;	/* a recent timestamp */
 	sector_t			resync_mark_cnt;/* blocks written at resync_mark */
+	sector_t			curr_mark_cnt; /* blocks scheduled now */
 
 	sector_t			resync_max_sectors; /* may be set by personality */
 

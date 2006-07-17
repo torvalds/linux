@@ -8,7 +8,6 @@
  * Copyright (C) 1996, 1997, 2004 by Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2006, Wind River System Inc. Rongkai.zhan <rongkai.zhan@windriver.com>
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
@@ -128,7 +127,6 @@ static void wrppmc_setup_serial(void)
 void __init plat_mem_setup(void)
 {
 	extern void wrppmc_time_init(void);
-	extern void wrppmc_timer_setup(struct irqaction *);
 	extern void wrppmc_machine_restart(char *command);
 	extern void wrppmc_machine_halt(void);
 	extern void wrppmc_machine_power_off(void);
@@ -139,7 +137,6 @@ void __init plat_mem_setup(void)
 
 	/* Use MIPS Count/Compare Timer */
 	board_time_init   = wrppmc_time_init;
-	board_timer_setup = wrppmc_timer_setup;
 
 	/* This makes the operations of 'in/out[bwl]' to the
 	 * physical address ( < KSEG0) can work via KSEG1

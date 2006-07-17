@@ -36,7 +36,7 @@
 #include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/a.out.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/init.h>

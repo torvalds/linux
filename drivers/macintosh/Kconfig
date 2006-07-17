@@ -113,7 +113,10 @@ config PMAC_MEDIABAY
 
 config PMAC_BACKLIGHT
 	bool "Backlight control for LCD screens"
-	depends on ADB_PMU && (BROKEN || !PPC64)
+	depends on ADB_PMU && FB = y && (BROKEN || !PPC64)
+	select FB_BACKLIGHT
+	select BACKLIGHT_CLASS_DEVICE
+	select BACKLIGHT_LCD_SUPPORT
 	help
 	  Say Y here to enable Macintosh specific extensions of the generic
 	  backlight code. With this enabled, the brightness keys on older

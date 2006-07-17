@@ -502,7 +502,6 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	 * (Offset contains the table_id)
 	 */
 	acpi_ns_delete_namespace_by_owner(table_info->owner_id);
-	acpi_ut_release_owner_id(&table_info->owner_id);
 
 	/* Delete the table itself */
 

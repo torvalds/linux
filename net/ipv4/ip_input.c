@@ -428,6 +428,9 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 		goto drop;
 	}
 
+	/* Remove any debris in the socket control block */
+	memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));
+
 	return NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, dev, NULL,
 		       ip_rcv_finish);
 

@@ -13,7 +13,6 @@
 
 #include <linux/string.h>
 #include <linux/module.h>
-#include <linux/tty.h>
 #include <linux/fb.h>
 #include <linux/slab.h>
 

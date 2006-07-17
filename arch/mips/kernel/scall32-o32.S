@@ -3,13 +3,14 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1995, 96, 97, 98, 99, 2000, 01, 02 by Ralf Baechle
+ * Copyright (C) 1995-99, 2000- 02, 06 Ralf Baechle <ralf@linux-mips.org>
  * Copyright (C) 2001 MIPS Technologies, Inc.
  * Copyright (C) 2004 Thiemo Seufer
  */
 #include <linux/errno.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
+#include <asm/irqflags.h>
 #include <asm/mipsregs.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
@@ -27,6 +28,18 @@
 NESTED(handle_sys, PT_SIZE, sp)
 	.set	noat
 	SAVE_SOME
+#ifdef CONFIG_TRACE_IRQFLAGS
+	TRACE_IRQS_ON
+#ifdef CONFIG_64BIT
+	LONG_L	$8, PT_R8(sp)
+	LONG_L	$9, PT_R9(sp)
+#endif
+	LONG_L	$7, PT_R7(sp)
+	LONG_L	$6, PT_R6(sp)
+	LONG_L	$5, PT_R5(sp)
+	LONG_L	$4, PT_R4(sp)
+	LONG_L	$2, PT_R2(sp)
+#endif
 	STI
 	.set	at
 
@@ -647,6 +660,8 @@ einval:	li	v0, -EINVAL
 	sys	sys_splice		4
 	sys	sys_sync_file_range	7	/* 4305 */
 	sys	sys_tee			4
+	sys	sys_vmsplice		4
+	sys	sys_move_pages		6
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

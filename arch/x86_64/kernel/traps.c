@@ -76,13 +76,13 @@ int register_die_notifier(struct notifier_block *nb)
 	vmalloc_sync_all();
 	return atomic_notifier_chain_register(&die_chain, nb);
 }
-EXPORT_SYMBOL(register_die_notifier);
+EXPORT_SYMBOL(register_die_notifier); /* used modular by kdb */
 
 int unregister_die_notifier(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_unregister(&die_chain, nb);
 }
-EXPORT_SYMBOL(unregister_die_notifier);
+EXPORT_SYMBOL(unregister_die_notifier); /* used modular by kdb */
 
 static inline void conditional_sti(struct pt_regs *regs)
 {

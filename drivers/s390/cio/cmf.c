@@ -1140,7 +1140,7 @@ static struct attribute *cmf_attributes[] = {
 	&dev_attr_avg_device_disconnect_time.attr,
 	&dev_attr_avg_control_unit_queuing_time.attr,
 	&dev_attr_avg_device_active_only_time.attr,
-	0,
+	NULL,
 };
 
 static struct attribute_group cmf_attr_group = {
@@ -1160,7 +1160,7 @@ static struct attribute *cmf_attributes_ext[] = {
 	&dev_attr_avg_device_active_only_time.attr,
 	&dev_attr_avg_device_busy_time.attr,
 	&dev_attr_avg_initial_command_response_time.attr,
-	0,
+	NULL,
 };
 
 static struct attribute_group cmf_attr_group_ext = {

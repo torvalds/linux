@@ -184,7 +184,7 @@ static union acpi_hotkey *get_hotkey_by_event(struct
 					      *hotkey_list, int event);
 
 /* event based config */
-static struct file_operations hotkey_config_fops = {
+static const struct file_operations hotkey_config_fops = {
 	.open = hotkey_open_config,
 	.read = seq_read,
 	.write = hotkey_write_config,
@@ -193,7 +193,7 @@ static struct file_operations hotkey_config_fops = {
 };
 
 /* polling based config */
-static struct file_operations hotkey_poll_config_fops = {
+static const struct file_operations hotkey_poll_config_fops = {
 	.open = hotkey_poll_open_config,
 	.read = seq_read,
 	.write = hotkey_write_config,
@@ -202,7 +202,7 @@ static struct file_operations hotkey_poll_config_fops = {
 };
 
 /* hotkey driver info */
-static struct file_operations hotkey_info_fops = {
+static const struct file_operations hotkey_info_fops = {
 	.open = hotkey_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -210,7 +210,7 @@ static struct file_operations hotkey_info_fops = {
 };
 
 /* action */
-static struct file_operations hotkey_action_fops = {
+static const struct file_operations hotkey_action_fops = {
 	.open = hotkey_action_open_fs,
 	.read = seq_read,
 	.write = hotkey_execute_aml_method,
@@ -219,7 +219,7 @@ static struct file_operations hotkey_action_fops = {
 };
 
 /* polling results */
-static struct file_operations hotkey_polling_fops = {
+static const struct file_operations hotkey_polling_fops = {
 	.open = hotkey_polling_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,

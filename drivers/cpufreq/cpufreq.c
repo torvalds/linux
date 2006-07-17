@@ -423,6 +423,8 @@ static ssize_t store_scaling_governor (struct cpufreq_policy * policy,
 	if (cpufreq_parse_governor(str_governor, &new_policy.policy, &new_policy.governor))
 		return -EINVAL;
 
+	lock_cpu_hotplug();
+
 	/* Do not use cpufreq_set_policy here or the user_policy.max
 	   will be wrongly overridden */
 	mutex_lock(&policy->lock);
@@ -431,6 +433,8 @@ static ssize_t store_scaling_governor (struct cpufreq_policy * policy,
 	policy->user_policy.policy = policy->policy;
 	policy->user_policy.governor = policy->governor;
 	mutex_unlock(&policy->lock);
+
+	unlock_cpu_hotplug();
 
 	return ret ? ret : count;
 }

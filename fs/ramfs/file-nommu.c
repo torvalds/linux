@@ -283,9 +283,9 @@ unsigned long ramfs_nommu_get_unmapped_area(struct file *file,
 
 /*****************************************************************************/
 /*
- * set up a mapping
+ * set up a mapping for shared memory segments
  */
 int ramfs_nommu_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	return 0;
+	return vma->vm_flags & VM_SHARED ? 0 : -ENOSYS;
 }

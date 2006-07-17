@@ -1755,7 +1755,7 @@ qeth_driver_group_store(struct device_driver *ddrv, const char *buf,
 }
 
 
-static DRIVER_ATTR(group, 0200, 0, qeth_driver_group_store);
+static DRIVER_ATTR(group, 0200, NULL, qeth_driver_group_store);
 
 static ssize_t
 qeth_driver_notifier_register_store(struct device_driver *ddrv, const char *buf,
@@ -1783,7 +1783,7 @@ qeth_driver_notifier_register_store(struct device_driver *ddrv, const char *buf,
 	return count;
 }
 
-static DRIVER_ATTR(notifier_register, 0200, 0,
+static DRIVER_ATTR(notifier_register, 0200, NULL,
 		   qeth_driver_notifier_register_store);
 
 int

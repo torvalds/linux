@@ -38,6 +38,7 @@
 #include <linux/tty_flip.h>
 
 #include <asm/io.h>
+#include <asm/vr41xx/irq.h>
 #include <asm/vr41xx/siu.h>
 #include <asm/vr41xx/vr41xx.h>
 

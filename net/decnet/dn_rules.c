@@ -399,9 +399,10 @@ int dn_fib_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
 	rcu_read_lock();
 	hlist_for_each_entry(r, node, &dn_fib_rules, r_hlist) {
 		if (idx < s_idx)
-			continue;
+			goto next;
 		if (dn_fib_fill_rule(skb, r, cb, NLM_F_MULTI) < 0)
 			break;
+next:
 		idx++;
 	}
 	rcu_read_unlock();

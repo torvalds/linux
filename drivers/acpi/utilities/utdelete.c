@@ -447,11 +447,16 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		 */
 		switch (ACPI_GET_OBJECT_TYPE(object)) {
 		case ACPI_TYPE_DEVICE:
+		case ACPI_TYPE_PROCESSOR:
+		case ACPI_TYPE_POWER:
+		case ACPI_TYPE_THERMAL:
 
-			acpi_ut_update_ref_count(object->device.system_notify,
-						 action);
-			acpi_ut_update_ref_count(object->device.device_notify,
-						 action);
+			/* Update the notify objects for these types (if present) */
+
+			acpi_ut_update_ref_count(object->common_notify.
+						 system_notify, action);
+			acpi_ut_update_ref_count(object->common_notify.
+						 device_notify, action);
 			break;
 
 		case ACPI_TYPE_PACKAGE:

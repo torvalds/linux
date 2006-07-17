@@ -698,12 +698,12 @@ these interfaces.  Remember that, as defined, consistent mappings are
 always going to be SAC addressable.
 
 The first thing your driver needs to do is query the PCI platform
-layer with your devices DAC addressing capabilities:
+layer if it is capable of handling your devices DAC addressing
+capabilities:
 
-	int pci_dac_set_dma_mask(struct pci_dev *pdev, u64 mask);
+	int pci_dac_dma_supported(struct pci_dev *hwdev, u64 mask);
 
-This routine behaves identically to pci_set_dma_mask.  You may not
-use the following interfaces if this routine fails.
+You may not use the following interfaces if this routine fails.
 
 Next, DMA addresses using this API are kept track of using the
 dma64_addr_t type.  It is guaranteed to be big enough to hold any

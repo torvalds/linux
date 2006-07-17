@@ -196,7 +196,7 @@ struct htb_class
     struct qdisc_rate_table *rate;	/* rate table of the class itself */
     struct qdisc_rate_table *ceil;	/* ceiling rate (limits borrows too) */
     long buffer,cbuffer;		/* token bucket depth/rate */
-    long mbuffer;			/* max wait time */
+    psched_tdiff_t mbuffer;		/* max wait time */
     long tokens,ctokens;		/* current number of tokens */
     psched_time_t t_c;			/* checkpoint time */
 };
@@ -1601,7 +1601,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		/* set class to be in HTB_CAN_SEND state */
 		cl->tokens = hopt->buffer;
 		cl->ctokens = hopt->cbuffer;
-		cl->mbuffer = 60000000; /* 1min */
+		cl->mbuffer = PSCHED_JIFFIE2US(HZ*60); /* 1min */
 		PSCHED_GET_TIME(cl->t_c);
 		cl->cmode = HTB_CAN_SEND;
 

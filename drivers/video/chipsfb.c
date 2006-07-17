@@ -19,7 +19,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
@@ -150,12 +149,11 @@ static int chipsfb_blank(int blank, struct fb_info *info)
 	mutex_lock(&pmac_backlight_mutex);
 
 	if (pmac_backlight) {
-		down(&pmac_backlight->sem);
-
 		/* used to disable backlight only for blank > 1, but it seems
 		 * useful at blank = 1 too (saves battery, extends backlight
 		 * life)
 	 	 */
+		down(&pmac_backlight->sem);
 		if (blank)
 			pmac_backlight->props->power = FB_BLANK_POWERDOWN;
 		else

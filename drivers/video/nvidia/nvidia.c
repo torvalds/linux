@@ -14,7 +14,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
@@ -933,16 +932,7 @@ static int nvidiafb_blank(int blank, struct fb_info *info)
 	NVWriteSeq(par, 0x01, tmp);
 	NVWriteCrtc(par, 0x1a, vesa);
 
-#ifdef CONFIG_FB_NVIDIA_BACKLIGHT
-	mutex_lock(&info->bl_mutex);
-	if (info->bl_dev) {
-		down(&info->bl_dev->sem);
-		info->bl_dev->props->power = blank;
-		info->bl_dev->props->update_status(info->bl_dev);
-		up(&info->bl_dev->sem);
-	}
-	mutex_unlock(&info->bl_mutex);
-#endif
+	nvidia_bl_set_power(info, blank);
 
 	NVTRACE_LEAVE();
 

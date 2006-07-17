@@ -28,7 +28,6 @@ struct task_struct *kthread_create(int (*threadfn)(void *data),
 
 void kthread_bind(struct task_struct *k, unsigned int cpu);
 int kthread_stop(struct task_struct *k);
-int kthread_stop_sem(struct task_struct *k, struct semaphore *s);
 int kthread_should_stop(void);
 
 #endif /* _LINUX_KTHREAD_H */

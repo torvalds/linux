@@ -167,6 +167,16 @@ void __init init_IRQ(void)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+
+static void route_irq(struct irqdesc *desc, unsigned int irq, unsigned int cpu)
+{
+	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", irq, desc->cpu, cpu);
+
+	spin_lock_irq(&desc->lock);
+	desc->chip->set_affinity(irq, cpumask_of_cpu(cpu));
+	spin_unlock_irq(&desc->lock);
+}
+
 /*
  * The CPU has been marked offline.  Migrate IRQs off this CPU.  If
  * the affinity settings do not allow other CPUs, force them onto any

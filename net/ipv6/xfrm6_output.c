@@ -122,7 +122,7 @@ static int xfrm6_output_finish(struct sk_buff *skb)
 {
 	struct sk_buff *segs;
 
-	if (!skb_shinfo(skb)->gso_size)
+	if (!skb_is_gso(skb))
 		return xfrm6_output_finish2(skb);
 
 	skb->protocol = htons(ETH_P_IP);

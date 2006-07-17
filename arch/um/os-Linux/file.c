@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -18,6 +18,7 @@
 #include "os.h"
 #include "user.h"
 #include "kern_util.h"
+#include "user_util.h"
 
 static void copy_stat(struct uml_stat *dst, struct stat64 *src)
 {
@@ -42,16 +43,13 @@ int os_stat_fd(const int fd, struct uml_stat *ubuf)
 	struct stat64 sbuf;
 	int err;
 
-	do {
-		err = fstat64(fd, &sbuf);
-	} while((err < 0) && (errno == EINTR)) ;
-
+	CATCH_EINTR(err = fstat64(fd, &sbuf));
 	if(err < 0)
-		return(-errno);
+		return -errno;
 
 	if(ubuf != NULL)
 		copy_stat(ubuf, &sbuf);
-	return(err);
+	return err;
 }
 
 int os_stat_file(const char *file_name, struct uml_stat *ubuf)
@@ -64,11 +62,11 @@ int os_stat_file(const char *file_name, struct uml_stat *ubuf)
 	} while((err < 0) && (errno == EINTR)) ;
 
 	if(err < 0)
-		return(-errno);
+		return -errno;
 
 	if(ubuf != NULL)
 		copy_stat(ubuf, &sbuf);
-	return(err);
+	return err;
 }
 
 int os_access(const char* file, int mode)
@@ -80,9 +78,9 @@ int os_access(const char* file, int mode)
 
 	err = access(file, amode);
 	if(err < 0)
-		return(-errno);
+		return -errno;
 
-	return(0);
+	return 0;
 }
 
 void os_print_error(int error, const char* str)
@@ -99,9 +97,9 @@ int os_ioctl_generic(int fd, unsigned int cmd, unsigned long arg)
 
 	err = ioctl(fd, cmd, arg);
 	if(err < 0)
-		return(-errno);
+		return -errno;
 
-	return(err);
+	return err;
 }
 
 int os_window_size(int fd, int *rows, int *cols)
@@ -109,12 +107,12 @@ int os_window_size(int fd, int *rows, int *cols)
 	struct winsize size;
 
 	if(ioctl(fd, TIOCGWINSZ, &size) < 0)
-		return(-errno);
+		return -errno;
 
 	*rows = size.ws_row;
 	*cols = size.ws_col;
 
-	return(0);
+	return 0;
 }
 
 int os_new_tty_pgrp(int fd, int pid)
@@ -125,16 +123,16 @@ int os_new_tty_pgrp(int fd, int pid)
 	if(tcsetpgrp(fd, pid) < 0)
 		return -errno;
 
-	return(0);
+	return 0;
 }
 
 /* FIXME: ensure namebuf in os_get_if_name is big enough */
 int os_get_ifname(int fd, char* namebuf)
 {
 	if(ioctl(fd, SIOCGIFNAME, namebuf) < 0)
-		return(-errno);
+		return -errno;
 
-	return(0);
+	return 0;
 }
 
 int os_set_slip(int fd)
@@ -149,7 +147,7 @@ int os_set_slip(int fd)
 	if(ioctl(fd, SIOCSIFENCAP, &sencap) < 0)
 		return -errno;
 
-	return(0);
+	return 0;
 }
 
 int os_set_owner(int fd, int pid)
@@ -158,10 +156,10 @@ int os_set_owner(int fd, int pid)
 		int save_errno = errno;
 
 		if(fcntl(fd, F_GETOWN, 0) != pid)
-			return(-save_errno);
+			return -save_errno;
 	}
 
-	return(0);
+	return 0;
 }
 
 /* FIXME? moved wholesale from sigio_user.c to get fcntls out of that file */
@@ -192,9 +190,9 @@ int os_mode_fd(int fd, int mode)
 	} while((err < 0) && (errno==EINTR)) ;
 
 	if(err < 0)
-		return(-errno);
+		return -errno;
 
-	return(0);
+	return 0;
 }
 
 int os_file_type(char *file)
@@ -204,15 +202,21 @@ int os_file_type(char *file)
 
 	err = os_stat_file(file, &buf);
 	if(err < 0)
-		return(err);
+		return err;
 
-	if(S_ISDIR(buf.ust_mode)) return(OS_TYPE_DIR);
-	else if(S_ISLNK(buf.ust_mode)) return(OS_TYPE_SYMLINK);
-	else if(S_ISCHR(buf.ust_mode)) return(OS_TYPE_CHARDEV);
-	else if(S_ISBLK(buf.ust_mode)) return(OS_TYPE_BLOCKDEV);
-	else if(S_ISFIFO(buf.ust_mode)) return(OS_TYPE_FIFO);
-	else if(S_ISSOCK(buf.ust_mode)) return(OS_TYPE_SOCK);
-	else return(OS_TYPE_FILE);
+	if(S_ISDIR(buf.ust_mode))
+		return OS_TYPE_DIR;
+	else if(S_ISLNK(buf.ust_mode))
+		return OS_TYPE_SYMLINK;
+	else if(S_ISCHR(buf.ust_mode))
+		return OS_TYPE_CHARDEV;
+	else if(S_ISBLK(buf.ust_mode))
+		return OS_TYPE_BLOCKDEV;
+	else if(S_ISFIFO(buf.ust_mode))
+		return OS_TYPE_FIFO;
+	else if(S_ISSOCK(buf.ust_mode))
+		return OS_TYPE_SOCK;
+	else return OS_TYPE_FILE;
 }
 
 int os_file_mode(char *file, struct openflags *mode_out)
@@ -302,8 +306,8 @@ int os_seek_file(int fd, __u64 offset)
 
 	actual = lseek64(fd, offset, SEEK_SET);
 	if(actual != offset)
-		return(-errno);
-	return(0);
+		return -errno;
+	return 0;
 }
 
 static int fault_buffer(void *start, int len,
@@ -314,13 +318,13 @@ static int fault_buffer(void *start, int len,
 
 	for(i = 0; i < len; i += page){
 		if((*copy_proc)(start + i, &c, sizeof(c)))
-			return(-EFAULT);
+			return -EFAULT;
 	}
 	if((len % page) != 0){
 		if((*copy_proc)(start + len - 1, &c, sizeof(c)))
-			return(-EFAULT);
+			return -EFAULT;
 	}
-	return(0);
+	return 0;
 }
 
 static int file_io(int fd, void *buf, int len,
@@ -334,26 +338,26 @@ static int file_io(int fd, void *buf, int len,
 		if((n < 0) && (errno == EFAULT)){
 			err = fault_buffer(buf, len, copy_user_proc);
 			if(err)
-				return(err);
+				return err;
 			n = (*io_proc)(fd, buf, len);
 		}
 	} while((n < 0) && (errno == EINTR));
 
 	if(n < 0)
-		return(-errno);
-	return(n);
+		return -errno;
+	return n;
 }
 
 int os_read_file(int fd, void *buf, int len)
 {
-	return(file_io(fd, buf, len, (int (*)(int, void *, int)) read,
-		       copy_from_user_proc));
+	return file_io(fd, buf, len, (int (*)(int, void *, int)) read,
+		       copy_from_user_proc);
 }
 
 int os_write_file(int fd, const void *buf, int len)
 {
-	return(file_io(fd, (void *) buf, len,
-		       (int (*)(int, void *, int)) write, copy_to_user_proc));
+	return file_io(fd, (void *) buf, len,
+		       (int (*)(int, void *, int)) write, copy_to_user_proc);
 }
 
 int os_file_size(char *file, unsigned long long *size_out)
@@ -398,11 +402,11 @@ int os_file_modtime(char *file, unsigned long *modtime)
 	err = os_stat_file(file, &buf);
 	if(err < 0){
 		printk("Couldn't stat \"%s\" : err = %d\n", file, -err);
-		return(err);
+		return err;
 	}
 
 	*modtime = buf.ust_mtime;
-	return(0);
+	return 0;
 }
 
 int os_get_exec_close(int fd, int* close_on_exec)
@@ -455,7 +459,7 @@ int os_pipe(int *fds, int stream, int close_on_exec)
 	if(err < 0)
 		goto error;
 
-	return(0);
+	return 0;
 
  error:
 	printk("os_pipe : Setting FD_CLOEXEC failed, err = %d\n", -err);
@@ -486,12 +490,12 @@ int os_set_fd_async(int fd, int owner)
 	   (fcntl(fd, F_SETOWN, owner) < 0)){
 		err = -errno;
 		printk("os_set_fd_async : Failed to fcntl F_SETOWN "
-		       "(or F_SETSIG) fd %d to pid %d, errno = %d\n", fd, 
+		       "(or F_SETSIG) fd %d to pid %d, errno = %d\n", fd,
 		       owner, errno);
 		return err;
 	}
 
-	return(0);
+	return 0;
 }
 
 int os_clear_fd_async(int fd)
@@ -500,8 +504,8 @@ int os_clear_fd_async(int fd)
 
 	flags &= ~(O_ASYNC | O_NONBLOCK);
 	if(fcntl(fd, F_SETFL, flags) < 0)
-		return(-errno);
-	return(0);
+		return -errno;
+	return 0;
 }
 
 int os_set_fd_block(int fd, int blocking)
@@ -516,7 +520,7 @@ int os_set_fd_block(int fd, int blocking)
 	if(fcntl(fd, F_SETFL, flags) < 0)
 		return -errno;
 
-	return(0);
+	return 0;
 }
 
 int os_accept_connection(int fd)
@@ -524,9 +528,9 @@ int os_accept_connection(int fd)
 	int new;
 
 	new = accept(fd, NULL, 0);
-	if(new < 0) 
-		return(-errno);
-	return(new);
+	if(new < 0)
+		return -errno;
+	return new;
 }
 
 #ifndef SHUT_RD
@@ -550,12 +554,12 @@ int os_shutdown_socket(int fd, int r, int w)
 	else if(w) what = SHUT_WR;
 	else {
 		printk("os_shutdown_socket : neither r or w was set\n");
-		return(-EINVAL);
+		return -EINVAL;
 	}
 	err = shutdown(fd, what);
 	if(err < 0)
-		return(-errno);
-	return(0);
+		return -errno;
+	return 0;
 }
 
 int os_rcv_fd(int fd, int *helper_pid_out)
@@ -578,7 +582,7 @@ int os_rcv_fd(int fd, int *helper_pid_out)
 
 	n = recvmsg(fd, &msg, 0);
 	if(n < 0)
-		return(-errno);
+		return -errno;
 
 	else if(n != sizeof(iov.iov_len))
 		*helper_pid_out = -1;
@@ -586,16 +590,16 @@ int os_rcv_fd(int fd, int *helper_pid_out)
 	cmsg = CMSG_FIRSTHDR(&msg);
 	if(cmsg == NULL){
 		printk("rcv_fd didn't receive anything, error = %d\n", errno);
-		return(-1);
+		return -1;
 	}
-	if((cmsg->cmsg_level != SOL_SOCKET) || 
+	if((cmsg->cmsg_level != SOL_SOCKET) ||
 	   (cmsg->cmsg_type != SCM_RIGHTS)){
 		printk("rcv_fd didn't receive a descriptor\n");
-		return(-1);
+		return -1;
 	}
 
 	new = ((int *) CMSG_DATA(cmsg))[0];
-	return(new);
+	return new;
 }
 
 int os_create_unix_socket(char *file, int len, int close_on_exec)
@@ -623,7 +627,7 @@ int os_create_unix_socket(char *file, int len, int close_on_exec)
 	if(err < 0)
 		return -errno;
 
-	return(sock);
+	return sock;
 }
 
 void os_flush_stdout(void)
@@ -654,16 +658,5 @@ int os_lock_file(int fd, int excl)
 	printk("F_SETLK failed, file already locked by pid %d\n", lock.l_pid);
 	err = save;
  out:
-	return(err);
+	return err;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

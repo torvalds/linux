@@ -67,7 +67,7 @@ static void emma2rh_sw_irq_end(unsigned int irq)
 		ll_emma2rh_sw_irq_enable(irq - emma2rh_sw_irq_base);
 }
 
-hw_irq_controller emma2rh_sw_irq_controller = {
+struct irq_chip emma2rh_sw_irq_controller = {
 	.typename = "emma2rh_sw_irq",
 	.startup = emma2rh_sw_irq_startup,
 	.shutdown = emma2rh_sw_irq_shutdown,
@@ -147,7 +147,7 @@ static void emma2rh_gpio_irq_end(unsigned int irq)
 		ll_emma2rh_gpio_irq_enable(irq - emma2rh_gpio_irq_base);
 }
 
-hw_irq_controller emma2rh_gpio_irq_controller = {
+struct irq_chip emma2rh_gpio_irq_controller = {
 	.typename = "emma2rh_gpio_irq",
 	.startup = emma2rh_gpio_irq_startup,
 	.shutdown = emma2rh_gpio_irq_shutdown,

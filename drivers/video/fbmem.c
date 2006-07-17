@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/tty.h>
+#include <linux/vt.h>
 #include <linux/init.h>
 #include <linux/linux_logo.h>
 #include <linux/proc_fs.h>

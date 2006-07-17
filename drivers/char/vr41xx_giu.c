@@ -33,6 +33,7 @@
 #include <asm/cpu.h>
 #include <asm/io.h>
 #include <asm/vr41xx/giu.h>
+#include <asm/vr41xx/irq.h>
 #include <asm/vr41xx/vr41xx.h>
 
 MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");

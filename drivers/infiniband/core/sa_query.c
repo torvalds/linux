@@ -488,13 +488,13 @@ static void init_mad(struct ib_sa_mad *mad, struct ib_mad_agent *agent)
 	spin_unlock_irqrestore(&tid_lock, flags);
 }
 
-static int send_mad(struct ib_sa_query *query, int timeout_ms)
+static int send_mad(struct ib_sa_query *query, int timeout_ms, gfp_t gfp_mask)
 {
 	unsigned long flags;
 	int ret, id;
 
 retry:
-	if (!idr_pre_get(&query_idr, GFP_ATOMIC))
+	if (!idr_pre_get(&query_idr, gfp_mask))
 		return -ENOMEM;
 	spin_lock_irqsave(&idr_lock, flags);
 	ret = idr_get_new(&query_idr, query, &id);
@@ -630,7 +630,7 @@ int ib_sa_path_rec_get(struct ib_device *device, u8 port_num,
 
 	*sa_query = &query->sa_query;
 
-	ret = send_mad(&query->sa_query, timeout_ms);
+	ret = send_mad(&query->sa_query, timeout_ms, gfp_mask);
 	if (ret < 0)
 		goto err2;
 
@@ -752,7 +752,7 @@ int ib_sa_service_rec_query(struct ib_device *device, u8 port_num, u8 method,
 
 	*sa_query = &query->sa_query;
 
-	ret = send_mad(&query->sa_query, timeout_ms);
+	ret = send_mad(&query->sa_query, timeout_ms, gfp_mask);
 	if (ret < 0)
 		goto err2;
 
@@ -844,7 +844,7 @@ int ib_sa_mcmember_rec_query(struct ib_device *device, u8 port_num,
 
 	*sa_query = &query->sa_query;
 
-	ret = send_mad(&query->sa_query, timeout_ms);
+	ret = send_mad(&query->sa_query, timeout_ms, gfp_mask);
 	if (ret < 0)
 		goto err2;
 

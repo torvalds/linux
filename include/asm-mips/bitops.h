@@ -31,7 +31,7 @@
 
 #ifdef __KERNEL__
 
-#include <asm/interrupt.h>
+#include <linux/irqflags.h>
 #include <asm/sgidefs.h>
 #include <asm/war.h>
 

@@ -101,7 +101,6 @@ extern void __xchg_called_with_bad_pointer(void);
 #endif
 
 #define set_mb(var, value) do { xchg(&var, value); } while (0)
-#define set_wmb(var, value) do { var = value; wmb(); } while (0)
 
 /* Interrupt Control */
 static __inline__ void local_irq_enable(void)

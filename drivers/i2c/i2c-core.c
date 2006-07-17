@@ -756,9 +756,9 @@ int i2c_probe(struct i2c_adapter *adapter,
 					"parameter for adapter %d, "
 					"addr 0x%02x\n", adap_id,
 					address_data->ignore[j + 1]);
+				ignore = 1;
+				break;
 			}
-			ignore = 1;
-			break;
 		}
 		if (ignore)
 			continue;

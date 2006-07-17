@@ -78,7 +78,7 @@ static void emma2rh_irq_end(unsigned int irq)
 		ll_emma2rh_irq_enable(irq - emma2rh_irq_base);
 }
 
-hw_irq_controller emma2rh_irq_controller = {
+struct irq_chip emma2rh_irq_controller = {
 	.typename = "emma2rh_irq",
 	.startup = emma2rh_irq_startup,
 	.shutdown = emma2rh_irq_shutdown,

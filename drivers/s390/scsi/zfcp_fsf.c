@@ -2227,7 +2227,7 @@ zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action,
 	/* setup new FSF request */
 	retval = zfcp_fsf_req_create(adapter, FSF_QTCB_EXCHANGE_PORT_DATA,
 				     erp_action ? ZFCP_REQ_AUTO_CLEANUP : 0,
-				     0, &lock_flags, &fsf_req);
+				     NULL, &lock_flags, &fsf_req);
 	if (retval < 0) {
 		ZFCP_LOG_INFO("error: Out of resources. Could not create an "
                               "exchange port data request for"

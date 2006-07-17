@@ -774,7 +774,7 @@ static int __devinit snd_bt87x_create(struct snd_card *card,
 	  .driver_data = rate }
 
 /* driver_data is the default digital_rate value for that device */
-static struct pci_device_id snd_bt87x_ids[] __devinitdata = {
+static struct pci_device_id snd_bt87x_ids[] = {
 	/* Hauppauge WinTV series */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0x13eb, 32000),
 	/* Hauppauge WinTV series */

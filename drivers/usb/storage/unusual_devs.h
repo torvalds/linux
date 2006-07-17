@@ -112,6 +112,19 @@ UNUSUAL_DEV(  0x0411, 0x001c, 0x0113, 0x0113,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
 
+/* Submitted by Ernestas Vaiciukevicius <ernisv@gmail.com> */
+UNUSUAL_DEV(  0x0419, 0x0100, 0x0100, 0x0100,
+                "Samsung Info. Systems America, Inc.",
+                "MP3 Player",
+                US_SC_DEVICE, US_PR_DEVICE, NULL,
+                US_FL_IGNORE_RESIDUE ),
+
+/* Reported by Orgad Shaneh <orgads@gmail.com> */
+UNUSUAL_DEV(  0x0419, 0xaace, 0x0100, 0x0100,
+		"Samsung", "MP3 Player",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Christian Leber <christian@leber.de> */
 UNUSUAL_DEV(  0x0419, 0xaaf5, 0x0100, 0x0100,
 		"TrekStor",
@@ -132,11 +145,26 @@ UNUSUAL_DEV(  0x0420, 0x0001, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Sumedha Swamy <sumedhaswamy@gmail.com> and
+ * Einar Th. Einarsson <einarthered@gmail.com> */
+UNUSUAL_DEV(  0x0421, 0x0444, 0x0100, 0x0100,
+		"Nokia",
+		"N91",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+
 /* Reported by Jiri Slaby <jirislaby@gmail.com> and
  * Rene C. Castberg <Rene@Castberg.org> */
 UNUSUAL_DEV(  0x0421, 0x0446, 0x0100, 0x0100,
 		"Nokia",
 		"N80",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+
+/* Reported by Matthew Bloch <matthew@bytemark.co.uk> */
+UNUSUAL_DEV(  0x0421, 0x044e, 0x0100, 0x0100,
+		"Nokia",
+		"E61",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
 
@@ -473,10 +501,11 @@ UNUSUAL_DEV(  0x054c, 0x0010, 0x0106, 0x0450,
 		US_SC_SCSI, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN | US_FL_NOT_LOCKABLE | US_FL_NO_WP_DETECT ),
 
-/* This entry is needed because the device reports Sub=ff */
-UNUSUAL_DEV(  0x054c, 0x0010, 0x0500, 0x0600,
+/* Submitted by Lars Jacob <jacob.lars@googlemail.com>
+ * This entry is needed because the device reports Sub=ff */
+UNUSUAL_DEV(  0x054c, 0x0010, 0x0500, 0x0610,
 		"Sony",
-		"DSC-T1/T5",
+		"DSC-T1/T5/H5",
 		US_SC_8070, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
@@ -708,18 +737,22 @@ UNUSUAL_DEV(  0x05dc, 0xb002, 0x0000, 0x0113,
  * They were originally reported by Alexander Oltu
  * <alexander@all-2.com> and Peter Marks <peter.marks@turner.com>
  * respectively.
+ *
+ * US_FL_GO_SLOW and US_FL_MAX_SECTORS_64 added by Phil Dibowitz
+ * <phil@ipom.com> as these flags were made and hard-coded
+ * special-cases were pulled from scsiglue.c.
  */
 UNUSUAL_DEV(  0x05e3, 0x0701, 0x0000, 0xffff,
 		"Genesys Logic",
 		"USB to IDE Optical",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_GO_SLOW ),
+		US_FL_GO_SLOW | US_FL_MAX_SECTORS_64 ),
 
 UNUSUAL_DEV(  0x05e3, 0x0702, 0x0000, 0xffff,
 		"Genesys Logic",
 		"USB to IDE Disk",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_GO_SLOW ),
+		US_FL_GO_SLOW | US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Hanno Boeck <hanno@gmx.de>
  * Taken from the Lycoris Kernel */
@@ -1196,6 +1229,14 @@ UNUSUAL_DEV(  0x0ea0, 0x6828, 0x0110, 0x0110,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Benjamin Schiller <sbenni@gmx.de>
+ * It is also sold by Easylite as DJ 20 */
+UNUSUAL_DEV(  0x0ed1, 0x7636, 0x0103, 0x0103,
+		"Typhoon",
+		"My DJ 1820",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_GO_SLOW | US_FL_MAX_SECTORS_64),
+
 /* Reported by Michael Stattmann <michael@stattmann.com> */
 UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
 		"Sony Ericsson",
@@ -1226,6 +1267,15 @@ UNUSUAL_DEV(  0x1370, 0x6828, 0x0110, 0x0110,
 		"Black Silver",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
+
+/* patch submitted by Davide Perini <perini.davide@dpsoftware.org>
+ * and Renato Perini <rperini@email.it>
+ */
+UNUSUAL_DEV(  0x22b8, 0x3010, 0x0001, 0x0001,
+		"Motorola",
+		"RAZR V3x",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
 
 /* Reported by Radovan Garabik <garabik@kassiopeia.juls.savba.sk> */
 UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,

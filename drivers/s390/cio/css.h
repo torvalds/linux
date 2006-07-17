@@ -100,7 +100,7 @@ struct ccw_device_private {
 	struct qdio_irq *qdio_data;
 	struct irb irb;		/* device status */
 	struct senseid senseid;	/* SenseID info */
-	struct pgid pgid;	/* path group ID */
+	struct pgid pgid[8];	/* path group IDs per chpid*/
 	struct ccw1 iccws[2];	/* ccws for SNID/SID/SPGID commands */
 	struct work_struct kick_work;
 	wait_queue_head_t wait_q;
@@ -136,6 +136,8 @@ extern struct bus_type css_bus_type;
 extern struct css_driver io_subchannel_driver;
 
 extern int css_probe_device(struct subchannel_id);
+extern int css_sch_device_register(struct subchannel *);
+extern void css_sch_device_unregister(struct subchannel *);
 extern struct subchannel * get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
 extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);

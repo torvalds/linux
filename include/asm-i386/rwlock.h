@@ -37,7 +37,7 @@
 			"popl %%eax\n\t" \
 			"1:\n", \
 			"subl $1,%0\n\t", \
-			"=m" (*(volatile int *)rw) : : "memory")
+			"+m" (*(volatile int *)rw) : : "memory")
 
 #define __build_read_lock(rw, helper)	do { \
 						if (__builtin_constant_p(rw)) \
@@ -63,7 +63,7 @@
 			"popl %%eax\n\t" \
 			"1:\n", \
 			"subl $" RW_LOCK_BIAS_STR ",%0\n\t", \
-			"=m" (*(volatile int *)rw) : : "memory")
+			"+m" (*(volatile int *)rw) : : "memory")
 
 #define __build_write_lock(rw, helper)	do { \
 						if (__builtin_constant_p(rw)) \

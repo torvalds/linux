@@ -27,8 +27,8 @@ static __inline__ void atomic_add(int a, atomic_t *v)
 	PPC405_ERR77(0,%3)
 "	stwcx.	%0,0,%3 \n\
 	bne-	1b"
-	: "=&r" (t), "=m" (v->counter)
-	: "r" (a), "r" (&v->counter), "m" (v->counter)
+	: "=&r" (t), "+m" (v->counter)
+	: "r" (a), "r" (&v->counter)
 	: "cc");
 }
 
@@ -63,8 +63,8 @@ static __inline__ void atomic_sub(int a, atomic_t *v)
 	PPC405_ERR77(0,%3)
 "	stwcx.	%0,0,%3 \n\
 	bne-	1b"
-	: "=&r" (t), "=m" (v->counter)
-	: "r" (a), "r" (&v->counter), "m" (v->counter)
+	: "=&r" (t), "+m" (v->counter)
+	: "r" (a), "r" (&v->counter)
 	: "cc");
 }
 
@@ -97,8 +97,8 @@ static __inline__ void atomic_inc(atomic_t *v)
 	PPC405_ERR77(0,%2)
 "	stwcx.	%0,0,%2 \n\
 	bne-	1b"
-	: "=&r" (t), "=m" (v->counter)
-	: "r" (&v->counter), "m" (v->counter)
+	: "=&r" (t), "+m" (v->counter)
+	: "r" (&v->counter)
 	: "cc");
 }
 
@@ -141,8 +141,8 @@ static __inline__ void atomic_dec(atomic_t *v)
 	PPC405_ERR77(0,%2)\
 "	stwcx.	%0,0,%2\n\
 	bne-	1b"
-	: "=&r" (t), "=m" (v->counter)
-	: "r" (&v->counter), "m" (v->counter)
+	: "=&r" (t), "+m" (v->counter)
+	: "r" (&v->counter)
 	: "cc");
 }
 
@@ -253,8 +253,8 @@ static __inline__ void atomic64_add(long a, atomic64_t *v)
 	add	%0,%2,%0\n\
 	stdcx.	%0,0,%3 \n\
 	bne-	1b"
-	: "=&r" (t), "=m" (v->counter)
-	: "r" (a), "r" (&v->counter), "m" (v->counter)
+	: "=&r" (t), "+m" (v->counter)
+	: "r" (a), "r" (&v->counter)
 	: "cc");
 }
 
@@ -287,8 +287,8 @@ static __inline__ void atomic64_sub(long a, atomic64_t *v)
 	subf	%0,%2,%0\n\
 	stdcx.	%0,0,%3 \n\
 	bne-	1b"
-	: "=&r" (t), "=m" (v->counter)
-	: "r" (a), "r" (&v->counter), "m" (v->counter)
+	: "=&r" (t), "+m" (v->counter)
+	: "r" (a), "r" (&v->counter)
 	: "cc");
 }
 
@@ -319,8 +319,8 @@ static __inline__ void atomic64_inc(atomic64_t *v)
 	addic	%0,%0,1\n\
 	stdcx.	%0,0,%2 \n\
 	bne-	1b"
-	: "=&r" (t), "=m" (v->counter)
-	: "r" (&v->counter), "m" (v->counter)
+	: "=&r" (t), "+m" (v->counter)
+	: "r" (&v->counter)
 	: "cc");
 }
 
@@ -361,8 +361,8 @@ static __inline__ void atomic64_dec(atomic64_t *v)
 	addic	%0,%0,-1\n\
 	stdcx.	%0,0,%2\n\
 	bne-	1b"
-	: "=&r" (t), "=m" (v->counter)
-	: "r" (&v->counter), "m" (v->counter)
+	: "=&r" (t), "+m" (v->counter)
+	: "r" (&v->counter)
 	: "cc");
 }
 

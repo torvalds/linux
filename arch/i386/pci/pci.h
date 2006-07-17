@@ -84,4 +84,4 @@ extern int pci_conf1_read(unsigned int seg, unsigned int bus,
 extern void pci_direct_init(void);
 extern void pci_pcbios_init(void);
 extern void pci_mmcfg_init(void);
-
+extern void pcibios_sort(void);

@@ -38,8 +38,8 @@ static void dbusy_timer_handler(struct IsdnCardState *cs);
 static void dch_empty_fifo(struct IsdnCardState *cs, int count);
 static void dch_fill_fifo(struct IsdnCardState *cs);
 static inline void dch_int(struct IsdnCardState *cs);
-static void __devinit dch_setstack(struct PStack *st, struct IsdnCardState *cs);
-static void __devinit dch_init(struct IsdnCardState *cs);
+static void dch_setstack(struct PStack *st, struct IsdnCardState *cs);
+static void dch_init(struct IsdnCardState *cs);
 static void bch_l2l1(struct PStack *st, int pr, void *arg);
 static void bch_empty_fifo(struct BCState *bcs, int count);
 static void bch_fill_fifo(struct BCState *bcs);
@@ -48,8 +48,8 @@ static void bch_mode(struct BCState *bcs, int mode, int bc);
 static void bch_close_state(struct BCState *bcs);
 static int bch_open_state(struct IsdnCardState *cs, struct BCState *bcs);
 static int bch_setstack(struct PStack *st, struct BCState *bcs);
-static void __devinit bch_init(struct IsdnCardState *cs, int hscx);
-static void __init clear_pending_ints(struct IsdnCardState *cs);
+static void bch_init(struct IsdnCardState *cs, int hscx);
+static void clear_pending_ints(struct IsdnCardState *cs);
 
 //----------------------------------------------------------
 // Issue Layer 1 command to chip
@@ -408,7 +408,7 @@ dch_int(struct IsdnCardState *cs)
 
 //----------------------------------------------------------
 //----------------------------------------------------------
-static void __devinit
+static void
 dch_setstack(struct PStack *st, struct IsdnCardState *cs)
 {
 	st->l1.l1hw = dch_l2l1;
@@ -416,7 +416,7 @@ dch_setstack(struct PStack *st, struct IsdnCardState *cs)
 
 //----------------------------------------------------------
 //----------------------------------------------------------
-static void __devinit
+static void
 dch_init(struct IsdnCardState *cs)
 {
 	printk(KERN_INFO "HiSax: IPACX ISDN driver v0.1.0\n");
@@ -823,7 +823,7 @@ bch_setstack(struct PStack *st, struct BCState *bcs)
 
 //----------------------------------------------------------
 //----------------------------------------------------------
-static void __devinit
+static void
 bch_init(struct IsdnCardState *cs, int hscx)
 {
 	cs->bcs[hscx].BC_SetStack   = bch_setstack;
@@ -861,7 +861,7 @@ interrupt_ipacx(struct IsdnCardState *cs)
 //----------------------------------------------------------
 // Clears chip interrupt status
 //----------------------------------------------------------
-static void __init
+static void
 clear_pending_ints(struct IsdnCardState *cs)
 {
 	int ista;
@@ -883,7 +883,7 @@ clear_pending_ints(struct IsdnCardState *cs)
 // Does chip configuration work
 // Work to do depends on bit mask in part
 //----------------------------------------------------------
-void __init
+void
 init_ipacx(struct IsdnCardState *cs, int part)
 {
 	if (part &1) {  // initialise chip

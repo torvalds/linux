@@ -474,7 +474,7 @@ snd_wavefront_midi_disable_virtual (snd_wavefront_card_t *card)
 	spin_unlock_irqrestore (&card->wavefront.midi.virtual, flags);
 }
 
-int __init
+int __devinit
 snd_wavefront_midi_start (snd_wavefront_card_t *card)
 
 {

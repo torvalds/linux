@@ -207,7 +207,7 @@ static void end_irq(unsigned int irq)
 	}
 }
 
-static struct hw_interrupt_type level_irq_type = {
+static struct irq_chip level_irq_type = {
 	.typename =	"PNX Level IRQ",
 	.startup =	startup_irq,
 	.shutdown =	shutdown_irq,

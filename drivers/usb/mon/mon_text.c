@@ -64,7 +64,6 @@ struct mon_reader_text {
 };
 
 static void mon_text_ctor(void *, kmem_cache_t *, unsigned long);
-static void mon_text_dtor(void *, kmem_cache_t *, unsigned long);
 
 /*
  * mon_text_submit
@@ -268,7 +267,7 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	    (long)rp);
 	rp->e_slab = kmem_cache_create(rp->slab_name,
 	    sizeof(struct mon_event_text), sizeof(long), 0,
-	    mon_text_ctor, mon_text_dtor);
+	    mon_text_ctor, NULL);
 	if (rp->e_slab == NULL) {
 		rc = -ENOMEM;
 		goto err_slab;
@@ -459,7 +458,3 @@ static void mon_text_ctor(void *mem, kmem_cache_t *slab, unsigned long sflags)
 	memset(mem, 0xe5, sizeof(struct mon_event_text));
 }
 
-static void mon_text_dtor(void *mem, kmem_cache_t *slab, unsigned long sflags)
-{
-	;
-}

@@ -2036,6 +2036,7 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 	case UPIO_MEM:
 	case UPIO_MEM32:
 	case UPIO_AU:
+	case UPIO_TSI:
 		snprintf(address, sizeof(address),
 			 "MMIO 0x%lx", port->mapbase);
 		break;
