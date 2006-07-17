@@ -1763,9 +1763,8 @@ static int foreach_leaf(struct gfs2_inode *dip, leaf_call_t lc, void *data)
 			if (error)
 				goto out;
 			leaf = (struct gfs2_leaf *)bh->b_data;
-			brelse(bh);
-
 			len = 1 << (dip->i_di.di_depth - be16_to_cpu(leaf->lf_depth));
+			brelse(bh);
 
 			error = lc(dip, index, len, leaf_no, data);
 			if (error)
@@ -1781,7 +1780,7 @@ static int foreach_leaf(struct gfs2_inode *dip, leaf_call_t lc, void *data)
 		error = -EIO;
 	}
 
- out:
+out:
 	kfree(lp);
 
 	return error;
