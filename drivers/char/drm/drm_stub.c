@@ -72,9 +72,6 @@ static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
 #else
 	dev->pci_domain = 0;
 #endif
-	dev->pci_bus = pdev->bus->number;
-	dev->pci_slot = PCI_SLOT(pdev->devfn);
-	dev->pci_func = PCI_FUNC(pdev->devfn);
 	dev->irq = pdev->irq;
 
 	dev->maplist = drm_calloc(1, sizeof(*dev->maplist), DRM_MEM_MAPS);

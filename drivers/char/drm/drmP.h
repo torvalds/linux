@@ -700,9 +700,6 @@ typedef struct drm_device {
 
 	struct pci_dev *pdev;		/**< PCI device structure */
 	int pci_domain;			/**< PCI bus domain number */
-	int pci_bus;			/**< PCI bus number */
-	int pci_slot;			/**< PCI slot number */
-	int pci_func;			/**< PCI function number */
 #ifdef __alpha__
 	struct pci_controller *hose;
 #endif
