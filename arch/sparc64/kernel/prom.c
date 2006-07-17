@@ -344,10 +344,12 @@ static unsigned long __psycho_onboard_imap_off[] = {
 /*0x2f*/	PSYCHO_IMAP_CE,
 /*0x30*/	PSYCHO_IMAP_A_ERR,
 /*0x31*/	PSYCHO_IMAP_B_ERR,
-/*0x32*/	PSYCHO_IMAP_PMGMT
+/*0x32*/	PSYCHO_IMAP_PMGMT,
+/*0x33*/	PSYCHO_IMAP_GFX,
+/*0x34*/	PSYCHO_IMAP_EUPA,
 };
 #define PSYCHO_ONBOARD_IRQ_BASE		0x20
-#define PSYCHO_ONBOARD_IRQ_LAST		0x32
+#define PSYCHO_ONBOARD_IRQ_LAST		0x34
 #define psycho_onboard_imap_offset(__ino) \
 	__psycho_onboard_imap_off[(__ino) - PSYCHO_ONBOARD_IRQ_BASE]
 
@@ -529,6 +531,10 @@ static unsigned long __sabre_onboard_imap_off[] = {
 /*0x2e*/	SABRE_IMAP_UE,
 /*0x2f*/	SABRE_IMAP_CE,
 /*0x30*/	SABRE_IMAP_PCIERR,
+/*0x31*/	0 /* reserved */,
+/*0x32*/	0 /* reserved */,
+/*0x33*/	SABRE_IMAP_GFX,
+/*0x34*/	SABRE_IMAP_EUPA,
 };
 #define SABRE_ONBOARD_IRQ_BASE		0x20
 #define SABRE_ONBOARD_IRQ_LAST		0x30
@@ -895,6 +901,8 @@ static unsigned long sysio_irq_offsets[] = {
 	SYSIO_IMAP_CE,
 	SYSIO_IMAP_SBERR,
 	SYSIO_IMAP_PMGMT,
+	SYSIO_IMAP_GFX,
+	SYSIO_IMAP_EUPA,
 };
 
 #undef bogon
