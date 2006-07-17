@@ -987,7 +987,7 @@ static int snd_timer_s_start(struct snd_timer * timer)
 		njiff++;
 	} else {
 		njiff += timer->sticks - priv->correction;
-		priv->correction -= timer->sticks;
+		priv->correction = 0;
 	}
 	priv->last_expires = priv->tlist.expires = njiff;
 	add_timer(&priv->tlist);
