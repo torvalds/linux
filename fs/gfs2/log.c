@@ -386,10 +386,10 @@ static void log_write_header(struct gfs2_sbd *sdp, uint32_t flags, int pull)
 	lh->lh_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
 	lh->lh_header.mh_type = cpu_to_be32(GFS2_METATYPE_LH);
 	lh->lh_header.mh_format = cpu_to_be32(GFS2_FORMAT_LH);
-	lh->lh_sequence = be64_to_cpu(sdp->sd_log_sequence++);
-	lh->lh_flags = be32_to_cpu(flags);
-	lh->lh_tail = be32_to_cpu(tail);
-	lh->lh_blkno = be32_to_cpu(sdp->sd_log_flush_head);
+	lh->lh_sequence = cpu_to_be64(sdp->sd_log_sequence++);
+	lh->lh_flags = cpu_to_be32(flags);
+	lh->lh_tail = cpu_to_be32(tail);
+	lh->lh_blkno = cpu_to_be32(sdp->sd_log_flush_head);
 	hash = gfs2_disk_hash(bh->b_data, sizeof(struct gfs2_log_header));
 	lh->lh_hash = cpu_to_be32(hash);
 
