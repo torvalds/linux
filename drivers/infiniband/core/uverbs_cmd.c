@@ -1775,7 +1775,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	ah = ib_create_ah(pd, &attr);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
-		goto err;
+		goto err_put;
 	}
 
 	ah->uobject  = uobj;
@@ -1810,6 +1810,9 @@ err_copy:
 
 err_destroy:
 	ib_destroy_ah(ah);
+
+err_put:
+	put_pd_read(pd);
 
 err:
 	put_uobj_write(uobj);
@@ -1984,7 +1987,7 @@ ssize_t ib_uverbs_create_srq(struct ib_uverbs_file *file,
 	srq = pd->device->create_srq(pd, &attr, &udata);
 	if (IS_ERR(srq)) {
 		ret = PTR_ERR(srq);
-		goto err;
+		goto err_put;
 	}
 
 	srq->device    	   = pd->device;
@@ -2028,6 +2031,9 @@ err_copy:
 
 err_destroy:
 	ib_destroy_srq(srq);
+
+err_put:
+	put_pd_read(pd);
 
 err:
 	put_uobj_write(&obj->uobject);
