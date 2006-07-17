@@ -1061,8 +1061,8 @@ static int __devinit sab_probe(struct of_device *op, const struct of_device_id *
 		return err;
 	}
 
-	uart_add_one_port(&sunsab_reg, &up[0].port);
 	uart_add_one_port(&sunsab_reg, &up[1].port);
+	uart_add_one_port(&sunsab_reg, &up[0].port);
 
 	dev_set_drvdata(&op->dev, &up[0]);
 
