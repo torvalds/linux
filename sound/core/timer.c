@@ -718,7 +718,7 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 		}
 	}
 	if (timer->flags & SNDRV_TIMER_FLG_RESCHED)
-		snd_timer_reschedule(timer, ticks_left);
+		snd_timer_reschedule(timer, timer->sticks);
 	if (timer->running) {
 		if (timer->hw.flags & SNDRV_TIMER_HW_STOP) {
 			timer->hw.stop(timer);
