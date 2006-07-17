@@ -128,8 +128,13 @@ extern void account_system_vtime(struct task_struct *);
 
 #define nop() __asm__ __volatile__ ("nop")
 
-#define xchg(ptr,x) \
-  ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(void *)(ptr),sizeof(*(ptr))))
+#define xchg(ptr,x)							  \
+({									  \
+	__typeof__(*(ptr)) __ret;					  \
+	__ret = (__typeof__(*(ptr)))					  \
+		__xchg((unsigned long)(x), (void *)(ptr),sizeof(*(ptr))); \
+	__ret;								  \
+})
 
 static inline unsigned long __xchg(unsigned long x, void * ptr, int size)
 {
