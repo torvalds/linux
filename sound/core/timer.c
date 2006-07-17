@@ -1006,6 +1006,7 @@ static int snd_timer_s_stop(struct snd_timer * timer)
 		timer->sticks = priv->last_expires - jiff;
 	else
 		timer->sticks = 1;
+	priv->correction = 0;
 	return 0;
 }
 
