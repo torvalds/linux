@@ -1336,12 +1336,11 @@ static int __devinit zs_get_instance(struct device_node *dp)
 
 static int zilog_irq = -1;
 
-static int __devinit zs_probe(struct of_device *dev, const struct of_device_id *match)
+static int __devinit zs_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct of_device *op = to_of_device(&dev->dev);
 	struct uart_sunzilog_port *up;
 	struct zilog_layout __iomem *rp;
-	int inst = zs_get_instance(dev->node);
+	int inst = zs_get_instance(op->node);
 	int err;
 
 	sunzilog_chip_regs[inst] = of_ioremap(&op->resource[0], 0,
@@ -1413,7 +1412,7 @@ static int __devinit zs_probe(struct of_device *dev, const struct of_device_id *
 		}
 	}
 
-	dev_set_drvdata(&dev->dev, &up[0]);
+	dev_set_drvdata(&op->dev, &up[0]);
 
 	return 0;
 }
@@ -1462,18 +1461,19 @@ static struct of_platform_driver zs_driver = {
 static int __init sunzilog_init(void)
 {
 	struct device_node *dp;
-	int err;
+	int err, uart_count;
 
 	NUM_SUNZILOG = 0;
 	for_each_node_by_name(dp, "zs")
 		NUM_SUNZILOG++;
 
+	uart_count = 0;
 	if (NUM_SUNZILOG) {
 		int uart_count;
 
 		err = sunzilog_alloc_tables();
 		if (err)
-			return err;
+			goto out;
 
 		/* Subtract 1 for keyboard, 1 for mouse.  */
 		uart_count = (NUM_SUNZILOG * 2) - 2;
@@ -1481,17 +1481,41 @@ static int __init sunzilog_init(void)
 		sunzilog_reg.nr = uart_count;
 		sunzilog_reg.minor = sunserial_current_minor;
 		err = uart_register_driver(&sunzilog_reg);
-		if (err) {
-			sunzilog_free_tables();
-			return err;
-		}
+		if (err)
+			goto out_free_tables;
+
 		sunzilog_reg.tty_driver->name_base = sunzilog_reg.minor - 64;
 		sunzilog_reg.cons = SUNZILOG_CONSOLE();
 
 		sunserial_current_minor += uart_count;
 	}
 
-	return of_register_driver(&zs_driver, &of_bus_type);
+	err = of_register_driver(&zs_driver, &of_bus_type);
+	if (err)
+		goto out_unregister_uart;
+
+	if (zilog_irq != -1) {
+		err = request_irq(zilog_irq, sunzilog_interrupt, IRQF_SHARED,
+				  "zs", sunzilog_irq_chain);
+		if (err)
+			goto out_unregister_driver;
+	}
+
+out:
+	return err;
+
+out_unregister_driver:
+	of_unregister_driver(&zs_driver);
+
+out_unregister_uart:
+	if (NUM_SUNZILOG) {
+		uart_unregister_driver(&sunzilog_reg);
+		sunzilog_reg.cons = NULL;
+	}
+
+out_free_tables:
+	sunzilog_free_tables();
+	goto out;
 }
 
 static void __exit sunzilog_exit(void)
