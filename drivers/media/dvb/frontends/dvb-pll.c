@@ -614,8 +614,7 @@ static struct dvb_tuner_ops dvb_pll_tuner_ops = {
 int dvb_pll_attach(struct dvb_frontend *fe, int pll_addr, struct i2c_adapter *i2c, struct dvb_pll_desc *desc)
 {
 	u8 b1 [] = { 0 };
-	struct i2c_msg msg [] = { { .addr = pll_addr, .flags = 0, .buf = NULL, .len = 0 },
-				  { .addr = pll_addr, .flags = I2C_M_RD, .buf = b1, .len = 1 } };
+	struct i2c_msg msg = { .addr = pll_addr, .flags = I2C_M_RD, .buf = b1, .len = 1 };
 	struct dvb_pll_priv *priv = NULL;
 	int ret;
 
@@ -623,8 +622,8 @@ int dvb_pll_attach(struct dvb_frontend *fe, int pll_addr, struct i2c_adapter *i2
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 
-		ret = i2c_transfer (i2c, msg, 2);
-		if (ret != 2)
+		ret = i2c_transfer (i2c, &msg, 1);
+		if (ret != 1)
 			return -1;
 		if (fe->ops.i2c_gate_ctrl)
 			     fe->ops.i2c_gate_ctrl(fe, 0);
