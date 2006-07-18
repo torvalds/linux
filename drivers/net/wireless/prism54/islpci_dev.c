@@ -715,7 +715,7 @@ islpci_alloc_memory(islpci_private *priv)
 	}
 
 	prism54_acl_init(&priv->acl);
-	prism54_wpa_ie_init(priv);
+	prism54_wpa_bss_ie_init(priv);
 	if (mgt_init(priv)) 
 		goto out_free;
 
@@ -774,7 +774,7 @@ islpci_free_memory(islpci_private *priv)
 
 	/* Free the acces control list and the WPA list */
 	prism54_acl_clean(&priv->acl);
-	prism54_wpa_ie_clean(priv);
+	prism54_wpa_bss_ie_clean(priv);
 	mgt_clean(priv);
 
 	return 0;
