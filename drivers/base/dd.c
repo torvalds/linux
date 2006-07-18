@@ -17,6 +17,7 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/kthread.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -63,44 +64,35 @@ int device_bind_driver(struct device *dev)
 	return ret;
 }
 
-/**
- *	driver_probe_device - attempt to bind device & driver.
- *	@drv:	driver.
- *	@dev:	device.
- *
- *	First, we call the bus's match function, if one present, which
- *	should compare the device IDs the driver supports with the
- *	device IDs of the device. Note we don't do this ourselves
- *	because we don't know the format of the ID structures, nor what
- *	is to be considered a match and what is not.
- *
- *	This function returns 1 if a match is found, an error if one
- *	occurs (that is not -ENODEV or -ENXIO), and 0 otherwise.
- *
- *	This function must be called with @dev->sem held.  When called
- *	for a USB interface, @dev->parent->sem must be held as well.
- */
-int driver_probe_device(struct device_driver * drv, struct device * dev)
+struct stupid_thread_structure {
+	struct device_driver *drv;
+	struct device *dev;
+};
+
+static atomic_t probe_count = ATOMIC_INIT(0);
+static int really_probe(void *void_data)
 {
+	struct stupid_thread_structure *data = void_data;
+	struct device_driver *drv = data->drv;
+	struct device *dev = data->dev;
 	int ret = 0;
 
-	if (drv->bus->match && !drv->bus->match(dev, drv))
-		goto Done;
+	atomic_inc(&probe_count);
+	pr_debug("%s: Probing driver %s with device %s\n",
+		 drv->bus->name, drv->name, dev->bus_id);
 
-	pr_debug("%s: Matched Device %s with Driver %s\n",
-		 drv->bus->name, dev->bus_id, drv->name);
 	dev->driver = drv;
 	if (dev->bus->probe) {
 		ret = dev->bus->probe(dev);
 		if (ret) {
 			dev->driver = NULL;
-			goto ProbeFailed;
+			goto probe_failed;
 		}
 	} else if (drv->probe) {
 		ret = drv->probe(dev);
 		if (ret) {
 			dev->driver = NULL;
-			goto ProbeFailed;
+			goto probe_failed;
 		}
 	}
 	if (device_bind_driver(dev)) {
@@ -111,9 +103,9 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 	ret = 1;
 	pr_debug("%s: Bound Device %s to Driver %s\n",
 		 drv->bus->name, dev->bus_id, drv->name);
-	goto Done;
+	goto done;
 
- ProbeFailed:
+probe_failed:
 	if (ret == -ENODEV || ret == -ENXIO) {
 		/* Driver matched, but didn't support device
 		 * or device not found.
@@ -126,7 +118,69 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 		       "%s: probe of %s failed with error %d\n",
 		       drv->name, dev->bus_id, ret);
 	}
- Done:
+done:
+	kfree(data);
+	atomic_dec(&probe_count);
+	return ret;
+}
+
+/**
+ * driver_probe_done
+ * Determine if the probe sequence is finished or not.
+ *
+ * Should somehow figure out how to use a semaphore, not an atomic variable...
+ */
+int driver_probe_done(void)
+{
+	pr_debug("%s: probe_count = %d\n", __FUNCTION__,
+		 atomic_read(&probe_count));
+	if (atomic_read(&probe_count))
+		return -EBUSY;
+	return 0;
+}
+
+/**
+ * driver_probe_device - attempt to bind device & driver together
+ * @drv: driver to bind a device to
+ * @dev: device to try to bind to the driver
+ *
+ * First, we call the bus's match function, if one present, which should
+ * compare the device IDs the driver supports with the device IDs of the
+ * device. Note we don't do this ourselves because we don't know the
+ * format of the ID structures, nor what is to be considered a match and
+ * what is not.
+ *
+ * This function returns 1 if a match is found, an error if one occurs
+ * (that is not -ENODEV or -ENXIO), and 0 otherwise.
+ *
+ * This function must be called with @dev->sem held.  When called for a
+ * USB interface, @dev->parent->sem must be held as well.
+ */
+int driver_probe_device(struct device_driver * drv, struct device * dev)
+{
+	struct stupid_thread_structure *data;
+	struct task_struct *probe_task;
+	int ret = 0;
+
+	if (drv->bus->match && !drv->bus->match(dev, drv))
+		goto done;
+
+	pr_debug("%s: Matched Device %s with Driver %s\n",
+		 drv->bus->name, dev->bus_id, drv->name);
+
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data->drv = drv;
+	data->dev = dev;
+
+	if (drv->multithread_probe) {
+		probe_task = kthread_run(really_probe, data,
+					 "probe-%s", dev->bus_id);
+		if (IS_ERR(probe_task))
+			ret = PTR_ERR(probe_task);
+	} else
+		ret = really_probe(data);
+
+done:
 	return ret;
 }
 

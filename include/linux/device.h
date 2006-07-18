@@ -106,6 +106,8 @@ struct device_driver {
 	void	(*shutdown)	(struct device * dev);
 	int	(*suspend)	(struct device * dev, pm_message_t state);
 	int	(*resume)	(struct device * dev);
+
+	unsigned int multithread_probe:1;
 };
 
 
@@ -115,6 +117,7 @@ extern void driver_unregister(struct device_driver * drv);
 extern struct device_driver * get_driver(struct device_driver * drv);
 extern void put_driver(struct device_driver * drv);
 extern struct device_driver *driver_find(const char *name, struct bus_type *bus);
+extern int driver_probe_done(void);
 
 /* driverfs interface for exporting driver attributes */
 
