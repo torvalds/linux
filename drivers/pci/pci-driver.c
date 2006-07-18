@@ -17,6 +17,16 @@
  *  Registration of PCI drivers and handling of hot-pluggable devices.
  */
 
+/* multithreaded probe logic */
+static int pci_multithread_probe =
+#ifdef CONFIG_PCI_MULTITHREAD_PROBE
+	1;
+#else
+	0;
+#endif
+__module_param_call("", pci_multithread_probe, param_set_bool, param_get_bool, &pci_multithread_probe, 0644);
+
+
 /*
  * Dynamic device IDs are disabled for !CONFIG_HOTPLUG
  */
@@ -408,6 +418,7 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.owner = owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
+	drv->driver.multithread_probe = pci_multithread_probe;
 
 	spin_lock_init(&drv->dynids.lock);
 	INIT_LIST_HEAD(&drv->dynids.list);
