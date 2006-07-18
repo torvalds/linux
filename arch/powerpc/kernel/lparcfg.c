@@ -182,8 +182,14 @@ static unsigned int h_get_ppp(unsigned long *entitled,
 			      unsigned long *resource)
 {
 	unsigned long rc;
-	rc = plpar_hcall_4out(H_GET_PPP, 0, 0, 0, 0, entitled, unallocated,
-			      aggregation, resource);
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+	rc = plpar_hcall(H_GET_PPP, retbuf);
+
+	*entitled = retbuf[0];
+	*unallocated = retbuf[1];
+	*aggregation = retbuf[2];
+	*resource = retbuf[3];
 
 	log_plpar_hcall_return(rc, "H_GET_PPP");
 
@@ -193,8 +199,12 @@ static unsigned int h_get_ppp(unsigned long *entitled,
 static void h_pic(unsigned long *pool_idle_time, unsigned long *num_procs)
 {
 	unsigned long rc;
-	unsigned long dummy;
-	rc = plpar_hcall(H_PIC, 0, 0, 0, 0, pool_idle_time, num_procs, &dummy);
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+	rc = plpar_hcall(H_PIC, retbuf);
+
+	*pool_idle_time = retbuf[0];
+	*num_procs = retbuf[1];
 
 	if (rc != H_AUTHORITY)
 		log_plpar_hcall_return(rc, "H_PIC");

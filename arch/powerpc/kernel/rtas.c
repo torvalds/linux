@@ -668,15 +668,14 @@ static int rtas_ibm_suspend_me(struct rtas_args *args)
 	int i;
 	long state;
 	long rc;
-	unsigned long dummy;
-
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	struct rtas_suspend_me_data data;
 
 	/* Make sure the state is valid */
-	rc = plpar_hcall(H_VASI_STATE,
-			 ((u64)args->args[0] << 32) | args->args[1],
-			 0, 0, 0,
-			 &state, &dummy, &dummy);
+	rc = plpar_hcall(H_VASI_STATE, retbuf,
+			 ((u64)args->args[0] << 32) | args->args[1]);
+
+	state = retbuf[0];
 
 	if (rc) {
 		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned %ld\n",rc);

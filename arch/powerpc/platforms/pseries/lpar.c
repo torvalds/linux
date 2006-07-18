@@ -48,13 +48,11 @@
 #define DBG_LOW(fmt...) do { } while(0)
 #endif
 
-/* in pSeries_hvCall.S */
+/* in hvCall.S */
 EXPORT_SYMBOL(plpar_hcall);
-EXPORT_SYMBOL(plpar_hcall_4out);
+EXPORT_SYMBOL(plpar_hcall9);
 EXPORT_SYMBOL(plpar_hcall_norets);
-EXPORT_SYMBOL(plpar_hcall_8arg_2ret);
-EXPORT_SYMBOL(plpar_hcall_7arg_7ret);
-EXPORT_SYMBOL(plpar_hcall_9arg_9ret);
+
 extern void pSeries_find_serial_port(void);
 
 
@@ -277,7 +275,6 @@ long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	unsigned long flags;
 	unsigned long slot;
 	unsigned long hpte_v, hpte_r;
-	unsigned long dummy0, dummy1;
 
 	if (!(vflags & HPTE_V_BOLTED))
 		DBG_LOW("hpte_insert(group=%lx, va=%016lx, pa=%016lx, "
@@ -302,8 +299,7 @@ long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	if (rflags & (_PAGE_GUARDED|_PAGE_NO_CACHE))
 		hpte_r &= ~_PAGE_COHERENT;
 
-	lpar_rc = plpar_hcall(H_ENTER, flags, hpte_group, hpte_v,
-			      hpte_r, &slot, &dummy0, &dummy1);
+	lpar_rc = plpar_pte_enter(flags, hpte_group, hpte_v, hpte_r, &slot);
 	if (unlikely(lpar_rc == H_PTEG_FULL)) {
 		if (!(vflags & HPTE_V_BOLTED))
 			DBG_LOW(" full\n");

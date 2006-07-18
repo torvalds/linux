@@ -34,6 +34,7 @@
 #include <asm/i8259.h>
 
 #include "xics.h"
+#include "plpar_wrappers.h"
 
 #define XICS_IPI		2
 #define XICS_IRQ_SPURIOUS	0
@@ -109,27 +110,6 @@ static inline void direct_qirr_info(int n_cpu, u8 value)
 
 /* LPAR low level accessors */
 
-
-static inline long plpar_eoi(unsigned long xirr)
-{
-	return plpar_hcall_norets(H_EOI, xirr);
-}
-
-static inline long plpar_cppr(unsigned long cppr)
-{
-	return plpar_hcall_norets(H_CPPR, cppr);
-}
-
-static inline long plpar_ipi(unsigned long servernum, unsigned long mfrr)
-{
-	return plpar_hcall_norets(H_IPI, servernum, mfrr);
-}
-
-static inline long plpar_xirr(unsigned long *xirr_ret)
-{
-	unsigned long dummy;
-	return plpar_hcall(H_XIRR, 0, 0, 0, 0, xirr_ret, &dummy, &dummy);
-}
 
 static inline unsigned int lpar_xirr_info_get(int n_cpu)
 {

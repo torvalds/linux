@@ -702,7 +702,8 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 					     desc[3].desc,
 					     desc[4].desc,
 					     desc[5].desc,
-					     correlator);
+					     correlator,
+					     &correlator);
 	} while ((lpar_rc == H_BUSY) && (retry_count--));
 
 	if(lpar_rc != H_SUCCESS && lpar_rc != H_DROPPED) {

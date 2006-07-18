@@ -212,94 +212,39 @@
 
 #ifndef __ASSEMBLY__
 
-/* plpar_hcall() -- Generic call interface using above opcodes
+/**
+ * plpar_hcall_norets: - Make a pseries hypervisor call with no return arguments
+ * @opcode: The hypervisor call to make.
  *
- * The actual call interface is a hypervisor call instruction with
- * the opcode in R3 and input args in R4-R7.
- * Status is returned in R3 with variable output values in R4-R11.
- * Only H_PTE_READ with H_READ_4 uses R6-R11 so we ignore it for now
- * and return only two out args which MUST ALWAYS BE PROVIDED.
- */
-long plpar_hcall(unsigned long opcode,
-		 unsigned long arg1,
-		 unsigned long arg2,
-		 unsigned long arg3,
-		 unsigned long arg4,
-		 unsigned long *out1,
-		 unsigned long *out2,
-		 unsigned long *out3);
-
-/* Same as plpar_hcall but for those opcodes that return no values
- * other than status.  Slightly more efficient.
+ * This call supports up to 7 arguments and only returns the status of
+ * the hcall. Use this version where possible, its slightly faster than
+ * the other plpar_hcalls.
  */
 long plpar_hcall_norets(unsigned long opcode, ...);
 
-/*
- * Special hcall interface for ibmveth support.
- * Takes 8 input parms. Returns a rc and stores the
- * R4 return value in *out1.
- */
-long plpar_hcall_8arg_2ret(unsigned long opcode,
-			   unsigned long arg1,
-			   unsigned long arg2,
-			   unsigned long arg3,
-			   unsigned long arg4,
-			   unsigned long arg5,
-			   unsigned long arg6,
-			   unsigned long arg7,
-			   unsigned long arg8,
-			   unsigned long *out1);
-
-/* plpar_hcall_4out()
+/**
+ * plpar_hcall: - Make a pseries hypervisor call
+ * @opcode: The hypervisor call to make.
+ * @retbuf: Buffer to store up to 4 return arguments in.
  *
- * same as plpar_hcall except with 4 output arguments.
+ * This call supports up to 6 arguments and 4 return arguments. Use
+ * PLPAR_HCALL_BUFSIZE to size the return argument buffer.
  *
+ * Used for all but the craziest of phyp interfaces (see plpar_hcall9)
  */
-long plpar_hcall_4out(unsigned long opcode,
-		      unsigned long arg1,
-		      unsigned long arg2,
-		      unsigned long arg3,
-		      unsigned long arg4,
-		      unsigned long *out1,
-		      unsigned long *out2,
-		      unsigned long *out3,
-		      unsigned long *out4);
+#define PLPAR_HCALL_BUFSIZE 4
+long plpar_hcall(unsigned long opcode, unsigned long *retbuf, ...);
 
-long plpar_hcall_7arg_7ret(unsigned long opcode,
-			   unsigned long arg1,
-			   unsigned long arg2,
-			   unsigned long arg3,
-			   unsigned long arg4,
-			   unsigned long arg5,
-			   unsigned long arg6,
-			   unsigned long arg7,
-			   unsigned long *out1,
-			   unsigned long *out2,
-			   unsigned long *out3,
-			   unsigned long *out4,
-			   unsigned long *out5,
-			   unsigned long *out6,
-			   unsigned long *out7);
-
-long plpar_hcall_9arg_9ret(unsigned long opcode,
-			   unsigned long arg1,
-			   unsigned long arg2,
-			   unsigned long arg3,
-			   unsigned long arg4,
-			   unsigned long arg5,
-			   unsigned long arg6,
-			   unsigned long arg7,
-			   unsigned long arg8,
-			   unsigned long arg9,
-			   unsigned long *out1,
-			   unsigned long *out2,
-			   unsigned long *out3,
-			   unsigned long *out4,
-			   unsigned long *out5,
-			   unsigned long *out6,
-			   unsigned long *out7,
-			   unsigned long *out8,
-			   unsigned long *out9);
+/**
+ * plpar_hcall9: - Make a pseries hypervisor call with up to 9 return arguments
+ * @opcode: The hypervisor call to make.
+ * @retbuf: Buffer to store up to 9 return arguments in.
+ *
+ * This call supports up to 9 arguments and 9 return arguments. Use
+ * PLPAR_HCALL9_BUFSIZE to size the return argument buffer.
+ */
+#define PLPAR_HCALL9_BUFSIZE 9
+long plpar_hcall9(unsigned long opcode, unsigned long *retbuf, ...);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
