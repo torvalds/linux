@@ -277,7 +277,7 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 
 EXPORT_SYMBOL(blk_queue_make_request);
 
-static inline void rq_init(request_queue_t *q, struct request *rq)
+static void rq_init(request_queue_t *q, struct request *rq)
 {
 	INIT_LIST_HEAD(&rq->queuelist);
 	INIT_LIST_HEAD(&rq->donelist);
@@ -589,8 +589,8 @@ static int flush_dry_bio_endio(struct bio *bio, unsigned int bytes, int error)
 	return 0;
 }
 
-static inline int ordered_bio_endio(struct request *rq, struct bio *bio,
-				    unsigned int nbytes, int error)
+static int ordered_bio_endio(struct request *rq, struct bio *bio,
+			     unsigned int nbytes, int error)
 {
 	request_queue_t *q = rq->q;
 	bio_end_io_t *endio;
@@ -2002,7 +2002,7 @@ static inline void blk_free_request(request_queue_t *q, struct request *rq)
 	mempool_free(rq, q->rq.rq_pool);
 }
 
-static inline struct request *
+static struct request *
 blk_alloc_request(request_queue_t *q, int rw, int priv, gfp_t gfp_mask)
 {
 	struct request *rq = mempool_alloc(q->rq.rq_pool, gfp_mask);
