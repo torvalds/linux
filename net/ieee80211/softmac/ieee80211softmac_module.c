@@ -179,21 +179,14 @@ int ieee80211softmac_ratesinfo_rate_supported(struct ieee80211softmac_ratesinfo 
 	return 0;
 }
 
-/* Finds the highest rate which is:
- *  1. Present in ri (optionally a basic rate)
- *  2. Supported by the device
- *  3. Less than or equal to the user-defined rate
- */
-static u8 highest_supported_rate(struct ieee80211softmac_device *mac,
+u8 ieee80211softmac_highest_supported_rate(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_ratesinfo *ri, int basic_only)
 {
 	u8 user_rate = mac->txrates.user_rate;
 	int i;
 
-	if (ri->count == 0) {
-		dprintk(KERN_ERR PFX "empty ratesinfo?\n");
+	if (ri->count == 0)
 		return IEEE80211_CCK_RATE_1MB;
-	}
 
 	for (i = ri->count - 1; i >= 0; i--) {
 		u8 rate = ri->rates[i];
@@ -209,6 +202,7 @@ static u8 highest_supported_rate(struct ieee80211softmac_device *mac,
 	/* If we haven't found a suitable rate by now, just trust the user */
 	return user_rate;
 }
+EXPORT_SYMBOL_GPL(ieee80211softmac_highest_supported_rate);
 
 void ieee80211softmac_process_erp(struct ieee80211softmac_device *mac,
 	u8 erp_value)
@@ -244,13 +238,13 @@ void ieee80211softmac_recalc_txrates(struct ieee80211softmac_device *mac)
 	u32 change = 0;
 
 	change |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT;
-	txrates->default_rate = highest_supported_rate(mac, &mac->bssinfo.supported_rates, 0);
+	txrates->default_rate = ieee80211softmac_highest_supported_rate(mac, &mac->bssinfo.supported_rates, 0);
 
 	change |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT_FBACK;
 	txrates->default_fallback = lower_rate(mac, txrates->default_rate);
 
 	change |= IEEE80211SOFTMAC_TXRATECHG_MCAST;
-	txrates->mcast_rate = highest_supported_rate(mac, &mac->bssinfo.supported_rates, 1);
+	txrates->mcast_rate = ieee80211softmac_highest_supported_rate(mac, &mac->bssinfo.supported_rates, 1);
 
 	if (mac->txrates_change)
 		mac->txrates_change(mac->dev, change);

@@ -279,6 +279,14 @@ extern void ieee80211softmac_fragment_lost(struct net_device *dev,
  * Note that the rates need to be sorted. */
 extern void ieee80211softmac_set_rates(struct net_device *dev, u8 count, u8 *rates);
 
+/* Finds the highest rate which is:
+ *  1. Present in ri (optionally a basic rate)
+ *  2. Supported by the device
+ *  3. Less than or equal to the user-defined rate
+ */
+extern u8 ieee80211softmac_highest_supported_rate(struct ieee80211softmac_device *mac,
+	struct ieee80211softmac_ratesinfo *ri, int basic_only);
+
 /* Helper function which advises you the rate at which a frame should be
  * transmitted at. */
 static inline u8 ieee80211softmac_suggest_txrate(struct ieee80211softmac_device *mac,
