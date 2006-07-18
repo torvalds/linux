@@ -779,33 +779,44 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-/* Filter out unrelated packets, call ieee80211_rx[_mgt] */
-int ieee80211_rx_any(struct ieee80211_device *ieee,
+/* Filter out unrelated packets, call ieee80211_rx[_mgt]
+ * This function takes over the skb, it should not be used again after calling
+ * this function. */
+void ieee80211_rx_any(struct ieee80211_device *ieee,
 		     struct sk_buff *skb, struct ieee80211_rx_stats *stats)
 {
 	struct ieee80211_hdr_4addr *hdr;
 	int is_packet_for_us;
 	u16 fc;
 
-	if (ieee->iw_mode == IW_MODE_MONITOR)
-		return ieee80211_rx(ieee, skb, stats) ? 0 : -EINVAL;
+	if (ieee->iw_mode == IW_MODE_MONITOR) {
+		if (!ieee80211_rx(ieee, skb, stats))
+			dev_kfree_skb_irq(skb);
+		return;
+	}
+
+	if (skb->len < sizeof(struct ieee80211_hdr))
+		goto drop_free;
 
 	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 
 	if ((fc & IEEE80211_FCTL_VERS) != 0)
-		return -EINVAL;
+		goto drop_free;
 		
 	switch (fc & IEEE80211_FCTL_FTYPE) {
 	case IEEE80211_FTYPE_MGMT:
+		if (skb->len < sizeof(struct ieee80211_hdr_3addr))
+			goto drop_free;
 		ieee80211_rx_mgt(ieee, hdr, stats);
-		return 0;
+		dev_kfree_skb_irq(skb);
+		return;
 	case IEEE80211_FTYPE_DATA:
 		break;
 	case IEEE80211_FTYPE_CTL:
-		return 0;
+		return;
 	default:
-		return -EINVAL;
+		return;
 	}
 
 	is_packet_for_us = 0;
@@ -849,8 +860,14 @@ int ieee80211_rx_any(struct ieee80211_device *ieee,
 	}
 
 	if (is_packet_for_us)
-		return (ieee80211_rx(ieee, skb, stats) ? 0 : -EINVAL);
-	return 0;
+		if (!ieee80211_rx(ieee, skb, stats))
+			dev_kfree_skb_irq(skb);
+	return;
+
+drop_free:
+	dev_kfree_skb_irq(skb);
+	ieee->stats.rx_dropped++;
+	return;
 }
 
 #define MGMT_FRAME_FIXED_PART_LENGTH		0x24
@@ -1730,5 +1747,6 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 	}
 }
 
+EXPORT_SYMBOL_GPL(ieee80211_rx_any);
 EXPORT_SYMBOL(ieee80211_rx_mgt);
 EXPORT_SYMBOL(ieee80211_rx);

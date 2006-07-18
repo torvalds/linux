@@ -1259,6 +1259,8 @@ extern int ieee80211_tx_frame(struct ieee80211_device *ieee,
 			      int total_len, int encrypt_mpdu);
 
 /* ieee80211_rx.c */
+extern void ieee80211_rx_any(struct ieee80211_device *ieee,
+		     struct sk_buff *skb, struct ieee80211_rx_stats *stats);
 extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats);
 /* make sure to set stats->len */
