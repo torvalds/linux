@@ -596,13 +596,40 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 		static int pil_to_sbus[] = {
 			0, 0, 1, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 0,
 		};
-		struct device_node *busp = dp->parent;
+		struct device_node *io_unit, *sbi = dp->parent;
 		struct linux_prom_registers *regs;
-		int board = of_getintprop_default(busp, "board#", 0);
-		int slot;
+		int board, slot;
+
+		while (sbi) {
+			if (!strcmp(sbi->name, "sbi"))
+				break;
+
+			sbi = sbi->parent;
+		}
+		if (!sbi)
+			goto build_resources;
 
 		regs = of_get_property(dp, "reg", NULL);
+		if (!regs)
+			goto build_resources;
+
 		slot = regs->which_io;
+
+		/* If SBI's parent is not io-unit or the io-unit lacks
+		 * a "board#" property, something is very wrong.
+		 */
+		if (!sbi->parent || strcmp(sbi->parent->name, "io-unit")) {
+			printk("%s: Error, parent is not io-unit.\n",
+			       sbi->full_name);
+			goto build_resources;
+		}
+		io_unit = sbi->parent;
+		board = of_getintprop_default(io_unit, "board#", -1);
+		if (board == -1) {
+			printk("%s: Error, lacks board# property.\n",
+			       io_unit->full_name);
+			goto build_resources;
+		}
 
 		for (i = 0; i < op->num_irqs; i++) {
 			int this_irq = op->irqs[i];
@@ -617,6 +644,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 		}
 	}
 
+build_resources:
 	build_device_resources(op, parent);
 
 	op->dev.parent = parent;
