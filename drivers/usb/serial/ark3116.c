@@ -1,4 +1,7 @@
 /*
+ * Copyright (C) 2006
+ *   Simon Schulz (ark3116_driver <at> auctionant.de)
+ *
  * ark3116
  * - implements a driver for the arkmicro ark3116 chipset (vendor=0x6547,
  *   productid=0x0232) (used in a datacable called KQ-U8A)
@@ -7,8 +10,6 @@
  *   (see http://www.linuxquestions.org/questions/showthread.php?p=2184457#post2184457)
  *
  *  - based on logs created by usbsnoopy
- *
- *  Author   : Simon Schulz [ark3116_driver<AT>auctionant.de]
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,6 +23,8 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
+#include <linux/serial.h>
+#include <asm/uaccess.h>
 
 
 static int debug;
@@ -379,7 +382,32 @@ static int ark3116_open(struct usb_serial_port *port, struct file *filp)
 static int ark3116_ioctl(struct usb_serial_port *port, struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
-	dbg("ioctl not supported yet...");
+	struct serial_struct serstruct;
+	void __user *user_arg = (void __user *)arg;
+
+	switch (cmd) {
+	case TIOCGSERIAL:
+		/* XXX: Some of these values are probably wrong. */
+		memset(&serstruct, 0, sizeof (serstruct));
+		serstruct.type = PORT_16654;
+		serstruct.line = port->serial->minor;
+		serstruct.port = port->number;
+		serstruct.custom_divisor = 0;
+		serstruct.baud_base = 460800;
+
+		if (copy_to_user(user_arg, &serstruct, sizeof (serstruct)))
+			return -EFAULT;
+
+		return 0;
+	case TIOCSSERIAL:
+		if (copy_from_user(&serstruct, user_arg, sizeof (serstruct)))
+			return -EFAULT;
+		return 0;
+	default:
+		dbg("%s cmd 0x%04x not supported", __FUNCTION__, cmd);
+		break;
+	}
+
 	return -ENOIOCTLCMD;
 }
 
