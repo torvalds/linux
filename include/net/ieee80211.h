@@ -240,6 +240,11 @@ struct ieee80211_snap_hdr {
 #define WLAN_CAPABILITY_SHORT_SLOT_TIME (1<<10)
 #define WLAN_CAPABILITY_DSSS_OFDM (1<<13)
 
+/* 802.11g ERP information element */
+#define WLAN_ERP_NON_ERP_PRESENT (1<<0)
+#define WLAN_ERP_USE_PROTECTION (1<<1)
+#define WLAN_ERP_BARKER_PREAMBLE (1<<2)
+
 /* Status codes */
 enum ieee80211_statuscode {
 	WLAN_STATUS_SUCCESS = 0,
@@ -746,6 +751,8 @@ struct ieee80211_txb {
 #define NETWORK_HAS_QUIET               (1<<7)
 #define NETWORK_HAS_IBSS_DFS            (1<<8)
 #define NETWORK_HAS_TPC_REPORT          (1<<9)
+
+#define NETWORK_HAS_ERP_VALUE           (1<<10)
 
 #define QOS_QUEUE_NUM                   4
 #define QOS_OUI_LEN                     3

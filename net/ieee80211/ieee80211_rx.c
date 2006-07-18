@@ -1166,6 +1166,7 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 
 		case MFIE_TYPE_ERP_INFO:
 			network->erp_value = info_element->data[0];
+			network->flags |= NETWORK_HAS_ERP_VALUE;
 			IEEE80211_DEBUG_MGMT("MFIE_TYPE_ERP_SET: %d\n",
 					     network->erp_value);
 			break;
