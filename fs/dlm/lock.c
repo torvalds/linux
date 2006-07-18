@@ -526,6 +526,7 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 	lkb->lkb_nodeid = -1;
 	lkb->lkb_grmode = DLM_LOCK_IV;
 	kref_init(&lkb->lkb_ref);
+	INIT_LIST_HEAD(&lkb->lkb_ownqueue);
 
 	get_random_bytes(&bucket, sizeof(bucket));
 	bucket &= (ls->ls_lkbtbl_size - 1);
@@ -3705,7 +3706,7 @@ int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 		goto out_put;
 
 	spin_lock(&ua->proc->locks_spin);
-	list_del(&lkb->lkb_ownqueue);
+	list_del_init(&lkb->lkb_ownqueue);
 	spin_unlock(&ua->proc->locks_spin);
 
 	/* this removes the reference for the proc->locks list added by
@@ -3749,7 +3750,7 @@ int dlm_user_cancel(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	/* this lkb was removed from the WAITING queue */
 	if (lkb->lkb_grmode == DLM_LOCK_IV) {
 		spin_lock(&ua->proc->locks_spin);
-		list_del(&lkb->lkb_ownqueue);
+		list_del_init(&lkb->lkb_ownqueue);
 		spin_unlock(&ua->proc->locks_spin);
 		unhold_lkb(lkb);
 	}
@@ -3817,7 +3818,7 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 			unhold_lkb(lkb);
 		}
 
-		list_del(&lkb->lkb_ownqueue);
+		list_del_init(&lkb->lkb_ownqueue);
 
 		if (lkb->lkb_exflags & DLM_LKF_PERSISTENT) {
 			lkb->lkb_flags |= DLM_IFL_ORPHAN;

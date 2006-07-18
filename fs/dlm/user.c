@@ -133,6 +133,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 	struct dlm_ls *ls;
 	struct dlm_user_args *ua;
 	struct dlm_user_proc *proc;
+	int remove_ownqueue = 0;
 
 	/* dlm_clear_proc_locks() sets ORPHAN/DEAD flag on each
 	   lkb before dealing with it.  We need to check this
@@ -171,6 +172,14 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 		wake_up_interruptible(&proc->wait);
 	}
 
+	/* noqueue requests that fail may need to be removed from the
+	   proc's locks list, there should be a better way of detecting
+	   this situation than checking all these things... */
+	   
+	if (type == AST_COMP && lkb->lkb_grmode == DLM_LOCK_IV &&
+	    ua->lksb.sb_status == -EAGAIN && !list_empty(&lkb->lkb_ownqueue))
+		remove_ownqueue = 1;
+
 	/* We want to copy the lvb to userspace when the completion
 	   ast is read if the status is 0, the lock has an lvb and
 	   lvb_ops says we should.  We could probably have set_lvb_lock()
@@ -185,6 +194,13 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 		ua->update_user_lvb = 0;
 
 	spin_unlock(&proc->asts_spin);
+
+	if (remove_ownqueue) {
+		spin_lock(&ua->proc->locks_spin);
+		list_del_init(&lkb->lkb_ownqueue);
+		spin_unlock(&ua->proc->locks_spin);
+		dlm_put_lkb(lkb);
+	}
  out:
 	mutex_unlock(&ls->ls_clear_proc_locks);
 }
