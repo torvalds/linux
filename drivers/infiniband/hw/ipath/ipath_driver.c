@@ -859,6 +859,38 @@ static void ipath_rcv_layer(struct ipath_devdata *dd, u32 etail,
 		__ipath_layer_rcv_lid(dd, hdr);
 }
 
+static void ipath_rcv_hdrerr(struct ipath_devdata *dd,
+			     u32 eflags,
+			     u32 l,
+			     u32 etail,
+			     u64 *rc)
+{
+	char emsg[128];
+	struct ipath_message_header *hdr;
+
+	get_rhf_errstring(eflags, emsg, sizeof emsg);
+	hdr = (struct ipath_message_header *)&rc[1];
+	ipath_cdbg(PKT, "RHFerrs %x hdrqtail=%x typ=%u "
+		   "tlen=%x opcode=%x egridx=%x: %s\n",
+		   eflags, l,
+		   ipath_hdrget_rcv_type((__le32 *) rc),
+		   ipath_hdrget_length_in_bytes((__le32 *) rc),
+		   be32_to_cpu(hdr->bth[0]) >> 24,
+		   etail, emsg);
+
+	/* Count local link integrity errors. */
+	if (eflags & (INFINIPATH_RHF_H_ICRCERR | INFINIPATH_RHF_H_VCRCERR)) {
+		u8 n = (dd->ipath_ibcctrl >>
+			INFINIPATH_IBCC_PHYERRTHRESHOLD_SHIFT) &
+			INFINIPATH_IBCC_PHYERRTHRESHOLD_MASK;
+
+		if (++dd->ipath_lli_counter > n) {
+			dd->ipath_lli_counter = 0;
+			dd->ipath_lli_errors++;
+		}
+	}
+}
+
 /*
  * ipath_kreceive - receive a packet
  * @dd: the infinipath device
@@ -875,7 +907,6 @@ void ipath_kreceive(struct ipath_devdata *dd)
 	struct ipath_message_header *hdr;
 	u32 eflags, i, etype, tlen, pkttot = 0, updegr=0, reloop=0;
 	static u64 totcalls;	/* stats, may eventually remove */
-	char emsg[128];
 
 	if (!dd->ipath_hdrqtailptr) {
 		ipath_dev_err(dd,
@@ -938,26 +969,9 @@ reloop:
 				   "%x\n", etype);
 		}
 
-		if (eflags & ~(INFINIPATH_RHF_H_TIDERR |
-			       INFINIPATH_RHF_H_IHDRERR)) {
-			get_rhf_errstring(eflags, emsg, sizeof emsg);
-			ipath_cdbg(PKT, "RHFerrs %x hdrqtail=%x typ=%u "
-				   "tlen=%x opcode=%x egridx=%x: %s\n",
-				   eflags, l, etype, tlen, bthbytes[0],
-				   ipath_hdrget_index((__le32 *) rc), emsg);
-			/* Count local link integrity errors. */
-			if (eflags & (INFINIPATH_RHF_H_ICRCERR |
-				      INFINIPATH_RHF_H_VCRCERR)) {
-				u8 n = (dd->ipath_ibcctrl >>
-					INFINIPATH_IBCC_PHYERRTHRESHOLD_SHIFT) &
-					INFINIPATH_IBCC_PHYERRTHRESHOLD_MASK;
-
-				if (++dd->ipath_lli_counter > n) {
-					dd->ipath_lli_counter = 0;
-					dd->ipath_lli_errors++;
-				}
-			}
-		} else if (etype == RCVHQ_RCV_TYPE_NON_KD) {
+		if (unlikely(eflags))
+			ipath_rcv_hdrerr(dd, eflags, l, etail, rc);
+		else if (etype == RCVHQ_RCV_TYPE_NON_KD) {
 				int ret = __ipath_verbs_rcv(dd, rc + 1,
 							    ebuf, tlen);
 				if (ret == -ENODEV)
@@ -981,25 +995,7 @@ reloop:
 		else if (etype == RCVHQ_RCV_TYPE_EXPECTED)
 			ipath_dbg("Bug: Expected TID, opcode %x; ignored\n",
 				  be32_to_cpu(hdr->bth[0]) & 0xff);
-		else if (eflags & (INFINIPATH_RHF_H_TIDERR |
-				   INFINIPATH_RHF_H_IHDRERR)) {
-			/*
-			 * This is a type 3 packet, only the LRH is in the
-			 * rcvhdrq, the rest of the header is in the eager
-			 * buffer.
-			 */
-			u8 opcode;
-			if (ebuf) {
-				bthbytes = (u8 *) ebuf;
-				opcode = *bthbytes;
-			}
-			else
-				opcode = 0;
-			get_rhf_errstring(eflags, emsg, sizeof emsg);
-			ipath_dbg("Err %x (%s), opcode %x, egrbuf %x, "
-				  "len %x\n", eflags, emsg, opcode, etail,
-				  tlen);
-		} else {
+		else {
 			/*
 			 * error packet, type of error	unknown.
 			 * Probably type 3, but we don't know, so don't
