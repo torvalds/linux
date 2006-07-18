@@ -96,7 +96,7 @@ ieee80211softmac_disassoc(struct ieee80211softmac_device *mac)
 	mac->associated = 0;
 	mac->associnfo.bssvalid = 0;
 	mac->associnfo.associating = 0;
-	ieee80211softmac_init_txrates(mac);
+	ieee80211softmac_init_bss(mac);
 	ieee80211softmac_call_events_locked(mac, IEEE80211SOFTMAC_EVENT_DISASSOCIATED, NULL);
 	spin_unlock_irqrestore(&mac->lock, flags);
 }
@@ -334,11 +334,19 @@ ieee80211softmac_associated(struct ieee80211softmac_device *mac,
 	struct ieee80211_assoc_response * resp,
 	struct ieee80211softmac_network *net)
 {
+	u16 cap = le16_to_cpu(resp->capability);
+	u8 erp_value = net->erp_value;
+
 	mac->associnfo.associating = 0;
-	mac->associnfo.supported_rates = net->supported_rates;
+	mac->bssinfo.supported_rates = net->supported_rates;
 	ieee80211softmac_recalc_txrates(mac);
 
 	mac->associated = 1;
+
+	mac->associnfo.short_preamble_available =
+		(cap & WLAN_CAPABILITY_SHORT_PREAMBLE) != 0;
+	ieee80211softmac_process_erp(mac, erp_value);
+
 	if (mac->set_bssid_filter)
 		mac->set_bssid_filter(mac->dev, net->bssid);
 	memcpy(mac->ieee->bssid, net->bssid, ETH_ALEN);
@@ -351,9 +359,9 @@ ieee80211softmac_associated(struct ieee80211softmac_device *mac,
 int
 ieee80211softmac_handle_assoc_response(struct net_device * dev,
 				       struct ieee80211_assoc_response * resp,
-				       struct ieee80211_network * _ieee80211_network_do_not_use)
+				       struct ieee80211_network * _ieee80211_network)
 {
-	/* NOTE: the network parameter has to be ignored by
+	/* NOTE: the network parameter has to be mostly ignored by
 	 *       this code because it is the ieee80211's pointer
 	 *       to the struct, not ours (we made a copy)
 	 */
@@ -384,6 +392,11 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 
 	/* now that we know it was for us, we can cancel the timeout */
 	cancel_delayed_work(&mac->associnfo.timeout);
+
+	/* if the association response included an ERP IE, update our saved
+	 * copy */
+	if (_ieee80211_network->flags & NETWORK_HAS_ERP_VALUE)
+		network->erp_value = _ieee80211_network->erp_value;
 
 	switch (status) {
 		case 0:

@@ -467,3 +467,17 @@ ieee80211softmac_send_mgt_frame(struct ieee80211softmac_device *mac,
 	kfree(pkt);
 	return 0;
 }
+
+/* Beacon handling */
+int ieee80211softmac_handle_beacon(struct net_device *dev,
+	struct ieee80211_beacon *beacon,
+	struct ieee80211_network *network)
+{
+	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
+
+	if (mac->associated && memcmp(network->bssid, mac->associnfo.bssid, ETH_ALEN) == 0)
+		ieee80211softmac_process_erp(mac, network->erp_value);
+
+	return 0;
+}
+

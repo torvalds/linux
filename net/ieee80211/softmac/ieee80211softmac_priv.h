@@ -116,9 +116,11 @@ ieee80211softmac_get_network_by_essid(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_essid *essid);
 
 /* Rates related */
+void ieee80211softmac_process_erp(struct ieee80211softmac_device *mac,
+	u8 erp_value);
 int ieee80211softmac_ratesinfo_rate_supported(struct ieee80211softmac_ratesinfo *ri, u8 rate);
 u8 ieee80211softmac_lower_rate_delta(struct ieee80211softmac_device *mac, u8 rate, int delta);
-void ieee80211softmac_init_txrates(struct ieee80211softmac_device *mac);
+void ieee80211softmac_init_bss(struct ieee80211softmac_device *mac);
 void ieee80211softmac_recalc_txrates(struct ieee80211softmac_device *mac);
 static inline u8 lower_rate(struct ieee80211softmac_device *mac, u8 rate) {
 	return ieee80211softmac_lower_rate_delta(mac, rate, 1);
@@ -133,6 +135,9 @@ static inline u8 get_fallback_rate(struct ieee80211softmac_device *mac, u8 rate)
 /*** prototypes from _io.c */
 int ieee80211softmac_send_mgt_frame(struct ieee80211softmac_device *mac,
 	void* ptrarg, u32 type, u32 arg);
+int ieee80211softmac_handle_beacon(struct net_device *dev,
+	struct ieee80211_beacon *beacon,
+	struct ieee80211_network *network);
 
 /*** prototypes from _auth.c */
 /* do these have to go into the public header? */
@@ -189,6 +194,7 @@ struct ieee80211softmac_network {
 	    authenticated:1,
 	    auth_desynced_once:1;
 
+	u8 erp_value;				/* Saved ERP value */
 	u16 capabilities;			/* Capabilities bitfield */
 	u8 challenge_len;			/* Auth Challenge length */
 	char *challenge;			/* Challenge Text */
