@@ -191,10 +191,6 @@ void ipath_skip_sge(struct ipath_sge_state *ss, u32 length)
 {
 	struct ipath_sge *sge = &ss->sge;
 
-	while (length > sge->sge_length) {
-		length -= sge->sge_length;
-		ss->sge = *ss->sg_list++;
-	}
 	while (length) {
 		u32 len = sge->length;
 
