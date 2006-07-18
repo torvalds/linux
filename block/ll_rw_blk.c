@@ -2885,17 +2885,11 @@ static void init_request_from_bio(struct request *req, struct bio *bio)
 static int __make_request(request_queue_t *q, struct bio *bio)
 {
 	struct request *req;
-	int el_ret, rw, nr_sectors, cur_nr_sectors, barrier, err, sync;
-	unsigned short prio;
-	sector_t sector;
+	int el_ret, nr_sectors, barrier, err;
+	const unsigned short prio = bio_prio(bio);
+	const int sync = bio_sync(bio);
 
-	sector = bio->bi_sector;
 	nr_sectors = bio_sectors(bio);
-	cur_nr_sectors = bio_cur_sectors(bio);
-	prio = bio_prio(bio);
-
-	rw = bio_data_dir(bio);
-	sync = bio_sync(bio);
 
 	/*
 	 * low level driver can indicate that it wants pages above a
@@ -2903,8 +2897,6 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 	 * ISA dma in theory)
 	 */
 	blk_queue_bounce(q, &bio);
-
-	spin_lock_prefetch(q->queue_lock);
 
 	barrier = bio_barrier(bio);
 	if (unlikely(barrier) && (q->next_ordered == QUEUE_ORDERED_NONE)) {
@@ -2953,9 +2945,9 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 			 * not touch req->buffer either...
 			 */
 			req->buffer = bio_data(bio);
-			req->current_nr_sectors = cur_nr_sectors;
-			req->hard_cur_sectors = cur_nr_sectors;
-			req->sector = req->hard_sector = sector;
+			req->current_nr_sectors = bio_cur_sectors(bio);
+			req->hard_cur_sectors = req->current_nr_sectors;
+			req->sector = req->hard_sector = bio->bi_sector;
 			req->nr_sectors = req->hard_nr_sectors += nr_sectors;
 			req->ioprio = ioprio_best(req->ioprio, prio);
 			drive_stat_acct(req, nr_sectors, 0);
@@ -2973,7 +2965,7 @@ get_rq:
 	 * Grab a free request. This is might sleep but can not fail.
 	 * Returns with the queue unlocked.
 	 */
-	req = get_request_wait(q, rw, bio);
+	req = get_request_wait(q, bio_data_dir(bio), bio);
 
 	/*
 	 * After dropping the lock and possibly sleeping here, our request
