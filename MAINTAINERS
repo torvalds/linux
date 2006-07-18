@@ -2588,6 +2588,18 @@ P:	Nicolas Pitre
 M:	nico@cam.org
 S:	Maintained
 
+SOFTMAC LAYER (IEEE 802.11)
+P:	Johannes Berg
+M:	johannes@sipsolutions.net
+P:	Joe Jezak
+M:	josejx@gentoo.org
+P:	Daniel Drake
+M:	dsd@gentoo.org
+W:	http://softmac.sipsolutions.net/
+L:	softmac-dev@sipsolutions.net
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 SOFTWARE RAID (Multiple Disks) SUPPORT
 P:	Ingo Molnar
 M:	mingo@redhat.com
