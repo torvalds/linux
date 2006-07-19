@@ -104,8 +104,7 @@ struct io_context {
 
 void put_io_context(struct io_context *ioc);
 void exit_io_context(void);
-struct io_context *current_io_context(gfp_t gfp_flags);
-struct io_context *get_io_context(gfp_t gfp_flags);
+struct io_context *get_io_context(gfp_t gfp_flags, int node);
 void copy_io_context(struct io_context **pdst, struct io_context **psrc);
 void swap_io_context(struct io_context **ioc1, struct io_context **ioc2);
 

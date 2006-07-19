@@ -1148,8 +1148,9 @@ static void cfq_exit_io_context(struct io_context *ioc)
 static struct cfq_io_context *
 cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 {
-	struct cfq_io_context *cic = kmem_cache_alloc(cfq_ioc_pool, gfp_mask);
+	struct cfq_io_context *cic;
 
+	cic = kmem_cache_alloc_node(cfq_ioc_pool, gfp_mask, cfqd->queue->node);
 	if (cic) {
 		memset(cic, 0, sizeof(*cic));
 		cic->last_end_request = jiffies;
@@ -1277,11 +1278,11 @@ retry:
 			 * free memory.
 			 */
 			spin_unlock_irq(cfqd->queue->queue_lock);
-			new_cfqq = kmem_cache_alloc(cfq_pool, gfp_mask|__GFP_NOFAIL);
+			new_cfqq = kmem_cache_alloc_node(cfq_pool, gfp_mask|__GFP_NOFAIL, cfqd->queue->node);
 			spin_lock_irq(cfqd->queue->queue_lock);
 			goto retry;
 		} else {
-			cfqq = kmem_cache_alloc(cfq_pool, gfp_mask);
+			cfqq = kmem_cache_alloc_node(cfq_pool, gfp_mask, cfqd->queue->node);
 			if (!cfqq)
 				goto out;
 		}
@@ -1407,7 +1408,7 @@ cfq_get_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 
-	ioc = get_io_context(gfp_mask);
+	ioc = get_io_context(gfp_mask, cfqd->queue->node);
 	if (!ioc)
 		return NULL;
 
@@ -1955,7 +1956,7 @@ static void *cfq_init_queue(request_queue_t *q, elevator_t *e)
 	struct cfq_data *cfqd;
 	int i;
 
-	cfqd = kmalloc(sizeof(*cfqd), GFP_KERNEL);
+	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL, q->node);
 	if (!cfqd)
 		return NULL;
 
@@ -1970,7 +1971,7 @@ static void *cfq_init_queue(request_queue_t *q, elevator_t *e)
 	INIT_LIST_HEAD(&cfqd->empty_list);
 	INIT_LIST_HEAD(&cfqd->cic_list);
 
-	cfqd->cfq_hash = kmalloc(sizeof(struct hlist_head) * CFQ_QHASH_ENTRIES, GFP_KERNEL);
+	cfqd->cfq_hash = kmalloc_node(sizeof(struct hlist_head) * CFQ_QHASH_ENTRIES, GFP_KERNEL, q->node);
 	if (!cfqd->cfq_hash)
 		goto out_free;
 

@@ -161,12 +161,12 @@ __setup("elevator=", elevator_setup);
 
 static struct kobj_type elv_ktype;
 
-static elevator_t *elevator_alloc(struct elevator_type *e)
+static elevator_t *elevator_alloc(request_queue_t *q, struct elevator_type *e)
 {
 	elevator_t *eq;
 	int i;
 
-	eq = kmalloc(sizeof(elevator_t), GFP_KERNEL);
+	eq = kmalloc_node(sizeof(elevator_t), GFP_KERNEL, q->node);
 	if (unlikely(!eq))
 		goto err;
 
@@ -178,7 +178,8 @@ static elevator_t *elevator_alloc(struct elevator_type *e)
 	eq->kobj.ktype = &elv_ktype;
 	mutex_init(&eq->sysfs_lock);
 
-	eq->hash = kmalloc(sizeof(struct hlist_head) * ELV_HASH_ENTRIES, GFP_KERNEL);
+	eq->hash = kmalloc_node(sizeof(struct hlist_head) * ELV_HASH_ENTRIES,
+					GFP_KERNEL, q->node);
 	if (!eq->hash)
 		goto err;
 
@@ -224,7 +225,7 @@ int elevator_init(request_queue_t *q, char *name)
 		e = elevator_get("noop");
 	}
 
-	eq = elevator_alloc(e);
+	eq = elevator_alloc(q, e);
 	if (!eq)
 		return -ENOMEM;
 
@@ -987,7 +988,7 @@ static int elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 	/*
 	 * Allocate new elevator
 	 */
-	e = elevator_alloc(new_e);
+	e = elevator_alloc(q, new_e);
 	if (!e)
 		return 0;
 

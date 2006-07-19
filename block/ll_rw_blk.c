@@ -39,6 +39,7 @@ static void blk_unplug_timeout(unsigned long data);
 static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io);
 static void init_request_from_bio(struct request *req, struct bio *bio);
 static int __make_request(request_queue_t *q, struct bio *bio);
+static struct io_context *current_io_context(gfp_t gfp_flags, int node);
 
 /*
  * For the allocated request tables
@@ -2114,7 +2115,7 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 
 	if (rl->count[rw]+1 >= queue_congestion_on_threshold(q)) {
 		if (rl->count[rw]+1 >= q->nr_requests) {
-			ioc = current_io_context(GFP_ATOMIC);
+			ioc = current_io_context(GFP_ATOMIC, q->node);
 			/*
 			 * The queue will fill after this allocation, so set
 			 * it as full, and mark this process as "batching".
@@ -2234,7 +2235,7 @@ static struct request *get_request_wait(request_queue_t *q, int rw,
 			 * up to a big batch of them for a small period time.
 			 * See ioc_batching, ioc_set_batching
 			 */
-			ioc = current_io_context(GFP_NOIO);
+			ioc = current_io_context(GFP_NOIO, q->node);
 			ioc_set_batching(q, ioc);
 
 			spin_lock_irq(q->queue_lock);
@@ -3641,7 +3642,7 @@ void exit_io_context(void)
  * but since the current task itself holds a reference, the context can be
  * used in general code, so long as it stays within `current` context.
  */
-struct io_context *current_io_context(gfp_t gfp_flags)
+static struct io_context *current_io_context(gfp_t gfp_flags, int node)
 {
 	struct task_struct *tsk = current;
 	struct io_context *ret;
@@ -3650,7 +3651,7 @@ struct io_context *current_io_context(gfp_t gfp_flags)
 	if (likely(ret))
 		return ret;
 
-	ret = kmem_cache_alloc(iocontext_cachep, gfp_flags);
+	ret = kmem_cache_alloc_node(iocontext_cachep, gfp_flags, node);
 	if (ret) {
 		atomic_set(&ret->refcount, 1);
 		ret->task = current;
@@ -3674,10 +3675,10 @@ EXPORT_SYMBOL(current_io_context);
  *
  * This is always called in the context of the task which submitted the I/O.
  */
-struct io_context *get_io_context(gfp_t gfp_flags)
+struct io_context *get_io_context(gfp_t gfp_flags, int node)
 {
 	struct io_context *ret;
-	ret = current_io_context(gfp_flags);
+	ret = current_io_context(gfp_flags, node);
 	if (likely(ret))
 		atomic_inc(&ret->refcount);
 	return ret;

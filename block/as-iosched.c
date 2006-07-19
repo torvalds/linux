@@ -210,9 +210,9 @@ static struct as_io_context *alloc_as_io_context(void)
  * If the current task has no AS IO context then create one and initialise it.
  * Then take a ref on the task's io context and return it.
  */
-static struct io_context *as_get_io_context(void)
+static struct io_context *as_get_io_context(int node)
 {
-	struct io_context *ioc = get_io_context(GFP_ATOMIC);
+	struct io_context *ioc = get_io_context(GFP_ATOMIC, node);
 	if (ioc && !ioc->aic) {
 		ioc->aic = alloc_as_io_context();
 		if (!ioc->aic) {
@@ -1148,7 +1148,7 @@ static void as_add_request(request_queue_t *q, struct request *rq)
 
 	data_dir = rq_is_sync(rq);
 
-	rq->elevator_private = as_get_io_context();
+	rq->elevator_private = as_get_io_context(q->node);
 
 	if (RQ_IOC(rq)) {
 		as_update_iohist(ad, RQ_IOC(rq)->aic, rq);
@@ -1292,7 +1292,7 @@ static int as_may_queue(request_queue_t *q, int rw)
 	struct io_context *ioc;
 	if (ad->antic_status == ANTIC_WAIT_REQ ||
 			ad->antic_status == ANTIC_WAIT_NEXT) {
-		ioc = as_get_io_context();
+		ioc = as_get_io_context(q->node);
 		if (ad->io_context == ioc)
 			ret = ELV_MQUEUE_MUST;
 		put_io_context(ioc);
