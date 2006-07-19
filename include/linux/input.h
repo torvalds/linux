@@ -667,98 +667,167 @@ struct input_absinfo {
 
 /*
  * Structures used in ioctls to upload effects to a device
- * The first structures are not passed directly by using ioctls.
- * They are sub-structures of the actually sent structure (called ff_effect)
+ * They are pieces of a bigger structure (called ff_effect)
  */
 
+/*
+ * All duration values are expressed in ms. Values above 32767 ms (0x7fff)
+ * should not be used and have unspecified results.
+ */
+
+/**
+ * struct ff_replay - defines scheduling of the effect
+ * @length: duration of the effect
+ * @delay: delay before effect should start playing
+ */
 struct ff_replay {
-	__u16 length; /* Duration of an effect in ms. All other times are also expressed in ms */
-	__u16 delay;  /* Time to wait before to start playing an effect */
+	__u16 length;
+	__u16 delay;
 };
 
+/**
+ * struct ff_trigger - defines what triggers the effect
+ * @button: number of the button triggering the effect
+ * @interval: controls how soon the effect can be re-triggered
+ */
 struct ff_trigger {
-	__u16 button;   /* Number of button triggering an effect */
-	__u16 interval; /* Time to wait before an effect can be re-triggered (ms) */
+	__u16 button;
+	__u16 interval;
 };
 
+/**
+ * struct ff_envelope - generic effect envelope
+ * @attack_length: duration of the attack (ms)
+ * @attack_level: level at the beginning of the attack
+ * @fade_length: duration of fade (ms)
+ * @fade_level: level at the end of fade
+ *
+ * The @attack_level and @fade_level are absolute values; when applying
+ * envelope force-feedback core will convert to positive/negative
+ * value based on polarity of the default level of the effect.
+ * Valid range for the attack and fade levels is 0x0000 - 0x7fff
+ */
 struct ff_envelope {
-	__u16 attack_length;	/* Duration of attack (ms) */
-	__u16 attack_level;	/* Level at beginning of attack */
-	__u16 fade_length;	/* Duration of fade (ms) */
-	__u16 fade_level;	/* Level at end of fade */
+	__u16 attack_length;
+	__u16 attack_level;
+	__u16 fade_length;
+	__u16 fade_level;
 };
 
-/* FF_CONSTANT */
+/**
+ * struct ff_constant_effect - defines parameters of a constant effect
+ * @level: strength of the effect; may be negative
+ * @envelope: envelope data
+ */
 struct ff_constant_effect {
-	__s16 level;	    /* Strength of effect. Negative values are OK */
+	__s16 level;
 	struct ff_envelope envelope;
 };
 
-/* FF_RAMP */
+/**
+ * struct ff_ramp_effect - defines parameters of a ramp effect
+ * @start_level: beginning strength of the effect; may be negative
+ * @end_level: final strength of the effect; may be negative
+ * @envelope: envelope data
+ */
 struct ff_ramp_effect {
 	__s16 start_level;
 	__s16 end_level;
 	struct ff_envelope envelope;
 };
 
-/* FF_SPRING of FF_FRICTION */
+/**
+ * struct ff_condition_effect - defines a spring or friction effect
+ * @right_saturation: maximum level when joystick moved all way to the right
+ * @left_saturation: same for the left side
+ * @right_coeff: controls how fast the force grows when the joystick moves
+ *	to the right
+ * @left_coeff: same for the left side
+ * @deadband: size of the dead zone, where no force is produced
+ * @center: position of the dead zone
+ */
 struct ff_condition_effect {
-	__u16 right_saturation; /* Max level when joystick is on the right */
-	__u16 left_saturation;  /* Max level when joystick in on the left */
+	__u16 right_saturation;
+	__u16 left_saturation;
 
-	__s16 right_coeff;	/* Indicates how fast the force grows when the
-				   joystick moves to the right */
-	__s16 left_coeff;	/* Same for left side */
+	__s16 right_coeff;
+	__s16 left_coeff;
 
-	__u16 deadband;	/* Size of area where no force is produced */
-	__s16 center;	/* Position of dead zone */
-
+	__u16 deadband;
+	__s16 center;
 };
 
-/* FF_PERIODIC */
+/**
+ * struct ff_periodic_effect - defines parameters of a periodic effect
+ * @waveform: kind of the effect (wave)
+ * @period: period of the wave (ms)
+ * @magnitude: peak value
+ * @offset: mean value of the wave (roughly)
+ * @phase: 'horizontal' shift
+ * @envelope: envelope data
+ * @custom_len: number of samples (FF_CUSTOM only)
+ * @custom_data: buffer of samples (FF_CUSTOM only)
+ *
+ * Known waveforms - FF_SQUARE, FF_TRIANGLE, FF_SINE, FF_SAW_UP,
+ * FF_SAW_DOWN, FF_CUSTOM. The exact syntax FF_CUSTOM is undefined
+ * for the time being as no driver supports it yet.
+ *
+ * Note: the data pointed by custom_data is copied by the driver.
+ * You can therefore dispose of the memory after the upload/update.
+ */
 struct ff_periodic_effect {
-	__u16 waveform;	/* Kind of wave (sine, square...) */
-	__u16 period;	/* in ms */
-	__s16 magnitude;	/* Peak value */
-	__s16 offset;	/* Mean value of wave (roughly) */
-	__u16 phase;		/* 'Horizontal' shift */
+	__u16 waveform;
+	__u16 period;
+	__s16 magnitude;
+	__s16 offset;
+	__u16 phase;
 
 	struct ff_envelope envelope;
 
-/* Only used if waveform == FF_CUSTOM */
-	__u32 custom_len;	/* Number of samples */
-	__s16 *custom_data;	/* Buffer of samples */
-/* Note: the data pointed by custom_data is copied by the driver. You can
- * therefore dispose of the memory after the upload/update */
+	__u32 custom_len;
+	__s16 *custom_data;
 };
 
-/* FF_RUMBLE */
-/* Some rumble pads have two motors of different weight.
-   strong_magnitude represents the magnitude of the vibration generated
-   by the heavy motor.
-*/
+/**
+ * struct ff_rumble_effect - defines parameters of a periodic effect
+ * @strong_magnitude: magnitude of the heavy motor
+ * @weak_magnitude: magnitude of the light one
+ *
+ * Some rumble pads have two motors of different weight. Strong_magnitude
+ * represents the magnitude of the vibration generated by the heavy one.
+ */
 struct ff_rumble_effect {
-	__u16 strong_magnitude;  /* Magnitude of the heavy motor */
-	__u16 weak_magnitude;    /* Magnitude of the light one */
+	__u16 strong_magnitude;
+	__u16 weak_magnitude;
 };
 
-/*
- * Structure sent through ioctl from the application to the driver
+/**
+ * struct ff_effect - defines force feedback effect
+ * @type: type of the effect (FF_CONSTANT, FF_PERIODIC, FF_RAMP, FF_SPRING,
+ *	FF_FRICTION, FF_DAMPER, FF_RUMBLE, FF_INERTIA, or FF_CUSTOM)
+ * @id: an unique id assigned to an effect
+ * @direction: direction of the effect
+ * @trigger: trigger conditions (struct ff_trigger)
+ * @replay: scheduling of the effect (struct ff_replay)
+ * @u: effect-specific structure (one of ff_constant_effect, ff_ramp_effect,
+ *	ff_periodic_effect, ff_condition_effect, ff_rumble_effect) further
+ *	defining effect parameters
+ *
+ * This structure is sent through ioctl from the application to the driver.
+ * To create a new effect aplication should set its @id to -1; the kernel
+ * will return assigned @id which can later be used to update or delete
+ * this effect.
+ *
+ * Direction of the effect is encoded as follows:
+ *	0 deg -> 0x0000 (down)
+ *	90 deg -> 0x4000 (left)
+ *	180 deg -> 0x8000 (up)
+ *	270 deg -> 0xC000 (right)
  */
 struct ff_effect {
 	__u16 type;
-/* Following field denotes the unique id assigned to an effect.
- * If user sets if to -1, a new effect is created, and its id is returned in the same field
- * Else, the user sets it to the effect id it wants to update.
- */
 	__s16 id;
-
-	__u16 direction;	/* Direction. 0 deg -> 0x0000 (down)
-					     90 deg -> 0x4000 (left)
-					    180 deg -> 0x8000 (up)
-					    270 deg -> 0xC000 (right)
-				*/
-
+	__u16 direction;
 	struct ff_trigger trigger;
 	struct ff_replay replay;
 
