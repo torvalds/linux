@@ -1539,17 +1539,19 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
  */
 static void cfq_preempt_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
-	struct cfq_queue *__cfqq, *next;
-
-	list_for_each_entry_safe(__cfqq, next, &cfqd->cur_rr, cfq_list)
-		cfq_resort_rr_list(__cfqq, 1);
+	cfq_slice_expired(cfqd, 1);
 
 	if (!cfqq->slice_left)
 		cfqq->slice_left = cfq_prio_to_slice(cfqd, cfqq) / 2;
 
+	/*
+	 * Put the new queue at the front of the of the current list,
+	 * so we know that it will be selected next.
+	 */
+	BUG_ON(!cfq_cfqq_on_rr(cfqq));
+	list_move(&cfqq->cfq_list, &cfqd->cur_rr);
+
 	cfqq->slice_end = cfqq->slice_left + jiffies;
-	cfq_slice_expired(cfqd, 1);
-	__cfq_set_active_queue(cfqd, cfqq);
 }
 
 /*
