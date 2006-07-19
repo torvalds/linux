@@ -140,7 +140,10 @@ static int mark_core_as_ready(struct iforce *iforce, unsigned short addr)
 {
 	int i;
 
-	for (i = 0; i < iforce->dev->ff_effects_max; ++i) {
+	if (!iforce->dev->ff)
+		return 0;
+
+	for (i = 0; i < iforce->dev->ff->max_effects; ++i) {
 		if (test_bit(FF_CORE_IS_USED, iforce->core_effects[i].flags) &&
 		    (iforce->core_effects[i].mod1_chunk.start == addr ||
 		     iforce->core_effects[i].mod2_chunk.start == addr)) {
@@ -229,19 +232,17 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data, 
 			i = data[1] & 0x7f;
 			if (data[1] & 0x80) {
 				if (!test_and_set_bit(FF_CORE_IS_PLAYED, iforce->core_effects[i].flags)) {
-				/* Report play event */
-				input_report_ff_status(dev, i, FF_STATUS_PLAYING);
+					/* Report play event */
+					input_report_ff_status(dev, i, FF_STATUS_PLAYING);
 				}
-			}
-			else if (test_and_clear_bit(FF_CORE_IS_PLAYED, iforce->core_effects[i].flags)) {
+			} else if (test_and_clear_bit(FF_CORE_IS_PLAYED, iforce->core_effects[i].flags)) {
 				/* Report stop event */
 				input_report_ff_status(dev, i, FF_STATUS_STOPPED);
 			}
 			if (LO(cmd) > 3) {
 				int j;
-				for (j=3; j<LO(cmd); j+=2) {
+				for (j = 3; j < LO(cmd); j += 2)
 					mark_core_as_ready(iforce, data[j] | (data[j+1]<<8));
-				}
 			}
 			break;
 	}
