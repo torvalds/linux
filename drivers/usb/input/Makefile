@@ -22,6 +22,9 @@ endif
 ifeq ($(CONFIG_THRUSTMASTER_FF),y)
 	usbhid-objs	+= hid-tmff.o
 endif
+ifeq ($(CONFIG_ZEROPLUS_FF),y)
+	usbhid-objs	+= hid-zpff.o
+endif
 ifeq ($(CONFIG_HID_FF),y)
 	usbhid-objs	+= hid-ff.o
 endif

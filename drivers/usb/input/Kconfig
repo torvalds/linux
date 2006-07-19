@@ -89,6 +89,14 @@ config THRUSTMASTER_FF
 	  Note: if you say N here, this device will still be supported, but without
 	  force feedback.
 
+config ZEROPLUS_FF
+	bool "Zeroplus based game controller support"
+	depends on HID_FF
+	select INPUT_FF_MEMLESS if USB_HID
+	help
+	  Say Y here if you have a Zeroplus based game controller and want to
+	  enable force feedback for it.
+
 config USB_HIDDEV
 	bool "/dev/hiddev raw HID device support"
 	depends on USB_HID
