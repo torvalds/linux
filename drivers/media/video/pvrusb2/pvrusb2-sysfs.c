@@ -600,6 +600,8 @@ static ssize_t debugcmd_store(struct class_device *,const char *,size_t count);
 static void pvr2_sysfs_add_debugifc(struct pvr2_sysfs *sfp)
 {
 	struct pvr2_sysfs_debugifc *dip;
+	int ret;
+
 	dip = kmalloc(sizeof(*dip),GFP_KERNEL);
 	if (!dip) return;
 	memset(dip,0,sizeof(*dip));
@@ -613,8 +615,14 @@ static void pvr2_sysfs_add_debugifc(struct pvr2_sysfs *sfp)
 	dip->attr_debuginfo.attr.mode = S_IRUGO;
 	dip->attr_debuginfo.show = debuginfo_show;
 	sfp->debugifc = dip;
-	class_device_create_file(sfp->class_dev,&dip->attr_debugcmd);
-	class_device_create_file(sfp->class_dev,&dip->attr_debuginfo);
+	ret = class_device_create_file(sfp->class_dev,&dip->attr_debugcmd);
+	if (ret < 0)
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
+	ret = class_device_create_file(sfp->class_dev,&dip->attr_debuginfo);
+	if (ret < 0)
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
 }
 
 
@@ -709,6 +717,8 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 {
 	struct usb_device *usb_dev;
 	struct class_device *class_dev;
+	int ret;
+
 	usb_dev = pvr2_hdw_get_dev(sfp->channel.hdw);
 	if (!usb_dev) return;
 	class_dev = kmalloc(sizeof(*class_dev),GFP_KERNEL);
@@ -733,20 +743,33 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 
 	sfp->class_dev = class_dev;
 	class_dev->class_data = sfp;
-	class_device_register(class_dev);
+	ret = class_device_register(class_dev);
+	if (ret) {
+		printk(KERN_ERR "%s: class_device_register failed\n",
+		       __FUNCTION__);
+		kfree(class_dev);
+		return;
+	}
 
 	sfp->attr_v4l_minor_number.attr.owner = THIS_MODULE;
 	sfp->attr_v4l_minor_number.attr.name = "v4l_minor_number";
 	sfp->attr_v4l_minor_number.attr.mode = S_IRUGO;
 	sfp->attr_v4l_minor_number.show = v4l_minor_number_show;
 	sfp->attr_v4l_minor_number.store = NULL;
-	class_device_create_file(sfp->class_dev,&sfp->attr_v4l_minor_number);
+	ret = class_device_create_file(sfp->class_dev,&sfp->attr_v4l_minor_number);
+	if (ret < 0)
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
+
 	sfp->attr_unit_number.attr.owner = THIS_MODULE;
 	sfp->attr_unit_number.attr.name = "unit_number";
 	sfp->attr_unit_number.attr.mode = S_IRUGO;
 	sfp->attr_unit_number.show = unit_number_show;
 	sfp->attr_unit_number.store = NULL;
-	class_device_create_file(sfp->class_dev,&sfp->attr_unit_number);
+	ret = class_device_create_file(sfp->class_dev,&sfp->attr_unit_number);
+	if (ret < 0)
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
 
 	pvr2_sysfs_add_controls(sfp);
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC

@@ -1512,6 +1512,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	int i=0;
 	int base;
 	int end;
+	int ret;
 	char *name_base;
 
 	switch(type)
@@ -1571,9 +1572,13 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	vfd->class_dev.class       = &video_class;
 	vfd->class_dev.devt        = MKDEV(VIDEO_MAJOR, vfd->minor);
 	sprintf(vfd->class_dev.class_id, "%s%d", name_base, i - base);
-	class_device_register(&vfd->class_dev);
-	class_device_create_file(&vfd->class_dev,
-				&class_device_attr_name);
+	ret = class_device_register(&vfd->class_dev);
+	if (ret) {
+		printk(KERN_ERR "%s: class_device_register failed\n",
+		       __FUNCTION__);
+		return ret;
+	}
+	video_device_create_file(vfd, &class_device_attr_name);
 
 #if 1
 	/* needed until all drivers are fixed */

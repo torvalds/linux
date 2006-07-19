@@ -3909,8 +3909,6 @@ static void bttv_unregister_video(struct bttv *btv)
 /* register video4linux devices */
 static int __devinit bttv_register_video(struct bttv *btv)
 {
-	int ret;
-
 	if (no_overlay <= 0) {
 		bttv_video_template.type |= VID_TYPE_OVERLAY;
 	} else {
@@ -3925,10 +3923,8 @@ static int __devinit bttv_register_video(struct bttv *btv)
 		goto err;
 	printk(KERN_INFO "bttv%d: registered device video%d\n",
 	       btv->c.nr,btv->video_dev->minor & 0x1f);
-	ret = video_device_create_file(btv->video_dev, &class_device_attr_card);
-	if (ret < 0)
-		printk(KERN_WARNING "bttv: video_device_create_file error: "
-			"%d\n", ret);
+
+	video_device_create_file(btv->video_dev, &class_device_attr_card);
 
 	/* vbi */
 	btv->vbi_dev = vdev_init(btv, &bttv_vbi_template, "vbi");
