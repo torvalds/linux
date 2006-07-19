@@ -46,7 +46,7 @@ static int cfq_slice_idle = HZ / 125;
 static kmem_cache_t *cfq_pool;
 static kmem_cache_t *cfq_ioc_pool;
 
-static atomic_t ioc_count = ATOMIC_INIT(0);
+static DEFINE_PER_CPU(unsigned long, ioc_count);
 static struct completion *ioc_gone;
 
 #define CFQ_PRIO_LISTS		IOPRIO_BE_NR
@@ -1078,7 +1078,9 @@ static void cfq_free_io_context(struct io_context *ioc)
 		freed++;
 	}
 
-	if (atomic_sub_and_test(freed, &ioc_count) && ioc_gone)
+	elv_ioc_count_mod(ioc_count, -freed);
+
+	if (ioc_gone && !elv_ioc_count_read(ioc_count))
 		complete(ioc_gone);
 }
 
@@ -1154,7 +1156,7 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 		INIT_LIST_HEAD(&cic->queue_list);
 		cic->dtor = cfq_free_io_context;
 		cic->exit = cfq_exit_io_context;
-		atomic_inc(&ioc_count);
+		elv_ioc_count_inc(ioc_count);
 	}
 
 	return cic;
@@ -1319,7 +1321,7 @@ cfq_drop_dead_cic(struct io_context *ioc, struct cfq_io_context *cic)
 	WARN_ON(!list_empty(&cic->queue_list));
 	rb_erase(&cic->rb_node, &ioc->cic_root);
 	kmem_cache_free(cfq_ioc_pool, cic);
-	atomic_dec(&ioc_count);
+	elv_ioc_count_dec(ioc_count);
 }
 
 static struct cfq_io_context *
@@ -2165,7 +2167,7 @@ static void __exit cfq_exit(void)
 	ioc_gone = &all_gone;
 	/* ioc_gone's update must be visible before reading ioc_count */
 	smp_wmb();
-	if (atomic_read(&ioc_count))
+	if (elv_ioc_count_read(ioc_count))
 		wait_for_completion(ioc_gone);
 	synchronize_rcu();
 	cfq_slab_kill();
