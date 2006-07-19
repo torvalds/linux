@@ -784,6 +784,9 @@ struct ff_effect {
 #define FF_INERTIA	0x56
 #define FF_RAMP		0x57
 
+#define FF_EFFECT_MIN	FF_RUMBLE
+#define FF_EFFECT_MAX	FF_RAMP
+
 /*
  * Force feedback periodic effect types
  */
@@ -794,6 +797,9 @@ struct ff_effect {
 #define FF_SAW_UP	0x5b
 #define FF_SAW_DOWN	0x5c
 #define FF_CUSTOM	0x5d
+
+#define FF_WAVEFORM_MIN	FF_SQUARE
+#define FF_WAVEFORM_MAX	FF_CUSTOM
 
 /*
  * Set ff device properties
@@ -869,6 +875,8 @@ struct input_dev {
 	unsigned int keycodemax;
 	unsigned int keycodesize;
 	void *keycode;
+
+	struct ff_device *ff;
 
 	unsigned int repeat_key;
 	struct timer_list timer;
@@ -1107,6 +1115,59 @@ static inline void input_set_abs_params(struct input_dev *dev, int axis, int min
 }
 
 extern struct class input_class;
+
+/**
+ * struct ff_device - force-feedback part of an input device
+ * @upload: Called to upload an new effect into device
+ * @erase: Called to erase an effect from device
+ * @playback: Called to request device to start playing specified effect
+ * @set_gain: Called to set specified gain
+ * @set_autocenter: Called to auto-center device
+ * @destroy: called by input core when parent input device is being
+ *	destroyed
+ * @private: driver-specific data, will be freed automatically
+ * @ffbit: bitmap of force feedback capabilities truly supported by
+ *	device (not emulated like ones in input_dev->ffbit)
+ * @mutex: mutex for serializing access to the device
+ * @max_effects: maximum number of effects supported by device
+ * @effects: pointer to an array of effects currently loaded into device
+ * @effect_owners: array of effect owners; when file handle owning
+ *	an effect gets closed the effcet is automatically erased
+ *
+ * Every force-feedback device must implement upload() and playback()
+ * methods; erase() is optional. set_gain() and set_autocenter() need
+ * only be implemented if driver sets up FF_GAIN and FF_AUTOCENTER
+ * bits.
+ */
+struct ff_device {
+	int (*upload)(struct input_dev *dev, struct ff_effect *effect,
+		      struct ff_effect *old);
+	int (*erase)(struct input_dev *dev, int effect_id);
+
+	int (*playback)(struct input_dev *dev, int effect_id, int value);
+	void (*set_gain)(struct input_dev *dev, u16 gain);
+	void (*set_autocenter)(struct input_dev *dev, u16 magnitude);
+
+	void (*destroy)(struct ff_device *);
+
+	void *private;
+
+	unsigned long ffbit[NBITS(FF_MAX)];
+
+	struct mutex mutex;
+
+	int max_effects;
+	struct ff_effect *effects;
+	struct file *effect_owners[];
+};
+
+int input_ff_create(struct input_dev *dev, int max_effects);
+void input_ff_destroy(struct input_dev *dev);
+
+int input_ff_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
+
+int input_ff_upload(struct input_dev *dev, struct ff_effect *effect, struct file *file);
+int input_ff_erase(struct input_dev *dev, int effect_id, struct file *file);
 
 #endif
 #endif

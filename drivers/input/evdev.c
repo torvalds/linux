@@ -391,8 +391,10 @@ static long evdev_ioctl_handler(struct file *file, unsigned int cmd,
 	struct evdev *evdev = list->evdev;
 	struct input_dev *dev = evdev->handle.dev;
 	struct input_absinfo abs;
+	struct ff_effect effect;
 	int __user *ip = (int __user *)p;
 	int i, t, u, v;
+	int error;
 
 	if (!evdev->exist)
 		return -ENODEV;
@@ -460,27 +462,22 @@ static long evdev_ioctl_handler(struct file *file, unsigned int cmd,
 			return 0;
 
 		case EVIOCSFF:
-			if (dev->upload_effect) {
-				struct ff_effect effect;
-				int err;
+			if (copy_from_user(&effect, p, sizeof(effect)))
+				return -EFAULT;
 
-				if (copy_from_user(&effect, p, sizeof(effect)))
-					return -EFAULT;
-				err = dev->upload_effect(dev, &effect);
-				if (put_user(effect.id, &(((struct ff_effect __user *)p)->id)))
-					return -EFAULT;
-				return err;
-			} else
-				return -ENOSYS;
+			error = input_ff_upload(dev, &effect, file);
+
+			if (put_user(effect.id, &(((struct ff_effect __user *)p)->id)))
+				return -EFAULT;
+
+			return error;
 
 		case EVIOCRMFF:
-			if (!dev->erase_effect)
-				return -ENOSYS;
-
-			return dev->erase_effect(dev, (int)(unsigned long) p);
+			return input_ff_erase(dev, (int)(unsigned long) p, file);
 
 		case EVIOCGEFFECTS:
-			if (put_user(dev->ff_effects_max, ip))
+			i = test_bit(EV_FF, dev->evbit) ? dev->ff->max_effects : 0;
+			if (put_user(i, ip))
 				return -EFAULT;
 			return 0;
 
@@ -669,6 +666,7 @@ static void evdev_disconnect(struct input_handle *handle)
 	evdev->exist = 0;
 
 	if (evdev->open) {
+		input_flush_device(handle, NULL);
 		input_close_device(handle);
 		wake_up_interruptible(&evdev->wait);
 		list_for_each_entry(list, &evdev->list, node)

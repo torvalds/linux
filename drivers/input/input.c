@@ -176,6 +176,10 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 			break;
 
 		case EV_FF:
+
+			if (value < 0)
+				return;
+
 			if (dev->event)
 				dev->event(dev, type, code, value);
 			break;
@@ -762,7 +766,9 @@ static void input_dev_release(struct class_device *class_dev)
 {
 	struct input_dev *dev = to_input_dev(class_dev);
 
+	input_ff_destroy(dev);
 	kfree(dev);
+
 	module_put(THIS_MODULE);
 }
 
