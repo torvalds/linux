@@ -107,7 +107,6 @@ const int NR_TYPES = ARRAY_SIZE(max_vals);
 
 struct kbd_struct kbd_table[MAX_NR_CONSOLES];
 static struct kbd_struct *kbd = kbd_table;
-static struct kbd_struct kbd0;
 
 int spawnpid, spawnsig;
 
@@ -1347,15 +1346,15 @@ int __init kbd_init(void)
 {
 	int i;
 
-        kbd0.ledflagstate = kbd0.default_ledflagstate = KBD_DEFLEDS;
-        kbd0.ledmode = LED_SHOW_FLAGS;
-        kbd0.lockstate = KBD_DEFLOCK;
-        kbd0.slockstate = 0;
-        kbd0.modeflags = KBD_DEFMODE;
-        kbd0.kbdmode = VC_XLATE;
-
-        for (i = 0 ; i < MAX_NR_CONSOLES ; i++)
-                kbd_table[i] = kbd0;
+        for (i = 0; i < MAX_NR_CONSOLES; i++) {
+		kbd_table[i].ledflagstate = KBD_DEFLEDS;
+		kbd_table[i].default_ledflagstate = KBD_DEFLEDS;
+		kbd_table[i].ledmode = LED_SHOW_FLAGS;
+		kbd_table[i].lockstate = KBD_DEFLOCK;
+		kbd_table[i].slockstate = 0;
+		kbd_table[i].modeflags = KBD_DEFMODE;
+		kbd_table[i].kbdmode = VC_XLATE;
+	}
 
 	input_register_handler(&kbd_handler);
 
