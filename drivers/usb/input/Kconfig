@@ -70,6 +70,7 @@ config HID_PID
 config LOGITECH_FF
 	bool "Logitech WingMan *3D support"
 	depends on HID_FF
+	select INPUT_FF_MEMLESS if USB_HID
 	help
 	  Say Y here if you have one of these devices:
 	  - Logitech WingMan Cordless RumblePad
@@ -81,6 +82,7 @@ config LOGITECH_FF
 config THRUSTMASTER_FF
 	bool "ThrustMaster FireStorm Dual Power 2 support (EXPERIMENTAL)"
 	depends on HID_FF && EXPERIMENTAL
+	select INPUT_FF_MEMLESS if USB_HID
 	help
 	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2,
 	  and want to enable force feedback support for it.

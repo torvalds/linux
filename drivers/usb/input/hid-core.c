@@ -543,8 +543,6 @@ static void hid_free_device(struct hid_device *device)
 {
 	unsigned i,j;
 
-	hid_ff_exit(device);
-
 	for (i = 0; i < HID_REPORT_TYPES; i++) {
 		struct hid_report_enum *report_enum = device->report_enum + i;
 

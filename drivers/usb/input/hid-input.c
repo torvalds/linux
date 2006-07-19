@@ -729,7 +729,7 @@ static int hidinput_input_event(struct input_dev *dev, unsigned int type, unsign
 	int offset;
 
 	if (type == EV_FF)
-		return hid_ff_event(hid, dev, type, code, value);
+		return input_ff_event(dev, type, code, value);
 
 	if (type != EV_LED)
 		return -1;
