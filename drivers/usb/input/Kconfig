@@ -60,12 +60,12 @@ config HID_FF
 	  If unsure, say N.
 
 config HID_PID
-	bool "PID Devices (Microsoft Sidewinder Force Feedback 2)"
+	bool "PID device support"
 	depends on HID_FF
 	help
-	  Say Y here if you have a PID-compliant joystick and wish to enable force
-	  feedback for it. The Microsoft Sidewinder Force Feedback 2 is one such
-	  device.
+	  Say Y here if you have a PID-compliant device and wish to enable force
+	  feedback for it. Microsoft Sidewinder Force Feedback 2 is one of such
+	  devices.
 
 config LOGITECH_FF
 	bool "Logitech WingMan *3D support"

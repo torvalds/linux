@@ -527,14 +527,25 @@ int hid_wait_io(struct hid_device* hid);
 
 #ifdef CONFIG_HID_FF
 int hid_ff_init(struct hid_device *hid);
+
+int hid_lgff_init(struct hid_device *hid);
+int hid_tmff_init(struct hid_device *hid);
+#ifdef CONFIG_HID_PID
+int hid_pidff_init(struct hid_device *hid);
+#else
+static inline int hid_pidff_init(struct hid_device *hid) { return -ENODEV; }
+#endif
+
 #else
 static inline int hid_ff_init(struct hid_device *hid) { return -1; }
 #endif
+
 static inline void hid_ff_exit(struct hid_device *hid)
 {
 	if (hid->ff_exit)
 		hid->ff_exit(hid);
 }
+
 static inline int hid_ff_event(struct hid_device *hid, struct input_dev *input,
 			unsigned int type, unsigned int code, int value)
 {
@@ -542,8 +553,4 @@ static inline int hid_ff_event(struct hid_device *hid, struct input_dev *input,
 		return hid->ff_event(hid, input, type, code, value);
 	return -ENOSYS;
 }
-
-int hid_lgff_init(struct hid_device* hid);
-int hid_tmff_init(struct hid_device* hid);
-int hid_pid_init(struct hid_device* hid);
 
