@@ -45,7 +45,7 @@
 /* Module and version information */
 #define DRV_NAME        "iTCO_wdt"
 #define DRV_VERSION     "1.00"
-#define DRV_RELDATE     "18-Jun-2006"
+#define DRV_RELDATE     "19-Jul-2006"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -558,6 +558,7 @@ static int iTCO_wdt_init(struct pci_dev *pdev, const struct pci_device_id *ent, 
 	if (base_address == 0x00000000) {
 		/* Something's wrong here, ACPIBASE has to be set */
 		printk(KERN_ERR PFX "failed to get TCOBASE address\n");
+		pci_dev_put(pdev);
 		return -ENODEV;
 	}
 	iTCO_wdt_private.iTCO_version = iTCO_chipset_info[ent->driver_data].iTCO_version;
@@ -649,6 +650,7 @@ out:
 	if (iTCO_wdt_private.iTCO_version == 2)
 		iounmap(iTCO_wdt_private.gcs);
 	iTCO_wdt_private.ACPIBASE = 0;
+	pci_dev_put(iTCO_wdt_private.pdev);
 	return ret;
 }
 
@@ -664,6 +666,7 @@ static void iTCO_wdt_cleanup(void)
 	release_region(TCOBASE, 0x20);
 	if (iTCO_wdt_private.iTCO_version == 2)
 		iounmap(iTCO_wdt_private.gcs);
+	pci_dev_put(iTCO_wdt_private.pdev);
 }
 
 static int iTCO_wdt_probe(struct platform_device *dev)
