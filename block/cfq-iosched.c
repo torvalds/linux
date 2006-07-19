@@ -82,11 +82,6 @@ struct cfq_data {
 	unsigned int busy_queues;
 
 	/*
-	 * non-ordered list of empty cfqq's
-	 */
-	struct list_head empty_list;
-
-	/*
 	 * cfqq lookup hash
 	 */
 	struct hlist_head *cfq_hash;
@@ -136,7 +131,7 @@ struct cfq_queue {
 	struct hlist_node cfq_hash;
 	/* hash key */
 	unsigned int key;
-	/* on either rr or empty list of cfqd */
+	/* member of the rr/busy/cur/idle cfqd list */
 	struct list_head cfq_list;
 	/* sorted list of pending requests */
 	struct rb_root sort_list;
@@ -417,7 +412,7 @@ cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	BUG_ON(!cfq_cfqq_on_rr(cfqq));
 	cfq_clear_cfqq_on_rr(cfqq);
-	list_move(&cfqq->cfq_list, &cfqd->empty_list);
+	list_del_init(&cfqq->cfq_list);
 
 	BUG_ON(!cfqd->busy_queues);
 	cfqd->busy_queues--;
@@ -1959,7 +1954,6 @@ static void *cfq_init_queue(request_queue_t *q, elevator_t *e)
 	INIT_LIST_HEAD(&cfqd->busy_rr);
 	INIT_LIST_HEAD(&cfqd->cur_rr);
 	INIT_LIST_HEAD(&cfqd->idle_rr);
-	INIT_LIST_HEAD(&cfqd->empty_list);
 	INIT_LIST_HEAD(&cfqd->cic_list);
 
 	cfqd->cfq_hash = kmalloc_node(sizeof(struct hlist_head) * CFQ_QHASH_ENTRIES, GFP_KERNEL, q->node);
