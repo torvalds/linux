@@ -1056,8 +1056,11 @@ void input_register_handler(struct input_handler *handler)
 	list_for_each_entry(dev, &input_dev_list, node)
 		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
 			if ((id = input_match_device(handler->id_table, dev)))
-				if ((handle = handler->connect(handler, dev, id)))
+				if ((handle = handler->connect(handler, dev, id))) {
 					input_link_handle(handle);
+					if (handler->start)
+						handler->start(handle);
+				}
 
 	input_wakeup_procfs_readers();
 }
