@@ -870,7 +870,6 @@ struct input_dev {
 	unsigned long sndbit[NBITS(SND_MAX)];
 	unsigned long ffbit[NBITS(FF_MAX)];
 	unsigned long swbit[NBITS(SW_MAX)];
-	int ff_effects_max;
 
 	unsigned int keycodemax;
 	unsigned int keycodesize;
@@ -903,8 +902,6 @@ struct input_dev {
 	void (*close)(struct input_dev *dev);
 	int (*flush)(struct input_dev *dev, struct file *file);
 	int (*event)(struct input_dev *dev, unsigned int type, unsigned int code, int value);
-	int (*upload_effect)(struct input_dev *dev, struct ff_effect *effect);
-	int (*erase_effect)(struct input_dev *dev, int effect_id);
 
 	struct input_handle *grab;
 
@@ -1076,11 +1073,6 @@ static inline void input_report_rel(struct input_dev *dev, unsigned int code, in
 static inline void input_report_abs(struct input_dev *dev, unsigned int code, int value)
 {
 	input_event(dev, EV_ABS, code, value);
-}
-
-static inline void input_report_ff(struct input_dev *dev, unsigned int code, int value)
-{
-	input_event(dev, EV_FF, code, value);
 }
 
 static inline void input_report_ff_status(struct input_dev *dev, unsigned int code, int value)
