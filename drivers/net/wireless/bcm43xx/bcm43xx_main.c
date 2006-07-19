@@ -514,13 +514,13 @@ static int bcm43xx_disable_interrupts_sync(struct bcm43xx_private *bcm, u32 *old
 	unsigned long flags;
 	u32 old;
 
-	bcm43xx_lock_irqonly(bcm, flags);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 	if (unlikely(bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED)) {
-		bcm43xx_unlock_irqonly(bcm, flags);
+		spin_unlock_irqrestore(&bcm->irq_lock, flags);
 		return -EBUSY;
 	}
 	old = bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
-	bcm43xx_unlock_irqonly(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 	bcm43xx_synchronize_irq(bcm);
 
 	if (oldstate)
@@ -1720,7 +1720,7 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 # define bcmirq_handled(irq)	do { /* nothing */ } while (0)
 #endif /* CONFIG_BCM43XX_DEBUG*/
 
-	bcm43xx_lock_irqonly(bcm, flags);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 	reason = bcm->irq_reason;
 	dma_reason[0] = bcm->dma_reason[0];
 	dma_reason[1] = bcm->dma_reason[1];
@@ -1746,7 +1746,7 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 			dma_reason[2], dma_reason[3]);
 		bcm43xx_controller_restart(bcm, "DMA error");
 		mmiowb();
-		bcm43xx_unlock_irqonly(bcm, flags);
+		spin_unlock_irqrestore(&bcm->irq_lock, flags);
 		return;
 	}
 	if (unlikely((dma_reason[0] & BCM43xx_DMAIRQ_NONFATALMASK) |
@@ -1834,7 +1834,7 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 		bcm43xx_leds_update(bcm, activity);
 	bcm43xx_interrupt_enable(bcm, bcm->irq_savedstate);
 	mmiowb();
-	bcm43xx_unlock_irqonly(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 }
 
 static void pio_irq_workaround(struct bcm43xx_private *bcm,
@@ -3182,25 +3182,26 @@ static void bcm43xx_periodic_work_handler(void *d)
 		/* Periodic work will take a long time, so we want it to
 		 * be preemtible.
 		 */
-		bcm43xx_lock_irqonly(bcm, flags);
 		netif_stop_queue(bcm->net_dev);
+		spin_lock_irqsave(&bcm->irq_lock, flags);
 		if (bcm43xx_using_pio(bcm))
 			bcm43xx_pio_freeze_txqueues(bcm);
 		savedirqs = bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
-		bcm43xx_unlock_irqonly(bcm, flags);
-		bcm43xx_lock_noirq(bcm);
+		spin_unlock_irqrestore(&bcm->irq_lock, flags);
+		mutex_lock(&bcm->mutex);
 		bcm43xx_synchronize_irq(bcm);
 	} else {
 		/* Periodic work should take short time, so we want low
 		 * locking overhead.
 		 */
-		bcm43xx_lock_irqsafe(bcm, flags);
+		mutex_lock(&bcm->mutex);
+		spin_lock_irqsave(&bcm->irq_lock, flags);
 	}
 
 	do_periodic_work(bcm);
 
 	if (badness > BADNESS_LIMIT) {
-		bcm43xx_lock_irqonly(bcm, flags);
+		spin_lock_irqsave(&bcm->irq_lock, flags);
 		if (likely(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED)) {
 			tasklet_enable(&bcm->isr_tasklet);
 			bcm43xx_interrupt_enable(bcm, savedirqs);
@@ -3208,13 +3209,10 @@ static void bcm43xx_periodic_work_handler(void *d)
 				bcm43xx_pio_thaw_txqueues(bcm);
 		}
 		netif_wake_queue(bcm->net_dev);
-		mmiowb();
-		bcm43xx_unlock_irqonly(bcm, flags);
-		bcm43xx_unlock_noirq(bcm);
-	} else {
-		mmiowb();
-		bcm43xx_unlock_irqsafe(bcm, flags);
 	}
+	mmiowb();
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
+	mutex_unlock(&bcm->mutex);
 }
 
 static void bcm43xx_periodic_tasks_delete(struct bcm43xx_private *bcm)
@@ -3276,7 +3274,7 @@ static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 {
 	int i, err;
 
-	bcm43xx_lock_noirq(bcm);
+	mutex_lock(&bcm->mutex);
 	bcm43xx_sysfs_unregister(bcm);
 	bcm43xx_periodic_tasks_delete(bcm);
 
@@ -3297,7 +3295,7 @@ static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 	bcm43xx_pctl_set_crystal(bcm, 0);
 
 	bcm43xx_set_status(bcm, BCM43xx_STAT_UNINIT);
-	bcm43xx_unlock_noirq(bcm);
+	mutex_unlock(&bcm->mutex);
 }
 
 static int bcm43xx_init_board(struct bcm43xx_private *bcm)
@@ -3307,7 +3305,7 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 
 	might_sleep();
 
-	bcm43xx_lock_noirq(bcm);
+	mutex_lock(&bcm->mutex);
 	bcm43xx_set_status(bcm, BCM43xx_STAT_INITIALIZING);
 
 	err = bcm43xx_pctl_set_crystal(bcm, 1);
@@ -3389,7 +3387,7 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 
 	assert(err == 0);
 out:
-	bcm43xx_unlock_noirq(bcm);
+	mutex_unlock(&bcm->mutex);
 
 	return err;
 
@@ -3647,7 +3645,8 @@ static void bcm43xx_ieee80211_set_chan(struct net_device *net_dev,
 	struct bcm43xx_radioinfo *radio;
 	unsigned long flags;
 
-	bcm43xx_lock_irqsafe(bcm, flags);
+	mutex_lock(&bcm->mutex);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 	if (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED) {
 		bcm43xx_mac_suspend(bcm);
 		bcm43xx_radio_selectchannel(bcm, channel, 0);
@@ -3656,7 +3655,8 @@ static void bcm43xx_ieee80211_set_chan(struct net_device *net_dev,
 		radio = bcm43xx_current_radio(bcm);
 		radio->initial_channel = channel;
 	}
-	bcm43xx_unlock_irqsafe(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
+	mutex_unlock(&bcm->mutex);
 }
 
 /* set_security() callback in struct ieee80211_device */
@@ -3670,7 +3670,8 @@ static void bcm43xx_ieee80211_set_security(struct net_device *net_dev,
 	
 	dprintk(KERN_INFO PFX "set security called");
 
-	bcm43xx_lock_irqsafe(bcm, flags);
+	mutex_lock(&bcm->mutex);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 
 	for (keyidx = 0; keyidx<WEP_KEYS; keyidx++)
 		if (sec->flags & (1<<keyidx)) {
@@ -3739,7 +3740,8 @@ static void bcm43xx_ieee80211_set_security(struct net_device *net_dev,
 		} else
 				bcm43xx_clear_keys(bcm);
 	}
-	bcm43xx_unlock_irqsafe(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
+	mutex_unlock(&bcm->mutex);
 }
 
 /* hard_start_xmit() callback in struct ieee80211_device */
@@ -3751,10 +3753,10 @@ static int bcm43xx_ieee80211_hard_start_xmit(struct ieee80211_txb *txb,
 	int err = -ENODEV;
 	unsigned long flags;
 
-	bcm43xx_lock_irqonly(bcm, flags);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 	if (likely(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED))
 		err = bcm43xx_tx(bcm, txb);
-	bcm43xx_unlock_irqonly(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 
 	return err;
 }
@@ -3769,9 +3771,9 @@ static void bcm43xx_net_tx_timeout(struct net_device *net_dev)
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
 	unsigned long flags;
 
-	bcm43xx_lock_irqonly(bcm, flags);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 	bcm43xx_controller_restart(bcm, "TX timeout");
-	bcm43xx_unlock_irqonly(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -3822,6 +3824,7 @@ static int bcm43xx_init_private(struct bcm43xx_private *bcm,
 	bcm->net_dev = net_dev;
 	bcm->bad_frames_preempt = modparam_bad_frames_preempt;
 	spin_lock_init(&bcm->irq_lock);
+	spin_lock_init(&bcm->leds_lock);
 	mutex_init(&bcm->mutex);
 	tasklet_init(&bcm->isr_tasklet,
 		     (void (*)(unsigned long))bcm43xx_interrupt_tasklet,
@@ -4002,16 +4005,13 @@ static int bcm43xx_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *net_dev = pci_get_drvdata(pdev);
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
-	unsigned long flags;
 	int try_to_shutdown = 0, err;
 
 	dprintk(KERN_INFO PFX "Suspending...\n");
 
-	bcm43xx_lock_irqsafe(bcm, flags);
 	bcm->was_initialized = (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED);
 	if (bcm->was_initialized)
 		try_to_shutdown = 1;
-	bcm43xx_unlock_irqsafe(bcm, flags);
 
 	netif_device_detach(net_dev);
 	if (try_to_shutdown) {

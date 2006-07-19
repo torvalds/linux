@@ -649,6 +649,19 @@ enum {
 #define bcm43xx_status(bcm)		atomic_read(&(bcm)->init_status)
 #define bcm43xx_set_status(bcm, stat)	atomic_set(&(bcm)->init_status, (stat))
 
+/*    *** THEORY OF LOCKING ***
+ *
+ * We have two different locks in the bcm43xx driver.
+ * => bcm->mutex:    General sleeping mutex. Protects struct bcm43xx_private
+ *                   and the device registers. This mutex does _not_ protect
+ *                   against concurrency from the IRQ handler.
+ * => bcm->irq_lock: IRQ spinlock. Protects against IRQ handler concurrency.
+ *
+ * Please note that, if you only take the irq_lock, you are not protected
+ * against concurrency from the periodic work handlers.
+ * Most times you want to take _both_ locks.
+ */
+
 struct bcm43xx_private {
 	struct ieee80211_device *ieee;
 	struct ieee80211softmac_device *softmac;
@@ -659,7 +672,6 @@ struct bcm43xx_private {
 
 	void __iomem *mmio_addr;
 
-	/* Locking, see "theory of locking" text below. */
 	spinlock_t irq_lock;
 	struct mutex mutex;
 
@@ -691,6 +703,7 @@ struct bcm43xx_private {
 	struct bcm43xx_sprominfo sprom;
 #define BCM43xx_NR_LEDS		4
 	struct bcm43xx_led leds[BCM43xx_NR_LEDS];
+	spinlock_t leds_lock;
 
 	/* The currently active core. */
 	struct bcm43xx_coreinfo *current_core;
@@ -761,55 +774,6 @@ struct bcm43xx_private {
 	struct bcm43xx_dfsentry *dfsentry;
 #endif
 };
-
-
-/*    *** THEORY OF LOCKING ***
- *
- * We have two different locks in the bcm43xx driver.
- * => bcm->mutex:    General sleeping mutex. Protects struct bcm43xx_private
- *                   and the device registers.
- * => bcm->irq_lock: IRQ spinlock. Protects against IRQ handler concurrency.
- *
- * We have three types of helper function pairs to utilize these locks.
- *     (Always use the helper functions.)
- * 1) bcm43xx_{un}lock_noirq():
- *     Takes bcm->mutex. Does _not_ protect against IRQ concurrency,
- *     so it is almost always unsafe, if device IRQs are enabled.
- *     So only use this, if device IRQs are masked.
- *     Locking may sleep.
- *     You can sleep within the critical section.
- * 2) bcm43xx_{un}lock_irqonly():
- *     Takes bcm->irq_lock. Does _not_ protect against
- *     bcm43xx_lock_noirq() critical sections.
- *     Does only protect against the IRQ handler path and other
- *     irqonly() critical sections.
- *     Locking does not sleep.
- *     You must not sleep within the critical section.
- * 3) bcm43xx_{un}lock_irqsafe():
- *     This is the cummulative lock and takes both, mutex and irq_lock.
- *     Protects against noirq() and irqonly() critical sections (and
- *     the IRQ handler path).
- *     Locking may sleep.
- *     You must not sleep within the critical section.
- */
-
-/* Lock type 1 */
-#define bcm43xx_lock_noirq(bcm)		mutex_lock(&(bcm)->mutex)
-#define bcm43xx_unlock_noirq(bcm)	mutex_unlock(&(bcm)->mutex)
-/* Lock type 2 */
-#define bcm43xx_lock_irqonly(bcm, flags)	\
-	spin_lock_irqsave(&(bcm)->irq_lock, flags)
-#define bcm43xx_unlock_irqonly(bcm, flags)	\
-	spin_unlock_irqrestore(&(bcm)->irq_lock, flags)
-/* Lock type 3 */
-#define bcm43xx_lock_irqsafe(bcm, flags) do {	\
-	bcm43xx_lock_noirq(bcm);		\
-	bcm43xx_lock_irqonly(bcm, flags);	\
-		} while (0)
-#define bcm43xx_unlock_irqsafe(bcm, flags) do {	\
-	bcm43xx_unlock_irqonly(bcm, flags);	\
-	bcm43xx_unlock_noirq(bcm);		\
-		} while (0)
 
 
 static inline

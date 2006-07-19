@@ -51,12 +51,12 @@ static void bcm43xx_led_blink(unsigned long d)
 	struct bcm43xx_private *bcm = led->bcm;
 	unsigned long flags;
 
-	bcm43xx_lock_irqonly(bcm, flags);
+	spin_lock_irqsave(&bcm->leds_lock, flags);
 	if (led->blink_interval) {
 		bcm43xx_led_changestate(led);
 		mod_timer(&led->blink_timer, jiffies + led->blink_interval);
 	}
-	bcm43xx_unlock_irqonly(bcm, flags);
+	spin_unlock_irqrestore(&bcm->leds_lock, flags);
 }
 
 static void bcm43xx_led_blink_start(struct bcm43xx_led *led,
@@ -177,7 +177,9 @@ void bcm43xx_leds_update(struct bcm43xx_private *bcm, int activity)
 	int i, turn_on;
 	unsigned long interval = 0;
 	u16 ledctl;
+	unsigned long flags;
 
+	spin_lock_irqsave(&bcm->leds_lock, flags);
 	ledctl = bcm43xx_read16(bcm, BCM43xx_MMIO_GPIO_CONTROL);
 	for (i = 0; i < BCM43xx_NR_LEDS; i++) {
 		led = &(bcm->leds[i]);
@@ -266,6 +268,7 @@ void bcm43xx_leds_update(struct bcm43xx_private *bcm, int activity)
 			ledctl &= ~(1 << i);
 	}
 	bcm43xx_write16(bcm, BCM43xx_MMIO_GPIO_CONTROL, ledctl);
+	spin_unlock_irqrestore(&bcm->leds_lock, flags);
 }
 
 void bcm43xx_leds_switch_all(struct bcm43xx_private *bcm, int on)
@@ -274,7 +277,9 @@ void bcm43xx_leds_switch_all(struct bcm43xx_private *bcm, int on)
 	u16 ledctl;
 	int i;
 	int bit_on;
+	unsigned long flags;
 
+	spin_lock_irqsave(&bcm->leds_lock, flags);
 	ledctl = bcm43xx_read16(bcm, BCM43xx_MMIO_GPIO_CONTROL);
 	for (i = 0; i < BCM43xx_NR_LEDS; i++) {
 		led = &(bcm->leds[i]);
@@ -290,4 +295,5 @@ void bcm43xx_leds_switch_all(struct bcm43xx_private *bcm, int on)
 			ledctl &= ~(1 << i);
 	}
 	bcm43xx_write16(bcm, BCM43xx_MMIO_GPIO_CONTROL, ledctl);
+	spin_unlock_irqrestore(&bcm->leds_lock, flags);
 }

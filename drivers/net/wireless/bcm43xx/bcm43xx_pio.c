@@ -262,7 +262,7 @@ static void tx_tasklet(unsigned long d)
 	int err;
 	u16 txctl;
 
-	bcm43xx_lock_irqonly(bcm, flags);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 
 	if (queue->tx_frozen)
 		goto out_unlock;
@@ -300,7 +300,7 @@ static void tx_tasklet(unsigned long d)
 		continue;
 	}
 out_unlock:
-	bcm43xx_unlock_irqonly(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 }
 
 static void setup_txqueues(struct bcm43xx_pioqueue *queue)
