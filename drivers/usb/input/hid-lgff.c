@@ -37,7 +37,7 @@
 #include <linux/circ_buf.h>
 
 #include "hid.h"
-#include "fixp-arith.h"
+#include "../../input/fixp-arith.h"
 
 
 /* Periodicity of the update */

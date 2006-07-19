@@ -36,7 +36,7 @@
 #include <linux/circ_buf.h>
 
 #include "hid.h"
-#include "fixp-arith.h"
+#include "../../input/fixp-arith.h"
 
 /* Usages for thrustmaster devices I know about */
 #define THRUSTMASTER_USAGE_RUMBLE_LR	(HID_UP_GENDESK | 0xbb)
