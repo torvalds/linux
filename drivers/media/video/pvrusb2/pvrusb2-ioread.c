@@ -213,7 +213,9 @@ int pvr2_ioread_setup(struct pvr2_ioread *cp,struct pvr2_stream *sp)
 				   " pvr2_ioread_setup (tear-down) id=%p",cp);
 			pvr2_ioread_stop(cp);
 			pvr2_stream_kill(cp->stream);
-			pvr2_stream_set_buffer_count(cp->stream,0);
+			if (pvr2_stream_get_buffer_count(cp->stream)) {
+				pvr2_stream_set_buffer_count(cp->stream,0);
+			}
 			cp->stream = NULL;
 		}
 		if (sp) {
@@ -250,7 +252,6 @@ int pvr2_ioread_set_enabled(struct pvr2_ioread *cp,int fl)
 	} while (0); mutex_unlock(&cp->mutex);
 	return ret;
 }
-
 
 static int pvr2_ioread_get_buffer(struct pvr2_ioread *cp)
 {
