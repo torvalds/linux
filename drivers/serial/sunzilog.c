@@ -1351,16 +1351,8 @@ static int __devinit zs_probe(struct of_device *op, const struct of_device_id *m
 
 	rp = sunzilog_chip_regs[inst];
 
-	if (zilog_irq == -1) {
+	if (zilog_irq == -1)
 		zilog_irq = op->irqs[0];
-		err = request_irq(zilog_irq, sunzilog_interrupt, IRQF_SHARED,
-				  "zs", sunzilog_irq_chain);
-		if (err) {
-			of_iounmap(rp, sizeof(struct zilog_layout));
-
-			return err;
-		}
-	}
 
 	up = &sunzilog_port_table[inst * 2];
 
