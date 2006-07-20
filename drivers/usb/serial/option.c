@@ -16,7 +16,7 @@
   This driver exists because the "normal" serial driver doesn't work too well
   with GSM modems. Issues:
   - data loss -- one single Receive URB is not nearly enough
-  - nonstandard flow (Option devices) and multiplex (Sierra) control
+  - nonstandard flow (Option devices) control
   - controlling the baud rate doesn't make sense
 
   This driver is named "option" because the most common device it's
@@ -70,7 +70,6 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define OPTION_VENDOR_ID                0x0AF0
 #define HUAWEI_VENDOR_ID                0x12D1
 #define AUDIOVOX_VENDOR_ID              0x0F3D
-#define SIERRAWIRELESS_VENDOR_ID        0x1199
 #define NOVATELWIRELESS_VENDOR_ID       0x1410
 #define ANYDATA_VENDOR_ID               0x16d5
 
@@ -81,7 +80,6 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define OPTION_PRODUCT_COBRA2           0x6600
 #define HUAWEI_PRODUCT_E600             0x1001
 #define AUDIOVOX_PRODUCT_AIRCARD        0x0112
-#define SIERRAWIRELESS_PRODUCT_MC8755   0x6802
 #define NOVATELWIRELESS_PRODUCT_U740    0x1400
 #define ANYDATA_PRODUCT_ID              0x6501
 
@@ -93,7 +91,6 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA2) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
 	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
-	{ USB_DEVICE(SIERRAWIRELESS_VENDOR_ID, SIERRAWIRELESS_PRODUCT_MC8755) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
 	{ } /* Terminating entry */
@@ -112,7 +109,6 @@ static struct usb_device_id option_ids1[] = {
 	{ } /* Terminating entry */
 };
 static struct usb_device_id option_ids3[] = {
-	{ USB_DEVICE(SIERRAWIRELESS_VENDOR_ID, SIERRAWIRELESS_PRODUCT_MC8755) },
 	{ } /* Terminating entry */
 };
 
