@@ -430,7 +430,7 @@ static int hold_null_lock(struct gdlm_lock *lp)
 	init_completion(&lpn->ast_wait);
 	gdlm_do_lock(lpn);
 	wait_for_completion(&lpn->ast_wait);
-	error = lp->lksb.sb_status;
+	error = lpn->lksb.sb_status;
 	if (error) {
 		printk(KERN_INFO "lock_dlm: hold_null_lock dlm error %d\n",
 		       error);
