@@ -175,7 +175,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 	/* noqueue requests that fail may need to be removed from the
 	   proc's locks list, there should be a better way of detecting
 	   this situation than checking all these things... */
-	   
+
 	if (type == AST_COMP && lkb->lkb_grmode == DLM_LOCK_IV &&
 	    ua->lksb.sb_status == -EAGAIN && !list_empty(&lkb->lkb_ownqueue))
 		remove_ownqueue = 1;
