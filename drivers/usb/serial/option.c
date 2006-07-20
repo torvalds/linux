@@ -108,9 +108,6 @@ static struct usb_device_id option_ids1[] = {
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
 	{ } /* Terminating entry */
 };
-static struct usb_device_id option_ids3[] = {
-	{ } /* Terminating entry */
-};
 
 MODULE_DEVICE_TABLE(usb, option_ids);
 
@@ -125,33 +122,6 @@ static struct usb_driver option_driver = {
 /* The card has three separate interfaces, which the serial driver
  * recognizes separately, thus num_port=1.
  */
-static struct usb_serial_driver option_3port_device = {
-	.driver = {
-		.owner =	THIS_MODULE,
-		.name =		"option3",
-	},
-	.description       = "GSM modem (3-port)",
-	.id_table          = option_ids3,
-	.num_interrupt_in  = NUM_DONT_CARE,
-	.num_bulk_in       = NUM_DONT_CARE,
-	.num_bulk_out      = NUM_DONT_CARE,
-	.num_ports         = 3,
-	.open              = option_open,
-	.close             = option_close,
-	.write             = option_write,
-	.write_room        = option_write_room,
-	.chars_in_buffer   = option_chars_in_buffer,
-	.throttle          = option_rx_throttle,
-	.unthrottle        = option_rx_unthrottle,
-	.ioctl             = option_ioctl,
-	.set_termios       = option_set_termios,
-	.break_ctl         = option_break_ctl,
-	.tiocmget          = option_tiocmget,
-	.tiocmset          = option_tiocmset,
-	.attach            = option_startup,
-	.shutdown          = option_shutdown,
-	.read_int_callback = option_instat_callback,
-};
 
 static struct usb_serial_driver option_1port_device = {
 	.driver = {
@@ -220,9 +190,6 @@ static int __init option_init(void)
 	retval = usb_serial_register(&option_1port_device);
 	if (retval)
 		goto failed_1port_device_register;
-	retval = usb_serial_register(&option_3port_device);
-	if (retval)
-		goto failed_3port_device_register;
 	retval = usb_register(&option_driver);
 	if (retval)
 		goto failed_driver_register;
@@ -232,8 +199,6 @@ static int __init option_init(void)
 	return 0;
 
 failed_driver_register:
-	usb_serial_deregister (&option_3port_device);
-failed_3port_device_register:
 	usb_serial_deregister (&option_1port_device);
 failed_1port_device_register:
 	return retval;
@@ -242,7 +207,6 @@ failed_1port_device_register:
 static void __exit option_exit(void)
 {
 	usb_deregister (&option_driver);
-	usb_serial_deregister (&option_3port_device);
 	usb_serial_deregister (&option_1port_device);
 }
 
