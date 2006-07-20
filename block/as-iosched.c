@@ -1280,8 +1280,7 @@ static void as_work_handler(void *data)
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	if (!as_queue_empty(q))
-		q->request_fn(q);
+	blk_start_queueing(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 

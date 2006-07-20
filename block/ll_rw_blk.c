@@ -2267,6 +2267,25 @@ struct request *blk_get_request(request_queue_t *q, int rw, gfp_t gfp_mask)
 EXPORT_SYMBOL(blk_get_request);
 
 /**
+ * blk_start_queueing - initiate dispatch of requests to device
+ * @q:		request queue to kick into gear
+ *
+ * This is basically a helper to remove the need to know whether a queue
+ * is plugged or not if someone just wants to initiate dispatch of requests
+ * for this queue.
+ *
+ * The queue lock must be held with interrupts disabled.
+ */
+void blk_start_queueing(request_queue_t *q)
+{
+	if (!blk_queue_plugged(q))
+		q->request_fn(q);
+	else
+		__generic_unplug_device(q);
+}
+EXPORT_SYMBOL(blk_start_queueing);
+
+/**
  * blk_requeue_request - put a request back on queue
  * @q:		request queue where request should be inserted
  * @rq:		request to be inserted
@@ -2333,11 +2352,7 @@ void blk_insert_request(request_queue_t *q, struct request *rq,
 
 	drive_stat_acct(rq, rq->nr_sectors, 1);
 	__elv_add_request(q, rq, where, 0);
-
-	if (blk_queue_plugged(q))
-		__generic_unplug_device(q);
-	else
-		q->request_fn(q);
+	blk_start_queueing(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 

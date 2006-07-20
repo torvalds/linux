@@ -1553,19 +1553,6 @@ static void cfq_preempt_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 }
 
 /*
- * should really be a ll_rw_blk.c helper
- */
-static void cfq_start_queueing(struct cfq_data *cfqd, struct cfq_queue *cfqq)
-{
-	request_queue_t *q = cfqd->queue;
-
-	if (!blk_queue_plugged(q))
-		q->request_fn(q);
-	else
-		__generic_unplug_device(q);
-}
-
-/*
  * Called when a new fs request (rq) is added (to cfqq). Check if there's
  * something we should do about it
  */
@@ -1593,7 +1580,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		if (cic == cfqd->active_cic &&
 		    del_timer(&cfqd->idle_slice_timer)) {
 			cfq_slice_expired(cfqd, 0);
-			cfq_start_queueing(cfqd, cfqq);
+			blk_start_queueing(cfqd->queue);
 		}
 		return;
 	}
@@ -1614,7 +1601,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		if (cfq_cfqq_wait_request(cfqq)) {
 			cfq_mark_cfqq_must_dispatch(cfqq);
 			del_timer(&cfqd->idle_slice_timer);
-			cfq_start_queueing(cfqd, cfqq);
+			blk_start_queueing(cfqd->queue);
 		}
 	} else if (cfq_should_preempt(cfqd, cfqq, rq)) {
 		/*
@@ -1624,7 +1611,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 */
 		cfq_preempt_queue(cfqd, cfqq);
 		cfq_mark_cfqq_must_dispatch(cfqq);
-		cfq_start_queueing(cfqd, cfqq);
+		blk_start_queueing(cfqd->queue);
 	}
 }
 
@@ -1832,8 +1819,7 @@ static void cfq_kick_queue(void *data)
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	blk_remove_plug(q);
-	q->request_fn(q);
+	blk_start_queueing(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
