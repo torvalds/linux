@@ -846,6 +846,7 @@ static sctp_disposition_t sctp_sf_heartbeat(const struct sctp_endpoint *ep,
 	hbinfo.param_hdr.length = htons(sizeof(sctp_sender_hb_info_t));
 	hbinfo.daddr = transport->ipaddr;
 	hbinfo.sent_at = jiffies;
+	hbinfo.hb_nonce = transport->hb_nonce;
 
 	/* Send a heartbeat to our peer.  */
 	paylen = sizeof(sctp_sender_hb_info_t);
@@ -1047,6 +1048,10 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 		}
 		return SCTP_DISPOSITION_DISCARD;
 	}
+
+	/* Validate the 64-bit random nonce. */
+	if (hbinfo->hb_nonce != link->hb_nonce)
+		return SCTP_DISPOSITION_DISCARD;
 
 	max_interval = link->hbinterval + link->rto;
 

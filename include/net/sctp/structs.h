@@ -445,6 +445,7 @@ typedef struct sctp_sender_hb_info {
 	struct sctp_paramhdr param_hdr;
 	union sctp_addr daddr;
 	unsigned long sent_at;
+	__u64 hb_nonce;
 } __attribute__((packed)) sctp_sender_hb_info_t;
 
 /*
@@ -984,6 +985,9 @@ struct sctp_transport {
 		 */
 		char cacc_saw_newack;
 	} cacc;
+
+	/* 64-bit random number sent with heartbeat. */
+	__u64 hb_nonce;
 };
 
 struct sctp_transport *sctp_transport_new(const union sctp_addr *,
