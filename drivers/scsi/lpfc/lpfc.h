@@ -21,10 +21,12 @@
 
 struct lpfc_sli2_slim;
 
-#define LPFC_MAX_TARGET         256	/* max targets supported */
-#define LPFC_MAX_DISC_THREADS	64	/* max outstanding discovery els req */
-#define LPFC_MAX_NS_RETRY       3	/* max NameServer retries */
 
+#define LPFC_MAX_TARGET		256	/* max number of targets supported */
+#define LPFC_MAX_DISC_THREADS	64	/* max outstanding discovery els
+					   requests */
+#define LPFC_MAX_NS_RETRY	3	/* Number of retry attempts to contact
+					   the NameServer  before giving up. */
 #define LPFC_DFT_HBA_Q_DEPTH	2048	/* max cmds per hba */
 #define LPFC_LC_HBA_Q_DEPTH	1024	/* max cmds per low cost hba */
 #define LPFC_LP101_HBA_Q_DEPTH	128	/* max cmds per low cost hba */
@@ -41,7 +43,6 @@ struct lpfc_sli2_slim;
 			     (( (u64)(high)<<16 ) << 16)|( (u64)(low))))
 /* Provide maximum configuration definitions. */
 #define LPFC_DRVR_TIMEOUT	16	/* driver iocb timeout value in sec */
-#define MAX_FCP_TARGET		256	/* max num of FCP targets supported */
 #define FC_MAX_ADPTMSG		64
 
 #define MAX_HBAEVT	32

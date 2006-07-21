@@ -1084,7 +1084,7 @@ lpfc_register_remote_port(struct lpfc_hba * phba,
 		fc_remote_port_rolechg(rport, rport_ids.roles);
 
 	if ((rport->scsi_target_id != -1) &&
-		(rport->scsi_target_id < MAX_FCP_TARGET)) {
+		(rport->scsi_target_id < LPFC_MAX_TARGET)) {
 		ndlp->nlp_sid = rport->scsi_target_id;
 	}
 
@@ -1313,7 +1313,7 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 			if ((rport_add == mapped) &&
 			    ((!nlp->rport) ||
 			     (nlp->rport->scsi_target_id == -1) ||
-			     (nlp->rport->scsi_target_id >= MAX_FCP_TARGET))) {
+			     (nlp->rport->scsi_target_id >= LPFC_MAX_TARGET))) {
 				nlp->nlp_state = NLP_STE_UNMAPPED_NODE;
 				spin_lock_irq(phba->host->host_lock);
 				nlp->nlp_flag |= NLP_TGT_NO_SCSIID;

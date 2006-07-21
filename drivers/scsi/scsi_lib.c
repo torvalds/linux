@@ -436,60 +436,16 @@ EXPORT_SYMBOL_GPL(scsi_execute_async);
  *
  * Arguments:   cmd	- command that is ready to be queued.
  *
- * Returns:     Nothing
- *
  * Notes:       This function has the job of initializing a number of
  *              fields related to error handling.   Typically this will
  *              be called once for each command, as required.
  */
-static int scsi_init_cmd_errh(struct scsi_cmnd *cmd)
+static void scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 {
 	cmd->serial_number = 0;
-
 	memset(cmd->sense_buffer, 0, sizeof cmd->sense_buffer);
-
 	if (cmd->cmd_len == 0)
 		cmd->cmd_len = COMMAND_SIZE(cmd->cmnd[0]);
-
-	/*
-	 * We need saved copies of a number of fields - this is because
-	 * error handling may need to overwrite these with different values
-	 * to run different commands, and once error handling is complete,
-	 * we will need to restore these values prior to running the actual
-	 * command.
-	 */
-	cmd->old_use_sg = cmd->use_sg;
-	cmd->old_cmd_len = cmd->cmd_len;
-	cmd->sc_old_data_direction = cmd->sc_data_direction;
-	cmd->old_underflow = cmd->underflow;
-	memcpy(cmd->data_cmnd, cmd->cmnd, sizeof(cmd->cmnd));
-	cmd->buffer = cmd->request_buffer;
-	cmd->bufflen = cmd->request_bufflen;
-
-	return 1;
-}
-
-/*
- * Function:   scsi_setup_cmd_retry()
- *
- * Purpose:    Restore the command state for a retry
- *
- * Arguments:  cmd	- command to be restored
- *
- * Returns:    Nothing
- *
- * Notes:      Immediately prior to retrying a command, we need
- *             to restore certain fields that we saved above.
- */
-void scsi_setup_cmd_retry(struct scsi_cmnd *cmd)
-{
-	memcpy(cmd->cmnd, cmd->data_cmnd, sizeof(cmd->data_cmnd));
-	cmd->request_buffer = cmd->buffer;
-	cmd->request_bufflen = cmd->bufflen;
-	cmd->use_sg = cmd->old_use_sg;
-	cmd->cmd_len = cmd->old_cmd_len;
-	cmd->sc_data_direction = cmd->sc_old_data_direction;
-	cmd->underflow = cmd->old_underflow;
 }
 
 void scsi_device_unbusy(struct scsi_device *sdev)
@@ -807,22 +763,13 @@ static void scsi_free_sgtable(struct scatterlist *sgl, int index)
  */
 static void scsi_release_buffers(struct scsi_cmnd *cmd)
 {
-	struct request *req = cmd->request;
-
-	/*
-	 * Free up any indirection buffers we allocated for DMA purposes. 
-	 */
 	if (cmd->use_sg)
 		scsi_free_sgtable(cmd->request_buffer, cmd->sglist_len);
-	else if (cmd->request_buffer != req->buffer)
-		kfree(cmd->request_buffer);
 
 	/*
 	 * Zero these out.  They now point to freed memory, and it is
 	 * dangerous to hang onto the pointers.
 	 */
-	cmd->buffer  = NULL;
-	cmd->bufflen = 0;
 	cmd->request_buffer = NULL;
 	cmd->request_bufflen = 0;
 }
@@ -858,7 +805,7 @@ static void scsi_release_buffers(struct scsi_cmnd *cmd)
 void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 {
 	int result = cmd->result;
-	int this_count = cmd->bufflen;
+	int this_count = cmd->request_bufflen;
 	request_queue_t *q = cmd->device->request_queue;
 	struct request *req = cmd->request;
 	int clear_errors = 1;
@@ -866,28 +813,14 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	int sense_valid = 0;
 	int sense_deferred = 0;
 
-	/*
-	 * Free up any indirection buffers we allocated for DMA purposes. 
-	 * For the case of a READ, we need to copy the data out of the
-	 * bounce buffer and into the real buffer.
-	 */
-	if (cmd->use_sg)
-		scsi_free_sgtable(cmd->buffer, cmd->sglist_len);
-	else if (cmd->buffer != req->buffer) {
-		if (rq_data_dir(req) == READ) {
-			unsigned long flags;
-			char *to = bio_kmap_irq(req->bio, &flags);
-			memcpy(to, cmd->buffer, cmd->bufflen);
-			bio_kunmap_irq(to, &flags);
-		}
-		kfree(cmd->buffer);
-	}
+	scsi_release_buffers(cmd);
 
 	if (result) {
 		sense_valid = scsi_command_normalize_sense(cmd, &sshdr);
 		if (sense_valid)
 			sense_deferred = scsi_sense_is_deferred(&sshdr);
 	}
+
 	if (blk_pc_request(req)) { /* SG_IO ioctl from block level */
 		req->errors = result;
 		if (result) {
@@ -906,15 +839,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		} else
 			req->data_len = cmd->resid;
 	}
-
-	/*
-	 * Zero these out.  They now point to freed memory, and it is
-	 * dangerous to hang onto the pointers.
-	 */
-	cmd->buffer  = NULL;
-	cmd->bufflen = 0;
-	cmd->request_buffer = NULL;
-	cmd->request_bufflen = 0;
 
 	/*
 	 * Next deal with any sectors which we were able to correctly
@@ -1012,7 +936,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			if (!(req->flags & REQ_QUIET)) {
 				scmd_printk(KERN_INFO, cmd,
 					    "Volume overflow, CDB: ");
-				__scsi_print_command(cmd->data_cmnd);
+				__scsi_print_command(cmd->cmnd);
 				scsi_print_sense("", cmd);
 			}
 			/* See SSC3rXX or current. */
@@ -1143,7 +1067,7 @@ static void scsi_blk_pc_done(struct scsi_cmnd *cmd)
 	 * successfully. Since this is a REQ_BLOCK_PC command the
 	 * caller should check the request's errors value
 	 */
-	scsi_io_completion(cmd, cmd->bufflen);
+	scsi_io_completion(cmd, cmd->request_bufflen);
 }
 
 static void scsi_setup_blk_pc_cmnd(struct scsi_cmnd *cmd)

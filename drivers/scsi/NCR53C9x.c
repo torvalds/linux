@@ -911,7 +911,7 @@ static void esp_get_dmabufs(struct NCR_ESP *esp, Scsi_Cmnd *sp)
 			sp->SCp.ptr =
 				(char *) virt_to_phys(sp->request_buffer);
 	} else {
-		sp->SCp.buffer = (struct scatterlist *) sp->buffer;
+		sp->SCp.buffer = (struct scatterlist *) sp->request_buffer;
 		sp->SCp.buffers_residual = sp->use_sg - 1;
 		sp->SCp.this_residual = sp->SCp.buffer->length;
 		if (esp->dma_mmu_get_scsi_sgl)

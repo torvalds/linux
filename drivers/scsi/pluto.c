@@ -169,8 +169,6 @@ int __init pluto_detect(struct scsi_host_template *tpnt)
 		SCpnt->request->rq_status = RQ_SCSI_BUSY;
 		
 		SCpnt->done = pluto_detect_done;
-		SCpnt->bufflen = 256;
-		SCpnt->buffer = fcs[i].inquiry;
 		SCpnt->request_bufflen = 256;
 		SCpnt->request_buffer = fcs[i].inquiry;
 		PLD(("set up %d %08lx\n", i, (long)SCpnt))

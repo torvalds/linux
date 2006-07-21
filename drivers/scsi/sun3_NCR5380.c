@@ -517,7 +517,7 @@ static __inline__ void initialize_SCp(Scsi_Cmnd *cmd)
      */
 
     if (cmd->use_sg) {
-	cmd->SCp.buffer = (struct scatterlist *) cmd->buffer;
+	cmd->SCp.buffer = (struct scatterlist *) cmd->request_buffer;
 	cmd->SCp.buffers_residual = cmd->use_sg - 1;
 	cmd->SCp.ptr = (char *) SGADDR(cmd->SCp.buffer);
 	cmd->SCp.this_residual = cmd->SCp.buffer->length;

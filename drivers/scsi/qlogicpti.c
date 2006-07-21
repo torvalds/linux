@@ -874,7 +874,7 @@ static inline int load_cmd(struct scsi_cmnd *Cmnd, struct Command_Entry *cmd,
 	if (Cmnd->use_sg) {
 		int sg_count;
 
-		sg = (struct scatterlist *) Cmnd->buffer;
+		sg = (struct scatterlist *) Cmnd->request_buffer;
 		sg_count = sbus_map_sg(qpti->sdev, sg, Cmnd->use_sg, Cmnd->sc_data_direction);
 
 		ds = cmd->dataseg;
@@ -1278,7 +1278,7 @@ static struct scsi_cmnd *qlogicpti_intr_handler(struct qlogicpti *qpti)
 
 		if (Cmnd->use_sg) {
 			sbus_unmap_sg(qpti->sdev,
-				      (struct scatterlist *)Cmnd->buffer,
+				      (struct scatterlist *)Cmnd->request_buffer,
 				      Cmnd->use_sg,
 				      Cmnd->sc_data_direction);
 		} else {
