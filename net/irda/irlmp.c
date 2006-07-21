@@ -395,7 +395,7 @@ int irlmp_connect_request(struct lsap_cb *self, __u8 dlsap_sel,
 
 	/* Any userdata? */
 	if (tx_skb == NULL) {
-		tx_skb = dev_alloc_skb(64);
+		tx_skb = alloc_skb(64, GFP_ATOMIC);
 		if (!tx_skb)
 			return -ENOMEM;
 

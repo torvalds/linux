@@ -306,7 +306,8 @@ static inline void irttp_fragment_skb(struct tsap_cb *self,
 		IRDA_DEBUG(2, "%s(), fragmenting ...\n", __FUNCTION__);
 
 		/* Make new segment */
-		frag = dev_alloc_skb(self->max_seg_size+self->max_header_size);
+		frag = alloc_skb(self->max_seg_size+self->max_header_size,
+				 GFP_ATOMIC);
 		if (!frag)
 			return;
 
@@ -805,7 +806,7 @@ static inline void irttp_give_credit(struct tsap_cb *self)
 		   self->send_credit, self->avail_credit, self->remote_credit);
 
 	/* Give credit to peer */
-	tx_skb = dev_alloc_skb(64);
+	tx_skb = alloc_skb(64, GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 
@@ -1094,7 +1095,7 @@ int irttp_connect_request(struct tsap_cb *self, __u8 dtsap_sel,
 
 	/* Any userdata supplied? */
 	if (userdata == NULL) {
-		tx_skb = dev_alloc_skb(64);
+		tx_skb = alloc_skb(64, GFP_ATOMIC);
 		if (!tx_skb)
 			return -ENOMEM;
 
@@ -1342,7 +1343,7 @@ int irttp_connect_response(struct tsap_cb *self, __u32 max_sdu_size,
 
 	/* Any userdata supplied? */
 	if (userdata == NULL) {
-		tx_skb = dev_alloc_skb(64);
+		tx_skb = alloc_skb(64, GFP_ATOMIC);
 		if (!tx_skb)
 			return -ENOMEM;
 
@@ -1541,7 +1542,7 @@ int irttp_disconnect_request(struct tsap_cb *self, struct sk_buff *userdata,
 
 	if (!userdata) {
 		struct sk_buff *tx_skb;
-		tx_skb = dev_alloc_skb(64);
+		tx_skb = alloc_skb(64, GFP_ATOMIC);
 		if (!tx_skb)
 			return -ENOMEM;
 

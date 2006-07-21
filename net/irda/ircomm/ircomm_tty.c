@@ -759,8 +759,9 @@ static int ircomm_tty_write(struct tty_struct *tty,
 			}
 		} else {
 			/* Prepare a full sized frame */
-			skb = dev_alloc_skb(self->max_data_size+
-					    self->max_header_size);
+			skb = alloc_skb(self->max_data_size+
+					self->max_header_size,
+					GFP_ATOMIC);
 			if (!skb) {
 				spin_unlock_irqrestore(&self->spinlock, flags);
 				return -ENOBUFS;
