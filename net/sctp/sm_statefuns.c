@@ -5283,7 +5283,6 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	datalen -= sizeof(sctp_data_chunk_t);
 
 	deliver = SCTP_CMD_CHUNK_ULP;
-	chunk->data_accepted = 1;
 
 	/* Think about partial delivery. */
 	if ((datalen >= asoc->rwnd) && (!asoc->ulpq.pd_mode)) {
@@ -5361,6 +5360,8 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 */
 	if (SCTP_CMD_CHUNK_ULP == deliver)
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_TSN, SCTP_U32(tsn));
+
+	chunk->data_accepted = 1;
 
 	/* Note: Some chunks may get overcounted (if we drop) or overcounted
 	 * if we renege and the chunk arrives again.
