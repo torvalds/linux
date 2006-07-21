@@ -608,12 +608,9 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	int error;
 	u32 new_flags, flags;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
-	if (error) {
-		gfs2_holder_uninit(&gh);
+	if (error)
 		return error;
-	}
 
 	flags = ip->i_di.di_flags;
 	new_flags = (flags & ~mask) | (reqflags & mask);
