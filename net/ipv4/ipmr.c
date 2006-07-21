@@ -1461,7 +1461,6 @@ int pim_rcv_v1(struct sk_buff * skb)
 	skb_pull(skb, (u8*)encap - skb->data);
 	skb->nh.iph = (struct iphdr *)skb->data;
 	skb->dev = reg_dev;
-	memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));
 	skb->protocol = htons(ETH_P_IP);
 	skb->ip_summed = 0;
 	skb->pkt_type = PACKET_HOST;
@@ -1517,7 +1516,6 @@ static int pim_rcv(struct sk_buff * skb)
 	skb_pull(skb, (u8*)encap - skb->data);
 	skb->nh.iph = (struct iphdr *)skb->data;
 	skb->dev = reg_dev;
-	memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));
 	skb->protocol = htons(ETH_P_IP);
 	skb->ip_summed = 0;
 	skb->pkt_type = PACKET_HOST;
