@@ -959,7 +959,6 @@ int snd_timer_global_register(struct snd_timer *timer)
 
 struct snd_timer_system_private {
 	struct timer_list tlist;
-	struct timer * timer;
 	unsigned long last_expires;
 	unsigned long last_jiffies;
 	unsigned long correction;
