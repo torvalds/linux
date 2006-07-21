@@ -36,7 +36,7 @@ static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION "7.1.9-k2"DRIVERNAPI
+#define DRV_VERSION "7.1.9-k4"DRIVERNAPI
 char e1000_driver_version[] = DRV_VERSION;
 static char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
@@ -1068,7 +1068,7 @@ e1000_sw_init(struct e1000_adapter *adapter)
 
 	pci_read_config_word(pdev, PCI_COMMAND, &hw->pci_cmd_word);
 
-	adapter->rx_buffer_len = MAXIMUM_ETHERNET_FRAME_SIZE;
+	adapter->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 	adapter->rx_ps_bsize0 = E1000_RXBUFFER_128;
 	hw->max_frame_size = netdev->mtu +
 			     ENET_HEADER_SIZE + ETHERNET_FCS_SIZE;
@@ -3148,7 +3148,6 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		adapter->rx_buffer_len = E1000_RXBUFFER_16384;
 
 	/* adjust allocation if LPE protects us, and we aren't using SBP */
-#define MAXIMUM_ETHERNET_VLAN_SIZE 1522
 	if (!adapter->hw.tbi_compatibility_on &&
 	    ((max_frame == MAXIMUM_ETHERNET_FRAME_SIZE) ||
 	     (max_frame == MAXIMUM_ETHERNET_VLAN_SIZE)))
@@ -3387,8 +3386,8 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 		E1000_WRITE_REG(hw, IMC, ~0);
 		E1000_WRITE_FLUSH(hw);
 	}
-	if (likely(netif_rx_schedule_prep(&adapter->polling_netdev[0])))
-		__netif_rx_schedule(&adapter->polling_netdev[0]);
+	if (likely(netif_rx_schedule_prep(netdev)))
+		__netif_rx_schedule(netdev);
 	else
 		e1000_irq_enable(adapter);
 #else
@@ -3431,34 +3430,26 @@ e1000_clean(struct net_device *poll_dev, int *budget)
 {
 	struct e1000_adapter *adapter;
 	int work_to_do = min(*budget, poll_dev->quota);
-	int tx_cleaned = 0, i = 0, work_done = 0;
+	int tx_cleaned = 0, work_done = 0;
 
 	/* Must NOT use netdev_priv macro here. */
 	adapter = poll_dev->priv;
 
 	/* Keep link state information with original netdev */
-	if (!netif_carrier_ok(adapter->netdev))
+	if (!netif_carrier_ok(poll_dev))
 		goto quit_polling;
 
-	while (poll_dev != &adapter->polling_netdev[i]) {
-		i++;
-		BUG_ON(i == adapter->num_rx_queues);
+	/* e1000_clean is called per-cpu.  This lock protects
+	 * tx_ring[0] from being cleaned by multiple cpus
+	 * simultaneously.  A failure obtaining the lock means
+	 * tx_ring[0] is currently being cleaned anyway. */
+	if (spin_trylock(&adapter->tx_queue_lock)) {
+		tx_cleaned = e1000_clean_tx_irq(adapter,
+		                                &adapter->tx_ring[0]);
+		spin_unlock(&adapter->tx_queue_lock);
 	}
 
-	if (likely(adapter->num_tx_queues == 1)) {
-		/* e1000_clean is called per-cpu.  This lock protects
-		 * tx_ring[0] from being cleaned by multiple cpus
-		 * simultaneously.  A failure obtaining the lock means
-		 * tx_ring[0] is currently being cleaned anyway. */
-		if (spin_trylock(&adapter->tx_queue_lock)) {
-			tx_cleaned = e1000_clean_tx_irq(adapter,
-							&adapter->tx_ring[0]);
-			spin_unlock(&adapter->tx_queue_lock);
-		}
-	} else
-		tx_cleaned = e1000_clean_tx_irq(adapter, &adapter->tx_ring[i]);
-
-	adapter->clean_rx(adapter, &adapter->rx_ring[i],
+	adapter->clean_rx(adapter, &adapter->rx_ring[0],
 	                  &work_done, work_to_do);
 
 	*budget -= work_done;
@@ -3466,7 +3457,7 @@ e1000_clean(struct net_device *poll_dev, int *budget)
 
 	/* If no Tx and not enough Rx work done, exit the polling mode */
 	if ((!tx_cleaned && (work_done == 0)) ||
-	   !netif_running(adapter->netdev)) {
+	   !netif_running(poll_dev)) {
 quit_polling:
 		netif_rx_complete(poll_dev);
 		e1000_irq_enable(adapter);
@@ -3681,6 +3672,9 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 		length = le16_to_cpu(rx_desc->length);
 
+		/* adjust length to remove Ethernet CRC */
+		length -= 4;
+
 		if (unlikely(!(status & E1000_RXD_STAT_EOP))) {
 			/* All receives must fit into a single buffer */
 			E1000_DBG("%s: Receive packet consumed multiple"
@@ -3885,8 +3879,9 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			pci_dma_sync_single_for_device(pdev,
 				ps_page_dma->ps_page_dma[0],
 				PAGE_SIZE, PCI_DMA_FROMDEVICE);
+			/* remove the CRC */
+			l1 -= 4;
 			skb_put(skb, l1);
-			length += l1;
 			goto copydone;
 		} /* if */
 		}
@@ -3904,6 +3899,10 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			skb->data_len += length;
 			skb->truesize += length;
 		}
+
+		/* strip the ethernet crc, problem is we're using pages now so
+		 * this whole operation can get a little cpu intensive */
+		pskb_trim(skb, skb->len - 4);
 
 copydone:
 		e1000_rx_checksum(adapter, staterr,
@@ -4752,6 +4751,7 @@ static void
 e1000_netpoll(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+
 	disable_irq(adapter->pdev->irq);
 	e1000_intr(adapter->pdev->irq, netdev, NULL);
 	e1000_clean_tx_irq(adapter, adapter->tx_ring);
