@@ -379,12 +379,11 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 	self = hashbin_lock_find(ircomm_tty, line, NULL);
 	if (!self) {
 		/* No, so make new instance */
-		self = kmalloc(sizeof(struct ircomm_tty_cb), GFP_KERNEL);
+		self = kzalloc(sizeof(struct ircomm_tty_cb), GFP_KERNEL);
 		if (self == NULL) {
 			IRDA_ERROR("%s(), kmalloc failed!\n", __FUNCTION__);
 			return -ENOMEM;
 		}
-		memset(self, 0, sizeof(struct ircomm_tty_cb));
 		
 		self->magic = IRCOMM_TTY_MAGIC;
 		self->flow = FLOW_STOP;

@@ -85,10 +85,9 @@ static pi_param_info_t param_info = { pi_major_call_table, 1, 0x0f, 4 };
  */
 int __init irttp_init(void)
 {
-	irttp = kmalloc(sizeof(struct irttp_cb), GFP_KERNEL);
+	irttp = kzalloc(sizeof(struct irttp_cb), GFP_KERNEL);
 	if (irttp == NULL)
 		return -ENOMEM;
-	memset(irttp, 0, sizeof(struct irttp_cb));
 
 	irttp->magic = TTP_MAGIC;
 
@@ -390,12 +389,11 @@ struct tsap_cb *irttp_open_tsap(__u8 stsap_sel, int credit, notify_t *notify)
 		return NULL;
 	}
 
-	self = kmalloc(sizeof(struct tsap_cb), GFP_ATOMIC);
+	self = kzalloc(sizeof(struct tsap_cb), GFP_ATOMIC);
 	if (self == NULL) {
 		IRDA_DEBUG(0, "%s(), unable to kmalloc!\n", __FUNCTION__);
 		return NULL;
 	}
-	memset(self, 0, sizeof(struct tsap_cb));
 	spin_lock_init(&self->lock);
 
 	/* Initialise todo timer */
@@ -1877,7 +1875,7 @@ static int irttp_seq_open(struct inode *inode, struct file *file)
 	int rc = -ENOMEM;
 	struct irttp_iter_state *s;
 
-	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
 		goto out;
 
@@ -1887,7 +1885,6 @@ static int irttp_seq_open(struct inode *inode, struct file *file)
 
 	seq	     = file->private_data;
 	seq->private = s;
-	memset(s, 0, sizeof(*s));
 out:
 	return rc;
 out_kfree:

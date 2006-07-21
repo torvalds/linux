@@ -307,10 +307,9 @@ struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp)
 {
 	struct xfrm_policy *policy;
 
-	policy = kmalloc(sizeof(struct xfrm_policy), gfp);
+	policy = kzalloc(sizeof(struct xfrm_policy), gfp);
 
 	if (policy) {
-		memset(policy, 0, sizeof(struct xfrm_policy));
 		atomic_set(&policy->refcnt, 1);
 		rwlock_init(&policy->lock);
 		init_timer(&policy->timer);

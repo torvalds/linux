@@ -57,29 +57,25 @@ struct cluster *tipc_cltr_create(u32 addr)
 	struct _zone *z_ptr;
 	struct cluster *c_ptr;
 	int max_nodes; 
-	int alloc;
 
-	c_ptr = (struct cluster *)kmalloc(sizeof(*c_ptr), GFP_ATOMIC);
+	c_ptr = kzalloc(sizeof(*c_ptr), GFP_ATOMIC);
 	if (c_ptr == NULL) {
 		warn("Cluster creation failure, no memory\n");
 		return NULL;
 	}
-	memset(c_ptr, 0, sizeof(*c_ptr));
 
 	c_ptr->addr = tipc_addr(tipc_zone(addr), tipc_cluster(addr), 0);
 	if (in_own_cluster(addr))
 		max_nodes = LOWEST_SLAVE + tipc_max_slaves;
 	else
 		max_nodes = tipc_max_nodes + 1;
-	alloc = sizeof(void *) * (max_nodes + 1);
 
-	c_ptr->nodes = (struct node **)kmalloc(alloc, GFP_ATOMIC);
+	c_ptr->nodes = kcalloc(max_nodes + 1, sizeof(void*), GFP_ATOMIC);
 	if (c_ptr->nodes == NULL) {
 		warn("Cluster creation failure, no memory for node area\n");
 		kfree(c_ptr);
 		return NULL;
 	}
-	memset(c_ptr->nodes, 0, alloc);
 
 	if (in_own_cluster(addr))
 		tipc_local_nodes = c_ptr->nodes;

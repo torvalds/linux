@@ -1640,10 +1640,9 @@ static int tcp_seq_open(struct inode *inode, struct file *file)
 	if (unlikely(afinfo == NULL))
 		return -EINVAL;
 
-	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
-	memset(s, 0, sizeof(*s));
 	s->family		= afinfo->family;
 	s->seq_ops.start	= tcp_seq_start;
 	s->seq_ops.next		= tcp_seq_next;

@@ -709,11 +709,10 @@ fib_create_info(const struct rtmsg *r, struct kern_rta *rta,
 			goto failure;
 	}
 
-	fi = kmalloc(sizeof(*fi)+nhs*sizeof(struct fib_nh), GFP_KERNEL);
+	fi = kzalloc(sizeof(*fi)+nhs*sizeof(struct fib_nh), GFP_KERNEL);
 	if (fi == NULL)
 		goto failure;
 	fib_info_cnt++;
-	memset(fi, 0, sizeof(*fi)+nhs*sizeof(struct fib_nh));
 
 	fi->fib_protocol = r->rtm_protocol;
 

@@ -422,11 +422,10 @@ static void irlap_recv_discovery_xid_rsp(struct irlap_cb *self,
 		return;
 	}
 
-	if ((discovery = kmalloc(sizeof(discovery_t), GFP_ATOMIC)) == NULL) {
+	if ((discovery = kzalloc(sizeof(discovery_t), GFP_ATOMIC)) == NULL) {
 		IRDA_WARNING("%s: kmalloc failed!\n", __FUNCTION__);
 		return;
 	}
-	memset(discovery, 0, sizeof(discovery_t));
 
 	discovery->data.daddr = info->daddr;
 	discovery->data.saddr = self->saddr;

@@ -929,12 +929,11 @@ static int arp_seq_open(struct inode *inode, struct file *file)
 	struct seq_file *seq;
 	int rc = -EAGAIN;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state) {
 		rc = -ENOMEM;
 		goto out_kfree;
 	}
-	memset(state, 0, sizeof(*state));
 	state->ns.neigh_sub_iter = clip_seq_sub_iter;
 
 	rc = seq_open(file, &arp_seq_ops);

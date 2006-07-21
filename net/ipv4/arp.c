@@ -1372,12 +1372,11 @@ static int arp_seq_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int rc = -ENOMEM;
-	struct neigh_seq_state *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct neigh_seq_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
        
 	if (!s)
 		goto out;
 
-	memset(s, 0, sizeof(*s));
 	rc = seq_open(file, &arp_seq_ops);
 	if (rc)
 		goto out_kfree;

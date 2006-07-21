@@ -258,10 +258,9 @@ static struct mpoa_client *alloc_mpc(void)
 {
 	struct mpoa_client *mpc;
 
-	mpc = kmalloc(sizeof (struct mpoa_client), GFP_KERNEL);
+	mpc = kzalloc(sizeof (struct mpoa_client), GFP_KERNEL);
 	if (mpc == NULL)
 		return NULL;
-	memset(mpc, 0, sizeof(struct mpoa_client));
 	rwlock_init(&mpc->ingress_lock);
 	rwlock_init(&mpc->egress_lock);
 	mpc->next = mpcs;
