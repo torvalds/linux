@@ -1493,7 +1493,7 @@ no_hmac:
 
 	/* Also, add the destination address. */
 	if (list_empty(&retval->base.bind_addr.address_list)) {
-		sctp_add_bind_addr(&retval->base.bind_addr, &chunk->dest,
+		sctp_add_bind_addr(&retval->base.bind_addr, &chunk->dest, 1,
 				   GFP_ATOMIC);
 	}
 
@@ -2565,6 +2565,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 	union sctp_addr_param *addr_param;
 	struct list_head *pos;
 	struct sctp_transport *transport;
+	struct sctp_sockaddr_entry *saddr;
 	int retval = 0;
 
 	addr_param = (union sctp_addr_param *)
@@ -2578,7 +2579,11 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 	case SCTP_PARAM_ADD_IP:
 		sctp_local_bh_disable();
 		sctp_write_lock(&asoc->base.addr_lock);
-		retval = sctp_add_bind_addr(bp, &addr, GFP_ATOMIC);
+		list_for_each(pos, &bp->address_list) {
+			saddr = list_entry(pos, struct sctp_sockaddr_entry, list);
+			if (sctp_cmp_addr_exact(&saddr->a, &addr))
+				saddr->use_as_src = 1;
+		}
 		sctp_write_unlock(&asoc->base.addr_lock);
 		sctp_local_bh_enable();
 		break;
@@ -2591,6 +2596,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 		list_for_each(pos, &asoc->peer.transport_addr_list) {
 			transport = list_entry(pos, struct sctp_transport,
 						 transports);
+			dst_release(transport->dst);
 			sctp_transport_route(transport, NULL,
 					     sctp_sk(asoc->base.sk));
 		}
