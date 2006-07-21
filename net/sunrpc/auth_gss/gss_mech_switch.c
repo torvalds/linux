@@ -237,9 +237,8 @@ gss_import_sec_context(const void *input_token, size_t bufsize,
 		       struct gss_api_mech	*mech,
 		       struct gss_ctx		**ctx_id)
 {
-	if (!(*ctx_id = kmalloc(sizeof(**ctx_id), GFP_KERNEL)))
+	if (!(*ctx_id = kzalloc(sizeof(**ctx_id), GFP_KERNEL)))
 		return GSS_S_FAILURE;
-	memset(*ctx_id, 0, sizeof(**ctx_id));
 	(*ctx_id)->mech_type = gss_mech_get(mech);
 
 	return mech->gm_ops

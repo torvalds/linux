@@ -542,12 +542,11 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 	 * so it cannot "appear" on us.
 	 */
 	if (!grp) { /* need to add a new group */
-		grp = kmalloc(sizeof(struct vlan_group), GFP_KERNEL);
+		grp = kzalloc(sizeof(struct vlan_group), GFP_KERNEL);
 		if (!grp)
 			goto out_free_unregister;
 					
 		/* printk(KERN_ALERT "VLAN REGISTER:  Allocated new group.\n"); */
-		memset(grp, 0, sizeof(struct vlan_group));
 		grp->real_dev_ifindex = real_dev->ifindex;
 
 		hlist_add_head_rcu(&grp->hlist, 

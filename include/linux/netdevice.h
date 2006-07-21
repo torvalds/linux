@@ -924,10 +924,10 @@ static inline void netif_tx_lock_bh(struct net_device *dev)
 
 static inline int netif_tx_trylock(struct net_device *dev)
 {
-	int err = spin_trylock(&dev->_xmit_lock);
-	if (!err)
+	int ok = spin_trylock(&dev->_xmit_lock);
+	if (likely(ok))
 		dev->xmit_lock_owner = smp_processor_id();
-	return err;
+	return ok;
 }
 
 static inline void netif_tx_unlock(struct net_device *dev)

@@ -49,6 +49,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/random.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
@@ -85,7 +86,6 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 
 	peer->init_sent_count = 0;
 
-	peer->state = SCTP_ACTIVE;
 	peer->param_flags = SPP_HB_DISABLE |
 			    SPP_PMTUD_ENABLE |
 			    SPP_SACKDELAY_ENABLE;
@@ -108,6 +108,9 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	init_timer(&peer->hb_timer);
 	peer->hb_timer.function = sctp_generate_heartbeat_event;
 	peer->hb_timer.data = (unsigned long)peer;
+
+	/* Initialize the 64-bit random nonce sent with heartbeat. */
+	get_random_bytes(&peer->hb_nonce, sizeof(peer->hb_nonce));
 
 	atomic_set(&peer->refcnt, 1);
 	peer->dead = 0;
@@ -517,7 +520,9 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 unsigned long sctp_transport_timeout(struct sctp_transport *t)
 {
 	unsigned long timeout;
-	timeout = t->hbinterval + t->rto + sctp_jitter(t->rto);
+	timeout = t->rto + sctp_jitter(t->rto);
+	if (t->state != SCTP_UNCONFIRMED)
+		timeout += t->hbinterval;
 	timeout += jiffies;
 	return timeout;
 }

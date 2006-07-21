@@ -58,13 +58,12 @@ static int __rxrpc_create_peer(struct rxrpc_transport *trans, __be32 addr,
 	_enter("%p,%08x", trans, ntohl(addr));
 
 	/* allocate and initialise a peer record */
-	peer = kmalloc(sizeof(struct rxrpc_peer), GFP_KERNEL);
+	peer = kzalloc(sizeof(struct rxrpc_peer), GFP_KERNEL);
 	if (!peer) {
 		_leave(" = -ENOMEM");
 		return -ENOMEM;
 	}
 
-	memset(peer, 0, sizeof(struct rxrpc_peer));
 	atomic_set(&peer->usage, 1);
 
 	INIT_LIST_HEAD(&peer->link);

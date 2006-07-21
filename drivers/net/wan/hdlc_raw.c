@@ -82,6 +82,7 @@ int hdlc_raw_ioctl(struct net_device *dev, struct ifreq *ifr)
 		dev->type = ARPHRD_RAWHDLC;
 		dev->flags = IFF_POINTOPOINT | IFF_NOARP;
 		dev->addr_len = 0;
+		netif_dormant_off(dev);
 		return 0;
 	}
 

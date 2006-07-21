@@ -673,12 +673,11 @@ static int ec_dev_ioctl(struct socket *sock, unsigned int cmd, void __user *arg)
 		edev = dev->ec_ptr;
 		if (edev == NULL) {
 			/* Magic up a new one. */
-			edev = kmalloc(sizeof(struct ec_device), GFP_KERNEL);
+			edev = kzalloc(sizeof(struct ec_device), GFP_KERNEL);
 			if (edev == NULL) {
 				err = -ENOMEM;
 				break;
 			}
-			memset(edev, 0, sizeof(struct ec_device));
 			dev->ec_ptr = edev;
 		} else
 			net2dev_map[edev->net] = NULL;
