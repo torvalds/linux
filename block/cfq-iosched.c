@@ -141,6 +141,8 @@ struct cfq_queue {
 	int queued[2];
 	/* currently allocated requests */
 	int allocated[2];
+	/* pending metadata requests */
+	int meta_pending;
 	/* fifo list of requests in sort_list */
 	struct list_head fifo;
 
@@ -247,6 +249,10 @@ cfq_choose_req(struct cfq_data *cfqd, struct request *rq1, struct request *rq2)
 	if (rq_is_sync(rq1) && !rq_is_sync(rq2))
 		return rq1;
 	else if (rq_is_sync(rq2) && !rq_is_sync(rq1))
+		return rq2;
+	if (rq_is_meta(rq1) && !rq_is_meta(rq2))
+		return rq1;
+	else if (rq_is_meta(rq2) && !rq_is_meta(rq1))
 		return rq2;
 
 	s1 = rq1->sector;
@@ -510,6 +516,11 @@ static void cfq_remove_request(struct request *rq)
 
 	list_del_init(&rq->queuelist);
 	cfq_del_rq_rb(rq);
+
+	if (rq_is_meta(rq)) {
+		WARN_ON(!cfqq->meta_pending);
+		cfqq->meta_pending--;
+	}
 }
 
 static int
@@ -1527,7 +1538,17 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 */
 	if (new_cfqq->slice_left < cfqd->cfq_slice_idle)
 		return 0;
+	/*
+	 * if the new request is sync, but the currently running queue is
+	 * not, let the sync request have priority.
+	 */
 	if (rq_is_sync(rq) && !cfq_cfqq_sync(cfqq))
+		return 1;
+	/*
+	 * So both queues are sync. Let the new request get disk time if
+	 * it's a metadata request and the current queue is doing regular IO.
+	 */
+	if (rq_is_meta(rq) && !cfqq->meta_pending)
 		return 1;
 
 	return 0;
@@ -1563,6 +1584,9 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		struct request *rq)
 {
 	struct cfq_io_context *cic = RQ_CIC(rq);
+
+	if (rq_is_meta(rq))
+		cfqq->meta_pending++;
 
 	/*
 	 * check if this request is a better next-serve candidate)) {
