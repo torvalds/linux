@@ -1,6 +1,8 @@
 #ifndef _LINUX_ELEVATOR_H
 #define _LINUX_ELEVATOR_H
 
+#include <linux/percpu.h>
+
 typedef int (elevator_merge_fn) (request_queue_t *, struct request **,
 				 struct bio *);
 
@@ -177,5 +179,28 @@ enum {
 	list_del_init(&(rq)->queuelist);	\
 	INIT_LIST_HEAD(&(rq)->donelist);	\
 	} while (0)
+
+/*
+ * io context count accounting
+ */
+#define elv_ioc_count_mod(name, __val)				\
+	do {							\
+		preempt_disable();				\
+		__get_cpu_var(name) += (__val);			\
+		preempt_enable();				\
+	} while (0)
+
+#define elv_ioc_count_inc(name)	elv_ioc_count_mod(name, 1)
+#define elv_ioc_count_dec(name)	elv_ioc_count_mod(name, -1)
+
+#define elv_ioc_count_read(name)				\
+({								\
+	unsigned long __val = 0;				\
+	int __cpu;						\
+	smp_wmb();						\
+	for_each_possible_cpu(__cpu)				\
+		__val += per_cpu(name, __cpu);			\
+	__val;							\
+})
 
 #endif
