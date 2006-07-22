@@ -100,6 +100,7 @@
 #include <sound/pcm.h>
 #include <sound/ac97_codec.h>
 #include <sound/info.h>
+#include <sound/tlv.h>
 #include <sound/emu10k1.h>
 #include "p16v.h"
 
@@ -784,12 +785,16 @@ static int snd_p16v_capture_channel_put(struct snd_kcontrol *kcontrol,
 	}
         return change;
 }
+static DECLARE_TLV_DB_SCALE(snd_p16v_db_scale1, -5175, 25, 1);
 
 #define P16V_VOL(xname,xreg,xhl) { \
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+        .access = SNDRV_CTL_ELEM_ACCESS_READWRITE |             \
+                  SNDRV_CTL_ELEM_ACCESS_TLV_READ,               \
 	.info = snd_p16v_volume_info, \
 	.get = snd_p16v_volume_get, \
 	.put = snd_p16v_volume_put, \
+	.tlv.p = snd_p16v_db_scale1, \
 	.private_value = ((xreg) | ((xhl) << 8)) \
 }
 

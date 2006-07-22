@@ -1524,6 +1524,10 @@ struct snd_emu10k1_fx8010_control_gpr {
 	unsigned int value[32];		/* initial values */
 	unsigned int min;		/* minimum range */
 	unsigned int max;		/* maximum range */
+	union {
+		snd_kcontrol_tlv_rw_t *c;
+		unsigned int *p;
+	} tlv;
 	unsigned int translation;	/* translation type (EMU10K1_GPR_TRANSLATION*) */
 };
 
