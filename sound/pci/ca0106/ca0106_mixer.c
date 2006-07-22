@@ -74,7 +74,8 @@
 
 #include "ca0106.h"
 
-static DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale, -5150, 75, 1);
+static DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale1, -5175, 25, 1);
+static DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale2, -10350, 50, 1);
 
 static int snd_ca0106_shared_spdif_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)
@@ -477,16 +478,19 @@ static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	.info =	 snd_ca0106_volume_info,			\
 	.get =   snd_ca0106_volume_get,				\
 	.put =   snd_ca0106_volume_put,				\
-	.tlv.p = snd_ca0106_db_scale,				\
+	.tlv.p = snd_ca0106_db_scale1,				\
 	.private_value = ((chid) << 8) | (reg)			\
 }
 
 #define I2C_VOLUME(xname,chid) \
 {								\
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |		\
+	          SNDRV_CTL_ELEM_ACCESS_TLV_READ,		\
 	.info =  snd_ca0106_i2c_volume_info,			\
 	.get =   snd_ca0106_i2c_volume_get,			\
 	.put =   snd_ca0106_i2c_volume_put,			\
+	.tlv.p = snd_ca0106_db_scale2,				\
 	.private_value = chid					\
 }
 
