@@ -893,8 +893,8 @@ INSTALL_HDR_PATH=$(objtree)/usr
 export INSTALL_HDR_PATH
 
 PHONY += headers_install
-headers_install: include/linux/version.h
-	$(Q)unifdef -Ux /dev/null
+headers_install: include/linux/version.h scripts_basic FORCE
+	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
 	$(Q)rm -rf $(INSTALL_HDR_PATH)/include
 	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.headersinst obj=include
 
