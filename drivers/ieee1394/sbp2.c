@@ -492,7 +492,7 @@ static int sbp2util_create_command_orb_pool(struct scsi_id_instance_data *scsi_i
 		command->command_orb_dma =
 		    pci_map_single(hi->host->pdev, &command->command_orb,
 				   sizeof(struct sbp2_command_orb),
-				   PCI_DMA_BIDIRECTIONAL);
+				   PCI_DMA_TODEVICE);
 		SBP2_DMA_ALLOC("single command orb DMA");
 		command->sge_dma =
 		    pci_map_single(hi->host->pdev,
@@ -525,7 +525,7 @@ static void sbp2util_remove_command_orb_pool(struct scsi_id_instance_data *scsi_
 			/* Release our generic DMA's */
 			pci_unmap_single(host->pdev, command->command_orb_dma,
 					 sizeof(struct sbp2_command_orb),
-					 PCI_DMA_BIDIRECTIONAL);
+					 PCI_DMA_TODEVICE);
 			SBP2_DMA_FREE("single command orb DMA");
 			pci_unmap_single(host->pdev, command->sge_dma,
 					 sizeof(command->scatter_gather_element),
@@ -1982,7 +1982,7 @@ static void sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
 
 	pci_dma_sync_single_for_device(hi->host->pdev, command->command_orb_dma,
 				       sizeof(struct sbp2_command_orb),
-				       PCI_DMA_BIDIRECTIONAL);
+				       PCI_DMA_TODEVICE);
 	pci_dma_sync_single_for_device(hi->host->pdev, command->sge_dma,
 				       sizeof(command->scatter_gather_element),
 				       PCI_DMA_BIDIRECTIONAL);
@@ -2012,14 +2012,14 @@ static void sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
 		 */
 		pci_dma_sync_single_for_cpu(hi->host->pdev, last_orb_dma,
 					    sizeof(struct sbp2_command_orb),
-					    PCI_DMA_BIDIRECTIONAL);
+					    PCI_DMA_TODEVICE);
 		last_orb->next_ORB_lo = cpu_to_be32(command->command_orb_dma);
 		wmb();
 		/* Tells hardware that this pointer is valid */
 		last_orb->next_ORB_hi = 0;
 		pci_dma_sync_single_for_device(hi->host->pdev, last_orb_dma,
 					       sizeof(struct sbp2_command_orb),
-					       PCI_DMA_BIDIRECTIONAL);
+					       PCI_DMA_TODEVICE);
 		addr += SBP2_DOORBELL_OFFSET;
 		data[0] = 0;
 		length = 4;
@@ -2176,7 +2176,7 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int dest
 		SBP2_DEBUG("Found status for command ORB");
 		pci_dma_sync_single_for_cpu(hi->host->pdev, command->command_orb_dma,
 					    sizeof(struct sbp2_command_orb),
-					    PCI_DMA_BIDIRECTIONAL);
+					    PCI_DMA_TODEVICE);
 		pci_dma_sync_single_for_cpu(hi->host->pdev, command->sge_dma,
 					    sizeof(command->scatter_gather_element),
 					    PCI_DMA_BIDIRECTIONAL);
@@ -2365,7 +2365,7 @@ static void sbp2scsi_complete_all_commands(struct scsi_id_instance_data *scsi_id
 		command = list_entry(lh, struct sbp2_command_info, list);
 		pci_dma_sync_single_for_cpu(hi->host->pdev, command->command_orb_dma,
 					    sizeof(struct sbp2_command_orb),
-					    PCI_DMA_BIDIRECTIONAL);
+					    PCI_DMA_TODEVICE);
 		pci_dma_sync_single_for_cpu(hi->host->pdev, command->sge_dma,
 					    sizeof(command->scatter_gather_element),
 					    PCI_DMA_BIDIRECTIONAL);
@@ -2548,7 +2548,7 @@ static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 			pci_dma_sync_single_for_cpu(hi->host->pdev,
 						    command->command_orb_dma,
 						    sizeof(struct sbp2_command_orb),
-						    PCI_DMA_BIDIRECTIONAL);
+						    PCI_DMA_TODEVICE);
 			pci_dma_sync_single_for_cpu(hi->host->pdev,
 						    command->sge_dma,
 						    sizeof(command->scatter_gather_element),
