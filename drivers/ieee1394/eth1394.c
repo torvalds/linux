@@ -64,7 +64,6 @@
 #include <linux/ethtool.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
-#include <asm/semaphore.h>
 #include <net/arp.h>
 
 #include "config_roms.h"

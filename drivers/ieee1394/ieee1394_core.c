@@ -35,7 +35,6 @@
 #include <linux/kthread.h>
 
 #include <asm/byteorder.h>
-#include <asm/semaphore.h>
 
 #include "ieee1394_types.h"
 #include "ieee1394.h"

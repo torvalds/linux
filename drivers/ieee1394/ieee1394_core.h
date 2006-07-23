@@ -7,7 +7,6 @@
 #include <linux/skbuff.h>
 #include <linux/types.h>
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 
 #include "hosts.h"
 #include "ieee1394_types.h"
