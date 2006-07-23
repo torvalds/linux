@@ -450,7 +450,14 @@ ignoreon(void)
 static void
 keywordedit(const char *replacement)
 {
-	strlcpy(keyword, replacement, tline + sizeof(tline) - keyword);
+	size_t size = tline + sizeof(tline) - keyword;
+	char *dst = keyword;
+	const char *src = replacement;
+	if (size != 0) {
+		while ((--size != 0) && (*src != '\0'))
+			*dst++ = *src++;
+		*dst = '\0';
+	}
 	print();
 }
 static void
