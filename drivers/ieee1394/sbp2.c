@@ -1201,11 +1201,8 @@ static int sbp2_query_logins(struct scsi_id_instance_data *scsi_id)
 		return -EIO;
 	}
 
-	if (STATUS_GET_RESP(scsi_id->status_block.ORB_offset_hi_misc) ||
-	    STATUS_GET_DEAD_BIT(scsi_id->status_block.ORB_offset_hi_misc) ||
-	    STATUS_GET_SBP_STATUS(scsi_id->status_block.ORB_offset_hi_misc)) {
-
-		SBP2_INFO("Error querying logins to SBP-2 device - timed out");
+	if (STATUS_TEST_RDS(scsi_id->status_block.ORB_offset_hi_misc)) {
+		SBP2_INFO("Error querying logins to SBP-2 device - failed");
 		return -EIO;
 	}
 
@@ -1298,18 +1295,12 @@ static int sbp2_login_device(struct scsi_id_instance_data *scsi_id)
 	 * Sanity. Make sure status returned matches login orb.
 	 */
 	if (scsi_id->status_block.ORB_offset_lo != scsi_id->login_orb_dma) {
-		SBP2_ERR("Error logging into SBP-2 device - login timed-out");
+		SBP2_ERR("Error logging into SBP-2 device - timed out");
 		return -EIO;
 	}
 
-	/*
-	 * Check status
-	 */
-	if (STATUS_GET_RESP(scsi_id->status_block.ORB_offset_hi_misc) ||
-	    STATUS_GET_DEAD_BIT(scsi_id->status_block.ORB_offset_hi_misc) ||
-	    STATUS_GET_SBP_STATUS(scsi_id->status_block.ORB_offset_hi_misc)) {
-
-		SBP2_ERR("Error logging into SBP-2 device - login failed");
+	if (STATUS_TEST_RDS(scsi_id->status_block.ORB_offset_hi_misc)) {
+		SBP2_ERR("Error logging into SBP-2 device - failed");
 		return -EIO;
 	}
 
@@ -1333,9 +1324,7 @@ static int sbp2_login_device(struct scsi_id_instance_data *scsi_id)
 	scsi_id->sbp2_command_block_agent_addr &= 0x0000ffffffffffffULL;
 
 	SBP2_INFO("Logged into SBP-2 device");
-
 	return 0;
-
 }
 
 /*
@@ -1466,25 +1455,17 @@ static int sbp2_reconnect_device(struct scsi_id_instance_data *scsi_id)
 	 * Sanity. Make sure status returned matches reconnect orb.
 	 */
 	if (scsi_id->status_block.ORB_offset_lo != scsi_id->reconnect_orb_dma) {
-		SBP2_ERR("Error reconnecting to SBP-2 device - reconnect timed-out");
+		SBP2_ERR("Error reconnecting to SBP-2 device - timed out");
 		return -EIO;
 	}
 
-	/*
-	 * Check status
-	 */
-	if (STATUS_GET_RESP(scsi_id->status_block.ORB_offset_hi_misc) ||
-	    STATUS_GET_DEAD_BIT(scsi_id->status_block.ORB_offset_hi_misc) ||
-	    STATUS_GET_SBP_STATUS(scsi_id->status_block.ORB_offset_hi_misc)) {
-
-		SBP2_ERR("Error reconnecting to SBP-2 device - reconnect failed");
+	if (STATUS_TEST_RDS(scsi_id->status_block.ORB_offset_hi_misc)) {
+		SBP2_ERR("Error reconnecting to SBP-2 device - failed");
 		return -EIO;
 	}
 
 	HPSB_DEBUG("Reconnected to SBP-2 device");
-
 	return 0;
-
 }
 
 /*
@@ -2115,18 +2096,19 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid,
 
 	sbp2util_packet_dump(data, length, "sbp2 status write by device", (u32)addr);
 
-	if (!host) {
+	if (unlikely(length < 8 || length > sizeof(struct sbp2_status_block))) {
+		SBP2_ERR("Wrong size of status block");
+		return RCODE_ADDRESS_ERROR;
+	}
+	if (unlikely(!host)) {
 		SBP2_ERR("host is NULL - this is bad!");
 		return RCODE_ADDRESS_ERROR;
 	}
-
 	hi = hpsb_get_hostinfo(&sbp2_highlevel, host);
-
-	if (!hi) {
+	if (unlikely(!hi)) {
 		SBP2_ERR("host info is NULL - this is bad!");
 		return RCODE_ADDRESS_ERROR;
 	}
-
 	/*
 	 * Find our scsi_id structure by looking at the status fifo address
 	 * written to by the sbp2 device.
@@ -2138,8 +2120,7 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid,
 			break;
 		}
 	}
-
-	if (!scsi_id) {
+	if (unlikely(!scsi_id)) {
 		SBP2_ERR("scsi_id is NULL - device is gone?");
 		return RCODE_ADDRESS_ERROR;
 	}
@@ -2156,12 +2137,14 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid,
 	sbp2util_be32_to_cpu_buffer(sb, 8);
 
 	/*
-	 * Handle command ORB status here if necessary. First, need to match
-	 * status with command.
+	 * Ignore unsolicited status. Handle command ORB status.
 	 */
-	command = sbp2util_find_command_for_orb(scsi_id, sb->ORB_offset_lo);
+	if (unlikely(STATUS_GET_SRC(sb->ORB_offset_hi_misc) == 2))
+		command = NULL;
+	else
+		command = sbp2util_find_command_for_orb(scsi_id,
+							sb->ORB_offset_lo);
 	if (command) {
-
 		SBP2_DEBUG("Found status for command ORB");
 		pci_dma_sync_single_for_cpu(hi->host->pdev, command->command_orb_dma,
 					    sizeof(struct sbp2_command_orb),
@@ -2177,16 +2160,23 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid,
 		 * Matched status with command, now grab scsi command pointers
 		 * and check status.
 		 */
+		/*
+		 * FIXME: If the src field in the status is 1, the ORB DMA must
+		 * not be reused until status for a subsequent ORB is received.
+		 */
 		SCpnt = command->Current_SCpnt;
 		spin_lock_irqsave(&scsi_id->sbp2_command_orb_lock, flags);
 		sbp2util_mark_command_completed(scsi_id, command);
 		spin_unlock_irqrestore(&scsi_id->sbp2_command_orb_lock, flags);
 
 		if (SCpnt) {
+			if (STATUS_TEST_RS(sb->ORB_offset_hi_misc))
+				scsi_status =
+					SBP2_SCSI_STATUS_COMMAND_TERMINATED;
 			/*
 			 * See if the target stored any scsi status information.
 			 */
-			if (STATUS_GET_LENGTH(sb->ORB_offset_hi_misc) > 1) {
+			if (STATUS_GET_LEN(sb->ORB_offset_hi_misc) > 1) {
 				SBP2_DEBUG("CHECK CONDITION");
 				scsi_status = sbp2_status_to_sense_data(
 					(unchar *)sb, SCpnt->sense_buffer);
@@ -2196,7 +2186,7 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid,
 			 * Check to see if the dead bit is set. If so, we'll
 			 * have to initiate a fetch agent reset.
 			 */
-			if (STATUS_GET_DEAD_BIT(sb->ORB_offset_hi_misc)) {
+			if (STATUS_TEST_D(sb->ORB_offset_hi_misc)) {
 				SBP2_DEBUG("Dead bit set - "
 					   "initiating fetch agent reset");
                                 sbp2_agent_reset(scsi_id, 0);
