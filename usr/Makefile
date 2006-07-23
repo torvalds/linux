@@ -3,6 +3,8 @@
 #
 
 klibcdirs:;
+PHONY += klibcdirs
+
 
 # Generate builtin.o based on initramfs_data.o
 obj-y := initramfs_data.o
