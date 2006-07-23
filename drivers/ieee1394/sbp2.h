@@ -390,11 +390,6 @@ static int sbp2_logout_device(struct scsi_id_instance_data *scsi_id);
 static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int destid,
 				    quadlet_t *data, u64 addr, size_t length, u16 flags);
 static int sbp2_agent_reset(struct scsi_id_instance_data *scsi_id, int wait);
-static int sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
-				 struct sbp2_command_info *command);
-static int sbp2_send_command(struct scsi_id_instance_data *scsi_id,
-			     struct scsi_cmnd *SCpnt,
-			     void (*done)(struct scsi_cmnd *));
 static unsigned int sbp2_status_to_sense_data(unchar *sbp2_status,
 					      unchar *sense_data);
 static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,

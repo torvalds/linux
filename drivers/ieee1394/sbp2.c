@@ -1964,7 +1964,7 @@ static void sbp2_create_command_orb(struct scsi_id_instance_data *scsi_id,
 /*
  * This function is called in order to begin a regular SBP-2 command.
  */
-static int sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
+static void sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
 				 struct sbp2_command_info *command)
 {
 	struct sbp2scsi_host_info *hi = scsi_id->hi;
@@ -2030,11 +2030,9 @@ static int sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
 
 	SBP2_ORB_DEBUG("write to %s register, command orb %p",
 			last_orb ? "DOORBELL" : "ORB_POINTER", command_orb);
-	if (sbp2util_node_write_no_wait(scsi_id->ne, addr, data, length) < 0) {
+	if (sbp2util_node_write_no_wait(scsi_id->ne, addr, data, length))
 		SBP2_ERR("sbp2util_node_write_no_wait failed.\n");
-		return -EIO;
-	}
-	return 0;
+	/* We rely on SCSI EH to deal with _node_write_ failures. */
 }
 
 /*
