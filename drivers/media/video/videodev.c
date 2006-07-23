@@ -760,7 +760,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		ret=vfd->vidioc_overlay(file, fh, *i);
 		break;
 	}
-#ifdef HAVE_V4L1
+#ifdef CONFIG_V4L1_COMPAT
 	/* --- streaming capture ------------------------------------- */
 	case VIDIOCGMBUF:
 	{
@@ -1578,7 +1578,11 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 		       __FUNCTION__);
 		return ret;
 	}
-	video_device_create_file(vfd, &class_device_attr_name);
+	ret = class_device_create_file(&vfd->class_dev, &class_device_attr_name);
+	if (ret < 0) {
+		printk(KERN_WARNING "%s error: %d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
 #if 1
 	/* needed until all drivers are fixed */
