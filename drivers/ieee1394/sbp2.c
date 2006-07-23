@@ -1705,6 +1705,7 @@ static int sbp2_agent_reset(struct scsi_id_instance_data *scsi_id, int wait)
 	quadlet_t data;
 	u64 addr;
 	int retval;
+	unsigned long flags;
 
 	SBP2_DEBUG_ENTER();
 
@@ -1724,7 +1725,9 @@ static int sbp2_agent_reset(struct scsi_id_instance_data *scsi_id, int wait)
 	/*
 	 * Need to make sure orb pointer is written on next command
 	 */
+	spin_lock_irqsave(&scsi_id->sbp2_command_orb_lock, flags);
 	scsi_id->last_orb = NULL;
+	spin_unlock_irqrestore(&scsi_id->sbp2_command_orb_lock, flags);
 
 	return 0;
 }
@@ -1966,8 +1969,12 @@ static int sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
 {
 	struct sbp2scsi_host_info *hi = scsi_id->hi;
 	struct sbp2_command_orb *command_orb = &command->command_orb;
-	struct node_entry *ne = scsi_id->ne;
-	u64 addr;
+	struct sbp2_command_orb *last_orb;
+	dma_addr_t last_orb_dma;
+	u64 addr = scsi_id->sbp2_command_block_agent_addr;
+	quadlet_t data[2];
+	size_t length;
+	unsigned long flags;
 
 	outstanding_orb_incr;
 	SBP2_ORB_DEBUG("sending command orb %p, total orbs = %x",
@@ -1982,64 +1989,50 @@ static int sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
 	/*
 	 * Check to see if there are any previous orbs to use
 	 */
-	if (scsi_id->last_orb == NULL) {
-		quadlet_t data[2];
-
+	spin_lock_irqsave(&scsi_id->sbp2_command_orb_lock, flags);
+	last_orb = scsi_id->last_orb;
+	last_orb_dma = scsi_id->last_orb_dma;
+	if (!last_orb) {
 		/*
-		 * Ok, let's write to the target's management agent register
+		 * last_orb == NULL means: We know that the target's fetch agent
+		 * is not active right now.
 		 */
-		addr = scsi_id->sbp2_command_block_agent_addr + SBP2_ORB_POINTER_OFFSET;
+		addr += SBP2_ORB_POINTER_OFFSET;
 		data[0] = ORB_SET_NODE_ID(hi->host->node_id);
 		data[1] = command->command_orb_dma;
 		sbp2util_cpu_to_be32_buffer(data, 8);
-
-		SBP2_ORB_DEBUG("write command agent, command orb %p", command_orb);
-
-		if (sbp2util_node_write_no_wait(ne, addr, data, 8) < 0) {
-			SBP2_ERR("sbp2util_node_write_no_wait failed.\n");
-			return -EIO;
-		}
-
-		SBP2_ORB_DEBUG("write command agent complete");
-
-		scsi_id->last_orb = command_orb;
-		scsi_id->last_orb_dma = command->command_orb_dma;
-
+		length = 8;
 	} else {
-		quadlet_t data;
-
 		/*
-		 * We have an orb already sent (maybe or maybe not
-		 * processed) that we can append this orb to. So do so,
-		 * and ring the doorbell. Have to be very careful
-		 * modifying these next orb pointers, as they are accessed
-		 * both by the sbp2 device and us.
+		 * last_orb != NULL means: We know that the target's fetch agent
+		 * is (very probably) not dead or in reset state right now.
+		 * We have an ORB already sent that we can append a new one to.
+		 * The target's fetch agent may or may not have read this
+		 * previous ORB yet.
 		 */
-		scsi_id->last_orb->next_ORB_lo =
-		    cpu_to_be32(command->command_orb_dma);
+		pci_dma_sync_single_for_cpu(hi->host->pdev, last_orb_dma,
+					    sizeof(struct sbp2_command_orb),
+					    PCI_DMA_BIDIRECTIONAL);
+		last_orb->next_ORB_lo = cpu_to_be32(command->command_orb_dma);
+		wmb();
 		/* Tells hardware that this pointer is valid */
-		scsi_id->last_orb->next_ORB_hi = 0x0;
-		pci_dma_sync_single_for_device(hi->host->pdev,
-					       scsi_id->last_orb_dma,
+		last_orb->next_ORB_hi = 0;
+		pci_dma_sync_single_for_device(hi->host->pdev, last_orb_dma,
 					       sizeof(struct sbp2_command_orb),
 					       PCI_DMA_BIDIRECTIONAL);
+		addr += SBP2_DOORBELL_OFFSET;
+		data[0] = 0;
+		length = 4;
+	}
+	scsi_id->last_orb = command_orb;
+	scsi_id->last_orb_dma = command->command_orb_dma;
+	spin_unlock_irqrestore(&scsi_id->sbp2_command_orb_lock, flags);
 
-		/*
-		 * Ring the doorbell
-		 */
-		data = cpu_to_be32(command->command_orb_dma);
-		addr = scsi_id->sbp2_command_block_agent_addr + SBP2_DOORBELL_OFFSET;
-
-		SBP2_ORB_DEBUG("ring doorbell, command orb %p", command_orb);
-
-		if (sbp2util_node_write_no_wait(ne, addr, &data, 4) < 0) {
-			SBP2_ERR("sbp2util_node_write_no_wait failed");
-			return -EIO;
-		}
-
-		scsi_id->last_orb = command_orb;
-		scsi_id->last_orb_dma = command->command_orb_dma;
-
+	SBP2_ORB_DEBUG("write to %s register, command orb %p",
+			last_orb ? "DOORBELL" : "ORB_POINTER", command_orb);
+	if (sbp2util_node_write_no_wait(scsi_id->ne, addr, data, length) < 0) {
+		SBP2_ERR("sbp2util_node_write_no_wait failed.\n");
+		return -EIO;
 	}
 	return 0;
 }
@@ -2231,14 +2224,16 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int dest
 		}
 
 		/*
-		 * Check here to see if there are no commands in-use. If there are none, we can
-		 * null out last orb so that next time around we write directly to the orb pointer...
-		 * Quick start saves one 1394 bus transaction.
+		 * Check here to see if there are no commands in-use. If there
+		 * are none, we know that the fetch agent left the active state
+		 * _and_ that we did not reactivate it yet. Therefore clear
+		 * last_orb so that next time we write directly to the
+		 * ORB_POINTER register. That way the fetch agent does not need
+		 * to refetch the next_ORB.
 		 */
 		spin_lock_irqsave(&scsi_id->sbp2_command_orb_lock, flags);
-		if (list_empty(&scsi_id->sbp2_command_orb_inuse)) {
+		if (list_empty(&scsi_id->sbp2_command_orb_inuse))
 			scsi_id->last_orb = NULL;
-		}
 		spin_unlock_irqrestore(&scsi_id->sbp2_command_orb_lock, flags);
 
 	} else {

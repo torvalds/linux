@@ -46,8 +46,8 @@
 #define ORB_SET_DIRECTION(value)		((value & 0x1) << 27)
 
 struct sbp2_command_orb {
-	volatile u32 next_ORB_hi;
-	volatile u32 next_ORB_lo;
+	u32 next_ORB_hi;
+	u32 next_ORB_lo;
 	u32 data_descriptor_hi;
 	u32 data_descriptor_lo;
 	u32 misc;
