@@ -320,9 +320,9 @@ struct scsi_id_instance_data {
 	u64 status_fifo_addr;
 
 	/*
-	 * Variable used for logins, reconnects, logouts, query logins
+	 * Waitqueue flag for logins, reconnects, logouts, query logins
 	 */
-	atomic_t sbp2_login_complete;
+	int access_complete:1;
 
 	/*
 	 * Pool of command orbs, so we can have more than overlapped command per id

@@ -55,12 +55,12 @@
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/wait.h>
 
 #include <asm/current.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/scatterlist.h>
 
@@ -420,21 +420,23 @@ static void sbp2util_packet_dump(void *buffer, int length, char *dump_name,
 #define sbp2util_packet_dump(w,x,y,z)
 #endif
 
-/*
- * Goofy routine that basically does a down_timeout function.
- */
-static int sbp2util_down_timeout(atomic_t *done, int timeout)
-{
-	int i;
+static DECLARE_WAIT_QUEUE_HEAD(access_wq);
 
-	for (i = timeout; (i > 0 && atomic_read(done) == 0); i-= HZ/10) {
-		if (msleep_interruptible(100))	/* 100ms */
-			return 1;
-	}
-	return (i > 0) ? 0 : 1;
+/*
+ * Waits for completion of an SBP-2 access request.
+ * Returns nonzero if timed out or prematurely interrupted.
+ */
+static int sbp2util_access_timeout(struct scsi_id_instance_data *scsi_id,
+				   int timeout)
+{
+	long leftover = wait_event_interruptible_timeout(
+				access_wq, scsi_id->access_complete, timeout);
+
+	scsi_id->access_complete = 0;
+	return leftover <= 0;
 }
 
-/* Free's an allocated packet */
+/* Frees an allocated packet */
 static void sbp2_free_packet(struct hpsb_packet *packet)
 {
 	hpsb_free_tlabel(packet);
@@ -794,7 +796,6 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	scsi_id->speed_code = IEEE1394_SPEED_100;
 	scsi_id->max_payload_size = sbp2_speedto_max_payload[IEEE1394_SPEED_100];
 	scsi_id->status_fifo_addr = CSR1212_INVALID_ADDR_SPACE;
-	atomic_set(&scsi_id->sbp2_login_complete, 0);
 	INIT_LIST_HEAD(&scsi_id->sbp2_command_orb_inuse);
 	INIT_LIST_HEAD(&scsi_id->sbp2_command_orb_completed);
 	INIT_LIST_HEAD(&scsi_id->scsi_list);
@@ -1187,11 +1188,9 @@ static int sbp2_query_logins(struct scsi_id_instance_data *scsi_id)
 	data[1] = scsi_id->query_logins_orb_dma;
 	sbp2util_cpu_to_be32_buffer(data, 8);
 
-	atomic_set(&scsi_id->sbp2_login_complete, 0);
-
 	hpsb_node_write(scsi_id->ne, scsi_id->sbp2_management_agent_addr, data, 8);
 
-	if (sbp2util_down_timeout(&scsi_id->sbp2_login_complete, 2*HZ)) {
+	if (sbp2util_access_timeout(scsi_id, 2*HZ)) {
 		SBP2_INFO("Error querying logins to SBP-2 device - timed out");
 		return -EIO;
 	}
@@ -1279,15 +1278,13 @@ static int sbp2_login_device(struct scsi_id_instance_data *scsi_id)
 	data[1] = scsi_id->login_orb_dma;
 	sbp2util_cpu_to_be32_buffer(data, 8);
 
-	atomic_set(&scsi_id->sbp2_login_complete, 0);
-
 	hpsb_node_write(scsi_id->ne, scsi_id->sbp2_management_agent_addr, data, 8);
 
 	/*
 	 * Wait for login status (up to 20 seconds)...
 	 */
-	if (sbp2util_down_timeout(&scsi_id->sbp2_login_complete, 20*HZ)) {
-		SBP2_ERR("Error logging into SBP-2 device - login timed-out");
+	if (sbp2util_access_timeout(scsi_id, 20*HZ)) {
+		SBP2_ERR("Error logging into SBP-2 device - timed out");
 		return -EIO;
 	}
 
@@ -1374,21 +1371,17 @@ static int sbp2_logout_device(struct scsi_id_instance_data *scsi_id)
 	data[1] = scsi_id->logout_orb_dma;
 	sbp2util_cpu_to_be32_buffer(data, 8);
 
-	atomic_set(&scsi_id->sbp2_login_complete, 0);
-
 	error = hpsb_node_write(scsi_id->ne,
 				scsi_id->sbp2_management_agent_addr, data, 8);
 	if (error)
 		return error;
 
 	/* Wait for device to logout...1 second. */
-	if (sbp2util_down_timeout(&scsi_id->sbp2_login_complete, HZ))
+	if (sbp2util_access_timeout(scsi_id, HZ))
 		return -EIO;
 
 	SBP2_INFO("Logged out of SBP-2 device");
-
 	return 0;
-
 }
 
 /*
@@ -1436,8 +1429,6 @@ static int sbp2_reconnect_device(struct scsi_id_instance_data *scsi_id)
 	data[1] = scsi_id->reconnect_orb_dma;
 	sbp2util_cpu_to_be32_buffer(data, 8);
 
-	atomic_set(&scsi_id->sbp2_login_complete, 0);
-
 	error = hpsb_node_write(scsi_id->ne,
 				scsi_id->sbp2_management_agent_addr, data, 8);
 	if (error)
@@ -1446,8 +1437,8 @@ static int sbp2_reconnect_device(struct scsi_id_instance_data *scsi_id)
 	/*
 	 * Wait for reconnect status (up to 1 second)...
 	 */
-	if (sbp2util_down_timeout(&scsi_id->sbp2_login_complete, HZ)) {
-		SBP2_ERR("Error reconnecting to SBP-2 device - reconnect timed-out");
+	if (sbp2util_access_timeout(scsi_id, HZ)) {
+		SBP2_ERR("Error reconnecting to SBP-2 device - timed out");
 		return -EIO;
 	}
 
@@ -2215,8 +2206,10 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid,
 		if ((sb->ORB_offset_lo == scsi_id->reconnect_orb_dma) ||
 		    (sb->ORB_offset_lo == scsi_id->login_orb_dma) ||
 		    (sb->ORB_offset_lo == scsi_id->query_logins_orb_dma) ||
-		    (sb->ORB_offset_lo == scsi_id->logout_orb_dma))
-			atomic_set(&scsi_id->sbp2_login_complete, 1);
+		    (sb->ORB_offset_lo == scsi_id->logout_orb_dma)) {
+			scsi_id->access_complete = 1;
+			wake_up_interruptible(&access_wq);
+		}
 	}
 
 	if (SCpnt) {
