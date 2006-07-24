@@ -171,7 +171,8 @@ static const char mconf_readme[] = N_(
 "Available themes are\n"
 " mono       => selects colors suitable for monochrome displays\n"
 " blackbg    => selects a color scheme with black background\n"
-" classic    => theme with blue background. The classic look. (default)\n"
+" classic    => theme with blue background. The classic look\n"
+" bluetitle  => a LCD friendly version of classic. (default)\n"
 "\n"),
 menu_instructions[] = N_(
 	"Arrow keys navigate the menu.  "

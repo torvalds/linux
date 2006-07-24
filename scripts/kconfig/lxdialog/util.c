@@ -138,6 +138,19 @@ static void set_blackbg_theme(void)
 	DLG_COLOR(darrow, COLOR_RED, COLOR_BLACK, false);
 }
 
+static void set_bluetitle_theme(void)
+{
+	set_classic_theme();
+	DLG_COLOR(title,               COLOR_BLUE,   COLOR_WHITE, true);
+	DLG_COLOR(button_key_active,   COLOR_YELLOW, COLOR_BLUE,  true);
+	DLG_COLOR(button_label_active, COLOR_WHITE,  COLOR_BLUE,  true);
+	DLG_COLOR(searchbox_title,     COLOR_BLUE,   COLOR_WHITE, true);
+	DLG_COLOR(position_indicator,  COLOR_BLUE,   COLOR_WHITE, true);
+	DLG_COLOR(tag,                 COLOR_BLUE,   COLOR_WHITE, true);
+	DLG_COLOR(tag_key,             COLOR_BLUE,   COLOR_WHITE, true);
+
+}
+
 /*
  * Select color theme
  */
@@ -145,9 +158,11 @@ static int set_theme(const char *theme)
 {
 	int use_color = 1;
 	if (!theme)
-		set_classic_theme();
+		set_bluetitle_theme();
 	else if (strcmp(theme, "classic") == 0)
 		set_classic_theme();
+	else if (strcmp(theme, "bluetitle") == 0)
+		set_bluetitle_theme();
 	else if (strcmp(theme, "blackbg") == 0)
 		set_blackbg_theme();
 	else if (strcmp(theme, "mono") == 0)
