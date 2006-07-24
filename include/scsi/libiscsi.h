@@ -83,6 +83,12 @@ struct iscsi_mgmt_task {
 	struct list_head	running;
 };
 
+enum {
+	ISCSI_TASK_COMPLETED,
+	ISCSI_TASK_PENDING,
+	ISCSI_TASK_RUNNING,
+};
+
 struct iscsi_cmd_task {
 	/*
 	 * Becuae LLDs allocate their hdr differently, this is a pointer to
@@ -101,6 +107,8 @@ struct iscsi_cmd_task {
 	struct iscsi_conn	*conn;		/* used connection    */
 	struct iscsi_mgmt_task	*mtask;		/* tmf mtask in progr */
 
+	/* state set/tested under session->lock */
+	int			state;
 	struct list_head	running;	/* running cmd list */
 	void			*dd_data;	/* driver/transport data */
 };
@@ -134,7 +142,7 @@ struct iscsi_conn {
 	struct kfifo		*immqueue;	/* immediate xmit queue */
 	struct kfifo		*mgmtqueue;	/* mgmt (control) xmit queue */
 	struct list_head	mgmt_run_list;	/* list of control tasks */
-	struct kfifo		*xmitqueue;	/* data-path cmd queue */
+	struct list_head	xmitqueue;	/* data-path cmd queue */
 	struct list_head	run_list;	/* list of cmds in progress */
 	struct work_struct	xmitwork;	/* per-conn. xmit workqueue */
 	/*

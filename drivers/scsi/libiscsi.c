@@ -189,6 +189,7 @@ static void iscsi_complete_command(struct iscsi_session *session,
 {
 	struct scsi_cmnd *sc = ctask->sc;
 
+	ctask->state = ISCSI_TASK_COMPLETED;
 	ctask->sc = NULL;
 	list_del_init(&ctask->running);
 	__kfifo_put(session->cmdpool.queue, (void*)&ctask, sizeof(void*));
@@ -568,20 +569,24 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 	}
 
 	/* process command queue */
-	while (__kfifo_get(conn->xmitqueue, (void*)&conn->ctask,
-			   sizeof(void*))) {
+	spin_lock_bh(&conn->session->lock);
+	while (!list_empty(&conn->xmitqueue)) {
 		/*
 		 * iscsi tcp may readd the task to the xmitqueue to send
 		 * write data
 		 */
-		spin_lock_bh(&conn->session->lock);
-		if (list_empty(&conn->ctask->running))
-			list_add_tail(&conn->ctask->running, &conn->run_list);
+		conn->ctask = list_entry(conn->xmitqueue.next,
+					 struct iscsi_cmd_task, running);
+		conn->ctask->state = ISCSI_TASK_RUNNING;
+		list_move_tail(conn->xmitqueue.next, &conn->run_list);
 		spin_unlock_bh(&conn->session->lock);
+
 		rc = tt->xmit_cmd_task(conn, conn->ctask);
 		if (rc)
 			goto again;
+		spin_lock_bh(&conn->session->lock);
 	}
+	spin_unlock_bh(&conn->session->lock);
 	/* done with this ctask */
 	conn->ctask = NULL;
 
@@ -691,6 +696,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	sc->SCp.phase = session->age;
 	sc->SCp.ptr = (char *)ctask;
 
+	ctask->state = ISCSI_TASK_PENDING;
 	ctask->mtask = NULL;
 	ctask->conn = conn;
 	ctask->sc = sc;
@@ -700,7 +706,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 
 	session->tt->init_cmd_task(ctask);
 
-	__kfifo_put(conn->xmitqueue, (void*)&ctask, sizeof(void*));
+	list_add_tail(&ctask->running, &conn->xmitqueue);
 	debug_scsi(
 	       "ctask enq [%s cid %d sc %lx itt 0x%x len %d cmdsn %d win %d]\n",
 		sc->sc_data_direction == DMA_TO_DEVICE ? "write" : "read",
@@ -977,31 +983,27 @@ static int iscsi_exec_abort_task(struct scsi_cmnd *sc,
 /*
  * xmit mutex and session lock must be held
  */
-#define iscsi_remove_task(tasktype)					\
-static struct iscsi_##tasktype *					\
-iscsi_remove_##tasktype(struct kfifo *fifo, uint32_t itt)		\
-{									\
-	int i, nr_tasks = __kfifo_len(fifo) / sizeof(void*);		\
-	struct iscsi_##tasktype *task;					\
-									\
-	debug_scsi("searching %d tasks\n", nr_tasks);			\
-									\
-	for (i = 0; i < nr_tasks; i++) {				\
-		__kfifo_get(fifo, (void*)&task, sizeof(void*));		\
-		debug_scsi("check task %u\n", task->itt);		\
-									\
-		if (task->itt == itt) {					\
-			debug_scsi("matched task\n");			\
-			return task;					\
-		}							\
-									\
-		__kfifo_put(fifo, (void*)&task, sizeof(void*));		\
-	}								\
-	return NULL;							\
-}
+static struct iscsi_mgmt_task *
+iscsi_remove_mgmt_task(struct kfifo *fifo, uint32_t itt)
+{
+	int i, nr_tasks = __kfifo_len(fifo) / sizeof(void*);
+	struct iscsi_mgmt_task *task;
 
-iscsi_remove_task(mgmt_task);
-iscsi_remove_task(cmd_task);
+	debug_scsi("searching %d tasks\n", nr_tasks);
+
+	for (i = 0; i < nr_tasks; i++) {
+		__kfifo_get(fifo, (void*)&task, sizeof(void*));
+		debug_scsi("check task %u\n", task->itt);
+
+		if (task->itt == itt) {
+			debug_scsi("matched task\n");
+			return task;
+		}
+
+		__kfifo_put(fifo, (void*)&task, sizeof(void*));
+	}
+	return NULL;
+}
 
 static int iscsi_ctask_mtask_cleanup(struct iscsi_cmd_task *ctask)
 {
@@ -1043,7 +1045,6 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	struct iscsi_cmd_task *ctask = (struct iscsi_cmd_task *)sc->SCp.ptr;
 	struct iscsi_conn *conn = ctask->conn;
 	struct iscsi_session *session = conn->session;
-	struct iscsi_cmd_task *pending_ctask;
 	int rc;
 
 	conn->eh_abort_cnt++;
@@ -1071,17 +1072,8 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 		goto failed;
 	}
 
-	/* check for the easy pending cmd abort */
-	pending_ctask = iscsi_remove_cmd_task(conn->xmitqueue, ctask->itt);
-	if (pending_ctask) {
-		/* iscsi_tcp queues write transfers on the xmitqueue */
-		if (list_empty(&pending_ctask->running)) {
-			debug_scsi("found pending task\n");
-			goto success;
-		} else
-			__kfifo_put(conn->xmitqueue, (void*)&pending_ctask,
-				    sizeof(void*));
-	}
+	if (ctask->state == ISCSI_TASK_PENDING)
+		goto success;
 
 	conn->tmabort_state = TMABORT_INITIAL;
 
@@ -1263,6 +1255,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 		if (cmd_task_size)
 			ctask->dd_data = &ctask[1];
 		ctask->itt = cmd_i;
+		INIT_LIST_HEAD(&ctask->running);
 	}
 
 	spin_lock_init(&session->lock);
@@ -1282,6 +1275,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 		if (mgmt_task_size)
 			mtask->dd_data = &mtask[1];
 		mtask->itt = ISCSI_MGMT_ITT_OFFSET + cmd_i;
+		INIT_LIST_HEAD(&mtask->running);
 	}
 
 	if (scsi_add_host(shost, NULL))
@@ -1361,12 +1355,7 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	conn->tmabort_state = TMABORT_INITIAL;
 	INIT_LIST_HEAD(&conn->run_list);
 	INIT_LIST_HEAD(&conn->mgmt_run_list);
-
-	/* initialize general xmit PDU commands queue */
-	conn->xmitqueue = kfifo_alloc(session->cmds_max * sizeof(void*),
-					GFP_KERNEL, NULL);
-	if (conn->xmitqueue == ERR_PTR(-ENOMEM))
-		goto xmitqueue_alloc_fail;
+	INIT_LIST_HEAD(&conn->xmitqueue);
 
 	/* initialize general immediate & non-immediate PDU commands queue */
 	conn->immqueue = kfifo_alloc(session->mgmtpool_max * sizeof(void*),
@@ -1410,8 +1399,6 @@ login_mtask_alloc_fail:
 mgmtqueue_alloc_fail:
 	kfifo_free(conn->immqueue);
 immqueue_alloc_fail:
-	kfifo_free(conn->xmitqueue);
-xmitqueue_alloc_fail:
 	iscsi_destroy_conn(cls_conn);
 	return NULL;
 }
@@ -1489,7 +1476,6 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 		session->cmdsn = session->max_cmdsn = session->exp_cmdsn = 1;
 	spin_unlock_bh(&session->lock);
 
-	kfifo_free(conn->xmitqueue);
 	kfifo_free(conn->immqueue);
 	kfifo_free(conn->mgmtqueue);
 
@@ -1572,7 +1558,7 @@ static void fail_all_commands(struct iscsi_conn *conn)
 	struct iscsi_cmd_task *ctask, *tmp;
 
 	/* flush pending */
-	while (__kfifo_get(conn->xmitqueue, (void*)&ctask, sizeof(void*))) {
+	list_for_each_entry_safe(ctask, tmp, &conn->xmitqueue, running) {
 		debug_scsi("failing pending sc %p itt 0x%x\n", ctask->sc,
 			   ctask->itt);
 		fail_command(conn, ctask, DID_BUS_BUSY << 16);

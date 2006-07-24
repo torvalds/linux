@@ -185,10 +185,18 @@ iscsi_hdr_extract(struct iscsi_tcp_conn *tcp_conn)
  * must be called with session lock
  */
 static void
-__iscsi_ctask_cleanup(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
+iscsi_tcp_cleanup_ctask(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
+	struct iscsi_r2t_info *r2t;
 	struct scsi_cmnd *sc;
+
+	/* flush ctask's r2t queues */
+	while (__kfifo_get(tcp_ctask->r2tqueue, (void*)&r2t, sizeof(void*))) {
+		__kfifo_put(tcp_ctask->r2tpool.queue, (void*)&r2t,
+			    sizeof(void*));
+		debug_scsi("iscsi_tcp_cleanup_ctask pending r2t dropped\n");
+	}
 
 	sc = ctask->sc;
 	if (unlikely(!sc))
@@ -374,6 +382,7 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		spin_unlock(&session->lock);
 		return 0;
 	}
+
 	rc = __kfifo_get(tcp_ctask->r2tpool.queue, (void*)&r2t, sizeof(void*));
 	BUG_ON(!rc);
 
@@ -399,7 +408,7 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	tcp_ctask->exp_r2tsn = r2tsn + 1;
 	tcp_ctask->xmstate |= XMSTATE_SOL_HDR;
 	__kfifo_put(tcp_ctask->r2tqueue, (void*)&r2t, sizeof(void*));
-	__kfifo_put(conn->xmitqueue, (void*)&ctask, sizeof(void*));
+	list_move_tail(&ctask->running, &conn->xmitqueue);
 
 	scsi_queue_work(session->host, &conn->xmitwork);
 	conn->r2t_pdus_cnt++;
@@ -484,7 +493,7 @@ iscsi_tcp_hdr_recv(struct iscsi_conn *conn)
 			goto copy_hdr;
 
 		spin_lock(&session->lock);
-		__iscsi_ctask_cleanup(conn, tcp_conn->in.ctask);
+		iscsi_tcp_cleanup_ctask(conn, tcp_conn->in.ctask);
 		rc = __iscsi_complete_pdu(conn, hdr, NULL, 0);
 		spin_unlock(&session->lock);
 		break;
@@ -745,10 +754,11 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 done:
 	/* check for non-exceptional status */
 	if (tcp_conn->in.hdr->flags & ISCSI_FLAG_DATA_STATUS) {
-		debug_scsi("done [sc %lx res %d itt 0x%x]\n",
-			   (long)sc, sc->result, ctask->itt);
+		debug_scsi("done [sc %lx res %d itt 0x%x flags 0x%x]\n",
+			   (long)sc, sc->result, ctask->itt,
+			   tcp_conn->in.hdr->flags);
 		spin_lock(&conn->session->lock);
-		__iscsi_ctask_cleanup(conn, ctask);
+		iscsi_tcp_cleanup_ctask(conn, ctask);
 		__iscsi_complete_pdu(conn, tcp_conn->in.hdr, NULL, 0);
 		spin_unlock(&conn->session->lock);
 	}
@@ -769,7 +779,7 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		break;
 	case ISCSI_OP_SCSI_CMD_RSP:
 		spin_lock(&conn->session->lock);
-		__iscsi_ctask_cleanup(conn, tcp_conn->in.ctask);
+		iscsi_tcp_cleanup_ctask(conn, tcp_conn->in.ctask);
 		spin_unlock(&conn->session->lock);
 	case ISCSI_OP_TEXT_RSP:
 	case ISCSI_OP_LOGIN_RSP:
@@ -1308,7 +1318,7 @@ iscsi_tcp_cmd_init(struct iscsi_cmd_task *ctask)
 				    ctask->imm_count -
 				    ctask->unsol_count;
 
-		debug_scsi("cmd [itt %x total %d imm %d imm_data %d "
+		debug_scsi("cmd [itt 0x%x total %d imm %d imm_data %d "
 			   "r2t_data %d]\n",
 			   ctask->itt, ctask->total_length, ctask->imm_count,
 			   ctask->unsol_count, tcp_ctask->r2t_data_count);
@@ -1636,7 +1646,7 @@ handle_xmstate_sol_data(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	}
 solicit_again:
 	/*
-	 * send Data-Out whitnin this R2T sequence.
+	 * send Data-Out within this R2T sequence.
 	 */
 	if (!r2t->data_count)
 		goto data_out_done;
@@ -1731,7 +1741,7 @@ handle_xmstate_w_pad(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_data_task *dtask = tcp_ctask->dtask;
-	int sent, rc;
+	int sent = 0, rc;
 
 	tcp_ctask->xmstate &= ~XMSTATE_W_PAD;
 	iscsi_buf_init_iov(&tcp_ctask->sendbuf, (char*)&tcp_ctask->pad,
@@ -2002,20 +2012,6 @@ iscsi_tcp_conn_bind(struct iscsi_cls_session *cls_session,
 }
 
 static void
-iscsi_tcp_cleanup_ctask(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
-{
-	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
-	struct iscsi_r2t_info *r2t;
-
-	/* flush ctask's r2t queues */
-	while (__kfifo_get(tcp_ctask->r2tqueue, (void*)&r2t, sizeof(void*)))
-		__kfifo_put(tcp_ctask->r2tpool.queue, (void*)&r2t,
-			    sizeof(void*));
-
-	__iscsi_ctask_cleanup(conn, ctask);
-}
-
-static void
 iscsi_tcp_suspend_conn_rx(struct iscsi_conn *conn)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
@@ -2057,6 +2053,7 @@ iscsi_tcp_mgmt_init(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask,
 	iscsi_buf_init_iov(&tcp_mtask->headbuf, (char*)mtask->hdr,
 			   sizeof(struct iscsi_hdr));
 	tcp_mtask->xmstate = XMSTATE_IMM_HDR;
+	tcp_mtask->sent = 0;
 
 	if (mtask->data_count)
 		iscsi_buf_init_iov(&tcp_mtask->sendbuf, (char*)mtask->data,
