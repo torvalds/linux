@@ -159,7 +159,20 @@ static const char mconf_readme[] = N_(
 "\n"
 "Note that this mode can eventually be a little more CPU expensive\n"
 "(especially with a larger number of unrolled categories) than the\n"
-"default mode.\n"),
+"default mode.\n"
+"\n"
+"Different color themes available\n"
+"--------------------------------\n"
+"It is possible to select different color themes using the variable\n"
+"MENUCONFIG_COLOR. To select a theme use:\n"
+"\n"
+"make MENUCONFIG_COLOR=<theme> menuconfig\n"
+"\n"
+"Available themes are\n"
+" mono       => selects colors suitable for monochrome displays\n"
+" blackbg    => selects a color scheme with black background\n"
+" classic    => theme with blue background. The classic look. (default)\n"
+"\n"),
 menu_instructions[] = N_(
 	"Arrow keys navigate the menu.  "
 	"<Enter> selects submenus --->.  "

@@ -96,6 +96,66 @@ static void set_classic_theme(void)
 	DLG_COLOR(darrow,                COLOR_GREEN,  COLOR_WHITE,  true);
 }
 
+static void set_blackbg_theme(void)
+{
+	DLG_COLOR(screen, COLOR_RED,   COLOR_BLACK, true);
+	DLG_COLOR(shadow, COLOR_BLACK, COLOR_BLACK, false);
+	DLG_COLOR(dialog, COLOR_WHITE, COLOR_BLACK, false);
+	DLG_COLOR(title,  COLOR_RED,   COLOR_BLACK, false);
+	DLG_COLOR(border, COLOR_BLACK, COLOR_BLACK, true);
+
+	DLG_COLOR(button_active,         COLOR_YELLOW, COLOR_RED,   false);
+	DLG_COLOR(button_inactive,       COLOR_YELLOW, COLOR_BLACK, false);
+	DLG_COLOR(button_key_active,     COLOR_YELLOW, COLOR_RED,   true);
+	DLG_COLOR(button_key_inactive,   COLOR_RED,    COLOR_BLACK, false);
+	DLG_COLOR(button_label_active,   COLOR_WHITE,  COLOR_RED,   false);
+	DLG_COLOR(button_label_inactive, COLOR_BLACK,  COLOR_BLACK, true);
+
+	DLG_COLOR(inputbox,         COLOR_YELLOW, COLOR_BLACK, false);
+	DLG_COLOR(inputbox_border,  COLOR_YELLOW, COLOR_BLACK, false);
+
+	DLG_COLOR(searchbox,        COLOR_YELLOW, COLOR_BLACK, false);
+	DLG_COLOR(searchbox_title,  COLOR_YELLOW, COLOR_BLACK, true);
+	DLG_COLOR(searchbox_border, COLOR_BLACK,  COLOR_BLACK, true);
+
+	DLG_COLOR(position_indicator, COLOR_RED, COLOR_BLACK,  false);
+
+	DLG_COLOR(menubox,          COLOR_YELLOW, COLOR_BLACK, false);
+	DLG_COLOR(menubox_border,   COLOR_BLACK,  COLOR_BLACK, true);
+
+	DLG_COLOR(item,             COLOR_WHITE, COLOR_BLACK, false);
+	DLG_COLOR(item_selected,    COLOR_WHITE, COLOR_RED,   false);
+
+	DLG_COLOR(tag,              COLOR_RED,    COLOR_BLACK, false);
+	DLG_COLOR(tag_selected,     COLOR_YELLOW, COLOR_RED,   true);
+	DLG_COLOR(tag_key,          COLOR_RED,    COLOR_BLACK, false);
+	DLG_COLOR(tag_key_selected, COLOR_YELLOW, COLOR_RED,   true);
+
+	DLG_COLOR(check,            COLOR_YELLOW, COLOR_BLACK, false);
+	DLG_COLOR(check_selected,   COLOR_YELLOW, COLOR_RED,   true);
+
+	DLG_COLOR(uarrow, COLOR_RED, COLOR_BLACK, false);
+	DLG_COLOR(darrow, COLOR_RED, COLOR_BLACK, false);
+}
+
+/*
+ * Select color theme
+ */
+static int set_theme(const char *theme)
+{
+	int use_color = 1;
+	if (!theme)
+		set_classic_theme();
+	else if (strcmp(theme, "classic") == 0)
+		set_classic_theme();
+	else if (strcmp(theme, "blackbg") == 0)
+		set_blackbg_theme();
+	else if (strcmp(theme, "mono") == 0)
+		use_color = 0;
+
+	return use_color;
+}
+
 static void init_one_color(struct dialog_color *color)
 {
 	static int pair = 0;
@@ -144,12 +204,13 @@ static void init_dialog_colors(void)
 /*
  * Setup for color display
  */
-static void color_setup(void)
+static void color_setup(const char *theme)
 {
-	if (has_colors()) {	/* Terminal supports color? */
-		start_color();
-		set_classic_theme();
-		init_dialog_colors();
+	if (set_theme(theme)) {
+		if (has_colors()) {	/* Terminal supports color? */
+			start_color();
+			init_dialog_colors();
+		}
 	}
 	else
 	{
@@ -198,7 +259,7 @@ void init_dialog(void)
 	keypad(stdscr, TRUE);
 	cbreak();
 	noecho();
-	color_setup();
+	color_setup(getenv("MENUCONFIG_COLOR"));
 	dialog_clear();
 }
 
