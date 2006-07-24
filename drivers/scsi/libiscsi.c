@@ -276,6 +276,25 @@ out:
 	return rc;
 }
 
+static void iscsi_tmf_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
+{
+	struct iscsi_tm_rsp *tmf = (struct iscsi_tm_rsp *)hdr;
+
+	conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
+	conn->tmfrsp_pdus_cnt++;
+
+	if (conn->tmabort_state != TMABORT_INITIAL)
+		return;
+
+	if (tmf->response == ISCSI_TMF_RSP_COMPLETE)
+		conn->tmabort_state = TMABORT_SUCCESS;
+	else if (tmf->response == ISCSI_TMF_RSP_NO_TASK)
+		conn->tmabort_state = TMABORT_NOT_FOUND;
+	else
+		conn->tmabort_state = TMABORT_FAILED;
+	wake_up(&conn->ehwait);
+}
+
 /**
  * __iscsi_complete_pdu - complete pdu
  * @conn: iscsi conn
@@ -361,16 +380,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 				break;
 			}
 
-			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
-			conn->tmfrsp_pdus_cnt++;
-			if (conn->tmabort_state == TMABORT_INITIAL) {
-				conn->tmabort_state =
-					((struct iscsi_tm_rsp *)hdr)->
-					response == ISCSI_TMF_RSP_COMPLETE ?
-						TMABORT_SUCCESS:TMABORT_FAILED;
-				/* unblock eh_abort() */
-				wake_up(&conn->ehwait);
-			}
+			iscsi_tmf_rsp(conn, hdr);
 			break;
 		case ISCSI_OP_NOOP_IN:
 			if (hdr->ttt != ISCSI_RESERVED_TAG) {
@@ -1029,12 +1039,13 @@ static void fail_command(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 {
 	struct scsi_cmnd *sc;
 
-	conn->session->tt->cleanup_cmd_task(conn, ctask);
-	iscsi_ctask_mtask_cleanup(ctask);
-
 	sc = ctask->sc;
 	if (!sc)
 		return;
+
+	conn->session->tt->cleanup_cmd_task(conn, ctask);
+	iscsi_ctask_mtask_cleanup(ctask);
+
 	sc->result = err;
 	sc->resid = sc->request_bufflen;
 	iscsi_complete_command(conn->session, ctask);
@@ -1062,8 +1073,11 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 		goto failed;
 
 	/* ctask completed before time out */
-	if (!ctask->sc)
-		goto success;
+	if (!ctask->sc) {
+		spin_unlock_bh(&session->lock);
+		debug_scsi("sc completed while abort in progress\n");
+		goto success_rel_mutex;
+	}
 
 	/* what should we do here ? */
 	if (conn->ctask == ctask) {
@@ -1073,7 +1087,7 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	}
 
 	if (ctask->state == ISCSI_TASK_PENDING)
-		goto success;
+		goto success_cleanup;
 
 	conn->tmabort_state = TMABORT_INITIAL;
 
@@ -1081,25 +1095,31 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	rc = iscsi_exec_abort_task(sc, ctask);
 	spin_lock_bh(&session->lock);
 
-	iscsi_ctask_mtask_cleanup(ctask);
 	if (rc || sc->SCp.phase != session->age ||
 	    session->state != ISCSI_STATE_LOGGED_IN)
 		goto failed;
+	iscsi_ctask_mtask_cleanup(ctask);
 
-	/* ctask completed before tmf abort response */
-	if (!ctask->sc) {
-		debug_scsi("sc completed while abort in progress\n");
-		goto success;
-	}
-
-	if (conn->tmabort_state != TMABORT_SUCCESS) {
+	switch (conn->tmabort_state) {
+	case TMABORT_SUCCESS:
+		goto success_cleanup;
+	case TMABORT_NOT_FOUND:
+		if (!ctask->sc) {
+			/* ctask completed before tmf abort response */
+			spin_unlock_bh(&session->lock);
+			debug_scsi("sc completed while abort in progress\n");
+			goto success_rel_mutex;
+		}
+		/* fall through */
+	default:
+		/* timedout or failed */
 		spin_unlock_bh(&session->lock);
 		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 		spin_lock_bh(&session->lock);
 		goto failed;
 	}
 
-success:
+success_cleanup:
 	debug_scsi("abort success [sc %lx itt 0x%x]\n", (long)sc, ctask->itt);
 	spin_unlock_bh(&session->lock);
 
@@ -1113,6 +1133,7 @@ success:
 	spin_unlock(&session->lock);
 	write_unlock_bh(conn->recv_lock);
 
+success_rel_mutex:
 	mutex_unlock(&conn->xmitmutex);
 	return SUCCESS;
 

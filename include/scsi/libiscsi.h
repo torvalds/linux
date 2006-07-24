@@ -60,6 +60,7 @@ struct iscsi_nopin;
 #define TMABORT_SUCCESS			0x1
 #define TMABORT_FAILED			0x2
 #define TMABORT_TIMEDOUT		0x3
+#define TMABORT_NOT_FOUND		0x4
 
 /* Connection suspend "bit" */
 #define ISCSI_SUSPEND_BIT		1
