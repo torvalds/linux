@@ -1702,7 +1702,6 @@ MODULE_PARM_DESC(mode, "ULi M5261/M5263: Bit 0: 10/100Mbps, bit 2: duplex, bit 8
 
 static int __init uli526x_init_module(void)
 {
-	int rc;
 
 	printk(version);
 	printed_version = 1;
@@ -1714,22 +1713,19 @@ static int __init uli526x_init_module(void)
 	if (cr6set)
 		uli526x_cr6_user_set = cr6set;
 
- 	switch(mode) {
+ 	switch (mode) {
    	case ULI526X_10MHF:
 	case ULI526X_100MHF:
 	case ULI526X_10MFD:
 	case ULI526X_100MFD:
 		uli526x_media_mode = mode;
 		break;
-	default:uli526x_media_mode = ULI526X_AUTO;
+	default:
+		uli526x_media_mode = ULI526X_AUTO;
 		break;
 	}
 
-	rc = pci_module_init(&uli526x_driver);
-	if (rc < 0)
-		return rc;
-
-	return 0;
+	return pci_register_driver(&uli526x_driver);
 }
 
 
