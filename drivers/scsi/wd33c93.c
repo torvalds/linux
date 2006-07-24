@@ -373,7 +373,7 @@ wd33c93_queuecommand(struct scsi_cmnd *cmd,
  */
 
 	if (cmd->use_sg) {
-		cmd->SCp.buffer = (struct scatterlist *) cmd->buffer;
+		cmd->SCp.buffer = (struct scatterlist *) cmd->request_buffer;
 		cmd->SCp.buffers_residual = cmd->use_sg - 1;
 		cmd->SCp.ptr = page_address(cmd->SCp.buffer->page) +
 		    cmd->SCp.buffer->offset;

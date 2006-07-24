@@ -429,7 +429,7 @@ static inline void fcp_scsi_receive(fc_channel *fc, int token, int status, fc_hd
 		
 		if (fcmd->data) {
 			if (SCpnt->use_sg)
-				dma_unmap_sg(fc->dev, (struct scatterlist *)SCpnt->buffer,
+				dma_unmap_sg(fc->dev, (struct scatterlist *)SCpnt->request_buffer,
 						SCpnt->use_sg,
 						SCpnt->sc_data_direction);
 			else
@@ -810,7 +810,7 @@ static int fcp_scsi_queue_it(fc_channel *fc, Scsi_Cmnd *SCpnt, fcp_cmnd *fcmd, i
 							     SCpnt->request_bufflen,
 							     SCpnt->sc_data_direction);
 			} else {
-				struct scatterlist *sg = (struct scatterlist *)SCpnt->buffer;
+				struct scatterlist *sg = (struct scatterlist *)SCpnt->request_buffer;
 				int nents;
 
 				FCD(("XXX: Use_sg %d %d\n", SCpnt->use_sg, sg->length))

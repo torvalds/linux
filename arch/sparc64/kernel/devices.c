@@ -66,9 +66,6 @@ static int check_cpu_node(struct device_node *dp, int *cur_inst,
 			  void *compare_arg,
 			  struct device_node **dev_node, int *mid)
 {
-	if (strcmp(dp->type, "cpu"))
-		return -ENODEV;
-
 	if (!compare(dp, *cur_inst, compare_arg)) {
 		if (dev_node)
 			*dev_node = dp;

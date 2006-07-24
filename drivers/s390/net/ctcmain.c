@@ -2686,9 +2686,17 @@ static struct attribute_group ctc_attr_group = {
 static int
 ctc_add_attributes(struct device *dev)
 {
-	device_create_file(dev, &dev_attr_loglevel);
-	device_create_file(dev, &dev_attr_stats);
-	return 0;
+	int rc;
+
+	rc = device_create_file(dev, &dev_attr_loglevel);
+	if (rc)
+		goto out;
+	rc = device_create_file(dev, &dev_attr_stats);
+	if (!rc)
+		goto out;
+	device_remove_file(dev, &dev_attr_loglevel);
+out:
+	return rc;
 }
 
 static void
@@ -2901,7 +2909,12 @@ ctc_new_device(struct ccwgroup_device *cgdev)
 		goto out;
 	}
 
-	ctc_add_attributes(&cgdev->dev);
+	if (ctc_add_attributes(&cgdev->dev)) {
+		ctc_netdev_unregister(dev);
+		dev->priv = NULL;
+		ctc_free_netdevice(dev, 1);
+		goto out;
+	}
 
 	strlcpy(privptr->fsm->name, dev->name, sizeof (privptr->fsm->name));
 

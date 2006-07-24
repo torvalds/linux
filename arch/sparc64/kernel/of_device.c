@@ -542,8 +542,16 @@ static void __init build_device_resources(struct of_device *op,
 	/* Convert to num-cells.  */
 	num_reg /= 4;
 
-	/* Conver to num-entries.  */
+	/* Convert to num-entries.  */
 	num_reg /= na + ns;
+
+	/* Prevent overruning the op->resources[] array.  */
+	if (num_reg > PROMREG_MAX) {
+		printk(KERN_WARNING "%s: Too many regs (%d), "
+		       "limiting to %d.\n",
+		       op->node->full_name, num_reg, PROMREG_MAX);
+		num_reg = PROMREG_MAX;
+	}
 
 	for (index = 0; index < num_reg; index++) {
 		struct resource *r = &op->resource[index];
@@ -650,8 +658,22 @@ apply_interrupt_map(struct device_node *dp, struct device_node *pp,
 	next:
 		imap += (na + 3);
 	}
-	if (i == imlen)
+	if (i == imlen) {
+		/* Psycho and Sabre PCI controllers can have 'interrupt-map'
+		 * properties that do not include the on-board device
+		 * interrupts.  Instead, the device's 'interrupts' property
+		 * is already a fully specified INO value.
+		 *
+		 * Handle this by deciding that, if we didn't get a
+		 * match in the parent's 'interrupt-map', and the
+		 * parent is an IRQ translater, then use the parent as
+		 * our IRQ controller.
+		 */
+		if (pp->irq_trans)
+			return pp;
+
 		return NULL;
+	}
 
 	*irq_p = irq;
 	cp = of_find_node_by_phandle(handle);
@@ -801,6 +823,14 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 		op->num_irqs = len / 4;
 	} else {
 		op->num_irqs = 0;
+	}
+
+	/* Prevent overruning the op->irqs[] array.  */
+	if (op->num_irqs > PROMINTR_MAX) {
+		printk(KERN_WARNING "%s: Too many irqs (%d), "
+		       "limiting to %d.\n",
+		       dp->full_name, op->num_irqs, PROMINTR_MAX);
+		op->num_irqs = PROMINTR_MAX;
 	}
 
 	build_device_resources(op, parent);

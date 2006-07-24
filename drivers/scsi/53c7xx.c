@@ -3451,12 +3451,12 @@ create_cmd (Scsi_Cmnd *cmd) {
     for (i = 0; cmd->use_sg ? (i < cmd->use_sg) : !i; cmd_datain += 4, 
 	cmd_dataout += 4, ++i) {
 	u32 vbuf = cmd->use_sg
-	    ? (u32)page_address(((struct scatterlist *)cmd->buffer)[i].page)+
-	      ((struct scatterlist *)cmd->buffer)[i].offset
+	    ? (u32)page_address(((struct scatterlist *)cmd->request_buffer)[i].page)+
+	      ((struct scatterlist *)cmd->request_buffer)[i].offset
 	    : (u32)(cmd->request_buffer);
 	u32 bbuf = virt_to_bus((void *)vbuf);
 	u32 count = cmd->use_sg ?
-	    ((struct scatterlist *)cmd->buffer)[i].length :
+	    ((struct scatterlist *)cmd->request_buffer)[i].length :
 	    cmd->request_bufflen;
 
 	/*
@@ -5417,7 +5417,7 @@ insn_to_offset (Scsi_Cmnd *cmd, u32 *insn) {
 
 	    if ((buffers = cmd->use_sg)) {
     	    	for (offset = 0, 
-		     	segment = (struct scatterlist *) cmd->buffer;
+		     	segment = (struct scatterlist *) cmd->request_buffer;
     	    	     buffers && !((found = ((ptr >= (char *)page_address(segment->page)+segment->offset) && 
     	    	    	    (ptr < ((char *)page_address(segment->page)+segment->offset+segment->length)))));
     	    	     --buffers, offset += segment->length, ++segment)

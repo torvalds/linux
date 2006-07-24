@@ -81,7 +81,7 @@ int ibmvscsi_init_crq_queue(struct crq_queue *queue,
 	int rc;
 
 	single_host_data = hostdata;
-	rc = viopath_open(viopath_hostLp, viomajorsubtype_scsi, 0);
+	rc = viopath_open(viopath_hostLp, viomajorsubtype_scsi, max_requests);
 	if (rc < 0) {
 		printk("viopath_open failed with rc %d in open_event_path\n",
 		       rc);

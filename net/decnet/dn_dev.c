@@ -413,11 +413,7 @@ static struct dn_ifaddr *dn_dev_alloc_ifa(void)
 {
 	struct dn_ifaddr *ifa;
 
-	ifa = kmalloc(sizeof(*ifa), GFP_KERNEL);
-
-	if (ifa) {
-		memset(ifa, 0, sizeof(*ifa));
-	}
+	ifa = kzalloc(sizeof(*ifa), GFP_KERNEL);
 
 	return ifa;
 }
@@ -1105,10 +1101,9 @@ struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 		return NULL;
 
 	*err = -ENOBUFS;
-	if ((dn_db = kmalloc(sizeof(struct dn_dev), GFP_ATOMIC)) == NULL)
+	if ((dn_db = kzalloc(sizeof(struct dn_dev), GFP_ATOMIC)) == NULL)
 		return NULL;
 
-	memset(dn_db, 0, sizeof(struct dn_dev));
 	memcpy(&dn_db->parms, p, sizeof(struct dn_dev_parms));
 	smp_wmb();
 	dev->dn_ptr = dn_db;

@@ -152,9 +152,8 @@ gss_import_sec_context_spkm3(const void *p, size_t len,
 	const void *end = (const void *)((const char *)p + len);
 	struct	spkm3_ctx *ctx;
 
-	if (!(ctx = kmalloc(sizeof(*ctx), GFP_KERNEL)))
+	if (!(ctx = kzalloc(sizeof(*ctx), GFP_KERNEL)))
 		goto out_err;
-	memset(ctx, 0, sizeof(*ctx));
 
 	p = simple_get_netobj(p, end, &ctx->ctx_id);
 	if (IS_ERR(p))

@@ -346,7 +346,7 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 			if (level > 3) {
 				printk(KERN_INFO "buffer = 0x%p, bufflen = %d,"
 				       " done = 0x%p, queuecommand 0x%p\n",
-					cmd->buffer, cmd->bufflen,
+					cmd->request_buffer, cmd->request_bufflen,
 					cmd->done,
 					sdev->host->hostt->queuecommand);
 
@@ -661,11 +661,6 @@ void __scsi_done(struct scsi_cmnd *cmd)
  */
 int scsi_retry_command(struct scsi_cmnd *cmd)
 {
-	/*
-	 * Restore the SCSI command state.
-	 */
-	scsi_setup_cmd_retry(cmd);
-
         /*
          * Zero the sense information from the last time we tried
          * this command.
@@ -711,10 +706,6 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 				"Notifying upper driver of completion "
 				"(result %x)\n", cmd->result));
 
-	/*
-	 * We can get here with use_sg=0, causing a panic in the upper level
-	 */
-	cmd->use_sg = cmd->old_use_sg;
 	cmd->done(cmd);
 }
 EXPORT_SYMBOL(scsi_finish_command);

@@ -148,7 +148,8 @@ static long tabledist(unsigned long mu, long sigma,
 static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	struct netem_skb_cb *cb = (struct netem_skb_cb *)skb->cb;
+	/* We don't fill cb now as skb_unshare() may invalidate it */
+	struct netem_skb_cb *cb;
 	struct sk_buff *skb2;
 	int ret;
 	int count = 1;
@@ -200,6 +201,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		skb->data[net_random() % skb_headlen(skb)] ^= 1<<(net_random() % 8);
 	}
 
+	cb = (struct netem_skb_cb *)skb->cb;
 	if (q->gap == 0 		/* not doing reordering */
 	    || q->counter < q->gap 	/* inside last reordering gap */
 	    || q->reorder < get_crandom(&q->reorder_cor)) {

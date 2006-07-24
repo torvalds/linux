@@ -256,7 +256,6 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 
 	if (!opt) {
 		opt = &(IPCB(skb)->opt);
-		memset(opt, 0, sizeof(struct ip_options));
 		iph = skb->nh.raw;
 		opt->optlen = ((struct iphdr *)iph)->ihl*4 - sizeof(struct iphdr);
 		optptr = iph + sizeof(struct iphdr);

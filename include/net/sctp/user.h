@@ -560,9 +560,18 @@ struct sctp_paddrinfo {
 } __attribute__((packed, aligned(4)));
 
 /* Peer addresses's state. */
+/* UNKNOWN: Peer address passed by the upper layer in sendmsg or connect[x]
+ * calls.
+ * UNCONFIRMED: Peer address received in INIT/INIT-ACK address parameters.
+ *              Not yet confirmed by a heartbeat and not available for data
+ *		transfers.
+ * ACTIVE : Peer address confirmed, active and available for data transfers.
+ * INACTIVE: Peer address inactive and not available for data transfers.
+ */
 enum sctp_spinfo_state {
 	SCTP_INACTIVE,
 	SCTP_ACTIVE,
+	SCTP_UNCONFIRMED,
 	SCTP_UNKNOWN = 0xffff  /* Value used for transport state unknown */
 };
 

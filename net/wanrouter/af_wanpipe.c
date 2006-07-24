@@ -370,12 +370,11 @@ static int wanpipe_listen_rcv (struct sk_buff *skb,  struct sock *sk)
          * used by the ioctl call to read call information
          * and to execute commands. 
          */	
-	if ((mbox_ptr = kmalloc(sizeof(mbox_cmd_t), GFP_ATOMIC)) == NULL) {
+	if ((mbox_ptr = kzalloc(sizeof(mbox_cmd_t), GFP_ATOMIC)) == NULL) {
 		wanpipe_kill_sock_irq (newsk);
 		release_device(dev);		
 		return -ENOMEM;
 	}
-	memset(mbox_ptr, 0, sizeof(mbox_cmd_t));
 	memcpy(mbox_ptr,skb->data,skb->len);
 
 	/* Register the lcn on which incoming call came
@@ -507,11 +506,10 @@ static struct sock *wanpipe_alloc_socket(void)
 	if ((sk = sk_alloc(PF_WANPIPE, GFP_ATOMIC, &wanpipe_proto, 1)) == NULL)
 		return NULL;
 
-	if ((wan_opt = kmalloc(sizeof(struct wanpipe_opt), GFP_ATOMIC)) == NULL) {
+	if ((wan_opt = kzalloc(sizeof(struct wanpipe_opt), GFP_ATOMIC)) == NULL) {
 		sk_free(sk);
 		return NULL;
 	}
-	memset(wan_opt, 0x00, sizeof(struct wanpipe_opt));
 
 	wp_sk(sk) = wan_opt;
 
@@ -2011,10 +2009,9 @@ static int set_ioctl_cmd (struct sock *sk, void *arg)
 
 		dev_put(dev);
 		
-		if ((mbox_ptr = kmalloc(sizeof(mbox_cmd_t), GFP_ATOMIC)) == NULL)
+		if ((mbox_ptr = kzalloc(sizeof(mbox_cmd_t), GFP_ATOMIC)) == NULL)
 			return -ENOMEM;
 
-		memset(mbox_ptr, 0, sizeof(mbox_cmd_t));
 		wp_sk(sk)->mbox = mbox_ptr;
 
 		wanpipe_link_driver(dev,sk);

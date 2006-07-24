@@ -1068,6 +1068,7 @@ cmb_show_avg_sample_interval(struct device *dev, struct device_attribute *attr, 
 	if (count) {
 		interval = cmb_data->last_update -
 			cdev->private->cmb_start_time;
+		interval = (interval * 1000) >> 12;
 		interval /= count;
 	} else
 		interval = -1;

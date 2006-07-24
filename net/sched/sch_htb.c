@@ -1559,10 +1559,9 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			goto failure;
 		}
 		err = -ENOBUFS;
-		if ((cl = kmalloc(sizeof(*cl), GFP_KERNEL)) == NULL)
+		if ((cl = kzalloc(sizeof(*cl), GFP_KERNEL)) == NULL)
 			goto failure;
 		
-		memset(cl, 0, sizeof(*cl));
 		cl->refcnt = 1;
 		INIT_LIST_HEAD(&cl->sibling);
 		INIT_LIST_HEAD(&cl->hlist);

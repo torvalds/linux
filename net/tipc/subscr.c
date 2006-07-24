@@ -393,12 +393,11 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Create subscriber object */
 
-	subscriber = kmalloc(sizeof(struct subscriber), GFP_ATOMIC);
+	subscriber = kzalloc(sizeof(struct subscriber), GFP_ATOMIC);
 	if (subscriber == NULL) {
 		warn("Subscriber rejected, no memory\n");
 		return;
 	}
-	memset(subscriber, 0, sizeof(struct subscriber));
 	INIT_LIST_HEAD(&subscriber->subscription_list);
 	INIT_LIST_HEAD(&subscriber->subscriber_list);
 	subscriber->ref = tipc_ref_acquire(subscriber, &subscriber->lock);

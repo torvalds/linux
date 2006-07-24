@@ -432,10 +432,9 @@ struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops)
 	size = QDISC_ALIGN(sizeof(*sch));
 	size += ops->priv_size + (QDISC_ALIGNTO - 1);
 
-	p = kmalloc(size, GFP_KERNEL);
+	p = kzalloc(size, GFP_KERNEL);
 	if (!p)
 		goto errout;
-	memset(p, 0, size);
 	sch = (struct Qdisc *) QDISC_ALIGN((unsigned long) p);
 	sch->padded = (char *) sch - (char *) p;
 
