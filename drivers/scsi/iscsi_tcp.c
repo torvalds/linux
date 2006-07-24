@@ -486,6 +486,8 @@ iscsi_tcp_hdr_recv(struct iscsi_conn *conn)
 	case ISCSI_OP_SCSI_DATA_IN:
 		tcp_conn->in.ctask = session->cmds[itt];
 		rc = iscsi_data_rsp(conn, tcp_conn->in.ctask);
+		if (rc)
+			return rc;
 		/* fall through */
 	case ISCSI_OP_SCSI_CMD_RSP:
 		tcp_conn->in.ctask = session->cmds[itt];
@@ -532,7 +534,7 @@ copy_hdr:
 	 * skbs to complete the command then we have to copy the header
 	 * for later use
 	 */
-	if (tcp_conn->in.zero_copy_hdr && tcp_conn->in.copy <
+	if (tcp_conn->in.zero_copy_hdr && tcp_conn->in.copy <=
 	   (tcp_conn->in.datalen + tcp_conn->in.padding +
 	    (conn->datadgst_en ? 4 : 0))) {
 		debug_tcp("Copying header for later use. in.copy %d in.datalen"
