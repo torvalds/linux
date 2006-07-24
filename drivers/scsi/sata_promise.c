@@ -269,8 +269,15 @@ static const struct pci_device_id pdc_ata_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, 0x6629, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_20619 },
 
+/* TODO: remove all associated board_20771 code, as it completely
+ * duplicates board_2037x code, unless reason for separation can be
+ * divined.
+ */
+#if 0
 	{ PCI_VENDOR_ID_PROMISE, 0x3570, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_20771 },
+#endif
+
 	{ }	/* terminate list */
 };
 
