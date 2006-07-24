@@ -1440,12 +1440,6 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 	mutex_lock(&conn->xmitmutex);
-	if (conn->c_stage == ISCSI_CONN_INITIAL_STAGE) {
-		if (session->tt->suspend_conn_recv)
-			session->tt->suspend_conn_recv(conn);
-
-		session->tt->terminate_conn(conn);
-	}
 
 	spin_lock_bh(&session->lock);
 	conn->c_stage = ISCSI_CONN_CLEANUP_WAIT;
@@ -1622,8 +1616,9 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 	spin_unlock_bh(&session->lock);
 
-	if (session->tt->suspend_conn_recv)
-		session->tt->suspend_conn_recv(conn);
+	write_lock_bh(conn->recv_lock);
+	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
+	write_unlock_bh(conn->recv_lock);
 
 	mutex_lock(&conn->xmitmutex);
 	/*
@@ -1642,7 +1637,6 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 		}
 	}
 
-	session->tt->terminate_conn(conn);
 	/*
 	 * flush queues.
 	 */

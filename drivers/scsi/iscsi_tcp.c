@@ -1040,9 +1040,8 @@ iscsi_conn_set_callbacks(struct iscsi_conn *conn)
 }
 
 static void
-iscsi_conn_restore_callbacks(struct iscsi_conn *conn)
+iscsi_conn_restore_callbacks(struct iscsi_tcp_conn *tcp_conn)
 {
-	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct sock *sk = tcp_conn->sock->sk;
 
 	/* restore socket callbacks, see also: iscsi_conn_set_callbacks() */
@@ -1933,6 +1932,23 @@ tcp_conn_alloc_fail:
 }
 
 static void
+iscsi_tcp_release_conn(struct iscsi_conn *conn)
+{
+	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
+
+	if (!tcp_conn->sock)
+		return;
+
+	sock_hold(tcp_conn->sock->sk);
+	iscsi_conn_restore_callbacks(tcp_conn);
+	sock_put(tcp_conn->sock->sk);
+
+	sock_release(tcp_conn->sock);
+	tcp_conn->sock = NULL;
+	conn->recv_lock = NULL;
+}
+
+static void
 iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
@@ -1942,6 +1958,7 @@ iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
 	if (conn->hdrdgst_en || conn->datadgst_en)
 		digest = 1;
 
+	iscsi_tcp_release_conn(conn);
 	iscsi_conn_teardown(cls_conn);
 
 	/* now free tcp_conn */
@@ -1963,6 +1980,15 @@ iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
 		free_pages((unsigned long)tcp_conn->data,
 			   get_order(tcp_conn->data_size));
 	kfree(tcp_conn);
+}
+
+static void
+iscsi_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
+{
+	struct iscsi_conn *conn = cls_conn->dd_data;
+
+	iscsi_conn_stop(cls_conn, flag);
+	iscsi_tcp_release_conn(conn);
 }
 
 static int
@@ -2011,38 +2037,6 @@ iscsi_tcp_conn_bind(struct iscsi_cls_session *cls_session,
 	tcp_conn->in_progress = IN_PROGRESS_WAIT_HEADER;
 
 	return 0;
-}
-
-static void
-iscsi_tcp_suspend_conn_rx(struct iscsi_conn *conn)
-{
-	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-	struct sock *sk;
-
-	if (!tcp_conn->sock)
-		return;
-
-	sk = tcp_conn->sock->sk;
-	write_lock_bh(&sk->sk_callback_lock);
-	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
-	write_unlock_bh(&sk->sk_callback_lock);
-}
-
-static void
-iscsi_tcp_terminate_conn(struct iscsi_conn *conn)
-{
-	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-
-	if (!tcp_conn->sock)
-		return;
-
-	sock_hold(tcp_conn->sock->sk);
-	iscsi_conn_restore_callbacks(conn);
-	sock_put(tcp_conn->sock->sk);
-
-	sock_release(tcp_conn->sock);
-	tcp_conn->sock = NULL;
-	conn->recv_lock = NULL;
 }
 
 /* called with host lock */
@@ -2413,10 +2407,7 @@ static struct iscsi_transport iscsi_tcp_transport = {
 	.get_conn_param		= iscsi_tcp_conn_get_param,
 	.get_session_param	= iscsi_session_get_param,
 	.start_conn		= iscsi_conn_start,
-	.stop_conn		= iscsi_conn_stop,
-	/* these are called as part of conn recovery */
-	.suspend_conn_recv	= iscsi_tcp_suspend_conn_rx,
-	.terminate_conn		= iscsi_tcp_terminate_conn,
+	.stop_conn		= iscsi_tcp_conn_stop,
 	/* IO */
 	.send_pdu		= iscsi_conn_send_pdu,
 	.get_stats		= iscsi_conn_get_stats,
