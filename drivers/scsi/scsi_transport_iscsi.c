@@ -634,13 +634,13 @@ mempool_zone_get_skb(struct mempool_zone *zone)
 }
 
 static int
-iscsi_broadcast_skb(struct mempool_zone *zone, struct sk_buff *skb)
+iscsi_broadcast_skb(struct mempool_zone *zone, struct sk_buff *skb, gfp_t gfp)
 {
 	unsigned long flags;
 	int rc;
 
 	skb_get(skb);
-	rc = netlink_broadcast(nls, skb, 0, 1, GFP_KERNEL);
+	rc = netlink_broadcast(nls, skb, 0, 1, gfp);
 	if (rc < 0) {
 		mempool_free(skb, zone->pool);
 		printk(KERN_ERR "iscsi: can not broadcast skb (%d)\n", rc);
@@ -749,7 +749,7 @@ void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error)
 	ev->r.connerror.cid = conn->cid;
 	ev->r.connerror.sid = iscsi_conn_get_sid(conn);
 
-	iscsi_broadcast_skb(conn->z_error, skb);
+	iscsi_broadcast_skb(conn->z_error, skb, GFP_ATOMIC);
 
 	dev_printk(KERN_INFO, &conn->dev, "iscsi: detected conn error (%d)\n",
 		   error);
@@ -895,7 +895,7 @@ int iscsi_if_destroy_session_done(struct iscsi_cls_conn *conn)
 	 * this will occur if the daemon is not up, so we just warn
 	 * the user and when the daemon is restarted it will handle it
 	 */
-	rc = iscsi_broadcast_skb(conn->z_pdu, skb);
+	rc = iscsi_broadcast_skb(conn->z_pdu, skb, GFP_KERNEL);
 	if (rc < 0)
 		dev_printk(KERN_ERR, &conn->dev, "Cannot notify userspace of "
 			  "session destruction event. Check iscsi daemon\n");
@@ -958,7 +958,7 @@ int iscsi_if_create_session_done(struct iscsi_cls_conn *conn)
 	 * this will occur if the daemon is not up, so we just warn
 	 * the user and when the daemon is restarted it will handle it
 	 */
-	rc = iscsi_broadcast_skb(conn->z_pdu, skb);
+	rc = iscsi_broadcast_skb(conn->z_pdu, skb, GFP_KERNEL);
 	if (rc < 0)
 		dev_printk(KERN_ERR, &conn->dev, "Cannot notify userspace of "
 			  "session creation event. Check iscsi daemon\n");
