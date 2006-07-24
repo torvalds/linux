@@ -511,13 +511,28 @@ iscsi_tcp_hdr_recv(struct iscsi_conn *conn)
 		break;
 	case ISCSI_OP_LOGIN_RSP:
 	case ISCSI_OP_TEXT_RSP:
-	case ISCSI_OP_LOGOUT_RSP:
-	case ISCSI_OP_NOOP_IN:
 	case ISCSI_OP_REJECT:
 	case ISCSI_OP_ASYNC_EVENT:
+		/*
+		 * It is possible that we could get a PDU with a buffer larger
+		 * than 8K, but there are no targets that currently do this.
+		 * For now we fail until we find a vendor that needs it
+		 */
+		if (DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH <
+		    tcp_conn->in.datalen) {
+			printk(KERN_ERR "iscsi_tcp: received buffer of len %u "
+			      "but conn buffer is only %u (opcode %0x)\n",
+			      tcp_conn->in.datalen,
+			      DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH, opcode);
+			rc = ISCSI_ERR_PROTO;
+			break;
+		}
+
 		if (tcp_conn->in.datalen)
 			goto copy_hdr;
 	/* fall through */
+	case ISCSI_OP_LOGOUT_RSP:
+	case ISCSI_OP_NOOP_IN:
 	case ISCSI_OP_SCSI_TMFUNC_RSP:
 		rc = iscsi_complete_pdu(conn, hdr, NULL, 0);
 		break;
@@ -625,9 +640,9 @@ iscsi_ctask_copy(struct iscsi_tcp_conn *tcp_conn, struct iscsi_cmd_task *ctask,
  *	byte counters.
  **/
 static inline int
-iscsi_tcp_copy(struct iscsi_tcp_conn *tcp_conn)
+iscsi_tcp_copy(struct iscsi_conn *conn)
 {
-	void *buf = tcp_conn->data;
+	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	int buf_size = tcp_conn->in.datalen;
 	int buf_left = buf_size - tcp_conn->data_copied;
 	int size = min(tcp_conn->in.copy, buf_left);
@@ -638,7 +653,7 @@ iscsi_tcp_copy(struct iscsi_tcp_conn *tcp_conn)
 	BUG_ON(size <= 0);
 
 	rc = skb_copy_bits(tcp_conn->in.skb, tcp_conn->in.offset,
-			   (char*)buf + tcp_conn->data_copied, size);
+			   (char*)conn->data + tcp_conn->data_copied, size);
 	BUG_ON(rc);
 
 	tcp_conn->in.offset += size;
@@ -785,22 +800,21 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		spin_unlock(&conn->session->lock);
 	case ISCSI_OP_TEXT_RSP:
 	case ISCSI_OP_LOGIN_RSP:
-	case ISCSI_OP_NOOP_IN:
 	case ISCSI_OP_ASYNC_EVENT:
 	case ISCSI_OP_REJECT:
 		/*
 		 * Collect data segment to the connection's data
 		 * placeholder
 		 */
-		if (iscsi_tcp_copy(tcp_conn)) {
+		if (iscsi_tcp_copy(conn)) {
 			rc = -EAGAIN;
 			goto exit;
 		}
 
-		rc = iscsi_complete_pdu(conn, tcp_conn->in.hdr, tcp_conn->data,
+		rc = iscsi_complete_pdu(conn, tcp_conn->in.hdr, conn->data,
 					tcp_conn->in.datalen);
 		if (!rc && conn->datadgst_en && opcode != ISCSI_OP_LOGIN_RSP)
-			iscsi_recv_digest_update(tcp_conn, tcp_conn->data,
+			iscsi_recv_digest_update(tcp_conn, conn->data,
 			  			tcp_conn->in.datalen);
 		break;
 	default:
@@ -1911,21 +1925,9 @@ iscsi_tcp_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	tcp_conn->in_progress = IN_PROGRESS_WAIT_HEADER;
 	/* initial operational parameters */
 	tcp_conn->hdr_size = sizeof(struct iscsi_hdr);
-	tcp_conn->data_size = DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH;
-
-	/* allocate initial PDU receive place holder */
-	if (tcp_conn->data_size <= PAGE_SIZE)
-		tcp_conn->data = kmalloc(tcp_conn->data_size, GFP_KERNEL);
-	else
-		tcp_conn->data = (void*)__get_free_pages(GFP_KERNEL,
-					get_order(tcp_conn->data_size));
-	if (!tcp_conn->data)
-		goto max_recv_dlenght_alloc_fail;
 
 	return cls_conn;
 
-max_recv_dlenght_alloc_fail:
-	kfree(tcp_conn);
 tcp_conn_alloc_fail:
 	iscsi_conn_teardown(cls_conn);
 	return NULL;
@@ -1973,12 +1975,6 @@ iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
 			crypto_free_tfm(tcp_conn->data_rx_tfm);
 	}
 
-	/* free conn->data, size = MaxRecvDataSegmentLength */
-	if (tcp_conn->data_size <= PAGE_SIZE)
-		kfree(tcp_conn->data);
-	else
-		free_pages((unsigned long)tcp_conn->data,
-			   get_order(tcp_conn->data_size));
 	kfree(tcp_conn);
 }
 
@@ -2131,39 +2127,6 @@ iscsi_conn_set_param(struct iscsi_cls_conn *cls_conn, enum iscsi_param param,
 	int value;
 
 	switch(param) {
-	case ISCSI_PARAM_MAX_RECV_DLENGTH: {
-		char *saveptr = tcp_conn->data;
-		gfp_t flags = GFP_KERNEL;
-
-		sscanf(buf, "%d", &value);
-		if (tcp_conn->data_size >= value) {
-			iscsi_set_param(cls_conn, param, buf, buflen);
-			break;
-		}
-
-		spin_lock_bh(&session->lock);
-		if (conn->stop_stage == STOP_CONN_RECOVER)
-			flags = GFP_ATOMIC;
-		spin_unlock_bh(&session->lock);
-
-		if (value <= PAGE_SIZE)
-			tcp_conn->data = kmalloc(value, flags);
-		else
-			tcp_conn->data = (void*)__get_free_pages(flags,
-							     get_order(value));
-		if (tcp_conn->data == NULL) {
-			tcp_conn->data = saveptr;
-			return -ENOMEM;
-		}
-		if (tcp_conn->data_size <= PAGE_SIZE)
-			kfree(saveptr);
-		else
-			free_pages((unsigned long)saveptr,
-				   get_order(tcp_conn->data_size));
-		iscsi_set_param(cls_conn, param, buf, buflen);
-		tcp_conn->data_size = value;
-		break;
-		}
 	case ISCSI_PARAM_HDRDGST_EN:
 		iscsi_set_param(cls_conn, param, buf, buflen);
 		tcp_conn->hdr_size = sizeof(struct iscsi_hdr);

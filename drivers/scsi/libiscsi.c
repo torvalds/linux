@@ -360,6 +360,10 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 
 		switch(opcode) {
 		case ISCSI_OP_LOGOUT_RSP:
+			if (datalen) {
+				rc = ISCSI_ERR_PROTO;
+				break;
+			}
 			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
 			/* fall through */
 		case ISCSI_OP_LOGIN_RSP:
@@ -383,7 +387,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			iscsi_tmf_rsp(conn, hdr);
 			break;
 		case ISCSI_OP_NOOP_IN:
-			if (hdr->ttt != ISCSI_RESERVED_TAG) {
+			if (hdr->ttt != ISCSI_RESERVED_TAG || datalen) {
 				rc = ISCSI_ERR_PROTO;
 				break;
 			}
@@ -1405,7 +1409,7 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	data = kmalloc(DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH, GFP_KERNEL);
 	if (!data)
 		goto login_mtask_data_alloc_fail;
-	conn->login_mtask->data = data;
+	conn->login_mtask->data = conn->data = data;
 
 	init_timer(&conn->tmabort_timer);
 	mutex_init(&conn->xmitmutex);
@@ -1477,7 +1481,7 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 	}
 
 	spin_lock_bh(&session->lock);
-	kfree(conn->login_mtask->data);
+	kfree(conn->data);
 	__kfifo_put(session->mgmtpool.queue, (void*)&conn->login_mtask,
 		    sizeof(void*));
 	list_del(&conn->item);

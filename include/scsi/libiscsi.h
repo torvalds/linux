@@ -135,6 +135,14 @@ struct iscsi_conn {
 	int			id;		/* CID */
 	struct list_head	item;		/* maintains list of conns */
 	int			c_stage;	/* connection state */
+	/*
+	 * Preallocated buffer for pdus that have data but do not
+	 * originate from scsi-ml. We never have two pdus using the
+	 * buffer at the same time. It is only allocated to
+	 * the default max recv size because the pdus we support
+	 * should always fit in this buffer
+	 */
+	char			*data;
 	struct iscsi_mgmt_task	*login_mtask;	/* mtask used for login/text */
 	struct iscsi_mgmt_task	*mtask;		/* xmit mtask in progress */
 	struct iscsi_cmd_task	*ctask;		/* xmit ctask in progress */
