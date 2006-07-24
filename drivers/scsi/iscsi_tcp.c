@@ -843,7 +843,7 @@ more:
 		       if (rc == -EAGAIN)
 				goto nomore;
 		       else {
-				iscsi_conn_failure(conn, rc);
+				iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 				return 0;
 		       }
 		}
@@ -859,7 +859,7 @@ more:
 			}
 			tcp_conn->in_progress = IN_PROGRESS_DATA_RECV;
 		} else if (rc) {
-			iscsi_conn_failure(conn, rc);
+			iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 			return 0;
 		}
 	}
@@ -897,7 +897,7 @@ more:
 		if (rc) {
 			if (rc == -EAGAIN)
 				goto again;
-			iscsi_conn_failure(conn, rc);
+			iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 			return 0;
 		}
 		tcp_conn->in.copy -= tcp_conn->in.padding;
