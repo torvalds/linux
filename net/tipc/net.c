@@ -160,14 +160,11 @@ void tipc_net_send_external_routes(u32 dest)
 
 static int net_init(void)
 {
-	u32 sz = sizeof(struct _zone *) * (tipc_max_zones + 1);
-
 	memset(&tipc_net, 0, sizeof(tipc_net));
-	tipc_net.zones = (struct _zone **)kmalloc(sz, GFP_ATOMIC);
+	tipc_net.zones = kcalloc(tipc_max_zones + 1, sizeof(struct _zone *), GFP_ATOMIC);
 	if (!tipc_net.zones) {
 		return -ENOMEM;
 	}
-	memset(tipc_net.zones, 0, sz);
 	return TIPC_OK;
 }
 

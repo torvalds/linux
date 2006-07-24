@@ -296,7 +296,7 @@ void irlan_provider_send_reply(struct irlan_cb *self, int command,
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
-	skb = dev_alloc_skb(128);
+	skb = alloc_skb(128, GFP_ATOMIC);
 	if (!skb)
 		return;
 

@@ -239,6 +239,8 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	total_ticks = (unsigned int) cputime64_sub(cur_jiffies,
 			this_dbs_info->prev_cpu_wall);
 	this_dbs_info->prev_cpu_wall = cur_jiffies;
+	if (!total_ticks)
+		return;
 	/*
 	 * Every sampling_rate, we check, if current idle time is less
 	 * than 20% (default), then we try to increase frequency
@@ -304,6 +306,9 @@ static void do_dbs_timer(void *data)
 	unsigned int cpu = smp_processor_id();
 	struct cpu_dbs_info_s *dbs_info = &per_cpu(cpu_dbs_info, cpu);
 
+	if (!dbs_info->enable)
+		return;
+
 	dbs_check_cpu(dbs_info);
 	queue_delayed_work_on(cpu, kondemand_wq, &dbs_info->work,
 			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
@@ -319,11 +324,11 @@ static inline void dbs_timer_init(unsigned int cpu)
 	return;
 }
 
-static inline void dbs_timer_exit(unsigned int cpu)
+static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
 {
-	struct cpu_dbs_info_s *dbs_info = &per_cpu(cpu_dbs_info, cpu);
-
-	cancel_rearming_delayed_workqueue(kondemand_wq, &dbs_info->work);
+	dbs_info->enable = 0;
+	cancel_delayed_work(&dbs_info->work);
+	flush_workqueue(kondemand_wq);
 }
 
 static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
@@ -396,8 +401,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 	case CPUFREQ_GOV_STOP:
 		mutex_lock(&dbs_mutex);
-		dbs_timer_exit(policy->cpu);
-		this_dbs_info->enable = 0;
+		dbs_timer_exit(this_dbs_info);
 		sysfs_remove_group(&policy->kobj, &dbs_attr_group);
 		dbs_enable--;
 		if (dbs_enable == 0)

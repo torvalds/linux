@@ -8451,10 +8451,11 @@ __qeth_reboot_event_card(struct device *dev, void *data)
 static int
 qeth_reboot_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
+	int ret;
 
-	driver_for_each_device(&qeth_ccwgroup_driver.driver, NULL, NULL,
-			       __qeth_reboot_event_card);
-	return NOTIFY_DONE;
+	ret = driver_for_each_device(&qeth_ccwgroup_driver.driver, NULL, NULL,
+				     __qeth_reboot_event_card);
+	return ret ? NOTIFY_BAD : NOTIFY_DONE;
 }
 
 

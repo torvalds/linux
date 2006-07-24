@@ -476,11 +476,10 @@ dev_irnet_open(struct inode *	inode,
 #endif /* SECURE_DEVIRNET */
 
   /* Allocate a private structure for this IrNET instance */
-  ap = kmalloc(sizeof(*ap), GFP_KERNEL);
+  ap = kzalloc(sizeof(*ap), GFP_KERNEL);
   DABORT(ap == NULL, -ENOMEM, FS_ERROR, "Can't allocate struct irnet...\n");
 
   /* initialize the irnet structure */
-  memset(ap, 0, sizeof(*ap));
   ap->file = file;
 
   /* PPP channel setup */

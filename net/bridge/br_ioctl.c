@@ -162,11 +162,9 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (num > BR_MAX_PORTS)
 			num = BR_MAX_PORTS;
 
-		indices = kmalloc(num*sizeof(int), GFP_KERNEL);
+		indices = kcalloc(num, sizeof(int), GFP_KERNEL);
 		if (indices == NULL)
 			return -ENOMEM;
-
-		memset(indices, 0, num*sizeof(int));
 
 		get_port_ifindices(br, indices, num);
 		if (copy_to_user((void __user *)args[1], indices, num*sizeof(int)))
@@ -327,11 +325,10 @@ static int old_deviceless(void __user *uarg)
 
 		if (args[2] >= 2048)
 			return -ENOMEM;
-		indices = kmalloc(args[2]*sizeof(int), GFP_KERNEL);
+		indices = kcalloc(args[2], sizeof(int), GFP_KERNEL);
 		if (indices == NULL)
 			return -ENOMEM;
 
-		memset(indices, 0, args[2]*sizeof(int));
 		args[2] = get_bridge_ifindices(indices, args[2]);
 
 		ret = copy_to_user((void __user *)args[1], indices, args[2]*sizeof(int))

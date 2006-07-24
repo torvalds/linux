@@ -243,25 +243,6 @@ ahd_print_path(struct ahd_softc *ahd, struct scb *scb)
 static uint32_t aic79xx_no_reset;
 
 /*
- * Certain PCI motherboards will scan PCI devices from highest to lowest,
- * others scan from lowest to highest, and they tend to do all kinds of
- * strange things when they come into contact with PCI bridge chips.  The
- * net result of all this is that the PCI card that is actually used to boot
- * the machine is very hard to detect.  Most motherboards go from lowest
- * PCI slot number to highest, and the first SCSI controller found is the
- * one you boot from.  The only exceptions to this are when a controller
- * has its BIOS disabled.  So, we by default sort all of our SCSI controllers
- * from lowest PCI slot number to highest PCI slot number.  We also force
- * all controllers with their BIOS disabled to the end of the list.  This
- * works on *almost* all computers.  Where it doesn't work, we have this
- * option.  Setting this option to non-0 will reverse the order of the sort
- * to highest first, then lowest, but will still leave cards with their BIOS
- * disabled at the very end.  That should fix everyone up unless there are
- * really strange cirumstances.
- */
-static uint32_t aic79xx_reverse_scan;
-
-/*
  * Should we force EXTENDED translation on a controller.
  *     0 == Use whatever is in the SEEPROM or default to off
  *     1 == Use whatever is in the SEEPROM or default to on
@@ -350,7 +331,6 @@ MODULE_PARM_DESC(aic79xx,
 "				periodically to prevent tag starvation.\n"
 "				This may be required by some older disk\n"
 "				or drives/RAID arrays.\n"
-"	reverse_scan		Sort PCI devices highest Bus/Slot to lowest\n"
 "	tag_info:<tag_str>	Set per-target tag depth\n"
 "	global_tag_depth:<int>	Global tag depth for all targets on all buses\n"
 "	slewrate:<slewrate_list>Set the signal slew rate (0-15).\n"
@@ -1031,7 +1011,6 @@ aic79xx_setup(char *s)
 #ifdef AHD_DEBUG
 		{ "debug", &ahd_debug },
 #endif
-		{ "reverse_scan", &aic79xx_reverse_scan },
 		{ "periodic_otag", &aic79xx_periodic_otag },
 		{ "pci_parity", &aic79xx_pci_parity },
 		{ "seltime", &aic79xx_seltime },

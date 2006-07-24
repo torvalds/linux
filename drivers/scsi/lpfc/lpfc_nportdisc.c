@@ -1110,6 +1110,17 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_hba * phba,
 				phba->brd_no,
 				did, mb->mbxStatus, phba->hba_state);
 
+		/*
+		 * If RegLogin failed due to lack of HBA resources do not
+		 * retry discovery.
+		 */
+		if (mb->mbxStatus == MBXERR_RPI_FULL) {
+			ndlp->nlp_prev_state = NLP_STE_UNUSED_NODE;
+			ndlp->nlp_state = NLP_STE_UNUSED_NODE;
+			lpfc_nlp_list(phba, ndlp, NLP_UNUSED_LIST);
+			return ndlp->nlp_state;
+		}
+
 		/* Put ndlp in npr list set plogi timer for 1 sec */
 		mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ * 1);
 		spin_lock_irq(phba->host->host_lock);

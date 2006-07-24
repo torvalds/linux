@@ -430,7 +430,11 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	/* The check for association's overall error counter exceeding the
 	 * threshold is done in the state function.
 	 */
-	asoc->overall_error_count++;
+	/* When probing UNCONFIRMED addresses, the association overall
+	 * error count is NOT incremented
+	 */
+	if (transport->state != SCTP_UNCONFIRMED)
+		asoc->overall_error_count++;
 
 	if (transport->state != SCTP_INACTIVE &&
 	    (transport->error_count++ >= transport->pathmaxrxt)) {
@@ -610,7 +614,7 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	/* Mark the destination transport address as active if it is not so
 	 * marked.
 	 */
-	if (t->state == SCTP_INACTIVE)
+	if ((t->state == SCTP_INACTIVE) || (t->state == SCTP_UNCONFIRMED))
 		sctp_assoc_control_transport(asoc, t, SCTP_TRANSPORT_UP,
 					     SCTP_HEARTBEAT_SUCCESS);
 
@@ -620,6 +624,10 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	 */
 	hbinfo = (sctp_sender_hb_info_t *) chunk->skb->data;
 	sctp_transport_update_rto(t, (jiffies - hbinfo->sent_at));
+
+	/* Update the heartbeat timer.  */
+	if (!mod_timer(&t->hb_timer, sctp_transport_timeout(t)))
+		sctp_transport_hold(t);
 }
 
 /* Helper function to do a transport reset at the expiry of the hearbeat

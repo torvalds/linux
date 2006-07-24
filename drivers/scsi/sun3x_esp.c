@@ -347,7 +347,7 @@ static void dma_mmu_release_scsi_one (struct NCR_ESP *esp, Scsi_Cmnd *sp)
 static void dma_mmu_release_scsi_sgl (struct NCR_ESP *esp, Scsi_Cmnd *sp)
 {
     int sz = sp->use_sg - 1;
-    struct scatterlist *sg = (struct scatterlist *)sp->buffer;
+    struct scatterlist *sg = (struct scatterlist *)sp->request_buffer;
                         
     while(sz >= 0) {
         dvma_unmap((char *)sg[sz].dma_address);

@@ -135,8 +135,6 @@ struct lpfc_sli_ring {
 	uint32_t fast_iotag;	/* max fastlookup based iotag           */
 	uint32_t iotag_ctr;	/* keeps track of the next iotag to use */
 	uint32_t iotag_max;	/* max iotag value to use               */
-	struct lpfc_iocbq ** fast_lookup; /* array of IOCB ptrs indexed by
-					   iotag */
 	struct list_head txq;
 	uint16_t txq_cnt;	/* current length of queue */
 	uint16_t txq_max;	/* max length */

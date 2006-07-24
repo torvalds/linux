@@ -273,7 +273,7 @@ startup_continue:
 .Lbss_end:  .long _end
 .Lparmaddr: .long PARMAREA
 .Lsccbaddr: .long .Lsccb
-	.align	4096
+	.org	0x12000
 .Lsccb:
 	.hword	0x1000			# length, one page
 	.byte	0x00,0x00,0x00
@@ -290,7 +290,7 @@ startup_continue:
 .Lscpincr2:
 	.quad	0x00
 	.fill	3984,1,0
-	.align	4096
+	.org	0x13000
 
 #ifdef CONFIG_SHARED_KERNEL
 	.org	0x100000

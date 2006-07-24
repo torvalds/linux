@@ -76,13 +76,21 @@ struct tape_class_device *register_tape_dev(
 				device,
 				"%s", tcd->device_name
 			);
-	sysfs_create_link(
+	rc = PTR_ERR(tcd->class_device);
+	if (rc)
+		goto fail_with_cdev;
+	rc = sysfs_create_link(
 		&device->kobj,
 		&tcd->class_device->kobj,
 		tcd->mode_name
 	);
+	if (rc)
+		goto fail_with_class_device;
 
 	return tcd;
+
+fail_with_class_device:
+	class_device_destroy(tape_class, tcd->char_device->dev);
 
 fail_with_cdev:
 	cdev_del(tcd->char_device);

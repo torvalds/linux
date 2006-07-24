@@ -191,35 +191,12 @@ static int
 lpfc_sli_ringtxcmpl_put(struct lpfc_hba * phba,
 			struct lpfc_sli_ring * pring, struct lpfc_iocbq * piocb)
 {
-	uint16_t iotag;
-
 	list_add_tail(&piocb->list, &pring->txcmplq);
 	pring->txcmplq_cnt++;
 	if (unlikely(pring->ringno == LPFC_ELS_RING))
 		mod_timer(&phba->els_tmofunc,
 					jiffies + HZ * (phba->fc_ratov << 1));
 
-	if (pring->fast_lookup) {
-		/* Setup fast lookup based on iotag for completion */
-		iotag = piocb->iocb.ulpIoTag;
-		if (iotag && (iotag < pring->fast_iotag))
-			*(pring->fast_lookup + iotag) = piocb;
-		else {
-
-			/* Cmd ring <ringno> put: iotag <iotag> greater then
-			   configured max <fast_iotag> wd0 <icmd> */
-			lpfc_printf_log(phba,
-					KERN_ERR,
-					LOG_SLI,
-					"%d:0316 Cmd ring %d put: iotag x%x "
-					"greater then configured max x%x "
-					"wd0 x%x\n",
-					phba->brd_no,
-					pring->ringno, iotag,
-					pring->fast_iotag,
-					*(((uint32_t *)(&piocb->iocb)) + 7));
-		}
-	}
 	return (0);
 }
 
@@ -601,7 +578,7 @@ lpfc_sli_handle_mb_event(struct lpfc_hba * phba)
 			/* Stray Mailbox Interrupt, mbxCommand <cmd> mbxStatus
 			   <status> */
 			lpfc_printf_log(phba,
-					KERN_ERR,
+					KERN_WARNING,
 					LOG_MBOX | LOG_SLI,
 					"%d:0304 Stray Mailbox Interrupt "
 					"mbxCommand x%x mbxStatus x%x\n",
@@ -1570,8 +1547,8 @@ lpfc_sli_brdready(struct lpfc_hba * phba, uint32_t mask)
 
 void lpfc_reset_barrier(struct lpfc_hba * phba)
 {
-	uint32_t * resp_buf;
-	uint32_t * mbox_buf;
+	uint32_t __iomem *resp_buf;
+	uint32_t __iomem *mbox_buf;
 	volatile uint32_t mbox;
 	uint32_t hc_copy;
 	int  i;
@@ -1587,7 +1564,7 @@ void lpfc_reset_barrier(struct lpfc_hba * phba)
 	 * Tell the other part of the chip to suspend temporarily all
 	 * its DMA activity.
 	 */
-	resp_buf =  (uint32_t *)phba->MBslimaddr;
+	resp_buf = phba->MBslimaddr;
 
 	/* Disable the error attention */
 	hc_copy = readl(phba->HCregaddr);
@@ -1605,7 +1582,7 @@ void lpfc_reset_barrier(struct lpfc_hba * phba)
 	((MAILBOX_t *)&mbox)->mbxOwner = OWN_CHIP;
 
 	writel(BARRIER_TEST_PATTERN, (resp_buf + 1));
-	mbox_buf = (uint32_t *)phba->MBslimaddr;
+	mbox_buf = phba->MBslimaddr;
 	writel(mbox, mbox_buf);
 
 	for (i = 0;
@@ -1805,7 +1782,7 @@ lpfc_sli_brdrestart(struct lpfc_hba * phba)
 		skip_post = 0;
 		word0 = 0;	/* This is really setting up word1 */
 	}
-	to_slim = (uint8_t *) phba->MBslimaddr + sizeof (uint32_t);
+	to_slim = phba->MBslimaddr + sizeof (uint32_t);
 	writel(*(uint32_t *) mb, to_slim);
 	readl(to_slim); /* flush */
 
@@ -2659,8 +2636,6 @@ lpfc_sli_hba_down(struct lpfc_hba * phba)
 
 		INIT_LIST_HEAD(&(pring->txq));
 
-		kfree(pring->fast_lookup);
-		pring->fast_lookup = NULL;
 	}
 
 	spin_unlock_irqrestore(phba->host->host_lock, flags);
@@ -3108,6 +3083,24 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&done_q, &wq_entry);
 	return retval;
+}
+
+int
+lpfc_sli_flush_mbox_queue(struct lpfc_hba * phba)
+{
+	int i = 0;
+
+	while (phba->sli.sli_flag & LPFC_SLI_MBOX_ACTIVE && !phba->stopped) {
+		if (i++ > LPFC_MBOX_TMO * 1000)
+			return 1;
+
+		if (lpfc_sli_handle_mb_event(phba) == 0)
+			i = 0;
+
+		msleep(1);
+	}
+
+	return (phba->sli.sli_flag & LPFC_SLI_MBOX_ACTIVE) ? 1 : 0;
 }
 
 irqreturn_t

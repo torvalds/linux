@@ -329,7 +329,7 @@ void handler_irq(int irq, struct pt_regs * regs)
 	disable_pil_irq(irq);
 #ifdef CONFIG_SMP
 	/* Only rotate on lower priority IRQ's (scsi, ethernet, etc.). */
-	if(irq < 10)
+	if((sparc_cpu_model==sun4m) && (irq < 10))
 		smp4m_irq_rotate(cpu);
 #endif
 	action = sparc_irq[irq].action;
