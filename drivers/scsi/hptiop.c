@@ -577,7 +577,7 @@ static int hptiop_reset_hba(struct hptiop_hba *hba)
 	if (atomic_xchg(&hba->resetting, 1) == 0) {
 		atomic_inc(&hba->reset_count);
 		writel(IOPMU_INBOUND_MSG0_RESET,
-				&hba->iop->outbound_msgaddr0);
+				&hba->iop->inbound_msgaddr0);
 		hptiop_pci_posting_flush(hba->iop);
 	}
 
