@@ -1497,8 +1497,10 @@ static int hdlcdev_open(struct net_device *dev)
 	spin_lock_irqsave(&info->lock, flags);
 	get_signals(info);
 	spin_unlock_irqrestore(&info->lock, flags);
-	hdlc_set_carrier(info->signals & SerialSignal_DCD, dev);
-
+	if (info->signals & SerialSignal_DCD)
+		netif_carrier_on(dev);
+	else
+		netif_carrier_off(dev);
 	return 0;
 }
 
@@ -1997,8 +1999,12 @@ static void dcd_change(struct slgt_info *info)
 		info->input_signal_events.dcd_down++;
 	}
 #ifdef CONFIG_HDLC
-	if (info->netcount)
-		hdlc_set_carrier(info->signals & SerialSignal_DCD, info->netdev);
+	if (info->netcount) {
+		if (info->signals & SerialSignal_DCD)
+			netif_carrier_on(info->netdev);
+		else
+			netif_carrier_off(info->netdev);
+	}
 #endif
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);

@@ -1002,7 +1002,7 @@ connect_loop:
 			}
 #endif
 
-			buffer = (struct scatterlist *) SCint->buffer;
+			buffer = (struct scatterlist *) SCint->request_buffer;
 			len = buffer->length;
 			data = page_address(buffer->page) + buffer->offset;
 		} else {

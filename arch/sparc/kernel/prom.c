@@ -444,6 +444,7 @@ static struct property * __init build_one_prop(phandle node, char *prev, char *s
 	static struct property *tmp = NULL;
 	struct property *p;
 	int len;
+	const char *name;
 
 	if (tmp) {
 		p = tmp;
@@ -456,19 +457,21 @@ static struct property * __init build_one_prop(phandle node, char *prev, char *s
 
 	p->name = (char *) (p + 1);
 	if (special_name) {
+		strcpy(p->name, special_name);
 		p->length = special_len;
 		p->value = prom_early_alloc(special_len);
 		memcpy(p->value, special_val, special_len);
 	} else {
 		if (prev == NULL) {
-			prom_firstprop(node, p->name);
+			name = prom_firstprop(node, NULL);
 		} else {
-			prom_nextprop(node, prev, p->name);
+			name = prom_nextprop(node, prev, NULL);
 		}
-		if (strlen(p->name) == 0) {
+		if (strlen(name) == 0) {
 			tmp = p;
 			return NULL;
 		}
+		strcpy(p->name, name);
 		p->length = prom_getproplen(node, p->name);
 		if (p->length <= 0) {
 			p->length = 0;

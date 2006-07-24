@@ -1047,12 +1047,13 @@ static int __devinit sab_probe(struct of_device *op, const struct of_device_id *
 	up = &sunsab_ports[inst * 2];
 
 	err = sunsab_init_one(&up[0], op,
-			      sizeof(union sab82532_async_regs),
+			      0,
 			      (inst * 2) + 0);
 	if (err)
 		return err;
 
-	err = sunsab_init_one(&up[1], op, 0,
+	err = sunsab_init_one(&up[1], op,
+			      sizeof(union sab82532_async_regs),
 			      (inst * 2) + 1);
 	if (err) {
 		of_iounmap(up[0].port.membase,
@@ -1117,7 +1118,7 @@ static int __init sunsab_init(void)
 	int err;
 
 	num_channels = 0;
-	for_each_node_by_name(dp, "su")
+	for_each_node_by_name(dp, "se")
 		num_channels += 2;
 	for_each_node_by_name(dp, "serial") {
 		if (of_device_is_compatible(dp, "sab82532"))

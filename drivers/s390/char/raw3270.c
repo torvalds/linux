@@ -1106,10 +1106,10 @@ raw3270_delete_device(struct raw3270 *rp)
 
 	/* Remove from device chain. */
 	mutex_lock(&raw3270_mutex);
-	if (rp->clttydev)
+	if (rp->clttydev && !IS_ERR(rp->clttydev))
 		class_device_destroy(class3270,
 				     MKDEV(IBM_TTY3270_MAJOR, rp->minor));
-	if (rp->cltubdev)
+	if (rp->cltubdev && !IS_ERR(rp->cltubdev))
 		class_device_destroy(class3270,
 				     MKDEV(IBM_FS3270_MAJOR, rp->minor));
 	list_del_init(&rp->list);
@@ -1173,21 +1173,37 @@ static struct attribute_group raw3270_attr_group = {
 	.attrs = raw3270_attrs,
 };
 
-static void
-raw3270_create_attributes(struct raw3270 *rp)
+static int raw3270_create_attributes(struct raw3270 *rp)
 {
-	//FIXME: check return code
-	sysfs_create_group(&rp->cdev->dev.kobj, &raw3270_attr_group);
-	rp->clttydev =
-		class_device_create(class3270, NULL,
-				    MKDEV(IBM_TTY3270_MAJOR, rp->minor),
-				    &rp->cdev->dev, "tty%s",
-				    rp->cdev->dev.bus_id);
-	rp->cltubdev =
-		class_device_create(class3270, NULL,
-				    MKDEV(IBM_FS3270_MAJOR, rp->minor),
-				    &rp->cdev->dev, "tub%s",
-				    rp->cdev->dev.bus_id);
+	int rc;
+
+	rc = sysfs_create_group(&rp->cdev->dev.kobj, &raw3270_attr_group);
+	if (rc)
+		goto out;
+
+	rp->clttydev = class_device_create(class3270, NULL,
+					   MKDEV(IBM_TTY3270_MAJOR, rp->minor),
+					   &rp->cdev->dev, "tty%s",
+					   rp->cdev->dev.bus_id);
+	if (IS_ERR(rp->clttydev)) {
+		rc = PTR_ERR(rp->clttydev);
+		goto out_ttydev;
+	}
+
+	rp->cltubdev = class_device_create(class3270, NULL,
+					   MKDEV(IBM_FS3270_MAJOR, rp->minor),
+					   &rp->cdev->dev, "tub%s",
+					   rp->cdev->dev.bus_id);
+	if (!IS_ERR(rp->cltubdev))
+		goto out;
+
+	rc = PTR_ERR(rp->cltubdev);
+	class_device_destroy(class3270, MKDEV(IBM_TTY3270_MAJOR, rp->minor));
+
+out_ttydev:
+	sysfs_remove_group(&rp->cdev->dev.kobj, &raw3270_attr_group);
+out:
+	return rc;
 }
 
 /*
@@ -1255,7 +1271,9 @@ raw3270_set_online (struct ccw_device *cdev)
 	rc = raw3270_reset_device(rp);
 	if (rc)
 		goto failure;
-	raw3270_create_attributes(rp);
+	rc = raw3270_create_attributes(rp);
+	if (rc)
+		goto failure;
 	set_bit(RAW3270_FLAGS_READY, &rp->flags);
 	mutex_lock(&raw3270_mutex);
 	list_for_each_entry(np, &raw3270_notifier, list)

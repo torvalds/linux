@@ -551,6 +551,11 @@ struct aha152x_hostdata {
 struct aha152x_scdata {
 	Scsi_Cmnd *next;	/* next sc in queue */
 	struct semaphore *sem;	/* semaphore to block on */
+	unsigned char cmd_len;
+	unsigned char cmnd[MAX_COMMAND_SIZE];
+	unsigned short use_sg;
+	unsigned request_bufflen;
+	void *request_buffer;
 };
 
 
@@ -1006,11 +1011,20 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct semaphore *sem, int p
 			return FAILED;
 		}
 	} else {
+		struct aha152x_scdata *sc;
+
 		SCpnt->host_scribble = kmalloc(sizeof(struct aha152x_scdata), GFP_ATOMIC);
 		if(SCpnt->host_scribble==0) {
 			printk(ERR_LEAD "allocation failed\n", CMDINFO(SCpnt));
 			return FAILED;
 		}
+
+		sc = SCDATA(SCpnt);
+		memcpy(sc->cmnd, SCpnt->cmnd, sizeof(sc->cmnd));
+		sc->request_buffer  = SCpnt->request_buffer;
+		sc->request_bufflen = SCpnt->request_bufflen;
+		sc->use_sg          = SCpnt->use_sg;
+		sc->cmd_len         = SCpnt->cmd_len;
 	}
 
 	SCNEXT(SCpnt)		= NULL;
@@ -1165,6 +1179,10 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	DECLARE_MUTEX_LOCKED(sem);
 	struct timer_list timer;
 	int ret, issued, disconnected;
+	unsigned char old_cmd_len = SCpnt->cmd_len;
+	unsigned short old_use_sg = SCpnt->use_sg;
+	void *old_buffer = SCpnt->request_buffer;
+	unsigned old_bufflen = SCpnt->request_bufflen;
 	unsigned long flags;
 
 #if defined(AHA152X_DEBUG)
@@ -1198,11 +1216,11 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	add_timer(&timer);
 	down(&sem);
 	del_timer(&timer);
-	
-	SCpnt->cmd_len         = SCpnt->old_cmd_len;
-	SCpnt->use_sg          = SCpnt->old_use_sg;
-  	SCpnt->request_buffer  = SCpnt->buffer;
-       	SCpnt->request_bufflen = SCpnt->bufflen;
+
+	SCpnt->cmd_len         = old_cmd_len;
+	SCpnt->use_sg          = old_use_sg;
+  	SCpnt->request_buffer  = old_buffer;
+       	SCpnt->request_bufflen = old_bufflen;
 
 	DO_LOCK(flags);
 
@@ -1565,6 +1583,9 @@ static void busfree_run(struct Scsi_Host *shpnt)
 #endif
 
 		if(DONE_SC->SCp.phase & check_condition) {
+			struct scsi_cmnd *cmd = HOSTDATA(shpnt)->done_SC;
+			struct aha152x_scdata *sc = SCDATA(cmd);
+
 #if 0
 			if(HOSTDATA(shpnt)->debug & debug_eh) {
 				printk(ERR_LEAD "received sense: ", CMDINFO(DONE_SC));
@@ -1573,13 +1594,13 @@ static void busfree_run(struct Scsi_Host *shpnt)
 #endif
 
 			/* restore old command */
-			memcpy((void *) DONE_SC->cmnd, (void *) DONE_SC->data_cmnd, sizeof(DONE_SC->data_cmnd));
-			DONE_SC->request_buffer  = DONE_SC->buffer;
-			DONE_SC->request_bufflen = DONE_SC->bufflen;
-			DONE_SC->use_sg          = DONE_SC->old_use_sg;
-			DONE_SC->cmd_len         = DONE_SC->old_cmd_len;
+			memcpy(cmd->cmnd, sc->cmnd, sizeof(sc->cmnd));
+			cmd->request_buffer  = sc->request_buffer;
+			cmd->request_bufflen = sc->request_bufflen;
+			cmd->use_sg          = sc->use_sg;
+			cmd->cmd_len         = sc->cmd_len;
 
-			DONE_SC->SCp.Status = 0x02;
+			cmd->SCp.Status = 0x02;
 
 			HOSTDATA(shpnt)->commands--;
 			if (!HOSTDATA(shpnt)->commands)

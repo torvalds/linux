@@ -121,7 +121,7 @@ int ircomm_param_request(struct ircomm_tty_cb *self, __u8 pi, int flush)
 
 	skb = self->ctrl_skb;	
 	if (!skb) {
-		skb = dev_alloc_skb(256);
+		skb = alloc_skb(256, GFP_ATOMIC);
 		if (!skb) {
 			spin_unlock_irqrestore(&self->spinlock, flags);
 			return -ENOMEM;

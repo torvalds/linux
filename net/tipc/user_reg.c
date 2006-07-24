@@ -82,9 +82,8 @@ static int reg_init(void)
 	
 	spin_lock_bh(&reg_lock);
 	if (!users) {
-		users = (struct tipc_user *)kmalloc(USER_LIST_SIZE, GFP_ATOMIC);
+		users = kzalloc(USER_LIST_SIZE, GFP_ATOMIC);
 		if (users) {
-			memset(users, 0, USER_LIST_SIZE);
 			for (i = 1; i <= MAX_USERID; i++) {
 				users[i].next = i - 1;
 			}

@@ -1676,10 +1676,8 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 LAPB module
-P:	Henner Eisen
-M:	eis@baty.hanse.de
 L:	linux-x25@vger.kernel.org
-S:	Maintained
+S:	Orphan
 
 LASI 53c700 driver for PARISC
 P:	James E.J. Bottomley

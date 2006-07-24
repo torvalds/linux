@@ -16,56 +16,48 @@
 #include <linux/mutex.h>
 
 /* This protects CPUs going up and down... */
-static DEFINE_MUTEX(cpucontrol);
+static DEFINE_MUTEX(cpu_add_remove_lock);
+static DEFINE_MUTEX(cpu_bitmask_lock);
 
 static __cpuinitdata BLOCKING_NOTIFIER_HEAD(cpu_chain);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static struct task_struct *lock_cpu_hotplug_owner;
-static int lock_cpu_hotplug_depth;
 
-static int __lock_cpu_hotplug(int interruptible)
-{
-	int ret = 0;
-
-	if (lock_cpu_hotplug_owner != current) {
-		if (interruptible)
-			ret = mutex_lock_interruptible(&cpucontrol);
-		else
-			mutex_lock(&cpucontrol);
-	}
-
-	/*
-	 * Set only if we succeed in locking
-	 */
-	if (!ret) {
-		lock_cpu_hotplug_depth++;
-		lock_cpu_hotplug_owner = current;
-	}
-
-	return ret;
-}
+/* Crappy recursive lock-takers in cpufreq! Complain loudly about idiots */
+static struct task_struct *recursive;
+static int recursive_depth;
 
 void lock_cpu_hotplug(void)
 {
-	__lock_cpu_hotplug(0);
+	struct task_struct *tsk = current;
+
+	if (tsk == recursive) {
+		static int warnings = 10;
+		if (warnings) {
+			printk(KERN_ERR "Lukewarm IQ detected in hotplug locking\n");
+			WARN_ON(1);
+			warnings--;
+		}
+		recursive_depth++;
+		return;
+	}
+	mutex_lock(&cpu_bitmask_lock);
+	recursive = tsk;
 }
 EXPORT_SYMBOL_GPL(lock_cpu_hotplug);
 
 void unlock_cpu_hotplug(void)
 {
-	if (--lock_cpu_hotplug_depth == 0) {
-		lock_cpu_hotplug_owner = NULL;
-		mutex_unlock(&cpucontrol);
+	WARN_ON(recursive != current);
+	if (recursive_depth) {
+		recursive_depth--;
+		return;
 	}
+	mutex_unlock(&cpu_bitmask_lock);
+	recursive = NULL;
 }
 EXPORT_SYMBOL_GPL(unlock_cpu_hotplug);
 
-int lock_cpu_hotplug_interruptible(void)
-{
-	return __lock_cpu_hotplug(1);
-}
-EXPORT_SYMBOL_GPL(lock_cpu_hotplug_interruptible);
 #endif	/* CONFIG_HOTPLUG_CPU */
 
 /* Need to know about CPUs going up/down? */
@@ -122,9 +114,7 @@ int cpu_down(unsigned int cpu)
 	struct task_struct *p;
 	cpumask_t old_allowed, tmp;
 
-	if ((err = lock_cpu_hotplug_interruptible()) != 0)
-		return err;
-
+	mutex_lock(&cpu_add_remove_lock);
 	if (num_online_cpus() == 1) {
 		err = -EBUSY;
 		goto out;
@@ -150,7 +140,10 @@ int cpu_down(unsigned int cpu)
 	cpu_clear(cpu, tmp);
 	set_cpus_allowed(current, tmp);
 
+	mutex_lock(&cpu_bitmask_lock);
 	p = __stop_machine_run(take_cpu_down, NULL, cpu);
+	mutex_unlock(&cpu_bitmask_lock);
+
 	if (IS_ERR(p)) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
 		if (blocking_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED,
@@ -187,7 +180,7 @@ out_thread:
 out_allowed:
 	set_cpus_allowed(current, old_allowed);
 out:
-	unlock_cpu_hotplug();
+	mutex_unlock(&cpu_add_remove_lock);
 	return err;
 }
 #endif /*CONFIG_HOTPLUG_CPU*/
@@ -197,9 +190,7 @@ int __devinit cpu_up(unsigned int cpu)
 	int ret;
 	void *hcpu = (void *)(long)cpu;
 
-	if ((ret = lock_cpu_hotplug_interruptible()) != 0)
-		return ret;
-
+	mutex_lock(&cpu_add_remove_lock);
 	if (cpu_online(cpu) || !cpu_present(cpu)) {
 		ret = -EINVAL;
 		goto out;
@@ -214,7 +205,9 @@ int __devinit cpu_up(unsigned int cpu)
 	}
 
 	/* Arch-specific enabling code. */
+	mutex_lock(&cpu_bitmask_lock);
 	ret = __cpu_up(cpu);
+	mutex_unlock(&cpu_bitmask_lock);
 	if (ret != 0)
 		goto out_notify;
 	BUG_ON(!cpu_online(cpu));
@@ -227,6 +220,6 @@ out_notify:
 		blocking_notifier_call_chain(&cpu_chain,
 				CPU_UP_CANCELED, hcpu);
 out:
-	unlock_cpu_hotplug();
+	mutex_unlock(&cpu_add_remove_lock);
 	return ret;
 }

@@ -194,10 +194,9 @@ struct xfrm_state *xfrm_state_alloc(void)
 {
 	struct xfrm_state *x;
 
-	x = kmalloc(sizeof(struct xfrm_state), GFP_ATOMIC);
+	x = kzalloc(sizeof(struct xfrm_state), GFP_ATOMIC);
 
 	if (x) {
-		memset(x, 0, sizeof(struct xfrm_state));
 		atomic_set(&x->refcnt, 1);
 		atomic_set(&x->tunnel_users, 0);
 		INIT_LIST_HEAD(&x->bydst);

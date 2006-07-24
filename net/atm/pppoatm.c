@@ -287,10 +287,9 @@ static int pppoatm_assign_vcc(struct atm_vcc *atmvcc, void __user *arg)
 	if (be.encaps != PPPOATM_ENCAPS_AUTODETECT &&
 	    be.encaps != PPPOATM_ENCAPS_VC && be.encaps != PPPOATM_ENCAPS_LLC)
 		return -EINVAL;
-	pvcc = kmalloc(sizeof(*pvcc), GFP_KERNEL);
+	pvcc = kzalloc(sizeof(*pvcc), GFP_KERNEL);
 	if (pvcc == NULL)
 		return -ENOMEM;
-	memset(pvcc, 0, sizeof(*pvcc));
 	pvcc->atmvcc = atmvcc;
 	pvcc->old_push = atmvcc->push;
 	pvcc->old_pop = atmvcc->pop;
