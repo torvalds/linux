@@ -67,10 +67,6 @@ static struct packet_type vlan_packet_type = {
 	.func = vlan_skb_recv, /* VLAN receive method */
 };
 
-/* Bits of netdev state that are propagated from real device to virtual */
-#define VLAN_LINK_STATE_MASK \
-	((1<<__LINK_STATE_PRESENT)|(1<<__LINK_STATE_NOCARRIER)|(1<<__LINK_STATE_DORMANT))
-
 /* End of global variables definitions. */
 
 /*
@@ -479,7 +475,9 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 	new_dev->flags = real_dev->flags;
 	new_dev->flags &= ~IFF_UP;
 
-	new_dev->state = real_dev->state & ~(1<<__LINK_STATE_START);
+	new_dev->state = (real_dev->state & ((1<<__LINK_STATE_NOCARRIER) |
+					     (1<<__LINK_STATE_DORMANT))) |
+			 (1<<__LINK_STATE_PRESENT); 
 
 	/* need 4 bytes for extra VLAN header info,
 	 * hope the underlying device can handle it.
