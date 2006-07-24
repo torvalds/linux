@@ -1337,6 +1337,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
 	struct iscsi_session *session = iscsi_hostdata(shost->hostdata);
+	struct module *owner = cls_session->transport->owner;
 
 	scsi_remove_host(shost);
 
@@ -1345,7 +1346,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 
 	iscsi_destroy_session(cls_session);
 	scsi_host_put(shost);
-	module_put(cls_session->transport->owner);
+	module_put(owner);
 }
 EXPORT_SYMBOL_GPL(iscsi_session_teardown);
 
