@@ -87,62 +87,60 @@
 #endif
 
 /*
- * Attribute names
+ *   Color definitions
  */
-#define screen_attr                   attributes[0]
-#define shadow_attr                   attributes[1]
-#define dialog_attr                   attributes[2]
-#define title_attr                    attributes[3]
-#define border_attr                   attributes[4]
-#define button_active_attr            attributes[5]
-#define button_inactive_attr          attributes[6]
-#define button_key_active_attr        attributes[7]
-#define button_key_inactive_attr      attributes[8]
-#define button_label_active_attr      attributes[9]
-#define button_label_inactive_attr    attributes[10]
-#define inputbox_attr                 attributes[11]
-#define inputbox_border_attr          attributes[12]
-#define searchbox_attr                attributes[13]
-#define searchbox_title_attr          attributes[14]
-#define searchbox_border_attr         attributes[15]
-#define position_indicator_attr       attributes[16]
-#define menubox_attr                  attributes[17]
-#define menubox_border_attr           attributes[18]
-#define item_attr                     attributes[19]
-#define item_selected_attr            attributes[20]
-#define tag_attr                      attributes[21]
-#define tag_selected_attr             attributes[22]
-#define tag_key_attr                  attributes[23]
-#define tag_key_selected_attr         attributes[24]
-#define check_attr                    attributes[25]
-#define check_selected_attr           attributes[26]
-#define uarrow_attr                   attributes[27]
-#define darrow_attr                   attributes[28]
+struct dialog_color {
+	chtype atr;	/* Color attribute */
+	int fg;		/* foreground */
+	int bg;		/* background */
+	int hl;		/* highlight this item */
+};
 
-/* number of attributes */
-#define ATTRIBUTE_COUNT               29
+struct dialog_info {
+	const char *backtitle;
+	struct dialog_color screen;
+	struct dialog_color shadow;
+	struct dialog_color dialog;
+	struct dialog_color title;
+	struct dialog_color border;
+	struct dialog_color button_active;
+	struct dialog_color button_inactive;
+	struct dialog_color button_key_active;
+	struct dialog_color button_key_inactive;
+	struct dialog_color button_label_active;
+	struct dialog_color button_label_inactive;
+	struct dialog_color inputbox;
+	struct dialog_color inputbox_border;
+	struct dialog_color searchbox;
+	struct dialog_color searchbox_title;
+	struct dialog_color searchbox_border;
+	struct dialog_color position_indicator;
+	struct dialog_color menubox;
+	struct dialog_color menubox_border;
+	struct dialog_color item;
+	struct dialog_color item_selected;
+	struct dialog_color tag;
+	struct dialog_color tag_selected;
+	struct dialog_color tag_key;
+	struct dialog_color tag_key_selected;
+	struct dialog_color check;
+	struct dialog_color check_selected;
+	struct dialog_color uarrow;
+	struct dialog_color darrow;
+};
 
 /*
  * Global variables
  */
-extern bool use_colors;
-extern bool use_shadow;
-
-extern chtype attributes[];
-
-extern const char *backtitle;
+extern struct dialog_info dlg;
 
 /*
  * Function prototypes
  */
-extern void create_rc(const char *filename);
-extern int parse_rc(void);
-
 void init_dialog(void);
 void end_dialog(void);
 void attr_clear(WINDOW * win, int height, int width, chtype attr);
 void dialog_clear(void);
-void color_setup(void);
 void print_autowrap(WINDOW * win, const char *prompt, int width, int y, int x);
 void print_button(WINDOW * win, const char *label, int y, int x, int selected);
 void print_title(WINDOW *dialog, const char *title, int width);

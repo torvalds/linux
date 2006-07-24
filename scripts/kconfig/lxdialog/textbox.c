@@ -87,20 +87,21 @@ int dialog_textbox(const char *title, const char *file, int height, int width)
 
 	/* Create window for text region, used for scrolling text */
 	text = subwin(dialog, height - 4, width - 2, y + 1, x + 1);
-	wattrset(text, dialog_attr);
-	wbkgdset(text, dialog_attr & A_COLOR);
+	wattrset(text, dlg.dialog.atr);
+	wbkgdset(text, dlg.dialog.atr & A_COLOR);
 
 	keypad(text, TRUE);
 
 	/* register the new window, along with its borders */
-	draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
+	draw_box(dialog, 0, 0, height, width,
+		 dlg.dialog.atr, dlg.border.atr);
 
-	wattrset(dialog, border_attr);
+	wattrset(dialog, dlg.border.atr);
 	mvwaddch(dialog, height - 3, 0, ACS_LTEE);
 	for (i = 0; i < width - 2; i++)
 		waddch(dialog, ACS_HLINE);
-	wattrset(dialog, dialog_attr);
-	wbkgdset(dialog, dialog_attr & A_COLOR);
+	wattrset(dialog, dlg.dialog.atr);
+	wbkgdset(dialog, dlg.dialog.atr & A_COLOR);
 	waddch(dialog, ACS_RTEE);
 
 	print_title(dialog, title, width);
@@ -110,7 +111,7 @@ int dialog_textbox(const char *title, const char *file, int height, int width)
 	getyx(dialog, cur_y, cur_x);	/* Save cursor position */
 
 	/* Print first page of text */
-	attr_clear(text, height - 4, width - 2, dialog_attr);
+	attr_clear(text, height - 4, width - 2, dlg.dialog.atr);
 	print_page(text, height - 4, width - 2);
 	print_position(dialog, height, width);
 	wmove(dialog, cur_y, cur_x);	/* Restore cursor position */
@@ -524,8 +525,8 @@ static void print_position(WINDOW * win, int height, int width)
 		fprintf(stderr, "\nError moving file pointer in print_position().\n");
 		exit(-1);
 	}
-	wattrset(win, position_indicator_attr);
-	wbkgdset(win, position_indicator_attr & A_COLOR);
+	wattrset(win, dlg.position_indicator.atr);
+	wbkgdset(win, dlg.position_indicator.atr & A_COLOR);
 	percent = !file_size ?
 	    100 : ((fpos - bytes_read + page - buf) * 100) / file_size;
 	wmove(win, height - 3, width - 9);

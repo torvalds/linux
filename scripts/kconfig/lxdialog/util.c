@@ -21,85 +21,141 @@
 
 #include "dialog.h"
 
-/* use colors by default? */
-bool use_colors = 1;
+struct dialog_info dlg;
 
-const char *backtitle = NULL;
+static void set_mono_theme(void)
+{
+	dlg.screen.atr = A_NORMAL;
+	dlg.shadow.atr = A_NORMAL;
+	dlg.dialog.atr = A_NORMAL;
+	dlg.title.atr = A_BOLD;
+	dlg.border.atr = A_NORMAL;
+	dlg.button_active.atr = A_REVERSE;
+	dlg.button_inactive.atr = A_DIM;
+	dlg.button_key_active.atr = A_REVERSE;
+	dlg.button_key_inactive.atr = A_BOLD;
+	dlg.button_label_active.atr = A_REVERSE;
+	dlg.button_label_inactive.atr = A_NORMAL;
+	dlg.inputbox.atr = A_NORMAL;
+	dlg.inputbox_border.atr = A_NORMAL;
+	dlg.searchbox.atr = A_NORMAL;
+	dlg.searchbox_title.atr = A_BOLD;
+	dlg.searchbox_border.atr = A_NORMAL;
+	dlg.position_indicator.atr = A_BOLD;
+	dlg.menubox.atr = A_NORMAL;
+	dlg.menubox_border.atr = A_NORMAL;
+	dlg.item.atr = A_NORMAL;
+	dlg.item_selected.atr = A_REVERSE;
+	dlg.tag.atr = A_BOLD;
+	dlg.tag_selected.atr = A_REVERSE;
+	dlg.tag_key.atr = A_BOLD;
+	dlg.tag_key_selected.atr = A_REVERSE;
+	dlg.check.atr = A_BOLD;
+	dlg.check_selected.atr = A_REVERSE;
+	dlg.uarrow.atr = A_BOLD;
+	dlg.darrow.atr = A_BOLD;
+}
+
+#define DLG_COLOR(dialog, f, b, h) \
+do {                               \
+	dlg.dialog.fg = (f);       \
+	dlg.dialog.bg = (b);       \
+	dlg.dialog.hl = (h);       \
+} while (0)
+
+static void set_classic_theme(void)
+{
+	DLG_COLOR(screen,                COLOR_CYAN,   COLOR_BLUE,   true);
+	DLG_COLOR(shadow,                COLOR_BLACK,  COLOR_BLACK,  true);
+	DLG_COLOR(dialog,                COLOR_BLACK,  COLOR_WHITE,  false);
+	DLG_COLOR(title,                 COLOR_YELLOW, COLOR_WHITE,  true);
+	DLG_COLOR(border,                COLOR_WHITE,  COLOR_WHITE,  true);
+	DLG_COLOR(button_active,         COLOR_WHITE,  COLOR_BLUE,   true);
+	DLG_COLOR(button_inactive,       COLOR_BLACK,  COLOR_WHITE,  false);
+	DLG_COLOR(button_key_active,     COLOR_WHITE,  COLOR_BLUE,   true);
+	DLG_COLOR(button_key_inactive,   COLOR_RED,    COLOR_WHITE,  false);
+	DLG_COLOR(button_label_active,   COLOR_YELLOW, COLOR_BLUE,   true);
+	DLG_COLOR(button_label_inactive, COLOR_BLACK,  COLOR_WHITE,  true);
+	DLG_COLOR(inputbox,              COLOR_BLACK,  COLOR_WHITE,  false);
+	DLG_COLOR(inputbox_border,       COLOR_BLACK,  COLOR_WHITE,  false);
+	DLG_COLOR(searchbox,             COLOR_BLACK,  COLOR_WHITE,  false);
+	DLG_COLOR(searchbox_title,       COLOR_YELLOW, COLOR_WHITE,  true);
+	DLG_COLOR(searchbox_border,      COLOR_WHITE,  COLOR_WHITE,  true);
+	DLG_COLOR(position_indicator,    COLOR_YELLOW, COLOR_WHITE,  true);
+	DLG_COLOR(menubox,               COLOR_BLACK,  COLOR_WHITE,  false);
+	DLG_COLOR(menubox_border,        COLOR_WHITE,  COLOR_WHITE,  true);
+	DLG_COLOR(item,                  COLOR_BLACK,  COLOR_WHITE,  false);
+	DLG_COLOR(item_selected,         COLOR_WHITE,  COLOR_BLUE,   true);
+	DLG_COLOR(tag,                   COLOR_YELLOW, COLOR_WHITE,  true);
+	DLG_COLOR(tag_selected,          COLOR_YELLOW, COLOR_BLUE,   true);
+	DLG_COLOR(tag_key,               COLOR_YELLOW, COLOR_WHITE,  true);
+	DLG_COLOR(tag_key_selected,      COLOR_YELLOW, COLOR_BLUE,   true);
+	DLG_COLOR(check,                 COLOR_BLACK,  COLOR_WHITE,  false);
+	DLG_COLOR(check_selected,        COLOR_WHITE,  COLOR_BLUE,   true);
+	DLG_COLOR(uarrow,                COLOR_GREEN,  COLOR_WHITE,  true);
+	DLG_COLOR(darrow,                COLOR_GREEN,  COLOR_WHITE,  true);
+}
+
+static void init_one_color(struct dialog_color *color)
+{
+	static int pair = 0;
+
+	pair++;
+	init_pair(pair, color->fg, color->bg);
+	if (color->hl)
+		color->atr = A_BOLD | COLOR_PAIR(pair);
+	else
+		color->atr = COLOR_PAIR(pair);
+}
+
+static void init_dialog_colors(void)
+{
+	init_one_color(&dlg.screen);
+	init_one_color(&dlg.shadow);
+	init_one_color(&dlg.dialog);
+	init_one_color(&dlg.title);
+	init_one_color(&dlg.border);
+	init_one_color(&dlg.button_active);
+	init_one_color(&dlg.button_inactive);
+	init_one_color(&dlg.button_key_active);
+	init_one_color(&dlg.button_key_inactive);
+	init_one_color(&dlg.button_label_active);
+	init_one_color(&dlg.button_label_inactive);
+	init_one_color(&dlg.inputbox);
+	init_one_color(&dlg.inputbox_border);
+	init_one_color(&dlg.searchbox);
+	init_one_color(&dlg.searchbox_title);
+	init_one_color(&dlg.searchbox_border);
+	init_one_color(&dlg.position_indicator);
+	init_one_color(&dlg.menubox);
+	init_one_color(&dlg.menubox_border);
+	init_one_color(&dlg.item);
+	init_one_color(&dlg.item_selected);
+	init_one_color(&dlg.tag);
+	init_one_color(&dlg.tag_selected);
+	init_one_color(&dlg.tag_key);
+	init_one_color(&dlg.tag_key_selected);
+	init_one_color(&dlg.check);
+	init_one_color(&dlg.check_selected);
+	init_one_color(&dlg.uarrow);
+	init_one_color(&dlg.darrow);
+}
 
 /*
- * Attribute values, default is for mono display
+ * Setup for color display
  */
-chtype attributes[] = {
-	A_NORMAL,		/* screen_attr */
-	A_NORMAL,		/* shadow_attr */
-	A_NORMAL,		/* dialog_attr */
-	A_BOLD,			/* title_attr */
-	A_NORMAL,		/* border_attr */
-	A_REVERSE,		/* button_active_attr */
-	A_DIM,			/* button_inactive_attr */
-	A_REVERSE,		/* button_key_active_attr */
-	A_BOLD,			/* button_key_inactive_attr */
-	A_REVERSE,		/* button_label_active_attr */
-	A_NORMAL,		/* button_label_inactive_attr */
-	A_NORMAL,		/* inputbox_attr */
-	A_NORMAL,		/* inputbox_border_attr */
-	A_NORMAL,		/* searchbox_attr */
-	A_BOLD,			/* searchbox_title_attr */
-	A_NORMAL,		/* searchbox_border_attr */
-	A_BOLD,			/* position_indicator_attr */
-	A_NORMAL,		/* menubox_attr */
-	A_NORMAL,		/* menubox_border_attr */
-	A_NORMAL,		/* item_attr */
-	A_REVERSE,		/* item_selected_attr */
-	A_BOLD,			/* tag_attr */
-	A_REVERSE,		/* tag_selected_attr */
-	A_BOLD,			/* tag_key_attr */
-	A_REVERSE,		/* tag_key_selected_attr */
-	A_BOLD,			/* check_attr */
-	A_REVERSE,		/* check_selected_attr */
-	A_BOLD,			/* uarrow_attr */
-	A_BOLD			/* darrow_attr */
-};
-
-#include "colors.h"
-
-/*
- * Table of color values
- */
-int color_table[][3] = {
-	{SCREEN_FG, SCREEN_BG, SCREEN_HL},
-	{SHADOW_FG, SHADOW_BG, SHADOW_HL},
-	{DIALOG_FG, DIALOG_BG, DIALOG_HL},
-	{TITLE_FG, TITLE_BG, TITLE_HL},
-	{BORDER_FG, BORDER_BG, BORDER_HL},
-	{BUTTON_ACTIVE_FG, BUTTON_ACTIVE_BG, BUTTON_ACTIVE_HL},
-	{BUTTON_INACTIVE_FG, BUTTON_INACTIVE_BG, BUTTON_INACTIVE_HL},
-	{BUTTON_KEY_ACTIVE_FG, BUTTON_KEY_ACTIVE_BG, BUTTON_KEY_ACTIVE_HL},
-	{BUTTON_KEY_INACTIVE_FG, BUTTON_KEY_INACTIVE_BG,
-	 BUTTON_KEY_INACTIVE_HL},
-	{BUTTON_LABEL_ACTIVE_FG, BUTTON_LABEL_ACTIVE_BG,
-	 BUTTON_LABEL_ACTIVE_HL},
-	{BUTTON_LABEL_INACTIVE_FG, BUTTON_LABEL_INACTIVE_BG,
-	 BUTTON_LABEL_INACTIVE_HL},
-	{INPUTBOX_FG, INPUTBOX_BG, INPUTBOX_HL},
-	{INPUTBOX_BORDER_FG, INPUTBOX_BORDER_BG, INPUTBOX_BORDER_HL},
-	{SEARCHBOX_FG, SEARCHBOX_BG, SEARCHBOX_HL},
-	{SEARCHBOX_TITLE_FG, SEARCHBOX_TITLE_BG, SEARCHBOX_TITLE_HL},
-	{SEARCHBOX_BORDER_FG, SEARCHBOX_BORDER_BG, SEARCHBOX_BORDER_HL},
-	{POSITION_INDICATOR_FG, POSITION_INDICATOR_BG, POSITION_INDICATOR_HL},
-	{MENUBOX_FG, MENUBOX_BG, MENUBOX_HL},
-	{MENUBOX_BORDER_FG, MENUBOX_BORDER_BG, MENUBOX_BORDER_HL},
-	{ITEM_FG, ITEM_BG, ITEM_HL},
-	{ITEM_SELECTED_FG, ITEM_SELECTED_BG, ITEM_SELECTED_HL},
-	{TAG_FG, TAG_BG, TAG_HL},
-	{TAG_SELECTED_FG, TAG_SELECTED_BG, TAG_SELECTED_HL},
-	{TAG_KEY_FG, TAG_KEY_BG, TAG_KEY_HL},
-	{TAG_KEY_SELECTED_FG, TAG_KEY_SELECTED_BG, TAG_KEY_SELECTED_HL},
-	{CHECK_FG, CHECK_BG, CHECK_HL},
-	{CHECK_SELECTED_FG, CHECK_SELECTED_BG, CHECK_SELECTED_HL},
-	{UARROW_FG, UARROW_BG, UARROW_HL},
-	{DARROW_FG, DARROW_BG, DARROW_HL},
-};				/* color_table */
+static void color_setup(void)
+{
+	if (has_colors()) {	/* Terminal supports color? */
+		start_color();
+		set_classic_theme();
+		init_dialog_colors();
+	}
+	else
+	{
+		set_mono_theme();
+	}
+}
 
 /*
  * Set window to attribute 'attr'
@@ -119,13 +175,13 @@ void attr_clear(WINDOW * win, int height, int width, chtype attr)
 
 void dialog_clear(void)
 {
-	attr_clear(stdscr, LINES, COLS, screen_attr);
+	attr_clear(stdscr, LINES, COLS, dlg.screen.atr);
 	/* Display background title if it exists ... - SLH */
-	if (backtitle != NULL) {
+	if (dlg.backtitle != NULL) {
 		int i;
 
-		wattrset(stdscr, screen_attr);
-		mvwaddstr(stdscr, 0, 1, (char *)backtitle);
+		wattrset(stdscr, dlg.screen.atr);
+		mvwaddstr(stdscr, 0, 1, (char *)dlg.backtitle);
 		wmove(stdscr, 1, 1);
 		for (i = 1; i < COLS - 1; i++)
 			waddch(stdscr, ACS_HLINE);
@@ -142,31 +198,8 @@ void init_dialog(void)
 	keypad(stdscr, TRUE);
 	cbreak();
 	noecho();
-
-	if (use_colors)		/* Set up colors */
-		color_setup();
-
+	color_setup();
 	dialog_clear();
-}
-
-/*
- * Setup for color display
- */
-void color_setup(void)
-{
-	int i;
-
-	if (has_colors()) {	/* Terminal supports color? */
-		start_color();
-
-		/* Initialize color pairs */
-		for (i = 0; i < ATTRIBUTE_COUNT; i++)
-			init_pair(i + 1, color_table[i][0], color_table[i][1]);
-
-		/* Setup color attributes */
-		for (i = 0; i < ATTRIBUTE_COUNT; i++)
-			attributes[i] = C_ATTR(color_table[i][2], i + 1);
-	}
 }
 
 /*
@@ -184,7 +217,7 @@ void print_title(WINDOW *dialog, const char *title, int width)
 {
 	if (title) {
 		int tlen = MIN(width - 2, strlen(title));
-		wattrset(dialog, title_attr);
+		wattrset(dialog, dlg.title.atr);
 		mvwaddch(dialog, 0, (width - tlen) / 2 - 1, ' ');
 		mvwaddnstr(dialog, 0, (width - tlen)/2, title, tlen);
 		waddch(dialog, ' ');
@@ -264,21 +297,23 @@ void print_button(WINDOW * win, const char *label, int y, int x, int selected)
 	int i, temp;
 
 	wmove(win, y, x);
-	wattrset(win, selected ? button_active_attr : button_inactive_attr);
+	wattrset(win, selected ? dlg.button_active.atr
+		 : dlg.button_inactive.atr);
 	waddstr(win, "<");
 	temp = strspn(label, " ");
 	label += temp;
-	wattrset(win, selected ? button_label_active_attr
-		 : button_label_inactive_attr);
+	wattrset(win, selected ? dlg.button_label_active.atr
+		 : dlg.button_label_inactive.atr);
 	for (i = 0; i < temp; i++)
 		waddch(win, ' ');
-	wattrset(win, selected ? button_key_active_attr
-		 : button_key_inactive_attr);
+	wattrset(win, selected ? dlg.button_key_active.atr
+		 : dlg.button_key_inactive.atr);
 	waddch(win, label[0]);
-	wattrset(win, selected ? button_label_active_attr
-		 : button_label_inactive_attr);
+	wattrset(win, selected ? dlg.button_label_active.atr
+		 : dlg.button_label_inactive.atr);
 	waddstr(win, (char *)label + 1);
-	wattrset(win, selected ? button_active_attr : button_inactive_attr);
+	wattrset(win, selected ? dlg.button_active.atr
+		 : dlg.button_inactive.atr);
 	waddstr(win, ">");
 	wmove(win, y, x + temp + 1);
 }
@@ -326,7 +361,7 @@ void draw_shadow(WINDOW * win, int y, int x, int height, int width)
 	int i;
 
 	if (has_colors()) {	/* Whether terminal supports color? */
-		wattrset(win, shadow_attr);
+		wattrset(win, dlg.shadow.atr);
 		wmove(win, y + height, x + 2);
 		for (i = 0; i < width; i++)
 			waddch(win, winch(win) & A_CHARTEXT);

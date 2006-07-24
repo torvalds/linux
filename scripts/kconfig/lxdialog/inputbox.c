@@ -58,17 +58,18 @@ int dialog_inputbox(const char *title, const char *prompt, int height, int width
 	dialog = newwin(height, width, y, x);
 	keypad(dialog, TRUE);
 
-	draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
-	wattrset(dialog, border_attr);
+	draw_box(dialog, 0, 0, height, width,
+		 dlg.dialog.atr, dlg.border.atr);
+	wattrset(dialog, dlg.border.atr);
 	mvwaddch(dialog, height - 3, 0, ACS_LTEE);
 	for (i = 0; i < width - 2; i++)
 		waddch(dialog, ACS_HLINE);
-	wattrset(dialog, dialog_attr);
+	wattrset(dialog, dlg.dialog.atr);
 	waddch(dialog, ACS_RTEE);
 
 	print_title(dialog, title, width);
 
-	wattrset(dialog, dialog_attr);
+	wattrset(dialog, dlg.dialog.atr);
 	print_autowrap(dialog, prompt, width - 2, 1, 3);
 
 	/* Draw the input field box */
@@ -76,13 +77,14 @@ int dialog_inputbox(const char *title, const char *prompt, int height, int width
 	getyx(dialog, y, x);
 	box_y = y + 2;
 	box_x = (width - box_width) / 2;
-	draw_box(dialog, y + 1, box_x - 1, 3, box_width + 2, border_attr, dialog_attr);
+	draw_box(dialog, y + 1, box_x - 1, 3, box_width + 2,
+		 dlg.border.atr, dlg.dialog.atr);
 
 	print_buttons(dialog, height, width, 0);
 
 	/* Set up the initial value */
 	wmove(dialog, box_y, box_x);
-	wattrset(dialog, inputbox_attr);
+	wattrset(dialog, dlg.inputbox.atr);
 
 	if (!init)
 		instr[0] = '\0';
@@ -120,7 +122,7 @@ int dialog_inputbox(const char *title, const char *prompt, int height, int width
 			case KEY_BACKSPACE:
 			case 127:
 				if (input_x || scroll) {
-					wattrset(dialog, inputbox_attr);
+					wattrset(dialog, dlg.inputbox.atr);
 					if (!input_x) {
 						scroll = scroll < box_width - 1 ? 0 : scroll - (box_width - 1);
 						wmove(dialog, box_y, box_x);
@@ -140,7 +142,7 @@ int dialog_inputbox(const char *title, const char *prompt, int height, int width
 			default:
 				if (key < 0x100 && isprint(key)) {
 					if (scroll + input_x < MAX_LEN) {
-						wattrset(dialog, inputbox_attr);
+						wattrset(dialog, dlg.inputbox.atr);
 						instr[scroll + input_x] = key;
 						instr[scroll + input_x + 1] = '\0';
 						if (input_x == box_width - 1) {

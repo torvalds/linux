@@ -78,11 +78,11 @@ int main(int argc, const char *const *argv)
 				offset += 2;
 			}
 		} else if (!strcmp(argv[offset + 1], "--backtitle")) {
-			if (backtitle != NULL) {
+			if (dlg.backtitle != NULL) {
 				Usage(argv[0]);
 				exit(-1);
 			} else {
-				backtitle = argv[offset + 2];
+				dlg.backtitle = argv[offset + 2];
 				offset += 2;
 			}
 		} else if (!strcmp(argv[offset + 1], "--clear")) {
@@ -123,7 +123,7 @@ int main(int argc, const char *const *argv)
 	retval = (*(modePtr->jumper)) (title, argc - offset, argv + offset);
 
 	if (opt_clear) {	/* clear screen before exit */
-		attr_clear(stdscr, LINES, COLS, screen_attr);
+		attr_clear(stdscr, LINES, COLS, dlg.screen.atr);
 		refresh();
 	}
 	end_dialog();

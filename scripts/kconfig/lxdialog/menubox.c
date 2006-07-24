@@ -74,7 +74,7 @@ static void do_print_item(WINDOW * win, const char *item, int choice,
 	j = first_alpha(menu_item, "YyNnMmHh");
 
 	/* Clear 'residue' of last item */
-	wattrset(win, menubox_attr);
+	wattrset(win, dlg.menubox.atr);
 	wmove(win, choice, 0);
 #if OLD_NCURSES
 	{
@@ -85,10 +85,11 @@ static void do_print_item(WINDOW * win, const char *item, int choice,
 #else
 	wclrtoeol(win);
 #endif
-	wattrset(win, selected ? item_selected_attr : item_attr);
+	wattrset(win, selected ? dlg.item_selected.atr : dlg.item.atr);
 	mvwaddstr(win, choice, item_x, menu_item);
 	if (hotkey) {
-		wattrset(win, selected ? tag_key_selected_attr : tag_key_attr);
+		wattrset(win, selected ? dlg.tag_key_selected.atr
+			 : dlg.tag_key.atr);
 		mvwaddch(win, choice, item_x + j, menu_item[j]);
 	}
 	if (selected) {
@@ -117,11 +118,11 @@ static void print_arrows(WINDOW * win, int item_no, int scroll, int y, int x,
 	wmove(win, y, x);
 
 	if (scroll > 0) {
-		wattrset(win, uarrow_attr);
+		wattrset(win, dlg.uarrow.atr);
 		waddch(win, ACS_UARROW);
 		waddstr(win, "(-)");
 	} else {
-		wattrset(win, menubox_attr);
+		wattrset(win, dlg.menubox.atr);
 		waddch(win, ACS_HLINE);
 		waddch(win, ACS_HLINE);
 		waddch(win, ACS_HLINE);
@@ -133,11 +134,11 @@ static void print_arrows(WINDOW * win, int item_no, int scroll, int y, int x,
 	wrefresh(win);
 
 	if ((height < item_no) && (scroll + height < item_no)) {
-		wattrset(win, darrow_attr);
+		wattrset(win, dlg.darrow.atr);
 		waddch(win, ACS_DARROW);
 		waddstr(win, "(+)");
 	} else {
-		wattrset(win, menubox_border_attr);
+		wattrset(win, dlg.menubox_border.atr);
 		waddch(win, ACS_HLINE);
 		waddch(win, ACS_HLINE);
 		waddch(win, ACS_HLINE);
@@ -199,18 +200,19 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 	dialog = newwin(height, width, y, x);
 	keypad(dialog, TRUE);
 
-	draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
-	wattrset(dialog, border_attr);
+	draw_box(dialog, 0, 0, height, width,
+		 dlg.dialog.atr, dlg.border.atr);
+	wattrset(dialog, dlg.border.atr);
 	mvwaddch(dialog, height - 3, 0, ACS_LTEE);
 	for (i = 0; i < width - 2; i++)
 		waddch(dialog, ACS_HLINE);
-	wattrset(dialog, dialog_attr);
-	wbkgdset(dialog, dialog_attr & A_COLOR);
+	wattrset(dialog, dlg.dialog.atr);
+	wbkgdset(dialog, dlg.dialog.atr & A_COLOR);
 	waddch(dialog, ACS_RTEE);
 
 	print_title(dialog, title, width);
 
-	wattrset(dialog, dialog_attr);
+	wattrset(dialog, dlg.dialog.atr);
 	print_autowrap(dialog, prompt, width - 2, 1, 3);
 
 	menu_width = width - 6;
@@ -224,7 +226,7 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 
 	/* draw a box around the menu items */
 	draw_box(dialog, box_y, box_x, menu_height + 2, menu_width + 2,
-		 menubox_border_attr, menubox_attr);
+		 dlg.menubox_border.atr, dlg.menubox.atr);
 
 	item_x = (menu_width - 70) / 2;
 

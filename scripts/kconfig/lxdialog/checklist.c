@@ -34,18 +34,19 @@ static void print_item(WINDOW * win, const char *item, int status, int choice,
 	int i;
 
 	/* Clear 'residue' of last item */
-	wattrset(win, menubox_attr);
+	wattrset(win, dlg.menubox.atr);
 	wmove(win, choice, 0);
 	for (i = 0; i < list_width; i++)
 		waddch(win, ' ');
 
 	wmove(win, choice, check_x);
-	wattrset(win, selected ? check_selected_attr : check_attr);
+	wattrset(win, selected ? dlg.check_selected.atr
+		 : dlg.check.atr);
 	wprintw(win, "(%c)", status ? 'X' : ' ');
 
-	wattrset(win, selected ? tag_selected_attr : tag_attr);
+	wattrset(win, selected ? dlg.tag_selected.atr : dlg.tag.atr);
 	mvwaddch(win, choice, item_x, item[0]);
-	wattrset(win, selected ? item_selected_attr : item_attr);
+	wattrset(win, selected ? dlg.item_selected.atr : dlg.item.atr);
 	waddstr(win, (char *)item + 1);
 	if (selected) {
 		wmove(win, choice, check_x + 1);
@@ -62,11 +63,11 @@ static void print_arrows(WINDOW * win, int choice, int item_no, int scroll,
 	wmove(win, y, x);
 
 	if (scroll > 0) {
-		wattrset(win, uarrow_attr);
+		wattrset(win, dlg.uarrow.atr);
 		waddch(win, ACS_UARROW);
 		waddstr(win, "(-)");
 	} else {
-		wattrset(win, menubox_attr);
+		wattrset(win, dlg.menubox.atr);
 		waddch(win, ACS_HLINE);
 		waddch(win, ACS_HLINE);
 		waddch(win, ACS_HLINE);
@@ -77,11 +78,11 @@ static void print_arrows(WINDOW * win, int choice, int item_no, int scroll,
 	wmove(win, y, x);
 
 	if ((height < item_no) && (scroll + choice < item_no - 1)) {
-		wattrset(win, darrow_attr);
+		wattrset(win, dlg.darrow.atr);
 		waddch(win, ACS_DARROW);
 		waddstr(win, "(+)");
 	} else {
-		wattrset(win, menubox_border_attr);
+		wattrset(win, dlg.menubox_border.atr);
 		waddch(win, ACS_HLINE);
 		waddch(win, ACS_HLINE);
 		waddch(win, ACS_HLINE);
@@ -145,17 +146,18 @@ int dialog_checklist(const char *title, const char *prompt, int height,
 	dialog = newwin(height, width, y, x);
 	keypad(dialog, TRUE);
 
-	draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
-	wattrset(dialog, border_attr);
+	draw_box(dialog, 0, 0, height, width,
+		 dlg.dialog.atr, dlg.border.atr);
+	wattrset(dialog, dlg.border.atr);
 	mvwaddch(dialog, height - 3, 0, ACS_LTEE);
 	for (i = 0; i < width - 2; i++)
 		waddch(dialog, ACS_HLINE);
-	wattrset(dialog, dialog_attr);
+	wattrset(dialog, dlg.dialog.atr);
 	waddch(dialog, ACS_RTEE);
 
 	print_title(dialog, title, width);
 
-	wattrset(dialog, dialog_attr);
+	wattrset(dialog, dlg.dialog.atr);
 	print_autowrap(dialog, prompt, width - 2, 1, 3);
 
 	list_width = width - 6;
@@ -170,7 +172,7 @@ int dialog_checklist(const char *title, const char *prompt, int height,
 
 	/* draw a box around the list items */
 	draw_box(dialog, box_y, box_x, list_height + 2, list_width + 2,
-	         menubox_border_attr, menubox_attr);
+	         dlg.menubox_border.atr, dlg.menubox.atr);
 
 	/* Find length of longest item in order to center checklist */
 	check_x = 0;
