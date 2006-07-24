@@ -1067,7 +1067,7 @@ static inline void __skb_queue_purge(struct sk_buff_head *list)
 }
 
 /**
- *	__dev_alloc_skb - allocate an skbuff for sending
+ *	__dev_alloc_skb - allocate an skbuff for receiving
  *	@length: length to allocate
  *	@gfp_mask: get_free_pages mask, passed to alloc_skb
  *
@@ -1088,7 +1088,7 @@ static inline struct sk_buff *__dev_alloc_skb(unsigned int length,
 }
 
 /**
- *	dev_alloc_skb - allocate an skbuff for sending
+ *	dev_alloc_skb - allocate an skbuff for receiving
  *	@length: length to allocate
  *
  *	Allocate a new &sk_buff and assign it a usage count of one. The
