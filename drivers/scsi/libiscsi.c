@@ -1357,6 +1357,8 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	iscsi_pool_free(&session->mgmtpool, (void**)session->mgmt_cmds);
 	iscsi_pool_free(&session->cmdpool, (void**)session->cmds);
 
+	kfree(session->targetname);
+
 	iscsi_destroy_session(cls_session);
 	scsi_host_put(shost);
 	module_put(owner);
@@ -1491,6 +1493,7 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 
 	spin_lock_bh(&session->lock);
 	kfree(conn->data);
+	kfree(conn->persistent_address);
 	__kfifo_put(session->mgmtpool.queue, (void*)&conn->login_mtask,
 		    sizeof(void*));
 	list_del(&conn->item);
