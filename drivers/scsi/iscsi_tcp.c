@@ -885,7 +885,7 @@ more:
 			}
 			tcp_conn->in_progress = IN_PROGRESS_DATA_RECV;
 		} else if (rc) {
-			iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+			iscsi_conn_failure(conn, rc);
 			return 0;
 		}
 	}

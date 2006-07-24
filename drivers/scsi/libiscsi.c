@@ -372,7 +372,8 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			 * login related PDU's exp_statsn is handled in
 			 * userspace
 			 */
-			rc = iscsi_recv_pdu(conn->cls_conn, hdr, data, datalen);
+			if (iscsi_recv_pdu(conn->cls_conn, hdr, data, datalen))
+				rc = ISCSI_ERR_CONN_FAILED;
 			list_del(&mtask->running);
 			if (conn->login_mtask != mtask)
 				__kfifo_put(session->mgmtpool.queue,
@@ -393,7 +394,8 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			}
 			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
 
-			rc = iscsi_recv_pdu(conn->cls_conn, hdr, data, datalen);
+			if (iscsi_recv_pdu(conn->cls_conn, hdr, data, datalen))
+				rc = ISCSI_ERR_CONN_FAILED;
 			list_del(&mtask->running);
 			if (conn->login_mtask != mtask)
 				__kfifo_put(session->mgmtpool.queue,
@@ -406,14 +408,21 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	} else if (itt == ISCSI_RESERVED_TAG) {
 		switch(opcode) {
 		case ISCSI_OP_NOOP_IN:
-			if (!datalen) {
-				rc = iscsi_check_assign_cmdsn(session,
-						 (struct iscsi_nopin*)hdr);
-				if (!rc && hdr->ttt != ISCSI_RESERVED_TAG)
-					rc = iscsi_recv_pdu(conn->cls_conn,
-							    hdr, NULL, 0);
-			} else
+			if (datalen) {
 				rc = ISCSI_ERR_PROTO;
+				break;
+			}
+
+			rc = iscsi_check_assign_cmdsn(session,
+						 (struct iscsi_nopin*)hdr);
+			if (rc)
+				break;
+
+			if (hdr->ttt == ISCSI_RESERVED_TAG)
+				break;
+
+			if (iscsi_recv_pdu(conn->cls_conn, hdr, NULL, 0))
+				rc = ISCSI_ERR_CONN_FAILED;
 			break;
 		case ISCSI_OP_REJECT:
 			/* we need sth like iscsi_reject_rsp()*/
