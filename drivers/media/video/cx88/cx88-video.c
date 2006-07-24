@@ -1180,7 +1180,6 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			V4L2_CAP_READWRITE     |
 			V4L2_CAP_STREAMING     |
 			V4L2_CAP_VBI_CAPTURE   |
-			V4L2_CAP_VIDEO_OVERLAY |
 			0;
 		if (UNSET != core->tuner_type)
 			cap->capabilities |= V4L2_CAP_TUNER;
