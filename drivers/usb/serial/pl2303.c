@@ -824,16 +824,13 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	}
 
 	if (actual_length < length)
-		goto exit;
+		return;
 
         /* Save off the uart status for others to look at */
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->line_status = data[status_idx];
 	spin_unlock_irqrestore(&priv->lock, flags);
 	wake_up_interruptible (&priv->delta_msr_wait);
-
-exit:
-	return;
 }
 
 static void pl2303_read_int_callback (struct urb *urb, struct pt_regs *regs)
