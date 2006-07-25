@@ -526,8 +526,10 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	while (ib_poll_cq(target->cq, 1, &wc) > 0)
 		; /* nothing */
 
+	spin_lock_irq(target->scsi_host->host_lock);
 	list_for_each_entry_safe(req, tmp, &target->req_queue, list)
 		srp_reset_req(target, req);
+	spin_unlock_irq(target->scsi_host->host_lock);
 
 	target->rx_head	 = 0;
 	target->tx_head	 = 0;
