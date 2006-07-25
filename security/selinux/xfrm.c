@@ -208,10 +208,8 @@ static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp,
 
 	BUG_ON(uctx && pol);
 
-	if (pol)
-		goto from_policy;
-
-	BUG_ON(!uctx);
+	if (!uctx)
+		goto not_from_user;
 
 	if (uctx->ctx_doi != XFRM_SC_ALG_SELINUX)
 		return -EINVAL;
@@ -251,11 +249,14 @@ static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp,
 
 	return rc;
 
-from_policy:
-	BUG_ON(!pol);
-	rc = security_sid_mls_copy(pol->ctx_sid, sid, &ctx_sid);
-	if (rc)
-		goto out;
+not_from_user:
+	if (pol) {
+		rc = security_sid_mls_copy(pol->ctx_sid, sid, &ctx_sid);
+		if (rc)
+			goto out;
+	}
+	else
+		ctx_sid = sid;
 
 	rc = security_sid_to_context(ctx_sid, &ctx_str, &str_len);
 	if (rc)
@@ -293,13 +294,23 @@ out2:
  * LSM hook implementation that allocs and transfers uctx spec to
  * xfrm_policy.
  */
-int selinux_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *uctx)
+int selinux_xfrm_policy_alloc(struct xfrm_policy *xp,
+		struct xfrm_user_sec_ctx *uctx, struct sock *sk)
 {
 	int err;
+	u32 sid;
 
 	BUG_ON(!xp);
+	BUG_ON(uctx && sk);
 
-	err = selinux_xfrm_sec_ctx_alloc(&xp->security, uctx, NULL, 0);
+	if (sk) {
+		struct sk_security_struct *ssec = sk->sk_security;
+		sid = ssec->sid;
+	}
+	else
+		sid = SECSID_NULL;
+
+	err = selinux_xfrm_sec_ctx_alloc(&xp->security, uctx, NULL, sid);
 	return err;
 }
 

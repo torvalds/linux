@@ -2843,14 +2843,14 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 	return pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_REGISTERED, NULL);
 }
 
-static struct xfrm_policy *pfkey_compile_policy(u16 family, int opt,
+static struct xfrm_policy *pfkey_compile_policy(struct sock *sk, int opt,
                                                 u8 *data, int len, int *dir)
 {
 	struct xfrm_policy *xp;
 	struct sadb_x_policy *pol = (struct sadb_x_policy*)data;
 	struct sadb_x_sec_ctx *sec_ctx;
 
-	switch (family) {
+	switch (sk->sk_family) {
 	case AF_INET:
 		if (opt != IP_IPSEC_POLICY) {
 			*dir = -EOPNOTSUPP;
@@ -2891,7 +2891,7 @@ static struct xfrm_policy *pfkey_compile_policy(u16 family, int opt,
 	xp->lft.hard_byte_limit = XFRM_INF;
 	xp->lft.soft_packet_limit = XFRM_INF;
 	xp->lft.hard_packet_limit = XFRM_INF;
-	xp->family = family;
+	xp->family = sk->sk_family;
 
 	xp->xfrm_nr = 0;
 	if (pol->sadb_x_policy_type == IPSEC_POLICY_IPSEC &&
@@ -2907,14 +2907,21 @@ static struct xfrm_policy *pfkey_compile_policy(u16 family, int opt,
 		p += pol->sadb_x_policy_len*8;
 		sec_ctx = (struct sadb_x_sec_ctx *)p;
 		if (len < pol->sadb_x_policy_len*8 +
-		    sec_ctx->sadb_x_sec_len)
+		    sec_ctx->sadb_x_sec_len) {
+			*dir = -EINVAL;
 			goto out;
+		}
 		if ((*dir = verify_sec_ctx_len(p)))
 			goto out;
 		uctx = pfkey_sadb2xfrm_user_sec_ctx(sec_ctx);
 		*dir = security_xfrm_policy_alloc(xp, uctx);
 		kfree(uctx);
 
+		if (*dir)
+			goto out;
+	}
+	else {
+		*dir = security_xfrm_sock_policy_alloc(xp, sk);
 		if (*dir)
 			goto out;
 	}

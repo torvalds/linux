@@ -827,8 +827,10 @@ struct swap_info_struct;
  *	used by the XFRM system.
  *	@sec_ctx contains the security context information being provided by
  *	the user-level policy update program (e.g., setkey).
+ *	@sk refers to the sock from which to derive the security context.
  *	Allocate a security structure to the xp->security field; the security
- *	field is initialized to NULL when the xfrm_policy is allocated.
+ *	field is initialized to NULL when the xfrm_policy is allocated. Only
+ *	one of sec_ctx or sock can be specified.
  *	Return 0 if operation was successful (memory to allocate, legal context)
  * @xfrm_policy_clone_security:
  *	@old contains an existing xfrm_policy in the SPD.
@@ -1359,7 +1361,8 @@ struct security_operations {
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
-	int (*xfrm_policy_alloc_security) (struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx);
+	int (*xfrm_policy_alloc_security) (struct xfrm_policy *xp,
+			struct xfrm_user_sec_ctx *sec_ctx, struct sock *sk);
 	int (*xfrm_policy_clone_security) (struct xfrm_policy *old, struct xfrm_policy *new);
 	void (*xfrm_policy_free_security) (struct xfrm_policy *xp);
 	int (*xfrm_policy_delete_security) (struct xfrm_policy *xp);
@@ -3057,7 +3060,12 @@ static inline void security_sk_classify_flow(struct sock *sk, struct flowi *fl)
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
 {
-	return security_ops->xfrm_policy_alloc_security(xp, sec_ctx);
+	return security_ops->xfrm_policy_alloc_security(xp, sec_ctx, NULL);
+}
+
+static inline int security_xfrm_sock_policy_alloc(struct xfrm_policy *xp, struct sock *sk)
+{
+	return security_ops->xfrm_policy_alloc_security(xp, NULL, sk);
 }
 
 static inline int security_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new)
@@ -3128,6 +3136,11 @@ static inline void security_skb_classify_flow(struct sk_buff *skb, struct flowi 
 }
 #else	/* CONFIG_SECURITY_NETWORK_XFRM */
 static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
+{
+	return 0;
+}
+
+static inline int security_xfrm_sock_policy_alloc(struct xfrm_policy *xp, struct sock *sk)
 {
 	return 0;
 }

@@ -1757,7 +1757,7 @@ static int xfrm_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *xt,
 /* User gives us xfrm_user_policy_info followed by an array of 0
  * or more templates.
  */
-static struct xfrm_policy *xfrm_compile_policy(u16 family, int opt,
+static struct xfrm_policy *xfrm_compile_policy(struct sock *sk, int opt,
 					       u8 *data, int len, int *dir)
 {
 	struct xfrm_userpolicy_info *p = (struct xfrm_userpolicy_info *)data;
@@ -1765,7 +1765,7 @@ static struct xfrm_policy *xfrm_compile_policy(u16 family, int opt,
 	struct xfrm_policy *xp;
 	int nr;
 
-	switch (family) {
+	switch (sk->sk_family) {
 	case AF_INET:
 		if (opt != IP_XFRM_POLICY) {
 			*dir = -EOPNOTSUPP;
@@ -1806,6 +1806,15 @@ static struct xfrm_policy *xfrm_compile_policy(u16 family, int opt,
 
 	copy_from_user_policy(xp, p);
 	copy_templates(xp, ut, nr);
+
+	if (!xp->security) {
+		int err = security_xfrm_sock_policy_alloc(xp, sk);
+		if (err) {
+			kfree(xp);
+			*dir = err;
+			return NULL;
+		}
+	}
 
 	*dir = p->dir;
 

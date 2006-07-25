@@ -7,7 +7,8 @@
 #ifndef _SELINUX_XFRM_H_
 #define _SELINUX_XFRM_H_
 
-int selinux_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx);
+int selinux_xfrm_policy_alloc(struct xfrm_policy *xp,
+		struct xfrm_user_sec_ctx *sec_ctx, struct sock *sk);
 int selinux_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new);
 void selinux_xfrm_policy_free(struct xfrm_policy *xp);
 int selinux_xfrm_policy_delete(struct xfrm_policy *xp);

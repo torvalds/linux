@@ -815,7 +815,8 @@ static inline void dummy_sk_getsecid(struct sock *sk, u32 *secid)
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
-static int dummy_xfrm_policy_alloc_security(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
+static int dummy_xfrm_policy_alloc_security(struct xfrm_policy *xp,
+		struct xfrm_user_sec_ctx *sec_ctx, struct sock *sk)
 {
 	return 0;
 }
