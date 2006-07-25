@@ -798,6 +798,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
 	ALC262
 	  fujitsu	Fujitsu Laptop
+	  hp-bpc	HP xw4400/6400/8400/9400 laptops
 	  basic		fixed pin assignment w/o SPDIF
 	  auto		auto-config reading BIOS (default)
 
