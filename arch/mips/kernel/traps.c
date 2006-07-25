@@ -79,6 +79,25 @@ void (*board_bind_eic_interrupt)(int irq, int regset);
  */
 #define MODULE_RANGE (8*1024*1024)
 
+static void show_trace(unsigned long *stack)
+{
+	const int field = 2 * sizeof(unsigned long);
+	unsigned long addr;
+
+	printk("Call Trace:");
+#ifdef CONFIG_KALLSYMS
+	printk("\n");
+#endif
+	while (!kstack_end(stack)) {
+		addr = *stack++;
+		if (__kernel_text_address(addr)) {
+			printk(" [<%0*lx>] ", field, addr);
+			print_symbol("%s\n", addr);
+		}
+	}
+	printk("\n");
+}
+
 /*
  * This routine abuses get_user()/put_user() to reference pointers
  * with at least a bit of error checking ...
@@ -88,6 +107,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	const int field = 2 * sizeof(unsigned long);
 	long stackdata;
 	int i;
+	unsigned long *stack;
 
 	if (!sp) {
 		if (task && task != current)
@@ -95,6 +115,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 		else
 			sp = (unsigned long *) &sp;
 	}
+	stack = sp;
 
 	printk("Stack :");
 	i = 0;
@@ -115,32 +136,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 		i++;
 	}
 	printk("\n");
-}
-
-void show_trace(struct task_struct *task, unsigned long *stack)
-{
-	const int field = 2 * sizeof(unsigned long);
-	unsigned long addr;
-
-	if (!stack) {
-		if (task && task != current)
-			stack = (unsigned long *) task->thread.reg29;
-		else
-			stack = (unsigned long *) &stack;
-	}
-
-	printk("Call Trace:");
-#ifdef CONFIG_KALLSYMS
-	printk("\n");
-#endif
-	while (!kstack_end(stack)) {
-		addr = *stack++;
-		if (__kernel_text_address(addr)) {
-			printk(" [<%0*lx>] ", field, addr);
-			print_symbol("%s\n", addr);
-		}
-	}
-	printk("\n");
+	show_trace(stack);
 }
 
 /*
@@ -150,7 +146,7 @@ void dump_stack(void)
 {
 	unsigned long stack;
 
-	show_trace(current, &stack);
+	show_trace(&stack);
 }
 
 EXPORT_SYMBOL(dump_stack);
@@ -270,7 +266,6 @@ void show_registers(struct pt_regs *regs)
 	printk("Process %s (pid: %d, threadinfo=%p, task=%p)\n",
 	        current->comm, current->pid, current_thread_info(), current);
 	show_stack(current, (long *) regs->regs[29]);
-	show_trace(current, (long *) regs->regs[29]);
 	show_code((unsigned int *) regs->cp0_epc);
 	printk("\n");
 }
