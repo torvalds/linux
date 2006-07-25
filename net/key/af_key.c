@@ -2708,6 +2708,9 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 #endif
 	int sockaddr_size;
 	int size;
+	struct sadb_x_sec_ctx *sec_ctx;
+	struct xfrm_sec_ctx *xfrm_ctx;
+	int ctx_size = 0;
 	
 	sockaddr_size = pfkey_sockaddr_size(x->props.family);
 	if (!sockaddr_size)
@@ -2722,6 +2725,11 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 		size += count_ah_combs(t);
 	else if (x->id.proto == IPPROTO_ESP)
 		size += count_esp_combs(t);
+
+	if ((xfrm_ctx = x->security)) {
+		ctx_size = PFKEY_ALIGN8(xfrm_ctx->ctx_len);
+		size +=  sizeof(struct sadb_x_sec_ctx) + ctx_size;
+	}
 
 	skb =  alloc_skb(size + 16, GFP_ATOMIC);
 	if (skb == NULL)
@@ -2817,6 +2825,20 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 		dump_ah_combs(skb, t);
 	else if (x->id.proto == IPPROTO_ESP)
 		dump_esp_combs(skb, t);
+
+	/* security context */
+	if (xfrm_ctx) {
+		sec_ctx = (struct sadb_x_sec_ctx *) skb_put(skb,
+				sizeof(struct sadb_x_sec_ctx) + ctx_size);
+		sec_ctx->sadb_x_sec_len =
+		  (sizeof(struct sadb_x_sec_ctx) + ctx_size) / sizeof(uint64_t);
+		sec_ctx->sadb_x_sec_exttype = SADB_X_EXT_SEC_CTX;
+		sec_ctx->sadb_x_ctx_doi = xfrm_ctx->ctx_doi;
+		sec_ctx->sadb_x_ctx_alg = xfrm_ctx->ctx_alg;
+		sec_ctx->sadb_x_ctx_len = xfrm_ctx->ctx_len;
+		memcpy(sec_ctx + 1, xfrm_ctx->ctx_str,
+		       xfrm_ctx->ctx_len);
+	}
 
 	return pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_REGISTERED, NULL);
 }
