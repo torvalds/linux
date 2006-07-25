@@ -3366,12 +3366,16 @@ static struct dlm_rsb *find_purged_rsb(struct dlm_ls *ls, int bucket)
 void dlm_grant_after_purge(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r;
-	int i;
+	int bucket = 0;
 
-	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		r = find_purged_rsb(ls, i);
-		if (!r)
+	while (1) {
+		r = find_purged_rsb(ls, bucket);
+		if (!r) {
+			if (bucket == ls->ls_rsbtbl_size - 1)
+				break;
+			bucket++;
 			continue;
+		}
 		lock_rsb(r);
 		if (is_master(r)) {
 			grant_pending_locks(r);
@@ -3379,6 +3383,7 @@ void dlm_grant_after_purge(struct dlm_ls *ls)
 		}
 		unlock_rsb(r);
 		put_rsb(r);
+		schedule();
 	}
 }
 
