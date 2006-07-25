@@ -76,19 +76,14 @@ int nfs_write_inode(struct inode *inode, int sync)
 
 void nfs_clear_inode(struct inode *inode)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-	struct rpc_cred *cred;
-
 	/*
 	 * The following should never happen...
 	 */
 	BUG_ON(nfs_have_writebacks(inode));
-	BUG_ON (!list_empty(&nfsi->open_files));
+	BUG_ON(!list_empty(&NFS_I(inode)->open_files));
+	BUG_ON(atomic_read(&NFS_I(inode)->data_updates) != 0);
 	nfs_zap_acl_cache(inode);
-	cred = nfsi->cache_access.cred;
-	if (cred)
-		put_rpccred(cred);
-	BUG_ON(atomic_read(&nfsi->data_updates) != 0);
+	nfs_access_zap_cache(inode);
 }
 
 /**
@@ -290,7 +285,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = jiffies;
 		memset(nfsi->cookieverf, 0, sizeof(nfsi->cookieverf));
-		nfsi->cache_access.cred = NULL;
+		nfsi->access_cache = RB_ROOT;
 
 		unlock_new_inode(inode);
 	} else

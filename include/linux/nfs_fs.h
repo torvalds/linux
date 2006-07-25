@@ -42,6 +42,7 @@
 #include <linux/in.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
+#include <linux/rbtree.h>
 #include <linux/rwsem.h>
 #include <linux/wait.h>
 
@@ -69,6 +70,7 @@
  * NFSv3/v4 Access mode cache entry
  */
 struct nfs_access_entry {
+	struct rb_node		rb_node;
 	unsigned long		jiffies;
 	struct rpc_cred *	cred;
 	int			mask;
@@ -145,7 +147,7 @@ struct nfs_inode {
 	 */
 	atomic_t		data_updates;
 
-	struct nfs_access_entry	cache_access;
+	struct rb_root		access_cache;
 #ifdef CONFIG_NFS_V3_ACL
 	struct posix_acl	*acl_access;
 	struct posix_acl	*acl_default;
@@ -297,6 +299,7 @@ extern int nfs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int nfs_permission(struct inode *, int, struct nameidata *);
 extern int nfs_access_get_cached(struct inode *, struct rpc_cred *, struct nfs_access_entry *);
 extern void nfs_access_add_cache(struct inode *, struct nfs_access_entry *);
+extern void nfs_access_zap_cache(struct inode *inode);
 extern int nfs_open(struct inode *, struct file *);
 extern int nfs_release(struct inode *, struct file *);
 extern int nfs_attribute_timeout(struct inode *inode);

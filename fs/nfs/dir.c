@@ -1638,35 +1638,134 @@ out:
 	return error;
 }
 
+static void nfs_access_free_entry(struct nfs_access_entry *entry)
+{
+	put_rpccred(entry->cred);
+	kfree(entry);
+}
+
+static void __nfs_access_zap_cache(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct rb_root *root_node = &nfsi->access_cache;
+	struct rb_node *n, *dispose = NULL;
+	struct nfs_access_entry *entry;
+
+	/* Unhook entries from the cache */
+	while ((n = rb_first(root_node)) != NULL) {
+		entry = rb_entry(n, struct nfs_access_entry, rb_node);
+		rb_erase(n, root_node);
+		n->rb_left = dispose;
+		dispose = n;
+	}
+	nfsi->cache_validity &= ~NFS_INO_INVALID_ACCESS;
+	spin_unlock(&inode->i_lock);
+
+	/* Now kill them all! */
+	while (dispose != NULL) {
+		n = dispose;
+		dispose = n->rb_left;
+		nfs_access_free_entry(rb_entry(n, struct nfs_access_entry, rb_node));
+	}
+}
+
+void nfs_access_zap_cache(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	/* This will release the spinlock */
+	__nfs_access_zap_cache(inode);
+}
+
+static struct nfs_access_entry *nfs_access_search_rbtree(struct inode *inode, struct rpc_cred *cred)
+{
+	struct rb_node *n = NFS_I(inode)->access_cache.rb_node;
+	struct nfs_access_entry *entry;
+
+	while (n != NULL) {
+		entry = rb_entry(n, struct nfs_access_entry, rb_node);
+
+		if (cred < entry->cred)
+			n = n->rb_left;
+		else if (cred > entry->cred)
+			n = n->rb_right;
+		else
+			return entry;
+	}
+	return NULL;
+}
+
 int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, struct nfs_access_entry *res)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
-	struct nfs_access_entry *cache = &nfsi->cache_access;
+	struct nfs_access_entry *cache;
+	int err = -ENOENT;
 
-	if (cache->cred != cred
-			|| time_after(jiffies, cache->jiffies + NFS_ATTRTIMEO(inode))
-			|| (nfsi->cache_validity & NFS_INO_INVALID_ACCESS))
-		return -ENOENT;
-	memcpy(res, cache, sizeof(*res));
-	return 0;
+	spin_lock(&inode->i_lock);
+	if (nfsi->cache_validity & NFS_INO_INVALID_ACCESS)
+		goto out_zap;
+	cache = nfs_access_search_rbtree(inode, cred);
+	if (cache == NULL)
+		goto out;
+	if (time_after(jiffies, cache->jiffies + NFS_ATTRTIMEO(inode)))
+		goto out_stale;
+	res->jiffies = cache->jiffies;
+	res->cred = cache->cred;
+	res->mask = cache->mask;
+	err = 0;
+out:
+	spin_unlock(&inode->i_lock);
+	return err;
+out_stale:
+	rb_erase(&cache->rb_node, &nfsi->access_cache);
+	spin_unlock(&inode->i_lock);
+	nfs_access_free_entry(cache);
+	return -ENOENT;
+out_zap:
+	/* This will release the spinlock */
+	__nfs_access_zap_cache(inode);
+	return -ENOENT;
+}
+
+static void nfs_access_add_rbtree(struct inode *inode, struct nfs_access_entry *set)
+{
+	struct rb_root *root_node = &NFS_I(inode)->access_cache;
+	struct rb_node **p = &root_node->rb_node;
+	struct rb_node *parent = NULL;
+	struct nfs_access_entry *entry;
+
+	spin_lock(&inode->i_lock);
+	while (*p != NULL) {
+		parent = *p;
+		entry = rb_entry(parent, struct nfs_access_entry, rb_node);
+
+		if (set->cred < entry->cred)
+			p = &parent->rb_left;
+		else if (set->cred > entry->cred)
+			p = &parent->rb_right;
+		else
+			goto found;
+	}
+	rb_link_node(&set->rb_node, parent, p);
+	rb_insert_color(&set->rb_node, root_node);
+	spin_unlock(&inode->i_lock);
+	return;
+found:
+	rb_replace_node(parent, &set->rb_node, root_node);
+	spin_unlock(&inode->i_lock);
+	nfs_access_free_entry(entry);
 }
 
 void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-	struct nfs_access_entry *cache = &nfsi->cache_access;
-
-	if (cache->cred != set->cred) {
-		if (cache->cred)
-			put_rpccred(cache->cred);
-		cache->cred = get_rpccred(set->cred);
-	}
-	/* FIXME: replace current access_cache BKL reliance with inode->i_lock */
-	spin_lock(&inode->i_lock);
-	nfsi->cache_validity &= ~NFS_INO_INVALID_ACCESS;
-	spin_unlock(&inode->i_lock);
+	struct nfs_access_entry *cache = kmalloc(sizeof(*cache), GFP_KERNEL);
+	if (cache == NULL)
+		return;
+	RB_CLEAR_NODE(&cache->rb_node);
 	cache->jiffies = set->jiffies;
+	cache->cred = get_rpccred(set->cred);
 	cache->mask = set->mask;
+
+	nfs_access_add_rbtree(inode, cache);
 }
 
 static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
