@@ -18,6 +18,9 @@
 
 #include "dlm_internal.h"
 
+#define DLM_DEBUG_BUF_LEN 4096
+static char debug_buf[DLM_DEBUG_BUF_LEN];
+static struct mutex debug_buf_lock;
 
 static struct dentry *dlm_root;
 
@@ -27,6 +30,10 @@ struct rsb_iter {
 	struct list_head *next;
 	struct dlm_rsb *rsb;
 };
+
+/*
+ * dump all rsb's in the lockspace hash table
+ */
 
 static char *print_lockmode(int mode)
 {
@@ -76,7 +83,7 @@ static void print_lock(struct seq_file *s, struct dlm_lkb *lkb,
 static int print_resource(struct dlm_rsb *res, struct seq_file *s)
 {
 	struct dlm_lkb *lkb;
-	int i, lvblen = res->res_ls->ls_lvblen;
+	int i, lvblen = res->res_ls->ls_lvblen, recover_list, root_list;
 
 	seq_printf(s, "\nResource %p Name (len=%d) \"", res, res->res_length);
 	for (i = 0; i < res->res_length; i++) {
@@ -110,6 +117,15 @@ static int print_resource(struct dlm_rsb *res, struct seq_file *s)
 		seq_printf(s, "\n");
 	}
 
+	root_list = !list_empty(&res->res_root_list);
+	recover_list = !list_empty(&res->res_recover_list);
+
+	if (root_list || recover_list) {
+		seq_printf(s, "Recovery: root %d recover %d flags %lx "
+			   "count %d\n", root_list, recover_list,
+			   res->flags, res->res_recover_locks_count);
+	}
+
 	/* Print the locks attached to this resource */
 	seq_printf(s, "Granted Queue\n");
 	list_for_each_entry(lkb, &res->res_grantqueue, lkb_statequeue)
@@ -123,6 +139,18 @@ static int print_resource(struct dlm_rsb *res, struct seq_file *s)
 	list_for_each_entry(lkb, &res->res_waitqueue, lkb_statequeue)
 		print_lock(s, lkb, res);
 
+	if (list_empty(&res->res_lookup))
+		goto out;
+
+	seq_printf(s, "Lookup Queue\n");
+	list_for_each_entry(lkb, &res->res_lookup, lkb_rsb_lookup) {
+		seq_printf(s, "%08x %s", lkb->lkb_id,
+			   print_lockmode(lkb->lkb_rqmode));
+		if (lkb->lkb_wait_type)
+			seq_printf(s, " wait_type: %d", lkb->lkb_wait_type);
+		seq_printf(s, "\n");
+	}
+ out:
 	return 0;
 }
 
@@ -190,7 +218,7 @@ static struct rsb_iter *rsb_iter_init(struct dlm_ls *ls)
 	return ri;
 }
 
-static void *seq_start(struct seq_file *file, loff_t *pos)
+static void *rsb_seq_start(struct seq_file *file, loff_t *pos)
 {
 	struct rsb_iter *ri;
 	loff_t n = *pos;
@@ -209,7 +237,7 @@ static void *seq_start(struct seq_file *file, loff_t *pos)
 	return ri;
 }
 
-static void *seq_next(struct seq_file *file, void *iter_ptr, loff_t *pos)
+static void *rsb_seq_next(struct seq_file *file, void *iter_ptr, loff_t *pos)
 {
 	struct rsb_iter *ri = iter_ptr;
 
@@ -223,12 +251,12 @@ static void *seq_next(struct seq_file *file, void *iter_ptr, loff_t *pos)
 	return ri;
 }
 
-static void seq_stop(struct seq_file *file, void *iter_ptr)
+static void rsb_seq_stop(struct seq_file *file, void *iter_ptr)
 {
 	/* nothing for now */
 }
 
-static int seq_show(struct seq_file *file, void *iter_ptr)
+static int rsb_seq_show(struct seq_file *file, void *iter_ptr)
 {
 	struct rsb_iter *ri = iter_ptr;
 
@@ -237,19 +265,19 @@ static int seq_show(struct seq_file *file, void *iter_ptr)
 	return 0;
 }
 
-static struct seq_operations dlm_seq_ops = {
-	.start = seq_start,
-	.next  = seq_next,
-	.stop  = seq_stop,
-	.show  = seq_show,
+static struct seq_operations rsb_seq_ops = {
+	.start = rsb_seq_start,
+	.next  = rsb_seq_next,
+	.stop  = rsb_seq_stop,
+	.show  = rsb_seq_show,
 };
 
-static int do_open(struct inode *inode, struct file *file)
+static int rsb_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int ret;
 
-	ret = seq_open(file, &dlm_seq_ops);
+	ret = rsb_seq_open(file, &rsb_seq_ops);
 	if (ret)
 		return ret;
 
@@ -259,32 +287,92 @@ static int do_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations dlm_fops = {
+static struct file_operations rsb_fops = {
 	.owner   = THIS_MODULE,
-	.open    = do_open,
+	.open    = rsb_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = seq_release
 };
 
+/*
+ * dump lkb's on the ls_waiters list
+ */
+
+static int waiters_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t waiters_read(struct file *file, char __user *userbuf,
+			    size_t count, loff_t *ppos)
+{
+	struct dlm_ls *ls = file->private_data;
+	struct dlm_lkb *lkb;
+	size_t len = DLM_DEBUG_BUF_LEN, pos = 0, rv;
+
+	mutex_lock(&debug_buf_lock);
+	mutex_lock(&ls->ls_waiters_mutex);
+	memset(debug_buf, 0, sizeof(debug_buf));
+
+	list_for_each_entry(lkb, &ls->ls_waiters, lkb_wait_reply) {
+		pos += snprintf(debug_buf + pos, len - pos, "%x %d %d %s\n",
+				lkb->lkb_id, lkb->lkb_wait_type,
+				lkb->lkb_nodeid, lkb->lkb_resource->res_name);
+	}
+	mutex_unlock(&ls->ls_waiters_mutex);
+
+	rv = simple_read_from_buffer(userbuf, count, ppos, debug_buf, pos);
+	mutex_unlock(&debug_buf_lock);
+	return rv;
+}
+
+static struct file_operations waiters_fops = {
+	.owner   = THIS_MODULE,
+	.open    = waiters_open,
+	.read    = waiters_read
+};
+
 int dlm_create_debug_file(struct dlm_ls *ls)
 {
-	ls->ls_debug_dentry = debugfs_create_file(ls->ls_name,
-						  S_IFREG | S_IRUGO,
-						  dlm_root,
-						  ls,
-						  &dlm_fops);
-	return ls->ls_debug_dentry ? 0 : -ENOMEM;
+	char name[DLM_LOCKSPACE_LEN+8];
+
+	ls->ls_debug_rsb_dentry = debugfs_create_file(ls->ls_name,
+						      S_IFREG | S_IRUGO,
+						      dlm_root,
+						      ls,
+						      &rsb_fops);
+	if (!ls->ls_rsb_debug_dentry)
+		return -ENOMEM;
+
+	memset(name, 0, sizeof(name));
+	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_waiters", ls->ls_name);
+
+	ls->ls_debug_waiters_dentry = debugfs_create_file(name,
+							  S_IFREG | S_IRUGO,
+							  dlm_root,
+							  ls,
+							  &waiters_fops);
+	if (!ls->ls_debug_waiters_dentry) {
+		debugfs_remove(ls->ls_debug_rsb_dentry);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 void dlm_delete_debug_file(struct dlm_ls *ls)
 {
-	if (ls->ls_debug_dentry)
-		debugfs_remove(ls->ls_debug_dentry);
+	if (ls->ls_debug_rsb_dentry)
+		debugfs_remove(ls->ls_debug_rsb_dentry);
+	if (ls->ls_debug_waiters_dentry)
+		debugfs_remove(ls->ls_debug_waiters_dentry);
 }
 
 int dlm_register_debugfs(void)
 {
+	mutex_init(&debug_buf_lock);
 	dlm_root = debugfs_create_dir("dlm", NULL);
 	return dlm_root ? 0 : -ENOMEM;
 }

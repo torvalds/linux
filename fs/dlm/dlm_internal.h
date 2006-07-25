@@ -446,7 +446,8 @@ struct dlm_ls {
 	struct dlm_lkb		ls_stub_lkb;	/* for returning errors */
 	struct dlm_message	ls_stub_ms;	/* for faking a reply */
 
-	struct dentry		*ls_debug_dentry; /* debugfs */
+	struct dentry		*ls_debug_rsb_dentry; /* debugfs */
+	struct dentry		*ls_debug_waiters_dentry; /* debugfs */
 
 	wait_queue_head_t	ls_uevent_wait;	/* user part of join/leave */
 	int			ls_uevent_result;

@@ -446,7 +446,8 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	memset(&ls->ls_stub_rsb, 0, sizeof(struct dlm_rsb));
 	ls->ls_stub_rsb.res_ls = ls;
 
-	ls->ls_debug_dentry = NULL;
+	ls->ls_debug_rsb_dentry = NULL;
+	ls->ls_debug_waiters_dentry = NULL;
 
 	init_waitqueue_head(&ls->ls_uevent_wait);
 	ls->ls_uevent_result = 0;
