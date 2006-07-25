@@ -37,6 +37,9 @@
 #define LSI_MAX_CHANNELS		16
 #define LSI_MAX_LOGICAL_DRIVES_64LD	(64+1)
 
+#define HBA_SIGNATURE_64_BIT		0x299
+#define PCI_CONF_AMISIG64		0xa4
+
 
 /**
  * scb_t - scsi command control block

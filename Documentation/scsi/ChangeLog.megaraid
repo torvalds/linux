@@ -1,3 +1,64 @@
+Release Date	: Fri May 19 09:31:45 EST 2006 - Seokmann Ju <sju@lsil.com>
+Current Version : 2.20.4.9 (scsi module), 2.20.2.6 (cmm module)
+Older Version	: 2.20.4.8 (scsi module), 2.20.2.6 (cmm module)
+
+1.	Fixed a bug in megaraid_init_mbox().
+	Customer reported "garbage in file on x86_64 platform".
+	Root Cause: the driver registered controllers as 64-bit DMA capable
+	for those which are not support it.
+	Fix: Made change in the function inserting identification machanism
+	identifying 64-bit DMA capable controllers.
+
+	> -----Original Message-----
+	> From: Vasily Averin [mailto:vvs@sw.ru]
+	> Sent: Thursday, May 04, 2006 2:49 PM
+	> To: linux-scsi@vger.kernel.org; Kolli, Neela; Mukker, Atul;
+	> Ju, Seokmann; Bagalkote, Sreenivas;
+	> James.Bottomley@SteelEye.com; devel@openvz.org
+	> Subject: megaraid_mbox: garbage in file
+	>
+	> Hello all,
+	>
+	> I've investigated customers claim on the unstable work of
+	> their node and found a
+	> strange effect: reading from some files leads to the
+	>  "attempt to access beyond end of device" messages.
+	>
+	> I've checked filesystem, memory on the node, motherboard BIOS
+	> version, but it
+	> does not help and issue still has been reproduced by simple
+	> file reading.
+	>
+	> Reproducer is simple:
+	>
+	> echo 0xffffffff >/proc/sys/dev/scsi/logging_level ;
+	> cat /vz/private/101/root/etc/ld.so.cache >/tmp/ttt  ;
+	> echo 0 >/proc/sys/dev/scsi/logging
+	>
+	> It leads to the following messages in dmesg
+	>
+	> sd_init_command: disk=sda, block=871769260, count=26
+	> sda : block=871769260
+	> sda : reading 26/26 512 byte blocks.
+	> scsi_add_timer: scmd: f79ed980, time: 7500, (c02b1420)
+	> sd 0:1:0:0: send 0xf79ed980                  sd 0:1:0:0:
+	>         command: Read (10): 28 00 33 f6 24 ac 00 00 1a 00
+	> buffer = 0xf7cfb540, bufflen = 13312, done = 0xc0366b40,
+	> queuecommand 0xc0344010
+	> leaving scsi_dispatch_cmnd()
+	> scsi_delete_timer: scmd: f79ed980, rtn: 1
+	> sd 0:1:0:0: done 0xf79ed980 SUCCESS        0 sd 0:1:0:0:
+	>         command: Read (10): 28 00 33 f6 24 ac 00 00 1a 00
+	> scsi host busy 1 failed 0
+	> sd 0:1:0:0: Notifying upper driver of completion (result 0)
+	> sd_rw_intr: sda: res=0x0
+	> 26 sectors total, 13312 bytes done.
+	> use_sg is 4
+	> attempt to access beyond end of device
+	> sda6: rw=0, want=1044134458, limit=951401367
+	> Buffer I/O error on device sda6, logical block 522067228
+	> attempt to access beyond end of device
+
 Release Date	: Mon Apr 11 12:27:22 EST 2006 - Seokmann Ju <sju@lsil.com>
 Current Version : 2.20.4.8 (scsi module), 2.20.2.6 (cmm module)
 Older Version	: 2.20.4.7 (scsi module), 2.20.2.6 (cmm module)
