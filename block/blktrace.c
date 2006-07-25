@@ -80,7 +80,7 @@ static u32 bio_act[5] __read_mostly = { 0, BLK_TC_ACT(BLK_TC_BARRIER), BLK_TC_AC
 #define trace_sync_bit(rw)	\
 	(((rw) & (1 << BIO_RW_SYNC)) >> (BIO_RW_SYNC - 1))
 #define trace_ahead_bit(rw)	\
-	(((rw) & (1 << BIO_RW_AHEAD)) << (BIO_RW_AHEAD - 0))
+	(((rw) & (1 << BIO_RW_AHEAD)) << (2 - BIO_RW_AHEAD))
 
 /*
  * The worker for the various blk_add_trace*() types. Fills out a
