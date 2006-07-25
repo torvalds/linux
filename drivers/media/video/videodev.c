@@ -1538,6 +1538,8 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 			name_base = "radio";
 			break;
 		default:
+			printk(KERN_ERR "%s called with unknown type: %d\n",
+			       __FUNCTION__, type);
 			return -1;
 	}
 
@@ -1592,6 +1594,15 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 		       "http://lwn.net/Articles/36850/\n", vfd->name);
 #endif
 	return 0;
+
+fail_classdev:
+	class_device_unregister(&vfd->class_dev);
+fail_minor:
+	mutex_lock(&videodev_lock);
+	video_device[vfd->minor] = NULL;
+	vfd->minor = -1;
+	mutex_unlock(&videodev_lock);
+	return ret;
 }
 
 /**
