@@ -59,6 +59,13 @@ Older Version	: 2.20.4.8 (scsi module), 2.20.2.6 (cmm module)
 	> Buffer I/O error on device sda6, logical block 522067228
 	> attempt to access beyond end of device
 
+2.	When INQUIRY with EVPD bit set issued to the MegaRAID controller,
+	system memory gets corrupted.
+	Root Cause: MegaRAID F/W handle the INQUIRY with EVPD bit set
+	incorrectly.
+	Fix: MegaRAID F/W has fixed the problem and being process of release,
+	soon. Meanwhile, driver will filter out the request.
+
 Release Date	: Mon Apr 11 12:27:22 EST 2006 - Seokmann Ju <sju@lsil.com>
 Current Version : 2.20.4.8 (scsi module), 2.20.2.6 (cmm module)
 Older Version	: 2.20.4.7 (scsi module), 2.20.2.6 (cmm module)

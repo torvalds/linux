@@ -1644,6 +1644,14 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 				rdev->last_disp |= (1L << SCP2CHANNEL(scp));
 			}
 
+			if (scp->cmnd[1] & MEGA_SCSI_INQ_EVPD) {
+				scp->sense_buffer[0] = 0x70;
+				scp->sense_buffer[2] = ILLEGAL_REQUEST;
+				scp->sense_buffer[12] = MEGA_INVALID_FIELD_IN_CDB;
+				scp->result = CHECK_CONDITION << 1;
+				return NULL;
+			}
+
 			/* Fall through */
 
 		case READ_CAPACITY:

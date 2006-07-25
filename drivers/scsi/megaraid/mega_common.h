@@ -40,6 +40,9 @@
 #define HBA_SIGNATURE_64_BIT		0x299
 #define PCI_CONF_AMISIG64		0xa4
 
+#define MEGA_SCSI_INQ_EVPD		1
+#define MEGA_INVALID_FIELD_IN_CDB	0x24
+
 
 /**
  * scb_t - scsi command control block
