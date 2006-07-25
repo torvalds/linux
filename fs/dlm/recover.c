@@ -305,7 +305,8 @@ static void set_master_lkbs(struct dlm_rsb *r)
 /*
  * Propogate the new master nodeid to locks
  * The NEW_MASTER flag tells dlm_recover_locks() which rsb's to consider.
- * The NEW_MASTER2 flag tells recover_lvb() which rsb's to consider.
+ * The NEW_MASTER2 flag tells recover_lvb() and set_locks_purged() which
+ * rsb's to consider.
  */
 
 static void set_new_master(struct dlm_rsb *r, int nodeid)
@@ -681,6 +682,16 @@ static void recover_conversion(struct dlm_rsb *r)
 	}
 }
 
+/* We've become the new master for this rsb and waiting/converting locks may
+   need to be granted in dlm_grant_after_purge() due to locks that may have
+   existed from a removed node. */
+
+static void set_locks_purged(struct dlm_rsb *r)
+{
+	if (!list_empty(&r->res_waitqueue) || !list_empty(&r->res_convertqueue))
+		rsb_set_flag(r, RSB_LOCKS_PURGED);
+}
+
 void dlm_recover_rsbs(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r;
@@ -694,10 +705,13 @@ void dlm_recover_rsbs(struct dlm_ls *ls)
 		if (is_master(r)) {
 			if (rsb_flag(r, RSB_RECOVER_CONVERT))
 				recover_conversion(r);
+			if (rsb_flag(r, RSB_NEW_MASTER2))
+				set_locks_purged(r);
 			recover_lvb(r);
 			count++;
 		}
 		rsb_clear_flag(r, RSB_RECOVER_CONVERT);
+		rsb_clear_flag(r, RSB_NEW_MASTER2);
 		unlock_rsb(r);
 	}
 	up_read(&ls->ls_root_sem);
