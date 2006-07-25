@@ -1575,7 +1575,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	vfd->class_dev.devt        = MKDEV(VIDEO_MAJOR, vfd->minor);
 	sprintf(vfd->class_dev.class_id, "%s%d", name_base, i - base);
 	ret = class_device_register(&vfd->class_dev);
-	if (ret) {
+	if (ret < 0) {
 		printk(KERN_ERR "%s: class_device_register failed\n",
 		       __FUNCTION__);
 		goto fail_minor;
