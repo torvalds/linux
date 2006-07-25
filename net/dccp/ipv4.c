@@ -501,6 +501,9 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 
 	dccp_openreq_init(req, &dp, skb);
 
+	if (security_inet_conn_request(sk, skb, req))
+		goto drop_and_free;
+
 	ireq = inet_rsk(req);
 	ireq->loc_addr = daddr;
 	ireq->rmt_addr = saddr;

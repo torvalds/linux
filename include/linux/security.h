@@ -90,6 +90,7 @@ extern int cap_netlink_recv(struct sk_buff *skb, int cap);
 struct nfsctl_arg;
 struct sched_param;
 struct swap_info_struct;
+struct request_sock;
 
 /* bprm_apply_creds unsafe reasons */
 #define LSM_UNSAFE_SHARE	1
@@ -819,6 +820,14 @@ struct swap_info_struct;
  * @sk_getsecid:
  *	Retrieve the LSM-specific secid for the sock to enable caching of network
  *	authorizations.
+ * @sock_graft:
+ *	Sets the socket's isec sid to the sock's sid.
+ * @inet_conn_request:
+ *	Sets the openreq's sid to socket's sid with MLS portion taken from peer sid.
+ * @inet_csk_clone:
+ *	Sets the new child socket's sid to the openreq sid.
+ * @req_classify_flow:
+ *	Sets the flow's sid to the openreq sid.
  *
  * Security hooks for XFRM operations.
  *
@@ -1358,6 +1367,11 @@ struct security_operations {
 	void (*sk_free_security) (struct sock *sk);
 	void (*sk_clone_security) (const struct sock *sk, struct sock *newsk);
 	void (*sk_getsecid) (struct sock *sk, u32 *secid);
+	void (*sock_graft)(struct sock* sk, struct socket *parent);
+	int (*inet_conn_request)(struct sock *sk, struct sk_buff *skb,
+					struct request_sock *req);
+	void (*inet_csk_clone)(struct sock *newsk, const struct request_sock *req);
+	void (*req_classify_flow)(const struct request_sock *req, struct flowi *fl);
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
@@ -2926,6 +2940,28 @@ static inline void security_sk_classify_flow(struct sock *sk, struct flowi *fl)
 {
 	security_ops->sk_getsecid(sk, &fl->secid);
 }
+
+static inline void security_req_classify_flow(const struct request_sock *req, struct flowi *fl)
+{
+	security_ops->req_classify_flow(req, fl);
+}
+
+static inline void security_sock_graft(struct sock* sk, struct socket *parent)
+{
+	security_ops->sock_graft(sk, parent);
+}
+
+static inline int security_inet_conn_request(struct sock *sk,
+			struct sk_buff *skb, struct request_sock *req)
+{
+	return security_ops->inet_conn_request(sk, skb, req);
+}
+
+static inline void security_inet_csk_clone(struct sock *newsk,
+			const struct request_sock *req)
+{
+	security_ops->inet_csk_clone(newsk, req);
+}
 #else	/* CONFIG_SECURITY_NETWORK */
 static inline int security_unix_stream_connect(struct socket * sock,
 					       struct socket * other, 
@@ -3053,6 +3089,25 @@ static inline void security_sk_clone(const struct sock *sk, struct sock *newsk)
 }
 
 static inline void security_sk_classify_flow(struct sock *sk, struct flowi *fl)
+{
+}
+
+static inline void security_req_classify_flow(const struct request_sock *req, struct flowi *fl)
+{
+}
+
+static inline void security_sock_graft(struct sock* sk, struct socket *parent)
+{
+}
+
+static inline int security_inet_conn_request(struct sock *sk,
+			struct sk_buff *skb, struct request_sock *req)
+{
+	return 0;
+}
+
+static inline void security_inet_csk_clone(struct sock *newsk,
+			const struct request_sock *req)
 {
 }
 #endif	/* CONFIG_SECURITY_NETWORK */

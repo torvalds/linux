@@ -3328,8 +3328,9 @@ static int selinux_socket_unix_stream_connect(struct socket *sock,
 	/* server child socket */
 	ssec = newsk->sk_security;
 	ssec->peer_sid = isec->sid;
-	
-	return 0;
+	err = security_sid_mls_copy(other_isec->sid, ssec->peer_sid, &ssec->sid);
+
+	return err;
 }
 
 static int selinux_socket_unix_may_send(struct socket *sock,
@@ -3355,11 +3356,29 @@ static int selinux_socket_unix_may_send(struct socket *sock,
 }
 
 static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
-		struct avc_audit_data *ad, u32 sock_sid, u16 sock_class,
-		u16 family, char *addrp, int len)
+		struct avc_audit_data *ad, u16 family, char *addrp, int len)
 {
 	int err = 0;
 	u32 netif_perm, node_perm, node_sid, if_sid, recv_perm = 0;
+	struct socket *sock;
+	u16 sock_class = 0;
+	u32 sock_sid = 0;
+
+ 	read_lock_bh(&sk->sk_callback_lock);
+ 	sock = sk->sk_socket;
+ 	if (sock) {
+ 		struct inode *inode;
+ 		inode = SOCK_INODE(sock);
+ 		if (inode) {
+ 			struct inode_security_struct *isec;
+ 			isec = inode->i_security;
+ 			sock_sid = isec->sid;
+ 			sock_class = isec->sclass;
+ 		}
+ 	}
+ 	read_unlock_bh(&sk->sk_callback_lock);
+ 	if (!sock_sid)
+  		goto out;
 
 	if (!skb->dev)
 		goto out;
@@ -3419,12 +3438,10 @@ out:
 static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	u16 family;
-	u16 sock_class = 0;
 	char *addrp;
 	int len, err = 0;
-	u32 sock_sid = 0;
-	struct socket *sock;
 	struct avc_audit_data ad;
+	struct sk_security_struct *sksec = sk->sk_security;
 
 	family = sk->sk_family;
 	if (family != PF_INET && family != PF_INET6)
@@ -3433,22 +3450,6 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	/* Handle mapped IPv4 packets arriving via IPv6 sockets */
 	if (family == PF_INET6 && skb->protocol == ntohs(ETH_P_IP))
 		family = PF_INET;
-
- 	read_lock_bh(&sk->sk_callback_lock);
- 	sock = sk->sk_socket;
- 	if (sock) {
- 		struct inode *inode;
- 		inode = SOCK_INODE(sock);
- 		if (inode) {
- 			struct inode_security_struct *isec;
- 			isec = inode->i_security;
- 			sock_sid = isec->sid;
- 			sock_class = isec->sclass;
- 		}
- 	}
- 	read_unlock_bh(&sk->sk_callback_lock);
- 	if (!sock_sid)
-  		goto out;
 
 	AVC_AUDIT_DATA_INIT(&ad, NET);
 	ad.u.net.netif = skb->dev ? skb->dev->name : "[unknown]";
@@ -3459,16 +3460,15 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		goto out;
 
 	if (selinux_compat_net)
-		err = selinux_sock_rcv_skb_compat(sk, skb, &ad, sock_sid,
-						  sock_class, family,
+		err = selinux_sock_rcv_skb_compat(sk, skb, &ad, family,
 						  addrp, len);
 	else
-		err = avc_has_perm(sock_sid, skb->secmark, SECCLASS_PACKET,
+		err = avc_has_perm(sksec->sid, skb->secmark, SECCLASS_PACKET,
 				   PACKET__RECV, &ad);
 	if (err)
 		goto out;
 
-	err = selinux_xfrm_sock_rcv_skb(sock_sid, skb, &ad);
+	err = selinux_xfrm_sock_rcv_skb(sksec->sid, skb, &ad);
 out:	
 	return err;
 }
@@ -3572,6 +3572,49 @@ static void selinux_sk_getsecid(struct sock *sk, u32 *secid)
 	}
 }
 
+void selinux_sock_graft(struct sock* sk, struct socket *parent)
+{
+	struct inode_security_struct *isec = SOCK_INODE(parent)->i_security;
+	struct sk_security_struct *sksec = sk->sk_security;
+
+	isec->sid = sksec->sid;
+}
+
+int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
+					   struct request_sock *req)
+{
+	struct sk_security_struct *sksec = sk->sk_security;
+	int err;
+	u32 newsid = 0;
+	u32 peersid;
+
+	err = selinux_xfrm_decode_session(skb, &peersid, 0);
+	BUG_ON(err);
+
+	err = security_sid_mls_copy(sksec->sid, peersid, &newsid);
+	if (err)
+		return err;
+
+	req->secid = newsid;
+	return 0;
+}
+
+void selinux_inet_csk_clone(struct sock *newsk, const struct request_sock *req)
+{
+	struct sk_security_struct *newsksec = newsk->sk_security;
+
+	newsksec->sid = req->secid;
+	/* NOTE: Ideally, we should also get the isec->sid for the
+	   new socket in sync, but we don't have the isec available yet.
+	   So we will wait until sock_graft to do it, by which
+	   time it will have been created and available. */
+}
+
+void selinux_req_classify_flow(const struct request_sock *req, struct flowi *fl)
+{
+	fl->secid = req->secid;
+}
+
 static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 {
 	int err = 0;
@@ -3611,12 +3654,24 @@ out:
 #ifdef CONFIG_NETFILTER
 
 static int selinux_ip_postroute_last_compat(struct sock *sk, struct net_device *dev,
-					    struct inode_security_struct *isec,
 					    struct avc_audit_data *ad,
 					    u16 family, char *addrp, int len)
 {
-	int err;
+	int err = 0;
 	u32 netif_perm, node_perm, node_sid, if_sid, send_perm = 0;
+	struct socket *sock;
+	struct inode *inode;
+	struct inode_security_struct *isec;
+
+	sock = sk->sk_socket;
+	if (!sock)
+		goto out;
+
+	inode = SOCK_INODE(sock);
+	if (!inode)
+		goto out;
+
+	isec = inode->i_security;
 	
 	err = sel_netif_sids(dev, &if_sid, NULL);
 	if (err)
@@ -3681,26 +3736,16 @@ static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
 	char *addrp;
 	int len, err = 0;
 	struct sock *sk;
-	struct socket *sock;
-	struct inode *inode;
 	struct sk_buff *skb = *pskb;
-	struct inode_security_struct *isec;
 	struct avc_audit_data ad;
 	struct net_device *dev = (struct net_device *)out;
+	struct sk_security_struct *sksec;
 
 	sk = skb->sk;
 	if (!sk)
 		goto out;
 
-	sock = sk->sk_socket;
-	if (!sock)
-		goto out;
-
-	inode = SOCK_INODE(sock);
-	if (!inode)
-		goto out;
-
-	isec = inode->i_security;
+	sksec = sk->sk_security;
 
 	AVC_AUDIT_DATA_INIT(&ad, NET);
 	ad.u.net.netif = dev->name;
@@ -3711,16 +3756,16 @@ static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
 		goto out;
 
 	if (selinux_compat_net)
-		err = selinux_ip_postroute_last_compat(sk, dev, isec, &ad,
+		err = selinux_ip_postroute_last_compat(sk, dev, &ad,
 						       family, addrp, len);
 	else
-		err = avc_has_perm(isec->sid, skb->secmark, SECCLASS_PACKET,
+		err = avc_has_perm(sksec->sid, skb->secmark, SECCLASS_PACKET,
 				   PACKET__SEND, &ad);
 
 	if (err)
 		goto out;
 
-	err = selinux_xfrm_postroute_last(isec->sid, skb, &ad);
+	err = selinux_xfrm_postroute_last(sksec->sid, skb, &ad);
 out:
 	return err ? NF_DROP : NF_ACCEPT;
 }
@@ -4623,6 +4668,10 @@ static struct security_operations selinux_ops = {
 	.sk_free_security =		selinux_sk_free_security,
 	.sk_clone_security =		selinux_sk_clone_security,
 	.sk_getsecid = 			selinux_sk_getsecid,
+	.sock_graft =			selinux_sock_graft,
+	.inet_conn_request =		selinux_inet_conn_request,
+	.inet_csk_clone =		selinux_inet_csk_clone,
+	.req_classify_flow =		selinux_req_classify_flow,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	.xfrm_policy_alloc_security =	selinux_xfrm_policy_alloc,

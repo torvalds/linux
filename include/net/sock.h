@@ -969,6 +969,7 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 	sk->sk_sleep = &parent->wait;
 	parent->sk = sk;
 	sk->sk_socket = parent;
+	security_sock_graft(sk, parent);
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 

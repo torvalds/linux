@@ -470,7 +470,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	fl.oif = treq->iif;
 	fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 	fl.fl_ip_sport = inet_sk(sk)->sport;
-	security_sk_classify_flow(sk, &fl);
+	security_req_classify_flow(req, &fl);
 
 	if (dst == NULL) {
 		opt = np->opt;
@@ -826,6 +826,8 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 
 	tcp_rsk(req)->snt_isn = isn;
 
+	security_inet_conn_request(sk, skb, req);
+
 	if (tcp_v6_send_synack(sk, req, NULL))
 		goto drop;
 
@@ -929,7 +931,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		fl.oif = sk->sk_bound_dev_if;
 		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 		fl.fl_ip_sport = inet_sk(sk)->sport;
-		security_sk_classify_flow(sk, &fl);
+		security_req_classify_flow(req, &fl);
 
 		if (ip6_dst_lookup(sk, &dst, &fl))
 			goto out;

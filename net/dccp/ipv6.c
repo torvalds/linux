@@ -424,7 +424,7 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req,
 	fl.oif = ireq6->iif;
 	fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 	fl.fl_ip_sport = inet_sk(sk)->sport;
-	security_sk_classify_flow(sk, &fl);
+	security_req_classify_flow(req, &fl);
 
 	if (dst == NULL) {
 		opt = np->opt;
@@ -626,7 +626,7 @@ static void dccp_v6_reqsk_send_ack(struct sk_buff *rxskb,
 	fl.oif = inet6_iif(rxskb);
 	fl.fl_ip_dport = dh->dccph_dport;
 	fl.fl_ip_sport = dh->dccph_sport;
-	security_skb_classify_flow(rxskb, &fl);
+	security_req_classify_flow(req, &fl);
 
 	if (!ip6_dst_lookup(NULL, &skb->dst, &fl)) {
 		if (xfrm_lookup(&skb->dst, &fl, NULL, 0) >= 0) {
@@ -708,6 +708,9 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	/* FIXME: process options */
 
 	dccp_openreq_init(req, &dp, skb);
+
+	if (security_inet_conn_request(sk, skb, req))
+		goto drop_and_free;
 
 	ireq6 = inet6_rsk(req);
 	ireq = inet_rsk(req);

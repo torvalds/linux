@@ -271,7 +271,6 @@ not_from_user:
 		goto out;
 	}
 
-
 	ctx->ctx_doi = XFRM_SC_DOI_LSM;
 	ctx->ctx_alg = XFRM_SC_ALG_SELINUX;
 	ctx->ctx_sid = ctx_sid;
