@@ -589,8 +589,9 @@ static void gfs2_invalidatepage(struct page *page, unsigned long offset)
 	return;
 }
 
-static ssize_t gfs2_direct_IO_write(struct kiocb *iocb, const struct iovec *iov,
-				    loff_t offset, unsigned long nr_segs)
+static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
+			      const struct iovec *iov, loff_t offset,
+			      unsigned long nr_segs)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
@@ -598,13 +599,18 @@ static ssize_t gfs2_direct_IO_write(struct kiocb *iocb, const struct iovec *iov,
 	struct gfs2_holder gh;
 	int rv;
 
+	if (rw == READ)
+		mutex_lock(&inode->i_mutex);
 	/*
-	 * Shared lock, even though its write, since we do no allocation
+	 * Shared lock, even if its a write, since we do no allocation
 	 * on this path. All we need change is atime.
 	 */
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
 	rv = gfs2_glock_nq_m_atime(1, &gh);
 	if (rv)
+		goto out;
+
+	if (offset > i_size_read(inode))
 		goto out;
 
 	/*
@@ -619,45 +625,17 @@ static ssize_t gfs2_direct_IO_write(struct kiocb *iocb, const struct iovec *iov,
 	if (gfs2_is_stuffed(ip))
 		goto out;
 
-	rv = __blockdev_direct_IO(WRITE, iocb, inode, inode->i_sb->s_bdev,
-				  iov, offset, nr_segs, gfs2_get_block,
-				  NULL, DIO_OWN_LOCKING);
+	rv = blockdev_direct_IO_own_locking(rw, iocb, inode,
+					    inode->i_sb->s_bdev,
+					    iov, offset, nr_segs,
+					    gfs2_get_block, NULL);
 out:
 	gfs2_glock_dq_m(1, &gh);
 	gfs2_holder_uninit(&gh);
+	if (rw == READ)
+		mutex_unlock(&inode->i_mutex);
 
 	return rv;
-}
-
-/**
- * gfs2_direct_IO
- *
- * This is called with a shared lock already held for the read path.
- * Currently, no locks are held when the write path is called.
- */
-static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
-			      const struct iovec *iov, loff_t offset,
-			      unsigned long nr_segs)
-{
-	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	int ret;
-
-	if (rw == WRITE)
-		return gfs2_direct_IO_write(iocb, iov, offset, nr_segs);
-
-	if (gfs2_assert_warn(sdp, gfs2_glock_is_locked_by_me(ip->i_gl)) ||
-	    gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
-		return -EINVAL;
-
-	mutex_lock(&inode->i_mutex);
-	ret = __blockdev_direct_IO(READ, iocb, inode, inode->i_sb->s_bdev, iov,
-			 	   offset, nr_segs, gfs2_get_block, NULL,
-				   DIO_OWN_LOCKING);
-	mutex_unlock(&inode->i_mutex);
-	return ret;
 }
 
 /**
@@ -765,7 +743,7 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 	}
 	while (bh != head);
 
- out:
+out:
 	return try_to_free_buffers(page);
 }
 

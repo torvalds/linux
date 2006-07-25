@@ -1122,7 +1122,6 @@ success:
 	desc->arg.buf += size;
 	return size;
 }
-EXPORT_SYMBOL_GPL(file_read_actor);
 
 /**
  * __generic_file_aio_read - generic filesystem read routine
@@ -1184,7 +1183,8 @@ __generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 				*ppos = pos + retval;
 		}
 		file_accessed(filp);
-		goto out;
+		if (retval != 0)
+			goto out;
 	}
 
 	retval = 0;
