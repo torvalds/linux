@@ -2156,8 +2156,13 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	{ .modelname = "3stack-digout", .config = ALC880_3ST_DIG },
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe308, .config = ALC880_3ST_DIG },
 	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x0070, .config = ALC880_3ST_DIG },
-	/* Clevo m520G NB */
-	{ .pci_subvendor = 0x1558, .pci_subdevice = 0x0520, .config = ALC880_CLEVO },
+
+	/* Clevo laptops */
+	{ .modelname = "clevo", .config = ALC880_CLEVO },
+	{ .pci_subvendor = 0x1558, .pci_subdevice = 0x0520,
+	  .config = ALC880_CLEVO }, /* Clevo m520G NB */
+	{ .pci_subvendor = 0x1558, .pci_subdevice = 0x0660,
+	  .config = ALC880_CLEVO }, /* Clevo m665n */
 
 	/* Back 3 jack plus 1 SPDIF out jack, front 2 jack (Internal add Aux-In)*/
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe305, .config = ALC880_3ST_DIG },
