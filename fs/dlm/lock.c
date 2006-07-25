@@ -3193,6 +3193,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			log_error(ls, "invalid lkb wait_type %d",
 				  lkb->lkb_wait_type);
 		}
+		schedule();
 	}
 	mutex_unlock(&ls->ls_waiters_mutex);
 }
