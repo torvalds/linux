@@ -79,6 +79,7 @@ enum {
 	ALC262_BASIC,
 	ALC262_FUJITSU,
 	ALC262_HP_BPC,
+	ALC262_BENQ_ED8,
 	ALC262_AUTO,
 	ALC262_MODEL_LAST /* last tag */
 };
@@ -5504,6 +5505,13 @@ static struct snd_kcontrol_new alc262_fujitsu_mixer[] = {
 	{ } /* end */
 };
 
+/* additional init verbs for Benq laptops */
+static struct hda_verb alc262_EAPD_verbs[] = {
+	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
+	{0x20, AC_VERB_SET_PROC_COEF,  0x3070},
+	{}
+};
+
 /* add playback controls from the parsed DAC table */
 static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec, const struct auto_pin_cfg *cfg)
 {
@@ -5783,6 +5791,9 @@ static struct hda_board_config alc262_cfg_tbl[] = {
 	  .config = ALC262_HP_BPC }, /* xw8400 */
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x12fe,
 	  .config = ALC262_HP_BPC }, /* xw9400 */
+	{ .modelname = "benq", .config = ALC262_BENQ_ED8 },
+	{ .pci_subvendor = 0x17ff, .pci_subdevice = 0x0560,
+	  .config = ALC262_BENQ_ED8 },
 	{ .modelname = "auto", .config = ALC262_AUTO },
 	{}
 };
@@ -5820,6 +5831,16 @@ static struct alc_config_preset alc262_presets[] = {
 		.channel_mode = alc262_modes,
 		.input_mux = &alc262_HP_capture_source,
 	},	
+	[ALC262_BENQ_ED8] = {
+		.mixers = { alc262_base_mixer },
+		.init_verbs = { alc262_init_verbs, alc262_EAPD_verbs },
+		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
+		.dac_nids = alc262_dac_nids,
+		.hp_nid = 0x03,
+		.num_channel_mode = ARRAY_SIZE(alc262_modes),
+		.channel_mode = alc262_modes,
+		.input_mux = &alc262_capture_source,
+	},		
 };
 
 static int patch_alc262(struct hda_codec *codec)
