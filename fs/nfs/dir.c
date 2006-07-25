@@ -1638,10 +1638,17 @@ out:
 	return error;
 }
 
+static DEFINE_SPINLOCK(nfs_access_lru_lock);
+static LIST_HEAD(nfs_access_lru_list);
+static atomic_long_t nfs_access_nr_entries;
+
 static void nfs_access_free_entry(struct nfs_access_entry *entry)
 {
 	put_rpccred(entry->cred);
 	kfree(entry);
+	smp_mb__before_atomic_dec();
+	atomic_long_dec(&nfs_access_nr_entries);
+	smp_mb__after_atomic_dec();
 }
 
 static void __nfs_access_zap_cache(struct inode *inode)
@@ -1655,6 +1662,7 @@ static void __nfs_access_zap_cache(struct inode *inode)
 	while ((n = rb_first(root_node)) != NULL) {
 		entry = rb_entry(n, struct nfs_access_entry, rb_node);
 		rb_erase(n, root_node);
+		list_del(&entry->lru);
 		n->rb_left = dispose;
 		dispose = n;
 	}
@@ -1671,6 +1679,13 @@ static void __nfs_access_zap_cache(struct inode *inode)
 
 void nfs_access_zap_cache(struct inode *inode)
 {
+	/* Remove from global LRU init */
+	if (test_and_clear_bit(NFS_INO_ACL_LRU_SET, &NFS_FLAGS(inode))) {
+		spin_lock(&nfs_access_lru_lock);
+		list_del_init(&NFS_I(inode)->access_cache_inode_lru);
+		spin_unlock(&nfs_access_lru_lock);
+	}
+
 	spin_lock(&inode->i_lock);
 	/* This will release the spinlock */
 	__nfs_access_zap_cache(inode);
@@ -1711,12 +1726,14 @@ int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, struct nfs
 	res->jiffies = cache->jiffies;
 	res->cred = cache->cred;
 	res->mask = cache->mask;
+	list_move_tail(&cache->lru, &nfsi->access_cache_entry_lru);
 	err = 0;
 out:
 	spin_unlock(&inode->i_lock);
 	return err;
 out_stale:
 	rb_erase(&cache->rb_node, &nfsi->access_cache);
+	list_del(&cache->lru);
 	spin_unlock(&inode->i_lock);
 	nfs_access_free_entry(cache);
 	return -ENOENT;
@@ -1728,7 +1745,8 @@ out_zap:
 
 static void nfs_access_add_rbtree(struct inode *inode, struct nfs_access_entry *set)
 {
-	struct rb_root *root_node = &NFS_I(inode)->access_cache;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct rb_root *root_node = &nfsi->access_cache;
 	struct rb_node **p = &root_node->rb_node;
 	struct rb_node *parent = NULL;
 	struct nfs_access_entry *entry;
@@ -1747,10 +1765,13 @@ static void nfs_access_add_rbtree(struct inode *inode, struct nfs_access_entry *
 	}
 	rb_link_node(&set->rb_node, parent, p);
 	rb_insert_color(&set->rb_node, root_node);
+	list_add_tail(&set->lru, &nfsi->access_cache_entry_lru);
 	spin_unlock(&inode->i_lock);
 	return;
 found:
 	rb_replace_node(parent, &set->rb_node, root_node);
+	list_add_tail(&set->lru, &nfsi->access_cache_entry_lru);
+	list_del(&entry->lru);
 	spin_unlock(&inode->i_lock);
 	nfs_access_free_entry(entry);
 }
@@ -1766,6 +1787,18 @@ void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 	cache->mask = set->mask;
 
 	nfs_access_add_rbtree(inode, cache);
+
+	/* Update accounting */
+	smp_mb__before_atomic_inc();
+	atomic_long_inc(&nfs_access_nr_entries);
+	smp_mb__after_atomic_inc();
+
+	/* Add inode to global LRU list */
+	if (!test_and_set_bit(NFS_INO_ACL_LRU_SET, &NFS_FLAGS(inode))) {
+		spin_lock(&nfs_access_lru_lock);
+		list_add_tail(&NFS_I(inode)->access_cache_inode_lru, &nfs_access_lru_list);
+		spin_unlock(&nfs_access_lru_lock);
+	}
 }
 
 static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)

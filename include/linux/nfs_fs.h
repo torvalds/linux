@@ -71,6 +71,7 @@
  */
 struct nfs_access_entry {
 	struct rb_node		rb_node;
+	struct list_head	lru;
 	unsigned long		jiffies;
 	struct rpc_cred *	cred;
 	int			mask;
@@ -148,6 +149,8 @@ struct nfs_inode {
 	atomic_t		data_updates;
 
 	struct rb_root		access_cache;
+	struct list_head	access_cache_entry_lru;
+	struct list_head	access_cache_inode_lru;
 #ifdef CONFIG_NFS_V3_ACL
 	struct posix_acl	*acl_access;
 	struct posix_acl	*acl_default;
@@ -201,6 +204,7 @@ struct nfs_inode {
 #define NFS_INO_REVALIDATING	(0)		/* revalidating attrs */
 #define NFS_INO_ADVISE_RDPLUS	(1)		/* advise readdirplus */
 #define NFS_INO_STALE		(2)		/* possible stale inode */
+#define NFS_INO_ACL_LRU_SET	(3)		/* Inode is on the LRU list */
 
 static inline struct nfs_inode *NFS_I(struct inode *inode)
 {

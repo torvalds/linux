@@ -1104,6 +1104,8 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 		INIT_LIST_HEAD(&nfsi->dirty);
 		INIT_LIST_HEAD(&nfsi->commit);
 		INIT_LIST_HEAD(&nfsi->open_files);
+		INIT_LIST_HEAD(&nfsi->access_cache_entry_lru);
+		INIT_LIST_HEAD(&nfsi->access_cache_inode_lru);
 		INIT_RADIX_TREE(&nfsi->nfs_page_tree, GFP_ATOMIC);
 		atomic_set(&nfsi->data_updates, 0);
 		nfsi->ndirty = 0;
