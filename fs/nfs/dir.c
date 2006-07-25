@@ -1651,6 +1651,50 @@ static void nfs_access_free_entry(struct nfs_access_entry *entry)
 	smp_mb__after_atomic_dec();
 }
 
+int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
+{
+	LIST_HEAD(head);
+	struct nfs_inode *nfsi;
+	struct nfs_access_entry *cache;
+
+	spin_lock(&nfs_access_lru_lock);
+restart:
+	list_for_each_entry(nfsi, &nfs_access_lru_list, access_cache_inode_lru) {
+		struct inode *inode;
+
+		if (nr_to_scan-- == 0)
+			break;
+		inode = igrab(&nfsi->vfs_inode);
+		if (inode == NULL)
+			continue;
+		spin_lock(&inode->i_lock);
+		if (list_empty(&nfsi->access_cache_entry_lru))
+			goto remove_lru_entry;
+		cache = list_entry(nfsi->access_cache_entry_lru.next,
+				struct nfs_access_entry, lru);
+		list_move(&cache->lru, &head);
+		rb_erase(&cache->rb_node, &nfsi->access_cache);
+		if (!list_empty(&nfsi->access_cache_entry_lru))
+			list_move_tail(&nfsi->access_cache_inode_lru,
+					&nfs_access_lru_list);
+		else {
+remove_lru_entry:
+			list_del_init(&nfsi->access_cache_inode_lru);
+			clear_bit(NFS_INO_ACL_LRU_SET, &nfsi->flags);
+		}
+		spin_unlock(&inode->i_lock);
+		iput(inode);
+		goto restart;
+	}
+	spin_unlock(&nfs_access_lru_lock);
+	while (!list_empty(&head)) {
+		cache = list_entry(head.next, struct nfs_access_entry, lru);
+		list_del(&cache->lru);
+		nfs_access_free_entry(cache);
+	}
+	return (atomic_long_read(&nfs_access_nr_entries) / 100) * sysctl_vfs_cache_pressure;
+}
+
 static void __nfs_access_zap_cache(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
