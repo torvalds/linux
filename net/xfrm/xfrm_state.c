@@ -367,7 +367,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			 */
 			if (x->km.state == XFRM_STATE_VALID) {
 				if (!xfrm_selector_match(&x->sel, fl, family) ||
-				    !xfrm_sec_ctx_match(pol->security, x->security))
+				    !security_xfrm_state_pol_flow_match(x, pol, fl))
 					continue;
 				if (!best ||
 				    best->km.dying > x->km.dying ||
@@ -379,7 +379,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			} else if (x->km.state == XFRM_STATE_ERROR ||
 				   x->km.state == XFRM_STATE_EXPIRED) {
  				if (xfrm_selector_match(&x->sel, fl, family) &&
-				    xfrm_sec_ctx_match(pol->security, x->security))
+				    security_xfrm_state_pol_flow_match(x, pol, fl))
 					error = -ESRCH;
 			}
 		}
@@ -402,6 +402,14 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		/* Initialize temporary selector matching only
 		 * to current session. */
 		xfrm_init_tempsel(x, fl, tmpl, daddr, saddr, family);
+
+		error = security_xfrm_state_alloc_acquire(x, pol->security, fl->secid);
+		if (error) {
+			x->km.state = XFRM_STATE_DEAD;
+			xfrm_state_put(x);
+			x = NULL;
+			goto out;
+		}
 
 		if (km_query(x, tmpl, pol) == 0) {
 			x->km.state = XFRM_STATE_ACQ;

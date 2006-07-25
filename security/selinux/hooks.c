@@ -3468,7 +3468,7 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	if (err)
 		goto out;
 
-	err = selinux_xfrm_sock_rcv_skb(sock_sid, skb);
+	err = selinux_xfrm_sock_rcv_skb(sock_sid, skb, &ad);
 out:	
 	return err;
 }
@@ -3720,7 +3720,7 @@ static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
 	if (err)
 		goto out;
 
-	err = selinux_xfrm_postroute_last(isec->sid, skb);
+	err = selinux_xfrm_postroute_last(isec->sid, skb, &ad);
 out:
 	return err ? NF_DROP : NF_ACCEPT;
 }
@@ -4633,6 +4633,9 @@ static struct security_operations selinux_ops = {
 	.xfrm_state_free_security =	selinux_xfrm_state_free,
 	.xfrm_state_delete_security =	selinux_xfrm_state_delete,
 	.xfrm_policy_lookup = 		selinux_xfrm_policy_lookup,
+	.xfrm_state_pol_flow_match =	selinux_xfrm_state_pol_flow_match,
+	.xfrm_flow_state_match =	selinux_xfrm_flow_state_match,
+	.xfrm_decode_session =		selinux_xfrm_decode_session,
 #endif
 
 #ifdef CONFIG_KEYS

@@ -835,7 +835,8 @@ static int dummy_xfrm_policy_delete_security(struct xfrm_policy *xp)
 	return 0;
 }
 
-static int dummy_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
+static int dummy_xfrm_state_alloc_security(struct xfrm_state *x,
+	struct xfrm_user_sec_ctx *sec_ctx, struct xfrm_sec_ctx *pol, u32 secid)
 {
 	return 0;
 }
@@ -853,6 +854,23 @@ static int dummy_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
 {
 	return 0;
 }
+
+static int dummy_xfrm_state_pol_flow_match(struct xfrm_state *x,
+				struct xfrm_policy *xp, struct flowi *fl)
+{
+	return 1;
+}
+
+static int dummy_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm)
+{
+	return 1;
+}
+
+static int dummy_xfrm_decode_session(struct sk_buff *skb, struct flowi *fl)
+{
+	return 0;
+}
+
 #endif /* CONFIG_SECURITY_NETWORK_XFRM */
 static int dummy_register_security (const char *name, struct security_operations *ops)
 {
@@ -1076,6 +1094,9 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, xfrm_state_free_security);
 	set_to_dummy_if_null(ops, xfrm_state_delete_security);
 	set_to_dummy_if_null(ops, xfrm_policy_lookup);
+	set_to_dummy_if_null(ops, xfrm_state_pol_flow_match);
+	set_to_dummy_if_null(ops, xfrm_flow_state_match);
+	set_to_dummy_if_null(ops, xfrm_decode_session);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 #ifdef CONFIG_KEYS
 	set_to_dummy_if_null(ops, key_alloc);
