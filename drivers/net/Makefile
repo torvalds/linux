@@ -106,6 +106,7 @@ obj-$(CONFIG_FORCEDETH) += forcedeth.o
 obj-$(CONFIG_NE_H8300) += ne-h8300.o 8390.o
 
 obj-$(CONFIG_MV643XX_ETH) += mv643xx_eth.o
+obj-$(CONFIG_QLA3XXX) += qla3xxx.o
 
 obj-$(CONFIG_PPP) += ppp_generic.o
 obj-$(CONFIG_PPP_ASYNC) += ppp_async.o

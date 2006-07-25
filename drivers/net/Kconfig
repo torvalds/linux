@@ -2249,6 +2249,15 @@ config MV643XX_ETH_2
 	  This enables support for Port 2 of the Marvell MV643XX Gigabit
 	  Ethernet.
 
+config QLA3XXX
+	tristate "QLogic QLA3XXX Network Driver Support"
+	depends on PCI
+	help
+	  This driver supports QLogic ISP3XXX gigabit Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called qla3xxx.
+
 endmenu
 
 #
