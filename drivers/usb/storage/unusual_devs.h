@@ -1106,7 +1106,15 @@ UNUSUAL_DEV( 0x0a17, 0x006, 0x0000, 0xffff,
                 "Optio S/S4",
                 US_SC_DEVICE, US_PR_DEVICE, NULL,
                 US_FL_FIX_INQUIRY ),
-		
+
+/* This is a virtual windows driver CD, which the zd1211rw driver automatically
+ * converts into a WLAN device. */
+UNUSUAL_DEV( 0x0ace, 0x2011, 0x0101, 0x0101,
+                "ZyXEL",
+                "G-220F USB-WLAN Install",
+                US_SC_DEVICE, US_PR_DEVICE, NULL,
+                US_FL_IGNORE_DEVICE ),
+
 #ifdef CONFIG_USB_STORAGE_ISD200
 UNUSUAL_DEV(  0x0bf6, 0xa001, 0x0100, 0x0110,
 		"ATI",
