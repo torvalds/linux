@@ -5767,11 +5767,11 @@ int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits)
 	return (tmp == bits->val) ? 1 : 0;
 }
 
-void ata_pci_device_do_suspend(struct pci_dev *pdev, pm_message_t state)
+void ata_pci_device_do_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	pci_save_state(pdev);
 
-	if (state.event == PM_EVENT_SUSPEND) {
+	if (mesg.event == PM_EVENT_SUSPEND) {
 		pci_disable_device(pdev);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
@@ -5785,24 +5785,24 @@ void ata_pci_device_do_resume(struct pci_dev *pdev)
 	pci_set_master(pdev);
 }
 
-int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t state)
+int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	struct ata_host_set *host_set = dev_get_drvdata(&pdev->dev);
 	int rc = 0;
 
-	rc = ata_host_set_suspend(host_set, state);
+	rc = ata_host_set_suspend(host_set, mesg);
 	if (rc)
 		return rc;
 
 	if (host_set->next) {
-		rc = ata_host_set_suspend(host_set->next, state);
+		rc = ata_host_set_suspend(host_set->next, mesg);
 		if (rc) {
 			ata_host_set_resume(host_set);
 			return rc;
 		}
 	}
 
-	ata_pci_device_do_suspend(pdev, state);
+	ata_pci_device_do_suspend(pdev, mesg);
 
 	return 0;
 }

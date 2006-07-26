@@ -400,7 +400,7 @@ void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 /**
  *	ata_scsi_device_suspend - suspend ATA device associated with sdev
  *	@sdev: the SCSI device to suspend
- *	@state: target power management state
+ *	@mesg: target power management message
  *
  *	Request suspend EH action on the ATA device associated with
  *	@sdev and wait for the operation to complete.
@@ -411,7 +411,7 @@ void ata_dump_status(unsigned id, struct ata_taskfile *tf)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
+int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t mesg)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev = ata_scsi_find_dev(ap, sdev);
@@ -438,7 +438,7 @@ int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
 
 	/* request suspend */
 	action = ATA_EH_SUSPEND;
-	if (state.event != PM_EVENT_SUSPEND)
+	if (mesg.event != PM_EVENT_SUSPEND)
 		action |= ATA_EH_PM_FREEZE;
 	ap->eh_info.dev_action[dev->devno] |= action;
 	ap->eh_info.flags |= ATA_EHI_QUIET;
@@ -463,7 +463,7 @@ int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
 	spin_unlock_irqrestore(ap->lock, flags);
  out:
 	if (rc == 0)
-		sdev->sdev_gendev.power.power_state = state;
+		sdev->sdev_gendev.power.power_state = mesg;
 	return rc;
 }
 
