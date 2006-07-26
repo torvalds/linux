@@ -406,32 +406,15 @@ static void ahci_scr_write (struct ata_port *ap, unsigned int sc_reg_in,
 	writel(val, (void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
-static int ahci_start_engine(void __iomem *port_mmio)
+static void ahci_start_engine(void __iomem *port_mmio)
 {
 	u32 tmp;
 
-	/* get current status */
-	tmp = readl(port_mmio + PORT_CMD);
-
-	/* AHCI rev 1.1 section 10.3.1:
-	 * Software shall not set PxCMD.ST to '1' until it verifies
-	 * that PxCMD.CR is '0' and has set PxCMD.FRE to '1'
-	 */
-	if ((tmp & PORT_CMD_FIS_RX) == 0)
-		return -EPERM;
-
-	/* wait for engine to become idle */
-	tmp = ata_wait_register(port_mmio + PORT_CMD,
-				PORT_CMD_LIST_ON, PORT_CMD_LIST_ON, 1,500);
-	if (tmp & PORT_CMD_LIST_ON)
-		return -EBUSY;
-
 	/* start DMA */
+	tmp = readl(port_mmio + PORT_CMD);
 	tmp |= PORT_CMD_START;
 	writel(tmp, port_mmio + PORT_CMD);
 	readl(port_mmio + PORT_CMD); /* flush */
-
-	return 0;
 }
 
 static int ahci_stop_engine(void __iomem *port_mmio)
