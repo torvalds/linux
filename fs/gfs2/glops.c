@@ -23,10 +23,97 @@
 #include "inode.h"
 #include "log.h"
 #include "meta_io.h"
-#include "page.h"
 #include "recovery.h"
 #include "rgrp.h"
 #include "util.h"
+
+
+/**
+ * gfs2_pte_inval - Sync and invalidate all PTEs associated with a glock
+ * @gl: the glock
+ *
+ */
+
+static void gfs2_pte_inval(struct gfs2_glock *gl)
+{
+	struct gfs2_inode *ip;
+	struct inode *inode;
+
+	ip = gl->gl_object;
+	inode = &ip->i_inode;
+	if (!ip || !S_ISREG(ip->i_di.di_mode))
+		return;
+
+	if (!test_bit(GIF_PAGED, &ip->i_flags))
+		return;
+
+	unmap_shared_mapping_range(inode->i_mapping, 0, 0);
+
+	if (test_bit(GIF_SW_PAGED, &ip->i_flags))
+		set_bit(GLF_DIRTY, &gl->gl_flags);
+
+	clear_bit(GIF_SW_PAGED, &ip->i_flags);
+}
+
+/**
+ * gfs2_page_inval - Invalidate all pages associated with a glock
+ * @gl: the glock
+ *
+ */
+
+static void gfs2_page_inval(struct gfs2_glock *gl)
+{
+	struct gfs2_inode *ip;
+	struct inode *inode;
+
+	ip = gl->gl_object;
+	inode = &ip->i_inode;
+	if (!ip || !S_ISREG(ip->i_di.di_mode))
+		return;
+
+	truncate_inode_pages(inode->i_mapping, 0);
+	gfs2_assert_withdraw(GFS2_SB(&ip->i_inode), !inode->i_mapping->nrpages);
+	clear_bit(GIF_PAGED, &ip->i_flags);
+}
+
+/**
+ * gfs2_page_sync - Sync the data pages (not metadata) associated with a glock
+ * @gl: the glock
+ * @flags: DIO_START | DIO_WAIT
+ *
+ * Syncs data (not metadata) for a regular file.
+ * No-op for all other types.
+ */
+
+static void gfs2_page_sync(struct gfs2_glock *gl, int flags)
+{
+	struct gfs2_inode *ip;
+	struct inode *inode;
+	struct address_space *mapping;
+	int error = 0;
+
+	ip = gl->gl_object;
+	inode = &ip->i_inode;
+	if (!ip || !S_ISREG(ip->i_di.di_mode))
+		return;
+
+	mapping = inode->i_mapping;
+
+	if (flags & DIO_START)
+		filemap_fdatawrite(mapping);
+	if (!error && (flags & DIO_WAIT))
+		error = filemap_fdatawait(mapping);
+
+	/* Put back any errors cleared by filemap_fdatawait()
+	   so they can be caught by someone who can pass them
+	   up to user space. */
+
+	if (error == -ENOSPC)
+		set_bit(AS_ENOSPC, &mapping->flags);
+	else if (error)
+		set_bit(AS_EIO, &mapping->flags);
+
+}
 
 /**
  * meta_go_sync - sync out the metadata for this glock

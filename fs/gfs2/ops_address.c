@@ -27,13 +27,30 @@
 #include "log.h"
 #include "meta_io.h"
 #include "ops_address.h"
-#include "page.h"
 #include "quota.h"
 #include "trans.h"
 #include "rgrp.h"
 #include "ops_file.h"
 #include "util.h"
 #include "glops.h"
+
+
+static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
+				   unsigned int from, unsigned int to)
+{
+	struct buffer_head *head = page_buffers(page);
+	unsigned int bsize = head->b_size;
+	struct buffer_head *bh;
+	unsigned int start, end;
+
+	for (bh = head, start = 0; bh != head || !start;
+	     bh = bh->b_this_page, start = end) {
+		end = start + bsize;
+		if (end <= from || start >= to)
+			continue;
+		gfs2_trans_add_bh(ip->i_gl, bh, 0);
+	}
+}
 
 /**
  * gfs2_get_block - Fills in a buffer head with details about a block

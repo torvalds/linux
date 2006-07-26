@@ -23,7 +23,6 @@
 #include "glock.h"
 #include "inode.h"
 #include "ops_vm.h"
-#include "page.h"
 #include "quota.h"
 #include "rgrp.h"
 #include "trans.h"

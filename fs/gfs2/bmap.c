@@ -22,12 +22,12 @@
 #include "glock.h"
 #include "inode.h"
 #include "meta_io.h"
-#include "page.h"
 #include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
 #include "dir.h"
 #include "util.h"
+#include "ops_address.h"
 
 /* This doesn't need to be that large as max 64 bit pointers in a 4k
  * block is 512, so __u16 is fine for that. It saves stack space to
@@ -883,6 +883,82 @@ static int do_grow(struct gfs2_inode *ip, uint64_t size)
 	gfs2_alloc_put(ip);
 
 	return error;
+}
+
+
+/**
+ * gfs2_block_truncate_page - Deal with zeroing out data for truncate
+ *
+ * This is partly borrowed from ext3.
+ */
+static int gfs2_block_truncate_page(struct address_space *mapping)
+{
+	struct inode *inode = mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	loff_t from = inode->i_size;
+	unsigned long index = from >> PAGE_CACHE_SHIFT;
+	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+	unsigned blocksize, iblock, length, pos;
+	struct buffer_head *bh;
+	struct page *page;
+	void *kaddr;
+	int err;
+
+	page = grab_cache_page(mapping, index);
+	if (!page)
+		return 0;
+
+	blocksize = inode->i_sb->s_blocksize;
+	length = blocksize - (offset & (blocksize - 1));
+	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
+
+	if (!page_has_buffers(page))
+		create_empty_buffers(page, blocksize, 0);
+
+	/* Find the buffer that contains "offset" */
+	bh = page_buffers(page);
+	pos = blocksize;
+	while (offset >= pos) {
+		bh = bh->b_this_page;
+		iblock++;
+		pos += blocksize;
+	}
+
+	err = 0;
+
+	if (!buffer_mapped(bh)) {
+		gfs2_get_block(inode, iblock, bh, 0);
+		/* unmapped? It's a hole - nothing to do */
+		if (!buffer_mapped(bh))
+			goto unlock;
+	}
+
+	/* Ok, it's mapped. Make sure it's up-to-date */
+	if (PageUptodate(page))
+		set_buffer_uptodate(bh);
+
+	if (!buffer_uptodate(bh)) {
+		err = -EIO;
+		ll_rw_block(READ, 1, &bh);
+		wait_on_buffer(bh);
+		/* Uhhuh. Read error. Complain and punt. */
+		if (!buffer_uptodate(bh))
+			goto unlock;
+	}
+
+	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
+		gfs2_trans_add_bh(ip->i_gl, bh, 0);
+
+	kaddr = kmap_atomic(page, KM_USER0);
+	memset(kaddr + offset, 0, length);
+	flush_dcache_page(page);
+	kunmap_atomic(kaddr, KM_USER0);
+
+unlock:
+	unlock_page(page);
+	page_cache_release(page);
+	return err;
 }
 
 static int trunc_start(struct gfs2_inode *ip, uint64_t size)

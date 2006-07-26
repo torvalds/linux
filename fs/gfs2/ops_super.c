@@ -30,7 +30,6 @@
 #include "log.h"
 #include "mount.h"
 #include "ops_super.h"
-#include "page.h"
 #include "quota.h"
 #include "recovery.h"
 #include "rgrp.h"
