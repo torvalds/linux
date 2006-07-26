@@ -123,7 +123,7 @@ static int print_resource(struct dlm_rsb *res, struct seq_file *s)
 	if (root_list || recover_list) {
 		seq_printf(s, "Recovery: root %d recover %d flags %lx "
 			   "count %d\n", root_list, recover_list,
-			   res->flags, res->res_recover_locks_count);
+			   res->res_flags, res->res_recover_locks_count);
 	}
 
 	/* Print the locks attached to this resource */
@@ -277,7 +277,7 @@ static int rsb_open(struct inode *inode, struct file *file)
 	struct seq_file *seq;
 	int ret;
 
-	ret = rsb_seq_open(file, &rsb_seq_ops);
+	ret = seq_open(file, &rsb_seq_ops);
 	if (ret)
 		return ret;
 
@@ -343,7 +343,7 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 						      dlm_root,
 						      ls,
 						      &rsb_fops);
-	if (!ls->ls_rsb_debug_dentry)
+	if (!ls->ls_debug_rsb_dentry)
 		return -ENOMEM;
 
 	memset(name, 0, sizeof(name));
