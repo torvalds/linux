@@ -572,6 +572,94 @@ static int ahci_deinit_port(void __iomem *port_mmio, u32 cap, const char **emsg)
 	return 0;
 }
 
+static int ahci_reset_controller(void __iomem *mmio, struct pci_dev *pdev)
+{
+	u32 cap_save, tmp;
+
+	cap_save = readl(mmio + HOST_CAP);
+	cap_save &= ( (1<<28) | (1<<17) );
+	cap_save |= (1 << 27);
+
+	/* global controller reset */
+	tmp = readl(mmio + HOST_CTL);
+	if ((tmp & HOST_RESET) == 0) {
+		writel(tmp | HOST_RESET, mmio + HOST_CTL);
+		readl(mmio + HOST_CTL); /* flush */
+	}
+
+	/* reset must complete within 1 second, or
+	 * the hardware should be considered fried.
+	 */
+	ssleep(1);
+
+	tmp = readl(mmio + HOST_CTL);
+	if (tmp & HOST_RESET) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "controller reset failed (0x%x)\n", tmp);
+		return -EIO;
+	}
+
+	writel(HOST_AHCI_EN, mmio + HOST_CTL);
+	(void) readl(mmio + HOST_CTL);	/* flush */
+	writel(cap_save, mmio + HOST_CAP);
+	writel(0xf, mmio + HOST_PORTS_IMPL);
+	(void) readl(mmio + HOST_PORTS_IMPL);	/* flush */
+
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
+		u16 tmp16;
+
+		/* configure PCS */
+		pci_read_config_word(pdev, 0x92, &tmp16);
+		tmp16 |= 0xf;
+		pci_write_config_word(pdev, 0x92, tmp16);
+	}
+
+	return 0;
+}
+
+static void ahci_init_controller(void __iomem *mmio, struct pci_dev *pdev,
+				 int n_ports, u32 cap)
+{
+	int i, rc;
+	u32 tmp;
+
+	for (i = 0; i < n_ports; i++) {
+		void __iomem *port_mmio = ahci_port_base(mmio, i);
+		const char *emsg = NULL;
+
+#if 0 /* BIOSen initialize this incorrectly */
+		if (!(hpriv->port_map & (1 << i)))
+			continue;
+#endif
+
+		/* make sure port is not active */
+		rc = ahci_deinit_port(port_mmio, cap, &emsg);
+		if (rc)
+			dev_printk(KERN_WARNING, &pdev->dev,
+				   "%s (%d)\n", emsg, rc);
+
+		/* clear SError */
+		tmp = readl(port_mmio + PORT_SCR_ERR);
+		VPRINTK("PORT_SCR_ERR 0x%x\n", tmp);
+		writel(tmp, port_mmio + PORT_SCR_ERR);
+
+		/* clear & turn off port IRQ */
+		tmp = readl(port_mmio + PORT_IRQ_STAT);
+		VPRINTK("PORT_IRQ_STAT 0x%x\n", tmp);
+		if (tmp)
+			writel(tmp, port_mmio + PORT_IRQ_STAT);
+
+		writel(1 << i, mmio + HOST_IRQ_STAT);
+		writel(0, port_mmio + PORT_IRQ_MASK);
+	}
+
+	tmp = readl(mmio + HOST_CTL);
+	VPRINTK("HOST_CTL 0x%x\n", tmp);
+	writel(tmp | HOST_IRQ_EN, mmio + HOST_CTL);
+	tmp = readl(mmio + HOST_CTL);
+	VPRINTK("HOST_CTL 0x%x\n", tmp);
+}
+
 static unsigned int ahci_dev_classify(struct ata_port *ap)
 {
 	void __iomem *port_mmio = (void __iomem *) ap->ioaddr.cmd_addr;
@@ -1215,47 +1303,12 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 	struct ahci_host_priv *hpriv = probe_ent->private_data;
 	struct pci_dev *pdev = to_pci_dev(probe_ent->dev);
 	void __iomem *mmio = probe_ent->mmio_base;
-	u32 tmp, cap_save;
 	unsigned int i, using_dac;
 	int rc;
-	void __iomem *port_mmio;
 
-	cap_save = readl(mmio + HOST_CAP);
-	cap_save &= ( (1<<28) | (1<<17) );
-	cap_save |= (1 << 27);
-
-	/* global controller reset */
-	tmp = readl(mmio + HOST_CTL);
-	if ((tmp & HOST_RESET) == 0) {
-		writel(tmp | HOST_RESET, mmio + HOST_CTL);
-		readl(mmio + HOST_CTL); /* flush */
-	}
-
-	/* reset must complete within 1 second, or
-	 * the hardware should be considered fried.
-	 */
-	ssleep(1);
-
-	tmp = readl(mmio + HOST_CTL);
-	if (tmp & HOST_RESET) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "controller reset failed (0x%x)\n", tmp);
-		return -EIO;
-	}
-
-	writel(HOST_AHCI_EN, mmio + HOST_CTL);
-	(void) readl(mmio + HOST_CTL);	/* flush */
-	writel(cap_save, mmio + HOST_CAP);
-	writel(0xf, mmio + HOST_PORTS_IMPL);
-	(void) readl(mmio + HOST_PORTS_IMPL);	/* flush */
-
-	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
-		u16 tmp16;
-
-		pci_read_config_word(pdev, 0x92, &tmp16);
-		tmp16 |= 0xf;
-		pci_write_config_word(pdev, 0x92, tmp16);
-	}
+	rc = ahci_reset_controller(mmio, pdev);
+	if (rc)
+		return rc;
 
 	hpriv->cap = readl(mmio + HOST_CAP);
 	hpriv->port_map = readl(mmio + HOST_PORTS_IMPL);
@@ -1291,46 +1344,10 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 		}
 	}
 
-	for (i = 0; i < probe_ent->n_ports; i++) {
-		const char *emsg = NULL;
+	for (i = 0; i < probe_ent->n_ports; i++)
+		ahci_setup_port(&probe_ent->port[i], (unsigned long) mmio, i);
 
-#if 0 /* BIOSen initialize this incorrectly */
-		if (!(hpriv->port_map & (1 << i)))
-			continue;
-#endif
-
-		port_mmio = ahci_port_base(mmio, i);
-		VPRINTK("mmio %p  port_mmio %p\n", mmio, port_mmio);
-
-		ahci_setup_port(&probe_ent->port[i],
-				(unsigned long) mmio, i);
-
-		/* make sure port is not active */
-		rc = ahci_deinit_port(port_mmio, hpriv->cap, &emsg);
-		if (rc)
-			dev_printk(KERN_WARNING, &pdev->dev,
-				   "%s (%d)\n", emsg, rc);
-
-		/* clear SError */
-		tmp = readl(port_mmio + PORT_SCR_ERR);
-		VPRINTK("PORT_SCR_ERR 0x%x\n", tmp);
-		writel(tmp, port_mmio + PORT_SCR_ERR);
-
-		/* clear & turn off port IRQ */
-		tmp = readl(port_mmio + PORT_IRQ_STAT);
-		VPRINTK("PORT_IRQ_STAT 0x%x\n", tmp);
-		if (tmp)
-			writel(tmp, port_mmio + PORT_IRQ_STAT);
-
-		writel(1 << i, mmio + HOST_IRQ_STAT);
-		writel(0, port_mmio + PORT_IRQ_MASK);
-	}
-
-	tmp = readl(mmio + HOST_CTL);
-	VPRINTK("HOST_CTL 0x%x\n", tmp);
-	writel(tmp | HOST_IRQ_EN, mmio + HOST_CTL);
-	tmp = readl(mmio + HOST_CTL);
-	VPRINTK("HOST_CTL 0x%x\n", tmp);
+	ahci_init_controller(mmio, pdev, probe_ent->n_ports, hpriv->cap);
 
 	pci_set_master(pdev);
 
