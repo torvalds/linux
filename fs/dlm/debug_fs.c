@@ -301,7 +301,7 @@ static struct file_operations rsb_fops = {
 
 static int waiters_open(struct inode *inode, struct file *file)
 {
-	file->private_data = inode->i_private;
+	file->private_data = inode->u.generic_ip;
 	return 0;
 }
 
