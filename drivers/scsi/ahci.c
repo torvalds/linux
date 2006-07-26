@@ -92,7 +92,9 @@ enum {
 	HOST_AHCI_EN		= (1 << 31), /* AHCI enabled */
 
 	/* HOST_CAP bits */
+	HOST_CAP_SSC		= (1 << 14), /* Slumber capable */
 	HOST_CAP_CLO		= (1 << 24), /* Command List Override support */
+	HOST_CAP_SSS		= (1 << 27), /* Staggered Spin-up */
 	HOST_CAP_NCQ		= (1 << 30), /* Native Command Queueing */
 	HOST_CAP_64		= (1 << 31), /* PCI DAC (64-bit DMA) support */
 
@@ -155,6 +157,7 @@ enum {
 	PORT_CMD_SPIN_UP	= (1 << 1), /* Spin up device */
 	PORT_CMD_START		= (1 << 0), /* Enable port DMA engine */
 
+	PORT_CMD_ICC_MASK	= (0xf << 28), /* i/f ICC state mask */
 	PORT_CMD_ICC_ACTIVE	= (0x1 << 28), /* Put i/f in active state */
 	PORT_CMD_ICC_PARTIAL	= (0x2 << 28), /* Put i/f in partial state */
 	PORT_CMD_ICC_SLUMBER	= (0x6 << 28), /* Put i/f in slumber state */
@@ -436,6 +439,135 @@ static int ahci_stop_engine(void __iomem *port_mmio)
 			        PORT_CMD_LIST_ON, PORT_CMD_LIST_ON, 1, 500);
 	if (tmp & PORT_CMD_LIST_ON)
 		return -EIO;
+
+	return 0;
+}
+
+static void ahci_start_fis_rx(void __iomem *port_mmio, u32 cap,
+			      dma_addr_t cmd_slot_dma, dma_addr_t rx_fis_dma)
+{
+	u32 tmp;
+
+	/* set FIS registers */
+	if (cap & HOST_CAP_64)
+		writel((cmd_slot_dma >> 16) >> 16, port_mmio + PORT_LST_ADDR_HI);
+	writel(cmd_slot_dma & 0xffffffff, port_mmio + PORT_LST_ADDR);
+
+	if (cap & HOST_CAP_64)
+		writel((rx_fis_dma >> 16) >> 16, port_mmio + PORT_FIS_ADDR_HI);
+	writel(rx_fis_dma & 0xffffffff, port_mmio + PORT_FIS_ADDR);
+
+	/* enable FIS reception */
+	tmp = readl(port_mmio + PORT_CMD);
+	tmp |= PORT_CMD_FIS_RX;
+	writel(tmp, port_mmio + PORT_CMD);
+
+	/* flush */
+	readl(port_mmio + PORT_CMD);
+}
+
+static int ahci_stop_fis_rx(void __iomem *port_mmio)
+{
+	u32 tmp;
+
+	/* disable FIS reception */
+	tmp = readl(port_mmio + PORT_CMD);
+	tmp &= ~PORT_CMD_FIS_RX;
+	writel(tmp, port_mmio + PORT_CMD);
+
+	/* wait for completion, spec says 500ms, give it 1000 */
+	tmp = ata_wait_register(port_mmio + PORT_CMD, PORT_CMD_FIS_ON,
+				PORT_CMD_FIS_ON, 10, 1000);
+	if (tmp & PORT_CMD_FIS_ON)
+		return -EBUSY;
+
+	return 0;
+}
+
+static void ahci_power_up(void __iomem *port_mmio, u32 cap)
+{
+	u32 cmd;
+
+	cmd = readl(port_mmio + PORT_CMD) & ~PORT_CMD_ICC_MASK;
+
+	/* spin up device */
+	if (cap & HOST_CAP_SSS) {
+		cmd |= PORT_CMD_SPIN_UP;
+		writel(cmd, port_mmio + PORT_CMD);
+	}
+
+	/* wake up link */
+	writel(cmd | PORT_CMD_ICC_ACTIVE, port_mmio + PORT_CMD);
+}
+
+static void ahci_power_down(void __iomem *port_mmio, u32 cap)
+{
+	u32 cmd, scontrol;
+
+	cmd = readl(port_mmio + PORT_CMD) & ~PORT_CMD_ICC_MASK;
+
+	if (cap & HOST_CAP_SSC) {
+		/* enable transitions to slumber mode */
+		scontrol = readl(port_mmio + PORT_SCR_CTL);
+		if ((scontrol & 0x0f00) > 0x100) {
+			scontrol &= ~0xf00;
+			writel(scontrol, port_mmio + PORT_SCR_CTL);
+		}
+
+		/* put device into slumber mode */
+		writel(cmd | PORT_CMD_ICC_SLUMBER, port_mmio + PORT_CMD);
+
+		/* wait for the transition to complete */
+		ata_wait_register(port_mmio + PORT_CMD, PORT_CMD_ICC_SLUMBER,
+				  PORT_CMD_ICC_SLUMBER, 1, 50);
+	}
+
+	/* put device into listen mode */
+	if (cap & HOST_CAP_SSS) {
+		/* first set PxSCTL.DET to 0 */
+		scontrol = readl(port_mmio + PORT_SCR_CTL);
+		scontrol &= ~0xf;
+		writel(scontrol, port_mmio + PORT_SCR_CTL);
+
+		/* then set PxCMD.SUD to 0 */
+		cmd &= ~PORT_CMD_SPIN_UP;
+		writel(cmd, port_mmio + PORT_CMD);
+	}
+}
+
+static void ahci_init_port(void __iomem *port_mmio, u32 cap,
+			   dma_addr_t cmd_slot_dma, dma_addr_t rx_fis_dma)
+{
+	/* power up */
+	ahci_power_up(port_mmio, cap);
+
+	/* enable FIS reception */
+	ahci_start_fis_rx(port_mmio, cap, cmd_slot_dma, rx_fis_dma);
+
+	/* enable DMA */
+	ahci_start_engine(port_mmio);
+}
+
+static int ahci_deinit_port(void __iomem *port_mmio, u32 cap, const char **emsg)
+{
+	int rc;
+
+	/* disable DMA */
+	rc = ahci_stop_engine(port_mmio);
+	if (rc) {
+		*emsg = "failed to stop engine";
+		return rc;
+	}
+
+	/* disable FIS reception */
+	rc = ahci_stop_fis_rx(port_mmio);
+	if (rc) {
+		*emsg = "failed stop FIS RX";
+		return rc;
+	}
+
+	/* put device into slumber mode */
+	ahci_power_down(port_mmio, cap);
 
 	return 0;
 }
@@ -1037,20 +1169,8 @@ static int ahci_port_start(struct ata_port *ap)
 
 	ap->private_data = pp;
 
-	if (hpriv->cap & HOST_CAP_64)
-		writel((pp->cmd_slot_dma >> 16) >> 16, port_mmio + PORT_LST_ADDR_HI);
-	writel(pp->cmd_slot_dma & 0xffffffff, port_mmio + PORT_LST_ADDR);
-	readl(port_mmio + PORT_LST_ADDR); /* flush */
-
-	if (hpriv->cap & HOST_CAP_64)
-		writel((pp->rx_fis_dma >> 16) >> 16, port_mmio + PORT_FIS_ADDR_HI);
-	writel(pp->rx_fis_dma & 0xffffffff, port_mmio + PORT_FIS_ADDR);
-	readl(port_mmio + PORT_FIS_ADDR); /* flush */
-
-	writel(PORT_CMD_ICC_ACTIVE | PORT_CMD_FIS_RX |
-	       PORT_CMD_POWER_ON | PORT_CMD_SPIN_UP |
-	       PORT_CMD_START, port_mmio + PORT_CMD);
-	readl(port_mmio + PORT_CMD); /* flush */
+	/* initialize port */
+	ahci_init_port(port_mmio, hpriv->cap, pp->cmd_slot_dma, pp->rx_fis_dma);
 
 	return 0;
 }
@@ -1058,20 +1178,17 @@ static int ahci_port_start(struct ata_port *ap)
 static void ahci_port_stop(struct ata_port *ap)
 {
 	struct device *dev = ap->host_set->dev;
+	struct ahci_host_priv *hpriv = ap->host_set->private_data;
 	struct ahci_port_priv *pp = ap->private_data;
 	void __iomem *mmio = ap->host_set->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
-	u32 tmp;
+	const char *emsg = NULL;
+	int rc;
 
-	tmp = readl(port_mmio + PORT_CMD);
-	tmp &= ~(PORT_CMD_START | PORT_CMD_FIS_RX);
-	writel(tmp, port_mmio + PORT_CMD);
-	readl(port_mmio + PORT_CMD); /* flush */
-
-	/* spec says 500 msecs for each PORT_CMD_{START,FIS_RX} bit, so
-	 * this is slightly incorrect.
-	 */
-	msleep(500);
+	/* de-initialize port */
+	rc = ahci_deinit_port(port_mmio, hpriv->cap, &emsg);
+	if (rc)
+		ata_port_printk(ap, KERN_WARNING, "%s (%d)\n", emsg, rc);
 
 	ap->private_data = NULL;
 	dma_free_coherent(dev, AHCI_PORT_PRIV_DMA_SZ,
@@ -1099,7 +1216,7 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 	struct pci_dev *pdev = to_pci_dev(probe_ent->dev);
 	void __iomem *mmio = probe_ent->mmio_base;
 	u32 tmp, cap_save;
-	unsigned int i, j, using_dac;
+	unsigned int i, using_dac;
 	int rc;
 	void __iomem *port_mmio;
 
@@ -1175,6 +1292,8 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 	}
 
 	for (i = 0; i < probe_ent->n_ports; i++) {
+		const char *emsg = NULL;
+
 #if 0 /* BIOSen initialize this incorrectly */
 		if (!(hpriv->port_map & (1 << i)))
 			continue;
@@ -1187,43 +1306,24 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 				(unsigned long) mmio, i);
 
 		/* make sure port is not active */
-		tmp = readl(port_mmio + PORT_CMD);
-		VPRINTK("PORT_CMD 0x%x\n", tmp);
-		if (tmp & (PORT_CMD_LIST_ON | PORT_CMD_FIS_ON |
-			   PORT_CMD_FIS_RX | PORT_CMD_START)) {
-			tmp &= ~(PORT_CMD_LIST_ON | PORT_CMD_FIS_ON |
-				 PORT_CMD_FIS_RX | PORT_CMD_START);
-			writel(tmp, port_mmio + PORT_CMD);
-			readl(port_mmio + PORT_CMD); /* flush */
+		rc = ahci_deinit_port(port_mmio, hpriv->cap, &emsg);
+		if (rc)
+			dev_printk(KERN_WARNING, &pdev->dev,
+				   "%s (%d)\n", emsg, rc);
 
-			/* spec says 500 msecs for each bit, so
-			 * this is slightly incorrect.
-			 */
-			msleep(500);
-		}
-
-		writel(PORT_CMD_SPIN_UP, port_mmio + PORT_CMD);
-
-		j = 0;
-		while (j < 100) {
-			msleep(10);
-			tmp = readl(port_mmio + PORT_SCR_STAT);
-			if ((tmp & 0xf) == 0x3)
-				break;
-			j++;
-		}
-
+		/* clear SError */
 		tmp = readl(port_mmio + PORT_SCR_ERR);
 		VPRINTK("PORT_SCR_ERR 0x%x\n", tmp);
 		writel(tmp, port_mmio + PORT_SCR_ERR);
 
-		/* ack any pending irq events for this port */
+		/* clear & turn off port IRQ */
 		tmp = readl(port_mmio + PORT_IRQ_STAT);
 		VPRINTK("PORT_IRQ_STAT 0x%x\n", tmp);
 		if (tmp)
 			writel(tmp, port_mmio + PORT_IRQ_STAT);
 
 		writel(1 << i, mmio + HOST_IRQ_STAT);
+		writel(0, port_mmio + PORT_IRQ_MASK);
 	}
 
 	tmp = readl(mmio + HOST_CTL);
