@@ -1434,23 +1434,60 @@ static void rtl8169_release_board(struct pci_dev *pdev, struct net_device *dev,
 	free_netdev(dev);
 }
 
-static int __devinit
-rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
-		   void __iomem **ioaddr_out)
+static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 {
-	void __iomem *ioaddr;
-	struct net_device *dev;
+	void __iomem *ioaddr = tp->mmio_addr;
+	static int board_idx = -1;
+	u8 autoneg, duplex;
+	u16 speed;
+
+	board_idx++;
+
+	rtl8169_hw_phy_config(dev);
+
+	dprintk("Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
+	RTL_W8(0x82, 0x01);
+
+	if (tp->mac_version < RTL_GIGA_MAC_VER_E) {
+		dprintk("Set PCI Latency=0x40\n");
+		pci_write_config_byte(tp->pci_dev, PCI_LATENCY_TIMER, 0x40);
+	}
+
+	if (tp->mac_version == RTL_GIGA_MAC_VER_D) {
+		dprintk("Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
+		RTL_W8(0x82, 0x01);
+		dprintk("Set PHY Reg 0x0bh = 0x00h\n");
+		mdio_write(ioaddr, 0x0b, 0x0000); //w 0x0b 15 0 0
+	}
+
+	rtl8169_link_option(board_idx, &autoneg, &speed, &duplex);
+
+	rtl8169_set_speed(dev, autoneg, speed, duplex);
+
+	if ((RTL_R8(PHYstatus) & TBI_Enable) && netif_msg_link(tp))
+		printk(KERN_INFO PFX "%s: TBI auto-negotiating\n", dev->name);
+}
+
+static int __devinit
+rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+{
 	struct rtl8169_private *tp;
-	int rc = -ENOMEM, i, acpi_idle_state = 0, pm_cap;
+	struct net_device *dev;
+	void __iomem *ioaddr;
+	unsigned int i, pm_cap;
+	int rc;
 
-	assert(ioaddr_out != NULL);
+	if (netif_msg_drv(&debug)) {
+		printk(KERN_INFO "%s Gigabit Ethernet driver %s loaded\n",
+		       MODULENAME, RTL8169_VERSION);
+	}
 
-	/* dev zeroed in alloc_etherdev */
 	dev = alloc_etherdev(sizeof (*tp));
-	if (dev == NULL) {
+	if (!dev) {
 		if (netif_msg_drv(&debug))
 			dev_err(&pdev->dev, "unable to alloc new ethernet\n");
-		goto err_out;
+		rc = -ENOMEM;
+		goto out;
 	}
 
 	SET_MODULE_OWNER(dev);
@@ -1463,48 +1500,52 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	if (rc < 0) {
 		if (netif_msg_probe(tp))
 			dev_err(&pdev->dev, "enable failure\n");
-		goto err_out_free_dev;
+		goto err_out_free_dev_1;
 	}
 
 	rc = pci_set_mwi(pdev);
 	if (rc < 0)
-		goto err_out_disable;
+		goto err_out_disable_2;
 
 	/* save power state before pci_enable_device overwrites it */
 	pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	if (pm_cap) {
-		u16 pwr_command;
+		u16 pwr_command, acpi_idle_state;
 
 		pci_read_config_word(pdev, pm_cap + PCI_PM_CTRL, &pwr_command);
 		acpi_idle_state = pwr_command & PCI_PM_CTRL_STATE_MASK;
 	} else {
-		if (netif_msg_probe(tp))
+		if (netif_msg_probe(tp)) {
 			dev_err(&pdev->dev,
-			       "PowerManagement capability not found.\n");
+				"PowerManagement capability not found.\n");
+		}
 	}
 
 	/* make sure PCI base addr 1 is MMIO */
 	if (!(pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
-		if (netif_msg_probe(tp))
+		if (netif_msg_probe(tp)) {
 			dev_err(&pdev->dev,
-			       "region #1 not an MMIO resource, aborting\n");
+				"region #1 not an MMIO resource, aborting\n");
+		}
 		rc = -ENODEV;
-		goto err_out_mwi;
+		goto err_out_mwi_3;
 	}
+
 	/* check for weird/broken PCI region reporting */
 	if (pci_resource_len(pdev, 1) < R8169_REGS_SIZE) {
-		if (netif_msg_probe(tp))
+		if (netif_msg_probe(tp)) {
 			dev_err(&pdev->dev,
-			       "Invalid PCI region size(s), aborting\n");
+				"Invalid PCI region size(s), aborting\n");
+		}
 		rc = -ENODEV;
-		goto err_out_mwi;
+		goto err_out_mwi_3;
 	}
 
 	rc = pci_request_regions(pdev, MODULENAME);
 	if (rc < 0) {
 		if (netif_msg_probe(tp))
 			dev_err(&pdev->dev, "could not request regions.\n");
-		goto err_out_mwi;
+		goto err_out_mwi_3;
 	}
 
 	tp->cp_cmd = PCIMulRW | RxChkSum;
@@ -1516,10 +1557,11 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc < 0) {
-			if (netif_msg_probe(tp))
+			if (netif_msg_probe(tp)) {
 				dev_err(&pdev->dev,
-				       "DMA configuration failed.\n");
-			goto err_out_free_res;
+					"DMA configuration failed.\n");
+			}
+			goto err_out_free_res_4;
 		}
 	}
 
@@ -1527,11 +1569,11 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 
 	/* ioremap MMIO region */
 	ioaddr = ioremap(pci_resource_start(pdev, 1), R8169_REGS_SIZE);
-	if (ioaddr == NULL) {
+	if (!ioaddr) {
 		if (netif_msg_probe(tp))
 			dev_err(&pdev->dev, "cannot remap MMIO, aborting\n");
 		rc = -EIO;
-		goto err_out_free_res;
+		goto err_out_free_res_4;
 	}
 
 	/* Unneeded ? Don't mess with Mrs. Murphy. */
@@ -1562,8 +1604,8 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 		/* Unknown chip: assume array element #0, original RTL-8169 */
 		if (netif_msg_probe(tp)) {
 			dev_printk(KERN_DEBUG, &pdev->dev,
-			       "unknown chip version, assuming %s\n",
-			       rtl_chip_info[0].name);
+				"unknown chip version, assuming %s\n",
+				rtl_chip_info[0].name);
 		}
 		i++;
 	}
@@ -1573,56 +1615,6 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	RTL_W8(Config1, RTL_R8(Config1) | PMEnable);
 	RTL_W8(Config5, RTL_R8(Config5) & PMEStatus);
 	RTL_W8(Cfg9346, Cfg9346_Lock);
-
-	*ioaddr_out = ioaddr;
-	*dev_out = dev;
-out:
-	return rc;
-
-err_out_free_res:
-	pci_release_regions(pdev);
-
-err_out_mwi:
-	pci_clear_mwi(pdev);
-
-err_out_disable:
-	pci_disable_device(pdev);
-
-err_out_free_dev:
-	free_netdev(dev);
-err_out:
-	*ioaddr_out = NULL;
-	*dev_out = NULL;
-	goto out;
-}
-
-static int __devinit
-rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
-{
-	struct net_device *dev = NULL;
-	struct rtl8169_private *tp;
-	void __iomem *ioaddr = NULL;
-	static int board_idx = -1;
-	u8 autoneg, duplex;
-	u16 speed;
-	int i, rc;
-
-	assert(pdev != NULL);
-	assert(ent != NULL);
-
-	board_idx++;
-
-	if (netif_msg_drv(&debug)) {
-		printk(KERN_INFO "%s Gigabit Ethernet driver %s loaded\n",
-		       MODULENAME, RTL8169_VERSION);
-	}
-
-	rc = rtl8169_init_board(pdev, &dev, &ioaddr);
-	if (rc)
-		return rc;
-
-	tp = netdev_priv(dev);
-	assert(ioaddr != NULL);
 
 	if (RTL_R8(PHYstatus) & TBI_Enable) {
 		tp->set_speed = rtl8169_set_speed_tbi;
@@ -1680,10 +1672,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&tp->lock);
 
 	rc = register_netdev(dev);
-	if (rc) {
-		rtl8169_release_board(pdev, dev, ioaddr);
-		return rc;
-	}
+	if (rc < 0)
+		goto err_out_unmap_5;
 
 	if (netif_msg_probe(tp)) {
 		printk(KERN_DEBUG "%s: Identified chip type is '%s'.\n",
@@ -1704,31 +1694,22 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       dev->dev_addr[4], dev->dev_addr[5], dev->irq);
 	}
 
-	rtl8169_hw_phy_config(dev);
+	rtl8169_init_phy(dev, tp);
 
-	dprintk("Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
-	RTL_W8(0x82, 0x01);
+out:
+	return rc;
 
-	if (tp->mac_version < RTL_GIGA_MAC_VER_E) {
-		dprintk("Set PCI Latency=0x40\n");
-		pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x40);
-	}
-
-	if (tp->mac_version == RTL_GIGA_MAC_VER_D) {
-		dprintk("Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
-		RTL_W8(0x82, 0x01);
-		dprintk("Set PHY Reg 0x0bh = 0x00h\n");
-		mdio_write(ioaddr, 0x0b, 0x0000); //w 0x0b 15 0 0
-	}
-
-	rtl8169_link_option(board_idx, &autoneg, &speed, &duplex);
-
-	rtl8169_set_speed(dev, autoneg, speed, duplex);
-	
-	if ((RTL_R8(PHYstatus) & TBI_Enable) && netif_msg_link(tp))
-		printk(KERN_INFO PFX "%s: TBI auto-negotiating\n", dev->name);
-
-	return 0;
+err_out_unmap_5:
+	iounmap(ioaddr);
+err_out_free_res_4:
+	pci_release_regions(pdev);
+err_out_mwi_3:
+	pci_clear_mwi(pdev);
+err_out_disable_2:
+	pci_disable_device(pdev);
+err_out_free_dev_1:
+	free_netdev(dev);
+	goto out;
 }
 
 static void __devexit
