@@ -86,30 +86,6 @@ static struct map_desc anubis_iodesc[] __initdata = {
 	.length		= SZ_4K,
 	.type		= MT_DEVICE,
   },
-
-  /* IDE drives */
-
-  {
-	.virtual	= (u32)ANUBIS_IDEPRI,
-	.pfn		= __phys_to_pfn(S3C2410_CS3),
-	.length		= SZ_1M,
-	.type		= MT_DEVICE
-  }, {
-	.virtual	= (u32)ANUBIS_IDEPRIAUX,
-	.pfn		= __phys_to_pfn(S3C2410_CS3+(1<<26)),
-	.length		= SZ_1M,
-	.type		= MT_DEVICE
-  }, {
-	.virtual	= (u32)ANUBIS_IDESEC,
-	.pfn		= __phys_to_pfn(S3C2410_CS4),
-	.length		= SZ_1M,
-	.type		= MT_DEVICE
-  }, {
-	.virtual	= (u32)ANUBIS_IDESECAUX,
-	.pfn		= __phys_to_pfn(S3C2410_CS4+(1<<26)),
-	.length		= SZ_1M,
-	.type		= MT_DEVICE
-  },
 };
 
 #define UCON S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK
