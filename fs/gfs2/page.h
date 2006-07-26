@@ -14,8 +14,6 @@ void gfs2_pte_inval(struct gfs2_glock *gl);
 void gfs2_page_inval(struct gfs2_glock *gl);
 void gfs2_page_sync(struct gfs2_glock *gl, int flags);
 
-int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
-			uint64_t block, void *private);
 int gfs2_block_truncate_page(struct address_space *mapping);
 void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 			    unsigned int from, unsigned int to);

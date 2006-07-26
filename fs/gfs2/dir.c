@@ -173,7 +173,7 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 		return -EINVAL;
 
 	if (gfs2_is_stuffed(ip)) {
-		error = gfs2_unstuff_dinode(ip, NULL, NULL);
+		error = gfs2_unstuff_dinode(ip, NULL);
 		if (error)
 			return error;
 	}

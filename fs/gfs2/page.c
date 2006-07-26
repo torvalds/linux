@@ -114,66 +114,6 @@ void gfs2_page_sync(struct gfs2_glock *gl, int flags)
 }
 
 /**
- * gfs2_unstuffer_page - unstuff a stuffed inode into a block cached by a page
- * @ip: the inode
- * @dibh: the dinode buffer
- * @block: the block number that was allocated
- * @private: any locked page held by the caller process
- *
- * Returns: errno
- */
-
-int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
-			uint64_t block, void *private)
-{
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct inode *inode = &ip->i_inode;
-	struct page *page = (struct page *)private;
-	struct buffer_head *bh;
-	int release = 0;
-
-	if (!page || page->index) {
-		page = grab_cache_page(inode->i_mapping, 0);
-		if (!page)
-			return -ENOMEM;
-		release = 1;
-	}
-
-	if (!PageUptodate(page)) {
-		void *kaddr = kmap(page);
-
-		memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode),
-		       ip->i_di.di_size);
-		memset(kaddr + ip->i_di.di_size, 0,
-		       PAGE_CACHE_SIZE - ip->i_di.di_size);
-		kunmap(page);
-
-		SetPageUptodate(page);
-	}
-
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, 1 << inode->i_blkbits,
-				     (1 << BH_Uptodate));
-
-	bh = page_buffers(page);
-
-	if (!buffer_mapped(bh))
-		map_bh(bh, inode->i_sb, block);
-
-	set_buffer_uptodate(bh);
-	if ((sdp->sd_args.ar_data == GFS2_DATA_ORDERED) || gfs2_is_jdata(ip))
-		gfs2_trans_add_bh(ip->i_gl, bh, 0);
-	mark_buffer_dirty(bh);
-
-	if (release) {
-		unlock_page(page);
-		page_cache_release(page);
-	}
-
-	return 0;
-}
-
-/**
  * gfs2_block_truncate_page - Deal with zeroing out data for truncate
  *
  * This is partly borrowed from ext3.

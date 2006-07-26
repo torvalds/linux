@@ -48,6 +48,65 @@ struct strip_mine {
 };
 
 /**
+ * gfs2_unstuffer_page - unstuff a stuffed inode into a block cached by a page
+ * @ip: the inode
+ * @dibh: the dinode buffer
+ * @block: the block number that was allocated
+ * @private: any locked page held by the caller process
+ *
+ * Returns: errno
+ */
+
+static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
+			       uint64_t block, struct page *page)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct inode *inode = &ip->i_inode;
+	struct buffer_head *bh;
+	int release = 0;
+
+	if (!page || page->index) {
+		page = grab_cache_page(inode->i_mapping, 0);
+		if (!page)
+			return -ENOMEM;
+		release = 1;
+	}
+
+	if (!PageUptodate(page)) {
+		void *kaddr = kmap(page);
+
+		memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode),
+		       ip->i_di.di_size);
+		memset(kaddr + ip->i_di.di_size, 0,
+		       PAGE_CACHE_SIZE - ip->i_di.di_size);
+		kunmap(page);
+
+		SetPageUptodate(page);
+	}
+
+	if (!page_has_buffers(page))
+		create_empty_buffers(page, 1 << inode->i_blkbits,
+				     (1 << BH_Uptodate));
+
+	bh = page_buffers(page);
+
+	if (!buffer_mapped(bh))
+		map_bh(bh, inode->i_sb, block);
+
+	set_buffer_uptodate(bh);
+	if ((sdp->sd_args.ar_data == GFS2_DATA_ORDERED) || gfs2_is_jdata(ip))
+		gfs2_trans_add_bh(ip->i_gl, bh, 0);
+	mark_buffer_dirty(bh);
+
+	if (release) {
+		unlock_page(page);
+		page_cache_release(page);
+	}
+
+	return 0;
+}
+
+/**
  * gfs2_unstuff_dinode - Unstuff a dinode when the data has grown too big
  * @ip: The GFS2 inode to unstuff
  * @unstuffer: the routine that handles unstuffing a non-zero length file
@@ -59,8 +118,7 @@ struct strip_mine {
  * Returns: errno
  */
 
-int gfs2_unstuff_dinode(struct gfs2_inode *ip, gfs2_unstuffer_t unstuffer,
-			void *private)
+int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 {
 	struct buffer_head *bh, *dibh;
 	uint64_t block = 0;
@@ -90,7 +148,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, gfs2_unstuffer_t unstuffer,
 		} else {
 			block = gfs2_alloc_data(ip);
 
-			error = unstuffer(ip, dibh, block, private);
+			error = gfs2_unstuffer_page(ip, dibh, block, page);
 			if (error)
 				goto out_brelse;
 		}
@@ -786,8 +844,7 @@ static int do_grow(struct gfs2_inode *ip, uint64_t size)
 
 	if (size > sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)) {
 		if (gfs2_is_stuffed(ip)) {
-			error = gfs2_unstuff_dinode(ip, gfs2_unstuffer_page,
-						    NULL);
+			error = gfs2_unstuff_dinode(ip, NULL);
 			if (error)
 				goto out_end_trans;
 		}

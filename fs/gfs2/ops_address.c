@@ -395,8 +395,7 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 
 	if (gfs2_is_stuffed(ip)) {
 		if (end > sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)) {
-			error = gfs2_unstuff_dinode(ip, gfs2_unstuffer_page,
-						    page);
+			error = gfs2_unstuff_dinode(ip, page);
 			if (error == 0)
 				goto prepare_write;
 		} else if (!PageUptodate(page))

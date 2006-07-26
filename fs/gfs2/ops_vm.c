@@ -104,7 +104,7 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 		goto out_ipres;
 
 	if (gfs2_is_stuffed(ip)) {
-		error = gfs2_unstuff_dinode(ip, gfs2_unstuffer_page, NULL);
+		error = gfs2_unstuff_dinode(ip, NULL);
 		if (error)
 			goto out_trans;
 	}

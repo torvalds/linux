@@ -10,12 +10,7 @@
 #ifndef __BMAP_DOT_H__
 #define __BMAP_DOT_H__
 
-typedef int (*gfs2_unstuffer_t) (struct gfs2_inode * ip,
-				 struct buffer_head * dibh, uint64_t block,
-				 void *private);
-int gfs2_unstuff_dinode(struct gfs2_inode *ip, gfs2_unstuffer_t unstuffer,
-			void *private);
-
+int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page);
 int gfs2_block_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, int *boundary);
 int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsigned *extlen);
 
