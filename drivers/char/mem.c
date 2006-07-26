@@ -980,10 +980,10 @@ static int __init chr_dev_init(void)
 
 	mem_class = class_create(THIS_MODULE, "mem");
 	for (i = 0; i < ARRAY_SIZE(devlist); i++)
-		class_device_create(mem_class, NULL,
-					MKDEV(MEM_MAJOR, devlist[i].minor),
-					NULL, devlist[i].name);
-	
+		device_create(mem_class, NULL,
+			      MKDEV(MEM_MAJOR, devlist[i].minor),
+			      devlist[i].name);
+
 	return 0;
 }
 
