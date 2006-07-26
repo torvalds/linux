@@ -71,6 +71,8 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 		goto out;
 	}
 
+	memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
+
 	/*
 	 * Store incoming device index. When the packet will
 	 * be queued, we cannot refer to skb->dev anymore.
