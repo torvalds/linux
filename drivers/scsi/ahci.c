@@ -410,30 +410,23 @@ static int ahci_start_engine(void __iomem *port_mmio)
 {
 	u32 tmp;
 
-	/*
-	 * Get current status
-	 */
+	/* get current status */
 	tmp = readl(port_mmio + PORT_CMD);
 
-	/*
-	 * AHCI rev 1.1 section 10.3.1:
+	/* AHCI rev 1.1 section 10.3.1:
 	 * Software shall not set PxCMD.ST to '1' until it verifies
 	 * that PxCMD.CR is '0' and has set PxCMD.FRE to '1'
 	 */
 	if ((tmp & PORT_CMD_FIS_RX) == 0)
 		return -EPERM;
 
-	/*
-	 * wait for engine to become idle.
-	 */
+	/* wait for engine to become idle */
 	tmp = ata_wait_register(port_mmio + PORT_CMD,
 				PORT_CMD_LIST_ON, PORT_CMD_LIST_ON, 1,500);
-	if(tmp & PORT_CMD_LIST_ON)
+	if (tmp & PORT_CMD_LIST_ON)
 		return -EBUSY;
 
-	/*
-	 * Start DMA
-	 */
+	/* start DMA */
 	tmp |= PORT_CMD_START;
 	writel(tmp, port_mmio + PORT_CMD);
 	readl(port_mmio + PORT_CMD); /* flush */
@@ -447,20 +440,18 @@ static int ahci_stop_engine(void __iomem *port_mmio)
 
 	tmp = readl(port_mmio + PORT_CMD);
 
-	/* Check if the HBA is idle */
+	/* check if the HBA is idle */
 	if ((tmp & (PORT_CMD_START | PORT_CMD_LIST_ON)) == 0)
 		return 0;
 
-	/* Setting HBA to idle */
+	/* setting HBA to idle */
 	tmp &= ~PORT_CMD_START;
 	writel(tmp, port_mmio + PORT_CMD);
 
-	/* wait for engine to stop. This could be
-	 * as long as 500 msec
-	 */
+	/* wait for engine to stop. This could be as long as 500 msec */
 	tmp = ata_wait_register(port_mmio + PORT_CMD,
 			        PORT_CMD_LIST_ON, PORT_CMD_LIST_ON, 1, 500);
-	if(tmp & PORT_CMD_LIST_ON)
+	if (tmp & PORT_CMD_LIST_ON)
 		return -EIO;
 
 	return 0;
