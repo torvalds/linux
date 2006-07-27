@@ -310,11 +310,6 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 		       sdp->sd_sb.sb_bsize, (unsigned int)PAGE_SIZE);
 		goto out;
 	}
-
-	/* Get rid of buffers from the original block size */
-	sb_gh.gh_gl->gl_ops->go_inval(sb_gh.gh_gl, DIO_METADATA | DIO_DATA);
-	sb_gh.gh_gl->gl_aspace->i_blkbits = sdp->sd_sb.sb_bsize_shift;
-
 	sb_set_blocksize(sb, sdp->sd_sb.sb_bsize);
 
 	/* Get the root inode */

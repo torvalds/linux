@@ -14,6 +14,7 @@
 #include <linux/buffer_head.h>
 #include <linux/crc32.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/bio.h>
 
 #include "gfs2.h"
 #include "lm_interface.h"
@@ -157,6 +158,54 @@ int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb *sb, int silent)
 	return 0;
 }
 
+
+static int end_bio_io_page(struct bio *bio, unsigned int bytes_done, int error)
+{
+	struct page *page = bio->bi_private;
+	if (bio->bi_size)
+		return 1;
+
+	if (!error)
+		SetPageUptodate(page);
+	unlock_page(page);
+	return 0;
+}
+
+static struct page *gfs2_read_super(struct super_block *sb, sector_t sector)
+{
+	struct page *page;
+	struct bio *bio;
+
+	page = alloc_page(GFP_KERNEL);
+	if (unlikely(!page))
+		return NULL;
+
+	ClearPageUptodate(page);
+	ClearPageDirty(page);
+	lock_page(page);
+
+	bio = bio_alloc(GFP_KERNEL, 1);
+	if (unlikely(!bio)) {
+		__free_page(page);
+		return NULL;
+	}
+
+	bio->bi_sector = sector;
+	bio->bi_bdev = sb->s_bdev;
+	bio_add_page(bio, page, PAGE_SIZE, 0);
+
+	bio->bi_end_io = end_bio_io_page;
+	bio->bi_private = page;
+	submit_bio(READ | BIO_RW_SYNC, bio);
+	wait_on_page_locked(page);
+	bio_put(bio);
+	if (!PageUptodate(page)) {
+		__free_page(page);
+		return NULL;
+	}
+	return page;
+}
+
 /**
  * gfs2_read_sb - Read super block
  * @sdp: The GFS2 superblock
@@ -167,23 +216,23 @@ int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb *sb, int silent)
 
 int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
 {
-	struct buffer_head *bh;
 	uint32_t hash_blocks, ind_blocks, leaf_blocks;
 	uint32_t tmp_blocks;
 	unsigned int x;
 	int error;
+	struct page *page;
+	char *sb;
 
-	error = gfs2_meta_read(gl, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift,
-			       DIO_FORCE | DIO_START | DIO_WAIT, &bh);
-	if (error) {
+	page = gfs2_read_super(sdp->sd_vfs, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift);
+	if (!page) {
 		if (!silent)
 			fs_err(sdp, "can't read superblock\n");
-		return error;
+		return -EIO;
 	}
-
-	gfs2_assert(sdp, sizeof(struct gfs2_sb) <= bh->b_size);
-	gfs2_sb_in(&sdp->sd_sb, bh->b_data);
-	brelse(bh);
+	sb = kmap(page);
+	gfs2_sb_in(&sdp->sd_sb, sb);
+	kunmap(page);
+	__free_page(page);
 
 	error = gfs2_check_sb(sdp, &sdp->sd_sb, silent);
 	if (error)
@@ -202,7 +251,7 @@ int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
 	sdp->sd_hash_ptrs = sdp->sd_hash_bsize / sizeof(uint64_t);
 	sdp->sd_qc_per_block = (sdp->sd_sb.sb_bsize -
 				sizeof(struct gfs2_meta_header)) /
-			       sizeof(struct gfs2_quota_change);
+			        sizeof(struct gfs2_quota_change);
 
 	/* Compute maximum reservation required to add a entry to a directory */
 

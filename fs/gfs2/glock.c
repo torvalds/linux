@@ -311,8 +311,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, uint64_t number,
 	/* If this glock protects actual on-disk data or metadata blocks,
 	   create a VFS inode to manage the pages/buffers holding them. */
 	if (glops == &gfs2_inode_glops ||
-	    glops == &gfs2_rgrp_glops ||
-	    glops == &gfs2_meta_glops) {
+	    glops == &gfs2_rgrp_glops) {
 		gl->gl_aspace = gfs2_aspace_get(sdp);
 		if (!gl->gl_aspace) {
 			error = -ENOMEM;

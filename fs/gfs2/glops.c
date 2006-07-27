@@ -157,18 +157,6 @@ static void meta_go_inval(struct gfs2_glock *gl, int flags)
 }
 
 /**
- * meta_go_demote_ok - Check to see if it's ok to unlock a glock
- * @gl: the glock
- *
- * Returns: 1 if we have no cached data; ok to demote meta glock
- */
-
-static int meta_go_demote_ok(struct gfs2_glock *gl)
-{
-	return !gl->gl_aspace->i_mapping->nrpages;
-}
-
-/**
  * inode_go_xmote_th - promote/demote a glock
  * @gl: the glock
  * @state: the requested state
@@ -338,11 +326,12 @@ static void inode_go_unlock(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_inode *ip = gl->gl_object;
 
-	if (ip && test_bit(GLF_DIRTY, &gl->gl_flags))
-		gfs2_inode_attr_in(ip);
+	if (ip) {
+		if (test_bit(GLF_DIRTY, &gl->gl_flags))
+			gfs2_inode_attr_in(ip);
 
-	if (ip)
 		gfs2_meta_cache_flush(ip);
+	}
 }
 
 /**
@@ -507,9 +496,6 @@ static int quota_go_demote_ok(struct gfs2_glock *gl)
 struct gfs2_glock_operations gfs2_meta_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
-	.go_sync = meta_go_sync,
-	.go_inval = meta_go_inval,
-	.go_demote_ok = meta_go_demote_ok,
 	.go_type = LM_TYPE_META
 };
 
