@@ -333,9 +333,9 @@ static ssize_t bcm43xx_attr_phymode_store(struct device *dev,
 		goto out;
 	}
 
-	bcm43xx_lock_noirq(bcm);
+	mutex_lock(&(bcm)->mutex);
 	err = bcm43xx_select_wireless_core(bcm, phytype);
-	bcm43xx_unlock_noirq(bcm);
+	mutex_unlock(&(bcm)->mutex);
 	if (err == -ESRCH)
 		err = -ENODEV;
 
@@ -350,7 +350,7 @@ static ssize_t bcm43xx_attr_phymode_show(struct device *dev,
 	struct bcm43xx_private *bcm = dev_to_bcm(dev);
 	ssize_t count = 0;
 
-	bcm43xx_lock_noirq(bcm);
+	mutex_lock(&(bcm)->mutex);
 	switch (bcm43xx_current_phy(bcm)->type) {
 	case BCM43xx_PHYTYPE_A:
 		snprintf(buf, PAGE_SIZE, "A");
@@ -364,7 +364,7 @@ static ssize_t bcm43xx_attr_phymode_show(struct device *dev,
 	default:
 		assert(0);
 	}
-	bcm43xx_unlock_noirq(bcm);
+	mutex_unlock(&(bcm)->mutex);
 
 	return count;
 }

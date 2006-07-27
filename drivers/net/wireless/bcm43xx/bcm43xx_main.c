@@ -3199,9 +3199,9 @@ static int bcm43xx_rng_read(struct hwrng *rng, u32 *data)
 	struct bcm43xx_private *bcm = (struct bcm43xx_private *)rng->priv;
 	unsigned long flags;
 
-	bcm43xx_lock_irqonly(bcm, flags);
+	spin_lock_irqsave(&(bcm)->irq_lock, flags);
 	*data = bcm43xx_read16(bcm, BCM43xx_MMIO_RNG);
-	bcm43xx_unlock_irqonly(bcm, flags);
+	spin_unlock_irqrestore(&(bcm)->irq_lock, flags);
 
 	return (sizeof(u16));
 }
@@ -3264,10 +3264,10 @@ static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 	bcm43xx_sysfs_unregister(bcm);
 	bcm43xx_periodic_tasks_delete(bcm);
 
-	bcm43xx_lock_noirq(bcm);
+	mutex_lock(&(bcm)->mutex);
 	bcm43xx_shutdown_all_wireless_cores(bcm);
 	bcm43xx_pctl_set_crystal(bcm, 0);
-	bcm43xx_unlock_noirq(bcm);
+	mutex_unlock(&(bcm)->mutex);
 }
 
 static void prepare_phydata_for_init(struct bcm43xx_phyinfo *phy)
@@ -3511,7 +3511,7 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 {
 	int err;
 
-	bcm43xx_lock_noirq(bcm);
+	mutex_lock(&(bcm)->mutex);
 
 	tasklet_enable(&bcm->isr_tasklet);
 	err = bcm43xx_pctl_set_crystal(bcm, 1);
@@ -3533,7 +3533,7 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 	schedule_work(&bcm->softmac->associnfo.work);
 
 out:
-	bcm43xx_unlock_noirq(bcm);
+	mutex_unlock(&(bcm)->mutex);
 
 	return err;
 
@@ -4097,10 +4097,10 @@ static void bcm43xx_chip_reset(void *_bcm)
 	struct bcm43xx_phyinfo *phy;
 	int err;
 
-	bcm43xx_lock_noirq(bcm);
+	mutex_lock(&(bcm)->mutex);
 	phy = bcm43xx_current_phy(bcm);
 	err = bcm43xx_select_wireless_core(bcm, phy->type);
-	bcm43xx_unlock_noirq(bcm);
+	mutex_unlock(&(bcm)->mutex);
 
 	printk(KERN_ERR PFX "Controller restart%s\n",
 	       (err == 0) ? "ed" : " failed");

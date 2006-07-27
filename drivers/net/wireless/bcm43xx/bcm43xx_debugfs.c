@@ -331,7 +331,8 @@ static ssize_t restart_write_file(struct file *file, const char __user *user_buf
 	        res = -EFAULT;
 		goto out_up;
 	}
-	bcm43xx_lock_irqsafe(bcm, flags);
+	mutex_lock(&(bcm)->mutex);
+	spin_lock_irqsave(&(bcm)->irq_lock, flags);
 	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED) {
 		printk(KERN_INFO PFX "debugfs: Board not initialized.\n");
 		res = -EFAULT;
@@ -344,7 +345,8 @@ static ssize_t restart_write_file(struct file *file, const char __user *user_buf
 		res = -EINVAL;
 
 out_unlock:
-	bcm43xx_unlock_irqsafe(bcm, flags);
+	spin_unlock_irqrestore(&(bcm)->irq_lock, flags);
+	mutex_unlock(&(bcm)->mutex);
 out_up:
 	up(&big_buffer_sem);
 	return res;
