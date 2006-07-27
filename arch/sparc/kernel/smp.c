@@ -87,6 +87,7 @@ void __cpuinit smp_store_cpu_info(int id)
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	extern void smp4m_smp_done(void);
+	extern void smp4d_smp_done(void);
 	unsigned long bogosum = 0;
 	int cpu, num;
 
@@ -100,8 +101,34 @@ void __init smp_cpus_done(unsigned int max_cpus)
 		num, bogosum/(500000/HZ),
 		(bogosum/(5000/HZ))%100);
 
-	BUG_ON(sparc_cpu_model != sun4m);
-	smp4m_smp_done();
+	switch(sparc_cpu_model) {
+	case sun4:
+		printk("SUN4\n");
+		BUG();
+		break;
+	case sun4c:
+		printk("SUN4C\n");
+		BUG();
+		break;
+	case sun4m:
+		smp4m_smp_done();
+		break;
+	case sun4d:
+		smp4d_smp_done();
+		break;
+	case sun4e:
+		printk("SUN4E\n");
+		BUG();
+		break;
+	case sun4u:
+		printk("SUN4U\n");
+		BUG();
+		break;
+	default:
+		printk("UNKNOWN!\n");
+		BUG();
+		break;
+	};
 }
 
 void cpu_panic(void)
@@ -267,9 +294,9 @@ int setup_profiling_timer(unsigned int multiplier)
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	extern void smp4m_boot_cpus(void);
+	extern void smp4d_boot_cpus(void);
 	int i, cpuid, extra;
 
-	BUG_ON(sparc_cpu_model != sun4m);
 	printk("Entering SMP Mode...\n");
 
 	extra = 0;
@@ -283,7 +310,34 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	smp_store_cpu_info(boot_cpu_id);
 
-	smp4m_boot_cpus();
+	switch(sparc_cpu_model) {
+	case sun4:
+		printk("SUN4\n");
+		BUG();
+		break;
+	case sun4c:
+		printk("SUN4C\n");
+		BUG();
+		break;
+	case sun4m:
+		smp4m_boot_cpus();
+		break;
+	case sun4d:
+		smp4d_boot_cpus();
+		break;
+	case sun4e:
+		printk("SUN4E\n");
+		BUG();
+		break;
+	case sun4u:
+		printk("SUN4U\n");
+		BUG();
+		break;
+	default:
+		printk("UNKNOWN!\n");
+		BUG();
+		break;
+	};
 }
 
 /* Set this up early so that things like the scheduler can init
@@ -323,9 +377,37 @@ void __init smp_prepare_boot_cpu(void)
 int __cpuinit __cpu_up(unsigned int cpu)
 {
 	extern int smp4m_boot_one_cpu(int);
-	int ret;
+	extern int smp4d_boot_one_cpu(int);
+	int ret=0;
 
-	ret = smp4m_boot_one_cpu(cpu);
+	switch(sparc_cpu_model) {
+	case sun4:
+		printk("SUN4\n");
+		BUG();
+		break;
+	case sun4c:
+		printk("SUN4C\n");
+		BUG();
+		break;
+	case sun4m:
+		ret = smp4m_boot_one_cpu(cpu);
+		break;
+	case sun4d:
+		ret = smp4d_boot_one_cpu(cpu);
+		break;
+	case sun4e:
+		printk("SUN4E\n");
+		BUG();
+		break;
+	case sun4u:
+		printk("SUN4U\n");
+		BUG();
+		break;
+	default:
+		printk("UNKNOWN!\n");
+		BUG();
+		break;
+	};
 
 	if (!ret) {
 		cpu_set(cpu, smp_commenced_mask);

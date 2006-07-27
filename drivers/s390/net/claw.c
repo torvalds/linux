@@ -529,7 +529,7 @@ claw_open(struct net_device *dev)
         printk(KERN_INFO "%s:%s Enter  \n",dev->name,__FUNCTION__);
 #endif
 	CLAW_DBF_TEXT(4,trace,"open");
-	if (!dev | (dev->name[0] == 0x00)) {
+	if (!dev || (dev->name[0] == 0x00)) {
 		CLAW_DBF_TEXT(2,trace,"BadDev");
 	 	printk(KERN_WARNING "claw: Bad device at open failing \n");
 		return -ENODEV;

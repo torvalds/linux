@@ -320,6 +320,16 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 
 	ACPI_FUNCTION_TRACE(tb_get_this_table);
 
+	/* Validate minimum length */
+
+	if (header->length < sizeof(struct acpi_table_header)) {
+		ACPI_ERROR((AE_INFO,
+			    "Table length (%X) is smaller than minimum (%X)",
+			    header->length, sizeof(struct acpi_table_header)));
+
+		return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
+	}
+
 	/*
 	 * Flags contains the current processor mode (Virtual or Physical
 	 * addressing) The pointer_type is either Logical or Physical
@@ -356,7 +366,7 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 		 */
 		status = acpi_os_map_memory(address->pointer.physical,
 					    (acpi_size) header->length,
-					    (void *)&full_table);
+					    ACPI_CAST_PTR(void, &full_table));
 		if (ACPI_FAILURE(status)) {
 			ACPI_ERROR((AE_INFO,
 				    "Could not map memory for table [%4.4s] at %8.8X%8.8X for length %X",

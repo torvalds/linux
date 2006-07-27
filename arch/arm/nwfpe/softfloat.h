@@ -61,7 +61,7 @@ typedef struct {
     u16 __padding;
 #endif
     u64 low;
-} floatx80;
+}  __attribute__ ((packed,aligned(4))) floatx80;
 
 /*
 -------------------------------------------------------------------------------

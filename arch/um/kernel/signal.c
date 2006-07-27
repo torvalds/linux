@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -36,7 +36,7 @@ EXPORT_SYMBOL(unblock_signals);
 
 /*
  * OK, we're invoking a handler
- */	
+ */
 static int handle_signal(struct pt_regs *regs, unsigned long signr,
 			 struct k_sigaction *ka, siginfo_t *info,
 			 sigset_t *oldset)
@@ -88,7 +88,7 @@ static int handle_signal(struct pt_regs *regs, unsigned long signr,
 		force_sigsegv(signr, current);
 	} else {
 		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked, &current->blocked, 
+		sigorsets(&current->blocked, &current->blocked,
 			  &ka->sa.sa_mask);
 		 if(!(ka->sa.sa_flags & SA_NODEFER))
 			sigaddset(&current->blocked, signr);
@@ -136,7 +136,7 @@ static int kern_do_signal(struct pt_regs *regs)
 			PT_REGS_RESTART_SYSCALL(regs);
 			break;
 		case -ERESTART_RESTARTBLOCK:
-			PT_REGS_SYSCALL_RET(regs) = __NR_restart_syscall;
+			PT_REGS_ORIG_SYSCALL(regs) = __NR_restart_syscall;
 			PT_REGS_RESTART_SYSCALL(regs);
 			break;
  		}
@@ -146,7 +146,7 @@ static int kern_do_signal(struct pt_regs *regs)
 	 * you set a breakpoint on a system call instruction and singlestep
 	 * from it, the tracing thread used to PTRACE_SINGLESTEP the process
 	 * rather than PTRACE_SYSCALL it, allowing the system call to execute
-	 * on the host.  The tracing thread will check this flag and 
+	 * on the host.  The tracing thread will check this flag and
 	 * PTRACE_SYSCALL if necessary.
 	 */
 	if(current->ptrace & PT_DTRACE)

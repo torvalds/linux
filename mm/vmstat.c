@@ -81,6 +81,7 @@ void all_vm_events(unsigned long *ret)
 {
 	sum_vm_events(ret, &cpu_online_map);
 }
+EXPORT_SYMBOL_GPL(all_vm_events);
 
 #ifdef CONFIG_HOTPLUG
 /*

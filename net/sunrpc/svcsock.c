@@ -1322,11 +1322,10 @@ svc_setup_socket(struct svc_serv *serv, struct socket *sock,
 	struct sock	*inet;
 
 	dprintk("svc: svc_setup_socket %p\n", sock);
-	if (!(svsk = kmalloc(sizeof(*svsk), GFP_KERNEL))) {
+	if (!(svsk = kzalloc(sizeof(*svsk), GFP_KERNEL))) {
 		*errp = -ENOMEM;
 		return NULL;
 	}
-	memset(svsk, 0, sizeof(*svsk));
 
 	inet = sock->sk;
 

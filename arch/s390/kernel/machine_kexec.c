@@ -63,6 +63,7 @@ NORET_TYPE void
 machine_kexec(struct kimage *image)
 {
 	clear_all_subchannels();
+	cio_reset_channel_paths();
 
 	/* Disable lowcore protection */
 	ctl_clear_bit(0,28);

@@ -627,7 +627,6 @@ static int ubd_new_disk(int major, u64 size, int unit,
 			
 {
 	struct gendisk *disk;
-	int err;
 
 	disk = alloc_disk(1 << UBD_SHIFT);
 	if(disk == NULL)

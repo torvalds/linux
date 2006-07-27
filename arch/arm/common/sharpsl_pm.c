@@ -412,8 +412,10 @@ static int sharpsl_check_battery_temp(void)
 	val = get_select_val(buff);
 
 	dev_dbg(sharpsl_pm.dev, "Temperature: %d\n", val);
-	if (val > sharpsl_pm.machinfo->charge_on_temp)
+	if (val > sharpsl_pm.machinfo->charge_on_temp) {
+		printk(KERN_WARNING "Not charging: temperature out of limits.\n");
 		return -1;
+	}
 
 	return 0;
 }

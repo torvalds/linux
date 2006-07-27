@@ -110,18 +110,7 @@ void sigio_handler(int sig, union uml_pt_regs *regs)
 	free_irqs();
 }
 
-static void maybe_sigio_broken(int fd, int type)
-{
-	if (os_isatty(fd)) {
-		if ((type == IRQ_WRITE) && !pty_output_sigio) {
-			write_sigio_workaround();
-			add_sigio_fd(fd, 0);
-		} else if ((type == IRQ_READ) && !pty_close_sigio) {
-			write_sigio_workaround();
-			add_sigio_fd(fd, 1);
-		}
-	}
-}
+static DEFINE_SPINLOCK(irq_lock);
 
 int activate_fd(int irq, int fd, int type, void *dev_id)
 {
@@ -166,7 +155,7 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 	 * this is called only from process context, and can be locked with
 	 * a semaphore.
 	 */
-	flags = irq_lock();
+	spin_lock_irqsave(&irq_lock, flags);
 	for (irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next) {
 		if ((irq_fd->fd == fd) && (irq_fd->type == type)) {
 			printk("Registering fd %d twice\n", fd);
@@ -199,7 +188,7 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 		 * so we will not be able to put new pollfd struct to pollfds
 		 * then we free the buffer tmp_fds and try again.
 		 */
-		irq_unlock(flags);
+		spin_unlock_irqrestore(&irq_lock, flags);
 		kfree(tmp_pfd);
 		tmp_pfd = NULL;
 
@@ -207,24 +196,24 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 		if (tmp_pfd == NULL)
 			goto out_kfree;
 
-		flags = irq_lock();
+		spin_lock_irqsave(&irq_lock, flags);
 	}
 	/*-------------*/
 
 	*last_irq_ptr = new_fd;
 	last_irq_ptr = &new_fd->next;
 
-	irq_unlock(flags);
+	spin_unlock_irqrestore(&irq_lock, flags);
 
 	/* This calls activate_fd, so it has to be outside the critical
 	 * section.
 	 */
-	maybe_sigio_broken(fd, type);
+	maybe_sigio_broken(fd, (type == IRQ_READ));
 
 	return(0);
 
  out_unlock:
-	irq_unlock(flags);
+	spin_unlock_irqrestore(&irq_lock, flags);
  out_kfree:
 	kfree(new_fd);
  out:
@@ -235,9 +224,9 @@ static void free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg)
 {
 	unsigned long flags;
 
-	flags = irq_lock();
+	spin_lock_irqsave(&irq_lock, flags);
 	os_free_irq_by_cb(test, arg, active_fds, &last_irq_ptr);
-	irq_unlock(flags);
+	spin_unlock_irqrestore(&irq_lock, flags);
 }
 
 struct irq_and_dev {
@@ -304,19 +293,19 @@ void reactivate_fd(int fd, int irqnum)
 	unsigned long flags;
 	int i;
 
-	flags = irq_lock();
+	spin_lock_irqsave(&irq_lock, flags);
 	irq = find_irq_by_fd(fd, irqnum, &i);
 	if (irq == NULL) {
-		irq_unlock(flags);
+		spin_unlock_irqrestore(&irq_lock, flags);
 		return;
 	}
 	os_set_pollfd(i, irq->fd);
-	irq_unlock(flags);
+	spin_unlock_irqrestore(&irq_lock, flags);
 
 	/* This calls activate_fd, so it has to be outside the critical
 	 * section.
 	 */
-	maybe_sigio_broken(fd, irq->type);
+	maybe_sigio_broken(fd, (irq->type == IRQ_READ));
 }
 
 void deactivate_fd(int fd, int irqnum)
@@ -325,13 +314,13 @@ void deactivate_fd(int fd, int irqnum)
 	unsigned long flags;
 	int i;
 
-	flags = irq_lock();
+	spin_lock_irqsave(&irq_lock, flags);
 	irq = find_irq_by_fd(fd, irqnum, &i);
 	if (irq == NULL)
 		goto out;
 	os_set_pollfd(i, -1);
  out:
-	irq_unlock(flags);
+	spin_unlock_irqrestore(&irq_lock, flags);
 }
 
 int deactivate_all_fds(void)
@@ -350,13 +339,14 @@ int deactivate_all_fds(void)
 	return 0;
 }
 
+#ifdef CONFIG_MODE_TT
 void forward_interrupts(int pid)
 {
 	struct irq_fd *irq;
 	unsigned long flags;
 	int err;
 
-	flags = irq_lock();
+	spin_lock_irqsave(&irq_lock, flags);
 	for (irq = active_fds; irq != NULL; irq = irq->next) {
 		err = os_set_owner(irq->fd, pid);
 		if (err < 0) {
@@ -369,8 +359,9 @@ void forward_interrupts(int pid)
 
 		irq->pid = pid;
 	}
-	irq_unlock(flags);
+	spin_unlock_irqrestore(&irq_lock, flags);
 }
+#endif
 
 /*
  * do_IRQ handles all normal device IRQ's (the special
@@ -402,21 +393,6 @@ int um_request_irq(unsigned int irq, int fd, int type,
 }
 EXPORT_SYMBOL(um_request_irq);
 EXPORT_SYMBOL(reactivate_fd);
-
-static DEFINE_SPINLOCK(irq_spinlock);
-
-unsigned long irq_lock(void)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&irq_spinlock, flags);
-	return flags;
-}
-
-void irq_unlock(unsigned long flags)
-{
-	spin_unlock_irqrestore(&irq_spinlock, flags);
-}
 
 /* hw_interrupt_type must define (startup || enable) &&
  * (shutdown || disable) && end */

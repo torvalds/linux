@@ -15,6 +15,7 @@
 
 #include <asm/page.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/system.h>
 #include <asm/cpudata.h>
@@ -34,12 +35,6 @@ static int check_cpu_node(int nd, int *cur_inst,
 			  int (*compare)(int, int, void *), void *compare_arg,
 			  int *prom_node, int *mid)
 {
-	char node_str[128];
-
-	prom_getstring(nd, "device_type", node_str, sizeof(node_str));
-	if (strcmp(node_str, "cpu"))
-		return -ENODEV;
-	
 	if (!compare(nd, *cur_inst, compare_arg)) {
 		if (prom_node)
 			*prom_node = nd;
@@ -59,20 +54,14 @@ static int check_cpu_node(int nd, int *cur_inst,
 static int __cpu_find_by(int (*compare)(int, int, void *), void *compare_arg,
 			 int *prom_node, int *mid)
 {
-	int nd, cur_inst, err;
+	struct device_node *dp;
+	int cur_inst;
 
-	nd = prom_root_node;
 	cur_inst = 0;
-
-	err = check_cpu_node(nd, &cur_inst, compare, compare_arg,
-			     prom_node, mid);
-	if (!err)
-		return 0;
-
-	nd = prom_getchild(nd);
-	while ((nd = prom_getsibling(nd)) != 0) {
-		err = check_cpu_node(nd, &cur_inst, compare, compare_arg,
-				     prom_node, mid);
+	for_each_node_by_type(dp, "cpu") {
+		int err = check_cpu_node(dp->node, &cur_inst,
+					 compare, compare_arg,
+					 prom_node, mid);
 		if (!err)
 			return 0;
 	}

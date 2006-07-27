@@ -26,7 +26,7 @@
 #include <linux/moduleparam.h>
 #include <linux/usb.h>
 #include <asm/uaccess.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 
 /*
  * Version Information

@@ -370,7 +370,8 @@ int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		return -EINVAL;
 
 	if (attr_mask & IB_SRQ_LIMIT) {
-		if (attr->srq_limit > srq->max)
+		u32 max_wr = mthca_is_memfree(dev) ? srq->max - 1 : srq->max;
+		if (attr->srq_limit > max_wr)
 			return -EINVAL;
 
 		mutex_lock(&srq->mutex);

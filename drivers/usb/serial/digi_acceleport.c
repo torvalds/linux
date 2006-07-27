@@ -246,7 +246,7 @@
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 
 /* Defines */
 

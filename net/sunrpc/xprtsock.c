@@ -1276,10 +1276,9 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 
 	xprt->max_reqs = xprt_udp_slot_table_entries;
 	slot_table_size = xprt->max_reqs * sizeof(xprt->slot[0]);
-	xprt->slot = kmalloc(slot_table_size, GFP_KERNEL);
+	xprt->slot = kzalloc(slot_table_size, GFP_KERNEL);
 	if (xprt->slot == NULL)
 		return -ENOMEM;
-	memset(xprt->slot, 0, slot_table_size);
 
 	xprt->prot = IPPROTO_UDP;
 	xprt->port = xs_get_random_port();
@@ -1318,10 +1317,9 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 
 	xprt->max_reqs = xprt_tcp_slot_table_entries;
 	slot_table_size = xprt->max_reqs * sizeof(xprt->slot[0]);
-	xprt->slot = kmalloc(slot_table_size, GFP_KERNEL);
+	xprt->slot = kzalloc(slot_table_size, GFP_KERNEL);
 	if (xprt->slot == NULL)
 		return -ENOMEM;
-	memset(xprt->slot, 0, slot_table_size);
 
 	xprt->prot = IPPROTO_TCP;
 	xprt->port = xs_get_random_port();

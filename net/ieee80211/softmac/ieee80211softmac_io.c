@@ -96,8 +96,7 @@ ieee80211softmac_alloc_mgt(u32 size)
 	if(size > IEEE80211_DATA_LEN)
 		return NULL;
 	/* Allocate the frame */
-	data = kmalloc(size, GFP_ATOMIC);
-	memset(data, 0, size);
+	data = kzalloc(size, GFP_ATOMIC);
 	return data;
 }
 

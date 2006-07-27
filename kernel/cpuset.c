@@ -762,6 +762,8 @@ static int validate_change(const struct cpuset *cur, const struct cpuset *trial)
  *
  * Call with manage_mutex held.  May nest a call to the
  * lock_cpu_hotplug()/unlock_cpu_hotplug() pair.
+ * Must not be called holding callback_mutex, because we must
+ * not call lock_cpu_hotplug() while holding callback_mutex.
  */
 
 static void update_cpu_domains(struct cpuset *cur)
@@ -781,7 +783,7 @@ static void update_cpu_domains(struct cpuset *cur)
 		if (is_cpu_exclusive(c))
 			cpus_andnot(pspan, pspan, c->cpus_allowed);
 	}
-	if (is_removed(cur) || !is_cpu_exclusive(cur)) {
+	if (!is_cpu_exclusive(cur)) {
 		cpus_or(pspan, pspan, cur->cpus_allowed);
 		if (cpus_equal(pspan, cur->cpus_allowed))
 			return;
@@ -1917,6 +1919,17 @@ static int cpuset_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	return cpuset_create(c_parent, dentry->d_name.name, mode | S_IFDIR);
 }
 
+/*
+ * Locking note on the strange update_flag() call below:
+ *
+ * If the cpuset being removed is marked cpu_exclusive, then simulate
+ * turning cpu_exclusive off, which will call update_cpu_domains().
+ * The lock_cpu_hotplug() call in update_cpu_domains() must not be
+ * made while holding callback_mutex.  Elsewhere the kernel nests
+ * callback_mutex inside lock_cpu_hotplug() calls.  So the reverse
+ * nesting would risk an ABBA deadlock.
+ */
+
 static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 {
 	struct cpuset *cs = dentry->d_fsdata;
@@ -1936,11 +1949,16 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 		mutex_unlock(&manage_mutex);
 		return -EBUSY;
 	}
+	if (is_cpu_exclusive(cs)) {
+		int retval = update_flag(CS_CPU_EXCLUSIVE, cs, "0");
+		if (retval < 0) {
+			mutex_unlock(&manage_mutex);
+			return retval;
+		}
+	}
 	parent = cs->parent;
 	mutex_lock(&callback_mutex);
 	set_bit(CS_REMOVED, &cs->flags);
-	if (is_cpu_exclusive(cs))
-		update_cpu_domains(cs);
 	list_del(&cs->sibling);	/* delete my sibling from parent->children */
 	spin_lock(&cs->dentry->d_lock);
 	d = dget(cs->dentry);

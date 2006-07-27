@@ -143,8 +143,6 @@ static inline void set_eiem(unsigned long val)
 #define read_barrier_depends()		do { } while(0)
 
 #define set_mb(var, value)		do { var = value; mb(); } while (0)
-#define set_wmb(var, value)		do { var = value; wmb(); } while (0)
-
 
 #ifndef CONFIG_PA20
 /* Because kmalloc only guarantees 8-byte alignment for kmalloc'd data,

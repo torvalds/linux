@@ -22,13 +22,14 @@ int tap_open_common(void *dev, char *gate_addr)
 {
 	int tap_addr[4];
 
-	if(gate_addr == NULL) return(0);
+	if(gate_addr == NULL)
+		return 0;
 	if(sscanf(gate_addr, "%d.%d.%d.%d", &tap_addr[0], 
 		  &tap_addr[1], &tap_addr[2], &tap_addr[3]) != 4){
 		printk("Invalid tap IP address - '%s'\n", gate_addr);
-		return(-EINVAL);
+		return -EINVAL;
 	}
-	return(0);
+	return 0;
 }
 
 void tap_check_ips(char *gate_addr, unsigned char *eth_addr)
@@ -94,25 +95,25 @@ int net_read(int fd, void *buf, int len)
 	n = os_read_file(fd,  buf,  len);
 
 	if(n == -EAGAIN)
-		return(0);
+		return 0;
 	else if(n == 0)
-		return(-ENOTCONN);
-	return(n);
+		return -ENOTCONN;
+	return n;
 }
 
 int net_recvfrom(int fd, void *buf, int len)
 {
 	int n;
 
-	while(((n = recvfrom(fd,  buf,  len, 0, NULL, NULL)) < 0) && 
-	      (errno == EINTR)) ;
-
+	CATCH_EINTR(n = recvfrom(fd,  buf,  len, 0, NULL, NULL));
 	if(n < 0){
-		if(errno == EAGAIN) return(0);
-		return(-errno);
+		if(errno == EAGAIN)
+			return 0;
+		return -errno;
 	}
-	else if(n == 0) return(-ENOTCONN);
-	return(n);
+	else if(n == 0)
+		return -ENOTCONN;
+	return n;
 }
 
 int net_write(int fd, void *buf, int len)
@@ -122,37 +123,41 @@ int net_write(int fd, void *buf, int len)
 	n = os_write_file(fd, buf, len);
 
 	if(n == -EAGAIN)
-		return(0);
+		return 0;
 	else if(n == 0)
-		return(-ENOTCONN);
-	return(n);
+		return -ENOTCONN;
+	return n;
 }
 
 int net_send(int fd, void *buf, int len)
 {
 	int n;
 
-	while(((n = send(fd, buf, len, 0)) < 0) && (errno == EINTR)) ;
+	CATCH_EINTR(n = send(fd, buf, len, 0));
 	if(n < 0){
-		if(errno == EAGAIN) return(0);
-		return(-errno);
+		if(errno == EAGAIN)
+			return 0;
+		return -errno;
 	}
-	else if(n == 0) return(-ENOTCONN);
-	return(n);	
+	else if(n == 0)
+		return -ENOTCONN;
+	return n;
 }
 
 int net_sendto(int fd, void *buf, int len, void *to, int sock_len)
 {
 	int n;
 
-	while(((n = sendto(fd, buf, len, 0, (struct sockaddr *) to,
-			   sock_len)) < 0) && (errno == EINTR)) ;
+	CATCH_EINTR(n = sendto(fd, buf, len, 0, (struct sockaddr *) to,
+			       sock_len));
 	if(n < 0){
-		if(errno == EAGAIN) return(0);
-		return(-errno);
+		if(errno == EAGAIN)
+			return 0;
+		return -errno;
 	}
-	else if(n == 0) return(-ENOTCONN);
-	return(n);	
+	else if(n == 0)
+		return -ENOTCONN;
+	return n;
 }
 
 struct change_pre_exec_data {
@@ -176,7 +181,7 @@ static int change_tramp(char **argv, char *output, int output_len)
 	err = os_pipe(fds, 1, 0);
 	if(err < 0){
 		printk("change_tramp - pipe failed, err = %d\n", -err);
-		return(err);
+		return err;
 	}
 	pe_data.close_me = fds[0];
 	pe_data.stdout = fds[1];
@@ -190,7 +195,7 @@ static int change_tramp(char **argv, char *output, int output_len)
 
 	if (pid > 0)
 		CATCH_EINTR(err = waitpid(pid, NULL, 0));
-	return(pid);
+	return pid;
 }
 
 static void change(char *dev, char *what, unsigned char *addr,
@@ -241,26 +246,15 @@ char *split_if_spec(char *str, ...)
 	va_start(ap, str);
 	while((arg = va_arg(ap, char **)) != NULL){
 		if(*str == '\0')
-			return(NULL);
+			return NULL;
 		end = strchr(str, ',');
 		if(end != str)
 			*arg = str;
 		if(end == NULL)
-			return(NULL);
+			return NULL;
 		*end++ = '\0';
 		str = end;
 	}
 	va_end(ap);
-	return(str);
+	return str;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

@@ -456,6 +456,17 @@ config USB_SERIAL_SAFE_PADDED
 	bool "USB Secure Encapsulated Driver - Padded"
 	depends on USB_SERIAL_SAFE
 
+config USB_SERIAL_SIERRAWIRELESS
+	tristate "USB Sierra Wireless Driver"
+	depends on USB_SERIAL
+	help
+	  Say M here if you want to use a Sierra Wireless device (if
+	  using an PC 5220 or AC580 please use the Airprime driver
+	  instead).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sierra.
+
 config USB_SERIAL_TI
 	tristate "USB TI 3410/5052 Serial Driver"
 	depends on USB_SERIAL

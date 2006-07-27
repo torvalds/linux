@@ -2317,7 +2317,7 @@ static struct snd_kcontrol_new snd_cs46xx_front_dup_ctl = {
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 /* Only available on the Hercules Game Theater XP soundcard */
-static struct snd_kcontrol_new snd_hercules_controls[] __devinitdata = {
+static struct snd_kcontrol_new snd_hercules_controls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Optical/Coaxial SPDIF Input Switch",
@@ -3458,6 +3458,9 @@ static void hercules_mixer_init (struct snd_cs46xx *chip)
 	snd_printdd ("initializing Hercules mixer\n");
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
+	if (chip->in_suspend)
+		return;
+
 	for (idx = 0 ; idx < ARRAY_SIZE(snd_hercules_controls); idx++) {
 		struct snd_kcontrol *kctl;
 
@@ -3669,6 +3672,7 @@ int snd_cs46xx_suspend(struct pci_dev *pci, pm_message_t state)
 	int amp_saved;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	chip->in_suspend = 1;
 	snd_pcm_suspend_all(chip->pcm);
 	// chip->ac97_powerdown = snd_cs46xx_codec_read(chip, AC97_POWER_CONTROL);
 	// chip->ac97_general_purpose = snd_cs46xx_codec_read(chip, BA0_AC97_GENERAL_PURPOSE);
@@ -3722,6 +3726,7 @@ int snd_cs46xx_resume(struct pci_dev *pci)
 	else
 		chip->active_ctrl(chip, -1); /* disable CLKRUN */
 	chip->amplifier = amp_saved;
+	chip->in_suspend = 0;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }

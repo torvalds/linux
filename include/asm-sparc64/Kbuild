@@ -4,7 +4,7 @@ ALTARCH := sparc
 ARCHDEF := defined __sparc__ && defined __arch64__
 ALTARCHDEF := defined __sparc__ && !defined __arch64__
 
-unifdef-y := fbio.h perfctr.h
+unifdef-y += fbio.h perfctr.h
 header-y += apb.h asi.h bbc.h bpp.h display7seg.h envctrl.h floppy.h	\
 	ipc.h kdebug.h mostek.h openprom.h openpromio.h parport.h	\
 	pconf.h psrcompat.h pstate.h reg.h uctx.h utrap.h watchdog.h

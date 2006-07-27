@@ -89,4 +89,11 @@ extern spinlock_t rtc_lock;		/* serialize CMOS RAM access */
 # define RTC_VRT 0x80		/* valid RAM and time */
 /**********************************************************************/
 
+#ifndef ARCH_RTC_LOCATION	/* Override by <asm/mc146818rtc.h>? */
+
+#define RTC_IO_EXTENT	0x8
+#define RTC_IOMAPPED	1	/* Default to I/O mapping. */
+
+#endif /* ARCH_RTC_LOCATION */
+
 #endif /* _MC146818RTC_H */

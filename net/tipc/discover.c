@@ -295,7 +295,7 @@ struct link_req *tipc_disc_init_link_req(struct bearer *b_ptr,
 {
 	struct link_req *req;
 
-	req = (struct link_req *)kmalloc(sizeof(*req), GFP_ATOMIC);
+	req = kmalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req)
 		return NULL;
 

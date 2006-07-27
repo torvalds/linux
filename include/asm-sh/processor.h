@@ -9,6 +9,7 @@
 #define __ASM_SH_PROCESSOR_H
 #ifdef __KERNEL__
 
+#include <linux/compiler.h>
 #include <asm/page.h>
 #include <asm/types.h>
 #include <asm/cache.h>
@@ -263,7 +264,7 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(tsk)  ((tsk)->thread.sp)
 
 #define cpu_sleep()	__asm__ __volatile__ ("sleep" : : : "memory")
-#define cpu_relax()	do { } while (0)
+#define cpu_relax()	barrier()
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PROCESSOR_H */

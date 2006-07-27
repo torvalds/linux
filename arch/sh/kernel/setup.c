@@ -10,7 +10,7 @@
  * This file handles the architecture-dependent parts of initialization
  */
 
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/initrd.h>

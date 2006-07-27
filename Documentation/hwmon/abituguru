@@ -2,13 +2,36 @@ Kernel driver abituguru
 =======================
 
 Supported chips:
-  * Abit uGuru (Hardware Monitor part only)
+  * Abit uGuru revision 1-3 (Hardware Monitor part only)
     Prefix: 'abituguru'
     Addresses scanned: ISA 0x0E0
     Datasheet: Not available, this driver is based on reverse engineering.
 	A "Datasheet" has been written based on the reverse engineering it
 	should be available in the same dir as this file under the name
 	abituguru-datasheet.
+    Note:
+	The uGuru is a microcontroller with onboard firmware which programs
+	it to behave as a hwmon IC. There are many different revisions of the
+	firmware and thus effectivly many different revisions of the uGuru.
+	Below is an incomplete list with which revisions are used for which
+	Motherboards:
+	uGuru 1.00    ~ 1.24    (AI7, KV8-MAX3, AN7) (1)
+	uGuru 2.0.0.0 ~ 2.0.4.2 (KV8-PRO)
+	uGuru 2.1.0.0 ~ 2.1.2.8 (AS8, AV8, AA8, AG8, AA8XE, AX8)
+	uGuru 2.2.0.0 ~ 2.2.0.6 (AA8 Fatal1ty)
+	uGuru 2.3.0.0 ~ 2.3.0.9 (AN8)
+	uGuru 3.0.0.0 ~ 3.0.1.2 (AW8, AL8, NI8)
+	uGuru 4.xxxxx?          (AT8 32X) (2)
+	1) For revisions 2 and 3 uGuru's the driver can autodetect the
+	   sensortype (Volt or Temp) for bank1 sensors, for revision 1 uGuru's
+	   this doesnot always work. For these uGuru's the autodection can
+	   be overriden with the bank1_types module param. For all 3 known
+	   revison 1 motherboards the correct use of this param is:
+	   bank1_types=1,1,0,0,0,0,0,2,0,0,0,0,2,0,0,1
+	   You may also need to specify the fan_sensors option for these boards
+	   fan_sensors=5
+	2) The current version of the abituguru driver is known to NOT work
+	   on these Motherboards
 
 Authors:
 	Hans de Goede <j.w.r.degoede@hhs.nl>,
@@ -22,6 +45,11 @@ Module Parameters
 * force: bool		Force detection. Note this parameter only causes the
 			detection to be skipped, if the uGuru can't be read
 			the module initialization (insmod) will still fail.
+* bank1_types: int[]	Bank1 sensortype autodetection override:
+			  -1 autodetect (default)
+			   0 volt sensor
+			   1 temp sensor
+			   2 not connected
 * fan_sensors: int	Tell the driver how many fan speed sensors there are
 			on your motherboard. Default: 0 (autodetect).
 * pwms: int		Tell the driver how many fan speed controls (fan
@@ -29,7 +57,7 @@ Module Parameters
 * verbose: int		How verbose should the driver be? (0-3):
 			   0 normal output
 			   1 + verbose error reporting
-			   2 + sensors type probing info\n"
+			   2 + sensors type probing info (default)
 			   3 + retryable error reporting
 			Default: 2 (the driver is still in the testing phase)
 

@@ -89,6 +89,8 @@ static int pdc_console_setup(struct console *co, char *options)
 }
 
 #if defined(CONFIG_PDC_CONSOLE)
+#include <linux/vt_kern.h>
+
 static struct tty_driver * pdc_console_device (struct console *c, int *index)
 {
 	extern struct tty_driver console_driver;

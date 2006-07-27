@@ -65,6 +65,8 @@
 #define VERSATILE_SYS_OSC1_OFFSET             0x1C
 #endif
 
+#define VERSATILE_SYS_OSCCLCD_OFFSET          0x1c
+
 #define VERSATILE_SYS_LOCK_OFFSET             0x20
 #define VERSATILE_SYS_100HZ_OFFSET            0x24
 #define VERSATILE_SYS_CFGDATA1_OFFSET         0x28

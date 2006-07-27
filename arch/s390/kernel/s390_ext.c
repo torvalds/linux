@@ -24,7 +24,7 @@
  * (0x1202 external call, 0x1004 cpu timer, 0x2401 hwc console, 0x4000
  * iucv and 0x2603 pfault) this is always the first element. 
  */
-ext_int_info_t *ext_int_hash[256] = { 0, };
+ext_int_info_t *ext_int_hash[256] = { NULL, };
 
 static inline int ext_hash(__u16 code)
 {

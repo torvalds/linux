@@ -26,9 +26,11 @@
  */
 #define MIN_LEVEL 0x158
 #define MAX_LEVEL 0x534
+#define LEVEL_STEP ((MAX_LEVEL - MIN_LEVEL) / FB_BACKLIGHT_MAX)
 
 static struct backlight_properties nvidia_bl_data;
 
+/* Call with fb_info->bl_mutex held */
 static int nvidia_bl_get_level_brightness(struct nvidia_par *par,
 		int level)
 {
@@ -36,9 +38,7 @@ static int nvidia_bl_get_level_brightness(struct nvidia_par *par,
 	int nlevel;
 
 	/* Get and convert the value */
-	mutex_lock(&info->bl_mutex);
-	nlevel = info->bl_curve[level] * FB_BACKLIGHT_MAX / MAX_LEVEL;
-	mutex_unlock(&info->bl_mutex);
+	nlevel = MIN_LEVEL + info->bl_curve[level] * LEVEL_STEP;
 
 	if (nlevel < 0)
 		nlevel = 0;
@@ -50,7 +50,8 @@ static int nvidia_bl_get_level_brightness(struct nvidia_par *par,
 	return nlevel;
 }
 
-static int nvidia_bl_update_status(struct backlight_device *bd)
+/* Call with fb_info->bl_mutex held */
+static int __nvidia_bl_update_status(struct backlight_device *bd)
 {
 	struct nvidia_par *par = class_get_devdata(&bd->class_dev);
 	u32 tmp_pcrt, tmp_pmc, fpcontrol;
@@ -84,6 +85,19 @@ static int nvidia_bl_update_status(struct backlight_device *bd)
 	return 0;
 }
 
+static int nvidia_bl_update_status(struct backlight_device *bd)
+{
+	struct nvidia_par *par = class_get_devdata(&bd->class_dev);
+	struct fb_info *info = pci_get_drvdata(par->pci_dev);
+	int ret;
+
+	mutex_lock(&info->bl_mutex);
+	ret = __nvidia_bl_update_status(bd);
+	mutex_unlock(&info->bl_mutex);
+
+	return ret;
+}
+
 static int nvidia_bl_get_brightness(struct backlight_device *bd)
 {
 	return bd->props->brightness;
@@ -95,6 +109,16 @@ static struct backlight_properties nvidia_bl_data = {
 	.update_status	= nvidia_bl_update_status,
 	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
 };
+
+void nvidia_bl_set_power(struct fb_info *info, int power)
+{
+	mutex_lock(&info->bl_mutex);
+	up(&info->bl_dev->sem);
+	info->bl_dev->props->power = power;
+	__nvidia_bl_update_status(info->bl_dev);
+	down(&info->bl_dev->sem);
+	mutex_unlock(&info->bl_mutex);
+}
 
 void nvidia_bl_init(struct nvidia_par *par)
 {

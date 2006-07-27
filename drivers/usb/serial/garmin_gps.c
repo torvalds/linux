@@ -35,14 +35,13 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
+#include <linux/usb/serial.h>
 
 /* the mode to be set when the port ist opened */
 static int initial_mode = 1;
 
 /* debug flag */
 static int debug = 0;
-
-#include "usb-serial.h"
 
 #define GARMIN_VENDOR_ID             0x091E
 

@@ -125,10 +125,9 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 		goto out_err;
 
 	err = -ENOMEM;
-	clnt = kmalloc(sizeof(*clnt), GFP_KERNEL);
+	clnt = kzalloc(sizeof(*clnt), GFP_KERNEL);
 	if (!clnt)
 		goto out_err;
-	memset(clnt, 0, sizeof(*clnt));
 	atomic_set(&clnt->cl_users, 0);
 	atomic_set(&clnt->cl_count, 1);
 	clnt->cl_parent = clnt;

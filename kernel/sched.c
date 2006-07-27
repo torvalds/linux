@@ -51,6 +51,7 @@
 #include <linux/times.h>
 #include <linux/acct.h>
 #include <linux/kprobes.h>
+#include <linux/delayacct.h>
 #include <asm/tlb.h>
 
 #include <asm/unistd.h>
@@ -501,9 +502,36 @@ struct file_operations proc_schedstat_operations = {
 	.release = single_release,
 };
 
+/*
+ * Expects runqueue lock to be held for atomicity of update
+ */
+static inline void
+rq_sched_info_arrive(struct rq *rq, unsigned long delta_jiffies)
+{
+	if (rq) {
+		rq->rq_sched_info.run_delay += delta_jiffies;
+		rq->rq_sched_info.pcnt++;
+	}
+}
+
+/*
+ * Expects runqueue lock to be held for atomicity of update
+ */
+static inline void
+rq_sched_info_depart(struct rq *rq, unsigned long delta_jiffies)
+{
+	if (rq)
+		rq->rq_sched_info.cpu_time += delta_jiffies;
+}
 # define schedstat_inc(rq, field)	do { (rq)->field++; } while (0)
 # define schedstat_add(rq, field, amt)	do { (rq)->field += (amt); } while (0)
 #else /* !CONFIG_SCHEDSTATS */
+static inline void
+rq_sched_info_arrive(struct rq *rq, unsigned long delta_jiffies)
+{}
+static inline void
+rq_sched_info_depart(struct rq *rq, unsigned long delta_jiffies)
+{}
 # define schedstat_inc(rq, field)	do { } while (0)
 # define schedstat_add(rq, field, amt)	do { } while (0)
 #endif
@@ -523,7 +551,7 @@ static inline struct rq *this_rq_lock(void)
 	return rq;
 }
 
-#ifdef CONFIG_SCHEDSTATS
+#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 /*
  * Called when a process is dequeued from the active array and given
  * the cpu.  We should note that with the exception of interactive
@@ -551,21 +579,16 @@ static inline void sched_info_dequeued(struct task_struct *t)
  */
 static void sched_info_arrive(struct task_struct *t)
 {
-	unsigned long now = jiffies, diff = 0;
-	struct rq *rq = task_rq(t);
+	unsigned long now = jiffies, delta_jiffies = 0;
 
 	if (t->sched_info.last_queued)
-		diff = now - t->sched_info.last_queued;
+		delta_jiffies = now - t->sched_info.last_queued;
 	sched_info_dequeued(t);
-	t->sched_info.run_delay += diff;
+	t->sched_info.run_delay += delta_jiffies;
 	t->sched_info.last_arrival = now;
 	t->sched_info.pcnt++;
 
-	if (!rq)
-		return;
-
-	rq->rq_sched_info.run_delay += diff;
-	rq->rq_sched_info.pcnt++;
+	rq_sched_info_arrive(task_rq(t), delta_jiffies);
 }
 
 /*
@@ -585,8 +608,9 @@ static void sched_info_arrive(struct task_struct *t)
  */
 static inline void sched_info_queued(struct task_struct *t)
 {
-	if (!t->sched_info.last_queued)
-		t->sched_info.last_queued = jiffies;
+	if (unlikely(sched_info_on()))
+		if (!t->sched_info.last_queued)
+			t->sched_info.last_queued = jiffies;
 }
 
 /*
@@ -595,13 +619,10 @@ static inline void sched_info_queued(struct task_struct *t)
  */
 static inline void sched_info_depart(struct task_struct *t)
 {
-	struct rq *rq = task_rq(t);
-	unsigned long diff = jiffies - t->sched_info.last_arrival;
+	unsigned long delta_jiffies = jiffies - t->sched_info.last_arrival;
 
-	t->sched_info.cpu_time += diff;
-
-	if (rq)
-		rq->rq_sched_info.cpu_time += diff;
+	t->sched_info.cpu_time += delta_jiffies;
+	rq_sched_info_depart(task_rq(t), delta_jiffies);
 }
 
 /*
@@ -610,7 +631,7 @@ static inline void sched_info_depart(struct task_struct *t)
  * the idle task.)  We are only called when prev != next.
  */
 static inline void
-sched_info_switch(struct task_struct *prev, struct task_struct *next)
+__sched_info_switch(struct task_struct *prev, struct task_struct *next)
 {
 	struct rq *rq = task_rq(prev);
 
@@ -625,10 +646,16 @@ sched_info_switch(struct task_struct *prev, struct task_struct *next)
 	if (next != rq->idle)
 		sched_info_arrive(next);
 }
+static inline void
+sched_info_switch(struct task_struct *prev, struct task_struct *next)
+{
+	if (unlikely(sched_info_on()))
+		__sched_info_switch(prev, next);
+}
 #else
 #define sched_info_queued(t)		do { } while (0)
 #define sched_info_switch(t, next)	do { } while (0)
-#endif /* CONFIG_SCHEDSTATS */
+#endif /* CONFIG_SCHEDSTATS || CONFIG_TASK_DELAY_ACCT */
 
 /*
  * Adding/removing a task to/from a priority array:
@@ -1530,8 +1557,9 @@ void fastcall sched_fork(struct task_struct *p, int clone_flags)
 
 	INIT_LIST_HEAD(&p->run_list);
 	p->array = NULL;
-#ifdef CONFIG_SCHEDSTATS
-	memset(&p->sched_info, 0, sizeof(p->sched_info));
+#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
+	if (unlikely(sched_info_on()))
+		memset(&p->sched_info, 0, sizeof(p->sched_info));
 #endif
 #if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
 	p->oncpu = 0;
@@ -1788,7 +1816,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
 		WARN_ON(rq->prev_mm);
 		rq->prev_mm = oldmm;
 	}
+	/*
+	 * Since the runqueue lock will be released by the next
+	 * task (which is an invalid locking op but in the case
+	 * of the scheduler it's an obvious special-case), so we
+	 * do an early lockdep release here:
+	 */
+#ifndef __ARCH_WANT_UNLOCKED_CTXSW
 	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
+#endif
 
 	/* Here we just switch the register state and the stack. */
 	switch_to(prev, next, prev);
@@ -3384,7 +3420,7 @@ EXPORT_SYMBOL(schedule);
 
 #ifdef CONFIG_PREEMPT
 /*
- * this is is the entry point to schedule() from in-kernel preemption
+ * this is the entry point to schedule() from in-kernel preemption
  * off of preempt_enable.  Kernel preemptions off return from interrupt
  * occur there and call schedule directly.
  */
@@ -3427,7 +3463,7 @@ need_resched:
 EXPORT_SYMBOL(preempt_schedule);
 
 /*
- * this is is the entry point to schedule() from kernel preemption
+ * this is the entry point to schedule() from kernel preemption
  * off of irq context.
  * Note, that this is called and return with irqs disabled. This will
  * protect us against recursive calling from irq.
@@ -3439,7 +3475,7 @@ asmlinkage void __sched preempt_schedule_irq(void)
 	struct task_struct *task = current;
 	int saved_lock_depth;
 #endif
-	/* Catch callers which need to be fixed*/
+	/* Catch callers which need to be fixed */
 	BUG_ON(ti->preempt_count || !irqs_disabled());
 
 need_resched:
@@ -4526,9 +4562,11 @@ void __sched io_schedule(void)
 {
 	struct rq *rq = &__raw_get_cpu_var(runqueues);
 
+	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
 	schedule();
 	atomic_dec(&rq->nr_iowait);
+	delayacct_blkio_end();
 }
 EXPORT_SYMBOL(io_schedule);
 
@@ -4537,9 +4575,11 @@ long __sched io_schedule_timeout(long timeout)
 	struct rq *rq = &__raw_get_cpu_var(runqueues);
 	long ret;
 
+	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
 	ret = schedule_timeout(timeout);
 	atomic_dec(&rq->nr_iowait);
+	delayacct_blkio_end();
 	return ret;
 }
 
@@ -4650,7 +4690,7 @@ static inline struct task_struct *younger_sibling(struct task_struct *p)
 	return list_entry(p->sibling.next,struct task_struct,sibling);
 }
 
-static const char *stat_nam[] = { "R", "S", "D", "T", "t", "Z", "X" };
+static const char stat_nam[] = "RSDTtZX";
 
 static void show_task(struct task_struct *p)
 {
@@ -4658,12 +4698,9 @@ static void show_task(struct task_struct *p)
 	unsigned long free = 0;
 	unsigned state;
 
-	printk("%-13.13s ", p->comm);
 	state = p->state ? __ffs(p->state) + 1 : 0;
-	if (state < ARRAY_SIZE(stat_nam))
-		printk(stat_nam[state]);
-	else
-		printk("?");
+	printk("%-13.13s %c", p->comm,
+		state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?');
 #if (BITS_PER_LONG == 32)
 	if (state == TASK_RUNNING)
 		printk(" running ");
@@ -4877,7 +4914,7 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 		p->timestamp = p->timestamp - rq_src->timestamp_last_tick
 				+ rq_dest->timestamp_last_tick;
 		deactivate_task(p, rq_src);
-		activate_task(p, rq_dest, 0);
+		__activate_task(p, rq_dest);
 		if (TASK_PREEMPTS_CURR(p, rq_dest))
 			resched_task(rq_dest->curr);
 	}
@@ -5776,7 +5813,7 @@ static unsigned long long measure_migration_cost(int cpu1, int cpu2)
 	cache = vmalloc(max_size);
 	if (!cache) {
 		printk("could not vmalloc %d bytes for cache!\n", 2*max_size);
-		return 1000000; // return 1 msec on very small boxen
+		return 1000000; /* return 1 msec on very small boxen */
 	}
 
 	while (size <= max_size) {

@@ -219,8 +219,18 @@ lpfc_issue_lip(struct Scsi_Host *host)
 		return -ENOMEM;
 
 	memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));
-	lpfc_init_link(phba, pmboxq, phba->cfg_topology, phba->cfg_link_speed);
+	pmboxq->mb.mbxCommand = MBX_DOWN_LINK;
+	pmboxq->mb.mbxOwner = OWN_HOST;
+
 	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
+
+	if ((mbxstatus == MBX_SUCCESS) && (pmboxq->mb.mbxStatus == 0)) {
+		memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));
+		lpfc_init_link(phba, pmboxq, phba->cfg_topology,
+			       phba->cfg_link_speed);
+		mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq,
+						     phba->fc_ratov * 2);
+	}
 
 	if (mbxstatus == MBX_TIMEOUT)
 		pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -233,51 +243,53 @@ lpfc_issue_lip(struct Scsi_Host *host)
 	return 0;
 }
 
+static int
+lpfc_selective_reset(struct lpfc_hba *phba)
+{
+	struct completion online_compl;
+	int status = 0;
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &status, &online_compl,
+			      LPFC_EVT_OFFLINE);
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &status, &online_compl,
+			      LPFC_EVT_ONLINE);
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	return 0;
+}
+
+static ssize_t
+lpfc_issue_reset(struct class_device *cdev, const char *buf, size_t count)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	int status = -EINVAL;
+
+	if (strncmp(buf, "selective", sizeof("selective") - 1) == 0)
+		status = lpfc_selective_reset(phba);
+
+	if (status == 0)
+		return strlen(buf);
+	else
+		return status;
+}
+
 static ssize_t
 lpfc_nport_evt_cnt_show(struct class_device *cdev, char *buf)
 {
 	struct Scsi_Host *host = class_to_shost(cdev);
 	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
 	return snprintf(buf, PAGE_SIZE, "%d\n", phba->nport_event_cnt);
-}
-
-static ssize_t
-lpfc_board_online_show(struct class_device *cdev, char *buf)
-{
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
-
-	if (phba->fc_flag & FC_OFFLINE_MODE)
-		return snprintf(buf, PAGE_SIZE, "0\n");
-	else
-		return snprintf(buf, PAGE_SIZE, "1\n");
-}
-
-static ssize_t
-lpfc_board_online_store(struct class_device *cdev, const char *buf,
-								size_t count)
-{
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
-	struct completion online_compl;
-	int val=0, status=0;
-
-	if (sscanf(buf, "%d", &val) != 1)
-		return -EINVAL;
-
-	init_completion(&online_compl);
-
-	if (val)
-		lpfc_workq_post_event(phba, &status, &online_compl,
-							LPFC_EVT_ONLINE);
-	else
-		lpfc_workq_post_event(phba, &status, &online_compl,
-							LPFC_EVT_OFFLINE);
-	wait_for_completion(&online_compl);
-	if (!status)
-		return strlen(buf);
-	else
-		return -EIO;
 }
 
 static ssize_t
@@ -532,10 +544,9 @@ static CLASS_DEVICE_ATTR(lpfc_drvr_version, S_IRUGO, lpfc_drvr_version_show,
 			 NULL);
 static CLASS_DEVICE_ATTR(management_version, S_IRUGO, management_version_show,
 			 NULL);
-static CLASS_DEVICE_ATTR(board_online, S_IRUGO | S_IWUSR,
-			 lpfc_board_online_show, lpfc_board_online_store);
 static CLASS_DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 			 lpfc_board_mode_show, lpfc_board_mode_store);
+static CLASS_DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
 
 static int lpfc_poll = 0;
 module_param(lpfc_poll, int, 0);
@@ -695,12 +706,12 @@ LPFC_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands "
 		 "during discovery");
 
 /*
-# lpfc_max_luns: maximum number of LUNs per target driver will support
-# Value range is [1,32768]. Default value is 256.
-# NOTE: The SCSI layer will scan each target for this many luns
+# lpfc_max_luns: maximum allowed LUN.
+# Value range is [0,65535]. Default value is 255.
+# NOTE: The SCSI layer might probe all allowed LUN on some old targets.
 */
-LPFC_ATTR_R(max_luns, 256, 1, 32768,
-	     "Maximum number of LUNs per target driver will support");
+LPFC_ATTR_R(max_luns, 255, 0, 65535,
+	     "Maximum allowed LUN");
 
 /*
 # lpfc_poll_tmo: .Milliseconds driver will wait between polling FCP ring.
@@ -739,8 +750,8 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_max_luns,
 	&class_device_attr_nport_evt_cnt,
 	&class_device_attr_management_version,
-	&class_device_attr_board_online,
 	&class_device_attr_board_mode,
+	&class_device_attr_issue_reset,
 	&class_device_attr_lpfc_poll,
 	&class_device_attr_lpfc_poll_tmo,
 	NULL,

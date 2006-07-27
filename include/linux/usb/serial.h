@@ -1,12 +1,12 @@
 /*
- * USB Serial Converter driver
+ * USB Serial Converter stuff
  *
  *	Copyright (C) 1999 - 2005
  *	    Greg Kroah-Hartman (greg@kroah.com)
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License.
+ *	the Free Software Foundation; version 2 of the License.
  *
  */
 
@@ -171,7 +171,7 @@ static inline void usb_set_serial_data (struct usb_serial *serial, void *data)
  *	but before the device has been fully initialized by the usb_serial
  *	subsystem.  Use this function to download any firmware to the device,
  *	or any other early initialization that might be needed.
- *	Return 0 to continue on with the initialization sequence.  Anything 
+ *	Return 0 to continue on with the initialization sequence.  Anything
  *	else will abort it.
  * @attach: pointer to the driver's attach function.
  *	This will be called when the struct usb_serial structure is fully set

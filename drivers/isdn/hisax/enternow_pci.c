@@ -301,10 +301,10 @@ enpci_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 }
 
 
-static struct pci_dev *dev_netjet __initdata = NULL;
+static struct pci_dev *dev_netjet __devinitdata = NULL;
 
 /* called by config.c */
-int __init
+int __devinit
 setup_enternow_pci(struct IsdnCard *card)
 {
 	int bytecnt;

@@ -180,7 +180,7 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 	if (timeleft <= 0) {
 		US_DEBUGP("%s -- cancelling URB\n",
 			  timeleft == 0 ? "Timeout" : "Signal");
-		usb_unlink_urb(us->current_urb);
+		usb_kill_urb(us->current_urb);
 	}
 
 	/* return the URB status */

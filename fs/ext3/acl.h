@@ -62,9 +62,6 @@ extern int ext3_permission (struct inode *, int, struct nameidata *);
 extern int ext3_acl_chmod (struct inode *);
 extern int ext3_init_acl (handle_t *, struct inode *, struct inode *);
 
-extern int init_ext3_acl(void);
-extern void exit_ext3_acl(void);
-
 #else  /* CONFIG_EXT3_FS_POSIX_ACL */
 #include <linux/sched.h>
 #define ext3_permission NULL

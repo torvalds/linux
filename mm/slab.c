@@ -674,6 +674,37 @@ static struct kmem_cache cache_cache = {
 #endif
 };
 
+#ifdef CONFIG_LOCKDEP
+
+/*
+ * Slab sometimes uses the kmalloc slabs to store the slab headers
+ * for other slabs "off slab".
+ * The locking for this is tricky in that it nests within the locks
+ * of all other slabs in a few places; to deal with this special
+ * locking we put on-slab caches into a separate lock-class.
+ */
+static struct lock_class_key on_slab_key;
+
+static inline void init_lock_keys(struct cache_sizes *s)
+{
+	int q;
+
+	for (q = 0; q < MAX_NUMNODES; q++) {
+		if (!s->cs_cachep->nodelists[q] || OFF_SLAB(s->cs_cachep))
+			continue;
+		lockdep_set_class(&s->cs_cachep->nodelists[q]->list_lock,
+				  &on_slab_key);
+	}
+}
+
+#else
+static inline void init_lock_keys(struct cache_sizes *s)
+{
+}
+#endif
+
+
+
 /* Guard access to the cache-chain. */
 static DEFINE_MUTEX(cache_chain_mutex);
 static struct list_head cache_chain;
@@ -1021,8 +1052,7 @@ static void drain_alien_cache(struct kmem_cache *cachep,
 	}
 }
 
-static inline int cache_free_alien(struct kmem_cache *cachep, void *objp,
-				   int nesting)
+static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 {
 	struct slab *slabp = virt_to_slab(objp);
 	int nodeid = slabp->nodeid;
@@ -1040,7 +1070,7 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp,
 	STATS_INC_NODEFREES(cachep);
 	if (l3->alien && l3->alien[nodeid]) {
 		alien = l3->alien[nodeid];
-		spin_lock_nested(&alien->lock, nesting);
+		spin_lock(&alien->lock);
 		if (unlikely(alien->avail == alien->limit)) {
 			STATS_INC_ACOVERFLOW(cachep);
 			__drain_alien_cache(cachep, alien, nodeid);
@@ -1069,8 +1099,7 @@ static inline void free_alien_cache(struct array_cache **ac_ptr)
 {
 }
 
-static inline int cache_free_alien(struct kmem_cache *cachep, void *objp,
-				   int nesting)
+static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 {
 	return 0;
 }
@@ -1393,6 +1422,7 @@ void __init kmem_cache_init(void)
 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
 					NULL, NULL);
 		}
+		init_lock_keys(sizes);
 
 		sizes->cs_dmacachep = kmem_cache_create(names->name_dma,
 					sizes->cs_size,
@@ -1760,8 +1790,6 @@ static void slab_destroy_objs(struct kmem_cache *cachep, struct slab *slabp)
 }
 #endif
 
-static void __cache_free(struct kmem_cache *cachep, void *objp, int nesting);
-
 /**
  * slab_destroy - destroy and release all objects in a slab
  * @cachep: cache pointer being destroyed
@@ -1785,17 +1813,8 @@ static void slab_destroy(struct kmem_cache *cachep, struct slab *slabp)
 		call_rcu(&slab_rcu->head, kmem_rcu_free);
 	} else {
 		kmem_freepages(cachep, addr);
-		if (OFF_SLAB(cachep)) {
-			unsigned long flags;
-
-			/*
-		 	 * lockdep: we may nest inside an already held
-			 * ac->lock, so pass in a nesting flag:
-			 */
-			local_irq_save(flags);
-			__cache_free(cachep->slabp_cache, slabp, 1);
-			local_irq_restore(flags);
-		}
+		if (OFF_SLAB(cachep))
+			kmem_cache_free(cachep->slabp_cache, slabp);
 	}
 }
 
@@ -3100,16 +3119,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int nr_objects,
 		if (slabp->inuse == 0) {
 			if (l3->free_objects > l3->free_limit) {
 				l3->free_objects -= cachep->num;
-				/*
-				 * It is safe to drop the lock. The slab is
-				 * no longer linked to the cache. cachep
-				 * cannot disappear - we are using it and
-				 * all destruction of caches must be
-				 * serialized properly by the user.
-				 */
-				spin_unlock(&l3->list_lock);
 				slab_destroy(cachep, slabp);
-				spin_lock(&l3->list_lock);
 			} else {
 				list_add(&slabp->list, &l3->slabs_free);
 			}
@@ -3135,7 +3145,7 @@ static void cache_flusharray(struct kmem_cache *cachep, struct array_cache *ac)
 #endif
 	check_irq_off();
 	l3 = cachep->nodelists[node];
-	spin_lock_nested(&l3->list_lock, SINGLE_DEPTH_NESTING);
+	spin_lock(&l3->list_lock);
 	if (l3->shared) {
 		struct array_cache *shared_array = l3->shared;
 		int max = shared_array->limit - shared_array->avail;
@@ -3178,14 +3188,14 @@ free_done:
  * Release an obj back to its cache. If the obj has a constructed state, it must
  * be in this state _before_ it is released.  Called with disabled ints.
  */
-static void __cache_free(struct kmem_cache *cachep, void *objp, int nesting)
+static inline void __cache_free(struct kmem_cache *cachep, void *objp)
 {
 	struct array_cache *ac = cpu_cache_get(cachep);
 
 	check_irq_off();
 	objp = cache_free_debugcheck(cachep, objp, __builtin_return_address(0));
 
-	if (cache_free_alien(cachep, objp, nesting))
+	if (cache_free_alien(cachep, objp))
 		return;
 
 	if (likely(ac->avail < ac->limit)) {
@@ -3424,7 +3434,7 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 	BUG_ON(virt_to_cache(objp) != cachep);
 
 	local_irq_save(flags);
-	__cache_free(cachep, objp, 0);
+	__cache_free(cachep, objp);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(kmem_cache_free);
@@ -3449,7 +3459,7 @@ void kfree(const void *objp)
 	kfree_debugcheck(objp);
 	c = virt_to_cache(objp);
 	debug_check_no_locks_freed(objp, obj_size(c));
-	__cache_free(c, (void *)objp, 0);
+	__cache_free(c, (void *)objp);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(kfree);

@@ -1,7 +1,7 @@
 /*
  *  setup.c, Setup for the IBM WorkPad z50.
  *
- *  Copyright (C) 2002-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2002-2006  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,13 +21,18 @@
 #include <linux/ioport.h>
 
 #include <asm/io.h>
-#include <asm/vr41xx/workpad.h>
+
+#define WORKPAD_ISA_IO_BASE	0x15000000
+#define WORKPAD_ISA_IO_SIZE	0x03000000
+#define WORKPAD_ISA_IO_START	0
+#define WORKPAD_ISA_IO_END	(WORKPAD_ISA_IO_SIZE - 1)
+#define WORKPAD_IO_PORT_BASE	KSEG1ADDR(WORKPAD_ISA_IO_BASE)
 
 static int __init ibm_workpad_setup(void)
 {
-	set_io_port_base(IO_PORT_BASE);
-	ioport_resource.start = IO_PORT_RESOURCE_START;
-	ioport_resource.end = IO_PORT_RESOURCE_END;
+	set_io_port_base(WORKPAD_IO_PORT_BASE);
+	ioport_resource.start = WORKPAD_ISA_IO_START;
+	ioport_resource.end = WORKPAD_ISA_IO_END;
 
 	return 0;
 }

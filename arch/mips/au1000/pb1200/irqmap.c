@@ -148,7 +148,7 @@ static void pb1200_end_irq(unsigned int irq_nr)
 	}
 }
 
-static struct hw_interrupt_type external_irq_type =
+static struct irq_chip external_irq_type =
 {
 #ifdef CONFIG_MIPS_PB1200
 	"Pb1200 Ext",

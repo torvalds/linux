@@ -80,7 +80,7 @@ void ax25_ds_enquiry_response(ax25_cb *ax25)
 	ax25_start_t3timer(ax25);
 	ax25_ds_set_timer(ax25->ax25_dev);
 
-	spin_lock_bh(&ax25_list_lock);
+	spin_lock(&ax25_list_lock);
 	ax25_for_each(ax25o, node, &ax25_list) {
 		if (ax25o == ax25)
 			continue;
@@ -106,7 +106,7 @@ void ax25_ds_enquiry_response(ax25_cb *ax25)
 		if (ax25o->state != AX25_STATE_0)
 			ax25_start_t3timer(ax25o);
 	}
-	spin_unlock_bh(&ax25_list_lock);
+	spin_unlock(&ax25_list_lock);
 }
 
 void ax25_ds_establish_data_link(ax25_cb *ax25)
@@ -162,13 +162,13 @@ static int ax25_check_dama_slave(ax25_dev *ax25_dev)
 	int res = 0;
 	struct hlist_node *node;
 
-	spin_lock_bh(&ax25_list_lock);
+	spin_lock(&ax25_list_lock);
 	ax25_for_each(ax25, node, &ax25_list)
 		if (ax25->ax25_dev == ax25_dev && (ax25->condition & AX25_COND_DAMA_MODE) && ax25->state > AX25_STATE_1) {
 			res = 1;
 			break;
 		}
-	spin_unlock_bh(&ax25_list_lock);
+	spin_unlock(&ax25_list_lock);
 
 	return res;
 }

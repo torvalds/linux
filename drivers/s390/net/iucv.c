@@ -692,7 +692,7 @@ iucv_retrieve_buffer (void)
 	iucv_debug(1, "entering");
 	if (iucv_cpuid != -1) {
 		smp_call_function_on(iucv_retrieve_buffer_cpuid,
-				     0, 0, 1, iucv_cpuid);
+				     NULL, 0, 1, iucv_cpuid);
 		/* Release the cpu reserved by iucv_declare_buffer. */
 		smp_put_cpu(iucv_cpuid);
 		iucv_cpuid = -1;

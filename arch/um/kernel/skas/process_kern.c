@@ -177,7 +177,7 @@ int start_uml_skas(void)
 	if(proc_mm)
 		userspace_pid[0] = start_userspace(0);
 
-	init_new_thread_signals(1);
+	init_new_thread_signals();
 
 	init_task.thread.request.u.thread.proc = start_kernel_proc;
 	init_task.thread.request.u.thread.arg = NULL;

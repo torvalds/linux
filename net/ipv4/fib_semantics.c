@@ -709,11 +709,10 @@ fib_create_info(const struct rtmsg *r, struct kern_rta *rta,
 			goto failure;
 	}
 
-	fi = kmalloc(sizeof(*fi)+nhs*sizeof(struct fib_nh), GFP_KERNEL);
+	fi = kzalloc(sizeof(*fi)+nhs*sizeof(struct fib_nh), GFP_KERNEL);
 	if (fi == NULL)
 		goto failure;
 	fib_info_cnt++;
-	memset(fi, 0, sizeof(*fi)+nhs*sizeof(struct fib_nh));
 
 	fi->fib_protocol = r->rtm_protocol;
 
@@ -962,10 +961,6 @@ fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	rtm->rtm_protocol = fi->fib_protocol;
 	if (fi->fib_priority)
 		RTA_PUT(skb, RTA_PRIORITY, 4, &fi->fib_priority);
-#ifdef CONFIG_NET_CLS_ROUTE
-	if (fi->fib_nh[0].nh_tclassid)
-		RTA_PUT(skb, RTA_FLOW, 4, &fi->fib_nh[0].nh_tclassid);
-#endif
 	if (rtnetlink_put_metrics(skb, fi->fib_metrics) < 0)
 		goto rtattr_failure;
 	if (fi->fib_prefsrc)
@@ -975,6 +970,10 @@ fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 			RTA_PUT(skb, RTA_GATEWAY, 4, &fi->fib_nh->nh_gw);
 		if (fi->fib_nh->nh_oif)
 			RTA_PUT(skb, RTA_OIF, sizeof(int), &fi->fib_nh->nh_oif);
+#ifdef CONFIG_NET_CLS_ROUTE
+		if (fi->fib_nh[0].nh_tclassid)
+			RTA_PUT(skb, RTA_FLOW, 4, &fi->fib_nh[0].nh_tclassid);
+#endif
 	}
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (fi->fib_nhs > 1) {
@@ -993,6 +992,10 @@ fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 			nhp->rtnh_ifindex = nh->nh_oif;
 			if (nh->nh_gw)
 				RTA_PUT(skb, RTA_GATEWAY, 4, &nh->nh_gw);
+#ifdef CONFIG_NET_CLS_ROUTE
+			if (nh->nh_tclassid)
+				RTA_PUT(skb, RTA_FLOW, 4, &nh->nh_tclassid);
+#endif
 			nhp->rtnh_len = skb->tail - (unsigned char*)nhp;
 		} endfor_nexthops(fi);
 		mp_head->rta_type = RTA_MULTIPATH;

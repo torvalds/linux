@@ -29,8 +29,7 @@ extern void flush_tlb_mm_skas(struct mm_struct *mm);
 extern void force_flush_all_skas(void);
 extern long execute_syscall_skas(void *r);
 extern void before_mem_skas(unsigned long unused);
-extern unsigned long set_task_sizes_skas(int arg, unsigned long *host_size_out,
-					 unsigned long *task_size_out);
+extern unsigned long set_task_sizes_skas(unsigned long *task_size_out);
 extern int start_uml_skas(void);
 extern int external_pid_skas(struct task_struct *task);
 extern int thread_pid_skas(struct task_struct *task);

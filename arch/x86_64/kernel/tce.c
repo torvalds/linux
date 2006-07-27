@@ -1,8 +1,10 @@
 /*
  * Derived from arch/powerpc/platforms/pseries/iommu.c
  *
- * Copyright (C) 2006 Jon Mason <jdmason@us.ibm.com>, IBM Corporation
- * Copyright (C) 2006 Muli Ben-Yehuda <muli@il.ibm.com>, IBM Corporation
+ * Copyright (C) IBM Corporation, 2006
+ *
+ * Author: Jon Mason <jdmason@us.ibm.com>
+ * Author: Muli Ben-Yehuda <muli@il.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

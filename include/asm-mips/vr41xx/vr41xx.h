@@ -74,59 +74,6 @@ extern void vr41xx_mask_clock(vr41xx_clock_t clock);
 /*
  * Interrupt Control Unit
  */
-/* CPU core Interrupt Numbers */
-#define MIPS_CPU_IRQ_BASE	0
-#define MIPS_CPU_IRQ(x)		(MIPS_CPU_IRQ_BASE + (x))
-#define MIPS_SOFTINT0_IRQ	MIPS_CPU_IRQ(0)
-#define MIPS_SOFTINT1_IRQ	MIPS_CPU_IRQ(1)
-#define INT0_IRQ		MIPS_CPU_IRQ(2)
-#define INT1_IRQ		MIPS_CPU_IRQ(3)
-#define INT2_IRQ		MIPS_CPU_IRQ(4)
-#define INT3_IRQ		MIPS_CPU_IRQ(5)
-#define INT4_IRQ		MIPS_CPU_IRQ(6)
-#define TIMER_IRQ		MIPS_CPU_IRQ(7)
-
-/* SYINT1 Interrupt Numbers */
-#define SYSINT1_IRQ_BASE	8
-#define SYSINT1_IRQ(x)		(SYSINT1_IRQ_BASE + (x))
-#define BATTRY_IRQ		SYSINT1_IRQ(0)
-#define POWER_IRQ		SYSINT1_IRQ(1)
-#define RTCLONG1_IRQ		SYSINT1_IRQ(2)
-#define ELAPSEDTIME_IRQ		SYSINT1_IRQ(3)
-/* RFU */
-#define PIU_IRQ			SYSINT1_IRQ(5)
-#define AIU_IRQ			SYSINT1_IRQ(6)
-#define KIU_IRQ			SYSINT1_IRQ(7)
-#define GIUINT_IRQ		SYSINT1_IRQ(8)
-#define SIU_IRQ			SYSINT1_IRQ(9)
-#define BUSERR_IRQ		SYSINT1_IRQ(10)
-#define SOFTINT_IRQ		SYSINT1_IRQ(11)
-#define CLKRUN_IRQ		SYSINT1_IRQ(12)
-#define DOZEPIU_IRQ		SYSINT1_IRQ(13)
-#define SYSINT1_IRQ_LAST	DOZEPIU_IRQ
-
-/* SYSINT2 Interrupt Numbers */
-#define SYSINT2_IRQ_BASE	24
-#define SYSINT2_IRQ(x)		(SYSINT2_IRQ_BASE + (x))
-#define RTCLONG2_IRQ		SYSINT2_IRQ(0)
-#define LED_IRQ			SYSINT2_IRQ(1)
-#define HSP_IRQ			SYSINT2_IRQ(2)
-#define TCLOCK_IRQ		SYSINT2_IRQ(3)
-#define FIR_IRQ			SYSINT2_IRQ(4)
-#define CEU_IRQ			SYSINT2_IRQ(4)	/* same number as FIR_IRQ */
-#define DSIU_IRQ		SYSINT2_IRQ(5)
-#define PCI_IRQ			SYSINT2_IRQ(6)
-#define SCU_IRQ			SYSINT2_IRQ(7)
-#define CSI_IRQ			SYSINT2_IRQ(8)
-#define BCU_IRQ			SYSINT2_IRQ(9)
-#define ETHERNET_IRQ		SYSINT2_IRQ(10)
-#define SYSINT2_IRQ_LAST	ETHERNET_IRQ
-
-/* GIU Interrupt Numbers */
-#define GIU_IRQ_BASE		40
-#define GIU_IRQ(x)		(GIU_IRQ_BASE + (x))	/* IRQ 40-71 */
-#define GIU_IRQ_LAST		GIU_IRQ(31)
-
 extern int vr41xx_set_intassign(unsigned int irq, unsigned char intassign);
 extern int cascade_irq(unsigned int irq, int (*get_irq)(unsigned int, struct pt_regs *));
 

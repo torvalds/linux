@@ -594,7 +594,7 @@ int iser_reg_page_vec(struct iser_conn     *ib_conn,
 	mem  = ib_fmr_pool_map_phys(ib_conn->fmr_pool,
 				    page_list,
 				    page_vec->length,
-				    &io_addr);
+				    io_addr);
 
 	if (IS_ERR(mem)) {
 		status = (int)PTR_ERR(mem);

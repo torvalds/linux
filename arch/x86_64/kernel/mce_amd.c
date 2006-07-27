@@ -597,7 +597,7 @@ static __cpuinit void threshold_remove_bank(unsigned int cpu, int bank)
 	/* sibling symlink */
 	if (shared_bank[bank] && b->blocks->cpu != cpu) {
 		sysfs_remove_link(&per_cpu(device_mce, cpu).kobj, name);
-		per_cpu(threshold_banks, i)[bank] = NULL;
+		per_cpu(threshold_banks, cpu)[bank] = NULL;
 		return;
 	}
 

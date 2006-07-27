@@ -234,6 +234,7 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 	data->fw_data = kmalloc(firmware->size, GFP_KERNEL);
 	if (!data->fw_data) {
 		BT_ERR("Can't allocate memory for firmware image");
+		release_firmware(firmware);
 		usb_free_urb(data->urb);
 		kfree(data->buffer);
 		kfree(data);

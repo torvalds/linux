@@ -317,7 +317,7 @@ void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
 	}
 }
 
-extern int __syscall_stub_start, __binary_start;
+extern int __syscall_stub_start;
 
 void setup_physmem(unsigned long start, unsigned long reserve_end,
 		   unsigned long len, unsigned long long highmem)

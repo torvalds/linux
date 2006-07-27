@@ -233,7 +233,7 @@ char * strrchr(const char * s, int c)
 		       if (s[len] == (char) c)
 			       return (char *) s + len;
 	       } while (--len > 0);
-       return 0;
+       return NULL;
 }
 EXPORT_SYMBOL(strrchr);
 
@@ -267,7 +267,7 @@ char * strstr(const char * s1,const char * s2)
 			return (char *) s1;
 		s1++;
 	}
-	return 0;
+	return NULL;
 }
 EXPORT_SYMBOL(strstr);
 

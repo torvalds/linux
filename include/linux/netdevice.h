@@ -549,6 +549,7 @@ struct packet_type {
 					 struct net_device *);
 	struct sk_buff		*(*gso_segment)(struct sk_buff *skb,
 						int features);
+	int			(*gso_send_check)(struct sk_buff *skb);
 	void			*af_packet_priv;
 	struct list_head	list;
 };
@@ -923,10 +924,10 @@ static inline void netif_tx_lock_bh(struct net_device *dev)
 
 static inline int netif_tx_trylock(struct net_device *dev)
 {
-	int err = spin_trylock(&dev->_xmit_lock);
-	if (!err)
+	int ok = spin_trylock(&dev->_xmit_lock);
+	if (likely(ok))
 		dev->xmit_lock_owner = smp_processor_id();
-	return err;
+	return ok;
 }
 
 static inline void netif_tx_unlock(struct net_device *dev)
@@ -1001,13 +1002,14 @@ static inline int net_gso_ok(int features, int gso_type)
 
 static inline int skb_gso_ok(struct sk_buff *skb, int features)
 {
-	return net_gso_ok(features, skb_shinfo(skb)->gso_size ?
-				    skb_shinfo(skb)->gso_type : 0);
+	return net_gso_ok(features, skb_shinfo(skb)->gso_type);
 }
 
 static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 {
-	return !skb_gso_ok(skb, dev->features);
+	return skb_is_gso(skb) &&
+	       (!skb_gso_ok(skb, dev->features) ||
+		unlikely(skb->ip_summed != CHECKSUM_HW));
 }
 
 #endif /* __KERNEL__ */

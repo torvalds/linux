@@ -17,6 +17,7 @@
 #include <linux/kexec.h>
 #include <linux/module.h>
 
+#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/e820.h>
 #include <asm/proto.h>

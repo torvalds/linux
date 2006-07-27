@@ -98,9 +98,10 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 
 	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
-	asm volatile("   cs   %1,%4,0(%5)\n"
+	asm volatile("   sacf 256\n"
+		     "   cs   %1,%4,0(%5)\n"
 		     "0: lr   %0,%1\n"
-		     "1:\n"
+		     "1: sacf 0\n"
 #ifndef __s390x__
 		     ".section __ex_table,\"a\"\n"
 		     "   .align 4\n"

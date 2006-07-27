@@ -15,6 +15,15 @@
 
 #define OLD_BACKLIGHT_MAX 15
 
+static void pmac_backlight_key_worker(void *data);
+static DECLARE_WORK(pmac_backlight_key_work, pmac_backlight_key_worker, NULL);
+
+/* Although this variable is used in interrupt context, it makes no sense to
+ * protect it. No user is able to produce enough key events per second and
+ * notice the errors that might happen.
+ */
+static int pmac_backlight_key_queued;
+
 /* Protect the pmac_backlight variable */
 DEFINE_MUTEX(pmac_backlight_mutex);
 
@@ -71,7 +80,7 @@ int pmac_backlight_curve_lookup(struct fb_info *info, int value)
 	return level;
 }
 
-static void pmac_backlight_key(int direction)
+static void pmac_backlight_key_worker(void *data)
 {
 	mutex_lock(&pmac_backlight_mutex);
 	if (pmac_backlight) {
@@ -82,7 +91,8 @@ static void pmac_backlight_key(int direction)
 		props = pmac_backlight->props;
 
 		brightness = props->brightness +
-			((direction?-1:1) * (props->max_brightness / 15));
+			((pmac_backlight_key_queued?-1:1) *
+			 (props->max_brightness / 15));
 
 		if (brightness < 0)
 			brightness = 0;
@@ -97,14 +107,13 @@ static void pmac_backlight_key(int direction)
 	mutex_unlock(&pmac_backlight_mutex);
 }
 
-void pmac_backlight_key_up()
+void pmac_backlight_key(int direction)
 {
-	pmac_backlight_key(0);
-}
-
-void pmac_backlight_key_down()
-{
-	pmac_backlight_key(1);
+	/* we can receive multiple interrupts here, but the scheduled work
+	 * will run only once, with the last value
+	 */
+	pmac_backlight_key_queued = direction;
+	schedule_work(&pmac_backlight_key_work);
 }
 
 int pmac_backlight_set_legacy_brightness(int brightness)
@@ -157,3 +166,7 @@ int pmac_backlight_get_legacy_brightness()
 
 	return result;
 }
+
+EXPORT_SYMBOL_GPL(pmac_backlight);
+EXPORT_SYMBOL_GPL(pmac_backlight_mutex);
+EXPORT_SYMBOL_GPL(pmac_has_backlight_type);

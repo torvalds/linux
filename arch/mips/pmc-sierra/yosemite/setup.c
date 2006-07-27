@@ -133,14 +133,13 @@ int m48t37y_set_time(unsigned long sec)
 	return 0;
 }
 
-void yosemite_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	setup_irq(7, irq);
 }
 
 void yosemite_time_init(void)
 {
-	board_timer_setup = yosemite_timer_setup;
 	mips_hpt_frequency = cpu_clock / 2;
 mips_hpt_frequency = 33000000 * 3 * 5;
 }

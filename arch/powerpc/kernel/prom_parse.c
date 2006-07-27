@@ -881,7 +881,7 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 	intsize = *tmp;
 
 	/* Check index */
-	if (index * intsize >= intlen)
+	if ((index + 1) * intsize > intlen)
 		return -EINVAL;
 
 	/* Get new specifier and map it */

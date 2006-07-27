@@ -74,7 +74,7 @@ enum spec3_op {
 	ins_op, dinsm_op, dinsu_op, dins_op,
 	bshfl_op = 0x20,
 	dbshfl_op = 0x24,
-	rdhwr_op = 0x3f
+	rdhwr_op = 0x3b
 };
 
 /*

@@ -212,6 +212,7 @@ struct ipoib_path {
 
 struct ipoib_neigh {
 	struct ipoib_ah    *ah;
+	union ib_gid        dgid;
 	struct sk_buff_head queue;
 
 	struct neighbour   *neighbour;
