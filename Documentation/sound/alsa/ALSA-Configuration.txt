@@ -1216,6 +1216,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     
     Module supports only 1 card.  This module has no enable option.
 
+  Module snd-mts64
+  ----------------
+
+    Module for Ego Systems (ESI) Miditerminal 4140
+
+    This module supports multiple devices.
+    Requires parport (CONFIG_PARPORT).
+
   Module snd-nm256
   ----------------
 
