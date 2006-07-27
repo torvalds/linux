@@ -856,13 +856,6 @@ int snd_hda_mixer_amp_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	val2 = (((caps & AC_AMPCAP_STEP_SIZE) >> AC_AMPCAP_STEP_SIZE_SHIFT) + 1) * 25;
 	val1 = -((caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT);
 	val1 = ((int)val1) * ((int)val2);
-	if (caps & AC_AMPCAP_MUTE)
-		val2 |= 0x10000;
-	if ((val2 & 0x10000) == 0 && dir == HDA_OUTPUT) {
-		caps = query_amp_caps(codec, nid, HDA_INPUT);
-		if (caps & AC_AMPCAP_MUTE)
-			val2 |= 0x10000;
-	}
 	if (put_user(SNDRV_CTL_TLVT_DB_SCALE, _tlv))
 		return -EFAULT;
 	if (put_user(2 * sizeof(unsigned int), _tlv + 1))
