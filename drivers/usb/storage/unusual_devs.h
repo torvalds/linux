@@ -627,18 +627,6 @@ UNUSUAL_DEV(  0x0595, 0x4343, 0x0000, 0x2210,
 		"Digital Camera EX-20 DSC",
 		US_SC_8070, US_PR_DEVICE, NULL, 0 ),
 
-/* The entry was here before I took over, and had US_SC_RBC. It turns
- * out that isn't needed. Additionally, Torsten Eriksson
- * <Torsten.Eriksson@bergianska.se> is able to use his device fine
- * without this entry at all - but I don't suspect that will be true
- * for all users (the protocol is likely needed), so is staying at
- * this time. - Phil Dibowitz <phil@ipom.com>
- */
-UNUSUAL_DEV(  0x059f, 0xa601, 0x0200, 0x0200, 
-		"LaCie",
-		"USB Hard Disk",
-		US_SC_DEVICE, US_PR_CB, NULL, 0 ),
-
 /* Submitted by Joel Bourquard <numlock@freesurf.ch>
  * Some versions of this device need the SubClass and Protocol overrides
  * while others don't.
