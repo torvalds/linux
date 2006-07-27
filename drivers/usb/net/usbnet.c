@@ -61,8 +61,11 @@
  * let the USB host controller be busy for 5msec or more before an irq
  * is required, under load.  Jumbograms change the equation.
  */
-#define	RX_QLEN(dev) (((dev)->udev->speed == USB_SPEED_HIGH) ? 60 : 4)
-#define	TX_QLEN(dev) (((dev)->udev->speed == USB_SPEED_HIGH) ? 60 : 4)
+#define RX_MAX_QUEUE_MEMORY (60 * 1518)
+#define	RX_QLEN(dev) (((dev)->udev->speed == USB_SPEED_HIGH) ? \
+			(RX_MAX_QUEUE_MEMORY/(dev)->rx_urb_size) : 4)
+#define	TX_QLEN(dev) (((dev)->udev->speed == USB_SPEED_HIGH) ? \
+			(RX_MAX_QUEUE_MEMORY/(dev)->hard_mtu) : 4)
 
 // reawaken network queue this soon after stopping; else watchdog barks
 #define TX_TIMEOUT_JIFFIES	(5*HZ)
@@ -227,13 +230,23 @@ static int usbnet_change_mtu (struct net_device *net, int new_mtu)
 {
 	struct usbnet	*dev = netdev_priv(net);
 	int		ll_mtu = new_mtu + net->hard_header_len;
+	int		old_hard_mtu = dev->hard_mtu;
+	int		old_rx_urb_size = dev->rx_urb_size;
 
-	if (new_mtu <= 0 || ll_mtu > dev->hard_mtu)
+	if (new_mtu <= 0)
 		return -EINVAL;
 	// no second zero-length packet read wanted after mtu-sized packets
 	if ((ll_mtu % dev->maxpacket) == 0)
 		return -EDOM;
 	net->mtu = new_mtu;
+
+	dev->hard_mtu = net->mtu + net->hard_header_len;
+	if (dev->rx_urb_size == old_hard_mtu) {
+		dev->rx_urb_size = dev->hard_mtu;
+		if (dev->rx_urb_size > old_rx_urb_size)
+			usbnet_unlink_rx_urbs(dev);
+	}
+
 	return 0;
 }
 
@@ -521,6 +534,17 @@ static int unlink_urbs (struct usbnet *dev, struct sk_buff_head *q)
 	return count;
 }
 
+// Flush all pending rx urbs
+// minidrivers may need to do this when the MTU changes
+
+void usbnet_unlink_rx_urbs(struct usbnet *dev)
+{
+	if (netif_running(dev->net)) {
+		(void) unlink_urbs (dev, &dev->rxq);
+		tasklet_schedule(&dev->bh);
+	}
+}
+EXPORT_SYMBOL_GPL(usbnet_unlink_rx_urbs);
 
 /*-------------------------------------------------------------------------*/
 
