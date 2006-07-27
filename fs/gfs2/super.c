@@ -167,6 +167,8 @@ static int end_bio_io_page(struct bio *bio, unsigned int bytes_done, int error)
 
 	if (!error)
 		SetPageUptodate(page);
+	else
+		printk(KERN_WARNING "gfs2: error %d reading superblock\n", error);
 	unlock_page(page);
 	return 0;
 }
@@ -196,7 +198,7 @@ static struct page *gfs2_read_super(struct super_block *sb, sector_t sector)
 
 	bio->bi_end_io = end_bio_io_page;
 	bio->bi_private = page;
-	submit_bio(READ | BIO_RW_SYNC, bio);
+	submit_bio(READ_SYNC, bio);
 	wait_on_page_locked(page);
 	bio_put(bio);
 	if (!PageUptodate(page)) {
