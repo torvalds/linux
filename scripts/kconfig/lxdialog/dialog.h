@@ -133,11 +133,55 @@ struct dialog_info {
  * Global variables
  */
 extern struct dialog_info dlg;
+extern char dialog_input_result[];
 
 /*
  * Function prototypes
  */
-void init_dialog(void);
+
+/* item list as used by checklist and menubox */
+void item_reset(void);
+void item_make(const char *fmt, ...);
+void item_add_str(const char *fmt, ...);
+void item_set_tag(char tag);
+void item_set_data(void *p);
+void item_set_selected(int val);
+int item_activate_selected(void);
+void *item_data(void);
+char item_tag(void);
+
+/* item list manipulation for lxdialog use */
+#define MAXITEMSTR 200
+struct dialog_item {
+	char str[MAXITEMSTR];	/* promtp displayed */
+	char tag;
+	void *data;	/* pointer to menu item - used by menubox+checklist */
+	int selected;	/* Set to 1 by dialog_*() function if selected. */
+};
+
+/* list of lialog_items */
+struct dialog_list {
+	struct dialog_item node;
+	struct dialog_list *next;
+};
+
+extern struct dialog_list *item_cur;
+extern struct dialog_list item_nil;
+extern struct dialog_list *item_head;
+
+int item_count(void);
+void item_set(int n);
+int item_n(void);
+const char *item_str(void);
+int item_is_selected(void);
+int item_is_tag(char tag);
+#define item_foreach() \
+	for (item_cur = item_head ? item_head: item_cur; \
+	     item_cur && (item_cur != &item_nil); item_cur = item_cur->next)
+
+
+void init_dialog(const char *backtitle);
+void reset_dialog(void);
 void end_dialog(void);
 void attr_clear(WINDOW * win, int height, int width, chtype attr);
 void dialog_clear(void);
@@ -154,11 +198,9 @@ int dialog_msgbox(const char *title, const char *prompt, int height,
 		  int width, int pause);
 int dialog_textbox(const char *title, const char *file, int height, int width);
 int dialog_menu(const char *title, const char *prompt, int height, int width,
-		int menu_height, const char *choice, int item_no,
-		const char *const *items);
+		int menu_height, const void *selected, int *s_scroll);
 int dialog_checklist(const char *title, const char *prompt, int height,
-		     int width, int list_height, int item_no,
-		     const char *const *items);
+		     int width, int list_height);
 extern char dialog_input_result[];
 int dialog_inputbox(const char *title, const char *prompt, int height,
 		    int width, const char *init);

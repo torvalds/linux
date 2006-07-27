@@ -268,13 +268,18 @@ void dialog_clear(void)
 /*
  * Do some initialization for dialog
  */
-void init_dialog(void)
+void init_dialog(const char *backtitle)
+{
+	dlg.backtitle = backtitle;
+	color_setup(getenv("MENUCONFIG_COLOR"));
+}
+
+void reset_dialog(void)
 {
 	initscr();		/* Init curses */
 	keypad(stdscr, TRUE);
 	cbreak();
 	noecho();
-	color_setup(getenv("MENUCONFIG_COLOR"));
 	dialog_clear();
 }
 
@@ -470,4 +475,129 @@ int first_alpha(const char *string, const char *exempt)
 	}
 
 	return 0;
+}
+
+struct dialog_list *item_cur;
+struct dialog_list item_nil;
+struct dialog_list *item_head;
+
+void item_reset(void)
+{
+	struct dialog_list *p, *next;
+
+	for (p = item_head; p; p = next) {
+		next = p->next;
+		free(p);
+	}
+	item_head = NULL;
+	item_cur = &item_nil;
+}
+
+void item_make(const char *fmt, ...)
+{
+	va_list ap;
+	struct dialog_list *p = malloc(sizeof(*p));
+
+	if (item_head)
+		item_cur->next = p;
+	else
+		item_head = p;
+	item_cur = p;
+	memset(p, 0, sizeof(*p));
+
+	va_start(ap, fmt);
+	vsnprintf(item_cur->node.str, sizeof(item_cur->node.str), fmt, ap);
+	va_end(ap);
+}
+
+void item_add_str(const char *fmt, ...)
+{
+	va_list ap;
+        size_t avail;
+
+	avail = sizeof(item_cur->node.str) - strlen(item_cur->node.str);
+
+	va_start(ap, fmt);
+	vsnprintf(item_cur->node.str + strlen(item_cur->node.str),
+		  avail, fmt, ap);
+	item_cur->node.str[sizeof(item_cur->node.str) - 1] = '\0';
+	va_end(ap);
+}
+
+void item_set_tag(char tag)
+{
+	item_cur->node.tag = tag;
+}
+void item_set_data(void *ptr)
+{
+	item_cur->node.data = ptr;
+}
+
+void item_set_selected(int val)
+{
+	item_cur->node.selected = val;
+}
+
+int item_activate_selected(void)
+{
+	item_foreach()
+		if (item_is_selected())
+			return 1;
+	return 0;
+}
+
+void *item_data(void)
+{
+	return item_cur->node.data;
+}
+
+char item_tag(void)
+{
+	return item_cur->node.tag;
+}
+
+int item_count(void)
+{
+	int n = 0;
+	struct dialog_list *p;
+
+	for (p = item_head; p; p = p->next)
+		n++;
+	return n;
+}
+
+void item_set(int n)
+{
+	int i = 0;
+	item_foreach()
+		if (i++ == n)
+			return;
+}
+
+int item_n(void)
+{
+	int n = 0;
+	struct dialog_list *p;
+
+	for (p = item_head; p; p = p->next) {
+		if (p == item_cur)
+			return n;
+		n++;
+	}
+	return 0;
+}
+
+const char *item_str(void)
+{
+	return item_cur->node.str;
+}
+
+int item_is_selected(void)
+{
+	return (item_cur->node.selected != 0);
+}
+
+int item_is_tag(char tag)
+{
+	return (item_cur->node.tag == tag);
 }

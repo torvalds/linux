@@ -11,7 +11,6 @@ gconfig: $(obj)/gconf
 	$< arch/$(ARCH)/Kconfig
 
 menuconfig: $(obj)/mconf
-	$(Q)$(MAKE) $(build)=scripts/kconfig/lxdialog
 	$< arch/$(ARCH)/Kconfig
 
 config: $(obj)/conf
@@ -81,6 +80,23 @@ help:
 	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
 	@echo  '  allnoconfig	  - New config where all options are answered with no'
 
+# lxdialog stuff
+check-lxdialog  := $(srctree)/$(src)/lxdialog/check-lxdialog.sh
+
+# Use reursively expanded variables so we do not call gcc unless
+# we really need to do so. (Do not call gcc as part of make mrproper)
+HOST_EXTRACFLAGS = $(shell $(CONFIG_SHELL) $(check-lxdialog) -ccflags)
+HOST_LOADLIBES   = $(shell $(CONFIG_SHELL) $(check-lxdialog) -ldflags $(HOSTCC))
+
+HOST_EXTRACFLAGS += -DLOCALE
+
+PHONY += $(obj)/dochecklxdialog
+$(obj)/dochecklxdialog:
+	$(Q)$(CONFIG_SHELL) $(check-lxdialog) -check $(HOSTCC) $(HOST_LOADLIBES)
+
+always := dochecklxdialog
+
+
 # ===========================================================================
 # Shared Makefile for the various kconfig executables:
 # conf:	  Used for defconfig, oldconfig and related targets
@@ -92,9 +108,12 @@ help:
 #         Based on GTK which needs to be installed to compile it
 # object files used by all kconfig flavours
 
+lxdialog := lxdialog/checklist.o lxdialog/util.o lxdialog/inputbox.o
+lxdialog += lxdialog/textbox.o lxdialog/yesno.o lxdialog/menubox.o
+
 hostprogs-y	:= conf mconf qconf gconf kxgettext
 conf-objs	:= conf.o  zconf.tab.o
-mconf-objs	:= mconf.o zconf.tab.o
+mconf-objs	:= mconf.o zconf.tab.o $(lxdialog)
 kxgettext-objs	:= kxgettext.o zconf.tab.o
 
 ifeq ($(MAKECMDGOALS),xconfig)
