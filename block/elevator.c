@@ -33,11 +33,22 @@
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/blktrace_api.h>
+#include <linux/hash.h>
 
 #include <asm/uaccess.h>
 
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
+
+/*
+ * Merge hash stuff.
+ */
+static const int elv_hash_shift = 6;
+#define ELV_HASH_BLOCK(sec)	((sec) >> 3)
+#define ELV_HASH_FN(sec)	(hash_long(ELV_HASH_BLOCK((sec)), elv_hash_shift))
+#define ELV_HASH_ENTRIES	(1 << elv_hash_shift)
+#define rq_hash_key(rq)		((rq)->sector + (rq)->nr_sectors)
+#define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
 
 /*
  * can we safely merge with this request?
@@ -153,25 +164,41 @@ static struct kobj_type elv_ktype;
 
 static elevator_t *elevator_alloc(struct elevator_type *e)
 {
-	elevator_t *eq = kmalloc(sizeof(elevator_t), GFP_KERNEL);
-	if (eq) {
-		memset(eq, 0, sizeof(*eq));
-		eq->ops = &e->ops;
-		eq->elevator_type = e;
-		kobject_init(&eq->kobj);
-		snprintf(eq->kobj.name, KOBJ_NAME_LEN, "%s", "iosched");
-		eq->kobj.ktype = &elv_ktype;
-		mutex_init(&eq->sysfs_lock);
-	} else {
-		elevator_put(e);
-	}
+	elevator_t *eq;
+	int i;
+
+	eq = kmalloc(sizeof(elevator_t), GFP_KERNEL);
+	if (unlikely(!eq))
+		goto err;
+
+	memset(eq, 0, sizeof(*eq));
+	eq->ops = &e->ops;
+	eq->elevator_type = e;
+	kobject_init(&eq->kobj);
+	snprintf(eq->kobj.name, KOBJ_NAME_LEN, "%s", "iosched");
+	eq->kobj.ktype = &elv_ktype;
+	mutex_init(&eq->sysfs_lock);
+
+	eq->hash = kmalloc(sizeof(struct hlist_head) * ELV_HASH_ENTRIES, GFP_KERNEL);
+	if (!eq->hash)
+		goto err;
+
+	for (i = 0; i < ELV_HASH_ENTRIES; i++)
+		INIT_HLIST_HEAD(&eq->hash[i]);
+
 	return eq;
+err:
+	kfree(eq);
+	elevator_put(e);
+	return NULL;
 }
 
 static void elevator_release(struct kobject *kobj)
 {
 	elevator_t *e = container_of(kobj, elevator_t, kobj);
+
 	elevator_put(e->elevator_type);
+	kfree(e->hash);
 	kfree(e);
 }
 
@@ -223,6 +250,53 @@ void elevator_exit(elevator_t *e)
 	kobject_put(&e->kobj);
 }
 
+static inline void __elv_rqhash_del(struct request *rq)
+{
+	hlist_del_init(&rq->hash);
+}
+
+static void elv_rqhash_del(request_queue_t *q, struct request *rq)
+{
+	if (ELV_ON_HASH(rq))
+		__elv_rqhash_del(rq);
+}
+
+static void elv_rqhash_add(request_queue_t *q, struct request *rq)
+{
+	elevator_t *e = q->elevator;
+
+	BUG_ON(ELV_ON_HASH(rq));
+	hlist_add_head(&rq->hash, &e->hash[ELV_HASH_FN(rq_hash_key(rq))]);
+}
+
+static void elv_rqhash_reposition(request_queue_t *q, struct request *rq)
+{
+	__elv_rqhash_del(rq);
+	elv_rqhash_add(q, rq);
+}
+
+static struct request *elv_rqhash_find(request_queue_t *q, sector_t offset)
+{
+	elevator_t *e = q->elevator;
+	struct hlist_head *hash_list = &e->hash[ELV_HASH_FN(offset)];
+	struct hlist_node *entry, *next;
+	struct request *rq;
+
+	hlist_for_each_entry_safe(rq, entry, next, hash_list, hash) {
+		BUG_ON(!ELV_ON_HASH(rq));
+
+		if (unlikely(!rq_mergeable(rq))) {
+			__elv_rqhash_del(rq);
+			continue;
+		}
+
+		if (rq_hash_key(rq) == offset)
+			return rq;
+	}
+
+	return NULL;
+}
+
 /*
  * Insert rq into dispatch queue of q.  Queue lock must be held on
  * entry.  If sort != 0, rq is sort-inserted; otherwise, rq will be
@@ -235,6 +309,9 @@ void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 
 	if (q->last_merge == rq)
 		q->last_merge = NULL;
+
+	elv_rqhash_del(q, rq);
+
 	q->nr_sorted--;
 
 	boundary = q->end_sector;
@@ -258,17 +335,47 @@ void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 	list_add(&rq->queuelist, entry);
 }
 
+/*
+ * This should be in elevator.h, but that requires pulling in rq and q
+ */
+void elv_dispatch_add_tail(struct request_queue *q, struct request *rq)
+{
+	if (q->last_merge == rq)
+		q->last_merge = NULL;
+
+	elv_rqhash_del(q, rq);
+
+	q->nr_sorted--;
+
+	q->end_sector = rq_end_sector(rq);
+	q->boundary_rq = rq;
+	list_add_tail(&rq->queuelist, &q->queue_head);
+}
+
 int elv_merge(request_queue_t *q, struct request **req, struct bio *bio)
 {
 	elevator_t *e = q->elevator;
+	struct request *__rq;
 	int ret;
 
+	/*
+	 * First try one-hit cache.
+	 */
 	if (q->last_merge) {
 		ret = elv_try_merge(q->last_merge, bio);
 		if (ret != ELEVATOR_NO_MERGE) {
 			*req = q->last_merge;
 			return ret;
 		}
+	}
+
+	/*
+	 * See if our hash lookup can find a potential backmerge.
+	 */
+	__rq = elv_rqhash_find(q, bio->bi_sector);
+	if (__rq && elv_rq_merge_ok(__rq, bio)) {
+		*req = __rq;
+		return ELEVATOR_BACK_MERGE;
 	}
 
 	if (e->ops->elevator_merge_fn)
@@ -284,6 +391,8 @@ void elv_merged_request(request_queue_t *q, struct request *rq)
 	if (e->ops->elevator_merged_fn)
 		e->ops->elevator_merged_fn(q, rq);
 
+	elv_rqhash_reposition(q, rq);
+
 	q->last_merge = rq;
 }
 
@@ -294,8 +403,11 @@ void elv_merge_requests(request_queue_t *q, struct request *rq,
 
 	if (e->ops->elevator_merge_req_fn)
 		e->ops->elevator_merge_req_fn(q, rq, next);
-	q->nr_sorted--;
 
+	elv_rqhash_reposition(q, rq);
+	elv_rqhash_del(q, next);
+
+	q->nr_sorted--;
 	q->last_merge = rq;
 }
 
@@ -371,8 +483,12 @@ void elv_insert(request_queue_t *q, struct request *rq, int where)
 		BUG_ON(!blk_fs_request(rq));
 		rq->cmd_flags |= REQ_SORTED;
 		q->nr_sorted++;
-		if (q->last_merge == NULL && rq_mergeable(rq))
-			q->last_merge = rq;
+		if (rq_mergeable(rq)) {
+			elv_rqhash_add(q, rq);
+			if (!q->last_merge)
+				q->last_merge = rq;
+		}
+
 		/*
 		 * Some ioscheds (cfq) run q->request_fn directly, so
 		 * rq cannot be accessed after calling
@@ -557,6 +673,7 @@ struct request *elv_next_request(request_queue_t *q)
 void elv_dequeue_request(request_queue_t *q, struct request *rq)
 {
 	BUG_ON(list_empty(&rq->queuelist));
+	BUG_ON(ELV_ON_HASH(rq));
 
 	list_del_init(&rq->queuelist);
 

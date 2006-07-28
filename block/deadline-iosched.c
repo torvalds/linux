@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/compiler.h>
-#include <linux/hash.h>
 #include <linux/rbtree.h>
 
 /*
@@ -23,13 +22,6 @@ static const int write_expire = 5 * HZ; /* ditto for writes, these limits are SO
 static const int writes_starved = 2;    /* max times reads can starve a write */
 static const int fifo_batch = 16;       /* # of sequential requests treated as one
 				     by the above parameters. For throughput. */
-
-static const int deadline_hash_shift = 5;
-#define DL_HASH_BLOCK(sec)	((sec) >> 3)
-#define DL_HASH_FN(sec)		(hash_long(DL_HASH_BLOCK((sec)), deadline_hash_shift))
-#define DL_HASH_ENTRIES		(1 << deadline_hash_shift)
-#define rq_hash_key(rq)		((rq)->sector + (rq)->nr_sectors)
-#define ON_HASH(drq)		(!hlist_unhashed(&(drq)->hash))
 
 struct deadline_data {
 	/*
@@ -46,7 +38,6 @@ struct deadline_data {
 	 * next in sort order. read, write or both are NULL
 	 */
 	struct deadline_rq *next_drq[2];
-	struct hlist_head *hash;	/* request hash */
 	unsigned int batching;		/* number of sequential requests made */
 	sector_t last_sector;		/* head position */
 	unsigned int starved;		/* times reads have starved writes */
@@ -75,11 +66,6 @@ struct deadline_rq {
 	struct request *request;
 
 	/*
-	 * request hash, key is the ending offset (for back merge lookup)
-	 */
-	struct hlist_node hash;
-
-	/*
 	 * expire fifo
 	 */
 	struct list_head fifo;
@@ -91,69 +77,6 @@ static void deadline_move_request(struct deadline_data *dd, struct deadline_rq *
 static kmem_cache_t *drq_pool;
 
 #define RQ_DATA(rq)	((struct deadline_rq *) (rq)->elevator_private)
-
-/*
- * the back merge hash support functions
- */
-static inline void __deadline_del_drq_hash(struct deadline_rq *drq)
-{
-	hlist_del_init(&drq->hash);
-}
-
-static inline void deadline_del_drq_hash(struct deadline_rq *drq)
-{
-	if (ON_HASH(drq))
-		__deadline_del_drq_hash(drq);
-}
-
-static inline void
-deadline_add_drq_hash(struct deadline_data *dd, struct deadline_rq *drq)
-{
-	struct request *rq = drq->request;
-
-	BUG_ON(ON_HASH(drq));
-
-	hlist_add_head(&drq->hash, &dd->hash[DL_HASH_FN(rq_hash_key(rq))]);
-}
-
-/*
- * move hot entry to front of chain
- */
-static inline void
-deadline_hot_drq_hash(struct deadline_data *dd, struct deadline_rq *drq)
-{
-	struct request *rq = drq->request;
-	struct hlist_head *head = &dd->hash[DL_HASH_FN(rq_hash_key(rq))];
-
-	if (ON_HASH(drq) && &drq->hash != head->first) {
-		hlist_del(&drq->hash);
-		hlist_add_head(&drq->hash, head);
-	}
-}
-
-static struct request *
-deadline_find_drq_hash(struct deadline_data *dd, sector_t offset)
-{
-	struct hlist_head *hash_list = &dd->hash[DL_HASH_FN(offset)];
-	struct hlist_node *entry, *next;
-	struct deadline_rq *drq;
-
-	hlist_for_each_entry_safe(drq, entry, next, hash_list, hash) {
-		struct request *__rq = drq->request;
-
-		BUG_ON(!ON_HASH(drq));
-
-		if (!rq_mergeable(__rq)) {
-			__deadline_del_drq_hash(drq);
-			continue;
-		}
-
-		if (rq_hash_key(__rq) == offset)
-			return __rq;
-	}
-
-	return NULL;
-}
 
 /*
  * rb tree support functions
@@ -267,22 +190,19 @@ deadline_add_request(struct request_queue *q, struct request *rq)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 	struct deadline_rq *drq = RQ_DATA(rq);
-
 	const int data_dir = rq_data_dir(drq->request);
 
 	deadline_add_drq_rb(dd, drq);
+
 	/*
 	 * set expire time (only used for reads) and add to fifo list
 	 */
 	drq->expires = jiffies + dd->fifo_expire[data_dir];
 	list_add_tail(&drq->fifo, &dd->fifo_list[data_dir]);
-
-	if (rq_mergeable(rq))
-		deadline_add_drq_hash(dd, drq);
 }
 
 /*
- * remove rq from rbtree, fifo, and hash
+ * remove rq from rbtree and fifo.
  */
 static void deadline_remove_request(request_queue_t *q, struct request *rq)
 {
@@ -291,7 +211,6 @@ static void deadline_remove_request(request_queue_t *q, struct request *rq)
 
 	list_del_init(&drq->fifo);
 	deadline_del_drq_rb(dd, drq);
-	deadline_del_drq_hash(drq);
 }
 
 static int
@@ -300,19 +219,6 @@ deadline_merge(request_queue_t *q, struct request **req, struct bio *bio)
 	struct deadline_data *dd = q->elevator->elevator_data;
 	struct request *__rq;
 	int ret;
-
-	/*
-	 * see if the merge hash can satisfy a back merge
-	 */
-	__rq = deadline_find_drq_hash(dd, bio->bi_sector);
-	if (__rq) {
-		BUG_ON(__rq->sector + __rq->nr_sectors != bio->bi_sector);
-
-		if (elv_rq_merge_ok(__rq, bio)) {
-			ret = ELEVATOR_BACK_MERGE;
-			goto out;
-		}
-	}
 
 	/*
 	 * check for front merge
@@ -333,8 +239,6 @@ deadline_merge(request_queue_t *q, struct request **req, struct bio *bio)
 
 	return ELEVATOR_NO_MERGE;
 out:
-	if (ret)
-		deadline_hot_drq_hash(dd, RQ_DATA(__rq));
 	*req = __rq;
 	return ret;
 }
@@ -343,12 +247,6 @@ static void deadline_merged_request(request_queue_t *q, struct request *req)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 	struct deadline_rq *drq = RQ_DATA(req);
-
-	/*
-	 * hash always needs to be repositioned, key is end sector
-	 */
-	deadline_del_drq_hash(drq);
-	deadline_add_drq_hash(dd, drq);
 
 	/*
 	 * if the merge was a front merge, we need to reposition request
@@ -369,13 +267,6 @@ deadline_merged_requests(request_queue_t *q, struct request *req,
 
 	BUG_ON(!drq);
 	BUG_ON(!dnext);
-
-	/*
-	 * reposition drq (this is the merged request) in hash, and in rbtree
-	 * in case of a front merge
-	 */
-	deadline_del_drq_hash(drq);
-	deadline_add_drq_hash(dd, drq);
 
 	if (rq_rb_key(req) != drq->rb_key) {
 		deadline_del_drq_rb(dd, drq);
@@ -594,7 +485,6 @@ static void deadline_exit_queue(elevator_t *e)
 	BUG_ON(!list_empty(&dd->fifo_list[WRITE]));
 
 	mempool_destroy(dd->drq_pool);
-	kfree(dd->hash);
 	kfree(dd);
 }
 
@@ -605,7 +495,6 @@ static void deadline_exit_queue(elevator_t *e)
 static void *deadline_init_queue(request_queue_t *q, elevator_t *e)
 {
 	struct deadline_data *dd;
-	int i;
 
 	if (!drq_pool)
 		return NULL;
@@ -615,23 +504,12 @@ static void *deadline_init_queue(request_queue_t *q, elevator_t *e)
 		return NULL;
 	memset(dd, 0, sizeof(*dd));
 
-	dd->hash = kmalloc_node(sizeof(struct hlist_head)*DL_HASH_ENTRIES,
-				GFP_KERNEL, q->node);
-	if (!dd->hash) {
-		kfree(dd);
-		return NULL;
-	}
-
 	dd->drq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
 					mempool_free_slab, drq_pool, q->node);
 	if (!dd->drq_pool) {
-		kfree(dd->hash);
 		kfree(dd);
 		return NULL;
 	}
-
-	for (i = 0; i < DL_HASH_ENTRIES; i++)
-		INIT_HLIST_HEAD(&dd->hash[i]);
 
 	INIT_LIST_HEAD(&dd->fifo_list[READ]);
 	INIT_LIST_HEAD(&dd->fifo_list[WRITE]);
@@ -666,8 +544,6 @@ deadline_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 		memset(drq, 0, sizeof(*drq));
 		RB_CLEAR_NODE(&drq->rb_node);
 		drq->request = rq;
-
-		INIT_HLIST_NODE(&drq->hash);
 
 		INIT_LIST_HEAD(&drq->fifo);
 

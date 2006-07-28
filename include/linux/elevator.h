@@ -82,12 +82,14 @@ struct elevator_queue
 	struct kobject kobj;
 	struct elevator_type *elevator_type;
 	struct mutex sysfs_lock;
+	struct hlist_head *hash;
 };
 
 /*
  * block elevator interface
  */
 extern void elv_dispatch_sort(request_queue_t *, struct request *);
+extern void elv_dispatch_add_tail(request_queue_t *, struct request *);
 extern void elv_add_request(request_queue_t *, struct request *, int, int);
 extern void __elv_add_request(request_queue_t *, struct request *, int, int);
 extern void elv_insert(request_queue_t *, struct request *, int);

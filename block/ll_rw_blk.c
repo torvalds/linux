@@ -281,6 +281,7 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
 {
 	INIT_LIST_HEAD(&rq->queuelist);
 	INIT_LIST_HEAD(&rq->donelist);
+	INIT_HLIST_NODE(&rq->hash);
 
 	rq->errors = 0;
 	rq->rq_status = RQ_ACTIVE;
@@ -2700,6 +2701,7 @@ void __blk_put_request(request_queue_t *q, struct request *req)
 		int priv = req->cmd_flags & REQ_ELVPRIV;
 
 		BUG_ON(!list_empty(&req->queuelist));
+		BUG_ON(!hlist_unhashed(&req->hash));
 
 		blk_free_request(q, req);
 		freed_request(q, rw, priv);

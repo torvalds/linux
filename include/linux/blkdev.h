@@ -229,6 +229,8 @@ struct request {
 	struct bio *bio;
 	struct bio *biotail;
 
+	struct hlist_node hash;	/* merge hash */
+
 	void *elevator_private;
 	void *completion_data;
 
@@ -694,21 +696,6 @@ static inline int rq_all_done(struct request *rq, unsigned int nr_bytes)
 static inline void blkdev_dequeue_request(struct request *req)
 {
 	elv_dequeue_request(req->q, req);
-}
-
-/*
- * This should be in elevator.h, but that requires pulling in rq and q
- */
-static inline void elv_dispatch_add_tail(struct request_queue *q,
-					 struct request *rq)
-{
-	if (q->last_merge == rq)
-		q->last_merge = NULL;
-	q->nr_sorted--;
-
-	q->end_sector = rq_end_sector(rq);
-	q->boundary_rq = rq;
-	list_add_tail(&rq->queuelist, &q->queue_head);
 }
 
 /*

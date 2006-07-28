@@ -14,7 +14,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/compiler.h>
-#include <linux/hash.h>
 #include <linux/rbtree.h>
 #include <linux/interrupt.h>
 
@@ -95,7 +94,6 @@ struct as_data {
 
 	struct as_rq *next_arq[2];	/* next in sort order */
 	sector_t last_sector[2];	/* last REQ_SYNC & REQ_ASYNC sectors */
-	struct hlist_head *hash;	/* request hash */
 
 	unsigned long exit_prob;	/* probability a task will exit while
 					   being waited on */
@@ -160,11 +158,6 @@ struct as_rq {
 	struct request *request;
 
 	struct io_context *io_context;	/* The submitting task */
-
-	/*
-	 * request hash, key is the ending offset (for back merge lookup)
-	 */
-	struct hlist_node hash;
 
 	/*
 	 * expire fifo
@@ -270,77 +263,6 @@ static void as_put_io_context(struct as_rq *arq)
 	}
 
 	put_io_context(arq->io_context);
-}
-
-/*
- * the back merge hash support functions
- */
-static const int as_hash_shift = 6;
-#define AS_HASH_BLOCK(sec)	((sec) >> 3)
-#define AS_HASH_FN(sec)		(hash_long(AS_HASH_BLOCK((sec)), as_hash_shift))
-#define AS_HASH_ENTRIES		(1 << as_hash_shift)
-#define rq_hash_key(rq)		((rq)->sector + (rq)->nr_sectors)
-
-static inline void __as_del_arq_hash(struct as_rq *arq)
-{
-	hlist_del_init(&arq->hash);
-}
-
-static inline void as_del_arq_hash(struct as_rq *arq)
-{
-	if (!hlist_unhashed(&arq->hash))
-		__as_del_arq_hash(arq);
-}
-
-static void as_add_arq_hash(struct as_data *ad, struct as_rq *arq)
-{
-	struct request *rq = arq->request;
-
-	BUG_ON(!hlist_unhashed(&arq->hash));
-
-	hlist_add_head(&arq->hash, &ad->hash[AS_HASH_FN(rq_hash_key(rq))]);
-}
-
-/*
- * move hot entry to front of chain
- */
-static inline void as_hot_arq_hash(struct as_data *ad, struct as_rq *arq)
-{
-	struct request *rq = arq->request;
-	struct hlist_head *head = &ad->hash[AS_HASH_FN(rq_hash_key(rq))];
-
-	if (hlist_unhashed(&arq->hash)) {
-		WARN_ON(1);
-		return;
-	}
-
-	if (&arq->hash != head->first) {
-		hlist_del(&arq->hash);
-		hlist_add_head(&arq->hash, head);
-	}
-}
-
-static struct request *as_find_arq_hash(struct as_data *ad, sector_t offset)
-{
-	struct hlist_head *hash_list = &ad->hash[AS_HASH_FN(offset)];
-	struct hlist_node *entry, *next;
-	struct as_rq *arq;
-
-	hlist_for_each_entry_safe(arq, entry, next, hash_list, hash) {
-		struct request *__rq = arq->request;
-
-		BUG_ON(hlist_unhashed(&arq->hash));
-
-		if (!rq_mergeable(__rq)) {
-			as_del_arq_hash(arq);
-			continue;
-		}
-
-		if (rq_hash_key(__rq) == offset)
-			return __rq;
-	}
-
-	return NULL;
 }
 
 /*
@@ -1060,7 +982,6 @@ static void as_remove_queued_request(request_queue_t *q, struct request *rq)
 		ad->next_arq[data_dir] = as_find_next_arq(ad, arq);
 
 	list_del_init(&arq->fifo);
-	as_del_arq_hash(arq);
 	as_del_arq_rb(ad, arq);
 }
 
@@ -1349,8 +1270,6 @@ static void as_add_request(request_queue_t *q, struct request *rq)
 	}
 
 	as_add_arq_rb(ad, arq);
-	if (rq_mergeable(arq->request))
-		as_add_arq_hash(ad, arq);
 
 	/*
 	 * set expire time (only used for reads) and add to fifo list
@@ -1428,54 +1347,23 @@ as_merge(request_queue_t *q, struct request **req, struct bio *bio)
 	struct as_data *ad = q->elevator->elevator_data;
 	sector_t rb_key = bio->bi_sector + bio_sectors(bio);
 	struct request *__rq;
-	int ret;
-
-	/*
-	 * see if the merge hash can satisfy a back merge
-	 */
-	__rq = as_find_arq_hash(ad, bio->bi_sector);
-	if (__rq) {
-		BUG_ON(__rq->sector + __rq->nr_sectors != bio->bi_sector);
-
-		if (elv_rq_merge_ok(__rq, bio)) {
-			ret = ELEVATOR_BACK_MERGE;
-			goto out;
-		}
-	}
 
 	/*
 	 * check for front merge
 	 */
 	__rq = as_find_arq_rb(ad, rb_key, bio_data_dir(bio));
-	if (__rq) {
-		BUG_ON(rb_key != rq_rb_key(__rq));
-
-		if (elv_rq_merge_ok(__rq, bio)) {
-			ret = ELEVATOR_FRONT_MERGE;
-			goto out;
-		}
+	if (__rq && elv_rq_merge_ok(__rq, bio)) {
+		*req = __rq;
+		return ELEVATOR_FRONT_MERGE;
 	}
 
 	return ELEVATOR_NO_MERGE;
-out:
-	if (ret) {
-		if (rq_mergeable(__rq))
-			as_hot_arq_hash(ad, RQ_DATA(__rq));
-	}
-	*req = __rq;
-	return ret;
 }
 
 static void as_merged_request(request_queue_t *q, struct request *req)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 	struct as_rq *arq = RQ_DATA(req);
-
-	/*
-	 * hash always needs to be repositioned, key is end sector
-	 */
-	as_del_arq_hash(arq);
-	as_add_arq_hash(ad, arq);
 
 	/*
 	 * if the merge was a front merge, we need to reposition request
@@ -1500,13 +1388,6 @@ static void as_merged_requests(request_queue_t *q, struct request *req,
 
 	BUG_ON(!arq);
 	BUG_ON(!anext);
-
-	/*
-	 * reposition arq (this is the merged request) in hash, and in rbtree
-	 * in case of a front merge
-	 */
-	as_del_arq_hash(arq);
-	as_add_arq_hash(ad, arq);
 
 	if (rq_rb_key(req) != arq->rb_key) {
 		as_del_arq_rb(ad, arq);
@@ -1591,7 +1472,6 @@ static int as_set_request(request_queue_t *q, struct request *rq,
 		arq->request = rq;
 		arq->state = AS_RQ_PRESCHED;
 		arq->io_context = NULL;
-		INIT_HLIST_NODE(&arq->hash);
 		INIT_LIST_HEAD(&arq->fifo);
 		rq->elevator_private = arq;
 		return 0;
@@ -1628,7 +1508,6 @@ static void as_exit_queue(elevator_t *e)
 
 	mempool_destroy(ad->arq_pool);
 	put_io_context(ad->io_context);
-	kfree(ad->hash);
 	kfree(ad);
 }
 
@@ -1639,7 +1518,6 @@ static void as_exit_queue(elevator_t *e)
 static void *as_init_queue(request_queue_t *q, elevator_t *e)
 {
 	struct as_data *ad;
-	int i;
 
 	if (!arq_pool)
 		return NULL;
@@ -1651,17 +1529,9 @@ static void *as_init_queue(request_queue_t *q, elevator_t *e)
 
 	ad->q = q; /* Identify what queue the data belongs to */
 
-	ad->hash = kmalloc_node(sizeof(struct hlist_head)*AS_HASH_ENTRIES,
-				GFP_KERNEL, q->node);
-	if (!ad->hash) {
-		kfree(ad);
-		return NULL;
-	}
-
 	ad->arq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
 				mempool_free_slab, arq_pool, q->node);
 	if (!ad->arq_pool) {
-		kfree(ad->hash);
 		kfree(ad);
 		return NULL;
 	}
@@ -1671,9 +1541,6 @@ static void *as_init_queue(request_queue_t *q, elevator_t *e)
 	ad->antic_timer.data = (unsigned long)q;
 	init_timer(&ad->antic_timer);
 	INIT_WORK(&ad->antic_work, as_work_handler, q);
-
-	for (i = 0; i < AS_HASH_ENTRIES; i++)
-		INIT_HLIST_HEAD(&ad->hash[i]);
 
 	INIT_LIST_HEAD(&ad->fifo_list[REQ_SYNC]);
 	INIT_LIST_HEAD(&ad->fifo_list[REQ_ASYNC]);

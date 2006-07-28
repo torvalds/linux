@@ -41,16 +41,6 @@ static DEFINE_SPINLOCK(cfq_exit_lock);
 #define CFQ_QHASH_ENTRIES	(1 << CFQ_QHASH_SHIFT)
 #define list_entry_qhash(entry)	hlist_entry((entry), struct cfq_queue, cfq_hash)
 
-/*
- * for the hash of crq inside the cfqq
- */
-#define CFQ_MHASH_SHIFT		6
-#define CFQ_MHASH_BLOCK(sec)	((sec) >> 3)
-#define CFQ_MHASH_ENTRIES	(1 << CFQ_MHASH_SHIFT)
-#define CFQ_MHASH_FN(sec)	hash_long(CFQ_MHASH_BLOCK(sec), CFQ_MHASH_SHIFT)
-#define rq_hash_key(rq)		((rq)->sector + (rq)->nr_sectors)
-#define list_entry_hash(ptr)	hlist_entry((ptr), struct cfq_rq, hash)
-
 #define list_entry_cfqq(ptr)	list_entry((ptr), struct cfq_queue, cfq_list)
 #define list_entry_fifo(ptr)	list_entry((ptr), struct request, queuelist)
 
@@ -111,11 +101,6 @@ struct cfq_data {
 	 * cfqq lookup hash
 	 */
 	struct hlist_head *cfq_hash;
-
-	/*
-	 * global crq hash for all queues
-	 */
-	struct hlist_head *crq_hash;
 
 	mempool_t *crq_pool;
 
@@ -203,7 +188,6 @@ struct cfq_rq {
 	struct rb_node rb_node;
 	sector_t rb_key;
 	struct request *request;
-	struct hlist_node hash;
 
 	struct cfq_queue *cfq_queue;
 	struct cfq_io_context *io_context;
@@ -270,42 +254,6 @@ CFQ_CRQ_FNS(is_sync);
 static struct cfq_queue *cfq_find_cfq_hash(struct cfq_data *, unsigned int, unsigned short);
 static void cfq_dispatch_insert(request_queue_t *, struct cfq_rq *);
 static struct cfq_queue *cfq_get_queue(struct cfq_data *cfqd, unsigned int key, struct task_struct *tsk, gfp_t gfp_mask);
-
-/*
- * lots of deadline iosched dupes, can be abstracted later...
- */
-static inline void cfq_del_crq_hash(struct cfq_rq *crq)
-{
-	hlist_del_init(&crq->hash);
-}
-
-static inline void cfq_add_crq_hash(struct cfq_data *cfqd, struct cfq_rq *crq)
-{
-	const int hash_idx = CFQ_MHASH_FN(rq_hash_key(crq->request));
-
-	hlist_add_head(&crq->hash, &cfqd->crq_hash[hash_idx]);
-}
-
-static struct request *cfq_find_rq_hash(struct cfq_data *cfqd, sector_t offset)
-{
-	struct hlist_head *hash_list = &cfqd->crq_hash[CFQ_MHASH_FN(offset)];
-	struct hlist_node *entry, *next;
-
-	hlist_for_each_safe(entry, next, hash_list) {
-		struct cfq_rq *crq = list_entry_hash(entry);
-		struct request *__rq = crq->request;
-
-		if (!rq_mergeable(__rq)) {
-			cfq_del_crq_hash(crq);
-			continue;
-		}
-
-		if (rq_hash_key(__rq) == offset)
-			return __rq;
-	}
-
-	return NULL;
-}
 
 /*
  * scheduler run of queue, if there are requests pending and no one in the
@@ -677,7 +625,6 @@ static void cfq_remove_request(struct request *rq)
 
 	list_del_init(&rq->queuelist);
 	cfq_del_crq_rb(crq);
-	cfq_del_crq_hash(crq);
 }
 
 static int
@@ -685,33 +632,19 @@ cfq_merge(request_queue_t *q, struct request **req, struct bio *bio)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct request *__rq;
-	int ret;
-
-	__rq = cfq_find_rq_hash(cfqd, bio->bi_sector);
-	if (__rq && elv_rq_merge_ok(__rq, bio)) {
-		ret = ELEVATOR_BACK_MERGE;
-		goto out;
-	}
 
 	__rq = cfq_find_rq_fmerge(cfqd, bio);
 	if (__rq && elv_rq_merge_ok(__rq, bio)) {
-		ret = ELEVATOR_FRONT_MERGE;
-		goto out;
+		*req = __rq;
+		return ELEVATOR_FRONT_MERGE;
 	}
 
 	return ELEVATOR_NO_MERGE;
-out:
-	*req = __rq;
-	return ret;
 }
 
 static void cfq_merged_request(request_queue_t *q, struct request *req)
 {
-	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct cfq_rq *crq = RQ_DATA(req);
-
-	cfq_del_crq_hash(crq);
-	cfq_add_crq_hash(cfqd, crq);
 
 	if (rq_rb_key(req) != crq->rb_key) {
 		struct cfq_queue *cfqq = crq->cfq_queue;
@@ -1825,9 +1758,6 @@ static void cfq_insert_request(request_queue_t *q, struct request *rq)
 
 	list_add_tail(&rq->queuelist, &cfqq->fifo);
 
-	if (rq_mergeable(rq))
-		cfq_add_crq_hash(cfqd, crq);
-
 	cfq_crq_enqueued(cfqd, cfqq, crq);
 }
 
@@ -2055,7 +1985,6 @@ cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 		RB_CLEAR_NODE(&crq->rb_node);
 		crq->rb_key = 0;
 		crq->request = rq;
-		INIT_HLIST_NODE(&crq->hash);
 		crq->cfq_queue = cfqq;
 		crq->io_context = cic;
 
@@ -2221,7 +2150,6 @@ static void cfq_exit_queue(elevator_t *e)
 	cfq_shutdown_timer_wq(cfqd);
 
 	mempool_destroy(cfqd->crq_pool);
-	kfree(cfqd->crq_hash);
 	kfree(cfqd->cfq_hash);
 	kfree(cfqd);
 }
@@ -2246,20 +2174,14 @@ static void *cfq_init_queue(request_queue_t *q, elevator_t *e)
 	INIT_LIST_HEAD(&cfqd->empty_list);
 	INIT_LIST_HEAD(&cfqd->cic_list);
 
-	cfqd->crq_hash = kmalloc(sizeof(struct hlist_head) * CFQ_MHASH_ENTRIES, GFP_KERNEL);
-	if (!cfqd->crq_hash)
-		goto out_crqhash;
-
 	cfqd->cfq_hash = kmalloc(sizeof(struct hlist_head) * CFQ_QHASH_ENTRIES, GFP_KERNEL);
 	if (!cfqd->cfq_hash)
-		goto out_cfqhash;
+		goto out_crqhash;
 
 	cfqd->crq_pool = mempool_create_slab_pool(BLKDEV_MIN_RQ, crq_pool);
 	if (!cfqd->crq_pool)
 		goto out_crqpool;
 
-	for (i = 0; i < CFQ_MHASH_ENTRIES; i++)
-		INIT_HLIST_HEAD(&cfqd->crq_hash[i]);
 	for (i = 0; i < CFQ_QHASH_ENTRIES; i++)
 		INIT_HLIST_HEAD(&cfqd->cfq_hash[i]);
 
@@ -2289,8 +2211,6 @@ static void *cfq_init_queue(request_queue_t *q, elevator_t *e)
 	return cfqd;
 out_crqpool:
 	kfree(cfqd->cfq_hash);
-out_cfqhash:
-	kfree(cfqd->crq_hash);
 out_crqhash:
 	kfree(cfqd);
 	return NULL;
