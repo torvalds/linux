@@ -771,6 +771,7 @@ void gfs2_glock_inode_squish(struct inode *inode)
 	list_add_tail(&gh.gh_list, &gl->gl_waiters2);
 	run_queue(gl);
 	spin_unlock(&gl->gl_spin);
+	wait_for_completion(&gh.gh_wait);
 	gfs2_holder_uninit(&gh);
 }
 
