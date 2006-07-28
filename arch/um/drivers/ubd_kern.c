@@ -981,8 +981,6 @@ static int prepare_request(struct request *req, struct io_thread_req *io_req)
 	__u64 offset;
 	int len;
 
-	if(req->rq_status == RQ_INACTIVE) return(1);
-
 	/* This should be impossible now */
 	if((rq_data_dir(req) == WRITE) && !dev->openflags.w){
 		printk("Write attempted on readonly ubd device %s\n",

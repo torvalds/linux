@@ -1710,7 +1710,6 @@ int ide_do_drive_cmd (ide_drive_t *drive, struct request *rq, ide_action_t actio
 	int must_wait = (action == ide_wait || action == ide_head_wait);
 
 	rq->errors = 0;
-	rq->rq_status = RQ_ACTIVE;
 
 	/*
 	 * we need to hold an extra reference to request for safe inspection

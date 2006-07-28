@@ -2423,8 +2423,8 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 #if IDETAPE_DEBUG_LOG
 #if 0
 	if (tape->debug_level >= 5)
-		printk(KERN_INFO "ide-tape: rq_status: %d, "
-			"dev: %s, cmd: %ld, errors: %d\n", rq->rq_status,
+		printk(KERN_INFO "ide-tape:  %d, "
+			"dev: %s, cmd: %ld, errors: %d\n",
 			 rq->rq_disk->disk_name, rq->cmd[0], rq->errors);
 #endif
 	if (tape->debug_level >= 2)

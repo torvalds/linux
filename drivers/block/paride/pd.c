@@ -719,7 +719,6 @@ static int pd_special_command(struct pd_unit *disk,
 
 	memset(&rq, 0, sizeof(rq));
 	rq.errors = 0;
-	rq.rq_status = RQ_ACTIVE;
 	rq.rq_disk = disk->gd;
 	rq.ref_count = 1;
 	rq.end_io_data = &wait;

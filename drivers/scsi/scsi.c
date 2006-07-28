@@ -1065,7 +1065,7 @@ int scsi_device_cancel(struct scsi_device *sdev, int recovery)
 
 	spin_lock_irqsave(&sdev->list_lock, flags);
 	list_for_each_entry(scmd, &sdev->cmd_list, list) {
-		if (scmd->request && scmd->request->rq_status != RQ_INACTIVE) {
+		if (scmd->request) {
 			/*
 			 * If we are unable to remove the timer, it means
 			 * that the command has already timed out or

@@ -243,8 +243,6 @@ struct request {
 
 	void *completion_data;
 
-	int rq_status;	/* should split this into a few status bits */
-	int errors;
 	struct gendisk *rq_disk;
 	unsigned long start_time;
 
@@ -262,13 +260,15 @@ struct request {
 
 	unsigned short ioprio;
 
-	int tag;
-
-	int ref_count;
 	request_queue_t *q;
 
 	void *special;
 	char *buffer;
+
+	int tag;
+	int errors;
+
+	int ref_count;
 
 	/*
 	 * when request is used as a packet command carrier
@@ -455,9 +455,6 @@ struct request_queue
 
 	struct mutex		sysfs_lock;
 };
-
-#define RQ_INACTIVE		(-1)
-#define RQ_ACTIVE		1
 
 #define QUEUE_FLAG_CLUSTER	0	/* cluster several segments into 1 */
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */

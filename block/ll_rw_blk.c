@@ -283,7 +283,6 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
 	INIT_LIST_HEAD(&rq->donelist);
 
 	rq->errors = 0;
-	rq->rq_status = RQ_ACTIVE;
 	rq->bio = rq->biotail = NULL;
 	INIT_HLIST_NODE(&rq->hash);
 	RB_CLEAR_NODE(&rq->rb_node);
@@ -2684,8 +2683,6 @@ void __blk_put_request(request_queue_t *q, struct request *req)
 		return;
 
 	elv_completed_request(q, req);
-
-	req->rq_status = RQ_INACTIVE;
 
 	/*
 	 * Request may not have originated from ll_rw_blk. if not,
