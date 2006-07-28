@@ -151,7 +151,6 @@ struct as_rq {
 
 	struct io_context *io_context;	/* The submitting task */
 
-	unsigned int is_sync;
 	enum arq_state state;
 };
 
@@ -241,7 +240,7 @@ static void as_put_io_context(struct as_rq *arq)
 
 	aic = arq->io_context->aic;
 
-	if (arq->is_sync == REQ_SYNC && aic) {
+	if (rq_is_sync(arq->request) && aic) {
 		spin_lock(&aic->lock);
 		set_bit(AS_TASK_IORUNNING, &aic->state);
 		aic->last_end_request = jiffies;
@@ -254,14 +253,13 @@ static void as_put_io_context(struct as_rq *arq)
 /*
  * rb tree support functions
  */
-#define ARQ_RB_ROOT(ad, arq)	(&(ad)->sort_list[(arq)->is_sync])
+#define RQ_RB_ROOT(ad, rq)	(&(ad)->sort_list[rq_is_sync((rq))])
 
 static void as_add_arq_rb(struct as_data *ad, struct request *rq)
 {
-	struct as_rq *arq = RQ_DATA(rq);
 	struct request *alias;
 
-	while ((unlikely(alias = elv_rb_add(ARQ_RB_ROOT(ad, arq), rq)))) {
+	while ((unlikely(alias = elv_rb_add(RQ_RB_ROOT(ad, rq), rq)))) {
 		as_move_to_dispatch(ad, RQ_DATA(alias));
 		as_antic_stop(ad);
 	}
@@ -269,7 +267,7 @@ static void as_add_arq_rb(struct as_data *ad, struct request *rq)
 
 static inline void as_del_arq_rb(struct as_data *ad, struct request *rq)
 {
-	elv_rb_del(ARQ_RB_ROOT(ad, RQ_DATA(rq)), rq);
+	elv_rb_del(RQ_RB_ROOT(ad, rq), rq);
 }
 
 /*
@@ -300,13 +298,13 @@ as_choose_req(struct as_data *ad, struct as_rq *arq1, struct as_rq *arq2)
 	if (arq2 == NULL)
 		return arq1;
 
-	data_dir = arq1->is_sync;
+	data_dir = rq_is_sync(arq1->request);
 
 	last = ad->last_sector[data_dir];
 	s1 = arq1->request->sector;
 	s2 = arq2->request->sector;
 
-	BUG_ON(data_dir != arq2->is_sync);
+	BUG_ON(data_dir != rq_is_sync(arq2->request));
 
 	/*
 	 * Strict one way elevator _except_ in the case where we allow
@@ -377,7 +375,7 @@ static struct as_rq *as_find_next_arq(struct as_data *ad, struct as_rq *arq)
 	if (rbnext)
 		next = RQ_DATA(rb_entry_rq(rbnext));
 	else {
-		const int data_dir = arq->is_sync;
+		const int data_dir = rq_is_sync(last);
 
 		rbnext = rb_first(&ad->sort_list[data_dir]);
 		if (rbnext && rbnext != &last->rb_node)
@@ -538,8 +536,7 @@ static void as_update_seekdist(struct as_data *ad, struct as_io_context *aic,
 static void as_update_iohist(struct as_data *ad, struct as_io_context *aic,
 				struct request *rq)
 {
-	struct as_rq *arq = RQ_DATA(rq);
-	int data_dir = arq->is_sync;
+	int data_dir = rq_is_sync(rq);
 	unsigned long thinktime = 0;
 	sector_t seek_dist;
 
@@ -674,7 +671,7 @@ static int as_can_break_anticipation(struct as_data *ad, struct as_rq *arq)
 		return 1;
 	}
 
-	if (arq && arq->is_sync == REQ_SYNC && as_close_req(ad, aic, arq)) {
+	if (arq && rq_is_sync(arq->request) && as_close_req(ad, aic, arq)) {
 		/*
 		 * Found a close request that is not one of ours.
 		 *
@@ -758,7 +755,7 @@ static int as_can_anticipate(struct as_data *ad, struct as_rq *arq)
  */
 static void as_update_arq(struct as_data *ad, struct as_rq *arq)
 {
-	const int data_dir = arq->is_sync;
+	const int data_dir = rq_is_sync(arq->request);
 
 	/* keep the next_arq cache up to date */
 	ad->next_arq[data_dir] = as_choose_req(ad, arq, ad->next_arq[data_dir]);
@@ -835,7 +832,7 @@ static void as_completed_request(request_queue_t *q, struct request *rq)
 	 * actually serviced. This should help devices with big TCQ windows
 	 * and writeback caches
 	 */
-	if (ad->new_batch && ad->batch_data_dir == arq->is_sync) {
+	if (ad->new_batch && ad->batch_data_dir == rq_is_sync(rq)) {
 		update_write_batch(ad);
 		ad->current_batch_expires = jiffies +
 				ad->batch_expire[REQ_SYNC];
@@ -868,7 +865,7 @@ out:
 static void as_remove_queued_request(request_queue_t *q, struct request *rq)
 {
 	struct as_rq *arq = RQ_DATA(rq);
-	const int data_dir = arq->is_sync;
+	const int data_dir = rq_is_sync(rq);
 	struct as_data *ad = q->elevator->elevator_data;
 
 	WARN_ON(arq->state != AS_RQ_QUEUED);
@@ -941,7 +938,7 @@ static inline int as_batch_expired(struct as_data *ad)
 static void as_move_to_dispatch(struct as_data *ad, struct as_rq *arq)
 {
 	struct request *rq = arq->request;
-	const int data_dir = arq->is_sync;
+	const int data_dir = rq_is_sync(rq);
 
 	BUG_ON(RB_EMPTY_NODE(&rq->rb_node));
 
@@ -1158,12 +1155,7 @@ static void as_add_request(request_queue_t *q, struct request *rq)
 
 	arq->state = AS_RQ_NEW;
 
-	if (rq_data_dir(arq->request) == READ
-			|| (arq->request->cmd_flags & REQ_RW_SYNC))
-		arq->is_sync = 1;
-	else
-		arq->is_sync = 0;
-	data_dir = arq->is_sync;
+	data_dir = rq_is_sync(rq);
 
 	arq->io_context = as_get_io_context();
 
