@@ -265,7 +265,7 @@ arcmsr_free_sysfs_attr(struct AdapterControlBlock *acb) {
 static ssize_t
 arcmsr_attr_host_driver_version(struct class_device *cdev, char *buf) {
 	return snprintf(buf, PAGE_SIZE,
-			"ARCMSR: %s\n",
+			"%s\n",
 			ARCMSR_DRIVER_VERSION);
 }
 
@@ -274,7 +274,7 @@ arcmsr_attr_host_driver_posted_cmd(struct class_device *cdev, char *buf) {
 	struct Scsi_Host *host = class_to_shost(cdev);
 	struct AdapterControlBlock *acb = (struct AdapterControlBlock *) host->hostdata;
 	return snprintf(buf, PAGE_SIZE,
-			"Current commands posted:     %4d\n",
+			"%4d\n",
 			atomic_read(&acb->ccboutstandingcount));
 }
 
@@ -283,7 +283,7 @@ arcmsr_attr_host_driver_reset(struct class_device *cdev, char *buf) {
 	struct Scsi_Host *host = class_to_shost(cdev);
 	struct AdapterControlBlock *acb = (struct AdapterControlBlock *) host->hostdata;
 	return snprintf(buf, PAGE_SIZE,
-			"SCSI Host Resets:            %4d\n",
+			"%4d\n",
 			acb->num_resets);
 }
 
@@ -292,7 +292,7 @@ arcmsr_attr_host_driver_abort(struct class_device *cdev, char *buf) {
 	struct Scsi_Host *host = class_to_shost(cdev);
 	struct AdapterControlBlock *acb = (struct AdapterControlBlock *) host->hostdata;
 	return snprintf(buf, PAGE_SIZE,
-			"SCSI Aborts/Timeouts:        %4d\n",
+			"%4d\n",
 			acb->num_aborts);
 }
 
@@ -301,7 +301,7 @@ arcmsr_attr_host_fw_model(struct class_device *cdev, char *buf) {
     struct Scsi_Host *host = class_to_shost(cdev);
 	struct AdapterControlBlock *acb = (struct AdapterControlBlock *) host->hostdata;
 	return snprintf(buf, PAGE_SIZE,
-			"Adapter Model: %s\n",
+			"%s\n",
 			acb->firm_model);
 }
 
@@ -311,7 +311,7 @@ arcmsr_attr_host_fw_version(struct class_device *cdev, char *buf) {
 	struct AdapterControlBlock *acb = (struct AdapterControlBlock *) host->hostdata;
 
 	return snprintf(buf, PAGE_SIZE,
-			"Firmware Version:  %s\n",
+			"%s\n",
 			acb->firm_version);
 }
 
@@ -321,7 +321,7 @@ arcmsr_attr_host_fw_request_len(struct class_device *cdev, char *buf) {
 	struct AdapterControlBlock *acb = (struct AdapterControlBlock *) host->hostdata;
 
 	return snprintf(buf, PAGE_SIZE,
-			"Reguest Lenth: %4d\n",
+			"%4d\n",
 			acb->firm_request_len);
 }
 
@@ -331,7 +331,7 @@ arcmsr_attr_host_fw_numbers_queue(struct class_device *cdev, char *buf) {
 	struct AdapterControlBlock *acb = (struct AdapterControlBlock *) host->hostdata;
 
 	return snprintf(buf, PAGE_SIZE,
-			"Numbers of Queue: %4d\n",
+			"%4d\n",
 			acb->firm_numbers_queue);
 }
 
@@ -341,7 +341,7 @@ arcmsr_attr_host_fw_sdram_size(struct class_device *cdev, char *buf) {
 	struct AdapterControlBlock *acb = (struct AdapterControlBlock *) host->hostdata;
 
 	return snprintf(buf, PAGE_SIZE,
-			"SDRAM Size: %4d\n",
+			"%4d\n",
 			acb->firm_sdram_size);
 }
 
@@ -351,7 +351,7 @@ arcmsr_attr_host_fw_hd_channels(struct class_device *cdev, char *buf) {
 	struct AdapterControlBlock *acb = (struct AdapterControlBlock *) host->hostdata;
 
 	return snprintf(buf, PAGE_SIZE,
-			"Hard Disk Channels: %4d\n",
+			"%4d\n",
 			acb->firm_hd_channels);
 }
 
