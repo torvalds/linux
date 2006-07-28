@@ -192,7 +192,7 @@ int dialog_checklist(const char *title, const char *prompt, int height,
 	wnoutrefresh(list);
 	doupdate();
 
-	while (key != ESC) {
+	while (key != KEY_ESC) {
 		key = wgetch(dialog);
 
 		for (i = 0; i < max_choice; i++) {
@@ -298,8 +298,10 @@ int dialog_checklist(const char *title, const char *prompt, int height,
 			break;
 		case 'X':
 		case 'x':
-			key = ESC;
-		case ESC:
+			key = KEY_ESC;
+			break;
+		case KEY_ESC:
+			key = on_key_esc(dialog);
 			break;
 		}
 
@@ -308,5 +310,5 @@ int dialog_checklist(const char *title, const char *prompt, int height,
 	}
 	delwin(list);
 	delwin(dialog);
-	return 255;		/* ESC pressed */
+	return key;		/* ESC pressed */
 }

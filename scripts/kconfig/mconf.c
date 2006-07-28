@@ -608,7 +608,7 @@ static void conf(struct menu *menu)
 				  _(menu_instructions),
 				  rows, cols, rows - 10,
 				  active_menu, &s_scroll);
-		if (res == 1 || res == 255)
+		if (res == 1 || res == KEY_ESC)
 			break;
 		if (!item_activate_selected())
 			continue;
@@ -754,7 +754,7 @@ static void conf_choice(struct menu *menu)
 			} else
 				show_help(menu);
 			break;
-		case 255:
+		case KEY_ESC:
 			return;
 		}
 	}
@@ -794,7 +794,7 @@ static void conf_string(struct menu *menu)
 		case 1:
 			show_help(menu);
 			break;
-		case 255:
+		case KEY_ESC:
 			return;
 		}
 	}
@@ -819,7 +819,7 @@ static void conf_load(void)
 		case 1:
 			show_helptext(_("Load Alternate Configuration"), load_config_help);
 			break;
-		case 255:
+		case KEY_ESC:
 			return;
 		}
 	}
@@ -843,7 +843,7 @@ static void conf_save(void)
 		case 1:
 			show_helptext(_("Save Alternate Configuration"), save_config_help);
 			break;
-		case 255:
+		case KEY_ESC:
 			return;
 		}
 	}
@@ -883,12 +883,15 @@ int main(int ac, char **av)
 	init_wsize();
 	reset_dialog();
 	init_dialog(menu_backtitle);
-	conf(&rootmenu);
-	reset_dialog();
-	res = dialog_yesno(NULL,
-			   _("Do you wish to save your "
-			     "new kernel configuration?"),
-			   5, 60);
+	do {
+		conf(&rootmenu);
+		reset_dialog();
+		res = dialog_yesno(NULL,
+				   _("Do you wish to save your "
+				     "new kernel configuration?\n"
+				     "<ESC><ESC> to continue."),
+				   6, 60);
+	} while (res == KEY_ESC);
 	end_dialog();
 	if (res == 0) {
 		if (conf_write(NULL)) {

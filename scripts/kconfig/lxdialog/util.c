@@ -477,6 +477,39 @@ int first_alpha(const char *string, const char *exempt)
 	return 0;
 }
 
+/*
+ * ncurses uses ESC to detect escaped char sequences. This resutl in
+ * a small timeout before ESC is actually delivered to the application.
+ * lxdialog suggest <ESC> <ESC> which is correctly translated to two
+ * times esc. But then we need to ignore the second esc to avoid stepping
+ * out one menu too much. Filter away all escaped key sequences since
+ * keypad(FALSE) turn off ncurses support for escape sequences - and thats
+ * needed to make notimeout() do as expected.
+ */
+int on_key_esc(WINDOW *win)
+{
+	int key;
+	int key2;
+	int key3;
+
+	nodelay(win, TRUE);
+	keypad(win, FALSE);
+	key = wgetch(win);
+	key2 = wgetch(win);
+	do {
+		key3 = wgetch(win);
+	} while (key3 != ERR);
+	nodelay(win, FALSE);
+	keypad(win, TRUE);
+	if (key == KEY_ESC && key2 == ERR)
+		return KEY_ESC;
+	else if (key != ERR && key != KEY_ESC && key2 == ERR)
+		ungetch(key);
+
+	return -1;
+}
+
+
 struct dialog_list *item_cur;
 struct dialog_list item_nil;
 struct dialog_list *item_head;

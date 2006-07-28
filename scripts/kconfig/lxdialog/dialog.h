@@ -48,7 +48,7 @@
 
 #define TR(params) _tracef params
 
-#define ESC 27
+#define KEY_ESC 27
 #define TAB 9
 #define MAX_LEN 2048
 #define BUF_SIZE (10*1024)
@@ -179,6 +179,8 @@ int item_is_tag(char tag);
 	for (item_cur = item_head ? item_head: item_cur; \
 	     item_cur && (item_cur != &item_nil); item_cur = item_cur->next)
 
+/* generic key handlers */
+int on_key_esc(WINDOW *win);
 
 void init_dialog(const char *backtitle);
 void reset_dialog(void);

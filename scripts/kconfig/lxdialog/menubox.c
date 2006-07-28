@@ -263,7 +263,7 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 	wmove(menu, choice, item_x + 1);
 	wrefresh(menu);
 
-	while (key != ESC) {
+	while (key != KEY_ESC) {
 		key = wgetch(menu);
 
 		if (key < 256 && isalpha(key))
@@ -402,12 +402,14 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 			return button;
 		case 'e':
 		case 'x':
-			key = ESC;
-		case ESC:
+			key = KEY_ESC;
+			break;
+		case KEY_ESC:
+			key = on_key_esc(menu);
 			break;
 		}
 	}
 	delwin(menu);
 	delwin(dialog);
-	return 255;		/* ESC pressed */
+	return key;		/* ESC pressed */
 }

@@ -69,7 +69,7 @@ int dialog_yesno(const char *title, const char *prompt, int height, int width)
 
 	print_buttons(dialog, height, width, 0);
 
-	while (key != ESC) {
+	while (key != KEY_ESC) {
 		key = wgetch(dialog);
 		switch (key) {
 		case 'Y':
@@ -93,11 +93,12 @@ int dialog_yesno(const char *title, const char *prompt, int height, int width)
 		case '\n':
 			delwin(dialog);
 			return button;
-		case ESC:
+		case KEY_ESC:
+			key = on_key_esc(dialog);
 			break;
 		}
 	}
 
 	delwin(dialog);
-	return 255;		/* ESC pressed */
+	return key;		/* ESC pressed */
 }

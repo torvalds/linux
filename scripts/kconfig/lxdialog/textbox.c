@@ -92,7 +92,7 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 	wmove(dialog, cur_y, cur_x);	/* Restore cursor position */
 	wrefresh(dialog);
 
-	while ((key != ESC) && (key != '\n')) {
+	while ((key != KEY_ESC) && (key != '\n')) {
 		key = wgetch(dialog);
 		switch (key) {
 		case 'E':	/* Exit */
@@ -228,13 +228,14 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 			wmove(dialog, cur_y, cur_x);
 			wrefresh(dialog);
 			break;
-		case ESC:
+		case KEY_ESC:
+			key = on_key_esc(dialog);
 			break;
 		}
 	}
 	delwin(text);
 	delwin(dialog);
-	return 255;		/* ESC pressed */
+	return key;		/* ESC pressed */
 }
 
 /*

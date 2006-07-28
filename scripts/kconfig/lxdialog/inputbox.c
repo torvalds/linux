@@ -106,7 +106,7 @@ int dialog_inputbox(const char *title, const char *prompt, int height, int width
 
 	wrefresh(dialog);
 
-	while (key != ESC) {
+	while (key != KEY_ESC) {
 		key = wgetch(dialog);
 
 		if (button == -1) {	/* Input box selected */
@@ -215,12 +215,14 @@ int dialog_inputbox(const char *title, const char *prompt, int height, int width
 			return (button == -1 ? 0 : button);
 		case 'X':
 		case 'x':
-			key = ESC;
-		case ESC:
+			key = KEY_ESC;
+			break;
+		case KEY_ESC:
+			key = on_key_esc(dialog);
 			break;
 		}
 	}
 
 	delwin(dialog);
-	return 255;		/* ESC pressed */
+	return KEY_ESC;		/* ESC pressed */
 }
