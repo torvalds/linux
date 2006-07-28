@@ -20,7 +20,6 @@ int selinux_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir);
 int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
 			struct xfrm_policy *xp, struct flowi *fl);
 int selinux_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm);
-int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *fl, int ckall);
 
 
 /*
@@ -41,6 +40,7 @@ int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
 			struct avc_audit_data *ad);
 u32 selinux_socket_getpeer_stream(struct sock *sk);
 u32 selinux_socket_getpeer_dgram(struct sk_buff *skb);
+int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall);
 #else
 static inline int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
 			struct avc_audit_data *ad)
@@ -62,6 +62,11 @@ static inline int selinux_socket_getpeer_stream(struct sock *sk)
 static inline int selinux_socket_getpeer_dgram(struct sk_buff *skb)
 {
 	return SECSID_NULL;
+}
+static inline int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
+{
+	*sid = SECSID_NULL;
+	return 0;
 }
 #endif
 

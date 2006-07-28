@@ -3591,6 +3591,11 @@ int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	err = selinux_xfrm_decode_session(skb, &peersid, 0);
 	BUG_ON(err);
 
+	if (peersid == SECSID_NULL) {
+		req->secid = sksec->sid;
+		return 0;
+	}
+
 	err = security_sid_mls_copy(sksec->sid, peersid, &newsid);
 	if (err)
 		return err;
