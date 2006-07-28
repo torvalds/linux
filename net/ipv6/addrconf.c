@@ -1869,15 +1869,21 @@ err_exit:
 /*
  *	Manual configuration of address on an interface
  */
-static int inet6_addr_add(int ifindex, struct in6_addr *pfx, int plen)
+static int inet6_addr_add(int ifindex, struct in6_addr *pfx, int plen,
+			  __u32 prefered_lft, __u32 valid_lft)
 {
 	struct inet6_ifaddr *ifp;
 	struct inet6_dev *idev;
 	struct net_device *dev;
+	__u8 ifa_flags = 0;
 	int scope;
 
 	ASSERT_RTNL();
 	
+	/* check the lifetime */
+	if (!valid_lft || prefered_lft > valid_lft)
+		return -EINVAL;
+
 	if ((dev = __dev_get_by_index(ifindex)) == NULL)
 		return -ENODEV;
 	
@@ -1889,10 +1895,29 @@ static int inet6_addr_add(int ifindex, struct in6_addr *pfx, int plen)
 
 	scope = ipv6_addr_scope(pfx);
 
-	ifp = ipv6_add_addr(idev, pfx, plen, scope, IFA_F_PERMANENT);
+	if (valid_lft == INFINITY_LIFE_TIME)
+		ifa_flags |= IFA_F_PERMANENT;
+	else if (valid_lft >= 0x7FFFFFFF/HZ)
+		valid_lft = 0x7FFFFFFF/HZ;
+
+	if (prefered_lft == 0)
+		ifa_flags |= IFA_F_DEPRECATED;
+	else if ((prefered_lft >= 0x7FFFFFFF/HZ) &&
+		 (prefered_lft != INFINITY_LIFE_TIME))
+		prefered_lft = 0x7FFFFFFF/HZ;
+
+	ifp = ipv6_add_addr(idev, pfx, plen, scope, ifa_flags);
+
 	if (!IS_ERR(ifp)) {
+		spin_lock(&ifp->lock);
+		ifp->valid_lft = valid_lft;
+		ifp->prefered_lft = prefered_lft;
+		ifp->tstamp = jiffies;
+		spin_unlock(&ifp->lock);
+
 		addrconf_dad_start(ifp, 0);
 		in6_ifa_put(ifp);
+		addrconf_verify(0);
 		return 0;
 	}
 
@@ -1945,7 +1970,8 @@ int addrconf_add_ifaddr(void __user *arg)
 		return -EFAULT;
 
 	rtnl_lock();
-	err = inet6_addr_add(ireq.ifr6_ifindex, &ireq.ifr6_addr, ireq.ifr6_prefixlen);
+	err = inet6_addr_add(ireq.ifr6_ifindex, &ireq.ifr6_addr, ireq.ifr6_prefixlen,
+			     INFINITY_LIFE_TIME, INFINITY_LIFE_TIME);
 	rtnl_unlock();
 	return err;
 }
@@ -2870,6 +2896,7 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct rtattr  **rta = arg;
 	struct ifaddrmsg *ifm = NLMSG_DATA(nlh);
 	struct in6_addr *pfx;
+	__u32 valid_lft = INFINITY_LIFE_TIME, prefered_lft = INFINITY_LIFE_TIME;
 
 	pfx = NULL;
 	if (rta[IFA_ADDRESS-1]) {
@@ -2886,7 +2913,18 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if (pfx == NULL)
 		return -EINVAL;
 
-	return inet6_addr_add(ifm->ifa_index, pfx, ifm->ifa_prefixlen);
+	if (rta[IFA_CACHEINFO-1]) {
+		struct ifa_cacheinfo *ci;
+		if (RTA_PAYLOAD(rta[IFA_CACHEINFO-1]) < sizeof(*ci))
+			return -EINVAL;
+		ci = RTA_DATA(rta[IFA_CACHEINFO-1]);
+		valid_lft = ci->ifa_valid;
+		prefered_lft = ci->ifa_prefered;
+	}
+
+	return inet6_addr_add(ifm->ifa_index, pfx, ifm->ifa_prefixlen,
+			      prefered_lft, valid_lft);
+
 }
 
 /* Maximum length of ifa_cacheinfo attributes */
