@@ -155,6 +155,7 @@ struct alc_spec {
 	/* channel model */
 	const struct hda_channel_mode *channel_mode;
 	int num_channel_mode;
+	int need_dac_fix;
 
 	/* PCM information */
 	struct hda_pcm pcm_rec[3];	/* used in alc_build_pcms() */
@@ -192,6 +193,7 @@ struct alc_config_preset {
 	hda_nid_t dig_in_nid;
 	unsigned int num_channel_mode;
 	const struct hda_channel_mode *channel_mode;
+	int need_dac_fix;
 	unsigned int num_mux_defs;
 	const struct hda_input_mux *input_mux;
 	void (*unsol_event)(struct hda_codec *, unsigned int);
@@ -264,9 +266,12 @@ static int alc_ch_mode_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
-	return snd_hda_ch_mode_put(codec, ucontrol, spec->channel_mode,
-				   spec->num_channel_mode,
-				   &spec->multiout.max_channels);
+	int err = snd_hda_ch_mode_put(codec, ucontrol, spec->channel_mode,
+				      spec->num_channel_mode,
+				      &spec->multiout.max_channels);
+	if (! err && spec->need_dac_fix)
+		spec->multiout.num_dacs = spec->multiout.max_channels / 2;
+	return err;
 }
 
 /*
@@ -546,6 +551,7 @@ static void setup_preset(struct alc_spec *spec,
 	
 	spec->channel_mode = preset->channel_mode;
 	spec->num_channel_mode = preset->num_channel_mode;
+	spec->need_dac_fix = preset->need_dac_fix;
 
 	spec->multiout.max_channels = spec->channel_mode[0].channels;
 
@@ -2278,6 +2284,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.dac_nids = alc880_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
 		.channel_mode = alc880_threestack_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_3ST_DIG] = {
@@ -2288,6 +2295,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.dig_out_nid = ALC880_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
 		.channel_mode = alc880_threestack_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_TCL_S700] = {
@@ -2380,6 +2388,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.dac_nids = alc880_asus_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc880_asus_modes),
 		.channel_mode = alc880_asus_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_ASUS_DIG] = {
@@ -2391,6 +2400,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.dig_out_nid = ALC880_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc880_asus_modes),
 		.channel_mode = alc880_asus_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_ASUS_DIG2] = {
@@ -2402,6 +2412,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.dig_out_nid = ALC880_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc880_asus_modes),
 		.channel_mode = alc880_asus_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_ASUS_W1V] = {
@@ -2413,6 +2424,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.dig_out_nid = ALC880_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc880_asus_modes),
 		.channel_mode = alc880_asus_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_UNIWILL_DIG] = {
@@ -2423,6 +2435,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.dig_out_nid = ALC880_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc880_asus_modes),
 		.channel_mode = alc880_asus_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_CLEVO] = {
@@ -2434,6 +2447,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.hp_nid = 0x03,
 		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
 		.channel_mode = alc880_threestack_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_LG] = {
@@ -2445,6 +2459,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.dig_out_nid = ALC880_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc880_lg_ch_modes),
 		.channel_mode = alc880_lg_ch_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc880_lg_capture_source,
 		.unsol_event = alc880_lg_unsol_event,
 		.init_hook = alc880_lg_automute,
@@ -4437,6 +4452,7 @@ static struct alc_config_preset alc882_presets[] = {
 		.dig_in_nid = ALC882_DIGIN_NID,
 		.num_channel_mode = ARRAY_SIZE(alc882_ch_modes),
 		.channel_mode = alc882_ch_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc882_capture_source,
 	},
 	[ALC882_6ST_DIG] = {
@@ -5075,6 +5091,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.dig_in_nid = ALC883_DIGIN_NID,
 		.num_channel_mode = ARRAY_SIZE(alc883_3ST_6ch_modes),
 		.channel_mode = alc883_3ST_6ch_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc883_capture_source,
 	},	
 	[ALC883_3ST_6ch] = {
@@ -5086,6 +5103,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.adc_nids = alc883_adc_nids,
 		.num_channel_mode = ARRAY_SIZE(alc883_3ST_6ch_modes),
 		.channel_mode = alc883_3ST_6ch_modes,
+		.need_dac_fix = 1,
 		.input_mux = &alc883_capture_source,
 	},	
 	[ALC883_6ST_DIG] = {
@@ -6554,6 +6572,7 @@ static struct alc_config_preset alc861_presets[] = {
 		.dac_nids = alc861_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc861_threestack_modes),
 		.channel_mode = alc861_threestack_modes,
+		.need_dac_fix = 1,
 		.num_adc_nids = ARRAY_SIZE(alc861_adc_nids),
 		.adc_nids = alc861_adc_nids,
 		.input_mux = &alc861_capture_source,
@@ -6566,6 +6585,7 @@ static struct alc_config_preset alc861_presets[] = {
 		.dig_out_nid = ALC861_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc861_threestack_modes),
 		.channel_mode = alc861_threestack_modes,
+		.need_dac_fix = 1,
 		.num_adc_nids = ARRAY_SIZE(alc861_adc_nids),
 		.adc_nids = alc861_adc_nids,
 		.input_mux = &alc861_capture_source,
@@ -6589,6 +6609,7 @@ static struct alc_config_preset alc861_presets[] = {
 		.dac_nids = alc660_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc861_threestack_modes),
 		.channel_mode = alc861_threestack_modes,
+		.need_dac_fix = 1,
 		.num_adc_nids = ARRAY_SIZE(alc861_adc_nids),
 		.adc_nids = alc861_adc_nids,
 		.input_mux = &alc861_capture_source,
