@@ -267,6 +267,7 @@ static const u32 treble_table[41][5] = {
 	{ 0x37c4448b, 0xa45ef51d, 0x262f3267, 0x081e36dc, 0xfd8f5d14 }
 };
 
+/* dB gain = (float) 20 * log10( float(db_table_value) / 0x8000000 ) */
 static const u32 db_table[101] = {
 	0x00000000, 0x01571f82, 0x01674b41, 0x01783a1b, 0x0189f540,
 	0x019c8651, 0x01aff763, 0x01c45306, 0x01d9a446, 0x01eff6b8,
