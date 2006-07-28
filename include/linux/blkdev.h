@@ -579,12 +579,6 @@ static inline void blk_clear_queue_full(struct request_queue *q, int rw)
 	(!((rq)->cmd_flags & RQ_NOMERGE_FLAGS) && blk_fs_request((rq)))
 
 /*
- * noop, requests are automagically marked as active/inactive by I/O
- * scheduler -- see elv_next_request
- */
-#define blk_queue_headactive(q, head_active)
-
-/*
  * q->prep_rq_fn return values
  */
 #define BLKPREP_OK		0	/* serve it */
@@ -620,11 +614,6 @@ static inline void blk_queue_bounce(request_queue_t *q, struct bio **bio)
 #define rq_for_each_bio(_bio, rq)	\
 	if ((rq->bio))			\
 		for (_bio = (rq)->bio; _bio; _bio = _bio->bi_next)
-
-struct sec_size {
-	unsigned block_size;
-	unsigned block_size_bits;
-};
 
 extern int blk_register_queue(struct gendisk *disk);
 extern void blk_unregister_queue(struct gendisk *disk);
@@ -689,16 +678,6 @@ extern int end_that_request_chunk(struct request *, int, int);
 extern void end_that_request_last(struct request *, int);
 extern void end_request(struct request *req, int uptodate);
 extern void blk_complete_request(struct request *);
-
-static inline int rq_all_done(struct request *rq, unsigned int nr_bytes)
-{
-	if (blk_fs_request(rq))
-		return (nr_bytes >= (rq->hard_nr_sectors << 9));
-	else if (blk_pc_request(rq))
-		return nr_bytes >= rq->data_len;
-
-	return 0;
-}
 
 /*
  * end_that_request_first/chunk() takes an uptodate argument. we account
@@ -806,14 +785,6 @@ static inline int queue_dma_alignment(request_queue_t *q)
 
 	return retval;
 }
-
-static inline int bdev_dma_aligment(struct block_device *bdev)
-{
-	return queue_dma_alignment(bdev_get_queue(bdev));
-}
-
-#define blk_finished_io(nsects)	do { } while (0)
-#define blk_started_io(nsects)	do { } while (0)
 
 /* assumes size > 256 */
 static inline unsigned int blksize_bits(unsigned int size)
