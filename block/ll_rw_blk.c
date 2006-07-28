@@ -2003,8 +2003,7 @@ static inline void blk_free_request(request_queue_t *q, struct request *rq)
 }
 
 static inline struct request *
-blk_alloc_request(request_queue_t *q, int rw, struct bio *bio,
-		  int priv, gfp_t gfp_mask)
+blk_alloc_request(request_queue_t *q, int rw, int priv, gfp_t gfp_mask)
 {
 	struct request *rq = mempool_alloc(q->rq.rq_pool, gfp_mask);
 
@@ -2018,7 +2017,7 @@ blk_alloc_request(request_queue_t *q, int rw, struct bio *bio,
 	rq->cmd_flags = rw | REQ_ALLOCED;
 
 	if (priv) {
-		if (unlikely(elv_set_request(q, rq, bio, gfp_mask))) {
+		if (unlikely(elv_set_request(q, rq, gfp_mask))) {
 			mempool_free(rq, q->rq.rq_pool);
 			return NULL;
 		}
@@ -2109,7 +2108,7 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 	struct io_context *ioc = NULL;
 	int may_queue, priv;
 
-	may_queue = elv_may_queue(q, rw, bio);
+	may_queue = elv_may_queue(q, rw);
 	if (may_queue == ELV_MQUEUE_NO)
 		goto rq_starved;
 
@@ -2157,7 +2156,7 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 
 	spin_unlock_irq(q->queue_lock);
 
-	rq = blk_alloc_request(q, rw, bio, priv, gfp_mask);
+	rq = blk_alloc_request(q, rw, priv, gfp_mask);
 	if (unlikely(!rq)) {
 		/*
 		 * Allocation failed presumably due to memory. Undo anything

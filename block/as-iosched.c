@@ -1284,7 +1284,7 @@ static void as_work_handler(void *data)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
-static int as_may_queue(request_queue_t *q, int rw, struct bio *bio)
+static int as_may_queue(request_queue_t *q, int rw)
 {
 	int ret = ELV_MQUEUE_MAY;
 	struct as_data *ad = q->elevator->elevator_data;

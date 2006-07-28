@@ -1752,7 +1752,7 @@ __cfq_may_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	return ELV_MQUEUE_MAY;
 }
 
-static int cfq_may_queue(request_queue_t *q, int rw, struct bio *bio)
+static int cfq_may_queue(request_queue_t *q, int rw)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct task_struct *tsk = current;
@@ -1817,8 +1817,7 @@ static void cfq_put_request(request_queue_t *q, struct request *rq)
  * Allocate cfq data structures associated with this request.
  */
 static int
-cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
-		gfp_t gfp_mask)
+cfq_set_request(request_queue_t *q, struct request *rq, gfp_t gfp_mask)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct task_struct *tsk = current;
