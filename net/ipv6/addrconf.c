@@ -3165,6 +3165,62 @@ static int inet6_dump_ifacaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	return inet6_dump_addr(skb, cb, type);
 }
 
+static int inet6_rtm_getaddr(struct sk_buff *in_skb,
+		struct nlmsghdr* nlh, void *arg)
+{
+	struct rtattr **rta = arg;
+	struct ifaddrmsg *ifm = NLMSG_DATA(nlh);
+	struct in6_addr *addr = NULL;
+	struct net_device *dev = NULL;
+	struct inet6_ifaddr *ifa;
+	struct sk_buff *skb;
+	int size = NLMSG_SPACE(sizeof(struct ifaddrmsg) + INET6_IFADDR_RTA_SPACE);
+	int err;
+
+	if (rta[IFA_ADDRESS-1]) {
+		if (RTA_PAYLOAD(rta[IFA_ADDRESS-1]) < sizeof(*addr))
+			return -EINVAL;
+		addr = RTA_DATA(rta[IFA_ADDRESS-1]);
+	}
+	if (rta[IFA_LOCAL-1]) {
+		if (RTA_PAYLOAD(rta[IFA_LOCAL-1]) < sizeof(*addr) ||
+		    (addr && memcmp(addr, RTA_DATA(rta[IFA_LOCAL-1]), sizeof(*addr))))
+			return -EINVAL;
+		addr = RTA_DATA(rta[IFA_LOCAL-1]);
+	}
+	if (addr == NULL)
+		return -EINVAL;
+
+	if (ifm->ifa_index)
+		dev = __dev_get_by_index(ifm->ifa_index);
+
+	if ((ifa = ipv6_get_ifaddr(addr, dev, 1)) == NULL)
+		return -EADDRNOTAVAIL;
+
+	if ((skb = alloc_skb(size, GFP_KERNEL)) == NULL) {
+		err = -ENOBUFS;
+		goto out;
+	}
+
+	NETLINK_CB(skb).dst_pid = NETLINK_CB(in_skb).pid;
+	err = inet6_fill_ifaddr(skb, ifa, NETLINK_CB(in_skb).pid,
+				nlh->nlmsg_seq, RTM_NEWADDR, 0);
+	if (err < 0) {
+		err = -EMSGSIZE;
+		goto out_free;
+	}
+
+	err = netlink_unicast(rtnl, skb, NETLINK_CB(in_skb).pid, MSG_DONTWAIT);
+	if (err > 0)
+		err = 0;
+out:
+	in6_ifa_put(ifa);
+	return err;
+out_free:
+	kfree_skb(skb);
+	goto out;
+}
+
 static void inet6_ifa_notify(int event, struct inet6_ifaddr *ifa)
 {
 	struct sk_buff *skb;
@@ -3407,7 +3463,8 @@ static struct rtnetlink_link inet6_rtnetlink_table[RTM_NR_MSGTYPES] = {
 	[RTM_GETLINK - RTM_BASE] = { .dumpit	= inet6_dump_ifinfo, },
 	[RTM_NEWADDR - RTM_BASE] = { .doit	= inet6_rtm_newaddr, },
 	[RTM_DELADDR - RTM_BASE] = { .doit	= inet6_rtm_deladdr, },
-	[RTM_GETADDR - RTM_BASE] = { .dumpit	= inet6_dump_ifaddr, },
+	[RTM_GETADDR - RTM_BASE] = { .doit	= inet6_rtm_getaddr,
+				     .dumpit	= inet6_dump_ifaddr, },
 	[RTM_GETMULTICAST - RTM_BASE] = { .dumpit = inet6_dump_ifmcaddr, },
 	[RTM_GETANYCAST - RTM_BASE] = { .dumpit	= inet6_dump_ifacaddr, },
 	[RTM_NEWROUTE - RTM_BASE] = { .doit	= inet6_rtm_newroute, },
