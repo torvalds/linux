@@ -12,7 +12,7 @@
 #define GDLM_PLOCK_MISC_NAME		"lock_dlm_plock"
 
 #define GDLM_PLOCK_VERSION_MAJOR	1
-#define GDLM_PLOCK_VERSION_MINOR	0
+#define GDLM_PLOCK_VERSION_MINOR	1
 #define GDLM_PLOCK_VERSION_PATCH	0
 
 enum {
@@ -34,6 +34,7 @@ struct gdlm_plock_info {
 	__u64 number;
 	__u64 start;
 	__u64 end;
+	__u64 owner;
 };
 
 #endif

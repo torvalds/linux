@@ -77,6 +77,7 @@ int gdlm_plock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 	op->info.number		= name->ln_number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
+	op->info.owner		= (__u64)(long) fl->fl_owner;
 
 	send_op(op);
 	wait_event(recv_wq, (op->done != 0));
@@ -122,6 +123,7 @@ int gdlm_punlock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 	op->info.number		= name->ln_number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
+	op->info.owner		= (__u64)(long) fl->fl_owner;
 
 	send_op(op);
 	wait_event(recv_wq, (op->done != 0));
