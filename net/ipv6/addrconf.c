@@ -2895,6 +2895,55 @@ inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 }
 
 static int
+inet6_addr_modify(int ifindex, struct in6_addr *pfx,
+		  __u32 prefered_lft, __u32 valid_lft)
+{
+	struct inet6_ifaddr *ifp = NULL;
+	struct net_device *dev;
+	int ifa_flags = 0;
+
+	if ((dev = __dev_get_by_index(ifindex)) == NULL)
+		return -ENODEV;
+
+	if (!(dev->flags&IFF_UP))
+		return -ENETDOWN;
+
+	if (!valid_lft || (prefered_lft > valid_lft))
+		return -EINVAL;
+
+	ifp = ipv6_get_ifaddr(pfx, dev, 1);
+	if (ifp == NULL)
+		return -ENOENT;
+
+	if (valid_lft == INFINITY_LIFE_TIME)
+		ifa_flags = IFA_F_PERMANENT;
+	else if (valid_lft >= 0x7FFFFFFF/HZ)
+		valid_lft = 0x7FFFFFFF/HZ;
+
+	if (prefered_lft == 0)
+		ifa_flags = IFA_F_DEPRECATED;
+	else if ((prefered_lft >= 0x7FFFFFFF/HZ) &&
+		 (prefered_lft != INFINITY_LIFE_TIME))
+		prefered_lft = 0x7FFFFFFF/HZ;
+
+	spin_lock_bh(&ifp->lock);
+	ifp->flags = (ifp->flags & ~(IFA_F_DEPRECATED|IFA_F_PERMANENT)) | ifa_flags;
+
+	ifp->tstamp = jiffies;
+	ifp->valid_lft = valid_lft;
+	ifp->prefered_lft = prefered_lft;
+
+	spin_unlock_bh(&ifp->lock);
+	if (!(ifp->flags&IFA_F_TENTATIVE))
+		ipv6_ifa_notify(0, ifp);
+	in6_ifa_put(ifp);
+
+	addrconf_verify(0);
+
+	return 0;
+}
+
+static int
 inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct rtattr  **rta = arg;
@@ -2924,6 +2973,14 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		ci = RTA_DATA(rta[IFA_CACHEINFO-1]);
 		valid_lft = ci->ifa_valid;
 		prefered_lft = ci->ifa_prefered;
+	}
+
+	if (nlh->nlmsg_flags & NLM_F_REPLACE) {
+		int ret;
+		ret = inet6_addr_modify(ifm->ifa_index, pfx,
+					prefered_lft, valid_lft);
+		if (ret == 0 || !(nlh->nlmsg_flags & NLM_F_CREATE))
+			return ret;
 	}
 
 	return inet6_addr_add(ifm->ifa_index, pfx, ifm->ifa_prefixlen,
