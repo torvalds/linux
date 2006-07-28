@@ -152,7 +152,6 @@ struct cfq_queue {
 	unsigned long slice_start;
 	unsigned long slice_end;
 	unsigned long slice_left;
-	unsigned long service_last;
 
 	/* number of requests that are on the dispatch list */
 	int on_dispatch[2];
@@ -174,6 +173,7 @@ enum cfqq_state_flags {
 	CFQ_CFQQ_FLAG_fifo_expire,
 	CFQ_CFQQ_FLAG_idle_window,
 	CFQ_CFQQ_FLAG_prio_changed,
+	CFQ_CFQQ_FLAG_queue_new,
 };
 
 #define CFQ_CFQQ_FNS(name)						\
@@ -198,6 +198,7 @@ CFQ_CFQQ_FNS(must_dispatch);
 CFQ_CFQQ_FNS(fifo_expire);
 CFQ_CFQQ_FNS(idle_window);
 CFQ_CFQQ_FNS(prio_changed);
+CFQ_CFQQ_FNS(queue_new);
 #undef CFQ_CFQQ_FNS
 
 static struct cfq_queue *cfq_find_cfq_hash(struct cfq_data *, unsigned int, unsigned short);
@@ -350,7 +351,7 @@ cfq_find_next_rq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 static void cfq_resort_rr_list(struct cfq_queue *cfqq, int preempted)
 {
 	struct cfq_data *cfqd = cfqq->cfqd;
-	struct list_head *list, *entry;
+	struct list_head *list;
 
 	BUG_ON(!cfq_cfqq_on_rr(cfqq));
 
@@ -375,31 +376,26 @@ static void cfq_resort_rr_list(struct cfq_queue *cfqq, int preempted)
 	}
 
 	/*
-	 * if queue was preempted, just add to front to be fair. busy_rr
-	 * isn't sorted, but insert at the back for fairness.
+	 * If this queue was preempted or is new (never been serviced), let
+	 * it be added first for fairness but beind other new queues.
+	 * Otherwise, just add to the back  of the list.
 	 */
-	if (preempted || list == &cfqd->busy_rr) {
-		if (preempted)
-			list = list->prev;
+	if (preempted || cfq_cfqq_queue_new(cfqq)) {
+		struct list_head *n = list;
+		struct cfq_queue *__cfqq;
 
-		list_add_tail(&cfqq->cfq_list, list);
-		return;
+		while (n->next != list) {
+			__cfqq = list_entry_cfqq(n->next);
+			if (!cfq_cfqq_queue_new(__cfqq))
+				break;
+
+			n = n->next;
+		}
+
+		list = n;
 	}
 
-	/*
-	 * sort by when queue was last serviced
-	 */
-	entry = list;
-	while ((entry = entry->prev) != list) {
-		struct cfq_queue *__cfqq = list_entry_cfqq(entry);
-
-		if (!__cfqq->service_last)
-			break;
-		if (time_before(__cfqq->service_last, cfqq->service_last))
-			break;
-	}
-
-	list_add(&cfqq->cfq_list, entry);
+	list_add_tail(&cfqq->cfq_list, list);
 }
 
 /*
@@ -591,13 +587,12 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	if (cfq_cfqq_wait_request(cfqq))
 		del_timer(&cfqd->idle_slice_timer);
 
-	if (!preempted && !cfq_cfqq_dispatched(cfqq)) {
-		cfqq->service_last = now;
+	if (!preempted && !cfq_cfqq_dispatched(cfqq))
 		cfq_schedule_dispatch(cfqd);
-	}
 
 	cfq_clear_cfqq_must_dispatch(cfqq);
 	cfq_clear_cfqq_wait_request(cfqq);
+	cfq_clear_cfqq_queue_new(cfqq);
 
 	/*
 	 * store what was left of this slice, if the queue idled out
@@ -1297,13 +1292,13 @@ retry:
 		hlist_add_head(&cfqq->cfq_hash, &cfqd->cfq_hash[hashval]);
 		atomic_set(&cfqq->ref, 0);
 		cfqq->cfqd = cfqd;
-		cfqq->service_last = 0;
 		/*
 		 * set ->slice_left to allow preemption for a new process
 		 */
 		cfqq->slice_left = 2 * cfqd->cfq_slice_idle;
 		cfq_mark_cfqq_idle_window(cfqq);
 		cfq_mark_cfqq_prio_changed(cfqq);
+		cfq_mark_cfqq_queue_new(cfqq);
 		cfq_init_prio_data(cfqq);
 	}
 
@@ -1672,12 +1667,8 @@ static void cfq_completed_request(request_queue_t *q, struct request *rq)
 	if (!cfq_class_idle(cfqq))
 		cfqd->last_end_request = now;
 
-	if (!cfq_cfqq_dispatched(cfqq)) {
-		if (cfq_cfqq_on_rr(cfqq)) {
-			cfqq->service_last = now;
-			cfq_resort_rr_list(cfqq, 0);
-		}
-	}
+	if (!cfq_cfqq_dispatched(cfqq) && cfq_cfqq_on_rr(cfqq))
+		cfq_resort_rr_list(cfqq, 0);
 
 	if (sync)
 		RQ_CIC(rq)->last_end_request = now;
