@@ -778,11 +778,15 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  6stack-digout	6-jack with a SPDIF out
 	  w810		3-jack
 	  z71v		3-jack (HP shared SPDIF)
-	  asus		3-jack
+	  asus		3-jack (ASUS Mobo)
+	  asus-w1v	ASUS W1V
+	  asus-dig	ASUS with SPDIF out
+	  asus-dig2	ASUS with SPDIF out (using GPIO2)
 	  uniwill	3-jack
 	  F1734		2-jack
 	  lg		LG laptop (m1 express dual)
 	  lg-lw		LG LW20 laptop
+	  tcl		TCL S700
 	  clevo		Clevo laptops (m520G, m665n)
 	  test		for testing/debugging purpose, almost all controls can be
 			adjusted.  Appearing only when compiled with
@@ -791,6 +795,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
 	ALC260
 	  hp		HP machines
+	  hp-3013	HP machines (3013-variant)
 	  fujitsu	Fujitsu S7020
 	  acer		Acer TravelMate
 	  basic		fixed pin assignment (old default model)
@@ -806,18 +811,22 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	ALC882/885
 	  3stack-dig	3-jack with SPDIF I/O
 	  6stck-dig	6-jack digital with SPDIF I/O
+	  arima		Arima W820Di1
 	  auto		auto-config reading BIOS (default)
 
 	ALC883/888
 	  3stack-dig	3-jack with SPDIF I/O
 	  6stack-dig	6-jack digital with SPDIF I/O
-	  6stack-dig-demo  6-stack digital for Intel demo board
+	  3stack-6ch    3-jack 6-channel
+	  3stack-6ch-dig 3-jack 6-channel with SPDIF I/O
+	  6stack-dig-demo  6-jack digital for Intel demo board
 	  auto		auto-config reading BIOS (default)
 
 	ALC861/660
 	  3stack	3-jack
 	  3stack-dig	3-jack with SPDIF I/O
 	  6stack-dig	6-jack with SPDIF I/O
+	  3stack-660	3-jack (for ALC660)
 	  auto		auto-config reading BIOS (default)
 
 	CMI9880

@@ -98,6 +98,7 @@ enum {
 enum {
 	ALC882_3ST_DIG,
 	ALC882_6ST_DIG,
+	ALC882_ARIMA,
 	ALC882_AUTO,
 	ALC882_MODEL_LAST,
 };
@@ -1349,6 +1350,10 @@ static struct hda_verb alc880_pin_clevo_init_verbs[] = {
 };
 
 static struct hda_verb alc880_pin_tcl_S700_init_verbs[] = {
+	/* change to EAPD mode */
+	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
+	{0x20, AC_VERB_SET_PROC_COEF,  0x3060},
+
 	/* Headphone output */
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	/* Front output*/
@@ -2146,6 +2151,7 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	{ .pci_subvendor = 0x107b, .pci_subdevice = 0x4040, .config = ALC880_3ST },
 	{ .pci_subvendor = 0x107b, .pci_subdevice = 0x4041, .config = ALC880_3ST },
 	/* TCL S700 */
+	{ .modelname = "tcl", .config = ALC880_TCL_S700 },
 	{ .pci_subvendor = 0x19db, .pci_subdevice = 0x4188, .config = ALC880_TCL_S700 },
 
 	/* Back 3 jack, front 2 jack (Internal add Aux-In) */
@@ -2232,8 +2238,11 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1133, .config = ALC880_ASUS },
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1123, .config = ALC880_ASUS_DIG },
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1143, .config = ALC880_ASUS },
+	{ .modelname = "asus-w1v", .config = ALC880_ASUS_W1V },
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x10b3, .config = ALC880_ASUS_W1V },
+	{ .modelname = "asus-dig", .config = ALC880_ASUS_DIG },
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x8181, .config = ALC880_ASUS_DIG }, /* ASUS P4GPL-X */
+	{ .modelname = "asus-dig2", .config = ALC880_ASUS_DIG2 },
 	{ .pci_subvendor = 0x1558, .pci_subdevice = 0x5401, .config = ALC880_ASUS_DIG2 },
 
 	{ .modelname = "uniwill", .config = ALC880_UNIWILL_DIG },
@@ -3906,6 +3915,7 @@ static struct hda_board_config alc260_cfg_tbl[] = {
 	{ .pci_subvendor = 0x152d, .pci_subdevice = 0x0729,
 	  .config = ALC260_BASIC }, /* CTL Travel Master U553W */
 	{ .modelname = "hp", .config = ALC260_HP },
+	{ .modelname = "hp-3013", .config = ALC260_HP_3013 },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3010, .config = ALC260_HP },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3011, .config = ALC260_HP },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3012, .config = ALC260_HP_3013 },
@@ -4272,6 +4282,13 @@ static struct hda_verb alc882_init_verbs[] = {
 	{ }
 };
 
+static struct hda_verb alc882_eapd_verbs[] = {
+	/* change to EAPD mode */
+	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
+	{0x20, AC_VERB_SET_PROC_COEF, 0x3060},
+	{ } 
+};
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -4403,6 +4420,9 @@ static struct hda_board_config alc882_cfg_tbl[] = {
 	  .config = ALC882_6ST_DIG }, /* Foxconn */
 	{ .pci_subvendor = 0x1019, .pci_subdevice = 0x6668,
 	  .config = ALC882_6ST_DIG }, /* ECS to Intel*/
+	{ .modelname = "arima", .config = ALC882_ARIMA },
+	{ .pci_subvendor = 0x161f, .pci_subdevice = 0x2054,
+	  .config = ALC882_ARIMA }, /* Arima W820Di1 */
 	{ .modelname = "auto", .config = ALC882_AUTO },
 	{}
 };
@@ -4426,6 +4446,15 @@ static struct alc_config_preset alc882_presets[] = {
 		.dac_nids = alc882_dac_nids,
 		.dig_out_nid = ALC882_DIGOUT_NID,
 		.dig_in_nid = ALC882_DIGIN_NID,
+		.num_channel_mode = ARRAY_SIZE(alc882_sixstack_modes),
+		.channel_mode = alc882_sixstack_modes,
+		.input_mux = &alc882_capture_source,
+	},
+	[ALC882_ARIMA] = {
+		.mixers = { alc882_base_mixer, alc882_chmode_mixer },
+		.init_verbs = { alc882_init_verbs, alc882_eapd_verbs },
+		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
+		.dac_nids = alc882_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc882_sixstack_modes),
 		.channel_mode = alc882_sixstack_modes,
 		.input_mux = &alc882_capture_source,
@@ -5005,16 +5034,18 @@ static struct snd_kcontrol_new alc883_capture_mixer[] = {
  */
 static struct hda_board_config alc883_cfg_tbl[] = {
 	{ .modelname = "3stack-dig", .config = ALC883_3ST_2ch_DIG },
+	{ .modelname = "3stack-6ch-dig", .config = ALC883_3ST_6ch_DIG },
+	{ .pci_subvendor = 0x1019, .pci_subdevice = 0x6668,
+	  .config = ALC883_3ST_6ch_DIG }, /* ECS to Intel*/
+	{ .modelname = "3stack-6ch", .config = ALC883_3ST_6ch },
+	{ .pci_subvendor = 0x108e, .pci_subdevice = 0x534d,
+	  .config = ALC883_3ST_6ch },
 	{ .modelname = "6stack-dig", .config = ALC883_6ST_DIG },
-	{ .modelname = "6stack-dig-demo", .config = ALC888_DEMO_BOARD },
 	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x6668,
 	  .config = ALC883_6ST_DIG }, /* MSI  */
 	{ .pci_subvendor = 0x105b, .pci_subdevice = 0x6668,
 	  .config = ALC883_6ST_DIG }, /* Foxconn */
-	{ .pci_subvendor = 0x1019, .pci_subdevice = 0x6668,
-	  .config = ALC883_3ST_6ch_DIG }, /* ECS to Intel*/
-	{ .pci_subvendor = 0x108e, .pci_subdevice = 0x534d,
-	  .config = ALC883_3ST_6ch },
+	{ .modelname = "6stack-dig-demo", .config = ALC888_DEMO_BOARD },
 	{ .modelname = "auto", .config = ALC883_AUTO },
 	{}
 };
@@ -5223,8 +5254,10 @@ static int patch_alc883(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc883_pcm_digital_playback;
 	spec->stream_digital_capture = &alc883_pcm_digital_capture;
 
-	spec->adc_nids = alc883_adc_nids;
-	spec->num_adc_nids = ARRAY_SIZE(alc883_adc_nids);
+	if (! spec->adc_nids && spec->input_mux) {
+		spec->adc_nids = alc883_adc_nids;
+		spec->num_adc_nids = ARRAY_SIZE(alc883_adc_nids);
+	}
 
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC883_AUTO)
@@ -6504,6 +6537,7 @@ static struct hda_board_config alc861_cfg_tbl[] = {
 	{ .modelname = "3stack", .config = ALC861_3ST },
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xd600,
 	  .config = ALC861_3ST },
+	{ .modelname = "3stack-660", .config = ALC660_3ST },
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x81e7,
 	  .config = ALC660_3ST },
 	{ .modelname = "3stack-dig", .config = ALC861_3ST_DIG },
