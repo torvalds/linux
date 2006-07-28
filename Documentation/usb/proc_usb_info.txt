@@ -59,7 +59,7 @@ bind to an interface (or perhaps several) using an ioctl call.  You
 would issue more ioctls to the device to communicate to it using
 control, bulk, or other kinds of USB transfers.  The IOCTLs are
 listed in the <linux/usbdevice_fs.h> file, and at this writing the
-source code (linux/drivers/usb/devio.c) is the primary reference
+source code (linux/drivers/usb/core/devio.c) is the primary reference
 for how to access devices through those files.
 
 Note that since by default these BBB/DDD files are writable only by
