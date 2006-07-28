@@ -230,7 +230,7 @@ static void register_cpu_online(unsigned int cpu)
 	if (cur_cpu_spec->num_pmcs >= 8)
 		sysdev_create_file(s, &attr_pmc8);
 
-	if (cpu_has_feature(CPU_FTR_SMT))
+	if (cpu_has_feature(CPU_FTR_PURR))
 		sysdev_create_file(s, &attr_purr);
 }
 
@@ -272,7 +272,7 @@ static void unregister_cpu_online(unsigned int cpu)
 	if (cur_cpu_spec->num_pmcs >= 8)
 		sysdev_remove_file(s, &attr_pmc8);
 
-	if (cpu_has_feature(CPU_FTR_SMT))
+	if (cpu_has_feature(CPU_FTR_PURR))
 		sysdev_remove_file(s, &attr_purr);
 }
 #endif /* CONFIG_HOTPLUG_CPU */
