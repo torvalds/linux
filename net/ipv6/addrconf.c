@@ -2797,12 +2797,16 @@ restart:
 					ifp->idev->nd_parms->retrans_time / HZ;
 #endif
 
-			if (age >= ifp->valid_lft) {
+			if (ifp->valid_lft != INFINITY_LIFE_TIME &&
+			    age >= ifp->valid_lft) {
 				spin_unlock(&ifp->lock);
 				in6_ifa_hold(ifp);
 				read_unlock(&addrconf_hash_lock);
 				ipv6_del_addr(ifp);
 				goto restart;
+			} else if (ifp->prefered_lft == INFINITY_LIFE_TIME) {
+				spin_unlock(&ifp->lock);
+				continue;
 			} else if (age >= ifp->prefered_lft) {
 				/* jiffies - ifp->tsamp > age >= ifp->prefered_lft */
 				int deprecate = 0;
