@@ -1200,7 +1200,7 @@ static struct ip_conntrack_expect *find_expect(struct ip_conntrack *ct,
 	tuple.dst.protonum = IPPROTO_TCP;
 
 	exp = __ip_conntrack_expect_find(&tuple);
-	if (exp->master == ct)
+	if (exp && exp->master == ct)
 		return exp;
 	return NULL;
 }

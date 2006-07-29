@@ -61,6 +61,9 @@ static int brnf_filter_vlan_tagged = 1;
 #define brnf_filter_vlan_tagged 1
 #endif
 
+int brnf_deferred_hooks;
+EXPORT_SYMBOL_GPL(brnf_deferred_hooks);
+
 static __be16 inline vlan_proto(const struct sk_buff *skb)
 {
 	return vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
@@ -889,6 +892,8 @@ static unsigned int ip_sabotage_out(unsigned int hook, struct sk_buff **pskb,
 			if (ip->version == 4 && !brnf_call_iptables)
 				return NF_ACCEPT;
 			else if (ip->version == 6 && !brnf_call_ip6tables)
+				return NF_ACCEPT;
+			else if (!brnf_deferred_hooks)
 				return NF_ACCEPT;
 #endif
 			if (hook == NF_IP_POST_ROUTING)

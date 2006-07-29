@@ -172,9 +172,6 @@ extern int __cpufreq_driver_target(struct cpufreq_policy *policy,
 				   unsigned int relation);
 
 
-/* pass an event to the cpufreq governor */
-int cpufreq_governor(unsigned int cpu, unsigned int event);
-
 int cpufreq_register_governor(struct cpufreq_governor *governor);
 void cpufreq_unregister_governor(struct cpufreq_governor *governor);
 

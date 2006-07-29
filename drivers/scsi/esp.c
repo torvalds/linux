@@ -2754,18 +2754,15 @@ static int esp_do_data_finale(struct esp *esp)
  */
 static int esp_should_clear_sync(struct scsi_cmnd *sp)
 {
-	u8 cmd1 = sp->cmnd[0];
-	u8 cmd2 = sp->data_cmnd[0];
+	u8 cmd = sp->cmnd[0];
 
 	/* These cases are for spinning up a disk and
 	 * waiting for that spinup to complete.
 	 */
-	if (cmd1 == START_STOP ||
-	    cmd2 == START_STOP)
+	if (cmd == START_STOP)
 		return 0;
 
-	if (cmd1 == TEST_UNIT_READY ||
-	    cmd2 == TEST_UNIT_READY)
+	if (cmd == TEST_UNIT_READY)
 		return 0;
 
 	/* One more special case for SCSI tape drives,
@@ -2773,8 +2770,7 @@ static int esp_should_clear_sync(struct scsi_cmnd *sp)
 	 * completion of a rewind or tape load operation.
 	 */
 	if (sp->device->type == TYPE_TAPE) {
-		if (cmd1 == MODE_SENSE ||
-		    cmd2 == MODE_SENSE)
+		if (cmd == MODE_SENSE)
 			return 0;
 	}
 

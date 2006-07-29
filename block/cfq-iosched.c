@@ -936,7 +936,7 @@ static int cfq_arm_slice_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * seeks. so allow a little bit of time for him to submit a new rq
 	 */
 	if (sample_valid(cic->seek_samples) && CIC_SEEKY(cic))
-		sl = 2;
+		sl = min(sl, msecs_to_jiffies(2));
 
 	mod_timer(&cfqd->idle_slice_timer, jiffies + sl);
 	return 1;

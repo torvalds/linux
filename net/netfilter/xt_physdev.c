@@ -113,6 +113,21 @@ checkentry(const char *tablename,
 	if (!(info->bitmask & XT_PHYSDEV_OP_MASK) ||
 	    info->bitmask & ~XT_PHYSDEV_OP_MASK)
 		return 0;
+	if (brnf_deferred_hooks == 0 &&
+	    info->bitmask & XT_PHYSDEV_OP_OUT &&
+	    (!(info->bitmask & XT_PHYSDEV_OP_BRIDGED) ||
+	     info->invert & XT_PHYSDEV_OP_BRIDGED) &&
+	    hook_mask & ((1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_FORWARD) |
+	                 (1 << NF_IP_POST_ROUTING))) {
+		printk(KERN_WARNING "physdev match: using --physdev-out in the "
+		       "OUTPUT, FORWARD and POSTROUTING chains for non-bridged "
+		       "traffic is deprecated and breaks other things, it will "
+		       "be removed in January 2007. See Documentation/"
+		       "feature-removal-schedule.txt for details. This doesn't "
+		       "affect you in case you're using it for purely bridged "
+		       "traffic.\n");
+		brnf_deferred_hooks = 1;
+	}
 	return 1;
 }
 

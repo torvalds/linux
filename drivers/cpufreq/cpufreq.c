@@ -364,10 +364,12 @@ static ssize_t store_##file_name					\
 	if (ret != 1)							\
 		return -EINVAL;						\
 									\
+	lock_cpu_hotplug();						\
 	mutex_lock(&policy->lock);					\
 	ret = __cpufreq_set_policy(policy, &new_policy);		\
 	policy->user_policy.object = policy->object;			\
 	mutex_unlock(&policy->lock);					\
+	unlock_cpu_hotplug();						\
 									\
 	return ret ? ret : count;					\
 }
@@ -1197,19 +1199,17 @@ EXPORT_SYMBOL(cpufreq_unregister_notifier);
  *********************************************************************/
 
 
+/* Must be called with lock_cpu_hotplug held */
 int __cpufreq_driver_target(struct cpufreq_policy *policy,
 			    unsigned int target_freq,
 			    unsigned int relation)
 {
 	int retval = -EINVAL;
 
-	lock_cpu_hotplug();
 	dprintk("target for CPU %u: %u kHz, relation %u\n", policy->cpu,
 		target_freq, relation);
 	if (cpu_online(policy->cpu) && cpufreq_driver->target)
 		retval = cpufreq_driver->target(policy, target_freq, relation);
-
-	unlock_cpu_hotplug();
 
 	return retval;
 }
@@ -1225,17 +1225,23 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 	if (!policy)
 		return -EINVAL;
 
+	lock_cpu_hotplug();
 	mutex_lock(&policy->lock);
 
 	ret = __cpufreq_driver_target(policy, target_freq, relation);
 
 	mutex_unlock(&policy->lock);
+	unlock_cpu_hotplug();
 
 	cpufreq_cpu_put(policy);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_target);
 
+/*
+ * Locking: Must be called with the lock_cpu_hotplug() lock held
+ * when "event" is CPUFREQ_GOV_LIMITS
+ */
 
 static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event)
 {
@@ -1255,24 +1261,6 @@ static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event)
 
 	return ret;
 }
-
-
-int cpufreq_governor(unsigned int cpu, unsigned int event)
-{
-	int ret = 0;
-	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
-
-	if (!policy)
-		return -EINVAL;
-
-	mutex_lock(&policy->lock);
-	ret = __cpufreq_governor(policy, event);
-	mutex_unlock(&policy->lock);
-
-	cpufreq_cpu_put(policy);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(cpufreq_governor);
 
 
 int cpufreq_register_governor(struct cpufreq_governor *governor)
@@ -1342,6 +1330,9 @@ int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu)
 EXPORT_SYMBOL(cpufreq_get_policy);
 
 
+/*
+ * Locking: Must be called with the lock_cpu_hotplug() lock held
+ */
 static int __cpufreq_set_policy(struct cpufreq_policy *data, struct cpufreq_policy *policy)
 {
 	int ret = 0;
@@ -1436,6 +1427,8 @@ int cpufreq_set_policy(struct cpufreq_policy *policy)
 	if (!data)
 		return -EINVAL;
 
+	lock_cpu_hotplug();
+
 	/* lock this CPU */
 	mutex_lock(&data->lock);
 
@@ -1446,6 +1439,8 @@ int cpufreq_set_policy(struct cpufreq_policy *policy)
 	data->user_policy.governor = data->governor;
 
 	mutex_unlock(&data->lock);
+
+	unlock_cpu_hotplug();
 	cpufreq_cpu_put(data);
 
 	return ret;
@@ -1469,6 +1464,7 @@ int cpufreq_update_policy(unsigned int cpu)
 	if (!data)
 		return -ENODEV;
 
+	lock_cpu_hotplug();
 	mutex_lock(&data->lock);
 
 	dprintk("updating policy for CPU %u\n", cpu);
@@ -1494,7 +1490,7 @@ int cpufreq_update_policy(unsigned int cpu)
 	ret = __cpufreq_set_policy(data, &policy);
 
 	mutex_unlock(&data->lock);
-
+	unlock_cpu_hotplug();
 	cpufreq_cpu_put(data);
 	return ret;
 }

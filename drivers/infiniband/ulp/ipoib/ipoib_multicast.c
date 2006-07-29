@@ -264,6 +264,10 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 		if (!ah) {
 			ipoib_warn(priv, "ib_address_create failed\n");
 		} else {
+			spin_lock_irq(&priv->lock);
+			mcast->ah = ah;
+			spin_unlock_irq(&priv->lock);
+
 			ipoib_dbg_mcast(priv, "MGID " IPOIB_GID_FMT
 					" AV %p, LID 0x%04x, SL %d\n",
 					IPOIB_GID_ARG(mcast->mcmember.mgid),
@@ -271,10 +275,6 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 					be16_to_cpu(mcast->mcmember.mlid),
 					mcast->mcmember.sl);
 		}
-
-		spin_lock_irq(&priv->lock);
-		mcast->ah = ah;
-		spin_unlock_irq(&priv->lock);
 	}
 
 	/* actually send any queued packets */
