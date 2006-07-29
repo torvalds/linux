@@ -116,6 +116,16 @@ ieee80211softmac_auth_queue(void *data)
 	kfree(auth);
 }
 
+/* Sends a response to an auth challenge (for shared key auth). */
+static void
+ieee80211softmac_auth_challenge_response(void *_aq)
+{
+	struct ieee80211softmac_auth_queue_item *aq = _aq;
+
+	/* Send our response */
+	ieee80211softmac_send_mgt_frame(aq->mac, aq->net, IEEE80211_STYPE_AUTH, aq->state);
+}
+
 /* Handle the auth response from the AP
  * This should be registered with ieee80211 as handle_auth 
  */
@@ -197,24 +207,30 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 		case IEEE80211SOFTMAC_AUTH_SHARED_CHALLENGE:
 			/* Check to make sure we have a challenge IE */
 			data = (u8 *)auth->info_element;
-			if(*data++ != MFIE_TYPE_CHALLENGE){
+			if (*data++ != MFIE_TYPE_CHALLENGE) {
 				printkl(KERN_NOTICE PFX "Shared Key Authentication failed due to a missing challenge.\n");
 				break;	
 			}
 			/* Save the challenge */
 			spin_lock_irqsave(&mac->lock, flags);
 			net->challenge_len = *data++; 	
-			if(net->challenge_len > WLAN_AUTH_CHALLENGE_LEN)
+			if (net->challenge_len > WLAN_AUTH_CHALLENGE_LEN)
 				net->challenge_len = WLAN_AUTH_CHALLENGE_LEN;
-			if(net->challenge != NULL)
+			if (net->challenge != NULL)
 				kfree(net->challenge);
 			net->challenge = kmalloc(net->challenge_len, GFP_ATOMIC);
 			memcpy(net->challenge, data, net->challenge_len);
 			aq->state = IEEE80211SOFTMAC_AUTH_SHARED_RESPONSE; 
-			spin_unlock_irqrestore(&mac->lock, flags);
 
-			/* Send our response */
-			ieee80211softmac_send_mgt_frame(mac, aq->net, IEEE80211_STYPE_AUTH, aq->state);
+			/* We reuse the work struct from the auth request here.
+			 * It is safe to do so as each one is per-request, and
+			 * at this point (dealing with authentication response)
+			 * we have obviously already sent the initial auth
+			 * request. */
+			cancel_delayed_work(&aq->work);
+			INIT_WORK(&aq->work, &ieee80211softmac_auth_challenge_response, (void *)aq);
+			schedule_work(&aq->work);
+			spin_unlock_irqrestore(&mac->lock, flags);
 			return 0;
 		case IEEE80211SOFTMAC_AUTH_SHARED_PASS:
 			kfree(net->challenge);
