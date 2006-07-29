@@ -26,6 +26,13 @@ static int a800_power_ctrl(struct dvb_usb_device *d, int onoff)
 	return 0;
 }
 
+/* assure to put cold to 0 for iManufacturer == 1 */
+static int a800_identify_state(struct usb_device *udev, struct dvb_usb_properties *props,struct dvb_usb_device_description **desc, int *cold)
+{
+	*cold = udev->descriptor.iManufacturer != 1;
+	return 0;
+}
+
 static struct dvb_usb_rc_key a800_rc_keys[] = {
 	{ 0x02, 0x01, KEY_PROG1 },       /* SOURCE */
 	{ 0x02, 0x00, KEY_POWER },       /* POWER */
@@ -113,6 +120,7 @@ static struct dvb_usb_properties a800_properties = {
 	.power_ctrl       = a800_power_ctrl,
 	.frontend_attach  = dibusb_dib3000mc_frontend_attach,
 	.tuner_attach     = dibusb_dib3000mc_tuner_attach,
+	.identify_state   = a800_identify_state,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = a800_rc_keys,
