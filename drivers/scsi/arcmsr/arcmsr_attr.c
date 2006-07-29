@@ -240,15 +240,11 @@ int arcmsr_alloc_sysfs_attr(struct AdapterControlBlock *acb)
 	}
 	return 0;
 error_bin_file_message_clear:
-	error = sysfs_remove_bin_file(&host->shost_classdev.kobj,
+	sysfs_remove_bin_file(&host->shost_classdev.kobj,
 				&arcmsr_sysfs_message_write_attr);
-	if (error)
-		printk(KERN_ERR "arcmsr: sysfs_remove_bin_file mu_write failed\n");
 error_bin_file_message_write:
-	error = sysfs_remove_bin_file(&host->shost_classdev.kobj,
+	sysfs_remove_bin_file(&host->shost_classdev.kobj,
 				&arcmsr_sysfs_message_read_attr);
-	if (error)
-		printk(KERN_ERR "arcmsr: sysfs_remove_bin_file mu_read failed\n");
 error_bin_file_message_read:
 	return error;
 }
@@ -256,20 +252,13 @@ error_bin_file_message_read:
 void
 arcmsr_free_sysfs_attr(struct AdapterControlBlock *acb) {
 	struct Scsi_Host *host = acb->host;
-	int error;
 
-	error = sysfs_remove_bin_file(&host->shost_classdev.kobj,
+	sysfs_remove_bin_file(&host->shost_classdev.kobj,
 				&arcmsr_sysfs_message_clear_attr);
-	if (error)
-		printk(KERN_ERR "arcmsr: free sysfs mu_clear failed\n");
-	error = sysfs_remove_bin_file(&host->shost_classdev.kobj,
+	sysfs_remove_bin_file(&host->shost_classdev.kobj,
 				&arcmsr_sysfs_message_write_attr);
-	if (error)
-		printk(KERN_ERR "arcmsr: free sysfs mu_write failed\n");
-	error = sysfs_remove_bin_file(&host->shost_classdev.kobj,
+	sysfs_remove_bin_file(&host->shost_classdev.kobj,
 				&arcmsr_sysfs_message_read_attr);
-	if (error)
-		printk(KERN_ERR "arcmsr: free sysfss mu_read failed\n");
 }
 
 
