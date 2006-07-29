@@ -495,10 +495,13 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb, struct futex_q *me)
 	}
 
 	/*
-	 * We are the first waiter - try to look up the real owner and
-	 * attach the new pi_state to it:
+	 * We are the first waiter - try to look up the real owner and attach
+	 * the new pi_state to it, but bail out when the owner died bit is set
+	 * and TID = 0:
 	 */
 	pid = uval & FUTEX_TID_MASK;
+	if (!pid && (uval & FUTEX_OWNER_DIED))
+		return -ESRCH;
 	p = futex_find_get_task(pid);
 	if (!p)
 		return -ESRCH;
@@ -579,16 +582,17 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 	 * kept enabled while there is PI state around. We must also
 	 * preserve the owner died bit.)
 	 */
-	newval = (uval & FUTEX_OWNER_DIED) | FUTEX_WAITERS | new_owner->pid;
+	if (!(uval & FUTEX_OWNER_DIED)) {
+		newval = FUTEX_WAITERS | new_owner->pid;
 
-	inc_preempt_count();
-	curval = futex_atomic_cmpxchg_inatomic(uaddr, uval, newval);
-	dec_preempt_count();
-
-	if (curval == -EFAULT)
-		return -EFAULT;
-	if (curval != uval)
-		return -EINVAL;
+		inc_preempt_count();
+		curval = futex_atomic_cmpxchg_inatomic(uaddr, uval, newval);
+		dec_preempt_count();
+		if (curval == -EFAULT)
+			return -EFAULT;
+		if (curval != uval)
+			return -EINVAL;
+	}
 
 	spin_lock_irq(&pi_state->owner->pi_lock);
 	WARN_ON(list_empty(&pi_state->list));
@@ -1443,9 +1447,11 @@ retry_locked:
 	 * again. If it succeeds then we can return without waking
 	 * anyone else up:
 	 */
-	inc_preempt_count();
-	uval = futex_atomic_cmpxchg_inatomic(uaddr, current->pid, 0);
-	dec_preempt_count();
+	if (!(uval & FUTEX_OWNER_DIED)) {
+		inc_preempt_count();
+		uval = futex_atomic_cmpxchg_inatomic(uaddr, current->pid, 0);
+		dec_preempt_count();
+	}
 
 	if (unlikely(uval == -EFAULT))
 		goto pi_faulted;
@@ -1478,9 +1484,11 @@ retry_locked:
 	/*
 	 * No waiters - kernel unlocks the futex:
 	 */
-	ret = unlock_futex_pi(uaddr, uval);
-	if (ret == -EFAULT)
-		goto pi_faulted;
+	if (!(uval & FUTEX_OWNER_DIED)) {
+		ret = unlock_futex_pi(uaddr, uval);
+		if (ret == -EFAULT)
+			goto pi_faulted;
+	}
 
 out_unlock:
 	spin_unlock(&hb->lock);
@@ -1699,9 +1707,9 @@ err_unlock:
  * Process a futex-list entry, check whether it's owned by the
  * dying task, and do notification if so:
  */
-int handle_futex_death(u32 __user *uaddr, struct task_struct *curr)
+int handle_futex_death(u32 __user *uaddr, struct task_struct *curr, int pi)
 {
-	u32 uval, nval;
+	u32 uval, nval, mval;
 
 retry:
 	if (get_user(uval, uaddr))
@@ -1718,17 +1726,41 @@ retry:
 		 * thread-death.) The rest of the cleanup is done in
 		 * userspace.
 		 */
-		nval = futex_atomic_cmpxchg_inatomic(uaddr, uval,
-						     uval | FUTEX_OWNER_DIED);
+		mval = (uval & FUTEX_WAITERS) | FUTEX_OWNER_DIED;
+		nval = futex_atomic_cmpxchg_inatomic(uaddr, uval, mval);
+
 		if (nval == -EFAULT)
 			return -1;
 
 		if (nval != uval)
 			goto retry;
 
-		if (uval & FUTEX_WAITERS)
-			futex_wake(uaddr, 1);
+		/*
+		 * Wake robust non-PI futexes here. The wakeup of
+		 * PI futexes happens in exit_pi_state():
+		 */
+		if (!pi) {
+			if (uval & FUTEX_WAITERS)
+				futex_wake(uaddr, 1);
+		}
 	}
+	return 0;
+}
+
+/*
+ * Fetch a robust-list pointer. Bit 0 signals PI futexes:
+ */
+static inline int fetch_robust_entry(struct robust_list __user **entry,
+				     struct robust_list __user **head, int *pi)
+{
+	unsigned long uentry;
+
+	if (get_user(uentry, (unsigned long *)head))
+		return -EFAULT;
+
+	*entry = (void *)(uentry & ~1UL);
+	*pi = uentry & 1;
+
 	return 0;
 }
 
@@ -1742,14 +1774,14 @@ void exit_robust_list(struct task_struct *curr)
 {
 	struct robust_list_head __user *head = curr->robust_list;
 	struct robust_list __user *entry, *pending;
-	unsigned int limit = ROBUST_LIST_LIMIT;
+	unsigned int limit = ROBUST_LIST_LIMIT, pi, pip;
 	unsigned long futex_offset;
 
 	/*
 	 * Fetch the list head (which was registered earlier, via
 	 * sys_set_robust_list()):
 	 */
-	if (get_user(entry, &head->list.next))
+	if (fetch_robust_entry(&entry, &head->list.next, &pi))
 		return;
 	/*
 	 * Fetch the relative futex offset:
@@ -1760,10 +1792,11 @@ void exit_robust_list(struct task_struct *curr)
 	 * Fetch any possibly pending lock-add first, and handle it
 	 * if it exists:
 	 */
-	if (get_user(pending, &head->list_op_pending))
+	if (fetch_robust_entry(&pending, &head->list_op_pending, &pip))
 		return;
+
 	if (pending)
-		handle_futex_death((void *)pending + futex_offset, curr);
+		handle_futex_death((void *)pending + futex_offset, curr, pip);
 
 	while (entry != &head->list) {
 		/*
@@ -1772,12 +1805,12 @@ void exit_robust_list(struct task_struct *curr)
 		 */
 		if (entry != pending)
 			if (handle_futex_death((void *)entry + futex_offset,
-						curr))
+						curr, pi))
 				return;
 		/*
 		 * Fetch the next entry in the list:
 		 */
-		if (get_user(entry, &entry->next))
+		if (fetch_robust_entry(&entry, &entry->next, &pi))
 			return;
 		/*
 		 * Avoid excessively long or circular lists:

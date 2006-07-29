@@ -96,7 +96,8 @@ struct robust_list_head {
 long do_futex(u32 __user *uaddr, int op, u32 val, unsigned long timeout,
 	      u32 __user *uaddr2, u32 val2, u32 val3);
 
-extern int handle_futex_death(u32 __user *uaddr, struct task_struct *curr);
+extern int
+handle_futex_death(u32 __user *uaddr, struct task_struct *curr, int pi);
 
 #ifdef CONFIG_FUTEX
 extern void exit_robust_list(struct task_struct *curr);
