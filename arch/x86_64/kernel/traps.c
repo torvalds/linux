@@ -254,7 +254,6 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 {
 	const unsigned cpu = safe_smp_processor_id();
 	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
-	int i = 11;
 	unsigned used = 0;
 
 	printk("\nCall Trace:\n");
@@ -275,11 +274,20 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 			if (unwind_init_blocked(&info, tsk) == 0)
 				unw_ret = show_trace_unwind(&info, NULL);
 		}
-		if (unw_ret > 0) {
-			if (call_trace > 0)
+		if (unw_ret > 0 && !arch_unw_user_mode(&info)) {
+#ifdef CONFIG_STACK_UNWIND
+			unsigned long rip = info.regs.rip;
+			print_symbol("DWARF2 unwinder stuck at %s\n", rip);
+			if (call_trace == 1) {
+				printk("Leftover inexact backtrace:\n");
+				stack = (unsigned long *)info.regs.rsp;
+			} else if (call_trace > 1)
 				return;
-			printk("Legacy call trace:");
-			i = 18;
+			else
+				printk("Full inexact backtrace again:\n");
+#else
+			printk("Inexact backtrace:\n");
+#endif
 		}
 	}
 
@@ -1118,8 +1126,10 @@ static int __init call_trace_setup(char *s)
 		call_trace = -1;
 	else if (strcmp(s, "both") == 0)
 		call_trace = 0;
-	else if (strcmp(s, "new") == 0)
+	else if (strcmp(s, "newfallback") == 0)
 		call_trace = 1;
+	else if (strcmp(s, "new") == 0)
+		call_trace = 2;
 	return 1;
 }
 __setup("call_trace=", call_trace_setup);

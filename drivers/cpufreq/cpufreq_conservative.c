@@ -525,7 +525,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		break;
 
 	case CPUFREQ_GOV_LIMITS:
-		lock_cpu_hotplug();
 		mutex_lock(&dbs_mutex);
 		if (policy->max < this_dbs_info->cur_policy->cur)
 			__cpufreq_driver_target(
@@ -536,7 +535,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 					this_dbs_info->cur_policy,
 				       	policy->min, CPUFREQ_RELATION_L);
 		mutex_unlock(&dbs_mutex);
-		unlock_cpu_hotplug();
 		break;
 	}
 	return 0;

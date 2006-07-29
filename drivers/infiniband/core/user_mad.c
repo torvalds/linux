@@ -112,8 +112,10 @@ struct ib_umad_device {
 struct ib_umad_file {
 	struct ib_umad_port    *port;
 	struct list_head	recv_list;
+	struct list_head	send_list;
 	struct list_head	port_list;
 	spinlock_t		recv_lock;
+	spinlock_t		send_lock;
 	wait_queue_head_t	recv_wait;
 	struct ib_mad_agent    *agent[IB_UMAD_MAX_AGENTS];
 	int			agents_dead;
@@ -177,12 +179,21 @@ static int queue_packet(struct ib_umad_file *file,
 	return ret;
 }
 
+static void dequeue_send(struct ib_umad_file *file,
+			 struct ib_umad_packet *packet)
+ {
+	spin_lock_irq(&file->send_lock);
+	list_del(&packet->list);
+	spin_unlock_irq(&file->send_lock);
+ }
+
 static void send_handler(struct ib_mad_agent *agent,
 			 struct ib_mad_send_wc *send_wc)
 {
 	struct ib_umad_file *file = agent->context;
 	struct ib_umad_packet *packet = send_wc->send_buf->context[0];
 
+	dequeue_send(file, packet);
 	ib_destroy_ah(packet->msg->ah);
 	ib_free_send_mad(packet->msg);
 
@@ -370,6 +381,51 @@ static int copy_rmpp_mad(struct ib_mad_send_buf *msg, const char __user *buf)
 	return 0;
 }
 
+static int same_destination(struct ib_user_mad_hdr *hdr1,
+			    struct ib_user_mad_hdr *hdr2)
+{
+	if (!hdr1->grh_present && !hdr2->grh_present)
+	   return (hdr1->lid == hdr2->lid);
+
+	if (hdr1->grh_present && hdr2->grh_present)
+	   return !memcmp(hdr1->gid, hdr2->gid, 16);
+
+	return 0;
+}
+
+static int is_duplicate(struct ib_umad_file *file,
+			struct ib_umad_packet *packet)
+{
+	struct ib_umad_packet *sent_packet;
+	struct ib_mad_hdr *sent_hdr, *hdr;
+
+	hdr = (struct ib_mad_hdr *) packet->mad.data;
+	list_for_each_entry(sent_packet, &file->send_list, list) {
+		sent_hdr = (struct ib_mad_hdr *) sent_packet->mad.data;
+
+		if ((hdr->tid != sent_hdr->tid) ||
+		    (hdr->mgmt_class != sent_hdr->mgmt_class))
+			continue;
+
+		/*
+		 * No need to be overly clever here.  If two new operations have
+		 * the same TID, reject the second as a duplicate.  This is more
+		 * restrictive than required by the spec.
+		 */
+		if (!ib_response_mad((struct ib_mad *) hdr)) {
+			if (!ib_response_mad((struct ib_mad *) sent_hdr))
+				return 1;
+			continue;
+		} else if (!ib_response_mad((struct ib_mad *) sent_hdr))
+			continue;
+
+		if (same_destination(&packet->mad.hdr, &sent_packet->mad.hdr))
+			return 1;
+	}
+
+	return 0;
+}
+
 static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 			     size_t count, loff_t *pos)
 {
@@ -379,7 +435,6 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	struct ib_ah_attr ah_attr;
 	struct ib_ah *ah;
 	struct ib_rmpp_mad *rmpp_mad;
-	u8 method;
 	__be64 *tid;
 	int ret, data_len, hdr_len, copy_offset, rmpp_active;
 
@@ -473,28 +528,36 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	}
 
 	/*
-	 * If userspace is generating a request that will generate a
-	 * response, we need to make sure the high-order part of the
-	 * transaction ID matches the agent being used to send the
-	 * MAD.
+	 * Set the high-order part of the transaction ID to make MADs from
+	 * different agents unique, and allow routing responses back to the
+	 * original requestor.
 	 */
-	method = ((struct ib_mad_hdr *) packet->msg->mad)->method;
-
-	if (!(method & IB_MGMT_METHOD_RESP)       &&
-	    method != IB_MGMT_METHOD_TRAP_REPRESS &&
-	    method != IB_MGMT_METHOD_SEND) {
+	if (!ib_response_mad(packet->msg->mad)) {
 		tid = &((struct ib_mad_hdr *) packet->msg->mad)->tid;
 		*tid = cpu_to_be64(((u64) agent->hi_tid) << 32 |
 				   (be64_to_cpup(tid) & 0xffffffff));
+		rmpp_mad->mad_hdr.tid = *tid;
+	}
+
+	spin_lock_irq(&file->send_lock);
+	ret = is_duplicate(file, packet);
+	if (!ret)
+		list_add_tail(&packet->list, &file->send_list);
+	spin_unlock_irq(&file->send_lock);
+	if (ret) {
+		ret = -EINVAL;
+		goto err_msg;
 	}
 
 	ret = ib_post_send_mad(packet->msg, NULL);
 	if (ret)
-		goto err_msg;
+		goto err_send;
 
 	up_read(&file->port->mutex);
 	return count;
 
+err_send:
+	dequeue_send(file, packet);
 err_msg:
 	ib_free_send_mad(packet->msg);
 err_ah:
@@ -657,7 +720,9 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 	}
 
 	spin_lock_init(&file->recv_lock);
+	spin_lock_init(&file->send_lock);
 	INIT_LIST_HEAD(&file->recv_list);
+	INIT_LIST_HEAD(&file->send_list);
 	init_waitqueue_head(&file->recv_wait);
 
 	file->port = port;

@@ -258,3 +258,19 @@ Why:	These drivers never compiled since they were added to the kernel
 Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
+
+What:	Bridge netfilter deferred IPv4/IPv6 output hook calling
+When:	January 2007
+Why:	The deferred output hooks are a layering violation causing unusual
+	and broken behaviour on bridge devices. Examples of things they
+	break include QoS classifation using the MARK or CLASSIFY targets,
+	the IPsec policy match and connection tracking with VLANs on a
+	bridge. Their only use is to enable bridge output port filtering
+	within iptables with the physdev match, which can also be done by
+	combining iptables and ebtables using netfilter marks. Until it
+	will get removed the hook deferral is disabled by default and is
+	only enabled when needed.
+
+Who:	Patrick McHardy <kaber@trash.net>
+
+---------------------------

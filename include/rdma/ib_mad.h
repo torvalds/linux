@@ -75,6 +75,7 @@
 #define IB_MGMT_METHOD_TRAP_REPRESS		0x07
 
 #define IB_MGMT_METHOD_RESP			0x80
+#define IB_BM_ATTR_MOD_RESP			cpu_to_be32(1)
 
 #define IB_MGMT_MAX_METHODS			128
 
@@ -245,6 +246,12 @@ struct ib_mad_send_buf {
 	int			timeout_ms;
 	int			retries;
 };
+
+/**
+ * ib_response_mad - Returns if the specified MAD has been generated in
+ *   response to a sent request or trap.
+ */
+int ib_response_mad(struct ib_mad *mad);
 
 /**
  * ib_get_rmpp_resptime - Returns the RMPP response time.

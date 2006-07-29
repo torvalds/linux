@@ -193,7 +193,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 	   is just accounted to the spinlock function.
 	   Better would be to write these functions in assembler again
 	   and check exactly. */
-	if (in_lock_functions(pc)) {
+	if (!user_mode(regs) && in_lock_functions(pc)) {
 		char *v = *(char **)regs->rsp;
 		if ((v >= _stext && v <= _etext) ||
 			(v >= _sinittext && v <= _einittext) ||

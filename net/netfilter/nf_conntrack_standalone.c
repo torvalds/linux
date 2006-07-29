@@ -428,6 +428,8 @@ static struct file_operations ct_cpu_seq_fops = {
 
 /* Sysctl support */
 
+int nf_conntrack_checksum = 1;
+
 #ifdef CONFIG_SYSCTL
 
 /* From nf_conntrack_core.c */
@@ -458,8 +460,6 @@ extern unsigned int nf_ct_generic_timeout;
 /* Log invalid packets of a given protocol */
 static int log_invalid_proto_min = 0;
 static int log_invalid_proto_max = 255;
-
-int nf_conntrack_checksum = 1;
 
 static struct ctl_table_header *nf_ct_sysctl_header;
 
