@@ -1578,6 +1578,7 @@ int ipmr_get_route(struct sk_buff *skb, struct rtmsg *rtm, int nowait)
 	cache = ipmr_cache_find(rt->rt_src, rt->rt_dst);
 
 	if (cache==NULL) {
+		struct sk_buff *skb2;
 		struct net_device *dev;
 		int vif;
 
@@ -1591,12 +1592,18 @@ int ipmr_get_route(struct sk_buff *skb, struct rtmsg *rtm, int nowait)
 			read_unlock(&mrt_lock);
 			return -ENODEV;
 		}
-		skb->nh.raw = skb_push(skb, sizeof(struct iphdr));
-		skb->nh.iph->ihl = sizeof(struct iphdr)>>2;
-		skb->nh.iph->saddr = rt->rt_src;
-		skb->nh.iph->daddr = rt->rt_dst;
-		skb->nh.iph->version = 0;
-		err = ipmr_cache_unresolved(vif, skb);
+		skb2 = skb_clone(skb, GFP_ATOMIC);
+		if (!skb2) {
+			read_unlock(&mrt_lock);
+			return -ENOMEM;
+		}
+
+		skb2->nh.raw = skb_push(skb2, sizeof(struct iphdr));
+		skb2->nh.iph->ihl = sizeof(struct iphdr)>>2;
+		skb2->nh.iph->saddr = rt->rt_src;
+		skb2->nh.iph->daddr = rt->rt_dst;
+		skb2->nh.iph->version = 0;
+		err = ipmr_cache_unresolved(vif, skb2);
 		read_unlock(&mrt_lock);
 		return err;
 	}

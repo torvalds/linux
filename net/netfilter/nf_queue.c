@@ -219,21 +219,20 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 
 	switch (verdict & NF_VERDICT_MASK) {
 	case NF_ACCEPT:
+	case NF_STOP:
 		info->okfn(skb);
+	case NF_STOLEN:
 		break;
-
 	case NF_QUEUE:
 		if (!nf_queue(&skb, elem, info->pf, info->hook, 
 			      info->indev, info->outdev, info->okfn,
 			      verdict >> NF_VERDICT_BITS))
 			goto next_hook;
 		break;
+	default:
+		kfree_skb(skb);
 	}
 	rcu_read_unlock();
-
-	if (verdict == NF_DROP)
-		kfree_skb(skb);
-
 	kfree(info);
 	return;
 }

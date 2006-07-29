@@ -169,23 +169,17 @@ psched_tod_diff(int delta_sec, int bound)
 
 #define PSCHED_TADD2(tv, delta, tv_res) \
 ({ \
-	   int __delta = (delta); \
-	   (tv_res) = (tv); \
-	   while(__delta >= USEC_PER_SEC){ \
-		 (tv_res).tv_sec++; \
-		 __delta -= USEC_PER_SEC; \
-	   } \
+	   int __delta = (tv).tv_usec + (delta); \
+	   (tv_res).tv_sec = (tv).tv_sec; \
+	   while (__delta >= USEC_PER_SEC) { (tv_res).tv_sec++; __delta -= USEC_PER_SEC; } \
 	   (tv_res).tv_usec = __delta; \
 })
 
 #define PSCHED_TADD(tv, delta) \
 ({ \
-	   int __delta = (delta); \
-	   while(__delta >= USEC_PER_SEC){ \
-		 (tv).tv_sec++; \
-		 __delta -= USEC_PER_SEC; \
-	   } \
-	   (tv).tv_usec = __delta; \
+	   (tv).tv_usec += (delta); \
+	   while ((tv).tv_usec >= USEC_PER_SEC) { (tv).tv_sec++; \
+		 (tv).tv_usec -= USEC_PER_SEC; } \
 })
 
 /* Set/check that time is in the "past perfect";

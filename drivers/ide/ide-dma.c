@@ -750,7 +750,7 @@ void ide_dma_verbose(ide_drive_t *drive)
 			goto bug_dma_off;
 		printk(", DMA");
 	} else if (id->field_valid & 1) {
-		printk(", BUG");
+		goto bug_dma_off;
 	}
 	return;
 bug_dma_off:

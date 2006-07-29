@@ -152,7 +152,8 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 		if (cdev->private->iretry) {
 			cdev->private->iretry--;
 			ret = cio_halt(sch);
-			return (ret == 0) ? -EBUSY : ret;
+			if (ret != -EBUSY)
+				return (ret == 0) ? -EBUSY : ret;
 		}
 		/* halt io unsuccessful. */
 		cdev->private->iretry = 255;	/* 255 clear retries. */

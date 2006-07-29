@@ -152,7 +152,6 @@ ccwgroup_create(struct device *root,
 	struct ccwgroup_device *gdev;
 	int i;
 	int rc;
-	int del_drvdata;
 
 	if (argc > 256) /* disallow dumb users */
 		return -EINVAL;
@@ -163,7 +162,6 @@ ccwgroup_create(struct device *root,
 
 	atomic_set(&gdev->onoff, 0);
 
-	del_drvdata = 0;
 	for (i = 0; i < argc; i++) {
 		gdev->cdev[i] = get_ccwdev_by_busid(cdrv, argv[i]);
 
@@ -180,10 +178,8 @@ ccwgroup_create(struct device *root,
 			rc = -EINVAL;
 			goto free_dev;
 		}
-	}
-	for (i = 0; i < argc; i++)
 		gdev->cdev[i]->dev.driver_data = gdev;
-	del_drvdata = 1;
+	}
 
 	gdev->creator_id = creator_id;
 	gdev->count = argc;
@@ -226,9 +222,9 @@ error:
 free_dev:
 	for (i = 0; i < argc; i++)
 		if (gdev->cdev[i]) {
-			put_device(&gdev->cdev[i]->dev);
-			if (del_drvdata)
+			if (gdev->cdev[i]->dev.driver_data == gdev)
 				gdev->cdev[i]->dev.driver_data = NULL;
+			put_device(&gdev->cdev[i]->dev);
 		}
 	kfree(gdev);
 	return rc;
