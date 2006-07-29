@@ -281,7 +281,7 @@ static struct mips_frame_info {
 } *schedule_frame, mfinfo[64];
 static int mfinfo_num;
 
-static int __init get_frame_info(struct mips_frame_info *info)
+static int get_frame_info(struct mips_frame_info *info)
 {
 	int i;
 	void *func = info->func;
@@ -329,14 +329,12 @@ static int __init get_frame_info(struct mips_frame_info *info)
 				ip->i_format.simmediate / sizeof(long);
 		}
 	}
-	if (info->pc_offset == -1 || info->frame_size == 0) {
-		if (func == schedule)
-			printk("Can't analyze prologue code at %p\n", func);
-		info->pc_offset = -1;
-		info->frame_size = 0;
-	}
-
-	return 0;
+	if (info->frame_size && info->pc_offset >= 0) /* nested */
+		return 0;
+	if (info->pc_offset < 0) /* leaf */
+		return 1;
+	/* prologue seems boggus... */
+	return -1;
 }
 
 static int __init frame_info_init(void)
@@ -367,8 +365,15 @@ static int __init frame_info_init(void)
 	mfinfo[0].func = schedule;
 	schedule_frame = &mfinfo[0];
 #endif
-	for (i = 0; i < ARRAY_SIZE(mfinfo) && mfinfo[i].func; i++)
-		get_frame_info(&mfinfo[i]);
+	for (i = 0; i < ARRAY_SIZE(mfinfo) && mfinfo[i].func; i++) {
+		struct mips_frame_info *info = &mfinfo[i];
+		if (get_frame_info(info)) {
+			/* leaf or unknown */
+			if (info->func == schedule)
+				printk("Can't analyze prologue code at %p\n",
+				       info->func);
+		}
+	}
 
 	mfinfo_num = i;
 	return 0;
@@ -427,6 +432,8 @@ unsigned long get_wchan(struct task_struct *p)
 		if (i < 0)
 			break;
 
+		if (mfinfo[i].pc_offset < 0)
+			break;
 		pc = ((unsigned long *)frame)[mfinfo[i].pc_offset];
 		if (!mfinfo[i].frame_size)
 			break;
@@ -437,3 +444,40 @@ unsigned long get_wchan(struct task_struct *p)
 	return pc;
 }
 
+#ifdef CONFIG_KALLSYMS
+/* used by show_frametrace() */
+unsigned long unwind_stack(struct task_struct *task,
+			   unsigned long **sp, unsigned long pc)
+{
+	unsigned long stack_page;
+	struct mips_frame_info info;
+	char *modname;
+	char namebuf[KSYM_NAME_LEN + 1];
+	unsigned long size, ofs;
+
+	stack_page = (unsigned long)task_stack_page(task);
+	if (!stack_page)
+		return 0;
+
+	if (!kallsyms_lookup(pc, &size, &ofs, &modname, namebuf))
+		return 0;
+	if (ofs == 0)
+		return 0;
+
+	info.func = (void *)(pc - ofs);
+	info.func_size = ofs;	/* analyze from start to ofs */
+	if (get_frame_info(&info)) {
+		/* leaf or unknown */
+		*sp += info.frame_size / sizeof(long);
+		return 0;
+	}
+	if ((unsigned long)*sp < stack_page ||
+	    (unsigned long)*sp + info.frame_size / sizeof(long) >
+	    stack_page + THREAD_SIZE - 32)
+		return 0;
+
+	pc = (*sp)[info.pc_offset];
+	*sp += info.frame_size / sizeof(long);
+	return pc;
+}
+#endif

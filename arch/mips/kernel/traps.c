@@ -98,24 +98,53 @@ static void show_trace(unsigned long *stack)
 	printk("\n");
 }
 
+#ifdef CONFIG_KALLSYMS
+static int raw_show_trace;
+static int __init set_raw_show_trace(char *str)
+{
+	raw_show_trace = 1;
+	return 1;
+}
+__setup("raw_show_trace", set_raw_show_trace);
+
+extern unsigned long unwind_stack(struct task_struct *task,
+				  unsigned long **sp, unsigned long pc);
+static void show_frametrace(struct task_struct *task, struct pt_regs *regs)
+{
+	const int field = 2 * sizeof(unsigned long);
+	unsigned long *stack = (long *)regs->regs[29];
+	unsigned long pc = regs->cp0_epc;
+	int top = 1;
+
+	if (raw_show_trace || !__kernel_text_address(pc)) {
+		show_trace(stack);
+		return;
+	}
+	printk("Call Trace:\n");
+	while (__kernel_text_address(pc)) {
+		printk(" [<%0*lx>] ", field, pc);
+		print_symbol("%s\n", pc);
+		pc = unwind_stack(task, &stack, pc);
+		if (top && pc == 0)
+			pc = regs->regs[31];	/* leaf? */
+		top = 0;
+	}
+	printk("\n");
+}
+#else
+#define show_frametrace(task, r) show_trace((long *)(r)->regs[29]);
+#endif
+
 /*
  * This routine abuses get_user()/put_user() to reference pointers
  * with at least a bit of error checking ...
  */
-void show_stack(struct task_struct *task, unsigned long *sp)
+static void show_stacktrace(struct task_struct *task, struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
 	long stackdata;
 	int i;
-	unsigned long *stack;
-
-	if (!sp) {
-		if (task && task != current)
-			sp = (unsigned long *) task->thread.reg29;
-		else
-			sp = (unsigned long *) &sp;
-	}
-	stack = sp;
+	unsigned long *sp = (unsigned long *)regs->regs[29];
 
 	printk("Stack :");
 	i = 0;
@@ -136,7 +165,44 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 		i++;
 	}
 	printk("\n");
-	show_trace(stack);
+	show_frametrace(task, regs);
+}
+
+static noinline void prepare_frametrace(struct pt_regs *regs)
+{
+	__asm__ __volatile__(
+		"1: la $2, 1b\n\t"
+#ifdef CONFIG_64BIT
+		"sd $2, %0\n\t"
+		"sd $29, %1\n\t"
+		"sd $31, %2\n\t"
+#else
+		"sw $2, %0\n\t"
+		"sw $29, %1\n\t"
+		"sw $31, %2\n\t"
+#endif
+		: "=m" (regs->cp0_epc),
+		"=m" (regs->regs[29]), "=m" (regs->regs[31])
+		: : "memory");
+}
+
+void show_stack(struct task_struct *task, unsigned long *sp)
+{
+	struct pt_regs regs;
+	if (sp) {
+		regs.regs[29] = (unsigned long)sp;
+		regs.regs[31] = 0;
+		regs.cp0_epc = 0;
+	} else {
+		if (task && task != current) {
+			regs.regs[29] = task->thread.reg29;
+			regs.regs[31] = 0;
+			regs.cp0_epc = task->thread.reg31;
+		} else {
+			prepare_frametrace(&regs);
+		}
+	}
+	show_stacktrace(task, &regs);
 }
 
 /*
@@ -146,6 +212,14 @@ void dump_stack(void)
 {
 	unsigned long stack;
 
+#ifdef CONFIG_KALLSYMS
+	if (!raw_show_trace) {
+		struct pt_regs regs;
+		prepare_frametrace(&regs);
+		show_frametrace(current, &regs);
+		return;
+	}
+#endif
 	show_trace(&stack);
 }
 
@@ -265,7 +339,7 @@ void show_registers(struct pt_regs *regs)
 	print_modules();
 	printk("Process %s (pid: %d, threadinfo=%p, task=%p)\n",
 	        current->comm, current->pid, current_thread_info(), current);
-	show_stack(current, (long *) regs->regs[29]);
+	show_stacktrace(current, regs);
 	show_code((unsigned int *) regs->cp0_epc);
 	printk("\n");
 }
