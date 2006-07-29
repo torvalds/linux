@@ -1578,12 +1578,13 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	if (ret) {
 		printk(KERN_ERR "%s: class_device_register failed\n",
 		       __FUNCTION__);
-		return ret;
+		goto fail_minor;
 	}
 	ret = class_device_create_file(&vfd->class_dev, &class_device_attr_name);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s error: %d\n", __FUNCTION__, ret);
-		return ret;
+		printk(KERN_ERR "%s: class_device_create_file 'name' failed\n",
+		       __FUNCTION__);
+		goto fail_classdev;
 	}
 
 #if 1

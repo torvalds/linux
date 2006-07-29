@@ -3923,8 +3923,12 @@ static int __devinit bttv_register_video(struct bttv *btv)
 		goto err;
 	printk(KERN_INFO "bttv%d: registered device video%d\n",
 	       btv->c.nr,btv->video_dev->minor & 0x1f);
-
-	video_device_create_file(btv->video_dev, &class_device_attr_card);
+	if (class_device_create_file(&btv->video_dev->class_dev,
+				     &class_device_attr_card)<0) {
+		printk(KERN_ERR "bttv%d: class_device_create_file 'card' "
+		       "failed\n", btv->c.nr);
+		goto err;
+	}
 
 	/* vbi */
 	btv->vbi_dev = vdev_init(btv, &bttv_vbi_template, "vbi");
