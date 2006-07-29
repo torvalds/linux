@@ -362,6 +362,14 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VENDOR_ID_NVIDIA, 0x044f, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_ahci },		/* MCP65 */
 
+	/* SiS */
+	{ PCI_VENDOR_ID_SI, 0x1184, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+	  board_ahci }, /* SiS 966 */
+	{ PCI_VENDOR_ID_SI, 0x1185, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+	  board_ahci }, /* SiS 966 */
+	{ PCI_VENDOR_ID_SI, 0x0186, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+	  board_ahci }, /* SiS 968 */
+
 	{ }	/* terminate list */
 };
 
