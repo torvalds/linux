@@ -173,11 +173,6 @@ MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
 	", override internal blacklist = " __stringify(SBP2_WORKAROUND_OVERRIDE)
 	", or a combination)");
 
-/* legacy parameter */
-static int force_inquiry_hack;
-module_param(force_inquiry_hack, int, 0644);
-MODULE_PARM_DESC(force_inquiry_hack, "Deprecated, use 'workarounds'");
-
 /*
  * Export information about protocols/devices supported by this driver.
  */
@@ -1554,11 +1549,6 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 	}
 
 	workarounds = sbp2_default_workarounds;
-	if (force_inquiry_hack) {
-		SBP2_WARN("force_inquiry_hack is deprecated. "
-			  "Use parameter 'workarounds' instead.");
-		workarounds |= SBP2_WORKAROUND_INQUIRY_36;
-	}
 
 	if (!(workarounds & SBP2_WORKAROUND_OVERRIDE))
 		for (i = 0; i < ARRAY_SIZE(sbp2_workarounds_table); i++) {
