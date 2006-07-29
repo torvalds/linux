@@ -415,15 +415,15 @@ out_unlock:
  */
 void exit_pi_state_list(struct task_struct *curr)
 {
-	struct futex_hash_bucket *hb;
 	struct list_head *next, *head = &curr->pi_state_list;
 	struct futex_pi_state *pi_state;
+	struct futex_hash_bucket *hb;
 	union futex_key key;
 
 	/*
 	 * We are a ZOMBIE and nobody can enqueue itself on
 	 * pi_state_list anymore, but we have to be careful
-	 * versus waiters unqueueing themselfs
+	 * versus waiters unqueueing themselves:
 	 */
 	spin_lock_irq(&curr->pi_lock);
 	while (!list_empty(head)) {
@@ -431,21 +431,24 @@ void exit_pi_state_list(struct task_struct *curr)
 		next = head->next;
 		pi_state = list_entry(next, struct futex_pi_state, list);
 		key = pi_state->key;
+		hb = hash_futex(&key);
 		spin_unlock_irq(&curr->pi_lock);
 
-		hb = hash_futex(&key);
 		spin_lock(&hb->lock);
 
 		spin_lock_irq(&curr->pi_lock);
+		/*
+		 * We dropped the pi-lock, so re-check whether this
+		 * task still owns the PI-state:
+		 */
 		if (head->next != next) {
 			spin_unlock(&hb->lock);
 			continue;
 		}
 
-		list_del_init(&pi_state->list);
-
 		WARN_ON(pi_state->owner != curr);
-
+		WARN_ON(list_empty(&pi_state->list));
+		list_del_init(&pi_state->list);
 		pi_state->owner = NULL;
 		spin_unlock_irq(&curr->pi_lock);
 
@@ -470,7 +473,7 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb, struct futex_q *me)
 	head = &hb->chain;
 
 	list_for_each_entry_safe(this, next, head, list) {
-		if (match_futex (&this->key, &me->key)) {
+		if (match_futex(&this->key, &me->key)) {
 			/*
 			 * Another waiter already exists - bump up
 			 * the refcount and return its pi_state:
@@ -481,6 +484,8 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb, struct futex_q *me)
 			 */
 			if (unlikely(!pi_state))
 				return -EINVAL;
+
+			WARN_ON(!atomic_read(&pi_state->refcount));
 
 			atomic_inc(&pi_state->refcount);
 			me->pi_state = pi_state;
@@ -510,6 +515,7 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb, struct futex_q *me)
 	pi_state->key = me->key;
 
 	spin_lock_irq(&p->pi_lock);
+	WARN_ON(!list_empty(&pi_state->list));
 	list_add(&pi_state->list, &p->pi_state_list);
 	pi_state->owner = p;
 	spin_unlock_irq(&p->pi_lock);
@@ -584,9 +590,17 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 	if (curval != uval)
 		return -EINVAL;
 
-	list_del_init(&pi_state->owner->pi_state_list);
+	spin_lock_irq(&pi_state->owner->pi_lock);
+	WARN_ON(list_empty(&pi_state->list));
+	list_del_init(&pi_state->list);
+	spin_unlock_irq(&pi_state->owner->pi_lock);
+
+	spin_lock_irq(&new_owner->pi_lock);
+	WARN_ON(!list_empty(&pi_state->list));
 	list_add(&pi_state->list, &new_owner->pi_state_list);
 	pi_state->owner = new_owner;
+	spin_unlock_irq(&new_owner->pi_lock);
+
 	rt_mutex_unlock(&pi_state->pi_mutex);
 
 	return 0;
@@ -1236,6 +1250,7 @@ static int do_futex_lock_pi(u32 __user *uaddr, int detect, int trylock,
 		/* Owner died? */
 		if (q.pi_state->owner != NULL) {
 			spin_lock_irq(&q.pi_state->owner->pi_lock);
+			WARN_ON(list_empty(&q.pi_state->list));
 			list_del_init(&q.pi_state->list);
 			spin_unlock_irq(&q.pi_state->owner->pi_lock);
 		} else
@@ -1244,6 +1259,7 @@ static int do_futex_lock_pi(u32 __user *uaddr, int detect, int trylock,
 		q.pi_state->owner = current;
 
 		spin_lock_irq(&current->pi_lock);
+		WARN_ON(!list_empty(&q.pi_state->list));
 		list_add(&q.pi_state->list, &current->pi_state_list);
 		spin_unlock_irq(&current->pi_lock);
 
