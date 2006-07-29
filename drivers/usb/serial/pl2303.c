@@ -1064,10 +1064,10 @@ static void pl2303_buf_clear(struct pl2303_buf *pb)
  */
 static unsigned int pl2303_buf_data_avail(struct pl2303_buf *pb)
 {
-	if (pb != NULL)
-		return ((pb->buf_size + pb->buf_put - pb->buf_get) % pb->buf_size);
-	else
+	if (pb == NULL)
 		return 0;
+
+	return ((pb->buf_size + pb->buf_put - pb->buf_get) % pb->buf_size);
 }
 
 /*
@@ -1078,10 +1078,10 @@ static unsigned int pl2303_buf_data_avail(struct pl2303_buf *pb)
  */
 static unsigned int pl2303_buf_space_avail(struct pl2303_buf *pb)
 {
-	if (pb != NULL)
-		return ((pb->buf_size + pb->buf_get - pb->buf_put - 1) % pb->buf_size);
-	else
+	if (pb == NULL)
 		return 0;
+
+	return ((pb->buf_size + pb->buf_get - pb->buf_put - 1) % pb->buf_size);
 }
 
 /*
