@@ -812,7 +812,7 @@ static int __init calgary_init(void)
 	int i, ret = -ENODEV;
 	struct pci_dev *dev = NULL;
 
-	for (i = 0; i <= num_online_nodes() * MAX_NUM_OF_PHBS; i++) {
+	for (i = 0; i < num_online_nodes() * MAX_NUM_OF_PHBS; i++) {
 		dev = pci_get_device(PCI_VENDOR_ID_IBM,
 				     PCI_DEVICE_ID_IBM_CALGARY,
 				     dev);
@@ -890,9 +890,8 @@ void __init detect_calgary(void)
 	specified_table_size = determine_tce_table_size(end_pfn * PAGE_SIZE);
 
 	for (bus = 0, table_idx = 0;
-	     bus <= num_online_nodes() * MAX_PHB_BUS_NUM;
+	     bus < num_online_nodes() * MAX_PHB_BUS_NUM;
 	     bus++) {
-		BUG_ON(bus > MAX_NUMNODES * MAX_PHB_BUS_NUM);
 		if (read_pci_config(bus, 0, 0, 0) != PCI_VENDOR_DEVICE_ID_CALGARY)
 			continue;
 		if (test_bit(bus, translation_disabled)) {
@@ -1002,7 +1001,7 @@ static int __init calgary_parse_options(char *p)
 			if (p == endp)
 				break;
 
-			if (bridge <= (num_online_nodes() * MAX_PHB_BUS_NUM)) {
+			if (bridge < (num_online_nodes() * MAX_PHB_BUS_NUM)) {
 				printk(KERN_INFO "Calgary: disabling "
 				       "translation for PHB 0x%x\n", bridge);
 				set_bit(bridge, translation_disabled);
