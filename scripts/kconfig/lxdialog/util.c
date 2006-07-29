@@ -509,6 +509,12 @@ int on_key_esc(WINDOW *win)
 	return -1;
 }
 
+/* redraw screen in new size */
+int on_key_resize(void)
+{
+	dialog_clear();
+	return KEY_RESIZE;
+}
 
 struct dialog_list *item_cur;
 struct dialog_list item_nil;

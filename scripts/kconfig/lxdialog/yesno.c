@@ -44,6 +44,12 @@ int dialog_yesno(const char *title, const char *prompt, int height, int width)
 	int i, x, y, key = 0, button = 0;
 	WINDOW *dialog;
 
+do_resize:
+	if (getmaxy(stdscr) < (height + 4))
+		return -ERRDISPLAYTOOSMALL;
+	if (getmaxx(stdscr) < (width + 4))
+		return -ERRDISPLAYTOOSMALL;
+
 	/* center dialog box on screen */
 	x = (COLS - width) / 2;
 	y = (LINES - height) / 2;
@@ -96,6 +102,10 @@ int dialog_yesno(const char *title, const char *prompt, int height, int width)
 		case KEY_ESC:
 			key = on_key_esc(dialog);
 			break;
+		case KEY_RESIZE:
+			delwin(dialog);
+			on_key_resize();
+			goto do_resize;
 		}
 	}
 

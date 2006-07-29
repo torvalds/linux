@@ -125,6 +125,12 @@ int dialog_checklist(const char *title, const char *prompt, int height,
 		}
 	}
 
+do_resize:
+	if (getmaxy(stdscr) < (height + 6))
+		return -ERRDISPLAYTOOSMALL;
+	if (getmaxx(stdscr) < (width + 6))
+		return -ERRDISPLAYTOOSMALL;
+
 	max_choice = MIN(list_height, item_count());
 
 	/* center dialog box on screen */
@@ -303,6 +309,11 @@ int dialog_checklist(const char *title, const char *prompt, int height,
 		case KEY_ESC:
 			key = on_key_esc(dialog);
 			break;
+		case KEY_RESIZE:
+			delwin(list);
+			delwin(dialog);
+			on_key_resize();
+			goto do_resize;
 		}
 
 		/* Now, update everything... */

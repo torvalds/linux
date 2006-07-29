@@ -86,6 +86,9 @@
 #define ACS_DARROW 'v'
 #endif
 
+/* error return codes */
+#define ERRDISPLAYTOOSMALL (KEY_MAX + 1)
+
 /*
  *   Color definitions
  */
@@ -181,6 +184,7 @@ int item_is_tag(char tag);
 
 /* generic key handlers */
 int on_key_esc(WINDOW *win);
+int on_key_resize(void);
 
 void init_dialog(const char *backtitle);
 void reset_dialog(void);
@@ -199,8 +203,8 @@ int dialog_yesno(const char *title, const char *prompt, int height, int width);
 int dialog_msgbox(const char *title, const char *prompt, int height,
 		  int width, int pause);
 int dialog_textbox(const char *title, const char *file, int height, int width);
-int dialog_menu(const char *title, const char *prompt, int height, int width,
-		int menu_height, const void *selected, int *s_scroll);
+int dialog_menu(const char *title, const char *prompt,
+		const void *selected, int *s_scroll);
 int dialog_checklist(const char *title, const char *prompt, int height,
 		     int width, int list_height);
 extern char dialog_input_result[];

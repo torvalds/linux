@@ -49,6 +49,17 @@ int dialog_inputbox(const char *title, const char *prompt, int height, int width
 	char *instr = dialog_input_result;
 	WINDOW *dialog;
 
+	if (!init)
+		instr[0] = '\0';
+	else
+		strcpy(instr, init);
+
+do_resize:
+	if (getmaxy(stdscr) <= (height - 2))
+		return -ERRDISPLAYTOOSMALL;
+	if (getmaxx(stdscr) <= (width - 2))
+		return -ERRDISPLAYTOOSMALL;
+
 	/* center dialog box on screen */
 	x = (COLS - width) / 2;
 	y = (LINES - height) / 2;
@@ -85,11 +96,6 @@ int dialog_inputbox(const char *title, const char *prompt, int height, int width
 	/* Set up the initial value */
 	wmove(dialog, box_y, box_x);
 	wattrset(dialog, dlg.inputbox.atr);
-
-	if (!init)
-		instr[0] = '\0';
-	else
-		strcpy(instr, init);
 
 	input_x = strlen(instr);
 
@@ -220,6 +226,10 @@ int dialog_inputbox(const char *title, const char *prompt, int height, int width
 		case KEY_ESC:
 			key = on_key_esc(dialog);
 			break;
+		case KEY_RESIZE:
+			delwin(dialog);
+			on_key_resize();
+			goto do_resize;
 		}
 	}
 

@@ -606,9 +606,8 @@ static void conf(struct menu *menu)
 		reset_dialog();
 		res = dialog_menu(prompt ? prompt : _("Main Menu"),
 				  _(menu_instructions),
-				  rows, cols, rows - 10,
 				  active_menu, &s_scroll);
-		if (res == 1 || res == KEY_ESC)
+		if (res == 1 || res == KEY_ESC || res == -ERRDISPLAYTOOSMALL)
 			break;
 		if (!item_activate_selected())
 			continue;
@@ -617,7 +616,10 @@ static void conf(struct menu *menu)
 
 		submenu = item_data();
 		active_menu = item_data();
-		sym = submenu->sym;
+		if (submenu)
+			sym = submenu->sym;
+		else
+			sym = NULL;
 
 		switch (res) {
 		case 0:
@@ -683,7 +685,7 @@ static void conf(struct menu *menu)
 static void show_textbox(const char *title, const char *text, int r, int c)
 {
 	reset_dialog();
-	dialog_textbox(title, text, r ? r : rows, c ? c : cols);
+	dialog_textbox(title, text, r, c);
 }
 
 static void show_helptext(const char *title, const char *text)
@@ -755,6 +757,8 @@ static void conf_choice(struct menu *menu)
 				show_help(menu);
 			break;
 		case KEY_ESC:
+			return;
+		case -ERRDISPLAYTOOSMALL:
 			return;
 		}
 	}

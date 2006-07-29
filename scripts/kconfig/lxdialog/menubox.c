@@ -179,13 +179,24 @@ static void do_scroll(WINDOW *win, int *scroll, int n)
 /*
  * Display a menu for choosing among a number of options
  */
-int dialog_menu(const char *title, const char *prompt, int height, int width,
-                int menu_height, const void *selected, int *s_scroll)
+int dialog_menu(const char *title, const char *prompt,
+                const void *selected, int *s_scroll)
 {
 	int i, j, x, y, box_x, box_y;
+	int height, width, menu_height;
 	int key = 0, button = 0, scroll = 0, choice = 0;
 	int first_item =  0, max_choice;
 	WINDOW *dialog, *menu;
+
+do_resize:
+	height = getmaxy(stdscr);
+	width = getmaxx(stdscr);
+	if (height < 15 || width < 65)
+		return -ERRDISPLAYTOOSMALL;
+
+	height -= 4;
+	width  -= 5;
+	menu_height = height - 10;
 
 	max_choice = MIN(menu_height, item_count());
 
@@ -226,7 +237,10 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 	draw_box(dialog, box_y, box_x, menu_height + 2, menu_width + 2,
 		 dlg.menubox_border.atr, dlg.menubox.atr);
 
-	item_x = (menu_width - 70) / 2;
+	if (menu_width >= 80)
+		item_x = (menu_width - 70) / 2;
+	else
+		item_x = 4;
 
 	/* Set choice to default item */
 	item_foreach()
@@ -407,6 +421,11 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 		case KEY_ESC:
 			key = on_key_esc(menu);
 			break;
+		case KEY_RESIZE:
+			on_key_resize();
+			delwin(menu);
+			delwin(dialog);
+			goto do_resize;
 		}
 	}
 	delwin(menu);

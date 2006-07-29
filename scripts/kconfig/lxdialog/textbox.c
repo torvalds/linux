@@ -25,7 +25,7 @@ static void back_lines(int n);
 static void print_page(WINDOW * win, int height, int width);
 static void print_line(WINDOW * win, int row, int width);
 static char *get_line(void);
-static void print_position(WINDOW * win, int height, int width);
+static void print_position(WINDOW * win);
 
 static int hscroll;
 static int begin_reached, end_reached, page_length;
@@ -33,14 +33,28 @@ static const char *buf;
 static const char *page;
 
 /*
+ * refresh window content
+ */
+static void refresh_text_box(WINDOW *dialog, WINDOW *box, int boxh, int boxw,
+							  int cur_y, int cur_x)
+{
+	print_page(box, boxh, boxw);
+	print_position(dialog);
+	wmove(dialog, cur_y, cur_x);	/* Restore cursor position */
+	wrefresh(dialog);
+}
+
+
+/*
  * Display text from a file in a dialog box.
  */
-int dialog_textbox(const char *title, const char *tbuf, int height, int width)
+int dialog_textbox(const char *title, const char *tbuf,
+		   int initial_height, int initial_width)
 {
 	int i, x, y, cur_x, cur_y, key = 0;
-	int texth, textw;
+	int height, width, boxh, boxw;
 	int passed_end;
-	WINDOW *dialog, *text;
+	WINDOW *dialog, *box;
 
 	begin_reached = 1;
 	end_reached = 0;
@@ -48,6 +62,25 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 	hscroll = 0;
 	buf = tbuf;
 	page = buf;	/* page is pointer to start of page to be displayed */
+
+do_resize:
+	getmaxyx(stdscr, height, width);
+	if (height < 8 || width < 8)
+		return -ERRDISPLAYTOOSMALL;
+	if (initial_height != 0)
+		height = initial_height;
+	else
+		if (height > 4)
+			height -= 4;
+		else
+			height = 0;
+	if (initial_width != 0)
+		width = initial_width;
+	else
+		if (width > 5)
+			width -= 5;
+		else
+			width = 0;
 
 	/* center dialog box on screen */
 	x = (COLS - width) / 2;
@@ -58,14 +91,14 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 	dialog = newwin(height, width, y, x);
 	keypad(dialog, TRUE);
 
-	/* Create window for text region, used for scrolling text */
-	texth = height - 4;
-	textw = width - 2;
-	text = subwin(dialog, texth, textw, y + 1, x + 1);
-	wattrset(text, dlg.dialog.atr);
-	wbkgdset(text, dlg.dialog.atr & A_COLOR);
+	/* Create window for box region, used for scrolling text */
+	boxh = height - 4;
+	boxw = width - 2;
+	box = subwin(dialog, boxh, boxw, y + 1, x + 1);
+	wattrset(box, dlg.dialog.atr);
+	wbkgdset(box, dlg.dialog.atr & A_COLOR);
 
-	keypad(text, TRUE);
+	keypad(box, TRUE);
 
 	/* register the new window, along with its borders */
 	draw_box(dialog, 0, 0, height, width,
@@ -86,11 +119,8 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 	getyx(dialog, cur_y, cur_x);	/* Save cursor position */
 
 	/* Print first page of text */
-	attr_clear(text, texth, textw, dlg.dialog.atr);
-	print_page(text, texth, textw);
-	print_position(dialog, height, width);
-	wmove(dialog, cur_y, cur_x);	/* Restore cursor position */
-	wrefresh(dialog);
+	attr_clear(box, boxh, boxw, dlg.dialog.atr);
+	refresh_text_box(dialog, box, boxh, boxw, cur_y, cur_x);
 
 	while ((key != KEY_ESC) && (key != '\n')) {
 		key = wgetch(dialog);
@@ -99,7 +129,7 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 		case 'e':
 		case 'X':
 		case 'x':
-			delwin(text);
+			delwin(box);
 			delwin(dialog);
 			return 0;
 		case 'g':	/* First page */
@@ -107,10 +137,8 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 			if (!begin_reached) {
 				begin_reached = 1;
 				page = buf;
-				print_page(text, texth, textw);
-				print_position(dialog, height, width);
-				wmove(dialog, cur_y, cur_x);	/* Restore cursor position */
-				wrefresh(dialog);
+				refresh_text_box(dialog, box, boxh, boxw,
+						 cur_y, cur_x);
 			}
 			break;
 		case 'G':	/* Last page */
@@ -119,11 +147,9 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 			end_reached = 1;
 			/* point to last char in buf */
 			page = buf + strlen(buf);
-			back_lines(texth);
-			print_page(text, texth, textw);
-			print_position(dialog, height, width);
-			wmove(dialog, cur_y, cur_x);	/* Restore cursor position */
-			wrefresh(dialog);
+			back_lines(boxh);
+			refresh_text_box(dialog, box, boxh, boxw,
+					 cur_y, cur_x);
 			break;
 		case 'K':	/* Previous line */
 		case 'k':
@@ -138,16 +164,16 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 				 * point to start of next page. This is done
 				 * by calling get_line() in the following
 				 * 'for' loop. */
-				scrollok(text, TRUE);
-				wscrl(text, -1);	/* Scroll text region down one line */
-				scrollok(text, FALSE);
+				scrollok(box, TRUE);
+				wscrl(box, -1);	/* Scroll box region down one line */
+				scrollok(box, FALSE);
 				page_length = 0;
 				passed_end = 0;
-				for (i = 0; i < texth; i++) {
+				for (i = 0; i < boxh; i++) {
 					if (!i) {
 						/* print first line of page */
-						print_line(text, 0, textw);
-						wnoutrefresh(text);
+						print_line(box, 0, boxw);
+						wnoutrefresh(box);
 					} else
 						/* Called to update 'end_reached' and 'page' */
 						get_line();
@@ -157,7 +183,7 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 						passed_end = 1;
 				}
 
-				print_position(dialog, height, width);
+				print_position(dialog);
 				wmove(dialog, cur_y, cur_x);	/* Restore cursor position */
 				wrefresh(dialog);
 			}
@@ -167,23 +193,21 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 		case KEY_PPAGE:
 			if (begin_reached)
 				break;
-			back_lines(page_length + texth);
-			print_page(text, texth, textw);
-			print_position(dialog, height, width);
-			wmove(dialog, cur_y, cur_x);
-			wrefresh(dialog);
+			back_lines(page_length + boxh);
+			refresh_text_box(dialog, box, boxh, boxw,
+					 cur_y, cur_x);
 			break;
 		case 'J':	/* Next line */
 		case 'j':
 		case KEY_DOWN:
 			if (!end_reached) {
 				begin_reached = 0;
-				scrollok(text, TRUE);
-				scroll(text);	/* Scroll text region up one line */
-				scrollok(text, FALSE);
-				print_line(text, texth - 1, textw);
-				wnoutrefresh(text);
-				print_position(dialog, height, width);
+				scrollok(box, TRUE);
+				scroll(box);	/* Scroll box region up one line */
+				scrollok(box, FALSE);
+				print_line(box, boxh - 1, boxw);
+				wnoutrefresh(box);
+				print_position(dialog);
 				wmove(dialog, cur_y, cur_x);	/* Restore cursor position */
 				wrefresh(dialog);
 			}
@@ -194,10 +218,8 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 				break;
 
 			begin_reached = 0;
-			print_page(text, texth, textw);
-			print_position(dialog, height, width);
-			wmove(dialog, cur_y, cur_x);
-			wrefresh(dialog);
+			refresh_text_box(dialog, box, boxh, boxw,
+					 cur_y, cur_x);
 			break;
 		case '0':	/* Beginning of line */
 		case 'H':	/* Scroll left */
@@ -212,9 +234,8 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 				hscroll--;
 			/* Reprint current page to scroll horizontally */
 			back_lines(page_length);
-			print_page(text, texth, textw);
-			wmove(dialog, cur_y, cur_x);
-			wrefresh(dialog);
+			refresh_text_box(dialog, box, boxh, boxw,
+					 cur_y, cur_x);
 			break;
 		case 'L':	/* Scroll right */
 		case 'l':
@@ -224,16 +245,21 @@ int dialog_textbox(const char *title, const char *tbuf, int height, int width)
 			hscroll++;
 			/* Reprint current page to scroll horizontally */
 			back_lines(page_length);
-			print_page(text, texth, textw);
-			wmove(dialog, cur_y, cur_x);
-			wrefresh(dialog);
+			refresh_text_box(dialog, box, boxh, boxw,
+					 cur_y, cur_x);
 			break;
 		case KEY_ESC:
 			key = on_key_esc(dialog);
 			break;
+		case KEY_RESIZE:
+			back_lines(height);
+			delwin(box);
+			delwin(dialog);
+			on_key_resize();
+			goto do_resize;
 		}
 	}
-	delwin(text);
+	delwin(box);
 	delwin(dialog);
 	return key;		/* ESC pressed */
 }
@@ -353,13 +379,13 @@ static char *get_line(void)
 /*
  * Print current position
  */
-static void print_position(WINDOW * win, int height, int width)
+static void print_position(WINDOW * win)
 {
 	int percent;
 
 	wattrset(win, dlg.position_indicator.atr);
 	wbkgdset(win, dlg.position_indicator.atr & A_COLOR);
 	percent = (page - buf) * 100 / strlen(buf);
-	wmove(win, height - 3, width - 9);
+	wmove(win, getmaxy(win) - 3, getmaxx(win) - 9);
 	wprintw(win, "(%3d%%)", percent);
 }
