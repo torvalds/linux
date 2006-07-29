@@ -2667,7 +2667,7 @@ static void ipw_fw_dma_abort(struct ipw_priv *priv)
 
 	IPW_DEBUG_FW(">> :\n");
 
-	//set the Stop and Abort bit
+	/* set the Stop and Abort bit */
 	control = DMA_CONTROL_SMALL_CB_CONST_VALUE | DMA_CB_STOP_AND_ABORT;
 	ipw_write_reg32(priv, IPW_DMA_I_DMA_CONTROL, control);
 	priv->sram_desc.last_cb_index = 0;
@@ -3002,8 +3002,6 @@ static int ipw_load_ucode(struct ipw_priv *priv, u8 * data, size_t len)
 	if (rc < 0)
 		return rc;
 
-//      spin_lock_irqsave(&priv->lock, flags);
-
 	for (addr = IPW_SHARED_LOWER_BOUND;
 	     addr < IPW_REGISTER_DOMAIN1_END; addr += 4) {
 		ipw_write32(priv, addr, 0);
@@ -3096,8 +3094,6 @@ static int ipw_load_ucode(struct ipw_priv *priv, u8 * data, size_t len)
 	/* disable DINO, otherwise for some reason
 	   firmware have problem getting alive resp. */
 	ipw_write_reg8(priv, IPW_BASEBAND_CONTROL_STATUS, 0);
-
-//      spin_unlock_irqrestore(&priv->lock, flags);
 
 	return rc;
 }
@@ -6387,13 +6383,6 @@ static int ipw_wx_set_genie(struct net_device *dev,
 	    (wrqu->data.length && extra == NULL))
 		return -EINVAL;
 
-	//mutex_lock(&priv->mutex);
-
-	//if (!ieee->wpa_enabled) {
-	//      err = -EOPNOTSUPP;
-	//      goto out;
-	//}
-
 	if (wrqu->data.length) {
 		buf = kmalloc(wrqu->data.length, GFP_KERNEL);
 		if (buf == NULL) {
@@ -6413,7 +6402,6 @@ static int ipw_wx_set_genie(struct net_device *dev,
 
 	ipw_wpa_assoc_frame(priv, ieee->wpa_ie, ieee->wpa_ie_len);
       out:
-	//mutex_unlock(&priv->mutex);
 	return err;
 }
 
@@ -6425,13 +6413,6 @@ static int ipw_wx_get_genie(struct net_device *dev,
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee;
 	int err = 0;
-
-	//mutex_lock(&priv->mutex);
-
-	//if (!ieee->wpa_enabled) {
-	//      err = -EOPNOTSUPP;
-	//      goto out;
-	//}
 
 	if (ieee->wpa_ie_len == 0 || ieee->wpa_ie == NULL) {
 		wrqu->data.length = 0;
@@ -6447,7 +6428,6 @@ static int ipw_wx_get_genie(struct net_device *dev,
 	memcpy(extra, ieee->wpa_ie, ieee->wpa_ie_len);
 
       out:
-	//mutex_unlock(&priv->mutex);
 	return err;
 }
 
@@ -6558,7 +6538,6 @@ static int ipw_wx_set_auth(struct net_device *dev,
 		ieee->ieee802_1x = param->value;
 		break;
 
-		//case IW_AUTH_ROAMING_CONTROL:
 	case IW_AUTH_PRIVACY_INVOKED:
 		ieee->privacy_invoked = param->value;
 		break;
@@ -6680,7 +6659,7 @@ static int ipw_wx_set_mlme(struct net_device *dev,
 
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
-		// silently ignore
+		/* silently ignore */
 		break;
 
 	case IW_MLME_DISASSOC:
@@ -9766,7 +9745,7 @@ static int ipw_wx_set_monitor(struct net_device *dev,
 	return 0;
 }
 
-#endif				// CONFIG_IPW2200_MONITOR
+#endif				/* CONFIG_IPW2200_MONITOR */
 
 static int ipw_wx_reset(struct net_device *dev,
 			struct iw_request_info *info,
@@ -10009,7 +9988,7 @@ static  void init_sys_config(struct ipw_sys_config *sys_config)
 	sys_config->dot11g_auto_detection = 0;
 	sys_config->enable_cts_to_self = 0;
 	sys_config->bt_coexist_collision_thr = 0;
-	sys_config->pass_noise_stats_to_host = 1;	//1 -- fix for 256
+	sys_config->pass_noise_stats_to_host = 1;	/* 1 -- fix for 256 */
 	sys_config->silence_threshold = 0x1e;
 }
 

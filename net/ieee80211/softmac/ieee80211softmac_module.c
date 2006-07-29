@@ -44,6 +44,7 @@ struct net_device *alloc_ieee80211softmac(int sizeof_priv)
 	softmac->ieee->handle_assoc_response = ieee80211softmac_handle_assoc_response;
 	softmac->ieee->handle_reassoc_request = ieee80211softmac_handle_reassoc_req;
 	softmac->ieee->handle_disassoc = ieee80211softmac_handle_disassoc;
+ 	softmac->ieee->handle_beacon = ieee80211softmac_handle_beacon;
 	softmac->scaninfo = NULL;
 
 	softmac->associnfo.scan_retry = IEEE80211SOFTMAC_ASSOC_SCAN_RETRY_LIMIT;
@@ -178,21 +179,14 @@ int ieee80211softmac_ratesinfo_rate_supported(struct ieee80211softmac_ratesinfo 
 	return 0;
 }
 
-/* Finds the highest rate which is:
- *  1. Present in ri (optionally a basic rate)
- *  2. Supported by the device
- *  3. Less than or equal to the user-defined rate
- */
-static u8 highest_supported_rate(struct ieee80211softmac_device *mac,
+u8 ieee80211softmac_highest_supported_rate(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_ratesinfo *ri, int basic_only)
 {
 	u8 user_rate = mac->txrates.user_rate;
 	int i;
 
-	if (ri->count == 0) {
-		dprintk(KERN_ERR PFX "empty ratesinfo?\n");
+	if (ri->count == 0)
 		return IEEE80211_CCK_RATE_1MB;
-	}
 
 	for (i = ri->count - 1; i >= 0; i--) {
 		u8 rate = ri->rates[i];
@@ -208,36 +202,61 @@ static u8 highest_supported_rate(struct ieee80211softmac_device *mac,
 	/* If we haven't found a suitable rate by now, just trust the user */
 	return user_rate;
 }
+EXPORT_SYMBOL_GPL(ieee80211softmac_highest_supported_rate);
+
+void ieee80211softmac_process_erp(struct ieee80211softmac_device *mac,
+	u8 erp_value)
+{
+ 	int use_protection;
+	int short_preamble;
+ 	u32 changes = 0;
+
+	/* Barker preamble mode */
+	short_preamble = ((erp_value & WLAN_ERP_BARKER_PREAMBLE) == 0
+			  && mac->associnfo.short_preamble_available) ? 1 : 0;
+
+	/* Protection needed? */
+	use_protection = (erp_value & WLAN_ERP_USE_PROTECTION) != 0;
+
+	if (mac->bssinfo.short_preamble != short_preamble) {
+		changes |= IEEE80211SOFTMAC_BSSINFOCHG_SHORT_PREAMBLE;
+		mac->bssinfo.short_preamble = short_preamble;
+	}
+
+	if (mac->bssinfo.use_protection != use_protection) {
+		changes |= IEEE80211SOFTMAC_BSSINFOCHG_PROTECTION;
+		mac->bssinfo.use_protection = use_protection;
+	}
+
+	if (mac->bssinfo_change && changes)
+		mac->bssinfo_change(mac->dev, changes);
+}
 
 void ieee80211softmac_recalc_txrates(struct ieee80211softmac_device *mac)
 {
 	struct ieee80211softmac_txrates *txrates = &mac->txrates;
-	struct ieee80211softmac_txrates oldrates;
 	u32 change = 0;
 
-	if (mac->txrates_change)
-		oldrates = mac->txrates;
-
 	change |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT;
-	txrates->default_rate = highest_supported_rate(mac, &mac->associnfo.supported_rates, 0);
+	txrates->default_rate = ieee80211softmac_highest_supported_rate(mac, &mac->bssinfo.supported_rates, 0);
 
 	change |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT_FBACK;
 	txrates->default_fallback = lower_rate(mac, txrates->default_rate);
 
 	change |= IEEE80211SOFTMAC_TXRATECHG_MCAST;
-	txrates->mcast_rate = highest_supported_rate(mac, &mac->associnfo.supported_rates, 1);
+	txrates->mcast_rate = ieee80211softmac_highest_supported_rate(mac, &mac->bssinfo.supported_rates, 1);
 
 	if (mac->txrates_change)
-		mac->txrates_change(mac->dev, change, &oldrates);
+		mac->txrates_change(mac->dev, change);
 
 }
 
-void ieee80211softmac_init_txrates(struct ieee80211softmac_device *mac)
+void ieee80211softmac_init_bss(struct ieee80211softmac_device *mac)
 {
 	struct ieee80211_device *ieee = mac->ieee;
 	u32 change = 0;
 	struct ieee80211softmac_txrates *txrates = &mac->txrates;
-	struct ieee80211softmac_txrates oldrates;
+	struct ieee80211softmac_bss_info *bssinfo = &mac->bssinfo;
 
 	/* TODO: We need some kind of state machine to lower the default rates
 	 *       if we loose too many packets.
@@ -245,8 +264,6 @@ void ieee80211softmac_init_txrates(struct ieee80211softmac_device *mac)
 	/* Change the default txrate to the highest possible value.
 	 * The txrate machine will lower it, if it is too high.
 	 */
-	if (mac->txrates_change)
-		oldrates = mac->txrates;
 	/* FIXME: We don't correctly handle backing down to lower
 	   rates, so 801.11g devices start off at 11M for now. People
 	   can manually change it if they really need to, but 11M is
@@ -272,7 +289,23 @@ void ieee80211softmac_init_txrates(struct ieee80211softmac_device *mac)
 	change |= IEEE80211SOFTMAC_TXRATECHG_MGT_MCAST;
 
 	if (mac->txrates_change)
-		mac->txrates_change(mac->dev, change, &oldrates);
+		mac->txrates_change(mac->dev, change);
+
+	change = 0;
+
+	bssinfo->supported_rates.count = 0;
+	memset(bssinfo->supported_rates.rates, 0,
+		sizeof(bssinfo->supported_rates.rates));
+	change |= IEEE80211SOFTMAC_BSSINFOCHG_RATES;
+
+	bssinfo->short_preamble = 0;
+	change |= IEEE80211SOFTMAC_BSSINFOCHG_SHORT_PREAMBLE;
+
+	bssinfo->use_protection = 0;
+	change |= IEEE80211SOFTMAC_BSSINFOCHG_PROTECTION;
+
+	if (mac->bssinfo_change)
+		mac->bssinfo_change(mac->dev, change);
 
 	mac->running = 1;
 }
@@ -282,7 +315,7 @@ void ieee80211softmac_start(struct net_device *dev)
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 
 	ieee80211softmac_start_check_rates(mac);
-	ieee80211softmac_init_txrates(mac);
+	ieee80211softmac_init_bss(mac);
 }
 EXPORT_SYMBOL_GPL(ieee80211softmac_start);
 
@@ -335,7 +368,6 @@ u8 ieee80211softmac_lower_rate_delta(struct ieee80211softmac_device *mac, u8 rat
 static void ieee80211softmac_add_txrates_badness(struct ieee80211softmac_device *mac,
 						 int amount)
 {
-	struct ieee80211softmac_txrates oldrates;
 	u8 default_rate = mac->txrates.default_rate;
 	u8 default_fallback = mac->txrates.default_fallback;
 	u32 changes = 0;
@@ -348,8 +380,6 @@ printk("badness %d\n", mac->txrate_badness);
 	mac->txrate_badness += amount;
 	if (mac->txrate_badness <= -1000) {
 		/* Very small badness. Try a faster bitrate. */
-		if (mac->txrates_change)
-			memcpy(&oldrates, &mac->txrates, sizeof(oldrates));
 		default_rate = raise_rate(mac, default_rate);
 		changes |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT;
 		default_fallback = get_fallback_rate(mac, default_rate);
@@ -358,8 +388,6 @@ printk("badness %d\n", mac->txrate_badness);
 printk("Bitrate raised to %u\n", default_rate);
 	} else if (mac->txrate_badness >= 10000) {
 		/* Very high badness. Try a slower bitrate. */
-		if (mac->txrates_change)
-			memcpy(&oldrates, &mac->txrates, sizeof(oldrates));
 		default_rate = lower_rate(mac, default_rate);
 		changes |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT;
 		default_fallback = get_fallback_rate(mac, default_rate);
@@ -372,7 +400,7 @@ printk("Bitrate lowered to %u\n", default_rate);
 	mac->txrates.default_fallback = default_fallback;
 
 	if (changes && mac->txrates_change)
-		mac->txrates_change(mac->dev, changes, &oldrates);
+		mac->txrates_change(mac->dev, changes);
 }
 
 void ieee80211softmac_fragment_lost(struct net_device *dev,
@@ -416,7 +444,11 @@ ieee80211softmac_create_network(struct ieee80211softmac_device *mac,
 	memcpy(&softnet->supported_rates.rates[softnet->supported_rates.count], net->rates_ex, net->rates_ex_len);
 	softnet->supported_rates.count += net->rates_ex_len;
 	sort(softnet->supported_rates.rates, softnet->supported_rates.count, sizeof(softnet->supported_rates.rates[0]), rate_cmp, NULL);
-	
+
+	/* we save the ERP value because it is needed at association time, and
+	 * many AP's do not include an ERP IE in the association response. */
+	softnet->erp_value = net->erp_value;
+
 	softnet->capabilities = net->capability;
 	return softnet;
 }

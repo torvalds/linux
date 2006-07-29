@@ -2594,6 +2594,18 @@ P:	Nicolas Pitre
 M:	nico@cam.org
 S:	Maintained
 
+SOFTMAC LAYER (IEEE 802.11)
+P:	Johannes Berg
+M:	johannes@sipsolutions.net
+P:	Joe Jezak
+M:	josejx@gentoo.org
+P:	Daniel Drake
+M:	dsd@gentoo.org
+W:	http://softmac.sipsolutions.net/
+L:	softmac-dev@sipsolutions.net
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 SOFTWARE RAID (Multiple Disks) SUPPORT
 P:	Ingo Molnar
 M:	mingo@redhat.com
@@ -3300,6 +3312,15 @@ M:	jreuter@yaina.de
 W:	http://yaina.de/jreuter/
 W:	http://www.qsl.net/dl1bke/
 L:	linux-hams@vger.kernel.org
+S:	Maintained
+
+ZD1211RW WIRELESS DRIVER
+P:	Daniel Drake
+M:	dsd@gentoo.org
+P:	Ulrich Kunitz
+M:	kune@deine-taler.de
+W:	http://zd1211.ath.cx/wiki/DriverRewrite
+L:	zd1211-devs@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 ZF MACHZ WATCHDOG

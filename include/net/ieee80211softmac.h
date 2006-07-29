@@ -86,9 +86,6 @@ struct ieee80211softmac_assoc_info {
 	
 	/* BSSID we're trying to associate to */
 	char bssid[ETH_ALEN];
-
-	/* Rates supported by the network */
-	struct ieee80211softmac_ratesinfo supported_rates;
 	
 	/* some flags.
 	 * static_essid is valid if the essid is constant,
@@ -103,6 +100,7 @@ struct ieee80211softmac_assoc_info {
 	 * bssfixed is used for SIOCSIWAP.
 	 */
 	u8 static_essid:1,
+	   short_preamble_available:1,
 	   associating:1,
 	   assoc_wait:1,
 	   bssvalid:1,
@@ -113,6 +111,19 @@ struct ieee80211softmac_assoc_info {
 
 	struct work_struct work;
 	struct work_struct timeout;
+};
+
+struct ieee80211softmac_bss_info {
+	/* Rates supported by the network */
+	struct ieee80211softmac_ratesinfo supported_rates;
+
+	/* This indicates whether frames can currently be transmitted with
+	 * short preamble (only use this variable during TX at CCK rates) */
+	u8 short_preamble:1;
+
+	/* This indicates whether protection (e.g. self-CTS) should be used
+	 * when transmitting with OFDM modulation */
+	u8 use_protection:1;
 };
 
 enum {
@@ -157,6 +168,10 @@ struct ieee80211softmac_txrates {
 #define IEEE80211SOFTMAC_TXRATECHG_MCAST		(1 << 2) /* mcast_rate */
 #define IEEE80211SOFTMAC_TXRATECHG_MGT_MCAST		(1 << 3) /* mgt_mcast_rate */
 
+#define IEEE80211SOFTMAC_BSSINFOCHG_RATES		(1 << 0) /* supported_rates */
+#define IEEE80211SOFTMAC_BSSINFOCHG_SHORT_PREAMBLE	(1 << 1) /* short_preamble */
+#define IEEE80211SOFTMAC_BSSINFOCHG_PROTECTION		(1 << 2) /* use_protection */
+
 struct ieee80211softmac_device {
 	/* 802.11 structure for data stuff */
 	struct ieee80211_device *ieee;
@@ -200,10 +215,16 @@ struct ieee80211softmac_device {
 	 * The driver just needs to read them.
 	 */
 	struct ieee80211softmac_txrates txrates;
-	/* If the driver needs to do stuff on TX rate changes, assign this callback. */
+
+	/* If the driver needs to do stuff on TX rate changes, assign this
+	 * callback. See IEEE80211SOFTMAC_TXRATECHG for change flags. */
 	void (*txrates_change)(struct net_device *dev,
-			       u32 changes, /* see IEEE80211SOFTMAC_TXRATECHG flags */
-			       const struct ieee80211softmac_txrates *rates_before_change);
+			       u32 changes);
+
+	/* If the driver needs to do stuff when BSS properties change, assign
+	 * this callback. see IEEE80211SOFTMAC_BSSINFOCHG for change flags. */
+	void (*bssinfo_change)(struct net_device *dev,
+			       u32 changes);
 
 	/* private stuff follows */
 	/* this lock protects this structure */
@@ -216,6 +237,7 @@ struct ieee80211softmac_device {
 	
 	struct ieee80211softmac_scaninfo *scaninfo;
 	struct ieee80211softmac_assoc_info associnfo;
+	struct ieee80211softmac_bss_info bssinfo;
 
 	struct list_head auth_queue;
 	struct list_head events;
@@ -257,6 +279,14 @@ extern void ieee80211softmac_fragment_lost(struct net_device *dev,
  * Note that the rates need to be sorted. */
 extern void ieee80211softmac_set_rates(struct net_device *dev, u8 count, u8 *rates);
 
+/* Finds the highest rate which is:
+ *  1. Present in ri (optionally a basic rate)
+ *  2. Supported by the device
+ *  3. Less than or equal to the user-defined rate
+ */
+extern u8 ieee80211softmac_highest_supported_rate(struct ieee80211softmac_device *mac,
+	struct ieee80211softmac_ratesinfo *ri, int basic_only);
+
 /* Helper function which advises you the rate at which a frame should be
  * transmitted at. */
 static inline u8 ieee80211softmac_suggest_txrate(struct ieee80211softmac_device *mac,
@@ -277,6 +307,24 @@ static inline u8 ieee80211softmac_suggest_txrate(struct ieee80211softmac_device 
 		return txrates->mgt_mcast_rate;
 	else
 		return txrates->mcast_rate;
+}
+
+/* Helper function which advises you when it is safe to transmit with short
+ * preamble.
+ * You should only call this function when transmitting at CCK rates. */
+static inline int ieee80211softmac_short_preamble_ok(struct ieee80211softmac_device *mac,
+						    int is_multicast,
+						    int is_mgt)
+{
+	return (is_multicast && is_mgt) ? 0 : mac->bssinfo.short_preamble;
+}
+
+/* Helper function which advises you whether protection (e.g. self-CTS) is
+ * needed. 1 = protection needed, 0 = no protection needed
+ * Only use this function when transmitting with OFDM modulation. */
+static inline int ieee80211softmac_protection_needed(struct ieee80211softmac_device *mac)
+{
+	return mac->bssinfo.use_protection;
 }
 
 /* Start the SoftMAC. Call this after you initialized the device
