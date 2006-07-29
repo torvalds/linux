@@ -515,7 +515,7 @@ xfs_mount(
 	if (error)
 		goto error2;
 
-	if ((mp->m_flags & XFS_MOUNT_BARRIER) && !(vfsp->vfs_flag & VFS_RDONLY))
+	if (mp->m_flags & XFS_MOUNT_BARRIER)
 		xfs_mountfs_check_barriers(mp);
 
 	error = XFS_IOINIT(vfsp, args, flags);
