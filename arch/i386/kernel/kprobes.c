@@ -256,11 +256,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	int ret = 0;
 	kprobe_opcode_t *addr;
 	struct kprobe_ctlblk *kcb;
-#ifdef CONFIG_PREEMPT
-	unsigned pre_preempt_count = preempt_count();
-#else
-	unsigned pre_preempt_count = 1;
-#endif
 
 	addr = (kprobe_opcode_t *)(regs->eip - sizeof(kprobe_opcode_t));
 
@@ -338,13 +333,15 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		return 1;
 
 ss_probe:
-	if (pre_preempt_count && p->ainsn.boostable == 1 && !p->post_handler){
+#ifndef CONFIG_PREEMPT
+	if (p->ainsn.boostable == 1 && !p->post_handler){
 		/* Boost up -- we can execute copied instructions directly */
 		reset_current_kprobe();
 		regs->eip = (unsigned long)p->ainsn.insn;
 		preempt_enable_no_resched();
 		return 1;
 	}
+#endif
 	prepare_singlestep(p, regs);
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
