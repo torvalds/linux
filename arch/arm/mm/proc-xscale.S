@@ -536,6 +536,11 @@ cpu_80200_name:
 	.asciz	"XScale-80200"
 	.size	cpu_80200_name, . - cpu_80200_name
 
+	.type	cpu_80219_name, #object
+cpu_80219_name:
+	.asciz	"XScale-80219"
+	.size	cpu_80219_name, . - cpu_80219_name
+
 	.type	cpu_8032x_name, #object
 cpu_8032x_name:
 	.asciz	"XScale-IOP8032x Family"
@@ -613,10 +618,33 @@ __80200_proc_info:
 	.long	xscale_cache_fns
 	.size	__80200_proc_info, . - __80200_proc_info
 
+	.type	__80219_proc_info,#object
+__80219_proc_info:
+	.long	0x69052e20
+	.long	0xffffffe0
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_BUFFERABLE | \
+		PMD_SECT_CACHEABLE | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	b	__xscale_setup
+	.long	cpu_arch_name
+	.long	cpu_elf_name
+	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP
+	.long	cpu_80219_name
+	.long	xscale_processor_functions
+	.long	v4wbi_tlb_fns
+	.long	xscale_mc_user_fns
+	.long	xscale_cache_fns
+	.size	__80219_proc_info, . - __80219_proc_info
+
 	.type	__8032x_proc_info,#object
 __8032x_proc_info:
 	.long	0x69052420
-	.long	0xfffff5e0      @ mask should accomodate IOP80219 also
+	.long	0xffffffe0
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \

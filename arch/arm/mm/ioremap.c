@@ -363,7 +363,9 @@ EXPORT_SYMBOL(__ioremap);
 
 void __iounmap(void __iomem *addr)
 {
+#ifndef CONFIG_SMP
 	struct vm_struct **p, *tmp;
+#endif
 	unsigned int section_mapping = 0;
 
 	addr = (void __iomem *)(PAGE_MASK & (unsigned long)addr);

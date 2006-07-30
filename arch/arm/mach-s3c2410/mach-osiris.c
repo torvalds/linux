@@ -67,12 +67,12 @@ static struct map_desc osiris_iodesc[] __initdata = {
 	  .virtual	= (u32)OSIRIS_VA_CTRL1,
 	  .pfn		= __phys_to_pfn(OSIRIS_PA_CTRL1),
 	  .length	= SZ_16K,
-	  .type		= MT_DEVICE
+	  .type		= MT_DEVICE,
   }, {
 	  .virtual	= (u32)OSIRIS_VA_CTRL2,
 	  .pfn		= __phys_to_pfn(OSIRIS_PA_CTRL2),
 	  .length	= SZ_16K,
-	  .type		= MT_DEVICE
+	  .type		= MT_DEVICE,
   },
 };
 
@@ -91,7 +91,7 @@ static struct s3c24xx_uart_clksrc osiris_serial_clocks[] = {
 		.name		= "pclk",
 		.divisor	= 1,
 		.min_baud	= 0,
-		.max_baud	= 0.
+		.max_baud	= 0,
 	}
 };
 
@@ -103,7 +103,7 @@ static struct s3c2410_uartcfg osiris_uartcfgs[] __initdata = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = osiris_serial_clocks,
-		.clocks_size = ARRAY_SIZE(osiris_serial_clocks)
+		.clocks_size = ARRAY_SIZE(osiris_serial_clocks),
 	},
 	[1] = {
 		.hwport	     = 1,
@@ -112,7 +112,7 @@ static struct s3c2410_uartcfg osiris_uartcfgs[] __initdata = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = osiris_serial_clocks,
-		.clocks_size = ARRAY_SIZE(osiris_serial_clocks)
+		.clocks_size = ARRAY_SIZE(osiris_serial_clocks),
 	},
 };
 
@@ -126,7 +126,7 @@ static struct mtd_partition osiris_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,
-		.offset	= 0
+		.offset	= 0,
 	},
 	[1] = {
 		.name	= "/boot",
@@ -158,21 +158,21 @@ static struct s3c2410_nand_set osiris_nand_sets[] = {
 		.nr_chips	= 1,
 		.nr_map		= external_map,
 		.nr_partitions	= ARRAY_SIZE(osiris_default_nand_part),
-		.partitions	= osiris_default_nand_part
+		.partitions	= osiris_default_nand_part,
 	},
 	[0] = {
 		.name		= "chip0",
 		.nr_chips	= 1,
 		.nr_map		= chip0_map,
 		.nr_partitions	= ARRAY_SIZE(osiris_default_nand_part),
-		.partitions	= osiris_default_nand_part
+		.partitions	= osiris_default_nand_part,
 	},
 	[2] = {
 		.name		= "chip1",
 		.nr_chips	= 1,
 		.nr_map		= chip1_map,
 		.nr_partitions	= ARRAY_SIZE(osiris_default_nand_part),
-		.partitions	= osiris_default_nand_part
+		.partitions	= osiris_default_nand_part,
 	},
 };
 
@@ -245,7 +245,7 @@ static struct s3c24xx_board osiris_board __initdata = {
 	.devices       = osiris_devices,
 	.devices_count = ARRAY_SIZE(osiris_devices),
 	.clocks	       = osiris_clocks,
-	.clocks_count  = ARRAY_SIZE(osiris_clocks)
+	.clocks_count  = ARRAY_SIZE(osiris_clocks),
 };
 
 static void __init osiris_map_io(void)
