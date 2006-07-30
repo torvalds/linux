@@ -33,6 +33,7 @@
 #include <linux/vfs.h>
 #include <linux/namei.h>
 #include <linux/namespace.h>
+#include <linux/security.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -108,6 +109,8 @@ struct dentry *nfs_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 		dprintk("nfs_get_root: get root dentry failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
+
+	security_d_instantiate(mntroot, inode);
 
 	if (!mntroot->d_op)
 		mntroot->d_op = server->nfs_client->rpc_ops->dentry_ops;
@@ -295,6 +298,8 @@ struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 		dprintk("nfs_get_root: get root dentry failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
+
+	security_d_instantiate(mntroot, inode);
 
 	if (!mntroot->d_op)
 		mntroot->d_op = server->nfs_client->rpc_ops->dentry_ops;
