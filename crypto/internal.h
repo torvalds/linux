@@ -67,9 +67,9 @@ static inline void crypto_kunmap(void *vaddr, int out)
 	kunmap_atomic(vaddr, crypto_kmap_type(out));
 }
 
-static inline void crypto_yield(struct crypto_tfm *tfm)
+static inline void crypto_yield(u32 flags)
 {
-	if (tfm->crt_flags & CRYPTO_TFM_REQ_MAY_SLEEP)
+	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP)
 		cond_resched();
 }
 

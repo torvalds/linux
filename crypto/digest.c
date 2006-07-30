@@ -55,7 +55,7 @@ static void update(struct crypto_tfm *tfm,
 			tfm->__crt_alg->cra_digest.dia_update(tfm, p,
 							      bytes_from_page);
 			crypto_kunmap(src, 0);
-			crypto_yield(tfm);
+			crypto_yield(tfm->crt_flags);
 			offset = 0;
 			pg++;
 			l -= bytes_from_page;

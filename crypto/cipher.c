@@ -145,7 +145,7 @@ static int crypt(const struct cipher_desc *desc,
 		if (!nbytes)
 			break;
 
-		crypto_yield(tfm);
+		crypto_yield(tfm->crt_flags);
 	}
 
 	if (buffer)
