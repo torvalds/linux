@@ -25,8 +25,11 @@
  */
 static unsigned long time_to_jiffies(unsigned long sec, unsigned long nsec)
 {
-	struct timespec ts = {sec, nsec};
-	return jiffies + timespec_to_jiffies(&ts);
+	if (sec || nsec) {
+		struct timespec ts = {sec, nsec};
+		return jiffies + timespec_to_jiffies(&ts);
+	} else
+		return jiffies - 1;
 }
 
 /*
