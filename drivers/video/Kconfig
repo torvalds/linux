@@ -420,7 +420,7 @@ config FB_OF
 
 config FB_CONTROL
 	bool "Apple \"control\" display support"
-	depends on (FB = y) && PPC_PMAC
+	depends on (FB = y) && PPC_PMAC && PPC32
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -431,7 +431,7 @@ config FB_CONTROL
 
 config FB_PLATINUM
 	bool "Apple \"platinum\" display support"
-	depends on (FB = y) && PPC_PMAC
+	depends on (FB = y) && PPC_PMAC && PPC32
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -442,7 +442,7 @@ config FB_PLATINUM
 
 config FB_VALKYRIE
 	bool "Apple \"valkyrie\" display support"
-	depends on (FB = y) && (MAC || PPC_PMAC)
+	depends on (FB = y) && (MAC || (PPC_PMAC && PPC32))
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -453,7 +453,7 @@ config FB_VALKYRIE
 
 config FB_CT65550
 	bool "Chips 65550 display support"
-	depends on (FB = y) && PPC
+	depends on (FB = y) && PPC32
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
