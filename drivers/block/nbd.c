@@ -341,7 +341,8 @@ static struct request *nbd_read_stat(struct nbd_device *lo)
 					printk(KERN_ERR "%s: Receive data failed (result %d)\n",
 							lo->disk->disk_name,
 							result);
-					goto harderror;
+					req->errors++;
+					return req;
 				}
 				dprintk(DBG_RX, "%s: request %p: got %d bytes data\n",
 					lo->disk->disk_name, req, bvec->bv_len);
