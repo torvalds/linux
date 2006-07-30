@@ -47,8 +47,8 @@
 #define IRQ_WAITING		0x00200000	/* IRQ not yet seen - for autodetection */
 #define IRQ_LEVEL		0x00400000	/* IRQ level triggered */
 #define IRQ_MASKED		0x00800000	/* IRQ masked - shouldn't be seen again */
+#define IRQ_PER_CPU		0x01000000	/* IRQ is per CPU */
 #ifdef CONFIG_IRQ_PER_CPU
-# define IRQ_PER_CPU		0x01000000	/* IRQ is per CPU */
 # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
 #else
 # define CHECK_IRQ_PER_CPU(var) 0
