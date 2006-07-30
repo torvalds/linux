@@ -448,6 +448,7 @@ static int myri10ge_load_hotplug_firmware(struct myri10ge_priv *mgp, u32 * size)
 	struct mcp_gen_header *hdr;
 	size_t hdr_offset;
 	int status;
+	unsigned i;
 
 	if ((status = request_firmware(&fw, mgp->fw_name, dev)) < 0) {
 		dev_err(dev, "Unable to load %s firmware image via hotplug\n",
@@ -479,18 +480,12 @@ static int myri10ge_load_hotplug_firmware(struct myri10ge_priv *mgp, u32 * size)
 		goto abort_with_fw;
 
 	crc = crc32(~0, fw->data, fw->size);
-	if (mgp->tx.boundary == 2048) {
-		/* Avoid PCI burst on chipset with unaligned completions. */
-		int i;
-		__iomem u32 *ptr = (__iomem u32 *) (mgp->sram +
-						    MYRI10GE_FW_OFFSET);
-		for (i = 0; i < fw->size / 4; i++) {
-			__raw_writel(((u32 *) fw->data)[i], ptr + i);
-			wmb();
-		}
-	} else {
-		myri10ge_pio_copy(mgp->sram + MYRI10GE_FW_OFFSET, fw->data,
-				  fw->size);
+	for (i = 0; i < fw->size; i += 256) {
+		myri10ge_pio_copy(mgp->sram + MYRI10GE_FW_OFFSET + i,
+				  fw->data + i,
+				  min(256U, (unsigned)(fw->size - i)));
+		mb();
+		readb(mgp->sram);
 	}
 	/* corruption checking is good for parity recovery and buggy chipset */
 	memcpy_fromio(fw->data, mgp->sram + MYRI10GE_FW_OFFSET, fw->size);
