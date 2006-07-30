@@ -932,7 +932,7 @@ struct urb
  * @setup_packet: pointer to the setup_packet buffer
  * @transfer_buffer: pointer to the transfer buffer
  * @buffer_length: length of the transfer buffer
- * @complete: pointer to the usb_complete_t function
+ * @complete_fn: pointer to the usb_complete_t function
  * @context: what to set the urb context to.
  *
  * Initializes a control urb with the proper information needed to submit
@@ -944,7 +944,7 @@ static inline void usb_fill_control_urb (struct urb *urb,
 					 unsigned char *setup_packet,
 					 void *transfer_buffer,
 					 int buffer_length,
-					 usb_complete_t complete,
+					 usb_complete_t complete_fn,
 					 void *context)
 {
 	spin_lock_init(&urb->lock);
@@ -953,7 +953,7 @@ static inline void usb_fill_control_urb (struct urb *urb,
 	urb->setup_packet = setup_packet;
 	urb->transfer_buffer = transfer_buffer;
 	urb->transfer_buffer_length = buffer_length;
-	urb->complete = complete;
+	urb->complete = complete_fn;
 	urb->context = context;
 }
 
@@ -964,7 +964,7 @@ static inline void usb_fill_control_urb (struct urb *urb,
  * @pipe: the endpoint pipe
  * @transfer_buffer: pointer to the transfer buffer
  * @buffer_length: length of the transfer buffer
- * @complete: pointer to the usb_complete_t function
+ * @complete_fn: pointer to the usb_complete_t function
  * @context: what to set the urb context to.
  *
  * Initializes a bulk urb with the proper information needed to submit it
@@ -975,7 +975,7 @@ static inline void usb_fill_bulk_urb (struct urb *urb,
 				      unsigned int pipe,
 				      void *transfer_buffer,
 				      int buffer_length,
-				      usb_complete_t complete,
+				      usb_complete_t complete_fn,
 				      void *context)
 {
 	spin_lock_init(&urb->lock);
@@ -983,7 +983,7 @@ static inline void usb_fill_bulk_urb (struct urb *urb,
 	urb->pipe = pipe;
 	urb->transfer_buffer = transfer_buffer;
 	urb->transfer_buffer_length = buffer_length;
-	urb->complete = complete;
+	urb->complete = complete_fn;
 	urb->context = context;
 }
 
@@ -994,7 +994,7 @@ static inline void usb_fill_bulk_urb (struct urb *urb,
  * @pipe: the endpoint pipe
  * @transfer_buffer: pointer to the transfer buffer
  * @buffer_length: length of the transfer buffer
- * @complete: pointer to the usb_complete_t function
+ * @complete_fn: pointer to the usb_complete_t function
  * @context: what to set the urb context to.
  * @interval: what to set the urb interval to, encoded like
  *	the endpoint descriptor's bInterval value.
@@ -1010,7 +1010,7 @@ static inline void usb_fill_int_urb (struct urb *urb,
 				     unsigned int pipe,
 				     void *transfer_buffer,
 				     int buffer_length,
-				     usb_complete_t complete,
+				     usb_complete_t complete_fn,
 				     void *context,
 				     int interval)
 {
@@ -1019,7 +1019,7 @@ static inline void usb_fill_int_urb (struct urb *urb,
 	urb->pipe = pipe;
 	urb->transfer_buffer = transfer_buffer;
 	urb->transfer_buffer_length = buffer_length;
-	urb->complete = complete;
+	urb->complete = complete_fn;
 	urb->context = context;
 	if (dev->speed == USB_SPEED_HIGH)
 		urb->interval = 1 << (interval - 1);
