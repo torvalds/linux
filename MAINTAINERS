@@ -1602,7 +1602,7 @@ W:	http://jfs.sourceforge.net/
 T:	git kernel.org:/pub/scm/linux/kernel/git/shaggy/jfs-2.6.git
 S:	Supported
 
-JOURNALLING LAYER FOR BLOCK DEVICS (JBD)
+JOURNALLING LAYER FOR BLOCK DEVICES (JBD)
 P:	Stephen Tweedie, Andrew Morton
 M:	sct@redhat.com, akpm@osdl.org
 L:	ext2-devel@lists.sourceforge.net
