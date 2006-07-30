@@ -408,7 +408,7 @@ static int cascade(tvec_base_t *base, tvec_t *tv, int index)
  * This function cascades all vectors and executes all expired timer
  * vectors.
  */
-#define INDEX(N) (base->timer_jiffies >> (TVR_BITS + N * TVN_BITS)) & TVN_MASK
+#define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
 
 static inline void __run_timers(tvec_base_t *base)
 {
