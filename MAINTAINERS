@@ -1646,9 +1646,8 @@ S:	Maintained
 
 KERNEL JANITORS
 P:	Several
-L:	kernel-janitors@osdl.org
+L:	kernel-janitors@lists.osdl.org
 W:	http://www.kerneljanitors.org/
-W:	http://sf.net/projects/kernel-janitor/
 S:	Maintained
 
 KERNEL NFSD
