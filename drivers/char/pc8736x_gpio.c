@@ -221,7 +221,6 @@ static struct nsc_gpio_ops pc8736x_gpio_ops = {
 	.gpio_change	= pc8736x_gpio_change,
 	.gpio_current	= pc8736x_gpio_current
 };
-EXPORT_SYMBOL(pc8736x_gpio_ops);
 
 static int pc8736x_gpio_open(struct inode *inode, struct file *file)
 {
