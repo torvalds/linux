@@ -4456,9 +4456,9 @@ asmlinkage long sys_sched_yield(void)
 	return 0;
 }
 
-static inline int __resched_legal(void)
+static inline int __resched_legal(int expected_preempt_count)
 {
-	if (unlikely(preempt_count()))
+	if (unlikely(preempt_count() != expected_preempt_count))
 		return 0;
 	if (unlikely(system_state != SYSTEM_RUNNING))
 		return 0;
@@ -4484,7 +4484,7 @@ static void __cond_resched(void)
 
 int __sched cond_resched(void)
 {
-	if (need_resched() && __resched_legal()) {
+	if (need_resched() && __resched_legal(0)) {
 		__cond_resched();
 		return 1;
 	}
@@ -4510,7 +4510,7 @@ int cond_resched_lock(spinlock_t *lock)
 		ret = 1;
 		spin_lock(lock);
 	}
-	if (need_resched() && __resched_legal()) {
+	if (need_resched() && __resched_legal(1)) {
 		spin_release(&lock->dep_map, 1, _THIS_IP_);
 		_raw_spin_unlock(lock);
 		preempt_enable_no_resched();
@@ -4526,7 +4526,7 @@ int __sched cond_resched_softirq(void)
 {
 	BUG_ON(!in_softirq());
 
-	if (need_resched() && __resched_legal()) {
+	if (need_resched() && __resched_legal(0)) {
 		raw_local_irq_disable();
 		_local_bh_enable();
 		raw_local_irq_enable();
