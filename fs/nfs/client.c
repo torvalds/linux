@@ -208,6 +208,9 @@ static void nfs_free_client(struct nfs_client *clp)
  */
 void nfs_put_client(struct nfs_client *clp)
 {
+	if (!clp)
+		return;
+
 	dprintk("--> nfs_put_client({%d})\n", atomic_read(&clp->cl_count));
 
 	if (atomic_dec_and_lock(&clp->cl_count, &nfs_client_lock)) {
