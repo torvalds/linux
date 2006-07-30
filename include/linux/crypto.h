@@ -194,8 +194,8 @@ static inline int crypto_alg_available(const char *name, u32 flags)
 
 /*
  * Transforms: user-instantiated objects which encapsulate algorithms
- * and core processing logic.  Managed via crypto_alloc_tfm() and
- * crypto_free_tfm(), as well as the various helpers below.
+ * and core processing logic.  Managed via crypto_alloc_*() and
+ * crypto_free_*(), as well as the various helpers below.
  */
 
 struct cipher_tfm {
@@ -278,16 +278,8 @@ struct crypto_attr_alg {
  * Transform user interface.
  */
  
-/*
- * crypto_alloc_tfm() will first attempt to locate an already loaded algorithm.
- * If that fails and the kernel supports dynamically loadable modules, it
- * will then attempt to load a module of the same name or alias.  A refcount
- * is grabbed on the algorithm which is then associated with the new transform.
- *
- * crypto_free_tfm() frees up the transform and any associated resources,
- * then drops the refcount on the associated algorithm.
- */
 struct crypto_tfm *crypto_alloc_tfm(const char *alg_name, u32 tfm_flags);
+struct crypto_tfm *crypto_alloc_base(const char *alg_name, u32 type, u32 mask);
 void crypto_free_tfm(struct crypto_tfm *tfm);
 
 /*
