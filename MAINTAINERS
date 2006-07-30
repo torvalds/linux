@@ -968,6 +968,10 @@ P:	Andrey V. Savochkin
 M:	saw@saw.sw.com.sg
 S:	Maintained
 
+EFS FILESYSTEM
+W:	http://aeschi.ch.eu.org/efs/
+S:	Orphan
+
 EMU10K1 SOUND DRIVER
 P:	James Courtier-Dutton
 M:	James@superbug.demon.co.uk
