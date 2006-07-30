@@ -10,19 +10,32 @@
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
+#include <linux/adb.h>
+#include <linux/pmu.h>
+#include <asm/atomic.h>
 #include <asm/prom.h>
 #include <asm/backlight.h>
 
 #define OLD_BACKLIGHT_MAX 15
 
 static void pmac_backlight_key_worker(void *data);
-static DECLARE_WORK(pmac_backlight_key_work, pmac_backlight_key_worker, NULL);
+static void pmac_backlight_set_legacy_worker(void *data);
 
-/* Although this variable is used in interrupt context, it makes no sense to
- * protect it. No user is able to produce enough key events per second and
+static DECLARE_WORK(pmac_backlight_key_work, pmac_backlight_key_worker, NULL);
+static DECLARE_WORK(pmac_backlight_set_legacy_work, pmac_backlight_set_legacy_worker, NULL);
+
+/* Although these variables are used in interrupt context, it makes no sense to
+ * protect them. No user is able to produce enough key events per second and
  * notice the errors that might happen.
  */
 static int pmac_backlight_key_queued;
+static int pmac_backlight_set_legacy_queued;
+
+/* The via-pmu code allows the backlight to be grabbed, in which case the
+ * in-kernel control of the brightness needs to be disabled. This should
+ * only be used by really old PowerBooks.
+ */
+static atomic_t kernel_backlight_disabled = ATOMIC_INIT(0);
 
 /* Protect the pmac_backlight variable */
 DEFINE_MUTEX(pmac_backlight_mutex);
@@ -82,6 +95,9 @@ int pmac_backlight_curve_lookup(struct fb_info *info, int value)
 
 static void pmac_backlight_key_worker(void *data)
 {
+	if (atomic_read(&kernel_backlight_disabled))
+		return;
+
 	mutex_lock(&pmac_backlight_mutex);
 	if (pmac_backlight) {
 		struct backlight_properties *props;
@@ -107,8 +123,12 @@ static void pmac_backlight_key_worker(void *data)
 	mutex_unlock(&pmac_backlight_mutex);
 }
 
+/* This function is called in interrupt context */
 void pmac_backlight_key(int direction)
 {
+	if (atomic_read(&kernel_backlight_disabled))
+		return;
+
 	/* we can receive multiple interrupts here, but the scheduled work
 	 * will run only once, with the last value
 	 */
@@ -116,7 +136,7 @@ void pmac_backlight_key(int direction)
 	schedule_work(&pmac_backlight_key_work);
 }
 
-int pmac_backlight_set_legacy_brightness(int brightness)
+static int __pmac_backlight_set_legacy_brightness(int brightness)
 {
 	int error = -ENXIO;
 
@@ -145,6 +165,28 @@ int pmac_backlight_set_legacy_brightness(int brightness)
 	return error;
 }
 
+static void pmac_backlight_set_legacy_worker(void *data)
+{
+	if (atomic_read(&kernel_backlight_disabled))
+		return;
+
+	__pmac_backlight_set_legacy_brightness(pmac_backlight_set_legacy_queued);
+}
+
+/* This function is called in interrupt context */
+void pmac_backlight_set_legacy_brightness_pmu(int brightness) {
+	if (atomic_read(&kernel_backlight_disabled))
+		return;
+
+	pmac_backlight_set_legacy_queued = brightness;
+	schedule_work(&pmac_backlight_set_legacy_work);
+}
+
+int pmac_backlight_set_legacy_brightness(int brightness)
+{
+	return __pmac_backlight_set_legacy_brightness(brightness);
+}
+
 int pmac_backlight_get_legacy_brightness()
 {
 	int result = -ENXIO;
@@ -165,6 +207,16 @@ int pmac_backlight_get_legacy_brightness()
 	mutex_unlock(&pmac_backlight_mutex);
 
 	return result;
+}
+
+void pmac_backlight_disable()
+{
+	atomic_inc(&kernel_backlight_disabled);
+}
+
+void pmac_backlight_enable()
+{
+	atomic_dec(&kernel_backlight_disabled);
 }
 
 EXPORT_SYMBOL_GPL(pmac_backlight);
