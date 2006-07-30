@@ -2402,14 +2402,15 @@ static ext3_fsblk_t ext3_get_inode_block(struct super_block *sb,
 	struct buffer_head *bh;
 	struct ext3_group_desc * gdp;
 
-
-	if ((ino != EXT3_ROOT_INO && ino != EXT3_JOURNAL_INO &&
-		ino != EXT3_RESIZE_INO && ino < EXT3_FIRST_INO(sb)) ||
-		ino > le32_to_cpu(EXT3_SB(sb)->s_es->s_inodes_count)) {
-		ext3_error(sb, "ext3_get_inode_block",
-			    "bad inode number: %lu", ino);
+	if (!ext3_valid_inum(sb, ino)) {
+		/*
+		 * This error is already checked for in namei.c unless we are
+		 * looking at an NFS filehandle, in which case no error
+		 * report is needed
+		 */
 		return 0;
 	}
+
 	block_group = (ino - 1) / EXT3_INODES_PER_GROUP(sb);
 	if (block_group >= EXT3_SB(sb)->s_groups_count) {
 		ext3_error(sb,"ext3_get_inode_block","group >= groups count");
