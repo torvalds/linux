@@ -177,7 +177,7 @@ static int send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
 static int fill_pid(pid_t pid, struct task_struct *pidtsk,
 		struct taskstats *stats)
 {
-	int rc;
+	int rc = 0;
 	struct task_struct *tsk = pidtsk;
 
 	if (!pidtsk) {
@@ -196,12 +196,10 @@ static int fill_pid(pid_t pid, struct task_struct *pidtsk,
 	 * Each accounting subsystem adds calls to its functions to
 	 * fill in relevant parts of struct taskstsats as follows
 	 *
-	 *	rc = per-task-foo(stats, tsk);
-	 *	if (rc)
-	 *		goto err;
+	 *	per-task-foo(stats, tsk);
 	 */
 
-	rc = delayacct_add_tsk(stats, tsk);
+	delayacct_add_tsk(stats, tsk);
 	stats->version = TASKSTATS_VERSION;
 
 	/* Define err: label here if needed */

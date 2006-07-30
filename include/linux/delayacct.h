@@ -80,9 +80,7 @@ static inline void delayacct_blkio_end(void)
 static inline int delayacct_add_tsk(struct taskstats *d,
 					struct task_struct *tsk)
 {
-	if (likely(!delayacct_on))
-		return -EINVAL;
-	if (!tsk->delays)
+	if (likely(!delayacct_on) || !tsk->delays)
 		return 0;
 	return __delayacct_add_tsk(d, tsk);
 }
