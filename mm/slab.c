@@ -3224,7 +3224,7 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 EXPORT_SYMBOL(kmem_cache_alloc);
 
 /**
- * kmem_cache_alloc - Allocate an object. The memory is set to zero.
+ * kmem_cache_zalloc - Allocate an object. The memory is set to zero.
  * @cache: The cache to allocate from.
  * @flags: See kmalloc().
  *
