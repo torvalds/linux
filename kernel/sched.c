@@ -6494,7 +6494,12 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 	for (i = 0; i < MAX_NUMNODES; i++)
 		init_numa_sched_groups_power(sched_group_nodes[i]);
 
-	init_numa_sched_groups_power(sched_group_allnodes);
+	if (sched_group_allnodes) {
+		int group = cpu_to_allnodes_group(first_cpu(*cpu_map));
+		struct sched_group *sg = &sched_group_allnodes[group];
+
+		init_numa_sched_groups_power(sg);
+	}
 #endif
 
 	/* Attach the domains */
