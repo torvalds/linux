@@ -212,14 +212,20 @@ valid_k7:
  * then we print a warning if not, and always resync.
  */
 
-static atomic_t tsc_start_flag = ATOMIC_INIT(0);
-static atomic_t tsc_count_start = ATOMIC_INIT(0);
-static atomic_t tsc_count_stop = ATOMIC_INIT(0);
-static unsigned long long tsc_values[NR_CPUS];
+static struct {
+	atomic_t start_flag;
+	atomic_t count_start;
+	atomic_t count_stop;
+	unsigned long long values[NR_CPUS];
+} tsc __initdata = {
+	.start_flag = ATOMIC_INIT(0),
+	.count_start = ATOMIC_INIT(0),
+	.count_stop = ATOMIC_INIT(0),
+};
 
 #define NR_LOOPS 5
 
-static void __init synchronize_tsc_bp (void)
+static void __init synchronize_tsc_bp(void)
 {
 	int i;
 	unsigned long long t0;
@@ -233,7 +239,7 @@ static void __init synchronize_tsc_bp (void)
 	/* convert from kcyc/sec to cyc/usec */
 	one_usec = cpu_khz / 1000;
 
-	atomic_set(&tsc_start_flag, 1);
+	atomic_set(&tsc.start_flag, 1);
 	wmb();
 
 	/*
@@ -250,16 +256,16 @@ static void __init synchronize_tsc_bp (void)
 		/*
 		 * all APs synchronize but they loop on '== num_cpus'
 		 */
-		while (atomic_read(&tsc_count_start) != num_booting_cpus()-1)
+		while (atomic_read(&tsc.count_start) != num_booting_cpus()-1)
 			cpu_relax();
-		atomic_set(&tsc_count_stop, 0);
+		atomic_set(&tsc.count_stop, 0);
 		wmb();
 		/*
 		 * this lets the APs save their current TSC:
 		 */
-		atomic_inc(&tsc_count_start);
+		atomic_inc(&tsc.count_start);
 
-		rdtscll(tsc_values[smp_processor_id()]);
+		rdtscll(tsc.values[smp_processor_id()]);
 		/*
 		 * We clear the TSC in the last loop:
 		 */
@@ -269,56 +275,54 @@ static void __init synchronize_tsc_bp (void)
 		/*
 		 * Wait for all APs to leave the synchronization point:
 		 */
-		while (atomic_read(&tsc_count_stop) != num_booting_cpus()-1)
+		while (atomic_read(&tsc.count_stop) != num_booting_cpus()-1)
 			cpu_relax();
-		atomic_set(&tsc_count_start, 0);
+		atomic_set(&tsc.count_start, 0);
 		wmb();
-		atomic_inc(&tsc_count_stop);
+		atomic_inc(&tsc.count_stop);
 	}
 
 	sum = 0;
 	for (i = 0; i < NR_CPUS; i++) {
 		if (cpu_isset(i, cpu_callout_map)) {
-			t0 = tsc_values[i];
+			t0 = tsc.values[i];
 			sum += t0;
 		}
 	}
 	avg = sum;
 	do_div(avg, num_booting_cpus());
 
-	sum = 0;
 	for (i = 0; i < NR_CPUS; i++) {
 		if (!cpu_isset(i, cpu_callout_map))
 			continue;
-		delta = tsc_values[i] - avg;
+		delta = tsc.values[i] - avg;
 		if (delta < 0)
 			delta = -delta;
 		/*
 		 * We report bigger than 2 microseconds clock differences.
 		 */
 		if (delta > 2*one_usec) {
-			long realdelta;
+			long long realdelta;
+
 			if (!buggy) {
 				buggy = 1;
 				printk("\n");
 			}
 			realdelta = delta;
 			do_div(realdelta, one_usec);
-			if (tsc_values[i] < avg)
+			if (tsc.values[i] < avg)
 				realdelta = -realdelta;
 
-			if (realdelta > 0)
-				printk(KERN_INFO "CPU#%d had %ld usecs TSC "
+			if (realdelta)
+				printk(KERN_INFO "CPU#%d had %Ld usecs TSC "
 					"skew, fixed it up.\n", i, realdelta);
 		}
-
-		sum += delta;
 	}
 	if (!buggy)
 		printk("passed.\n");
 }
 
-static void __init synchronize_tsc_ap (void)
+static void __init synchronize_tsc_ap(void)
 {
 	int i;
 
@@ -327,20 +331,20 @@ static void __init synchronize_tsc_ap (void)
 	 * this gets called, so we first wait for the BP to
 	 * finish SMP initialization:
 	 */
-	while (!atomic_read(&tsc_start_flag))
+	while (!atomic_read(&tsc.start_flag))
 		cpu_relax();
 
 	for (i = 0; i < NR_LOOPS; i++) {
-		atomic_inc(&tsc_count_start);
-		while (atomic_read(&tsc_count_start) != num_booting_cpus())
+		atomic_inc(&tsc.count_start);
+		while (atomic_read(&tsc.count_start) != num_booting_cpus())
 			cpu_relax();
 
-		rdtscll(tsc_values[smp_processor_id()]);
+		rdtscll(tsc.values[smp_processor_id()]);
 		if (i == NR_LOOPS-1)
 			write_tsc(0, 0);
 
-		atomic_inc(&tsc_count_stop);
-		while (atomic_read(&tsc_count_stop) != num_booting_cpus())
+		atomic_inc(&tsc.count_stop);
+		while (atomic_read(&tsc.count_stop) != num_booting_cpus())
 			cpu_relax();
 	}
 }
