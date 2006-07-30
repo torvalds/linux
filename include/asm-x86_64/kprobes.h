@@ -47,6 +47,7 @@ typedef u8 kprobe_opcode_t;
 
 void kretprobe_trampoline(void);
 extern void arch_remove_kprobe(struct kprobe *p);
+#define flush_insn_slot(p)	do { } while (0)
 
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {
