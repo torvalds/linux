@@ -22,7 +22,7 @@ struct esp_data
 		 * >= crypto_tfm_alg_ivsize(tfm). */
 		int			ivlen;
 		int			padlen;		/* 0..255 */
-		struct crypto_tfm	*tfm;		/* crypto handle */
+		struct crypto_blkcipher	*tfm;		/* crypto handle */
 	} conf;
 
 	/* Integrity. It is active when icv_full_len != 0 */

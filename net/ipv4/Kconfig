@@ -386,6 +386,7 @@ config INET_ESP
 	select CRYPTO
 	select CRYPTO_HMAC
 	select CRYPTO_MD5
+	select CRYPTO_CBC
 	select CRYPTO_SHA1
 	select CRYPTO_DES
 	---help---

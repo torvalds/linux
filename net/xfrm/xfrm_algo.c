@@ -118,7 +118,8 @@ static struct xfrm_algo_desc aalg_list[] = {
 
 static struct xfrm_algo_desc ealg_list[] = {
 {
-	.name = "cipher_null",
+	.name = "ecb(cipher_null)",
+	.compat = "cipher_null",
 	
 	.uinfo = {
 		.encr = {
@@ -135,7 +136,8 @@ static struct xfrm_algo_desc ealg_list[] = {
 	}
 },
 {
-	.name = "des",
+	.name = "cbc(des)",
+	.compat = "des",
 
 	.uinfo = {
 		.encr = {
@@ -152,7 +154,8 @@ static struct xfrm_algo_desc ealg_list[] = {
 	}
 },
 {
-	.name = "des3_ede",
+	.name = "cbc(des3_ede)",
+	.compat = "des3_ede",
 
 	.uinfo = {
 		.encr = {
@@ -169,7 +172,8 @@ static struct xfrm_algo_desc ealg_list[] = {
 	}
 },
 {
-	.name = "cast128",
+	.name = "cbc(cast128)",
+	.compat = "cast128",
 
 	.uinfo = {
 		.encr = {
@@ -186,7 +190,8 @@ static struct xfrm_algo_desc ealg_list[] = {
 	}
 },
 {
-	.name = "blowfish",
+	.name = "cbc(blowfish)",
+	.compat = "blowfish",
 
 	.uinfo = {
 		.encr = {
@@ -203,7 +208,8 @@ static struct xfrm_algo_desc ealg_list[] = {
 	}
 },
 {
-	.name = "aes",
+	.name = "cbc(aes)",
+	.compat = "aes",
 
 	.uinfo = {
 		.encr = {
@@ -220,7 +226,8 @@ static struct xfrm_algo_desc ealg_list[] = {
 	}
 },
 {
-        .name = "serpent",
+        .name = "cbc(serpent)",
+        .compat = "serpent",
 
         .uinfo = {
                 .encr = {
@@ -237,7 +244,8 @@ static struct xfrm_algo_desc ealg_list[] = {
         }
 },
 {
-        .name = "twofish",
+        .name = "cbc(twofish)",
+        .compat = "twofish",
                  
         .uinfo = {
                 .encr = {
