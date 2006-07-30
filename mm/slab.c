@@ -1106,7 +1106,7 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 
 #endif
 
-static int __devinit cpuup_callback(struct notifier_block *nfb,
+static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 				    unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
