@@ -300,6 +300,15 @@ static struct request *nbd_read_stat(struct nbd_device *lo)
 				lo->disk->disk_name, result);
 		goto harderror;
 	}
+
+	if (ntohl(reply.magic) != NBD_REPLY_MAGIC) {
+		printk(KERN_ERR "%s: Wrong magic (0x%lx)\n",
+				lo->disk->disk_name,
+				(unsigned long)ntohl(reply.magic));
+		result = -EPROTO;
+		goto harderror;
+	}
+
 	req = nbd_find_request(lo, reply.handle);
 	if (unlikely(IS_ERR(req))) {
 		result = PTR_ERR(req);
@@ -312,13 +321,6 @@ static struct request *nbd_read_stat(struct nbd_device *lo)
 		goto harderror;
 	}
 
-	if (ntohl(reply.magic) != NBD_REPLY_MAGIC) {
-		printk(KERN_ERR "%s: Wrong magic (0x%lx)\n",
-				lo->disk->disk_name,
-				(unsigned long)ntohl(reply.magic));
-		result = -EPROTO;
-		goto harderror;
-	}
 	if (ntohl(reply.error)) {
 		printk(KERN_ERR "%s: Other side returned error (%d)\n",
 				lo->disk->disk_name, ntohl(reply.error));
