@@ -6766,6 +6766,11 @@ void __init sched_init(void)
 	}
 
 	set_load_weight(&init_task);
+
+#ifdef CONFIG_RT_MUTEXES
+	plist_head_init(&init_task.pi_waiters, &init_task.pi_lock);
+#endif
+
 	/*
 	 * The boot idle thread does lazy MMU switching as well:
 	 */
