@@ -1299,19 +1299,18 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 
 	nvidia_save_vga(par, &par->SavedReg);
 
+	pci_set_drvdata(pd, info);
+	nvidia_bl_init(par);
 	if (register_framebuffer(info) < 0) {
 		printk(KERN_ERR PFX "error registering nVidia framebuffer\n");
 		goto err_out_iounmap_fb;
 	}
 
-	pci_set_drvdata(pd, info);
 
 	printk(KERN_INFO PFX
 	       "PCI nVidia %s framebuffer (%dMB @ 0x%lX)\n",
 	       info->fix.id,
 	       par->FbMapSize / (1024 * 1024), info->fix.smem_start);
-
-	nvidia_bl_init(par);
 
 	NVTRACE_LEAVE();
 	return 0;
