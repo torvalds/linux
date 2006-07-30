@@ -297,17 +297,17 @@ out:
 
 static int pnx4008_wdt_remove(struct platform_device *pdev)
 {
-	if (wdt_mem) {
-		release_resource(wdt_mem);
-		kfree(wdt_mem);
-		wdt_mem = NULL;
-	}
+	misc_deregister(&pnx4008_wdt_miscdev);
 	if (wdt_clk) {
 		clk_set_rate(wdt_clk, 0);
 		clk_put(wdt_clk);
 		wdt_clk = NULL;
 	}
-	misc_deregister(&pnx4008_wdt_miscdev);
+	if (wdt_mem) {
+		release_resource(wdt_mem);
+		kfree(wdt_mem);
+		wdt_mem = NULL;
+	}
 	return 0;
 }
 
