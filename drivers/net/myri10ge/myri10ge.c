@@ -177,6 +177,7 @@ struct myri10ge_priv {
 	struct work_struct watchdog_work;
 	struct timer_list watchdog_timer;
 	int watchdog_tx_done;
+	int watchdog_tx_req;
 	int watchdog_resets;
 	int tx_linearized;
 	int pause;
@@ -2542,7 +2543,8 @@ static void myri10ge_watchdog_timer(unsigned long arg)
 
 	mgp = (struct myri10ge_priv *)arg;
 	if (mgp->tx.req != mgp->tx.done &&
-	    mgp->tx.done == mgp->watchdog_tx_done)
+	    mgp->tx.done == mgp->watchdog_tx_done &&
+	    mgp->watchdog_tx_req != mgp->watchdog_tx_done)
 		/* nic seems like it might be stuck.. */
 		schedule_work(&mgp->watchdog_work);
 	else
@@ -2551,6 +2553,7 @@ static void myri10ge_watchdog_timer(unsigned long arg)
 			  jiffies + myri10ge_watchdog_timeout * HZ);
 
 	mgp->watchdog_tx_done = mgp->tx.done;
+	mgp->watchdog_tx_req = mgp->tx.req;
 }
 
 static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
