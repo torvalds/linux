@@ -669,7 +669,10 @@ mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 			 * if still doing discovery,
 			 * hang loose a while until finished
 			 */
-			if (pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN) {
+			if ((pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN) ||
+			    (pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_ONLINE &&
+			     (pp0dest->Flags & MPI_FCPORTPAGE0_FLAGS_ATTACH_TYPE_MASK)
+			      == MPI_FCPORTPAGE0_FLAGS_ATTACH_NO_INIT)) {
 				if (count-- > 0) {
 					msleep(100);
 					goto try_again;
