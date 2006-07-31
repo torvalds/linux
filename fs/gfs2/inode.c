@@ -277,8 +277,7 @@ int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	if (error)
 		goto out_rindex_relse;
 
-	error = gfs2_trans_begin(sdp, RES_RG_BIT + 
-				 RES_STATFS + RES_QUOTA, 1);
+	error = gfs2_trans_begin(sdp, RES_RG_BIT + RES_STATFS + RES_QUOTA, 1);
 	if (error)
 		goto out_rg_gunlock;
 
@@ -522,16 +521,13 @@ static int pick_formal_ino_2(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 	gfs2_inum_range_out(&ir, bh->b_data + sizeof(struct gfs2_dinode));
 
- out_brelse:
+out_brelse:
 	brelse(bh);
-
- out_end_trans:
+out_end_trans:
 	mutex_unlock(&sdp->sd_inum_mutex);
 	gfs2_trans_end(sdp);
-
- out:
+out:
 	gfs2_glock_dq_uninit(&gh);
-
 	return error;
 }
 
@@ -593,8 +589,7 @@ static void munge_mode_uid_gid(struct gfs2_inode *dip, unsigned int *mode,
 			       unsigned int *uid, unsigned int *gid)
 {
 	if (GFS2_SB(&dip->i_inode)->sd_args.ar_suiddir &&
-	    (dip->i_di.di_mode & S_ISUID) &&
-	    dip->i_di.di_uid) {
+	    (dip->i_di.di_mode & S_ISUID) && dip->i_di.di_uid) {
 		if (S_ISDIR(*mode))
 			*mode |= S_ISUID;
 		else if (dip->i_di.di_uid != current->fsuid)
@@ -634,10 +629,8 @@ static int alloc_dinode(struct gfs2_inode *dip, struct gfs2_inum *inum,
 
 out_ipreserv:
 	gfs2_inplace_release(dip);
-
 out:
 	gfs2_alloc_put(dip);
-
 	return error;
 }
 
@@ -1300,7 +1293,6 @@ int gfs2_glock_nq_m_atime(unsigned int num_gh, struct gfs2_holder *ghs)
 	}
 
 	kfree(p);
-
 	return error;
 }
 
@@ -1346,9 +1338,7 @@ int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 		return error;
 
 	error = __gfs2_setattr_simple(ip, attr);
-
 	gfs2_trans_end(GFS2_SB(&ip->i_inode));
-
 	return error;
 }
 

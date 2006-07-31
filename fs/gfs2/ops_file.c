@@ -597,13 +597,11 @@ static int gfs2_open(struct inode *inode, struct file *file)
 
 	return 0;
 
- fail_gunlock:
+fail_gunlock:
 	gfs2_glock_dq_uninit(&i_gh);
-
- fail:
+fail:
 	file->private_data = NULL;
 	kfree(fp);
-
 	return error;
 }
 
@@ -736,9 +734,8 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
 	}
 
- out:
+out:
 	mutex_unlock(&fp->f_fl_mutex);
-
 	return error;
 }
 

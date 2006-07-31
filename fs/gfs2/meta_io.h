@@ -17,22 +17,8 @@ static inline void gfs2_buffer_clear(struct buffer_head *bh)
 
 static inline void gfs2_buffer_clear_tail(struct buffer_head *bh, int head)
 {
+	BUG_ON(head > bh->b_size);
 	memset(bh->b_data + head, 0, bh->b_size - head);
-}
-
-static inline void gfs2_buffer_clear_ends(struct buffer_head *bh, int offset,
-					  int amount, int journaled)
-{
-	int z_off1 = (journaled) ? sizeof(struct gfs2_meta_header) : 0;
-	int z_len1 = offset - z_off1;
-	int z_off2 = offset + amount;
-	int z_len2 = (bh)->b_size - z_off2;
-
-	if (z_len1)
-		memset(bh->b_data + z_off1, 0, z_len1);
-
-	if (z_len2)
-		memset(bh->b_data + z_off2, 0, z_len2);
 }
 
 static inline void gfs2_buffer_copy_tail(struct buffer_head *to_bh,
@@ -40,12 +26,11 @@ static inline void gfs2_buffer_copy_tail(struct buffer_head *to_bh,
 					 struct buffer_head *from_bh,
 					 int from_head)
 {
-	memcpy(to_bh->b_data + to_head,
-	       from_bh->b_data + from_head,
+	BUG_ON(from_head < to_head);
+	memcpy(to_bh->b_data + to_head, from_bh->b_data + from_head,
 	       from_bh->b_size - from_head);
 	memset(to_bh->b_data + to_bh->b_size + to_head - from_head,
-	       0,
-	       from_head - to_head);
+	       0, from_head - to_head);
 }
 
 struct inode *gfs2_aspace_get(struct gfs2_sbd *sdp);
