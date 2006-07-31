@@ -778,11 +778,12 @@ int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 		((dev->fw_ver & 0xffff0000ull) >> 16) |
 		((dev->fw_ver & 0x0000ffffull) << 16);
 
+	MTHCA_GET(lg, outbox, QUERY_FW_MAX_CMD_OFFSET);
+	dev->cmd.max_cmds = 1 << lg;
+
 	mthca_dbg(dev, "FW version %012llx, max commands %d\n",
 		  (unsigned long long) dev->fw_ver, dev->cmd.max_cmds);
 
-	MTHCA_GET(lg, outbox, QUERY_FW_MAX_CMD_OFFSET);
-	dev->cmd.max_cmds = 1 << lg;
 	MTHCA_GET(dev->catas_err.addr, outbox, QUERY_FW_ERR_START_OFFSET);
 	MTHCA_GET(dev->catas_err.size, outbox, QUERY_FW_ERR_SIZE_OFFSET);
 

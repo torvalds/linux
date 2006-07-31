@@ -33,10 +33,9 @@ unsigned char llc_station_mac_sa[ETH_ALEN];
  */
 static struct llc_sap *llc_sap_alloc(void)
 {
-	struct llc_sap *sap = kmalloc(sizeof(*sap), GFP_ATOMIC);
+	struct llc_sap *sap = kzalloc(sizeof(*sap), GFP_ATOMIC);
 
 	if (sap) {
-		memset(sap, 0, sizeof(*sap));
 		sap->state = LLC_SAP_STATE_ACTIVE;
 		memcpy(sap->laddr.mac, llc_station_mac_sa, ETH_ALEN);
 		rwlock_init(&sap->sk_list.lock);

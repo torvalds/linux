@@ -117,14 +117,12 @@ static struct publication *publ_create(u32 type, u32 lower, u32 upper,
 				       u32 scope, u32 node, u32 port_ref,   
 				       u32 key)
 {
-	struct publication *publ =
-		(struct publication *)kmalloc(sizeof(*publ), GFP_ATOMIC);
+	struct publication *publ = kzalloc(sizeof(*publ), GFP_ATOMIC);
 	if (publ == NULL) {
 		warn("Publication creation failure, no memory\n");
 		return NULL;
 	}
 
-	memset(publ, 0, sizeof(*publ));
 	publ->type = type;
 	publ->lower = lower;
 	publ->upper = upper;
@@ -144,11 +142,7 @@ static struct publication *publ_create(u32 type, u32 lower, u32 upper,
 
 static struct sub_seq *tipc_subseq_alloc(u32 cnt)
 {
-	u32 sz = cnt * sizeof(struct sub_seq);
-	struct sub_seq *sseq = (struct sub_seq *)kmalloc(sz, GFP_ATOMIC);
-
-	if (sseq)
-		memset(sseq, 0, sz);
+	struct sub_seq *sseq = kcalloc(cnt, sizeof(struct sub_seq), GFP_ATOMIC);
 	return sseq;
 }
 
@@ -160,8 +154,7 @@ static struct sub_seq *tipc_subseq_alloc(u32 cnt)
 
 static struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_head)
 {
-	struct name_seq *nseq = 
-		(struct name_seq *)kmalloc(sizeof(*nseq), GFP_ATOMIC);
+	struct name_seq *nseq = kzalloc(sizeof(*nseq), GFP_ATOMIC);
 	struct sub_seq *sseq = tipc_subseq_alloc(1);
 
 	if (!nseq || !sseq) {
@@ -171,7 +164,6 @@ static struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_hea
 		return NULL;
 	}
 
-	memset(nseq, 0, sizeof(*nseq));
 	spin_lock_init(&nseq->lock);
 	nseq->type = type;
 	nseq->sseqs = sseq;
@@ -1060,7 +1052,7 @@ int tipc_nametbl_init(void)
 {
 	int array_size = sizeof(struct hlist_head) * tipc_nametbl_size;
 
-	table.types = (struct hlist_head *)kmalloc(array_size, GFP_ATOMIC);
+	table.types = kmalloc(array_size, GFP_ATOMIC);
 	if (!table.types)
 		return -ENOMEM;
 

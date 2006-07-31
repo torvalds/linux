@@ -116,11 +116,10 @@ struct irlap_cb *irlap_open(struct net_device *dev, struct qos_info *qos,
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__);
 
 	/* Initialize the irlap structure. */
-	self = kmalloc(sizeof(struct irlap_cb), GFP_KERNEL);
+	self = kzalloc(sizeof(struct irlap_cb), GFP_KERNEL);
 	if (self == NULL)
 		return NULL;
 
-	memset(self, 0, sizeof(struct irlap_cb));
 	self->magic = LAP_MAGIC;
 
 	/* Make a binding between the layers */
@@ -882,7 +881,7 @@ static void irlap_change_speed(struct irlap_cb *self, __u32 speed, int now)
 	/* Change speed now, or just piggyback speed on frames */
 	if (now) {
 		/* Send down empty frame to trigger speed change */
-		skb = dev_alloc_skb(0);
+		skb = alloc_skb(0, GFP_ATOMIC);
 		if (skb)
 			irlap_queue_xmit(self, skb);
 	}
@@ -1222,7 +1221,7 @@ static int irlap_seq_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int rc = -ENOMEM;
-	struct irlap_iter_state *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct irlap_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
        
 	if (!s)
 		goto out;
@@ -1238,7 +1237,6 @@ static int irlap_seq_open(struct inode *inode, struct file *file)
 
 	seq	     = file->private_data;
 	seq->private = s;
-	memset(s, 0, sizeof(*s));
 out:
 	return rc;
 out_kfree:

@@ -3255,12 +3255,7 @@ static void __devexit happy_meal_pci_remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id happymeal_pci_ids[] = {
-	{
-	  .vendor	= PCI_VENDOR_ID_SUN,
-	  .device	= PCI_DEVICE_ID_SUN_HAPPYMEAL,
-	  .subvendor	= PCI_ANY_ID,
-	  .subdevice	= PCI_ANY_ID,
-	},
+	{ PCI_DEVICE(PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_HAPPYMEAL) },
 	{ }			/* Terminating entry */
 };
 
@@ -3275,7 +3270,7 @@ static struct pci_driver hme_pci_driver = {
 
 static int __init happy_meal_pci_init(void)
 {
-	return pci_module_init(&hme_pci_driver);
+	return pci_register_driver(&hme_pci_driver);
 }
 
 static void happy_meal_pci_exit(void)

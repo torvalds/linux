@@ -75,8 +75,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2005 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.04.00"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.00"
+#define MPT_LINUX_VERSION_COMMON	"3.04.01"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.01"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -307,8 +307,8 @@ typedef struct _SYSIF_REGS
 	u32	HostIndex;	/* 50     Host Index register        */
 	u32	Reserved4[15];	/* 54-8F                             */
 	u32	Fubar;		/* 90     For Fubar usage            */
-	u32     Reserved5[1050];/* 94-10F8                           */
-	u32     Reset_1078;     /* 10FC   Reset 1078                 */
+	u32	Reserved5[1050];/* 94-10F8                           */
+	u32	Reset_1078;	/* 10FC   Reset 1078                 */
 } SYSIF_REGS;
 
 /*
@@ -363,6 +363,7 @@ typedef struct _VirtDevice {
 #define MPT_TARGET_FLAGS_VALID_56	0x10
 #define MPT_TARGET_FLAGS_SAF_TE_ISSUED	0x20
 #define MPT_TARGET_FLAGS_RAID_COMPONENT	0x40
+#define MPT_TARGET_FLAGS_LED_ON		0x80
 
 /*
  *	/proc/mpt interface
@@ -634,7 +635,6 @@ typedef struct _MPT_ADAPTER
 	u16			 handle;
 	int			 sas_index; /* index refrencing */
 	MPT_SAS_MGMT		 sas_mgmt;
-	int			 num_ports;
 	struct work_struct	 sas_persist_task;
 
 	struct work_struct	 fc_setup_reset_work;
@@ -644,7 +644,6 @@ typedef struct _MPT_ADAPTER
 	struct work_struct	 fc_rescan_work;
 	char			 fc_rescan_work_q_name[KOBJ_NAME_LEN];
 	struct workqueue_struct *fc_rescan_work_q;
-	u8		port_serial_number;
 } MPT_ADAPTER;
 
 /*
@@ -982,7 +981,7 @@ typedef struct _MPT_SCSI_HOST {
 	wait_queue_head_t	  scandv_waitq;
 	int			  scandv_wait_done;
 	long			  last_queue_full;
-	u8		 	  mpt_pq_filter;
+	u16			  tm_iocstatus;
 } MPT_SCSI_HOST;
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/

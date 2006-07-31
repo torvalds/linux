@@ -32,9 +32,8 @@ svc_create(struct svc_program *prog, unsigned int bufsize)
 	int vers;
 	unsigned int xdrsize;
 
-	if (!(serv = kmalloc(sizeof(*serv), GFP_KERNEL)))
+	if (!(serv = kzalloc(sizeof(*serv), GFP_KERNEL)))
 		return NULL;
-	memset(serv, 0, sizeof(*serv));
 	serv->sv_name      = prog->pg_name;
 	serv->sv_program   = prog;
 	serv->sv_nrthreads = 1;
@@ -159,11 +158,10 @@ svc_create_thread(svc_thread_fn func, struct svc_serv *serv)
 	struct svc_rqst	*rqstp;
 	int		error = -ENOMEM;
 
-	rqstp = kmalloc(sizeof(*rqstp), GFP_KERNEL);
+	rqstp = kzalloc(sizeof(*rqstp), GFP_KERNEL);
 	if (!rqstp)
 		goto out;
 
-	memset(rqstp, 0, sizeof(*rqstp));
 	init_waitqueue_head(&rqstp->rq_wait);
 
 	if (!(rqstp->rq_argp = kmalloc(serv->sv_xdrsize, GFP_KERNEL))

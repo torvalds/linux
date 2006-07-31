@@ -849,8 +849,6 @@ static void shrink_readahead_size_eio(struct file *filp,
 		return;
 
 	ra->ra_pages /= 4;
-	printk(KERN_WARNING "Reducing readahead size to %luK\n",
-			ra->ra_pages << (PAGE_CACHE_SHIFT - 10));
 }
 
 /**

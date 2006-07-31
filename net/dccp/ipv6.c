@@ -31,6 +31,7 @@
 
 #include "dccp.h"
 #include "ipv6.h"
+#include "feat.h"
 
 /* Socket used for sending RSTs and ACKs */
 static struct socket *dccp_v6_ctl_socket;
@@ -707,8 +708,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq = inet_rsk(req);
 	ipv6_addr_copy(&ireq6->rmt_addr, &skb->nh.ipv6h->saddr);
 	ipv6_addr_copy(&ireq6->loc_addr, &skb->nh.ipv6h->daddr);
-	req->rcv_wnd	= 100; /* Fake, option parsing will get the
-				  right value */
+	req->rcv_wnd	= dccp_feat_default_sequence_window;
 	ireq6->pktopts	= NULL;
 
 	if (ipv6_opt_accepted(sk, skb) ||

@@ -114,9 +114,9 @@ ENTRY(secondary_startup)
 	 * Use the page tables supplied from  __cpu_up.
 	 */
 	adr	r4, __secondary_data
-	ldmia	r4, {r5, r6, r13}		@ address to jump to after
+	ldmia	r4, {r5, r7, r13}		@ address to jump to after
 	sub	r4, r4, r5			@ mmu has been enabled
-	ldr	r4, [r6, r4]			@ get secondary_data.pgdir
+	ldr	r4, [r7, r4]			@ get secondary_data.pgdir
 	adr	lr, __enable_mmu		@ return address
 	add	pc, r10, #12			@ initialise processor
 						@ (return control reg)
@@ -125,7 +125,7 @@ ENTRY(secondary_startup)
 	 * r6  = &secondary_data
 	 */
 ENTRY(__secondary_switched)
-	ldr	sp, [r6, #4]			@ get secondary_data.stack
+	ldr	sp, [r7, #4]			@ get secondary_data.stack
 	mov	fp, #0
 	b	secondary_start_kernel
 

@@ -665,11 +665,9 @@ int tipc_bearer_init(void)
 	int res;
 
 	write_lock_bh(&tipc_net_lock);
-	tipc_bearers = kmalloc(MAX_BEARERS * sizeof(struct bearer), GFP_ATOMIC);
-	media_list = kmalloc(MAX_MEDIA * sizeof(struct media), GFP_ATOMIC);
+	tipc_bearers = kcalloc(MAX_BEARERS, sizeof(struct bearer), GFP_ATOMIC);
+	media_list = kcalloc(MAX_MEDIA, sizeof(struct media), GFP_ATOMIC);
 	if (tipc_bearers && media_list) {
-		memset(tipc_bearers, 0, MAX_BEARERS * sizeof(struct bearer));
-		memset(media_list, 0, MAX_MEDIA * sizeof(struct media));
 		res = TIPC_OK;
 	} else {
 		kfree(tipc_bearers);

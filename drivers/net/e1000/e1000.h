@@ -110,6 +110,9 @@ struct e1000_adapter;
 #define E1000_MIN_RXD                       80
 #define E1000_MAX_82544_RXD               4096
 
+/* this is the size past which hardware will drop packets when setting LPE=0 */
+#define MAXIMUM_ETHERNET_VLAN_SIZE 1522
+
 /* Supported Rx Buffer Sizes */
 #define E1000_RXBUFFER_128   128    /* Used for packet split */
 #define E1000_RXBUFFER_256   256    /* Used for packet split */

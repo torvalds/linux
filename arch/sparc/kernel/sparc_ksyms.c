@@ -237,7 +237,6 @@ EXPORT_SYMBOL(prom_node_has_property);
 EXPORT_SYMBOL(prom_setprop);
 EXPORT_SYMBOL(saved_command_line);
 EXPORT_SYMBOL(prom_apply_obio_ranges);
-EXPORT_SYMBOL(prom_getname);
 EXPORT_SYMBOL(prom_feval);
 EXPORT_SYMBOL(prom_getbool);
 EXPORT_SYMBOL(prom_getstring);

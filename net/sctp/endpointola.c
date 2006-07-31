@@ -158,6 +158,12 @@ void sctp_endpoint_add_asoc(struct sctp_endpoint *ep,
 void sctp_endpoint_free(struct sctp_endpoint *ep)
 {
 	ep->base.dead = 1;
+
+	ep->base.sk->sk_state = SCTP_SS_CLOSED;
+
+	/* Unlink this endpoint, so we can't find it again! */
+	sctp_unhash_endpoint(ep);
+
 	sctp_endpoint_put(ep);
 }
 
@@ -165,11 +171,6 @@ void sctp_endpoint_free(struct sctp_endpoint *ep)
 static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 {
 	SCTP_ASSERT(ep->base.dead, "Endpoint is not dead", return);
-
-	ep->base.sk->sk_state = SCTP_SS_CLOSED;
-
-	/* Unlink this endpoint, so we can't find it again! */
-	sctp_unhash_endpoint(ep);
 
 	/* Free up the HMAC transform. */
 	sctp_crypto_free_tfm(sctp_sk(ep->base.sk)->hmac);

@@ -516,10 +516,7 @@ static int skge_set_pauseparam(struct net_device *dev,
 /* Chip internal frequency for clock calculations */
 static inline u32 hwkhz(const struct skge_hw *hw)
 {
-	if (hw->chip_id == CHIP_ID_GENESIS)
-		return 53215; /* or:  53.125 MHz */
-	else
-		return 78215; /* or:  78.125 MHz */
+	return (hw->chip_id == CHIP_ID_GENESIS) ? 53125 : 78125;
 }
 
 /* Chip HZ to microseconds */

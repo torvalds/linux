@@ -197,7 +197,6 @@ static int c101_open(struct net_device *dev)
 	sca_out(IE0_TXINT, MSCI0_OFFSET + IE0, port);
 
 	set_carrier(port);
-	printk(KERN_DEBUG "0x%X\n", sca_in(MSCI1_OFFSET + ST3, port));
 
 	/* enable MSCI1 CDCD interrupt */
 	sca_out(IE1_CDCD, MSCI1_OFFSET + IE1, port);
@@ -449,4 +448,5 @@ module_exit(c101_cleanup);
 MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
 MODULE_DESCRIPTION("Moxa C101 serial port driver");
 MODULE_LICENSE("GPL v2");
-module_param(hw, charp, 0444);	/* hw=irq,ram:irq,... */
+module_param(hw, charp, 0444);
+MODULE_PARM_DESC(hw, "irq,ram:irq,...");

@@ -225,9 +225,8 @@ gss_alloc_context(void)
 {
 	struct gss_cl_ctx *ctx;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx != NULL) {
-		memset(ctx, 0, sizeof(*ctx));
 		ctx->gc_proc = RPC_GSS_PROC_DATA;
 		ctx->gc_seq = 1;	/* NetApp 6.4R1 doesn't accept seq. no. 0 */
 		spin_lock_init(&ctx->gc_seq_lock);
@@ -391,9 +390,8 @@ gss_alloc_msg(struct gss_auth *gss_auth, uid_t uid)
 {
 	struct gss_upcall_msg *gss_msg;
 
-	gss_msg = kmalloc(sizeof(*gss_msg), GFP_KERNEL);
+	gss_msg = kzalloc(sizeof(*gss_msg), GFP_KERNEL);
 	if (gss_msg != NULL) {
-		memset(gss_msg, 0, sizeof(*gss_msg));
 		INIT_LIST_HEAD(&gss_msg->list);
 		rpc_init_wait_queue(&gss_msg->rpc_waitqueue, "RPCSEC_GSS upcall waitq");
 		init_waitqueue_head(&gss_msg->waitqueue);
@@ -776,10 +774,9 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	dprintk("RPC:      gss_create_cred for uid %d, flavor %d\n",
 		acred->uid, auth->au_flavor);
 
-	if (!(cred = kmalloc(sizeof(*cred), GFP_KERNEL)))
+	if (!(cred = kzalloc(sizeof(*cred), GFP_KERNEL)))
 		goto out_err;
 
-	memset(cred, 0, sizeof(*cred));
 	atomic_set(&cred->gc_count, 1);
 	cred->gc_uid = acred->uid;
 	/*

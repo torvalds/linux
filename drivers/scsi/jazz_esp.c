@@ -257,7 +257,7 @@ static void dma_mmu_release_scsi_one (struct NCR_ESP *esp, struct scsi_cmnd *sp)
 static void dma_mmu_release_scsi_sgl (struct NCR_ESP *esp, struct scsi_cmnd *sp)
 {
     int sz = sp->use_sg - 1;
-    struct scatterlist *sg = (struct scatterlist *)sp->buffer;
+    struct scatterlist *sg = (struct scatterlist *)sp->request_buffer;
 			
     while(sz >= 0) {
 	vdma_free(sg[sz].dma_address);
