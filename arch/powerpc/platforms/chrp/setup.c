@@ -291,10 +291,6 @@ void __init chrp_setup_arch(void)
 
 	pci_create_OF_bus_map();
 
-#ifdef CONFIG_SMP
-	smp_ops = &chrp_smp_ops;
-#endif /* CONFIG_SMP */
-
 	/*
 	 * Print the banner, then scroll down so boot progress
 	 * can be printed.  -- Cort
@@ -478,6 +474,14 @@ void __init chrp_init_IRQ(void)
 #endif
 	chrp_find_openpic();
 	chrp_find_8259();
+
+#ifdef CONFIG_SMP
+	/* Pegasos has no MPIC, those ops would make it crash. It might be an
+	 * option to move setting them to after we probe the PIC though
+	 */
+	if (chrp_mpic != NULL)
+		smp_ops = &chrp_smp_ops;
+#endif /* CONFIG_SMP */
 
 	if (_chrp_type == _CHRP_Pegasos)
 		ppc_md.get_irq        = i8259_irq;
