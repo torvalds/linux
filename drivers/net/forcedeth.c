@@ -3895,10 +3895,9 @@ static int nv_open(struct net_device *dev)
 
 	dprintk(KERN_DEBUG "nv_open: begin\n");
 
-	/* 1) erase previous misconfiguration */
+	/* erase previous misconfiguration */
 	if (np->driver_data & DEV_HAS_POWER_CNTRL)
 		nv_mac_reset(dev);
-	/* 4.1-1: stop adapter: ignored, 4.3 seems to be overkill */
 	writel(NVREG_MCASTADDRA_FORCE, base + NvRegMulticastAddrA);
 	writel(0, base + NvRegMulticastAddrB);
 	writel(0, base + NvRegMulticastMaskA);
@@ -3913,7 +3912,7 @@ static int nv_open(struct net_device *dev)
 	if (np->pause_flags & NV_PAUSEFRAME_TX_CAPABLE)
 		writel(NVREG_TX_PAUSEFRAME_DISABLE,  base + NvRegTxPauseFrame);
 
-	/* 2) initialize descriptor rings */
+	/* initialize descriptor rings */
 	set_bufsize(dev);
 	oom = nv_init_ring(dev);
 
@@ -3924,15 +3923,11 @@ static int nv_open(struct net_device *dev)
 
 	np->in_shutdown = 0;
 
-	/* 3) set mac address */
-	nv_copy_mac_to_hw(dev);
-
-	/* 4) give hw rings */
+	/* give hw rings */
 	setup_hw_rings(dev, NV_SETUP_RX_RING | NV_SETUP_TX_RING);
 	writel( ((np->rx_ring_size-1) << NVREG_RINGSZ_RXSHIFT) + ((np->tx_ring_size-1) << NVREG_RINGSZ_TXSHIFT),
 		base + NvRegRingSizes);
 
-	/* 5) continue setup */
 	writel(np->linkspeed, base + NvRegLinkSpeed);
 	if (np->desc_ver == DESC_VER_1)
 		writel(NVREG_TX_WM_DESC1_DEFAULT, base + NvRegTxWatermark);
@@ -3950,7 +3945,6 @@ static int nv_open(struct net_device *dev)
 	writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
 	writel(NVREG_MIISTAT_MASK2, base + NvRegMIIStatus);
 
-	/* 6) continue setup */
 	writel(NVREG_MISC1_FORCE | NVREG_MISC1_HD, base + NvRegMisc1);
 	writel(readl(base + NvRegTransmitterStatus), base + NvRegTransmitterStatus);
 	writel(NVREG_PFF_ALWAYS, base + NvRegPacketFilterFlags);
@@ -4075,12 +4069,6 @@ static int nv_close(struct net_device *dev)
 
 	if (np->wolenabled)
 		nv_start_rx(dev);
-
-	/* special op: write back the misordered MAC address - otherwise
-	 * the next nv_probe would see a wrong address.
-	 */
-	writel(np->orig_mac[0], base + NvRegMacAddrA);
-	writel(np->orig_mac[1], base + NvRegMacAddrB);
 
 	/* FIXME: power down nic */
 
@@ -4309,6 +4297,9 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 			dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
 			dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
 
+	/* set mac address */
+	nv_copy_mac_to_hw(dev);
+
 	/* disable WOL */
 	writel(0, base + NvRegWakeUpFlags);
 	np->wolenabled = 0;
@@ -4421,8 +4412,16 @@ out:
 static void __devexit nv_remove(struct pci_dev *pci_dev)
 {
 	struct net_device *dev = pci_get_drvdata(pci_dev);
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
 
 	unregister_netdev(dev);
+
+	/* special op: write back the misordered MAC address - otherwise
+	 * the next nv_probe would see a wrong address.
+	 */
+	writel(np->orig_mac[0], base + NvRegMacAddrA);
+	writel(np->orig_mac[1], base + NvRegMacAddrB);
 
 	/* free all structures */
 	free_rings(dev);
