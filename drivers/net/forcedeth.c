@@ -109,6 +109,7 @@
  *	0.54: 21 Mar 2006: Fix spin locks for multi irqs and cleanup.
  *	0.55: 22 Mar 2006: Add flow control (pause frame).
  *	0.56: 22 Mar 2006: Additional ethtool config and moduleparam support.
+ *	0.57: 14 May 2006: Mac address set in probe/remove and order corrections.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -120,7 +121,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.56"
+#define FORCEDETH_VERSION		"0.57"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -262,7 +263,8 @@ enum {
 	NvRegRingSizes = 0x108,
 #define NVREG_RINGSZ_TXSHIFT 0
 #define NVREG_RINGSZ_RXSHIFT 16
-	NvRegUnknownTransmitterReg = 0x10c,
+	NvRegTransmitPoll = 0x10c,
+#define NVREG_TRANSMITPOLL_MAC_ADDR_REV	0x00008000
 	NvRegLinkSpeed = 0x110,
 #define NVREG_LINKSPEED_FORCE 0x10000
 #define NVREG_LINKSPEED_10	1000
@@ -1178,7 +1180,7 @@ static void nv_stop_tx(struct net_device *dev)
 			KERN_INFO "nv_stop_tx: TransmitterStatus remained busy");
 
 	udelay(NV_TXSTOP_DELAY2);
-	writel(0, base + NvRegUnknownTransmitterReg);
+	writel(readl(base + NvRegTransmitPoll) & NVREG_TRANSMITPOLL_MAC_ADDR_REV, base + NvRegTransmitPoll);
 }
 
 static void nv_txrx_reset(struct net_device *dev)
@@ -3917,7 +3919,7 @@ static int nv_open(struct net_device *dev)
 	oom = nv_init_ring(dev);
 
 	writel(0, base + NvRegLinkSpeed);
-	writel(0, base + NvRegUnknownTransmitterReg);
+	writel(readl(base + NvRegTransmitPoll) & NVREG_TRANSMITPOLL_MAC_ADDR_REV, base + NvRegTransmitPoll);
 	nv_txrx_reset(dev);
 	writel(0, base + NvRegUnknownSetupReg6);
 
@@ -4082,7 +4084,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	unsigned long addr;
 	u8 __iomem *base;
 	int err, i;
-	u32 powerstate;
+	u32 powerstate, txreg;
 
 	dev = alloc_etherdev(sizeof(struct fe_priv));
 	err = -ENOMEM;
@@ -4269,12 +4271,30 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	np->orig_mac[0] = readl(base + NvRegMacAddrA);
 	np->orig_mac[1] = readl(base + NvRegMacAddrB);
 
-	dev->dev_addr[0] = (np->orig_mac[1] >>  8) & 0xff;
-	dev->dev_addr[1] = (np->orig_mac[1] >>  0) & 0xff;
-	dev->dev_addr[2] = (np->orig_mac[0] >> 24) & 0xff;
-	dev->dev_addr[3] = (np->orig_mac[0] >> 16) & 0xff;
-	dev->dev_addr[4] = (np->orig_mac[0] >>  8) & 0xff;
-	dev->dev_addr[5] = (np->orig_mac[0] >>  0) & 0xff;
+	/* check the workaround bit for correct mac address order */
+	txreg = readl(base + NvRegTransmitPoll);
+	if (txreg & NVREG_TRANSMITPOLL_MAC_ADDR_REV) {
+		/* mac address is already in correct order */
+		dev->dev_addr[0] = (np->orig_mac[0] >>  0) & 0xff;
+		dev->dev_addr[1] = (np->orig_mac[0] >>  8) & 0xff;
+		dev->dev_addr[2] = (np->orig_mac[0] >> 16) & 0xff;
+		dev->dev_addr[3] = (np->orig_mac[0] >> 24) & 0xff;
+		dev->dev_addr[4] = (np->orig_mac[1] >>  0) & 0xff;
+		dev->dev_addr[5] = (np->orig_mac[1] >>  8) & 0xff;
+	} else {
+		/* need to reverse mac address to correct order */
+		dev->dev_addr[0] = (np->orig_mac[1] >>  8) & 0xff;
+		dev->dev_addr[1] = (np->orig_mac[1] >>  0) & 0xff;
+		dev->dev_addr[2] = (np->orig_mac[0] >> 24) & 0xff;
+		dev->dev_addr[3] = (np->orig_mac[0] >> 16) & 0xff;
+		dev->dev_addr[4] = (np->orig_mac[0] >>  8) & 0xff;
+		dev->dev_addr[5] = (np->orig_mac[0] >>  0) & 0xff;
+		/* set permanent address to be correct aswell */
+		np->orig_mac[0] = (dev->dev_addr[0] << 0) + (dev->dev_addr[1] << 8) +
+			(dev->dev_addr[2] << 16) + (dev->dev_addr[3] << 24);
+		np->orig_mac[1] = (dev->dev_addr[4] << 0) + (dev->dev_addr[5] << 8);
+		writel(txreg|NVREG_TRANSMITPOLL_MAC_ADDR_REV, base + NvRegTransmitPoll);
+	}
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	if (!is_valid_ether_addr(dev->perm_addr)) {
