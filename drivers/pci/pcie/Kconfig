@@ -34,3 +34,4 @@ config HOTPLUG_PCI_PCIE_POLL_EVENT_MODE
 	   
 	  When in doubt, say N.
 
+source "drivers/pci/pcie/aer/Kconfig"
