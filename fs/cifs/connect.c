@@ -182,6 +182,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 
 	while ((server->tcpStatus != CifsExiting) && (server->tcpStatus != CifsGood))
 	{
+		try_to_freeze();
 		if(server->protocolType == IPV6) {
 			rc = ipv6_connect(&server->addr.sockAddr6,&server->ssocket);
 		} else {
