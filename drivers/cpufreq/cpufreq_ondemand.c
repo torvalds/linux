@@ -305,6 +305,9 @@ static void do_dbs_timer(void *data)
 {
 	unsigned int cpu = smp_processor_id();
 	struct cpu_dbs_info_s *dbs_info = &per_cpu(cpu_dbs_info, cpu);
+	/* We want all CPUs to do sampling nearly on same jiffy */
+	int delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
+	delay -= jiffies % delay;
 
 	if (!dbs_info->enable)
 		return;
@@ -312,18 +315,18 @@ static void do_dbs_timer(void *data)
 	lock_cpu_hotplug();
 	dbs_check_cpu(dbs_info);
 	unlock_cpu_hotplug();
-	queue_delayed_work_on(cpu, kondemand_wq, &dbs_info->work,
-			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
+	queue_delayed_work_on(cpu, kondemand_wq, &dbs_info->work, delay);
 }
 
 static inline void dbs_timer_init(unsigned int cpu)
 {
 	struct cpu_dbs_info_s *dbs_info = &per_cpu(cpu_dbs_info, cpu);
+	/* We want all CPUs to do sampling nearly on same jiffy */
+	int delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
+	delay -= jiffies % delay;
 
 	INIT_WORK(&dbs_info->work, do_dbs_timer, 0);
-	queue_delayed_work_on(cpu, kondemand_wq, &dbs_info->work,
-			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
-	return;
+	queue_delayed_work_on(cpu, kondemand_wq, &dbs_info->work, delay);
 }
 
 static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
