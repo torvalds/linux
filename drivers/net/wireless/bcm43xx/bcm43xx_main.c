@@ -2262,7 +2262,7 @@ void bcm43xx_mac_suspend(struct bcm43xx_private *bcm)
 		                bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD)
 				& ~BCM43xx_SBF_MAC_ENABLED);
 		bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_REASON); /* dummy read */
-		for (i = 100000; i; i--) {
+		for (i = 10000; i; i--) {
 			tmp = bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_REASON);
 			if (tmp & BCM43xx_IRQ_READY)
 				goto out;
