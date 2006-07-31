@@ -183,7 +183,7 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 
 out_no_auth:
 	if (!IS_ERR(clnt->cl_dentry)) {
-		rpc_rmdir(clnt->cl_pathname);
+		rpc_rmdir(clnt->cl_dentry);
 		dput(clnt->cl_dentry);
 		rpc_put_mount();
 	}
@@ -320,8 +320,8 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 		rpc_destroy_client(clnt->cl_parent);
 		goto out_free;
 	}
-	if (clnt->cl_pathname[0])
-		rpc_rmdir(clnt->cl_pathname);
+	if (!IS_ERR(clnt->cl_dentry))
+		rpc_rmdir(clnt->cl_dentry);
 	if (clnt->cl_xprt) {
 		xprt_destroy(clnt->cl_xprt);
 		clnt->cl_xprt = NULL;
