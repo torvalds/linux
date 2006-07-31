@@ -746,22 +746,15 @@ err_dput:
 }
 
 int
-rpc_unlink(char *path)
+rpc_unlink(struct dentry *dentry)
 {
-	struct nameidata nd;
-	struct dentry *dentry;
+	struct dentry *parent;
 	struct inode *dir;
-	int error;
+	int error = 0;
 
-	if ((error = rpc_lookup_parent(path, &nd)) != 0)
-		return error;
-	dir = nd.dentry->d_inode;
+	parent = dget_parent(dentry);
+	dir = parent->d_inode;
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_one_len(nd.last.name, nd.dentry, nd.last.len);
-	if (IS_ERR(dentry)) {
-		error = PTR_ERR(dentry);
-		goto out_release;
-	}
 	d_drop(dentry);
 	if (dentry->d_inode) {
 		rpc_close_pipes(dentry->d_inode);
@@ -769,9 +762,8 @@ rpc_unlink(char *path)
 	}
 	dput(dentry);
 	inode_dir_notify(dir, DN_DELETE);
-out_release:
 	mutex_unlock(&dir->i_mutex);
-	rpc_release_path(&nd);
+	dput(parent);
 	return error;
 }
 
