@@ -846,7 +846,11 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 	    unlikely((err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC))))
 		return err;
 
-	for (i = 0; i < nfrags; i++) {
+	i = 0;
+	if (offset >= len)
+		goto drop_pages;
+
+	for (; i < nfrags; i++) {
 		int end = offset + skb_shinfo(skb)->frags[i].size;
 
 		if (end < len) {
@@ -854,9 +858,9 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 			continue;
 		}
 
-		if (len > offset)
-			skb_shinfo(skb)->frags[i++].size = len - offset;
+		skb_shinfo(skb)->frags[i++].size = len - offset;
 
+drop_pages:
 		skb_shinfo(skb)->nr_frags = i;
 
 		for (; i < nfrags; i++)
@@ -864,7 +868,7 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 
 		if (skb_shinfo(skb)->frag_list)
 			skb_drop_fraglist(skb);
-		break;
+		goto done;
 	}
 
 	for (fragp = &skb_shinfo(skb)->frag_list; (frag = *fragp);
@@ -879,6 +883,7 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 				return -ENOMEM;
 
 			nfrag->next = frag->next;
+			kfree_skb(frag);
 			frag = nfrag;
 			*fragp = frag;
 		}
@@ -897,6 +902,7 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 		break;
 	}
 
+done:
 	if (len > skb_headlen(skb)) {
 		skb->data_len -= skb->len - len;
 		skb->len       = len;
