@@ -26,6 +26,7 @@ SECTIONS
 
   /* Read-only sections, merged into text segment: */
   .hash           : { *(.hash) }
+  .gnu.hash       : { *(.gnu.hash) }
   .dynsym         : { *(.dynsym) }
   .dynstr         : { *(.dynstr) }
   .gnu.version    : { *(.gnu.version) }

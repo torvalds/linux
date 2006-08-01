@@ -188,8 +188,6 @@ struct snd_minor {
 	int device;			/* device number */
 	const struct file_operations *f_ops;	/* file operations */
 	void *private_data;		/* private data for f_ops->open */
-	char name[0];			/* device name (keep at the end of
-								structure) */
 };
 
 /* sound.c */

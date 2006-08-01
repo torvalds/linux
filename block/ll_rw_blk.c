@@ -3491,8 +3491,8 @@ EXPORT_SYMBOL(end_request);
 
 void blk_rq_bio_prep(request_queue_t *q, struct request *rq, struct bio *bio)
 {
-	/* first three bits are identical in rq->flags and bio->bi_rw */
-	rq->flags |= (bio->bi_rw & 7);
+	/* first two bits are identical in rq->flags and bio->bi_rw */
+	rq->flags |= (bio->bi_rw & 3);
 
 	rq->nr_phys_segments = bio_phys_segments(q, bio);
 	rq->nr_hw_segments = bio_hw_segments(q, bio);

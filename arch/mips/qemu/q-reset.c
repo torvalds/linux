@@ -1,4 +1,3 @@
-#include <linux/config.h>
 
 #include <asm/io.h>
 #include <asm/reboot.h>

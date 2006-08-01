@@ -151,10 +151,9 @@ int dn_fib_rtm_newrule(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		}
 	}
 
-	new_r = kmalloc(sizeof(*new_r), GFP_KERNEL);
+	new_r = kzalloc(sizeof(*new_r), GFP_KERNEL);
 	if (!new_r)
 		return -ENOMEM;
-	memset(new_r, 0, sizeof(*new_r));
 
 	if (rta[RTA_SRC-1])
 		memcpy(&new_r->r_src, RTA_DATA(rta[RTA_SRC-1]), 2);
@@ -399,9 +398,10 @@ int dn_fib_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
 	rcu_read_lock();
 	hlist_for_each_entry(r, node, &dn_fib_rules, r_hlist) {
 		if (idx < s_idx)
-			continue;
+			goto next;
 		if (dn_fib_fill_rule(skb, r, cb, NLM_F_MULTI) < 0)
 			break;
+next:
 		idx++;
 	}
 	rcu_read_unlock();

@@ -22,7 +22,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -105,7 +104,7 @@ static void __init emma2rh_time_init(void)
 	mips_hpt_frequency = (bus_frequency * (4 + reg)) / 4 / 2;
 }
 
-static void __init emma2rh_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* we are using the cpu counter for timer interrupts */
 	setup_irq(CPU_IRQ_BASE + 7, irq);
@@ -150,7 +149,6 @@ void __init plat_mem_setup(void)
 	set_io_port_base(KSEG1ADDR(EMMA2RH_PCI_IO_BASE));
 
 	board_time_init = emma2rh_time_init;
-	board_timer_setup = emma2rh_timer_setup;
 
 	_machine_restart = markeins_machine_restart;
 	_machine_halt = markeins_machine_halt;

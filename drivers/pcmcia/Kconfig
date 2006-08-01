@@ -6,7 +6,7 @@ menu "PCCARD (PCMCIA/CardBus) support"
 
 config PCCARD
 	tristate "PCCard (PCMCIA/CardBus) support"
-	select HOTPLUG
+	depends on HOTPLUG
 	---help---
 	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
 	  computer.  These are credit-card size devices such as network cards,

@@ -240,7 +240,7 @@ int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 			    (((AF_INET6 == addr->a.sa.sa_family) &&
 			      (copy_flags & SCTP_ADDR6_ALLOWED) &&
 			      (copy_flags & SCTP_ADDR6_PEERSUPP)))) {
-				error = sctp_add_bind_addr(bp, &addr->a, 
+				error = sctp_add_bind_addr(bp, &addr->a, 1,
 							   GFP_ATOMIC);
 				if (error)
 					goto end_copy;
@@ -486,6 +486,8 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		list_for_each(pos, &bp->address_list) {
 			laddr = list_entry(pos, struct sctp_sockaddr_entry,
 					   list);
+			if (!laddr->use_as_src)
+				continue;
 			sctp_v4_dst_saddr(&dst_saddr, dst, bp->port);
 			if (sctp_v4_cmp_addr(&dst_saddr, &laddr->a))
 				goto out_unlock;
@@ -506,7 +508,8 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	list_for_each(pos, &bp->address_list) {
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
 
-		if (AF_INET == laddr->a.sa.sa_family) {
+		if ((laddr->use_as_src) &&
+		    (AF_INET == laddr->a.sa.sa_family)) {
 			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
 			if (!ip_route_output_key(&rt, &fl)) {
 				dst = &rt->u.dst;

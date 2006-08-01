@@ -79,7 +79,7 @@
 #include <linux/usb.h>
 #include <linux/serial_reg.h>
 #include <linux/serial.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 #include "whiteheat_fw.h"		/* firmware for the ConnectTech WhiteHEAT device */
 #include "whiteheat.h"			/* WhiteHEAT specific commands */
 

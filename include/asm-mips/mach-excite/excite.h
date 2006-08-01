@@ -1,7 +1,6 @@
 #ifndef __EXCITE_H__
 #define __EXCITE_H__
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/addrspace.h>
 #include <asm/types.h>

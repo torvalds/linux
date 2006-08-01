@@ -17,8 +17,8 @@ obj-$(CONFIG_MODULES)		+= s390_ksyms.o module.o
 obj-$(CONFIG_SMP)		+= smp.o
 
 obj-$(CONFIG_COMPAT)		+= compat_linux.o compat_signal.o \
-					compat_wrapper.o compat_exec_domain.o
-obj-$(CONFIG_BINFMT_ELF32)	+= binfmt_elf32.o
+					compat_wrapper.o compat_exec_domain.o \
+					binfmt_elf32.o
 
 obj-$(CONFIG_VIRT_TIMER)	+= vtime.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o

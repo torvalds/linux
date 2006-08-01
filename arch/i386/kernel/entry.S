@@ -204,7 +204,7 @@ VM_MASK		= 0x00020000
 ENTRY(ret_from_fork)
 	CFI_STARTPROC
 	pushl %eax
-	CFI_ADJUST_CFA_OFFSET -4
+	CFI_ADJUST_CFA_OFFSET 4
 	call schedule_tail
 	GET_THREAD_INFO(%ebp)
 	popl %eax

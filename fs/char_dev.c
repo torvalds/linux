@@ -182,6 +182,28 @@ int alloc_chrdev_region(dev_t *dev, unsigned baseminor, unsigned count,
 	return 0;
 }
 
+/**
+ * register_chrdev() - Register a major number for character devices.
+ * @major: major device number or 0 for dynamic allocation
+ * @name: name of this range of devices
+ * @fops: file operations associated with this devices
+ *
+ * If @major == 0 this functions will dynamically allocate a major and return
+ * its number.
+ *
+ * If @major > 0 this function will attempt to reserve a device with the given
+ * major number and will return zero on success.
+ *
+ * Returns a -ve errno on failure.
+ *
+ * The name of this device has nothing to do with the name of the device in
+ * /dev. It only helps to keep track of the different owners of devices. If
+ * your module name has only one type of devices it's ok to use e.g. the name
+ * of the module here.
+ *
+ * This function registers a range of 256 minor numbers. The first minor number
+ * is 0.
+ */
 int register_chrdev(unsigned int major, const char *name,
 		    const struct file_operations *fops)
 {

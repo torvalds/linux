@@ -69,6 +69,13 @@ config LEDS_AMS_DELTA
 	help
 	  This option enables support for the LEDs on Amstrad Delta (E3).
 
+config LEDS_NET48XX
+	tristate "LED Support for Soekris net48xx series Error LED"
+	depends on LEDS_CLASS && SCx200_GPIO
+	help
+	  This option enables support for the Soekris net4801 and net4826 error
+	  LED.
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS

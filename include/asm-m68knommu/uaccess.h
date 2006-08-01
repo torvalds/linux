@@ -93,7 +93,7 @@ extern int __put_user_bad(void);
 #define get_user(x, ptr)					\
 ({								\
     int __gu_err = 0;						\
-    typeof(*(ptr)) __gu_val = 0;				\
+    typeof(x) __gu_val = 0;					\
     switch (sizeof(*(ptr))) {					\
     case 1:							\
 	__get_user_asm(__gu_err, __gu_val, ptr, b, "=d");	\
@@ -105,23 +105,23 @@ extern int __put_user_bad(void);
 	__get_user_asm(__gu_err, __gu_val, ptr, l, "=r");	\
 	break;							\
     case 8:							\
-	memcpy(&__gu_val, ptr, sizeof (*(ptr))); \
+	memcpy((void *) &__gu_val, ptr, sizeof (*(ptr)));	\
 	break;							\
     default:							\
 	__gu_val = 0;						\
 	__gu_err = __get_user_bad();				\
 	break;							\
     }								\
-    (x) = __gu_val;						\
+    (x) = (typeof(*(ptr))) __gu_val;				\
     __gu_err;							\
 })
 #define __get_user(x, ptr) get_user(x, ptr)
 
 extern int __get_user_bad(void);
 
-#define __get_user_asm(err,x,ptr,bwl,reg)	\
-	__asm__ ("move" #bwl " %1,%0"			\
-		 : "=d" (x)							\
+#define __get_user_asm(err,x,ptr,bwl,reg)			\
+	__asm__ ("move" #bwl " %1,%0"				\
+		 : "=d" (x)					\
 		 : "m" (*__ptr(ptr)))
 
 #define copy_from_user(to, from, n)		(memcpy(to, from, n), 0)

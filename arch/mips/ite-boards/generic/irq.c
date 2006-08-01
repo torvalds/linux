@@ -133,7 +133,7 @@ static void end_ite_irq(unsigned int irq)
 		enable_it8172_irq(irq);
 }
 
-static struct hw_interrupt_type it8172_irq_type = {
+static struct irq_chip it8172_irq_type = {
 	.typename = "ITE8172",
 	.startup = startup_ite_irq,
 	.shutdown = shutdown_ite_irq,
@@ -153,7 +153,7 @@ static void ack_none(unsigned int irq) { }
 #define shutdown_none	disable_none
 #define end_none	enable_none
 
-static struct hw_interrupt_type cp0_irq_type = {
+static struct irq_chip cp0_irq_type = {
 	.typename = "CP0 Count",
 	.startup = startup_none,
 	.shutdown = shutdown_none,

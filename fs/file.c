@@ -240,13 +240,9 @@ static struct fdtable *alloc_fdtable(int nr)
 	if (!fdt)
   		goto out;
 
-	nfds = 8 * L1_CACHE_BYTES;
-  	/* Expand to the max in easy steps */
-  	while (nfds <= nr) {
-		nfds = nfds * 2;
-		if (nfds > NR_OPEN)
-			nfds = NR_OPEN;
-	}
+	nfds = max_t(int, 8 * L1_CACHE_BYTES, roundup_pow_of_two(nr + 1));
+	if (nfds > NR_OPEN)
+		nfds = NR_OPEN;
 
   	new_openset = alloc_fdset(nfds);
   	new_execset = alloc_fdset(nfds);
@@ -277,11 +273,13 @@ static struct fdtable *alloc_fdtable(int nr)
 	} while (nfds <= nr);
 	new_fds = alloc_fd_array(nfds);
 	if (!new_fds)
-		goto out;
+		goto out2;
 	fdt->fd = new_fds;
 	fdt->max_fds = nfds;
 	fdt->free_files = NULL;
 	return fdt;
+out2:
+	nfds = fdt->max_fdset;
 out:
   	if (new_openset)
   		free_fdset(new_openset, nfds);

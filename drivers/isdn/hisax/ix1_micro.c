@@ -210,7 +210,7 @@ ix1_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 }
 
 #ifdef __ISAPNP__
-static struct isapnp_device_id itk_ids[] __initdata = {
+static struct isapnp_device_id itk_ids[] __devinitdata = {
 	{ ISAPNP_VENDOR('I', 'T', 'K'), ISAPNP_FUNCTION(0x25),
 	  ISAPNP_VENDOR('I', 'T', 'K'), ISAPNP_FUNCTION(0x25), 
 	  (unsigned long) "ITK micro 2" },
@@ -220,12 +220,12 @@ static struct isapnp_device_id itk_ids[] __initdata = {
 	{ 0, }
 };
 
-static struct isapnp_device_id *ipid __initdata = &itk_ids[0];
+static struct isapnp_device_id *ipid __devinitdata = &itk_ids[0];
 static struct pnp_card *pnp_c __devinitdata = NULL;
 #endif
 
 
-int __init
+int __devinit
 setup_ix1micro(struct IsdnCard *card)
 {
 	struct IsdnCardState *cs = card->cs;

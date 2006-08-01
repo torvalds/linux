@@ -1029,6 +1029,8 @@ running once the system is up.
 
 	nocache		[ARM]
 
+	nodelayacct	[KNL] Disable per-task delay accounting
+
 	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
 
 	noexec		[IA-64]

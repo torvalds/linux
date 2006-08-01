@@ -149,7 +149,10 @@ static inline void wanxl_cable_intr(port_t *port)
 	printk(KERN_INFO "%s: %s%s module, %s cable%s%s\n",
 	       port->dev->name, pm, dte, cable, dsr, dcd);
 
-	hdlc_set_carrier(value & STATUS_CABLE_DCD, port->dev);
+	if (value & STATUS_CABLE_DCD)
+		netif_carrier_on(port->dev);
+	else
+		netif_carrier_off(port->dev);
 }
 
 

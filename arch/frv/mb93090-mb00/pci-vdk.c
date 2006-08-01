@@ -406,7 +406,9 @@ int __init pcibios_init(void)
 	ioport_resource.end	= (__reg_MB86943_sl_pci_io_range << 9) | 0x3ff;
 	ioport_resource.end	+= ioport_resource.start;
 
-	printk("PCI IO window:  %08lx-%08lx\n", ioport_resource.start, ioport_resource.end);
+	printk("PCI IO window:  %08llx-%08llx\n",
+	       (unsigned long long) ioport_resource.start,
+	       (unsigned long long) ioport_resource.end);
 
 	iomem_resource.start	= (__reg_MB86943_sl_pci_mem_base << 9) & 0xfffffc00;
 
@@ -416,8 +418,11 @@ int __init pcibios_init(void)
 	iomem_resource.end	= (__reg_MB86943_sl_pci_mem_range << 9) | 0x3ff;
 	iomem_resource.end	+= iomem_resource.start;
 
-	printk("PCI MEM window: %08lx-%08lx\n", iomem_resource.start, iomem_resource.end);
-	printk("PCI DMA memory: %08lx-%08lx\n", dma_coherent_mem_start, dma_coherent_mem_end);
+	printk("PCI MEM window: %08llx-%08llx\n",
+	       (unsigned long long) iomem_resource.start,
+	       (unsigned long long) iomem_resource.end);
+	printk("PCI DMA memory: %08lx-%08lx\n",
+	       dma_coherent_mem_start, dma_coherent_mem_end);
 
 	if (!pci_probe)
 		return -ENXIO;

@@ -1639,7 +1639,7 @@ bnx2_tx_int(struct bnx2 *bp)
 		skb = tx_buf->skb;
 #ifdef BCM_TSO 
 		/* partial BD completions possible with TSO packets */
-		if (skb_shinfo(skb)->gso_size) {
+		if (skb_is_gso(skb)) {
 			u16 last_idx, last_ring_idx;
 
 			last_idx = sw_cons +

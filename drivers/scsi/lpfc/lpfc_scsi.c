@@ -153,22 +153,6 @@ static void
 lpfc_release_scsi_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * psb)
 {
 	unsigned long iflag = 0;
-	/*
-	 * There are only two special cases to consider.  (1) the scsi command
-	 * requested scatter-gather usage or (2) the scsi command allocated
-	 * a request buffer, but did not request use_sg.  There is a third
-	 * case, but it does not require resource deallocation.
-	 */
-	if ((psb->seg_cnt > 0) && (psb->pCmd->use_sg)) {
-		dma_unmap_sg(&phba->pcidev->dev, psb->pCmd->request_buffer,
-				psb->seg_cnt, psb->pCmd->sc_data_direction);
-	} else {
-		 if ((psb->nonsg_phys) && (psb->pCmd->request_bufflen)) {
-			dma_unmap_single(&phba->pcidev->dev, psb->nonsg_phys,
-						psb->pCmd->request_bufflen,
-						psb->pCmd->sc_data_direction);
-		 }
-	}
 
 	spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
 	psb->pCmd = NULL;
@@ -279,6 +263,27 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd)
 	iocb_cmd->ulpLe = 1;
 	fcp_cmnd->fcpDl = be32_to_cpu(scsi_cmnd->request_bufflen);
 	return 0;
+}
+
+static void
+lpfc_scsi_unprep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * psb)
+{
+	/*
+	 * There are only two special cases to consider.  (1) the scsi command
+	 * requested scatter-gather usage or (2) the scsi command allocated
+	 * a request buffer, but did not request use_sg.  There is a third
+	 * case, but it does not require resource deallocation.
+	 */
+	if ((psb->seg_cnt > 0) && (psb->pCmd->use_sg)) {
+		dma_unmap_sg(&phba->pcidev->dev, psb->pCmd->request_buffer,
+				psb->seg_cnt, psb->pCmd->sc_data_direction);
+	} else {
+		 if ((psb->nonsg_phys) && (psb->pCmd->request_bufflen)) {
+			dma_unmap_single(&phba->pcidev->dev, psb->nonsg_phys,
+						psb->pCmd->request_bufflen,
+						psb->pCmd->sc_data_direction);
+		 }
+	}
 }
 
 static void
@@ -454,6 +459,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	cmd->scsi_done(cmd);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
+		lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 		return;
 	}
@@ -511,6 +517,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		}
 	}
 
+	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }
 
@@ -609,6 +616,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd,
 static int
 lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_hba *phba,
 			     struct lpfc_scsi_buf *lpfc_cmd,
+			     unsigned int lun,
 			     uint8_t task_mgmt_cmd)
 {
 	struct lpfc_sli *psli;
@@ -627,8 +635,7 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_hba *phba,
 	piocb = &piocbq->iocb;
 
 	fcp_cmnd = lpfc_cmd->fcp_cmnd;
-	int_to_scsilun(lpfc_cmd->pCmd->device->lun,
-			&lpfc_cmd->fcp_cmnd->fcp_lun);
+	int_to_scsilun(lun, &lpfc_cmd->fcp_cmnd->fcp_lun);
 	fcp_cmnd->fcpCntl2 = task_mgmt_cmd;
 
 	piocb->ulpCommand = CMD_FCP_ICMND64_CR;
@@ -655,14 +662,16 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_hba *phba,
 
 static int
 lpfc_scsi_tgt_reset(struct lpfc_scsi_buf * lpfc_cmd, struct lpfc_hba * phba,
-		    unsigned  tgt_id, struct lpfc_rport_data *rdata)
+		    unsigned  tgt_id, unsigned int lun,
+		    struct lpfc_rport_data *rdata)
 {
 	struct lpfc_iocbq *iocbq;
 	struct lpfc_iocbq *iocbqrsp;
 	int ret;
 
 	lpfc_cmd->rdata = rdata;
-	ret = lpfc_scsi_prep_task_mgmt_cmd(phba, lpfc_cmd, FCP_TARGET_RESET);
+	ret = lpfc_scsi_prep_task_mgmt_cmd(phba, lpfc_cmd, lun,
+					   FCP_TARGET_RESET);
 	if (!ret)
 		return FAILED;
 
@@ -822,6 +831,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	return 0;
 
  out_host_busy_free_buf:
+	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
  out_host_busy:
 	return SCSI_MLQUEUE_HOST_BUSY;
@@ -969,12 +979,12 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	if (lpfc_cmd == NULL)
 		goto out;
 
-	lpfc_cmd->pCmd = cmnd;
 	lpfc_cmd->timeout = 60;
 	lpfc_cmd->scsi_hba = phba;
 	lpfc_cmd->rdata = rdata;
 
-	ret = lpfc_scsi_prep_task_mgmt_cmd(phba, lpfc_cmd, FCP_LUN_RESET);
+	ret = lpfc_scsi_prep_task_mgmt_cmd(phba, lpfc_cmd, cmnd->device->lun,
+					   FCP_LUN_RESET);
 	if (!ret)
 		goto out_free_scsi_buf;
 
@@ -1001,7 +1011,6 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	cmd_status = iocbqrsp->iocb.ulpStatus;
 
 	lpfc_sli_release_iocbq(phba, iocbqrsp);
-	lpfc_release_scsi_buf(phba, lpfc_cmd);
 
 	/*
 	 * All outstanding txcmplq I/Os should have been aborted by the device.
@@ -1040,6 +1049,8 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	}
 
 out_free_scsi_buf:
+	lpfc_release_scsi_buf(phba, lpfc_cmd);
+
 	lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
 			"%d:0713 SCSI layer issued LUN reset (%d, %d) "
 			"Data: x%x x%x x%x\n",
@@ -1070,7 +1081,6 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 
 	/* The lpfc_cmd storage is reused.  Set all loop invariants. */
 	lpfc_cmd->timeout = 60;
-	lpfc_cmd->pCmd = cmnd;
 	lpfc_cmd->scsi_hba = phba;
 
 	/*
@@ -1078,7 +1088,7 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 	 * targets known to the driver.  Should any target reset
 	 * fail, this routine returns failure to the midlayer.
 	 */
-	for (i = 0; i < MAX_FCP_TARGET; i++) {
+	for (i = 0; i < LPFC_MAX_TARGET; i++) {
 		/* Search the mapped list for this target ID */
 		match = 0;
 		list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
@@ -1090,8 +1100,8 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 		if (!match)
 			continue;
 
-		ret = lpfc_scsi_tgt_reset(lpfc_cmd, phba,
-					  i, ndlp->rport->dd_data);
+		ret = lpfc_scsi_tgt_reset(lpfc_cmd, phba, i, cmnd->device->lun,
+					  ndlp->rport->dd_data);
 		if (ret != SUCCESS) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
 				"%d:0713 Bus Reset on target %d failed\n",

@@ -38,7 +38,6 @@ unsigned long long sched_clock(void)
 /* Changed at early boot */
 int timer_irq_inited = 0;
 
-static int first_tick;
 static unsigned long long prev_nsecs;
 #ifdef CONFIG_UML_REAL_TIME_CLOCK
 static long long delta;   		/* Deviation per interval */
@@ -48,15 +47,8 @@ void timer_irq(union uml_pt_regs *regs)
 {
 	unsigned long long ticks = 0;
 
-	if(!timer_irq_inited){
-		/* This is to ensure that ticks don't pile up when
-		 * the timer handler is suspended */
-		first_tick = 0;
-		return;
-	}
-
-	if(first_tick){
 #ifdef CONFIG_UML_REAL_TIME_CLOCK
+	if(prev_nsecs){
 		/* We've had 1 tick */
 		unsigned long long nsecs = os_nsecs();
 
@@ -69,42 +61,15 @@ void timer_irq(union uml_pt_regs *regs)
 
 		ticks += (delta * HZ) / BILLION;
 		delta -= (ticks * BILLION) / HZ;
+	}
+	else prev_nsecs = os_nsecs();
 #else
-		ticks = 1;
+	ticks = 1;
 #endif
-	}
-	else {
-		prev_nsecs = os_nsecs();
-		first_tick = 1;
-	}
-
 	while(ticks > 0){
 		do_IRQ(TIMER_IRQ, regs);
 		ticks--;
 	}
-}
-
-
-void time_init_kern(void)
-{
-	long long nsecs;
-
-	nsecs = os_nsecs();
-	set_normalized_timespec(&wall_to_monotonic, -nsecs / BILLION,
-				-nsecs % BILLION);
-}
-
-void do_boot_timer_handler(struct sigcontext * sc)
-{
-	unsigned long flags;
-	struct pt_regs regs;
-
-	CHOOSE_MODE((void) (UPT_SC(&regs.regs) = sc),
-		    (void) (regs.regs.skas.is_user = 0));
-
-	write_seqlock_irqsave(&xtime_lock, flags);
-	do_timer(&regs);
-	write_sequnlock_irqrestore(&xtime_lock, flags);
 }
 
 static DEFINE_SPINLOCK(timer_spinlock);
@@ -140,6 +105,32 @@ irqreturn_t um_timer(int irq, void *dev, struct pt_regs *regs)
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
 	return IRQ_HANDLED;
+}
+
+static void register_timer(void)
+{
+	int err;
+
+	err = request_irq(TIMER_IRQ, um_timer, IRQF_DISABLED, "timer", NULL);
+	if(err != 0)
+		printk(KERN_ERR "timer_init : request_irq failed - "
+		       "errno = %d\n", -err);
+
+	timer_irq_inited = 1;
+
+	user_time_init();
+}
+
+extern void (*late_time_init)(void);
+
+void time_init(void)
+{
+	long long nsecs;
+
+	nsecs = os_nsecs();
+	set_normalized_timespec(&wall_to_monotonic, -nsecs / BILLION,
+				-nsecs % BILLION);
+	late_time_init = register_timer;
 }
 
 void do_gettimeofday(struct timeval *tv)
@@ -189,18 +180,3 @@ void timer_handler(int sig, union uml_pt_regs *regs)
 	if(current_thread->cpu == 0)
 		timer_irq(regs);
 }
-
-int __init timer_init(void)
-{
-	int err;
-
-	user_time_init();
-	err = request_irq(TIMER_IRQ, um_timer, IRQF_DISABLED, "timer", NULL);
-	if(err != 0)
-		printk(KERN_ERR "timer_init : request_irq failed - "
-		       "errno = %d\n", -err);
-	timer_irq_inited = 1;
-	return(0);
-}
-
-arch_initcall(timer_init);

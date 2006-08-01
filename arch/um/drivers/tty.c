@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2001 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -25,17 +25,17 @@ static void *tty_chan_init(char *str, int device, struct chan_opts *opts)
 	if(*str != ':'){
 		printk("tty_init : channel type 'tty' must specify "
 		       "a device\n");
-		return(NULL);
+		return NULL;
 	}
 	str++;
 
 	data = um_kmalloc(sizeof(*data));
 	if(data == NULL)
-		return(NULL);
+		return NULL;
 	*data = ((struct tty_chan) { .dev 	= str,
 				     .raw 	= opts->raw });
-				     
-	return(data);
+
+	return data;
 }
 
 static int tty_open(int input, int output, int primary, void *d,
@@ -45,19 +45,21 @@ static int tty_open(int input, int output, int primary, void *d,
 	int fd, err;
 
 	fd = os_open_file(data->dev, of_set_rw(OPENFLAGS(), input, output), 0);
-	if(fd < 0) return(fd);
+	if(fd < 0)
+		return fd;
+
 	if(data->raw){
 		CATCH_EINTR(err = tcgetattr(fd, &data->tt));
 		if(err)
-			return(err);
+			return err;
 
 		err = raw(fd);
 		if(err)
-			return(err);
+			return err;
 	}
 
 	*dev_out = data->dev;
-	return(fd);
+	return fd;
 }
 
 struct chan_ops tty_ops = {
@@ -72,14 +74,3 @@ struct chan_ops tty_ops = {
 	.free		= generic_free,
 	.winch		= 0,
 };
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

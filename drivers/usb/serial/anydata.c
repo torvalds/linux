@@ -13,7 +13,7 @@
 #include <linux/tty.h>
 #include <linux/module.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x16d5, 0x6501) },	/* AirData CDMA device */
@@ -71,7 +71,7 @@ static int anydata_open(struct usb_serial_port *port, struct file *filp)
 				  	  port->bulk_in_endpointAddress),
 			  port->read_urb->transfer_buffer,
 			  port->read_urb->transfer_buffer_length,
-			  usb_serial_generic_write_bulk_callback, port);
+			  usb_serial_generic_read_bulk_callback, port);
 	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (result)
 		dev_err(&port->dev,

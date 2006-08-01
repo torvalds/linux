@@ -531,7 +531,7 @@ static void snd_emu10k1_ecard_setadcgain(struct snd_emu10k1 * emu,
 	snd_emu10k1_ecard_write(emu, emu->ecard_ctrl);
 }
 
-static int __devinit snd_emu10k1_ecard_init(struct snd_emu10k1 * emu)
+static int snd_emu10k1_ecard_init(struct snd_emu10k1 * emu)
 {
 	unsigned int hc_value;
 
@@ -571,7 +571,7 @@ static int __devinit snd_emu10k1_ecard_init(struct snd_emu10k1 * emu)
 	return 0;
 }
 
-static int __devinit snd_emu10k1_cardbus_init(struct snd_emu10k1 * emu)
+static int snd_emu10k1_cardbus_init(struct snd_emu10k1 * emu)
 {
 	unsigned long special_port;
 	unsigned int value;
@@ -633,7 +633,7 @@ static int snd_emu1212m_fpga_netlist_write(struct snd_emu10k1 * emu, int reg, in
 	return 0;
 }
 
-static int __devinit snd_emu10k1_emu1212m_init(struct snd_emu10k1 * emu)
+static int snd_emu10k1_emu1212m_init(struct snd_emu10k1 * emu)
 {
 	unsigned int i;
 	int tmp;
@@ -1430,6 +1430,10 @@ void snd_emu10k1_resume_init(struct snd_emu10k1 *emu)
 {
 	if (emu->card_capabilities->ecard)
 		snd_emu10k1_ecard_init(emu);
+	else if (emu->card_capabilities->ca_cardbus_chip)
+		snd_emu10k1_cardbus_init(emu);
+	else if (emu->card_capabilities->emu1212m)
+ 		snd_emu10k1_emu1212m_init(emu);
 	else
 		snd_emu10k1_ptr_write(emu, AC97SLOT, 0, AC97SLOT_CNTR|AC97SLOT_LFE);
 	snd_emu10k1_init(emu, emu->enable_ir, 1);

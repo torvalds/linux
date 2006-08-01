@@ -872,9 +872,9 @@ int usb_gadget_config_buf(const struct usb_config_descriptor *config,
 /* utility wrapping a simple endpoint selection policy */
 
 extern struct usb_ep *usb_ep_autoconfig (struct usb_gadget *,
-			struct usb_endpoint_descriptor *) __init;
+			struct usb_endpoint_descriptor *) __devinit;
 
-extern void usb_ep_autoconfig_reset (struct usb_gadget *) __init;
+extern void usb_ep_autoconfig_reset (struct usb_gadget *) __devinit;
 
 #endif  /* __KERNEL__ */
 

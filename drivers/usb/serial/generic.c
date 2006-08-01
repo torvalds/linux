@@ -17,8 +17,8 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/usb.h>
+#include <linux/usb/serial.h>
 #include <asm/uaccess.h>
-#include "usb-serial.h"
 
 static int debug;
 
@@ -285,6 +285,7 @@ void usb_serial_generic_read_bulk_callback (struct urb *urb, struct pt_regs *reg
 	if (result)
 		dev_err(&port->dev, "%s - failed resubmitting read urb, error %d\n", __FUNCTION__, result);
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_read_bulk_callback);
 
 void usb_serial_generic_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 {

@@ -336,7 +336,6 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 #endif
 
 #define set_mb(var, value) do { xchg(&var, value); } while (0)
-#define set_wmb(var, value) do { var = value; wmb(); } while (0)
 
 #define arch_align_stack(x) (x)
 

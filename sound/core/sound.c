@@ -244,7 +244,7 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 	struct device *device = NULL;
 
 	snd_assert(name, return -EINVAL);
-	preg = kmalloc(sizeof(struct snd_minor) + strlen(name) + 1, GFP_KERNEL);
+	preg = kmalloc(sizeof *preg, GFP_KERNEL);
 	if (preg == NULL)
 		return -ENOMEM;
 	preg->type = type;
@@ -252,7 +252,6 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 	preg->device = dev;
 	preg->f_ops = f_ops;
 	preg->private_data = private_data;
-	strcpy(preg->name, name);
 	mutex_lock(&sound_mutex);
 #ifdef CONFIG_SND_DYNAMIC_MINORS
 	minor = snd_find_free_minor();

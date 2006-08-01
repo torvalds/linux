@@ -43,15 +43,10 @@ extern ctxd_t *srmmu_ctx_table_phys;
 extern void calibrate_delay(void);
 
 extern volatile int smp_processors_ready;
-extern int smp_num_cpus;
 static int smp_highest_cpu;
 extern volatile unsigned long cpu_callin_map[NR_CPUS];
 extern cpuinfo_sparc cpu_data[NR_CPUS];
 extern unsigned char boot_cpu_id;
-extern int smp_activated;
-extern volatile int __cpu_number_map[NR_CPUS];
-extern volatile int __cpu_logical_map[NR_CPUS];
-extern volatile unsigned long ipi_count;
 extern volatile int smp_process_available;
 
 extern cpumask_t smp_commenced_mask;
@@ -144,6 +139,8 @@ void __init smp4d_callin(void)
 	spin_lock_irqsave(&sun4d_imsk_lock, flags);
 	cc_set_imsk(cc_get_imsk() & ~0x4000); /* Allow PIL 14 as well */
 	spin_unlock_irqrestore(&sun4d_imsk_lock, flags);
+	cpu_set(cpuid, cpu_online_map);
+
 }
 
 extern void init_IRQ(void);
@@ -160,51 +157,24 @@ extern unsigned long trapbase_cpu3[];
 
 void __init smp4d_boot_cpus(void)
 {
-	int cpucount = 0;
-	int i, mid;
-
-	printk("Entering SMP Mode...\n");
-	
 	if (boot_cpu_id)
 		current_set[0] = NULL;
-
-	local_irq_enable();
-	cpus_clear(cpu_present_map);
-
-	/* XXX This whole thing has to go.  See sparc64. */
-	for (i = 0; !cpu_find_by_instance(i, NULL, &mid); i++)
-		cpu_set(mid, cpu_present_map);
-	SMP_PRINTK(("cpu_present_map %08lx\n", cpus_addr(cpu_present_map)[0]));
-	for(i=0; i < NR_CPUS; i++)
-		__cpu_number_map[i] = -1;
-	for(i=0; i < NR_CPUS; i++)
-		__cpu_logical_map[i] = -1;
-	__cpu_number_map[boot_cpu_id] = 0;
-	__cpu_logical_map[0] = boot_cpu_id;
-	current_thread_info()->cpu = boot_cpu_id;
-	smp_store_cpu_info(boot_cpu_id);
 	smp_setup_percpu_timer();
 	local_flush_cache_all();
-	if (cpu_find_by_instance(1, NULL, NULL))
-		return;  /* Not an MP box. */
-	SMP_PRINTK(("Iterating over CPUs\n"));
-	for(i = 0; i < NR_CPUS; i++) {
-		if(i == boot_cpu_id)
-			continue;
+}
 
-		if (cpu_isset(i, cpu_present_map)) {
+int smp4d_boot_one_cpu(int i)
+{
 			extern unsigned long sun4d_cpu_startup;
 			unsigned long *entry = &sun4d_cpu_startup;
 			struct task_struct *p;
 			int timeout;
-			int no;
+			int cpu_node;
 
+			cpu_find_by_instance(i, &cpu_node,NULL);
 			/* Cook up an idler for this guy. */
 			p = fork_idle(i);
-			cpucount++;
 			current_set[i] = task_thread_info(p);
-			for (no = 0; !cpu_find_by_instance(no, NULL, &mid)
-				     && mid != i; no++) ;
 
 			/*
 			 * Initialize the contexts table
@@ -216,9 +186,9 @@ void __init smp4d_boot_cpus(void)
 			smp_penguin_ctable.reg_size = 0;
 
 			/* whirrr, whirrr, whirrrrrrrrr... */
-			SMP_PRINTK(("Starting CPU %d at %p task %d node %08x\n", i, entry, cpucount, cpu_data(no).prom_node));
+			SMP_PRINTK(("Starting CPU %d at %p \n", i, entry));
 			local_flush_cache_all();
-			prom_startcpu(cpu_data(no).prom_node,
+			prom_startcpu(cpu_node,
 				      &smp_penguin_ctable, 0, (char *)entry);
 				      
 			SMP_PRINTK(("prom_startcpu returned :)\n"));
@@ -230,39 +200,30 @@ void __init smp4d_boot_cpus(void)
 				udelay(200);
 			}
 			
-			if(cpu_callin_map[i]) {
-				/* Another "Red Snapper". */
-				__cpu_number_map[i] = cpucount;
-				__cpu_logical_map[cpucount] = i;
-			} else {
-				cpucount--;
-				printk("Processor %d is stuck.\n", i);
-			}
-		}
-		if(!(cpu_callin_map[i])) {
-			cpu_clear(i, cpu_present_map);
-			__cpu_number_map[i] = -1;
-		}
+	if (!(cpu_callin_map[i])) {
+		printk("Processor %d is stuck.\n", i);
+		return -ENODEV;
+
 	}
 	local_flush_cache_all();
-	if(cpucount == 0) {
-		printk("Error: only one Processor found.\n");
-		cpu_present_map = cpumask_of_cpu(hard_smp4d_processor_id());
-	} else {
-		unsigned long bogosum = 0;
-		
-		for_each_present_cpu(i) {
-			bogosum += cpu_data(i).udelay_val;
-			smp_highest_cpu = i;
+	return 0;
+}
+
+void __init smp4d_smp_done(void)
+{
+	int i, first;
+	int *prev;
+
+	/* setup cpu list for irq rotation */
+	first = 0;
+	prev = &first;
+	for (i = 0; i < NR_CPUS; i++)
+		if (cpu_online(i)) {
+			*prev = i;
+			prev = &cpu_data(i).next;
 		}
-		SMP_PRINTK(("Total of %d Processors activated (%lu.%02lu BogoMIPS).\n", cpucount + 1, bogosum/(500000/HZ), (bogosum/(5000/HZ))%100));
-		printk("Total of %d Processors activated (%lu.%02lu BogoMIPS).\n",
-		       cpucount + 1,
-		       bogosum/(500000/HZ),
-		       (bogosum/(5000/HZ))%100);
-		smp_activated = 1;
-		smp_num_cpus = cpucount + 1;
-	}
+	*prev = first;
+	local_flush_cache_all();
 
 	/* Free unneeded trap tables */
 	ClearPageReserved(virt_to_page(trapbase_cpu1));
@@ -334,7 +295,7 @@ void smp4d_cross_call(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 			register int i;
 
 			mask = cpumask_of_cpu(hard_smp4d_processor_id());
-			cpus_andnot(mask, cpu_present_map, mask);
+			cpus_andnot(mask, cpu_online_map, mask);
 			for(i = 0; i <= high; i++) {
 				if (cpu_isset(i, mask)) {
 					ccall_info.processors_in[i] = 0;

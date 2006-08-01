@@ -31,7 +31,7 @@ int write_sigio_irq(int fd)
 	int err;
 
 	err = um_request_irq(SIGIO_WRITE_IRQ, fd, IRQ_READ, sigio_interrupt,
-			     IRQF_DISABLED | IRQF_SAMPLE_RANDOM, "write sigio",
+			     IRQF_DISABLED|IRQF_SAMPLE_RANDOM, "write sigio",
 			     NULL);
 	if(err){
 		printk("write_sigio_irq : um_request_irq failed, err = %d\n",
@@ -53,17 +53,3 @@ void sigio_unlock(void)
 {
 	spin_unlock(&sigio_spinlock);
 }
-
-extern void sigio_cleanup(void);
-__uml_exitcall(sigio_cleanup);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

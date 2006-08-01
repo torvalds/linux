@@ -87,9 +87,9 @@ static int (*g5_query_freq)(void);
 static DEFINE_MUTEX(g5_switch_mutex);
 
 
-#ifdef CONFIG_PPC_SMU
+#ifdef CONFIG_PMAC_SMU
 
-static const u32 *g5_pmode_data;
+static u32 *g5_pmode_data;
 static int g5_pmode_max;
 
 static struct smu_sdbp_fvt *g5_fvt_table;	/* table of op. points */
@@ -216,7 +216,7 @@ static void g5_dummy_switch_volt(int speed_mode)
 {
 }
 
-#endif /* CONFIG_PPC_SMU */
+#endif /* CONFIG_PMAC_SMU */
 
 /*
  * Platform function based voltage switching for PowerMac7,2 & 7,3
@@ -383,7 +383,7 @@ static struct cpufreq_driver g5_cpufreq_driver = {
 };
 
 
-#ifdef CONFIG_PPC_SMU
+#ifdef CONFIG_PMAC_SMU
 
 static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 {
@@ -535,7 +535,7 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 	return rc;
 }
 
-#endif /* CONFIG_PPC_SMU */
+#endif /* CONFIG_PMAC_SMU */
 
 
 static int __init g5_pm72_cpufreq_init(struct device_node *cpus)
@@ -731,10 +731,10 @@ static int __init g5_cpufreq_init(void)
 	    machine_is_compatible("PowerMac7,3") ||
 	    machine_is_compatible("RackMac3,1"))
 		rc = g5_pm72_cpufreq_init(cpus);
-#ifdef CONFIG_PPC_SMU
+#ifdef CONFIG_PMAC_SMU
 	else
 		rc = g5_neo2_cpufreq_init(cpus);
-#endif /* CONFIG_PPC_SMU */
+#endif /* CONFIG_PMAC_SMU */
 
 	of_node_put(cpus);
 	return rc;

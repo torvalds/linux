@@ -17,10 +17,9 @@
 #include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/usb.h>
+#include <linux/usb/serial.h>
 
 static int debug;
-
-#include "usb-serial.h"
 
 struct usbcons_info {
 	int			magic;

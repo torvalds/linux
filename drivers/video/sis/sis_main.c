@@ -44,7 +44,13 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,17)
 #include <linux/tty.h>
+#else
+#include <linux/screen_info.h>
+#endif
+
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/selection.h>

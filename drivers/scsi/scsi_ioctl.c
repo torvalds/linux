@@ -110,11 +110,8 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 				       sshdr.asc, sshdr.ascq);
 			break;
 		case NOT_READY:	/* This happens if there is no disc in drive */
-			if (sdev->removable && (cmd[0] != TEST_UNIT_READY)) {
-				printk(KERN_INFO "Device not ready. Make sure"
-				       " there is a disc in the drive.\n");
+			if (sdev->removable)
 				break;
-			}
 		case UNIT_ATTENTION:
 			if (sdev->removable) {
 				sdev->changed = 1;

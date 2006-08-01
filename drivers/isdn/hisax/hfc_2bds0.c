@@ -1015,7 +1015,7 @@ hfc_dbusy_timer(struct IsdnCardState *cs)
 {
 }
 
-static unsigned int __init
+static unsigned int
 *init_send_hfcd(int cnt)
 {
 	int i, *send;
@@ -1030,7 +1030,7 @@ static unsigned int __init
 	return(send);
 }
 
-void __init
+void
 init2bds0(struct IsdnCardState *cs)
 {
 	cs->setstack_d = setstack_hfcd;

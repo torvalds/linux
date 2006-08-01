@@ -1547,7 +1547,7 @@ static void handle_irq_noise(struct bcm43xx_private *bcm)
 		goto generate_new;
 
 	/* Get the noise samples. */
-	assert(bcm->noisecalc.nr_samples <= 8);
+	assert(bcm->noisecalc.nr_samples < 8);
 	i = bcm->noisecalc.nr_samples;
 	noise[0] = limit_value(noise[0], 0, ARRAY_SIZE(radio->nrssi_lt) - 1);
 	noise[1] = limit_value(noise[1], 0, ARRAY_SIZE(radio->nrssi_lt) - 1);
@@ -3701,7 +3701,7 @@ static void bcm43xx_ieee80211_set_security(struct net_device *net_dev,
 	}
 	if (sec->flags & SEC_AUTH_MODE) {
 		secinfo->auth_mode = sec->auth_mode;
-		dprintk(", .auth_mode = %d\n", sec->auth_mode);
+		dprintk(", .auth_mode = %d", sec->auth_mode);
 	}
 	dprintk("\n");
 	if (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED &&

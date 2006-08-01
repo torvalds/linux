@@ -502,16 +502,9 @@ static int xics_host_match(struct irq_host *h, struct device_node *node)
 }
 
 static int xics_host_map_direct(struct irq_host *h, unsigned int virq,
-				irq_hw_number_t hw, unsigned int flags)
+				irq_hw_number_t hw)
 {
-	unsigned int sense = flags & IRQ_TYPE_SENSE_MASK;
-
-	pr_debug("xics: map_direct virq %d, hwirq 0x%lx, flags: 0x%x\n",
-		 virq, hw, flags);
-
-	if (sense && sense != IRQ_TYPE_LEVEL_LOW)
-		printk(KERN_WARNING "xics: using unsupported sense 0x%x"
-		       " for irq %d (h: 0x%lx)\n", flags, virq, hw);
+	pr_debug("xics: map_direct virq %d, hwirq 0x%lx\n", virq, hw);
 
 	get_irq_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_and_handler(virq, &xics_pic_direct, handle_fasteoi_irq);
@@ -519,16 +512,9 @@ static int xics_host_map_direct(struct irq_host *h, unsigned int virq,
 }
 
 static int xics_host_map_lpar(struct irq_host *h, unsigned int virq,
-			      irq_hw_number_t hw, unsigned int flags)
+			      irq_hw_number_t hw)
 {
-	unsigned int sense = flags & IRQ_TYPE_SENSE_MASK;
-
-	pr_debug("xics: map_lpar virq %d, hwirq 0x%lx, flags: 0x%x\n",
-		 virq, hw, flags);
-
-	if (sense && sense != IRQ_TYPE_LEVEL_LOW)
-		printk(KERN_WARNING "xics: using unsupported sense 0x%x"
-		       " for irq %d (h: 0x%lx)\n", flags, virq, hw);
+	pr_debug("xics: map_direct virq %d, hwirq 0x%lx\n", virq, hw);
 
 	get_irq_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_and_handler(virq, &xics_pic_lpar, handle_fasteoi_irq);
@@ -757,7 +743,7 @@ void xics_request_IPIs(void)
 {
 	unsigned int ipi;
 
-	ipi = irq_create_mapping(xics_host, XICS_IPI, 0);
+	ipi = irq_create_mapping(xics_host, XICS_IPI);
 	BUG_ON(ipi == NO_IRQ);
 
 	/*
@@ -783,6 +769,14 @@ void xics_teardown_cpu(int secondary)
 	xics_set_cpu_priority(cpu, 0);
 
 	/*
+	 * Clear IPI
+	 */
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		lpar_qirr_info(cpu, 0xff);
+	else
+		direct_qirr_info(cpu, 0xff);
+
+	/*
 	 * we need to EOI the IPI if we got here from kexec down IPI
 	 *
 	 * probably need to check all the other interrupts too
@@ -795,7 +789,7 @@ void xics_teardown_cpu(int secondary)
 		return;
 	desc = get_irq_desc(ipi);
 	if (desc->chip && desc->chip->eoi)
-		desc->chip->eoi(XICS_IPI);
+		desc->chip->eoi(ipi);
 
 	/*
 	 * Some machines need to have at least one cpu in the GIQ,

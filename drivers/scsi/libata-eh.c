@@ -764,12 +764,27 @@ static void ata_eh_about_to_do(struct ata_port *ap, struct ata_device *dev,
 			       unsigned int action)
 {
 	unsigned long flags;
+	struct ata_eh_info *ehi = &ap->eh_info;
+	struct ata_eh_context *ehc = &ap->eh_context;
 
 	spin_lock_irqsave(ap->lock, flags);
 
-	ata_eh_clear_action(dev, &ap->eh_info, action);
+	/* Reset is represented by combination of actions and EHI
+	 * flags.  Suck in all related bits before clearing eh_info to
+	 * avoid losing requested action.
+	 */
+	if (action & ATA_EH_RESET_MASK) {
+		ehc->i.action |= ehi->action & ATA_EH_RESET_MASK;
+		ehc->i.flags |= ehi->flags & ATA_EHI_RESET_MODIFIER_MASK;
 
-	if (!(ap->eh_context.i.flags & ATA_EHI_QUIET))
+		/* make sure all reset actions are cleared & clear EHI flags */
+		action |= ATA_EH_RESET_MASK;
+		ehi->flags &= ~ATA_EHI_RESET_MODIFIER_MASK;
+	}
+
+	ata_eh_clear_action(dev, ehi, action);
+
+	if (!(ehc->i.flags & ATA_EHI_QUIET))
 		ap->pflags |= ATA_PFLAG_RECOVERED;
 
 	spin_unlock_irqrestore(ap->lock, flags);
@@ -790,6 +805,12 @@ static void ata_eh_about_to_do(struct ata_port *ap, struct ata_device *dev,
 static void ata_eh_done(struct ata_port *ap, struct ata_device *dev,
 			unsigned int action)
 {
+	/* if reset is complete, clear all reset actions & reset modifier */
+	if (action & ATA_EH_RESET_MASK) {
+		action |= ATA_EH_RESET_MASK;
+		ap->eh_context.i.flags &= ~ATA_EHI_RESET_MODIFIER_MASK;
+	}
+
 	ata_eh_clear_action(dev, &ap->eh_context.i, action);
 }
 
@@ -1276,8 +1297,6 @@ static int ata_eh_speed_down(struct ata_device *dev, int is_io,
 static void ata_eh_autopsy(struct ata_port *ap)
 {
 	struct ata_eh_context *ehc = &ap->eh_context;
-	unsigned int action = ehc->i.action;
-	struct ata_device *failed_dev = NULL;
 	unsigned int all_err_mask = 0;
 	int tag, is_io = 0;
 	u32 serror;
@@ -1294,7 +1313,7 @@ static void ata_eh_autopsy(struct ata_port *ap)
 		ehc->i.serror |= serror;
 		ata_eh_analyze_serror(ap);
 	} else if (rc != -EOPNOTSUPP)
-		action |= ATA_EH_HARDRESET;
+		ehc->i.action |= ATA_EH_HARDRESET;
 
 	/* analyze NCQ failure */
 	ata_eh_analyze_ncq_error(ap);
@@ -1315,7 +1334,7 @@ static void ata_eh_autopsy(struct ata_port *ap)
 		qc->err_mask |= ehc->i.err_mask;
 
 		/* analyze TF */
-		action |= ata_eh_analyze_tf(qc, &qc->result_tf);
+		ehc->i.action |= ata_eh_analyze_tf(qc, &qc->result_tf);
 
 		/* DEV errors are probably spurious in case of ATA_BUS error */
 		if (qc->err_mask & AC_ERR_ATA_BUS)
@@ -1329,11 +1348,11 @@ static void ata_eh_autopsy(struct ata_port *ap)
 		/* SENSE_VALID trumps dev/unknown error and revalidation */
 		if (qc->flags & ATA_QCFLAG_SENSE_VALID) {
 			qc->err_mask &= ~(AC_ERR_DEV | AC_ERR_OTHER);
-			action &= ~ATA_EH_REVALIDATE;
+			ehc->i.action &= ~ATA_EH_REVALIDATE;
 		}
 
 		/* accumulate error info */
-		failed_dev = qc->dev;
+		ehc->i.dev = qc->dev;
 		all_err_mask |= qc->err_mask;
 		if (qc->flags & ATA_QCFLAG_IO)
 			is_io = 1;
@@ -1342,24 +1361,21 @@ static void ata_eh_autopsy(struct ata_port *ap)
 	/* enforce default EH actions */
 	if (ap->pflags & ATA_PFLAG_FROZEN ||
 	    all_err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT))
-		action |= ATA_EH_SOFTRESET;
+		ehc->i.action |= ATA_EH_SOFTRESET;
 	else if (all_err_mask)
-		action |= ATA_EH_REVALIDATE;
+		ehc->i.action |= ATA_EH_REVALIDATE;
 
 	/* if we have offending qcs and the associated failed device */
-	if (failed_dev) {
+	if (ehc->i.dev) {
 		/* speed down */
-		action |= ata_eh_speed_down(failed_dev, is_io, all_err_mask);
+		ehc->i.action |= ata_eh_speed_down(ehc->i.dev, is_io,
+						   all_err_mask);
 
 		/* perform per-dev EH action only on the offending device */
-		ehc->i.dev_action[failed_dev->devno] |=
-			action & ATA_EH_PERDEV_MASK;
-		action &= ~ATA_EH_PERDEV_MASK;
+		ehc->i.dev_action[ehc->i.dev->devno] |=
+			ehc->i.action & ATA_EH_PERDEV_MASK;
+		ehc->i.action &= ~ATA_EH_PERDEV_MASK;
 	}
-
-	/* record autopsy result */
-	ehc->i.dev = failed_dev;
-	ehc->i.action |= action;
 
 	DPRINTK("EXIT\n");
 }
@@ -1483,6 +1499,9 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	ata_reset_fn_t reset;
 	int i, did_followup_srst, rc;
 
+	/* about to reset */
+	ata_eh_about_to_do(ap, NULL, ehc->i.action & ATA_EH_RESET_MASK);
+
 	/* Determine which reset to use and record in ehc->i.action.
 	 * prereset() may examine and modify it.
 	 */
@@ -1531,8 +1550,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		ata_port_printk(ap, KERN_INFO, "%s resetting port\n",
 				reset == softreset ? "soft" : "hard");
 
-	/* reset */
-	ata_eh_about_to_do(ap, NULL, ATA_EH_RESET_MASK);
+	/* mark that this EH session started with reset */
 	ehc->i.flags |= ATA_EHI_DID_RESET;
 
 	rc = ata_do_reset(ap, reset, classes);
@@ -1595,7 +1613,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 			postreset(ap, classes);
 
 		/* reset successful, schedule revalidation */
-		ata_eh_done(ap, NULL, ATA_EH_RESET_MASK);
+		ata_eh_done(ap, NULL, ehc->i.action & ATA_EH_RESET_MASK);
 		ehc->i.action |= ATA_EH_REVALIDATE;
 	}
 
@@ -1848,15 +1866,16 @@ static int ata_eh_skip_recovery(struct ata_port *ap)
 	for (i = 0; i < ata_port_max_devices(ap); i++) {
 		struct ata_device *dev = &ap->device[i];
 
-		if (ata_dev_absent(dev) || ata_dev_ready(dev))
+		if (!(dev->flags & ATA_DFLAG_SUSPENDED))
 			break;
 	}
 
 	if (i == ata_port_max_devices(ap))
 		return 1;
 
-	/* always thaw frozen port and recover failed devices */
-	if (ap->pflags & ATA_PFLAG_FROZEN || ata_port_nr_enabled(ap))
+	/* thaw frozen port, resume link and recover failed devices */
+	if ((ap->pflags & ATA_PFLAG_FROZEN) ||
+	    (ehc->i.flags & ATA_EHI_RESUME_LINK) || ata_port_nr_enabled(ap))
 		return 0;
 
 	/* skip if class codes for all vacant slots are ATA_DEV_NONE */

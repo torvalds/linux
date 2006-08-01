@@ -303,9 +303,10 @@ int mthca_ah_query(struct ib_ah *ibah, struct ib_ah_attr *attr)
 	memset(attr, 0, sizeof *attr);
 	attr->dlid          = be16_to_cpu(ah->av->dlid);
 	attr->sl            = be32_to_cpu(ah->av->sl_tclass_flowlabel) >> 28;
-	attr->static_rate   = ah->av->msg_sr & 0x7;
-	attr->src_path_bits = ah->av->g_slid & 0x7F;
 	attr->port_num      = be32_to_cpu(ah->av->port_pd) >> 24;
+	attr->static_rate   = mthca_rate_to_ib(dev, ah->av->msg_sr & 0x7,
+					       attr->port_num);
+	attr->src_path_bits = ah->av->g_slid & 0x7F;
 	attr->ah_flags      = mthca_ah_grh_present(ah) ? IB_AH_GRH : 0;
 
 	if (attr->ah_flags) {

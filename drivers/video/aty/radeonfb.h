@@ -273,6 +273,8 @@ enum radeon_pm_mode {
 	radeon_pm_off	= 0x00000002,	/* Can resume from D3 cold */
 };
 
+typedef void (*reinit_function_ptr)(struct radeonfb_info *rinfo);
+
 struct radeonfb_info {
 	struct fb_info		*info;
 
@@ -338,7 +340,7 @@ struct radeonfb_info {
 	int			dynclk;
 	int			no_schedule;
 	enum radeon_pm_mode	pm_mode;
-	void			(*reinit_func)(struct radeonfb_info *rinfo);
+	reinit_function_ptr     reinit_func;
 
 	/* Lock on register access */
 	spinlock_t		reg_lock;
@@ -600,7 +602,7 @@ extern int radeon_probe_i2c_connector(struct radeonfb_info *rinfo, int conn, u8 
 /* PM Functions */
 extern int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t state);
 extern int radeonfb_pci_resume(struct pci_dev *pdev);
-extern void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk);
+extern void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlist, int force_sleep);
 extern void radeonfb_pm_exit(struct radeonfb_info *rinfo);
 
 /* Monitor probe functions */

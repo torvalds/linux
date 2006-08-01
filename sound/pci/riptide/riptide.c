@@ -506,7 +506,7 @@ static int riptide_reset(struct cmdif *cif, struct snd_riptide *chip);
 /*
  */
 
-static struct pci_device_id snd_riptide_ids[] __devinitdata = {
+static struct pci_device_id snd_riptide_ids[] = {
 	{
 	 .vendor = 0x127a,.device = 0x4310,
 	 .subvendor = PCI_ANY_ID,.subdevice = PCI_ANY_ID,

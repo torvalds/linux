@@ -83,8 +83,6 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 
 	ret = -ENOMEM;
 	len = vma_len + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
-	if (!(vma->vm_flags & VM_WRITE) && len > inode->i_size)
-		goto out;
 
 	if (vma->vm_flags & VM_MAYSHARE &&
 	    hugetlb_reserve_pages(inode, vma->vm_pgoff >> (HPAGE_SHIFT-PAGE_SHIFT),
@@ -93,7 +91,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 
 	ret = 0;
 	hugetlb_prefault_arch_hook(vma->vm_mm);
-	if (inode->i_size < len)
+	if (vma->vm_flags & VM_WRITE && inode->i_size < len)
 		inode->i_size = len;
 out:
 	mutex_unlock(&inode->i_mutex);

@@ -139,14 +139,19 @@ static void hstcp_cong_avoid(struct sock *sk, u32 adk, u32 rtt,
 				tp->snd_cwnd++;
 		}
 	} else {
-		/* Update AIMD parameters */
+		/* Update AIMD parameters.
+		 *
+		 * We want to guarantee that:
+		 *     hstcp_aimd_vals[ca->ai-1].cwnd <
+		 *     snd_cwnd <=
+		 *     hstcp_aimd_vals[ca->ai].cwnd
+		 */
 		if (tp->snd_cwnd > hstcp_aimd_vals[ca->ai].cwnd) {
 			while (tp->snd_cwnd > hstcp_aimd_vals[ca->ai].cwnd &&
 			       ca->ai < HSTCP_AIMD_MAX - 1)
 				ca->ai++;
-		} else if (tp->snd_cwnd < hstcp_aimd_vals[ca->ai].cwnd) {
-			while (tp->snd_cwnd > hstcp_aimd_vals[ca->ai].cwnd &&
-			       ca->ai > 0)
+		} else if (ca->ai && tp->snd_cwnd <= hstcp_aimd_vals[ca->ai-1].cwnd) {
+			while (ca->ai && tp->snd_cwnd <= hstcp_aimd_vals[ca->ai-1].cwnd)
 				ca->ai--;
 		}
 

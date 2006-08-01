@@ -86,8 +86,8 @@ struct vmlogrdr_priv_t {
  */
 static int vmlogrdr_open(struct inode *, struct file *);
 static int vmlogrdr_release(struct inode *, struct file *);
-static ssize_t vmlogrdr_read (struct file *filp, char *data, size_t count,
-			       loff_t * ppos);
+static ssize_t vmlogrdr_read (struct file *filp, char __user *data,
+			      size_t count, loff_t * ppos);
 
 static struct file_operations vmlogrdr_fops = {
 	.owner   = THIS_MODULE,
@@ -515,7 +515,7 @@ vmlogrdr_receive_data(struct vmlogrdr_priv_t *priv) {
 
 
 static ssize_t
-vmlogrdr_read (struct file *filp, char *data, size_t count, loff_t * ppos)
+vmlogrdr_read(struct file *filp, char __user *data, size_t count, loff_t * ppos)
 {
 	int rc;
 	struct vmlogrdr_priv_t * priv = filp->private_data;

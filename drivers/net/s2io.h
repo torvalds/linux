@@ -829,8 +829,7 @@ struct s2io_nic {
 #define MSIX_FLG                0xA5
 	struct msix_entry *entries;
 	struct s2io_msix_entry *s2io_entries;
-	char desc1[35];
-	char desc2[35];
+	char desc[MAX_REQUESTED_MSI_X][25];
 
 	int avail_msix_vectors; /* No. of MSI-X vectors granted by system */
 
@@ -1002,7 +1001,7 @@ static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
 static struct ethtool_ops netdev_ethtool_ops;
 static void s2io_set_link(unsigned long data);
 static int s2io_set_swapper(nic_t * sp);
-static void s2io_card_down(nic_t *nic, int flag);
+static void s2io_card_down(nic_t *nic);
 static int s2io_card_up(nic_t *nic);
 static int get_xena_rev_id(struct pci_dev *pdev);
 static void restore_xmsi_data(nic_t *nic);

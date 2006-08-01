@@ -60,11 +60,12 @@ static struct map_desc anubis_iodesc[] __initdata = {
 	.virtual	= (u32)S3C24XX_VA_ISA_BYTE,
 	.pfn		= __phys_to_pfn(0x0),
 	.length		= SZ_4M,
-	.type		= MT_DEVICE
+	.type		= MT_DEVICE,
   }, {
 	.virtual	= (u32)S3C24XX_VA_ISA_WORD,
 	.pfn		= __phys_to_pfn(0x0),
-	.length 	= SZ_4M, MT_DEVICE
+	.length 	= SZ_4M,
+	.type		= MT_DEVICE,
   },
 
   /* we could possibly compress the next set down into a set of smaller tables
@@ -78,36 +79,12 @@ static struct map_desc anubis_iodesc[] __initdata = {
 	.virtual	= (u32)ANUBIS_VA_CTRL1,
 	.pfn		= __phys_to_pfn(ANUBIS_PA_CTRL1),
 	.length		= SZ_4K,
-	.type		= MT_DEVICE
+	.type		= MT_DEVICE,
   }, {
 	.virtual	= (u32)ANUBIS_VA_CTRL2,
 	.pfn		= __phys_to_pfn(ANUBIS_PA_CTRL2),
 	.length		= SZ_4K,
-	.type		=MT_DEVICE
-  },
-
-  /* IDE drives */
-
-  {
-	.virtual	= (u32)ANUBIS_IDEPRI,
-	.pfn		= __phys_to_pfn(S3C2410_CS3),
-	.length		= SZ_1M,
-	.type		= MT_DEVICE
-  }, {
-	.virtual	= (u32)ANUBIS_IDEPRIAUX,
-	.pfn		= __phys_to_pfn(S3C2410_CS3+(1<<26)),
-	.length		= SZ_1M,
-	.type		= MT_DEVICE
-  }, {
-	.virtual	= (u32)ANUBIS_IDESEC,
-	.pfn		= __phys_to_pfn(S3C2410_CS4),
-	.length		= SZ_1M,
-	.type		= MT_DEVICE
-  }, {
-	.virtual	= (u32)ANUBIS_IDESECAUX,
-	.pfn		= __phys_to_pfn(S3C2410_CS4+(1<<26)),
-	.length		= SZ_1M,
-	.type		= MT_DEVICE
+	.type		= MT_DEVICE,
   },
 };
 
@@ -126,7 +103,7 @@ static struct s3c24xx_uart_clksrc anubis_serial_clocks[] = {
 		.name		= "pclk",
 		.divisor	= 1,
 		.min_baud	= 0,
-		.max_baud	= 0.
+		.max_baud	= 0,
 	}
 };
 
@@ -139,7 +116,7 @@ static struct s3c2410_uartcfg anubis_uartcfgs[] __initdata = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = anubis_serial_clocks,
-		.clocks_size = ARRAY_SIZE(anubis_serial_clocks)
+		.clocks_size = ARRAY_SIZE(anubis_serial_clocks),
 	},
 	[1] = {
 		.hwport	     = 2,
@@ -148,7 +125,7 @@ static struct s3c2410_uartcfg anubis_uartcfgs[] __initdata = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = anubis_serial_clocks,
-		.clocks_size = ARRAY_SIZE(anubis_serial_clocks)
+		.clocks_size = ARRAY_SIZE(anubis_serial_clocks),
 	},
 };
 
@@ -162,7 +139,7 @@ static struct mtd_partition anubis_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,
-		.offset	= 0
+		.offset	= 0,
 	},
 	[1] = {
 		.name	= "/boot",
@@ -194,21 +171,21 @@ static struct s3c2410_nand_set anubis_nand_sets[] = {
 		.nr_chips	= 1,
 		.nr_map		= external_map,
 		.nr_partitions	= ARRAY_SIZE(anubis_default_nand_part),
-		.partitions	= anubis_default_nand_part
+		.partitions	= anubis_default_nand_part,
 	},
 	[0] = {
 		.name		= "chip0",
 		.nr_chips	= 1,
 		.nr_map		= chip0_map,
 		.nr_partitions	= ARRAY_SIZE(anubis_default_nand_part),
-		.partitions	= anubis_default_nand_part
+		.partitions	= anubis_default_nand_part,
 	},
 	[2] = {
 		.name		= "chip1",
 		.nr_chips	= 1,
 		.nr_map		= chip1_map,
 		.nr_partitions	= ARRAY_SIZE(anubis_default_nand_part),
-		.partitions	= anubis_default_nand_part
+		.partitions	= anubis_default_nand_part,
 	},
 };
 
@@ -313,7 +290,7 @@ static struct s3c24xx_board anubis_board __initdata = {
 	.devices       = anubis_devices,
 	.devices_count = ARRAY_SIZE(anubis_devices),
 	.clocks	       = anubis_clocks,
-	.clocks_count  = ARRAY_SIZE(anubis_clocks)
+	.clocks_count  = ARRAY_SIZE(anubis_clocks),
 };
 
 static void __init anubis_map_io(void)

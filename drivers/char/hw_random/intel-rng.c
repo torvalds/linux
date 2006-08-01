@@ -164,7 +164,7 @@ static int __init mod_init(void)
 	if (err) {
 		printk(KERN_ERR PFX "RNG registering failed (%d)\n",
 		       err);
-		goto out;
+		goto err_unmap;
 	}
 out:
 	return err;

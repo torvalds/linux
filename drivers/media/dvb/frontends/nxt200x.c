@@ -896,9 +896,9 @@ static int nxt2002_init(struct dvb_frontend* fe)
 	}
 
 	ret = nxt2002_load_firmware(fe, fw);
+	release_firmware(fw);
 	if (ret) {
 		printk("nxt2002: Writing firmware to device failed\n");
-		release_firmware(fw);
 		return ret;
 	}
 	printk("nxt2002: Firmware upload complete\n");
@@ -960,9 +960,9 @@ static int nxt2004_init(struct dvb_frontend* fe)
 	}
 
 	ret = nxt2004_load_firmware(fe, fw);
+	release_firmware(fw);
 	if (ret) {
 		printk("nxt2004: Writing firmware to device failed\n");
-		release_firmware(fw);
 		return ret;
 	}
 	printk("nxt2004: Firmware upload complete\n");

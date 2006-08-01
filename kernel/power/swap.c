@@ -263,7 +263,6 @@ int swsusp_write(void)
 	struct swap_map_handle handle;
 	struct snapshot_handle snapshot;
 	struct swsusp_info *header;
-	unsigned long start;
 	int error;
 
 	if ((error = swsusp_swap_check())) {
@@ -281,16 +280,17 @@ int swsusp_write(void)
 	}
 	error = get_swap_writer(&handle);
 	if (!error) {
-		start = handle.cur_swap;
+		unsigned long start = handle.cur_swap;
 		error = swap_write_page(&handle, header);
-	}
-	if (!error)
-		error = save_image(&handle, &snapshot, header->pages - 1);
-	if (!error) {
-		flush_swap_writer(&handle);
-		printk("S");
-		error = mark_swapfiles(swp_entry(root_swap, start));
-		printk("|\n");
+		if (!error)
+			error = save_image(&handle, &snapshot,
+					header->pages - 1);
+		if (!error) {
+			flush_swap_writer(&handle);
+			printk("S");
+			error = mark_swapfiles(swp_entry(root_swap, start));
+			printk("|\n");
+		}
 	}
 	if (error)
 		free_all_swap_pages(root_swap, handle.bitmap);
@@ -311,8 +311,10 @@ static atomic_t io_done = ATOMIC_INIT(0);
 
 static int end_io(struct bio *bio, unsigned int num, int err)
 {
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-		panic("I/O error reading memory image");
+	if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
+		printk(KERN_ERR "I/O error reading swsusp image.\n");
+		return -EIO;
+	}
 	atomic_set(&io_done, 0);
 	return 0;
 }

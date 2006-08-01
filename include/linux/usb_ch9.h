@@ -51,6 +51,9 @@
 #define USB_RECIP_INTERFACE		0x01
 #define USB_RECIP_ENDPOINT		0x02
 #define USB_RECIP_OTHER			0x03
+/* From Wireless USB 1.0 */
+#define USB_RECIP_PORT 			0x04
+#define USB_RECIP_RPIPE 		0x05
 
 /*
  * Standard requests, for the bRequest field of a SETUP packet.
@@ -73,7 +76,9 @@
 
 #define USB_REQ_SET_ENCRYPTION		0x0D	/* Wireless USB */
 #define USB_REQ_GET_ENCRYPTION		0x0E
+#define USB_REQ_RPIPE_ABORT		0x0E
 #define USB_REQ_SET_HANDSHAKE		0x0F
+#define USB_REQ_RPIPE_RESET		0x0F
 #define USB_REQ_GET_HANDSHAKE		0x10
 #define USB_REQ_SET_CONNECTION		0x11
 #define USB_REQ_SET_SECURITY_DATA	0x12
@@ -159,6 +164,8 @@ struct usb_ctrlrequest {
 #define USB_DT_BOS			0x0f
 #define USB_DT_DEVICE_CAPABILITY	0x10
 #define USB_DT_WIRELESS_ENDPOINT_COMP	0x11
+#define USB_DT_WIRE_ADAPTER		0x21
+#define USB_DT_RPIPE			0x22
 
 /* conventional codes for class-specific descriptors */
 #define USB_DT_CS_DEVICE		0x21

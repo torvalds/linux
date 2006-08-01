@@ -267,11 +267,6 @@ extern void prom_getstring(int node, char *prop, char *buf, int bufsize);
 /* Does the passed node have the given "name"? YES=1 NO=0 */
 extern int prom_nodematch(int thisnode, char *name);
 
-/* Puts in buffer a prom name in the form name@x,y or name (x for which_io 
- * and y for first regs phys address
- */
-extern int prom_getname(int node, char *buf, int buflen);
-
 /* Search all siblings starting at the passed node for "name" matching
  * the given string.  Returns the node on success, zero on failure.
  */

@@ -61,7 +61,7 @@ struct pci_bus * __devinit pci_find_bus(int domain, int busnr)
  * @from: Previous PCI bus found, or %NULL for new search.
  *
  * Iterates through the list of known PCI busses.  A new search is
- * initiated by passing %NULL to the @from argument.  Otherwise if
+ * initiated by passing %NULL as the @from argument.  Otherwise if
  * @from is not %NULL, searches continue from next device on the
  * global list.
  */
@@ -148,13 +148,14 @@ struct pci_dev * pci_get_slot(struct pci_bus *bus, unsigned int devfn)
  * @from: Previous PCI device found in search, or %NULL for new search.
  *
  * Iterates through the list of known PCI devices.  If a PCI device is
- * found with a matching @vendor, @device, @ss_vendor and @ss_device, a pointer to its
- * device structure is returned.  Otherwise, %NULL is returned.
- * A new search is initiated by passing %NULL to the @from argument.
- * Otherwise if @from is not %NULL, searches continue from next device on the global list.
+ * found with a matching @vendor, @device, @ss_vendor and @ss_device, a
+ * pointer to its device structure is returned.  Otherwise, %NULL is returned.
+ * A new search is initiated by passing %NULL as the @from argument.
+ * Otherwise if @from is not %NULL, searches continue from next device
+ * on the global list.
  *
- * NOTE: Do not use this function anymore, use pci_get_subsys() instead, as
- * the pci device returned by this function can disappear at any moment in
+ * NOTE: Do not use this function any more; use pci_get_subsys() instead, as
+ * the PCI device returned by this function can disappear at any moment in
  * time.
  */
 static struct pci_dev * pci_find_subsys(unsigned int vendor,
@@ -191,14 +192,15 @@ exit:
  * @device: PCI device id to match, or %PCI_ANY_ID to match all device ids
  * @from: Previous PCI device found in search, or %NULL for new search.
  *
- * Iterates through the list of known PCI devices.  If a PCI device is
- * found with a matching @vendor and @device, a pointer to its device structure is
+ * Iterates through the list of known PCI devices.  If a PCI device is found
+ * with a matching @vendor and @device, a pointer to its device structure is
  * returned.  Otherwise, %NULL is returned.
- * A new search is initiated by passing %NULL to the @from argument.
- * Otherwise if @from is not %NULL, searches continue from next device on the global list.
+ * A new search is initiated by passing %NULL as the @from argument.
+ * Otherwise if @from is not %NULL, searches continue from next device
+ * on the global list.
  * 
- * NOTE: Do not use this function anymore, use pci_get_device() instead, as
- * the pci device returned by this function can disappear at any moment in
+ * NOTE: Do not use this function any more; use pci_get_device() instead, as
+ * the PCI device returned by this function can disappear at any moment in
  * time.
  */
 struct pci_dev *
@@ -215,11 +217,11 @@ pci_find_device(unsigned int vendor, unsigned int device, const struct pci_dev *
  * @ss_device: PCI subsystem device id to match, or %PCI_ANY_ID to match all device ids
  * @from: Previous PCI device found in search, or %NULL for new search.
  *
- * Iterates through the list of known PCI devices.  If a PCI device is
- * found with a matching @vendor, @device, @ss_vendor and @ss_device, a pointer to its
+ * Iterates through the list of known PCI devices.  If a PCI device is found
+ * with a matching @vendor, @device, @ss_vendor and @ss_device, a pointer to its
  * device structure is returned, and the reference count to the device is
  * incremented.  Otherwise, %NULL is returned.  A new search is initiated by
- * passing %NULL to the @from argument.  Otherwise if @from is not %NULL,
+ * passing %NULL as the @from argument.  Otherwise if @from is not %NULL,
  * searches continue from next device on the global list.
  * The reference count for @from is always decremented if it is not %NULL.
  */
@@ -262,7 +264,7 @@ exit:
  * found with a matching @vendor and @device, the reference count to the
  * device is incremented and a pointer to its device structure is returned.
  * Otherwise, %NULL is returned.  A new search is initiated by passing %NULL
- * to the @from argument.  Otherwise if @from is not %NULL, searches continue
+ * as the @from argument.  Otherwise if @from is not %NULL, searches continue
  * from next device on the global list.  The reference count for @from is
  * always decremented if it is not %NULL.
  */
@@ -279,11 +281,13 @@ pci_get_device(unsigned int vendor, unsigned int device, struct pci_dev *from)
  * @device: PCI device id to match, or %PCI_ANY_ID to match all device ids
  * @from: Previous PCI device found in search, or %NULL for new search.
  *
- * Iterates through the list of known PCI devices in the reverse order of pci_find_device().
+ * Iterates through the list of known PCI devices in the reverse order of
+ * pci_find_device().
  * If a PCI device is found with a matching @vendor and @device, a pointer to
  * its device structure is returned.  Otherwise, %NULL is returned.
- * A new search is initiated by passing %NULL to the @from argument.
- * Otherwise if @from is not %NULL, searches continue from previous device on the global list.
+ * A new search is initiated by passing %NULL as the @from argument.
+ * Otherwise if @from is not %NULL, searches continue from previous device
+ * on the global list.
  */
 struct pci_dev *
 pci_find_device_reverse(unsigned int vendor, unsigned int device, const struct pci_dev *from)
@@ -317,7 +321,7 @@ exit:
  * found with a matching @class, the reference count to the device is
  * incremented and a pointer to its device structure is returned.
  * Otherwise, %NULL is returned.
- * A new search is initiated by passing %NULL to the @from argument.
+ * A new search is initiated by passing %NULL as the @from argument.
  * Otherwise if @from is not %NULL, searches continue from next device
  * on the global list.  The reference count for @from is always decremented
  * if it is not %NULL.

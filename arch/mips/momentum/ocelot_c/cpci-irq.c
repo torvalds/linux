@@ -128,7 +128,7 @@ void ll_cpci_irq(struct pt_regs *regs)
 
 #define shutdown_cpci_irq	disable_cpci_irq
 
-struct hw_interrupt_type cpci_irq_type = {
+struct irq_chip cpci_irq_type = {
 	.typename = "CPCI/FPGA",
 	.startup = startup_cpci_irq,
 	.shutdown = shutdown_cpci_irq,

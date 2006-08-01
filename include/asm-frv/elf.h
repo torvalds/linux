@@ -64,7 +64,7 @@ typedef unsigned long elf_greg_t;
 #define ELF_NGREG (sizeof(struct pt_regs) / sizeof(elf_greg_t))
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
-typedef struct fpmedia_struct elf_fpregset_t;
+typedef struct user_fpmedia_regs elf_fpregset_t;
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -116,6 +116,7 @@ do {											\
 } while(0)
 
 #define USE_ELF_CORE_DUMP
+#define ELF_FDPIC_CORE_EFLAGS	EF_FRV_FDPIC
 #define ELF_EXEC_PAGESIZE	16384
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical
@@ -124,9 +125,6 @@ do {											\
    that it will "exec", and that there is sufficient room for the brk.  */
 
 #define ELF_ET_DYN_BASE         0x08000000UL
-
-#define ELF_CORE_COPY_REGS(pr_reg, regs)				\
-	memcpy(&pr_reg[0], &regs->sp, 31 * sizeof(uint32_t));
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  */

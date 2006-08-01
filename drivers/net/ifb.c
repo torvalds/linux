@@ -271,6 +271,7 @@ static int __init ifb_init_module(void)
 	for (i = 0; i < numifbs && !err; i++)
 		err = ifb_init_one(i); 
 	if (err) { 
+		i--;
 		while (--i >= 0)
 			ifb_free_one(i);
 	}

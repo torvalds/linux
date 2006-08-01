@@ -83,8 +83,8 @@ static u_short shift_ctrl_map[NR_KEYS] = {
 };
 
 ushort *key_maps[MAX_NR_KEYMAPS] = {
-	plain_map, shift_map, 0, 0,
-	ctrl_map, shift_ctrl_map,	0
+	plain_map, shift_map, NULL, NULL,
+	ctrl_map, shift_ctrl_map, NULL,
 };
 
 unsigned int keymap_count = 4;
@@ -145,7 +145,7 @@ char *func_table[MAX_NR_FUNC] = {
 	func_buf + 97,
 	func_buf + 103,
 	func_buf + 109,
-	0,
+	NULL,
 };
 
 struct kbdiacr accent_table[MAX_DIACR] = {

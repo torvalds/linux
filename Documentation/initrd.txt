@@ -72,6 +72,22 @@ initrd adds the following new options:
     initrd is mounted as root, and the normal boot procedure is followed,
     with the RAM disk still mounted as root.
 
+Compressed cpio images
+----------------------
+
+Recent kernels have support for populating a ramdisk from a compressed cpio
+archive, on such systems, the creation of a ramdisk image doesn't need to
+involve special block devices or loopbacks, you merely create a directory on
+disk with the desired initrd content, cd to that directory, and run (as an
+example):
+
+find . | cpio --quiet -c -o | gzip -9 -n > /boot/imagefile.img
+
+Examining the contents of an existing image file is just as simple:
+
+mkdir /tmp/imagefile
+cd /tmp/imagefile
+gzip -cd /boot/imagefile.img | cpio -imd --quiet
 
 Installation
 ------------

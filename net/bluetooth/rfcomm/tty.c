@@ -169,10 +169,9 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 
 	BT_DBG("id %d channel %d", req->dev_id, req->channel);
 	
-	dev = kmalloc(sizeof(struct rfcomm_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct rfcomm_dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
-	memset(dev, 0, sizeof(struct rfcomm_dev));
 
 	write_lock_bh(&rfcomm_dev_lock);
 

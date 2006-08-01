@@ -204,7 +204,7 @@ static void mpic_startup_ht_interrupt(struct mpic *mpic, unsigned int source,
 	if (fixup->base == NULL)
 		return;
 
-	DBG("startup_ht_interrupt(%u, %u) index: %d\n",
+	DBG("startup_ht_interrupt(0x%x, 0x%x) index: %d\n",
 	    source, irqflags, fixup->index);
 	spin_lock_irqsave(&mpic->fixup_lock, flags);
 	/* Enable and configure */
@@ -227,7 +227,7 @@ static void mpic_shutdown_ht_interrupt(struct mpic *mpic, unsigned int source,
 	if (fixup->base == NULL)
 		return;
 
-	DBG("shutdown_ht_interrupt(%u, %u)\n", source, irqflags);
+	DBG("shutdown_ht_interrupt(0x%x, 0x%x)\n", source, irqflags);
 
 	/* Disable */
 	spin_lock_irqsave(&mpic->fixup_lock, flags);
@@ -337,6 +337,17 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 	}
 }
 
+#else /* CONFIG_MPIC_BROKEN_U3 */
+
+static inline int mpic_is_ht_interrupt(struct mpic *mpic, unsigned int source)
+{
+	return 0;
+}
+
+static void __init mpic_scan_ht_pics(struct mpic *mpic)
+{
+}
+
 #endif /* CONFIG_MPIC_BROKEN_U3 */
 
 
@@ -405,11 +416,9 @@ static void mpic_unmask_irq(unsigned int irq)
 	unsigned int loops = 100000;
 	struct mpic *mpic = mpic_from_irq(irq);
 	unsigned int src = mpic_irq_to_hw(irq);
-	unsigned long flags;
 
 	DBG("%p: %s: enable_irq: %d (src %d)\n", mpic, mpic->name, irq, src);
 
-	spin_lock_irqsave(&mpic_lock, flags);
 	mpic_irq_write(src, MPIC_IRQ_VECTOR_PRI,
 		       mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) &
 		       ~MPIC_VECPRI_MASK);
@@ -420,7 +429,6 @@ static void mpic_unmask_irq(unsigned int irq)
 			break;
 		}
 	} while(mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) & MPIC_VECPRI_MASK);
-	spin_unlock_irqrestore(&mpic_lock, flags);
 }
 
 static void mpic_mask_irq(unsigned int irq)
@@ -428,11 +436,9 @@ static void mpic_mask_irq(unsigned int irq)
 	unsigned int loops = 100000;
 	struct mpic *mpic = mpic_from_irq(irq);
 	unsigned int src = mpic_irq_to_hw(irq);
-	unsigned long flags;
 
 	DBG("%s: disable_irq: %d (src %d)\n", mpic->name, irq, src);
 
-	spin_lock_irqsave(&mpic_lock, flags);
 	mpic_irq_write(src, MPIC_IRQ_VECTOR_PRI,
 		       mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) |
 		       MPIC_VECPRI_MASK);
@@ -444,7 +450,6 @@ static void mpic_mask_irq(unsigned int irq)
 			break;
 		}
 	} while(!(mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) & MPIC_VECPRI_MASK));
-	spin_unlock_irqrestore(&mpic_lock, flags);
 }
 
 static void mpic_end_irq(unsigned int irq)
@@ -512,8 +517,7 @@ static void mpic_end_ht_irq(unsigned int irq)
 		mpic_ht_end_irq(mpic, src);
 	mpic_eoi(mpic);
 }
-
-#endif /* CONFIG_MPIC_BROKEN_U3 */
+#endif /* !CONFIG_MPIC_BROKEN_U3 */
 
 #ifdef CONFIG_SMP
 
@@ -560,47 +564,74 @@ static void mpic_set_affinity(unsigned int irq, cpumask_t cpumask)
 		       mpic_physmask(cpus_addr(tmp)[0]));	
 }
 
-static unsigned int mpic_flags_to_vecpri(unsigned int flags, int *level)
+static unsigned int mpic_type_to_vecpri(unsigned int type)
 {
-	unsigned int vecpri;
-
 	/* Now convert sense value */
-	switch(flags & IRQ_TYPE_SENSE_MASK) {
+	switch(type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_RISING:
-		vecpri = MPIC_VECPRI_SENSE_EDGE |
-			MPIC_VECPRI_POLARITY_POSITIVE;
-		*level = 0;
-		break;
+		return MPIC_VECPRI_SENSE_EDGE | MPIC_VECPRI_POLARITY_POSITIVE;
 	case IRQ_TYPE_EDGE_FALLING:
-		vecpri = MPIC_VECPRI_SENSE_EDGE |
-			MPIC_VECPRI_POLARITY_NEGATIVE;
-		*level = 0;
-		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		return MPIC_VECPRI_SENSE_EDGE | MPIC_VECPRI_POLARITY_NEGATIVE;
 	case IRQ_TYPE_LEVEL_HIGH:
-		vecpri = MPIC_VECPRI_SENSE_LEVEL |
-			MPIC_VECPRI_POLARITY_POSITIVE;
-		*level = 1;
-		break;
+		return MPIC_VECPRI_SENSE_LEVEL | MPIC_VECPRI_POLARITY_POSITIVE;
 	case IRQ_TYPE_LEVEL_LOW:
 	default:
-		vecpri = MPIC_VECPRI_SENSE_LEVEL |
-			MPIC_VECPRI_POLARITY_NEGATIVE;
-		*level = 1;
+		return MPIC_VECPRI_SENSE_LEVEL | MPIC_VECPRI_POLARITY_NEGATIVE;
 	}
-	return vecpri;
+}
+
+static int mpic_set_irq_type(unsigned int virq, unsigned int flow_type)
+{
+	struct mpic *mpic = mpic_from_irq(virq);
+	unsigned int src = mpic_irq_to_hw(virq);
+	struct irq_desc *desc = get_irq_desc(virq);
+	unsigned int vecpri, vold, vnew;
+
+	DBG("mpic: set_irq_type(mpic:@%p,virq:%d,src:0x%x,type:0x%x)\n",
+	    mpic, virq, src, flow_type);
+
+	if (src >= mpic->irq_count)
+		return -EINVAL;
+
+	if (flow_type == IRQ_TYPE_NONE)
+		if (mpic->senses && src < mpic->senses_count)
+			flow_type = mpic->senses[src];
+	if (flow_type == IRQ_TYPE_NONE)
+		flow_type = IRQ_TYPE_LEVEL_LOW;
+
+	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
+	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
+	if (flow_type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
+		desc->status |= IRQ_LEVEL;
+
+	if (mpic_is_ht_interrupt(mpic, src))
+		vecpri = MPIC_VECPRI_POLARITY_POSITIVE |
+			MPIC_VECPRI_SENSE_EDGE;
+	else
+		vecpri = mpic_type_to_vecpri(flow_type);
+
+	vold = mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI);
+	vnew = vold & ~(MPIC_VECPRI_POLARITY_MASK | MPIC_VECPRI_SENSE_MASK);
+	vnew |= vecpri;
+	if (vold != vnew)
+		mpic_irq_write(src, MPIC_IRQ_VECTOR_PRI, vnew);
+
+	return 0;
 }
 
 static struct irq_chip mpic_irq_chip = {
-	.mask	= mpic_mask_irq,
-	.unmask	= mpic_unmask_irq,
-	.eoi	= mpic_end_irq,
+	.mask		= mpic_mask_irq,
+	.unmask		= mpic_unmask_irq,
+	.eoi		= mpic_end_irq,
+	.set_type	= mpic_set_irq_type,
 };
 
 #ifdef CONFIG_SMP
 static struct irq_chip mpic_ipi_chip = {
-	.mask	= mpic_mask_ipi,
-	.unmask	= mpic_unmask_ipi,
-	.eoi	= mpic_end_ipi,
+	.mask		= mpic_mask_ipi,
+	.unmask		= mpic_unmask_ipi,
+	.eoi		= mpic_end_ipi,
 };
 #endif /* CONFIG_SMP */
 
@@ -611,6 +642,7 @@ static struct irq_chip mpic_irq_ht_chip = {
 	.mask		= mpic_mask_irq,
 	.unmask		= mpic_unmask_ht_irq,
 	.eoi		= mpic_end_ht_irq,
+	.set_type	= mpic_set_irq_type,
 };
 #endif /* CONFIG_MPIC_BROKEN_U3 */
 
@@ -624,26 +656,21 @@ static int mpic_host_match(struct irq_host *h, struct device_node *node)
 }
 
 static int mpic_host_map(struct irq_host *h, unsigned int virq,
-			 irq_hw_number_t hw, unsigned int flags)
+			 irq_hw_number_t hw)
 {
-	struct irq_desc *desc = get_irq_desc(virq);
-	struct irq_chip *chip;
 	struct mpic *mpic = h->host_data;
-	u32 v, vecpri = MPIC_VECPRI_SENSE_LEVEL |
-		MPIC_VECPRI_POLARITY_NEGATIVE;
-	int level;
-	unsigned long iflags;
+	struct irq_chip *chip;
 
-	pr_debug("mpic: map virq %d, hwirq 0x%lx, flags: 0x%x\n",
-		 virq, hw, flags);
+	DBG("mpic: map virq %d, hwirq 0x%lx\n", virq, hw);
 
 	if (hw == MPIC_VEC_SPURRIOUS)
 		return -EINVAL;
+
 #ifdef CONFIG_SMP
 	else if (hw >= MPIC_VEC_IPI_0) {
 		WARN_ON(!(mpic->flags & MPIC_PRIMARY));
 
-		pr_debug("mpic: mapping as IPI\n");
+		DBG("mpic: mapping as IPI\n");
 		set_irq_chip_data(virq, mpic);
 		set_irq_chip_and_handler(virq, &mpic->hc_ipi,
 					 handle_percpu_irq);
@@ -654,44 +681,23 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 	if (hw >= mpic->irq_count)
 		return -EINVAL;
 
-	/* If no sense provided, check default sense array */
-	if (((flags & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_NONE) &&
-	    mpic->senses && hw < mpic->senses_count)
-		flags |= mpic->senses[hw];
-
-	vecpri = mpic_flags_to_vecpri(flags, &level);
-	if (level)
-		desc->status |= IRQ_LEVEL;
+	/* Default chip */
 	chip = &mpic->hc_irq;
 
 #ifdef CONFIG_MPIC_BROKEN_U3
 	/* Check for HT interrupts, override vecpri */
-	if (mpic_is_ht_interrupt(mpic, hw)) {
-		vecpri &= ~(MPIC_VECPRI_SENSE_MASK |
-			    MPIC_VECPRI_POLARITY_MASK);
-		vecpri |= MPIC_VECPRI_POLARITY_POSITIVE;
+	if (mpic_is_ht_interrupt(mpic, hw))
 		chip = &mpic->hc_ht_irq;
-	}
-#endif
+#endif /* CONFIG_MPIC_BROKEN_U3 */
 
-	/* Reconfigure irq. We must preserve the mask bit as we can be called
-	 * while the interrupt is still active (This may change in the future
-	 * but for now, it is the case).
-	 */
-	spin_lock_irqsave(&mpic_lock, iflags);
-	v = mpic_irq_read(hw, MPIC_IRQ_VECTOR_PRI);
-	vecpri = (v &
-		~(MPIC_VECPRI_POLARITY_MASK | MPIC_VECPRI_SENSE_MASK)) |
-		vecpri;
-	if (vecpri != v)
-		mpic_irq_write(hw, MPIC_IRQ_VECTOR_PRI, vecpri);
-	spin_unlock_irqrestore(&mpic_lock, iflags);
-
-	pr_debug("mpic: mapping as IRQ, vecpri = 0x%08x (was 0x%08x)\n",
-		 vecpri, v);
+	DBG("mpic: mapping to irq chip @%p\n", chip);
 
 	set_irq_chip_data(virq, mpic);
 	set_irq_chip_and_handler(virq, chip, handle_fasteoi_irq);
+
+	/* Set default irq type */
+	set_irq_type(virq, IRQ_TYPE_NONE);
+
 	return 0;
 }
 
@@ -708,10 +714,27 @@ static int mpic_host_xlate(struct irq_host *h, struct device_node *ct,
 	};
 
 	*out_hwirq = intspec[0];
-	if (intsize > 1 && intspec[1] < 4)
-		*out_flags = map_mpic_senses[intspec[1]];
-	else
+	if (intsize > 1) {
+		u32 mask = 0x3;
+
+		/* Apple invented a new race of encoding on machines with
+		 * an HT APIC. They encode, among others, the index within
+		 * the HT APIC. We don't care about it here since thankfully,
+		 * it appears that they have the APIC already properly
+		 * configured, and thus our current fixup code that reads the
+		 * APIC config works fine. However, we still need to mask out
+		 * bits in the specifier to make sure we only get bit 0 which
+		 * is the level/edge bit (the only sense bit exposed by Apple),
+		 * as their bit 1 means something else.
+		 */
+		if (machine_is(powermac))
+			mask = 0x1;
+		*out_flags = map_mpic_senses[intspec[1] & mask];
+	} else
 		*out_flags = IRQ_TYPE_NONE;
+
+	DBG("mpic: xlate (%d cells: 0x%08x 0x%08x) to line 0x%lx sense 0x%x\n",
+	    intsize, intspec[0], intspec[1], *out_hwirq, *out_flags);
 
 	return 0;
 }
@@ -906,41 +929,16 @@ void __init mpic_init(struct mpic *mpic)
 	if (mpic->irq_count == 0)
 		mpic->irq_count = mpic->num_sources;
 
-#ifdef CONFIG_MPIC_BROKEN_U3
 	/* Do the HT PIC fixups on U3 broken mpic */
 	DBG("MPIC flags: %x\n", mpic->flags);
 	if ((mpic->flags & MPIC_BROKEN_U3) && (mpic->flags & MPIC_PRIMARY))
  		mpic_scan_ht_pics(mpic);
-#endif /* CONFIG_MPIC_BROKEN_U3 */
 
 	for (i = 0; i < mpic->num_sources; i++) {
 		/* start with vector = source number, and masked */
-		u32 vecpri = MPIC_VECPRI_MASK | i | (8 << MPIC_VECPRI_PRIORITY_SHIFT);
-		int level = 1;
+		u32 vecpri = MPIC_VECPRI_MASK | i |
+			(8 << MPIC_VECPRI_PRIORITY_SHIFT);
 		
-		/* do senses munging */
-		if (mpic->senses && i < mpic->senses_count)
-			vecpri |= mpic_flags_to_vecpri(mpic->senses[i],
-						       &level);
-		else
-			vecpri |= MPIC_VECPRI_SENSE_LEVEL;
-
-		/* deal with broken U3 */
-		if (mpic->flags & MPIC_BROKEN_U3) {
-#ifdef CONFIG_MPIC_BROKEN_U3
-			if (mpic_is_ht_interrupt(mpic, i)) {
-				vecpri &= ~(MPIC_VECPRI_SENSE_MASK |
-					    MPIC_VECPRI_POLARITY_MASK);
-				vecpri |= MPIC_VECPRI_POLARITY_POSITIVE;
-			}
-#else
-			printk(KERN_ERR "mpic: BROKEN_U3 set, but CONFIG doesn't match\n");
-#endif
-		}
-
-		DBG("setup source %d, vecpri: %08x, level: %d\n", i, vecpri,
-		    (level != 0));
-
 		/* init hw */
 		mpic_irq_write(i, MPIC_IRQ_VECTOR_PRI, vecpri);
 		mpic_irq_write(i, MPIC_IRQ_DESTINATION,
@@ -1154,7 +1152,7 @@ void mpic_request_ipis(void)
 
 	for (i = 0; i < 4; i++) {
 		unsigned int vipi = irq_create_mapping(mpic->irqhost,
-						       MPIC_VEC_IPI_0 + i, 0);
+						       MPIC_VEC_IPI_0 + i);
 		if (vipi == NO_IRQ) {
 			printk(KERN_ERR "Failed to map IPI %d\n", i);
 			break;

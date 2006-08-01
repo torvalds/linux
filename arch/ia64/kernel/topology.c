@@ -435,7 +435,7 @@ static int __cpuinit cache_sysfs_init(void)
 				(void *)(long)i);
 	}
 
-	register_cpu_notifier(&cache_cpu_notifier);
+	register_hotcpu_notifier(&cache_cpu_notifier);
 
 	return 0;
 }

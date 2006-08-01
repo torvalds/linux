@@ -742,10 +742,8 @@ int i2c_iic_add_bus(struct i2c_adapter *adap)
 	adap->retries = 3;		/* be replaced by defines	*/
 	adap->flags = 0;
 
-	i2c_add_adapter(adap);
 	iic_init(iic_adap);
-
-	return 0;
+	return i2c_add_adapter(adap);
 }
 
 

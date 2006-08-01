@@ -1539,7 +1539,7 @@ static int __init ide_setup(char *s)
 		const char *hd_words[] = {
 			"none", "noprobe", "nowerr", "cdrom", "serialize",
 			"autotune", "noautotune", "minus8", "swapdata", "bswap",
-			"minus11", "remap", "remap63", "scsi", NULL };
+			"noflush", "remap", "remap63", "scsi", NULL };
 		unit = s[2] - 'a';
 		hw   = unit / MAX_DRIVES;
 		unit = unit % MAX_DRIVES;
@@ -1577,6 +1577,9 @@ static int __init ide_setup(char *s)
 			case -9: /* "swapdata" */
 			case -10: /* "bswap" */
 				drive->bswap = 1;
+				goto done;
+			case -11: /* noflush */
+				drive->noflush = 1;
 				goto done;
 			case -12: /* "remap" */
 				drive->remap_0_to_1 = 1;

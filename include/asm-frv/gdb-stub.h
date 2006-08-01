@@ -89,6 +89,7 @@ extern void gdbstub_do_rx(void);
 
 extern asmlinkage void __debug_stub_init_break(void);
 extern asmlinkage void __break_hijack_kernel_event(void);
+extern asmlinkage void __break_hijack_kernel_event_breaks_here(void);
 extern asmlinkage void start_kernel(void);
 
 extern asmlinkage void gdbstub_rx_handler(void);
@@ -113,6 +114,27 @@ extern void console_set_baud(unsigned baud);
 #else
 #define gdbstub_proto(FMT,...) ({ 0; })
 #endif
+
+/*
+ * we dedicate GR31 to keeping a pointer to the gdbstub exception frame
+ * - gr31 is destroyed on entry to the gdbstub if !MMU
+ * - gr31 is saved in scr3 on entry to the gdbstub if in !MMU
+ */
+register struct frv_frame0 *__debug_frame0 asm("gr31");
+
+#define __debug_frame		(&__debug_frame0->regs)
+#define __debug_user_context	(&__debug_frame0->uc)
+#define __debug_regs		(&__debug_frame0->debug)
+#define __debug_reg(X)		((unsigned long *) ((unsigned long) &__debug_frame0 + (X)))
+
+struct frv_debug_status {
+	unsigned long		bpsr;
+	unsigned long		dcr;
+	unsigned long		brr;
+	unsigned long		nmar;
+};
+
+extern struct frv_debug_status __debug_status;
 
 #endif /* _LANGUAGE_ASSEMBLY */
 #endif /* __ASM_GDB_STUB_H */

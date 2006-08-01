@@ -627,6 +627,7 @@ static int dock_add(acpi_handle handle)
 	INIT_LIST_HEAD(&dock_station->hotplug_devices);
 	spin_lock_init(&dock_station->dd_lock);
 	spin_lock_init(&dock_station->hp_lock);
+	ATOMIC_INIT_NOTIFIER_HEAD(&dock_notifier_list);
 
 	/* Find dependent devices */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,

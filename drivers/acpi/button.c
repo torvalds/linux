@@ -87,14 +87,14 @@ struct acpi_button {
 	unsigned long pushed;
 };
 
-static struct file_operations acpi_button_info_fops = {
+static const struct file_operations acpi_button_info_fops = {
 	.open = acpi_button_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations acpi_button_state_fops = {
+static const struct file_operations acpi_button_state_fops = {
 	.open = acpi_button_state_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,

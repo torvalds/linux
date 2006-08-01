@@ -143,12 +143,8 @@
 #define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
 #endif
 
-#ifdef CONFIG_MIPS_MT
 #ifndef cpu_has_mipsmt
-# define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
-#endif
-#else
-# define cpu_has_mipsmt		0
+#define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
 #endif
 
 #ifdef CONFIG_32BIT
@@ -199,8 +195,8 @@
 # define cpu_has_veic			0
 #endif
 
-#ifndef cpu_has_subset_pcaches
-#define cpu_has_subset_pcaches	(cpu_data[0].options & MIPS_CPU_SUBSET_CACHES)
+#ifndef cpu_has_inclusive_pcaches
+#define cpu_has_inclusive_pcaches	(cpu_data[0].options & MIPS_CPU_INCLUSIVE_CACHES)
 #endif
 
 #ifndef cpu_dcache_line_size

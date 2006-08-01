@@ -14,7 +14,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
@@ -34,10 +33,6 @@
 #include "nv_type.h"
 #include "nv_proto.h"
 #include "nv_dma.h"
-
-#ifndef CONFIG_PCI		/* sanity check */
-#error This driver requires PCI support.
-#endif
 
 #undef CONFIG_FB_NVIDIA_DEBUG
 #ifdef CONFIG_FB_NVIDIA_DEBUG
@@ -933,16 +928,7 @@ static int nvidiafb_blank(int blank, struct fb_info *info)
 	NVWriteSeq(par, 0x01, tmp);
 	NVWriteCrtc(par, 0x1a, vesa);
 
-#ifdef CONFIG_FB_NVIDIA_BACKLIGHT
-	mutex_lock(&info->bl_mutex);
-	if (info->bl_dev) {
-		down(&info->bl_dev->sem);
-		info->bl_dev->props->power = blank;
-		info->bl_dev->props->update_status(info->bl_dev);
-		up(&info->bl_dev->sem);
-	}
-	mutex_unlock(&info->bl_mutex);
-#endif
+	nvidia_bl_set_power(info, blank);
 
 	NVTRACE_LEAVE();
 
@@ -1313,19 +1299,18 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 
 	nvidia_save_vga(par, &par->SavedReg);
 
+	pci_set_drvdata(pd, info);
+	nvidia_bl_init(par);
 	if (register_framebuffer(info) < 0) {
 		printk(KERN_ERR PFX "error registering nVidia framebuffer\n");
 		goto err_out_iounmap_fb;
 	}
 
-	pci_set_drvdata(pd, info);
 
 	printk(KERN_INFO PFX
 	       "PCI nVidia %s framebuffer (%dMB @ 0x%lX)\n",
 	       info->fix.id,
 	       par->FbMapSize / (1024 * 1024), info->fix.smem_start);
-
-	nvidia_bl_init(par);
 
 	NVTRACE_LEAVE();
 	return 0;

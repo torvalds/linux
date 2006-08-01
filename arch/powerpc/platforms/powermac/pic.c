@@ -291,7 +291,7 @@ static int pmac_pic_host_match(struct irq_host *h, struct device_node *node)
 }
 
 static int pmac_pic_host_map(struct irq_host *h, unsigned int virq,
-			     irq_hw_number_t hw, unsigned int flags)
+			     irq_hw_number_t hw)
 {
 	struct irq_desc *desc = get_irq_desc(virq);
 	int level;
@@ -318,6 +318,7 @@ static int pmac_pic_host_xlate(struct irq_host *h, struct device_node *ct,
 			       unsigned int *out_flags)
 
 {
+	*out_flags = IRQ_TYPE_NONE;
 	*out_hwirq = *intspec;
 	return 0;
 }
@@ -434,7 +435,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 
 	printk(KERN_INFO "irq: System has %d possible interrupts\n", max_irqs);
 #ifdef CONFIG_XMON
-	setup_irq(irq_create_mapping(NULL, 20, 0), &xmon_action);
+	setup_irq(irq_create_mapping(NULL, 20), &xmon_action);
 #endif
 }
 #endif /* CONFIG_PPC32 */
@@ -579,8 +580,9 @@ void __init pmac_pic_init(void)
 		flags |= OF_IMAP_OLDWORLD_MAC;
 	if (get_property(of_chosen, "linux,bootx", NULL) != NULL)
 		flags |= OF_IMAP_NO_PHANDLE;
-	of_irq_map_init(flags);
 #endif /* CONFIG_PPC_32 */
+
+	of_irq_map_init(flags);
 
 	/* We first try to detect Apple's new Core99 chipset, since mac-io
 	 * is quite different on those machines and contains an IBM MPIC2.

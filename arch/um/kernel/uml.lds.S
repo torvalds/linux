@@ -7,13 +7,16 @@ jiffies = jiffies_64;
 
 SECTIONS
 {
-  /*This must contain the right address - not quite the default ELF one.*/
+  /* This must contain the right address - not quite the default ELF one.*/
   PROVIDE (__executable_start = START);
-  . = START + SIZEOF_HEADERS;
+  /* Static binaries stick stuff here, like the sigreturn trampoline,
+   * invisibly to objdump.  So, just make __binary_start equal to the very
+   * beginning of the executable, and if there are unmapped pages after this,
+   * they are forever unusable.
+   */
+  __binary_start = START;
 
-  /* Used in arch/um/kernel/mem.c. Any memory between START and __binary_start
-   * is remapped.*/
-  __binary_start = .;
+  . = START + SIZEOF_HEADERS;
 
 #ifdef MODE_TT
   .remap_data : { UNMAP_PATH (.data .bss) }

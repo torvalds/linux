@@ -1255,9 +1255,9 @@ static int help(struct sk_buff **pskb,
 	struct udphdr *udph = (struct udphdr *)((u_int32_t *)iph + iph->ihl);
 
 	/* SNMP replies and originating SNMP traps get mangled */
-	if (udph->source == ntohs(SNMP_PORT) && dir != IP_CT_DIR_REPLY)
+	if (udph->source == htons(SNMP_PORT) && dir != IP_CT_DIR_REPLY)
 		return NF_ACCEPT;
-	if (udph->dest == ntohs(SNMP_TRAP_PORT) && dir != IP_CT_DIR_ORIGINAL)
+	if (udph->dest == htons(SNMP_TRAP_PORT) && dir != IP_CT_DIR_ORIGINAL)
 		return NF_ACCEPT;
 
 	/* No NAT? */

@@ -25,7 +25,7 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 #include "visor.h"
 
 /*
@@ -302,7 +302,6 @@ static int visor_open (struct usb_serial_port *port, struct file *filp)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->bytes_in = 0;
 	priv->bytes_out = 0;
-	priv->outstanding_urbs = 0;
 	priv->throttled = 0;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -435,13 +434,25 @@ static int visor_write (struct usb_serial_port *port, const unsigned char *buf, 
 
 static int visor_write_room (struct usb_serial_port *port)
 {
+	struct visor_private *priv = usb_get_serial_port_data(port);
+	unsigned long flags;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	/*
 	 * We really can take anything the user throws at us
 	 * but let's pick a nice big number to tell the tty
-	 * layer that we have lots of free space
+	 * layer that we have lots of free space, unless we don't.
 	 */
+
+	spin_lock_irqsave(&priv->lock, flags);
+	if (priv->outstanding_urbs > URB_UPPER_LIMIT * 2 / 3) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		dbg("%s - write limit hit\n", __FUNCTION__);
+		return 0;
+	}
+	spin_unlock_irqrestore(&priv->lock, flags);
+
 	return 2048;
 }
 
@@ -758,15 +769,22 @@ static int visor_calc_num_ports (struct usb_serial *serial)
 
 static int generic_startup(struct usb_serial *serial)
 {
+	struct usb_serial_port **ports = serial->port;
 	struct visor_private *priv;
 	int i;
 
 	for (i = 0; i < serial->num_ports; ++i) {
 		priv = kzalloc (sizeof(*priv), GFP_KERNEL);
-		if (!priv)
+		if (!priv) {
+			while (i-- != 0) {
+				priv = usb_get_serial_port_data(ports[i]);
+				usb_set_serial_port_data(ports[i], NULL);
+				kfree(priv);
+			}
 			return -ENOMEM;
+		}
 		spin_lock_init(&priv->lock);
-		usb_set_serial_port_data(serial->port[i], priv);
+		usb_set_serial_port_data(ports[i], priv);
 	}
 	return 0;
 }
@@ -876,7 +894,18 @@ static int clie_5_attach (struct usb_serial *serial)
 
 static void visor_shutdown (struct usb_serial *serial)
 {
+	struct visor_private *priv;
+	int i;
+
 	dbg("%s", __FUNCTION__);
+
+	for (i = 0; i < serial->num_ports; i++) {
+		priv = usb_get_serial_port_data(serial->port[i]);
+		if (priv) {
+			usb_set_serial_port_data(serial->port[i], NULL);
+			kfree(priv);
+		}
+	}
 }
 
 static int visor_ioctl (struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg)

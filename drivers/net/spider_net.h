@@ -208,7 +208,10 @@ extern char spider_net_driver_name[];
 #define SPIDER_NET_DMA_RX_VALUE		0x80000000
 #define SPIDER_NET_DMA_RX_FEND_VALUE	0x00030003
 /* to set TX_DMA_EN */
-#define SPIDER_NET_DMA_TX_VALUE		0x80000000
+#define SPIDER_NET_TX_DMA_EN		0x80000000
+#define SPIDER_NET_GDTDCEIDIS		0x00000002
+#define SPIDER_NET_DMA_TX_VALUE		SPIDER_NET_TX_DMA_EN | \
+					SPIDER_NET_GDTDCEIDIS
 #define SPIDER_NET_DMA_TX_FEND_VALUE	0x00030003
 
 /* SPIDER_NET_UA_DESCR_VALUE is OR'ed with the unicast address */
@@ -329,55 +332,23 @@ enum spider_net_int2_status {
 				  (~SPIDER_NET_TXINT) & \
 				  (~SPIDER_NET_RXINT) )
 
-#define SPIDER_NET_GPREXEC		0x80000000
-#define SPIDER_NET_GPRDAT_MASK		0x0000ffff
+#define SPIDER_NET_GPREXEC			0x80000000
+#define SPIDER_NET_GPRDAT_MASK			0x0000ffff
 
-/* descriptor bits
- *
- * 1010					descriptor ready
- *     0				descr in middle of chain
- *      000				fixed to 0
- *
- *         0				no interrupt on completion
- *          000				fixed to 0
- *             1			no ipsec processing
- *              1			last descriptor for this frame
- *               00			no checksum
- *               10			tcp checksum
- *               11			udp checksum
- *
- *                 00			fixed to 0
- *                   0			fixed to 0
- *                    0			no interrupt on response errors
- *                     0		no interrupt on invalid descr
- *                      0		no interrupt on dma process termination
- *                       0		no interrupt on descr chain end
- *                        0		no interrupt on descr complete
- *
- *                         000		fixed to 0
- *                            0		response error interrupt status
- *                             0	invalid descr status
- *                              0	dma termination status
- *                               0	descr chain end status
- *                                0	descr complete status */
-#define SPIDER_NET_DMAC_CMDSTAT_NOCS	0xa00c0000
-#define SPIDER_NET_DMAC_CMDSTAT_TCPCS	0xa00e0000
-#define SPIDER_NET_DMAC_CMDSTAT_UDPCS	0xa00f0000
-#define SPIDER_NET_DESCR_IND_PROC_SHIFT	28
-#define SPIDER_NET_DESCR_IND_PROC_MASKO	0x0fffffff
+#define SPIDER_NET_DMAC_NOINTR_COMPLETE		0x00800000
+#define SPIDER_NET_DMAC_NOCS			0x00040000
+#define SPIDER_NET_DMAC_TCP			0x00020000
+#define SPIDER_NET_DMAC_UDP			0x00030000
+#define SPIDER_NET_TXDCEST			0x08000000
 
-/* descr ready, descr is in middle of chain, get interrupt on completion */
-#define SPIDER_NET_DMAC_RX_CARDOWNED	0xa0800000
-
-enum spider_net_descr_status {
-	SPIDER_NET_DESCR_COMPLETE		= 0x00, /* used in rx and tx */
-	SPIDER_NET_DESCR_RESPONSE_ERROR		= 0x01, /* used in rx and tx */
-	SPIDER_NET_DESCR_PROTECTION_ERROR	= 0x02, /* used in rx and tx */
-	SPIDER_NET_DESCR_FRAME_END		= 0x04, /* used in rx */
-	SPIDER_NET_DESCR_FORCE_END		= 0x05, /* used in rx and tx */
-	SPIDER_NET_DESCR_CARDOWNED		= 0x0a, /* used in rx and tx */
-	SPIDER_NET_DESCR_NOT_IN_USE /* any other value */
-};
+#define SPIDER_NET_DESCR_IND_PROC_MASK		0xF0000000
+#define SPIDER_NET_DESCR_COMPLETE		0x00000000 /* used in rx and tx */
+#define SPIDER_NET_DESCR_RESPONSE_ERROR		0x10000000 /* used in rx and tx */
+#define SPIDER_NET_DESCR_PROTECTION_ERROR	0x20000000 /* used in rx and tx */
+#define SPIDER_NET_DESCR_FRAME_END		0x40000000 /* used in rx */
+#define SPIDER_NET_DESCR_FORCE_END		0x50000000 /* used in rx and tx */
+#define SPIDER_NET_DESCR_CARDOWNED		0xA0000000 /* used in rx and tx */
+#define SPIDER_NET_DESCR_NOT_IN_USE		0xF0000000
 
 struct spider_net_descr {
 	/* as defined by the hardware */
@@ -398,7 +369,7 @@ struct spider_net_descr {
 } __attribute__((aligned(32)));
 
 struct spider_net_descr_chain {
-	/* we walk from tail to head */
+	spinlock_t lock;
 	struct spider_net_descr *head;
 	struct spider_net_descr *tail;
 };
@@ -453,8 +424,6 @@ struct spider_net_card {
 
 	struct spider_net_descr_chain tx_chain;
 	struct spider_net_descr_chain rx_chain;
-	atomic_t rx_chain_refill;
-	atomic_t tx_chain_release;
 
 	struct net_device_stats netdev_stats;
 

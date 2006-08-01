@@ -2584,6 +2584,12 @@ static void __exit specialix_exit_module(void)
 	func_exit();
 }
 
+static struct pci_device_id specialx_pci_tbl[] __devinitdata = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_SPECIALIX, PCI_DEVICE_ID_SPECIALIX_IO8) },
+	{ }
+};
+MODULE_DEVICE_TABLE(pci, specialx_pci_tbl);
+
 module_init(specialix_init_module);
 module_exit(specialix_exit_module);
 

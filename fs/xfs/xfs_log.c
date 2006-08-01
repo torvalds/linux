@@ -1413,7 +1413,7 @@ xlog_sync(xlog_t		*log,
 	ops = iclog->ic_header.h_num_logops;
 	INT_SET(iclog->ic_header.h_num_logops, ARCH_CONVERT, ops);
 
-	bp	    = iclog->ic_bp;
+	bp = iclog->ic_bp;
 	ASSERT(XFS_BUF_FSPRIVATE2(bp, unsigned long) == (unsigned long)1);
 	XFS_BUF_SET_FSPRIVATE2(bp, (unsigned long)2);
 	XFS_BUF_SET_ADDR(bp, BLOCK_LSN(INT_GET(iclog->ic_header.h_lsn, ARCH_CONVERT)));
@@ -1430,15 +1430,14 @@ xlog_sync(xlog_t		*log,
 	}
 	XFS_BUF_SET_PTR(bp, (xfs_caddr_t) &(iclog->ic_header), count);
 	XFS_BUF_SET_FSPRIVATE(bp, iclog);	/* save for later */
+	XFS_BUF_ZEROFLAGS(bp);
 	XFS_BUF_BUSY(bp);
 	XFS_BUF_ASYNC(bp);
 	/*
 	 * Do an ordered write for the log block.
-	 *
-	 * It may not be needed to flush the first split block in the log wrap
-	 * case, but do it anyways to be safe -AK
+	 * Its unnecessary to flush the first split block in the log wrap case.
 	 */
-	if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
+	if (!split && (log->l_mp->m_flags & XFS_MOUNT_BARRIER))
 		XFS_BUF_ORDERED(bp);
 
 	ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
@@ -1460,7 +1459,7 @@ xlog_sync(xlog_t		*log,
 		return error;
 	}
 	if (split) {
-		bp		= iclog->ic_log->l_xbuf;
+		bp = iclog->ic_log->l_xbuf;
 		ASSERT(XFS_BUF_FSPRIVATE2(bp, unsigned long) ==
 							(unsigned long)1);
 		XFS_BUF_SET_FSPRIVATE2(bp, (unsigned long)2);
@@ -1468,6 +1467,7 @@ xlog_sync(xlog_t		*log,
 		XFS_BUF_SET_PTR(bp, (xfs_caddr_t)((__psint_t)&(iclog->ic_header)+
 					    (__psint_t)count), split);
 		XFS_BUF_SET_FSPRIVATE(bp, iclog);
+		XFS_BUF_ZEROFLAGS(bp);
 		XFS_BUF_BUSY(bp);
 		XFS_BUF_ASYNC(bp);
 		if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)

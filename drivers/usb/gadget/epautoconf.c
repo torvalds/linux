@@ -34,12 +34,12 @@
 
 
 /* we must assign addresses for configurable endpoints (like net2280) */
-static __initdata unsigned epnum;
+static __devinitdata unsigned epnum;
 
 // #define MANY_ENDPOINTS
 #ifdef MANY_ENDPOINTS
 /* more than 15 configurable endpoints */
-static __initdata unsigned in_epnum;
+static __devinitdata unsigned in_epnum;
 #endif
 
 
@@ -59,7 +59,7 @@ static __initdata unsigned in_epnum;
  * NOTE:  each endpoint is unidirectional, as specified by its USB
  * descriptor; and isn't specific to a configuration or altsetting.
  */
-static int __init
+static int __devinit
 ep_matches (
 	struct usb_gadget		*gadget,
 	struct usb_ep			*ep,
@@ -73,7 +73,7 @@ ep_matches (
 	/* endpoint already claimed? */
 	if (0 != ep->driver_data)
 		return 0;
-		
+
 	/* only support ep0 for portable CONTROL traffic */
 	type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 	if (USB_ENDPOINT_XFER_CONTROL == type)
@@ -186,7 +186,7 @@ ep_matches (
 	return 1;
 }
 
-static struct usb_ep * __init
+static struct usb_ep * __devinit
 find_ep (struct usb_gadget *gadget, const char *name)
 {
 	struct usb_ep	*ep;
@@ -228,7 +228,7 @@ find_ep (struct usb_gadget *gadget, const char *name)
  *
  * On failure, this returns a null endpoint descriptor.
  */
-struct usb_ep * __init usb_ep_autoconfig (
+struct usb_ep * __devinit usb_ep_autoconfig (
 	struct usb_gadget		*gadget,
 	struct usb_endpoint_descriptor	*desc
 )
@@ -276,7 +276,7 @@ struct usb_ep * __init usb_ep_autoconfig (
 			return ep;
 	}
 
-	/* Second, look at endpoints until an unclaimed one looks usable */ 
+	/* Second, look at endpoints until an unclaimed one looks usable */
 	list_for_each_entry (ep, &gadget->ep_list, ep_list) {
 		if (ep_matches (gadget, ep, desc))
 			return ep;
@@ -295,7 +295,7 @@ struct usb_ep * __init usb_ep_autoconfig (
  * state such as ep->driver_data and the record of assigned endpoints
  * used by usb_ep_autoconfig().
  */
-void __init usb_ep_autoconfig_reset (struct usb_gadget *gadget)
+void __devinit usb_ep_autoconfig_reset (struct usb_gadget *gadget)
 {
 	struct usb_ep	*ep;
 

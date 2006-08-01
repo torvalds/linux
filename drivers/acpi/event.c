@@ -99,7 +99,7 @@ static unsigned int acpi_system_poll_event(struct file *file, poll_table * wait)
 	return 0;
 }
 
-static struct file_operations acpi_system_event_ops = {
+static const struct file_operations acpi_system_event_ops = {
 	.open = acpi_system_open_event,
 	.read = acpi_system_read_event,
 	.release = acpi_system_close_event,

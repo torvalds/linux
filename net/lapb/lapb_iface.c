@@ -115,13 +115,11 @@ static struct lapb_cb *lapb_devtostruct(struct net_device *dev)
  */
 static struct lapb_cb *lapb_create_cb(void)
 {
-	struct lapb_cb *lapb = kmalloc(sizeof(*lapb), GFP_ATOMIC);
+	struct lapb_cb *lapb = kzalloc(sizeof(*lapb), GFP_ATOMIC);
 
 
 	if (!lapb)
 		goto out;
-
-	memset(lapb, 0x00, sizeof(*lapb));
 
 	skb_queue_head_init(&lapb->write_queue);
 	skb_queue_head_init(&lapb->ack_queue);

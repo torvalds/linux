@@ -323,7 +323,7 @@ int ibmebus_request_irq(struct ibmebus_dev *dev,
 			unsigned long irq_flags, const char * devname,
 			void *dev_id)
 {
-	unsigned int irq = irq_create_mapping(NULL, ist, 0);
+	unsigned int irq = irq_create_mapping(NULL, ist);
 	
 	if (irq == NO_IRQ)
 		return -EINVAL;

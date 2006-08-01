@@ -1145,7 +1145,7 @@ static int end_sync_write(struct bio *bio, unsigned int bytes_done, int error)
 		long sectors_to_go = r1_bio->sectors;
 		/* make sure these bits doesn't get cleared. */
 		do {
-			bitmap_end_sync(mddev->bitmap, r1_bio->sector,
+			bitmap_end_sync(mddev->bitmap, s,
 					&sync_blocks, 1);
 			s += sync_blocks;
 			sectors_to_go -= sync_blocks;
@@ -1509,6 +1509,9 @@ static void raid1d(mddev_t *mddev)
 									 s<<9, conf->tmppage, READ) == 0)
 								/* Well, this device is dead */
 								md_error(mddev, rdev);
+							else
+								printk(KERN_INFO "raid1:%s: read error corrected (%d sectors at %llu on %s)\n",
+								       mdname(mddev), s, (unsigned long long)(sect + rdev->data_offset), bdevname(rdev->bdev, b));
 						}
 					}
 				} else {

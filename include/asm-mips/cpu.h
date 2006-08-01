@@ -242,7 +242,7 @@
 #define MIPS_CPU_EJTAG		0x00008000 /* EJTAG exception */
 #define MIPS_CPU_NOFPUEX	0x00010000 /* no FPU exception */
 #define MIPS_CPU_LLSC		0x00020000 /* CPU has ll/sc instructions */
-#define MIPS_CPU_SUBSET_CACHES	0x00040000 /* P-cache subset enforced */
+#define MIPS_CPU_INCLUSIVE_CACHES	0x00040000 /* P-cache subset enforced */
 #define MIPS_CPU_PREFETCH	0x00080000 /* CPU has usable prefetch */
 #define MIPS_CPU_VINT		0x00100000 /* CPU supports MIPSR2 vectored interrupts */
 #define MIPS_CPU_VEIC		0x00200000 /* CPU supports MIPSR2 external interrupt controller mode */

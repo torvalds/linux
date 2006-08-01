@@ -232,12 +232,12 @@ niccy_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return(0);
 }
 
-static struct pci_dev *niccy_dev __initdata = NULL;
+static struct pci_dev *niccy_dev __devinitdata = NULL;
 #ifdef __ISAPNP__
 static struct pnp_card *pnp_c __devinitdata = NULL;
 #endif
 
-int __init
+int __devinit
 setup_niccy(struct IsdnCard *card)
 {
 	struct IsdnCardState *cs = card->cs;

@@ -31,7 +31,6 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/string.h>
 #include <linux/kd.h>
@@ -198,7 +197,7 @@ static int __init mdacon_setup(char *str)
 __setup("mdacon=", mdacon_setup);
 #endif
 
-static int __init mda_detect(void)
+static int mda_detect(void)
 {
 	int count=0;
 	u16 *p, p_save;
@@ -283,7 +282,7 @@ static int __init mda_detect(void)
 	return 1;
 }
 
-static void __init mda_initialize(void)
+static void mda_initialize(void)
 {
 	write_mda_b(97, 0x00);		/* horizontal total */
 	write_mda_b(80, 0x01);		/* horizontal displayed */

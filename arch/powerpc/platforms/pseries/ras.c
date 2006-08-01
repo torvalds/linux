@@ -93,8 +93,7 @@ static void request_ras_irqs(struct device_node *np,
 		for (i = 0; i < opicplen; i++) {
 			if (count > 15)
 				break;
-			virqs[count] = irq_create_mapping(NULL, *(opicprop++),
-							 IRQ_TYPE_NONE);
+			virqs[count] = irq_create_mapping(NULL, *(opicprop++));
 			if (virqs[count] == NO_IRQ)
 				printk(KERN_ERR "Unable to allocate interrupt "
 				       "number for %s\n", np->full_name);

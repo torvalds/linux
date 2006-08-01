@@ -25,6 +25,7 @@
 #include <linux/time.h>
 #include <linux/major.h>
 #include <linux/stat.h>
+#include <linux/vt.h>
 #include <linux/mman.h>
 #include <linux/elfcore.h>
 #include <linux/reboot.h>

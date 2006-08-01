@@ -204,6 +204,7 @@ SECTIONS
 	*(.dynstr)
 	*(.dynamic)
 	*(.hash)
+	*(.gnu.hash)
 #endif
 	}
 

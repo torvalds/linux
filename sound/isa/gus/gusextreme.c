@@ -87,7 +87,7 @@ MODULE_PARM_DESC(channels, "GF1 channels for GUS Extreme driver.");
 module_param_array(pcm_channels, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for GUS Extreme driver.");
 
-struct platform_device *devices[SNDRV_CARDS];
+static struct platform_device *devices[SNDRV_CARDS];
 
 
 #define PFX	"gusextreme: "

@@ -169,7 +169,7 @@ static int i8259_host_match(struct irq_host *h, struct device_node *node)
 }
 
 static int i8259_host_map(struct irq_host *h, unsigned int virq,
-			  irq_hw_number_t hw, unsigned int flags)
+			  irq_hw_number_t hw)
 {
 	pr_debug("i8259_host_map(%d, 0x%lx)\n", virq, hw);
 
@@ -177,7 +177,7 @@ static int i8259_host_map(struct irq_host *h, unsigned int virq,
 	if (hw == 2)
 		get_irq_desc(virq)->status |= IRQ_NOREQUEST;
 
-	/* We use the level stuff only for now, we might want to
+	/* We use the level handler only for now, we might want to
 	 * be more cautious here but that works for now
 	 */
 	get_irq_desc(virq)->status |= IRQ_LEVEL;

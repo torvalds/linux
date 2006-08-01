@@ -58,9 +58,7 @@ struct scsi_cmnd {
 	int timeout_per_command;
 
 	unsigned char cmd_len;
-	unsigned char old_cmd_len;
 	enum dma_data_direction sc_data_direction;
-	enum dma_data_direction sc_old_data_direction;
 
 	/* These elements define the operation we are about to perform */
 #define MAX_COMMAND_SIZE	16
@@ -71,18 +69,11 @@ struct scsi_cmnd {
 	void *request_buffer;		/* Actual requested buffer */
 
 	/* These elements define the operation we ultimately want to perform */
-	unsigned char data_cmnd[MAX_COMMAND_SIZE];
-	unsigned short old_use_sg;	/* We save  use_sg here when requesting
-					 * sense info */
 	unsigned short use_sg;	/* Number of pieces of scatter-gather */
 	unsigned short sglist_len;	/* size of malloc'd scatter-gather list */
-	unsigned bufflen;	/* Size of data buffer */
-	void *buffer;		/* Data buffer */
 
 	unsigned underflow;	/* Return error if less than
 				   this amount is transferred */
-	unsigned old_underflow;	/* save underflow here when reusing the
-				 * command for error handling */
 
 	unsigned transfersize;	/* How much we are guaranteed to
 				   transfer with each SCSI transfer

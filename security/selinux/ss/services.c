@@ -833,6 +833,8 @@ static int security_compute_sid(u32 ssid,
 		goto out;
 	}
 
+	context_init(&newcontext);
+
 	POLICY_RDLOCK;
 
 	scontext = sidtab_search(&sidtab, ssid);
@@ -849,8 +851,6 @@ static int security_compute_sid(u32 ssid,
 		rc = -EINVAL;
 		goto out_unlock;
 	}
-
-	context_init(&newcontext);
 
 	/* Set the user identity. */
 	switch (specified) {

@@ -168,6 +168,23 @@ static inline u32 buffer_offset(port_t *port, u16 desc, int transmit)
 }
 
 
+static inline void sca_set_carrier(port_t *port)
+{
+	if (!(sca_in(get_msci(port) + ST3, port_to_card(port)) & ST3_DCD)) {
+#ifdef DEBUG_LINK
+		printk(KERN_DEBUG "%s: sca_set_carrier on\n",
+		       port_to_dev(port)->name);
+#endif
+		netif_carrier_on(port_to_dev(port));
+	} else {
+#ifdef DEBUG_LINK
+		printk(KERN_DEBUG "%s: sca_set_carrier off\n",
+		       port_to_dev(port)->name);
+#endif
+		netif_carrier_off(port_to_dev(port));
+	}
+}
+
 
 static void sca_init_sync_port(port_t *port)
 {
@@ -237,9 +254,7 @@ static void sca_init_sync_port(port_t *port)
 			sca_out(DIR_BOFE, DIR_TX(phy_node(port)), card);
 		}
 	}
-
-	hdlc_set_carrier(!(sca_in(get_msci(port) + ST3, card) & ST3_DCD),
-			 port_to_dev(port));
+	sca_set_carrier(port);
 }
 
 
@@ -262,8 +277,7 @@ static inline void sca_msci_intr(port_t *port)
 	}
 
 	if (stat & ST1_CDCD)
-		hdlc_set_carrier(!(sca_in(msci + ST3, card) & ST3_DCD),
-				 port_to_dev(port));
+		sca_set_carrier(port);
 }
 #endif
 
@@ -566,7 +580,7 @@ static void sca_open(struct net_device *dev)
    - all DMA interrupts
 */
 
-	hdlc_set_carrier(!(sca_in(msci + ST3, card) & ST3_DCD), dev);
+	sca_set_carrier(port);
 
 #ifdef __HD64570_H
 	/* MSCI TX INT and RX INT A IRQ enable */

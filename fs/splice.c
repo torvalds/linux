@@ -1307,6 +1307,85 @@ asmlinkage long sys_splice(int fd_in, loff_t __user *off_in,
 }
 
 /*
+ * Make sure there's data to read. Wait for input if we can, otherwise
+ * return an appropriate error.
+ */
+static int link_ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
+{
+	int ret;
+
+	/*
+	 * Check ->nrbufs without the inode lock first. This function
+	 * is speculative anyways, so missing one is ok.
+	 */
+	if (pipe->nrbufs)
+		return 0;
+
+	ret = 0;
+	mutex_lock(&pipe->inode->i_mutex);
+
+	while (!pipe->nrbufs) {
+		if (signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+		if (!pipe->writers)
+			break;
+		if (!pipe->waiting_writers) {
+			if (flags & SPLICE_F_NONBLOCK) {
+				ret = -EAGAIN;
+				break;
+			}
+		}
+		pipe_wait(pipe);
+	}
+
+	mutex_unlock(&pipe->inode->i_mutex);
+	return ret;
+}
+
+/*
+ * Make sure there's writeable room. Wait for room if we can, otherwise
+ * return an appropriate error.
+ */
+static int link_opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
+{
+	int ret;
+
+	/*
+	 * Check ->nrbufs without the inode lock first. This function
+	 * is speculative anyways, so missing one is ok.
+	 */
+	if (pipe->nrbufs < PIPE_BUFFERS)
+		return 0;
+
+	ret = 0;
+	mutex_lock(&pipe->inode->i_mutex);
+
+	while (pipe->nrbufs >= PIPE_BUFFERS) {
+		if (!pipe->readers) {
+			send_sig(SIGPIPE, current, 0);
+			ret = -EPIPE;
+			break;
+		}
+		if (flags & SPLICE_F_NONBLOCK) {
+			ret = -EAGAIN;
+			break;
+		}
+		if (signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+		pipe->waiting_writers++;
+		pipe_wait(pipe);
+		pipe->waiting_writers--;
+	}
+
+	mutex_unlock(&pipe->inode->i_mutex);
+	return ret;
+}
+
+/*
  * Link contents of ipipe to opipe.
  */
 static int link_pipe(struct pipe_inode_info *ipipe,
@@ -1314,9 +1393,7 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 		     size_t len, unsigned int flags)
 {
 	struct pipe_buffer *ibuf, *obuf;
-	int ret, do_wakeup, i, ipipe_first;
-
-	ret = do_wakeup = ipipe_first = 0;
+	int ret = 0, i = 0, nbuf;
 
 	/*
 	 * Potential ABBA deadlock, work around it by ordering lock
@@ -1324,126 +1401,62 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 	 * could deadlock (one doing tee from A -> B, the other from B -> A).
 	 */
 	if (ipipe->inode < opipe->inode) {
-		ipipe_first = 1;
-		mutex_lock(&ipipe->inode->i_mutex);
-		mutex_lock(&opipe->inode->i_mutex);
+		mutex_lock_nested(&ipipe->inode->i_mutex, I_MUTEX_PARENT);
+		mutex_lock_nested(&opipe->inode->i_mutex, I_MUTEX_CHILD);
 	} else {
-		mutex_lock(&opipe->inode->i_mutex);
-		mutex_lock(&ipipe->inode->i_mutex);
+		mutex_lock_nested(&opipe->inode->i_mutex, I_MUTEX_PARENT);
+		mutex_lock_nested(&ipipe->inode->i_mutex, I_MUTEX_CHILD);
 	}
 
-	for (i = 0;; i++) {
+	do {
 		if (!opipe->readers) {
 			send_sig(SIGPIPE, current, 0);
 			if (!ret)
 				ret = -EPIPE;
 			break;
 		}
-		if (ipipe->nrbufs - i) {
-			ibuf = ipipe->bufs + ((ipipe->curbuf + i) & (PIPE_BUFFERS - 1));
-
-			/*
-			 * If we have room, fill this buffer
-			 */
-			if (opipe->nrbufs < PIPE_BUFFERS) {
-				int nbuf = (opipe->curbuf + opipe->nrbufs) & (PIPE_BUFFERS - 1);
-
-				/*
-				 * Get a reference to this pipe buffer,
-				 * so we can copy the contents over.
-				 */
-				ibuf->ops->get(ipipe, ibuf);
-
-				obuf = opipe->bufs + nbuf;
-				*obuf = *ibuf;
-
-				/*
-				 * Don't inherit the gift flag, we need to
-				 * prevent multiple steals of this page.
-				 */
-				obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
-
-				if (obuf->len > len)
-					obuf->len = len;
-
-				opipe->nrbufs++;
-				do_wakeup = 1;
-				ret += obuf->len;
-				len -= obuf->len;
-
-				if (!len)
-					break;
-				if (opipe->nrbufs < PIPE_BUFFERS)
-					continue;
-			}
-
-			/*
-			 * We have input available, but no output room.
-			 * If we already copied data, return that. If we
-			 * need to drop the opipe lock, it must be ordered
-			 * last to avoid deadlocks.
-			 */
-			if ((flags & SPLICE_F_NONBLOCK) || !ipipe_first) {
-				if (!ret)
-					ret = -EAGAIN;
-				break;
-			}
-			if (signal_pending(current)) {
-				if (!ret)
-					ret = -ERESTARTSYS;
-				break;
-			}
-			if (do_wakeup) {
-				smp_mb();
-				if (waitqueue_active(&opipe->wait))
-					wake_up_interruptible(&opipe->wait);
-				kill_fasync(&opipe->fasync_readers, SIGIO, POLL_IN);
-				do_wakeup = 0;
-			}
-
-			opipe->waiting_writers++;
-			pipe_wait(opipe);
-			opipe->waiting_writers--;
-			continue;
-		}
 
 		/*
-		 * No input buffers, do the usual checks for available
-		 * writers and blocking and wait if necessary
+		 * If we have iterated all input buffers or ran out of
+		 * output room, break.
 		 */
-		if (!ipipe->writers)
+		if (i >= ipipe->nrbufs || opipe->nrbufs >= PIPE_BUFFERS)
 			break;
-		if (!ipipe->waiting_writers) {
-			if (ret)
-				break;
-		}
+
+		ibuf = ipipe->bufs + ((ipipe->curbuf + i) & (PIPE_BUFFERS - 1));
+		nbuf = (opipe->curbuf + opipe->nrbufs) & (PIPE_BUFFERS - 1);
+
 		/*
-		 * pipe_wait() drops the ipipe mutex. To avoid deadlocks
-		 * with another process, we can only safely do that if
-		 * the ipipe lock is ordered last.
+		 * Get a reference to this pipe buffer,
+		 * so we can copy the contents over.
 		 */
-		if ((flags & SPLICE_F_NONBLOCK) || ipipe_first) {
-			if (!ret)
-				ret = -EAGAIN;
-			break;
-		}
-		if (signal_pending(current)) {
-			if (!ret)
-				ret = -ERESTARTSYS;
-			break;
-		}
+		ibuf->ops->get(ipipe, ibuf);
 
-		if (waitqueue_active(&ipipe->wait))
-			wake_up_interruptible_sync(&ipipe->wait);
-		kill_fasync(&ipipe->fasync_writers, SIGIO, POLL_OUT);
+		obuf = opipe->bufs + nbuf;
+		*obuf = *ibuf;
 
-		pipe_wait(ipipe);
-	}
+		/*
+		 * Don't inherit the gift flag, we need to
+		 * prevent multiple steals of this page.
+		 */
+		obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
+
+		if (obuf->len > len)
+			obuf->len = len;
+
+		opipe->nrbufs++;
+		ret += obuf->len;
+		len -= obuf->len;
+		i++;
+	} while (len);
 
 	mutex_unlock(&ipipe->inode->i_mutex);
 	mutex_unlock(&opipe->inode->i_mutex);
 
-	if (do_wakeup) {
+	/*
+	 * If we put data in the output pipe, wakeup any potential readers.
+	 */
+	if (ret > 0) {
 		smp_mb();
 		if (waitqueue_active(&opipe->wait))
 			wake_up_interruptible(&opipe->wait);
@@ -1464,14 +1477,29 @@ static long do_tee(struct file *in, struct file *out, size_t len,
 {
 	struct pipe_inode_info *ipipe = in->f_dentry->d_inode->i_pipe;
 	struct pipe_inode_info *opipe = out->f_dentry->d_inode->i_pipe;
+	int ret = -EINVAL;
 
 	/*
-	 * Link ipipe to the two output pipes, consuming as we go along.
+	 * Duplicate the contents of ipipe to opipe without actually
+	 * copying the data.
 	 */
-	if (ipipe && opipe)
-		return link_pipe(ipipe, opipe, len, flags);
+	if (ipipe && opipe && ipipe != opipe) {
+		/*
+		 * Keep going, unless we encounter an error. The ipipe/opipe
+		 * ordering doesn't really matter.
+		 */
+		ret = link_ipipe_prep(ipipe, flags);
+		if (!ret) {
+			ret = link_opipe_prep(opipe, flags);
+			if (!ret) {
+				ret = link_pipe(ipipe, opipe, len, flags);
+				if (!ret && (flags & SPLICE_F_NONBLOCK))
+					ret = -EAGAIN;
+			}
+		}
+	}
 
-	return -EINVAL;
+	return ret;
 }
 
 asmlinkage long sys_tee(int fdin, int fdout, size_t len, unsigned int flags)

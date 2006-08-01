@@ -23,8 +23,8 @@ struct vlan_collection;
 struct vlan_dev_info;
 struct hlist_node;
 
-#include <linux/proc_fs.h> /* for proc_dir_entry */
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 
 #define VLAN_HLEN	4		/* The additional bytes (on top of the Ethernet header)
 					 * that VLAN requires.
@@ -185,7 +185,8 @@ static inline int __vlan_hwaccel_rx(struct sk_buff *skb,
 		 * This allows the VLAN to have a different MAC than the underlying
 		 * device, and still route correctly.
 		 */
-		if (!memcmp(eth_hdr(skb)->h_dest, skb->dev->dev_addr, ETH_ALEN))
+		if (!compare_ether_addr(eth_hdr(skb)->h_dest,
+				       	skb->dev->dev_addr))
 			skb->pkt_type = PACKET_HOST;
 		break;
 	};

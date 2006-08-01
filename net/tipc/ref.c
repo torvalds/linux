@@ -79,7 +79,7 @@ int tipc_ref_table_init(u32 requested_size, u32 start)
 	while (sz < requested_size) {
 		sz <<= 1;
 	}
-	table = (struct reference *)vmalloc(sz * sizeof(struct reference));
+	table = vmalloc(sz * sizeof(*table));
 	if (table == NULL)
 		return -ENOMEM;
 

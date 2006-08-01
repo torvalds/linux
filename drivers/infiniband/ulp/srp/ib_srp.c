@@ -615,9 +615,10 @@ static int srp_map_fmr(struct srp_device *dev, struct scatterlist *scat,
 				(sg_dma_address(&scat[i]) & dev->fmr_page_mask) + j;
 
 	req->fmr = ib_fmr_pool_map_phys(dev->fmr_pool,
-					dma_pages, page_cnt, &io_addr);
+					dma_pages, page_cnt, io_addr);
 	if (IS_ERR(req->fmr)) {
 		ret = PTR_ERR(req->fmr);
+		req->fmr = NULL;
 		goto out;
 	}
 

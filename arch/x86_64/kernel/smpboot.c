@@ -771,11 +771,9 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 	unsigned long start_rip;
 	struct create_idle c_idle = {
 		.cpu = cpu,
-		.done = COMPLETION_INITIALIZER(c_idle.done),
+		.done = COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
 	};
 	DECLARE_WORK(work, do_fork_idle, &c_idle);
-
-	lockdep_set_class(&c_idle.done.wait.lock, &waitqueue_lock_key);
 
 	/* allocate memory for gdts of secondary cpus. Hotplug is considered */
 	if (!cpu_gdt_descr[cpu].address &&

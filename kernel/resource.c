@@ -404,8 +404,6 @@ int insert_resource(struct resource *parent, struct resource *new)
 	return result;
 }
 
-EXPORT_SYMBOL(insert_resource);
-
 /*
  * Given an existing resource, change its start and size to match the
  * arguments.  Returns -EBUSY if it can't fit.  Existing children of

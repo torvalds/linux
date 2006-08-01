@@ -620,7 +620,7 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 		return -ENXIO;
 	}
 	dev_info(&mgp->pdev->dev, "handoff confirmed\n");
-	myri10ge_dummy_rdma(mgp, mgp->tx.boundary != 4096);
+	myri10ge_dummy_rdma(mgp, 1);
 
 	return 0;
 }
@@ -2116,7 +2116,7 @@ abort_linearize:
 		}
 		idx = (idx + 1) & tx->mask;
 	} while (idx != last_idx);
-	if (skb_shinfo(skb)->gso_size) {
+	if (skb_is_gso(skb)) {
 		printk(KERN_ERR
 		       "myri10ge: %s: TSO but wanted to linearize?!?!?\n",
 		       mgp->dev->name);
@@ -2412,14 +2412,20 @@ static int myri10ge_resume(struct pci_dev *pdev)
 		return -EIO;
 	}
 	myri10ge_restore_state(mgp);
-	pci_enable_device(pdev);
+
+	status = pci_enable_device(pdev);
+	if (status < 0) {
+		dev_err(&pdev->dev, "failed to enable device\n");
+		return -EIO;
+	}
+
 	pci_set_master(pdev);
 
 	status = request_irq(pdev->irq, myri10ge_intr, IRQF_SHARED,
 			     netdev->name, mgp);
 	if (status != 0) {
 		dev_err(&pdev->dev, "failed to allocate IRQ\n");
-		goto abort_with_msi;
+		goto abort_with_enabled;
 	}
 
 	myri10ge_reset(mgp);
@@ -2438,7 +2444,8 @@ static int myri10ge_resume(struct pci_dev *pdev)
 
 	return 0;
 
-abort_with_msi:
+abort_with_enabled:
+	pci_disable_device(pdev);
 	return -EIO;
 
 }

@@ -85,9 +85,6 @@ static void spider_unmask_irq(unsigned int virq)
 	struct spider_pic *pic = spider_virq_to_pic(virq);
 	void __iomem *cfg = spider_get_irq_config(pic, irq_map[virq].hwirq);
 
-	/* We use no locking as we should be covered by the descriptor lock
-	 * for access to invidual source configuration registers
-	 */
 	out_be32(cfg, in_be32(cfg) | 0x30000000u);
 }
 
@@ -96,9 +93,6 @@ static void spider_mask_irq(unsigned int virq)
 	struct spider_pic *pic = spider_virq_to_pic(virq);
 	void __iomem *cfg = spider_get_irq_config(pic, irq_map[virq].hwirq);
 
-	/* We use no locking as we should be covered by the descriptor lock
-	 * for access to invidual source configuration registers
-	 */
 	out_be32(cfg, in_be32(cfg) & ~0x30000000u);
 }
 
@@ -120,26 +114,14 @@ static void spider_ack_irq(unsigned int virq)
 	out_be32(pic->regs + TIR_EDC, 0x100 | (src & 0xf));
 }
 
-static struct irq_chip spider_pic = {
-	.typename = " SPIDER   ",
-	.unmask = spider_unmask_irq,
-	.mask = spider_mask_irq,
-	.ack = spider_ack_irq,
-};
-
-static int spider_host_match(struct irq_host *h, struct device_node *node)
+static int spider_set_irq_type(unsigned int virq, unsigned int type)
 {
-	struct spider_pic *pic = h->host_data;
-	return node == pic->of_node;
-}
-
-static int spider_host_map(struct irq_host *h, unsigned int virq,
-			irq_hw_number_t hw, unsigned int flags)
-{
-	unsigned int sense = flags & IRQ_TYPE_SENSE_MASK;
-	struct spider_pic *pic = h->host_data;
+	unsigned int sense = type & IRQ_TYPE_SENSE_MASK;
+	struct spider_pic *pic = spider_virq_to_pic(virq);
+	unsigned int hw = irq_map[virq].hwirq;
 	void __iomem *cfg = spider_get_irq_config(pic, hw);
-	int level = 0;
+	struct irq_desc *desc = get_irq_desc(virq);
+	u32 old_mask;
 	u32 ic;
 
 	/* Note that only level high is supported for most interrupts */
@@ -157,16 +139,20 @@ static int spider_host_map(struct irq_host *h, unsigned int virq,
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		ic = 0x0;
-		level = 1;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 	case IRQ_TYPE_NONE:
 		ic = 0x1;
-		level = 1;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	/* Update irq_desc */
+	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
+	desc->status |= type & IRQ_TYPE_SENSE_MASK;
+	if (type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
+		desc->status |= IRQ_LEVEL;
 
 	/* Configure the source. One gross hack that was there before and
 	 * that I've kept around is the priority to the BE which I set to
@@ -174,12 +160,36 @@ static int spider_host_map(struct irq_host *h, unsigned int virq,
 	 * that's supposed to make any kind of sense however, we'll have to
 	 * decide that, but for now, I'm not changing the behaviour.
 	 */
-	out_be32(cfg, (ic << 24) | (0x7 << 16) | (pic->node_id << 4) | 0xe);
+	old_mask = in_be32(cfg) & 0x30000000u;
+	out_be32(cfg, old_mask | (ic << 24) | (0x7 << 16) |
+		 (pic->node_id << 4) | 0xe);
 	out_be32(cfg + 4, (0x2 << 16) | (hw & 0xff));
 
-	if (level)
-		get_irq_desc(virq)->status |= IRQ_LEVEL;
+	return 0;
+}
+
+static struct irq_chip spider_pic = {
+	.typename = " SPIDER   ",
+	.unmask = spider_unmask_irq,
+	.mask = spider_mask_irq,
+	.ack = spider_ack_irq,
+	.set_type = spider_set_irq_type,
+};
+
+static int spider_host_match(struct irq_host *h, struct device_node *node)
+{
+	struct spider_pic *pic = h->host_data;
+	return node == pic->of_node;
+}
+
+static int spider_host_map(struct irq_host *h, unsigned int virq,
+			irq_hw_number_t hw)
+{
 	set_irq_chip_and_handler(virq, &spider_pic, handle_level_irq);
+
+	/* Set default irq type */
+	set_irq_type(virq, IRQ_TYPE_NONE);
+
 	return 0;
 }
 
@@ -283,7 +293,7 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	if (iic_host == NULL)
 		return NO_IRQ;
 	/* Manufacture an IIC interrupt number of class 2 */
-	virq = irq_create_mapping(iic_host, 0x20 | unit, 0);
+	virq = irq_create_mapping(iic_host, 0x20 | unit);
 	if (virq == NO_IRQ)
 		printk(KERN_ERR "spider_pic: failed to map cascade !");
 	return virq;

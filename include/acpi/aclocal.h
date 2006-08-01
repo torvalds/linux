@@ -127,7 +127,7 @@ typedef u8 acpi_owner_id;
 
 /* This Thread ID means that the mutex is not in use (unlocked) */
 
-#define ACPI_MUTEX_NOT_ACQUIRED         (u32) -1
+#define ACPI_MUTEX_NOT_ACQUIRED         (acpi_thread_id) 0
 
 /* Table for the global mutexes */
 
@@ -204,7 +204,7 @@ struct acpi_namespace_node {
 /* Namespace Node flags */
 
 #define ANOBJ_END_OF_PEER_LIST          0x01	/* End-of-list, Peer field points to parent */
-#define ANOBJ_DATA_WIDTH_32             0x02	/* Parent table uses 32-bit math */
+#define ANOBJ_RESERVED                  0x02	/* Available for future use */
 #define ANOBJ_METHOD_ARG                0x04	/* Node is a method argument */
 #define ANOBJ_METHOD_LOCAL              0x08	/* Node is a method local */
 #define ANOBJ_SUBTREE_HAS_INI           0x10	/* Used to optimize device initialization */
