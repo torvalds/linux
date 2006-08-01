@@ -1181,12 +1181,47 @@ static int video1394_mmap(struct file *file, struct vm_area_struct *vma)
 
 	lock_kernel();
 	if (ctx->current_ctx == NULL) {
-		PRINT(KERN_ERR, ctx->ohci->host->id, "Current iso context not set");
+		PRINT(KERN_ERR, ctx->ohci->host->id,
+				"Current iso context not set");
 	} else
 		res = dma_region_mmap(&ctx->current_ctx->dma, file, vma);
 	unlock_kernel();
 
 	return res;
+}
+
+static unsigned int video1394_poll(struct file *file, poll_table *pt)
+{
+	struct file_ctx *ctx;
+	unsigned int mask = 0;
+	unsigned long flags;
+	struct dma_iso_ctx *d;
+	int i;
+
+	lock_kernel();
+	ctx = file->private_data;
+	d = ctx->current_ctx;
+	if (d == NULL) {
+		PRINT(KERN_ERR, ctx->ohci->host->id,
+				"Current iso context not set");
+		mask = POLLERR;
+		goto done;
+	}
+
+	poll_wait(file, &d->waitq, pt);
+
+	spin_lock_irqsave(&d->lock, flags);
+	for (i = 0; i < d->num_desc; i++) {
+		if (d->buffer_status[i] == VIDEO1394_BUFFER_READY) {
+			mask |= POLLIN | POLLRDNORM;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&d->lock, flags);
+done:
+	unlock_kernel();
+
+	return mask;
 }
 
 static int video1394_open(struct inode *inode, struct file *file)
@@ -1257,6 +1292,7 @@ static struct file_operations video1394_fops=
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = video1394_compat_ioctl,
 #endif
+	.poll =		video1394_poll,
 	.mmap =		video1394_mmap,
 	.open =		video1394_open,
 	.release =	video1394_release
