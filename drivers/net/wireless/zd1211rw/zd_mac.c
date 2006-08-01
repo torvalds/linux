@@ -138,10 +138,7 @@ static int reset_mode(struct zd_mac *mac)
 {
 	struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
 	struct zd_ioreq32 ioreqs[3] = {
-		{ CR_RX_FILTER, RX_FILTER_BEACON | RX_FILTER_PROBE_RESPONSE |
-			        RX_FILTER_AUTH | RX_FILTER_ASSOC_RESPONSE |
-				RX_FILTER_REASSOC_RESPONSE |
-				RX_FILTER_DISASSOC },
+		{ CR_RX_FILTER, STA_RX_FILTER },
 		{ CR_SNIFFER_ON, 0U },
 	};
 
