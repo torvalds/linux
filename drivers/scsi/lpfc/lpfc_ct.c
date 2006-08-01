@@ -131,6 +131,7 @@ lpfc_ct_unsol_event(struct lpfc_hba * phba,
 	}
 
 ct_unsol_event_exit_piocbq:
+	list_del(&head);
 	if (pmbuf) {
 		list_for_each_entry_safe(matp, next_matp, &pmbuf->list, list) {
 			lpfc_mbuf_free(phba, matp->virt, matp->phys);

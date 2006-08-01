@@ -884,7 +884,7 @@ sysfs_mbox_write(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		    phba->sysfs_mbox.mbox   == NULL ) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(host->host_lock);
-			return -EINVAL;
+			return -EAGAIN;
 		}
 	}
 
@@ -1008,7 +1008,7 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		if (rc != MBX_SUCCESS) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(host->host_lock);
-			return -ENODEV;
+			return  (rc == MBX_TIMEOUT) ? -ETIME : -ENODEV;
 		}
 		phba->sysfs_mbox.state = SMBOX_READING;
 	}
@@ -1017,7 +1017,7 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		printk(KERN_WARNING  "mbox_read: Bad State\n");
 		sysfs_mbox_idle(phba);
 		spin_unlock_irq(host->host_lock);
-		return -EINVAL;
+		return -EAGAIN;
 	}
 
 	memcpy(buf, (uint8_t *) & phba->sysfs_mbox.mbox->mb + off, count);

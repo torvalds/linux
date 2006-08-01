@@ -320,7 +320,8 @@ lpfc_sli_next_iotag(struct lpfc_hba * phba, struct lpfc_iocbq * iocbq)
 			kfree(old_arr);
 			return iotag;
 		}
-	}
+	} else
+		spin_unlock_irq(phba->host->host_lock);
 
 	lpfc_printf_log(phba, KERN_ERR,LOG_SLI,
 			"%d:0318 Failed to allocate IOTAG.last IOTAG is %d\n",
@@ -1399,11 +1400,11 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 								 next_iocb,
 								 &saveq->list,
 								 list) {
+						list_del(&rspiocbp->list);
 						lpfc_sli_release_iocbq(phba,
 								     rspiocbp);
 					}
 				}
-
 				lpfc_sli_release_iocbq(phba, saveq);
 			}
 		}
