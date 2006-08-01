@@ -64,7 +64,8 @@ static void mainstone_unmask_irq(unsigned int irq)
 	MST_INTMSKENA = (mainstone_irq_enabled |= (1 << mainstone_irq));
 }
 
-static struct irqchip mainstone_irq_chip = {
+static struct irq_chip mainstone_irq_chip = {
+	.name		= "FPGA",
 	.ack		= mainstone_mask_irq,
 	.mask		= mainstone_mask_irq,
 	.unmask		= mainstone_unmask_irq,

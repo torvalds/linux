@@ -43,7 +43,8 @@ lh7a400_unmask_cpld_irq (u32 irq)
 }
 
 static struct
-irqchip lh7a400_cpld_chip = {
+irq_chip lh7a400_cpld_chip = {
+	.name	= "CPLD",
 	.ack	= lh7a400_ack_cpld_irq,
 	.mask	= lh7a400_mask_cpld_irq,
 	.unmask	= lh7a400_unmask_cpld_irq,
