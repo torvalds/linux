@@ -442,6 +442,7 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		case AUDIT_EQUAL:
 			break;
 		default:
+			err = -EINVAL;
 			goto exit_free;
 		}
 	}
@@ -579,6 +580,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		case AUDIT_EQUAL:
 			break;
 		default:
+			err = -EINVAL;
 			goto exit_free;
 		}
 	}
