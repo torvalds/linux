@@ -50,7 +50,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.5"
+#define DRV_VERSION		"1.6"
 #define PFX			DRV_NAME " "
 
 /*
@@ -1932,12 +1932,6 @@ static inline void sky2_tx_done(struct net_device *dev, u16 last)
 	}
 }
 
-/* Is status ring empty or is there more to do? */
-static inline int sky2_more_work(const struct sky2_hw *hw)
-{
-	return (hw->st_idx != sky2_read16(hw, STAT_PUT_IDX));
-}
-
 /* Process status response ring */
 static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 {
@@ -2027,6 +2021,9 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 			goto exit_loop;
 		}
 	}
+
+	/* Fully processed status ring so clear irq */
+	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
 
 exit_loop:
 	if (buf_write[0]) {
@@ -2237,19 +2234,16 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 		sky2_descriptor_error(hw, 1, "transmit", Y2_IS_CHK_TXA2);
 
 	work_done = sky2_status_intr(hw, work_limit);
-	*budget -= work_done;
-	dev0->quota -= work_done;
+	if (work_done < work_limit) {
+		netif_rx_complete(dev0);
 
-	if (status & Y2_IS_STAT_BMU)
-		sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
-
-	if (sky2_more_work(hw))
+		sky2_read32(hw, B0_Y2_SP_LISR);
+		return 0;
+	} else {
+		*budget -= work_done;
+		dev0->quota -= work_done;
 		return 1;
-
-	netif_rx_complete(dev0);
-
-	sky2_read32(hw, B0_Y2_SP_LISR);
-	return 0;
+	}
 }
 
 static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
