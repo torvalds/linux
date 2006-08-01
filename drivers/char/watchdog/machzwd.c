@@ -426,8 +426,7 @@ static int __init zf_init(void)
 	printk(KERN_INFO PFX ": MachZ ZF-Logic Watchdog driver initializing.\n");
 
 	ret = zf_get_ZFL_version();
-	printk("%#x\n", ret);
-	if((!ret) || (ret != 0xffff)){
+	if ((!ret) || (ret == 0xffff)) {
 		printk(KERN_WARNING PFX ": no ZF-Logic found\n");
 		return -ENODEV;
 	}
