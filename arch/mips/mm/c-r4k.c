@@ -89,7 +89,7 @@ static inline void r4k_blast_dcache_page_dc32(unsigned long addr)
 	blast_dcache32_page(addr);
 }
 
-static inline void r4k_blast_dcache_page_setup(void)
+static void __init r4k_blast_dcache_page_setup(void)
 {
 	unsigned long  dc_lsize = cpu_dcache_line_size();
 
@@ -103,7 +103,7 @@ static inline void r4k_blast_dcache_page_setup(void)
 
 static void (* r4k_blast_dcache_page_indexed)(unsigned long addr);
 
-static inline void r4k_blast_dcache_page_indexed_setup(void)
+static void __init r4k_blast_dcache_page_indexed_setup(void)
 {
 	unsigned long dc_lsize = cpu_dcache_line_size();
 
@@ -117,7 +117,7 @@ static inline void r4k_blast_dcache_page_indexed_setup(void)
 
 static void (* r4k_blast_dcache)(void);
 
-static inline void r4k_blast_dcache_setup(void)
+static void __init r4k_blast_dcache_setup(void)
 {
 	unsigned long dc_lsize = cpu_dcache_line_size();
 
@@ -202,7 +202,7 @@ static inline void tx49_blast_icache32_page_indexed(unsigned long page)
 
 static void (* r4k_blast_icache_page)(unsigned long addr);
 
-static inline void r4k_blast_icache_page_setup(void)
+static void __init r4k_blast_icache_page_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
@@ -219,7 +219,7 @@ static inline void r4k_blast_icache_page_setup(void)
 
 static void (* r4k_blast_icache_page_indexed)(unsigned long addr);
 
-static inline void r4k_blast_icache_page_indexed_setup(void)
+static void __init r4k_blast_icache_page_indexed_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
@@ -243,7 +243,7 @@ static inline void r4k_blast_icache_page_indexed_setup(void)
 
 static void (* r4k_blast_icache)(void);
 
-static inline void r4k_blast_icache_setup(void)
+static void __init r4k_blast_icache_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
@@ -264,7 +264,7 @@ static inline void r4k_blast_icache_setup(void)
 
 static void (* r4k_blast_scache_page)(unsigned long addr);
 
-static inline void r4k_blast_scache_page_setup(void)
+static void __init r4k_blast_scache_page_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
@@ -282,7 +282,7 @@ static inline void r4k_blast_scache_page_setup(void)
 
 static void (* r4k_blast_scache_page_indexed)(unsigned long addr);
 
-static inline void r4k_blast_scache_page_indexed_setup(void)
+static void __init r4k_blast_scache_page_indexed_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
@@ -300,7 +300,7 @@ static inline void r4k_blast_scache_page_indexed_setup(void)
 
 static void (* r4k_blast_scache)(void);
 
-static inline void r4k_blast_scache_setup(void)
+static void __init r4k_blast_scache_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
@@ -1221,7 +1221,7 @@ void au1x00_fixup_config_od(void)
 	}
 }
 
-static inline void coherency_setup(void)
+static void __init coherency_setup(void)
 {
 	change_c0_config(CONF_CM_CMASK, CONF_CM_DEFAULT);
 
