@@ -744,7 +744,6 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
-	srb_t *sp;
 	int ret;
 	unsigned int id, lun;
 	unsigned long serial;
@@ -755,8 +754,7 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	lun = cmd->device->lun;
 	serial = cmd->serial_number;
 
-	sp = (srb_t *) CMD_SP(cmd);
-	if (!sp || !fcport)
+	if (!fcport)
 		return ret;
 
 	qla_printk(KERN_INFO, ha,
@@ -875,7 +873,6 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
-	srb_t *sp;
 	int ret;
 	unsigned int id, lun;
 	unsigned long serial;
@@ -886,8 +883,7 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 	lun = cmd->device->lun;
 	serial = cmd->serial_number;
 
-	sp = (srb_t *) CMD_SP(cmd);
-	if (!sp || !fcport)
+	if (!fcport)
 		return ret;
 
 	qla_printk(KERN_INFO, ha,
@@ -936,7 +932,6 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
-	srb_t *sp;
 	int ret;
 	unsigned int id, lun;
 	unsigned long serial;
@@ -947,8 +942,7 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	lun = cmd->device->lun;
 	serial = cmd->serial_number;
 
-	sp = (srb_t *) CMD_SP(cmd);
-	if (!sp || !fcport)
+	if (!fcport)
 		return ret;
 
 	qla_printk(KERN_INFO, ha,
