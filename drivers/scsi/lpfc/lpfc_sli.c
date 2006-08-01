@@ -970,9 +970,11 @@ void lpfc_sli_poll_fcp_ring(struct lpfc_hba * phba)
 			 * resources need to be recovered.
 			 */
 			if (unlikely(irsp->ulpCommand == CMD_XRI_ABORTED_CX)) {
-				printk(KERN_INFO "%s: IOCB cmd 0x%x processed."
-				       " Skipping completion\n", __FUNCTION__,
-				       irsp->ulpCommand);
+				lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+						"%d:0314 IOCB cmd 0x%x"
+						" processed. Skipping"
+						" completion", phba->brd_no,
+						irsp->ulpCommand);
 				break;
 			}
 
@@ -1105,7 +1107,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 		if (unlikely(irsp->ulpStatus)) {
 			/* Rsp ring <ringno> error: IOCB */
 			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-				"%d:0326 Rsp Ring %d error: IOCB Data: "
+				"%d:0336 Rsp Ring %d error: IOCB Data: "
 				"x%x x%x x%x x%x x%x x%x x%x x%x\n",
 				phba->brd_no, pring->ringno,
 				irsp->un.ulpWord[0], irsp->un.ulpWord[1],
@@ -1123,9 +1125,11 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 			 * resources need to be recovered.
 			 */
 			if (unlikely(irsp->ulpCommand == CMD_XRI_ABORTED_CX)) {
-				printk(KERN_INFO "%s: IOCB cmd 0x%x processed. "
-				       "Skipping completion\n", __FUNCTION__,
-				       irsp->ulpCommand);
+				lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+						"%d:0333 IOCB cmd 0x%x"
+						" processed. Skipping"
+						" completion\n", phba->brd_no,
+						irsp->ulpCommand);
 				break;
 			}
 
@@ -1156,7 +1160,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 			} else {
 				/* Unknown IOCB command */
 				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"%d:0321 Unknown IOCB command "
+					"%d:0334 Unknown IOCB command "
 					"Data: x%x, x%x x%x x%x x%x\n",
 					phba->brd_no, type, irsp->ulpCommand,
 					irsp->ulpStatus, irsp->ulpIoTag,
@@ -1239,7 +1243,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 		lpfc_printf_log(phba,
 				KERN_ERR,
 				LOG_SLI,
-				"%d:0312 Ring %d handler: portRspPut %d "
+				"%d:0303 Ring %d handler: portRspPut %d "
 				"is bigger then rsp ring %d\n",
 				phba->brd_no,
 				pring->ringno, portRspPut, portRspMax);
@@ -1384,7 +1388,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 					lpfc_printf_log(phba,
 						KERN_ERR,
 						LOG_SLI,
-						"%d:0321 Unknown IOCB command "
+						"%d:0335 Unknown IOCB command "
 						"Data: x%x x%x x%x x%x\n",
 						phba->brd_no,
 						irsp->ulpCommand,
@@ -1759,7 +1763,7 @@ lpfc_sli_brdrestart(struct lpfc_hba * phba)
 
 	/* Restart HBA */
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"%d:0328 Restart HBA Data: x%x x%x\n", phba->brd_no,
+			"%d:0337 Restart HBA Data: x%x x%x\n", phba->brd_no,
 			phba->hba_state, psli->sli_flag);
 
 	word0 = 0;
@@ -3016,7 +3020,7 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
 
 		if (timeleft == 0) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"%d:0329 IOCB wait timeout error - no "
+					"%d:0338 IOCB wait timeout error - no "
 					"wake response Data x%x\n",
 					phba->brd_no, timeout);
 			retval = IOCB_TIMEDOUT;

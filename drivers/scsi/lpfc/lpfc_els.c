@@ -2839,7 +2839,7 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 
 	/* Xmit ELS RPS ACC response tag <ulpIoTag> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d:0128 Xmit ELS RPS ACC response tag x%x "
+			"%d:0118 Xmit ELS RPS ACC response tag x%x "
 			"Data: x%x x%x x%x x%x x%x\n",
 			phba->brd_no,
 			elsiocb->iocb.ulpIoTag,
@@ -2948,7 +2948,7 @@ lpfc_els_rsp_rpl_acc(struct lpfc_hba * phba, uint16_t cmdsize,
 
 	/* Xmit ELS RPL ACC response tag <ulpIoTag> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d:0128 Xmit ELS RPL ACC response tag x%x "
+			"%d:0120 Xmit ELS RPL ACC response tag x%x "
 			"Data: x%x x%x x%x x%x x%x\n",
 			phba->brd_no,
 			elsiocb->iocb.ulpIoTag,
@@ -3109,7 +3109,7 @@ lpfc_els_rcv_fan(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	struct lpfc_nodelist *ndlp, *next_ndlp;
 
 	/* FAN received */
-	lpfc_printf_log(phba, KERN_INFO, LOG_ELS, "%d:265 FAN received\n",
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS, "%d:0265 FAN received\n",
 								phba->brd_no);
 
 	icmd = &cmdiocb->iocb;

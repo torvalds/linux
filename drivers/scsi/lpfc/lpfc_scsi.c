@@ -1104,7 +1104,7 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 					  ndlp->rport->dd_data);
 		if (ret != SUCCESS) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-				"%d:0713 Bus Reset on target %d failed\n",
+				"%d:0700 Bus Reset on target %d failed\n",
 				phba->brd_no, i);
 			err_count++;
 		}
