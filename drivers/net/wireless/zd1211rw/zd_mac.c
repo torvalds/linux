@@ -108,7 +108,9 @@ int zd_mac_init_hw(struct zd_mac *mac, u8 device_type)
 	if (r)
 		goto disable_int;
 
-	r = zd_set_encryption_type(chip, NO_WEP);
+	/* We must inform the device that we are doing encryption/decryption in
+	 * software at the moment. */
+	r = zd_set_encryption_type(chip, ENC_SNIFFER);
 	if (r)
 		goto disable_int;
 
@@ -141,7 +143,6 @@ static int reset_mode(struct zd_mac *mac)
 				RX_FILTER_REASSOC_RESPONSE |
 				RX_FILTER_DISASSOC },
 		{ CR_SNIFFER_ON, 0U },
-		{ CR_ENCRYPTION_TYPE, NO_WEP },
 	};
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
