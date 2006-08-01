@@ -1711,15 +1711,13 @@ lpfc_sli_brdreset(struct lpfc_hba * phba)
 	phba->fc_myDID = 0;
 	phba->fc_prevDID = 0;
 
-	psli->sli_flag = 0;
-
 	/* Turn off parity checking and serr during the physical reset */
 	pci_read_config_word(phba->pcidev, PCI_COMMAND, &cfg_value);
 	pci_write_config_word(phba->pcidev, PCI_COMMAND,
 			      (cfg_value &
 			       ~(PCI_COMMAND_PARITY | PCI_COMMAND_SERR)));
 
-	psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+	psli->sli_flag &= ~(LPFC_SLI2_ACTIVE | LPFC_PROCESS_LA);
 	/* Now toggle INITFF bit in the Host Control Register */
 	writel(HC_INITFF, phba->HCregaddr);
 	mdelay(1);
@@ -1905,6 +1903,9 @@ lpfc_sli_hba_setup(struct lpfc_hba * phba)
 	}
 
 	while (resetcount < 2 && !done) {
+		spin_lock_irq(phba->host->host_lock);
+		phba->sli.sli_flag |= LPFC_SLI_MBOX_ACTIVE;
+		spin_unlock_irq(phba->host->host_lock);
 		phba->hba_state = LPFC_STATE_UNKNOWN;
 		lpfc_sli_brdrestart(phba);
 		msleep(2500);
@@ -1912,6 +1913,9 @@ lpfc_sli_hba_setup(struct lpfc_hba * phba)
 		if (rc)
 			break;
 
+		spin_lock_irq(phba->host->host_lock);
+		phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
+		spin_unlock_irq(phba->host->host_lock);
 		resetcount++;
 
 	/* Call pre CONFIG_PORT mailbox command initialization.  A value of 0
