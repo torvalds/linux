@@ -215,6 +215,7 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 		if (error)
 			goto fail;
 
+		buf += amount;
 		copied += amount;
 		lblock++;
 		dblock++;
@@ -335,6 +336,7 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf,
 		if (error)
 			goto fail;
 
+		buf += amount;
 		copied += amount;
 		lblock++;
 
