@@ -1659,7 +1659,8 @@ adjudge_to_death:
 			const int tmo = tcp_fin_time(sk);
 
 			if (tmo > TCP_TIMEWAIT_LEN) {
-				inet_csk_reset_keepalive_timer(sk, tcp_fin_time(sk));
+				inet_csk_reset_keepalive_timer(sk,
+						tmo - TCP_TIMEWAIT_LEN);
 			} else {
 				tcp_time_wait(sk, TCP_FIN_WAIT2, tmo);
 				goto out;
