@@ -323,7 +323,6 @@ static void disable_read_regs_int(struct zd_usb *usb)
 {
 	struct zd_usb_interrupt *intr = &usb->intr;
 
-	ZD_ASSERT(in_interrupt());
 	spin_lock(&intr->lock);
 	intr->read_regs_enabled = 0;
 	spin_unlock(&intr->lock);
