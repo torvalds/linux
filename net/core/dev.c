@@ -1166,11 +1166,6 @@ int skb_checksum_help(struct sk_buff *skb, int inward)
 		goto out_set_summed;
 
 	if (unlikely(skb_shinfo(skb)->gso_size)) {
-		static int warned;
-
-		WARN_ON(!warned);
-		warned = 1;
-
 		/* Let GSO fix up the checksum. */
 		goto out_set_summed;
 	}
@@ -1220,11 +1215,6 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	__skb_pull(skb, skb->mac_len);
 
 	if (unlikely(skb->ip_summed != CHECKSUM_HW)) {
-		static int warned;
-
-		WARN_ON(!warned);
-		warned = 1;
-
 		if (skb_header_cloned(skb) &&
 		    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
 			return ERR_PTR(err);
