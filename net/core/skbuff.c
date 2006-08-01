@@ -256,6 +256,29 @@ nodata:
 	goto out;
 }
 
+/**
+ *	__netdev_alloc_skb - allocate an skbuff for rx on a specific device
+ *	@dev: network device to receive on
+ *	@length: length to allocate
+ *	@gfp_mask: get_free_pages mask, passed to alloc_skb
+ *
+ *	Allocate a new &sk_buff and assign it a usage count of one. The
+ *	buffer has unspecified headroom built in. Users should allocate
+ *	the headroom they think they need without accounting for the
+ *	built in space. The built in space is used for optimisations.
+ *
+ *	%NULL is returned if there is no free memory.
+ */
+struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
+		unsigned int length, gfp_t gfp_mask)
+{
+	struct sk_buff *skb;
+
+	skb = alloc_skb(length + NET_SKB_PAD, gfp_mask);
+	if (likely(skb))
+		skb_reserve(skb, NET_SKB_PAD);
+	return skb;
+}
 
 static void skb_drop_list(struct sk_buff **listp)
 {
@@ -2048,6 +2071,7 @@ EXPORT_SYMBOL(__kfree_skb);
 EXPORT_SYMBOL(kfree_skb);
 EXPORT_SYMBOL(__pskb_pull_tail);
 EXPORT_SYMBOL(__alloc_skb);
+EXPORT_SYMBOL(__netdev_alloc_skb);
 EXPORT_SYMBOL(pskb_copy);
 EXPORT_SYMBOL(pskb_expand_head);
 EXPORT_SYMBOL(skb_checksum);
