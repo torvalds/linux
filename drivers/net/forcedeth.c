@@ -121,6 +121,11 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
+#ifdef CONFIG_FORCEDETH_NAPI
+#define DRIVERNAPI "-NAPI"
+#else
+#define DRIVERNAPI
+#endif
 #define FORCEDETH_VERSION		"0.57"
 #define DRV_NAME			"forcedeth"
 
@@ -1279,6 +1284,16 @@ static int nv_alloc_rx(struct net_device *dev)
 	return 0;
 }
 
+/* If rx bufs are exhausted called after 50ms to attempt to refresh */
+#ifdef CONFIG_FORCEDETH_NAPI
+static void nv_do_rx_refill(unsigned long data)
+{
+	struct net_device *dev = (struct net_device *) data;
+
+	/* Just reschedule NAPI rx processing */
+	netif_rx_schedule(dev);
+}
+#else
 static void nv_do_rx_refill(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *) data;
@@ -1307,6 +1322,7 @@ static void nv_do_rx_refill(unsigned long data)
 		enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 	}
 }
+#endif
 
 static void nv_init_rx(struct net_device *dev)
 {
@@ -1742,13 +1758,14 @@ static int nv_getlen(struct net_device *dev, void *packet, int datalen)
 	}
 }
 
-static void nv_rx_process(struct net_device *dev)
+static int nv_rx_process(struct net_device *dev, int limit)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u32 flags;
 	u32 vlanflags = 0;
+	int count;
 
-	for (;;) {
+ 	for (count = 0; count < limit; ++count) {
 		struct sk_buff *skb;
 		int len;
 		int i;
@@ -1882,17 +1899,27 @@ static void nv_rx_process(struct net_device *dev)
 		skb->protocol = eth_type_trans(skb, dev);
 		dprintk(KERN_DEBUG "%s: nv_rx_process: packet %d with %d bytes, proto %d accepted.\n",
 					dev->name, np->cur_rx, len, skb->protocol);
-		if (np->vlangrp && (vlanflags & NV_RX3_VLAN_TAG_PRESENT)) {
-			vlan_hwaccel_rx(skb, np->vlangrp, vlanflags & NV_RX3_VLAN_TAG_MASK);
-		} else {
+#ifdef CONFIG_FORCEDETH_NAPI
+		if (np->vlangrp && (vlanflags & NV_RX3_VLAN_TAG_PRESENT))
+			vlan_hwaccel_receive_skb(skb, np->vlangrp,
+						 vlanflags & NV_RX3_VLAN_TAG_MASK);
+		else
+			netif_receive_skb(skb);
+#else
+		if (np->vlangrp && (vlanflags & NV_RX3_VLAN_TAG_PRESENT))
+			vlan_hwaccel_rx(skb, np->vlangrp,
+					vlanflags & NV_RX3_VLAN_TAG_MASK);
+		else
 			netif_rx(skb);
-		}
+#endif
 		dev->last_rx = jiffies;
 		np->stats.rx_packets++;
 		np->stats.rx_bytes += len;
 next_pkt:
 		np->cur_rx++;
 	}
+
+	return count;
 }
 
 static void set_bufsize(struct net_device *dev)
@@ -2378,14 +2405,6 @@ static irqreturn_t nv_nic_irq(int foo, void *data, struct pt_regs *regs)
 		nv_tx_done(dev);
 		spin_unlock(&np->lock);
 
-		nv_rx_process(dev);
-		if (nv_alloc_rx(dev)) {
-			spin_lock(&np->lock);
-			if (!np->in_shutdown)
-				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
-			spin_unlock(&np->lock);
-		}
-
 		if (events & NVREG_IRQ_LINK) {
 			spin_lock(&np->lock);
 			nv_link_irq(dev);
@@ -2405,6 +2424,29 @@ static irqreturn_t nv_nic_irq(int foo, void *data, struct pt_regs *regs)
 			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
 						dev->name, events);
 		}
+#ifdef CONFIG_FORCEDETH_NAPI
+		if (events & NVREG_IRQ_RX_ALL) {
+			netif_rx_schedule(dev);
+
+			/* Disable furthur receive irq's */
+			spin_lock(&np->lock);
+			np->irqmask &= ~NVREG_IRQ_RX_ALL;
+
+			if (np->msi_flags & NV_MSI_X_ENABLED)
+				writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
+			else
+				writel(np->irqmask, base + NvRegIrqMask);
+			spin_unlock(&np->lock);
+		}
+#else
+		nv_rx_process(dev, dev->weight);
+		if (nv_alloc_rx(dev)) {
+			spin_lock(&np->lock);
+			if (!np->in_shutdown)
+				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
+			spin_unlock(&np->lock);
+		}
+#endif
 		if (i > max_interrupt_work) {
 			spin_lock(&np->lock);
 			/* disable interrupts on the nic */
@@ -2476,6 +2518,63 @@ static irqreturn_t nv_nic_irq_tx(int foo, void *data, struct pt_regs *regs)
 	return IRQ_RETVAL(i);
 }
 
+#ifdef CONFIG_FORCEDETH_NAPI
+static int nv_napi_poll(struct net_device *dev, int *budget)
+{
+	int pkts, limit = min(*budget, dev->quota);
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+
+	pkts = nv_rx_process(dev, limit);
+
+	if (nv_alloc_rx(dev)) {
+		spin_lock_irq(&np->lock);
+		if (!np->in_shutdown)
+			mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
+		spin_unlock_irq(&np->lock);
+	}
+
+	if (pkts < limit) {
+		/* all done, no more packets present */
+		netif_rx_complete(dev);
+
+		/* re-enable receive interrupts */
+		spin_lock_irq(&np->lock);
+		np->irqmask |= NVREG_IRQ_RX_ALL;
+		if (np->msi_flags & NV_MSI_X_ENABLED)
+			writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
+		else
+			writel(np->irqmask, base + NvRegIrqMask);
+		spin_unlock_irq(&np->lock);
+		return 0;
+	} else {
+		/* used up our quantum, so reschedule */
+		dev->quota -= pkts;
+		*budget -= pkts;
+		return 1;
+	}
+}
+#endif
+
+#ifdef CONFIG_FORCEDETH_NAPI
+static irqreturn_t nv_nic_irq_rx(int foo, void *data, struct pt_regs *regs)
+{
+	struct net_device *dev = (struct net_device *) data;
+	u8 __iomem *base = get_hwbase(dev);
+	u32 events;
+
+	events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_RX_ALL;
+	writel(NVREG_IRQ_RX_ALL, base + NvRegMSIXIrqStatus);
+
+	if (events) {
+		netif_rx_schedule(dev);
+		/* disable receive interrupts on the nic */
+		writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
+		pci_push(base);
+	}
+	return IRQ_HANDLED;
+}
+#else
 static irqreturn_t nv_nic_irq_rx(int foo, void *data, struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *) data;
@@ -2494,7 +2593,7 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data, struct pt_regs *regs)
 		if (!(events & np->irqmask))
 			break;
 
-		nv_rx_process(dev);
+		nv_rx_process(dev, dev->weight);
 		if (nv_alloc_rx(dev)) {
 			spin_lock_irq(&np->lock);
 			if (!np->in_shutdown)
@@ -2516,12 +2615,12 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data, struct pt_regs *regs)
 			spin_unlock_irq(&np->lock);
 			break;
 		}
-
 	}
 	dprintk(KERN_DEBUG "%s: nv_nic_irq_rx completed\n", dev->name);
 
 	return IRQ_RETVAL(i);
 }
+#endif
 
 static irqreturn_t nv_nic_irq_other(int foo, void *data, struct pt_regs *regs)
 {
@@ -3755,6 +3854,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 	if (test->flags & ETH_TEST_FL_OFFLINE) {
 		if (netif_running(dev)) {
 			netif_stop_queue(dev);
+			netif_poll_disable(dev);
 			netif_tx_lock_bh(dev);
 			spin_lock_irq(&np->lock);
 			nv_disable_hw_interrupts(dev, np->irqmask);
@@ -3813,6 +3913,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 			nv_start_rx(dev);
 			nv_start_tx(dev);
 			netif_start_queue(dev);
+			netif_poll_enable(dev);
 			nv_enable_hw_interrupts(dev, np->irqmask);
 		}
 	}
@@ -4016,6 +4117,8 @@ static int nv_open(struct net_device *dev)
 	nv_start_rx(dev);
 	nv_start_tx(dev);
 	netif_start_queue(dev);
+	netif_poll_enable(dev);
+
 	if (ret) {
 		netif_carrier_on(dev);
 	} else {
@@ -4045,6 +4148,7 @@ static int nv_close(struct net_device *dev)
 	spin_lock_irq(&np->lock);
 	np->in_shutdown = 1;
 	spin_unlock_irq(&np->lock);
+	netif_poll_disable(dev);
 	synchronize_irq(dev->irq);
 
 	del_timer_sync(&np->oom_kick);
@@ -4259,6 +4363,10 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	dev->set_multicast_list = nv_set_multicast;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = nv_poll_controller;
+#endif
+	dev->weight = 64;
+#ifdef CONFIG_FORCEDETH_NAPI
+	dev->poll = nv_napi_poll;
 #endif
 	SET_ETHTOOL_OPS(dev, &ops);
 	dev->tx_timeout = nv_tx_timeout;
