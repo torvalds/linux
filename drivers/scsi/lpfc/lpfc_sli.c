@@ -2197,7 +2197,8 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 			return (MBX_NOT_FINISHED);
 		}
 		/* timeout active mbox command */
-		mod_timer(&psli->mbox_tmo, jiffies + HZ * LPFC_MBOX_TMO);
+		mod_timer(&psli->mbox_tmo, (jiffies +
+			       (HZ * lpfc_mbox_tmo_val(phba, mb->mbxCommand))));
 	}
 
 	/* Mailbox cmd <cmd> issue */
@@ -2257,7 +2258,6 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 		break;
 
 	case MBX_POLL:
-		i = 0;
 		psli->mbox_active = NULL;
 		if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 			/* First read mbox status word */
@@ -2271,11 +2271,14 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 		/* Read the HBA Host Attention Register */
 		ha_copy = readl(phba->HAregaddr);
 
+		i = lpfc_mbox_tmo_val(phba, mb->mbxCommand);
+		i *= 1000; /* Convert to ms */
+
 		/* Wait for command to complete */
 		while (((word0 & OWN_CHIP) == OWN_CHIP) ||
 		       (!(ha_copy & HA_MBATT) &&
 			(phba->hba_state > LPFC_WARM_START))) {
-			if (i++ >= 100) {
+			if (i-- <= 0) {
 				psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 				spin_unlock_irqrestore(phba->host->host_lock,
 						       drvr_flag);
@@ -2293,7 +2296,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 
 			/* Can be in interrupt context, do not sleep */
 			/* (or might be called with interrupts disabled) */
-			mdelay(i);
+			mdelay(1);
 
 			spin_lock_irqsave(phba->host->host_lock, drvr_flag);
 

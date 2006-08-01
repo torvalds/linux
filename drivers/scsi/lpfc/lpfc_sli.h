@@ -225,3 +225,9 @@ struct lpfc_sli {
 
 #define LPFC_MBOX_TMO           30	/* Sec tmo for outstanding mbox
 					   command */
+#define LPFC_MBOX_TMO_FLASH_CMD 300     /* Sec tmo for outstanding FLASH write
+					 * or erase cmds. This is especially
+					 * long because of the potential of
+					 * multiple flash erases that can be
+					 * spawned.
+					 */

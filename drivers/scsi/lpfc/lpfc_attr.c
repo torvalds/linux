@@ -1000,7 +1000,8 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 			spin_unlock_irq(phba->host->host_lock);
 			rc = lpfc_sli_issue_mbox_wait (phba,
 						       phba->sysfs_mbox.mbox,
-						       phba->fc_ratov * 2);
+				lpfc_mbox_tmo_val(phba,
+				    phba->sysfs_mbox.mbox->mb.mbxCommand) * HZ);
 			spin_lock_irq(phba->host->host_lock);
 		}
 
