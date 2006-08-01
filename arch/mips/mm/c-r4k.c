@@ -1242,7 +1242,7 @@ static inline void coherency_setup(void)
 		clear_c0_config(CONF_CU);
 		break;
 	/*
-	 * We need to catch the ealry Alchemy SOCs with
+	 * We need to catch the early Alchemy SOCs with
 	 * the write-only co_config.od bit and set it back to one...
 	 */
 	case CPU_AU1000: /* rev. DA, HA, HB */
