@@ -461,10 +461,12 @@
 
 #define CR_RX_FILTER			CTL_REG(0x068c)
 #define RX_FILTER_ASSOC_RESPONSE	0x0002
+#define RX_FILTER_REASSOC_RESPONSE	0x0008
 #define RX_FILTER_PROBE_RESPONSE	0x0020
 #define RX_FILTER_BEACON		0x0100
+#define RX_FILTER_DISASSOC		0x0400
 #define RX_FILTER_AUTH			0x0800
-/* Sniff modus sets filter to 0xfffff */
+/* Monitor mode sets filter to 0xfffff */
 
 #define CR_ACK_TIMEOUT_EXT		CTL_REG(0x0690)
 #define CR_BCN_FIFO_SEMAPHORE		CTL_REG(0x0694)
