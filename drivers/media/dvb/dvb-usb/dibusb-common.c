@@ -230,15 +230,19 @@ static struct dib3000mc_config mod3000p_dib3000p_config = {
 
 int dibusb_dib3000mc_frontend_attach(struct dvb_usb_device *d)
 {
-	if (dib3000mc_attach(&d->i2c_adap, 1, DEFAULT_DIB3000P_I2C_ADDRESS, 0, &mod3000p_dib3000p_config, &d->fe) == 0) {
-		if (d->priv != NULL) {
-			struct dibusb_state *st = d->priv;
-			st->ops.pid_parse = dib3000mc_pid_parse;
-			st->ops.pid_ctrl  = dib3000mc_pid_control;
-		}
-		return 0;
+	int ret;
+	if ((ret = dib3000mc_attach(&d->i2c_adap, 1, DEFAULT_DIB3000P_I2C_ADDRESS, 0, &mod3000p_dib3000p_config, &d->fe)) != 0)
+		return ret;
+
+	if ((ret = dib3000mc_attach(&d->i2c_adap, 1, DEFAULT_DIB3000MC_I2C_ADDRESS, 0, &mod3000p_dib3000p_config, &d->fe)) != 0)
+		return ret;
+
+	if (d->priv != NULL) {
+		struct dibusb_state *st = d->priv;
+		st->ops.pid_parse = dib3000mc_pid_parse;
+		st->ops.pid_ctrl  = dib3000mc_pid_control;
 	}
-	return -ENODEV;
+	return 0;
 }
 EXPORT_SYMBOL(dibusb_dib3000mc_frontend_attach);
 

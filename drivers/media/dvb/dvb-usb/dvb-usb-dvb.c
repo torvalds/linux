@@ -191,11 +191,12 @@ int dvb_usb_fe_init(struct dvb_usb_device* d)
 			d->fe = NULL;
 			return -ENODEV;
 		}
+
+		/* only attach the tuner if the demod is there */
+		if (d->props.tuner_attach != NULL)
+			d->props.tuner_attach(d);
 	} else
 		err("no frontend was attached by '%s'",d->desc->name);
-
-	if (d->props.tuner_attach != NULL)
-		d->props.tuner_attach(d);
 
 	return 0;
 }
