@@ -761,7 +761,9 @@ void usb_buffer_free (
 )
 {
 	if (!dev || !dev->bus || !dev->bus->op || !dev->bus->op->buffer_free)
-	    	return;
+		return;
+	if (!addr)
+		return;
 	dev->bus->op->buffer_free (dev->bus, size, addr, dma);
 }
 
