@@ -596,6 +596,9 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			}
 			
 			err = output(skb);
+			if(!err)
+				IP6_INC_STATS(IPSTATS_MIB_FRAGCREATES);
+
 			if (err || !frag)
 				break;
 
@@ -707,12 +710,11 @@ slow_path:
 		/*
 		 *	Put this fragment into the sending queue.
 		 */
-
-		IP6_INC_STATS(IPSTATS_MIB_FRAGCREATES);
-
 		err = output(frag);
 		if (err)
 			goto fail;
+
+		IP6_INC_STATS(IPSTATS_MIB_FRAGCREATES);
 	}
 	kfree_skb(skb);
 	IP6_INC_STATS(IPSTATS_MIB_FRAGOKS);
