@@ -606,10 +606,17 @@ static inline __u32 skb_queue_len(const struct sk_buff_head *list_)
 
 extern struct lock_class_key skb_queue_lock_key;
 
+/*
+ * This function creates a split out lock class for each invocation;
+ * this is needed for now since a whole lot of users of the skb-queue
+ * infrastructure in drivers have different locking usage (in hardirq)
+ * than the networking core (in softirq only). In the long run either the
+ * network layer or drivers should need annotation to consolidate the
+ * main types of usage into 3 classes.
+ */
 static inline void skb_queue_head_init(struct sk_buff_head *list)
 {
 	spin_lock_init(&list->lock);
-	lockdep_set_class(&list->lock, &skb_queue_lock_key);
 	list->prev = list->next = (struct sk_buff *)list;
 	list->qlen = 0;
 }
