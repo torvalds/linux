@@ -139,6 +139,7 @@ extern void zfcp_erp_modify_adapter_status(struct zfcp_adapter *, u32, int);
 extern int  zfcp_erp_adapter_reopen(struct zfcp_adapter *, int);
 extern int  zfcp_erp_adapter_shutdown(struct zfcp_adapter *, int);
 extern void zfcp_erp_adapter_failed(struct zfcp_adapter *);
+extern void zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *);
 
 extern void zfcp_erp_modify_port_status(struct zfcp_port *, u32, int);
 extern int  zfcp_erp_port_reopen(struct zfcp_port *, int);
@@ -155,7 +156,7 @@ extern void zfcp_erp_unit_failed(struct zfcp_unit *);
 extern int  zfcp_erp_thread_setup(struct zfcp_adapter *);
 extern int  zfcp_erp_thread_kill(struct zfcp_adapter *);
 extern int  zfcp_erp_wait(struct zfcp_adapter *);
-extern int  zfcp_erp_async_handler(struct zfcp_erp_action *, unsigned long);
+extern void zfcp_erp_async_handler(struct zfcp_erp_action *, unsigned long);
 
 extern int  zfcp_test_link(struct zfcp_port *);
 

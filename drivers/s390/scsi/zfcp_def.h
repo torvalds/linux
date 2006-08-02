@@ -80,7 +80,7 @@ zfcp_address_to_sg(void *address, struct scatterlist *list)
 #define REQUEST_LIST_SIZE 128
 
 /********************* SCSI SPECIFIC DEFINES *********************************/
-#define ZFCP_SCSI_ER_TIMEOUT                    (100*HZ)
+#define ZFCP_SCSI_ER_TIMEOUT                    (10*HZ)
 
 /********************* CIO/QDIO SPECIFIC DEFINES *****************************/
 
