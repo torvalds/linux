@@ -128,7 +128,7 @@ static struct usb_driver option_driver = {
 static struct usb_serial_driver option_3port_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
-		.name =		"option",
+		.name =		"option3",
 	},
 	.description       = "GSM modem (3-port)",
 	.id_table          = option_ids3,
@@ -143,6 +143,7 @@ static struct usb_serial_driver option_3port_device = {
 	.chars_in_buffer   = option_chars_in_buffer,
 	.throttle          = option_rx_throttle,
 	.unthrottle        = option_rx_unthrottle,
+	.ioctl             = option_ioctl,
 	.set_termios       = option_set_termios,
 	.break_ctl         = option_break_ctl,
 	.tiocmget          = option_tiocmget,
@@ -155,7 +156,7 @@ static struct usb_serial_driver option_3port_device = {
 static struct usb_serial_driver option_1port_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
-		.name =		"option",
+		.name =		"option1",
 	},
 	.description       = "GSM modem (1-port)",
 	.id_table          = option_ids1,
@@ -629,7 +630,6 @@ static void option_setup_urbs(struct usb_serial *serial)
 	struct option_port_private *portdata;
 
 	dbg("%s", __FUNCTION__);
-
 
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
