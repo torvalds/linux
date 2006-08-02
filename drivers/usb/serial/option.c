@@ -9,33 +9,7 @@
 
   Portions copied from the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 
-  History:
-
-  2005-05-19  v0.1   Initial version, based on incomplete docs
-                     and analysis of misbehavior with the standard driver
-  2005-05-20  v0.2   Extended the input buffer to avoid losing
-                     random 64-byte chunks of data
-  2005-05-21  v0.3   implemented chars_in_buffer()
-                     turned on low_latency
-                     simplified the code somewhat
-  2005-05-24  v0.4   option_write() sometimes deadlocked under heavy load
-                     removed some dead code
-                     added sponsor notice
-                     coding style clean-up
-  2005-06-20  v0.4.1 add missing braces :-/
-                     killed end-of-line whitespace
-  2005-07-15  v0.4.2 rename WLAN product to FUSION, add FUSION2
-  2005-09-10  v0.4.3 added HUAWEI E600 card and Audiovox AirCard
-  2005-09-20  v0.4.4 increased recv buffer size: the card sometimes
-                     wants to send >2000 bytes.
-  2006-04-10  v0.5   fixed two array overrun errors :-/
-  2006-04-21  v0.5.1 added support for Sierra Wireless MC8755
-  2006-05-15  v0.6   re-enable multi-port support
-  2006-06-01  v0.6.1 add COBRA
-  2006-06-01  v0.6.2 add backwards-compatibility stuff
-  2006-06-01  v0.6.3 add Novatel Wireless
-  2006-06-01  v0.7   Option => GSM
-  2006-06-01  v0.7.1 add COBRA2
+  History: see the git log.
 
   Work sponsored by: Sigos GmbH, Germany <info@sigos.de>
 
