@@ -1792,6 +1792,9 @@ lpfc_sli_brdrestart(struct lpfc_hba * phba)
 
 	spin_unlock_irq(phba->host->host_lock);
 
+	memset(&psli->lnk_stat_offsets, 0, sizeof(psli->lnk_stat_offsets));
+	psli->stats_start = get_seconds();
+
 	if (skip_post)
 		mdelay(100);
 	else
