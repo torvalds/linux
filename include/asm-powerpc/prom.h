@@ -259,7 +259,7 @@ struct of_irq {
 	u32 specifier[OF_MAX_IRQ_SPEC];	/* Specifier copy */
 };
 
-/***
+/**
  * of_irq_map_init - Initialize the irq remapper
  * @flags:	flags defining workarounds to enable
  *
@@ -272,7 +272,7 @@ struct of_irq {
 
 extern void of_irq_map_init(unsigned int flags);
 
-/***
+/**
  * of_irq_map_raw - Low level interrupt tree parsing
  * @parent:	the device interrupt parent
  * @intspec:	interrupt specifier ("interrupts" property of the device)
@@ -292,7 +292,7 @@ extern int of_irq_map_raw(struct device_node *parent, const u32 *intspec,
 			  const u32 *addr, struct of_irq *out_irq);
 
 
-/***
+/**
  * of_irq_map_one - Resolve an interrupt for a device
  * @device:	the device whose interrupt is to be resolved
  * @index:     	index of the interrupt to resolve
@@ -305,7 +305,7 @@ extern int of_irq_map_raw(struct device_node *parent, const u32 *intspec,
 extern int of_irq_map_one(struct device_node *device, int index,
 			  struct of_irq *out_irq);
 
-/***
+/**
  * of_irq_map_pci - Resolve the interrupt for a PCI device
  * @pdev:	the device whose interrupt is to be resolved
  * @out_irq:	structure of_irq filled by this function
