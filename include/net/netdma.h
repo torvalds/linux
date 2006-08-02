@@ -29,7 +29,7 @@ static inline struct dma_chan *get_softnet_dma(void)
 {
 	struct dma_chan *chan;
 	rcu_read_lock();
-	chan = rcu_dereference(__get_cpu_var(softnet_data.net_dma));
+	chan = rcu_dereference(__get_cpu_var(softnet_data).net_dma);
 	if (chan)
 		dma_chan_get(chan);
 	rcu_read_unlock();

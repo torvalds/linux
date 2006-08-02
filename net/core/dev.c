@@ -3421,7 +3421,7 @@ static void net_dma_rebalance(void)
 
 	if (net_dma_count == 0) {
 		for_each_online_cpu(cpu)
-			rcu_assign_pointer(per_cpu(softnet_data.net_dma, cpu), NULL);
+			rcu_assign_pointer(per_cpu(softnet_data, cpu).net_dma, NULL);
 		return;
 	}
 
@@ -3434,7 +3434,7 @@ static void net_dma_rebalance(void)
 		   + (i < (num_online_cpus() % net_dma_count) ? 1 : 0));
 
 		while(n) {
-			per_cpu(softnet_data.net_dma, cpu) = chan;
+			per_cpu(softnet_data, cpu).net_dma = chan;
 			cpu = next_cpu(cpu, cpu_online_map);
 			n--;
 		}
