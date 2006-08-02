@@ -2754,7 +2754,6 @@ static inline int security_secid_to_secctx(u32 secid, char **secdata, u32 *secle
 
 static inline void security_release_secctx(char *secdata, u32 seclen)
 {
-	return -EOPNOTSUPP;
 }
 #endif	/* CONFIG_SECURITY */
 
