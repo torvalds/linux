@@ -848,18 +848,16 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 	struct zfcp_adapter *adapter = erp_action->adapter;
 
 	if (erp_action->fsf_req) {
-		/* take lock to ensure that request is not being deleted meanwhile */
-		spin_lock(&adapter->fsf_req_list_lock);
-		/* check whether fsf req does still exist */
-		list_for_each_entry(fsf_req, &adapter->fsf_req_list_head, list)
-		    if (fsf_req == erp_action->fsf_req)
-			break;
-		if (fsf_req && (fsf_req->erp_action == erp_action)) {
+		/* take lock to ensure that request is not deleted meanwhile */
+		spin_lock(&adapter->req_list_lock);
+		if ((!zfcp_reqlist_ismember(adapter,
+					    erp_action->fsf_req->req_id)) &&
+		    (fsf_req->erp_action == erp_action)) {
 			/* fsf_req still exists */
 			debug_text_event(adapter->erp_dbf, 3, "a_ca_req");
 			debug_event(adapter->erp_dbf, 3, &fsf_req,
 				    sizeof (unsigned long));
-			/* dismiss fsf_req of timed out or dismissed erp_action */
+			/* dismiss fsf_req of timed out/dismissed erp_action */
 			if (erp_action->status & (ZFCP_STATUS_ERP_DISMISSED |
 						  ZFCP_STATUS_ERP_TIMEDOUT)) {
 				debug_text_event(adapter->erp_dbf, 3,
@@ -892,7 +890,7 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 			 */
 			erp_action->fsf_req = NULL;
 		}
-		spin_unlock(&adapter->fsf_req_list_lock);
+		spin_unlock(&adapter->req_list_lock);
 	} else
 		debug_text_event(adapter->erp_dbf, 3, "a_ca_noreq");
 

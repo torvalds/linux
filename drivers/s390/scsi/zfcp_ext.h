@@ -63,7 +63,6 @@ extern int  zfcp_qdio_allocate_queues(struct zfcp_adapter *);
 extern void zfcp_qdio_free_queues(struct zfcp_adapter *);
 extern int  zfcp_qdio_determine_pci(struct zfcp_qdio_queue *,
 				    struct zfcp_fsf_req *);
-extern int  zfcp_qdio_reqid_check(struct zfcp_adapter *, void *);
 
 extern volatile struct qdio_buffer_element *zfcp_qdio_sbale_req
 	(struct zfcp_fsf_req *, int, int);
@@ -190,5 +189,10 @@ extern void zfcp_scsi_dbf_event_abort(const char *, struct zfcp_adapter *,
 				      struct zfcp_fsf_req *);
 extern void zfcp_scsi_dbf_event_devreset(const char *, u8, struct zfcp_unit *,
 					 struct scsi_cmnd *);
+extern void zfcp_reqlist_add(struct zfcp_adapter *, struct zfcp_fsf_req *);
+extern void zfcp_reqlist_remove(struct zfcp_adapter *, unsigned long);
+extern struct zfcp_fsf_req *zfcp_reqlist_ismember(struct zfcp_adapter *,
+						  unsigned long);
+extern int zfcp_reqlist_isempty(struct zfcp_adapter *);
 
 #endif	/* ZFCP_EXT_H */

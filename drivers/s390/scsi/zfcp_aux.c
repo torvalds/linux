@@ -112,6 +112,105 @@ _zfcp_hex_dump(char *addr, int count)
 		printk("\n");
 }
 
+
+/****************************************************************/
+/****** Functions to handle the request ID hash table    ********/
+/****************************************************************/
+
+#define ZFCP_LOG_AREA			ZFCP_LOG_AREA_FSF
+
+static int zfcp_reqlist_init(struct zfcp_adapter *adapter)
+{
+	int i;
+
+	adapter->req_list = kcalloc(REQUEST_LIST_SIZE, sizeof(struct list_head),
+				    GFP_KERNEL);
+
+	if (!adapter->req_list)
+		return -ENOMEM;
+
+	for (i=0; i<REQUEST_LIST_SIZE; i++)
+		INIT_LIST_HEAD(&adapter->req_list[i]);
+
+	return 0;
+}
+
+static void zfcp_reqlist_free(struct zfcp_adapter *adapter)
+{
+	struct zfcp_fsf_req *request, *tmp;
+	unsigned int i;
+
+	for (i=0; i<REQUEST_LIST_SIZE; i++) {
+		if (list_empty(&adapter->req_list[i]))
+			continue;
+
+		list_for_each_entry_safe(request, tmp,
+					 &adapter->req_list[i], list)
+			list_del(&request->list);
+	}
+
+	kfree(adapter->req_list);
+}
+
+void zfcp_reqlist_add(struct zfcp_adapter *adapter,
+		      struct zfcp_fsf_req *fsf_req)
+{
+	unsigned int i;
+
+	i = fsf_req->req_id % REQUEST_LIST_SIZE;
+	list_add_tail(&fsf_req->list, &adapter->req_list[i]);
+}
+
+void zfcp_reqlist_remove(struct zfcp_adapter *adapter, unsigned long req_id)
+{
+	struct zfcp_fsf_req *request, *tmp;
+	unsigned int i, counter;
+	u64 dbg_tmp[2];
+
+	i = req_id % REQUEST_LIST_SIZE;
+	BUG_ON(list_empty(&adapter->req_list[i]));
+
+	counter = 0;
+	list_for_each_entry_safe(request, tmp, &adapter->req_list[i], list) {
+		if (request->req_id == req_id) {
+			dbg_tmp[0] = (u64) atomic_read(&adapter->reqs_active);
+			dbg_tmp[1] = (u64) counter;
+			debug_event(adapter->erp_dbf, 4, (void *) dbg_tmp, 16);
+			list_del(&request->list);
+			break;
+		}
+		counter++;
+	}
+}
+
+struct zfcp_fsf_req *zfcp_reqlist_ismember(struct zfcp_adapter *adapter,
+					   unsigned long req_id)
+{
+	struct zfcp_fsf_req *request, *tmp;
+	unsigned int i;
+
+	i = req_id % REQUEST_LIST_SIZE;
+
+	list_for_each_entry_safe(request, tmp, &adapter->req_list[i], list)
+		if (request->req_id == req_id)
+			return request;
+
+	return NULL;
+}
+
+int zfcp_reqlist_isempty(struct zfcp_adapter *adapter)
+{
+	unsigned int i;
+
+	for (i=0; i<REQUEST_LIST_SIZE; i++)
+		if (!list_empty(&adapter->req_list[i]))
+			return 0;
+
+	return 1;
+}
+
+#undef ZFCP_LOG_AREA
+
 /****************************************************************/
 /************** Uncategorised Functions *************************/
 /****************************************************************/
@@ -961,8 +1060,12 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	INIT_LIST_HEAD(&adapter->port_remove_lh);
 
 	/* initialize list of fsf requests */
-	spin_lock_init(&adapter->fsf_req_list_lock);
-	INIT_LIST_HEAD(&adapter->fsf_req_list_head);
+	spin_lock_init(&adapter->req_list_lock);
+	retval = zfcp_reqlist_init(adapter);
+	if (retval) {
+		ZFCP_LOG_INFO("request list initialization failed\n");
+		goto failed_low_mem_buffers;
+	}
 
 	/* initialize debug locks */
 
@@ -1041,8 +1144,6 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
  *		!0 - struct zfcp_adapter  data structure could not be removed
  *			(e.g. still used)
  * locks:	adapter list write lock is assumed to be held by caller
- *              adapter->fsf_req_list_lock is taken and released within this 
- *              function and must not be held on entry
  */
 void
 zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
@@ -1054,14 +1155,14 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	zfcp_sysfs_adapter_remove_files(&adapter->ccw_device->dev);
 	dev_set_drvdata(&adapter->ccw_device->dev, NULL);
 	/* sanity check: no pending FSF requests */
-	spin_lock_irqsave(&adapter->fsf_req_list_lock, flags);
-	retval = !list_empty(&adapter->fsf_req_list_head);
-	spin_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
-	if (retval) {
+	spin_lock_irqsave(&adapter->req_list_lock, flags);
+	retval = zfcp_reqlist_isempty(adapter);
+	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
+	if (!retval) {
 		ZFCP_LOG_NORMAL("bug: adapter %s (%p) still in use, "
 				"%i requests outstanding\n",
 				zfcp_get_busid_by_adapter(adapter), adapter,
-				atomic_read(&adapter->fsf_reqs_active));
+				atomic_read(&adapter->reqs_active));
 		retval = -EBUSY;
 		goto out;
 	}
@@ -1087,6 +1188,7 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	zfcp_free_low_mem_buffers(adapter);
 	/* free memory of adapter data structure and queues */
 	zfcp_qdio_free_queues(adapter);
+	zfcp_reqlist_free(adapter);
 	kfree(adapter->fc_stats);
 	kfree(adapter->stats_reset_data);
 	ZFCP_LOG_TRACE("freeing adapter structure\n");
