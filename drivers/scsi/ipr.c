@@ -4127,8 +4127,7 @@ static int ipr_get_autosense(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioasa *ioasa = &ipr_cmd->ioasa;
 
-	if ((be32_to_cpu(ioasa->ioasc_specific) &
-	     (IPR_ADDITIONAL_STATUS_FMT | IPR_AUTOSENSE_VALID)) == 0)
+	if ((be32_to_cpu(ioasa->ioasc_specific) & IPR_AUTOSENSE_VALID) == 0)
 		return 0;
 
 	memcpy(ipr_cmd->scsi_cmd->sense_buffer, ioasa->auto_sense.data,
