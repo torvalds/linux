@@ -203,9 +203,9 @@ static u32 global_outstanding_command_orbs = 0;
 #define outstanding_orb_incr global_outstanding_command_orbs++
 #define outstanding_orb_decr global_outstanding_command_orbs--
 #else
-#define SBP2_ORB_DEBUG(fmt, args...)
-#define outstanding_orb_incr
-#define outstanding_orb_decr
+#define SBP2_ORB_DEBUG(fmt, args...)	do {} while (0)
+#define outstanding_orb_incr		do {} while (0)
+#define outstanding_orb_decr		do {} while (0)
 #endif
 
 #ifdef CONFIG_IEEE1394_SBP2_DEBUG_DMA
@@ -217,8 +217,8 @@ static u32 global_outstanding_command_orbs = 0;
 		 --global_outstanding_dmas, ## args)
 static u32 global_outstanding_dmas = 0;
 #else
-#define SBP2_DMA_ALLOC(fmt, args...)
-#define SBP2_DMA_FREE(fmt, args...)
+#define SBP2_DMA_ALLOC(fmt, args...)	do {} while (0)
+#define SBP2_DMA_FREE(fmt, args...)	do {} while (0)
 #endif
 
 #if CONFIG_IEEE1394_SBP2_DEBUG >= 2
@@ -232,7 +232,7 @@ static u32 global_outstanding_dmas = 0;
 #define SBP2_NOTICE(fmt, args...)	HPSB_NOTICE("sbp2: "fmt, ## args)
 #define SBP2_WARN(fmt, args...)		HPSB_WARN("sbp2: "fmt, ## args)
 #else
-#define SBP2_DEBUG(fmt, args...)
+#define SBP2_DEBUG(fmt, args...)	do {} while (0)
 #define SBP2_INFO(fmt, args...)		HPSB_INFO("sbp2: "fmt, ## args)
 #define SBP2_NOTICE(fmt, args...)       HPSB_NOTICE("sbp2: "fmt, ## args)
 #define SBP2_WARN(fmt, args...)         HPSB_WARN("sbp2: "fmt, ## args)
@@ -375,8 +375,8 @@ static inline void sbp2util_cpu_to_be32_buffer(void *buffer, int length)
 }
 #else /* BIG_ENDIAN */
 /* Why waste the cpu cycles? */
-#define sbp2util_be32_to_cpu_buffer(x,y)
-#define sbp2util_cpu_to_be32_buffer(x,y)
+#define sbp2util_be32_to_cpu_buffer(x,y) do {} while (0)
+#define sbp2util_cpu_to_be32_buffer(x,y) do {} while (0)
 #endif
 
 #ifdef CONFIG_IEEE1394_SBP2_PACKET_DUMP
@@ -412,7 +412,7 @@ static void sbp2util_packet_dump(void *buffer, int length, char *dump_name,
 	return;
 }
 #else
-#define sbp2util_packet_dump(w,x,y,z)
+#define sbp2util_packet_dump(w,x,y,z) do {} while (0)
 #endif
 
 static DECLARE_WAIT_QUEUE_HEAD(access_wq);

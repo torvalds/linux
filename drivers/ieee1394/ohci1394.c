@@ -136,7 +136,7 @@
 #define DBGMSG(fmt, args...) \
 printk(KERN_INFO "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->id , ## args)
 #else
-#define DBGMSG(fmt, args...)
+#define DBGMSG(fmt, args...) do {} while (0)
 #endif
 
 #ifdef CONFIG_IEEE1394_OHCI_DMA_DEBUG
@@ -148,8 +148,8 @@ printk(KERN_INFO "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->
 		--global_outstanding_dmas, ## args)
 static int global_outstanding_dmas = 0;
 #else
-#define OHCI_DMA_ALLOC(fmt, args...)
-#define OHCI_DMA_FREE(fmt, args...)
+#define OHCI_DMA_ALLOC(fmt, args...) do {} while (0)
+#define OHCI_DMA_FREE(fmt, args...) do {} while (0)
 #endif
 
 /* print general (card independent) information */
@@ -210,7 +210,7 @@ static inline void packet_swab(quadlet_t *data, int tcode)
 }
 #else
 /* Don't waste cycles on same sex byte swaps */
-#define packet_swab(w,x)
+#define packet_swab(w,x) do {} while (0)
 #endif /* !LITTLE_ENDIAN */
 
 /***********************************

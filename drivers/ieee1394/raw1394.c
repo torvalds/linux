@@ -67,7 +67,7 @@
 #define DBGMSG(fmt, args...) \
 printk(KERN_INFO "raw1394:" fmt "\n" , ## args)
 #else
-#define DBGMSG(fmt, args...)
+#define DBGMSG(fmt, args...) do {} while (0)
 #endif
 
 static LIST_HEAD(host_info_list);

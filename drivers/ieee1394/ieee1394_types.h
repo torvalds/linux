@@ -41,7 +41,7 @@ typedef u16 arm_length_t;
 #define HPSB_VERBOSE(fmt, args...)	HPSB_PRINT(KERN_DEBUG, fmt , ## args)
 #define HPSB_DEBUG_TLABELS
 #else
-#define HPSB_VERBOSE(fmt, args...)
+#define HPSB_VERBOSE(fmt, args...)	do {} while (0)
 #endif
 
 #ifdef __BIG_ENDIAN

@@ -85,7 +85,7 @@ static void dump_packet(const char *text, quadlet_t *data, int size, int speed)
 	printk("\n");
 }
 #else
-#define dump_packet(a,b,c,d)
+#define dump_packet(a,b,c,d) do {} while (0)
 #endif
 
 static void abort_requests(struct hpsb_host *host);

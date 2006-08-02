@@ -137,13 +137,13 @@
 #if DV1394_DEBUG_LEVEL >= 2
 #define irq_printk( args... ) printk( args )
 #else
-#define irq_printk( args... )
+#define irq_printk( args... ) do {} while (0)
 #endif
 
 #if DV1394_DEBUG_LEVEL >= 1
 #define debug_printk( args... ) printk( args)
 #else
-#define debug_printk( args... )
+#define debug_printk( args... ) do {} while (0)
 #endif
 
 /* issue a dummy PCI read to force the preceding write

@@ -129,7 +129,7 @@ struct file_ctx {
 #define DBGMSG(card, fmt, args...) \
 printk(KERN_INFO "video1394_%d: " fmt "\n" , card , ## args)
 #else
-#define DBGMSG(card, fmt, args...)
+#define DBGMSG(card, fmt, args...) do {} while (0)
 #endif
 
 /* print general (card independent) information */
