@@ -557,7 +557,9 @@ unsigned long prom_memparse(const char *ptr, const char **retptr)
 static void __init early_cmdline_parse(void)
 {
 	struct prom_t *_prom = &RELOC(prom);
+#ifdef CONFIG_PPC64
 	const char *opt;
+#endif
 	char *p;
 	int l = 0;
 
@@ -2030,6 +2032,39 @@ static void __init fixup_device_tree_maple(void)
 #define fixup_device_tree_maple()
 #endif
 
+#ifdef CONFIG_PPC_CHRP
+/* Pegasos lacks the "ranges" property in the isa node */
+static void __init fixup_device_tree_chrp(void)
+{
+	phandle isa;
+	u32 isa_ranges[6];
+	char *name;
+	int rc;
+
+	name = "/pci@80000000/isa@c";
+	isa = call_prom("finddevice", 1, 1, ADDR(name));
+	if (!PHANDLE_VALID(isa))
+		return;
+
+	rc = prom_getproplen(isa, "ranges");
+	if (rc != 0 && rc != PROM_ERROR)
+		return;
+
+	prom_printf("Fixing up missing ISA range on Pegasos...\n");
+
+	isa_ranges[0] = 0x1;
+	isa_ranges[1] = 0x0;
+	isa_ranges[2] = 0x01006000;
+	isa_ranges[3] = 0x0;
+	isa_ranges[4] = 0x0;
+	isa_ranges[5] = 0x00010000;
+	prom_setprop(isa, name, "ranges",
+			isa_ranges, sizeof(isa_ranges));
+}
+#else
+#define fixup_device_tree_chrp()
+#endif
+
 #if defined(CONFIG_PPC64) && defined(CONFIG_PPC_PMAC)
 static void __init fixup_device_tree_pmac(void)
 {
@@ -2077,6 +2112,7 @@ static void __init fixup_device_tree_pmac(void)
 static void __init fixup_device_tree(void)
 {
 	fixup_device_tree_maple();
+	fixup_device_tree_chrp();
 	fixup_device_tree_pmac();
 }
 

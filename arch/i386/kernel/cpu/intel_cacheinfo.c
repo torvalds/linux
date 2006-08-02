@@ -759,7 +759,7 @@ static int __cpuinit cache_sysfs_init(void)
 	if (num_cache_leaves == 0)
 		return 0;
 
-	register_cpu_notifier(&cacheinfo_cpu_notifier);
+	register_hotcpu_notifier(&cacheinfo_cpu_notifier);
 
 	for_each_online_cpu(i) {
 		cacheinfo_cpu_callback(&cacheinfo_cpu_notifier, CPU_ONLINE,

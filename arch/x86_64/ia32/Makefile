@@ -23,6 +23,7 @@ targets := $(foreach F,sysenter syscall,vsyscall-$F.o vsyscall-$F.so)
 # The DSO images are built using a special linker script
 quiet_cmd_syscall = SYSCALL $@
       cmd_syscall = $(CC) -m32 -nostdlib -shared -s \
+			  $(call ld-option, -Wl$(comma)--hash-style=sysv) \
 			   -Wl,-soname=linux-gate.so.1 -o $@ \
 			   -Wl,-T,$(filter-out FORCE,$^)
 

@@ -85,6 +85,13 @@ cc-version = $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh \
 cc-ifversion = $(shell if [ $(call cc-version, $(CC)) $(1) $(2) ]; then \
                        echo $(3); fi;)
 
+# ld-option
+# Usage: ldflags += $(call ld-option, -Wl$(comma)--hash-style=both)
+ld-option = $(shell if $(CC) $(1) \
+			     -nostdlib -o ldtest$$$$.out -xc /dev/null \
+             > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi; \
+	     rm -f ldtest$$$$.out)
+
 ###
 # Shorthand for $(Q)$(MAKE) -f scripts/Makefile.build obj=
 # Usage:

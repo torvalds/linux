@@ -225,6 +225,32 @@ static __inline__ int has_low_battery(void)
 	return (data1 == data2);	/* Was the write blocked? */
 }
 
+static void __init mostek_set_system_time(void)
+{
+	unsigned int year, mon, day, hour, min, sec;
+	struct mostek48t02 *mregs;
+
+	mregs = (struct mostek48t02 *)mstk48t02_regs;
+	if(!mregs) {
+		prom_printf("Something wrong, clock regs not mapped yet.\n");
+		prom_halt();
+	}		
+	spin_lock_irq(&mostek_lock);
+	mregs->creg |= MSTK_CREG_READ;
+	sec = MSTK_REG_SEC(mregs);
+	min = MSTK_REG_MIN(mregs);
+	hour = MSTK_REG_HOUR(mregs);
+	day = MSTK_REG_DOM(mregs);
+	mon = MSTK_REG_MONTH(mregs);
+	year = MSTK_CVT_YEAR( MSTK_REG_YEAR(mregs) );
+	xtime.tv_sec = mktime(year, mon, day, hour, min, sec);
+	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+        set_normalized_timespec(&wall_to_monotonic,
+                                -xtime.tv_sec, -xtime.tv_nsec);
+	mregs->creg &= ~MSTK_CREG_READ;
+	spin_unlock_irq(&mostek_lock);
+}
+
 /* Probe for the real time clock chip on Sun4 */
 static __inline__ void sun4_clock_probe(void)
 {
@@ -273,6 +299,7 @@ static __inline__ void sun4_clock_probe(void)
 #endif
 }
 
+#ifndef CONFIG_SUN4
 static int __devinit clock_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
@@ -307,6 +334,8 @@ static int __devinit clock_probe(struct of_device *op, const struct of_device_id
 	if (mostek_read(mstk48t02_regs + MOSTEK_SEC) & MSTK_STOP)
 		kick_start_clock();
 
+	mostek_set_system_time();
+
 	return 0;
 }
 
@@ -325,56 +354,37 @@ static struct of_platform_driver clock_driver = {
 
 
 /* Probe for the mostek real time clock chip. */
-static void clock_init(void)
+static int __init clock_init(void)
 {
-	of_register_driver(&clock_driver, &of_bus_type);
+	return of_register_driver(&clock_driver, &of_bus_type);
 }
+
+/* Must be after subsys_initcall() so that busses are probed.  Must
+ * be before device_initcall() because things like the RTC driver
+ * need to see the clock registers.
+ */
+fs_initcall(clock_init);
+#endif /* !CONFIG_SUN4 */
 
 void __init sbus_time_init(void)
 {
-	unsigned int year, mon, day, hour, min, sec;
-	struct mostek48t02 *mregs;
-
-#ifdef CONFIG_SUN4
-	int temp;
-	struct intersil *iregs;
-#endif
 
 	BTFIXUPSET_CALL(bus_do_settimeofday, sbus_do_settimeofday, BTFIXUPCALL_NORM);
 	btfixup();
 
 	if (ARCH_SUN4)
 		sun4_clock_probe();
-	else
-		clock_init();
 
 	sparc_init_timers(timer_interrupt);
 	
 #ifdef CONFIG_SUN4
 	if(idprom->id_machtype == (SM_SUN4 | SM_4_330)) {
-#endif
-	mregs = (struct mostek48t02 *)mstk48t02_regs;
-	if(!mregs) {
-		prom_printf("Something wrong, clock regs not mapped yet.\n");
-		prom_halt();
-	}		
-	spin_lock_irq(&mostek_lock);
-	mregs->creg |= MSTK_CREG_READ;
-	sec = MSTK_REG_SEC(mregs);
-	min = MSTK_REG_MIN(mregs);
-	hour = MSTK_REG_HOUR(mregs);
-	day = MSTK_REG_DOM(mregs);
-	mon = MSTK_REG_MONTH(mregs);
-	year = MSTK_CVT_YEAR( MSTK_REG_YEAR(mregs) );
-	xtime.tv_sec = mktime(year, mon, day, hour, min, sec);
-	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-        set_normalized_timespec(&wall_to_monotonic,
-                                -xtime.tv_sec, -xtime.tv_nsec);
-	mregs->creg &= ~MSTK_CREG_READ;
-	spin_unlock_irq(&mostek_lock);
-#ifdef CONFIG_SUN4
+		mostek_set_system_time();
 	} else if(idprom->id_machtype == (SM_SUN4 | SM_4_260) ) {
 		/* initialise the intersil on sun4 */
+		unsigned int year, mon, day, hour, min, sec;
+		int temp;
+		struct intersil *iregs;
 
 		iregs=intersil_clock;
 		if(!iregs) {

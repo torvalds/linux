@@ -251,15 +251,23 @@ A: This is what you would need in your kernel code to receive notifications.
 		return NOTIFY_OK;
 	}
 
-	static struct notifier_block foobar_cpu_notifer =
+	static struct notifier_block __cpuinitdata foobar_cpu_notifer =
 	{
 	   .notifier_call = foobar_cpu_callback,
 	};
 
+You need to call register_cpu_notifier() from your init function.
+Init functions could be of two types:
+1. early init (init function called when only the boot processor is online).
+2. late init (init function called _after_ all the CPUs are online).
 
-In your init function,
+For the first case, you should add the following to your init function
 
 	register_cpu_notifier(&foobar_cpu_notifier);
+
+For the second case, you should add the following to your init function
+
+	register_hotcpu_notifier(&foobar_cpu_notifier);
 
 You can fail PREPARE notifiers if something doesn't work to prepare resources.
 This will stop the activity and send a following CANCELED event back.

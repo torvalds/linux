@@ -55,7 +55,7 @@ static inline void delayacct_tsk_init(struct task_struct *tsk)
 {
 	/* reinitialize in case parent's non-null pointer was dup'ed*/
 	tsk->delays = NULL;
-	if (unlikely(delayacct_on))
+	if (delayacct_on)
 		__delayacct_tsk_init(tsk);
 }
 
@@ -80,9 +80,7 @@ static inline void delayacct_blkio_end(void)
 static inline int delayacct_add_tsk(struct taskstats *d,
 					struct task_struct *tsk)
 {
-	if (likely(!delayacct_on))
-		return -EINVAL;
-	if (!tsk->delays)
+	if (!delayacct_on || !tsk->delays)
 		return 0;
 	return __delayacct_add_tsk(d, tsk);
 }

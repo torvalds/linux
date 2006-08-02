@@ -455,7 +455,10 @@ static void do_wait_for_fifo(u16 entries, struct aty128fb_par *par);
 static void wait_for_fifo(u16 entries, struct aty128fb_par *par);
 static void wait_for_idle(struct aty128fb_par *par);
 static u32 depth_to_dst(u32 depth);
+
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
 static void aty128_bl_set_power(struct fb_info *info, int power);
+#endif
 
 #define BIOS_IN8(v)  	(readb(bios + (v)))
 #define BIOS_IN16(v) 	(readb(bios + (v)) | \

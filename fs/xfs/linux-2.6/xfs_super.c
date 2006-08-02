@@ -314,6 +314,13 @@ xfs_mountfs_check_barriers(xfs_mount_t *mp)
 		return;
 	}
 
+	if (xfs_readonly_buftarg(mp->m_ddev_targp)) {
+		xfs_fs_cmn_err(CE_NOTE, mp,
+		  "Disabling barriers, underlying device is readonly");
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+		return;
+	}
+
 	error = xfs_barrier_test(mp);
 	if (error) {
 		xfs_fs_cmn_err(CE_NOTE, mp,

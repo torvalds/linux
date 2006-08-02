@@ -1537,7 +1537,7 @@ static int __init sparc_lance_init(void)
 {
 	if ((idprom->id_machtype == (SM_SUN4|SM_4_330)) ||
 	    (idprom->id_machtype == (SM_SUN4|SM_4_470))) {
-		memset(&sun4_sdev, 0, sizeof(sdev));
+		memset(&sun4_sdev, 0, sizeof(struct sbus_dev));
 		sun4_sdev.reg_addrs[0].phys_addr = sun4_eth_physaddr;
 		sun4_sdev.irqs[0] = 6;
 		return sparc_lance_probe_one(&sun4_sdev, NULL, NULL);
@@ -1547,16 +1547,16 @@ static int __init sparc_lance_init(void)
 
 static int __exit sunlance_sun4_remove(void)
 {
-	struct lance_private *lp = dev_get_drvdata(&sun4_sdev->dev);
+	struct lance_private *lp = dev_get_drvdata(&sun4_sdev.ofdev.dev);
 	struct net_device *net_dev = lp->dev;
 
 	unregister_netdevice(net_dev);
 
-	lance_free_hwresources(root_lance_dev);
+	lance_free_hwresources(lp);
 
 	free_netdev(net_dev);
 
-	dev_set_drvdata(&sun4_sdev->dev, NULL);
+	dev_set_drvdata(&sun4_sdev.ofdev.dev, NULL);
 
 	return 0;
 }

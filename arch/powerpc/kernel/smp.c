@@ -144,13 +144,15 @@ void smp_message_recv(int msg, struct pt_regs *regs)
 
 void smp_send_reschedule(int cpu)
 {
-	smp_ops->message_pass(cpu, PPC_MSG_RESCHEDULE);
+	if (likely(smp_ops))
+		smp_ops->message_pass(cpu, PPC_MSG_RESCHEDULE);
 }
 
 #ifdef CONFIG_DEBUGGER
 void smp_send_debugger_break(int cpu)
 {
-	smp_ops->message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
+	if (likely(smp_ops))
+		smp_ops->message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
 }
 #endif
 
@@ -158,7 +160,7 @@ void smp_send_debugger_break(int cpu)
 void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 {
 	crash_ipi_function_ptr = crash_ipi_callback;
-	if (crash_ipi_callback) {
+	if (crash_ipi_callback && smp_ops) {
 		mb();
 		smp_ops->message_pass(MSG_ALL_BUT_SELF, PPC_MSG_DEBUGGER_BREAK);
 	}
@@ -219,6 +221,9 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
+
+	if (unlikely(smp_ops == NULL))
+		return -1;
 
 	data.func = func;
 	data.info = info;
@@ -357,7 +362,10 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	smp_store_cpu_info(boot_cpuid);
 	cpu_callin_map[boot_cpuid] = 1;
 
-	max_cpus = smp_ops->probe();
+	if (smp_ops)
+		max_cpus = smp_ops->probe();
+	else
+		max_cpus = 1;
  
 	smp_space_timers(max_cpus);
 
@@ -453,7 +461,7 @@ void generic_mach_cpu_die(void)
 
 static int __devinit cpu_enable(unsigned int cpu)
 {
-	if (smp_ops->cpu_enable)
+	if (smp_ops && smp_ops->cpu_enable)
 		return smp_ops->cpu_enable(cpu);
 
 	return -ENOSYS;
@@ -467,7 +475,8 @@ int __devinit __cpu_up(unsigned int cpu)
 	if (!cpu_enable(cpu))
 		return 0;
 
-	if (smp_ops->cpu_bootable && !smp_ops->cpu_bootable(cpu))
+	if (smp_ops == NULL ||
+	    (smp_ops->cpu_bootable && !smp_ops->cpu_bootable(cpu)))
 		return -EINVAL;
 
 	/* Make sure callin-map entry is 0 (can be leftover a CPU
@@ -568,7 +577,8 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	old_mask = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(boot_cpuid));
 	
-	smp_ops->setup_cpu(boot_cpuid);
+	if (smp_ops)
+		smp_ops->setup_cpu(boot_cpuid);
 
 	set_cpus_allowed(current, old_mask);
 

@@ -233,7 +233,7 @@ validate_cc_value(unsigned long cc)
 	index = cpu->type & 0xffffffff;
 
 	/* If index out of bounds, no way to validate.  */
-	if (index >= sizeof(cpu_hz)/sizeof(cpu_hz[0]))
+	if (index >= ARRAY_SIZE(cpu_hz))
 		return cc;
 
 	/* If index contains no data, no way to validate.  */
