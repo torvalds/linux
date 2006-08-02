@@ -4218,7 +4218,8 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 	case IPR_IOASC_NR_INIT_CMD_REQUIRED:
 		break;
 	default:
-		scsi_cmd->result |= (DID_ERROR << 16);
+		if (IPR_IOASC_SENSE_KEY(ioasc) > RECOVERED_ERROR)
+			scsi_cmd->result |= (DID_ERROR << 16);
 		if (!ipr_is_vset_device(res) && !ipr_is_naca_model(res))
 			res->needs_sync_complete = 1;
 		break;
