@@ -687,7 +687,7 @@ _GLOBAL(kexec_sequence)
 	/* clear out hardware hash page table and tlb */
 	ld	r5,0(r27)		/* deref function descriptor */
 	mtctr	r5
-	bctrl				/* ppc_md.hash_clear_all(void); */
+	bctrl				/* ppc_md.hpte_clear_all(void); */
 
 /*
  *   kexec image calling is:

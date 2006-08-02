@@ -13,6 +13,7 @@
 #include <asm/cacheflush.h>
 #include <asm/proc-fns.h>
 #include <asm/tlbflush.h>
+#include <asm/page.h>
 
 #ifndef MULTI_CPU
 EXPORT_SYMBOL(cpu_dcache_clean_area);
@@ -28,6 +29,13 @@ EXPORT_SYMBOL(__cpuc_flush_user_range);
 EXPORT_SYMBOL(__cpuc_coherent_kern_range);
 #else
 EXPORT_SYMBOL(cpu_cache);
+#endif
+
+#ifndef MULTI_USER
+EXPORT_SYMBOL(__cpu_clear_user_page);
+EXPORT_SYMBOL(__cpu_copy_user_page);
+#else
+EXPORT_SYMBOL(cpu_user);
 #endif
 
 /*

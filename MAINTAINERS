@@ -968,6 +968,10 @@ P:	Andrey V. Savochkin
 M:	saw@saw.sw.com.sg
 S:	Maintained
 
+EFS FILESYSTEM
+W:	http://aeschi.ch.eu.org/efs/
+S:	Orphan
+
 EMU10K1 SOUND DRIVER
 P:	James Courtier-Dutton
 M:	James@superbug.demon.co.uk
@@ -1598,7 +1602,7 @@ W:	http://jfs.sourceforge.net/
 T:	git kernel.org:/pub/scm/linux/kernel/git/shaggy/jfs-2.6.git
 S:	Supported
 
-JOURNALLING LAYER FOR BLOCK DEVICS (JBD)
+JOURNALLING LAYER FOR BLOCK DEVICES (JBD)
 P:	Stephen Tweedie, Andrew Morton
 M:	sct@redhat.com, akpm@osdl.org
 L:	ext2-devel@lists.sourceforge.net
@@ -1642,9 +1646,8 @@ S:	Maintained
 
 KERNEL JANITORS
 P:	Several
-L:	kernel-janitors@osdl.org
+L:	kernel-janitors@lists.osdl.org
 W:	http://www.kerneljanitors.org/
-W:	http://sf.net/projects/kernel-janitor/
 S:	Maintained
 
 KERNEL NFSD
@@ -1881,6 +1884,12 @@ M:     Neela.Kolli@engenio.com
 S:     linux-scsi@vger.kernel.org
 W:     http://megaraid.lsilogic.com
 S:     Maintained
+
+MEMORY MANAGEMENT
+L:	linux-mm@kvack.org
+L:	linux-kernel@vger.kernel.org
+W:	http://www.linux-mm.org
+S:	Maintained
 
 MEMORY TECHNOLOGY DEVICES (MTD)
 P:	David Woodhouse

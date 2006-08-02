@@ -45,7 +45,8 @@ CPPFLAGS_gate.lds := -P -C -U$(ARCH)
 quiet_cmd_gate = GATE $@
       cmd_gate = $(CC) -nostdlib $(GATECFLAGS_$(@F)) -Wl,-T,$(filter-out FORCE,$^) -o $@
 
-GATECFLAGS_gate.so = -shared -s -Wl,-soname=linux-gate.so.1
+GATECFLAGS_gate.so = -shared -s -Wl,-soname=linux-gate.so.1 \
+		     $(call ld-option, -Wl$(comma)--hash-style=sysv)
 $(obj)/gate.so: $(obj)/gate.lds $(obj)/gate.o FORCE
 	$(call if_changed,gate)
 

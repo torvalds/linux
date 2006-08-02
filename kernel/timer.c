@@ -84,7 +84,7 @@ typedef struct tvec_t_base_s tvec_base_t;
 
 tvec_base_t boot_tvec_bases;
 EXPORT_SYMBOL(boot_tvec_bases);
-static DEFINE_PER_CPU(tvec_base_t *, tvec_bases) = { &boot_tvec_bases };
+static DEFINE_PER_CPU(tvec_base_t *, tvec_bases) = &boot_tvec_bases;
 
 static inline void set_running_timer(tvec_base_t *base,
 					struct timer_list *timer)
@@ -408,7 +408,7 @@ static int cascade(tvec_base_t *base, tvec_t *tv, int index)
  * This function cascades all vectors and executes all expired timer
  * vectors.
  */
-#define INDEX(N) (base->timer_jiffies >> (TVR_BITS + N * TVN_BITS)) & TVN_MASK
+#define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
 
 static inline void __run_timers(tvec_base_t *base)
 {
@@ -1688,7 +1688,7 @@ static void __devinit migrate_timers(int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static int __devinit timer_cpu_notify(struct notifier_block *self,
+static int __cpuinit timer_cpu_notify(struct notifier_block *self,
 				unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
@@ -1708,7 +1708,7 @@ static int __devinit timer_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __devinitdata timers_nb = {
+static struct notifier_block __cpuinitdata timers_nb = {
 	.notifier_call	= timer_cpu_notify,
 };
 

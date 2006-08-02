@@ -93,9 +93,12 @@ static void __queue_work(struct cpu_workqueue_struct *cwq,
 	spin_unlock_irqrestore(&cwq->lock, flags);
 }
 
-/*
- * Queue work on a workqueue. Return non-zero if it was successfully
- * added.
+/**
+ * queue_work - queue work on a workqueue
+ * @wq: workqueue to use
+ * @work: work to queue
+ *
+ * Returns non-zero if it was successfully added.
  *
  * We queue the work to the CPU it was submitted, but there is no
  * guarantee that it will be processed by that CPU.
@@ -128,6 +131,14 @@ static void delayed_work_timer_fn(unsigned long __data)
 	__queue_work(per_cpu_ptr(wq->cpu_wq, cpu), work);
 }
 
+/**
+ * queue_delayed_work - queue work on a workqueue after delay
+ * @wq: workqueue to use
+ * @work: work to queue
+ * @delay: number of jiffies to wait before queueing
+ *
+ * Returns non-zero if it was successfully added.
+ */
 int fastcall queue_delayed_work(struct workqueue_struct *wq,
 			struct work_struct *work, unsigned long delay)
 {
@@ -150,6 +161,15 @@ int fastcall queue_delayed_work(struct workqueue_struct *wq,
 }
 EXPORT_SYMBOL_GPL(queue_delayed_work);
 
+/**
+ * queue_delayed_work_on - queue work on specific CPU after delay
+ * @cpu: CPU number to execute work on
+ * @wq: workqueue to use
+ * @work: work to queue
+ * @delay: number of jiffies to wait before queueing
+ *
+ * Returns non-zero if it was successfully added.
+ */
 int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 			struct work_struct *work, unsigned long delay)
 {
@@ -275,8 +295,9 @@ static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
 	}
 }
 
-/*
+/**
  * flush_workqueue - ensure that any scheduled work has run to completion.
+ * @wq: workqueue to flush
  *
  * Forces execution of the workqueue and blocks until its completion.
  * This is typically used in driver shutdown handlers.
@@ -400,6 +421,12 @@ static void cleanup_workqueue_thread(struct workqueue_struct *wq, int cpu)
 		kthread_stop(p);
 }
 
+/**
+ * destroy_workqueue - safely terminate a workqueue
+ * @wq: target workqueue
+ *
+ * Safely destroy a workqueue. All work currently pending will be done first.
+ */
 void destroy_workqueue(struct workqueue_struct *wq)
 {
 	int cpu;
@@ -425,18 +452,41 @@ EXPORT_SYMBOL_GPL(destroy_workqueue);
 
 static struct workqueue_struct *keventd_wq;
 
+/**
+ * schedule_work - put work task in global workqueue
+ * @work: job to be done
+ *
+ * This puts a job in the kernel-global workqueue.
+ */
 int fastcall schedule_work(struct work_struct *work)
 {
 	return queue_work(keventd_wq, work);
 }
 EXPORT_SYMBOL(schedule_work);
 
+/**
+ * schedule_delayed_work - put work task in global workqueue after delay
+ * @work: job to be done
+ * @delay: number of jiffies to wait
+ *
+ * After waiting for a given time this puts a job in the kernel-global
+ * workqueue.
+ */
 int fastcall schedule_delayed_work(struct work_struct *work, unsigned long delay)
 {
 	return queue_delayed_work(keventd_wq, work, delay);
 }
 EXPORT_SYMBOL(schedule_delayed_work);
 
+/**
+ * schedule_delayed_work_on - queue work in global workqueue on CPU after delay
+ * @cpu: cpu to use
+ * @work: job to be done
+ * @delay: number of jiffies to wait
+ *
+ * After waiting for a given time this puts a job in the kernel-global
+ * workqueue on the specified CPU.
+ */
 int schedule_delayed_work_on(int cpu,
 			struct work_struct *work, unsigned long delay)
 {

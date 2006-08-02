@@ -117,11 +117,8 @@ die (const char *str, struct pt_regs *regs, long err)
 	die.lock_owner = -1;
 	spin_unlock_irq(&die.lock);
 
-	if (panic_on_oops) {
-		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
-		ssleep(5);
-		panic("Fatal exception");
-	}
+	if (panic_on_oops)
+		panic("Fatal exception: panic_on_oops");
 
   	do_exit(SIGSEGV);
 }

@@ -620,7 +620,7 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 		return -ENXIO;
 	}
 	dev_info(&mgp->pdev->dev, "handoff confirmed\n");
-	myri10ge_dummy_rdma(mgp, mgp->tx.boundary != 4096);
+	myri10ge_dummy_rdma(mgp, 1);
 
 	return 0;
 }

@@ -217,17 +217,24 @@ xfs_qm_statvfs(
 		return 0;
 	dp = &dqp->q_core;
 
-	limit = dp->d_blk_softlimit ? dp->d_blk_softlimit : dp->d_blk_hardlimit;
+	limit = dp->d_blk_softlimit ?
+		be64_to_cpu(dp->d_blk_softlimit) :
+		be64_to_cpu(dp->d_blk_hardlimit);
 	if (limit && statp->f_blocks > limit) {
 		statp->f_blocks = limit;
-		statp->f_bfree = (statp->f_blocks > dp->d_bcount) ?
-					(statp->f_blocks - dp->d_bcount) : 0;
+		statp->f_bfree =
+			(statp->f_blocks > be64_to_cpu(dp->d_bcount)) ?
+			 (statp->f_blocks - be64_to_cpu(dp->d_bcount)) : 0;
 	}
-	limit = dp->d_ino_softlimit ? dp->d_ino_softlimit : dp->d_ino_hardlimit;
+
+	limit = dp->d_ino_softlimit ?
+		be64_to_cpu(dp->d_ino_softlimit) :
+		be64_to_cpu(dp->d_ino_hardlimit);
 	if (limit && statp->f_files > limit) {
 		statp->f_files = limit;
-		statp->f_ffree = (statp->f_files > dp->d_icount) ?
-					(statp->f_ffree - dp->d_icount) : 0;
+		statp->f_ffree =
+			(statp->f_files > be64_to_cpu(dp->d_icount)) ?
+			 (statp->f_ffree - be64_to_cpu(dp->d_icount)) : 0;
 	}
 
 	xfs_qm_dqput(dqp);

@@ -339,7 +339,7 @@ static inline pgprot_t pgprot_noncached(pgprot_t prot)
 	"	.section	.sun4v_2insn_patch, \"ax\"\n"
 	"	.word		661b\n"
 	"	andn		%0, %4, %0\n"
-	"	or		%0, %3, %0\n"
+	"	or		%0, %5, %0\n"
 	"	.previous\n"
 	: "=r" (val)
 	: "0" (val), "i" (_PAGE_CP_4U | _PAGE_CV_4U), "i" (_PAGE_E_4U),

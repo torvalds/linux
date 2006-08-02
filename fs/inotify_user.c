@@ -187,7 +187,7 @@ static struct inotify_kernel_event * kernel_event(s32 wd, u32 mask, u32 cookie,
 {
 	struct inotify_kernel_event *kevent;
 
-	kevent = kmem_cache_alloc(event_cachep, GFP_KERNEL);
+	kevent = kmem_cache_alloc(event_cachep, GFP_NOFS);
 	if (unlikely(!kevent))
 		return NULL;
 
