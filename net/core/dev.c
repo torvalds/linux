@@ -3419,12 +3419,9 @@ static void net_dma_rebalance(void)
 	unsigned int cpu, i, n;
 	struct dma_chan *chan;
 
-	lock_cpu_hotplug();
-
 	if (net_dma_count == 0) {
 		for_each_online_cpu(cpu)
 			rcu_assign_pointer(per_cpu(softnet_data.net_dma, cpu), NULL);
-		unlock_cpu_hotplug();
 		return;
 	}
 
@@ -3444,8 +3441,6 @@ static void net_dma_rebalance(void)
 		i++;
 	}
 	rcu_read_unlock();
-
-	unlock_cpu_hotplug();
 }
 
 /**
