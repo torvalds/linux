@@ -604,8 +604,6 @@ static inline __u32 skb_queue_len(const struct sk_buff_head *list_)
 	return list_->qlen;
 }
 
-extern struct lock_class_key skb_queue_lock_key;
-
 /*
  * This function creates a split out lock class for each invocation;
  * this is needed for now since a whole lot of users of the skb-queue
