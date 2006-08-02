@@ -272,8 +272,8 @@ static int av7110_dvb_c_switch(struct saa7146_fh *fh)
 				if (ves1820_writereg(dev, 0x09, 0x0f, 0x60))
 					dprintk(1, "setting band in demodulator failed.\n");
 			} else if (av7110->analog_tuner_flags & ANALOG_TUNER_STV0297) {
-				saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTHI); // TDA9198 pin9(STD)
-				saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTHI); // TDA9198 pin30(VIF)
+				saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTHI); // TDA9819 pin9(STD)
+				saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTHI); // TDA9819 pin30(VIF)
 			}
 			if (i2c_writereg(av7110, 0x48, 0x02, 0xd0) != 1)
 				dprintk(1, "saa7113 write failed @ card %d", av7110->dvb_adapter.num);
@@ -308,8 +308,8 @@ static int av7110_dvb_c_switch(struct saa7146_fh *fh)
 			if (ves1820_writereg(dev, 0x09, 0x0f, 0x20))
 				dprintk(1, "setting band in demodulator failed.\n");
 		} else if (av7110->analog_tuner_flags & ANALOG_TUNER_STV0297) {
-			saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTLO); // TDA9198 pin9(STD)
-			saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTLO); // TDA9198 pin30(VIF)
+			saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTLO); // TDA9819 pin9(STD)
+			saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTLO); // TDA9819 pin30(VIF)
 		}
 	}
 
@@ -750,8 +750,8 @@ int av7110_init_analog_module(struct av7110 *av7110)
 			if (ves1820_writereg(av7110->dev, 0x09, 0x0f, 0x20))
 				dprintk(1, "setting band in demodulator failed.\n");
 		} else if (av7110->analog_tuner_flags & ANALOG_TUNER_STV0297) {
-			saa7146_setgpio(av7110->dev, 1, SAA7146_GPIO_OUTLO); // TDA9198 pin9(STD)
-			saa7146_setgpio(av7110->dev, 3, SAA7146_GPIO_OUTLO); // TDA9198 pin30(VIF)
+			saa7146_setgpio(av7110->dev, 1, SAA7146_GPIO_OUTLO); // TDA9819 pin9(STD)
+			saa7146_setgpio(av7110->dev, 3, SAA7146_GPIO_OUTLO); // TDA9819 pin30(VIF)
 		}
 
 		/* init the saa7113 */
