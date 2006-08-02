@@ -1460,8 +1460,13 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 	pSMB->hdr.smb_buf_length += count;
 	pSMB->ByteCount = cpu_to_le16(count);
 
-	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+	if (waitFlag) {
+		rc = SendReceiveBlockingLock(xid, tcon, (struct smb_hdr *) pSMB,
+			(struct smb_hdr *) pSMBr, &bytes_returned);
+	} else {
+		rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, timeout);
+	}
 	cifs_stats_inc(&tcon->num_locks);
 	if (rc) {
 		cFYI(1, ("Send error in Lock = %d", rc));
@@ -1546,8 +1551,14 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 	pSMB->Reserved4 = 0;
 	pSMB->hdr.smb_buf_length += byte_count;
 	pSMB->ByteCount = cpu_to_le16(byte_count);
-	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+	if (waitFlag) {
+		rc = SendReceiveBlockingLock(xid, tcon, (struct smb_hdr *) pSMB,
+			(struct smb_hdr *) pSMBr, &bytes_returned);
+	} else {
+		rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			(struct smb_hdr *) pSMBr, &bytes_returned, timeout);
+	}
+
 	if (rc) {
 		cFYI(1, ("Send error in Posix Lock = %d", rc));
 	} else if (get_flag) {
