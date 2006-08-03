@@ -79,6 +79,23 @@ enum ib_rate mult_to_ib_rate(int mult)
 }
 EXPORT_SYMBOL(mult_to_ib_rate);
 
+enum rdma_transport_type
+rdma_node_get_transport(enum rdma_node_type node_type)
+{
+	switch (node_type) {
+	case RDMA_NODE_IB_CA:
+	case RDMA_NODE_IB_SWITCH:
+	case RDMA_NODE_IB_ROUTER:
+		return RDMA_TRANSPORT_IB;
+	case RDMA_NODE_RNIC:
+		return RDMA_TRANSPORT_IWARP;
+	default:
+		BUG();
+		return 0;
+	}
+}
+EXPORT_SYMBOL(rdma_node_get_transport);
+
 /* Protection domains */
 
 struct ib_pd *ib_alloc_pd(struct ib_device *device)

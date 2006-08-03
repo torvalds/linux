@@ -1538,7 +1538,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
 		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)		|
 		(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
-	dev->node_type = IB_NODE_CA;
+	dev->node_type = RDMA_NODE_IB_CA;
 	dev->phys_port_cnt = 1;
 	dev->dma_device = &dd->pcidev->dev;
 	dev->class_dev.dev = dev->dma_device;

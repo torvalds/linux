@@ -3280,6 +3280,9 @@ static void cm_add_one(struct ib_device *device)
 	int ret;
 	u8 i;
 
+	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
+		return;
+
 	cm_dev = kmalloc(sizeof(*cm_dev) + sizeof(*port) *
 			 device->phys_port_cnt, GFP_KERNEL);
 	if (!cm_dev)
