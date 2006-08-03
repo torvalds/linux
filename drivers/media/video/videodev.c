@@ -760,7 +760,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		ret=vfd->vidioc_overlay(file, fh, *i);
 		break;
 	}
-#ifdef HAVE_V4L1
+#ifdef CONFIG_V4L1_COMPAT
 	/* --- streaming capture ------------------------------------- */
 	case VIDIOCGMBUF:
 	{
@@ -1512,6 +1512,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	int i=0;
 	int base;
 	int end;
+	int ret;
 	char *name_base;
 
 	switch(type)
@@ -1537,6 +1538,8 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 			name_base = "radio";
 			break;
 		default:
+			printk(KERN_ERR "%s called with unknown type: %d\n",
+			       __FUNCTION__, type);
 			return -1;
 	}
 
@@ -1571,9 +1574,18 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	vfd->class_dev.class       = &video_class;
 	vfd->class_dev.devt        = MKDEV(VIDEO_MAJOR, vfd->minor);
 	sprintf(vfd->class_dev.class_id, "%s%d", name_base, i - base);
-	class_device_register(&vfd->class_dev);
-	class_device_create_file(&vfd->class_dev,
-				&class_device_attr_name);
+	ret = class_device_register(&vfd->class_dev);
+	if (ret < 0) {
+		printk(KERN_ERR "%s: class_device_register failed\n",
+		       __FUNCTION__);
+		goto fail_minor;
+	}
+	ret = class_device_create_file(&vfd->class_dev, &class_device_attr_name);
+	if (ret < 0) {
+		printk(KERN_ERR "%s: class_device_create_file 'name' failed\n",
+		       __FUNCTION__);
+		goto fail_classdev;
+	}
 
 #if 1
 	/* needed until all drivers are fixed */
@@ -1583,6 +1595,15 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 		       "http://lwn.net/Articles/36850/\n", vfd->name);
 #endif
 	return 0;
+
+fail_classdev:
+	class_device_unregister(&vfd->class_dev);
+fail_minor:
+	mutex_lock(&videodev_lock);
+	video_device[vfd->minor] = NULL;
+	vfd->minor = -1;
+	mutex_unlock(&videodev_lock);
+	return ret;
 }
 
 /**

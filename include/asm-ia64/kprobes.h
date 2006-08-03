@@ -125,5 +125,6 @@ static inline void jprobe_return(void)
 }
 extern void invalidate_stacked_regs(void);
 extern void flush_register_stack(void);
+extern void flush_insn_slot(struct kprobe *p);
 
 #endif				/* _ASM_KPROBES_H */

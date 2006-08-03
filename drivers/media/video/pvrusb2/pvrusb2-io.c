@@ -26,6 +26,8 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 
+static const char *pvr2_buffer_state_decode(enum pvr2_buffer_state);
+
 #define BUFFER_SIG 0x47653271
 
 // #define SANITY_CHECK_BUFFERS
@@ -515,6 +517,10 @@ void pvr2_stream_set_callback(struct pvr2_stream *sp,
 }
 
 /* Query / set the nominal buffer count */
+int pvr2_stream_get_buffer_count(struct pvr2_stream *sp)
+{
+	return sp->buffer_target_count;
+}
 
 int pvr2_stream_set_buffer_count(struct pvr2_stream *sp,unsigned int cnt)
 {
@@ -552,7 +558,6 @@ int pvr2_stream_get_ready_count(struct pvr2_stream *sp)
 {
 	return sp->r_count;
 }
-
 
 void pvr2_stream_kill(struct pvr2_stream *sp)
 {
@@ -607,7 +612,6 @@ int pvr2_buffer_queue(struct pvr2_buffer *bp)
 	return ret;
 }
 
-
 int pvr2_buffer_set_buffer(struct pvr2_buffer *bp,void *ptr,unsigned int cnt)
 {
 	int ret = 0;
@@ -645,7 +649,6 @@ int pvr2_buffer_get_status(struct pvr2_buffer *bp)
 {
 	return bp->status;
 }
-
 
 int pvr2_buffer_get_id(struct pvr2_buffer *bp)
 {

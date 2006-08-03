@@ -52,9 +52,6 @@ struct budget {
 	struct dmx_frontend hw_frontend;
 	struct dmx_frontend mem_frontend;
 
-	int fe_synced;
-	struct mutex pid_mutex;
-
 	int ci_present;
 	int video_port;
 
@@ -74,6 +71,9 @@ struct budget {
 
 	struct dvb_adapter dvb_adapter;
 	struct dvb_frontend *dvb_frontend;
+	int (*read_fe_status)(struct dvb_frontend *fe, fe_status_t *status);
+	int fe_synced;
+
 	void *priv;
 };
 
@@ -106,6 +106,7 @@ static struct saa7146_pci_extension_data x_var = { \
 extern int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 			     struct saa7146_pci_extension_data *info,
 			     struct module *owner);
+extern void ttpci_budget_init_hooks(struct budget *budget);
 extern int ttpci_budget_deinit(struct budget *budget);
 extern void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 * isr);
 extern void ttpci_budget_set_video_port(struct saa7146_dev *dev, int video_port);

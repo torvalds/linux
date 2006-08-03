@@ -10,7 +10,9 @@ kernel, the process can sometimes be daunting if you're not familiar
 with "the system."  This text is a collection of suggestions which
 can greatly increase the chances of your change being accepted.
 
-If you are submitting a driver, also read Documentation/SubmittingDrivers.
+Read Documentation/SubmitChecklist for a list of items to check
+before submitting code.  If you are submitting a driver, also read
+Documentation/SubmittingDrivers.
 
 
 
@@ -73,9 +75,6 @@ There are a number of scripts which can aid in this:
 
 Quilt:
 http://savannah.nongnu.org/projects/quilt
-
-Randy Dunlap's patch scripts:
-http://www.xenotime.net/linux/scripts/patching-scripts-002.tar.gz
 
 Andrew Morton's patch scripts:
 http://www.zip.com.au/~akpm/linux/patches/
@@ -484,7 +483,7 @@ Greg Kroah-Hartman "How to piss off a kernel subsystem maintainer".
   <http://www.kroah.com/log/2005/10/19/>
   <http://www.kroah.com/log/2006/01/11/>
 
-NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!.
+NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <http://marc.theaimsgroup.com/?l=linux-kernel&m=112112749912944&w=2>
 
 Kernel Documentation/CodingStyle
@@ -493,4 +492,3 @@ Kernel Documentation/CodingStyle
 Linus Torvald's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>
 --
-Last updated on 17 Nov 2005.

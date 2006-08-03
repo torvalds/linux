@@ -47,8 +47,8 @@
 #define IRQ_WAITING		0x00200000	/* IRQ not yet seen - for autodetection */
 #define IRQ_LEVEL		0x00400000	/* IRQ level triggered */
 #define IRQ_MASKED		0x00800000	/* IRQ masked - shouldn't be seen again */
+#define IRQ_PER_CPU		0x01000000	/* IRQ is per CPU */
 #ifdef CONFIG_IRQ_PER_CPU
-# define IRQ_PER_CPU		0x01000000	/* IRQ is per CPU */
 # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
 #else
 # define CHECK_IRQ_PER_CPU(var) 0
@@ -58,6 +58,7 @@
 #define IRQ_NOREQUEST		0x04000000	/* IRQ cannot be requested */
 #define IRQ_NOAUTOEN		0x08000000	/* IRQ will not be enabled on request irq */
 #define IRQ_DELAYED_DISABLE	0x10000000	/* IRQ disable (masking) happens delayed. */
+#define IRQ_WAKEUP		0x20000000	/* IRQ triggers system wakeup */
 
 struct proc_dir_entry;
 
@@ -124,6 +125,7 @@ struct irq_chip {
  * @action:		the irq action chain
  * @status:		status information
  * @depth:		disable-depth, for nested irq_disable() calls
+ * @wake_depth:		enable depth, for multiple set_irq_wake() callers
  * @irq_count:		stats field to detect stalled irqs
  * @irqs_unhandled:	stats field for spurious unhandled interrupts
  * @lock:		locking for SMP
@@ -147,6 +149,7 @@ struct irq_desc {
 	unsigned int		status;		/* IRQ status */
 
 	unsigned int		depth;		/* nested irq disables */
+	unsigned int		wake_depth;	/* nested wake enables */
 	unsigned int		irq_count;	/* For detecting broken IRQs */
 	unsigned int		irqs_unhandled;
 	spinlock_t		lock;

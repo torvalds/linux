@@ -1000,7 +1000,12 @@ static struct dentry *ext3_lookup(struct inode * dir, struct dentry *dentry, str
 	if (bh) {
 		unsigned long ino = le32_to_cpu(de->inode);
 		brelse (bh);
-		inode = iget(dir->i_sb, ino);
+		if (!ext3_valid_inum(dir->i_sb, ino)) {
+			ext3_error(dir->i_sb, "ext3_lookup",
+				   "bad inode number: %lu", ino);
+			inode = NULL;
+		} else
+			inode = iget(dir->i_sb, ino);
 
 		if (!inode)
 			return ERR_PTR(-EACCES);
@@ -1028,7 +1033,13 @@ struct dentry *ext3_get_parent(struct dentry *child)
 		return ERR_PTR(-ENOENT);
 	ino = le32_to_cpu(de->inode);
 	brelse(bh);
-	inode = iget(child->d_inode->i_sb, ino);
+
+	if (!ext3_valid_inum(child->d_inode->i_sb, ino)) {
+		ext3_error(child->d_inode->i_sb, "ext3_get_parent",
+			   "bad inode number: %lu", ino);
+		inode = NULL;
+	} else
+		inode = iget(child->d_inode->i_sb, ino);
 
 	if (!inode)
 		return ERR_PTR(-EACCES);

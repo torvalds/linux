@@ -2132,6 +2132,9 @@ static int __devinit rivafb_probe(struct pci_dev *pd,
 
 	fb_destroy_modedb(info->monspecs.modedb);
 	info->monspecs.modedb = NULL;
+
+	pci_set_drvdata(pd, info);
+	riva_bl_init(info->par);
 	ret = register_framebuffer(info);
 	if (ret < 0) {
 		printk(KERN_ERR PFX
@@ -2139,16 +2142,12 @@ static int __devinit rivafb_probe(struct pci_dev *pd,
 		goto err_iounmap_screen_base;
 	}
 
-	pci_set_drvdata(pd, info);
-
 	printk(KERN_INFO PFX
 		"PCI nVidia %s framebuffer ver %s (%dMB @ 0x%lX)\n",
 		info->fix.id,
 		RIVAFB_VERSION,
 		info->fix.smem_len / (1024 * 1024),
 		info->fix.smem_start);
-
-	riva_bl_init(info->par);
 
 	NVTRACE_LEAVE();
 	return 0;

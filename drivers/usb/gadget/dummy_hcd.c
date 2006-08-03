@@ -609,7 +609,8 @@ static int dummy_dequeue (struct usb_ep *_ep, struct usb_request *_req)
 	if (!dum->driver)
 		return -ESHUTDOWN;
 
-	spin_lock_irqsave (&dum->lock, flags);
+	local_irq_save (flags);
+	spin_lock (&dum->lock);
 	list_for_each_entry (req, &ep->queue, queue) {
 		if (&req->req == _req) {
 			list_del_init (&req->queue);
@@ -618,7 +619,7 @@ static int dummy_dequeue (struct usb_ep *_ep, struct usb_request *_req)
 			break;
 		}
 	}
-	spin_unlock_irqrestore (&dum->lock, flags);
+	spin_unlock (&dum->lock);
 
 	if (retval == 0) {
 		dev_dbg (udc_dev(dum),
@@ -626,6 +627,7 @@ static int dummy_dequeue (struct usb_ep *_ep, struct usb_request *_req)
 				req, _ep->name, _req->length, _req->buf);
 		_req->complete (_ep, _req);
 	}
+	local_irq_restore (flags);
 	return retval;
 }
 

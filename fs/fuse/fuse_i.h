@@ -59,7 +59,7 @@ struct fuse_inode {
 	struct fuse_req *forget_req;
 
 	/** Time in jiffies until the file attributes are valid */
-	unsigned long i_time;
+	u64 i_time;
 };
 
 /** FUSE specific file data */

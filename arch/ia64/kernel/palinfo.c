@@ -958,9 +958,9 @@ remove_palinfo_proc_entries(unsigned int hcpu)
 	}
 }
 
-static int __cpuinit palinfo_cpu_callback(struct notifier_block *nfb,
-								unsigned long action,
-								void *hcpu)
+#ifdef CONFIG_HOTPLUG_CPU
+static int palinfo_cpu_callback(struct notifier_block *nfb,
+					unsigned long action, void *hcpu)
 {
 	unsigned int hotcpu = (unsigned long)hcpu;
 
@@ -968,20 +968,19 @@ static int __cpuinit palinfo_cpu_callback(struct notifier_block *nfb,
 	case CPU_ONLINE:
 		create_palinfo_proc_entries(hotcpu);
 		break;
-#ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:
 		remove_palinfo_proc_entries(hotcpu);
 		break;
-#endif
 	}
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata palinfo_cpu_notifier =
+static struct notifier_block palinfo_cpu_notifier =
 {
 	.notifier_call = palinfo_cpu_callback,
 	.priority = 0,
 };
+#endif
 
 static int __init
 palinfo_init(void)
@@ -1020,7 +1019,7 @@ palinfo_exit(void)
 	/*
 	 * Unregister from cpu notifier callbacks
 	 */
-	unregister_cpu_notifier(&palinfo_cpu_notifier);
+	unregister_hotcpu_notifier(&palinfo_cpu_notifier);
 }
 
 module_init(palinfo_init);

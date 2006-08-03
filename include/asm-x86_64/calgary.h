@@ -60,9 +60,4 @@ static inline int calgary_iommu_init(void) { return 1; }
 static inline void detect_calgary(void) { return; }
 #endif
 
-static inline unsigned int bus_to_phb(unsigned char busno)
-{
-	return ((busno % 15 == 0) ? 0 : busno / 2 + 1);
-}
-
 #endif /* _ASM_X86_64_CALGARY_H */

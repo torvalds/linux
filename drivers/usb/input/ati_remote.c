@@ -152,9 +152,8 @@ static const char accel[] = { 1, 2, 4, 6, 9, 13, 20 };
  * events. The hardware generates 5 events for the first keypress
  * and we have to take this into account for an accurate repeat
  * behaviour.
- * (HZ / 20) == 50 ms and works well for me.
  */
-#define FILTER_TIME (HZ / 20)
+#define FILTER_TIME 60 /* msec */
 
 struct ati_remote {
 	struct input_dev *idev;
@@ -467,7 +466,7 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 		/* Filter duplicate events which happen "too close" together. */
 		if ((ati_remote->old_data[0] == data[1]) &&
 			(ati_remote->old_data[1] == data[2]) &&
-			time_before(jiffies, ati_remote->old_jiffies + FILTER_TIME)) {
+			time_before(jiffies, ati_remote->old_jiffies + msecs_to_jiffies(FILTER_TIME))) {
 			ati_remote->repeat_count++;
 		} else {
 			ati_remote->repeat_count = 0;

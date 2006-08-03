@@ -346,7 +346,7 @@ static int insert_device(struct pnp_dev *dev, struct pnp_bios_node * node)
 	dev->flags = node->flags;
 	if (!(dev->flags & PNPBIOS_NO_CONFIG))
 		dev->capabilities |= PNP_CONFIGURABLE;
-	if (!(dev->flags & PNPBIOS_NO_DISABLE))
+	if (!(dev->flags & PNPBIOS_NO_DISABLE) && pnpbios_is_dynamic(dev))
 		dev->capabilities |= PNP_DISABLE;
 	dev->capabilities |= PNP_READ;
 	if (pnpbios_is_dynamic(dev))

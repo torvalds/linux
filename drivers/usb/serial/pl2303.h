@@ -89,3 +89,7 @@
 /* DATAPILOT Universal-2 Phone Cable */
 #define DATAPILOT_U2_VENDOR_ID	0x0731
 #define DATAPILOT_U2_PRODUCT_ID	0x2003
+
+/* Belkin "F5U257" Serial Adapter */
+#define BELKIN_VENDOR_ID	0x050d
+#define BELKIN_PRODUCT_ID	0x0257

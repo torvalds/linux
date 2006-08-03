@@ -114,7 +114,7 @@ static int tcpprobe_open(struct inode * inode, struct file * file)
 static ssize_t tcpprobe_read(struct file *file, char __user *buf,
 			     size_t len, loff_t *ppos)
 {
-	int error = 0, cnt;
+	int error = 0, cnt = 0;
 	unsigned char *tbuf;
 
 	if (!buf || len < 0)

@@ -246,6 +246,8 @@ vxfs_readdir(struct file *fp, void *retp, filldir_t filler)
 	u_long			page, npages, block, pblocks, nblocks, offset;
 	loff_t			pos;
 
+	lock_kernel();
+
 	switch ((long)fp->f_pos) {
 	case 0:
 		if (filler(retp, ".", 1, fp->f_pos, ip->i_ino, DT_DIR) < 0)

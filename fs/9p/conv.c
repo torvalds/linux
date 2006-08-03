@@ -673,8 +673,10 @@ struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode,
 	struct cbuf *bufp = &buffer;
 
 	size = 4 + 2 + strlen(name) + 4 + 1;	/* fid[4] name[s] perm[4] mode[1] */
-	if (extended && extension!=NULL)
-		size += 2 + strlen(extension);	/* extension[s] */
+	if (extended) {
+		size += 2 +			/* extension[s] */
+		    (extension == NULL ? 0 : strlen(extension));
+	}
 
 	fc = v9fs_create_common(bufp, size, TCREATE);
 	if (IS_ERR(fc))

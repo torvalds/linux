@@ -63,9 +63,6 @@ static int stop_ts_capture(struct budget *budget)
 {
 	dprintk(2, "budget: %p\n", budget);
 
-	if (--budget->feeding)
-		return budget->feeding;
-
 	saa7146_write(budget->dev, MC1, MASK_20);	// DMA3 off
 	SAA7146_IER_DISABLE(budget->dev, MASK_10);
 	return 0;
@@ -77,8 +74,8 @@ static int start_ts_capture(struct budget *budget)
 
 	dprintk(2, "budget: %p\n", budget);
 
-	if (budget->feeding)
-		return ++budget->feeding;
+	if (!budget->feeding || !budget->fe_synced)
+		return 0;
 
 	saa7146_write(dev, MC1, MASK_20);	// DMA3 off
 
@@ -139,7 +136,33 @@ static int start_ts_capture(struct budget *budget)
 	SAA7146_IER_ENABLE(budget->dev, MASK_10);	/* VPE */
 	saa7146_write(dev, MC1, (MASK_04 | MASK_20));	/* DMA3 on */
 
-	return ++budget->feeding;
+	return 0;
+}
+
+static int budget_read_fe_status(struct dvb_frontend *fe, fe_status_t *status)
+{
+	struct budget *budget = (struct budget *) fe->dvb->priv;
+	int synced;
+	int ret;
+
+	if (budget->read_fe_status)
+		ret = budget->read_fe_status(fe, status);
+	else
+		ret = -EINVAL;
+
+	if (!ret) {
+		synced = (*status & FE_HAS_LOCK);
+		if (synced != budget->fe_synced) {
+			budget->fe_synced = synced;
+			spin_lock(&budget->feedlock);
+			if (synced)
+				start_ts_capture(budget);
+			else
+				stop_ts_capture(budget);
+			spin_unlock(&budget->feedlock);
+		}
+	}
+	return ret;
 }
 
 static void vpeirq(unsigned long data)
@@ -267,7 +290,7 @@ static int budget_start_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
 	struct budget *budget = (struct budget *) demux->priv;
-	int status;
+	int status = 0;
 
 	dprintk(2, "budget: %p\n", budget);
 
@@ -276,7 +299,8 @@ static int budget_start_feed(struct dvb_demux_feed *feed)
 
 	spin_lock(&budget->feedlock);
 	feed->pusi_seen = 0; /* have a clean section start */
-	status = start_ts_capture(budget);
+	if (budget->feeding++ == 0)
+		status = start_ts_capture(budget);
 	spin_unlock(&budget->feedlock);
 	return status;
 }
@@ -285,12 +309,13 @@ static int budget_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
 	struct budget *budget = (struct budget *) demux->priv;
-	int status;
+	int status = 0;
 
 	dprintk(2, "budget: %p\n", budget);
 
 	spin_lock(&budget->feedlock);
-	status = stop_ts_capture(budget);
+	if (--budget->feeding == 0)
+		status = stop_ts_capture(budget);
 	spin_unlock(&budget->feedlock);
 	return status;
 }
@@ -470,6 +495,14 @@ err:
 	return ret;
 }
 
+void ttpci_budget_init_hooks(struct budget *budget)
+{
+	if (budget->dvb_frontend && !budget->read_fe_status) {
+		budget->read_fe_status = budget->dvb_frontend->ops.read_status;
+		budget->dvb_frontend->ops.read_status = budget_read_fe_status;
+	}
+}
+
 int ttpci_budget_deinit(struct budget *budget)
 {
 	struct saa7146_dev *dev = budget->dev;
@@ -508,11 +541,8 @@ void ttpci_budget_set_video_port(struct saa7146_dev *dev, int video_port)
 	spin_lock(&budget->feedlock);
 	budget->video_port = video_port;
 	if (budget->feeding) {
-		int oldfeeding = budget->feeding;
-		budget->feeding = 1;
 		stop_ts_capture(budget);
 		start_ts_capture(budget);
-		budget->feeding = oldfeeding;
 	}
 	spin_unlock(&budget->feedlock);
 }
@@ -520,6 +550,7 @@ void ttpci_budget_set_video_port(struct saa7146_dev *dev, int video_port)
 EXPORT_SYMBOL_GPL(ttpci_budget_debiread);
 EXPORT_SYMBOL_GPL(ttpci_budget_debiwrite);
 EXPORT_SYMBOL_GPL(ttpci_budget_init);
+EXPORT_SYMBOL_GPL(ttpci_budget_init_hooks);
 EXPORT_SYMBOL_GPL(ttpci_budget_deinit);
 EXPORT_SYMBOL_GPL(ttpci_budget_irq10_handler);
 EXPORT_SYMBOL_GPL(ttpci_budget_set_video_port);

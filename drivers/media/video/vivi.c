@@ -986,7 +986,7 @@ static int vidioc_dqbuf (struct file *file, void *priv, struct v4l2_buffer *p)
 				file->f_flags & O_NONBLOCK));
 }
 
-#ifdef HAVE_V4L1
+#ifdef CONFIG_V4L1_COMPAT
 static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
 {
 	struct vivi_fh  *fh=priv;
@@ -1328,7 +1328,7 @@ static struct video_device vivi = {
 	.vidioc_s_ctrl        = vidioc_s_ctrl,
 	.vidioc_streamon      = vidioc_streamon,
 	.vidioc_streamoff     = vidioc_streamoff,
-#ifdef HAVE_V4L1
+#ifdef CONFIG_V4L1_COMPAT
 	.vidiocgmbuf          = vidiocgmbuf,
 #endif
 	.tvnorms              = tvnorms,

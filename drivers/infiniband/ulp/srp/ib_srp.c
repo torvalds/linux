@@ -77,6 +77,14 @@ MODULE_PARM_DESC(topspin_workarounds,
 
 static const u8 topspin_oui[3] = { 0x00, 0x05, 0xad };
 
+static int mellanox_workarounds = 1;
+
+module_param(mellanox_workarounds, int, 0444);
+MODULE_PARM_DESC(mellanox_workarounds,
+		 "Enable workarounds for Mellanox SRP target bugs if != 0");
+
+static const u8 mellanox_oui[3] = { 0x00, 0x02, 0xc9 };
+
 static void srp_add_one(struct ib_device *device);
 static void srp_remove_one(struct ib_device *device);
 static void srp_completion(struct ib_cq *cq, void *target_ptr);
@@ -526,8 +534,10 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	while (ib_poll_cq(target->cq, 1, &wc) > 0)
 		; /* nothing */
 
+	spin_lock_irq(target->scsi_host->host_lock);
 	list_for_each_entry_safe(req, tmp, &target->req_queue, list)
 		srp_reset_req(target, req);
+	spin_unlock_irq(target->scsi_host->host_lock);
 
 	target->rx_head	 = 0;
 	target->tx_head	 = 0;
@@ -567,7 +577,7 @@ err:
 	return ret;
 }
 
-static int srp_map_fmr(struct srp_device *dev, struct scatterlist *scat,
+static int srp_map_fmr(struct srp_target_port *target, struct scatterlist *scat,
 		       int sg_cnt, struct srp_request *req,
 		       struct srp_direct_buf *buf)
 {
@@ -577,9 +587,14 @@ static int srp_map_fmr(struct srp_device *dev, struct scatterlist *scat,
 	int page_cnt;
 	int i, j;
 	int ret;
+	struct srp_device *dev = target->srp_host->dev;
 
 	if (!dev->fmr_pool)
 		return -ENODEV;
+
+	if ((sg_dma_address(&scat[0]) & ~dev->fmr_page_mask) &&
+	    mellanox_workarounds && !memcmp(&target->ioc_guid, mellanox_oui, 3))
+		return -EINVAL;
 
 	len = page_cnt = 0;
 	for (i = 0; i < sg_cnt; ++i) {
@@ -683,7 +698,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 		buf->va  = cpu_to_be64(sg_dma_address(scat));
 		buf->key = cpu_to_be32(target->srp_host->dev->mr->rkey);
 		buf->len = cpu_to_be32(sg_dma_len(scat));
-	} else if (srp_map_fmr(target->srp_host->dev, scat, count, req,
+	} else if (srp_map_fmr(target, scat, count, req,
 			       (void *) cmd->add_data)) {
 		/*
 		 * FMR mapping failed, and the scatterlist has more

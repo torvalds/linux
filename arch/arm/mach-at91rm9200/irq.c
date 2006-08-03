@@ -114,7 +114,8 @@ void at91_irq_resume(void)
 #define at91_aic_set_wake	NULL
 #endif
 
-static struct irqchip at91_aic_chip = {
+static struct irq_chip at91_aic_chip = {
+	.name		= "AIC",
 	.ack		= at91_aic_mask_irq,
 	.mask		= at91_aic_mask_irq,
 	.unmask		= at91_aic_unmask_irq,

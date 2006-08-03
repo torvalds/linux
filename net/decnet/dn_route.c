@@ -925,8 +925,13 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowi *old
 		for(dev_out = dev_base; dev_out; dev_out = dev_out->next) {
 			if (!dev_out->dn_ptr)
 				continue;
-			if (dn_dev_islocal(dev_out, oldflp->fld_src))
-				break;
+			if (!dn_dev_islocal(dev_out, oldflp->fld_src))
+				continue;
+			if ((dev_out->flags & IFF_LOOPBACK) &&
+			    oldflp->fld_dst &&
+			    !dn_dev_islocal(dev_out, oldflp->fld_dst))
+				continue;
+			break;
 		}
 		read_unlock(&dev_base_lock);
 		if (dev_out == NULL)

@@ -1180,7 +1180,6 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			V4L2_CAP_READWRITE     |
 			V4L2_CAP_STREAMING     |
 			V4L2_CAP_VBI_CAPTURE   |
-			V4L2_CAP_VIDEO_OVERLAY |
 			0;
 		if (UNSET != core->tuner_type)
 			cap->capabilities |= V4L2_CAP_TUNER;
@@ -1226,7 +1225,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_format *f = arg;
 		return cx8800_try_fmt(dev,fh,f);
 	}
-#ifdef HAVE_V4L1
+#ifdef CONFIG_V4L1_COMPAT
 	/* --- streaming capture ------------------------------------- */
 	case VIDIOCGMBUF:
 	{
@@ -1585,7 +1584,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 		*id = 0;
 		return 0;
 	}
-#ifdef HAVE_V4L1
+#ifdef CONFIG_V4L1_COMPAT
 	case VIDIOCSTUNER:
 	{
 		struct video_tuner *v = arg;
