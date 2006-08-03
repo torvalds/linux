@@ -356,6 +356,7 @@ int ip6_forward(struct sk_buff *skb)
 		skb->dev = dst->dev;
 		icmpv6_send(skb, ICMPV6_TIME_EXCEED, ICMPV6_EXC_HOPLIMIT,
 			    0, skb->dev);
+		IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
 
 		kfree_skb(skb);
 		return -ETIMEDOUT;
@@ -595,6 +596,9 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			}
 			
 			err = output(skb);
+			if(!err)
+				IP6_INC_STATS(IPSTATS_MIB_FRAGCREATES);
+
 			if (err || !frag)
 				break;
 
@@ -706,12 +710,11 @@ slow_path:
 		/*
 		 *	Put this fragment into the sending queue.
 		 */
-
-		IP6_INC_STATS(IPSTATS_MIB_FRAGCREATES);
-
 		err = output(frag);
 		if (err)
 			goto fail;
+
+		IP6_INC_STATS(IPSTATS_MIB_FRAGCREATES);
 	}
 	kfree_skb(skb);
 	IP6_INC_STATS(IPSTATS_MIB_FRAGOKS);
@@ -723,47 +726,50 @@ fail:
 	return err;
 }
 
-int ip6_dst_lookup(struct sock *sk, struct dst_entry **dst, struct flowi *fl)
+static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
+					  struct dst_entry *dst,
+					  struct flowi *fl)
 {
-	int err = 0;
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct rt6_info *rt = (struct rt6_info *)dst;
 
-	*dst = NULL;
-	if (sk) {
-		struct ipv6_pinfo *np = inet6_sk(sk);
-	
-		*dst = sk_dst_check(sk, np->dst_cookie);
-		if (*dst) {
-			struct rt6_info *rt = (struct rt6_info*)*dst;
-	
-			/* Yes, checking route validity in not connected
-			 * case is not very simple. Take into account,
-			 * that we do not support routing by source, TOS,
-			 * and MSG_DONTROUTE 		--ANK (980726)
-			 *
-			 * 1. If route was host route, check that
-			 *    cached destination is current.
-			 *    If it is network route, we still may
-			 *    check its validity using saved pointer
-			 *    to the last used address: daddr_cache.
-			 *    We do not want to save whole address now,
-			 *    (because main consumer of this service
-			 *    is tcp, which has not this problem),
-			 *    so that the last trick works only on connected
-			 *    sockets.
-			 * 2. oif also should be the same.
-			 */
-			if (((rt->rt6i_dst.plen != 128 ||
-			      !ipv6_addr_equal(&fl->fl6_dst,
-					       &rt->rt6i_dst.addr))
-			     && (np->daddr_cache == NULL ||
-				 !ipv6_addr_equal(&fl->fl6_dst,
-						  np->daddr_cache)))
-			    || (fl->oif && fl->oif != (*dst)->dev->ifindex)) {
-				dst_release(*dst);
-				*dst = NULL;
-			}
-		}
+	if (!dst)
+		goto out;
+
+	/* Yes, checking route validity in not connected
+	 * case is not very simple. Take into account,
+	 * that we do not support routing by source, TOS,
+	 * and MSG_DONTROUTE 		--ANK (980726)
+	 *
+	 * 1. If route was host route, check that
+	 *    cached destination is current.
+	 *    If it is network route, we still may
+	 *    check its validity using saved pointer
+	 *    to the last used address: daddr_cache.
+	 *    We do not want to save whole address now,
+	 *    (because main consumer of this service
+	 *    is tcp, which has not this problem),
+	 *    so that the last trick works only on connected
+	 *    sockets.
+	 * 2. oif also should be the same.
+	 */
+	if (((rt->rt6i_dst.plen != 128 ||
+	      !ipv6_addr_equal(&fl->fl6_dst, &rt->rt6i_dst.addr))
+	     && (np->daddr_cache == NULL ||
+		 !ipv6_addr_equal(&fl->fl6_dst, np->daddr_cache)))
+	    || (fl->oif && fl->oif != dst->dev->ifindex)) {
+		dst_release(dst);
+		dst = NULL;
 	}
+
+out:
+	return dst;
+}
+
+static int ip6_dst_lookup_tail(struct sock *sk,
+			       struct dst_entry **dst, struct flowi *fl)
+{
+	int err;
 
 	if (*dst == NULL)
 		*dst = ip6_route_output(sk, fl);
@@ -773,7 +779,6 @@ int ip6_dst_lookup(struct sock *sk, struct dst_entry **dst, struct flowi *fl)
 
 	if (ipv6_addr_any(&fl->fl6_src)) {
 		err = ipv6_get_saddr(*dst, &fl->fl6_dst, &fl->fl6_src);
-
 		if (err)
 			goto out_err_release;
 	}
@@ -786,7 +791,47 @@ out_err_release:
 	return err;
 }
 
+/**
+ *	ip6_dst_lookup - perform route lookup on flow
+ *	@sk: socket which provides route info
+ *	@dst: pointer to dst_entry * for result
+ *	@fl: flow to lookup
+ *
+ *	This function performs a route lookup on the given flow.
+ *
+ *	It returns zero on success, or a standard errno code on error.
+ */
+int ip6_dst_lookup(struct sock *sk, struct dst_entry **dst, struct flowi *fl)
+{
+	*dst = NULL;
+	return ip6_dst_lookup_tail(sk, dst, fl);
+}
 EXPORT_SYMBOL_GPL(ip6_dst_lookup);
+
+/**
+ *	ip6_sk_dst_lookup - perform socket cached route lookup on flow
+ *	@sk: socket which provides the dst cache and route info
+ *	@dst: pointer to dst_entry * for result
+ *	@fl: flow to lookup
+ *
+ *	This function performs a route lookup on the given flow with the
+ *	possibility of using the cached route in the socket if it is valid.
+ *	It will take the socket dst lock when operating on the dst cache.
+ *	As a result, this function can only be used in process context.
+ *
+ *	It returns zero on success, or a standard errno code on error.
+ */
+int ip6_sk_dst_lookup(struct sock *sk, struct dst_entry **dst, struct flowi *fl)
+{
+	*dst = NULL;
+	if (sk) {
+		*dst = sk_dst_check(sk, inet6_sk(sk)->dst_cookie);
+		*dst = ip6_sk_dst_check(sk, *dst, fl);
+	}
+
+	return ip6_dst_lookup_tail(sk, dst, fl);
+}
+EXPORT_SYMBOL_GPL(ip6_sk_dst_lookup);
 
 static inline int ip6_ufo_append_data(struct sock *sk,
 			int getfrag(void *from, char *to, int offset, int len,
