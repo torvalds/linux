@@ -177,6 +177,7 @@ struct audit_aux_data_path {
 
 /* The per-task audit context. */
 struct audit_context {
+	int		    dummy;	/* must be the first element */
 	int		    in_syscall;	/* 1 if task is in a syscall */
 	enum audit_state    state;
 	unsigned int	    serial;     /* serial number for record */
@@ -517,7 +518,7 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 	context->return_valid = return_valid;
 	context->return_code  = return_code;
 
-	if (context->in_syscall && !context->auditable) {
+	if (context->in_syscall && !context->dummy && !context->auditable) {
 		enum audit_state state;
 
 		state = audit_filter_syscall(tsk, context, &audit_filter_list[AUDIT_FILTER_EXIT]);
@@ -1069,7 +1070,8 @@ void audit_syscall_entry(int arch, int major,
 	context->argv[3]    = a4;
 
 	state = context->state;
-	if (state == AUDIT_SETUP_CONTEXT || state == AUDIT_BUILD_CONTEXT)
+	context->dummy = !audit_n_rules;
+	if (!context->dummy && (state == AUDIT_SETUP_CONTEXT || state == AUDIT_BUILD_CONTEXT))
 		state = audit_filter_syscall(tsk, context, &audit_filter_list[AUDIT_FILTER_ENTRY]);
 	if (likely(state == AUDIT_DISABLED))
 		return;

@@ -329,6 +329,11 @@ extern void __audit_inode(const char *name, const struct inode *inode);
 extern void __audit_inode_child(const char *dname, const struct inode *inode,
 				const struct inode *parent);
 extern void __audit_inode_update(const struct inode *inode);
+static inline int audit_dummy_context(void)
+{
+	void *p = current->audit_context;
+	return !p || *(int *)p;
+}
 static inline void audit_getname(const char *name)
 {
 	if (unlikely(current->audit_context))
@@ -416,6 +421,7 @@ extern int audit_n_rules;
 #define audit_free(t) do { ; } while (0)
 #define audit_syscall_entry(ta,a,b,c,d,e) do { ; } while (0)
 #define audit_syscall_exit(f,r) do { ; } while (0)
+#define audit_dummy_context() 1
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
 #define __audit_inode(n,i) do { ; } while (0)
