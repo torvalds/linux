@@ -370,15 +370,15 @@ static int __init frame_info_init(void)
 	mfinfo[0].func = schedule;
 	schedule_frame = &mfinfo[0];
 #endif
-	for (i = 0; i < ARRAY_SIZE(mfinfo) && mfinfo[i].func; i++) {
-		struct mips_frame_info *info = &mfinfo[i];
-		if (get_frame_info(info)) {
-			/* leaf or unknown */
-			if (info->func == schedule)
-				printk("Can't analyze prologue code at %p\n",
-				       info->func);
-		}
-	}
+	for (i = 0; i < ARRAY_SIZE(mfinfo) && mfinfo[i].func; i++)
+		get_frame_info(mfinfo + i);
+
+	/*
+	 * Without schedule() frame info, result given by
+	 * thread_saved_pc() and get_wchan() are not reliable.
+	 */
+	if (schedule_frame->pc_offset < 0)
+		printk("Can't analyze schedule() prologue at %p\n", schedule);
 
 	mfinfo_num = i;
 	return 0;
