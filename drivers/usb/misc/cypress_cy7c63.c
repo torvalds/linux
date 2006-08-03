@@ -12,8 +12,13 @@
 *	the single I/O ports of the device.
 *
 *	Supported vendors:	AK Modul-Bus Computer GmbH
-*	Supported devices:	CY7C63001A-PC (to be continued...)
-*	Supported functions:	Read/Write Ports (to be continued...)
+*				(Firmware "Port-Chip")
+*
+*	Supported devices:	CY7C63001A-PC
+*				CY7C63001C-PXC
+*				CY7C63001C-SXC
+*
+*	Supported functions:	Read/Write Ports
 *
 *
 *	This program is free software; you can redistribute it and/or

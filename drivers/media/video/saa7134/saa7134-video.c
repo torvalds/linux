@@ -40,7 +40,7 @@
 
 static unsigned int video_debug   = 0;
 static unsigned int gbuffers      = 8;
-static unsigned int noninterlaced = 0;
+static unsigned int noninterlaced = 1;
 static unsigned int gbufsize      = 720*576*4;
 static unsigned int gbufsize_max  = 720*576*4;
 module_param(video_debug, int, 0644);
@@ -48,7 +48,7 @@ MODULE_PARM_DESC(video_debug,"enable debug messages [video]");
 module_param(gbuffers, int, 0444);
 MODULE_PARM_DESC(gbuffers,"number of capture buffers, range 2-32");
 module_param(noninterlaced, int, 0644);
-MODULE_PARM_DESC(noninterlaced,"video input is noninterlaced");
+MODULE_PARM_DESC(noninterlaced,"capture non interlaced video");
 
 #define dprintk(fmt, arg...)	if (video_debug) \
 	printk(KERN_DEBUG "%s/video: " fmt, dev->name , ## arg)
@@ -2087,7 +2087,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_format *f = arg;
 		return saa7134_try_fmt(dev,fh,f);
 	}
-#ifdef HAVE_V4L1
+#ifdef CONFIG_V4L1_COMPAT
 	case VIDIOCGMBUF:
 	{
 		struct video_mbuf *mbuf = arg;

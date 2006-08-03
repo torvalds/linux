@@ -52,7 +52,6 @@
 
 #define FBPIXMAPSIZE	(1024 * 8)
 
-static BLOCKING_NOTIFIER_HEAD(fb_notifier_list);
 struct fb_info *registered_fb[FB_MAX];
 int num_registered_fb;
 
@@ -791,8 +790,7 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 
 		    event.info = info;
 		    event.data = &mode1;
-		    ret = blocking_notifier_call_chain(&fb_notifier_list,
-					      FB_EVENT_MODE_DELETE, &event);
+		    ret = fb_notifier_call_chain(FB_EVENT_MODE_DELETE, &event);
 		}
 
 		if (!ret)
@@ -837,8 +835,7 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 
 				info->flags &= ~FBINFO_MISC_USEREVENT;
 				event.info = info;
-				blocking_notifier_call_chain(&fb_notifier_list,
-						evnt, &event);
+				fb_notifier_call_chain(evnt, &event);
 			}
 		}
 	}
@@ -861,8 +858,7 @@ fb_blank(struct fb_info *info, int blank)
 
 		event.info = info;
 		event.data = &blank;
-		blocking_notifier_call_chain(&fb_notifier_list,
-				FB_EVENT_BLANK, &event);
+		fb_notifier_call_chain(FB_EVENT_BLANK, &event);
 	}
 
  	return ret;
@@ -933,8 +929,7 @@ fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		con2fb.framebuffer = -1;
 		event.info = info;
 		event.data = &con2fb;
-		blocking_notifier_call_chain(&fb_notifier_list,
-				    FB_EVENT_GET_CONSOLE_MAP, &event);
+		fb_notifier_call_chain(FB_EVENT_GET_CONSOLE_MAP, &event);
 		return copy_to_user(argp, &con2fb,
 				    sizeof(con2fb)) ? -EFAULT : 0;
 	case FBIOPUT_CON2FBMAP:
@@ -952,9 +947,8 @@ fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		    return -EINVAL;
 		event.info = info;
 		event.data = &con2fb;
-		return blocking_notifier_call_chain(&fb_notifier_list,
-					   FB_EVENT_SET_CONSOLE_MAP,
-					   &event);
+		return fb_notifier_call_chain(FB_EVENT_SET_CONSOLE_MAP,
+					      &event);
 	case FBIOBLANK:
 		acquire_console_sem();
 		info->flags |= FBINFO_MISC_USEREVENT;
@@ -1330,8 +1324,7 @@ register_framebuffer(struct fb_info *fb_info)
 	registered_fb[i] = fb_info;
 
 	event.info = fb_info;
-	blocking_notifier_call_chain(&fb_notifier_list,
-			    FB_EVENT_FB_REGISTERED, &event);
+	fb_notifier_call_chain(FB_EVENT_FB_REGISTERED, &event);
 	return 0;
 }
 
@@ -1365,27 +1358,8 @@ unregister_framebuffer(struct fb_info *fb_info)
 	fb_cleanup_class_device(fb_info);
 	class_device_destroy(fb_class, MKDEV(FB_MAJOR, i));
 	event.info = fb_info;
-	blocking_notifier_call_chain(&fb_notifier_list,
-				     FB_EVENT_FB_UNREGISTERED, &event);
+	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 	return 0;
-}
-
-/**
- *	fb_register_client - register a client notifier
- *	@nb: notifier block to callback on events
- */
-int fb_register_client(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_register(&fb_notifier_list, nb);
-}
-
-/**
- *	fb_unregister_client - unregister a client notifier
- *	@nb: notifier block to callback on events
- */
-int fb_unregister_client(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_unregister(&fb_notifier_list, nb);
 }
 
 /**
@@ -1403,13 +1377,11 @@ void fb_set_suspend(struct fb_info *info, int state)
 
 	event.info = info;
 	if (state) {
-		blocking_notifier_call_chain(&fb_notifier_list,
-				FB_EVENT_SUSPEND, &event);
+		fb_notifier_call_chain(FB_EVENT_SUSPEND, &event);
 		info->state = FBINFO_STATE_SUSPENDED;
 	} else {
 		info->state = FBINFO_STATE_RUNNING;
-		blocking_notifier_call_chain(&fb_notifier_list,
-				FB_EVENT_RESUME, &event);
+		fb_notifier_call_chain(FB_EVENT_RESUME, &event);
 	}
 }
 
@@ -1480,9 +1452,7 @@ int fb_new_modelist(struct fb_info *info)
 
 	if (!list_empty(&info->modelist)) {
 		event.info = info;
-		err = blocking_notifier_call_chain(&fb_notifier_list,
-					   FB_EVENT_NEW_MODELIST,
-					   &event);
+		err = fb_notifier_call_chain(FB_EVENT_NEW_MODELIST, &event);
 	}
 
 	return err;
@@ -1594,8 +1564,6 @@ EXPORT_SYMBOL(fb_blank);
 EXPORT_SYMBOL(fb_pan_display);
 EXPORT_SYMBOL(fb_get_buffer_offset);
 EXPORT_SYMBOL(fb_set_suspend);
-EXPORT_SYMBOL(fb_register_client);
-EXPORT_SYMBOL(fb_unregister_client);
 EXPORT_SYMBOL(fb_get_options);
 
 MODULE_LICENSE("GPL");

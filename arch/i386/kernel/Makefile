@@ -59,7 +59,8 @@ quiet_cmd_syscall = SYSCALL $@
 
 export CPPFLAGS_vsyscall.lds += -P -C -U$(ARCH)
 
-vsyscall-flags = -shared -s -Wl,-soname=linux-gate.so.1
+vsyscall-flags = -shared -s -Wl,-soname=linux-gate.so.1 \
+		 $(call ld-option, -Wl$(comma)--hash-style=sysv)
 SYSCFLAGS_vsyscall-sysenter.so	= $(vsyscall-flags)
 SYSCFLAGS_vsyscall-int80.so	= $(vsyscall-flags)
 

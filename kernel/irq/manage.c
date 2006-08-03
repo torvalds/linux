@@ -137,16 +137,40 @@ EXPORT_SYMBOL(enable_irq);
  *	@irq:	interrupt to control
  *	@on:	enable/disable power management wakeup
  *
- *	Enable/disable power management wakeup mode
+ *	Enable/disable power management wakeup mode, which is
+ *	disabled by default.  Enables and disables must match,
+ *	just as they match for non-wakeup mode support.
+ *
+ *	Wakeup mode lets this IRQ wake the system from sleep
+ *	states like "suspend to RAM".
  */
 int set_irq_wake(unsigned int irq, unsigned int on)
 {
 	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 	int ret = -ENXIO;
+	int (*set_wake)(unsigned, unsigned) = desc->chip->set_wake;
 
+	/* wakeup-capable irqs can be shared between drivers that
+	 * don't need to have the same sleep mode behaviors.
+	 */
 	spin_lock_irqsave(&desc->lock, flags);
-	if (desc->chip->set_wake)
+	if (on) {
+		if (desc->wake_depth++ == 0)
+			desc->status |= IRQ_WAKEUP;
+		else
+			set_wake = NULL;
+	} else {
+		if (desc->wake_depth == 0) {
+			printk(KERN_WARNING "Unbalanced IRQ %d "
+					"wake disable\n", irq);
+			WARN_ON(1);
+		} else if (--desc->wake_depth == 0)
+			desc->status &= ~IRQ_WAKEUP;
+		else
+			set_wake = NULL;
+	}
+	if (set_wake)
 		ret = desc->chip->set_wake(irq, on);
 	spin_unlock_irqrestore(&desc->lock, flags);
 	return ret;

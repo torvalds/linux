@@ -526,6 +526,8 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 
 			err = output(skb);
 
+			if (!err)
+				IP_INC_STATS(IPSTATS_MIB_FRAGCREATES);
 			if (err || !frag)
 				break;
 
@@ -649,9 +651,6 @@ slow_path:
 		/*
 		 *	Put this fragment into the sending queue.
 		 */
-
-		IP_INC_STATS(IPSTATS_MIB_FRAGCREATES);
-
 		iph->tot_len = htons(len + hlen);
 
 		ip_send_check(iph);
@@ -659,6 +658,8 @@ slow_path:
 		err = output(skb2);
 		if (err)
 			goto fail;
+
+		IP_INC_STATS(IPSTATS_MIB_FRAGCREATES);
 	}
 	kfree_skb(skb);
 	IP_INC_STATS(IPSTATS_MIB_FRAGOKS);

@@ -92,5 +92,7 @@ void __init no_iommu_init(void)
 {
 	if (dma_ops)
 		return;
+
+	force_iommu = 0; /* no HW IOMMU */
 	dma_ops = &nommu_dma_ops;
 }

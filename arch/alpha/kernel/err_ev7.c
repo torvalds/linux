@@ -274,16 +274,14 @@ ev7_process_pal_subpacket(struct el_subpacket *header)
 struct el_subpacket_handler ev7_pal_subpacket_handler =
 	SUBPACKET_HANDLER_INIT(EL_CLASS__PAL, ev7_process_pal_subpacket);
 
-void 
+void
 ev7_register_error_handlers(void)
 {
 	int i;
 
-	for(i = 0;
-	    i<sizeof(el_ev7_pal_annotations)/sizeof(el_ev7_pal_annotations[1]);
-	    i++) {
+	for (i = 0; i < ARRAY_SIZE(el_ev7_pal_annotations); i++)
 		cdl_register_subpacket_annotation(&el_ev7_pal_annotations[i]);
-	}	
+
 	cdl_register_subpacket_handler(&ev7_pal_subpacket_handler);
 }
 

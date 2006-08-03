@@ -892,7 +892,7 @@ MODULE_LICENSE ("GPL");
 #define	PCI_DRIVER		ehci_pci_driver
 #endif
 
-#ifdef CONFIG_PPC_83xx
+#ifdef CONFIG_MPC834x
 #include "ehci-fsl.c"
 #define	PLATFORM_DRIVER		ehci_fsl_driver
 #endif

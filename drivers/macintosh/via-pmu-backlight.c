@@ -15,8 +15,9 @@
 
 #define MAX_PMU_LEVEL 0xFF
 
-static struct device_node *vias;
 static struct backlight_properties pmu_backlight_data;
+static spinlock_t pmu_backlight_lock;
+static int sleeping;
 
 static int pmu_backlight_get_level_brightness(struct fb_info *info,
 		int level)
@@ -40,23 +41,36 @@ static int pmu_backlight_update_status(struct backlight_device *bd)
 {
 	struct fb_info *info = class_get_devdata(&bd->class_dev);
 	struct adb_request req;
-	int pmulevel, level = bd->props->brightness;
+	unsigned long flags;
+	int level = bd->props->brightness;
 
-	if (vias == NULL)
-		return -ENODEV;
+	spin_lock_irqsave(&pmu_backlight_lock, flags);
+
+	/* Don't update brightness when sleeping */
+	if (sleeping)
+		goto out;
 
 	if (bd->props->power != FB_BLANK_UNBLANK ||
 	    bd->props->fb_blank != FB_BLANK_UNBLANK)
 		level = 0;
 
-	pmulevel = pmu_backlight_get_level_brightness(info, level);
+	if (level > 0) {
+		int pmulevel = pmu_backlight_get_level_brightness(info, level);
 
-	pmu_request(&req, NULL, 2, PMU_BACKLIGHT_BRIGHT, pmulevel);
-	pmu_wait_complete(&req);
+		pmu_request(&req, NULL, 2, PMU_BACKLIGHT_BRIGHT, pmulevel);
+		pmu_wait_complete(&req);
 
-	pmu_request(&req, NULL, 2, PMU_POWER_CTRL,
-		PMU_POW_BACKLIGHT | (level > 0 ? PMU_POW_ON : PMU_POW_OFF));
-	pmu_wait_complete(&req);
+		pmu_request(&req, NULL, 2, PMU_POWER_CTRL,
+			PMU_POW_BACKLIGHT | PMU_POW_ON);
+		pmu_wait_complete(&req);
+	} else {
+		pmu_request(&req, NULL, 2, PMU_POWER_CTRL,
+			PMU_POW_BACKLIGHT | PMU_POW_OFF);
+		pmu_wait_complete(&req);
+	}
+
+out:
+	spin_unlock_irqrestore(&pmu_backlight_lock, flags);
 
 	return 0;
 }
@@ -73,14 +87,38 @@ static struct backlight_properties pmu_backlight_data = {
 	.max_brightness	= (FB_BACKLIGHT_LEVELS - 1),
 };
 
-void __init pmu_backlight_init(struct device_node *in_vias)
+#ifdef CONFIG_PM
+static int pmu_backlight_sleep_call(struct pmu_sleep_notifier *self, int when)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&pmu_backlight_lock, flags);
+
+	switch (when) {
+	case PBOOK_SLEEP_REQUEST:
+		sleeping = 1;
+		break;
+	case PBOOK_WAKE:
+		sleeping = 0;
+		break;
+	}
+
+	spin_unlock_irqrestore(&pmu_backlight_lock, flags);
+
+	return PBOOK_SLEEP_OK;
+}
+
+static struct pmu_sleep_notifier pmu_backlight_sleep_notif = {
+	.notifier_call = pmu_backlight_sleep_call,
+};
+#endif
+
+void __init pmu_backlight_init()
 {
 	struct backlight_device *bd;
 	struct fb_info *info;
 	char name[10];
 	int level, autosave;
-
-	vias = in_vias;
 
 	/* Special case for the old PowerBook since I can't test on it */
 	autosave =
@@ -140,6 +178,10 @@ void __init pmu_backlight_init(struct device_node *in_vias)
 	if (!pmac_backlight)
 		pmac_backlight = bd;
 	mutex_unlock(&pmac_backlight_mutex);
+
+#ifdef CONFIG_PM
+	pmu_register_sleep_notifier(&pmu_backlight_sleep_notif);
+#endif
 
 	printk("pmubl: Backlight initialized (%s)\n", name);
 

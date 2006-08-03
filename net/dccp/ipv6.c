@@ -230,7 +230,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	ipv6_addr_copy(&np->saddr, saddr);
 	inet->rcv_saddr = LOOPBACK4_IPV6;
 
-	ip6_dst_store(sk, dst, NULL);
+	__ip6_dst_store(sk, dst, NULL);
 
 	icsk->icsk_ext_hdr_len = 0;
 	if (np->opt != NULL)
@@ -863,7 +863,7 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 	 * comment in that function for the gory details. -acme
 	 */
 
-	ip6_dst_store(newsk, dst, NULL);
+	__ip6_dst_store(newsk, dst, NULL);
 	newsk->sk_route_caps = dst->dev->features & ~(NETIF_F_IP_CSUM |
 						      NETIF_F_TSO);
 	newdp6 = (struct dccp6_sock *)newsk;

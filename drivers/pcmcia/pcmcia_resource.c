@@ -245,10 +245,17 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 		return CS_SUCCESS;
 	}
 
-	/* !!! This is a hack !!! */
-	memcpy(&config->Attributes, &c->Attributes, sizeof(config_t));
-	config->Attributes |= CONF_VALID_CLIENT;
-	config->CardValues = c->CardValues;
+	config->Attributes = c->Attributes | CONF_VALID_CLIENT;
+	config->Vcc = s->socket.Vcc;
+	config->Vpp1 = config->Vpp2 = s->socket.Vpp;
+	config->IntType = c->IntType;
+	config->ConfigBase = c->ConfigBase;
+	config->Status = c->Status;
+	config->Pin = c->Pin;
+	config->Copy = c->Copy;
+	config->Option = c->Option;
+	config->ExtStatus = c->ExtStatus;
+	config->Present = config->CardValues = c->CardValues;
 	config->IRQAttributes = c->irq.Attributes;
 	config->AssignedIRQ = s->irq.AssignedIRQ;
 	config->BasePort1 = c->io.BasePort1;

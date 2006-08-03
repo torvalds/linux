@@ -375,9 +375,6 @@ static void frontend_init(struct budget *budget)
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
 			budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
-			budget->dvb_frontend->ops.diseqc_send_master_cmd = budget_diseqc_send_master_cmd;
-			budget->dvb_frontend->ops.diseqc_send_burst = budget_diseqc_send_burst;
-			budget->dvb_frontend->ops.set_tone = budget_set_tone;
 			break;
 		}
 		break;
@@ -473,6 +470,8 @@ static int budget_attach (struct saa7146_dev* dev, struct saa7146_pci_extension_
 
 	budget->dvb_adapter.priv = budget;
 	frontend_init(budget);
+
+	ttpci_budget_init_hooks(budget);
 
 	return 0;
 }

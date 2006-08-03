@@ -1109,6 +1109,16 @@ struct swap_info_struct;
  *	@name contains the name of the security module being unstacked.
  *	@ops contains a pointer to the struct security_operations of the module to unstack.
  * 
+ * @secid_to_secctx:
+ *	Convert secid to security context.
+ *	@secid contains the security ID.
+ *	@secdata contains the pointer that stores the converted security context.
+ *
+ * @release_secctx:
+ *	Release the security context.
+ *	@secdata contains the security context.
+ *	@seclen contains the length of the security context.
+ *
  * This is the main security structure.
  */
 struct security_operations {
@@ -1289,6 +1299,8 @@ struct security_operations {
 
  	int (*getprocattr)(struct task_struct *p, char *name, void *value, size_t size);
  	int (*setprocattr)(struct task_struct *p, char *name, void *value, size_t size);
+	int (*secid_to_secctx)(u32 secid, char **secdata, u32 *seclen);
+	void (*release_secctx)(char *secdata, u32 seclen);
 
 #ifdef CONFIG_SECURITY_NETWORK
 	int (*unix_stream_connect) (struct socket * sock,
@@ -1317,7 +1329,7 @@ struct security_operations {
 	int (*socket_shutdown) (struct socket * sock, int how);
 	int (*socket_sock_rcv_skb) (struct sock * sk, struct sk_buff * skb);
 	int (*socket_getpeersec_stream) (struct socket *sock, char __user *optval, int __user *optlen, unsigned len);
-	int (*socket_getpeersec_dgram) (struct sk_buff *skb, char **secdata, u32 *seclen);
+	int (*socket_getpeersec_dgram) (struct socket *sock, struct sk_buff *skb, u32 *secid);
 	int (*sk_alloc_security) (struct sock *sk, int family, gfp_t priority);
 	void (*sk_free_security) (struct sock *sk);
 	unsigned int (*sk_getsid) (struct sock *sk, struct flowi *fl, u8 dir);
@@ -2059,6 +2071,16 @@ static inline int security_netlink_recv(struct sk_buff * skb, int cap)
 	return security_ops->netlink_recv(skb, cap);
 }
 
+static inline int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
+{
+	return security_ops->secid_to_secctx(secid, secdata, seclen);
+}
+
+static inline void security_release_secctx(char *secdata, u32 seclen)
+{
+	return security_ops->release_secctx(secdata, seclen);
+}
+
 /* prototypes */
 extern int security_init	(void);
 extern int register_security	(struct security_operations *ops);
@@ -2725,6 +2747,14 @@ static inline void securityfs_remove(struct dentry *dentry)
 {
 }
 
+static inline int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void security_release_secctx(char *secdata, u32 seclen)
+{
+}
 #endif	/* CONFIG_SECURITY */
 
 #ifdef CONFIG_SECURITY_NETWORK
@@ -2840,10 +2870,9 @@ static inline int security_socket_getpeersec_stream(struct socket *sock, char __
 	return security_ops->socket_getpeersec_stream(sock, optval, optlen, len);
 }
 
-static inline int security_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata,
-						   u32 *seclen)
+static inline int security_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
-	return security_ops->socket_getpeersec_dgram(skb, secdata, seclen);
+	return security_ops->socket_getpeersec_dgram(sock, skb, secid);
 }
 
 static inline int security_sk_alloc(struct sock *sk, int family, gfp_t priority)
@@ -2968,8 +2997,7 @@ static inline int security_socket_getpeersec_stream(struct socket *sock, char __
 	return -ENOPROTOOPT;
 }
 
-static inline int security_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata,
-						   u32 *seclen)
+static inline int security_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
 	return -ENOPROTOOPT;
 }

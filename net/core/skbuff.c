@@ -71,13 +71,6 @@ static kmem_cache_t *skbuff_head_cache __read_mostly;
 static kmem_cache_t *skbuff_fclone_cache __read_mostly;
 
 /*
- * lockdep: lock class key used by skb_queue_head_init():
- */
-struct lock_class_key skb_queue_lock_key;
-
-EXPORT_SYMBOL(skb_queue_lock_key);
-
-/*
  *	Keep out-of-line to prevent kernel bloat.
  *	__builtin_return_address is not used because it is not always
  *	reliable.
@@ -256,6 +249,29 @@ nodata:
 	goto out;
 }
 
+/**
+ *	__netdev_alloc_skb - allocate an skbuff for rx on a specific device
+ *	@dev: network device to receive on
+ *	@length: length to allocate
+ *	@gfp_mask: get_free_pages mask, passed to alloc_skb
+ *
+ *	Allocate a new &sk_buff and assign it a usage count of one. The
+ *	buffer has unspecified headroom built in. Users should allocate
+ *	the headroom they think they need without accounting for the
+ *	built in space. The built in space is used for optimisations.
+ *
+ *	%NULL is returned if there is no free memory.
+ */
+struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
+		unsigned int length, gfp_t gfp_mask)
+{
+	struct sk_buff *skb;
+
+	skb = alloc_skb(length + NET_SKB_PAD, gfp_mask);
+	if (likely(skb))
+		skb_reserve(skb, NET_SKB_PAD);
+	return skb;
+}
 
 static void skb_drop_list(struct sk_buff **listp)
 {
@@ -846,7 +862,11 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 	    unlikely((err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC))))
 		return err;
 
-	for (i = 0; i < nfrags; i++) {
+	i = 0;
+	if (offset >= len)
+		goto drop_pages;
+
+	for (; i < nfrags; i++) {
 		int end = offset + skb_shinfo(skb)->frags[i].size;
 
 		if (end < len) {
@@ -854,9 +874,9 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 			continue;
 		}
 
-		if (len > offset)
-			skb_shinfo(skb)->frags[i++].size = len - offset;
+		skb_shinfo(skb)->frags[i++].size = len - offset;
 
+drop_pages:
 		skb_shinfo(skb)->nr_frags = i;
 
 		for (; i < nfrags; i++)
@@ -864,7 +884,7 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 
 		if (skb_shinfo(skb)->frag_list)
 			skb_drop_fraglist(skb);
-		break;
+		goto done;
 	}
 
 	for (fragp = &skb_shinfo(skb)->frag_list; (frag = *fragp);
@@ -879,6 +899,7 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 				return -ENOMEM;
 
 			nfrag->next = frag->next;
+			kfree_skb(frag);
 			frag = nfrag;
 			*fragp = frag;
 		}
@@ -897,6 +918,7 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 		break;
 	}
 
+done:
 	if (len > skb_headlen(skb)) {
 		skb->data_len -= skb->len - len;
 		skb->len       = len;
@@ -2042,6 +2064,7 @@ EXPORT_SYMBOL(__kfree_skb);
 EXPORT_SYMBOL(kfree_skb);
 EXPORT_SYMBOL(__pskb_pull_tail);
 EXPORT_SYMBOL(__alloc_skb);
+EXPORT_SYMBOL(__netdev_alloc_skb);
 EXPORT_SYMBOL(pskb_copy);
 EXPORT_SYMBOL(pskb_expand_head);
 EXPORT_SYMBOL(skb_checksum);

@@ -617,7 +617,8 @@ appldata_offline_cpu(int cpu)
 	spin_unlock(&appldata_timer_lock);
 }
 
-static int __cpuinit
+#ifdef CONFIG_HOTPLUG_CPU
+static int
 appldata_cpu_notify(struct notifier_block *self,
 		    unsigned long action, void *hcpu)
 {
@@ -625,20 +626,19 @@ appldata_cpu_notify(struct notifier_block *self,
 	case CPU_ONLINE:
 		appldata_online_cpu((long) hcpu);
 		break;
-#ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:
 		appldata_offline_cpu((long) hcpu);
 		break;
-#endif
 	default:
 		break;
 	}
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __devinitdata appldata_nb = {
+static struct notifier_block appldata_nb = {
 	.notifier_call = appldata_cpu_notify,
 };
+#endif
 
 /*
  * appldata_init()
@@ -662,7 +662,7 @@ static int __init appldata_init(void)
 		appldata_online_cpu(i);
 
 	/* Register cpu hotplug notifier */
-	register_cpu_notifier(&appldata_nb);
+	register_hotcpu_notifier(&appldata_nb);
 
 	appldata_sysctl_header = register_sysctl_table(appldata_dir_table, 1);
 #ifdef MODULE
