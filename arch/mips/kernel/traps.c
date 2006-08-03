@@ -73,11 +73,6 @@ void (*board_nmi_handler_setup)(void);
 void (*board_ejtag_handler_setup)(void);
 void (*board_bind_eic_interrupt)(int irq, int regset);
 
-/*
- * These constant is for searching for possible module text segments.
- * MODULE_RANGE is a guess of how much space is likely to be vmalloced.
- */
-#define MODULE_RANGE (8*1024*1024)
 
 static void show_trace(unsigned long *stack)
 {
