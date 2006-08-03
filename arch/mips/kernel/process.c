@@ -321,17 +321,15 @@ static int get_frame_info(struct mips_frame_info *info)
 
 		if (is_jal_jalr_jr_ins(ip))
 			break;
-		if (is_sp_move_ins(ip)) {
-			if (info->frame_size)
-				continue;
-			info->frame_size = - ip->i_format.simmediate;
+		if (!info->frame_size) {
+			if (is_sp_move_ins(ip))
+				info->frame_size = - ip->i_format.simmediate;
+			continue;
 		}
-
-		if (is_ra_save_ins(ip)) {
-			if (info->pc_offset != -1)
-				continue;
+		if (info->pc_offset == -1 && is_ra_save_ins(ip)) {
 			info->pc_offset =
 				ip->i_format.simmediate / sizeof(long);
+			break;
 		}
 	}
 	if (info->frame_size && info->pc_offset >= 0) /* nested */
