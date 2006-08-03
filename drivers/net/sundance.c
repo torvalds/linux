@@ -17,6 +17,8 @@
 	Support and updates available at
 	http://www.scyld.com/network/sundance.html
 	[link no longer provides useful info -jgarzik]
+	Archives of the mailing list are still available at
+	http://www.beowulf.org/pipermail/netdrivers/
 
 */
 
@@ -646,7 +648,7 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	/* Reset the chip to erase previous misconfiguration. */
 	if (netif_msg_hw(np))
 		printk("ASIC Control is %x.\n", ioread32(ioaddr + ASICCtrl));
-	iowrite16(0x00ff, ioaddr + ASICCtrl + 2);
+	sundance_reset(dev, 0x00ff << 16);
 	if (netif_msg_hw(np))
 		printk("ASIC Control is now %x.\n", ioread32(ioaddr + ASICCtrl));
 
@@ -1075,13 +1077,8 @@ reset_tx (struct net_device *dev)
 	
 	/* Reset tx logic, TxListPtr will be cleaned */
 	iowrite16 (TxDisable, ioaddr + MACCtrl1);
-	iowrite16 (TxReset | DMAReset | FIFOReset | NetworkReset,
-			ioaddr + ASICCtrl + 2);
-	for (i=50; i > 0; i--) {
-		if ((ioread16(ioaddr + ASICCtrl + 2) & ResetBusy) == 0)
-			break;
-		mdelay(1);
-	}
+	sundance_reset(dev, (NetworkReset|FIFOReset|DMAReset|TxReset) << 16);
+
 	/* free all tx skbuff */
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		skb = np->tx_skbuff[i];
