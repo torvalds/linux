@@ -464,6 +464,8 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	dprintk((KERN_DEBUG "  hw_fib pa being sent=%lx\n",(ulong)fibptr->hw_fib_pa));
 	dprintk((KERN_DEBUG "  fib being sent=%p\n",fibptr));
 
+	if (!dev->queues)
+		return -ENODEV;
 	q = &dev->queues->queue[AdapNormCmdQueue];
 
 	if(wait)
@@ -527,8 +529,15 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 				}
 				udelay(5);
 			}
-		} else
-			down(&fibptr->event_wait);
+		} else if (down_interruptible(&fibptr->event_wait)) {
+			spin_lock_irqsave(&fibptr->event_lock, flags);
+			if (fibptr->done == 0) {
+				fibptr->done = 2; /* Tell interrupt we aborted */
+				spin_unlock_irqrestore(&fibptr->event_lock, flags);
+				return -EINTR;
+			}
+			spin_unlock_irqrestore(&fibptr->event_lock, flags);
+		}
 		BUG_ON(fibptr->done == 0);
 			
 		if((fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT)){
@@ -795,7 +804,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 
 	/* Sniff for container changes */
 
-	if (!dev)
+	if (!dev || !dev->fsa_dev)
 		return;
 	container = (u32)-1;
 
