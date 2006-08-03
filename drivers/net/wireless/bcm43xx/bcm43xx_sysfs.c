@@ -309,6 +309,70 @@ static DEVICE_ATTR(shortpreamble, 0644,
 		   bcm43xx_attr_preamble_show,
 		   bcm43xx_attr_preamble_store);
 
+static ssize_t bcm43xx_attr_phymode_store(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	struct bcm43xx_private *bcm = dev_to_bcm(dev);
+	int phytype;
+	int err = -EINVAL;
+
+	if (count < 1)
+		goto out;
+	switch (buf[0]) {
+	case 'a':  case 'A':
+		phytype = BCM43xx_PHYTYPE_A;
+		break;
+	case 'b':  case 'B':
+		phytype = BCM43xx_PHYTYPE_B;
+		break;
+	case 'g':  case 'G':
+		phytype = BCM43xx_PHYTYPE_G;
+		break;
+	default:
+		goto out;
+	}
+
+	mutex_lock(&(bcm)->mutex);
+	err = bcm43xx_select_wireless_core(bcm, phytype);
+	mutex_unlock(&(bcm)->mutex);
+	if (err == -ESRCH)
+		err = -ENODEV;
+
+out:
+	return err ? err : count;
+}
+
+static ssize_t bcm43xx_attr_phymode_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct bcm43xx_private *bcm = dev_to_bcm(dev);
+	ssize_t count = 0;
+
+	mutex_lock(&(bcm)->mutex);
+	switch (bcm43xx_current_phy(bcm)->type) {
+	case BCM43xx_PHYTYPE_A:
+		snprintf(buf, PAGE_SIZE, "A");
+		break;
+	case BCM43xx_PHYTYPE_B:
+		snprintf(buf, PAGE_SIZE, "B");
+		break;
+	case BCM43xx_PHYTYPE_G:
+		snprintf(buf, PAGE_SIZE, "G");
+		break;
+	default:
+		assert(0);
+	}
+	mutex_unlock(&(bcm)->mutex);
+
+	return count;
+}
+
+static DEVICE_ATTR(phymode, 0644,
+		   bcm43xx_attr_phymode_show,
+		   bcm43xx_attr_phymode_store);
+
 int bcm43xx_sysfs_register(struct bcm43xx_private *bcm)
 {
 	struct device *dev = &bcm->pci_dev->dev;
@@ -325,9 +389,14 @@ int bcm43xx_sysfs_register(struct bcm43xx_private *bcm)
 	err = device_create_file(dev, &dev_attr_shortpreamble);
 	if (err)
 		goto err_remove_interfmode;
+	err = device_create_file(dev, &dev_attr_phymode);
+	if (err)
+		goto err_remove_shortpreamble;
 
 out:
 	return err;
+err_remove_shortpreamble:
+	device_remove_file(dev, &dev_attr_shortpreamble);
 err_remove_interfmode:
 	device_remove_file(dev, &dev_attr_interference);
 err_remove_sprom:
@@ -339,6 +408,7 @@ void bcm43xx_sysfs_unregister(struct bcm43xx_private *bcm)
 {
 	struct device *dev = &bcm->pci_dev->dev;
 
+	device_remove_file(dev, &dev_attr_phymode);
 	device_remove_file(dev, &dev_attr_shortpreamble);
 	device_remove_file(dev, &dev_attr_interference);
 	device_remove_file(dev, &dev_attr_sprom);

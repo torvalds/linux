@@ -316,6 +316,42 @@ static ssize_t txstat_read_file(struct file *file, char __user *userbuf,
 	return res;
 }
 
+static ssize_t restart_write_file(struct file *file, const char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct bcm43xx_private *bcm = file->private_data;
+	char *buf = really_big_buffer;
+	ssize_t buf_size;
+	ssize_t res;
+	unsigned long flags;
+
+	buf_size = min(count, sizeof (really_big_buffer) - 1);
+	down(&big_buffer_sem);
+	if (copy_from_user(buf, user_buf, buf_size)) {
+	        res = -EFAULT;
+		goto out_up;
+	}
+	mutex_lock(&(bcm)->mutex);
+	spin_lock_irqsave(&(bcm)->irq_lock, flags);
+	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED) {
+		printk(KERN_INFO PFX "debugfs: Board not initialized.\n");
+		res = -EFAULT;
+		goto out_unlock;
+	}
+	if (count > 0 && buf[0] == '1') {
+		bcm43xx_controller_restart(bcm, "manually restarted");
+		res = count;
+	} else
+		res = -EINVAL;
+
+out_unlock:
+	spin_unlock_irqrestore(&(bcm)->irq_lock, flags);
+	mutex_unlock(&(bcm)->mutex);
+out_up:
+	up(&big_buffer_sem);
+	return res;
+}
+
 #undef fappend
 
 
@@ -346,6 +382,11 @@ static struct file_operations tsf_fops = {
 static struct file_operations txstat_fops = {
 	.read = txstat_read_file,
 	.write = write_file_dummy,
+	.open = open_file_generic,
+};
+
+static struct file_operations restart_fops = {
+	.write = restart_write_file,
 	.open = open_file_generic,
 };
 
@@ -400,6 +441,10 @@ void bcm43xx_debugfs_add_device(struct bcm43xx_private *bcm)
 						bcm, &txstat_fops);
 	if (!e->dentry_txstat)
 		printk(KERN_ERR PFX "debugfs: creating \"tx_status\" for \"%s\" failed!\n", devdir);
+	e->dentry_restart = debugfs_create_file("restart", 0222, e->subdir,
+						bcm, &restart_fops);
+	if (!e->dentry_restart)
+		printk(KERN_ERR PFX "debugfs: creating \"restart\" for \"%s\" failed!\n", devdir);
 }
 
 void bcm43xx_debugfs_remove_device(struct bcm43xx_private *bcm)
@@ -415,6 +460,7 @@ void bcm43xx_debugfs_remove_device(struct bcm43xx_private *bcm)
 	debugfs_remove(e->dentry_devinfo);
 	debugfs_remove(e->dentry_tsf);
 	debugfs_remove(e->dentry_txstat);
+	debugfs_remove(e->dentry_restart);
 	debugfs_remove(e->subdir);
 	kfree(e->xmitstatus_buffer);
 	kfree(e->xmitstatus_print_buffer);

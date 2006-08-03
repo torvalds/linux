@@ -504,6 +504,12 @@ struct bcm43xx_phyinfo {
 	 * This lock is only used by bcm43xx_phy_{un}lock()
 	 */
 	spinlock_t lock;
+
+	/* Firmware. */
+	const struct firmware *ucode;
+	const struct firmware *pcm;
+	const struct firmware *initvals0;
+	const struct firmware *initvals1;
 };
 
 
@@ -593,12 +599,14 @@ struct bcm43xx_coreinfo {
 	u8 available:1,
 	   enabled:1,
 	   initialized:1;
-	/** core_id ID number */
-	u16 id;
 	/** core_rev revision number */
 	u8 rev;
 	/** Index number for _switch_core() */
 	u8 index;
+	/** core_id ID number */
+	u16 id;
+	/** Core-specific data. */
+	void *priv;
 };
 
 /* Additional information for each 80211 core. */
@@ -647,7 +655,10 @@ enum {
 	BCM43xx_STAT_RESTARTING,	/* controller_restart() called. */
 };
 #define bcm43xx_status(bcm)		atomic_read(&(bcm)->init_status)
-#define bcm43xx_set_status(bcm, stat)	atomic_set(&(bcm)->init_status, (stat))
+#define bcm43xx_set_status(bcm, stat)	do {			\
+		atomic_set(&(bcm)->init_status, (stat));	\
+		smp_wmb();					\
+					} while (0)
 
 /*    *** THEORY OF LOCKING ***
  *
@@ -721,10 +732,6 @@ struct bcm43xx_private {
 	struct bcm43xx_coreinfo core_80211[ BCM43xx_MAX_80211_CORES ];
 	/* Additional information, specific to the 80211 cores. */
 	struct bcm43xx_coreinfo_80211 core_80211_ext[ BCM43xx_MAX_80211_CORES ];
-	/* Index of the current 80211 core. If current_core is not
-	 * an 80211 core, this is -1.
-	 */
-	int current_80211_core_idx;
 	/* Number of available 80211 cores. */
 	int nr_80211_available;
 
@@ -737,6 +744,8 @@ struct bcm43xx_private {
 	u32 irq_savedstate;
 	/* Link Quality calculation context. */
 	struct bcm43xx_noise_calculation noisecalc;
+	/* if > 0 MAC is suspended. if == 0 MAC is enabled. */
+	int mac_suspended;
 
 	/* Threshold values. */
 	//TODO: The RTS thr has to be _used_. Currently, it is only set via WX.
@@ -758,12 +767,6 @@ struct bcm43xx_private {
 	u16 security_offset;
 	struct bcm43xx_key key[54];
 	u8 default_key_idx;
-
-	/* Firmware. */
-	const struct firmware *ucode;
-	const struct firmware *pcm;
-	const struct firmware *initvals0;
-	const struct firmware *initvals1;
 
 	/* Random Number Generator. */
 	struct hwrng rng;
@@ -827,34 +830,33 @@ int bcm43xx_using_pio(struct bcm43xx_private *bcm)
  * any of these functions.
  */
 static inline
+struct bcm43xx_coreinfo_80211 *
+bcm43xx_current_80211_priv(struct bcm43xx_private *bcm)
+{
+	assert(bcm->current_core->id == BCM43xx_COREID_80211);
+	return bcm->current_core->priv;
+}
+static inline
 struct bcm43xx_pio * bcm43xx_current_pio(struct bcm43xx_private *bcm)
 {
 	assert(bcm43xx_using_pio(bcm));
-	assert(bcm->current_80211_core_idx >= 0);
-	assert(bcm->current_80211_core_idx < BCM43xx_MAX_80211_CORES);
-	return &(bcm->core_80211_ext[bcm->current_80211_core_idx].pio);
+	return &(bcm43xx_current_80211_priv(bcm)->pio);
 }
 static inline
 struct bcm43xx_dma * bcm43xx_current_dma(struct bcm43xx_private *bcm)
 {
 	assert(!bcm43xx_using_pio(bcm));
-	assert(bcm->current_80211_core_idx >= 0);
-	assert(bcm->current_80211_core_idx < BCM43xx_MAX_80211_CORES);
-	return &(bcm->core_80211_ext[bcm->current_80211_core_idx].dma);
+	return &(bcm43xx_current_80211_priv(bcm)->dma);
 }
 static inline
 struct bcm43xx_phyinfo * bcm43xx_current_phy(struct bcm43xx_private *bcm)
 {
-	assert(bcm->current_80211_core_idx >= 0);
-	assert(bcm->current_80211_core_idx < BCM43xx_MAX_80211_CORES);
-	return &(bcm->core_80211_ext[bcm->current_80211_core_idx].phy);
+	return &(bcm43xx_current_80211_priv(bcm)->phy);
 }
 static inline
 struct bcm43xx_radioinfo * bcm43xx_current_radio(struct bcm43xx_private *bcm)
 {
-	assert(bcm->current_80211_core_idx >= 0);
-	assert(bcm->current_80211_core_idx < BCM43xx_MAX_80211_CORES);
-	return &(bcm->core_80211_ext[bcm->current_80211_core_idx].radio);
+	return &(bcm43xx_current_80211_priv(bcm)->radio);
 }
 
 

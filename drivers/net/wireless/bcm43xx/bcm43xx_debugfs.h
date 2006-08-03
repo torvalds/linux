@@ -20,6 +20,7 @@ struct bcm43xx_dfsentry {
 	struct dentry *dentry_spromdump;
 	struct dentry *dentry_tsf;
 	struct dentry *dentry_txstat;
+	struct dentry *dentry_restart;
 
 	struct bcm43xx_private *bcm;
 
