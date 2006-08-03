@@ -175,7 +175,7 @@ MODULE_PARM_DESC(acbsize, "Request a specific adapter control block (FIB) size. 
  *
  *	Query config status, and commit the configuration if needed.
  */
-int aac_get_config_status(struct aac_dev *dev)
+int aac_get_config_status(struct aac_dev *dev, int commit_flag)
 {
 	int status = 0;
 	struct fib * fibptr;
@@ -219,7 +219,7 @@ int aac_get_config_status(struct aac_dev *dev)
 	aac_fib_complete(fibptr);
 	/* Send a CT_COMMIT_CONFIG to enable discovery of devices */
 	if (status >= 0) {
-		if (commit == 1) {
+		if ((commit == 1) || commit_flag) {
 			struct aac_commit_config * dinfo;
 			aac_fib_init(fibptr);
 			dinfo = (struct aac_commit_config *) fib_data(fibptr);
@@ -784,8 +784,9 @@ int aac_get_adapter_info(struct aac_dev* dev)
 		dev->maximum_num_channels = le32_to_cpu(bus_info->BusCount);
 	}
 
-	tmp = le32_to_cpu(dev->adapter_info.kernelrev);
-	printk(KERN_INFO "%s%d: kernel %d.%d-%d[%d] %.*s\n", 
+	if (!dev->in_reset) {
+		tmp = le32_to_cpu(dev->adapter_info.kernelrev);
+		printk(KERN_INFO "%s%d: kernel %d.%d-%d[%d] %.*s\n",
 			dev->name, 
 			dev->id,
 			tmp>>24,
@@ -794,20 +795,21 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			le32_to_cpu(dev->adapter_info.kernelbuild),
 			(int)sizeof(dev->supplement_adapter_info.BuildDate),
 			dev->supplement_adapter_info.BuildDate);
-	tmp = le32_to_cpu(dev->adapter_info.monitorrev);
-	printk(KERN_INFO "%s%d: monitor %d.%d-%d[%d]\n", 
+		tmp = le32_to_cpu(dev->adapter_info.monitorrev);
+		printk(KERN_INFO "%s%d: monitor %d.%d-%d[%d]\n",
 			dev->name, dev->id,
 			tmp>>24,(tmp>>16)&0xff,tmp&0xff,
 			le32_to_cpu(dev->adapter_info.monitorbuild));
-	tmp = le32_to_cpu(dev->adapter_info.biosrev);
-	printk(KERN_INFO "%s%d: bios %d.%d-%d[%d]\n", 
+		tmp = le32_to_cpu(dev->adapter_info.biosrev);
+		printk(KERN_INFO "%s%d: bios %d.%d-%d[%d]\n",
 			dev->name, dev->id,
 			tmp>>24,(tmp>>16)&0xff,tmp&0xff,
 			le32_to_cpu(dev->adapter_info.biosbuild));
-	if (le32_to_cpu(dev->adapter_info.serial[0]) != 0xBAD0)
-		printk(KERN_INFO "%s%d: serial %x\n",
-			dev->name, dev->id,
-			le32_to_cpu(dev->adapter_info.serial[0]));
+		if (le32_to_cpu(dev->adapter_info.serial[0]) != 0xBAD0)
+			printk(KERN_INFO "%s%d: serial %x\n",
+				dev->name, dev->id,
+				le32_to_cpu(dev->adapter_info.serial[0]));
+	}
 
 	dev->nondasd_support = 0;
 	dev->raid_scsi_mode = 0;
@@ -1417,6 +1419,9 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd, int cid)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 
 	aac = (struct aac_dev *)scsicmd->device->host->hostdata;
+	if (aac->in_reset)
+		return SCSI_MLQUEUE_HOST_BUSY;
+
 	/*
 	 *	Allocate and initialize a Fib
 	 */
@@ -1504,6 +1509,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 				case INQUIRY:
 				case READ_CAPACITY:
 				case TEST_UNIT_READY:
+					if (dev->in_reset)
+						return -1;
 					spin_unlock_irq(host->host_lock);
 					aac_probe_container(dev, cid);
 					if ((fsa_dev_ptr[cid].valid & 1) == 0)
@@ -1529,6 +1536,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			}
 		} else {  /* check for physical non-dasd devices */
 			if(dev->nondasd_support == 1){
+				if (dev->in_reset)
+					return -1;
 				return aac_send_srb_fib(scsicmd);
 			} else {
 				scsicmd->result = DID_NO_CONNECT << 16;
@@ -1584,6 +1593,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			scsicmd->scsi_done(scsicmd);
 			return 0;
 		}
+		if (dev->in_reset)
+			return -1;
 		setinqstr(dev, (void *) (inq_data.inqd_vid), fsa_dev_ptr[cid].type);
 		inq_data.inqd_pdt = INQD_PDT_DA;	/* Direct/random access device */
 		aac_internal_transfer(scsicmd, &inq_data, 0, sizeof(inq_data));
@@ -1739,6 +1750,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		case READ_10:
 		case READ_12:
 		case READ_16:
+			if (dev->in_reset)
+				return -1;
 			/*
 			 *	Hack to keep track of ordinal number of the device that
 			 *	corresponds to a container. Needed to convert
@@ -1757,6 +1770,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		case WRITE_10:
 		case WRITE_12:
 		case WRITE_16:
+			if (dev->in_reset)
+				return -1;
 			return aac_write(scsicmd, cid);
 
 		case SYNCHRONIZE_CACHE:

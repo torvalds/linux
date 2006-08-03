@@ -298,7 +298,7 @@ return_fib:
 		spin_unlock_irqrestore(&dev->fib_lock, flags);
 		/* If someone killed the AIF aacraid thread, restart it */
 		status = !dev->aif_thread;
-		if (status && dev->queues && dev->fsa_dev) {
+		if (status && !dev->in_reset && dev->queues && dev->fsa_dev) {
 			/* Be paranoid, be very paranoid! */
 			kthread_stop(dev->thread);
 			ssleep(1);

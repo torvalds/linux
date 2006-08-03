@@ -454,17 +454,17 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 	printk(KERN_ERR "%s: Host adapter reset request. SCSI hang ?\n", 
 					AAC_DRIVERNAME);
 	aac = (struct aac_dev *)host->hostdata;
-	if (aac_adapter_check_health(aac)) {
-		printk(KERN_ERR "%s: Host adapter appears dead\n", 
-				AAC_DRIVERNAME);
-		return -ENODEV;
-	}
+
+	if ((count = aac_check_health(aac)))
+		return count;
 	/*
 	 * Wait for all commands to complete to this specific
 	 * target (block maximum 60 seconds).
 	 */
 	for (count = 60; count; --count) {
-		int active = 0;
+		int active = aac->in_reset;
+
+		if (active == 0)
 		__shost_for_each_device(dev, host) {
 			spin_lock_irqsave(&dev->list_lock, flags);
 			list_for_each_entry(command, &dev->cmd_list, list) {
@@ -933,7 +933,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	else
 		shost->max_channel = 0;
 
-	aac_get_config_status(aac);
+	aac_get_config_status(aac, 0);
 	aac_get_containers(aac);
 	list_add(&aac->entry, insert);
 
