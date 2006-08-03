@@ -833,6 +833,8 @@ void do_signal32(struct pt_regs *regs)
 			if (test_thread_flag(TIF_RESTORE_SIGMASK))
 				clear_thread_flag(TIF_RESTORE_SIGMASK);
 		}
+
+		return;
 	}
 
 	/*
