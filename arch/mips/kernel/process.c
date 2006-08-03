@@ -281,48 +281,53 @@ static struct mips_frame_info {
 } *schedule_frame, mfinfo[64];
 static int mfinfo_num;
 
+static inline int is_ra_save_ins(union mips_instruction *ip)
+{
+	/* sw / sd $ra, offset($sp) */
+	return (ip->i_format.opcode == sw_op || ip->i_format.opcode == sd_op) &&
+		ip->i_format.rs == 29 &&
+		ip->i_format.rt == 31;
+}
+
+static inline int is_jal_jalr_jr_ins(union mips_instruction *ip)
+{
+	if (ip->j_format.opcode == jal_op)
+		return 1;
+	if (ip->r_format.opcode != spec_op)
+		return 0;
+	return ip->r_format.func == jalr_op || ip->r_format.func == jr_op;
+}
+
+static inline int is_sp_move_ins(union mips_instruction *ip)
+{
+	/* addiu/daddiu sp,sp,-imm */
+	if (ip->i_format.rs != 29 || ip->i_format.rt != 29)
+		return 0;
+	if (ip->i_format.opcode == addiu_op || ip->i_format.opcode == daddiu_op)
+		return 1;
+	return 0;
+}
+
 static int get_frame_info(struct mips_frame_info *info)
 {
-	int i;
-	void *func = info->func;
-	union mips_instruction *ip = (union mips_instruction *)func;
+	union mips_instruction *ip = info->func;
+	int i, max_insns =
+		min(128UL, info->func_size / sizeof(union mips_instruction));
+
 	info->pc_offset = -1;
 	info->frame_size = 0;
-	for (i = 0; i < 128; i++, ip++) {
-		/* if jal, jalr, jr, stop. */
-		if (ip->j_format.opcode == jal_op ||
-		    (ip->r_format.opcode == spec_op &&
-		     (ip->r_format.func == jalr_op ||
-		      ip->r_format.func == jr_op)))
-			break;
 
-		if (info->func_size && i >= info->func_size / 4)
+	for (i = 0; i < max_insns; i++, ip++) {
+
+		if (is_jal_jalr_jr_ins(ip))
 			break;
-		if (
-#ifdef CONFIG_32BIT
-		    ip->i_format.opcode == addiu_op &&
-#endif
-#ifdef CONFIG_64BIT
-		    ip->i_format.opcode == daddiu_op &&
-#endif
-		    ip->i_format.rs == 29 &&
-		    ip->i_format.rt == 29) {
-			/* addiu/daddiu sp,sp,-imm */
+		if (is_sp_move_ins(ip)) {
 			if (info->frame_size)
 				continue;
 			info->frame_size = - ip->i_format.simmediate;
 		}
 
-		if (
-#ifdef CONFIG_32BIT
-		    ip->i_format.opcode == sw_op &&
-#endif
-#ifdef CONFIG_64BIT
-		    ip->i_format.opcode == sd_op &&
-#endif
-		    ip->i_format.rs == 29 &&
-		    ip->i_format.rt == 31) {
-			/* sw / sd $ra, offset($sp) */
+		if (is_ra_save_ins(ip)) {
 			if (info->pc_offset != -1)
 				continue;
 			info->pc_offset =
