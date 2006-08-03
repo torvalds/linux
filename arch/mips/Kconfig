@@ -1649,9 +1649,7 @@ config GENERIC_IRQ_PROBE
 	default y
 
 config IRQ_PER_CPU
-	depends on SMP
 	bool
-	default y
 
 #
 # - Highmem only makes sense for the 32-bit kernel.
@@ -1719,6 +1717,7 @@ source "mm/Kconfig"
 config SMP
 	bool "Multi-Processing support"
 	depends on SYS_SUPPORTS_SMP
+	select IRQ_PER_CPU
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
