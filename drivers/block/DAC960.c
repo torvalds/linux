@@ -7115,7 +7115,7 @@ static struct pci_device_id DAC960_id_table[] = {
 	{
 		.vendor 	= PCI_VENDOR_ID_MYLEX,
 		.device		= PCI_DEVICE_ID_MYLEX_DAC960_GEM,
-		.subvendor	= PCI_ANY_ID,
+		.subvendor	= PCI_VENDOR_ID_MYLEX,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (unsigned long) &DAC960_GEM_privdata,
 	},
