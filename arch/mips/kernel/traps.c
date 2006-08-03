@@ -74,21 +74,18 @@ void (*board_ejtag_handler_setup)(void);
 void (*board_bind_eic_interrupt)(int irq, int regset);
 
 
-static void show_trace(unsigned long *stack)
+static void show_raw_backtrace(unsigned long *sp)
 {
-	const int field = 2 * sizeof(unsigned long);
 	unsigned long addr;
 
 	printk("Call Trace:");
 #ifdef CONFIG_KALLSYMS
 	printk("\n");
 #endif
-	while (!kstack_end(stack)) {
-		addr = *stack++;
-		if (__kernel_text_address(addr)) {
-			printk(" [<%0*lx>] ", field, addr);
-			print_symbol("%s\n", addr);
-		}
+	while (!kstack_end(sp)) {
+		addr = *sp++;
+		if (__kernel_text_address(addr))
+			print_ip_sym(addr);
 	}
 	printk("\n");
 }
@@ -104,22 +101,20 @@ __setup("raw_show_trace", set_raw_show_trace);
 
 extern unsigned long unwind_stack(struct task_struct *task,
 				  unsigned long **sp, unsigned long pc);
-static void show_frametrace(struct task_struct *task, struct pt_regs *regs)
+static void show_backtrace(struct task_struct *task, struct pt_regs *regs)
 {
-	const int field = 2 * sizeof(unsigned long);
-	unsigned long *stack = (long *)regs->regs[29];
+	unsigned long *sp = (long *)regs->regs[29];
 	unsigned long pc = regs->cp0_epc;
 	int top = 1;
 
 	if (raw_show_trace || !__kernel_text_address(pc)) {
-		show_trace(stack);
+		show_raw_backtrace(sp);
 		return;
 	}
 	printk("Call Trace:\n");
 	while (__kernel_text_address(pc)) {
-		printk(" [<%0*lx>] ", field, pc);
-		print_symbol("%s\n", pc);
-		pc = unwind_stack(task, &stack, pc);
+		print_ip_sym(pc);
+		pc = unwind_stack(task, &sp, pc);
 		if (top && pc == 0)
 			pc = regs->regs[31];	/* leaf? */
 		top = 0;
@@ -127,7 +122,7 @@ static void show_frametrace(struct task_struct *task, struct pt_regs *regs)
 	printk("\n");
 }
 #else
-#define show_frametrace(task, r) show_trace((long *)(r)->regs[29]);
+#define show_backtrace(task, r) show_raw_backtrace((long *)(r)->regs[29]);
 #endif
 
 /*
@@ -160,7 +155,7 @@ static void show_stacktrace(struct task_struct *task, struct pt_regs *regs)
 		i++;
 	}
 	printk("\n");
-	show_frametrace(task, regs);
+	show_backtrace(task, regs);
 }
 
 static noinline void prepare_frametrace(struct pt_regs *regs)
@@ -211,11 +206,11 @@ void dump_stack(void)
 	if (!raw_show_trace) {
 		struct pt_regs regs;
 		prepare_frametrace(&regs);
-		show_frametrace(current, &regs);
+		show_backtrace(current, &regs);
 		return;
 	}
 #endif
-	show_trace(&stack);
+	show_raw_backtrace(&stack);
 }
 
 EXPORT_SYMBOL(dump_stack);
