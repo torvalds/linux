@@ -719,6 +719,7 @@ struct msix_info_st {
 /* Data structure to represent a LRO session */
 typedef struct lro {
 	struct sk_buff	*parent;
+	struct sk_buff  *last_frag;
 	u8		*l2h;
 	struct iphdr	*iph;
 	struct tcphdr	*tcph;
@@ -1011,4 +1012,13 @@ static void clear_lro_session(lro_t *lro);
 static void queue_rx_frame(struct sk_buff *skb);
 static void update_L3L4_header(nic_t *sp, lro_t *lro);
 static void lro_append_pkt(nic_t *sp, lro_t *lro, struct sk_buff *skb, u32 tcp_len);
+
+#define s2io_tcp_mss(skb) skb_shinfo(skb)->gso_size
+#define s2io_udp_mss(skb) skb_shinfo(skb)->gso_size
+#define s2io_offload_type(skb) skb_shinfo(skb)->gso_type
+
+#define S2IO_PARM_INT(X, def_val) \
+	static unsigned int X = def_val;\
+		module_param(X , uint, 0);
+
 #endif				/* _S2IO_H */
