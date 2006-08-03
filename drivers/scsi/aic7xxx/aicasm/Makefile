@@ -14,6 +14,8 @@ LIBS=	-ldb
 clean-files:= ${GENSRCS} ${GENHDRS} $(YSRCS:.y=.output) $(PROG)
 # Override default kernel CFLAGS.  This is a userland app.
 AICASM_CFLAGS:= -I/usr/include -I.
+LEX= flex
+YACC= bison
 YFLAGS= -d
 
 NOMAN=	noman
