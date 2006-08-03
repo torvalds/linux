@@ -9,40 +9,14 @@
 
   Portions copied from the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 
-  History:
-
-  2005-05-19  v0.1   Initial version, based on incomplete docs
-                     and analysis of misbehavior with the standard driver
-  2005-05-20  v0.2   Extended the input buffer to avoid losing
-                     random 64-byte chunks of data
-  2005-05-21  v0.3   implemented chars_in_buffer()
-                     turned on low_latency
-                     simplified the code somewhat
-  2005-05-24  v0.4   option_write() sometimes deadlocked under heavy load
-                     removed some dead code
-                     added sponsor notice
-                     coding style clean-up
-  2005-06-20  v0.4.1 add missing braces :-/
-                     killed end-of-line whitespace
-  2005-07-15  v0.4.2 rename WLAN product to FUSION, add FUSION2
-  2005-09-10  v0.4.3 added HUAWEI E600 card and Audiovox AirCard
-  2005-09-20  v0.4.4 increased recv buffer size: the card sometimes
-                     wants to send >2000 bytes.
-  2006-04-10  v0.5   fixed two array overrun errors :-/
-  2006-04-21  v0.5.1 added support for Sierra Wireless MC8755
-  2006-05-15  v0.6   re-enable multi-port support
-  2006-06-01  v0.6.1 add COBRA
-  2006-06-01  v0.6.2 add backwards-compatibility stuff
-  2006-06-01  v0.6.3 add Novatel Wireless
-  2006-06-01  v0.7   Option => GSM
-  2006-06-01  v0.7.1 add COBRA2
+  History: see the git log.
 
   Work sponsored by: Sigos GmbH, Germany <info@sigos.de>
 
   This driver exists because the "normal" serial driver doesn't work too well
   with GSM modems. Issues:
   - data loss -- one single Receive URB is not nearly enough
-  - nonstandard flow (Option devices) and multiplex (Sierra) control
+  - nonstandard flow (Option devices) control
   - controlling the baud rate doesn't make sense
 
   This driver is named "option" because the most common device it's
@@ -96,8 +70,8 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define OPTION_VENDOR_ID                0x0AF0
 #define HUAWEI_VENDOR_ID                0x12D1
 #define AUDIOVOX_VENDOR_ID              0x0F3D
-#define SIERRAWIRELESS_VENDOR_ID        0x1199
 #define NOVATELWIRELESS_VENDOR_ID       0x1410
+#define ANYDATA_VENDOR_ID               0x16d5
 
 #define OPTION_PRODUCT_OLD              0x5000
 #define OPTION_PRODUCT_FUSION           0x6000
@@ -106,8 +80,8 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define OPTION_PRODUCT_COBRA2           0x6600
 #define HUAWEI_PRODUCT_E600             0x1001
 #define AUDIOVOX_PRODUCT_AIRCARD        0x0112
-#define SIERRAWIRELESS_PRODUCT_MC8755   0x6802
 #define NOVATELWIRELESS_PRODUCT_U740    0x1400
+#define ANYDATA_PRODUCT_ID              0x6501
 
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_OLD) },
@@ -117,8 +91,8 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA2) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
 	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
-	{ USB_DEVICE(SIERRAWIRELESS_VENDOR_ID, SIERRAWIRELESS_PRODUCT_MC8755) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
+	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
 	{ } /* Terminating entry */
 };
 
@@ -131,10 +105,7 @@ static struct usb_device_id option_ids1[] = {
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
 	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
-	{ } /* Terminating entry */
-};
-static struct usb_device_id option_ids3[] = {
-	{ USB_DEVICE(SIERRAWIRELESS_VENDOR_ID, SIERRAWIRELESS_PRODUCT_MC8755) },
+	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
 	{ } /* Terminating entry */
 };
 
@@ -151,37 +122,11 @@ static struct usb_driver option_driver = {
 /* The card has three separate interfaces, which the serial driver
  * recognizes separately, thus num_port=1.
  */
-static struct usb_serial_driver option_3port_device = {
-	.driver = {
-		.owner =	THIS_MODULE,
-		.name =		"option",
-	},
-	.description       = "GSM modem (3-port)",
-	.id_table          = option_ids3,
-	.num_interrupt_in  = NUM_DONT_CARE,
-	.num_bulk_in       = NUM_DONT_CARE,
-	.num_bulk_out      = NUM_DONT_CARE,
-	.num_ports         = 3,
-	.open              = option_open,
-	.close             = option_close,
-	.write             = option_write,
-	.write_room        = option_write_room,
-	.chars_in_buffer   = option_chars_in_buffer,
-	.throttle          = option_rx_throttle,
-	.unthrottle        = option_rx_unthrottle,
-	.set_termios       = option_set_termios,
-	.break_ctl         = option_break_ctl,
-	.tiocmget          = option_tiocmget,
-	.tiocmset          = option_tiocmset,
-	.attach            = option_startup,
-	.shutdown          = option_shutdown,
-	.read_int_callback = option_instat_callback,
-};
 
 static struct usb_serial_driver option_1port_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
-		.name =		"option",
+		.name =		"option1",
 	},
 	.description       = "GSM modem (1-port)",
 	.id_table          = option_ids1,
@@ -245,9 +190,6 @@ static int __init option_init(void)
 	retval = usb_serial_register(&option_1port_device);
 	if (retval)
 		goto failed_1port_device_register;
-	retval = usb_serial_register(&option_3port_device);
-	if (retval)
-		goto failed_3port_device_register;
 	retval = usb_register(&option_driver);
 	if (retval)
 		goto failed_driver_register;
@@ -257,8 +199,6 @@ static int __init option_init(void)
 	return 0;
 
 failed_driver_register:
-	usb_serial_deregister (&option_3port_device);
-failed_3port_device_register:
 	usb_serial_deregister (&option_1port_device);
 failed_1port_device_register:
 	return retval;
@@ -267,7 +207,6 @@ failed_1port_device_register:
 static void __exit option_exit(void)
 {
 	usb_deregister (&option_driver);
-	usb_serial_deregister (&option_3port_device);
 	usb_serial_deregister (&option_1port_device);
 }
 
@@ -655,7 +594,6 @@ static void option_setup_urbs(struct usb_serial *serial)
 	struct option_port_private *portdata;
 
 	dbg("%s", __FUNCTION__);
-
 
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];

@@ -943,7 +943,9 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 			/* We received a short packet */
 			if (urb->transfer_flags & URB_SHORT_NOT_OK)
 				ret = -EREMOTEIO;
-			else if (ctrlstat & TD_CTRL_SPD)
+
+			/* Fixup needed only if this isn't the URB's last TD */
+			else if (&td->list != urbp->td_list.prev)
 				ret = 1;
 		}
 
