@@ -158,7 +158,7 @@ static void show_stacktrace(struct task_struct *task, struct pt_regs *regs)
 	show_backtrace(task, regs);
 }
 
-static noinline void prepare_frametrace(struct pt_regs *regs)
+static __always_inline void prepare_frametrace(struct pt_regs *regs)
 {
 	__asm__ __volatile__(
 		"1: la $2, 1b\n\t"
@@ -200,17 +200,15 @@ void show_stack(struct task_struct *task, unsigned long *sp)
  */
 void dump_stack(void)
 {
-	unsigned long stack;
+	struct pt_regs regs;
 
-#ifdef CONFIG_KALLSYMS
-	if (!raw_show_trace) {
-		struct pt_regs regs;
-		prepare_frametrace(&regs);
-		show_backtrace(current, &regs);
-		return;
-	}
-#endif
-	show_raw_backtrace(&stack);
+	/*
+	 * Remove any garbage that may be in regs (specially func
+	 * addresses) to avoid show_raw_backtrace() to report them
+	 */
+	memset(&regs, 0, sizeof(regs));
+	prepare_frametrace(&regs);
+	show_backtrace(current, &regs);
 }
 
 EXPORT_SYMBOL(dump_stack);
