@@ -277,11 +277,6 @@ static void mt2060_calibrate(struct mt2060_priv *priv)
 		dprintk("FMCAL timed out");
 }
 
-static int mt2060_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8 *buf, int buf_len)
-{
-	return -ENODEV;
-}
-
 static int mt2060_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct mt2060_priv *priv = fe->tuner_priv;
@@ -294,6 +289,12 @@ static int mt2060_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	struct mt2060_priv *priv = fe->tuner_priv;
 	*bandwidth = priv->bandwidth;
 	return 0;
+}
+
+static int mt2060_init(struct dvb_frontend *fe)
+{
+	struct mt2060_priv *priv = fe->tuner_priv;
+	return mt2060_writereg(priv, REG_VGAG,0x33);
 }
 
 static int mt2060_sleep(struct dvb_frontend *fe)
@@ -319,10 +320,10 @@ static const struct dvb_tuner_ops mt2060_tuner_ops = {
 
 	.release       = mt2060_release,
 
+	.init          = mt2060_init,
 	.sleep         = mt2060_sleep,
 
 	.set_params    = mt2060_set_params,
-	.calc_regs     = mt2060_calc_regs,
 	.get_frequency = mt2060_get_frequency,
 	.get_bandwidth = mt2060_get_bandwidth
 };
