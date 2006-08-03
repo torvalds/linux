@@ -168,7 +168,8 @@ static struct omap_irq_bank omap1610_irq_banks[] = {
 };
 #endif
 
-static struct irqchip omap_irq_chip = {
+static struct irq_chip omap_irq_chip = {
+	.name		= "MPU",
 	.ack		= omap_mask_ack_irq,
 	.mask		= omap_mask_irq,
 	.unmask		= omap_unmask_irq,

@@ -48,8 +48,6 @@ struct clk_functions {
 };
 
 extern unsigned int mpurate;
-extern struct list_head clocks;
-extern spinlock_t clockfw_lock;
 
 extern int clk_init(struct clk_functions * custom_clocks);
 extern int clk_register(struct clk *clk);

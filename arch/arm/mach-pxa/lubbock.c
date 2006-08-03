@@ -78,7 +78,8 @@ static void lubbock_unmask_irq(unsigned int irq)
 	LUB_IRQ_MASK_EN = (lubbock_irq_enabled |= (1 << lubbock_irq));
 }
 
-static struct irqchip lubbock_irq_chip = {
+static struct irq_chip lubbock_irq_chip = {
+	.name		= "FPGA",
 	.ack		= lubbock_mask_irq,
 	.mask		= lubbock_mask_irq,
 	.unmask		= lubbock_unmask_irq,
