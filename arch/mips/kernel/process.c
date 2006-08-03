@@ -448,15 +448,16 @@ unsigned long get_wchan(struct task_struct *p)
 }
 
 #ifdef CONFIG_KALLSYMS
-/* used by show_frametrace() */
-unsigned long unwind_stack(struct task_struct *task,
-			   unsigned long **sp, unsigned long pc)
+/* used by show_backtrace() */
+unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
+			   unsigned long pc, unsigned long ra)
 {
 	unsigned long stack_page;
 	struct mips_frame_info info;
 	char *modname;
 	char namebuf[KSYM_NAME_LEN + 1];
 	unsigned long size, ofs;
+	int leaf;
 
 	stack_page = (unsigned long)task_stack_page(task);
 	if (!stack_page)
@@ -469,18 +470,26 @@ unsigned long unwind_stack(struct task_struct *task,
 
 	info.func = (void *)(pc - ofs);
 	info.func_size = ofs;	/* analyze from start to ofs */
-	if (get_frame_info(&info)) {
-		/* leaf or unknown */
-		*sp += info.frame_size / sizeof(long);
-		return 0;
-	}
-	if ((unsigned long)*sp < stack_page ||
-	    (unsigned long)*sp + info.frame_size / sizeof(long) >
-	    stack_page + THREAD_SIZE - 32)
+	leaf = get_frame_info(&info);
+	if (leaf < 0)
 		return 0;
 
-	pc = (*sp)[info.pc_offset];
-	*sp += info.frame_size / sizeof(long);
-	return pc;
+	if (*sp < stack_page ||
+	    *sp + info.frame_size > stack_page + THREAD_SIZE - 32)
+		return 0;
+
+	if (leaf)
+		/*
+		 * For some extreme cases, get_frame_info() can
+		 * consider wrongly a nested function as a leaf
+		 * one. In that cases avoid to return always the
+		 * same value.
+		 */
+		pc = pc != ra ? ra : 0;
+	else
+		pc = ((unsigned long *)(*sp))[info.pc_offset];
+
+	*sp += info.frame_size;
+	return __kernel_text_address(pc) ? pc : 0;
 }
 #endif

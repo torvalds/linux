@@ -74,8 +74,9 @@ void (*board_ejtag_handler_setup)(void);
 void (*board_bind_eic_interrupt)(int irq, int regset);
 
 
-static void show_raw_backtrace(unsigned long *sp)
+static void show_raw_backtrace(unsigned long reg29)
 {
+	unsigned long *sp = (unsigned long *)reg29;
 	unsigned long addr;
 
 	printk("Call Trace:");
@@ -99,30 +100,29 @@ static int __init set_raw_show_trace(char *str)
 }
 __setup("raw_show_trace", set_raw_show_trace);
 
-extern unsigned long unwind_stack(struct task_struct *task,
-				  unsigned long **sp, unsigned long pc);
+extern unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
+				  unsigned long pc, unsigned long ra);
+
 static void show_backtrace(struct task_struct *task, struct pt_regs *regs)
 {
-	unsigned long *sp = (long *)regs->regs[29];
+	unsigned long sp = regs->regs[29];
+	unsigned long ra = regs->regs[31];
 	unsigned long pc = regs->cp0_epc;
-	int top = 1;
 
 	if (raw_show_trace || !__kernel_text_address(pc)) {
 		show_raw_backtrace(sp);
 		return;
 	}
 	printk("Call Trace:\n");
-	while (__kernel_text_address(pc)) {
+	do {
 		print_ip_sym(pc);
-		pc = unwind_stack(task, &sp, pc);
-		if (top && pc == 0)
-			pc = regs->regs[31];	/* leaf? */
-		top = 0;
-	}
+		pc = unwind_stack(task, &sp, pc, ra);
+		ra = 0;
+	} while (pc);
 	printk("\n");
 }
 #else
-#define show_backtrace(task, r) show_raw_backtrace((long *)(r)->regs[29]);
+#define show_backtrace(task, r) show_raw_backtrace((r)->regs[29]);
 #endif
 
 /*
