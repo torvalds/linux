@@ -1013,6 +1013,10 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 	list_del(&aac->entry);
 	scsi_host_put(shost);
 	pci_disable_device(pdev);
+	if (list_empty(&aac_devices)) {
+		unregister_chrdev(aac_cfg_major, "aac");
+		aac_cfg_major = -1;
+	}
 }
 
 static struct pci_driver aac_pci_driver = {

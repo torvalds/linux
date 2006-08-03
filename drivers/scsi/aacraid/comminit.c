@@ -180,7 +180,7 @@ int aac_send_shutdown(struct aac_dev * dev)
 			  -2 /* Timeout silently */, 1,
 			  NULL, NULL);
 
-	if (status == 0)
+	if (status >= 0)
 		aac_fib_complete(fibctx);
 	aac_fib_free(fibctx);
 	return status;

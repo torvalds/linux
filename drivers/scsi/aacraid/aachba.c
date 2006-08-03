@@ -489,6 +489,8 @@ int aac_probe_container(struct aac_dev *dev, int cid)
 	unsigned instance;
 
 	fsa_dev_ptr = dev->fsa_dev;
+	if (!fsa_dev_ptr)
+		return -ENOMEM;
 	instance = dev->scsi_host_ptr->unique_id;
 
 	if (!(fibptr = aac_fib_alloc(dev)))
@@ -1392,6 +1394,7 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd, int cid)
 	struct scsi_cmnd *cmd;
 	struct scsi_device *sdev = scsicmd->device;
 	int active = 0;
+	struct aac_dev *aac;
 	unsigned long flags;
 
 	/*
@@ -1413,11 +1416,11 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd, int cid)
 	if (active)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 
+	aac = (struct aac_dev *)scsicmd->device->host->hostdata;
 	/*
 	 *	Allocate and initialize a Fib
 	 */
-	if (!(cmd_fibcontext = 
-	    aac_fib_alloc((struct aac_dev *)scsicmd->device->host->hostdata)))
+	if (!(cmd_fibcontext = aac_fib_alloc(aac)))
 		return SCSI_MLQUEUE_HOST_BUSY;
 
 	aac_fib_init(cmd_fibcontext);
@@ -1470,6 +1473,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	struct aac_dev *dev = (struct aac_dev *)host->hostdata;
 	struct fsa_dev_info *fsa_dev_ptr = dev->fsa_dev;
 	
+	if (fsa_dev_ptr == NULL)
+		return -1;
 	/*
 	 *	If the bus, id or lun is out of range, return fail
 	 *	Test does not apply to ID 16, the pseudo id for the controller
@@ -1782,6 +1787,8 @@ static int query_disk(struct aac_dev *dev, void __user *arg)
 	struct fsa_dev_info *fsa_dev_ptr;
 
 	fsa_dev_ptr = dev->fsa_dev;
+	if (!fsa_dev_ptr)
+		return -ENODEV;
 	if (copy_from_user(&qd, arg, sizeof (struct aac_query_disk)))
 		return -EFAULT;
 	if (qd.cnum == -1)
@@ -1843,6 +1850,10 @@ static int delete_disk(struct aac_dev *dev, void __user *arg)
 	struct fsa_dev_info *fsa_dev_ptr;
 
 	fsa_dev_ptr = dev->fsa_dev;
+	if (!fsa_dev_ptr)
+		return -ENODEV;
+	if (!fsa_dev_ptr)
+		return -ENODEV;
 
 	if (copy_from_user(&dd, arg, sizeof (struct aac_delete_disk)))
 		return -EFAULT;
