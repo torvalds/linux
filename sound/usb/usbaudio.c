@@ -2049,7 +2049,7 @@ static struct usb_driver usb_audio_driver = {
 };
 
 
-#if defined(CONFIG_PROCFS) && defined(CONFIG_SND_VERBOSE_PROCFS)
+#if defined(CONFIG_PROC_FS) && defined(CONFIG_SND_VERBOSE_PROCFS)
 
 /*
  * proc interface for list the supported pcm formats
