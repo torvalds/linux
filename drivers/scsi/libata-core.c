@@ -5185,28 +5185,6 @@ void ata_host_stop (struct ata_host_set *host_set)
 		iounmap(host_set->mmio_base);
 }
 
-
-/**
- *	ata_host_remove - Unregister SCSI host structure with upper layers
- *	@ap: Port to unregister
- *	@do_unregister: 1 if we fully unregister, 0 to just stop the port
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-
-static void ata_host_remove(struct ata_port *ap, unsigned int do_unregister)
-{
-	struct Scsi_Host *sh = ap->host;
-
-	DPRINTK("ENTER\n");
-
-	if (do_unregister)
-		scsi_remove_host(sh);
-
-	ap->ops->port_stop(ap);
-}
-
 /**
  *	ata_dev_init - Initialize an ata_device structure
  *	@dev: Device structure to initialize
@@ -5532,8 +5510,11 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 err_out:
 	for (i = 0; i < count; i++) {
-		ata_host_remove(host_set->ports[i], 1);
-		scsi_host_put(host_set->ports[i]->host);
+		struct ata_port *ap = host_set->ports[i];
+
+		scsi_remove_host(ap->host);
+		ap->ops->port_stop(ap);
+		scsi_host_put(ap->host);
 	}
 err_free_ret:
 	kfree(host_set);
@@ -5663,7 +5644,7 @@ int ata_scsi_release(struct Scsi_Host *host)
 	DPRINTK("ENTER\n");
 
 	ap->ops->port_disable(ap);
-	ata_host_remove(ap, 0);
+	ap->ops->port_stop(ap);
 
 	DPRINTK("EXIT\n");
 	return 1;
