@@ -430,7 +430,8 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 			kctl = snd_ctl_file(list);
 			if (kctl->pid == current->pid) {
 				subdevice = kctl->prefer_rawmidi_subdevice;
-				break;
+				if (subdevice != -1)
+					break;
 			}
 		}
 		up_read(&card->controls_rwsem);

@@ -792,7 +792,8 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 		kctl = snd_ctl_file(list);
 		if (kctl->pid == current->pid) {
 			prefer_subdevice = kctl->prefer_pcm_subdevice;
-			break;
+			if (prefer_subdevice != -1)
+				break;
 		}
 	}
 	up_read(&card->controls_rwsem);
