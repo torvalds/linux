@@ -232,7 +232,8 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 	spin_lock(&ops_lock);
 	list_for_each_entry(op, &recv_list, list) {
 		if (op->info.fsid == info.fsid &&
-		    op->info.number == info.number) {
+		    op->info.number == info.number &&
+		    op->info.owner == info.owner) {
 			list_del_init(&op->list);
 			found = 1;
 			op->done = 1;
