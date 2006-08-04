@@ -747,8 +747,6 @@ static void ip6_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 	}
 }
 
-/* Protected by rt6_lock.  */
-static struct dst_entry *ndisc_dst_gc_list;
 static int ipv6_get_mtu(struct net_device *dev);
 
 static inline unsigned int ipv6_advmss(unsigned int mtu)
@@ -768,6 +766,9 @@ static inline unsigned int ipv6_advmss(unsigned int mtu)
 		mtu = IPV6_MAXPLEN;
 	return mtu;
 }
+
+static struct dst_entry *ndisc_dst_gc_list;
+DEFINE_SPINLOCK(ndisc_lock);
 
 struct dst_entry *ndisc_dst_alloc(struct net_device *dev, 
 				  struct neighbour *neigh,
@@ -809,10 +810,10 @@ struct dst_entry *ndisc_dst_alloc(struct net_device *dev,
 	rt->rt6i_dst.plen = 128;
 #endif
 
-	write_lock_bh(&rt6_lock);
+	spin_lock_bh(&ndisc_lock);
 	rt->u.dst.next = ndisc_dst_gc_list;
 	ndisc_dst_gc_list = &rt->u.dst;
-	write_unlock_bh(&rt6_lock);
+	spin_unlock_bh(&ndisc_lock);
 
 	fib6_force_start_gc();
 
@@ -826,8 +827,11 @@ int ndisc_dst_gc(int *more)
 	int freed;
 
 	next = NULL;
+ 	freed = 0;
+
+	spin_lock_bh(&ndisc_lock);
 	pprev = &ndisc_dst_gc_list;
-	freed = 0;
+
 	while ((dst = *pprev) != NULL) {
 		if (!atomic_read(&dst->__refcnt)) {
 			*pprev = dst->next;
@@ -838,6 +842,8 @@ int ndisc_dst_gc(int *more)
 			(*more)++;
 		}
 	}
+
+	spin_unlock_bh(&ndisc_lock);
 
 	return freed;
 }
