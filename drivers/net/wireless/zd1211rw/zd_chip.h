@@ -461,10 +461,15 @@
 
 #define CR_RX_FILTER			CTL_REG(0x068c)
 #define RX_FILTER_ASSOC_RESPONSE	0x0002
+#define RX_FILTER_REASSOC_RESPONSE	0x0008
 #define RX_FILTER_PROBE_RESPONSE	0x0020
 #define RX_FILTER_BEACON		0x0100
+#define RX_FILTER_DISASSOC		0x0400
 #define RX_FILTER_AUTH			0x0800
-/* Sniff modus sets filter to 0xfffff */
+#define AP_RX_FILTER			0x0400feff
+#define STA_RX_FILTER			0x0000ffff
+
+/* Monitor mode sets filter to 0xfffff */
 
 #define CR_ACK_TIMEOUT_EXT		CTL_REG(0x0690)
 #define CR_BCN_FIFO_SEMAPHORE		CTL_REG(0x0694)
@@ -545,9 +550,6 @@
 #define CR_ZD1211B_AIFS_CTL2		CTL_REG(0x0b14)
 #define CR_ZD1211B_TXOP			CTL_REG(0x0b20)
 #define CR_ZD1211B_RETRY_MAX		CTL_REG(0x0b28)
-
-#define AP_RX_FILTER			0x0400feff
-#define STA_RX_FILTER			0x0000ffff
 
 #define CWIN_SIZE			0x007f043f
 
