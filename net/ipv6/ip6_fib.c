@@ -159,6 +159,15 @@ static struct fib6_table fib6_main_tbl = {
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 
+static struct fib6_table fib6_local_tbl = {
+	.tb6_id		= RT6_TABLE_LOCAL,
+	.tb6_lock	= RW_LOCK_UNLOCKED,
+	.tb6_root 	= {
+		.leaf		= &ip6_null_entry,
+		.fn_flags	= RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO,
+	},
+};
+
 #define FIB_TABLE_HASHSZ 256
 static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
 
@@ -228,20 +237,10 @@ struct fib6_table *fib6_get_table(u32 id)
 	return NULL;
 }
 
-struct dst_entry *fib6_rule_lookup(struct flowi *fl, int flags,
-				   pol_lookup_t lookup)
-{
-	/*
-	 * TODO: Add rule lookup
-	 */
-	struct fib6_table *table = fib6_get_table(RT6_TABLE_MAIN);
-
-	return (struct dst_entry *) lookup(table, fl, flags);
-}
-
 static void __init fib6_tables_init(void)
 {
 	fib6_link_table(&fib6_main_tbl);
+	fib6_link_table(&fib6_local_tbl);
 }
 
 #else

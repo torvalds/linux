@@ -139,6 +139,7 @@ config IPV6_TUNNEL
 config IPV6_MULTIPLE_TABLES
 	bool "IPv6: Multiple Routing Tables"
 	depends on IPV6 && EXPERIMENTAL
+	select FIB_RULES
 	---help---
 	  Support multiple routing tables.
 

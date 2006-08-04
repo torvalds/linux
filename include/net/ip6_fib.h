@@ -155,7 +155,6 @@ struct fib6_table {
 
 #define RT6_TABLE_UNSPEC	RT_TABLE_UNSPEC
 #define RT6_TABLE_MAIN		RT_TABLE_MAIN
-#define RT6_TABLE_LOCAL		RT6_TABLE_MAIN
 #define RT6_TABLE_DFLT		RT6_TABLE_MAIN
 #define RT6_TABLE_INFO		RT6_TABLE_MAIN
 #define RT6_TABLE_PREFIX	RT6_TABLE_MAIN
@@ -163,9 +162,11 @@ struct fib6_table {
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 #define FIB6_TABLE_MIN		1
 #define FIB6_TABLE_MAX		RT_TABLE_MAX
+#define RT6_TABLE_LOCAL		RT_TABLE_LOCAL
 #else
 #define FIB6_TABLE_MIN		RT_TABLE_MAIN
 #define FIB6_TABLE_MAX		FIB6_TABLE_MIN
+#define RT6_TABLE_LOCAL		RT6_TABLE_MAIN
 #endif
 
 #define RT6_F_STRICT		1
@@ -221,5 +222,11 @@ extern void			fib6_run_gc(unsigned long dummy);
 extern void			fib6_gc_cleanup(void);
 
 extern void			fib6_init(void);
+
+extern void			fib6_rules_init(void);
+extern void			fib6_rules_cleanup(void);
+extern int			fib6_rules_dump(struct sk_buff *,
+						struct netlink_callback *);
+
 #endif
 #endif

@@ -140,6 +140,50 @@ struct rt6_info ip6_null_entry = {
 	.rt6i_ref	= ATOMIC_INIT(1),
 };
 
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+
+struct rt6_info ip6_prohibit_entry = {
+	.u = {
+		.dst = {
+			.__refcnt	= ATOMIC_INIT(1),
+			.__use		= 1,
+			.dev		= &loopback_dev,
+			.obsolete	= -1,
+			.error		= -EACCES,
+			.metrics	= { [RTAX_HOPLIMIT - 1] = 255, },
+			.input		= ip6_pkt_discard,
+			.output		= ip6_pkt_discard_out,
+			.ops		= &ip6_dst_ops,
+			.path		= (struct dst_entry*)&ip6_prohibit_entry,
+		}
+	},
+	.rt6i_flags	= (RTF_REJECT | RTF_NONEXTHOP),
+	.rt6i_metric	= ~(u32) 0,
+	.rt6i_ref	= ATOMIC_INIT(1),
+};
+
+struct rt6_info ip6_blk_hole_entry = {
+	.u = {
+		.dst = {
+			.__refcnt	= ATOMIC_INIT(1),
+			.__use		= 1,
+			.dev		= &loopback_dev,
+			.obsolete	= -1,
+			.error		= -EINVAL,
+			.metrics	= { [RTAX_HOPLIMIT - 1] = 255, },
+			.input		= ip6_pkt_discard,
+			.output		= ip6_pkt_discard_out,
+			.ops		= &ip6_dst_ops,
+			.path		= (struct dst_entry*)&ip6_blk_hole_entry,
+		}
+	},
+	.rt6i_flags	= (RTF_REJECT | RTF_NONEXTHOP),
+	.rt6i_metric	= ~(u32) 0,
+	.rt6i_ref	= ATOMIC_INIT(1),
+};
+
+#endif
+
 /* allocate dst with ip6_dst_ops */
 static __inline__ struct rt6_info *ip6_dst_alloc(void)
 {
@@ -2408,10 +2452,16 @@ void __init ip6_route_init(void)
 #ifdef CONFIG_XFRM
 	xfrm6_init();
 #endif
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	fib6_rules_init();
+#endif
 }
 
 void ip6_route_cleanup(void)
 {
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	fib6_rules_cleanup();
+#endif
 #ifdef CONFIG_PROC_FS
 	proc_net_remove("ipv6_route");
 	proc_net_remove("rt6_stats");

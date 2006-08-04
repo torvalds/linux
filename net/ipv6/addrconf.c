@@ -3528,6 +3528,7 @@ static struct rtnetlink_link inet6_rtnetlink_table[RTM_NR_MSGTYPES] = {
 	[RTM_DELROUTE - RTM_BASE] = { .doit	= inet6_rtm_delroute, },
 	[RTM_GETROUTE - RTM_BASE] = { .doit	= inet6_rtm_getroute,
 				      .dumpit	= inet6_dump_fib, },
+	[RTM_GETRULE  - RTM_BASE] = { .dumpit   = fib6_rules_dump,   },
 };
 
 static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
