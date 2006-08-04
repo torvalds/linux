@@ -1151,9 +1151,7 @@ static struct rtnetlink_link inet_rtnetlink_table[RTM_NR_MSGTYPES] = {
 	[RTM_GETROUTE - RTM_BASE] = { .doit	= inet_rtm_getroute,
 				      .dumpit	= inet_dump_fib,	},
 #ifdef CONFIG_IP_MULTIPLE_TABLES
-	[RTM_NEWRULE  - RTM_BASE] = { .doit	= inet_rtm_newrule,	},
-	[RTM_DELRULE  - RTM_BASE] = { .doit	= inet_rtm_delrule,	},
-	[RTM_GETRULE  - RTM_BASE] = { .dumpit	= inet_dump_rules,	},
+	[RTM_GETRULE  - RTM_BASE] = { .dumpit	= fib4_rules_dump,	},
 #endif
 };
 

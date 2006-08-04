@@ -656,7 +656,7 @@ void __init ip_fib_init(void)
 	ip_fib_local_table = fib_hash_init(RT_TABLE_LOCAL);
 	ip_fib_main_table  = fib_hash_init(RT_TABLE_MAIN);
 #else
-	fib_rules_init();
+	fib4_rules_init();
 #endif
 
 	register_netdevice_notifier(&fib_netdev_notifier);

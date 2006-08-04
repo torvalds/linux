@@ -18,6 +18,7 @@
 
 #include <net/flow.h>
 #include <linux/seq_file.h>
+#include <net/fib_rules.h>
 
 /* WARNING: The ordering of these elements must match ordering
  *          of RTA_* rtnetlink attribute numbers.
@@ -203,9 +204,8 @@ static inline void fib_select_default(const struct flowi *flp, struct fib_result
 #define ip_fib_main_table (fib_tables[RT_TABLE_MAIN])
 
 extern struct fib_table * fib_tables[RT_TABLE_MAX+1];
-extern int fib_lookup(const struct flowi *flp, struct fib_result *res);
+extern int fib_lookup(struct flowi *flp, struct fib_result *res);
 extern struct fib_table *__fib_new_table(int id);
-extern void fib_rule_put(struct fib_rule *r);
 
 static inline struct fib_table *fib_get_table(int id)
 {
@@ -251,15 +251,15 @@ extern u32  __fib_res_prefsrc(struct fib_result *res);
 extern struct fib_table *fib_hash_init(int id);
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
-/* Exported by fib_rules.c */
+extern int fib4_rules_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
-extern int inet_rtm_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
-extern int inet_rtm_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
-extern int inet_dump_rules(struct sk_buff *skb, struct netlink_callback *cb);
+extern void __init fib4_rules_init(void);
+extern void __exit fib4_rules_cleanup(void);
+
 #ifdef CONFIG_NET_CLS_ROUTE
 extern u32 fib_rules_tclass(struct fib_result *res);
 #endif
-extern void fib_rules_init(void);
+
 #endif
 
 static inline void fib_combine_itag(u32 *itag, struct fib_result *res)
