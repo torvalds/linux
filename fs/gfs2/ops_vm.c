@@ -46,13 +46,7 @@ static struct page *gfs2_private_nopage(struct vm_area_struct *area,
 					unsigned long address, int *type)
 {
 	struct gfs2_inode *ip = GFS2_I(area->vm_file->f_mapping->host);
-	struct gfs2_holder i_gh;
 	struct page *result;
-	int error;
-
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &i_gh);
-	if (error)
-		return NULL;
 
 	set_bit(GIF_PAGED, &ip->i_flags);
 
@@ -60,8 +54,6 @@ static struct page *gfs2_private_nopage(struct vm_area_struct *area,
 
 	if (result && result != NOPAGE_OOM)
 		pfault_be_greedy(ip);
-
-	gfs2_glock_dq_uninit(&i_gh);
 
 	return result;
 }
@@ -141,7 +133,9 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
 					   unsigned long address, int *type)
 {
-	struct gfs2_inode *ip = GFS2_I(area->vm_file->f_mapping->host);
+	struct file *file = area->vm_file;
+	struct gfs2_file *gf = file->private_data;
+	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
 	struct gfs2_holder i_gh;
 	struct page *result = NULL;
 	unsigned long index = ((address - area->vm_start) >> PAGE_CACHE_SHIFT) +
@@ -156,13 +150,14 @@ static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
 	set_bit(GIF_PAGED, &ip->i_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 
-	error = gfs2_write_alloc_required(ip,
-					  (uint64_t)index << PAGE_CACHE_SHIFT,
+	error = gfs2_write_alloc_required(ip, (u64)index << PAGE_CACHE_SHIFT,
 					  PAGE_CACHE_SIZE, &alloc_required);
 	if (error)
 		goto out;
 
+	set_bit(GFF_EXLOCK, &gf->f_flags);
 	result = filemap_nopage(area, address, type);
+	clear_bit(GFF_EXLOCK, &gf->f_flags);
 	if (!result || result == NOPAGE_OOM)
 		goto out;
 
@@ -177,8 +172,7 @@ static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
 	}
 
 	pfault_be_greedy(ip);
-
- out:
+out:
 	gfs2_glock_dq_uninit(&i_gh);
 
 	return result;

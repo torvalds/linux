@@ -279,6 +279,7 @@ static inline struct gfs2_sbd *GFS2_SB(struct inode *inode)
 
 enum {
 	GFF_DID_DIRECT_ALLOC	= 0,
+	GFF_EXLOCK = 1,
 };
 
 struct gfs2_file {

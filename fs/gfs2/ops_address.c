@@ -237,14 +237,22 @@ static int gfs2_readpage(struct file *file, struct page *page)
 	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
 	struct gfs2_holder gh;
 	int error;
+	int do_unlock = 0;
 
 	if (likely(file != &gfs2_internal_file_sentinal)) {
+		if (file) {
+			struct gfs2_file *gf = file->private_data;
+			if (test_bit(GFF_EXLOCK, &gf->f_flags))
+				goto skip_lock;
+		}
 		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|GL_AOP, &gh);
+		do_unlock = 1;
 		error = gfs2_glock_nq_m_atime(1, &gh);
 		if (unlikely(error))
 			goto out_unlock;
 	}
 
+skip_lock:
 	if (gfs2_is_stuffed(ip)) {
 		error = stuffed_readpage(ip, page);
 		unlock_page(page);
@@ -262,7 +270,7 @@ out:
 	return error;
 out_unlock:
 	unlock_page(page);
-	if (file != &gfs2_internal_file_sentinal)
+	if (do_unlock)
 		gfs2_holder_uninit(&gh);
 	goto out;
 }
@@ -291,17 +299,24 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 	struct gfs2_holder gh;
 	unsigned page_idx;
 	int ret;
+	int do_unlock = 0;
 
 	if (likely(file != &gfs2_internal_file_sentinal)) {
+		if (file) {
+			struct gfs2_file *gf = file->private_data;
+			if (test_bit(GFF_EXLOCK, &gf->f_flags))
+				goto skip_lock;
+		}
 		gfs2_holder_init(ip->i_gl, LM_ST_SHARED,
 				 LM_FLAG_TRY_1CB|GL_ATIME|GL_AOP, &gh);
+		do_unlock = 1;
 		ret = gfs2_glock_nq_m_atime(1, &gh);
 		if (ret == GLR_TRYFAILED) 
 			goto out_noerror;
 		if (unlikely(ret))
 			goto out_unlock;
 	}
-
+skip_lock:
 	if (gfs2_is_stuffed(ip)) {
 		struct pagevec lru_pvec;
 		pagevec_init(&lru_pvec, 0);
@@ -326,7 +341,7 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 		ret = mpage_readpages(mapping, pages, nr_pages, gfs2_get_block);
 	}
 
-	if (likely(file != &gfs2_internal_file_sentinal)) {
+	if (do_unlock) {
 		gfs2_glock_dq_m(1, &gh);
 		gfs2_holder_uninit(&gh);
 	}
@@ -344,7 +359,7 @@ out_unlock:
 		unlock_page(page);
 		page_cache_release(page);
 	}
-	if (likely(file != &gfs2_internal_file_sentinal))
+	if (do_unlock)
 		gfs2_holder_uninit(&gh);
 	goto out;
 }

@@ -256,8 +256,8 @@ static unsigned int current_tail(struct gfs2_sbd *sdp)
 	if (list_empty(&sdp->sd_ail1_list))
 		tail = sdp->sd_log_head;
 	else {
-		ai = list_entry(sdp->sd_ail1_list.prev,
-				struct gfs2_ail, ai_list);
+		ai = list_entry(sdp->sd_ail1_list.prev, struct gfs2_ail,
+				ai_list);
 		tail = ai->ai_first;
 	}
 

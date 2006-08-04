@@ -153,8 +153,7 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 
 	if (lh.lh_header.mh_magic != GFS2_MAGIC ||
 	    lh.lh_header.mh_type != GFS2_METATYPE_LH ||
-	    lh.lh_blkno != blk ||
-	    lh.lh_hash != hash)
+	    lh.lh_blkno != blk || lh.lh_hash != hash)
 		return 1;
 
 	*head = lh;
@@ -482,11 +481,9 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd)
 
 		/* Acquire a shared hold on the transaction lock */
 
-		error = gfs2_glock_nq_init(sdp->sd_trans_gl,
-					   LM_ST_SHARED,
+		error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED,
 					   LM_FLAG_NOEXP | LM_FLAG_PRIORITY |
-					   GL_NOCANCEL | GL_NOCACHE,
-					   &t_gh);
+					   GL_NOCANCEL | GL_NOCACHE, &t_gh);
 		if (error)
 			goto fail_gunlock_ji;
 
