@@ -382,8 +382,10 @@ ohci_omap_start (struct usb_hcd *hcd)
 	int		ret;
 
 	config = hcd->self.controller->platform_data;
-	if (config->otg || config->rwc)
+	if (config->otg || config->rwc) {
+		ohci->hc_control = OHCI_CTRL_RWC;
 		writel(OHCI_CTRL_RWC, &ohci->regs->control);
+	}
 
 	if ((ret = ohci_run (ohci)) < 0) {
 		dev_err(hcd->self.controller, "can't start\n");
@@ -429,6 +431,7 @@ static const struct hc_driver ohci_omap_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
+	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,

@@ -667,6 +667,11 @@ show_registers (struct class_device *class_dev, char *buf)
 	size -= temp;
 	next += temp;
 
+	temp = scnprintf (next, size, "hub poll timer %s\n",
+			ohci_to_hcd(ohci)->poll_rh ? "ON" : "off");
+	size -= temp;
+	next += temp;
+
 	/* roothub */
 	ohci_dump_roothub (ohci, 1, &next, &size);
 

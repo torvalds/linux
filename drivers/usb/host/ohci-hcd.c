@@ -101,7 +101,7 @@
 
 #include "../core/hcd.h"
 
-#define DRIVER_VERSION "2005 April 22"
+#define DRIVER_VERSION "2006 August 04"
 #define DRIVER_AUTHOR "Roman Weissgaerber, David Brownell"
 #define DRIVER_DESC "USB 1.1 'Open' Host Controller (OHCI) Driver"
 
@@ -110,9 +110,10 @@
 #undef OHCI_VERBOSE_DEBUG	/* not always helpful */
 
 /* For initializing controller (mask in an HCFS mode too) */
-#define	OHCI_CONTROL_INIT 	OHCI_CTRL_CBSR
+#define	OHCI_CONTROL_INIT	OHCI_CTRL_CBSR
 #define	OHCI_INTR_INIT \
-	(OHCI_INTR_MIE | OHCI_INTR_UE | OHCI_INTR_RD | OHCI_INTR_WDH)
+		(OHCI_INTR_MIE | OHCI_INTR_RHSC | OHCI_INTR_UE \
+		| OHCI_INTR_RD | OHCI_INTR_WDH)
 
 #ifdef __hppa__
 /* On PA-RISC, PDC can leave IR set incorrectly; ignore it there. */
@@ -127,6 +128,8 @@
 /*-------------------------------------------------------------------------*/
 
 static const char	hcd_name [] = "ohci_hcd";
+
+#define	STATECHANGE_DELAY	msecs_to_jiffies(300)
 
 #include "ohci.h"
 
@@ -446,7 +449,6 @@ static int ohci_init (struct ohci_hcd *ohci)
 
 	disable (ohci);
 	ohci->regs = hcd->regs;
-	ohci->next_statechange = jiffies;
 
 	/* REVISIT this BIOS handshake is now moved into PCI "quirks", and
 	 * was never needed for most non-PCI systems ... remove the code?
@@ -637,10 +639,14 @@ retry:
 		return -EOVERFLOW;
 	}
 
- 	/* start controller operations */
+	/* use rhsc irqs after khubd is fully initialized */
+	hcd->poll_rh = 1;
+	hcd->uses_new_polling = 1;
+
+	/* start controller operations */
 	ohci->hc_control &= OHCI_CTRL_RWC;
- 	ohci->hc_control |= OHCI_CONTROL_INIT | OHCI_USB_OPER;
- 	ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
+	ohci->hc_control |= OHCI_CONTROL_INIT | OHCI_USB_OPER;
+	ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
 	hcd->state = HC_STATE_RUNNING;
 
 	/* wake on ConnectStatusChange, matching external hubs */
@@ -648,7 +654,7 @@ retry:
 
 	/* Choose the interrupts we care about now, others later on demand */
 	mask = OHCI_INTR_INIT;
-	ohci_writel (ohci, mask, &ohci->regs->intrstatus);
+	ohci_writel (ohci, ~0, &ohci->regs->intrstatus);
 	ohci_writel (ohci, mask, &ohci->regs->intrenable);
 
 	/* handle root hub init quirks ... */
@@ -672,6 +678,7 @@ retry:
 	// flush those writes
 	(void) ohci_readl (ohci, &ohci->regs->control);
 
+	ohci->next_statechange = jiffies + STATECHANGE_DELAY;
 	spin_unlock_irq (&ohci->lock);
 
 	// POTPGT delay is bits 24-31, in 2 ms units.
@@ -709,7 +716,23 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd, struct pt_regs *ptregs)
 	/* interrupt for some other device? */
 	} else if ((ints &= ohci_readl (ohci, &regs->intrenable)) == 0) {
 		return IRQ_NOTMINE;
-	} 
+	}
+
+	/* NOTE:  vendors didn't always make the same implementation
+	 * choices for RHSC.  Sometimes it triggers on an edge (like
+	 * setting and maybe clearing a port status change bit); and
+	 * it's level-triggered on other silicon, active until khubd
+	 * clears all active port status change bits.  Poll by timer
+	 * til it's fully debounced and the difference won't matter.
+	 */
+	if (ints & OHCI_INTR_RHSC) {
+		ohci_vdbg (ohci, "rhsc\n");
+		ohci_writel (ohci, OHCI_INTR_RHSC, &regs->intrdisable);
+		hcd->poll_rh = 1;
+		ohci->next_statechange = jiffies + STATECHANGE_DELAY;
+		ohci_writel (ohci, OHCI_INTR_RHSC, &regs->intrstatus);
+		usb_hcd_poll_rh_status(hcd);
+	}
 
 	if (ints & OHCI_INTR_UE) {
 		disable (ohci);
