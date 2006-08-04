@@ -77,13 +77,15 @@ iop331_irq_unmask2(unsigned int irq)
         intctl_write1(iop331_mask1);
 }
 
-struct irqchip iop331_irqchip1 = {
+struct irq_chip iop331_irqchip1 = {
+	.name	= "IOP-1",
 	.ack    = iop331_irq_mask1,
 	.mask   = iop331_irq_mask1,
 	.unmask = iop331_irq_unmask1,
 };
 
-struct irqchip iop331_irqchip2 = {
+struct irq_chip iop331_irqchip2 = {
+	.name	= "IOP-2",
 	.ack    = iop331_irq_mask2,
 	.mask   = iop331_irq_mask2,
 	.unmask = iop331_irq_unmask2,

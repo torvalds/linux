@@ -31,11 +31,16 @@
 #include <asm/io.h>
 #include "bttvp.h"
 
-/* Offset from line sync pulse leading edge (0H) in 1 / sampling_rate:
-   bt8x8 /HRESET pulse starts at 0H and has length 64 / fCLKx1 (E|O_VTC
-   HSFMT = 0). VBI_HDELAY (always 0) is an offset from the trailing edge
-   of /HRESET in 1 / fCLKx1, and the sampling_rate tvnorm->Fsc is fCLKx2. */
-#define VBI_OFFSET ((64 + 0) * 2)
+/* Offset from line sync pulse leading edge (0H) to start of VBI capture,
+   in fCLKx2 pixels.  According to the datasheet, VBI capture starts
+   VBI_HDELAY fCLKx1 pixels from the tailing edgeof /HRESET, and /HRESET
+   is 64 fCLKx1 pixels wide.  VBI_HDELAY is set to 0, so this should be
+   (64 + 0) * 2 = 128 fCLKx2 pixels.  But it's not!  The datasheet is
+   Just Plain Wrong.  The real value appears to be different for
+   different revisions of the bt8x8 chips, and to be affected by the
+   horizontal scaling factor.  Experimentally, the value is measured
+   to be about 244.  */
+#define VBI_OFFSET 244
 
 #define VBI_DEFLINES 16
 #define VBI_MAXLINES 32

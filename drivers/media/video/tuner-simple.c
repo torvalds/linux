@@ -339,7 +339,20 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 	if (4 != (rc = i2c_master_send(c,buffer,4)))
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
 
-	if (t->type == TUNER_MICROTUNE_4042FI5) {
+	switch (t->type) {
+	case TUNER_LG_TDVS_H06XF:
+		/* Set the Auxiliary Byte. */
+		buffer[0] = buffer[2];
+		buffer[0] &= ~0x20;
+		buffer[0] |= 0x18;
+		buffer[1] = 0x20;
+		tuner_dbg("tv 0x%02x 0x%02x\n",buffer[0],buffer[1]);
+
+		if (2 != (rc = i2c_master_send(c,buffer,2)))
+			tuner_warn("i2c i/o error: rc == %d (should be 2)\n",rc);
+		break;
+	case TUNER_MICROTUNE_4042FI5:
+	{
 		// FIXME - this may also work for other tuners
 		unsigned long timeout = jiffies + msecs_to_jiffies(1);
 		u8 status_byte = 0;
@@ -364,10 +377,12 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		buffer[2] = config;
 		buffer[3] = cb;
 		tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
-		       buffer[0],buffer[1],buffer[2],buffer[3]);
+			  buffer[0],buffer[1],buffer[2],buffer[3]);
 
 		if (4 != (rc = i2c_master_send(c,buffer,4)))
 			tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
+		break;
+	}
 	}
 }
 

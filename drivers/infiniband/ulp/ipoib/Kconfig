@@ -6,8 +6,7 @@ config INFINIBAND_IPOIB
 	  transports IP packets over InfiniBand so you can use your IB
 	  device as a fancy NIC.
 
-	  The IPoIB protocol is defined by the IETF ipoib working
-	  group: <http://www.ietf.org/html.charters/ipoib-charter.html>.
+	  See Documentation/infiniband/ipoib.txt for more information
 
 config INFINIBAND_IPOIB_DEBUG
 	bool "IP-over-InfiniBand debugging" if EMBEDDED

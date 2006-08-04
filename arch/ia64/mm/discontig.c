@@ -534,68 +534,6 @@ void __cpuinit *per_cpu_init(void)
 }
 #endif /* CONFIG_SMP */
 
-#ifdef CONFIG_VIRTUAL_MEM_MAP
-static inline int find_next_valid_pfn_for_pgdat(pg_data_t *pgdat, int i)
-{
-	unsigned long end_address, hole_next_pfn;
-	unsigned long stop_address;
-
-	end_address = (unsigned long) &vmem_map[pgdat->node_start_pfn + i];
-	end_address = PAGE_ALIGN(end_address);
-
-	stop_address = (unsigned long) &vmem_map[
-		pgdat->node_start_pfn + pgdat->node_spanned_pages];
-
-	do {
-		pgd_t *pgd;
-		pud_t *pud;
-		pmd_t *pmd;
-		pte_t *pte;
-
-		pgd = pgd_offset_k(end_address);
-		if (pgd_none(*pgd)) {
-			end_address += PGDIR_SIZE;
-			continue;
-		}
-
-		pud = pud_offset(pgd, end_address);
-		if (pud_none(*pud)) {
-			end_address += PUD_SIZE;
-			continue;
-		}
-
-		pmd = pmd_offset(pud, end_address);
-		if (pmd_none(*pmd)) {
-			end_address += PMD_SIZE;
-			continue;
-		}
-
-		pte = pte_offset_kernel(pmd, end_address);
-retry_pte:
-		if (pte_none(*pte)) {
-			end_address += PAGE_SIZE;
-			pte++;
-			if ((end_address < stop_address) &&
-			    (end_address != ALIGN(end_address, 1UL << PMD_SHIFT)))
-				goto retry_pte;
-			continue;
-		}
-		/* Found next valid vmem_map page */
-		break;
-	} while (end_address < stop_address);
-
-	end_address = min(end_address, stop_address);
-	end_address = end_address - (unsigned long) vmem_map + sizeof(struct page) - 1;
-	hole_next_pfn = end_address / sizeof(struct page);
-	return hole_next_pfn - pgdat->node_start_pfn;
-}
-#else
-static inline int find_next_valid_pfn_for_pgdat(pg_data_t *pgdat, int i)
-{
-	return i + 1;
-}
-#endif
-
 /**
  * show_mem - give short summary of memory stats
  *
@@ -625,7 +563,8 @@ void show_mem(void)
 			if (pfn_valid(pgdat->node_start_pfn + i))
 				page = pfn_to_page(pgdat->node_start_pfn + i);
 			else {
-				i = find_next_valid_pfn_for_pgdat(pgdat, i) - 1;
+				i = vmemmap_find_next_valid_pfn(pgdat->node_id,
+					 i) - 1;
 				continue;
 			}
 			if (PageReserved(page))
@@ -751,7 +690,8 @@ void __init paging_init(void)
 	efi_memmap_walk(filter_rsvd_memory, count_node_pages);
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
-	vmalloc_end -= PAGE_ALIGN(max_low_pfn * sizeof(struct page));
+	vmalloc_end -= PAGE_ALIGN(ALIGN(max_low_pfn, MAX_ORDER_NR_PAGES) *
+		sizeof(struct page));
 	vmem_map = (struct page *) vmalloc_end;
 	efi_memmap_walk(create_mem_map_page_table, NULL);
 	printk("Virtual mem_map starts at 0x%p\n", vmem_map);
