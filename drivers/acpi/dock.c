@@ -58,8 +58,8 @@ struct dock_dependent_device {
 };
 
 #define DOCK_DOCKING	0x00000001
-#define DOCK_EVENT	KOBJ_DOCK
-#define UNDOCK_EVENT	KOBJ_UNDOCK
+#define DOCK_EVENT	3
+#define UNDOCK_EVENT	2
 
 static struct dock_station *dock_station;
 
@@ -322,11 +322,10 @@ static void hotplug_dock_devices(struct dock_station *ds, u32 event)
 
 static void dock_event(struct dock_station *ds, u32 event, int num)
 {
-	struct acpi_device *device;
-
-	device = dock_create_acpi_device(ds->handle);
-	if (device)
-		kobject_uevent(&device->kobj, num);
+	/*
+	 * we don't do events until someone tells me that
+	 * they would like to have them.
+	 */
 }
 
 /**

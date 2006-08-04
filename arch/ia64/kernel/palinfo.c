@@ -566,29 +566,23 @@ version_info(char *page)
 	pal_version_u_t min_ver, cur_ver;
 	char *p = page;
 
-	/* The PAL_VERSION call is advertised as being able to support
-	 * both physical and virtual mode calls. This seems to be a documentation
-	 * bug rather than firmware bug. In fact, it does only support physical mode.
-	 * So now the code reflects this fact and the pal_version() has been updated
-	 * accordingly.
-	 */
-	if (ia64_pal_version(&min_ver, &cur_ver) != 0) return 0;
+	if (ia64_pal_version(&min_ver, &cur_ver) != 0)
+		return 0;
 
 	p += sprintf(p,
 		     "PAL_vendor : 0x%02x (min=0x%02x)\n"
-		     "PAL_A      : %x.%x.%x (min=%x.%x.%x)\n"
-		     "PAL_B      : %x.%x.%x (min=%x.%x.%x)\n",
-		     cur_ver.pal_version_s.pv_pal_vendor, min_ver.pal_version_s.pv_pal_vendor,
-
-		     cur_ver.pal_version_s.pv_pal_a_model>>4,
-		     cur_ver.pal_version_s.pv_pal_a_model&0xf, cur_ver.pal_version_s.pv_pal_a_rev,
-		     min_ver.pal_version_s.pv_pal_a_model>>4,
-		     min_ver.pal_version_s.pv_pal_a_model&0xf, min_ver.pal_version_s.pv_pal_a_rev,
-
-		     cur_ver.pal_version_s.pv_pal_b_model>>4,
-		     cur_ver.pal_version_s.pv_pal_b_model&0xf, cur_ver.pal_version_s.pv_pal_b_rev,
-		     min_ver.pal_version_s.pv_pal_b_model>>4,
-		     min_ver.pal_version_s.pv_pal_b_model&0xf, min_ver.pal_version_s.pv_pal_b_rev);
+		     "PAL_A      : %02x.%02x (min=%02x.%02x)\n"
+		     "PAL_B      : %02x.%02x (min=%02x.%02x)\n",
+		     cur_ver.pal_version_s.pv_pal_vendor,
+		     min_ver.pal_version_s.pv_pal_vendor,
+		     cur_ver.pal_version_s.pv_pal_a_model,
+		     cur_ver.pal_version_s.pv_pal_a_rev,
+		     min_ver.pal_version_s.pv_pal_a_model,
+		     min_ver.pal_version_s.pv_pal_a_rev,
+		     cur_ver.pal_version_s.pv_pal_b_model,
+		     cur_ver.pal_version_s.pv_pal_b_rev,
+		     min_ver.pal_version_s.pv_pal_b_model,
+		     min_ver.pal_version_s.pv_pal_b_rev);
 	return p - page;
 }
 
