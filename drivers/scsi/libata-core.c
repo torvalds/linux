@@ -5558,7 +5558,7 @@ void ata_port_detach(struct ata_port *ap)
 	int i;
 
 	if (!ap->ops->error_handler)
-		return;
+		goto skip_eh;
 
 	/* tell EH we're leaving & flush EH */
 	spin_lock_irqsave(ap->lock, flags);
@@ -5594,6 +5594,7 @@ void ata_port_detach(struct ata_port *ap)
 	cancel_delayed_work(&ap->hotplug_task);
 	flush_workqueue(ata_aux_wq);
 
+ skip_eh:
 	/* remove the associated SCSI host */
 	scsi_remove_host(ap->host);
 }
