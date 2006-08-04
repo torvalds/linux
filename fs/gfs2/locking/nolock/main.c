@@ -233,7 +233,7 @@ static int __init init_nolock(void)
 {
 	int error;
 
-	error = gfs_register_lockproto(&nolock_ops);
+	error = gfs2_register_lockproto(&nolock_ops);
 	if (error) {
 		printk(KERN_WARNING
 		       "lock_nolock: can't register protocol: %d\n", error);
@@ -247,7 +247,7 @@ static int __init init_nolock(void)
 
 static void __exit exit_nolock(void)
 {
-	gfs_unregister_lockproto(&nolock_ops);
+	gfs2_unregister_lockproto(&nolock_ops);
 }
 
 module_init(init_nolock);

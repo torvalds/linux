@@ -265,16 +265,11 @@ void __init gfs2_init_lmh(void);
 /*
  * Lock module bottom interface.  A lock module makes itself available to GFS
  * with these functions.
- *
- * For the time being, we copy the gfs1 lock module bottom interface so the
- * same lock modules can be used with both gfs1 and gfs2 (it won't be possible
- * to load both gfs1 and gfs2 at once.)  Eventually the lock modules will fork
- * for gfs1/gfs2 and this API can change to the gfs2_ prefix.
  */
 
-int gfs_register_lockproto(struct lm_lockops *proto);
+int gfs2_register_lockproto(struct lm_lockops *proto);
 
-void gfs_unregister_lockproto(struct lm_lockops *proto);
+void gfs2_unregister_lockproto(struct lm_lockops *proto);
 
 /*
  * Lock module top interface.  GFS calls these functions when mounting or
