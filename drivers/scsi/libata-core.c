@@ -5511,10 +5511,10 @@ int ata_device_add(const struct ata_probe_ent *ent)
 err_out:
 	for (i = 0; i < count; i++) {
 		struct ata_port *ap = host_set->ports[i];
-
-		scsi_remove_host(ap->host);
-		ap->ops->port_stop(ap);
-		scsi_host_put(ap->host);
+		if (ap) {
+			ap->ops->port_stop(ap);
+			scsi_host_put(ap->host);
+		}
 	}
 err_free_ret:
 	kfree(host_set);
