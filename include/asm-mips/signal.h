@@ -108,8 +108,6 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 #define SIG_BLOCK	1	/* for blocking signals */
 #define SIG_UNBLOCK	2	/* for unblocking signals */
 #define SIG_SETMASK	3	/* for setting the signal mask */
-#define SIG_SETMASK32	256	/* Goodie from SGI for BSD compatibility:
-				   set only the low 32 bit of the sigset.  */
 
 #include <asm-generic/signal.h>
 

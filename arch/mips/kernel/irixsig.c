@@ -323,6 +323,9 @@ struct sigact_irix5 {
 	int _unused0[2];
 };
 
+#define SIG_SETMASK32	256	/* Goodie from SGI for BSD compatibility:
+				   set only the low 32 bit of the sigset.  */
+
 #ifdef DEBUG_SIG
 static inline void dump_sigact_irix5(struct sigact_irix5 *p)
 {
