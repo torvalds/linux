@@ -251,6 +251,9 @@ config WIRELESS_EXT
 
 source "net/netlabel/Kconfig"
 
+config FIB_RULES
+	bool
+
 endif   # if NET
 endmenu # Networking
 

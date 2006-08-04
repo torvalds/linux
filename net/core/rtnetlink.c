@@ -49,6 +49,7 @@
 #include <net/udp.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
+#include <net/fib_rules.h>
 #include <net/netlink.h>
 #ifdef CONFIG_NET_WIRELESS_RTNETLINK
 #include <linux/wireless.h>
@@ -103,7 +104,7 @@ static const int rtm_min[RTM_NR_FAMILIES] =
 	[RTM_FAM(RTM_NEWADDR)]      = NLMSG_LENGTH(sizeof(struct ifaddrmsg)),
 	[RTM_FAM(RTM_NEWROUTE)]     = NLMSG_LENGTH(sizeof(struct rtmsg)),
 	[RTM_FAM(RTM_NEWNEIGH)]     = NLMSG_LENGTH(sizeof(struct ndmsg)),
-	[RTM_FAM(RTM_NEWRULE)]      = NLMSG_LENGTH(sizeof(struct rtmsg)),
+	[RTM_FAM(RTM_NEWRULE)]      = NLMSG_LENGTH(sizeof(struct fib_rule_hdr)),
 	[RTM_FAM(RTM_NEWQDISC)]     = NLMSG_LENGTH(sizeof(struct tcmsg)),
 	[RTM_FAM(RTM_NEWTCLASS)]    = NLMSG_LENGTH(sizeof(struct tcmsg)),
 	[RTM_FAM(RTM_NEWTFILTER)]   = NLMSG_LENGTH(sizeof(struct tcmsg)),
@@ -120,7 +121,7 @@ static const int rta_max[RTM_NR_FAMILIES] =
 	[RTM_FAM(RTM_NEWADDR)]      = IFA_MAX,
 	[RTM_FAM(RTM_NEWROUTE)]     = RTA_MAX,
 	[RTM_FAM(RTM_NEWNEIGH)]     = NDA_MAX,
-	[RTM_FAM(RTM_NEWRULE)]      = RTA_MAX,
+	[RTM_FAM(RTM_NEWRULE)]      = FRA_MAX,
 	[RTM_FAM(RTM_NEWQDISC)]     = TCA_MAX,
 	[RTM_FAM(RTM_NEWTCLASS)]    = TCA_MAX,
 	[RTM_FAM(RTM_NEWTFILTER)]   = TCA_MAX,
@@ -757,6 +758,10 @@ static struct rtnetlink_link link_rtnetlink_table[RTM_NR_MSGTYPES] =
 	[RTM_NEWNEIGH    - RTM_BASE] = { .doit   = neigh_add		 },
 	[RTM_DELNEIGH    - RTM_BASE] = { .doit   = neigh_delete		 },
 	[RTM_GETNEIGH    - RTM_BASE] = { .dumpit = neigh_dump_info	 },
+#ifdef CONFIG_FIB_RULES
+	[RTM_NEWRULE     - RTM_BASE] = { .doit   = fib_nl_newrule	 },
+	[RTM_DELRULE     - RTM_BASE] = { .doit   = fib_nl_delrule	 },
+#endif
 	[RTM_GETRULE     - RTM_BASE] = { .dumpit = rtnetlink_dump_all	 },
 	[RTM_GETNEIGHTBL - RTM_BASE] = { .dumpit = neightbl_dump_info	 },
 	[RTM_SETNEIGHTBL - RTM_BASE] = { .doit   = neightbl_set		 },
