@@ -12,6 +12,8 @@
  *  Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
  *  Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
  *                          <dgoeddel@trustedcs.com>
+ *  Copyright (C) 2006 Hewlett-Packard Development Company, L.P.
+ *                     Paul Moore, <paul.moore@hp.com>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License version 2,
@@ -74,6 +76,7 @@
 #include "objsec.h"
 #include "netif.h"
 #include "xfrm.h"
+#include "selinux_netlabel.h"
 
 #define XATTR_SELINUX_SUFFIX "selinux"
 #define XATTR_NAME_SELINUX XATTR_SECURITY_PREFIX XATTR_SELINUX_SUFFIX
@@ -2395,6 +2398,7 @@ static int selinux_inode_listsecurity(struct inode *inode, char *buffer, size_t 
 
 static int selinux_file_permission(struct file *file, int mask)
 {
+	int rc;
 	struct inode *inode = file->f_dentry->d_inode;
 
 	if (!mask) {
@@ -2406,8 +2410,12 @@ static int selinux_file_permission(struct file *file, int mask)
 	if ((file->f_flags & O_APPEND) && (mask & MAY_WRITE))
 		mask |= MAY_APPEND;
 
-	return file_has_perm(current, file,
-			     file_mask_to_av(inode->i_mode, mask));
+	rc = file_has_perm(current, file,
+			   file_mask_to_av(inode->i_mode, mask));
+	if (rc)
+		return rc;
+
+	return selinux_netlbl_inode_permission(inode, mask);
 }
 
 static int selinux_file_alloc_security(struct file *file)
@@ -3058,9 +3066,10 @@ out:
 	return err;
 }
 
-static void selinux_socket_post_create(struct socket *sock, int family,
-				       int type, int protocol, int kern)
+static int selinux_socket_post_create(struct socket *sock, int family,
+				      int type, int protocol, int kern)
 {
+	int err = 0;
 	struct inode_security_struct *isec;
 	struct task_security_struct *tsec;
 	struct sk_security_struct *sksec;
@@ -3077,9 +3086,12 @@ static void selinux_socket_post_create(struct socket *sock, int family,
 	if (sock->sk) {
 		sksec = sock->sk->sk_security;
 		sksec->sid = isec->sid;
+		err = selinux_netlbl_socket_post_create(sock,
+							family,
+							isec->sid);
 	}
 
-	return;
+	return err;
 }
 
 /* Range of port numbers used to automatically bind.
@@ -3260,7 +3272,13 @@ static int selinux_socket_accept(struct socket *sock, struct socket *newsock)
 static int selinux_socket_sendmsg(struct socket *sock, struct msghdr *msg,
  				  int size)
 {
-	return socket_has_perm(current, sock, SOCKET__WRITE);
+	int rc;
+
+	rc = socket_has_perm(current, sock, SOCKET__WRITE);
+	if (rc)
+		return rc;
+
+	return selinux_netlbl_inode_permission(SOCK_INODE(sock), MAY_WRITE);
 }
 
 static int selinux_socket_recvmsg(struct socket *sock, struct msghdr *msg,
@@ -3468,6 +3486,10 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	if (err)
 		goto out;
 
+	err = selinux_netlbl_sock_rcv_skb(sksec, skb, &ad);
+	if (err)
+		goto out;
+
 	err = selinux_xfrm_sock_rcv_skb(sksec->sid, skb, &ad);
 out:	
 	return err;
@@ -3491,8 +3513,9 @@ static int selinux_socket_getpeersec_stream(struct socket *sock, char __user *op
 		peer_sid = ssec->peer_sid;
 	}
 	else if (isec->sclass == SECCLASS_TCP_SOCKET) {
-		peer_sid = selinux_socket_getpeer_stream(sock->sk);
-
+		peer_sid = selinux_netlbl_socket_getpeersec_stream(sock);
+		if (peer_sid == SECSID_NULL)
+			peer_sid = selinux_socket_getpeer_stream(sock->sk);
 		if (peer_sid == SECSID_NULL) {
 			err = -ENOPROTOOPT;
 			goto out;
@@ -3532,8 +3555,11 @@ static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *
 
 	if (sock && (sock->sk->sk_family == PF_UNIX))
 		selinux_get_inode_sid(SOCK_INODE(sock), &peer_secid);
-	else if (skb)
-		peer_secid = selinux_socket_getpeer_dgram(skb);
+	else if (skb) {
+		peer_secid = selinux_netlbl_socket_getpeersec_dgram(skb);
+		if (peer_secid == SECSID_NULL)
+			peer_secid = selinux_socket_getpeer_dgram(skb);
+	}
 
 	if (peer_secid == SECSID_NULL)
 		err = -EINVAL;
@@ -3578,6 +3604,8 @@ void selinux_sock_graft(struct sock* sk, struct socket *parent)
 	struct sk_security_struct *sksec = sk->sk_security;
 
 	isec->sid = sksec->sid;
+
+	selinux_netlbl_sock_graft(sk, parent);
 }
 
 int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
@@ -3585,8 +3613,14 @@ int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 	int err;
-	u32 newsid = 0;
+	u32 newsid;
 	u32 peersid;
+
+	newsid = selinux_netlbl_inet_conn_request(skb, sksec->sid);
+	if (newsid != SECSID_NULL) {
+		req->secid = newsid;
+		return 0;
+	}
 
 	err = selinux_xfrm_decode_session(skb, &peersid, 0);
 	BUG_ON(err);

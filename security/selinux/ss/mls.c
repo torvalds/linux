@@ -10,6 +10,13 @@
  *
  * Copyright (C) 2004-2006 Trusted Computer Solutions, Inc.
  */
+/*
+ * Updated: Hewlett-Packard <paul.moore@hp.com>
+ *
+ *      Added support to import/export the MLS label
+ *
+ * (c) Copyright Hewlett-Packard Development Company, L.P., 2006
+ */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -565,3 +572,152 @@ int mls_compute_sid(struct context *scontext,
 	return -EINVAL;
 }
 
+/**
+ * mls_export_lvl - Export the MLS sensitivity levels
+ * @context: the security context
+ * @low: the low sensitivity level
+ * @high: the high sensitivity level
+ *
+ * Description:
+ * Given the security context copy the low MLS sensitivity level into lvl_low
+ * and the high sensitivity level in lvl_high.  The MLS levels are only
+ * exported if the pointers are not NULL, if they are NULL then that level is
+ * not exported.
+ *
+ */
+void mls_export_lvl(const struct context *context, u32 *low, u32 *high)
+{
+	if (!selinux_mls_enabled)
+		return;
+
+	if (low != NULL)
+		*low = context->range.level[0].sens - 1;
+	if (high != NULL)
+		*high = context->range.level[1].sens - 1;
+}
+
+/**
+ * mls_import_lvl - Import the MLS sensitivity levels
+ * @context: the security context
+ * @low: the low sensitivity level
+ * @high: the high sensitivity level
+ *
+ * Description:
+ * Given the security context and the two sensitivty levels, set the MLS levels
+ * in the context according the two given as parameters.  Returns zero on
+ * success, negative values on failure.
+ *
+ */
+void mls_import_lvl(struct context *context, u32 low, u32 high)
+{
+	if (!selinux_mls_enabled)
+		return;
+
+	context->range.level[0].sens = low + 1;
+	context->range.level[1].sens = high + 1;
+}
+
+/**
+ * mls_export_cat - Export the MLS categories
+ * @context: the security context
+ * @low: the low category
+ * @low_len: length of the cat_low bitmap in bytes
+ * @high: the high category
+ * @high_len: length of the cat_high bitmap in bytes
+ *
+ * Description:
+ * Given the security context export the low MLS category bitmap into cat_low
+ * and the high category bitmap into cat_high.  The MLS categories are only
+ * exported if the pointers are not NULL, if they are NULL then that level is
+ * not exported.  The caller is responsibile for freeing the memory when
+ * finished.  Returns zero on success, negative values on failure.
+ *
+ */
+int mls_export_cat(const struct context *context,
+		   unsigned char **low,
+		   size_t *low_len,
+		   unsigned char **high,
+		   size_t *high_len)
+{
+	int rc = -EPERM;
+
+	if (!selinux_mls_enabled)
+		return 0;
+
+	if (low != NULL) {
+		rc = ebitmap_export(&context->range.level[0].cat,
+				    low,
+				    low_len);
+		if (rc != 0)
+			goto export_cat_failure;
+	}
+	if (high != NULL) {
+		rc = ebitmap_export(&context->range.level[1].cat,
+				    high,
+				    high_len);
+		if (rc != 0)
+			goto export_cat_failure;
+	}
+
+	return 0;
+
+export_cat_failure:
+	if (low != NULL)
+		kfree(*low);
+	if (high != NULL)
+		kfree(*high);
+	return rc;
+}
+
+/**
+ * mls_import_cat - Import the MLS categories
+ * @context: the security context
+ * @low: the low category
+ * @low_len: length of the cat_low bitmap in bytes
+ * @high: the high category
+ * @high_len: length of the cat_high bitmap in bytes
+ *
+ * Description:
+ * Given the security context and the two category bitmap strings import the
+ * categories into the security context.  The MLS categories are only imported
+ * if the pointers are not NULL, if they are NULL they are skipped.  Returns
+ * zero on success, negative values on failure.
+ *
+ */
+int mls_import_cat(struct context *context,
+		   const unsigned char *low,
+		   size_t low_len,
+		   const unsigned char *high,
+		   size_t high_len)
+{
+	int rc = -EPERM;
+
+	if (!selinux_mls_enabled)
+		return 0;
+
+	if (low != NULL) {
+		rc = ebitmap_import(low,
+				    low_len,
+				    &context->range.level[0].cat);
+		if (rc != 0)
+			goto import_cat_failure;
+	}
+	if (high != NULL) {
+		if (high == low)
+			rc = ebitmap_cpy(&context->range.level[1].cat,
+					 &context->range.level[0].cat);
+		else
+			rc = ebitmap_import(high,
+					    high_len,
+					    &context->range.level[1].cat);
+		if (rc != 0)
+			goto import_cat_failure;
+	}
+
+	return 0;
+
+import_cat_failure:
+	ebitmap_destroy(&context->range.level[0].cat);
+	ebitmap_destroy(&context->range.level[1].cat);
+	return rc;
+}

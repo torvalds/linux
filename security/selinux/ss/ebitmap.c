@@ -3,6 +3,14 @@
  *
  * Author : Stephen Smalley, <sds@epoch.ncsc.mil>
  */
+/*
+ * Updated: Hewlett-Packard <paul.moore@hp.com>
+ *
+ *      Added ebitmap_export() and ebitmap_import()
+ *
+ * (c) Copyright Hewlett-Packard Development Company, L.P., 2006
+ */
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -56,6 +64,142 @@ int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src)
 	}
 
 	dst->highbit = src->highbit;
+	return 0;
+}
+
+/**
+ * ebitmap_export - Export an ebitmap to a unsigned char bitmap string
+ * @src: the ebitmap to export
+ * @dst: the resulting bitmap string
+ * @dst_len: length of dst in bytes
+ *
+ * Description:
+ * Allocate a buffer at least src->highbit bits long and export the extensible
+ * bitmap into the buffer.  The bitmap string will be in little endian format,
+ * i.e. LSB first.  The value returned in dst_len may not the true size of the
+ * buffer as the length of the buffer is rounded up to a multiple of MAPTYPE.
+ * The caller must free the buffer when finished. Returns zero on success,
+ * negative values on failure.
+ *
+ */
+int ebitmap_export(const struct ebitmap *src,
+		   unsigned char **dst,
+		   size_t *dst_len)
+{
+	size_t bitmap_len;
+	unsigned char *bitmap;
+	struct ebitmap_node *iter_node;
+	MAPTYPE node_val;
+	size_t bitmap_byte;
+	unsigned char bitmask;
+
+	bitmap_len = src->highbit / 8;
+	if (src->highbit % 7)
+		bitmap_len += 1;
+	if (bitmap_len == 0)
+		return -EINVAL;
+
+	bitmap = kzalloc((bitmap_len & ~(sizeof(MAPTYPE) - 1)) +
+			 sizeof(MAPTYPE),
+			 GFP_ATOMIC);
+	if (bitmap == NULL)
+		return -ENOMEM;
+
+	iter_node = src->node;
+	do {
+		bitmap_byte = iter_node->startbit / 8;
+		bitmask = 0x80;
+		node_val = iter_node->map;
+		do {
+			if (bitmask == 0) {
+				bitmap_byte++;
+				bitmask = 0x80;
+			}
+			if (node_val & (MAPTYPE)0x01)
+				bitmap[bitmap_byte] |= bitmask;
+			node_val >>= 1;
+			bitmask >>= 1;
+		} while (node_val > 0);
+		iter_node = iter_node->next;
+	} while (iter_node);
+
+	*dst = bitmap;
+	*dst_len = bitmap_len;
+	return 0;
+}
+
+/**
+ * ebitmap_import - Import an unsigned char bitmap string into an ebitmap
+ * @src: the bitmap string
+ * @src_len: the bitmap length in bytes
+ * @dst: the empty ebitmap
+ *
+ * Description:
+ * This function takes a little endian bitmap string in src and imports it into
+ * the ebitmap pointed to by dst.  Returns zero on success, negative values on
+ * failure.
+ *
+ */
+int ebitmap_import(const unsigned char *src,
+		   size_t src_len,
+		   struct ebitmap *dst)
+{
+	size_t src_off = 0;
+	struct ebitmap_node *node_new;
+	struct ebitmap_node *node_last = NULL;
+	size_t iter;
+	size_t iter_bit;
+	size_t iter_limit;
+	unsigned char src_byte;
+
+	do {
+		iter_limit = src_len - src_off;
+		if (iter_limit >= sizeof(MAPTYPE)) {
+			if (*(MAPTYPE *)&src[src_off] == 0) {
+				src_off += sizeof(MAPTYPE);
+				continue;
+			}
+			iter_limit = sizeof(MAPTYPE);
+		} else {
+			iter = src_off;
+			src_byte = 0;
+			do {
+				src_byte |= src[iter++];
+			} while (iter < src_len && src_byte == 0);
+			if (src_byte == 0)
+				break;
+		}
+
+		node_new = kzalloc(sizeof(*node_new), GFP_ATOMIC);
+		if (unlikely(node_new == NULL)) {
+			ebitmap_destroy(dst);
+			return -ENOMEM;
+		}
+		node_new->startbit = src_off * 8;
+		iter = 0;
+		do {
+			src_byte = src[src_off++];
+			iter_bit = iter++ * 8;
+			while (src_byte != 0) {
+				if (src_byte & 0x80)
+					node_new->map |= MAPBIT << iter_bit;
+				iter_bit++;
+				src_byte <<= 1;
+			}
+		} while (iter < iter_limit);
+
+		if (node_last != NULL)
+			node_last->next = node_new;
+		else
+			dst->node = node_new;
+		node_last = node_new;
+	} while (src_off < src_len);
+
+	if (likely(node_last != NULL))
+		dst->highbit = node_last->startbit + MAPSIZE;
+	else
+		ebitmap_init(dst);
+
 	return 0;
 }
 

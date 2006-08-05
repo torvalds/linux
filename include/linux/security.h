@@ -1341,8 +1341,8 @@ struct security_operations {
 	int (*unix_may_send) (struct socket * sock, struct socket * other);
 
 	int (*socket_create) (int family, int type, int protocol, int kern);
-	void (*socket_post_create) (struct socket * sock, int family,
-				    int type, int protocol, int kern);
+	int (*socket_post_create) (struct socket * sock, int family,
+				   int type, int protocol, int kern);
 	int (*socket_bind) (struct socket * sock,
 			    struct sockaddr * address, int addrlen);
 	int (*socket_connect) (struct socket * sock,
@@ -2824,13 +2824,13 @@ static inline int security_socket_create (int family, int type,
 	return security_ops->socket_create(family, type, protocol, kern);
 }
 
-static inline void security_socket_post_create(struct socket * sock, 
-					       int family,
-					       int type, 
-					       int protocol, int kern)
+static inline int security_socket_post_create(struct socket * sock,
+					      int family,
+					      int type,
+					      int protocol, int kern)
 {
-	security_ops->socket_post_create(sock, family, type,
-					 protocol, kern);
+	return security_ops->socket_post_create(sock, family, type,
+						protocol, kern);
 }
 
 static inline int security_socket_bind(struct socket * sock, 
@@ -2982,11 +2982,12 @@ static inline int security_socket_create (int family, int type,
 	return 0;
 }
 
-static inline void security_socket_post_create(struct socket * sock, 
-					       int family,
-					       int type, 
-					       int protocol, int kern)
+static inline int security_socket_post_create(struct socket * sock,
+					      int family,
+					      int type,
+					      int protocol, int kern)
 {
+	return 0;
 }
 
 static inline int security_socket_bind(struct socket * sock, 

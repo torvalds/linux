@@ -973,11 +973,18 @@ int sock_create_lite(int family, int type, int protocol, struct socket **res)
 		goto out;
 	}
 
-	security_socket_post_create(sock, family, type, protocol, 1);
 	sock->type = type;
+	err = security_socket_post_create(sock, family, type, protocol, 1);
+	if (err)
+		goto out_release;
+
 out:
 	*res = sock;
 	return err;
+out_release:
+	sock_release(sock);
+	sock = NULL;
+	goto out;
 }
 
 /* No kernel lock held - perfect */
@@ -1214,7 +1221,9 @@ static int __sock_create(int family, int type, int protocol, struct socket **res
 	 */
 	module_put(net_families[family]->owner);
 	*res = sock;
-	security_socket_post_create(sock, family, type, protocol, kern);
+	err = security_socket_post_create(sock, family, type, protocol, kern);
+	if (err)
+		goto out_release;
 
 out:
 	net_family_read_unlock();

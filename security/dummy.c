@@ -709,10 +709,10 @@ static int dummy_socket_create (int family, int type,
 	return 0;
 }
 
-static void dummy_socket_post_create (struct socket *sock, int family, int type,
-				      int protocol, int kern)
+static int dummy_socket_post_create (struct socket *sock, int family, int type,
+				     int protocol, int kern)
 {
-	return;
+	return 0;
 }
 
 static int dummy_socket_bind (struct socket *sock, struct sockaddr *address,
