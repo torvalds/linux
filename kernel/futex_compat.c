@@ -39,7 +39,7 @@ void compat_exit_robust_list(struct task_struct *curr)
 {
 	struct compat_robust_list_head __user *head = curr->compat_robust_list;
 	struct robust_list __user *entry, *pending;
-	unsigned int limit = ROBUST_LIST_LIMIT, pi;
+	unsigned int limit = ROBUST_LIST_LIMIT, pi, pip;
 	compat_uptr_t uentry, upending;
 	compat_long_t futex_offset;
 
@@ -59,10 +59,10 @@ void compat_exit_robust_list(struct task_struct *curr)
 	 * if it exists:
 	 */
 	if (fetch_robust_entry(&upending, &pending,
-			       &head->list_op_pending, &pi))
+			       &head->list_op_pending, &pip))
 		return;
 	if (upending)
-		handle_futex_death((void *)pending + futex_offset, curr, pi);
+		handle_futex_death((void *)pending + futex_offset, curr, pip);
 
 	while (compat_ptr(uentry) != &head->list) {
 		/*
