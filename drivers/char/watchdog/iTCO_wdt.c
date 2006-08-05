@@ -45,7 +45,7 @@
 /* Module and version information */
 #define DRV_NAME        "iTCO_wdt"
 #define DRV_VERSION     "1.00"
-#define DRV_RELDATE     "19-Jul-2006"
+#define DRV_RELDATE     "30-Jul-2006"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -57,8 +57,6 @@
 #include <linux/kernel.h>		/* For printk/panic/... */
 #include <linux/miscdevice.h>		/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
 #include <linux/watchdog.h>		/* For the watchdog specific items */
-#include <linux/notifier.h>		/* For notifier support */
-#include <linux/reboot.h>		/* For reboot_notifier stuff */
 #include <linux/init.h>			/* For __init/__exit/... */
 #include <linux/fs.h>			/* For file operations */
 #include <linux/platform_device.h>	/* For platform_driver framework */
@@ -501,20 +499,6 @@ static int iTCO_wdt_ioctl (struct inode *inode, struct file *file,
 }
 
 /*
- *	Notify system
- */
-
-static int iTCO_wdt_notify_sys (struct notifier_block *this, unsigned long code, void *unused)
-{
-	if (code==SYS_DOWN || code==SYS_HALT) {
-		/* Turn the WDT off */
-		iTCO_wdt_stop();
-	}
-
-	return NOTIFY_DONE;
-}
-
-/*
  *	Kernel Interfaces
  */
 
@@ -531,10 +515,6 @@ static struct miscdevice iTCO_wdt_miscdev = {
 	.minor =	WATCHDOG_MINOR,
 	.name =		"watchdog",
 	.fops =		&iTCO_wdt_fops,
-};
-
-static struct notifier_block iTCO_wdt_notifier = {
-	.notifier_call =	iTCO_wdt_notify_sys,
 };
 
 /*
@@ -623,18 +603,11 @@ static int iTCO_wdt_init(struct pci_dev *pdev, const struct pci_device_id *ent, 
 			heartbeat);
 	}
 
-	ret = register_reboot_notifier(&iTCO_wdt_notifier);
-	if (ret != 0) {
-		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
-			ret);
-		goto unreg_region;
-	}
-
 	ret = misc_register(&iTCO_wdt_miscdev);
 	if (ret != 0) {
 		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
 			WATCHDOG_MINOR, ret);
-		goto unreg_notifier;
+		goto unreg_region;
 	}
 
 	printk (KERN_INFO PFX "initialized. heartbeat=%d sec (nowayout=%d)\n",
@@ -642,15 +615,13 @@ static int iTCO_wdt_init(struct pci_dev *pdev, const struct pci_device_id *ent, 
 
 	return 0;
 
-unreg_notifier:
-	unregister_reboot_notifier(&iTCO_wdt_notifier);
 unreg_region:
 	release_region (TCOBASE, 0x20);
 out:
 	if (iTCO_wdt_private.iTCO_version == 2)
 		iounmap(iTCO_wdt_private.gcs);
-	iTCO_wdt_private.ACPIBASE = 0;
 	pci_dev_put(iTCO_wdt_private.pdev);
+	iTCO_wdt_private.ACPIBASE = 0;
 	return ret;
 }
 
@@ -662,11 +633,11 @@ static void iTCO_wdt_cleanup(void)
 
 	/* Deregister */
 	misc_deregister(&iTCO_wdt_miscdev);
-	unregister_reboot_notifier(&iTCO_wdt_notifier);
 	release_region(TCOBASE, 0x20);
 	if (iTCO_wdt_private.iTCO_version == 2)
 		iounmap(iTCO_wdt_private.gcs);
 	pci_dev_put(iTCO_wdt_private.pdev);
+	iTCO_wdt_private.ACPIBASE = 0;
 }
 
 static int iTCO_wdt_probe(struct platform_device *dev)
