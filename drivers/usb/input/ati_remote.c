@@ -111,6 +111,16 @@
 #define NAME_BUFSIZE      80    /* size of product name, path buffers */
 #define DATA_BUFSIZE      63    /* size of URB data buffers */
 
+/*
+ * Duplicate event filtering time.
+ * Sequential, identical KIND_FILTERED inputs with less than
+ * FILTER_TIME milliseconds between them are considered as repeat
+ * events. The hardware generates 5 events for the first keypress
+ * and we have to take this into account for an accurate repeat
+ * behaviour.
+ */
+#define FILTER_TIME	60 /* msec */
+
 static unsigned long channel_mask;
 module_param(channel_mask, ulong, 0444);
 MODULE_PARM_DESC(channel_mask, "Bitmask of remote control channels to ignore");
@@ -118,6 +128,10 @@ MODULE_PARM_DESC(channel_mask, "Bitmask of remote control channels to ignore");
 static int debug;
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "Enable extra debug messages and information");
+
+static int repeat_filter = FILTER_TIME;
+module_param(repeat_filter, int, 0644);
+MODULE_PARM_DESC(repeat_filter, "Repeat filter time, default = 60 msec");
 
 #define dbginfo(dev, format, arg...) do { if (debug) dev_info(dev , format , ## arg); } while (0)
 #undef err
@@ -145,15 +159,6 @@ static char init2[] = { 0x01, 0x00, 0x20, 0x14, 0x20, 0x20, 0x20 };
 
 /* Acceleration curve for directional control pad */
 static const char accel[] = { 1, 2, 4, 6, 9, 13, 20 };
-
-/* Duplicate event filtering time.
- * Sequential, identical KIND_FILTERED inputs with less than
- * FILTER_TIME jiffies between them are considered as repeat
- * events. The hardware generates 5 events for the first keypress
- * and we have to take this into account for an accurate repeat
- * behaviour.
- */
-#define FILTER_TIME 60 /* msec */
 
 struct ati_remote {
 	struct input_dev *idev;
@@ -464,9 +469,9 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 
 	if (ati_remote_tbl[index].kind == KIND_FILTERED) {
 		/* Filter duplicate events which happen "too close" together. */
-		if ((ati_remote->old_data[0] == data[1]) &&
-			(ati_remote->old_data[1] == data[2]) &&
-			time_before(jiffies, ati_remote->old_jiffies + msecs_to_jiffies(FILTER_TIME))) {
+		if (ati_remote->old_data[0] == data[1] &&
+		    ati_remote->old_data[1] == data[2] &&
+		    time_before(jiffies, ati_remote->old_jiffies + msecs_to_jiffies(repeat_filter))) {
 			ati_remote->repeat_count++;
 		} else {
 			ati_remote->repeat_count = 0;
@@ -476,8 +481,8 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 		ati_remote->old_data[1] = data[2];
 		ati_remote->old_jiffies = jiffies;
 
-		if ((ati_remote->repeat_count > 0)
-		    && (ati_remote->repeat_count < 5))
+		if (ati_remote->repeat_count > 0 &&
+		    ati_remote->repeat_count < 5)
 			return;
 
 
