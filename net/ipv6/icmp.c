@@ -358,6 +358,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	fl.oif = iif;
 	fl.fl_icmp_type = type;
 	fl.fl_icmp_code = code;
+	security_skb_classify_flow(skb, &fl);
 
 	if (icmpv6_xmit_lock())
 		return;
@@ -472,6 +473,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 		ipv6_addr_copy(&fl.fl6_src, saddr);
 	fl.oif = skb->dev->ifindex;
 	fl.fl_icmp_type = ICMPV6_ECHO_REPLY;
+	security_skb_classify_flow(skb, &fl);
 
 	if (icmpv6_xmit_lock())
 		return;

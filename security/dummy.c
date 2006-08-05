@@ -809,9 +809,8 @@ static inline void dummy_sk_clone_security (const struct sock *sk, struct sock *
 {
 }
 
-static unsigned int dummy_sk_getsid(struct sock *sk, struct flowi *fl, u8 dir)
+static inline void dummy_sk_getsecid(struct sock *sk, u32 *secid)
 {
-	return 0;
 }
 #endif	/* CONFIG_SECURITY_NETWORK */
 
@@ -866,7 +865,7 @@ static int dummy_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm
 	return 1;
 }
 
-static int dummy_xfrm_decode_session(struct sk_buff *skb, struct flowi *fl)
+static int dummy_xfrm_decode_session(struct sk_buff *skb, u32 *fl, int ckall)
 {
 	return 0;
 }
@@ -1083,7 +1082,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, sk_alloc_security);
 	set_to_dummy_if_null(ops, sk_free_security);
 	set_to_dummy_if_null(ops, sk_clone_security);
-	set_to_dummy_if_null(ops, sk_getsid);
+	set_to_dummy_if_null(ops, sk_getsecid);
  #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef  CONFIG_SECURITY_NETWORK_XFRM
 	set_to_dummy_if_null(ops, xfrm_policy_alloc_security);

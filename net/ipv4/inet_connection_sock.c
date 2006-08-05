@@ -327,6 +327,7 @@ struct dst_entry* inet_csk_route_req(struct sock *sk,
 				       { .sport = inet_sk(sk)->sport,
 					 .dport = ireq->rmt_port } } };
 
+	security_sk_classify_flow(sk, &fl);
 	if (ip_route_output_flow(&rt, &fl, sk, 0)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
 		return NULL;

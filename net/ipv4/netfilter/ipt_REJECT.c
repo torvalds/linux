@@ -90,6 +90,7 @@ static inline struct rtable *route_reverse(struct sk_buff *skb,
 	fl.proto = IPPROTO_TCP;
 	fl.fl_ip_sport = tcph->dest;
 	fl.fl_ip_dport = tcph->source;
+	security_skb_classify_flow(skb, &fl);
 
 	xfrm_lookup((struct dst_entry **)&rt, &fl, NULL, 0);
 

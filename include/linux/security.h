@@ -32,6 +32,7 @@
 #include <linux/sched.h>
 #include <linux/key.h>
 #include <linux/xfrm.h>
+#include <net/flow.h>
 
 struct ctl_table;
 
@@ -815,8 +816,8 @@ struct swap_info_struct;
  *	Deallocate security structure.
  * @sk_clone_security:
  *	Clone/copy security structure.
- * @sk_getsid:
- *	Retrieve the LSM-specific sid for the sock to enable caching of network
+ * @sk_getsecid:
+ *	Retrieve the LSM-specific secid for the sock to enable caching of network
  *	authorizations.
  *
  * Security hooks for XFRM operations.
@@ -882,8 +883,9 @@ struct swap_info_struct;
  *	Return 1 if there is a match.
  * @xfrm_decode_session:
  *	@skb points to skb to decode.
- *	@fl points to the flow key to set.
- *	Return 0 if successful decoding.
+ *	@secid points to the flow key secid to set.
+ *	@ckall says if all xfrms used should be checked for same secid.
+ *	Return 0 if ckall is zero or all xfrms used have the same secid.
  *
  * Security hooks affecting all Key Management operations
  *
@@ -1353,7 +1355,7 @@ struct security_operations {
 	int (*sk_alloc_security) (struct sock *sk, int family, gfp_t priority);
 	void (*sk_free_security) (struct sock *sk);
 	void (*sk_clone_security) (const struct sock *sk, struct sock *newsk);
-	unsigned int (*sk_getsid) (struct sock *sk, struct flowi *fl, u8 dir);
+	void (*sk_getsecid) (struct sock *sk, u32 *secid);
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
@@ -1370,7 +1372,7 @@ struct security_operations {
 	int (*xfrm_state_pol_flow_match)(struct xfrm_state *x,
 			struct xfrm_policy *xp, struct flowi *fl);
 	int (*xfrm_flow_state_match)(struct flowi *fl, struct xfrm_state *xfrm);
-	int (*xfrm_decode_session)(struct sk_buff *skb, struct flowi *fl);
+	int (*xfrm_decode_session)(struct sk_buff *skb, u32 *secid, int ckall);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 
 	/* key management security hooks */
@@ -2917,9 +2919,9 @@ static inline void security_sk_clone(const struct sock *sk, struct sock *newsk)
 	return security_ops->sk_clone_security(sk, newsk);
 }
 
-static inline unsigned int security_sk_sid(struct sock *sk, struct flowi *fl, u8 dir)
+static inline void security_sk_classify_flow(struct sock *sk, struct flowi *fl)
 {
-	return security_ops->sk_getsid(sk, fl, dir);
+	security_ops->sk_getsecid(sk, &fl->secid);
 }
 #else	/* CONFIG_SECURITY_NETWORK */
 static inline int security_unix_stream_connect(struct socket * sock,
@@ -3047,9 +3049,8 @@ static inline void security_sk_clone(const struct sock *sk, struct sock *newsk)
 {
 }
 
-static inline unsigned int security_sk_sid(struct sock *sk, struct flowi *fl, u8 dir)
+static inline void security_sk_classify_flow(struct sock *sk, struct flowi *fl)
 {
-	return 0;
 }
 #endif	/* CONFIG_SECURITY_NETWORK */
 
@@ -3114,9 +3115,16 @@ static inline int security_xfrm_flow_state_match(struct flowi *fl, struct xfrm_s
 	return security_ops->xfrm_flow_state_match(fl, xfrm);
 }
 
-static inline int security_xfrm_decode_session(struct sk_buff *skb, struct flowi *fl)
+static inline int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid)
 {
-	return security_ops->xfrm_decode_session(skb, fl);
+	return security_ops->xfrm_decode_session(skb, secid, 1);
+}
+
+static inline void security_skb_classify_flow(struct sk_buff *skb, struct flowi *fl)
+{
+	int rc = security_ops->xfrm_decode_session(skb, &fl->secid, 0);
+
+	BUG_ON(rc);
 }
 #else	/* CONFIG_SECURITY_NETWORK_XFRM */
 static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
@@ -3176,9 +3184,13 @@ static inline int security_xfrm_flow_state_match(struct flowi *fl,
 	return 1;
 }
 
-static inline int security_xfrm_decode_session(struct sk_buff *skb, struct flowi *fl)
+static inline int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid)
 {
 	return 0;
+}
+
+static inline void security_skb_classify_flow(struct sk_buff *skb, struct flowi *fl)
+{
 }
 
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */

@@ -406,6 +406,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 						.saddr = rt->rt_spec_dst,
 						.tos = RT_TOS(skb->nh.iph->tos) } },
 				    .proto = IPPROTO_ICMP };
+		security_skb_classify_flow(skb, &fl);
 		if (ip_route_output_key(&rt, &fl))
 			goto out_unlock;
 	}
@@ -560,6 +561,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
 				}
 			}
 		};
+		security_skb_classify_flow(skb_in, &fl);
 		if (ip_route_output_key(&rt, &fl))
 			goto out_unlock;
 	}

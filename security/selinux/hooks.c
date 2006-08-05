@@ -3561,14 +3561,14 @@ static void selinux_sk_clone_security(const struct sock *sk, struct sock *newsk)
 	newssec->peer_sid = ssec->peer_sid;
 }
 
-static unsigned int selinux_sk_getsid_security(struct sock *sk, struct flowi *fl, u8 dir)
+static void selinux_sk_getsecid(struct sock *sk, u32 *secid)
 {
 	if (!sk)
-		return selinux_no_sk_sid(fl);
+		*secid = SECINITSID_ANY_SOCKET;
 	else {
 		struct sk_security_struct *sksec = sk->sk_security;
 
-		return sksec->sid;
+		*secid = sksec->sid;
 	}
 }
 
@@ -4622,7 +4622,7 @@ static struct security_operations selinux_ops = {
 	.sk_alloc_security =		selinux_sk_alloc_security,
 	.sk_free_security =		selinux_sk_free_security,
 	.sk_clone_security =		selinux_sk_clone_security,
-	.sk_getsid = 			selinux_sk_getsid_security,
+	.sk_getsecid = 			selinux_sk_getsecid,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	.xfrm_policy_alloc_security =	selinux_xfrm_policy_alloc,

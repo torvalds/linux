@@ -157,6 +157,7 @@ int inet6_csk_xmit(struct sk_buff *skb, int ipfragok)
 	fl.oif = sk->sk_bound_dev_if;
 	fl.fl_ip_sport = inet->sport;
 	fl.fl_ip_dport = inet->dport;
+	security_sk_classify_flow(sk, &fl);
 
 	if (np->opt && np->opt->srcrt) {
 		struct rt0_hdr *rt0 = (struct rt0_hdr *)np->opt->srcrt;

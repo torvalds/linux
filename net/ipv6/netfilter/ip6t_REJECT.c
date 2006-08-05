@@ -96,6 +96,7 @@ static void send_reset(struct sk_buff *oldskb)
 	ipv6_addr_copy(&fl.fl6_dst, &oip6h->saddr);
 	fl.fl_ip_sport = otcph.dest;
 	fl.fl_ip_dport = otcph.source;
+	security_skb_classify_flow(oldskb, &fl);
 	dst = ip6_route_output(NULL, &fl);
 	if (dst == NULL)
 		return;

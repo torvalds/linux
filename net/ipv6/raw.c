@@ -759,6 +759,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	if (!fl.oif && ipv6_addr_is_multicast(&fl.fl6_dst))
 		fl.oif = np->mcast_oif;
+	security_sk_classify_flow(sk, &fl);
 
 	err = ip6_dst_lookup(sk, &dst, &fl);
 	if (err)

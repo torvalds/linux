@@ -158,11 +158,11 @@ int selinux_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm)
  * LSM hook implementation that determines the sid for the session.
  */
 
-int selinux_xfrm_decode_session(struct sk_buff *skb, struct flowi *fl)
+int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
 {
 	struct sec_path *sp;
 
-	fl->secid = SECSID_NULL;
+	*sid = SECSID_NULL;
 
 	if (skb == NULL)
 		return 0;
@@ -177,10 +177,13 @@ int selinux_xfrm_decode_session(struct sk_buff *skb, struct flowi *fl)
 				struct xfrm_sec_ctx *ctx = x->security;
 
 				if (!sid_set) {
-					fl->secid = ctx->ctx_sid;
+					*sid = ctx->ctx_sid;
 					sid_set = 1;
+
+					if (!ckall)
+						break;
 				}
-				else if (fl->secid != ctx->ctx_sid)
+				else if (*sid != ctx->ctx_sid)
 					return -EINVAL;
 			}
 		}

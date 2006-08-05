@@ -782,6 +782,8 @@ do_udp_sendmsg:
 		connected = 0;
 	}
 
+	security_sk_classify_flow(sk, fl);
+
 	err = ip6_sk_dst_lookup(sk, &dst, fl);
 	if (err)
 		goto out;

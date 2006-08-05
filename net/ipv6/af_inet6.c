@@ -637,6 +637,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 		fl.oif = sk->sk_bound_dev_if;
 		fl.fl_ip_dport = inet->dport;
 		fl.fl_ip_sport = inet->sport;
+		security_sk_classify_flow(sk, &fl);
 
 		if (np->opt && np->opt->srcrt) {
 			struct rt0_hdr *rt0 = (struct rt0_hdr *) np->opt->srcrt;

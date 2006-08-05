@@ -419,6 +419,7 @@ static inline void ndisc_flow_init(struct flowi *fl, u8 type,
 	fl->proto	 	= IPPROTO_ICMPV6;
 	fl->fl_icmp_type	= type;
 	fl->fl_icmp_code	= 0;
+	security_sk_classify_flow(ndisc_socket->sk, fl);
 }
 
 static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,

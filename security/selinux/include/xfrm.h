@@ -19,7 +19,7 @@ int selinux_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir);
 int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
 			struct xfrm_policy *xp, struct flowi *fl);
 int selinux_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm);
-int selinux_xfrm_decode_session(struct sk_buff *skb, struct flowi *fl);
+int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *fl, int ckall);
 
 
 /*
@@ -31,18 +31,6 @@ static inline struct inode_security_struct *get_sock_isec(struct sock *sk)
 		return NULL;
 
 	return SOCK_INODE(sk->sk_socket)->i_security;
-}
-
-
-static inline u32 selinux_no_sk_sid(struct flowi *fl)
-{
-	/* NOTE: no sock occurs on ICMP reply, forwards, ... */
-	/* icmp_reply: authorize as kernel packet */
-	if (fl && fl->proto == IPPROTO_ICMP) {
-		return SECINITSID_KERNEL;
-	}
-
-	return SECINITSID_ANY_SOCKET;
 }
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM

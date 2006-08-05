@@ -259,6 +259,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 				    .uli_u = { .ports =
 					       { .sport = skb->h.th->dest,
 						 .dport = skb->h.th->source } } };
+		security_sk_classify_flow(sk, &fl);
 		if (ip_route_output_key(&rt, &fl)) {
 			reqsk_free(req);
 			goto out; 

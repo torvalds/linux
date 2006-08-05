@@ -863,7 +863,6 @@ int xfrm_lookup(struct dst_entry **dst_p, struct flowi *fl,
 	u16 family;
 	u8 dir = policy_to_flow_dir(XFRM_POLICY_OUT);
 
-	fl->secid = security_sk_sid(sk, fl, dir);
 restart:
 	genid = atomic_read(&flow_cache_genid);
 	policy = NULL;
@@ -1039,7 +1038,7 @@ xfrm_decode_session(struct sk_buff *skb, struct flowi *fl, unsigned short family
 		return -EAFNOSUPPORT;
 
 	afinfo->decode_session(skb, fl);
-	err = security_xfrm_decode_session(skb, fl);
+	err = security_xfrm_decode_session(skb, &fl->secid);
 	xfrm_policy_put_afinfo(afinfo);
 	return err;
 }

@@ -328,6 +328,7 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 			 * keep trying until route appears or the connection times
 			 * itself out.
 			 */
+			security_sk_classify_flow(sk, &fl);
 			if (ip_route_output_flow(&rt, &fl, sk, 0))
 				goto no_route;
 		}
@@ -1366,6 +1367,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 					       { .sport = skb->h.th->dest,
 					         .dport = skb->h.th->source } },
 				    .proto = sk->sk_protocol };
+		security_skb_classify_flow(skb, &fl);
 		if (ip_route_output_key(&rt, &fl))
 			return;
 	}

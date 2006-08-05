@@ -201,6 +201,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	fl.oif = sk->sk_bound_dev_if;
 	fl.fl_ip_dport = usin->sin6_port;
 	fl.fl_ip_sport = inet->sport;
+	security_sk_classify_flow(sk, &fl);
 
 	if (np->opt != NULL && np->opt->srcrt != NULL) {
 		const struct rt0_hdr *rt0 = (struct rt0_hdr *)np->opt->srcrt;
@@ -322,6 +323,7 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			fl.oif = sk->sk_bound_dev_if;
 			fl.fl_ip_dport = inet->dport;
 			fl.fl_ip_sport = inet->sport;
+			security_sk_classify_flow(sk, &fl);
 
 			err = ip6_dst_lookup(sk, &dst, &fl);
 			if (err) {
@@ -422,6 +424,7 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req,
 	fl.oif = ireq6->iif;
 	fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 	fl.fl_ip_sport = inet_sk(sk)->sport;
+	security_sk_classify_flow(sk, &fl);
 
 	if (dst == NULL) {
 		opt = np->opt;
@@ -566,6 +569,7 @@ static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
 	fl.oif = inet6_iif(rxskb);
 	fl.fl_ip_dport = dh->dccph_dport;
 	fl.fl_ip_sport = dh->dccph_sport;
+	security_skb_classify_flow(rxskb, &fl);
 
 	/* sk = NULL, but it is safe for now. RST socket required. */
 	if (!ip6_dst_lookup(NULL, &skb->dst, &fl)) {
@@ -622,6 +626,7 @@ static void dccp_v6_reqsk_send_ack(struct sk_buff *rxskb,
 	fl.oif = inet6_iif(rxskb);
 	fl.fl_ip_dport = dh->dccph_dport;
 	fl.fl_ip_sport = dh->dccph_sport;
+	security_skb_classify_flow(rxskb, &fl);
 
 	if (!ip6_dst_lookup(NULL, &skb->dst, &fl)) {
 		if (xfrm_lookup(&skb->dst, &fl, NULL, 0) >= 0) {
@@ -842,6 +847,7 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 		fl.oif = sk->sk_bound_dev_if;
 		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 		fl.fl_ip_sport = inet_sk(sk)->sport;
+		security_sk_classify_flow(sk, &fl);
 
 		if (ip6_dst_lookup(sk, &dst, &fl))
 			goto out;
