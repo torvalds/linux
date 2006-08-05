@@ -384,8 +384,7 @@ static int acpi_cpufreq_early_init_acpi(void)
 	}
 
 	/* Do initialization in ACPI core */
-	acpi_processor_preregister_performance(acpi_perf_data);
-	return 0;
+	return acpi_processor_preregister_performance(acpi_perf_data);
 }
 
 static int

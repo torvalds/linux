@@ -707,12 +707,9 @@ out_unlock:
 	return err;
 }
 
-void
-xprt_abort_transmit(struct rpc_task *task)
+void xprt_end_transmit(struct rpc_task *task)
 {
-	struct rpc_xprt	*xprt = task->tk_xprt;
-
-	xprt_release_write(xprt, task);
+	xprt_release_write(task->tk_xprt, task);
 }
 
 /**
@@ -761,8 +758,6 @@ void xprt_transmit(struct rpc_task *task)
 			task->tk_status = -ENOTCONN;
 		else if (!req->rq_received)
 			rpc_sleep_on(&xprt->pending, task, NULL, xprt_timer);
-
-		xprt->ops->release_xprt(xprt, task);
 		spin_unlock_bh(&xprt->transport_lock);
 		return;
 	}
@@ -772,18 +767,8 @@ void xprt_transmit(struct rpc_task *task)
 	 *	 schedq, and being picked up by a parallel run of rpciod().
 	 */
 	task->tk_status = status;
-
-	switch (status) {
-	case -ECONNREFUSED:
+	if (status == -ECONNREFUSED)
 		rpc_sleep_on(&xprt->sending, task, NULL, NULL);
-	case -EAGAIN:
-	case -ENOTCONN:
-		return;
-	default:
-		break;
-	}
-	xprt_release_write(xprt, task);
-	return;
 }
 
 static inline void do_xprt_reserve(struct rpc_task *task)

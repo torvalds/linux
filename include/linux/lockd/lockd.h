@@ -123,7 +123,6 @@ struct nlm_block {
 	unsigned int		b_id;		/* block id */
 	unsigned char		b_queued;	/* re-queued */
 	unsigned char		b_granted;	/* VFS granted lock */
-	unsigned char		b_done;		/* callback complete */
 	struct nlm_file *	b_file;		/* file in question */
 };
 
