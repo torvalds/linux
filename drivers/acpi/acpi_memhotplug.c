@@ -230,17 +230,10 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	 * (i.e. memory-hot-remove function)
 	 */
 	list_for_each_entry(info, &mem_device->res_list, list) {
-		u64 start_pfn, end_pfn;
-
-		start_pfn = info->start_addr >> PAGE_SHIFT;
-		end_pfn = (info->start_addr + info->length - 1) >> PAGE_SHIFT;
-
-		if (pfn_valid(start_pfn) || pfn_valid(end_pfn)) {
-			/* already enabled. try next area */
+		if (info->enabled) { /* just sanity check...*/
 			num_enabled++;
 			continue;
 		}
-
 		result = add_memory(node, info->start_addr, info->length);
 		if (result)
 			continue;
