@@ -62,6 +62,7 @@
 #include <linux/sysctl.h>
 #endif
 
+#include <linux/if_addr.h>
 #include <linux/if_arp.h>
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>

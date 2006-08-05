@@ -384,62 +384,6 @@ struct rta_session
 };
 
 
-/*********************************************************
- *		Interface address.
- ****/
-
-struct ifaddrmsg
-{
-	unsigned char	ifa_family;
-	unsigned char	ifa_prefixlen;	/* The prefix length		*/
-	unsigned char	ifa_flags;	/* Flags			*/
-	unsigned char	ifa_scope;	/* See above			*/
-	int		ifa_index;	/* Link index			*/
-};
-
-enum
-{
-	IFA_UNSPEC,
-	IFA_ADDRESS,
-	IFA_LOCAL,
-	IFA_LABEL,
-	IFA_BROADCAST,
-	IFA_ANYCAST,
-	IFA_CACHEINFO,
-	IFA_MULTICAST,
-	__IFA_MAX
-};
-
-#define IFA_MAX (__IFA_MAX - 1)
-
-/* ifa_flags */
-
-#define IFA_F_SECONDARY		0x01
-#define IFA_F_TEMPORARY		IFA_F_SECONDARY
-
-#define IFA_F_DEPRECATED	0x20
-#define IFA_F_TENTATIVE		0x40
-#define IFA_F_PERMANENT		0x80
-
-struct ifa_cacheinfo
-{
-	__u32	ifa_prefered;
-	__u32	ifa_valid;
-	__u32	cstamp; /* created timestamp, hundredths of seconds */
-	__u32	tstamp; /* updated timestamp, hundredths of seconds */
-};
-
-
-#define IFA_RTA(r)  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ifaddrmsg))))
-#define IFA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct ifaddrmsg))
-
-/*
-   Important comment:
-   IFA_ADDRESS is prefix address, rather than local interface address.
-   It makes no difference for normally configured broadcast interfaces,
-   but for point-to-point IFA_ADDRESS is DESTINATION address,
-   local address is supplied in IFA_LOCAL attribute.
- */
 
 /**************************************************************
  *		Neighbour discovery.

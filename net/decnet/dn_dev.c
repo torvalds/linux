@@ -34,6 +34,7 @@
 #include <linux/seq_file.h>
 #include <linux/timer.h>
 #include <linux/string.h>
+#include <linux/if_addr.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
