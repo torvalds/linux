@@ -987,10 +987,7 @@ static void hvsi_write_worker(void *arg)
 		start_j = 0;
 #endif /* DEBUG */
 		wake_up_all(&hp->emptyq);
-		if (test_bit(TTY_DO_WRITE_WAKEUP, &hp->tty->flags)
-				&& hp->tty->ldisc.write_wakeup)
-			hp->tty->ldisc.write_wakeup(hp->tty);
-		wake_up_interruptible(&hp->tty->write_wait);
+		tty_wakeup(hp->tty);
 	}
 
 out:
