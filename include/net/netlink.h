@@ -35,6 +35,8 @@
  *   nlmsg_put()			add a netlink message to an skb
  *   nlmsg_put_answer()			callback based nlmsg_put()
  *   nlmsg_end()			finanlize netlink message
+ *   nlmsg_get_pos()			return current position in message
+ *   nlmsg_trim()			trim part of message
  *   nlmsg_cancel()			cancel message construction
  *   nlmsg_free()			free a netlink message
  *
@@ -80,8 +82,10 @@
  *   struct nlattr			netlink attribtue header
  *
  * Attribute Construction:
- *   nla_reserve(skb, type, len)	reserve skb tailroom for an attribute
+ *   nla_reserve(skb, type, len)	reserve room for an attribute
+ *   nla_reserve_nohdr(skb, len)	reserve room for an attribute w/o hdr
  *   nla_put(skb, type, len, data)	add attribute to skb
+ *   nla_put_nohdr(skb, len, data)	add attribute w/o hdr
  *
  * Attribute Construction for Basic Types:
  *   nla_put_u8(skb, type, value)	add u8 attribute to skb
@@ -139,6 +143,7 @@
  *   nla_next(nla, remaining)		get next netlink attribute
  *   nla_validate()			validate a stream of attributes
  *   nla_find()				find attribute in stream of attributes
+ *   nla_find_nested()			find attribute in nested attributes
  *   nla_parse()			parse and validate stream of attrs
  *   nla_parse_nested()			parse nested attribuets
  *   nla_for_each_attr()		loop over all attributes
@@ -203,12 +208,18 @@ extern int		nla_memcmp(const struct nlattr *nla, const void *data,
 extern int		nla_strcmp(const struct nlattr *nla, const char *str);
 extern struct nlattr *	__nla_reserve(struct sk_buff *skb, int attrtype,
 				      int attrlen);
+extern void *		__nla_reserve_nohdr(struct sk_buff *skb, int attrlen);
 extern struct nlattr *	nla_reserve(struct sk_buff *skb, int attrtype,
 				    int attrlen);
+extern void *		nla_reserve_nohdr(struct sk_buff *skb, int attrlen);
 extern void		__nla_put(struct sk_buff *skb, int attrtype,
 				  int attrlen, const void *data);
+extern void		__nla_put_nohdr(struct sk_buff *skb, int attrlen,
+					const void *data);
 extern int		nla_put(struct sk_buff *skb, int attrtype,
 				int attrlen, const void *data);
+extern int		nla_put_nohdr(struct sk_buff *skb, int attrlen,
+				      const void *data);
 
 /**************************************************************************
  * Netlink Messages
@@ -453,12 +464,13 @@ static inline struct nlmsghdr *nlmsg_put_answer(struct sk_buff *skb,
 /**
  * nlmsg_new - Allocate a new netlink message
  * @size: maximum size of message
+ * @flags: the type of memory to allocate.
  *
  * Use NLMSG_GOODSIZE if size isn't know and you need a good default size.
  */
-static inline struct sk_buff *nlmsg_new(int size)
+static inline struct sk_buff *nlmsg_new(int size, gfp_t flags)
 {
-	return alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	return alloc_skb(size, flags);
 }
 
 /**
@@ -480,6 +492,32 @@ static inline int nlmsg_end(struct sk_buff *skb, struct nlmsghdr *nlh)
 }
 
 /**
+ * nlmsg_get_pos - return current position in netlink message
+ * @skb: socket buffer the message is stored in
+ *
+ * Returns a pointer to the current tail of the message.
+ */
+static inline void *nlmsg_get_pos(struct sk_buff *skb)
+{
+	return skb->tail;
+}
+
+/**
+ * nlmsg_trim - Trim message to a mark
+ * @skb: socket buffer the message is stored in
+ * @mark: mark to trim to
+ *
+ * Trims the message to the provided mark. Returns -1.
+ */
+static inline int nlmsg_trim(struct sk_buff *skb, void *mark)
+{
+	if (mark)
+		skb_trim(skb, (unsigned char *) mark - skb->data);
+
+	return -1;
+}
+
+/**
  * nlmsg_cancel - Cancel construction of a netlink message
  * @skb: socket buffer the message is stored in
  * @nlh: netlink message header
@@ -489,9 +527,7 @@ static inline int nlmsg_end(struct sk_buff *skb, struct nlmsghdr *nlh)
  */
 static inline int nlmsg_cancel(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	skb_trim(skb, (unsigned char *) nlh - skb->data);
-
-	return -1;
+	return nlmsg_trim(skb, nlh);
 }
 
 /**
@@ -628,6 +664,18 @@ static inline struct nlattr *nla_next(const struct nlattr *nla, int *remaining)
 
 	*remaining -= totlen;
 	return (struct nlattr *) ((char *) nla + totlen);
+}
+
+/**
+ * nla_find_nested - find attribute in a set of nested attributes
+ * @nla: attribute containing the nested attributes
+ * @attrtype: type of attribute to look for
+ *
+ * Returns the first attribute which matches the specified type.
+ */
+static inline struct nlattr *nla_find_nested(struct nlattr *nla, int attrtype)
+{
+	return nla_find(nla_data(nla), nla_len(nla), attrtype);
 }
 
 /**
@@ -862,10 +910,7 @@ static inline int nla_nest_end(struct sk_buff *skb, struct nlattr *start)
  */
 static inline int nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
 {
-	if (start)
-		skb_trim(skb, (unsigned char *) start - skb->data);
-
-	return -1;
+	return nlmsg_trim(skb, start);
 }
 
 /**
@@ -879,5 +924,14 @@ static inline int nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
 	for (pos = head, rem = len; \
 	     nla_ok(pos, rem); \
 	     pos = nla_next(pos, &(rem)))
+
+/**
+ * nla_for_each_nested - iterate over nested attributes
+ * @pos: loop counter, set to current attribute
+ * @nla: attribute containing the nested attributes
+ * @rem: initialized to len, holds bytes currently remaining in stream
+ */
+#define nla_for_each_nested(pos, nla, rem) \
+	nla_for_each_attr(pos, nla_data(nla), nla_len(nla), rem)
 
 #endif
