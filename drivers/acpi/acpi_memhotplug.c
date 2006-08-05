@@ -129,11 +129,15 @@ acpi_memory_get_device_resources(struct acpi_memory_device *mem_device)
 	struct acpi_memory_info *info, *n;
 
 
+	if (!list_empty(&mem_device->res_list))
+		return 0;
+
 	status = acpi_walk_resources(mem_device->device->handle, METHOD_NAME__CRS,
 				     acpi_memory_get_resource, mem_device);
 	if (ACPI_FAILURE(status)) {
 		list_for_each_entry_safe(info, n, &mem_device->res_list, list)
 			kfree(info);
+		INIT_LIST_HEAD(&mem_device->res_list);
 		return -EINVAL;
 	}
 
