@@ -430,34 +430,48 @@ struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, u32 prefix,
 
 static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
-	struct rtattr **rta = arg;
+	struct nlattr *tb[IFA_MAX+1];
 	struct in_device *in_dev;
-	struct ifaddrmsg *ifm = NLMSG_DATA(nlh);
+	struct ifaddrmsg *ifm;
 	struct in_ifaddr *ifa, **ifap;
+	int err = -EINVAL;
 
 	ASSERT_RTNL();
 
-	if ((in_dev = inetdev_by_index(ifm->ifa_index)) == NULL)
-		goto out;
+	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv4_policy);
+	if (err < 0)
+		goto errout;
+
+	ifm = nlmsg_data(nlh);
+	in_dev = inetdev_by_index(ifm->ifa_index);
+	if (in_dev == NULL) {
+		err = -ENODEV;
+		goto errout;
+	}
+
 	__in_dev_put(in_dev);
 
 	for (ifap = &in_dev->ifa_list; (ifa = *ifap) != NULL;
 	     ifap = &ifa->ifa_next) {
-		if ((rta[IFA_LOCAL - 1] &&
-		     memcmp(RTA_DATA(rta[IFA_LOCAL - 1]),
-			    &ifa->ifa_local, 4)) ||
-		    (rta[IFA_LABEL - 1] &&
-		     rtattr_strcmp(rta[IFA_LABEL - 1], ifa->ifa_label)) ||
-		    (rta[IFA_ADDRESS - 1] &&
-		     (ifm->ifa_prefixlen != ifa->ifa_prefixlen ||
-		      !inet_ifa_match(*(u32*)RTA_DATA(rta[IFA_ADDRESS - 1]),
-			      	      ifa))))
+		if (tb[IFA_LOCAL] &&
+		    ifa->ifa_local != nla_get_u32(tb[IFA_LOCAL]))
 			continue;
+
+		if (tb[IFA_LABEL] && nla_strcmp(tb[IFA_LABEL], ifa->ifa_label))
+			continue;
+
+		if (tb[IFA_ADDRESS] &&
+		    (ifm->ifa_prefixlen != ifa->ifa_prefixlen ||
+		    !inet_ifa_match(nla_get_u32(tb[IFA_ADDRESS]), ifa)))
+			continue;
+
 		inet_del_ifa(in_dev, ifap, 1);
 		return 0;
 	}
-out:
-	return -EADDRNOTAVAIL;
+
+	err = -EADDRNOTAVAIL;
+errout:
+	return err;
 }
 
 static struct in_ifaddr *rtm_to_ifaddr(struct nlmsghdr *nlh)
