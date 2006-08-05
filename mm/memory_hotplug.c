@@ -76,15 +76,22 @@ int __add_pages(struct zone *zone, unsigned long phys_start_pfn,
 {
 	unsigned long i;
 	int err = 0;
+	int start_sec, end_sec;
+	/* during initialize mem_map, align hot-added range to section */
+	start_sec = pfn_to_section_nr(phys_start_pfn);
+	end_sec = pfn_to_section_nr(phys_start_pfn + nr_pages - 1);
 
-	for (i = 0; i < nr_pages; i += PAGES_PER_SECTION) {
-		err = __add_section(zone, phys_start_pfn + i);
+	for (i = start_sec; i <= end_sec; i++) {
+		err = __add_section(zone, i << PFN_SECTION_SHIFT);
 
-		/* We want to keep adding the rest of the
-		 * sections if the first ones already exist
+		/*
+		 * EEXIST is finally dealed with by ioresource collision
+		 * check. see add_memory() => register_memory_resource()
+		 * Warning will be printed if there is collision.
 		 */
 		if (err && (err != -EEXIST))
 			break;
+		err = 0;
 	}
 
 	return err;
@@ -213,10 +220,10 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
 }
 
 /* add this memory to iomem resource */
-static void register_memory_resource(u64 start, u64 size)
+static int register_memory_resource(u64 start, u64 size)
 {
 	struct resource *res;
-
+	int ret = 0;
 	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	BUG_ON(!res);
 
@@ -228,7 +235,9 @@ static void register_memory_resource(u64 start, u64 size)
 		printk("System RAM resource %llx - %llx cannot be added\n",
 		(unsigned long long)res->start, (unsigned long long)res->end);
 		kfree(res);
+		ret = -EEXIST;
 	}
+	return ret;
 }
 
 
@@ -269,7 +278,7 @@ int add_memory(int nid, u64 start, u64 size)
 	}
 
 	/* register this memory as resource */
-	register_memory_resource(start, size);
+	ret = register_memory_resource(start, size);
 
 	return ret;
 error:
