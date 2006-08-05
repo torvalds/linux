@@ -39,14 +39,10 @@ void reiserfs_delete_inode(struct inode *inode)
 
 	/* The = 0 happens when we abort creating a new inode for some reason like lack of space.. */
 	if (!(inode->i_state & I_NEW) && INODE_PKEY(inode)->k_objectid != 0) {	/* also handles bad_inode case */
-		mutex_lock(&inode->i_mutex);
-
 		reiserfs_delete_xattrs(inode);
 
-		if (journal_begin(&th, inode->i_sb, jbegin_count)) {
-			mutex_unlock(&inode->i_mutex);
+		if (journal_begin(&th, inode->i_sb, jbegin_count))
 			goto out;
-		}
 		reiserfs_update_inode_transaction(inode);
 
 		err = reiserfs_delete_object(&th, inode);
@@ -57,12 +53,8 @@ void reiserfs_delete_inode(struct inode *inode)
 		if (!err) 
 			DQUOT_FREE_INODE(inode);
 
-		if (journal_end(&th, inode->i_sb, jbegin_count)) {
-			mutex_unlock(&inode->i_mutex);
+		if (journal_end(&th, inode->i_sb, jbegin_count))
 			goto out;
-		}
-
-		mutex_unlock(&inode->i_mutex);
 
 		/* check return value from reiserfs_delete_object after
 		 * ending the transaction
