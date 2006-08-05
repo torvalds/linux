@@ -113,114 +113,6 @@ static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	}
 }
 
-static unsigned int aes_encrypt_ecb(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct s390_aes_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(AES_BLOCK_SIZE - 1);
-
-	switch (sctx->key_len) {
-	case 16:
-		ret = crypt_s390_km(KM_AES_128_ENCRYPT, &sctx->key, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	case 24:
-		ret = crypt_s390_km(KM_AES_192_ENCRYPT, &sctx->key, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	case 32:
-		ret = crypt_s390_km(KM_AES_256_ENCRYPT, &sctx->key, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	}
-	return nbytes;
-}
-
-static unsigned int aes_decrypt_ecb(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct s390_aes_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(AES_BLOCK_SIZE - 1);
-
-	switch (sctx->key_len) {
-	case 16:
-		ret = crypt_s390_km(KM_AES_128_DECRYPT, &sctx->key, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	case 24:
-		ret = crypt_s390_km(KM_AES_192_DECRYPT, &sctx->key, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	case 32:
-		ret = crypt_s390_km(KM_AES_256_DECRYPT, &sctx->key, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	}
-	return nbytes;
-}
-
-static unsigned int aes_encrypt_cbc(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct s390_aes_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(AES_BLOCK_SIZE - 1);
-
-	memcpy(&sctx->iv, desc->info, AES_BLOCK_SIZE);
-	switch (sctx->key_len) {
-	case 16:
-		ret = crypt_s390_kmc(KMC_AES_128_ENCRYPT, &sctx->iv, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	case 24:
-		ret = crypt_s390_kmc(KMC_AES_192_ENCRYPT, &sctx->iv, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	case 32:
-		ret = crypt_s390_kmc(KMC_AES_256_ENCRYPT, &sctx->iv, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	}
-	memcpy(desc->info, &sctx->iv, AES_BLOCK_SIZE);
-
-	return nbytes;
-}
-
-static unsigned int aes_decrypt_cbc(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct s390_aes_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(AES_BLOCK_SIZE - 1);
-
-	memcpy(&sctx->iv, desc->info, AES_BLOCK_SIZE);
-	switch (sctx->key_len) {
-	case 16:
-		ret = crypt_s390_kmc(KMC_AES_128_DECRYPT, &sctx->iv, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	case 24:
-		ret = crypt_s390_kmc(KMC_AES_192_DECRYPT, &sctx->iv, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	case 32:
-		ret = crypt_s390_kmc(KMC_AES_256_DECRYPT, &sctx->iv, out, in, nbytes);
-		BUG_ON((ret < 0) || (ret != nbytes));
-		break;
-	}
-	return nbytes;
-}
-
 
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
@@ -238,10 +130,6 @@ static struct crypto_alg aes_alg = {
 			.cia_setkey		=	aes_set_key,
 			.cia_encrypt		=	aes_encrypt,
 			.cia_decrypt		=	aes_decrypt,
-			.cia_encrypt_ecb	=	aes_encrypt_ecb,
-			.cia_decrypt_ecb	=	aes_decrypt_ecb,
-			.cia_encrypt_cbc	=	aes_encrypt_cbc,
-			.cia_decrypt_cbc	=	aes_decrypt_cbc,
 		}
 	}
 };

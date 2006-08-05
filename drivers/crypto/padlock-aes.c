@@ -452,46 +452,6 @@ static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	padlock_xcrypt_ecb(in, out, ctx->D, &ctx->cword.decrypt, 1);
 }
 
-static unsigned int aes_encrypt_ecb(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct aes_ctx *ctx = aes_ctx(desc->tfm);
-	padlock_xcrypt_ecb(in, out, ctx->E, &ctx->cword.encrypt,
-			   nbytes / AES_BLOCK_SIZE);
-	return nbytes & ~(AES_BLOCK_SIZE - 1);
-}
-
-static unsigned int aes_decrypt_ecb(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct aes_ctx *ctx = aes_ctx(desc->tfm);
-	padlock_xcrypt_ecb(in, out, ctx->D, &ctx->cword.decrypt,
-			   nbytes / AES_BLOCK_SIZE);
-	return nbytes & ~(AES_BLOCK_SIZE - 1);
-}
-
-static unsigned int aes_encrypt_cbc(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct aes_ctx *ctx = aes_ctx(desc->tfm);
-	u8 *iv;
-
-	iv = padlock_xcrypt_cbc(in, out, ctx->E, desc->info,
-				&ctx->cword.encrypt, nbytes / AES_BLOCK_SIZE);
-	memcpy(desc->info, iv, AES_BLOCK_SIZE);
-
-	return nbytes & ~(AES_BLOCK_SIZE - 1);
-}
-
-static unsigned int aes_decrypt_cbc(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct aes_ctx *ctx = aes_ctx(desc->tfm);
-	padlock_xcrypt_cbc(in, out, ctx->D, desc->info, &ctx->cword.decrypt,
-			   nbytes / AES_BLOCK_SIZE);
-	return nbytes & ~(AES_BLOCK_SIZE - 1);
-}
-
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
 	.cra_driver_name	=	"aes-padlock",
@@ -509,10 +469,6 @@ static struct crypto_alg aes_alg = {
 			.cia_setkey	   	= 	aes_set_key,
 			.cia_encrypt	 	=	aes_encrypt,
 			.cia_decrypt	  	=	aes_decrypt,
-			.cia_encrypt_ecb 	=	aes_encrypt_ecb,
-			.cia_decrypt_ecb  	=	aes_decrypt_ecb,
-			.cia_encrypt_cbc 	=	aes_encrypt_cbc,
-			.cia_decrypt_cbc  	=	aes_decrypt_cbc,
 		}
 	}
 };

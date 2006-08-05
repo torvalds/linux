@@ -73,67 +73,6 @@ static void des_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	crypt_s390_km(KM_DEA_DECRYPT, dctx->key, out, in, DES_BLOCK_SIZE);
 }
 
-static unsigned int des_encrypt_ecb(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct crypt_s390_des_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES_BLOCK_SIZE - 1);
-	ret = crypt_s390_km(KM_DEA_ENCRYPT, sctx->key, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	return nbytes;
-}
-
-static unsigned int des_decrypt_ecb(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct crypt_s390_des_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES_BLOCK_SIZE - 1);
-	ret = crypt_s390_km(KM_DEA_DECRYPT, sctx->key, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	return nbytes;
-}
-
-static unsigned int des_encrypt_cbc(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct crypt_s390_des_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES_BLOCK_SIZE - 1);
-
-	memcpy(sctx->iv, desc->info, DES_BLOCK_SIZE);
-	ret = crypt_s390_kmc(KMC_DEA_ENCRYPT, &sctx->iv, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	memcpy(desc->info, sctx->iv, DES_BLOCK_SIZE);
-	return nbytes;
-}
-
-static unsigned int des_decrypt_cbc(const struct cipher_desc *desc, u8 *out,
-				    const u8 *in, unsigned int nbytes)
-{
-	struct crypt_s390_des_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES_BLOCK_SIZE - 1);
-
-	memcpy(&sctx->iv, desc->info, DES_BLOCK_SIZE);
-	ret = crypt_s390_kmc(KMC_DEA_DECRYPT, &sctx->iv, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	return nbytes;
-}
-
 static struct crypto_alg des_alg = {
 	.cra_name		=	"des",
 	.cra_driver_name	=	"des-s390",
@@ -150,10 +89,6 @@ static struct crypto_alg des_alg = {
 			.cia_setkey		=	des_setkey,
 			.cia_encrypt		=	des_encrypt,
 			.cia_decrypt		=	des_decrypt,
-			.cia_encrypt_ecb	=	des_encrypt_ecb,
-			.cia_decrypt_ecb	=	des_decrypt_ecb,
-			.cia_encrypt_cbc	=	des_encrypt_cbc,
-			.cia_decrypt_cbc	=	des_decrypt_cbc,
 		}
 	}
 };
@@ -344,71 +279,6 @@ static void des3_128_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 		      DES3_128_BLOCK_SIZE);
 }
 
-static unsigned int des3_128_encrypt_ecb(const struct cipher_desc *desc,
-					 u8 *out, const u8 *in,
-					 unsigned int nbytes)
-{
-	struct crypt_s390_des3_128_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES3_128_BLOCK_SIZE - 1);
-	ret = crypt_s390_km(KM_TDEA_128_ENCRYPT, sctx->key, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	return nbytes;
-}
-
-static unsigned int des3_128_decrypt_ecb(const struct cipher_desc *desc,
-					 u8 *out, const u8 *in,
-					 unsigned int nbytes)
-{
-	struct crypt_s390_des3_128_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES3_128_BLOCK_SIZE - 1);
-	ret = crypt_s390_km(KM_TDEA_128_DECRYPT, sctx->key, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	return nbytes;
-}
-
-static unsigned int des3_128_encrypt_cbc(const struct cipher_desc *desc,
-					 u8 *out, const u8 *in,
-					 unsigned int nbytes)
-{
-	struct crypt_s390_des3_128_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES3_128_BLOCK_SIZE - 1);
-
-	memcpy(sctx->iv, desc->info, DES3_128_BLOCK_SIZE);
-	ret = crypt_s390_kmc(KMC_TDEA_128_ENCRYPT, &sctx->iv, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	memcpy(desc->info, sctx->iv, DES3_128_BLOCK_SIZE);
-	return nbytes;
-}
-
-static unsigned int des3_128_decrypt_cbc(const struct cipher_desc *desc,
-					 u8 *out, const u8 *in,
-					 unsigned int nbytes)
-{
-	struct crypt_s390_des3_128_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES3_128_BLOCK_SIZE - 1);
-
-	memcpy(&sctx->iv, desc->info, DES3_128_BLOCK_SIZE);
-	ret = crypt_s390_kmc(KMC_TDEA_128_DECRYPT, &sctx->iv, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	return nbytes;
-}
-
 static struct crypto_alg des3_128_alg = {
 	.cra_name		=	"des3_ede128",
 	.cra_driver_name	=	"des3_ede128-s390",
@@ -425,10 +295,6 @@ static struct crypto_alg des3_128_alg = {
 			.cia_setkey		=	des3_128_setkey,
 			.cia_encrypt		=	des3_128_encrypt,
 			.cia_decrypt		=	des3_128_decrypt,
-			.cia_encrypt_ecb	=	des3_128_encrypt_ecb,
-			.cia_decrypt_ecb	=	des3_128_decrypt_ecb,
-			.cia_encrypt_cbc	=	des3_128_encrypt_cbc,
-			.cia_decrypt_cbc	=	des3_128_decrypt_cbc,
 		}
 	}
 };
@@ -575,71 +441,6 @@ static void des3_192_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 		      DES3_192_BLOCK_SIZE);
 }
 
-static unsigned int des3_192_encrypt_ecb(const struct cipher_desc *desc,
-					 u8 *out, const u8 *in,
-					 unsigned int nbytes)
-{
-	struct crypt_s390_des3_192_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES3_192_BLOCK_SIZE - 1);
-	ret = crypt_s390_km(KM_TDEA_192_ENCRYPT, sctx->key, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	return nbytes;
-}
-
-static unsigned int des3_192_decrypt_ecb(const struct cipher_desc *desc,
-					 u8 *out, const u8 *in,
-					 unsigned int nbytes)
-{
-	struct crypt_s390_des3_192_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES3_192_BLOCK_SIZE - 1);
-	ret = crypt_s390_km(KM_TDEA_192_DECRYPT, sctx->key, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	return nbytes;
-}
-
-static unsigned int des3_192_encrypt_cbc(const struct cipher_desc *desc,
-					 u8 *out, const u8 *in,
-					 unsigned int nbytes)
-{
-	struct crypt_s390_des3_192_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES3_192_BLOCK_SIZE - 1);
-
-	memcpy(sctx->iv, desc->info, DES3_192_BLOCK_SIZE);
-	ret = crypt_s390_kmc(KMC_TDEA_192_ENCRYPT, &sctx->iv, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	memcpy(desc->info, sctx->iv, DES3_192_BLOCK_SIZE);
-	return nbytes;
-}
-
-static unsigned int des3_192_decrypt_cbc(const struct cipher_desc *desc,
-					 u8 *out, const u8 *in,
-					 unsigned int nbytes)
-{
-	struct crypt_s390_des3_192_ctx *sctx = crypto_tfm_ctx(desc->tfm);
-	int ret;
-
-	/* only use complete blocks */
-	nbytes &= ~(DES3_192_BLOCK_SIZE - 1);
-
-	memcpy(&sctx->iv, desc->info, DES3_192_BLOCK_SIZE);
-	ret = crypt_s390_kmc(KMC_TDEA_192_DECRYPT, &sctx->iv, out, in, nbytes);
-	BUG_ON((ret < 0) || (ret != nbytes));
-
-	return nbytes;
-}
-
 static struct crypto_alg des3_192_alg = {
 	.cra_name		=	"des3_ede",
 	.cra_driver_name	=	"des3_ede-s390",
@@ -656,10 +457,6 @@ static struct crypto_alg des3_192_alg = {
 			.cia_setkey		=	des3_192_setkey,
 			.cia_encrypt		=	des3_192_encrypt,
 			.cia_decrypt		=	des3_192_decrypt,
-			.cia_encrypt_ecb	=	des3_192_encrypt_ecb,
-			.cia_decrypt_ecb	=	des3_192_decrypt_ecb,
-			.cia_encrypt_cbc	=	des3_192_encrypt_cbc,
-			.cia_decrypt_cbc	=	des3_192_decrypt_cbc,
 		}
 	}
 };
