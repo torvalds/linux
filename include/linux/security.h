@@ -812,6 +812,8 @@ struct swap_info_struct;
  *      which is used to copy security attributes between local stream sockets.
  * @sk_free_security:
  *	Deallocate security structure.
+ * @sk_clone_security:
+ *	Clone/copy security structure.
  * @sk_getsid:
  *	Retrieve the LSM-specific sid for the sock to enable caching of network
  *	authorizations.
@@ -1332,6 +1334,7 @@ struct security_operations {
 	int (*socket_getpeersec_dgram) (struct socket *sock, struct sk_buff *skb, u32 *secid);
 	int (*sk_alloc_security) (struct sock *sk, int family, gfp_t priority);
 	void (*sk_free_security) (struct sock *sk);
+	void (*sk_clone_security) (const struct sock *sk, struct sock *newsk);
 	unsigned int (*sk_getsid) (struct sock *sk, struct flowi *fl, u8 dir);
 #endif	/* CONFIG_SECURITY_NETWORK */
 
@@ -2885,6 +2888,11 @@ static inline void security_sk_free(struct sock *sk)
 	return security_ops->sk_free_security(sk);
 }
 
+static inline void security_sk_clone(const struct sock *sk, struct sock *newsk)
+{
+	return security_ops->sk_clone_security(sk, newsk);
+}
+
 static inline unsigned int security_sk_sid(struct sock *sk, struct flowi *fl, u8 dir)
 {
 	return security_ops->sk_getsid(sk, fl, dir);
@@ -3008,6 +3016,10 @@ static inline int security_sk_alloc(struct sock *sk, int family, gfp_t priority)
 }
 
 static inline void security_sk_free(struct sock *sk)
+{
+}
+
+static inline void security_sk_clone(const struct sock *sk, struct sock *newsk)
 {
 }
 

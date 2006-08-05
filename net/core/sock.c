@@ -911,7 +911,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 	if (newsk != NULL) {
 		struct sk_filter *filter;
 
-		memcpy(newsk, sk, sk->sk_prot->obj_size);
+		sock_copy(newsk, sk);
 
 		/* SANITY */
 		sk_node_init(&newsk->sk_node);

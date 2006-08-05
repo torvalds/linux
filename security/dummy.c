@@ -805,6 +805,10 @@ static inline void dummy_sk_free_security (struct sock *sk)
 {
 }
 
+static inline void dummy_sk_clone_security (const struct sock *sk, struct sock *newsk)
+{
+}
+
 static unsigned int dummy_sk_getsid(struct sock *sk, struct flowi *fl, u8 dir)
 {
 	return 0;
@@ -1060,6 +1064,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, socket_getpeersec_dgram);
 	set_to_dummy_if_null(ops, sk_alloc_security);
 	set_to_dummy_if_null(ops, sk_free_security);
+	set_to_dummy_if_null(ops, sk_clone_security);
 	set_to_dummy_if_null(ops, sk_getsid);
  #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef  CONFIG_SECURITY_NETWORK_XFRM

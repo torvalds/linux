@@ -269,15 +269,13 @@ static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
 	struct sk_security_struct *ssec;
 
-	if (family != PF_UNIX)
-		return 0;
-
 	ssec = kzalloc(sizeof(*ssec), priority);
 	if (!ssec)
 		return -ENOMEM;
 
 	ssec->sk = sk;
 	ssec->peer_sid = SECINITSID_UNLABELED;
+	ssec->sid = SECINITSID_UNLABELED;
 	sk->sk_security = ssec;
 
 	return 0;
@@ -286,9 +284,6 @@ static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 static void sk_free_security(struct sock *sk)
 {
 	struct sk_security_struct *ssec = sk->sk_security;
-
-	if (sk->sk_family != PF_UNIX)
-		return;
 
 	sk->sk_security = NULL;
 	kfree(ssec);
@@ -3068,6 +3063,7 @@ static void selinux_socket_post_create(struct socket *sock, int family,
 {
 	struct inode_security_struct *isec;
 	struct task_security_struct *tsec;
+	struct sk_security_struct *sksec;
 	u32 newsid;
 
 	isec = SOCK_INODE(sock)->i_security;
@@ -3077,6 +3073,11 @@ static void selinux_socket_post_create(struct socket *sock, int family,
 	isec->sclass = socket_type_to_security_class(family, type, protocol);
 	isec->sid = kern ? SECINITSID_KERNEL : newsid;
 	isec->initialized = 1;
+
+	if (sock->sk) {
+		sksec = sock->sk->sk_security;
+		sksec->sid = isec->sid;
+	}
 
 	return;
 }
@@ -3551,22 +3552,24 @@ static void selinux_sk_free_security(struct sock *sk)
 	sk_free_security(sk);
 }
 
+static void selinux_sk_clone_security(const struct sock *sk, struct sock *newsk)
+{
+	struct sk_security_struct *ssec = sk->sk_security;
+	struct sk_security_struct *newssec = newsk->sk_security;
+
+	newssec->sid = ssec->sid;
+	newssec->peer_sid = ssec->peer_sid;
+}
+
 static unsigned int selinux_sk_getsid_security(struct sock *sk, struct flowi *fl, u8 dir)
 {
-	struct inode_security_struct *isec;
-	u32 sock_sid = SECINITSID_ANY_SOCKET;
-
 	if (!sk)
 		return selinux_no_sk_sid(fl);
+	else {
+		struct sk_security_struct *sksec = sk->sk_security;
 
-	read_lock_bh(&sk->sk_callback_lock);
-	isec = get_sock_isec(sk);
-
-	if (isec)
-		sock_sid = isec->sid;
-
-	read_unlock_bh(&sk->sk_callback_lock);
-	return sock_sid;
+		return sksec->sid;
+	}
 }
 
 static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
@@ -4618,6 +4621,7 @@ static struct security_operations selinux_ops = {
 	.socket_getpeersec_dgram =	selinux_socket_getpeersec_dgram,
 	.sk_alloc_security =		selinux_sk_alloc_security,
 	.sk_free_security =		selinux_sk_free_security,
+	.sk_clone_security =		selinux_sk_clone_security,
 	.sk_getsid = 			selinux_sk_getsid_security,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
