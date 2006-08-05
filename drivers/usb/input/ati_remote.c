@@ -122,11 +122,11 @@
 #define FILTER_TIME	60 /* msec */
 
 static unsigned long channel_mask;
-module_param(channel_mask, ulong, 0444);
+module_param(channel_mask, ulong, 0644);
 MODULE_PARM_DESC(channel_mask, "Bitmask of remote control channels to ignore");
 
 static int debug;
-module_param(debug, int, 0444);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Enable extra debug messages and information");
 
 static int repeat_filter = FILTER_TIME;
