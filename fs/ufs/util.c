@@ -251,7 +251,6 @@ struct page *ufs_get_locked_page(struct address_space *mapping,
 {
 	struct page *page;
 
-try_again:
 	page = find_lock_page(mapping, index);
 	if (!page) {
 		page = read_cache_page(mapping, index,
@@ -271,7 +270,8 @@ try_again:
 			/* Truncate got there first */
 			unlock_page(page);
 			page_cache_release(page);
-			goto try_again;
+			page = NULL;
+			goto out;
 		}
 
 		if (!PageUptodate(page) || PageError(page)) {
