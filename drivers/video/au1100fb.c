@@ -164,10 +164,11 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
 	}
 
 	info->screen_size = info->fix.line_length * info->var.yres_virtual;
+	info->var.rotate = ((fbdev->panel->control_base&LCD_CONTROL_SM_MASK) \
+				>> LCD_CONTROL_SM_BIT) * 90;
 
 	/* Determine BPP mode and format */
-	fbdev->regs->lcd_control = fbdev->panel->control_base |
-			    ((info->var.rotate/90) << LCD_CONTROL_SM_BIT);
+	fbdev->regs->lcd_control = fbdev->panel->control_base;
 
 	fbdev->regs->lcd_intenable = 0;
 	fbdev->regs->lcd_intstatus = 0;
