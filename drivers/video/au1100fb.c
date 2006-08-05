@@ -156,7 +156,7 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
 
 			info->fix.visual = FB_VISUAL_TRUECOLOR;
 			info->fix.line_length = info->var.xres_virtual << 1; /* depth=16 */
-	}
+		}
 	} else {
 		/* mono */
 		info->fix.visual = FB_VISUAL_MONO10;
@@ -169,16 +169,11 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
 
 	/* Determine BPP mode and format */
 	fbdev->regs->lcd_control = fbdev->panel->control_base;
-
+	fbdev->regs->lcd_horztiming = fbdev->panel->horztiming;
+	fbdev->regs->lcd_verttiming = fbdev->panel->verttiming;
+	fbdev->regs->lcd_clkcontrol = fbdev->panel->clkcontrol_base;
 	fbdev->regs->lcd_intenable = 0;
 	fbdev->regs->lcd_intstatus = 0;
-
-	fbdev->regs->lcd_horztiming = fbdev->panel->horztiming;
-
-	fbdev->regs->lcd_verttiming = fbdev->panel->verttiming;
-
-	fbdev->regs->lcd_clkcontrol = fbdev->panel->clkcontrol_base;
-
 	fbdev->regs->lcd_dmaaddr0 = LCD_DMA_SA_N(fbdev->fb_phys);
 
 	if (panel_is_dual(fbdev->panel)) {
@@ -207,6 +202,8 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
 
 	/* Resume controller */
 	fbdev->regs->lcd_control |= LCD_CONTROL_GO;
+	mdelay(10);
+	au1100fb_fb_blank(VESA_NO_BLANKING, info);
 
 	return 0;
 }
