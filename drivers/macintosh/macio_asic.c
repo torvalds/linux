@@ -330,7 +330,7 @@ static void macio_create_fixup_irq(struct macio_dev *dev, int index,
 {
 	unsigned int irq;
 
-	irq = irq_create_mapping(NULL, line, 0);
+	irq = irq_create_mapping(NULL, line);
 	if (irq != NO_IRQ) {
 		dev->interrupt[index].start = irq;
 		dev->interrupt[index].flags = IORESOURCE_IRQ;

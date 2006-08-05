@@ -2131,7 +2131,7 @@ struct snd_ice1712_card_info snd_vt1724_aureon_cards[] __devinitdata = {
  		.build_controls = aureon_add_controls,
  		.eeprom_size = sizeof(aureon71_eeprom),
  		.eeprom_data = aureon71_eeprom,
-		.driver = "Aureon71Universe",
+		.driver = "Aureon71Univ", /* keep in 15 letters */
 	},
 	{
 		.subvendor = VT1724_SUBDEVICE_PRODIGY71,

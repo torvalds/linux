@@ -13,13 +13,13 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/screen_info.h>
 
 #include <video/vga.h>
 #include <asm/io.h>

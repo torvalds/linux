@@ -470,13 +470,18 @@ out:
    pass does the actual I/O. */
 void invalidate_bdev(struct block_device *bdev, int destroy_dirty_buffers)
 {
+	struct address_space *mapping = bdev->bd_inode->i_mapping;
+
+	if (mapping->nrpages == 0)
+		return;
+
 	invalidate_bh_lrus();
 	/*
 	 * FIXME: what about destroy_dirty_buffers?
 	 * We really want to use invalidate_inode_pages2() for
 	 * that, but not until that's cleaned up.
 	 */
-	invalidate_inode_pages(bdev->bd_inode->i_mapping);
+	invalidate_inode_pages(mapping);
 }
 
 /*

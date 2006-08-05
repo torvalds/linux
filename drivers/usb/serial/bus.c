@@ -13,7 +13,7 @@
 #include <linux/tty.h>
 #include <linux/module.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 
 static int usb_serial_device_match (struct device *dev, struct device_driver *drv)
 {

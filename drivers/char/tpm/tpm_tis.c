@@ -424,6 +424,7 @@ static irqreturn_t tis_int_handler(int irq, void *dev_id, struct pt_regs *regs)
 	iowrite32(interrupt,
 		  chip->vendor.iobase +
 		  TPM_INT_STATUS(chip->vendor.locality));
+	ioread32(chip->vendor.iobase + TPM_INT_STATUS(chip->vendor.locality));
 	return IRQ_HANDLED;
 }
 
@@ -431,23 +432,19 @@ static int interrupts = 1;
 module_param(interrupts, bool, 0444);
 MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
-static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
-				      const struct pnp_device_id *pnp_id)
+static int tpm_tis_init(struct device *dev, resource_size_t start,
+			resource_size_t len)
 {
 	u32 vendor, intfcaps, intmask;
 	int rc, i;
-	unsigned long start, len;
 	struct tpm_chip *chip;
-
-	start = pnp_mem_start(pnp_dev, 0);
-	len = pnp_mem_len(pnp_dev, 0);
 
 	if (!start)
 		start = TIS_MEM_BASE;
 	if (!len)
 		len = TIS_MEM_LEN;
 
-	if (!(chip = tpm_register_hardware(&pnp_dev->dev, &tpm_tis)))
+	if (!(chip = tpm_register_hardware(dev, &tpm_tis)))
 		return -ENODEV;
 
 	chip->vendor.iobase = ioremap(start, len);
@@ -464,7 +461,7 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 	chip->vendor.timeout_c = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
 	chip->vendor.timeout_d = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
 
-	dev_info(&pnp_dev->dev,
+	dev_info(dev,
 		 "1.2 TPM (device-id 0x%X, rev-id %d)\n",
 		 vendor >> 16, ioread8(chip->vendor.iobase + TPM_RID(0)));
 
@@ -472,26 +469,26 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 	intfcaps =
 	    ioread32(chip->vendor.iobase +
 		     TPM_INTF_CAPS(chip->vendor.locality));
-	dev_dbg(&pnp_dev->dev, "TPM interface capabilities (0x%x):\n",
+	dev_dbg(dev, "TPM interface capabilities (0x%x):\n",
 		intfcaps);
 	if (intfcaps & TPM_INTF_BURST_COUNT_STATIC)
-		dev_dbg(&pnp_dev->dev, "\tBurst Count Static\n");
+		dev_dbg(dev, "\tBurst Count Static\n");
 	if (intfcaps & TPM_INTF_CMD_READY_INT)
-		dev_dbg(&pnp_dev->dev, "\tCommand Ready Int Support\n");
+		dev_dbg(dev, "\tCommand Ready Int Support\n");
 	if (intfcaps & TPM_INTF_INT_EDGE_FALLING)
-		dev_dbg(&pnp_dev->dev, "\tInterrupt Edge Falling\n");
+		dev_dbg(dev, "\tInterrupt Edge Falling\n");
 	if (intfcaps & TPM_INTF_INT_EDGE_RISING)
-		dev_dbg(&pnp_dev->dev, "\tInterrupt Edge Rising\n");
+		dev_dbg(dev, "\tInterrupt Edge Rising\n");
 	if (intfcaps & TPM_INTF_INT_LEVEL_LOW)
-		dev_dbg(&pnp_dev->dev, "\tInterrupt Level Low\n");
+		dev_dbg(dev, "\tInterrupt Level Low\n");
 	if (intfcaps & TPM_INTF_INT_LEVEL_HIGH)
-		dev_dbg(&pnp_dev->dev, "\tInterrupt Level High\n");
+		dev_dbg(dev, "\tInterrupt Level High\n");
 	if (intfcaps & TPM_INTF_LOCALITY_CHANGE_INT)
-		dev_dbg(&pnp_dev->dev, "\tLocality Change Int Support\n");
+		dev_dbg(dev, "\tLocality Change Int Support\n");
 	if (intfcaps & TPM_INTF_STS_VALID_INT)
-		dev_dbg(&pnp_dev->dev, "\tSts Valid Int Support\n");
+		dev_dbg(dev, "\tSts Valid Int Support\n");
 	if (intfcaps & TPM_INTF_DATA_AVAIL_INT)
-		dev_dbg(&pnp_dev->dev, "\tData Avail Int Support\n");
+		dev_dbg(dev, "\tData Avail Int Support\n");
 
 	if (request_locality(chip, 0) != 0) {
 		rc = -ENODEV;
@@ -594,6 +591,16 @@ out_err:
 	return rc;
 }
 
+static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
+				      const struct pnp_device_id *pnp_id)
+{
+	resource_size_t start, len;
+	start = pnp_mem_start(pnp_dev, 0);
+	len = pnp_mem_len(pnp_dev, 0);
+
+	return tpm_tis_init(&pnp_dev->dev, start, len);
+}
+
 static int tpm_tis_pnp_suspend(struct pnp_dev *dev, pm_message_t msg)
 {
 	return tpm_pm_suspend(&dev->dev, msg);
@@ -628,8 +635,36 @@ module_param_string(hid, tpm_pnp_tbl[TIS_HID_USR_IDX].id,
 		    sizeof(tpm_pnp_tbl[TIS_HID_USR_IDX].id), 0444);
 MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
 
+static struct device_driver tis_drv = {
+	.name = "tpm_tis",
+	.bus = &platform_bus_type,
+	.owner = THIS_MODULE,
+	.suspend = tpm_pm_suspend,
+	.resume = tpm_pm_resume,
+};
+
+static struct platform_device *pdev;
+
+static int force;
+module_param(force, bool, 0444);
+MODULE_PARM_DESC(force, "Force device probe rather than using ACPI entry");
 static int __init init_tis(void)
 {
+	int rc;
+
+	if (force) {
+		rc = driver_register(&tis_drv);
+		if (rc < 0)
+			return rc;
+		if (IS_ERR(pdev=platform_device_register_simple("tpm_tis", -1, NULL, 0)))
+			return PTR_ERR(pdev);
+		if((rc=tpm_tis_init(&pdev->dev, 0, 0)) != 0) {
+			platform_device_unregister(pdev);
+			driver_unregister(&tis_drv);
+		}
+		return rc;
+	}
+
 	return pnp_register_driver(&tis_pnp_driver);
 }
 
@@ -654,7 +689,11 @@ static void __exit cleanup_tis(void)
 		tpm_remove_hardware(chip->dev);
 	}
 	spin_unlock(&tis_lock);
-	pnp_unregister_driver(&tis_pnp_driver);
+	if (force) {
+		platform_device_unregister(pdev);
+		driver_unregister(&tis_drv);
+	} else
+		pnp_unregister_driver(&tis_pnp_driver);
 }
 
 module_init(init_tis);

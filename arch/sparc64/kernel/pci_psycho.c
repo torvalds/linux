@@ -1099,9 +1099,6 @@ static void pbm_register_toplevel_resources(struct pci_controller_info *p,
 {
 	char *name = pbm->name;
 
-	sprintf(name, "PSYCHO%d PBM%c",
-		p->index,
-		(pbm == &p->pbm_A ? 'A' : 'B'));
 	pbm->io_space.name = pbm->mem_space.name = name;
 
 	request_resource(&ioport_resource, &pbm->io_space);
@@ -1203,11 +1200,12 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	pbm->io_space.flags = IORESOURCE_IO;
 	pbm->mem_space.end = pbm->mem_space.start + PSYCHO_MEMSPACE_SIZE;
 	pbm->mem_space.flags = IORESOURCE_MEM;
-	pbm_register_toplevel_resources(p, pbm);
 
 	pbm->parent = p;
 	pbm->prom_node = dp;
 	pbm->name = dp->full_name;
+
+	pbm_register_toplevel_resources(p, pbm);
 
 	printk("%s: PSYCHO PCI Bus Module ver[%x:%x]\n",
 	       pbm->name,

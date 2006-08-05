@@ -534,6 +534,8 @@ static struct nf_hook_ops ip_conntrack_ops[] = {
 
 /* Sysctl support */
 
+int ip_conntrack_checksum = 1;
+
 #ifdef CONFIG_SYSCTL
 
 /* From ip_conntrack_core.c */
@@ -567,8 +569,6 @@ extern unsigned int ip_ct_generic_timeout;
 /* Log invalid packets of a given protocol */
 static int log_invalid_proto_min = 0;
 static int log_invalid_proto_max = 255;
-
-int ip_conntrack_checksum = 1;
 
 static struct ctl_table_header *ip_ct_sysctl_header;
 

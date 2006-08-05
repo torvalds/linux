@@ -712,16 +712,14 @@ endif
 vmlinux.bin: $(vmlinux-32)
 	+@$(call makeboot,$@)
 
-vmlinux.ecoff vmlinux.rm200: $(vmlinux-32)
+vmlinux.ecoff: $(vmlinux-32)
 	+@$(call makeboot,$@)
 
 vmlinux.srec: $(vmlinux-32)
 	+@$(call makeboot,$@)
 
 CLEAN_FILES += vmlinux.ecoff \
-	       vmlinux.srec \
-	       vmlinux.rm200.tmp \
-	       vmlinux.rm200
+	       vmlinux.srec
 
 archclean:
 	@$(MAKE) $(clean)=arch/mips/boot

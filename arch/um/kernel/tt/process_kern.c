@@ -142,7 +142,7 @@ static void new_thread_handler(int sig)
 		schedule_tail(current->thread.prev_sched);
 	current->thread.prev_sched = NULL;
 
-	init_new_thread_signals(1);
+	init_new_thread_signals();
 	enable_timer();
 	free_page(current->thread.temp_stack);
 	set_cmdline("(kernel thread)");

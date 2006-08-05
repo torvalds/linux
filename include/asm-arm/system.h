@@ -176,7 +176,6 @@ extern unsigned int user_debug;
 #define wmb() mb()
 #define read_barrier_depends() do { } while(0)
 #define set_mb(var, value)  do { var = value; mb(); } while (0)
-#define set_wmb(var, value) do { var = value; wmb(); } while (0)
 #define nop() __asm__ __volatile__("mov\tr0,r0\t@ nop\n\t");
 
 /*

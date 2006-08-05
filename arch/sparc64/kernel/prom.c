@@ -344,10 +344,12 @@ static unsigned long __psycho_onboard_imap_off[] = {
 /*0x2f*/	PSYCHO_IMAP_CE,
 /*0x30*/	PSYCHO_IMAP_A_ERR,
 /*0x31*/	PSYCHO_IMAP_B_ERR,
-/*0x32*/	PSYCHO_IMAP_PMGMT
+/*0x32*/	PSYCHO_IMAP_PMGMT,
+/*0x33*/	PSYCHO_IMAP_GFX,
+/*0x34*/	PSYCHO_IMAP_EUPA,
 };
 #define PSYCHO_ONBOARD_IRQ_BASE		0x20
-#define PSYCHO_ONBOARD_IRQ_LAST		0x32
+#define PSYCHO_ONBOARD_IRQ_LAST		0x34
 #define psycho_onboard_imap_offset(__ino) \
 	__psycho_onboard_imap_off[(__ino) - PSYCHO_ONBOARD_IRQ_BASE]
 
@@ -529,6 +531,10 @@ static unsigned long __sabre_onboard_imap_off[] = {
 /*0x2e*/	SABRE_IMAP_UE,
 /*0x2f*/	SABRE_IMAP_CE,
 /*0x30*/	SABRE_IMAP_PCIERR,
+/*0x31*/	0 /* reserved */,
+/*0x32*/	0 /* reserved */,
+/*0x33*/	SABRE_IMAP_GFX,
+/*0x34*/	SABRE_IMAP_EUPA,
 };
 #define SABRE_ONBOARD_IRQ_BASE		0x20
 #define SABRE_ONBOARD_IRQ_LAST		0x30
@@ -538,6 +544,45 @@ static unsigned long __sabre_onboard_imap_off[] = {
 #define sabre_iclr_offset(ino)					      \
 	((ino & 0x20) ? (SABRE_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
 			(SABRE_ICLR_A_SLOT0 + (((ino) & 0x1f)<<3)))
+
+static int sabre_device_needs_wsync(struct device_node *dp)
+{
+	struct device_node *parent = dp->parent;
+	char *parent_model, *parent_compat;
+
+	/* This traversal up towards the root is meant to
+	 * handle two cases:
+	 *
+	 * 1) non-PCI bus sitting under PCI, such as 'ebus'
+	 * 2) the PCI controller interrupts themselves, which
+	 *    will use the sabre_irq_build but do not need
+	 *    the DMA synchronization handling
+	 */
+	while (parent) {
+		if (!strcmp(parent->type, "pci"))
+			break;
+		parent = parent->parent;
+	}
+
+	if (!parent)
+		return 0;
+
+	parent_model = of_get_property(parent,
+				       "model", NULL);
+	if (parent_model &&
+	    (!strcmp(parent_model, "SUNW,sabre") ||
+	     !strcmp(parent_model, "SUNW,simba")))
+		return 0;
+
+	parent_compat = of_get_property(parent,
+					"compatible", NULL);
+	if (parent_compat &&
+	    (!strcmp(parent_compat, "pci108e,a000") ||
+	     !strcmp(parent_compat, "pci108e,a001")))
+		return 0;
+
+	return 1;
+}
 
 static unsigned int sabre_irq_build(struct device_node *dp,
 				    unsigned int ino,
@@ -577,15 +622,17 @@ static unsigned int sabre_irq_build(struct device_node *dp,
 
 	virt_irq = build_irq(inofixup, iclr, imap);
 
+	/* If the parent device is a PCI<->PCI bridge other than
+	 * APB, we have to install a pre-handler to ensure that
+	 * all pending DMA is drained before the interrupt handler
+	 * is run.
+	 */
 	regs = of_get_property(dp, "reg", NULL);
-	if (regs &&
-	    ((regs->phys_hi >> 16) & 0xff) != irq_data->pci_first_busno) {
+	if (regs && sabre_device_needs_wsync(dp)) {
 		irq_install_pre_handler(virt_irq,
 					sabre_wsync_handler,
 					(void *) (long) regs->phys_hi,
-					(void *)
-					controller_regs +
-					SABRE_WRSYNC);
+					(void *) irq_data);
 	}
 
 	return virt_irq;
@@ -854,6 +901,8 @@ static unsigned long sysio_irq_offsets[] = {
 	SYSIO_IMAP_CE,
 	SYSIO_IMAP_SBERR,
 	SYSIO_IMAP_PMGMT,
+	SYSIO_IMAP_GFX,
+	SYSIO_IMAP_EUPA,
 };
 
 #undef bogon
@@ -1032,7 +1081,9 @@ static void sun4v_vdev_irq_trans_init(struct device_node *dp)
 static void irq_trans_init(struct device_node *dp)
 {
 	const char *model;
+#ifdef CONFIG_PCI
 	int i;
+#endif
 
 	model = of_get_property(dp, "model", NULL);
 	if (!model)

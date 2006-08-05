@@ -50,10 +50,6 @@ static char *action_to_string(enum kobject_action action)
 		return "offline";
 	case KOBJ_ONLINE:
 		return "online";
-	case KOBJ_DOCK:
-		return "dock";
-	case KOBJ_UNDOCK:
-		return "undock";
 	default:
 		return NULL;
 	}

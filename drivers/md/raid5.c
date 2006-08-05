@@ -18,6 +18,30 @@
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+/*
+ * BITMAP UNPLUGGING:
+ *
+ * The sequencing for updating the bitmap reliably is a little
+ * subtle (and I got it wrong the first time) so it deserves some
+ * explanation.
+ *
+ * We group bitmap updates into batches.  Each batch has a number.
+ * We may write out several batches at once, but that isn't very important.
+ * conf->bm_write is the number of the last batch successfully written.
+ * conf->bm_flush is the number of the last batch that was closed to
+ *    new additions.
+ * When we discover that we will need to write to any block in a stripe
+ * (in add_stripe_bio) we update the in-memory bitmap and record in sh->bm_seq
+ * the number of the batch it will be in. This is bm_flush+1.
+ * When we are ready to do a write, if that batch hasn't been written yet,
+ *   we plug the array and queue the stripe for later.
+ * When an unplug happens, we increment bm_flush, thus closing the current
+ *   batch.
+ * When we notice that bm_flush > bm_write, we write out all pending updates
+ * to the bitmap, and advance bm_write to where bm_flush was.
+ * This may occasionally write a bit out twice, but is sure never to
+ * miss any bits.
+ */
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -88,12 +112,14 @@ static void __release_stripe(raid5_conf_t *conf, struct stripe_head *sh)
 		BUG_ON(!list_empty(&sh->lru));
 		BUG_ON(atomic_read(&conf->active_stripes)==0);
 		if (test_bit(STRIPE_HANDLE, &sh->state)) {
-			if (test_bit(STRIPE_DELAYED, &sh->state))
+			if (test_bit(STRIPE_DELAYED, &sh->state)) {
 				list_add_tail(&sh->lru, &conf->delayed_list);
-			else if (test_bit(STRIPE_BIT_DELAY, &sh->state) &&
-				 conf->seq_write == sh->bm_seq)
+				blk_plug_device(conf->mddev->queue);
+			} else if (test_bit(STRIPE_BIT_DELAY, &sh->state) &&
+				   sh->bm_seq - conf->seq_write > 0) {
 				list_add_tail(&sh->lru, &conf->bitmap_list);
-			else {
+				blk_plug_device(conf->mddev->queue);
+			} else {
 				clear_bit(STRIPE_BIT_DELAY, &sh->state);
 				list_add_tail(&sh->lru, &conf->handle_list);
 			}
@@ -270,7 +296,7 @@ static struct stripe_head *get_active_stripe(raid5_conf_t *conf, sector_t sector
 						     < (conf->max_nr_stripes *3/4)
 						     || !conf->inactive_blocked),
 						    conf->device_lock,
-						    unplug_slaves(conf->mddev)
+						    raid5_unplug_device(conf->mddev->queue)
 					);
 				conf->inactive_blocked = 0;
 			} else
@@ -281,7 +307,8 @@ static struct stripe_head *get_active_stripe(raid5_conf_t *conf, sector_t sector
 			} else {
 				if (!test_bit(STRIPE_HANDLE, &sh->state))
 					atomic_inc(&conf->active_stripes);
-				if (list_empty(&sh->lru))
+				if (list_empty(&sh->lru) &&
+				    !test_bit(STRIPE_EXPANDING, &sh->state))
 					BUG();
 				list_del_init(&sh->lru);
 			}
@@ -496,6 +523,8 @@ static int raid5_end_read_request(struct bio * bi, unsigned int bytes_done,
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks, i;
 	int uptodate = test_bit(BIO_UPTODATE, &bi->bi_flags);
+	char b[BDEVNAME_SIZE];
+	mdk_rdev_t *rdev;
 
 	if (bi->bi_size)
 		return 1;
@@ -543,25 +572,39 @@ static int raid5_end_read_request(struct bio * bi, unsigned int bytes_done,
 		set_bit(R5_UPTODATE, &sh->dev[i].flags);
 #endif
 		if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
-			printk(KERN_INFO "raid5: read error corrected!!\n");
+			rdev = conf->disks[i].rdev;
+			printk(KERN_INFO "raid5:%s: read error corrected (%lu sectors at %llu on %s)\n",
+			       mdname(conf->mddev), STRIPE_SECTORS,
+			       (unsigned long long)sh->sector + rdev->data_offset,
+			       bdevname(rdev->bdev, b));
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
 		}
 		if (atomic_read(&conf->disks[i].rdev->read_errors))
 			atomic_set(&conf->disks[i].rdev->read_errors, 0);
 	} else {
+		const char *bdn = bdevname(conf->disks[i].rdev->bdev, b);
 		int retry = 0;
+		rdev = conf->disks[i].rdev;
+
 		clear_bit(R5_UPTODATE, &sh->dev[i].flags);
-		atomic_inc(&conf->disks[i].rdev->read_errors);
+		atomic_inc(&rdev->read_errors);
 		if (conf->mddev->degraded)
-			printk(KERN_WARNING "raid5: read error not correctable.\n");
+			printk(KERN_WARNING "raid5:%s: read error not correctable (sector %llu on %s).\n",
+			       mdname(conf->mddev),
+			       (unsigned long long)sh->sector + rdev->data_offset,
+			       bdn);
 		else if (test_bit(R5_ReWrite, &sh->dev[i].flags))
 			/* Oh, no!!! */
-			printk(KERN_WARNING "raid5: read error NOT corrected!!\n");
-		else if (atomic_read(&conf->disks[i].rdev->read_errors)
+			printk(KERN_WARNING "raid5:%s: read error NOT corrected!! (sector %llu on %s).\n",
+			       mdname(conf->mddev),
+			       (unsigned long long)sh->sector + rdev->data_offset,
+			       bdn);
+		else if (atomic_read(&rdev->read_errors)
 			 > conf->max_nr_stripes)
 			printk(KERN_WARNING
-			       "raid5: Too many read errors, failing device.\n");
+			       "raid5:%s: Too many read errors, failing device %s.\n",
+			       mdname(conf->mddev), bdn);
 		else
 			retry = 1;
 		if (retry)
@@ -569,7 +612,7 @@ static int raid5_end_read_request(struct bio * bi, unsigned int bytes_done,
 		else {
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
-			md_error(conf->mddev, conf->disks[i].rdev);
+			md_error(conf->mddev, rdev);
 		}
 	}
 	rdev_dec_pending(conf->disks[i].rdev, conf->mddev);
@@ -1270,9 +1313,9 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx, in
 		(unsigned long long)sh->sector, dd_idx);
 
 	if (conf->mddev->bitmap && firstwrite) {
-		sh->bm_seq = conf->seq_write;
 		bitmap_startwrite(conf->mddev->bitmap, sh->sector,
 				  STRIPE_SECTORS, 0);
+		sh->bm_seq = conf->seq_flush+1;
 		set_bit(STRIPE_BIT_DELAY, &sh->state);
 	}
 
@@ -2554,13 +2597,6 @@ static int raid5_issue_flush(request_queue_t *q, struct gendisk *disk,
 	return ret;
 }
 
-static inline void raid5_plug_device(raid5_conf_t *conf)
-{
-	spin_lock_irq(&conf->device_lock);
-	blk_plug_device(conf->mddev->queue);
-	spin_unlock_irq(&conf->device_lock);
-}
-
 static int make_request(request_queue_t *q, struct bio * bi)
 {
 	mddev_t *mddev = q->queuedata;
@@ -2670,7 +2706,6 @@ static int make_request(request_queue_t *q, struct bio * bi)
 				goto retry;
 			}
 			finish_wait(&conf->wait_for_overlap, &w);
-			raid5_plug_device(conf);
 			handle_stripe(sh, NULL);
 			release_stripe(sh);
 		} else {
@@ -2923,7 +2958,7 @@ static void raid5d (mddev_t *mddev)
 	while (1) {
 		struct list_head *first;
 
-		if (conf->seq_flush - conf->seq_write > 0) {
+		if (conf->seq_flush != conf->seq_write) {
 			int seq = conf->seq_flush;
 			spin_unlock_irq(&conf->device_lock);
 			bitmap_unplug(mddev->bitmap);
@@ -3246,9 +3281,6 @@ static int run(mddev_t *mddev)
 		set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 		mddev->sync_thread = md_register_thread(md_do_sync, mddev,
 							"%s_reshape");
-		/* FIXME if md_register_thread fails?? */
-		md_wakeup_thread(mddev->sync_thread);
-
 	}
 
 	/* read-ahead size must cover two whole stripes, which is

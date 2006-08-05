@@ -1132,7 +1132,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	tp->ucopy.dma_chan = NULL;
 	preempt_disable();
 	if ((len > sysctl_tcp_dma_copybreak) && !(flags & MSG_PEEK) &&
-	    !sysctl_tcp_low_latency && __get_cpu_var(softnet_data.net_dma)) {
+	    !sysctl_tcp_low_latency && __get_cpu_var(softnet_data).net_dma) {
 		preempt_enable_no_resched();
 		tp->ucopy.pinned_list = dma_pin_iovec_pages(msg->msg_iov, len);
 	} else
@@ -1659,7 +1659,8 @@ adjudge_to_death:
 			const int tmo = tcp_fin_time(sk);
 
 			if (tmo > TCP_TIMEWAIT_LEN) {
-				inet_csk_reset_keepalive_timer(sk, tcp_fin_time(sk));
+				inet_csk_reset_keepalive_timer(sk,
+						tmo - TCP_TIMEWAIT_LEN);
 			} else {
 				tcp_time_wait(sk, TCP_FIN_WAIT2, tmo);
 				goto out;

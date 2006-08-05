@@ -124,7 +124,9 @@ MODULE_PARM_DESC(multicast_filter_limit, "fealnx maximum number of filtered mult
 MODULE_PARM_DESC(options, "fealnx: Bits 0-3: media type, bit 17: full duplex");
 MODULE_PARM_DESC(full_duplex, "fealnx full duplex setting(s) (1)");
 
-#define MIN_REGION_SIZE 136
+enum {
+	MIN_REGION_SIZE		= 136,
+};
 
 /* A chip capabilities table, matching the entries in pci_tbl[] above. */
 enum chip_capability_flags {
@@ -146,14 +148,13 @@ enum phy_type_flags {
 
 struct chip_info {
 	char *chip_name;
-	int io_size;
 	int flags;
 };
 
-static const struct chip_info skel_netdrv_tbl[] = {
-	{"100/10M Ethernet PCI Adapter", 136, HAS_MII_XCVR},
-	{"100/10M Ethernet PCI Adapter", 136, HAS_CHIP_XCVR},
-	{"1000/100/10M Ethernet PCI Adapter", 136, HAS_MII_XCVR},
+static const struct chip_info skel_netdrv_tbl[] __devinitdata = {
+ 	{ "100/10M Ethernet PCI Adapter",	HAS_MII_XCVR },
+	{ "100/10M Ethernet PCI Adapter",	HAS_CHIP_XCVR },
+	{ "1000/100/10M Ethernet PCI Adapter",	HAS_MII_XCVR },
 };
 
 /* Offsets to the Command and Status Registers. */
@@ -504,13 +505,14 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 	
 	len = pci_resource_len(pdev, bar);
 	if (len < MIN_REGION_SIZE) {
-		printk(KERN_ERR "%s: region size %ld too small, aborting\n",
-		       boardname, len);
+		dev_err(&pdev->dev,
+			   "region size %ld too small, aborting\n", len);
 		return -ENODEV;
 	}
 
 	i = pci_request_regions(pdev, boardname);
-	if (i) return i;
+	if (i)
+		return i;
 	
 	irq = pdev->irq;
 
@@ -576,9 +578,9 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 
 			if (mii_status != 0xffff && mii_status != 0x0000) {
 				np->phys[phy_idx++] = phy;
-				printk(KERN_INFO
-				       "%s: MII PHY found at address %d, status "
-				       "0x%4.4x.\n", dev->name, phy, mii_status);
+				dev_info(&pdev->dev,
+				       "MII PHY found at address %d, status "
+				       "0x%4.4x.\n", phy, mii_status);
 				/* get phy type */
 				{
 					unsigned int data;
@@ -601,10 +603,10 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 		}
 
 		np->mii_cnt = phy_idx;
-		if (phy_idx == 0) {
-			printk(KERN_WARNING "%s: MII PHY not found -- this device may "
-			       "not operate correctly.\n", dev->name);
-		}
+		if (phy_idx == 0)
+			dev_warn(&pdev->dev,
+				"MII PHY not found -- this device may "
+			       "not operate correctly.\n");
 	} else {
 		np->phys[0] = 32;
 /* 89/6/23 add, (begin) */
@@ -630,7 +632,7 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 		np->mii.full_duplex = full_duplex[card_idx];
 
 	if (np->mii.full_duplex) {
-		printk(KERN_INFO "%s: Media type forced to Full Duplex.\n", dev->name);
+		dev_info(&pdev->dev, "Media type forced to Full Duplex.\n");
 /* 89/6/13 add, (begin) */
 //      if (np->PHYType==MarvellPHY)
 		if ((np->PHYType == MarvellPHY) || (np->PHYType == LevelOnePHY)) {

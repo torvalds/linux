@@ -107,7 +107,7 @@ static inline void down(struct semaphore * sem)
 		"call __down_failed\n\t"
 		"jmp 1b\n"
 		LOCK_SECTION_END
-		:"=m" (sem->count)
+		:"+m" (sem->count)
 		:
 		:"memory","ax");
 }
@@ -132,7 +132,7 @@ static inline int down_interruptible(struct semaphore * sem)
 		"call __down_failed_interruptible\n\t"
 		"jmp 1b\n"
 		LOCK_SECTION_END
-		:"=a" (result), "=m" (sem->count)
+		:"=a" (result), "+m" (sem->count)
 		:
 		:"memory");
 	return result;
@@ -157,7 +157,7 @@ static inline int down_trylock(struct semaphore * sem)
 		"call __down_failed_trylock\n\t"
 		"jmp 1b\n"
 		LOCK_SECTION_END
-		:"=a" (result), "=m" (sem->count)
+		:"=a" (result), "+m" (sem->count)
 		:
 		:"memory");
 	return result;
@@ -182,7 +182,7 @@ static inline void up(struct semaphore * sem)
 		"jmp 1b\n"
 		LOCK_SECTION_END
 		".subsection 0\n"
-		:"=m" (sem->count)
+		:"+m" (sem->count)
 		:
 		:"memory","ax");
 }

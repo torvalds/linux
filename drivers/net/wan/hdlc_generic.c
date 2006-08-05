@@ -34,10 +34,11 @@
 #include <linux/inetdevice.h>
 #include <linux/lapb.h>
 #include <linux/rtnetlink.h>
+#include <linux/notifier.h>
 #include <linux/hdlc.h>
 
 
-static const char* version = "HDLC support module revision 1.18";
+static const char* version = "HDLC support module revision 1.19";
 
 #undef DEBUG_LINK
 
@@ -73,57 +74,51 @@ static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 
 
 
-static void __hdlc_set_carrier_on(struct net_device *dev)
+static inline void hdlc_proto_start(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	if (hdlc->proto.start)
 		return hdlc->proto.start(dev);
-#if 0
-#ifdef DEBUG_LINK
-	if (netif_carrier_ok(dev))
-		printk(KERN_ERR "hdlc_set_carrier_on(): already on\n");
-#endif
-	netif_carrier_on(dev);
-#endif
 }
 
 
 
-static void __hdlc_set_carrier_off(struct net_device *dev)
+static inline void hdlc_proto_stop(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	if (hdlc->proto.stop)
 		return hdlc->proto.stop(dev);
-
-#if 0
-#ifdef DEBUG_LINK
-	if (!netif_carrier_ok(dev))
-		printk(KERN_ERR "hdlc_set_carrier_off(): already off\n");
-#endif
-	netif_carrier_off(dev);
-#endif
 }
 
 
 
-void hdlc_set_carrier(int on, struct net_device *dev)
+static int hdlc_device_event(struct notifier_block *this, unsigned long event,
+			     void *ptr)
 {
-	hdlc_device *hdlc = dev_to_hdlc(dev);
+	struct net_device *dev = ptr;
+	hdlc_device *hdlc;
 	unsigned long flags;
-	on = on ? 1 : 0;
+	int on;
+ 
+	if (dev->get_stats != hdlc_get_stats)
+		return NOTIFY_DONE; /* not an HDLC device */
+ 
+	if (event != NETDEV_CHANGE)
+		return NOTIFY_DONE; /* Only interrested in carrier changes */
+
+	on = netif_carrier_ok(dev);
 
 #ifdef DEBUG_LINK
-	printk(KERN_DEBUG "hdlc_set_carrier %i\n", on);
+	printk(KERN_DEBUG "%s: hdlc_device_event NETDEV_CHANGE, carrier %i\n",
+	       dev->name, on);
 #endif
 
+	hdlc = dev_to_hdlc(dev);
 	spin_lock_irqsave(&hdlc->state_lock, flags);
 
 	if (hdlc->carrier == on)
 		goto carrier_exit; /* no change in DCD line level */
 
-#ifdef DEBUG_LINK
-	printk(KERN_INFO "%s: carrier %s\n", dev->name, on ? "ON" : "off");
-#endif
 	hdlc->carrier = on;
 
 	if (!hdlc->open)
@@ -131,14 +126,15 @@ void hdlc_set_carrier(int on, struct net_device *dev)
 
 	if (hdlc->carrier) {
 		printk(KERN_INFO "%s: Carrier detected\n", dev->name);
-		__hdlc_set_carrier_on(dev);
+		hdlc_proto_start(dev);
 	} else {
 		printk(KERN_INFO "%s: Carrier lost\n", dev->name);
-		__hdlc_set_carrier_off(dev);
+		hdlc_proto_stop(dev);
 	}
 
 carrier_exit:
 	spin_unlock_irqrestore(&hdlc->state_lock, flags);
+	return NOTIFY_DONE;
 }
 
 
@@ -165,7 +161,7 @@ int hdlc_open(struct net_device *dev)
 
 	if (hdlc->carrier) {
 		printk(KERN_INFO "%s: Carrier detected\n", dev->name);
-		__hdlc_set_carrier_on(dev);
+		hdlc_proto_start(dev);
 	} else
 		printk(KERN_INFO "%s: No carrier\n", dev->name);
 
@@ -190,7 +186,7 @@ void hdlc_close(struct net_device *dev)
 
 	hdlc->open = 0;
 	if (hdlc->carrier)
-		__hdlc_set_carrier_off(dev);
+		hdlc_proto_stop(dev);
 
 	spin_unlock_irq(&hdlc->state_lock);
 
@@ -303,7 +299,6 @@ MODULE_LICENSE("GPL v2");
 
 EXPORT_SYMBOL(hdlc_open);
 EXPORT_SYMBOL(hdlc_close);
-EXPORT_SYMBOL(hdlc_set_carrier);
 EXPORT_SYMBOL(hdlc_ioctl);
 EXPORT_SYMBOL(hdlc_setup);
 EXPORT_SYMBOL(alloc_hdlcdev);
@@ -315,9 +310,18 @@ static struct packet_type hdlc_packet_type = {
 };
 
 
+static struct notifier_block hdlc_notifier = {
+        .notifier_call = hdlc_device_event,
+};
+
+
 static int __init hdlc_module_init(void)
 {
+	int result;
+
 	printk(KERN_INFO "%s\n", version);
+	if ((result = register_netdevice_notifier(&hdlc_notifier)) != 0)
+                return result;
         dev_add_pack(&hdlc_packet_type);
 	return 0;
 }
@@ -327,6 +331,7 @@ static int __init hdlc_module_init(void)
 static void __exit hdlc_module_exit(void)
 {
 	dev_remove_pack(&hdlc_packet_type);
+	unregister_netdevice_notifier(&hdlc_notifier);
 }
 
 

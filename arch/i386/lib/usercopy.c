@@ -843,7 +843,6 @@ unsigned long __copy_from_user_ll_nocache_nozero(void *to, const void __user *fr
 unsigned long
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	might_sleep();
 	BUG_ON((long) n < 0);
 	if (access_ok(VERIFY_WRITE, to, n))
 		n = __copy_to_user(to, from, n);
@@ -870,7 +869,6 @@ EXPORT_SYMBOL(copy_to_user);
 unsigned long
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	might_sleep();
 	BUG_ON((long) n < 0);
 	if (access_ok(VERIFY_READ, from, n))
 		n = __copy_from_user(to, from, n);

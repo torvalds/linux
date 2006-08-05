@@ -2332,7 +2332,7 @@ done_free_mem:
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/* Prototype Routine for the HP HOST INFO command.
+/* Prototype Routine for the HOST INFO command.
  *
  * Outputs:	None.
  * Return:	0 if successful
@@ -2568,7 +2568,7 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/* Prototype Routine for the HP TARGET INFO command.
+/* Prototype Routine for the TARGET INFO command.
  *
  * Outputs:	None.
  * Return:	0 if successful

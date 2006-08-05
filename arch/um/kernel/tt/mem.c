@@ -24,22 +24,13 @@ void before_mem_tt(unsigned long brk_start)
 #define SIZE ((CONFIG_NEST_LEVEL + CONFIG_KERNEL_HALF_GIGS) * 0x20000000)
 #define START (CONFIG_TOP_ADDR - SIZE)
 
-unsigned long set_task_sizes_tt(int arg, unsigned long *host_size_out, 
-				unsigned long *task_size_out)
+unsigned long set_task_sizes_tt(unsigned long *task_size_out)
 {
-	/* Round up to the nearest 4M */
-	*host_size_out = ROUND_4M((unsigned long) &arg);
-	*task_size_out = START;
-	return(START);
-}
+	unsigned long host_task_size;
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+	/* Round up to the nearest 4M */
+	host_task_size = ROUND_4M((unsigned long) &host_task_size);
+	*task_size_out = START;
+
+	return host_task_size;
+}

@@ -101,13 +101,16 @@ static void au1xxx_start_ohc(struct platform_device *dev)
 
 #endif  /* Au1200 */
 
+#ifndef CONFIG_SOC_AU1200
 	/* wait for reset complete (read register twice; see au1500 errata) */
 	while (au_readl(USB_HOST_CONFIG),
 		!(au_readl(USB_HOST_CONFIG) & USBH_ENABLE_RD))
+#endif
 		udelay(1000);
 
 	printk(KERN_DEBUG __FILE__
 	": Clock to USB host has been enabled \n");
+#endif
 }
 
 static void au1xxx_stop_ohc(struct platform_device *dev)
@@ -157,9 +160,9 @@ static int usb_ohci_au1xxx_probe(const struct hc_driver *driver,
 	/* Au1200 AB USB does not support coherent memory */
 	if (!(read_c0_prid() & 0xff)) {
 		pr_info("%s: this is chip revision AB !!\n",
-			dev->dev.name);
+			dev->name);
 		pr_info("%s: update your board or re-configure the kernel\n",
-			dev->dev.name);
+			dev->name);
 		return -ENODEV;
 	}
 #endif

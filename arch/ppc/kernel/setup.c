@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/initrd.h>
 #include <linux/ide.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>

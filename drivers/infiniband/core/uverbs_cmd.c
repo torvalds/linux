@@ -42,6 +42,13 @@
 
 #include "uverbs.h"
 
+static struct lock_class_key pd_lock_key;
+static struct lock_class_key mr_lock_key;
+static struct lock_class_key cq_lock_key;
+static struct lock_class_key qp_lock_key;
+static struct lock_class_key ah_lock_key;
+static struct lock_class_key srq_lock_key;
+
 #define INIT_UDATA(udata, ibuf, obuf, ilen, olen)			\
 	do {								\
 		(udata)->inbuf  = (void __user *) (ibuf);		\
@@ -76,12 +83,13 @@
  */
 
 static void init_uobj(struct ib_uobject *uobj, u64 user_handle,
-		      struct ib_ucontext *context)
+		      struct ib_ucontext *context, struct lock_class_key *key)
 {
 	uobj->user_handle = user_handle;
 	uobj->context     = context;
 	kref_init(&uobj->ref);
 	init_rwsem(&uobj->mutex);
+	lockdep_set_class(&uobj->mutex, key);
 	uobj->live        = 0;
 }
 
@@ -470,7 +478,7 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	if (!uobj)
 		return -ENOMEM;
 
-	init_uobj(uobj, 0, file->ucontext);
+	init_uobj(uobj, 0, file->ucontext, &pd_lock_key);
 	down_write(&uobj->mutex);
 
 	pd = file->device->ib_dev->alloc_pd(file->device->ib_dev,
@@ -591,7 +599,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	if (!obj)
 		return -ENOMEM;
 
-	init_uobj(&obj->uobject, 0, file->ucontext);
+	init_uobj(&obj->uobject, 0, file->ucontext, &mr_lock_key);
 	down_write(&obj->uobject.mutex);
 
 	/*
@@ -770,7 +778,7 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 	if (!obj)
 		return -ENOMEM;
 
-	init_uobj(&obj->uobject, cmd.user_handle, file->ucontext);
+	init_uobj(&obj->uobject, cmd.user_handle, file->ucontext, &cq_lock_key);
 	down_write(&obj->uobject.mutex);
 
 	if (cmd.comp_channel >= 0) {
@@ -1051,13 +1059,14 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	if (!obj)
 		return -ENOMEM;
 
-	init_uobj(&obj->uevent.uobject, cmd.user_handle, file->ucontext);
+	init_uobj(&obj->uevent.uobject, cmd.user_handle, file->ucontext, &qp_lock_key);
 	down_write(&obj->uevent.uobject.mutex);
 
+	srq = cmd.is_srq ? idr_read_srq(cmd.srq_handle, file->ucontext) : NULL;
 	pd  = idr_read_pd(cmd.pd_handle, file->ucontext);
 	scq = idr_read_cq(cmd.send_cq_handle, file->ucontext);
-	rcq = idr_read_cq(cmd.recv_cq_handle, file->ucontext);
-	srq = cmd.is_srq ? idr_read_srq(cmd.srq_handle, file->ucontext) : NULL;
+	rcq = cmd.recv_cq_handle == cmd.send_cq_handle ?
+		scq : idr_read_cq(cmd.recv_cq_handle, file->ucontext);
 
 	if (!pd || !scq || !rcq || (cmd.is_srq && !srq)) {
 		ret = -EINVAL;
@@ -1125,7 +1134,8 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 
 	put_pd_read(pd);
 	put_cq_read(scq);
-	put_cq_read(rcq);
+	if (rcq != scq)
+		put_cq_read(rcq);
 	if (srq)
 		put_srq_read(srq);
 
@@ -1150,7 +1160,7 @@ err_put:
 		put_pd_read(pd);
 	if (scq)
 		put_cq_read(scq);
-	if (rcq)
+	if (rcq && rcq != scq)
 		put_cq_read(rcq);
 	if (srq)
 		put_srq_read(srq);
@@ -1751,7 +1761,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	if (!uobj)
 		return -ENOMEM;
 
-	init_uobj(uobj, cmd.user_handle, file->ucontext);
+	init_uobj(uobj, cmd.user_handle, file->ucontext, &ah_lock_key);
 	down_write(&uobj->mutex);
 
 	pd = idr_read_pd(cmd.pd_handle, file->ucontext);
@@ -1775,7 +1785,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	ah = ib_create_ah(pd, &attr);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
-		goto err;
+		goto err_put;
 	}
 
 	ah->uobject  = uobj;
@@ -1810,6 +1820,9 @@ err_copy:
 
 err_destroy:
 	ib_destroy_ah(ah);
+
+err_put:
+	put_pd_read(pd);
 
 err:
 	put_uobj_write(uobj);
@@ -1963,7 +1976,7 @@ ssize_t ib_uverbs_create_srq(struct ib_uverbs_file *file,
 	if (!obj)
 		return -ENOMEM;
 
-	init_uobj(&obj->uobject, cmd.user_handle, file->ucontext);
+	init_uobj(&obj->uobject, cmd.user_handle, file->ucontext, &srq_lock_key);
 	down_write(&obj->uobject.mutex);
 
 	pd  = idr_read_pd(cmd.pd_handle, file->ucontext);
@@ -1984,7 +1997,7 @@ ssize_t ib_uverbs_create_srq(struct ib_uverbs_file *file,
 	srq = pd->device->create_srq(pd, &attr, &udata);
 	if (IS_ERR(srq)) {
 		ret = PTR_ERR(srq);
-		goto err;
+		goto err_put;
 	}
 
 	srq->device    	   = pd->device;
@@ -2028,6 +2041,9 @@ err_copy:
 
 err_destroy:
 	ib_destroy_srq(srq);
+
+err_put:
+	put_pd_read(pd);
 
 err:
 	put_uobj_write(&obj->uobject);

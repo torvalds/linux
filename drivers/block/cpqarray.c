@@ -1739,8 +1739,6 @@ static void getgeometry(int ctlr)
 	     (log_index < id_ctlr_buf->nr_drvs)
 	     && (log_unit < NWD);
 	     log_unit++) {
-		struct gendisk *disk = ida_gendisk[ctlr][log_unit];
-
 		size = sizeof(sense_log_drv_stat_t);
 
 		/*

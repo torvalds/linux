@@ -28,6 +28,7 @@
 #include <linux/acpi.h>
 #ifdef CONFIG_ACPI
 #include <acpi/achware.h>	/* for PM timer frequency */
+#include <acpi/acpi_bus.h>
 #endif
 #include <asm/8253pit.h>
 #include <asm/pgtable.h>
@@ -193,7 +194,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 	   is just accounted to the spinlock function.
 	   Better would be to write these functions in assembler again
 	   and check exactly. */
-	if (in_lock_functions(pc)) {
+	if (!user_mode(regs) && in_lock_functions(pc)) {
 		char *v = *(char **)regs->rsp;
 		if ((v >= _stext && v <= _etext) ||
 			(v >= _sinittext && v <= _einittext) ||
@@ -953,11 +954,18 @@ __cpuinit int unsynchronized_tsc(void)
 #ifdef CONFIG_SMP
 	if (apic_is_clustered_box())
 		return 1;
- 	/* Intel systems are normally all synchronized. Exceptions
- 	   are handled in the check above. */
- 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
- 		return 0;
 #endif
+	/* Most intel systems have synchronized TSCs except for
+	   multi node systems */
+ 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
+#ifdef CONFIG_ACPI
+		/* But TSC doesn't tick in C3 so don't use it there */
+		if (acpi_fadt.length > 0 && acpi_fadt.plvl3_lat < 100)
+			return 1;
+#endif
+ 		return 0;
+	}
+
  	/* Assume multi socket systems are not synchronized */
  	return num_present_cpus() > 1;
 }

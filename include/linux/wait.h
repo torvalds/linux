@@ -77,17 +77,7 @@ struct task_struct;
 #define __WAIT_BIT_KEY_INITIALIZER(word, bit)				\
 	{ .flags = word, .bit_nr = bit, }
 
-/*
- * lockdep: we want one lock-class for all waitqueue locks.
- */
-extern struct lock_class_key waitqueue_lock_key;
-
-static inline void init_waitqueue_head(wait_queue_head_t *q)
-{
-	spin_lock_init(&q->lock);
-	lockdep_set_class(&q->lock, &waitqueue_lock_key);
-	INIT_LIST_HEAD(&q->task_list);
-}
+extern void init_waitqueue_head(wait_queue_head_t *q);
 
 static inline void init_waitqueue_entry(wait_queue_t *q, struct task_struct *p)
 {

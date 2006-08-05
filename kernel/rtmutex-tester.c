@@ -275,6 +275,7 @@ static int test_func(void *data)
 
 		/* Wait for the next command to be executed */
 		schedule();
+		try_to_freeze();
 
 		if (signal_pending(current))
 			flush_signals(current);

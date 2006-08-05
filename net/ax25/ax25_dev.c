@@ -55,14 +55,12 @@ void ax25_dev_device_up(struct net_device *dev)
 {
 	ax25_dev *ax25_dev;
 
-	if ((ax25_dev = kmalloc(sizeof(*ax25_dev), GFP_ATOMIC)) == NULL) {
+	if ((ax25_dev = kzalloc(sizeof(*ax25_dev), GFP_ATOMIC)) == NULL) {
 		printk(KERN_ERR "AX.25: ax25_dev_device_up - out of memory\n");
 		return;
 	}
 
 	ax25_unregister_sysctl();
-
-	memset(ax25_dev, 0x00, sizeof(*ax25_dev));
 
 	dev->ax25_ptr     = ax25_dev;
 	ax25_dev->dev     = dev;

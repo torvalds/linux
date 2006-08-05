@@ -229,7 +229,7 @@ int			xprt_reserve_xprt(struct rpc_task *task);
 int			xprt_reserve_xprt_cong(struct rpc_task *task);
 int			xprt_prepare_transmit(struct rpc_task *task);
 void			xprt_transmit(struct rpc_task *task);
-void			xprt_abort_transmit(struct rpc_task *task);
+void			xprt_end_transmit(struct rpc_task *task);
 int			xprt_adjust_timeout(struct rpc_rqst *req);
 void			xprt_release_xprt(struct rpc_xprt *xprt, struct rpc_task *task);
 void			xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task);

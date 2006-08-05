@@ -185,7 +185,7 @@ static inline void l2cap_chan_unlink(struct l2cap_chan_list *l, struct sock *sk)
 {
 	struct sock *next = l2cap_pi(sk)->next_c, *prev = l2cap_pi(sk)->prev_c;
 
-	write_lock(&l->lock);
+	write_lock_bh(&l->lock);
 	if (sk == l->head)
 		l->head = next;
 
@@ -193,7 +193,7 @@ static inline void l2cap_chan_unlink(struct l2cap_chan_list *l, struct sock *sk)
 		l2cap_pi(next)->prev_c = prev;
 	if (prev)
 		l2cap_pi(prev)->next_c = next;
-	write_unlock(&l->lock);
+	write_unlock_bh(&l->lock);
 
 	__sock_put(sk);
 }
@@ -313,9 +313,9 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 static inline void l2cap_chan_add(struct l2cap_conn *conn, struct sock *sk, struct sock *parent)
 {
 	struct l2cap_chan_list *l = &conn->chan_list;
-	write_lock(&l->lock);
+	write_lock_bh(&l->lock);
 	__l2cap_chan_add(conn, sk, parent);
-	write_unlock(&l->lock);
+	write_unlock_bh(&l->lock);
 }
 
 static inline u8 l2cap_get_ident(struct l2cap_conn *conn)
@@ -328,14 +328,14 @@ static inline u8 l2cap_get_ident(struct l2cap_conn *conn)
 	 *  200 - 254 are used by utilities like l2ping, etc.
 	 */
 
-	spin_lock(&conn->lock);
+	spin_lock_bh(&conn->lock);
 
 	if (++conn->tx_ident > 128)
 		conn->tx_ident = 1;
 
 	id = conn->tx_ident;
 
-	spin_unlock(&conn->lock);
+	spin_unlock_bh(&conn->lock);
 
 	return id;
 }
@@ -1416,11 +1416,11 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	if (!sk)
 		goto response;
 
-	write_lock(&list->lock);
+	write_lock_bh(&list->lock);
 
 	/* Check if we already have channel with that dcid */
 	if (__l2cap_get_chan_by_dcid(list, scid)) {
-		write_unlock(&list->lock);
+		write_unlock_bh(&list->lock);
 		sock_set_flag(sk, SOCK_ZAPPED);
 		l2cap_sock_kill(sk);
 		goto response;
@@ -1458,7 +1458,7 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	result = status = 0;
 
 done:
-	write_unlock(&list->lock);
+	write_unlock_bh(&list->lock);
 
 response:
 	bh_unlock_sock(parent);

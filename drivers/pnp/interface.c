@@ -265,8 +265,8 @@ static ssize_t pnp_show_current_resources(struct device *dmdev, struct device_at
 				pnp_printf(buffer," disabled\n");
 			else
 				pnp_printf(buffer," 0x%llx-0x%llx\n",
-						pnp_port_start(dev, i),
-						pnp_port_end(dev, i));
+					(unsigned long long)pnp_port_start(dev, i),
+					(unsigned long long)pnp_port_end(dev, i));
 		}
 	}
 	for (i = 0; i < PNP_MAX_MEM; i++) {
@@ -276,8 +276,8 @@ static ssize_t pnp_show_current_resources(struct device *dmdev, struct device_at
 				pnp_printf(buffer," disabled\n");
 			else
 				pnp_printf(buffer," 0x%llx-0x%llx\n",
-						pnp_mem_start(dev, i),
-						pnp_mem_end(dev, i));
+					(unsigned long long)pnp_mem_start(dev, i),
+					(unsigned long long)pnp_mem_end(dev, i));
 		}
 	}
 	for (i = 0; i < PNP_MAX_IRQ; i++) {
@@ -287,7 +287,7 @@ static ssize_t pnp_show_current_resources(struct device *dmdev, struct device_at
 				pnp_printf(buffer," disabled\n");
 			else
 				pnp_printf(buffer," %lld\n",
-						pnp_irq(dev, i));
+					(unsigned long long)pnp_irq(dev, i));
 		}
 	}
 	for (i = 0; i < PNP_MAX_DMA; i++) {
@@ -297,7 +297,7 @@ static ssize_t pnp_show_current_resources(struct device *dmdev, struct device_at
 				pnp_printf(buffer," disabled\n");
 			else
 				pnp_printf(buffer," %lld\n",
-						pnp_dma(dev, i));
+					(unsigned long long)pnp_dma(dev, i));
 		}
 	}
 	ret = (buffer->curr - buf);

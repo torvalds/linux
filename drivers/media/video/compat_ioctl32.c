@@ -490,6 +490,23 @@ static inline int put_v4l2_input(struct v4l2_input *kp, struct v4l2_input __user
 	return 0;
 }
 
+struct video_code32
+{
+	char		loadwhat[16];	/* name or tag of file being passed */
+	compat_int_t	datasize;
+	unsigned char	*data;
+};
+
+static inline int microcode32(struct video_code *kp, struct video_code32 __user *up)
+{
+	if(!access_ok(VERIFY_READ, up, sizeof(struct video_code32)) ||
+		copy_from_user(kp->loadwhat, up->loadwhat, sizeof (up->loadwhat)) ||
+		get_user(kp->datasize, &up->datasize) ||
+		copy_from_user(kp->data, up->data, up->datasize))
+			return -EFAULT;
+	return 0;
+}
+
 #define VIDIOCGTUNER32		_IOWR('v',4, struct video_tuner32)
 #define VIDIOCSTUNER32		_IOW('v',5, struct video_tuner32)
 #define VIDIOCGWIN32		_IOR('v',9, struct video_window32)
@@ -498,6 +515,7 @@ static inline int put_v4l2_input(struct v4l2_input *kp, struct v4l2_input __user
 #define VIDIOCSFBUF32		_IOW('v',12, struct video_buffer32)
 #define VIDIOCGFREQ32		_IOR('v',14, u32)
 #define VIDIOCSFREQ32		_IOW('v',15, u32)
+#define VIDIOCSMICROCODE32	_IOW('v',27, struct video_code32)
 
 /* VIDIOC_ENUMINPUT32 is VIDIOC_ENUMINPUT minus 4 bytes of padding alignement */
 #define VIDIOC_ENUMINPUT32	VIDIOC_ENUMINPUT - _IOC(0, 0, 0, 4)
@@ -590,6 +608,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		struct video_tuner vt;
 		struct video_buffer vb;
 		struct video_window vw;
+		struct video_code vc;
 		struct v4l2_format v2f;
 		struct v4l2_buffer v2b;
 		struct v4l2_framebuffer v2fb;
@@ -628,6 +647,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	case VIDIOC_G_INPUT32: cmd = VIDIOC_G_INPUT; break;
 	case VIDIOC_S_INPUT32: cmd = VIDIOC_S_INPUT; break;
 	case VIDIOC_TRY_FMT32: cmd = VIDIOC_TRY_FMT; break;
+	case VIDIOCSMICROCODE32: cmd = VIDIOCSMICROCODE; break;
 	};
 
 	switch(cmd) {
@@ -703,6 +723,10 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	case VIDIOC_G_FBUF:
 	case VIDIOC_G_INPUT:
 		compatible_arg = 0;
+	case VIDIOCSMICROCODE:
+		err = microcode32(&karg.vc, up);
+		compatible_arg = 0;
+		break;
 	};
 
 	if(err)

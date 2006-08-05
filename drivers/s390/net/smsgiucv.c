@@ -66,7 +66,7 @@ smsg_message_pending(iucv_MessagePending *eib, void *pgm_data)
 		return;
 	}
 	rc = iucv_receive(eib->ippathid, eib->ipmsgid, eib->iptrgcls,
-			  msg, len, 0, 0, 0);
+			  msg, len, NULL, NULL, NULL);
 	if (rc == 0) {
 		msg[len] = 0;
 		EBCASC(msg, len);
@@ -122,7 +122,7 @@ smsg_unregister_callback(char *prefix, void (*callback)(char *from, char *str))
 	struct smsg_callback *cb, *tmp;
 
 	spin_lock(&smsg_list_lock);
-	cb = 0;
+	cb = NULL;
 	list_for_each_entry(tmp, &smsg_list, list)
 		if (tmp->callback == callback &&
 		    strcmp(tmp->prefix, prefix) == 0) {
@@ -139,7 +139,7 @@ smsg_exit(void)
 {
 	if (smsg_handle > 0) {
 		cpcmd("SET SMSG OFF", NULL, 0, NULL);
-		iucv_sever(smsg_pathid, 0);
+		iucv_sever(smsg_pathid, NULL);
 		iucv_unregister_program(smsg_handle);
 		driver_unregister(&smsg_driver);
 	}
@@ -162,19 +162,19 @@ smsg_init(void)
 		return rc;
 	}
 	smsg_handle = iucv_register_program("SMSGIUCV        ", "*MSG    ",
-					    pgmmask, &smsg_ops, 0);
+					    pgmmask, &smsg_ops, NULL);
 	if (!smsg_handle) {
 		printk(KERN_ERR "SMSGIUCV: failed to register to iucv");
 		driver_unregister(&smsg_driver);
 		return -EIO;	/* better errno ? */
 	}
-	rc = iucv_connect (&smsg_pathid, 255, 0, "*MSG    ", 0, 0, 0, 0,
-			   smsg_handle, 0);
+	rc = iucv_connect (&smsg_pathid, 255, NULL, "*MSG    ", NULL, 0,
+			   NULL, NULL, smsg_handle, NULL);
 	if (rc) {
 		printk(KERN_ERR "SMSGIUCV: failed to connect to *MSG");
 		iucv_unregister_program(smsg_handle);
 		driver_unregister(&smsg_driver);
-		smsg_handle = 0;
+		smsg_handle = NULL;
 		return -EIO;
 	}
 	cpcmd("SET SMSG IUCV", NULL, 0, NULL);

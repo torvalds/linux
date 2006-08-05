@@ -528,34 +528,40 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 				}
 			}
 
-			/* Call the setup handler with the deactivate notification */
+			/*
+			 * If the region has been activated, call the setup handler
+			 * with the deactivate notification
+			 */
+			if (region_obj->region.flags & AOPOBJ_SETUP_COMPLETE) {
+				region_setup = handler_obj->address_space.setup;
+				status =
+				    region_setup(region_obj,
+						 ACPI_REGION_DEACTIVATE,
+						 handler_obj->address_space.
+						 context, region_context);
 
-			region_setup = handler_obj->address_space.setup;
-			status =
-			    region_setup(region_obj, ACPI_REGION_DEACTIVATE,
-					 handler_obj->address_space.context,
-					 region_context);
+				/* Init routine may fail, Just ignore errors */
 
-			/* Init routine may fail, Just ignore errors */
+				if (ACPI_FAILURE(status)) {
+					ACPI_EXCEPTION((AE_INFO, status,
+							"from region handler - deactivate, [%s]",
+							acpi_ut_get_region_name
+							(region_obj->region.
+							 space_id)));
+				}
 
-			if (ACPI_FAILURE(status)) {
-				ACPI_EXCEPTION((AE_INFO, status,
-						"from region init, [%s]",
-						acpi_ut_get_region_name
-						(region_obj->region.space_id)));
+				region_obj->region.flags &=
+				    ~(AOPOBJ_SETUP_COMPLETE);
 			}
-
-			region_obj->region.flags &= ~(AOPOBJ_SETUP_COMPLETE);
 
 			/*
 			 * Remove handler reference in the region
 			 *
-			 * NOTE: this doesn't mean that the region goes away
-			 * The region is just inaccessible as indicated to
-			 * the _REG method
+			 * NOTE: this doesn't mean that the region goes away, the region
+			 * is just inaccessible as indicated to the _REG method
 			 *
-			 * If the region is on the handler's list
-			 * this better be the region's handler
+			 * If the region is on the handler's list, this must be the
+			 * region's handler
 			 */
 			region_obj->region.handler = NULL;
 			acpi_ut_remove_reference(handler_obj);

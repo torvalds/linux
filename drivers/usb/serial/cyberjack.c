@@ -39,7 +39,7 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 
 #define CYBERJACK_LOCAL_BUF_SIZE 32
 

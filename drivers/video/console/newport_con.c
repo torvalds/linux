@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/tty.h>
 #include <linux/kd.h>
 #include <linux/selection.h>
 #include <linux/console.h>

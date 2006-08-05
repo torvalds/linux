@@ -604,12 +604,17 @@ static inline __u32 skb_queue_len(const struct sk_buff_head *list_)
 	return list_->qlen;
 }
 
-extern struct lock_class_key skb_queue_lock_key;
-
+/*
+ * This function creates a split out lock class for each invocation;
+ * this is needed for now since a whole lot of users of the skb-queue
+ * infrastructure in drivers have different locking usage (in hardirq)
+ * than the networking core (in softirq only). In the long run either the
+ * network layer or drivers should need annotation to consolidate the
+ * main types of usage into 3 classes.
+ */
 static inline void skb_queue_head_init(struct sk_buff_head *list)
 {
 	spin_lock_init(&list->lock);
-	lockdep_set_class(&list->lock, &skb_queue_lock_key);
 	list->prev = list->next = (struct sk_buff *)list;
 	list->qlen = 0;
 }
@@ -1066,9 +1071,8 @@ static inline void __skb_queue_purge(struct sk_buff_head *list)
 		kfree_skb(skb);
 }
 
-#ifndef CONFIG_HAVE_ARCH_DEV_ALLOC_SKB
 /**
- *	__dev_alloc_skb - allocate an skbuff for sending
+ *	__dev_alloc_skb - allocate an skbuff for receiving
  *	@length: length to allocate
  *	@gfp_mask: get_free_pages mask, passed to alloc_skb
  *
@@ -1087,12 +1091,9 @@ static inline struct sk_buff *__dev_alloc_skb(unsigned int length,
 		skb_reserve(skb, NET_SKB_PAD);
 	return skb;
 }
-#else
-extern struct sk_buff *__dev_alloc_skb(unsigned int length, int gfp_mask);
-#endif
 
 /**
- *	dev_alloc_skb - allocate an skbuff for sending
+ *	dev_alloc_skb - allocate an skbuff for receiving
  *	@length: length to allocate
  *
  *	Allocate a new &sk_buff and assign it a usage count of one. The
@@ -1106,6 +1107,28 @@ extern struct sk_buff *__dev_alloc_skb(unsigned int length, int gfp_mask);
 static inline struct sk_buff *dev_alloc_skb(unsigned int length)
 {
 	return __dev_alloc_skb(length, GFP_ATOMIC);
+}
+
+extern struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
+		unsigned int length, gfp_t gfp_mask);
+
+/**
+ *	netdev_alloc_skb - allocate an skbuff for rx on a specific device
+ *	@dev: network device to receive on
+ *	@length: length to allocate
+ *
+ *	Allocate a new &sk_buff and assign it a usage count of one. The
+ *	buffer has unspecified headroom built in. Users should allocate
+ *	the headroom they think they need without accounting for the
+ *	built in space. The built in space is used for optimisations.
+ *
+ *	%NULL is returned if there is no free memory. Although this function
+ *	allocates memory it can be called from an interrupt.
+ */
+static inline struct sk_buff *netdev_alloc_skb(struct net_device *dev,
+		unsigned int length)
+{
+	return __netdev_alloc_skb(dev, length, GFP_ATOMIC);
 }
 
 /**
@@ -1454,6 +1477,11 @@ static inline void skb_copy_secmark(struct sk_buff *to, const struct sk_buff *fr
 static inline void skb_init_secmark(struct sk_buff *skb)
 { }
 #endif
+
+static inline int skb_is_gso(const struct sk_buff *skb)
+{
+	return skb_shinfo(skb)->gso_size;
+}
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SKBUFF_H */

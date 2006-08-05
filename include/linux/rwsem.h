@@ -61,12 +61,25 @@ extern void downgrade_write(struct rw_semaphore *sem);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 /*
- * nested locking:
+ * nested locking. NOTE: rwsems are not allowed to recurse
+ * (which occurs if the same task tries to acquire the same
+ * lock instance multiple times), but multiple locks of the
+ * same lock class might be taken, if the order of the locks
+ * is always the same. This ordering rule can be expressed
+ * to lockdep via the _nested() APIs, but enumerating the
+ * subclasses that are used. (If the nesting relationship is
+ * static then another method for expressing nested locking is
+ * the explicit definition of lock class keys and the use of
+ * lockdep_set_class() at lock initialization time.
+ * See Documentation/lockdep-design.txt for more details.)
  */
 extern void down_read_nested(struct rw_semaphore *sem, int subclass);
 extern void down_write_nested(struct rw_semaphore *sem, int subclass);
 /*
- * Take/release a lock when not the owner will release it:
+ * Take/release a lock when not the owner will release it.
+ *
+ * [ This API should be avoided as much as possible - the
+ *   proper abstraction for this case is completions. ]
  */
 extern void down_read_non_owner(struct rw_semaphore *sem);
 extern void up_read_non_owner(struct rw_semaphore *sem);

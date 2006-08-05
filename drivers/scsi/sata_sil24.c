@@ -92,6 +92,7 @@ enum {
 	HOST_CTRL_STOP		= (1 << 18), /* latched PCI STOP */
 	HOST_CTRL_DEVSEL	= (1 << 19), /* latched PCI DEVSEL */
 	HOST_CTRL_REQ64		= (1 << 20), /* latched PCI REQ64 */
+	HOST_CTRL_GLOBAL_RST	= (1 << 31), /* global reset */
 
 	/*
 	 * Port registers
@@ -338,6 +339,7 @@ static int sil24_port_start(struct ata_port *ap);
 static void sil24_port_stop(struct ata_port *ap);
 static void sil24_host_stop(struct ata_host_set *host_set);
 static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
+static int sil24_pci_device_resume(struct pci_dev *pdev);
 
 static const struct pci_device_id sil24_pci_tbl[] = {
 	{ 0x1095, 0x3124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3124 },
@@ -353,6 +355,8 @@ static struct pci_driver sil24_pci_driver = {
 	.id_table		= sil24_pci_tbl,
 	.probe			= sil24_init_one,
 	.remove			= ata_pci_remove_one, /* safe? */
+	.suspend		= ata_pci_device_suspend,
+	.resume			= sil24_pci_device_resume,
 };
 
 static struct scsi_host_template sil24_sht = {
@@ -372,6 +376,8 @@ static struct scsi_host_template sil24_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.suspend		= ata_scsi_device_suspend,
+	.resume			= ata_scsi_device_resume,
 };
 
 static const struct ata_port_operations sil24_ops = {
@@ -607,7 +613,7 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
 	/* SStatus oscillates between zero and valid status after
 	 * DEV_RST, debounce it.
 	 */
-	rc = sata_phy_debounce(ap, sata_deb_timing_before_fsrst);
+	rc = sata_phy_debounce(ap, sata_deb_timing_long);
 	if (rc) {
 		reason = "PHY debouncing failed";
 		goto err;
@@ -988,6 +994,64 @@ static void sil24_host_stop(struct ata_host_set *host_set)
 	kfree(hpriv);
 }
 
+static void sil24_init_controller(struct pci_dev *pdev, int n_ports,
+				  unsigned long host_flags,
+				  void __iomem *host_base,
+				  void __iomem *port_base)
+{
+	u32 tmp;
+	int i;
+
+	/* GPIO off */
+	writel(0, host_base + HOST_FLASH_CMD);
+
+	/* clear global reset & mask interrupts during initialization */
+	writel(0, host_base + HOST_CTRL);
+
+	/* init ports */
+	for (i = 0; i < n_ports; i++) {
+		void __iomem *port = port_base + i * PORT_REGS_SIZE;
+
+		/* Initial PHY setting */
+		writel(0x20c, port + PORT_PHY_CFG);
+
+		/* Clear port RST */
+		tmp = readl(port + PORT_CTRL_STAT);
+		if (tmp & PORT_CS_PORT_RST) {
+			writel(PORT_CS_PORT_RST, port + PORT_CTRL_CLR);
+			tmp = ata_wait_register(port + PORT_CTRL_STAT,
+						PORT_CS_PORT_RST,
+						PORT_CS_PORT_RST, 10, 100);
+			if (tmp & PORT_CS_PORT_RST)
+				dev_printk(KERN_ERR, &pdev->dev,
+				           "failed to clear port RST\n");
+		}
+
+		/* Configure IRQ WoC */
+		if (host_flags & SIL24_FLAG_PCIX_IRQ_WOC)
+			writel(PORT_CS_IRQ_WOC, port + PORT_CTRL_STAT);
+		else
+			writel(PORT_CS_IRQ_WOC, port + PORT_CTRL_CLR);
+
+		/* Zero error counters. */
+		writel(0x8000, port + PORT_DECODE_ERR_THRESH);
+		writel(0x8000, port + PORT_CRC_ERR_THRESH);
+		writel(0x8000, port + PORT_HSHK_ERR_THRESH);
+		writel(0x0000, port + PORT_DECODE_ERR_CNT);
+		writel(0x0000, port + PORT_CRC_ERR_CNT);
+		writel(0x0000, port + PORT_HSHK_ERR_CNT);
+
+		/* Always use 64bit activation */
+		writel(PORT_CS_32BIT_ACTV, port + PORT_CTRL_CLR);
+
+		/* Clear port multiplier enable and resume bits */
+		writel(PORT_CS_PM_EN | PORT_CS_RESUME, port + PORT_CTRL_CLR);
+	}
+
+	/* Turn on interrupts */
+	writel(IRQ_STAT_4PORTS, host_base + HOST_CTRL);
+}
+
 static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
@@ -1076,9 +1140,6 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	/* GPIO off */
-	writel(0, host_base + HOST_FLASH_CMD);
-
 	/* Apply workaround for completion IRQ loss on PCI-X errata */
 	if (probe_ent->host_flags & SIL24_FLAG_PCIX_IRQ_WOC) {
 		tmp = readl(host_base + HOST_CTRL);
@@ -1090,56 +1151,18 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			probe_ent->host_flags &= ~SIL24_FLAG_PCIX_IRQ_WOC;
 	}
 
-	/* clear global reset & mask interrupts during initialization */
-	writel(0, host_base + HOST_CTRL);
-
 	for (i = 0; i < probe_ent->n_ports; i++) {
-		void __iomem *port = port_base + i * PORT_REGS_SIZE;
-		unsigned long portu = (unsigned long)port;
+		unsigned long portu =
+			(unsigned long)port_base + i * PORT_REGS_SIZE;
 
 		probe_ent->port[i].cmd_addr = portu;
 		probe_ent->port[i].scr_addr = portu + PORT_SCONTROL;
 
 		ata_std_ports(&probe_ent->port[i]);
-
-		/* Initial PHY setting */
-		writel(0x20c, port + PORT_PHY_CFG);
-
-		/* Clear port RST */
-		tmp = readl(port + PORT_CTRL_STAT);
-		if (tmp & PORT_CS_PORT_RST) {
-			writel(PORT_CS_PORT_RST, port + PORT_CTRL_CLR);
-			tmp = ata_wait_register(port + PORT_CTRL_STAT,
-						PORT_CS_PORT_RST,
-						PORT_CS_PORT_RST, 10, 100);
-			if (tmp & PORT_CS_PORT_RST)
-				dev_printk(KERN_ERR, &pdev->dev,
-				           "failed to clear port RST\n");
-		}
-
-		/* Configure IRQ WoC */
-		if (probe_ent->host_flags & SIL24_FLAG_PCIX_IRQ_WOC)
-			writel(PORT_CS_IRQ_WOC, port + PORT_CTRL_STAT);
-		else
-			writel(PORT_CS_IRQ_WOC, port + PORT_CTRL_CLR);
-
-		/* Zero error counters. */
-		writel(0x8000, port + PORT_DECODE_ERR_THRESH);
-		writel(0x8000, port + PORT_CRC_ERR_THRESH);
-		writel(0x8000, port + PORT_HSHK_ERR_THRESH);
-		writel(0x0000, port + PORT_DECODE_ERR_CNT);
-		writel(0x0000, port + PORT_CRC_ERR_CNT);
-		writel(0x0000, port + PORT_HSHK_ERR_CNT);
-
-		/* Always use 64bit activation */
-		writel(PORT_CS_32BIT_ACTV, port + PORT_CTRL_CLR);
-
-		/* Clear port multiplier enable and resume bits */
-		writel(PORT_CS_PM_EN | PORT_CS_RESUME, port + PORT_CTRL_CLR);
 	}
 
-	/* Turn on interrupts */
-	writel(IRQ_STAT_4PORTS, host_base + HOST_CTRL);
+	sil24_init_controller(pdev, probe_ent->n_ports, probe_ent->host_flags,
+			      host_base, port_base);
 
 	pci_set_master(pdev);
 
@@ -1160,6 +1183,25 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
  out_disable:
 	pci_disable_device(pdev);
 	return rc;
+}
+
+static int sil24_pci_device_resume(struct pci_dev *pdev)
+{
+	struct ata_host_set *host_set = dev_get_drvdata(&pdev->dev);
+	struct sil24_host_priv *hpriv = host_set->private_data;
+
+	ata_pci_device_do_resume(pdev);
+
+	if (pdev->dev.power.power_state.event == PM_EVENT_SUSPEND)
+		writel(HOST_CTRL_GLOBAL_RST, hpriv->host_base + HOST_CTRL);
+
+	sil24_init_controller(pdev, host_set->n_ports,
+			      host_set->ports[0]->flags,
+			      hpriv->host_base, hpriv->port_base);
+
+	ata_host_set_resume(host_set);
+
+	return 0;
 }
 
 static int __init sil24_init(void)

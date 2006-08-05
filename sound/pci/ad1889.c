@@ -241,14 +241,14 @@ ad1889_channel_reset(struct snd_ad1889 *chip, unsigned int channel)
 	}
 }
 
-static inline u16
+static u16
 snd_ad1889_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	struct snd_ad1889 *chip = ac97->private_data;
 	return ad1889_readw(chip, AD_AC97_BASE + reg);
 }
 
-static inline void
+static void
 snd_ad1889_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short val)
 {
 	struct snd_ad1889 *chip = ac97->private_data;
@@ -873,7 +873,7 @@ skip_hw:
 	return 0;
 }
 
-static inline int
+static int
 snd_ad1889_dev_free(struct snd_device *device) 
 {
 	struct snd_ad1889 *chip = device->device_data;
@@ -1051,7 +1051,7 @@ snd_ad1889_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_device_id snd_ad1889_ids[] __devinitdata = {
+static struct pci_device_id snd_ad1889_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ANALOG_DEVICES, PCI_DEVICE_ID_AD1889JS) },
 	{ 0, },
 };

@@ -159,7 +159,7 @@ char * getname(const char __user * filename)
 #ifdef CONFIG_AUDITSYSCALL
 void putname(const char *name)
 {
-	if (unlikely(current->audit_context))
+	if (unlikely(!audit_dummy_context()))
 		audit_putname(name);
 	else
 		__putname(name);
@@ -1125,7 +1125,7 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 	retval = link_path_walk(name, nd);
 out:
 	if (likely(retval == 0)) {
-		if (unlikely(current->audit_context && nd && nd->dentry &&
+		if (unlikely(!audit_dummy_context() && nd && nd->dentry &&
 				nd->dentry->d_inode))
 		audit_inode(name, nd->dentry->d_inode);
 	}
@@ -1357,7 +1357,7 @@ static int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 		return -ENOENT;
 
 	BUG_ON(victim->d_parent->d_inode != dir);
-	audit_inode_child(victim->d_name.name, victim->d_inode, dir->i_ino);
+	audit_inode_child(victim->d_name.name, victim->d_inode, dir);
 
 	error = permission(dir,MAY_WRITE | MAY_EXEC, NULL);
 	if (error)
@@ -1659,6 +1659,7 @@ do_last:
 	 * It already exists.
 	 */
 	mutex_unlock(&dir->d_inode->i_mutex);
+	audit_inode_update(path.dentry->d_inode);
 
 	error = -EEXIST;
 	if (flag & O_EXCL)
@@ -1669,6 +1670,7 @@ do_last:
 		if (flag & O_NOFOLLOW)
 			goto exit_dput;
 	}
+
 	error = -ENOENT;
 	if (!path.dentry->d_inode)
 		goto exit_dput;
@@ -1712,8 +1714,14 @@ do_link:
 	if (error)
 		goto exit_dput;
 	error = __do_follow_link(&path, nd);
-	if (error)
+	if (error) {
+		/* Does someone understand code flow here? Or it is only
+		 * me so stupid? Anathema to whoever designed this non-sense
+		 * with "intent.open".
+		 */
+		release_open_intent(nd);
 		return error;
+	}
 	nd->flags &= ~LOOKUP_PARENT;
 	if (nd->last_type == LAST_BIND)
 		goto ok;

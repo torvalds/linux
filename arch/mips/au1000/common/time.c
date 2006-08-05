@@ -383,7 +383,7 @@ static unsigned long do_fast_pm_gettimeoffset(void)
 }
 #endif
 
-void __init au1xxx_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	unsigned int est_freq;
 

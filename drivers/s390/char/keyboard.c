@@ -103,7 +103,7 @@ out_maps:
 out_kbd:
 	kfree(kbd);
 out:
-	return 0;
+	return NULL;
 }
 
 void
@@ -304,7 +304,7 @@ kbd_keycode(struct kbd_data *kbd, unsigned int keycode)
 		if (kbd->sysrq) {
 			if (kbd->sysrq == K(KT_LATIN, '-')) {
 				kbd->sysrq = 0;
-				handle_sysrq(value, 0, kbd->tty);
+				handle_sysrq(value, NULL, kbd->tty);
 				return;
 			}
 			if (value == '-') {
@@ -363,7 +363,7 @@ do_kdsk_ioctl(struct kbd_data *kbd, struct kbentry __user *user_kbe,
 			/* disallocate map */
 			key_map = kbd->key_maps[tmp.kb_table];
 			if (key_map) {
-			    kbd->key_maps[tmp.kb_table] = 0;
+			    kbd->key_maps[tmp.kb_table] = NULL;
 			    kfree(key_map);
 			}
 			break;

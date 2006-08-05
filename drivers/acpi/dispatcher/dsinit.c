@@ -116,16 +116,6 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 
 	case ACPI_TYPE_METHOD:
 
-		/*
-		 * Set the execution data width (32 or 64) based upon the
-		 * revision number of the parent ACPI table.
-		 * TBD: This is really for possible future support of integer width
-		 * on a per-table basis. Currently, we just use a global for the width.
-		 */
-		if (info->table_desc->pointer->revision == 1) {
-			node->flags |= ANOBJ_DATA_WIDTH_32;
-		}
-
 		info->method_count++;
 		break;
 

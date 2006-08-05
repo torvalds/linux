@@ -40,15 +40,16 @@ extern unsigned long machine_flags;
 #define MACHINE_IS_VM		(machine_flags & 1)
 #define MACHINE_IS_P390		(machine_flags & 4)
 #define MACHINE_HAS_MVPG	(machine_flags & 16)
-#define MACHINE_HAS_DIAG44	(machine_flags & 32)
 #define MACHINE_HAS_IDTE	(machine_flags & 128)
 
 #ifndef __s390x__
 #define MACHINE_HAS_IEEE	(machine_flags & 2)
 #define MACHINE_HAS_CSP		(machine_flags & 8)
+#define MACHINE_HAS_DIAG44	(1)
 #else /* __s390x__ */
 #define MACHINE_HAS_IEEE	(1)
 #define MACHINE_HAS_CSP		(1)
+#define MACHINE_HAS_DIAG44	(machine_flags & 32)
 #endif /* __s390x__ */
 
 

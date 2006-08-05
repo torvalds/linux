@@ -23,7 +23,7 @@ ctrlchar_handle_sysrq(void *tty)
 	handle_sysrq(ctrlchar_sysrq_key, NULL, (struct tty_struct *) tty);
 }
 
-static DECLARE_WORK(ctrlchar_work, ctrlchar_handle_sysrq, 0);
+static DECLARE_WORK(ctrlchar_work, ctrlchar_handle_sysrq, NULL);
 #endif
 
 

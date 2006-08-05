@@ -77,24 +77,39 @@ struct layout {
 	int pcmid;
 };
 
+MODULE_ALIAS("sound-layout-36");
 MODULE_ALIAS("sound-layout-41");
 MODULE_ALIAS("sound-layout-45");
+MODULE_ALIAS("sound-layout-47");
+MODULE_ALIAS("sound-layout-48");
+MODULE_ALIAS("sound-layout-49");
+MODULE_ALIAS("sound-layout-50");
 MODULE_ALIAS("sound-layout-51");
+MODULE_ALIAS("sound-layout-56");
+MODULE_ALIAS("sound-layout-57");
 MODULE_ALIAS("sound-layout-58");
 MODULE_ALIAS("sound-layout-60");
 MODULE_ALIAS("sound-layout-61");
+MODULE_ALIAS("sound-layout-62");
 MODULE_ALIAS("sound-layout-64");
 MODULE_ALIAS("sound-layout-65");
+MODULE_ALIAS("sound-layout-66");
+MODULE_ALIAS("sound-layout-67");
 MODULE_ALIAS("sound-layout-68");
 MODULE_ALIAS("sound-layout-69");
 MODULE_ALIAS("sound-layout-70");
 MODULE_ALIAS("sound-layout-72");
+MODULE_ALIAS("sound-layout-76");
 MODULE_ALIAS("sound-layout-80");
 MODULE_ALIAS("sound-layout-82");
 MODULE_ALIAS("sound-layout-84");
 MODULE_ALIAS("sound-layout-86");
+MODULE_ALIAS("sound-layout-90");
 MODULE_ALIAS("sound-layout-92");
+MODULE_ALIAS("sound-layout-94");
 MODULE_ALIAS("sound-layout-96");
+MODULE_ALIAS("sound-layout-98");
+MODULE_ALIAS("sound-layout-100");
 
 /* onyx with all but microphone connected */
 static struct codec_connection onyx_connections_nomic[] = {
@@ -950,11 +965,12 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	layout_id = (unsigned int *) get_property(sound, "layout-id", NULL);
 	if (!layout_id)
 		goto outnodev;
-	printk(KERN_INFO "snd-aoa-fabric-layout: found bus with layout %d ", *layout_id);
+	printk(KERN_INFO "snd-aoa-fabric-layout: found bus with layout %d\n",
+	       *layout_id);
 
 	layout = find_layout_by_id(*layout_id);
 	if (!layout) {
-		printk("(no idea how to handle)\n");
+		printk(KERN_ERR "snd-aoa-fabric-layout: unknown layout\n");
 		goto outnodev;
 	}
 
@@ -972,15 +988,17 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	case 51: /* PowerBook5,4 */
 	case 58: /* Mac Mini */
 		ldev->gpio.methods = ftr_gpio_methods;
+		printk(KERN_DEBUG
+		       "snd-aoa-fabric-layout: Using direct GPIOs\n");
 		break;
 	default:
 		ldev->gpio.methods = pmf_gpio_methods;
+		printk(KERN_DEBUG
+		       "snd-aoa-fabric-layout: Using PMF GPIOs\n");
 	}
 	ldev->selfptr_headphone.ptr = ldev;
 	ldev->selfptr_lineout.ptr = ldev;
 	sdev->ofdev.dev.driver_data = ldev;
-
-	printk("(using)\n");
 	list_add(&ldev->list, &layouts_list);
 	layouts_list_items++;
 

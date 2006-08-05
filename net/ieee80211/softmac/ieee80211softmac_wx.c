@@ -70,12 +70,44 @@ ieee80211softmac_wx_set_essid(struct net_device *net_dev,
 			      char *extra)
 {
 	struct ieee80211softmac_device *sm = ieee80211_priv(net_dev);
+	struct ieee80211softmac_network *n;
+	struct ieee80211softmac_auth_queue_item *authptr;
 	int length = 0;
 	unsigned long flags;
-	
+
+	/* Check if we're already associating to this or another network
+	 * If it's another network, cancel and start over with our new network
+	 * If it's our network, ignore the change, we're already doing it!
+	 */
+	if((sm->associnfo.associating || sm->associated) &&
+	   (data->essid.flags && data->essid.length && extra)) {
+		/* Get the associating network */
+		n = ieee80211softmac_get_network_by_bssid(sm, sm->associnfo.bssid);
+		if(n && n->essid.len == (data->essid.length - 1) &&
+		   !memcmp(n->essid.data, extra, n->essid.len)) {
+			dprintk(KERN_INFO PFX "Already associating or associated to "MAC_FMT"\n",
+				MAC_ARG(sm->associnfo.bssid));
+			return 0;
+		} else {
+			dprintk(KERN_INFO PFX "Canceling existing associate request!\n");
+			spin_lock_irqsave(&sm->lock,flags);
+			/* Cancel assoc work */
+			cancel_delayed_work(&sm->associnfo.work);
+			/* We don't have to do this, but it's a little cleaner */
+			list_for_each_entry(authptr, &sm->auth_queue, list)
+				cancel_delayed_work(&authptr->work);
+			sm->associnfo.bssvalid = 0;
+			sm->associnfo.bssfixed = 0;
+			spin_unlock_irqrestore(&sm->lock,flags);
+			flush_scheduled_work();
+		}
+	}
+
+
 	spin_lock_irqsave(&sm->lock, flags);
-	
+
 	sm->associnfo.static_essid = 0;
+	sm->associnfo.assoc_wait = 0;
 
 	if (data->essid.flags && data->essid.length && extra /*required?*/) {
 		length = min(data->essid.length - 1, IW_ESSID_MAX_SIZE);

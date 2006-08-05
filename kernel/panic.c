@@ -172,6 +172,7 @@ const char *print_tainted(void)
 
 void add_taint(unsigned flag)
 {
+	debug_locks_off(); /* can't trust the integrity of the kernel anymore */
 	tainted |= flag;
 }
 EXPORT_SYMBOL(add_taint);
@@ -256,6 +257,7 @@ int oops_may_print(void)
  */
 void oops_enter(void)
 {
+	debug_locks_off(); /* can't trust the integrity of the kernel anymore */
 	do_oops_enter_exit();
 }
 

@@ -75,42 +75,6 @@ struct pm_dev *pm_register(pm_dev_t type,
 	return dev;
 }
 
-static void __pm_unregister(struct pm_dev *dev)
-{
-	if (dev) {
-		list_del(&dev->entry);
-		kfree(dev);
-	}
-}
-
-/**
- *	pm_unregister_all - unregister all devices with matching callback
- *	@callback: callback function pointer
- *
- *	Unregister every device that would call the callback passed. This
- *	is primarily meant as a helper function for loadable modules. It
- *	enables a module to give up all its managed devices without keeping
- *	its own private list.
- */
- 
-void pm_unregister_all(pm_callback callback)
-{
-	struct list_head *entry;
-
-	if (!callback)
-		return;
-
-	mutex_lock(&pm_devs_lock);
-	entry = pm_devs.next;
-	while (entry != &pm_devs) {
-		struct pm_dev *dev = list_entry(entry, struct pm_dev, entry);
-		entry = entry->next;
-		if (dev->callback == callback)
-			__pm_unregister(dev);
-	}
-	mutex_unlock(&pm_devs_lock);
-}
-
 /**
  *	pm_send - send request to a single device
  *	@dev: device to send to
@@ -239,7 +203,6 @@ int pm_send_all(pm_request_t rqst, void *data)
 }
 
 EXPORT_SYMBOL(pm_register);
-EXPORT_SYMBOL(pm_unregister_all);
 EXPORT_SYMBOL(pm_send_all);
 EXPORT_SYMBOL(pm_active);
 

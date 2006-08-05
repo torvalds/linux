@@ -11,6 +11,7 @@ snd-cs4236-objs := cs4236.o
 
 # Toplevel Module Dependency
 obj-$(CONFIG_SND_AZT2320) += snd-cs4231-lib.o
+obj-$(CONFIG_SND_MIRO) += snd-cs4231-lib.o
 obj-$(CONFIG_SND_OPL3SA2) += snd-cs4231-lib.o
 obj-$(CONFIG_SND_CS4231) += snd-cs4231.o snd-cs4231-lib.o
 obj-$(CONFIG_SND_CS4232) += snd-cs4232.o snd-cs4231-lib.o

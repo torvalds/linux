@@ -14,7 +14,8 @@ obj-vdso32 := $(addprefix $(obj)/, $(obj-vdso32))
 
 
 EXTRA_CFLAGS := -shared -s -fno-common -fno-builtin
-EXTRA_CFLAGS += -nostdlib -Wl,-soname=linux-vdso32.so.1
+EXTRA_CFLAGS += -nostdlib -Wl,-soname=linux-vdso32.so.1 \
+		$(call ld-option, -Wl$(comma)--hash-style=sysv)
 EXTRA_AFLAGS := -D__VDSO32__ -s
 
 obj-y += vdso32_wrapper.o

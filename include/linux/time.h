@@ -71,6 +71,18 @@ extern unsigned long mktime(const unsigned int year, const unsigned int mon,
 extern void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec);
 
 /*
+ * sub = lhs - rhs, in normalized form
+ */
+static inline struct timespec timespec_sub(struct timespec lhs,
+						struct timespec rhs)
+{
+	struct timespec ts_delta;
+	set_normalized_timespec(&ts_delta, lhs.tv_sec - rhs.tv_sec,
+				lhs.tv_nsec - rhs.tv_nsec);
+	return ts_delta;
+}
+
+/*
  * Returns true if the timespec is norm, false if denorm:
  */
 #define timespec_valid(ts) \

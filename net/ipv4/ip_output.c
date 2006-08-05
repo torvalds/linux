@@ -209,7 +209,7 @@ static inline int ip_finish_output(struct sk_buff *skb)
 		return dst_output(skb);
 	}
 #endif
-	if (skb->len > dst_mtu(skb->dst) && !skb_shinfo(skb)->gso_size)
+	if (skb->len > dst_mtu(skb->dst) && !skb_is_gso(skb))
 		return ip_fragment(skb, ip_finish_output2);
 	else
 		return ip_finish_output2(skb);
@@ -526,6 +526,8 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 
 			err = output(skb);
 
+			if (!err)
+				IP_INC_STATS(IPSTATS_MIB_FRAGCREATES);
 			if (err || !frag)
 				break;
 
@@ -649,9 +651,6 @@ slow_path:
 		/*
 		 *	Put this fragment into the sending queue.
 		 */
-
-		IP_INC_STATS(IPSTATS_MIB_FRAGCREATES);
-
 		iph->tot_len = htons(len + hlen);
 
 		ip_send_check(iph);
@@ -659,6 +658,8 @@ slow_path:
 		err = output(skb2);
 		if (err)
 			goto fail;
+
+		IP_INC_STATS(IPSTATS_MIB_FRAGCREATES);
 	}
 	kfree_skb(skb);
 	IP_INC_STATS(IPSTATS_MIB_FRAGOKS);
@@ -1095,7 +1096,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 	while (size > 0) {
 		int i;
 
-		if (skb_shinfo(skb)->gso_size)
+		if (skb_is_gso(skb))
 			len = size;
 		else {
 

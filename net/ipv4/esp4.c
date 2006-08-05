@@ -316,11 +316,9 @@ static int esp_init_state(struct xfrm_state *x)
 	if (x->ealg == NULL)
 		goto error;
 
-	esp = kmalloc(sizeof(*esp), GFP_KERNEL);
+	esp = kzalloc(sizeof(*esp), GFP_KERNEL);
 	if (esp == NULL)
 		return -ENOMEM;
-
-	memset(esp, 0, sizeof(*esp));
 
 	if (x->aalg) {
 		struct xfrm_algo_desc *aalg_desc;

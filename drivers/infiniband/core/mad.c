@@ -167,6 +167,15 @@ static int is_vendor_method_in_use(
 	return 0;
 }
 
+int ib_response_mad(struct ib_mad *mad)
+{
+	return ((mad->mad_hdr.method & IB_MGMT_METHOD_RESP) ||
+		(mad->mad_hdr.method == IB_MGMT_METHOD_TRAP_REPRESS) ||
+		((mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_BM) &&
+		 (mad->mad_hdr.attr_mod & IB_BM_ATTR_MOD_RESP)));
+}
+EXPORT_SYMBOL(ib_response_mad);
+
 /*
  * ib_register_mad_agent - Register to send/receive MADs
  */
@@ -570,13 +579,6 @@ int ib_unregister_mad_agent(struct ib_mad_agent *mad_agent)
 }
 EXPORT_SYMBOL(ib_unregister_mad_agent);
 
-static inline int response_mad(struct ib_mad *mad)
-{
-	/* Trap represses are responses although response bit is reset */
-	return ((mad->mad_hdr.method == IB_MGMT_METHOD_TRAP_REPRESS) ||
-		(mad->mad_hdr.method & IB_MGMT_METHOD_RESP));
-}
-
 static void dequeue_mad(struct ib_mad_list_head *mad_list)
 {
 	struct ib_mad_queue *mad_queue;
@@ -723,7 +725,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	switch (ret)
 	{
 	case IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY:
-		if (response_mad(&mad_priv->mad.mad) &&
+		if (ib_response_mad(&mad_priv->mad.mad) &&
 		    mad_agent_priv->agent.recv_handler) {
 			local->mad_priv = mad_priv;
 			local->recv_mad_agent = mad_agent_priv;
@@ -1551,7 +1553,7 @@ find_mad_agent(struct ib_mad_port_private *port_priv,
 	unsigned long flags;
 
 	spin_lock_irqsave(&port_priv->reg_lock, flags);
-	if (response_mad(mad)) {
+	if (ib_response_mad(mad)) {
 		u32 hi_tid;
 		struct ib_mad_agent_private *entry;
 
@@ -1799,7 +1801,7 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 	}
 
 	/* Complete corresponding request */
-	if (response_mad(mad_recv_wc->recv_buf.mad)) {
+	if (ib_response_mad(mad_recv_wc->recv_buf.mad)) {
 		spin_lock_irqsave(&mad_agent_priv->lock, flags);
 		mad_send_wr = ib_find_send_mad(mad_agent_priv, mad_recv_wc);
 		if (!mad_send_wr) {

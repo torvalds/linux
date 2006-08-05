@@ -222,9 +222,8 @@ static void *get_send_wqe(struct mthca_qp *qp, int n)
 			 (PAGE_SIZE - 1));
 }
 
-static void mthca_wq_init(struct mthca_wq *wq)
+static void mthca_wq_reset(struct mthca_wq *wq)
 {
-	/* mthca_alloc_qp_common() initializes the locks */
 	wq->next_ind  = 0;
 	wq->last_comp = wq->max - 1;
 	wq->head      = 0;
@@ -845,10 +844,10 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 			mthca_cq_clean(dev, to_mcq(qp->ibqp.recv_cq), qp->qpn,
 				       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 
-		mthca_wq_init(&qp->sq);
+		mthca_wq_reset(&qp->sq);
 		qp->sq.last = get_send_wqe(qp, qp->sq.max - 1);
 
-		mthca_wq_init(&qp->rq);
+		mthca_wq_reset(&qp->rq);
 		qp->rq.last = get_recv_wqe(qp, qp->rq.max - 1);
 
 		if (mthca_is_memfree(dev)) {
@@ -1112,9 +1111,9 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	qp->atomic_rd_en = 0;
 	qp->resp_depth   = 0;
 	qp->sq_policy    = send_policy;
-	mthca_wq_init(&qp->sq);
-	mthca_wq_init(&qp->rq);
-	/* these are initialized separately so lockdep can tell them apart */
+	mthca_wq_reset(&qp->sq);
+	mthca_wq_reset(&qp->rq);
+
 	spin_lock_init(&qp->sq.lock);
 	spin_lock_init(&qp->rq.lock);
 

@@ -434,7 +434,7 @@ acpi_system_wakeup_device_open_fs(struct inode *inode, struct file *file)
 			   PDE(inode)->data);
 }
 
-static struct file_operations acpi_system_wakeup_device_fops = {
+static const struct file_operations acpi_system_wakeup_device_fops = {
 	.open = acpi_system_wakeup_device_open_fs,
 	.read = seq_read,
 	.write = acpi_system_write_wakeup_device,
@@ -443,7 +443,7 @@ static struct file_operations acpi_system_wakeup_device_fops = {
 };
 
 #ifdef	CONFIG_ACPI_SLEEP_PROC_SLEEP
-static struct file_operations acpi_system_sleep_fops = {
+static const struct file_operations acpi_system_sleep_fops = {
 	.open = acpi_system_sleep_open_fs,
 	.read = seq_read,
 	.write = acpi_system_write_sleep,
@@ -452,7 +452,7 @@ static struct file_operations acpi_system_sleep_fops = {
 };
 #endif				/* CONFIG_ACPI_SLEEP_PROC_SLEEP */
 
-static struct file_operations acpi_system_alarm_fops = {
+static const struct file_operations acpi_system_alarm_fops = {
 	.open = acpi_system_alarm_open_fs,
 	.read = seq_read,
 	.write = acpi_system_write_alarm,

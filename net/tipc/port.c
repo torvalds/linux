@@ -226,12 +226,11 @@ u32 tipc_createport_raw(void *usr_handle,
 	struct tipc_msg *msg;
 	u32 ref;
 
-	p_ptr = kmalloc(sizeof(*p_ptr), GFP_ATOMIC);
+	p_ptr = kzalloc(sizeof(*p_ptr), GFP_ATOMIC);
 	if (!p_ptr) {
 		warn("Port creation failed, no memory\n");
 		return 0;
 	}
-	memset(p_ptr, 0, sizeof(*p_ptr));
 	ref = tipc_ref_acquire(p_ptr, &p_ptr->publ.lock);
 	if (!ref) {
 		warn("Port creation failed, reference table exhausted\n");
@@ -1058,7 +1057,7 @@ int tipc_createport(u32 user_ref,
 	struct port *p_ptr; 
 	u32 ref;
 
-	up_ptr = (struct user_port *)kmalloc(sizeof(*up_ptr), GFP_ATOMIC);
+	up_ptr = kmalloc(sizeof(*up_ptr), GFP_ATOMIC);
 	if (!up_ptr) {
 		warn("Port creation failed, no memory\n");
 		return -ENOMEM;

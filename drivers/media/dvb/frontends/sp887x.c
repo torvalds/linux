@@ -520,9 +520,9 @@ static int sp887x_init(struct dvb_frontend* fe)
 		}
 
 		ret = sp887x_initial_setup(fe, fw);
+		release_firmware(fw);
 		if (ret) {
 			printk("sp887x: writing firmware to device failed\n");
-			release_firmware(fw);
 			return ret;
 		}
 		printk("sp887x: firmware upload complete\n");

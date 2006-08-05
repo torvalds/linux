@@ -146,7 +146,7 @@ static DEFINE_SPINLOCK(tx4927_cp0_lock);
 static DEFINE_SPINLOCK(tx4927_pic_lock);
 
 #define TX4927_CP0_NAME "TX4927-CP0"
-static struct hw_interrupt_type tx4927_irq_cp0_type = {
+static struct irq_chip tx4927_irq_cp0_type = {
 	.typename	= TX4927_CP0_NAME,
 	.startup	= tx4927_irq_cp0_startup,
 	.shutdown	= tx4927_irq_cp0_shutdown,
@@ -158,7 +158,7 @@ static struct hw_interrupt_type tx4927_irq_cp0_type = {
 };
 
 #define TX4927_PIC_NAME "TX4927-PIC"
-static struct hw_interrupt_type tx4927_irq_pic_type = {
+static struct irq_chip tx4927_irq_pic_type = {
 	.typename	= TX4927_PIC_NAME,
 	.startup	= tx4927_irq_pic_startup,
 	.shutdown	= tx4927_irq_pic_shutdown,

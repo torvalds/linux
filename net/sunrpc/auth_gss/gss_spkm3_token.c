@@ -90,10 +90,9 @@ asn1_bitstring_len(struct xdr_netobj *in, int *enclen, int *zerobits)
 int
 decode_asn1_bitstring(struct xdr_netobj *out, char *in, int enclen, int explen)
 {
-	if (!(out->data = kmalloc(explen,GFP_KERNEL)))
+	if (!(out->data = kzalloc(explen,GFP_KERNEL)))
 		return 0;
 	out->len = explen;
-	memset(out->data, 0, explen);
 	memcpy(out->data, in, enclen);
 	return 1;
 }

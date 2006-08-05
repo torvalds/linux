@@ -192,8 +192,8 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 	/* Make sure this is a valid target state */
 
 	if (!device->flags.power_manageable) {
-		printk(KERN_DEBUG "Device `[%s]' is not power manageable",
-				device->kobj.name);
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device `[%s]' is not power manageable",
+				device->kobj.name));
 		return -ENODEV;
 	}
 	/*

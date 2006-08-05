@@ -134,8 +134,8 @@ ACPI_EXPORT_SYMBOL(acpi_load_tables)
  * RETURN:      Status
  *
  * DESCRIPTION: This function is called to load a table from the caller's
- *              buffer.  The buffer must contain an entire ACPI Table including
- *              a valid header.  The header fields will be verified, and if it
+ *              buffer. The buffer must contain an entire ACPI Table including
+ *              a valid header. The header fields will be verified, and if it
  *              is determined that the table is invalid, the call will fail.
  *
  ******************************************************************************/
@@ -245,15 +245,18 @@ acpi_status acpi_unload_table(acpi_table_type table_type)
 	/* Find all tables of the requested type */
 
 	table_desc = acpi_gbl_table_lists[table_type].next;
+	if (!table_desc) {
+		return_ACPI_STATUS(AE_NOT_EXIST);
+	}
+
 	while (table_desc) {
 		/*
-		 * Delete all namespace entries owned by this table.  Note that these
-		 * entries can appear anywhere in the namespace by virtue of the AML
-		 * "Scope" operator.  Thus, we need to track ownership by an ID, not
+		 * Delete all namespace objects owned by this table. Note that these
+		 * objects can appear anywhere in the namespace by virtue of the AML
+		 * "Scope" operator. Thus, we need to track ownership by an ID, not
 		 * simply a position within the hierarchy
 		 */
 		acpi_ns_delete_namespace_by_owner(table_desc->owner_id);
-		acpi_ut_release_owner_id(&table_desc->owner_id);
 		table_desc = table_desc->next;
 	}
 
@@ -275,12 +278,12 @@ ACPI_EXPORT_SYMBOL(acpi_unload_table)
  *                                see acpi_gbl_acpi_table_flag
  *              out_table_header - pointer to the struct acpi_table_header if successful
  *
- * DESCRIPTION: This function is called to get an ACPI table header.  The caller
+ * DESCRIPTION: This function is called to get an ACPI table header. The caller
  *              supplies an pointer to a data area sufficient to contain an ACPI
  *              struct acpi_table_header structure.
  *
  *              The header contains a length field that can be used to determine
- *              the size of the buffer needed to contain the entire table.  This
+ *              the size of the buffer needed to contain the entire table. This
  *              function is not valid for the RSD PTR table since it does not
  *              have a standard header and is fixed length.
  *
@@ -322,7 +325,8 @@ acpi_get_table_header(acpi_table_type table_type,
 
 	/* Copy the header to the caller's buffer */
 
-	ACPI_MEMCPY((void *)out_table_header, (void *)tbl_ptr,
+	ACPI_MEMCPY(ACPI_CAST_PTR(void, out_table_header),
+		    ACPI_CAST_PTR(void, tbl_ptr),
 		    sizeof(struct acpi_table_header));
 
 	return_ACPI_STATUS(status);
@@ -344,10 +348,10 @@ ACPI_EXPORT_SYMBOL(acpi_get_table_header)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: This function is called to get an ACPI table.  The caller
+ * DESCRIPTION: This function is called to get an ACPI table. The caller
  *              supplies an out_buffer large enough to contain the entire ACPI
- *              table.  The caller should call the acpi_get_table_header function
- *              first to determine the buffer size needed.  Upon completion
+ *              table. The caller should call the acpi_get_table_header function
+ *              first to determine the buffer size needed. Upon completion
  *              the out_buffer->Length field will indicate the number of bytes
  *              copied into the out_buffer->buf_ptr buffer. This table will be
  *              a complete table including the header.
@@ -417,7 +421,9 @@ acpi_get_table(acpi_table_type table_type,
 
 	/* Copy the table to the buffer */
 
-	ACPI_MEMCPY((void *)ret_buffer->pointer, (void *)tbl_ptr, table_length);
+	ACPI_MEMCPY(ACPI_CAST_PTR(void, ret_buffer->pointer),
+		    ACPI_CAST_PTR(void, tbl_ptr), table_length);
+
 	return_ACPI_STATUS(AE_OK);
 }
 

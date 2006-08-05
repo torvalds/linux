@@ -217,12 +217,7 @@ GLOBAL_ENTRY(ia64_pal_call_phys_stacked)
 	.body
 	;;
 	ld8 loc2 = [loc2]		// loc2 <- entry point
-	mov out0 = in0		// first argument
-	mov out1 = in1		// copy arg2
-	mov out2 = in2		// copy arg3
-	mov out3 = in3		// copy arg3
-	;;
-	mov loc3 = psr		// save psr
+	mov loc3 = psr			// save psr
 	;;
 	mov loc4=ar.rsc			// save RSE configuration
 	dep.z loc2=loc2,0,61		// convert pal entry point to physical
@@ -236,18 +231,23 @@ GLOBAL_ENTRY(ia64_pal_call_phys_stacked)
 	;;
 	andcm r16=loc3,r16		// removes bits to clear from psr
 	br.call.sptk.many rp=ia64_switch_mode_phys
-.ret6:
+
+	mov out0 = in0			// first argument
+	mov out1 = in1			// copy arg2
+	mov out2 = in2			// copy arg3
+	mov out3 = in3			// copy arg3
 	mov loc5 = r19
 	mov loc6 = r20
+
 	br.call.sptk.many rp=b7		// now make the call
-.ret7:
+
 	mov ar.rsc=0			// put RSE in enforced lazy, LE mode
 	mov r16=loc3			// r16= original psr
 	mov r19=loc5
 	mov r20=loc6
 	br.call.sptk.many rp=ia64_switch_mode_virt	// return to virtual mode
 
-.ret8:	mov psr.l  = loc3		// restore init PSR
+	mov psr.l  = loc3		// restore init PSR
 	mov ar.pfs = loc1
 	mov rp = loc0
 	;;

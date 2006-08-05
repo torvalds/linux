@@ -1252,8 +1252,8 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 	 */
 
 	if (!fa_head) {
-		fa_head = fib_insert_node(t, &err, key, plen);
 		err = 0;
+		fa_head = fib_insert_node(t, &err, key, plen);
 		if (err)
 			goto out_free_new_fa;
 	}

@@ -1473,7 +1473,7 @@ autoconf_fail:
  * Called on module unload.  Frees the control request and device
  * structure.
  */
-static void __exit gs_unbind(struct usb_gadget *gadget)
+static void /* __init_or_exit */ gs_unbind(struct usb_gadget *gadget)
 {
 	struct gs_dev *dev = get_gadget_data(gadget);
 

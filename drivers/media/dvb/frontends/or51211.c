@@ -437,10 +437,10 @@ static int or51211_init(struct dvb_frontend* fe)
 		}
 
 		ret = or51211_load_firmware(fe, fw);
+		release_firmware(fw);
 		if (ret) {
 			printk(KERN_WARNING "or51211: Writing firmware to "
 			       "device failed!\n");
-			release_firmware(fw);
 			return ret;
 		}
 		printk(KERN_INFO "or51211: Firmware upload complete.\n");

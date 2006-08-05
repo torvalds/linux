@@ -52,13 +52,12 @@ struct _zone *tipc_zone_create(u32 addr)
 		return NULL;
 	}
 
-	z_ptr = (struct _zone *)kmalloc(sizeof(*z_ptr), GFP_ATOMIC);
+	z_ptr = kzalloc(sizeof(*z_ptr), GFP_ATOMIC);
 	if (!z_ptr) {
 		warn("Zone creation failed, insufficient memory\n");
 		return NULL;
 	}
 
-	memset(z_ptr, 0, sizeof(*z_ptr));
 	z_num = tipc_zone(addr);
 	z_ptr->addr = tipc_addr(z_num, 0, 0);
 	tipc_net.zones[z_num] = z_ptr;

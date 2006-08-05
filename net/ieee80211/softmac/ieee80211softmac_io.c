@@ -96,8 +96,7 @@ ieee80211softmac_alloc_mgt(u32 size)
 	if(size > IEEE80211_DATA_LEN)
 		return NULL;
 	/* Allocate the frame */
-	data = kmalloc(size, GFP_ATOMIC);
-	memset(data, 0, size);
+	data = kzalloc(size, GFP_ATOMIC);
 	return data;
 }
 
@@ -228,6 +227,9 @@ ieee80211softmac_assoc_req(struct ieee80211_assoc_request **pkt,
 	if (unlikely((*pkt) == NULL))
 		return 0;
 	ieee80211softmac_hdr_3addr(mac, &((*pkt)->header), IEEE80211_STYPE_ASSOC_REQ, net->bssid, net->bssid);
+
+	/* Fill in the capabilities */
+	(*pkt)->capability = ieee80211softmac_capabilities(mac, net);
 
 	/* Fill in Listen Interval (?) */
 	(*pkt)->listen_interval = cpu_to_le16(10);

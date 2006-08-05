@@ -192,9 +192,7 @@ static int cisco_rx(struct sk_buff *skb)
 					       "uptime %ud%uh%um%us)\n",
 					       dev->name, days, hrs,
 					       min, sec);
-#if 0
-					netif_carrier_on(dev);
-#endif
+					netif_dormant_off(dev);
 					hdlc->state.cisco.up = 1;
 				}
 			}
@@ -227,9 +225,7 @@ static void cisco_timer(unsigned long arg)
 		       hdlc->state.cisco.settings.timeout * HZ)) {
 		hdlc->state.cisco.up = 0;
 		printk(KERN_INFO "%s: Link down\n", dev->name);
-#if 0
-		netif_carrier_off(dev);
-#endif
+		netif_dormant_on(dev);
 	}
 
 	cisco_keepalive_send(dev, CISCO_KEEPALIVE_REQ,
@@ -265,10 +261,7 @@ static void cisco_stop(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	del_timer_sync(&hdlc->state.cisco.timer);
-#if 0
-	if (netif_carrier_ok(dev))
-		netif_carrier_off(dev);
-#endif
+	netif_dormant_on(dev);
 	hdlc->state.cisco.up = 0;
 	hdlc->state.cisco.request_sent = 0;
 }
@@ -328,6 +321,7 @@ int hdlc_cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
 		dev->type = ARPHRD_CISCO;
 		dev->flags = IFF_POINTOPOINT | IFF_NOARP;
 		dev->addr_len = 0;
+		netif_dormant_on(dev);
 		return 0;
 	}
 

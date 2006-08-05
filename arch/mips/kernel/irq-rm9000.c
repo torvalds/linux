@@ -105,7 +105,7 @@ static void rm9k_cpu_irq_end(unsigned int irq)
 		unmask_rm9k_irq(irq);
 }
 
-static hw_irq_controller rm9k_irq_controller = {
+static struct irq_chip rm9k_irq_controller = {
 	.typename = "RM9000",
 	.startup = rm9k_cpu_irq_startup,
 	.shutdown = rm9k_cpu_irq_shutdown,
@@ -115,7 +115,7 @@ static hw_irq_controller rm9k_irq_controller = {
 	.end = rm9k_cpu_irq_end,
 };
 
-static hw_irq_controller rm9k_perfcounter_irq = {
+static struct irq_chip rm9k_perfcounter_irq = {
 	.typename = "RM9000",
 	.startup = rm9k_perfcounter_irq_startup,
 	.shutdown = rm9k_perfcounter_irq_shutdown,

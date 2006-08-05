@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kprobes.h>
+#include <linux/kallsyms.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -132,6 +133,8 @@ static void bad_kernel_pc(struct pt_regs *regs, unsigned long vaddr)
 
 	printk(KERN_CRIT "OOPS: Bogus kernel PC [%016lx] in fault handler\n",
 	       regs->tpc);
+	printk(KERN_CRIT "OOPS: RPC [%016lx]\n", regs->u_regs[15]);
+	print_symbol("RPC: <%s>\n", regs->u_regs[15]);
 	printk(KERN_CRIT "OOPS: Fault was to vaddr[%lx]\n", vaddr);
 	__asm__("mov %%sp, %0" : "=r" (ksp));
 	show_stack(current, ksp);

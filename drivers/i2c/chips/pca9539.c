@@ -134,11 +134,13 @@ static int pca9539_detect(struct i2c_adapter *adapter, int address, int kind)
 	new_client->driver = &pca9539_driver;
 	new_client->flags = 0;
 
-	/* Detection: the pca9539 only has 8 registers (0-7).
-	   A read of 7 should succeed, but a read of 8 should fail. */
-	if ((i2c_smbus_read_byte_data(new_client, 7) < 0) ||
-	    (i2c_smbus_read_byte_data(new_client, 8) >= 0))
-		goto exit_kfree;
+	if (kind < 0) {
+		/* Detection: the pca9539 only has 8 registers (0-7).
+		   A read of 7 should succeed, but a read of 8 should fail. */
+		if ((i2c_smbus_read_byte_data(new_client, 7) < 0) ||
+		    (i2c_smbus_read_byte_data(new_client, 8) >= 0))
+			goto exit_kfree;
+	}
 
 	strlcpy(new_client->name, "pca9539", I2C_NAME_SIZE);
 

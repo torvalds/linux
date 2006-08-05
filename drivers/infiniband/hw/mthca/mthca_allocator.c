@@ -108,14 +108,15 @@ void mthca_alloc_cleanup(struct mthca_alloc *alloc)
  * serialize access to the array.
  */
 
+#define MTHCA_ARRAY_MASK (PAGE_SIZE / sizeof (void *) - 1)
+
 void *mthca_array_get(struct mthca_array *array, int index)
 {
 	int p = (index * sizeof (void *)) >> PAGE_SHIFT;
 
-	if (array->page_list[p].page) {
-		int i = index & (PAGE_SIZE / sizeof (void *) - 1);
-		return array->page_list[p].page[i];
-	} else
+	if (array->page_list[p].page)
+		return array->page_list[p].page[index & MTHCA_ARRAY_MASK];
+	else
 		return NULL;
 }
 
@@ -130,8 +131,7 @@ int mthca_array_set(struct mthca_array *array, int index, void *value)
 	if (!array->page_list[p].page)
 		return -ENOMEM;
 
-	array->page_list[p].page[index & (PAGE_SIZE / sizeof (void *) - 1)] =
-		value;
+	array->page_list[p].page[index & MTHCA_ARRAY_MASK] = value;
 	++array->page_list[p].used;
 
 	return 0;
@@ -144,7 +144,8 @@ void mthca_array_clear(struct mthca_array *array, int index)
 	if (--array->page_list[p].used == 0) {
 		free_page((unsigned long) array->page_list[p].page);
 		array->page_list[p].page = NULL;
-	}
+	} else
+		array->page_list[p].page[index & MTHCA_ARRAY_MASK] = NULL;
 
 	if (array->page_list[p].used < 0)
 		pr_debug("Array %p index %d page %d with ref count %d < 0\n",

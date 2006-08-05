@@ -504,8 +504,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq = inet_rsk(req);
 	ireq->loc_addr = daddr;
 	ireq->rmt_addr = saddr;
-	req->rcv_wnd	= 100; /* Fake, option parsing will get the
-				  right value */
+	req->rcv_wnd	= dccp_feat_default_sequence_window;
 	ireq->opt	= NULL;
 
 	/* 

@@ -191,7 +191,7 @@ static int hci_uart_flush(struct hci_dev *hdev)
 
 	/* Flush any pending characters in the driver and discipline. */
 	tty_ldisc_flush(tty);
-	if (tty->driver->flush_buffer)
+	if (tty->driver && tty->driver->flush_buffer)
 		tty->driver->flush_buffer(tty);
 
 	if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
@@ -290,7 +290,7 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	if (tty->ldisc.flush_buffer)
 		tty->ldisc.flush_buffer(tty);
 
-	if (tty->driver->flush_buffer)
+	if (tty->driver && tty->driver->flush_buffer)
 		tty->driver->flush_buffer(tty);
 
 	return 0;

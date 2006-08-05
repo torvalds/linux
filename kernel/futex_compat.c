@@ -12,6 +12,23 @@
 
 #include <asm/uaccess.h>
 
+
+/*
+ * Fetch a robust-list pointer. Bit 0 signals PI futexes:
+ */
+static inline int
+fetch_robust_entry(compat_uptr_t *uentry, struct robust_list __user **entry,
+		   compat_uptr_t *head, int *pi)
+{
+	if (get_user(*uentry, head))
+		return -EFAULT;
+
+	*entry = compat_ptr((*uentry) & ~1);
+	*pi = (unsigned int)(*uentry) & 1;
+
+	return 0;
+}
+
 /*
  * Walk curr->robust_list (very carefully, it's a userspace list!)
  * and mark any locks found there dead, and notify any waiters.
@@ -22,17 +39,16 @@ void compat_exit_robust_list(struct task_struct *curr)
 {
 	struct compat_robust_list_head __user *head = curr->compat_robust_list;
 	struct robust_list __user *entry, *pending;
+	unsigned int limit = ROBUST_LIST_LIMIT, pi;
 	compat_uptr_t uentry, upending;
-	unsigned int limit = ROBUST_LIST_LIMIT;
 	compat_long_t futex_offset;
 
 	/*
 	 * Fetch the list head (which was registered earlier, via
 	 * sys_set_robust_list()):
 	 */
-	if (get_user(uentry, &head->list.next))
+	if (fetch_robust_entry(&uentry, &entry, &head->list.next, &pi))
 		return;
-	entry = compat_ptr(uentry);
 	/*
 	 * Fetch the relative futex offset:
 	 */
@@ -42,11 +58,11 @@ void compat_exit_robust_list(struct task_struct *curr)
 	 * Fetch any possibly pending lock-add first, and handle it
 	 * if it exists:
 	 */
-	if (get_user(upending, &head->list_op_pending))
+	if (fetch_robust_entry(&upending, &pending,
+			       &head->list_op_pending, &pi))
 		return;
-	pending = compat_ptr(upending);
 	if (upending)
-		handle_futex_death((void *)pending + futex_offset, curr);
+		handle_futex_death((void *)pending + futex_offset, curr, pi);
 
 	while (compat_ptr(uentry) != &head->list) {
 		/*
@@ -55,15 +71,15 @@ void compat_exit_robust_list(struct task_struct *curr)
 		 */
 		if (entry != pending)
 			if (handle_futex_death((void *)entry + futex_offset,
-						curr))
+						curr, pi))
 				return;
 
 		/*
 		 * Fetch the next entry in the list:
 		 */
-		if (get_user(uentry, (compat_uptr_t *)&entry->next))
+		if (fetch_robust_entry(&uentry, &entry,
+				       (compat_uptr_t *)&entry->next, &pi))
 			return;
-		entry = compat_ptr(uentry);
 		/*
 		 * Avoid excessively long or circular lists:
 		 */

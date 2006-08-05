@@ -575,6 +575,7 @@ void touch_nmi_watchdog (void)
 	 */
 	touch_softlockup_watchdog();
 }
+EXPORT_SYMBOL(touch_nmi_watchdog);
 
 extern void die_nmi(struct pt_regs *, const char *msg);
 

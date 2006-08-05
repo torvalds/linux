@@ -227,11 +227,17 @@ static void copy_data_pages(struct pbe *pblist)
 		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn) {
 			if (saveable(zone, &zone_pfn)) {
 				struct page *page;
+				long *src, *dst;
+				int n;
+
 				page = pfn_to_page(zone_pfn + zone->zone_start_pfn);
 				BUG_ON(!pbe);
 				pbe->orig_address = (unsigned long)page_address(page);
-				/* copy_page is not usable for copying task structs. */
-				memcpy((void *)pbe->address, (void *)pbe->orig_address, PAGE_SIZE);
+				/* copy_page and memcpy are not usable for copying task structs. */
+				dst = (long *)pbe->address;
+				src = (long *)pbe->orig_address;
+				for (n = PAGE_SIZE / sizeof(long); n; n--)
+					*dst++ = *src++;
 				pbe = pbe->next;
 			}
 		}

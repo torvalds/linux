@@ -321,10 +321,9 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct rtattr *rta,
 	list_len = RTA_PAYLOAD(rt_list);
 	matches_len = tree_hdr->nmatches * sizeof(*em);
 
-	tree->matches = kmalloc(matches_len, GFP_KERNEL);
+	tree->matches = kzalloc(matches_len, GFP_KERNEL);
 	if (tree->matches == NULL)
 		goto errout;
-	memset(tree->matches, 0, matches_len);
 
 	/* We do not use rtattr_parse_nested here because the maximum
 	 * number of attributes is unknown. This saves us the allocation

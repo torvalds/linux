@@ -1162,9 +1162,12 @@ int skb_checksum_help(struct sk_buff *skb, int inward)
 	unsigned int csum;
 	int ret = 0, offset = skb->h.raw - skb->data;
 
-	if (inward) {
-		skb->ip_summed = CHECKSUM_NONE;
-		goto out;
+	if (inward)
+		goto out_set_summed;
+
+	if (unlikely(skb_shinfo(skb)->gso_size)) {
+		/* Let GSO fix up the checksum. */
+		goto out_set_summed;
 	}
 
 	if (skb_cloned(skb)) {
@@ -1181,6 +1184,8 @@ int skb_checksum_help(struct sk_buff *skb, int inward)
 	BUG_ON(skb->csum + 2 > offset);
 
 	*(u16*)(skb->h.raw + skb->csum) = csum_fold(csum);
+
+out_set_summed:
 	skb->ip_summed = CHECKSUM_NONE;
 out:	
 	return ret;
@@ -1201,17 +1206,30 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
 	struct packet_type *ptype;
 	int type = skb->protocol;
+	int err;
 
 	BUG_ON(skb_shinfo(skb)->frag_list);
-	BUG_ON(skb->ip_summed != CHECKSUM_HW);
 
 	skb->mac.raw = skb->data;
 	skb->mac_len = skb->nh.raw - skb->data;
 	__skb_pull(skb, skb->mac_len);
 
+	if (unlikely(skb->ip_summed != CHECKSUM_HW)) {
+		if (skb_header_cloned(skb) &&
+		    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
+			return ERR_PTR(err);
+	}
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, &ptype_base[ntohs(type) & 15], list) {
 		if (ptype->type == type && !ptype->dev && ptype->gso_segment) {
+			if (unlikely(skb->ip_summed != CHECKSUM_HW)) {
+				err = ptype->gso_send_check(skb);
+				segs = ERR_PTR(err);
+				if (err || skb_gso_ok(skb, features))
+					break;
+				__skb_push(skb, skb->data - skb->nh.raw);
+			}
 			segs = ptype->gso_segment(skb, features);
 			break;
 		}
@@ -1727,7 +1745,7 @@ static int ing_filter(struct sk_buff *skb)
 	if (dev->qdisc_ingress) {
 		__u32 ttl = (__u32) G_TC_RTTL(skb->tc_verd);
 		if (MAX_RED_LOOP < ttl++) {
-			printk("Redir loop detected Dropping packet (%s->%s)\n",
+			printk(KERN_WARNING "Redir loop detected Dropping packet (%s->%s)\n",
 				skb->input_dev->name, skb->dev->name);
 			return TC_ACT_SHOT;
 		}
@@ -2922,7 +2940,7 @@ int register_netdevice(struct net_device *dev)
 	/* Fix illegal SG+CSUM combinations. */
 	if ((dev->features & NETIF_F_SG) &&
 	    !(dev->features & NETIF_F_ALL_CSUM)) {
-		printk("%s: Dropping NETIF_F_SG since no checksum feature.\n",
+		printk(KERN_NOTICE "%s: Dropping NETIF_F_SG since no checksum feature.\n",
 		       dev->name);
 		dev->features &= ~NETIF_F_SG;
 	}
@@ -2930,7 +2948,7 @@ int register_netdevice(struct net_device *dev)
 	/* TSO requires that SG is present as well. */
 	if ((dev->features & NETIF_F_TSO) &&
 	    !(dev->features & NETIF_F_SG)) {
-		printk("%s: Dropping NETIF_F_TSO since no SG feature.\n",
+		printk(KERN_NOTICE "%s: Dropping NETIF_F_TSO since no SG feature.\n",
 		       dev->name);
 		dev->features &= ~NETIF_F_TSO;
 	}
@@ -3401,12 +3419,9 @@ static void net_dma_rebalance(void)
 	unsigned int cpu, i, n;
 	struct dma_chan *chan;
 
-	lock_cpu_hotplug();
-
 	if (net_dma_count == 0) {
 		for_each_online_cpu(cpu)
-			rcu_assign_pointer(per_cpu(softnet_data.net_dma, cpu), NULL);
-		unlock_cpu_hotplug();
+			rcu_assign_pointer(per_cpu(softnet_data, cpu).net_dma, NULL);
 		return;
 	}
 
@@ -3419,15 +3434,13 @@ static void net_dma_rebalance(void)
 		   + (i < (num_online_cpus() % net_dma_count) ? 1 : 0));
 
 		while(n) {
-			per_cpu(softnet_data.net_dma, cpu) = chan;
+			per_cpu(softnet_data, cpu).net_dma = chan;
 			cpu = next_cpu(cpu, cpu_online_map);
 			n--;
 		}
 		i++;
 	}
 	rcu_read_unlock();
-
-	unlock_cpu_hotplug();
 }
 
 /**

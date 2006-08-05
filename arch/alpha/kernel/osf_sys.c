@@ -623,12 +623,12 @@ osf_sysinfo(int command, char __user *buf, long count)
 	long len, err = -EINVAL;
 
 	offset = command-1;
-	if (offset >= sizeof(sysinfo_table)/sizeof(char *)) {
+	if (offset >= ARRAY_SIZE(sysinfo_table)) {
 		/* Digital UNIX has a few unpublished interfaces here */
 		printk("sysinfo(%d)", command);
 		goto out;
 	}
-	
+
 	down_read(&uts_sem);
 	res = sysinfo_table[offset];
 	len = strlen(res)+1;

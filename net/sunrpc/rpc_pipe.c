@@ -667,10 +667,11 @@ rpc_mkdir(char *path, struct rpc_clnt *rpc_client)
 			RPCAUTH_info, RPCAUTH_EOF);
 	if (error)
 		goto err_depopulate;
+	dget(dentry);
 out:
 	mutex_unlock(&dir->i_mutex);
 	rpc_release_path(&nd);
-	return dget(dentry);
+	return dentry;
 err_depopulate:
 	rpc_depopulate(dentry);
 	__rpc_rmdir(dir, dentry);
@@ -731,10 +732,11 @@ rpc_mkpipe(char *path, void *private, struct rpc_pipe_ops *ops, int flags)
 	rpci->flags = flags;
 	rpci->ops = ops;
 	inode_dir_notify(dir, DN_CREATE);
+	dget(dentry);
 out:
 	mutex_unlock(&dir->i_mutex);
 	rpc_release_path(&nd);
-	return dget(dentry);
+	return dentry;
 err_dput:
 	dput(dentry);
 	dentry = ERR_PTR(-ENOMEM);

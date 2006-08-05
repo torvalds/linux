@@ -51,7 +51,7 @@ static unsigned int startup_8259A_irq(unsigned int irq)
 	return 0; /* never anything pending */
 }
 
-static struct hw_interrupt_type i8259A_irq_type = {
+static struct irq_chip i8259A_irq_type = {
 	.typename = "XT-PIC",
 	.startup = startup_8259A_irq,
 	.shutdown = shutdown_8259A_irq,

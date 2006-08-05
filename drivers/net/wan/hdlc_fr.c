@@ -301,7 +301,7 @@ static int pvc_open(struct net_device *dev)
 	if (pvc->open_count++ == 0) {
 		hdlc_device *hdlc = dev_to_hdlc(pvc->master);
 		if (hdlc->state.fr.settings.lmi == LMI_NONE)
-			pvc->state.active = hdlc->carrier;
+			pvc->state.active = netif_carrier_ok(pvc->master);
 
 		pvc_carrier(pvc->state.active, pvc);
 		hdlc->state.fr.dce_changed = 1;
@@ -545,11 +545,7 @@ static void fr_set_link_state(int reliable, struct net_device *dev)
 
 	hdlc->state.fr.reliable = reliable;
 	if (reliable) {
-#if 0
-		if (!netif_carrier_ok(dev))
-			netif_carrier_on(dev);
-#endif
-
+		netif_dormant_off(dev);
 		hdlc->state.fr.n391cnt = 0; /* Request full status */
 		hdlc->state.fr.dce_changed = 1;
 
@@ -562,11 +558,7 @@ static void fr_set_link_state(int reliable, struct net_device *dev)
 			}
 		}
 	} else {
-#if 0
-		if (netif_carrier_ok(dev))
-			netif_carrier_off(dev);
-#endif
-
+		netif_dormant_on(dev);
 		while (pvc) {		/* Deactivate all PVCs */
 			pvc_carrier(0, pvc);
 			pvc->state.exist = pvc->state.active = 0;

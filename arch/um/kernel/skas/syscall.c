@@ -18,11 +18,7 @@ void handle_syscall(union uml_pt_regs *r)
 	struct pt_regs *regs = container_of(r, struct pt_regs, regs);
 	long result;
 	int syscall;
-#ifdef UML_CONFIG_SYSCALL_DEBUG
-  	int index;
 
-  	index = record_syscall_start(UPT_SYSCALL_NR(r));
-#endif
 	syscall_trace(r, 0);
 
 	current->thread.nsyscalls++;
@@ -44,7 +40,4 @@ void handle_syscall(union uml_pt_regs *r)
 	REGS_SET_SYSCALL_RETURN(r->skas.regs, result);
 
 	syscall_trace(r, 1);
-#ifdef UML_CONFIG_SYSCALL_DEBUG
-  	record_syscall_end(index, result);
-#endif
 }

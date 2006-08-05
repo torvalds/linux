@@ -6,7 +6,6 @@
 
 #include <linux/netfilter.h>
 #if defined(__KERNEL__) && defined(CONFIG_BRIDGE_NETFILTER)
-#include <asm/atomic.h>
 #include <linux/if_ether.h>
 #endif
 
@@ -79,6 +78,8 @@ struct bridge_skb_cb {
 		__u32 ipv4;
 	} daddr;
 };
+
+extern int brnf_deferred_hooks;
 #endif /* CONFIG_BRIDGE_NETFILTER */
 
 #endif /* __KERNEL__ */

@@ -246,6 +246,7 @@ static int superblock_alloc_security(struct super_block *sb)
 	sbsec->sb = sb;
 	sbsec->sid = SECINITSID_UNLABELED;
 	sbsec->def_sid = SECINITSID_FILE;
+	sbsec->mntpoint_sid = SECINITSID_UNLABELED;
 	sb->s_security = sbsec;
 
 	return 0;
@@ -319,19 +320,53 @@ enum {
 	Opt_context = 1,
 	Opt_fscontext = 2,
 	Opt_defcontext = 4,
+	Opt_rootcontext = 8,
 };
 
 static match_table_t tokens = {
 	{Opt_context, "context=%s"},
 	{Opt_fscontext, "fscontext=%s"},
 	{Opt_defcontext, "defcontext=%s"},
+	{Opt_rootcontext, "rootcontext=%s"},
 };
 
 #define SEL_MOUNT_FAIL_MSG "SELinux:  duplicate or incompatible mount options\n"
 
+static int may_context_mount_sb_relabel(u32 sid,
+			struct superblock_security_struct *sbsec,
+			struct task_security_struct *tsec)
+{
+	int rc;
+
+	rc = avc_has_perm(tsec->sid, sbsec->sid, SECCLASS_FILESYSTEM,
+			  FILESYSTEM__RELABELFROM, NULL);
+	if (rc)
+		return rc;
+
+	rc = avc_has_perm(tsec->sid, sid, SECCLASS_FILESYSTEM,
+			  FILESYSTEM__RELABELTO, NULL);
+	return rc;
+}
+
+static int may_context_mount_inode_relabel(u32 sid,
+			struct superblock_security_struct *sbsec,
+			struct task_security_struct *tsec)
+{
+	int rc;
+	rc = avc_has_perm(tsec->sid, sbsec->sid, SECCLASS_FILESYSTEM,
+			  FILESYSTEM__RELABELFROM, NULL);
+	if (rc)
+		return rc;
+
+	rc = avc_has_perm(sid, sbsec->sid, SECCLASS_FILESYSTEM,
+			  FILESYSTEM__ASSOCIATE, NULL);
+	return rc;
+}
+
 static int try_context_mount(struct super_block *sb, void *data)
 {
 	char *context = NULL, *defcontext = NULL;
+	char *fscontext = NULL, *rootcontext = NULL;
 	const char *name;
 	u32 sid;
 	int alloc = 0, rc = 0, seen = 0;
@@ -374,7 +409,7 @@ static int try_context_mount(struct super_block *sb, void *data)
 
 			switch (token) {
 			case Opt_context:
-				if (seen) {
+				if (seen & (Opt_context|Opt_defcontext)) {
 					rc = -EINVAL;
 					printk(KERN_WARNING SEL_MOUNT_FAIL_MSG);
 					goto out_free;
@@ -390,19 +425,35 @@ static int try_context_mount(struct super_block *sb, void *data)
 				break;
 
 			case Opt_fscontext:
-				if (seen & (Opt_context|Opt_fscontext)) {
+				if (seen & Opt_fscontext) {
 					rc = -EINVAL;
 					printk(KERN_WARNING SEL_MOUNT_FAIL_MSG);
 					goto out_free;
 				}
-				context = match_strdup(&args[0]);
-				if (!context) {
+				fscontext = match_strdup(&args[0]);
+				if (!fscontext) {
 					rc = -ENOMEM;
 					goto out_free;
 				}
 				if (!alloc)
 					alloc = 1;
 				seen |= Opt_fscontext;
+				break;
+
+			case Opt_rootcontext:
+				if (seen & Opt_rootcontext) {
+					rc = -EINVAL;
+					printk(KERN_WARNING SEL_MOUNT_FAIL_MSG);
+					goto out_free;
+				}
+				rootcontext = match_strdup(&args[0]);
+				if (!rootcontext) {
+					rc = -ENOMEM;
+					goto out_free;
+				}
+				if (!alloc)
+					alloc = 1;
+				seen |= Opt_rootcontext;
 				break;
 
 			case Opt_defcontext:
@@ -441,6 +492,28 @@ static int try_context_mount(struct super_block *sb, void *data)
 	if (!seen)
 		goto out;
 
+	/* sets the context of the superblock for the fs being mounted. */
+	if (fscontext) {
+		rc = security_context_to_sid(fscontext, strlen(fscontext), &sid);
+		if (rc) {
+			printk(KERN_WARNING "SELinux: security_context_to_sid"
+			       "(%s) failed for (dev %s, type %s) errno=%d\n",
+			       fscontext, sb->s_id, name, rc);
+			goto out_free;
+		}
+
+		rc = may_context_mount_sb_relabel(sid, sbsec, tsec);
+		if (rc)
+			goto out_free;
+
+		sbsec->sid = sid;
+	}
+
+	/*
+	 * Switch to using mount point labeling behavior.
+	 * sets the label used on all file below the mountpoint, and will set
+	 * the superblock context if not already set.
+	 */
 	if (context) {
 		rc = security_context_to_sid(context, strlen(context), &sid);
 		if (rc) {
@@ -450,20 +523,38 @@ static int try_context_mount(struct super_block *sb, void *data)
 			goto out_free;
 		}
 
-		rc = avc_has_perm(tsec->sid, sbsec->sid, SECCLASS_FILESYSTEM,
-		                  FILESYSTEM__RELABELFROM, NULL);
+		if (!fscontext) {
+			rc = may_context_mount_sb_relabel(sid, sbsec, tsec);
+			if (rc)
+				goto out_free;
+			sbsec->sid = sid;
+		} else {
+			rc = may_context_mount_inode_relabel(sid, sbsec, tsec);
+			if (rc)
+				goto out_free;
+		}
+		sbsec->mntpoint_sid = sid;
+
+		sbsec->behavior = SECURITY_FS_USE_MNTPOINT;
+	}
+
+	if (rootcontext) {
+		struct inode *inode = sb->s_root->d_inode;
+		struct inode_security_struct *isec = inode->i_security;
+		rc = security_context_to_sid(rootcontext, strlen(rootcontext), &sid);
+		if (rc) {
+			printk(KERN_WARNING "SELinux: security_context_to_sid"
+			       "(%s) failed for (dev %s, type %s) errno=%d\n",
+			       rootcontext, sb->s_id, name, rc);
+			goto out_free;
+		}
+
+		rc = may_context_mount_inode_relabel(sid, sbsec, tsec);
 		if (rc)
 			goto out_free;
 
-		rc = avc_has_perm(tsec->sid, sid, SECCLASS_FILESYSTEM,
-		                  FILESYSTEM__RELABELTO, NULL);
-		if (rc)
-			goto out_free;
-
-		sbsec->sid = sid;
-
-		if (seen & Opt_context)
-			sbsec->behavior = SECURITY_FS_USE_MNTPOINT;
+		isec->sid = sid;
+		isec->initialized = 1;
 	}
 
 	if (defcontext) {
@@ -478,13 +569,7 @@ static int try_context_mount(struct super_block *sb, void *data)
 		if (sid == sbsec->def_sid)
 			goto out_free;
 
-		rc = avc_has_perm(tsec->sid, sbsec->sid, SECCLASS_FILESYSTEM,
-				  FILESYSTEM__RELABELFROM, NULL);
-		if (rc)
-			goto out_free;
-
-		rc = avc_has_perm(sid, sbsec->sid, SECCLASS_FILESYSTEM,
-				  FILESYSTEM__ASSOCIATE, NULL);
+		rc = may_context_mount_inode_relabel(sid, sbsec, tsec);
 		if (rc)
 			goto out_free;
 
@@ -495,6 +580,8 @@ out_free:
 	if (alloc) {
 		kfree(context);
 		kfree(defcontext);
+		kfree(fscontext);
+		kfree(rootcontext);
 	}
 out:
 	return rc;
@@ -876,8 +963,11 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			goto out;
 		isec->sid = sid;
 		break;
+	case SECURITY_FS_USE_MNTPOINT:
+		isec->sid = sbsec->mntpoint_sid;
+		break;
 	default:
-		/* Default to the fs SID. */
+		/* Default to the fs superblock SID. */
 		isec->sid = sbsec->sid;
 
 		if (sbsec->proc) {
@@ -1843,7 +1933,8 @@ static inline int selinux_option(char *option, int len)
 {
 	return (match_prefix("context=", sizeof("context=")-1, option, len) ||
 	        match_prefix("fscontext=", sizeof("fscontext=")-1, option, len) ||
-	        match_prefix("defcontext=", sizeof("defcontext=")-1, option, len));
+	        match_prefix("defcontext=", sizeof("defcontext=")-1, option, len) ||
+		match_prefix("rootcontext=", sizeof("rootcontext=")-1, option, len));
 }
 
 static inline void take_option(char **to, char *from, int *first, int len)
@@ -3433,25 +3524,21 @@ out:
 	return err;
 }
 
-static int selinux_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata, u32 *seclen)
+static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
+	u32 peer_secid = SECSID_NULL;
 	int err = 0;
-	u32 peer_sid;
 
-	if (skb->sk->sk_family == PF_UNIX)
-		selinux_get_inode_sid(SOCK_INODE(skb->sk->sk_socket),
-				      &peer_sid);
-	else
-		peer_sid = selinux_socket_getpeer_dgram(skb);
+	if (sock && (sock->sk->sk_family == PF_UNIX))
+		selinux_get_inode_sid(SOCK_INODE(sock), &peer_secid);
+	else if (skb)
+		peer_secid = selinux_socket_getpeer_dgram(skb);
 
-	if (peer_sid == SECSID_NULL)
-		return -EINVAL;
+	if (peer_secid == SECSID_NULL)
+		err = -EINVAL;
+	*secid = peer_secid;
 
-	err = security_sid_to_context(peer_sid, secdata, seclen);
-	if (err)
-		return err;
-
-	return 0;
+	return err;
 }
 
 static int selinux_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
@@ -4316,6 +4403,17 @@ static int selinux_setprocattr(struct task_struct *p,
 	return size;
 }
 
+static int selinux_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
+{
+	return security_sid_to_context(secid, secdata, seclen);
+}
+
+static void selinux_release_secctx(char *secdata, u32 seclen)
+{
+	if (secdata)
+		kfree(secdata);
+}
+
 #ifdef CONFIG_KEYS
 
 static int selinux_key_alloc(struct key *k, struct task_struct *tsk,
@@ -4495,6 +4593,9 @@ static struct security_operations selinux_ops = {
 
 	.getprocattr =                  selinux_getprocattr,
 	.setprocattr =                  selinux_setprocattr,
+
+	.secid_to_secctx =		selinux_secid_to_secctx,
+	.release_secctx =		selinux_release_secctx,
 
         .unix_stream_connect =		selinux_socket_unix_stream_connect,
 	.unix_may_send =		selinux_socket_unix_may_send,

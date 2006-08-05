@@ -296,7 +296,6 @@ static void shutdown_bridge_irq(unsigned int irq)
 	struct bridge_controller *bc = IRQ_TO_BRIDGE(irq);
 	struct hub_data *hub = hub_data(cpu_to_node(bc->irq_cpu));
 	bridge_t *bridge = bc->base;
-	struct slice_data *si = cpu_data[bc->irq_cpu].data;
 	int pin, swlevel;
 	cpuid_t cpu;
 
@@ -311,7 +310,6 @@ static void shutdown_bridge_irq(unsigned int irq)
 	intr_disconnect_level(cpu, swlevel);
 
 	__clear_bit(swlevel, hub->irq_alloc_mask);
-	si->level_to_irq[swlevel] = -1;
 
 	bridge->b_int_enable &= ~(1 << pin);
 	bridge->b_wid_tflush;
@@ -347,7 +345,7 @@ static void end_bridge_irq(unsigned int irq)
 		enable_bridge_irq(irq);
 }
 
-static struct hw_interrupt_type bridge_irq_type = {
+static struct irq_chip bridge_irq_type = {
 	.typename	= "bridge",
 	.startup	= startup_bridge_irq,
 	.shutdown	= shutdown_bridge_irq,

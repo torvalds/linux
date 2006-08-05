@@ -106,6 +106,7 @@ struct sas_end_device {
 
 struct sas_expander_device {
 	int    level;
+	int    next_port_id;
 
 	#define SAS_EXPANDER_VENDOR_ID_LEN	8
 	char   vendor_id[SAS_EXPANDER_VENDOR_ID_LEN+1];
@@ -127,8 +128,10 @@ struct sas_expander_device {
 struct sas_port {
 	struct device		dev;
 
-	u8			port_identifier;
+	int			port_identifier;
 	int			num_phys;
+	/* port flags */
+	unsigned int		is_backlink:1;
 
 	/* the other end of the link */
 	struct sas_rphy		*rphy;
@@ -168,11 +171,13 @@ extern void sas_rphy_delete(struct sas_rphy *);
 extern int scsi_is_sas_rphy(const struct device *);
 
 struct sas_port *sas_port_alloc(struct device *, int);
+struct sas_port *sas_port_alloc_num(struct device *);
 int sas_port_add(struct sas_port *);
 void sas_port_free(struct sas_port *);
 void sas_port_delete(struct sas_port *);
 void sas_port_add_phy(struct sas_port *, struct sas_phy *);
 void sas_port_delete_phy(struct sas_port *, struct sas_phy *);
+void sas_port_mark_backlink(struct sas_port *);
 int scsi_is_sas_port(const struct device *);
 
 extern struct scsi_transport_template *

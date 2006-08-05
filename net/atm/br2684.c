@@ -508,10 +508,9 @@ Note: we do not have explicit unassign, but look at _push()
 
 	if (copy_from_user(&be, arg, sizeof be))
 		return -EFAULT;
-	brvcc = kmalloc(sizeof(struct br2684_vcc), GFP_KERNEL);
+	brvcc = kzalloc(sizeof(struct br2684_vcc), GFP_KERNEL);
 	if (!brvcc)
 		return -ENOMEM;
-	memset(brvcc, 0, sizeof(struct br2684_vcc));
 	write_lock_irq(&devs_lock);
 	net_dev = br2684_find_dev(&be.ifspec);
 	if (net_dev == NULL) {

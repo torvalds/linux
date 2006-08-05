@@ -24,10 +24,10 @@
 #define DBUSY_TIMER_VALUE 80
 #define ARCOFI_USE 0
 
-static char *ICCVer[] __initdata =
+static char *ICCVer[] =
 {"2070 A1/A3", "2070 B1", "2070 B2/B3", "2070 V2.4"};
 
-void __init
+void
 ICCVersion(struct IsdnCardState *cs, char *s)
 {
 	int val;
@@ -613,7 +613,7 @@ dbusy_timer_handler(struct IsdnCardState *cs)
 	}
 }
 
-void __init
+void
 initicc(struct IsdnCardState *cs)
 {
 	cs->setstack_d = setstack_icc;
@@ -646,7 +646,7 @@ initicc(struct IsdnCardState *cs)
 	ph_command(cs, ICC_CMD_DI);
 }
 
-void __init
+void
 clear_pending_icc_ints(struct IsdnCardState *cs)
 {
 	int val, eval;
