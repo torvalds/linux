@@ -2340,6 +2340,7 @@ static int reiserfs_write_full_page(struct page *page,
 	unsigned long end_index = inode->i_size >> PAGE_CACHE_SHIFT;
 	int error = 0;
 	unsigned long block;
+	sector_t last_block;
 	struct buffer_head *head, *bh;
 	int partial = 0;
 	int nr = 0;
@@ -2387,10 +2388,19 @@ static int reiserfs_write_full_page(struct page *page,
 	}
 	bh = head;
 	block = page->index << (PAGE_CACHE_SHIFT - s->s_blocksize_bits);
+	last_block = (i_size_read(inode) - 1) >> inode->i_blkbits;
 	/* first map all the buffers, logging any direct items we find */
 	do {
-		if ((checked || buffer_dirty(bh)) && (!buffer_mapped(bh) ||
-						      (buffer_mapped(bh)
+		if (block > last_block) {
+			/*
+			 * This can happen when the block size is less than
+			 * the page size.  The corresponding bytes in the page
+			 * were zero filled above
+			 */
+			clear_buffer_dirty(bh);
+			set_buffer_uptodate(bh);
+		} else if ((checked || buffer_dirty(bh)) &&
+		           (!buffer_mapped(bh) || (buffer_mapped(bh)
 						       && bh->b_blocknr ==
 						       0))) {
 			/* not mapped yet, or it points to a direct item, search
