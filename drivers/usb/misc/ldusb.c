@@ -589,7 +589,7 @@ exit:
 }
 
 /* file operations needed when we register this driver */
-static struct file_operations ld_usb_fops = {
+static const struct file_operations ld_usb_fops = {
 	.owner =	THIS_MODULE,
 	.read  =	ld_usb_read,
 	.write =	ld_usb_write,

@@ -62,7 +62,7 @@ static int mon_stat_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct file_operations mon_fops_stat = {
+const struct file_operations mon_fops_stat = {
 	.owner =	THIS_MODULE,
 	.open =		mon_stat_open,
 	.llseek =	no_llseek,

@@ -813,7 +813,7 @@ static unsigned int usblp_quirks (__u16 vendor, __u16 product)
 	return 0;
 }
 
-static struct file_operations usblp_fops = {
+static const struct file_operations usblp_fops = {
 	.owner =	THIS_MODULE,
 	.read =		usblp_read,
 	.write =	usblp_write,

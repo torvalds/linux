@@ -90,8 +90,8 @@ extern const char *usbcore_name;
 /* usbfs stuff */
 extern struct mutex usbfs_mutex;
 extern struct usb_driver usbfs_driver;
-extern struct file_operations usbfs_devices_fops;
-extern struct file_operations usbfs_device_file_operations;
+extern const struct file_operations usbfs_devices_fops;
+extern const struct file_operations usbfs_device_file_operations;
 extern void usbfs_conn_disc_event(void);
 
 extern int usbdev_init(void);

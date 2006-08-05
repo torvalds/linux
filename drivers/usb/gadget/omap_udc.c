@@ -2437,7 +2437,7 @@ static int proc_udc_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_udc_show, NULL);
 }
 
-static struct file_operations proc_ops = {
+static const struct file_operations proc_ops = {
 	.open		= proc_udc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

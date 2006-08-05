@@ -1572,7 +1572,7 @@ static unsigned int usbdev_poll(struct file *file, struct poll_table_struct *wai
 	return mask;
 }
 
-struct file_operations usbfs_device_file_operations = {
+const struct file_operations usbfs_device_file_operations = {
 	.llseek =	usbdev_lseek,
 	.read =		usbdev_read,
 	.poll =		usbdev_poll,

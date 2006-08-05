@@ -243,7 +243,7 @@ exit:
 	return retval;
 }
 
-static struct file_operations skel_fops = {
+static const struct file_operations skel_fops = {
 	.owner =	THIS_MODULE,
 	.read =		skel_read,
 	.write =	skel_write,

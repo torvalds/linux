@@ -435,7 +435,7 @@ static int mon_text_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct file_operations mon_fops_text = {
+const struct file_operations mon_fops_text = {
 	.owner =	THIS_MODULE,
 	.open =		mon_text_open,
 	.llseek =	no_llseek,

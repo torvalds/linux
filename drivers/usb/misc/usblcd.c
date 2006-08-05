@@ -239,7 +239,7 @@ error:
 	return retval;
 }
 
-static struct file_operations lcd_fops = {
+static const struct file_operations lcd_fops = {
         .owner =        THIS_MODULE,
         .read =         lcd_read,
         .write =        lcd_write,

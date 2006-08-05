@@ -1858,7 +1858,7 @@ static int auerchar_release (struct inode *inode, struct file *file)
 
 /*----------------------------------------------------------------------*/
 /* File operation structure                                             */
-static struct file_operations auerswald_fops =
+static const struct file_operations auerswald_fops =
 {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,

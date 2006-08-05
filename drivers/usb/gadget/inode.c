@@ -714,7 +714,7 @@ ep_aio_write(struct kiocb *iocb, const char __user *ubuf, size_t len, loff_t o)
 /*----------------------------------------------------------------------*/
 
 /* used after endpoint configuration */
-static struct file_operations ep_io_operations = {
+static const struct file_operations ep_io_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
@@ -873,7 +873,7 @@ ep_open (struct inode *inode, struct file *fd)
 }
 
 /* used before endpoint configuration */
-static struct file_operations ep_config_operations = {
+static const struct file_operations ep_config_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
@@ -1247,7 +1247,7 @@ static int dev_ioctl (struct inode *inode, struct file *fd,
 }
 
 /* used after device configuration */
-static struct file_operations ep0_io_operations = {
+static const struct file_operations ep0_io_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
@@ -1929,7 +1929,7 @@ dev_open (struct inode *inode, struct file *fd)
 	return value;
 }
 
-static struct file_operations dev_init_operations = {
+static const struct file_operations dev_init_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
