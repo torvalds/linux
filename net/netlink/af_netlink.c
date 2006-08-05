@@ -1147,7 +1147,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (len > sk->sk_sndbuf - 32)
 		goto out;
 	err = -ENOBUFS;
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = nlmsg_new(len, GFP_KERNEL);
 	if (skb==NULL)
 		goto out;
 
@@ -1341,19 +1341,18 @@ static int netlink_dump(struct sock *sk)
 	struct netlink_callback *cb;
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
-	int len;
+	int len, err = -ENOBUFS;
 	
 	skb = sock_rmalloc(sk, NLMSG_GOODSIZE, 0, GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		goto errout;
 
 	spin_lock(&nlk->cb_lock);
 
 	cb = nlk->cb;
 	if (cb == NULL) {
-		spin_unlock(&nlk->cb_lock);
-		kfree_skb(skb);
-		return -EINVAL;
+		err = -EINVAL;
+		goto errout_skb;
 	}
 
 	len = cb->dump(skb, cb);
@@ -1365,8 +1364,12 @@ static int netlink_dump(struct sock *sk)
 		return 0;
 	}
 
-	nlh = NLMSG_NEW_ANSWER(skb, cb, NLMSG_DONE, sizeof(len), NLM_F_MULTI);
-	memcpy(NLMSG_DATA(nlh), &len, sizeof(len));
+	nlh = nlmsg_put_answer(skb, cb, NLMSG_DONE, sizeof(len), NLM_F_MULTI);
+	if (!nlh)
+		goto errout_skb;
+
+	memcpy(nlmsg_data(nlh), &len, sizeof(len));
+
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk, skb->len);
 
@@ -1378,8 +1381,11 @@ static int netlink_dump(struct sock *sk)
 	netlink_destroy_callback(cb);
 	return 0;
 
-nlmsg_failure:
-	return -ENOBUFS;
+errout_skb:
+	spin_unlock(&nlk->cb_lock);
+	kfree_skb(skb);
+errout:
+	return err;
 }
 
 int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
@@ -1431,11 +1437,11 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 	int size;
 
 	if (err == 0)
-		size = NLMSG_SPACE(sizeof(struct nlmsgerr));
+		size = nlmsg_total_size(sizeof(*errmsg));
 	else
-		size = NLMSG_SPACE(4 + NLMSG_ALIGN(nlh->nlmsg_len));
+		size = nlmsg_total_size(sizeof(*errmsg) + nlmsg_len(nlh));
 
-	skb = alloc_skb(size, GFP_KERNEL);
+	skb = nlmsg_new(size, GFP_KERNEL);
 	if (!skb) {
 		struct sock *sk;
 
@@ -1451,16 +1457,15 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 
 	rep = __nlmsg_put(skb, NETLINK_CB(in_skb).pid, nlh->nlmsg_seq,
 			  NLMSG_ERROR, sizeof(struct nlmsgerr), 0);
-	errmsg = NLMSG_DATA(rep);
+	errmsg = nlmsg_data(rep);
 	errmsg->error = err;
-	memcpy(&errmsg->msg, nlh, err ? nlh->nlmsg_len : sizeof(struct nlmsghdr));
+	memcpy(&errmsg->msg, nlh, err ? nlh->nlmsg_len : sizeof(*nlh));
 	netlink_unicast(in_skb->sk, skb, NETLINK_CB(in_skb).pid, MSG_DONTWAIT);
 }
 
 static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 						     struct nlmsghdr *, int *))
 {
-	unsigned int total_len;
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -1469,8 +1474,6 @@ static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 
 		if (nlh->nlmsg_len < NLMSG_HDRLEN || skb->len < nlh->nlmsg_len)
 			return 0;
-
-		total_len = min(NLMSG_ALIGN(nlh->nlmsg_len), skb->len);
 
 		if (cb(skb, nlh, &err) < 0) {
 			/* Not an error, but we have to interrupt processing
@@ -1483,7 +1486,7 @@ static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 		} else if (nlh->nlmsg_flags & NLM_F_ACK)
 			netlink_ack(skb, nlh, 0);
 
-		skb_pull(skb, total_len);
+		netlink_queue_skip(nlh, skb);
 	}
 
 	return 0;
