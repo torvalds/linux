@@ -52,6 +52,9 @@ static int __add_section(struct zone *zone, unsigned long phys_start_pfn)
 	int nr_pages = PAGES_PER_SECTION;
 	int ret;
 
+	if (pfn_valid(phys_start_pfn))
+		return -EEXIST;
+
 	ret = sparse_add_one_section(zone, phys_start_pfn, nr_pages);
 
 	if (ret < 0)
@@ -220,10 +223,9 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
 }
 
 /* add this memory to iomem resource */
-static int register_memory_resource(u64 start, u64 size)
+static struct resource *register_memory_resource(u64 start, u64 size)
 {
 	struct resource *res;
-	int ret = 0;
 	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	BUG_ON(!res);
 
@@ -235,9 +237,18 @@ static int register_memory_resource(u64 start, u64 size)
 		printk("System RAM resource %llx - %llx cannot be added\n",
 		(unsigned long long)res->start, (unsigned long long)res->end);
 		kfree(res);
-		ret = -EEXIST;
+		res = NULL;
 	}
-	return ret;
+	return res;
+}
+
+static void release_memory_resource(struct resource *res)
+{
+	if (!res)
+		return;
+	release_resource(res);
+	kfree(res);
+	return;
 }
 
 
@@ -246,7 +257,12 @@ int add_memory(int nid, u64 start, u64 size)
 {
 	pg_data_t *pgdat = NULL;
 	int new_pgdat = 0;
+	struct resource *res;
 	int ret;
+
+	res = register_memory_resource(start, size);
+	if (!res)
+		return -EEXIST;
 
 	if (!node_online(nid)) {
 		pgdat = hotadd_new_pgdat(nid, start);
@@ -277,14 +293,13 @@ int add_memory(int nid, u64 start, u64 size)
 		BUG_ON(ret);
 	}
 
-	/* register this memory as resource */
-	ret = register_memory_resource(start, size);
-
 	return ret;
 error:
 	/* rollback pgdat allocation and others */
 	if (new_pgdat)
 		rollback_node_hotadd(nid, pgdat);
+	if (res)
+		release_memory_resource(res);
 
 	return ret;
 }
