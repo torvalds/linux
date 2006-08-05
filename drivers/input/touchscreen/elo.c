@@ -34,7 +34,11 @@ MODULE_LICENSE("GPL");
  * Definitions & global arrays.
  */
 
-#define	ELO_MAX_LENGTH	10
+#define ELO_MAX_LENGTH		10
+
+#define ELO10_LEAD_BYTE		'U'
+
+#define ELO10_TOUCH_PACKET	'T'
 
 /*
  * Per-touchscreen data.
@@ -50,44 +54,43 @@ struct elo {
 	char phys[32];
 };
 
-static void elo_process_data_10(struct elo* elo, unsigned char data, struct pt_regs *regs)
+static void elo_process_data_10(struct elo *elo, unsigned char data, struct pt_regs *regs)
 {
 	struct input_dev *dev = elo->dev;
 
-	elo->csum += elo->data[elo->idx] = data;
-
+	elo->data[elo->idx] = data;
 	switch (elo->idx++) {
-
 		case 0:
-			if (data != 'U') {
+			elo->csum = 0xaa;
+			if (data != ELO10_LEAD_BYTE) {
+				pr_debug("elo: unsynchronized data: 0x%02x\n", data);
 				elo->idx = 0;
-				elo->csum = 0;
-			}
-			break;
-
-		case 1:
-			if (data != 'T') {
-				elo->idx = 0;
-				elo->csum = 0;
 			}
 			break;
 
 		case 9:
-			if (elo->csum) {
-				input_regs(dev, regs);
-				input_report_abs(dev, ABS_X, (elo->data[4] << 8) | elo->data[3]);
-				input_report_abs(dev, ABS_Y, (elo->data[6] << 8) | elo->data[5]);
-				input_report_abs(dev, ABS_PRESSURE, (elo->data[8] << 8) | elo->data[7]);
-				input_report_key(dev, BTN_TOUCH, elo->data[8] || elo->data[7]);
-				input_sync(dev);
-			}
 			elo->idx = 0;
-			elo->csum = 0;
+			if (data != elo->csum) {
+				pr_debug("elo: bad checksum: 0x%02x, expected 0x%02x\n",
+					 data, elo->csum);
+				break;
+			}
+			if (elo->data[1] != ELO10_TOUCH_PACKET) {
+				pr_debug(elo: "unexpected packet: 0x%02x\n", elo->data[1]);
+				break;
+			}
+			input_regs(dev, regs);
+			input_report_abs(dev, ABS_X, (elo->data[4] << 8) | elo->data[3]);
+			input_report_abs(dev, ABS_Y, (elo->data[6] << 8) | elo->data[5]);
+			input_report_abs(dev, ABS_PRESSURE, (elo->data[8] << 8) | elo->data[7]);
+			input_report_key(dev, BTN_TOUCH, elo->data[8] || elo->data[7]);
+			input_sync(dev);
 			break;
 	}
+	elo->csum += data;
 }
 
-static void elo_process_data_6(struct elo* elo, unsigned char data, struct pt_regs *regs)
+static void elo_process_data_6(struct elo *elo, unsigned char data, struct pt_regs *regs)
 {
 	struct input_dev *dev = elo->dev;
 
@@ -135,7 +138,7 @@ static void elo_process_data_6(struct elo* elo, unsigned char data, struct pt_re
 	}
 }
 
-static void elo_process_data_3(struct elo* elo, unsigned char data, struct pt_regs *regs)
+static void elo_process_data_3(struct elo *elo, unsigned char data, struct pt_regs *regs)
 {
 	struct input_dev *dev = elo->dev;
 
@@ -161,7 +164,7 @@ static void elo_process_data_3(struct elo* elo, unsigned char data, struct pt_re
 static irqreturn_t elo_interrupt(struct serio *serio,
 		unsigned char data, unsigned int flags, struct pt_regs *regs)
 {
-	struct elo* elo = serio_get_drvdata(serio);
+	struct elo *elo = serio_get_drvdata(serio);
 
 	switch(elo->id) {
 		case 0:
