@@ -311,7 +311,8 @@ static void hvsi_recv_control(struct hvsi_struct *hp, uint8_t *packet,
 				/* CD went away; no more connection */
 				pr_debug("hvsi%i: CD dropped\n", hp->index);
 				hp->mctrl &= TIOCM_CD;
-				if (!(hp->tty->flags & CLOCAL))
+				/* If userland hasn't done an open(2) yet, hp->tty is NULL. */
+				if (hp->tty && !(hp->tty->flags & CLOCAL))
 					*to_hangup = hp->tty;
 			}
 			break;
