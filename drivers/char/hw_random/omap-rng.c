@@ -25,12 +25,12 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/random.h>
+#include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/hw_random.h>
 
 #include <asm/io.h>
-#include <asm/hardware/clock.h>
 
 #define RNG_OUT_REG		0x00		/* Output register */
 #define RNG_STAT_REG		0x04		/* Status register
@@ -52,7 +52,7 @@
 
 static void __iomem *rng_base;
 static struct clk *rng_ick;
-static struct device *rng_dev;
+static struct platform_device *rng_dev;
 
 static u32 omap_rng_read_reg(int reg)
 {
@@ -83,9 +83,8 @@ static struct hwrng omap_rng_ops = {
 	.data_read	= omap_rng_data_read,
 };
 
-static int __init omap_rng_probe(struct device *dev)
+static int __init omap_rng_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res, *mem;
 	int ret;
 
@@ -95,16 +94,14 @@ static int __init omap_rng_probe(struct device *dev)
 	 */
 	BUG_ON(rng_dev);
 
-    	if (cpu_is_omap24xx()) {
+	if (cpu_is_omap24xx()) {
 		rng_ick = clk_get(NULL, "rng_ick");
 		if (IS_ERR(rng_ick)) {
-			dev_err(dev, "Could not get rng_ick\n");
+			dev_err(&pdev->dev, "Could not get rng_ick\n");
 			ret = PTR_ERR(rng_ick);
 			return ret;
-		}
-		else {
-			clk_use(rng_ick);
-		}
+		} else
+			clk_enable(rng_ick);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -117,7 +114,7 @@ static int __init omap_rng_probe(struct device *dev)
 	if (mem == NULL)
 		return -EBUSY;
 
-	dev_set_drvdata(dev, mem);
+	dev_set_drvdata(&pdev->dev, mem);
 	rng_base = (u32 __iomem *)io_p2v(res->start);
 
 	ret = hwrng_register(&omap_rng_ops);
@@ -127,25 +124,25 @@ static int __init omap_rng_probe(struct device *dev)
 		return ret;
 	}
 
-	dev_info(dev, "OMAP Random Number Generator ver. %02x\n",
+	dev_info(&pdev->dev, "OMAP Random Number Generator ver. %02x\n",
 		omap_rng_read_reg(RNG_REV_REG));
 	omap_rng_write_reg(RNG_MASK_REG, 0x1);
 
-	rng_dev = dev;
+	rng_dev = pdev;
 
 	return 0;
 }
 
-static int __exit omap_rng_remove(struct device *dev)
+static int __exit omap_rng_remove(struct platform_device *pdev)
 {
-	struct resource *mem = dev_get_drvdata(dev);
+	struct resource *mem = dev_get_drvdata(&pdev->dev);
 
 	hwrng_unregister(&omap_rng_ops);
 
 	omap_rng_write_reg(RNG_MASK_REG, 0x0);
 
 	if (cpu_is_omap24xx()) {
-		clk_unuse(rng_ick);
+		clk_disable(rng_ick);
 		clk_put(rng_ick);
 	}
 
@@ -157,18 +154,16 @@ static int __exit omap_rng_remove(struct device *dev)
 
 #ifdef CONFIG_PM
 
-static int omap_rng_suspend(struct device *dev, pm_message_t message, u32 level)
+static int omap_rng_suspend(struct platform_device *pdev, pm_message_t message)
 {
 	omap_rng_write_reg(RNG_MASK_REG, 0x0);
-
 	return 0;
 }
 
-static int omap_rng_resume(struct device *dev, pm_message_t message, u32 level)
+static int omap_rng_resume(struct platform_device *pdev)
 {
 	omap_rng_write_reg(RNG_MASK_REG, 0x1);
-
-	return 1;
+	return 0;
 }
 
 #else
@@ -179,9 +174,11 @@ static int omap_rng_resume(struct device *dev, pm_message_t message, u32 level)
 #endif
 
 
-static struct device_driver omap_rng_driver = {
-	.name		= "omap_rng",
-	.bus		= &platform_bus_type,
+static struct platform_driver omap_rng_driver = {
+	.driver = {
+		.name		= "omap_rng",
+		.owner		= THIS_MODULE,
+	},
 	.probe		= omap_rng_probe,
 	.remove		= __exit_p(omap_rng_remove),
 	.suspend	= omap_rng_suspend,
@@ -193,12 +190,12 @@ static int __init omap_rng_init(void)
 	if (!cpu_is_omap16xx() && !cpu_is_omap24xx())
 		return -ENODEV;
 
-	return driver_register(&omap_rng_driver);
+	return platform_driver_register(&omap_rng_driver);
 }
 
 static void __exit omap_rng_exit(void)
 {
-	driver_unregister(&omap_rng_driver);
+	platform_driver_unregister(&omap_rng_driver);
 }
 
 module_init(omap_rng_init);
