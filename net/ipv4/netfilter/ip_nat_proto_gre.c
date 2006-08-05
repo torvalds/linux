@@ -130,9 +130,10 @@ gre_manip_pkt(struct sk_buff **pskb,
 			if (greh->csum) {
 				/* FIXME: Never tested this code... */
 				*(gre_csum(greh)) = 
-					ip_nat_cheat_check(~*(gre_key(greh)),
+					nf_proto_csum_update(*pskb,
+							~*(gre_key(greh)),
 							tuple->dst.u.gre.key,
-							*(gre_csum(greh)));
+							*(gre_csum(greh)), 0);
 			}
 			*(gre_key(greh)) = tuple->dst.u.gre.key;
 			break;

@@ -52,7 +52,7 @@ static inline int
 set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 {
 	struct tcphdr _tcph, *tcph;
-	u_int16_t diffs[2];
+	u_int16_t oldval;
 
 	/* Not enought header? */
 	tcph = skb_header_pointer(*pskb, (*pskb)->nh.iph->ihl*4,
@@ -70,23 +70,16 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 		return 0;
 	tcph = (void *)(*pskb)->nh.iph + (*pskb)->nh.iph->ihl*4;
 
-	if (((*pskb)->ip_summed == CHECKSUM_PARTIAL ||
-	     (*pskb)->ip_summed == CHECKSUM_COMPLETE) &&
-	    skb_checksum_help(*pskb))
-		return 0;
-
-	diffs[0] = ((u_int16_t *)tcph)[6];
+	oldval = ((u_int16_t *)tcph)[6];
 	if (einfo->operation & IPT_ECN_OP_SET_ECE)
 		tcph->ece = einfo->proto.tcp.ece;
 	if (einfo->operation & IPT_ECN_OP_SET_CWR)
 		tcph->cwr = einfo->proto.tcp.cwr;
-	diffs[1] = ((u_int16_t *)tcph)[6];
-	diffs[0] = diffs[0] ^ 0xFFFF;
 
-	if ((*pskb)->ip_summed != CHECKSUM_UNNECESSARY)
-		tcph->check = csum_fold(csum_partial((char *)diffs,
-						     sizeof(diffs),
-						     tcph->check^0xFFFF));
+	tcph->check = nf_proto_csum_update((*pskb),
+					   oldval ^ 0xFFFF,
+					   ((u_int16_t *)tcph)[6],
+					   tcph->check, 0);
 	return 1;
 }
 

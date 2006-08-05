@@ -222,6 +222,28 @@ copy_skb:
 }
 EXPORT_SYMBOL(skb_make_writable);
 
+u_int16_t nf_csum_update(u_int32_t oldval, u_int32_t newval, u_int32_t csum)
+{
+	u_int32_t diff[] = { oldval, newval };
+
+	return csum_fold(csum_partial((char *)diff, sizeof(diff), ~csum));
+}
+EXPORT_SYMBOL(nf_csum_update);
+
+u_int16_t nf_proto_csum_update(struct sk_buff *skb,
+			       u_int32_t oldval, u_int32_t newval,
+			       u_int16_t csum, int pseudohdr)
+{
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		csum = nf_csum_update(oldval, newval, csum);
+		if (skb->ip_summed == CHECKSUM_COMPLETE && pseudohdr)
+			skb->csum = nf_csum_update(oldval, newval, skb->csum);
+	} else if (pseudohdr)
+		csum = ~nf_csum_update(oldval, newval, ~csum);
+
+	return csum;
+}
+EXPORT_SYMBOL(nf_proto_csum_update);
 
 /* This does not belong here, but locally generated errors need it if connection
    tracking in use: without this, connection may not be in hash table, and hence

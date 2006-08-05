@@ -27,14 +27,6 @@ MODULE_DESCRIPTION("iptables TCP MSS modification module");
 #define DEBUGP(format, args...)
 #endif
 
-static u_int16_t
-cheat_check(u_int32_t oldvalinv, u_int32_t newval, u_int16_t oldcheck)
-{
-	u_int32_t diffs[] = { oldvalinv, newval };
-	return csum_fold(csum_partial((char *)diffs, sizeof(diffs),
-                                      oldcheck^0xFFFF));
-}
-
 static inline unsigned int
 optlen(const u_int8_t *opt, unsigned int offset)
 {
@@ -60,11 +52,6 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	u_int8_t *opt;
 
 	if (!skb_make_writable(pskb, (*pskb)->len))
-		return NF_DROP;
-
-	if (((*pskb)->ip_summed == CHECKSUM_PARTIAL ||
-	     (*pskb)->ip_summed == CHECKSUM_COMPLETE) &&
-	    skb_checksum_help(*pskb))
 		return NF_DROP;
 
 	iph = (*pskb)->nh.iph;
@@ -120,9 +107,10 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 			opt[i+2] = (newmss & 0xff00) >> 8;
 			opt[i+3] = (newmss & 0x00ff);
 
-			tcph->check = cheat_check(htons(oldmss)^0xFFFF,
-						  htons(newmss),
-						  tcph->check);
+			tcph->check = nf_proto_csum_update(*pskb,
+							   htons(oldmss)^0xFFFF,
+							   htons(newmss),
+							   tcph->check, 0);
 
 			DEBUGP(KERN_INFO "ipt_tcpmss_target: %u.%u.%u.%u:%hu"
 			       "->%u.%u.%u.%u:%hu changed TCP MSS option"
@@ -162,8 +150,10 @@ ipt_tcpmss_target(struct sk_buff **pskb,
  	opt = (u_int8_t *)tcph + sizeof(struct tcphdr);
 	memmove(opt + TCPOLEN_MSS, opt, tcplen - sizeof(struct tcphdr));
 
-	tcph->check = cheat_check(htons(tcplen) ^ 0xFFFF,
-				  htons(tcplen + TCPOLEN_MSS), tcph->check);
+	tcph->check = nf_proto_csum_update(*pskb,
+					   htons(tcplen) ^ 0xFFFF,
+				           htons(tcplen + TCPOLEN_MSS),
+					   tcph->check, 1);
 	tcplen += TCPOLEN_MSS;
 
 	opt[0] = TCPOPT_MSS;
@@ -171,16 +161,19 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	opt[2] = (newmss & 0xff00) >> 8;
 	opt[3] = (newmss & 0x00ff);
 
-	tcph->check = cheat_check(~0, *((u_int32_t *)opt), tcph->check);
+	tcph->check = nf_proto_csum_update(*pskb, ~0, *((u_int32_t *)opt),
+					   tcph->check, 0);
 
 	oldval = ((u_int16_t *)tcph)[6];
 	tcph->doff += TCPOLEN_MSS/4;
-	tcph->check = cheat_check(oldval ^ 0xFFFF,
-				  ((u_int16_t *)tcph)[6], tcph->check);
+	tcph->check = nf_proto_csum_update(*pskb,
+					   oldval ^ 0xFFFF,
+					   ((u_int16_t *)tcph)[6],
+					   tcph->check, 0);
 
 	newtotlen = htons(ntohs(iph->tot_len) + TCPOLEN_MSS);
-	iph->check = cheat_check(iph->tot_len ^ 0xFFFF,
-				 newtotlen, iph->check);
+	iph->check = nf_csum_update(iph->tot_len ^ 0xFFFF,
+				    newtotlen, iph->check);
 	iph->tot_len = newtotlen;
 
 	DEBUGP(KERN_INFO "ipt_tcpmss_target: %u.%u.%u.%u:%hu"
