@@ -163,7 +163,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	res.flags = IORESOURCE_MEM; /* we just need system ram */
 	section_end = res.end;
 
-	while (find_next_system_ram(&res) >= 0) {
+	while ((res.start < res.end) && (find_next_system_ram(&res) >= 0)) {
 		start_pfn = (unsigned long)(res.start >> PAGE_SHIFT);
 		nr_pages = (unsigned long)
                            ((res.end + 1 - res.start) >> PAGE_SHIFT);
