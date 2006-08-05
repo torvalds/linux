@@ -187,11 +187,13 @@ static irqreturn_t elo_interrupt(struct serio *serio,
 
 static void elo_disconnect(struct serio *serio)
 {
-	struct elo* elo = serio_get_drvdata(serio);
+	struct elo *elo = serio_get_drvdata(serio);
 
+	input_get_device(elo->dev);
 	input_unregister_device(elo->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
+	input_put_device(elo->dev);
 	kfree(elo);
 }
 
@@ -211,7 +213,7 @@ static int elo_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev = input_allocate_device();
 	if (!elo || !input_dev) {
 		err = -ENOMEM;
-		goto fail;
+		goto fail1;
 	}
 
 	elo->serio = serio;
@@ -257,13 +259,17 @@ static int elo_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device(elo->dev);
+	err = input_register_device(elo->dev);
+	if (err)
+		goto fail3;
+
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail3: serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(elo);
 	return err;
 }
