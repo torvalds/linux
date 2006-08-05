@@ -1525,7 +1525,7 @@ addrconf_prefix_route(struct in6_addr *pfx, int plen, struct net_device *dev,
 	if (dev->type == ARPHRD_SIT && (dev->flags&IFF_POINTOPOINT))
 		rtmsg.rtmsg_flags |= RTF_NONEXTHOP;
 
-	ip6_route_add(&rtmsg, NULL, NULL, NULL);
+	ip6_route_add(&rtmsg, NULL, NULL, NULL, RT6_TABLE_PREFIX);
 }
 
 /* Create "default" multicast route to the interface */
@@ -1542,7 +1542,7 @@ static void addrconf_add_mroute(struct net_device *dev)
 	rtmsg.rtmsg_ifindex = dev->ifindex;
 	rtmsg.rtmsg_flags = RTF_UP;
 	rtmsg.rtmsg_type = RTMSG_NEWROUTE;
-	ip6_route_add(&rtmsg, NULL, NULL, NULL);
+	ip6_route_add(&rtmsg, NULL, NULL, NULL, RT6_TABLE_LOCAL);
 }
 
 static void sit_route_add(struct net_device *dev)
@@ -1559,7 +1559,7 @@ static void sit_route_add(struct net_device *dev)
 	rtmsg.rtmsg_flags	= RTF_UP|RTF_NONEXTHOP;
 	rtmsg.rtmsg_ifindex	= dev->ifindex;
 
-	ip6_route_add(&rtmsg, NULL, NULL, NULL);
+	ip6_route_add(&rtmsg, NULL, NULL, NULL, RT6_TABLE_MAIN);
 }
 
 static void addrconf_add_lroute(struct net_device *dev)

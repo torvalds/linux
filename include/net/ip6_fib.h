@@ -51,6 +51,8 @@ struct rt6key
 	int		plen;
 };
 
+struct fib6_table;
+
 struct rt6_info
 {
 	union {
@@ -71,6 +73,7 @@ struct rt6_info
 	u32				rt6i_flags;
 	u32				rt6i_metric;
 	atomic_t			rt6i_ref;
+	struct fib6_table		*rt6i_table;
 
 	struct rt6key			rt6i_dst;
 	struct rt6key			rt6i_src;
@@ -143,11 +146,42 @@ struct rt6_statistics {
 
 typedef void			(*f_pnode)(struct fib6_node *fn, void *);
 
-extern struct fib6_node		ip6_routing_table;
+struct fib6_table {
+	struct hlist_node	tb6_hlist;
+	u32			tb6_id;
+	rwlock_t		tb6_lock;
+	struct fib6_node	tb6_root;
+};
+
+#define RT6_TABLE_UNSPEC	RT_TABLE_UNSPEC
+#define RT6_TABLE_MAIN		RT_TABLE_MAIN
+#define RT6_TABLE_LOCAL		RT6_TABLE_MAIN
+#define RT6_TABLE_DFLT		RT6_TABLE_MAIN
+#define RT6_TABLE_INFO		RT6_TABLE_MAIN
+#define RT6_TABLE_PREFIX	RT6_TABLE_MAIN
+
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+#define FIB6_TABLE_MIN		1
+#define FIB6_TABLE_MAX		RT_TABLE_MAX
+#else
+#define FIB6_TABLE_MIN		RT_TABLE_MAIN
+#define FIB6_TABLE_MAX		FIB6_TABLE_MIN
+#endif
+
+#define RT6_F_STRICT		1
+#define RT6_F_HAS_SADDR		2
+
+typedef struct rt6_info *(*pol_lookup_t)(struct fib6_table *,
+					 struct flowi *, int);
 
 /*
  *	exported functions
  */
+
+extern struct fib6_table *	fib6_get_table(u32 id);
+extern struct fib6_table *	fib6_new_table(u32 id);
+extern struct dst_entry *	fib6_rule_lookup(struct flowi *fl, int flags,
+						 pol_lookup_t lookup);
 
 extern struct fib6_node		*fib6_lookup(struct fib6_node *root,
 					     struct in6_addr *daddr,
@@ -160,6 +194,9 @@ struct fib6_node		*fib6_locate(struct fib6_node *root,
 extern void			fib6_clean_tree(struct fib6_node *root,
 						int (*func)(struct rt6_info *, void *arg),
 						int prune, void *arg);
+
+extern void			fib6_clean_all(int (*func)(struct rt6_info *, void *arg),
+					       int prune, void *arg);
 
 extern int			fib6_walk(struct fib6_walker_t *w);
 extern int			fib6_walk_continue(struct fib6_walker_t *w);

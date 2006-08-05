@@ -136,3 +136,9 @@ config IPV6_TUNNEL
 
 	  If unsure, say N.
 
+config IPV6_MULTIPLE_TABLES
+	bool "IPv6: Multiple Routing Tables"
+	depends on IPV6 && EXPERIMENTAL
+	---help---
+	  Support multiple routing tables.
+

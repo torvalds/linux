@@ -26,6 +26,7 @@
 #include <linux/netdevice.h>
 #include <linux/in6.h>
 #include <linux/init.h>
+#include <linux/list.h>
 
 #ifdef 	CONFIG_PROC_FS
 #include <linux/proc_fs.h>
@@ -146,6 +147,126 @@ static __inline__ void rt6_release(struct rt6_info *rt)
 	if (atomic_dec_and_test(&rt->rt6i_ref))
 		dst_free(&rt->u.dst);
 }
+
+static struct fib6_table fib6_main_tbl = {
+	.tb6_id		= RT6_TABLE_MAIN,
+	.tb6_lock	= RW_LOCK_UNLOCKED,
+	.tb6_root	= {
+		.leaf		= &ip6_null_entry,
+		.fn_flags	= RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO,
+	},
+};
+
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+
+#define FIB_TABLE_HASHSZ 256
+static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
+
+static struct fib6_table *fib6_alloc_table(u32 id)
+{
+	struct fib6_table *table;
+
+	table = kzalloc(sizeof(*table), GFP_ATOMIC);
+	if (table != NULL) {
+		table->tb6_id = id;
+		table->tb6_lock = RW_LOCK_UNLOCKED;
+		table->tb6_root.leaf = &ip6_null_entry;
+		table->tb6_root.fn_flags = RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO;
+	}
+
+	return table;
+}
+
+static void fib6_link_table(struct fib6_table *tb)
+{
+	unsigned int h;
+
+	h = tb->tb6_id & (FIB_TABLE_HASHSZ - 1);
+
+	/*
+	 * No protection necessary, this is the only list mutatation
+	 * operation, tables never disappear once they exist.
+	 */
+	hlist_add_head_rcu(&tb->tb6_hlist, &fib_table_hash[h]);
+}
+
+struct fib6_table *fib6_new_table(u32 id)
+{
+	struct fib6_table *tb;
+
+	if (id == 0)
+		id = RT6_TABLE_MAIN;
+	tb = fib6_get_table(id);
+	if (tb)
+		return tb;
+
+	tb = fib6_alloc_table(id);
+	if (tb != NULL)
+		fib6_link_table(tb);
+
+	return tb;
+}
+
+struct fib6_table *fib6_get_table(u32 id)
+{
+	struct fib6_table *tb;
+	struct hlist_node *node;
+	unsigned int h;
+
+	if (id == 0)
+		id = RT6_TABLE_MAIN;
+	h = id & (FIB_TABLE_HASHSZ - 1);
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(tb, node, &fib_table_hash[h], tb6_hlist) {
+		if (tb->tb6_id == id) {
+			rcu_read_unlock();
+			return tb;
+		}
+	}
+	rcu_read_unlock();
+
+	return NULL;
+}
+
+struct dst_entry *fib6_rule_lookup(struct flowi *fl, int flags,
+				   pol_lookup_t lookup)
+{
+	/*
+	 * TODO: Add rule lookup
+	 */
+	struct fib6_table *table = fib6_get_table(RT6_TABLE_MAIN);
+
+	return (struct dst_entry *) lookup(table, fl, flags);
+}
+
+static void __init fib6_tables_init(void)
+{
+	fib6_link_table(&fib6_main_tbl);
+}
+
+#else
+
+struct fib6_table *fib6_new_table(u32 id)
+{
+	return fib6_get_table(id);
+}
+
+struct fib6_table *fib6_get_table(u32 id)
+{
+	return &fib6_main_tbl;
+}
+
+struct dst_entry *fib6_rule_lookup(struct flowi *fl, int flags,
+				   pol_lookup_t lookup)
+{
+	return (struct dst_entry *) lookup(&fib6_main_tbl, fl, flags);
+}
+
+static void __init fib6_tables_init(void)
+{
+}
+
+#endif
 
 
 /*
@@ -1064,6 +1185,22 @@ void fib6_clean_tree(struct fib6_node *root,
 	fib6_walk(&c.w);
 }
 
+void fib6_clean_all(int (*func)(struct rt6_info *, void *arg),
+		    int prune, void *arg)
+{
+	int i;
+	struct fib6_table *table;
+
+	for (i = FIB6_TABLE_MIN; i <= FIB6_TABLE_MAX; i++) {
+		table = fib6_get_table(i);
+		if (table != NULL) {
+			write_lock_bh(&table->tb6_lock);
+			fib6_clean_tree(&table->tb6_root, func, prune, arg);
+			write_unlock_bh(&table->tb6_lock);
+		}
+	}
+}
+
 static int fib6_prune_clone(struct rt6_info *rt, void *arg)
 {
 	if (rt->rt6i_flags & RTF_CACHE) {
@@ -1142,11 +1279,8 @@ void fib6_run_gc(unsigned long dummy)
 	}
 	gc_args.more = 0;
 
-
-	write_lock_bh(&rt6_lock);
 	ndisc_dst_gc(&gc_args.more);
-	fib6_clean_tree(&ip6_routing_table, fib6_age, 0, NULL);
-	write_unlock_bh(&rt6_lock);
+	fib6_clean_all(fib6_age, 0, NULL);
 
 	if (gc_args.more)
 		mod_timer(&ip6_fib_timer, jiffies + ip6_rt_gc_interval);
@@ -1165,6 +1299,8 @@ void __init fib6_init(void)
 					   NULL, NULL);
 	if (!fib6_node_kmem)
 		panic("cannot create fib6_nodes cache");
+
+	fib6_tables_init();
 }
 
 void fib6_gc_cleanup(void)
