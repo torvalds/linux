@@ -1902,7 +1902,6 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 		rtm->rtm_table = rt->rt6i_table->tb6_id;
 	else
 		rtm->rtm_table = RT6_TABLE_UNSPEC;
-	rtm->rtm_table = RT_TABLE_MAIN;
 	if (rt->rt6i_flags&RTF_REJECT)
 		rtm->rtm_type = RTN_UNREACHABLE;
 	else if (rt->rt6i_dev && (rt->rt6i_dev->flags&IFF_LOOPBACK))
