@@ -261,8 +261,10 @@ int find_next_system_ram(struct resource *res)
 	if (!p)
 		return -1;
 	/* copy data */
-	res->start = p->start;
-	res->end = p->end;
+	if (res->start < p->start)
+		res->start = p->start;
+	if (res->end > p->end)
+		res->end = p->end;
 	return 0;
 }
 #endif
