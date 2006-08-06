@@ -544,6 +544,3 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michal Ludvig");
 
 MODULE_ALIAS("aes-padlock");
-
-/* This module used to be called padlock. */
-MODULE_ALIAS("padlock");
