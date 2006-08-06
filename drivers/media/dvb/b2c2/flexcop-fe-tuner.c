@@ -527,7 +527,7 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 	/* try the air atsc 2nd generation (nxt2002) */
 	if ((fc->fe = dvb_attach(nxt200x_attach, &samsung_tbmv_config, &fc->i2c_adap)) != NULL) {
 		fc->dev_type          = FC_AIR_ATSC2;
-		dvb_attach(dvb_pll_attach, fc->fe, 0x61, &fc->i2c_adap, &dvb_pll_samsung_tbmv);
+		dvb_attach(dvb_pll_attach, fc->fe, 0x61, NULL, &dvb_pll_samsung_tbmv);
 		info("found the nxt2002 at i2c address: 0x%02x",samsung_tbmv_config.demod_address);
 	} else
 	/* try the air atsc 3nd generation (lgdt3303) */
