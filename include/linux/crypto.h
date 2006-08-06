@@ -29,10 +29,12 @@
 /*
  * Algorithm masks and types.
  */
-#define CRYPTO_ALG_TYPE_MASK		0x000000ff
+#define CRYPTO_ALG_TYPE_MASK		0x0000000f
 #define CRYPTO_ALG_TYPE_CIPHER		0x00000001
 #define CRYPTO_ALG_TYPE_DIGEST		0x00000002
 #define CRYPTO_ALG_TYPE_COMPRESS	0x00000004
+
+#define CRYPTO_ALG_LARVAL		0x00000010
 
 /*
  * Transform masks and values (for crt_flags).

@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/kmod.h>
+#include <linux/param.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include "internal.h"
@@ -26,6 +27,9 @@ LIST_HEAD(crypto_alg_list);
 EXPORT_SYMBOL_GPL(crypto_alg_list);
 DECLARE_RWSEM(crypto_alg_sem);
 EXPORT_SYMBOL_GPL(crypto_alg_sem);
+
+BLOCKING_NOTIFIER_HEAD(crypto_chain);
+EXPORT_SYMBOL_GPL(crypto_chain);
 
 static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
 {
@@ -39,27 +43,24 @@ static inline void crypto_alg_put(struct crypto_alg *alg)
 		alg->cra_destroy(alg);
 }
 
-static struct crypto_alg *crypto_mod_get(struct crypto_alg *alg)
+struct crypto_alg *crypto_mod_get(struct crypto_alg *alg)
 {
 	return try_module_get(alg->cra_module) ? crypto_alg_get(alg) : NULL;
 }
+EXPORT_SYMBOL_GPL(crypto_mod_get);
 
-static void crypto_mod_put(struct crypto_alg *alg)
+void crypto_mod_put(struct crypto_alg *alg)
 {
 	crypto_alg_put(alg);
 	module_put(alg->cra_module);
 }
+EXPORT_SYMBOL_GPL(crypto_mod_put);
 
-static struct crypto_alg *crypto_alg_lookup(const char *name)
+struct crypto_alg *__crypto_alg_lookup(const char *name)
 {
 	struct crypto_alg *q, *alg = NULL;
-	int best = -1;
+	int best = -2;
 
-	if (!name)
-		return NULL;
-	
-	down_read(&crypto_alg_sem);
-	
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
 		int exact, fuzzy;
 
@@ -79,16 +80,113 @@ static struct crypto_alg *crypto_alg_lookup(const char *name)
 		if (exact)
 			break;
 	}
-	
+
+	return alg;
+}
+EXPORT_SYMBOL_GPL(__crypto_alg_lookup);
+
+static void crypto_larval_destroy(struct crypto_alg *alg)
+{
+	struct crypto_larval *larval = (void *)alg;
+
+	BUG_ON(!crypto_is_larval(alg));
+	if (larval->adult)
+		crypto_mod_put(larval->adult);
+	kfree(larval);
+}
+
+static struct crypto_alg *crypto_larval_alloc(const char *name)
+{
+	struct crypto_alg *alg;
+	struct crypto_larval *larval;
+
+	larval = kzalloc(sizeof(*larval), GFP_KERNEL);
+	if (!larval)
+		return NULL;
+
+	larval->alg.cra_flags = CRYPTO_ALG_LARVAL;
+	larval->alg.cra_priority = -1;
+	larval->alg.cra_destroy = crypto_larval_destroy;
+
+	atomic_set(&larval->alg.cra_refcnt, 2);
+	strlcpy(larval->alg.cra_name, name, CRYPTO_MAX_ALG_NAME);
+	init_completion(&larval->completion);
+
+	down_write(&crypto_alg_sem);
+	alg = __crypto_alg_lookup(name);
+	if (!alg) {
+		alg = &larval->alg;
+		list_add(&alg->cra_list, &crypto_alg_list);
+	}
+	up_write(&crypto_alg_sem);
+
+	if (alg != &larval->alg)
+		kfree(larval);
+
+	return alg;
+}
+
+static void crypto_larval_kill(struct crypto_alg *alg)
+{
+	struct crypto_larval *larval = (void *)alg;
+
+	down_write(&crypto_alg_sem);
+	list_del(&alg->cra_list);
+	up_write(&crypto_alg_sem);
+	complete(&larval->completion);
+	crypto_alg_put(alg);
+}
+
+static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
+{
+	struct crypto_larval *larval = (void *)alg;
+
+	wait_for_completion_interruptible_timeout(&larval->completion, 60 * HZ);
+	alg = larval->adult;
+	if (alg && !crypto_mod_get(alg))
+		alg = NULL;
+	crypto_mod_put(&larval->alg);
+
+	return alg;
+}
+
+static struct crypto_alg *crypto_alg_lookup(const char *name)
+{
+	struct crypto_alg *alg;
+
+	if (!name)
+		return NULL;
+
+	down_read(&crypto_alg_sem);
+	alg = __crypto_alg_lookup(name);
 	up_read(&crypto_alg_sem);
+
 	return alg;
 }
 
 /* A far more intelligent version of this is planned.  For now, just
  * try an exact match on the name of the algorithm. */
-static inline struct crypto_alg *crypto_alg_mod_lookup(const char *name)
+static struct crypto_alg *crypto_alg_mod_lookup(const char *name)
 {
-	return try_then_request_module(crypto_alg_lookup(name), name);
+	struct crypto_alg *alg;
+	struct crypto_alg *larval;
+
+	alg = try_then_request_module(crypto_alg_lookup(name), name);
+	if (alg)
+		return crypto_is_larval(alg) ? crypto_larval_wait(alg) : alg;
+
+	larval = crypto_larval_alloc(name);
+	if (!larval || !crypto_is_larval(larval))
+		return larval;
+
+	if (crypto_notify(CRYPTO_MSG_ALG_REQUEST, larval) == NOTIFY_STOP)
+		alg = crypto_larval_wait(larval);
+	else {
+		crypto_mod_put(larval);
+		alg = NULL;
+	}
+	crypto_larval_kill(larval);
+	return alg;
 }
 
 static int crypto_init_flags(struct crypto_tfm *tfm, u32 flags)

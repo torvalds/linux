@@ -21,6 +21,24 @@
 
 static LIST_HEAD(crypto_template_list);
 
+void crypto_larval_error(const char *name)
+{
+	struct crypto_alg *alg;
+
+	down_read(&crypto_alg_sem);
+	alg = __crypto_alg_lookup(name);
+	up_read(&crypto_alg_sem);
+
+	if (alg) {
+		if (crypto_is_larval(alg)) {
+			struct crypto_larval *larval = (void *)alg;
+			complete(&larval->completion);
+		}
+		crypto_mod_put(alg);
+	}
+}
+EXPORT_SYMBOL_GPL(crypto_larval_error);
+
 static inline int crypto_set_driver_name(struct crypto_alg *alg)
 {
 	static const char suffix[] = "-generic";
@@ -60,14 +78,27 @@ static int __crypto_register_alg(struct crypto_alg *alg)
 	struct crypto_alg *q;
 	int ret = -EEXIST;
 
+	atomic_set(&alg->cra_refcnt, 1);
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
 		if (q == alg)
 			goto out;
+		if (crypto_is_larval(q) &&
+		    (!strcmp(alg->cra_name, q->cra_name) ||
+		     !strcmp(alg->cra_driver_name, q->cra_name))) {
+			struct crypto_larval *larval = (void *)q;
+
+			if (!crypto_mod_get(alg))
+				continue;
+			larval->adult = alg;
+			complete(&larval->completion);
+		}
 	}
 	
 	list_add(&alg->cra_list, &crypto_alg_list);
-	atomic_set(&alg->cra_refcnt, 1);
+
+	crypto_notify(CRYPTO_MSG_ALG_REGISTER, alg);
 	ret = 0;
+
 out:	
 	return ret;
 }
@@ -97,6 +128,7 @@ int crypto_unregister_alg(struct crypto_alg *alg)
 		list_del_init(&alg->cra_list);
 		ret = 0;
 	}
+	crypto_notify(CRYPTO_MSG_ALG_UNREGISTER, alg);
 	up_write(&crypto_alg_sem);
 
 	if (ret)
@@ -123,6 +155,7 @@ int crypto_register_template(struct crypto_template *tmpl)
 	}
 
 	list_add(&tmpl->list, &crypto_template_list);
+	crypto_notify(CRYPTO_MSG_TMPL_REGISTER, tmpl);
 	err = 0;
 out:
 	up_write(&crypto_alg_sem);
@@ -145,7 +178,10 @@ void crypto_unregister_template(struct crypto_template *tmpl)
 	hlist_for_each_entry(inst, p, list, list) {
 		BUG_ON(list_empty(&inst->alg.cra_list));
 		list_del_init(&inst->alg.cra_list);
+		crypto_notify(CRYPTO_MSG_ALG_UNREGISTER, &inst->alg);
 	}
+
+	crypto_notify(CRYPTO_MSG_TMPL_UNREGISTER, tmpl);
 
 	up_write(&crypto_alg_sem);
 
@@ -211,6 +247,18 @@ err:
 	return err;
 }
 EXPORT_SYMBOL_GPL(crypto_register_instance);
+
+int crypto_register_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&crypto_chain, nb);
+}
+EXPORT_SYMBOL_GPL(crypto_register_notifier);
+
+int crypto_unregister_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&crypto_chain, nb);
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_notifier);
 
 static int __init crypto_algapi_init(void)
 {

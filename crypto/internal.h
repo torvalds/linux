@@ -14,6 +14,7 @@
 #define _CRYPTO_INTERNAL_H
 
 #include <crypto/algapi.h>
+#include <linux/completion.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
@@ -21,15 +22,32 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/notifier.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <asm/kmap_types.h>
 
+/* Crypto notification events. */
+enum {
+	CRYPTO_MSG_ALG_REQUEST,
+	CRYPTO_MSG_ALG_REGISTER,
+	CRYPTO_MSG_ALG_UNREGISTER,
+	CRYPTO_MSG_TMPL_REGISTER,
+	CRYPTO_MSG_TMPL_UNREGISTER,
+};
+
 struct crypto_instance;
 struct crypto_template;
 
+struct crypto_larval {
+	struct crypto_alg alg;
+	struct crypto_alg *adult;
+	struct completion completion;
+};
+
 extern struct list_head crypto_alg_list;
 extern struct rw_semaphore crypto_alg_sem;
+extern struct blocking_notifier_head crypto_chain;
 
 extern enum km_type crypto_km_types[];
 
@@ -104,6 +122,10 @@ static inline unsigned int crypto_compress_ctxsize(struct crypto_alg *alg,
 	return alg->cra_ctxsize;
 }
 
+struct crypto_alg *crypto_mod_get(struct crypto_alg *alg);
+void crypto_mod_put(struct crypto_alg *alg);
+struct crypto_alg *__crypto_alg_lookup(const char *name);
+
 int crypto_init_digest_flags(struct crypto_tfm *tfm, u32 flags);
 int crypto_init_cipher_flags(struct crypto_tfm *tfm, u32 flags);
 int crypto_init_compress_flags(struct crypto_tfm *tfm, u32 flags);
@@ -116,8 +138,13 @@ void crypto_exit_digest_ops(struct crypto_tfm *tfm);
 void crypto_exit_cipher_ops(struct crypto_tfm *tfm);
 void crypto_exit_compress_ops(struct crypto_tfm *tfm);
 
+void crypto_larval_error(const char *name);
+
 int crypto_register_instance(struct crypto_template *tmpl,
 			     struct crypto_instance *inst);
+
+int crypto_register_notifier(struct notifier_block *nb);
+int crypto_unregister_notifier(struct notifier_block *nb);
 
 static inline int crypto_tmpl_get(struct crypto_template *tmpl)
 {
@@ -127,6 +154,16 @@ static inline int crypto_tmpl_get(struct crypto_template *tmpl)
 static inline void crypto_tmpl_put(struct crypto_template *tmpl)
 {
 	module_put(tmpl->module);
+}
+
+static inline int crypto_is_larval(struct crypto_alg *alg)
+{
+	return alg->cra_flags & CRYPTO_ALG_LARVAL;
+}
+
+static inline int crypto_notify(unsigned long val, void *v)
+{
+	return blocking_notifier_call_chain(&crypto_chain, val, v);
 }
 
 #endif	/* _CRYPTO_INTERNAL_H */
