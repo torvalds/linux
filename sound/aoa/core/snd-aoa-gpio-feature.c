@@ -112,7 +112,10 @@ static struct device_node *get_gpio(char *name,
 
 static void get_irq(struct device_node * np, int *irqptr)
 {
-	*irqptr = irq_of_parse_and_map(np, 0);
+	if (np)
+		*irqptr = irq_of_parse_and_map(np, 0);
+	else
+		*irqptr = NO_IRQ;
 }
 
 /* 0x4 is outenable, 0x1 is out, thus 4 or 5 */
@@ -322,7 +325,7 @@ static int ftr_set_notify(struct gpio_runtime *rt,
 		return -EINVAL;
 	}
 
-	if (irq == -1)
+	if (irq == NO_IRQ)
 		return -ENODEV;
 
 	mutex_lock(&notif->mutex);
