@@ -41,7 +41,7 @@
 #include "wbsd.h"
 
 #define DRIVER_NAME "wbsd"
-#define DRIVER_VERSION "1.5"
+#define DRIVER_VERSION "1.6"
 
 #define DBG(x...) \
 	pr_debug(DRIVER_NAME ": " x)
@@ -1439,13 +1439,13 @@ static int __devinit wbsd_scan(struct wbsd_host *host)
 
 static int __devinit wbsd_request_region(struct wbsd_host *host, int base)
 {
-	if (io & 0x7)
+	if (base & 0x7)
 		return -EINVAL;
 
 	if (!request_region(base, 8, DRIVER_NAME))
 		return -EIO;
 
-	host->base = io;
+	host->base = base;
 
 	return 0;
 }
