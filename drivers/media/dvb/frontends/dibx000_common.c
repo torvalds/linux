@@ -146,3 +146,7 @@ void dibx000_exit_i2c_master(struct dibx000_i2c_master *mst)
 	i2c_del_adapter(&mst->gated_tuner_i2c_adap);
 }
 EXPORT_SYMBOL(dibx000_exit_i2c_master);
+
+MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
+MODULE_DESCRIPTION("Common function the DiBcom demodulator family");
+MODULE_LICENSE("GPL");
