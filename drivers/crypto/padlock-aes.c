@@ -495,15 +495,41 @@ static struct crypto_alg aes_alg = {
 	}
 };
 
-int __init padlock_init_aes(void)
+static int __init padlock_init(void)
 {
-	printk(KERN_NOTICE PFX "Using VIA PadLock ACE for AES algorithm.\n");
+	int ret;
+
+	if (!cpu_has_xcrypt) {
+		printk(KERN_ERR PFX "VIA PadLock not detected.\n");
+		return -ENODEV;
+	}
+
+	if (!cpu_has_xcrypt_enabled) {
+		printk(KERN_ERR PFX "VIA PadLock detected, but not enabled. Hmm, strange...\n");
+		return -ENODEV;
+	}
 
 	gen_tabs();
-	return crypto_register_alg(&aes_alg);
+	if ((ret = crypto_register_alg(&aes_alg))) {
+		printk(KERN_ERR PFX "VIA PadLock AES initialization failed.\n");
+		return ret;
+	}
+
+	printk(KERN_NOTICE PFX "Using VIA PadLock ACE for AES algorithm.\n");
+
+	return ret;
 }
 
-void __exit padlock_fini_aes(void)
+static void __exit padlock_fini(void)
 {
 	crypto_unregister_alg(&aes_alg);
 }
+
+module_init(padlock_init);
+module_exit(padlock_fini);
+
+MODULE_DESCRIPTION("VIA PadLock AES algorithm support");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Michal Ludvig");
+
+MODULE_ALIAS("aes-padlock");
