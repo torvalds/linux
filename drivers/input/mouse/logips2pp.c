@@ -238,8 +238,7 @@ static struct ps2pp_info *get_model_info(unsigned char model)
 		{ 100,	PS2PP_KIND_MX,					/* MX510 */
 				PS2PP_WHEEL | PS2PP_SIDE_BTN | PS2PP_TASK_BTN |
 				PS2PP_EXTRA_BTN | PS2PP_NAV_BTN },
-		{ 111,  PS2PP_KIND_MX,					/* MX300 */
-				PS2PP_WHEEL | PS2PP_EXTRA_BTN | PS2PP_TASK_BTN },
+		{ 111,  PS2PP_KIND_MX,	PS2PP_WHEEL | PS2PP_SIDE_BTN },	/* MX300 reports task button as side */
 		{ 112,	PS2PP_KIND_MX,					/* MX500 */
 				PS2PP_WHEEL | PS2PP_SIDE_BTN | PS2PP_TASK_BTN |
 				PS2PP_EXTRA_BTN | PS2PP_NAV_BTN },
