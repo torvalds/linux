@@ -1,6 +1,7 @@
 #ifndef _NET_AH_H
 #define _NET_AH_H
 
+#include <linux/crypto.h>
 #include <net/xfrm.h>
 
 /* This is the maximum truncated ICV length that we know of. */

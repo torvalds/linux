@@ -1,6 +1,7 @@
 #ifndef _NET_ESP_H
 #define _NET_ESP_H
 
+#include <linux/crypto.h>
 #include <net/xfrm.h>
 #include <asm/scatterlist.h>
 

@@ -8,7 +8,6 @@
 #include <linux/list.h>
 #include <linux/skbuff.h>
 #include <linux/socket.h>
-#include <linux/crypto.h>
 #include <linux/pfkeyv2.h>
 #include <linux/in6.h>
 #include <linux/mutex.h>
@@ -985,6 +984,7 @@ extern struct xfrm_algo_desc *xfrm_ealg_get_byname(char *name, int probe);
 extern struct xfrm_algo_desc *xfrm_calg_get_byname(char *name, int probe);
 
 struct crypto_tfm;
+struct scatterlist;
 typedef void (icv_update_fn_t)(struct crypto_tfm *, struct scatterlist *, unsigned int);
 
 extern void skb_icv_walk(const struct sk_buff *skb, struct crypto_tfm *tfm,
