@@ -29,13 +29,26 @@
 LIST_HEAD(crypto_alg_list);
 DECLARE_RWSEM(crypto_alg_sem);
 
-static inline int crypto_mod_get(struct crypto_alg *alg)
+static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
 {
-	return try_module_get(alg->cra_module);
+	atomic_inc(&alg->cra_refcnt);
+	return alg;
 }
 
-static inline void crypto_mod_put(struct crypto_alg *alg)
+static inline void crypto_alg_put(struct crypto_alg *alg)
 {
+	if (atomic_dec_and_test(&alg->cra_refcnt) && alg->cra_destroy)
+		alg->cra_destroy(alg);
+}
+
+static struct crypto_alg *crypto_mod_get(struct crypto_alg *alg)
+{
+	return try_module_get(alg->cra_module) ? crypto_alg_get(alg) : NULL;
+}
+
+static void crypto_mod_put(struct crypto_alg *alg)
+{
+	crypto_alg_put(alg);
 	module_put(alg->cra_module);
 }
 
@@ -274,6 +287,7 @@ int crypto_register_alg(struct crypto_alg *alg)
 	}
 	
 	list_add(&alg->cra_list, &crypto_alg_list);
+	atomic_set(&alg->cra_refcnt, 1);
 out:	
 	up_write(&crypto_alg_sem);
 	return ret;
@@ -283,8 +297,6 @@ int crypto_unregister_alg(struct crypto_alg *alg)
 {
 	int ret = -ENOENT;
 	struct crypto_alg *q;
-	
-	BUG_ON(!alg->cra_module);
 	
 	down_write(&crypto_alg_sem);
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
@@ -296,7 +308,15 @@ int crypto_unregister_alg(struct crypto_alg *alg)
 	}
 out:	
 	up_write(&crypto_alg_sem);
-	return ret;
+
+	if (ret)
+		return ret;
+
+	BUG_ON(atomic_read(&alg->cra_refcnt) != 1);
+	if (alg->cra_destroy)
+		alg->cra_destroy(alg);
+
+	return 0;
 }
 
 int crypto_alg_available(const char *name, u32 flags)

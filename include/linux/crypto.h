@@ -17,6 +17,7 @@
 #ifndef _LINUX_CRYPTO_H
 #define _LINUX_CRYPTO_H
 
+#include <asm/atomic.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -148,6 +149,7 @@ struct crypto_alg {
 	unsigned int cra_alignmask;
 
 	int cra_priority;
+	atomic_t cra_refcnt;
 
 	char cra_name[CRYPTO_MAX_ALG_NAME];
 	char cra_driver_name[CRYPTO_MAX_ALG_NAME];
@@ -160,6 +162,7 @@ struct crypto_alg {
 
 	int (*cra_init)(struct crypto_tfm *tfm);
 	void (*cra_exit)(struct crypto_tfm *tfm);
+	void (*cra_destroy)(struct crypto_alg *alg);
 	
 	struct module *cra_module;
 };

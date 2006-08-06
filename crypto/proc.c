@@ -12,6 +12,8 @@
  * any later version.
  *
  */
+
+#include <asm/atomic.h>
 #include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/rwsem.h>
@@ -54,6 +56,7 @@ static int c_show(struct seq_file *m, void *p)
 	seq_printf(m, "driver       : %s\n", alg->cra_driver_name);
 	seq_printf(m, "module       : %s\n", module_name(alg->cra_module));
 	seq_printf(m, "priority     : %d\n", alg->cra_priority);
+	seq_printf(m, "refcnt       : %d\n", atomic_read(&alg->cra_refcnt));
 	
 	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_CIPHER:
