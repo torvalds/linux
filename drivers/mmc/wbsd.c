@@ -1773,7 +1773,7 @@ static int __devinit wbsd_init(struct device *dev, int base, int irq, int dma,
 	/*
 	 * Request resources.
 	 */
-	ret = wbsd_request_resources(host, io, irq, dma);
+	ret = wbsd_request_resources(host, base, irq, dma);
 	if (ret) {
 		wbsd_release_resources(host);
 		wbsd_free_mmc(dev);
@@ -1861,6 +1861,7 @@ static void __devexit wbsd_shutdown(struct device *dev, int pnp)
 
 static int __devinit wbsd_probe(struct platform_device *dev)
 {
+	/* Use the module parameters for resources */
 	return wbsd_init(&dev->dev, io, irq, dma, 0);
 }
 
