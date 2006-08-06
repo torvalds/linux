@@ -69,29 +69,6 @@ static int dib3000mc_write_word(struct dib3000mc_state *state, u16 reg, u16 val)
 	return i2c_transfer(state->i2c_adap, &msg, 1) != 1 ? -EREMOTEIO : 0;
 }
 
-static void dump_fep(struct dibx000_ofdm_channel *cd)
-{
-	printk(KERN_DEBUG "DiB3000MC: ");
-	switch (cd->nfft) {
-		case 1: printk("8K "); break;
-		case 2: printk("4K "); break;
-		case 0: printk("2K "); break;
-		default: printk("FFT_UNK "); break;
-	}
-
-	printk("1/%i  ", 32 / (1 << cd->guard));
-	switch (cd->nqam) {
-		case 0: printk("QPSK "); break;
-		case 1: printk("16QAM "); break;
-		case 2: printk("64QAM "); break;
-		default: printk("QAM_UNK "); break;
-	}
-	printk("ALPHA %i ", cd->vit_alpha);
-	printk("Code Rate HP %i/%i ", cd->vit_code_rate_hp, cd->vit_code_rate_hp + 1);
-	printk("Code Rate LP %i/%i ", cd->vit_code_rate_lp, cd->vit_code_rate_lp + 1);
-	printk("HRCH %i\n", cd->vit_hrch);
-}
-
 
 static int dib3000mc_identify(struct dib3000mc_state *state)
 {
@@ -728,8 +705,6 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 
 	INIT_OFDM_CHANNEL(&ch);
 	FEP2DIB(fep,&ch);
-
-	dump_fep(&ch);
 
 	state->current_bandwidth = fep->u.ofdm.bandwidth;
 	dib3000mc_set_bandwidth(fe, fep->u.ofdm.bandwidth);
