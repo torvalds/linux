@@ -810,6 +810,7 @@ static void test_crc32c(void)
 
 	seed = SEEDTESTVAL;
 	(void)crypto_digest_setkey(tfm, (const u8*)&seed, sizeof(u32));
+	crypto_digest_init(tfm);
 	crypto_digest_final(tfm, (u8*)&crc);
 	printk("testing crc32c setkey returns %08x : %s\n", crc, (crc == (SEEDTESTVAL ^ ~(u32)0)) ?
 	       "pass" : "ERROR");
@@ -821,6 +822,7 @@ static void test_crc32c(void)
 	for (i = 0; i < NUMVEC; i++) {
 		seed = ~(u32)0;
 		(void)crypto_digest_setkey(tfm, (const u8*)&seed, sizeof(u32));
+		crypto_digest_init(tfm);
 		crypto_digest_update(tfm, &sg[i], 1);
 		crypto_digest_final(tfm, (u8*)&crc);
 		if (crc == vec_results[i]) {
@@ -836,6 +838,7 @@ static void test_crc32c(void)
 	for (i = 0; i < NUMVEC; i++) {
 		seed = (crc ^ ~(u32)0);
 		(void)crypto_digest_setkey(tfm, (const u8*)&seed, sizeof(u32));
+		crypto_digest_init(tfm);
 		crypto_digest_update(tfm, &sg[i], 1);
 		crypto_digest_final(tfm, (u8*)&crc);
 	}
@@ -849,6 +852,7 @@ static void test_crc32c(void)
 	printk("\ntesting crc32c using digest:\n");
 	seed = ~(u32)0;
 	(void)crypto_digest_setkey(tfm, (const u8*)&seed, sizeof(u32));
+	crypto_digest_init(tfm);
 	crypto_digest_digest(tfm, sg, NUMVEC, (u8*)&crc);
 	if (crc == tot_vec_results) {
 		printk(" %08x:OK", crc);
