@@ -136,10 +136,8 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 	coda_vfs_stat.open++;
 
 	cfi = kmalloc(sizeof(struct coda_file_info), GFP_KERNEL);
-	if (!cfi) {
-		unlock_kernel();
+	if (!cfi)
 		return -ENOMEM;
-	}
 
 	lock_kernel();
 

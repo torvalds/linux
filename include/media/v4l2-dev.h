@@ -341,11 +341,14 @@ extern int video_usercopy(struct inode *inode, struct file *file,
 extern struct video_device* video_devdata(struct file*);
 
 #define to_video_device(cd) container_of(cd, struct video_device, class_dev)
-static inline void
+static inline int
 video_device_create_file(struct video_device *vfd,
 			 struct class_device_attribute *attr)
 {
-	class_device_create_file(&vfd->class_dev, attr);
+	int ret = class_device_create_file(&vfd->class_dev, attr);
+	if (ret < 0)
+		printk(KERN_WARNING "%s error: %d\n", __FUNCTION__, ret);
+	return ret;
 }
 static inline void
 video_device_remove_file(struct video_device *vfd,

@@ -323,7 +323,6 @@ static void disable_read_regs_int(struct zd_usb *usb)
 {
 	struct zd_usb_interrupt *intr = &usb->intr;
 
-	ZD_ASSERT(in_interrupt());
 	spin_lock(&intr->lock);
 	intr->read_regs_enabled = 0;
 	spin_unlock(&intr->lock);
@@ -545,11 +544,11 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 	 * be padded. Unaligned access might also happen if the length_info
 	 * structure is not present.
 	 */
-	if (get_unaligned(&length_info->tag) == RX_LENGTH_INFO_TAG) {
+	if (get_unaligned(&length_info->tag) == cpu_to_le16(RX_LENGTH_INFO_TAG))
+	{
 		unsigned int l, k, n;
 		for (i = 0, l = 0;; i++) {
-			k = le16_to_cpu(get_unaligned(
-				&length_info->length[i]));
+			k = le16_to_cpu(get_unaligned(&length_info->length[i]));
 			n = l+k;
 			if (n > length)
 				return;

@@ -508,6 +508,9 @@ hashlimit_checkentry(const char *tablename,
 	if (!r->cfg.expire)
 		return 0;
 
+	if (r->name[sizeof(r->name) - 1] != '\0')
+		return 0;
+
 	/* This is the best we've got: We cannot release and re-grab lock,
 	 * since checkentry() is called before ip_tables.c grabs ipt_mutex.  
 	 * We also cannot grab the hashtable spinlock, since htable_create will 

@@ -690,8 +690,8 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	/*
 	 * Now maybe handle debug registers and/or IO bitmaps
 	 */
-	if (unlikely((task_thread_info(next_p)->flags & _TIF_WORK_CTXSW))
-	    || test_tsk_thread_flag(prev_p, TIF_IO_BITMAP))
+	if (unlikely((task_thread_info(next_p)->flags & _TIF_WORK_CTXSW)
+	    || test_tsk_thread_flag(prev_p, TIF_IO_BITMAP)))
 		__switch_to_xtra(next_p, tss);
 
 	disable_tsc(prev_p, next_p);

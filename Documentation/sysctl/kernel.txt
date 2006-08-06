@@ -211,9 +211,8 @@ Controls the kernel's behaviour when an oops or BUG is encountered.
 
 0: try to continue operation
 
-1: delay a few seconds (to give klogd time to record the oops output) and
-   then panic.  If the `panic' sysctl is also non-zero then the machine will
-   be rebooted.
+1: panic immediatly.  If the `panic' sysctl is also non-zero then the
+   machine will be rebooted.
 
 ==============================================================
 

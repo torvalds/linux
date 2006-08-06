@@ -68,7 +68,8 @@ static void lpd270_unmask_irq(unsigned int irq)
 	__raw_writew(lpd270_irq_enabled, LPD270_INT_MASK);
 }
 
-static struct irqchip lpd270_irq_chip = {
+static struct irq_chip lpd270_irq_chip = {
+	.name		= "CPLD",
 	.ack		= lpd270_mask_irq,
 	.mask		= lpd270_mask_irq,
 	.unmask		= lpd270_unmask_irq,

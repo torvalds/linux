@@ -988,13 +988,12 @@ static int snd_mixer_oss_build_input(struct snd_mixer_oss *mixer, struct snd_mix
 	if (ptr->index == 0 && (kctl = snd_mixer_oss_test_id(mixer, "Capture Source", 0)) != NULL) {
 		struct snd_ctl_elem_info *uinfo;
 
-		uinfo = kmalloc(sizeof(*uinfo), GFP_KERNEL);
+		uinfo = kzalloc(sizeof(*uinfo), GFP_KERNEL);
 		if (! uinfo) {
 			up_read(&mixer->card->controls_rwsem);
 			return -ENOMEM;
 		}
 			
-		memset(uinfo, 0, sizeof(*uinfo));
 		if (kctl->info(kctl, uinfo)) {
 			up_read(&mixer->card->controls_rwsem);
 			return 0;

@@ -77,13 +77,19 @@ cc-option-align = $(subst -functions=0,,\
 
 # cc-version
 # Usage gcc-ver := $(call cc-version, $(CC))
-cc-version = $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh \
-              $(if $(1), $(1), $(CC)))
+cc-version = $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh $(CC))
 
 # cc-ifversion
 # Usage:  EXTRA_CFLAGS += $(call cc-ifversion, -lt, 0402, -O1)
 cc-ifversion = $(shell if [ $(call cc-version, $(CC)) $(1) $(2) ]; then \
                        echo $(3); fi;)
+
+# ld-option
+# Usage: ldflags += $(call ld-option, -Wl$(comma)--hash-style=both)
+ld-option = $(shell if $(CC) $(1) \
+			     -nostdlib -o ldtest$$$$.out -xc /dev/null \
+             > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi; \
+	     rm -f ldtest$$$$.out)
 
 ###
 # Shorthand for $(Q)$(MAKE) -f scripts/Makefile.build obj=

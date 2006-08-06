@@ -414,6 +414,33 @@ static int xs_tcp_send_request(struct rpc_task *task)
 }
 
 /**
+ * xs_tcp_release_xprt - clean up after a tcp transmission
+ * @xprt: transport
+ * @task: rpc task
+ *
+ * This cleans up if an error causes us to abort the transmission of a request.
+ * In this case, the socket may need to be reset in order to avoid confusing
+ * the server.
+ */
+static void xs_tcp_release_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
+{
+	struct rpc_rqst *req;
+
+	if (task != xprt->snd_task)
+		return;
+	if (task == NULL)
+		goto out_release;
+	req = task->tk_rqstp;
+	if (req->rq_bytes_sent == 0)
+		goto out_release;
+	if (req->rq_bytes_sent == req->rq_snd_buf.len)
+		goto out_release;
+	set_bit(XPRT_CLOSE_WAIT, &task->tk_xprt->state);
+out_release:
+	xprt_release_xprt(xprt, task);
+}
+
+/**
  * xs_close - close a socket
  * @xprt: transport
  *
@@ -1250,7 +1277,7 @@ static struct rpc_xprt_ops xs_udp_ops = {
 
 static struct rpc_xprt_ops xs_tcp_ops = {
 	.reserve_xprt		= xprt_reserve_xprt,
-	.release_xprt		= xprt_release_xprt,
+	.release_xprt		= xs_tcp_release_xprt,
 	.set_port		= xs_set_port,
 	.connect		= xs_connect,
 	.buf_alloc		= rpc_malloc,

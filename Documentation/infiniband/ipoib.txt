@@ -51,8 +51,6 @@ Debugging Information
 
 References
 
-  IETF IP over InfiniBand (ipoib) Working Group
-    http://ietf.org/html.charters/ipoib-charter.html
   Transmission of IP over InfiniBand (IPoIB) (RFC 4391)
     http://ietf.org/rfc/rfc4391.txt 
   IP over InfiniBand (IPoIB) Architecture (RFC 4392)

@@ -103,7 +103,7 @@ ENTRY(ia32_sysenter_target)
 	pushq	%rax
 	CFI_ADJUST_CFA_OFFSET 8
 	cld
-	SAVE_ARGS 0,0,1
+	SAVE_ARGS 0,0,0
  	/* no need to do an access_ok check here because rbp has been
  	   32bit zero extended */ 
 1:	movl	(%rbp),%r9d

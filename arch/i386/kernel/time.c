@@ -135,7 +135,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-	if (in_lock_functions(pc))
+	if (!user_mode_vm(regs) && in_lock_functions(pc))
 		return *(unsigned long *)(regs->ebp + 4);
 
 	return pc;

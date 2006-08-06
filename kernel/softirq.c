@@ -65,6 +65,7 @@ static inline void wakeup_softirqd(void)
  * This one is for softirq.c-internal use,
  * where hardirqs are disabled legitimately:
  */
+#ifdef CONFIG_TRACE_IRQFLAGS
 static void __local_bh_disable(unsigned long ip)
 {
 	unsigned long flags;
@@ -80,6 +81,13 @@ static void __local_bh_disable(unsigned long ip)
 		trace_softirqs_off(ip);
 	raw_local_irq_restore(flags);
 }
+#else /* !CONFIG_TRACE_IRQFLAGS */
+static inline void __local_bh_disable(unsigned long ip)
+{
+	add_preempt_count(SOFTIRQ_OFFSET);
+	barrier();
+}
+#endif /* CONFIG_TRACE_IRQFLAGS */
 
 void local_bh_disable(void)
 {
@@ -121,12 +129,16 @@ EXPORT_SYMBOL(_local_bh_enable);
 
 void local_bh_enable(void)
 {
+#ifdef CONFIG_TRACE_IRQFLAGS
 	unsigned long flags;
 
 	WARN_ON_ONCE(in_irq());
+#endif
 	WARN_ON_ONCE(irqs_disabled());
 
+#ifdef CONFIG_TRACE_IRQFLAGS
 	local_irq_save(flags);
+#endif
 	/*
 	 * Are softirqs going to be turned on now:
 	 */
@@ -142,18 +154,22 @@ void local_bh_enable(void)
 		do_softirq();
 
 	dec_preempt_count();
+#ifdef CONFIG_TRACE_IRQFLAGS
 	local_irq_restore(flags);
+#endif
 	preempt_check_resched();
 }
 EXPORT_SYMBOL(local_bh_enable);
 
 void local_bh_enable_ip(unsigned long ip)
 {
+#ifdef CONFIG_TRACE_IRQFLAGS
 	unsigned long flags;
 
 	WARN_ON_ONCE(in_irq());
 
 	local_irq_save(flags);
+#endif
 	/*
 	 * Are softirqs going to be turned on now:
 	 */
@@ -169,7 +185,9 @@ void local_bh_enable_ip(unsigned long ip)
 		do_softirq();
 
 	dec_preempt_count();
+#ifdef CONFIG_TRACE_IRQFLAGS
 	local_irq_restore(flags);
+#endif
 	preempt_check_resched();
 }
 EXPORT_SYMBOL(local_bh_enable_ip);
@@ -547,7 +565,7 @@ static void takeover_tasklets(unsigned int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static int __devinit cpu_callback(struct notifier_block *nfb,
+static int __cpuinit cpu_callback(struct notifier_block *nfb,
 				  unsigned long action,
 				  void *hcpu)
 {
@@ -587,7 +605,7 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __devinitdata cpu_nfb = {
+static struct notifier_block __cpuinitdata cpu_nfb = {
 	.notifier_call = cpu_callback
 };
 

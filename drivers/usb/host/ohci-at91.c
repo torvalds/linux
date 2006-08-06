@@ -4,7 +4,7 @@
  *  Copyright (C) 2004 SAN People (Pty) Ltd.
  *  Copyright (C) 2005 Thibaut VARENE <varenet@parisc-linux.org>
  *
- * AT91RM9200 Bus Glue
+ * AT91 Bus Glue
  *
  * Based on fragments of 2.4 driver by Rick Bronson.
  * Based on ohci-omap.c
@@ -19,12 +19,13 @@
 #include <asm/hardware.h>
 #include <asm/arch/board.h>
 
-#ifndef CONFIG_ARCH_AT91RM9200
-#error "CONFIG_ARCH_AT91RM9200 must be defined."
+#ifndef CONFIG_ARCH_AT91
+#error "CONFIG_ARCH_AT91 must be defined."
 #endif
 
 /* interface and function clocks */
 static struct clk *iclk, *fclk;
+static int clocked;
 
 extern int usb_disabled(void);
 
@@ -35,13 +36,14 @@ static void at91_start_hc(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct ohci_regs __iomem *regs = hcd->regs;
 
-	dev_dbg(&pdev->dev, "starting AT91RM9200 OHCI USB Controller\n");
+	dev_dbg(&pdev->dev, "start\n");
 
 	/*
 	 * Start the USB clocks.
 	 */
 	clk_enable(iclk);
 	clk_enable(fclk);
+	clocked = 1;
 
 	/*
 	 * The USB host controller must remain in reset.
@@ -54,7 +56,7 @@ static void at91_stop_hc(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct ohci_regs __iomem *regs = hcd->regs;
 
-	dev_dbg(&pdev->dev, "stopping AT91RM9200 OHCI USB Controller\n");
+	dev_dbg(&pdev->dev, "stop\n");
 
 	/*
 	 * Put the USB host controller into reset.
@@ -66,6 +68,7 @@ static void at91_stop_hc(struct platform_device *pdev)
 	 */
 	clk_disable(fclk);
 	clk_disable(iclk);
+	clocked = 0;
 }
 
 
@@ -78,14 +81,15 @@ static int usb_hcd_at91_remove (struct usb_hcd *, struct platform_device *);
 
 
 /**
- * usb_hcd_at91_probe - initialize AT91RM9200-based HCDs
+ * usb_hcd_at91_probe - initialize AT91-based HCDs
  * Context: !in_interrupt()
  *
  * Allocates basic resources for this USB host controller, and
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
  */
-int usb_hcd_at91_probe (const struct hc_driver *driver, struct platform_device *pdev)
+static int usb_hcd_at91_probe(const struct hc_driver *driver,
+			struct platform_device *pdev)
 {
 	int retval;
 	struct usb_hcd *hcd = NULL;
@@ -95,12 +99,13 @@ int usb_hcd_at91_probe (const struct hc_driver *driver, struct platform_device *
 		return -ENODEV;
 	}
 
-	if ((pdev->resource[0].flags != IORESOURCE_MEM) || (pdev->resource[1].flags != IORESOURCE_IRQ)) {
+	if ((pdev->resource[0].flags != IORESOURCE_MEM)
+			|| (pdev->resource[1].flags != IORESOURCE_IRQ)) {
 		pr_debug("hcd probe: invalid resource type\n");
 		return -ENODEV;
 	}
 
-	hcd = usb_create_hcd(driver, &pdev->dev, "at91rm9200");
+	hcd = usb_create_hcd(driver, &pdev->dev, "at91");
 	if (!hcd)
 		return -ENOMEM;
 	hcd->rsrc_start = pdev->resource[0].start;
@@ -149,21 +154,23 @@ int usb_hcd_at91_probe (const struct hc_driver *driver, struct platform_device *
 /* may be called with controller, bus, and devices active */
 
 /**
- * usb_hcd_at91_remove - shutdown processing for AT91RM9200-based HCDs
+ * usb_hcd_at91_remove - shutdown processing for AT91-based HCDs
  * @dev: USB Host Controller being removed
  * Context: !in_interrupt()
  *
  * Reverses the effect of usb_hcd_at91_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
- * context, normally "rmmod", "apmd", or something similar.
+ * context, "rmmod" or something similar.
  *
  */
-static int usb_hcd_at91_remove (struct usb_hcd *hcd, struct platform_device *pdev)
+static int usb_hcd_at91_remove(struct usb_hcd *hcd,
+				struct platform_device *pdev)
 {
 	usb_remove_hcd(hcd);
 	at91_stop_hc(pdev);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+	disable_irq_wake(hcd->irq);
 
 	clk_put(fclk);
 	clk_put(iclk);
@@ -178,19 +185,21 @@ static int usb_hcd_at91_remove (struct usb_hcd *hcd, struct platform_device *pde
 static int __devinit
 ohci_at91_start (struct usb_hcd *hcd)
 {
-//	struct at91_ohci_data	*board = hcd->self.controller->platform_data;
+	struct at91_usbh_data	*board = hcd->self.controller->platform_data;
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
+	struct usb_device	*root = hcd->self.root_hub;
 	int			ret;
 
 	if ((ret = ohci_init(ohci)) < 0)
 		return ret;
+
+	root->maxchild = board->ports;
 
 	if ((ret = ohci_run(ohci)) < 0) {
 		err("can't start %s", hcd->self.bus_name);
 		ohci_stop(hcd);
 		return ret;
 	}
-//	hcd->self.root_hub->maxchild = board->ports;
 	return 0;
 }
 
@@ -198,7 +207,7 @@ ohci_at91_start (struct usb_hcd *hcd)
 
 static const struct hc_driver ohci_at91_hc_driver = {
 	.description =		hcd_name,
-	.product_desc =		"AT91RM9200 OHCI",
+	.product_desc =		"AT91 OHCI",
 	.hcd_priv_size =	sizeof(struct ohci_hcd),
 
 	/*
@@ -240,33 +249,54 @@ static const struct hc_driver ohci_at91_hc_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int ohci_hcd_at91_drv_probe(struct platform_device *dev)
+static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 {
-	return usb_hcd_at91_probe(&ohci_at91_hc_driver, dev);
+	device_init_wakeup(&pdev->dev, 1);
+	return usb_hcd_at91_probe(&ohci_at91_hc_driver, pdev);
 }
 
-static int ohci_hcd_at91_drv_remove(struct platform_device *dev)
+static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 {
-	return usb_hcd_at91_remove(platform_get_drvdata(dev), dev);
+	device_init_wakeup(&pdev->dev, 0);
+	return usb_hcd_at91_remove(platform_get_drvdata(pdev), pdev);
 }
 
 #ifdef CONFIG_PM
 
-/* REVISIT suspend/resume look "too" simple here */
-
 static int
-ohci_hcd_at91_drv_suspend(struct platform_device *dev, pm_message_t mesg)
+ohci_hcd_at91_drv_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
-	clk_disable(fclk);
-	clk_disable(iclk);
+	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
+	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
+
+	if (device_may_wakeup(&pdev->dev))
+		enable_irq_wake(hcd->irq);
+	else
+		disable_irq_wake(hcd->irq);
+
+	/*
+	 * The integrated transceivers seem unable to notice disconnect,
+	 * reconnect, or wakeup without the 48 MHz clock active.  so for
+	 * correctness, always discard connection state (using reset).
+	 *
+	 * REVISIT: some boards will be able to turn VBUS off...
+	 */
+	if (at91_suspend_entering_slow_clock()) {
+		ohci_usb_reset (ohci);
+		clk_disable(fclk);
+		clk_disable(iclk);
+		clocked = 0;
+	}
 
 	return 0;
 }
 
-static int ohci_hcd_at91_drv_resume(struct platform_device *dev)
+static int ohci_hcd_at91_drv_resume(struct platform_device *pdev)
 {
-	clk_enable(iclk);
-	clk_enable(fclk);
+	if (!clocked) {
+		clk_enable(iclk);
+		clk_enable(fclk);
+	}
 
 	return 0;
 }
@@ -275,7 +305,7 @@ static int ohci_hcd_at91_drv_resume(struct platform_device *dev)
 #define ohci_hcd_at91_drv_resume  NULL
 #endif
 
-MODULE_ALIAS("at91rm9200-ohci");
+MODULE_ALIAS("at91_ohci");
 
 static struct platform_driver ohci_hcd_at91_driver = {
 	.probe		= ohci_hcd_at91_drv_probe,
@@ -283,7 +313,7 @@ static struct platform_driver ohci_hcd_at91_driver = {
 	.suspend	= ohci_hcd_at91_drv_suspend,
 	.resume		= ohci_hcd_at91_drv_resume,
 	.driver		= {
-		.name	= "at91rm9200-ohci",
+		.name	= "at91_ohci",
 		.owner	= THIS_MODULE,
 	},
 };

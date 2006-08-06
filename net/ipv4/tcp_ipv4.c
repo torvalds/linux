@@ -438,7 +438,6 @@ void tcp_v4_err(struct sk_buff *skb, u32 info)
 			       It can f.e. if SYNs crossed.
 			     */
 		if (!sock_owned_by_user(sk)) {
-			TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
 			sk->sk_err = err;
 
 			sk->sk_error_report(sk);
@@ -874,7 +873,6 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 drop_and_free:
 	reqsk_free(req);
 drop:
-	TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
 	return 0;
 }
 

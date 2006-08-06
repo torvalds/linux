@@ -480,7 +480,7 @@ xpc_activating(void *__partid)
 	partid_t partid = (u64) __partid;
 	struct xpc_partition *part = &xpc_partitions[partid];
 	unsigned long irq_flags;
-	struct sched_param param = { sched_priority: MAX_RT_PRIO - 1 };
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 	int ret;
 
 

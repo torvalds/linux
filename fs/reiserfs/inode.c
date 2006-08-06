@@ -39,14 +39,10 @@ void reiserfs_delete_inode(struct inode *inode)
 
 	/* The = 0 happens when we abort creating a new inode for some reason like lack of space.. */
 	if (!(inode->i_state & I_NEW) && INODE_PKEY(inode)->k_objectid != 0) {	/* also handles bad_inode case */
-		mutex_lock(&inode->i_mutex);
-
 		reiserfs_delete_xattrs(inode);
 
-		if (journal_begin(&th, inode->i_sb, jbegin_count)) {
-			mutex_unlock(&inode->i_mutex);
+		if (journal_begin(&th, inode->i_sb, jbegin_count))
 			goto out;
-		}
 		reiserfs_update_inode_transaction(inode);
 
 		err = reiserfs_delete_object(&th, inode);
@@ -57,12 +53,8 @@ void reiserfs_delete_inode(struct inode *inode)
 		if (!err) 
 			DQUOT_FREE_INODE(inode);
 
-		if (journal_end(&th, inode->i_sb, jbegin_count)) {
-			mutex_unlock(&inode->i_mutex);
+		if (journal_end(&th, inode->i_sb, jbegin_count))
 			goto out;
-		}
-
-		mutex_unlock(&inode->i_mutex);
 
 		/* check return value from reiserfs_delete_object after
 		 * ending the transaction
@@ -2348,6 +2340,7 @@ static int reiserfs_write_full_page(struct page *page,
 	unsigned long end_index = inode->i_size >> PAGE_CACHE_SHIFT;
 	int error = 0;
 	unsigned long block;
+	sector_t last_block;
 	struct buffer_head *head, *bh;
 	int partial = 0;
 	int nr = 0;
@@ -2395,10 +2388,19 @@ static int reiserfs_write_full_page(struct page *page,
 	}
 	bh = head;
 	block = page->index << (PAGE_CACHE_SHIFT - s->s_blocksize_bits);
+	last_block = (i_size_read(inode) - 1) >> inode->i_blkbits;
 	/* first map all the buffers, logging any direct items we find */
 	do {
-		if ((checked || buffer_dirty(bh)) && (!buffer_mapped(bh) ||
-						      (buffer_mapped(bh)
+		if (block > last_block) {
+			/*
+			 * This can happen when the block size is less than
+			 * the page size.  The corresponding bytes in the page
+			 * were zero filled above
+			 */
+			clear_buffer_dirty(bh);
+			set_buffer_uptodate(bh);
+		} else if ((checked || buffer_dirty(bh)) &&
+		           (!buffer_mapped(bh) || (buffer_mapped(bh)
 						       && bh->b_blocknr ==
 						       0))) {
 			/* not mapped yet, or it points to a direct item, search

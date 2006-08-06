@@ -1106,7 +1106,7 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 
 #endif
 
-static int __devinit cpuup_callback(struct notifier_block *nfb,
+static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 				    unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
@@ -3224,7 +3224,7 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 EXPORT_SYMBOL(kmem_cache_alloc);
 
 /**
- * kmem_cache_alloc - Allocate an object. The memory is set to zero.
+ * kmem_cache_zalloc - Allocate an object. The memory is set to zero.
  * @cache: The cache to allocate from.
  * @flags: See kmalloc().
  *

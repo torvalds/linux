@@ -30,8 +30,12 @@ static inline void pmac_backlight_key_down(void)
 	pmac_backlight_key(1);
 }
 
+extern void pmac_backlight_set_legacy_brightness_pmu(int brightness);
 extern int pmac_backlight_set_legacy_brightness(int brightness);
 extern int pmac_backlight_get_legacy_brightness(void);
+
+extern void pmac_backlight_enable(void);
+extern void pmac_backlight_disable(void);
 
 #endif /* __KERNEL__ */
 #endif

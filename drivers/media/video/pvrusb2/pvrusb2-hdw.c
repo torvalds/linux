@@ -852,7 +852,6 @@ unsigned long pvr2_hdw_get_sn(struct pvr2_hdw *hdw)
 	return hdw->serial_number;
 }
 
-
 int pvr2_hdw_get_unit_number(struct pvr2_hdw *hdw)
 {
 	return hdw->unit_number;
@@ -2318,7 +2317,6 @@ void pvr2_hdw_poll_trigger_unlocked(struct pvr2_hdw *hdw)
 	}
 }
 
-
 /* Return name for this driver instance */
 const char *pvr2_hdw_get_driver_name(struct pvr2_hdw *hdw)
 {
@@ -2542,6 +2540,10 @@ static void pvr2_ctl_timeout(unsigned long data)
 }
 
 
+/* Issue a command and get a response from the device.  This extended
+   version includes a probe flag (which if set means that device errors
+   should not be logged or treated as fatal) and a timeout in jiffies.
+   This can be used to non-lethally probe the health of endpoint 1. */
 static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 				unsigned int timeout,int probe_fl,
 				void *write_data,unsigned int write_len,
@@ -2970,6 +2972,7 @@ int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 }
 
 
+/* Stop / start video stream transport */
 static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl)
 {
 	int status;
@@ -3068,6 +3071,7 @@ int pvr2_hdw_gpio_chg_out(struct pvr2_hdw *hdw,u32 msk,u32 val)
 }
 
 
+/* Find I2C address of eeprom */
 static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
 {
 	int result;

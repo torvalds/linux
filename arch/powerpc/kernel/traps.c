@@ -150,13 +150,9 @@ int die(const char *str, struct pt_regs *regs, long err)
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 
-	if (panic_on_oops) {
-#ifdef CONFIG_PPC64
-		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
-		ssleep(5);
-#endif
-		panic("Fatal exception");
-	}
+	if (panic_on_oops)
+		panic("Fatal exception: panic_on_oops");
+
 	do_exit(err);
 
 	return 0;

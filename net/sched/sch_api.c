@@ -430,7 +430,7 @@ qdisc_create(struct net_device *dev, u32 handle, struct rtattr **tca, int *errp)
 	}
 #endif
 
-	err = -EINVAL;
+	err = -ENOENT;
 	if (ops == NULL)
 		goto err_out;
 

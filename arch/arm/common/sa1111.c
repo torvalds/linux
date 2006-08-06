@@ -272,7 +272,8 @@ static int sa1111_wake_lowirq(unsigned int irq, unsigned int on)
 	return 0;
 }
 
-static struct irqchip sa1111_low_chip = {
+static struct irq_chip sa1111_low_chip = {
+	.name		= "SA1111-l",
 	.ack		= sa1111_ack_irq,
 	.mask		= sa1111_mask_lowirq,
 	.unmask		= sa1111_unmask_lowirq,
@@ -368,7 +369,8 @@ static int sa1111_wake_highirq(unsigned int irq, unsigned int on)
 	return 0;
 }
 
-static struct irqchip sa1111_high_chip = {
+static struct irq_chip sa1111_high_chip = {
+	.name		= "SA1111-h",
 	.ack		= sa1111_ack_irq,
 	.mask		= sa1111_mask_highirq,
 	.unmask		= sa1111_unmask_highirq,

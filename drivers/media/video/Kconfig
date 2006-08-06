@@ -145,7 +145,7 @@ config VIDEO_SAA5246A
 
 config VIDEO_SAA5249
 	tristate "SAA5249 Teletext processor"
-	depends on VIDEO_DEV && I2C
+	depends on VIDEO_DEV && I2C && VIDEO_V4L1
 	help
 	  Support for I2C bus based teletext using the SAA5249 chip. At the
 	  moment this is only useful on some European WinTV cards.
@@ -155,7 +155,7 @@ config VIDEO_SAA5249
 
 config TUNER_3036
 	tristate "SAB3036 tuner"
-	depends on VIDEO_DEV && I2C
+	depends on VIDEO_DEV && I2C && VIDEO_V4L1
 	help
 	  Say Y here to include support for Philips SAB3036 compatible tuners.
 	  If in doubt, say N.

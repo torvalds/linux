@@ -558,7 +558,7 @@ out:
  *   of shared sysfs dir/files, and rest of the cores will be symlinked to it.
  */
 
-static __cpuinit void deallocate_threshold_block(unsigned int cpu,
+static void deallocate_threshold_block(unsigned int cpu,
 						 unsigned int bank)
 {
 	struct threshold_block *pos = NULL;
@@ -578,7 +578,7 @@ static __cpuinit void deallocate_threshold_block(unsigned int cpu,
 	per_cpu(threshold_banks, cpu)[bank]->blocks = NULL;
 }
 
-static __cpuinit void threshold_remove_bank(unsigned int cpu, int bank)
+static void threshold_remove_bank(unsigned int cpu, int bank)
 {
 	int i = 0;
 	struct threshold_bank *b;
@@ -618,7 +618,7 @@ free_out:
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 }
 
-static __cpuinit void threshold_remove_device(unsigned int cpu)
+static void threshold_remove_device(unsigned int cpu)
 {
 	unsigned int bank;
 
@@ -629,14 +629,8 @@ static __cpuinit void threshold_remove_device(unsigned int cpu)
 	}
 }
 
-#else /* !CONFIG_HOTPLUG_CPU */
-static void threshold_remove_device(unsigned int cpu)
-{
-}
-#endif
-
 /* get notified when a cpu comes on/off */
-static int __cpuinit threshold_cpu_callback(struct notifier_block *nfb,
+static int threshold_cpu_callback(struct notifier_block *nfb,
 					    unsigned long action, void *hcpu)
 {
 	/* cpu was unsigned int to begin with */
@@ -659,9 +653,10 @@ static int __cpuinit threshold_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block threshold_cpu_notifier __cpuinitdata = {
+static struct notifier_block threshold_cpu_notifier = {
 	.notifier_call = threshold_cpu_callback,
 };
+#endif /* CONFIG_HOTPLUG_CPU */
 
 static __init int threshold_init_device(void)
 {
@@ -673,7 +668,7 @@ static __init int threshold_init_device(void)
 		if (err)
 			return err;
 	}
-	register_cpu_notifier(&threshold_cpu_notifier);
+	register_hotcpu_notifier(&threshold_cpu_notifier);
 	return 0;
 }
 

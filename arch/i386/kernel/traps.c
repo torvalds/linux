@@ -187,10 +187,21 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			if (unwind_init_blocked(&info, task) == 0)
 				unw_ret = show_trace_unwind(&info, log_lvl);
 		}
-		if (unw_ret > 0) {
-			if (call_trace > 0)
+		if (unw_ret > 0 && !arch_unw_user_mode(&info)) {
+#ifdef CONFIG_STACK_UNWIND
+			print_symbol("DWARF2 unwinder stuck at %s\n",
+				     UNW_PC(&info));
+			if (call_trace == 1) {
+				printk("Leftover inexact backtrace:\n");
+				if (UNW_SP(&info))
+					stack = (void *)UNW_SP(&info);
+			} else if (call_trace > 1)
 				return;
-			printk("%sLegacy call trace:\n", log_lvl);
+			else
+				printk("Full inexact backtrace again:\n");
+#else
+			printk("Inexact backtrace:\n");
+#endif
 		}
 	}
 
@@ -442,11 +453,9 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 
-	if (panic_on_oops) {
-		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
-		ssleep(5);
-		panic("Fatal exception");
-	}
+	if (panic_on_oops)
+		panic("Fatal exception: panic_on_oops");
+
 	oops_exit();
 	do_exit(SIGSEGV);
 }
@@ -1238,8 +1247,10 @@ static int __init call_trace_setup(char *s)
 		call_trace = -1;
 	else if (strcmp(s, "both") == 0)
 		call_trace = 0;
-	else if (strcmp(s, "new") == 0)
+	else if (strcmp(s, "newfallback") == 0)
 		call_trace = 1;
+	else if (strcmp(s, "new") == 2)
+		call_trace = 2;
 	return 1;
 }
 __setup("call_trace=", call_trace_setup);

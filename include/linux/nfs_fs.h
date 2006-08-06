@@ -476,10 +476,9 @@ static inline int nfs_wb_page(struct inode *inode, struct page* page)
 }
 
 /*
- * Allocate and free nfs_write_data structures
+ * Allocate nfs_write_data structures
  */
 extern struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount);
-extern void nfs_writedata_free(struct nfs_write_data *p);
 
 /*
  * linux/fs/nfs/read.c
@@ -491,10 +490,9 @@ extern int  nfs_readpage_result(struct rpc_task *, struct nfs_read_data *);
 extern void nfs_readdata_release(void *data);
 
 /*
- * Allocate and free nfs_read_data structures
+ * Allocate nfs_read_data structures
  */
 extern struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount);
-extern void nfs_readdata_free(struct nfs_read_data *p);
 
 /*
  * linux/fs/nfs3proc.c

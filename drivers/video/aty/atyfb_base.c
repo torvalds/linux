@@ -2812,7 +2812,7 @@ static int atyfb_blank(int blank, struct fb_info *info)
 	if (par->lock_blank || par->asleep)
 		return 0;
 
-#ifdef CONFIG_PMAC_BACKLIGHT
+#ifdef CONFIG_FB_ATY_BACKLIGHT
 	if (machine_is(powermac) && blank > FB_BLANK_NORMAL)
 		aty_bl_set_power(info, FB_BLANK_POWERDOWN);
 #elif defined(CONFIG_FB_ATY_GENERIC_LCD)
@@ -2844,7 +2844,7 @@ static int atyfb_blank(int blank, struct fb_info *info)
 	}
 	aty_st_le32(CRTC_GEN_CNTL, gen_cntl, par);
 
-#ifdef CONFIG_PMAC_BACKLIGHT
+#ifdef CONFIG_FB_ATY_BACKLIGHT
 	if (machine_is(powermac) && blank <= FB_BLANK_NORMAL)
 		aty_bl_set_power(info, FB_BLANK_UNBLANK);
 #elif defined(CONFIG_FB_ATY_GENERIC_LCD)
