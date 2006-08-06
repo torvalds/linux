@@ -311,7 +311,8 @@ static void hvsi_recv_control(struct hvsi_struct *hp, uint8_t *packet,
 				/* CD went away; no more connection */
 				pr_debug("hvsi%i: CD dropped\n", hp->index);
 				hp->mctrl &= TIOCM_CD;
-				if (!(hp->tty->flags & CLOCAL))
+				/* If userland hasn't done an open(2) yet, hp->tty is NULL. */
+				if (hp->tty && !(hp->tty->flags & CLOCAL))
 					*to_hangup = hp->tty;
 			}
 			break;
@@ -986,10 +987,7 @@ static void hvsi_write_worker(void *arg)
 		start_j = 0;
 #endif /* DEBUG */
 		wake_up_all(&hp->emptyq);
-		if (test_bit(TTY_DO_WRITE_WAKEUP, &hp->tty->flags)
-				&& hp->tty->ldisc.write_wakeup)
-			hp->tty->ldisc.write_wakeup(hp->tty);
-		wake_up_interruptible(&hp->tty->write_wait);
+		tty_wakeup(hp->tty);
 	}
 
 out:

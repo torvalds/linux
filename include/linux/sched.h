@@ -1558,6 +1558,14 @@ static inline void freeze(struct task_struct *p)
 }
 
 /*
+ * Sometimes we may need to cancel the previous 'freeze' request
+ */
+static inline void do_not_freeze(struct task_struct *p)
+{
+	p->flags &= ~PF_FREEZE;
+}
+
+/*
  * Wake up a frozen process
  */
 static inline int thaw_process(struct task_struct *p)
