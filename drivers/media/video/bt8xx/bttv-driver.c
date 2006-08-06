@@ -2431,6 +2431,14 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		fbuf->bytesperline  = btv->fbuf.fmt.bytesperline;
 		if (fh->ovfmt)
 			fbuf->depth = fh->ovfmt->depth;
+		else {
+			if (fbuf->width)
+				fbuf->depth   = ((fbuf->bytesperline<<3)
+                                                  + (fbuf->width-1) )
+                                                  /fbuf->width;
+			else
+				fbuf->depth = 0;
+		}
 		return 0;
 	}
 	case VIDIOCSFBUF:
