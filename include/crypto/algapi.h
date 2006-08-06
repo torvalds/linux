@@ -14,5 +14,36 @@
 
 #include <linux/crypto.h>
 
+struct module;
+
+struct crypto_instance {
+	struct crypto_alg alg;
+
+	struct crypto_template *tmpl;
+	struct hlist_node list;
+
+	void *__ctx[] CRYPTO_MINALIGN_ATTR;
+};
+
+struct crypto_template {
+	struct list_head list;
+	struct hlist_head instances;
+	struct module *module;
+
+	struct crypto_instance *(*alloc)(void *param, unsigned int len);
+	void (*free)(struct crypto_instance *inst);
+
+	char name[CRYPTO_MAX_ALG_NAME];
+};
+
+int crypto_register_template(struct crypto_template *tmpl);
+void crypto_unregister_template(struct crypto_template *tmpl);
+struct crypto_template *crypto_lookup_template(const char *name);
+
+static inline void *crypto_instance_ctx(struct crypto_instance *inst)
+{
+	return inst->__ctx;
+}
+
 #endif	/* _CRYPTO_ALGAPI_H */
 

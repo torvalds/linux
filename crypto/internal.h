@@ -19,10 +19,14 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <asm/kmap_types.h>
+
+struct crypto_instance;
+struct crypto_template;
 
 extern struct list_head crypto_alg_list;
 extern struct rw_semaphore crypto_alg_sem;
@@ -111,6 +115,19 @@ int crypto_init_compress_ops(struct crypto_tfm *tfm);
 void crypto_exit_digest_ops(struct crypto_tfm *tfm);
 void crypto_exit_cipher_ops(struct crypto_tfm *tfm);
 void crypto_exit_compress_ops(struct crypto_tfm *tfm);
+
+int crypto_register_instance(struct crypto_template *tmpl,
+			     struct crypto_instance *inst);
+
+static inline int crypto_tmpl_get(struct crypto_template *tmpl)
+{
+	return try_module_get(tmpl->module);
+}
+
+static inline void crypto_tmpl_put(struct crypto_template *tmpl)
+{
+	module_put(tmpl->module);
+}
 
 #endif	/* _CRYPTO_INTERNAL_H */
 

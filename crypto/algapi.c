@@ -13,10 +13,13 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/string.h>
 
 #include "internal.h"
+
+static LIST_HEAD(crypto_template_list);
 
 static inline int crypto_set_driver_name(struct crypto_alg *alg)
 {
@@ -35,11 +38,8 @@ static inline int crypto_set_driver_name(struct crypto_alg *alg)
 	return 0;
 }
 
-int crypto_register_alg(struct crypto_alg *alg)
+static int crypto_check_alg(struct crypto_alg *alg)
 {
-	int ret;
-	struct crypto_alg *q;
-
 	if (alg->cra_alignmask & (alg->cra_alignmask + 1))
 		return -EINVAL;
 
@@ -51,42 +51,52 @@ int crypto_register_alg(struct crypto_alg *alg)
 
 	if (alg->cra_priority < 0)
 		return -EINVAL;
-	
-	ret = crypto_set_driver_name(alg);
-	if (unlikely(ret))
-		return ret;
 
-	down_write(&crypto_alg_sem);
-	
+	return crypto_set_driver_name(alg);
+}
+
+static int __crypto_register_alg(struct crypto_alg *alg)
+{
+	struct crypto_alg *q;
+	int ret = -EEXIST;
+
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
-		if (q == alg) {
-			ret = -EEXIST;
+		if (q == alg)
 			goto out;
-		}
 	}
 	
 	list_add(&alg->cra_list, &crypto_alg_list);
 	atomic_set(&alg->cra_refcnt, 1);
+	ret = 0;
 out:	
-	up_write(&crypto_alg_sem);
 	return ret;
+}
+
+int crypto_register_alg(struct crypto_alg *alg)
+{
+	int err;
+
+	err = crypto_check_alg(alg);
+	if (err)
+		return err;
+
+	down_write(&crypto_alg_sem);
+	err = __crypto_register_alg(alg);
+	up_write(&crypto_alg_sem);
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(crypto_register_alg);
 
 int crypto_unregister_alg(struct crypto_alg *alg)
 {
 	int ret = -ENOENT;
-	struct crypto_alg *q;
 	
 	down_write(&crypto_alg_sem);
-	list_for_each_entry(q, &crypto_alg_list, cra_list) {
-		if (alg == q) {
-			list_del(&alg->cra_list);
-			ret = 0;
-			goto out;
-		}
+	if (likely(!list_empty(&alg->cra_list))) {
+		list_del_init(&alg->cra_list);
+		ret = 0;
 	}
-out:	
 	up_write(&crypto_alg_sem);
 
 	if (ret)
@@ -99,6 +109,108 @@ out:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_alg);
+
+int crypto_register_template(struct crypto_template *tmpl)
+{
+	struct crypto_template *q;
+	int err = -EEXIST;
+
+	down_write(&crypto_alg_sem);
+
+	list_for_each_entry(q, &crypto_template_list, list) {
+		if (q == tmpl)
+			goto out;
+	}
+
+	list_add(&tmpl->list, &crypto_template_list);
+	err = 0;
+out:
+	up_write(&crypto_alg_sem);
+	return err;
+}
+EXPORT_SYMBOL_GPL(crypto_register_template);
+
+void crypto_unregister_template(struct crypto_template *tmpl)
+{
+	struct crypto_instance *inst;
+	struct hlist_node *p, *n;
+	struct hlist_head *list;
+
+	down_write(&crypto_alg_sem);
+
+	BUG_ON(list_empty(&tmpl->list));
+	list_del_init(&tmpl->list);
+
+	list = &tmpl->instances;
+	hlist_for_each_entry(inst, p, list, list) {
+		BUG_ON(list_empty(&inst->alg.cra_list));
+		list_del_init(&inst->alg.cra_list);
+	}
+
+	up_write(&crypto_alg_sem);
+
+	hlist_for_each_entry_safe(inst, p, n, list, list) {
+		BUG_ON(atomic_read(&inst->alg.cra_refcnt) != 1);
+		tmpl->free(inst);
+	}
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_template);
+
+static struct crypto_template *__crypto_lookup_template(const char *name)
+{
+	struct crypto_template *q, *tmpl = NULL;
+
+	down_read(&crypto_alg_sem);
+	list_for_each_entry(q, &crypto_template_list, list) {
+		if (strcmp(q->name, name))
+			continue;
+		if (unlikely(!crypto_tmpl_get(q)))
+			continue;
+
+		tmpl = q;
+		break;
+	}
+	up_read(&crypto_alg_sem);
+
+	return tmpl;
+}
+
+struct crypto_template *crypto_lookup_template(const char *name)
+{
+	return try_then_request_module(__crypto_lookup_template(name), name);
+}
+EXPORT_SYMBOL_GPL(crypto_lookup_template);
+
+int crypto_register_instance(struct crypto_template *tmpl,
+			     struct crypto_instance *inst)
+{
+	int err = -EINVAL;
+
+	if (inst->alg.cra_destroy)
+		goto err;
+
+	err = crypto_check_alg(&inst->alg);
+	if (err)
+		goto err;
+
+	inst->alg.cra_module = tmpl->module;
+
+	down_write(&crypto_alg_sem);
+
+	err = __crypto_register_alg(&inst->alg);
+	if (err)
+		goto unlock;
+
+	hlist_add_head(&inst->list, &tmpl->instances);
+	inst->tmpl = tmpl;
+
+unlock:
+	up_write(&crypto_alg_sem);
+
+err:
+	return err;
+}
+EXPORT_SYMBOL_GPL(crypto_register_instance);
 
 static int __init crypto_algapi_init(void)
 {
