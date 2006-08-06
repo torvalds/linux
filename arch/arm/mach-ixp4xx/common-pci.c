@@ -532,8 +532,6 @@ pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 	return -EIO;
 }
 
-EXPORT_SYMBOL(pci_set_dma_mask);
-EXPORT_SYMBOL(pci_set_consistent_dma_mask);
 EXPORT_SYMBOL(ixp4xx_pci_read);
 EXPORT_SYMBOL(ixp4xx_pci_write);
 
