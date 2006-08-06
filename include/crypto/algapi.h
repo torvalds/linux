@@ -51,6 +51,11 @@ int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
 void crypto_drop_spawn(struct crypto_spawn *spawn);
 struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn);
 
+struct crypto_alg *crypto_get_attr_alg(void *param, unsigned int len,
+				       u32 type, u32 mask);
+struct crypto_instance *crypto_alloc_instance(const char *name,
+					      struct crypto_alg *alg);
+
 static inline void *crypto_instance_ctx(struct crypto_instance *inst)
 {
 	return inst->__ctx;

@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/rtnetlink.h>
 #include <linux/string.h>
 
 #include "internal.h"
@@ -414,6 +415,58 @@ int crypto_unregister_notifier(struct notifier_block *nb)
 	return blocking_notifier_chain_unregister(&crypto_chain, nb);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_notifier);
+
+struct crypto_alg *crypto_get_attr_alg(void *param, unsigned int len,
+				       u32 type, u32 mask)
+{
+	struct rtattr *rta = param;
+	struct crypto_attr_alg *alga;
+
+	if (!RTA_OK(rta, len))
+		return ERR_PTR(-EBADR);
+	if (rta->rta_type != CRYPTOA_ALG || RTA_PAYLOAD(rta) < sizeof(*alga))
+		return ERR_PTR(-EINVAL);
+
+	alga = RTA_DATA(rta);
+	alga->name[CRYPTO_MAX_ALG_NAME - 1] = 0;
+
+	return crypto_alg_mod_lookup(alga->name, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_get_attr_alg);
+
+struct crypto_instance *crypto_alloc_instance(const char *name,
+					      struct crypto_alg *alg)
+{
+	struct crypto_instance *inst;
+	struct crypto_spawn *spawn;
+	int err;
+
+	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
+	if (!inst)
+		return ERR_PTR(-ENOMEM);
+
+	err = -ENAMETOOLONG;
+	if (snprintf(inst->alg.cra_name, CRYPTO_MAX_ALG_NAME, "%s(%s)", name,
+		     alg->cra_name) >= CRYPTO_MAX_ALG_NAME)
+		goto err_free_inst;
+
+	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s(%s)",
+		     name, alg->cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
+		goto err_free_inst;
+
+	spawn = crypto_instance_ctx(inst);
+	err = crypto_init_spawn(spawn, alg, inst);
+
+	if (err)
+		goto err_free_inst;
+
+	return inst;
+
+err_free_inst:
+	kfree(inst);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(crypto_alloc_instance);
 
 static int __init crypto_algapi_init(void)
 {
