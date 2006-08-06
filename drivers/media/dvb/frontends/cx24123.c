@@ -191,7 +191,7 @@ static struct {
 	{0x06, 0x31}, /* MPEG (default) */
 	{0x0b, 0x00}, /* Freq search start point (default) */
 	{0x0c, 0x00}, /* Demodulator sample gain (default) */
-	{0x0d, 0x02}, /* Frequency search range = Fsymbol / 4 (default) */
+	{0x0d, 0x7f}, /* Force driver to shift until the maximum (+-10 MHz) */
 	{0x0e, 0x03}, /* Default non-inverted, FEC 3/4 (default) */
 	{0x0f, 0xfe}, /* FEC search mask (all supported codes) */
 	{0x10, 0x01}, /* Default search inversion, no repeat (default) */
@@ -222,6 +222,7 @@ static struct {
 	{0x46, 0x0d}, /* Symbol rate estimator on (default) */
 	{0x56, 0xc1}, /* Error Counter = Viterbi BER */
 	{0x57, 0xff}, /* Error Counter Window (default) */
+	{0x5c, 0x20}, /* Acquisition AFC Expiration window (default is 0x10) */
 	{0x67, 0x83}, /* Non-DCII symbol clock */
 };
 
@@ -779,13 +780,15 @@ static int cx24123_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	if (lock & 0x01)
 		*status |= FE_HAS_SIGNAL;
 	if (sync & 0x02)
-		*status |= FE_HAS_CARRIER;
+		*status |= FE_HAS_CARRIER;	/* Phase locked */
 	if (sync & 0x04)
 		*status |= FE_HAS_VITERBI;
+
+	/* Reed-Solomon Status */
 	if (sync & 0x08)
 		*status |= FE_HAS_SYNC;
 	if (sync & 0x80)
-		*status |= FE_HAS_LOCK;
+		*status |= FE_HAS_LOCK;		/*Full Sync */
 
 	return 0;
 }
@@ -812,6 +815,7 @@ static int cx24123_read_ber(struct dvb_frontend* fe, u32* ber)
 static int cx24123_read_signal_strength(struct dvb_frontend* fe, u16* signal_strength)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
+
 	*signal_strength = cx24123_readreg(state, 0x3b) << 8; /* larger = better */
 
 	dprintk("%s:  Signal strength = %d\n",__FUNCTION__,*signal_strength);
