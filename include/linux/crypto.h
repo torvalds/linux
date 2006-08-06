@@ -37,6 +37,7 @@
 #define CRYPTO_ALG_LARVAL		0x00000010
 #define CRYPTO_ALG_DEAD			0x00000020
 #define CRYPTO_ALG_DYING		0x00000040
+#define CRYPTO_ALG_ASYNC		0x00000080
 
 /*
  * Transform masks and values (for crt_flags).

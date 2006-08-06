@@ -355,7 +355,7 @@ struct crypto_tfm *crypto_alloc_tfm(const char *name, u32 flags)
 	do {
 		struct crypto_alg *alg;
 
-		alg = crypto_alg_mod_lookup(name, 0, 0);
+		alg = crypto_alg_mod_lookup(name, 0, CRYPTO_ALG_ASYNC);
 		err = PTR_ERR(alg);
 		if (IS_ERR(alg))
 			continue;
@@ -394,7 +394,8 @@ void crypto_free_tfm(struct crypto_tfm *tfm)
 int crypto_alg_available(const char *name, u32 flags)
 {
 	int ret = 0;
-	struct crypto_alg *alg = crypto_alg_mod_lookup(name, 0, 0);
+	struct crypto_alg *alg = crypto_alg_mod_lookup(name, 0,
+						       CRYPTO_ALG_ASYNC);
 	
 	if (!IS_ERR(alg)) {
 		crypto_mod_put(alg);
