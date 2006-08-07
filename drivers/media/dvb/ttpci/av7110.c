@@ -2823,7 +2823,7 @@ MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 
 static struct saa7146_extension av7110_extension = {
-	.name		= "dvb\0",
+	.name		= "dvb",
 	.flags		= SAA7146_I2C_SHORT_DELAY,
 
 	.module		= THIS_MODULE,

@@ -648,7 +648,7 @@ static void __exit budget_patch_exit(void)
 }
 
 static struct saa7146_extension budget_extension = {
-	.name           = "budget_patch dvb\0",
+	.name           = "budget_patch dvb",
 	.flags          = 0,
 
 	.module         = THIS_MODULE,
