@@ -5218,35 +5218,25 @@ void ata_dev_init(struct ata_device *dev)
 }
 
 /**
- *	ata_host_init - Initialize an ata_port structure
+ *	ata_port_init - Initialize an ata_port structure
  *	@ap: Structure to initialize
- *	@host: associated SCSI mid-layer structure
  *	@host_set: Collection of hosts to which @ap belongs
  *	@ent: Probe information provided by low-level driver
  *	@port_no: Port number associated with this ata_port
  *
- *	Initialize a new ata_port structure, and its associated
- *	scsi_host.
+ *	Initialize a new ata_port structure.
  *
  *	LOCKING:
  *	Inherited from caller.
  */
-static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
-			  struct ata_host_set *host_set,
-			  const struct ata_probe_ent *ent, unsigned int port_no)
+void ata_port_init(struct ata_port *ap, struct ata_host_set *host_set,
+		   const struct ata_probe_ent *ent, unsigned int port_no)
 {
 	unsigned int i;
 
-	host->max_id = 16;
-	host->max_lun = 1;
-	host->max_channel = 1;
-	host->unique_id = ata_unique_id++;
-	host->max_cmd_len = 12;
-
 	ap->lock = &host_set->lock;
 	ap->flags = ATA_FLAG_DISABLED;
-	ap->id = host->unique_id;
-	ap->host = host;
+	ap->id = ata_unique_id++;
 	ap->ctl = ATA_DEVCTL_OBS;
 	ap->host_set = host_set;
 	ap->dev = ent->dev;
@@ -5295,6 +5285,35 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 #endif
 
 	memcpy(&ap->ioaddr, &ent->port[port_no], sizeof(struct ata_ioports));
+}
+
+/**
+ *	ata_host_init - Initialize an ata_port structure
+ *	@ap: Structure to initialize
+ *	@host: associated SCSI mid-layer structure
+ *	@host_set: Collection of hosts to which @ap belongs
+ *	@ent: Probe information provided by low-level driver
+ *	@port_no: Port number associated with this ata_port
+ *
+ *	Initialize a new ata_port structure, and its associated
+ *	scsi_host.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+
+static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
+			  struct ata_host_set *host_set,
+			  const struct ata_probe_ent *ent, unsigned int port_no)
+{
+	ata_port_init(ap, host_set, ent, port_no);
+	ap->host = host;
+
+	host->unique_id = ap->id;
+	host->max_id = 16;
+	host->max_lun = 1;
+	host->max_channel = 1;
+	host->max_cmd_len = 12;
 }
 
 /**
