@@ -3101,7 +3101,6 @@ static int tg3_alloc_rx_skb(struct tg3 *tp, u32 opaque_key,
 	if (skb == NULL)
 		return -ENOMEM;
 
-	skb->dev = tp->dev;
 	skb_reserve(skb, tp->rx_offset);
 
 	mapping = pci_map_single(tp->pdev, skb->data,
@@ -3274,7 +3273,6 @@ static int tg3_rx(struct tg3 *tp, int budget)
 			if (copy_skb == NULL)
 				goto drop_it_no_recycle;
 
-			copy_skb->dev = tp->dev;
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
