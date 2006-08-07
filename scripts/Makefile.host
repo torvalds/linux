@@ -32,11 +32,6 @@
 
 __hostprogs := $(sort $(hostprogs-y) $(hostprogs-m))
 
-# hostprogs-y := tools/build may have been specified. Retreive directory
-host-objdirs := $(foreach f,$(__hostprogs), $(if $(dir $(f)),$(dir $(f))))
-host-objdirs := $(strip $(sort $(filter-out ./,$(host-objdirs))))
-
-
 # C code
 # Executables compiled from a single .c file
 host-csingle	:= $(foreach m,$(__hostprogs),$(if $($(m)-objs),,$(m)))
@@ -65,6 +60,21 @@ host-cobjs	:= $(filter-out %.so,$(host-cobjs))
 #Object (.o) files used by the shared libaries
 host-cshobjs	:= $(sort $(foreach m,$(host-cshlib),$($(m:.so=-objs))))
 
+# output directory for programs/.o files
+# hostprogs-y := tools/build may have been specified. Retreive directory
+host-objdirs := $(foreach f,$(__hostprogs), $(if $(dir $(f)),$(dir $(f))))
+# directory of .o files from prog-objs notation
+host-objdirs += $(foreach f,$(host-cmulti),                  \
+                    $(foreach m,$($(f)-objs),                \
+                        $(if $(dir $(m)),$(dir $(m)))))
+# directory of .o files from prog-cxxobjs notation
+host-objdirs += $(foreach f,$(host-cxxmulti),                  \
+                    $(foreach m,$($(f)-cxxobjs),                \
+                        $(if $(dir $(m)),$(dir $(m)))))
+
+host-objdirs := $(strip $(sort $(filter-out ./,$(host-objdirs))))
+
+
 __hostprogs     := $(addprefix $(obj)/,$(__hostprogs))
 host-csingle	:= $(addprefix $(obj)/,$(host-csingle))
 host-cmulti	:= $(addprefix $(obj)/,$(host-cmulti))
@@ -75,6 +85,7 @@ host-cshlib	:= $(addprefix $(obj)/,$(host-cshlib))
 host-cshobjs	:= $(addprefix $(obj)/,$(host-cshobjs))
 host-objdirs    := $(addprefix $(obj)/,$(host-objdirs))
 
+$(warning host-objdirs=$(host-objdirs))
 obj-dirs += $(host-objdirs)
 
 #####
