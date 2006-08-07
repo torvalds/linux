@@ -118,7 +118,7 @@ static drm_ioctl_desc_t drm_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_IOCTL_WAIT_VBLANK)] = {drm_wait_vblank, 0},
 };
 
-#define DRIVER_IOCTL_COUNT	DRM_ARRAY_SIZE( drm_ioctls )
+#define DRIVER_IOCTL_COUNT	ARRAY_SIZE( drm_ioctls )
 
 /**
  * Take down the DRM device.

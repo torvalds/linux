@@ -141,16 +141,6 @@
 /*@}*/
 
 /***********************************************************************/
-/** \name Backward compatibility section */
-/*@{*/
-
-#define DRM_RPR_ARG(vma) vma,
-
-#define VM_OFFSET(vma) ((vma)->vm_pgoff << PAGE_SHIFT)
-
-/*@}*/
-
-/***********************************************************************/
 /** \name Macros to make printk easier */
 /*@{*/
 
@@ -211,8 +201,6 @@
 /*@{*/
 
 #define DRM_ARRAY_SIZE(x) ARRAY_SIZE(x)
-#define DRM_MIN(a,b) min(a,b)
-#define DRM_MAX(a,b) max(a,b)
 
 #define DRM_LEFTCOUNT(x) (((x)->rp + (x)->count - (x)->wp) % ((x)->count + 1))
 #define DRM_BUFCOUNT(x) ((x)->count - DRM_LEFTCOUNT(x))

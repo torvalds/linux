@@ -75,7 +75,7 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 		map = r_list->map;
 		if (!map)
 			continue;
-		if (r_list->user_token == VM_OFFSET(vma))
+		if (r_list->user_token == (vma->vm_pgoff << PAGE_SHIFT))
 			break;
 	}
 
@@ -467,7 +467,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	dev = priv->head->dev;
 	dma = dev->dma;
 	DRM_DEBUG("start = 0x%lx, end = 0x%lx, offset = 0x%lx\n",
-		  vma->vm_start, vma->vm_end, VM_OFFSET(vma));
+		  vma->vm_start, vma->vm_end, vma->vm_pgoff << PAGE_SHIFT);
 
 	/* Length must match exact page count */
 	if (!dma || (length >> PAGE_SHIFT) != dma->page_count) {
@@ -526,7 +526,7 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct list_head *list;
 
 	DRM_DEBUG("start = 0x%lx, end = 0x%lx, offset = 0x%lx\n",
-		  vma->vm_start, vma->vm_end, VM_OFFSET(vma));
+		  vma->vm_start, vma->vm_end, vma->vm_pgoff << PAGE_SHIFT);
 
 	if (!priv->authenticated)
 		return -EACCES;
@@ -535,7 +535,7 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	 * the AGP mapped at physical address 0
 	 * --BenH.
 	 */
-	if (!VM_OFFSET(vma)
+	if (!(vma->vm_pgoff << PAGE_SHIFT)
 #if __OS_HAS_AGP
 	    && (!dev->agp
 		|| dev->agp->agp_info.device->vendor != PCI_VENDOR_ID_APPLE)
@@ -556,7 +556,7 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 		map = r_list->map;
 		if (!map)
 			continue;
-		if (r_list->user_token == VM_OFFSET(vma))
+		if (r_list->user_token == vma->vm_pgoff << PAGE_SHIFT)
 			break;
 	}
 
@@ -620,7 +620,7 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 		offset = dev->driver->get_reg_ofs(dev);
 #ifdef __sparc__
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		if (io_remap_pfn_range(DRM_RPR_ARG(vma) vma->vm_start,
+		if (io_remap_pfn_range(vma, vma->vm_start,
 				       (map->offset + offset) >> PAGE_SHIFT,
 				       vma->vm_end - vma->vm_start,
 				       vma->vm_page_prot))

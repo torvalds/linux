@@ -69,7 +69,7 @@ static int drm_setup(drm_device_t * dev)
 			return i;
 	}
 
-	for (i = 0; i < DRM_ARRAY_SIZE(dev->counts); i++)
+	for (i = 0; i < ARRAY_SIZE(dev->counts); i++)
 		atomic_set(&dev->counts[i], 0);
 
 	for (i = 0; i < DRM_HASH_SIZE; i++) {
