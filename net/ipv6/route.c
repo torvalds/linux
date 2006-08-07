@@ -1223,6 +1223,9 @@ int ip6_del_rt(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr, struct 
 	int err;
 	struct fib6_table *table;
 
+	if (rt == &ip6_null_entry)
+		return -ENOENT;
+
 	table = rt->rt6i_table;
 	write_lock_bh(&table->tb6_lock);
 
