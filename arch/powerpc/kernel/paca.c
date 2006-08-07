@@ -17,6 +17,7 @@
 #include <asm/lppaca.h>
 #include <asm/iseries/it_lp_reg_save.h>
 #include <asm/paca.h>
+#include <asm/mmu.h>
 
 
 /* This symbol is provided by the linker - let it fill in the paca
@@ -45,6 +46,17 @@ struct lppaca lppaca[] = {
 	},
 };
 
+/*
+ * 3 persistent SLBs are registered here.  The buffer will be zero
+ * initially, hence will all be invaild until we actually write them.
+ */
+struct slb_shadow slb_shadow[] __cacheline_aligned = {
+	[0 ... (NR_CPUS-1)] = {
+		.persistent = SLB_NUM_BOLTED,
+		.buffer_length = sizeof(struct slb_shadow),
+	},
+};
+
 /* The Paca is an array with one entry per processor.  Each contains an
  * lppaca, which contains the information shared between the
  * hypervisor and Linux.
@@ -59,7 +71,8 @@ struct lppaca lppaca[] = {
 	.lock_token = 0x8000,						    \
 	.paca_index = (number),		/* Paca Index */		    \
 	.kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL,		    \
-	.hw_cpu_id = 0xffff,
+	.hw_cpu_id = 0xffff,						    \
+	.slb_shadow_ptr = &slb_shadow[number],
 
 #ifdef CONFIG_PPC_ISERIES
 #define PACA_INIT_ISERIES(number)					    \

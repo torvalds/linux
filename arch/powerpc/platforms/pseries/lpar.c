@@ -252,18 +252,34 @@ out:
 void vpa_init(int cpu)
 {
 	int hwcpu = get_hard_smp_processor_id(cpu);
-	unsigned long vpa = __pa(&lppaca[cpu]);
+	unsigned long addr;
 	long ret;
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		lppaca[cpu].vmxregs_in_use = 1;
 
-	ret = register_vpa(hwcpu, vpa);
+	addr = __pa(&lppaca[cpu]);
+	ret = register_vpa(hwcpu, addr);
 
-	if (ret)
+	if (ret) {
 		printk(KERN_ERR "WARNING: vpa_init: VPA registration for "
 				"cpu %d (hw %d) of area %lx returns %ld\n",
-				cpu, hwcpu, vpa, ret);
+				cpu, hwcpu, addr, ret);
+		return;
+	}
+	/*
+	 * PAPR says this feature is SLB-Buffer but firmware never
+	 * reports that.  All SPLPAR support SLB shadow buffer.
+	 */
+	addr = __pa(&slb_shadow[cpu]);
+	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
+		ret = register_slb_shadow(hwcpu, addr);
+		if (ret)
+			printk(KERN_ERR
+			       "WARNING: vpa_init: SLB shadow buffer "
+			       "registration for cpu %d (hw %d) of area %lx "
+			       "returns %ld\n", cpu, hwcpu, addr, ret);
+	}
 }
 
 long pSeries_lpar_hpte_insert(unsigned long hpte_group,

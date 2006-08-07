@@ -234,9 +234,17 @@ static void pseries_kexec_cpu_down_xics(int crash_shutdown, int secondary)
 {
 	/* Don't risk a hypervisor call if we're crashing */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR) && !crash_shutdown) {
-		unsigned long vpa = __pa(get_lppaca());
+		unsigned long addr;
 
-		if (unregister_vpa(hard_smp_processor_id(), vpa)) {
+		addr = __pa(get_slb_shadow());
+		if (unregister_slb_shadow(hard_smp_processor_id(), addr))
+			printk("SLB shadow buffer deregistration of "
+			       "cpu %u (hw_cpu_id %d) failed\n",
+			       smp_processor_id(),
+			       hard_smp_processor_id());
+
+		addr = __pa(get_lppaca());
+		if (unregister_vpa(hard_smp_processor_id(), addr)) {
 			printk("VPA deregistration of cpu %u (hw_cpu_id %d) "
 					"failed\n", smp_processor_id(),
 					hard_smp_processor_id());

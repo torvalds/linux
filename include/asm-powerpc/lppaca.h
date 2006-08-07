@@ -27,7 +27,9 @@
 //
 //
 //----------------------------------------------------------------------------
+#include <linux/cache.h>
 #include <asm/types.h>
+#include <asm/mmu.h>
 
 /* The Hypervisor barfs if the lppaca crosses a page boundary.  A 1k
  * alignment is sufficient to prevent this */
@@ -132,6 +134,23 @@ struct lppaca {
 } __attribute__((__aligned__(0x400)));
 
 extern struct lppaca lppaca[];
+
+/*
+ * SLB shadow buffer structure as defined in the PAPR.  The save_area
+ * contains adjacent ESID and VSID pairs for each shadowed SLB.  The
+ * ESID is stored in the lower 64bits, then the VSID.
+ */
+struct slb_shadow {
+	u32	persistent;		// Number of persistent SLBs	x00-x03
+	u32	buffer_length;		// Total shadow buffer length	x04-x07
+	u64	reserved;		// Alignment			x08-x0f
+	struct	{
+		u64     esid;
+		u64	vsid;
+	} save_area[SLB_NUM_BOLTED];	//				x10-x40
+} ____cacheline_aligned;
+
+extern struct slb_shadow slb_shadow[];
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_LPPACA_H */
