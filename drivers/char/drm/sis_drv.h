@@ -31,23 +31,29 @@
 /* General customization:
  */
 
-#define DRIVER_AUTHOR		"SIS"
+#define DRIVER_AUTHOR		"SIS, Tungsten Graphics"
 #define DRIVER_NAME		"sis"
 #define DRIVER_DESC		"SIS 300/630/540"
-#define DRIVER_DATE		"20030826"
+#define DRIVER_DATE		"20060529"
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		1
-#define DRIVER_PATCHLEVEL	0
+#define DRIVER_MINOR		2
+#define DRIVER_PATCHLEVEL	1
 
-#include "sis_ds.h"
+#include "drm_sman.h"
 
 typedef struct drm_sis_private {
-	memHeap_t *AGPHeap;
-	memHeap_t *FBHeap;
+	drm_local_map_t *mmio;
+	unsigned int idle_fault;
+	drm_sman_t sman;
+	unsigned int chipset;
+	int vram_initialized;
+	int agp_initialized;
+	unsigned long vram_offset;
+	unsigned long agp_offset;
 } drm_sis_private_t;
 
-extern int sis_init_context(drm_device_t * dev, int context);
-extern int sis_final_context(drm_device_t * dev, int context);
+extern void sis_reclaim_buffers_locked(drm_device_t *dev, struct file *filp);
+extern void sis_lastclose(drm_device_t *dev);
 
 extern drm_ioctl_desc_t sis_ioctls[];
 extern int sis_max_ioctl;
