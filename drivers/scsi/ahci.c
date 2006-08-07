@@ -662,14 +662,13 @@ static void ahci_init_controller(void __iomem *mmio, struct pci_dev *pdev,
 		VPRINTK("PORT_SCR_ERR 0x%x\n", tmp);
 		writel(tmp, port_mmio + PORT_SCR_ERR);
 
-		/* clear & turn off port IRQ */
+		/* clear port IRQ */
 		tmp = readl(port_mmio + PORT_IRQ_STAT);
 		VPRINTK("PORT_IRQ_STAT 0x%x\n", tmp);
 		if (tmp)
 			writel(tmp, port_mmio + PORT_IRQ_STAT);
 
 		writel(1 << i, mmio + HOST_IRQ_STAT);
-		writel(0, port_mmio + PORT_IRQ_MASK);
 	}
 
 	tmp = readl(mmio + HOST_CTL);
