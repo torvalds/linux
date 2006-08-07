@@ -116,7 +116,7 @@ struct lppaca {
 
 
 //=============================================================================
-// CACHE_LINE_3 0x0100 - 0x007F: This line is shared with other processors
+// CACHE_LINE_3 0x0100 - 0x017F: This line is shared with other processors
 //=============================================================================
 	// This is the yield_count.  An "odd" value (low bit on) means that
 	// the processor is yielded (either because of an OS yield or a PLIC
@@ -128,7 +128,7 @@ struct lppaca {
 	u8	reserved6[124];		// Reserved                     x04-x7F
 
 //=============================================================================
-// CACHE_LINE_4-5 0x0100 - 0x01FF Contains PMC interrupt data
+// CACHE_LINE_4-5 0x0180 - 0x027F Contains PMC interrupt data
 //=============================================================================
 	u8	pmc_save_area[256];	// PMC interrupt Area           x00-xFF
 } __attribute__((__aligned__(0x400)));
