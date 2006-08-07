@@ -2891,6 +2891,29 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x8000,
 		},
 	},
+	[SAA7134_BOARD_MEDION_MD8800_QUADRO] = {
+		.name           = "Medion Md8800 Quadro",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = TV,
+			.tv     = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 0,
+			.amux   = LINE2,
+		},{
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE2,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3446,6 +3469,18 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x3502,  /* whats the difference to 0x3306 ?*/
 		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x16be,
+		.subdevice    = 0x0007,
+		.driver_data  = SAA7134_BOARD_MEDION_MD8800_QUADRO,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x16be,
+		.subdevice    = 0x0008,
+		.driver_data  = SAA7134_BOARD_MEDION_MD8800_QUADRO,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3732,6 +3767,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_PHILIPS_TIGER:
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
+	case SAA7134_BOARD_MEDION_MD8800_QUADRO:
 		/* this is a hybrid board, initialize to analog mode
 		 * and configure firmware eeprom address
 		 */

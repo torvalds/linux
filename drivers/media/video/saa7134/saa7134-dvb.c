@@ -969,6 +969,51 @@ static struct tda1004x_config tevion_dvbt220rf_config = {
 	.request_firmware = NULL,
 };
 
+/* ------------------------------------------------------------------ */
+
+static int md8800_dvbt_analog_mode(struct dvb_frontend *fe)
+{
+	struct saa7134_dev *dev = fe->dvb->priv;
+	static u8 data[] = { 0x3c, 0x33, 0x68};
+	struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
+
+	i2c_transfer(&dev->i2c_adap, &msg, 1);
+	philips_tda827xa_tuner_sleep( 0x61, fe);
+	return 0;
+}
+
+static int md8800_dvbt_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+{
+	int ret;
+	struct saa7134_dev *dev = fe->dvb->priv;
+	static u8 tda8290_close[] = { 0x21, 0xc0};
+	static u8 tda8290_open[]  = { 0x21, 0x80};
+	struct i2c_msg tda8290_msg = {.addr = 0x4b,.flags = 0, .len = 2};
+	/* close tda8290 i2c bridge */
+	tda8290_msg.buf = tda8290_close;
+	ret = i2c_transfer(&dev->i2c_adap, &tda8290_msg, 1);
+	if (ret != 1)
+		return -EIO;
+	msleep(20);
+	ret = philips_tda827xa_pll_set(0x60, fe, params);
+	if (ret != 0)
+		return ret;
+	/* open tda8290 i2c bridge */
+	tda8290_msg.buf = tda8290_open;
+	i2c_transfer(&dev->i2c_adap, &tda8290_msg, 1);
+	return ret;
+}
+
+static struct tda1004x_config md8800_dvbt_config = {
+	.demod_address = 0x08,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.if_freq       = TDA10046_FREQ_045,
+	.request_firmware = NULL,
+};
+
 #endif
 
 /* ------------------------------------------------------------------ */
@@ -1151,6 +1196,15 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend->ops.tuner_ops.init = ads_duo_tuner_init;
 			dev->dvb.frontend->ops.tuner_ops.sleep = ads_duo_tuner_sleep;
 			dev->dvb.frontend->ops.tuner_ops.set_params = ads_duo_tuner_set_params;
+		}
+		break;
+	case SAA7134_BOARD_MEDION_MD8800_QUADRO:
+		dev->dvb.frontend = tda10046_attach(&md8800_dvbt_config,
+						    &dev->i2c_adap);
+		if (dev->dvb.frontend) {
+			dev->dvb.frontend->ops.tuner_ops.init = philips_tiger_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = md8800_dvbt_analog_mode;
+			dev->dvb.frontend->ops.tuner_ops.set_params = md8800_dvbt_pll_set;
 		}
 		break;
 #endif

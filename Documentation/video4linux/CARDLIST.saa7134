@@ -94,3 +94,4 @@
  93 -> Medion 7134 Bridge #2                    [16be:0005]
  94 -> LifeView FlyDVB-T Hybrid Cardbus         [5168:3306,5168:3502]
  95 -> LifeView FlyVIDEO3000 (NTSC)             [5169:0138]
+ 96 -> Medion Md8800 Quadro                     [16be:0007,16be:0008]
