@@ -6,7 +6,7 @@ drm-objs    :=	drm_auth.o drm_bufs.o drm_context.o drm_dma.o drm_drawable.o \
 		drm_drv.o drm_fops.o drm_ioctl.o drm_irq.o \
 		drm_lock.o drm_memory.o drm_proc.o drm_stub.o drm_vm.o \
 		drm_agpsupport.o drm_scatter.o ati_pcigart.o drm_pci.o \
-		drm_sysfs.o
+		drm_sysfs.o drm_hashtab.o drm_sman.o drm_mm.o
 
 tdfx-objs   := tdfx_drv.o
 r128-objs   := r128_drv.o r128_cce.o r128_state.o r128_irq.o
