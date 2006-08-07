@@ -2434,8 +2434,8 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		else {
 			if (fbuf->width)
 				fbuf->depth   = ((fbuf->bytesperline<<3)
-                                                  + (fbuf->width-1) )
-                                                  /fbuf->width;
+						  + (fbuf->width-1) )
+						  /fbuf->width;
 			else
 				fbuf->depth = 0;
 		}
