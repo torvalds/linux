@@ -31,13 +31,13 @@ static struct list_head lmh_list;
 static struct mutex lmh_lock;
 
 /**
- * gfs_register_lockproto - Register a low-level locking protocol
+ * gfs2_register_lockproto - Register a low-level locking protocol
  * @proto: the protocol definition
  *
  * Returns: 0 on success, -EXXX on failure
  */
 
-int gfs_register_lockproto(struct lm_lockops *proto)
+int gfs2_register_lockproto(struct lm_lockops *proto)
 {
 	struct lmh_wrapper *lw;
 
@@ -67,12 +67,12 @@ int gfs_register_lockproto(struct lm_lockops *proto)
 }
 
 /**
- * gfs_unregister_lockproto - Unregister a low-level locking protocol
+ * gfs2_unregister_lockproto - Unregister a low-level locking protocol
  * @proto: the protocol definition
  *
  */
 
-void gfs_unregister_lockproto(struct lm_lockops *proto)
+void gfs2_unregister_lockproto(struct lm_lockops *proto)
 {
 	struct lmh_wrapper *lw;
 
@@ -117,7 +117,7 @@ int gfs2_mount_lockproto(char *proto_name, char *table_name, char *host_data,
 	int try = 0;
 	int error, found;
 
- retry:
+retry:
 	mutex_lock(&lmh_lock);
 
 	found = 0;
@@ -151,7 +151,7 @@ int gfs2_mount_lockproto(char *proto_name, char *table_name, char *host_data,
 				     min_lvb_size, flags, lockstruct, fskobj);
 	if (error)
 		module_put(lw->lw_ops->lm_owner);
- out:
+out:
 	mutex_unlock(&lmh_lock);
 	return error;
 }
@@ -186,6 +186,6 @@ void __init gfs2_init_lmh(void)
 	INIT_LIST_HEAD(&lmh_list);
 }
 
-EXPORT_SYMBOL_GPL(gfs_register_lockproto);
-EXPORT_SYMBOL_GPL(gfs_unregister_lockproto);
+EXPORT_SYMBOL_GPL(gfs2_register_lockproto);
+EXPORT_SYMBOL_GPL(gfs2_unregister_lockproto);
 
