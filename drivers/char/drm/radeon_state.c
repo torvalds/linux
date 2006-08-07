@@ -2997,6 +2997,7 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 			value = RADEON_CARD_PCI;
 		break;
 	default:
+		DRM_DEBUG("Invalid parameter %d\n", param.param);
 		return DRM_ERR(EINVAL);
 	}
 
