@@ -2150,12 +2150,19 @@ static int frontend_init(struct av7110 *av7110)
 			break;
 
 		case 0x0001: // Hauppauge/TT Nexus-T premium rev1.X
-
-			// ALPS TDLB7
+			// try ALPS TDLB7 first, then Grundig 29504-401
 			av7110->fe = dvb_attach(sp8870_attach, &alps_tdlb7_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = alps_tdlb7_tuner_set_params;
+				break;
 			}
+			/* fall-thru */
+
+		case 0x0008: // Hauppauge/TT DVB-T
+			// Grundig 29504-401
+			av7110->fe = dvb_attach(l64781_attach, &grundig_29504_401_config, &av7110->i2c_adap);
+			if (av7110->fe)
+				av7110->fe->ops.tuner_ops.set_params = grundig_29504_401_tuner_set_params;
 			break;
 
 		case 0x0002: // Hauppauge/TT DVB-C premium rev2.X
@@ -2187,14 +2194,6 @@ static int frontend_init(struct av7110 *av7110)
 				av7110->fe->ops.diseqc_send_burst = av7110_diseqc_send_burst;
 				av7110->fe->ops.set_tone = av7110_set_tone;
 				av7110->recover = dvb_s_recover;
-			}
-			break;
-
-		case 0x0008: // Hauppauge/TT DVB-T
-
-			av7110->fe = dvb_attach(l64781_attach, &grundig_29504_401_config, &av7110->i2c_adap);
-			if (av7110->fe) {
-				av7110->fe->ops.tuner_ops.set_params = grundig_29504_401_tuner_set_params;
 			}
 			break;
 
