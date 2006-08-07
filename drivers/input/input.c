@@ -35,6 +35,16 @@ static LIST_HEAD(input_handler_list);
 
 static struct input_handler *input_table[8];
 
+/**
+ * input_event() - report new input event
+ * @handle: device that generated the event
+ * @type: type of the event
+ * @code: event code
+ * @value: value of the event
+ *
+ * This function should be used by drivers implementing various input devices
+ * See also input_inject_event()
+ */
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
 	struct input_handle *handle;
@@ -183,6 +193,23 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 }
 EXPORT_SYMBOL(input_event);
 
+/**
+ * input_inject_event() - send input event from input handler
+ * @handle: input handle to send event through
+ * @type: type of the event
+ * @code: event code
+ * @value: value of the event
+ *
+ * Similar to input_event() but will ignore event if device is "grabbed" and handle
+ * injecting event is not the one that owns the device.
+ */
+void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value)
+{
+	if (!handle->dev->grab || handle->dev->grab == handle)
+		input_event(handle->dev, type, code, value);
+}
+EXPORT_SYMBOL(input_inject_event);
+
 static void input_repeat_key(unsigned long data)
 {
 	struct input_dev *dev = (void *) data;
@@ -197,15 +224,6 @@ static void input_repeat_key(unsigned long data)
 		mod_timer(&dev->timer, jiffies + msecs_to_jiffies(dev->rep[REP_PERIOD]));
 }
 
-int input_accept_process(struct input_handle *handle, struct file *file)
-{
-	if (handle->dev->accept)
-		return handle->dev->accept(handle->dev, file);
-
-	return 0;
-}
-EXPORT_SYMBOL(input_accept_process);
-
 int input_grab_device(struct input_handle *handle)
 {
 	if (handle->dev->grab)
@@ -218,8 +236,15 @@ EXPORT_SYMBOL(input_grab_device);
 
 void input_release_device(struct input_handle *handle)
 {
-	if (handle->dev->grab == handle)
-		handle->dev->grab = NULL;
+	struct input_dev *dev = handle->dev;
+
+	if (dev->grab == handle) {
+		dev->grab = NULL;
+
+		list_for_each_entry(handle, &dev->h_list, d_node)
+			if (handle->handler->start)
+				handle->handler->start(handle);
+	}
 }
 EXPORT_SYMBOL(input_release_device);
 
@@ -963,8 +988,11 @@ int input_register_device(struct input_dev *dev)
 	list_for_each_entry(handler, &input_handler_list, node)
 		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
 			if ((id = input_match_device(handler->id_table, dev)))
-				if ((handle = handler->connect(handler, dev, id)))
+				if ((handle = handler->connect(handler, dev, id))) {
 					input_link_handle(handle);
+					if (handler->start)
+						handler->start(handle);
+				}
 
 	input_wakeup_procfs_readers();
 
@@ -1028,8 +1056,11 @@ void input_register_handler(struct input_handler *handler)
 	list_for_each_entry(dev, &input_dev_list, node)
 		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
 			if ((id = input_match_device(handler->id_table, dev)))
-				if ((handle = handler->connect(handler, dev, id)))
+				if ((handle = handler->connect(handler, dev, id))) {
 					input_link_handle(handle);
+					if (handler->start)
+						handler->start(handle);
+				}
 
 	input_wakeup_procfs_readers();
 }

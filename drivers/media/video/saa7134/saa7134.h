@@ -586,8 +586,8 @@ void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf);
 
 int saa7134_set_dmabits(struct saa7134_dev *dev);
 
-extern int (*dmasound_init)(struct saa7134_dev *dev);
-extern int (*dmasound_exit)(struct saa7134_dev *dev);
+extern int (*saa7134_dmasound_init)(struct saa7134_dev *dev);
+extern int (*saa7134_dmasound_exit)(struct saa7134_dev *dev);
 
 
 /* ----------------------------------------------------------- */

@@ -453,11 +453,9 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 
-	if (panic_on_oops) {
-		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
-		ssleep(5);
-		panic("Fatal exception");
-	}
+	if (panic_on_oops)
+		panic("Fatal exception: panic_on_oops");
+
 	oops_exit();
 	do_exit(SIGSEGV);
 }

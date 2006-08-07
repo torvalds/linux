@@ -248,7 +248,7 @@ static void ufs_change_blocknr(struct inode *inode, unsigned int baseblk,
 
 		if (likely(cur_index != index)) {
 			page = ufs_get_locked_page(mapping, index);
-			if (IS_ERR(page))
+			if (!page || IS_ERR(page)) /* it was truncated or EIO */
 				continue;
 		} else
 			page = locked_page;

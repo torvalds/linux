@@ -151,7 +151,7 @@ static void
 simscsi_sg_readwrite (struct scsi_cmnd *sc, int mode, unsigned long offset)
 {
 	int list_len = sc->use_sg;
-	struct scatterlist *sl = (struct scatterlist *)sc->buffer;
+	struct scatterlist *sl = (struct scatterlist *)sc->request_buffer;
 	struct disk_stat stat;
 	struct disk_req req;
 
@@ -244,7 +244,7 @@ static void simscsi_fillresult(struct scsi_cmnd *sc, char *buf, unsigned len)
 
 	if (scatterlen == 0)
 		memcpy(sc->request_buffer, buf, len);
-	else for (slp = (struct scatterlist *)sc->buffer; scatterlen-- > 0 && len > 0; slp++) {
+	else for (slp = (struct scatterlist *)sc->request_buffer; scatterlen-- > 0 && len > 0; slp++) {
 		unsigned thislen = min(len, slp->length);
 
 		memcpy(page_address(slp->page) + slp->offset, buf, thislen);

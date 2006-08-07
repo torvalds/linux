@@ -139,16 +139,22 @@ extern rwlock_t rt6_lock;
 /*
  *	Store a destination cache entry in a socket
  */
-static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,
-				     struct in6_addr *daddr)
+static inline void __ip6_dst_store(struct sock *sk, struct dst_entry *dst,
+				   struct in6_addr *daddr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct rt6_info *rt = (struct rt6_info *) dst;
 
-	write_lock(&sk->sk_dst_lock);
 	sk_setup_caps(sk, dst);
 	np->daddr_cache = daddr;
 	np->dst_cookie = rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
+}
+
+static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,
+				 struct in6_addr *daddr)
+{
+	write_lock(&sk->sk_dst_lock);
+	__ip6_dst_store(sk, dst, daddr);
 	write_unlock(&sk->sk_dst_lock);
 }
 

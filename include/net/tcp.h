@@ -914,6 +914,9 @@ static inline void tcp_set_state(struct sock *sk, int state)
 
 static inline void tcp_done(struct sock *sk)
 {
+	if(sk->sk_state == TCP_SYN_SENT || sk->sk_state == TCP_SYN_RECV)
+		TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
+
 	tcp_set_state(sk, TCP_CLOSE);
 	tcp_clear_xmit_timers(sk);
 

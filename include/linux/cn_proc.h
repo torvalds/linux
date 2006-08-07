@@ -57,7 +57,8 @@ struct proc_event {
 		PROC_EVENT_EXIT = 0x80000000
 	} what;
 	__u32 cpu;
-	struct timespec timestamp;
+	__u64 __attribute__((aligned(8))) timestamp_ns;
+		/* Number of nano seconds since system boot */
 	union { /* must be last field of proc_event struct */
 		struct {
 			__u32 err;

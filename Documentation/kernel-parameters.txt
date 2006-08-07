@@ -448,8 +448,6 @@ running once the system is up.
 			Format: <area>[,<node>]
 			See also Documentation/networking/decnet.txt.
 
-	delayacct	[KNL] Enable per-task delay accounting
-
 	dhash_entries=	[KNL]
 			Set number of hash buckets for dentry cache.
 
@@ -1030,6 +1028,8 @@ running once the system is up.
 			on "Classic" PPC cores.
 
 	nocache		[ARM]
+
+	nodelayacct	[KNL] Disable per-task delay accounting
 
 	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
 

@@ -4456,9 +4456,9 @@ asmlinkage long sys_sched_yield(void)
 	return 0;
 }
 
-static inline int __resched_legal(void)
+static inline int __resched_legal(int expected_preempt_count)
 {
-	if (unlikely(preempt_count()))
+	if (unlikely(preempt_count() != expected_preempt_count))
 		return 0;
 	if (unlikely(system_state != SYSTEM_RUNNING))
 		return 0;
@@ -4484,7 +4484,7 @@ static void __cond_resched(void)
 
 int __sched cond_resched(void)
 {
-	if (need_resched() && __resched_legal()) {
+	if (need_resched() && __resched_legal(0)) {
 		__cond_resched();
 		return 1;
 	}
@@ -4510,7 +4510,7 @@ int cond_resched_lock(spinlock_t *lock)
 		ret = 1;
 		spin_lock(lock);
 	}
-	if (need_resched() && __resched_legal()) {
+	if (need_resched() && __resched_legal(1)) {
 		spin_release(&lock->dep_map, 1, _THIS_IP_);
 		_raw_spin_unlock(lock);
 		preempt_enable_no_resched();
@@ -4526,7 +4526,7 @@ int __sched cond_resched_softirq(void)
 {
 	BUG_ON(!in_softirq());
 
-	if (need_resched() && __resched_legal()) {
+	if (need_resched() && __resched_legal(0)) {
 		raw_local_irq_disable();
 		_local_bh_enable();
 		raw_local_irq_enable();
@@ -6494,7 +6494,12 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 	for (i = 0; i < MAX_NUMNODES; i++)
 		init_numa_sched_groups_power(sched_group_nodes[i]);
 
-	init_numa_sched_groups_power(sched_group_allnodes);
+	if (sched_group_allnodes) {
+		int group = cpu_to_allnodes_group(first_cpu(*cpu_map));
+		struct sched_group *sg = &sched_group_allnodes[group];
+
+		init_numa_sched_groups_power(sg);
+	}
 #endif
 
 	/* Attach the domains */
@@ -6761,6 +6766,11 @@ void __init sched_init(void)
 	}
 
 	set_load_weight(&init_task);
+
+#ifdef CONFIG_RT_MUTEXES
+	plist_head_init(&init_task.pi_waiters, &init_task.pi_lock);
+#endif
+
 	/*
 	 * The boot idle thread does lazy MMU switching as well:
 	 */

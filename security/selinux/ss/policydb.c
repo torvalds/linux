@@ -644,10 +644,18 @@ void policydb_destroy(struct policydb *p)
 	kfree(lra);
 
 	for (rt = p->range_tr; rt; rt = rt -> next) {
-		kfree(lrt);
+		if (lrt) {
+			ebitmap_destroy(&lrt->range.level[0].cat);
+			ebitmap_destroy(&lrt->range.level[1].cat);
+			kfree(lrt);
+		}
 		lrt = rt;
 	}
-	kfree(lrt);
+	if (lrt) {
+		ebitmap_destroy(&lrt->range.level[0].cat);
+		ebitmap_destroy(&lrt->range.level[1].cat);
+		kfree(lrt);
+	}
 
 	if (p->type_attr_map) {
 		for (i = 0; i < p->p_types.nprim; i++)

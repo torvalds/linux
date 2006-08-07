@@ -791,22 +791,31 @@ out:
 /*
  * Force a signal that the process can't ignore: if necessary
  * we unblock the signal and change any SIG_IGN to SIG_DFL.
+ *
+ * Note: If we unblock the signal, we always reset it to SIG_DFL,
+ * since we do not want to have a signal handler that was blocked
+ * be invoked when user space had explicitly blocked it.
+ *
+ * We don't want to have recursive SIGSEGV's etc, for example.
  */
-
 int
 force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 {
 	unsigned long int flags;
-	int ret;
+	int ret, blocked, ignored;
+	struct k_sigaction *action;
 
 	spin_lock_irqsave(&t->sighand->siglock, flags);
-	if (t->sighand->action[sig-1].sa.sa_handler == SIG_IGN) {
-		t->sighand->action[sig-1].sa.sa_handler = SIG_DFL;
+	action = &t->sighand->action[sig-1];
+	ignored = action->sa.sa_handler == SIG_IGN;
+	blocked = sigismember(&t->blocked, sig);
+	if (blocked || ignored) {
+		action->sa.sa_handler = SIG_DFL;
+		if (blocked) {
+			sigdelset(&t->blocked, sig);
+			recalc_sigpending_tsk(t);
+		}
 	}
-	if (sigismember(&t->blocked, sig)) {
-		sigdelset(&t->blocked, sig);
-	}
-	recalc_sigpending_tsk(t);
 	ret = specific_send_sig_info(sig, info, t);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
 

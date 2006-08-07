@@ -59,6 +59,9 @@
 !Iinclude/linux/hrtimer.h
 !Ekernel/hrtimer.c
      </sect1>
+     <sect1><title>Workqueues and Kevents</title>
+!Ekernel/workqueue.c
+     </sect1>
      <sect1><title>Internal Functions</title>
 !Ikernel/exit.c
 !Ikernel/signal.c
@@ -300,7 +303,7 @@ X!Ekernel/module.c
      </sect1>
 
      <sect1><title>Resources Management</title>
-!Ekernel/resource.c
+!Ikernel/resource.c
      </sect1>
 
      <sect1><title>MTRR Handling</title>
@@ -312,9 +315,7 @@ X!Ekernel/module.c
 !Edrivers/pci/pci-driver.c
 !Edrivers/pci/remove.c
 !Edrivers/pci/pci-acpi.c
-<!-- kerneldoc does not understand __devinit
-X!Edrivers/pci/search.c
- -->
+!Edrivers/pci/search.c
 !Edrivers/pci/msi.c
 !Edrivers/pci/bus.c
 <!-- FIXME: Removed for now since no structured comments in source

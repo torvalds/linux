@@ -214,6 +214,12 @@ W:	http://acpi.sourceforge.net/
 T:	git kernel.org:/pub/scm/linux/kernel/git/lenb/linux-acpi-2.6.git
 S:	Maintained
 
+ACPI PCI HOTPLUG DRIVER
+P:	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
+L:	pcihpd-discuss@lists.sourceforge.net
+S:	Maintained
+
 AD1816 SOUND DRIVER
 P:	Thorsten Knabe
 M:	Thorsten Knabe <linux@thorsten-knabe.de>
@@ -291,6 +297,13 @@ M:      info-linux@geode.amd.com
 L:	info-linux@geode.amd.com
 W:	http://www.amd.com/us-en/ConnectivitySolutions/TechnicalResources/0,,50_2334_2452_11363,00.html
 S:	Supported
+
+AOA (Apple Onboard Audio) ALSA DRIVER
+P:	Johannes Berg
+M:	johannes@sipsolutions.net
+L:	linuxppc-dev@ozlabs.org
+L:	alsa-devel@alsa-project.org
+S:	Maintained
 
 APM DRIVER
 P:	Stephen Rothwell
@@ -978,6 +991,10 @@ P:	Andrey V. Savochkin
 M:	saw@saw.sw.com.sg
 S:	Maintained
 
+EFS FILESYSTEM
+W:	http://aeschi.ch.eu.org/efs/
+S:	Orphan
+
 EMU10K1 SOUND DRIVER
 P:	James Courtier-Dutton
 M:	James@superbug.demon.co.uk
@@ -1616,7 +1633,7 @@ W:	http://jfs.sourceforge.net/
 T:	git kernel.org:/pub/scm/linux/kernel/git/shaggy/jfs-2.6.git
 S:	Supported
 
-JOURNALLING LAYER FOR BLOCK DEVICS (JBD)
+JOURNALLING LAYER FOR BLOCK DEVICES (JBD)
 P:	Stephen Tweedie, Andrew Morton
 M:	sct@redhat.com, akpm@osdl.org
 L:	ext2-devel@lists.sourceforge.net
@@ -1660,9 +1677,8 @@ S:	Maintained
 
 KERNEL JANITORS
 P:	Several
-L:	kernel-janitors@osdl.org
+L:	kernel-janitors@lists.osdl.org
 W:	http://www.kerneljanitors.org/
-W:	http://sf.net/projects/kernel-janitor/
 S:	Maintained
 
 KERNEL NFSD
@@ -1899,6 +1915,12 @@ M:     Neela.Kolli@engenio.com
 S:     linux-scsi@vger.kernel.org
 W:     http://megaraid.lsilogic.com
 S:     Maintained
+
+MEMORY MANAGEMENT
+L:	linux-mm@kvack.org
+L:	linux-kernel@vger.kernel.org
+W:	http://www.linux-mm.org
+S:	Maintained
 
 MEMORY TECHNOLOGY DEVICES (MTD)
 P:	David Woodhouse
@@ -2642,6 +2664,14 @@ SPI SUBSYSTEM
 P:	David Brownell
 M:	dbrownell@users.sourceforge.net
 L:	spi-devel-general@lists.sourceforge.net
+S:	Maintained
+
+STABLE BRANCH:
+P:	Greg Kroah-Hartman
+M:	greg@kroah.com
+P:	Chris Wright
+M:	chrisw@sous-sol.org
+L:	stable@kernel.org
 S:	Maintained
 
 TPM DEVICE DRIVER

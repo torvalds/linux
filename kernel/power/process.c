@@ -66,13 +66,25 @@ static inline void freeze_process(struct task_struct *p)
 	}
 }
 
+static void cancel_freezing(struct task_struct *p)
+{
+	unsigned long flags;
+
+	if (freezing(p)) {
+		pr_debug("  clean up: %s\n", p->comm);
+		do_not_freeze(p);
+		spin_lock_irqsave(&p->sighand->siglock, flags);
+		recalc_sigpending_tsk(p);
+		spin_unlock_irqrestore(&p->sighand->siglock, flags);
+	}
+}
+
 /* 0 = success, else # of processes that we failed to stop */
 int freeze_processes(void)
 {
 	int todo, nr_user, user_frozen;
 	unsigned long start_time;
 	struct task_struct *g, *p;
-	unsigned long flags;
 
 	printk( "Stopping tasks: " );
 	start_time = jiffies;
@@ -85,6 +97,10 @@ int freeze_processes(void)
 				continue;
 			if (frozen(p))
 				continue;
+			if (p->state == TASK_TRACED && frozen(p->parent)) {
+				cancel_freezing(p);
+				continue;
+			}
 			if (p->mm && !(p->flags & PF_BORROWED_MM)) {
 				/* The task is a user-space one.
 				 * Freeze it unless there's a vfork completion
@@ -126,13 +142,7 @@ int freeze_processes(void)
 		do_each_thread(g, p) {
 			if (freezeable(p) && !frozen(p))
 				printk(KERN_ERR "  %s\n", p->comm);
-			if (freezing(p)) {
-				pr_debug("  clean up: %s\n", p->comm);
-				p->flags &= ~PF_FREEZE;
-				spin_lock_irqsave(&p->sighand->siglock, flags);
-				recalc_sigpending_tsk(p);
-				spin_unlock_irqrestore(&p->sighand->siglock, flags);
-			}
+			cancel_freezing(p);
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
 		return todo;

@@ -182,6 +182,10 @@
 /* http://home.earthlink.net/~jrhees/USBUIRT/index.htm */
 #define FTDI_USB_UIRT_PID	0xF850	/* Product Id */
 
+/* TNC-X USB-to-packet-radio adapter, versions prior to 3.0 (DLP module) */
+
+#define FTDI_TNC_X_PID		0xEBE0
+
 /*
  * ELV USB devices submitted by Christian Abt of ELV (www.elv.de).
  * All of these devices use FTDI's vendor ID (0x0403).

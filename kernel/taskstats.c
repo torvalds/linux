@@ -121,46 +121,45 @@ static int send_reply(struct sk_buff *skb, pid_t pid)
 /*
  * Send taskstats data in @skb to listeners registered for @cpu's exit data
  */
-static int send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
+static void send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
 {
 	struct genlmsghdr *genlhdr = nlmsg_data((struct nlmsghdr *)skb->data);
 	struct listener_list *listeners;
 	struct listener *s, *tmp;
 	struct sk_buff *skb_next, *skb_cur = skb;
 	void *reply = genlmsg_data(genlhdr);
-	int rc, ret, delcount = 0;
+	int rc, delcount = 0;
 
 	rc = genlmsg_end(skb, reply);
 	if (rc < 0) {
 		nlmsg_free(skb);
-		return rc;
+		return;
 	}
 
 	rc = 0;
 	listeners = &per_cpu(listener_array, cpu);
 	down_read(&listeners->sem);
-	list_for_each_entry_safe(s, tmp, &listeners->list, list) {
+	list_for_each_entry(s, &listeners->list, list) {
 		skb_next = NULL;
 		if (!list_is_last(&s->list, &listeners->list)) {
 			skb_next = skb_clone(skb_cur, GFP_KERNEL);
-			if (!skb_next) {
-				nlmsg_free(skb_cur);
-				rc = -ENOMEM;
+			if (!skb_next)
 				break;
-			}
 		}
-		ret = genlmsg_unicast(skb_cur, s->pid);
-		if (ret == -ECONNREFUSED) {
+		rc = genlmsg_unicast(skb_cur, s->pid);
+		if (rc == -ECONNREFUSED) {
 			s->valid = 0;
 			delcount++;
-			rc = ret;
 		}
 		skb_cur = skb_next;
 	}
 	up_read(&listeners->sem);
 
+	if (skb_cur)
+		nlmsg_free(skb_cur);
+
 	if (!delcount)
-		return rc;
+		return;
 
 	/* Delete invalidated entries */
 	down_write(&listeners->sem);
@@ -171,13 +170,12 @@ static int send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
 		}
 	}
 	up_write(&listeners->sem);
-	return rc;
 }
 
 static int fill_pid(pid_t pid, struct task_struct *pidtsk,
 		struct taskstats *stats)
 {
-	int rc;
+	int rc = 0;
 	struct task_struct *tsk = pidtsk;
 
 	if (!pidtsk) {
@@ -196,12 +194,10 @@ static int fill_pid(pid_t pid, struct task_struct *pidtsk,
 	 * Each accounting subsystem adds calls to its functions to
 	 * fill in relevant parts of struct taskstsats as follows
 	 *
-	 *	rc = per-task-foo(stats, tsk);
-	 *	if (rc)
-	 *		goto err;
+	 *	per-task-foo(stats, tsk);
 	 */
 
-	rc = delayacct_add_tsk(stats, tsk);
+	delayacct_add_tsk(stats, tsk);
 	stats->version = TASKSTATS_VERSION;
 
 	/* Define err: label here if needed */

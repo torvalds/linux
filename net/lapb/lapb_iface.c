@@ -238,11 +238,13 @@ int lapb_setparms(struct net_device *dev, struct lapb_parms_struct *parms)
 		goto out_put;
 
 	if (lapb->state == LAPB_STATE_0) {
-		if (((parms->mode & LAPB_EXTENDED) &&
-		     (parms->window < 1 || parms->window > 127)) ||
-		    (parms->window < 1 || parms->window > 7))
-			goto out_put;
-
+		if (parms->mode & LAPB_EXTENDED) {
+			if (parms->window < 1 || parms->window > 127)
+				goto out_put;
+		} else {
+			if (parms->window < 1 || parms->window > 7)
+				goto out_put;
+		}
 		lapb->mode    = parms->mode;
 		lapb->window  = parms->window;
 	}

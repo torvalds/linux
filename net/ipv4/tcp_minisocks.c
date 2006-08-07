@@ -589,8 +589,10 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 		/* RFC793: "second check the RST bit" and
 		 *	   "fourth, check the SYN bit"
 		 */
-		if (flg & (TCP_FLAG_RST|TCP_FLAG_SYN))
+		if (flg & (TCP_FLAG_RST|TCP_FLAG_SYN)) {
+			TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
 			goto embryonic_reset;
+		}
 
 		/* ACK sequence verified above, just make sure ACK is
 		 * set.  If ACK not set, just silently drop the packet.

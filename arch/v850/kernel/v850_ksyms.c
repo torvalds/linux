@@ -21,9 +21,6 @@ EXPORT_SYMBOL (trap_table);
 
 /* platform dependent support */
 EXPORT_SYMBOL (kernel_thread);
-EXPORT_SYMBOL (enable_irq);
-EXPORT_SYMBOL (disable_irq);
-EXPORT_SYMBOL (disable_irq_nosync);
 EXPORT_SYMBOL (__bug);
 
 /* Networking helper routines. */
@@ -33,22 +30,9 @@ EXPORT_SYMBOL (ip_compute_csum);
 EXPORT_SYMBOL (ip_fast_csum);
 
 /* string / mem functions */
-EXPORT_SYMBOL (strcpy);
-EXPORT_SYMBOL (strncpy);
-EXPORT_SYMBOL (strcat);
-EXPORT_SYMBOL (strncat);
-EXPORT_SYMBOL (strcmp);
-EXPORT_SYMBOL (strncmp);
-EXPORT_SYMBOL (strchr);
-EXPORT_SYMBOL (strlen);
-EXPORT_SYMBOL (strnlen);
-EXPORT_SYMBOL (strrchr);
-EXPORT_SYMBOL (strstr);
 EXPORT_SYMBOL (memset);
 EXPORT_SYMBOL (memcpy);
 EXPORT_SYMBOL (memmove);
-EXPORT_SYMBOL (memcmp);
-EXPORT_SYMBOL (memscan);
 
 /* semaphores */
 EXPORT_SYMBOL (__down);

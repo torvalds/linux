@@ -407,6 +407,20 @@ more details, with real examples.
 	The second argument is optional, and if supplied will be used
 	if first argument is not supported.
 
+    ld-option
+    	ld-option is used to check if $(CC) when used to link object files
+	supports the given option.  An optional second option may be
+	specified if first option are not supported.
+
+	Example:
+		#arch/i386/kernel/Makefile
+		vsyscall-flags += $(call ld-option, -Wl$(comma)--hash-style=sysv)
+
+	In the above example vsyscall-flags will be assigned the option
+	-Wl$(comma)--hash-style=sysv if it is supported by $(CC).
+	The second argument is optional, and if supplied will be used
+	if first argument is not supported.
+
     cc-option
 	cc-option is used to check if $(CC) support a given option, and not
 	supported to use an optional second option.

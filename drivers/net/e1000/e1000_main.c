@@ -3127,7 +3127,7 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		break;
 	}
 
-	/* NOTE: dev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
+	/* NOTE: netdev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
 	 * means we reserve 2 more, this pushes us to allocate from the next
 	 * larger slab size
 	 * i.e. RXBUFFER_2048 --> size-4096 slab */
@@ -3708,7 +3708,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 #define E1000_CB_LENGTH 256
 		if (length < E1000_CB_LENGTH) {
 			struct sk_buff *new_skb =
-			    dev_alloc_skb(length + NET_IP_ALIGN);
+			    netdev_alloc_skb(netdev, length + NET_IP_ALIGN);
 			if (new_skb) {
 				skb_reserve(new_skb, NET_IP_ALIGN);
 				new_skb->dev = netdev;
@@ -3979,7 +3979,7 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 
 	while (cleaned_count--) {
 		if (!(skb = buffer_info->skb))
-			skb = dev_alloc_skb(bufsz);
+			skb = netdev_alloc_skb(netdev, bufsz);
 		else {
 			skb_trim(skb, 0);
 			goto map_skb;
@@ -3997,7 +3997,7 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 			DPRINTK(RX_ERR, ERR, "skb align check failed: %u bytes "
 					     "at %p\n", bufsz, skb->data);
 			/* Try again, without freeing the previous */
-			skb = dev_alloc_skb(bufsz);
+			skb = netdev_alloc_skb(netdev, bufsz);
 			/* Failed allocation, critical failure */
 			if (!skb) {
 				dev_kfree_skb(oldskb);
@@ -4121,7 +4121,8 @@ e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 				rx_desc->read.buffer_addr[j+1] = ~0;
 		}
 
-		skb = dev_alloc_skb(adapter->rx_ps_bsize0 + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(netdev,
+				       adapter->rx_ps_bsize0 + NET_IP_ALIGN);
 
 		if (unlikely(!skb)) {
 			adapter->alloc_rx_buff_failed++;

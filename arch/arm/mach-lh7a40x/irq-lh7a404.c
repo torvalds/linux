@@ -76,25 +76,29 @@ static void lh7a404_vic2_ack_gpio_irq (u32 irq)
 	VIC2_INTENCLR = (1 << irq);
 }
 
-static struct irqchip lh7a404_vic1_chip = {
+static struct irq_chip lh7a404_vic1_chip = {
+	.name	= "VIC1",
 	.ack	= lh7a404_vic1_mask_irq, /* Because level-triggered */
 	.mask	= lh7a404_vic1_mask_irq,
 	.unmask	= lh7a404_vic1_unmask_irq,
 };
 
-static struct irqchip lh7a404_vic2_chip = {
+static struct irq_chip lh7a404_vic2_chip = {
+	.name	= "VIC2",
 	.ack	= lh7a404_vic2_mask_irq, /* Because level-triggered */
 	.mask	= lh7a404_vic2_mask_irq,
 	.unmask	= lh7a404_vic2_unmask_irq,
 };
 
-static struct irqchip lh7a404_gpio_vic1_chip = {
+static struct irq_chip lh7a404_gpio_vic1_chip = {
+	.name	= "GPIO-VIC1",
 	.ack	= lh7a404_vic1_ack_gpio_irq,
 	.mask	= lh7a404_vic1_mask_irq,
 	.unmask	= lh7a404_vic1_unmask_irq,
 };
 
-static struct irqchip lh7a404_gpio_vic2_chip = {
+static struct irq_chip lh7a404_gpio_vic2_chip = {
+	.name	= "GPIO-VIC2",
 	.ack	= lh7a404_vic2_ack_gpio_irq,
 	.mask	= lh7a404_vic2_mask_irq,
 	.unmask	= lh7a404_vic2_unmask_irq,

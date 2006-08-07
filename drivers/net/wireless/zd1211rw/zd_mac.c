@@ -108,7 +108,9 @@ int zd_mac_init_hw(struct zd_mac *mac, u8 device_type)
 	if (r)
 		goto disable_int;
 
-	r = zd_set_encryption_type(chip, NO_WEP);
+	/* We must inform the device that we are doing encryption/decryption in
+	 * software at the moment. */
+	r = zd_set_encryption_type(chip, ENC_SNIFFER);
 	if (r)
 		goto disable_int;
 
@@ -136,10 +138,8 @@ static int reset_mode(struct zd_mac *mac)
 {
 	struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
 	struct zd_ioreq32 ioreqs[3] = {
-		{ CR_RX_FILTER, RX_FILTER_BEACON|RX_FILTER_PROBE_RESPONSE|
-			        RX_FILTER_AUTH|RX_FILTER_ASSOC_RESPONSE },
+		{ CR_RX_FILTER, STA_RX_FILTER },
 		{ CR_SNIFFER_ON, 0U },
-		{ CR_ENCRYPTION_TYPE, NO_WEP },
 	};
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
@@ -713,10 +713,10 @@ static int zd_mac_tx(struct zd_mac *mac, struct ieee80211_txb *txb, int pri)
 struct zd_rt_hdr {
 	struct ieee80211_radiotap_header rt_hdr;
 	u8  rt_flags;
+	u8  rt_rate;
 	u16 rt_channel;
 	u16 rt_chbitmask;
-	u16 rt_rate;
-};
+} __attribute__((packed));
 
 static void fill_rt_header(void *buffer, struct zd_mac *mac,
 	                   const struct ieee80211_rx_stats *stats,
@@ -735,14 +735,14 @@ static void fill_rt_header(void *buffer, struct zd_mac *mac,
 	if (status->decryption_type & (ZD_RX_WEP64|ZD_RX_WEP128|ZD_RX_WEP256))
 		hdr->rt_flags |= IEEE80211_RADIOTAP_F_WEP;
 
+	hdr->rt_rate = stats->rate / 5;
+
 	/* FIXME: 802.11a */
 	hdr->rt_channel = cpu_to_le16(ieee80211chan2mhz(
 		                             _zd_chip_get_channel(&mac->chip)));
 	hdr->rt_chbitmask = cpu_to_le16(IEEE80211_CHAN_2GHZ |
 		((status->frame_status & ZD_RX_FRAME_MODULATION_MASK) ==
 		ZD_RX_OFDM ? IEEE80211_CHAN_OFDM : IEEE80211_CHAN_CCK));
-
-	hdr->rt_rate = stats->rate / 5;
 }
 
 /* Returns 1 if the data packet is for us and 0 otherwise. */

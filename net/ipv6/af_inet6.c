@@ -658,7 +658,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 			return err;
 		}
 
-		ip6_dst_store(sk, dst, NULL);
+		__ip6_dst_store(sk, dst, NULL);
 	}
 
 	return 0;

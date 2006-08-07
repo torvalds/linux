@@ -89,7 +89,7 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 		auxgpio = cx_read(MO_GP1_IO);
 		/* Take out the parity part */
-		gpio+=(gpio & 0x7fd) + (auxgpio & 0xef);
+		gpio=(gpio & 0x7fd) + (auxgpio & 0xef);
 	} else
 		auxgpio = gpio;
 

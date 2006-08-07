@@ -196,14 +196,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		i2c_master_send(c, buffer, 4);
 		default_tuner_init(c);
 		break;
-	case TUNER_LG_TDVS_H06XF:
-		/* Set the Auxiliary Byte. */
-		buffer[2] &= ~0x20;
-		buffer[2] |= 0x18;
-		buffer[3] = 0x20;
-		i2c_master_send(c, buffer, 4);
-		default_tuner_init(c);
-		break;
 	case TUNER_PHILIPS_TD1316:
 		buffer[0] = 0x0b;
 		buffer[1] = 0xdc;
@@ -598,6 +590,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (t->standby)
 			t->standby (client);
 		break;
+#ifdef CONFIG_VIDEO_V4L1
 	case VIDIOCSAUDIO:
 		if (check_mode(t, "VIDIOCSAUDIO") == EINVAL)
 			return 0;
@@ -607,17 +600,6 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		/* Should be implemented, since bttv calls it */
 		tuner_dbg("VIDIOCSAUDIO not implemented.\n");
 		break;
-	case TDA9887_SET_CONFIG:
-		if (t->type == TUNER_TDA9887) {
-			int *i = arg;
-
-			t->tda9887_config = *i;
-			set_freq(client, t->tv_freq);
-		}
-		break;
-	/* --- v4l ioctls --- */
-	/* take care: bttv does userspace copying, we'll get a
-	   kernel pointer here... */
 	case VIDIOCSCHAN:
 		{
 			static const v4l2_std_id map[] = {
@@ -701,7 +683,18 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				    ? VIDEO_SOUND_STEREO : VIDEO_SOUND_MONO;
 			return 0;
 		}
+#endif
+	case TDA9887_SET_CONFIG:
+		if (t->type == TUNER_TDA9887) {
+			int *i = arg;
 
+			t->tda9887_config = *i;
+			set_freq(client, t->tv_freq);
+		}
+		break;
+	/* --- v4l ioctls --- */
+	/* take care: bttv does userspace copying, we'll get a
+	   kernel pointer here... */
 	case VIDIOC_S_STD:
 		{
 			v4l2_std_id *id = arg;

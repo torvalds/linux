@@ -68,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.63"
-#define DRV_MODULE_RELDATE	"July 25, 2006"
+#define DRV_MODULE_VERSION	"3.64"
+#define DRV_MODULE_RELDATE	"July 31, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3097,7 +3097,7 @@ static int tg3_alloc_rx_skb(struct tg3 *tp, u32 opaque_key,
 	 * Callers depend upon this behavior and assume that
 	 * we leave everything unchanged if we fail.
 	 */
-	skb = dev_alloc_skb(skb_size);
+	skb = netdev_alloc_skb(tp->dev, skb_size);
 	if (skb == NULL)
 		return -ENOMEM;
 
@@ -3270,7 +3270,7 @@ static int tg3_rx(struct tg3 *tp, int budget)
 			tg3_recycle_rx(tp, opaque_key,
 				       desc_idx, *post_ptr);
 
-			copy_skb = dev_alloc_skb(len + 2);
+			copy_skb = netdev_alloc_skb(tp->dev, len + 2);
 			if (copy_skb == NULL)
 				goto drop_it_no_recycle;
 
@@ -8618,7 +8618,7 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 	err = -EIO;
 
 	tx_len = 1514;
-	skb = dev_alloc_skb(tx_len);
+	skb = netdev_alloc_skb(tp->dev, tx_len);
 	if (!skb)
 		return -ENOMEM;
 

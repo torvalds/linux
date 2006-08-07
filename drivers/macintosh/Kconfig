@@ -90,6 +90,15 @@ config ADB_PMU_LED
 	  and the ide-disk LED trigger and configure appropriately through
 	  sysfs.
 
+config ADB_PMU_LED_IDE
+	bool "Use front LED as IDE LED by default"
+	depends on ADB_PMU_LED
+	select LEDS_TRIGGERS
+	select LEDS_TRIGGER_IDE_DISK
+	help
+	  This option makes the front LED default to the IDE trigger
+	  so that it blinks on IDE activity.
+
 config PMAC_SMU
 	bool "Support for SMU  based PowerMacs"
 	depends on PPC_PMAC64
@@ -100,7 +109,7 @@ config PMAC_SMU
 
 config PMAC_APM_EMU
 	tristate "APM emulation"
-	depends on PPC_PMAC && PPC32 && PM
+	depends on PPC_PMAC && PPC32 && PM && ADB_PMU
 
 config PMAC_MEDIABAY
 	bool "Support PowerBook hotswap media bay"
@@ -115,8 +124,6 @@ config PMAC_BACKLIGHT
 	bool "Backlight control for LCD screens"
 	depends on ADB_PMU && FB = y && (BROKEN || !PPC64)
 	select FB_BACKLIGHT
-	select BACKLIGHT_CLASS_DEVICE
-	select BACKLIGHT_LCD_SUPPORT
 	help
 	  Say Y here to enable Macintosh specific extensions of the generic
 	  backlight code. With this enabled, the brightness keys on older

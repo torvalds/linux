@@ -1166,11 +1166,6 @@ int skb_checksum_help(struct sk_buff *skb, int inward)
 		goto out_set_summed;
 
 	if (unlikely(skb_shinfo(skb)->gso_size)) {
-		static int warned;
-
-		WARN_ON(!warned);
-		warned = 1;
-
 		/* Let GSO fix up the checksum. */
 		goto out_set_summed;
 	}
@@ -1220,11 +1215,6 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	__skb_pull(skb, skb->mac_len);
 
 	if (unlikely(skb->ip_summed != CHECKSUM_HW)) {
-		static int warned;
-
-		WARN_ON(!warned);
-		warned = 1;
-
 		if (skb_header_cloned(skb) &&
 		    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
 			return ERR_PTR(err);
@@ -3429,12 +3419,9 @@ static void net_dma_rebalance(void)
 	unsigned int cpu, i, n;
 	struct dma_chan *chan;
 
-	lock_cpu_hotplug();
-
 	if (net_dma_count == 0) {
 		for_each_online_cpu(cpu)
-			rcu_assign_pointer(per_cpu(softnet_data.net_dma, cpu), NULL);
-		unlock_cpu_hotplug();
+			rcu_assign_pointer(per_cpu(softnet_data, cpu).net_dma, NULL);
 		return;
 	}
 
@@ -3447,15 +3434,13 @@ static void net_dma_rebalance(void)
 		   + (i < (num_online_cpus() % net_dma_count) ? 1 : 0));
 
 		while(n) {
-			per_cpu(softnet_data.net_dma, cpu) = chan;
+			per_cpu(softnet_data, cpu).net_dma = chan;
 			cpu = next_cpu(cpu, cpu_online_map);
 			n--;
 		}
 		i++;
 	}
 	rcu_read_unlock();
-
-	unlock_cpu_hotplug();
 }
 
 /**

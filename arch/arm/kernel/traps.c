@@ -232,11 +232,8 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 	bust_spinlocks(0);
 	spin_unlock_irq(&die_lock);
 
-	if (panic_on_oops) {
-		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
-		ssleep(5);
-		panic("Fatal exception");
-	}
+	if (panic_on_oops)
+		panic("Fatal exception: panic_on_oops");
 
 	do_exit(SIGSEGV);
 }
