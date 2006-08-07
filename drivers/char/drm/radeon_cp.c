@@ -1258,6 +1258,13 @@ static void radeon_test_writeback(drm_radeon_private_t * dev_priv)
 		dev_priv->writeback_works = 0;
 		DRM_INFO("writeback forced off\n");
 	}
+
+	if (!dev_priv->writeback_works) {
+		/* Disable writeback to avoid unnecessary bus master transfer */
+		RADEON_WRITE(RADEON_CP_RB_CNTL, RADEON_READ(RADEON_CP_RB_CNTL) |
+			     RADEON_RB_NO_UPDATE);
+		RADEON_WRITE(RADEON_SCRATCH_UMSK, 0);
+	}
 }
 
 /* Enable or disable PCI-E GART on the chip */

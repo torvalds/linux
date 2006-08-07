@@ -681,6 +681,7 @@ extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
 #define RADEON_CP_RB_BASE		0x0700
 #define RADEON_CP_RB_CNTL		0x0704
 #	define RADEON_BUF_SWAP_32BIT		(2 << 16)
+#	define RADEON_RB_NO_UPDATE		(1 << 27)
 #define RADEON_CP_RB_RPTR_ADDR		0x070c
 #define RADEON_CP_RB_RPTR		0x0710
 #define RADEON_CP_RB_WPTR		0x0714
