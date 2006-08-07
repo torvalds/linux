@@ -653,7 +653,7 @@ static int usbnet_open (struct net_device *net)
 
 		devinfo (dev, "open: enable queueing "
 				"(rx %d, tx %d) mtu %d %s framing",
-			RX_QLEN (dev), TX_QLEN (dev), dev->net->mtu,
+			(int)RX_QLEN (dev), (int)TX_QLEN (dev), dev->net->mtu,
 			framing);
 	}
 
