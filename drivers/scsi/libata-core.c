@@ -5688,6 +5688,31 @@ int ata_scsi_release(struct Scsi_Host *host)
 	return 1;
 }
 
+struct ata_probe_ent *
+ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
+{
+	struct ata_probe_ent *probe_ent;
+
+	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
+	if (!probe_ent) {
+		printk(KERN_ERR DRV_NAME "(%s): out of memory\n",
+		       kobject_name(&(dev->kobj)));
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&probe_ent->node);
+	probe_ent->dev = dev;
+
+	probe_ent->sht = port->sht;
+	probe_ent->host_flags = port->host_flags;
+	probe_ent->pio_mask = port->pio_mask;
+	probe_ent->mwdma_mask = port->mwdma_mask;
+	probe_ent->udma_mask = port->udma_mask;
+	probe_ent->port_ops = port->port_ops;
+
+	return probe_ent;
+}
+
 /**
  *	ata_std_ports - initialize ioaddr with standard port offsets.
  *	@ioaddr: IO address structure to be initialized
