@@ -441,8 +441,10 @@ int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
 		return -EINVAL;
 	}
 
-	if (!map)
+	if (!map) {
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
+	}
 
 	/* Register and framebuffer maps are permanent */
 	if ((map->type == _DRM_REGISTERS) || (map->type == _DRM_FRAME_BUFFER)) {
