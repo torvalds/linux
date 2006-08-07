@@ -5351,6 +5351,28 @@ err_out:
 }
 
 /**
+ *	ata_sas_host_init - Initialize a host_set struct
+ *	@host_set:	host_set to initialize
+ *	@dev:		device host_set is attached to
+ *	@flags:	host_set flags
+ *	@ops:		port_ops
+ *
+ *	LOCKING:
+ *	PCI/etc. bus probe sem.
+ *
+ */
+
+void ata_host_set_init(struct ata_host_set *host_set,
+		       struct device *dev, unsigned long flags,
+		       const struct ata_port_operations *ops)
+{
+	spin_lock_init(&host_set->lock);
+	host_set->dev = dev;
+	host_set->flags = flags;
+	host_set->ops = ops;
+}
+
+/**
  *	ata_device_add - Register hardware device with ATA and SCSI layers
  *	@ent: Probe information describing hardware device to be registered
  *
@@ -5381,15 +5403,12 @@ int ata_device_add(const struct ata_probe_ent *ent)
 			   (ent->n_ports * sizeof(void *)), GFP_KERNEL);
 	if (!host_set)
 		return 0;
-	spin_lock_init(&host_set->lock);
 
-	host_set->dev = dev;
+	ata_host_set_init(host_set, dev, ent->host_set_flags, ent->port_ops);
 	host_set->n_ports = ent->n_ports;
 	host_set->irq = ent->irq;
 	host_set->mmio_base = ent->mmio_base;
 	host_set->private_data = ent->private_data;
-	host_set->ops = ent->port_ops;
-	host_set->flags = ent->host_set_flags;
 
 	/* register each port bound to this device */
 	for (i = 0; i < ent->n_ports; i++) {
@@ -5908,6 +5927,7 @@ EXPORT_SYMBOL_GPL(sata_deb_timing_hotplug);
 EXPORT_SYMBOL_GPL(sata_deb_timing_long);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
+EXPORT_SYMBOL_GPL(ata_host_set_init);
 EXPORT_SYMBOL_GPL(ata_device_add);
 EXPORT_SYMBOL_GPL(ata_port_detach);
 EXPORT_SYMBOL_GPL(ata_host_set_remove);
