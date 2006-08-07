@@ -864,13 +864,13 @@ static int radeon_do_pixcache_flush(drm_radeon_private_t * dev_priv)
 
 	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
 
-	tmp = RADEON_READ(RADEON_RB2D_DSTCACHE_CTLSTAT);
-	tmp |= RADEON_RB2D_DC_FLUSH_ALL;
-	RADEON_WRITE(RADEON_RB2D_DSTCACHE_CTLSTAT, tmp);
+	tmp = RADEON_READ(RADEON_RB3D_DSTCACHE_CTLSTAT);
+	tmp |= RADEON_RB3D_DC_FLUSH_ALL;
+	RADEON_WRITE(RADEON_RB3D_DSTCACHE_CTLSTAT, tmp);
 
 	for (i = 0; i < dev_priv->usec_timeout; i++) {
-		if (!(RADEON_READ(RADEON_RB2D_DSTCACHE_CTLSTAT)
-		      & RADEON_RB2D_DC_BUSY)) {
+		if (!(RADEON_READ(RADEON_RB3D_DSTCACHE_CTLSTAT)
+		      & RADEON_RB3D_DC_BUSY)) {
 			return 0;
 		}
 		DRM_UDELAY(1);

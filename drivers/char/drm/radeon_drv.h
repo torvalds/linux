@@ -545,6 +545,11 @@ extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
 #	define RADEON_RB3D_ZC_FREE		(1 << 2)
 #	define RADEON_RB3D_ZC_FLUSH_ALL		0x5
 #	define RADEON_RB3D_ZC_BUSY		(1 << 31)
+#define RADEON_RB3D_DSTCACHE_CTLSTAT	0x325c
+#	define RADEON_RB3D_DC_FLUSH		(3 << 0)
+#	define RADEON_RB3D_DC_FREE		(3 << 2)
+#	define RADEON_RB3D_DC_FLUSH_ALL		0xf
+#	define RADEON_RB3D_DC_BUSY		(1 << 31)
 #define RADEON_RB3D_ZSTENCILCNTL	0x1c2c
 #	define RADEON_Z_TEST_MASK		(7 << 4)
 #	define RADEON_Z_TEST_ALWAYS		(7 << 4)
@@ -987,12 +992,12 @@ do {									\
 } while (0)
 
 #define RADEON_FLUSH_CACHE() do {					\
-	OUT_RING( CP_PACKET0( RADEON_RB2D_DSTCACHE_CTLSTAT, 0 ) );	\
+	OUT_RING( CP_PACKET0( RADEON_RB3D_DSTCACHE_CTLSTAT, 0 ) );	\
 	OUT_RING( RADEON_RB2D_DC_FLUSH );				\
 } while (0)
 
 #define RADEON_PURGE_CACHE() do {					\
-	OUT_RING( CP_PACKET0( RADEON_RB2D_DSTCACHE_CTLSTAT, 0 ) );	\
+	OUT_RING( CP_PACKET0( RADEON_RB3D_DSTCACHE_CTLSTAT, 0 ) );	\
 	OUT_RING( RADEON_RB2D_DC_FLUSH_ALL );				\
 } while (0)
 
