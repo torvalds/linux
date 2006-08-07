@@ -232,7 +232,7 @@ static void scx200_acb_poll(struct scx200_acb_iface *iface)
 	unsigned long timeout;
 
 	timeout = jiffies + POLL_TIMEOUT;
-	while (time_before(jiffies, timeout)) {
+	while (1) {
 		status = inb(ACBST);
 
 		/* Reset the status register to avoid the hang */
@@ -242,7 +242,10 @@ static void scx200_acb_poll(struct scx200_acb_iface *iface)
 			scx200_acb_machine(iface, status);
 			return;
 		}
-		yield();
+		if (time_after(jiffies, timeout))
+			break;
+		cpu_relax();
+		cond_resched();
 	}
 
 	dev_err(&iface->adapter.dev, "timeout in state %s\n",

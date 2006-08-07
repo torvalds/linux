@@ -921,26 +921,43 @@ call_transmit(struct rpc_task *task)
 	task->tk_status = xprt_prepare_transmit(task);
 	if (task->tk_status != 0)
 		return;
+	task->tk_action = call_transmit_status;
 	/* Encode here so that rpcsec_gss can use correct sequence number. */
 	if (rpc_task_need_encode(task)) {
-		task->tk_rqstp->rq_bytes_sent = 0;
+		BUG_ON(task->tk_rqstp->rq_bytes_sent != 0);
 		call_encode(task);
 		/* Did the encode result in an error condition? */
 		if (task->tk_status != 0)
-			goto out_nosend;
+			return;
 	}
-	task->tk_action = call_transmit_status;
 	xprt_transmit(task);
 	if (task->tk_status < 0)
 		return;
-	if (!task->tk_msg.rpc_proc->p_decode) {
-		task->tk_action = rpc_exit_task;
-		rpc_wake_up_task(task);
-	}
-	return;
-out_nosend:
-	/* release socket write lock before attempting to handle error */
-	xprt_abort_transmit(task);
+	/*
+	 * On success, ensure that we call xprt_end_transmit() before sleeping
+	 * in order to allow access to the socket to other RPC requests.
+	 */
+	call_transmit_status(task);
+	if (task->tk_msg.rpc_proc->p_decode != NULL)
+		return;
+	task->tk_action = rpc_exit_task;
+	rpc_wake_up_task(task);
+}
+
+/*
+ * 5a.	Handle cleanup after a transmission
+ */
+static void
+call_transmit_status(struct rpc_task *task)
+{
+	task->tk_action = call_status;
+	/*
+	 * Special case: if we've been waiting on the socket's write_space()
+	 * callback, then don't call xprt_end_transmit().
+	 */
+	if (task->tk_status == -EAGAIN)
+		return;
+	xprt_end_transmit(task);
 	rpc_task_force_reencode(task);
 }
 
@@ -992,18 +1009,7 @@ call_status(struct rpc_task *task)
 }
 
 /*
- * 6a.	Handle transmission errors.
- */
-static void
-call_transmit_status(struct rpc_task *task)
-{
-	if (task->tk_status != -EAGAIN)
-		rpc_task_force_reencode(task);
-	call_status(task);
-}
-
-/*
- * 6b.	Handle RPC timeout
+ * 6a.	Handle RPC timeout
  * 	We do not release the request slot, so we keep using the
  *	same XID for all retransmits.
  */

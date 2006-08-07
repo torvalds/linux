@@ -203,7 +203,7 @@ int __cpuinit init_smp_flush(void)
 {
 	int i;
 	for_each_cpu_mask(i, cpu_possible_map) {
-		spin_lock_init(&per_cpu(flush_state.tlbstate_lock, i));
+		spin_lock_init(&per_cpu(flush_state, i).tlbstate_lock);
 	}
 	return 0;
 }

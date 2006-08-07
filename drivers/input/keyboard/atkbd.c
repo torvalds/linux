@@ -482,6 +482,55 @@ out:
 	return IRQ_HANDLED;
 }
 
+static int atkbd_set_repeat_rate(struct atkbd *atkbd)
+{
+	const short period[32] =
+		{ 33,  37,  42,  46,  50,  54,  58,  63,  67,  75,  83,  92, 100, 109, 116, 125,
+		 133, 149, 167, 182, 200, 217, 232, 250, 270, 303, 333, 370, 400, 435, 470, 500 };
+	const short delay[4] =
+		{ 250, 500, 750, 1000 };
+
+	struct input_dev *dev = atkbd->dev;
+	unsigned char param;
+	int i = 0, j = 0;
+
+	while (i < ARRAY_SIZE(period) - 1 && period[i] < dev->rep[REP_PERIOD])
+		i++;
+	dev->rep[REP_PERIOD] = period[i];
+
+	while (j < ARRAY_SIZE(period) - 1 && delay[j] < dev->rep[REP_DELAY])
+		j++;
+	dev->rep[REP_DELAY] = delay[j];
+
+	param = i | (j << 5);
+	return ps2_command(&atkbd->ps2dev, &param, ATKBD_CMD_SETREP);
+}
+
+static int atkbd_set_leds(struct atkbd *atkbd)
+{
+	struct input_dev *dev = atkbd->dev;
+	unsigned char param[2];
+
+	param[0] = (test_bit(LED_SCROLLL, dev->led) ? 1 : 0)
+		 | (test_bit(LED_NUML,    dev->led) ? 2 : 0)
+		 | (test_bit(LED_CAPSL,   dev->led) ? 4 : 0);
+	if (ps2_command(&atkbd->ps2dev, param, ATKBD_CMD_SETLEDS))
+		return -1;
+
+	if (atkbd->extra) {
+		param[0] = 0;
+		param[1] = (test_bit(LED_COMPOSE, dev->led) ? 0x01 : 0)
+			 | (test_bit(LED_SLEEP,   dev->led) ? 0x02 : 0)
+			 | (test_bit(LED_SUSPEND, dev->led) ? 0x04 : 0)
+			 | (test_bit(LED_MISC,    dev->led) ? 0x10 : 0)
+			 | (test_bit(LED_MUTE,    dev->led) ? 0x20 : 0);
+		if (ps2_command(&atkbd->ps2dev, param, ATKBD_CMD_EX_SETLEDS))
+			return -1;
+	}
+
+	return 0;
+}
+
 /*
  * atkbd_event_work() is used to complete processing of events that
  * can not be processed by input_event() which is often called from
@@ -490,47 +539,15 @@ out:
 
 static void atkbd_event_work(void *data)
 {
-	const short period[32] =
-		{ 33,  37,  42,  46,  50,  54,  58,  63,  67,  75,  83,  92, 100, 109, 116, 125,
-		 133, 149, 167, 182, 200, 217, 232, 250, 270, 303, 333, 370, 400, 435, 470, 500 };
-	const short delay[4] =
-		{ 250, 500, 750, 1000 };
-
 	struct atkbd *atkbd = data;
-	struct input_dev *dev = atkbd->dev;
-	unsigned char param[2];
-	int i, j;
 
 	mutex_lock(&atkbd->event_mutex);
 
-	if (test_and_clear_bit(ATKBD_LED_EVENT_BIT, &atkbd->event_mask)) {
-		param[0] = (test_bit(LED_SCROLLL, dev->led) ? 1 : 0)
-			 | (test_bit(LED_NUML,    dev->led) ? 2 : 0)
-			 | (test_bit(LED_CAPSL,   dev->led) ? 4 : 0);
-		ps2_command(&atkbd->ps2dev, param, ATKBD_CMD_SETLEDS);
+	if (test_and_clear_bit(ATKBD_LED_EVENT_BIT, &atkbd->event_mask))
+		atkbd_set_leds(atkbd);
 
-		if (atkbd->extra) {
-			param[0] = 0;
-			param[1] = (test_bit(LED_COMPOSE, dev->led) ? 0x01 : 0)
-				 | (test_bit(LED_SLEEP,   dev->led) ? 0x02 : 0)
-				 | (test_bit(LED_SUSPEND, dev->led) ? 0x04 : 0)
-				 | (test_bit(LED_MISC,    dev->led) ? 0x10 : 0)
-				 | (test_bit(LED_MUTE,    dev->led) ? 0x20 : 0);
-			ps2_command(&atkbd->ps2dev, param, ATKBD_CMD_EX_SETLEDS);
-		}
-	}
-
-	if (test_and_clear_bit(ATKBD_REP_EVENT_BIT, &atkbd->event_mask)) {
-		i = j = 0;
-		while (i < 31 && period[i] < dev->rep[REP_PERIOD])
-			i++;
-		while (j < 3 && delay[j] < dev->rep[REP_DELAY])
-			j++;
-		dev->rep[REP_PERIOD] = period[i];
-		dev->rep[REP_DELAY] = delay[j];
-		param[0] = i | (j << 5);
-		ps2_command(&atkbd->ps2dev, param, ATKBD_CMD_SETREP);
-	}
+	if (test_and_clear_bit(ATKBD_REP_EVENT_BIT, &atkbd->event_mask))
+		atkbd_set_repeat_rate(atkbd);
 
 	mutex_unlock(&atkbd->event_mutex);
 }
@@ -975,7 +992,6 @@ static int atkbd_reconnect(struct serio *serio)
 {
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 	struct serio_driver *drv = serio->drv;
-	unsigned char param[1];
 
 	if (!atkbd || !drv) {
 		printk(KERN_DEBUG "atkbd: reconnect request, but serio is disconnected, ignoring...\n");
@@ -985,10 +1001,6 @@ static int atkbd_reconnect(struct serio *serio)
 	atkbd_disable(atkbd);
 
 	if (atkbd->write) {
-		param[0] = (test_bit(LED_SCROLLL, atkbd->dev->led) ? 1 : 0)
-		         | (test_bit(LED_NUML,    atkbd->dev->led) ? 2 : 0)
-		         | (test_bit(LED_CAPSL,   atkbd->dev->led) ? 4 : 0);
-
 		if (atkbd_probe(atkbd))
 			return -1;
 		if (atkbd->set != atkbd_select_set(atkbd, atkbd->set, atkbd->extra))
@@ -996,8 +1008,13 @@ static int atkbd_reconnect(struct serio *serio)
 
 		atkbd_activate(atkbd);
 
-		if (ps2_command(&atkbd->ps2dev, param, ATKBD_CMD_SETLEDS))
-			return -1;
+/*
+ * Restore repeat rate and LEDs (that were reset by atkbd_activate)
+ * to pre-resume state
+ */
+		if (!atkbd->softrepeat)
+			atkbd_set_repeat_rate(atkbd);
+		atkbd_set_leds(atkbd);
 	}
 
 	atkbd_enable(atkbd);
