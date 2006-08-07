@@ -35,7 +35,7 @@
 #ifndef DRM_HASHTAB_H
 #define DRM_HASHTAB_H
 
-#define drm_hash_entry(_ptr, _type, _member) list_entry(_ptr, _type, _member)
+#define drm_hash_entry(_ptr, _type, _member) container_of(_ptr, _type, _member)
 
 typedef struct drm_hash_item{
 	struct hlist_node head;

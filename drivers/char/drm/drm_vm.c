@@ -59,7 +59,7 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 	drm_device_t *dev = priv->head->dev;
 	drm_map_t *map = NULL;
 	drm_map_list_t *r_list;
-	struct list_head *list;
+	drm_hash_item_t *hash;
 
 	/*
 	 * Find the right map
@@ -70,14 +70,11 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 	if (!dev->agp || !dev->agp->cant_use_aperture)
 		goto vm_nopage_error;
 
-	list_for_each(list, &dev->maplist->head) {
-		r_list = list_entry(list, drm_map_list_t, head);
-		map = r_list->map;
-		if (!map)
-			continue;
-		if (r_list->user_token == (vma->vm_pgoff << PAGE_SHIFT))
-			break;
-	}
+	if (drm_ht_find_item(&dev->map_hash, vma->vm_pgoff << PAGE_SHIFT, &hash))
+		goto vm_nopage_error;
+
+	r_list = drm_hash_entry(hash, drm_map_list_t, hash);
+	map = r_list->map;
 
 	if (map && map->type == _DRM_AGP) {
 		unsigned long offset = address - vma->vm_start;
@@ -521,9 +518,8 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
 	drm_map_t *map = NULL;
-	drm_map_list_t *r_list;
 	unsigned long offset = 0;
-	struct list_head *list;
+	drm_hash_item_t *hash;
 
 	DRM_DEBUG("start = 0x%lx, end = 0x%lx, offset = 0x%lx\n",
 		  vma->vm_start, vma->vm_end, vma->vm_pgoff << PAGE_SHIFT);
@@ -543,23 +539,12 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	    )
 		return drm_mmap_dma(filp, vma);
 
-	/* A sequential search of a linked list is
-	   fine here because: 1) there will only be
-	   about 5-10 entries in the list and, 2) a
-	   DRI client only has to do this mapping
-	   once, so it doesn't have to be optimized
-	   for performance, even if the list was a
-	   bit longer. */
-	list_for_each(list, &dev->maplist->head) {
-
-		r_list = list_entry(list, drm_map_list_t, head);
-		map = r_list->map;
-		if (!map)
-			continue;
-		if (r_list->user_token == vma->vm_pgoff << PAGE_SHIFT)
-			break;
+	if (drm_ht_find_item(&dev->map_hash, vma->vm_pgoff << PAGE_SHIFT, &hash)) {
+		DRM_ERROR("Could not find map\n");
+		return -EINVAL;
 	}
 
+	map = drm_hash_entry(hash, drm_map_list_t, hash)->map;
 	if (!map || ((map->flags & _DRM_RESTRICTED) && !capable(CAP_SYS_ADMIN)))
 		return -EPERM;
 

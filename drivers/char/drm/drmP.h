@@ -140,6 +140,7 @@
 #define DRM_MEM_HASHTAB   23
 
 #define DRM_MAX_CTXBITMAP (PAGE_SIZE * 8)
+#define DRM_MAP_HASH_OFFSET 0x10000000
 
 /*@}*/
 
@@ -485,6 +486,7 @@ typedef struct drm_sigdata {
  */
 typedef struct drm_map_list {
 	struct list_head head;		/**< list head */
+	drm_hash_item_t hash;
 	drm_map_t *map;			/**< mapping */
 	unsigned int user_token;
 } drm_map_list_t;
@@ -662,6 +664,7 @@ typedef struct drm_device {
 	/*@{ */
 	drm_map_list_t *maplist;	/**< Linked list of regions */
 	int map_count;			/**< Number of mappable regions */
+	drm_open_hash_t map_hash;	/**< User token hash table for maps */
 
 	/** \name Context handle management */
 	/*@{ */
