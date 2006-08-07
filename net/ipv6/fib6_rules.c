@@ -94,8 +94,10 @@ int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 
 	if (rt != &ip6_null_entry)
 		goto out;
-
 	dst_release(&rt->u.dst);
+	rt = NULL;
+	goto out;
+
 discard_pkt:
 	dst_hold(&rt->u.dst);
 out:
