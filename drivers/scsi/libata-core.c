@@ -1528,7 +1528,7 @@ err_out_nosup:
  *	Zero on success, negative errno otherwise.
  */
 
-static int ata_bus_probe(struct ata_port *ap)
+int ata_bus_probe(struct ata_port *ap)
 {
 	unsigned int classes[ATA_MAX_DEVICES];
 	int tries[ATA_MAX_DEVICES];
