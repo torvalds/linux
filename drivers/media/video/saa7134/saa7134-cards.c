@@ -3398,7 +3398,7 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.driver_data  = SAA7134_BOARD_FLYDVB_TRIO,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,	/* SAA 7131E */
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
 		.subvendor    = 0x1461,
 		.subdevice    = 0x2c05,
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_777,
@@ -3480,6 +3480,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x16be,
 		.subdevice    = 0x0008,
 		.driver_data  = SAA7134_BOARD_MEDION_MD8800_QUADRO,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461,
+		.subdevice    = 0x2c05,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_777,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,

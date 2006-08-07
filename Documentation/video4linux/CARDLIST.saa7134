@@ -83,7 +83,7 @@
  82 -> MSI TV@Anywhere plus                     [1462:6231]
  83 -> Terratec Cinergy 250 PCI TV              [153b:1160]
  84 -> LifeView FlyDVB Trio                     [5168:0319]
- 85 -> AverTV DVB-T 777                         [1461:2c05]
+ 85 -> AverTV DVB-T 777                         [1461:2c05,1461:2c05]
  86 -> LifeView FlyDVB-T / Genius VideoWonder DVB-T [5168:0301,1489:0301]
  87 -> ADS Instant TV Duo Cardbus PTV331        [0331:1421]
  88 -> Tevion/KWorld DVB-T 220RF                [17de:7201]
