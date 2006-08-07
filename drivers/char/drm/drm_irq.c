@@ -64,7 +64,7 @@ int drm_irq_by_busid(struct inode *inode, struct file *filp,
 	if (copy_from_user(&p, argp, sizeof(p)))
 		return -EFAULT;
 
-	if ((p.busnum >> 8) != dev->pci_domain ||
+	if ((p.busnum >> 8) != drm_get_pci_domain(dev) ||
 	    (p.busnum & 0xff) != dev->pdev->bus->number ||
 	    p.devnum != PCI_SLOT(dev->pdev->devfn) || p.funcnum != PCI_FUNC(dev->pdev->devfn))
 		return -EINVAL;

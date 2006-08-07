@@ -68,9 +68,6 @@ static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
 
 #ifdef __alpha__
 	dev->hose = pdev->sysdata;
-	dev->pci_domain = dev->hose->bus->number;
-#else
-	dev->pci_domain = 0;
 #endif
 	dev->irq = pdev->irq;
 

@@ -127,7 +127,7 @@ int drm_setunique(struct inode *inode, struct file *filp,
 	domain = bus >> 8;
 	bus &= 0xff;
 
-	if ((domain != dev->pci_domain) ||
+	if ((domain != drm_get_pci_domain(dev)) ||
 	    (bus != dev->pdev->bus->number) ||
 	    (slot != PCI_SLOT(dev->pdev->devfn)) ||
 	    (func != PCI_FUNC(dev->pdev->devfn)))
@@ -149,7 +149,7 @@ static int drm_set_busid(drm_device_t * dev)
 		return ENOMEM;
 
 	len = snprintf(dev->unique, dev->unique_len, "pci:%04x:%02x:%02x.%d",
-		       dev->pci_domain, dev->pdev->bus->number,
+		       drm_get_pci_domain(dev), dev->pdev->bus->number,
 		       PCI_SLOT(dev->pdev->devfn),
 		       PCI_FUNC(dev->pdev->devfn));
 
