@@ -1911,7 +1911,7 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_FLYDVBT_DUO_CARDBUS] = {
-		.name		= "LifeView/Typhoon FlyDVB-T Duo Cardbus",
+		.name		= "LifeView/Typhoon/Genius FlyDVB-T Duo Cardbus",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -3486,6 +3486,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1461,
 		.subdevice    = 0x2c05,
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_777,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1489,
+		.subdevice    = 0x0502,                /* Cardbus version */
+		.driver_data  = SAA7134_BOARD_FLYDVBT_DUO_CARDBUS,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
