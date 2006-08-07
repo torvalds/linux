@@ -298,6 +298,13 @@ L:	info-linux@geode.amd.com
 W:	http://www.amd.com/us-en/ConnectivitySolutions/TechnicalResources/0,,50_2334_2452_11363,00.html
 S:	Supported
 
+AOA (Apple Onboard Audio) ALSA DRIVER
+P:	Johannes Berg
+M:	johannes@sipsolutions.net
+L:	linuxppc-dev@ozlabs.org
+L:	alsa-devel@alsa-project.org
+S:	Maintained
+
 APM DRIVER
 P:	Stephen Rothwell
 M:	sfr@canb.auug.org.au
@@ -2639,6 +2646,14 @@ SPI SUBSYSTEM
 P:	David Brownell
 M:	dbrownell@users.sourceforge.net
 L:	spi-devel-general@lists.sourceforge.net
+S:	Maintained
+
+STABLE BRANCH:
+P:	Greg Kroah-Hartman
+M:	greg@kroah.com
+P:	Chris Wright
+M:	chrisw@sous-sol.org
+L:	stable@kernel.org
 S:	Maintained
 
 TPM DEVICE DRIVER

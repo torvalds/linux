@@ -29,11 +29,13 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/pci.h>
 
 #include <asm/msr.h>
 #include <asm/timex.h>
 #include <asm/io.h>
+#include <asm/acpi.h>
+#include <linux/acpi.h>
+#include <acpi/processor.h>
 
 #include "longhaul.h"
 
@@ -56,6 +58,8 @@ static int minvid, maxvid;
 static unsigned int minmult, maxmult;
 static int can_scale_voltage;
 static int vrmrev;
+static struct acpi_processor *pr = NULL;
+static struct acpi_processor_cx *cx = NULL;
 
 /* Module parameters */
 static int dont_scale_voltage;
@@ -118,84 +122,65 @@ static int longhaul_get_cpu_mult(void)
 	return eblcr_table[invalue];
 }
 
+/* For processor with BCR2 MSR */
 
-static void do_powersaver(union msr_longhaul *longhaul,
-			unsigned int clock_ratio_index)
+static void do_longhaul1(int cx_address, unsigned int clock_ratio_index)
 {
-	struct pci_dev *dev;
-	unsigned long flags;
-	unsigned int tmp_mask;
-	int version;
-	int i;
-	u16 pci_cmd;
-	u16 cmd_state[64];
+	union msr_bcr2 bcr2;
+	u32 t;
 
-	switch (cpu_model) {
-	case CPU_EZRA_T:
-		version = 3;
-		break;
-	case CPU_NEHEMIAH:
-		version = 0xf;
-		break;
-	default:
-		return;
-	}
+	rdmsrl(MSR_VIA_BCR2, bcr2.val);
+	/* Enable software clock multiplier */
+	bcr2.bits.ESOFTBF = 1;
+	bcr2.bits.CLOCKMUL = clock_ratio_index;
 
-	rdmsrl(MSR_VIA_LONGHAUL, longhaul->val);
-	longhaul->bits.SoftBusRatio = clock_ratio_index & 0xf;
-	longhaul->bits.SoftBusRatio4 = (clock_ratio_index & 0x10) >> 4;
-	longhaul->bits.EnableSoftBusRatio = 1;
-	longhaul->bits.RevisionKey = 0;
-
-	preempt_disable();
-	local_irq_save(flags);
-
-	/*
-	 * get current pci bus master state for all devices
-	 * and clear bus master bit
-	 */
-	dev = NULL;
-	i = 0;
-	do {
-		dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
-		if (dev != NULL) {
-			pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
-			cmd_state[i++] = pci_cmd;
-			pci_cmd &= ~PCI_COMMAND_MASTER;
-			pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
-		}
-	} while (dev != NULL);
-
-	tmp_mask=inb(0x21);	/* works on C3. save mask. */
-	outb(0xFE,0x21);	/* TMR0 only */
-	outb(0xFF,0x80);	/* delay */
-
+	/* Sync to timer tick */
 	safe_halt();
-	wrmsrl(MSR_VIA_LONGHAUL, longhaul->val);
-	halt();
+	ACPI_FLUSH_CPU_CACHE();
+	/* Change frequency on next halt or sleep */
+	wrmsrl(MSR_VIA_BCR2, bcr2.val);
+	/* Invoke C3 */
+	inb(cx_address);
+	/* Dummy op - must do something useless after P_LVL3 read */
+	t = inl(acpi_fadt.xpm_tmr_blk.address);
 
+	/* Disable software clock multiplier */
 	local_irq_disable();
+	rdmsrl(MSR_VIA_BCR2, bcr2.val);
+	bcr2.bits.ESOFTBF = 0;
+	wrmsrl(MSR_VIA_BCR2, bcr2.val);
+}
 
-	outb(tmp_mask,0x21);	/* restore mask */
+/* For processor with Longhaul MSR */
 
-	/* restore pci bus master state for all devices */
-	dev = NULL;
-	i = 0;
-	do {
-		dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
-		if (dev != NULL) {
-			pci_cmd = cmd_state[i++];
-			pci_write_config_byte(dev, PCI_COMMAND, pci_cmd);
-		}
-	} while (dev != NULL);
-	local_irq_restore(flags);
-	preempt_enable();
+static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
+{
+	union msr_longhaul longhaul;
+	u32 t;
 
-	/* disable bus ratio bit */
-	rdmsrl(MSR_VIA_LONGHAUL, longhaul->val);
-	longhaul->bits.EnableSoftBusRatio = 0;
-	longhaul->bits.RevisionKey = version;
-	wrmsrl(MSR_VIA_LONGHAUL, longhaul->val);
+	rdmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+	longhaul.bits.RevisionKey = longhaul.bits.RevisionID;
+	longhaul.bits.SoftBusRatio = clock_ratio_index & 0xf;
+	longhaul.bits.SoftBusRatio4 = (clock_ratio_index & 0x10) >> 4;
+	longhaul.bits.EnableSoftBusRatio = 1;
+
+	/* Sync to timer tick */
+	safe_halt();
+	ACPI_FLUSH_CPU_CACHE();
+	/* Change frequency on next halt or sleep */
+	wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+	/* Invoke C3 */
+	inb(cx_address);
+	/* Dummy op - must do something useless after P_LVL3 read */
+	t = inl(acpi_fadt.xpm_tmr_blk.address);
+
+	/* Disable bus ratio bit */
+	local_irq_disable();
+	longhaul.bits.RevisionKey = longhaul.bits.RevisionID;
+	longhaul.bits.EnableSoftBusRatio = 0;
+	longhaul.bits.EnableSoftBSEL = 0;
+	longhaul.bits.EnableSoftVID = 0;
+	wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
 }
 
 /**
@@ -209,9 +194,9 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 {
 	int speed, mult;
 	struct cpufreq_freqs freqs;
-	union msr_longhaul longhaul;
-	union msr_bcr2 bcr2;
 	static unsigned int old_ratio=-1;
+	unsigned long flags;
+	unsigned int pic1_mask, pic2_mask;
 
 	if (old_ratio == clock_ratio_index)
 		return;
@@ -234,6 +219,20 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	dprintk ("Setting to FSB:%dMHz Mult:%d.%dx (%s)\n",
 			fsb, mult/10, mult%10, print_speed(speed/1000));
 
+	preempt_disable();
+	local_irq_save(flags);
+
+	pic2_mask = inb(0xA1);
+	pic1_mask = inb(0x21);	/* works on C3. save mask. */
+	outb(0xFF,0xA1);	/* Overkill */
+	outb(0xFE,0x21);	/* TMR0 only */
+
+	/* Disable bus master arbitration */
+	if (pr->flags.bm_check) {
+		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1,
+				  ACPI_MTX_DO_NOT_LOCK);
+	}
+
 	switch (longhaul_version) {
 
 	/*
@@ -245,20 +244,7 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	 */
 	case TYPE_LONGHAUL_V1:
 	case TYPE_LONGHAUL_V2:
-		rdmsrl (MSR_VIA_BCR2, bcr2.val);
-		/* Enable software clock multiplier */
-		bcr2.bits.ESOFTBF = 1;
-		bcr2.bits.CLOCKMUL = clock_ratio_index;
-		local_irq_disable();
-		wrmsrl (MSR_VIA_BCR2, bcr2.val);
-		safe_halt();
-
-		/* Disable software clock multiplier */
-		rdmsrl (MSR_VIA_BCR2, bcr2.val);
-		bcr2.bits.ESOFTBF = 0;
-		local_irq_disable();
-		wrmsrl (MSR_VIA_BCR2, bcr2.val);
-		local_irq_enable();
+		do_longhaul1(cx->address, clock_ratio_index);
 		break;
 
 	/*
@@ -273,9 +259,21 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	 * to work in practice.
 	 */
 	case TYPE_POWERSAVER:
-		do_powersaver(&longhaul, clock_ratio_index);
+		do_powersaver(cx->address, clock_ratio_index);
 		break;
 	}
+
+	/* Enable bus master arbitration */
+	if (pr->flags.bm_check) {
+		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0,
+				  ACPI_MTX_DO_NOT_LOCK);
+	}
+
+	outb(pic2_mask,0xA1);	/* restore mask */
+	outb(pic1_mask,0x21);
+
+	local_irq_restore(flags);
+	preempt_enable();
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 }
@@ -324,9 +322,11 @@ static int guess_fsb(void)
 static int __init longhaul_get_ranges(void)
 {
 	unsigned long invalue;
-	unsigned int multipliers[32]= {
-		50,30,40,100,55,35,45,95,90,70,80,60,120,75,85,65,
-		-1,110,120,-1,135,115,125,105,130,150,160,140,-1,155,-1,145 };
+	unsigned int ezra_t_multipliers[32]= {
+			90,  30,  40, 100,  55,  35,  45,  95,
+			50,  70,  80,  60, 120,  75,  85,  65,
+			-1, 110, 120,  -1, 135, 115, 125, 105,
+			130, 150, 160, 140,  -1, 155,  -1, 145 };
 	unsigned int j, k = 0;
 	union msr_longhaul longhaul;
 	unsigned long lo, hi;
@@ -355,13 +355,13 @@ static int __init longhaul_get_ranges(void)
 			invalue = longhaul.bits.MaxMHzBR;
 			if (longhaul.bits.MaxMHzBR4)
 				invalue += 16;
-			maxmult=multipliers[invalue];
+			maxmult=ezra_t_multipliers[invalue];
 
 			invalue = longhaul.bits.MinMHzBR;
 			if (longhaul.bits.MinMHzBR4 == 1)
 				minmult = 30;
 			else
-				minmult = multipliers[invalue];
+				minmult = ezra_t_multipliers[invalue];
 			fsb = eblcr_fsb_table_v2[longhaul.bits.MaxMHzFSB];
 			break;
 		}
@@ -527,6 +527,18 @@ static unsigned int longhaul_get(unsigned int cpu)
 	return calc_speed(longhaul_get_cpu_mult());
 }
 
+static acpi_status longhaul_walk_callback(acpi_handle obj_handle,
+					  u32 nesting_level,
+					  void *context, void **return_value)
+{
+	struct acpi_device *d;
+
+	if ( acpi_bus_get_device(obj_handle, &d) ) {
+		return 0;
+	}
+	*return_value = (void *)acpi_driver_data(d);
+	return 1;
+}
 
 static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 {
@@ -534,6 +546,15 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	char *cpuname=NULL;
 	int ret;
 
+	/* Check ACPI support for C3 state */
+	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
+			 &longhaul_walk_callback, NULL, (void *)&pr);
+	if (pr == NULL) goto err_acpi;
+
+	cx = &pr->power.states[ACPI_STATE_C3];
+	if (cx->address == 0 || cx->latency > 1000) goto err_acpi;
+
+	/* Now check what we have on this motherboard */
 	switch (c->x86_model) {
 	case 6:
 		cpu_model = CPU_SAMUEL;
@@ -634,6 +655,10 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	cpufreq_frequency_table_get_attr(longhaul_table, policy->cpu);
 
 	return 0;
+
+err_acpi:
+	printk(KERN_ERR PFX "No ACPI support for CPU frequency changes.\n");
+	return -ENODEV;
 }
 
 static int __devexit longhaul_cpu_exit(struct cpufreq_policy *policy)
@@ -666,6 +691,18 @@ static int __init longhaul_init(void)
 	if (c->x86_vendor != X86_VENDOR_CENTAUR || c->x86 != 6)
 		return -ENODEV;
 
+#ifdef CONFIG_SMP
+	if (num_online_cpus() > 1) {
+		return -ENODEV;
+		printk(KERN_ERR PFX "More than 1 CPU detected, longhaul disabled.\n");
+	}
+#endif
+#ifdef CONFIG_X86_IO_APIC
+	if (cpu_has_apic) {
+		printk(KERN_ERR PFX "APIC detected. Longhaul is currently broken in this configuration.\n");
+		return -ENODEV;
+	}
+#endif
 	switch (c->x86_model) {
 	case 6 ... 9:
 		return cpufreq_register_driver(&longhaul_driver);
@@ -699,6 +736,6 @@ MODULE_AUTHOR ("Dave Jones <davej@codemonkey.org.uk>");
 MODULE_DESCRIPTION ("Longhaul driver for VIA Cyrix processors.");
 MODULE_LICENSE ("GPL");
 
-module_init(longhaul_init);
+late_initcall(longhaul_init);
 module_exit(longhaul_exit);
 

@@ -51,6 +51,13 @@ static struct transfer_info toonie_transfers[] = {
 	{}
 };
 
+static int toonie_usable(struct codec_info_item *cii,
+			 struct transfer_info *ti,
+			 struct transfer_info *out)
+{
+	return 1;
+}
+
 #ifdef CONFIG_PM
 static int toonie_suspend(struct codec_info_item *cii, pm_message_t state)
 {
@@ -69,6 +76,7 @@ static struct codec_info toonie_codec_info = {
 	.sysclock_factor = 256,
 	.bus_factor = 64,
 	.owner = THIS_MODULE,
+	.usable = toonie_usable,
 #ifdef CONFIG_PM
 	.suspend = toonie_suspend,
 	.resume = toonie_resume,
@@ -79,19 +87,20 @@ static int toonie_init_codec(struct aoa_codec *codec)
 {
 	struct toonie *toonie = codec_to_toonie(codec);
 
+	/* nothing connected? what a joke! */
+	if (toonie->codec.connected != 1)
+		return -ENOTCONN;
+
 	if (aoa_snd_device_new(SNDRV_DEV_LOWLEVEL, toonie, &ops)) {
 		printk(KERN_ERR PFX "failed to create toonie snd device!\n");
 		return -ENODEV;
 	}
 
-	/* nothing connected? what a joke! */
-	if (toonie->codec.connected != 1)
-		return -ENOTCONN;
-
 	if (toonie->codec.soundbus_dev->attach_codec(toonie->codec.soundbus_dev,
 						     aoa_get_card(),
 						     &toonie_codec_info, toonie)) {
 		printk(KERN_ERR PFX "error creating toonie pcm\n");
+		snd_device_free(aoa_get_card(), toonie);
 		return -ENODEV;
 	}
 

@@ -1252,17 +1252,14 @@ static int vx_init_audio_io(struct vx_core *chip)
 	chip->audio_info = rmh.Stat[1];
 
 	/* allocate pipes */
-	chip->playback_pipes = kmalloc(sizeof(struct vx_pipe *) * chip->audio_outs, GFP_KERNEL);
+	chip->playback_pipes = kcalloc(chip->audio_outs, sizeof(struct vx_pipe *), GFP_KERNEL);
 	if (!chip->playback_pipes)
 		return -ENOMEM;
-	chip->capture_pipes = kmalloc(sizeof(struct vx_pipe *) * chip->audio_ins, GFP_KERNEL);
+	chip->capture_pipes = kcalloc(chip->audio_ins, sizeof(struct vx_pipe *), GFP_KERNEL);
 	if (!chip->capture_pipes) {
 		kfree(chip->playback_pipes);
 		return -ENOMEM;
 	}
-
-	memset(chip->playback_pipes, 0, sizeof(struct vx_pipe *) * chip->audio_outs);
-	memset(chip->capture_pipes, 0, sizeof(struct vx_pipe *) * chip->audio_ins);
 
 	preferred = chip->ibl.size;
 	chip->ibl.size = 0;
