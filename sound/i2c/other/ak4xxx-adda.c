@@ -598,6 +598,31 @@ int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
 		if (err < 0)
 			goto __error;
 	}
+
+	if (ak->type == SND_AK5365) {
+		memset(ctl, 0, sizeof(*ctl));
+		if (ak->channel_names == NULL)
+			strcpy(ctl->id.name, "Capture Volume");
+		else
+			strcpy(ctl->id.name, ak->channel_names[0]);
+		ctl->id.index = ak->idx_offset * 2;
+		ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+		ctl->count = 1;
+		ctl->info = snd_akm4xxx_stereo_volume_info;
+		ctl->get = snd_akm4xxx_stereo_volume_get;
+		ctl->put = snd_akm4xxx_stereo_volume_put;
+		/* Registers 4 & 5 (see AK5365 data sheet, pages 34 and 35):
+		 * valid values are from 0x00 (mute) to 0x98 (+12dB).  */
+		ctl->private_value =
+			AK_COMPOSE(0, 4, 0, 0x98);
+		ctl->private_data = ak;
+		err = snd_ctl_add(ak->card,
+				  snd_ctl_new(ctl, SNDRV_CTL_ELEM_ACCESS_READ|
+					      SNDRV_CTL_ELEM_ACCESS_WRITE));
+		if (err < 0)
+			goto __error;
+	}
+
 	if (ak->type == SND_AK4355 || ak->type == SND_AK4358)
 		num_emphs = 1;
 	else
