@@ -581,8 +581,8 @@ static int strrcmp(const char *s, const char *sub)
  *   fromsec = .data
  *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one
  **/
-static int secref_whitelist(const char *tosec, const char *fromsec,
-			    const char *atsym)
+static int secref_whitelist(const char *modname, const char *tosec,
+			    const char *fromsec, const char *atsym)
 {
 	int f1 = 1, f2 = 1;
 	const char **s;
@@ -618,8 +618,15 @@ static int secref_whitelist(const char *tosec, const char *fromsec,
 	for (s = pat2sym; *s; s++)
 		if (strrcmp(atsym, *s) == 0)
 			f1 = 1;
+	if (f1 && f2)
+		return 1;
 
-	return f1 && f2;
+	/* Whitelist all references from .pci_fixup section if vmlinux */
+	if (is_vmlinux(modname)) {
+		if ((strcmp(fromsec, ".pci_fixup") == 0) &&
+		    (strcmp(tosec, ".init.text") == 0))
+		return 1;
+	}
 }
 
 /**
@@ -726,7 +733,8 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 
 	/* check whitelist - we may ignore it */
 	if (before &&
-	    secref_whitelist(secname, fromsec, elf->strtab + before->st_name))
+	    secref_whitelist(modname, secname, fromsec,
+			     elf->strtab + before->st_name))
 		return;
 
 	if (before && after) {
