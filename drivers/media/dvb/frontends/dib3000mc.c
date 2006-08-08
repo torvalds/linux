@@ -20,6 +20,7 @@
  * see Documentation/dvb/README.dibusb for more information
  *
  */
+#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -461,9 +462,8 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 	int search_state,auto_val;
 	u16 val;
 
-	if (tuner && fe->ops.tuner_ops.set_params) { /* initial call from dvb */
-		fe->ops.tuner_ops.set_params(fe, fep);
-		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+	if (tuner && state->config.pll_set) { /* initial call from dvb */
+		state->config.pll_set(fe,fep);
 
 		state->last_tuned_freq = fep->frequency;
 	//	if (!scanboost) {
@@ -558,6 +558,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 static int dib3000mc_fe_init(struct dvb_frontend* fe, int mobile_mode)
 {
 	struct dib3000_state *state = fe->demodulator_priv;
+	int AGCtuner=(int)fe->misc_priv;
 	deb_info("init start\n");
 
 	state->timing_offset = 0;
@@ -583,10 +584,11 @@ static int dib3000mc_fe_init(struct dvb_frontend* fe, int mobile_mode)
 	/* mobile mode - portable reception */
 	wr_foreach(dib3000mc_reg_mobile_mode,dib3000mc_mobile_mode[1]);
 
-/* TUNER_PANASONIC_ENV57H12D5: */
+/* TUNER_PANASONIC_ENV57H12D5 or TUNER_MICROTUNE_MT2060. Sets agc_tuner accordingly */
 	wr_foreach(dib3000mc_reg_agc_bandwidth,dib3000mc_agc_bandwidth);
 	wr_foreach(dib3000mc_reg_agc_bandwidth_general,dib3000mc_agc_bandwidth_general);
-	wr_foreach(dib3000mc_reg_agc,dib3000mc_agc_tuner[1]);
+	if (AGCtuner<0 || AGCtuner>=DIB3000MC_AGC_TUNER_COUNT) AGCtuner=1;
+	wr_foreach(dib3000mc_reg_agc,dib3000mc_agc_tuner[AGCtuner]);
 
 	wr(DIB3000MC_REG_UNK_110,DIB3000MC_UNK_110);
 	wr(26,0x6680);
@@ -641,6 +643,9 @@ static int dib3000mc_fe_init(struct dvb_frontend* fe, int mobile_mode)
 	set_and(DIB3000MC_REG_DIVERSITY3,DIB3000MC_DIVERSITY3_IN_OFF);
 
 	set_or(DIB3000MC_REG_CLK_CFG_7,DIB3000MC_CLK_CFG_7_DIV_IN_OFF);
+
+	if (state->config.pll_init)
+		state->config.pll_init(fe);
 
 	deb_info("init end\n");
 	return 0;
@@ -836,6 +841,7 @@ struct dvb_frontend* dib3000mc_attach(const struct dib3000_config* config,
 	/* setup the state */
 	state->i2c = i2c;
 	memcpy(&state->config,config,sizeof(struct dib3000_config));
+	memcpy(&state->ops, &dib3000mc_ops, sizeof(struct dvb_frontend_ops));
 
 	/* check for the correct demod */
 	if (rd(DIB3000_REG_MANUFACTOR_ID) != DIB3000_I2C_ID_DIBCOM)
@@ -855,7 +861,7 @@ struct dvb_frontend* dib3000mc_attach(const struct dib3000_config* config,
 	}
 
 	/* create dvb_frontend */
-	memcpy(&state->frontend.ops, &dib3000mc_ops, sizeof(struct dvb_frontend_ops));
+	state->frontend.ops = &state->ops;
 	state->frontend.demodulator_priv = state;
 
 	/* set the xfer operations */
@@ -872,7 +878,6 @@ error:
 	kfree(state);
 	return NULL;
 }
-EXPORT_SYMBOL(dib3000mc_attach);
 
 static struct dvb_frontend_ops dib3000mc_ops = {
 
@@ -911,3 +916,5 @@ static struct dvb_frontend_ops dib3000mc_ops = {
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
+
+EXPORT_SYMBOL(dib3000mc_attach);

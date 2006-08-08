@@ -168,15 +168,63 @@ int dibusb_read_eeprom_byte(struct dvb_usb_device *d, u8 offs, u8 *val)
 }
 EXPORT_SYMBOL(dibusb_read_eeprom_byte);
 
+static struct mt2060_config default_mt2060_config = {
+	.i2c_address = 0x60,
+};
+
+static int dibusb_tuner_init(struct dvb_frontend *fe)
+{
+	int ret;
+	struct dvb_usb_device *d = fe->dvb->priv;
+	struct dibusb_state *st = d->priv;
+
+	if (d->tuner_pass_ctrl) {
+		if ((int)d->fe->misc_priv==DIBUSB_TUNER_MT2060) { // Microtune MT2060
+			d->tuner_pass_ctrl(d->fe,1,default_mt2060_config.i2c_address);
+			ret=mt2060_init(&st->mt2060);
+		}
+		else { // Panasonic whatever
+			d->tuner_pass_ctrl(d->fe,1,d->pll_addr);
+			ret=dvb_usb_pll_init_i2c(fe);
+		}
+		d->tuner_pass_ctrl(d->fe,0,0);
+		return ret;
+	}
+	return -ENODEV;
+}
+
+static int dibusb_tuner_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+{
+	int ret;
+	struct dvb_usb_device *d = fe->dvb->priv;
+	struct dibusb_state *st = d->priv;
+
+	if (d->tuner_pass_ctrl) {
+		if ((int)d->fe->misc_priv==DIBUSB_TUNER_MT2060) {
+			d->tuner_pass_ctrl(d->fe,1,default_mt2060_config.i2c_address);
+			ret=mt2060_set(&st->mt2060,fep);
+		}
+		else {
+			d->tuner_pass_ctrl(d->fe,1,d->pll_addr);
+			ret=dvb_usb_pll_set_i2c(fe,fep);
+		}
+		d->tuner_pass_ctrl(d->fe,0,0);
+		return ret;
+	}
+	return -ENODEV;
+}
+
 int dibusb_dib3000mc_frontend_attach(struct dvb_usb_device *d)
 {
 	struct dib3000_config demod_cfg;
 	struct dibusb_state *st = d->priv;
 
+	demod_cfg.pll_set = dibusb_tuner_set;
+	demod_cfg.pll_init = dibusb_tuner_init;
+
 	for (demod_cfg.demod_address = 0x8; demod_cfg.demod_address < 0xd; demod_cfg.demod_address++)
 		if ((d->fe = dib3000mc_attach(&demod_cfg,&d->i2c_adap,&st->ops)) != NULL) {
-			d->fe->ops.tuner_ops.init = dvb_usb_tuner_init_i2c;
-			d->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
+			d->fe->misc_priv=(void *)DIBUSB_TUNER_DEFAULT;
 			d->tuner_pass_ctrl = st->ops.tuner_pass_ctrl;
 			return 0;
 		}
@@ -187,13 +235,19 @@ EXPORT_SYMBOL(dibusb_dib3000mc_frontend_attach);
 
 int dibusb_dib3000mc_tuner_attach (struct dvb_usb_device *d)
 {
+	int ret;
 	d->pll_addr = 0x60;
 	d->pll_desc = &dvb_pll_env57h1xd5;
-
-	d->fe->ops.tuner_ops.init = dvb_usb_tuner_init_i2c;
-	d->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
-
-	return 0;
+	if (d->tuner_pass_ctrl) {
+		struct dibusb_state *st = d->priv;
+		d->tuner_pass_ctrl(d->fe,1,default_mt2060_config.i2c_address);
+		if ((ret = mt2060_attach(&st->mt2060,&default_mt2060_config, &d->i2c_adap)) == 0) {
+			d->fe->misc_priv=(void *)DIBUSB_TUNER_MT2060;
+		}
+		d->tuner_pass_ctrl(d->fe,0,0);
+		return 0;
+	}
+	return -ENODEV;
 }
 EXPORT_SYMBOL(dibusb_dib3000mc_tuner_attach);
 
