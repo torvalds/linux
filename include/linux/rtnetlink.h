@@ -386,69 +386,6 @@ struct rta_session
 
 
 
-/**************************************************************
- *		Neighbour discovery.
- ****/
-
-struct ndmsg
-{
-	unsigned char	ndm_family;
-	unsigned char	ndm_pad1;
-	unsigned short	ndm_pad2;
-	int		ndm_ifindex;	/* Link index			*/
-	__u16		ndm_state;
-	__u8		ndm_flags;
-	__u8		ndm_type;
-};
-
-enum
-{
-	NDA_UNSPEC,
-	NDA_DST,
-	NDA_LLADDR,
-	NDA_CACHEINFO,
-	NDA_PROBES,
-	__NDA_MAX
-};
-
-#define NDA_MAX (__NDA_MAX - 1)
-
-#define NDA_RTA(r)  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ndmsg))))
-#define NDA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct ndmsg))
-
-/*
- *	Neighbor Cache Entry Flags
- */
-
-#define NTF_PROXY	0x08	/* == ATF_PUBL */
-#define NTF_ROUTER	0x80
-
-/*
- *	Neighbor Cache Entry States.
- */
-
-#define NUD_INCOMPLETE	0x01
-#define NUD_REACHABLE	0x02
-#define NUD_STALE	0x04
-#define NUD_DELAY	0x08
-#define NUD_PROBE	0x10
-#define NUD_FAILED	0x20
-
-/* Dummy states */
-#define NUD_NOARP	0x40
-#define NUD_PERMANENT	0x80
-#define NUD_NONE	0x00
-
-
-struct nda_cacheinfo
-{
-	__u32		ndm_confirmed;
-	__u32		ndm_used;
-	__u32		ndm_updated;
-	__u32		ndm_refcnt;
-};
-
-
 /*****************************************************************
  *		Neighbour tables specific messages.
  *
