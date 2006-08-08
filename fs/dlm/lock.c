@@ -3699,6 +3699,7 @@ int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	if (lvb_in && ua->lksb.sb_lvbptr)
 		memcpy(ua->lksb.sb_lvbptr, lvb_in, DLM_USER_LVB_LEN);
 	ua->castparam = ua_tmp->castparam;
+	ua->user_lksb = ua_tmp->user_lksb;
 
 	error = set_unlock_args(flags, ua, &args);
 	if (error)
