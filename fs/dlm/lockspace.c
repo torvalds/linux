@@ -81,6 +81,11 @@ static ssize_t dlm_recover_status_show(struct dlm_ls *ls, char *buf)
 	return sprintf(buf, "%x\n", status);
 }
 
+static ssize_t dlm_recover_nodeid_show(struct dlm_ls *ls, char *buf)
+{
+	return sprintf(buf, "%d\n", ls->ls_recover_nodeid);
+}
+
 struct dlm_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct dlm_ls *, char *);
@@ -108,11 +113,17 @@ static struct dlm_attr dlm_attr_recover_status = {
 	.show  = dlm_recover_status_show
 };
 
+static struct dlm_attr dlm_attr_recover_nodeid = {
+	.attr  = {.name = "recover_nodeid", .mode = S_IRUGO},
+	.show  = dlm_recover_nodeid_show
+};
+
 static struct attribute *dlm_attrs[] = {
 	&dlm_attr_control.attr,
 	&dlm_attr_event.attr,
 	&dlm_attr_id.attr,
 	&dlm_attr_recover_status.attr,
+	&dlm_attr_recover_nodeid.attr,
 	NULL,
 };
 

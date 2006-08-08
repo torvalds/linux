@@ -467,6 +467,7 @@ struct dlm_ls {
 	struct list_head	ls_requestqueue;/* queue remote requests */
 	struct mutex		ls_requestqueue_mutex;
 	char			*ls_recover_buf;
+	int			ls_recover_nodeid; /* for debugging */
 	struct list_head	ls_recover_list;
 	spinlock_t		ls_recover_list_lock;
 	int			ls_recover_list_count;

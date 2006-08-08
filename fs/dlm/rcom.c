@@ -97,6 +97,7 @@ int dlm_rcom_status(struct dlm_ls *ls, int nodeid)
 	int error = 0;
 
 	memset(ls->ls_recover_buf, 0, dlm_config.buffer_size);
+	ls->ls_recover_nodeid = nodeid;
 
 	if (nodeid == dlm_our_nodeid()) {
 		rc = (struct dlm_rcom *) ls->ls_recover_buf;
@@ -159,6 +160,7 @@ int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 	int error = 0, len = sizeof(struct dlm_rcom);
 
 	memset(ls->ls_recover_buf, 0, dlm_config.buffer_size);
+	ls->ls_recover_nodeid = nodeid;
 
 	if (nodeid == dlm_our_nodeid()) {
 		dlm_copy_master_names(ls, last_name, last_len,

@@ -176,7 +176,8 @@ static int ping_members(struct dlm_ls *ls)
 			break;
 	}
 	if (error)
-		log_debug(ls, "ping_members aborted %d", error);
+		log_debug(ls, "ping_members aborted %d last nodeid %d",
+			  error, ls->ls_recover_nodeid);
 	return error;
 }
 
