@@ -493,6 +493,9 @@ static int dvb_pll_sleep(struct dvb_frontend *fe)
 	int i;
 	int result;
 
+	if (priv->i2c == NULL)
+		return -EINVAL;
+
 	for (i = 0; i < priv->pll_desc->count; i++) {
 		if (priv->pll_desc->entries[i].limit == 0)
 			break;

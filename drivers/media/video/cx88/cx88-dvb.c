@@ -543,8 +543,7 @@ static int dvb_register(struct cx8802_dev *dev)
 						 &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
-				       &dev->core->i2c_adap,
-				       &dvb_pll_thomson_dtt7579);
+				   NULL, &dvb_pll_thomson_dtt7579);
 			break;
 		}
 		/* ZL10353 replaces MT352 on later cards */
@@ -552,8 +551,7 @@ static int dvb_register(struct cx8802_dev *dev)
 						   &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
-				       &dev->core->i2c_adap,
-				       &dvb_pll_thomson_dtt7579);
+				   NULL, &dvb_pll_thomson_dtt7579);
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
@@ -563,8 +561,7 @@ static int dvb_register(struct cx8802_dev *dev)
 						 &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				       &dev->core->i2c_adap,
-				       &dvb_pll_thomson_dtt7579);
+				   NULL, &dvb_pll_thomson_dtt7579);
 			break;
 		}
 		/* ZL10353 replaces MT352 on later cards */
@@ -572,8 +569,7 @@ static int dvb_register(struct cx8802_dev *dev)
 						   &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				       &dev->core->i2c_adap,
-				       &dvb_pll_thomson_dtt7579);
+				   NULL, &dvb_pll_thomson_dtt7579);
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
@@ -581,8 +577,7 @@ static int dvb_register(struct cx8802_dev *dev)
 						 &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				       &dev->core->i2c_adap,
-				       &dvb_pll_lg_z201);
+				   NULL, &dvb_pll_lg_z201);
 		}
 		break;
 	case CX88_BOARD_KWORLD_DVB_T:
@@ -592,8 +587,7 @@ static int dvb_register(struct cx8802_dev *dev)
 						 &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				       &dev->core->i2c_adap,
-				       &dvb_pll_unknown_1);
+				   NULL, &dvb_pll_unknown_1);
 		}
 		break;
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
