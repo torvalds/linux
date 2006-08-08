@@ -162,11 +162,22 @@ static void make_member_array(struct dlm_ls *ls)
 
 /* send a status request to all members just to establish comms connections */
 
-static void ping_members(struct dlm_ls *ls)
+static int ping_members(struct dlm_ls *ls)
 {
 	struct dlm_member *memb;
-	list_for_each_entry(memb, &ls->ls_nodes, list)
-		dlm_rcom_status(ls, memb->nodeid);
+	int error = 0;
+
+	list_for_each_entry(memb, &ls->ls_nodes, list) {
+		error = dlm_recovery_stopped(ls);
+		if (error)
+			break;
+		error = dlm_rcom_status(ls, memb->nodeid);
+		if (error)
+			break;
+	}
+	if (error)
+		log_debug(ls, "ping_members aborted %d", error);
+	return error;
 }
 
 int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
@@ -212,10 +223,13 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	dlm_set_recover_status(ls, DLM_RS_NODES);
 	*neg_out = neg;
 
-	ping_members(ls);
+	error = ping_members(ls);
+	if (error)
+		goto out;
 
 	error = dlm_recover_members_wait(ls);
-	log_debug(ls, "total members %d", ls->ls_num_nodes);
+ out:
+	log_debug(ls, "total members %d error %d", ls->ls_num_nodes, error);
 	return error;
 }
 

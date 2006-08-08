@@ -275,6 +275,7 @@ void dlm_recoverd_stop(struct dlm_ls *ls)
 
 void dlm_recoverd_suspend(struct dlm_ls *ls)
 {
+	wake_up(&ls->ls_wait_general);
 	mutex_lock(&ls->ls_recoverd_active);
 }
 
