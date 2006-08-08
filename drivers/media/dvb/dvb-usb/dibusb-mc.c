@@ -37,6 +37,8 @@ static struct usb_device_id dibusb_dib3000mc_table [] = {
 /* 09 */	{ USB_DEVICE(USB_VID_GRANDTEC,          USB_PID_GRANDTEC_DVBT_USB2_WARM) },
 /* 10 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ARTEC_T14_COLD) },
 /* 11 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ARTEC_T14_WARM) },
+/* 12 */	{ USB_DEVICE(USB_VID_LEADTEK,		USB_PID_WINFAST_DTV_DONGLE_COLD) },
+/* 13 */	{ USB_DEVICE(USB_VID_LEADTEK,		USB_PID_WINFAST_DTV_DONGLE_WARM) },
 			{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, dibusb_dib3000mc_table);
@@ -77,7 +79,7 @@ static struct dvb_usb_properties dibusb_mc_properties = {
 		}
 	},
 
-	.num_device_descs = 6,
+	.num_device_descs = 7,
 	.devices = {
 		{   "DiBcom USB2.0 DVB-T reference design (MOD3000P)",
 			{ &dibusb_dib3000mc_table[0], NULL },
@@ -103,6 +105,10 @@ static struct dvb_usb_properties dibusb_mc_properties = {
 		{   "Artec T14 - USB2.0 DVB-T",
 			{ &dibusb_dib3000mc_table[10], NULL },
 			{ &dibusb_dib3000mc_table[11], NULL },
+		},
+		{   "Leadtek - USB2.0 Winfast DTV dongle",
+			{ &dibusb_dib3000mc_table[12], NULL },
+			{ &dibusb_dib3000mc_table[13], NULL },
 		},
 		{ NULL },
 	}
