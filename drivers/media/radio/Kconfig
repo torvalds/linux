@@ -131,7 +131,7 @@ config RADIO_GEMTEK_PORT
 
 config RADIO_GEMTEK_PCI
 	tristate "GemTek PCI Radio Card support"
-	depends on VIDEO_V4L1 && PCI
+	depends on VIDEO_V4L2 && PCI
 	---help---
 	  Choose Y here if you have this PCI FM radio card.
 
