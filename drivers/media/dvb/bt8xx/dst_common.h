@@ -178,7 +178,7 @@ int write_dst(struct dst_state *state, u8 * data, u8 len);
 int read_dst(struct dst_state *state, u8 * ret, u8 len);
 u8 dst_check_sum(u8 * buf, u32 len);
 struct dst_state* dst_attach(struct dst_state* state, struct dvb_adapter *dvb_adapter);
-ssize_t dst_ca_attach(struct dst_state *state, struct dvb_adapter *dvb_adapter);
+void dst_ca_attach(struct dst_state *state, struct dvb_adapter *dvb_adapter);
 int dst_gpio_outb(struct dst_state* state, u32 mask, u32 enbb, u32 outhigh, int delay);
 
 int dst_command(struct dst_state* state, u8 * data, u8 len);

@@ -699,12 +699,11 @@ static struct dvb_device dvbdev_ca = {
 	.fops = &dst_ca_fops
 };
 
-ssize_t dst_ca_attach(struct dst_state *dst, struct dvb_adapter *dvb_adapter)
+void dst_ca_attach(struct dst_state *dst, struct dvb_adapter *dvb_adapter)
 {
 	struct dvb_device *dvbdev;
 	dprintk(verbose, DST_CA_ERROR, 1, "registering DST-CA device");
 	dvb_register_device(dvb_adapter, &dvbdev, &dvbdev_ca, dst, DVB_DEVICE_CA);
-	return 1; // must return non-zero for dvb_attach() to work
 }
 
 EXPORT_SYMBOL(dst_ca_attach);

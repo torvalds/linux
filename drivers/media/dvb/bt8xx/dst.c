@@ -1715,12 +1715,6 @@ static int dst_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_paramet
 static void dst_release(struct dvb_frontend *fe)
 {
 	struct dst_state *state = fe->demodulator_priv;
-
-#ifdef CONFIG_DVB_CORE_ATTACH
-	if (state->dst_hw_cap & DST_TYPE_HAS_CA)
-		symbol_put(dst_ca_attach);
-#endif
-
 	kfree(state);
 }
 
@@ -1757,6 +1751,11 @@ struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_ad
 		return NULL;
 	}
 	state->frontend.demodulator_priv = state;
+
+	/*	Attach other DST peripherals if any		*/
+	/*	Conditional Access device			*/
+	if (state->dst_hw_cap & DST_TYPE_HAS_CA)
+		dst_ca_attach(state, dvb_adapter);
 
 	return state;				/*	Manu (DST is a card not a frontend)	*/
 }

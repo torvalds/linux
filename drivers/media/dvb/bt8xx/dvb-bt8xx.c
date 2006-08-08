@@ -676,11 +676,6 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 			break;
 		}
 		card->fe = &state->frontend;
-
-		/*	Attach other DST peripherals if any		*/
-		/*	Conditional Access device			*/
-		if (state->dst_hw_cap & DST_TYPE_HAS_CA)
-			dvb_attach(dst_ca_attach, state, &card->dvb_adapter);
 		break;
 
 	case BTTV_BOARD_PINNACLESAT:
