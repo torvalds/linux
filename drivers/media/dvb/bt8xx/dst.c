@@ -1715,6 +1715,10 @@ static int dst_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_paramet
 static void dst_release(struct dvb_frontend *fe)
 {
 	struct dst_state *state = fe->demodulator_priv;
+
+	if (state->dst_hw_cap & DST_TYPE_HAS_CA)
+		symbol_put(dst_ca_attach);
+
 	kfree(state);
 }
 

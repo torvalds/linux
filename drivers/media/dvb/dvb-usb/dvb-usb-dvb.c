@@ -188,8 +188,9 @@ int dvb_usb_fe_init(struct dvb_usb_device* d)
 
 		if (dvb_register_frontend(&d->dvb_adap, d->fe)) {
 			err("Frontend registration failed.");
-			if (d->fe->ops.release)
-				d->fe->ops.release(d->fe);
+			dvb_detach(d->fe->ops.release_sec, d->fe);
+			dvb_detach(d->fe->ops.tuner_ops.release, d->fe);
+			dvb_detach(d->fe->ops.release, d->fe);
 			d->fe = NULL;
 			return -ENODEV;
 		}
@@ -204,7 +205,11 @@ int dvb_usb_fe_init(struct dvb_usb_device* d)
 
 int dvb_usb_fe_exit(struct dvb_usb_device *d)
 {
-	if (d->fe != NULL)
+	if (d->fe != NULL) {
 		dvb_unregister_frontend(d->fe);
+		dvb_detach(d->fe->ops.release_sec, d->fe);
+		dvb_detach(d->fe->ops.tuner_ops.release, d->fe);
+		dvb_detach(d->fe->ops.release, d->fe);
+	}
 	return 0;
 }

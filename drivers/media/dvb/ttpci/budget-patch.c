@@ -325,7 +325,7 @@ static void frontend_init(struct budget_patch* budget)
 	case 0x1013: // SATELCO Multimedia PCI
 
 		// try the ALPS BSRV2 first of all
-		budget->dvb_frontend = ves1x93_attach(&alps_bsrv2_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(ves1x93_attach, &alps_bsrv2_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsrv2_tuner_set_params;
 			budget->dvb_frontend->ops.diseqc_send_master_cmd = budget_patch_diseqc_send_master_cmd;
@@ -335,7 +335,7 @@ static void frontend_init(struct budget_patch* budget)
 		}
 
 		// try the ALPS BSRU6 now
-		budget->dvb_frontend = stv0299_attach(&alps_bsru6_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
 			budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
@@ -347,7 +347,7 @@ static void frontend_init(struct budget_patch* budget)
 		}
 
 		// Try the grundig 29504-451
-		budget->dvb_frontend = tda8083_attach(&grundig_29504_451_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(tda8083_attach, &grundig_29504_451_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = grundig_29504_451_tuner_set_params;
 			budget->dvb_frontend->ops.diseqc_send_master_cmd = budget_diseqc_send_master_cmd;
@@ -367,8 +367,9 @@ static void frontend_init(struct budget_patch* budget)
 	} else {
 		if (dvb_register_frontend(&budget->dvb_adapter, budget->dvb_frontend)) {
 			printk("budget-av: Frontend registration failed!\n");
-			if (budget->dvb_frontend->ops.release)
-				budget->dvb_frontend->ops.release(budget->dvb_frontend);
+			dvb_detach(budget->dvb_frontend->ops.release_sec, budget->dvb_frontend);
+			dvb_detach(budget->dvb_frontend->ops.tuner_ops.release, budget->dvb_frontend);
+			dvb_detach(budget->dvb_frontend->ops.release, budget->dvb_frontend);
 			budget->dvb_frontend = NULL;
 		}
 	}
@@ -627,8 +628,12 @@ static int budget_patch_detach (struct saa7146_dev* dev)
 	struct budget_patch *budget = (struct budget_patch*) dev->ext_priv;
 	int err;
 
-	if (budget->dvb_frontend) dvb_unregister_frontend(budget->dvb_frontend);
-
+	if (budget->dvb_frontend) {
+		dvb_unregister_frontend(budget->dvb_frontend);
+		dvb_detach(budget->dvb_frontend->ops.release_sec, budget->dvb_frontend);
+		dvb_detach(budget->dvb_frontend->ops.tuner_ops.release, budget->dvb_frontend);
+		dvb_detach(budget->dvb_frontend->ops.release, budget->dvb_frontend);
+	}
 	err = ttpci_budget_deinit (budget);
 
 	kfree (budget);

@@ -235,7 +235,7 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 
 	/* set tda10021 back to original clock configuration on reset */
 	if (budget_av->tda10021_poclkp) {
-		tda10021_write_byte(budget_av->budget.dvb_frontend, 0x12, 0xa0);
+		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa0);
 		budget_av->tda10021_ts_enabled = 0;
 	}
 
@@ -257,7 +257,7 @@ static int ciintf_slot_shutdown(struct dvb_ca_en50221 *ca, int slot)
 
 	/* set tda10021 back to original clock configuration when cam removed */
 	if (budget_av->tda10021_poclkp) {
-		tda10021_write_byte(budget_av->budget.dvb_frontend, 0x12, 0xa0);
+		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa0);
 		budget_av->tda10021_ts_enabled = 0;
 	}
 	return 0;
@@ -277,7 +277,7 @@ static int ciintf_slot_ts_enable(struct dvb_ca_en50221 *ca, int slot)
 
 	/* tda10021 seems to need a different TS clock config when data is routed to the CAM */
 	if (budget_av->tda10021_poclkp) {
-		tda10021_write_byte(budget_av->budget.dvb_frontend, 0x12, 0xa1);
+		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa1);
 		budget_av->tda10021_ts_enabled = 1;
 	}
 
@@ -1068,9 +1068,9 @@ static int tda10021_set_frontend(struct dvb_frontend *fe,
 
 	result = budget_av->tda10021_set_frontend(fe, p);
 	if (budget_av->tda10021_ts_enabled) {
-		tda10021_write_byte(budget_av->budget.dvb_frontend, 0x12, 0xa1);
+		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa1);
 	} else {
-		tda10021_write_byte(budget_av->budget.dvb_frontend, 0x12, 0xa0);
+		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa0);
 	}
 
 	return result;
@@ -1098,13 +1098,13 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBS_KNC1:
 	case SUBID_DVBS_EASYWATCH_1:
 		if (saa->pci->subsystem_vendor == 0x1894) {
-			fe = stv0299_attach(&cinergy_1200s_1894_0010_config,
+			fe = dvb_attach(stv0299_attach, &cinergy_1200s_1894_0010_config,
 					     &budget_av->budget.i2c_adap);
 			if (fe) {
 				fe->ops.tuner_ops.set_params = philips_su1278sh2_tua6100_tuner_set_params;
 			}
 		} else {
-			fe = stv0299_attach(&typhoon_config,
+			fe = dvb_attach(stv0299_attach, &typhoon_config,
 					     &budget_av->budget.i2c_adap);
 			if (fe) {
 				fe->ops.tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
@@ -1116,7 +1116,7 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBS_TV_STAR_CI:
 	case SUBID_DVBS_CYNERGY1200N:
 	case SUBID_DVBS_EASYWATCH:
-		fe = stv0299_attach(&philips_sd1878_config,
+		fe = dvb_attach(stv0299_attach, &philips_sd1878_config,
 				&budget_av->budget.i2c_adap);
 		if (fe) {
 			fe->ops.tuner_ops.set_params = philips_sd1878_tda8261_tuner_set_params;
@@ -1125,7 +1125,7 @@ static void frontend_init(struct budget_av *budget_av)
 
 	case SUBID_DVBS_KNC1_PLUS:
 	case SUBID_DVBS_TYPHOON:
-		fe = stv0299_attach(&typhoon_config,
+		fe = dvb_attach(stv0299_attach, &typhoon_config,
 				    &budget_av->budget.i2c_adap);
 		if (fe) {
 			fe->ops.tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
@@ -1133,7 +1133,7 @@ static void frontend_init(struct budget_av *budget_av)
 		break;
 
 	case SUBID_DVBS_CINERGY1200:
-		fe = stv0299_attach(&cinergy_1200s_config,
+		fe = dvb_attach(stv0299_attach, &cinergy_1200s_config,
 				    &budget_av->budget.i2c_adap);
 		if (fe) {
 			fe->ops.tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
@@ -1142,7 +1142,7 @@ static void frontend_init(struct budget_av *budget_av)
 
 	case SUBID_DVBC_KNC1:
 		budget_av->reinitialise_demod = 1;
-		fe = tda10021_attach(&philips_cu1216_config,
+		fe = dvb_attach(tda10021_attach, &philips_cu1216_config,
 				     &budget_av->budget.i2c_adap,
 				     read_pwm(budget_av));
 		if (fe) {
@@ -1153,7 +1153,7 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBC_KNC1_PLUS:
 	case SUBID_DVBC_CINERGY1200:
 		budget_av->reinitialise_demod = 1;
-		fe = tda10021_attach(&philips_cu1216_config,
+		fe = dvb_attach(tda10021_attach, &philips_cu1216_config,
 				     &budget_av->budget.i2c_adap,
 				     read_pwm(budget_av));
 		if (fe) {
@@ -1168,7 +1168,7 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBT_KNC1_PLUS:
 	case SUBID_DVBT_CINERGY1200:
 		budget_av->reinitialise_demod = 1;
-		fe = tda10046_attach(&philips_tu1216_config,
+		fe = dvb_attach(tda10046_attach, &philips_tu1216_config,
 				     &budget_av->budget.i2c_adap);
 		if (fe) {
 			fe->ops.tuner_ops.init = philips_tu1216_tuner_init;
@@ -1192,8 +1192,9 @@ static void frontend_init(struct budget_av *budget_av)
 	if (dvb_register_frontend(&budget_av->budget.dvb_adapter,
 				  budget_av->budget.dvb_frontend)) {
 		printk(KERN_ERR "budget-av: Frontend registration failed!\n");
-		if (budget_av->budget.dvb_frontend->ops.release)
-			budget_av->budget.dvb_frontend->ops.release(budget_av->budget.dvb_frontend);
+		dvb_detach(budget_av->budget.dvb_frontend->ops.release_sec, budget_av->budget.dvb_frontend);
+		dvb_detach(budget_av->budget.dvb_frontend->ops.tuner_ops.release, budget_av->budget.dvb_frontend);
+		dvb_detach(budget_av->budget.dvb_frontend->ops.release, budget_av->budget.dvb_frontend);
 		budget_av->budget.dvb_frontend = NULL;
 	}
 }
@@ -1227,8 +1228,12 @@ static int budget_av_detach(struct saa7146_dev *dev)
 	if (budget_av->budget.ci_present)
 		ciintf_deinit(budget_av);
 
-	if (budget_av->budget.dvb_frontend != NULL)
+	if (budget_av->budget.dvb_frontend != NULL) {
 		dvb_unregister_frontend(budget_av->budget.dvb_frontend);
+		dvb_detach(budget_av->budget.dvb_frontend->ops.release_sec, budget_av->budget.dvb_frontend);
+		dvb_detach(budget_av->budget.dvb_frontend->ops.tuner_ops.release, budget_av->budget.dvb_frontend);
+		dvb_detach(budget_av->budget.dvb_frontend->ops.release, budget_av->budget.dvb_frontend);
+	}
 	err = ttpci_budget_deinit(&budget_av->budget);
 
 	kfree(budget_av);

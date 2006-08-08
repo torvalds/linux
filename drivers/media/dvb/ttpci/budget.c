@@ -361,7 +361,7 @@ static void frontend_init(struct budget *budget)
 	case 0x1003: // Hauppauge/TT Nova budget (stv0299/ALPS BSRU6(tsa5059) OR ves1893/ALPS BSRV2(sp5659))
 	case 0x1013:
 		// try the ALPS BSRV2 first of all
-		budget->dvb_frontend = ves1x93_attach(&alps_bsrv2_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(ves1x93_attach, &alps_bsrv2_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsrv2_tuner_set_params;
 			budget->dvb_frontend->ops.diseqc_send_master_cmd = budget_diseqc_send_master_cmd;
@@ -371,7 +371,7 @@ static void frontend_init(struct budget *budget)
 		}
 
 		// try the ALPS BSRU6 now
-		budget->dvb_frontend = stv0299_attach(&alps_bsru6_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
 			budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
@@ -381,7 +381,7 @@ static void frontend_init(struct budget *budget)
 
 	case 0x1004: // Hauppauge/TT DVB-C budget (ves1820/ALPS TDBE2(sp5659))
 
-		budget->dvb_frontend = ves1820_attach(&alps_tdbe2_config, &budget->i2c_adap, read_pwm(budget));
+		budget->dvb_frontend = dvb_attach(ves1820_attach, &alps_tdbe2_config, &budget->i2c_adap, read_pwm(budget));
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_tdbe2_tuner_set_params;
 			break;
@@ -390,7 +390,7 @@ static void frontend_init(struct budget *budget)
 
 	case 0x1005: // Hauppauge/TT Nova-T budget (L64781/Grundig 29504-401(tsa5060))
 
-		budget->dvb_frontend = l64781_attach(&grundig_29504_401_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(l64781_attach, &grundig_29504_401_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = grundig_29504_401_tuner_set_params;
 			break;
@@ -398,7 +398,7 @@ static void frontend_init(struct budget *budget)
 		break;
 
 	case 0x4f60: // Fujitsu Siemens Activy Budget-S PCI rev AL (stv0299/ALPS BSRU6(tsa5059))
-		budget->dvb_frontend = stv0299_attach(&alps_bsru6_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
 			budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
@@ -408,7 +408,7 @@ static void frontend_init(struct budget *budget)
 		break;
 
 	case 0x4f61: // Fujitsu Siemens Activy Budget-S PCI rev GR (tda8083/Grundig 29504-451(tsa5522))
-		budget->dvb_frontend = tda8083_attach(&grundig_29504_451_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(tda8083_attach, &grundig_29504_451_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = grundig_29504_451_tuner_set_params;
 			budget->dvb_frontend->ops.set_voltage = siemens_budget_set_voltage;
@@ -417,7 +417,7 @@ static void frontend_init(struct budget *budget)
 		break;
 
 	case 0x1016: // Hauppauge/TT Nova-S SE (samsung s5h1420/????(tda8260))
-		budget->dvb_frontend = s5h1420_attach(&s5h1420_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(s5h1420_attach, &s5h1420_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = s5h1420_tuner_set_params;
 			if (lnbp21_attach(budget->dvb_frontend, &budget->i2c_adap, 0, 0) == NULL) {
@@ -442,8 +442,9 @@ static void frontend_init(struct budget *budget)
 
 error_out:
 	printk("budget: Frontend registration failed!\n");
-	if (budget->dvb_frontend->ops.release)
-		budget->dvb_frontend->ops.release(budget->dvb_frontend);
+	dvb_detach(budget->dvb_frontend->ops.release_sec, budget->dvb_frontend);
+	dvb_detach(budget->dvb_frontend->ops.tuner_ops.release, budget->dvb_frontend);
+	dvb_detach(budget->dvb_frontend->ops.release, budget->dvb_frontend);
 	budget->dvb_frontend = NULL;
 	return;
 }
@@ -481,7 +482,12 @@ static int budget_detach (struct saa7146_dev* dev)
 	struct budget *budget = (struct budget*) dev->ext_priv;
 	int err;
 
-	if (budget->dvb_frontend) dvb_unregister_frontend(budget->dvb_frontend);
+	if (budget->dvb_frontend) {
+		dvb_unregister_frontend(budget->dvb_frontend);
+		dvb_detach(budget->dvb_frontend->ops.release_sec, budget->dvb_frontend);
+		dvb_detach(budget->dvb_frontend->ops.tuner_ops.release, budget->dvb_frontend);
+		dvb_detach(budget->dvb_frontend->ops.release, budget->dvb_frontend);
+	}
 
 	err = ttpci_budget_deinit (budget);
 
