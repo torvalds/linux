@@ -760,7 +760,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		ret=vfd->vidioc_overlay(file, fh, *i);
 		break;
 	}
-#ifdef CONFIG_V4L1_COMPAT
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	/* --- streaming capture ------------------------------------- */
 	case VIDIOCGMBUF:
 	{
