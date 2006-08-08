@@ -1195,13 +1195,7 @@ static int tda1004x_get_tune_settings(struct dvb_frontend* fe, struct dvb_fronte
 	return 0;
 }
 
-static void tda10045_release(struct dvb_frontend* fe)
-{
-	struct tda1004x_state *state = fe->demodulator_priv;
-	kfree(state);
-}
-
-static void tda10046_release(struct dvb_frontend* fe)
+static void tda1004x_release(struct dvb_frontend* fe)
 {
 	struct tda1004x_state *state = fe->demodulator_priv;
 	kfree(state);
@@ -1221,7 +1215,7 @@ static struct dvb_frontend_ops tda10045_ops = {
 		    FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_GUARD_INTERVAL_AUTO
 	},
 
-	.release = tda10045_release,
+	.release = tda1004x_release,
 
 	.init = tda10045_init,
 	.sleep = tda1004x_sleep,
@@ -1280,7 +1274,7 @@ static struct dvb_frontend_ops tda10046_ops = {
 		    FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_GUARD_INTERVAL_AUTO
 	},
 
-	.release = tda10046_release,
+	.release = tda1004x_release,
 
 	.init = tda10046_init,
 	.sleep = tda1004x_sleep,
