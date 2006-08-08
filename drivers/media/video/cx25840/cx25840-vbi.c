@@ -111,6 +111,10 @@ void cx25840_vbi_setup(struct i2c_client *client)
 			uv_lpf=0;
 			comb=0;
 			sc=0x0a425f;
+		} else if (std == V4L2_STD_PAL_Nc) {
+			uv_lpf=1;
+			comb=0x20;
+			sc=556453;
 		} else {
 			uv_lpf=1;
 			comb=0x20;
