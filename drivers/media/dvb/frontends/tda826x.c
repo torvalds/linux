@@ -26,6 +26,12 @@
 
 #include "tda826x.h"
 
+static int debug = 0;
+#define dprintk(args...) \
+	do { \
+		if (debug) printk(KERN_DEBUG "tda826x: " args); \
+	} while (0)
+
 struct tda826x_priv {
 	/* i2c details */
 	int i2c_address;
@@ -49,17 +55,18 @@ static int tda826x_sleep(struct dvb_frontend *fe)
 	u8 buf [] = { 0x00, 0x8d };
 	struct i2c_msg msg = { .addr = priv->i2c_address, .flags = 0, .buf = buf, .len = 2 };
 
+	dprintk("%s:\n", __FUNCTION__);
+
 	if (!priv->has_loopthrough)
 		buf[1] = 0xad;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((ret = i2c_transfer (priv->i2c, &msg, 1)) != 1) {
-		printk("%s: i2c error\n", __FUNCTION__);
+		dprintk("%s: i2c error\n", __FUNCTION__);
 	}
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
-	printk("%s:\n", __FUNCTION__);
 
 	return (ret == 1) ? 0 : ret;
 }
@@ -71,6 +78,8 @@ static int tda826x_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 	u32 div;
 	u8 buf [11];
 	struct i2c_msg msg = { .addr = priv->i2c_address, .flags = 0, .buf = buf, .len = 11 };
+
+	dprintk("%s:\n", __FUNCTION__);
 
 	div = (params->frequency + (1000-1)) / 1000;
 
@@ -91,13 +100,12 @@ static int tda826x_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((ret = i2c_transfer (priv->i2c, &msg, 1)) != 1) {
-		printk("%s: i2c error\n", __FUNCTION__);
+		dprintk("%s: i2c error\n", __FUNCTION__);
 	}
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
 	priv->frequency = div * 1000;
-	printk("%s:\n", __FUNCTION__);
 
 	return (ret == 1) ? 0 : ret;
 }
@@ -128,6 +136,8 @@ struct dvb_frontend *tda826x_attach(struct dvb_frontend *fe, int addr, struct i2
 	struct i2c_msg msg [] = { { .addr = addr, .flags = I2C_M_RD, .buf = b1, .len = 2 } };
 	int ret;
 
+	dprintk("%s:\n", __FUNCTION__);
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	ret = i2c_transfer (i2c, msg, 1);
@@ -150,11 +160,13 @@ struct dvb_frontend *tda826x_attach(struct dvb_frontend *fe, int addr, struct i2
 	memcpy(&fe->ops.tuner_ops, &tda826x_tuner_ops, sizeof(struct dvb_tuner_ops));
 
 	fe->tuner_priv = priv;
-	printk("%s:\n", __FUNCTION__);
 
 	return fe;
 }
 EXPORT_SYMBOL(tda826x_attach);
+
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
 MODULE_DESCRIPTION("DVB TDA826x driver");
 MODULE_AUTHOR("Andrew de Quincey");
