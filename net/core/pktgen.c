@@ -2462,6 +2462,8 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	skb->protocol = protocol;
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
+	skb->nh.ipv6h = iph;
+	skb->h.uh = udph;
 
 	if (pkt_dev->nfrags <= 0)
 		pgh = (struct pktgen_hdr *)skb_put(skb, datalen);
