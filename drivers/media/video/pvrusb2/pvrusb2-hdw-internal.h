@@ -80,6 +80,8 @@ struct pvr2_ctl_info {
 
 	/* Control's implementation */
 	pvr2_ctlf_get_value get_value;      /* Get its value */
+	pvr2_ctlf_get_value get_min_value;  /* Get minimum allowed value */
+	pvr2_ctlf_get_value get_max_value;  /* Get maximum allowed value */
 	pvr2_ctlf_set_value set_value;      /* Set its value */
 	pvr2_ctlf_val_to_sym val_to_sym;    /* Custom convert value->symbol */
 	pvr2_ctlf_sym_to_val sym_to_val;    /* Custom convert symbol->value */
