@@ -43,7 +43,7 @@ struct tda10086_state {
 	u32 symbol_rate;
 };
 
-static int debug = 1;
+static int debug = 0;
 #define dprintk(args...) \
 	do { \
 		if (debug) printk(KERN_DEBUG "tda10086: " args); \
