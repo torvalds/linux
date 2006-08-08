@@ -4,7 +4,6 @@ config VIDEO_SAA7146
 
 config VIDEO_SAA7146_VV
 	tristate
-	select VIDEO_V4L2
 	select VIDEO_BUF
 	select VIDEO_VIDEOBUF
 	select VIDEO_SAA7146
