@@ -90,6 +90,7 @@ obj-$(CONFIG_USB_ZC0301)        += zc0301/
 obj-$(CONFIG_USB_IBMCAM)        += usbvideo/
 obj-$(CONFIG_USB_KONICAWC)      += usbvideo/
 obj-$(CONFIG_USB_VICAM)         += usbvideo/
+obj-$(CONFIG_USB_QUICKCAM_MESSENGER)	+= usbvideo/
 
 obj-$(CONFIG_VIDEO_VIVI) += vivi.o
 
