@@ -378,6 +378,13 @@ int device_add(struct device *dev)
 	if (!dev || !strlen(dev->bus_id))
 		goto Error;
 
+	/* if this is a class device, and has no parent, create one */
+	if ((dev->class) && (dev->parent == NULL)) {
+		error = virtual_device_parent(dev);
+		if (error)
+			goto Error;
+	}
+
 	parent = get_device(dev->parent);
 
 	pr_debug("DEV: registering device: ID = '%s'\n", dev->bus_id);

@@ -149,6 +149,8 @@ struct class {
 	struct list_head	interfaces;
 	struct semaphore	sem;	/* locks both the children and interfaces lists */
 
+	struct kobject		*virtual_dir;
+
 	struct class_attribute		* class_attrs;
 	struct class_device_attribute	* class_dev_attrs;
 	struct device_attribute		* dev_attrs;
@@ -291,7 +293,6 @@ extern struct class_device *class_device_create(struct class *cls,
 					__attribute__((format(printf,5,6)));
 extern void class_device_destroy(struct class *cls, dev_t devt);
 
-
 /* interface for exporting device attributes */
 struct device_attribute {
 	struct attribute	attr;
@@ -399,6 +400,8 @@ extern struct device *device_create(struct class *cls, struct device *parent,
 				    dev_t devt, const char *fmt, ...)
 				    __attribute__((format(printf,4,5)));
 extern void device_destroy(struct class *cls, dev_t devt);
+
+extern int virtual_device_parent(struct device *dev);
 
 /*
  * Platform "fixup" functions - allow the platform to have their say
