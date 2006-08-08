@@ -395,6 +395,25 @@ static int aac_rkt_send(struct fib * fib)
 	return 0;
 }
 
+static int aac_rkt_restart_adapter(struct aac_dev *dev)
+{
+	u32 var;
+
+	printk(KERN_ERR "%s%d: adapter kernel panic'd.\n",
+			dev->name, dev->id);
+
+	if (aac_rkt_check_health(dev) <= 0)
+		return 1;
+	if (rkt_sync_cmd(dev, IOP_RESET, 0, 0, 0, 0, 0, 0,
+			&var, NULL, NULL, NULL, NULL))
+		return 1;
+	if (var != 0x00000001)
+		 return 1;
+	if (rkt_readl(dev, MUnit.OMRx[0]) & KERNEL_PANIC)
+		return 1;
+	return 0;
+}
+
 /**
  *	aac_rkt_init	-	initialize an i960 based AAC card
  *	@dev: device to configure
@@ -417,6 +436,9 @@ int aac_rkt_init(struct aac_dev *dev)
 	/*
 	 *	Check to see if the board panic'd while booting.
 	 */
+	if (rkt_readl(dev, MUnit.OMRx[0]) & KERNEL_PANIC)
+		if (aac_rkt_restart_adapter(dev))
+			goto error_iounmap;
 	/*
 	 *	Check to see if the board failed any self tests.
 	 */
@@ -429,13 +451,6 @@ int aac_rkt_init(struct aac_dev *dev)
 	 */
 	if (rkt_readl(dev, MUnit.OMRx[0]) & MONITOR_PANIC) {
 		printk(KERN_ERR "%s%d: adapter monitor panic.\n", dev->name, instance);
-		goto error_iounmap;
-	}
-	/*
-	 *	Check to see if the board panic'd while booting.
-	 */
-	if (rkt_readl(dev, MUnit.OMRx[0]) & KERNEL_PANIC) {
-		printk(KERN_ERR "%s%d: adapter kernel panic'd.\n", dev->name, instance);
 		goto error_iounmap;
 	}
 	start = jiffies;

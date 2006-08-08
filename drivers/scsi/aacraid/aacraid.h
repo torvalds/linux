@@ -1670,6 +1670,7 @@ extern struct aac_common aac_config;
 #define RCV_TEMP_READINGS		0x00000025
 #define GET_COMM_PREFERRED_SETTINGS	0x00000026
 #define IOP_RESET			0x00001000
+#define IOP_RESET_ALWAYS		0x00001001
 #define RE_INIT_ADAPTER			0x000000ee
 
 /*
