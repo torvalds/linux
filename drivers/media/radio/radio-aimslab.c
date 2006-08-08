@@ -372,7 +372,7 @@ static struct video_device rtrack_radio=
 	.owner		= THIS_MODULE,
 	.name		= "RadioTrack radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= VID_HARDWARE_RTRACK,
+	.hardware	= 0,
 	.fops           = &rtrack_fops,
 };
 

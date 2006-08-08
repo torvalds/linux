@@ -328,7 +328,7 @@ static struct video_device aztech_radio=
 	.owner		= THIS_MODULE,
 	.name		= "Aztech radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= VID_HARDWARE_AZTECH,
+	.hardware	= 0,
 	.fops           = &aztech_fops,
 };
 
