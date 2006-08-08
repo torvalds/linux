@@ -33,7 +33,6 @@
 
 */
 
-#include <linux/config.h>
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>

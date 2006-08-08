@@ -35,7 +35,6 @@
 #include <asm/uaccess.h>	/* copy to/from user		*/
 #include <linux/videodev.h>	/* kernel radio structs		*/
 #include <media/v4l2-common.h>
-#include <linux/config.h>	/* CONFIG_RADIO_RTRACK_PORT 	*/
 #include <asm/semaphore.h>	/* Lock for the I/O 		*/
 
 #ifndef CONFIG_RADIO_RTRACK_PORT
