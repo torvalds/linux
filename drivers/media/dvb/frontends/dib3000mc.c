@@ -558,7 +558,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 static int dib3000mc_fe_init(struct dvb_frontend* fe, int mobile_mode)
 {
 	struct dib3000_state *state = fe->demodulator_priv;
-	int AGCtuner=(int)fe->misc_priv;
+	const struct dib3000p_agc_config *agc = state->config.agc;
 	deb_info("init start\n");
 
 	state->timing_offset = 0;
@@ -584,11 +584,24 @@ static int dib3000mc_fe_init(struct dvb_frontend* fe, int mobile_mode)
 	/* mobile mode - portable reception */
 	wr_foreach(dib3000mc_reg_mobile_mode,dib3000mc_mobile_mode[1]);
 
-/* TUNER_PANASONIC_ENV57H12D5 or TUNER_MICROTUNE_MT2060. Sets agc_tuner accordingly */
+	/* AGC settings for all tuners */
 	wr_foreach(dib3000mc_reg_agc_bandwidth,dib3000mc_agc_bandwidth);
 	wr_foreach(dib3000mc_reg_agc_bandwidth_general,dib3000mc_agc_bandwidth_general);
-	if (AGCtuner<0 || AGCtuner>=DIB3000MC_AGC_TUNER_COUNT) AGCtuner=1;
-	wr_foreach(dib3000mc_reg_agc,dib3000mc_agc_tuner[AGCtuner]);
+
+	/* AGC setting - specific to the tuners */
+	wr(36, agc->val[0]);
+	wr(37, agc->val[1]);
+	wr(38, agc->val[2]);
+	wr(39, agc->val[3]);
+
+	wr(42, agc->val[4]);
+	wr(43, agc->val[5]);
+	wr(44, agc->val[6]);
+	wr(45, agc->val[7]);
+	wr(46, agc->val[8]);
+	wr(47, agc->val[9]);
+	wr(48, agc->val[10]);
+	wr(49, agc->val[11]);
 
 	wr(DIB3000MC_REG_UNK_110,DIB3000MC_UNK_110);
 	wr(26,0x6680);
@@ -824,6 +837,13 @@ static int dib3000mc_demod_init(struct dib3000_state *state)
 	return 0;
 }
 
+int dib3000mc_set_agc_config(struct dvb_frontend *fe, const struct dib3000p_agc_config *agc)
+{
+	struct dib3000_state *st = fe->demodulator_priv;
+	st->config.agc = agc;
+	return 0;
+}
+EXPORT_SYMBOL(dib3000mc_set_agc_config);
 
 static struct dvb_frontend_ops dib3000mc_ops;
 
@@ -878,6 +898,7 @@ error:
 	kfree(state);
 	return NULL;
 }
+EXPORT_SYMBOL(dib3000mc_attach);
 
 static struct dvb_frontend_ops dib3000mc_ops = {
 
@@ -916,5 +937,3 @@ static struct dvb_frontend_ops dib3000mc_ops = {
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(dib3000mc_attach);

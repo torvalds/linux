@@ -95,16 +95,10 @@
 #define DIBUSB_IOCTL_CMD_ENABLE_STREAM	0x01
 #define DIBUSB_IOCTL_CMD_DISABLE_STREAM	0x02
 
-/* Tuner types.
-   These constants shall correspond to the proper AGC values in the array
-   dib3000mc_agc_tuner[][12] in dib3000mc_priv.h */
-#define DIBUSB_TUNER_DEFAULT 1 // a.k.a Panasonic
-#define DIBUSB_TUNER_MT2060  4
-
-
 struct dibusb_state {
 	struct dib_fe_xfer_ops ops;
 	struct mt2060_state mt2060;
+	int mt2060_present;
 
 	/* for RC5 remote control */
 	int old_toggle;
