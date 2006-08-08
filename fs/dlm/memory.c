@@ -100,7 +100,8 @@ struct dlm_direntry *allocate_direntry(struct dlm_ls *ls, int namelen)
 {
 	struct dlm_direntry *de;
 
-	DLM_ASSERT(namelen <= DLM_RESNAME_MAXLEN,);
+	DLM_ASSERT(namelen <= DLM_RESNAME_MAXLEN,
+		   printk("namelen = %d\n", namelen););
 
 	de = kmalloc(sizeof(*de) + namelen, GFP_KERNEL);
 	if (de)
