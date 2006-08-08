@@ -175,7 +175,7 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 int dvb_usb_fe_init(struct dvb_usb_device* d)
 {
 	if (d->props.frontend_attach == NULL) {
-		err("strange '%s' doesn't want to attach a frontend.",d->desc->name);
+		err("strange: '%s' doesn't want to attach a frontend.",d->desc->name);
 		return 0;
 	}
 
@@ -186,8 +186,7 @@ int dvb_usb_fe_init(struct dvb_usb_device* d)
 
 		if (dvb_register_frontend(&d->dvb_adap, d->fe)) {
 			err("Frontend registration failed.");
-			if (d->fe->ops.release)
-				d->fe->ops.release(d->fe);
+			dvb_frontend_detach(d->fe);
 			d->fe = NULL;
 			return -ENODEV;
 		}
@@ -203,7 +202,9 @@ int dvb_usb_fe_init(struct dvb_usb_device* d)
 
 int dvb_usb_fe_exit(struct dvb_usb_device *d)
 {
-	if (d->fe != NULL)
+	if (d->fe != NULL) {
 		dvb_unregister_frontend(d->fe);
+		dvb_frontend_detach(d->fe);
+	}
 	return 0;
 }

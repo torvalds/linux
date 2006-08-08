@@ -899,9 +899,10 @@ int dib3000mc_attach(struct i2c_adapter *i2c_adap, int no_of_demods, u8	default_
 	return 0;
 
 error:
-	for (k = 0; k < num; k++)
+	for (k = 0; k < num; k++) {
 		kfree(demod[k]->demodulator_priv);
-
+		demod[k] = NULL;
+	}
 	return -EINVAL;
 }
 
