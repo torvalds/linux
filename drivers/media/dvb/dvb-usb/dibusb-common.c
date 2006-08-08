@@ -131,9 +131,6 @@ static int dibusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
-	if (num > 2)
-		warn("more than 2 i2c messages at a time is not handled yet. TODO.");
-
 	for (i = 0; i < num; i++) {
 		/* write/read request */
 		if (i+1 < num && (msg[i+1].flags & I2C_M_RD)) {
@@ -168,31 +165,137 @@ int dibusb_read_eeprom_byte(struct dvb_usb_device *d, u8 offs, u8 *val)
 }
 EXPORT_SYMBOL(dibusb_read_eeprom_byte);
 
-static const struct dib3000p_agc_config dib3000p_agc_panasonic_env57h1xd5 = {
-	{ 0x51, 0x301d, 0x0, 0x1cc7, 0xdc29, 0x570a,
-	0xbae1, 0x8ccd, 0x3b6d, 0x551d, 0xa, 0x951e }
+/* 3000MC/P stuff */
+// Config Adjacent channels  Perf -cal22
+static struct dibx000_agc_config dib3000p_mt2060_agc_config = {
+	.band_caps = BAND_VHF | BAND_UHF,
+	.setup     = (0 << 15) | (0 << 14) | (1 << 13) | (1 << 12) | (29 << 0),
+
+	.agc1_max = 48497,
+	.agc1_min = 23593,
+	.agc2_max = 46531,
+	.agc2_min = 24904,
+
+	.agc1_pt1 = 0x65,
+	.agc1_pt2 = 0x69,
+
+	.agc1_slope1 = 0x51,
+	.agc1_slope2 = 0x27,
+
+	.agc2_pt1 = 0,
+	.agc2_pt2 = 0x33,
+
+	.agc2_slope1 = 0x35,
+	.agc2_slope2 = 0x37,
 };
 
-static const struct dib3000p_agc_config dib3000p_agc_microtune_mt2060 = {
-	{ 0x196, 0x301d, 0x0, 0x1cc7, 0xffff, 0x5c29,
-	0xa8f6, 0x5eb8, 0x65ff, 0x40ff,	0x8a, 0x1114 }
+static struct dib3000mc_config stk3000p_dib3000p_config = {
+	&dib3000p_mt2060_agc_config,
+
+	.max_time     = 0x196,
+	.ln_adc_level = 0x1cc7,
+
+	.output_mpeg2_in_188_bytes = 1,
 };
 
-static struct mt2060_config stk3000p_mt2060_config = {
-	.i2c_address = 0x60,
+static struct dibx000_agc_config dib3000p_panasonic_agc_config = {
+	.setup     = (0 << 15) | (0 << 14) | (1 << 13) | (1 << 12) | (29 << 0),
+
+	.agc1_max = 56361,
+	.agc1_min = 22282,
+	.agc2_max = 43254,
+	.agc2_min = 36045,
+
+	.agc1_pt1 = 0x65,
+	.agc1_pt2 = 0xff,
+
+	.agc1_slope1 = 0x40,
+	.agc1_slope2 = 0xff,
+
+	.agc2_pt1 = 0,
+	.agc2_pt2 = 0x8a,
+
+	.agc2_slope1 = 0x11,
+	.agc2_slope2 = 0x14,
+};
+
+static struct dib3000mc_config mod3000p_dib3000p_config = {
+	&dib3000p_panasonic_agc_config,
+
+	.max_time     = 0x51,
+	.ln_adc_level = 0x1cc7,
+
+	.output_mpeg2_in_188_bytes = 1,
 };
 
 int dibusb_dib3000mc_frontend_attach(struct dvb_usb_device *d)
 {
-	struct dib3000_config demod_cfg;
-	struct dibusb_state *st = d->priv;
+	if (dib3000mc_attach(&d->i2c_adap, 1, DEFAULT_DIB3000P_I2C_ADDRESS, 0, &mod3000p_dib3000p_config, &d->fe) == 0) {
+		if (d->priv != NULL) {
+			struct dibusb_state *st = d->priv;
+			st->ops.pid_parse = dib3000mc_pid_parse;
+			st->ops.pid_ctrl  = dib3000mc_pid_control;
+		}
+		return 0;
+	}
 	return -ENODEV;
 }
 EXPORT_SYMBOL(dibusb_dib3000mc_frontend_attach);
 
+static struct mt2060_config stk3000p_mt2060_config = {
+	0x60
+};
+
 int dibusb_dib3000mc_tuner_attach (struct dvb_usb_device *d)
 {
-	return -ENODEV;
+	struct dibusb_state *st = d->priv;
+	int ret;
+	u8 a,b;
+	u16 if1 = 1220;
+	struct i2c_adapter *tun_i2c;
+
+	// First IF calibration for Liteon Sticks
+	if (d->udev->descriptor.idVendor == USB_VID_LITEON &&
+		d->udev->descriptor.idProduct == USB_PID_LITEON_DVB_T_WARM) {
+
+		dibusb_read_eeprom_byte(d,0x7E,&a);
+		dibusb_read_eeprom_byte(d,0x7F,&b);
+
+		if (a == 0x00)
+			if1 += b;
+		else if (a == 0x80)
+			if1 -= b;
+		else
+			warn("LITE-ON DVB-T: Strange IF1 calibration :%2X %2X\n", a, b);
+
+	} else if (d->udev->descriptor.idVendor  == USB_VID_DIBCOM &&
+		   d->udev->descriptor.idProduct == USB_PID_DIBCOM_MOD3001_WARM) {
+		u8 desc;
+		dibusb_read_eeprom_byte(d, 7, &desc);
+		if (desc == 2) {
+			a = 127;
+			do {
+				dibusb_read_eeprom_byte(d, a, &desc);
+				a--;
+			} while (a > 7 && (desc == 0xff || desc == 0x00));
+			if (desc & 0x80)
+				if1 -= (0xff - desc);
+			else
+				if1 += desc;
+		}
+	}
+
+	tun_i2c = dib3000mc_get_tuner_i2c_master(d->fe, 1);
+	if ((ret = mt2060_attach(d->fe, tun_i2c, &stk3000p_mt2060_config, if1)) != 0) {
+		/* not found - use panasonic pll parameters */
+		if (dvb_pll_attach(d->fe, 0x60, tun_i2c, &dvb_pll_env57h1xd5) == NULL)
+			return -ENOMEM;
+	} else {
+		st->mt2060_present = 1;
+		/* set the correct parameters for the dib3000p */
+		dib3000mc_set_config(d->fe, &stk3000p_dib3000p_config);
+	}
+	return 0;
 }
 EXPORT_SYMBOL(dibusb_dib3000mc_tuner_attach);
 

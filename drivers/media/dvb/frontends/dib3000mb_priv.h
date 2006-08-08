@@ -83,9 +83,6 @@
 #define DIB3000_TUNER_WRITE_ENABLE(a)	(0xffff & (a << 8))
 #define DIB3000_TUNER_WRITE_DISABLE(a)	(0xffff & ((a << 8) | (1 << 7)))
 
-/* for auto search */
-extern u16 dib3000_seq[2][2][2];
-
 #define DIB3000_REG_MANUFACTOR_ID		(  1025)
 #define DIB3000_I2C_ID_DIBCOM			(0x01b3)
 

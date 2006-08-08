@@ -17,6 +17,7 @@
 #include "dvb-usb.h"
 
 #include "dib3000.h"
+#include "dib3000mc.h"
 #include "mt2060.h"
 
 /*

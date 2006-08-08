@@ -32,7 +32,7 @@
 #include "mt2060.h"
 #include "mt2060_priv.h"
 
-static int debug=0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
@@ -350,7 +350,7 @@ int mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct mt206
 		kfree(priv);
 		return -ENODEV;
 	}
-	printk(KERN_INFO "MT2060: successfully identified\n");
+	printk(KERN_INFO "MT2060: successfully identified (IF1 = %d)\n", if1);
 	memcpy(&fe->ops.tuner_ops, &mt2060_tuner_ops, sizeof(struct dvb_tuner_ops));
 
 	fe->tuner_priv = priv;
