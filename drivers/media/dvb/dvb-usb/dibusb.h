@@ -97,7 +97,6 @@
 
 struct dibusb_state {
 	struct dib_fe_xfer_ops ops;
-	struct mt2060_state mt2060;
 	int mt2060_present;
 
 	/* for RC5 remote control */
