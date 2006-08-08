@@ -110,6 +110,11 @@ static int tda826x_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 }
 
 static struct dvb_tuner_ops tda826x_tuner_ops = {
+	.info = {
+		.name = "Philips TDA826X",
+		.frequency_min = 950000,
+		.frequency_min = 2175000
+	},
 	.release = tda826x_release,
 	.sleep = tda826x_sleep,
 	.set_params = tda826x_set_params,
@@ -120,13 +125,12 @@ struct dvb_frontend *tda826x_attach(struct dvb_frontend *fe, int addr, struct i2
 {
 	struct tda826x_priv *priv = NULL;
 	u8 b1 [] = { 0, 0 };
-	struct i2c_msg msg [] = { { .addr = addr, .flags = 0, .buf = NULL, .len = 0 },
-				  { .addr = addr, .flags = I2C_M_RD, .buf = b1, .len = 2 } };
+	struct i2c_msg msg [] = { { .addr = addr, .flags = I2C_M_RD, .buf = b1, .len = 2 } };
 	int ret;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	ret = i2c_transfer (i2c, msg, 2);
+	ret = i2c_transfer (i2c, msg, 1);
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
@@ -144,9 +148,6 @@ struct dvb_frontend *tda826x_attach(struct dvb_frontend *fe, int addr, struct i2
 	priv->has_loopthrough = has_loopthrough;
 
 	memcpy(&fe->ops.tuner_ops, &tda826x_tuner_ops, sizeof(struct dvb_tuner_ops));
-	strncpy(fe->ops.tuner_ops.info.name, "Philips TDA826X", 128);
-	fe->ops.tuner_ops.info.frequency_min = 950000;
-	fe->ops.tuner_ops.info.frequency_min = 2175000;
 
 	fe->tuner_priv = priv;
 	printk("%s:\n", __FUNCTION__);
