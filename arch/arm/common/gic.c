@@ -95,7 +95,8 @@ static void gic_set_cpu(unsigned int irq, cpumask_t mask_val)
 }
 #endif
 
-static struct irqchip gic_chip = {
+static struct irq_chip gic_chip = {
+	.name		= "GIC",
 	.ack		= gic_ack_irq,
 	.mask		= gic_mask_irq,
 	.unmask		= gic_unmask_irq,

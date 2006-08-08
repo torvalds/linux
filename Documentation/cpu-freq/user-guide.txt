@@ -153,10 +153,13 @@ scaling_governor,		and by "echoing" the name of another
 				that some governors won't load - they only
 				work on some specific architectures or
 				processors.
-scaling_min_freq and 
+scaling_min_freq and
 scaling_max_freq		show the current "policy limits" (in
 				kHz). By echoing new values into these
 				files, you can change these limits.
+				NOTE: when setting a policy you need to
+				first set scaling_max_freq, then
+				scaling_min_freq.
 
 
 If you have selected the "userspace" governor which allows you to

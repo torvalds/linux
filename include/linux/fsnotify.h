@@ -67,7 +67,7 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 	if (source) {
 		inotify_inode_queue_event(source, IN_MOVE_SELF, 0, NULL, NULL);
 	}
-	audit_inode_child(new_name, source, new_dir->i_ino);
+	audit_inode_child(new_name, source, new_dir);
 }
 
 /*
@@ -98,7 +98,7 @@ static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
 	inode_dir_notify(inode, DN_CREATE);
 	inotify_inode_queue_event(inode, IN_CREATE, 0, dentry->d_name.name,
 				  dentry->d_inode);
-	audit_inode_child(dentry->d_name.name, dentry->d_inode, inode->i_ino);
+	audit_inode_child(dentry->d_name.name, dentry->d_inode, inode);
 }
 
 /*
@@ -109,7 +109,7 @@ static inline void fsnotify_mkdir(struct inode *inode, struct dentry *dentry)
 	inode_dir_notify(inode, DN_CREATE);
 	inotify_inode_queue_event(inode, IN_CREATE | IN_ISDIR, 0, 
 				  dentry->d_name.name, dentry->d_inode);
-	audit_inode_child(dentry->d_name.name, dentry->d_inode, inode->i_ino);
+	audit_inode_child(dentry->d_name.name, dentry->d_inode, inode);
 }
 
 /*

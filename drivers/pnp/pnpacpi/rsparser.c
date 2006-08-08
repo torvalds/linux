@@ -173,6 +173,9 @@ pnpacpi_parse_allocated_address_space(struct pnp_resource_table *res_table,
 		return;
 	}
 
+	if (p->producer_consumer == ACPI_PRODUCER)
+		return;
+
 	if (p->resource_type == ACPI_MEMORY_RANGE)
 		pnpacpi_parse_allocated_memresource(res_table,
 				p->minimum, p->address_length);
@@ -252,9 +255,14 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
+		if (res->data.ext_address64.producer_consumer == ACPI_PRODUCER)
+			return AE_OK;
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
+		if (res->data.extended_irq.producer_consumer == ACPI_PRODUCER)
+			return AE_OK;
+
 		for (i = 0; i < res->data.extended_irq.interrupt_count; i++) {
 			pnpacpi_parse_allocated_irqresource(res_table,
 				res->data.extended_irq.interrupts[i],

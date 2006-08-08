@@ -106,14 +106,16 @@ void innovator_fpga_IRQ_demux(unsigned int irq, struct irqdesc *desc,
 	}
 }
 
-static struct irqchip omap_fpga_irq_ack = {
+static struct irq_chip omap_fpga_irq_ack = {
+	.name		= "FPGA-ack",
 	.ack		= fpga_mask_ack_irq,
 	.mask		= fpga_mask_irq,
 	.unmask		= fpga_unmask_irq,
 };
 
 
-static struct irqchip omap_fpga_irq = {
+static struct irq_chip omap_fpga_irq = {
+	.name		= "FPGA",
 	.ack		= fpga_ack_irq,
 	.mask		= fpga_mask_irq,
 	.unmask		= fpga_unmask_irq,

@@ -44,12 +44,16 @@ struct pvr2_sysfs {
 	struct kobj_type ktype;
 	struct class_device_attribute attr_v4l_minor_number;
 	struct class_device_attribute attr_unit_number;
+	int v4l_minor_number_created_ok;
+	int unit_number_created_ok;
 };
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
 struct pvr2_sysfs_debugifc {
 	struct class_device_attribute attr_debugcmd;
 	struct class_device_attribute attr_debuginfo;
+	int debugcmd_created_ok;
+	int debuginfo_created_ok;
 };
 #endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
 
@@ -67,6 +71,7 @@ struct pvr2_sysfs_ctl_item {
 	struct pvr2_sysfs_ctl_item *item_next;
 	struct attribute *attr_gen[7];
 	struct attribute_group grp;
+	int created_ok;
 	char name[80];
 };
 
@@ -487,6 +492,7 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	struct pvr2_sysfs_func_set *fp;
 	struct pvr2_ctrl *cptr;
 	unsigned int cnt,acnt;
+	int ret;
 
 	if ((ctl_id < 0) || (ctl_id >= (sizeof(funcs)/sizeof(funcs[0])))) {
 		return;
@@ -589,7 +595,13 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	cip->grp.name = cip->name;
 	cip->grp.attrs = cip->attr_gen;
 
-	sysfs_create_group(&sfp->class_dev->kobj,&cip->grp);
+	ret = sysfs_create_group(&sfp->class_dev->kobj,&cip->grp);
+	if (ret) {
+		printk(KERN_WARNING "%s: sysfs_create_group error: %d\n",
+		       __FUNCTION__, ret);
+		return;
+	}
+	cip->created_ok = !0;
 }
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
@@ -600,6 +612,8 @@ static ssize_t debugcmd_store(struct class_device *,const char *,size_t count);
 static void pvr2_sysfs_add_debugifc(struct pvr2_sysfs *sfp)
 {
 	struct pvr2_sysfs_debugifc *dip;
+	int ret;
+
 	dip = kmalloc(sizeof(*dip),GFP_KERNEL);
 	if (!dip) return;
 	memset(dip,0,sizeof(*dip));
@@ -613,17 +627,34 @@ static void pvr2_sysfs_add_debugifc(struct pvr2_sysfs *sfp)
 	dip->attr_debuginfo.attr.mode = S_IRUGO;
 	dip->attr_debuginfo.show = debuginfo_show;
 	sfp->debugifc = dip;
-	class_device_create_file(sfp->class_dev,&dip->attr_debugcmd);
-	class_device_create_file(sfp->class_dev,&dip->attr_debuginfo);
+	ret = class_device_create_file(sfp->class_dev,&dip->attr_debugcmd);
+	if (ret < 0) {
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
+	} else {
+		dip->debugcmd_created_ok = !0;
+	}
+	ret = class_device_create_file(sfp->class_dev,&dip->attr_debuginfo);
+	if (ret < 0) {
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
+	} else {
+		dip->debuginfo_created_ok = !0;
+	}
 }
 
 
 static void pvr2_sysfs_tear_down_debugifc(struct pvr2_sysfs *sfp)
 {
 	if (!sfp->debugifc) return;
-	class_device_remove_file(sfp->class_dev,
-				 &sfp->debugifc->attr_debuginfo);
-	class_device_remove_file(sfp->class_dev,&sfp->debugifc->attr_debugcmd);
+	if (sfp->debugifc->debuginfo_created_ok) {
+		class_device_remove_file(sfp->class_dev,
+					 &sfp->debugifc->attr_debuginfo);
+	}
+	if (sfp->debugifc->debugcmd_created_ok) {
+		class_device_remove_file(sfp->class_dev,
+					 &sfp->debugifc->attr_debugcmd);
+	}
 	kfree(sfp->debugifc);
 	sfp->debugifc = NULL;
 }
@@ -645,7 +676,9 @@ static void pvr2_sysfs_tear_down_controls(struct pvr2_sysfs *sfp)
 	struct pvr2_sysfs_ctl_item *cip1,*cip2;
 	for (cip1 = sfp->item_first; cip1; cip1 = cip2) {
 		cip2 = cip1->item_next;
-		sysfs_remove_group(&sfp->class_dev->kobj,&cip1->grp);
+		if (cip1->created_ok) {
+			sysfs_remove_group(&sfp->class_dev->kobj,&cip1->grp);
+		}
 		pvr2_sysfs_trace("Destroying pvr2_sysfs_ctl_item id=%p",cip1);
 		kfree(cip1);
 	}
@@ -675,8 +708,14 @@ static void class_dev_destroy(struct pvr2_sysfs *sfp)
 	pvr2_sysfs_tear_down_debugifc(sfp);
 #endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
 	pvr2_sysfs_tear_down_controls(sfp);
-	class_device_remove_file(sfp->class_dev,&sfp->attr_v4l_minor_number);
-	class_device_remove_file(sfp->class_dev,&sfp->attr_unit_number);
+	if (sfp->v4l_minor_number_created_ok) {
+		class_device_remove_file(sfp->class_dev,
+					 &sfp->attr_v4l_minor_number);
+	}
+	if (sfp->unit_number_created_ok) {
+		class_device_remove_file(sfp->class_dev,
+					 &sfp->attr_unit_number);
+	}
 	pvr2_sysfs_trace("Destroying class_dev id=%p",sfp->class_dev);
 	sfp->class_dev->class_data = NULL;
 	class_device_unregister(sfp->class_dev);
@@ -709,6 +748,8 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 {
 	struct usb_device *usb_dev;
 	struct class_device *class_dev;
+	int ret;
+
 	usb_dev = pvr2_hdw_get_dev(sfp->channel.hdw);
 	if (!usb_dev) return;
 	class_dev = kmalloc(sizeof(*class_dev),GFP_KERNEL);
@@ -733,20 +774,40 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 
 	sfp->class_dev = class_dev;
 	class_dev->class_data = sfp;
-	class_device_register(class_dev);
+	ret = class_device_register(class_dev);
+	if (ret) {
+		printk(KERN_ERR "%s: class_device_register failed\n",
+		       __FUNCTION__);
+		kfree(class_dev);
+		return;
+	}
 
 	sfp->attr_v4l_minor_number.attr.owner = THIS_MODULE;
 	sfp->attr_v4l_minor_number.attr.name = "v4l_minor_number";
 	sfp->attr_v4l_minor_number.attr.mode = S_IRUGO;
 	sfp->attr_v4l_minor_number.show = v4l_minor_number_show;
 	sfp->attr_v4l_minor_number.store = NULL;
-	class_device_create_file(sfp->class_dev,&sfp->attr_v4l_minor_number);
+	ret = class_device_create_file(sfp->class_dev,
+				       &sfp->attr_v4l_minor_number);
+	if (ret < 0) {
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
+	} else {
+		sfp->v4l_minor_number_created_ok = !0;
+	}
+
 	sfp->attr_unit_number.attr.owner = THIS_MODULE;
 	sfp->attr_unit_number.attr.name = "unit_number";
 	sfp->attr_unit_number.attr.mode = S_IRUGO;
 	sfp->attr_unit_number.show = unit_number_show;
 	sfp->attr_unit_number.store = NULL;
-	class_device_create_file(sfp->class_dev,&sfp->attr_unit_number);
+	ret = class_device_create_file(sfp->class_dev,&sfp->attr_unit_number);
+	if (ret < 0) {
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
+	} else {
+		sfp->unit_number_created_ok = !0;
+	}
 
 	pvr2_sysfs_add_controls(sfp);
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC

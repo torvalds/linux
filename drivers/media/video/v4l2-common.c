@@ -202,7 +202,7 @@ static char *v4l2_memory_names[] = {
 /* ------------------------------------------------------------------ */
 /* debug help functions                                               */
 
-#ifdef HAVE_V4L1
+#ifdef CONFIG_V4L1_COMPAT
 static const char *v4l1_ioctls[] = {
 	[_IOC_NR(VIDIOCGCAP)]       = "VIDIOCGCAP",
 	[_IOC_NR(VIDIOCGCHAN)]      = "VIDIOCGCHAN",
@@ -301,7 +301,7 @@ static const char *v4l2_ioctls[] = {
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
 static const char *v4l2_int_ioctls[] = {
-#ifdef HAVE_VIDEO_DECODER
+#ifdef CONFIG_V4L1_COMPAT
 	[_IOC_NR(DECODER_GET_CAPABILITIES)]    = "DECODER_GET_CAPABILITIES",
 	[_IOC_NR(DECODER_GET_STATUS)]          = "DECODER_GET_STATUS",
 	[_IOC_NR(DECODER_SET_NORM)]            = "DECODER_SET_NORM",
@@ -367,7 +367,7 @@ void v4l_printk_ioctl(unsigned int cmd)
 		       (_IOC_NR(cmd) < V4L2_INT_IOCTLS) ?
 		       v4l2_int_ioctls[_IOC_NR(cmd)] : "UNKNOWN", dir, cmd);
 		break;
-#ifdef HAVE_V4L1
+#ifdef CONFIG_V4L1_COMPAT
 	case 'v':
 		printk("v4l1 ioctl %s, dir=%s (0x%08x)\n",
 		       (_IOC_NR(cmd) < V4L1_IOCTLS) ?
@@ -414,6 +414,7 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 		printk ("%s: tuner type=%d\n", s, *p);
 		break;
 	}
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case DECODER_SET_VBI_BYPASS:
 	case DECODER_ENABLE_OUTPUT:
 	case DECODER_GET_STATUS:
@@ -424,6 +425,7 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	case VIDIOCCAPTURE:
 	case VIDIOCSYNC:
 	case VIDIOCSWRITEMODE:
+#endif
 	case TUNER_SET_TYPE_ADDR:
 	case TUNER_SET_STANDBY:
 	case TDA9887_SET_CONFIG:
@@ -755,6 +757,7 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 				p->afc);
 		break;
 	}
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case VIDIOCGVBIFMT:
 	case VIDIOCSVBIFMT:
 	{
@@ -924,6 +927,14 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 				p->clipcount);
 		break;
 	}
+	case VIDIOCGFREQ:
+	case VIDIOCSFREQ:
+	{
+		unsigned long *p=arg;
+		printk ("%s: value=%lu\n", s, *p);
+		break;
+	}
+#endif
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
 	case VIDIOC_INT_I2S_CLOCK_FREQ:
 	case VIDIOC_INT_S_STANDBY:
@@ -931,13 +942,6 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 		u32 *p=arg;
 
 		printk ("%s: value=%d\n", s, *p);
-		break;
-	}
-	case VIDIOCGFREQ:
-	case VIDIOCSFREQ:
-	{
-		unsigned long *p=arg;
-		printk ("%s: value=%lu\n", s, *p);
 		break;
 	}
 	case VIDIOC_G_STD:

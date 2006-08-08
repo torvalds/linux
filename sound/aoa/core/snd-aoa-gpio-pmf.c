@@ -18,7 +18,7 @@ static void pmf_gpio_set_##name(struct gpio_runtime *rt, int on)\
 							\
 	if (unlikely(!rt)) return;				\
 	rc = pmf_call_function(rt->node, #name "-mute", &args);	\
-	if (rc)							\
+	if (rc && rc != -ENODEV)				\
 		printk(KERN_WARNING "pmf_gpio_set_" #name	\
 		" failed, rc: %d\n", rc);			\
 	rt->implementation_private &= ~(1<<bit);		\

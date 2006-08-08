@@ -129,11 +129,15 @@ acpi_memory_get_device_resources(struct acpi_memory_device *mem_device)
 	struct acpi_memory_info *info, *n;
 
 
+	if (!list_empty(&mem_device->res_list))
+		return 0;
+
 	status = acpi_walk_resources(mem_device->device->handle, METHOD_NAME__CRS,
 				     acpi_memory_get_resource, mem_device);
 	if (ACPI_FAILURE(status)) {
 		list_for_each_entry_safe(info, n, &mem_device->res_list, list)
 			kfree(info);
+		INIT_LIST_HEAD(&mem_device->res_list);
 		return -EINVAL;
 	}
 
@@ -230,17 +234,10 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	 * (i.e. memory-hot-remove function)
 	 */
 	list_for_each_entry(info, &mem_device->res_list, list) {
-		u64 start_pfn, end_pfn;
-
-		start_pfn = info->start_addr >> PAGE_SHIFT;
-		end_pfn = (info->start_addr + info->length - 1) >> PAGE_SHIFT;
-
-		if (pfn_valid(start_pfn) || pfn_valid(end_pfn)) {
-			/* already enabled. try next area */
+		if (info->enabled) { /* just sanity check...*/
 			num_enabled++;
 			continue;
 		}
-
 		result = add_memory(node, info->start_addr, info->length);
 		if (result)
 			continue;

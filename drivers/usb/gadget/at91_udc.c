@@ -57,19 +57,23 @@
 
 /*
  * This controller is simple and PIO-only.  It's used in many AT91-series
- * ARMv4T controllers, including the at91rm9200 (arm920T, with MMU),
- * at91sam9261 (arm926ejs, with MMU), and several no-mmu versions.
+ * full speed USB controllers, including the at91rm9200 (arm920T, with MMU),
+ * at91sam926x (arm926ejs, with MMU), and several no-mmu versions.
  *
  * This driver expects the board has been wired with two GPIOs suppporting
  * a VBUS sensing IRQ, and a D+ pullup.  (They may be omitted, but the
- * testing hasn't covered such cases.)  The pullup is most important; it
+ * testing hasn't covered such cases.)
+ *
+ * The pullup is most important (so it's integrated on sam926x parts).  It
  * provides software control over whether the host enumerates the device.
+ *
  * The VBUS sensing helps during enumeration, and allows both USB clocks
  * (and the transceiver) to stay gated off until they're necessary, saving
- * power.  During USB suspend, the 48 MHz clock is gated off.
+ * power.  During USB suspend, the 48 MHz clock is gated off in hardware;
+ * it may also be gated off by software during some Linux sleep states.
  */
 
-#define	DRIVER_VERSION	"8 March 2005"
+#define	DRIVER_VERSION	"3 May 2006"
 
 static const char driver_name [] = "at91_udc";
 static const char ep0name[] = "ep0";
@@ -316,9 +320,15 @@ static void done(struct at91_ep *ep, struct at91_request *req, int status)
  *
  * There are also state bits like FORCESTALL, EPEDS, DIR, and EPTYPE
  * that shouldn't normally be changed.
+ *
+ * NOTE at91sam9260 docs mention synch between UDPCK and MCK clock domains,
+ * implying a need to wait for one write to complete (test relevant bits)
+ * before starting the next write.  This shouldn't be an issue given how
+ * infrequently we write, except maybe for write-then-read idioms.
  */
 #define	SET_FX	(AT91_UDP_TXPKTRDY)
-#define	CLR_FX	(RX_DATA_READY | AT91_UDP_RXSETUP | AT91_UDP_STALLSENT | AT91_UDP_TXCOMP)
+#define	CLR_FX	(RX_DATA_READY | AT91_UDP_RXSETUP \
+		| AT91_UDP_STALLSENT | AT91_UDP_TXCOMP)
 
 /* pull OUT packet data from the endpoint's fifo */
 static int read_fifo (struct at91_ep *ep, struct at91_request *req)
@@ -472,7 +482,8 @@ static void nuke(struct at91_ep *ep, int status)
 
 /*-------------------------------------------------------------------------*/
 
-static int at91_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
+static int at91_ep_enable(struct usb_ep *_ep,
+				const struct usb_endpoint_descriptor *desc)
 {
 	struct at91_ep	*ep = container_of(_ep, struct at91_ep, ep);
 	struct at91_udc	*dev = ep->udc;
@@ -582,11 +593,12 @@ static int at91_ep_disable (struct usb_ep * _ep)
  * interesting for request or buffer allocation.
  */
 
-static struct usb_request *at91_ep_alloc_request (struct usb_ep *_ep, unsigned int gfp_flags)
+static struct usb_request *
+at91_ep_alloc_request(struct usb_ep *_ep, unsigned int gfp_flags)
 {
 	struct at91_request *req;
 
-	req = kcalloc(1, sizeof (struct at91_request), SLAB_KERNEL);
+	req = kcalloc(1, sizeof (struct at91_request), gfp_flags);
 	if (!req)
 		return NULL;
 
@@ -862,6 +874,7 @@ static void stop_activity(struct at91_udc *udc)
 	if (udc->gadget.speed == USB_SPEED_UNKNOWN)
 		driver = NULL;
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->suspended = 0;
 
 	for (i = 0; i < NUM_ENDPOINTS; i++) {
 		struct at91_ep *ep = &udc->ep[i];
@@ -889,8 +902,8 @@ static void clk_off(struct at91_udc *udc)
 		return;
 	udc->clocked = 0;
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
-	clk_disable(udc->iclk);
 	clk_disable(udc->fclk);
+	clk_disable(udc->iclk);
 }
 
 /*
@@ -911,9 +924,6 @@ static void pullup(struct at91_udc *udc, int is_on)
 		at91_udp_write(AT91_UDP_TXVC, AT91_UDP_TXVC_TXVDIS);
 		at91_set_gpio_value(udc->board.pullup_pin, 0);
 		clk_off(udc);
-
-		// REVISIT:  with transceiver disabled, will D- float
-		// so that a host would falsely detect a device?
 	}
 }
 
@@ -1290,7 +1300,8 @@ static void handle_ep0(struct at91_udc *udc)
 			if (udc->wait_for_addr_ack) {
 				u32	tmp;
 
-				at91_udp_write(AT91_UDP_FADDR, AT91_UDP_FEN | udc->addr);
+				at91_udp_write(AT91_UDP_FADDR,
+						AT91_UDP_FEN | udc->addr);
 				tmp = at91_udp_read(AT91_UDP_GLB_STAT);
 				tmp &= ~AT91_UDP_FADDEN;
 				if (udc->addr)
@@ -1361,9 +1372,10 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc, struct pt_regs *r)
 	u32			rescans = 5;
 
 	while (rescans--) {
-		u32	status = at91_udp_read(AT91_UDP_ISR);
+		u32 status;
 
-		status &= at91_udp_read(AT91_UDP_IMR);
+		status = at91_udp_read(AT91_UDP_ISR)
+			& at91_udp_read(AT91_UDP_IMR);
 		if (!status)
 			break;
 
@@ -1379,18 +1391,17 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc, struct pt_regs *r)
 			stop_activity(udc);
 
 			/* enable ep0 */
-			at91_udp_write(AT91_UDP_CSR(0), AT91_UDP_EPEDS | AT91_UDP_EPTYPE_CTRL);
+			at91_udp_write(AT91_UDP_CSR(0),
+					AT91_UDP_EPEDS | AT91_UDP_EPTYPE_CTRL);
 			udc->gadget.speed = USB_SPEED_FULL;
 			udc->suspended = 0;
 			at91_udp_write(AT91_UDP_IER, AT91_UDP_EP(0));
 
 			/*
 			 * NOTE:  this driver keeps clocks off unless the
-			 * USB host is present.  That saves power, and also
-			 * eliminates IRQs (reset, resume, suspend) that can
-			 * otherwise flood from the controller.  If your
-			 * board doesn't support VBUS detection, suspend and
-			 * resume irq logic may need more attention...
+			 * USB host is present.  That saves power, but for
+			 * boards that don't support VBUS detection, both
+			 * clocks need to be active most of the time.
 			 */
 
 		/* host initiated suspend (3+ms bus idle) */
@@ -1452,13 +1463,19 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc, struct pt_regs *r)
 
 /*-------------------------------------------------------------------------*/
 
+static void nop_release(struct device *dev)
+{
+	/* nothing to free */
+}
+
 static struct at91_udc controller = {
 	.gadget = {
-		.ops = &at91_udc_ops,
-		.ep0 = &controller.ep[0].ep,
-		.name = driver_name,
-		.dev = {
-			.bus_id = "gadget"
+		.ops	= &at91_udc_ops,
+		.ep0	= &controller.ep[0].ep,
+		.name	= driver_name,
+		.dev	= {
+			.bus_id = "gadget",
+			.release = nop_release,
 		}
 	},
 	.ep[0] = {
@@ -1468,7 +1485,8 @@ static struct at91_udc controller = {
 		},
 		.udc		= &controller,
 		.maxpacket	= 8,
-		.creg		= (void __iomem *)(AT91_VA_BASE_UDP + AT91_UDP_CSR(0)),
+		.creg		= (void __iomem *)(AT91_VA_BASE_UDP
+					+ AT91_UDP_CSR(0)),
 		.int_mask	= 1 << 0,
 	},
 	.ep[1] = {
@@ -1479,7 +1497,8 @@ static struct at91_udc controller = {
 		.udc		= &controller,
 		.is_pingpong	= 1,
 		.maxpacket	= 64,
-		.creg		= (void __iomem *)(AT91_VA_BASE_UDP + AT91_UDP_CSR(1)),
+		.creg		= (void __iomem *)(AT91_VA_BASE_UDP
+					+ AT91_UDP_CSR(1)),
 		.int_mask	= 1 << 1,
 	},
 	.ep[2] = {
@@ -1490,7 +1509,8 @@ static struct at91_udc controller = {
 		.udc		= &controller,
 		.is_pingpong	= 1,
 		.maxpacket	= 64,
-		.creg		= (void __iomem *)(AT91_VA_BASE_UDP + AT91_UDP_CSR(2)),
+		.creg		= (void __iomem *)(AT91_VA_BASE_UDP
+					+ AT91_UDP_CSR(2)),
 		.int_mask	= 1 << 2,
 	},
 	.ep[3] = {
@@ -1501,7 +1521,8 @@ static struct at91_udc controller = {
 		},
 		.udc		= &controller,
 		.maxpacket	= 8,
-		.creg		= (void __iomem *)(AT91_VA_BASE_UDP + AT91_UDP_CSR(3)),
+		.creg		= (void __iomem *)(AT91_VA_BASE_UDP
+					+ AT91_UDP_CSR(3)),
 		.int_mask	= 1 << 3,
 	},
 	.ep[4] = {
@@ -1512,7 +1533,8 @@ static struct at91_udc controller = {
 		.udc		= &controller,
 		.is_pingpong	= 1,
 		.maxpacket	= 256,
-		.creg		= (void __iomem *)(AT91_VA_BASE_UDP + AT91_UDP_CSR(4)),
+		.creg		= (void __iomem *)(AT91_VA_BASE_UDP
+					+ AT91_UDP_CSR(4)),
 		.int_mask	= 1 << 4,
 	},
 	.ep[5] = {
@@ -1523,10 +1545,11 @@ static struct at91_udc controller = {
 		.udc		= &controller,
 		.is_pingpong	= 1,
 		.maxpacket	= 256,
-		.creg		= (void __iomem *)(AT91_VA_BASE_UDP + AT91_UDP_CSR(5)),
+		.creg		= (void __iomem *)(AT91_VA_BASE_UDP
+					+ AT91_UDP_CSR(5)),
 		.int_mask	= 1 << 5,
 	},
-	/* ep6 and ep7 are also reserved */
+	/* ep6 and ep7 are also reserved (custom silicon might use them) */
 };
 
 static irqreturn_t at91_vbus_irq(int irq, void *_udc, struct pt_regs *r)
@@ -1593,6 +1616,7 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 
 	local_irq_disable();
 	udc->enabled = 0;
+	at91_udp_write(AT91_UDP_IDR, ~0);
 	pullup(udc, 0);
 	local_irq_enable();
 
@@ -1624,6 +1648,16 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (pdev->num_resources != 2) {
+		DBG("invalid num_resources");
+		return -ENODEV;
+	}
+	if ((pdev->resource[0].flags != IORESOURCE_MEM)
+			|| (pdev->resource[1].flags != IORESOURCE_IRQ)) {
+		DBG("invalid resource type");
+		return -ENODEV;
+	}
+
 	if (!request_mem_region(AT91_BASE_UDP, SZ_16K, driver_name)) {
 		DBG("someone's using UDC memory\n");
 		return -EBUSY;
@@ -1649,19 +1683,26 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 	if (retval < 0)
 		goto fail0;
 
-	/* disable everything until there's a gadget driver and vbus */
-	pullup(udc, 0);
+	/* don't do anything until we have both gadget driver and VBUS */
+	clk_enable(udc->iclk);
+	at91_udp_write(AT91_UDP_TXVC, AT91_UDP_TXVC_TXVDIS);
+	at91_udp_write(AT91_UDP_IDR, 0xffffffff);
+	clk_disable(udc->iclk);
 
 	/* request UDC and maybe VBUS irqs */
-	if (request_irq(AT91_ID_UDP, at91_udc_irq, IRQF_DISABLED, driver_name, udc)) {
-		DBG("request irq %d failed\n", AT91_ID_UDP);
+	udc->udp_irq = platform_get_irq(pdev, 0);
+	if (request_irq(udc->udp_irq, at91_udc_irq,
+			IRQF_DISABLED, driver_name, udc)) {
+		DBG("request irq %d failed\n", udc->udp_irq);
 		retval = -EBUSY;
 		goto fail1;
 	}
 	if (udc->board.vbus_pin > 0) {
-		if (request_irq(udc->board.vbus_pin, at91_vbus_irq, IRQF_DISABLED, driver_name, udc)) {
-			DBG("request vbus irq %d failed\n", udc->board.vbus_pin);
-			free_irq(AT91_ID_UDP, udc);
+		if (request_irq(udc->board.vbus_pin, at91_vbus_irq,
+				IRQF_DISABLED, driver_name, udc)) {
+			DBG("request vbus irq %d failed\n",
+					udc->board.vbus_pin);
+			free_irq(udc->udp_irq, udc);
 			retval = -EBUSY;
 			goto fail1;
 		}
@@ -1670,6 +1711,7 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 		udc->vbus = 1;
 	}
 	dev_set_drvdata(dev, udc);
+	device_init_wakeup(dev, 1);
 	create_debug_file(udc);
 
 	INFO("%s version %s\n", driver_name, DRIVER_VERSION);
@@ -1678,14 +1720,14 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 fail1:
 	device_unregister(&udc->gadget.dev);
 fail0:
-	release_mem_region(AT91_VA_BASE_UDP, SZ_16K);
+	release_mem_region(AT91_BASE_UDP, SZ_16K);
 	DBG("%s probe failed, %d\n", driver_name, retval);
 	return retval;
 }
 
-static int __devexit at91udc_remove(struct platform_device *dev)
+static int __devexit at91udc_remove(struct platform_device *pdev)
 {
-	struct at91_udc *udc = platform_get_drvdata(dev);
+	struct at91_udc *udc = platform_get_drvdata(pdev);
 
 	DBG("remove\n");
 
@@ -1694,10 +1736,11 @@ static int __devexit at91udc_remove(struct platform_device *dev)
 	if (udc->driver != 0)
 		usb_gadget_unregister_driver(udc->driver);
 
+	device_init_wakeup(&pdev->dev, 0);
 	remove_debug_file(udc);
 	if (udc->board.vbus_pin > 0)
 		free_irq(udc->board.vbus_pin, udc);
-	free_irq(AT91_ID_UDP, udc);
+	free_irq(udc->udp_irq, udc);
 	device_unregister(&udc->gadget.dev);
 	release_mem_region(AT91_BASE_UDP, SZ_16K);
 
@@ -1708,31 +1751,36 @@ static int __devexit at91udc_remove(struct platform_device *dev)
 }
 
 #ifdef CONFIG_PM
-static int at91udc_suspend(struct platform_device *dev, pm_message_t mesg)
+static int at91udc_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
-	struct at91_udc *udc = platform_get_drvdata(dev);
+	struct at91_udc *udc = platform_get_drvdata(pdev);
+	int		wake = udc->driver && device_may_wakeup(&pdev->dev);
 
-	/*
-	 * The "safe" suspend transitions are opportunistic ... e.g. when
-	 * the USB link is suspended (48MHz clock autogated off), or when
-	 * it's disconnected (programmatically gated off, elsewhere).
-	 * Then we can suspend, and the chip can enter slow clock mode.
-	 *
-	 * The problem case is some component (user mode?) suspending this
-	 * device while it's active, with the 48 MHz clock in use.  There
-	 * are two basic approaches:  (a) veto suspend levels involving slow
-	 * clock mode, (b) disconnect, so 48 MHz will no longer be in use
-	 * and we can enter slow clock mode.  This uses (b) for now, since
-	 * it's simplest until AT91 PM exists and supports the other option.
+	/* Unless we can act normally to the host (letting it wake us up
+	 * whenever it has work for us) force disconnect.  Wakeup requires
+	 * PLLB for USB events (signaling for reset, wakeup, or incoming
+	 * tokens) and VBUS irqs (on systems which support them).
 	 */
-	if (udc->vbus && !udc->suspended)
+	if ((!udc->suspended && udc->addr)
+			|| !wake
+			|| at91_suspend_entering_slow_clock()) {
 		pullup(udc, 0);
+		disable_irq_wake(udc->udp_irq);
+	} else
+		enable_irq_wake(udc->udp_irq);
+
+	if (udc->board.vbus_pin > 0) {
+		if (wake)
+			enable_irq_wake(udc->board.vbus_pin);
+		else
+			disable_irq_wake(udc->board.vbus_pin);
+	}
 	return 0;
 }
 
-static int at91udc_resume(struct platform_device *dev)
+static int at91udc_resume(struct platform_device *pdev)
 {
-	struct at91_udc *udc = platform_get_drvdata(dev);
+	struct at91_udc *udc = platform_get_drvdata(pdev);
 
 	/* maybe reconnect to host; if so, clocks on */
 	pullup(udc, 1);
@@ -1748,7 +1796,7 @@ static struct platform_driver at91_udc = {
 	.remove		= __devexit_p(at91udc_remove),
 	.shutdown	= at91udc_shutdown,
 	.suspend	= at91udc_suspend,
-	.resume 	= at91udc_resume,
+	.resume		= at91udc_resume,
 	.driver		= {
 		.name	= (char *) driver_name,
 		.owner	= THIS_MODULE,
@@ -1767,6 +1815,6 @@ static void __devexit udc_exit_module(void)
 }
 module_exit(udc_exit_module);
 
-MODULE_DESCRIPTION("AT91RM9200 udc driver");
+MODULE_DESCRIPTION("AT91 udc driver");
 MODULE_AUTHOR("Thomas Rathbone, David Brownell");
 MODULE_LICENSE("GPL");

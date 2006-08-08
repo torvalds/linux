@@ -35,6 +35,7 @@
 #include <net/arp.h>
 #include <net/neighbour.h>
 #include <net/route.h>
+#include <net/netevent.h>
 #include <rdma/ib_addr.h>
 
 MODULE_AUTHOR("Sean Hefty");
@@ -326,25 +327,22 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 }
 EXPORT_SYMBOL(rdma_addr_cancel);
 
-static int addr_arp_recv(struct sk_buff *skb, struct net_device *dev,
-			 struct packet_type *pkt, struct net_device *orig_dev)
+static int netevent_callback(struct notifier_block *self, unsigned long event, 
+	void *ctx)
 {
-	struct arphdr *arp_hdr;
+	if (event == NETEVENT_NEIGH_UPDATE) {  
+		struct neighbour *neigh = ctx;
 
-	arp_hdr = (struct arphdr *) skb->nh.raw;
-
-	if (arp_hdr->ar_op == htons(ARPOP_REQUEST) ||
-	    arp_hdr->ar_op == htons(ARPOP_REPLY))
-		set_timeout(jiffies);
-
-	kfree_skb(skb);
+		if (neigh->dev->type == ARPHRD_INFINIBAND &&
+		    (neigh->nud_state & NUD_VALID)) {
+			set_timeout(jiffies);
+		}
+	}
 	return 0;
 }
 
-static struct packet_type addr_arp = {
-	.type           = __constant_htons(ETH_P_ARP),
-	.func           = addr_arp_recv,
-	.af_packet_priv = (void*) 1,
+static struct notifier_block nb = {
+	.notifier_call = netevent_callback
 };
 
 static int addr_init(void)
@@ -353,13 +351,13 @@ static int addr_init(void)
 	if (!addr_wq)
 		return -ENOMEM;
 
-	dev_add_pack(&addr_arp);
+	register_netevent_notifier(&nb);
 	return 0;
 }
 
 static void addr_cleanup(void)
 {
-	dev_remove_pack(&addr_arp);
+	unregister_netevent_notifier(&nb);
 	destroy_workqueue(addr_wq);
 }
 

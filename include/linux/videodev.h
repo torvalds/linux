@@ -12,9 +12,10 @@
 #ifndef __LINUX_VIDEODEV_H
 #define __LINUX_VIDEODEV_H
 
-#define HAVE_V4L1 1
-
 #include <linux/videodev2.h>
+
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+#define HAVE_V4L1 1
 
 struct video_capability
 {
@@ -335,6 +336,8 @@ struct video_code
 #define VID_HARDWARE_SAA7114H   37
 #define VID_HARDWARE_SN9C102	38
 #define VID_HARDWARE_ARV	39
+
+#endif /* CONFIG_VIDEO_V4L1_COMPAT */
 
 #endif /* __LINUX_VIDEODEV_H */
 

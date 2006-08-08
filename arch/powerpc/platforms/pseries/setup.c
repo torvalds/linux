@@ -213,8 +213,6 @@ static void pseries_lpar_enable_pmcs(void)
 {
 	unsigned long set, reset;
 
-	power4_enable_pmcs();
-
 	set = 1UL << 63;
 	reset = 0;
 	plpar_hcall_norets(H_PERFMON, set, reset);

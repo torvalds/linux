@@ -782,7 +782,7 @@ do_udp_sendmsg:
 		connected = 0;
 	}
 
-	err = ip6_dst_lookup(sk, &dst, fl);
+	err = ip6_sk_dst_lookup(sk, &dst, fl);
 	if (err)
 		goto out;
 	if (final_p)

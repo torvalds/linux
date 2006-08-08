@@ -975,8 +975,10 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 
 	cm_id_priv->timewait_info = cm_create_timewait_info(cm_id_priv->
 							    id.local_id);
-	if (IS_ERR(cm_id_priv->timewait_info))
+	if (IS_ERR(cm_id_priv->timewait_info)) {
+		ret = PTR_ERR(cm_id_priv->timewait_info);
 		goto out;
+	}
 
 	ret = cm_init_av_by_path(param->primary_path, &cm_id_priv->av);
 	if (ret)

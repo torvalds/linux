@@ -936,6 +936,17 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
 	 .spdif_bug = 1} ,
+	/* Dell OEM/Creative Labs Audigy 2 ZS */
+	/* See ALSA bug#1365 */
+	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10031102,
+	 .driver = "Audigy2", .name = "Audigy 2 ZS [SB0353]",
+	 .id = "Audigy2",
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ca0151_chip = 1,
+	 .spk71 = 1,
+	 .spdif_bug = 1,
+	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10021102,
 	 .driver = "Audigy2", .name = "Audigy 2 Platinum [SB0240P]", 
 	 .id = "Audigy2",

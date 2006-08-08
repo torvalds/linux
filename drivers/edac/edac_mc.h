@@ -29,6 +29,7 @@
 #include <linux/rcupdate.h>
 #include <linux/completion.h>
 #include <linux/kobject.h>
+#include <linux/platform_device.h>
 
 #define EDAC_MC_LABEL_LEN	31
 #define MC_PROC_NAME_MAX_LEN 7

@@ -447,7 +447,7 @@ void xics_setup_cpu(void)
 	 *
 	 * XXX: undo of teardown on kexec needs this too, as may hotplug
 	 */
-	rtas_set_indicator(GLOBAL_INTERRUPT_QUEUE,
+	rtas_set_indicator_fast(GLOBAL_INTERRUPT_QUEUE,
 		(1UL << interrupt_server_size) - 1 - default_distrib_server, 1);
 }
 
@@ -776,7 +776,7 @@ void xics_teardown_cpu(int secondary)
 	 * so leave the master cpu in the group.
 	 */
 	if (secondary)
-		rtas_set_indicator(GLOBAL_INTERRUPT_QUEUE,
+		rtas_set_indicator_fast(GLOBAL_INTERRUPT_QUEUE,
 				   (1UL << interrupt_server_size) - 1 -
 				   default_distrib_server, 0);
 }
@@ -793,7 +793,7 @@ void xics_migrate_irqs_away(void)
 	xics_set_cpu_priority(cpu, 0);
 
 	/* remove ourselves from the global interrupt queue */
-	status = rtas_set_indicator(GLOBAL_INTERRUPT_QUEUE,
+	status = rtas_set_indicator_fast(GLOBAL_INTERRUPT_QUEUE,
 		(1UL << interrupt_server_size) - 1 - default_distrib_server, 0);
 	WARN_ON(status < 0);
 
