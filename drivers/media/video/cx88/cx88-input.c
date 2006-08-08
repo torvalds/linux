@@ -107,7 +107,15 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 		   (gpio & ir->mask_keydown) ? " down" : "",
 		   (gpio & ir->mask_keyup) ? " up" : "");
 
-	if (ir->mask_keydown) {
+	if (ir->core->board == CX88_BOARD_NORWOOD_MICRO) {
+		u32 gpio_key = cx_read(MO_GP0_IO);
+
+		data = (data << 4) | ((gpio_key & 0xf0) >> 4);
+
+		ir_input_keydown(ir->input, &ir->ir, data, data);
+		ir_input_nokey(ir->input, &ir->ir);
+
+	} else if (ir->mask_keydown) {
 		/* bit set on keydown */
 		if (gpio & ir->mask_keydown) {
 			ir_input_keydown(ir->input, &ir->ir, data, data);
@@ -247,6 +255,13 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir_codes = ir_codes_dntv_live_dvbt_pro;
 		ir_type = IR_TYPE_PD;
 		ir->sampling = 0xff00; /* address */
+		break;
+	case CX88_BOARD_NORWOOD_MICRO:
+		ir_codes         = ir_codes_norwood;
+		ir->gpio_addr    = MO_GP1_IO;
+		ir->mask_keycode = 0x0e;
+		ir->mask_keyup   = 0x80;
+		ir->polling      = 50; /* ms */
 		break;
 	case CX88_BOARD_NPGTECH_REALTV_TOP10FM:
 		ir_codes = ir_codes_npgtech;

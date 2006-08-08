@@ -105,7 +105,7 @@ static u32* cx88_risc_field(u32 *rp, struct scatterlist *sglist,
 			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
 			offset+=bpl;
 		} else {
-			/* scanline needs to be splitted */
+			/* scanline needs to be split */
 			todo = bpl;
 			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|
 					    (sg_dma_len(sg)-offset));
