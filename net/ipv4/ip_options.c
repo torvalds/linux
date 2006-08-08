@@ -525,7 +525,6 @@ static int ip_options_get_finish(struct ip_options **optp,
 		opt->__data[optlen++] = IPOPT_END;
 	opt->optlen = optlen;
 	opt->is_data = 1;
-	opt->is_setbyuser = 1;
 	if (optlen && ip_options_compile(opt, NULL)) {
 		kfree(opt);
 		return -EINVAL;
