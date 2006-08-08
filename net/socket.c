@@ -2170,6 +2170,109 @@ static long compat_sock_ioctl(struct file *file, unsigned cmd,
 }
 #endif
 
+int kernel_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
+{
+	return sock->ops->bind(sock, addr, addrlen);
+}
+
+int kernel_listen(struct socket *sock, int backlog)
+{
+	return sock->ops->listen(sock, backlog);
+}
+
+int kernel_accept(struct socket *sock, struct socket **newsock, int flags)
+{
+	struct sock *sk = sock->sk;
+	int err;
+
+	err = sock_create_lite(sk->sk_family, sk->sk_type, sk->sk_protocol,
+			       newsock);
+	if (err < 0)
+		goto done;
+
+	err = sock->ops->accept(sock, *newsock, flags);
+	if (err < 0) {
+		sock_release(*newsock);
+		goto done;
+	}
+
+	(*newsock)->ops = sock->ops;
+
+done:
+	return err;
+}
+
+int kernel_connect(struct socket *sock, struct sockaddr *addr, int addrlen,
+                   int flags)
+{
+	return sock->ops->connect(sock, addr, addrlen, flags);
+}
+
+int kernel_getsockname(struct socket *sock, struct sockaddr *addr,
+			 int *addrlen)
+{
+	return sock->ops->getname(sock, addr, addrlen, 0);
+}
+
+int kernel_getpeername(struct socket *sock, struct sockaddr *addr,
+			 int *addrlen)
+{
+	return sock->ops->getname(sock, addr, addrlen, 1);
+}
+
+int kernel_getsockopt(struct socket *sock, int level, int optname,
+			char *optval, int *optlen)
+{
+	mm_segment_t oldfs = get_fs();
+	int err;
+
+	set_fs(KERNEL_DS);
+	if (level == SOL_SOCKET)
+		err = sock_getsockopt(sock, level, optname, optval, optlen);
+	else
+		err = sock->ops->getsockopt(sock, level, optname, optval,
+					    optlen);
+	set_fs(oldfs);
+	return err;
+}
+
+int kernel_setsockopt(struct socket *sock, int level, int optname,
+			char *optval, int optlen)
+{
+	mm_segment_t oldfs = get_fs();
+	int err;
+
+	set_fs(KERNEL_DS);
+	if (level == SOL_SOCKET)
+		err = sock_setsockopt(sock, level, optname, optval, optlen);
+	else
+		err = sock->ops->setsockopt(sock, level, optname, optval,
+					    optlen);
+	set_fs(oldfs);
+	return err;
+}
+
+int kernel_sendpage(struct socket *sock, struct page *page, int offset,
+		    size_t size, int flags)
+{
+	if (sock->ops->sendpage)
+		return sock->ops->sendpage(sock, page, offset, size, flags);
+
+	return sock_no_sendpage(sock, page, offset, size, flags);
+}
+
+int kernel_sock_ioctl(struct socket *sock, int cmd, unsigned long arg)
+{
+	mm_segment_t oldfs = get_fs();
+	int err;
+
+	set_fs(KERNEL_DS);
+	err = sock->ops->ioctl(sock, cmd, arg);
+	set_fs(oldfs);
+
+	return err;
+}
+
 /* ABI emulation layers need these two */
 EXPORT_SYMBOL(move_addr_to_kernel);
 EXPORT_SYMBOL(move_addr_to_user);
@@ -2186,3 +2289,13 @@ EXPORT_SYMBOL(sock_wake_async);
 EXPORT_SYMBOL(sockfd_lookup);
 EXPORT_SYMBOL(kernel_sendmsg);
 EXPORT_SYMBOL(kernel_recvmsg);
+EXPORT_SYMBOL(kernel_bind);
+EXPORT_SYMBOL(kernel_listen);
+EXPORT_SYMBOL(kernel_accept);
+EXPORT_SYMBOL(kernel_connect);
+EXPORT_SYMBOL(kernel_getsockname);
+EXPORT_SYMBOL(kernel_getpeername);
+EXPORT_SYMBOL(kernel_getsockopt);
+EXPORT_SYMBOL(kernel_setsockopt);
+EXPORT_SYMBOL(kernel_sendpage);
+EXPORT_SYMBOL(kernel_sock_ioctl);
