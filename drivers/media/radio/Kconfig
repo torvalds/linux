@@ -352,7 +352,7 @@ config RADIO_ZOLTRIX_PORT
 
 config USB_DSBR
 	tristate "D-Link USB FM radio support (EXPERIMENTAL)"
-	depends on USB && VIDEO_V4L1 && EXPERIMENTAL
+	depends on USB && VIDEO_V4L2 && EXPERIMENTAL
 	---help---
 	  Say Y here if you want to connect this type of radio to your
 	  computer's USB port. Note that the audio is not digital, and
