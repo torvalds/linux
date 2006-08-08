@@ -1105,17 +1105,7 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 	mutex_lock(&frontend_mutex);
 	dvb_unregister_device (fepriv->dvbdev);
 	dvb_frontend_stop (fe);
-	if (fe->ops.release_sec)
-		fe->ops.release_sec(fe);
-	if (fe->ops.tuner_ops.release) {
-		fe->ops.tuner_ops.release(fe);
-		if (fe->ops.i2c_gate_ctrl)
-			fe->ops.i2c_gate_ctrl(fe, 0);
-	}
-	if (fe->ops.release)
-		fe->ops.release(fe);
-	else
-		printk("dvb_frontend: Demodulator (%s) does not have a release callback!\n", fe->ops.info.name);
+
 	/* fe is invalid now */
 	kfree(fepriv);
 	mutex_unlock(&frontend_mutex);
