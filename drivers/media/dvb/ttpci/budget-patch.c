@@ -367,9 +367,7 @@ static void frontend_init(struct budget_patch* budget)
 	} else {
 		if (dvb_register_frontend(&budget->dvb_adapter, budget->dvb_frontend)) {
 			printk("budget-av: Frontend registration failed!\n");
-			dvb_detach(budget->dvb_frontend->ops.release_sec, budget->dvb_frontend);
-			dvb_detach(budget->dvb_frontend->ops.tuner_ops.release, budget->dvb_frontend);
-			dvb_detach(budget->dvb_frontend->ops.release, budget->dvb_frontend);
+			dvb_frontend_detach(budget->dvb_frontend);
 			budget->dvb_frontend = NULL;
 		}
 	}
@@ -630,9 +628,7 @@ static int budget_patch_detach (struct saa7146_dev* dev)
 
 	if (budget->dvb_frontend) {
 		dvb_unregister_frontend(budget->dvb_frontend);
-		dvb_detach(budget->dvb_frontend->ops.release_sec, budget->dvb_frontend);
-		dvb_detach(budget->dvb_frontend->ops.tuner_ops.release, budget->dvb_frontend);
-		dvb_detach(budget->dvb_frontend->ops.release, budget->dvb_frontend);
+		dvb_frontend_detach(budget->dvb_frontend);
 	}
 	err = ttpci_budget_deinit (budget);
 

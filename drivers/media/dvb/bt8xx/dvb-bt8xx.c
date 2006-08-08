@@ -706,9 +706,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	else
 		if (dvb_register_frontend(&card->dvb_adapter, card->fe)) {
 			printk("dvb-bt8xx: Frontend registration failed!\n");
-			dvb_detach(card->fe->ops.release_sec, card->fe);
-			dvb_detach(card->fe->ops.tuner_ops.release, card->fe);
-			dvb_detach(card->fe->ops.release, card->fe);
+			dvb_frontend_detach(card->fe);
 			card->fe = NULL;
 		}
 }
@@ -927,9 +925,7 @@ static void dvb_bt8xx_remove(struct bttv_sub_device *sub)
 	dvb_dmx_release(&card->demux);
 	if (card->fe) {
 		dvb_unregister_frontend(card->fe);
-		dvb_detach(card->fe->ops.release_sec, card->fe);
-		dvb_detach(card->fe->ops.tuner_ops.release, card->fe);
-		dvb_detach(card->fe->ops.release, card->fe);
+		dvb_frontend_detach(card->fe);
 	}
 	dvb_unregister_adapter(&card->dvb_adapter);
 

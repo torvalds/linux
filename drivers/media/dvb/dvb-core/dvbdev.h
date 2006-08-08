@@ -102,7 +102,6 @@ extern int dvb_usercopy(struct inode *inode, struct file *file,
 			    int (*func)(struct inode *inode, struct file *file,
 			    unsigned int cmd, void *arg));
 
-
 /** generic DVB attach function. */
 #ifdef CONFIG_DVB_CORE_ATTACH
 #define dvb_attach(FUNCTION, ARGS...) ({ \
@@ -118,28 +117,11 @@ extern int dvb_usercopy(struct inode *inode, struct file *file,
 	__r; \
 })
 
-#define dvb_detach(FUNCPTR, ARGS...) ({ \
-	typeof((FUNCPTR)) __funcptrtmp = FUNCPTR; \
-	if (__funcptrtmp) { \
-		__funcptrtmp(ARGS); \
-		symbol_put_addr(__funcptrtmp); \
-	} \
-	FUNCPTR = NULL; \
-})
-
 #else
 #define dvb_attach(FUNCTION, ARGS...) ({ \
 	FUNCTION(ARGS); \
 })
 
-#define dvb_detach(FUNCPTR, ARGS...) \
-do { \
-	if (FUNCPTR) \
-		FUNCPTR(ARGS); \
-	FUNCPTR = NULL; \
-} while(0)
-
 #endif
-
 
 #endif /* #ifndef _DVBDEV_H_ */

@@ -1112,3 +1112,35 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 	return 0;
 }
 EXPORT_SYMBOL(dvb_unregister_frontend);
+
+#ifdef CONFIG_DVB_DETACH
+void dvb_frontend_detach(struct dvb_frontend* fe)
+{
+	void *ptr;
+
+	if (fe->ops.release_sec) {
+		fe->ops.release_sec(fe);
+		symbol_put_addr(fe->ops.release_sec);
+	}
+	if (fe->ops.tuner_ops.release) {
+		fe->ops.tuner_ops.release(fe);
+		symbol_put_addr(fe->ops.tuner_ops.release);
+	}
+	ptr = (void*)fe->ops.release;
+	if (ptr) {
+		fe->ops.release(fe);
+		symbol_put_addr(ptr);
+	}
+}
+#else
+void dvb_frontend_detach(struct dvb_frontend* fe)
+{
+	if (fe->ops.release_sec)
+		fe->ops.release_sec(fe);
+	if (fe->ops.tuner_ops.release)
+		fe->ops.tuner_ops.release(fe);
+	if (fe->ops.release)
+		fe->ops.release(fe);
+}
+#endif
+EXPORT_SYMBOL(dvb_frontend_detach);

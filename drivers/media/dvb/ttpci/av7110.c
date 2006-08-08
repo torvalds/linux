@@ -1385,9 +1385,7 @@ static void dvb_unregister(struct av7110 *av7110)
 
 	if (av7110->fe != NULL) {
 		dvb_unregister_frontend(av7110->fe);
-		dvb_detach(av7110->fe->ops.release_sec, av7110->fe);
-		dvb_detach(av7110->fe->ops.tuner_ops.release, av7110->fe);
-		dvb_detach(av7110->fe->ops.release, av7110->fe);
+		dvb_frontend_detach(av7110->fe);
 	}
 	dvb_unregister_device(av7110->osd_dev);
 	av7110_av_unregister(av7110);
@@ -2259,9 +2257,7 @@ static int frontend_init(struct av7110 *av7110)
 		ret = dvb_register_frontend(&av7110->dvb_adapter, av7110->fe);
 		if (ret < 0) {
 			printk("av7110: Frontend registration failed!\n");
-			dvb_detach(av7110->fe->ops.release_sec, av7110->fe);
-			dvb_detach(av7110->fe->ops.tuner_ops.release, av7110->fe);
-			dvb_detach(av7110->fe->ops.release, av7110->fe);
+			dvb_frontend_detach(av7110->fe);
 			av7110->fe = NULL;
 		}
 	}

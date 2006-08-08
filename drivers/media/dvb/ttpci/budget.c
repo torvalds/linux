@@ -442,9 +442,7 @@ static void frontend_init(struct budget *budget)
 
 error_out:
 	printk("budget: Frontend registration failed!\n");
-	dvb_detach(budget->dvb_frontend->ops.release_sec, budget->dvb_frontend);
-	dvb_detach(budget->dvb_frontend->ops.tuner_ops.release, budget->dvb_frontend);
-	dvb_detach(budget->dvb_frontend->ops.release, budget->dvb_frontend);
+	dvb_frontend_detach(budget->dvb_frontend);
 	budget->dvb_frontend = NULL;
 	return;
 }
@@ -484,9 +482,7 @@ static int budget_detach (struct saa7146_dev* dev)
 
 	if (budget->dvb_frontend) {
 		dvb_unregister_frontend(budget->dvb_frontend);
-		dvb_detach(budget->dvb_frontend->ops.release_sec, budget->dvb_frontend);
-		dvb_detach(budget->dvb_frontend->ops.tuner_ops.release, budget->dvb_frontend);
-		dvb_detach(budget->dvb_frontend->ops.release, budget->dvb_frontend);
+		dvb_frontend_detach(budget->dvb_frontend);
 	}
 
 	err = ttpci_budget_deinit (budget);

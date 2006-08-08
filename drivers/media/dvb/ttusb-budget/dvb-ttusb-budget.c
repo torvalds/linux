@@ -1625,9 +1625,7 @@ static void frontend_init(struct ttusb* ttusb)
 	} else {
 		if (dvb_register_frontend(&ttusb->adapter, ttusb->fe)) {
 			printk("dvb-ttusb-budget: Frontend registration failed!\n");
-			dvb_detach(ttusb->fe->ops.release_sec, ttusb->fe);
-			dvb_detach(ttusb->fe->ops.tuner_ops.release, ttusb->fe);
-			dvb_detach(ttusb->fe->ops.release, ttusb->fe);
+			dvb_frontend_detach(ttusb->fe);
 			ttusb->fe = NULL;
 		}
 	}
@@ -1766,9 +1764,7 @@ static void ttusb_disconnect(struct usb_interface *intf)
 	dvb_dmx_release(&ttusb->dvb_demux);
 	if (ttusb->fe != NULL) {
 		dvb_unregister_frontend(ttusb->fe);
-		dvb_detach(ttusb->fe->ops.release_sec, ttusb->fe);
-		dvb_detach(ttusb->fe->ops.tuner_ops.release, ttusb->fe);
-		dvb_detach(ttusb->fe->ops.release, ttusb->fe);
+		dvb_frontend_detach(ttusb->fe);
 	}
 	i2c_del_adapter(&ttusb->i2c_adap);
 	dvb_unregister_adapter(&ttusb->adapter);

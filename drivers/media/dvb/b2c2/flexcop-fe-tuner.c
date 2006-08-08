@@ -571,9 +571,7 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 	} else {
 		if (dvb_register_frontend(&fc->dvb_adapter, fc->fe)) {
 			err("frontend registration failed!");
-			dvb_detach(fc->fe->ops.release_sec, fc->fe);
-			dvb_detach(fc->fe->ops.tuner_ops.release, fc->fe);
-			dvb_detach(fc->fe->ops.release, fc->fe);
+			dvb_frontend_detach(fc->fe);
 			fc->fe = NULL;
 			return -EINVAL;
 		}
@@ -586,9 +584,7 @@ void flexcop_frontend_exit(struct flexcop_device *fc)
 {
 	if (fc->init_state & FC_STATE_FE_INIT) {
 		dvb_unregister_frontend(fc->fe);
-		dvb_detach(fc->fe->ops.release_sec, fc->fe);
-		dvb_detach(fc->fe->ops.tuner_ops.release, fc->fe);
-		dvb_detach(fc->fe->ops.release, fc->fe);
+		dvb_frontend_detach(fc->fe);
 	}
 
 	fc->init_state &= ~FC_STATE_FE_INIT;
