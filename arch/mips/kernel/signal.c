@@ -429,7 +429,6 @@ void do_signal(struct pt_regs *regs)
 	else
 		oldset = &current->blocked;
 
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
@@ -464,6 +463,7 @@ void do_signal(struct pt_regs *regs)
 			regs->regs[7] = regs->regs[26];
 			regs->cp0_epc -= 4;
 		}
+		regs->regs[0] = 0;	/* Don't deal with this again.  */
 	}
 
 	/*

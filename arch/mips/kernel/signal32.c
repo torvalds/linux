@@ -854,6 +854,7 @@ void do_signal32(struct pt_regs *regs)
 			regs->regs[7] = regs->regs[26];
 			regs->cp0_epc -= 4;
 		}
+		regs->regs[0] = 0;	/* Don't deal with this again.  */
 	}
 
 	/*
