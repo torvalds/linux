@@ -1251,6 +1251,35 @@ struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x070b,
 		}},
 	},
+       [CX88_BOARD_TE_DTV_250_OEM_SWANN] = {
+	       .name           = "Shenzhen Tungsten Ages Tech TE-DTV-250 / Swann OEM",
+	       .tuner_type     = TUNER_LG_PAL_NEW_TAPC,
+	       .radio_type     = UNSET,
+	       .tuner_addr     = ADDR_UNSET,
+	       .radio_addr     = ADDR_UNSET,
+	       .input          = {{
+		       .type   = CX88_VMUX_TELEVISION,
+		       .vmux   = 0,
+		       .gpio0  = 0x003fffff,
+		       .gpio1  = 0x00e00000,
+		       .gpio2  = 0x003fffff,
+		       .gpio3  = 0x02000000,
+	       },{
+		       .type   = CX88_VMUX_COMPOSITE1,
+		       .vmux   = 1,
+		       .gpio0  = 0x003fffff,
+		       .gpio1  = 0x00e00000,
+		       .gpio2  = 0x003fffff,
+		       .gpio3  = 0x02000000,
+		},{
+		       .type   = CX88_VMUX_SVIDEO,
+		       .vmux   = 2,
+		       .gpio0  = 0x003fffff,
+		       .gpio1  = 0x00e00000,
+		       .gpio2  = 0x003fffff,
+		       .gpio3  = 0x02000000,
+	       }},
+       },
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1509,6 +1538,10 @@ struct cx88_subid cx88_subids[] = {
 		.subdevice = 0xc111, /* AverMedia M150-D */
 		/* This board is known to work with the ASUS PVR416 config */
 		.card      = CX88_BOARD_ASUS_PVR_416,
+	},{
+		.subvendor = 0xc180,
+		.subdevice = 0xc980,
+		.card      = CX88_BOARD_TE_DTV_250_OEM_SWANN,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
