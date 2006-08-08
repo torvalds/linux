@@ -63,7 +63,11 @@ struct dst_entry *fib6_rule_lookup(struct flowi *fl, int flags,
 	if (arg.rule)
 		fib_rule_put(arg.rule);
 
-	return (struct dst_entry *) arg.result;
+	if (arg.result)
+		return (struct dst_entry *) arg.result;
+
+	dst_hold(&ip6_null_entry.u.dst);
+	return &ip6_null_entry.u.dst;
 }
 
 static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
