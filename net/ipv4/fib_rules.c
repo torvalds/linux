@@ -101,8 +101,8 @@ int fib_lookup(struct flowi *flp, struct fib_result *res)
 	return err;
 }
 
-int fib4_rule_action(struct fib_rule *rule, struct flowi *flp, int flags,
-		     struct fib_lookup_arg *arg)
+static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
+			    int flags, struct fib_lookup_arg *arg)
 {
 	int err = -EAGAIN;
 	struct fib_table *tbl;

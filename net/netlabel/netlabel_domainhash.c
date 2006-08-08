@@ -50,11 +50,11 @@ struct netlbl_domhsh_tbl {
 /* Domain hash table */
 /* XXX - updates should be so rare that having one spinlock for the entire
  * hash table should be okay */
-DEFINE_SPINLOCK(netlbl_domhsh_lock);
+static DEFINE_SPINLOCK(netlbl_domhsh_lock);
 static struct netlbl_domhsh_tbl *netlbl_domhsh = NULL;
 
 /* Default domain mapping */
-DEFINE_SPINLOCK(netlbl_domhsh_def_lock);
+static DEFINE_SPINLOCK(netlbl_domhsh_def_lock);
 static struct netlbl_dom_map *netlbl_domhsh_def = NULL;
 
 /*

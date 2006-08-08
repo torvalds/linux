@@ -66,8 +66,8 @@ struct dst_entry *fib6_rule_lookup(struct flowi *fl, int flags,
 	return (struct dst_entry *) arg.result;
 }
 
-int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
-		     int flags, struct fib_lookup_arg *arg)
+static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
+			    int flags, struct fib_lookup_arg *arg)
 {
 	struct rt6_info *rt = NULL;
 	struct fib6_table *table;

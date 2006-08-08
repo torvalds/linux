@@ -60,7 +60,7 @@ struct cipso_v4_domhsh_entry {
  * if in practice there are a lot of different DOIs this list should
  * probably be turned into a hash table or something similar so we
  * can do quick lookups. */
-DEFINE_SPINLOCK(cipso_v4_doi_list_lock);
+static DEFINE_SPINLOCK(cipso_v4_doi_list_lock);
 static struct list_head cipso_v4_doi_list = LIST_HEAD_INIT(cipso_v4_doi_list);
 
 /* Label mapping cache */

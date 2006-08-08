@@ -613,8 +613,8 @@ static struct rt6_info *rt6_alloc_clone(struct rt6_info *ort, struct in6_addr *d
 	return rt;
 }
 
-struct rt6_info *ip6_pol_route_input(struct fib6_table *table, struct flowi *fl,
-				     int flags)
+static struct rt6_info *ip6_pol_route_input(struct fib6_table *table,
+					    struct flowi *fl, int flags)
 {
 	struct fib6_node *fn;
 	struct rt6_info *rt, *nrt;
@@ -872,7 +872,7 @@ static inline unsigned int ipv6_advmss(unsigned int mtu)
 }
 
 static struct dst_entry *ndisc_dst_gc_list;
-DEFINE_SPINLOCK(ndisc_lock);
+static DEFINE_SPINLOCK(ndisc_lock);
 
 struct dst_entry *ndisc_dst_alloc(struct net_device *dev, 
 				  struct neighbour *neigh,

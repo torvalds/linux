@@ -1169,9 +1169,9 @@ static int fib6_clean_node(struct fib6_walker_t *w)
  *	ignoring pure split nodes) will be scanned.
  */
 
-void fib6_clean_tree(struct fib6_node *root,
-		     int (*func)(struct rt6_info *, void *arg),
-		     int prune, void *arg)
+static void fib6_clean_tree(struct fib6_node *root,
+			    int (*func)(struct rt6_info *, void *arg),
+			    int prune, void *arg)
 {
 	struct fib6_cleaner_t c;
 
