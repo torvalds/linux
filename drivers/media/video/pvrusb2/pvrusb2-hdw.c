@@ -221,11 +221,12 @@ static const struct pvr2_mpeg_ids mpeg_ids[] = {
 };
 #define MPEGDEF_COUNT (sizeof(mpeg_ids)/sizeof(mpeg_ids[0]))
 
-static const char *control_values_srate[] = {
-	[PVR2_CVAL_SRATE_48]   = "48KHz",
-	[PVR2_CVAL_SRATE_44_1] = "44.1KHz",
-};
 
+static const char *control_values_srate[] = {
+	[V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100]   = "44.1 kHz",
+	[V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000]   = "48 kHz",
+	[V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000]   = "32 kHz",
+};
 
 
 
@@ -729,9 +730,9 @@ static const struct pvr2_ctl_info control_defs[] = {
 		DEFINT(200,625),
 	},{
 		.v4l_id = V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
-		.desc = "Sample rate",
+		.default_value = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000,
+		.desc = "Audio Sampling Frequency",
 		.name = "srate",
-		.default_value = PVR2_CVAL_SRATE_48,
 		DEFREF(srate),
 		DEFENUM(control_values_srate),
 	},{
@@ -2237,11 +2238,14 @@ static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 	}
 
 	if (hdw->std_dirty ||
+	    hdw->enc_stale ||
+	    hdw->srate_dirty ||
+	    hdw->res_ver_dirty ||
+	    hdw->res_hor_dirty ||
 	    0) {
 		/* If any of this changes, then the encoder needs to be
 		   reconfigured, and we need to reset the stream. */
 		stale_subsys_mask |= (1<<PVR2_SUBSYS_B_ENC_CFG);
-		stale_subsys_mask |= hdw->subsys_stream_mask;
 	}
 
 	if (hdw->srate_dirty) {
