@@ -320,11 +320,16 @@ config VIDEO_M32R_AR
 	  camera module.
 
 config VIDEO_M32R_AR_M64278
-	tristate "Use Colour AR module M64278(VGA)"
-	depends on VIDEO_M32R_AR && PLAT_M32700UT
+	tristate "AR device with color module M64278(VGA)"
+	depends on PLAT_M32700UT
+	select VIDEO_M32R_AR
 	---help---
-	  Say Y here to use the Renesas M64278E-800 camera module,
-	  which supports VGA(640x480 pixcels) size of images.
+	  This is a video4linux driver for the Renesas AR (Artificial
+	  Retina) with M64278E-800 camera module.
+	  This module supports VGA(640x480 pixels) resolutions.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called arv.
 
 #
 # Encoder / Decoder module configuration
