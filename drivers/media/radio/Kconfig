@@ -286,7 +286,7 @@ config RADIO_TRUST_PORT
 
 config RADIO_TYPHOON
 	tristate "Typhoon Radio (a.k.a. EcoRadio)"
-	depends on ISA && VIDEO_V4L1
+	depends on ISA && VIDEO_V4L2
 	---help---
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address and the frequency used for muting below.
