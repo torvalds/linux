@@ -32,6 +32,16 @@ config USB_EMI26
 	  To compile this driver as a module, choose M here: the
 	  module will be called emi26.
 
+config USB_ADUTUX
+	tristate "ADU devices from Ontrak Control Systems (EXPERIMENTAL)"
+	depends on USB && EXPERIMENTAL
+	help
+	  Say Y if you want to use an ADU device from Ontrak Control
+	  Systems.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called adutux.
+
 config USB_AUERSWALD
 	tristate "USB Auerswald ISDN support (EXPERIMENTAL)"
 	depends on USB && EXPERIMENTAL
