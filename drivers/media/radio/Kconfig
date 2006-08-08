@@ -208,7 +208,7 @@ config RADIO_MIROPCM20_RDS
 
 config RADIO_SF16FMI
 	tristate "SF16FMI Radio"
-	depends on ISA && VIDEO_V4L1
+	depends on ISA && VIDEO_V4L2
 	---help---
 	  Choose Y here if you have one of these FM radio cards.  If you
 	  compile the driver into the kernel and your card is not PnP one, you
