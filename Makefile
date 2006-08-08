@@ -639,12 +639,12 @@ define rule_vmlinux__
 	$(call cmd,vmlinux__)
 	$(Q)echo 'cmd_$@ := $(cmd_vmlinux__)' > $(@D)/.$(@F).cmd
 
-	$(Q)$(if $($(quiet)cmd_sysmap),                 \
-	  echo '  $($(quiet)cmd_sysmap) System.map' &&) \
-	$(cmd_sysmap) $@ System.map;                    \
-	if [ $$? -ne 0 ]; then                          \
-		rm -f $@;                               \
-		/bin/false;                             \
+	$(Q)$(if $($(quiet)cmd_sysmap),                                      \
+	  echo '  $($(quiet)cmd_sysmap)  System.map' &&)                     \
+	$(cmd_sysmap) $@ System.map;                                         \
+	if [ $$? -ne 0 ]; then                                               \
+		rm -f $@;                                                    \
+		/bin/false;                                                  \
 	fi;
 	$(verify_kallsyms)
 endef
@@ -677,12 +677,12 @@ endif
 kallsyms.o := .tmp_kallsyms$(last_kallsyms).o
 
 define verify_kallsyms
-	$(Q)$(if $($(quiet)cmd_sysmap),                       \
-	  echo '  $($(quiet)cmd_sysmap) .tmp_System.map' &&)  \
+	$(Q)$(if $($(quiet)cmd_sysmap),                                      \
+	  echo '  $($(quiet)cmd_sysmap)  .tmp_System.map' &&)                \
 	  $(cmd_sysmap) .tmp_vmlinux$(last_kallsyms) .tmp_System.map
-	$(Q)cmp -s System.map .tmp_System.map ||              \
-		(echo Inconsistent kallsyms data;             \
-		 echo Try setting CONFIG_KALLSYMS_EXTRA_PASS; \
+	$(Q)cmp -s System.map .tmp_System.map ||                             \
+		(echo Inconsistent kallsyms data;                            \
+		 echo Try setting CONFIG_KALLSYMS_EXTRA_PASS;                \
 		 rm .tmp_kallsyms* ; /bin/false )
 endef
 
