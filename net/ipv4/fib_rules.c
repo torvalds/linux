@@ -347,8 +347,3 @@ void __init fib4_rules_init(void)
 
 	fib_rules_register(&fib4_rules_ops);
 }
-
-void __exit fib4_rules_cleanup(void)
-{
-	fib_rules_unregister(&fib4_rules_ops);
-}

@@ -254,7 +254,6 @@ extern struct fib_table *fib_hash_init(int id);
 extern int fib4_rules_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
 extern void __init fib4_rules_init(void);
-extern void __exit fib4_rules_cleanup(void);
 
 #ifdef CONFIG_NET_CLS_ROUTE
 extern u32 fib_rules_tclass(struct fib_result *res);
