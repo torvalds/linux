@@ -34,16 +34,10 @@
 #include <media/v4l2-common.h>
 #include "dvb-pll.h"
 
-#ifdef HAVE_MT352
-# include "mt352.h"
-# include "mt352_priv.h" /* FIXME */
-#endif
-#ifdef HAVE_TDA1004X
-# include "tda1004x.h"
-#endif
-#ifdef HAVE_NXT200X
-# include "nxt200x.h"
-#endif
+#include "mt352.h"
+#include "mt352_priv.h" /* FIXME */
+#include "tda1004x.h"
+#include "nxt200x.h"
 
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
@@ -54,8 +48,6 @@ module_param(antenna_pwr, int, 0444);
 MODULE_PARM_DESC(antenna_pwr,"enable antenna power (Pinnacle 300i)");
 
 /* ------------------------------------------------------------------ */
-
-#ifdef HAVE_MT352
 static int pinnacle_antenna_pwr(struct saa7134_dev *dev, int on)
 {
 	u32 ok;
@@ -185,12 +177,8 @@ static struct mt352_config avermedia_777 = {
 	.demod_address = 0xf,
 	.demod_init    = mt352_aver777_init,
 };
-#endif
 
 /* ------------------------------------------------------------------ */
-
-#ifdef HAVE_TDA1004X
-
 static int philips_tda6651_pll_set(u8 addr, struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	struct saa7134_dev *dev = fe->dvb->priv;
@@ -1014,11 +1002,8 @@ static struct tda1004x_config md8800_dvbt_config = {
 	.request_firmware = NULL,
 };
 
-#endif
-
 /* ------------------------------------------------------------------ */
 
-#ifdef HAVE_NXT200X
 static struct nxt200x_config avertvhda180 = {
 	.demod_address    = 0x0a,
 };
@@ -1036,7 +1021,6 @@ static struct nxt200x_config kworldatsc110 = {
 	.demod_address    = 0x0a,
 	.set_pll_input    = nxt200x_set_pll_input,
 };
-#endif
 
 /* ------------------------------------------------------------------ */
 
@@ -1054,7 +1038,6 @@ static int dvb_init(struct saa7134_dev *dev)
 			    dev);
 
 	switch (dev->board) {
-#ifdef HAVE_MT352
 	case SAA7134_BOARD_PINNACLE_300I_DVBT_PAL:
 		printk("%s: pinnacle 300i dvb setup\n",dev->name);
 		dev->dvb.frontend = dvb_attach(mt352_attach, &pinnacle_300i,
@@ -1063,7 +1046,6 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend->ops.tuner_ops.set_params = mt352_pinnacle_tuner_set_params;
 		}
 		break;
-
 	case SAA7134_BOARD_AVERMEDIA_777:
 		printk("%s: avertv 777 dvb setup\n",dev->name);
 		dev->dvb.frontend = dvb_attach(mt352_attach, &avermedia_777,
@@ -1072,8 +1054,6 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend->ops.tuner_ops.calc_regs = mt352_aver777_tuner_calc_regs;
 		}
 		break;
-#endif
-#ifdef HAVE_TDA1004X
 	case SAA7134_BOARD_MD7134:
 		dev->dvb.frontend = dvb_attach(tda10046_attach, &medion_cardbus,
 						    &dev->i2c_adap);
@@ -1207,8 +1187,6 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend->ops.tuner_ops.set_params = md8800_dvbt_pll_set;
 		}
 		break;
-#endif
-#ifdef HAVE_NXT200X
 	case SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180:
 		dev->dvb.frontend = dvb_attach(nxt200x_attach, &avertvhda180, &dev->i2c_adap);
 		if (dev->dvb.frontend) {
@@ -1221,7 +1199,6 @@ static int dvb_init(struct saa7134_dev *dev)
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61, &dev->i2c_adap, &dvb_pll_tuv1236d);
 		}
 		break;
-#endif
 	default:
 		printk("%s: Huh? unknown DVB card?\n",dev->name);
 		break;
