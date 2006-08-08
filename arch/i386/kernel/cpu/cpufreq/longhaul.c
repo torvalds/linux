@@ -27,6 +27,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 
@@ -60,6 +61,7 @@ static int can_scale_voltage;
 static int vrmrev;
 static struct acpi_processor *pr = NULL;
 static struct acpi_processor_cx *cx = NULL;
+static int port22_en = 0;
 
 /* Module parameters */
 static int dont_scale_voltage;
@@ -124,10 +126,9 @@ static int longhaul_get_cpu_mult(void)
 
 /* For processor with BCR2 MSR */
 
-static void do_longhaul1(int cx_address, unsigned int clock_ratio_index)
+static void do_longhaul1(unsigned int clock_ratio_index)
 {
 	union msr_bcr2 bcr2;
-	u32 t;
 
 	rdmsrl(MSR_VIA_BCR2, bcr2.val);
 	/* Enable software clock multiplier */
@@ -136,13 +137,11 @@ static void do_longhaul1(int cx_address, unsigned int clock_ratio_index)
 
 	/* Sync to timer tick */
 	safe_halt();
-	ACPI_FLUSH_CPU_CACHE();
 	/* Change frequency on next halt or sleep */
 	wrmsrl(MSR_VIA_BCR2, bcr2.val);
-	/* Invoke C3 */
-	inb(cx_address);
-	/* Dummy op - must do something useless after P_LVL3 read */
-	t = inl(acpi_fadt.xpm_tmr_blk.address);
+	/* Invoke transition */
+	ACPI_FLUSH_CPU_CACHE();
+	halt();
 
 	/* Disable software clock multiplier */
 	local_irq_disable();
@@ -166,9 +165,9 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 
 	/* Sync to timer tick */
 	safe_halt();
-	ACPI_FLUSH_CPU_CACHE();
 	/* Change frequency on next halt or sleep */
 	wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+	ACPI_FLUSH_CPU_CACHE();
 	/* Invoke C3 */
 	inb(cx_address);
 	/* Dummy op - must do something useless after P_LVL3 read */
@@ -227,10 +226,13 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	outb(0xFF,0xA1);	/* Overkill */
 	outb(0xFE,0x21);	/* TMR0 only */
 
-	/* Disable bus master arbitration */
-	if (pr->flags.bm_check) {
+	if (pr->flags.bm_control) {
+ 		/* Disable bus master arbitration */
 		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1,
 				  ACPI_MTX_DO_NOT_LOCK);
+	} else if (port22_en) {
+		/* Disable AGP and PCI arbiters */
+		outb(3, 0x22);
 	}
 
 	switch (longhaul_version) {
@@ -244,7 +246,7 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	 */
 	case TYPE_LONGHAUL_V1:
 	case TYPE_LONGHAUL_V2:
-		do_longhaul1(cx->address, clock_ratio_index);
+		do_longhaul1(clock_ratio_index);
 		break;
 
 	/*
@@ -259,14 +261,20 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	 * to work in practice.
 	 */
 	case TYPE_POWERSAVER:
+		/* Don't allow wakeup */
+		acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0,
+				  ACPI_MTX_DO_NOT_LOCK);
 		do_powersaver(cx->address, clock_ratio_index);
 		break;
 	}
 
-	/* Enable bus master arbitration */
-	if (pr->flags.bm_check) {
+	if (pr->flags.bm_control) {
+		/* Enable bus master arbitration */
 		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0,
 				  ACPI_MTX_DO_NOT_LOCK);
+	} else if (port22_en) {
+		/* Enable arbiters */
+		outb(0, 0x22);
 	}
 
 	outb(pic2_mask,0xA1);	/* restore mask */
@@ -540,21 +548,33 @@ static acpi_status longhaul_walk_callback(acpi_handle obj_handle,
 	return 1;
 }
 
+/* VIA don't support PM2 reg, but have something similar */
+static int enable_arbiter_disable(void)
+{
+	struct pci_dev *dev;
+	u8 pci_cmd;
+
+	/* Find PLE133 host bridge */
+	dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8601_0, NULL);
+	if (dev != NULL) {
+		/* Enable access to port 0x22 */
+		pci_read_config_byte(dev, 0x78, &pci_cmd);
+		if ( !(pci_cmd & 1<<7) ) {
+			pci_cmd |= 1<<7;
+			pci_write_config_byte(dev, 0x78, pci_cmd);
+		}
+		return 1;
+	}
+	return 0;
+}
+
 static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpuinfo_x86 *c = cpu_data;
 	char *cpuname=NULL;
 	int ret;
 
-	/* Check ACPI support for C3 state */
-	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-			 &longhaul_walk_callback, NULL, (void *)&pr);
-	if (pr == NULL) goto err_acpi;
-
-	cx = &pr->power.states[ACPI_STATE_C3];
-	if (cx->address == 0 || cx->latency > 1000) goto err_acpi;
-
-	/* Now check what we have on this motherboard */
+	/* Check what we have on this motherboard */
 	switch (c->x86_model) {
 	case 6:
 		cpu_model = CPU_SAMUEL;
@@ -635,6 +655,28 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		printk ("Powersaver supported.\n");
 		break;
 	};
+
+	/* Find ACPI data for processor */
+	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
+			    &longhaul_walk_callback, NULL, (void *)&pr);
+	if (pr == NULL)
+		goto err_acpi;
+
+	if (longhaul_version == TYPE_POWERSAVER) {
+		/* Check ACPI support for C3 state */
+		cx = &pr->power.states[ACPI_STATE_C3];
+		if (cx->address == 0 || cx->latency > 1000)
+			goto err_acpi;
+	} else {
+		/* Check ACPI support for bus master arbiter disable */
+		if (!pr->flags.bm_control) {
+			if (!enable_arbiter_disable()) {
+				printk(KERN_ERR PFX "No ACPI support. No VT8601 host bridge. Aborting.\n");
+				return -ENODEV;
+			} else
+				port22_en = 1;
+		}
+	}
 
 	ret = longhaul_get_ranges();
 	if (ret != 0)
