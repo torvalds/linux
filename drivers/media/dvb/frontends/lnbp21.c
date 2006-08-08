@@ -122,7 +122,7 @@ struct dvb_frontend *lnbp21_attach(struct dvb_frontend *fe, struct i2c_adapter *
 	}
 
 	/* install release callback */
-	fe->ops.release = lnbp21_release;
+	fe->ops.release_sec = lnbp21_release;
 
 	/* override frontend ops */
 	fe->ops.set_voltage = lnbp21_set_voltage;
