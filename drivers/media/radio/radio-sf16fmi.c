@@ -16,6 +16,7 @@
  * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
  */
 
+#include <linux/version.h>
 #include <linux/kernel.h>	/* __setup			*/
 #include <linux/module.h>	/* Modules 			*/
 #include <linux/init.h>		/* Initdata			*/
