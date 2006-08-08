@@ -1105,6 +1105,8 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 	mutex_lock(&frontend_mutex);
 	dvb_unregister_device (fepriv->dvbdev);
 	dvb_frontend_stop (fe);
+	if (fe->ops.release_sec)
+		fe->ops.release_sec(fe);
 	if (fe->ops.tuner_ops.release) {
 		fe->ops.tuner_ops.release(fe);
 		if (fe->ops.i2c_gate_ctrl)
