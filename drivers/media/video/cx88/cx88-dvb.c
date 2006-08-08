@@ -701,8 +701,7 @@ static int dvb_register(struct cx8802_dev *dev)
 						 &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				       &dev->core->i2c_adap,
-				       &dvb_pll_tuv1236d);
+				   NULL, &dvb_pll_tuv1236d);
 		}
 		break;
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
