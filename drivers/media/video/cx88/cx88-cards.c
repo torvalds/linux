@@ -1484,6 +1484,11 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x1404,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR3000,
+	},{
+		.subvendor = 0x1461,
+		.subdevice = 0xc111, /* AverMedia M150-D */
+		/* This board is known to work with the ASUS PVR416 config */
+		.card      = CX88_BOARD_ASUS_PVR_416,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);

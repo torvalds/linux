@@ -10,7 +10,7 @@
   9 -> Leadtek PVR 2000                                    [107d:663b,107d:663C]
  10 -> IODATA GV-VCP3/PCI                                  [10fc:d003]
  11 -> Prolink PlayTV PVR
- 12 -> ASUS PVR-416                                        [1043:4823]
+ 12 -> ASUS PVR-416                                        [1043:4823,1461:c111]
  13 -> MSI TV-@nywhere
  14 -> KWorld/VStream XPert DVB-T                          [17de:08a6]
  15 -> DViCO FusionHDTV DVB-T1                             [18ac:db00]
