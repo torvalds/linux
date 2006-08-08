@@ -897,11 +897,11 @@ PHONY += headers_install
 headers_install: include/linux/version.h scripts_basic FORCE
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
 	$(Q)rm -rf $(INSTALL_HDR_PATH)/include
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.headersinst obj=include
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.headersinst obj=include
 
 PHONY += headers_check
 headers_check: headers_install
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.headersinst obj=include HDRCHECK=1
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.headersinst obj=include HDRCHECK=1
 
 # ---------------------------------------------------------------------------
 # Modules
@@ -917,7 +917,7 @@ all: modules
 PHONY += modules
 modules: $(vmlinux-dirs) $(if $(KBUILD_BUILTIN),vmlinux)
 	@echo '  Building modules, stage 2.';
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
 
 
 # Target to prepare building external modules
@@ -943,7 +943,7 @@ _modinst_:
 		rm -f $(MODLIB)/build ; \
 		ln -s $(objtree) $(MODLIB)/build ; \
 	fi
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modinst
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modinst
 
 # If System.map exists, run depmod.  This deliberately does not have a
 # dependency on System.map since that would run the dependency tree on
@@ -1156,7 +1156,7 @@ $(module-dirs): crmodverdir $(objtree)/Module.symvers
 
 modules: $(module-dirs)
 	@echo '  Building modules, stage 2.';
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
 
 PHONY += modules_install
 modules_install: _emodinst_ _emodinst_post
@@ -1165,7 +1165,7 @@ install-dir := $(if $(INSTALL_MOD_DIR),$(INSTALL_MOD_DIR),extra)
 PHONY += _emodinst_
 _emodinst_:
 	$(Q)mkdir -p $(MODLIB)/$(install-dir)
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modinst
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modinst
 
 # Run depmod only is we have System.map and depmod is executable
 quiet_cmd_depmod = DEPMOD  $(KERNELRELEASE)
@@ -1381,7 +1381,7 @@ endif
 %.ko: prepare scripts FORCE
 	$(Q)$(MAKE) KBUILD_MODULES=$(if $(CONFIG_MODULES),1)   \
 	$(build)=$(build-dir) $(@:.ko=.o)
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
 
 # FIXME Should go into a make.lib or something 
 # ===========================================================================
