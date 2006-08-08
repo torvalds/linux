@@ -30,6 +30,7 @@
 #include <net/dst.h>
 #include <net/sock.h>
 #include <net/netevent.h>
+#include <net/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/random.h>
 #include <linux/string.h>
@@ -1440,48 +1441,62 @@ int neigh_table_clear(struct neigh_table *tbl)
 
 int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
-	struct ndmsg *ndm = NLMSG_DATA(nlh);
-	struct rtattr **nda = arg;
+	struct ndmsg *ndm;
+	struct nlattr *dst_attr;
 	struct neigh_table *tbl;
 	struct net_device *dev = NULL;
-	int err = -ENODEV;
+	int err = -EINVAL;
 
-	if (ndm->ndm_ifindex &&
-	    (dev = dev_get_by_index(ndm->ndm_ifindex)) == NULL)
+	if (nlmsg_len(nlh) < sizeof(*ndm))
 		goto out;
+
+	dst_attr = nlmsg_find_attr(nlh, sizeof(*ndm), NDA_DST);
+	if (dst_attr == NULL)
+		goto out;
+
+	ndm = nlmsg_data(nlh);
+	if (ndm->ndm_ifindex) {
+		dev = dev_get_by_index(ndm->ndm_ifindex);
+		if (dev == NULL) {
+			err = -ENODEV;
+			goto out;
+		}
+	}
 
 	read_lock(&neigh_tbl_lock);
 	for (tbl = neigh_tables; tbl; tbl = tbl->next) {
-		struct rtattr *dst_attr = nda[NDA_DST - 1];
-		struct neighbour *n;
+		struct neighbour *neigh;
 
 		if (tbl->family != ndm->ndm_family)
 			continue;
 		read_unlock(&neigh_tbl_lock);
 
-		err = -EINVAL;
-		if (!dst_attr || RTA_PAYLOAD(dst_attr) < tbl->key_len)
+		if (nla_len(dst_attr) < tbl->key_len)
 			goto out_dev_put;
 
 		if (ndm->ndm_flags & NTF_PROXY) {
-			err = pneigh_delete(tbl, RTA_DATA(dst_attr), dev);
+			err = pneigh_delete(tbl, nla_data(dst_attr), dev);
 			goto out_dev_put;
 		}
 
-		if (!dev)
-			goto out;
+		if (dev == NULL)
+			goto out_dev_put;
 
-		n = neigh_lookup(tbl, RTA_DATA(dst_attr), dev);
-		if (n) {
-			err = neigh_update(n, NULL, NUD_FAILED, 
-					   NEIGH_UPDATE_F_OVERRIDE|
-					   NEIGH_UPDATE_F_ADMIN);
-			neigh_release(n);
+		neigh = neigh_lookup(tbl, nla_data(dst_attr), dev);
+		if (neigh == NULL) {
+			err = -ENOENT;
+			goto out_dev_put;
 		}
+
+		err = neigh_update(neigh, NULL, NUD_FAILED,
+				   NEIGH_UPDATE_F_OVERRIDE |
+				   NEIGH_UPDATE_F_ADMIN);
+		neigh_release(neigh);
 		goto out_dev_put;
 	}
 	read_unlock(&neigh_tbl_lock);
-	err = -EADDRNOTAVAIL;
+	err = -EAFNOSUPPORT;
+
 out_dev_put:
 	if (dev)
 		dev_put(dev);
