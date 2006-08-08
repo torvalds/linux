@@ -459,18 +459,26 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		ret = 0;
 		switch(vf->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
+			int lmin,lmax;
+			struct pvr2_ctrl *hcp,*vcp;
 			int h = vf->fmt.pix.height;
 			int w = vf->fmt.pix.width;
+			hcp = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_HRES);
+			vcp = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_VRES);
 
-			if (h < 200) {
-				h = 200;
-			} else if (h > 625) {
-				h = 625;
+			lmin = pvr2_ctrl_get_min(hcp);
+			lmax = pvr2_ctrl_get_max(hcp);
+			if (h < lmin) {
+				h = lmin;
+			} else if (h > lmax) {
+				h = lmax;
 			}
-			if (w < 320) {
-				w = 320;
-			} else if (w > 720) {
-				w = 720;
+			lmin = pvr2_ctrl_get_min(vcp);
+			lmax = pvr2_ctrl_get_max(vcp);
+			if (w < lmin) {
+				w = lmin;
+			} else if (w > lmax) {
+				w = lmax;
 			}
 
 			memcpy(vf, &pvr_format[PVR_FORMAT_PIX],
@@ -479,14 +487,8 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			vf->fmt.pix.height = h;
 
 			if (cmd == VIDIOC_S_FMT) {
-				pvr2_ctrl_set_value(
-					pvr2_hdw_get_ctrl_by_id(hdw,
-								PVR2_CID_HRES),
-					vf->fmt.pix.width);
-				pvr2_ctrl_set_value(
-					pvr2_hdw_get_ctrl_by_id(hdw,
-								PVR2_CID_VRES),
-					vf->fmt.pix.height);
+				pvr2_ctrl_set_value(hcp,vf->fmt.pix.width);
+				pvr2_ctrl_set_value(vcp,vf->fmt.pix.height);
 			}
 		} break;
 		case V4L2_BUF_TYPE_VBI_CAPTURE:
