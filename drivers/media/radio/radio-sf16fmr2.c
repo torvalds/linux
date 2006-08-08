@@ -24,6 +24,9 @@
 #include <media/v4l2-common.h>
 #include <linux/mutex.h>
 
+static struct mutex lock;
+
+#include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
 #define RADIO_VERSION KERNEL_VERSION(0,0,2)
 
 static struct v4l2_queryctrl radio_qctrl[] = {
@@ -44,8 +47,6 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 		.type          = V4L2_CTRL_TYPE_INTEGER,
 	}
 };
-
-static struct mutex lock;
 
 #undef DEBUG
 //#define DEBUG 1
