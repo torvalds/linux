@@ -145,7 +145,7 @@ config RADIO_GEMTEK_PCI
 
 config RADIO_MAXIRADIO
 	tristate "Guillemot MAXI Radio FM 2000 radio"
-	depends on VIDEO_V4L1 && PCI
+	depends on VIDEO_V4L2 && PCI
 	---help---
 	  Choose Y here if you have this radio card.  This card may also be
 	  found as Gemtek PCI FM.
