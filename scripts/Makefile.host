@@ -85,7 +85,6 @@ host-cshlib	:= $(addprefix $(obj)/,$(host-cshlib))
 host-cshobjs	:= $(addprefix $(obj)/,$(host-cshobjs))
 host-objdirs    := $(addprefix $(obj)/,$(host-objdirs))
 
-$(warning host-objdirs=$(host-objdirs))
 obj-dirs += $(host-objdirs)
 
 #####
