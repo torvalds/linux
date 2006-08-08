@@ -669,13 +669,17 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		state->config = &dst_config;
 		state->i2c = card->i2c_adapter;
 		state->bt = card->bt;
-
+		state->dst_ca = NULL;
 		/*	DST is not a frontend, attaching the ASIC	*/
 		if (dvb_attach(dst_attach, state, &card->dvb_adapter) == NULL) {
 			printk("%s: Could not find a Twinhan DST.\n", __FUNCTION__);
 			break;
 		}
+		/*	Attach other DST peripherals if any		*/
+		/*	Conditional Access device			*/
 		card->fe = &state->frontend;
+		if (state->dst_hw_cap & DST_TYPE_HAS_CA)
+			dvb_attach(dst_ca_attach, state, &card->dvb_adapter);
 		break;
 
 	case BTTV_BOARD_PINNACLESAT:
