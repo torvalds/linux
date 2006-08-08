@@ -439,8 +439,6 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 		buffer[3] = 0xa4;
 		break;
 	}
-	buffer[0] = (div>>8) & 0x7f;
-	buffer[1] = div      & 0xff;
 	if (params->cb_first_if_lower_freq && div < t->last_div) {
 		buffer[0] = buffer[2];
 		buffer[1] = buffer[3];
