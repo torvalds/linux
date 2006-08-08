@@ -1209,6 +1209,28 @@ struct cx88_board cx88_boards[] = {
 		}},
 		.dvb      = 1,
 	},
+	[CX88_BOARD_HAUPPAUGE_HVR3000] = {
+		/* FIXME: Add dvb & radio support */
+		.name           = "Hauppauge WinTV-HVR3000 TriMode Analog/DVB-S/DVB-T",
+		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x84bf,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x84bf,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x84bf,
+		}},
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1458,6 +1480,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x14f1,
 		.subdevice = 0x0084,
 		.card      = CX88_BOARD_GENIATECH_DVBS,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x1404,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR3000,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
@@ -1501,6 +1527,7 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	/* Make sure we support the board model */
 	switch (tv.model)
 	{
+	case 14569: /* WinTV-HVR3000 (OEM, no IR, no back panel video) */
 	case 28552: /* WinTV-PVR 'Roslyn' (No IR) */
 	case 34519: /* WinTV-PCI-FM */
 	case 90002: /* Nova-T-PCI (9002) */
@@ -1666,6 +1693,7 @@ void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
 	case CX88_BOARD_HAUPPAUGE_HVR1100LP:
+	case CX88_BOARD_HAUPPAUGE_HVR3000:
 		if (0 == core->i2c_rc)
 			hauppauge_eeprom(core,eeprom);
 		break;

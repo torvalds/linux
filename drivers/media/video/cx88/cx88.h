@@ -197,6 +197,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_NPGTECH_REALTV_TOP10FM  50
 #define CX88_BOARD_WINFAST_DTV2000H        51
 #define CX88_BOARD_GENIATECH_DVBS          52
+#define CX88_BOARD_HAUPPAUGE_HVR3000       53
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
