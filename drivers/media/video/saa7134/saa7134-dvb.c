@@ -39,6 +39,9 @@
 #include "tda1004x.h"
 #include "nxt200x.h"
 
+#include "tda10086.h"
+#include "tda826x.h"
+#include "isl6421.h"
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
@@ -1002,6 +1005,11 @@ static struct tda1004x_config md8800_dvbt_config = {
 	.request_firmware = NULL,
 };
 
+static struct tda10086_config flydvbs = {
+	.demod_address = 0x0e,
+	.invert = 0,
+};
+
 /* ------------------------------------------------------------------ */
 
 static struct nxt200x_config avertvhda180 = {
@@ -1197,6 +1205,17 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = dvb_attach(nxt200x_attach, &kworldatsc110, &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61, &dev->i2c_adap, &dvb_pll_tuv1236d);
+		}
+		break;
+	case SAA7134_BOARD_FLYDVBS_LR300:
+		dev->dvb.frontend = dvb_attach(tda10086_attach, &flydvbs, &dev->i2c_adap);
+		if (dev->dvb.frontend) {
+			if (dvb_attach(tda826x_attach, dev->dvb.frontend, 0x60, &dev->i2c_adap, 0) == NULL) {
+				printk("%s: No tda826x found!\n", __FUNCTION__);
+			}
+			if (dvb_attach(isl6421_attach, dev->dvb.frontend, &dev->i2c_adap, 0x08, 0, 0) == NULL) {
+				printk("%s: No ISL6421 found!\n", __FUNCTION__);
+			}
 		}
 		break;
 	default:

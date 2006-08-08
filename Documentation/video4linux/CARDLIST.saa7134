@@ -95,3 +95,4 @@
  94 -> LifeView FlyDVB-T Hybrid Cardbus         [5168:3306,5168:3502]
  95 -> LifeView FlyVIDEO3000 (NTSC)             [5169:0138]
  96 -> Medion Md8800 Quadro                     [16be:0007,16be:0008]
+ 97 -> LifeView FlyDVB-S /Acorp TV134DS         [5168:0300,4e42:0300]
