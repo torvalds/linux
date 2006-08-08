@@ -45,9 +45,6 @@ struct cx24123_state
 
 	struct dvb_frontend frontend;
 
-	u32 lastber;
-	u16 snr;
-
 	/* Some PLL specifics for tuning */
 	u32 VCAarg;
 	u32 VGAarg;
@@ -223,7 +220,7 @@ static struct {
 	{0x44, 0x00}, /* Constellation (default) */
 	{0x45, 0x00}, /* Symbol count (default) */
 	{0x46, 0x0d}, /* Symbol rate estimator on (default) */
-	{0x56, 0x41}, /* Various (default) */
+	{0x56, 0xc1}, /* Error Counter = Viterbi BER */
 	{0x57, 0xff}, /* Error Counter Window (default) */
 	{0x67, 0x83}, /* Non-DCII symbol clock */
 };
@@ -801,29 +798,13 @@ static int cx24123_read_ber(struct dvb_frontend* fe, u32* ber)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 
-	state->lastber =
-		((cx24123_readreg(state, 0x1c) & 0x3f) << 16) |
+	/* The true bit error rate is this value divided by
+	   the window size (set as 256 * 255) */
+	*ber = ((cx24123_readreg(state, 0x1c) & 0x3f) << 16) |
 		(cx24123_readreg(state, 0x1d) << 8 |
-		cx24123_readreg(state, 0x1e));
+		 cx24123_readreg(state, 0x1e));
 
-	/* Do the signal quality processing here, it's derived from the BER. */
-	/* Scale the BER from a 24bit to a SNR 16 bit where higher = better */
-	if (state->lastber < 5000)
-		state->snr = 655*100;
-	else if ( (state->lastber >=   5000) && (state->lastber <  55000) )
-		state->snr = 655*90;
-	else if ( (state->lastber >=  55000) && (state->lastber < 150000) )
-		state->snr = 655*80;
-	else if ( (state->lastber >= 150000) && (state->lastber < 250000) )
-		state->snr = 655*70;
-	else if ( (state->lastber >= 250000) && (state->lastber < 450000) )
-		state->snr = 655*65;
-	else
-		state->snr = 0;
-
-	dprintk("%s:  BER = %d, S/N index = %d\n",__FUNCTION__,state->lastber, state->snr);
-
-	*ber = state->lastber;
+	dprintk("%s:  BER = %d\n",__FUNCTION__,*ber);
 
 	return 0;
 }
@@ -841,19 +822,13 @@ static int cx24123_read_signal_strength(struct dvb_frontend* fe, u16* signal_str
 static int cx24123_read_snr(struct dvb_frontend* fe, u16* snr)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
-	*snr = state->snr;
+
+	/* Inverted raw Es/N0 count, totally bogus but better than the
+	   BER threshold. */
+	*snr = 65535 - (((u16)cx24123_readreg(state, 0x18) << 8) |
+			 (u16)cx24123_readreg(state, 0x19));
 
 	dprintk("%s:  read S/N index = %d\n",__FUNCTION__,*snr);
-
-	return 0;
-}
-
-static int cx24123_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
-{
-	struct cx24123_state *state = fe->demodulator_priv;
-	*ucblocks = state->lastber;
-
-	dprintk("%s:  ucblocks (ber) = %d\n",__FUNCTION__,*ucblocks);
 
 	return 0;
 }
@@ -955,8 +930,6 @@ struct dvb_frontend* cx24123_attach(const struct cx24123_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	state->lastber = 0;
-	state->snr = 0;
 	state->VCAarg = 0;
 	state->VGAarg = 0;
 	state->bandselectarg = 0;
@@ -1009,7 +982,6 @@ static struct dvb_frontend_ops cx24123_ops = {
 	.read_ber = cx24123_read_ber,
 	.read_signal_strength = cx24123_read_signal_strength,
 	.read_snr = cx24123_read_snr,
-	.read_ucblocks = cx24123_read_ucblocks,
 	.diseqc_send_master_cmd = cx24123_send_diseqc_msg,
 	.diseqc_send_burst = cx24123_diseqc_send_burst,
 	.set_tone = cx24123_set_tone,
