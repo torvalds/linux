@@ -317,7 +317,7 @@ static int gemtek_pci_do_ioctl(struct inode *inode, struct file *file,
 		}
 		default:
 			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
-							  gemtek_do_ioctl);
+							  gemtek_pci_do_ioctl);
 	}
 }
 

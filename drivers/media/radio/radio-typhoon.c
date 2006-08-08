@@ -301,7 +301,7 @@ static int typhoon_do_ioctl(struct inode *inode, struct file *file,
 
 		default:
 			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
-							  typhon_do_ioctl);
+							  typhoon_do_ioctl);
 	}
 }
 
