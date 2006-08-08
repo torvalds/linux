@@ -268,7 +268,7 @@ config RADIO_TERRATEC_PORT
 
 config RADIO_TRUST
 	tristate "Trust FM radio card"
-	depends on ISA && VIDEO_V4L1
+	depends on ISA && VIDEO_V4L2
 	help
 	  This is a driver for the Trust FM radio cards. Say Y if you have
 	  such a card and want to use it under Linux.
