@@ -165,7 +165,7 @@ static int fmi_do_ioctl(struct inode *inode, struct file *file,
 			v->rangelow = RSF16_MINFREQ/mult;
 			v->rangehigh = RSF16_MAXFREQ/mult;
 			v->rxsubchans =V4L2_TUNER_SUB_MONO | V4L2_TUNER_MODE_STEREO;
-			v->capability=fmi->flags;
+			v->capability=fmi->flags&V4L2_TUNER_CAP_LOW;
 			v->audmode = V4L2_TUNER_MODE_STEREO;
 			v->signal = fmi_getsigstr(fmi);
 
