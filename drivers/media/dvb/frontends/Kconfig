@@ -274,6 +274,11 @@ config DVB_TDA826X
 	help
 	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
 
+config DVB_TUNER_MT2060
+	tristate "Microtune MT2060 silicon IF tuner"
+	help
+	  A driver for the silicon IF tuner MT2060 from Microtune.
+
 comment "Miscellaneous devices"
 	depends on DVB_CORE
 

@@ -235,7 +235,7 @@ int dibusb_dib3000mc_tuner_attach (struct dvb_usb_device *d)
 {
 	int ret;
 	u8 a,b;
-	u16 if1=1220;
+	u16 if1 = 1220;
 
 	if (d->tuner_pass_ctrl) {
 		struct dibusb_state *st = d->priv;
@@ -243,17 +243,17 @@ int dibusb_dib3000mc_tuner_attach (struct dvb_usb_device *d)
 		// First IF calibration for Liteon Sticks
 		if (d->udev->descriptor.idVendor == USB_VID_LITEON &&
 		    d->udev->descriptor.idProduct == USB_PID_LITEON_DVB_T_WARM) {
+
 			dibusb_read_eeprom_byte(d,0x7E,&a);
 			dibusb_read_eeprom_byte(d,0x7F,&b);
-			if (a == 0xFF && b == 0xFF) {
+
+			if (a == 0xFF && b == 0xFF)
 				if1 = 1220;
-			} else
-			if (a == 0x00) {
+			else if (a == 0x00)
 				if1 = 1220+b;
-			} else
-			if (a == 0x80) {
+			else if (a == 0x80)
 				if1 = 1220-b;
-			} else {
+			else {
 				warn("LITE-ON DVB-T Tuner : Strange IF1 calibration :%2X %2X\n",(int)a,(int)b);
 				if1 = 1220;
 			}

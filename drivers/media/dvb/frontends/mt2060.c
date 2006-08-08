@@ -278,7 +278,7 @@ static void mt2060_calibrate(struct mt2060_state *state)
 
 	if (i < 10) {
 		mt2060_readreg(state, REG_FM_FREQ, &state->fmfreq); // now find out, what is fmreq used for :)
-		dprintk("calibration was successful: %d",state->fmfreq);
+		dprintk("calibration was successful: %d", state->fmfreq);
 	} else
 		dprintk("FMCAL timed out");
 }
