@@ -321,6 +321,12 @@ static int cx24123_set_fec(struct cx24123_state* state, fe_code_rate_t fec)
 	if ( (fec < FEC_NONE) || (fec > FEC_AUTO) )
 		fec = FEC_AUTO;
 
+	/* Set the soft decision threshold */
+	if(fec == FEC_1_2)
+		cx24123_writereg(state, 0x43, cx24123_readreg(state, 0x43) | 0x01);
+	else
+		cx24123_writereg(state, 0x43, cx24123_readreg(state, 0x43) & ~0x01);
+
 	switch (fec) {
 	case FEC_1_2:
 		dprintk("%s:  set FEC to 1/2\n",__FUNCTION__);
