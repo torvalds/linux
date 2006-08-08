@@ -121,7 +121,7 @@ static int drm_remove_magic(drm_device_t * dev, drm_magic_t magic)
 
 	drm_free(pt, sizeof(*pt), DRM_MEM_MAGIC);
 
-	return -EINVAL;
+	return 0;
 }
 
 /**
