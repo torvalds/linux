@@ -226,6 +226,76 @@ static int sis_ioctl_agp_alloc(DRM_IOCTL_ARGS)
 	return sis_drm_alloc(dev, priv, data, AGP_TYPE);
 }
 
+static drm_local_map_t *sis_reg_init(drm_device_t *dev)
+{
+	drm_map_list_t *entry;
+	drm_local_map_t *map;
+
+	list_for_each_entry(entry, &dev->maplist->head, head) {
+		map = entry->map;
+		if (!map)
+			continue;
+		if (map->type == _DRM_REGISTERS) {
+			return map;
+		}
+	}
+	return NULL;
+}
+
+int sis_idle(drm_device_t *dev)
+{
+	drm_sis_private_t *dev_priv = dev->dev_private;
+	uint32_t idle_reg;
+	unsigned long end;
+	int i;
+
+	if (dev_priv->idle_fault)
+		return 0;
+
+	if (dev_priv->mmio == NULL) {
+		dev_priv->mmio = sis_reg_init(dev);
+		if (dev_priv->mmio == NULL) {
+			DRM_ERROR("Could not find register map.\n");
+			return 0;
+		}
+	}
+	
+	/*
+	 * Implement a device switch here if needed
+	 */
+
+	if (dev_priv->chipset != SIS_CHIP_315)
+		return 0;
+
+	/*
+	 * Timeout after 3 seconds. We cannot use DRM_WAIT_ON here
+	 * because its polling frequency is too low.
+	 */
+
+	end = jiffies + (DRM_HZ * 3);
+
+	for (i=0; i<4; ++i) {
+		do {
+			idle_reg = SIS_READ(0x85cc);
+		} while ( !time_after_eq(jiffies, end) &&
+			  ((idle_reg & 0x80000000) != 0x80000000));
+	}
+
+	if (time_after_eq(jiffies, end)) {
+		DRM_ERROR("Graphics engine idle timeout. "
+			  "Disabling idle check\n");
+		dev_priv->idle_fault = TRUE;
+	}
+
+	/*
+	 * The caller never sees an error code. It gets trapped
+	 * in libdrm.
+	 */
+
+	return 0;
+}
+
+
 void sis_lastclose(struct drm_device *dev)
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
@@ -237,6 +307,7 @@ void sis_lastclose(struct drm_device *dev)
 	drm_sman_cleanup(&dev_priv->sman);
 	dev_priv->vram_initialized = FALSE;
 	dev_priv->agp_initialized = FALSE;
+	dev_priv->mmio = NULL;
 	mutex_unlock(&dev->struct_mutex);
 }
 

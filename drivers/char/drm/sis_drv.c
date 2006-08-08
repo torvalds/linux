@@ -69,6 +69,7 @@ static struct drm_driver driver = {
 	.load = sis_driver_load,
 	.unload = sis_driver_unload,
 	.context_dtor = NULL,
+	.dma_quiescent = sis_idle,
 	.reclaim_buffers = NULL,
 	.reclaim_buffers_locked = sis_reclaim_buffers_locked,
 	.lastclose = sis_lastclose,

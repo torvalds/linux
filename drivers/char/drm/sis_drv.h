@@ -34,12 +34,21 @@
 #define DRIVER_AUTHOR		"SIS, Tungsten Graphics"
 #define DRIVER_NAME		"sis"
 #define DRIVER_DESC		"SIS 300/630/540"
-#define DRIVER_DATE		"20060529"
+#define DRIVER_DATE		"20060704"
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		2
 #define DRIVER_PATCHLEVEL	1
 
+enum sis_family {
+	SIS_OTHER = 0,
+	SIS_CHIP_315 = 1,
+};
+
 #include "drm_sman.h"
+
+#define SIS_BASE (dev_priv->mmio)
+#define SIS_READ(reg)         DRM_READ32(SIS_BASE, reg);
+#define SIS_WRITE(reg, val)   DRM_WRITE32(SIS_BASE, reg, val);
 
 typedef struct drm_sis_private {
 	drm_local_map_t *mmio;
@@ -52,6 +61,7 @@ typedef struct drm_sis_private {
 	unsigned long agp_offset;
 } drm_sis_private_t;
 
+extern int sis_idle(drm_device_t *dev);
 extern void sis_reclaim_buffers_locked(drm_device_t *dev, struct file *filp);
 extern void sis_lastclose(drm_device_t *dev);
 
