@@ -33,3 +33,5 @@ obj-$(CONFIG_DVB_LGDT330X) += lgdt330x.o
 obj-$(CONFIG_DVB_CX24123) += cx24123.o
 obj-$(CONFIG_DVB_LNBP21) += lnbp21.o
 obj-$(CONFIG_DVB_ISL6421) += isl6421.o
+obj-$(CONFIG_DVB_TDA10086) += tda10086.o
+obj-$(CONFIG_DVB_TDA826X) += tda826x.o

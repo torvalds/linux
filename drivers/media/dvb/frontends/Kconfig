@@ -46,6 +46,13 @@ config DVB_S5H1420
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_TDA10086
+	tristate "Philips TDA10086 based"
+	depends on DVB_CORE
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
 comment "DVB-T (terrestrial) frontends"
 	depends on DVB_CORE
 
@@ -216,6 +223,15 @@ config DVB_LGDT330X
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
+comment "Tuners/PLL support"
+	depends on DVB_CORE
+
+config DVB_TDA826X
+	tristate "Philips TDA826X silicon tuner"
+	depends on DVB_CORE
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
 
 comment "Miscellaneous devices"
 	depends on DVB_CORE
