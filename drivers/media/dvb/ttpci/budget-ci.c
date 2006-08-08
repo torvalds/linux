@@ -749,17 +749,17 @@ static int philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struct dvb
 	// setup PLL filter and TDA9889
 	switch (params->u.ofdm.bandwidth) {
 	case BANDWIDTH_6_MHZ:
-		tda1004x_write_byte(fe, 0x0C, 0x14);
+		tda1004x_writereg(fe, 0x0C, 0x14);
 		filter = 0;
 		break;
 
 	case BANDWIDTH_7_MHZ:
-		tda1004x_write_byte(fe, 0x0C, 0x80);
+		tda1004x_writereg(fe, 0x0C, 0x80);
 		filter = 0;
 		break;
 
 	case BANDWIDTH_8_MHZ:
-		tda1004x_write_byte(fe, 0x0C, 0x14);
+		tda1004x_writereg(fe, 0x0C, 0x14);
 		filter = 1;
 		break;
 

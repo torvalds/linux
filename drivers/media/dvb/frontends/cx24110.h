@@ -36,6 +36,12 @@ struct cx24110_config
 extern struct dvb_frontend* cx24110_attach(const struct cx24110_config* config,
 					   struct i2c_adapter* i2c);
 
-extern int cx24110_pll_write(struct dvb_frontend* fe, u32 data);
+static inline int cx24110_pll_write(struct dvb_frontend *fe, u32 val) {
+	int r = 0;
+	u8 buf[] = {(u8) (val>>24), (u8) (val>>16), (u8) (val>>8)};
+	if (fe->ops.write)
+		r = fe->ops.write(fe, buf, 3);
+	return r;
+}
 
 #endif // CX24110_H

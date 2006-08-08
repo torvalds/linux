@@ -579,11 +579,14 @@ static int tda1004x_decode_fec(int tdafec)
 	return -1;
 }
 
-int tda1004x_write_byte(struct dvb_frontend* fe, int reg, int data)
+int tda1004x_write(struct dvb_frontend* fe, u8 *buf, int len)
 {
 	struct tda1004x_state* state = fe->demodulator_priv;
 
-	return tda1004x_write_byteI(state, reg, data);
+	if (len != 2)
+		return -EINVAL;
+
+	return tda1004x_write_byteI(state, buf[0], buf[1]);
 }
 
 static int tda10045_init(struct dvb_frontend* fe)
@@ -1192,7 +1195,13 @@ static int tda1004x_get_tune_settings(struct dvb_frontend* fe, struct dvb_fronte
 	return 0;
 }
 
-static void tda1004x_release(struct dvb_frontend* fe)
+static void tda10045_release(struct dvb_frontend* fe)
+{
+	struct tda1004x_state *state = fe->demodulator_priv;
+	kfree(state);
+}
+
+static void tda10046_release(struct dvb_frontend* fe)
 {
 	struct tda1004x_state *state = fe->demodulator_priv;
 	kfree(state);
@@ -1212,10 +1221,11 @@ static struct dvb_frontend_ops tda10045_ops = {
 		    FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_GUARD_INTERVAL_AUTO
 	},
 
-	.release = tda1004x_release,
+	.release = tda10045_release,
 
 	.init = tda10045_init,
 	.sleep = tda1004x_sleep,
+	.write = tda1004x_write,
 	.i2c_gate_ctrl = tda1004x_i2c_gate_ctrl,
 
 	.set_frontend = tda1004x_set_fe,
@@ -1270,10 +1280,11 @@ static struct dvb_frontend_ops tda10046_ops = {
 		    FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_GUARD_INTERVAL_AUTO
 	},
 
-	.release = tda1004x_release,
+	.release = tda10046_release,
 
 	.init = tda10046_init,
 	.sleep = tda1004x_sleep,
+	.write = tda1004x_write,
 	.i2c_gate_ctrl = tda1004x_i2c_gate_ctrl,
 
 	.set_frontend = tda1004x_set_fe,
@@ -1323,4 +1334,3 @@ MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(tda10045_attach);
 EXPORT_SYMBOL(tda10046_attach);
-EXPORT_SYMBOL(tda1004x_write_byte);

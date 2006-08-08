@@ -35,6 +35,12 @@ struct tda10021_config
 extern struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
 					    struct i2c_adapter* i2c, u8 pwm);
 
-extern int tda10021_write_byte(struct dvb_frontend* fe, int reg, int data);
+static inline int tda10021_writereg(struct dvb_frontend *fe, u8 reg, u8 val) {
+	int r = 0;
+	u8 buf[] = {reg, val};
+	if (fe->ops.write)
+		r = fe->ops.write(fe, buf, 2);
+	return r;
+}
 
 #endif // TDA10021_H

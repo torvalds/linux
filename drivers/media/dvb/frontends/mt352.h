@@ -54,6 +54,11 @@ struct mt352_config
 extern struct dvb_frontend* mt352_attach(const struct mt352_config* config,
 					 struct i2c_adapter* i2c);
 
-extern int mt352_write(struct dvb_frontend* fe, u8* ibuf, int ilen);
+static inline int mt352_write(struct dvb_frontend *fe, u8 *buf, int len) {
+	int r = 0;
+	if (fe->ops.write)
+		r = fe->ops.write(fe, buf, len);
+	return r;
+}
 
 #endif // MT352_H

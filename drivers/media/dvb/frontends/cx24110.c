@@ -1,4 +1,4 @@
-/*
+	/*
     cx24110 - Single Chip Satellite Channel Receiver driver module
 
     Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@htp-tel.de> based on
@@ -311,15 +311,16 @@ static int cx24110_set_symbolrate (struct cx24110_state* state, u32 srate)
 
 }
 
-int cx24110_pll_write (struct dvb_frontend* fe, u32 data)
+static int _cx24110_pll_write (struct dvb_frontend* fe, u8 *buf, int len)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
+
+	if (len != 3)
+		return -EINVAL;
 
 /* tuner data is 21 bits long, must be left-aligned in data */
 /* tuner cx24108 is written through a dedicated 3wire interface on the demod chip */
 /* FIXME (low): add error handling, avoid infinite loops if HW fails... */
-
-	dprintk("cx24110 debug: cx24108_write(%8.8x)\n",data);
 
 	cx24110_writereg(state,0x6d,0x30); /* auto mode at 62kHz */
 	cx24110_writereg(state,0x70,0x15); /* auto mode 21 bits */
@@ -329,19 +330,19 @@ int cx24110_pll_write (struct dvb_frontend* fe, u32 data)
 		cx24110_writereg(state,0x72,0);
 
 	/* write the topmost 8 bits */
-	cx24110_writereg(state,0x72,(data>>24)&0xff);
+	cx24110_writereg(state,0x72,buf[0]);
 
 	/* wait for the send to be completed */
 	while ((cx24110_readreg(state,0x6d)&0xc0)==0x80)
 		;
 
 	/* send another 8 bytes */
-	cx24110_writereg(state,0x72,(data>>16)&0xff);
+	cx24110_writereg(state,0x72,buf[1]);
 	while ((cx24110_readreg(state,0x6d)&0xc0)==0x80)
 		;
 
 	/* and the topmost 5 bits of this byte */
-	cx24110_writereg(state,0x72,(data>>8)&0xff);
+	cx24110_writereg(state,0x72,buf[2]);
 	while ((cx24110_readreg(state,0x6d)&0xc0)==0x80)
 		;
 
@@ -642,6 +643,7 @@ static struct dvb_frontend_ops cx24110_ops = {
 	.release = cx24110_release,
 
 	.init = cx24110_initfe,
+	.write = _cx24110_pll_write,
 	.set_frontend = cx24110_set_frontend,
 	.get_frontend = cx24110_get_frontend,
 	.read_status = cx24110_read_status,
@@ -664,4 +666,3 @@ MODULE_AUTHOR("Peter Hettkamp");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(cx24110_attach);
-EXPORT_SYMBOL(cx24110_pll_write);

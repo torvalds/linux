@@ -36,6 +36,4 @@ struct zl10353_config
 extern struct dvb_frontend* zl10353_attach(const struct zl10353_config *config,
 					   struct i2c_adapter *i2c);
 
-extern int zl10353_write(struct dvb_frontend *fe, u8 *ibuf, int ilen);
-
 #endif /* ZL10353_H */

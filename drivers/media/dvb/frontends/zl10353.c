@@ -258,7 +258,6 @@ static int zl10353_init(struct dvb_frontend *fe)
 static void zl10353_release(struct dvb_frontend *fe)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
-
 	kfree(state);
 }
 
@@ -314,6 +313,7 @@ static struct dvb_frontend_ops zl10353_ops = {
 
 	.init = zl10353_init,
 	.sleep = zl10353_sleep,
+	.write = zl10353_write,
 
 	.set_frontend = zl10353_set_parameters,
 	.get_tune_settings = zl10353_get_tune_settings,
@@ -330,4 +330,3 @@ MODULE_AUTHOR("Chris Pascoe");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(zl10353_attach);
-EXPORT_SYMBOL(zl10353_write);
