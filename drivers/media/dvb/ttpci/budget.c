@@ -41,6 +41,8 @@
 #include "l64781.h"
 #include "tda8083.h"
 #include "s5h1420.h"
+#include "tda10086.h"
+#include "tda826x.h"
 #include "lnbp21.h"
 #include "bsru6.h"
 
@@ -342,6 +344,11 @@ static struct s5h1420_config s5h1420_config = {
 	.invert = 1,
 };
 
+static struct tda10086_config tda10086_config = {
+	.demod_address = 0x0e,
+	.invert = 0,
+};
+
 static u8 read_pwm(struct budget* budget)
 {
 	u8 b = 0xff;
@@ -420,7 +427,25 @@ static void frontend_init(struct budget *budget)
 		budget->dvb_frontend = dvb_attach(s5h1420_attach, &s5h1420_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = s5h1420_tuner_set_params;
-			if (lnbp21_attach(budget->dvb_frontend, &budget->i2c_adap, 0, 0) == NULL) {
+			if (dvb_attach(lnbp21_attach, budget->dvb_frontend, &budget->i2c_adap, 0, 0) == NULL) {
+				printk("%s: No LNBP21 found!\n", __FUNCTION__);
+				goto error_out;
+			}
+			break;
+		}
+
+	case 0x1018: // TT Budget-S-1401 (philips tda10086/philips tda8262)
+		// gpio2 is connected to CLB - reset it + leave it high
+		saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTLO);
+		msleep(1);
+		saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTHI);
+		msleep(1);
+
+		budget->dvb_frontend = dvb_attach(tda10086_attach, &tda10086_config, &budget->i2c_adap);
+		if (budget->dvb_frontend) {
+			if (dvb_attach(tda826x_attach, budget->dvb_frontend, 0x60, &budget->i2c_adap, 0) == NULL)
+				printk("%s: No tda826x found!\n", __FUNCTION__);
+			if (dvb_attach(lnbp21_attach, budget->dvb_frontend, &budget->i2c_adap, 0, 0) == NULL) {
 				printk("%s: No LNBP21 found!\n", __FUNCTION__);
 				goto error_out;
 			}
@@ -499,6 +524,7 @@ MAKE_BUDGET_INFO(ttbs,	"TT-Budget/WinTV-NOVA-S  PCI",	BUDGET_TT);
 MAKE_BUDGET_INFO(ttbc,	"TT-Budget/WinTV-NOVA-C  PCI",	BUDGET_TT);
 MAKE_BUDGET_INFO(ttbt,	"TT-Budget/WinTV-NOVA-T  PCI",	BUDGET_TT);
 MAKE_BUDGET_INFO(satel,	"SATELCO Multimedia PCI",	BUDGET_TT_HW_DISEQC);
+MAKE_BUDGET_INFO(ttbs1401, "TT-Budget-S-1401 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(fsacs0, "Fujitsu Siemens Activy Budget-S PCI (rev GR/grundig frontend)", BUDGET_FS_ACTIVY);
 MAKE_BUDGET_INFO(fsacs1, "Fujitsu Siemens Activy Budget-S PCI (rev AL/alps frontend)", BUDGET_FS_ACTIVY);
 
@@ -508,6 +534,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbt,  0x13c2, 0x1005),
 	MAKE_EXTENSION_PCI(satel, 0x13c2, 0x1013),
 	MAKE_EXTENSION_PCI(ttbs,  0x13c2, 0x1016),
+	MAKE_EXTENSION_PCI(ttbs1401, 0x13c2, 0x1018),
 	MAKE_EXTENSION_PCI(fsacs1,0x1131, 0x4f60),
 	MAKE_EXTENSION_PCI(fsacs0,0x1131, 0x4f61),
 	{
