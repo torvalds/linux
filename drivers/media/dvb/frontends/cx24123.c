@@ -903,6 +903,29 @@ static int cx24123_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 	return 0;
 }
 
+static int cx24123_tune(struct dvb_frontend* fe,
+			struct dvb_frontend_parameters* params,
+			unsigned int mode_flags,
+			int *delay,
+			fe_status_t *status)
+{
+	int retval = 0;
+
+	if (params != NULL)
+		retval = cx24123_set_frontend(fe, params);
+
+	if (!(mode_flags & FE_TUNE_MODE_ONESHOT))
+		cx24123_read_status(fe, status);
+	*delay = HZ/10;
+
+	return retval;
+}
+
+static int cx24123_get_algo(struct dvb_frontend *fe)
+{
+	return 1; //FE_ALGO_HW
+}
+
 static void cx24123_release(struct dvb_frontend* fe)
 {
 	struct cx24123_state* state = fe->demodulator_priv;
@@ -986,6 +1009,8 @@ static struct dvb_frontend_ops cx24123_ops = {
 	.diseqc_send_burst = cx24123_diseqc_send_burst,
 	.set_tone = cx24123_set_tone,
 	.set_voltage = cx24123_set_voltage,
+	.tune = cx24123_tune,
+	.get_frontend_algo = cx24123_get_algo,
 };
 
 module_param(debug, int, 0644);
