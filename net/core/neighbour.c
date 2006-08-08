@@ -1754,28 +1754,61 @@ static inline struct neigh_parms *lookup_neigh_params(struct neigh_table *tbl,
 	return NULL;
 }
 
+static struct nla_policy nl_neightbl_policy[NDTA_MAX+1] __read_mostly = {
+	[NDTA_NAME]		= { .type = NLA_STRING },
+	[NDTA_THRESH1]		= { .type = NLA_U32 },
+	[NDTA_THRESH2]		= { .type = NLA_U32 },
+	[NDTA_THRESH3]		= { .type = NLA_U32 },
+	[NDTA_GC_INTERVAL]	= { .type = NLA_U64 },
+	[NDTA_PARMS]		= { .type = NLA_NESTED },
+};
+
+static struct nla_policy nl_ntbl_parm_policy[NDTPA_MAX+1] __read_mostly = {
+	[NDTPA_IFINDEX]			= { .type = NLA_U32 },
+	[NDTPA_QUEUE_LEN]		= { .type = NLA_U32 },
+	[NDTPA_PROXY_QLEN]		= { .type = NLA_U32 },
+	[NDTPA_APP_PROBES]		= { .type = NLA_U32 },
+	[NDTPA_UCAST_PROBES]		= { .type = NLA_U32 },
+	[NDTPA_MCAST_PROBES]		= { .type = NLA_U32 },
+	[NDTPA_BASE_REACHABLE_TIME]	= { .type = NLA_U64 },
+	[NDTPA_GC_STALETIME]		= { .type = NLA_U64 },
+	[NDTPA_DELAY_PROBE_TIME]	= { .type = NLA_U64 },
+	[NDTPA_RETRANS_TIME]		= { .type = NLA_U64 },
+	[NDTPA_ANYCAST_DELAY]		= { .type = NLA_U64 },
+	[NDTPA_PROXY_DELAY]		= { .type = NLA_U64 },
+	[NDTPA_LOCKTIME]		= { .type = NLA_U64 },
+};
+
 int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct neigh_table *tbl;
-	struct ndtmsg *ndtmsg = NLMSG_DATA(nlh);
-	struct rtattr **tb = arg;
-	int err = -EINVAL;
+	struct ndtmsg *ndtmsg;
+	struct nlattr *tb[NDTA_MAX+1];
+	int err;
 
-	if (!tb[NDTA_NAME - 1] || !RTA_PAYLOAD(tb[NDTA_NAME - 1]))
-		return -EINVAL;
+	err = nlmsg_parse(nlh, sizeof(*ndtmsg), tb, NDTA_MAX,
+			  nl_neightbl_policy);
+	if (err < 0)
+		goto errout;
 
+	if (tb[NDTA_NAME] == NULL) {
+		err = -EINVAL;
+		goto errout;
+	}
+
+	ndtmsg = nlmsg_data(nlh);
 	read_lock(&neigh_tbl_lock);
 	for (tbl = neigh_tables; tbl; tbl = tbl->next) {
 		if (ndtmsg->ndtm_family && tbl->family != ndtmsg->ndtm_family)
 			continue;
 
-		if (!rtattr_strcmp(tb[NDTA_NAME - 1], tbl->id))
+		if (nla_strcmp(tb[NDTA_NAME], tbl->id) == 0)
 			break;
 	}
 
 	if (tbl == NULL) {
 		err = -ENOENT;
-		goto errout;
+		goto errout_locked;
 	}
 
 	/* 
@@ -1784,86 +1817,89 @@ int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	 */
 	write_lock_bh(&tbl->lock);
 
-	if (tb[NDTA_THRESH1 - 1])
-		tbl->gc_thresh1 = RTA_GET_U32(tb[NDTA_THRESH1 - 1]);
-
-	if (tb[NDTA_THRESH2 - 1])
-		tbl->gc_thresh2 = RTA_GET_U32(tb[NDTA_THRESH2 - 1]);
-
-	if (tb[NDTA_THRESH3 - 1])
-		tbl->gc_thresh3 = RTA_GET_U32(tb[NDTA_THRESH3 - 1]);
-
-	if (tb[NDTA_GC_INTERVAL - 1])
-		tbl->gc_interval = RTA_GET_MSECS(tb[NDTA_GC_INTERVAL - 1]);
-
-	if (tb[NDTA_PARMS - 1]) {
-		struct rtattr *tbp[NDTPA_MAX];
+	if (tb[NDTA_PARMS]) {
+		struct nlattr *tbp[NDTPA_MAX+1];
 		struct neigh_parms *p;
-		u32 ifindex = 0;
+		int i, ifindex = 0;
 
-		if (rtattr_parse_nested(tbp, NDTPA_MAX, tb[NDTA_PARMS - 1]) < 0)
-			goto rtattr_failure;
+		err = nla_parse_nested(tbp, NDTPA_MAX, tb[NDTA_PARMS],
+				       nl_ntbl_parm_policy);
+		if (err < 0)
+			goto errout_tbl_lock;
 
-		if (tbp[NDTPA_IFINDEX - 1])
-			ifindex = RTA_GET_U32(tbp[NDTPA_IFINDEX - 1]);
+		if (tbp[NDTPA_IFINDEX])
+			ifindex = nla_get_u32(tbp[NDTPA_IFINDEX]);
 
 		p = lookup_neigh_params(tbl, ifindex);
 		if (p == NULL) {
 			err = -ENOENT;
-			goto rtattr_failure;
+			goto errout_tbl_lock;
 		}
-	
-		if (tbp[NDTPA_QUEUE_LEN - 1])
-			p->queue_len = RTA_GET_U32(tbp[NDTPA_QUEUE_LEN - 1]);
 
-		if (tbp[NDTPA_PROXY_QLEN - 1])
-			p->proxy_qlen = RTA_GET_U32(tbp[NDTPA_PROXY_QLEN - 1]);
+		for (i = 1; i <= NDTPA_MAX; i++) {
+			if (tbp[i] == NULL)
+				continue;
 
-		if (tbp[NDTPA_APP_PROBES - 1])
-			p->app_probes = RTA_GET_U32(tbp[NDTPA_APP_PROBES - 1]);
-
-		if (tbp[NDTPA_UCAST_PROBES - 1])
-			p->ucast_probes =
-			   RTA_GET_U32(tbp[NDTPA_UCAST_PROBES - 1]);
-
-		if (tbp[NDTPA_MCAST_PROBES - 1])
-			p->mcast_probes =
-			   RTA_GET_U32(tbp[NDTPA_MCAST_PROBES - 1]);
-
-		if (tbp[NDTPA_BASE_REACHABLE_TIME - 1])
-			p->base_reachable_time =
-			   RTA_GET_MSECS(tbp[NDTPA_BASE_REACHABLE_TIME - 1]);
-
-		if (tbp[NDTPA_GC_STALETIME - 1])
-			p->gc_staletime =
-			   RTA_GET_MSECS(tbp[NDTPA_GC_STALETIME - 1]);
-
-		if (tbp[NDTPA_DELAY_PROBE_TIME - 1])
-			p->delay_probe_time =
-			   RTA_GET_MSECS(tbp[NDTPA_DELAY_PROBE_TIME - 1]);
-
-		if (tbp[NDTPA_RETRANS_TIME - 1])
-			p->retrans_time =
-			   RTA_GET_MSECS(tbp[NDTPA_RETRANS_TIME - 1]);
-
-		if (tbp[NDTPA_ANYCAST_DELAY - 1])
-			p->anycast_delay =
-			   RTA_GET_MSECS(tbp[NDTPA_ANYCAST_DELAY - 1]);
-
-		if (tbp[NDTPA_PROXY_DELAY - 1])
-			p->proxy_delay =
-			   RTA_GET_MSECS(tbp[NDTPA_PROXY_DELAY - 1]);
-
-		if (tbp[NDTPA_LOCKTIME - 1])
-			p->locktime = RTA_GET_MSECS(tbp[NDTPA_LOCKTIME - 1]);
+			switch (i) {
+			case NDTPA_QUEUE_LEN:
+				p->queue_len = nla_get_u32(tbp[i]);
+				break;
+			case NDTPA_PROXY_QLEN:
+				p->proxy_qlen = nla_get_u32(tbp[i]);
+				break;
+			case NDTPA_APP_PROBES:
+				p->app_probes = nla_get_u32(tbp[i]);
+				break;
+			case NDTPA_UCAST_PROBES:
+				p->ucast_probes = nla_get_u32(tbp[i]);
+				break;
+			case NDTPA_MCAST_PROBES:
+				p->mcast_probes = nla_get_u32(tbp[i]);
+				break;
+			case NDTPA_BASE_REACHABLE_TIME:
+				p->base_reachable_time = nla_get_msecs(tbp[i]);
+				break;
+			case NDTPA_GC_STALETIME:
+				p->gc_staletime = nla_get_msecs(tbp[i]);
+				break;
+			case NDTPA_DELAY_PROBE_TIME:
+				p->delay_probe_time = nla_get_msecs(tbp[i]);
+				break;
+			case NDTPA_RETRANS_TIME:
+				p->retrans_time = nla_get_msecs(tbp[i]);
+				break;
+			case NDTPA_ANYCAST_DELAY:
+				p->anycast_delay = nla_get_msecs(tbp[i]);
+				break;
+			case NDTPA_PROXY_DELAY:
+				p->proxy_delay = nla_get_msecs(tbp[i]);
+				break;
+			case NDTPA_LOCKTIME:
+				p->locktime = nla_get_msecs(tbp[i]);
+				break;
+			}
+		}
 	}
+
+	if (tb[NDTA_THRESH1])
+		tbl->gc_thresh1 = nla_get_u32(tb[NDTA_THRESH1]);
+
+	if (tb[NDTA_THRESH2])
+		tbl->gc_thresh2 = nla_get_u32(tb[NDTA_THRESH2]);
+
+	if (tb[NDTA_THRESH3])
+		tbl->gc_thresh3 = nla_get_u32(tb[NDTA_THRESH3]);
+
+	if (tb[NDTA_GC_INTERVAL])
+		tbl->gc_interval = nla_get_msecs(tb[NDTA_GC_INTERVAL]);
 
 	err = 0;
 
-rtattr_failure:
+errout_tbl_lock:
 	write_unlock_bh(&tbl->lock);
-errout:
+errout_locked:
 	read_unlock(&neigh_tbl_lock);
+errout:
 	return err;
 }
 
