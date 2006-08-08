@@ -32,8 +32,17 @@ struct tda10021_config
 	u8 demod_address;
 };
 
+#if defined(CONFIG_DVB_TDA10021) || defined(CONFIG_DVB_TDA10021_MODULE)
 extern struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
 					    struct i2c_adapter* i2c, u8 pwm);
+#else
+static inline struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
+					    struct i2c_adapter* i2c, u8 pwm)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	return NULL;
+}
+#endif // CONFIG_DVB_TDA10021
 
 static inline int tda10021_writereg(struct dvb_frontend *fe, u8 reg, u8 val) {
 	int r = 0;

@@ -86,10 +86,10 @@ config DVB_USB_UMT_010
 config DVB_USB_CXUSB
 	tristate "Conexant USB2.0 hybrid reference design support"
 	depends on DVB_USB
-	select DVB_CX22702
-	select DVB_LGDT330X
-	select DVB_MT352
-	select DVB_ZL10353
+	select DVB_CX22702 if !DVB_FE_CUSTOMISE
+	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
+	select DVB_MT352 if !DVB_FE_CUSTOMISE
+	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Conexant USB2.0 hybrid reference design.
 	  Currently, only DVB and ATSC modes are supported, analog mode
@@ -101,8 +101,8 @@ config DVB_USB_CXUSB
 config DVB_USB_DIGITV
 	tristate "Nebula Electronics uDigiTV DVB-T USB2.0 support"
 	depends on DVB_USB
-	select DVB_NXT6000
-	select DVB_MT352
+	select DVB_NXT6000 if !DVB_FE_CUSTOMISE
+	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Nebula Electronics uDigitV USB2.0 DVB-T receiver.
 

@@ -33,7 +33,16 @@ struct zl10353_config
 	int no_tuner;
 };
 
+#if defined(CONFIG_DVB_ZL10353) || defined(CONFIG_DVB_ZL10353_MODULE)
 extern struct dvb_frontend* zl10353_attach(const struct zl10353_config *config,
 					   struct i2c_adapter *i2c);
+#else
+static inline struct dvb_frontend* zl10353_attach(const struct zl10353_config *config,
+					   struct i2c_adapter *i2c)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	return NULL;
+}
+#endif // CONFIG_DVB_ZL10353
 
 #endif /* ZL10353_H */

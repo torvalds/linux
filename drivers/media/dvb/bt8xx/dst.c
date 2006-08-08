@@ -1716,8 +1716,10 @@ static void dst_release(struct dvb_frontend *fe)
 {
 	struct dst_state *state = fe->demodulator_priv;
 
+#ifdef CONFIG_DVB_CORE_ATTACH
 	if (state->dst_hw_cap & DST_TYPE_HAS_CA)
 		symbol_put(dst_ca_attach);
+#endif
 
 	kfree(state);
 }
