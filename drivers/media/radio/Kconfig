@@ -160,7 +160,7 @@ config RADIO_MAXIRADIO
 
 config RADIO_MAESTRO
 	tristate "Maestro on board radio"
-	depends on VIDEO_V4L1
+	depends on VIDEO_V4L2 && PCI
 	---help---
 	  Say Y here to directly support the on-board radio tuner on the
 	  Maestro 2 or 2E sound card.
