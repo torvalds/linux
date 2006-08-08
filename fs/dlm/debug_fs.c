@@ -310,16 +310,19 @@ static ssize_t waiters_read(struct file *file, char __user *userbuf,
 {
 	struct dlm_ls *ls = file->private_data;
 	struct dlm_lkb *lkb;
-	size_t len = DLM_DEBUG_BUF_LEN, pos = 0, rv;
+	size_t len = DLM_DEBUG_BUF_LEN, pos = 0, ret, rv;
 
 	mutex_lock(&debug_buf_lock);
 	mutex_lock(&ls->ls_waiters_mutex);
 	memset(debug_buf, 0, sizeof(debug_buf));
 
 	list_for_each_entry(lkb, &ls->ls_waiters, lkb_wait_reply) {
-		pos += snprintf(debug_buf + pos, len - pos, "%x %d %d %s\n",
-				lkb->lkb_id, lkb->lkb_wait_type,
-				lkb->lkb_nodeid, lkb->lkb_resource->res_name);
+		ret = snprintf(debug_buf + pos, len - pos, "%x %d %d %s\n",
+			       lkb->lkb_id, lkb->lkb_wait_type,
+			       lkb->lkb_nodeid, lkb->lkb_resource->res_name);
+		if (ret >= len - pos)
+			break;
+		pos += ret;
 	}
 	mutex_unlock(&ls->ls_waiters_mutex);
 
