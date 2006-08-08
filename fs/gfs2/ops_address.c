@@ -131,8 +131,8 @@ static int get_block_noalloc(struct inode *inode, sector_t lblock,
 static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
-	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
-	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	loff_t i_size = i_size_read(inode);
 	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
 	unsigned offset;
@@ -158,6 +158,10 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 		error = gfs2_trans_begin(sdp, RES_DINODE + 1, 0);
 		if (error)
 			goto out_ignore;
+		if (!page_has_buffers(page)) {
+			create_empty_buffers(page, inode->i_sb->s_blocksize,
+					     (1 << BH_Dirty)|(1 << BH_Uptodate));
+		}
 		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize-1);
 		done_trans = 1;
 	}
