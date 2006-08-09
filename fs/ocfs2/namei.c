@@ -310,13 +310,6 @@ static int ocfs2_mknod(struct inode *dir,
 	/* get our super block */
 	osb = OCFS2_SB(dir->i_sb);
 
-	if (S_ISDIR(mode) && (dir->i_nlink >= OCFS2_LINK_MAX)) {
-		mlog(ML_ERROR, "inode %llu has i_nlink of %u\n",
-		     (unsigned long long)OCFS2_I(dir)->ip_blkno, dir->i_nlink);
-		status = -EMLINK;
-		goto leave;
-	}
-
 	handle = ocfs2_alloc_handle(osb);
 	if (handle == NULL) {
 		status = -ENOMEM;
@@ -328,6 +321,11 @@ static int ocfs2_mknod(struct inode *dir,
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
+		goto leave;
+	}
+
+	if (S_ISDIR(mode) && (dir->i_nlink >= OCFS2_LINK_MAX)) {
+		status = -EMLINK;
 		goto leave;
 	}
 
