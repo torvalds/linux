@@ -627,6 +627,7 @@ static int secref_whitelist(const char *modname, const char *tosec,
 		    (strcmp(tosec, ".init.text") == 0))
 		return 1;
 	}
+	return 0;
 }
 
 /**
