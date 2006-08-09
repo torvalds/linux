@@ -59,7 +59,7 @@ extern int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
 static DEFINE_SPINLOCK(dn_fib_multipath_lock);
 static struct dn_fib_info *dn_fib_info_list;
-static DEFINE_RWLOCK(dn_fib_info_lock);
+static DEFINE_SPINLOCK(dn_fib_info_lock);
 
 static struct
 {
@@ -97,7 +97,7 @@ void dn_fib_free_info(struct dn_fib_info *fi)
 
 void dn_fib_release_info(struct dn_fib_info *fi)
 {
-	write_lock(&dn_fib_info_lock);
+	spin_lock(&dn_fib_info_lock);
 	if (fi && --fi->fib_treeref == 0) {
 		if (fi->fib_next)
 			fi->fib_next->fib_prev = fi->fib_prev;
@@ -108,7 +108,7 @@ void dn_fib_release_info(struct dn_fib_info *fi)
 		fi->fib_dead = 1;
 		dn_fib_info_put(fi);
 	}
-	write_unlock(&dn_fib_info_lock);
+	spin_unlock(&dn_fib_info_lock);
 }
 
 static inline int dn_fib_nh_comp(const struct dn_fib_info *fi, const struct dn_fib_info *ofi)
@@ -379,13 +379,13 @@ link_it:
 
 	fi->fib_treeref++;
 	atomic_inc(&fi->fib_clntref);
-	write_lock(&dn_fib_info_lock);
+	spin_lock(&dn_fib_info_lock);
 	fi->fib_next = dn_fib_info_list;
 	fi->fib_prev = NULL;
 	if (dn_fib_info_list)
 		dn_fib_info_list->fib_prev = fi;
 	dn_fib_info_list = fi;
-	write_unlock(&dn_fib_info_lock);
+	spin_unlock(&dn_fib_info_lock);
 	return fi;
 
 err_inval:
