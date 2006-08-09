@@ -99,7 +99,7 @@ static char *revo51_channel_names[] = {"PCM Playback Volume", "PCM Center Playba
 					"PCM LFE Playback Volume", "PCM Rear Playback Volume"};
 
 static unsigned int revo51_adc_num_stereo[] = {2};
-static char *revo51_adc_channel_names[] = {"PCM Capture Volume"};
+static char *revo51_adc_channel_names[] = {"PCM Capture Volume","PCM Capture Switch"};
 
 static struct snd_akm4xxx akm_revo_front __devinitdata = {
 	.type = SND_AK4381,
