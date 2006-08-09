@@ -223,7 +223,6 @@ static void put_ep (struct ep_data *data)
 	/* needs no more cleanup */
 	BUG_ON (!list_empty (&data->epfiles));
 	BUG_ON (waitqueue_active (&data->wait));
-	BUG_ON (down_trylock (&data->lock) != 0);
 	kfree (data);
 }
 
