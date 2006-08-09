@@ -46,6 +46,7 @@
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/flow.h>
+#include <net/fib_rules.h>
 #include <net/dn.h>
 #include <net/dn_dev.h>
 #include <net/dn_route.h>
@@ -1418,8 +1419,6 @@ static struct rtnetlink_link dnet_rtnetlink_table[RTM_NR_MSGTYPES] =
 	[RTM_DELROUTE - RTM_BASE] = { .doit	= dn_fib_rtm_delroute,	},
 	[RTM_GETROUTE - RTM_BASE] = { .doit	= dn_cache_getroute,
 				      .dumpit	= dn_fib_dump,		},
-	[RTM_NEWRULE  - RTM_BASE] = { .doit	= dn_fib_rtm_newrule,	},
-	[RTM_DELRULE  - RTM_BASE] = { .doit	= dn_fib_rtm_delrule,	},
 	[RTM_GETRULE  - RTM_BASE] = { .dumpit	= dn_fib_dump_rules,	},
 #else
 	[RTM_GETROUTE - RTM_BASE] = { .doit	= dn_cache_getroute,

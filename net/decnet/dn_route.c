@@ -80,6 +80,7 @@
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/flow.h>
+#include <net/fib_rules.h>
 #include <net/dn.h>
 #include <net/dn_dev.h>
 #include <net/dn_nsp.h>
@@ -1284,7 +1285,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 		dev_hold(out_dev);
 
 		if (res.r)
-			src_map = dn_fib_rules_policy(fl.fld_src, &res, &flags);
+			src_map = fl.fld_src; /* no NAT support for now */
 
 		gateway = DN_FIB_RES_GW(res);
 		if (res.type == RTN_NAT) {

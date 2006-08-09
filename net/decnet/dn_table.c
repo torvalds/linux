@@ -30,6 +30,7 @@
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/flow.h>
+#include <net/fib_rules.h>
 #include <net/dn.h>
 #include <net/dn_route.h>
 #include <net/dn_fib.h>

@@ -22,7 +22,7 @@ struct dn_kern_rta
 };
 
 struct dn_fib_res {
-	struct dn_fib_rule *r;
+	struct fib_rule *r;
 	struct dn_fib_info *fi;
 	unsigned char prefixlen;
 	unsigned char nh_sel;
@@ -147,10 +147,8 @@ extern void dn_fib_table_cleanup(void);
  */
 extern void dn_fib_rules_init(void);
 extern void dn_fib_rules_cleanup(void);
-extern void dn_fib_rule_put(struct dn_fib_rule *);
-extern __le16 dn_fib_rules_policy(__le16 saddr, struct dn_fib_res *res, unsigned *flags);
 extern unsigned dnet_addr_type(__le16 addr);
-extern int dn_fib_lookup(const struct flowi *fl, struct dn_fib_res *res);
+extern int dn_fib_lookup(struct flowi *fl, struct dn_fib_res *res);
 
 /*
  * rtnetlink interface
@@ -176,7 +174,7 @@ static inline void dn_fib_res_put(struct dn_fib_res *res)
 	if (res->fi)
 		dn_fib_info_put(res->fi);
 	if (res->r)
-		dn_fib_rule_put(res->r);
+		fib_rule_put(res->r);
 }
 
 extern struct dn_fib_table *dn_fib_tables[];
