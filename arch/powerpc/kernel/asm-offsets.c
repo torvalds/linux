@@ -42,6 +42,7 @@
 #include <asm/lppaca.h>
 #include <asm/cache.h>
 #include <asm/compat.h>
+#include <asm/mmu.h>
 #endif
 
 #define DEFINE(sym, val) \
@@ -137,6 +138,10 @@ int main(void)
 	DEFINE(PACA_SYSTEM_TIME, offsetof(struct paca_struct, system_time));
 	DEFINE(PACA_SLBSHADOWPTR, offsetof(struct paca_struct, slb_shadow_ptr));
 
+	DEFINE(SLBSHADOW_STACKVSID,
+	       offsetof(struct slb_shadow, save_area[SLB_NUM_BOLTED - 1].vsid));
+	DEFINE(SLBSHADOW_STACKESID,
+	       offsetof(struct slb_shadow, save_area[SLB_NUM_BOLTED - 1].esid));
 	DEFINE(LPPACASRR0, offsetof(struct lppaca, saved_srr0));
 	DEFINE(LPPACASRR1, offsetof(struct lppaca, saved_srr1));
 	DEFINE(LPPACAANYINT, offsetof(struct lppaca, int_dword.any_int));

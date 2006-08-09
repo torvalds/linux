@@ -323,11 +323,6 @@ _GLOBAL(ret_from_fork)
  * The code which creates the new task context is in 'copy_thread'
  * in arch/powerpc/kernel/process.c 
  */
-#define SHADOW_SLB_BOLTED_STACK_ESID \
-		(SLBSHADOW_SAVEAREA + 0x10*(SLB_NUM_BOLTED-1))
-#define SHADOW_SLB_BOLTED_STACK_VSID \
-		(SLBSHADOW_SAVEAREA + 0x10*(SLB_NUM_BOLTED-1) + 8)
-
 	.align	7
 _GLOBAL(_switch)
 	mflr	r0
@@ -383,10 +378,10 @@ BEGIN_FTR_SECTION
 
 	/* Update the last bolted SLB */
 	ld	r9,PACA_SLBSHADOWPTR(r13)
- 	li	r12,0
-  	std	r12,SHADOW_SLB_BOLTED_STACK_ESID(r9) /* Clear ESID */
-	std	r7,SHADOW_SLB_BOLTED_STACK_VSID(r9)  /* Save VSID */
- 	std	r0,SHADOW_SLB_BOLTED_STACK_ESID(r9)  /* Save ESID */
+	li	r12,0
+	std	r12,SLBSHADOW_STACKESID(r9) /* Clear ESID */
+	std	r7,SLBSHADOW_STACKVSID(r9)  /* Save VSID */
+	std	r0,SLBSHADOW_STACKESID(r9)  /* Save ESID */
 
 	slbie	r6
 	slbie	r6		/* Workaround POWER5 < DD2.1 issue */
