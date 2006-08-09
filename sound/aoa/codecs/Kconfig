@@ -1,6 +1,8 @@
 config SND_AOA_ONYX
 	tristate "support Onyx chip"
 	depends on SND_AOA
+	select I2C
+	select I2C_POWERMAC
 	---help---
 	This option enables support for the Onyx (pcm3052)
 	codec chip found in the latest Apple machines
@@ -18,6 +20,8 @@ config SND_AOA_ONYX
 config SND_AOA_TAS
 	tristate "support TAS chips"
 	depends on SND_AOA
+	select I2C
+	select I2C_POWERMAC
 	---help---
 	This option enables support for the tas chips
 	found in a lot of Apple Machines, especially
