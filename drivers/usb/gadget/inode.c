@@ -32,6 +32,7 @@
 #include <linux/compiler.h>
 #include <asm/uaccess.h>
 #include <linux/slab.h>
+#include <linux/poll.h>
 
 #include <linux/device.h>
 #include <linux/moduleparam.h>
@@ -1235,6 +1236,35 @@ dev_release (struct inode *inode, struct file *fd)
 	return 0;
 }
 
+static unsigned int
+ep0_poll (struct file *fd, poll_table *wait)
+{
+       struct dev_data         *dev = fd->private_data;
+       int                     mask = 0;
+
+       poll_wait(fd, &dev->wait, wait);
+
+       spin_lock_irq (&dev->lock);
+
+       /* report fd mode change before acting on it */
+       if (dev->setup_abort) {
+               dev->setup_abort = 0;
+               mask = POLLHUP;
+               goto out;
+       }
+
+       if (dev->state == STATE_SETUP) {
+               if (dev->setup_in || dev->setup_can_stall)
+                       mask = POLLOUT;
+       } else {
+               if (dev->ev_next != 0)
+                       mask = POLLIN;
+       }
+out:
+       spin_unlock_irq(&dev->lock);
+       return mask;
+}
+
 static int dev_ioctl (struct inode *inode, struct file *fd,
 		unsigned code, unsigned long value)
 {
@@ -1254,7 +1284,7 @@ static const struct file_operations ep0_io_operations = {
 	.read =		ep0_read,
 	.write =	ep0_write,
 	.fasync =	ep0_fasync,
-	// .poll =	ep0_poll,
+	.poll =		ep0_poll,
 	.ioctl =	dev_ioctl,
 	.release =	dev_release,
 };
