@@ -2353,6 +2353,19 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 			ata_gen_ata_desc_sense(qc);
 		}
 
+		/* SCSI EH automatically locks door if sdev->locked is
+		 * set.  Sometimes door lock request continues to
+		 * fail, for example, when no media is present.  This
+		 * creates a loop - SCSI EH issues door lock which
+		 * fails and gets invoked again to acquire sense data
+		 * for the failed command.
+		 *
+		 * If door lock fails, always clear sdev->locked to
+		 * avoid this infinite loop.
+		 */
+		if (qc->cdb[0] == ALLOW_MEDIUM_REMOVAL)
+			qc->dev->sdev->locked = 0;
+
 		qc->scsicmd->result = SAM_STAT_CHECK_CONDITION;
 		qc->scsidone(cmd);
 		ata_qc_free(qc);
