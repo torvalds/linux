@@ -137,6 +137,8 @@ void snd_akm4xxx_reset(struct snd_akm4xxx *ak, int state)
 	case SND_AK4381:
 		ak4381_reset(ak, state);
 		break;
+	default:
+		break;
 	}
 }
 
@@ -727,6 +729,9 @@ int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
 		case SND_AK4381:
 			ctl->private_value = AK_COMPOSE(idx, 1, 1, 0);
 			break;
+		default:
+			err = -EINVAL;
+			goto __error;
 		}
 		ctl->private_data = ak;
 		err = snd_ctl_add(ak->card,
