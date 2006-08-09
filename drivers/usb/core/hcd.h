@@ -192,6 +192,9 @@ struct hc_driver {
 	/* cleanly make HCD stop writing memory and doing I/O */
 	void	(*stop) (struct usb_hcd *hcd);
 
+	/* shutdown HCD */
+	void	(*shutdown) (struct usb_hcd *hcd);
+
 	/* return current frame number */
 	int	(*get_frame_number) (struct usb_hcd *hcd);
 
@@ -227,6 +230,9 @@ extern int usb_add_hcd(struct usb_hcd *hcd,
 		unsigned int irqnum, unsigned long irqflags);
 extern void usb_remove_hcd(struct usb_hcd *hcd);
 
+struct platform_device;
+extern void usb_hcd_platform_shutdown(struct platform_device* dev);
+
 #ifdef CONFIG_PCI
 struct pci_dev;
 struct pci_device_id;
@@ -238,6 +244,8 @@ extern void usb_hcd_pci_remove (struct pci_dev *dev);
 extern int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t state);
 extern int usb_hcd_pci_resume (struct pci_dev *dev);
 #endif /* CONFIG_PM */
+
+extern void usb_hcd_pci_shutdown (struct pci_dev *dev);
 
 #endif /* CONFIG_PCI */
 

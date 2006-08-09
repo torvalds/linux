@@ -447,6 +447,7 @@ static const struct hc_driver ohci_s3c2410_hc_driver = {
 	 */
 	.start =		ohci_s3c2410_start,
 	.stop =			ohci_stop,
+	.shutdown = 		ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -491,6 +492,7 @@ static int ohci_hcd_s3c2410_drv_remove(struct platform_device *pdev)
 static struct platform_driver ohci_hcd_s3c2410_driver = {
 	.probe		= ohci_hcd_s3c2410_drv_probe,
 	.remove		= ohci_hcd_s3c2410_drv_remove,
+	.shutdown 	= usb_hcd_platform_shutdown,
 	/*.suspend	= ohci_hcd_s3c2410_drv_suspend, */
 	/*.resume	= ohci_hcd_s3c2410_drv_resume, */
 	.driver		= {

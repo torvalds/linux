@@ -174,6 +174,7 @@ static const struct hc_driver ohci_lh7a404_hc_driver = {
 	 */
 	.start =		ohci_lh7a404_start,
 	.stop =			ohci_stop,
+	.shutdown = 		ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -241,6 +242,7 @@ static int ohci_hcd_lh7a404_drv_resume(struct platform_device *dev)
 static struct platform_driver ohci_hcd_lh7a404_driver = {
 	.probe		= ohci_hcd_lh7a404_drv_probe,
 	.remove		= ohci_hcd_lh7a404_drv_remove,
+	.shutdown 	= usb_hcd_platform_shutdown,
 	/*.suspend	= ohci_hcd_lh7a404_drv_suspend, */
 	/*.resume	= ohci_hcd_lh7a404_drv_resume, */
 	.driver		= {

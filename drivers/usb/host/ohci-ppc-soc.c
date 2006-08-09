@@ -148,6 +148,7 @@ static const struct hc_driver ohci_ppc_soc_hc_driver = {
 	 */
 	.start =		ohci_ppc_soc_start,
 	.stop =			ohci_stop,
+	.shutdown = 		ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -196,6 +197,7 @@ static int ohci_hcd_ppc_soc_drv_remove(struct platform_device *pdev)
 static struct platform_driver ohci_hcd_ppc_soc_driver = {
 	.probe		= ohci_hcd_ppc_soc_drv_probe,
 	.remove		= ohci_hcd_ppc_soc_drv_remove,
+	.shutdown 	= usb_hcd_platform_shutdown,
 #ifdef	CONFIG_PM
 	/*.suspend	= ohci_hcd_ppc_soc_drv_suspend,*/
 	/*.resume	= ohci_hcd_ppc_soc_drv_resume,*/

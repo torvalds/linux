@@ -136,7 +136,6 @@ static const char	hcd_name [] = "ohci_hcd";
 static void ohci_dump (struct ohci_hcd *ohci, int verbose);
 static int ohci_init (struct ohci_hcd *ohci);
 static void ohci_stop (struct usb_hcd *hcd);
-static int ohci_reboot (struct notifier_block *, unsigned long , void *);
 
 #include "ohci-hub.c"
 #include "ohci-dbg.c"
@@ -419,21 +418,20 @@ static void ohci_usb_reset (struct ohci_hcd *ohci)
 	ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
 }
 
-/* reboot notifier forcibly disables IRQs and DMA, helping kexec and
+/* ohci_shutdown forcibly disables IRQs and DMA, helping kexec and
  * other cases where the next software may expect clean state from the
  * "firmware".  this is bus-neutral, unlike shutdown() methods.
  */
-static int
-ohci_reboot (struct notifier_block *block, unsigned long code, void *null)
+static void
+ohci_shutdown (struct usb_hcd *hcd)
 {
 	struct ohci_hcd *ohci;
 
-	ohci = container_of (block, struct ohci_hcd, reboot_notifier);
+	ohci = hcd_to_ohci (hcd);
 	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
 	ohci_usb_reset (ohci);
 	/* flush the writes */
 	(void) ohci_readl (ohci, &ohci->regs->control);
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*
@@ -504,7 +502,6 @@ static int ohci_init (struct ohci_hcd *ohci)
 	if ((ret = ohci_mem_init (ohci)) < 0)
 		ohci_stop (hcd);
 	else {
-		register_reboot_notifier (&ohci->reboot_notifier);
 		create_debug_files (ohci);
 	}
 
@@ -800,7 +797,6 @@ static void ohci_stop (struct usb_hcd *hcd)
 	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
 	
 	remove_debug_files (ohci);
-	unregister_reboot_notifier (&ohci->reboot_notifier);
 	ohci_mem_cleanup (ohci);
 	if (ohci->hcca) {
 		dma_free_coherent (hcd->self.controller, 

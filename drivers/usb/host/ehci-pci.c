@@ -338,6 +338,7 @@ static const struct hc_driver ehci_pci_hc_driver = {
 	.resume =		ehci_pci_resume,
 #endif
 	.stop =			ehci_stop,
+	.shutdown =		ehci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -384,4 +385,5 @@ static struct pci_driver ehci_pci_driver = {
 	.suspend =	usb_hcd_pci_suspend,
 	.resume =	usb_hcd_pci_resume,
 #endif
+	.shutdown = 	usb_hcd_pci_shutdown,
 };

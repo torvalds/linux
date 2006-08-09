@@ -292,21 +292,20 @@ static void ehci_watchdog (unsigned long param)
 	spin_unlock_irqrestore (&ehci->lock, flags);
 }
 
-/* Reboot notifiers kick in for silicon on any bus (not just pci, etc).
+/* ehci_shutdown kick in for silicon on any bus (not just pci, etc).
  * This forcibly disables dma and IRQs, helping kexec and other cases
  * where the next system software may expect clean state.
  */
-static int
-ehci_reboot (struct notifier_block *self, unsigned long code, void *null)
+static void
+ehci_shutdown (struct usb_hcd *hcd)
 {
-	struct ehci_hcd		*ehci;
+	struct ehci_hcd	*ehci;
 
-	ehci = container_of (self, struct ehci_hcd, reboot_notifier);
+	ehci = hcd_to_ehci (hcd);
 	(void) ehci_halt (ehci);
 
 	/* make BIOS/etc use companion controller during reboot */
 	writel (0, &ehci->regs->configured_flag);
-	return 0;
 }
 
 static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
@@ -381,7 +380,6 @@ static void ehci_stop (struct usb_hcd *hcd)
 
 	/* let companion controllers work when we aren't */
 	writel (0, &ehci->regs->configured_flag);
-	unregister_reboot_notifier (&ehci->reboot_notifier);
 
 	remove_debug_files (ehci);
 
@@ -483,9 +481,6 @@ static int ehci_init(struct usb_hcd *hcd)
 	}
 	ehci->command = temp;
 
-	ehci->reboot_notifier.notifier_call = ehci_reboot;
-	register_reboot_notifier(&ehci->reboot_notifier);
-
 	return 0;
 }
 
@@ -499,7 +494,6 @@ static int ehci_run (struct usb_hcd *hcd)
 
 	/* EHCI spec section 4.1 */
 	if ((retval = ehci_reset(ehci)) != 0) {
-		unregister_reboot_notifier(&ehci->reboot_notifier);
 		ehci_mem_cleanup(ehci);
 		return retval;
 	}

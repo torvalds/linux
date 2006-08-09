@@ -128,6 +128,7 @@ static struct hc_driver ohci_ep93xx_hc_driver = {
 	.flags			= HCD_USB11 | HCD_MEMORY,
 	.start			= ohci_ep93xx_start,
 	.stop			= ohci_stop,
+	.shutdown		= ohci_shutdown,
 	.urb_enqueue		= ohci_urb_enqueue,
 	.urb_dequeue		= ohci_urb_dequeue,
 	.endpoint_disable	= ohci_endpoint_disable,
@@ -203,6 +204,7 @@ static int ohci_hcd_ep93xx_drv_resume(struct platform_device *pdev)
 static struct platform_driver ohci_hcd_ep93xx_driver = {
 	.probe		= ohci_hcd_ep93xx_drv_probe,
 	.remove		= ohci_hcd_ep93xx_drv_remove,
+	.shutdown 	= usb_hcd_platform_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= ohci_hcd_ep93xx_drv_suspend,
 	.resume		= ohci_hcd_ep93xx_drv_resume,

@@ -82,7 +82,6 @@ struct ehci_hcd {			/* one per controller */
 	struct dma_pool		*sitd_pool;	/* sitd per split iso urb */
 
 	struct timer_list	watchdog;
-	struct notifier_block	reboot_notifier;
 	unsigned long		actions;
 	unsigned		stamp;
 	unsigned long		next_statechange;

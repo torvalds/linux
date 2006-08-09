@@ -389,8 +389,6 @@ struct ohci_hcd {
 	unsigned long		next_statechange;	/* suspend/resume */
 	u32			fminterval;		/* saved register */
 
-	struct notifier_block	reboot_notifier;
-
 	unsigned long		flags;		/* for HC bugs */
 #define	OHCI_QUIRK_AMD756	0x01			/* erratum #4 */
 #define	OHCI_QUIRK_SUPERIO	0x02			/* natsemi */

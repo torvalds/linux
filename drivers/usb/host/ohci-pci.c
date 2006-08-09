@@ -177,6 +177,7 @@ static const struct hc_driver ohci_pci_hc_driver = {
 	.reset =		ohci_pci_reset,
 	.start =		ohci_pci_start,
 	.stop =			ohci_stop,
+	.shutdown =		ohci_shutdown,
 
 #ifdef	CONFIG_PM
 	/* these suspend/resume entries are for upstream PCI glue ONLY */
@@ -232,6 +233,8 @@ static struct pci_driver ohci_pci_driver = {
 	.suspend =	usb_hcd_pci_suspend,
 	.resume =	usb_hcd_pci_resume,
 #endif
+
+	.shutdown =	usb_hcd_pci_shutdown,
 };
 
  

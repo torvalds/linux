@@ -36,6 +36,7 @@
 #include <linux/mutex.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>
+#include <linux/platform_device.h>
 
 #include <linux/usb.h>
 
@@ -1914,6 +1915,16 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	hcd_buffer_destroy(hcd);
 }
 EXPORT_SYMBOL (usb_remove_hcd);
+
+void
+usb_hcd_platform_shutdown(struct platform_device* dev)
+{
+	struct usb_hcd *hcd = platform_get_drvdata(dev);
+
+	if (hcd->driver->shutdown)
+		hcd->driver->shutdown(hcd);
+}
+EXPORT_SYMBOL (usb_hcd_platform_shutdown);
 
 /*-------------------------------------------------------------------------*/
 
