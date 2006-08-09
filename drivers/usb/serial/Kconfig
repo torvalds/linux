@@ -53,6 +53,15 @@ config USB_SERIAL_GENERIC
 	  support" be compiled as a module for this driver to be used
 	  properly.
 
+config USB_SERIAL_AIRCABLE
+	tristate "AIRcable USB Bluetooth Dongle Driver (EXPERIMENTAL)"
+	depends on USB_SERIAL && EXPERIMENTAL
+	help
+	    Say Y here if you want to use AIRcable USB Bluetoot Dongle.
+
+	    To compile this driver as a module, choose M here: the module
+	    will be called aircable.
+
 config USB_SERIAL_AIRPRIME
 	tristate "USB AirPrime CDMA Wireless Driver"
 	depends on USB_SERIAL
@@ -525,6 +534,7 @@ config USB_EZUSB
 	bool
 	depends on USB_SERIAL_KEYSPAN_PDA || USB_SERIAL_XIRCOM || USB_SERIAL_KEYSPAN || USB_SERIAL_WHITEHEAT
 	default y
+
 
 endmenu
 
