@@ -89,17 +89,17 @@ static struct irq_chip iic_chip = {
 /* Get an IRQ number from the pending state register of the IIC */
 static unsigned int iic_get_irq(struct pt_regs *regs)
 {
-  	struct cbe_iic_pending_bits pending;
- 	struct iic *iic;
+	struct cbe_iic_pending_bits pending;
+	struct iic *iic;
 
- 	iic = &__get_cpu_var(iic);
- 	*(unsigned long *) &pending =
- 		in_be64((unsigned long __iomem *) &iic->regs->pending_destr);
- 	iic->eoi_stack[++iic->eoi_ptr] = pending.prio;
- 	BUG_ON(iic->eoi_ptr > 15);
+	iic = &__get_cpu_var(iic);
+	*(unsigned long *) &pending =
+		in_be64((unsigned long __iomem *) &iic->regs->pending_destr);
+	iic->eoi_stack[++iic->eoi_ptr] = pending.prio;
+	BUG_ON(iic->eoi_ptr > 15);
 	if (pending.flags & CBE_IIC_IRQ_VALID)
 		return irq_linear_revmap(iic->host,
- 					 iic_pending_to_hwnum(pending));
+					 iic_pending_to_hwnum(pending));
 	return NO_IRQ;
 }
 
@@ -250,7 +250,7 @@ static int __init setup_iic(void)
 	struct resource r0, r1;
 	struct irq_host *host;
 	int found = 0;
- 	const u32 *np;
+	const u32 *np;
 
 	for (dn = NULL;
 	     (dn = of_find_node_by_name(dn,"interrupt-controller")) != NULL;) {
@@ -258,7 +258,7 @@ static int __init setup_iic(void)
 				     "IBM,CBEA-Internal-Interrupt-Controller"))
 			continue;
 		np = get_property(dn, "ibm,interrupt-server-ranges", NULL);
- 		if (np == NULL) {
+		if (np == NULL) {
 			printk(KERN_WARNING "IIC: CPU association not found\n");
 			of_node_put(dn);
 			return -ENODEV;
