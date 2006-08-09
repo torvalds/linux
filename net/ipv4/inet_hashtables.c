@@ -124,10 +124,10 @@ EXPORT_SYMBOL(inet_listen_wlock);
  * remote address for the connection. So always assume those are both
  * wildcarded during the search since they can never be otherwise.
  */
-static struct sock *__inet_lookup_listener(const struct hlist_head *head,
-					   const u32 daddr,
-					   const unsigned short hnum,
-					   const int dif)
+static struct sock *inet_lookup_listener_slow(const struct hlist_head *head,
+					      const u32 daddr,
+					      const unsigned short hnum,
+					      const int dif)
 {
 	struct sock *result = NULL, *sk;
 	const struct hlist_node *node;
@@ -162,9 +162,9 @@ static struct sock *__inet_lookup_listener(const struct hlist_head *head,
 }
 
 /* Optimize the common listener case. */
-struct sock *inet_lookup_listener(struct inet_hashinfo *hashinfo,
-				  const u32 daddr, const unsigned short hnum,
-				  const int dif)
+struct sock *__inet_lookup_listener(struct inet_hashinfo *hashinfo,
+				    const u32 daddr, const unsigned short hnum,
+				    const int dif)
 {
 	struct sock *sk = NULL;
 	const struct hlist_head *head;
@@ -179,7 +179,7 @@ struct sock *inet_lookup_listener(struct inet_hashinfo *hashinfo,
 		    (sk->sk_family == PF_INET || !ipv6_only_sock(sk)) &&
 		    !sk->sk_bound_dev_if)
 			goto sherry_cache;
-		sk = __inet_lookup_listener(head, daddr, hnum, dif);
+		sk = inet_lookup_listener_slow(head, daddr, hnum, dif);
 	}
 	if (sk) {
 sherry_cache:
@@ -188,7 +188,7 @@ sherry_cache:
 	read_unlock(&hashinfo->lhash_lock);
 	return sk;
 }
-EXPORT_SYMBOL_GPL(inet_lookup_listener);
+EXPORT_SYMBOL_GPL(__inet_lookup_listener);
 
 /* called with local bh disabled */
 static int __inet_check_established(struct inet_timewait_death_row *death_row,

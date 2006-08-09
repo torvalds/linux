@@ -608,10 +608,10 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	if (req != NULL)
 		return dccp_check_req(sk, skb, req, prev);
 
-	nsk = __inet_lookup_established(&dccp_hashinfo,
-					iph->saddr, dh->dccph_sport,
-					iph->daddr, ntohs(dh->dccph_dport),
-					inet_iif(skb));
+	nsk = inet_lookup_established(&dccp_hashinfo,
+				      iph->saddr, dh->dccph_sport,
+				      iph->daddr, dh->dccph_dport,
+				      inet_iif(skb));
 	if (nsk != NULL) {
 		if (nsk->sk_state != DCCP_TIME_WAIT) {
 			bh_lock_sock(nsk);
@@ -925,7 +925,7 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 	 * 	Look up flow ID in table and get corresponding socket */
 	sk = __inet_lookup(&dccp_hashinfo,
 			   skb->nh.iph->saddr, dh->dccph_sport,
-			   skb->nh.iph->daddr, ntohs(dh->dccph_dport),
+			   skb->nh.iph->daddr, dh->dccph_dport,
 			   inet_iif(skb));
 
 	/* 

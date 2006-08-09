@@ -271,10 +271,16 @@ static inline int inet_iif(const struct sk_buff *skb)
 	return ((struct rtable *)skb->dst)->rt_iif;
 }
 
-extern struct sock *
-		inet_lookup_listener(struct inet_hashinfo *hashinfo,
-				     const u32 daddr,
-				     const unsigned short hnum, const int dif);
+extern struct sock *__inet_lookup_listener(struct inet_hashinfo *hashinfo,
+					   const u32 daddr,
+					   const unsigned short hnum,
+					   const int dif);
+
+static inline struct sock *inet_lookup_listener(struct inet_hashinfo *hashinfo,
+						u32 daddr, u16 dport, int dif)
+{
+	return __inet_lookup_listener(hashinfo, daddr, ntohs(dport), dif);
+}
 
 /* Socket demux engine toys. */
 #ifdef __BIG_ENDIAN
@@ -362,14 +368,25 @@ hit:
 	goto out;
 }
 
+static inline struct sock *
+	inet_lookup_established(struct inet_hashinfo *hashinfo,
+				const u32 saddr, const u16 sport,
+				const u32 daddr, const u16 dport,
+				const int dif)
+{
+	return __inet_lookup_established(hashinfo, saddr, sport, daddr,
+					 ntohs(dport), dif);
+}
+
 static inline struct sock *__inet_lookup(struct inet_hashinfo *hashinfo,
 					 const u32 saddr, const u16 sport,
-					 const u32 daddr, const u16 hnum,
+					 const u32 daddr, const u16 dport,
 					 const int dif)
 {
+	u16 hnum = ntohs(dport);
 	struct sock *sk = __inet_lookup_established(hashinfo, saddr, sport, daddr,
 						    hnum, dif);
-	return sk ? : inet_lookup_listener(hashinfo, daddr, hnum, dif);
+	return sk ? : __inet_lookup_listener(hashinfo, daddr, hnum, dif);
 }
 
 static inline struct sock *inet_lookup(struct inet_hashinfo *hashinfo,
@@ -380,7 +397,7 @@ static inline struct sock *inet_lookup(struct inet_hashinfo *hashinfo,
 	struct sock *sk;
 
 	local_bh_disable();
-	sk = __inet_lookup(hashinfo, saddr, sport, daddr, ntohs(dport), dif);
+	sk = __inet_lookup(hashinfo, saddr, sport, daddr, dport, dif);
 	local_bh_enable();
 
 	return sk;

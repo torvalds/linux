@@ -951,9 +951,9 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	if (req)
 		return tcp_check_req(sk, skb, req, prev);
 
-	nsk = __inet_lookup_established(&tcp_hashinfo, skb->nh.iph->saddr,
-					th->source, skb->nh.iph->daddr,
-					ntohs(th->dest), inet_iif(skb));
+	nsk = inet_lookup_established(&tcp_hashinfo, skb->nh.iph->saddr,
+				      th->source, skb->nh.iph->daddr,
+				      th->dest, inet_iif(skb));
 
 	if (nsk) {
 		if (nsk->sk_state != TCP_TIME_WAIT) {
@@ -1090,7 +1090,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	TCP_SKB_CB(skb)->sacked	 = 0;
 
 	sk = __inet_lookup(&tcp_hashinfo, skb->nh.iph->saddr, th->source,
-			   skb->nh.iph->daddr, ntohs(th->dest),
+			   skb->nh.iph->daddr, th->dest,
 			   inet_iif(skb));
 
 	if (!sk)
@@ -1168,7 +1168,7 @@ do_time_wait:
 	case TCP_TW_SYN: {
 		struct sock *sk2 = inet_lookup_listener(&tcp_hashinfo,
 							skb->nh.iph->daddr,
-							ntohs(th->dest),
+							th->dest,
 							inet_iif(skb));
 		if (sk2) {
 			inet_twsk_deschedule((struct inet_timewait_sock *)sk,
