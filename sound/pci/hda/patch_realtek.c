@@ -90,6 +90,7 @@ enum {
 	ALC660_3ST,
 	ALC861_3ST_DIG,
 	ALC861_6ST_DIG,
+	ALC861_UNIWILL_M31,
 	ALC861_AUTO,
 	ALC861_MODEL_LAST,
 };
@@ -6021,6 +6022,23 @@ static struct hda_channel_mode alc861_threestack_modes[2] = {
 	{ 2, alc861_threestack_ch2_init },
 	{ 6, alc861_threestack_ch6_init },
 };
+/* Set mic1 as input and unmute the mixer */
+static struct hda_verb alc861_uniwill_m31_ch2_init[] = {
+	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	{ 0x15, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x01 << 8)) }, /*mic*/
+	{ } /* end */
+};
+/* Set mic1 as output and mute mixer */
+static struct hda_verb alc861_uniwill_m31_ch4_init[] = {
+	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
+	{ 0x15, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8)) }, /*mic*/
+	{ } /* end */
+};
+
+static struct hda_channel_mode alc861_uniwill_m31_modes[2] = {
+	{ 2, alc861_uniwill_m31_ch2_init },
+	{ 4, alc861_uniwill_m31_ch4_init },
+};
 
 /* patch-ALC861 */
 
@@ -6096,6 +6114,47 @@ static struct snd_kcontrol_new alc861_3ST_mixer[] = {
 		.get = alc_ch_mode_get,
 		.put = alc_ch_mode_put,
                 .private_value = ARRAY_SIZE(alc861_threestack_modes),
+	},
+	{ } /* end */
+};			
+static struct snd_kcontrol_new alc861_uniwill_m31_mixer[] = {
+        /* output mixer control */
+	HDA_CODEC_MUTE("Front Playback Switch", 0x03, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Surround Playback Switch", 0x06, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_MONO("Center Playback Switch", 0x05, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_MONO("LFE Playback Switch", 0x05, 2, 0x0, HDA_OUTPUT),
+	/*HDA_CODEC_MUTE("Side Playback Switch", 0x04, 0x0, HDA_OUTPUT), */
+
+	/* Input mixer control */
+	/* HDA_CODEC_VOLUME("Input Playback Volume", 0x15, 0x0, HDA_OUTPUT),
+	   HDA_CODEC_MUTE("Input Playback Switch", 0x15, 0x0, HDA_OUTPUT), */
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x15, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x15, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x15, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x15, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x10, 0x01, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1a, 0x03, HDA_INPUT),
+ 
+	/* Capture mixer control */
+	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.count = 1,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Channel Mode",
+		.info = alc_ch_mode_info,
+		.get = alc_ch_mode_get,
+		.put = alc_ch_mode_put,
+                .private_value = ARRAY_SIZE(alc861_uniwill_m31_modes),
 	},
 	{ } /* end */
 };			
@@ -6227,6 +6286,67 @@ static struct hda_verb alc861_threestack_init_verbs[] = {
         {0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
 	{ }
 };
+
+static struct hda_verb alc861_uniwill_m31_init_verbs[] = {
+	/*
+	 * Unmute ADC0 and set the default input to mic-in
+	 */
+	/* port-A for surround (rear panel) */
+	{ 0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x00 },
+	/* port-B for mic-in (rear panel) with vref */
+	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	/* port-C for line-in (rear panel) */
+	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20 },
+	/* port-D for Front */
+	{ 0x0b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
+	{ 0x0b, AC_VERB_SET_CONNECT_SEL, 0x00 },
+	/* port-E for HP out (front panel) */
+	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 }, // this has to be set to VREF80
+	/* route front PCM to HP */
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	/* port-F for mic-in (front panel) with vref */
+	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	/* port-G for CLFE (rear panel) */
+	{ 0x1f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x00 },
+	/* port-H for side (rear panel) */
+	{ 0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x00 },
+	/* CD-in */
+	{ 0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20 },
+	/* route front mic to ADC1*/
+	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	/* Unmute DAC0~3 & spdif out*/
+	{0x03, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x05, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x06, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	
+	/* Unmute Mixer 14 (mic) 1c (Line in)*/
+	{0x014, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+        {0x014, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x01c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+        {0x01c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	
+	/* Unmute Stereo Mixer 15 */
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb00c          }, //Output 0~12 step
+
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)}, // hp used DAC 3 (Front)
+        {0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
+	{ }
+};
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -6561,6 +6681,9 @@ static struct hda_board_config alc861_cfg_tbl[] = {
 	  .config = ALC660_3ST },
 	{ .modelname = "3stack-dig", .config = ALC861_3ST_DIG },
 	{ .modelname = "6stack-dig", .config = ALC861_6ST_DIG },
+	{ .modelname = "uniwill-m31", .config = ALC861_UNIWILL_M31},
+	{ .pci_subvendor = 0x1584, .pci_subdevice = 0x9072,
+	  .config = ALC861_UNIWILL_M31 },
 	{ .modelname = "auto", .config = ALC861_AUTO },
 	{}
 };
@@ -6615,6 +6738,20 @@ static struct alc_config_preset alc861_presets[] = {
 		.adc_nids = alc861_adc_nids,
 		.input_mux = &alc861_capture_source,
 	},
+	[ALC861_UNIWILL_M31] = {
+		.mixers = { alc861_uniwill_m31_mixer },
+		.init_verbs = { alc861_uniwill_m31_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc861_dac_nids),
+		.dac_nids = alc861_dac_nids,
+		.dig_out_nid = ALC861_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc861_uniwill_m31_modes),
+		.channel_mode = alc861_uniwill_m31_modes,
+		.need_dac_fix = 1,
+		.num_adc_nids = ARRAY_SIZE(alc861_adc_nids),
+		.adc_nids = alc861_adc_nids,
+		.input_mux = &alc861_capture_source,
+	},
+
 };	
 
 
