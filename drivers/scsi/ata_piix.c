@@ -567,8 +567,8 @@ static int piix_sata_prereset(struct ata_port *ap)
 			present = 1;
 	}
 
-	DPRINTK("ata%u: LEAVE, pcs=0x%x present_mask=0x%x\n",
-		ap->id, pcs, present_mask);
+	DPRINTK("ata%u: LEAVE, pcs=0x%x present=0x%x\n",
+		ap->id, pcs, present);
 
 	if (!present) {
 		ata_port_printk(ap, KERN_INFO, "SATA port has no device.\n");
@@ -828,6 +828,7 @@ static void __devinit piix_init_sata_map(struct pci_dev *pdev,
 		case IDE:
 			WARN_ON((i & 1) || map[i + 1] != IDE);
 			pinfo[i / 2] = piix_port_info[ich5_pata];
+			pinfo[i / 2].private_data = hpriv;
 			i++;
 			printk(" IDE IDE");
 			break;
