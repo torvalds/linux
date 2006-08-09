@@ -161,6 +161,26 @@ static void fixup_use_write_buffers(struct mtd_info *mtd, void *param)
 	}
 }
 
+/* Atmel chips don't use the same PRI format as AMD chips */
+static void fixup_convert_atmel_pri(struct mtd_info *mtd, void *param)
+{
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_amdstd *extp = cfi->cmdset_priv;
+	struct cfi_pri_atmel atmel_pri;
+
+	memcpy(&atmel_pri, extp, sizeof(atmel_pri));
+	memset(extp + 5, 0, sizeof(*extp) - 5);
+
+	if (atmel_pri.Features & 0x02)
+		extp->EraseSuspend = 2;
+
+	if (atmel_pri.BottomBoot)
+		extp->TopBottom = 2;
+	else
+		extp->TopBottom = 3;
+}
+
 static void fixup_use_secsi(struct mtd_info *mtd, void *param)
 {
 	/* Setup for chips with a secsi area */
@@ -192,6 +212,7 @@ static struct cfi_fixup cfi_fixup_table[] = {
 #if !FORCE_WORD_WRITE
 	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_use_write_buffers, NULL, },
 #endif
+	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri, NULL },
 	{ 0, 0, NULL, NULL }
 };
 static struct cfi_fixup jedec_fixup_table[] = {
