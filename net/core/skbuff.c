@@ -268,8 +268,10 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 	struct sk_buff *skb;
 
 	skb = alloc_skb(length + NET_SKB_PAD, gfp_mask);
-	if (likely(skb))
+	if (likely(skb)) {
 		skb_reserve(skb, NET_SKB_PAD);
+		skb->dev = dev;
+	}
 	return skb;
 }
 

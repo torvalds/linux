@@ -2079,9 +2079,9 @@ struct tg3 {
 	 * lock: Held during reset, PHY access, timer, and when
 	 *       updating tg3_flags and tg3_flags2.
 	 *
-	 * tx_lock: Held during tg3_start_xmit and tg3_tx only
-	 *          when calling netif_[start|stop]_queue.
-	 *          tg3_start_xmit is protected by netif_tx_lock.
+	 * netif_tx_lock: Held during tg3_start_xmit. tg3_tx holds
+	 *                netif_tx_lock when it needs to call
+	 *                netif_wake_queue.
 	 *
 	 * Both of these locks are to be held with BH safety.
 	 *
@@ -2117,8 +2117,6 @@ struct tg3 {
 	u32				tx_prod;
 	u32				tx_cons;
 	u32				tx_pending;
-
-	spinlock_t			tx_lock;
 
 	struct tg3_tx_buffer_desc	*tx_ring;
 	struct tx_ring_info		*tx_buffers;
