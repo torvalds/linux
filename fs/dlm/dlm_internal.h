@@ -468,6 +468,7 @@ struct dlm_ls {
 	struct mutex		ls_requestqueue_mutex;
 	char			*ls_recover_buf;
 	int			ls_recover_nodeid; /* for debugging */
+	uint64_t		ls_rcom_seq;
 	struct list_head	ls_recover_list;
 	spinlock_t		ls_recover_list_lock;
 	int			ls_recover_list_count;

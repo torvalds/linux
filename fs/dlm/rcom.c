@@ -108,6 +108,7 @@ int dlm_rcom_status(struct dlm_ls *ls, int nodeid)
 	error = create_rcom(ls, nodeid, DLM_RCOM_STATUS, 0, &rc, &mh);
 	if (error)
 		goto out;
+	rc->rc_id = ++ls->ls_rcom_seq;
 
 	send_rcom(ls, mh, rc);
 
@@ -140,17 +141,28 @@ static void receive_rcom_status(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 			    sizeof(struct rcom_config), &rc, &mh);
 	if (error)
 		return;
+	rc->rc_id = rc_in->rc_id;
 	rc->rc_result = dlm_recover_status(ls);
 	make_config(ls, (struct rcom_config *) rc->rc_buf);
 
 	send_rcom(ls, mh, rc);
 }
 
-static void receive_rcom_status_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
+static void receive_sync_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 {
+	if (rc_in->rc_id != ls->ls_rcom_seq) {
+		log_debug(ls, "reject old reply %d got %llx wanted %llx",
+			  rc_in->rc_type, rc_in->rc_id, ls->ls_rcom_seq);
+		return;
+	}
 	memcpy(ls->ls_recover_buf, rc_in, rc_in->rc_header.h_length);
 	set_bit(LSFL_RCOM_READY, &ls->ls_flags);
 	wake_up(&ls->ls_wait_general);
+}
+
+static void receive_rcom_status_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
+{
+	receive_sync_reply(ls, rc_in);
 }
 
 int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
@@ -173,6 +185,7 @@ int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 	if (error)
 		goto out;
 	memcpy(rc->rc_buf, last_name, last_len);
+	rc->rc_id = ++ls->ls_rcom_seq;
 
 	send_rcom(ls, mh, rc);
 
@@ -209,6 +222,7 @@ static void receive_rcom_names(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	error = create_rcom(ls, nodeid, DLM_RCOM_NAMES_REPLY, outlen, &rc, &mh);
 	if (error)
 		return;
+	rc->rc_id = rc_in->rc_id;
 
 	dlm_copy_master_names(ls, rc_in->rc_buf, inlen, rc->rc_buf, outlen,
 			      nodeid);
@@ -217,9 +231,7 @@ static void receive_rcom_names(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 
 static void receive_rcom_names_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 {
-	memcpy(ls->ls_recover_buf, rc_in, rc_in->rc_header.h_length);
-	set_bit(LSFL_RCOM_READY, &ls->ls_flags);
-	wake_up(&ls->ls_wait_general);
+	receive_sync_reply(ls, rc_in);
 }
 
 int dlm_send_rcom_lookup(struct dlm_rsb *r, int dir_nodeid)
