@@ -2425,7 +2425,7 @@ static int myri10ge_resume(struct pci_dev *pdev)
 	}
 
 	myri10ge_reset(mgp);
-	myri10ge_dummy_rdma(mgp, mgp->tx.boundary != 4096);
+	myri10ge_dummy_rdma(mgp, 1);
 
 	/* Save configuration space to be restored if the
 	 * nic resets due to a parity error */
