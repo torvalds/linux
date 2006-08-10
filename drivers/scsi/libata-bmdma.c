@@ -872,50 +872,43 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 	struct ata_probe_ent *probe_ent;
 	unsigned long bmdma = pci_resource_start(pdev, 4);
 
-	int port_num = 0;
-
 	probe_ent = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port[0]);
 	if (!probe_ent)
 		return NULL;
 
-	probe_ent->legacy_mode = 1;
-	probe_ent->hard_port_no = 0;
+	probe_ent->n_ports = 2;
 	probe_ent->private_data = port[0]->private_data;
 
 	if (port_mask & ATA_PORT_PRIMARY) {
 		probe_ent->irq = 14;
-		probe_ent->port[port_num].cmd_addr = ATA_PRIMARY_CMD;
-		probe_ent->port[port_num].altstatus_addr =
-		probe_ent->port[port_num].ctl_addr = ATA_PRIMARY_CTL;
+		probe_ent->port[0].cmd_addr = ATA_PRIMARY_CMD;
+		probe_ent->port[0].altstatus_addr =
+		probe_ent->port[0].ctl_addr = ATA_PRIMARY_CTL;
 		if (bmdma) {
 			probe_ent->port[0].bmdma_addr = bmdma;
 			if (inb(bmdma + 2) & 0x80)
 				probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
 		}
-		ata_std_ports(&probe_ent->port[port_num]);
-		port_num ++;
-	}
+		ata_std_ports(&probe_ent->port[0]);
+	} else
+		probe_ent->dummy_port_mask |= ATA_PORT_PRIMARY;
+
 	if (port_mask & ATA_PORT_SECONDARY) {
-		if (port_num == 1)
+		if (probe_ent->irq)
 			probe_ent->irq2 = 15;
-		else {
-			/* Secondary only. IRQ 15 only and "first" port is port 1 */
+		else
 			probe_ent->irq = 15;
-			probe_ent->hard_port_no = 1;
-		}
-		probe_ent->port[port_num].cmd_addr = ATA_SECONDARY_CMD;
-		probe_ent->port[port_num].altstatus_addr =
-		probe_ent->port[port_num].ctl_addr = ATA_SECONDARY_CTL;
+		probe_ent->port[1].cmd_addr = ATA_SECONDARY_CMD;
+		probe_ent->port[1].altstatus_addr =
+		probe_ent->port[1].ctl_addr = ATA_SECONDARY_CTL;
 		if (bmdma) {
-			probe_ent->port[port_num].bmdma_addr = bmdma + 8;
+			probe_ent->port[1].bmdma_addr = bmdma + 8;
 			if (inb(bmdma + 10) & 0x80)
 				probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
 		}
-		ata_std_ports(&probe_ent->port[port_num]);
-		port_num ++;
-	}
-
-	probe_ent->n_ports = port_num;
+		ata_std_ports(&probe_ent->port[1]);
+	} else
+		probe_ent->dummy_port_mask |= ATA_PORT_SECONDARY;
 
 	return probe_ent;
 }
