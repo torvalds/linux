@@ -2167,7 +2167,9 @@ static int dump_glock(struct gfs2_glock *gl)
 
 	spin_lock(&gl->gl_spin);
 
-	printk(KERN_INFO "Glock (%u, %llu)\n", gl->gl_name.ln_type,
+	printk(KERN_INFO "Glock 0x%p (%u, %llu)\n",
+	       gl,
+	       gl->gl_name.ln_type,
 	       (unsigned long long)gl->gl_name.ln_number);
 	printk(KERN_INFO "  gl_flags =");
 	for (x = 0; x < 32; x++)
@@ -2187,8 +2189,9 @@ static int dump_glock(struct gfs2_glock *gl)
 	printk(KERN_INFO "  reclaim = %s\n",
 		    (list_empty(&gl->gl_reclaim)) ? "no" : "yes");
 	if (gl->gl_aspace)
-		printk(KERN_INFO "  aspace = %lu\n",
-			    gl->gl_aspace->i_mapping->nrpages);
+		printk(KERN_INFO "  aspace = 0x%p nrpages = %lu\n",
+		       gl->gl_aspace,
+		       gl->gl_aspace->i_mapping->nrpages);
 	else
 		printk(KERN_INFO "  aspace = no\n");
 	printk(KERN_INFO "  ail = %d\n", atomic_read(&gl->gl_ail_count));

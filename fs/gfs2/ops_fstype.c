@@ -279,6 +279,10 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 	int error = 0;
 
 	if (undo) {
+		if (sb->s_root) {
+			dput(sb->s_root);
+			sb->s_root = NULL;
+		}
 		return 0;
 	}
 	
