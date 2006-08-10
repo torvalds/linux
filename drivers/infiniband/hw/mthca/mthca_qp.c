@@ -99,6 +99,10 @@ enum {
 	MTHCA_QP_BIT_RSC = 1 <<  3
 };
 
+enum {
+	MTHCA_SEND_DOORBELL_FENCE = 1 << 5
+};
+
 struct mthca_qp_path {
 	__be32 port_pkey;
 	u8     rnr_retry;
@@ -1502,7 +1506,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int i;
 	int size;
 	int size0 = 0;
-	u32 f0 = 0;
+	u32 f0;
 	int ind;
 	u8 op0 = 0;
 
@@ -1686,6 +1690,8 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		if (!size0) {
 			size0 = size;
 			op0   = mthca_opcode[wr->opcode];
+			f0    = wr->send_flags & IB_SEND_FENCE ?
+				MTHCA_SEND_DOORBELL_FENCE : 0;
 		}
 
 		++ind;
@@ -1843,7 +1849,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int i;
 	int size;
 	int size0 = 0;
-	u32 f0 = 0;
+	u32 f0;
 	int ind;
 	u8 op0 = 0;
 
@@ -2051,6 +2057,8 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		if (!size0) {
 			size0 = size;
 			op0   = mthca_opcode[wr->opcode];
+			f0    = wr->send_flags & IB_SEND_FENCE ?
+				MTHCA_SEND_DOORBELL_FENCE : 0;
 		}
 
 		++ind;
