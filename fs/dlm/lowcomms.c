@@ -934,11 +934,11 @@ static int send_to_sock(struct nodeinfo *ni)
 			break;
 		e = list_entry(ni->writequeue.next, struct writequeue_entry,
 			       list);
-		kmap(e->page);
 		len = e->len;
 		offset = e->offset;
 		BUG_ON(len == 0 && e->users == 0);
 		spin_unlock(&ni->writequeue_lock);
+		kmap(e->page);
 
 		ret = 0;
 		if (len) {
