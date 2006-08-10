@@ -539,6 +539,7 @@ repeat:
 				rpc_close_pipes(dentry->d_inode);
 				simple_unlink(dir, dentry);
 			}
+			inode_dir_notify(dir, DN_DELETE);
 			dput(dentry);
 		} while (n);
 		goto repeat;
@@ -610,8 +611,8 @@ __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 	int error;
 
 	shrink_dcache_parent(dentry);
-	if (dentry->d_inode)
-		rpc_close_pipes(dentry->d_inode);
+	if (d_unhashed(dentry))
+		return 0;
 	if ((error = simple_rmdir(dir, dentry)) != 0)
 		return error;
 	if (!error) {
@@ -747,13 +748,15 @@ rpc_unlink(struct dentry *dentry)
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	d_drop(dentry);
-	if (dentry->d_inode) {
-		rpc_close_pipes(dentry->d_inode);
-		error = simple_unlink(dir, dentry);
+	if (!d_unhashed(dentry)) {
+		d_drop(dentry);
+		if (dentry->d_inode) {
+			rpc_close_pipes(dentry->d_inode);
+			error = simple_unlink(dir, dentry);
+		}
+		inode_dir_notify(dir, DN_DELETE);
 	}
 	dput(dentry);
-	inode_dir_notify(dir, DN_DELETE);
 	mutex_unlock(&dir->i_mutex);
 	dput(parent);
 	return error;
