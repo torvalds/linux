@@ -174,7 +174,6 @@ static inline int xs_sendpages(struct socket *sock, struct sockaddr *addr, int a
 	struct page **ppage = xdr->pages;
 	unsigned int len, pglen = xdr->page_len;
 	int err, ret = 0;
-	ssize_t (*sendpage)(struct socket *, struct page *, int, size_t, int);
 
 	if (unlikely(!sock))
 		return -ENOTCONN;
@@ -207,7 +206,6 @@ static inline int xs_sendpages(struct socket *sock, struct sockaddr *addr, int a
 		base &= ~PAGE_CACHE_MASK;
 	}
 
-	sendpage = kernel_sendpage;
 	do {
 		int flags = XS_SENDMSG_FLAGS;
 
@@ -220,10 +218,7 @@ static inline int xs_sendpages(struct socket *sock, struct sockaddr *addr, int a
 		if (pglen != len || xdr->tail[0].iov_len != 0)
 			flags |= MSG_MORE;
 
-		/* Hmm... We might be dealing with highmem pages */
-		if (PageHighMem(*ppage))
-			sendpage = sock_no_sendpage;
-		err = sendpage(sock, *ppage, base, len, flags);
+		err = kernel_sendpage(sock, *ppage, base, len, flags);
 		if (ret == 0)
 			ret = err;
 		else if (err > 0)
