@@ -39,7 +39,7 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
-#include "scsi_transport_api.h"
+#include "../scsi/scsi_transport_api.h"
 
 #include <linux/libata.h>
 
