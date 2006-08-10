@@ -225,8 +225,8 @@ enum {
 	/* encoding various smaller bitmaps into a single
 	 * unsigned int bitmap
 	 */
-	ATA_BITS_PIO		= 5,
-	ATA_BITS_MWDMA		= 3,
+	ATA_BITS_PIO		= 7,
+	ATA_BITS_MWDMA		= 5,
 	ATA_BITS_UDMA		= 8,
 
 	ATA_SHIFT_PIO		= 0,

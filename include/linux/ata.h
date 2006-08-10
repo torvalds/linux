@@ -170,12 +170,16 @@ enum {
 	XFER_UDMA_2		= 0x42,
 	XFER_UDMA_1		= 0x41,
 	XFER_UDMA_0		= 0x40,
+	XFER_MW_DMA_4		= 0x24,	/* CFA only */
+	XFER_MW_DMA_3		= 0x23,	/* CFA only */
 	XFER_MW_DMA_2		= 0x22,
 	XFER_MW_DMA_1		= 0x21,
 	XFER_MW_DMA_0		= 0x20,
 	XFER_SW_DMA_2		= 0x12,
 	XFER_SW_DMA_1		= 0x11,
 	XFER_SW_DMA_0		= 0x10,
+	XFER_PIO_6		= 0x0E,	/* CFA only */
+	XFER_PIO_5		= 0x0D,	/* CFA only */
 	XFER_PIO_4		= 0x0C,
 	XFER_PIO_3		= 0x0B,
 	XFER_PIO_2		= 0x0A,
@@ -274,7 +278,6 @@ struct ata_taskfile {
 };
 
 #define ata_id_is_ata(id)	(((id)[0] & (1 << 15)) == 0)
-#define ata_id_is_cfa(id)	((id)[0] == 0x848A)
 #define ata_id_is_sata(id)	((id)[93] == 0)
 #define ata_id_rahead_enabled(id) ((id)[85] & (1 << 6))
 #define ata_id_wcache_enabled(id) ((id)[85] & (1 << 5))
@@ -306,6 +309,9 @@ static inline unsigned int ata_id_major_version(const u16 *id)
 {
 	unsigned int mver;
 
+	if (id[ATA_ID_MAJOR_VER] == 0xFFFF)
+		return 0;
+
 	for (mver = 14; mver >= 1; mver--)
 		if (id[ATA_ID_MAJOR_VER] & (1 << mver))
 			break;
@@ -322,6 +328,18 @@ static inline int ata_id_current_chs_valid(const u16 *id)
 		id[55] &&  /* heads in current translation */
 		id[55] <= 16 &&
 		id[56];    /* sectors in current translation */
+}
+
+static inline int ata_id_is_cfa(const u16 *id)
+{
+	u16 v = id[0];
+	if (v == 0x848A)	/* Standard CF */
+		return 1;
+	/* Could be CF hiding as standard ATA */
+	if (ata_id_major_version(id) >= 3 &&  id[82] != 0xFFFF &&
+			(id[82] & ( 1 << 2)))
+		return 1;
+	return 0;
 }
 
 static inline int atapi_cdb_len(const u16 *dev_id)

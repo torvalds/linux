@@ -386,9 +386,13 @@ static const char *ata_mode_string(unsigned int xfer_mask)
 		"PIO2",
 		"PIO3",
 		"PIO4",
+		"PIO5",
+		"PIO6",
 		"MWDMA0",
 		"MWDMA1",
 		"MWDMA2",
+		"MWDMA3",
+		"MWDMA4",
 		"UDMA/16",
 		"UDMA/25",
 		"UDMA/33",
@@ -875,6 +879,23 @@ static unsigned int ata_id_xfermask(const u16 *id)
 
 	mwdma_mask = id[ATA_ID_MWDMA_MODES] & 0x07;
 
+	if (ata_id_is_cfa(id)) {
+		/*
+		 *	Process compact flash extended modes
+		 */
+		int pio = id[163] & 0x7;
+		int dma = (id[163] >> 3) & 7;
+
+		if (pio)
+			pio_mask |= (1 << 5);
+		if (pio > 1)
+			pio_mask |= (1 << 6);
+		if (dma)
+			mwdma_mask |= (1 << 3);
+		if (dma > 1)
+			mwdma_mask |= (1 << 4);
+	}
+
 	udma_mask = 0;
 	if (id[ATA_ID_FIELD_VALID] & (1 << 2))
 		udma_mask = id[ATA_ID_UDMA_MODES] & 0xff;
@@ -1356,6 +1377,7 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 	struct ata_port *ap = dev->ap;
 	const u16 *id = dev->id;
 	unsigned int xfer_mask;
+	char revbuf[7];		/* XYZ-99\0 */
 	int rc;
 
 	if (!ata_dev_enabled(dev) && ata_msg_info(ap)) {
@@ -1399,6 +1421,15 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 
 	/* ATA-specific feature tests */
 	if (dev->class == ATA_DEV_ATA) {
+		if (ata_id_is_cfa(id)) {
+			if (id[162] & 1) /* CPRM may make this media unusable */
+				ata_dev_printk(dev, KERN_WARNING, "ata%u: device %u  supports DRM functions and may not be fully accessable.\n",
+					ap->id, dev->devno);
+			snprintf(revbuf, 7, "CFA");
+		}
+		else
+			snprintf(revbuf, 7, "ATA-%d",  ata_id_major_version(id));
+
 		dev->n_sectors = ata_id_n_sectors(id);
 
 		if (ata_id_has_lba(id)) {
@@ -1417,9 +1448,9 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 
 			/* print device info to dmesg */
 			if (ata_msg_drv(ap) && print_info)
-				ata_dev_printk(dev, KERN_INFO, "ATA-%d, "
+				ata_dev_printk(dev, KERN_INFO, "%s, "
 					"max %s, %Lu sectors: %s %s\n",
-					ata_id_major_version(id),
+					revbuf,
 					ata_mode_string(xfer_mask),
 					(unsigned long long)dev->n_sectors,
 					lba_desc, ncq_desc);
@@ -1440,9 +1471,9 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 
 			/* print device info to dmesg */
 			if (ata_msg_drv(ap) && print_info)
-				ata_dev_printk(dev, KERN_INFO, "ATA-%d, "
+				ata_dev_printk(dev, KERN_INFO, "%s, "
 					"max %s, %Lu sectors: CHS %u/%u/%u\n",
-					ata_id_major_version(id),
+					revbuf,
 					ata_mode_string(xfer_mask),
 					(unsigned long long)dev->n_sectors,
 					dev->cylinders, dev->heads,
@@ -1900,10 +1931,11 @@ int sata_set_spd(struct ata_port *ap)
  * drivers/ide/ide-timing.h and was originally written by Vojtech Pavlik
  */
 /*
- * PIO 0-5, MWDMA 0-2 and UDMA 0-6 timings (in nanoseconds).
+ * PIO 0-4, MWDMA 0-2 and UDMA 0-6 timings (in nanoseconds).
  * These were taken from ATA/ATAPI-6 standard, rev 0a, except
- * for PIO 5, which is a nonstandard extension and UDMA6, which
- * is currently supported only by Maxtor drives.
+ * for UDMA6, which is currently supported only by Maxtor drives.
+ *
+ * For PIO 5/6 MWDMA 3/4 see the CFA specification 3.0.
  */
 
 static const struct ata_timing ata_timing[] = {
@@ -1913,6 +1945,8 @@ static const struct ata_timing ata_timing[] = {
 	{ XFER_UDMA_4,     0,   0,   0,   0,   0,   0,   0,  30 },
 	{ XFER_UDMA_3,     0,   0,   0,   0,   0,   0,   0,  45 },
 
+	{ XFER_MW_DMA_4,  25,   0,   0,   0,  55,  20,  80,   0 },
+	{ XFER_MW_DMA_3,  25,   0,   0,   0,  65,  25, 100,   0 },
 	{ XFER_UDMA_2,     0,   0,   0,   0,   0,   0,   0,  60 },
 	{ XFER_UDMA_1,     0,   0,   0,   0,   0,   0,   0,  80 },
 	{ XFER_UDMA_0,     0,   0,   0,   0,   0,   0,   0, 120 },
@@ -1927,7 +1961,8 @@ static const struct ata_timing ata_timing[] = {
 	{ XFER_SW_DMA_1,  90,   0,   0,   0, 240, 240, 480,   0 },
 	{ XFER_SW_DMA_0, 120,   0,   0,   0, 480, 480, 960,   0 },
 
-/*	{ XFER_PIO_5,     20,  50,  30, 100,  50,  30, 100,   0 }, */
+	{ XFER_PIO_6,     10,  55,  20,  80,  55,  20,  80,   0 },
+	{ XFER_PIO_5,     15,  65,  25, 100,  65,  25, 100,   0 },
 	{ XFER_PIO_4,     25,  70,  25, 120,  70,  25, 120,   0 },
 	{ XFER_PIO_3,     30,  80,  70, 180,  80,  70, 180,   0 },
 
@@ -3061,6 +3096,17 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	xfer_mask &= ata_pack_xfermask(dev->pio_mask,
 				       dev->mwdma_mask, dev->udma_mask);
 	xfer_mask &= ata_id_xfermask(dev->id);
+
+	/*
+	 *	CFA Advanced TrueIDE timings are not allowed on a shared
+	 *	cable
+	 */
+	if (ata_dev_pair(dev)) {
+		/* No PIO5 or PIO6 */
+		xfer_mask &= ~(0x03 << (ATA_SHIFT_PIO + 5));
+		/* No MWDMA3 or MWDMA 4 */
+		xfer_mask &= ~(0x03 << (ATA_SHIFT_MWDMA + 3));
+	}
 
 	if (ata_dma_blacklisted(dev)) {
 		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
