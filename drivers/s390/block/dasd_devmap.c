@@ -89,7 +89,7 @@ static char *dasd[256];
 module_param_array(dasd, charp, NULL, 0);
 
 /*
- * Single spinlock to protect devmap structures and lists.
+ * Single spinlock to protect devmap and servermap structures and lists.
  */
 static DEFINE_SPINLOCK(dasd_devmap_lock);
 
@@ -859,39 +859,6 @@ static struct attribute_group dasd_attr_group = {
 };
 
 /*
- * Check if the related storage server is already contained in the
- * dasd_serverlist. If server is not contained, create new entry.
- * Return 0 if server was already in serverlist,
- *	  1 if the server was added successfully
- *	 <0 in case of error.
- */
-static int
-dasd_add_server(struct dasd_uid *uid)
-{
-	struct dasd_servermap *new, *tmp;
-
-	/* check if server is already contained */
-	list_for_each_entry(tmp, &dasd_serverlist, list)
-	  // normale cmp?
-		if (strncmp(tmp->sid.vendor, uid->vendor,
-			    sizeof(tmp->sid.vendor)) == 0
-		    && strncmp(tmp->sid.serial, uid->serial,
-			       sizeof(tmp->sid.serial)) == 0)
-			return 0;
-
-	new = (struct dasd_servermap *)
-		kzalloc(sizeof(struct dasd_servermap), GFP_KERNEL);
-	if (!new)
-		return -ENOMEM;
-
-	strncpy(new->sid.vendor, uid->vendor, sizeof(new->sid.vendor));
-	strncpy(new->sid.serial, uid->serial, sizeof(new->sid.serial));
-	list_add(&new->list, &dasd_serverlist);
-	return 1;
-}
-
-
-/*
  * Return copy of the device unique identifier.
  */
 int
@@ -910,6 +877,8 @@ dasd_get_uid(struct ccw_device *cdev, struct dasd_uid *uid)
 
 /*
  * Register the given device unique identifier into devmap struct.
+ * In addition check if the related storage server is already contained in the
+ * dasd_serverlist. If server is not contained, create new entry.
  * Return 0 if server was already in serverlist,
  *	  1 if the server was added successful
  *	 <0 in case of error.
@@ -918,16 +887,38 @@ int
 dasd_set_uid(struct ccw_device *cdev, struct dasd_uid *uid)
 {
 	struct dasd_devmap *devmap;
-	int rc;
+	struct dasd_servermap *srv, *tmp;
 
 	devmap = dasd_find_busid(cdev->dev.bus_id);
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
+
+	/* generate entry for servermap */
+	srv = (struct dasd_servermap *)
+		kzalloc(sizeof(struct dasd_servermap), GFP_KERNEL);
+	if (!srv)
+		return -ENOMEM;
+	strncpy(srv->sid.vendor, uid->vendor, sizeof(srv->sid.vendor) - 1);
+	strncpy(srv->sid.serial, uid->serial, sizeof(srv->sid.serial) - 1);
+
+	/* server is already contained ? */
 	spin_lock(&dasd_devmap_lock);
 	devmap->uid = *uid;
-	rc = dasd_add_server(uid);
+	list_for_each_entry(tmp, &dasd_serverlist, list) {
+		if (!memcmp(&srv->sid, &tmp->sid,
+			    sizeof(struct dasd_servermap))) {
+			kfree(srv);
+			srv = NULL;
+			break;
+		}
+	}
+
+	/* add servermap to serverlist */
+	if (srv)
+		list_add(&srv->list, &dasd_serverlist);
 	spin_unlock(&dasd_devmap_lock);
-	return rc;
+
+	return (srv ? 1 : 0);
 }
 EXPORT_SYMBOL_GPL(dasd_set_uid);
 
