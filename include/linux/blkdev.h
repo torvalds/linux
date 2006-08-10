@@ -180,6 +180,7 @@ enum rq_flag_bits {
 	__REQ_ORDERED_COLOR,	/* is before or after barrier */
 	__REQ_RW_SYNC,		/* request is sync (O_DIRECT) */
 	__REQ_ALLOCED,		/* request came from our alloc pool */
+	__REQ_RW_META,		/* metadata io request */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -200,6 +201,7 @@ enum rq_flag_bits {
 #define REQ_ORDERED_COLOR	(1 << __REQ_ORDERED_COLOR)
 #define REQ_RW_SYNC	(1 << __REQ_RW_SYNC)
 #define REQ_ALLOCED	(1 << __REQ_ALLOCED)
+#define REQ_RW_META	(1 << __REQ_RW_META)
 
 #define BLK_MAX_CDB	16
 
@@ -543,6 +545,7 @@ enum {
  * We regard a request as sync, if it's a READ or a SYNC write.
  */
 #define rq_is_sync(rq)		(rq_data_dir((rq)) == READ || (rq)->cmd_flags & REQ_RW_SYNC)
+#define rq_is_meta(rq)		((rq)->cmd_flags & REQ_RW_META)
 
 static inline int blk_queue_full(struct request_queue *q, int rw)
 {
