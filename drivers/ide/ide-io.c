@@ -59,7 +59,7 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 {
 	int ret = 1;
 
-	BUG_ON(!(rq->flags & REQ_STARTED));
+	BUG_ON(!blk_rq_started(rq));
 
 	/*
 	 * if failfast is set on a request, override number of sectors and
@@ -244,7 +244,7 @@ int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
 
 	spin_lock_irqsave(&ide_lock, flags);
 
-	BUG_ON(!(rq->flags & REQ_STARTED));
+	BUG_ON(!blk_rq_started(rq));
 
 	/*
 	 * if failfast is set on a request, override number of sectors and
@@ -366,7 +366,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 	rq = HWGROUP(drive)->rq;
 	spin_unlock_irqrestore(&ide_lock, flags);
 
-	if (rq->flags & REQ_DRIVE_CMD) {
+	if (rq->cmd_type == REQ_TYPE_ATA_CMD) {
 		u8 *args = (u8 *) rq->buffer;
 		if (rq->errors == 0)
 			rq->errors = !OK_STAT(stat,READY_STAT,BAD_STAT);
@@ -376,7 +376,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 			args[1] = err;
 			args[2] = hwif->INB(IDE_NSECTOR_REG);
 		}
-	} else if (rq->flags & REQ_DRIVE_TASK) {
+	} else if (rq->cmd_type == REQ_TYPE_ATA_TASK) {
 		u8 *args = (u8 *) rq->buffer;
 		if (rq->errors == 0)
 			rq->errors = !OK_STAT(stat,READY_STAT,BAD_STAT);
@@ -390,7 +390,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 			args[5] = hwif->INB(IDE_HCYL_REG);
 			args[6] = hwif->INB(IDE_SELECT_REG);
 		}
-	} else if (rq->flags & REQ_DRIVE_TASKFILE) {
+	} else if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *args = (ide_task_t *) rq->special;
 		if (rq->errors == 0)
 			rq->errors = !OK_STAT(stat,READY_STAT,BAD_STAT);
@@ -587,7 +587,7 @@ ide_startstop_t ide_error (ide_drive_t *drive, const char *msg, u8 stat)
 		return ide_stopped;
 
 	/* retry only "normal" I/O: */
-	if (rq->flags & (REQ_DRIVE_CMD | REQ_DRIVE_TASK | REQ_DRIVE_TASKFILE)) {
+	if (!blk_fs_request(rq)) {
 		rq->errors = 1;
 		ide_end_drive_cmd(drive, stat, err);
 		return ide_stopped;
@@ -638,7 +638,7 @@ ide_startstop_t ide_abort(ide_drive_t *drive, const char *msg)
 		return ide_stopped;
 
 	/* retry only "normal" I/O: */
-	if (rq->flags & (REQ_DRIVE_CMD | REQ_DRIVE_TASK | REQ_DRIVE_TASKFILE)) {
+	if (!blk_fs_request(rq)) {
 		rq->errors = 1;
 		ide_end_drive_cmd(drive, BUSY_STAT, 0);
 		return ide_stopped;
@@ -808,7 +808,7 @@ void ide_map_sg(ide_drive_t *drive, struct request *rq)
 	if (hwif->sg_mapped)	/* needed by ide-scsi */
 		return;
 
-	if ((rq->flags & REQ_DRIVE_TASKFILE) == 0) {
+	if (rq->cmd_type != REQ_TYPE_ATA_TASKFILE) {
 		hwif->sg_nents = blk_rq_map_sg(drive->queue, rq, sg);
 	} else {
 		sg_init_one(sg, rq->buffer, rq->nr_sectors * SECTOR_SIZE);
@@ -844,7 +844,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		struct request *rq)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	if (rq->flags & REQ_DRIVE_TASKFILE) {
+	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
  		ide_task_t *args = rq->special;
  
 		if (!args)
@@ -866,7 +866,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		if (args->tf_out_flags.all != 0) 
 			return flagged_taskfile(drive, args);
 		return do_rw_taskfile(drive, args);
-	} else if (rq->flags & REQ_DRIVE_TASK) {
+	} else if (rq->cmd_type == REQ_TYPE_ATA_TASK) {
 		u8 *args = rq->buffer;
 		u8 sel;
  
@@ -892,7 +892,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
  		hwif->OUTB(sel, IDE_SELECT_REG);
  		ide_cmd(drive, args[0], args[2], &drive_cmd_intr);
  		return ide_started;
- 	} else if (rq->flags & REQ_DRIVE_CMD) {
+ 	} else if (rq->cmd_type == REQ_TYPE_ATA_CMD) {
  		u8 *args = rq->buffer;
 
 		if (!args)
@@ -980,7 +980,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 	ide_startstop_t startstop;
 	sector_t block;
 
-	BUG_ON(!(rq->flags & REQ_STARTED));
+	BUG_ON(!blk_rq_started(rq));
 
 #ifdef DEBUG
 	printk("%s: start_request: current=0x%08lx\n",
@@ -1013,9 +1013,9 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 	if (!drive->special.all) {
 		ide_driver_t *drv;
 
-		if (rq->flags & (REQ_DRIVE_CMD | REQ_DRIVE_TASK))
-			return execute_drive_cmd(drive, rq);
-		else if (rq->flags & REQ_DRIVE_TASKFILE)
+		if (rq->cmd_type == REQ_TYPE_ATA_CMD ||
+		    rq->cmd_type == REQ_TYPE_ATA_TASK ||
+		    rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
 			return execute_drive_cmd(drive, rq);
 		else if (blk_pm_request(rq)) {
 			struct request_pm_state *pm = rq->end_io_data;
@@ -1264,7 +1264,7 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 		 * We count how many times we loop here to make sure we service
 		 * all drives in the hwgroup without looping for ever
 		 */
-		if (drive->blocked && !blk_pm_request(rq) && !(rq->flags & REQ_PREEMPT)) {
+		if (drive->blocked && !blk_pm_request(rq) && !(rq->cmd_flags & REQ_PREEMPT)) {
 			drive = drive->next ? drive->next : hwgroup->drive;
 			if (loops++ < 4 && !blk_queue_plugged(drive->queue))
 				goto again;
@@ -1670,7 +1670,7 @@ irqreturn_t ide_intr (int irq, void *dev_id, struct pt_regs *regs)
 void ide_init_drive_cmd (struct request *rq)
 {
 	memset(rq, 0, sizeof(*rq));
-	rq->flags = REQ_DRIVE_CMD;
+	rq->cmd_type = REQ_TYPE_ATA_CMD;
 	rq->ref_count = 1;
 }
 
@@ -1727,7 +1727,7 @@ int ide_do_drive_cmd (ide_drive_t *drive, struct request *rq, ide_action_t actio
 		hwgroup->rq = NULL;
 	if (action == ide_preempt || action == ide_head_wait) {
 		where = ELEVATOR_INSERT_FRONT;
-		rq->flags |= REQ_PREEMPT;
+		rq->cmd_flags |= REQ_PREEMPT;
 	}
 	__elv_add_request(drive->queue, rq, where, 0);
 	ide_do_request(hwgroup, IDE_NO_IRQ);

@@ -382,8 +382,8 @@ unsigned blk_ordered_req_seq(struct request *rq)
 	if (rq == &q->post_flush_rq)
 		return QUEUE_ORDSEQ_POSTFLUSH;
 
-	if ((rq->flags & REQ_ORDERED_COLOR) ==
-	    (q->orig_bar_rq->flags & REQ_ORDERED_COLOR))
+	if ((rq->cmd_flags & REQ_ORDERED_COLOR) ==
+	    (q->orig_bar_rq->cmd_flags & REQ_ORDERED_COLOR))
 		return QUEUE_ORDSEQ_DRAIN;
 	else
 		return QUEUE_ORDSEQ_DONE;
@@ -446,8 +446,8 @@ static void queue_flush(request_queue_t *q, unsigned which)
 		end_io = post_flush_end_io;
 	}
 
+	rq->cmd_flags = REQ_HARDBARRIER;
 	rq_init(q, rq);
-	rq->flags = REQ_HARDBARRIER;
 	rq->elevator_private = NULL;
 	rq->rq_disk = q->bar_rq.rq_disk;
 	rq->rl = NULL;
@@ -471,9 +471,11 @@ static inline struct request *start_ordered(request_queue_t *q,
 	blkdev_dequeue_request(rq);
 	q->orig_bar_rq = rq;
 	rq = &q->bar_rq;
+	rq->cmd_flags = 0;
 	rq_init(q, rq);
-	rq->flags = bio_data_dir(q->orig_bar_rq->bio);
-	rq->flags |= q->ordered & QUEUE_ORDERED_FUA ? REQ_FUA : 0;
+	if (bio_data_dir(q->orig_bar_rq->bio) == WRITE)
+		rq->cmd_flags |= REQ_RW;
+	rq->cmd_flags |= q->ordered & QUEUE_ORDERED_FUA ? REQ_FUA : 0;
 	rq->elevator_private = NULL;
 	rq->rl = NULL;
 	init_request_from_bio(rq, q->orig_bar_rq->bio);
@@ -1124,7 +1126,7 @@ void blk_queue_end_tag(request_queue_t *q, struct request *rq)
 	}
 
 	list_del_init(&rq->queuelist);
-	rq->flags &= ~REQ_QUEUED;
+	rq->cmd_flags &= ~REQ_QUEUED;
 	rq->tag = -1;
 
 	if (unlikely(bqt->tag_index[tag] == NULL))
@@ -1160,7 +1162,7 @@ int blk_queue_start_tag(request_queue_t *q, struct request *rq)
 	struct blk_queue_tag *bqt = q->queue_tags;
 	int tag;
 
-	if (unlikely((rq->flags & REQ_QUEUED))) {
+	if (unlikely((rq->cmd_flags & REQ_QUEUED))) {
 		printk(KERN_ERR 
 		       "%s: request %p for device [%s] already tagged %d",
 		       __FUNCTION__, rq,
@@ -1174,7 +1176,7 @@ int blk_queue_start_tag(request_queue_t *q, struct request *rq)
 
 	__set_bit(tag, bqt->tag_map);
 
-	rq->flags |= REQ_QUEUED;
+	rq->cmd_flags |= REQ_QUEUED;
 	rq->tag = tag;
 	bqt->tag_index[tag] = rq;
 	blkdev_dequeue_request(rq);
@@ -1210,65 +1212,31 @@ void blk_queue_invalidate_tags(request_queue_t *q)
 			printk(KERN_ERR
 			       "%s: bad tag found on list\n", __FUNCTION__);
 			list_del_init(&rq->queuelist);
-			rq->flags &= ~REQ_QUEUED;
+			rq->cmd_flags &= ~REQ_QUEUED;
 		} else
 			blk_queue_end_tag(q, rq);
 
-		rq->flags &= ~REQ_STARTED;
+		rq->cmd_flags &= ~REQ_STARTED;
 		__elv_add_request(q, rq, ELEVATOR_INSERT_BACK, 0);
 	}
 }
 
 EXPORT_SYMBOL(blk_queue_invalidate_tags);
 
-static const char * const rq_flags[] = {
-	"REQ_RW",
-	"REQ_FAILFAST",
-	"REQ_SORTED",
-	"REQ_SOFTBARRIER",
-	"REQ_HARDBARRIER",
-	"REQ_FUA",
-	"REQ_CMD",
-	"REQ_NOMERGE",
-	"REQ_STARTED",
-	"REQ_DONTPREP",
-	"REQ_QUEUED",
-	"REQ_ELVPRIV",
-	"REQ_PC",
-	"REQ_BLOCK_PC",
-	"REQ_SENSE",
-	"REQ_FAILED",
-	"REQ_QUIET",
-	"REQ_SPECIAL",
-	"REQ_DRIVE_CMD",
-	"REQ_DRIVE_TASK",
-	"REQ_DRIVE_TASKFILE",
-	"REQ_PREEMPT",
-	"REQ_PM_SUSPEND",
-	"REQ_PM_RESUME",
-	"REQ_PM_SHUTDOWN",
-	"REQ_ORDERED_COLOR",
-};
-
 void blk_dump_rq_flags(struct request *rq, char *msg)
 {
 	int bit;
 
-	printk("%s: dev %s: flags = ", msg,
-		rq->rq_disk ? rq->rq_disk->disk_name : "?");
-	bit = 0;
-	do {
-		if (rq->flags & (1 << bit))
-			printk("%s ", rq_flags[bit]);
-		bit++;
-	} while (bit < __REQ_NR_BITS);
+	printk("%s: dev %s: type=%x, flags=%x\n", msg,
+		rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->cmd_type,
+		rq->cmd_flags);
 
 	printk("\nsector %llu, nr/cnr %lu/%u\n", (unsigned long long)rq->sector,
 						       rq->nr_sectors,
 						       rq->current_nr_sectors);
 	printk("bio %p, biotail %p, buffer %p, data %p, len %u\n", rq->bio, rq->biotail, rq->buffer, rq->data, rq->data_len);
 
-	if (rq->flags & (REQ_BLOCK_PC | REQ_PC)) {
+	if (blk_pc_request(rq)) {
 		printk("cdb: ");
 		for (bit = 0; bit < sizeof(rq->cmd); bit++)
 			printk("%02x ", rq->cmd[bit]);
@@ -1441,7 +1409,7 @@ static inline int ll_new_mergeable(request_queue_t *q,
 	int nr_phys_segs = bio_phys_segments(q, bio);
 
 	if (req->nr_phys_segments + nr_phys_segs > q->max_phys_segments) {
-		req->flags |= REQ_NOMERGE;
+		req->cmd_flags |= REQ_NOMERGE;
 		if (req == q->last_merge)
 			q->last_merge = NULL;
 		return 0;
@@ -1464,7 +1432,7 @@ static inline int ll_new_hw_segment(request_queue_t *q,
 
 	if (req->nr_hw_segments + nr_hw_segs > q->max_hw_segments
 	    || req->nr_phys_segments + nr_phys_segs > q->max_phys_segments) {
-		req->flags |= REQ_NOMERGE;
+		req->cmd_flags |= REQ_NOMERGE;
 		if (req == q->last_merge)
 			q->last_merge = NULL;
 		return 0;
@@ -1491,7 +1459,7 @@ static int ll_back_merge_fn(request_queue_t *q, struct request *req,
 		max_sectors = q->max_sectors;
 
 	if (req->nr_sectors + bio_sectors(bio) > max_sectors) {
-		req->flags |= REQ_NOMERGE;
+		req->cmd_flags |= REQ_NOMERGE;
 		if (req == q->last_merge)
 			q->last_merge = NULL;
 		return 0;
@@ -1530,7 +1498,7 @@ static int ll_front_merge_fn(request_queue_t *q, struct request *req,
 
 
 	if (req->nr_sectors + bio_sectors(bio) > max_sectors) {
-		req->flags |= REQ_NOMERGE;
+		req->cmd_flags |= REQ_NOMERGE;
 		if (req == q->last_merge)
 			q->last_merge = NULL;
 		return 0;
@@ -2029,7 +1997,7 @@ EXPORT_SYMBOL(blk_get_queue);
 
 static inline void blk_free_request(request_queue_t *q, struct request *rq)
 {
-	if (rq->flags & REQ_ELVPRIV)
+	if (rq->cmd_flags & REQ_ELVPRIV)
 		elv_put_request(q, rq);
 	mempool_free(rq, q->rq.rq_pool);
 }
@@ -2044,17 +2012,17 @@ blk_alloc_request(request_queue_t *q, int rw, struct bio *bio,
 		return NULL;
 
 	/*
-	 * first three bits are identical in rq->flags and bio->bi_rw,
+	 * first three bits are identical in rq->cmd_flags and bio->bi_rw,
 	 * see bio.h and blkdev.h
 	 */
-	rq->flags = rw;
+	rq->cmd_flags = rw;
 
 	if (priv) {
 		if (unlikely(elv_set_request(q, rq, bio, gfp_mask))) {
 			mempool_free(rq, q->rq.rq_pool);
 			return NULL;
 		}
-		rq->flags |= REQ_ELVPRIV;
+		rq->cmd_flags |= REQ_ELVPRIV;
 	}
 
 	return rq;
@@ -2351,7 +2319,8 @@ void blk_insert_request(request_queue_t *q, struct request *rq,
 	 * must not attempt merges on this) and that it acts as a soft
 	 * barrier
 	 */
-	rq->flags |= REQ_SPECIAL | REQ_SOFTBARRIER;
+	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->cmd_flags |= REQ_SOFTBARRIER;
 
 	rq->special = data;
 
@@ -2558,7 +2527,7 @@ void blk_execute_rq_nowait(request_queue_t *q, struct gendisk *bd_disk,
 	int where = at_head ? ELEVATOR_INSERT_FRONT : ELEVATOR_INSERT_BACK;
 
 	rq->rq_disk = bd_disk;
-	rq->flags |= REQ_NOMERGE;
+	rq->cmd_flags |= REQ_NOMERGE;
 	rq->end_io = done;
 	WARN_ON(irqs_disabled());
 	spin_lock_irq(q->queue_lock);
@@ -2728,7 +2697,7 @@ void __blk_put_request(request_queue_t *q, struct request *req)
 	 */
 	if (rl) {
 		int rw = rq_data_dir(req);
-		int priv = req->flags & REQ_ELVPRIV;
+		int priv = req->cmd_flags & REQ_ELVPRIV;
 
 		BUG_ON(!list_empty(&req->queuelist));
 
@@ -2890,22 +2859,22 @@ static inline int attempt_front_merge(request_queue_t *q, struct request *rq)
 
 static void init_request_from_bio(struct request *req, struct bio *bio)
 {
-	req->flags |= REQ_CMD;
+	req->cmd_type = REQ_TYPE_FS;
 
 	/*
 	 * inherit FAILFAST from bio (for read-ahead, and explicit FAILFAST)
 	 */
 	if (bio_rw_ahead(bio) || bio_failfast(bio))
-		req->flags |= REQ_FAILFAST;
+		req->cmd_flags |= REQ_FAILFAST;
 
 	/*
 	 * REQ_BARRIER implies no merging, but lets make it explicit
 	 */
 	if (unlikely(bio_barrier(bio)))
-		req->flags |= (REQ_HARDBARRIER | REQ_NOMERGE);
+		req->cmd_flags |= (REQ_HARDBARRIER | REQ_NOMERGE);
 
 	if (bio_sync(bio))
-		req->flags |= REQ_RW_SYNC;
+		req->cmd_flags |= REQ_RW_SYNC;
 
 	req->errors = 0;
 	req->hard_sector = req->sector = bio->bi_sector;
@@ -3306,7 +3275,7 @@ static int __end_that_request_first(struct request *req, int uptodate,
 		req->errors = 0;
 
 	if (!uptodate) {
-		if (blk_fs_request(req) && !(req->flags & REQ_QUIET))
+		if (blk_fs_request(req) && !(req->cmd_flags & REQ_QUIET))
 			printk("end_request: I/O error, dev %s, sector %llu\n",
 				req->rq_disk ? req->rq_disk->disk_name : "?",
 				(unsigned long long)req->sector);
@@ -3569,8 +3538,8 @@ EXPORT_SYMBOL(end_request);
 
 void blk_rq_bio_prep(request_queue_t *q, struct request *rq, struct bio *bio)
 {
-	/* first two bits are identical in rq->flags and bio->bi_rw */
-	rq->flags |= (bio->bi_rw & 3);
+	/* first two bits are identical in rq->cmd_flags and bio->bi_rw */
+	rq->cmd_flags |= (bio->bi_rw & 3);
 
 	rq->nr_phys_segments = bio_phys_segments(q, bio);
 	rq->nr_hw_segments = bio_hw_segments(q, bio);

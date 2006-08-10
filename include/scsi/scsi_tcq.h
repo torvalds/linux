@@ -100,7 +100,7 @@ static inline int scsi_populate_tag_msg(struct scsi_cmnd *cmd, char *msg)
 	struct scsi_device *sdev = cmd->device;
 
         if (blk_rq_tagged(req)) {
-		if (sdev->ordered_tags && req->flags & REQ_HARDBARRIER)
+		if (sdev->ordered_tags && req->cmd_flags & REQ_HARDBARRIER)
         	        *msg++ = MSG_ORDERED_TAG;
         	else
         	        *msg++ = MSG_SIMPLE_TAG;

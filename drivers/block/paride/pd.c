@@ -437,7 +437,7 @@ static char *pd_buf;		/* buffer for request in progress */
 
 static enum action do_pd_io_start(void)
 {
-	if (pd_req->flags & REQ_SPECIAL) {
+	if (blk_special_request(pd_req)) {
 		phase = pd_special;
 		return pd_special();
 	}

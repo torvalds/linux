@@ -46,7 +46,7 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 	nsect = req->current_nr_sectors;
 	buf = req->buffer;
 
-	if (!(req->flags & REQ_CMD))
+	if (!blk_fs_request(req))
 		return 0;
 
 	if (block + nsect > get_capacity(req->rq_disk))

@@ -242,7 +242,7 @@ void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 	list_for_each_prev(entry, &q->queue_head) {
 		struct request *pos = list_entry_rq(entry);
 
-		if (pos->flags & (REQ_SOFTBARRIER|REQ_HARDBARRIER|REQ_STARTED))
+		if (pos->cmd_flags & (REQ_SOFTBARRIER|REQ_HARDBARRIER|REQ_STARTED))
 			break;
 		if (rq->sector >= boundary) {
 			if (pos->sector < boundary)
@@ -313,7 +313,7 @@ void elv_requeue_request(request_queue_t *q, struct request *rq)
 			e->ops->elevator_deactivate_req_fn(q, rq);
 	}
 
-	rq->flags &= ~REQ_STARTED;
+	rq->cmd_flags &= ~REQ_STARTED;
 
 	elv_insert(q, rq, ELEVATOR_INSERT_REQUEUE);
 }
@@ -344,13 +344,13 @@ void elv_insert(request_queue_t *q, struct request *rq, int where)
 
 	switch (where) {
 	case ELEVATOR_INSERT_FRONT:
-		rq->flags |= REQ_SOFTBARRIER;
+		rq->cmd_flags |= REQ_SOFTBARRIER;
 
 		list_add(&rq->queuelist, &q->queue_head);
 		break;
 
 	case ELEVATOR_INSERT_BACK:
-		rq->flags |= REQ_SOFTBARRIER;
+		rq->cmd_flags |= REQ_SOFTBARRIER;
 		elv_drain_elevator(q);
 		list_add_tail(&rq->queuelist, &q->queue_head);
 		/*
@@ -369,7 +369,7 @@ void elv_insert(request_queue_t *q, struct request *rq, int where)
 
 	case ELEVATOR_INSERT_SORT:
 		BUG_ON(!blk_fs_request(rq));
-		rq->flags |= REQ_SORTED;
+		rq->cmd_flags |= REQ_SORTED;
 		q->nr_sorted++;
 		if (q->last_merge == NULL && rq_mergeable(rq))
 			q->last_merge = rq;
@@ -387,7 +387,7 @@ void elv_insert(request_queue_t *q, struct request *rq, int where)
 		 * insertion; otherwise, requests should be requeued
 		 * in ordseq order.
 		 */
-		rq->flags |= REQ_SOFTBARRIER;
+		rq->cmd_flags |= REQ_SOFTBARRIER;
 
 		if (q->ordseq == 0) {
 			list_add(&rq->queuelist, &q->queue_head);
@@ -429,9 +429,9 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 		       int plug)
 {
 	if (q->ordcolor)
-		rq->flags |= REQ_ORDERED_COLOR;
+		rq->cmd_flags |= REQ_ORDERED_COLOR;
 
-	if (rq->flags & (REQ_SOFTBARRIER | REQ_HARDBARRIER)) {
+	if (rq->cmd_flags & (REQ_SOFTBARRIER | REQ_HARDBARRIER)) {
 		/*
 		 * toggle ordered color
 		 */
@@ -452,7 +452,7 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 			q->end_sector = rq_end_sector(rq);
 			q->boundary_rq = rq;
 		}
-	} else if (!(rq->flags & REQ_ELVPRIV) && where == ELEVATOR_INSERT_SORT)
+	} else if (!(rq->cmd_flags & REQ_ELVPRIV) && where == ELEVATOR_INSERT_SORT)
 		where = ELEVATOR_INSERT_BACK;
 
 	if (plug)
@@ -493,7 +493,7 @@ struct request *elv_next_request(request_queue_t *q)
 	int ret;
 
 	while ((rq = __elv_next_request(q)) != NULL) {
-		if (!(rq->flags & REQ_STARTED)) {
+		if (!(rq->cmd_flags & REQ_STARTED)) {
 			elevator_t *e = q->elevator;
 
 			/*
@@ -510,7 +510,7 @@ struct request *elv_next_request(request_queue_t *q)
 			 * it, a request that has been delayed should
 			 * not be passed by new incoming requests
 			 */
-			rq->flags |= REQ_STARTED;
+			rq->cmd_flags |= REQ_STARTED;
 			blk_add_trace_rq(q, rq, BLK_TA_ISSUE);
 		}
 
@@ -519,7 +519,7 @@ struct request *elv_next_request(request_queue_t *q)
 			q->boundary_rq = NULL;
 		}
 
-		if ((rq->flags & REQ_DONTPREP) || !q->prep_rq_fn)
+		if ((rq->cmd_flags & REQ_DONTPREP) || !q->prep_rq_fn)
 			break;
 
 		ret = q->prep_rq_fn(q, rq);
@@ -541,7 +541,7 @@ struct request *elv_next_request(request_queue_t *q)
 				nr_bytes = rq->data_len;
 
 			blkdev_dequeue_request(rq);
-			rq->flags |= REQ_QUIET;
+			rq->cmd_flags |= REQ_QUIET;
 			end_that_request_chunk(rq, 0, nr_bytes);
 			end_that_request_last(rq, 0);
 		} else {

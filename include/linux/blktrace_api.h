@@ -148,7 +148,7 @@ static inline void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 				    u32 what)
 {
 	struct blk_trace *bt = q->blk_trace;
-	int rw = rq->flags & 0x03;
+	int rw = rq->cmd_flags & 0x03;
 
 	if (likely(!bt))
 		return;

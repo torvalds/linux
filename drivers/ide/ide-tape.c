@@ -1776,7 +1776,7 @@ static void idetape_create_request_sense_cmd (idetape_pc_t *pc)
 static void idetape_init_rq(struct request *rq, u8 cmd)
 {
 	memset(rq, 0, sizeof(*rq));
-	rq->flags = REQ_SPECIAL;
+	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd[0] = cmd;
 }
 
@@ -2433,12 +2433,12 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 			rq->sector, rq->nr_sectors, rq->current_nr_sectors);
 #endif /* IDETAPE_DEBUG_LOG */
 
-	if ((rq->flags & REQ_SPECIAL) == 0) {
+	if (!blk_special_request(rq)) {
 		/*
 		 * We do not support buffer cache originated requests.
 		 */
 		printk(KERN_NOTICE "ide-tape: %s: Unsupported request in "
-			"request queue (%ld)\n", drive->name, rq->flags);
+			"request queue (%d)\n", drive->name, rq->cmd_type);
 		ide_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
@@ -2768,7 +2768,7 @@ static void idetape_wait_for_request (ide_drive_t *drive, struct request *rq)
 	idetape_tape_t *tape = drive->driver_data;
 
 #if IDETAPE_DEBUG_BUGS
-	if (rq == NULL || (rq->flags & REQ_SPECIAL) == 0) {
+	if (rq == NULL || !blk_special_request(rq)) {
 		printk (KERN_ERR "ide-tape: bug: Trying to sleep on non-valid request\n");
 		return;
 	}
