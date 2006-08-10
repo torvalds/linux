@@ -140,6 +140,8 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 	zl10353_single_write(fe, 0x5E, 0x00);
 	zl10353_single_write(fe, 0x65, 0x5A);
 	zl10353_single_write(fe, 0x66, 0xE9);
+	zl10353_single_write(fe, 0x6C, 0xCD);
+	zl10353_single_write(fe, 0x6D, 0x7E);
 	zl10353_single_write(fe, 0x62, 0x0A);
 
 	// if there is no attached secondary tuner, we call set_params to program
@@ -168,6 +170,7 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 	// even if there isn't a PLL attached to the secondary bus
 	zl10353_write(fe, pllbuf, sizeof(pllbuf));
 
+	zl10353_single_write(fe, 0x5F, 0x13);
 	zl10353_single_write(fe, 0x70, 0x01);
 	udelay(250);
 	zl10353_single_write(fe, 0xE4, 0x00);
