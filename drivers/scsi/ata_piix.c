@@ -932,8 +932,6 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 static void piix_host_stop(struct ata_host_set *host_set)
 {
-	if (host_set->next == NULL)
-		kfree(host_set->private_data);
 	ata_host_stop(host_set);
 }
 

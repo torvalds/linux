@@ -854,7 +854,7 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 		if (bmdma) {
 			bmdma += 8;
 			if(inb(bmdma + 2) & 0x80)
-			probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
+				probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
 			probe_ent->port[p].bmdma_addr = bmdma;
 		}
 		ata_std_ports(&probe_ent->port[p]);
@@ -867,44 +867,55 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 
 
 static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
-				struct ata_port_info *port, int port_num)
+				struct ata_port_info **port, int port_mask)
 {
 	struct ata_probe_ent *probe_ent;
-	unsigned long bmdma;
+	unsigned long bmdma = pci_resource_start(pdev, 4);
 
-	probe_ent = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port);
+	int port_num = 0;
+
+	probe_ent = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port[0]);
 	if (!probe_ent)
 		return NULL;
 
 	probe_ent->legacy_mode = 1;
-	probe_ent->n_ports = 1;
-	probe_ent->hard_port_no = port_num;
-	probe_ent->private_data = port->private_data;
+	probe_ent->hard_port_no = 0;
+	probe_ent->private_data = port[0]->private_data;
 
-	switch(port_num)
-	{
-		case 0:
-			probe_ent->irq = 14;
-			probe_ent->port[0].cmd_addr = 0x1f0;
-			probe_ent->port[0].altstatus_addr =
-			probe_ent->port[0].ctl_addr = 0x3f6;
-			break;
-		case 1:
+	if (port_mask & ATA_PORT_PRIMARY) {
+		probe_ent->irq = 14;
+		probe_ent->port[port_num].cmd_addr = ATA_PRIMARY_CMD;
+		probe_ent->port[port_num].altstatus_addr =
+		probe_ent->port[port_num].ctl_addr = ATA_PRIMARY_CTL;
+		if (bmdma) {
+			probe_ent->port[0].bmdma_addr = bmdma;
+			if (inb(bmdma + 2) & 0x80)
+				probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
+		}
+		ata_std_ports(&probe_ent->port[port_num]);
+		port_num ++;
+	}
+	if (port_mask & ATA_PORT_SECONDARY) {
+		if (port_num == 1)
+			probe_ent->irq2 = 15;
+		else {
+			/* Secondary only. IRQ 15 only and "first" port is port 1 */
 			probe_ent->irq = 15;
-			probe_ent->port[0].cmd_addr = 0x170;
-			probe_ent->port[0].altstatus_addr =
-			probe_ent->port[0].ctl_addr = 0x376;
-			break;
+			probe_ent->hard_port_no = 1;
+		}
+		probe_ent->port[port_num].cmd_addr = ATA_SECONDARY_CMD;
+		probe_ent->port[port_num].altstatus_addr =
+		probe_ent->port[port_num].ctl_addr = ATA_SECONDARY_CTL;
+		if (bmdma) {
+			probe_ent->port[port_num].bmdma_addr = bmdma + 8;
+			if (inb(bmdma + 10) & 0x80)
+				probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
+		}
+		ata_std_ports(&probe_ent->port[port_num]);
+		port_num ++;
 	}
 
-	bmdma = pci_resource_start(pdev, 4);
-	if (bmdma != 0) {
-		bmdma += 8 * port_num;
-		probe_ent->port[0].bmdma_addr = bmdma;
-		if (inb(bmdma + 2) & 0x80)
-			probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
-	}
-	ata_std_ports(&probe_ent->port[0]);
+	probe_ent->n_ports = port_num;
 
 	return probe_ent;
 }
@@ -924,6 +935,10 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
  *	regions, sets the dma mask, enables bus master mode, and calls
  *	ata_device_add()
  *
+ *	ASSUMPTION:
+ *	Nobody makes a single channel controller that appears solely as
+ *	the secondary legacy port on PCI.
+ *
  *	LOCKING:
  *	Inherited from PCI layer (may sleep).
  *
@@ -934,7 +949,7 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		      unsigned int n_ports)
 {
-	struct ata_probe_ent *probe_ent = NULL, *probe_ent2 = NULL;
+	struct ata_probe_ent *probe_ent = NULL;
 	struct ata_port_info *port[2];
 	u8 tmp8, mask;
 	unsigned int legacy_mode = 0;
@@ -983,35 +998,34 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		goto err_out;
 	}
 
-	/* FIXME: Should use platform specific mappers for legacy port ranges */
 	if (legacy_mode) {
-		if (!request_region(0x1f0, 8, "libata")) {
+		if (!request_region(ATA_PRIMARY_CMD, 8, "libata")) {
 			struct resource *conflict, res;
-			res.start = 0x1f0;
-			res.end = 0x1f0 + 8 - 1;
+			res.start = ATA_PRIMARY_CMD;
+			res.end = ATA_PRIMARY_CMD + 8 - 1;
 			conflict = ____request_resource(&ioport_resource, &res);
 			if (!strcmp(conflict->name, "libata"))
-				legacy_mode |= (1 << 0);
+				legacy_mode |= ATA_PORT_PRIMARY;
 			else {
 				disable_dev_on_err = 0;
-				printk(KERN_WARNING "ata: 0x1f0 IDE port busy\n");
+				printk(KERN_WARNING "ata: 0x%0X IDE port busy\n", ATA_PRIMARY_CMD);
 			}
 		} else
-			legacy_mode |= (1 << 0);
+			legacy_mode |= ATA_PORT_PRIMARY;
 
-		if (!request_region(0x170, 8, "libata")) {
+		if (!request_region(ATA_SECONDARY_CMD, 8, "libata")) {
 			struct resource *conflict, res;
-			res.start = 0x170;
-			res.end = 0x170 + 8 - 1;
+			res.start = ATA_SECONDARY_CMD;
+			res.end = ATA_SECONDARY_CMD + 8 - 1;
 			conflict = ____request_resource(&ioport_resource, &res);
 			if (!strcmp(conflict->name, "libata"))
-				legacy_mode |= (1 << 1);
+				legacy_mode |= ATA_PORT_SECONDARY;
 			else {
 				disable_dev_on_err = 0;
-				printk(KERN_WARNING "ata: 0x170 IDE port busy\n");
+				printk(KERN_WARNING "ata: 0x%X IDE port busy\n", ATA_SECONDARY_CMD);
 			}
 		} else
-			legacy_mode |= (1 << 1);
+			legacy_mode |= ATA_PORT_SECONDARY;
 	}
 
 	/* we have legacy mode, but all ports are unavailable */
@@ -1029,17 +1043,14 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		goto err_out_regions;
 
 	if (legacy_mode) {
-		if (legacy_mode & (1 << 0))
-			probe_ent = ata_pci_init_legacy_port(pdev, port[0], 0);
-		if (legacy_mode & (1 << 1))
-			probe_ent2 = ata_pci_init_legacy_port(pdev, port[1], 1);
+		probe_ent = ata_pci_init_legacy_port(pdev, port, legacy_mode);
 	} else {
 		if (n_ports == 2)
 			probe_ent = ata_pci_init_native_mode(pdev, port, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
 		else
 			probe_ent = ata_pci_init_native_mode(pdev, port, ATA_PORT_PRIMARY);
 	}
-	if (!probe_ent && !probe_ent2) {
+	if (!probe_ent) {
 		rc = -ENOMEM;
 		goto err_out_regions;
 	}
@@ -1047,35 +1058,17 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	pci_set_master(pdev);
 
 	/* FIXME: check ata_device_add return */
-	if (legacy_mode) {
-		struct device *dev = &pdev->dev;
-		struct ata_host_set *host_set = NULL;
-
-		if (legacy_mode & (1 << 0)) {
-			ata_device_add(probe_ent);
-			host_set = dev_get_drvdata(dev);
-		}
-
-		if (legacy_mode & (1 << 1)) {
-			ata_device_add(probe_ent2);
-			if (host_set) {
-				host_set->next = dev_get_drvdata(dev);
-				dev_set_drvdata(dev, host_set);
-			}
-		}
-	} else
-		ata_device_add(probe_ent);
+	ata_device_add(probe_ent);
 
 	kfree(probe_ent);
-	kfree(probe_ent2);
 
 	return 0;
 
 err_out_regions:
-	if (legacy_mode & (1 << 0))
-		release_region(0x1f0, 8);
-	if (legacy_mode & (1 << 1))
-		release_region(0x170, 8);
+	if (legacy_mode & ATA_PORT_PRIMARY)
+		release_region(ATA_PRIMARY_CMD, 8);
+	if (legacy_mode & ATA_PORT_SECONDARY)
+		release_region(ATA_SECONDARY_CMD, 8);
 	pci_release_regions(pdev);
 err_out:
 	if (disable_dev_on_err)

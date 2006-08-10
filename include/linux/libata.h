@@ -36,6 +36,8 @@
 #include <linux/workqueue.h>
 #include <scsi/scsi_host.h>
 
+#include <asm/libata-portmap.h>
+
 /*
  * compile-time options: to be removed as soon as all the drivers are
  * converted to the new debugging mechanism
@@ -356,6 +358,7 @@ struct ata_probe_ent {
 	unsigned int		udma_mask;
 	unsigned int		legacy_mode;
 	unsigned long		irq;
+	unsigned long		irq2;
 	unsigned int		irq_flags;
 	unsigned long		host_flags;
 	unsigned long		host_set_flags;
@@ -367,6 +370,7 @@ struct ata_host_set {
 	spinlock_t		lock;
 	struct device 		*dev;
 	unsigned long		irq;
+	unsigned long		irq2;
 	void __iomem		*mmio_base;
 	unsigned int		n_ports;
 	void			*private_data;
@@ -374,7 +378,6 @@ struct ata_host_set {
 	unsigned long		flags;
 	int			simplex_claimed;	/* Keep seperate in case we
 							   ever need to do this locked */
-	struct ata_host_set	*next;		/* for legacy mode */
 	struct ata_port		*ports[0];
 };
 

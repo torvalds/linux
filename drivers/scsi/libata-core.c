@@ -5223,8 +5223,9 @@ void ata_port_init(struct ata_port *ap, struct ata_host_set *host_set,
 	ap->host_set = host_set;
 	ap->dev = ent->dev;
 	ap->port_no = port_no;
-	ap->hard_port_no =
-		ent->legacy_mode ? ent->hard_port_no : port_no;
+	ap->hard_port_no = port_no;
+	if (ent->legacy_mode)
+		ap->hard_port_no += ent->hard_port_no;
 	ap->pio_mask = ent->pio_mask;
 	ap->mwdma_mask = ent->mwdma_mask;
 	ap->udma_mask = ent->udma_mask;
@@ -5400,6 +5401,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	ata_host_set_init(host_set, dev, ent->host_set_flags, ent->port_ops);
 	host_set->n_ports = ent->n_ports;
 	host_set->irq = ent->irq;
+	host_set->irq2 = ent->irq2;
 	host_set->mmio_base = ent->mmio_base;
 	host_set->private_data = ent->private_data;
 
@@ -5407,10 +5409,15 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	for (i = 0; i < host_set->n_ports; i++) {
 		struct ata_port *ap;
 		unsigned long xfer_mode_mask;
+		int irq_line = ent->irq;
 
 		ap = ata_port_add(ent, host_set, i);
 		if (!ap)
 			goto err_out;
+
+		/* Report the secondary IRQ for second channel legacy */
+		if (i == 1 && ent->irq2)
+			irq_line = ent->irq2;
 
 		host_set->ports[i] = ap;
 		xfer_mode_mask =(ap->udma_mask << ATA_SHIFT_UDMA) |
@@ -5419,26 +5426,41 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 		/* print per-port info to dmesg */
 		ata_port_printk(ap, KERN_INFO, "%cATA max %s cmd 0x%lX "
-				"ctl 0x%lX bmdma 0x%lX irq %lu\n",
+				"ctl 0x%lX bmdma 0x%lX irq %d\n",
 				ap->flags & ATA_FLAG_SATA ? 'S' : 'P',
 				ata_mode_string(xfer_mode_mask),
 				ap->ioaddr.cmd_addr,
 				ap->ioaddr.ctl_addr,
 				ap->ioaddr.bmdma_addr,
-				ent->irq);
+				irq_line);
 
 		ata_chk_status(ap);
 		host_set->ops->irq_clear(ap);
 		ata_eh_freeze_port(ap);	/* freeze port before requesting IRQ */
 	}
 
-	/* obtain irq, that is shared between channels */
+	/* obtain irq, that may be shared between channels */
 	rc = request_irq(ent->irq, ent->port_ops->irq_handler, ent->irq_flags,
 			 DRV_NAME, host_set);
 	if (rc) {
 		dev_printk(KERN_ERR, dev, "irq %lu request failed: %d\n",
 			   ent->irq, rc);
 		goto err_out;
+	}
+
+	/* do we have a second IRQ for the other channel, eg legacy mode */
+	if (ent->irq2) {
+		/* We will get weird core code crashes later if this is true
+		   so trap it now */
+		BUG_ON(ent->irq == ent->irq2);
+
+		rc = request_irq(ent->irq2, ent->port_ops->irq_handler, ent->irq_flags,
+			 DRV_NAME, host_set);
+		if (rc) {
+			dev_printk(KERN_ERR, dev, "irq %lu request failed: %d\n",
+				   ent->irq2, rc);
+			goto err_out_free_irq;
+		}
 	}
 
 	/* perform each probe synchronously */
@@ -5514,6 +5536,8 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	VPRINTK("EXIT, returning %u\n", ent->n_ports);
 	return ent->n_ports; /* success */
 
+err_out_free_irq:
+	free_irq(ent->irq, host_set);
 err_out:
 	for (i = 0; i < host_set->n_ports; i++) {
 		struct ata_port *ap = host_set->ports[i];
@@ -5605,6 +5629,8 @@ void ata_host_set_remove(struct ata_host_set *host_set)
 		ata_port_detach(host_set->ports[i]);
 
 	free_irq(host_set->irq, host_set);
+	if (host_set->irq2)
+		free_irq(host_set->irq2, host_set);
 
 	for (i = 0; i < host_set->n_ports; i++) {
 		struct ata_port *ap = host_set->ports[i];
@@ -5614,10 +5640,11 @@ void ata_host_set_remove(struct ata_host_set *host_set)
 		if ((ap->flags & ATA_FLAG_NO_LEGACY) == 0) {
 			struct ata_ioports *ioaddr = &ap->ioaddr;
 
-			if (ioaddr->cmd_addr == 0x1f0)
-				release_region(0x1f0, 8);
-			else if (ioaddr->cmd_addr == 0x170)
-				release_region(0x170, 8);
+			/* FIXME: Add -ac IDE pci mods to remove these special cases */
+			if (ioaddr->cmd_addr == ATA_PRIMARY_CMD)
+				release_region(ATA_PRIMARY_CMD, 8);
+			else if (ioaddr->cmd_addr == ATA_SECONDARY_CMD)
+				release_region(ATA_SECONDARY_CMD, 8);
 		}
 
 		scsi_host_put(ap->host);
@@ -5735,11 +5762,8 @@ void ata_pci_remove_one (struct pci_dev *pdev)
 {
 	struct device *dev = pci_dev_to_dev(pdev);
 	struct ata_host_set *host_set = dev_get_drvdata(dev);
-	struct ata_host_set *host_set2 = host_set->next;
 
 	ata_host_set_remove(host_set);
-	if (host_set2)
-		ata_host_set_remove(host_set2);
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -5807,14 +5831,6 @@ int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 	if (rc)
 		return rc;
 
-	if (host_set->next) {
-		rc = ata_host_set_suspend(host_set->next, mesg);
-		if (rc) {
-			ata_host_set_resume(host_set);
-			return rc;
-		}
-	}
-
 	ata_pci_device_do_suspend(pdev, mesg);
 
 	return 0;
@@ -5826,9 +5842,6 @@ int ata_pci_device_resume(struct pci_dev *pdev)
 
 	ata_pci_device_do_resume(pdev);
 	ata_host_set_resume(host_set);
-	if (host_set->next)
-		ata_host_set_resume(host_set->next);
-
 	return 0;
 }
 #endif /* CONFIG_PCI */
