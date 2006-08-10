@@ -1205,7 +1205,7 @@ static int sil24_pci_device_resume(struct pci_dev *pdev)
 
 static int __init sil24_init(void)
 {
-	return pci_module_init(&sil24_pci_driver);
+	return pci_register_driver(&sil24_pci_driver);
 }
 
 static void __exit sil24_exit(void)

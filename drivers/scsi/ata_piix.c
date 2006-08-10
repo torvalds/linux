@@ -939,8 +939,8 @@ static int __init piix_init(void)
 {
 	int rc;
 
-	DPRINTK("pci_module_init\n");
-	rc = pci_module_init(&piix_pci_driver);
+	DPRINTK("pci_register_driver\n");
+	rc = pci_register_driver(&piix_pci_driver);
 	if (rc)
 		return rc;
 

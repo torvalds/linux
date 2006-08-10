@@ -462,7 +462,7 @@ static struct pci_driver vsc_sata_pci_driver = {
 
 static int __init vsc_sata_init(void)
 {
-	return pci_module_init(&vsc_sata_pci_driver);
+	return pci_register_driver(&vsc_sata_pci_driver);
 }
 
 
