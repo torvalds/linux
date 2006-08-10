@@ -1645,7 +1645,7 @@ static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 	if (!pskb_may_pull(skb, sizeof(struct ipxhdr)))
 		goto drop;
 
-	ipx_pktsize = ntohs(ipxhdr(skb)->ipx_pktsize);
+	ipx_pktsize = ntohs(ipx_hdr(skb)->ipx_pktsize);
 	
 	/* Too small or invalid header? */
 	if (ipx_pktsize < sizeof(struct ipxhdr) ||
