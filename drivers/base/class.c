@@ -679,7 +679,8 @@ int class_device_register(struct class_device *class_dev)
 struct class_device *class_device_create(struct class *cls,
 					 struct class_device *parent,
 					 dev_t devt,
-					 struct device *device, char *fmt, ...)
+					 struct device *device,
+					 const char *fmt, ...)
 {
 	va_list args;
 	struct class_device *class_dev = NULL;
