@@ -254,7 +254,6 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	ei->socket.ops = NULL;
 	ei->socket.sk = NULL;
 	ei->socket.file = NULL;
-	ei->socket.flags = 0;
 
 	return &ei->vfs_inode;
 }
