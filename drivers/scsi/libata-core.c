@@ -5311,7 +5311,6 @@ static struct ata_port * ata_port_add(const struct ata_probe_ent *ent,
 {
 	struct Scsi_Host *shost;
 	struct ata_port *ap;
-	int rc;
 
 	DPRINTK("ENTER\n");
 
@@ -5333,15 +5332,7 @@ static struct ata_port * ata_port_add(const struct ata_probe_ent *ent,
 	ata_port_init(ap, host_set, ent, port_no);
 	ata_port_init_shost(ap, shost);
 
-	rc = ap->ops->port_start(ap);
-	if (rc)
-		goto err_out;
-
 	return ap;
-
-err_out:
-	scsi_host_put(shost);
-	return NULL;
 }
 
 /**
@@ -5415,11 +5406,27 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		if (!ap)
 			goto err_out;
 
+		host_set->ports[i] = ap;
+
+		/* dummy? */
+		if (ent->dummy_port_mask & (1 << i)) {
+			ata_port_printk(ap, KERN_INFO, "DUMMY\n");
+			ap->ops = &ata_dummy_port_ops;
+			continue;
+		}
+
+		/* start port */
+		rc = ap->ops->port_start(ap);
+		if (rc) {
+			host_set->ports[i] = NULL;
+			scsi_host_put(ap->host);
+			goto err_out;
+		}
+
 		/* Report the secondary IRQ for second channel legacy */
 		if (i == 1 && ent->irq2)
 			irq_line = ent->irq2;
 
-		host_set->ports[i] = ap;
 		xfer_mode_mask =(ap->udma_mask << ATA_SHIFT_UDMA) |
 				(ap->mwdma_mask << ATA_SHIFT_MWDMA) |
 				(ap->pio_mask << ATA_SHIFT_PIO);
@@ -5941,6 +5948,39 @@ u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
 }
 
 /*
+ * Dummy port_ops
+ */
+static void ata_dummy_noret(struct ata_port *ap)	{ }
+static int ata_dummy_ret0(struct ata_port *ap)		{ return 0; }
+static void ata_dummy_qc_noret(struct ata_queued_cmd *qc) { }
+
+static u8 ata_dummy_check_status(struct ata_port *ap)
+{
+	return ATA_DRDY;
+}
+
+static unsigned int ata_dummy_qc_issue(struct ata_queued_cmd *qc)
+{
+	return AC_ERR_SYSTEM;
+}
+
+const struct ata_port_operations ata_dummy_port_ops = {
+	.port_disable		= ata_port_disable,
+	.check_status		= ata_dummy_check_status,
+	.check_altstatus	= ata_dummy_check_status,
+	.dev_select		= ata_noop_dev_select,
+	.qc_prep		= ata_noop_qc_prep,
+	.qc_issue		= ata_dummy_qc_issue,
+	.freeze			= ata_dummy_noret,
+	.thaw			= ata_dummy_noret,
+	.error_handler		= ata_dummy_noret,
+	.post_internal_cmd	= ata_dummy_qc_noret,
+	.irq_clear		= ata_dummy_noret,
+	.port_start		= ata_dummy_ret0,
+	.port_stop		= ata_dummy_noret,
+};
+
+/*
  * libata is essentially a library of internal helper functions for
  * low-level ATA host controller drivers.  As such, the API/ABI is
  * likely to change as new drivers are added and updated.
@@ -5950,6 +5990,7 @@ u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
 EXPORT_SYMBOL_GPL(sata_deb_timing_normal);
 EXPORT_SYMBOL_GPL(sata_deb_timing_hotplug);
 EXPORT_SYMBOL_GPL(sata_deb_timing_long);
+EXPORT_SYMBOL_GPL(ata_dummy_port_ops);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
 EXPORT_SYMBOL_GPL(ata_host_set_init);

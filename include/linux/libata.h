@@ -353,6 +353,7 @@ struct ata_probe_ent {
 	struct ata_ioports	port[ATA_MAX_PORTS];
 	unsigned int		n_ports;
 	unsigned int		hard_port_no;
+	unsigned int		dummy_port_mask;
 	unsigned int		pio_mask;
 	unsigned int		mwdma_mask;
 	unsigned int		udma_mask;
@@ -652,6 +653,8 @@ extern const unsigned long sata_deb_timing_normal[];
 extern const unsigned long sata_deb_timing_hotplug[];
 extern const unsigned long sata_deb_timing_long[];
 
+extern const struct ata_port_operations ata_dummy_port_ops;
+
 static inline const unsigned long *
 sata_ehc_deb_timing(struct ata_eh_context *ehc)
 {
@@ -659,6 +662,11 @@ sata_ehc_deb_timing(struct ata_eh_context *ehc)
 		return sata_deb_timing_hotplug;
 	else
 		return sata_deb_timing_normal;
+}
+
+static inline int ata_port_is_dummy(struct ata_port *ap)
+{
+	return ap->ops == &ata_dummy_port_ops;
 }
 
 extern void ata_port_probe(struct ata_port *);
