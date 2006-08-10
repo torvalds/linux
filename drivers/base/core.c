@@ -583,7 +583,7 @@ static void device_create_release(struct device *dev)
  * been created with a call to class_create().
  */
 struct device *device_create(struct class *class, struct device *parent,
-			     dev_t devt, char *fmt, ...)
+			     dev_t devt, const char *fmt, ...)
 {
 	va_list args;
 	struct device *dev = NULL;

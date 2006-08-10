@@ -384,7 +384,7 @@ extern void device_reprobe(struct device *dev);
  * Easy functions for dynamically creating devices on the fly
  */
 extern struct device *device_create(struct class *cls, struct device *parent,
-				    dev_t devt, char *fmt, ...)
+				    dev_t devt, const char *fmt, ...)
 				    __attribute__((format(printf,4,5)));
 extern void device_destroy(struct class *cls, dev_t devt);
 
