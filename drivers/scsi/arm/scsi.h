@@ -74,7 +74,7 @@ static inline void init_SCp(Scsi_Cmnd *SCpnt)
 		unsigned long len = 0;
 		int buf;
 
-		SCpnt->SCp.buffer = (struct scatterlist *) SCpnt->buffer;
+		SCpnt->SCp.buffer = (struct scatterlist *) SCpnt->request_buffer;
 		SCpnt->SCp.buffers_residual = SCpnt->use_sg - 1;
 		SCpnt->SCp.ptr = (char *)
 			 (page_address(SCpnt->SCp.buffer->page) +
