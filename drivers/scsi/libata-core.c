@@ -5309,7 +5309,7 @@ static void ata_port_init_shost(struct ata_port *ap, struct Scsi_Host *shost)
 }
 
 /**
- *	ata_host_add - Attach low-level ATA driver to system
+ *	ata_port_add - Attach low-level ATA driver to system
  *	@ent: Information provided by low-level driver
  *	@host_set: Collections of ports to which we add
  *	@port_no: Port number associated with this host
@@ -5322,12 +5322,11 @@ static void ata_port_init_shost(struct ata_port *ap, struct Scsi_Host *shost)
  *	RETURNS:
  *	New ata_port on success, for NULL on error.
  */
-
-static struct ata_port * ata_host_add(const struct ata_probe_ent *ent,
+static struct ata_port * ata_port_add(const struct ata_probe_ent *ent,
 				      struct ata_host_set *host_set,
 				      unsigned int port_no)
 {
-	struct Scsi_Host *host;
+	struct Scsi_Host *shost;
 	struct ata_port *ap;
 	int rc;
 
@@ -5340,16 +5339,16 @@ static struct ata_port * ata_host_add(const struct ata_probe_ent *ent,
 		return NULL;
 	}
 
-	host = scsi_host_alloc(ent->sht, sizeof(struct ata_port));
-	if (!host)
+	shost = scsi_host_alloc(ent->sht, sizeof(struct ata_port));
+	if (!shost)
 		return NULL;
 
-	host->transportt = &ata_scsi_transport_template;
+	shost->transportt = &ata_scsi_transport_template;
 
-	ap = ata_shost_to_port(host);
+	ap = ata_shost_to_port(shost);
 
 	ata_port_init(ap, host_set, ent, port_no);
-	ata_port_init_shost(ap, host);
+	ata_port_init_shost(ap, shost);
 
 	rc = ap->ops->port_start(ap);
 	if (rc)
@@ -5358,7 +5357,7 @@ static struct ata_port * ata_host_add(const struct ata_probe_ent *ent,
 	return ap;
 
 err_out:
-	scsi_host_put(host);
+	scsi_host_put(shost);
 	return NULL;
 }
 
@@ -5427,7 +5426,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		struct ata_port *ap;
 		unsigned long xfer_mode_mask;
 
-		ap = ata_host_add(ent, host_set, i);
+		ap = ata_port_add(ent, host_set, i);
 		if (!ap)
 			goto err_out;
 
