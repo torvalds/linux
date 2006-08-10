@@ -1041,11 +1041,11 @@ struct cx88_board cx88_boards[] = {
 		.input          = {{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
-			.gpio0  = 0x000027df,
+			.gpio0  = 0x000067df,
 		 },{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
-			.gpio0  = 0x000027df,
+			.gpio0  = 0x000067df,
 		}},
 		.dvb            = 1,
 	},
@@ -1759,9 +1759,15 @@ void cx88_card_setup(struct cx88_core *core)
 		cx_write(MO_GP0_IO, 0x000007f8);
 		cx_write(MO_GP1_IO, 0x00000001);
 		break;
+	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
+		/* GPIO0:6 is hooked to FX2 reset pin */
+		cx_set(MO_GP0_IO, 0x00004040);
+		cx_clear(MO_GP0_IO, 0x00000040);
+		msleep(1000);
+		cx_set(MO_GP0_IO, 0x00004040);
+		/* FALLTHROUGH */
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
-	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:
 		/* GPIO0:0 is hooked to mt352 reset pin */
 		cx_set(MO_GP0_IO, 0x00000101);
