@@ -31,6 +31,9 @@ struct zl10353_config
 
 	/* set if no pll is connected to the secondary i2c bus */
 	int no_tuner;
+
+	/* set if parallel ts output is required */
+	int parallel_ts;
 };
 
 #if defined(CONFIG_DVB_ZL10353) || defined(CONFIG_DVB_ZL10353_MODULE)

@@ -349,6 +349,7 @@ static struct mt352_config cxusb_dee1601_config = {
 
 static struct zl10353_config cxusb_zl10353_dee1601_config = {
 	.demod_address = 0x0f,
+	.parallel_ts = 1,
 };
 
 static struct mt352_config cxusb_mt352_config = {
