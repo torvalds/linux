@@ -3040,10 +3040,6 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
  *	known limits including host controller limits, device
  *	blacklist, etc...
  *
- *	FIXME: The current implementation limits all transfer modes to
- *	the fastest of the lowested device on the port.  This is not
- *	required on most controllers.
- *
  *	LOCKING:
  *	None.
  */
@@ -3052,8 +3048,8 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	struct ata_port *ap = dev->ap;
 	struct ata_host_set *hs = ap->host_set;
 	unsigned long xfer_mask;
-	int i;
 
+	/* controller modes available */
 	xfer_mask = ata_pack_xfermask(ap->pio_mask,
 				      ap->mwdma_mask, ap->udma_mask);
 
@@ -3063,34 +3059,20 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	if (ap->cbl == ATA_CBL_PATA40)
 		xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
 
-	/* FIXME: Use port-wide xfermask for now */
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *d = &ap->device[i];
+	xfer_mask &= ata_pack_xfermask(dev->pio_mask,
+				       dev->mwdma_mask, dev->udma_mask);
+	xfer_mask &= ata_id_xfermask(dev->id);
 
-		if (ata_dev_absent(d))
-			continue;
-
-		if (ata_dev_disabled(d)) {
-			/* to avoid violating device selection timing */
-			xfer_mask &= ata_pack_xfermask(d->pio_mask,
-						       UINT_MAX, UINT_MAX);
-			continue;
-		}
-
-		xfer_mask &= ata_pack_xfermask(d->pio_mask,
-					       d->mwdma_mask, d->udma_mask);
-		xfer_mask &= ata_id_xfermask(d->id);
-		if (ata_dma_blacklisted(d))
-			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
-	}
-
-	if (ata_dma_blacklisted(dev))
+	if (ata_dma_blacklisted(dev)) {
+		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 		ata_dev_printk(dev, KERN_WARNING,
 			       "device is on DMA blacklist, disabling DMA\n");
+	}
 
-	if (hs->flags & ATA_HOST_SIMPLEX) {
-		if (hs->simplex_claimed)
-			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
+	if ((hs->flags & ATA_HOST_SIMPLEX) && hs->simplex_claimed) {
+		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
+		ata_dev_printk(dev, KERN_WARNING, "simplex DMA is claimed by "
+			       "other device, disabling DMA\n");
 	}
 
 	if (ap->ops->mode_filter)
