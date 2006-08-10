@@ -180,6 +180,7 @@ enum rq_flag_bits {
 	__REQ_PREEMPT,		/* set for "ide_preempt" requests */
 	__REQ_ORDERED_COLOR,	/* is before or after barrier */
 	__REQ_RW_SYNC,		/* request is sync (O_DIRECT) */
+	__REQ_ALLOCED,		/* request came from our alloc pool */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -199,6 +200,7 @@ enum rq_flag_bits {
 #define REQ_PREEMPT	(1 << __REQ_PREEMPT)
 #define REQ_ORDERED_COLOR	(1 << __REQ_ORDERED_COLOR)
 #define REQ_RW_SYNC	(1 << __REQ_RW_SYNC)
+#define REQ_ALLOCED	(1 << __REQ_ALLOCED)
 
 #define BLK_MAX_CDB	16
 
@@ -264,7 +266,6 @@ struct request {
 
 	int ref_count;
 	request_queue_t *q;
-	struct request_list *rl;
 
 	void *special;
 	char *buffer;

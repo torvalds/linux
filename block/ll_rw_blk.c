@@ -452,7 +452,6 @@ static void queue_flush(request_queue_t *q, unsigned which)
 	rq->elevator_private = NULL;
 	rq->elevator_private2 = NULL;
 	rq->rq_disk = q->bar_rq.rq_disk;
-	rq->rl = NULL;
 	rq->end_io = end_io;
 	q->prepare_flush_fn(q, rq);
 
@@ -480,7 +479,6 @@ static inline struct request *start_ordered(request_queue_t *q,
 	rq->cmd_flags |= q->ordered & QUEUE_ORDERED_FUA ? REQ_FUA : 0;
 	rq->elevator_private = NULL;
 	rq->elevator_private2 = NULL;
-	rq->rl = NULL;
 	init_request_from_bio(rq, q->orig_bar_rq->bio);
 	rq->end_io = bar_end_io;
 
@@ -2018,7 +2016,7 @@ blk_alloc_request(request_queue_t *q, int rw, struct bio *bio,
 	 * first three bits are identical in rq->cmd_flags and bio->bi_rw,
 	 * see bio.h and blkdev.h
 	 */
-	rq->cmd_flags = rw;
+	rq->cmd_flags = rw | REQ_ALLOCED;
 
 	if (priv) {
 		if (unlikely(elv_set_request(q, rq, bio, gfp_mask))) {
@@ -2196,7 +2194,6 @@ rq_starved:
 		ioc->nr_batch_requests--;
 	
 	rq_init(q, rq);
-	rq->rl = rl;
 
 	blk_add_trace_generic(q, bio, rw, BLK_TA_GETRQ);
 out:
@@ -2681,8 +2678,6 @@ EXPORT_SYMBOL_GPL(disk_round_stats);
  */
 void __blk_put_request(request_queue_t *q, struct request *req)
 {
-	struct request_list *rl = req->rl;
-
 	if (unlikely(!q))
 		return;
 	if (unlikely(--req->ref_count))
@@ -2691,13 +2686,12 @@ void __blk_put_request(request_queue_t *q, struct request *req)
 	elv_completed_request(q, req);
 
 	req->rq_status = RQ_INACTIVE;
-	req->rl = NULL;
 
 	/*
 	 * Request may not have originated from ll_rw_blk. if not,
 	 * it didn't come out of our reserved rq pools
 	 */
-	if (rl) {
+	if (req->cmd_flags & REQ_ALLOCED) {
 		int rw = rq_data_dir(req);
 		int priv = req->cmd_flags & REQ_ELVPRIV;
 
