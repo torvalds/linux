@@ -5403,7 +5403,7 @@ void ata_host_set_init(struct ata_host_set *host_set,
  */
 int ata_device_add(const struct ata_probe_ent *ent)
 {
-	unsigned int count = 0, i;
+	unsigned int i;
 	struct device *dev = ent->dev;
 	struct ata_host_set *host_set;
 	int rc;
@@ -5422,7 +5422,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	host_set->private_data = ent->private_data;
 
 	/* register each port bound to this device */
-	for (i = 0; i < ent->n_ports; i++) {
+	for (i = 0; i < host_set->n_ports; i++) {
 		struct ata_port *ap;
 		unsigned long xfer_mode_mask;
 
@@ -5448,11 +5448,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		ata_chk_status(ap);
 		host_set->ops->irq_clear(ap);
 		ata_eh_freeze_port(ap);	/* freeze port before requesting IRQ */
-		count++;
 	}
-
-	if (!count)
-		goto err_free_ret;
 
 	/* obtain irq, that is shared between channels */
 	rc = request_irq(ent->irq, ent->port_ops->irq_handler, ent->irq_flags,
@@ -5465,12 +5461,10 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 	/* perform each probe synchronously */
 	DPRINTK("probe begin\n");
-	for (i = 0; i < count; i++) {
-		struct ata_port *ap;
+	for (i = 0; i < host_set->n_ports; i++) {
+		struct ata_port *ap = host_set->ports[i];
 		u32 scontrol;
 		int rc;
-
-		ap = host_set->ports[i];
 
 		/* init sata_spd_limit to the current value */
 		if (sata_scr_read(ap, SCR_CONTROL, &scontrol) == 0) {
@@ -5527,7 +5521,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 	/* probes are done, now scan each port's disk(s) */
 	DPRINTK("host probe begin\n");
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < host_set->n_ports; i++) {
 		struct ata_port *ap = host_set->ports[i];
 
 		ata_scsi_scan_host(ap);
@@ -5539,14 +5533,14 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	return ent->n_ports; /* success */
 
 err_out:
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < host_set->n_ports; i++) {
 		struct ata_port *ap = host_set->ports[i];
 		if (ap) {
 			ap->ops->port_stop(ap);
 			scsi_host_put(ap->host);
 		}
 	}
-err_free_ret:
+
 	kfree(host_set);
 	VPRINTK("EXIT, returning 0\n");
 	return 0;
