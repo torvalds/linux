@@ -147,7 +147,7 @@ static struct file_operations socket_file_ops = {
  */
 
 static DEFINE_SPINLOCK(net_family_lock);
-static const struct net_proto_family *net_families[NPROTO];
+static const struct net_proto_family *net_families[NPROTO] __read_mostly;
 
 /*
  *	Statistics counters of the socket lists
@@ -2080,7 +2080,7 @@ asmlinkage long sys_socketcall(int call, unsigned long __user *args)
  *	socket interface. The value ops->family coresponds to the
  *	socket system call protocol family.
  */
-int sock_register(struct net_proto_family *ops)
+int sock_register(const struct net_proto_family *ops)
 {
 	int err;
 
@@ -2116,10 +2116,9 @@ int sock_register(struct net_proto_family *ops)
  *	a module then it needs to provide its own protection in
  *	the ops->create routine.
  */
-int sock_unregister(int family)
+void sock_unregister(int family)
 {
-	if (family < 0 || family >= NPROTO)
-		return -EINVAL;
+	BUG_ON(family < 0 || family >= NPROTO);
 
 	spin_lock(&net_family_lock);
 	net_families[family] = NULL;
@@ -2128,7 +2127,6 @@ int sock_unregister(int family)
 	synchronize_rcu();
 
 	printk(KERN_INFO "NET: Unregistered protocol family %d\n", family);
-	return 0;
 }
 
 static int __init sock_init(void)
