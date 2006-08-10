@@ -583,7 +583,7 @@ static void nv_ck804_host_stop(struct ata_host_set *host_set)
 
 static int __init nv_init(void)
 {
-	return pci_module_init(&nv_pci_driver);
+	return pci_register_driver(&nv_pci_driver);
 }
 
 static void __exit nv_exit(void)

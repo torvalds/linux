@@ -1665,7 +1665,7 @@ static void ahci_remove_one (struct pci_dev *pdev)
 
 static int __init ahci_init(void)
 {
-	return pci_module_init(&ahci_pci_driver);
+	return pci_register_driver(&ahci_pci_driver);
 }
 
 static void __exit ahci_exit(void)
