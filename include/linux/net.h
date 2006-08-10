@@ -169,11 +169,6 @@ struct proto_ops {
 struct net_proto_family {
 	int		family;
 	int		(*create)(struct socket *sock, int protocol);
-	/* These are counters for the number of different methods of
-	   each we support */
-	short		authentication;
-	short		encryption;
-	short		encrypt_net;
 	struct module	*owner;
 };
 
