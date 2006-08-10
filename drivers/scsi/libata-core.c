@@ -5288,32 +5288,24 @@ void ata_port_init(struct ata_port *ap, struct ata_host_set *host_set,
 }
 
 /**
- *	ata_host_init - Initialize an ata_port structure
- *	@ap: Structure to initialize
- *	@host: associated SCSI mid-layer structure
- *	@host_set: Collection of hosts to which @ap belongs
- *	@ent: Probe information provided by low-level driver
- *	@port_no: Port number associated with this ata_port
+ *	ata_port_init_shost - Initialize SCSI host associated with ATA port
+ *	@ap: ATA port to initialize SCSI host for
+ *	@shost: SCSI host associated with @ap
  *
- *	Initialize a new ata_port structure, and its associated
- *	scsi_host.
+ *	Initialize SCSI host @shost associated with ATA port @ap.
  *
  *	LOCKING:
  *	Inherited from caller.
  */
-
-static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
-			  struct ata_host_set *host_set,
-			  const struct ata_probe_ent *ent, unsigned int port_no)
+static void ata_port_init_shost(struct ata_port *ap, struct Scsi_Host *shost)
 {
-	ata_port_init(ap, host_set, ent, port_no);
-	ap->host = host;
+	ap->host = shost;
 
-	host->unique_id = ap->id;
-	host->max_id = 16;
-	host->max_lun = 1;
-	host->max_channel = 1;
-	host->max_cmd_len = 12;
+	shost->unique_id = ap->id;
+	shost->max_id = 16;
+	shost->max_lun = 1;
+	shost->max_channel = 1;
+	shost->max_cmd_len = 12;
 }
 
 /**
@@ -5356,7 +5348,8 @@ static struct ata_port * ata_host_add(const struct ata_probe_ent *ent,
 
 	ap = ata_shost_to_port(host);
 
-	ata_host_init(ap, host, host_set, ent, port_no);
+	ata_port_init(ap, host_set, ent, port_no);
+	ata_port_init_shost(ap, host);
 
 	rc = ap->ops->port_start(ap);
 	if (rc)
