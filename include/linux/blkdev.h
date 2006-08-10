@@ -211,6 +211,8 @@ struct request {
 	struct list_head queuelist;
 	struct list_head donelist;
 
+	request_queue_t *q;
+
 	unsigned int cmd_flags;
 	enum rq_cmd_type_bits cmd_type;
 
@@ -219,12 +221,12 @@ struct request {
 	 */
 
 	sector_t sector;		/* next sector to submit */
+	sector_t hard_sector;		/* next sector to complete */
 	unsigned long nr_sectors;	/* no. of sectors left to submit */
+	unsigned long hard_nr_sectors;	/* no. of sectors left to complete */
 	/* no. of sectors left to submit in the current segment */
 	unsigned int current_nr_sectors;
 
-	sector_t hard_sector;		/* next sector to complete */
-	unsigned long hard_nr_sectors;	/* no. of sectors left to complete */
 	/* no. of sectors left to complete in the current segment */
 	unsigned int hard_cur_sectors;
 
@@ -232,7 +234,15 @@ struct request {
 	struct bio *biotail;
 
 	struct hlist_node hash;	/* merge hash */
-	struct rb_node rb_node;	/* sort/lookup */
+	/*
+	 * The rb_node is only used inside the io scheduler, requests
+	 * are pruned when moved to the dispatch queue. So let the
+	 * completion_data share space with the rb_node.
+	 */
+	union {
+		struct rb_node rb_node;	/* sort/lookup */
+		void *completion_data;
+	};
 
 	/*
 	 * two pointers are available for the IO schedulers, if they need
@@ -240,8 +250,6 @@ struct request {
 	 */
 	void *elevator_private;
 	void *elevator_private2;
-
-	void *completion_data;
 
 	struct gendisk *rq_disk;
 	unsigned long start_time;
@@ -259,8 +267,6 @@ struct request {
 	unsigned short nr_hw_segments;
 
 	unsigned short ioprio;
-
-	request_queue_t *q;
 
 	void *special;
 	char *buffer;
