@@ -16,7 +16,7 @@ obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
 obj-y				+= vdso32/
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
 				   signal_64.o ptrace32.o \
-				   paca.o cpu_setup_power4.o \
+				   paca.o cpu_setup_ppc970.o \
 				   firmware.o sysfs.o
 obj-$(CONFIG_PPC64)		+= vdso64/
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
