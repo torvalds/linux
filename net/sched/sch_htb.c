@@ -366,7 +366,7 @@ static void htb_add_to_wait_tree(struct htb_sched *q,
  * When we are past last key we return NULL.
  * Average complexity is 2 steps per call.
  */
-static void htb_next_rb_node(struct rb_node **n)
+static inline void htb_next_rb_node(struct rb_node **n)
 {
 	*n = rb_next(*n);
 }
@@ -388,6 +388,18 @@ static inline void htb_add_class_to_row(struct htb_sched *q,
 	}
 }
 
+/* If this triggers, it is a bug in this code, but it need not be fatal */
+static void htb_safe_rb_erase(struct rb_node *rb, struct rb_root *root)
+{
+	if (RB_EMPTY_NODE(rb)) {
+		WARN_ON(1);
+	} else {
+		rb_erase(rb, root);
+		RB_CLEAR_NODE(rb);
+	}
+}
+
+
 /**
  * htb_remove_class_from_row - removes class from its row
  *
@@ -401,10 +413,12 @@ static inline void htb_remove_class_from_row(struct htb_sched *q,
 
 	while (mask) {
 		int prio = ffz(~mask);
+
 		mask &= ~(1 << prio);
 		if (q->ptr[cl->level][prio] == cl->node + prio)
 			htb_next_rb_node(q->ptr[cl->level] + prio);
-		rb_erase(cl->node + prio, q->row[cl->level] + prio);
+
+		htb_safe_rb_erase(cl->node + prio, q->row[cl->level] + prio);
 		if (!q->row[cl->level][prio].rb_node)
 			m |= 1 << prio;
 	}
@@ -472,7 +486,7 @@ static void htb_deactivate_prios(struct htb_sched *q, struct htb_class *cl)
 				p->un.inner.ptr[prio] = NULL;
 			}
 
-			rb_erase(cl->node + prio, p->un.inner.feed + prio);
+			htb_safe_rb_erase(cl->node + prio, p->un.inner.feed + prio);
 
 			if (!p->un.inner.feed[prio].rb_node)
 				mask |= 1 << prio;
@@ -739,7 +753,7 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 		htb_change_class_mode(q, cl, &diff);
 		if (old_mode != cl->cmode) {
 			if (old_mode != HTB_CAN_SEND)
-				rb_erase(&cl->pq_node, q->wait_pq + cl->level);
+				htb_safe_rb_erase(&cl->pq_node, q->wait_pq + cl->level);
 			if (cl->cmode != HTB_CAN_SEND)
 				htb_add_to_wait_tree(q, cl, diff);
 		}
@@ -782,7 +796,7 @@ static long htb_do_events(struct htb_sched *q, int level)
 		if (time_after(cl->pq_key, q->jiffies)) {
 			return cl->pq_key - q->jiffies;
 		}
-		rb_erase(p, q->wait_pq + level);
+		htb_safe_rb_erase(p, q->wait_pq + level);
 		diff = PSCHED_TDIFF_SAFE(q->now, cl->t_c, (u32) cl->mbuffer);
 		htb_change_class_mode(q, cl, &diff);
 		if (cl->cmode != HTB_CAN_SEND)
@@ -1279,7 +1293,7 @@ static void htb_destroy_class(struct Qdisc *sch, struct htb_class *cl)
 		htb_deactivate(q, cl);
 
 	if (cl->cmode != HTB_CAN_SEND)
-		rb_erase(&cl->pq_node, q->wait_pq + cl->level);
+		htb_safe_rb_erase(&cl->pq_node, q->wait_pq + cl->level);
 
 	kfree(cl);
 }
@@ -1370,6 +1384,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 
 	if (!cl) {		/* new class */
 		struct Qdisc *new_q;
+		int prio;
+
 		/* check for valid classid */
 		if (!classid || TC_H_MAJ(classid ^ sch->handle)
 		    || htb_find(classid, sch))
@@ -1389,6 +1405,10 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		INIT_HLIST_NODE(&cl->hlist);
 		INIT_LIST_HEAD(&cl->children);
 		INIT_LIST_HEAD(&cl->un.leaf.drop_list);
+		RB_CLEAR_NODE(&cl->pq_node);
+
+		for (prio = 0; prio < TC_HTB_NUMPRIO; prio++)
+			RB_CLEAR_NODE(&cl->node[prio]);
 
 		/* create leaf qdisc early because it uses kmalloc(GFP_KERNEL)
 		   so that can't be used inside of sch_tree_lock
@@ -1404,7 +1424,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 
 			/* remove from evt list because of level change */
 			if (parent->cmode != HTB_CAN_SEND) {
-				rb_erase(&parent->pq_node, q->wait_pq);
+				htb_safe_rb_erase(&parent->pq_node, q->wait_pq);
 				parent->cmode = HTB_CAN_SEND;
 			}
 			parent->level = (parent->parent ? parent->parent->level
