@@ -255,6 +255,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 
 	switch (dev->dev_type) {
 	case SAS_END_DEV:
+	case SATA_DEV:
 		rphy = sas_end_device_alloc(port->port);
 		break;
 	case EDGE_DEV:
@@ -265,7 +266,6 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		rphy = sas_expander_alloc(port->port,
 					  SAS_FANOUT_EXPANDER_DEVICE);
 		break;
-	case SATA_DEV:
 	default:
 		printk("ERROR: Unidentified device type %d\n", dev->dev_type);
 		rphy = NULL;
@@ -480,7 +480,14 @@ cont1:
 	   present.
 	sas_satl_register_dev(dev);
 	*/
-	return 0;
+
+	sas_fill_in_rphy(dev, dev->rphy);
+
+	res = sas_rphy_add(dev->rphy);
+	if (res)
+		goto out_err;
+
+	return res;
 out_err:
 	dev->sata_dev.identify_packet_device = NULL;
 	dev->sata_dev.identify_device = NULL;

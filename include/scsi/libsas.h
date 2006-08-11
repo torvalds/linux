@@ -30,6 +30,7 @@
 #include <linux/timer.h>
 #include <linux/pci.h>
 #include <scsi/sas.h>
+#include <linux/libata.h>
 #include <linux/list.h>
 #include <asm/semaphore.h>
 #include <scsi/scsi_device.h>
@@ -165,6 +166,13 @@ struct sata_device {
 
         u8     port_no;        /* port number, if this is a PM (Port) */
         struct list_head children; /* PM Ports if this is a PM */
+
+	struct ata_port *ap;
+	struct ata_host ata_host;
+	struct ata_taskfile tf;
+	u32 sstatus;
+	u32 serror;
+	u32 scontrol;
 };
 
 /* ---------- Domain device ---------- */
@@ -660,5 +668,9 @@ void sas_task_abort(struct sas_task *);
 int __sas_task_abort(struct sas_task *);
 int sas_eh_device_reset_handler(struct scsi_cmnd *cmd);
 int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd);
+
+extern void sas_target_destroy(struct scsi_target *);
+extern int sas_slave_alloc(struct scsi_device *);
+extern int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
 
 #endif /* _SASLIB_H_ */
