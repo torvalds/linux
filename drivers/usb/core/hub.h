@@ -212,7 +212,8 @@ struct usb_hub {
 	unsigned long		event_bits[1];	/* status change bitmask */
 	unsigned long		change_bits[1];	/* ports with logical connect
 							status change */
-	unsigned long		busy_bits[1];	/* ports being reset */
+	unsigned long		busy_bits[1];	/* ports being reset or
+							resumed */
 #if USB_MAXCHILDREN > 31 /* 8*sizeof(unsigned long) - 1 */
 #error event_bits[] is too short!
 #endif

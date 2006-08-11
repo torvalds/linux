@@ -1658,6 +1658,8 @@ hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
 
 	// dev_dbg(hub->intfdev, "resume port %d\n", port1);
 
+	set_bit(port1, hub->busy_bits);
+
 	/* see 7.1.7.7; affects power usage, but not budgeting */
 	status = clear_port_feature(hub->hdev,
 			port1, USB_PORT_FEAT_SUSPEND);
@@ -1706,6 +1708,10 @@ hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
 	}
 	if (status < 0)
 		hub_port_logical_disconnect(hub, port1);
+
+	clear_bit(port1, hub->busy_bits);
+	if (!hub->hdev->parent && !hub->busy_bits[0])
+		usb_enable_root_hub_irq(hub->hdev->bus);
 
 	return status;
 }
@@ -2690,7 +2696,7 @@ static void hub_events(void)
 
 		/* If this is a root hub, tell the HCD it's okay to
 		 * re-enable port-change interrupts now. */
-		if (!hdev->parent)
+		if (!hdev->parent && !hub->busy_bits[0])
 			usb_enable_root_hub_irq(hdev->bus);
 
 loop:
@@ -2865,6 +2871,9 @@ int usb_reset_device(struct usb_device *udev)
 			break;
 	}
 	clear_bit(port1, parent_hub->busy_bits);
+	if (!parent_hdev->parent && !parent_hub->busy_bits[0])
+		usb_enable_root_hub_irq(parent_hdev->bus);
+
 	if (ret < 0)
 		goto re_enumerate;
  
