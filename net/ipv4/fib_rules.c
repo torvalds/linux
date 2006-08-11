@@ -172,8 +172,8 @@ static struct fib_table *fib_empty_table(void)
 	u32 id;
 
 	for (id = 1; id <= RT_TABLE_MAX; id++)
-		if (fib_tables[id] == NULL)
-			return __fib_new_table(id);
+		if (fib_get_table(id) == NULL)
+			return fib_new_table(id);
 	return NULL;
 }
 

@@ -37,6 +37,7 @@
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <linux/init.h>
+#include <linux/list.h>
 
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -51,48 +52,67 @@
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 
-#define RT_TABLE_MIN RT_TABLE_MAIN
-
 struct fib_table *ip_fib_local_table;
 struct fib_table *ip_fib_main_table;
 
+#define FIB_TABLE_HASHSZ 1
+static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
+
 #else
 
-#define RT_TABLE_MIN 1
+#define FIB_TABLE_HASHSZ 256
+static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
 
-struct fib_table *fib_tables[RT_TABLE_MAX+1];
-
-struct fib_table *__fib_new_table(u32 id)
+struct fib_table *fib_new_table(u32 id)
 {
 	struct fib_table *tb;
+	unsigned int h;
 
+	if (id == 0)
+		id = RT_TABLE_MAIN;
+	tb = fib_get_table(id);
+	if (tb)
+		return tb;
 	tb = fib_hash_init(id);
 	if (!tb)
 		return NULL;
-	fib_tables[id] = tb;
+	h = id & (FIB_TABLE_HASHSZ - 1);
+	hlist_add_head_rcu(&tb->tb_hlist, &fib_table_hash[h]);
 	return tb;
 }
 
+struct fib_table *fib_get_table(u32 id)
+{
+	struct fib_table *tb;
+	struct hlist_node *node;
+	unsigned int h;
 
+	if (id == 0)
+		id = RT_TABLE_MAIN;
+	h = id & (FIB_TABLE_HASHSZ - 1);
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(tb, node, &fib_table_hash[h], tb_hlist) {
+		if (tb->tb_id == id) {
+			rcu_read_unlock();
+			return tb;
+		}
+	}
+	rcu_read_unlock();
+	return NULL;
+}
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
-
 
 static void fib_flush(void)
 {
 	int flushed = 0;
-#ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_table *tb;
-	u32 id;
+	struct hlist_node *node;
+	unsigned int h;
 
-	for (id = RT_TABLE_MAX; id>0; id--) {
-		if ((tb = fib_get_table(id))==NULL)
-			continue;
-		flushed += tb->tb_flush(tb);
+	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
+		hlist_for_each_entry(tb, node, &fib_table_hash[h], tb_hlist)
+			flushed += tb->tb_flush(tb);
 	}
-#else /* CONFIG_IP_MULTIPLE_TABLES */
-	flushed += ip_fib_main_table->tb_flush(ip_fib_main_table);
-	flushed += ip_fib_local_table->tb_flush(ip_fib_local_table);
-#endif /* CONFIG_IP_MULTIPLE_TABLES */
 
 	if (flushed)
 		rt_cache_flush(-1);
@@ -334,29 +354,37 @@ int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	u32 t;
-	u32 s_t;
+	unsigned int h, s_h;
+	unsigned int e = 0, s_e;
 	struct fib_table *tb;
+	struct hlist_node *node;
+	int dumped = 0;
 
 	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&
 	    ((struct rtmsg*)NLMSG_DATA(cb->nlh))->rtm_flags&RTM_F_CLONED)
 		return ip_rt_dump(skb, cb);
 
-	s_t = cb->args[0];
-	if (s_t == 0)
-		s_t = cb->args[0] = RT_TABLE_MIN;
+	s_h = cb->args[0];
+	s_e = cb->args[1];
 
-	for (t=s_t; t<=RT_TABLE_MAX; t++) {
-		if (t < s_t) continue;
-		if (t > s_t)
-			memset(&cb->args[1], 0, sizeof(cb->args)-sizeof(cb->args[0]));
-		if ((tb = fib_get_table(t))==NULL)
-			continue;
-		if (tb->tb_dump(tb, skb, cb) < 0) 
-			break;
+	for (h = s_h; h < FIB_TABLE_HASHSZ; h++, s_e = 0) {
+		e = 0;
+		hlist_for_each_entry(tb, node, &fib_table_hash[h], tb_hlist) {
+			if (e < s_e)
+				goto next;
+			if (dumped)
+				memset(&cb->args[2], 0, sizeof(cb->args) -
+				                 2 * sizeof(cb->args[0]));
+			if (tb->tb_dump(tb, skb, cb) < 0)
+				goto out;
+			dumped = 1;
+next:
+			e++;
+		}
 	}
-
-	cb->args[0] = t;
+out:
+	cb->args[1] = e;
+	cb->args[0] = h;
 
 	return skb->len;
 }
@@ -654,9 +682,15 @@ static struct notifier_block fib_netdev_notifier = {
 
 void __init ip_fib_init(void)
 {
+	unsigned int i;
+
+	for (i = 0; i < FIB_TABLE_HASHSZ; i++)
+		INIT_HLIST_HEAD(&fib_table_hash[i]);
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 	ip_fib_local_table = fib_hash_init(RT_TABLE_LOCAL);
+	hlist_add_head_rcu(&ip_fib_local_table->tb_hlist, &fib_table_hash[0]);
 	ip_fib_main_table  = fib_hash_init(RT_TABLE_MAIN);
+	hlist_add_head_rcu(&ip_fib_main_table->tb_hlist, &fib_table_hash[0]);
 #else
 	fib4_rules_init();
 #endif

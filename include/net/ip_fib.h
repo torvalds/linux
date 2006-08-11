@@ -150,6 +150,7 @@ struct fib_result_nl {
 #endif /* CONFIG_IP_ROUTE_MULTIPATH_WRANDOM */
 
 struct fib_table {
+	struct hlist_node tb_hlist;
 	u32		tb_id;
 	unsigned	tb_stamp;
 	int		(*tb_lookup)(struct fib_table *tb, const struct flowi *flp, struct fib_result *res);
@@ -200,29 +201,13 @@ static inline void fib_select_default(const struct flowi *flp, struct fib_result
 }
 
 #else /* CONFIG_IP_MULTIPLE_TABLES */
-#define ip_fib_local_table (fib_tables[RT_TABLE_LOCAL])
-#define ip_fib_main_table (fib_tables[RT_TABLE_MAIN])
+#define ip_fib_local_table fib_get_table(RT_TABLE_LOCAL)
+#define ip_fib_main_table fib_get_table(RT_TABLE_MAIN)
 
-extern struct fib_table * fib_tables[RT_TABLE_MAX+1];
 extern int fib_lookup(struct flowi *flp, struct fib_result *res);
-extern struct fib_table *__fib_new_table(u32 id);
 
-static inline struct fib_table *fib_get_table(u32 id)
-{
-	if (id == 0)
-		id = RT_TABLE_MAIN;
-
-	return fib_tables[id];
-}
-
-static inline struct fib_table *fib_new_table(u32 id)
-{
-	if (id == 0)
-		id = RT_TABLE_MAIN;
-
-	return fib_tables[id] ? : __fib_new_table(id);
-}
-
+extern struct fib_table *fib_new_table(u32 id);
+extern struct fib_table *fib_get_table(u32 id);
 extern void fib_select_default(const struct flowi *flp, struct fib_result *res);
 
 #endif /* CONFIG_IP_MULTIPLE_TABLES */

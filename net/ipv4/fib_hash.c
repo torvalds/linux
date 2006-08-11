@@ -684,7 +684,7 @@ fn_hash_dump_bucket(struct sk_buff *skb, struct netlink_callback *cb,
 	struct fib_node *f;
 	int i, s_i;
 
-	s_i = cb->args[3];
+	s_i = cb->args[4];
 	i = 0;
 	hlist_for_each_entry(f, node, head, fn_hash) {
 		struct fib_alias *fa;
@@ -704,14 +704,14 @@ fn_hash_dump_bucket(struct sk_buff *skb, struct netlink_callback *cb,
 					  fa->fa_tos,
 					  fa->fa_info,
 					  NLM_F_MULTI) < 0) {
-				cb->args[3] = i;
+				cb->args[4] = i;
 				return -1;
 			}
 		next:
 			i++;
 		}
 	}
-	cb->args[3] = i;
+	cb->args[4] = i;
 	return skb->len;
 }
 
@@ -722,21 +722,21 @@ fn_hash_dump_zone(struct sk_buff *skb, struct netlink_callback *cb,
 {
 	int h, s_h;
 
-	s_h = cb->args[2];
+	s_h = cb->args[3];
 	for (h=0; h < fz->fz_divisor; h++) {
 		if (h < s_h) continue;
 		if (h > s_h)
-			memset(&cb->args[3], 0,
-			       sizeof(cb->args) - 3*sizeof(cb->args[0]));
+			memset(&cb->args[4], 0,
+			       sizeof(cb->args) - 4*sizeof(cb->args[0]));
 		if (fz->fz_hash == NULL ||
 		    hlist_empty(&fz->fz_hash[h]))
 			continue;
 		if (fn_hash_dump_bucket(skb, cb, tb, fz, &fz->fz_hash[h])<0) {
-			cb->args[2] = h;
+			cb->args[3] = h;
 			return -1;
 		}
 	}
-	cb->args[2] = h;
+	cb->args[3] = h;
 	return skb->len;
 }
 
@@ -746,21 +746,21 @@ static int fn_hash_dump(struct fib_table *tb, struct sk_buff *skb, struct netlin
 	struct fn_zone *fz;
 	struct fn_hash *table = (struct fn_hash*)tb->tb_data;
 
-	s_m = cb->args[1];
+	s_m = cb->args[2];
 	read_lock(&fib_hash_lock);
 	for (fz = table->fn_zone_list, m=0; fz; fz = fz->fz_next, m++) {
 		if (m < s_m) continue;
 		if (m > s_m)
-			memset(&cb->args[2], 0,
-			       sizeof(cb->args) - 2*sizeof(cb->args[0]));
+			memset(&cb->args[3], 0,
+			       sizeof(cb->args) - 3*sizeof(cb->args[0]));
 		if (fn_hash_dump_zone(skb, cb, tb, fz) < 0) {
-			cb->args[1] = m;
+			cb->args[2] = m;
 			read_unlock(&fib_hash_lock);
 			return -1;
 		}
 	}
 	read_unlock(&fib_hash_lock);
-	cb->args[1] = m;
+	cb->args[2] = m;
 	return skb->len;
 }
 

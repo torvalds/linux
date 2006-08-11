@@ -1848,7 +1848,7 @@ static int fn_trie_dump_fa(t_key key, int plen, struct list_head *fah, struct fi
 
 	u32 xkey = htonl(key);
 
-	s_i = cb->args[3];
+	s_i = cb->args[4];
 	i = 0;
 
 	/* rcu_read_lock is hold by caller */
@@ -1870,12 +1870,12 @@ static int fn_trie_dump_fa(t_key key, int plen, struct list_head *fah, struct fi
 				  plen,
 				  fa->fa_tos,
 				  fa->fa_info, 0) < 0) {
-			cb->args[3] = i;
+			cb->args[4] = i;
 			return -1;
 		}
 		i++;
 	}
-	cb->args[3] = i;
+	cb->args[4] = i;
 	return skb->len;
 }
 
@@ -1886,14 +1886,14 @@ static int fn_trie_dump_plen(struct trie *t, int plen, struct fib_table *tb, str
 	struct list_head *fa_head;
 	struct leaf *l = NULL;
 
-	s_h = cb->args[2];
+	s_h = cb->args[3];
 
 	for (h = 0; (l = nextleaf(t, l)) != NULL; h++) {
 		if (h < s_h)
 			continue;
 		if (h > s_h)
-			memset(&cb->args[3], 0,
-			       sizeof(cb->args) - 3*sizeof(cb->args[0]));
+			memset(&cb->args[4], 0,
+			       sizeof(cb->args) - 4*sizeof(cb->args[0]));
 
 		fa_head = get_fa_head(l, plen);
 
@@ -1904,11 +1904,11 @@ static int fn_trie_dump_plen(struct trie *t, int plen, struct fib_table *tb, str
 			continue;
 
 		if (fn_trie_dump_fa(l->key, plen, fa_head, tb, skb, cb)<0) {
-			cb->args[2] = h;
+			cb->args[3] = h;
 			return -1;
 		}
 	}
-	cb->args[2] = h;
+	cb->args[3] = h;
 	return skb->len;
 }
 
@@ -1917,23 +1917,23 @@ static int fn_trie_dump(struct fib_table *tb, struct sk_buff *skb, struct netlin
 	int m, s_m;
 	struct trie *t = (struct trie *) tb->tb_data;
 
-	s_m = cb->args[1];
+	s_m = cb->args[2];
 
 	rcu_read_lock();
 	for (m = 0; m <= 32; m++) {
 		if (m < s_m)
 			continue;
 		if (m > s_m)
-			memset(&cb->args[2], 0,
-				sizeof(cb->args) - 2*sizeof(cb->args[0]));
+			memset(&cb->args[3], 0,
+				sizeof(cb->args) - 3*sizeof(cb->args[0]));
 
 		if (fn_trie_dump_plen(t, 32-m, tb, skb, cb)<0) {
-			cb->args[1] = m;
+			cb->args[2] = m;
 			goto out;
 		}
 	}
 	rcu_read_unlock();
-	cb->args[1] = m;
+	cb->args[2] = m;
 	return skb->len;
 out:
 	rcu_read_unlock();
