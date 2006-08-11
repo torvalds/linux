@@ -101,7 +101,7 @@ struct neighbour
 	__u8			dead;
 	atomic_t		probes;
 	rwlock_t		lock;
-	unsigned char		ha[(MAX_ADDR_LEN+sizeof(unsigned long)-1)&~(sizeof(unsigned long)-1)];
+	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
 	struct hh_cache		*hh;
 	atomic_t		refcnt;
 	int			(*output)(struct sk_buff *skb);
