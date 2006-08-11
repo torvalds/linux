@@ -1,7 +1,7 @@
 /*
  * USB PhidgetServo driver 1.0
  *
- * Copyright (C) 2004 Sean Young <sean@mess.org>
+ * Copyright (C) 2004, 2006 Sean Young <sean@mess.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -235,86 +235,108 @@ static ssize_t show_servo##value (struct device *dev,			\
 									\
 	return sprintf(buf, "%d.%02d\n", servo->degrees[value],		\
 				servo->minutes[value]);			\
-}									\
-static DEVICE_ATTR(servo##value, S_IWUGO | S_IRUGO,			\
-	  show_servo##value, set_servo##value);
+}
 
+#define servo_attr(value)						\
+	__ATTR(servo##value, S_IWUGO | S_IRUGO,				\
+		show_servo##value, set_servo##value)
 show_set(0);
 show_set(1);
 show_set(2);
 show_set(3);
+
+static struct device_attribute dev_attrs[] = {
+	servo_attr(0), servo_attr(1), servo_attr(2), servo_attr(3)
+};
 
 static int
 servo_probe(struct usb_interface *interface, const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct phidget_servo *dev;
-	int bit, value;
+	int bit, value, rc;
+	int servo_count, i;
 
 	dev = kzalloc(sizeof (struct phidget_servo), GFP_KERNEL);
 	if (dev == NULL) {
 		dev_err(&interface->dev, "%s - out of memory\n", __FUNCTION__);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto out;
 	}
 
 	dev->udev = usb_get_dev(udev);
 	dev->type = id->driver_info;
+	dev->dev_no = -1;
 	usb_set_intfdata(interface, dev);
 
         do {
                 bit = find_first_zero_bit(&device_no, sizeof(device_no));
                 value = test_and_set_bit(bit, &device_no);
-        } while(value);
+        } while (value);
 	dev->dev_no = bit;
 
 	dev->dev = device_create(phidget_class, &dev->udev->dev, 0,
 				 "servo%d", dev->dev_no);
 	if (IS_ERR(dev->dev)) {
-		int rc = PTR_ERR(dev->dev);
-		clear_bit(dev->dev_no, &device_no);
-		kfree(dev);
-		return rc;
+		rc = PTR_ERR(dev->dev);
+		dev->dev = NULL;
+		goto out;
 	}
 
-	device_create_file(dev->dev, &dev_attr_servo0);
-	if (dev->type & SERVO_COUNT_QUAD) {
-		device_create_file(dev->dev, &dev_attr_servo1);
-		device_create_file(dev->dev, &dev_attr_servo2);
-		device_create_file(dev->dev, &dev_attr_servo3);
+	servo_count = dev->type & SERVO_COUNT_QUAD ? 4 : 1;
+
+	for (i=0; i<servo_count; i++) {
+		rc = device_create_file(dev->dev, &dev_attrs[i]);
+		if (rc)
+			goto out2;
 	}
 
 	dev_info(&interface->dev, "USB %d-Motor PhidgetServo v%d.0 attached\n",
-		dev->type & SERVO_COUNT_QUAD ? 4 : 1,
-		dev->type & SERVO_VERSION_30 ? 3 : 2);
+		servo_count, dev->type & SERVO_VERSION_30 ? 3 : 2);
 
 	if (!(dev->type & SERVO_VERSION_30))
 		dev_info(&interface->dev,
 			 "WARNING: v2.0 not tested! Please report if it works.\n");
 
 	return 0;
+out2:
+	while (i-- > 0)
+		device_remove_file(dev->dev, &dev_attrs[i]);
+out:
+	if (dev) {
+		if (dev->dev)
+			device_unregister(dev->dev);
+		if (dev->dev_no >= 0)
+			clear_bit(dev->dev_no, &device_no);
+
+		kfree(dev);
+	}
+
+	return rc;
 }
 
 static void
 servo_disconnect(struct usb_interface *interface)
 {
 	struct phidget_servo *dev;
+	int servo_count, i;
 
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 
-	device_remove_file(dev->dev, &dev_attr_servo0);
-	if (dev->type & SERVO_COUNT_QUAD) {
-		device_remove_file(dev->dev, &dev_attr_servo1);
-		device_remove_file(dev->dev, &dev_attr_servo2);
-		device_remove_file(dev->dev, &dev_attr_servo3);
-	}
+	if (!dev)
+		return;
+
+	servo_count = dev->type & SERVO_COUNT_QUAD ? 4 : 1;
+
+	for (i=0; i<servo_count; i++)
+		device_remove_file(dev->dev, &dev_attrs[i]);
 
 	device_unregister(dev->dev);
 	usb_put_dev(dev->udev);
 
 	dev_info(&interface->dev, "USB %d-Motor PhidgetServo v%d.0 detached\n",
-		dev->type & SERVO_COUNT_QUAD ? 4 : 1,
-		dev->type & SERVO_VERSION_30 ? 3 : 2);
+		servo_count, dev->type & SERVO_VERSION_30 ? 3 : 2);
 
 	clear_bit(dev->dev_no, &device_no);
 	kfree(dev);

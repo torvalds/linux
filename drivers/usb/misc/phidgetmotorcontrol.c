@@ -215,9 +215,12 @@ static ssize_t show_speed##value(struct device *dev,			\
 	struct motorcontrol *mc = dev_get_drvdata(dev);			\
 									\
 	return sprintf(buf, "%d\n", mc->speed[value]);			\
-}									\
-static DEVICE_ATTR(speed##value, S_IWUGO | S_IRUGO,			\
-		show_speed##value, set_speed##value);
+}
+
+#define speed_attr(value) 						\
+	__ATTR(speed##value, S_IWUGO | S_IRUGO, 			\
+		show_speed##value, set_speed##value)
+
 show_set_speed(0);
 show_set_speed(1);
 
@@ -250,9 +253,12 @@ static ssize_t show_acceleration##value(struct device *dev,	 	\
 	struct motorcontrol *mc = dev_get_drvdata(dev);			\
 									\
 	return sprintf(buf, "%d\n", mc->acceleration[value]);		\
-}									\
-static DEVICE_ATTR(acceleration##value, S_IWUGO | S_IRUGO,		\
-		show_acceleration##value, set_acceleration##value);
+}
+
+#define acceleration_attr(value)	\
+	__ATTR(acceleration##value, S_IWUGO | S_IRUGO,			\
+		show_acceleration##value, set_acceleration##value)
+
 show_set_acceleration(0);
 show_set_acceleration(1);
 
@@ -264,8 +270,10 @@ static ssize_t show_current##value(struct device *dev,			\
 	struct motorcontrol *mc = dev_get_drvdata(dev);			\
 									\
 	return sprintf(buf, "%dmA\n", (int)mc->_current[value]);	\
-}									\
-static DEVICE_ATTR(current##value, S_IRUGO, show_current##value, NULL);
+}
+
+#define current_attr(value)	\
+	__ATTR(current##value, S_IRUGO, show_current##value, NULL)
 
 show_current(0);
 show_current(1);
@@ -278,13 +286,28 @@ static ssize_t show_input##value(struct device *dev,			\
 	struct motorcontrol *mc = dev_get_drvdata(dev);			\
 									\
 	return sprintf(buf, "%d\n", (int)mc->inputs[value]);		\
-}									\
-static DEVICE_ATTR(input##value, S_IRUGO, show_input##value, NULL);
+}
+
+#define input_attr(value)	\
+	__ATTR(input##value, S_IRUGO, show_input##value, NULL)
 
 show_input(0);
 show_input(1);
 show_input(2);
 show_input(3);
+
+static struct device_attribute dev_attrs[] = {
+	input_attr(0),
+	input_attr(1),
+	input_attr(2),
+	input_attr(3),
+	speed_attr(0),
+	speed_attr(1),
+	acceleration_attr(0),
+	acceleration_attr(1),
+	current_attr(0),
+	current_attr(1)
+};
 
 static int motorcontrol_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
@@ -293,7 +316,7 @@ static int motorcontrol_probe(struct usb_interface *intf, const struct usb_devic
 	struct usb_endpoint_descriptor *endpoint;
 	struct motorcontrol *mc;
 	int pipe, maxp, rc = -ENOMEM;
-	int bit, value;
+	int bit, value, i;
 
 	interface = intf->cur_altsetting;
 	if (interface->desc.bNumEndpoints != 1)
@@ -355,24 +378,18 @@ static int motorcontrol_probe(struct usb_interface *intf, const struct usb_devic
 		goto out;
 	}
 
-	device_create_file(mc->dev, &dev_attr_input0);
-	device_create_file(mc->dev, &dev_attr_input1);
-	device_create_file(mc->dev, &dev_attr_input2);
-	device_create_file(mc->dev, &dev_attr_input3);
-
-	device_create_file(mc->dev, &dev_attr_speed0);
-	device_create_file(mc->dev, &dev_attr_speed1);
-
-	device_create_file(mc->dev, &dev_attr_acceleration0);
-	device_create_file(mc->dev, &dev_attr_acceleration1);
-
-	device_create_file(mc->dev, &dev_attr_current0);
-	device_create_file(mc->dev, &dev_attr_current1);
+	for (i=0; i<ARRAY_SIZE(dev_attrs); i++) {
+		rc = device_create_file(mc->dev, &dev_attrs[i]);
+		if (rc)
+			goto out2;
+	}
 
 	dev_info(&intf->dev, "USB PhidgetMotorControl attached\n");
 
 	return 0;
-
+out2:
+	while (i-- > 0)
+		device_remove_file(mc->dev, &dev_attrs[i]);
 out:
 	if (mc) {
 		if (mc->irq)
@@ -393,6 +410,7 @@ out:
 static void motorcontrol_disconnect(struct usb_interface *interface)
 {
 	struct motorcontrol *mc;
+	int i;
 
 	mc = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
@@ -405,19 +423,8 @@ static void motorcontrol_disconnect(struct usb_interface *interface)
 
 	cancel_delayed_work(&mc->do_notify);
 
-	device_remove_file(mc->dev, &dev_attr_input0);
-	device_remove_file(mc->dev, &dev_attr_input1);
-	device_remove_file(mc->dev, &dev_attr_input2);
-	device_remove_file(mc->dev, &dev_attr_input3);
-
-	device_remove_file(mc->dev, &dev_attr_speed0);
-	device_remove_file(mc->dev, &dev_attr_speed1);
-
-	device_remove_file(mc->dev, &dev_attr_acceleration0);
-	device_remove_file(mc->dev, &dev_attr_acceleration1);
-
-	device_remove_file(mc->dev, &dev_attr_current0);
-	device_remove_file(mc->dev, &dev_attr_current1);
+	for (i=0; i<ARRAY_SIZE(dev_attrs); i++)
+		device_remove_file(mc->dev, &dev_attrs[i]);
 
 	device_unregister(mc->dev);
 
