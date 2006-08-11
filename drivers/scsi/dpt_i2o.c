@@ -46,7 +46,6 @@ MODULE_DESCRIPTION("Adaptec I2O RAID Driver");
 
 #include <linux/stat.h>
 #include <linux/slab.h>		/* for kmalloc() */
-#include <linux/config.h>	/* for CONFIG_PCI */
 #include <linux/pci.h>		/* for PCI support */
 #include <linux/proc_fs.h>
 #include <linux/blkdev.h>

@@ -249,8 +249,6 @@
 #include <linux/stat.h>
 #include <linux/slab.h>        /* for kmalloc() */
 
-#include <linux/config.h>        /* for CONFIG_PCI */
-
 #define AIC7XXX_C_VERSION  "5.2.6"
 
 #define ALL_TARGETS -1
