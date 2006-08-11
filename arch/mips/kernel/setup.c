@@ -135,7 +135,7 @@ static void __init print_memory_map(void)
 	}
 }
 
-static inline void parse_cmdline_early(void)
+static void __init parse_cmdline_early(void)
 {
 	char c = ' ', *to = command_line, *from = saved_command_line;
 	unsigned long start_at, mem_size;
@@ -476,7 +476,7 @@ static void __init arch_mem_init(char **cmdline_p)
 #define MAXMEM		HIGHMEM_START
 #define MAXMEM_PFN	PFN_DOWN(MAXMEM)
 
-static inline void resource_init(void)
+static void __init resource_init(void)
 {
 	int i;
 
