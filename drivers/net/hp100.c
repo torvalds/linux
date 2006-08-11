@@ -111,7 +111,6 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
-#include <linux/config.h>	/* for CONFIG_PCI */
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
