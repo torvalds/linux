@@ -765,9 +765,9 @@ static int fn_hash_dump(struct fib_table *tb, struct sk_buff *skb, struct netlin
 }
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
-struct fib_table * fib_hash_init(int id)
+struct fib_table * fib_hash_init(u32 id)
 #else
-struct fib_table * __init fib_hash_init(int id)
+struct fib_table * __init fib_hash_init(u32 id)
 #endif
 {
 	struct fib_table *tb;

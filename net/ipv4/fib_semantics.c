@@ -273,7 +273,7 @@ int ip_fib_check_default(u32 gw, struct net_device *dev)
 }
 
 void rtmsg_fib(int event, u32 key, struct fib_alias *fa,
-	       int z, int tb_id,
+	       int z, u32 tb_id,
 	       struct nlmsghdr *n, struct netlink_skb_parms *req)
 {
 	struct sk_buff *skb;
@@ -939,7 +939,7 @@ u32 __fib_res_prefsrc(struct fib_result *res)
 
 int
 fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
-	      u8 tb_id, u8 type, u8 scope, void *dst, int dst_len, u8 tos,
+	      u32 tb_id, u8 type, u8 scope, void *dst, int dst_len, u8 tos,
 	      struct fib_info *fi, unsigned int flags)
 {
 	struct rtmsg *rtm;

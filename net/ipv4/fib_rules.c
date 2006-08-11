@@ -169,7 +169,7 @@ static int fib4_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 
 static struct fib_table *fib_empty_table(void)
 {
-	int id;
+	u32 id;
 
 	for (id = 1; id <= RT_TABLE_MAX; id++)
 		if (fib_tables[id] == NULL)

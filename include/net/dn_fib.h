@@ -94,7 +94,7 @@ struct dn_fib_node {
 
 
 struct dn_fib_table {
-	int n;
+	u32 n;
 
 	int (*insert)(struct dn_fib_table *t, struct rtmsg *r, 
 			struct dn_kern_rta *rta, struct nlmsghdr *n, 
@@ -137,7 +137,7 @@ extern int dn_fib_sync_up(struct net_device *dev);
 /*
  * dn_tables.c
  */
-extern struct dn_fib_table *dn_fib_get_table(int n, int creat);
+extern struct dn_fib_table *dn_fib_get_table(u32 n, int creat);
 extern struct dn_fib_table *dn_fib_empty_table(void);
 extern void dn_fib_table_init(void);
 extern void dn_fib_table_cleanup(void);

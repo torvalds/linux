@@ -534,8 +534,8 @@ int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	int t;
-	int s_t;
+	u32 t;
+	u32 s_t;
 	struct dn_fib_table *tb;
 
 	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&
@@ -765,7 +765,7 @@ void dn_fib_flush(void)
 {
         int flushed = 0;
         struct dn_fib_table *tb;
-        int id;
+        u32 id;
 
         for(id = RT_TABLE_MAX; id > 0; id--) {
                 if ((tb = dn_fib_get_table(id, 0)) == NULL)

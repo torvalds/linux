@@ -150,7 +150,7 @@ struct fib_result_nl {
 #endif /* CONFIG_IP_ROUTE_MULTIPATH_WRANDOM */
 
 struct fib_table {
-	unsigned char	tb_id;
+	u32		tb_id;
 	unsigned	tb_stamp;
 	int		(*tb_lookup)(struct fib_table *tb, const struct flowi *flp, struct fib_result *res);
 	int		(*tb_insert)(struct fib_table *table, struct rtmsg *r,
@@ -173,14 +173,14 @@ struct fib_table {
 extern struct fib_table *ip_fib_local_table;
 extern struct fib_table *ip_fib_main_table;
 
-static inline struct fib_table *fib_get_table(int id)
+static inline struct fib_table *fib_get_table(u32 id)
 {
 	if (id != RT_TABLE_LOCAL)
 		return ip_fib_main_table;
 	return ip_fib_local_table;
 }
 
-static inline struct fib_table *fib_new_table(int id)
+static inline struct fib_table *fib_new_table(u32 id)
 {
 	return fib_get_table(id);
 }
@@ -205,9 +205,9 @@ static inline void fib_select_default(const struct flowi *flp, struct fib_result
 
 extern struct fib_table * fib_tables[RT_TABLE_MAX+1];
 extern int fib_lookup(struct flowi *flp, struct fib_result *res);
-extern struct fib_table *__fib_new_table(int id);
+extern struct fib_table *__fib_new_table(u32 id);
 
-static inline struct fib_table *fib_get_table(int id)
+static inline struct fib_table *fib_get_table(u32 id)
 {
 	if (id == 0)
 		id = RT_TABLE_MAIN;
@@ -215,7 +215,7 @@ static inline struct fib_table *fib_get_table(int id)
 	return fib_tables[id];
 }
 
-static inline struct fib_table *fib_new_table(int id)
+static inline struct fib_table *fib_new_table(u32 id)
 {
 	if (id == 0)
 		id = RT_TABLE_MAIN;
@@ -248,7 +248,7 @@ extern int fib_convert_rtentry(int cmd, struct nlmsghdr *nl, struct rtmsg *rtm,
 extern u32  __fib_res_prefsrc(struct fib_result *res);
 
 /* Exported by fib_hash.c */
-extern struct fib_table *fib_hash_init(int id);
+extern struct fib_table *fib_hash_init(u32 id);
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 extern int fib4_rules_dump(struct sk_buff *skb, struct netlink_callback *cb);

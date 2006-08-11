@@ -62,7 +62,7 @@ struct fib_table *ip_fib_main_table;
 
 struct fib_table *fib_tables[RT_TABLE_MAX+1];
 
-struct fib_table *__fib_new_table(int id)
+struct fib_table *__fib_new_table(u32 id)
 {
 	struct fib_table *tb;
 
@@ -82,7 +82,7 @@ static void fib_flush(void)
 	int flushed = 0;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_table *tb;
-	int id;
+	u32 id;
 
 	for (id = RT_TABLE_MAX; id>0; id--) {
 		if ((tb = fib_get_table(id))==NULL)
@@ -333,8 +333,8 @@ int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	int t;
-	int s_t;
+	u32 t;
+	u32 s_t;
 	struct fib_table *tb;
 
 	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&

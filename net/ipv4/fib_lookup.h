@@ -30,11 +30,11 @@ extern struct fib_info *fib_create_info(const struct rtmsg *r,
 extern int fib_nh_match(struct rtmsg *r, struct nlmsghdr *,
 			struct kern_rta *rta, struct fib_info *fi);
 extern int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
-			 u8 tb_id, u8 type, u8 scope, void *dst,
+			 u32 tb_id, u8 type, u8 scope, void *dst,
 			 int dst_len, u8 tos, struct fib_info *fi,
 			 unsigned int);
 extern void rtmsg_fib(int event, u32 key, struct fib_alias *fa,
-		      int z, int tb_id,
+		      int z, u32 tb_id,
 		      struct nlmsghdr *n, struct netlink_skb_parms *req);
 extern struct fib_alias *fib_find_alias(struct list_head *fah,
 					u8 tos, u32 prio);

@@ -1148,7 +1148,7 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 
 	key = ntohl(key);
 
-	pr_debug("Insert table=%d %08x/%d\n", tb->tb_id, key, plen);
+	pr_debug("Insert table=%u %08x/%d\n", tb->tb_id, key, plen);
 
 	mask = ntohl(inet_make_mask(plen));
 
@@ -1943,9 +1943,9 @@ out:
 /* Fix more generic FIB names for init later */
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
-struct fib_table * fib_hash_init(int id)
+struct fib_table * fib_hash_init(u32 id)
 #else
-struct fib_table * __init fib_hash_init(int id)
+struct fib_table * __init fib_hash_init(u32 id)
 #endif
 {
 	struct fib_table *tb;

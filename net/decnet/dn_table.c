@@ -264,7 +264,7 @@ static int dn_fib_nh_match(struct rtmsg *r, struct nlmsghdr *nlh, struct dn_kern
 }
 
 static int dn_fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
-                        u8 tb_id, u8 type, u8 scope, void *dst, int dst_len,
+                        u32 tb_id, u8 type, u8 scope, void *dst, int dst_len,
                         struct dn_fib_info *fi, unsigned int flags)
 {
         struct rtmsg *rtm;
@@ -327,7 +327,7 @@ rtattr_failure:
 }
 
 
-static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, int tb_id,
+static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, u32 tb_id,
                         struct nlmsghdr *nlh, struct netlink_skb_parms *req)
 {
         struct sk_buff *skb;
@@ -740,7 +740,7 @@ out:
 }
 
 
-struct dn_fib_table *dn_fib_get_table(int n, int create)
+struct dn_fib_table *dn_fib_get_table(u32 n, int create)
 {
         struct dn_fib_table *t;
 
@@ -777,7 +777,7 @@ struct dn_fib_table *dn_fib_get_table(int n, int create)
         return t;
 }
 
-static void dn_fib_del_tree(int n)
+static void dn_fib_del_tree(u32 n)
 {
 	struct dn_fib_table *t;
 
@@ -791,7 +791,7 @@ static void dn_fib_del_tree(int n)
 
 struct dn_fib_table *dn_fib_empty_table(void)
 {
-        int id;
+        u32 id;
 
         for(id = RT_TABLE_MIN; id <= RT_TABLE_MAX; id++)
                 if (dn_fib_tables[id] == NULL)
