@@ -96,6 +96,12 @@ void __init add_memory_region(phys_t start, phys_t size, long type)
 	int x = boot_mem_map.nr_map;
 	struct boot_mem_map_entry *prev = boot_mem_map.map + x - 1;
 
+	/* Sanity check */
+	if (start + size < start) {
+		printk("Trying to add an invalid memory region, skipped\n");
+		return;
+	}
+
 	/*
 	 * Try to merge with previous entry if any.  This is far less than
 	 * perfect but is sufficient for most real world cases.
@@ -257,15 +263,16 @@ static inline int parse_rd_cmdline(unsigned long* rd_start, unsigned long* rd_en
 	return 0;
 }
 
-#define MAXMEM		HIGHMEM_START
-#define MAXMEM_PFN	PFN_DOWN(MAXMEM)
-
-static inline void bootmem_init(void)
+/*
+ * Initialize the bootmem allocator. It also setup initrd related data
+ * if needed.
+ */
+static void __init bootmem_init(void)
 {
-	unsigned long start_pfn;
 	unsigned long reserved_end = (unsigned long)&_end;
 #ifndef CONFIG_SGI_IP27
-	unsigned long first_usable_pfn;
+	unsigned long highest = 0;
+	unsigned long mapstart = -1UL;
 	unsigned long bootmap_size;
 	int i;
 #endif
@@ -281,7 +288,7 @@ static inline void bootmem_init(void)
 		unsigned long tmp;
 		u32 *initrd_header;
 
-		tmp = ((reserved_end + PAGE_SIZE-1) & PAGE_MASK) - sizeof(u32) * 2;
+		tmp = PAGE_ALIGN(reserved_end) - sizeof(u32) * 2;
 		if (tmp < reserved_end)
 			tmp += PAGE_SIZE;
 		initrd_header = (u32 *)tmp;
@@ -294,16 +301,15 @@ static inline void bootmem_init(void)
 	}
 #endif	/* CONFIG_BLK_DEV_INITRD */
 
-	/*
-	 * Partially used pages are not usable - thus
-	 * we are rounding upwards.
-	 */
-	start_pfn = PFN_UP(CPHYSADDR(reserved_end));
-
 #ifndef CONFIG_SGI_IP27
-	/* Find the highest page frame number we have available.  */
-	max_pfn = 0;
-	first_usable_pfn = -1UL;
+	/*
+	 * reserved_end is now a pfn
+	 */
+	reserved_end = PFN_UP(CPHYSADDR(reserved_end));
+
+	/*
+	 * Find the highest page frame number we have available.
+	 */
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		unsigned long start, end;
 
@@ -312,56 +318,38 @@ static inline void bootmem_init(void)
 
 		start = PFN_UP(boot_mem_map.map[i].addr);
 		end = PFN_DOWN(boot_mem_map.map[i].addr
-		      + boot_mem_map.map[i].size);
+				+ boot_mem_map.map[i].size);
 
-		if (start >= end)
+		if (end > highest)
+			highest = end;
+		if (end <= reserved_end)
 			continue;
-		if (end > max_pfn)
-			max_pfn = end;
-		if (start < first_usable_pfn) {
-			if (start > start_pfn) {
-				first_usable_pfn = start;
-			} else if (end > start_pfn) {
-				first_usable_pfn = start_pfn;
-			}
-		}
+		if (start >= mapstart)
+			continue;
+		mapstart = max(reserved_end, start);
 	}
 
 	/*
 	 * Determine low and high memory ranges
 	 */
-	max_low_pfn = max_pfn;
-	if (max_low_pfn > MAXMEM_PFN) {
-		max_low_pfn = MAXMEM_PFN;
-#ifndef CONFIG_HIGHMEM
-		/* Maximum memory usable is what is directly addressable */
-		printk(KERN_WARNING "Warning only %ldMB will be used.\n",
-		       MAXMEM >> 20);
-		printk(KERN_WARNING "Use a HIGHMEM enabled kernel.\n");
-#endif
-	}
-
+	if (highest > PFN_DOWN(HIGHMEM_START)) {
 #ifdef CONFIG_HIGHMEM
-	/*
-	 * Crude, we really should make a better attempt at detecting
-	 * highstart_pfn
-	 */
-	highstart_pfn = highend_pfn = max_pfn;
-	if (max_pfn > MAXMEM_PFN) {
-		highstart_pfn = MAXMEM_PFN;
-		printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
-		       (highend_pfn - highstart_pfn) >> (20 - PAGE_SHIFT));
-	}
+		highstart_pfn = PFN_DOWN(HIGHMEM_START);
+		highend_pfn = highest;
 #endif
+		highest = PFN_DOWN(HIGHMEM_START);
+	}
 
-	/* Initialize the boot-time allocator with low memory only.  */
-	bootmap_size = init_bootmem(first_usable_pfn, max_low_pfn);
+	/*
+	 * Initialize the boot-time allocator with low memory only.
+	 */
+	bootmap_size = init_bootmem(mapstart, highest);
 
 	/*
 	 * Register fully available low RAM pages with the bootmem allocator.
 	 */
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		unsigned long curr_pfn, last_pfn, size;
+		unsigned long start, end, size;
 
 		/*
 		 * Reserve usable memory.
@@ -369,49 +357,37 @@ static inline void bootmem_init(void)
 		if (boot_mem_map.map[i].type != BOOT_MEM_RAM)
 			continue;
 
-		/*
-		 * We are rounding up the start address of usable memory:
-		 */
-		curr_pfn = PFN_UP(boot_mem_map.map[i].addr);
-		if (curr_pfn >= max_low_pfn)
-			continue;
-		if (curr_pfn < start_pfn)
-			curr_pfn = start_pfn;
-
-		/*
-		 * ... and at the end of the usable range downwards:
-		 */
-		last_pfn = PFN_DOWN(boot_mem_map.map[i].addr
+		start = PFN_UP(boot_mem_map.map[i].addr);
+		end   = PFN_DOWN(boot_mem_map.map[i].addr
 				    + boot_mem_map.map[i].size);
-
-		if (last_pfn > max_low_pfn)
-			last_pfn = max_low_pfn;
+		/*
+		 * We are rounding up the start address of usable memory
+		 * and at the end of the usable range downwards.
+		 */
+		if (start >= max_low_pfn)
+			continue;
+		if (start < reserved_end)
+			start = reserved_end;
+		if (end > max_low_pfn)
+			end = max_low_pfn;
 
 		/*
-		 * Only register lowmem part of lowmem segment with bootmem.
+		 * ... finally, is the area going away?
 		 */
-		size = last_pfn - curr_pfn;
-		if (curr_pfn > PFN_DOWN(HIGHMEM_START))
+		if (end <= start)
 			continue;
-		if (curr_pfn + size - 1 > PFN_DOWN(HIGHMEM_START))
-			size = PFN_DOWN(HIGHMEM_START) - curr_pfn;
-		if (!size)
-			continue;
-
-		/*
-		 * ... finally, did all the rounding and playing
-		 * around just make the area go away?
-		 */
-		if (last_pfn <= curr_pfn)
-			continue;
+		size = end - start;
 
 		/* Register lowmem ranges */
-		free_bootmem(PFN_PHYS(curr_pfn), PFN_PHYS(size));
-		memory_present(0, curr_pfn, curr_pfn + size - 1);
+		free_bootmem(PFN_PHYS(start), size << PAGE_SHIFT);
+		memory_present(0, start, end);
 	}
 
-	/* Reserve the bootmap memory.  */
-	reserve_bootmem(PFN_PHYS(first_usable_pfn), bootmap_size);
+	/*
+	 * Reserve the bootmap memory.
+	 */
+	reserve_bootmem(PFN_PHYS(mapstart), bootmap_size);
+
 #endif /* CONFIG_SGI_IP27 */
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -482,6 +458,9 @@ static void __init arch_mem_init(char **cmdline_p)
 	sparse_init();
 	paging_init();
 }
+
+#define MAXMEM		HIGHMEM_START
+#define MAXMEM_PFN	PFN_DOWN(MAXMEM)
 
 static inline void resource_init(void)
 {
