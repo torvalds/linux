@@ -135,138 +135,54 @@ static void __init print_memory_map(void)
 	}
 }
 
-static void __init parse_cmdline_early(void)
-{
-	char c = ' ', *to = command_line, *from = saved_command_line;
-	unsigned long start_at, mem_size;
-	int len = 0;
-	int usermem = 0;
-
-	printk("Determined physical RAM map:\n");
-	print_memory_map();
-
-	for (;;) {
-		/*
-		 * "mem=XXX[kKmM]" defines a memory region from
-		 * 0 to <XXX>, overriding the determined size.
-		 * "mem=XXX[KkmM]@YYY[KkmM]" defines a memory region from
-		 * <YYY> to <YYY>+<XXX>, overriding the determined size.
-		 */
-		if (c == ' ' && !memcmp(from, "mem=", 4)) {
-			if (to != command_line)
-				to--;
-			/*
-			 * If a user specifies memory size, we
-			 * blow away any automatically generated
-			 * size.
-			 */
-			if (usermem == 0) {
-				boot_mem_map.nr_map = 0;
-				usermem = 1;
-			}
-			mem_size = memparse(from + 4, &from);
-			if (*from == '@')
-				start_at = memparse(from + 1, &from);
-			else
-				start_at = 0;
-			add_memory_region(start_at, mem_size, BOOT_MEM_RAM);
-		}
-		c = *(from++);
-		if (!c)
-			break;
-		if (CL_SIZE <= ++len)
-			break;
-		*(to++) = c;
-	}
-	*to = '\0';
-
-	if (usermem) {
-		printk("User-defined physical RAM map:\n");
-		print_memory_map();
-	}
-}
-
 /*
  * Manage initrd
  */
 #ifdef CONFIG_BLK_DEV_INITRD
 
-static int __init parse_rd_cmdline(unsigned long *rd_start, unsigned long *rd_end)
+static int __init rd_start_early(char *p)
 {
-	/*
-	 * "rd_start=0xNNNNNNNN" defines the memory address of an initrd
-	 * "rd_size=0xNN" it's size
-	 */
-	unsigned long start = 0;
-	unsigned long size = 0;
-	unsigned long end;
-	char cmd_line[CL_SIZE];
-	char *start_str;
-	char *size_str;
-	char *tmp;
-
-	strcpy(cmd_line, command_line);
-	*command_line = 0;
-	tmp = cmd_line;
-	/* Ignore "rd_start=" strings in other parameters. */
-	start_str = strstr(cmd_line, "rd_start=");
-	if (start_str && start_str != cmd_line && *(start_str - 1) != ' ')
-		start_str = strstr(start_str, " rd_start=");
-	while (start_str) {
-		if (start_str != cmd_line)
-			strncat(command_line, tmp, start_str - tmp);
-		start = memparse(start_str + 9, &start_str);
-		tmp = start_str + 1;
-		start_str = strstr(start_str, " rd_start=");
-	}
-	if (*tmp)
-		strcat(command_line, tmp);
-
-	strcpy(cmd_line, command_line);
-	*command_line = 0;
-	tmp = cmd_line;
-	/* Ignore "rd_size" strings in other parameters. */
-	size_str = strstr(cmd_line, "rd_size=");
-	if (size_str && size_str != cmd_line && *(size_str - 1) != ' ')
-		size_str = strstr(size_str, " rd_size=");
-	while (size_str) {
-		if (size_str != cmd_line)
-			strncat(command_line, tmp, size_str - tmp);
-		size = memparse(size_str + 8, &size_str);
-		tmp = size_str + 1;
-		size_str = strstr(size_str, " rd_size=");
-	}
-	if (*tmp)
-		strcat(command_line, tmp);
+	unsigned long start = memparse(p, &p);
 
 #ifdef CONFIG_64BIT
 	/* HACK: Guess if the sign extension was forgotten */
 	if (start > 0x0000000080000000 && start < 0x00000000ffffffff)
 		start |= 0xffffffff00000000UL;
 #endif
+	initrd_start = start;
+	initrd_end += start;
 
-	end = start + size;
-	if (start && end) {
-		*rd_start = start;
-		*rd_end = end;
-		return 1;
-	}
 	return 0;
 }
+early_param("rd_start", rd_start_early);
+
+static int __init rd_size_early(char *p)
+{
+	initrd_end += memparse(p, &p);
+
+	return 0;
+}
+early_param("rd_size", rd_size_early);
 
 static unsigned long __init init_initrd(void)
 {
-	unsigned long tmp, end;
+	unsigned long tmp, end, size;
 	u32 *initrd_header;
 
 	ROOT_DEV = Root_RAM0;
 
-	if (parse_rd_cmdline(&initrd_start, &initrd_end))
-		return initrd_end;
 	/*
-	 * Board specific code should have set up initrd_start
-	 * and initrd_end...
+	 * Board specific code or command line parser should have
+	 * already set up initrd_start and initrd_end. In these cases
+	 * perfom sanity checks and use them if all looks good.
 	 */
+	size = initrd_end - initrd_start;
+	if (initrd_end == 0 || size == 0) {
+		initrd_start = 0;
+		initrd_end = 0;
+	} else
+		return initrd_end;
+
 	end = (unsigned long)&_end;
 	tmp = PAGE_ALIGN(end) - sizeof(u32) * 2;
 	if (tmp < end)
@@ -436,8 +352,6 @@ static void __init bootmem_init(void)
  *
  *  o plat_mem_setup() detects the memory configuration and will record detected
  *    memory areas using add_memory_region.
- *  o parse_cmdline_early() parses the command line for mem= options which,
- *    iff detected, will override the results of the automatic detection.
  *
  * At this stage the memory configuration of the system is known to the
  * kernel but generic memory managment system is still entirely uninitialized.
@@ -455,19 +369,53 @@ static void __init bootmem_init(void)
  * initialization hook for anything else was introduced.
  */
 
-extern void plat_mem_setup(void);
+static int usermem __initdata = 0;
+
+static int __init early_parse_mem(char *p)
+{
+	unsigned long start, size;
+
+	/*
+	 * If a user specifies memory size, we
+	 * blow away any automatically generated
+	 * size.
+	 */
+	if (usermem == 0) {
+		boot_mem_map.nr_map = 0;
+		usermem = 1;
+ 	}
+	start = 0;
+	size = memparse(p, &p);
+	if (*p == '@')
+		start = memparse(p + 1, &p);
+
+	add_memory_region(start, size, BOOT_MEM_RAM);
+	return 0;
+}
+early_param("mem", early_parse_mem);
 
 static void __init arch_mem_init(char **cmdline_p)
 {
+	extern void plat_mem_setup(void);
+
 	/* call board setup routine */
 	plat_mem_setup();
+
+	printk("Determined physical RAM map:\n");
+	print_memory_map();
 
 	strlcpy(command_line, arcs_cmdline, sizeof(command_line));
 	strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
 
 	*cmdline_p = command_line;
 
-	parse_cmdline_early();
+	parse_early_param();
+
+	if (usermem) {
+		printk("User-defined physical RAM map:\n");
+		print_memory_map();
+	}
+
 	bootmem_init();
 	sparse_init();
 	paging_init();
