@@ -239,10 +239,8 @@ enum rt_class_t
 	RT_TABLE_DEFAULT=253,
 	RT_TABLE_MAIN=254,
 	RT_TABLE_LOCAL=255,
-	__RT_TABLE_MAX
+	RT_TABLE_MAX=0xFFFFFFFF
 };
-#define RT_TABLE_MAX (__RT_TABLE_MAX - 1)
-
 
 
 /* Routing message attributes */
