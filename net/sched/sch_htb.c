@@ -72,8 +72,6 @@
 #define HTB_EWMAC 2	/* rate average over HTB_EWMAC*HTB_HSIZE sec */
 #define HTB_RATECM 1    /* whether to use rate computer */
 #define HTB_HYSTERESIS 1/* whether to use mode hysteresis for speedup */
-#define HTB_QLOCK(S) spin_lock_bh(&(S)->dev->queue_lock)
-#define HTB_QUNLOCK(S) spin_unlock_bh(&(S)->dev->queue_lock)
 #define HTB_VER 0x30011	/* major must be matched with number suplied by TC as version */
 
 #if HTB_VER >> 16 != TC_HTB_PROTOVER
@@ -667,7 +665,7 @@ static void htb_rate_timer(unsigned long arg)
 	struct list_head *p;
 
 	/* lock queue so that we can muck with it */
-	HTB_QLOCK(sch);
+	spin_lock_bh(&sch->dev->queue_lock);
 
 	q->rttim.expires = jiffies + HZ;
 	add_timer(&q->rttim);
@@ -681,7 +679,7 @@ static void htb_rate_timer(unsigned long arg)
 		RT_GEN (cl->sum_bytes,cl->rate_bytes);
 		RT_GEN (cl->sum_packets,cl->rate_packets);
 	}
-	HTB_QUNLOCK(sch);
+	spin_unlock_bh(&sch->dev->queue_lock);
 }
 #endif
 
@@ -1089,7 +1087,7 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	unsigned char	 *b = skb->tail;
 	struct rtattr *rta;
 	struct tc_htb_glob gopt;
-	HTB_QLOCK(sch);
+	spin_lock_bh(&sch->dev->queue_lock);
 	gopt.direct_pkts = q->direct_pkts;
 
 	gopt.version = HTB_VER;
@@ -1100,10 +1098,10 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
 	RTA_PUT(skb, TCA_HTB_INIT, sizeof(gopt), &gopt);
 	rta->rta_len = skb->tail - b;
-	HTB_QUNLOCK(sch);
+	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
 rtattr_failure:
-	HTB_QUNLOCK(sch);
+	spin_unlock_bh(&sch->dev->queue_lock);
 	skb_trim(skb, skb->tail - skb->data);
 	return -1;
 }
@@ -1116,7 +1114,7 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	struct rtattr *rta;
 	struct tc_htb_opt opt;
 
-	HTB_QLOCK(sch);
+	spin_lock_bh(&sch->dev->queue_lock);
 	tcm->tcm_parent = cl->parent ? cl->parent->classid : TC_H_ROOT;
 	tcm->tcm_handle = cl->classid;
 	if (!cl->level && cl->un.leaf.q)
@@ -1133,10 +1131,10 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	opt.level = cl->level; 
 	RTA_PUT(skb, TCA_HTB_PARMS, sizeof(opt), &opt);
 	rta->rta_len = skb->tail - b;
-	HTB_QUNLOCK(sch);
+	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
 rtattr_failure:
-	HTB_QUNLOCK(sch);
+	spin_unlock_bh(&sch->dev->queue_lock);
 	skb_trim(skb, b - skb->data);
 	return -1;
 }
