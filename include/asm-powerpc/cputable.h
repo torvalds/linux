@@ -36,6 +36,7 @@
 struct cpu_spec;
 
 typedef	void (*cpu_setup_t)(unsigned long offset, struct cpu_spec* spec);
+typedef	void (*cpu_restore_t)(void);
 
 enum powerpc_oprofile_type {
 	PPC_OPROFILE_INVALID = 0,
@@ -65,6 +66,8 @@ struct cpu_spec {
 	 * BHT, SPD, etc... from head.S before branching to identify_machine
 	 */
 	cpu_setup_t	cpu_setup;
+	/* Used to restore cpu setup on secondary processors and at resume */
+	cpu_restore_t	cpu_restore;
 
 	/* Used by oprofile userspace to select the right counters */
 	char		*oprofile_cpu_type;
