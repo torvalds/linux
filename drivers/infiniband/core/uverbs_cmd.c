@@ -841,7 +841,6 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 err_copy:
 	idr_remove_uobj(&ib_uverbs_cq_idr, &obj->uobject);
 
-
 err_free:
 	ib_destroy_cq(cq);
 
@@ -1273,12 +1272,16 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 			    int out_len)
 {
 	struct ib_uverbs_modify_qp cmd;
+	struct ib_udata            udata;
 	struct ib_qp              *qp;
 	struct ib_qp_attr         *attr;
 	int                        ret;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
+
+	INIT_UDATA(&udata, buf + sizeof cmd, NULL, in_len - sizeof cmd,
+		   out_len);
 
 	attr = kmalloc(sizeof *attr, GFP_KERNEL);
 	if (!attr)
@@ -1336,7 +1339,7 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 	attr->alt_ah_attr.ah_flags 	    = cmd.alt_dest.is_global ? IB_AH_GRH : 0;
 	attr->alt_ah_attr.port_num 	    = cmd.alt_dest.port_num;
 
-	ret = ib_modify_qp(qp, attr, cmd.attr_mask);
+	ret = qp->device->modify_qp(qp, attr, cmd.attr_mask, &udata);
 
 	put_qp_read(qp);
 
@@ -2054,12 +2057,16 @@ ssize_t ib_uverbs_modify_srq(struct ib_uverbs_file *file,
 			     int out_len)
 {
 	struct ib_uverbs_modify_srq cmd;
+	struct ib_udata             udata;
 	struct ib_srq              *srq;
 	struct ib_srq_attr          attr;
 	int                         ret;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
+
+	INIT_UDATA(&udata, buf + sizeof cmd, NULL, in_len - sizeof cmd,
+		   out_len);
 
 	srq = idr_read_srq(cmd.srq_handle, file->ucontext);
 	if (!srq)
@@ -2068,7 +2075,7 @@ ssize_t ib_uverbs_modify_srq(struct ib_uverbs_file *file,
 	attr.max_wr    = cmd.max_wr;
 	attr.srq_limit = cmd.srq_limit;
 
-	ret = ib_modify_srq(srq, &attr, cmd.attr_mask);
+	ret = srq->device->modify_srq(srq, &attr, cmd.attr_mask, &udata);
 
 	put_srq_read(srq);
 

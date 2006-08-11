@@ -231,7 +231,7 @@ int ib_modify_srq(struct ib_srq *srq,
 		  struct ib_srq_attr *srq_attr,
 		  enum ib_srq_attr_mask srq_attr_mask)
 {
-	return srq->device->modify_srq(srq, srq_attr, srq_attr_mask);
+	return srq->device->modify_srq(srq, srq_attr, srq_attr_mask, NULL);
 }
 EXPORT_SYMBOL(ib_modify_srq);
 
@@ -547,7 +547,7 @@ int ib_modify_qp(struct ib_qp *qp,
 		 struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask)
 {
-	return qp->device->modify_qp(qp, qp_attr, qp_attr_mask);
+	return qp->device->modify_qp(qp, qp_attr, qp_attr_mask, NULL);
 }
 EXPORT_SYMBOL(ib_modify_qp);
 

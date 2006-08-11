@@ -579,7 +579,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 int ipath_destroy_qp(struct ib_qp *ibqp);
 
 int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-		    int attr_mask);
+		    int attr_mask, struct ib_udata *udata);
 
 int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		   int attr_mask, struct ib_qp_init_attr *init_attr);
@@ -638,7 +638,8 @@ struct ib_srq *ipath_create_srq(struct ib_pd *ibpd,
 				struct ib_udata *udata);
 
 int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
-		     enum ib_srq_attr_mask attr_mask);
+		     enum ib_srq_attr_mask attr_mask,
+		     struct ib_udata *udata);
 
 int ipath_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
 

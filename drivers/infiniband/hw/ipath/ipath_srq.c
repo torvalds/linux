@@ -188,9 +188,11 @@ bail:
  * @ibsrq: the SRQ to modify
  * @attr: the new attributes of the SRQ
  * @attr_mask: indicates which attributes to modify
+ * @udata: user data for ipathverbs.so
  */
 int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
-		     enum ib_srq_attr_mask attr_mask)
+		     enum ib_srq_attr_mask attr_mask,
+		     struct ib_udata *udata)
 {
 	struct ipath_srq *srq = to_isrq(ibsrq);
 	unsigned long flags;

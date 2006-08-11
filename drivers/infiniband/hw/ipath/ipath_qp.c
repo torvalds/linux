@@ -426,11 +426,12 @@ void ipath_error_qp(struct ipath_qp *qp)
  * @ibqp: the queue pair who's attributes we're modifying
  * @attr: the new attributes
  * @attr_mask: the mask of attributes to modify
+ * @udata: user data for ipathverbs.so
  *
  * Returns 0 on success, otherwise returns an errno.
  */
 int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-		    int attr_mask)
+		    int attr_mask, struct ib_udata *udata)
 {
 	struct ipath_ibdev *dev = to_idev(ibqp->device);
 	struct ipath_qp *qp = to_iqp(ibqp);

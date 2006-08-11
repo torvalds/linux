@@ -888,7 +888,8 @@ struct ib_device {
 						 struct ib_udata *udata);
 	int                        (*modify_srq)(struct ib_srq *srq,
 						 struct ib_srq_attr *srq_attr,
-						 enum ib_srq_attr_mask srq_attr_mask);
+						 enum ib_srq_attr_mask srq_attr_mask,
+						 struct ib_udata *udata);
 	int                        (*query_srq)(struct ib_srq *srq,
 						struct ib_srq_attr *srq_attr);
 	int                        (*destroy_srq)(struct ib_srq *srq);
@@ -900,7 +901,8 @@ struct ib_device {
 						struct ib_udata *udata);
 	int                        (*modify_qp)(struct ib_qp *qp,
 						struct ib_qp_attr *qp_attr,
-						int qp_attr_mask);
+						int qp_attr_mask,
+						struct ib_udata *udata);
 	int                        (*query_qp)(struct ib_qp *qp,
 					       struct ib_qp_attr *qp_attr,
 					       int qp_attr_mask,

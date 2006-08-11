@@ -143,7 +143,8 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 
 int ehca_destroy_qp(struct ib_qp *qp);
 
-int ehca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask);
+int ehca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
+		   struct ib_udata *udata);
 
 int ehca_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 		  int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);

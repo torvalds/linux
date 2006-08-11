@@ -1230,7 +1230,8 @@ modify_qp_exit1:
 	return ret;
 }
 
-int ehca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
+int ehca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
+		   struct ib_udata *udata)
 {
 	struct ehca_qp *my_qp = container_of(ibqp, struct ehca_qp, ib_qp);
 	struct ehca_pd *my_pd = container_of(my_qp->ib_qp.pd, struct ehca_pd,
