@@ -1859,7 +1859,8 @@ int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	if (inet6_rtm_to_rtmsg(r, arg, &rtmsg))
 		return -EINVAL;
-	return ip6_route_del(&rtmsg, nlh, arg, &NETLINK_CB(skb), r->rtm_table);
+	return ip6_route_del(&rtmsg, nlh, arg, &NETLINK_CB(skb),
+			     rtm_get_table(arg, r->rtm_table));
 }
 
 int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
@@ -1869,7 +1870,8 @@ int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	if (inet6_rtm_to_rtmsg(r, arg, &rtmsg))
 		return -EINVAL;
-	return ip6_route_add(&rtmsg, nlh, arg, &NETLINK_CB(skb), r->rtm_table);
+	return ip6_route_add(&rtmsg, nlh, arg, &NETLINK_CB(skb),
+			     rtm_get_table(arg, r->rtm_table));
 }
 
 struct rt6_rtnl_dump_arg
@@ -1887,6 +1889,7 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 	struct nlmsghdr  *nlh;
 	unsigned char	 *b = skb->tail;
 	struct rta_cacheinfo ci;
+	u32 table;
 
 	if (prefix) {	/* user wants prefix routes only */
 		if (!(rt->rt6i_flags & RTF_PREFIX_RT)) {
@@ -1902,9 +1905,11 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 	rtm->rtm_src_len = rt->rt6i_src.plen;
 	rtm->rtm_tos = 0;
 	if (rt->rt6i_table)
-		rtm->rtm_table = rt->rt6i_table->tb6_id;
+		table = rt->rt6i_table->tb6_id;
 	else
-		rtm->rtm_table = RT6_TABLE_UNSPEC;
+		table = RT6_TABLE_UNSPEC;
+	rtm->rtm_table = table;
+	RTA_PUT_U32(skb, RTA_TABLE, table);
 	if (rt->rt6i_flags&RTF_REJECT)
 		rtm->rtm_type = RTN_UNREACHABLE;
 	else if (rt->rt6i_dev && (rt->rt6i_dev->flags&IFF_LOOPBACK))

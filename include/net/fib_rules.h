@@ -74,6 +74,13 @@ static inline void fib_rule_put(struct fib_rule *rule)
 		call_rcu(&rule->rcu, fib_rule_put_rcu);
 }
 
+static inline u32 frh_get_table(struct fib_rule_hdr *frh, struct nlattr **nla)
+{
+	if (nla[FRA_TABLE])
+		return nla_get_u32(nla[FRA_TABLE]);
+	return frh->table;
+}
+
 extern int			fib_rules_register(struct fib_rules_ops *);
 extern int			fib_rules_unregister(struct fib_rules_ops *);
 

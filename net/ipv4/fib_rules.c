@@ -184,6 +184,7 @@ static struct nla_policy fib4_rule_policy[FRA_MAX+1] __read_mostly = {
 	[FRA_DST]	= { .type = NLA_U32 },
 	[FRA_FWMARK]	= { .type = NLA_U32 },
 	[FRA_FLOW]	= { .type = NLA_U32 },
+	[FRA_TABLE]	= { .type = NLA_U32 },
 };
 
 static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,

@@ -129,6 +129,7 @@ static struct nla_policy fib6_rule_policy[RTA_MAX+1] __read_mostly = {
 	[FRA_PRIORITY]	= { .type = NLA_U32 },
 	[FRA_SRC]	= { .minlen = sizeof(struct in6_addr) },
 	[FRA_DST]	= { .minlen = sizeof(struct in6_addr) },
+	[FRA_TABLE]	= { .type = NLA_U32 },
 };
 
 static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,

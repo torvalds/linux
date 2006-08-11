@@ -294,7 +294,8 @@ static int inet_check_attr(struct rtmsg *r, struct rtattr **rta)
 		if (attr) {
 			if (RTA_PAYLOAD(attr) < 4)
 				return -EINVAL;
-			if (i != RTA_MULTIPATH && i != RTA_METRICS)
+			if (i != RTA_MULTIPATH && i != RTA_METRICS &&
+			    i != RTA_TABLE)
 				*rta = (struct rtattr*)RTA_DATA(attr);
 		}
 	}
@@ -310,7 +311,7 @@ int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	if (inet_check_attr(r, rta))
 		return -EINVAL;
 
-	tb = fib_get_table(r->rtm_table);
+	tb = fib_get_table(rtm_get_table(rta, r->rtm_table));
 	if (tb)
 		return tb->tb_delete(tb, r, (struct kern_rta*)rta, nlh, &NETLINK_CB(skb));
 	return -ESRCH;
@@ -325,7 +326,7 @@ int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	if (inet_check_attr(r, rta))
 		return -EINVAL;
 
-	tb = fib_new_table(r->rtm_table);
+	tb = fib_new_table(rtm_get_table(rta, r->rtm_table));
 	if (tb)
 		return tb->tb_insert(tb, r, (struct kern_rta*)rta, nlh, &NETLINK_CB(skb));
 	return -ENOBUFS;

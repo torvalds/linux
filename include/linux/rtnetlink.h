@@ -264,6 +264,7 @@ enum rtattr_type_t
 	RTA_CACHEINFO,
 	RTA_SESSION,
 	RTA_MP_ALGO,
+	RTA_TABLE,
 	__RTA_MAX
 };
 
@@ -716,6 +717,13 @@ extern void __rtnl_unlock(void);
 			#x,  __FILE__ , __LINE__); \
 	} \
 } while(0)
+
+static inline u32 rtm_get_table(struct rtattr **rta, u8 table)
+{
+	return RTA_GET_U32(rta[RTA_TABLE-1]);
+rtattr_failure:
+	return table;
+}
 
 #endif /* __KERNEL__ */
 

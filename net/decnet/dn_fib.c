@@ -491,7 +491,8 @@ static int dn_fib_check_attr(struct rtmsg *r, struct rtattr **rta)
 		if (attr) {
 			if (RTA_PAYLOAD(attr) < 4 && RTA_PAYLOAD(attr) != 2)
 				return -EINVAL;
-			if (i != RTA_MULTIPATH && i != RTA_METRICS)
+			if (i != RTA_MULTIPATH && i != RTA_METRICS &&
+			    i != RTA_TABLE)
 				rta[i-1] = (struct rtattr *)RTA_DATA(attr);
 		}
 	}
@@ -508,7 +509,7 @@ int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if (dn_fib_check_attr(r, rta))
 		return -EINVAL;
 
-	tb = dn_fib_get_table(r->rtm_table, 0);
+	tb = dn_fib_get_table(rtm_get_table(rta, r->rtm_table), 0);
 	if (tb)
 		return tb->delete(tb, r, (struct dn_kern_rta *)rta, nlh, &NETLINK_CB(skb));
 
@@ -524,7 +525,7 @@ int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if (dn_fib_check_attr(r, rta))
 		return -EINVAL;
 
-	tb = dn_fib_get_table(r->rtm_table, 1);
+	tb = dn_fib_get_table(rtm_get_table(rta, r->rtm_table), 1);
 	if (tb) 
 		return tb->insert(tb, r, (struct dn_kern_rta *)rta, nlh, &NETLINK_CB(skb));
 

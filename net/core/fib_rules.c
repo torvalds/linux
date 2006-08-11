@@ -187,7 +187,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	rule->action = frh->action;
 	rule->flags = frh->flags;
-	rule->table = frh->table;
+	rule->table = frh_get_table(frh, tb);
 
 	if (!rule->pref && ops->default_pref)
 		rule->pref = ops->default_pref();
@@ -245,7 +245,7 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		if (frh->action && (frh->action != rule->action))
 			continue;
 
-		if (frh->table && (frh->table != rule->table))
+		if (frh->table && (frh_get_table(frh, tb) != rule->table))
 			continue;
 
 		if (tb[FRA_PRIORITY] &&
@@ -291,6 +291,7 @@ static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 
 	frh = nlmsg_data(nlh);
 	frh->table = rule->table;
+	NLA_PUT_U32(skb, FRA_TABLE, rule->table);
 	frh->res1 = 0;
 	frh->res2 = 0;
 	frh->action = rule->action;

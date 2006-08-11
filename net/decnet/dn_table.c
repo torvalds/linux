@@ -278,6 +278,7 @@ static int dn_fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
         rtm->rtm_src_len = 0;
         rtm->rtm_tos = 0;
         rtm->rtm_table = tb_id;
+	RTA_PUT_U32(skb, RTA_TABLE, tb_id);
         rtm->rtm_flags = fi->fib_flags;
         rtm->rtm_scope = scope;
 	rtm->rtm_type  = type;
