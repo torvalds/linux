@@ -633,31 +633,20 @@ static int rh_urb_enqueue (struct usb_hcd *hcd, struct urb *urb)
 
 /*-------------------------------------------------------------------------*/
 
-/* Asynchronous unlinks of root-hub control URBs are legal, but they
- * don't do anything.  Status URB unlinks must be made in process context
- * with interrupts enabled.
+/* Unlinks of root-hub control URBs are legal, but they don't do anything
+ * since these URBs always execute synchronously.
  */
 static int usb_rh_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 {
+	unsigned long	flags;
+
 	if (usb_pipeendpoint(urb->pipe) == 0) {	/* Control URB */
-		if (in_interrupt())
-			return 0;		/* nothing to do */
-
-		spin_lock_irq(&urb->lock);	/* from usb_kill_urb */
-		++urb->reject;
-		spin_unlock_irq(&urb->lock);
-
-		wait_event(usb_kill_urb_queue,
-				atomic_read(&urb->use_count) == 0);
-
-		spin_lock_irq(&urb->lock);
-		--urb->reject;
-		spin_unlock_irq(&urb->lock);
+		;	/* Do nothing */
 
 	} else {				/* Status URB */
 		if (!hcd->uses_new_polling)
-			del_timer_sync (&hcd->rh_timer);
-		local_irq_disable ();
+			del_timer (&hcd->rh_timer);
+		local_irq_save (flags);
 		spin_lock (&hcd_root_hub_lock);
 		if (urb == hcd->status_urb) {
 			hcd->status_urb = NULL;
@@ -667,7 +656,7 @@ static int usb_rh_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 		spin_unlock (&hcd_root_hub_lock);
 		if (urb)
 			usb_hcd_giveback_urb (hcd, urb, NULL);
-		local_irq_enable ();
+		local_irq_restore (flags);
 	}
 
 	return 0;
@@ -1355,7 +1344,8 @@ done:
 /*-------------------------------------------------------------------------*/
 
 /* disables the endpoint: cancels any pending urbs, then synchronizes with
- * the hcd to make sure all endpoint state is gone from hardware. use for
+ * the hcd to make sure all endpoint state is gone from hardware, and then
+ * waits until the endpoint's queue is completely drained. use for
  * set_configuration, set_interface, driver removal, physical disconnect.
  *
  * example:  a qh stored in ep->hcpriv, holding state related to endpoint
@@ -1374,22 +1364,13 @@ hcd_endpoint_disable (struct usb_device *udev, struct usb_host_endpoint *ep)
 
 	local_irq_disable ();
 
-	/* FIXME move most of this into message.c as part of its
-	 * endpoint disable logic
-	 */
-
 	/* ep is already gone from udev->ep_{in,out}[]; no more submits */
 rescan:
 	spin_lock (&hcd_data_lock);
 	list_for_each_entry (urb, &ep->urb_list, urb_list) {
 		int	tmp;
 
-		/* another cpu may be in hcd, spinning on hcd_data_lock
-		 * to giveback() this urb.  the races here should be
-		 * small, but a full fix needs a new "can't submit"
-		 * urb state.
-		 * FIXME urb->reject should allow that...
-		 */
+		/* the urb may already have been unlinked */
 		if (urb->status != -EINPROGRESS)
 			continue;
 		usb_get_urb (urb);
@@ -1431,6 +1412,30 @@ rescan:
 	might_sleep ();
 	if (hcd->driver->endpoint_disable)
 		hcd->driver->endpoint_disable (hcd, ep);
+
+	/* Wait until the endpoint queue is completely empty.  Most HCDs
+	 * will have done this already in their endpoint_disable method,
+	 * but some might not.  And there could be root-hub control URBs
+	 * still pending since they aren't affected by the HCDs'
+	 * endpoint_disable methods.
+	 */
+	while (!list_empty (&ep->urb_list)) {
+		spin_lock_irq (&hcd_data_lock);
+
+		/* The list may have changed while we acquired the spinlock */
+		urb = NULL;
+		if (!list_empty (&ep->urb_list)) {
+			urb = list_entry (ep->urb_list.prev, struct urb,
+					urb_list);
+			usb_get_urb (urb);
+		}
+		spin_unlock_irq (&hcd_data_lock);
+
+		if (urb) {
+			usb_kill_urb (urb);
+			usb_put_urb (urb);
+		}
+	}
 }
 
 /*-------------------------------------------------------------------------*/
