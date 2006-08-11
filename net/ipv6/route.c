@@ -1874,12 +1874,6 @@ int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 			     rtm_get_table(arg, r->rtm_table));
 }
 
-struct rt6_rtnl_dump_arg
-{
-	struct sk_buff *skb;
-	struct netlink_callback *cb;
-};
-
 static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 			 struct in6_addr *dst, struct in6_addr *src,
 			 int iif, int type, u32 pid, u32 seq,
@@ -1976,7 +1970,7 @@ rtattr_failure:
 	return -1;
 }
 
-static int rt6_dump_route(struct rt6_info *rt, void *p_arg)
+int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 {
 	struct rt6_rtnl_dump_arg *arg = (struct rt6_rtnl_dump_arg *) p_arg;
 	int prefix;
@@ -1990,126 +1984,6 @@ static int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 	return rt6_fill_node(arg->skb, rt, NULL, NULL, 0, RTM_NEWROUTE,
 		     NETLINK_CB(arg->cb->skb).pid, arg->cb->nlh->nlmsg_seq,
 		     prefix, NLM_F_MULTI);
-}
-
-static int fib6_dump_node(struct fib6_walker_t *w)
-{
-	int res;
-	struct rt6_info *rt;
-
-	for (rt = w->leaf; rt; rt = rt->u.next) {
-		res = rt6_dump_route(rt, w->args);
-		if (res < 0) {
-			/* Frame is full, suspend walking */
-			w->leaf = rt;
-			return 1;
-		}
-		BUG_TRAP(res!=0);
-	}
-	w->leaf = NULL;
-	return 0;
-}
-
-static void fib6_dump_end(struct netlink_callback *cb)
-{
-	struct fib6_walker_t *w = (void*)cb->args[0];
-
-	if (w) {
-		cb->args[0] = 0;
-		kfree(w);
-	}
-	cb->done = (void*)cb->args[1];
-	cb->args[1] = 0;
-}
-
-static int fib6_dump_done(struct netlink_callback *cb)
-{
-	fib6_dump_end(cb);
-	return cb->done ? cb->done(cb) : 0;
-}
-
-int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
-{
-	struct fib6_table *table;
-	struct rt6_rtnl_dump_arg arg;
-	struct fib6_walker_t *w;
-	int i, res = 0;
-
-	arg.skb = skb;
-	arg.cb = cb;
-
-	/*
-	 * cb->args[0] = pointer to walker structure
-	 * cb->args[1] = saved cb->done() pointer
-	 * cb->args[2] = current table being dumped
-	 */
-
-	w = (void*)cb->args[0];
-	if (w == NULL) {
-		/* New dump:
-		 * 
-		 * 1. hook callback destructor.
-		 */
-		cb->args[1] = (long)cb->done;
-		cb->done = fib6_dump_done;
-
-		/*
-		 * 2. allocate and initialize walker.
-		 */
-		w = kzalloc(sizeof(*w), GFP_ATOMIC);
-		if (w == NULL)
-			return -ENOMEM;
-		w->func = fib6_dump_node;
-		w->args = &arg;
-		cb->args[0] = (long)w;
-		cb->args[2] = FIB6_TABLE_MIN;
-	} else {
-		w->args = &arg;
-		i = cb->args[2];
-		if (i > FIB6_TABLE_MAX)
-			goto end;
-
-		table = fib6_get_table(i);
-		if (table != NULL) {
-			read_lock_bh(&table->tb6_lock);
-			w->root = &table->tb6_root;
-			res = fib6_walk_continue(w);
-			read_unlock_bh(&table->tb6_lock);
-			if (res != 0) {
-				if (res < 0)
-					fib6_walker_unlink(w);
-				goto end;
-			}
-		}
-
-		fib6_walker_unlink(w);
-		cb->args[2] = ++i;
-	}
-
-	for (i = cb->args[2]; i <= FIB6_TABLE_MAX; i++) {
-		table = fib6_get_table(i);
-		if (table == NULL)
-			continue;
-
-		read_lock_bh(&table->tb6_lock);
-		w->root = &table->tb6_root;
-		res = fib6_walk(w);
-		read_unlock_bh(&table->tb6_lock);
-		if (res)
-			break;
-	}
-end:
-	cb->args[2] = i;
-
-	res = res < 0 ? res : skb->len;
-	/* res < 0 is an error. (really, impossible)
-	   res == 0 means that dump is complete, but skb still can contain data.
-	   res > 0 dump is not complete, but frame is full.
-	 */
-	/* Destroy walker, if dump of this table is complete. */
-	if (res <= 0)
-		fib6_dump_end(cb);
-	return res;
 }
 
 int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)

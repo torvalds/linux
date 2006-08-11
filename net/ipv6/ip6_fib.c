@@ -158,7 +158,26 @@ static struct fib6_table fib6_main_tbl = {
 };
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
+#define FIB_TABLE_HASHSZ 256
+#else
+#define FIB_TABLE_HASHSZ 1
+#endif
+static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
 
+static void fib6_link_table(struct fib6_table *tb)
+{
+	unsigned int h;
+
+	h = tb->tb6_id & (FIB_TABLE_HASHSZ - 1);
+
+	/*
+	 * No protection necessary, this is the only list mutatation
+	 * operation, tables never disappear once they exist.
+	 */
+	hlist_add_head_rcu(&tb->tb6_hlist, &fib_table_hash[h]);
+}
+
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
 static struct fib6_table fib6_local_tbl = {
 	.tb6_id		= RT6_TABLE_LOCAL,
 	.tb6_lock	= RW_LOCK_UNLOCKED,
@@ -167,9 +186,6 @@ static struct fib6_table fib6_local_tbl = {
 		.fn_flags	= RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO,
 	},
 };
-
-#define FIB_TABLE_HASHSZ 256
-static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
 
 static struct fib6_table *fib6_alloc_table(u32 id)
 {
@@ -184,19 +200,6 @@ static struct fib6_table *fib6_alloc_table(u32 id)
 	}
 
 	return table;
-}
-
-static void fib6_link_table(struct fib6_table *tb)
-{
-	unsigned int h;
-
-	h = tb->tb6_id & (FIB_TABLE_HASHSZ - 1);
-
-	/*
-	 * No protection necessary, this is the only list mutatation
-	 * operation, tables never disappear once they exist.
-	 */
-	hlist_add_head_rcu(&tb->tb6_hlist, &fib_table_hash[h]);
 }
 
 struct fib6_table *fib6_new_table(u32 id)
@@ -263,10 +266,135 @@ struct dst_entry *fib6_rule_lookup(struct flowi *fl, int flags,
 
 static void __init fib6_tables_init(void)
 {
+	fib6_link_table(&fib6_main_tbl);
 }
 
 #endif
 
+static int fib6_dump_node(struct fib6_walker_t *w)
+{
+	int res;
+	struct rt6_info *rt;
+
+	for (rt = w->leaf; rt; rt = rt->u.next) {
+		res = rt6_dump_route(rt, w->args);
+		if (res < 0) {
+			/* Frame is full, suspend walking */
+			w->leaf = rt;
+			return 1;
+		}
+		BUG_TRAP(res!=0);
+	}
+	w->leaf = NULL;
+	return 0;
+}
+
+static void fib6_dump_end(struct netlink_callback *cb)
+{
+	struct fib6_walker_t *w = (void*)cb->args[2];
+
+	if (w) {
+		cb->args[2] = 0;
+		kfree(w);
+	}
+	cb->done = (void*)cb->args[3];
+	cb->args[1] = 3;
+}
+
+static int fib6_dump_done(struct netlink_callback *cb)
+{
+	fib6_dump_end(cb);
+	return cb->done ? cb->done(cb) : 0;
+}
+
+static int fib6_dump_table(struct fib6_table *table, struct sk_buff *skb,
+			   struct netlink_callback *cb)
+{
+	struct fib6_walker_t *w;
+	int res;
+
+	w = (void *)cb->args[2];
+	w->root = &table->tb6_root;
+
+	if (cb->args[4] == 0) {
+		read_lock_bh(&table->tb6_lock);
+		res = fib6_walk(w);
+		read_unlock_bh(&table->tb6_lock);
+		if (res > 0)
+			cb->args[4] = 1;
+	} else {
+		read_lock_bh(&table->tb6_lock);
+		res = fib6_walk_continue(w);
+		read_unlock_bh(&table->tb6_lock);
+		if (res != 0) {
+			if (res < 0)
+				fib6_walker_unlink(w);
+			goto end;
+		}
+		fib6_walker_unlink(w);
+		cb->args[4] = 0;
+	}
+end:
+	return res;
+}
+
+int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	unsigned int h, s_h;
+	unsigned int e = 0, s_e;
+	struct rt6_rtnl_dump_arg arg;
+	struct fib6_walker_t *w;
+	struct fib6_table *tb;
+	struct hlist_node *node;
+	int res = 0;
+
+	s_h = cb->args[0];
+	s_e = cb->args[1];
+
+	w = (void *)cb->args[2];
+	if (w == NULL) {
+		/* New dump:
+		 *
+		 * 1. hook callback destructor.
+		 */
+		cb->args[3] = (long)cb->done;
+		cb->done = fib6_dump_done;
+
+		/*
+		 * 2. allocate and initialize walker.
+		 */
+		w = kzalloc(sizeof(*w), GFP_ATOMIC);
+		if (w == NULL)
+			return -ENOMEM;
+		w->func = fib6_dump_node;
+		cb->args[2] = (long)w;
+	}
+
+	arg.skb = skb;
+	arg.cb = cb;
+	w->args = &arg;
+
+	for (h = s_h; h < FIB_TABLE_HASHSZ; h++, s_e = 0) {
+		e = 0;
+		hlist_for_each_entry(tb, node, &fib_table_hash[h], tb6_hlist) {
+			if (e < s_e)
+				goto next;
+			res = fib6_dump_table(tb, skb, cb);
+			if (res != 0)
+				goto out;
+next:
+			e++;
+		}
+	}
+out:
+	cb->args[1] = e;
+	cb->args[0] = h;
+
+	res = res < 0 ? res : skb->len;
+	if (res <= 0)
+		fib6_dump_end(cb);
+	return res;
+}
 
 /*
  *	Routing Table
@@ -1187,17 +1315,20 @@ static void fib6_clean_tree(struct fib6_node *root,
 void fib6_clean_all(int (*func)(struct rt6_info *, void *arg),
 		    int prune, void *arg)
 {
-	int i;
 	struct fib6_table *table;
+	struct hlist_node *node;
+	unsigned int h;
 
-	for (i = FIB6_TABLE_MIN; i <= FIB6_TABLE_MAX; i++) {
-		table = fib6_get_table(i);
-		if (table != NULL) {
+	rcu_read_lock();
+	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
+		hlist_for_each_entry_rcu(table, node, &fib_table_hash[h],
+					 tb6_hlist) {
 			write_lock_bh(&table->tb6_lock);
 			fib6_clean_tree(&table->tb6_root, func, prune, arg);
 			write_unlock_bh(&table->tb6_lock);
 		}
 	}
+	rcu_read_unlock();
 }
 
 static int fib6_prune_clone(struct rt6_info *rt, void *arg)

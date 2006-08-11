@@ -137,6 +137,13 @@ extern int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *a
 extern int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
 extern int inet6_rtm_getroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
 
+struct rt6_rtnl_dump_arg
+{
+	struct sk_buff *skb;
+	struct netlink_callback *cb;
+};
+
+extern int rt6_dump_route(struct rt6_info *rt, void *p_arg);
 extern void rt6_ifdown(struct net_device *dev);
 extern void rt6_mtu_change(struct net_device *dev, unsigned mtu);
 
