@@ -1766,6 +1766,7 @@ static void __devexit agp_intel_remove(struct pci_dev *pdev)
 	agp_put_bridge(bridge);
 }
 
+#ifdef CONFIG_PM
 static int agp_intel_resume(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
@@ -1789,6 +1790,7 @@ static int agp_intel_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
 static struct pci_device_id agp_intel_pci_table[] = {
 #define ID(x)						\
@@ -1835,7 +1837,9 @@ static struct pci_driver agp_intel_pci_driver = {
 	.id_table	= agp_intel_pci_table,
 	.probe		= agp_intel_probe,
 	.remove		= __devexit_p(agp_intel_remove),
+#ifdef CONFIG_PM
 	.resume		= agp_intel_resume,
+#endif
 };
 
 static int __init agp_intel_init(void)
