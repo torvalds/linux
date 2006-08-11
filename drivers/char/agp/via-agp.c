@@ -9,7 +9,7 @@
 #include <linux/agp_backend.h>
 #include "agp.h"
 
-static struct pci_device_id agp_via_pci_table[];
+static const struct pci_device_id agp_via_pci_table[];
 
 #define VIA_GARTCTRL	0x80
 #define VIA_APSIZE	0x84
@@ -485,7 +485,7 @@ static int agp_via_resume(struct pci_dev *pdev)
 #endif /* CONFIG_PM */
 
 /* must be the same order as name table above */
-static struct pci_device_id agp_via_pci_table[] = {
+static const struct pci_device_id agp_via_pci_table[] = {
 #define ID(x) \
 	{						\
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),	\
