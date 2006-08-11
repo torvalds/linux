@@ -532,39 +532,6 @@ int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	return -ENOBUFS;
 }
 
-
-int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
-{
-	u32 t;
-	u32 s_t;
-	struct dn_fib_table *tb;
-
-	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&
-		((struct rtmsg *)NLMSG_DATA(cb->nlh))->rtm_flags&RTM_F_CLONED)
-			return dn_cache_dump(skb, cb);
-
-	s_t = cb->args[0];
-	if (s_t == 0)
-		s_t = cb->args[0] = RT_MIN_TABLE;
-
-	for(t = s_t; t <= RT_TABLE_MAX; t++) {
-		if (t < s_t)
-			continue;
-		if (t > s_t)
-			memset(&cb->args[1], 0,
-			       sizeof(cb->args) - sizeof(cb->args[0]));
-		tb = dn_fib_get_table(t, 0);
-		if (tb == NULL)
-			continue;
-		if (tb->dump(tb, skb, cb) < 0)
-			break;
-	}
-
-	cb->args[0] = t;
-
-	return skb->len;
-}
-
 static void fib_magic(int cmd, int type, __le16 dst, int dst_len, struct dn_ifaddr *ifa)
 {
 	struct dn_fib_table *tb;
@@ -760,22 +727,6 @@ int dn_fib_sync_up(struct net_device *dev)
                 }
         } endfor_fib_info();
         return ret;
-}
-
-void dn_fib_flush(void)
-{
-        int flushed = 0;
-        struct dn_fib_table *tb;
-        u32 id;
-
-        for(id = RT_TABLE_MAX; id > 0; id--) {
-                if ((tb = dn_fib_get_table(id, 0)) == NULL)
-                        continue;
-                flushed += tb->flush(tb);
-        }
-
-        if (flushed)
-                dn_rt_cache_flush(-1);
 }
 
 static struct notifier_block dn_fib_dnaddr_notifier = {

@@ -94,6 +94,7 @@ struct dn_fib_node {
 
 
 struct dn_fib_table {
+	struct hlist_node hlist;
 	u32 n;
 
 	int (*insert)(struct dn_fib_table *t, struct rtmsg *r, 
@@ -176,8 +177,6 @@ static inline void dn_fib_res_put(struct dn_fib_res *res)
 	if (res->r)
 		fib_rule_put(res->r);
 }
-
-extern struct dn_fib_table *dn_fib_tables[];
 
 #else /* Endnode */
 

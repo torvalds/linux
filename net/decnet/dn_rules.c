@@ -210,7 +210,7 @@ unsigned dnet_addr_type(__le16 addr)
 	struct flowi fl = { .nl_u = { .dn_u = { .daddr = addr } } };
 	struct dn_fib_res res;
 	unsigned ret = RTN_UNICAST;
-	struct dn_fib_table *tb = dn_fib_tables[RT_TABLE_LOCAL];
+	struct dn_fib_table *tb = dn_fib_get_table(RT_TABLE_LOCAL, 0);
 
 	res.r = NULL;
 
