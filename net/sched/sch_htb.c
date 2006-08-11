@@ -483,6 +483,20 @@ static void htb_deactivate_prios(struct htb_sched *q, struct htb_class *cl)
 		htb_remove_class_from_row(q,cl,mask);
 }
 
+#if HTB_HYSTERESIS
+static inline long htb_lowater(const struct htb_class *cl)
+{
+	return cl->cmode != HTB_CANT_SEND ? -cl->cbuffer : 0;
+}
+static inline long htb_hiwater(const struct htb_class *cl)
+{
+	return cl->cmode == HTB_CAN_SEND ? -cl->buffer : 0;
+}
+#else
+#define htb_lowater(cl)	(0)
+#define htb_hiwater(cl)	(0)
+#endif
+
 /**
  * htb_class_mode - computes and returns current class mode
  *
@@ -499,19 +513,12 @@ htb_class_mode(struct htb_class *cl,long *diff)
 {
     long toks;
 
-    if ((toks = (cl->ctokens + *diff)) < (
-#if HTB_HYSTERESIS
-	    cl->cmode != HTB_CANT_SEND ? -cl->cbuffer :
-#endif
-       	    0)) {
+    if ((toks = (cl->ctokens + *diff)) < htb_lowater(cl)) {
 	    *diff = -toks;
 	    return HTB_CANT_SEND;
     }
-    if ((toks = (cl->tokens + *diff)) >= (
-#if HTB_HYSTERESIS
-	    cl->cmode == HTB_CAN_SEND ? -cl->buffer :
-#endif
-	    0))
+
+    if ((toks = (cl->tokens + *diff)) >= htb_hiwater(cl))
 	    return HTB_CAN_SEND;
 
     *diff = -toks;
