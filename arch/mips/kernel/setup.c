@@ -473,9 +473,6 @@ static void __init arch_mem_init(char **cmdline_p)
 	paging_init();
 }
 
-#define MAXMEM		HIGHMEM_START
-#define MAXMEM_PFN	PFN_DOWN(MAXMEM)
-
 static void __init resource_init(void)
 {
 	int i;
@@ -497,10 +494,10 @@ static void __init resource_init(void)
 
 		start = boot_mem_map.map[i].addr;
 		end = boot_mem_map.map[i].addr + boot_mem_map.map[i].size - 1;
-		if (start >= MAXMEM)
+		if (start >= HIGHMEM_START)
 			continue;
-		if (end >= MAXMEM)
-			end = MAXMEM - 1;
+		if (end >= HIGHMEM_START)
+			end = HIGHMEM_START - 1;
 
 		res = alloc_bootmem(sizeof(struct resource));
 		switch (boot_mem_map.map[i].type) {
@@ -528,9 +525,6 @@ static void __init resource_init(void)
 		request_resource(res, &data_resource);
 	}
 }
-
-#undef MAXMEM
-#undef MAXMEM_PFN
 
 void __init setup_arch(char **cmdline_p)
 {
