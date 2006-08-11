@@ -200,7 +200,12 @@ static inline void parse_cmdline_early(void)
 	}
 }
 
-static inline int parse_rd_cmdline(unsigned long* rd_start, unsigned long* rd_end)
+/*
+ * Manage initrd
+ */
+#ifdef CONFIG_BLK_DEV_INITRD
+
+static int __init parse_rd_cmdline(unsigned long *rd_start, unsigned long *rd_end)
 {
 	/*
 	 * "rd_start=0xNNNNNNNN" defines the memory address of an initrd
@@ -263,49 +268,93 @@ static inline int parse_rd_cmdline(unsigned long* rd_start, unsigned long* rd_en
 	return 0;
 }
 
+static unsigned long __init init_initrd(void)
+{
+	unsigned long tmp, end;
+	u32 *initrd_header;
+
+	ROOT_DEV = Root_RAM0;
+
+	if (parse_rd_cmdline(&initrd_start, &initrd_end))
+		return initrd_end;
+	/*
+	 * Board specific code should have set up initrd_start
+	 * and initrd_end...
+	 */
+	end = (unsigned long)&_end;
+	tmp = PAGE_ALIGN(end) - sizeof(u32) * 2;
+	if (tmp < end)
+		tmp += PAGE_SIZE;
+
+	initrd_header = (u32 *)tmp;
+	if (initrd_header[0] == 0x494E5244) {
+		initrd_start = (unsigned long)&initrd_header[2];
+		initrd_end = initrd_start + initrd_header[1];
+	}
+	return initrd_end;
+}
+
+static void __init finalize_initrd(void)
+{
+	unsigned long size = initrd_end - initrd_start;
+
+	if (size == 0) {
+		printk(KERN_INFO "Initrd not found or empty");
+		goto disable;
+	}
+	if (CPHYSADDR(initrd_end) > PFN_PHYS(max_low_pfn)) {
+		printk("Initrd extends beyond end of memory");
+		goto disable;
+	}
+
+	reserve_bootmem(CPHYSADDR(initrd_start), size);
+	initrd_below_start_ok = 1;
+
+	printk(KERN_INFO "Initial ramdisk at: 0x%lx (%lu bytes)\n",
+	       initrd_start, size);
+	return;
+disable:
+	printk(" - disabling initrd\n");
+	initrd_start = 0;
+	initrd_end = 0;
+}
+
+#else  /* !CONFIG_BLK_DEV_INITRD */
+
+#define init_initrd()		0
+#define finalize_initrd()	do {} while (0)
+
+#endif
+
 /*
  * Initialize the bootmem allocator. It also setup initrd related data
  * if needed.
  */
+#ifdef CONFIG_SGI_IP27
+
 static void __init bootmem_init(void)
 {
-	unsigned long reserved_end = (unsigned long)&_end;
-#ifndef CONFIG_SGI_IP27
+	init_initrd();
+	finalize_initrd();
+}
+
+#else  /* !CONFIG_SGI_IP27 */
+
+static void __init bootmem_init(void)
+{
+	unsigned long reserved_end;
 	unsigned long highest = 0;
 	unsigned long mapstart = -1UL;
 	unsigned long bootmap_size;
 	int i;
-#endif
-#ifdef CONFIG_BLK_DEV_INITRD
-	int initrd_reserve_bootmem = 0;
 
-	/* Board specific code should have set up initrd_start and initrd_end */
- 	ROOT_DEV = Root_RAM0;
-	if (parse_rd_cmdline(&initrd_start, &initrd_end)) {
-		reserved_end = max(reserved_end, initrd_end);
-		initrd_reserve_bootmem = 1;
-	} else {
-		unsigned long tmp;
-		u32 *initrd_header;
-
-		tmp = PAGE_ALIGN(reserved_end) - sizeof(u32) * 2;
-		if (tmp < reserved_end)
-			tmp += PAGE_SIZE;
-		initrd_header = (u32 *)tmp;
-		if (initrd_header[0] == 0x494E5244) {
-			initrd_start = (unsigned long)&initrd_header[2];
-			initrd_end = initrd_start + initrd_header[1];
-			reserved_end = max(reserved_end, initrd_end);
-			initrd_reserve_bootmem = 1;
-		}
-	}
-#endif	/* CONFIG_BLK_DEV_INITRD */
-
-#ifndef CONFIG_SGI_IP27
 	/*
-	 * reserved_end is now a pfn
+	 * Init any data related to initrd. It's a nop if INITRD is
+	 * not selected. Once that done we can determine the low bound
+	 * of usable memory.
 	 */
-	reserved_end = PFN_UP(CPHYSADDR(reserved_end));
+	reserved_end = init_initrd();
+	reserved_end = PFN_UP(CPHYSADDR(max(reserved_end, (unsigned long)&_end)));
 
 	/*
 	 * Find the highest page frame number we have available.
@@ -388,34 +437,13 @@ static void __init bootmem_init(void)
 	 */
 	reserve_bootmem(PFN_PHYS(mapstart), bootmap_size);
 
-#endif /* CONFIG_SGI_IP27 */
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	initrd_below_start_ok = 1;
-	if (initrd_start) {
-		unsigned long initrd_size = ((unsigned char *)initrd_end) -
-			((unsigned char *)initrd_start);
-		const int width = sizeof(long) * 2;
-
-		printk("Initial ramdisk at: 0x%p (%lu bytes)\n",
-		       (void *)initrd_start, initrd_size);
-
-		if (CPHYSADDR(initrd_end) > PFN_PHYS(max_low_pfn)) {
-			printk("initrd extends beyond end of memory "
-			       "(0x%0*Lx > 0x%0*Lx)\ndisabling initrd\n",
-			       width,
-			       (unsigned long long) CPHYSADDR(initrd_end),
-			       width,
-			       (unsigned long long) PFN_PHYS(max_low_pfn));
-			initrd_start = initrd_end = 0;
-			initrd_reserve_bootmem = 0;
-		}
-
-		if (initrd_reserve_bootmem)
-			reserve_bootmem(CPHYSADDR(initrd_start), initrd_size);
-	}
-#endif /* CONFIG_BLK_DEV_INITRD  */
+	/*
+	 * Reserve initrd memory if needed.
+	 */
+	finalize_initrd();
 }
+
+#endif	/* CONFIG_SGI_IP27 */
 
 /*
  * arch_mem_init - initialize memory managment subsystem
