@@ -197,10 +197,10 @@ static int dn_fib_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 		return 0;
 #endif
 
-	if (tb[FRA_SRC] && (r->src != nla_get_u32(tb[FRA_SRC])))
+	if (tb[FRA_SRC] && (r->src != nla_get_u16(tb[FRA_SRC])))
 		return 0;
 
-	if (tb[FRA_DST] && (r->dst != nla_get_u32(tb[FRA_DST])))
+	if (tb[FRA_DST] && (r->dst != nla_get_u16(tb[FRA_DST])))
 		return 0;
 
 	return 1;
