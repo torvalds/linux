@@ -1291,7 +1291,7 @@ void __init r4k_cache_init(void)
 	__flush_cache_all	= r4k___flush_cache_all;
 	flush_cache_mm		= r4k_flush_cache_mm;
 	flush_cache_page	= r4k_flush_cache_page;
-	flush_icache_page	= r4k_flush_icache_page;
+	__flush_icache_page	= r4k_flush_icache_page;
 	flush_cache_range	= r4k_flush_cache_range;
 
 	flush_cache_sigtramp	= r4k_flush_cache_sigtramp;

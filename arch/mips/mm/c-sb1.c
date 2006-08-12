@@ -520,7 +520,7 @@ void sb1_cache_init(void)
 
 	/* These routines are for Icache coherence with the Dcache */
 	flush_icache_range = sb1_flush_icache_range;
-	flush_icache_page = sb1_flush_icache_page;
+	__flush_icache_page = sb1_flush_icache_page;
 	flush_icache_all = __sb1_flush_icache_all; /* local only */
 
 	/* This implies an Icache flush too, so can't be nop'ed */

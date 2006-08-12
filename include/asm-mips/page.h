@@ -34,6 +34,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/cpu-features.h>
+
 extern void clear_page(void * page);
 extern void copy_page(void * to, void * from);
 
@@ -53,7 +55,7 @@ static inline void clear_user_page(void *addr, unsigned long vaddr,
 	extern void (*flush_data_cache_page)(unsigned long addr);
 
 	clear_page(addr);
-	if (pages_do_alias((unsigned long) addr, vaddr))
+	if (pages_do_alias((unsigned long) addr, vaddr & PAGE_MASK))
 		flush_data_cache_page((unsigned long)addr);
 }
 
@@ -63,7 +65,8 @@ static inline void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 	extern void (*flush_data_cache_page)(unsigned long addr);
 
 	copy_page(vto, vfrom);
-	if (pages_do_alias((unsigned long)vto, vaddr))
+	if (!cpu_has_ic_fills_f_dc ||
+	    pages_do_alias((unsigned long)vto, vaddr & PAGE_MASK))
 		flush_data_cache_page((unsigned long)vto);
 }
 
