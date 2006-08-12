@@ -68,10 +68,11 @@ static int scnprint_id(struct zd_chip *chip, char *buffer, size_t size)
 	i += scnprint_mac_oui(chip->e2p_mac, buffer+i, size-i);
 	i += scnprintf(buffer+i, size-i, " ");
 	i += zd_rf_scnprint_id(&chip->rf, buffer+i, size-i);
-	i += scnprintf(buffer+i, size-i, " pa%1x %c%c%c", chip->pa_type,
+	i += scnprintf(buffer+i, size-i, " pa%1x %c%c%c%c", chip->pa_type,
 		chip->patch_cck_gain ? 'g' : '-',
 		chip->patch_cr157 ? '7' : '-',
-		chip->patch_6m_band_edge ? '6' : '-');
+		chip->patch_6m_band_edge ? '6' : '-',
+		chip->new_phy_layout ? 'N' : '-');
 	return i;
 }
 
@@ -330,13 +331,14 @@ static int read_pod(struct zd_chip *chip, u8 *rf_type)
 	chip->patch_cck_gain = (value >> 8) & 0x1;
 	chip->patch_cr157 = (value >> 13) & 0x1;
 	chip->patch_6m_band_edge = (value >> 21) & 0x1;
+	chip->new_phy_layout = (value >> 31) & 0x1;
 
 	dev_dbg_f(zd_chip_dev(chip),
 		"RF %s %#01x PA type %#01x patch CCK %d patch CR157 %d "
-		"patch 6M %d\n",
+		"patch 6M %d new PHY %d\n",
 		zd_rf_name(*rf_type), *rf_type,
 		chip->pa_type, chip->patch_cck_gain,
-		chip->patch_cr157, chip->patch_6m_band_edge);
+		chip->patch_cr157, chip->patch_6m_band_edge, chip->new_phy_layout);
 	return 0;
 error:
 	*rf_type = 0;
@@ -344,6 +346,7 @@ error:
 	chip->patch_cck_gain = 0;
 	chip->patch_cr157 = 0;
 	chip->patch_6m_band_edge = 0;
+	chip->new_phy_layout = 0;
 	return r;
 }
 
@@ -856,7 +859,7 @@ static int zd1211b_hw_init_hmac(struct zd_chip *chip)
 		{ CR_RX_PE_DELAY,		0x70 },
 		{ CR_PS_CTRL,			0x10000000 },
 		{ CR_RTS_CTS_RATE,		0x02030203 },
-		{ CR_RX_THRESHOLD,		0x000c0640 },
+		{ CR_RX_THRESHOLD,		0x000c0eff, },
 		{ CR_AFTER_PNP,			0x1 },
 		{ CR_WEP_PROTECT,		0x114 },
 	};
@@ -1616,3 +1619,34 @@ int zd_rfwritev_locked(struct zd_chip *chip,
 
 	return 0;
 }
+
+/*
+ * We can optionally program the RF directly through CR regs, if supported by
+ * the hardware. This is much faster than the older method.
+ */
+static int zd_rfwrite_cr_locked(struct zd_chip *chip, u32 value)
+{
+	struct zd_ioreq16 ioreqs[] = {
+		{ CR244, (value >> 16) & 0xff },
+		{ CR243, (value >>  8) & 0xff },
+		{ CR242,  value        & 0xff },
+	};
+	ZD_ASSERT(mutex_is_locked(&chip->mutex));
+	return zd_iowrite16a_locked(chip, ioreqs, ARRAY_SIZE(ioreqs));
+}
+
+int zd_rfwritev_cr_locked(struct zd_chip *chip,
+	                  const u32 *values, unsigned int count)
+{
+	int r;
+	unsigned int i;
+
+	for (i = 0; i < count; i++) {
+		r = zd_rfwrite_cr_locked(chip, values[i]);
+		if (r)
+			return r;
+	}
+
+	return 0;
+}
+

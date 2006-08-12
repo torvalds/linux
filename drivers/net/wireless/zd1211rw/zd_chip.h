@@ -663,7 +663,7 @@ struct zd_chip {
 	/* SetPointOFDM in the vendor driver */
 	u8 ofdm_cal_values[3][E2P_CHANNEL_COUNT];
 	u8 pa_type:4, patch_cck_gain:1, patch_cr157:1, patch_6m_band_edge:1,
-	   is_zd1211b:1;
+	   new_phy_layout:1, is_zd1211b:1;
 };
 
 static inline struct zd_chip *zd_usb_to_chip(struct zd_usb *usb)
@@ -749,6 +749,8 @@ static inline int zd_rfwrite_locked(struct zd_chip *chip, u32 value, u8 bits)
 
 int zd_rfwritev_locked(struct zd_chip *chip,
 	               const u32* values, unsigned int count, u8 bits);
+int zd_rfwritev_cr_locked(struct zd_chip *chip,
+	                  const u32* values, unsigned int count);
 
 /* Locking functions for reading and writing registers.
  * The different parameters are intentional.
