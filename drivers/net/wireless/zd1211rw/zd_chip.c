@@ -807,7 +807,6 @@ static int zd1211_hw_init_hmac(struct zd_chip *chip)
 		{ CR_ACK_TIMEOUT_EXT,		0x80 },
 		{ CR_ADDA_PWR_DWN,		0x00 },
 		{ CR_ACK_TIME_80211,		0x100 },
-		{ CR_IFS_VALUE,			0x547c032 },
 		{ CR_RX_PE_DELAY,		0x70 },
 		{ CR_PS_CTRL,			0x10000000 },
 		{ CR_RTS_CTS_RATE,		0x02030203 },
@@ -854,7 +853,6 @@ static int zd1211b_hw_init_hmac(struct zd_chip *chip)
 		{ CR_ACK_TIMEOUT_EXT,		0x80 },
 		{ CR_ADDA_PWR_DWN,		0x00 },
 		{ CR_ACK_TIME_80211,		0x100 },
-		{ CR_IFS_VALUE,			0x547c032 },
 		{ CR_RX_PE_DELAY,		0x70 },
 		{ CR_PS_CTRL,			0x10000000 },
 		{ CR_RTS_CTS_RATE,		0x02030203 },
@@ -970,10 +968,15 @@ static int hw_init(struct zd_chip *chip)
 	r = hw_init_hmac(chip);
 	if (r)
 		return r;
-	r = set_beacon_interval(chip, 100);
+
+	/* Although the vendor driver defaults to a different value during
+	 * init, it overwrites the IFS value with the following every time
+	 * the channel changes. We should aim to be more intelligent... */
+	r = zd_iowrite32_locked(chip, IFS_VALUE_DEFAULT, CR_IFS_VALUE);
 	if (r)
 		return r;
-	return 0;
+
+	return set_beacon_interval(chip, 100);
 }
 
 #ifdef DEBUG
