@@ -854,6 +854,7 @@ struct xfrm_algo_comp_info {
 
 struct xfrm_algo_desc {
 	char *name;
+	char *compat;
 	u8 available:1;
 	union {
 		struct xfrm_algo_auth_info auth;

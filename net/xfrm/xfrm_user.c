@@ -213,6 +213,7 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 		return -ENOMEM;
 
 	memcpy(p, ualg, len);
+	strcpy(p->alg_name, algo->name);
 	*algpp = p;
 	return 0;
 }
