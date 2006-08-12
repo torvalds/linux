@@ -69,7 +69,7 @@ int drm_map_handle(drm_device_t *dev, drm_hash_item_t *hash,
 		   unsigned long user_token, int hashed_handle)
 {
 	int use_hashed_handle;
-	#if (BITS_PER_LONG == 64)
+#if (BITS_PER_LONG == 64)
 	use_hashed_handle = ((user_token & 0xFFFFFFFF00000000UL) || hashed_handle);
 #elif (BITS_PER_LONG == 32)
 	use_hashed_handle = hashed_handle;
