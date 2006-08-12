@@ -42,12 +42,11 @@ void zd_chip_init(struct zd_chip *chip,
 
 void zd_chip_clear(struct zd_chip *chip)
 {
-	mutex_lock(&chip->mutex);
+	ZD_ASSERT(!mutex_is_locked(&chip->mutex));
 	zd_usb_clear(&chip->usb);
 	zd_rf_clear(&chip->rf);
-	mutex_unlock(&chip->mutex);
 	mutex_destroy(&chip->mutex);
-	memset(chip, 0, sizeof(*chip));
+	ZD_MEMCLEAR(chip, sizeof(*chip));
 }
 
 static int scnprint_mac_oui(const u8 *addr, char *buffer, size_t size)

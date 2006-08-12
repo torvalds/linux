@@ -121,9 +121,9 @@ enum mac_flags {
 };
 
 struct zd_mac {
-	struct net_device *netdev;
 	struct zd_chip chip;
 	spinlock_t lock;
+	struct net_device *netdev;
 	/* Unlocked reading possible */
 	struct iw_statistics iw_stats;
 	u8 qual_average;

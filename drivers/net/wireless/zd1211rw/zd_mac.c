@@ -127,11 +127,9 @@ out:
 
 void zd_mac_clear(struct zd_mac *mac)
 {
-	/* Aquire the lock. */
-	spin_lock(&mac->lock);
-	spin_unlock(&mac->lock);
 	zd_chip_clear(&mac->chip);
-	memset(mac, 0, sizeof(*mac));
+	ZD_ASSERT(!spin_is_locked(&mac->lock));
+	ZD_MEMCLEAR(mac, sizeof(struct zd_mac));
 }
 
 static int reset_mode(struct zd_mac *mac)

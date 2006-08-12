@@ -664,7 +664,7 @@ resubmit:
 	usb_submit_urb(urb, GFP_ATOMIC);
 }
 
-struct urb *alloc_urb(struct zd_usb *usb)
+static struct urb *alloc_urb(struct zd_usb *usb)
 {
 	struct usb_device *udev = zd_usb_to_usbdev(usb);
 	struct urb *urb;
@@ -688,7 +688,7 @@ struct urb *alloc_urb(struct zd_usb *usb)
 	return urb;
 }
 
-void free_urb(struct urb *urb)
+static void free_urb(struct urb *urb)
 {
 	if (!urb)
 		return;
@@ -908,7 +908,7 @@ void zd_usb_clear(struct zd_usb *usb)
 {
 	usb_set_intfdata(usb->intf, NULL);
 	usb_put_intf(usb->intf);
-	memset(usb, 0, sizeof(*usb));
+	ZD_MEMCLEAR(usb, sizeof(*usb));
 	/* FIXME: usb_interrupt, usb_tx, usb_rx? */
 }
 
@@ -1099,7 +1099,6 @@ static void disconnect(struct usb_interface *intf)
 	 */
 	usb_reset_device(interface_to_usbdev(intf));
 
-	/* If somebody still waits on this lock now, this is an error. */
 	zd_netdev_free(netdev);
 	dev_dbg(&intf->dev, "disconnected\n");
 }

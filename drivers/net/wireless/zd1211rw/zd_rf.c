@@ -56,7 +56,7 @@ void zd_rf_init(struct zd_rf *rf)
 
 void zd_rf_clear(struct zd_rf *rf)
 {
-	memset(rf, 0, sizeof(*rf));
+	ZD_MEMCLEAR(rf, sizeof(*rf));
 }
 
 int zd_rf_init_hw(struct zd_rf *rf, u8 type)
