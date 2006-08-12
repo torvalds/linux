@@ -638,6 +638,7 @@ enum {
 	LOAD_CODE_SIZE			= 0xe, /* words */
 	LOAD_VECT_SIZE			= 0x10000 - 0xfff7, /* words */
 	EEPROM_REGS_OFFSET		= LOAD_CODE_SIZE + LOAD_VECT_SIZE,
+	EEPROM_REGS_SIZE		= 0x7e, /* words */
 	E2P_BASE_OFFSET			= EEPROM_START_OFFSET +
 		                          EEPROM_REGS_OFFSET,
 };

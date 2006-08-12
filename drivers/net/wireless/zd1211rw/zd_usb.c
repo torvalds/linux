@@ -16,6 +16,7 @@
  */
 
 #include <asm/unaligned.h>
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
@@ -267,6 +268,39 @@ static char *get_fw_name(char *buffer, size_t size, u8 device_type,
 	return buffer;
 }
 
+static int handle_version_mismatch(struct usb_device *udev, u8 device_type,
+	const struct firmware *ub_fw)
+{
+	const struct firmware *ur_fw = NULL;
+	int offset;
+	int r = 0;
+	char fw_name[128];
+
+	r = request_fw_file(&ur_fw,
+		get_fw_name(fw_name, sizeof(fw_name), device_type, "ur"),
+		&udev->dev);
+	if (r)
+		goto error;
+
+	r = upload_code(udev, ur_fw->data, ur_fw->size, FW_START_OFFSET,
+		REBOOT);
+	if (r)
+		goto error;
+
+	offset = ((EEPROM_REGS_OFFSET + EEPROM_REGS_SIZE) * sizeof(u16));
+	r = upload_code(udev, ub_fw->data + offset, ub_fw->size - offset,
+		E2P_BASE_OFFSET + EEPROM_REGS_SIZE, REBOOT);
+
+	/* At this point, the vendor driver downloads the whole firmware
+	 * image, hacks around with version IDs, and uploads it again,
+	 * completely overwriting the boot code. We do not do this here as
+	 * it is not required on any tested devices, and it is suspected to
+	 * cause problems. */
+error:
+	release_firmware(ur_fw);
+	return r;
+}
+
 static int upload_firmware(struct usb_device *udev, u8 device_type)
 {
 	int r;
@@ -286,15 +320,17 @@ static int upload_firmware(struct usb_device *udev, u8 device_type)
 
 	fw_bcdDevice = get_word(ub_fw->data, EEPROM_REGS_OFFSET);
 
-	/* FIXME: do we have any reason to perform the kludge that the vendor
-	 * driver does when there is a version mismatch? (their driver uploads
-	 * different firmwares and stuff)
-	 */
 	if (fw_bcdDevice != bcdDevice) {
 		dev_info(&udev->dev,
-			"firmware device id %#06x and actual device id "
-			"%#06x differ, continuing anyway\n",
-			fw_bcdDevice, bcdDevice);
+			"firmware version %#06x and device bootcode version "
+			"%#06x differ\n", fw_bcdDevice, bcdDevice);
+		if (bcdDevice <= 0x4313)
+			dev_warn(&udev->dev, "device has old bootcode, please "
+				"report success or failure\n");
+
+		r = handle_version_mismatch(udev, device_type, ub_fw);
+		if (r)
+			goto error;
 	} else {
 		dev_dbg_f(&udev->dev,
 			"firmware device id %#06x is equal to the "
