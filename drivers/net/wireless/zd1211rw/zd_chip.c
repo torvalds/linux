@@ -1624,7 +1624,7 @@ int zd_rfwritev_locked(struct zd_chip *chip,
  * We can optionally program the RF directly through CR regs, if supported by
  * the hardware. This is much faster than the older method.
  */
-static int zd_rfwrite_cr_locked(struct zd_chip *chip, u32 value)
+int zd_rfwrite_cr_locked(struct zd_chip *chip, u32 value)
 {
 	struct zd_ioreq16 ioreqs[] = {
 		{ CR244, (value >> 16) & 0xff },

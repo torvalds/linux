@@ -747,6 +747,8 @@ static inline int zd_rfwrite_locked(struct zd_chip *chip, u32 value, u8 bits)
 	return zd_usb_rfwrite(&chip->usb, value, bits);
 }
 
+int zd_rfwrite_cr_locked(struct zd_chip *chip, u32 value);
+
 int zd_rfwritev_locked(struct zd_chip *chip,
 	               const u32* values, unsigned int count, u8 bits);
 int zd_rfwritev_cr_locked(struct zd_chip *chip,

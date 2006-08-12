@@ -76,6 +76,11 @@ int zd_rf_init_hw(struct zd_rf *rf, u8 type)
 		if (r)
 			return r;
 		break;
+	case AL7230B_RF:
+		r = zd_rf_init_al7230b(rf);
+		if (r)
+			return r;
+		break;
 	default:
 		dev_err(zd_chip_dev(chip),
 			"RF %s %#x is not supported\n", zd_rf_name(type), type);
