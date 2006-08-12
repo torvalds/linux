@@ -1096,6 +1096,7 @@ static void frontend_init(struct budget_av *budget_av)
 	switch (saa->pci->subsystem_device) {
 
 	case SUBID_DVBS_KNC1:
+	case SUBID_DVBS_KNC1_PLUS:
 	case SUBID_DVBS_EASYWATCH_1:
 		if (saa->pci->subsystem_vendor == 0x1894) {
 			fe = dvb_attach(stv0299_attach, &cinergy_1200s_1894_0010_config,
@@ -1123,7 +1124,6 @@ static void frontend_init(struct budget_av *budget_av)
 		}
 		break;
 
-	case SUBID_DVBS_KNC1_PLUS:
 	case SUBID_DVBS_TYPHOON:
 		fe = dvb_attach(stv0299_attach, &typhoon_config,
 				    &budget_av->budget.i2c_adap);
@@ -1392,6 +1392,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(knc1s, 0x1131, 0x0010),
 	MAKE_EXTENSION_PCI(knc1s, 0x1894, 0x0010),
 	MAKE_EXTENSION_PCI(knc1sp, 0x1131, 0x0011),
+	MAKE_EXTENSION_PCI(knc1sp, 0x1894, 0x0011),
 	MAKE_EXTENSION_PCI(kncxs, 0x1894, 0x0014),
 	MAKE_EXTENSION_PCI(kncxs, 0x1894, 0x0016),
 	MAKE_EXTENSION_PCI(satewpls, 0x1894, 0x001e),
