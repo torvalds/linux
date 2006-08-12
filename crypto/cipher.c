@@ -45,15 +45,10 @@ static unsigned int crypt_slow(const struct cipher_desc *desc,
 	u8 buffer[bsize * 2 + alignmask];
 	u8 *src = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	u8 *dst = src + bsize;
-	unsigned int n;
 
-	n = scatterwalk_copychunks(src, in, bsize, 0);
-	scatterwalk_advance(in, n);
-
+	scatterwalk_copychunks(src, in, bsize, 0);
 	desc->prfn(desc, dst, src, bsize);
-
-	n = scatterwalk_copychunks(dst, out, bsize, 1);
-	scatterwalk_advance(out, n);
+	scatterwalk_copychunks(dst, out, bsize, 1);
 
 	return bsize;
 }
@@ -64,12 +59,16 @@ static inline unsigned int crypt_fast(const struct cipher_desc *desc,
 				      unsigned int nbytes, u8 *tmp)
 {
 	u8 *src, *dst;
+	u8 *real_src, *real_dst;
 
-	src = in->data;
-	dst = scatterwalk_samebuf(in, out) ? src : out->data;
+	real_src = scatterwalk_map(in, 0);
+	real_dst = scatterwalk_map(out, 1);
+
+	src = real_src;
+	dst = scatterwalk_samebuf(in, out) ? src : real_dst;
 
 	if (tmp) {
-		memcpy(tmp, in->data, nbytes);
+		memcpy(tmp, src, nbytes);
 		src = tmp;
 		dst = tmp;
 	}
@@ -77,7 +76,10 @@ static inline unsigned int crypt_fast(const struct cipher_desc *desc,
 	nbytes = desc->prfn(desc, dst, src, nbytes);
 
 	if (tmp)
-		memcpy(out->data, tmp, nbytes);
+		memcpy(real_dst, tmp, nbytes);
+
+	scatterwalk_unmap(real_src, 0);
+	scatterwalk_unmap(real_dst, 1);
 
 	scatterwalk_advance(in, nbytes);
 	scatterwalk_advance(out, nbytes);
@@ -125,9 +127,6 @@ static int crypt(const struct cipher_desc *desc,
 			}
 			tmp = (u8 *)buffer;
 		}
-
-		scatterwalk_map(&walk_in, 0);
-		scatterwalk_map(&walk_out, 1);
 
 		n = scatterwalk_clamp(&walk_in, n);
 		n = scatterwalk_clamp(&walk_out, n);

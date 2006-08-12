@@ -50,6 +50,11 @@ struct crypto_spawn {
 	struct crypto_instance *inst;
 };
 
+struct scatter_walk {
+	struct scatterlist *sg;
+	unsigned int offset;
+};
+
 int crypto_register_template(struct crypto_template *tmpl);
 void crypto_unregister_template(struct crypto_template *tmpl);
 struct crypto_template *crypto_lookup_template(const char *name);
