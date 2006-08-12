@@ -134,6 +134,7 @@ static const struct mii_chip_info {
 	{ "AMD 79C901 10BASE-T PHY",  		0x0000, 0x6B70, LAN },
 	{ "AMD 79C901 HomePNA PHY",		0x0000, 0x6B90, HOME},
 	{ "ICS LAN PHY",			0x0015, 0xF440, LAN },
+	{ "ICS LAN PHY",			0x0143, 0xBC70, LAN },
 	{ "NS 83851 PHY",			0x2000, 0x5C20, MIX },
 	{ "NS 83847 PHY",                       0x2000, 0x5C30, MIX },
 	{ "Realtek RTL8201 PHY",		0x0000, 0x8200, LAN },
