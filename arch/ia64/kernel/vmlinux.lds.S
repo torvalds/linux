@@ -184,7 +184,9 @@ SECTIONS
 	  *(.data.gate)
 	  __stop_gate_section = .;
 	}
-  . = ALIGN(PAGE_SIZE);		/* make sure the gate page doesn't expose kernel data */
+  . = ALIGN(PAGE_SIZE);		/* make sure the gate page doesn't expose
+  				 * kernel data
+				 */
 
   .data.read_mostly : AT(ADDR(.data.read_mostly) - LOAD_OFFSET)
         { *(.data.read_mostly) }
@@ -202,7 +204,9 @@ SECTIONS
 		*(.data.percpu)
 		__per_cpu_end = .;
 	}
-  . = __phys_per_cpu_start + PERCPU_PAGE_SIZE;	/* ensure percpu data fits into percpu page size */
+  . = __phys_per_cpu_start + PERCPU_PAGE_SIZE;	/* ensure percpu data fits
+  						 * into percpu page size
+						 */
 
   data : { } :data
   .data : AT(ADDR(.data) - LOAD_OFFSET)
