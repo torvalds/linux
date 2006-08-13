@@ -264,12 +264,12 @@ static int setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 {
 	struct cipher_alg *cia = &tfm->__crt_alg->cra_cipher;
 	
+	tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
 	if (keylen < cia->cia_min_keysize || keylen > cia->cia_max_keysize) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	} else
-		return cia->cia_setkey(tfm, key, keylen,
-		                       &tfm->crt_flags);
+		return cia->cia_setkey(tfm, key, keylen);
 }
 
 static int ecb_encrypt(struct crypto_tfm *tfm,

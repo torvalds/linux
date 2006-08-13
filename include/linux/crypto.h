@@ -106,7 +106,7 @@ struct cipher_alg {
 	unsigned int cia_min_keysize;
 	unsigned int cia_max_keysize;
 	int (*cia_setkey)(struct crypto_tfm *tfm, const u8 *key,
-	                  unsigned int keylen, u32 *flags);
+	                  unsigned int keylen);
 	void (*cia_encrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 	void (*cia_decrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 
@@ -131,7 +131,7 @@ struct digest_alg {
 			   unsigned int len);
 	void (*dia_final)(struct crypto_tfm *tfm, u8 *out);
 	int (*dia_setkey)(struct crypto_tfm *tfm, const u8 *key,
-	                  unsigned int keylen, u32 *flags);
+	                  unsigned int keylen);
 };
 
 struct compress_alg {
@@ -397,8 +397,6 @@ static inline int crypto_digest_setkey(struct crypto_tfm *tfm,
                                        const u8 *key, unsigned int keylen)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
-	if (tfm->crt_digest.dit_setkey == NULL)
-		return -ENOSYS;
 	return tfm->crt_digest.dit_setkey(tfm, key, keylen);
 }
 

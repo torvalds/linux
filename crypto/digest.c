@@ -76,12 +76,16 @@ static void final(struct crypto_tfm *tfm, u8 *out)
 		tfm->__crt_alg->cra_digest.dia_final(tfm, out);
 }
 
+static int nosetkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
+{
+	tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
+	return -ENOSYS;
+}
+
 static int setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 {
-	u32 flags;
-	if (tfm->__crt_alg->cra_digest.dia_setkey == NULL)
-		return -ENOSYS;
-	return tfm->__crt_alg->cra_digest.dia_setkey(tfm, key, keylen, &flags);
+	tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
+	return tfm->__crt_alg->cra_digest.dia_setkey(tfm, key, keylen);
 }
 
 static void digest(struct crypto_tfm *tfm,
@@ -100,12 +104,13 @@ int crypto_init_digest_flags(struct crypto_tfm *tfm, u32 flags)
 int crypto_init_digest_ops(struct crypto_tfm *tfm)
 {
 	struct digest_tfm *ops = &tfm->crt_digest;
+	struct digest_alg *dalg = &tfm->__crt_alg->cra_digest;
 	
 	ops->dit_init	= init;
 	ops->dit_update	= update;
 	ops->dit_final	= final;
 	ops->dit_digest	= digest;
-	ops->dit_setkey	= setkey;
+	ops->dit_setkey	= dalg->dia_setkey ? setkey : nosetkey;
 	
 	return crypto_alloc_hmac_block(tfm);
 }

@@ -44,13 +44,12 @@ static void chksum_init(struct crypto_tfm *tfm)
  * the seed.
  */
 static int chksum_setkey(struct crypto_tfm *tfm, const u8 *key,
-			 unsigned int keylen, u32 *flags)
+			 unsigned int keylen)
 {
 	struct chksum_ctx *mctx = crypto_tfm_ctx(tfm);
 
 	if (keylen != sizeof(mctx->crc)) {
-		if (flags)
-			*flags = CRYPTO_TFM_RES_BAD_KEY_LEN;
+		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	}
 	mctx->key = le32_to_cpu(*(__le32 *)key);

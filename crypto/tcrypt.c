@@ -118,10 +118,7 @@ static void test_hash(char *algo, struct hash_testvec *template,
 		sg_set_buf(&sg[0], hash_tv[i].plaintext, hash_tv[i].psize);
 
 		crypto_digest_init(tfm);
-		if (tfm->crt_u.digest.dit_setkey) {
-			crypto_digest_setkey(tfm, hash_tv[i].key,
-					     hash_tv[i].ksize);
-		}
+		crypto_digest_setkey(tfm, hash_tv[i].key, hash_tv[i].ksize);
 		crypto_digest_update(tfm, sg, 1);
 		crypto_digest_final(tfm, result);
 

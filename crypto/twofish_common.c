@@ -580,11 +580,11 @@ static const u8 calc_sb_tbl[512] = {
    ctx->a[(j) + 1] = rol32(y, 9)
 
 /* Perform the key setup. */
-int twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
-		   unsigned int key_len, u32 *flags)
+int twofish_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int key_len)
 {
 
 	struct twofish_ctx *ctx = crypto_tfm_ctx(tfm);
+	u32 *flags = &tfm->crt_flags;
 
 	int i, j, k;
 
@@ -600,7 +600,7 @@ int twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
 	u8 tmp;
 
 	/* Check key length. */
-	if (key_len != 16 && key_len != 24 && key_len != 32)
+	if (key_len % 8)
 	{
 		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL; /* unsupported key length */

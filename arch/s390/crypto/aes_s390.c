@@ -38,9 +38,10 @@ struct s390_aes_ctx {
 };
 
 static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-		       unsigned int key_len, u32 *flags)
+		       unsigned int key_len)
 {
 	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
+	u32 *flags = &tfm->crt_flags;
 
 	switch (key_len) {
 	case 16:

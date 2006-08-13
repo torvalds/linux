@@ -308,15 +308,16 @@ static inline struct aes_ctx *aes_ctx(struct crypto_tfm *tfm)
 }
 
 static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-		       unsigned int key_len, u32 *flags)
+		       unsigned int key_len)
 {
 	struct aes_ctx *ctx = aes_ctx(tfm);
 	const __le32 *key = (const __le32 *)in_key;
+	u32 *flags = &tfm->crt_flags;
 	uint32_t i, t, u, v, w;
 	uint32_t P[AES_EXTENDED_KEY_SIZE];
 	uint32_t rounds;
 
-	if (key_len != 16 && key_len != 24 && key_len != 32) {
+	if (key_len % 8) {
 		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	}

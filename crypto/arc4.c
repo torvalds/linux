@@ -25,7 +25,7 @@ struct arc4_ctx {
 };
 
 static int arc4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-			unsigned int key_len, u32 *flags)
+			unsigned int key_len)
 {
 	struct arc4_ctx *ctx = crypto_tfm_ctx(tfm);
 	int i, j = 0, k = 0;

@@ -45,9 +45,10 @@ struct crypt_s390_des3_192_ctx {
 };
 
 static int des_setkey(struct crypto_tfm *tfm, const u8 *key,
-		      unsigned int keylen, u32 *flags)
+		      unsigned int keylen)
 {
 	struct crypt_s390_des_ctx *dctx = crypto_tfm_ctx(tfm);
+	u32 *flags = &tfm->crt_flags;
 	int ret;
 
 	/* test if key is valid (not a weak key) */
@@ -167,11 +168,12 @@ static struct crypto_alg des_alg = {
  *
  */
 static int des3_128_setkey(struct crypto_tfm *tfm, const u8 *key,
-			   unsigned int keylen, u32 *flags)
+			   unsigned int keylen)
 {
 	int i, ret;
 	struct crypt_s390_des3_128_ctx *dctx = crypto_tfm_ctx(tfm);
-	const u8* temp_key = key;
+	const u8 *temp_key = key;
+	u32 *flags = &tfm->crt_flags;
 
 	if (!(memcmp(key, &key[DES_KEY_SIZE], DES_KEY_SIZE))) {
 		*flags |= CRYPTO_TFM_RES_BAD_KEY_SCHED;
@@ -303,11 +305,12 @@ static struct crypto_alg des3_128_alg = {
  *
  */
 static int des3_192_setkey(struct crypto_tfm *tfm, const u8 *key,
-			   unsigned int keylen, u32 *flags)
+			   unsigned int keylen)
 {
 	int i, ret;
 	struct crypt_s390_des3_192_ctx *dctx = crypto_tfm_ctx(tfm);
-	const u8* temp_key = key;
+	const u8 *temp_key = key;
+	u32 *flags = &tfm->crt_flags;
 
 	if (!(memcmp(key, &key[DES_KEY_SIZE], DES_KEY_SIZE) &&
 	    memcmp(&key[DES_KEY_SIZE], &key[DES_KEY_SIZE * 2],
