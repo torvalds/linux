@@ -10,7 +10,7 @@
 #include <media/v4l2-common.h>
 
 static int offset = 0;
-module_param(offset, int, 0666);
+module_param(offset, int, 0664);
 MODULE_PARM_DESC(offset,"Allows to specify an offset for tuner");
 
 /* ---------------------------------------------------------------------- */
