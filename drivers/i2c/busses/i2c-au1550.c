@@ -34,8 +34,7 @@
 #include <linux/errno.h>
 #include <linux/i2c.h>
 
-#include <asm/mach-au1x00/au1000.h>
-#include <asm/mach-pb1x00/pb1550.h>
+#include <asm/mach-au1x00/au1xxx.h>
 #include <asm/mach-au1x00/au1xxx_psc.h>
 
 #include "i2c-au1550.h"
