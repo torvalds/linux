@@ -105,8 +105,9 @@ static inline cputime64_t get_cpu_idle_time(unsigned int cpu)
  * Returns the freq_hi to be used right now and will set freq_hi_jiffies,
  * freq_lo, and freq_lo_jiffies in percpu area for averaging freqs.
  */
-unsigned int powersave_bias_target(struct cpufreq_policy *policy,
-		unsigned int freq_next, unsigned int relation)
+static unsigned int powersave_bias_target(struct cpufreq_policy *policy,
+					  unsigned int freq_next,
+					  unsigned int relation)
 {
 	unsigned int freq_req, freq_reduc, freq_avg;
 	unsigned int freq_hi, freq_lo;
