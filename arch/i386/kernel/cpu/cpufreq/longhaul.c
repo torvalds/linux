@@ -65,7 +65,7 @@ static int port22_en = 0;
 
 /* Module parameters */
 static int dont_scale_voltage;
-
+static int ignore_latency = 0;
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "longhaul", msg)
 
@@ -665,8 +665,10 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	if (longhaul_version == TYPE_POWERSAVER) {
 		/* Check ACPI support for C3 state */
 		cx = &pr->power.states[ACPI_STATE_C3];
-		if (cx->address == 0 || cx->latency > 1000)
+		if (cx->address == 0 ||
+		   (cx->latency > 1000 && ignore_latency == 0) )
 			goto err_acpi;
+
 	} else {
 		/* Check ACPI support for bus master arbiter disable */
 		if (!pr->flags.bm_control) {
@@ -773,6 +775,8 @@ static void __exit longhaul_exit(void)
 
 module_param (dont_scale_voltage, int, 0644);
 MODULE_PARM_DESC(dont_scale_voltage, "Don't scale voltage of processor");
+module_param(ignore_latency, int, 0644);
+MODULE_PARM_DESC(ignore_latency, "Skip ACPI C3 latency test");
 
 MODULE_AUTHOR ("Dave Jones <davej@codemonkey.org.uk>");
 MODULE_DESCRIPTION ("Longhaul driver for VIA Cyrix processors.");
@@ -780,4 +784,3 @@ MODULE_LICENSE ("GPL");
 
 late_initcall(longhaul_init);
 module_exit(longhaul_exit);
-
