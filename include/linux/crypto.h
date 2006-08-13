@@ -224,6 +224,8 @@ struct cipher_tfm {
 			   struct scatterlist *src,
 			   unsigned int nbytes, u8 *iv);
 	void (*cit_xor_block)(u8 *dst, const u8 *src);
+	void (*cit_encrypt_one)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
+	void (*cit_decrypt_one)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 };
 
 struct digest_tfm {
@@ -267,6 +269,8 @@ struct crypto_tfm {
 
 	void *__crt_ctx[] CRYPTO_MINALIGN_ATTR;
 };
+
+#define crypto_cipher crypto_tfm
 
 enum {
 	CRYPTOA_UNSPEC,
@@ -347,6 +351,21 @@ static inline unsigned int crypto_tfm_alg_alignmask(struct crypto_tfm *tfm)
 	return tfm->__crt_alg->cra_alignmask;
 }
 
+static inline u32 crypto_tfm_get_flags(struct crypto_tfm *tfm)
+{
+	return tfm->crt_flags;
+}
+
+static inline void crypto_tfm_set_flags(struct crypto_tfm *tfm, u32 flags)
+{
+	tfm->crt_flags |= flags;
+}
+
+static inline void crypto_tfm_clear_flags(struct crypto_tfm *tfm, u32 flags)
+{
+	tfm->crt_flags &= ~flags;
+}
+
 static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm)
 {
 	return tfm->__crt_ctx;
@@ -361,6 +380,83 @@ static inline unsigned int crypto_tfm_ctx_alignment(void)
 /*
  * API wrappers.
  */
+static inline struct crypto_cipher *__crypto_cipher_cast(struct crypto_tfm *tfm)
+{
+	return (struct crypto_cipher *)tfm;
+}
+
+static inline struct crypto_cipher *crypto_cipher_cast(struct crypto_tfm *tfm)
+{
+	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
+	return __crypto_cipher_cast(tfm);
+}
+
+static inline struct crypto_cipher *crypto_alloc_cipher(const char *alg_name,
+							u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_CIPHER;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return __crypto_cipher_cast(crypto_alloc_base(alg_name, type, mask));
+}
+
+static inline struct crypto_tfm *crypto_cipher_tfm(struct crypto_cipher *tfm)
+{
+	return tfm;
+}
+
+static inline void crypto_free_cipher(struct crypto_cipher *tfm)
+{
+	crypto_free_tfm(crypto_cipher_tfm(tfm));
+}
+
+static inline struct cipher_tfm *crypto_cipher_crt(struct crypto_cipher *tfm)
+{
+	return &crypto_cipher_tfm(tfm)->crt_cipher;
+}
+
+static inline unsigned int crypto_cipher_blocksize(struct crypto_cipher *tfm)
+{
+	return crypto_tfm_alg_blocksize(crypto_cipher_tfm(tfm));
+}
+
+static inline unsigned int crypto_cipher_alignmask(struct crypto_cipher *tfm)
+{
+	return crypto_tfm_alg_alignmask(crypto_cipher_tfm(tfm));
+}
+
+static inline u32 crypto_cipher_get_flags(struct crypto_cipher *tfm)
+{
+	return crypto_tfm_get_flags(crypto_cipher_tfm(tfm));
+}
+
+static inline void crypto_cipher_set_flags(struct crypto_cipher *tfm,
+					   u32 flags)
+{
+	crypto_tfm_set_flags(crypto_cipher_tfm(tfm), flags);
+}
+
+static inline void crypto_cipher_clear_flags(struct crypto_cipher *tfm,
+					     u32 flags)
+{
+	crypto_tfm_clear_flags(crypto_cipher_tfm(tfm), flags);
+}
+
+static inline void crypto_cipher_encrypt_one(struct crypto_cipher *tfm,
+					     u8 *dst, const u8 *src)
+{
+	crypto_cipher_crt(tfm)->cit_encrypt_one(crypto_cipher_tfm(tfm),
+						dst, src);
+}
+
+static inline void crypto_cipher_decrypt_one(struct crypto_cipher *tfm,
+					     u8 *dst, const u8 *src)
+{
+	crypto_cipher_crt(tfm)->cit_decrypt_one(crypto_cipher_tfm(tfm),
+						dst, src);
+}
+
 static inline void crypto_digest_init(struct crypto_tfm *tfm)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);

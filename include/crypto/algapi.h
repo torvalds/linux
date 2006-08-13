@@ -69,5 +69,10 @@ static inline void *crypto_instance_ctx(struct crypto_instance *inst)
 	return inst->__ctx;
 }
 
+static inline struct cipher_alg *crypto_cipher_alg(struct crypto_cipher *tfm)
+{
+	return &crypto_cipher_tfm(tfm)->__crt_alg->cra_cipher;
+}
+
 #endif	/* _CRYPTO_ALGAPI_H */
 

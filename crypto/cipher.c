@@ -388,12 +388,60 @@ int crypto_init_cipher_flags(struct crypto_tfm *tfm, u32 flags)
 	return 0;
 }
 
+static void cipher_crypt_unaligned(void (*fn)(struct crypto_tfm *, u8 *,
+					      const u8 *),
+				   struct crypto_tfm *tfm,
+				   u8 *dst, const u8 *src)
+{
+	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
+	unsigned int size = crypto_tfm_alg_blocksize(tfm);
+	u8 buffer[size + alignmask];
+	u8 *tmp = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
+
+	memcpy(tmp, src, size);
+	fn(tfm, tmp, tmp);
+	memcpy(dst, tmp, size);
+}
+
+static void cipher_encrypt_unaligned(struct crypto_tfm *tfm,
+				     u8 *dst, const u8 *src)
+{
+	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+
+	if (unlikely(((unsigned long)dst | (unsigned long)src) & alignmask)) {
+		cipher_crypt_unaligned(cipher->cia_encrypt, tfm, dst, src);
+		return;
+	}
+
+	cipher->cia_encrypt(tfm, dst, src);
+}
+
+static void cipher_decrypt_unaligned(struct crypto_tfm *tfm,
+				     u8 *dst, const u8 *src)
+{
+	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+
+	if (unlikely(((unsigned long)dst | (unsigned long)src) & alignmask)) {
+		cipher_crypt_unaligned(cipher->cia_decrypt, tfm, dst, src);
+		return;
+	}
+
+	cipher->cia_decrypt(tfm, dst, src);
+}
+
 int crypto_init_cipher_ops(struct crypto_tfm *tfm)
 {
 	int ret = 0;
 	struct cipher_tfm *ops = &tfm->crt_cipher;
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
 
 	ops->cit_setkey = setkey;
+	ops->cit_encrypt_one = crypto_tfm_alg_alignmask(tfm) ?
+		cipher_encrypt_unaligned : cipher->cia_encrypt;
+	ops->cit_decrypt_one = crypto_tfm_alg_alignmask(tfm) ?
+		cipher_decrypt_unaligned : cipher->cia_decrypt;
 
 	switch (tfm->crt_cipher.cit_mode) {
 	case CRYPTO_TFM_MODE_ECB:
