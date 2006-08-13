@@ -4194,6 +4194,7 @@ static void __devexit bttv_remove(struct pci_dev *pci_dev)
 	return;
 }
 
+#ifdef CONFIG_PM
 static int bttv_suspend(struct pci_dev *pci_dev, pm_message_t state)
 {
 	struct bttv *btv = pci_get_drvdata(pci_dev);
@@ -4274,6 +4275,7 @@ static int bttv_resume(struct pci_dev *pci_dev)
 	spin_unlock_irqrestore(&btv->s_lock,flags);
 	return 0;
 }
+#endif
 
 static struct pci_device_id bttv_pci_tbl[] = {
 	{PCI_VENDOR_ID_BROOKTREE, PCI_DEVICE_ID_BT848,
@@ -4294,8 +4296,10 @@ static struct pci_driver bttv_pci_driver = {
 	.id_table = bttv_pci_tbl,
 	.probe    = bttv_probe,
 	.remove   = __devexit_p(bttv_remove),
+#ifdef CONFIG_PM
 	.suspend  = bttv_suspend,
 	.resume   = bttv_resume,
+#endif
 };
 
 static int bttv_init_module(void)

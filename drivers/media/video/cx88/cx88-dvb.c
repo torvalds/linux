@@ -870,8 +870,10 @@ static struct pci_driver dvb_pci_driver = {
 	.id_table = cx8802_pci_tbl,
 	.probe    = dvb_probe,
 	.remove   = __devexit_p(dvb_remove),
+#ifdef CONFIG_PM
 	.suspend  = cx8802_suspend_common,
 	.resume   = cx8802_resume_common,
+#endif
 };
 
 static int dvb_init(void)
