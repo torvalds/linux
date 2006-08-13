@@ -294,3 +294,15 @@ Why:	The frame diverter is included in most distribution kernels, but is
 	It is not clear if anyone is still using it.
 Who:	Stephen Hemminger <shemminger@osdl.org>
 
+---------------------------
+
+
+What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
+When:	Oktober 2008
+Why:	The stacking of class devices makes these values misleading and
+	inconsistent.
+	Class devices should not carry any of these properties, and bus
+	devices have SUBSYTEM and DRIVER as a replacement.
+Who:	Kay Sievers <kay.sievers@suse.de>
+
+---------------------------

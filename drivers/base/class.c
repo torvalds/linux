@@ -361,7 +361,7 @@ static int class_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 	pr_debug("%s - name = %s\n", __FUNCTION__, class_dev->class_id);
 
 	if (class_dev->dev) {
-		/* add physical device, backing this device  */
+		/* add device, backing this class device (deprecated) */
 		struct device *dev = class_dev->dev;
 		char *path = kobject_get_path(&dev->kobj, GFP_KERNEL);
 
