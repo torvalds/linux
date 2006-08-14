@@ -478,7 +478,7 @@ static void sbp2util_notify_fetch_agent(struct scsi_id_instance_data *scsi_id,
 	 * There is a small window after a bus reset within which the node
 	 * entry's generation is current but the reconnect wasn't completed.
 	 */
-	if (atomic_read(&scsi_id->unfinished_reset))
+	if (unlikely(atomic_read(&scsi_id->state) == SBP2LU_STATE_IN_RESET))
 		return;
 
 	if (hpsb_node_write(scsi_id->ne,
@@ -489,7 +489,7 @@ static void sbp2util_notify_fetch_agent(struct scsi_id_instance_data *scsi_id,
 	 * Now accept new SCSI commands, unless a bus reset happended during
 	 * hpsb_node_write.
 	 */
-	if (!atomic_read(&scsi_id->unfinished_reset))
+	if (likely(atomic_read(&scsi_id->state) != SBP2LU_STATE_IN_RESET))
 		scsi_unblock_requests(scsi_id->scsi_host);
 }
 
@@ -756,7 +756,7 @@ static int sbp2_remove(struct device *dev)
 			sbp2scsi_complete_all_commands(scsi_id, DID_NO_CONNECT);
 		/* scsi_remove_device() will trigger shutdown functions of SCSI
 		 * highlevel drivers which would deadlock if blocked. */
-		atomic_set(&scsi_id->unfinished_reset, 0);
+		atomic_set(&scsi_id->state, SBP2LU_STATE_IN_SHUTDOWN);
 		scsi_unblock_requests(scsi_id->scsi_host);
 	}
 	sdev = scsi_id->sdev;
@@ -811,7 +811,7 @@ static int sbp2_update(struct unit_directory *ud)
 	/* Accept new commands unless there was another bus reset in the
 	 * meantime. */
 	if (hpsb_node_entry_valid(scsi_id->ne)) {
-		atomic_set(&scsi_id->unfinished_reset, 0);
+		atomic_set(&scsi_id->state, SBP2LU_STATE_RUNNING);
 		scsi_unblock_requests(scsi_id->scsi_host);
 	}
 	return 0;
@@ -842,7 +842,7 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	INIT_LIST_HEAD(&scsi_id->sbp2_command_orb_completed);
 	INIT_LIST_HEAD(&scsi_id->scsi_list);
 	spin_lock_init(&scsi_id->sbp2_command_orb_lock);
-	atomic_set(&scsi_id->unfinished_reset, 0);
+	atomic_set(&scsi_id->state, SBP2LU_STATE_RUNNING);
 	INIT_WORK(&scsi_id->protocol_work, NULL, NULL);
 
 	ud->device.driver_data = scsi_id;
@@ -926,13 +926,14 @@ static void sbp2_host_reset(struct hpsb_host *host)
 	struct scsi_id_instance_data *scsi_id;
 
 	hi = hpsb_get_hostinfo(&sbp2_highlevel, host);
-
-	if (hi) {
-		list_for_each_entry(scsi_id, &hi->scsi_ids, scsi_list) {
-			atomic_set(&scsi_id->unfinished_reset, 1);
+	if (!hi)
+		return;
+	list_for_each_entry(scsi_id, &hi->scsi_ids, scsi_list)
+		if (likely(atomic_read(&scsi_id->state) !=
+			   SBP2LU_STATE_IN_SHUTDOWN)) {
+			atomic_set(&scsi_id->state, SBP2LU_STATE_IN_RESET);
 			scsi_block_requests(scsi_id->scsi_host);
 		}
-	}
 }
 
 /*

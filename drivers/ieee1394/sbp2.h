@@ -347,8 +347,15 @@ struct scsi_id_instance_data {
 	/* Device specific workarounds/brokeness */
 	unsigned workarounds;
 
-	atomic_t unfinished_reset;
+	atomic_t state;
 	struct work_struct protocol_work;
+};
+
+/* For use in scsi_id_instance_data.state */
+enum sbp2lu_state_types {
+	SBP2LU_STATE_RUNNING,		/* all normal */
+	SBP2LU_STATE_IN_RESET,		/* between bus reset and reconnect */
+	SBP2LU_STATE_IN_SHUTDOWN	/* when sbp2_remove was called */
 };
 
 /* Sbp2 host data structure (one per IEEE1394 host) */
