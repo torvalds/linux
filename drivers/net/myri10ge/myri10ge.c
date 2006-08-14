@@ -271,7 +271,7 @@ myri10ge_send_cmd(struct myri10ge_priv *mgp, u32 cmd,
 	struct mcp_cmd *buf;
 	char buf_bytes[sizeof(*buf) + 8];
 	struct mcp_cmd_response *response = mgp->cmd;
-	char __iomem *cmd_addr = mgp->sram + MXGEFW_CMD_OFFSET;
+	char __iomem *cmd_addr = mgp->sram + MXGEFW_ETH_CMD;
 	u32 dma_low, dma_high, result, value;
 	int sleep_total = 0;
 
@@ -404,7 +404,7 @@ static void myri10ge_dummy_rdma(struct myri10ge_priv *mgp, int enable)
 	buf[4] = htonl(dma_low);	/* dummy addr LSW */
 	buf[5] = htonl(enable);	/* enable? */
 
-	submit = mgp->sram + 0xfc01c0;
+	submit = mgp->sram + MXGEFW_BOOT_DUMMY_RDMA;
 
 	myri10ge_pio_copy(submit, &buf, sizeof(buf));
 	for (i = 0; mgp->cmd->data != MYRI10GE_NO_CONFIRM_DATA && i < 20; i++)
@@ -600,7 +600,7 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 	buf[5] = htonl(8);	/* where to copy to */
 	buf[6] = htonl(0);	/* where to jump to */
 
-	submit = mgp->sram + 0xfc0000;
+	submit = mgp->sram + MXGEFW_BOOT_HANDOFF;
 
 	myri10ge_pio_copy(submit, &buf, sizeof(buf));
 	mb();
@@ -1648,9 +1648,11 @@ static int myri10ge_open(struct net_device *dev)
 	}
 
 	if (mgp->mtrr >= 0) {
-		mgp->tx.wc_fifo = (u8 __iomem *) mgp->sram + 0x200000;
-		mgp->rx_small.wc_fifo = (u8 __iomem *) mgp->sram + 0x300000;
-		mgp->rx_big.wc_fifo = (u8 __iomem *) mgp->sram + 0x340000;
+		mgp->tx.wc_fifo = (u8 __iomem *) mgp->sram + MXGEFW_ETH_SEND_4;
+		mgp->rx_small.wc_fifo =
+		    (u8 __iomem *) mgp->sram + MXGEFW_ETH_RECV_SMALL;
+		mgp->rx_big.wc_fifo =
+		    (u8 __iomem *) mgp->sram + MXGEFW_ETH_RECV_BIG;
 	} else {
 		mgp->tx.wc_fifo = NULL;
 		mgp->rx_small.wc_fifo = NULL;
@@ -1841,7 +1843,8 @@ myri10ge_submit_req_wc(struct myri10ge_tx_buf *tx,
 	if (cnt > 0) {
 		/* pad it to 64 bytes.  The src is 64 bytes bigger than it
 		 * needs to be so that we don't overrun it */
-		myri10ge_pio_copy(tx->wc_fifo + (cnt << 18), src, 64);
+		myri10ge_pio_copy(tx->wc_fifo + MXGEFW_ETH_SEND_OFFSET(cnt),
+				  src, 64);
 		mb();
 	}
 }

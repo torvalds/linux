@@ -91,7 +91,19 @@ struct mcp_kreq_ether_recv {
 
 /* Commands */
 
-#define MXGEFW_CMD_OFFSET 0xf80000
+#define	MXGEFW_BOOT_HANDOFF	0xfc0000
+#define	MXGEFW_BOOT_DUMMY_RDMA	0xfc01c0
+
+#define	MXGEFW_ETH_CMD		0xf80000
+#define	MXGEFW_ETH_SEND_4	0x200000
+#define	MXGEFW_ETH_SEND_1	0x240000
+#define	MXGEFW_ETH_SEND_2	0x280000
+#define	MXGEFW_ETH_SEND_3	0x2c0000
+#define	MXGEFW_ETH_RECV_SMALL	0x300000
+#define	MXGEFW_ETH_RECV_BIG	0x340000
+
+#define	MXGEFW_ETH_SEND(n)		(0x200000 + (((n) & 0x03) * 0x40000))
+#define	MXGEFW_ETH_SEND_OFFSET(n)	(MXGEFW_ETH_SEND(n) - MXGEFW_ETH_SEND_4)
 
 enum myri10ge_mcp_cmd_type {
 	MXGEFW_CMD_NONE = 0,
