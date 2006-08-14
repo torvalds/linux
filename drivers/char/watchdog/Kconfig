@@ -575,6 +575,16 @@ config INDYDOG
 	  timer expired and no process has written to /dev/watchdog during
 	  that time.
 
+config WDT_RM9K_GPI
+	tristate "RM9000/GPI hardware watchdog"
+	depends on WATCHDOG && CPU_RM9000
+	help
+	  Watchdog implementation using the GPI hardware found on
+	  PMC-Sierra RM9xxx CPUs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rm9k_wdt.
+
 # S390 Architecture
 
 config ZVM_WATCHDOG
