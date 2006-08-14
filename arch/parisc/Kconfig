@@ -127,7 +127,7 @@ config PA11
 
 config PREFETCH
 	def_bool y
-	depends on PA8X00
+	depends on PA8X00 || PA7200
 
 config 64BIT
 	bool "64-bit kernel"

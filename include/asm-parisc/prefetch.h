@@ -24,11 +24,14 @@ extern inline void prefetch(const void *addr)
 	__asm__("ldw 0(%0), %%r0" : : "r" (addr));
 }
 
+/* LDD is a PA2.0 addition. */
+#ifdef CONFIG_PA20
 #define ARCH_HAS_PREFETCHW
 extern inline void prefetchw(const void *addr)
 {
 	__asm__("ldd 0(%0), %%r0" : : "r" (addr));
 }
+#endif /* CONFIG_PA20 */
 
 #endif /* CONFIG_PREFETCH */
 #endif /* __ASSEMBLY__ */
