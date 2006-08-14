@@ -111,7 +111,7 @@ static int sis_fb_init(DRM_IOCTL_ARGS)
 		return ret;
 	}
 
-	dev_priv->vram_initialized = TRUE;
+	dev_priv->vram_initialized = 1;
 	dev_priv->vram_offset = fb.offset;
 
 	mutex_unlock(&dev->struct_mutex);
@@ -133,7 +133,7 @@ static int sis_drm_alloc(drm_device_t * dev, drm_file_t * priv,
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (FALSE == ((pool == 0) ? dev_priv->vram_initialized :
+	if (0 == ((pool == 0) ? dev_priv->vram_initialized :
 		      dev_priv->agp_initialized)) {
 		DRM_ERROR
 		    ("Attempt to allocate from uninitialized memory manager.\n");
@@ -211,7 +211,7 @@ static int sis_ioctl_agp_init(DRM_IOCTL_ARGS)
 		return ret;
 	}
 
-	dev_priv->agp_initialized = TRUE;
+	dev_priv->agp_initialized = 1;
 	dev_priv->agp_offset = agp.offset;
 	mutex_unlock(&dev->struct_mutex);
 
@@ -284,7 +284,7 @@ int sis_idle(drm_device_t *dev)
 	if (time_after_eq(jiffies, end)) {
 		DRM_ERROR("Graphics engine idle timeout. "
 			  "Disabling idle check\n");
-		dev_priv->idle_fault = TRUE;
+		dev_priv->idle_fault = 1;
 	}
 
 	/*
@@ -305,8 +305,8 @@ void sis_lastclose(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 	drm_sman_cleanup(&dev_priv->sman);
-	dev_priv->vram_initialized = FALSE;
-	dev_priv->agp_initialized = FALSE;
+	dev_priv->vram_initialized = 0;
+	dev_priv->agp_initialized = 0;
 	dev_priv->mmio = NULL;
 	mutex_unlock(&dev->struct_mutex);
 }

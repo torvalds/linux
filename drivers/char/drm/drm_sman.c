@@ -91,7 +91,7 @@ static void *drm_sman_mm_allocate(void *private, unsigned long size,
 	drm_mm_t *mm = (drm_mm_t *) private;
 	drm_mm_node_t *tmp;
 
-	tmp = drm_mm_search_free(mm, size, alignment, TRUE);
+	tmp = drm_mm_search_free(mm, size, alignment, 1);
 	if (!tmp) {
 		return NULL;
 	}

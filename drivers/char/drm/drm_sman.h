@@ -148,7 +148,7 @@ extern drm_memblock_item_t *drm_sman_alloc(drm_sman_t * sman,
 extern int drm_sman_free_key(drm_sman_t * sman, unsigned int key);
 
 /*
- * returns TRUE iff there are no stale memory blocks associated with this owner.
+ * returns 1 iff there are no stale memory blocks associated with this owner.
  * Typically called to determine if we need to idle the hardware and call
  * drm_sman_owner_cleanup. If there are no stale memory blocks, it removes all
  * resources associated with owner.

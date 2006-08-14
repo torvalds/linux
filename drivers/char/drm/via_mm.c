@@ -116,8 +116,8 @@ void via_lastclose(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 	drm_sman_cleanup(&dev_priv->sman);
-	dev_priv->vram_initialized = FALSE;
-	dev_priv->agp_initialized = FALSE;
+	dev_priv->vram_initialized = 0;
+	dev_priv->agp_initialized = 0;
 	mutex_unlock(&dev->struct_mutex);
 }	
 
@@ -139,7 +139,7 @@ int via_mem_alloc(DRM_IOCTL_ARGS)
 		return DRM_ERR(EINVAL);
 	}
 	mutex_lock(&dev->struct_mutex);
-	if (FALSE == ((mem.type == VIA_MEM_VIDEO) ? dev_priv->vram_initialized :
+	if (0 == ((mem.type == VIA_MEM_VIDEO) ? dev_priv->vram_initialized :
 		      dev_priv->agp_initialized)) {
 		DRM_ERROR
 		    ("Attempt to allocate from uninitialized memory manager.\n");
