@@ -131,7 +131,6 @@ nfs_idmap_delete(struct nfs4_client *clp)
 	if (!idmap)
 		return;
 	rpc_unlink(idmap->idmap_dentry);
-	dput(idmap->idmap_dentry);
 	clp->cl_idmap = NULL;
 	kfree(idmap);
 }

@@ -184,7 +184,6 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 out_no_auth:
 	if (!IS_ERR(clnt->cl_dentry)) {
 		rpc_rmdir(clnt->cl_dentry);
-		dput(clnt->cl_dentry);
 		rpc_put_mount();
 	}
 out_no_path:
@@ -251,10 +250,8 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new->cl_autobind = 0;
 	new->cl_oneshot = 0;
 	new->cl_dead = 0;
-	if (!IS_ERR(new->cl_dentry)) {
+	if (!IS_ERR(new->cl_dentry))
 		dget(new->cl_dentry);
-		rpc_get_mount();
-	}
 	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);
@@ -317,11 +314,15 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 		clnt->cl_auth = NULL;
 	}
 	if (clnt->cl_parent != clnt) {
+		if (!IS_ERR(clnt->cl_dentry))
+			dput(clnt->cl_dentry);
 		rpc_destroy_client(clnt->cl_parent);
 		goto out_free;
 	}
-	if (!IS_ERR(clnt->cl_dentry))
+	if (!IS_ERR(clnt->cl_dentry)) {
 		rpc_rmdir(clnt->cl_dentry);
+		rpc_put_mount();
+	}
 	if (clnt->cl_xprt) {
 		xprt_destroy(clnt->cl_xprt);
 		clnt->cl_xprt = NULL;
@@ -331,10 +332,6 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 out_free:
 	rpc_free_iostats(clnt->cl_metrics);
 	clnt->cl_metrics = NULL;
-	if (!IS_ERR(clnt->cl_dentry)) {
-		dput(clnt->cl_dentry);
-		rpc_put_mount();
-	}
 	kfree(clnt);
 	return 0;
 }
