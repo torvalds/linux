@@ -38,14 +38,11 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#include <asm/mckinley.h>	/* for proc_mckinley_root */
 #include <asm/runway.h>		/* for proc_runway_root */
 #include <asm/pdc.h>		/* for PDC_MODEL_* */
 #include <asm/pdcpat.h>		/* for is_pdc_pat() */
 #include <asm/parisc-device.h>
-
-
-/* declared in arch/parisc/kernel/setup.c */
-extern struct proc_dir_entry * proc_mckinley_root;
 
 #define MODULE_NAME "SBA"
 
