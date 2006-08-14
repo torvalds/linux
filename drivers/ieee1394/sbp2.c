@@ -38,31 +38,36 @@
  *	  but the code needs additional debugging.
  */
 
+#include <linux/blkdev.h>
+#include <linux/compiler.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <linux/gfp.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/string.h>
-#include <linux/stringify.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
-#include <linux/fs.h>
-#include <linux/poll.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/types.h>
-#include <linux/delay.h>
-#include <linux/sched.h>
-#include <linux/blkdev.h>
-#include <linux/smp_lock.h>
-#include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/stat.h>
+#include <linux/string.h>
+#include <linux/stringify.h>
+#include <linux/types.h>
 #include <linux/wait.h>
 
-#include <asm/current.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/system.h>
+#include <asm/errno.h>
+#include <asm/param.h>
 #include <asm/scatterlist.h>
+#include <asm/system.h>
+#include <asm/types.h>
+
+#ifdef CONFIG_IEEE1394_SBP2_PHYS_DMA
+#include <asm/io.h> /* for bus_to_virt */
+#endif
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -71,13 +76,14 @@
 #include <scsi/scsi_host.h>
 
 #include "csr1212.h"
-#include "ieee1394.h"
-#include "ieee1394_types.h"
-#include "ieee1394_core.h"
-#include "nodemgr.h"
-#include "hosts.h"
 #include "highlevel.h"
+#include "hosts.h"
+#include "ieee1394.h"
+#include "ieee1394_core.h"
+#include "ieee1394_hotplug.h"
 #include "ieee1394_transactions.h"
+#include "ieee1394_types.h"
+#include "nodemgr.h"
 #include "sbp2.h"
 
 /*
@@ -1011,8 +1017,7 @@ static int sbp2_start_device(struct scsi_id_instance_data *scsi_id)
 	 * connected to the sbp2 device being removed. That host would
 	 * have a certain amount of time to relogin before the sbp2 device
 	 * allows someone else to login instead. One second makes sense. */
-	msleep_interruptible(1000);
-	if (signal_pending(current)) {
+	if (msleep_interruptible(1000)) {
 		sbp2_remove_device(scsi_id);
 		return -EINTR;
 	}
