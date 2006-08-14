@@ -30,6 +30,7 @@
 
 
 #include <asm/psw.h>
+#include <asm/cache.h>		/* for L1_CACHE_SHIFT */
 #include <asm/assembly.h>	/* for LDREG/STREG defines */
 #include <asm/pgtable.h>
 #include <asm/signal.h>
@@ -478,11 +479,7 @@
 	bb,>=,n		\pmd,_PxD_PRESENT_BIT,\fault
 	DEP		%r0,31,PxD_FLAG_SHIFT,\pmd /* clear flags */
 	copy		\pmd,%r9
-#ifdef CONFIG_64BIT
-	shld		%r9,PxD_VALUE_SHIFT,\pmd
-#else
-	shlw		%r9,PxD_VALUE_SHIFT,\pmd
-#endif
+	SHLREG		%r9,PxD_VALUE_SHIFT,\pmd
 	EXTR		\va,31-PAGE_SHIFT,ASM_BITS_PER_PTE,\index
 	DEP		%r0,31,PAGE_SHIFT,\pmd  /* clear offset */
 	shladd		\index,BITS_PER_PTE_ENTRY,\pmd,\pmd
@@ -970,11 +967,7 @@ intr_return:
 	/* shift left ____cacheline_aligned (aka L1_CACHE_BYTES) amount
 	** irq_stat[] is defined using ____cacheline_aligned.
 	*/
-#ifdef CONFIG_64BIT
-	shld	%r1, 6, %r20
-#else
-	shlw	%r1, 5, %r20
-#endif
+	SHLREG	%r1,L1_CACHE_SHIFT,%r20
 	add     %r19,%r20,%r19	/* now have &irq_stat[smp_processor_id()] */
 #endif /* CONFIG_SMP */
 
@@ -2115,11 +2108,7 @@ syscall_check_bh:
 	ldw     TI_CPU-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26 /* cpu # */
 
 	/* shift left ____cacheline_aligned (aka L1_CACHE_BYTES) bits */
-#ifdef CONFIG_64BIT
-	shld	%r26, 6, %r20
-#else
-	shlw	%r26, 5, %r20
-#endif
+	SHLREG	%r26,L1_CACHE_SHIFT,%r20
 	add     %r19,%r20,%r19	/* now have &irq_stat[smp_processor_id()] */
 #endif /* CONFIG_SMP */
 
