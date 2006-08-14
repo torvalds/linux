@@ -798,12 +798,13 @@ myri10ge_submit_8rx(struct mcp_kreq_ether_recv __iomem * dst,
  * pages directly and building a fraglist in the near future.
  */
 
-static inline struct sk_buff *myri10ge_alloc_big(int bytes)
+static inline struct sk_buff *myri10ge_alloc_big(struct net_device *dev,
+						 int bytes)
 {
 	struct sk_buff *skb;
 	unsigned long data, roundup;
 
-	skb = dev_alloc_skb(bytes + 4096 + MXGEFW_PAD);
+	skb = netdev_alloc_skb(dev, bytes + 4096 + MXGEFW_PAD);
 	if (skb == NULL)
 		return NULL;
 
@@ -821,12 +822,13 @@ static inline struct sk_buff *myri10ge_alloc_big(int bytes)
 
 /* Allocate 2x as much space as required and use whichever portion
  * does not cross a 4KB boundary */
-static inline struct sk_buff *myri10ge_alloc_small_safe(unsigned int bytes)
+static inline struct sk_buff *myri10ge_alloc_small_safe(struct net_device *dev,
+							unsigned int bytes)
 {
 	struct sk_buff *skb;
 	unsigned long data, boundary;
 
-	skb = dev_alloc_skb(2 * (bytes + MXGEFW_PAD) - 1);
+	skb = netdev_alloc_skb(dev, 2 * (bytes + MXGEFW_PAD) - 1);
 	if (unlikely(skb == NULL))
 		return NULL;
 
@@ -847,12 +849,13 @@ static inline struct sk_buff *myri10ge_alloc_small_safe(unsigned int bytes)
 
 /* Allocate just enough space, and verify that the allocated
  * space does not cross a 4KB boundary */
-static inline struct sk_buff *myri10ge_alloc_small(int bytes)
+static inline struct sk_buff *myri10ge_alloc_small(struct net_device *dev,
+						   int bytes)
 {
 	struct sk_buff *skb;
 	unsigned long roundup, data, end;
 
-	skb = dev_alloc_skb(bytes + 16 + MXGEFW_PAD);
+	skb = netdev_alloc_skb(dev, bytes + 16 + MXGEFW_PAD);
 	if (unlikely(skb == NULL))
 		return NULL;
 
@@ -868,15 +871,17 @@ static inline struct sk_buff *myri10ge_alloc_small(int bytes)
 		       "myri10ge_alloc_small: small skb crossed 4KB boundary\n");
 		myri10ge_skb_cross_4k = 1;
 		dev_kfree_skb_any(skb);
-		skb = myri10ge_alloc_small_safe(bytes);
+		skb = myri10ge_alloc_small_safe(dev, bytes);
 	}
 	return skb;
 }
 
 static inline int
-myri10ge_getbuf(struct myri10ge_rx_buf *rx, struct pci_dev *pdev, int bytes,
-		int idx)
+myri10ge_getbuf(struct myri10ge_rx_buf *rx, struct myri10ge_priv *mgp,
+		int bytes, int idx)
 {
+	struct net_device *dev = mgp->dev;
+	struct pci_dev *pdev = mgp->pdev;
 	struct sk_buff *skb;
 	dma_addr_t bus;
 	int len, retval = 0;
@@ -884,11 +889,11 @@ myri10ge_getbuf(struct myri10ge_rx_buf *rx, struct pci_dev *pdev, int bytes,
 	bytes += VLAN_HLEN;	/* account for 802.1q vlan tag */
 
 	if ((bytes + MXGEFW_PAD) > (4096 - 16) /* linux overhead */ )
-		skb = myri10ge_alloc_big(bytes);
+		skb = myri10ge_alloc_big(dev, bytes);
 	else if (myri10ge_skb_cross_4k)
-		skb = myri10ge_alloc_small_safe(bytes);
+		skb = myri10ge_alloc_small_safe(dev, bytes);
 	else
-		skb = myri10ge_alloc_small(bytes);
+		skb = myri10ge_alloc_small(dev, bytes);
 
 	if (unlikely(skb == NULL)) {
 		rx->alloc_fail++;
@@ -951,7 +956,7 @@ myri10ge_rx_done(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 	unmap_len = pci_unmap_len(&rx->info[idx], len);
 
 	/* try to replace the received skb */
-	if (myri10ge_getbuf(rx, mgp->pdev, bytes, idx)) {
+	if (myri10ge_getbuf(rx, mgp, bytes, idx)) {
 		/* drop the frame -- the old skbuf is re-cycled */
 		mgp->stats.rx_dropped += 1;
 		return 0;
@@ -968,7 +973,6 @@ myri10ge_rx_done(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 	skb_put(skb, len);
 
 	skb->protocol = eth_type_trans(skb, mgp->dev);
-	skb->dev = mgp->dev;
 	if (mgp->csum_flag) {
 		if ((skb->protocol == ntohs(ETH_P_IP)) ||
 		    (skb->protocol == ntohs(ETH_P_IPV6))) {
@@ -1439,7 +1443,7 @@ static int myri10ge_allocate_rings(struct net_device *dev)
 	/* Fill the receive rings */
 
 	for (i = 0; i <= mgp->rx_small.mask; i++) {
-		status = myri10ge_getbuf(&mgp->rx_small, mgp->pdev,
+		status = myri10ge_getbuf(&mgp->rx_small, mgp,
 					 mgp->small_bytes, i);
 		if (status) {
 			printk(KERN_ERR
@@ -1451,8 +1455,7 @@ static int myri10ge_allocate_rings(struct net_device *dev)
 
 	for (i = 0; i <= mgp->rx_big.mask; i++) {
 		status =
-		    myri10ge_getbuf(&mgp->rx_big, mgp->pdev,
-				    dev->mtu + ETH_HLEN, i);
+		    myri10ge_getbuf(&mgp->rx_big, mgp, dev->mtu + ETH_HLEN, i);
 		if (status) {
 			printk(KERN_ERR
 			       "myri10ge: %s: alloced only %d big bufs\n",
