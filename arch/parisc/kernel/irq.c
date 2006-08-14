@@ -209,7 +209,7 @@ int show_interrupts(struct seq_file *p, void *v)
 ** Then use that to get the Transaction address and data.
 */
 
-int cpu_claim_irq(unsigned int irq, struct hw_interrupt_type *type, void *data)
+int cpu_claim_irq(unsigned int irq, struct irq_chip *type, void *data)
 {
 	if (irq_desc[irq].action)
 		return -EBUSY;
