@@ -802,11 +802,12 @@ static int sbp2_update(struct unit_directory *ud)
 	 */
 	sbp2scsi_complete_all_commands(scsi_id, DID_BUS_BUSY);
 
-	/* Make sure we unblock requests (since this is likely after a bus
-	 * reset). */
-	atomic_set(&scsi_id->unfinished_reset, 0);
-	scsi_unblock_requests(scsi_id->scsi_host);
-
+	/* Accept new commands unless there was another bus reset in the
+	 * meantime. */
+	if (hpsb_node_entry_valid(scsi_id->ne)) {
+		atomic_set(&scsi_id->unfinished_reset, 0);
+		scsi_unblock_requests(scsi_id->scsi_host);
+	}
 	return 0;
 }
 
