@@ -409,6 +409,7 @@ struct fc_function_template {
 	void	(*get_host_active_fc4s)(struct Scsi_Host *);
 	void	(*get_host_speed)(struct Scsi_Host *);
 	void	(*get_host_fabric_name)(struct Scsi_Host *);
+	void	(*get_host_symbolic_name)(struct Scsi_Host *);
 
 	struct fc_host_statistics * (*get_fc_host_stats)(struct Scsi_Host *);
 	void	(*reset_fc_host_stats)(struct Scsi_Host *);
@@ -445,7 +446,6 @@ struct fc_function_template {
 	unsigned long	show_host_permanent_port_name:1;
 	unsigned long	show_host_supported_classes:1;
 	unsigned long	show_host_supported_fc4s:1;
-	unsigned long	show_host_symbolic_name:1;
 	unsigned long	show_host_supported_speeds:1;
 	unsigned long	show_host_maxframe_size:1;
 	unsigned long	show_host_serial_number:1;
@@ -456,6 +456,7 @@ struct fc_function_template {
 	unsigned long	show_host_active_fc4s:1;
 	unsigned long	show_host_speed:1;
 	unsigned long	show_host_fabric_name:1;
+	unsigned long	show_host_symbolic_name:1;
 };
 
 
