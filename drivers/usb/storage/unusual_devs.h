@@ -1261,7 +1261,7 @@ UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
  * Tested on hardware version 1.10.
  * Entry is needed only for the initializer function override.
  */
-UNUSUAL_DEV(  0x1019, 0x0c55, 0x0000, 0x9999,
+UNUSUAL_DEV(  0x1019, 0x0c55, 0x0110, 0x0110,
 		"Desknote",
 		"UCR-61S2B",
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_ucr61s2b_init,
