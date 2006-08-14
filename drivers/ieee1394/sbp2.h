@@ -346,6 +346,9 @@ struct scsi_id_instance_data {
 
 	/* Device specific workarounds/brokeness */
 	unsigned workarounds;
+
+	atomic_t unfinished_reset;
+	struct work_struct protocol_work;
 };
 
 /* Sbp2 host data structure (one per IEEE1394 host) */

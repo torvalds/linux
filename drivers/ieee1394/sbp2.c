@@ -465,6 +465,44 @@ static int sbp2util_node_write_no_wait(struct node_entry *ne, u64 addr,
 	return 0;
 }
 
+static void sbp2util_notify_fetch_agent(struct scsi_id_instance_data *scsi_id,
+					u64 offset, quadlet_t *data, size_t len)
+{
+	/*
+	 * There is a small window after a bus reset within which the node
+	 * entry's generation is current but the reconnect wasn't completed.
+	 */
+	if (atomic_read(&scsi_id->unfinished_reset))
+		return;
+
+	if (hpsb_node_write(scsi_id->ne,
+			    scsi_id->sbp2_command_block_agent_addr + offset,
+			    data, len))
+		SBP2_ERR("sbp2util_notify_fetch_agent failed.");
+	/*
+	 * Now accept new SCSI commands, unless a bus reset happended during
+	 * hpsb_node_write.
+	 */
+	if (!atomic_read(&scsi_id->unfinished_reset))
+		scsi_unblock_requests(scsi_id->scsi_host);
+}
+
+static void sbp2util_write_orb_pointer(void *p)
+{
+	quadlet_t data[2];
+
+	data[0] = ORB_SET_NODE_ID(
+			((struct scsi_id_instance_data *)p)->hi->host->node_id);
+	data[1] = ((struct scsi_id_instance_data *)p)->last_orb_dma;
+	sbp2util_cpu_to_be32_buffer(data, 8);
+	sbp2util_notify_fetch_agent(p, SBP2_ORB_POINTER_OFFSET, data, 8);
+}
+
+static void sbp2util_write_doorbell(void *p)
+{
+	sbp2util_notify_fetch_agent(p, SBP2_DOORBELL_OFFSET, NULL, 4);
+}
+
 /*
  * This function is called to create a pool of command orbs used for
  * command processing. It is called when a new sbp2 device is detected.
@@ -712,6 +750,7 @@ static int sbp2_remove(struct device *dev)
 			sbp2scsi_complete_all_commands(scsi_id, DID_NO_CONNECT);
 		/* scsi_remove_device() will trigger shutdown functions of SCSI
 		 * highlevel drivers which would deadlock if blocked. */
+		atomic_set(&scsi_id->unfinished_reset, 0);
 		scsi_unblock_requests(scsi_id->scsi_host);
 	}
 	sdev = scsi_id->sdev;
@@ -765,6 +804,7 @@ static int sbp2_update(struct unit_directory *ud)
 
 	/* Make sure we unblock requests (since this is likely after a bus
 	 * reset). */
+	atomic_set(&scsi_id->unfinished_reset, 0);
 	scsi_unblock_requests(scsi_id->scsi_host);
 
 	return 0;
@@ -795,6 +835,8 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	INIT_LIST_HEAD(&scsi_id->sbp2_command_orb_completed);
 	INIT_LIST_HEAD(&scsi_id->scsi_list);
 	spin_lock_init(&scsi_id->sbp2_command_orb_lock);
+	atomic_set(&scsi_id->unfinished_reset, 0);
+	INIT_WORK(&scsi_id->protocol_work, NULL, NULL);
 
 	ud->device.driver_data = scsi_id;
 
@@ -879,8 +921,10 @@ static void sbp2_host_reset(struct hpsb_host *host)
 	hi = hpsb_get_hostinfo(&sbp2_highlevel, host);
 
 	if (hi) {
-		list_for_each_entry(scsi_id, &hi->scsi_ids, scsi_list)
+		list_for_each_entry(scsi_id, &hi->scsi_ids, scsi_list) {
+			atomic_set(&scsi_id->unfinished_reset, 1);
 			scsi_block_requests(scsi_id->scsi_host);
+		}
 	}
 }
 
@@ -1032,7 +1076,7 @@ static void sbp2_remove_device(struct scsi_id_instance_data *scsi_id)
 		scsi_remove_host(scsi_id->scsi_host);
 		scsi_host_put(scsi_id->scsi_host);
 	}
-
+	flush_scheduled_work();
 	sbp2util_remove_command_orb_pool(scsi_id);
 
 	list_del(&scsi_id->scsi_list);
@@ -1661,6 +1705,10 @@ static int sbp2_agent_reset(struct scsi_id_instance_data *scsi_id, int wait)
 
 	SBP2_DEBUG_ENTER();
 
+	cancel_delayed_work(&scsi_id->protocol_work);
+	if (wait)
+		flush_scheduled_work();
+
 	data = ntohl(SBP2_AGENT_RESET_DATA);
 	addr = scsi_id->sbp2_command_block_agent_addr + SBP2_AGENT_RESET_OFFSET;
 
@@ -1982,9 +2030,22 @@ static void sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
 
 	SBP2_ORB_DEBUG("write to %s register, command orb %p",
 			last_orb ? "DOORBELL" : "ORB_POINTER", command_orb);
-	if (sbp2util_node_write_no_wait(scsi_id->ne, addr, data, length))
-		SBP2_ERR("sbp2util_node_write_no_wait failed.\n");
-	/* We rely on SCSI EH to deal with _node_write_ failures. */
+	if (sbp2util_node_write_no_wait(scsi_id->ne, addr, data, length)) {
+		/*
+		 * sbp2util_node_write_no_wait failed. We certainly ran out
+		 * of transaction labels, perhaps just because there were no
+		 * context switches which gave khpsbpkt a chance to collect
+		 * free tlabels. Try again in non-atomic context. If necessary,
+		 * the workqueue job will sleep to guaranteedly get a tlabel.
+		 * We do not accept new commands until the job is over.
+		 */
+		scsi_block_requests(scsi_id->scsi_host);
+		PREPARE_WORK(&scsi_id->protocol_work,
+			     last_orb ? sbp2util_write_doorbell:
+					sbp2util_write_orb_pointer,
+			     scsi_id);
+		schedule_work(&scsi_id->protocol_work);
+	}
 }
 
 /*
