@@ -2578,7 +2578,7 @@ static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 		/*
 		 * Initiate a fetch agent reset.
 		 */
-		sbp2_agent_reset(scsi_id, 0);
+		sbp2_agent_reset(scsi_id, 1);
 		sbp2scsi_complete_all_commands(scsi_id, DID_BUS_BUSY);
 	}
 
@@ -2597,7 +2597,7 @@ static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
 
 	if (sbp2util_node_is_available(scsi_id)) {
 		SBP2_ERR("Generating sbp2 fetch agent reset");
-		sbp2_agent_reset(scsi_id, 0);
+		sbp2_agent_reset(scsi_id, 1);
 	}
 
 	return SUCCESS;
