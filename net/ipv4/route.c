@@ -3157,7 +3157,7 @@ int __init ip_rt_init(void)
 					rhash_entries,
 					(num_physpages >= 128 * 1024) ?
 					15 : 17,
-					HASH_HIGHMEM,
+					0,
 					&rt_hash_log,
 					&rt_hash_mask,
 					0);

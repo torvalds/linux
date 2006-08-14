@@ -107,7 +107,6 @@ const int NR_TYPES = ARRAY_SIZE(max_vals);
 
 struct kbd_struct kbd_table[MAX_NR_CONSOLES];
 static struct kbd_struct *kbd = kbd_table;
-static struct kbd_struct kbd0;
 
 int spawnpid, spawnsig;
 
@@ -223,13 +222,13 @@ static void kd_nosound(unsigned long ignored)
 {
 	struct list_head *node;
 
-	list_for_each(node,&kbd_handler.h_list) {
+	list_for_each(node, &kbd_handler.h_list) {
 		struct input_handle *handle = to_handle_h(node);
 		if (test_bit(EV_SND, handle->dev->evbit)) {
 			if (test_bit(SND_TONE, handle->dev->sndbit))
-				input_event(handle->dev, EV_SND, SND_TONE, 0);
+				input_inject_event(handle, EV_SND, SND_TONE, 0);
 			if (test_bit(SND_BELL, handle->dev->sndbit))
-				input_event(handle->dev, EV_SND, SND_BELL, 0);
+				input_inject_event(handle, EV_SND, SND_BELL, 0);
 		}
 	}
 }
@@ -247,11 +246,11 @@ void kd_mksound(unsigned int hz, unsigned int ticks)
 			struct input_handle *handle = to_handle_h(node);
 			if (test_bit(EV_SND, handle->dev->evbit)) {
 				if (test_bit(SND_TONE, handle->dev->sndbit)) {
-					input_event(handle->dev, EV_SND, SND_TONE, hz);
+					input_inject_event(handle, EV_SND, SND_TONE, hz);
 					break;
 				}
 				if (test_bit(SND_BELL, handle->dev->sndbit)) {
-					input_event(handle->dev, EV_SND, SND_BELL, 1);
+					input_inject_event(handle, EV_SND, SND_BELL, 1);
 					break;
 				}
 			}
@@ -272,15 +271,15 @@ int kbd_rate(struct kbd_repeat *rep)
 	unsigned int d = 0;
 	unsigned int p = 0;
 
-	list_for_each(node,&kbd_handler.h_list) {
+	list_for_each(node, &kbd_handler.h_list) {
 		struct input_handle *handle = to_handle_h(node);
 		struct input_dev *dev = handle->dev;
 
 		if (test_bit(EV_REP, dev->evbit)) {
 			if (rep->delay > 0)
-				input_event(dev, EV_REP, REP_DELAY, rep->delay);
+				input_inject_event(handle, EV_REP, REP_DELAY, rep->delay);
 			if (rep->period > 0)
-				input_event(dev, EV_REP, REP_PERIOD, rep->period);
+				input_inject_event(handle, EV_REP, REP_PERIOD, rep->period);
 			d = dev->rep[REP_DELAY];
 			p = dev->rep[REP_PERIOD];
 		}
@@ -988,7 +987,7 @@ static inline unsigned char getleds(void)
  * interrupt routines for this thing allows us to easily mask
  * this when we don't want any of the above to happen.
  * This allows for easy and efficient race-condition prevention
- * for kbd_refresh_leds => input_event(dev, EV_LED, ...) => ...
+ * for kbd_start => input_inject_event(dev, EV_LED, ...) => ...
  */
 
 static void kbd_bh(unsigned long dummy)
@@ -998,11 +997,11 @@ static void kbd_bh(unsigned long dummy)
 
 	if (leds != ledstate) {
 		list_for_each(node, &kbd_handler.h_list) {
-			struct input_handle * handle = to_handle_h(node);
-			input_event(handle->dev, EV_LED, LED_SCROLLL, !!(leds & 0x01));
-			input_event(handle->dev, EV_LED, LED_NUML,    !!(leds & 0x02));
-			input_event(handle->dev, EV_LED, LED_CAPSL,   !!(leds & 0x04));
-			input_sync(handle->dev);
+			struct input_handle *handle = to_handle_h(node);
+			input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
+			input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
+			input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
+			input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
 		}
 	}
 
@@ -1010,23 +1009,6 @@ static void kbd_bh(unsigned long dummy)
 }
 
 DECLARE_TASKLET_DISABLED(keyboard_tasklet, kbd_bh, 0);
-
-/*
- * This allows a newly plugged keyboard to pick the LED state.
- */
-static void kbd_refresh_leds(struct input_handle *handle)
-{
-	unsigned char leds = ledstate;
-
-	tasklet_disable(&keyboard_tasklet);
-	if (leds != 0xff) {
-		input_event(handle->dev, EV_LED, LED_SCROLLL, !!(leds & 0x01));
-		input_event(handle->dev, EV_LED, LED_NUML,    !!(leds & 0x02));
-		input_event(handle->dev, EV_LED, LED_CAPSL,   !!(leds & 0x04));
-		input_sync(handle->dev);
-	}
-	tasklet_enable(&keyboard_tasklet);
-}
 
 #if defined(CONFIG_X86) || defined(CONFIG_IA64) || defined(CONFIG_ALPHA) ||\
     defined(CONFIG_MIPS) || defined(CONFIG_PPC) || defined(CONFIG_SPARC) ||\
@@ -1043,7 +1025,7 @@ static const unsigned short x86_keycodes[256] =
 	 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
 	 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
 	 80, 81, 82, 83, 84,118, 86, 87, 88,115,120,119,121,112,123, 92,
-	284,285,309,298,312, 91,327,328,329,331,333,335,336,337,338,339,
+	284,285,309,  0,312, 91,327,328,329,331,333,335,336,337,338,339,
 	367,288,302,304,350, 89,334,326,267,126,268,269,125,347,348,349,
 	360,261,262,263,268,376,100,101,321,316,373,286,289,102,351,355,
 	103,104,105,275,287,279,306,106,274,107,294,364,358,363,362,361,
@@ -1065,38 +1047,55 @@ extern void sun_do_break(void);
 static int emulate_raw(struct vc_data *vc, unsigned int keycode,
 		       unsigned char up_flag)
 {
-	if (keycode > 255 || !x86_keycodes[keycode])
-		return -1;
+	int code;
 
 	switch (keycode) {
 		case KEY_PAUSE:
 			put_queue(vc, 0xe1);
 			put_queue(vc, 0x1d | up_flag);
 			put_queue(vc, 0x45 | up_flag);
-			return 0;
+			break;
+
 		case KEY_HANGEUL:
 			if (!up_flag)
 				put_queue(vc, 0xf2);
-			return 0;
+			break;
+
 		case KEY_HANJA:
 			if (!up_flag)
 				put_queue(vc, 0xf1);
-			return 0;
-	}
+			break;
 
-	if (keycode == KEY_SYSRQ && sysrq_alt) {
-		put_queue(vc, 0x54 | up_flag);
-		return 0;
-	}
+		case KEY_SYSRQ:
+			/*
+			 * Real AT keyboards (that's what we're trying
+			 * to emulate here emit 0xe0 0x2a 0xe0 0x37 when
+			 * pressing PrtSc/SysRq alone, but simply 0x54
+			 * when pressing Alt+PrtSc/SysRq.
+			 */
+			if (sysrq_alt) {
+				put_queue(vc, 0x54 | up_flag);
+			} else {
+				put_queue(vc, 0xe0);
+				put_queue(vc, 0x2a | up_flag);
+				put_queue(vc, 0xe0);
+				put_queue(vc, 0x37 | up_flag);
+			}
+			break;
 
-	if (x86_keycodes[keycode] & 0x100)
-		put_queue(vc, 0xe0);
+		default:
+			if (keycode > 255)
+				return -1;
 
-	put_queue(vc, (x86_keycodes[keycode] & 0x7f) | up_flag);
+			code = x86_keycodes[keycode];
+			if (!code)
+				return -1;
 
-	if (keycode == KEY_SYSRQ) {
-		put_queue(vc, 0xe0);
-		put_queue(vc, 0x37 | up_flag);
+			if (code & 0x100)
+				put_queue(vc, 0xe0);
+			put_queue(vc, (code & 0x7f) | up_flag);
+
+			break;
 	}
 
 	return 0;
@@ -1298,16 +1297,15 @@ static struct input_handle *kbd_connect(struct input_handler *handler,
 	if (i == BTN_MISC && !test_bit(EV_SND, dev->evbit))
 		return NULL;
 
-	if (!(handle = kmalloc(sizeof(struct input_handle), GFP_KERNEL)))
+	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	if (!handle)
 		return NULL;
-	memset(handle, 0, sizeof(struct input_handle));
 
 	handle->dev = dev;
 	handle->handler = handler;
 	handle->name = "kbd";
 
 	input_open_device(handle);
-	kbd_refresh_leds(handle);
 
 	return handle;
 }
@@ -1316,6 +1314,24 @@ static void kbd_disconnect(struct input_handle *handle)
 {
 	input_close_device(handle);
 	kfree(handle);
+}
+
+/*
+ * Start keyboard handler on the new keyboard by refreshing LED state to
+ * match the rest of the system.
+ */
+static void kbd_start(struct input_handle *handle)
+{
+	unsigned char leds = ledstate;
+
+	tasklet_disable(&keyboard_tasklet);
+	if (leds != 0xff) {
+		input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
+		input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
+		input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
+		input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
+	}
+	tasklet_enable(&keyboard_tasklet);
 }
 
 static struct input_device_id kbd_ids[] = {
@@ -1338,6 +1354,7 @@ static struct input_handler kbd_handler = {
 	.event		= kbd_event,
 	.connect	= kbd_connect,
 	.disconnect	= kbd_disconnect,
+	.start		= kbd_start,
 	.name		= "kbd",
 	.id_table	= kbd_ids,
 };
@@ -1346,15 +1363,15 @@ int __init kbd_init(void)
 {
 	int i;
 
-        kbd0.ledflagstate = kbd0.default_ledflagstate = KBD_DEFLEDS;
-        kbd0.ledmode = LED_SHOW_FLAGS;
-        kbd0.lockstate = KBD_DEFLOCK;
-        kbd0.slockstate = 0;
-        kbd0.modeflags = KBD_DEFMODE;
-        kbd0.kbdmode = VC_XLATE;
-
-        for (i = 0 ; i < MAX_NR_CONSOLES ; i++)
-                kbd_table[i] = kbd0;
+        for (i = 0; i < MAX_NR_CONSOLES; i++) {
+		kbd_table[i].ledflagstate = KBD_DEFLEDS;
+		kbd_table[i].default_ledflagstate = KBD_DEFLEDS;
+		kbd_table[i].ledmode = LED_SHOW_FLAGS;
+		kbd_table[i].lockstate = KBD_DEFLOCK;
+		kbd_table[i].slockstate = 0;
+		kbd_table[i].modeflags = KBD_DEFMODE;
+		kbd_table[i].kbdmode = VC_XLATE;
+	}
 
 	input_register_handler(&kbd_handler);
 

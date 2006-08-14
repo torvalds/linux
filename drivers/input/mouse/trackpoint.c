@@ -183,21 +183,26 @@ static struct attribute_group trackpoint_attr_group = {
 	.attrs = trackpoint_attrs,
 };
 
-static void trackpoint_disconnect(struct psmouse *psmouse)
+static int trackpoint_start_protocol(struct psmouse *psmouse, unsigned char *firmware_id)
 {
-	sysfs_remove_group(&psmouse->ps2dev.serio->dev.kobj, &trackpoint_attr_group);
+	unsigned char param[2] = { 0 };
 
-	kfree(psmouse->private);
-	psmouse->private = NULL;
+	if (ps2_command(&psmouse->ps2dev, param, MAKE_PS2_CMD(0, 2, TP_READ_ID)))
+		return -1;
+
+	if (param[0] != TP_MAGIC_IDENT)
+		return -1;
+
+	if (firmware_id)
+		*firmware_id = param[1];
+
+	return 0;
 }
 
 static int trackpoint_sync(struct psmouse *psmouse)
 {
-	unsigned char toggle;
 	struct trackpoint_data *tp = psmouse->private;
-
-	if (!tp)
-		return -1;
+	unsigned char toggle;
 
 	/* Disable features that may make device unusable with this driver */
 	trackpoint_read(&psmouse->ps2dev, TP_TOGGLE_TWOHAND, &toggle);
@@ -263,26 +268,37 @@ static void trackpoint_defaults(struct trackpoint_data *tp)
 	tp->ext_dev = TP_DEF_EXT_DEV;
 }
 
+static void trackpoint_disconnect(struct psmouse *psmouse)
+{
+	sysfs_remove_group(&psmouse->ps2dev.serio->dev.kobj, &trackpoint_attr_group);
+
+	kfree(psmouse->private);
+	psmouse->private = NULL;
+}
+
+static int trackpoint_reconnect(struct psmouse *psmouse)
+{
+	if (trackpoint_start_protocol(psmouse, NULL))
+		return -1;
+
+	if (trackpoint_sync(psmouse))
+		return -1;
+
+	return 0;
+}
+
 int trackpoint_detect(struct psmouse *psmouse, int set_properties)
 {
 	struct trackpoint_data *priv;
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char firmware_id;
 	unsigned char button_info;
-	unsigned char param[2];
 
-	param[0] = param[1] = 0;
-
-	if (ps2_command(ps2dev, param, MAKE_PS2_CMD(0, 2, TP_READ_ID)))
-		return -1;
-
-	if (param[0] != TP_MAGIC_IDENT)
+	if (trackpoint_start_protocol(psmouse, &firmware_id))
 		return -1;
 
 	if (!set_properties)
 		return 0;
-
-	firmware_id = param[1];
 
 	if (trackpoint_read(&psmouse->ps2dev, TP_EXT_BTN, &button_info)) {
 		printk(KERN_WARNING "trackpoint.c: failed to get extended button data\n");
@@ -296,7 +312,7 @@ int trackpoint_detect(struct psmouse *psmouse, int set_properties)
 	psmouse->vendor = "IBM";
 	psmouse->name = "TrackPoint";
 
-	psmouse->reconnect = trackpoint_sync;
+	psmouse->reconnect = trackpoint_reconnect;
 	psmouse->disconnect = trackpoint_disconnect;
 
 	trackpoint_defaults(priv);

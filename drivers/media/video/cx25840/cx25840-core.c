@@ -104,8 +104,8 @@ u32 cx25840_read4(struct i2c_client * client, u16 addr)
 	if (i2c_master_recv(client, buffer, 4) < 4)
 		return 0;
 
-	return (buffer[0] << 24) | (buffer[1] << 16) |
-	    (buffer[2] << 8) | buffer[3];
+	return (buffer[3] << 24) | (buffer[2] << 16) |
+	    (buffer[1] << 8) | buffer[0];
 }
 
 int cx25840_and_or(struct i2c_client *client, u16 addr, unsigned and_mask,

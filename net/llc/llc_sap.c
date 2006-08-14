@@ -51,10 +51,10 @@ void llc_save_primitive(struct sock *sk, struct sk_buff* skb, u8 prim)
 {
 	struct sockaddr_llc *addr;
 
-	if (skb->sk->sk_type == SOCK_STREAM) /* See UNIX98 */
-		return;
        /* save primitive for use by the user. */
 	addr		  = llc_ui_skb_cb(skb);
+
+	memset(addr, 0, sizeof(*addr));
 	addr->sllc_family = sk->sk_family;
 	addr->sllc_arphrd = skb->dev->type;
 	addr->sllc_test   = prim == LLC_TEST_PRIM;
@@ -328,6 +328,9 @@ static void llc_sap_mcast(struct llc_sap *sap,
 			continue;
 
 		if (llc->laddr.lsap != laddr->lsap)
+			continue;
+
+		if (llc->dev != skb->dev)
 			continue;
 
 		skb1 = skb_clone(skb, GFP_ATOMIC);

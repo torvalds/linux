@@ -799,6 +799,9 @@ void release_console_sem(void)
 		up(&secondary_console_sem);
 		return;
 	}
+
+	console_may_schedule = 0;
+
 	for ( ; ; ) {
 		spin_lock_irqsave(&logbuf_lock, flags);
 		wake_klogd |= log_start - log_end;
@@ -812,7 +815,6 @@ void release_console_sem(void)
 		local_irq_restore(flags);
 	}
 	console_locked = 0;
-	console_may_schedule = 0;
 	up(&console_sem);
 	spin_unlock_irqrestore(&logbuf_lock, flags);
 	if (wake_klogd && !oops_in_progress && waitqueue_active(&log_wait)) {

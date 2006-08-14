@@ -202,7 +202,7 @@ static char *v4l2_memory_names[] = {
 /* ------------------------------------------------------------------ */
 /* debug help functions                                               */
 
-#ifdef CONFIG_V4L1_COMPAT
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 static const char *v4l1_ioctls[] = {
 	[_IOC_NR(VIDIOCGCAP)]       = "VIDIOCGCAP",
 	[_IOC_NR(VIDIOCGCHAN)]      = "VIDIOCGCHAN",
@@ -301,7 +301,7 @@ static const char *v4l2_ioctls[] = {
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
 static const char *v4l2_int_ioctls[] = {
-#ifdef CONFIG_V4L1_COMPAT
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	[_IOC_NR(DECODER_GET_CAPABILITIES)]    = "DECODER_GET_CAPABILITIES",
 	[_IOC_NR(DECODER_GET_STATUS)]          = "DECODER_GET_STATUS",
 	[_IOC_NR(DECODER_SET_NORM)]            = "DECODER_SET_NORM",
@@ -367,7 +367,7 @@ void v4l_printk_ioctl(unsigned int cmd)
 		       (_IOC_NR(cmd) < V4L2_INT_IOCTLS) ?
 		       v4l2_int_ioctls[_IOC_NR(cmd)] : "UNKNOWN", dir, cmd);
 		break;
-#ifdef CONFIG_V4L1_COMPAT
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case 'v':
 		printk("v4l1 ioctl %s, dir=%s (0x%08x)\n",
 		       (_IOC_NR(cmd) < V4L1_IOCTLS) ?

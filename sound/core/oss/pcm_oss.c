@@ -2228,6 +2228,8 @@ static int snd_pcm_oss_open_file(struct file *file,
 	for (idx = 0; idx < 2; idx++) {
 		if (setup[idx].disable)
 			continue;
+		if (! pcm->streams[idx].substream_count)
+			continue; /* no matching substream */
 		if (idx == SNDRV_PCM_STREAM_PLAYBACK) {
 			if (! (f_mode & FMODE_WRITE))
 				continue;

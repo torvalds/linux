@@ -372,10 +372,9 @@ static struct ops_list * create_driver(char *id)
 {
 	struct ops_list *ops;
 
-	ops = kmalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 	if (ops == NULL)
 		return ops;
-	memset(ops, 0, sizeof(*ops));
 
 	/* set up driver entry */
 	strlcpy(ops->id, id, sizeof(ops->id));

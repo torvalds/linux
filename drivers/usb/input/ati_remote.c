@@ -111,13 +111,27 @@
 #define NAME_BUFSIZE      80    /* size of product name, path buffers */
 #define DATA_BUFSIZE      63    /* size of URB data buffers */
 
+/*
+ * Duplicate event filtering time.
+ * Sequential, identical KIND_FILTERED inputs with less than
+ * FILTER_TIME milliseconds between them are considered as repeat
+ * events. The hardware generates 5 events for the first keypress
+ * and we have to take this into account for an accurate repeat
+ * behaviour.
+ */
+#define FILTER_TIME	60 /* msec */
+
 static unsigned long channel_mask;
-module_param(channel_mask, ulong, 0444);
+module_param(channel_mask, ulong, 0644);
 MODULE_PARM_DESC(channel_mask, "Bitmask of remote control channels to ignore");
 
 static int debug;
-module_param(debug, int, 0444);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Enable extra debug messages and information");
+
+static int repeat_filter = FILTER_TIME;
+module_param(repeat_filter, int, 0644);
+MODULE_PARM_DESC(repeat_filter, "Repeat filter time, default = 60 msec");
 
 #define dbginfo(dev, format, arg...) do { if (debug) dev_info(dev , format , ## arg); } while (0)
 #undef err
@@ -142,18 +156,6 @@ MODULE_DEVICE_TABLE(usb, ati_remote_table);
 /* Device initialization strings */
 static char init1[] = { 0x01, 0x00, 0x20, 0x14 };
 static char init2[] = { 0x01, 0x00, 0x20, 0x14, 0x20, 0x20, 0x20 };
-
-/* Acceleration curve for directional control pad */
-static const char accel[] = { 1, 2, 4, 6, 9, 13, 20 };
-
-/* Duplicate event filtering time.
- * Sequential, identical KIND_FILTERED inputs with less than
- * FILTER_TIME jiffies between them are considered as repeat
- * events. The hardware generates 5 events for the first keypress
- * and we have to take this into account for an accurate repeat
- * behaviour.
- */
-#define FILTER_TIME 60 /* msec */
 
 struct ati_remote {
 	struct input_dev *idev;
@@ -412,6 +414,43 @@ static int ati_remote_event_lookup(int rem, unsigned char d1, unsigned char d2)
 }
 
 /*
+ *	ati_remote_compute_accel
+ *
+ * Implements acceleration curve for directional control pad
+ * If elapsed time since last event is > 1/4 second, user "stopped",
+ * so reset acceleration. Otherwise, user is probably holding the control
+ * pad down, so we increase acceleration, ramping up over two seconds to
+ * a maximum speed.
+ */
+static int ati_remote_compute_accel(struct ati_remote *ati_remote)
+{
+	static const char accel[] = { 1, 2, 4, 6, 9, 13, 20 };
+	unsigned long now = jiffies;
+	int acc;
+
+	if (time_after(now, ati_remote->old_jiffies + msecs_to_jiffies(250))) {
+		acc = 1;
+		ati_remote->acc_jiffies = now;
+	}
+	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(125)))
+		acc = accel[0];
+	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(250)))
+		acc = accel[1];
+	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(500)))
+		acc = accel[2];
+	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(1000)))
+		acc = accel[3];
+	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(1500)))
+		acc = accel[4];
+	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(2000)))
+		acc = accel[5];
+	else
+		acc = accel[6];
+
+	return acc;
+}
+
+/*
  *	ati_remote_report_input
  */
 static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
@@ -464,9 +503,9 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 
 	if (ati_remote_tbl[index].kind == KIND_FILTERED) {
 		/* Filter duplicate events which happen "too close" together. */
-		if ((ati_remote->old_data[0] == data[1]) &&
-			(ati_remote->old_data[1] == data[2]) &&
-			time_before(jiffies, ati_remote->old_jiffies + msecs_to_jiffies(FILTER_TIME))) {
+		if (ati_remote->old_data[0] == data[1] &&
+		    ati_remote->old_data[1] == data[2] &&
+		    time_before(jiffies, ati_remote->old_jiffies + msecs_to_jiffies(repeat_filter))) {
 			ati_remote->repeat_count++;
 		} else {
 			ati_remote->repeat_count = 0;
@@ -476,75 +515,61 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 		ati_remote->old_data[1] = data[2];
 		ati_remote->old_jiffies = jiffies;
 
-		if ((ati_remote->repeat_count > 0)
-		    && (ati_remote->repeat_count < 5))
+		if (ati_remote->repeat_count > 0 &&
+		    ati_remote->repeat_count < 5)
 			return;
 
 
 		input_regs(dev, regs);
 		input_event(dev, ati_remote_tbl[index].type,
 			ati_remote_tbl[index].code, 1);
+		input_sync(dev);
 		input_event(dev, ati_remote_tbl[index].type,
 			ati_remote_tbl[index].code, 0);
 		input_sync(dev);
 
-		return;
-	}
+	} else {
 
-	/*
-	 * Other event kinds are from the directional control pad, and have an
-	 * acceleration factor applied to them.  Without this acceleration, the
-	 * control pad is mostly unusable.
-	 *
-	 * If elapsed time since last event is > 1/4 second, user "stopped",
-	 * so reset acceleration. Otherwise, user is probably holding the control
-	 * pad down, so we increase acceleration, ramping up over two seconds to
-	 * a maximum speed.  The acceleration curve is #defined above.
-	 */
-	if (time_after(jiffies, ati_remote->old_jiffies + (HZ >> 2))) {
-		acc = 1;
-		ati_remote->acc_jiffies = jiffies;
-	}
-	else if (time_before(jiffies, ati_remote->acc_jiffies + (HZ >> 3)))  acc = accel[0];
-	else if (time_before(jiffies, ati_remote->acc_jiffies + (HZ >> 2)))  acc = accel[1];
-	else if (time_before(jiffies, ati_remote->acc_jiffies + (HZ >> 1)))  acc = accel[2];
-	else if (time_before(jiffies, ati_remote->acc_jiffies + HZ))         acc = accel[3];
-	else if (time_before(jiffies, ati_remote->acc_jiffies + HZ+(HZ>>1))) acc = accel[4];
-	else if (time_before(jiffies, ati_remote->acc_jiffies + (HZ << 1)))  acc = accel[5];
-	else acc = accel[6];
+		/*
+		 * Other event kinds are from the directional control pad, and have an
+		 * acceleration factor applied to them.  Without this acceleration, the
+		 * control pad is mostly unusable.
+		 */
+		acc = ati_remote_compute_accel(ati_remote);
 
-	input_regs(dev, regs);
-	switch (ati_remote_tbl[index].kind) {
-	case KIND_ACCEL:
-		input_event(dev, ati_remote_tbl[index].type,
-			ati_remote_tbl[index].code,
-			ati_remote_tbl[index].value * acc);
-		break;
-	case KIND_LU:
-		input_report_rel(dev, REL_X, -acc);
-		input_report_rel(dev, REL_Y, -acc);
-		break;
-	case KIND_RU:
-		input_report_rel(dev, REL_X, acc);
-		input_report_rel(dev, REL_Y, -acc);
-		break;
-	case KIND_LD:
-		input_report_rel(dev, REL_X, -acc);
-		input_report_rel(dev, REL_Y, acc);
-		break;
-	case KIND_RD:
-		input_report_rel(dev, REL_X, acc);
-		input_report_rel(dev, REL_Y, acc);
-		break;
-	default:
-		dev_dbg(&ati_remote->interface->dev, "ati_remote kind=%d\n",
-			ati_remote_tbl[index].kind);
-	}
-	input_sync(dev);
+		input_regs(dev, regs);
+		switch (ati_remote_tbl[index].kind) {
+		case KIND_ACCEL:
+			input_event(dev, ati_remote_tbl[index].type,
+				ati_remote_tbl[index].code,
+				ati_remote_tbl[index].value * acc);
+			break;
+		case KIND_LU:
+			input_report_rel(dev, REL_X, -acc);
+			input_report_rel(dev, REL_Y, -acc);
+			break;
+		case KIND_RU:
+			input_report_rel(dev, REL_X, acc);
+			input_report_rel(dev, REL_Y, -acc);
+			break;
+		case KIND_LD:
+			input_report_rel(dev, REL_X, -acc);
+			input_report_rel(dev, REL_Y, acc);
+			break;
+		case KIND_RD:
+			input_report_rel(dev, REL_X, acc);
+			input_report_rel(dev, REL_Y, acc);
+			break;
+		default:
+			dev_dbg(&ati_remote->interface->dev, "ati_remote kind=%d\n",
+				ati_remote_tbl[index].kind);
+		}
+		input_sync(dev);
 
-	ati_remote->old_jiffies = jiffies;
-	ati_remote->old_data[0] = data[1];
-	ati_remote->old_data[1] = data[2];
+		ati_remote->old_jiffies = jiffies;
+		ati_remote->old_data[0] = data[1];
+		ati_remote->old_data[1] = data[2];
+	}
 }
 
 /*

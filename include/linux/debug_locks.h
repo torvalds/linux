@@ -1,6 +1,8 @@
 #ifndef __LINUX_DEBUG_LOCKING_H
 #define __LINUX_DEBUG_LOCKING_H
 
+struct task_struct;
+
 extern int debug_locks;
 extern int debug_locks_silent;
 

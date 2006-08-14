@@ -162,7 +162,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		goto out;
 	}
 
-	min_spacing = mddev->array_size;
+	min_spacing = conf->array_size;
 	sector_div(min_spacing, PAGE_SIZE/sizeof(struct dev_info *));
 
 	/* min_spacing is the minimum spacing that will fit the hash
@@ -171,7 +171,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	 * that is larger than min_spacing as use the size of that as
 	 * the actual spacing
 	 */
-	conf->hash_spacing = mddev->array_size;
+	conf->hash_spacing = conf->array_size;
 	for (i=0; i < cnt-1 ; i++) {
 		sector_t sz = 0;
 		int j;
@@ -228,7 +228,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	curr_offset = 0;
 	i = 0;
 	for (curr_offset = 0;
-	     curr_offset < mddev->array_size;
+	     curr_offset < conf->array_size;
 	     curr_offset += conf->hash_spacing) {
 
 		while (i < mddev->raid_disks-1 &&
