@@ -9,7 +9,7 @@ config ATA
 	  that "speaks" the ATA protocol, also called ATA controller),
 	  because you will be asked for it.
 
-config SCSI_SATA_AHCI
+config SATA_AHCI
 	tristate "AHCI SATA support"
 	depends on ATA && PCI
 	help
@@ -17,7 +17,7 @@ config SCSI_SATA_AHCI
 
 	  If unsure, say N.
 
-config SCSI_SATA_SVW
+config SATA_SVW
 	tristate "ServerWorks Frodo / Apple K2 SATA support"
 	depends on ATA && PCI
 	help
@@ -26,7 +26,7 @@ config SCSI_SATA_SVW
 
 	  If unsure, say N.
 
-config SCSI_ATA_PIIX
+config ATA_PIIX
 	tristate "Intel PIIX/ICH SATA support"
 	depends on ATA && PCI
 	help
@@ -36,7 +36,7 @@ config SCSI_ATA_PIIX
 
 	  If unsure, say N.
 
-config SCSI_SATA_MV
+config SATA_MV
 	tristate "Marvell SATA support (HIGHLY EXPERIMENTAL)"
 	depends on ATA && PCI && EXPERIMENTAL
 	help
@@ -45,7 +45,7 @@ config SCSI_SATA_MV
 
 	  If unsure, say N.
 
-config SCSI_SATA_NV
+config SATA_NV
 	tristate "NVIDIA SATA support"
 	depends on ATA && PCI
 	help
@@ -53,7 +53,7 @@ config SCSI_SATA_NV
 
 	  If unsure, say N.
 
-config SCSI_PDC_ADMA
+config PDC_ADMA
 	tristate "Pacific Digital ADMA support"
 	depends on ATA && PCI
 	help
@@ -61,7 +61,7 @@ config SCSI_PDC_ADMA
 
 	  If unsure, say N.
 
-config SCSI_SATA_QSTOR
+config SATA_QSTOR
 	tristate "Pacific Digital SATA QStor support"
 	depends on ATA && PCI
 	help
@@ -69,7 +69,7 @@ config SCSI_SATA_QSTOR
 
 	  If unsure, say N.
 
-config SCSI_SATA_PROMISE
+config SATA_PROMISE
 	tristate "Promise SATA TX2/TX4 support"
 	depends on ATA && PCI
 	help
@@ -77,7 +77,7 @@ config SCSI_SATA_PROMISE
 
 	  If unsure, say N.
 
-config SCSI_SATA_SX4
+config SATA_SX4
 	tristate "Promise SATA SX4 support"
 	depends on ATA && PCI && EXPERIMENTAL
 	help
@@ -85,7 +85,7 @@ config SCSI_SATA_SX4
 
 	  If unsure, say N.
 
-config SCSI_SATA_SIL
+config SATA_SIL
 	tristate "Silicon Image SATA support"
 	depends on ATA && PCI
 	help
@@ -93,7 +93,7 @@ config SCSI_SATA_SIL
 
 	  If unsure, say N.
 
-config SCSI_SATA_SIL24
+config SATA_SIL24
 	tristate "Silicon Image 3124/3132 SATA support"
 	depends on ATA && PCI
 	help
@@ -101,7 +101,7 @@ config SCSI_SATA_SIL24
 
 	  If unsure, say N.
 
-config SCSI_SATA_SIS
+config SATA_SIS
 	tristate "SiS 964/180 SATA support"
 	depends on ATA && PCI
 	help
@@ -109,7 +109,7 @@ config SCSI_SATA_SIS
 
 	  If unsure, say N.
 
-config SCSI_SATA_ULI
+config SATA_ULI
 	tristate "ULi Electronics SATA support"
 	depends on ATA && PCI
 	help
@@ -117,7 +117,7 @@ config SCSI_SATA_ULI
 
 	  If unsure, say N.
 
-config SCSI_SATA_VIA
+config SATA_VIA
 	tristate "VIA SATA support"
 	depends on ATA && PCI
 	help
@@ -125,7 +125,7 @@ config SCSI_SATA_VIA
 
 	  If unsure, say N.
 
-config SCSI_SATA_VITESSE
+config SATA_VITESSE
 	tristate "VITESSE VSC-7174 / INTEL 31244 SATA support"
 	depends on ATA && PCI
 	help
@@ -133,8 +133,8 @@ config SCSI_SATA_VITESSE
 
 	  If unsure, say N.
 
-config SCSI_SATA_INTEL_COMBINED
+config SATA_INTEL_COMBINED
 	bool
-	depends on IDE=y && !BLK_DEV_IDE_SATA && (SCSI_SATA_AHCI || SCSI_ATA_PIIX)
+	depends on IDE=y && !BLK_DEV_IDE_SATA && (SATA_AHCI || ATA_PIIX)
 	default y
 
