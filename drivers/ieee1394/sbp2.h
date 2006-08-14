@@ -181,11 +181,11 @@ struct sbp2_unrestricted_page_table {
 #define SBP2_SCSI_STATUS_SELECTION_TIMEOUT	0xff
 
 #define STATUS_GET_SRC(value)			(((value) >> 30) & 0x3)
+#define STATUS_GET_RESP(value)			(((value) >> 28) & 0x3)
 #define STATUS_GET_LEN(value)			(((value) >> 24) & 0x7)
+#define STATUS_GET_SBP_STATUS(value)		(((value) >> 16) & 0xff)
 #define STATUS_GET_ORB_OFFSET_HI(value)		((value) & 0x0000ffff)
-#define STATUS_TEST_D(value)			((value) & 0x08000000)
-/* test 'resp' | 'sbp2_status' */
-#define STATUS_TEST_RS(value)			((value) & 0x30ff0000)
+#define STATUS_TEST_DEAD(value)			((value) & 0x08000000)
 /* test 'resp' | 'dead' | 'sbp2_status' */
 #define STATUS_TEST_RDS(value)			((value) & 0x38ff0000)
 

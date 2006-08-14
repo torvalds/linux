@@ -2213,28 +2213,34 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid,
 		spin_unlock_irqrestore(&scsi_id->sbp2_command_orb_lock, flags);
 
 		if (SCpnt) {
-			if (STATUS_TEST_RS(sb->ORB_offset_hi_misc))
+			u32 h = sb->ORB_offset_hi_misc;
+			u32 r = STATUS_GET_RESP(h);
+
+			if (r != RESP_STATUS_REQUEST_COMPLETE) {
+				SBP2_WARN("resp 0x%x, sbp_status 0x%x",
+					  r, STATUS_GET_SBP_STATUS(h));
 				scsi_status =
+					r == RESP_STATUS_TRANSPORT_FAILURE ?
+					SBP2_SCSI_STATUS_BUSY :
 					SBP2_SCSI_STATUS_COMMAND_TERMINATED;
+			}
 			/*
 			 * See if the target stored any scsi status information.
 			 */
-			if (STATUS_GET_LEN(sb->ORB_offset_hi_misc) > 1) {
+			if (STATUS_GET_LEN(h) > 1) {
 				SBP2_DEBUG("CHECK CONDITION");
 				scsi_status = sbp2_status_to_sense_data(
 					(unchar *)sb, SCpnt->sense_buffer);
 			}
-
 			/*
 			 * Check to see if the dead bit is set. If so, we'll
 			 * have to initiate a fetch agent reset.
 			 */
-			if (STATUS_TEST_D(sb->ORB_offset_hi_misc)) {
+			if (STATUS_TEST_DEAD(h)) {
 				SBP2_DEBUG("Dead bit set - "
 					   "initiating fetch agent reset");
                                 sbp2_agent_reset(scsi_id, 0);
 			}
-
 			SBP2_ORB_DEBUG("completing command orb %p", &command->command_orb);
 		}
 
