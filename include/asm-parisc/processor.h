@@ -9,6 +9,8 @@
 #define __ASM_PARISC_PROCESSOR_H
 
 #ifndef __ASSEMBLY__
+#include <asm/prefetch.h>	/* lockdep.h needs <linux/prefetch.h> */
+
 #include <linux/threads.h>
 #include <linux/spinlock_types.h>
 
@@ -327,32 +329,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)	((tsk)->thread.regs.iaoq[0])
 #define KSTK_ESP(tsk)	((tsk)->thread.regs.gr[30])
-
-
-/*
- * PA 2.0 defines data prefetch instructions on page 6-11 of the Kane book.
- * In addition, many implementations do hardware prefetching of both
- * instructions and data.
- *
- * PA7300LC (page 14-4 of the ERS) also implements prefetching by a load
- * to gr0 but not in a way that Linux can use.  If the load would cause an
- * interruption (eg due to prefetching 0), it is suppressed on PA2.0
- * processors, but not on 7300LC.
- */
-#ifdef  CONFIG_PREFETCH
-#define ARCH_HAS_PREFETCH
-#define ARCH_HAS_PREFETCHW
-
-extern inline void prefetch(const void *addr)
-{
-	__asm__("ldw 0(%0), %%r0" : : "r" (addr));
-}
-
-extern inline void prefetchw(const void *addr)
-{
-	__asm__("ldd 0(%0), %%r0" : : "r" (addr));
-}
-#endif
 
 #define cpu_relax()	barrier()
 
