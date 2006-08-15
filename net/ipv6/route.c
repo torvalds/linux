@@ -2044,9 +2044,7 @@ int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 		goto out_free;
 	}
 
-	err = netlink_unicast(rtnl, skb, NETLINK_CB(in_skb).pid, MSG_DONTWAIT);
-	if (err > 0)
-		err = 0;
+	err = rtnl_unicast(skb, NETLINK_CB(in_skb).pid);
 out:
 	return err;
 out_free:

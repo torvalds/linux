@@ -312,7 +312,8 @@ static void ipmr_destroy_unres(struct mfc_cache *c)
 			e = NLMSG_DATA(nlh);
 			e->error = -ETIMEDOUT;
 			memset(&e->msg, 0, sizeof(e->msg));
-			netlink_unicast(rtnl, skb, NETLINK_CB(skb).dst_pid, MSG_DONTWAIT);
+
+			rtnl_unicast(skb, NETLINK_CB(skb).pid);
 		} else
 			kfree_skb(skb);
 	}
@@ -512,7 +513,6 @@ static void ipmr_cache_resolve(struct mfc_cache *uc, struct mfc_cache *c)
 
 	while((skb=__skb_dequeue(&uc->mfc_un.unres.unresolved))) {
 		if (skb->nh.iph->version == 0) {
-			int err;
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct iphdr));
 
 			if (ipmr_fill_mroute(skb, c, NLMSG_DATA(nlh)) > 0) {
@@ -525,7 +525,8 @@ static void ipmr_cache_resolve(struct mfc_cache *uc, struct mfc_cache *c)
 				e->error = -EMSGSIZE;
 				memset(&e->msg, 0, sizeof(e->msg));
 			}
-			err = netlink_unicast(rtnl, skb, NETLINK_CB(skb).dst_pid, MSG_DONTWAIT);
+
+			rtnl_unicast(skb, NETLINK_CB(skb).pid);
 		} else
 			ip_mr_forward(skb, c, 0);
 	}

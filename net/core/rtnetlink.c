@@ -166,6 +166,11 @@ int rtnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, int echo)
 	return err;
 }
 
+int rtnl_unicast(struct sk_buff *skb, u32 pid)
+{
+	return nlmsg_unicast(rtnl, skb, pid);
+}
+
 int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics)
 {
 	struct rtattr *mx = (struct rtattr*)skb->tail;
@@ -574,9 +579,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		goto errout;
 	}
 
-	err = netlink_unicast(rtnl, skb, NETLINK_CB(skb).pid, MSG_DONTWAIT);
-	if (err > 0)
-		err = 0;
+	err = rtnl_unicast(skb, NETLINK_CB(skb).pid);
 errout:
 	kfree(iw_buf);
 	dev_put(dev);
@@ -825,3 +828,4 @@ EXPORT_SYMBOL(rtnl);
 EXPORT_SYMBOL(rtnl_lock);
 EXPORT_SYMBOL(rtnl_trylock);
 EXPORT_SYMBOL(rtnl_unlock);
+EXPORT_SYMBOL(rtnl_unicast);

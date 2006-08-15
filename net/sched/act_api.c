@@ -459,7 +459,6 @@ static int
 act_get_notify(u32 pid, struct nlmsghdr *n, struct tc_action *a, int event)
 {
 	struct sk_buff *skb;
-	int err = 0;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
@@ -468,10 +467,8 @@ act_get_notify(u32 pid, struct nlmsghdr *n, struct tc_action *a, int event)
 		kfree_skb(skb);
 		return -EINVAL;
 	}
-	err = netlink_unicast(rtnl, skb, pid, MSG_DONTWAIT);
-	if (err > 0)
-		err = 0;
-	return err;
+
+	return rtnl_unicast(skb, pid);
 }
 
 static struct tc_action *

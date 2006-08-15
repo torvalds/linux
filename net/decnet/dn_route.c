@@ -1611,9 +1611,7 @@ int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void *arg)
 		goto out_free;
 	}
 
-	err = netlink_unicast(rtnl, skb, NETLINK_CB(in_skb).pid, MSG_DONTWAIT);
-
-	return err;
+	return rtnl_unicast(skb, NETLINK_CB(in_skb).pid);
 
 out_free:
 	kfree_skb(skb);

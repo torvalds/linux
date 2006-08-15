@@ -584,6 +584,7 @@ struct rtnetlink_link
 
 extern struct rtnetlink_link * rtnetlink_links[NPROTO];
 extern int rtnetlink_send(struct sk_buff *skb, u32 pid, u32 group, int echo);
+extern int rtnl_unicast(struct sk_buff *skb, u32 pid);
 extern int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics);
 
 extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const void *data);
