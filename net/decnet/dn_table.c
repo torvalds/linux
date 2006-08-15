@@ -333,24 +333,24 @@ static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, u32 tb_id,
 {
         struct sk_buff *skb;
         u32 pid = req ? req->pid : 0;
-        int size = NLMSG_SPACE(sizeof(struct rtmsg) + 256);
+	int err = -ENOBUFS;
 
-        skb = alloc_skb(size, GFP_KERNEL);
-        if (!skb)
-                return;
+        skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+        if (skb == NULL)
+		goto errout;
 
-        if (dn_fib_dump_info(skb, pid, nlh->nlmsg_seq, event, tb_id, 
-                                f->fn_type, f->fn_scope, &f->fn_key, z, 
-                                DN_FIB_INFO(f), 0) < 0) {
+        err = dn_fib_dump_info(skb, pid, nlh->nlmsg_seq, event, tb_id,
+			       f->fn_type, f->fn_scope, &f->fn_key, z,
+			       DN_FIB_INFO(f), 0);
+	if (err < 0) {
                 kfree_skb(skb);
-                return;
+		goto errout;
         }
-        NETLINK_CB(skb).dst_group = RTNLGRP_DECnet_ROUTE;
-        if (nlh->nlmsg_flags & NLM_F_ECHO)
-                atomic_inc(&skb->users);
-        netlink_broadcast(rtnl, skb, pid, RTNLGRP_DECnet_ROUTE, GFP_KERNEL);
-        if (nlh->nlmsg_flags & NLM_F_ECHO)
-                netlink_unicast(rtnl, skb, pid, MSG_DONTWAIT);
+
+	err = rtnl_notify(skb, pid, RTNLGRP_DECnet_ROUTE, nlh, GFP_KERNEL);
+errout:
+	if (err < 0)
+		rtnl_set_sk_err(RTNLGRP_DECnet_ROUTE, err);
 }
 
 static __inline__ int dn_hash_dump_bucket(struct sk_buff *skb, 
