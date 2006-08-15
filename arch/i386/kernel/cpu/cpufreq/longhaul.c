@@ -53,19 +53,26 @@
 #define	CPU_NEHEMIAH	5
 
 static int cpu_model;
-static unsigned int numscales=16, numvscales;
+static unsigned int numscales=16;
 static unsigned int fsb;
-static int minvid, maxvid;
+
+static struct mV_pos *vrm_mV_table;
+static unsigned char *mV_vrm_table;
+struct f_msr {
+	unsigned char vrm;
+};
+static struct f_msr f_msr_table[32];
+
+static unsigned int highest_speed, lowest_speed; /* kHz */
 static unsigned int minmult, maxmult;
 static int can_scale_voltage;
-static int vrmrev;
 static struct acpi_processor *pr = NULL;
 static struct acpi_processor_cx *cx = NULL;
-static int port22_en = 0;
+static int port22_en;
 
 /* Module parameters */
-static int dont_scale_voltage;
-static int ignore_latency = 0;
+static int scale_voltage;
+static int ignore_latency;
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "longhaul", msg)
 
@@ -73,7 +80,6 @@ static int ignore_latency = 0;
 /* Clock ratios multiplied by 10 */
 static int clock_ratio[32];
 static int eblcr_table[32];
-static int voltage_table[32];
 static unsigned int highest_speed, lowest_speed; /* kHz */
 static int longhaul_version;
 static struct cpufreq_frequency_table *longhaul_table;
@@ -162,6 +168,11 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 	longhaul.bits.SoftBusRatio = clock_ratio_index & 0xf;
 	longhaul.bits.SoftBusRatio4 = (clock_ratio_index & 0x10) >> 4;
 	longhaul.bits.EnableSoftBusRatio = 1;
+
+	if (can_scale_voltage) {
+		longhaul.bits.SoftVID = f_msr_table[clock_ratio_index].vrm;
+		longhaul.bits.EnableSoftVID = 1;
+	}
 
 	/* Sync to timer tick */
 	safe_halt();
@@ -454,52 +465,56 @@ static int __init longhaul_get_ranges(void)
 static void __init longhaul_setup_voltagescaling(void)
 {
 	union msr_longhaul longhaul;
+	struct mV_pos minvid, maxvid;
+	unsigned int j, speed, pos, kHz_step, numvscales;
 
-	rdmsrl (MSR_VIA_LONGHAUL, longhaul.val);
-
-	if (!(longhaul.bits.RevisionID & 1))
+	rdmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+	if (!(longhaul.bits.RevisionID & 1)) {
+		printk(KERN_INFO PFX "Voltage scaling not supported by CPU.\n");
 		return;
+	}
 
-	minvid = longhaul.bits.MinimumVID;
-	maxvid = longhaul.bits.MaximumVID;
-	vrmrev = longhaul.bits.VRMRev;
+	if (!longhaul.bits.VRMRev) {
+		printk (KERN_INFO PFX "VRM 8.5\n");
+		vrm_mV_table = &vrm85_mV[0];
+		mV_vrm_table = &mV_vrm85[0];
+	} else {
+		printk (KERN_INFO PFX "Mobile VRM\n");
+		vrm_mV_table = &mobilevrm_mV[0];
+		mV_vrm_table = &mV_mobilevrm[0];
+	}
 
-	if (minvid == 0 || maxvid == 0) {
+	minvid = vrm_mV_table[longhaul.bits.MinimumVID];
+	maxvid = vrm_mV_table[longhaul.bits.MaximumVID];
+	numvscales = maxvid.pos - minvid.pos + 1;
+	kHz_step = (highest_speed - lowest_speed) / numvscales;
+
+	if (minvid.mV == 0 || maxvid.mV == 0 || minvid.mV > maxvid.mV) {
 		printk (KERN_INFO PFX "Bogus values Min:%d.%03d Max:%d.%03d. "
 					"Voltage scaling disabled.\n",
-					minvid/1000, minvid%1000, maxvid/1000, maxvid%1000);
+					minvid.mV/1000, minvid.mV%1000, maxvid.mV/1000, maxvid.mV%1000);
 		return;
 	}
 
-	if (minvid == maxvid) {
+	if (minvid.mV == maxvid.mV) {
 		printk (KERN_INFO PFX "Claims to support voltage scaling but min & max are "
 				"both %d.%03d. Voltage scaling disabled\n",
-				maxvid/1000, maxvid%1000);
+				maxvid.mV/1000, maxvid.mV%1000);
 		return;
 	}
 
-	if (vrmrev==0) {
-		dprintk ("VRM 8.5\n");
-		memcpy (voltage_table, vrm85scales, sizeof(voltage_table));
-		numvscales = (voltage_table[maxvid]-voltage_table[minvid])/25;
-	} else {
-		dprintk ("Mobile VRM\n");
-		memcpy (voltage_table, mobilevrmscales, sizeof(voltage_table));
-		numvscales = (voltage_table[maxvid]-voltage_table[minvid])/5;
+	printk(KERN_INFO PFX "Max VID=%d.%03d  Min VID=%d.%03d, %d possible voltage scales\n",
+		maxvid.mV/1000, maxvid.mV%1000,
+		minvid.mV/1000, minvid.mV%1000,
+		numvscales);
+	
+	j = 0;
+	while (longhaul_table[j].frequency != CPUFREQ_TABLE_END) {
+		speed = longhaul_table[j].frequency;
+		pos = (speed - lowest_speed) / kHz_step + minvid.pos;
+		f_msr_table[longhaul_table[j].index].vrm = mV_vrm_table[pos];
+		j++;
 	}
-
-	/* Current voltage isn't readable at first, so we need to
-	   set it to a known value. The spec says to use maxvid */
-	longhaul.bits.RevisionKey = longhaul.bits.RevisionID;	/* FIXME: This is bad. */
-	longhaul.bits.EnableSoftVID = 1;
-	longhaul.bits.SoftVID = maxvid;
-	wrmsrl (MSR_VIA_LONGHAUL, longhaul.val);
-
-	minvid = voltage_table[minvid];
-	maxvid = voltage_table[maxvid];
-
-	dprintk ("Min VID=%d.%03d Max VID=%d.%03d, %d possible voltage scales\n",
-		maxvid/1000, maxvid%1000, minvid/1000, minvid%1000, numvscales);
 
 	can_scale_voltage = 1;
 }
@@ -685,7 +700,7 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		return ret;
 
 	if ((longhaul_version==TYPE_LONGHAUL_V2 || longhaul_version==TYPE_POWERSAVER) &&
-		 (dont_scale_voltage==0))
+		 (scale_voltage != 0))
 		longhaul_setup_voltagescaling();
 
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
@@ -773,8 +788,8 @@ static void __exit longhaul_exit(void)
 	kfree(longhaul_table);
 }
 
-module_param (dont_scale_voltage, int, 0644);
-MODULE_PARM_DESC(dont_scale_voltage, "Don't scale voltage of processor");
+module_param (scale_voltage, int, 0644);
+MODULE_PARM_DESC(scale_voltage, "Scale voltage of processor");
 module_param(ignore_latency, int, 0644);
 MODULE_PARM_DESC(ignore_latency, "Skip ACPI C3 latency test");
 
