@@ -109,7 +109,9 @@ enum {
 };
 
 static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
+#ifdef CONFIG_PM
 static int sil_pci_device_resume(struct pci_dev *pdev);
+#endif
 static void sil_dev_config(struct ata_port *ap, struct ata_device *dev);
 static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
@@ -157,8 +159,10 @@ static struct pci_driver sil_pci_driver = {
 	.id_table		= sil_pci_tbl,
 	.probe			= sil_init_one,
 	.remove			= ata_pci_remove_one,
+#ifdef CONFIG_PM
 	.suspend		= ata_pci_device_suspend,
 	.resume			= sil_pci_device_resume,
+#endif
 };
 
 static struct scsi_host_template sil_sht = {
@@ -696,6 +700,7 @@ err_out:
 	return rc;
 }
 
+#ifdef CONFIG_PM
 static int sil_pci_device_resume(struct pci_dev *pdev)
 {
 	struct ata_host_set *host_set = dev_get_drvdata(&pdev->dev);
@@ -707,6 +712,7 @@ static int sil_pci_device_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
 static int __init sil_init(void)
 {

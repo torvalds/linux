@@ -339,7 +339,9 @@ static int sil24_port_start(struct ata_port *ap);
 static void sil24_port_stop(struct ata_port *ap);
 static void sil24_host_stop(struct ata_host_set *host_set);
 static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
+#ifdef CONFIG_PM
 static int sil24_pci_device_resume(struct pci_dev *pdev);
+#endif
 
 static const struct pci_device_id sil24_pci_tbl[] = {
 	{ 0x1095, 0x3124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3124 },
@@ -355,8 +357,10 @@ static struct pci_driver sil24_pci_driver = {
 	.id_table		= sil24_pci_tbl,
 	.probe			= sil24_init_one,
 	.remove			= ata_pci_remove_one, /* safe? */
+#ifdef CONFIG_PM
 	.suspend		= ata_pci_device_suspend,
 	.resume			= sil24_pci_device_resume,
+#endif
 };
 
 static struct scsi_host_template sil24_sht = {
@@ -1184,6 +1188,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return rc;
 }
 
+#ifdef CONFIG_PM
 static int sil24_pci_device_resume(struct pci_dev *pdev)
 {
 	struct ata_host_set *host_set = dev_get_drvdata(&pdev->dev);
@@ -1202,6 +1207,7 @@ static int sil24_pci_device_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
 static int __init sil24_init(void)
 {
