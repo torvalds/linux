@@ -138,6 +138,7 @@ struct asus_hotk {
 		S2x,		//S200 (J1 reported), Victor MP-XP7210
 		W1N,		//W1000N
 		W5A,		//W5A
+		W3V,            //W3030V
 		xxN,		//M2400N, M3700N, M5200N, M6800N, S1300N, S5200N
 		//(Centrino)
 		END_MODEL
@@ -376,6 +377,17 @@ static struct model_data model_conf[END_MODEL] = {
 	 .display_get = "\\ADVG"},
 
 	{
+	 .name = "W3V",
+	 .mt_mled = "MLED",
+	 .mt_wled = "WLED",
+	 .mt_lcd_switch = xxN_PREFIX "_Q10",
+	 .lcd_status = "\\BKLT",
+	 .brightness_set = "SPLV",
+	 .brightness_get = "GPLV",
+	 .display_set = "SDSP",
+	 .display_get = "\\INFB"},
+
+       {
 	 .name = "xxN",
 	 .mt_mled = "MLED",
 /* WLED present, but not controlled by ACPI */
@@ -1097,6 +1109,8 @@ static int asus_model_match(char *model)
 		return A4G;
 	else if (strncmp(model, "W1N", 3) == 0)
 		return W1N;
+	else if (strncmp(model, "W3V", 3) == 0)
+		return W3V;
 	else if (strncmp(model, "W5A", 3) == 0)
 		return W5A;
 	else
@@ -1200,9 +1214,10 @@ static int asus_hotk_get_info(void)
 		hotk->methods->mt_wled = NULL;
 	/* L5D's WLED is not controlled by ACPI */
 	else if (strncmp(string, "M2N", 3) == 0 ||
+		 strncmp(string, "W3V", 3) == 0 ||
 		 strncmp(string, "S1N", 3) == 0)
 		hotk->methods->mt_wled = "WLED";
-	/* M2N and S1N have a usable WLED */
+	/* M2N, S1N and W3V have a usable WLED */
 	else if (asus_info) {
 		if (strncmp(asus_info->oem_table_id, "L1", 2) == 0)
 			hotk->methods->mled_status = NULL;
