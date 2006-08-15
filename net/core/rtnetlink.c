@@ -630,20 +630,22 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 {
 	struct sk_buff *skb;
-	int size = NLMSG_SPACE(sizeof(struct ifinfomsg) +
-			       sizeof(struct rtnl_link_ifmap) +
-			       sizeof(struct rtnl_link_stats) + 128);
+	int err = -ENOBUFS;
 
-	skb = nlmsg_new(size, GFP_KERNEL);
-	if (!skb)
-		return;
+	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (skb == NULL)
+		goto errout;
 
-	if (rtnl_fill_ifinfo(skb, dev, NULL, 0, type, 0, 0, change, 0) < 0) {
+	err = rtnl_fill_ifinfo(skb, dev, NULL, 0, type, 0, 0, change, 0);
+	if (err < 0) {
 		kfree_skb(skb);
-		return;
+		goto errout;
 	}
-	NETLINK_CB(skb).dst_group = RTNLGRP_LINK;
-	netlink_broadcast(rtnl, skb, 0, RTNLGRP_LINK, GFP_KERNEL);
+
+	err = rtnl_notify(skb, 0, RTNLGRP_LINK, NULL, GFP_KERNEL);
+errout:
+	if (err < 0)
+		rtnl_set_sk_err(RTNLGRP_LINK, err);
 }
 
 /* Protected by RTNL sempahore.  */
