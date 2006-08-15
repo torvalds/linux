@@ -406,6 +406,7 @@ static struct class *i2c_dev_class;
 static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 {
 	struct i2c_dev *i2c_dev;
+	int res;
 
 	i2c_dev = get_free_i2c_dev(adap);
 	if (IS_ERR(i2c_dev))
@@ -419,14 +420,20 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 						 MKDEV(I2C_MAJOR, adap->nr),
 						 &adap->dev, "i2c-%d",
 						 adap->nr);
-	if (!i2c_dev->class_dev)
+	if (!i2c_dev->class_dev) {
+		res = -ENODEV;
 		goto error;
-	class_device_create_file(i2c_dev->class_dev, &class_device_attr_name);
+	}
+	res = class_device_create_file(i2c_dev->class_dev, &class_device_attr_name);
+	if (res)
+		goto error_destroy;
 	return 0;
+error_destroy:
+	class_device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 error:
 	return_i2c_dev(i2c_dev);
 	kfree(i2c_dev);
-	return -ENODEV;
+	return res;
 }
 
 static int i2cdev_detach_adapter(struct i2c_adapter *adap)
@@ -437,6 +444,7 @@ static int i2cdev_detach_adapter(struct i2c_adapter *adap)
 	if (!i2c_dev)
 		return -ENODEV;
 
+	class_device_remove_file(i2c_dev->class_dev, &class_device_attr_name);
 	return_i2c_dev(i2c_dev);
 	class_device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 	kfree(i2c_dev);
