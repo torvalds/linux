@@ -62,7 +62,7 @@ struct bus_type {
 extern int __must_check bus_register(struct bus_type * bus);
 extern void bus_unregister(struct bus_type * bus);
 
-extern void bus_rescan_devices(struct bus_type * bus);
+extern int __must_check bus_rescan_devices(struct bus_type * bus);
 
 /* iterator helpers for buses */
 
@@ -397,11 +397,11 @@ extern int device_rename(struct device *dev, char *new_name);
  * Manual binding of a device to driver. See drivers/base/bus.c
  * for information on use.
  */
-extern void device_bind_driver(struct device * dev);
+extern int __must_check device_bind_driver(struct device *dev);
 extern void device_release_driver(struct device * dev);
 extern int  __must_check device_attach(struct device * dev);
-extern void driver_attach(struct device_driver * drv);
-extern void device_reprobe(struct device *dev);
+extern int __must_check driver_attach(struct device_driver *drv);
+extern int __must_check device_reprobe(struct device *dev);
 
 /*
  * Easy functions for dynamically creating devices on the fly

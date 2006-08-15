@@ -38,17 +38,29 @@
  *
  *	This function must be called with @dev->sem held.
  */
-void device_bind_driver(struct device * dev)
+int device_bind_driver(struct device *dev)
 {
-	if (klist_node_attached(&dev->knode_driver))
-		return;
+	int ret;
+
+	if (klist_node_attached(&dev->knode_driver)) {
+		printk(KERN_WARNING "%s: device %s already bound\n",
+			__FUNCTION__, kobject_name(&dev->kobj));
+		return 0;
+	}
 
 	pr_debug("bound device '%s' to driver '%s'\n",
 		 dev->bus_id, dev->driver->name);
 	klist_add_tail(&dev->knode_driver, &dev->driver->klist_devices);
-	sysfs_create_link(&dev->driver->kobj, &dev->kobj,
+	ret = sysfs_create_link(&dev->driver->kobj, &dev->kobj,
 			  kobject_name(&dev->kobj));
-	sysfs_create_link(&dev->kobj, &dev->driver->kobj, "driver");
+	if (ret == 0) {
+		ret = sysfs_create_link(&dev->kobj, &dev->driver->kobj,
+					"driver");
+		if (ret)
+			sysfs_remove_link(&dev->driver->kobj,
+					kobject_name(&dev->kobj));
+	}
+	return ret;
 }
 
 /**
@@ -91,7 +103,11 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 			goto ProbeFailed;
 		}
 	}
-	device_bind_driver(dev);
+	if (device_bind_driver(dev)) {
+		printk(KERN_ERR "%s: device_bind_driver(%s) failed\n",
+			__FUNCTION__, dev->bus_id);
+		/* How does undo a ->probe?  We're screwed. */
+	}
 	ret = 1;
 	pr_debug("%s: Bound Device %s to Driver %s\n",
 		 drv->bus->name, dev->bus_id, drv->name);
@@ -139,8 +155,9 @@ int device_attach(struct device * dev)
 
 	down(&dev->sem);
 	if (dev->driver) {
-		device_bind_driver(dev);
-		ret = 1;
+		ret = device_bind_driver(dev);
+		if (ret == 0)
+			ret = 1;
 	} else
 		ret = bus_for_each_drv(dev->bus, NULL, dev, __device_attach);
 	up(&dev->sem);
@@ -182,9 +199,9 @@ static int __driver_attach(struct device * dev, void * data)
  *	returns 0 and the @dev->driver is set, we've found a
  *	compatible pair.
  */
-void driver_attach(struct device_driver * drv)
+int driver_attach(struct device_driver * drv)
 {
-	bus_for_each_dev(drv->bus, NULL, drv, __driver_attach);
+	return bus_for_each_dev(drv->bus, NULL, drv, __driver_attach);
 }
 
 /**
