@@ -23,8 +23,6 @@
 #define _ISA_MEM_BASE   isa_mem_base
 #ifdef CONFIG_PCI
 #define PCI_DRAM_OFFSET pci_dram_offset
-#else
-#define PCI_DRAM_OFFSET 0
 #endif
 
 #define CPU0_BOOT_RELEASE 0x01000000
