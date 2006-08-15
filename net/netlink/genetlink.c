@@ -510,7 +510,7 @@ static int genl_ctrl_event(int event, void *data)
 		if (IS_ERR(msg))
 			return PTR_ERR(msg);
 
-		genlmsg_multicast(msg, 0, GENL_ID_CTRL);
+		genlmsg_multicast(msg, 0, GENL_ID_CTRL, GFP_KERNEL);
 		break;
 	}
 

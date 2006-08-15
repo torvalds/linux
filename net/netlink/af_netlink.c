@@ -1549,6 +1549,38 @@ void netlink_queue_skip(struct nlmsghdr *nlh, struct sk_buff *skb)
 	skb_pull(skb, msglen);
 }
 
+/**
+ * nlmsg_notify - send a notification netlink message
+ * @sk: netlink socket to use
+ * @skb: notification message
+ * @pid: destination netlink pid for reports or 0
+ * @group: destination multicast group or 0
+ * @report: 1 to report back, 0 to disable
+ * @flags: allocation flags
+ */
+int nlmsg_notify(struct sock *sk, struct sk_buff *skb, u32 pid,
+		 unsigned int group, int report, gfp_t flags)
+{
+	int err = 0;
+
+	if (group) {
+		int exclude_pid = 0;
+
+		if (report) {
+			atomic_inc(&skb->users);
+			exclude_pid = pid;
+		}
+
+		/* errors reported via destination sk->sk_err */
+		nlmsg_multicast(sk, skb, exclude_pid, group, flags);
+	}
+
+	if (report)
+		err = nlmsg_unicast(sk, skb, pid);
+
+	return err;
+}
+
 #ifdef CONFIG_PROC_FS
 struct nl_seq_iter {
 	int link;
@@ -1802,4 +1834,4 @@ EXPORT_SYMBOL(netlink_set_err);
 EXPORT_SYMBOL(netlink_set_nonroot);
 EXPORT_SYMBOL(netlink_unicast);
 EXPORT_SYMBOL(netlink_unregister_notifier);
-
+EXPORT_SYMBOL(nlmsg_notify);

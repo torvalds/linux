@@ -43,6 +43,7 @@
  * Message Sending:
  *   nlmsg_multicast()			multicast message to several groups
  *   nlmsg_unicast()			unicast a message to a single socket
+ *   nlmsg_notify()			send notification message
  *
  * Message Length Calculations:
  *   nlmsg_msg_size(payload)		length of message w/o padding
@@ -545,15 +546,16 @@ static inline void nlmsg_free(struct sk_buff *skb)
  * @skb: netlink message as socket buffer
  * @pid: own netlink pid to avoid sending to yourself
  * @group: multicast group id
+ * @flags: allocation flags
  */
 static inline int nlmsg_multicast(struct sock *sk, struct sk_buff *skb,
-				  u32 pid, unsigned int group)
+				  u32 pid, unsigned int group, gfp_t flags)
 {
 	int err;
 
 	NETLINK_CB(skb).dst_group = group;
 
-	err = netlink_broadcast(sk, skb, pid, group, GFP_KERNEL);
+	err = netlink_broadcast(sk, skb, pid, group, flags);
 	if (err > 0)
 		err = 0;
 

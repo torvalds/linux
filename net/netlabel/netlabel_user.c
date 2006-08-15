@@ -154,5 +154,5 @@ int netlbl_netlink_snd(struct sk_buff *skb, u32 pid)
  */
 int netlbl_netlink_snd_multicast(struct sk_buff *skb, u32 pid, u32 group)
 {
-	return genlmsg_multicast(skb, pid, group);
+	return genlmsg_multicast(skb, pid, group, GFP_KERNEL);
 }
