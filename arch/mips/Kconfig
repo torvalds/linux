@@ -1526,6 +1526,7 @@ config MIPS_MT_SMTC
 	select CPU_MIPSR2_SRS
 	select MIPS_MT
 	select SMP
+	select SYS_SUPPORTS_SMP
 	help
 	  This is a kernel model which is known a SMTC or lately has been
 	  marketesed into SMVP.
@@ -1537,6 +1538,7 @@ config MIPS_MT_SMP
 	select CPU_MIPSR2_SRS
 	select MIPS_MT
 	select SMP
+	select SYS_SUPPORTS_SMP
 	help
 	  This is a kernel model which is also known a VSMP or lately
 	  has been marketesed into SMVP.
