@@ -1048,6 +1048,8 @@ static void init_registers(struct net_device *dev)
 
 	rhine_set_rx_mode(dev);
 
+	netif_poll_enable(dev);
+
 	/* Enable interrupts by setting the interrupt mask. */
 	iowrite16(IntrRxDone | IntrRxErr | IntrRxEmpty| IntrRxOverflow |
 	       IntrRxDropped | IntrRxNoBuf | IntrTxAborted |
@@ -1199,7 +1201,6 @@ static void rhine_tx_timeout(struct net_device *dev)
 	dev->trans_start = jiffies;
 	rp->stats.tx_errors++;
 	netif_wake_queue(dev);
-	netif_poll_enable(dev);
 }
 
 static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
