@@ -123,6 +123,8 @@ int __must_check sysfs_create_group(struct kobject *,
 void sysfs_remove_group(struct kobject *, const struct attribute_group *);
 void sysfs_notify(struct kobject * k, char *dir, char *attr);
 
+extern int __must_check sysfs_init(void);
+
 #else /* CONFIG_SYSFS */
 
 static inline int sysfs_create_dir(struct kobject * k)
@@ -192,6 +194,11 @@ static inline void sysfs_remove_group(struct kobject * k, const struct attribute
 
 static inline void sysfs_notify(struct kobject * k, char *dir, char *attr)
 {
+}
+
+static inline int __must_check sysfs_init(void)
+{
+	return 0;
 }
 
 #endif /* CONFIG_SYSFS */

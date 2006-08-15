@@ -17,6 +17,7 @@
 #include <linux/acct.h>
 #include <linux/capability.h>
 #include <linux/module.h>
+#include <linux/sysfs.h>
 #include <linux/seq_file.h>
 #include <linux/namespace.h>
 #include <linux/namei.h>
@@ -27,15 +28,6 @@
 #include "pnode.h"
 
 extern int __init init_rootfs(void);
-
-#ifdef CONFIG_SYSFS
-extern int __init sysfs_init(void);
-#else
-static inline int sysfs_init(void)
-{
-	return 0;
-}
-#endif
 
 /* spinlock for vfsmount related operations, inplace of dcache_lock */
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(vfsmount_lock);
