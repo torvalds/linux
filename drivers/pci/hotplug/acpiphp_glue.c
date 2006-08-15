@@ -997,7 +997,7 @@ acpiphp_bus_add_out:
  * @handle: handle to acpi namespace
  *
  */
-int acpiphp_bus_trim(acpi_handle handle)
+static int acpiphp_bus_trim(acpi_handle handle)
 {
 	struct acpi_device *device;
 	int retval;
