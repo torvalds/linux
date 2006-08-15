@@ -37,30 +37,9 @@
 #include <linux/netfilter_ipv4/listhelp.h>
 #include <linux/mutex.h>
 
-#if 0
-/* use this for remote debugging
- * Copyright (C) 1998 by Ori Pomerantz
- * Print the string to the appropriate tty, the one
- * the current task uses
- */
-static void print_string(char *str)
-{
-	struct tty_struct *my_tty;
-
-	/* The tty for the current task */
-	my_tty = current->signal->tty;
-	if (my_tty != NULL) {
-		my_tty->driver->write(my_tty, 0, str, strlen(str));
-		my_tty->driver->write(my_tty, 0, "\015\012", 2);
-	}
-}
-
-#define BUGPRINT(args) print_string(args);
-#else
 #define BUGPRINT(format, args...) printk("kernel msg: ebtables bug: please "\
                                          "report to author: "format, ## args)
 /* #define BUGPRINT(format, args...) */
-#endif
 #define MEMPRINT(format, args...) printk("kernel msg: ebtables "\
                                          ": out of memory: "format, ## args)
 /* #define MEMPRINT(format, args...) */
