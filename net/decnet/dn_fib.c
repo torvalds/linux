@@ -55,8 +55,6 @@
 
 #define endfor_nexthops(fi) }
 
-extern int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb);
-
 static DEFINE_SPINLOCK(dn_fib_multipath_lock);
 static struct dn_fib_info *dn_fib_info_list;
 static DEFINE_SPINLOCK(dn_fib_info_lock);
@@ -79,6 +77,9 @@ static struct
 	[RTN_NAT] =         { .error = 0,       .scope = RT_SCOPE_NOWHERE },
 	[RTN_XRESOLVE] =    { .error = -EINVAL, .scope = RT_SCOPE_NOWHERE },
 };
+
+static int dn_fib_sync_down(__le16 local, struct net_device *dev, int force);
+static int dn_fib_sync_up(struct net_device *dev);
 
 void dn_fib_free_info(struct dn_fib_info *fi)
 {
@@ -651,7 +652,7 @@ static int dn_fib_dnaddr_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-int dn_fib_sync_down(__le16 local, struct net_device *dev, int force)
+static int dn_fib_sync_down(__le16 local, struct net_device *dev, int force)
 {
         int ret = 0;
         int scope = RT_SCOPE_NOWHERE;
@@ -695,7 +696,7 @@ int dn_fib_sync_down(__le16 local, struct net_device *dev, int force)
 }
 
 
-int dn_fib_sync_up(struct net_device *dev)
+static int dn_fib_sync_up(struct net_device *dev)
 {
         int ret = 0;
 

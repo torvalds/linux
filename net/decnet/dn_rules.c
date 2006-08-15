@@ -75,8 +75,8 @@ int dn_fib_lookup(struct flowi *flp, struct dn_fib_res *res)
 	return err;
 }
 
-int dn_fib_rule_action(struct fib_rule *rule, struct flowi *flp, int flags,
-		       struct fib_lookup_arg *arg)
+static int dn_fib_rule_action(struct fib_rule *rule, struct flowi *flp,
+			      int flags, struct fib_lookup_arg *arg)
 {
 	int err = -EAGAIN;
 	struct dn_fib_table *tbl;
