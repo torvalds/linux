@@ -47,6 +47,7 @@
 #include <linux/pci.h>
 #include <asm/uaccess.h>
 #include <net/ieee80211.h>
+#include <linux/kthread.h>
 
 #include "airo.h"
 
@@ -1187,11 +1188,10 @@ struct airo_info {
 			int whichbap);
 	unsigned short *flash;
 	tdsRssiEntry *rssi;
-	struct task_struct *task;
+	struct task_struct *list_bss_task;
+	struct task_struct *airo_thread_task;
 	struct semaphore sem;
-	pid_t thr_pid;
 	wait_queue_head_t thr_wait;
-	struct completion thr_exited;
 	unsigned long expires;
 	struct {
 		struct sk_buff *skb;
@@ -1733,12 +1733,12 @@ static int readBSSListRid(struct airo_info *ai, int first,
 		cmd.cmd=CMD_LISTBSS;
 		if (down_interruptible(&ai->sem))
 			return -ERESTARTSYS;
+		ai->list_bss_task = current;
 		issuecommand(ai, &cmd, &rsp);
 		up(&ai->sem);
 		/* Let the command take effect */
-		ai->task = current;
-		ssleep(3);
-		ai->task = NULL;
+		schedule_timeout_uninterruptible(3 * HZ);
+		ai->list_bss_task = NULL;
 	}
 	rc = PC4500_readrid(ai, first ? ai->bssListFirst : ai->bssListNext,
 			    list, ai->bssListRidLen, 1);
@@ -2400,8 +2400,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 		clear_bit(FLAG_REGISTERED, &ai->flags);
 	}
 	set_bit(JOB_DIE, &ai->jobs);
-	kill_proc(ai->thr_pid, SIGTERM, 1);
-	wait_for_completion(&ai->thr_exited);
+	kthread_stop(ai->airo_thread_task);
 
 	/*
 	 * Clean out tx queue
@@ -2811,9 +2810,8 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	ai->config.len = 0;
 	ai->pci = pci;
 	init_waitqueue_head (&ai->thr_wait);
-	init_completion (&ai->thr_exited);
-	ai->thr_pid = kernel_thread(airo_thread, dev, CLONE_FS | CLONE_FILES);
-	if (ai->thr_pid < 0)
+	ai->airo_thread_task = kthread_run(airo_thread, dev, dev->name);
+	if (IS_ERR(ai->airo_thread_task))
 		goto err_out_free;
 	ai->tfm = NULL;
 	rc = add_airo_dev( dev );
@@ -2930,8 +2928,7 @@ err_out_unlink:
 	del_airo_dev(dev);
 err_out_thr:
 	set_bit(JOB_DIE, &ai->jobs);
-	kill_proc(ai->thr_pid, SIGTERM, 1);
-	wait_for_completion(&ai->thr_exited);
+	kthread_stop(ai->airo_thread_task);
 err_out_free:
 	free_netdev(dev);
 	return NULL;
@@ -3063,13 +3060,7 @@ static int airo_thread(void *data) {
 	struct airo_info *ai = dev->priv;
 	int locked;
 	
-	daemonize("%s", dev->name);
-	allow_signal(SIGTERM);
-
 	while(1) {
-		if (signal_pending(current))
-			flush_signals(current);
-
 		/* make swsusp happy with our thread */
 		try_to_freeze();
 
@@ -3097,7 +3088,7 @@ static int airo_thread(void *data) {
 						set_bit(JOB_AUTOWEP, &ai->jobs);
 						break;
 					}
-					if (!signal_pending(current)) {
+					if (!kthread_should_stop()) {
 						unsigned long wake_at;
 						if (!ai->expires || !ai->scan_timeout) {
 							wake_at = max(ai->expires,
@@ -3109,7 +3100,7 @@ static int airo_thread(void *data) {
 						schedule_timeout(wake_at - jiffies);
 						continue;
 					}
-				} else if (!signal_pending(current)) {
+				} else if (!kthread_should_stop()) {
 					schedule();
 					continue;
 				}
@@ -3154,7 +3145,8 @@ static int airo_thread(void *data) {
 		else  /* Shouldn't get here, but we make sure to unlock */
 			up(&ai->sem);
 	}
-	complete_and_exit (&ai->thr_exited, 0);
+
+	return 0;
 }
 
 static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
@@ -3235,8 +3227,8 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 			if(newStatus == ASSOCIATED || newStatus == REASSOCIATED) {
 				if (auto_wep)
 					apriv->expires = 0;
-				if (apriv->task)
-					wake_up_process (apriv->task);
+				if (apriv->list_bss_task)
+					wake_up_process(apriv->list_bss_task);
 				set_bit(FLAG_UPDATE_UNI, &apriv->flags);
 				set_bit(FLAG_UPDATE_MULTI, &apriv->flags);
 
