@@ -281,7 +281,7 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t message)
 			(void) usb_hcd_pci_resume (dev);
 		}
 
-	} else {
+	} else if (hcd->state != HC_STATE_HALT) {
 		dev_dbg (hcd->self.controller, "hcd state %d; not suspended\n",
 			hcd->state);
 		WARN_ON(1);
