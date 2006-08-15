@@ -1895,6 +1895,8 @@ static inline int remote_wakeup(struct usb_device *udev)
 	return 0;
 }
 
+#define hub_suspend NULL
+#define hub_resume NULL
 #endif
 
 void usb_suspend_root_hub(struct usb_device *hdev)
