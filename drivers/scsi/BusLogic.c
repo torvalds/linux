@@ -2176,6 +2176,7 @@ static int __init BusLogic_init(void)
 {
 	int BusLogicHostAdapterCount = 0, DriverOptionsIndex = 0, ProbeIndex;
 	struct BusLogic_HostAdapter *PrototypeHostAdapter;
+	int ret = 0;
 
 #ifdef MODULE
 	if (BusLogic)
@@ -2282,25 +2283,49 @@ static int __init BusLogic_init(void)
 		   perform Target Device Inquiry.
 		 */
 		if (BusLogic_ReadHostAdapterConfiguration(HostAdapter) &&
-		    BusLogic_ReportHostAdapterConfiguration(HostAdapter) && BusLogic_AcquireResources(HostAdapter) && BusLogic_CreateInitialCCBs(HostAdapter) && BusLogic_InitializeHostAdapter(HostAdapter) && BusLogic_TargetDeviceInquiry(HostAdapter)) {
+		    BusLogic_ReportHostAdapterConfiguration(HostAdapter) &&
+		    BusLogic_AcquireResources(HostAdapter) &&
+		    BusLogic_CreateInitialCCBs(HostAdapter) &&
+		    BusLogic_InitializeHostAdapter(HostAdapter) &&
+		    BusLogic_TargetDeviceInquiry(HostAdapter)) {
 			/*
 			   Initialization has been completed successfully.  Release and
 			   re-register usage of the I/O Address range so that the Model
 			   Name of the Host Adapter will appear, and initialize the SCSI
 			   Host structure.
 			 */
-			release_region(HostAdapter->IO_Address, HostAdapter->AddressCount);
-			if (!request_region(HostAdapter->IO_Address, HostAdapter->AddressCount, HostAdapter->FullModelName)) {
-				printk(KERN_WARNING "BusLogic: Release and re-register of " "port 0x%04lx failed \n", (unsigned long) HostAdapter->IO_Address);
+			release_region(HostAdapter->IO_Address,
+				       HostAdapter->AddressCount);
+			if (!request_region(HostAdapter->IO_Address,
+					    HostAdapter->AddressCount,
+					    HostAdapter->FullModelName)) {
+				printk(KERN_WARNING
+					"BusLogic: Release and re-register of "
+					"port 0x%04lx failed \n",
+					(unsigned long)HostAdapter->IO_Address);
 				BusLogic_DestroyCCBs(HostAdapter);
 				BusLogic_ReleaseResources(HostAdapter);
 				list_del(&HostAdapter->host_list);
 				scsi_host_put(Host);
+				ret = -ENOMEM;
 			} else {
-				BusLogic_InitializeHostStructure(HostAdapter, Host);
-				scsi_add_host(Host, HostAdapter->PCI_Device ? &HostAdapter->PCI_Device->dev : NULL);
-				scsi_scan_host(Host);
-				BusLogicHostAdapterCount++;
+				BusLogic_InitializeHostStructure(HostAdapter,
+								 Host);
+				if (scsi_add_host(Host, HostAdapter->PCI_Device
+						? &HostAdapter->PCI_Device->dev
+						  : NULL)) {
+					printk(KERN_WARNING
+					       "BusLogic: scsi_add_host()"
+					       "failed!\n");
+					BusLogic_DestroyCCBs(HostAdapter);
+					BusLogic_ReleaseResources(HostAdapter);
+					list_del(&HostAdapter->host_list);
+					scsi_host_put(Host);
+					ret = -ENODEV;
+				} else {
+					scsi_scan_host(Host);
+					BusLogicHostAdapterCount++;
+				}
 			}
 		} else {
 			/*
@@ -2315,12 +2340,13 @@ static int __init BusLogic_init(void)
 			BusLogic_ReleaseResources(HostAdapter);
 			list_del(&HostAdapter->host_list);
 			scsi_host_put(Host);
+			ret = -ENODEV;
 		}
 	}
 	kfree(PrototypeHostAdapter);
 	kfree(BusLogic_ProbeInfoList);
 	BusLogic_ProbeInfoList = NULL;
-	return 0;
+	return ret;
 }
 
 
@@ -2954,6 +2980,7 @@ static int BusLogic_QueueCommand(struct scsi_cmnd *Command, void (*CompletionRou
 }
 
 
+#if 0
 /*
   BusLogic_AbortCommand aborts Command if possible.
 */
@@ -3024,6 +3051,7 @@ static int BusLogic_AbortCommand(struct scsi_cmnd *Command)
 	return SUCCESS;
 }
 
+#endif
 /*
   BusLogic_ResetHostAdapter resets Host Adapter if possible, marking all
   currently executing SCSI Commands as having been Reset.
