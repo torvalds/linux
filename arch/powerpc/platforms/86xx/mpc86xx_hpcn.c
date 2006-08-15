@@ -52,6 +52,7 @@ unsigned long pci_dram_offset = 0;
 #endif
 
 
+#ifdef CONFIG_PCI
 static void mpc86xx_8259_cascade(unsigned int irq, struct irq_desc *desc,
 				 struct pt_regs *regs)
 {
@@ -60,14 +61,18 @@ static void mpc86xx_8259_cascade(unsigned int irq, struct irq_desc *desc,
 		generic_handle_irq(cascade_irq, regs);
 	desc->chip->eoi(irq);
 }
+#endif	/* CONFIG_PCI */
 
 void __init
 mpc86xx_hpcn_init_irq(void)
 {
 	struct mpic *mpic1;
-	struct device_node *np, *cascade_node = NULL;
-	int cascade_irq;
+	struct device_node *np;
 	phys_addr_t openpic_paddr;
+#ifdef CONFIG_PCI
+	struct device_node *cascade_node = NULL;
+	int cascade_irq;
+#endif
 
 	np = of_find_node_by_type(NULL, "open-pic");
 	if (np == NULL)
