@@ -3598,7 +3598,7 @@ static void selinux_sk_getsecid(struct sock *sk, u32 *secid)
 	}
 }
 
-void selinux_sock_graft(struct sock* sk, struct socket *parent)
+static void selinux_sock_graft(struct sock* sk, struct socket *parent)
 {
 	struct inode_security_struct *isec = SOCK_INODE(parent)->i_security;
 	struct sk_security_struct *sksec = sk->sk_security;
@@ -3608,8 +3608,8 @@ void selinux_sock_graft(struct sock* sk, struct socket *parent)
 	selinux_netlbl_sock_graft(sk, parent);
 }
 
-int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
-					   struct request_sock *req)
+static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
+				     struct request_sock *req)
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 	int err;
@@ -3638,7 +3638,8 @@ int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	return 0;
 }
 
-void selinux_inet_csk_clone(struct sock *newsk, const struct request_sock *req)
+static void selinux_inet_csk_clone(struct sock *newsk,
+				   const struct request_sock *req)
 {
 	struct sk_security_struct *newsksec = newsk->sk_security;
 
@@ -3649,7 +3650,8 @@ void selinux_inet_csk_clone(struct sock *newsk, const struct request_sock *req)
 	   time it will have been created and available. */
 }
 
-void selinux_req_classify_flow(const struct request_sock *req, struct flowi *fl)
+static void selinux_req_classify_flow(const struct request_sock *req,
+				      struct flowi *fl)
 {
 	fl->secid = req->secid;
 }
