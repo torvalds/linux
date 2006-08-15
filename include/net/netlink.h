@@ -65,6 +65,9 @@
  *   nlmsg_validate()			validate netlink message incl. attrs
  *   nlmsg_for_each_attr()		loop over all attributes
  *
+ * Misc:
+ *   nlmsg_report()			report back to application?
+ *
  * ------------------------------------------------------------------------
  *                          Attributes Interface
  * ------------------------------------------------------------------------
@@ -194,6 +197,9 @@ extern void		netlink_run_queue(struct sock *sk, unsigned int *qlen,
 						    struct nlmsghdr *, int *));
 extern void		netlink_queue_skip(struct nlmsghdr *nlh,
 					   struct sk_buff *skb);
+extern int		nlmsg_notify(struct sock *sk, struct sk_buff *skb,
+				     u32 pid, unsigned int group, int report,
+				     gfp_t flags);
 
 extern int		nla_validate(struct nlattr *head, int len, int maxtype,
 				     struct nla_policy *policy);
@@ -373,6 +379,17 @@ static inline int nlmsg_validate(struct nlmsghdr *nlh, int hdrlen, int maxtype,
 
 	return nla_validate(nlmsg_attrdata(nlh, hdrlen),
 			    nlmsg_attrlen(nlh, hdrlen), maxtype, policy);
+}
+
+/**
+ * nlmsg_report - need to report back to application?
+ * @nlh: netlink message header
+ *
+ * Returns 1 if a report back to the application is requested.
+ */
+static inline int nlmsg_report(struct nlmsghdr *nlh)
+{
+	return !!(nlh->nlmsg_flags & NLM_F_ECHO);
 }
 
 /**

@@ -171,6 +171,22 @@ int rtnl_unicast(struct sk_buff *skb, u32 pid)
 	return nlmsg_unicast(rtnl, skb, pid);
 }
 
+int rtnl_notify(struct sk_buff *skb, u32 pid, u32 group,
+		struct nlmsghdr *nlh, gfp_t flags)
+{
+	int report = 0;
+
+	if (nlh)
+		report = nlmsg_report(nlh);
+
+	return nlmsg_notify(rtnl, skb, pid, group, report, flags);
+}
+
+void rtnl_set_sk_err(u32 group, int error)
+{
+	netlink_set_err(rtnl, 0, group, error);
+}
+
 int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics)
 {
 	struct rtattr *mx = (struct rtattr*)skb->tail;
@@ -829,3 +845,5 @@ EXPORT_SYMBOL(rtnl_lock);
 EXPORT_SYMBOL(rtnl_trylock);
 EXPORT_SYMBOL(rtnl_unlock);
 EXPORT_SYMBOL(rtnl_unicast);
+EXPORT_SYMBOL(rtnl_notify);
+EXPORT_SYMBOL(rtnl_set_sk_err);
