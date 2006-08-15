@@ -477,7 +477,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		/* BB get server time for time conversions and add
 		code to use it and timezone since this is not UTC */	
 
-		if (rsp->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
+		if (rsp->EncryptionKeyLength == cpu_to_le16(CIFS_CRYPTO_KEY_SIZE)) {
 			memcpy(server->cryptKey, rsp->EncryptionKey,
 				CIFS_CRYPTO_KEY_SIZE);
 		} else if (server->secMode & SECMODE_PW_ENCRYPT) {
