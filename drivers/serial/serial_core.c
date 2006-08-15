@@ -792,6 +792,7 @@ static int uart_set_info(struct uart_state *state,
 			 * We failed anyway.
 			 */
 			retval = -EBUSY;
+			goto exit;  // Added to return the correct error -Ram Gupta
 		}
 	}
 
