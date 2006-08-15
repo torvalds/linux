@@ -56,8 +56,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4.43"
-#define DRV_MODULE_RELDATE	"June 28, 2006"
+#define DRV_MODULE_VERSION	"1.4.44"
+#define DRV_MODULE_RELDATE	"August 10, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -1571,7 +1571,7 @@ bnx2_alloc_rx_skb(struct bnx2 *bp, u16 index)
 	struct rx_bd *rxbd = &bp->rx_desc_ring[RX_RING(index)][RX_IDX(index)];
 	unsigned long align;
 
-	skb = dev_alloc_skb(bp->rx_buf_size);
+	skb = netdev_alloc_skb(bp->dev, bp->rx_buf_size);
 	if (skb == NULL) {
 		return -ENOMEM;
 	}
@@ -1580,7 +1580,6 @@ bnx2_alloc_rx_skb(struct bnx2 *bp, u16 index)
 		skb_reserve(skb, 8 - align);
 	}
 
-	skb->dev = bp->dev;
 	mapping = pci_map_single(bp->pdev, skb->data, bp->rx_buf_use_size,
 		PCI_DMA_FROMDEVICE);
 
@@ -1793,7 +1792,7 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 		if ((bp->dev->mtu > 1500) && (len <= RX_COPY_THRESH)) {
 			struct sk_buff *new_skb;
 
-			new_skb = dev_alloc_skb(len + 2);
+			new_skb = netdev_alloc_skb(bp->dev, len + 2);
 			if (new_skb == NULL)
 				goto reuse_rx;
 
@@ -1804,7 +1803,6 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 
 			skb_reserve(new_skb, 2);
 			skb_put(new_skb, len);
-			new_skb->dev = bp->dev;
 
 			bnx2_reuse_rx_skb(bp, skb,
 				sw_ring_cons, sw_ring_prod);
@@ -3961,7 +3959,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 		return -EINVAL;
 
 	pkt_size = 1514;
-	skb = dev_alloc_skb(pkt_size);
+	skb = netdev_alloc_skb(bp->dev, pkt_size);
 	if (!skb)
 		return -ENOMEM;
 	packet = skb_put(skb, pkt_size);
@@ -5754,7 +5752,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->mac_addr[5] = (u8) reg;
 
 	bp->tx_ring_size = MAX_TX_DESC_CNT;
-	bnx2_set_rx_ring_size(bp, 100);
+	bnx2_set_rx_ring_size(bp, 255);
 
 	bp->rx_csum = 1;
 
