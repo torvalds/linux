@@ -69,8 +69,7 @@ struct fib6_cleaner_t
 	void *arg;
 };
 
-DEFINE_RWLOCK(fib6_walker_lock);
-
+static DEFINE_RWLOCK(fib6_walker_lock);
 
 #ifdef CONFIG_IPV6_SUBTREES
 #define FWS_INIT FWS_S
@@ -82,6 +81,8 @@ DEFINE_RWLOCK(fib6_walker_lock);
 
 static void fib6_prune_clones(struct fib6_node *fn, struct rt6_info *rt);
 static struct fib6_node * fib6_repair_tree(struct fib6_node *fn);
+static int fib6_walk(struct fib6_walker_t *w);
+static int fib6_walk_continue(struct fib6_walker_t *w);
 
 /*
  *	A routing update causes an increase of the serial number on the
@@ -94,13 +95,31 @@ static __u32 rt_sernum;
 
 static DEFINE_TIMER(ip6_fib_timer, fib6_run_gc, 0, 0);
 
-struct fib6_walker_t fib6_walker_list = {
+static struct fib6_walker_t fib6_walker_list = {
 	.prev	= &fib6_walker_list,
 	.next	= &fib6_walker_list, 
 };
 
 #define FOR_WALKERS(w) for ((w)=fib6_walker_list.next; (w) != &fib6_walker_list; (w)=(w)->next)
 
+static inline void fib6_walker_link(struct fib6_walker_t *w)
+{
+	write_lock_bh(&fib6_walker_lock);
+	w->next = fib6_walker_list.next;
+	w->prev = &fib6_walker_list;
+	w->next->prev = w;
+	w->prev->next = w;
+	write_unlock_bh(&fib6_walker_lock);
+}
+
+static inline void fib6_walker_unlink(struct fib6_walker_t *w)
+{
+	write_lock_bh(&fib6_walker_lock);
+	w->next->prev = w->prev;
+	w->prev->next = w->next;
+	w->prev = w->next = w;
+	write_unlock_bh(&fib6_walker_lock);
+}
 static __inline__ u32 fib6_new_sernum(void)
 {
 	u32 n = ++rt_sernum;
@@ -1173,7 +1192,7 @@ int fib6_del(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr, struct ne
  *	<0  -> walk is terminated by an error.
  */
 
-int fib6_walk_continue(struct fib6_walker_t *w)
+static int fib6_walk_continue(struct fib6_walker_t *w)
 {
 	struct fib6_node *fn, *pn;
 
@@ -1247,7 +1266,7 @@ int fib6_walk_continue(struct fib6_walker_t *w)
 	}
 }
 
-int fib6_walk(struct fib6_walker_t *w)
+static int fib6_walk(struct fib6_walker_t *w)
 {
 	int res;
 

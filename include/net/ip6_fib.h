@@ -92,28 +92,6 @@ struct fib6_walker_t
 	void *args;
 };
 
-extern struct fib6_walker_t fib6_walker_list;
-extern rwlock_t fib6_walker_lock;
-
-static inline void fib6_walker_link(struct fib6_walker_t *w)
-{
-	write_lock_bh(&fib6_walker_lock);
-	w->next = fib6_walker_list.next;
-	w->prev = &fib6_walker_list;
-	w->next->prev = w;
-	w->prev->next = w;
-	write_unlock_bh(&fib6_walker_lock);
-}
-
-static inline void fib6_walker_unlink(struct fib6_walker_t *w)
-{
-	write_lock_bh(&fib6_walker_lock);
-	w->next->prev = w->prev;
-	w->prev->next = w->next;
-	w->prev = w->next = w;
-	write_unlock_bh(&fib6_walker_lock);
-}
-
 struct rt6_statistics {
 	__u32		fib_nodes;
 	__u32		fib_route_nodes;
@@ -194,9 +172,6 @@ struct fib6_node		*fib6_locate(struct fib6_node *root,
 
 extern void			fib6_clean_all(int (*func)(struct rt6_info *, void *arg),
 					       int prune, void *arg);
-
-extern int			fib6_walk(struct fib6_walker_t *w);
-extern int			fib6_walk_continue(struct fib6_walker_t *w);
 
 extern int			fib6_add(struct fib6_node *root,
 					 struct rt6_info *rt,
