@@ -125,6 +125,8 @@ int i2c_isa_del_driver(struct i2c_driver *driver)
 
 static int __init i2c_isa_init(void)
 {
+	int err;
+
 	mutex_init(&isa_adapter.clist_lock);
 	INIT_LIST_HEAD(&isa_adapter.clients);
 
@@ -133,8 +135,16 @@ static int __init i2c_isa_init(void)
 	sprintf(isa_adapter.dev.bus_id, "i2c-%d", isa_adapter.nr);
 	isa_adapter.dev.driver = &i2c_adapter_driver;
 	isa_adapter.dev.release = &i2c_adapter_dev_release;
-	device_register(&isa_adapter.dev);
-	device_create_file(&isa_adapter.dev, &dev_attr_name);
+	err = device_register(&isa_adapter.dev);
+	if (err) {
+		printk(KERN_ERR "i2c-isa: Failed to register device\n");
+		goto exit;
+	}
+	err = device_create_file(&isa_adapter.dev, &dev_attr_name);
+	if (err) {
+		printk(KERN_ERR "i2c-isa: Failed to create name file\n");
+		goto exit_unregister;
+	}
 
 	/* Add this adapter to the i2c_adapter class */
 	memset(&isa_adapter.class_dev, 0x00, sizeof(struct class_device));
@@ -142,11 +152,24 @@ static int __init i2c_isa_init(void)
 	isa_adapter.class_dev.class = &i2c_adapter_class;
 	strlcpy(isa_adapter.class_dev.class_id, isa_adapter.dev.bus_id,
 		BUS_ID_SIZE);
-	class_device_register(&isa_adapter.class_dev);
+	err = class_device_register(&isa_adapter.class_dev);
+	if (err) {
+		printk(KERN_ERR "i2c-isa: Failed to register class device\n");
+		goto exit_remove_name;
+	}
 
 	dev_dbg(&isa_adapter.dev, "%s registered\n", isa_adapter.name);
 
 	return 0;
+
+exit_remove_name:
+	device_remove_file(&isa_adapter.dev, &dev_attr_name);
+exit_unregister:
+	init_completion(&isa_adapter.dev_released); /* Needed? */
+	device_unregister(&isa_adapter.dev);
+	wait_for_completion(&isa_adapter.dev_released);
+exit:
+	return err;
 }
 
 static void __exit i2c_isa_exit(void)

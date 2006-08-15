@@ -183,15 +183,21 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 	sprintf(adap->dev.bus_id, "i2c-%d", adap->nr);
 	adap->dev.driver = &i2c_adapter_driver;
 	adap->dev.release = &i2c_adapter_dev_release;
-	device_register(&adap->dev);
-	device_create_file(&adap->dev, &dev_attr_name);
+	res = device_register(&adap->dev);
+	if (res)
+		goto out_list;
+	res = device_create_file(&adap->dev, &dev_attr_name);
+	if (res)
+		goto out_unregister;
 
 	/* Add this adapter to the i2c_adapter class */
 	memset(&adap->class_dev, 0x00, sizeof(struct class_device));
 	adap->class_dev.dev = &adap->dev;
 	adap->class_dev.class = &i2c_adapter_class;
 	strlcpy(adap->class_dev.class_id, adap->dev.bus_id, BUS_ID_SIZE);
-	class_device_register(&adap->class_dev);
+	res = class_device_register(&adap->class_dev);
+	if (res)
+		goto out_remove_name;
 
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
@@ -206,6 +212,17 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 out_unlock:
 	mutex_unlock(&core_lists);
 	return res;
+
+out_remove_name:
+	device_remove_file(&adap->dev, &dev_attr_name);
+out_unregister:
+	init_completion(&adap->dev_released); /* Needed? */
+	device_unregister(&adap->dev);
+	wait_for_completion(&adap->dev_released);
+out_list:
+	list_del(&adap->list);
+	idr_remove(&i2c_adapter_idr, adap->nr);
+	goto out_unlock;
 }
 
 
@@ -394,14 +411,14 @@ int i2c_check_addr(struct i2c_adapter *adapter, int addr)
 int i2c_attach_client(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	int res = 0;
 
 	mutex_lock(&adapter->clist_lock);
 	if (__i2c_check_addr(client->adapter, client->addr)) {
-		mutex_unlock(&adapter->clist_lock);
-		return -EBUSY;
+		res = -EBUSY;
+		goto out_unlock;
 	}
 	list_add_tail(&client->list,&adapter->clients);
-	mutex_unlock(&adapter->clist_lock);
 	
 	if (adapter->client_register)  {
 		if (adapter->client_register(client))  {
@@ -422,10 +439,26 @@ int i2c_attach_client(struct i2c_client *client)
 		"%d-%04x", i2c_adapter_id(adapter), client->addr);
 	dev_dbg(&adapter->dev, "client [%s] registered with bus id %s\n",
 		client->name, client->dev.bus_id);
-	device_register(&client->dev);
-	device_create_file(&client->dev, &dev_attr_client_name);
-	
-	return 0;
+	res = device_register(&client->dev);
+	if (res)
+		goto out_list;
+	res = device_create_file(&client->dev, &dev_attr_client_name);
+	if (res)
+		goto out_unregister;
+
+out_unlock:
+	mutex_unlock(&adapter->clist_lock);
+	return res;
+
+out_unregister:
+	init_completion(&client->released); /* Needed? */
+	device_unregister(&client->dev);
+	wait_for_completion(&client->released);
+out_list:
+	list_del(&client->list);
+	dev_err(&adapter->dev, "Failed to attach i2c client %s at 0x%02x "
+		"(%d)\n", client->name, client->addr, res);
+	goto out_unlock;
 }
 
 
