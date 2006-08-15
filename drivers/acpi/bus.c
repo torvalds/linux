@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
@@ -738,7 +739,10 @@ static int __init acpi_init(void)
 		return -ENODEV;
 	}
 
-	firmware_register(&acpi_subsys);
+	result = firmware_register(&acpi_subsys);
+	if (result < 0)
+		printk(KERN_WARNING "%s: firmware_register error: %d\n",
+			__FUNCTION__, result);
 
 	result = acpi_bus_init();
 
