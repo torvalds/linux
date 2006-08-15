@@ -2023,14 +2023,12 @@ static void cp_remove_one (struct pci_dev *pdev)
 #ifdef CONFIG_PM
 static int cp_suspend (struct pci_dev *pdev, pm_message_t state)
 {
-	struct net_device *dev;
-	struct cp_private *cp;
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct cp_private *cp = netdev_priv(dev);
 	unsigned long flags;
 
-	dev = pci_get_drvdata (pdev);
-	cp  = netdev_priv(dev);
-
-	if (!dev || !netif_running (dev)) return 0;
+	if (!netif_running(dev))
+		return 0;
 
 	netif_device_detach (dev);
 	netif_stop_queue (dev);
