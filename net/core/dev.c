@@ -116,6 +116,7 @@
 #include <linux/audit.h>
 #include <linux/dmaengine.h>
 #include <linux/err.h>
+#include <linux/ctype.h>
 
 /*
  *	The list of packet types we will receive (as opposed to discard)
@@ -632,14 +633,22 @@ struct net_device * dev_get_by_flags(unsigned short if_flags, unsigned short mas
  *	@name: name string
  *
  *	Network device names need to be valid file names to
- *	to allow sysfs to work
+ *	to allow sysfs to work.  We also disallow any kind of
+ *	whitespace.
  */
 int dev_valid_name(const char *name)
 {
-	return !(*name == '\0' 
-		 || !strcmp(name, ".")
-		 || !strcmp(name, "..")
-		 || strchr(name, '/'));
+	if (*name == '\0')
+		return 0;
+	if (!strcmp(name, ".") || !strcmp(name, ".."))
+		return 0;
+
+	while (*name) {
+		if (*name == '/' || isspace(*name))
+			return 0;
+		name++;
+	}
+	return 1;
 }
 
 /**
