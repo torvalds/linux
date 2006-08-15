@@ -46,6 +46,7 @@
 #endif
 
 #include "fs_enet.h"
+#include "fec.h"
 
 /*************************************************/
 
@@ -75,50 +76,8 @@
 /* clear bits */
 #define FC(_fecp, _reg, _v) FW(_fecp, _reg, FR(_fecp, _reg) & ~(_v))
 
-
-/* CRC polynomium used by the FEC for the multicast group filtering */
-#define FEC_CRC_POLY   0x04C11DB7
-
-#define FEC_MAX_MULTICAST_ADDRS	64
-
-/* Interrupt events/masks.
-*/
-#define FEC_ENET_HBERR	0x80000000U	/* Heartbeat error          */
-#define FEC_ENET_BABR	0x40000000U	/* Babbling receiver        */
-#define FEC_ENET_BABT	0x20000000U	/* Babbling transmitter     */
-#define FEC_ENET_GRA	0x10000000U	/* Graceful stop complete   */
-#define FEC_ENET_TXF	0x08000000U	/* Full frame transmitted   */
-#define FEC_ENET_TXB	0x04000000U	/* A buffer was transmitted */
-#define FEC_ENET_RXF	0x02000000U	/* Full frame received      */
-#define FEC_ENET_RXB	0x01000000U	/* A buffer was received    */
-#define FEC_ENET_MII	0x00800000U	/* MII interrupt            */
-#define FEC_ENET_EBERR	0x00400000U	/* SDMA bus error           */
-
-#define FEC_ECNTRL_PINMUX	0x00000004
-#define FEC_ECNTRL_ETHER_EN	0x00000002
-#define FEC_ECNTRL_RESET	0x00000001
-
-#define FEC_RCNTRL_BC_REJ	0x00000010
-#define FEC_RCNTRL_PROM		0x00000008
-#define FEC_RCNTRL_MII_MODE	0x00000004
-#define FEC_RCNTRL_DRT		0x00000002
-#define FEC_RCNTRL_LOOP		0x00000001
-
-#define FEC_TCNTRL_FDEN		0x00000004
-#define FEC_TCNTRL_HBC		0x00000002
-#define FEC_TCNTRL_GTS		0x00000001
-
-
-/* Make MII read/write commands for the FEC.
-*/
-#define mk_mii_read(REG)	(0x60020000 | ((REG & 0x1f) << 18))
-#define mk_mii_write(REG, VAL)	(0x50020000 | ((REG & 0x1f) << 18) | (VAL & 0xffff))
-#define mk_mii_end		0
-
-#define FEC_MII_LOOPS	10000
-
 /*
- * Delay to wait for FEC reset command to complete (in us) 
+ * Delay to wait for FEC reset command to complete (in us)
  */
 #define FEC_RESET_DELAY		50
 
@@ -303,13 +262,15 @@ static void restart(struct net_device *dev)
 	int r;
 	u32 addrhi, addrlo;
 
+	struct mii_bus* mii = fep->phydev->bus;
+	struct fec_info* fec_inf = mii->priv;
+
 	r = whack_reset(fep->fec.fecp);
 	if (r != 0)
 		printk(KERN_ERR DRV_MODULE_NAME
 				": %s FEC Reset FAILED!\n", dev->name);
-
 	/*
-	 * Set station address. 
+	 * Set station address.
 	 */
 	addrhi = ((u32) dev->dev_addr[0] << 24) |
 		 ((u32) dev->dev_addr[1] << 16) |
@@ -350,12 +311,12 @@ static void restart(struct net_device *dev)
 	FW(fecp, fun_code, 0x78000000);
 
 	/*
-	 * Set MII speed. 
+	 * Set MII speed.
 	 */
-	FW(fecp, mii_speed, fep->mii_bus->fec.mii_speed);
+	FW(fecp, mii_speed, fec_inf->mii_speed);
 
 	/*
-	 * Clear any outstanding interrupt. 
+	 * Clear any outstanding interrupt.
 	 */
 	FW(fecp, ievent, 0xffc0);
 	FW(fecp, ivec, (fep->interrupt / 2) << 29);
@@ -390,11 +351,12 @@ static void restart(struct net_device *dev)
 	}
 #endif
 
+
 	FW(fecp, r_cntrl, FEC_RCNTRL_MII_MODE);	/* MII enable */
 	/*
-	 * adjust to duplex mode 
+	 * adjust to duplex mode
 	 */
-	if (fep->duplex) {
+	if (fep->phydev->duplex) {
 		FC(fecp, r_cntrl, FEC_RCNTRL_DRT);
 		FS(fecp, x_cntrl, FEC_TCNTRL_FDEN);	/* FD enable */
 	} else {
@@ -418,9 +380,11 @@ static void restart(struct net_device *dev)
 static void stop(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
+	const struct fs_platform_info *fpi = fep->fpi;
 	fec_t *fecp = fep->fec.fecp;
-	struct fs_enet_mii_bus *bus = fep->mii_bus;
-	const struct fs_mii_bus_info *bi = bus->bus_info;
+
+	struct fec_info* feci= fep->phydev->bus->priv;
+
 	int i;
 
 	if ((FR(fecp, ecntrl) & FEC_ECNTRL_ETHER_EN) == 0)
@@ -444,11 +408,11 @@ static void stop(struct net_device *dev)
 	fs_cleanup_bds(dev);
 
 	/* shut down FEC1? that's where the mii bus is */
-	if (fep->fec.idx == 0 && bus->refs > 1 && bi->method == fsmii_fec) {
+	if (fpi->has_phy) {
 		FS(fecp, r_cntrl, FEC_RCNTRL_MII_MODE);	/* MII enable */
 		FS(fecp, ecntrl, FEC_ECNTRL_PINMUX | FEC_ECNTRL_ETHER_EN);
 		FW(fecp, ievent, FEC_ENET_MII);
-		FW(fecp, mii_speed, bus->fec.mii_speed);
+		FW(fecp, mii_speed, feci->mii_speed);
 	}
 }
 
@@ -583,73 +547,3 @@ const struct fs_ops fs_fec_ops = {
 	.free_bd		= free_bd,
 };
 
-/***********************************************************************/
-
-static int mii_read(struct fs_enet_mii_bus *bus, int phy_id, int location)
-{
-	fec_t *fecp = bus->fec.fecp;
-	int i, ret = -1;
-
-	if ((FR(fecp, r_cntrl) & FEC_RCNTRL_MII_MODE) == 0)
-		BUG();
-
-	/* Add PHY address to register command.  */
-	FW(fecp, mii_data, (phy_id << 23) | mk_mii_read(location));
-
-	for (i = 0; i < FEC_MII_LOOPS; i++)
-		if ((FR(fecp, ievent) & FEC_ENET_MII) != 0)
-			break;
-
-	if (i < FEC_MII_LOOPS) {
-		FW(fecp, ievent, FEC_ENET_MII);
-		ret = FR(fecp, mii_data) & 0xffff;
-	}
-
-	return ret;
-}
-
-static void mii_write(struct fs_enet_mii_bus *bus, int phy_id, int location, int value)
-{
-	fec_t *fecp = bus->fec.fecp;
-	int i;
-
-	/* this must never happen */
-	if ((FR(fecp, r_cntrl) & FEC_RCNTRL_MII_MODE) == 0)
-		BUG();
-
-	/* Add PHY address to register command.  */
-	FW(fecp, mii_data, (phy_id << 23) | mk_mii_write(location, value));
-
-	for (i = 0; i < FEC_MII_LOOPS; i++)
-		if ((FR(fecp, ievent) & FEC_ENET_MII) != 0)
-			break;
-
-	if (i < FEC_MII_LOOPS)
-		FW(fecp, ievent, FEC_ENET_MII);
-}
-
-int fs_mii_fec_init(struct fs_enet_mii_bus *bus)
-{
-	bd_t *bd = (bd_t *)__res;
-	const struct fs_mii_bus_info *bi = bus->bus_info;
-	fec_t *fecp;
-
-	if (bi->id != 0)
-		return -1;
-
-	bus->fec.fecp = &((immap_t *)fs_enet_immap)->im_cpm.cp_fec;
-	bus->fec.mii_speed = ((((bd->bi_intfreq + 4999999) / 2500000) / 2)
-				& 0x3F) << 1;
-
-	fecp = bus->fec.fecp;
-
-	FS(fecp, r_cntrl, FEC_RCNTRL_MII_MODE);	/* MII enable */
-	FS(fecp, ecntrl, FEC_ECNTRL_PINMUX | FEC_ECNTRL_ETHER_EN);
-	FW(fecp, ievent, FEC_ENET_MII);
-	FW(fecp, mii_speed, bus->fec.mii_speed);
-
-	bus->mii_read = mii_read;
-	bus->mii_write = mii_write;
-
-	return 0;
-}
