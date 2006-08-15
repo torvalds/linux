@@ -262,25 +262,6 @@ struct velocity_rd_info {
 	dma_addr_t skb_dma;
 };
 
-/**
- *	alloc_rd_info		-	allocate an rd info block
- *
- *	Alocate and initialize a receive info structure used for keeping
- *	track of kernel side information related to each receive
- *	descriptor we are using
- */
-
-static inline struct velocity_rd_info *alloc_rd_info(void)
-{
-	struct velocity_rd_info *ptr;
-	if ((ptr = kmalloc(sizeof(struct velocity_rd_info), GFP_ATOMIC)) == NULL)
-		return NULL;
-	else {
-		memset(ptr, 0, sizeof(struct velocity_rd_info));
-		return ptr;
-	}
-}
-
 /*
  *	Used to track transmit side buffers.
  */
