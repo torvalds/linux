@@ -424,6 +424,10 @@ int device_add(struct device *dev)
 	if ((error = kobject_add(&dev->kobj)))
 		goto Error;
 
+	/* notify platform of device entry */
+	if (platform_notify)
+		platform_notify(dev);
+
 	dev->uevent_attr.attr.name = "uevent";
 	dev->uevent_attr.attr.mode = S_IWUSR;
 	if (dev->driver)
@@ -488,10 +492,6 @@ int device_add(struct device *dev)
 				class_intf->add_dev(dev, class_intf);
 		up(&dev->class->sem);
 	}
-
-	/* notify platform of device entry */
-	if (platform_notify)
-		platform_notify(dev);
  Done:
  	kfree(class_name);
 	put_device(dev);
