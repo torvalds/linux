@@ -1,10 +1,10 @@
-/*arch/ppc/platforms/mpc885ads-setup.c
+/*arch/ppc/platforms/mpc866ads-setup.c
  *
- * Platform setup for the Freescale mpc885ads board
+ * Platform setup for the Freescale mpc866ads board
  *
  * Vitaly Bordug <vbordug@ru.mvista.com>
  *
- * Copyright 2005 MontaVista Software Inc.
+ * Copyright 2005-2006 MontaVista Software Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -42,49 +42,36 @@ static void setup_scc1_ioports(void);
 static void setup_smc1_ioports(void);
 static void setup_smc2_ioports(void);
 
-static struct fs_mii_bus_info fec_mii_bus_info = {
-	.method = fsmii_fec,
-	.id = 0,
-};
+static struct fs_mii_fec_platform_info	mpc8xx_mdio_fec_pdata;
 
-static struct fs_mii_bus_info scc_mii_bus_info = {
-	.method = fsmii_fixed,
-	.id = 0,
-	.i.fixed.speed = 10,
-	.i.fixed.duplex = 0,
-};
+static struct fs_mii_fec_platform_info mpc8xx_mdio_fec_pdata;
 
-static struct fs_platform_info mpc8xx_fec_pdata[] = {
-	{
-	 .rx_ring = 128,
-	 .tx_ring = 16,
-	 .rx_copybreak = 240,
+static struct fs_platform_info mpc8xx_enet_pdata[] = {
+	[fsid_fec1] = {
+		.rx_ring = 128,
+		.tx_ring = 16,
+		.rx_copybreak = 240,
 
-	 .use_napi = 1,
-	 .napi_weight = 17,
+		.use_napi = 1,
+		.napi_weight = 17,
 
-	 .phy_addr = 15,
-	 .phy_irq = -1,
+		.init_ioports = setup_fec1_ioports,
 
-	 .use_rmii = 0,
+		.bus_id = "0:0f",
+		.has_phy = 1,
+	},
+	[fsid_scc1] = {
+		.rx_ring = 64,
+		.tx_ring = 8,
+		.rx_copybreak = 240,
+		.use_napi = 1,
+		.napi_weight = 17,
 
-	 .bus_info = &fec_mii_bus_info,
-	 }
-};
 
-static struct fs_platform_info mpc8xx_scc_pdata = {
-	.rx_ring = 64,
-	.tx_ring = 8,
-	.rx_copybreak = 240,
+		.init_ioports = setup_scc1_ioports,
 
-	.use_napi = 1,
-	.napi_weight = 17,
-
-	.phy_addr = -1,
-	.phy_irq = -1,
-
-	.bus_info = &scc_mii_bus_info,
-
+		.bus_id = "fixed@100:1",
+	},
 };
 
 static struct fs_uart_platform_info mpc866_uart_pdata[] = {
@@ -207,63 +194,6 @@ static void setup_scc1_ioports(void)
 
 }
 
-static void mpc866ads_fixup_enet_pdata(struct platform_device *pdev, int fs_no)
-{
-	struct fs_platform_info *fpi = pdev->dev.platform_data;
-
-	volatile cpm8xx_t *cp;
-	bd_t *bd = (bd_t *) __res;
-	char *e;
-	int i;
-
-	/* Get pointer to Communication Processor */
-	cp = cpmp;
-	switch (fs_no) {
-	case fsid_fec1:
-		fpi = &mpc8xx_fec_pdata[0];
-		fpi->init_ioports = &setup_fec1_ioports;
-
-		break;
-	case fsid_scc1:
-		fpi = &mpc8xx_scc_pdata;
-		fpi->init_ioports = &setup_scc1_ioports;
-
-		break;
-	default:
-		printk(KERN_WARNING"Device %s is not supported!\n", pdev->name);
-		return;
-	}
-
-	pdev->dev.platform_data = fpi;
-	fpi->fs_no = fs_no;
-
-	e = (unsigned char *)&bd->bi_enetaddr;
-	for (i = 0; i < 6; i++)
-		fpi->macaddr[i] = *e++;
-
-	fpi->macaddr[5 - pdev->id]++;
-
-}
-
-static void mpc866ads_fixup_fec_enet_pdata(struct platform_device *pdev,
-					   int idx)
-{
-	/* This is for FEC devices only */
-	if (!pdev || !pdev->name || (!strstr(pdev->name, "fsl-cpm-fec")))
-		return;
-	mpc866ads_fixup_enet_pdata(pdev, fsid_fec1 + pdev->id - 1);
-}
-
-static void mpc866ads_fixup_scc_enet_pdata(struct platform_device *pdev,
-					   int idx)
-{
-	/* This is for SCC devices only */
-	if (!pdev || !pdev->name || (!strstr(pdev->name, "fsl-cpm-scc")))
-		return;
-
-	mpc866ads_fixup_enet_pdata(pdev, fsid_scc1 + pdev->id - 1);
-}
-
 static void setup_smc1_ioports(void)
 {
 	immap_t *immap = (immap_t *) IMAP_ADDR;
@@ -315,6 +245,56 @@ static void setup_smc2_ioports(void)
 
 }
 
+static int ma_count = 0;
+
+static void mpc866ads_fixup_enet_pdata(struct platform_device *pdev, int fs_no)
+{
+	struct fs_platform_info *fpi;
+
+	volatile cpm8xx_t *cp;
+	bd_t *bd = (bd_t *) __res;
+	char *e;
+	int i;
+
+	/* Get pointer to Communication Processor */
+	cp = cpmp;
+
+	if(fs_no > ARRAY_SIZE(mpc8xx_enet_pdata)) {
+		printk(KERN_ERR"No network-suitable #%d device on bus", fs_no);
+		return;
+	}
+
+
+	fpi = &mpc8xx_enet_pdata[fs_no];
+	fpi->fs_no = fs_no;
+	pdev->dev.platform_data = fpi;
+
+	e = (unsigned char *)&bd->bi_enetaddr;
+	for (i = 0; i < 6; i++)
+		fpi->macaddr[i] = *e++;
+
+	fpi->macaddr[5] += ma_count++;
+}
+
+static void mpc866ads_fixup_fec_enet_pdata(struct platform_device *pdev,
+					   int idx)
+{
+	/* This is for FEC devices only */
+	if (!pdev || !pdev->name || (!strstr(pdev->name, "fsl-cpm-fec")))
+		return;
+	mpc866ads_fixup_enet_pdata(pdev, fsid_fec1 + pdev->id - 1);
+}
+
+static void mpc866ads_fixup_scc_enet_pdata(struct platform_device *pdev,
+					   int idx)
+{
+	/* This is for SCC devices only */
+	if (!pdev || !pdev->name || (!strstr(pdev->name, "fsl-cpm-scc")))
+		return;
+
+	mpc866ads_fixup_enet_pdata(pdev, fsid_scc1 + pdev->id - 1);
+}
+
 static void __init mpc866ads_fixup_uart_pdata(struct platform_device *pdev,
                                               int idx)
 {
@@ -359,6 +339,9 @@ static int mpc866ads_platform_notify(struct device *dev)
 
 int __init mpc866ads_init(void)
 {
+	bd_t *bd = (bd_t *) __res;
+	struct fs_mii_fec_platform_info* fmpi;
+
 	printk(KERN_NOTICE "mpc866ads: Init\n");
 
 	platform_notify = mpc866ads_platform_notify;
@@ -366,10 +349,19 @@ int __init mpc866ads_init(void)
 	ppc_sys_device_initfunc();
 	ppc_sys_device_disable_all();
 
-#ifdef MPC8xx_SECOND_ETH_SCC1
+#ifdef CONFIG_MPC8xx_SECOND_ETH_SCC1
 	ppc_sys_device_enable(MPC8xx_CPM_SCC1);
 #endif
 	ppc_sys_device_enable(MPC8xx_CPM_FEC1);
+
+	ppc_sys_device_enable(MPC8xx_MDIO_FEC);
+
+	fmpi = ppc_sys_platform_devices[MPC8xx_MDIO_FEC].dev.platform_data =
+		&mpc8xx_mdio_fec_pdata;
+
+	fmpi->mii_speed = ((((bd->bi_intfreq + 4999999) / 2500000) / 2) & 0x3F) << 1;
+	/* No PHY interrupt line here */
+	fmpi->irq[0xf] = -1;
 
 /* Since either of the uarts could be used as console, they need to ready */
 #ifdef CONFIG_SERIAL_CPM_SMC1
@@ -381,6 +373,14 @@ int __init mpc866ads_init(void)
 	ppc_sys_device_enable(MPC8xx_CPM_SMC2);
 	ppc_sys_device_setfunc(MPC8xx_CPM_SMC2, PPC_SYS_FUNC_UART);
 #endif
+	ppc_sys_device_enable(MPC8xx_MDIO_FEC);
+
+	fmpi = ppc_sys_platform_devices[MPC8xx_MDIO_FEC].dev.platform_data =
+		&mpc8xx_mdio_fec_pdata;
+
+	fmpi->mii_speed = ((((bd->bi_intfreq + 4999999) / 2500000) / 2) & 0x3F) << 1;
+	/* No PHY interrupt line here */
+	fmpi->irq[0xf] = -1;
 
 	return 0;
 }

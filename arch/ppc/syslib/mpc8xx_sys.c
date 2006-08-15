@@ -22,7 +22,7 @@ struct ppc_sys_spec ppc_sys_specs[] = {
 		.ppc_sys_name	= "MPC86X",
 		.mask 		= 0xFFFFFFFF,
 		.value 		= 0x00000000,
-		.num_devices	= 7,
+		.num_devices	= 8,
 		.device_list	= (enum ppc_sys_devices[])
 		{
 			MPC8xx_CPM_FEC1,
@@ -32,13 +32,14 @@ struct ppc_sys_spec ppc_sys_specs[] = {
 			MPC8xx_CPM_SCC4,
 			MPC8xx_CPM_SMC1,
 			MPC8xx_CPM_SMC2,
+			MPC8xx_MDIO_FEC,
 		},
 	},
 	{
 		.ppc_sys_name	= "MPC885",
 		.mask 		= 0xFFFFFFFF,
 		.value 		= 0x00000000,
-		.num_devices	= 8,
+		.num_devices	= 9,
 		.device_list	= (enum ppc_sys_devices[])
 		{
 			MPC8xx_CPM_FEC1,
@@ -49,6 +50,7 @@ struct ppc_sys_spec ppc_sys_specs[] = {
 			MPC8xx_CPM_SCC4,
 			MPC8xx_CPM_SMC1,
 			MPC8xx_CPM_SMC2,
+			MPC8xx_MDIO_FEC,
 		},
 	},
 	{	/* default match */
