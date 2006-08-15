@@ -155,6 +155,8 @@ enum
 	UDP_MIB_NOPORTS,			/* NoPorts */
 	UDP_MIB_INERRORS,			/* InErrors */
 	UDP_MIB_OUTDATAGRAMS,			/* OutDatagrams */
+	UDP_MIB_RCVBUFERRORS,			/* RcvbufErrors */
+	UDP_MIB_SNDBUFERRORS,			/* SndbufErrors */
 	__UDP_MIB_MAX
 };
 
