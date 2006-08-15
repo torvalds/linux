@@ -67,10 +67,8 @@ static int __init topology_init(void)
 #endif
 
 	sysfs_cpus = kzalloc(sizeof(struct ia64_cpu) * NR_CPUS, GFP_KERNEL);
-	if (!sysfs_cpus) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!sysfs_cpus)
+		panic("kzalloc in topology_init failed - NR_CPUS too big?");
 
 	for_each_present_cpu(i) {
 		if((err = arch_register_cpu(i)))
