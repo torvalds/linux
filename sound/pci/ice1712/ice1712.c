@@ -1857,7 +1857,7 @@ static int snd_ice1712_pro_internal_clock_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	static unsigned int xrate[13] = {
-		8000, 9600, 11025, 12000, 1600, 22050, 24000,
+		8000, 9600, 11025, 12000, 16000, 22050, 24000,
 		32000, 44100, 48000, 64000, 88200, 96000
 	};
 	unsigned char oval;
@@ -1924,7 +1924,7 @@ static int snd_ice1712_pro_internal_clock_default_get(struct snd_kcontrol *kcont
 {
 	int val;
 	static unsigned int xrate[13] = {
-		8000, 9600, 11025, 12000, 1600, 22050, 24000,
+		8000, 9600, 11025, 12000, 16000, 22050, 24000,
 		32000, 44100, 48000, 64000, 88200, 96000
 	};
 
@@ -1941,7 +1941,7 @@ static int snd_ice1712_pro_internal_clock_default_put(struct snd_kcontrol *kcont
 						      struct snd_ctl_elem_value *ucontrol)
 {
 	static unsigned int xrate[13] = {
-		8000, 9600, 11025, 12000, 1600, 22050, 24000,
+		8000, 9600, 11025, 12000, 16000, 22050, 24000,
 		32000, 44100, 48000, 64000, 88200, 96000
 	};
 	unsigned char oval;
