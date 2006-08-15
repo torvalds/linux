@@ -58,6 +58,7 @@
 #endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
 
 static DEFINE_MUTEX(rtnl_mutex);
+static struct sock *rtnl;
 
 void rtnl_lock(void)
 {
@@ -94,8 +95,6 @@ int rtattr_parse(struct rtattr *tb[], int maxattr, struct rtattr *rta, int len)
 	}
 	return 0;
 }
-
-struct sock *rtnl;
 
 struct rtnetlink_link * rtnetlink_links[NPROTO];
 
@@ -842,7 +841,6 @@ EXPORT_SYMBOL(rtattr_strlcpy);
 EXPORT_SYMBOL(rtattr_parse);
 EXPORT_SYMBOL(rtnetlink_links);
 EXPORT_SYMBOL(rtnetlink_put_metrics);
-EXPORT_SYMBOL(rtnl);
 EXPORT_SYMBOL(rtnl_lock);
 EXPORT_SYMBOL(rtnl_trylock);
 EXPORT_SYMBOL(rtnl_unlock);

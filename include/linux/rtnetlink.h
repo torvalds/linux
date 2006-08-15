@@ -574,8 +574,6 @@ extern int rtattr_parse(struct rtattr *tb[], int maxattr, struct rtattr *rta, in
 #define rtattr_parse_nested(tb, max, rta) \
 	rtattr_parse((tb), (max), RTA_DATA((rta)), RTA_PAYLOAD((rta)))
 
-extern struct sock *rtnl;
-
 struct rtnetlink_link
 {
 	int (*doit)(struct sk_buff *, struct nlmsghdr*, void *attr);
