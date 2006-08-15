@@ -404,7 +404,7 @@ static int i915_emit_box(drm_device_t * dev,
 		BEGIN_LP_RING(4);
 		OUT_RING(GFX_OP_DRAWRECT_INFO_I965);
 		OUT_RING((box.x1 & 0xffff) | (box.y1 << 16));
-		OUT_RING(((box.x2 - 1) & 0xffff) ((box.y2 - 1) << 16));
+		OUT_RING(((box.x2 - 1) & 0xffff) | ((box.y2 - 1) << 16));
 		OUT_RING(DR4);
 		ADVANCE_LP_RING();
 	} else {
