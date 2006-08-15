@@ -2199,13 +2199,13 @@ void ip_mc_drop_socket(struct sock *sk)
 		struct in_device *in_dev;
 		inet->mc_list = iml->next;
 
-		if ((in_dev = inetdev_by_index(iml->multi.imr_ifindex)) != NULL) {
-			(void) ip_mc_leave_src(sk, iml, in_dev);
+		in_dev = inetdev_by_index(iml->multi.imr_ifindex);
+		(void) ip_mc_leave_src(sk, iml, in_dev);
+		if (in_dev != NULL) {
 			ip_mc_dec_group(in_dev, iml->multi.imr_multiaddr.s_addr);
 			in_dev_put(in_dev);
 		}
 		sock_kfree_s(sk, iml, sizeof(*iml));
-
 	}
 	rtnl_unlock();
 }
