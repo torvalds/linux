@@ -209,8 +209,10 @@ MODULE_DEVICE_TABLE(pci, bnx2_pci_tbl);
 
 static inline u32 bnx2_tx_avail(struct bnx2 *bp)
 {
-	u32 diff = TX_RING_IDX(bp->tx_prod) - TX_RING_IDX(bp->tx_cons);
+	u32 diff;
 
+	smp_mb();
+	diff = TX_RING_IDX(bp->tx_prod) - TX_RING_IDX(bp->tx_cons);
 	if (diff > MAX_TX_DESC_CNT)
 		diff = (diff & MAX_TX_DESC_CNT) - 1;
 	return (bp->tx_ring_size - diff);
@@ -1686,15 +1688,20 @@ bnx2_tx_int(struct bnx2 *bp)
 	}
 
 	bp->tx_cons = sw_cons;
+	/* Need to make the tx_cons update visible to bnx2_start_xmit()
+	 * before checking for netif_queue_stopped().  Without the
+	 * memory barrier, there is a small possibility that bnx2_start_xmit()
+	 * will miss it and cause the queue to be stopped forever.
+	 */
+	smp_mb();
 
-	if (unlikely(netif_queue_stopped(bp->dev))) {
-		spin_lock(&bp->tx_lock);
+	if (unlikely(netif_queue_stopped(bp->dev)) &&
+		     (bnx2_tx_avail(bp) > bp->tx_wake_thresh)) {
+		netif_tx_lock(bp->dev);
 		if ((netif_queue_stopped(bp->dev)) &&
-		    (bnx2_tx_avail(bp) > MAX_SKB_FRAGS)) {
-
+		    (bnx2_tx_avail(bp) > bp->tx_wake_thresh))
 			netif_wake_queue(bp->dev);
-		}
-		spin_unlock(&bp->tx_lock);
+		netif_tx_unlock(bp->dev);
 	}
 }
 
@@ -3503,6 +3510,8 @@ bnx2_init_tx_ring(struct bnx2 *bp)
 	struct tx_bd *txbd;
 	u32 val;
 
+	bp->tx_wake_thresh = bp->tx_ring_size / 2;
+
 	txbd = &bp->tx_desc_ring[MAX_TX_DESC_CNT];
 		
 	txbd->tx_bd_haddr_hi = (u64) bp->tx_desc_mapping >> 32;
@@ -4390,10 +4399,8 @@ bnx2_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 #endif
 
 /* Called with netif_tx_lock.
- * hard_start_xmit is pseudo-lockless - a lock is only required when
- * the tx queue is full. This way, we get the benefit of lockless
- * operations most of the time without the complexities to handle
- * netif_stop_queue/wake_queue race conditions.
+ * bnx2_tx_int() runs without netif_tx_lock unless it needs to call
+ * netif_wake_queue().
  */
 static int
 bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -4512,12 +4519,9 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->trans_start = jiffies;
 
 	if (unlikely(bnx2_tx_avail(bp) <= MAX_SKB_FRAGS)) {
-		spin_lock(&bp->tx_lock);
 		netif_stop_queue(dev);
-		
-		if (bnx2_tx_avail(bp) > MAX_SKB_FRAGS)
+		if (bnx2_tx_avail(bp) > bp->tx_wake_thresh)
 			netif_wake_queue(dev);
-		spin_unlock(&bp->tx_lock);
 	}
 
 	return NETDEV_TX_OK;
@@ -5628,7 +5632,6 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->pdev = pdev;
 
 	spin_lock_init(&bp->phy_lock);
-	spin_lock_init(&bp->tx_lock);
 	INIT_WORK(&bp->reset_task, bnx2_reset_task, bp);
 
 	dev->base_addr = dev->mem_start = pci_resource_start(pdev, 0);
