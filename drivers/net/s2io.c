@@ -71,6 +71,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/div64.h>
+#include <asm/irq.h>
 
 /* local include */
 #include "s2io.h"
