@@ -2219,6 +2219,33 @@ config GFAR_NAPI
 	bool "NAPI Support"
 	depends on GIANFAR
 
+config UCC_GETH
+	tristate "Freescale QE UCC GETH"
+	depends on QUICC_ENGINE && UCC_FAST
+	help
+	  This driver supports the Gigabit Ethernet mode of QE UCC.
+	  QE can be found on MPC836x CPUs.
+
+config UGETH_NAPI
+	bool "NAPI Support"
+	depends on UCC_GETH
+
+config UGETH_MAGIC_PACKET
+	bool "Magic Packet detection support"
+	depends on UCC_GETH
+
+config UGETH_FILTERING
+	bool "Mac address filtering support"
+	depends on UCC_GETH
+
+config UGETH_TX_ON_DEMOND
+	bool "Transmit on Demond support"
+	depends on UCC_GETH
+
+config UGETH_HAS_GIGA
+	bool
+	depends on UCC_GETH && MPC836x
+
 config MV643XX_ETH
 	tristate "MV-643XX Ethernet support"
 	depends on MOMENCO_OCELOT_C || MOMENCO_JAGUAR_ATX || MV64360 || MOMENCO_OCELOT_3 || PPC_MULTIPLATFORM
