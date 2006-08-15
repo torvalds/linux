@@ -35,7 +35,6 @@
 #include <linux/netdevice.h>
 #include <linux/in6.h>
 #include <linux/init.h>
-#include <linux/netlink.h>
 #include <linux/if_arp.h>
 
 #ifdef 	CONFIG_PROC_FS
@@ -54,6 +53,7 @@
 #include <net/dst.h>
 #include <net/xfrm.h>
 #include <net/netevent.h>
+#include <net/netlink.h>
 
 #include <asm/uaccess.h>
 
@@ -2056,27 +2056,25 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nlmsghdr *nlh,
 			struct netlink_skb_parms *req)
 {
 	struct sk_buff *skb;
-	int size = NLMSG_SPACE(sizeof(struct rtmsg)+256);
-	u32 pid = current->pid;
-	u32 seq = 0;
+	u32 pid = req ? req->pid : 0;
+	u32 seq = nlh ? nlh->nlmsg_seq : 0;
+	int payload = sizeof(struct rtmsg) + 256;
+	int err = -ENOBUFS;
 
-	if (req)
-		pid = req->pid;
-	if (nlh)
-		seq = nlh->nlmsg_seq;
-	
-	skb = alloc_skb(size, gfp_any());
-	if (!skb) {
-		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_ROUTE, ENOBUFS);
-		return;
-	}
-	if (rt6_fill_node(skb, rt, NULL, NULL, 0, event, pid, seq, 0, 0) < 0) {
+	skb = nlmsg_new(nlmsg_total_size(payload), gfp_any());
+	if (skb == NULL)
+		goto errout;
+
+	err = rt6_fill_node(skb, rt, NULL, NULL, 0, event, pid, seq, 0, 0);
+	if (err < 0) {
 		kfree_skb(skb);
-		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_ROUTE, EINVAL);
-		return;
+		goto errout;
 	}
-	NETLINK_CB(skb).dst_group = RTNLGRP_IPV6_ROUTE;
-	netlink_broadcast(rtnl, skb, 0, RTNLGRP_IPV6_ROUTE, gfp_any());
+
+	err = rtnl_notify(skb, pid, RTNLGRP_IPV6_ROUTE, nlh, gfp_any());
+errout:
+	if (err < 0)
+		rtnl_set_sk_err(RTNLGRP_IPV6_ROUTE, err);
 }
 
 /*
