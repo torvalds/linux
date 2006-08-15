@@ -3274,6 +3274,7 @@ static int bcm43xx_shutdown_all_wireless_cores(struct bcm43xx_private *bcm)
 /* This is the opposite of bcm43xx_init_board() */
 static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 {
+	bcm43xx_rng_exit(bcm);
 	bcm43xx_sysfs_unregister(bcm);
 	bcm43xx_periodic_tasks_delete(bcm);
 
@@ -3541,6 +3542,9 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 	err = bcm43xx_sysfs_register(bcm);
 	if (err)
 		goto err_wlshutdown;
+	err = bcm43xx_rng_init(bcm);
+	if (err)
+		goto err_sysfs_unreg;
 
 	/*FIXME: This should be handled by softmac instead. */
 	schedule_work(&bcm->softmac->associnfo.work);
@@ -3550,6 +3554,8 @@ out:
 
 	return err;
 
+err_sysfs_unreg:
+	bcm43xx_sysfs_unregister(bcm);
 err_wlshutdown:
 	bcm43xx_shutdown_all_wireless_cores(bcm);
 err_crystal_off:
