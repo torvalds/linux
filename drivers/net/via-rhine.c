@@ -44,6 +44,10 @@ static int max_interrupt_work = 20;
    Setting to > 1518 effectively disables this feature. */
 static int rx_copybreak;
 
+/* Work-around for broken BIOSes: they are unable to get the chip back out of
+   power state D3 so PXE booting fails. bootparam(7): via-rhine.avoid_D3=1 */
+static int avoid_D3;
+
 /*
  * In case you are looking for 'options[]' or 'full_duplex[]', they
  * are gone. Use ethtool(8) instead.
@@ -120,9 +124,11 @@ MODULE_LICENSE("GPL");
 module_param(max_interrupt_work, int, 0);
 module_param(debug, int, 0);
 module_param(rx_copybreak, int, 0);
+module_param(avoid_D3, bool, 0);
 MODULE_PARM_DESC(max_interrupt_work, "VIA Rhine maximum events handled per interrupt");
 MODULE_PARM_DESC(debug, "VIA Rhine debug level (0-7)");
 MODULE_PARM_DESC(rx_copybreak, "VIA Rhine copy breakpoint for copy-only-tiny-frames");
+MODULE_PARM_DESC(avoid_D3, "Avoid power state D3 (work-around for broken BIOSes)");
 
 /*
 		Theory of Operation
@@ -823,6 +829,9 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 		}
 	}
 	rp->mii_if.phy_id = phy_id;
+	if (debug > 1 && avoid_D3)
+		printk(KERN_INFO "%s: No D3 power state at shutdown.\n",
+		       dev->name);
 
 	return 0;
 
@@ -1911,7 +1920,8 @@ static void rhine_shutdown (struct pci_dev *pdev)
 	}
 
 	/* Hit power state D3 (sleep) */
-	iowrite8(ioread8(ioaddr + StickyHW) | 0x03, ioaddr + StickyHW);
+	if (!avoid_D3)
+		iowrite8(ioread8(ioaddr + StickyHW) | 0x03, ioaddr + StickyHW);
 
 	/* TODO: Check use of pci_enable_wake() */
 
