@@ -34,6 +34,7 @@ static inline char *suspend_verb(u32 event)
 	switch (event) {
 	case PM_EVENT_SUSPEND:	return "suspend";
 	case PM_EVENT_FREEZE:	return "freeze";
+	case PM_EVENT_PRETHAW:	return "prethaw";
 	default:		return "(unknown suspend event)";
 	}
 }
