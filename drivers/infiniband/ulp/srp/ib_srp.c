@@ -1449,12 +1449,28 @@ static ssize_t show_zero_req_lim(struct class_device *cdev, char *buf)
 	return sprintf(buf, "%d\n", target->zero_req_lim);
 }
 
-static CLASS_DEVICE_ATTR(id_ext,	S_IRUGO, show_id_ext,		NULL);
-static CLASS_DEVICE_ATTR(ioc_guid,	S_IRUGO, show_ioc_guid,		NULL);
-static CLASS_DEVICE_ATTR(service_id,	S_IRUGO, show_service_id,	NULL);
-static CLASS_DEVICE_ATTR(pkey,		S_IRUGO, show_pkey,		NULL);
-static CLASS_DEVICE_ATTR(dgid,		S_IRUGO, show_dgid,		NULL);
-static CLASS_DEVICE_ATTR(zero_req_lim,	S_IRUGO, show_zero_req_lim,	NULL);
+static ssize_t show_local_ib_port(struct class_device *cdev, char *buf)
+{
+	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+
+	return sprintf(buf, "%d\n", target->srp_host->port);
+}
+
+static ssize_t show_local_ib_device(struct class_device *cdev, char *buf)
+{
+	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+
+	return sprintf(buf, "%s\n", target->srp_host->dev->dev->name);
+}
+
+static CLASS_DEVICE_ATTR(id_ext,	  S_IRUGO, show_id_ext,		 NULL);
+static CLASS_DEVICE_ATTR(ioc_guid,	  S_IRUGO, show_ioc_guid,	 NULL);
+static CLASS_DEVICE_ATTR(service_id,	  S_IRUGO, show_service_id,	 NULL);
+static CLASS_DEVICE_ATTR(pkey,		  S_IRUGO, show_pkey,		 NULL);
+static CLASS_DEVICE_ATTR(dgid,		  S_IRUGO, show_dgid,		 NULL);
+static CLASS_DEVICE_ATTR(zero_req_lim,	  S_IRUGO, show_zero_req_lim,	 NULL);
+static CLASS_DEVICE_ATTR(local_ib_port,   S_IRUGO, show_local_ib_port,	 NULL);
+static CLASS_DEVICE_ATTR(local_ib_device, S_IRUGO, show_local_ib_device, NULL);
 
 static struct class_device_attribute *srp_host_attrs[] = {
 	&class_device_attr_id_ext,
@@ -1463,6 +1479,8 @@ static struct class_device_attribute *srp_host_attrs[] = {
 	&class_device_attr_pkey,
 	&class_device_attr_dgid,
 	&class_device_attr_zero_req_lim,
+	&class_device_attr_local_ib_port,
+	&class_device_attr_local_ib_device,
 	NULL
 };
 
