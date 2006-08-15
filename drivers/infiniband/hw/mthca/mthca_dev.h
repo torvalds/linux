@@ -45,6 +45,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/timer.h>
 #include <linux/mutex.h>
+#include <linux/list.h>
 
 #include <asm/semaphore.h>
 
@@ -283,7 +284,10 @@ struct mthca_catas_err {
 	unsigned long		stop;
 	u32			size;
 	struct timer_list	timer;
+	struct list_head	list;
 };
+
+extern struct mutex mthca_device_mutex;
 
 struct mthca_dev {
 	struct ib_device  ib_dev;
@@ -450,6 +454,9 @@ void mthca_unregister_device(struct mthca_dev *dev);
 
 void mthca_start_catas_poll(struct mthca_dev *dev);
 void mthca_stop_catas_poll(struct mthca_dev *dev);
+int __mthca_restart_one(struct pci_dev *pdev);
+int mthca_catas_init(void);
+void mthca_catas_cleanup(void);
 
 int mthca_uar_alloc(struct mthca_dev *dev, struct mthca_uar *uar);
 void mthca_uar_free(struct mthca_dev *dev, struct mthca_uar *uar);
