@@ -155,10 +155,12 @@ int drm_lastclose(drm_device_t * dev)
 	del_timer(&dev->timer);
 
 	/* Clear pid list */
-	list_for_each_entry_safe(pt, next, &dev->magicfree, head) {
-		list_del(&pt->head);
-		drm_ht_remove_item(&dev->magiclist, &pt->hash_item);
-		drm_free(pt, sizeof(*pt), DRM_MEM_MAGIC);
+	if (dev->magicfree.next) {
+		list_for_each_entry_safe(pt, next, &dev->magicfree, head) {
+			list_del(&pt->head);
+			drm_ht_remove_item(&dev->magiclist, &pt->hash_item);
+			drm_free(pt, sizeof(*pt), DRM_MEM_MAGIC);
+		}
 	}
 
 	/* Clear AGP information */
