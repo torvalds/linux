@@ -140,12 +140,12 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 /* some defines for controlling descriptor fetches in h/w */
-#define RXDCTL_WTHRESH_DEFAULT 16	/* chip writes back at this many or RXT0 */
-#define RXDCTL_PTHRESH_DEFAULT 0		/* chip considers prefech below
-						 * this */
-#define RXDCTL_HTHRESH_DEFAULT 0		/* chip will only prefetch if tail
-						 * is pushed this many descriptors
-						 * from head */
+#define RXDCTL_WTHRESH_DEFAULT 15  /* chip writes back at this many or RXT0 */
+#define RXDCTL_PTHRESH_DEFAULT 0   /* chip considers prefech below
+                                    * this */
+#define RXDCTL_HTHRESH_DEFAULT 0   /* chip will only prefetch if tail
+                                    * is pushed this many descriptors
+                                    * from head */
 
 /**
  * ixgb_init_module - Driver Registration Routine
