@@ -321,10 +321,8 @@ static unsigned int channels[] = {
   2, 4, 6
 };
 
-#define CHANNELS sizeof(channels) / sizeof(channels[0])
-
 static struct snd_pcm_hw_constraint_list hw_constraints_channels = {
-	.count = CHANNELS,
+	.count = ARRAY_SIZE(channels),
 	.list = channels,
 	.mask = 0,
 };
