@@ -1498,8 +1498,6 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 	} else if (hw->mac_type == e1000_80003es2lan) {
 		tarc = E1000_READ_REG(hw, TARC0);
 		tarc |= 1;
-		if (hw->media_type == e1000_media_type_internal_serdes)
-			tarc |= (1 << 20);
 		E1000_WRITE_REG(hw, TARC0, tarc);
 		tarc = E1000_READ_REG(hw, TARC1);
 		tarc |= 1;
