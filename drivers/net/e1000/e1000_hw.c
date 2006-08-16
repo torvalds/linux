@@ -1324,11 +1324,14 @@ e1000_copper_link_igp_setup(struct e1000_hw *hw)
     E1000_WRITE_REG(hw, LEDCTL, led_ctrl);
     }
 
-    /* disable lplu d3 during driver init */
-    ret_val = e1000_set_d3_lplu_state(hw, FALSE);
-    if (ret_val) {
-        DEBUGOUT("Error Disabling LPLU D3\n");
-        return ret_val;
+    /* The NVM settings will configure LPLU in D3 for IGP2 and IGP3 PHYs */
+    if (hw->phy_type == e1000_phy_igp) {
+        /* disable lplu d3 during driver init */
+        ret_val = e1000_set_d3_lplu_state(hw, FALSE);
+        if (ret_val) {
+            DEBUGOUT("Error Disabling LPLU D3\n");
+            return ret_val;
+        }
     }
 
     /* disable lplu d0 during driver init */
