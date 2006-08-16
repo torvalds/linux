@@ -235,9 +235,12 @@ struct bcm43xx_dmaring {
 	u16 mmio_base;
 	/* DMA controller index number (0-5). */
 	int index;
-	u8 tx:1,	/* TRUE, if this is a TX ring. */
-	   dma64:1,	/* TRUE, if 64-bit DMA is enabled (FALSE if 32bit). */
-	   suspended:1;	/* TRUE, if transfers are suspended on this ring. */
+	/* Boolean. Is this a TX ring? */
+	u8 tx;
+	/* Boolean. 64bit DMA if true, 32bit DMA otherwise. */
+	u8 dma64;
+	/* Boolean. Are transfers suspended on this ring? */
+	u8 suspended;
 	struct bcm43xx_private *bcm;
 #ifdef CONFIG_BCM43XX_DEBUG
 	/* Maximum number of used slots. */
