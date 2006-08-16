@@ -2277,7 +2277,7 @@ static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_addr_t mapping;
 	u32 status, len;
 	u32 opts1;
-	int ret = 0;
+	int ret = NETDEV_TX_OK;
 	
 	if (unlikely(TX_BUFFS_AVAIL(tp) < skb_shinfo(skb)->nr_frags)) {
 		if (netif_msg_drv(tp)) {
@@ -2342,7 +2342,7 @@ out:
 
 err_stop:
 	netif_stop_queue(dev);
-	ret = 1;
+	ret = NETDEV_TX_BUSY;
 err_update_stats:
 	tp->stats.tx_dropped++;
 	goto out;
