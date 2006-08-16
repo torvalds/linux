@@ -1590,6 +1590,8 @@ e1000_diag_test_count(struct net_device *netdev)
 	return E1000_TEST_LEN;
 }
 
+extern void e1000_power_up_phy(struct e1000_adapter *);
+
 static void
 e1000_diag_test(struct net_device *netdev,
 		   struct ethtool_test *eth_test, uint64_t *data)
@@ -1605,6 +1607,8 @@ e1000_diag_test(struct net_device *netdev,
 		uint16_t autoneg_advertised = adapter->hw.autoneg_advertised;
 		uint8_t forced_speed_duplex = adapter->hw.forced_speed_duplex;
 		uint8_t autoneg = adapter->hw.autoneg;
+
+		DPRINTK(HW, INFO, "offline testing starting\n");
 
 		/* Link test performed before hardware reset so autoneg doesn't
 		 * interfere with test result */
@@ -1629,6 +1633,8 @@ e1000_diag_test(struct net_device *netdev,
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		e1000_reset(adapter);
+		/* make sure the phy is powered up */
+		e1000_power_up_phy(adapter);
 		if (e1000_loopback_test(adapter, &data[3]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
@@ -1642,6 +1648,7 @@ e1000_diag_test(struct net_device *netdev,
 		if (if_running)
 			dev_open(netdev);
 	} else {
+		DPRINTK(HW, INFO, "online testing starting\n");
 		/* Online tests */
 		if (e1000_link_test(adapter, &data[4]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;

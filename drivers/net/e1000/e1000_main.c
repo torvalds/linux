@@ -484,7 +484,7 @@ e1000_up(struct e1000_adapter *adapter)
  *
  **/
 
-static void e1000_power_up_phy(struct e1000_adapter *adapter)
+void e1000_power_up_phy(struct e1000_adapter *adapter)
 {
 	uint16_t mii_reg = 0;
 
