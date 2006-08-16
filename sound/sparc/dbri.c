@@ -104,16 +104,14 @@ static char *cmds[] = {
 
 #define dprintk(a, x...) if(dbri_debug & a) printk(KERN_DEBUG x)
 
-#define DBRI_CMD(cmd, intr, value) ((cmd << 28) |			\
-				    (1 << 27) | \
-				    value)
 #else
 #define dprintk(a, x...)
 
-#define DBRI_CMD(cmd, intr, value) ((cmd << 28) |			\
-				    (intr << 27) | \
-				    value)
 #endif				/* DBRI_DEBUG */
+
+#define DBRI_CMD(cmd, intr, value) ((cmd << 28) |	\
+				    (intr << 27) |	\
+				    value)
 
 /***************************************************************************
 	CS4215 specific definitions and structures
@@ -690,7 +688,6 @@ static volatile s32 *dbri_cmdlock(struct snd_dbri * dbri, enum dbri_lock get)
 static void dbri_cmdsend(struct snd_dbri * dbri, volatile s32 * cmd)
 {
 	volatile s32 *ptr;
-	u32	reg;
 
 	for (ptr = &dbri->dma->cmd[0]; ptr < cmd; ptr++) {
 		dprintk(D_CMD, "cmd: %lx:%08x\n", (unsigned long)ptr, *ptr);
@@ -709,9 +706,6 @@ static void dbri_cmdsend(struct snd_dbri * dbri, volatile s32 * cmd)
 
 	/* Set command pointer and signal it is valid. */
 	sbus_writel(dbri->dma_dvma, dbri->regs + REG8);
-	reg = sbus_readl(dbri->regs + REG0);
-	reg |= D_P;
-	sbus_writel(reg, dbri->regs + REG0);
 
 	/*spin_unlock(&dbri->lock); */
 }
@@ -752,7 +746,7 @@ static void dbri_initialize(struct snd_dbri * dbri)
 	 */
 	for (n = 0; n < DBRI_NO_INTS - 1; n++) {
 		dma_addr = dbri->dma_dvma;
-		dma_addr += dbri_dma_off(intr, ((n + 1) & DBRI_INT_BLK));
+		dma_addr += dbri_dma_off(intr, ((n + 1) * DBRI_INT_BLK));
 		dbri->dma->intr[n * DBRI_INT_BLK] = dma_addr;
 	}
 	dma_addr = dbri->dma_dvma + dbri_dma_off(intr, 0);
