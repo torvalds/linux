@@ -5,7 +5,8 @@ time out requests if server still responding reasonably fast
 on requests on other threads.  Improve POSIX locking emulation,
 (lock cancel now works, and unlock of merged range works even
 to Windows servers now).  Fix oops on mount to lanman servers
-(win9x, os/2 etc.) when null password.
+(win9x, os/2 etc.) when null password.  Do not send listxattr
+(SMB to query all EAs) if nouser_xattr specified.
 
 Version 1.44
 ------------
