@@ -81,8 +81,7 @@ int rtas_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	addr = ((where & 0xf00) << 20) | (pdn->busno << 16) |
-		(pdn->devfn << 8) | (where & 0xff);
+	addr = rtas_config_addr(pdn->busno, pdn->devfn, where);
 	buid = pdn->phb->buid;
 	if (buid) {
 		ret = rtas_call(ibm_read_pci_config, 4, 2, &returnval,
@@ -134,8 +133,7 @@ int rtas_write_config(struct pci_dn *pdn, int where, int size, u32 val)
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	addr = ((where & 0xf00) << 20) | (pdn->busno << 16) |
-		(pdn->devfn << 8) | (where & 0xff);
+	addr = rtas_config_addr(pdn->busno, pdn->devfn, where);
 	buid = pdn->phb->buid;
 	if (buid) {
 		ret = rtas_call(ibm_write_pci_config, 5, 1, NULL, addr,

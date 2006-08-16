@@ -230,5 +230,21 @@ extern unsigned long rtas_rmo_buf;
 
 #define GLOBAL_INTERRUPT_QUEUE 9005
 
+/**
+ * rtas_config_addr - Format a busno, devfn and reg for RTAS.
+ * @busno: The bus number.
+ * @devfn: The device and function number as encoded by PCI_DEVFN().
+ * @reg: The register number.
+ *
+ * This function encodes the given busno, devfn and register number as
+ * required for RTAS calls that take a "config_addr" parameter.
+ * See PAPR requirement 7.3.4-1 for more info.
+ */
+static inline u32 rtas_config_addr(int busno, int devfn, int reg)
+{
+	return ((reg & 0xf00) << 20) | ((busno & 0xff) << 16) |
+			(devfn << 8) | (reg & 0xff);
+}
+
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_RTAS_H */
