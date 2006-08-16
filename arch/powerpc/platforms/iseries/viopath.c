@@ -117,6 +117,7 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 	HvLpEvent_Rc hvrc;
 	DECLARE_MUTEX_LOCKED(Semaphore);
 	struct device_node *node;
+	const char *sysid;
 
 	buf = kmalloc(HW_PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -152,15 +153,15 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 	seq_printf(m, "AVAILABLE_VETH=%x\n", vlanMap);
 
 	node = of_find_node_by_path("/");
-	buf = NULL;
+	sysid = NULL;
 	if (node != NULL)
-		buf = get_property(node, "system-id", NULL);
+		sysid = get_property(node, "system-id", NULL);
 
-	if (buf == NULL)
+	if (sysid == NULL)
 		seq_printf(m, "SRLNBR=<UNKNOWN>\n");
 	else
 		/* Skip "IBM," on front of serial number, see dt.c */
-		seq_printf(m, "SRLNBR=%s\n", buf + 4);
+		seq_printf(m, "SRLNBR=%s\n", sysid + 4);
 
 	of_node_put(node);
 
