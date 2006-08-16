@@ -421,7 +421,11 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.owner = owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
-	drv->driver.multithread_probe = pci_multithread_probe;
+
+	if (pci_multithread_probe)
+		drv->driver.multithread_probe = pci_multithread_probe;
+	else
+		drv->driver.multithread_probe = drv->multithread_probe;
 
 	spin_lock_init(&drv->dynids.lock);
 	INIT_LIST_HEAD(&drv->dynids.list);
