@@ -40,8 +40,6 @@
 #define VIDEO_TYPE 0
 #define AGP_TYPE 1
 
-#define SIS_MM_ALIGN_SHIFT 4
-#define SIS_MM_ALIGN_MASK ( (1 << SIS_MM_ALIGN_SHIFT) - 1)
 
 #if defined(CONFIG_FB_SIS)
 /* fb management via fb device */
@@ -72,12 +70,17 @@ static void sis_sman_mm_destroy(void *private)
 	;
 }
 
-unsigned long sis_sman_mm_offset(void *private, void *ref)
+static unsigned long sis_sman_mm_offset(void *private, void *ref)
 {
 	return ~((unsigned long)ref);
 }
 
-#endif
+#else /* CONFIG_FB_SIS */
+
+#define SIS_MM_ALIGN_SHIFT 4
+#define SIS_MM_ALIGN_MASK ( (1 << SIS_MM_ALIGN_SHIFT) - 1)
+
+#endif /* CONFIG_FB_SIS */
 
 static int sis_fb_init(DRM_IOCTL_ARGS)
 {

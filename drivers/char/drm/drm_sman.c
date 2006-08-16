@@ -114,7 +114,7 @@ static void drm_sman_mm_destroy(void *private)
 	drm_free(mm, sizeof(*mm), DRM_MEM_MM);
 }
 
-unsigned long drm_sman_mm_offset(void *private, void *ref)
+static unsigned long drm_sman_mm_offset(void *private, void *ref)
 {
 	drm_mm_node_t *node = (drm_mm_node_t *) ref;
 	return node->start;

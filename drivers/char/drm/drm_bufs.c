@@ -65,8 +65,8 @@ static drm_map_list_t *drm_find_matching_map(drm_device_t *dev,
 	return NULL;
 }
 
-int drm_map_handle(drm_device_t *dev, drm_hash_item_t *hash,
-		   unsigned long user_token, int hashed_handle)
+static int drm_map_handle(drm_device_t *dev, drm_hash_item_t *hash,
+			  unsigned long user_token, int hashed_handle)
 {
 	int use_hashed_handle;
 #if (BITS_PER_LONG == 64)
