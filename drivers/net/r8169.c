@@ -6,26 +6,26 @@
  History:
  Feb  4 2002	- created initially by ShuChen <shuchen@realtek.com.tw>.
  May 20 2002	- Add link status force-mode and TBI mode support.
-        2004	- Massive updates. See kernel SCM system for details.
+	2004	- Massive updates. See kernel SCM system for details.
 =========================================================================
   1. [DEPRECATED: use ethtool instead] The media can be forced in 5 modes.
 	 Command: 'insmod r8169 media = SET_MEDIA'
 	 Ex:	  'insmod r8169 media = 0x04' will force PHY to operate in 100Mpbs Half-duplex.
-	
+
 	 SET_MEDIA can be:
  		_10_Half	= 0x01
  		_10_Full	= 0x02
  		_100_Half	= 0x04
  		_100_Full	= 0x08
  		_1000_Full	= 0x10
-  
+
   2. Support TBI mode.
 =========================================================================
 VERSION 1.1	<2002/10/4>
 
 	The bit4:0 of MII register 4 is called "selector field", and have to be
 	00001b to indicate support of IEEE std 802.3 during NWay process of
-	exchanging Link Code Word (FLP). 
+	exchanging Link Code Word (FLP).
 
 VERSION 1.2	<2002/11/30>
 
@@ -81,10 +81,10 @@ VERSION 2.2LK	<2005/01/25>
 
 #ifdef RTL8169_DEBUG
 #define assert(expr) \
-        if(!(expr)) {					\
-	        printk( "Assertion failed! %s,%s,%s,line=%d\n",	\
-        	#expr,__FILE__,__FUNCTION__,__LINE__);		\
-        }
+	if (!(expr)) {					\
+		printk( "Assertion failed! %s,%s,%s,line=%d\n",	\
+		#expr,__FILE__,__FUNCTION__,__LINE__);		\
+	}
 #define dprintk(fmt, args...)	do { printk(PFX fmt, ## args); } while (0)
 #else
 #define assert(expr) do {} while (0)
@@ -520,7 +520,7 @@ static const u16 rtl8169_intr_mask =
 static const u16 rtl8169_napi_event =
 	RxOK | RxOverflow | RxFIFOOver | TxOK | TxErr;
 static const unsigned int rtl8169_rx_config =
-    (RX_FIFO_THRESH << RxCfgFIFOShift) | (RX_DMA_BURST << RxCfgDMAShift);
+	(RX_FIFO_THRESH << RxCfgFIFOShift) | (RX_DMA_BURST << RxCfgDMAShift);
 
 #define PHY_Cap_10_Half_Or_Less PHY_Cap_10_Half
 #define PHY_Cap_10_Full_Or_Less PHY_Cap_10_Full | PHY_Cap_10_Half_Or_Less
@@ -535,7 +535,7 @@ static void mdio_write(void __iomem *ioaddr, int RegAddr, int value)
 
 	for (i = 20; i > 0; i--) {
 		/* Check if the RTL8169 has completed writing to the specified MII register */
-		if (!(RTL_R32(PHYAR) & 0x80000000)) 
+		if (!(RTL_R32(PHYAR) & 0x80000000))
 			break;
 		udelay(25);
 	}
@@ -640,7 +640,7 @@ static void rtl8169_link_option(int idx, u8 *autoneg, u16 *speed, u8 *duplex)
 		{ SPEED_1000,	DUPLEX_FULL, AUTONEG_ENABLE,	0xff }
 	}, *p;
 	unsigned char option;
-	
+
 	option = ((idx < MAX_UNITS) && (idx >= 0)) ? media[idx] : 0xff;
 
 	if ((option != 0xff) && !idx && netif_msg_drv(&debug))
@@ -682,9 +682,9 @@ static void rtl8169_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	if (options & UWF)
 		wol->wolopts |= WAKE_UCAST;
 	if (options & BWF)
-	        wol->wolopts |= WAKE_BCAST;
+		wol->wolopts |= WAKE_BCAST;
 	if (options & MWF)
-	        wol->wolopts |= WAKE_MCAST;
+		wol->wolopts |= WAKE_MCAST;
 
 out_unlock:
 	spin_unlock_irq(&tp->lock);
@@ -855,7 +855,7 @@ static int rtl8169_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	spin_lock_irqsave(&tp->lock, flags);
 	ret = rtl8169_set_speed(dev, cmd->autoneg, cmd->speed, cmd->duplex);
 	spin_unlock_irqrestore(&tp->lock, flags);
-	
+
 	return ret;
 }
 
@@ -988,7 +988,7 @@ static void rtl8169_gset_xmii(struct net_device *dev, struct ethtool_cmd *cmd)
 			 SUPPORTED_100baseT_Full |
 			 SUPPORTED_1000baseT_Full |
 			 SUPPORTED_Autoneg |
-		         SUPPORTED_TP;
+			 SUPPORTED_TP;
 
 	cmd->autoneg = 1;
 	cmd->advertising = ADVERTISED_TP | ADVERTISED_Autoneg;
@@ -1038,15 +1038,15 @@ static int rtl8169_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void rtl8169_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			     void *p)
 {
-        struct rtl8169_private *tp = netdev_priv(dev);
-        unsigned long flags;
+	struct rtl8169_private *tp = netdev_priv(dev);
+	unsigned long flags;
 
-        if (regs->len > R8169_REGS_SIZE)
-        	regs->len = R8169_REGS_SIZE;
+	if (regs->len > R8169_REGS_SIZE)
+		regs->len = R8169_REGS_SIZE;
 
-        spin_lock_irqsave(&tp->lock, flags);
-        memcpy_fromio(p, tp->mmio_addr, regs->len);
-        spin_unlock_irqrestore(&tp->lock, flags);
+	spin_lock_irqsave(&tp->lock, flags);
+	memcpy_fromio(p, tp->mmio_addr, regs->len);
+	spin_unlock_irqrestore(&tp->lock, flags);
 }
 
 static u32 rtl8169_get_msglevel(struct net_device *dev)
@@ -1128,7 +1128,7 @@ static void rtl8169_get_ethtool_stats(struct net_device *dev,
 	RTL_W32(CounterAddrLow, 0);
 	RTL_W32(CounterAddrHigh, 0);
 
-	data[0]	= le64_to_cpu(counters->tx_packets);
+	data[0] = le64_to_cpu(counters->tx_packets);
 	data[1] = le64_to_cpu(counters->rx_packets);
 	data[2] = le64_to_cpu(counters->tx_errors);
 	data[3] = le32_to_cpu(counters->rx_errors);
@@ -1188,7 +1188,7 @@ static void rtl8169_write_gmii_reg_bit(void __iomem *ioaddr, int reg, int bitnum
 	val = mdio_read(ioaddr, reg);
 	val = (bitval == 1) ?
 		val | (bitval << bitnum) :  val & ~(0x0001 << bitnum);
-	mdio_write(ioaddr, reg, val & 0xffff); 
+	mdio_write(ioaddr, reg, val & 0xffff);
 }
 
 static void rtl8169_get_mac_version(struct rtl8169_private *tp, void __iomem *ioaddr)
@@ -1201,7 +1201,7 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp, void __iomem *io
 		{ 0x38000000,	RTL_GIGA_MAC_VER_12 },
 		{ 0x34000000,	RTL_GIGA_MAC_VER_13 },
 		{ 0x30800000,	RTL_GIGA_MAC_VER_14 },
-		{ 0x30000000,   RTL_GIGA_MAC_VER_11 },
+		{ 0x30000000,	RTL_GIGA_MAC_VER_11 },
 		{ 0x18000000,	RTL_GIGA_MAC_VER_05 },
 		{ 0x10000000,	RTL_GIGA_MAC_VER_04 },
 		{ 0x04000000,	RTL_GIGA_MAC_VER_03 },
@@ -1361,7 +1361,7 @@ static void rtl8169_phy_timer(unsigned long __opaque)
 	spin_lock_irq(&tp->lock);
 
 	if (tp->phy_reset_pending(ioaddr)) {
-		/* 
+		/*
 		 * A busy loop could burn quite a few cycles on nowadays CPU.
 		 * Let's delay the execution of the timer for a few ticks.
 		 */
@@ -1887,9 +1887,8 @@ rtl8169_hw_start(struct net_device *dev)
 	RTL_W32(RxConfig, i);
 
 	/* Set DMA burst size and Interframe Gap Time */
-	RTL_W32(TxConfig,
-		(TX_DMA_BURST << TxDMAShift) | (InterFrameGap <<
-						TxInterFrameGapShift));
+	RTL_W32(TxConfig, (TX_DMA_BURST << TxDMAShift) |
+		(InterFrameGap << TxInterFrameGapShift));
 
 	tp->cp_cmd |= RTL_R16(CPlusCmd) | PCIMulRW;
 
@@ -2042,7 +2041,7 @@ static u32 rtl8169_rx_fill(struct rtl8169_private *tp, struct net_device *dev,
 			   u32 start, u32 end)
 {
 	u32 cur;
-	
+
 	for (cur = start; end - cur > 0; cur++) {
 		int ret, i = cur % NUM_RX_DESC;
 
@@ -2280,7 +2279,7 @@ static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 status, len;
 	u32 opts1;
 	int ret = NETDEV_TX_OK;
-	
+
 	if (unlikely(TX_BUFFS_AVAIL(tp) < skb_shinfo(skb)->nr_frags)) {
 		if (netif_msg_drv(tp)) {
 			printk(KERN_ERR
@@ -2637,7 +2636,7 @@ rtl8169_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 			__netif_rx_schedule(dev);
 		else if (netif_msg_intr(tp)) {
 			printk(KERN_INFO "%s: interrupt %04x taken in poll\n",
-			       dev->name, status);	
+			       dev->name, status);
 		}
 		break;
 #else
@@ -2844,7 +2843,7 @@ static struct net_device_stats *rtl8169_get_stats(struct net_device *dev)
 		RTL_W32(RxMissed, 0);
 		spin_unlock_irqrestore(&tp->lock, flags);
 	}
-		
+
 	return &tp->stats;
 }
 
