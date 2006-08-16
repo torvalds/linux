@@ -1449,10 +1449,10 @@ static int patch_stac9205(struct hda_codec *codec)
 }
 
 /*
- * STAC 7661(?) hack
+ * STAC 7661(?) and 7664 hack
  */
 
-/* static config for Sony VAIO FE550G */
+/* static config for Sony VAIO FE550G and Sony VAIO AR */
 static hda_nid_t vaio_dacs[] = { 0x2 };
 #define VAIO_HP_DAC	0x5
 static hda_nid_t vaio_adcs[] = { 0x8 /*,0x6*/ };
@@ -1552,7 +1552,7 @@ static struct snd_kcontrol_new vaio_mixer[] = {
 	{}
 };
 
-static struct hda_codec_ops stac7661_patch_ops = {
+static struct hda_codec_ops stac766x_patch_ops = {
 	.build_controls = stac92xx_build_controls,
 	.build_pcms = stac92xx_build_pcms,
 	.init = stac92xx_init,
@@ -1562,23 +1562,25 @@ static struct hda_codec_ops stac7661_patch_ops = {
 #endif
 };
 
-enum { STAC7661_VAIO };
+enum { STAC766x_VAIO };
 
-static struct hda_board_config stac7661_cfg_tbl[] = {
-	{ .modelname = "vaio", .config = STAC7661_VAIO },
+static struct hda_board_config stac766x_cfg_tbl[] = {
+	{ .modelname = "vaio", .config = STAC766x_VAIO },
 	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81e6,
-	  .config = STAC7661_VAIO },
+	  .config = STAC766x_VAIO },
 	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81ef,
-	  .config = STAC7661_VAIO },
+	  .config = STAC766x_VAIO },
+	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81fd,
+	  .config = STAC766x_VAIO },
 	{}
 };
 
-static int patch_stac7661(struct hda_codec *codec)
+static int patch_stac766x(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
 	int board_config;
 
-	board_config = snd_hda_check_board_config(codec, stac7661_cfg_tbl);
+	board_config = snd_hda_check_board_config(codec, stac766x_cfg_tbl);
 	if (board_config < 0)
 		/* unknown config, let generic-parser do its job... */
 		return snd_hda_parse_generic_codec(codec);
@@ -1589,7 +1591,7 @@ static int patch_stac7661(struct hda_codec *codec)
 
 	codec->spec = spec;
 	switch (board_config) {
-	case STAC7661_VAIO:
+	case STAC766x_VAIO:
 		spec->mixer = vaio_mixer;
 		spec->init = vaio_init;
 		spec->multiout.max_channels = 2;
@@ -1603,7 +1605,7 @@ static int patch_stac7661(struct hda_codec *codec)
 		break;
 	}
 
-	codec->patch_ops = stac7661_patch_ops;
+	codec->patch_ops = stac766x_patch_ops;
 	return 0;
 }
 
@@ -1635,7 +1637,7 @@ struct hda_codec_preset snd_hda_preset_sigmatel[] = {
  	{ .id = 0x83847627, .name = "STAC9271D", .patch = patch_stac927x },
  	{ .id = 0x83847628, .name = "STAC9274X5NH", .patch = patch_stac927x },
  	{ .id = 0x83847629, .name = "STAC9274D5NH", .patch = patch_stac927x },
- 	{ .id = 0x83847661, .name = "STAC7661", .patch = patch_stac7661 },
+ 	{ .id = 0x83847661, .name = "STAC7661", .patch = patch_stac766x },
  	{ .id = 0x838476a0, .name = "STAC9205", .patch = patch_stac9205 },
  	{ .id = 0x838476a1, .name = "STAC9205D", .patch = patch_stac9205 },
  	{ .id = 0x838476a2, .name = "STAC9204", .patch = patch_stac9205 },
@@ -1644,5 +1646,6 @@ struct hda_codec_preset snd_hda_preset_sigmatel[] = {
  	{ .id = 0x838476a5, .name = "STAC9255D", .patch = patch_stac9205 },
  	{ .id = 0x838476a6, .name = "STAC9254", .patch = patch_stac9205 },
  	{ .id = 0x838476a7, .name = "STAC9254D", .patch = patch_stac9205 },
+ 	{ .id = 0x83847664, .name = "STAC7664", .patch = patch_stac766x },
 	{} /* terminator */
 };

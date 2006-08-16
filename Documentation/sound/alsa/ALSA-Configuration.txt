@@ -856,10 +856,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-dig	ditto with SPDIF
 	  laptop	3-jack with hp-jack automute
 	  laptop-dig	ditto with SPDIF
-	  auto		auto-confgi reading BIOS (default)
+	  auto		auto-config reading BIOS (default)
 
-	STAC7661(?)
-	  vaio		Setup for VAIO FE550G/SZ110
+	STAC7664/7661(?)
+	  vaio		Setup for VAIO FE550G/SZ110/AR11B
 
     If the default configuration doesn't work and one of the above
     matches with your device, report it together with the PCI
