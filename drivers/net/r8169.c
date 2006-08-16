@@ -1623,10 +1623,10 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	RTL_W8(ChipCmd, CmdReset);
 
 	/* Check that the chip has finished the reset. */
-	for (i = 1000; i > 0; i--) {
+	for (i = 100; i > 0; i--) {
 		if ((RTL_R8(ChipCmd) & CmdReset) == 0)
 			break;
-		udelay(10);
+		msleep_interruptible(1);
 	}
 
 	/* Identify chip attached to board */
@@ -1848,10 +1848,10 @@ rtl8169_hw_start(struct net_device *dev)
 	RTL_W8(ChipCmd, CmdReset);
 
 	/* Check that the chip has finished the reset. */
-	for (i = 1000; i > 0; i--) {
+	for (i = 100; i > 0; i--) {
 		if ((RTL_R8(ChipCmd) & CmdReset) == 0)
 			break;
-		udelay(10);
+		msleep_interruptible(1);
 	}
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_13) {
@@ -1914,7 +1914,9 @@ rtl8169_hw_start(struct net_device *dev)
 	RTL_W32(RxDescAddrHigh, ((u64) tp->RxPhyAddr >> 32));
 	RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
 	RTL_W8(Cfg9346, Cfg9346_Lock);
-	udelay(10);
+
+	/* Initially a 10 us delay. Turned it into a PCI commit. - FR */
+	RTL_R8(IntrMask);
 
 	RTL_W32(RxMissed, 0);
 
