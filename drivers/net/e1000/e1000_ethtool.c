@@ -183,6 +183,9 @@ e1000_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		return -EINVAL;
 	}
 
+	while (test_and_set_bit(__E1000_RESETTING, &adapter->flags))
+		msleep(1);
+
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		hw->autoneg = 1;
 		if (hw->media_type == e1000_media_type_fiber)
@@ -199,16 +202,20 @@ e1000_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 						  ADVERTISED_TP;
 		ecmd->advertising = hw->autoneg_advertised;
 	} else
-		if (e1000_set_spd_dplx(adapter, ecmd->speed + ecmd->duplex))
+		if (e1000_set_spd_dplx(adapter, ecmd->speed + ecmd->duplex)) {
+			clear_bit(__E1000_RESETTING, &adapter->flags);
 			return -EINVAL;
+		}
 
 	/* reset the link */
 
-	if (netif_running(adapter->netdev))
-		e1000_reinit_locked(adapter);
-	else
+	if (netif_running(adapter->netdev)) {
+		e1000_down(adapter);
+		e1000_up(adapter);
+	} else
 		e1000_reset(adapter);
 
+	clear_bit(__E1000_RESETTING, &adapter->flags);
 	return 0;
 }
 
@@ -238,8 +245,12 @@ e1000_set_pauseparam(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	int retval = 0;
 
 	adapter->fc_autoneg = pause->autoneg;
+
+	while (test_and_set_bit(__E1000_RESETTING, &adapter->flags))
+		msleep(1);
 
 	if (pause->rx_pause && pause->tx_pause)
 		hw->fc = e1000_fc_full;
@@ -253,15 +264,17 @@ e1000_set_pauseparam(struct net_device *netdev,
 	hw->original_fc = hw->fc;
 
 	if (adapter->fc_autoneg == AUTONEG_ENABLE) {
-		if (netif_running(adapter->netdev))
-			e1000_reinit_locked(adapter);
-		else
+		if (netif_running(adapter->netdev)) {
+			e1000_down(adapter);
+			e1000_up(adapter);
+		} else
 			e1000_reset(adapter);
 	} else
-		return ((hw->media_type == e1000_media_type_fiber) ?
-			e1000_setup_link(hw) : e1000_force_mac_fc(hw));
+		retval = ((hw->media_type == e1000_media_type_fiber) ?
+			   e1000_setup_link(hw) : e1000_force_mac_fc(hw));
 
-	return 0;
+	clear_bit(__E1000_RESETTING, &adapter->flags);
+	return retval;
 }
 
 static uint32_t
