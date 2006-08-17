@@ -1557,6 +1557,8 @@ lpfc_freenode(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		}
 	}
+
+	spin_lock_irq(phba->host->host_lock);
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
@@ -1569,6 +1571,7 @@ lpfc_freenode(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 			mempool_free(mb, phba->mbox_mem_pool);
 		}
 	}
+	spin_unlock_irq(phba->host->host_lock);
 
 	lpfc_els_abort(phba,ndlp,0);
 	spin_lock_irq(phba->host->host_lock);

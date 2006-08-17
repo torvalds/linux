@@ -1848,8 +1848,11 @@ static void
 lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		  struct lpfc_iocbq * rspiocb)
 {
+	IOCB_t *irsp;
 	struct lpfc_nodelist *ndlp;
 	LPFC_MBOXQ_t *mbox = NULL;
+
+	irsp = &rspiocb->iocb;
 
 	ndlp = (struct lpfc_nodelist *) cmdiocb->context1;
 	if (cmdiocb->context_un.mbox)
@@ -1893,9 +1896,15 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 			mempool_free( mbox, phba->mbox_mem_pool);
 		} else {
 			mempool_free( mbox, phba->mbox_mem_pool);
-			if (ndlp->nlp_flag & NLP_ACC_REGLOGIN) {
-				lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-				ndlp = NULL;
+			/* Do not call NO_LIST for lpfc_els_abort'ed ELS cmds */
+			if (!((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
+			      ((irsp->un.ulpWord[4] == IOERR_SLI_ABORTED) ||
+			       (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
+			       (irsp->un.ulpWord[4] == IOERR_SLI_DOWN)))) {
+				if (ndlp->nlp_flag & NLP_ACC_REGLOGIN) {
+					lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+					ndlp = NULL;
+				}
 			}
 		}
 	}

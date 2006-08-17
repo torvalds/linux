@@ -222,7 +222,7 @@ lpfc_issue_lip(struct Scsi_Host *host)
 	pmboxq->mb.mbxCommand = MBX_DOWN_LINK;
 	pmboxq->mb.mbxOwner = OWN_HOST;
 
-	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
+	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, LPFC_MBOX_TMO * 2);
 
 	if ((mbxstatus == MBX_SUCCESS) && (pmboxq->mb.mbxStatus == 0)) {
 		memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));

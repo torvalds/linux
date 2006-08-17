@@ -1379,6 +1379,7 @@ lpfc_offline(struct lpfc_hba * phba)
 	/* stop all timers associated with this hba */
 	lpfc_stop_timer(phba);
 	phba->work_hba_events = 0;
+	phba->work_ha = 0;
 
 	lpfc_printf_log(phba,
 		       KERN_WARNING,
