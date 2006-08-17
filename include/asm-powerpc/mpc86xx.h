@@ -31,7 +31,6 @@
 #define MCM_PORT_CONFIG_OFFSET 0x1010
 
 /* Offset from CCSRBAR */
-#define MPC86xx_OPENPIC_OFFSET	(0x40000)
 #define MPC86xx_MCM_OFFSET      (0x00000)
 #define MPC86xx_MCM_SIZE        (0x02000)
 
