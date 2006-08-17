@@ -792,6 +792,11 @@ int cx88_start_audio_dma(struct cx88_core *core)
 {
 	/* constant 128 made buzz in analog Nicam-stereo for bigger fifo_size */
 	int bpl = cx88_sram_channels[SRAM_CH25].fifo_size/4;
+
+	/* If downstream RISC is enabled, bail out; ALSA is managing DMA */
+	if (cx_read(MO_AUD_DMACNTRL) & 0x10)
+		return 0;
+
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH25], bpl, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH26], bpl, 0);
@@ -801,11 +806,16 @@ int cx88_start_audio_dma(struct cx88_core *core)
 
 	/* start dma */
 	cx_write(MO_AUD_DMACNTRL, 0x0003); /* Up and Down fifo enable */
+
 	return 0;
 }
 
 int cx88_stop_audio_dma(struct cx88_core *core)
 {
+	/* If downstream RISC is enabled, bail out; ALSA is managing DMA */
+	if (cx_read(MO_AUD_DMACNTRL) & 0x10)
+		return 0;
+
 	/* stop dma */
 	cx_write(MO_AUD_DMACNTRL, 0x0000);
 
