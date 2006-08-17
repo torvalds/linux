@@ -1475,6 +1475,32 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 		printk(KERN_INFO PFX "%s: TBI auto-negotiating\n", dev->name);
 }
 
+static int rtl8169_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	struct mii_ioctl_data *data = if_mii(ifr);
+
+	if (!netif_running(dev))
+		return -ENODEV;
+
+	switch (cmd) {
+	case SIOCGMIIPHY:
+		data->phy_id = 32; /* Internal PHY */
+		return 0;
+
+	case SIOCGMIIREG:
+		data->val_out = mdio_read(tp->mmio_addr, data->reg_num & 0x1f);
+		return 0;
+
+	case SIOCSMIIREG:
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+		mdio_write(tp->mmio_addr, data->reg_num & 0x1f, data->val_in);
+		return 0;
+	}
+	return -EOPNOTSUPP;
+}
+
 static int __devinit
 rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -1639,6 +1665,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		tp->phy_reset_enable = rtl8169_xmii_reset_enable;
 		tp->phy_reset_pending = rtl8169_xmii_reset_pending;
 		tp->link_ok = rtl8169_xmii_link_ok;
+
+		dev->do_ioctl = rtl8169_ioctl;
 	}
 
 	/* Get MAC address.  FIXME: read EEPROM */
