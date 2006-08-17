@@ -910,6 +910,11 @@ int __init early_init_dt_scan_rtas(unsigned long node,
 	basep = of_get_flat_dt_prop(node, "get-term-char", NULL);
 	if (basep)
 		rtas_getchar_token = *basep;
+
+	if (rtas_putchar_token != RTAS_UNKNOWN_SERVICE &&
+	    rtas_getchar_token != RTAS_UNKNOWN_SERVICE)
+		udbg_init_rtas_console();
+
 #endif
 
 	/* break now */
