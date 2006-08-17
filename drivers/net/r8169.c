@@ -356,31 +356,6 @@ enum RTL8169_register_content {
 	LinkStatus = 0x02,
 	FullDup = 0x01,
 
-	/* GIGABIT_PHY_registers */
-	PHY_CTRL_REG = 0,
-	PHY_STAT_REG = 1,
-	PHY_AUTO_NEGO_REG = 4,
-	PHY_1000_CTRL_REG = 9,
-
-	/* GIGABIT_PHY_REG_BIT */
-	PHY_Restart_Auto_Nego = 0x0200,
-	PHY_Enable_Auto_Nego = 0x1000,
-
-	/* PHY_STAT_REG = 1 */
-	PHY_Auto_Neco_Comp = 0x0020,
-
-	/* PHY_AUTO_NEGO_REG = 4 */
-	PHY_Cap_10_Half = 0x0020,
-	PHY_Cap_10_Full = 0x0040,
-	PHY_Cap_100_Half = 0x0080,
-	PHY_Cap_100_Full = 0x0100,
-
-	/* PHY_1000_CTRL_REG = 9 */
-	PHY_Cap_1000_Half = 0x0100,
-	PHY_Cap_1000_Full = 0x0200,
-
-	PHY_Cap_Null = 0x0,
-
 	/* _MediaType */
 	_10_Half = 0x01,
 	_10_Full = 0x02,
@@ -522,11 +497,6 @@ static const u16 rtl8169_napi_event =
 static const unsigned int rtl8169_rx_config =
 	(RX_FIFO_THRESH << RxCfgFIFOShift) | (RX_DMA_BURST << RxCfgDMAShift);
 
-#define PHY_Cap_10_Half_Or_Less PHY_Cap_10_Half
-#define PHY_Cap_10_Full_Or_Less PHY_Cap_10_Full | PHY_Cap_10_Half_Or_Less
-#define PHY_Cap_100_Half_Or_Less PHY_Cap_100_Half | PHY_Cap_10_Full_Or_Less
-#define PHY_Cap_100_Full_Or_Less PHY_Cap_100_Full | PHY_Cap_100_Half_Or_Less
-
 static void mdio_write(void __iomem *ioaddr, int RegAddr, int value)
 {
 	int i;
@@ -579,7 +549,7 @@ static unsigned int rtl8169_tbi_reset_pending(void __iomem *ioaddr)
 
 static unsigned int rtl8169_xmii_reset_pending(void __iomem *ioaddr)
 {
-	return mdio_read(ioaddr, 0) & 0x8000;
+	return mdio_read(ioaddr, MII_BMCR) & BMCR_RESET;
 }
 
 static unsigned int rtl8169_tbi_link_ok(void __iomem *ioaddr)
@@ -601,8 +571,8 @@ static void rtl8169_xmii_reset_enable(void __iomem *ioaddr)
 {
 	unsigned int val;
 
-	val = (mdio_read(ioaddr, PHY_CTRL_REG) | 0x8000) & 0xffff;
-	mdio_write(ioaddr, PHY_CTRL_REG, val);
+	val = (mdio_read(ioaddr, MII_BMCR) | BMCR_RESET) & 0xffff;
+	mdio_write(ioaddr, MII_BMCR, val);
 }
 
 static void rtl8169_check_link_status(struct net_device *dev,
@@ -777,34 +747,34 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 	void __iomem *ioaddr = tp->mmio_addr;
 	int auto_nego, giga_ctrl;
 
-	auto_nego = mdio_read(ioaddr, PHY_AUTO_NEGO_REG);
-	auto_nego &= ~(PHY_Cap_10_Half | PHY_Cap_10_Full |
-		       PHY_Cap_100_Half | PHY_Cap_100_Full);
-	giga_ctrl = mdio_read(ioaddr, PHY_1000_CTRL_REG);
-	giga_ctrl &= ~(PHY_Cap_1000_Full | PHY_Cap_1000_Half | PHY_Cap_Null);
+	auto_nego = mdio_read(ioaddr, MII_ADVERTISE);
+	auto_nego &= ~(ADVERTISE_10HALF | ADVERTISE_10FULL |
+		       ADVERTISE_100HALF | ADVERTISE_100FULL);
+	giga_ctrl = mdio_read(ioaddr, MII_CTRL1000);
+	giga_ctrl &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
 
 	if (autoneg == AUTONEG_ENABLE) {
-		auto_nego |= (PHY_Cap_10_Half | PHY_Cap_10_Full |
-			      PHY_Cap_100_Half | PHY_Cap_100_Full);
-		giga_ctrl |= PHY_Cap_1000_Full | PHY_Cap_1000_Half;
+		auto_nego |= (ADVERTISE_10HALF | ADVERTISE_10FULL |
+			      ADVERTISE_100HALF | ADVERTISE_100FULL);
+		giga_ctrl |= ADVERTISE_1000FULL | ADVERTISE_1000HALF;
 	} else {
 		if (speed == SPEED_10)
-			auto_nego |= PHY_Cap_10_Half | PHY_Cap_10_Full;
+			auto_nego |= ADVERTISE_10HALF | ADVERTISE_10FULL;
 		else if (speed == SPEED_100)
-			auto_nego |= PHY_Cap_100_Half | PHY_Cap_100_Full;
+			auto_nego |= ADVERTISE_100HALF | ADVERTISE_100FULL;
 		else if (speed == SPEED_1000)
-			giga_ctrl |= PHY_Cap_1000_Full | PHY_Cap_1000_Half;
+			giga_ctrl |= ADVERTISE_1000FULL | ADVERTISE_1000HALF;
 
 		if (duplex == DUPLEX_HALF)
-			auto_nego &= ~(PHY_Cap_10_Full | PHY_Cap_100_Full);
+			auto_nego &= ~(ADVERTISE_10FULL | ADVERTISE_100FULL);
 
 		if (duplex == DUPLEX_FULL)
-			auto_nego &= ~(PHY_Cap_10_Half | PHY_Cap_100_Half);
+			auto_nego &= ~(ADVERTISE_10HALF | ADVERTISE_100HALF);
 
 		/* This tweak comes straight from Realtek's driver. */
 		if ((speed == SPEED_100) && (duplex == DUPLEX_HALF) &&
 		    (tp->mac_version == RTL_GIGA_MAC_VER_13)) {
-			auto_nego = PHY_Cap_100_Half | 0x01;
+			auto_nego = ADVERTISE_100HALF | ADVERTISE_CSMA;
 		}
 	}
 
@@ -812,12 +782,12 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 	if ((tp->mac_version == RTL_GIGA_MAC_VER_13) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_14) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_15)) {
-		if ((giga_ctrl & (PHY_Cap_1000_Full | PHY_Cap_1000_Half)) &&
+		if ((giga_ctrl & (ADVERTISE_1000FULL | ADVERTISE_1000HALF)) &&
 		    netif_msg_link(tp)) {
 			printk(KERN_INFO "%s: PHY does not support 1000Mbps.\n",
 			       dev->name);
 		}
-		giga_ctrl &= ~(PHY_Cap_1000_Full | PHY_Cap_1000_Half);
+		giga_ctrl &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
 	}
 
 	auto_nego |= ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
@@ -825,10 +795,9 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 	tp->phy_auto_nego_reg = auto_nego;
 	tp->phy_1000_ctrl_reg = giga_ctrl;
 
-	mdio_write(ioaddr, PHY_AUTO_NEGO_REG, auto_nego);
-	mdio_write(ioaddr, PHY_1000_CTRL_REG, giga_ctrl);
-	mdio_write(ioaddr, PHY_CTRL_REG, PHY_Enable_Auto_Nego |
-					 PHY_Restart_Auto_Nego);
+	mdio_write(ioaddr, MII_ADVERTISE, auto_nego);
+	mdio_write(ioaddr, MII_CTRL1000, giga_ctrl);
+	mdio_write(ioaddr, MII_BMCR, BMCR_ANENABLE | BMCR_ANRESTART);
 	return 0;
 }
 
@@ -840,7 +809,7 @@ static int rtl8169_set_speed(struct net_device *dev,
 
 	ret = tp->set_speed(dev, autoneg, speed, duplex);
 
-	if (netif_running(dev) && (tp->phy_1000_ctrl_reg & PHY_Cap_1000_Full))
+	if (netif_running(dev) && (tp->phy_1000_ctrl_reg & ADVERTISE_1000FULL))
 		mod_timer(&tp->timer, jiffies + RTL8169_PHY_TIMEOUT);
 
 	return ret;
@@ -993,15 +962,15 @@ static void rtl8169_gset_xmii(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->autoneg = 1;
 	cmd->advertising = ADVERTISED_TP | ADVERTISED_Autoneg;
 
-	if (tp->phy_auto_nego_reg & PHY_Cap_10_Half)
+	if (tp->phy_auto_nego_reg & ADVERTISE_10HALF)
 		cmd->advertising |= ADVERTISED_10baseT_Half;
-	if (tp->phy_auto_nego_reg & PHY_Cap_10_Full)
+	if (tp->phy_auto_nego_reg & ADVERTISE_10FULL)
 		cmd->advertising |= ADVERTISED_10baseT_Full;
-	if (tp->phy_auto_nego_reg & PHY_Cap_100_Half)
+	if (tp->phy_auto_nego_reg & ADVERTISE_100HALF)
 		cmd->advertising |= ADVERTISED_100baseT_Half;
-	if (tp->phy_auto_nego_reg & PHY_Cap_100_Full)
+	if (tp->phy_auto_nego_reg & ADVERTISE_100FULL)
 		cmd->advertising |= ADVERTISED_100baseT_Full;
-	if (tp->phy_1000_ctrl_reg & PHY_Cap_1000_Full)
+	if (tp->phy_1000_ctrl_reg & ADVERTISE_1000FULL)
 		cmd->advertising |= ADVERTISED_1000baseT_Full;
 
 	status = RTL_R8(PHYstatus);
@@ -1235,7 +1204,7 @@ static void rtl8169_get_phy_version(struct rtl8169_private *tp, void __iomem *io
 	}, *p = phy_info;
 	u16 reg;
 
-	reg = mdio_read(ioaddr, 3) & 0xffff;
+	reg = mdio_read(ioaddr, MII_PHYSID2) & 0xffff;
 	while ((reg & p->mask) != p->set)
 		p++;
 	tp->phy_version = p->phy_version;
@@ -1355,7 +1324,7 @@ static void rtl8169_phy_timer(unsigned long __opaque)
 	assert(tp->mac_version > RTL_GIGA_MAC_VER_01);
 	assert(tp->phy_version < RTL_GIGA_PHY_VER_H);
 
-	if (!(tp->phy_1000_ctrl_reg & PHY_Cap_1000_Full))
+	if (!(tp->phy_1000_ctrl_reg & ADVERTISE_1000FULL))
 		return;
 
 	spin_lock_irq(&tp->lock);
@@ -1663,7 +1632,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		tp->phy_reset_pending = rtl8169_tbi_reset_pending;
 		tp->link_ok = rtl8169_tbi_link_ok;
 
-		tp->phy_1000_ctrl_reg = PHY_Cap_1000_Full; /* Implied by TBI */
+		tp->phy_1000_ctrl_reg = ADVERTISE_1000FULL; /* Implied by TBI */
 	} else {
 		tp->set_speed = rtl8169_set_speed_xmii;
 		tp->get_settings = rtl8169_gset_xmii;
