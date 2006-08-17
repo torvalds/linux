@@ -285,7 +285,7 @@ static struct snd_pcm_hardware snd_card_dummy_playback =
 	.channels_max =		USE_CHANNELS_MAX,
 	.buffer_bytes_max =	MAX_BUFFER_SIZE,
 	.period_bytes_min =	64,
-	.period_bytes_max =	MAX_BUFFER_SIZE,
+	.period_bytes_max =	MAX_PERIOD_SIZE,
 	.periods_min =		USE_PERIODS_MIN,
 	.periods_max =		USE_PERIODS_MAX,
 	.fifo_size =		0,
@@ -547,13 +547,13 @@ static struct snd_kcontrol_new snd_dummy_controls[] = {
 DUMMY_VOLUME("Master Volume", 0, MIXER_ADDR_MASTER),
 DUMMY_CAPSRC("Master Capture Switch", 0, MIXER_ADDR_MASTER),
 DUMMY_VOLUME("Synth Volume", 0, MIXER_ADDR_SYNTH),
-DUMMY_CAPSRC("Synth Capture Switch", 0, MIXER_ADDR_MASTER),
+DUMMY_CAPSRC("Synth Capture Switch", 0, MIXER_ADDR_SYNTH),
 DUMMY_VOLUME("Line Volume", 0, MIXER_ADDR_LINE),
-DUMMY_CAPSRC("Line Capture Switch", 0, MIXER_ADDR_MASTER),
+DUMMY_CAPSRC("Line Capture Switch", 0, MIXER_ADDR_LINE),
 DUMMY_VOLUME("Mic Volume", 0, MIXER_ADDR_MIC),
-DUMMY_CAPSRC("Mic Capture Switch", 0, MIXER_ADDR_MASTER),
+DUMMY_CAPSRC("Mic Capture Switch", 0, MIXER_ADDR_MIC),
 DUMMY_VOLUME("CD Volume", 0, MIXER_ADDR_CD),
-DUMMY_CAPSRC("CD Capture Switch", 0, MIXER_ADDR_MASTER)
+DUMMY_CAPSRC("CD Capture Switch", 0, MIXER_ADDR_CD)
 };
 
 static int __init snd_card_dummy_new_mixer(struct snd_dummy *dummy)
