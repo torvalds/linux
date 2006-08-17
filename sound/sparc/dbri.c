@@ -252,8 +252,8 @@ static struct {
 /* One transmit/receive descriptor */
 struct dbri_mem {
 	volatile __u32 word1;
-	volatile __u32 ba;	/* Transmit/Receive Buffer Address */
-	volatile __u32 nda;	/* Next Descriptor Address */
+	__u32 ba;	/* Transmit/Receive Buffer Address */
+	__u32 nda;	/* Next Descriptor Address */
 	volatile __u32 word4;
 };
 
@@ -308,7 +308,7 @@ struct snd_dbri {
 	struct sbus_dev *sdev;	/* SBUS device info */
 	spinlock_t lock;
 
-	volatile struct dbri_dma *dma;	/* Pointer to our DMA block */
+	struct dbri_dma *dma;	/* Pointer to our DMA block */
 	u32 dma_dvma;		/* DBRI visible DMA address */
 
 	void __iomem *regs;	/* dbri HW regs */
