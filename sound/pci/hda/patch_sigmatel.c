@@ -1528,6 +1528,7 @@ static struct snd_kcontrol_new vaio_mixer[] = {
 		.info = snd_hda_mixer_amp_volume_info,
 		.get = snd_hda_mixer_amp_volume_get,
 		.put = vaio_master_vol_put,
+		.tlv = { .c = snd_hda_mixer_amp_tlv },
 		.private_value = HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
 	},
 	{

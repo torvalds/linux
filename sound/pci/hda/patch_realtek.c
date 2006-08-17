@@ -5540,6 +5540,7 @@ static struct snd_kcontrol_new alc262_fujitsu_mixer[] = {
 		.info = snd_hda_mixer_amp_volume_info,
 		.get = snd_hda_mixer_amp_volume_get,
 		.put = alc262_fujitsu_master_vol_put,
+		.tlv = { .c = snd_hda_mixer_amp_tlv },
 		.private_value = HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT),
 	},
 	{
