@@ -34,7 +34,7 @@
  * (the second one is a monitor/tee pipe, valid only for serial input).
  *
  * The mmcodec is connected via the CHI bus and needs the data & some
- * parameters (volume, balance, output selection) timemultiplexed in 8 byte
+ * parameters (volume, output selection) timemultiplexed in 8 byte
  * chunks. It also has a control mode, which serves for audio format setting.
  *
  * Looking at the CS4215 data sheet it is easy to set up 2 or 4 codecs on
@@ -274,9 +274,7 @@ enum in_or_out { PIPEinput, PIPEoutput };
 
 struct dbri_pipe {
 	u32 sdp;		/* SDP command word */
-	enum in_or_out direction;
 	int nextpipe;		/* Next pipe in linked list */
-	int prevpipe;
 	int cycle;		/* Offset of timeslot (bits) */
 	int length;		/* Length of timeslot (bits) */
 	int first_desc;		/* Index of first descriptor */
@@ -300,13 +298,11 @@ struct dbri_streaminfo {
 	int pipe;		/* Data pipe used                 */
 	int left_gain;		/* mixer elements                 */
 	int right_gain;
-	int balance;
 };
 
 /* This structure holds the information for both chips (DBRI & CS4215) */
 struct snd_dbri {
 	struct snd_card *card;	/* ALSA card */
-	struct snd_pcm *pcm;
 
 	int regs_size, irq;	/* Needed for unload */
 	struct sbus_dev *sdev;	/* SBUS device info */
@@ -316,7 +312,6 @@ struct snd_dbri {
 	u32 dma_dvma;		/* DBRI visible DMA address */
 
 	void __iomem *regs;	/* dbri HW regs */
-	int dbri_version;	/* 'e' and up is OK */
 	int dbri_irqp;		/* intr queue pointer */
 	int wait_send;		/* sequence of command buffers send */
 	int wait_ackd;		/* sequence of command buffers acknowledged */
@@ -337,8 +332,6 @@ struct snd_dbri {
 
 #define DBRI_MAX_VOLUME		63	/* Output volume */
 #define DBRI_MAX_GAIN		15	/* Input gain */
-#define DBRI_RIGHT_BALANCE	255
-#define DBRI_MID_BALANCE	(DBRI_RIGHT_BALANCE >> 1)
 
 /* DBRI Reg0 - Status Control Register - defines. (Page 17) */
 #define D_P		(1<<15)	/* Program command & queue pointer valid */
@@ -841,10 +834,6 @@ static void setup_pipe(struct snd_dbri * dbri, int pipe, int sdp)
 	dbri->pipes[pipe].sdp = sdp;
 	dbri->pipes[pipe].desc = -1;
 	dbri->pipes[pipe].first_desc = -1;
-	if (sdp & D_SDP_TO_SER)
-		dbri->pipes[pipe].direction = PIPEoutput;
-	else
-		dbri->pipes[pipe].direction = PIPEinput;
 
 	reset_pipe(dbri, pipe);
 }
@@ -1362,14 +1351,6 @@ static void cs4215_setdata(struct snd_dbri * dbri, int muted)
 		struct dbri_streaminfo *info = &dbri->stream_info[DBRI_PLAY];
 		int left_gain = info->left_gain % 64;
 		int right_gain = info->right_gain % 64;
-
-		if (info->balance < DBRI_MID_BALANCE) {
-			right_gain *= info->balance;
-			right_gain /= DBRI_MID_BALANCE;
-		} else {
-			left_gain *= DBRI_RIGHT_BALANCE - info->balance;
-			left_gain /= DBRI_MID_BALANCE;
-		}
 
 		dbri->mm.data[0] &= ~0x3f;	/* Reset the volume bits */
 		dbri->mm.data[1] &= ~0x3f;
@@ -2233,7 +2214,6 @@ static int __devinit snd_dbri_pcm(struct snd_dbri * dbri)
 	pcm->private_data = dbri;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, dbri->card->shortname);
-	dbri->pcm = pcm;
 
 	if ((err = snd_pcm_lib_preallocate_pages_for_all(pcm,
 			SNDRV_DMA_TYPE_CONTINUOUS,
@@ -2452,7 +2432,6 @@ static int __init snd_dbri_mixer(struct snd_dbri * dbri)
 	for (idx = DBRI_REC; idx < DBRI_NO_STREAMS; idx++) {
 		dbri->stream_info[idx].left_gain = 0;
 		dbri->stream_info[idx].right_gain = 0;
-		dbri->stream_info[idx].balance = DBRI_MID_BALANCE;
 	}
 
 	return 0;
@@ -2484,12 +2463,11 @@ static void dbri_debug_read(struct snd_info_entry * entry,
 			struct dbri_pipe *pptr = &dbri->pipes[pipe];
 			snd_iprintf(buffer,
 				    "Pipe %d: %s SDP=0x%x desc=%d, "
-				    "len=%d @ %d prev: %d next %d\n",
+				    "len=%d @ %d next %d\n",
 				    pipe,
-				    (pptr->direction ==
-				     PIPEinput ? "input" : "output"), pptr->sdp,
-				    pptr->desc, pptr->length, pptr->cycle,
-				    pptr->prevpipe, pptr->nextpipe);
+				   ((pptr->sdp & D_SDP_TO_SER) ? "output" : "input"),
+				    pptr->sdp, pptr->desc,
+				    pptr->length, pptr->cycle, pptr->nextpipe);
 		}
 	}
 }
@@ -2528,7 +2506,6 @@ static int __init snd_dbri_create(struct snd_card *card,
 	dbri->card = card;
 	dbri->sdev = sdev;
 	dbri->irq = irq->pri;
-	dbri->dbri_version = sdev->prom_name[9];
 
 	dbri->dma = sbus_alloc_consistent(sdev, sizeof(struct dbri_dma),
 					  &dbri->dma_dvma);
@@ -2648,7 +2625,7 @@ static int __init dbri_attach(int prom_node, struct sbus_dev *sdev)
 
 	printk(KERN_INFO "audio%d at %p (irq %d) is DBRI(%c)+CS4215(%d)\n",
 	       dev, dbri->regs,
-	       dbri->irq, dbri->dbri_version, dbri->mm.version);
+	       dbri->irq, sdev->prom_name[9], dbri->mm.version);
 	dev++;
 
 	return 0;
