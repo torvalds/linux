@@ -301,8 +301,6 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	fc_host->supported_classes = FC_COS_UNSPECIFIED;
 	memset(fc_host->supported_fc4s, 0,
 		sizeof(fc_host->supported_fc4s));
-	memset(fc_host->symbolic_name, 0,
-		sizeof(fc_host->symbolic_name));
 	fc_host->supported_speeds = FC_PORTSPEED_UNKNOWN;
 	fc_host->maxframe_size = -1;
 	memset(fc_host->serial_number, 0,
@@ -315,6 +313,8 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 		sizeof(fc_host->active_fc4s));
 	fc_host->speed = FC_PORTSPEED_UNKNOWN;
 	fc_host->fabric_name = -1;
+	memset(fc_host->symbolic_name, 0, sizeof(fc_host->symbolic_name));
+	memset(fc_host->system_hostname, 0, sizeof(fc_host->system_hostname));
 
 	fc_host->tgtid_bind_type = FC_TGTID_BIND_BY_WWPN;
 
@@ -688,6 +688,25 @@ store_fc_host_##field(struct class_device *cdev, const char *buf,	\
 	return count;							\
 }
 
+#define fc_host_store_str_function(field, slen)				\
+static ssize_t								\
+store_fc_host_##field(struct class_device *cdev, const char *buf,	\
+			   size_t count)				\
+{									\
+	struct Scsi_Host *shost = transport_class_to_shost(cdev);	\
+	struct fc_internal *i = to_fc_internal(shost->transportt);	\
+	unsigned int cnt=count;						\
+									\
+	/* count may include a LF at end of string */			\
+	if (buf[cnt-1] == '\n')						\
+		cnt--;							\
+	if (cnt > ((slen) - 1))						\
+		return -EINVAL;						\
+	memcpy(fc_host_##field(shost), buf, cnt);			\
+	i->f->set_host_##field(shost);					\
+	return count;							\
+}
+
 #define fc_host_rd_attr(field, format_string, sz)			\
 	fc_host_show_function(field, format_string, sz, )		\
 static FC_CLASS_DEVICE_ATTR(host, field, S_IRUGO,			\
@@ -858,6 +877,12 @@ fc_host_rd_enum_attr(port_type, FC_PORTTYPE_MAX_NAMELEN);
 fc_host_rd_enum_attr(port_state, FC_PORTSTATE_MAX_NAMELEN);
 fc_host_rd_attr_cast(fabric_name, "0x%llx\n", 20, unsigned long long);
 fc_host_rd_attr(symbolic_name, "%s\n", FC_SYMBOLIC_NAME_SIZE + 1);
+
+fc_private_host_show_function(system_hostname, "%s\n",
+		FC_SYMBOLIC_NAME_SIZE + 1, )
+fc_host_store_str_function(system_hostname, FC_SYMBOLIC_NAME_SIZE)
+static FC_CLASS_DEVICE_ATTR(host, system_hostname, S_IRUGO | S_IWUSR,
+		show_fc_host_system_hostname, store_fc_host_system_hostname);
 
 
 /* Private Host Attributes */
@@ -1234,6 +1259,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	SETUP_HOST_ATTRIBUTE_RD(speed);
 	SETUP_HOST_ATTRIBUTE_RD(fabric_name);
 	SETUP_HOST_ATTRIBUTE_RD(symbolic_name);
+	SETUP_HOST_ATTRIBUTE_RW(system_hostname);
 
 	/* Transport-managed attributes */
 	SETUP_PRIVATE_HOST_ATTRIBUTE_RW(tgtid_bind_type);
