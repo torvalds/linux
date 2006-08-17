@@ -478,7 +478,7 @@ static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	.info =	 snd_ca0106_volume_info,			\
 	.get =   snd_ca0106_volume_get,				\
 	.put =   snd_ca0106_volume_put,				\
-	.tlv.p = snd_ca0106_db_scale1,				\
+	.tlv = { .p = snd_ca0106_db_scale1 },			\
 	.private_value = ((chid) << 8) | (reg)			\
 }
 
@@ -490,7 +490,7 @@ static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	.info =  snd_ca0106_i2c_volume_info,			\
 	.get =   snd_ca0106_i2c_volume_get,			\
 	.put =   snd_ca0106_i2c_volume_put,			\
-	.tlv.p = snd_ca0106_db_scale2,				\
+	.tlv = { .p = snd_ca0106_db_scale2 },			\
 	.private_value = chid					\
 }
 

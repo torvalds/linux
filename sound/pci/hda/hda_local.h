@@ -36,7 +36,7 @@
 	  .info = snd_hda_mixer_amp_volume_info, \
 	  .get = snd_hda_mixer_amp_volume_get, \
 	  .put = snd_hda_mixer_amp_volume_put, \
-	  .tlv.c = snd_hda_mixer_amp_tlv, \
+	  .tlv = { .c = snd_hda_mixer_amp_tlv },		\
 	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, xindex, direction) }
 /* stereo volume with index */
 #define HDA_CODEC_VOLUME_IDX(xname, xcidx, nid, xindex, direction) \

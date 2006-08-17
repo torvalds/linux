@@ -794,7 +794,7 @@ static DECLARE_TLV_DB_SCALE(snd_p16v_db_scale1, -5175, 25, 1);
 	.info = snd_p16v_volume_info, \
 	.get = snd_p16v_volume_get, \
 	.put = snd_p16v_volume_put, \
-	.tlv.p = snd_p16v_db_scale1, \
+	.tlv = { .p = snd_p16v_db_scale1 },	\
 	.private_value = ((xreg) | ((xhl) << 8)) \
 }
 

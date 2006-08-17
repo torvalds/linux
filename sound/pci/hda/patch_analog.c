@@ -507,7 +507,7 @@ static struct snd_kcontrol_new ad1986a_mixers[] = {
 		.info = ad1986a_pcm_amp_vol_info,
 		.get = ad1986a_pcm_amp_vol_get,
 		.put = ad1986a_pcm_amp_vol_put,
-		.tlv.c = ad1986a_pcm_amp_tlv,
+		.tlv = { .c = ad1986a_pcm_amp_tlv },
 		.private_value = HDA_COMPOSE_AMP_VAL(AD1986A_FRONT_DAC, 3, 0, HDA_OUTPUT)
 	},
 	{
