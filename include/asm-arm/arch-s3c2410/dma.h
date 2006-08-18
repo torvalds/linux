@@ -104,6 +104,7 @@ enum s3c2410_chan_op_e {
 	S3C2410_DMAOP_RESUME,
 	S3C2410_DMAOP_FLUSH,
 	S3C2410_DMAOP_TIMEOUT,           /* internal signal to handler */
+	S3C2410_DMAOP_STARTED,		/* indicate channel started */
 };
 
 typedef enum s3c2410_chan_op_e s3c2410_chan_op_t;
