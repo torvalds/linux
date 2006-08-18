@@ -1204,6 +1204,15 @@ lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 	fc_host_fabric_name(shost) = node_name;
 }
 
+static void
+lpfc_get_host_symbolic_name (struct Scsi_Host *shost)
+{
+	struct lpfc_hba *phba = (struct lpfc_hba*)shost->hostdata;
+
+	spin_lock_irq(shost->host_lock);
+	lpfc_get_hba_sym_node_name(phba, fc_host_symbolic_name(shost));
+	spin_unlock_irq(shost->host_lock);
+}
 
 static struct fc_host_statistics *
 lpfc_get_stats(struct Scsi_Host *shost)
@@ -1486,7 +1495,6 @@ struct fc_function_template lpfc_transport_functions = {
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_fc4s = 1,
-	.show_host_symbolic_name = 1,
 	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
 
@@ -1508,6 +1516,9 @@ struct fc_function_template lpfc_transport_functions = {
 
 	.get_host_fabric_name = lpfc_get_host_fabric_name,
 	.show_host_fabric_name = 1,
+
+	.get_host_symbolic_name = lpfc_get_host_symbolic_name,
+	.show_host_symbolic_name = 1,
 
 	/*
 	 * The LPFC driver treats linkdown handling as target loss events
