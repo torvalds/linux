@@ -118,7 +118,7 @@ ENTRY(secondary_startup)
 	sub	r4, r4, r5			@ mmu has been enabled
 	ldr	r4, [r7, r4]			@ get secondary_data.pgdir
 	adr	lr, __enable_mmu		@ return address
-	add	pc, r10, #12			@ initialise processor
+	add	pc, r10, #PROCINFO_INITFUNC	@ initialise processor
 						@ (return control reg)
 
 	/*
