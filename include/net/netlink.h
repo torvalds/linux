@@ -192,6 +192,16 @@ struct nla_policy {
 	u16		minlen;
 };
 
+/**
+ * struct nl_info - netlink source information
+ * @nlh: Netlink message header of original request
+ * @pid: Netlink PID of requesting application
+ */
+struct nl_info {
+	struct nlmsghdr		*nlh;
+	u32			pid;
+};
+
 extern void		netlink_run_queue(struct sock *sk, unsigned int *qlen,
 					  int (*cb)(struct sk_buff *,
 						    struct nlmsghdr *, int *));
