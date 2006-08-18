@@ -286,7 +286,7 @@ void rtmsg_fib(int event, u32 key, struct fib_alias *fa,
 		goto errout;
 
 	err = fib_dump_info(skb, info->pid, seq, event, tb_id,
-			    fa->fa_type, fa->fa_scope, &key, dst_len,
+			    fa->fa_type, fa->fa_scope, key, dst_len,
 			    fa->fa_tos, fa->fa_info, 0);
 	if (err < 0) {
 		kfree_skb(skb);
@@ -928,79 +928,87 @@ u32 __fib_res_prefsrc(struct fib_result *res)
 	return inet_select_addr(FIB_RES_DEV(*res), FIB_RES_GW(*res), res->scope);
 }
 
-int
-fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
-	      u32 tb_id, u8 type, u8 scope, void *dst, int dst_len, u8 tos,
-	      struct fib_info *fi, unsigned int flags)
+int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
+		  u32 tb_id, u8 type, u8 scope, u32 dst, int dst_len, u8 tos,
+		  struct fib_info *fi, unsigned int flags)
 {
+	struct nlmsghdr *nlh;
 	struct rtmsg *rtm;
-	struct nlmsghdr  *nlh;
-	unsigned char	 *b = skb->tail;
 
-	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*rtm), flags);
-	rtm = NLMSG_DATA(nlh);
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*rtm), flags);
+	if (nlh == NULL)
+		return -ENOBUFS;
+
+	rtm = nlmsg_data(nlh);
 	rtm->rtm_family = AF_INET;
 	rtm->rtm_dst_len = dst_len;
 	rtm->rtm_src_len = 0;
 	rtm->rtm_tos = tos;
 	rtm->rtm_table = tb_id;
-	RTA_PUT_U32(skb, RTA_TABLE, tb_id);
+	NLA_PUT_U32(skb, RTA_TABLE, tb_id);
 	rtm->rtm_type = type;
 	rtm->rtm_flags = fi->fib_flags;
 	rtm->rtm_scope = scope;
-	if (rtm->rtm_dst_len)
-		RTA_PUT(skb, RTA_DST, 4, dst);
 	rtm->rtm_protocol = fi->fib_protocol;
+
+	if (rtm->rtm_dst_len)
+		NLA_PUT_U32(skb, RTA_DST, dst);
+
 	if (fi->fib_priority)
-		RTA_PUT(skb, RTA_PRIORITY, 4, &fi->fib_priority);
+		NLA_PUT_U32(skb, RTA_PRIORITY, fi->fib_priority);
+
 	if (rtnetlink_put_metrics(skb, fi->fib_metrics) < 0)
-		goto rtattr_failure;
+		goto nla_put_failure;
+
 	if (fi->fib_prefsrc)
-		RTA_PUT(skb, RTA_PREFSRC, 4, &fi->fib_prefsrc);
+		NLA_PUT_U32(skb, RTA_PREFSRC, fi->fib_prefsrc);
+
 	if (fi->fib_nhs == 1) {
 		if (fi->fib_nh->nh_gw)
-			RTA_PUT(skb, RTA_GATEWAY, 4, &fi->fib_nh->nh_gw);
+			NLA_PUT_U32(skb, RTA_GATEWAY, fi->fib_nh->nh_gw);
+
 		if (fi->fib_nh->nh_oif)
-			RTA_PUT(skb, RTA_OIF, sizeof(int), &fi->fib_nh->nh_oif);
+			NLA_PUT_U32(skb, RTA_OIF, fi->fib_nh->nh_oif);
 #ifdef CONFIG_NET_CLS_ROUTE
 		if (fi->fib_nh[0].nh_tclassid)
-			RTA_PUT(skb, RTA_FLOW, 4, &fi->fib_nh[0].nh_tclassid);
+			NLA_PUT_U32(skb, RTA_FLOW, fi->fib_nh[0].nh_tclassid);
 #endif
 	}
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (fi->fib_nhs > 1) {
-		struct rtnexthop *nhp;
-		struct rtattr *mp_head;
-		if (skb_tailroom(skb) <= RTA_SPACE(0))
-			goto rtattr_failure;
-		mp_head = (struct rtattr*)skb_put(skb, RTA_SPACE(0));
+		struct rtnexthop *rtnh;
+		struct nlattr *mp;
+
+		mp = nla_nest_start(skb, RTA_MULTIPATH);
+		if (mp == NULL)
+			goto nla_put_failure;
 
 		for_nexthops(fi) {
-			if (skb_tailroom(skb) < RTA_ALIGN(RTA_ALIGN(sizeof(*nhp)) + 4))
-				goto rtattr_failure;
-			nhp = (struct rtnexthop*)skb_put(skb, RTA_ALIGN(sizeof(*nhp)));
-			nhp->rtnh_flags = nh->nh_flags & 0xFF;
-			nhp->rtnh_hops = nh->nh_weight-1;
-			nhp->rtnh_ifindex = nh->nh_oif;
+			rtnh = nla_reserve_nohdr(skb, sizeof(*rtnh));
+			if (rtnh == NULL)
+				goto nla_put_failure;
+
+			rtnh->rtnh_flags = nh->nh_flags & 0xFF;
+			rtnh->rtnh_hops = nh->nh_weight - 1;
+			rtnh->rtnh_ifindex = nh->nh_oif;
+
 			if (nh->nh_gw)
-				RTA_PUT(skb, RTA_GATEWAY, 4, &nh->nh_gw);
+				NLA_PUT_U32(skb, RTA_GATEWAY, nh->nh_gw);
 #ifdef CONFIG_NET_CLS_ROUTE
 			if (nh->nh_tclassid)
-				RTA_PUT(skb, RTA_FLOW, 4, &nh->nh_tclassid);
+				NLA_PUT_U32(skb, RTA_FLOW, nh->nh_tclassid);
 #endif
-			nhp->rtnh_len = skb->tail - (unsigned char*)nhp;
+			/* length of rtnetlink header + attributes */
+			rtnh->rtnh_len = nlmsg_get_pos(skb) - (void *) rtnh;
 		} endfor_nexthops(fi);
-		mp_head->rta_type = RTA_MULTIPATH;
-		mp_head->rta_len = skb->tail - (u8*)mp_head;
+
+		nla_nest_end(skb, mp);
 	}
 #endif
-	nlh->nlmsg_len = skb->tail - b;
-	return skb->len;
+	return nlmsg_end(skb, nlh);
 
-nlmsg_failure:
-rtattr_failure:
-	skb_trim(skb, b - skb->data);
-	return -1;
+nla_put_failure:
+	return nlmsg_cancel(skb, nlh);
 }
 
 /*

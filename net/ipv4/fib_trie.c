@@ -1854,7 +1854,7 @@ static int fn_trie_dump_fa(t_key key, int plen, struct list_head *fah, struct fi
 				  tb->tb_id,
 				  fa->fa_type,
 				  fa->fa_scope,
-				  &xkey,
+				  xkey,
 				  plen,
 				  fa->fa_tos,
 				  fa->fa_info, 0) < 0) {

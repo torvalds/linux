@@ -591,8 +591,8 @@ int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	struct hlist_node *node;
 	int dumped = 0;
 
-	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&
-	    ((struct rtmsg*)NLMSG_DATA(cb->nlh))->rtm_flags&RTM_F_CLONED)
+	if (nlmsg_len(cb->nlh) >= sizeof(struct rtmsg) &&
+	    ((struct rtmsg *) nlmsg_data(cb->nlh))->rtm_flags & RTM_F_CLONED)
 		return ip_rt_dump(skb, cb);
 
 	s_h = cb->args[0];
