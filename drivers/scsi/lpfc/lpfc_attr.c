@@ -39,6 +39,9 @@
 #include "lpfc_compat.h"
 #include "lpfc_crtn.h"
 
+#define LPFC_DEF_DEVLOSS_TMO 30
+#define LPFC_MIN_DEVLOSS_TMO 1
+#define LPFC_MAX_DEVLOSS_TMO 255
 
 static void
 lpfc_jedec_to_ascii(int incr, char hdw[])
@@ -559,6 +562,123 @@ static CLASS_DEVICE_ATTR(lpfc_poll, S_IRUGO | S_IWUSR,
 			 lpfc_poll_show, lpfc_poll_store);
 
 /*
+# lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
+# until the timer expires. Value range is [0,255]. Default value is 30.
+*/
+static int lpfc_nodev_tmo = LPFC_DEF_DEVLOSS_TMO;
+static int lpfc_devloss_tmo = LPFC_DEF_DEVLOSS_TMO;
+module_param(lpfc_nodev_tmo, int, 0);
+MODULE_PARM_DESC(lpfc_nodev_tmo,
+		 "Seconds driver will hold I/O waiting "
+		 "for a device to come back");
+static ssize_t
+lpfc_nodev_tmo_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	int val = 0;
+	val = phba->cfg_devloss_tmo;
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			phba->cfg_devloss_tmo);
+}
+
+static int
+lpfc_nodev_tmo_init(struct lpfc_hba *phba, int val)
+{
+	static int warned;
+	if (phba->cfg_devloss_tmo !=  LPFC_DEF_DEVLOSS_TMO) {
+		phba->cfg_nodev_tmo = phba->cfg_devloss_tmo;
+		if (!warned && val != LPFC_DEF_DEVLOSS_TMO) {
+			warned = 1;
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"%d:0402 Ignoring nodev_tmo module "
+					"parameter because devloss_tmo is"
+					" set.\n",
+					phba->brd_no);
+		}
+		return 0;
+	}
+
+	if (val >= LPFC_MIN_DEVLOSS_TMO && val <= LPFC_MAX_DEVLOSS_TMO) {
+		phba->cfg_nodev_tmo = val;
+		phba->cfg_devloss_tmo = val;
+		return 0;
+	}
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"%d:0400 lpfc_nodev_tmo attribute cannot be set to %d, "
+			"allowed range is [%d, %d]\n",
+			phba->brd_no, val,
+			LPFC_MIN_DEVLOSS_TMO, LPFC_MAX_DEVLOSS_TMO);
+	phba->cfg_nodev_tmo = LPFC_DEF_DEVLOSS_TMO;
+	return -EINVAL;
+}
+
+static int
+lpfc_nodev_tmo_set(struct lpfc_hba *phba, int val)
+{
+	if (phba->dev_loss_tmo_changed ||
+		(lpfc_devloss_tmo != LPFC_DEF_DEVLOSS_TMO)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"%d:0401 Ignoring change to nodev_tmo "
+				"because devloss_tmo is set.\n",
+				phba->brd_no);
+		return 0;
+	}
+
+	if (val >= LPFC_MIN_DEVLOSS_TMO && val <= LPFC_MAX_DEVLOSS_TMO) {
+		phba->cfg_nodev_tmo = val;
+		phba->cfg_devloss_tmo = val;
+		return 0;
+	}
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"%d:0403 lpfc_nodev_tmo attribute cannot be set to %d, "
+			"allowed range is [%d, %d]\n",
+			phba->brd_no, val, LPFC_MIN_DEVLOSS_TMO,
+			LPFC_MAX_DEVLOSS_TMO);
+	return -EINVAL;
+}
+
+lpfc_param_store(nodev_tmo)
+
+static CLASS_DEVICE_ATTR(lpfc_nodev_tmo, S_IRUGO | S_IWUSR,
+			 lpfc_nodev_tmo_show, lpfc_nodev_tmo_store);
+
+/*
+# lpfc_devloss_tmo: If set, it will hold all I/O errors on devices that
+# disappear until the timer expires. Value range is [0,255]. Default
+# value is 30.
+*/
+module_param(lpfc_devloss_tmo, int, 0);
+MODULE_PARM_DESC(lpfc_devloss_tmo,
+		 "Seconds driver will hold I/O waiting "
+		 "for a device to come back");
+lpfc_param_init(devloss_tmo, LPFC_DEF_DEVLOSS_TMO,
+		LPFC_MIN_DEVLOSS_TMO, LPFC_MAX_DEVLOSS_TMO)
+lpfc_param_show(devloss_tmo)
+static int
+lpfc_devloss_tmo_set(struct lpfc_hba *phba, int val)
+{
+	if (val >= LPFC_MIN_DEVLOSS_TMO && val <= LPFC_MAX_DEVLOSS_TMO) {
+		phba->cfg_nodev_tmo = val;
+		phba->cfg_devloss_tmo = val;
+		phba->dev_loss_tmo_changed = 1;
+		return 0;
+	}
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"%d:0404 lpfc_devloss_tmo attribute cannot be set to"
+			" %d, allowed range is [%d, %d]\n",
+			phba->brd_no, val, LPFC_MIN_DEVLOSS_TMO,
+			LPFC_MAX_DEVLOSS_TMO);
+	return -EINVAL;
+}
+
+lpfc_param_store(devloss_tmo)
+static CLASS_DEVICE_ATTR(lpfc_devloss_tmo, S_IRUGO | S_IWUSR,
+	lpfc_devloss_tmo_show, lpfc_devloss_tmo_store);
+
+/*
 # lpfc_log_verbose: Only turn this flag on if you are willing to risk being
 # deluged with LOTS of information.
 # You can set a bit mask to record specific types of verbose messages:
@@ -615,14 +735,6 @@ LPFC_ATTR_R(hba_queue_depth, 8192, 32, 8192,
 */
 LPFC_ATTR_R(scan_down, 1, 0, 1,
 	     "Start scanning for devices from highest ALPA to lowest");
-
-/*
-# lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
-# until the timer expires. Value range is [0,255]. Default value is 30.
-# NOTE: this MUST be less then the SCSI Layer command timeout - 1.
-*/
-LPFC_ATTR_RW(nodev_tmo, 30, 0, 255,
-	     "Seconds driver will hold I/O waiting for a device to come back");
 
 /*
 # lpfc_topology:  link topology for init link
@@ -737,6 +849,7 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_lun_queue_depth,
 	&class_device_attr_lpfc_hba_queue_depth,
 	&class_device_attr_lpfc_nodev_tmo,
+	&class_device_attr_lpfc_devloss_tmo,
 	&class_device_attr_lpfc_fcp_class,
 	&class_device_attr_lpfc_use_adisc,
 	&class_device_attr_lpfc_ack0,
@@ -1450,27 +1563,12 @@ lpfc_get_starget_port_name(struct scsi_target *starget)
 }
 
 static void
-lpfc_get_rport_loss_tmo(struct fc_rport *rport)
-{
-	/*
-	 * Return the driver's global value for device loss timeout plus
-	 * five seconds to allow the driver's nodev timer to run.
-	 */
-	rport->dev_loss_tmo = lpfc_nodev_tmo + 5;
-}
-
-static void
 lpfc_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 {
-	/*
-	 * The driver doesn't have a per-target timeout setting.  Set
-	 * this value globally. lpfc_nodev_tmo should be greater then 0.
-	 */
 	if (timeout)
-		lpfc_nodev_tmo = timeout;
+		rport->dev_loss_tmo = timeout;
 	else
-		lpfc_nodev_tmo = 1;
-	rport->dev_loss_tmo = lpfc_nodev_tmo + 5;
+		rport->dev_loss_tmo = 1;
 }
 
 
@@ -1532,7 +1630,6 @@ struct fc_function_template lpfc_transport_functions = {
 	.show_rport_maxframe_size = 1,
 	.show_rport_supported_classes = 1,
 
-	.get_rport_dev_loss_tmo = lpfc_get_rport_loss_tmo,
 	.set_rport_dev_loss_tmo = lpfc_set_rport_loss_tmo,
 	.show_rport_dev_loss_tmo = 1,
 
@@ -1546,6 +1643,8 @@ struct fc_function_template lpfc_transport_functions = {
 	.show_starget_port_name = 1,
 
 	.issue_fc_host_lip = lpfc_issue_lip,
+	.dev_loss_tmo_callbk = lpfc_dev_loss_tmo_callbk,
+	.terminate_rport_io = lpfc_terminate_rport_io,
 };
 
 void
@@ -1561,13 +1660,13 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_ack0_init(phba, lpfc_ack0);
 	lpfc_topology_init(phba, lpfc_topology);
 	lpfc_scan_down_init(phba, lpfc_scan_down);
-	lpfc_nodev_tmo_init(phba, lpfc_nodev_tmo);
 	lpfc_link_speed_init(phba, lpfc_link_speed);
 	lpfc_fdmi_on_init(phba, lpfc_fdmi_on);
 	lpfc_discovery_threads_init(phba, lpfc_discovery_threads);
 	lpfc_max_luns_init(phba, lpfc_max_luns);
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
-
+	lpfc_devloss_tmo_init(phba, lpfc_devloss_tmo);
+	lpfc_nodev_tmo_init(phba, lpfc_nodev_tmo);
 	phba->cfg_poll = lpfc_poll;
 
 	/*

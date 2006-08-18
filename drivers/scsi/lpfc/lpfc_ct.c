@@ -324,7 +324,6 @@ lpfc_ns_rsp(struct lpfc_hba * phba, struct lpfc_dmabuf * mp, uint32_t Size)
 	struct lpfc_sli_ct_request *Response =
 		(struct lpfc_sli_ct_request *) mp->virt;
 	struct lpfc_nodelist *ndlp = NULL;
-	struct lpfc_nodelist *next_ndlp;
 	struct lpfc_dmabuf *mlast, *next_mp;
 	uint32_t *ctptr = (uint32_t *) & Response->un.gid.PortType;
 	uint32_t Did;
@@ -399,30 +398,6 @@ nsout1:
  	 * current driver state.
  	 */
 	if (phba->hba_state == LPFC_HBA_READY) {
-
-		/*
-		 * Switch ports that connect a loop of multiple targets need
-		 * special consideration.  The driver wants to unregister the
-		 * rpi only on the target that was pulled from the loop.  On
-		 * RSCN, the driver wants to rediscover an NPort only if the
-		 * driver flagged it as NLP_NPR_2B_DISC.  Provided adisc is
-		 * not enabled and the NPort is not capable of retransmissions
-		 * (FC Tape) prevent timing races with the scsi error handler by
-		 * unregistering the Nport's RPI.  This action causes all
-		 * outstanding IO to flush back to the midlayer.
-		 */
-		list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_npr_list,
-					 nlp_listp) {
-			if (!(ndlp->nlp_flag & NLP_NPR_2B_DISC) &&
-			    (lpfc_rscn_payload_check(phba, ndlp->nlp_DID))) {
-				if ((phba->cfg_use_adisc == 0) &&
-				    !(ndlp->nlp_fcp_info &
-				      NLP_FCP_2_DEVICE)) {
-					lpfc_unreg_rpi(phba, ndlp);
-					ndlp->nlp_flag &= ~NLP_NPR_ADISC;
-				}
-			}
-		}
 		lpfc_els_flush_rscn(phba);
 		spin_lock_irq(phba->host->host_lock);
 		phba->fc_flag |= FC_RSCN_MODE; /* we are still in RSCN mode */

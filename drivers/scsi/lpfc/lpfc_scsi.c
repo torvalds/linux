@@ -935,7 +935,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 			schedule_timeout_uninterruptible(LPFC_ABORT_WAIT*HZ);
 		spin_lock_irq(phba->host->host_lock);
 		if (++loop_count
-		    > (2 * phba->cfg_nodev_tmo)/LPFC_ABORT_WAIT)
+		    > (2 * phba->cfg_devloss_tmo)/LPFC_ABORT_WAIT)
 			break;
 	}
 
@@ -978,7 +978,7 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	spin_lock_irq(shost->host_lock);
 	/*
 	 * If target is not in a MAPPED state, delay the reset until
-	 * target is rediscovered or nodev timeout expires.
+	 * target is rediscovered or devloss timeout expires.
 	 */
 	while ( 1 ) {
 		if (!pnode)
@@ -1050,7 +1050,7 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 		spin_lock_irq(phba->host->host_lock);
 
 		if (++loopcnt
-		    > (2 * phba->cfg_nodev_tmo)/LPFC_RESET_WAIT)
+		    > (2 * phba->cfg_devloss_tmo)/LPFC_RESET_WAIT)
 			break;
 
 		cnt = lpfc_sli_sum_iocb(phba,
@@ -1151,7 +1151,7 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 		spin_lock_irq(phba->host->host_lock);
 
 		if (++loopcnt
-		    > (2 * phba->cfg_nodev_tmo)/LPFC_RESET_WAIT)
+		    > (2 * phba->cfg_devloss_tmo)/LPFC_RESET_WAIT)
 			break;
 
 		cnt = lpfc_sli_sum_iocb(phba,
@@ -1249,7 +1249,7 @@ lpfc_slave_configure(struct scsi_device *sdev)
 	 * target pointer is stored in the starget_data for the
 	 * driver's sysfs entry point functions.
 	 */
-	rport->dev_loss_tmo = phba->cfg_nodev_tmo + 5;
+	rport->dev_loss_tmo = phba->cfg_devloss_tmo;
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
 		lpfc_sli_poll_fcp_ring(phba);

@@ -1813,7 +1813,7 @@ lpfc_device_recov_npr_node(struct lpfc_hba * phba,
  */
 /*
  * For a Link Down, all nodes on the ADISC, PLOGI, unmapped or mapped
- * lists will receive a DEVICE_RECOVERY event. If the linkdown or nodev timers
+ * lists will receive a DEVICE_RECOVERY event. If the linkdown or devloss timers
  * expire, all effected nodes will receive a DEVICE_RM event.
  */
 /*
