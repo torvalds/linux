@@ -464,7 +464,6 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
 		lops_init_le(&bd->bd_le, &gfs2_buf_lops);
 	} else {
 		lops_init_le(&bd->bd_le, &gfs2_databuf_lops);
-		get_bh(bh);
 	}
 	bh->b_private = bd;
 

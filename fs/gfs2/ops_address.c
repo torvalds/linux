@@ -581,10 +581,8 @@ static void discard_buffer(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	if (bd) {
 		bd->bd_bh = NULL;
 		bh->b_private = NULL;
-		gfs2_log_unlock(sdp);
-		brelse(bh);
-	} else
-		gfs2_log_unlock(sdp);
+	}
+	gfs2_log_unlock(sdp);
 
 	lock_buffer(bh);
 	clear_buffer_dirty(bh);
@@ -598,7 +596,7 @@ static void discard_buffer(struct gfs2_sbd *sdp, struct buffer_head *bh)
 
 static void gfs2_invalidatepage(struct page *page, unsigned long offset)
 {
-	struct gfs2_sbd *sdp = page->mapping->host->i_sb->s_fs_info;
+	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
 	struct buffer_head *head, *bh, *next;
 	unsigned int curr_off = 0;
 

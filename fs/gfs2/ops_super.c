@@ -216,8 +216,6 @@ static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (error)
 		return error;
 
-	memset(buf, 0, sizeof(struct kstatfs));
-
 	buf->f_type = GFS2_MAGIC;
 	buf->f_bsize = sdp->sd_sb.sb_bsize;
 	buf->f_blocks = sc.sc_total;

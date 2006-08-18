@@ -464,7 +464,7 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	struct gfs2_inode *ip = GFS2_I(mapping->host);
 
 	tr->tr_touched = 1;
-	if (!list_empty(&bd->bd_list_tr) &&
+	if (list_empty(&bd->bd_list_tr) &&
 	    (ip->i_di.di_flags & GFS2_DIF_JDATA)) {
 		tr->tr_num_buf++;
 		list_add(&bd->bd_list_tr, &tr->tr_list_buf);
@@ -473,7 +473,7 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	}
 	gfs2_trans_add_gl(bd->bd_gl);
 	gfs2_log_lock(sdp);
-	if (!list_empty(&le->le_list)) {
+	if (list_empty(&le->le_list)) {
 		if (ip->i_di.di_flags & GFS2_DIF_JDATA)
 			sdp->sd_log_num_jdata++;
 		sdp->sd_log_num_databuf++;
@@ -640,10 +640,10 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 				 bd_le.le_list);
 		list_del(&bd1->bd_le.le_list);
 		sdp->sd_log_num_databuf--;
-
 		bh = bd1->bd_bh;
 		if (bh) {
 			bh->b_private = NULL;
+			get_bh(bh);
 			gfs2_log_unlock(sdp);
 			wait_on_buffer(bh);
 			brelse(bh);
