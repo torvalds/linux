@@ -465,8 +465,11 @@ unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
 
 	if (!kallsyms_lookup(pc, &size, &ofs, &modname, namebuf))
 		return 0;
-	if (ofs == 0)
-		return 0;
+	/*
+	 * Return ra if an exception occured at the first instruction
+	 */
+	if (unlikely(ofs == 0))
+		return ra;
 
 	info.func = (void *)(pc - ofs);
 	info.func_size = ofs;	/* analyze from start to ofs */
