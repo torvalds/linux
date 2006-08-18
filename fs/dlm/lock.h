@@ -14,6 +14,7 @@
 #define __LOCK_DOT_H__
 
 void dlm_print_rsb(struct dlm_rsb *r);
+void dlm_dump_rsb(struct dlm_rsb *r);
 void dlm_print_lkb(struct dlm_lkb *lkb);
 int dlm_receive_message(struct dlm_header *hd, int nodeid, int recovery);
 int dlm_modes_compat(int mode1, int mode2);

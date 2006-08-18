@@ -490,7 +490,7 @@ static int recover_locks(struct dlm_rsb *r)
 	if (all_queues_empty(r))
 		goto out;
 
-	DLM_ASSERT(!r->res_recover_locks_count, dlm_print_rsb(r););
+	DLM_ASSERT(!r->res_recover_locks_count, dlm_dump_rsb(r););
 
 	error = recover_locks_queue(r, &r->res_grantqueue);
 	if (error)
@@ -557,7 +557,7 @@ int dlm_recover_locks(struct dlm_ls *ls)
 
 void dlm_recovered_lock(struct dlm_rsb *r)
 {
-	DLM_ASSERT(rsb_flag(r, RSB_NEW_MASTER), dlm_print_rsb(r););
+	DLM_ASSERT(rsb_flag(r, RSB_NEW_MASTER), dlm_dump_rsb(r););
 
 	r->res_recover_locks_count--;
 	if (!r->res_recover_locks_count) {

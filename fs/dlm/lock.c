@@ -171,6 +171,28 @@ void dlm_print_rsb(struct dlm_rsb *r)
 	       r->res_recover_locks_count, r->res_name);
 }
 
+void dlm_dump_rsb(struct dlm_rsb *r)
+{
+	struct dlm_lkb *lkb;
+
+	dlm_print_rsb(r);
+
+	printk(KERN_ERR "rsb: root_list empty %d recover_list empty %d\n",
+	       list_empty(&r->res_root_list), list_empty(&r->res_recover_list));
+	printk(KERN_ERR "rsb lookup list\n");
+	list_for_each_entry(lkb, &r->res_lookup, lkb_rsb_lookup)
+		dlm_print_lkb(lkb);
+	printk(KERN_ERR "rsb grant queue:\n");
+	list_for_each_entry(lkb, &r->res_grantqueue, lkb_statequeue)
+		dlm_print_lkb(lkb);
+	printk(KERN_ERR "rsb convert queue:\n");
+	list_for_each_entry(lkb, &r->res_convertqueue, lkb_statequeue)
+		dlm_print_lkb(lkb);
+	printk(KERN_ERR "rsb wait queue:\n");
+	list_for_each_entry(lkb, &r->res_waitqueue, lkb_statequeue)
+		dlm_print_lkb(lkb);
+}
+
 /* Threads cannot use the lockspace while it's being recovered */
 
 static inline void lock_recovery(struct dlm_ls *ls)
@@ -478,7 +500,7 @@ static void unhold_rsb(struct dlm_rsb *r)
 {
 	int rv;
 	rv = kref_put(&r->res_ref, toss_rsb);
-	DLM_ASSERT(!rv, dlm_print_rsb(r););
+	DLM_ASSERT(!rv, dlm_dump_rsb(r););
 }
 
 static void kill_rsb(struct kref *kref)
@@ -488,12 +510,12 @@ static void kill_rsb(struct kref *kref)
 	/* All work is done after the return from kref_put() so we
 	   can release the write_lock before the remove and free. */
 
-	DLM_ASSERT(list_empty(&r->res_lookup),);
-	DLM_ASSERT(list_empty(&r->res_grantqueue),);
-	DLM_ASSERT(list_empty(&r->res_convertqueue),);
-	DLM_ASSERT(list_empty(&r->res_waitqueue),);
-	DLM_ASSERT(list_empty(&r->res_root_list),);
-	DLM_ASSERT(list_empty(&r->res_recover_list),);
+	DLM_ASSERT(list_empty(&r->res_lookup), dlm_dump_rsb(r););
+	DLM_ASSERT(list_empty(&r->res_grantqueue), dlm_dump_rsb(r););
+	DLM_ASSERT(list_empty(&r->res_convertqueue), dlm_dump_rsb(r););
+	DLM_ASSERT(list_empty(&r->res_waitqueue), dlm_dump_rsb(r););
+	DLM_ASSERT(list_empty(&r->res_root_list), dlm_dump_rsb(r););
+	DLM_ASSERT(list_empty(&r->res_recover_list), dlm_dump_rsb(r););
 }
 
 /* Attaching/detaching lkb's from rsb's is for rsb reference counting.
@@ -1336,7 +1358,7 @@ static void grant_pending_locks(struct dlm_rsb *r)
 	struct dlm_lkb *lkb, *s;
 	int high = DLM_LOCK_IV;
 
-	DLM_ASSERT(is_master(r), dlm_print_rsb(r););
+	DLM_ASSERT(is_master(r), dlm_dump_rsb(r););
 
 	high = grant_pending_convert(r, high);
 	high = grant_pending_wait(r, high);
@@ -1431,7 +1453,7 @@ static int set_master(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		return 0;
 	}
 
-	DLM_ASSERT(r->res_nodeid == -1, dlm_print_rsb(r););
+	DLM_ASSERT(r->res_nodeid == -1, dlm_dump_rsb(r););
 
 	dir_nodeid = dlm_dir_nodeid(r);
 
