@@ -29,6 +29,7 @@
 
 #include <linux/sched.h>
 #include <scsi/scsi.h>
+#include <scsi/scsi_netlink.h>
 
 struct scsi_transport_template;
 
@@ -284,6 +285,30 @@ struct fc_host_statistics {
 
 
 /*
+ * FC Event Codes - Polled and Async, following FC HBAAPI v2.0 guidelines
+ */
+
+/*
+ * fc_host_event_code: If you alter this, you also need to alter
+ * scsi_transport_fc.c (for the ascii descriptions).
+ */
+enum fc_host_event_code  {
+	FCH_EVT_LIP			= 0x1,
+	FCH_EVT_LINKUP			= 0x2,
+	FCH_EVT_LINKDOWN		= 0x3,
+	FCH_EVT_LIPRESET		= 0x4,
+	FCH_EVT_RSCN			= 0x5,
+	FCH_EVT_ADAPTER_CHANGE		= 0x103,
+	FCH_EVT_PORT_UNKNOWN		= 0x200,
+	FCH_EVT_PORT_OFFLINE		= 0x201,
+	FCH_EVT_PORT_ONLINE		= 0x202,
+	FCH_EVT_PORT_FABRIC		= 0x204,
+	FCH_EVT_LINK_UNKNOWN		= 0x500,
+	FCH_EVT_VENDOR_UNIQUE		= 0xffff,
+};
+
+
+/*
  * FC Local Port (Host) Attributes
  *
  * Attributes are based on HBAAPI V2.0 definitions.
@@ -526,5 +551,14 @@ struct fc_rport *fc_remote_port_add(struct Scsi_Host *shost,
 void fc_remote_port_delete(struct fc_rport  *rport);
 void fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles);
 int scsi_is_fc_rport(const struct device *);
+u32 fc_get_event_number(void);
+void fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
+		enum fc_host_event_code event_code, u32 event_data);
+void fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
+		u32 data_len, char * data_buf, u32 vendor_id);
+	/* Note: when specifying vendor_id to fc_host_post_vendor_event()
+	 *   be sure to read the Vendor Type and ID formatting requirements
+	 *   specified in scsi_netlink.h
+	 */
 
 #endif /* SCSI_TRANSPORT_FC_H */

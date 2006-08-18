@@ -1118,6 +1118,8 @@ static int __init init_scsi(void)
 	for_each_possible_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(scsi_done_q, i));
 
+	scsi_netlink_init();
+
 	printk(KERN_NOTICE "SCSI subsystem initialized\n");
 	return 0;
 
@@ -1138,6 +1140,7 @@ cleanup_queue:
 
 static void __exit exit_scsi(void)
 {
+	scsi_netlink_exit();
 	scsi_sysfs_unregister();
 	scsi_exit_sysctl();
 	scsi_exit_hosts();
