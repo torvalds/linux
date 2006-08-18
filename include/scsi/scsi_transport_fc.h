@@ -195,6 +195,7 @@ struct fc_rport {	/* aka fc_starget_attrs */
 	u32 roles;
 	enum fc_port_state port_state;	/* Will only be ONLINE or UNKNOWN */
 	u32 scsi_target_id;
+	u32 fast_io_fail_tmo;
 
 	/* exported data */
 	void *dd_data;			/* Used for driver-specific storage */
@@ -207,6 +208,7 @@ struct fc_rport {	/* aka fc_starget_attrs */
 	struct device dev;
  	struct work_struct dev_loss_work;
  	struct work_struct scan_work;
+ 	struct work_struct fail_io_work;
  	struct work_struct stgt_delete_work;
 	struct work_struct rport_delete_work;
 } __attribute__((aligned(sizeof(unsigned long))));
@@ -444,6 +446,9 @@ struct fc_function_template {
 	void	(*reset_fc_host_stats)(struct Scsi_Host *);
 
 	int	(*issue_fc_host_lip)(struct Scsi_Host *);
+
+	void    (*dev_loss_tmo_callbk)(struct fc_rport *);
+	void	(*terminate_rport_io)(struct fc_rport *);
 
 	/* allocation lengths for host-specific data */
 	u32	 			dd_fcrport_size;
