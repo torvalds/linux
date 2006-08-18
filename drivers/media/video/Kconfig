@@ -409,6 +409,15 @@ config VIDEO_SAA711X
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
 
+config VIDEO_TVP5150
+	tristate "Texas Instruments TVP5150 video decoder"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for the Texas Instruments TVP5150 video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tvp5150.
+
 config VIDEO_SAA7127
 	tristate "Philips SAA7127/9 digital video encoders"
 	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL

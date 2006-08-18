@@ -6,6 +6,7 @@ config VIDEO_EM28XX
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
 	select VIDEO_SAA711X
+	select VIDEO_TVP5150
 	---help---
 	  This is a video4linux driver for Empia 28xx based TV cards.
 
