@@ -311,11 +311,18 @@ static inline int is_sp_move_ins(union mips_instruction *ip)
 static int get_frame_info(struct mips_frame_info *info)
 {
 	union mips_instruction *ip = info->func;
-	int i, max_insns =
-		min(128UL, info->func_size / sizeof(union mips_instruction));
+	unsigned max_insns = info->func_size / sizeof(union mips_instruction);
+	unsigned i;
 
 	info->pc_offset = -1;
 	info->frame_size = 0;
+
+	if (!ip)
+		goto err;
+
+	if (max_insns == 0)
+		max_insns = 128U;	/* unknown function size */
+	max_insns = min(128U, max_insns);
 
 	for (i = 0; i < max_insns; i++, ip++) {
 
@@ -337,6 +344,7 @@ static int get_frame_info(struct mips_frame_info *info)
 	if (info->pc_offset < 0) /* leaf */
 		return 1;
 	/* prologue seems boggus... */
+err:
 	return -1;
 }
 
