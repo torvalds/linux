@@ -273,13 +273,15 @@ long kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }
 
-static struct mips_frame_info {
-	void *func;
-	unsigned long func_size;
-	int frame_size;
-	int pc_offset;
-} *schedule_frame, mfinfo[64];
-static int mfinfo_num;
+/*
+ *
+ */
+struct mips_frame_info {
+	void		*func;
+	unsigned long	func_size;
+	int		frame_size;
+	int		pc_offset;
+};
 
 static inline int is_ra_save_ins(union mips_instruction *ip)
 {
@@ -348,45 +350,30 @@ err:
 	return -1;
 }
 
+static struct mips_frame_info schedule_mfi __read_mostly;
+
 static int __init frame_info_init(void)
 {
-	int i;
+	unsigned long size = 0;
 #ifdef CONFIG_KALLSYMS
+	unsigned long ofs;
 	char *modname;
 	char namebuf[KSYM_NAME_LEN + 1];
-	unsigned long start, size, ofs;
-	extern char __sched_text_start[], __sched_text_end[];
-	extern char __lock_text_start[], __lock_text_end[];
 
-	start = (unsigned long)__sched_text_start;
-	for (i = 0; i < ARRAY_SIZE(mfinfo); i++) {
-		if (start == (unsigned long)schedule)
-			schedule_frame = &mfinfo[i];
-		if (!kallsyms_lookup(start, &size, &ofs, &modname, namebuf))
-			break;
-		mfinfo[i].func = (void *)(start + ofs);
-		mfinfo[i].func_size = size;
-		start += size - ofs;
-		if (start >= (unsigned long)__lock_text_end)
-			break;
-		if (start == (unsigned long)__sched_text_end)
-			start = (unsigned long)__lock_text_start;
-	}
-#else
-	mfinfo[0].func = schedule;
-	schedule_frame = &mfinfo[0];
+	kallsyms_lookup((unsigned long)schedule, &size, &ofs, &modname, namebuf);
 #endif
-	for (i = 0; i < ARRAY_SIZE(mfinfo) && mfinfo[i].func; i++)
-		get_frame_info(mfinfo + i);
+	schedule_mfi.func = schedule;
+	schedule_mfi.func_size = size;
+
+	get_frame_info(&schedule_mfi);
 
 	/*
 	 * Without schedule() frame info, result given by
 	 * thread_saved_pc() and get_wchan() are not reliable.
 	 */
-	if (schedule_frame->pc_offset < 0)
+	if (schedule_mfi.pc_offset < 0)
 		printk("Can't analyze schedule() prologue at %p\n", schedule);
 
-	mfinfo_num = i;
 	return 0;
 }
 
@@ -402,58 +389,11 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	/* New born processes are a special case */
 	if (t->reg31 == (unsigned long) ret_from_fork)
 		return t->reg31;
-
-	if (!schedule_frame || schedule_frame->pc_offset < 0)
+	if (schedule_mfi.pc_offset < 0)
 		return 0;
-	return ((unsigned long *)t->reg29)[schedule_frame->pc_offset];
+	return ((unsigned long *)t->reg29)[schedule_mfi.pc_offset];
 }
 
-/* get_wchan - a maintenance nightmare^W^Wpain in the ass ...  */
-unsigned long get_wchan(struct task_struct *p)
-{
-	unsigned long stack_page;
-	unsigned long pc;
-#ifdef CONFIG_KALLSYMS
-	unsigned long frame;
-#endif
-
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
-
-	stack_page = (unsigned long)task_stack_page(p);
-	if (!stack_page || !mfinfo_num)
-		return 0;
-
-	pc = thread_saved_pc(p);
-#ifdef CONFIG_KALLSYMS
-	if (!in_sched_functions(pc))
-		return pc;
-
-	frame = p->thread.reg29 + schedule_frame->frame_size;
-	do {
-		int i;
-
-		if (frame < stack_page || frame > stack_page + THREAD_SIZE - 32)
-			return 0;
-
-		for (i = mfinfo_num - 1; i >= 0; i--) {
-			if (pc >= (unsigned long) mfinfo[i].func)
-				break;
-		}
-		if (i < 0)
-			break;
-
-		if (mfinfo[i].pc_offset < 0)
-			break;
-		pc = ((unsigned long *)frame)[mfinfo[i].pc_offset];
-		if (!mfinfo[i].frame_size)
-			break;
-		frame += mfinfo[i].frame_size;
-	} while (in_sched_functions(pc));
-#endif
-
-	return pc;
-}
 
 #ifdef CONFIG_KALLSYMS
 /* used by show_backtrace() */
@@ -504,3 +444,31 @@ unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
 	return __kernel_text_address(pc) ? pc : 0;
 }
 #endif
+
+/*
+ * get_wchan - a maintenance nightmare^W^Wpain in the ass ...
+ */
+unsigned long get_wchan(struct task_struct *task)
+{
+	unsigned long pc = 0;
+#ifdef CONFIG_KALLSYMS
+	unsigned long sp;
+#endif
+
+	if (!task || task == current || task->state == TASK_RUNNING)
+		goto out;
+	if (!task_stack_page(task))
+		goto out;
+
+	pc = thread_saved_pc(task);
+
+#ifdef CONFIG_KALLSYMS
+	sp = task->thread.reg29 + schedule_mfi.frame_size;
+
+	while (in_sched_functions(pc))
+		pc = unwind_stack(task, &sp, pc, 0);
+#endif
+
+out:
+	return pc;
+}
