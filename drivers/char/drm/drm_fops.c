@@ -53,6 +53,8 @@ static int drm_setup(drm_device_t * dev)
 			return ret;
 	}
 
+	dev->magicfree.next = NULL;
+
 	/* prebuild the SAREA */
 	i = drm_addmap(dev, 0, SAREA_MAX, _DRM_SHM, _DRM_CONTAINS_LOCK, &map);
 	if (i != 0)
