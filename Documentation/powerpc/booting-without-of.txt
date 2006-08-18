@@ -1196,7 +1196,7 @@ platforms are moved over to use the flattened-device-tree model.
     - model : Model of the device.  Can be "TSEC", "eTSEC", or "FEC"
     - compatible : Should be "gianfar"
     - reg : Offset and length of the register set for the device
-    - address : List of bytes representing the ethernet address of
+    - mac-address : List of bytes representing the ethernet address of
       this controller
     - interrupts : <a b> where a is the interrupt number and b is a
       field that represents an encoding of the sense and level
@@ -1216,7 +1216,7 @@ platforms are moved over to use the flattened-device-tree model.
 		model = "TSEC";
 		compatible = "gianfar";
 		reg = <24000 1000>;
-		address = [ 00 E0 0C 00 73 00 ];
+		mac-address = [ 00 E0 0C 00 73 00 ];
 		interrupts = <d 3 e 3 12 3>;
 		interrupt-parent = <40000>;
 		phy-handle = <2452000>
@@ -1498,7 +1498,7 @@ not necessary as they are usually the same as the root node.
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
-			address = [ 00 E0 0C 00 73 00 ];
+			mac-address = [ 00 E0 0C 00 73 00 ];
 			interrupts = <d 3 e 3 12 3>;
 			interrupt-parent = <40000>;
 			phy-handle = <2452000>;
@@ -1511,7 +1511,7 @@ not necessary as they are usually the same as the root node.
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
-			address = [ 00 E0 0C 00 73 01 ];
+			mac-address = [ 00 E0 0C 00 73 01 ];
 			interrupts = <13 3 14 3 18 3>;
 			interrupt-parent = <40000>;
 			phy-handle = <2452001>;
@@ -1524,7 +1524,7 @@ not necessary as they are usually the same as the root node.
 			model = "FEC";
 			compatible = "gianfar";
 			reg = <26000 1000>;
-			address = [ 00 E0 0C 00 73 02 ];
+			mac-address = [ 00 E0 0C 00 73 02 ];
 			interrupts = <19 3>;
 			interrupt-parent = <40000>;
 			phy-handle = <2452002>;
