@@ -216,6 +216,7 @@ extern void fib_select_default(const struct flowi *flp, struct fib_result *res);
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
 /* Exported by fib_frontend.c */
+extern struct nla_policy rtm_ipv4_policy[];
 extern void		ip_fib_init(void);
 extern int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
 extern int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);

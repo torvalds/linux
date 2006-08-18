@@ -453,7 +453,7 @@ int ip_rt_ioctl(unsigned int cmd, void *arg)
 
 #endif
 
-static struct nla_policy rtm_ipv4_policy[RTA_MAX+1] __read_mostly = {
+struct nla_policy rtm_ipv4_policy[RTA_MAX+1] __read_mostly = {
 	[RTA_DST]		= { .type = NLA_U32 },
 	[RTA_SRC]		= { .type = NLA_U32 },
 	[RTA_IIF]		= { .type = NLA_U32 },
