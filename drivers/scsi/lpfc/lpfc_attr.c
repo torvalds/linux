@@ -551,6 +551,119 @@ static CLASS_DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 			 lpfc_board_mode_show, lpfc_board_mode_store);
 static CLASS_DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
 
+
+static char *lpfc_soft_wwpn_key = "C99G71SL8032A";
+
+static ssize_t
+lpfc_soft_wwpn_enable_store(struct class_device *cdev, const char *buf,
+				size_t count)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	unsigned int cnt = count;
+
+	/*
+	 * We're doing a simple sanity check for soft_wwpn setting.
+	 * We require that the user write a specific key to enable
+	 * the soft_wwpn attribute to be settable. Once the attribute
+	 * is written, the enable key resets. If further updates are
+	 * desired, the key must be written again to re-enable the
+	 * attribute.
+	 *
+	 * The "key" is not secret - it is a hardcoded string shown
+	 * here. The intent is to protect against the random user or
+	 * application that is just writing attributes.
+	 */
+
+	/* count may include a LF at end of string */
+	if (buf[cnt-1] == '\n')
+		cnt--;
+
+	if ((cnt != strlen(lpfc_soft_wwpn_key)) ||
+	    (strncmp(buf, lpfc_soft_wwpn_key, strlen(lpfc_soft_wwpn_key)) != 0))
+		return -EINVAL;
+
+	phba->soft_wwpn_enable = 1;
+	return count;
+}
+static CLASS_DEVICE_ATTR(lpfc_soft_wwpn_enable, S_IWUSR, NULL,
+				lpfc_soft_wwpn_enable_store);
+
+static ssize_t
+lpfc_soft_wwpn_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	return snprintf(buf, PAGE_SIZE, "0x%llx\n", phba->cfg_soft_wwpn);
+}
+
+
+static ssize_t
+lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct completion online_compl;
+	int stat1=0, stat2=0;
+	unsigned int i, j, cnt=count;
+	u8 wwpn[8];
+
+	/* count may include a LF at end of string */
+	if (buf[cnt-1] == '\n')
+		cnt--;
+
+	if (!phba->soft_wwpn_enable || (cnt < 16) || (cnt > 18) ||
+	    ((cnt == 17) && (*buf++ != 'x')) ||
+	    ((cnt == 18) && ((*buf++ != '0') || (*buf++ != 'x'))))
+		return -EINVAL;
+
+	phba->soft_wwpn_enable = 0;
+
+	memset(wwpn, 0, sizeof(wwpn));
+
+	/* Validate and store the new name */
+	for (i=0, j=0; i < 16; i++) {
+		if ((*buf >= 'a') && (*buf <= 'f'))
+			j = ((j << 4) | ((*buf++ -'a') + 10));
+		else if ((*buf >= 'A') && (*buf <= 'F'))
+			j = ((j << 4) | ((*buf++ -'A') + 10));
+		else if ((*buf >= '0') && (*buf <= '9'))
+			j = ((j << 4) | (*buf++ -'0'));
+		else
+			return -EINVAL;
+		if (i % 2) {
+			wwpn[i/2] = j & 0xff;
+			j = 0;
+		}
+	}
+	phba->cfg_soft_wwpn = wwn_to_u64(wwpn);
+	fc_host_port_name(host) = phba->cfg_soft_wwpn;
+
+	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
+		   "lpfc%d: Reinitializing to use soft_wwpn\n", phba->brd_no);
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &stat1, &online_compl, LPFC_EVT_OFFLINE);
+	wait_for_completion(&online_compl);
+	if (stat1)
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"%d:0463 lpfc_soft_wwpn attribute set failed to reinit "
+			"adapter - %d\n", phba->brd_no, stat1);
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &stat2, &online_compl, LPFC_EVT_ONLINE);
+	wait_for_completion(&online_compl);
+	if (stat2)
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"%d:0464 lpfc_soft_wwpn attribute set failed to reinit "
+			"adapter - %d\n", phba->brd_no, stat2);
+
+	return (stat1 || stat2) ? -EIO : count;
+}
+static CLASS_DEVICE_ATTR(lpfc_soft_wwpn, S_IRUGO | S_IWUSR,\
+			 lpfc_soft_wwpn_show, lpfc_soft_wwpn_store);
+
+
 static int lpfc_poll = 0;
 module_param(lpfc_poll, int, 0);
 MODULE_PARM_DESC(lpfc_poll, "FCP ring polling mode control:"
@@ -832,6 +945,7 @@ LPFC_ATTR_R(max_luns, 255, 0, 65535,
 LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 	     "Milliseconds driver will wait between polling FCP ring");
 
+
 struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_info,
 	&class_device_attr_serialnum,
@@ -867,6 +981,8 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_issue_reset,
 	&class_device_attr_lpfc_poll,
 	&class_device_attr_lpfc_poll_tmo,
+	&class_device_attr_lpfc_soft_wwpn,
+	&class_device_attr_lpfc_soft_wwpn_enable,
 	NULL,
 };
 
@@ -1668,6 +1784,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_devloss_tmo_init(phba, lpfc_devloss_tmo);
 	lpfc_nodev_tmo_init(phba, lpfc_nodev_tmo);
 	phba->cfg_poll = lpfc_poll;
+	phba->cfg_soft_wwpn = 0L;
 
 	/*
 	 * The total number of segments is the configuration value plus 2
