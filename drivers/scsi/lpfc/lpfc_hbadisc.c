@@ -340,6 +340,9 @@ lpfc_linkdown(struct lpfc_hba * phba)
 		spin_unlock_irq(phba->host->host_lock);
 	}
 
+	fc_host_post_event(phba->host, fc_get_event_number(),
+			FCH_EVT_LINKDOWN, 0);
+
 	/* Clean up any firmware default rpi's */
 	if ((mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL))) {
 		lpfc_unreg_did(phba, 0xffffffff, mb);
@@ -426,6 +429,9 @@ lpfc_linkup(struct lpfc_hba * phba)
 	struct lpfc_nodelist *ndlp, *next_ndlp;
 	struct list_head *listp, *node_list[7];
 	int i;
+
+	fc_host_post_event(phba->host, fc_get_event_number(),
+			FCH_EVT_LINKUP, 0);
 
 	spin_lock_irq(phba->host->host_lock);
 	phba->hba_state = LPFC_LINK_UP;

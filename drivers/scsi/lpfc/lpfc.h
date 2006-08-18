@@ -391,3 +391,5 @@ struct rnidrsp {
 	struct list_head list;
 	uint32_t data;
 };
+
+#define FC_REG_DUMP_EVENT	0x10	/* Register for Dump events */
