@@ -187,7 +187,7 @@ switch_hrtimer_base(struct hrtimer *timer, struct hrtimer_base *base)
 {
 	struct hrtimer_base *new_base;
 
-	new_base = &__get_cpu_var(hrtimer_bases[base->index]);
+	new_base = &__get_cpu_var(hrtimer_bases)[base->index];
 
 	if (base != new_base) {
 		/*

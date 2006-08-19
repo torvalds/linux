@@ -308,7 +308,7 @@ static struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_di
 	if (adfs_checkmap(sb, dm))
 		return dm;
 
-	adfs_error(sb, NULL, "map corrupted");
+	adfs_error(sb, "map corrupted");
 
 error_free:
 	while (--zone >= 0)

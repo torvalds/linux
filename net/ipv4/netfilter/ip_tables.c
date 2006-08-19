@@ -230,7 +230,7 @@ ipt_do_table(struct sk_buff **pskb,
 	const char *indev, *outdev;
 	void *table_base;
 	struct ipt_entry *e, *back;
-	struct xt_table_info *private = table->private;
+	struct xt_table_info *private;
 
 	/* Initialization */
 	ip = (*pskb)->nh.iph;
@@ -247,6 +247,7 @@ ipt_do_table(struct sk_buff **pskb,
 
 	read_lock_bh(&table->lock);
 	IP_NF_ASSERT(table->valid_hooks & (1 << hook));
+	private = table->private;
 	table_base = (void *)private->entries[smp_processor_id()];
 	e = get_entry(table_base, private->hook_entry[hook]);
 
@@ -2239,22 +2240,39 @@ static int __init ip_tables_init(void)
 {
 	int ret;
 
-	xt_proto_init(AF_INET);
+	ret = xt_proto_init(AF_INET);
+	if (ret < 0)
+		goto err1;
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	xt_register_target(&ipt_standard_target);
-	xt_register_target(&ipt_error_target);
-	xt_register_match(&icmp_matchstruct);
+	ret = xt_register_target(&ipt_standard_target);
+	if (ret < 0)
+		goto err2;
+	ret = xt_register_target(&ipt_error_target);
+	if (ret < 0)
+		goto err3;
+	ret = xt_register_match(&icmp_matchstruct);
+	if (ret < 0)
+		goto err4;
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&ipt_sockopts);
-	if (ret < 0) {
-		duprintf("Unable to register sockopts.\n");
-		return ret;
-	}
+	if (ret < 0)
+		goto err5;
 
 	printk("ip_tables: (C) 2000-2006 Netfilter Core Team\n");
 	return 0;
+
+err5:
+	xt_unregister_match(&icmp_matchstruct);
+err4:
+	xt_unregister_target(&ipt_error_target);
+err3:
+	xt_unregister_target(&ipt_standard_target);
+err2:
+	xt_proto_fini(AF_INET);
+err1:
+	return ret;
 }
 
 static void __exit ip_tables_fini(void)

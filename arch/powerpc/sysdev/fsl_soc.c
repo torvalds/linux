@@ -169,8 +169,16 @@ static int __init gfar_of_init(void)
 			goto err;
 		}
 
-		mac_addr = get_property(np, "address", NULL);
-		memcpy(gfar_data.mac_addr, mac_addr, 6);
+		mac_addr = get_property(np, "local-mac-address", NULL);
+		if (mac_addr == NULL)
+			mac_addr = get_property(np, "mac-address", NULL);
+		if (mac_addr == NULL) {
+			/* Obsolete */
+			mac_addr = get_property(np, "address", NULL);
+		}
+
+		if (mac_addr)
+			memcpy(gfar_data.mac_addr, mac_addr, 6);
 
 		if (model && !strcasecmp(model, "TSEC"))
 			gfar_data.device_flags =

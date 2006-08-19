@@ -1730,8 +1730,8 @@ dasd_flush_request_queue(struct dasd_device * device)
 		req = elv_next_request(device->request_queue);
 		if (req == NULL)
 			break;
-		dasd_end_request(req, 0);
 		blkdev_dequeue_request(req);
+		dasd_end_request(req, 0);
 	}
 	spin_unlock_irq(&device->request_queue_lock);
 }

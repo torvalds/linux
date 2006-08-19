@@ -18,6 +18,8 @@
 #include <linux/screen_info.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/dmi.h>
+#include <linux/efi.h>
 
 #include <asm/io.h>
 
@@ -28,7 +30,7 @@ typedef enum _MAC_TYPE {
 	M_I20,
 	M_MINI,
 	M_MACBOOK,
-	M_NEW
+	M_UNKNOWN
 } MAC_TYPE;
 
 /* --------------------------------------------------------------------- */
@@ -52,9 +54,35 @@ static struct fb_fix_screeninfo imacfb_fix __initdata = {
 };
 
 static int inverse;
-static int model		= M_NEW;
+static int model		= M_UNKNOWN;
 static int manual_height;
 static int manual_width;
+
+static int set_system(struct dmi_system_id *id)
+{
+	printk(KERN_INFO "imacfb: %s detected - set system to %ld\n",
+		id->ident, (long)id->driver_data);
+
+	model = (long)id->driver_data;
+
+	return 0;
+}
+
+static struct dmi_system_id __initdata dmi_system_table[] = {
+	{ set_system, "iMac4,1", {
+	  DMI_MATCH(DMI_BIOS_VENDOR,"Apple Computer, Inc."),
+	  DMI_MATCH(DMI_BIOS_VERSION,"iMac4,1") }, (void*)M_I17},
+	{ set_system, "MacBookPro1,1", {
+	  DMI_MATCH(DMI_BIOS_VENDOR,"Apple Computer, Inc."),
+	  DMI_MATCH(DMI_BIOS_VERSION,"MacBookPro1,1") }, (void*)M_I17},
+	{ set_system, "MacBook1,1", {
+	  DMI_MATCH(DMI_BIOS_VENDOR,"Apple Computer, Inc."),
+	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBook1,1")}, (void *)M_MACBOOK},
+	{ set_system, "Macmini1,1", {
+	  DMI_MATCH(DMI_BIOS_VENDOR,"Apple Computer, Inc."),
+	  DMI_MATCH(DMI_PRODUCT_NAME,"Macmini1,1")}, (void *)M_MINI},
+	{},
+};
 
 #define	DEFAULT_FB_MEM	1024*1024*16
 
@@ -149,7 +177,6 @@ static int __init imacfb_probe(struct platform_device *dev)
 		screen_info.lfb_linelength = 1472 * 4;
 		screen_info.lfb_base = 0x80010000;
 		break;
-	case M_NEW:
 	case M_I20:
 		screen_info.lfb_width = 1680;
 		screen_info.lfb_height = 1050;
@@ -206,6 +233,10 @@ static int __init imacfb_probe(struct platform_device *dev)
 	if (size_remap > size_total)
 		size_remap = size_total;
 	imacfb_fix.smem_len = size_remap;
+
+#ifndef __i386__
+	screen_info.imacpm_seg = 0;
+#endif
 
 	if (!request_mem_region(imacfb_fix.smem_start, size_total, "imacfb")) {
 		printk(KERN_WARNING
@@ -324,8 +355,16 @@ static int __init imacfb_init(void)
 	int ret;
 	char *option = NULL;
 
-	/* ignore error return of fb_get_options */
-	fb_get_options("imacfb", &option);
+	if (!efi_enabled)
+		return -ENODEV;
+	if (!dmi_check_system(dmi_system_table))
+		return -ENODEV;
+	if (model == M_UNKNOWN)
+		return -ENODEV;
+
+	if (fb_get_options("imacfb", &option))
+		return -ENODEV;
+
 	imacfb_setup(option);
 	ret = platform_driver_register(&imacfb_driver);
 

@@ -44,6 +44,7 @@
 /* This keeps a track of which one is crashing cpu. */
 int crashing_cpu = -1;
 static cpumask_t cpus_in_crash = CPU_MASK_NONE;
+cpumask_t cpus_in_sr = CPU_MASK_NONE;
 
 static u32 *append_elf_note(u32 *buf, char *name, unsigned type, void *data,
 							       size_t data_len)
@@ -139,7 +140,13 @@ void crash_ipi_callback(struct pt_regs *regs)
 
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(1, 1);
+
+#ifdef CONFIG_PPC64
 	kexec_smp_wait();
+#else
+	for (;;);	/* FIXME */
+#endif
+
 	/* NOTREACHED */
 }
 
@@ -255,7 +262,11 @@ static void crash_kexec_prepare_cpus(int cpu)
 	 *
 	 * do this if kexec in setup.c ?
 	 */
+#ifdef CONFIG_PPC64
 	smp_release_cpus();
+#else
+	/* FIXME */
+#endif
 }
 
 void crash_kexec_secondary(struct pt_regs *regs)
