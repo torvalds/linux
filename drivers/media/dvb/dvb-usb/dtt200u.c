@@ -118,6 +118,7 @@ static struct usb_device_id dtt200u_usb_table [] = {
 	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_ZL0353_WARM)  },
 	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_FC_COLD)  },
 	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_FC_WARM)  },
+	{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_ZAP250_COLD)  },
 	{ 0 },
 };
 MODULE_DEVICE_TABLE(usb, dtt200u_usb_table);
@@ -197,7 +198,7 @@ static struct dvb_usb_properties wt220u_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{ .name = "WideView WT-220U PenType Receiver (Typhoon/Freecom)",
-		  .cold_ids = { &dtt200u_usb_table[2], NULL },
+		  .cold_ids = { &dtt200u_usb_table[2], &dtt200u_usb_table[8], NULL },
 		  .warm_ids = { &dtt200u_usb_table[3], NULL },
 		},
 		{ NULL },
@@ -316,6 +317,6 @@ module_init(dtt200u_usb_module_init);
 module_exit(dtt200u_usb_module_exit);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
-MODULE_DESCRIPTION("Driver for the WideView/Yakumo/Hama/Typhoon DVB-T USB2.0 devices");
+MODULE_DESCRIPTION("Driver for the WideView/Yakumo/Hama/Typhoon/Club3D DVB-T USB2.0 devices");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");
