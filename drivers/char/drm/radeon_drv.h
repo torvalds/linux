@@ -142,6 +142,7 @@ enum radeon_chip_flags {
 	CHIP_HAS_HIERZ = 0x00100000UL,
 	CHIP_IS_PCIE = 0x00200000UL,
 	CHIP_NEW_MEMMAP = 0x00400000UL,
+	CHIP_IS_PCI = 0x00800000UL,
 };
 
 #define GET_RING_HEAD(dev_priv)	(dev_priv->writeback_works ? \
@@ -993,12 +994,12 @@ do {									\
 
 #define RADEON_FLUSH_CACHE() do {					\
 	OUT_RING( CP_PACKET0( RADEON_RB3D_DSTCACHE_CTLSTAT, 0 ) );	\
-	OUT_RING( RADEON_RB2D_DC_FLUSH );				\
+	OUT_RING( RADEON_RB3D_DC_FLUSH );				\
 } while (0)
 
 #define RADEON_PURGE_CACHE() do {					\
 	OUT_RING( CP_PACKET0( RADEON_RB3D_DSTCACHE_CTLSTAT, 0 ) );	\
-	OUT_RING( RADEON_RB2D_DC_FLUSH_ALL );				\
+	OUT_RING( RADEON_RB3D_DC_FLUSH_ALL );				\
 } while (0)
 
 #define RADEON_FLUSH_ZCACHE() do {					\

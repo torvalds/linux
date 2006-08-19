@@ -1340,17 +1340,19 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 	DRM_DEBUG("\n");
 
 	/* if we require new memory map but we don't have it fail */
-	if ((dev_priv->flags & CHIP_NEW_MEMMAP) && !dev_priv->new_memmap)
-	{
-		DRM_ERROR("Cannot initialise DRM on this card\nThis card requires a new X.org DDX\n");
+	if ((dev_priv->flags & CHIP_NEW_MEMMAP) && !dev_priv->new_memmap) {
+		DRM_ERROR("Cannot initialise DRM on this card\nThis card requires a new X.org DDX for 3D\n");
 		radeon_do_cleanup_cp(dev);
 		return DRM_ERR(EINVAL);
 	}
 
-	if (init->is_pci && (dev_priv->flags & CHIP_IS_AGP))
-	{
+	if (init->is_pci && (dev_priv->flags & CHIP_IS_AGP)) {
 		DRM_DEBUG("Forcing AGP card to PCI mode\n");
 		dev_priv->flags &= ~CHIP_IS_AGP;
+	} else if (!(dev_priv->flags & (CHIP_IS_AGP | CHIP_IS_PCI | CHIP_IS_PCIE))
+		   && !init->is_pci) {
+		DRM_DEBUG("Restoring AGP flag\n");
+		dev_priv->flags |= CHIP_IS_AGP;
 	}
 
 	if ((!(dev_priv->flags & CHIP_IS_AGP)) && !dev->sg) {
@@ -2189,7 +2191,9 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	case CHIP_RV200:
 	case CHIP_R200:
 	case CHIP_R300:
+	case CHIP_R350:
 	case CHIP_R420:
+	case CHIP_RV410:
 		dev_priv->flags |= CHIP_HAS_HIERZ;
 		break;
 	default:
@@ -2199,9 +2203,10 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 
 	if (drm_device_is_agp(dev))
 		dev_priv->flags |= CHIP_IS_AGP;
-
-	if (drm_device_is_pcie(dev))
+	else if (drm_device_is_pcie(dev))
 		dev_priv->flags |= CHIP_IS_PCIE;
+	else
+		dev_priv->flags |= CHIP_IS_PCI;
 
 	DRM_DEBUG("%s card detected\n",
 		  ((dev_priv->flags & CHIP_IS_AGP) ? "AGP" : (((dev_priv->flags & CHIP_IS_PCIE) ? "PCIE" : "PCI"))));
