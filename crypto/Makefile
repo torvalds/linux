@@ -10,6 +10,9 @@ obj-$(CONFIG_CRYPTO_ALGAPI) += crypto_algapi.o
 
 obj-$(CONFIG_CRYPTO_BLKCIPHER) += blkcipher.o
 
+crypto_hash-objs := hash.o
+obj-$(CONFIG_CRYPTO_HASH) += crypto_hash.o
+
 obj-$(CONFIG_CRYPTO_MANAGER) += cryptomgr.o
 obj-$(CONFIG_CRYPTO_HMAC) += hmac.o
 obj-$(CONFIG_CRYPTO_NULL) += crypto_null.o

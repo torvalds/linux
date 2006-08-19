@@ -82,6 +82,7 @@ struct blkcipher_walk {
 };
 
 extern const struct crypto_type crypto_blkcipher_type;
+extern const struct crypto_type crypto_hash_type;
 
 void crypto_mod_put(struct crypto_alg *alg);
 
@@ -134,6 +135,11 @@ static inline void *crypto_blkcipher_ctx_aligned(struct crypto_blkcipher *tfm)
 static inline struct cipher_alg *crypto_cipher_alg(struct crypto_cipher *tfm)
 {
 	return &crypto_cipher_tfm(tfm)->__crt_alg->cra_cipher;
+}
+
+static inline void *crypto_hash_ctx_aligned(struct crypto_hash *tfm)
+{
+	return crypto_tfm_ctx_aligned(&tfm->base);
 }
 
 static inline void blkcipher_walk_init(struct blkcipher_walk *walk,

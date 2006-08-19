@@ -31,8 +31,11 @@
 #define CRYPTO_ALG_TYPE_MASK		0x0000000f
 #define CRYPTO_ALG_TYPE_CIPHER		0x00000001
 #define CRYPTO_ALG_TYPE_DIGEST		0x00000002
-#define CRYPTO_ALG_TYPE_BLKCIPHER	0x00000003
-#define CRYPTO_ALG_TYPE_COMPRESS	0x00000004
+#define CRYPTO_ALG_TYPE_HASH		0x00000003
+#define CRYPTO_ALG_TYPE_BLKCIPHER	0x00000004
+#define CRYPTO_ALG_TYPE_COMPRESS	0x00000005
+
+#define CRYPTO_ALG_TYPE_HASH_MASK	0x0000000e
 
 #define CRYPTO_ALG_LARVAL		0x00000010
 #define CRYPTO_ALG_DEAD			0x00000020
@@ -90,6 +93,7 @@
 
 struct scatterlist;
 struct crypto_blkcipher;
+struct crypto_hash;
 struct crypto_tfm;
 struct crypto_type;
 
@@ -105,6 +109,11 @@ struct cipher_desc {
 	unsigned int (*prfn)(const struct cipher_desc *desc, u8 *dst,
 			     const u8 *src, unsigned int nbytes);
 	void *info;
+};
+
+struct hash_desc {
+	struct crypto_hash *tfm;
+	u32 flags;
 };
 
 /*
@@ -158,6 +167,19 @@ struct digest_alg {
 	                  unsigned int keylen);
 };
 
+struct hash_alg {
+	int (*init)(struct hash_desc *desc);
+	int (*update)(struct hash_desc *desc, struct scatterlist *sg,
+		      unsigned int nbytes);
+	int (*final)(struct hash_desc *desc, u8 *out);
+	int (*digest)(struct hash_desc *desc, struct scatterlist *sg,
+		      unsigned int nbytes, u8 *out);
+	int (*setkey)(struct crypto_hash *tfm, const u8 *key,
+		      unsigned int keylen);
+
+	unsigned int digestsize;
+};
+
 struct compress_alg {
 	int (*coa_compress)(struct crypto_tfm *tfm, const u8 *src,
 			    unsigned int slen, u8 *dst, unsigned int *dlen);
@@ -168,6 +190,7 @@ struct compress_alg {
 #define cra_blkcipher	cra_u.blkcipher
 #define cra_cipher	cra_u.cipher
 #define cra_digest	cra_u.digest
+#define cra_hash	cra_u.hash
 #define cra_compress	cra_u.compress
 
 struct crypto_alg {
@@ -191,6 +214,7 @@ struct crypto_alg {
 		struct blkcipher_alg blkcipher;
 		struct cipher_alg cipher;
 		struct digest_alg digest;
+		struct hash_alg hash;
 		struct compress_alg compress;
 	} cra_u;
 
@@ -262,18 +286,19 @@ struct cipher_tfm {
 	void (*cit_decrypt_one)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 };
 
-struct digest_tfm {
-	void (*dit_init)(struct crypto_tfm *tfm);
-	void (*dit_update)(struct crypto_tfm *tfm,
-	                   struct scatterlist *sg, unsigned int nsg);
-	void (*dit_final)(struct crypto_tfm *tfm, u8 *out);
-	void (*dit_digest)(struct crypto_tfm *tfm, struct scatterlist *sg,
-	                   unsigned int nsg, u8 *out);
-	int (*dit_setkey)(struct crypto_tfm *tfm,
-	                  const u8 *key, unsigned int keylen);
+struct hash_tfm {
+	int (*init)(struct hash_desc *desc);
+	int (*update)(struct hash_desc *desc,
+		      struct scatterlist *sg, unsigned int nsg);
+	int (*final)(struct hash_desc *desc, u8 *out);
+	int (*digest)(struct hash_desc *desc, struct scatterlist *sg,
+		      unsigned int nsg, u8 *out);
+	int (*setkey)(struct crypto_hash *tfm, const u8 *key,
+		      unsigned int keylen);
 #ifdef CONFIG_CRYPTO_HMAC
-	void *dit_hmac_block;
+	void *hmac_block;
 #endif
+	unsigned int digestsize;
 };
 
 struct compress_tfm {
@@ -287,7 +312,7 @@ struct compress_tfm {
 
 #define crt_blkcipher	crt_u.blkcipher
 #define crt_cipher	crt_u.cipher
-#define crt_digest	crt_u.digest
+#define crt_hash	crt_u.hash
 #define crt_compress	crt_u.compress
 
 struct crypto_tfm {
@@ -297,7 +322,7 @@ struct crypto_tfm {
 	union {
 		struct blkcipher_tfm blkcipher;
 		struct cipher_tfm cipher;
-		struct digest_tfm digest;
+		struct hash_tfm hash;
 		struct compress_tfm compress;
 	} crt_u;
 	
@@ -309,6 +334,10 @@ struct crypto_tfm {
 #define crypto_cipher crypto_tfm
 
 struct crypto_blkcipher {
+	struct crypto_tfm base;
+};
+
+struct crypto_hash {
 	struct crypto_tfm base;
 };
 
@@ -647,39 +676,114 @@ static inline void crypto_cipher_decrypt_one(struct crypto_cipher *tfm,
 						dst, src);
 }
 
-static inline void crypto_digest_init(struct crypto_tfm *tfm)
+void crypto_digest_init(struct crypto_tfm *tfm);
+void crypto_digest_update(struct crypto_tfm *tfm,
+			  struct scatterlist *sg, unsigned int nsg);
+void crypto_digest_final(struct crypto_tfm *tfm, u8 *out);
+void crypto_digest_digest(struct crypto_tfm *tfm,
+			  struct scatterlist *sg, unsigned int nsg, u8 *out);
+
+static inline struct crypto_hash *__crypto_hash_cast(struct crypto_tfm *tfm)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
-	tfm->crt_digest.dit_init(tfm);
+	return (struct crypto_hash *)tfm;
 }
 
-static inline void crypto_digest_update(struct crypto_tfm *tfm,
-                                        struct scatterlist *sg,
-                                        unsigned int nsg)
+static inline struct crypto_hash *crypto_hash_cast(struct crypto_tfm *tfm)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
-	tfm->crt_digest.dit_update(tfm, sg, nsg);
-}
-
-static inline void crypto_digest_final(struct crypto_tfm *tfm, u8 *out)
-{
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
-	tfm->crt_digest.dit_final(tfm, out);
-}
-
-static inline void crypto_digest_digest(struct crypto_tfm *tfm,
-                                        struct scatterlist *sg,
-                                        unsigned int nsg, u8 *out)
-{
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
-	tfm->crt_digest.dit_digest(tfm, sg, nsg, out);
+	BUG_ON((crypto_tfm_alg_type(tfm) ^ CRYPTO_ALG_TYPE_HASH) &
+	       CRYPTO_ALG_TYPE_HASH_MASK);
+	return __crypto_hash_cast(tfm);
 }
 
 static inline int crypto_digest_setkey(struct crypto_tfm *tfm,
                                        const u8 *key, unsigned int keylen)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
-	return tfm->crt_digest.dit_setkey(tfm, key, keylen);
+	return tfm->crt_hash.setkey(crypto_hash_cast(tfm), key, keylen);
+}
+
+static inline struct crypto_hash *crypto_alloc_hash(const char *alg_name,
+						    u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_HASH;
+	mask |= CRYPTO_ALG_TYPE_HASH_MASK;
+
+	return __crypto_hash_cast(crypto_alloc_base(alg_name, type, mask));
+}
+
+static inline struct crypto_tfm *crypto_hash_tfm(struct crypto_hash *tfm)
+{
+	return &tfm->base;
+}
+
+static inline void crypto_free_hash(struct crypto_hash *tfm)
+{
+	crypto_free_tfm(crypto_hash_tfm(tfm));
+}
+
+static inline struct hash_tfm *crypto_hash_crt(struct crypto_hash *tfm)
+{
+	return &crypto_hash_tfm(tfm)->crt_hash;
+}
+
+static inline unsigned int crypto_hash_blocksize(struct crypto_hash *tfm)
+{
+	return crypto_tfm_alg_blocksize(crypto_hash_tfm(tfm));
+}
+
+static inline unsigned int crypto_hash_alignmask(struct crypto_hash *tfm)
+{
+	return crypto_tfm_alg_alignmask(crypto_hash_tfm(tfm));
+}
+
+static inline unsigned int crypto_hash_digestsize(struct crypto_hash *tfm)
+{
+	return crypto_hash_crt(tfm)->digestsize;
+}
+
+static inline u32 crypto_hash_get_flags(struct crypto_hash *tfm)
+{
+	return crypto_tfm_get_flags(crypto_hash_tfm(tfm));
+}
+
+static inline void crypto_hash_set_flags(struct crypto_hash *tfm, u32 flags)
+{
+	crypto_tfm_set_flags(crypto_hash_tfm(tfm), flags);
+}
+
+static inline void crypto_hash_clear_flags(struct crypto_hash *tfm, u32 flags)
+{
+	crypto_tfm_clear_flags(crypto_hash_tfm(tfm), flags);
+}
+
+static inline int crypto_hash_init(struct hash_desc *desc)
+{
+	return crypto_hash_crt(desc->tfm)->init(desc);
+}
+
+static inline int crypto_hash_update(struct hash_desc *desc,
+				     struct scatterlist *sg,
+				     unsigned int nbytes)
+{
+	return crypto_hash_crt(desc->tfm)->update(desc, sg, nbytes);
+}
+
+static inline int crypto_hash_final(struct hash_desc *desc, u8 *out)
+{
+	return crypto_hash_crt(desc->tfm)->final(desc, out);
+}
+
+static inline int crypto_hash_digest(struct hash_desc *desc,
+				     struct scatterlist *sg,
+				     unsigned int nbytes, u8 *out)
+{
+	return crypto_hash_crt(desc->tfm)->digest(desc, sg, nbytes, out);
+}
+
+static inline int crypto_hash_setkey(struct crypto_hash *hash,
+				     const u8 *key, unsigned int keylen)
+{
+	return crypto_hash_crt(hash)->setkey(hash, key, keylen);
 }
 
 static int crypto_cipher_encrypt(struct crypto_tfm *tfm,

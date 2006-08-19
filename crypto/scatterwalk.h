@@ -20,11 +20,9 @@
 
 #include "internal.h"
 
-/* Define sg_next is an inline routine now in case we want to change
-   scatterlist to a linked list later. */
 static inline struct scatterlist *sg_next(struct scatterlist *sg)
 {
-	return sg + 1;
+	return (++sg)->length ? sg : (void *)sg->page;
 }
 
 static inline unsigned long scatterwalk_samebuf(struct scatter_walk *walk_in,

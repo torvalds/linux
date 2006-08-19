@@ -11,29 +11,89 @@
  * any later version.
  *
  */
-#include <linux/crypto.h>
+
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/highmem.h>
-#include <asm/scatterlist.h>
-#include "internal.h"
+#include <linux/module.h>
+#include <linux/scatterlist.h>
 
-static void init(struct crypto_tfm *tfm)
+#include "internal.h"
+#include "scatterwalk.h"
+
+void crypto_digest_init(struct crypto_tfm *tfm)
 {
+	struct crypto_hash *hash = crypto_hash_cast(tfm);
+	struct hash_desc desc = { .tfm = hash, .flags = tfm->crt_flags };
+
+	crypto_hash_init(&desc);
+}
+EXPORT_SYMBOL_GPL(crypto_digest_init);
+
+void crypto_digest_update(struct crypto_tfm *tfm,
+			  struct scatterlist *sg, unsigned int nsg)
+{
+	struct crypto_hash *hash = crypto_hash_cast(tfm);
+	struct hash_desc desc = { .tfm = hash, .flags = tfm->crt_flags };
+	unsigned int nbytes = 0;
+	unsigned int i;
+
+	for (i = 0; i < nsg; i++)
+		nbytes += sg[i].length;
+
+	crypto_hash_update(&desc, sg, nbytes);
+}
+EXPORT_SYMBOL_GPL(crypto_digest_update);
+
+void crypto_digest_final(struct crypto_tfm *tfm, u8 *out)
+{
+	struct crypto_hash *hash = crypto_hash_cast(tfm);
+	struct hash_desc desc = { .tfm = hash, .flags = tfm->crt_flags };
+
+	crypto_hash_final(&desc, out);
+}
+EXPORT_SYMBOL_GPL(crypto_digest_final);
+
+void crypto_digest_digest(struct crypto_tfm *tfm,
+			  struct scatterlist *sg, unsigned int nsg, u8 *out)
+{
+	struct crypto_hash *hash = crypto_hash_cast(tfm);
+	struct hash_desc desc = { .tfm = hash, .flags = tfm->crt_flags };
+	unsigned int nbytes = 0;
+	unsigned int i;
+
+	for (i = 0; i < nsg; i++)
+		nbytes += sg[i].length;
+
+	crypto_hash_digest(&desc, sg, nbytes, out);
+}
+EXPORT_SYMBOL_GPL(crypto_digest_digest);
+
+static int init(struct hash_desc *desc)
+{
+	struct crypto_tfm *tfm = crypto_hash_tfm(desc->tfm);
+
 	tfm->__crt_alg->cra_digest.dia_init(tfm);
+	return 0;
 }
 
-static void update(struct crypto_tfm *tfm,
-                   struct scatterlist *sg, unsigned int nsg)
+static int update(struct hash_desc *desc,
+		  struct scatterlist *sg, unsigned int nbytes)
 {
-	unsigned int i;
+	struct crypto_tfm *tfm = crypto_hash_tfm(desc->tfm);
 	unsigned int alignmask = crypto_tfm_alg_alignmask(tfm);
 
-	for (i = 0; i < nsg; i++) {
+	if (!nbytes)
+		return 0;
 
-		struct page *pg = sg[i].page;
-		unsigned int offset = sg[i].offset;
-		unsigned int l = sg[i].length;
+	for (;;) {
+		struct page *pg = sg->page;
+		unsigned int offset = sg->offset;
+		unsigned int l = sg->length;
+
+		if (unlikely(l > nbytes))
+			l = nbytes;
+		nbytes -= l;
 
 		do {
 			unsigned int bytes_from_page = min(l, ((unsigned int)
@@ -55,16 +115,23 @@ static void update(struct crypto_tfm *tfm,
 			tfm->__crt_alg->cra_digest.dia_update(tfm, p,
 							      bytes_from_page);
 			crypto_kunmap(src, 0);
-			crypto_yield(tfm->crt_flags);
+			crypto_yield(desc->flags);
 			offset = 0;
 			pg++;
 			l -= bytes_from_page;
 		} while (l > 0);
+
+		if (!nbytes)
+			break;
+		sg = sg_next(sg);
 	}
+
+	return 0;
 }
 
-static void final(struct crypto_tfm *tfm, u8 *out)
+static int final(struct hash_desc *desc, u8 *out)
 {
+	struct crypto_tfm *tfm = crypto_hash_tfm(desc->tfm);
 	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
 	struct digest_alg *digest = &tfm->__crt_alg->cra_digest;
 
@@ -78,26 +145,30 @@ static void final(struct crypto_tfm *tfm, u8 *out)
 		memcpy(out, dst, digest->dia_digestsize);
 	} else
 		digest->dia_final(tfm, out);
+
+	return 0;
 }
 
-static int nosetkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
+static int nosetkey(struct crypto_hash *tfm, const u8 *key, unsigned int keylen)
 {
-	tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
+	crypto_hash_clear_flags(tfm, CRYPTO_TFM_RES_MASK);
 	return -ENOSYS;
 }
 
-static int setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
+static int setkey(struct crypto_hash *hash, const u8 *key, unsigned int keylen)
 {
-	tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
+	struct crypto_tfm *tfm = crypto_hash_tfm(hash);
+
+	crypto_hash_clear_flags(hash, CRYPTO_TFM_RES_MASK);
 	return tfm->__crt_alg->cra_digest.dia_setkey(tfm, key, keylen);
 }
 
-static void digest(struct crypto_tfm *tfm,
-                   struct scatterlist *sg, unsigned int nsg, u8 *out)
+static int digest(struct hash_desc *desc,
+		  struct scatterlist *sg, unsigned int nbytes, u8 *out)
 {
-	init(tfm);
-	update(tfm, sg, nsg);
-	final(tfm, out);
+	init(desc);
+	update(desc, sg, nbytes);
+	return final(desc, out);
 }
 
 int crypto_init_digest_flags(struct crypto_tfm *tfm, u32 flags)
@@ -107,14 +178,18 @@ int crypto_init_digest_flags(struct crypto_tfm *tfm, u32 flags)
 
 int crypto_init_digest_ops(struct crypto_tfm *tfm)
 {
-	struct digest_tfm *ops = &tfm->crt_digest;
+	struct hash_tfm *ops = &tfm->crt_hash;
 	struct digest_alg *dalg = &tfm->__crt_alg->cra_digest;
+
+	if (dalg->dia_digestsize > crypto_tfm_alg_blocksize(tfm))
+		return -EINVAL;
 	
-	ops->dit_init	= init;
-	ops->dit_update	= update;
-	ops->dit_final	= final;
-	ops->dit_digest	= digest;
-	ops->dit_setkey	= dalg->dia_setkey ? setkey : nosetkey;
+	ops->init	= init;
+	ops->update	= update;
+	ops->final	= final;
+	ops->digest	= digest;
+	ops->setkey	= dalg->dia_setkey ? setkey : nosetkey;
+	ops->digestsize	= dalg->dia_digestsize;
 	
 	return crypto_alloc_hmac_block(tfm);
 }

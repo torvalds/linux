@@ -35,9 +35,9 @@ int crypto_alloc_hmac_block(struct crypto_tfm *tfm)
 
 	BUG_ON(!crypto_tfm_alg_blocksize(tfm));
 	
-	tfm->crt_digest.dit_hmac_block = kmalloc(crypto_tfm_alg_blocksize(tfm),
-	                                         GFP_KERNEL);
-	if (tfm->crt_digest.dit_hmac_block == NULL)
+	tfm->crt_hash.hmac_block = kmalloc(crypto_tfm_alg_blocksize(tfm),
+					   GFP_KERNEL);
+	if (tfm->crt_hash.hmac_block == NULL)
 		ret = -ENOMEM;
 
 	return ret;
@@ -46,14 +46,14 @@ int crypto_alloc_hmac_block(struct crypto_tfm *tfm)
 
 void crypto_free_hmac_block(struct crypto_tfm *tfm)
 {
-	kfree(tfm->crt_digest.dit_hmac_block);
+	kfree(tfm->crt_hash.hmac_block);
 }
 
 void crypto_hmac_init(struct crypto_tfm *tfm, u8 *key, unsigned int *keylen)
 {
 	unsigned int i;
 	struct scatterlist tmp;
-	char *ipad = tfm->crt_digest.dit_hmac_block;
+	char *ipad = tfm->crt_hash.hmac_block;
 	
 	if (*keylen > crypto_tfm_alg_blocksize(tfm)) {
 		hash_key(tfm, key, *keylen);
@@ -83,7 +83,7 @@ void crypto_hmac_final(struct crypto_tfm *tfm, u8 *key,
 {
 	unsigned int i;
 	struct scatterlist tmp;
-	char *opad = tfm->crt_digest.dit_hmac_block;
+	char *opad = tfm->crt_hash.hmac_block;
 	
 	if (*keylen > crypto_tfm_alg_blocksize(tfm)) {
 		hash_key(tfm, key, *keylen);
