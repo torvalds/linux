@@ -742,7 +742,7 @@ module_param(irq, int, 0);
 MODULE_PARM_DESC(io, "SEEQ 8005 I/O base address");
 MODULE_PARM_DESC(irq, "SEEQ 8005 IRQ number");
 
-int init_module(void)
+int __init init_module(void)
 {
 	dev_seeq = seeq8005_probe(-1);
 	if (IS_ERR(dev_seeq))

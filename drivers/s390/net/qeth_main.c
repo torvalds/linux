@@ -8510,9 +8510,9 @@ static int
 qeth_ipv6_init(void)
 {
 	qeth_old_arp_constructor = arp_tbl.constructor;
-	write_lock(&arp_tbl.lock);
+	write_lock_bh(&arp_tbl.lock);
 	arp_tbl.constructor = qeth_arp_constructor;
-	write_unlock(&arp_tbl.lock);
+	write_unlock_bh(&arp_tbl.lock);
 
 	arp_direct_ops = (struct neigh_ops*)
 		kmalloc(sizeof(struct neigh_ops), GFP_KERNEL);
@@ -8528,9 +8528,9 @@ qeth_ipv6_init(void)
 static void
 qeth_ipv6_uninit(void)
 {
-	write_lock(&arp_tbl.lock);
+	write_lock_bh(&arp_tbl.lock);
 	arp_tbl.constructor = qeth_old_arp_constructor;
-	write_unlock(&arp_tbl.lock);
+	write_unlock_bh(&arp_tbl.lock);
 	kfree(arp_direct_ops);
 }
 #endif /* CONFIG_QETH_IPV6 */

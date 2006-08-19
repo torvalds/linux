@@ -69,34 +69,21 @@ enum fs_ioport {
 	fsiop_porte,
 };
 
-struct fs_mii_bus_info {
-	int method;		/* mii method                  */
-	int id;			/* the id of the mii_bus       */
-	int disable_aneg;	/* if the controller needs to negothiate speed & duplex */
-	int lpa; 		/* the default board-specific vallues will be applied otherwise */
-
-	union {
-		struct {
-			int duplex;
-			int speed;
-		} fixed;
-
-		struct {
-			/* nothing */
-		} fec;
-		
-		struct {
-			/* nothing */
-		} scc;
-
-		struct {
-			int mdio_port;	/* port & bit for MDIO */
-			int mdio_bit;
-			int mdc_port;	/* port & bit for MDC  */
-			int mdc_bit;
-			int delay;	/* delay in us         */
-		} bitbang;
-	} i;
+struct fs_mii_bit {
+	u32 offset;
+	u8 bit;
+	u8 polarity;
+};
+struct fs_mii_bb_platform_info {
+	struct fs_mii_bit 	mdio_dir;
+	struct fs_mii_bit 	mdio_dat;
+	struct fs_mii_bit	mdc_dat;
+	int mdio_port;	/* port & bit for MDIO */
+	int mdio_bit;
+	int mdc_port;	/* port & bit for MDC  */
+	int mdc_bit;
+	int delay;	/* delay in us         */
+	int irq[32]; 	/* irqs per phy's */
 };
 
 struct fs_platform_info {
@@ -119,6 +106,7 @@ struct fs_platform_info {
 	u32 device_flags;
 
 	int phy_addr;		/* the phy address (-1 no phy) */
+	const char*	bus_id;
 	int phy_irq;		/* the phy irq (if it exists)  */
 
 	const struct fs_mii_bus_info *bus_info;
@@ -130,6 +118,10 @@ struct fs_platform_info {
 	int napi_weight;	/* NAPI weight                 */
 
 	int use_rmii;		/* use RMII mode 	       */
+	int has_phy;            /* if the network is phy container as well...*/
 };
-
+struct fs_mii_fec_platform_info {
+	u32 irq[32];
+	u32 mii_speed;
+};
 #endif
