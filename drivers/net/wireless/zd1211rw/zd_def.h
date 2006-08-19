@@ -45,4 +45,10 @@ do { \
 #  define ZD_ASSERT(x) do { } while (0)
 #endif
 
+#ifdef DEBUG
+#  define ZD_MEMCLEAR(pointer, size) memset((pointer), 0xff, (size))
+#else
+#  define ZD_MEMCLEAR(pointer, size) do { } while (0)
+#endif
+
 #endif /* _ZD_DEF_H */

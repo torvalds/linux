@@ -52,8 +52,8 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/mem_op.h>
 
-#include <net/ieee80211.h>
 #include <linux/wireless.h>
+#include <net/iw_handler.h>
 
 #include <asm/io.h>
 #include <asm/system.h>

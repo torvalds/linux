@@ -30,6 +30,7 @@
 enum devicetype {
 	DEVICE_ZD1211  = 0,
 	DEVICE_ZD1211B = 1,
+	DEVICE_INSTALLER = 2,
 };
 
 enum endpoints {

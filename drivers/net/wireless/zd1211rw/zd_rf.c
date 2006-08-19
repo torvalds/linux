@@ -56,7 +56,7 @@ void zd_rf_init(struct zd_rf *rf)
 
 void zd_rf_clear(struct zd_rf *rf)
 {
-	memset(rf, 0, sizeof(*rf));
+	ZD_MEMCLEAR(rf, sizeof(*rf));
 }
 
 int zd_rf_init_hw(struct zd_rf *rf, u8 type)
@@ -73,6 +73,11 @@ int zd_rf_init_hw(struct zd_rf *rf, u8 type)
 		break;
 	case AL2230_RF:
 		r = zd_rf_init_al2230(rf);
+		if (r)
+			return r;
+		break;
+	case AL7230B_RF:
+		r = zd_rf_init_al7230b(rf);
 		if (r)
 			return r;
 		break;
