@@ -710,6 +710,8 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 		return -EINVAL;
 	}
 
+	m->ti = ti;
+
 	r = parse_features(&as, m, ti);
 	if (r)
 		goto bad;
@@ -751,7 +753,6 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 	}
 
 	ti->private = m;
-	m->ti = ti;
 
 	return 0;
 

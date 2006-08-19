@@ -48,18 +48,20 @@ struct dasd_devmap {
 };
 
 /*
- * dasd_servermap is used to store the server_id of all storage servers
- * accessed by DASD device driver.
+ * dasd_server_ssid_map contains a globally unique storage server subsystem ID.
+ * dasd_server_ssid_list contains the list of all subsystem IDs accessed by
+ * the DASD device driver.
  */
-struct dasd_servermap {
+struct dasd_server_ssid_map {
 	struct list_head list;
 	struct server_id {
 		char vendor[4];
 		char serial[15];
 	} sid;
+	__u16 ssid;
 };
 
-static struct list_head dasd_serverlist;
+static struct list_head dasd_server_ssid_list;
 
 /*
  * Parameter parsing functions for dasd= parameter. The syntax is:
@@ -89,7 +91,7 @@ static char *dasd[256];
 module_param_array(dasd, charp, NULL, 0);
 
 /*
- * Single spinlock to protect devmap structures and lists.
+ * Single spinlock to protect devmap and servermap structures and lists.
  */
 static DEFINE_SPINLOCK(dasd_devmap_lock);
 
@@ -264,8 +266,9 @@ dasd_parse_keyword( char *parsestring ) {
 		if (dasd_page_cache)
 			return residual_str;
 		dasd_page_cache =
-			kmem_cache_create("dasd_page_cache", PAGE_SIZE, 0,
-					  SLAB_CACHE_DMA, NULL, NULL );
+			kmem_cache_create("dasd_page_cache", PAGE_SIZE,
+					  PAGE_SIZE, SLAB_CACHE_DMA,
+					  NULL, NULL );
 		if (!dasd_page_cache)
 			MESSAGE(KERN_WARNING, "%s", "Failed to create slab, "
 				"fixed buffer mode disabled.");
@@ -859,39 +862,6 @@ static struct attribute_group dasd_attr_group = {
 };
 
 /*
- * Check if the related storage server is already contained in the
- * dasd_serverlist. If server is not contained, create new entry.
- * Return 0 if server was already in serverlist,
- *	  1 if the server was added successfully
- *	 <0 in case of error.
- */
-static int
-dasd_add_server(struct dasd_uid *uid)
-{
-	struct dasd_servermap *new, *tmp;
-
-	/* check if server is already contained */
-	list_for_each_entry(tmp, &dasd_serverlist, list)
-	  // normale cmp?
-		if (strncmp(tmp->sid.vendor, uid->vendor,
-			    sizeof(tmp->sid.vendor)) == 0
-		    && strncmp(tmp->sid.serial, uid->serial,
-			       sizeof(tmp->sid.serial)) == 0)
-			return 0;
-
-	new = (struct dasd_servermap *)
-		kzalloc(sizeof(struct dasd_servermap), GFP_KERNEL);
-	if (!new)
-		return -ENOMEM;
-
-	strncpy(new->sid.vendor, uid->vendor, sizeof(new->sid.vendor));
-	strncpy(new->sid.serial, uid->serial, sizeof(new->sid.serial));
-	list_add(&new->list, &dasd_serverlist);
-	return 1;
-}
-
-
-/*
  * Return copy of the device unique identifier.
  */
 int
@@ -910,6 +880,9 @@ dasd_get_uid(struct ccw_device *cdev, struct dasd_uid *uid)
 
 /*
  * Register the given device unique identifier into devmap struct.
+ * In addition check if the related storage server subsystem ID is already
+ * contained in the dasd_server_ssid_list. If subsystem ID is not contained,
+ * create new entry.
  * Return 0 if server was already in serverlist,
  *	  1 if the server was added successful
  *	 <0 in case of error.
@@ -918,16 +891,39 @@ int
 dasd_set_uid(struct ccw_device *cdev, struct dasd_uid *uid)
 {
 	struct dasd_devmap *devmap;
-	int rc;
+	struct dasd_server_ssid_map *srv, *tmp;
 
 	devmap = dasd_find_busid(cdev->dev.bus_id);
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
+
+	/* generate entry for server_ssid_map */
+	srv = (struct dasd_server_ssid_map *)
+		kzalloc(sizeof(struct dasd_server_ssid_map), GFP_KERNEL);
+	if (!srv)
+		return -ENOMEM;
+	strncpy(srv->sid.vendor, uid->vendor, sizeof(srv->sid.vendor) - 1);
+	strncpy(srv->sid.serial, uid->serial, sizeof(srv->sid.serial) - 1);
+	srv->ssid = uid->ssid;
+
+	/* server is already contained ? */
 	spin_lock(&dasd_devmap_lock);
 	devmap->uid = *uid;
-	rc = dasd_add_server(uid);
+	list_for_each_entry(tmp, &dasd_server_ssid_list, list) {
+		if (!memcmp(&srv->sid, &tmp->sid,
+			    sizeof(struct dasd_server_ssid_map))) {
+			kfree(srv);
+			srv = NULL;
+			break;
+		}
+	}
+
+	/* add servermap to serverlist */
+	if (srv)
+		list_add(&srv->list, &dasd_server_ssid_list);
 	spin_unlock(&dasd_devmap_lock);
-	return rc;
+
+	return (srv ? 1 : 0);
 }
 EXPORT_SYMBOL_GPL(dasd_set_uid);
 
@@ -995,7 +991,7 @@ dasd_devmap_init(void)
 		INIT_LIST_HEAD(&dasd_hashlists[i]);
 
 	/* Initialize servermap structure. */
-	INIT_LIST_HEAD(&dasd_serverlist);
+	INIT_LIST_HEAD(&dasd_server_ssid_list);
 	return 0;
 }
 

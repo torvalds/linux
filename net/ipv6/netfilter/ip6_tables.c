@@ -1398,23 +1398,39 @@ static int __init ip6_tables_init(void)
 {
 	int ret;
 
-	xt_proto_init(AF_INET6);
+	ret = xt_proto_init(AF_INET6);
+	if (ret < 0)
+		goto err1;
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	xt_register_target(&ip6t_standard_target);
-	xt_register_target(&ip6t_error_target);
-	xt_register_match(&icmp6_matchstruct);
+	ret = xt_register_target(&ip6t_standard_target);
+	if (ret < 0)
+		goto err2;
+	ret = xt_register_target(&ip6t_error_target);
+	if (ret < 0)
+		goto err3;
+	ret = xt_register_match(&icmp6_matchstruct);
+	if (ret < 0)
+		goto err4;
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&ip6t_sockopts);
-	if (ret < 0) {
-		duprintf("Unable to register sockopts.\n");
-		xt_proto_fini(AF_INET6);
-		return ret;
-	}
+	if (ret < 0)
+		goto err5;
 
 	printk("ip6_tables: (C) 2000-2006 Netfilter Core Team\n");
 	return 0;
+
+err5:
+	xt_unregister_match(&icmp6_matchstruct);
+err4:
+	xt_unregister_target(&ip6t_error_target);
+err3:
+	xt_unregister_target(&ip6t_standard_target);
+err2:
+	xt_proto_fini(AF_INET6);
+err1:
+	return ret;
 }
 
 static void __exit ip6_tables_fini(void)

@@ -153,13 +153,6 @@ config HOTPLUG_PCI_SHPC_POLL_EVENT_MODE
 
 	  When in doubt, say N.
 
-config HOTPLUG_PCI_SHPC_PHPRM_LEGACY
-	bool "For AMD SHPC only: Use $HRT for resource/configuration"
-	depends on HOTPLUG_PCI_SHPC && !ACPI 
-	help
-	  Say Y here for AMD SHPC. You have to select this option if you are 
-	  using this driver on platform with AMD SHPC.
-
 config HOTPLUG_PCI_RPA
 	tristate "RPA PCI Hotplug driver"
 	depends on HOTPLUG_PCI && PPC_PSERIES && PPC64 && !HOTPLUG_PCI_FAKE

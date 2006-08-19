@@ -1240,6 +1240,16 @@ UNUSUAL_DEV(  0x0ed1, 0x7636, 0x0103, 0x0103,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_GO_SLOW | US_FL_MAX_SECTORS_64),
 
+/* David Kuehling <dvdkhlng@gmx.de>:
+ * for MP3-Player AVOX WSX-300ER (bought in Japan).  Reports lots of SCSI
+ * errors when trying to write.
+ */
+UNUSUAL_DEV(  0x0f19, 0x0105, 0x0100, 0x0100,
+		"C-MEX",
+		"A-VOX",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Michael Stattmann <michael@stattmann.com> */
 UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
 		"Sony Ericsson",

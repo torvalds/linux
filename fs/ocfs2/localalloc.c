@@ -840,6 +840,12 @@ static int ocfs2_local_alloc_new_window(struct ocfs2_super *osb,
 
 	mlog(0, "Allocating %u clusters for a new window.\n",
 	     ocfs2_local_alloc_window_bits(osb));
+
+	/* Instruct the allocation code to try the most recently used
+	 * cluster group. We'll re-record the group used this pass
+	 * below. */
+	ac->ac_last_group = osb->la_last_gd;
+
 	/* we used the generic suballoc reserve function, but we set
 	 * everything up nicely, so there's no reason why we can't use
 	 * the more specific cluster api to claim bits. */
@@ -851,6 +857,8 @@ static int ocfs2_local_alloc_new_window(struct ocfs2_super *osb,
 			mlog_errno(status);
 		goto bail;
 	}
+
+	osb->la_last_gd = ac->ac_last_group;
 
 	la->la_bm_off = cpu_to_le32(cluster_off);
 	alloc->id1.bitmap1.i_total = cpu_to_le32(cluster_count);

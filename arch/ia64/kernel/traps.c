@@ -118,7 +118,7 @@ die (const char *str, struct pt_regs *regs, long err)
 	spin_unlock_irq(&die.lock);
 
 	if (panic_on_oops)
-		panic("Fatal exception: panic_on_oops");
+		panic("Fatal exception");
 
   	do_exit(SIGSEGV);
 }

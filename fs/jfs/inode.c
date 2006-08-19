@@ -168,16 +168,15 @@ void jfs_dirty_inode(struct inode *inode)
 	set_cflag(COMMIT_Dirty, inode);
 }
 
-static int
-jfs_get_blocks(struct inode *ip, sector_t lblock, unsigned long max_blocks,
-			struct buffer_head *bh_result, int create)
+int jfs_get_block(struct inode *ip, sector_t lblock,
+		  struct buffer_head *bh_result, int create)
 {
 	s64 lblock64 = lblock;
 	int rc = 0;
 	xad_t xad;
 	s64 xaddr;
 	int xflag;
-	s32 xlen = max_blocks;
+	s32 xlen = bh_result->b_size >> ip->i_blkbits;
 
 	/*
 	 * Take appropriate lock on inode
@@ -188,7 +187,7 @@ jfs_get_blocks(struct inode *ip, sector_t lblock, unsigned long max_blocks,
 		IREAD_LOCK(ip);
 
 	if (((lblock64 << ip->i_sb->s_blocksize_bits) < ip->i_size) &&
-	    (!xtLookup(ip, lblock64, max_blocks, &xflag, &xaddr, &xlen, 0)) &&
+	    (!xtLookup(ip, lblock64, xlen, &xflag, &xaddr, &xlen, 0)) &&
 	    xaddr) {
 		if (xflag & XAD_NOTRECORDED) {
 			if (!create)
@@ -253,13 +252,6 @@ jfs_get_blocks(struct inode *ip, sector_t lblock, unsigned long max_blocks,
 	else
 		IREAD_UNLOCK(ip);
 	return rc;
-}
-
-static int jfs_get_block(struct inode *ip, sector_t lblock,
-			 struct buffer_head *bh_result, int create)
-{
-	return jfs_get_blocks(ip, lblock, bh_result->b_size >> ip->i_blkbits,
-			bh_result, create);
 }
 
 static int jfs_writepage(struct page *page, struct writeback_control *wbc)

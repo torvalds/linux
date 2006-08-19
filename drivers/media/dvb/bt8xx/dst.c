@@ -393,7 +393,7 @@ static int dst_set_bandwidth(struct dst_state *state, fe_bandwidth_t bandwidth)
 	state->bandwidth = bandwidth;
 
 	if (state->dst_type != DST_TYPE_IS_TERR)
-		return 0;
+		return -EOPNOTSUPP;
 
 	switch (bandwidth) {
 	case BANDWIDTH_6_MHZ:
@@ -462,7 +462,7 @@ static int dst_set_symbolrate(struct dst_state *state, u32 srate)
 
 	state->symbol_rate = srate;
 	if (state->dst_type == DST_TYPE_IS_TERR) {
-		return 0;
+		return -EOPNOTSUPP;
 	}
 	dprintk(verbose, DST_INFO, 1, "set symrate %u", srate);
 	srate /= 1000;
@@ -504,7 +504,7 @@ static int dst_set_symbolrate(struct dst_state *state, u32 srate)
 static int dst_set_modulation(struct dst_state *state, fe_modulation_t modulation)
 {
 	if (state->dst_type != DST_TYPE_IS_CABLE)
-		return 0;
+		return -EOPNOTSUPP;
 
 	state->modulation = modulation;
 	switch (modulation) {
@@ -1234,7 +1234,7 @@ int dst_command(struct dst_state *state, u8 *data, u8 len)
 		goto error;
 	}
 	if (write_dst(state, data, len)) {
-		dprintk(verbose, DST_INFO, 1, "Tring to recover.. ");
+		dprintk(verbose, DST_INFO, 1, "Trying to recover.. ");
 		if ((dst_error_recovery(state)) < 0) {
 			dprintk(verbose, DST_ERROR, 1, "Recovery Failed.");
 			goto error;
@@ -1328,15 +1328,13 @@ static int dst_tone_power_cmd(struct dst_state *state)
 {
 	u8 paket[8] = { 0x00, 0x09, 0xff, 0xff, 0x01, 0x00, 0x00, 0x00 };
 
-	if (state->dst_type == DST_TYPE_IS_TERR)
-		return 0;
+	if (state->dst_type != DST_TYPE_IS_SAT)
+		return -EOPNOTSUPP;
 	paket[4] = state->tx_tuna[4];
 	paket[2] = state->tx_tuna[2];
 	paket[3] = state->tx_tuna[3];
 	paket[7] = dst_check_sum (paket, 7);
-	dst_command(state, paket, 8);
-
-	return 0;
+	return dst_command(state, paket, 8);
 }
 
 static int dst_get_tuna(struct dst_state *state)
@@ -1465,7 +1463,7 @@ static int dst_set_diseqc(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd 
 	u8 paket[8] = { 0x00, 0x08, 0x04, 0xe0, 0x10, 0x38, 0xf0, 0xec };
 
 	if (state->dst_type != DST_TYPE_IS_SAT)
-		return 0;
+		return -EOPNOTSUPP;
 	if (cmd->msg_len > 0 && cmd->msg_len < 5)
 		memcpy(&paket[3], cmd->msg, cmd->msg_len);
 	else if (cmd->msg_len == 5 && state->dst_hw_cap & DST_TYPE_HAS_DISEQC5)
@@ -1473,18 +1471,17 @@ static int dst_set_diseqc(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd 
 	else
 		return -EINVAL;
 	paket[7] = dst_check_sum(&paket[0], 7);
-	dst_command(state, paket, 8);
-	return 0;
+	return dst_command(state, paket, 8);
 }
 
 static int dst_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
-	int need_cmd;
+	int need_cmd, retval = 0;
 	struct dst_state *state = fe->demodulator_priv;
 
 	state->voltage = voltage;
 	if (state->dst_type != DST_TYPE_IS_SAT)
-		return 0;
+		return -EOPNOTSUPP;
 
 	need_cmd = 0;
 
@@ -1506,9 +1503,9 @@ static int dst_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 	}
 
 	if (need_cmd)
-		dst_tone_power_cmd(state);
+		retval = dst_tone_power_cmd(state);
 
-	return 0;
+	return retval;
 }
 
 static int dst_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
@@ -1517,7 +1514,7 @@ static int dst_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 
 	state->tone = tone;
 	if (state->dst_type != DST_TYPE_IS_SAT)
-		return 0;
+		return -EOPNOTSUPP;
 
 	switch (tone) {
 	case SEC_TONE_OFF:
@@ -1533,9 +1530,7 @@ static int dst_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 	default:
 		return -EINVAL;
 	}
-	dst_tone_power_cmd(state);
-
-	return 0;
+	return dst_tone_power_cmd(state);
 }
 
 static int dst_send_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t minicmd)
@@ -1543,7 +1538,7 @@ static int dst_send_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t minicmd)
 	struct dst_state *state = fe->demodulator_priv;
 
 	if (state->dst_type != DST_TYPE_IS_SAT)
-		return 0;
+		return -EOPNOTSUPP;
 	state->minicmd = minicmd;
 	switch (minicmd) {
 	case SEC_MINI_A:
@@ -1553,9 +1548,7 @@ static int dst_send_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t minicmd)
 		state->tx_tuna[3] = 0xff;
 		break;
 	}
-	dst_tone_power_cmd(state);
-
-	return 0;
+	return dst_tone_power_cmd(state);
 }
 
 
@@ -1608,28 +1601,31 @@ static int dst_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct dst_state *state = fe->demodulator_priv;
 
-	dst_get_signal(state);
+	int retval = dst_get_signal(state);
 	*strength = state->decode_strength;
 
-	return 0;
+	return retval;
 }
 
 static int dst_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct dst_state *state = fe->demodulator_priv;
 
-	dst_get_signal(state);
+	int retval = dst_get_signal(state);
 	*snr = state->decode_snr;
 
-	return 0;
+	return retval;
 }
 
 static int dst_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
 {
+	int retval = -EINVAL;
 	struct dst_state *state = fe->demodulator_priv;
 
 	if (p != NULL) {
-		dst_set_freq(state, p->frequency);
+		retval = dst_set_freq(state, p->frequency);
+		if(retval != 0)
+			return retval;
 		dprintk(verbose, DST_DEBUG, 1, "Set Frequency=[%d]", p->frequency);
 
 		if (state->dst_type == DST_TYPE_IS_SAT) {
@@ -1647,10 +1643,10 @@ static int dst_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_paramet
 			dst_set_symbolrate(state, p->u.qam.symbol_rate);
 			dst_set_modulation(state, p->u.qam.modulation);
 		}
-		dst_write_tuna(fe);
+		retval = dst_write_tuna(fe);
 	}
 
-	return 0;
+	return retval;
 }
 
 static int dst_tune_frontend(struct dvb_frontend* fe,

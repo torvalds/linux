@@ -30,7 +30,7 @@ config USB_PWC
 
 config USB_PWC_DEBUG
 	bool "USB Philips Cameras verbose debug"
-	depends USB_PWC
+	depends on USB_PWC
 	help
 	  Say Y here in order to have the pwc driver generate verbose debugging
 	  messages.
