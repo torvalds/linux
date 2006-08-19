@@ -1815,7 +1815,7 @@ static struct pci_driver xl_3c359_driver = {
 
 static int __init xl_pci_init (void)
 {
-	return pci_module_init (&xl_3c359_driver);
+	return pci_register_driver(&xl_3c359_driver);
 }
 
 

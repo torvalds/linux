@@ -76,7 +76,7 @@ static void __devexit atmel_pci_remove(struct pci_dev *pdev)
 
 static int __init atmel_init_module(void)
 {
-	return pci_module_init(&atmel_driver);
+	return pci_register_driver(&atmel_driver);
 }
 
 static void __exit atmel_cleanup_module(void)

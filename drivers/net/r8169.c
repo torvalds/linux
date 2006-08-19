@@ -2809,7 +2809,7 @@ static struct pci_driver rtl8169_pci_driver = {
 static int __init
 rtl8169_init_module(void)
 {
-	return pci_module_init(&rtl8169_pci_driver);
+	return pci_register_driver(&rtl8169_pci_driver);
 }
 
 static void __exit

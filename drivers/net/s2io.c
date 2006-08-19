@@ -7233,7 +7233,7 @@ static void __devexit s2io_rem_nic(struct pci_dev *pdev)
 
 int __init s2io_starter(void)
 {
-	return pci_module_init(&s2io_driver);
+	return pci_register_driver(&s2io_driver);
 }
 
 /**

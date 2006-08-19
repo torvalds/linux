@@ -2053,7 +2053,7 @@ static int __init starfire_init (void)
 		return -ENODEV;
 	}
 
-	return pci_module_init (&starfire_driver);
+	return pci_register_driver(&starfire_driver);
 }
 
 

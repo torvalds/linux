@@ -1604,7 +1604,7 @@ static int __init epic_init (void)
 		version, version2, version3);
 #endif
 
-	return pci_module_init (&epic_driver);
+	return pci_register_driver(&epic_driver);
 }
 
 

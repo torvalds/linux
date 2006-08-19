@@ -1963,7 +1963,7 @@ static int __init netdrv_init_module (void)
 #ifdef MODULE
 	printk(version);
 #endif
-	return pci_module_init (&netdrv_pci_driver);
+	return pci_register_driver(&netdrv_pci_driver);
 }
 
 

@@ -2660,7 +2660,7 @@ static struct pci_driver typhoon_driver = {
 static int __init
 typhoon_init(void)
 {
-	return pci_module_init(&typhoon_driver);
+	return pci_register_driver(&typhoon_driver);
 }
 
 static void __exit

@@ -2969,7 +2969,7 @@ static int __init pcnet32_init_module(void)
 		tx_start = tx_start_pt;
 
 	/* find the PCI devices */
-	if (!pci_module_init(&pcnet32_driver))
+	if (!pci_register_driver(&pcnet32_driver))
 		pcnet32_have_pci = 1;
 
 	/* should we find any remaining VLbus devices ? */

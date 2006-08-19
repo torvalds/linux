@@ -3246,7 +3246,7 @@ static int __init natsemi_init_mod (void)
 	printk(version);
 #endif
 
-	return pci_module_init (&natsemi_driver);
+	return pci_register_driver(&natsemi_driver);
 }
 
 static void __exit natsemi_exit_mod (void)

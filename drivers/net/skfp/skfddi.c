@@ -2280,7 +2280,7 @@ static struct pci_driver skfddi_pci_driver = {
 
 static int __init skfd_init(void)
 {
-	return pci_module_init(&skfddi_pci_driver);
+	return pci_register_driver(&skfddi_pci_driver);
 }
 
 static void __exit skfd_exit(void)
