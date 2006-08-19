@@ -468,11 +468,11 @@ dasd_eckd_generate_uid(struct dasd_device *device, struct dasd_uid *uid)
 		return -ENODEV;
 
 	memset(uid, 0, sizeof(struct dasd_uid));
-	strncpy(uid->vendor, confdata->ned1.HDA_manufacturer,
-		sizeof(uid->vendor) - 1);
+	memcpy(uid->vendor, confdata->ned1.HDA_manufacturer,
+	       sizeof(uid->vendor) - 1);
 	EBCASC(uid->vendor, sizeof(uid->vendor) - 1);
-	strncpy(uid->serial, confdata->ned1.HDA_location,
-		sizeof(uid->serial) - 1);
+	memcpy(uid->serial, confdata->ned1.HDA_location,
+	       sizeof(uid->serial) - 1);
 	EBCASC(uid->serial, sizeof(uid->serial) - 1);
 	uid->ssid = confdata->neq.subsystemID;
 	if (confdata->ned2.sneq.flags == 0x40) {

@@ -391,7 +391,7 @@ static void do_input(char *alias,
 	unsigned int i;
 
 	for (i = min; i < max; i++)
-		if (arr[i / BITS_PER_LONG] & (1 << (i%BITS_PER_LONG)))
+		if (arr[i / BITS_PER_LONG] & (1L << (i%BITS_PER_LONG)))
 			sprintf(alias + strlen(alias), "%X,*", i);
 }
 

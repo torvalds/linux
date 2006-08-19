@@ -32,6 +32,7 @@
 #endif
 
 #ifndef __ASSEMBLY__
+#include <linux/cpumask.h>
 
 #ifdef CONFIG_KEXEC
 
@@ -109,7 +110,6 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 
 #define MAX_NOTE_BYTES 1024
 
-#ifdef __powerpc64__
 extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
 					  master to copy new code to 0 */
 extern int crashing_cpu;
@@ -119,7 +119,6 @@ static inline int kexec_sr_activated(int cpu)
 {
 	return cpu_isset(cpu,cpus_in_sr);
 }
-#endif /* __powerpc64 __ */
 
 struct kimage;
 struct pt_regs;

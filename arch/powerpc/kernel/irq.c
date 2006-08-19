@@ -693,7 +693,7 @@ unsigned int irq_radix_revmap(struct irq_host *host,
 	/* If not there, try to insert it */
 	virq = irq_find_mapping(host, hwirq);
 	if (virq != NO_IRQ)
-		radix_tree_insert(tree, virq, &irq_map[virq]);
+		radix_tree_insert(tree, hwirq, &irq_map[virq]);
  bail:
 	spin_unlock_irqrestore(&irq_big_lock, flags);
 	return virq;

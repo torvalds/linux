@@ -569,6 +569,27 @@ int rtas_set_indicator(int indicator, int index, int new_value)
 }
 EXPORT_SYMBOL(rtas_set_indicator);
 
+/*
+ * Ignoring RTAS extended delay
+ */
+int rtas_set_indicator_fast(int indicator, int index, int new_value)
+{
+	int rc;
+	int token = rtas_token("set-indicator");
+
+	if (token == RTAS_UNKNOWN_SERVICE)
+		return -ENOENT;
+
+	rc = rtas_call(token, 3, 1, NULL, indicator, index, new_value);
+
+	WARN_ON(rc == -2 || (rc >= 9900 && rc <= 9905));
+
+	if (rc < 0)
+		return rtas_error_rc(rc);
+
+	return rc;
+}
+
 void rtas_restart(char *cmd)
 {
 	if (rtas_flash_term_hook)

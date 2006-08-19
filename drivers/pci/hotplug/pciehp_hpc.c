@@ -38,10 +38,6 @@
 
 #include "../pci.h"
 #include "pciehp.h"
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/actypes.h>
-#include <linux/pci-acpi.h>
 #ifdef DEBUG
 #define DBG_K_TRACE_ENTRY      ((unsigned int)0x00000001)	/* On function entry */
 #define DBG_K_TRACE_EXIT       ((unsigned int)0x00000002)	/* On function exit */

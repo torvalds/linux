@@ -772,6 +772,7 @@ ccw_device_online_verify(struct ccw_device *cdev, enum dev_event dev_event)
 	stsch(sch->schid, &sch->schib);
 
 	if (sch->schib.scsw.actl != 0 ||
+	    (sch->schib.scsw.stctl & SCSW_STCTL_STATUS_PEND) ||
 	    (cdev->private->irb.scsw.stctl & SCSW_STCTL_STATUS_PEND)) {
 		/*
 		 * No final status yet or final status not yet delivered

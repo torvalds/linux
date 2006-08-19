@@ -210,6 +210,7 @@ extern enum system_states {
 extern void dump_stack(void);
 
 #ifdef DEBUG
+/* If you are writing a driver, please use dev_dbg instead */
 #define pr_debug(fmt,arg...) \
 	printk(KERN_DEBUG fmt,##arg)
 #else
