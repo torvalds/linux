@@ -3918,7 +3918,9 @@ static int bcm43xx_ieee80211_hard_start_xmit(struct ieee80211_txb *txb,
 		err = bcm43xx_tx(bcm, txb);
 	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 
-	return err;
+	if (unlikely(err))
+		return NETDEV_TX_BUSY;
+	return NETDEV_TX_OK;
 }
 
 static struct net_device_stats * bcm43xx_net_get_stats(struct net_device *net_dev)
