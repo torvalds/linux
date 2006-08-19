@@ -52,7 +52,7 @@ int via_agp_init(DRM_IOCTL_ARGS)
 		return ret;
 	}
 
-	dev_priv->agp_initialized = TRUE;
+	dev_priv->agp_initialized = 1;
 	dev_priv->agp_offset = agp.offset;
 	mutex_unlock(&dev->struct_mutex);
 
@@ -79,7 +79,7 @@ int via_fb_init(DRM_IOCTL_ARGS)
 		return ret;
 	}
 
-	dev_priv->vram_initialized = TRUE;
+	dev_priv->vram_initialized = 1;
 	dev_priv->vram_offset = fb.offset;
 
 	mutex_unlock(&dev->struct_mutex);
