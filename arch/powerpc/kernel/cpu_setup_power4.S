@@ -76,6 +76,8 @@ _GLOBAL(__setup_cpu_ppc970)
 	mfspr	r0,SPRN_HID0
 	li	r11,5			/* clear DOZE and SLEEP */
 	rldimi	r0,r11,52,8		/* set NAP and DPM */
+	li	r11,0
+	rldimi	r0,r11,32,31		/* clear EN_ATTN */
 	mtspr	SPRN_HID0,r0
 	mfspr	r0,SPRN_HID0
 	mfspr	r0,SPRN_HID0

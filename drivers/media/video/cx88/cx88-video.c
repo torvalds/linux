@@ -1225,7 +1225,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_format *f = arg;
 		return cx8800_try_fmt(dev,fh,f);
 	}
-#ifdef CONFIG_V4L1_COMPAT
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	/* --- streaming capture ------------------------------------- */
 	case VIDIOCGMBUF:
 	{
@@ -1584,7 +1584,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 		*id = 0;
 		return 0;
 	}
-#ifdef CONFIG_V4L1_COMPAT
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case VIDIOCSTUNER:
 	{
 		struct video_tuner *v = arg;

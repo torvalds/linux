@@ -68,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.64"
-#define DRV_MODULE_RELDATE	"July 31, 2006"
+#define DRV_MODULE_VERSION	"3.65"
+#define DRV_MODULE_RELDATE	"August 07, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -123,9 +123,6 @@
 			           TG3_RX_RCB_RING_SIZE(tp))
 #define TG3_TX_RING_BYTES	(sizeof(struct tg3_tx_buffer_desc) * \
 				 TG3_TX_RING_SIZE)
-#define TX_BUFFS_AVAIL(TP)						\
-	((TP)->tx_pending -						\
-	 (((TP)->tx_prod - (TP)->tx_cons) & (TG3_TX_RING_SIZE - 1)))
 #define NEXT_TX(N)		(((N) + 1) & (TG3_TX_RING_SIZE - 1))
 
 #define RX_PKT_BUF_SZ		(1536 + tp->rx_offset + 64)
@@ -2987,6 +2984,13 @@ static void tg3_tx_recover(struct tg3 *tp)
 	spin_unlock(&tp->lock);
 }
 
+static inline u32 tg3_tx_avail(struct tg3 *tp)
+{
+	smp_mb();
+	return (tp->tx_pending -
+		((tp->tx_prod - tp->tx_cons) & (TG3_TX_RING_SIZE - 1)));
+}
+
 /* Tigon3 never reports partial packet sends.  So we do not
  * need special logic to handle SKBs that have not had all
  * of their frags sent yet, like SunGEM does.
@@ -3038,12 +3042,20 @@ static void tg3_tx(struct tg3 *tp)
 
 	tp->tx_cons = sw_idx;
 
-	if (unlikely(netif_queue_stopped(tp->dev))) {
-		spin_lock(&tp->tx_lock);
+	/* Need to make the tx_cons update visible to tg3_start_xmit()
+	 * before checking for netif_queue_stopped().  Without the
+	 * memory barrier, there is a small possibility that tg3_start_xmit()
+	 * will miss it and cause the queue to be stopped forever.
+	 */
+	smp_mb();
+
+	if (unlikely(netif_queue_stopped(tp->dev) &&
+		     (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH))) {
+		netif_tx_lock(tp->dev);
 		if (netif_queue_stopped(tp->dev) &&
-		    (TX_BUFFS_AVAIL(tp) > TG3_TX_WAKEUP_THRESH))
+		    (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH))
 			netif_wake_queue(tp->dev);
-		spin_unlock(&tp->tx_lock);
+		netif_tx_unlock(tp->dev);
 	}
 }
 
@@ -3101,7 +3113,6 @@ static int tg3_alloc_rx_skb(struct tg3 *tp, u32 opaque_key,
 	if (skb == NULL)
 		return -ENOMEM;
 
-	skb->dev = tp->dev;
 	skb_reserve(skb, tp->rx_offset);
 
 	mapping = pci_map_single(tp->pdev, skb->data,
@@ -3274,7 +3285,6 @@ static int tg3_rx(struct tg3 *tp, int budget)
 			if (copy_skb == NULL)
 				goto drop_it_no_recycle;
 
-			copy_skb->dev = tp->dev;
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
@@ -3797,7 +3807,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * interrupt.  Furthermore, IRQ processing runs lockless so we have
 	 * no IRQ context deadlocks to worry about either.  Rejoice!
 	 */
-	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
+	if (unlikely(tg3_tx_avail(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
 		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
 
@@ -3893,12 +3903,10 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tw32_tx_mbox((MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW), entry);
 
 	tp->tx_prod = entry;
-	if (unlikely(TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1))) {
-		spin_lock(&tp->tx_lock);
+	if (unlikely(tg3_tx_avail(tp) <= (MAX_SKB_FRAGS + 1))) {
 		netif_stop_queue(dev);
-		if (TX_BUFFS_AVAIL(tp) > TG3_TX_WAKEUP_THRESH)
+		if (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH)
 			netif_wake_queue(tp->dev);
-		spin_unlock(&tp->tx_lock);
 	}
 
 out_unlock:
@@ -3920,7 +3928,7 @@ static int tg3_tso_bug(struct tg3 *tp, struct sk_buff *skb)
 	struct sk_buff *segs, *nskb;
 
 	/* Estimate the number of fragments in the worst case */
-	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->gso_segs * 3))) {
+	if (unlikely(tg3_tx_avail(tp) <= (skb_shinfo(skb)->gso_segs * 3))) {
 		netif_stop_queue(tp->dev);
 		return NETDEV_TX_BUSY;
 	}
@@ -3960,7 +3968,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	 * interrupt.  Furthermore, IRQ processing runs lockless so we have
 	 * no IRQ context deadlocks to worry about either.  Rejoice!
 	 */
-	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
+	if (unlikely(tg3_tx_avail(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
 		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
 
@@ -4110,12 +4118,10 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	tw32_tx_mbox((MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW), entry);
 
 	tp->tx_prod = entry;
-	if (unlikely(TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1))) {
-		spin_lock(&tp->tx_lock);
+	if (unlikely(tg3_tx_avail(tp) <= (MAX_SKB_FRAGS + 1))) {
 		netif_stop_queue(dev);
-		if (TX_BUFFS_AVAIL(tp) > TG3_TX_WAKEUP_THRESH)
+		if (tg3_tx_avail(tp) > TG3_TX_WAKEUP_THRESH)
 			netif_wake_queue(tp->dev);
-		spin_unlock(&tp->tx_lock);
 	}
 
 out_unlock:
@@ -11474,7 +11480,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	tp->grc_mode |= GRC_MODE_BSWAP_NONFRM_DATA;
 #endif
 	spin_lock_init(&tp->lock);
-	spin_lock_init(&tp->tx_lock);
 	spin_lock_init(&tp->indirect_lock);
 	INIT_WORK(&tp->reset_task, tg3_reset_task, tp);
 

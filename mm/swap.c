@@ -54,6 +54,26 @@ void put_page(struct page *page)
 }
 EXPORT_SYMBOL(put_page);
 
+/**
+ * put_pages_list(): release a list of pages
+ *
+ * Release a list of pages which are strung together on page.lru.  Currently
+ * used by read_cache_pages() and related error recovery code.
+ *
+ * @pages: list of pages threaded on page->lru
+ */
+void put_pages_list(struct list_head *pages)
+{
+	while (!list_empty(pages)) {
+		struct page *victim;
+
+		victim = list_entry(pages->prev, struct page, lru);
+		list_del(&victim->lru);
+		page_cache_release(victim);
+	}
+}
+EXPORT_SYMBOL(put_pages_list);
+
 /*
  * Writeback is about to end against a page which has been marked for immediate
  * reclaim.  If it still appears to be reclaimable, move it to the tail of the

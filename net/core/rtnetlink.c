@@ -394,6 +394,9 @@ static int do_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	}
 
 	if (ida[IFLA_ADDRESS - 1]) {
+		struct sockaddr *sa;
+		int len;
+
 		if (!dev->set_mac_address) {
 			err = -EOPNOTSUPP;
 			goto out;
@@ -405,7 +408,17 @@ static int do_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		if (ida[IFLA_ADDRESS - 1]->rta_len != RTA_LENGTH(dev->addr_len))
 			goto out;
 
-		err = dev->set_mac_address(dev, RTA_DATA(ida[IFLA_ADDRESS - 1]));
+		len = sizeof(sa_family_t) + dev->addr_len;
+		sa = kmalloc(len, GFP_KERNEL);
+		if (!sa) {
+			err = -ENOMEM;
+			goto out;
+		}
+		sa->sa_family = dev->type;
+		memcpy(sa->sa_data, RTA_DATA(ida[IFLA_ADDRESS - 1]),
+		       dev->addr_len);
+		err = dev->set_mac_address(dev, sa);
+		kfree(sa);
 		if (err)
 			goto out;
 		send_addr_notify = 1;
