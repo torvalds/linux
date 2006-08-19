@@ -36,16 +36,6 @@ struct hash_testvec {
 	unsigned char ksize;
 };
 
-struct hmac_testvec {
-	char key[128];
-	char plaintext[128];
-	char digest[MAX_DIGEST_SIZE];
-	unsigned char tap[MAX_TAP];
-	unsigned char ksize;
-	unsigned char psize;
-	unsigned char np;
-};
-
 struct cipher_testvec {
 	char key[MAX_KEYLEN] __attribute__ ((__aligned__(4)));
 	char iv[MAX_IVLEN];
@@ -65,7 +55,7 @@ struct cipher_speed {
 	unsigned int blen;
 };
 
-struct digest_speed {
+struct hash_speed {
 	unsigned int blen;	/* buffer length */
 	unsigned int plen;	/* per-update length */
 };
@@ -697,14 +687,13 @@ static struct hash_testvec tgr128_tv_template[] = {
 	},
 };
 
-#ifdef CONFIG_CRYPTO_HMAC
 /*
  * HMAC-MD5 test vectors from RFC2202
  * (These need to be fixed to not use strlen).
  */
 #define HMAC_MD5_TEST_VECTORS	7
 
-static struct hmac_testvec hmac_md5_tv_template[] =
+static struct hash_testvec hmac_md5_tv_template[] =
 {
 	{
 		.key	= { [0 ... 15] =  0x0b },
@@ -768,7 +757,7 @@ static struct hmac_testvec hmac_md5_tv_template[] =
  */
 #define HMAC_SHA1_TEST_VECTORS	7
 
-static struct hmac_testvec hmac_sha1_tv_template[] = {
+static struct hash_testvec hmac_sha1_tv_template[] = {
 	{
 		.key	= { [0 ... 19] = 0x0b },
 		.ksize	= 20,
@@ -833,7 +822,7 @@ static struct hmac_testvec hmac_sha1_tv_template[] = {
  */
 #define HMAC_SHA256_TEST_VECTORS	10
 
-static struct hmac_testvec hmac_sha256_tv_template[] = {
+static struct hash_testvec hmac_sha256_tv_template[] = {
 	{
 		.key	= { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
 			    0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
@@ -943,8 +932,6 @@ static struct hmac_testvec hmac_sha256_tv_template[] = {
 			    0x2a, 0xc7, 0xd8, 0xe0, 0x64, 0xc3, 0xb2, 0xe6 },
 	},
 };
-
-#endif	/* CONFIG_CRYPTO_HMAC */
 
 /*
  * DES test vectors.
@@ -3160,7 +3147,7 @@ static struct cipher_speed des_speed_template[] = {
 /*
  * Digest speed tests
  */
-static struct digest_speed generic_digest_speed_template[] = {
+static struct hash_speed generic_hash_speed_template[] = {
 	{ .blen = 16, 	.plen = 16, },
 	{ .blen = 64,	.plen = 16, },
 	{ .blen = 64,	.plen = 64, },
