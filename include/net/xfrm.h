@@ -984,12 +984,13 @@ extern struct xfrm_algo_desc *xfrm_aalg_get_byname(char *name, int probe);
 extern struct xfrm_algo_desc *xfrm_ealg_get_byname(char *name, int probe);
 extern struct xfrm_algo_desc *xfrm_calg_get_byname(char *name, int probe);
 
-struct crypto_tfm;
+struct hash_desc;
 struct scatterlist;
-typedef void (icv_update_fn_t)(struct crypto_tfm *, struct scatterlist *, unsigned int);
+typedef int (icv_update_fn_t)(struct hash_desc *, struct scatterlist *,
+			      unsigned int);
 
-extern void skb_icv_walk(const struct sk_buff *skb, struct crypto_tfm *tfm,
-			 int offset, int len, icv_update_fn_t icv_update);
+extern int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *tfm,
+			int offset, int len, icv_update_fn_t icv_update);
 
 static inline int xfrm_addr_cmp(xfrm_address_t *a, xfrm_address_t *b,
 				int family)

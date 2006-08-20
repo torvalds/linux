@@ -30,7 +30,8 @@
  */
 static struct xfrm_algo_desc aalg_list[] = {
 {
-	.name = "digest_null",
+	.name = "hmac(digest_null)",
+	.compat = "digest_null",
 	
 	.uinfo = {
 		.auth = {
@@ -47,7 +48,8 @@ static struct xfrm_algo_desc aalg_list[] = {
 	}
 },
 {
-	.name = "md5",
+	.name = "hmac(md5)",
+	.compat = "md5",
 
 	.uinfo = {
 		.auth = {
@@ -64,7 +66,8 @@ static struct xfrm_algo_desc aalg_list[] = {
 	}
 },
 {
-	.name = "sha1",
+	.name = "hmac(sha1)",
+	.compat = "sha1",
 
 	.uinfo = {
 		.auth = {
@@ -81,7 +84,8 @@ static struct xfrm_algo_desc aalg_list[] = {
 	}
 },
 {
-	.name = "sha256",
+	.name = "hmac(sha256)",
+	.compat = "sha256",
 
 	.uinfo = {
 		.auth = {
@@ -98,7 +102,8 @@ static struct xfrm_algo_desc aalg_list[] = {
 	}
 },
 {
-	.name = "ripemd160",
+	.name = "hmac(ripemd160)",
+	.compat = "ripemd160",
 
 	.uinfo = {
 		.auth = {
@@ -480,11 +485,12 @@ EXPORT_SYMBOL_GPL(xfrm_count_enc_supported);
 
 /* Move to common area: it is shared with AH. */
 
-void skb_icv_walk(const struct sk_buff *skb, struct crypto_tfm *tfm,
-		  int offset, int len, icv_update_fn_t icv_update)
+int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
+		 int offset, int len, icv_update_fn_t icv_update)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
+	int err;
 	struct scatterlist sg;
 
 	/* Checksum header. */
@@ -496,10 +502,12 @@ void skb_icv_walk(const struct sk_buff *skb, struct crypto_tfm *tfm,
 		sg.offset = (unsigned long)(skb->data + offset) % PAGE_SIZE;
 		sg.length = copy;
 		
-		icv_update(tfm, &sg, 1);
+		err = icv_update(desc, &sg, copy);
+		if (unlikely(err))
+			return err;
 		
 		if ((len -= copy) == 0)
-			return;
+			return 0;
 		offset += copy;
 	}
 
@@ -519,10 +527,12 @@ void skb_icv_walk(const struct sk_buff *skb, struct crypto_tfm *tfm,
 			sg.offset = frag->page_offset + offset-start;
 			sg.length = copy;
 			
-			icv_update(tfm, &sg, 1);
+			err = icv_update(desc, &sg, copy);
+			if (unlikely(err))
+				return err;
 
 			if (!(len -= copy))
-				return;
+				return 0;
 			offset += copy;
 		}
 		start = end;
@@ -540,15 +550,19 @@ void skb_icv_walk(const struct sk_buff *skb, struct crypto_tfm *tfm,
 			if ((copy = end - offset) > 0) {
 				if (copy > len)
 					copy = len;
-				skb_icv_walk(list, tfm, offset-start, copy, icv_update);
+				err = skb_icv_walk(list, desc, offset-start,
+						   copy, icv_update);
+				if (unlikely(err))
+					return err;
 				if ((len -= copy) == 0)
-					return;
+					return 0;
 				offset += copy;
 			}
 			start = end;
 		}
 	}
 	BUG_ON(len);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(skb_icv_walk);
 

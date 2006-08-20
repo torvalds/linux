@@ -121,9 +121,9 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	}
 
 	if (esp->auth.icv_full_len) {
-		esp->auth.icv(esp, skb, (u8*)esph-skb->data,
-		              sizeof(struct ip_esp_hdr) + esp->conf.ivlen+clen, trailer->tail);
-		pskb_put(skb, trailer, alen);
+		err = esp_mac_digest(esp, skb, (u8 *)esph - skb->data,
+				     sizeof(*esph) + esp->conf.ivlen + clen);
+		memcpy(pskb_put(skb, trailer, alen), esp->auth.work_icv, alen);
 	}
 
 	ip_send_check(top_iph);
@@ -163,15 +163,16 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* If integrity check is required, do this. */
 	if (esp->auth.icv_full_len) {
-		u8 sum[esp->auth.icv_full_len];
-		u8 sum1[alen];
-		
-		esp->auth.icv(esp, skb, 0, skb->len-alen, sum);
+		u8 sum[alen];
 
-		if (skb_copy_bits(skb, skb->len-alen, sum1, alen))
+		err = esp_mac_digest(esp, skb, 0, skb->len - alen);
+		if (err)
+			goto out;
+
+		if (skb_copy_bits(skb, skb->len - alen, sum, alen))
 			BUG();
 
-		if (unlikely(memcmp(sum, sum1, alen))) {
+		if (unlikely(memcmp(esp->auth.work_icv, sum, alen))) {
 			x->stats.integrity_failed++;
 			goto out;
 		}
@@ -307,7 +308,7 @@ static void esp_destroy(struct xfrm_state *x)
 	esp->conf.tfm = NULL;
 	kfree(esp->conf.ivec);
 	esp->conf.ivec = NULL;
-	crypto_free_tfm(esp->auth.tfm);
+	crypto_free_hash(esp->auth.tfm);
 	esp->auth.tfm = NULL;
 	kfree(esp->auth.work_icv);
 	esp->auth.work_icv = NULL;
@@ -333,22 +334,27 @@ static int esp_init_state(struct xfrm_state *x)
 
 	if (x->aalg) {
 		struct xfrm_algo_desc *aalg_desc;
+		struct crypto_hash *hash;
 
 		esp->auth.key = x->aalg->alg_key;
 		esp->auth.key_len = (x->aalg->alg_key_len+7)/8;
-		esp->auth.tfm = crypto_alloc_tfm(x->aalg->alg_name, 0);
-		if (esp->auth.tfm == NULL)
+		hash = crypto_alloc_hash(x->aalg->alg_name, 0,
+					 CRYPTO_ALG_ASYNC);
+		if (IS_ERR(hash))
 			goto error;
-		esp->auth.icv = esp_hmac_digest;
+
+		esp->auth.tfm = hash;
+		if (crypto_hash_setkey(hash, esp->auth.key, esp->auth.key_len))
+			goto error;
 
 		aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name, 0);
 		BUG_ON(!aalg_desc);
 
 		if (aalg_desc->uinfo.auth.icv_fullbits/8 !=
-		    crypto_tfm_alg_digestsize(esp->auth.tfm)) {
+		    crypto_hash_digestsize(hash)) {
 			NETDEBUG(KERN_INFO "ESP: %s digestsize %u != %hu\n",
 				 x->aalg->alg_name,
-				 crypto_tfm_alg_digestsize(esp->auth.tfm),
+				 crypto_hash_digestsize(hash),
 				 aalg_desc->uinfo.auth.icv_fullbits/8);
 			goto error;
 		}
