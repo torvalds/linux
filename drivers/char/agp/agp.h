@@ -117,7 +117,7 @@ struct agp_bridge_driver {
 };
 
 struct agp_bridge_data {
-	struct agp_version *version;
+	const struct agp_version *version;
 	struct agp_bridge_driver *driver;
 	struct vm_operations_struct *vm_ops;
 	void *previous_size;
