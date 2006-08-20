@@ -19,15 +19,14 @@ At the lowest level are algorithms, which register dynamically with the
 API.
 
 'Transforms' are user-instantiated objects, which maintain state, handle all
-of the implementation logic (e.g. manipulating page vectors), provide an 
-abstraction to the underlying algorithms, and handle common logical 
-operations (e.g. cipher modes, HMAC for digests).  However, at the user 
+of the implementation logic (e.g. manipulating page vectors) and provide an 
+abstraction to the underlying algorithms.  However, at the user 
 level they are very simple.
 
 Conceptually, the API layering looks like this:
 
   [transform api]  (user interface)
-  [transform ops]  (per-type logic glue e.g. cipher.c, digest.c)
+  [transform ops]  (per-type logic glue e.g. cipher.c, compress.c)
   [algorithm api]  (for registering algorithms)
   
 The idea is to make the user interface and algorithm registration API
@@ -44,22 +43,27 @@ under development.
 Here's an example of how to use the API:
 
 	#include <linux/crypto.h>
+	#include <linux/err.h>
+	#include <linux/scatterlist.h>
 	
 	struct scatterlist sg[2];
 	char result[128];
-	struct crypto_tfm *tfm;
+	struct crypto_hash *tfm;
+	struct hash_desc desc;
 	
-	tfm = crypto_alloc_tfm("md5", 0);
-	if (tfm == NULL)
+	tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm))
 		fail();
 		
 	/* ... set up the scatterlists ... */
+
+	desc.tfm = tfm;
+	desc.flags = 0;
 	
-	crypto_digest_init(tfm);
-	crypto_digest_update(tfm, &sg, 2);
-	crypto_digest_final(tfm, result);
+	if (crypto_hash_digest(&desc, &sg, 2, result))
+		fail();
 	
-	crypto_free_tfm(tfm);
+	crypto_free_hash(tfm);
 
     
 Many real examples are available in the regression test module (tcrypt.c).
@@ -126,7 +130,7 @@ might already be working on.
 BUGS
 
 Send bug reports to:
-James Morris <jmorris@redhat.com>
+Herbert Xu <herbert@gondor.apana.org.au>
 Cc: David S. Miller <davem@redhat.com>
 
 
@@ -134,13 +138,14 @@ FURTHER INFORMATION
 
 For further patches and various updates, including the current TODO
 list, see:
-http://samba.org/~jamesm/crypto/
+http://gondor.apana.org.au/~herbert/crypto/
 
 
 AUTHORS
 
 James Morris
 David S. Miller
+Herbert Xu
 
 
 CREDITS
@@ -238,8 +243,11 @@ Anubis algorithm contributors:
 Tiger algorithm contributors:
   Aaron Grothe
 
+VIA PadLock contributors:
+  Michal Ludvig
+
 Generic scatterwalk code by Adam J. Richter <adam@yggdrasil.com>
 
 Please send any credits updates or corrections to:
-James Morris <jmorris@redhat.com>
+Herbert Xu <herbert@gondor.apana.org.au>
 
