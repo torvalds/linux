@@ -30,6 +30,7 @@
 #include <asm/irq.h>
 #include <asm/mipsregs.h>
 #include <asm/system.h>
+#include <asm/wbflush.h>
 #include <asm/tx4938/rbtx4938.h>
 
 /**********************************************************************************/
