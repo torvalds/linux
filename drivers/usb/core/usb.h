@@ -40,7 +40,10 @@ extern int usb_port_resume(struct usb_device *dev);
 #else
 
 #define usb_suspend_both(udev, msg)	0
-#define usb_resume_both(udev)		0
+static inline int usb_resume_both(struct usb_device *udev)
+{
+	return 0;
+}
 #define usb_port_suspend(dev)		0
 #define usb_port_resume(dev)		0
 
