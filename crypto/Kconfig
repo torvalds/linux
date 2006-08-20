@@ -33,7 +33,7 @@ config CRYPTO_MANAGER
 	  cbc(aes).
 
 config CRYPTO_HMAC
-	bool "HMAC support"
+	tristate "HMAC support"
 	select CRYPTO_HASH
 	help
 	  HMAC: Keyed-Hashing for Message Authentication (RFC2104).

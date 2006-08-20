@@ -73,19 +73,6 @@ static inline void crypto_yield(u32 flags)
 		cond_resched();
 }
 
-#ifdef CONFIG_CRYPTO_HMAC
-int crypto_alloc_hmac_block(struct crypto_tfm *tfm);
-void crypto_free_hmac_block(struct crypto_tfm *tfm);
-#else
-static inline int crypto_alloc_hmac_block(struct crypto_tfm *tfm)
-{
-	return 0;
-}
-
-static inline void crypto_free_hmac_block(struct crypto_tfm *tfm)
-{ }
-#endif
-
 #ifdef CONFIG_PROC_FS
 void __init crypto_init_proc(void);
 void __exit crypto_exit_proc(void);

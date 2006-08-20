@@ -191,10 +191,9 @@ int crypto_init_digest_ops(struct crypto_tfm *tfm)
 	ops->setkey	= dalg->dia_setkey ? setkey : nosetkey;
 	ops->digestsize	= dalg->dia_digestsize;
 	
-	return crypto_alloc_hmac_block(tfm);
+	return 0;
 }
 
 void crypto_exit_digest_ops(struct crypto_tfm *tfm)
 {
-	crypto_free_hmac_block(tfm);
 }
