@@ -330,17 +330,6 @@ static inline void sctp_v6_exit(void) { return; }
 
 #endif /* #if defined(CONFIG_IPV6) */
 
-/* Some wrappers, in case crypto not available. */
-#if defined (CONFIG_CRYPTO_HMAC)
-#define sctp_crypto_alloc_tfm crypto_alloc_tfm
-#define sctp_crypto_free_tfm crypto_free_tfm
-#define sctp_crypto_hmac crypto_hmac
-#else
-#define sctp_crypto_alloc_tfm(x...) NULL
-#define sctp_crypto_free_tfm(x...)
-#define sctp_crypto_hmac(x...)
-#endif
-
 
 /* Map an association to an assoc_id. */
 static inline sctp_assoc_t sctp_assoc2id(const struct sctp_association *asoc)
