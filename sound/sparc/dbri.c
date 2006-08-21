@@ -241,9 +241,7 @@ static struct {
 #define DBRI_INT_BLK	64
 #define DBRI_NO_DESCS	64
 #define DBRI_NO_PIPES	32
-
-#define DBRI_MM_ONB	1
-#define DBRI_MM_SB	2
+#define DBRI_MAX_PIPE	(DBRI_NO_PIPES - 1)
 
 #define DBRI_REC	0
 #define DBRI_PLAY	1
@@ -650,10 +648,6 @@ static volatile s32 *dbri_cmdlock(struct snd_dbri * dbri, enum dbri_lock get)
 	/* Delay if previous commands are still being processed */
 	while ((--maxloops) > 0 && (dbri->wait_send != dbri->wait_ackd)) {
 		msleep_interruptible(1);
-		/* If dbri_cmdlock() got called from inside the
-		 * interrupt handler, this will do the processing.
-		 */
-		dbri_process_interrupt_buffer(dbri);
 	}
 	if (maxloops == 0) {
 		printk(KERN_ERR "DBRI: Chip never completed command buffer %d\n",
@@ -780,7 +774,7 @@ static void reset_pipe(struct snd_dbri * dbri, int pipe)
 	int desc;
 	volatile int *cmd;
 
-	if (pipe < 0 || pipe > 31) {
+	if (pipe < 0 || pipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR "DBRI: reset_pipe called with illegal pipe number\n");
 		return;
 	}
@@ -806,10 +800,9 @@ static void reset_pipe(struct snd_dbri * dbri, int pipe)
 	dbri->pipes[pipe].first_desc = -1;
 }
 
-/* FIXME: direction as an argument? */
 static void setup_pipe(struct snd_dbri * dbri, int pipe, int sdp)
 {
-	if (pipe < 0 || pipe > 31) {
+	if (pipe < 0 || pipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR "DBRI: setup_pipe called with illegal pipe number\n");
 		return;
 	}
@@ -843,7 +836,7 @@ static void link_time_slot(struct snd_dbri * dbri, int pipe,
 	int prevpipe;
 	int nextpipe;
 
-	if (pipe < 0 || pipe > 31 || basepipe < 0 || basepipe > 31) {
+	if (pipe < 0 || pipe > DBRI_MAX_PIPE || basepipe < 0 || basepipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR 
 		    "DBRI: link_time_slot called with illegal pipe number\n");
 		return;
@@ -931,7 +924,8 @@ static void unlink_time_slot(struct snd_dbri * dbri, int pipe,
 	volatile s32 *cmd;
 	int val;
 
-	if (pipe < 0 || pipe > 31 || prevpipe < 0 || prevpipe > 31) {
+	if (pipe < 0 || pipe > DBRI_MAX_PIPE 
+			|| prevpipe < 0 || prevpipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR 
 		    "DBRI: unlink_time_slot called with illegal pipe number\n");
 		return;
@@ -972,7 +966,7 @@ static void xmit_fixed(struct snd_dbri * dbri, int pipe, unsigned int data)
 {
 	volatile s32 *cmd;
 
-	if (pipe < 16 || pipe > 31) {
+	if (pipe < 16 || pipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR "DBRI: xmit_fixed: Illegal pipe number\n");
 		return;
 	}
@@ -1007,7 +1001,7 @@ static void xmit_fixed(struct snd_dbri * dbri, int pipe, unsigned int data)
 
 static void recv_fixed(struct snd_dbri * dbri, int pipe, volatile __u32 * ptr)
 {
-	if (pipe < 16 || pipe > 31) {
+	if (pipe < 16 || pipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR "DBRI: recv_fixed called with illegal pipe number\n");
 		return;
 	}
@@ -1182,20 +1176,14 @@ static void reset_chi(struct snd_dbri * dbri, enum master_or_slave master_or_sla
 
 		/* Set CHI Anchor: Pipe 16 */
 
-		val = D_DTS_VI | D_DTS_INS | D_DTS_PRVIN(16) | D_PIPE(16);
+		val = D_DTS_VO | D_DTS_VI | D_DTS_INS 
+			| D_DTS_PRVIN(16) | D_PIPE(16) | D_DTS_PRVOUT(16);
 		*(cmd++) = DBRI_CMD(D_DTS, 0, val);
 		*(cmd++) = D_TS_ANCHOR | D_TS_NEXT(16);
-		*(cmd++) = 0;
-
-		val = D_DTS_VO | D_DTS_INS | D_DTS_PRVOUT(16) | D_PIPE(16);
-		*(cmd++) = DBRI_CMD(D_DTS, 0, val);
-		*(cmd++) = 0;
 		*(cmd++) = D_TS_ANCHOR | D_TS_NEXT(16);
 
 		dbri->pipes[16].sdp = 1;
 		dbri->pipes[16].nextpipe = 16;
-		dbri->chi_in_pipe = 16;
-		dbri->chi_out_pipe = 16;
 
 #if 0
 		chi_initialized++;
@@ -1214,11 +1202,10 @@ static void reset_chi(struct snd_dbri * dbri, enum master_or_slave master_or_sla
 					 16, dbri->pipes[pipe].nextpipe);
 		}
 
-		dbri->chi_in_pipe = 16;
-		dbri->chi_out_pipe = 16;
-
 		cmd = dbri_cmdlock(dbri, GetLock);
 	}
+	dbri->chi_in_pipe = 16;
+	dbri->chi_out_pipe = 16;
 
 	if (master_or_slave == CHIslave) {
 		/* Setup DBRI for CHI Slave - receive clock, frame sync (FS)
@@ -1341,8 +1328,8 @@ static void cs4215_setdata(struct snd_dbri * dbri, int muted)
 	} else {
 		/* Start by setting the playback attenuation. */
 		struct dbri_streaminfo *info = &dbri->stream_info[DBRI_PLAY];
-		int left_gain = info->left_gain % 64;
-		int right_gain = info->right_gain % 64;
+		int left_gain = info->left_gain & 0x3f;
+		int right_gain = info->right_gain & 0x3f;
 
 		dbri->mm.data[0] &= ~0x3f;	/* Reset the volume bits */
 		dbri->mm.data[1] &= ~0x3f;
@@ -1351,8 +1338,8 @@ static void cs4215_setdata(struct snd_dbri * dbri, int muted)
 
 		/* Now set the recording gain. */
 		info = &dbri->stream_info[DBRI_REC];
-		left_gain = info->left_gain % 16;
-		right_gain = info->right_gain % 16;
+		left_gain = info->left_gain & 0xf;
+		right_gain = info->right_gain & 0xf;
 		dbri->mm.data[2] |= CS4215_LG(left_gain);
 		dbri->mm.data[3] |= CS4215_RG(right_gain);
 	}
