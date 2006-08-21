@@ -169,8 +169,7 @@ static int dib3000mc_set_output_mode(struct dib3000mc_state *state, int mode)
 	u16 outreg = 0;
 	u16 outmode = 0;
 	u16 elecout = 1;
-	u16 smo_reg = (0 << 6) | (0 << 5) | (0 << 3) | (1 << 1) | 0 |
-		(dib3000mc_read_word(state, 206) & 0x0010); /* keep the pid_parse bit */
+	u16 smo_reg = dib3000mc_read_word(state, 206) & 0x0010; /* keep the pid_parse bit */
 
 	dprintk("-I-  Setting output mode for demod %p to %d\n",
 			&state->demod, mode);
@@ -198,7 +197,7 @@ static int dib3000mc_set_output_mode(struct dib3000mc_state *state, int mode)
 			P_smo_mode           [2;2:1] = 11
 			P_smo_ovf_prot       [1;0:0] = 0
 			*/
-			smo_reg = (0 << 6) | (0 << 5) | (0 << 3) |(3 << 1) | 0;
+			smo_reg |= 3 << 1;
 			fifo_threshold = 512;
 			outmode = 5;
 			break;
