@@ -7,6 +7,9 @@
     (c) 2002 Yurij Sysoev <yurij@naturesoft.net>
     (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
 
+    (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
+	- Multituner support and i2c address binding
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
