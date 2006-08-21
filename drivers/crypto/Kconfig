@@ -27,6 +27,7 @@ config CRYPTO_DEV_PADLOCK
 config CRYPTO_DEV_PADLOCK_AES
 	tristate "PadLock driver for AES algorithm"
 	depends on CRYPTO_DEV_PADLOCK
+	select CRYPTO_BLKCIPHER
 	default m
 	help
 	  Use VIA PadLock for AES algorithm.
