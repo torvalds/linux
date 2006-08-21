@@ -8562,9 +8562,26 @@ static int ipw_wx_get_freq(struct net_device *dev,
 	 * configured CHANNEL then return that; otherwise return ANY */
 	mutex_lock(&priv->mutex);
 	if (priv->config & CFG_STATIC_CHANNEL ||
-	    priv->status & (STATUS_ASSOCIATING | STATUS_ASSOCIATED))
-		wrqu->freq.m = priv->channel;
-	else
+	    priv->status & (STATUS_ASSOCIATING | STATUS_ASSOCIATED)) {
+		int i;
+
+		i = ieee80211_channel_to_index(priv->ieee, priv->channel);
+		BUG_ON(i == -1);
+		wrqu->freq.e = 1;
+
+		switch (ieee80211_is_valid_channel(priv->ieee, priv->channel)) {
+		case IEEE80211_52GHZ_BAND:
+			wrqu->freq.m = priv->ieee->geo.a[i].freq * 100000;
+			break;
+
+		case IEEE80211_24GHZ_BAND:
+			wrqu->freq.m = priv->ieee->geo.bg[i].freq * 100000;
+			break;
+
+		default:
+			BUG();
+		}
+	} else
 		wrqu->freq.m = 0;
 
 	mutex_unlock(&priv->mutex);
