@@ -21,6 +21,7 @@
 #define CRYPT_S390_FUNC_MASK 0x00FF
 
 #define CRYPT_S390_PRIORITY 300
+#define CRYPT_S390_COMPOSITE_PRIORITY 400
 
 /* s930 cryptographic operations */
 enum crypt_s390_operations {

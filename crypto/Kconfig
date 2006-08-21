@@ -150,6 +150,7 @@ config CRYPTO_DES_S390
 	tristate "DES and Triple DES cipher algorithms (s390)"
 	depends on S390
 	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
 
@@ -298,6 +299,7 @@ config CRYPTO_AES_S390
 	tristate "AES cipher algorithms (s390)"
 	depends on S390
 	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
