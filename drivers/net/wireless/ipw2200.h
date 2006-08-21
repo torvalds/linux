@@ -1296,6 +1296,7 @@ struct ipw_priv {
 	struct work_struct system_config;
 	struct work_struct rx_replenish;
 	struct work_struct request_scan;
+  	struct work_struct request_passive_scan;
 	struct work_struct adapter_restart;
 	struct work_struct rf_kill;
 	struct work_struct up;

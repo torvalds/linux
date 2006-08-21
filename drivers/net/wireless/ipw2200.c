@@ -6169,7 +6169,7 @@ static void ipw_add_scan_channels(struct ipw_priv *priv,
 	}
 }
 
-static int ipw_request_scan(struct ipw_priv *priv)
+static int ipw_request_scan_helper(struct ipw_priv *priv, int type)
 {
 	struct ipw_scan_request_ext scan;
 	int err = 0, scan_type;
@@ -6200,19 +6200,29 @@ static int ipw_request_scan(struct ipw_priv *priv)
 	}
 
 	memset(&scan, 0, sizeof(scan));
+	scan.full_scan_index = cpu_to_le32(ieee80211_get_scans(priv->ieee));
 
-	if (priv->config & CFG_SPEED_SCAN)
+	if (type == IW_SCAN_TYPE_PASSIVE) {
+	  	IPW_DEBUG_WX("use passive scanning\n");
+	  	scan_type = IPW_SCAN_PASSIVE_FULL_DWELL_SCAN;
+		scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] =
+			cpu_to_le16(120);
+		ipw_add_scan_channels(priv, &scan, scan_type);
+		goto send_request;
+	}
+
+	/* Use active scan by default. */
+  	if (priv->config & CFG_SPEED_SCAN)
 		scan.dwell_time[IPW_SCAN_ACTIVE_BROADCAST_SCAN] =
-		    cpu_to_le16(30);
+			cpu_to_le16(30);
 	else
 		scan.dwell_time[IPW_SCAN_ACTIVE_BROADCAST_SCAN] =
-		    cpu_to_le16(20);
+			cpu_to_le16(20);
 
 	scan.dwell_time[IPW_SCAN_ACTIVE_BROADCAST_AND_DIRECT_SCAN] =
-	    cpu_to_le16(20);
-	scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] = cpu_to_le16(120);
+		cpu_to_le16(20);
 
-	scan.full_scan_index = cpu_to_le32(ieee80211_get_scans(priv->ieee));
+  	scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] = cpu_to_le16(120);
 
 #ifdef CONFIG_IPW2200_MONITOR
 	if (priv->ieee->iw_mode == IW_MODE_MONITOR) {
@@ -6249,7 +6259,7 @@ static int ipw_request_scan(struct ipw_priv *priv)
 		 *
 		 * TODO: Move SPEED SCAN support to all modes and bands */
 		scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] =
-		    cpu_to_le16(2000);
+			cpu_to_le16(2000);
 	} else {
 #endif				/* CONFIG_IPW2200_MONITOR */
 		/* If we are roaming, then make this a directed scan for the
@@ -6275,6 +6285,7 @@ static int ipw_request_scan(struct ipw_priv *priv)
 	}
 #endif
 
+send_request:
 	err = ipw_send_scan_request_ext(priv, &scan);
 	if (err) {
 		IPW_DEBUG_HC("Sending scan command failed: %08X\n", err);
@@ -6285,9 +6296,17 @@ static int ipw_request_scan(struct ipw_priv *priv)
 	priv->status &= ~STATUS_SCAN_PENDING;
 	queue_delayed_work(priv->workqueue, &priv->scan_check,
 			   IPW_SCAN_CHECK_WATCHDOG);
-      done:
+done:
 	mutex_unlock(&priv->mutex);
 	return err;
+}
+
+static int ipw_request_passive_scan(struct ipw_priv *priv) {
+  	return ipw_request_scan_helper(priv, IW_SCAN_TYPE_PASSIVE);
+}
+
+static int ipw_request_scan(struct ipw_priv *priv) {
+	return ipw_request_scan_helper(priv, IW_SCAN_TYPE_ACTIVE);
 }
 
 static void ipw_bg_abort_scan(void *data)
@@ -9378,13 +9397,17 @@ static int ipw_wx_set_scan(struct net_device *dev,
 			   union iwreq_data *wrqu, char *extra)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
-	struct iw_scan_req *req = NULL;
-	if (wrqu->data.length
-	    && wrqu->data.length == sizeof(struct iw_scan_req)) {
-		req = (struct iw_scan_req *)extra;
+	struct iw_scan_req *req = (struct iw_scan_req *)extra;
+
+	if (wrqu->data.length == sizeof(struct iw_scan_req)) {
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 			ipw_request_direct_scan(priv, req->essid,
 						req->essid_len);
+			return 0;
+		}
+		if (req->scan_type == IW_SCAN_TYPE_PASSIVE) {
+			queue_work(priv->workqueue,
+				   &priv->request_passive_scan);
 			return 0;
 		}
 	}
@@ -10618,6 +10641,8 @@ static int ipw_setup_deferred_work(struct ipw_priv *priv)
 	INIT_WORK(&priv->down, (void (*)(void *))ipw_bg_down, priv);
 	INIT_WORK(&priv->request_scan,
 		  (void (*)(void *))ipw_request_scan, priv);
+	INIT_WORK(&priv->request_passive_scan,
+		  (void (*)(void *))ipw_request_passive_scan, priv);
 	INIT_WORK(&priv->gather_stats,
 		  (void (*)(void *))ipw_bg_gather_stats, priv);
 	INIT_WORK(&priv->abort_scan, (void (*)(void *))ipw_bg_abort_scan, priv);
