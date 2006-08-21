@@ -532,13 +532,6 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			return 0;
 		}
 
-		if (ret == NETDEV_TX_BUSY) {
-			printk(KERN_ERR "%s: NETDEV_TX_BUSY returned; "
-			       "driver should report queue full via "
-			       "ieee_device->is_queue_full.\n",
-			       ieee->dev->name);
-		}
-
 		ieee80211_txb_free(txb);
 	}
 
