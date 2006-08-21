@@ -2014,7 +2014,7 @@ rndis_control_ack_complete (struct usb_ep *ep, struct usb_request *req)
 static int rndis_control_ack (struct net_device *net)
 {
 	struct eth_dev          *dev = netdev_priv(net);
-	u32                     length;
+	int                     length;
 	struct usb_request      *resp = dev->stat_req;
 
 	/* in case RNDIS calls this after disconnect */
