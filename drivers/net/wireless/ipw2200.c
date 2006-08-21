@@ -8837,28 +8837,23 @@ static int ipw_wx_set_essid(struct net_device *dev,
 			    union iwreq_data *wrqu, char *extra)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
-	char *essid = "";	/* ANY */
-	int length = 0;
-	mutex_lock(&priv->mutex);
-	if (wrqu->essid.flags && wrqu->essid.length) {
-		length = wrqu->essid.length - 1;
-		essid = extra;
-	}
-	if (length == 0) {
-		IPW_DEBUG_WX("Setting ESSID to ANY\n");
-		if ((priv->config & CFG_STATIC_ESSID) &&
-		    !(priv->status & (STATUS_ASSOCIATED |
-				      STATUS_ASSOCIATING))) {
-			IPW_DEBUG_ASSOC("Attempting to associate with new "
-					"parameters.\n");
-			priv->config &= ~CFG_STATIC_ESSID;
-			ipw_associate(priv);
-		}
-		mutex_unlock(&priv->mutex);
-		return 0;
-	}
+        char *essid;
+        int length;
 
-	length = min(length, IW_ESSID_MAX_SIZE);
+        mutex_lock(&priv->mutex);
+
+        if (!wrqu->essid.flags)
+        {
+                IPW_DEBUG_WX("Setting ESSID to ANY\n");
+                ipw_disassociate(priv);
+                priv->config &= ~CFG_STATIC_ESSID;
+                ipw_associate(priv);
+                mutex_unlock(&priv->mutex);
+                return 0;
+        }
+
+	length = min(wrqu->essid.length, IW_ESSID_MAX_SIZE);
+	essid = extra;
 
 	priv->config |= CFG_STATIC_ESSID;
 
@@ -8868,7 +8863,7 @@ static int ipw_wx_set_essid(struct net_device *dev,
 		return 0;
 	}
 
-	IPW_DEBUG_WX("Setting ESSID: '%s' (%d)\n", escape_essid(essid, length),
+	IPW_DEBUG_WX("Setting ESSID: '%s' (%d)\n", escape_essid(extra, length),
 		     length);
 
 	priv->essid_len = length;
