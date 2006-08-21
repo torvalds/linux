@@ -1493,6 +1493,65 @@ free_interfaces:
 	return 0;
 }
 
+struct set_config_request {
+	struct usb_device	*udev;
+	int			config;
+	struct work_struct	work;
+};
+
+/* Worker routine for usb_driver_set_configuration() */
+static void driver_set_config_work(void *_req)
+{
+	struct set_config_request *req = _req;
+
+	usb_lock_device(req->udev);
+	usb_set_configuration(req->udev, req->config);
+	usb_unlock_device(req->udev);
+	usb_put_dev(req->udev);
+	kfree(req);
+}
+
+/**
+ * usb_driver_set_configuration - Provide a way for drivers to change device configurations
+ * @udev: the device whose configuration is being updated
+ * @config: the configuration being chosen.
+ * Context: In process context, must be able to sleep
+ *
+ * Device interface drivers are not allowed to change device configurations.
+ * This is because changing configurations will destroy the interface the
+ * driver is bound to and create new ones; it would be like a floppy-disk
+ * driver telling the computer to replace the floppy-disk drive with a
+ * tape drive!
+ *
+ * Still, in certain specialized circumstances the need may arise.  This
+ * routine gets around the normal restrictions by using a work thread to
+ * submit the change-config request.
+ *
+ * Returns 0 if the request was succesfully queued, error code otherwise.
+ * The caller has no way to know whether the queued request will eventually
+ * succeed.
+ */
+int usb_driver_set_configuration(struct usb_device *udev, int config)
+{
+	struct set_config_request *req;
+
+	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+	req->udev = udev;
+	req->config = config;
+	INIT_WORK(&req->work, driver_set_config_work, req);
+
+	usb_get_dev(udev);
+	if (!schedule_work(&req->work)) {
+		usb_put_dev(udev);
+		kfree(req);
+		return -EINVAL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_driver_set_configuration);
+
 // synchronous request completion model
 EXPORT_SYMBOL(usb_control_msg);
 EXPORT_SYMBOL(usb_bulk_msg);

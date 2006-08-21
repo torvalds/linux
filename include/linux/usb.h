@@ -1099,6 +1099,9 @@ extern int usb_clear_halt(struct usb_device *dev, int pipe);
 extern int usb_reset_configuration(struct usb_device *dev);
 extern int usb_set_interface(struct usb_device *dev, int ifnum, int alternate);
 
+/* this request isn't really synchronous, but it belongs with the others */
+extern int usb_driver_set_configuration(struct usb_device *udev, int config);
+
 /*
  * timeouts, in milliseconds, used for sending/receiving control messages
  * they typically complete within a few frames (msec) after they're issued
