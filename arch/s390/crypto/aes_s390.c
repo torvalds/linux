@@ -222,6 +222,8 @@ static unsigned int aes_decrypt_cbc(const struct cipher_desc *desc, u8 *out,
 
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
+	.cra_driver_name	=	"aes-s390",
+	.cra_priority		=	CRYPT_S390_PRIORITY,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct s390_aes_ctx),

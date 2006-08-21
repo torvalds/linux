@@ -135,6 +135,8 @@ static unsigned int des_decrypt_cbc(const struct cipher_desc *desc, u8 *out,
 
 static struct crypto_alg des_alg = {
 	.cra_name		=	"des",
+	.cra_driver_name	=	"des-s390",
+	.cra_priority		=	CRYPT_S390_PRIORITY,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	DES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct crypt_s390_des_ctx),
@@ -271,6 +273,8 @@ static unsigned int des3_128_decrypt_cbc(const struct cipher_desc *desc,
 
 static struct crypto_alg des3_128_alg = {
 	.cra_name		=	"des3_ede128",
+	.cra_driver_name	=	"des3_ede128-s390",
+	.cra_priority		=	CRYPT_S390_PRIORITY,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	DES3_128_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct crypt_s390_des3_128_ctx),
@@ -411,6 +415,8 @@ static unsigned int des3_192_decrypt_cbc(const struct cipher_desc *desc,
 
 static struct crypto_alg des3_192_alg = {
 	.cra_name		=	"des3_ede",
+	.cra_driver_name	=	"des3_ede-s390",
+	.cra_priority		=	CRYPT_S390_PRIORITY,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	DES3_192_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct crypt_s390_des3_192_ctx),
