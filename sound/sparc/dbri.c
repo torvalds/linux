@@ -250,6 +250,7 @@ static struct {
 #define DBRI_NO_STREAMS	2
 
 /* One transmit/receive descriptor */
+/* When ba != 0 descriptor is used */
 struct dbri_mem {
 	volatile __u32 word1;
 	__u32 ba;	/* Transmit/Receive Buffer Address */
@@ -282,12 +283,6 @@ struct dbri_pipe {
 	volatile __u32 *recv_fixed_ptr;	/* Ptr to receive fixed data */
 };
 
-struct dbri_desc {
-	int inuse;		/* Boolean flag */
-	int next;		/* Index of next desc, or -1 */
-	unsigned int len;
-};
-
 /* Per stream (playback or record) information */
 struct dbri_streaminfo {
 	struct snd_pcm_substream *substream;
@@ -317,7 +312,7 @@ struct snd_dbri {
 	int wait_ackd;		/* sequence of command buffers acknowledged */
 
 	struct dbri_pipe pipes[DBRI_NO_PIPES];	/* DBRI's 32 data pipes */
-	struct dbri_desc descs[DBRI_NO_DESCS];
+	int next_desc[DBRI_NO_DESCS];		/* Index of next desc, or -1 */
 
 	int chi_in_pipe;
 	int chi_out_pipe;
@@ -803,8 +798,8 @@ static void reset_pipe(struct snd_dbri * dbri, int pipe)
 
 	desc = dbri->pipes[pipe].first_desc;
 	while (desc != -1) {
-		dbri->descs[desc].inuse = 0;
-		desc = dbri->descs[desc].next;
+		dbri->dma->desc[desc].nda = dbri->dma->desc[desc].ba = 0;
+		desc = dbri->next_desc[desc];
 	}
 
 	dbri->pipes[pipe].desc = -1;
@@ -1093,7 +1088,7 @@ static int setup_descs(struct snd_dbri * dbri, int streamno, unsigned int period
 		int mylen;
 
 		for (; desc < DBRI_NO_DESCS; desc++) {
-			if (!dbri->descs[desc].inuse)
+			if (!dbri->dma->desc[desc].ba)
 				break;
 		}
 		if (desc == DBRI_NO_DESCS) {
@@ -1110,19 +1105,16 @@ static int setup_descs(struct snd_dbri * dbri, int streamno, unsigned int period
 			mylen = period;
 		}
 
-		dbri->descs[desc].inuse = 1;
-		dbri->descs[desc].next = -1;
+		dbri->next_desc[desc] = -1;
 		dbri->dma->desc[desc].ba = dvma_buffer;
 		dbri->dma->desc[desc].nda = 0;
 
 		if (streamno == DBRI_PLAY) {
-			dbri->descs[desc].len = mylen;
 			dbri->dma->desc[desc].word1 = DBRI_TD_CNT(mylen);
 			dbri->dma->desc[desc].word4 = 0;
 			if (first_desc != -1)
 				dbri->dma->desc[desc].word1 |= DBRI_TD_M;
 		} else {
-			dbri->descs[desc].len = 0;
 			dbri->dma->desc[desc].word1 = 0;
 			dbri->dma->desc[desc].word4 =
 			    DBRI_RD_B | DBRI_RD_BCNT(mylen);
@@ -1131,7 +1123,7 @@ static int setup_descs(struct snd_dbri * dbri, int streamno, unsigned int period
 		if (first_desc == -1) {
 			first_desc = desc;
 		} else {
-			dbri->descs[last_desc].next = desc;
+			dbri->next_desc[last_desc] = desc;
 			dbri->dma->desc[last_desc].nda =
 			    dbri->dma_dvma + dbri_dma_off(desc, desc);
 		}
@@ -1154,7 +1146,7 @@ static int setup_descs(struct snd_dbri * dbri, int streamno, unsigned int period
 	dbri->pipes[info->pipe].first_desc = first_desc;
 	dbri->pipes[info->pipe].desc = first_desc;
 
-	for (desc = first_desc; desc != -1; desc = dbri->descs[desc].next) {
+	for (desc = first_desc; desc != -1; desc = dbri->next_desc[desc]) {
 		dprintk(D_DESC, "DESC %d: %08x %08x %08x %08x\n",
 			desc,
 			dbri->dma->desc[desc].word1,
@@ -1747,6 +1739,7 @@ static void transmission_complete_intr(struct snd_dbri * dbri, int pipe)
 	struct dbri_streaminfo *info;
 	int td;
 	int status;
+	int len;
 
 	info = &dbri->stream_info[DBRI_PLAY];
 
@@ -1765,11 +1758,12 @@ static void transmission_complete_intr(struct snd_dbri * dbri, int pipe)
 		dprintk(D_INT, "TD %d, status 0x%02x\n", td, status);
 
 		dbri->dma->desc[td].word4 = 0;	/* Reset it for next time. */
-		info->offset += dbri->descs[td].len;
-		info->left -= dbri->descs[td].len;
+		len = DBRI_RD_CNT(dbri->dma->desc[td].word1);
+		info->offset += len;
+		info->left -= len;
 
 		/* On the last TD, transmit them all again. */
-		if (dbri->descs[td].next == -1) {
+		if (dbri->next_desc[td] == -1) {
 			if (info->left > 0) {
 				printk(KERN_WARNING
 				       "%d bytes left after last transfer.\n",
@@ -1779,7 +1773,7 @@ static void transmission_complete_intr(struct snd_dbri * dbri, int pipe)
 			tasklet_schedule(&xmit_descs_task);
 		}
 
-		td = dbri->descs[td].next;
+		td = dbri->next_desc[td];
 		dbri->pipes[pipe].desc = td;
 	}
 
@@ -1803,8 +1797,8 @@ static void reception_complete_intr(struct snd_dbri * dbri, int pipe)
 		return;
 	}
 
-	dbri->descs[rd].inuse = 0;
-	dbri->pipes[pipe].desc = dbri->descs[rd].next;
+	dbri->dma->desc[rd].ba = 0;
+	dbri->pipes[pipe].desc = dbri->next_desc[rd];
 	status = dbri->dma->desc[rd].word1;
 	dbri->dma->desc[rd].word1 = 0;	/* Reset it for next time. */
 
@@ -1818,7 +1812,7 @@ static void reception_complete_intr(struct snd_dbri * dbri, int pipe)
 		rd, DBRI_RD_STATUS(status), DBRI_RD_CNT(status));
 
 	/* On the last TD, transmit them all again. */
-	if (dbri->descs[rd].next == -1) {
+	if (dbri->next_desc[rd] == -1) {
 		if (info->left > info->size) {
 			printk(KERN_WARNING
 			       "%d bytes recorded in %d size buffer.\n",
