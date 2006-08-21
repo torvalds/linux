@@ -121,6 +121,9 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	    !ipv6_prefix_equal(&fl->fl6_src, &r->src.addr, r->src.plen))
 		return 0;
 
+	if (r->tclass && r->tclass != ((ntohl(fl->fl6_flowlabel) >> 20) & 0xff))
+		return 0;
+
 	return 1;
 }
 
