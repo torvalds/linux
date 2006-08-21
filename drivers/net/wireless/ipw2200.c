@@ -11735,6 +11735,16 @@ static int ipw_pci_resume(struct pci_dev *pdev)
 }
 #endif
 
+static void ipw_pci_shutdown(struct pci_dev *pdev)
+{
+	struct ipw_priv *priv = pci_get_drvdata(pdev);
+
+	/* Take down the device; powers it off, etc. */
+	ipw_down(priv);
+
+	pci_disable_device(pdev);
+}
+
 /* driver initialization stuff */
 static struct pci_driver ipw_driver = {
 	.name = DRV_NAME,
@@ -11745,6 +11755,7 @@ static struct pci_driver ipw_driver = {
 	.suspend = ipw_pci_suspend,
 	.resume = ipw_pci_resume,
 #endif
+	.shutdown = ipw_pci_shutdown,
 };
 
 static int __init ipw_init(void)
