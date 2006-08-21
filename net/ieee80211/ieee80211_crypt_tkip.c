@@ -360,6 +360,19 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return 0;
 }
 
+/*
+ * deal with seq counter wrapping correctly.
+ * refer to timer_after() for jiffies wrapping handling
+ */
+static inline int tkip_replay_check(u32 iv32_n, u16 iv16_n,
+				    u32 iv32_o, u16 iv16_o)
+{
+	if ((s32)iv32_n - (s32)iv32_o < 0 ||
+	    (iv32_n == iv32_o && iv16_n <= iv16_o))
+		return 1;
+	return 0;
+}
+
 static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
@@ -414,8 +427,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	iv32 = pos[4] | (pos[5] << 8) | (pos[6] << 16) | (pos[7] << 24);
 	pos += 8;
 
-	if (iv32 < tkey->rx_iv32 ||
-	    (iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) {
+	if (tkip_replay_check(iv32, iv16, tkey->rx_iv32, tkey->rx_iv16)) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "TKIP: replay detected: STA=" MAC_FMT
 			       " previous TSC %08x%04x received TSC "
