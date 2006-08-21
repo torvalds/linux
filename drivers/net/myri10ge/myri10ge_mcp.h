@@ -166,7 +166,7 @@ enum myri10ge_mcp_cmd_type {
 	MXGEFW_CMD_SET_MTU,
 	MXGEFW_CMD_GET_INTR_COAL_DELAY_OFFSET,	/* in microseconds */
 	MXGEFW_CMD_SET_STATS_INTERVAL,	/* in microseconds */
-	MXGEFW_CMD_SET_STATS_DMA,
+	MXGEFW_CMD_SET_STATS_DMA_OBSOLETE,	/* replaced by SET_STATS_DMA_V2 */
 
 	MXGEFW_ENABLE_PROMISC,
 	MXGEFW_DISABLE_PROMISC,
@@ -180,7 +180,26 @@ enum myri10ge_mcp_cmd_type {
 	 * data2       = RDMA length (MSH), WDMA length (LSH)
 	 * command return data = repetitions (MSH), 0.5-ms ticks (LSH)
 	 */
-	MXGEFW_DMA_TEST
+	MXGEFW_DMA_TEST,
+
+	MXGEFW_ENABLE_ALLMULTI,
+	MXGEFW_DISABLE_ALLMULTI,
+
+	/* returns MXGEFW_CMD_ERROR_MULTICAST
+	 * if there is no room in the cache
+	 * data0,MSH(data1) = multicast group address */
+	MXGEFW_JOIN_MULTICAST_GROUP,
+	/* returns MXGEFW_CMD_ERROR_MULTICAST
+	 * if the address is not in the cache,
+	 * or is equal to FF-FF-FF-FF-FF-FF
+	 * data0,MSH(data1) = multicast group address */
+	MXGEFW_LEAVE_MULTICAST_GROUP,
+	MXGEFW_LEAVE_ALL_MULTICAST_GROUPS,
+
+	MXGEFW_CMD_SET_STATS_DMA_V2,
+	/* data0, data1 = bus addr,
+	 * data2 = sizeof(struct mcp_irq_data) from driver point of view, allows
+	 * adding new stuff to mcp_irq_data without changing the ABI */
 };
 
 enum myri10ge_mcp_cmd_status {
@@ -192,11 +211,17 @@ enum myri10ge_mcp_cmd_status {
 	MXGEFW_CMD_ERROR_CLOSED,
 	MXGEFW_CMD_ERROR_HASH_ERROR,
 	MXGEFW_CMD_ERROR_BAD_PORT,
-	MXGEFW_CMD_ERROR_RESOURCES
+	MXGEFW_CMD_ERROR_RESOURCES,
+	MXGEFW_CMD_ERROR_MULTICAST
 };
 
-/* 40 Bytes */
+#define MXGEFW_OLD_IRQ_DATA_LEN 40
+
 struct mcp_irq_data {
+	/* add new counters at the beginning */
+	u32 future_use[5];
+	u32 dropped_multicast_filtered;
+	/* 40 Bytes */
 	u32 send_done_count;
 
 	u32 link_up;

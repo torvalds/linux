@@ -187,6 +187,7 @@ struct myri10ge_priv {
 	u8 mac_addr[6];		/* eeprom mac address */
 	unsigned long serial_number;
 	int vendor_specific_offset;
+	int fw_multicast_support;
 	u32 devctl;
 	u16 msi_flags;
 	u32 read_dma;
@@ -328,6 +329,8 @@ myri10ge_send_cmd(struct myri10ge_priv *mgp, u32 cmd,
 		if (result == 0) {
 			data->data0 = value;
 			return 0;
+		} else if (result == MXGEFW_CMD_UNKNOWN) {
+			return -ENOSYS;
 		} else {
 			dev_err(&mgp->pdev->dev,
 				"command %d failed, result = %d\n",
@@ -1309,8 +1312,8 @@ static const char myri10ge_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"tx_req", "tx_done", "rx_small_cnt", "rx_big_cnt",
 	"wake_queue", "stop_queue", "watchdog_resets", "tx_linearized",
 	"link_changes", "link_up", "dropped_link_overflow",
-	"dropped_link_error_or_filtered", "dropped_runt",
-	"dropped_overrun", "dropped_no_small_buffer",
+	"dropped_link_error_or_filtered", "dropped_multicast_filtered",
+	"dropped_runt", "dropped_overrun", "dropped_no_small_buffer",
 	"dropped_no_big_buffer"
 };
 
@@ -1366,6 +1369,8 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_link_overflow);
 	data[i++] =
 	    (unsigned int)ntohl(mgp->fw_stats->dropped_link_error_or_filtered);
+	data[i++] =
+	    (unsigned int)ntohl(mgp->fw_stats->dropped_multicast_filtered);
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_runt);
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_overrun);
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_no_small_buffer);
@@ -1722,7 +1727,21 @@ static int myri10ge_open(struct net_device *dev)
 
 	cmd.data0 = MYRI10GE_LOWPART_TO_U32(mgp->fw_stats_bus);
 	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(mgp->fw_stats_bus);
-	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_SET_STATS_DMA, &cmd, 0);
+	cmd.data2 = sizeof(struct mcp_irq_data);
+	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_SET_STATS_DMA_V2, &cmd, 0);
+	if (status == -ENOSYS) {
+		dma_addr_t bus = mgp->fw_stats_bus;
+		bus += offsetof(struct mcp_irq_data, send_done_count);
+		cmd.data0 = MYRI10GE_LOWPART_TO_U32(bus);
+		cmd.data1 = MYRI10GE_HIGHPART_TO_U32(bus);
+		status = myri10ge_send_cmd(mgp,
+					   MXGEFW_CMD_SET_STATS_DMA_OBSOLETE,
+					   &cmd, 0);
+		/* Firmware cannot support multicast without STATS_DMA_V2 */
+		mgp->fw_multicast_support = 0;
+	} else {
+		mgp->fw_multicast_support = 1;
+	}
 	if (status) {
 		printk(KERN_ERR "myri10ge: %s: Couldn't set stats DMA\n",
 		       dev->name);
@@ -2177,9 +2196,81 @@ static struct net_device_stats *myri10ge_get_stats(struct net_device *dev)
 
 static void myri10ge_set_multicast_list(struct net_device *dev)
 {
+	struct myri10ge_cmd cmd;
+	struct myri10ge_priv *mgp;
+	struct dev_mc_list *mc_list;
+	int err;
+
+	mgp = netdev_priv(dev);
 	/* can be called from atomic contexts,
 	 * pass 1 to force atomicity in myri10ge_send_cmd() */
-	myri10ge_change_promisc(netdev_priv(dev), dev->flags & IFF_PROMISC, 1);
+	myri10ge_change_promisc(mgp, dev->flags & IFF_PROMISC, 1);
+
+	/* This firmware is known to not support multicast */
+	if (!mgp->fw_multicast_support)
+		return;
+
+	/* Disable multicast filtering */
+
+	err = myri10ge_send_cmd(mgp, MXGEFW_ENABLE_ALLMULTI, &cmd, 1);
+	if (err != 0) {
+		printk(KERN_ERR "myri10ge: %s: Failed MXGEFW_ENABLE_ALLMULTI,"
+		       " error status: %d\n", dev->name, err);
+		goto abort;
+	}
+
+	if (dev->flags & IFF_ALLMULTI) {
+		/* request to disable multicast filtering, so quit here */
+		return;
+	}
+
+	/* Flush the filters */
+
+	err = myri10ge_send_cmd(mgp, MXGEFW_LEAVE_ALL_MULTICAST_GROUPS,
+				&cmd, 1);
+	if (err != 0) {
+		printk(KERN_ERR
+		       "myri10ge: %s: Failed MXGEFW_LEAVE_ALL_MULTICAST_GROUPS"
+		       ", error status: %d\n", dev->name, err);
+		goto abort;
+	}
+
+	/* Walk the multicast list, and add each address */
+	for (mc_list = dev->mc_list; mc_list != NULL; mc_list = mc_list->next) {
+		memcpy(&cmd.data0, &mc_list->dmi_addr, 4);
+		memcpy(&cmd.data1, ((char *)&mc_list->dmi_addr) + 4, 2);
+		cmd.data0 = htonl(cmd.data0);
+		cmd.data1 = htonl(cmd.data1);
+		err = myri10ge_send_cmd(mgp, MXGEFW_JOIN_MULTICAST_GROUP,
+					&cmd, 1);
+
+		if (err != 0) {
+			printk(KERN_ERR "myri10ge: %s: Failed "
+			       "MXGEFW_JOIN_MULTICAST_GROUP, error status:"
+			       "%d\t", dev->name, err);
+			printk(KERN_ERR "MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
+			       ((unsigned char *)&mc_list->dmi_addr)[0],
+			       ((unsigned char *)&mc_list->dmi_addr)[1],
+			       ((unsigned char *)&mc_list->dmi_addr)[2],
+			       ((unsigned char *)&mc_list->dmi_addr)[3],
+			       ((unsigned char *)&mc_list->dmi_addr)[4],
+			       ((unsigned char *)&mc_list->dmi_addr)[5]
+			    );
+			goto abort;
+		}
+	}
+	/* Enable multicast filtering */
+	err = myri10ge_send_cmd(mgp, MXGEFW_DISABLE_ALLMULTI, &cmd, 1);
+	if (err != 0) {
+		printk(KERN_ERR "myri10ge: %s: Failed MXGEFW_DISABLE_ALLMULTI,"
+		       "error status: %d\n", dev->name, err);
+		goto abort;
+	}
+
+	return;
+
+abort:
+	return;
 }
 
 static int myri10ge_set_mac_address(struct net_device *dev, void *addr)
