@@ -31,6 +31,7 @@
 #include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#include <sound/tlv.h>
 #include <sound/ac97_codec.h>
 #include <sound/asoundef.h>
 #include <sound/initval.h>
@@ -1182,6 +1183,32 @@ static int snd_ac97_cmute_new_stereo(struct snd_card *card, char *name, int reg,
 }
 
 /*
+ * set dB information
+ */
+static DECLARE_TLV_DB_SCALE(db_scale_4bit, -4500, 300, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_5bit, -4650, 150, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
+
+static unsigned int *find_db_scale(unsigned int maxval)
+{
+	switch (maxval) {
+	case 0x0f: return db_scale_4bit;
+	case 0x1f: return db_scale_5bit;
+	case 0x3f: return db_scale_6bit;
+	}
+	return NULL;
+}
+
+static void set_tlv_db_scale(struct snd_kcontrol *kctl, unsigned int *tlv)
+{	
+	kctl->tlv.p = tlv;
+	if (tlv)
+		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+}
+
+/*
  * create a volume for normal stereo/mono controls
  */
 static int snd_ac97_cvol_new(struct snd_card *card, char *name, int reg, unsigned int lo_max,
@@ -1203,6 +1230,10 @@ static int snd_ac97_cvol_new(struct snd_card *card, char *name, int reg, unsigne
 		tmp.index = ac97->num;
 		kctl = snd_ctl_new1(&tmp, ac97);
 	}
+	if (reg >= AC97_PHONE && reg <= AC97_PCM)
+		set_tlv_db_scale(kctl, db_scale_5bit_12db_max);
+	else
+		set_tlv_db_scale(kctl, find_db_scale(lo_max));
 	err = snd_ctl_add(card, kctl);
 	if (err < 0)
 		return err;
@@ -1282,6 +1313,7 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 		snd_ac97_change_volume_params2(ac97, AC97_CENTER_LFE_MASTER, 0, &max);
 		kctl->private_value &= ~(0xff << 16);
 		kctl->private_value |= (int)max << 16;
+		set_tlv_db_scale(kctl, find_db_scale(max));
 		snd_ac97_write_cache(ac97, AC97_CENTER_LFE_MASTER, ac97->regs[AC97_CENTER_LFE_MASTER] | max);
 	}
 
@@ -1295,6 +1327,7 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 		snd_ac97_change_volume_params2(ac97, AC97_CENTER_LFE_MASTER, 8, &max);
 		kctl->private_value &= ~(0xff << 16);
 		kctl->private_value |= (int)max << 16;
+		set_tlv_db_scale(kctl, find_db_scale(max));
 		snd_ac97_write_cache(ac97, AC97_CENTER_LFE_MASTER, ac97->regs[AC97_CENTER_LFE_MASTER] | max << 8);
 	}
 
@@ -1342,8 +1375,9 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 		((ac97->flags & AC97_HAS_PC_BEEP) ||
 	    snd_ac97_try_volume_mix(ac97, AC97_PC_BEEP))) {
 		for (idx = 0; idx < 2; idx++)
-			if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_pc_beep[idx], ac97))) < 0)
+			if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_controls_pc_beep[idx], ac97))) < 0)
 				return err;
+		set_tlv_db_scale(kctl, db_scale_4bit);
 		snd_ac97_write_cache(ac97, AC97_PC_BEEP,
 				     snd_ac97_read(ac97, AC97_PC_BEEP) | 0x801e);
 	}
@@ -1410,22 +1444,26 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 		else
 			init_val = 0x9f1f;
 		for (idx = 0; idx < 2; idx++)
-			if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_ad18xx_pcm[idx], ac97))) < 0)
+			if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_controls_ad18xx_pcm[idx], ac97))) < 0)
 				return err;
+		set_tlv_db_scale(kctl, db_scale_5bit);
 		ac97->spec.ad18xx.pcmreg[0] = init_val;
 		if (ac97->scaps & AC97_SCAP_SURROUND_DAC) {
 			for (idx = 0; idx < 2; idx++)
-				if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_ad18xx_surround[idx], ac97))) < 0)
+				if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_controls_ad18xx_surround[idx], ac97))) < 0)
 					return err;
+			set_tlv_db_scale(kctl, db_scale_5bit);
 			ac97->spec.ad18xx.pcmreg[1] = init_val;
 		}
 		if (ac97->scaps & AC97_SCAP_CENTER_LFE_DAC) {
 			for (idx = 0; idx < 2; idx++)
-				if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_ad18xx_center[idx], ac97))) < 0)
+				if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_controls_ad18xx_center[idx], ac97))) < 0)
 					return err;
+			set_tlv_db_scale(kctl, db_scale_5bit);
 			for (idx = 0; idx < 2; idx++)
-				if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_ad18xx_lfe[idx], ac97))) < 0)
+				if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_controls_ad18xx_lfe[idx], ac97))) < 0)
 					return err;
+			set_tlv_db_scale(kctl, db_scale_5bit);
 			ac97->spec.ad18xx.pcmreg[2] = init_val;
 		}
 		snd_ac97_write_cache(ac97, AC97_PCM, init_val);
@@ -1453,16 +1491,18 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 			if (err < 0)
 				return err;
 		}
-		if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_control_capture_vol, ac97))) < 0)
+		if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_control_capture_vol, ac97))) < 0)
 			return err;
+		set_tlv_db_scale(kctl, db_scale_rec_gain);
 		snd_ac97_write_cache(ac97, AC97_REC_SEL, 0x0000);
 		snd_ac97_write_cache(ac97, AC97_REC_GAIN, 0x0000);
 	}
 	/* build MIC Capture controls */
 	if (snd_ac97_try_volume_mix(ac97, AC97_REC_GAIN_MIC)) {
 		for (idx = 0; idx < 2; idx++)
-			if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_mic_capture[idx], ac97))) < 0)
+			if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_controls_mic_capture[idx], ac97))) < 0)
 				return err;
+		set_tlv_db_scale(kctl, db_scale_rec_gain);
 		snd_ac97_write_cache(ac97, AC97_REC_GAIN_MIC, 0x0000);
 	}
 
