@@ -1143,6 +1143,8 @@ static int stac92xx_init(struct hda_codec *codec)
 				STAC_UNSOL_ENABLE);
 		/* fake event to set up pins */
 		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
+		/* enable the headphones by default.  If/when unsol_event detection works, this will be ignored */
+		stac92xx_auto_init_hp_out(codec);
 	} else {
 		stac92xx_auto_init_multi_out(codec);
 		stac92xx_auto_init_hp_out(codec);
