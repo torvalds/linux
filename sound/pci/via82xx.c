@@ -59,6 +59,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/info.h>
+#include <sound/tlv.h>
 #include <sound/ac97_codec.h>
 #include <sound/mpu401.h>
 #include <sound/initval.h>
@@ -1698,21 +1699,29 @@ static int snd_via8233_pcmdxs_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+static DECLARE_TLV_DB_SCALE(db_scale_dxs, -9450, 150, 1);
+
 static struct snd_kcontrol_new snd_via8233_pcmdxs_volume_control __devinitdata = {
 	.name = "PCM Playback Volume",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 	.info = snd_via8233_dxs_volume_info,
 	.get = snd_via8233_pcmdxs_volume_get,
 	.put = snd_via8233_pcmdxs_volume_put,
+	.tlv = { .p = db_scale_dxs }
 };
 
 static struct snd_kcontrol_new snd_via8233_dxs_volume_control __devinitdata = {
 	.name = "VIA DXS Playback Volume",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 	.count = 4,
 	.info = snd_via8233_dxs_volume_info,
 	.get = snd_via8233_dxs_volume_get,
 	.put = snd_via8233_dxs_volume_put,
+	.tlv = { .p = db_scale_dxs }
 };
 
 /*
