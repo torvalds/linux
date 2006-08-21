@@ -34,7 +34,7 @@ enum
 	FRA_UNUSED3,
 	FRA_UNUSED4,
 	FRA_UNUSED5,
-	FRA_FWMARK,	/* netfilter mark (IPv4) */
+	FRA_FWMARK,	/* netfilter mark (IPv4/IPv6) */
 	FRA_FLOW,	/* flow/class id */
 	FRA_UNUSED6,
 	FRA_UNUSED7,

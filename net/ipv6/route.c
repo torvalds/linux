@@ -703,6 +703,7 @@ void ip6_route_input(struct sk_buff *skb)
 			.ip6_u = {
 				.daddr = iph->daddr,
 				.saddr = iph->saddr,
+				.fwmark = skb->nfmark,
 				.flowlabel = (* (u32 *) iph)&IPV6_FLOWINFO_MASK,
 			},
 		},
