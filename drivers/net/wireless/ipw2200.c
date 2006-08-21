@@ -7640,7 +7640,6 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 	/* Big bitfield of all the fields we provide in radiotap */
 	ipw_rt->rt_hdr.it_present =
 	    ((1 << IEEE80211_RADIOTAP_FLAGS) |
-	     (1 << IEEE80211_RADIOTAP_TSFT) |
 	     (1 << IEEE80211_RADIOTAP_RATE) |
 	     (1 << IEEE80211_RADIOTAP_CHANNEL) |
 	     (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
@@ -7649,6 +7648,7 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 
 	/* Zero the flags, we'll add to them as we go */
 	ipw_rt->rt_flags = 0;
+	ipw_rt->rt_tsf = 0ULL;
 
 	/* Convert signal to DBM */
 	ipw_rt->rt_dbmsignal = antsignal;
@@ -7767,7 +7767,6 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 	s8 noise = frame->noise;
 	u8 rate = frame->rate;
 	short len = le16_to_cpu(pkt->u.frame.length);
-	u64 tsf = 0;
 	struct sk_buff *skb;
 	int hdr_only = 0;
 	u16 filter = priv->prom_priv->filter;
@@ -7853,7 +7852,6 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 	/* Big bitfield of all the fields we provide in radiotap */
 	ipw_rt->rt_hdr.it_present =
 	    ((1 << IEEE80211_RADIOTAP_FLAGS) |
-	     (1 << IEEE80211_RADIOTAP_TSFT) |
 	     (1 << IEEE80211_RADIOTAP_RATE) |
 	     (1 << IEEE80211_RADIOTAP_CHANNEL) |
 	     (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
@@ -7862,8 +7860,7 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 
 	/* Zero the flags, we'll add to them as we go */
 	ipw_rt->rt_flags = 0;
-
-	ipw_rt->rt_tsf = tsf;
+	ipw_rt->rt_tsf = 0ULL;
 
 	/* Convert to DBM */
 	ipw_rt->rt_dbmsignal = signal;
