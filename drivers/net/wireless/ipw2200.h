@@ -713,7 +713,6 @@ struct ipw_rx_packet {
 
 struct ipw_rx_mem_buffer {
 	dma_addr_t dma_addr;
-	struct ipw_rx_buffer *rxb;
 	struct sk_buff *skb;
 	struct list_head list;
 };				/* Not transferred over network, so not  __attribute__ ((packed)) */

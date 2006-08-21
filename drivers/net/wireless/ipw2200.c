@@ -5043,7 +5043,6 @@ static void ipw_rx_queue_replenish(void *data)
 		}
 		list_del(element);
 
-		rxb->rxb = (struct ipw_rx_buffer *)rxb->skb->data;
 		rxb->dma_addr =
 		    pci_map_single(priv->pci_dev, rxb->skb->data,
 				   IPW_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
