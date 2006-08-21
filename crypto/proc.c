@@ -78,7 +78,10 @@ static int c_show(struct seq_file *m, void *p)
 		seq_printf(m, "type         : compression\n");
 		break;
 	default:
-		seq_printf(m, "type         : unknown\n");
+		if (alg->cra_type && alg->cra_type->show)
+			alg->cra_type->show(m, alg);
+		else
+			seq_printf(m, "type         : unknown\n");
 		break;
 	}
 

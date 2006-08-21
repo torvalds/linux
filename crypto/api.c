@@ -226,17 +226,18 @@ static int crypto_init_flags(struct crypto_tfm *tfm, u32 flags)
 		
 	case CRYPTO_ALG_TYPE_COMPRESS:
 		return crypto_init_compress_flags(tfm, flags);
-	
-	default:
-		break;
 	}
 	
-	BUG();
-	return -EINVAL;
+	return 0;
 }
 
 static int crypto_init_ops(struct crypto_tfm *tfm)
 {
+	const struct crypto_type *type = tfm->__crt_alg->cra_type;
+
+	if (type)
+		return type->init(tfm);
+
 	switch (crypto_tfm_alg_type(tfm)) {
 	case CRYPTO_ALG_TYPE_CIPHER:
 		return crypto_init_cipher_ops(tfm);
@@ -257,6 +258,14 @@ static int crypto_init_ops(struct crypto_tfm *tfm)
 
 static void crypto_exit_ops(struct crypto_tfm *tfm)
 {
+	const struct crypto_type *type = tfm->__crt_alg->cra_type;
+
+	if (type) {
+		if (type->exit)
+			type->exit(tfm);
+		return;
+	}
+
 	switch (crypto_tfm_alg_type(tfm)) {
 	case CRYPTO_ALG_TYPE_CIPHER:
 		crypto_exit_cipher_ops(tfm);
@@ -278,26 +287,31 @@ static void crypto_exit_ops(struct crypto_tfm *tfm)
 
 static unsigned int crypto_ctxsize(struct crypto_alg *alg, int flags)
 {
+	const struct crypto_type *type = alg->cra_type;
 	unsigned int len;
+
+	len = alg->cra_alignmask & ~(crypto_tfm_ctx_alignment() - 1);
+	if (type)
+		return len + type->ctxsize(alg);
 
 	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
 	default:
 		BUG();
 
 	case CRYPTO_ALG_TYPE_CIPHER:
-		len = crypto_cipher_ctxsize(alg, flags);
+		len += crypto_cipher_ctxsize(alg, flags);
 		break;
 		
 	case CRYPTO_ALG_TYPE_DIGEST:
-		len = crypto_digest_ctxsize(alg, flags);
+		len += crypto_digest_ctxsize(alg, flags);
 		break;
 		
 	case CRYPTO_ALG_TYPE_COMPRESS:
-		len = crypto_compress_ctxsize(alg, flags);
+		len += crypto_compress_ctxsize(alg, flags);
 		break;
 	}
 
-	return len + (alg->cra_alignmask & ~(crypto_tfm_ctx_alignment() - 1));
+	return len;
 }
 
 void crypto_shoot_alg(struct crypto_alg *alg)

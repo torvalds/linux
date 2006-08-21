@@ -90,6 +90,7 @@
 
 struct scatterlist;
 struct crypto_tfm;
+struct crypto_type;
 
 struct cipher_desc {
 	struct crypto_tfm *tfm;
@@ -160,6 +161,8 @@ struct crypto_alg {
 
 	char cra_name[CRYPTO_MAX_ALG_NAME];
 	char cra_driver_name[CRYPTO_MAX_ALG_NAME];
+
+	const struct crypto_type *cra_type;
 
 	union {
 		struct cipher_alg cipher;
