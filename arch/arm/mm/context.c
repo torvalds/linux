@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mm/mmu.c
+ *  linux/arch/arm/mm/context.c
  *
  *  Copyright (C) 2002-2003 Deep Blue Solutions Ltd, all rights reserved.
  *
