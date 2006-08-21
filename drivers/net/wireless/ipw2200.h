@@ -1950,10 +1950,17 @@ struct host_cmd {
 	u32 *param;
 } __attribute__ ((packed));
 
+struct cmdlog_host_cmd {
+	u8 cmd;
+	u8 len;
+	u16 reserved;
+	char param[124];
+} __attribute__ ((packed));
+
 struct ipw_cmd_log {
 	unsigned long jiffies;
 	int retcode;
-	struct host_cmd cmd;
+	struct cmdlog_host_cmd cmd;
 };
 
 /* SysConfig command parameters ... */
