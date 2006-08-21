@@ -55,6 +55,7 @@ static char *model;
 static int position_fix;
 static int probe_mask = -1;
 static int single_cmd;
+static int disable_msi;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
@@ -68,6 +69,8 @@ module_param(probe_mask, int, 0444);
 MODULE_PARM_DESC(probe_mask, "Bitmask to probe codecs (default = -1).");
 module_param(single_cmd, bool, 0444);
 MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs (for debugging only).");
+module_param(disable_msi, int, 0);
+MODULE_PARM_DESC(disable_msi, "Disable Message Signaled Interrupt (MSI)");
 
 
 /* just for backward compatibility */
@@ -1418,8 +1421,10 @@ static int azx_free(struct azx *chip)
 		msleep(1);
 	}
 
-	if (chip->irq >= 0)
+	if (chip->irq >= 0) {
+		pci_disable_msi(chip->pci);
 		free_irq(chip->irq, (void*)chip);
+	}
 	if (chip->remap_addr)
 		iounmap(chip->remap_addr);
 
@@ -1501,6 +1506,9 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 		err = -ENXIO;
 		goto errout;
 	}
+
+	if (!disable_msi)
+		pci_enable_msi(pci);
 
 	if (request_irq(pci->irq, azx_interrupt, IRQF_DISABLED|IRQF_SHARED,
 			"HDA Intel", (void*)chip)) {
