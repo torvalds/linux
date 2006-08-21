@@ -83,11 +83,11 @@
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
-			ethernet-phy@2 {
-				linux,phandle = <2452002>;
+			ethernet-phy@3 {
+				linux,phandle = <2452003>;
 				interrupt-parent = <40000>;
 				interrupts = <37 1>;
-				reg = <2>;
+				reg = <3>;
 				device_type = "ethernet-phy";
 			};
 		};
@@ -124,14 +124,14 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			device_type = "network";
-			model = "TSEC";
+			model = "FEC";
 			compatible = "gianfar";
 			reg = <26000 1000>;
 			address = [ 00 E0 0C 00 73 02 ];
 			local-mac-address = [ 00 E0 0C 00 73 02 ];
 			interrupts = <19 2>;
 			interrupt-parent = <40000>;
-			phy-handle = <2452002>;
+			phy-handle = <2452003>;
 		};
 
 		serial@4500 {
@@ -251,7 +251,7 @@
 			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
-                        big-endian;
+			big-endian;
 		};
 	};
 };
