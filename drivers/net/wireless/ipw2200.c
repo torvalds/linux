@@ -8837,7 +8837,6 @@ static int ipw_wx_set_essid(struct net_device *dev,
 			    union iwreq_data *wrqu, char *extra)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
-        char *essid;
         int length;
 
         mutex_lock(&priv->mutex);
@@ -8852,12 +8851,14 @@ static int ipw_wx_set_essid(struct net_device *dev,
                 return 0;
         }
 
-	length = min(wrqu->essid.length, IW_ESSID_MAX_SIZE);
-	essid = extra;
+	length = min((int)wrqu->essid.length, IW_ESSID_MAX_SIZE);
+	if (!extra[length - 1])
+		length--;
 
 	priv->config |= CFG_STATIC_ESSID;
 
-	if (priv->essid_len == length && !memcmp(priv->essid, extra, length)) {
+	if (priv->essid_len == length && !memcmp(priv->essid, extra, length)
+	    && (priv->status & (STATUS_ASSOCIATED | STATUS_ASSOCIATING))) {
 		IPW_DEBUG_WX("ESSID set to current ESSID.\n");
 		mutex_unlock(&priv->mutex);
 		return 0;
@@ -8867,7 +8868,7 @@ static int ipw_wx_set_essid(struct net_device *dev,
 		     length);
 
 	priv->essid_len = length;
-	memcpy(priv->essid, essid, priv->essid_len);
+	memcpy(priv->essid, extra, priv->essid_len);
 
 	/* Network configuration changed -- force [re]association */
 	IPW_DEBUG_ASSOC("[re]association triggered due to ESSID change.\n");
