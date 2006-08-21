@@ -2143,7 +2143,10 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe20f, .config = ALC880_3ST },
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe210, .config = ALC880_3ST },
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe211, .config = ALC880_3ST },
+	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe212, .config = ALC880_3ST },
+	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe213, .config = ALC880_3ST },
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe214, .config = ALC880_3ST },
+	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe234, .config = ALC880_3ST },
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe302, .config = ALC880_3ST },
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe303, .config = ALC880_3ST },
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe304, .config = ALC880_3ST },
@@ -5058,6 +5061,8 @@ static struct hda_board_config alc883_cfg_tbl[] = {
 	{ .modelname = "3stack-6ch", .config = ALC883_3ST_6ch },
 	{ .pci_subvendor = 0x108e, .pci_subdevice = 0x534d,
 	  .config = ALC883_3ST_6ch },
+        { .pci_subvendor = 0x8086, .pci_subdevice = 0xd601,
+          .config = ALC883_3ST_6ch }, /* D102GGC */
 	{ .modelname = "6stack-dig", .config = ALC883_6ST_DIG },
 	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x6668,
 	  .config = ALC883_6ST_DIG }, /* MSI  */
