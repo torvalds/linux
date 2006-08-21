@@ -690,6 +690,7 @@ static void dbri_cmdsend(struct snd_dbri * dbri, volatile s32 * cmd)
 static void dbri_reset(struct snd_dbri * dbri)
 {
 	int i;
+	u32 tmp;
 
 	dprintk(D_GEN, "reset 0:%x 2:%x 8:%x 9:%x\n",
 		sbus_readl(dbri->regs + REG0),
@@ -699,13 +700,20 @@ static void dbri_reset(struct snd_dbri * dbri)
 	sbus_writel(D_R, dbri->regs + REG0);	/* Soft Reset */
 	for (i = 0; (sbus_readl(dbri->regs + REG0) & D_R) && i < 64; i++)
 		udelay(10);
+
+	/* A brute approach - DBRI falls back to working burst size by itself
+	 * On SS20 D_S does not work, so do not try so high. */
+	tmp = sbus_readl(dbri->regs + REG0);
+	tmp |= D_G | D_E;
+	tmp &= ~D_S;
+	sbus_writel(tmp, dbri->regs + REG0);
 }
 
 /* Lock must not be held before calling this */
 static void dbri_initialize(struct snd_dbri * dbri)
 {
 	volatile s32 *cmd;
-	u32 dma_addr, tmp;
+	u32 dma_addr;
 	unsigned long flags;
 	int n;
 
@@ -720,13 +728,6 @@ static void dbri_initialize(struct snd_dbri * dbri)
 	/* Initialize pipes */
 	for (n = 0; n < DBRI_NO_PIPES; n++)
 		dbri->pipes[n].desc = dbri->pipes[n].first_desc = -1;
-
-	/* A brute approach - DBRI falls back to working burst size by itself
-	 * On SS20 D_S does not work, so do not try so high. */
-	tmp = sbus_readl(dbri->regs + REG0);
-	tmp |= D_G | D_E;
-	tmp &= ~D_S;
-	sbus_writel(tmp, dbri->regs + REG0);
 
 	/*
 	 * Initialize the interrupt ringbuffer.
