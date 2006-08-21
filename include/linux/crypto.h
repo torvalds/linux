@@ -21,8 +21,9 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/string.h>
-#include <asm/page.h>
+#include <linux/uaccess.h>
 
 /*
  * Algorithm masks and types.
@@ -60,6 +61,26 @@
 
 #define CRYPTO_DIR_ENCRYPT		1
 #define CRYPTO_DIR_DECRYPT		0
+
+/*
+ * The macro CRYPTO_MINALIGN_ATTR (along with the void * type in the actual
+ * declaration) is used to ensure that the crypto_tfm context structure is
+ * aligned correctly for the given architecture so that there are no alignment
+ * faults for C data types.  In particular, this is required on platforms such
+ * as arm where pointers are 32-bit aligned but there are data types such as
+ * u64 which require 64-bit alignment.
+ */
+#if defined(ARCH_KMALLOC_MINALIGN)
+#define CRYPTO_MINALIGN ARCH_KMALLOC_MINALIGN
+#elif defined(ARCH_SLAB_MINALIGN)
+#define CRYPTO_MINALIGN ARCH_SLAB_MINALIGN
+#endif
+
+#ifdef CRYPTO_MINALIGN
+#define CRYPTO_MINALIGN_ATTR __attribute__ ((__aligned__(CRYPTO_MINALIGN)))
+#else
+#define CRYPTO_MINALIGN_ATTR
+#endif
 
 struct scatterlist;
 struct crypto_tfm;
@@ -231,7 +252,7 @@ struct crypto_tfm {
 	
 	struct crypto_alg *__crt_alg;
 
-	char __crt_ctx[] __attribute__ ((__aligned__));
+	void *__crt_ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
 /* 
