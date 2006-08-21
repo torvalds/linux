@@ -25,6 +25,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include "mm.h"
+
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
@@ -43,6 +45,11 @@ static struct meminfo meminfo __initdata = { 0, };
  * zero-initialized data and COW.
  */
 struct page *empty_zero_page;
+
+/*
+ * The pmd table for the upper-most set of pages.
+ */
+pmd_t *top_pmd;
 
 void show_mem(void)
 {
@@ -81,16 +88,6 @@ void show_mem(void)
 	printk("%d slab pages\n", slab);
 	printk("%d pages shared\n", shared);
 	printk("%d pages swap cached\n", cached);
-}
-
-static inline pmd_t *pmd_off(pgd_t *pgd, unsigned long virt)
-{
-	return pmd_offset(pgd, virt);
-}
-
-static inline pmd_t *pmd_off_k(unsigned long virt)
-{
-	return pmd_off(pgd_offset_k(virt), virt);
 }
 
 #define for_each_nodebank(iter,mi,no)			\
@@ -228,9 +225,6 @@ static __init void reserve_node_zero(pg_data_t *pgdat)
 	if (res_size)
 		reserve_bootmem_node(pgdat, PHYS_OFFSET, res_size);
 }
-
-void __init build_mem_type_table(void);
-void __init create_mapping(struct map_desc *md);
 
 static unsigned long __init
 bootmem_init_node(int node, int initrd_node, struct meminfo *mi)

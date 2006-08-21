@@ -23,6 +23,8 @@
 
 #include <asm/mach/map.h>
 
+#include "mm.h"
+
 #define CPOLICY_UNCACHED	0
 #define CPOLICY_BUFFERED	1
 #define CPOLICY_WRITETHROUGH	2
@@ -34,8 +36,6 @@ static unsigned int ecc_mask __initdata = 0;
 pgprot_t pgprot_kernel;
 
 EXPORT_SYMBOL(pgprot_kernel);
-
-pmd_t *top_pmd;
 
 struct cachepolicy {
 	const char	policy[16];
@@ -141,16 +141,6 @@ static int __init noalign_setup(char *__unused)
 __setup("noalign", noalign_setup);
 
 #define FIRST_KERNEL_PGD_NR	(FIRST_USER_PGD_NR + USER_PTRS_PER_PGD)
-
-static inline pmd_t *pmd_off(pgd_t *pgd, unsigned long virt)
-{
-	return pmd_offset(pgd, virt);
-}
-
-static inline pmd_t *pmd_off_k(unsigned long virt)
-{
-	return pmd_off(pgd_offset_k(virt), virt);
-}
 
 /*
  * need to get a 16k page for level 1

@@ -17,14 +17,14 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 
+#include "mm.h"
+
 #if SHMLBA > 16384
 #error FIX ME
 #endif
 
 #define from_address	(0xffff8000)
 #define to_address	(0xffffc000)
-
-#define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
 
 static DEFINE_SPINLOCK(v6_lock);
 

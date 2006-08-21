@@ -15,11 +15,11 @@
 #include <asm/system.h>
 #include <asm/tlbflush.h>
 
+#include "mm.h"
+
 #ifdef CONFIG_CPU_CACHE_VIPT
 
 #define ALIAS_FLUSH_START	0xffff4000
-
-#define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
 
 static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 {

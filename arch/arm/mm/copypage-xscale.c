@@ -20,6 +20,8 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
+#include "mm.h"
+
 /*
  * 0xffff8000 to 0xffffffff is reserved for any ARM architecture
  * specific hacks for copying pages efficiently.
@@ -28,8 +30,6 @@
 
 #define minicache_pgprot __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | \
 				  L_PTE_CACHEABLE)
-
-#define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
 
 static DEFINE_SPINLOCK(minicache_lock);
 
