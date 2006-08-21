@@ -10,45 +10,47 @@ obj-m			:=
 obj-n			:=
 obj-			:=
 
+# DMA
+obj-$(CONFIG_S3C2410_DMA)	+= dma.o
+
 # S3C2400 support files
-obj-$(CONFIG_CPU_S3C2400)  += s3c2400-gpio.o
+obj-$(CONFIG_CPU_S3C2400)	+= s3c2400-gpio.o
 
 # S3C2410 support files
 
-obj-$(CONFIG_CPU_S3C2410)  += s3c2410.o
-obj-$(CONFIG_CPU_S3C2410)  += s3c2410-gpio.o
-obj-$(CONFIG_S3C2410_DMA)  += dma.o
+obj-$(CONFIG_CPU_S3C2410)	+= s3c2410.o
+obj-$(CONFIG_CPU_S3C2410)	+= s3c2410-gpio.o
 
 # Power Management support
 
-obj-$(CONFIG_PM)	   += pm.o sleep.o
-obj-$(CONFIG_PM_SIMTEC)	   += pm-simtec.o
+obj-$(CONFIG_PM)		+= pm.o sleep.o
+obj-$(CONFIG_PM_SIMTEC)		+= pm-simtec.o
 
 # S3C2412 support
-obj-$(CONFIG_CPU_S3C2412)  += s3c2412.o
-obj-$(CONFIG_CPU_S3C2412)  += s3c2412-clock.o
+obj-$(CONFIG_CPU_S3C2412)	+= s3c2412.o
+obj-$(CONFIG_CPU_S3C2412)	+= s3c2412-clock.o
 
 #
 # S3C244X support
 
-obj-$(CONFIG_CPU_S3C244X)  += s3c244x.o
-obj-$(CONFIG_CPU_S3C244X)  += s3c244x-irq.o
+obj-$(CONFIG_CPU_S3C244X)	+= s3c244x.o
+obj-$(CONFIG_CPU_S3C244X)	+= s3c244x-irq.o
 
 # Clock control
 
-obj-$(CONFIG_S3C2410_CLOCK) += s3c2410-clock.o
+obj-$(CONFIG_S3C2410_CLOCK)	+= s3c2410-clock.o
 
 # S3C2440 support
 
-obj-$(CONFIG_CPU_S3C2440)  += s3c2440.o s3c2440-dsc.o
-obj-$(CONFIG_CPU_S3C2440)  += s3c2440-irq.o
-obj-$(CONFIG_CPU_S3C2440)  += s3c2440-clock.o
-obj-$(CONFIG_CPU_S3C2440)  += s3c2410-gpio.o
+obj-$(CONFIG_CPU_S3C2440)	+= s3c2440.o s3c2440-dsc.o
+obj-$(CONFIG_CPU_S3C2440)	+= s3c2440-irq.o
+obj-$(CONFIG_CPU_S3C2440)	+= s3c2440-clock.o
+obj-$(CONFIG_CPU_S3C2440)	+= s3c2410-gpio.o
 
 # S3C2442 support
 
-obj-$(CONFIG_CPU_S3C2442)  += s3c2442.o
-obj-$(CONFIG_CPU_S3C2442)  += s3c2442-clock.o
+obj-$(CONFIG_CPU_S3C2442)	+= s3c2442.o
+obj-$(CONFIG_CPU_S3C2442)	+= s3c2442-clock.o
 
 # bast extras
 

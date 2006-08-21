@@ -285,7 +285,7 @@ static struct flash_platform_data versatile_flash_data = {
 
 static struct resource versatile_flash_resource = {
 	.start			= VERSATILE_FLASH_BASE,
-	.end			= VERSATILE_FLASH_BASE + VERSATILE_FLASH_SIZE,
+	.end			= VERSATILE_FLASH_BASE + VERSATILE_FLASH_SIZE - 1,
 	.flags			= IORESOURCE_MEM,
 };
 
