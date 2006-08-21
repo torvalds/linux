@@ -274,7 +274,6 @@ enum in_or_out { PIPEinput, PIPEoutput };
 struct dbri_pipe {
 	u32 sdp;		/* SDP command word */
 	int nextpipe;		/* Next pipe in linked list */
-	int cycle;		/* Offset of timeslot (bits) */
 	int length;		/* Length of timeslot (bits) */
 	int first_desc;		/* Index of first descriptor */
 	int desc;		/* Index of active descriptor */
@@ -312,8 +311,6 @@ struct snd_dbri {
 	struct dbri_pipe pipes[DBRI_NO_PIPES];	/* DBRI's 32 data pipes */
 	int next_desc[DBRI_NO_DESCS];		/* Index of next desc, or -1 */
 
-	int chi_in_pipe;
-	int chi_out_pipe;
 	int chi_bpf;
 
 	struct cs4215 mm;	/* mmcodec special info */
@@ -827,92 +824,55 @@ static void setup_pipe(struct snd_dbri * dbri, int pipe, int sdp)
 	reset_pipe(dbri, pipe);
 }
 
-/* FIXME: direction not needed */
 static void link_time_slot(struct snd_dbri * dbri, int pipe,
-			   enum in_or_out direction, int basepipe,
+			   int prevpipe, int nextpipe,
 			   int length, int cycle)
 {
 	volatile s32 *cmd;
 	int val;
-	int prevpipe;
-	int nextpipe;
 
-	if (pipe < 0 || pipe > DBRI_MAX_PIPE || basepipe < 0 || basepipe > DBRI_MAX_PIPE) {
+	if (pipe < 0 || pipe > DBRI_MAX_PIPE 
+			|| prevpipe < 0 || prevpipe > DBRI_MAX_PIPE
+			|| nextpipe < 0 || nextpipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR 
 		    "DBRI: link_time_slot called with illegal pipe number\n");
 		return;
 	}
 
-	if (dbri->pipes[pipe].sdp == 0 || dbri->pipes[basepipe].sdp == 0) {
+	if (dbri->pipes[pipe].sdp == 0 
+			|| dbri->pipes[prevpipe].sdp == 0
+			|| dbri->pipes[nextpipe].sdp == 0) {
 		printk(KERN_ERR "DBRI: link_time_slot called on uninitialized pipe\n");
 		return;
 	}
 
-	/* Deal with CHI special case:
-	 * "If transmission on edges 0 or 1 is desired, then cycle n
-	 *  (where n = # of bit times per frame...) must be used."
-	 *                  - DBRI data sheet, page 11
-	 */
-	if (basepipe == 16 && direction == PIPEoutput && cycle == 0)
-		cycle = dbri->chi_bpf;
-
-	if (basepipe == pipe) {
-		prevpipe = pipe;
-		nextpipe = pipe;
-	} else {
-		/* We're not initializing a new linked list (basepipe != pipe),
-		 * so run through the linked list and find where this pipe
-		 * should be sloted in, based on its cycle.  CHI confuses
-		 * things a bit, since it has a single anchor for both its
-		 * transmit and receive lists.
-		 */
-		if (basepipe == 16) {
-			if (direction == PIPEinput) {
-				prevpipe = dbri->chi_in_pipe;
-			} else {
-				prevpipe = dbri->chi_out_pipe;
-			}
-		} else {
-			prevpipe = basepipe;
-		}
-
-		nextpipe = dbri->pipes[prevpipe].nextpipe;
-
-		while (dbri->pipes[nextpipe].cycle < cycle
-		       && dbri->pipes[nextpipe].nextpipe != basepipe) {
-			prevpipe = nextpipe;
-			nextpipe = dbri->pipes[nextpipe].nextpipe;
-		}
-	}
-
-	if (prevpipe == 16) {
-		if (direction == PIPEinput) {
-			dbri->chi_in_pipe = pipe;
-		} else {
-			dbri->chi_out_pipe = pipe;
-		}
-	} else {
-		dbri->pipes[prevpipe].nextpipe = pipe;
-	}
+	dbri->pipes[prevpipe].nextpipe = pipe;
 
 	dbri->pipes[pipe].nextpipe = nextpipe;
-	dbri->pipes[pipe].cycle = cycle;
 	dbri->pipes[pipe].length = length;
 
 	cmd = dbri_cmdlock(dbri, NoGetLock);
 
-	if (direction == PIPEinput) {
-		val = D_DTS_VI | D_DTS_INS | D_DTS_PRVIN(prevpipe) | pipe;
-		*(cmd++) = DBRI_CMD(D_DTS, 0, val);
-		*(cmd++) =
-		    D_TS_LEN(length) | D_TS_CYCLE(cycle) | D_TS_NEXT(nextpipe);
-		*(cmd++) = 0;
-	} else {
+	if (dbri->pipes[pipe].sdp & D_SDP_TO_SER) {
+		/* Deal with CHI special case:
+		 * "If transmission on edges 0 or 1 is desired, then cycle n
+		 *  (where n = # of bit times per frame...) must be used."
+		 *                  - DBRI data sheet, page 11
+		 */
+		if (prevpipe == 16 && cycle == 0)
+			cycle = dbri->chi_bpf;
+
 		val = D_DTS_VO | D_DTS_INS | D_DTS_PRVOUT(prevpipe) | pipe;
 		*(cmd++) = DBRI_CMD(D_DTS, 0, val);
 		*(cmd++) = 0;
 		*(cmd++) =
 		    D_TS_LEN(length) | D_TS_CYCLE(cycle) | D_TS_NEXT(nextpipe);
+	} else {
+		val = D_DTS_VI | D_DTS_INS | D_DTS_PRVIN(prevpipe) | pipe;
+		*(cmd++) = DBRI_CMD(D_DTS, 0, val);
+		*(cmd++) =
+		    D_TS_LEN(length) | D_TS_CYCLE(cycle) | D_TS_NEXT(nextpipe);
+		*(cmd++) = 0;
 	}
 
 	dbri_cmdsend(dbri, cmd);
@@ -1192,21 +1152,18 @@ static void reset_chi(struct snd_dbri * dbri, enum master_or_slave master_or_sla
 	} else {
 		int pipe;
 
-		for (pipe = dbri->chi_in_pipe;
-		     pipe != 16; pipe = dbri->pipes[pipe].nextpipe) {
-			unlink_time_slot(dbri, pipe, PIPEinput,
-					 16, dbri->pipes[pipe].nextpipe);
-		}
-		for (pipe = dbri->chi_out_pipe;
-		     pipe != 16; pipe = dbri->pipes[pipe].nextpipe) {
-			unlink_time_slot(dbri, pipe, PIPEoutput,
-					 16, dbri->pipes[pipe].nextpipe);
-		}
-
-		cmd = dbri_cmdlock(dbri, GetLock);
+		for (pipe = 0; pipe < DBRI_NO_PIPES; pipe++ )
+			if ( pipe != 16 ) {
+				if (dbri->pipes[pipe].sdp & D_SDP_TO_SER)
+					unlink_time_slot(dbri, pipe, PIPEoutput,
+							 16, dbri->pipes[pipe].nextpipe);
+				else
+					unlink_time_slot(dbri, pipe, PIPEinput,
+							 16, dbri->pipes[pipe].nextpipe);
+			}
+  
+  		cmd = dbri_cmdlock(dbri, GetLock);
 	}
-	dbri->chi_in_pipe = 16;
-	dbri->chi_out_pipe = 16;
 
 	if (master_or_slave == CHIslave) {
 		/* Setup DBRI for CHI Slave - receive clock, frame sync (FS)
@@ -1397,10 +1354,10 @@ static void cs4215_open(struct snd_dbri * dbri)
 	 */
 	data_width = dbri->mm.channels * dbri->mm.precision;
 
-	link_time_slot(dbri, 20, PIPEoutput, 16, 32, dbri->mm.offset + 32);
-	link_time_slot(dbri, 4, PIPEoutput, 16, data_width, dbri->mm.offset);
-	link_time_slot(dbri, 6, PIPEinput, 16, data_width, dbri->mm.offset);
-	link_time_slot(dbri, 21, PIPEinput, 16, 16, dbri->mm.offset + 40);
+	link_time_slot(dbri, 4, 16, 16, data_width, dbri->mm.offset);
+	link_time_slot(dbri, 20, 4, 16, 32, dbri->mm.offset + 32);
+	link_time_slot(dbri, 6, 16, 16, data_width, dbri->mm.offset);
+	link_time_slot(dbri, 21, 6, 16, 16, dbri->mm.offset + 40);
 
 	/* FIXME: enable CHI after _setdata? */
 	tmp = sbus_readl(dbri->regs + REG0);
@@ -1466,9 +1423,9 @@ static int cs4215_setctrl(struct snd_dbri * dbri)
 	 * Pipe 19: Receive timeslot 7 (version). 
 	 */
 
-	link_time_slot(dbri, 17, PIPEoutput, 16, 32, dbri->mm.offset);
-	link_time_slot(dbri, 18, PIPEinput, 16, 8, dbri->mm.offset);
-	link_time_slot(dbri, 19, PIPEinput, 16, 8, dbri->mm.offset + 48);
+	link_time_slot(dbri, 17, 16, 16, 32, dbri->mm.offset);
+	link_time_slot(dbri, 18, 16, 16, 8, dbri->mm.offset);
+	link_time_slot(dbri, 19, 18, 16, 8, dbri->mm.offset + 48);
 
 	/* Wait for the chip to echo back CLB (Control Latch Bit) as zero */
 	dbri->mm.ctrl[0] &= ~CS4215_CLB;
@@ -2445,11 +2402,11 @@ static void dbri_debug_read(struct snd_info_entry * entry,
 			struct dbri_pipe *pptr = &dbri->pipes[pipe];
 			snd_iprintf(buffer,
 				    "Pipe %d: %s SDP=0x%x desc=%d, "
-				    "len=%d @ %d next %d\n",
+				    "len=%d next %d\n",
 				    pipe,
 				   ((pptr->sdp & D_SDP_TO_SER) ? "output" : "input"),
 				    pptr->sdp, pptr->desc,
-				    pptr->length, pptr->cycle, pptr->nextpipe);
+				    pptr->length, pptr->nextpipe);
 		}
 	}
 }
