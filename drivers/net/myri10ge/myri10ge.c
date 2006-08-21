@@ -192,6 +192,8 @@ struct myri10ge_priv {
 	u32 read_dma;
 	u32 write_dma;
 	u32 read_write_dma;
+	u32 link_changes;
+	u32 msg_enable;
 };
 
 static char *myri10ge_fw_unaligned = "myri10ge_ethp_z8e.dat";
@@ -256,6 +258,12 @@ static int myri10ge_max_irq_loops = 1048576;
 module_param(myri10ge_max_irq_loops, int, S_IRUGO);
 MODULE_PARM_DESC(myri10ge_max_irq_loops,
 		 "Set stuck legacy IRQ detection threshold\n");
+
+#define MYRI10GE_MSG_DEFAULT NETIF_MSG_LINK
+
+static int myri10ge_debug = -1;	/* defaults above */
+module_param(myri10ge_debug, int, 0);
+MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=none,...,16=all)");
 
 #define MYRI10GE_FW_OFFSET 1024*1024
 #define MYRI10GE_HIGHPART_TO_U32(X) \
@@ -764,6 +772,7 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	mgp->rx_small.cnt = 0;
 	mgp->rx_done.idx = 0;
 	mgp->rx_done.cnt = 0;
+	mgp->link_changes = 0;
 	status = myri10ge_update_mac_address(mgp, mgp->dev->dev_addr);
 	myri10ge_change_promisc(mgp, 0, 0);
 	myri10ge_change_pause(mgp, mgp->pause);
@@ -1085,13 +1094,19 @@ static inline void myri10ge_check_statblock(struct myri10ge_priv *mgp)
 		if (mgp->link_state != stats->link_up) {
 			mgp->link_state = stats->link_up;
 			if (mgp->link_state) {
-				printk(KERN_INFO "myri10ge: %s: link up\n",
-				       mgp->dev->name);
+				if (netif_msg_link(mgp))
+					printk(KERN_INFO
+					       "myri10ge: %s: link up\n",
+					       mgp->dev->name);
 				netif_carrier_on(mgp->dev);
+				mgp->link_changes++;
 			} else {
-				printk(KERN_INFO "myri10ge: %s: link down\n",
-				       mgp->dev->name);
+				if (netif_msg_link(mgp))
+					printk(KERN_INFO
+					       "myri10ge: %s: link down\n",
+					       mgp->dev->name);
 				netif_carrier_off(mgp->dev);
+				mgp->link_changes++;
 			}
 		}
 		if (mgp->rdma_tags_available !=
@@ -1293,8 +1308,9 @@ static const char myri10ge_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"serial_number", "tx_pkt_start", "tx_pkt_done",
 	"tx_req", "tx_done", "rx_small_cnt", "rx_big_cnt",
 	"wake_queue", "stop_queue", "watchdog_resets", "tx_linearized",
-	"link_up", "dropped_link_overflow", "dropped_link_error_or_filtered",
-	"dropped_runt", "dropped_overrun", "dropped_no_small_buffer",
+	"link_changes", "link_up", "dropped_link_overflow",
+	"dropped_link_error_or_filtered", "dropped_runt",
+	"dropped_overrun", "dropped_no_small_buffer",
 	"dropped_no_big_buffer"
 };
 
@@ -1345,6 +1361,7 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = (unsigned int)mgp->stop_queue;
 	data[i++] = (unsigned int)mgp->watchdog_resets;
 	data[i++] = (unsigned int)mgp->tx_linearized;
+	data[i++] = (unsigned int)mgp->link_changes;
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->link_up);
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_link_overflow);
 	data[i++] =
@@ -1353,6 +1370,18 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_overrun);
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_no_small_buffer);
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_no_big_buffer);
+}
+
+static void myri10ge_set_msglevel(struct net_device *netdev, u32 value)
+{
+	struct myri10ge_priv *mgp = netdev_priv(netdev);
+	mgp->msg_enable = value;
+}
+
+static u32 myri10ge_get_msglevel(struct net_device *netdev)
+{
+	struct myri10ge_priv *mgp = netdev_priv(netdev);
+	return mgp->msg_enable;
 }
 
 static struct ethtool_ops myri10ge_ethtool_ops = {
@@ -1375,7 +1404,9 @@ static struct ethtool_ops myri10ge_ethtool_ops = {
 #endif
 	.get_strings = myri10ge_get_strings,
 	.get_stats_count = myri10ge_get_stats_count,
-	.get_ethtool_stats = myri10ge_get_ethtool_stats
+	.get_ethtool_stats = myri10ge_get_ethtool_stats,
+	.set_msglevel = myri10ge_set_msglevel,
+	.get_msglevel = myri10ge_get_msglevel
 };
 
 static int myri10ge_allocate_rings(struct net_device *dev)
@@ -2587,6 +2618,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mgp->csum_flag = MXGEFW_FLAGS_CKSUM;
 	mgp->pause = myri10ge_flow_control;
 	mgp->intr_coal_delay = myri10ge_intr_coal_delay;
+	mgp->msg_enable = netif_msg_init(myri10ge_debug, MYRI10GE_MSG_DEFAULT);
 	init_waitqueue_head(&mgp->down_wq);
 
 	if (pci_enable_device(pdev)) {
