@@ -6254,13 +6254,14 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	 * member to call a function that then just turns and calls ipw2100_up.
 	 * net_dev->init is called after name allocation but before the
 	 * notifier chain is called */
-	mutex_lock(&priv->action_mutex);
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_WARNING DRV_NAME
 		       "Error calling register_netdev.\n");
-		goto fail_unlock;
+		goto fail;
 	}
+
+	mutex_lock(&priv->action_mutex);
 	registered = 1;
 
 	IPW_DEBUG_INFO("%s: Bound to %s\n", dev->name, pci_name(pci_dev));
