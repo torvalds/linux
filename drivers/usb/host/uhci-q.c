@@ -1348,7 +1348,7 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh,
 		}
 
 		uhci_giveback_urb(uhci, qh, urb, regs);
-		if (status < 0)
+		if (status < 0 && qh->type != USB_ENDPOINT_XFER_ISOC)
 			break;
 	}
 
