@@ -9255,7 +9255,7 @@ static int ipw_wx_set_retry(struct net_device *dev,
 	if (!(wrqu->retry.flags & IW_RETRY_LIMIT))
 		return 0;
 
-	if (wrqu->retry.value < 0 || wrqu->retry.value > 255)
+	if (wrqu->retry.value < 0 || wrqu->retry.value >= 255)
 		return -EINVAL;
 
 	mutex_lock(&priv->mutex);
