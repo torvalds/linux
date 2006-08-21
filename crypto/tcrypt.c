@@ -762,108 +762,6 @@ out:
 	crypto_free_tfm(tfm);
 }
 
-static void test_crc32c(void)
-{
-#define NUMVEC 6
-#define VECSIZE 40
-
-	int i, j, pass;
-	u32 crc;
-	u8 b, test_vec[NUMVEC][VECSIZE];
-	static u32 vec_results[NUMVEC] = {
-		0x0e2c157f, 0xe980ebf6, 0xde74bded,
-		0xd579c862, 0xba979ad0, 0x2b29d913
-	};
-	static u32 tot_vec_results = 0x24c5d375;
-
-	struct scatterlist sg[NUMVEC];
-	struct crypto_tfm *tfm;
-	char *fmtdata = "testing crc32c initialized to %08x: %s\n";
-#define SEEDTESTVAL 0xedcba987
-	u32 seed;
-
-	printk("\ntesting crc32c\n");
-
-	tfm = crypto_alloc_tfm("crc32c", 0);
-	if (tfm == NULL) {
-		printk("failed to load transform for crc32c\n");
-		return;
-	}
-
-	crypto_digest_init(tfm);
-	crypto_digest_final(tfm, (u8*)&crc);
-	printk(fmtdata, crc, (crc == 0) ? "pass" : "ERROR");
-
-	/*
-	 * stuff test_vec with known values, simple incrementing
-	 * byte values.
-	 */
-	b = 0;
-	for (i = 0; i < NUMVEC; i++) {
-		for (j = 0; j < VECSIZE; j++)
-			test_vec[i][j] = ++b;
-		sg_set_buf(&sg[i], test_vec[i], VECSIZE);
-	}
-
-	seed = SEEDTESTVAL;
-	(void)crypto_digest_setkey(tfm, (const u8*)&seed, sizeof(u32));
-	crypto_digest_init(tfm);
-	crypto_digest_final(tfm, (u8*)&crc);
-	printk("testing crc32c setkey returns %08x : %s\n", crc, (crc == (SEEDTESTVAL ^ ~(u32)0)) ?
-	       "pass" : "ERROR");
-
-	printk("testing crc32c using update/final:\n");
-
-	pass = 1;		    /* assume all is well */
-
-	for (i = 0; i < NUMVEC; i++) {
-		seed = ~(u32)0;
-		(void)crypto_digest_setkey(tfm, (const u8*)&seed, sizeof(u32));
-		crypto_digest_init(tfm);
-		crypto_digest_update(tfm, &sg[i], 1);
-		crypto_digest_final(tfm, (u8*)&crc);
-		if (crc == vec_results[i]) {
-			printk(" %08x:OK", crc);
-		} else {
-			printk(" %08x:BAD, wanted %08x\n", crc, vec_results[i]);
-			pass = 0;
-		}
-	}
-
-	printk("\ntesting crc32c using incremental accumulator:\n");
-	crc = 0;
-	for (i = 0; i < NUMVEC; i++) {
-		seed = (crc ^ ~(u32)0);
-		(void)crypto_digest_setkey(tfm, (const u8*)&seed, sizeof(u32));
-		crypto_digest_init(tfm);
-		crypto_digest_update(tfm, &sg[i], 1);
-		crypto_digest_final(tfm, (u8*)&crc);
-	}
-	if (crc == tot_vec_results) {
-		printk(" %08x:OK", crc);
-	} else {
-		printk(" %08x:BAD, wanted %08x\n", crc, tot_vec_results);
-		pass = 0;
-	}
-
-	printk("\ntesting crc32c using digest:\n");
-	seed = ~(u32)0;
-	(void)crypto_digest_setkey(tfm, (const u8*)&seed, sizeof(u32));
-	crypto_digest_init(tfm);
-	crypto_digest_digest(tfm, sg, NUMVEC, (u8*)&crc);
-	if (crc == tot_vec_results) {
-		printk(" %08x:OK", crc);
-	} else {
-		printk(" %08x:BAD, wanted %08x\n", crc, tot_vec_results);
-		pass = 0;
-	}
-
-	printk("\n%s\n", pass ? "pass" : "ERROR");
-
-	crypto_free_tfm(tfm);
-	printk("crc32c test complete\n");
-}
-
 static void test_available(void)
 {
 	char **name = check;
@@ -969,7 +867,7 @@ static void do_test(void)
 		test_hash("tgr160", tgr160_tv_template, TGR160_TEST_VECTORS);
 		test_hash("tgr128", tgr128_tv_template, TGR128_TEST_VECTORS);
 		test_deflate();
-		test_crc32c();
+		test_hash("crc32c", crc32c_tv_template, CRC32C_TEST_VECTORS);
 #ifdef CONFIG_CRYPTO_HMAC
 		test_hmac("md5", hmac_md5_tv_template, HMAC_MD5_TEST_VECTORS);
 		test_hmac("sha1", hmac_sha1_tv_template, HMAC_SHA1_TEST_VECTORS);
@@ -1065,7 +963,7 @@ static void do_test(void)
 		break;
 
 	case 18:
-		test_crc32c();
+		test_hash("crc32c", crc32c_tv_template, CRC32C_TEST_VECTORS);
 		break;
 
 	case 19:
