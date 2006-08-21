@@ -62,6 +62,7 @@ static struct ib_client cma_client = {
 	.remove = cma_remove_one
 };
 
+static struct ib_sa_client sa_client;
 static LIST_HEAD(dev_list);
 static LIST_HEAD(listen_any_list);
 static DEFINE_MUTEX(lock);
@@ -1323,7 +1324,7 @@ static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
 	path_rec.pkey = cpu_to_be16(ib_addr_get_pkey(addr));
 	path_rec.numb_path = 1;
 
-	id_priv->query_id = ib_sa_path_rec_get(id_priv->id.device,
+	id_priv->query_id = ib_sa_path_rec_get(&sa_client, id_priv->id.device,
 				id_priv->id.port_num, &path_rec,
 				IB_SA_PATH_REC_DGID | IB_SA_PATH_REC_SGID |
 				IB_SA_PATH_REC_PKEY | IB_SA_PATH_REC_NUMB_PATH,
@@ -2199,12 +2200,15 @@ static int cma_init(void)
 	if (!cma_wq)
 		return -ENOMEM;
 
+	ib_sa_register_client(&sa_client);
+
 	ret = ib_register_client(&cma_client);
 	if (ret)
 		goto err;
 	return 0;
 
 err:
+	ib_sa_unregister_client(&sa_client);
 	destroy_workqueue(cma_wq);
 	return ret;
 }
@@ -2212,6 +2216,7 @@ err:
 static void cma_cleanup(void)
 {
 	ib_unregister_client(&cma_client);
+	ib_sa_unregister_client(&sa_client);
 	destroy_workqueue(cma_wq);
 	idr_destroy(&sdp_ps);
 	idr_destroy(&tcp_ps);

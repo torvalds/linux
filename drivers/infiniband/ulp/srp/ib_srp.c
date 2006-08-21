@@ -96,6 +96,8 @@ static struct ib_client srp_client = {
 	.remove = srp_remove_one
 };
 
+static struct ib_sa_client srp_sa_client;
+
 static inline struct srp_target_port *host_to_target(struct Scsi_Host *host)
 {
 	return (struct srp_target_port *) host->hostdata;
@@ -267,7 +269,8 @@ static int srp_lookup_path(struct srp_target_port *target)
 
 	init_completion(&target->done);
 
-	target->path_query_id = ib_sa_path_rec_get(target->srp_host->dev->dev,
+	target->path_query_id = ib_sa_path_rec_get(&srp_sa_client,
+						   target->srp_host->dev->dev,
 						   target->srp_host->port,
 						   &target->path,
 						   IB_SA_PATH_REC_DGID		|
@@ -1998,9 +2001,12 @@ static int __init srp_init_module(void)
 		return ret;
 	}
 
+	ib_sa_register_client(&srp_sa_client);
+
 	ret = ib_register_client(&srp_client);
 	if (ret) {
 		printk(KERN_ERR PFX "couldn't register IB client\n");
+		ib_sa_unregister_client(&srp_sa_client);
 		class_unregister(&srp_class);
 		return ret;
 	}
@@ -2011,6 +2017,7 @@ static int __init srp_init_module(void)
 static void __exit srp_cleanup_module(void)
 {
 	ib_unregister_client(&srp_client);
+	ib_sa_unregister_client(&srp_sa_client);
 	class_unregister(&srp_class);
 }
 
