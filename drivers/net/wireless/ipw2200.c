@@ -567,7 +567,6 @@ static inline void ipw_disable_interrupts(struct ipw_priv *priv)
 	spin_unlock_irqrestore(&priv->irq_lock, flags);
 }
 
-#ifdef CONFIG_IPW2200_DEBUG
 static char *ipw_error_desc(u32 val)
 {
 	switch (val) {
@@ -634,7 +633,6 @@ static void ipw_dump_error_log(struct ipw_priv *priv,
 			  error->log[i].time,
 			  error->log[i].data, error->log[i].event);
 }
-#endif
 
 static inline int ipw_is_init(struct ipw_priv *priv)
 {
@@ -1435,9 +1433,7 @@ static ssize_t store_scan_age(struct device *d, struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
 	struct ipw_priv *priv = dev_get_drvdata(d);
-#ifdef CONFIG_IPW2200_DEBUG
 	struct net_device *dev = priv->net_dev;
-#endif
 	char buffer[] = "00000000";
 	unsigned long len =
 	    (sizeof(buffer) - 1) > count ? count : sizeof(buffer) - 1;
@@ -1958,14 +1954,12 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 		IPW_WARNING("Firmware error detected.  Restarting.\n");
 		if (priv->error) {
 			IPW_DEBUG_FW("Sysfs 'error' log already exists.\n");
-#ifdef CONFIG_IPW2200_DEBUG
 			if (ipw_debug_level & IPW_DL_FW_ERRORS) {
 				struct ipw_fw_error *error =
 				    ipw_alloc_error_log(priv);
 				ipw_dump_error_log(priv, error);
 				kfree(error);
 			}
-#endif
 		} else {
 			priv->error = ipw_alloc_error_log(priv);
 			if (priv->error)
@@ -1973,10 +1967,8 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 			else
 				IPW_DEBUG_FW("Error allocating sysfs 'error' "
 					     "log.\n");
-#ifdef CONFIG_IPW2200_DEBUG
 			if (ipw_debug_level & IPW_DL_FW_ERRORS)
 				ipw_dump_error_log(priv, priv->error);
-#endif
 		}
 
 		/* XXX: If hardware encryption is for WPA/WPA2,
@@ -3915,7 +3907,6 @@ static const struct ipw_status_code ipw_status_codes[] = {
 	{0x2E, "Cipher suite is rejected per security policy"},
 };
 
-#ifdef CONFIG_IPW2200_DEBUG
 static const char *ipw_get_status_code(u16 status)
 {
 	int i;
@@ -3924,7 +3915,6 @@ static const char *ipw_get_status_code(u16 status)
 			return ipw_status_codes[i].reason;
 	return "Unknown status value.";
 }
-#endif
 
 static void inline average_init(struct average *avg)
 {
@@ -4394,7 +4384,6 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 					if (priv->
 					    status & (STATUS_ASSOCIATED |
 						      STATUS_AUTH)) {
-#ifdef CONFIG_IPW2200_DEBUG
 						struct notif_authenticate *auth
 						    = &notif->u.auth;
 						IPW_DEBUG(IPW_DL_NOTIF |
@@ -4412,7 +4401,6 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 							  ipw_get_status_code
 							  (ntohs
 							   (auth->status)));
-#endif
 
 						priv->status &=
 						    ~(STATUS_ASSOCIATING |
@@ -5969,7 +5957,6 @@ static void ipw_bg_adhoc_check(void *data)
 	mutex_unlock(&priv->mutex);
 }
 
-#ifdef CONFIG_IPW2200_DEBUG
 static void ipw_debug_config(struct ipw_priv *priv)
 {
 	IPW_DEBUG_INFO("Scan completed, no valid APs matched "
@@ -5994,9 +5981,6 @@ static void ipw_debug_config(struct ipw_priv *priv)
 		IPW_DEBUG_INFO("PRIVACY off\n");
 	IPW_DEBUG_INFO("RATE MASK: 0x%08X\n", priv->rates_mask);
 }
-#else
-#define ipw_debug_config(x) do {} while (0)
-#endif
 
 static void ipw_set_fixed_rate(struct ipw_priv *priv, int mode)
 {
@@ -11467,9 +11451,7 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	priv->net_dev = net_dev;
 	priv->pci_dev = pdev;
-#ifdef CONFIG_IPW2200_DEBUG
 	ipw_debug_level = debug;
-#endif
 	spin_lock_init(&priv->irq_lock);
 	spin_lock_init(&priv->lock);
 	for (i = 0; i < IPW_IBSS_MAC_HASH_SIZE; i++)
