@@ -2,10 +2,11 @@
 # Cryptographic API
 #
 
-proc-crypto-$(CONFIG_PROC_FS) = proc.o
+obj-$(CONFIG_CRYPTO) += api.o scatterwalk.o cipher.o digest.o compress.o
 
-obj-$(CONFIG_CRYPTO) += api.o scatterwalk.o cipher.o digest.o compress.o \
-			$(proc-crypto-y)
+crypto_algapi-$(CONFIG_PROC_FS) += proc.o
+crypto_algapi-objs := algapi.o $(crypto_algapi-y)
+obj-$(CONFIG_CRYPTO_ALGAPI) += crypto_algapi.o
 
 obj-$(CONFIG_CRYPTO_HMAC) += hmac.o
 obj-$(CONFIG_CRYPTO_NULL) += crypto_null.o

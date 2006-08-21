@@ -12,7 +12,8 @@
  */
 #ifndef _CRYPTO_INTERNAL_H
 #define _CRYPTO_INTERNAL_H
-#include <linux/crypto.h>
+
+#include <crypto/algapi.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
@@ -64,8 +65,11 @@ static inline void crypto_free_hmac_block(struct crypto_tfm *tfm)
 
 #ifdef CONFIG_PROC_FS
 void __init crypto_init_proc(void);
+void __exit crypto_exit_proc(void);
 #else
 static inline void crypto_init_proc(void)
+{ }
+static inline void crypto_exit_proc(void)
 { }
 #endif
 

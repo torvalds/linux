@@ -15,19 +15,17 @@
  *
  */
 
-#include <linux/compiler.h>
-#include <linux/init.h>
-#include <linux/crypto.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/kmod.h>
-#include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include "internal.h"
 
 LIST_HEAD(crypto_alg_list);
+EXPORT_SYMBOL_GPL(crypto_alg_list);
 DECLARE_RWSEM(crypto_alg_sem);
+EXPORT_SYMBOL_GPL(crypto_alg_sem);
 
 static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
 {
@@ -239,86 +237,6 @@ void crypto_free_tfm(struct crypto_tfm *tfm)
 	kfree(tfm);
 }
 
-static inline int crypto_set_driver_name(struct crypto_alg *alg)
-{
-	static const char suffix[] = "-generic";
-	char *driver_name = alg->cra_driver_name;
-	int len;
-
-	if (*driver_name)
-		return 0;
-
-	len = strlcpy(driver_name, alg->cra_name, CRYPTO_MAX_ALG_NAME);
-	if (len + sizeof(suffix) > CRYPTO_MAX_ALG_NAME)
-		return -ENAMETOOLONG;
-
-	memcpy(driver_name + len, suffix, sizeof(suffix));
-	return 0;
-}
-
-int crypto_register_alg(struct crypto_alg *alg)
-{
-	int ret;
-	struct crypto_alg *q;
-
-	if (alg->cra_alignmask & (alg->cra_alignmask + 1))
-		return -EINVAL;
-
-	if (alg->cra_alignmask & alg->cra_blocksize)
-		return -EINVAL;
-
-	if (alg->cra_blocksize > PAGE_SIZE / 8)
-		return -EINVAL;
-
-	if (alg->cra_priority < 0)
-		return -EINVAL;
-	
-	ret = crypto_set_driver_name(alg);
-	if (unlikely(ret))
-		return ret;
-
-	down_write(&crypto_alg_sem);
-	
-	list_for_each_entry(q, &crypto_alg_list, cra_list) {
-		if (q == alg) {
-			ret = -EEXIST;
-			goto out;
-		}
-	}
-	
-	list_add(&alg->cra_list, &crypto_alg_list);
-	atomic_set(&alg->cra_refcnt, 1);
-out:	
-	up_write(&crypto_alg_sem);
-	return ret;
-}
-
-int crypto_unregister_alg(struct crypto_alg *alg)
-{
-	int ret = -ENOENT;
-	struct crypto_alg *q;
-	
-	down_write(&crypto_alg_sem);
-	list_for_each_entry(q, &crypto_alg_list, cra_list) {
-		if (alg == q) {
-			list_del(&alg->cra_list);
-			ret = 0;
-			goto out;
-		}
-	}
-out:	
-	up_write(&crypto_alg_sem);
-
-	if (ret)
-		return ret;
-
-	BUG_ON(atomic_read(&alg->cra_refcnt) != 1);
-	if (alg->cra_destroy)
-		alg->cra_destroy(alg);
-
-	return 0;
-}
-
 int crypto_alg_available(const char *name, u32 flags)
 {
 	int ret = 0;
@@ -332,17 +250,6 @@ int crypto_alg_available(const char *name, u32 flags)
 	return ret;
 }
 
-static int __init init_crypto(void)
-{
-	printk(KERN_INFO "Initializing Cryptographic API\n");
-	crypto_init_proc();
-	return 0;
-}
-
-__initcall(init_crypto);
-
-EXPORT_SYMBOL_GPL(crypto_register_alg);
-EXPORT_SYMBOL_GPL(crypto_unregister_alg);
 EXPORT_SYMBOL_GPL(crypto_alloc_tfm);
 EXPORT_SYMBOL_GPL(crypto_free_tfm);
 EXPORT_SYMBOL_GPL(crypto_alg_available);

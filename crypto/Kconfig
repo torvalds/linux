@@ -9,47 +9,54 @@ config CRYPTO
 	help
 	  This option provides the core Cryptographic API.
 
+if CRYPTO
+
+config CRYPTO_ALGAPI
+	tristate
+	help
+	  This option provides the API for cryptographic algorithms.
+
 config CRYPTO_HMAC
 	bool "HMAC support"
-	depends on CRYPTO
 	help
 	  HMAC: Keyed-Hashing for Message Authentication (RFC2104).
 	  This is required for IPSec.
 
 config CRYPTO_NULL
 	tristate "Null algorithms"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  These are 'Null' algorithms, used by IPsec, which do nothing.
 
 config CRYPTO_MD4
 	tristate "MD4 digest algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  MD4 message digest algorithm (RFC1320).
 
 config CRYPTO_MD5
 	tristate "MD5 digest algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  MD5 message digest algorithm (RFC1321).
 
 config CRYPTO_SHA1
 	tristate "SHA1 digest algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
 config CRYPTO_SHA1_S390
 	tristate "SHA1 digest algorithm (s390)"
-	depends on CRYPTO && S390
+	depends on S390
+	select CRYPTO_ALGAPI
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
 config CRYPTO_SHA256
 	tristate "SHA256 digest algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  SHA256 secure hash standard (DFIPS 180-2).
 	  
@@ -58,7 +65,8 @@ config CRYPTO_SHA256
 
 config CRYPTO_SHA256_S390
 	tristate "SHA256 digest algorithm (s390)"
-	depends on CRYPTO && S390
+	depends on S390
+	select CRYPTO_ALGAPI
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  SHA256 secure hash standard (DFIPS 180-2).
@@ -68,7 +76,7 @@ config CRYPTO_SHA256_S390
 
 config CRYPTO_SHA512
 	tristate "SHA384 and SHA512 digest algorithms"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  SHA512 secure hash standard (DFIPS 180-2).
 	  
@@ -80,7 +88,7 @@ config CRYPTO_SHA512
 
 config CRYPTO_WP512
 	tristate "Whirlpool digest algorithms"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  Whirlpool hash algorithm 512, 384 and 256-bit hashes
 
@@ -92,7 +100,7 @@ config CRYPTO_WP512
 
 config CRYPTO_TGR192
 	tristate "Tiger digest algorithms"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  Tiger hash algorithm 192, 160 and 128-bit hashes
 
@@ -105,19 +113,20 @@ config CRYPTO_TGR192
 
 config CRYPTO_DES
 	tristate "DES and Triple DES EDE cipher algorithms"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
 
 config CRYPTO_DES_S390
 	tristate "DES and Triple DES cipher algorithms (s390)"
-	depends on CRYPTO && S390
+	depends on S390
+	select CRYPTO_ALGAPI
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
 
 config CRYPTO_BLOWFISH
 	tristate "Blowfish cipher algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  Blowfish cipher algorithm, by Bruce Schneier.
 	  
@@ -130,7 +139,7 @@ config CRYPTO_BLOWFISH
 
 config CRYPTO_TWOFISH
 	tristate "Twofish cipher algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
 	help
 	  Twofish cipher algorithm.
@@ -145,14 +154,14 @@ config CRYPTO_TWOFISH
 
 config CRYPTO_TWOFISH_COMMON
 	tristate
-	depends on CRYPTO
 	help
 	  Common parts of the Twofish cipher algorithm shared by the
 	  generic c and the assembler implementations.
 
 config CRYPTO_TWOFISH_586
 	tristate "Twofish cipher algorithms (i586)"
-	depends on CRYPTO && ((X86 || UML_X86) && !64BIT)
+	depends on (X86 || UML_X86) && !64BIT
+	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
 	help
 	  Twofish cipher algorithm.
@@ -167,7 +176,8 @@ config CRYPTO_TWOFISH_586
 
 config CRYPTO_TWOFISH_X86_64
 	tristate "Twofish cipher algorithm (x86_64)"
-	depends on CRYPTO && ((X86 || UML_X86) && 64BIT)
+	depends on (X86 || UML_X86) && 64BIT
+	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
 	help
 	  Twofish cipher algorithm (x86_64).
@@ -182,7 +192,7 @@ config CRYPTO_TWOFISH_X86_64
 
 config CRYPTO_SERPENT
 	tristate "Serpent cipher algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
 
@@ -195,7 +205,7 @@ config CRYPTO_SERPENT
 
 config CRYPTO_AES
 	tristate "AES cipher algorithms"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
 	  algorithm.
@@ -215,7 +225,8 @@ config CRYPTO_AES
 
 config CRYPTO_AES_586
 	tristate "AES cipher algorithms (i586)"
-	depends on CRYPTO && ((X86 || UML_X86) && !64BIT)
+	depends on (X86 || UML_X86) && !64BIT
+	select CRYPTO_ALGAPI
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
 	  algorithm.
@@ -235,7 +246,8 @@ config CRYPTO_AES_586
 
 config CRYPTO_AES_X86_64
 	tristate "AES cipher algorithms (x86_64)"
-	depends on CRYPTO && ((X86 || UML_X86) && 64BIT)
+	depends on (X86 || UML_X86) && 64BIT
+	select CRYPTO_ALGAPI
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
 	  algorithm.
@@ -255,7 +267,8 @@ config CRYPTO_AES_X86_64
 
 config CRYPTO_AES_S390
 	tristate "AES cipher algorithms (s390)"
-	depends on CRYPTO && S390
+	depends on S390
+	select CRYPTO_ALGAPI
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
@@ -275,21 +288,21 @@ config CRYPTO_AES_S390
 
 config CRYPTO_CAST5
 	tristate "CAST5 (CAST-128) cipher algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  The CAST5 encryption algorithm (synonymous with CAST-128) is
 	  described in RFC2144.
 
 config CRYPTO_CAST6
 	tristate "CAST6 (CAST-256) cipher algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  The CAST6 encryption algorithm (synonymous with CAST-256) is
 	  described in RFC2612.
 
 config CRYPTO_TEA
 	tristate "TEA, XTEA and XETA cipher algorithms"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  TEA cipher algorithm.
 
@@ -306,7 +319,7 @@ config CRYPTO_TEA
 
 config CRYPTO_ARC4
 	tristate "ARC4 cipher algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  ARC4 cipher algorithm.
 
@@ -317,7 +330,7 @@ config CRYPTO_ARC4
 
 config CRYPTO_KHAZAD
 	tristate "Khazad cipher algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  Khazad cipher algorithm.
 
@@ -330,7 +343,7 @@ config CRYPTO_KHAZAD
 
 config CRYPTO_ANUBIS
 	tristate "Anubis cipher algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  Anubis cipher algorithm.
 
@@ -345,7 +358,7 @@ config CRYPTO_ANUBIS
 
 config CRYPTO_DEFLATE
 	tristate "Deflate compression algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	select ZLIB_INFLATE
 	select ZLIB_DEFLATE
 	help
@@ -356,7 +369,7 @@ config CRYPTO_DEFLATE
 
 config CRYPTO_MICHAEL_MIC
 	tristate "Michael MIC keyed digest algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	help
 	  Michael MIC is used for message integrity protection in TKIP
 	  (IEEE 802.11i). This algorithm is required for TKIP, but it
@@ -365,7 +378,7 @@ config CRYPTO_MICHAEL_MIC
 
 config CRYPTO_CRC32C
 	tristate "CRC32c CRC algorithm"
-	depends on CRYPTO
+	select CRYPTO_ALGAPI
 	select LIBCRC32C
 	help
 	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
@@ -375,10 +388,13 @@ config CRYPTO_CRC32C
 
 config CRYPTO_TEST
 	tristate "Testing module"
-	depends on CRYPTO && m
+	depends on m
+	select CRYPTO_ALGAPI
 	help
 	  Quick & dirty crypto test module.
 
 source "drivers/crypto/Kconfig"
-endmenu
 
+endif	# if CRYPTO
+
+endmenu

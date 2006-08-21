@@ -113,3 +113,8 @@ void __init crypto_init_proc(void)
 	if (proc)
 		proc->proc_fops = &proc_crypto_ops;
 }
+
+void __exit crypto_exit_proc(void)
+{
+	remove_proc_entry("crypto", NULL);
+}
