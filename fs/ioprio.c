@@ -111,9 +111,9 @@ asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 					continue;
 				ret = set_task_ioprio(p, ioprio);
 				if (ret)
-					break;
+					goto free_uid;
 			} while_each_thread(g, p);
-
+free_uid:
 			if (who)
 				free_uid(user);
 			break;
