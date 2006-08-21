@@ -333,8 +333,11 @@ static ssize_t bcm43xx_attr_phymode_store(struct device *dev,
 		goto out;
 	}
 
+	bcm43xx_periodic_tasks_delete(bcm);
 	mutex_lock(&(bcm)->mutex);
 	err = bcm43xx_select_wireless_core(bcm, phytype);
+	if (!err)
+		bcm43xx_periodic_tasks_setup(bcm);
 	mutex_unlock(&(bcm)->mutex);
 	if (err == -ESRCH)
 		err = -ENODEV;

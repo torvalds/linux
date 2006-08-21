@@ -519,6 +519,7 @@ static int bcm43xx_disable_interrupts_sync(struct bcm43xx_private *bcm)
 		return -EBUSY;
 	}
 	bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
+	bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_MASK); /* flush */
 	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 	bcm43xx_synchronize_irq(bcm);
 
@@ -3150,6 +3151,7 @@ static void bcm43xx_periodic_work_handler(void *d)
 		/* Periodic work will take a long time, so we want it to
 		 * be preemtible.
 		 */
+		mutex_lock(&bcm->mutex);
 		netif_stop_queue(bcm->net_dev);
 		synchronize_net();
 		spin_lock_irqsave(&bcm->irq_lock, flags);
@@ -3158,7 +3160,6 @@ static void bcm43xx_periodic_work_handler(void *d)
 			bcm43xx_pio_freeze_txqueues(bcm);
 		savedirqs = bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
 		spin_unlock_irqrestore(&bcm->irq_lock, flags);
-		mutex_lock(&bcm->mutex);
 		bcm43xx_synchronize_irq(bcm);
 	} else {
 		/* Periodic work should take short time, so we want low
@@ -3172,13 +3173,11 @@ static void bcm43xx_periodic_work_handler(void *d)
 
 	if (badness > BADNESS_LIMIT) {
 		spin_lock_irqsave(&bcm->irq_lock, flags);
-		if (likely(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED)) {
-			tasklet_enable(&bcm->isr_tasklet);
-			bcm43xx_interrupt_enable(bcm, savedirqs);
-			if (bcm43xx_using_pio(bcm))
-				bcm43xx_pio_thaw_txqueues(bcm);
-			bcm43xx_mac_enable(bcm);
-		}
+		tasklet_enable(&bcm->isr_tasklet);
+		bcm43xx_interrupt_enable(bcm, savedirqs);
+		if (bcm43xx_using_pio(bcm))
+			bcm43xx_pio_thaw_txqueues(bcm);
+		bcm43xx_mac_enable(bcm);
 		netif_wake_queue(bcm->net_dev);
 	}
 	mmiowb();
@@ -3186,12 +3185,12 @@ static void bcm43xx_periodic_work_handler(void *d)
 	mutex_unlock(&bcm->mutex);
 }
 
-static void bcm43xx_periodic_tasks_delete(struct bcm43xx_private *bcm)
+void bcm43xx_periodic_tasks_delete(struct bcm43xx_private *bcm)
 {
 	cancel_rearming_delayed_work(&bcm->periodic_work);
 }
 
-static void bcm43xx_periodic_tasks_setup(struct bcm43xx_private *bcm)
+void bcm43xx_periodic_tasks_setup(struct bcm43xx_private *bcm)
 {
 	struct work_struct *work = &(bcm->periodic_work);
 
@@ -3539,11 +3538,10 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 	err = bcm43xx_select_wireless_core(bcm, -1);
 	if (err)
 		goto err_crystal_off;
-
-	bcm43xx_periodic_tasks_setup(bcm);
 	err = bcm43xx_sysfs_register(bcm);
 	if (err)
 		goto err_wlshutdown;
+	bcm43xx_periodic_tasks_setup(bcm);
 	err = bcm43xx_rng_init(bcm);
 	if (err)
 		goto err_sysfs_unreg;
@@ -3969,6 +3967,7 @@ static int bcm43xx_net_stop(struct net_device *net_dev)
 	err = bcm43xx_disable_interrupts_sync(bcm);
 	assert(!err);
 	bcm43xx_free_board(bcm);
+	flush_scheduled_work();
 
 	return 0;
 }
@@ -4119,11 +4118,16 @@ static void bcm43xx_chip_reset(void *_bcm)
 {
 	struct bcm43xx_private *bcm = _bcm;
 	struct bcm43xx_phyinfo *phy;
-	int err;
+	int err = -ENODEV;
 
 	mutex_lock(&(bcm)->mutex);
-	phy = bcm43xx_current_phy(bcm);
-	err = bcm43xx_select_wireless_core(bcm, phy->type);
+	if (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED) {
+		bcm43xx_periodic_tasks_delete(bcm);
+		phy = bcm43xx_current_phy(bcm);
+		err = bcm43xx_select_wireless_core(bcm, phy->type);
+		if (!err)
+			bcm43xx_periodic_tasks_setup(bcm);
+	}
 	mutex_unlock(&(bcm)->mutex);
 
 	printk(KERN_ERR PFX "Controller restart%s\n",
@@ -4132,11 +4136,12 @@ static void bcm43xx_chip_reset(void *_bcm)
 
 /* Hard-reset the chip.
  * This can be called from interrupt or process context.
+ * bcm->irq_lock must be locked.
  */
 void bcm43xx_controller_restart(struct bcm43xx_private *bcm, const char *reason)
 {
-	assert(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED);
-	bcm43xx_set_status(bcm, BCM43xx_STAT_RESTARTING);
+	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED)
+		return;
 	printk(KERN_ERR PFX "Controller RESET (%s) ...\n", reason);
 	INIT_WORK(&bcm->restart_work, bcm43xx_chip_reset, bcm);
 	schedule_work(&bcm->restart_work);
