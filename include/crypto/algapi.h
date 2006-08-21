@@ -55,6 +55,34 @@ struct scatter_walk {
 	unsigned int offset;
 };
 
+struct blkcipher_walk {
+	union {
+		struct {
+			struct page *page;
+			unsigned long offset;
+		} phys;
+
+		struct {
+			u8 *page;
+			u8 *addr;
+		} virt;
+	} src, dst;
+
+	struct scatter_walk in;
+	unsigned int nbytes;
+
+	struct scatter_walk out;
+	unsigned int total;
+
+	void *page;
+	u8 *buffer;
+	u8 *iv;
+
+	int flags;
+};
+
+extern const struct crypto_type crypto_blkcipher_type;
+
 int crypto_register_template(struct crypto_template *tmpl);
 void crypto_unregister_template(struct crypto_template *tmpl);
 struct crypto_template *crypto_lookup_template(const char *name);
@@ -69,14 +97,51 @@ struct crypto_alg *crypto_get_attr_alg(void *param, unsigned int len,
 struct crypto_instance *crypto_alloc_instance(const char *name,
 					      struct crypto_alg *alg);
 
+int blkcipher_walk_done(struct blkcipher_desc *desc,
+			struct blkcipher_walk *walk, int err);
+int blkcipher_walk_virt(struct blkcipher_desc *desc,
+			struct blkcipher_walk *walk);
+int blkcipher_walk_phys(struct blkcipher_desc *desc,
+			struct blkcipher_walk *walk);
+
+static inline void *crypto_tfm_ctx_aligned(struct crypto_tfm *tfm)
+{
+	unsigned long addr = (unsigned long)crypto_tfm_ctx(tfm);
+	unsigned long align = crypto_tfm_alg_alignmask(tfm);
+
+	if (align <= crypto_tfm_ctx_alignment())
+		align = 1;
+	return (void *)ALIGN(addr, align);
+}
+
 static inline void *crypto_instance_ctx(struct crypto_instance *inst)
 {
 	return inst->__ctx;
 }
 
+static inline void *crypto_blkcipher_ctx(struct crypto_blkcipher *tfm)
+{
+	return crypto_tfm_ctx(&tfm->base);
+}
+
+static inline void *crypto_blkcipher_ctx_aligned(struct crypto_blkcipher *tfm)
+{
+	return crypto_tfm_ctx_aligned(&tfm->base);
+}
+
 static inline struct cipher_alg *crypto_cipher_alg(struct crypto_cipher *tfm)
 {
 	return &crypto_cipher_tfm(tfm)->__crt_alg->cra_cipher;
+}
+
+static inline void blkcipher_walk_init(struct blkcipher_walk *walk,
+				       struct scatterlist *dst,
+				       struct scatterlist *src,
+				       unsigned int nbytes)
+{
+	walk->in.sg = src;
+	walk->out.sg = dst;
+	walk->total = nbytes;
 }
 
 #endif	/* _CRYPTO_ALGAPI_H */

@@ -32,6 +32,7 @@
 #define CRYPTO_ALG_TYPE_MASK		0x0000000f
 #define CRYPTO_ALG_TYPE_CIPHER		0x00000001
 #define CRYPTO_ALG_TYPE_DIGEST		0x00000002
+#define CRYPTO_ALG_TYPE_BLKCIPHER	0x00000003
 #define CRYPTO_ALG_TYPE_COMPRESS	0x00000004
 
 #define CRYPTO_ALG_LARVAL		0x00000010
@@ -89,8 +90,15 @@
 #endif
 
 struct scatterlist;
+struct crypto_blkcipher;
 struct crypto_tfm;
 struct crypto_type;
+
+struct blkcipher_desc {
+	struct crypto_blkcipher *tfm;
+	void *info;
+	u32 flags;
+};
 
 struct cipher_desc {
 	struct crypto_tfm *tfm;
@@ -104,6 +112,21 @@ struct cipher_desc {
  * Algorithms: modular crypto algorithm implementations, managed
  * via crypto_register_alg() and crypto_unregister_alg().
  */
+struct blkcipher_alg {
+	int (*setkey)(struct crypto_tfm *tfm, const u8 *key,
+	              unsigned int keylen);
+	int (*encrypt)(struct blkcipher_desc *desc,
+		       struct scatterlist *dst, struct scatterlist *src,
+		       unsigned int nbytes);
+	int (*decrypt)(struct blkcipher_desc *desc,
+		       struct scatterlist *dst, struct scatterlist *src,
+		       unsigned int nbytes);
+
+	unsigned int min_keysize;
+	unsigned int max_keysize;
+	unsigned int ivsize;
+};
+
 struct cipher_alg {
 	unsigned int cia_min_keysize;
 	unsigned int cia_max_keysize;
@@ -143,6 +166,7 @@ struct compress_alg {
 			      unsigned int slen, u8 *dst, unsigned int *dlen);
 };
 
+#define cra_blkcipher	cra_u.blkcipher
 #define cra_cipher	cra_u.cipher
 #define cra_digest	cra_u.digest
 #define cra_compress	cra_u.compress
@@ -165,6 +189,7 @@ struct crypto_alg {
 	const struct crypto_type *cra_type;
 
 	union {
+		struct blkcipher_alg blkcipher;
 		struct cipher_alg cipher;
 		struct digest_alg digest;
 		struct compress_alg compress;
@@ -200,6 +225,16 @@ static inline int crypto_alg_available(const char *name, u32 flags)
  * and core processing logic.  Managed via crypto_alloc_*() and
  * crypto_free_*(), as well as the various helpers below.
  */
+
+struct blkcipher_tfm {
+	void *iv;
+	int (*setkey)(struct crypto_tfm *tfm, const u8 *key,
+		      unsigned int keylen);
+	int (*encrypt)(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes);
+	int (*decrypt)(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes);
+};
 
 struct cipher_tfm {
 	void *cit_iv;
@@ -251,6 +286,7 @@ struct compress_tfm {
 	                      u8 *dst, unsigned int *dlen);
 };
 
+#define crt_blkcipher	crt_u.blkcipher
 #define crt_cipher	crt_u.cipher
 #define crt_digest	crt_u.digest
 #define crt_compress	crt_u.compress
@@ -260,6 +296,7 @@ struct crypto_tfm {
 	u32 crt_flags;
 	
 	union {
+		struct blkcipher_tfm blkcipher;
 		struct cipher_tfm cipher;
 		struct digest_tfm digest;
 		struct compress_tfm compress;
@@ -271,6 +308,10 @@ struct crypto_tfm {
 };
 
 #define crypto_cipher crypto_tfm
+
+struct crypto_blkcipher {
+	struct crypto_tfm base;
+};
 
 enum {
 	CRYPTOA_UNSPEC,
@@ -380,6 +421,144 @@ static inline unsigned int crypto_tfm_ctx_alignment(void)
 /*
  * API wrappers.
  */
+static inline struct crypto_blkcipher *__crypto_blkcipher_cast(
+	struct crypto_tfm *tfm)
+{
+	return (struct crypto_blkcipher *)tfm;
+}
+
+static inline struct crypto_blkcipher *crypto_blkcipher_cast(
+	struct crypto_tfm *tfm)
+{
+	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_BLKCIPHER);
+	return __crypto_blkcipher_cast(tfm);
+}
+
+static inline struct crypto_blkcipher *crypto_alloc_blkcipher(
+	const char *alg_name, u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return __crypto_blkcipher_cast(crypto_alloc_base(alg_name, type, mask));
+}
+
+static inline struct crypto_tfm *crypto_blkcipher_tfm(
+	struct crypto_blkcipher *tfm)
+{
+	return &tfm->base;
+}
+
+static inline void crypto_free_blkcipher(struct crypto_blkcipher *tfm)
+{
+	crypto_free_tfm(crypto_blkcipher_tfm(tfm));
+}
+
+static inline const char *crypto_blkcipher_name(struct crypto_blkcipher *tfm)
+{
+	return crypto_tfm_alg_name(crypto_blkcipher_tfm(tfm));
+}
+
+static inline struct blkcipher_tfm *crypto_blkcipher_crt(
+	struct crypto_blkcipher *tfm)
+{
+	return &crypto_blkcipher_tfm(tfm)->crt_blkcipher;
+}
+
+static inline struct blkcipher_alg *crypto_blkcipher_alg(
+	struct crypto_blkcipher *tfm)
+{
+	return &crypto_blkcipher_tfm(tfm)->__crt_alg->cra_blkcipher;
+}
+
+static inline unsigned int crypto_blkcipher_ivsize(struct crypto_blkcipher *tfm)
+{
+	return crypto_blkcipher_alg(tfm)->ivsize;
+}
+
+static inline unsigned int crypto_blkcipher_blocksize(
+	struct crypto_blkcipher *tfm)
+{
+	return crypto_tfm_alg_blocksize(crypto_blkcipher_tfm(tfm));
+}
+
+static inline unsigned int crypto_blkcipher_alignmask(
+	struct crypto_blkcipher *tfm)
+{
+	return crypto_tfm_alg_alignmask(crypto_blkcipher_tfm(tfm));
+}
+
+static inline u32 crypto_blkcipher_get_flags(struct crypto_blkcipher *tfm)
+{
+	return crypto_tfm_get_flags(crypto_blkcipher_tfm(tfm));
+}
+
+static inline void crypto_blkcipher_set_flags(struct crypto_blkcipher *tfm,
+					      u32 flags)
+{
+	crypto_tfm_set_flags(crypto_blkcipher_tfm(tfm), flags);
+}
+
+static inline void crypto_blkcipher_clear_flags(struct crypto_blkcipher *tfm,
+						u32 flags)
+{
+	crypto_tfm_clear_flags(crypto_blkcipher_tfm(tfm), flags);
+}
+
+static inline int crypto_blkcipher_setkey(struct crypto_blkcipher *tfm,
+					  const u8 *key, unsigned int keylen)
+{
+	return crypto_blkcipher_crt(tfm)->setkey(crypto_blkcipher_tfm(tfm),
+						 key, keylen);
+}
+
+static inline int crypto_blkcipher_encrypt(struct blkcipher_desc *desc,
+					   struct scatterlist *dst,
+					   struct scatterlist *src,
+					   unsigned int nbytes)
+{
+	desc->info = crypto_blkcipher_crt(desc->tfm)->iv;
+	return crypto_blkcipher_crt(desc->tfm)->encrypt(desc, dst, src, nbytes);
+}
+
+static inline int crypto_blkcipher_encrypt_iv(struct blkcipher_desc *desc,
+					      struct scatterlist *dst,
+					      struct scatterlist *src,
+					      unsigned int nbytes)
+{
+	return crypto_blkcipher_crt(desc->tfm)->encrypt(desc, dst, src, nbytes);
+}
+
+static inline int crypto_blkcipher_decrypt(struct blkcipher_desc *desc,
+					   struct scatterlist *dst,
+					   struct scatterlist *src,
+					   unsigned int nbytes)
+{
+	desc->info = crypto_blkcipher_crt(desc->tfm)->iv;
+	return crypto_blkcipher_crt(desc->tfm)->decrypt(desc, dst, src, nbytes);
+}
+
+static inline int crypto_blkcipher_decrypt_iv(struct blkcipher_desc *desc,
+					      struct scatterlist *dst,
+					      struct scatterlist *src,
+					      unsigned int nbytes)
+{
+	return crypto_blkcipher_crt(desc->tfm)->decrypt(desc, dst, src, nbytes);
+}
+
+static inline void crypto_blkcipher_set_iv(struct crypto_blkcipher *tfm,
+					   const u8 *src, unsigned int len)
+{
+	memcpy(crypto_blkcipher_crt(tfm)->iv, src, len);
+}
+
+static inline void crypto_blkcipher_get_iv(struct crypto_blkcipher *tfm,
+					   u8 *dst, unsigned int len)
+{
+	memcpy(dst, crypto_blkcipher_crt(tfm)->iv, len);
+}
+
 static inline struct crypto_cipher *__crypto_cipher_cast(struct crypto_tfm *tfm)
 {
 	return (struct crypto_cipher *)tfm;
