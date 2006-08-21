@@ -628,6 +628,9 @@ void rtas_os_term(char *str)
 {
 	int status;
 
+	if (panic_timeout)
+		return;
+
 	if (RTAS_UNKNOWN_SERVICE == rtas_token("ibm,os-term"))
 		return;
 
