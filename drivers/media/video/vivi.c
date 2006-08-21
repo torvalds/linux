@@ -992,7 +992,8 @@ static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
 	struct vivi_fh  *fh=priv;
 	struct videobuf_queue *q=&fh->vb_vidq;
 	struct v4l2_requestbuffers req;
-	unsigned int i, ret;
+	unsigned int i;
+	int ret;
 
 	req.type   = q->type;
 	req.count  = 8;
