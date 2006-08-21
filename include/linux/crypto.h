@@ -20,7 +20,6 @@
 #include <asm/atomic.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/types.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -137,16 +136,16 @@ struct cipher_alg {
 
 	unsigned int (*cia_encrypt_ecb)(const struct cipher_desc *desc,
 					u8 *dst, const u8 *src,
-					unsigned int nbytes);
+					unsigned int nbytes) __deprecated;
 	unsigned int (*cia_decrypt_ecb)(const struct cipher_desc *desc,
 					u8 *dst, const u8 *src,
-					unsigned int nbytes);
+					unsigned int nbytes) __deprecated;
 	unsigned int (*cia_encrypt_cbc)(const struct cipher_desc *desc,
 					u8 *dst, const u8 *src,
-					unsigned int nbytes);
+					unsigned int nbytes) __deprecated;
 	unsigned int (*cia_decrypt_cbc)(const struct cipher_desc *desc,
 					u8 *dst, const u8 *src,
-					unsigned int nbytes);
+					unsigned int nbytes) __deprecated;
 };
 
 struct digest_alg {
@@ -358,18 +357,23 @@ static inline u32 crypto_tfm_alg_type(struct crypto_tfm *tfm)
 	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_TYPE_MASK;
 }
 
+static unsigned int crypto_tfm_alg_min_keysize(struct crypto_tfm *tfm)
+	__deprecated;
 static inline unsigned int crypto_tfm_alg_min_keysize(struct crypto_tfm *tfm)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
 	return tfm->__crt_alg->cra_cipher.cia_min_keysize;
 }
 
+static unsigned int crypto_tfm_alg_max_keysize(struct crypto_tfm *tfm)
+	__deprecated;
 static inline unsigned int crypto_tfm_alg_max_keysize(struct crypto_tfm *tfm)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
 	return tfm->__crt_alg->cra_cipher.cia_max_keysize;
 }
 
+static unsigned int crypto_tfm_alg_ivsize(struct crypto_tfm *tfm) __deprecated;
 static inline unsigned int crypto_tfm_alg_ivsize(struct crypto_tfm *tfm)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
@@ -622,6 +626,13 @@ static inline void crypto_cipher_clear_flags(struct crypto_cipher *tfm,
 	crypto_tfm_clear_flags(crypto_cipher_tfm(tfm), flags);
 }
 
+static inline int crypto_cipher_setkey(struct crypto_cipher *tfm,
+                                       const u8 *key, unsigned int keylen)
+{
+	return crypto_cipher_crt(tfm)->cit_setkey(crypto_cipher_tfm(tfm),
+						  key, keylen);
+}
+
 static inline void crypto_cipher_encrypt_one(struct crypto_cipher *tfm,
 					     u8 *dst, const u8 *src)
 {
@@ -671,13 +682,10 @@ static inline int crypto_digest_setkey(struct crypto_tfm *tfm,
 	return tfm->crt_digest.dit_setkey(tfm, key, keylen);
 }
 
-static inline int crypto_cipher_setkey(struct crypto_tfm *tfm,
-                                       const u8 *key, unsigned int keylen)
-{
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
-	return tfm->crt_cipher.cit_setkey(tfm, key, keylen);
-}
-
+static int crypto_cipher_encrypt(struct crypto_tfm *tfm,
+				 struct scatterlist *dst,
+				 struct scatterlist *src,
+				 unsigned int nbytes) __deprecated;
 static inline int crypto_cipher_encrypt(struct crypto_tfm *tfm,
                                         struct scatterlist *dst,
                                         struct scatterlist *src,
@@ -687,6 +695,10 @@ static inline int crypto_cipher_encrypt(struct crypto_tfm *tfm,
 	return tfm->crt_cipher.cit_encrypt(tfm, dst, src, nbytes);
 }                                        
 
+static int crypto_cipher_encrypt_iv(struct crypto_tfm *tfm,
+				    struct scatterlist *dst,
+				    struct scatterlist *src,
+				    unsigned int nbytes, u8 *iv) __deprecated;
 static inline int crypto_cipher_encrypt_iv(struct crypto_tfm *tfm,
                                            struct scatterlist *dst,
                                            struct scatterlist *src,
@@ -696,6 +708,10 @@ static inline int crypto_cipher_encrypt_iv(struct crypto_tfm *tfm,
 	return tfm->crt_cipher.cit_encrypt_iv(tfm, dst, src, nbytes, iv);
 }                                        
 
+static int crypto_cipher_decrypt(struct crypto_tfm *tfm,
+				 struct scatterlist *dst,
+				 struct scatterlist *src,
+				 unsigned int nbytes) __deprecated;
 static inline int crypto_cipher_decrypt(struct crypto_tfm *tfm,
                                         struct scatterlist *dst,
                                         struct scatterlist *src,
@@ -705,6 +721,10 @@ static inline int crypto_cipher_decrypt(struct crypto_tfm *tfm,
 	return tfm->crt_cipher.cit_decrypt(tfm, dst, src, nbytes);
 }
 
+static int crypto_cipher_decrypt_iv(struct crypto_tfm *tfm,
+				    struct scatterlist *dst,
+				    struct scatterlist *src,
+				    unsigned int nbytes, u8 *iv) __deprecated;
 static inline int crypto_cipher_decrypt_iv(struct crypto_tfm *tfm,
                                            struct scatterlist *dst,
                                            struct scatterlist *src,
@@ -714,6 +734,8 @@ static inline int crypto_cipher_decrypt_iv(struct crypto_tfm *tfm,
 	return tfm->crt_cipher.cit_decrypt_iv(tfm, dst, src, nbytes, iv);
 }
 
+static void crypto_cipher_set_iv(struct crypto_tfm *tfm,
+				 const u8 *src, unsigned int len) __deprecated;
 static inline void crypto_cipher_set_iv(struct crypto_tfm *tfm,
                                         const u8 *src, unsigned int len)
 {
@@ -721,6 +743,8 @@ static inline void crypto_cipher_set_iv(struct crypto_tfm *tfm,
 	memcpy(tfm->crt_cipher.cit_iv, src, len);
 }
 
+static void crypto_cipher_get_iv(struct crypto_tfm *tfm,
+				 u8 *dst, unsigned int len) __deprecated;
 static inline void crypto_cipher_get_iv(struct crypto_tfm *tfm,
                                         u8 *dst, unsigned int len)
 {

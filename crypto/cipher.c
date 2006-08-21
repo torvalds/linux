@@ -23,6 +23,28 @@
 #include "internal.h"
 #include "scatterwalk.h"
 
+struct cipher_alg_compat {
+	unsigned int cia_min_keysize;
+	unsigned int cia_max_keysize;
+	int (*cia_setkey)(struct crypto_tfm *tfm, const u8 *key,
+	                  unsigned int keylen);
+	void (*cia_encrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
+	void (*cia_decrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
+
+	unsigned int (*cia_encrypt_ecb)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_decrypt_ecb)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_encrypt_cbc)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_decrypt_cbc)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+};
+
 static inline void xor_64(u8 *a, const u8 *b)
 {
 	((u32 *)a)[0] ^= ((u32 *)b)[0];
@@ -276,7 +298,7 @@ static int ecb_encrypt(struct crypto_tfm *tfm,
                        struct scatterlist *src, unsigned int nbytes)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_encrypt;
@@ -291,7 +313,7 @@ static int ecb_decrypt(struct crypto_tfm *tfm,
 		       unsigned int nbytes)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_decrypt;
@@ -306,7 +328,7 @@ static int cbc_encrypt(struct crypto_tfm *tfm,
 		       unsigned int nbytes)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_encrypt;
@@ -322,7 +344,7 @@ static int cbc_encrypt_iv(struct crypto_tfm *tfm,
                           unsigned int nbytes, u8 *iv)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_encrypt;
@@ -338,7 +360,7 @@ static int cbc_decrypt(struct crypto_tfm *tfm,
 		       unsigned int nbytes)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_decrypt;
@@ -354,7 +376,7 @@ static int cbc_decrypt_iv(struct crypto_tfm *tfm,
                           unsigned int nbytes, u8 *iv)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_decrypt;
