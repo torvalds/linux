@@ -220,6 +220,36 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 #define DISCOVER_REQ_SIZE  16
 #define DISCOVER_RESP_SIZE 56
 
+static int sas_ex_phy_discover_helper(struct domain_device *dev, u8 *disc_req,
+				      u8 *disc_resp, int single)
+{
+	int i, res;
+
+	disc_req[9] = single;
+	for (i = 1 ; i < 3; i++) {
+		struct discover_resp *dr;
+
+		res = smp_execute_task(dev, disc_req, DISCOVER_REQ_SIZE,
+				       disc_resp, DISCOVER_RESP_SIZE);
+		if (res)
+			return res;
+		/* This is detecting a failure to transmit inital
+		 * dev to host FIS as described in section G.5 of
+		 * sas-2 r 04b */
+		dr = &((struct smp_resp *)disc_resp)->disc;
+		if (!(dr->attached_dev_type == 0 &&
+		      dr->attached_sata_dev))
+			break;
+		/* In order to generate the dev to host FIS, we
+		 * send a link reset to the expander port */
+		sas_smp_phy_control(dev, single, PHY_FUNC_LINK_RESET);
+		/* Wait for the reset to trigger the negotiation */
+		msleep(500);
+	}
+	sas_set_ex_phy(dev, single, disc_resp);
+	return 0;
+}
+
 static int sas_ex_phy_discover(struct domain_device *dev, int single)
 {
 	struct expander_device *ex = &dev->ex_dev;
@@ -240,23 +270,15 @@ static int sas_ex_phy_discover(struct domain_device *dev, int single)
 	disc_req[1] = SMP_DISCOVER;
 
 	if (0 <= single && single < ex->num_phys) {
-		disc_req[9] = single;
-		res = smp_execute_task(dev, disc_req, DISCOVER_REQ_SIZE,
-				       disc_resp, DISCOVER_RESP_SIZE);
-		if (res)
-			goto out_err;
-		sas_set_ex_phy(dev, single, disc_resp);
+		res = sas_ex_phy_discover_helper(dev, disc_req, disc_resp, single);
 	} else {
 		int i;
 
 		for (i = 0; i < ex->num_phys; i++) {
-			disc_req[9] = i;
-			res = smp_execute_task(dev, disc_req,
-					       DISCOVER_REQ_SIZE, disc_resp,
-					       DISCOVER_RESP_SIZE);
+			res = sas_ex_phy_discover_helper(dev, disc_req,
+							 disc_resp, i);
 			if (res)
 				goto out_err;
-			sas_set_ex_phy(dev, i, disc_resp);
 		}
 	}
 out_err:
@@ -529,6 +551,7 @@ static int sas_get_report_phy_sata(struct domain_device *dev,
 {
 	int res;
 	u8 *rps_req = alloc_smp_req(RPS_REQ_SIZE);
+	u8 *resp = (u8 *)rps_resp;
 
 	if (!rps_req)
 		return -ENOMEM;
@@ -539,8 +562,28 @@ static int sas_get_report_phy_sata(struct domain_device *dev,
 	res = smp_execute_task(dev, rps_req, RPS_REQ_SIZE,
 			            rps_resp, RPS_RESP_SIZE);
 
+	/* 0x34 is the FIS type for the D2H fis.  There's a potential
+	 * standards cockup here.  sas-2 explicitly specifies the FIS
+	 * should be encoded so that FIS type is in resp[24].
+	 * However, some expanders endian reverse this.  Undo the
+	 * reversal here */
+	if (!res && resp[27] == 0x34 && resp[24] != 0x34) {
+		int i;
+
+		for (i = 0; i < 5; i++) {
+			int j = 24 + (i*4);
+			u8 a, b;
+			a = resp[j + 0];
+			b = resp[j + 1];
+			resp[j + 0] = resp[j + 3];
+			resp[j + 1] = resp[j + 2];
+			resp[j + 2] = b;
+			resp[j + 3] = a;
+		}
+	}
+
 	kfree(rps_req);
-	return 0;
+	return res;
 }
 
 static void sas_ex_get_linkrate(struct domain_device *parent,
@@ -625,14 +668,26 @@ static struct domain_device *sas_ex_discover_end_dev(
 		}
 		memcpy(child->frame_rcvd, &child->sata_dev.rps_resp.rps.fis,
 		       sizeof(struct dev_to_host_fis));
+
+		rphy = sas_end_device_alloc(phy->port);
+		/* FIXME: error handling */
+		BUG_ON(!rphy);
+
 		sas_init_dev(child);
+
+		child->rphy = rphy;
+
+		spin_lock(&parent->port->dev_list_lock);
+		list_add_tail(&child->dev_list_node, &parent->port->dev_list);
+		spin_unlock(&parent->port->dev_list_lock);
+
 		res = sas_discover_sata(child);
 		if (res) {
 			SAS_DPRINTK("sas_discover_sata() for device %16llx at "
 				    "%016llx:0x%x returned 0x%x\n",
 				    SAS_ADDR(child->sas_addr),
 				    SAS_ADDR(parent->sas_addr), phy_id, res);
-			goto out_free;
+			goto out_list_del;
 		}
 	} else if (phy->attached_tproto & SAS_PROTO_SSP) {
 		child->dev_type = SAS_END_DEV;
