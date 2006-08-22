@@ -222,7 +222,7 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 	ret = ipt->tcfi_t->u.kernel.target->target(&skb, skb->dev, NULL,
 						   ipt->tcfi_hook,
 						   ipt->tcfi_t->u.kernel.target,
-						   ipt->tcfi_t->data, NULL);
+						   ipt->tcfi_t->data);
 	switch (ret) {
 	case NF_ACCEPT:
 		result = TC_ACT_OK;

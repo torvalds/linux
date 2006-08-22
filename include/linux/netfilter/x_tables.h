@@ -211,8 +211,7 @@ struct xt_target
 			       const struct net_device *out,
 			       unsigned int hooknum,
 			       const struct xt_target *target,
-			       const void *targinfo,
-			       void *userdata);
+			       const void *targinfo);
 
 	/* Called when user tries to insert an entry of this type:
            hook_mask is a bitmask of hooks from which it can be

@@ -143,7 +143,7 @@ static int check(const char *tablename,
 	return 1;
 }
 
-static struct xt_match xt_connbytes_match = {
+static struct xt_match xt_connbytes_match[] = {
 	{
 		.name		= "connbytes",
 		.family		= AF_INET,

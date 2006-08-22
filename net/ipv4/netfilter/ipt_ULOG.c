@@ -308,7 +308,7 @@ static unsigned int ipt_ulog_target(struct sk_buff **pskb,
 				    const struct net_device *out,
 				    unsigned int hooknum,
 				    const struct xt_target *target,
-				    const void *targinfo, void *userinfo)
+				    const void *targinfo)
 {
 	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;
 

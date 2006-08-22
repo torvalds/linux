@@ -104,8 +104,7 @@ static unsigned int ipt_snat_target(struct sk_buff **pskb,
 				    const struct net_device *out,
 				    unsigned int hooknum,
 				    const struct ipt_target *target,
-				    const void *targinfo,
-				    void *userinfo)
+				    const void *targinfo)
 {
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
@@ -147,8 +146,7 @@ static unsigned int ipt_dnat_target(struct sk_buff **pskb,
 				    const struct net_device *out,
 				    unsigned int hooknum,
 				    const struct ipt_target *target,
-				    const void *targinfo,
-				    void *userinfo)
+				    const void *targinfo)
 {
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
@@ -255,7 +253,7 @@ int ip_nat_rule_find(struct sk_buff **pskb,
 {
 	int ret;
 
-	ret = ipt_do_table(pskb, hooknum, in, out, &nat_table, NULL);
+	ret = ipt_do_table(pskb, hooknum, in, out, &nat_table);
 
 	if (ret == NF_ACCEPT) {
 		if (!ip_nat_initialized(ct, HOOK2MANIP(hooknum)))

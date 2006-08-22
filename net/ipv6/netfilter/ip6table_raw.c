@@ -122,7 +122,7 @@ ip6t_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ip6t_do_table(pskb, hook, in, out, &packet_raw, NULL);
+	return ip6t_do_table(pskb, hook, in, out, &packet_raw);
 }
 
 static struct nf_hook_ops ip6t_ops[] = { 

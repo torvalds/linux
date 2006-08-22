@@ -208,8 +208,7 @@ static unsigned int arpt_error(struct sk_buff **pskb,
 			       const struct net_device *out,
 			       unsigned int hooknum,
 			       const struct xt_target *target,
-			       const void *targinfo,
-			       void *userinfo)
+			       const void *targinfo)
 {
 	if (net_ratelimit())
 		printk("arp_tables: error: '%s'\n", (char *)targinfo);
@@ -226,8 +225,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 			   unsigned int hook,
 			   const struct net_device *in,
 			   const struct net_device *out,
-			   struct arpt_table *table,
-			   void *userdata)
+			   struct arpt_table *table)
 {
 	static const char nulldevname[IFNAMSIZ];
 	unsigned int verdict = NF_DROP;
@@ -302,8 +300,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 								     in, out,
 								     hook,
 								     t->u.kernel.target,
-								     t->data,
-								     userdata);
+								     t->data);
 
 				/* Target might have changed stuff. */
 				arp = (*pskb)->nh.arph;

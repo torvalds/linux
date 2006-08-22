@@ -27,8 +27,7 @@ target_v0(struct sk_buff **pskb,
 	  const struct net_device *out,
 	  unsigned int hooknum,
 	  const struct xt_target *target,
-	  const void *targinfo,
-	  void *userinfo)
+	  const void *targinfo)
 {
 	const struct xt_mark_target_info *markinfo = targinfo;
 
@@ -44,8 +43,7 @@ target_v1(struct sk_buff **pskb,
 	  const struct net_device *out,
 	  unsigned int hooknum,
 	  const struct xt_target *target,
-	  const void *targinfo,
-	  void *userinfo)
+	  const void *targinfo)
 {
 	const struct xt_mark_target_info_v1 *markinfo = targinfo;
 	int mark = 0;

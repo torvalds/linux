@@ -95,7 +95,7 @@ ipt_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ipt_do_table(pskb, hook, in, out, &packet_raw, NULL);
+	return ipt_do_table(pskb, hook, in, out, &packet_raw);
 }
 
 /* 'raw' is the very first table. */

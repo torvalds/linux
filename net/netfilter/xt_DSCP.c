@@ -32,8 +32,7 @@ static unsigned int target(struct sk_buff **pskb,
 			   const struct net_device *out,
 			   unsigned int hooknum,
 			   const struct xt_target *target,
-			   const void *targinfo,
-			   void *userinfo)
+			   const void *targinfo)
 {
 	const struct xt_DSCP_info *dinfo = targinfo;
 	u_int8_t dscp = ipv4_get_dsfield((*pskb)->nh.iph) >> XT_DSCP_SHIFT;
@@ -54,8 +53,7 @@ static unsigned int target6(struct sk_buff **pskb,
 			    const struct net_device *out,
 			    unsigned int hooknum,
 			    const struct xt_target *target,
-			    const void *targinfo,
-			    void *userinfo)
+			    const void *targinfo)
 {
 	const struct xt_DSCP_info *dinfo = targinfo;
 	u_int8_t dscp = ipv6_get_dsfield((*pskb)->nh.ipv6h) >> XT_DSCP_SHIFT;

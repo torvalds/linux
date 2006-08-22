@@ -22,7 +22,7 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 				   const struct net_device *out,
 				   unsigned int hooknum,
 				   const struct xt_target *target,
-				   const void *targinfo, void *userinfo)
+				   const void *targinfo)
 {
 	struct ipv6hdr *ip6h;
 	const struct ip6t_HL_info *info = targinfo;

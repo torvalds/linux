@@ -64,8 +64,7 @@ masquerade_target(struct sk_buff **pskb,
 		  const struct net_device *out,
 		  unsigned int hooknum,
 		  const struct xt_target *target,
-		  const void *targinfo,
-		  void *userinfo)
+		  const void *targinfo)
 {
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;

@@ -16,8 +16,7 @@ target(struct sk_buff **pskb,
        const struct net_device *out,
        unsigned int hooknum,
        const struct xt_target *target,
-       const void *targinfo,
-       void *userinfo)
+       const void *targinfo)
 {
 	/* Previously seen (loopback)? Ignore. */
 	if ((*pskb)->nfct != NULL)

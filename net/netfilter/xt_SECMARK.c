@@ -31,7 +31,7 @@ static u8 mode;
 static unsigned int target(struct sk_buff **pskb, const struct net_device *in,
 			   const struct net_device *out, unsigned int hooknum,
 			   const struct xt_target *target,
-			   const void *targinfo, void *userinfo)
+			   const void *targinfo)
 {
 	u32 secmark = 0;
 	const struct xt_secmark_target_info *info = targinfo;
