@@ -26,7 +26,7 @@ config USB_GADGET
 	   you need a low level bus controller driver, and some software
 	   talking to it.  Peripheral controllers are often discrete silicon,
 	   or are integrated with the CPU in a microcontroller.  The more
-	   familiar host side controllers have names like like "EHCI", "OHCI",
+	   familiar host side controllers have names like "EHCI", "OHCI",
 	   or "UHCI", and are usually integrated into southbridges on PC
 	   motherboards.
 
