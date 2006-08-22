@@ -201,6 +201,7 @@ void tcp_select_initial_window(int __space, __u32 mss,
 		 * See RFC1323 for an explanation of the limit to 14 
 		 */
 		space = max_t(u32, sysctl_tcp_rmem[2], sysctl_rmem_max);
+		space = min_t(u32, space, *window_clamp);
 		while (space > 65535 && (*rcv_wscale) < 14) {
 			space >>= 1;
 			(*rcv_wscale)++;
