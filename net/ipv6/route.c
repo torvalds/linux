@@ -1833,6 +1833,7 @@ void rt6_mtu_change(struct net_device *dev, unsigned mtu)
 static struct nla_policy rtm_ipv6_policy[RTA_MAX+1] __read_mostly = {
 	[RTA_GATEWAY]           = { .minlen = sizeof(struct in6_addr) },
 	[RTA_OIF]               = { .type = NLA_U32 },
+	[RTA_IIF]		= { .type = NLA_U32 },
 	[RTA_PRIORITY]          = { .type = NLA_U32 },
 	[RTA_METRICS]           = { .type = NLA_NESTED },
 };
@@ -2048,16 +2049,54 @@ int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 
 int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 {
-	struct rtattr **rta = arg;
-	int iif = 0;
-	int err = -ENOBUFS;
-	struct sk_buff *skb;
-	struct flowi fl;
+	struct nlattr *tb[RTA_MAX+1];
 	struct rt6_info *rt;
+	struct sk_buff *skb;
+	struct rtmsg *rtm;
+	struct flowi fl;
+	int err, iif = 0;
+
+	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_ipv6_policy);
+	if (err < 0)
+		goto errout;
+
+	err = -EINVAL;
+	memset(&fl, 0, sizeof(fl));
+
+	if (tb[RTA_SRC]) {
+		if (nla_len(tb[RTA_SRC]) < sizeof(struct in6_addr))
+			goto errout;
+
+		ipv6_addr_copy(&fl.fl6_src, nla_data(tb[RTA_SRC]));
+	}
+
+	if (tb[RTA_DST]) {
+		if (nla_len(tb[RTA_DST]) < sizeof(struct in6_addr))
+			goto errout;
+
+		ipv6_addr_copy(&fl.fl6_dst, nla_data(tb[RTA_DST]));
+	}
+
+	if (tb[RTA_IIF])
+		iif = nla_get_u32(tb[RTA_IIF]);
+
+	if (tb[RTA_OIF])
+		fl.oif = nla_get_u32(tb[RTA_OIF]);
+
+	if (iif) {
+		struct net_device *dev;
+		dev = __dev_get_by_index(iif);
+		if (!dev) {
+			err = -ENODEV;
+			goto errout;
+		}
+	}
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
-	if (skb == NULL)
-		goto out;
+	if (skb == NULL) {
+		err = -ENOBUFS;
+		goto errout;
+	}
 
 	/* Reserve room for dummy headers, this skb can pass
 	   through good chunk of routing engine.
@@ -2065,51 +2104,20 @@ int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 	skb->mac.raw = skb->data;
 	skb_reserve(skb, MAX_HEADER + sizeof(struct ipv6hdr));
 
-	memset(&fl, 0, sizeof(fl));
-	if (rta[RTA_SRC-1])
-		ipv6_addr_copy(&fl.fl6_src,
-			       (struct in6_addr*)RTA_DATA(rta[RTA_SRC-1]));
-	if (rta[RTA_DST-1])
-		ipv6_addr_copy(&fl.fl6_dst,
-			       (struct in6_addr*)RTA_DATA(rta[RTA_DST-1]));
-
-	if (rta[RTA_IIF-1])
-		memcpy(&iif, RTA_DATA(rta[RTA_IIF-1]), sizeof(int));
-
-	if (iif) {
-		struct net_device *dev;
-		dev = __dev_get_by_index(iif);
-		if (!dev) {
-			err = -ENODEV;
-			goto out_free;
-		}
-	}
-
-	fl.oif = 0;
-	if (rta[RTA_OIF-1])
-		memcpy(&fl.oif, RTA_DATA(rta[RTA_OIF-1]), sizeof(int));
-
-	rt = (struct rt6_info*)ip6_route_output(NULL, &fl);
-
+	rt = (struct rt6_info*) ip6_route_output(NULL, &fl);
 	skb->dst = &rt->u.dst;
 
-	NETLINK_CB(skb).dst_pid = NETLINK_CB(in_skb).pid;
-	err = rt6_fill_node(skb, rt, 
-			    &fl.fl6_dst, &fl.fl6_src,
-			    iif,
+	err = rt6_fill_node(skb, rt, &fl.fl6_dst, &fl.fl6_src, iif,
 			    RTM_NEWROUTE, NETLINK_CB(in_skb).pid,
 			    nlh->nlmsg_seq, 0, 0);
 	if (err < 0) {
-		err = -EMSGSIZE;
-		goto out_free;
+		kfree_skb(skb);
+		goto errout;
 	}
 
 	err = rtnl_unicast(skb, NETLINK_CB(in_skb).pid);
-out:
+errout:
 	return err;
-out_free:
-	kfree_skb(skb);
-	goto out;	
 }
 
 void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
