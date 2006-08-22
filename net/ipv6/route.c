@@ -546,8 +546,8 @@ struct rt6_info *rt6_lookup(struct in6_addr *daddr, struct in6_addr *saddr,
    be destroyed.
  */
 
-int ip6_ins_rt(struct rt6_info *rt, struct nlmsghdr *nlh,
-		void *_rtattr, struct netlink_skb_parms *req)
+static int __ip6_ins_rt(struct rt6_info *rt, struct nlmsghdr *nlh,
+			void *_rtattr, struct netlink_skb_parms *req)
 {
 	int err;
 	struct fib6_table *table;
@@ -558,6 +558,11 @@ int ip6_ins_rt(struct rt6_info *rt, struct nlmsghdr *nlh,
 	write_unlock_bh(&table->tb6_lock);
 
 	return err;
+}
+
+int ip6_ins_rt(struct rt6_info *rt)
+{
+	return __ip6_ins_rt(rt, NULL, NULL, NULL);
 }
 
 static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort, struct in6_addr *daddr,
@@ -657,7 +662,7 @@ restart:
 
 	dst_hold(&rt->u.dst);
 	if (nrt) {
-		err = ip6_ins_rt(nrt, NULL, NULL, NULL);
+		err = ip6_ins_rt(nrt);
 		if (!err)
 			goto out2;
 	}
@@ -752,7 +757,7 @@ restart:
 
 	dst_hold(&rt->u.dst);
 	if (nrt) {
-		err = ip6_ins_rt(nrt, NULL, NULL, NULL);
+		err = ip6_ins_rt(nrt);
 		if (!err)
 			goto out2;
 	}
@@ -1206,7 +1211,7 @@ install_route:
 	rt->u.dst.dev = dev;
 	rt->rt6i_idev = idev;
 	rt->rt6i_table = table;
-	return ip6_ins_rt(rt, nlh, _rtattr, req);
+	return __ip6_ins_rt(rt, nlh, _rtattr, req);
 
 out:
 	if (dev)
@@ -1393,7 +1398,7 @@ restart:
 	nrt->u.dst.metrics[RTAX_MTU-1] = ipv6_get_mtu(neigh->dev);
 	nrt->u.dst.metrics[RTAX_ADVMSS-1] = ipv6_advmss(dst_mtu(&nrt->u.dst));
 
-	if (ip6_ins_rt(nrt, NULL, NULL, NULL))
+	if (ip6_ins_rt(nrt))
 		goto out;
 
 	netevent.old = &rt->u.dst;
@@ -1483,7 +1488,7 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 		dst_set_expires(&nrt->u.dst, ip6_rt_mtu_expires);
 		nrt->rt6i_flags |= RTF_DYNAMIC|RTF_EXPIRES;
 
-		ip6_ins_rt(nrt, NULL, NULL, NULL);
+		ip6_ins_rt(nrt);
 	}
 out:
 	dst_release(&rt->u.dst);

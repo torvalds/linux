@@ -65,10 +65,7 @@ extern int			ip6_route_add(struct in6_rtmsg *rtmsg,
 					      void *rtattr,
 					      struct netlink_skb_parms *req,
 					      u32 table_id);
-extern int			ip6_ins_rt(struct rt6_info *,
-					   struct nlmsghdr *,
-					   void *rtattr,
-					   struct netlink_skb_parms *req);
+extern int			ip6_ins_rt(struct rt6_info *);
 extern int			ip6_del_rt(struct rt6_info *);
 
 extern int			ip6_rt_addr_add(struct in6_addr *addr,

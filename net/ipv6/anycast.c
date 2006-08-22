@@ -335,7 +335,7 @@ int ipv6_dev_ac_inc(struct net_device *dev, struct in6_addr *addr)
 	write_unlock_bh(&idev->lock);
 
 	dst_hold(&rt->u.dst);
-	if (ip6_ins_rt(rt, NULL, NULL, NULL))
+	if (ip6_ins_rt(rt))
 		dst_release(&rt->u.dst);
 
 	addrconf_join_solict(dev, &aca->aca_addr);
