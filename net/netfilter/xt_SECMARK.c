@@ -85,7 +85,7 @@ static int checkentry_selinux(struct xt_secmark_target_info *info)
 
 static int checkentry(const char *tablename, const void *entry,
 		      const struct xt_target *target, void *targinfo,
-		      unsigned int targinfosize, unsigned int hook_mask)
+		      unsigned int hook_mask)
 {
 	struct xt_secmark_target_info *info = targinfo;
 

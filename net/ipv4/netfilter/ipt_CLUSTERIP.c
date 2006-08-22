@@ -372,7 +372,6 @@ checkentry(const char *tablename,
 	   const void *e_void,
 	   const struct xt_target *target,
            void *targinfo,
-           unsigned int targinfosize,
            unsigned int hook_mask)
 {
 	struct ipt_clusterip_tgt_info *cipinfo = targinfo;
@@ -449,8 +448,7 @@ checkentry(const char *tablename,
 }
 
 /* drop reference count of cluster config when rule is deleted */
-static void destroy(const struct xt_target *target, void *targinfo,
-		    unsigned int targinfosize)
+static void destroy(const struct xt_target *target, void *targinfo)
 {
 	struct ipt_clusterip_tgt_info *cipinfo = targinfo;
 

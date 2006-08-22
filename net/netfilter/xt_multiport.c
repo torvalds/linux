@@ -176,7 +176,6 @@ checkentry(const char *tablename,
 	   const void *info,
 	   const struct xt_match *match,
 	   void *matchinfo,
-	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
 	const struct ipt_ip *ip = info;
@@ -191,7 +190,6 @@ checkentry_v1(const char *tablename,
 	      const void *info,
 	      const struct xt_match *match,
 	      void *matchinfo,
-	      unsigned int matchsize,
 	      unsigned int hook_mask)
 {
 	const struct ipt_ip *ip = info;
@@ -206,7 +204,6 @@ checkentry6(const char *tablename,
 	    const void *info,
 	    const struct xt_match *match,
 	    void *matchinfo,
-	    unsigned int matchsize,
 	    unsigned int hook_mask)
 {
 	const struct ip6t_ip6 *ip = info;
@@ -221,7 +218,6 @@ checkentry6_v1(const char *tablename,
 	       const void *info,
 	       const struct xt_match *match,
 	       void *matchinfo,
-	       unsigned int matchsize,
 	       unsigned int hook_mask)
 {
 	const struct ip6t_ip6 *ip = info;

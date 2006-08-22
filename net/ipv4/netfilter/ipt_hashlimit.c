@@ -478,7 +478,6 @@ hashlimit_checkentry(const char *tablename,
 		     const void *inf,
 		     const struct xt_match *match,
 		     void *matchinfo,
-		     unsigned int matchsize,
 		     unsigned int hook_mask)
 {
 	struct ipt_hashlimit_info *r = matchinfo;
@@ -529,8 +528,7 @@ hashlimit_checkentry(const char *tablename,
 }
 
 static void
-hashlimit_destroy(const struct xt_match *match, void *matchinfo,
-		  unsigned int matchsize)
+hashlimit_destroy(const struct xt_match *match, void *matchinfo)
 {
 	struct ipt_hashlimit_info *r = matchinfo;
 

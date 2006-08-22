@@ -79,7 +79,6 @@ checkentry(const char *tablename,
 	   const void *ip_void,
 	   const struct xt_match *match,
 	   void *matchinfo,
-	   unsigned int matchinfosize,
 	   unsigned int hook_mask)
 {
 	const struct xt_esp *espinfo = matchinfo;

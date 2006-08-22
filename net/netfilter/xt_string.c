@@ -46,7 +46,6 @@ static int checkentry(const char *tablename,
 		      const void *ip,
 		      const struct xt_match *match,
 		      void *matchinfo,
-		      unsigned int matchsize,
 		      unsigned int hook_mask)
 {
 	struct xt_string_info *conf = matchinfo;
@@ -69,8 +68,7 @@ static int checkentry(const char *tablename,
 	return 1;
 }
 
-static void destroy(const struct xt_match *match, void *matchinfo,
-		    unsigned int matchsize)
+static void destroy(const struct xt_match *match, void *matchinfo)
 {
 	textsearch_destroy(STRING_TEXT_PRIV(matchinfo)->config);
 }

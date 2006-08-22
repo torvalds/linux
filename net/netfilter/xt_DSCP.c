@@ -72,7 +72,6 @@ static int checkentry(const char *tablename,
 		      const void *e_void,
 		      const struct xt_target *target,
 		      void *targinfo,
-		      unsigned int targinfosize,
 		      unsigned int hook_mask)
 {
 	const u_int8_t dscp = ((struct xt_DSCP_info *)targinfo)->dscp;

@@ -39,7 +39,6 @@ checkentry(const char *tablename,
            const void *entry,
 	   const struct xt_match *match,
            void *matchinfo,
-           unsigned int matchsize,
            unsigned int hook_mask)
 {
 	const struct xt_mark_info *minfo = matchinfo;

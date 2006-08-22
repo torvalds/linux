@@ -55,7 +55,6 @@ checkentry(const char *tablename,
 	   const void *ip,
 	   const struct xt_match *match,
 	   void *matchinfo,
-	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
 	struct xt_connmark_info *cm = matchinfo;
@@ -75,7 +74,7 @@ checkentry(const char *tablename,
 }
 
 static void
-destroy(const struct xt_match *match, void *matchinfo, unsigned int matchsize)
+destroy(const struct xt_match *match, void *matchinfo)
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	nf_ct_l3proto_module_put(match->family);

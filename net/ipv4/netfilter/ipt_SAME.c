@@ -52,7 +52,6 @@ same_check(const char *tablename,
 	      const void *e,
 	      const struct xt_target *target,
 	      void *targinfo,
-	      unsigned int targinfosize,
 	      unsigned int hook_mask)
 {
 	unsigned int count, countess, rangeip, index = 0;
@@ -116,8 +115,7 @@ same_check(const char *tablename,
 }
 
 static void 
-same_destroy(const struct xt_target *target, void *targinfo,
-		unsigned int targinfosize)
+same_destroy(const struct xt_target *target, void *targinfo)
 {
 	struct ipt_same_info *mr = targinfo;
 

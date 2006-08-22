@@ -67,7 +67,7 @@ target(struct sk_buff **pskb,
 
 static int
 checkentry(const char *tablename, const void *e, const struct xt_target *target,
-           void *targinfo, unsigned int targinfosize, unsigned int hook_mask)
+           void *targinfo, unsigned int hook_mask)
 {
 	const struct arpt_mangle *mangle = targinfo;
 

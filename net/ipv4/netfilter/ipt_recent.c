@@ -238,7 +238,7 @@ out:
 static int
 ipt_recent_checkentry(const char *tablename, const void *ip,
 		      const struct xt_match *match, void *matchinfo,
-		      unsigned int matchsize, unsigned int hook_mask)
+		      unsigned int hook_mask)
 {
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;
@@ -294,8 +294,7 @@ out:
 }
 
 static void
-ipt_recent_destroy(const struct xt_match *match, void *matchinfo,
-		   unsigned int matchsize)
+ipt_recent_destroy(const struct xt_match *match, void *matchinfo)
 {
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;

@@ -174,12 +174,10 @@ struct xt_match
 			  const void *ip,
 			  const struct xt_match *match,
 			  void *matchinfo,
-			  unsigned int matchinfosize,
 			  unsigned int hook_mask);
 
 	/* Called when entry of this type deleted. */
-	void (*destroy)(const struct xt_match *match, void *matchinfo,
-			unsigned int matchinfosize);
+	void (*destroy)(const struct xt_match *match, void *matchinfo);
 
 	/* Called when userspace align differs from kernel space one */
 	int (*compat)(void *match, void **dstptr, int *size, int convert);
@@ -221,12 +219,10 @@ struct xt_target
 			  const void *entry,
 			  const struct xt_target *target,
 			  void *targinfo,
-			  unsigned int targinfosize,
 			  unsigned int hook_mask);
 
 	/* Called when entry of this type deleted. */
-	void (*destroy)(const struct xt_target *target, void *targinfo,
-			unsigned int targinfosize);
+	void (*destroy)(const struct xt_target *target, void *targinfo);
 
 	/* Called when userspace align differs from kernel space one */
 	int (*compat)(void *target, void **dstptr, int *size, int convert);

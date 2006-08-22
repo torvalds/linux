@@ -36,7 +36,6 @@ redirect_check(const char *tablename,
 	       const void *e,
 	       const struct xt_target *target,
 	       void *targinfo,
-	       unsigned int targinfosize,
 	       unsigned int hook_mask)
 {
 	const struct ip_nat_multi_range_compat *mr = targinfo;

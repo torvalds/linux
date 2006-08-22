@@ -346,7 +346,6 @@ static int ipt_ulog_checkentry(const char *tablename,
 			       const void *e,
 			       const struct xt_target *target,
 			       void *targinfo,
-			       unsigned int targinfosize,
 			       unsigned int hookmask)
 {
 	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;

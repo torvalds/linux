@@ -55,7 +55,7 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename, const void *entry,
 	   const struct xt_match *match, void *matchinfo,
-	   unsigned int matchsize, unsigned int hook_mask)
+	   unsigned int hook_mask)
 {
 	struct xt_statistic_info *info = (struct xt_statistic_info *)matchinfo;
 

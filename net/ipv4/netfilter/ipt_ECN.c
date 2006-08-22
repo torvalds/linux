@@ -106,7 +106,6 @@ checkentry(const char *tablename,
 	   const void *e_void,
 	   const struct xt_target *target,
            void *targinfo,
-           unsigned int targinfosize,
            unsigned int hook_mask)
 {
 	const struct ipt_ECN_info *einfo = (struct ipt_ECN_info *)targinfo;

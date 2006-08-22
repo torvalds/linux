@@ -110,7 +110,6 @@ ipt_limit_checkentry(const char *tablename,
 		     const void *inf,
 		     const struct xt_match *match,
 		     void *matchinfo,
-		     unsigned int matchsize,
 		     unsigned int hook_mask)
 {
 	struct xt_rateinfo *r = matchinfo;

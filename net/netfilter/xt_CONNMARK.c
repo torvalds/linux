@@ -89,7 +89,6 @@ checkentry(const char *tablename,
 	   const void *entry,
 	   const struct xt_target *target,
 	   void *targinfo,
-	   unsigned int targinfosize,
 	   unsigned int hook_mask)
 {
 	struct xt_connmark_target_info *matchinfo = targinfo;

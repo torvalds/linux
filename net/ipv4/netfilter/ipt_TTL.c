@@ -67,7 +67,6 @@ static int ipt_ttl_checkentry(const char *tablename,
 		const void *e,
 		const struct xt_target *target,
 		void *targinfo,
-		unsigned int targinfosize,
 		unsigned int hook_mask)
 {
 	struct ipt_TTL_info *info = targinfo;

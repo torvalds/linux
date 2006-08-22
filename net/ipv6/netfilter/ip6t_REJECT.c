@@ -223,7 +223,6 @@ static int check(const char *tablename,
 		 const void *entry,
 		 const struct xt_target *target,
 		 void *targinfo,
-		 unsigned int targinfosize,
 		 unsigned int hook_mask)
 {
  	const struct ip6t_reject_info *rejinfo = targinfo;

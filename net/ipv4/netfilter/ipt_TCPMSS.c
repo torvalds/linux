@@ -207,7 +207,6 @@ ipt_tcpmss_checkentry(const char *tablename,
 		      const void *e_void,
 		      const struct xt_target *target,
 		      void *targinfo,
-		      unsigned int targinfosize,
 		      unsigned int hook_mask)
 {
 	const struct ipt_tcpmss_info *tcpmssinfo = targinfo;

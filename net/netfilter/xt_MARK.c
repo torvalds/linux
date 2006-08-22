@@ -74,7 +74,6 @@ checkentry_v0(const char *tablename,
 	      const void *entry,
 	      const struct xt_target *target,
 	      void *targinfo,
-	      unsigned int targinfosize,
 	      unsigned int hook_mask)
 {
 	struct xt_mark_target_info *markinfo = targinfo;
@@ -91,7 +90,6 @@ checkentry_v1(const char *tablename,
 	      const void *entry,
 	      const struct xt_target *target,
 	      void *targinfo,
-	      unsigned int targinfosize,
 	      unsigned int hook_mask)
 {
 	struct xt_mark_target_info_v1 *markinfo = targinfo;

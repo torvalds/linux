@@ -135,8 +135,7 @@ static int match(const struct sk_buff *skb,
 
 static int checkentry(const char *tablename, const void *ip_void,
                       const struct xt_match *match,
-                      void *matchinfo, unsigned int matchsize,
-                      unsigned int hook_mask)
+                      void *matchinfo, unsigned int hook_mask)
 {
 	struct xt_policy_info *info = matchinfo;
 

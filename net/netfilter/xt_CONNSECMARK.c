@@ -89,7 +89,7 @@ static unsigned int target(struct sk_buff **pskb, const struct net_device *in,
 
 static int checkentry(const char *tablename, const void *entry,
 		      const struct xt_target *target, void *targinfo,
-		      unsigned int targinfosize, unsigned int hook_mask)
+		      unsigned int hook_mask)
 {
 	struct xt_connsecmark_target_info *info = targinfo;
 

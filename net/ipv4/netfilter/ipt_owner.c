@@ -56,7 +56,6 @@ checkentry(const char *tablename,
            const void *ip,
 	   const struct xt_match *match,
            void *matchinfo,
-           unsigned int matchsize,
            unsigned int hook_mask)
 {
 	const struct ipt_owner_info *info = matchinfo;

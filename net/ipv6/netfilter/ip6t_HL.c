@@ -66,7 +66,6 @@ static int ip6t_hl_checkentry(const char *tablename,
 		const void *entry,
 		const struct xt_target *target,
 		void *targinfo,
-		unsigned int targinfosize,
 		unsigned int hook_mask)
 {
 	struct ip6t_HL_info *info = targinfo;

@@ -163,7 +163,6 @@ checkentry(const char *tablename,
 	   const void *inf,
 	   const struct xt_match *match,
 	   void *matchinfo,
-	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
 	const struct xt_sctp_info *info = matchinfo;

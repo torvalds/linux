@@ -41,7 +41,7 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename, const void *entry,
 	   const struct xt_match *match, void *matchinfo,
-	   unsigned int matchsize, unsigned int hook_mask)
+	   unsigned int hook_mask)
 {
 	struct xt_quota_info *q = (struct xt_quota_info *)matchinfo;
 

@@ -141,7 +141,6 @@ tcp_checkentry(const char *tablename,
 	       const void *info,
 	       const struct xt_match *match,
 	       void *matchinfo,
-	       unsigned int matchsize,
 	       unsigned int hook_mask)
 {
 	const struct xt_tcp *tcpinfo = matchinfo;
@@ -190,7 +189,6 @@ udp_checkentry(const char *tablename,
 	       const void *info,
 	       const struct xt_match *match,
 	       void *matchinfo,
-	       unsigned int matchsize,
 	       unsigned int hook_mask)
 {
 	const struct xt_tcp *udpinfo = matchinfo;

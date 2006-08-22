@@ -139,7 +139,6 @@ static int check(const char *tablename,
 		 const void *inf,
 		 const struct xt_match *match,
 		 void *matchinfo,
-		 unsigned int matchsize,
 		 unsigned int hook_mask)
 {
 	struct xt_helper_info *info = matchinfo;
@@ -156,7 +155,7 @@ static int check(const char *tablename,
 }
 
 static void
-destroy(const struct xt_match *match, void *matchinfo, unsigned int matchsize)
+destroy(const struct xt_match *match, void *matchinfo)
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	nf_ct_l3proto_module_put(match->family);

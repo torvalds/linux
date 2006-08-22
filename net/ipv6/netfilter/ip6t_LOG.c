@@ -451,7 +451,6 @@ static int ip6t_log_checkentry(const char *tablename,
 			       const void *entry,
 			       const struct xt_target *target,
 			       void *targinfo,
-			       unsigned int targinfosize,
 			       unsigned int hook_mask)
 {
 	const struct ip6t_log_info *loginfo = targinfo;

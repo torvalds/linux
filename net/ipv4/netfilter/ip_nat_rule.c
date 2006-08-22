@@ -172,7 +172,6 @@ static int ipt_snat_checkentry(const char *tablename,
 			       const void *entry,
 			       const struct ipt_target *target,
 			       void *targinfo,
-			       unsigned int targinfosize,
 			       unsigned int hook_mask)
 {
 	struct ip_nat_multi_range_compat *mr = targinfo;
@@ -189,7 +188,6 @@ static int ipt_dnat_checkentry(const char *tablename,
 			       const void *entry,
 			       const struct ipt_target *target,
 			       void *targinfo,
-			       unsigned int targinfosize,
 			       unsigned int hook_mask)
 {
 	struct ip_nat_multi_range_compat *mr = targinfo;
