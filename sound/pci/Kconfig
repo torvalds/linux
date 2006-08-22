@@ -475,6 +475,7 @@ config SND_FM801_TEA575X
 	depends on SND_FM801_TEA575X_BOOL
 	default SND_FM801
 	select VIDEO_V4L1
+	select VIDEO_DEV
 
 config SND_HDA_INTEL
 	tristate "Intel HD Audio"
