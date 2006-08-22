@@ -278,7 +278,7 @@ struct intelfb_info {
 	u8 fbmem_gart;
 
 	/* mtrr support */
-	u32 mtrr_reg;
+	int mtrr_reg;
 	u32 has_mtrr;
 
 	/* heap data */
