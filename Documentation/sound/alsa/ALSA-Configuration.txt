@@ -820,6 +820,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-6ch    3-jack 6-channel
 	  3stack-6ch-dig 3-jack 6-channel with SPDIF I/O
 	  6stack-dig-demo  6-jack digital for Intel demo board
+	  acer		Acer laptops (Travelmate 3012WTMi, Aspire 5600, etc)
 	  auto		auto-config reading BIOS (default)
 
 	ALC861/660

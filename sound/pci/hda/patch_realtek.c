@@ -111,6 +111,7 @@ enum {
 	ALC883_3ST_6ch,
 	ALC883_6ST_DIG,
 	ALC888_DEMO_BOARD,
+	ALC883_ACER,
 	ALC883_AUTO,
 	ALC883_MODEL_LAST,
 };
@@ -5069,6 +5070,9 @@ static struct hda_board_config alc883_cfg_tbl[] = {
 	{ .pci_subvendor = 0x105b, .pci_subdevice = 0x6668,
 	  .config = ALC883_6ST_DIG }, /* Foxconn */
 	{ .modelname = "6stack-dig-demo", .config = ALC888_DEMO_BOARD },
+	{ .modelname = "acer", .config = ALC883_ACER },
+	{ .pci_subvendor = 0x1025, .pci_subdevice = 0/*0x0102*/,
+	  .config = ALC883_ACER },
 	{ .modelname = "auto", .config = ALC883_AUTO },
 	{}
 };
@@ -5137,6 +5141,23 @@ static struct alc_config_preset alc883_presets[] = {
 		.dig_in_nid = ALC883_DIGIN_NID,
 		.num_channel_mode = ARRAY_SIZE(alc883_sixstack_modes),
 		.channel_mode = alc883_sixstack_modes,
+		.input_mux = &alc883_capture_source,
+	},
+	[ALC883_ACER] = {
+		.mixers = { alc883_base_mixer,
+			    alc883_chmode_mixer },
+		/* On TravelMate laptops, GPIO 0 enables the internal speaker
+		 * and the headphone jack.  Turn this on and rely on the
+		 * standard mute methods whenever the user wants to turn
+		 * these outputs off.
+		 */
+		.init_verbs = { alc883_init_verbs, alc880_gpio1_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
+		.dac_nids = alc883_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids),
+		.adc_nids = alc883_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
+		.channel_mode = alc883_3ST_2ch_modes,
 		.input_mux = &alc883_capture_source,
 	},
 };
