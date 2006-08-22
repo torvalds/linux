@@ -185,6 +185,9 @@ struct xt_match
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 
+	/* Free to use by each match */
+	unsigned long data;
+
 	char *table;
 	unsigned int matchsize;
 	unsigned int hooks;
