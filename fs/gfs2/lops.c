@@ -638,7 +638,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 		gfs2_log_lock(sdp);
 		bd1 = list_entry(started.next, struct gfs2_bufdata,
 				 bd_le.le_list);
-		list_del(&bd1->bd_le.le_list);
+		list_del_init(&bd1->bd_le.le_list);
 		sdp->sd_log_num_databuf--;
 		bh = bd1->bd_bh;
 		if (bh) {
