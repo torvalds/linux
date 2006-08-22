@@ -67,9 +67,10 @@ struct scsi_nl_hdr {
  *   Identifiers for each type:
  *    PCI :  ID data is the 16 bit PCI Registered Vendor ID
  */
-#define SCSI_NL_VID_ID_MASK			0x00FFFFFF
-#define SCSI_NL_VID_TYPE_MASK			0xFF000000
-#define SCSI_NL_VID_TYPE_PCI			0x01000000
+#define SCSI_NL_VID_TYPE_SHIFT		56
+#define SCSI_NL_VID_TYPE_MASK		((u64)0xFF << SCSI_NL_VID_TYPE_SHIFT)
+#define SCSI_NL_VID_TYPE_PCI		((u64)0x01 << SCSI_NL_VID_TYPE_SHIFT)
+#define SCSI_NL_VID_ID_MASK		(~ SCSI_NL_VID_TYPE_MASK)
 
 
 #define INIT_SCSI_NL_HDR(hdr, t, mtype, mlen)			\

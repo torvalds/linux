@@ -513,7 +513,7 @@ EXPORT_SYMBOL(fc_host_post_event);
  **/
 void
 fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
-		u32 data_len, char * data_buf, u32 vendor_id)
+		u32 data_len, char * data_buf, u64 vendor_id)
 {
 	struct sk_buff *skb;
 	struct nlmsghdr	*nlh;

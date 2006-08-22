@@ -58,7 +58,7 @@
 struct fc_nl_event {
 	struct scsi_nl_hdr snlh;		/* must be 1st element ! */
 	uint64_t seconds;
-	uint32_t vendor_id;
+	uint64_t vendor_id;
 	uint16_t host_no;
 	uint16_t event_datalen;
 	uint32_t event_num;
