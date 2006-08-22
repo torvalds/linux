@@ -378,7 +378,7 @@ int __ipv6_dev_ac_dec(struct inet6_dev *idev, struct in6_addr *addr)
 	addrconf_leave_solict(idev, &aca->aca_addr);
 
 	dst_hold(&aca->aca_rt->u.dst);
-	if (ip6_del_rt(aca->aca_rt, NULL, NULL, NULL))
+	if (ip6_del_rt(aca->aca_rt))
 		dst_free(&aca->aca_rt->u.dst);
 	else
 		dst_release(&aca->aca_rt->u.dst);
