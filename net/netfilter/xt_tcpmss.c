@@ -18,21 +18,22 @@
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 
-#define TH_SYN 0x02
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
 MODULE_DESCRIPTION("iptables TCP MSS match module");
 MODULE_ALIAS("ipt_tcpmss");
 
-/* Returns 1 if the mss option is set and matched by the range, 0 otherwise */
-static inline int
-mssoption_match(u_int16_t min, u_int16_t max,
-		const struct sk_buff *skb,
-		unsigned int protoff,
-		int invert,
-		int *hotdrop)
+static int
+match(const struct sk_buff *skb,
+      const struct net_device *in,
+      const struct net_device *out,
+      const struct xt_match *match,
+      const void *matchinfo,
+      int offset,
+      unsigned int protoff,
+      int *hotdrop)
 {
+	const struct xt_tcpmss_match_info *info = matchinfo;
 	struct tcphdr _tcph, *th;
 	/* tcp.doff is only 4 bits, ie. max 15 * 4 bytes */
 	u8 _opt[15 * 4 - sizeof(_tcph)], *op;
@@ -64,33 +65,20 @@ mssoption_match(u_int16_t min, u_int16_t max,
 
 			mssval = (op[i+2] << 8) | op[i+3];
 			
-			return (mssval >= min && mssval <= max) ^ invert;
+			return (mssval >= info->mss_min &&
+			        mssval <= info->mss_max) ^ info->invert;
 		}
-		if (op[i] < 2) i++;
-		else i += op[i+1]?:1;
+		if (op[i] < 2)
+			i++;
+		else
+			i += op[i+1] ? : 1;
 	}
 out:
-	return invert;
+	return info->invert;
 
- dropit:
+dropit:
 	*hotdrop = 1;
 	return 0;
-}
-
-static int
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      int *hotdrop)
-{
-	const struct xt_tcpmss_match_info *info = matchinfo;
-
-	return mssoption_match(info->mss_min, info->mss_max, skb, protoff,
-			       info->invert, hotdrop);
 }
 
 static struct xt_match xt_tcpmss_match[] = {
