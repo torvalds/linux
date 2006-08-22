@@ -290,8 +290,13 @@ struct xt_table_info
 
 extern int xt_register_target(struct xt_target *target);
 extern void xt_unregister_target(struct xt_target *target);
+extern int xt_register_targets(struct xt_target *target, unsigned int n);
+extern void xt_unregister_targets(struct xt_target *target, unsigned int n);
+
 extern int xt_register_match(struct xt_match *target);
 extern void xt_unregister_match(struct xt_match *target);
+extern int xt_register_matches(struct xt_match *match, unsigned int n);
+extern void xt_unregister_matches(struct xt_match *match, unsigned int n);
 
 extern int xt_check_match(const struct xt_match *match, unsigned short family,
 			  unsigned int size, const char *table, unsigned int hook,

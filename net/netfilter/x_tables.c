@@ -87,6 +87,36 @@ xt_unregister_target(struct xt_target *target)
 EXPORT_SYMBOL(xt_unregister_target);
 
 int
+xt_register_targets(struct xt_target *target, unsigned int n)
+{
+	unsigned int i;
+	int err = 0;
+
+	for (i = 0; i < n; i++) {
+		err = xt_register_target(&target[i]);
+		if (err)
+			goto err;
+	}
+	return err;
+
+err:
+	if (i > 0)
+		xt_unregister_targets(target, i);
+	return err;
+}
+EXPORT_SYMBOL(xt_register_targets);
+
+void
+xt_unregister_targets(struct xt_target *target, unsigned int n)
+{
+	unsigned int i;
+
+	for (i = 0; i < n; i++)
+		xt_unregister_target(&target[i]);
+}
+EXPORT_SYMBOL(xt_unregister_targets);
+
+int
 xt_register_match(struct xt_match *match)
 {
 	int ret, af = match->family;
@@ -112,6 +142,36 @@ xt_unregister_match(struct xt_match *match)
 	mutex_unlock(&xt[af].mutex);
 }
 EXPORT_SYMBOL(xt_unregister_match);
+
+int
+xt_register_matches(struct xt_match *match, unsigned int n)
+{
+	unsigned int i;
+	int err = 0;
+
+	for (i = 0; i < n; i++) {
+		err = xt_register_match(&match[i]);
+		if (err)
+			goto err;
+	}
+	return err;
+
+err:
+	if (i > 0)
+		xt_unregister_matches(match, i);
+	return err;
+}
+EXPORT_SYMBOL(xt_register_matches);
+
+void
+xt_unregister_matches(struct xt_match *match, unsigned int n)
+{
+	unsigned int i;
+
+	for (i = 0; i < n; i++)
+		xt_unregister_match(&match[i]);
+}
+EXPORT_SYMBOL(xt_unregister_matches);
 
 
 /*
