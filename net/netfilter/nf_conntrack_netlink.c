@@ -395,6 +395,10 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0)
 		goto nfattr_failure;
 
+	if (events & IPCT_MARK
+	    && ctnetlink_dump_mark(skb, ct) < 0)
+		goto nfattr_failure;
+
 	nlh->nlmsg_len = skb->tail - b;
 	nfnetlink_send(skb, 0, group, 0);
 	return NOTIFY_DONE;
