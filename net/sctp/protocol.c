@@ -1049,7 +1049,7 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_rto_beta			= SCTP_RTO_BETA;
 
 	/* Valid.Cookie.Life        - 60  seconds */
-	sctp_valid_cookie_life		= 60 * HZ;
+	sctp_valid_cookie_life		= SCTP_DEFAULT_COOKIE_LIFE;
 
 	/* Whether Cookie Preservative is enabled(1) or not(0) */
 	sctp_cookie_preserve_enable 	= 1;

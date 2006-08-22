@@ -3045,14 +3045,14 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->initmsg.sinit_num_ostreams   = sctp_max_outstreams;
 	sp->initmsg.sinit_max_instreams  = sctp_max_instreams;
 	sp->initmsg.sinit_max_attempts   = sctp_max_retrans_init;
-	sp->initmsg.sinit_max_init_timeo = jiffies_to_msecs(sctp_rto_max);
+	sp->initmsg.sinit_max_init_timeo = sctp_rto_max;
 
 	/* Initialize default RTO related parameters.  These parameters can
 	 * be modified for with the SCTP_RTOINFO socket option.
 	 */
-	sp->rtoinfo.srto_initial = jiffies_to_msecs(sctp_rto_initial);
-	sp->rtoinfo.srto_max     = jiffies_to_msecs(sctp_rto_max);
-	sp->rtoinfo.srto_min     = jiffies_to_msecs(sctp_rto_min);
+	sp->rtoinfo.srto_initial = sctp_rto_initial;
+	sp->rtoinfo.srto_max     = sctp_rto_max;
+	sp->rtoinfo.srto_min     = sctp_rto_min;
 
 	/* Initialize default association related parameters. These parameters
 	 * can be modified with the SCTP_ASSOCINFO socket option.
@@ -3061,8 +3061,7 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->assocparams.sasoc_number_peer_destinations = 0;
 	sp->assocparams.sasoc_peer_rwnd = 0;
 	sp->assocparams.sasoc_local_rwnd = 0;
-	sp->assocparams.sasoc_cookie_life = 
-		jiffies_to_msecs(sctp_valid_cookie_life);
+	sp->assocparams.sasoc_cookie_life = sctp_valid_cookie_life;
 
 	/* Initialize default event subscriptions. By default, all the
 	 * options are off. 
@@ -3072,10 +3071,10 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	/* Default Peer Address Parameters.  These defaults can
 	 * be modified via SCTP_PEER_ADDR_PARAMS
 	 */
-	sp->hbinterval  = jiffies_to_msecs(sctp_hb_interval);
+	sp->hbinterval  = sctp_hb_interval;
 	sp->pathmaxrxt  = sctp_max_retrans_path;
 	sp->pathmtu     = 0; // allow default discovery
-	sp->sackdelay   = jiffies_to_msecs(sctp_sack_timeout);
+	sp->sackdelay   = sctp_sack_timeout;
 	sp->param_flags = SPP_HB_ENABLE |
 	                  SPP_PMTUD_ENABLE |
 	                  SPP_SACKDELAY_ENABLE;
