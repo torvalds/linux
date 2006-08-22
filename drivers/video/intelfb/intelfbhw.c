@@ -627,6 +627,7 @@ static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2, int lvd
 	return vco / p;
 }
 
+#if REGDUMP
 static void
 intelfbhw_get_p1p2(struct intelfb_info *dinfo, int dpll, int *o_p1, int *o_p2)
 {
@@ -652,6 +653,7 @@ intelfbhw_get_p1p2(struct intelfb_info *dinfo, int dpll, int *o_p1, int *o_p2)
 	*o_p1 = p1;
 	*o_p2 = p2;
 }
+#endif
 
 
 void
