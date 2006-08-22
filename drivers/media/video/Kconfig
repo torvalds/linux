@@ -338,6 +338,8 @@ config VIDEO_M32R_AR_M64278
 menu "Encoders and Decoders"
 	depends on VIDEO_DEV
 
+comment "Audio Decoders"
+
 config VIDEO_TVAUDIO
 	tristate "Support for several audio decoder chips found on bt8xx boards"
 	depends on VIDEO_DEV && I2C
@@ -414,6 +416,8 @@ config VIDEO_WM8739
 	  To compile this driver as a module, choose M here: the
 	  module will be called wm8739.
 
+comment "Video encoders"
+
 config VIDEO_CX2341X
 	tristate "Conexant CX2341x MPEG encoders"
 	depends on VIDEO_V4L2 && EXPERIMENTAL
@@ -427,6 +431,17 @@ config VIDEO_CX2341X
 	  module will be called cx2341x.
 
 source "drivers/media/video/cx25840/Kconfig"
+
+config VIDEO_SAA7127
+	tristate "Philips SAA7127/9 digital video encoders"
+	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Philips SAA7127/9 digital video encoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7127.
+
+comment "Video decoders"
 
 config VIDEO_SAA711X
 	tristate "Philips SAA7113/4/5 video decoders"
@@ -446,14 +461,7 @@ config VIDEO_TVP5150
 	  To compile this driver as a module, choose M here: the
 	  module will be called tvp5150.
 
-config VIDEO_SAA7127
-	tristate "Philips SAA7127/9 digital video encoders"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
-	---help---
-	  Support for the Philips SAA7127/9 digital video encoders.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa7127.
+comment "Video emprovement chips"
 
 config VIDEO_UPD64031A
 	tristate "NEC Electronics uPD64031A Ghost Reduction"
