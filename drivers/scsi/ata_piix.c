@@ -468,6 +468,11 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, piix_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
+static int force_pcs = 0;
+module_param(force_pcs, int, 0444);
+MODULE_PARM_DESC(force_pcs, "force honoring or ignoring PCS to work around "
+		 "device mis-detection (0=default, 1=ignore PCS, 2=honor PCS)");
+
 /**
  *	piix_pata_cbl_detect - Probe host controller cable detect info
  *	@ap: Port for which cable detect info is desired
@@ -812,6 +817,7 @@ static int __devinit piix_check_450nx_errata(struct pci_dev *ata_dev)
 }
 
 static void __devinit piix_init_pcs(struct pci_dev *pdev,
+				    struct ata_port_info *pinfo,
 				    const struct piix_map_db *map_db)
 {
 	u16 pcs, new_pcs;
@@ -824,6 +830,18 @@ static void __devinit piix_init_pcs(struct pci_dev *pdev,
 		DPRINTK("updating PCS from 0x%x to 0x%x\n", pcs, new_pcs);
 		pci_write_config_word(pdev, ICH5_PCS, new_pcs);
 		msleep(150);
+	}
+
+	if (force_pcs == 1) {
+		dev_printk(KERN_INFO, &pdev->dev,
+			   "force ignoring PCS (0x%x)\n", new_pcs);
+		pinfo[0].host_flags |= PIIX_FLAG_IGNORE_PCS;
+		pinfo[1].host_flags |= PIIX_FLAG_IGNORE_PCS;
+	} else if (force_pcs == 2) {
+		dev_printk(KERN_INFO, &pdev->dev,
+			   "force honoring PCS (0x%x)\n", new_pcs);
+		pinfo[0].host_flags &= ~PIIX_FLAG_IGNORE_PCS;
+		pinfo[1].host_flags &= ~PIIX_FLAG_IGNORE_PCS;
 	}
 }
 
@@ -933,7 +951,8 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (host_flags & ATA_FLAG_SATA) {
 		piix_init_sata_map(pdev, port_info,
 				   piix_map_db_table[ent->driver_data]);
-		piix_init_pcs(pdev, piix_map_db_table[ent->driver_data]);
+		piix_init_pcs(pdev, port_info,
+			      piix_map_db_table[ent->driver_data]);
 	}
 
 	/* On ICH5, some BIOSen disable the interrupt using the
