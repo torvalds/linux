@@ -130,14 +130,14 @@ static struct xt_target xt_connsecmark_target[] = {
 static int __init xt_connsecmark_init(void)
 {
 	need_conntrack();
-	return xt_register_targets(xt_connsecmark_targets,
-				   ARRAY_SIZE(xt_connsecmark_targets));
+	return xt_register_targets(xt_connsecmark_target,
+				   ARRAY_SIZE(xt_connsecmark_target));
 }
 
 static void __exit xt_connsecmark_fini(void)
 {
-	xt_unregister_targets(xt_connsecmark_targets,
-			      ARRAY_SIZE(xt_connsecmark_targets));
+	xt_unregister_targets(xt_connsecmark_target,
+			      ARRAY_SIZE(xt_connsecmark_target));
 }
 
 module_init(xt_connsecmark_init);
