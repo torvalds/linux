@@ -27,7 +27,6 @@ ipt_ttl_target(struct sk_buff **pskb,
 {
 	struct iphdr *iph;
 	const struct ipt_TTL_info *info = targinfo;
-	u_int16_t diffs[2];
 	int new_ttl;
 
 	if (!skb_make_writable(pskb, (*pskb)->len))
@@ -55,12 +54,10 @@ ipt_ttl_target(struct sk_buff **pskb,
 	}
 
 	if (new_ttl != iph->ttl) {
-		diffs[0] = htons(((unsigned)iph->ttl) << 8) ^ 0xFFFF;
+		iph->check = nf_csum_update((iph->ttl << 8) ^ 0xFFFF,
+					    new_ttl << 8,
+					    iph->check);
 		iph->ttl = new_ttl;
-		diffs[1] = htons(((unsigned)iph->ttl) << 8);
-		iph->check = csum_fold(csum_partial((char *)diffs,
-						    sizeof(diffs),
-						    iph->check^0xFFFF));
 	}
 
 	return IPT_CONTINUE;

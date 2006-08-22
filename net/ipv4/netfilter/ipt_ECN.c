@@ -27,22 +27,18 @@ MODULE_DESCRIPTION("iptables ECN modification module");
 static inline int
 set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 {
-	if (((*pskb)->nh.iph->tos & IPT_ECN_IP_MASK)
-	    != (einfo->ip_ect & IPT_ECN_IP_MASK)) {
-		u_int16_t diffs[2];
+	struct iphdr *iph = (*pskb)->nh.iph;
+	u_int16_t oldtos;
 
+	if ((iph->tos & IPT_ECN_IP_MASK) != (einfo->ip_ect & IPT_ECN_IP_MASK)) {
 		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
 			return 0;
-
-		diffs[0] = htons((*pskb)->nh.iph->tos) ^ 0xFFFF;
-		(*pskb)->nh.iph->tos &= ~IPT_ECN_IP_MASK;
-		(*pskb)->nh.iph->tos |= (einfo->ip_ect & IPT_ECN_IP_MASK);
-		diffs[1] = htons((*pskb)->nh.iph->tos);
-		(*pskb)->nh.iph->check
-			= csum_fold(csum_partial((char *)diffs,
-						 sizeof(diffs),
-						 (*pskb)->nh.iph->check
-						 ^0xFFFF));
+		iph = (*pskb)->nh.iph;
+		oldtos = iph->tos;
+		iph->tos &= ~IPT_ECN_IP_MASK;
+		iph->tos |= (einfo->ip_ect & IPT_ECN_IP_MASK);
+		iph->check = nf_csum_update(oldtos ^ 0xFFFF, iph->tos,
+					    iph->check);
 	} 
 	return 1;
 }
