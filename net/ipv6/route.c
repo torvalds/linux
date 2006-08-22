@@ -457,7 +457,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	rt = rt6_get_route_info(prefix, rinfo->prefix_len, gwaddr, dev->ifindex);
 
 	if (rt && !lifetime) {
-		ip6_del_rt(rt, NULL, NULL, NULL);
+		ip6_del_rt(rt);
 		rt = NULL;
 	}
 
@@ -813,7 +813,7 @@ static struct dst_entry *ip6_negative_advice(struct dst_entry *dst)
 
 	if (rt) {
 		if (rt->rt6i_flags & RTF_CACHE)
-			ip6_del_rt(rt, NULL, NULL, NULL);
+			ip6_del_rt(rt);
 		else
 			dst_release(dst);
 	}
@@ -1218,7 +1218,8 @@ out:
 	return err;
 }
 
-int ip6_del_rt(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr, struct netlink_skb_parms *req)
+static int __ip6_del_rt(struct rt6_info *rt, struct nlmsghdr *nlh,
+			void *_rtattr, struct netlink_skb_parms *req)
 {
 	int err;
 	struct fib6_table *table;
@@ -1235,6 +1236,11 @@ int ip6_del_rt(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr, struct 
 	write_unlock_bh(&table->tb6_lock);
 
 	return err;
+}
+
+int ip6_del_rt(struct rt6_info *rt)
+{
+	return __ip6_del_rt(rt, NULL, NULL, NULL);
 }
 
 static int ip6_route_del(struct in6_rtmsg *rtmsg, struct nlmsghdr *nlh,
@@ -1271,7 +1277,7 @@ static int ip6_route_del(struct in6_rtmsg *rtmsg, struct nlmsghdr *nlh,
 			dst_hold(&rt->u.dst);
 			read_unlock_bh(&table->tb6_lock);
 
-			return ip6_del_rt(rt, nlh, _rtattr, req);
+			return __ip6_del_rt(rt, nlh, _rtattr, req);
 		}
 	}
 	read_unlock_bh(&table->tb6_lock);
@@ -1395,7 +1401,7 @@ restart:
 	call_netevent_notifiers(NETEVENT_REDIRECT, &netevent);
 
 	if (rt->rt6i_flags&RTF_CACHE) {
-		ip6_del_rt(rt, NULL, NULL, NULL);
+		ip6_del_rt(rt);
 		return;
 	}
 
@@ -1631,7 +1637,7 @@ restart:
 		if (rt->rt6i_flags & (RTF_DEFAULT | RTF_ADDRCONF)) {
 			dst_hold(&rt->u.dst);
 			read_unlock_bh(&table->tb6_lock);
-			ip6_del_rt(rt, NULL, NULL, NULL);
+			ip6_del_rt(rt);
 			goto restart;
 		}
 	}
