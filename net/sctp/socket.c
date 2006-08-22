@@ -2970,7 +2970,7 @@ SCTP_STATIC struct sock *sctp_accept(struct sock *sk, int flags, int *err)
 		goto out;
 	}
 
-	timeo = sock_rcvtimeo(sk, sk->sk_socket->file->f_flags & O_NONBLOCK);
+	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
 
 	error = sctp_wait_for_accept(sk, timeo);
 	if (error)
