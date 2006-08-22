@@ -136,42 +136,33 @@ ipt_limit_checkentry(const char *tablename,
 	return 1;
 }
 
-static struct xt_match ipt_limit_reg = {
-	.name		= "limit",
-	.match		= ipt_limit_match,
-	.matchsize	= sizeof(struct xt_rateinfo),
-	.checkentry	= ipt_limit_checkentry,
-	.family		= AF_INET,
-	.me		= THIS_MODULE,
-};
-static struct xt_match limit6_reg = {
-	.name		= "limit",
-	.match		= ipt_limit_match,
-	.matchsize	= sizeof(struct xt_rateinfo),
-	.checkentry	= ipt_limit_checkentry,
-	.family		= AF_INET6,
-	.me		= THIS_MODULE,
+static struct xt_match xt_limit_match[] = {
+	{
+		.name		= "limit",
+		.family		= AF_INET,
+		.checkentry	= ipt_limit_checkentry,
+		.match		= ipt_limit_match,
+		.matchsize	= sizeof(struct xt_rateinfo),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "limit",
+		.family		= AF_INET6,
+		.checkentry	= ipt_limit_checkentry,
+		.match		= ipt_limit_match,
+		.matchsize	= sizeof(struct xt_rateinfo),
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init xt_limit_init(void)
 {
-	int ret;
-	
-	ret = xt_register_match(&ipt_limit_reg);
-	if (ret)
-		return ret;
-	
-	ret = xt_register_match(&limit6_reg);
-	if (ret)
-		xt_unregister_match(&ipt_limit_reg);
-
-	return ret;
+	return xt_register_matches(xt_limit_match, ARRAY_SIZE(xt_limit_match));
 }
 
 static void __exit xt_limit_fini(void)
 {
-	xt_unregister_match(&ipt_limit_reg);
-	xt_unregister_match(&limit6_reg);
+	xt_unregister_matches(xt_limit_match, ARRAY_SIZE(xt_limit_match));
 }
 
 module_init(xt_limit_init);

@@ -71,42 +71,33 @@ static int checkentry(const char *tablename,
 	return 1;
 }
 
-static struct xt_match dscp_match = {
-	.name		= "dscp",
-	.match		= match,
-	.checkentry	= checkentry,
-	.matchsize	= sizeof(struct xt_dscp_info),
-	.family		= AF_INET,
-	.me		= THIS_MODULE,
-};
-
-static struct xt_match dscp6_match = {
-	.name		= "dscp",
-	.match		= match6,
-	.checkentry	= checkentry,
-	.matchsize	= sizeof(struct xt_dscp_info),
-	.family		= AF_INET6,
-	.me		= THIS_MODULE,
+static struct xt_match xt_dscp_match[] = {
+	{
+		.name		= "dscp",
+		.family		= AF_INET,
+		.checkentry	= checkentry,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_dscp_info),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "dscp",
+		.family		= AF_INET6,
+		.checkentry	= checkentry,
+		.match		= match6,
+		.matchsize	= sizeof(struct xt_dscp_info),
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init xt_dscp_match_init(void)
 {
-	int ret;
-	ret = xt_register_match(&dscp_match);
-	if (ret)
-		return ret;
-
-	ret = xt_register_match(&dscp6_match);
-	if (ret)
-		xt_unregister_match(&dscp_match);
-
-	return ret;
+	return xt_register_matches(xt_dscp_match, ARRAY_SIZE(xt_dscp_match));
 }
 
 static void __exit xt_dscp_match_fini(void)
 {
-	xt_unregister_match(&dscp_match);
-	xt_unregister_match(&dscp6_match);
+	xt_unregister_matches(xt_dscp_match, ARRAY_SIZE(xt_dscp_match));
 }
 
 module_init(xt_dscp_match_init);

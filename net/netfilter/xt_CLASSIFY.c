@@ -40,47 +40,41 @@ target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static struct xt_target classify_reg = { 
-	.name 		= "CLASSIFY", 
-	.target 	= target,
-	.targetsize	= sizeof(struct xt_classify_target_info),
-	.table		= "mangle",
-	.hooks		= (1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_FORWARD) |
-		          (1 << NF_IP_POST_ROUTING),
-	.family		= AF_INET,
-	.me 		= THIS_MODULE,
+static struct xt_target xt_classify_target[] = {
+	{
+		.family		= AF_INET,
+		.name 		= "CLASSIFY",
+		.target 	= target,
+		.targetsize	= sizeof(struct xt_classify_target_info),
+		.table		= "mangle",
+		.hooks		= (1 << NF_IP_LOCAL_OUT) |
+				  (1 << NF_IP_FORWARD) |
+			          (1 << NF_IP_POST_ROUTING),
+		.me 		= THIS_MODULE,
+	},
+	{
+		.name 		= "CLASSIFY",
+		.family		= AF_INET6,
+		.target 	= target,
+		.targetsize	= sizeof(struct xt_classify_target_info),
+		.table		= "mangle",
+		.hooks		= (1 << NF_IP_LOCAL_OUT) |
+				  (1 << NF_IP_FORWARD) |
+			          (1 << NF_IP_POST_ROUTING),
+		.me 		= THIS_MODULE,
+	},
 };
-static struct xt_target classify6_reg = { 
-	.name 		= "CLASSIFY", 
-	.target 	= target,
-	.targetsize	= sizeof(struct xt_classify_target_info),
-	.table		= "mangle",
-	.hooks		= (1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_FORWARD) |
-		          (1 << NF_IP_POST_ROUTING),
-	.family		= AF_INET6,
-	.me 		= THIS_MODULE,
-};
-
 
 static int __init xt_classify_init(void)
 {
-	int ret;
-
-	ret = xt_register_target(&classify_reg);
-	if (ret)
-		return ret;
-
-	ret = xt_register_target(&classify6_reg);
-	if (ret)
-		xt_unregister_target(&classify_reg);
-
-	return ret;
+	return xt_register_targets(xt_classify_target,
+				   ARRAY_SIZE(xt_classify_target));
 }
 
 static void __exit xt_classify_fini(void)
 {
-	xt_unregister_target(&classify_reg);
-	xt_unregister_target(&classify6_reg);
+	xt_unregister_targets(xt_classify_target,
+			      ARRAY_SIZE(xt_classify_target));
 }
 
 module_init(xt_classify_init);

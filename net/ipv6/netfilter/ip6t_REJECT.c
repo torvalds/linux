@@ -257,9 +257,7 @@ static struct ip6t_target ip6t_reject_reg = {
 
 static int __init ip6t_reject_init(void)
 {
-	if (ip6t_register_target(&ip6t_reject_reg))
-		return -EINVAL;
-	return 0;
+	return ip6t_register_target(&ip6t_reject_reg);
 }
 
 static void __exit ip6t_reject_fini(void)

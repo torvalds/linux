@@ -86,44 +86,35 @@ static int checkentry(const char *tablename,
 	return 1;
 }
 
-static struct xt_target xt_dscp_reg = {
-	.name		= "DSCP",
-	.target		= target,
-	.targetsize	= sizeof(struct xt_DSCP_info),
-	.table		= "mangle",
-	.checkentry	= checkentry,
-	.family		= AF_INET,
-	.me		= THIS_MODULE,
-};
-
-static struct xt_target xt_dscp6_reg = {
-	.name		= "DSCP",
-	.target		= target6,
-	.targetsize	= sizeof(struct xt_DSCP_info),
-	.table		= "mangle",
-	.checkentry	= checkentry,
-	.family		= AF_INET6,
-	.me		= THIS_MODULE,
+static struct xt_target xt_dscp_target[] = {
+	{
+		.name		= "DSCP",
+		.family		= AF_INET,
+		.checkentry	= checkentry,
+		.target		= target,
+		.targetsize	= sizeof(struct xt_DSCP_info),
+		.table		= "mangle",
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "DSCP",
+		.family		= AF_INET6,
+		.checkentry	= checkentry,
+		.target		= target6,
+		.targetsize	= sizeof(struct xt_DSCP_info),
+		.table		= "mangle",
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init xt_dscp_target_init(void)
 {
-	int ret;
-	ret = xt_register_target(&xt_dscp_reg);
-	if (ret)
-		return ret;
-
-	ret = xt_register_target(&xt_dscp6_reg);
-	if (ret)
-		xt_unregister_target(&xt_dscp_reg);
-
-	return ret;
+	return xt_register_targets(xt_dscp_target, ARRAY_SIZE(xt_dscp_target));
 }
 
 static void __exit xt_dscp_target_fini(void)
 {
-	xt_unregister_target(&xt_dscp_reg);
-	xt_unregister_target(&xt_dscp6_reg);
+	xt_unregister_targets(xt_dscp_target, ARRAY_SIZE(xt_dscp_target));
 }
 
 module_init(xt_dscp_target_init);

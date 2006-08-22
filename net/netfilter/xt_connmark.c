@@ -82,46 +82,37 @@ destroy(const struct xt_match *match, void *matchinfo, unsigned int matchsize)
 #endif
 }
 
-static struct xt_match connmark_match = {
-	.name		= "connmark",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_connmark_info),
-	.checkentry	= checkentry,
-	.destroy	= destroy,
-	.family		= AF_INET,
-	.me		= THIS_MODULE
-};
-
-static struct xt_match connmark6_match = {
-	.name		= "connmark",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_connmark_info),
-	.checkentry	= checkentry,
-	.destroy	= destroy,
-	.family		= AF_INET6,
-	.me		= THIS_MODULE
+static struct xt_match xt_connmark_match[] = {
+	{
+		.name		= "connmark",
+		.family		= AF_INET,
+		.checkentry	= checkentry,
+		.match		= match,
+		.destroy	= destroy,
+		.matchsize	= sizeof(struct xt_connmark_info),
+		.me		= THIS_MODULE
+	},
+	{
+		.name		= "connmark",
+		.family		= AF_INET6,
+		.checkentry	= checkentry,
+		.match		= match,
+		.destroy	= destroy,
+		.matchsize	= sizeof(struct xt_connmark_info),
+		.me		= THIS_MODULE
+	},
 };
 
 static int __init xt_connmark_init(void)
 {
-	int ret;
-
 	need_conntrack();
-
-	ret = xt_register_match(&connmark_match);
-	if (ret)
-		return ret;
-
-	ret = xt_register_match(&connmark6_match);
-	if (ret)
-		xt_unregister_match(&connmark_match);
-	return ret;
+	return xt_register_matches(xt_connmark_match,
+				   ARRAY_SIZE(xt_connmark_match));
 }
 
 static void __exit xt_connmark_fini(void)
 {
-	xt_unregister_match(&connmark6_match);
-	xt_unregister_match(&connmark_match);
+	xt_register_matches(xt_connmark_match, ARRAY_SIZE(xt_connmark_match));
 }
 
 module_init(xt_connmark_init);

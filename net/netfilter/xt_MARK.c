@@ -112,65 +112,47 @@ checkentry_v1(const char *tablename,
 	return 1;
 }
 
-static struct xt_target ipt_mark_reg_v0 = {
-	.name		= "MARK",
-	.target		= target_v0,
-	.targetsize	= sizeof(struct xt_mark_target_info),
-	.table		= "mangle",
-	.checkentry	= checkentry_v0,
-	.me		= THIS_MODULE,
-	.family		= AF_INET,
-	.revision	= 0,
-};
-
-static struct xt_target ipt_mark_reg_v1 = {
-	.name		= "MARK",
-	.target		= target_v1,
-	.targetsize	= sizeof(struct xt_mark_target_info_v1),
-	.table		= "mangle",
-	.checkentry	= checkentry_v1,
-	.me		= THIS_MODULE,
-	.family		= AF_INET,
-	.revision	= 1,
-};
-
-static struct xt_target ip6t_mark_reg_v0 = {
-	.name		= "MARK",
-	.target		= target_v0,
-	.targetsize	= sizeof(struct xt_mark_target_info),
-	.table		= "mangle",
-	.checkentry	= checkentry_v0,
-	.me		= THIS_MODULE,
-	.family		= AF_INET6,
-	.revision	= 0,
+static struct xt_target xt_mark_target[] = {
+	{
+		.name		= "MARK",
+		.family		= AF_INET,
+		.revision	= 0,
+		.checkentry	= checkentry_v0,
+		.target		= target_v0,
+		.targetsize	= sizeof(struct xt_mark_target_info),
+		.table		= "mangle",
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "MARK",
+		.family		= AF_INET,
+		.revision	= 1,
+		.checkentry	= checkentry_v1,
+		.target		= target_v1,
+		.targetsize	= sizeof(struct xt_mark_target_info_v1),
+		.table		= "mangle",
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "MARK",
+		.family		= AF_INET6,
+		.revision	= 0,
+		.checkentry	= checkentry_v0,
+		.target		= target_v0,
+		.targetsize	= sizeof(struct xt_mark_target_info),
+		.table		= "mangle",
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init xt_mark_init(void)
 {
-	int err;
-
-	err = xt_register_target(&ipt_mark_reg_v0);
-	if (err)
-		return err;
-
-	err = xt_register_target(&ipt_mark_reg_v1);
-	if (err)
-		xt_unregister_target(&ipt_mark_reg_v0);
-
-	err = xt_register_target(&ip6t_mark_reg_v0);
-	if (err) {
-		xt_unregister_target(&ipt_mark_reg_v0);
-		xt_unregister_target(&ipt_mark_reg_v1);
-	}
-
-	return err;
+	return xt_register_targets(xt_mark_target, ARRAY_SIZE(xt_mark_target));
 }
 
 static void __exit xt_mark_fini(void)
 {
-	xt_unregister_target(&ipt_mark_reg_v0);
-	xt_unregister_target(&ipt_mark_reg_v1);
-	xt_unregister_target(&ip6t_mark_reg_v0);
+	xt_unregister_targets(xt_mark_target, ARRAY_SIZE(xt_mark_target));
 }
 
 module_init(xt_mark_init);

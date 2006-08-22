@@ -241,11 +241,8 @@ static struct xt_match conntrack_match = {
 
 static int __init xt_conntrack_init(void)
 {
-	int ret;
 	need_conntrack();
-	ret = xt_register_match(&conntrack_match);
-
-	return ret;
+	return xt_register_match(&conntrack_match);
 }
 
 static void __exit xt_conntrack_fini(void)

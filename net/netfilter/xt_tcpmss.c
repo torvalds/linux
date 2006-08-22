@@ -93,43 +93,34 @@ match(const struct sk_buff *skb,
 			       info->invert, hotdrop);
 }
 
-static struct xt_match tcpmss_match = {
-	.name		= "tcpmss",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_tcpmss_match_info),
-	.proto		= IPPROTO_TCP,
-	.family		= AF_INET,
-	.me		= THIS_MODULE,
+static struct xt_match xt_tcpmss_match[] = {
+	{
+		.name		= "tcpmss",
+		.family		= AF_INET,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_tcpmss_match_info),
+		.proto		= IPPROTO_TCP,
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "tcpmss",
+		.family		= AF_INET6,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_tcpmss_match_info),
+		.proto		= IPPROTO_TCP,
+		.me		= THIS_MODULE,
+	},
 };
-
-static struct xt_match tcpmss6_match = {
-	.name		= "tcpmss",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_tcpmss_match_info),
-	.proto		= IPPROTO_TCP,
-	.family		= AF_INET6,
-	.me		= THIS_MODULE,
-};
-
 
 static int __init xt_tcpmss_init(void)
 {
-	int ret;
-	ret = xt_register_match(&tcpmss_match);
-	if (ret)
-		return ret;
-
-	ret = xt_register_match(&tcpmss6_match);
-	if (ret)
-		xt_unregister_match(&tcpmss_match);
-
-	return ret;
+	return xt_register_matches(xt_tcpmss_match,
+				   ARRAY_SIZE(xt_tcpmss_match));
 }
 
 static void __exit xt_tcpmss_fini(void)
 {
-	xt_unregister_match(&tcpmss6_match);
-	xt_unregister_match(&tcpmss_match);
+	xt_unregister_matches(xt_tcpmss_match, ARRAY_SIZE(xt_tcpmss_match));
 }
 
 module_init(xt_tcpmss_init);

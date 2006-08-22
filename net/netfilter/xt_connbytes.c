@@ -143,40 +143,35 @@ static int check(const char *tablename,
 	return 1;
 }
 
-static struct xt_match connbytes_match = {
-	.name		= "connbytes",
-	.match		= match,
-	.checkentry	= check,
-	.matchsize	= sizeof(struct xt_connbytes_info),
-	.family		= AF_INET,
-	.me		= THIS_MODULE
-};
-static struct xt_match connbytes6_match = {
-	.name		= "connbytes",
-	.match		= match,
-	.checkentry	= check,
-	.matchsize	= sizeof(struct xt_connbytes_info),
-	.family		= AF_INET6,
-	.me		= THIS_MODULE
+static struct xt_match xt_connbytes_match = {
+	{
+		.name		= "connbytes",
+		.family		= AF_INET,
+		.checkentry	= check,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_connbytes_info),
+		.me		= THIS_MODULE
+	},
+	{
+		.name		= "connbytes",
+		.family		= AF_INET6,
+		.checkentry	= check,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_connbytes_info),
+		.me		= THIS_MODULE
+	},
 };
 
 static int __init xt_connbytes_init(void)
 {
-	int ret;
-	ret = xt_register_match(&connbytes_match);
-	if (ret)
-		return ret;
-
-	ret = xt_register_match(&connbytes6_match);
-	if (ret)
-		xt_unregister_match(&connbytes_match);
-	return ret;
+	return xt_register_matches(xt_connbytes_match,
+				   ARRAY_SIZE(xt_connbytes_match));
 }
 
 static void __exit xt_connbytes_fini(void)
 {
-	xt_unregister_match(&connbytes_match);
-	xt_unregister_match(&connbytes6_match);
+	xt_unregister_matches(xt_connbytes_match,
+			      ARRAY_SIZE(xt_connbytes_match));
 }
 
 module_init(xt_connbytes_init);

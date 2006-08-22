@@ -92,44 +92,35 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static struct xt_match esp_match = {
-	.name		= "esp",
-	.family		= AF_INET,
-	.proto		= IPPROTO_ESP,
-	.match		= &match,
-	.matchsize	= sizeof(struct xt_esp),
-	.checkentry	= &checkentry,
-	.me		= THIS_MODULE,
-};
-
-static struct xt_match esp6_match = {
-	.name		= "esp",
-	.family		= AF_INET6,
-	.proto		= IPPROTO_ESP,
-	.match		= &match,
-	.matchsize	= sizeof(struct xt_esp),
-	.checkentry	= &checkentry,
-	.me		= THIS_MODULE,
+static struct xt_match xt_esp_match[] = {
+	{
+		.name		= "esp",
+		.family		= AF_INET,
+		.checkentry	= checkentry,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_esp),
+		.proto		= IPPROTO_ESP,
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "esp",
+		.family		= AF_INET6,
+		.checkentry	= checkentry,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_esp),
+		.proto		= IPPROTO_ESP,
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init xt_esp_init(void)
 {
-	int ret;
-	ret = xt_register_match(&esp_match);
-	if (ret)
-		return ret;
-
-	ret = xt_register_match(&esp6_match);
-	if (ret)
-		xt_unregister_match(&esp_match);
-
-	return ret;
+	return xt_register_matches(xt_esp_match, ARRAY_SIZE(xt_esp_match));
 }
 
 static void __exit xt_esp_cleanup(void)
 {
-	xt_unregister_match(&esp_match);
-	xt_unregister_match(&esp6_match);
+	xt_unregister_matches(xt_esp_match, ARRAY_SIZE(xt_esp_match));
 }
 
 module_init(xt_esp_init);
