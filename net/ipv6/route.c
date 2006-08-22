@@ -1936,8 +1936,7 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 			 int prefix, unsigned int flags)
 {
 	struct rtmsg *rtm;
-	struct nlmsghdr  *nlh;
-	unsigned char	 *b = skb->tail;
+	struct nlmsghdr *nlh;
 	struct rta_cacheinfo ci;
 	u32 table;
 
@@ -1948,8 +1947,11 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 		}
 	}
 
-	nlh = NLMSG_NEW(skb, pid, seq, type, sizeof(*rtm), flags);
-	rtm = NLMSG_DATA(nlh);
+	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*rtm), flags);
+	if (nlh == NULL)
+		return -ENOBUFS;
+
+	rtm = nlmsg_data(nlh);
 	rtm->rtm_family = AF_INET6;
 	rtm->rtm_dst_len = rt->rt6i_dst.plen;
 	rtm->rtm_src_len = rt->rt6i_src.plen;
@@ -1959,7 +1961,7 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 	else
 		table = RT6_TABLE_UNSPEC;
 	rtm->rtm_table = table;
-	RTA_PUT_U32(skb, RTA_TABLE, table);
+	NLA_PUT_U32(skb, RTA_TABLE, table);
 	if (rt->rt6i_flags&RTF_REJECT)
 		rtm->rtm_type = RTN_UNREACHABLE;
 	else if (rt->rt6i_dev && (rt->rt6i_dev->flags&IFF_LOOPBACK))
@@ -1980,31 +1982,35 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 		rtm->rtm_flags |= RTM_F_CLONED;
 
 	if (dst) {
-		RTA_PUT(skb, RTA_DST, 16, dst);
+		NLA_PUT(skb, RTA_DST, 16, dst);
 	        rtm->rtm_dst_len = 128;
 	} else if (rtm->rtm_dst_len)
-		RTA_PUT(skb, RTA_DST, 16, &rt->rt6i_dst.addr);
+		NLA_PUT(skb, RTA_DST, 16, &rt->rt6i_dst.addr);
 #ifdef CONFIG_IPV6_SUBTREES
 	if (src) {
-		RTA_PUT(skb, RTA_SRC, 16, src);
+		NLA_PUT(skb, RTA_SRC, 16, src);
 	        rtm->rtm_src_len = 128;
 	} else if (rtm->rtm_src_len)
-		RTA_PUT(skb, RTA_SRC, 16, &rt->rt6i_src.addr);
+		NLA_PUT(skb, RTA_SRC, 16, &rt->rt6i_src.addr);
 #endif
 	if (iif)
-		RTA_PUT(skb, RTA_IIF, 4, &iif);
+		NLA_PUT_U32(skb, RTA_IIF, iif);
 	else if (dst) {
 		struct in6_addr saddr_buf;
 		if (ipv6_get_saddr(&rt->u.dst, dst, &saddr_buf) == 0)
-			RTA_PUT(skb, RTA_PREFSRC, 16, &saddr_buf);
+			NLA_PUT(skb, RTA_PREFSRC, 16, &saddr_buf);
 	}
+
 	if (rtnetlink_put_metrics(skb, rt->u.dst.metrics) < 0)
-		goto rtattr_failure;
+		goto nla_put_failure;
+
 	if (rt->u.dst.neighbour)
-		RTA_PUT(skb, RTA_GATEWAY, 16, &rt->u.dst.neighbour->primary_key);
+		NLA_PUT(skb, RTA_GATEWAY, 16, &rt->u.dst.neighbour->primary_key);
+
 	if (rt->u.dst.dev)
-		RTA_PUT(skb, RTA_OIF, sizeof(int), &rt->rt6i_dev->ifindex);
-	RTA_PUT(skb, RTA_PRIORITY, 4, &rt->rt6i_metric);
+		NLA_PUT_U32(skb, RTA_OIF, rt->rt6i_dev->ifindex);
+
+	NLA_PUT_U32(skb, RTA_PRIORITY, rt->rt6i_metric);
 	ci.rta_lastuse = jiffies_to_clock_t(jiffies - rt->u.dst.lastuse);
 	if (rt->rt6i_expires)
 		ci.rta_expires = jiffies_to_clock_t(rt->rt6i_expires - jiffies);
@@ -2016,14 +2022,12 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 	ci.rta_id = 0;
 	ci.rta_ts = 0;
 	ci.rta_tsage = 0;
-	RTA_PUT(skb, RTA_CACHEINFO, sizeof(ci), &ci);
-	nlh->nlmsg_len = skb->tail - b;
-	return skb->len;
+	NLA_PUT(skb, RTA_CACHEINFO, sizeof(ci), &ci);
 
-nlmsg_failure:
-rtattr_failure:
-	skb_trim(skb, b - skb->data);
-	return -1;
+	return nlmsg_end(skb, nlh);
+
+nla_put_failure:
+	return nlmsg_cancel(skb, nlh);
 }
 
 int rt6_dump_route(struct rt6_info *rt, void *p_arg)
@@ -2031,8 +2035,8 @@ int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 	struct rt6_rtnl_dump_arg *arg = (struct rt6_rtnl_dump_arg *) p_arg;
 	int prefix;
 
-	if (arg->cb->nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(struct rtmsg))) {
-		struct rtmsg *rtm = NLMSG_DATA(arg->cb->nlh);
+	if (nlmsg_len(arg->cb->nlh) >= sizeof(struct rtmsg)) {
+		struct rtmsg *rtm = nlmsg_data(arg->cb->nlh);
 		prefix = (rtm->rtm_flags & RTM_F_PREFIX) != 0;
 	} else
 		prefix = 0;

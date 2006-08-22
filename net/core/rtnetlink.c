@@ -188,22 +188,27 @@ void rtnl_set_sk_err(u32 group, int error)
 
 int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics)
 {
-	struct rtattr *mx = (struct rtattr*)skb->tail;
-	int i;
+	struct nlattr *mx;
+	int i, valid = 0;
 
-	RTA_PUT(skb, RTA_METRICS, 0, NULL);
-	for (i=0; i<RTAX_MAX; i++) {
-		if (metrics[i])
-			RTA_PUT(skb, i+1, sizeof(u32), metrics+i);
+	mx = nla_nest_start(skb, RTA_METRICS);
+	if (mx == NULL)
+		return -ENOBUFS;
+
+	for (i = 0; i < RTAX_MAX; i++) {
+		if (metrics[i]) {
+			valid++;
+			NLA_PUT_U32(skb, i+1, metrics[i]);
+		}
 	}
-	mx->rta_len = skb->tail - (u8*)mx;
-	if (mx->rta_len == RTA_LENGTH(0))
-		skb_trim(skb, (u8*)mx - skb->data);
-	return 0;
 
-rtattr_failure:
-	skb_trim(skb, (u8*)mx - skb->data);
-	return -1;
+	if (!valid)
+		goto nla_put_failure;
+
+	return nla_nest_end(skb, mx);
+
+nla_put_failure:
+	return nla_nest_cancel(skb, mx);
 }
 
 
