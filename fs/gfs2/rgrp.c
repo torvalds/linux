@@ -857,8 +857,7 @@ static struct gfs2_rgrpd *forward_rgrp_get(struct gfs2_sbd *sdp)
 		if (sdp->sd_rgrps >= journals)
 			rg = sdp->sd_rgrps * sdp->sd_jdesc->jd_jid / journals;
 
-		for (x = 0, rgd = gfs2_rgrpd_get_first(sdp);
-		     x < rg;
+		for (x = 0, rgd = gfs2_rgrpd_get_first(sdp); x < rg;
 		     x++, rgd = gfs2_rgrpd_get_next(rgd))
 			/* Do Nothing */;
 
@@ -909,9 +908,8 @@ static int get_local_rgrp(struct gfs2_inode *ip)
 	rgd = recent_rgrp_first(sdp, ip->i_last_rg_alloc);
 
 	while (rgd) {
-		error = gfs2_glock_nq_init(rgd->rd_gl,
-					  LM_ST_EXCLUSIVE, LM_FLAG_TRY,
-					  &al->al_rgd_gh);
+		error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 
+					   LM_FLAG_TRY, &al->al_rgd_gh);
 		switch (error) {
 		case 0:
 			if (try_rgrp_fit(rgd, al))
@@ -934,8 +932,7 @@ static int get_local_rgrp(struct gfs2_inode *ip)
 	begin = rgd = forward_rgrp_get(sdp);
 
 	for (;;) {
-		error = gfs2_glock_nq_init(rgd->rd_gl,
-					  LM_ST_EXCLUSIVE, flags,
+		error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, flags,
 					  &al->al_rgd_gh);
 		switch (error) {
 		case 0:

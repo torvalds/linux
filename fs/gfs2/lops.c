@@ -737,7 +737,7 @@ static void databuf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 
 	while (!list_empty(head)) {
 		bd = list_entry(head->next, struct gfs2_bufdata, bd_le.le_list);
-		list_del(&bd->bd_le.le_list);
+		list_del_init(&bd->bd_le.le_list);
 		sdp->sd_log_num_databuf--;
 		sdp->sd_log_num_jdata--;
 		gfs2_unpin(sdp, bd->bd_bh, ai);
