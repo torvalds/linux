@@ -49,36 +49,37 @@ target(struct sk_buff **pskb,
 	u_int32_t *ctmark = nf_ct_get_mark(*pskb, &ctinfo);
 
 	if (ctmark) {
-	    switch(markinfo->mode) {
-	    case XT_CONNMARK_SET:
-		newmark = (*ctmark & ~markinfo->mask) | markinfo->mark;
-		if (newmark != *ctmark) {
-		    *ctmark = newmark;
+		switch(markinfo->mode) {
+		case XT_CONNMARK_SET:
+			newmark = (*ctmark & ~markinfo->mask) | markinfo->mark;
+			if (newmark != *ctmark) {
+				*ctmark = newmark;
 #ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
-		    ip_conntrack_event_cache(IPCT_MARK, *pskb);
+				ip_conntrack_event_cache(IPCT_MARK, *pskb);
 #else
-		    nf_conntrack_event_cache(IPCT_MARK, *pskb);
+				nf_conntrack_event_cache(IPCT_MARK, *pskb);
 #endif
 		}
-		break;
-	    case XT_CONNMARK_SAVE:
-		newmark = (*ctmark & ~markinfo->mask) | ((*pskb)->nfmark & markinfo->mask);
-		if (*ctmark != newmark) {
-		    *ctmark = newmark;
+			break;
+		case XT_CONNMARK_SAVE:
+			newmark = (*ctmark & ~markinfo->mask) |
+				  ((*pskb)->nfmark & markinfo->mask);
+			if (*ctmark != newmark) {
+				*ctmark = newmark;
 #ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
-		    ip_conntrack_event_cache(IPCT_MARK, *pskb);
+				ip_conntrack_event_cache(IPCT_MARK, *pskb);
 #else
-		    nf_conntrack_event_cache(IPCT_MARK, *pskb);
+				nf_conntrack_event_cache(IPCT_MARK, *pskb);
 #endif
+			}
+			break;
+		case XT_CONNMARK_RESTORE:
+			nfmark = (*pskb)->nfmark;
+			diff = (*ctmark ^ nfmark) & markinfo->mask;
+			if (diff != 0)
+				(*pskb)->nfmark = nfmark ^ diff;
+			break;
 		}
-		break;
-	    case XT_CONNMARK_RESTORE:
-		nfmark = (*pskb)->nfmark;
-		diff = (*ctmark ^ nfmark) & markinfo->mask;
-		if (diff != 0)
-		    (*pskb)->nfmark = nfmark ^ diff;
-		break;
-	    }
 	}
 
 	return XT_CONTINUE;
@@ -95,17 +96,17 @@ checkentry(const char *tablename,
 	struct xt_connmark_target_info *matchinfo = targinfo;
 
 	if (matchinfo->mode == XT_CONNMARK_RESTORE) {
-	    if (strcmp(tablename, "mangle") != 0) {
-		    printk(KERN_WARNING "CONNMARK: restore can only be called from \"mangle\" table, not \"%s\"\n", tablename);
-		    return 0;
-	    }
+		if (strcmp(tablename, "mangle") != 0) {
+			printk(KERN_WARNING "CONNMARK: restore can only be "
+			       "called from \"mangle\" table, not \"%s\"\n",
+			       tablename);
+			return 0;
+		}
 	}
-
 	if (matchinfo->mark > 0xffffffff || matchinfo->mask > 0xffffffff) {
 		printk(KERN_WARNING "CONNMARK: Only supports 32bit mark\n");
 		return 0;
 	}
-
 	return 1;
 }
 
