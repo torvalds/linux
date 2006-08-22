@@ -263,6 +263,17 @@ config NETFILTER_XT_MATCH_DCCP
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/modules.txt>.  If unsure, say `N'.
 
+config NETFILTER_XT_MATCH_DSCP
+	tristate '"DSCP" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  This option adds a `DSCP' match, which allows you to match against
+	  the IPv4/IPv6 header DSCP field (differentiated services codepoint).
+
+	  The DSCP field can have any value between 0x0 and 0x3f inclusive.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_ESP
 	tristate '"ESP" match support'
 	depends on NETFILTER_XTABLES
