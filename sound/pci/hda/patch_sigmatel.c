@@ -1563,7 +1563,7 @@ static int patch_stac9205(struct hda_codec *codec)
 }
 
 /*
- * STAC 7661(?) and 7664 hack
+ * STAC9872 hack
  */
 
 /* static config for Sony VAIO FE550G and Sony VAIO AR */
@@ -1591,6 +1591,23 @@ static struct hda_verb vaio_init[] = {
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x2}, /* mic-sel: 0a,0d,14,02 */
 	{0x02, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE}, /* HP */
 	{0x05, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE}, /* Speaker */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)}, /* capture sw/vol -> 0x8 */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)}, /* CD-in -> 0x6 */
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE}, /* Mic-in -> 0x9 */
+	{}
+};
+
+static struct hda_verb vaio_ar_init[] = {
+	{0x0a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP }, /* HP <- 0x2 */
+	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT }, /* Speaker <- 0x5 */
+	{0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 }, /* Mic? (<- 0x2) */
+	{0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN }, /* CD */
+/*	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },*/ /* Optical Out */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 }, /* Mic? */
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x2}, /* mic-sel: 0a,0d,14,02 */
+	{0x02, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE}, /* HP */
+	{0x05, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE}, /* Speaker */
+/*	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},*/ /* Optical Out */
 	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)}, /* capture sw/vol -> 0x8 */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)}, /* CD-in -> 0x6 */
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE}, /* Mic-in -> 0x9 */
@@ -1667,7 +1684,40 @@ static struct snd_kcontrol_new vaio_mixer[] = {
 	{}
 };
 
-static struct hda_codec_ops stac766x_patch_ops = {
+static struct snd_kcontrol_new vaio_ar_mixer[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Volume",
+		.info = snd_hda_mixer_amp_volume_info,
+		.get = snd_hda_mixer_amp_volume_get,
+		.put = vaio_master_vol_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Switch",
+		.info = snd_hda_mixer_amp_switch_info,
+		.get = snd_hda_mixer_amp_switch_get,
+		.put = vaio_master_sw_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
+	},
+	/* HDA_CODEC_VOLUME("CD Capture Volume", 0x07, 0, HDA_INPUT), */
+	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x09, 0, HDA_INPUT),
+	/*HDA_CODEC_MUTE("Optical Out Switch", 0x10, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Optical Out Volume", 0x10, 0, HDA_OUTPUT),*/
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.count = 1,
+		.info = stac92xx_mux_enum_info,
+		.get = stac92xx_mux_enum_get,
+		.put = stac92xx_mux_enum_put,
+	},
+	{}
+};
+
+static struct hda_codec_ops stac9872_patch_ops = {
 	.build_controls = stac92xx_build_controls,
 	.build_pcms = stac92xx_build_pcms,
 	.init = stac92xx_init,
@@ -1677,25 +1727,34 @@ static struct hda_codec_ops stac766x_patch_ops = {
 #endif
 };
 
-enum { STAC766x_VAIO };
+enum { /* FE and SZ series. id=0x83847661 and subsys=0x104D0700 or 104D1000. */
+       CXD9872RD_VAIO,
+       /* Unknown. id=0x83847662 and subsys=0x104D1200 or 104D1000. */
+       STAC9872AK_VAIO, 
+       /* Unknown. id=0x83847661 and subsys=0x104D1200. */
+       STAC9872K_VAIO,
+       /* AR Series. id=0x83847664 and subsys=104D1300 */
+       CXD9872AKD_VAIO 
+     };
 
-static struct hda_board_config stac766x_cfg_tbl[] = {
-	{ .modelname = "vaio", .config = STAC766x_VAIO },
+static struct hda_board_config stac9872_cfg_tbl[] = {
+	{ .modelname = "vaio", .config = CXD9872RD_VAIO },
+	{ .modelname = "vaio-ar", .config = CXD9872AKD_VAIO },
 	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81e6,
-	  .config = STAC766x_VAIO },
+	  .config = CXD9872RD_VAIO },
 	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81ef,
-	  .config = STAC766x_VAIO },
+	  .config = CXD9872RD_VAIO },
 	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81fd,
-	  .config = STAC766x_VAIO },
+	  .config = CXD9872AKD_VAIO },
 	{}
 };
 
-static int patch_stac766x(struct hda_codec *codec)
+static int patch_stac9872(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
 	int board_config;
 
-	board_config = snd_hda_check_board_config(codec, stac766x_cfg_tbl);
+	board_config = snd_hda_check_board_config(codec, stac9872_cfg_tbl);
 	if (board_config < 0)
 		/* unknown config, let generic-parser do its job... */
 		return snd_hda_parse_generic_codec(codec);
@@ -1706,7 +1765,9 @@ static int patch_stac766x(struct hda_codec *codec)
 
 	codec->spec = spec;
 	switch (board_config) {
-	case STAC766x_VAIO:
+	case CXD9872RD_VAIO:
+	case STAC9872AK_VAIO:
+	case STAC9872K_VAIO:
 		spec->mixer = vaio_mixer;
 		spec->init = vaio_init;
 		spec->multiout.max_channels = 2;
@@ -1718,9 +1779,22 @@ static int patch_stac766x(struct hda_codec *codec)
 		spec->input_mux = &vaio_mux;
 		spec->mux_nids = vaio_mux_nids;
 		break;
+	
+	case CXD9872AKD_VAIO:
+		spec->mixer = vaio_ar_mixer;
+		spec->init = vaio_ar_init;
+		spec->multiout.max_channels = 2;
+		spec->multiout.num_dacs = ARRAY_SIZE(vaio_dacs);
+		spec->multiout.dac_nids = vaio_dacs;
+		spec->multiout.hp_nid = VAIO_HP_DAC;
+		spec->num_adcs = ARRAY_SIZE(vaio_adcs);
+		spec->adc_nids = vaio_adcs;
+		spec->input_mux = &vaio_mux;
+		spec->mux_nids = vaio_mux_nids;
+		break;
 	}
 
-	codec->patch_ops = stac766x_patch_ops;
+	codec->patch_ops = stac9872_patch_ops;
 	return 0;
 }
 
@@ -1752,7 +1826,13 @@ struct hda_codec_preset snd_hda_preset_sigmatel[] = {
  	{ .id = 0x83847627, .name = "STAC9271D", .patch = patch_stac927x },
  	{ .id = 0x83847628, .name = "STAC9274X5NH", .patch = patch_stac927x },
  	{ .id = 0x83847629, .name = "STAC9274D5NH", .patch = patch_stac927x },
- 	{ .id = 0x83847661, .name = "STAC7661", .patch = patch_stac766x },
+ 	/* The following does not take into account .id=0x83847661 when subsys =
+ 	 * 104D0C00 which is STAC9225s. Because of this, some SZ Notebooks are
+ 	 * currently not fully supported.
+ 	 */
+ 	{ .id = 0x83847661, .name = "CXD9872RD/K", .patch = patch_stac9872 },
+ 	{ .id = 0x83847662, .name = "STAC9872AK", .patch = patch_stac9872 },
+ 	{ .id = 0x83847664, .name = "CXD9872AKD", .patch = patch_stac9872 },
  	{ .id = 0x838476a0, .name = "STAC9205", .patch = patch_stac9205 },
  	{ .id = 0x838476a1, .name = "STAC9205D", .patch = patch_stac9205 },
  	{ .id = 0x838476a2, .name = "STAC9204", .patch = patch_stac9205 },
@@ -1761,6 +1841,5 @@ struct hda_codec_preset snd_hda_preset_sigmatel[] = {
  	{ .id = 0x838476a5, .name = "STAC9255D", .patch = patch_stac9205 },
  	{ .id = 0x838476a6, .name = "STAC9254", .patch = patch_stac9205 },
  	{ .id = 0x838476a7, .name = "STAC9254D", .patch = patch_stac9205 },
- 	{ .id = 0x83847664, .name = "STAC7664", .patch = patch_stac766x },
 	{} /* terminator */
 };
