@@ -164,6 +164,7 @@ config VIDEO_VINO
 	tristate "SGI Vino Video For Linux (EXPERIMENTAL)"
 	depends on I2C && SGI_IP22 && EXPERIMENTAL && VIDEO_V4L2
 	select I2C_ALGO_SGI
+	select VIDEO_SAA7191
 	help
 	  Say Y here to build in support for the Vino video input system found
 	  on SGI Indy machines.
@@ -175,6 +176,9 @@ config VIDEO_STRADIS
 	  Say Y here to enable support for the Stradis 4:2:2 MPEG-2 video
 	  driver for PCI.  There is a product page at
 	  <http://www.stradis.com/>.
+
+config VIDEO_ZORAN_ZR36060
+	tristate
 
 config VIDEO_ZORAN
 	tristate "Zoran ZR36057/36067 Video For Linux"
@@ -192,12 +196,18 @@ config VIDEO_ZORAN
 config VIDEO_ZORAN_BUZ
 	tristate "Iomega Buz support"
 	depends on VIDEO_ZORAN
+	select VIDEO_SAA7111
+	select VIDEO_SAA7185
+	select VIDEO_ZORAN_ZR36060
 	help
 	  Support for the Iomega Buz MJPEG capture/playback card.
 
 config VIDEO_ZORAN_DC10
 	tristate "Pinnacle/Miro DC10(+) support"
 	depends on VIDEO_ZORAN
+	select VIDEO_SAA7110
+	select VIDEO_ADV7175
+	select VIDEO_ZORAN_ZR36060
 	help
 	  Support for the Pinnacle/Miro DC10(+) MJPEG capture/playback
 	  card.
@@ -205,6 +215,8 @@ config VIDEO_ZORAN_DC10
 config VIDEO_ZORAN_DC30
 	tristate "Pinnacle/Miro DC30(+) support"
 	depends on VIDEO_ZORAN
+	select VIDEO_ADV7175
+	select VIDEO_VPX3220
 	help
 	  Support for the Pinnacle/Miro DC30(+) MJPEG capture/playback
 	  card. This also supports really old DC10 cards based on the
@@ -213,6 +225,9 @@ config VIDEO_ZORAN_DC30
 config VIDEO_ZORAN_LML33
 	tristate "Linux Media Labs LML33 support"
 	depends on VIDEO_ZORAN
+	select VIDEO_BT819
+	select VIDEO_BT856
+	select VIDEO_ZORAN_ZR36060
 	help
 	  Support for the Linux Media Labs LML33 MJPEG capture/playback
 	  card.
@@ -220,6 +235,9 @@ config VIDEO_ZORAN_LML33
 config VIDEO_ZORAN_LML33R10
 	tristate "Linux Media Labs LML33R10 support"
 	depends on VIDEO_ZORAN
+	select VIDEO_SAA7114
+	select VIDEO_ADV7170
+	select VIDEO_ZORAN_ZR36060
 	help
 	  support for the Linux Media Labs LML33R10 MJPEG capture/playback
 	  card.
@@ -227,6 +245,9 @@ config VIDEO_ZORAN_LML33R10
 config VIDEO_ZORAN_AVS6EYES
 	tristate "AverMedia 6 Eyes support (EXPERIMENTAL)"
 	depends on VIDEO_ZORAN && EXPERIMENTAL && VIDEO_V4L1
+	select VIDEO_BT856
+	select VIDEO_KS0127
+	select VIDEO_ZORAN_ZR36060
 	help
 	  Support for the AverMedia 6 Eyes video surveillance card.
 
@@ -263,6 +284,10 @@ config VIDEO_MXB
 	depends on PCI && VIDEO_V4L1
 	select VIDEO_SAA7146_VV
 	select VIDEO_TUNER
+	select VIDEO_SAA7111
+	select VIDEO_TDA9840
+	select VIDEO_TEA6415C
+	select VIDEO_TEA6420
 	---help---
 	  This is a video4linux driver for the 'Multimedia eXtension Board'
 	  TV card by Siemens-Nixdorf.
@@ -274,6 +299,7 @@ config VIDEO_DPC
 	tristate "Philips-Semiconductors 'dpc7146 demonstration board'"
 	depends on PCI && VIDEO_V4L1
 	select VIDEO_SAA7146_VV
+	select VIDEO_SAA7111
 	---help---
 	  This is a video4linux driver for the 'dpc7146 demonstration
 	  board' by Philips-Semiconductors. It's the reference design
@@ -356,6 +382,15 @@ config VIDEO_TDA7432
 	  To compile this driver as a module, choose M here: the
 	  module will be called tda7432.
 
+config VIDEO_TDA9840
+	tristate "Support for tda9840 chip"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for tda9840 audio decoder chip found on some Zoran boards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tda9840.
+
 config VIDEO_TDA9875
 	tristate "Support for tda9875 chip"
 	depends on VIDEO_DEV && I2C
@@ -364,6 +399,24 @@ config VIDEO_TDA9875
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tda9875.
+
+config VIDEO_TEA6415C
+	tristate "Support for tea6415c chip"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for tea6415c audio decoder chip found on some bt8xx boards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tea6415c.
+
+config VIDEO_TEA6420
+	tristate "Support for tea6420 chip"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for tea6420 audio decoder chip found on some bt8xx boards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tea6420.
 
 config VIDEO_MSP3400
 	tristate "Micronas MSP34xx audio decoders"
@@ -413,7 +466,7 @@ config VIDEO_WM8739
 	  To compile this driver as a module, choose M here: the
 	  module will be called wm8739.
 
-comment "Video encoders"
+comment "MPEG video encoders"
 
 config VIDEO_CX2341X
 	tristate "Conexant CX2341x MPEG encoders"
@@ -429,6 +482,17 @@ config VIDEO_CX2341X
 
 source "drivers/media/video/cx25840/Kconfig"
 
+config VIDEO_SAA7185
+	tristate "Philips SAA7185 video encoder"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for the Philips SAA7185 video encoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7185.
+
+comment "Video encoders"
+
 config VIDEO_SAA7127
 	tristate "Philips SAA7127/9 digital video encoders"
 	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
@@ -438,7 +502,81 @@ config VIDEO_SAA7127
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7127.
 
+config VIDEO_ADV7170
+	tristate "Analog Devices ADV7170 video encoder driver"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Analog Devices ADV7170 video encoder driver
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv7170.
+
+config VIDEO_ADV7175
+	tristate "Analog Devices ADV7175 video encoder driver"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Analog Devices ADV7175 video encoder driver
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv7175.
+
 comment "Video decoders"
+
+config VIDEO_BT819
+	tristate "BT819A VideoStream Decoder"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for BT819A video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bt819.
+
+config VIDEO_BT856
+	tristate "BT856 VideoStream Decoder"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for BT856 video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bt856.
+
+config VIDEO_BT866
+	tristate "BT866 VideoStream Decoder"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for BT866 video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bt866.
+
+config VIDEO_SAA7110
+	tristate "Philips SAA7110 video decoder"
+	depends on VIDEO_DEV
+	---help---
+	  Support for the Philips SAA7110 video decoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7110.
+
+config VIDEO_SAA7111
+	tristate "Philips SAA7111 video decoder"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for the Philips SAA711 video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7111.
+
+config VIDEO_SAA7114
+	tristate "Philips SAA7114 video decoder"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for the Philips SAA7114 video decoder. This driver
+	  is used only on Zoran driver and should be moved soon to
+	  SAA711x module.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7114.
 
 config VIDEO_SAA711X
 	tristate "Philips SAA7113/4/5 video decoders"
@@ -449,6 +587,15 @@ config VIDEO_SAA711X
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
 
+config VIDEO_SAA7191
+	tristate "Philips SAA7191 video decoder"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for the Philips SAA7191 video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7191.
+
 config VIDEO_TVP5150
 	tristate "Texas Instruments TVP5150 video decoder"
 	depends on VIDEO_DEV && I2C
@@ -458,7 +605,16 @@ config VIDEO_TVP5150
 	  To compile this driver as a module, choose M here: the
 	  module will be called tvp5150.
 
-comment "Video emprovement chips"
+config VIDEO_VPX3220
+	tristate "vpx3220a, vpx3216b & vpx3214c video decoder driver"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for VPX322x video decoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vpx3220.
+
+comment "Video improvement chips"
 
 config VIDEO_UPD64031A
 	tristate "NEC Electronics uPD64031A Ghost Reduction"
