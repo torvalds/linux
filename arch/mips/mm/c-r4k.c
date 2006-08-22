@@ -323,7 +323,6 @@ static void __init r4k_blast_scache_setup(void)
 static inline void local_r4k_flush_cache_all(void * args)
 {
 	r4k_blast_dcache();
-	r4k_blast_icache();
 }
 
 static void r4k_flush_cache_all(void)
@@ -359,21 +358,19 @@ static void r4k___flush_cache_all(void)
 static inline void local_r4k_flush_cache_range(void * args)
 {
 	struct vm_area_struct *vma = args;
-	int exec;
 
 	if (!(cpu_context(smp_processor_id(), vma->vm_mm)))
 		return;
 
-	exec = vma->vm_flags & VM_EXEC;
-	if (cpu_has_dc_aliases || exec)
-		r4k_blast_dcache();
-	if (exec)
-		r4k_blast_icache();
+	r4k_blast_dcache();
 }
 
 static void r4k_flush_cache_range(struct vm_area_struct *vma,
 	unsigned long start, unsigned long end)
 {
+	if (!cpu_has_dc_aliases)
+		return;
+
 	r4k_on_each_cpu(local_r4k_flush_cache_range, vma, 1, 1);
 }
 
@@ -385,7 +382,6 @@ static inline void local_r4k_flush_cache_mm(void * args)
 		return;
 
 	r4k_blast_dcache();
-	r4k_blast_icache();
 
 	/*
 	 * Kludge alert.  For obscure reasons R4000SC and R4400SC go nuts if we
