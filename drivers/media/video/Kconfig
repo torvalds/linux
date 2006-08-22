@@ -135,7 +135,7 @@ source "drivers/media/video/cpia2/Kconfig"
 
 config VIDEO_SAA5246A
 	tristate "SAA5246A, SAA5281 Teletext processor"
-	depends on I2C && VIDEO_V4L1
+	depends on I2C && VIDEO_V4L2
 	help
 	  Support for I2C bus based teletext using the SAA5246A or SAA5281
 	  chip. Useful only if you live in Europe.
@@ -145,7 +145,7 @@ config VIDEO_SAA5246A
 
 config VIDEO_SAA5249
 	tristate "SAA5249 Teletext processor"
-	depends on VIDEO_DEV && I2C && VIDEO_V4L1
+	depends on VIDEO_DEV && I2C && VIDEO_V4L2
 	help
 	  Support for I2C bus based teletext using the SAA5249 chip. At the
 	  moment this is only useful on some European WinTV cards.
@@ -162,7 +162,7 @@ config TUNER_3036
 
 config VIDEO_VINO
 	tristate "SGI Vino Video For Linux (EXPERIMENTAL)"
-	depends on I2C && SGI_IP22 && EXPERIMENTAL && VIDEO_V4L1
+	depends on I2C && SGI_IP22 && EXPERIMENTAL && VIDEO_V4L2
 	select I2C_ALGO_SGI
 	help
 	  Say Y here to build in support for the Vino video input system found
@@ -260,7 +260,7 @@ source "drivers/media/video/saa7134/Kconfig"
 
 config VIDEO_MXB
 	tristate "Siemens-Nixdorf 'Multimedia eXtension Board'"
-	depends on PCI && VIDEO_V4L1 && I2C
+	depends on PCI && VIDEO_V4L1
 	select VIDEO_SAA7146_VV
 	select VIDEO_TUNER
 	---help---
@@ -272,9 +272,8 @@ config VIDEO_MXB
 
 config VIDEO_DPC
 	tristate "Philips-Semiconductors 'dpc7146 demonstration board'"
-	depends on PCI && VIDEO_V4L1 && I2C
+	depends on PCI && VIDEO_V4L1
 	select VIDEO_SAA7146_VV
-	select VIDEO_V4L2
 	---help---
 	  This is a video4linux driver for the 'dpc7146 demonstration
 	  board' by Philips-Semiconductors. It's the reference design
@@ -287,9 +286,8 @@ config VIDEO_DPC
 
 config VIDEO_HEXIUM_ORION
 	tristate "Hexium HV-PCI6 and Orion frame grabber"
-	depends on PCI && VIDEO_V4L1 && I2C
+	depends on PCI && VIDEO_V4L2
 	select VIDEO_SAA7146_VV
-	select VIDEO_V4L2
 	---help---
 	  This is a video4linux driver for the Hexium HV-PCI6 and
 	  Orion frame grabber cards by Hexium.
@@ -299,9 +297,8 @@ config VIDEO_HEXIUM_ORION
 
 config VIDEO_HEXIUM_GEMINI
 	tristate "Hexium Gemini frame grabber"
-	depends on PCI && VIDEO_V4L1 && I2C
+	depends on PCI && VIDEO_V4L2
 	select VIDEO_SAA7146_VV
-	select VIDEO_V4L2
 	---help---
 	  This is a video4linux driver for the Hexium Gemini frame
 	  grabber card by Hexium. Please note that the Gemini Dual
