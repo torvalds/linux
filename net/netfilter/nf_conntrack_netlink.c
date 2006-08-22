@@ -339,11 +339,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 		/* dump everything */
 		events = ~0UL;
 		group = NFNLGRP_CONNTRACK_NEW;
-	} else  if (events & (IPCT_STATUS |
-		      IPCT_PROTOINFO |
-		      IPCT_HELPER |
-		      IPCT_HELPINFO |
-		      IPCT_NATINFO)) {
+	} else  if (events & (IPCT_STATUS | IPCT_PROTOINFO)) {
 		type = IPCTNL_MSG_CT_NEW;
 		group = NFNLGRP_CONNTRACK_UPDATE;
 	} else
