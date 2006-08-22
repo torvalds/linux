@@ -5619,6 +5619,8 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	/* Copy the bind_addr list from the original endpoint to the new
 	 * endpoint so that we can handle restarts properly
 	 */
+	if (PF_INET6 == assoc->base.sk->sk_family)
+		flags = SCTP_ADDR6_ALLOWED;
 	if (assoc->peer.ipv4_address)
 		flags |= SCTP_ADDR4_PEERSUPP;
 	if (assoc->peer.ipv6_address)
