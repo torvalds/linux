@@ -148,6 +148,18 @@ config NETFILTER_XT_TARGET_CONNMARK
 	  <file:Documentation/modules.txt>.  The module will be called
 	  ipt_CONNMARK.o.  If unsure, say `N'.
 
+config NETFILTER_XT_TARGET_DSCP
+	tristate '"DSCP" target support'
+	depends on NETFILTER_XTABLES
+	depends on IP_NF_MANGLE || IP6_NF_MANGLE
+	help
+	  This option adds a `DSCP' target, which allows you to manipulate
+	  the IPv4/IPv6 header DSCP field (differentiated services codepoint).
+
+	  The DSCP field can have any value between 0x0 and 0x3f inclusive.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_TARGET_MARK
 	tristate '"MARK" target support'
 	depends on NETFILTER_XTABLES

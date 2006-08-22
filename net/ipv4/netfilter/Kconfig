@@ -557,17 +557,6 @@ config IP_NF_TARGET_ECN
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_TARGET_DSCP
-	tristate "DSCP target support"
-	depends on IP_NF_MANGLE
-	help
-	  This option adds a `DSCP' match, which allows you to match against
-	  the IPv4 header DSCP field (DSCP codepoint).
-
-	  The DSCP codepoint can have any value between 0x0 and 0x4f.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_TARGET_TTL
 	tristate  'TTL target support'
 	depends on IP_NF_MANGLE
