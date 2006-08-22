@@ -255,10 +255,13 @@ int sctp_rcv(struct sk_buff *skb)
 	 */
 	sctp_bh_lock_sock(sk);
 
-	if (sock_owned_by_user(sk))
+	if (sock_owned_by_user(sk)) {
+		SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_BACKLOG);
 		sctp_add_backlog(sk, skb);
-	else
+	} else {
+		SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_SOFTIRQ);
 		sctp_inq_push(&chunk->rcvr->inqueue, chunk);
+	}
 
 	sctp_bh_unlock_sock(sk);
 
@@ -271,6 +274,7 @@ int sctp_rcv(struct sk_buff *skb)
 	return 0;
 
 discard_it:
+	SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_DISCARDS);
 	kfree_skb(skb);
 	return 0;
 

@@ -2663,9 +2663,11 @@ sctp_disposition_t sctp_sf_eat_data_6_2(const struct sctp_endpoint *ep,
 		break;
 	case SCTP_IERROR_HIGH_TSN:
 	case SCTP_IERROR_BAD_STREAM:
+		SCTP_INC_STATS(SCTP_MIB_IN_DATA_CHUNK_DISCARDS);
 		goto discard_noforce;
 	case SCTP_IERROR_DUP_TSN:
 	case SCTP_IERROR_IGNORE_TSN:
+		SCTP_INC_STATS(SCTP_MIB_IN_DATA_CHUNK_DISCARDS);
 		goto discard_force;
 	case SCTP_IERROR_NO_DATA:
 		goto consume;
@@ -3652,6 +3654,7 @@ sctp_disposition_t sctp_sf_pdiscard(const struct sctp_endpoint *ep,
 				    void *arg,
 				    sctp_cmd_seq_t *commands)
 {
+	SCTP_INC_STATS(SCTP_MIB_IN_PKT_DISCARDS);
 	sctp_add_cmd_sf(commands, SCTP_CMD_DISCARD_PACKET, SCTP_NULL());
 
 	return SCTP_DISPOSITION_CONSUME;
@@ -4548,6 +4551,8 @@ sctp_disposition_t sctp_sf_do_6_3_3_rtx(const struct sctp_endpoint *ep,
 {
 	struct sctp_transport *transport = arg;
 
+	SCTP_INC_STATS(SCTP_MIB_T3_RTX_EXPIREDS);
+
 	if (asoc->overall_error_count >= asoc->max_retrans) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));
@@ -4616,6 +4621,7 @@ sctp_disposition_t sctp_sf_do_6_2_sack(const struct sctp_endpoint *ep,
 				       void *arg,
 				       sctp_cmd_seq_t *commands)
 {
+	SCTP_INC_STATS(SCTP_MIB_DELAY_SACK_EXPIREDS);
 	sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, SCTP_FORCE());
 	return SCTP_DISPOSITION_CONSUME;
 }
@@ -4650,6 +4656,7 @@ sctp_disposition_t sctp_sf_t1_init_timer_expire(const struct sctp_endpoint *ep,
 	int attempts = asoc->init_err_counter + 1;
 
 	SCTP_DEBUG_PRINTK("Timer T1 expired (INIT).\n");
+	SCTP_INC_STATS(SCTP_MIB_T1_INIT_EXPIREDS);
 
 	if (attempts <= asoc->max_init_attempts) {
 		bp = (struct sctp_bind_addr *) &asoc->base.bind_addr;
@@ -4709,6 +4716,7 @@ sctp_disposition_t sctp_sf_t1_cookie_timer_expire(const struct sctp_endpoint *ep
 	int attempts = asoc->init_err_counter + 1;
 
 	SCTP_DEBUG_PRINTK("Timer T1 expired (COOKIE-ECHO).\n");
+	SCTP_INC_STATS(SCTP_MIB_T1_COOKIE_EXPIREDS);
 
 	if (attempts <= asoc->max_init_attempts) {
 		repl = sctp_make_cookie_echo(asoc, NULL);
@@ -4753,6 +4761,8 @@ sctp_disposition_t sctp_sf_t2_timer_expire(const struct sctp_endpoint *ep,
 	struct sctp_chunk *reply = NULL;
 
 	SCTP_DEBUG_PRINTK("Timer T2 expired.\n");
+	SCTP_INC_STATS(SCTP_MIB_T2_SHUTDOWN_EXPIREDS);
+
 	if (asoc->overall_error_count >= asoc->max_retrans) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));
@@ -4813,6 +4823,8 @@ sctp_disposition_t sctp_sf_t4_timer_expire(
 {
 	struct sctp_chunk *chunk = asoc->addip_last_asconf;
 	struct sctp_transport *transport = chunk->transport;
+
+	SCTP_INC_STATS(SCTP_MIB_T4_RTO_EXPIREDS);
 
 	/* ADDIP 4.1 B1) Increment the error counters and perform path failure
 	 * detection on the appropriate destination address as defined in
@@ -4880,6 +4892,7 @@ sctp_disposition_t sctp_sf_t5_timer_expire(const struct sctp_endpoint *ep,
 	struct sctp_chunk *reply = NULL;
 
 	SCTP_DEBUG_PRINTK("Timer T5 expired.\n");
+	SCTP_INC_STATS(SCTP_MIB_T5_SHUTDOWN_GUARD_EXPIREDS);
 
 	reply = sctp_make_abort(asoc, NULL, 0);
 	if (!reply)
@@ -4909,6 +4922,8 @@ sctp_disposition_t sctp_sf_autoclose_timer_expire(
 	sctp_cmd_seq_t *commands)
 {
 	int disposition;
+
+	SCTP_INC_STATS(SCTP_MIB_AUTOCLOSE_EXPIREDS);
 
 	/* From 9.2 Shutdown of an Association
 	 * Upon receipt of the SHUTDOWN primitive from its upper

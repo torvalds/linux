@@ -87,7 +87,7 @@ void sctp_inq_free(struct sctp_inq *queue)
 /* Put a new packet in an SCTP inqueue.
  * We assume that packet->sctp_hdr is set and in host byte order.
  */
-void sctp_inq_push(struct sctp_inq *q, struct sctp_chunk *packet)
+void sctp_inq_push(struct sctp_inq *q, struct sctp_chunk *chunk)
 {
 	/* Directly call the packet handling routine. */
 
@@ -96,7 +96,7 @@ void sctp_inq_push(struct sctp_inq *q, struct sctp_chunk *packet)
 	 * Eventually, we should clean up inqueue to not rely
 	 * on the BH related data structures.
 	 */
-	list_add_tail(&packet->list, &q->in_chunk_list);
+	list_add_tail(&chunk->list, &q->in_chunk_list);
 	q->immediate.func(q->immediate.data);
 }
 
