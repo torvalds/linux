@@ -1509,59 +1509,56 @@ static void
 addrconf_prefix_route(struct in6_addr *pfx, int plen, struct net_device *dev,
 		      unsigned long expires, u32 flags)
 {
-	struct in6_rtmsg rtmsg;
+	struct fib6_config cfg = {
+		.fc_table = RT6_TABLE_PREFIX,
+		.fc_metric = IP6_RT_PRIO_ADDRCONF,
+		.fc_ifindex = dev->ifindex,
+		.fc_expires = expires,
+		.fc_dst_len = plen,
+		.fc_flags = RTF_UP | flags,
+	};
 
-	memset(&rtmsg, 0, sizeof(rtmsg));
-	ipv6_addr_copy(&rtmsg.rtmsg_dst, pfx);
-	rtmsg.rtmsg_dst_len = plen;
-	rtmsg.rtmsg_metric = IP6_RT_PRIO_ADDRCONF;
-	rtmsg.rtmsg_ifindex = dev->ifindex;
-	rtmsg.rtmsg_info = expires;
-	rtmsg.rtmsg_flags = RTF_UP|flags;
-	rtmsg.rtmsg_type = RTMSG_NEWROUTE;
+	ipv6_addr_copy(&cfg.fc_dst, pfx);
 
 	/* Prevent useless cloning on PtP SIT.
 	   This thing is done here expecting that the whole
 	   class of non-broadcast devices need not cloning.
 	 */
-	if (dev->type == ARPHRD_SIT && (dev->flags&IFF_POINTOPOINT))
-		rtmsg.rtmsg_flags |= RTF_NONEXTHOP;
+	if (dev->type == ARPHRD_SIT && (dev->flags & IFF_POINTOPOINT))
+		cfg.fc_flags |= RTF_NONEXTHOP;
 
-	ip6_route_add(&rtmsg, NULL, NULL, NULL, RT6_TABLE_PREFIX);
+	ip6_route_add(&cfg);
 }
 
 /* Create "default" multicast route to the interface */
 
 static void addrconf_add_mroute(struct net_device *dev)
 {
-	struct in6_rtmsg rtmsg;
+	struct fib6_config cfg = {
+		.fc_table = RT6_TABLE_LOCAL,
+		.fc_metric = IP6_RT_PRIO_ADDRCONF,
+		.fc_ifindex = dev->ifindex,
+		.fc_dst_len = 8,
+		.fc_flags = RTF_UP,
+	};
 
-	memset(&rtmsg, 0, sizeof(rtmsg));
-	ipv6_addr_set(&rtmsg.rtmsg_dst,
-		      htonl(0xFF000000), 0, 0, 0);
-	rtmsg.rtmsg_dst_len = 8;
-	rtmsg.rtmsg_metric = IP6_RT_PRIO_ADDRCONF;
-	rtmsg.rtmsg_ifindex = dev->ifindex;
-	rtmsg.rtmsg_flags = RTF_UP;
-	rtmsg.rtmsg_type = RTMSG_NEWROUTE;
-	ip6_route_add(&rtmsg, NULL, NULL, NULL, RT6_TABLE_LOCAL);
+	ipv6_addr_set(&cfg.fc_dst, htonl(0xFF000000), 0, 0, 0);
+
+	ip6_route_add(&cfg);
 }
 
 static void sit_route_add(struct net_device *dev)
 {
-	struct in6_rtmsg rtmsg;
-
-	memset(&rtmsg, 0, sizeof(rtmsg));
-
-	rtmsg.rtmsg_type	= RTMSG_NEWROUTE;
-	rtmsg.rtmsg_metric	= IP6_RT_PRIO_ADDRCONF;
+	struct fib6_config cfg = {
+		.fc_table = RT6_TABLE_MAIN,
+		.fc_metric = IP6_RT_PRIO_ADDRCONF,
+		.fc_ifindex = dev->ifindex,
+		.fc_dst_len = 96,
+		.fc_flags = RTF_UP | RTF_NONEXTHOP,
+	};
 
 	/* prefix length - 96 bits "::d.d.d.d" */
-	rtmsg.rtmsg_dst_len	= 96;
-	rtmsg.rtmsg_flags	= RTF_UP|RTF_NONEXTHOP;
-	rtmsg.rtmsg_ifindex	= dev->ifindex;
-
-	ip6_route_add(&rtmsg, NULL, NULL, NULL, RT6_TABLE_MAIN);
+	ip6_route_add(&cfg);
 }
 
 static void addrconf_add_lroute(struct net_device *dev)

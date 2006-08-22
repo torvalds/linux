@@ -16,13 +16,34 @@
 #ifdef __KERNEL__
 
 #include <linux/ipv6_route.h>
-
-#include <net/dst.h>
-#include <net/flow.h>
 #include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
+#include <net/dst.h>
+#include <net/flow.h>
+#include <net/netlink.h>
 
 struct rt6_info;
+
+struct fib6_config
+{
+	u32		fc_table;
+	u32		fc_metric;
+	int		fc_dst_len;
+	int		fc_src_len;
+	int		fc_ifindex;
+	u32		fc_flags;
+	u32		fc_protocol;
+
+	struct in6_addr	fc_dst;
+	struct in6_addr	fc_src;
+	struct in6_addr	fc_gateway;
+
+	unsigned long	fc_expires;
+	struct nlattr	*fc_mx;
+	int		fc_mx_len;
+
+	struct nl_info	fc_nlinfo;
+};
 
 struct fib6_node
 {
@@ -175,18 +196,13 @@ extern void			fib6_clean_all(int (*func)(struct rt6_info *, void *arg),
 
 extern int			fib6_add(struct fib6_node *root,
 					 struct rt6_info *rt,
-					 struct nlmsghdr *nlh,
-					 void *rtattr,
-					 struct netlink_skb_parms *req);
+					 struct nl_info *info);
 
 extern int			fib6_del(struct rt6_info *rt,
-					 struct nlmsghdr *nlh,
-					 void *rtattr,
-					 struct netlink_skb_parms *req);
+					 struct nl_info *info);
 
 extern void			inet6_rt_notify(int event, struct rt6_info *rt,
-						struct nlmsghdr *nlh,
-						struct netlink_skb_parms *req);
+						struct nl_info *info);
 
 extern void			fib6_run_gc(unsigned long dummy);
 
