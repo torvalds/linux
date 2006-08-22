@@ -1573,6 +1573,12 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 	}
 
 	/* build S/PDIF controls */
+
+	/* Hack for ASUS P5P800-VM, which does not indicate S/PDIF capability */
+	if (ac97->subsystem_vendor == 0x1043 &&
+	    ac97->subsystem_device == 0x810f)
+		ac97->ext_id |= AC97_EI_SPDIF;
+
 	if ((ac97->ext_id & AC97_EI_SPDIF) && !(ac97->scaps & AC97_SCAP_NO_SPDIF)) {
 		if (ac97->build_ops->build_spdif) {
 			if ((err = ac97->build_ops->build_spdif(ac97)) < 0)
