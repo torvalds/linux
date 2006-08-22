@@ -52,13 +52,25 @@ target(struct sk_buff **pskb,
 	    switch(markinfo->mode) {
 	    case XT_CONNMARK_SET:
 		newmark = (*ctmark & ~markinfo->mask) | markinfo->mark;
-		if (newmark != *ctmark)
+		if (newmark != *ctmark) {
 		    *ctmark = newmark;
+#ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
+		    ip_conntrack_event_cache(IPCT_MARK, *pskb);
+#else
+		    nf_conntrack_event_cache(IPCT_MARK, *pskb);
+#endif
+		}
 		break;
 	    case XT_CONNMARK_SAVE:
 		newmark = (*ctmark & ~markinfo->mask) | ((*pskb)->nfmark & markinfo->mask);
-		if (*ctmark != newmark)
+		if (*ctmark != newmark) {
 		    *ctmark = newmark;
+#ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
+		    ip_conntrack_event_cache(IPCT_MARK, *pskb);
+#else
+		    nf_conntrack_event_cache(IPCT_MARK, *pskb);
+#endif
+		}
 		break;
 	    case XT_CONNMARK_RESTORE:
 		nfmark = (*pskb)->nfmark;
