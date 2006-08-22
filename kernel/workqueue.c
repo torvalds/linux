@@ -68,7 +68,7 @@ struct workqueue_struct {
 
 /* All the per-cpu workqueues on the system, for hotplug cpu to add/remove
    threads to each one as cpus come/go. */
-static DEFINE_SPINLOCK(workqueue_lock);
+static DEFINE_MUTEX(workqueue_mutex);
 static LIST_HEAD(workqueues);
 
 static int singlethread_cpu;
@@ -320,10 +320,10 @@ void fastcall flush_workqueue(struct workqueue_struct *wq)
 	} else {
 		int cpu;
 
-		lock_cpu_hotplug();
+		mutex_lock(&workqueue_mutex);
 		for_each_online_cpu(cpu)
 			flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, cpu));
-		unlock_cpu_hotplug();
+		mutex_unlock(&workqueue_mutex);
 	}
 }
 EXPORT_SYMBOL_GPL(flush_workqueue);
@@ -371,8 +371,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	}
 
 	wq->name = name;
-	/* We don't need the distraction of CPUs appearing and vanishing. */
-	lock_cpu_hotplug();
+	mutex_lock(&workqueue_mutex);
 	if (singlethread) {
 		INIT_LIST_HEAD(&wq->list);
 		p = create_workqueue_thread(wq, singlethread_cpu);
@@ -381,9 +380,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 		else
 			wake_up_process(p);
 	} else {
-		spin_lock(&workqueue_lock);
 		list_add(&wq->list, &workqueues);
-		spin_unlock(&workqueue_lock);
 		for_each_online_cpu(cpu) {
 			p = create_workqueue_thread(wq, cpu);
 			if (p) {
@@ -393,7 +390,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 				destroy = 1;
 		}
 	}
-	unlock_cpu_hotplug();
+	mutex_unlock(&workqueue_mutex);
 
 	/*
 	 * Was there any error during startup? If yes then clean up:
@@ -434,17 +431,15 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	flush_workqueue(wq);
 
 	/* We don't need the distraction of CPUs appearing and vanishing. */
-	lock_cpu_hotplug();
+	mutex_lock(&workqueue_mutex);
 	if (is_single_threaded(wq))
 		cleanup_workqueue_thread(wq, singlethread_cpu);
 	else {
 		for_each_online_cpu(cpu)
 			cleanup_workqueue_thread(wq, cpu);
-		spin_lock(&workqueue_lock);
 		list_del(&wq->list);
-		spin_unlock(&workqueue_lock);
 	}
-	unlock_cpu_hotplug();
+	mutex_unlock(&workqueue_mutex);
 	free_percpu(wq->cpu_wq);
 	kfree(wq);
 }
@@ -515,11 +510,13 @@ int schedule_on_each_cpu(void (*func)(void *info), void *info)
 	if (!works)
 		return -ENOMEM;
 
+	mutex_lock(&workqueue_mutex);
 	for_each_online_cpu(cpu) {
 		INIT_WORK(per_cpu_ptr(works, cpu), func, info);
 		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu),
 				per_cpu_ptr(works, cpu));
 	}
+	mutex_unlock(&workqueue_mutex);
 	flush_workqueue(keventd_wq);
 	free_percpu(works);
 	return 0;
@@ -635,6 +632,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_UP_PREPARE:
+		mutex_lock(&workqueue_mutex);
 		/* Create a new workqueue thread for it. */
 		list_for_each_entry(wq, &workqueues, list) {
 			if (!create_workqueue_thread(wq, hotcpu)) {
@@ -653,6 +651,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 			kthread_bind(cwq->thread, hotcpu);
 			wake_up_process(cwq->thread);
 		}
+		mutex_unlock(&workqueue_mutex);
 		break;
 
 	case CPU_UP_CANCELED:
@@ -664,6 +663,15 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 				     any_online_cpu(cpu_online_map));
 			cleanup_workqueue_thread(wq, hotcpu);
 		}
+		mutex_unlock(&workqueue_mutex);
+		break;
+
+	case CPU_DOWN_PREPARE:
+		mutex_lock(&workqueue_mutex);
+		break;
+
+	case CPU_DOWN_FAILED:
+		mutex_unlock(&workqueue_mutex);
 		break;
 
 	case CPU_DEAD:
@@ -671,6 +679,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 			cleanup_workqueue_thread(wq, hotcpu);
 		list_for_each_entry(wq, &workqueues, list)
 			take_over_work(wq, hotcpu);
+		mutex_unlock(&workqueue_mutex);
 		break;
 	}
 

@@ -116,6 +116,7 @@
 #include <linux/audit.h>
 #include <linux/dmaengine.h>
 #include <linux/err.h>
+#include <linux/ctype.h>
 
 /*
  *	The list of packet types we will receive (as opposed to discard)
@@ -632,14 +633,22 @@ struct net_device * dev_get_by_flags(unsigned short if_flags, unsigned short mas
  *	@name: name string
  *
  *	Network device names need to be valid file names to
- *	to allow sysfs to work
+ *	to allow sysfs to work.  We also disallow any kind of
+ *	whitespace.
  */
 int dev_valid_name(const char *name)
 {
-	return !(*name == '\0' 
-		 || !strcmp(name, ".")
-		 || !strcmp(name, "..")
-		 || strchr(name, '/'));
+	if (*name == '\0')
+		return 0;
+	if (!strcmp(name, ".") || !strcmp(name, ".."))
+		return 0;
+
+	while (*name) {
+		if (*name == '/' || isspace(*name))
+			return 0;
+		name++;
+	}
+	return 1;
 }
 
 /**
@@ -1619,26 +1628,10 @@ static inline struct net_device *skb_bond(struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 
 	if (dev->master) {
-		/*
-		 * On bonding slaves other than the currently active
-		 * slave, suppress duplicates except for 802.3ad
-		 * ETH_P_SLOW and alb non-mcast/bcast.
-		 */
-		if (dev->priv_flags & IFF_SLAVE_INACTIVE) {
-			if (dev->master->priv_flags & IFF_MASTER_ALB) {
-				if (skb->pkt_type != PACKET_BROADCAST &&
-				    skb->pkt_type != PACKET_MULTICAST)
-					goto keep;
-			}
-
-			if (dev->master->priv_flags & IFF_MASTER_8023AD &&
-			    skb->protocol == __constant_htons(ETH_P_SLOW))
-				goto keep;
-		
+		if (skb_bond_should_drop(skb)) {
 			kfree_skb(skb);
 			return NULL;
 		}
-keep:
 		skb->dev = dev->master;
 	}
 

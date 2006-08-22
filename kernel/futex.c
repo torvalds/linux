@@ -297,7 +297,7 @@ static int futex_handle_fault(unsigned long address, int attempt)
 	struct vm_area_struct * vma;
 	struct mm_struct *mm = current->mm;
 
-	if (attempt >= 2 || !(vma = find_vma(mm, address)) ||
+	if (attempt > 2 || !(vma = find_vma(mm, address)) ||
 	    vma->vm_start > address || !(vma->vm_flags & VM_WRITE))
 		return -EFAULT;
 
@@ -747,8 +747,10 @@ retry:
 		 */
 		if (attempt++) {
 			if (futex_handle_fault((unsigned long)uaddr2,
-					       attempt))
+						attempt)) {
+				ret = -EFAULT;
 				goto out;
+			}
 			goto retry;
 		}
 
@@ -1322,9 +1324,10 @@ static int do_futex_lock_pi(u32 __user *uaddr, int detect, int trylock,
 	 * still holding the mmap_sem.
 	 */
 	if (attempt++) {
-		if (futex_handle_fault((unsigned long)uaddr, attempt))
+		if (futex_handle_fault((unsigned long)uaddr, attempt)) {
+			ret = -EFAULT;
 			goto out_unlock_release_sem;
-
+		}
 		goto retry_locked;
 	}
 
@@ -1506,9 +1509,10 @@ pi_faulted:
 	 * still holding the mmap_sem.
 	 */
 	if (attempt++) {
-		if (futex_handle_fault((unsigned long)uaddr, attempt))
+		if (futex_handle_fault((unsigned long)uaddr, attempt)) {
+			ret = -EFAULT;
 			goto out_unlock;
-
+		}
 		goto retry_locked;
 	}
 

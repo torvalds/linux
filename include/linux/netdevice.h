@@ -320,6 +320,9 @@ struct net_device
 #define NETIF_F_TSO_ECN		(SKB_GSO_TCP_ECN << NETIF_F_GSO_SHIFT)
 #define NETIF_F_TSO6		(SKB_GSO_TCPV6 << NETIF_F_GSO_SHIFT)
 
+	/* List of features with software fallbacks. */
+#define NETIF_F_GSO_SOFTWARE	(NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6)
+
 #define NETIF_F_GEN_CSUM	(NETIF_F_NO_CSUM | NETIF_F_HW_CSUM)
 #define NETIF_F_ALL_CSUM	(NETIF_F_IP_CSUM | NETIF_F_GEN_CSUM)
 
@@ -1010,6 +1013,30 @@ static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 	return skb_is_gso(skb) &&
 	       (!skb_gso_ok(skb, dev->features) ||
 		unlikely(skb->ip_summed != CHECKSUM_HW));
+}
+
+/* On bonding slaves other than the currently active slave, suppress
+ * duplicates except for 802.3ad ETH_P_SLOW and alb non-mcast/bcast.
+ */
+static inline int skb_bond_should_drop(struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+	struct net_device *master = dev->master;
+
+	if (master &&
+	    (dev->priv_flags & IFF_SLAVE_INACTIVE)) {
+		if (master->priv_flags & IFF_MASTER_ALB) {
+			if (skb->pkt_type != PACKET_BROADCAST &&
+			    skb->pkt_type != PACKET_MULTICAST)
+				return 0;
+		}
+		if (master->priv_flags & IFF_MASTER_8023AD &&
+		    skb->protocol == __constant_htons(ETH_P_SLOW))
+			return 0;
+
+		return 1;
+	}
+	return 0;
 }
 
 #endif /* __KERNEL__ */
