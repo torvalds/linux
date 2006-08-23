@@ -2238,9 +2238,6 @@ qla2x00_do_dpc(void *data)
 
 			next_loopid = 0;
 			list_for_each_entry(fcport, &ha->fcports, list) {
-				if (fcport->port_type != FCT_TARGET)
-					continue;
-
 				/*
 				 * If the port is not ONLINE then try to login
 				 * to it if we haven't run out of retries.
