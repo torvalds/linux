@@ -127,7 +127,7 @@ nfs4_schedule_state_renewal(struct nfs_client *clp)
 void
 nfs4_renewd_prepare_shutdown(struct nfs_server *server)
 {
-	struct nfs_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs_client;
 
 	if (!clp)
 		return;

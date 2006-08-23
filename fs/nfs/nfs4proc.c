@@ -195,7 +195,7 @@ static void nfs4_setup_readdir(u64 cookie, u32 *verifier, struct dentry *dentry,
 
 static void renew_lease(const struct nfs_server *server, unsigned long timestamp)
 {
-	struct nfs_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs_client;
 	spin_lock(&clp->cl_lock);
 	if (time_before(clp->cl_last_renewal,timestamp))
 		clp->cl_last_renewal = timestamp;
@@ -252,7 +252,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	atomic_inc(&sp->so_count);
 	p->o_arg.fh = NFS_FH(dir);
 	p->o_arg.open_flags = flags,
-	p->o_arg.clientid = server->nfs4_state->cl_clientid;
+	p->o_arg.clientid = server->nfs_client->cl_clientid;
 	p->o_arg.id = sp->so_id;
 	p->o_arg.name = &dentry->d_name;
 	p->o_arg.server = server;
@@ -550,7 +550,7 @@ int nfs4_open_delegation_recall(struct dentry *dentry, struct nfs4_state *state)
 			case -NFS4ERR_STALE_STATEID:
 			case -NFS4ERR_EXPIRED:
 				/* Don't recall a delegation if it was lost */
-				nfs4_schedule_state_recovery(server->nfs4_state);
+				nfs4_schedule_state_recovery(server->nfs_client);
 				return err;
 		}
 		err = nfs4_handle_exception(server, err, &exception);
@@ -792,7 +792,7 @@ out:
 
 int nfs4_recover_expired_lease(struct nfs_server *server)
 {
-	struct nfs_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs_client;
 
 	if (test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
 		nfs4_schedule_state_recovery(clp);
@@ -867,7 +867,7 @@ static int _nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred 
 {
 	struct nfs_delegation *delegation;
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs_client;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs4_state_owner *sp = NULL;
 	struct nfs4_state *state = NULL;
@@ -953,7 +953,7 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, int flags, st
 	struct nfs4_state_owner  *sp;
 	struct nfs4_state     *state = NULL;
 	struct nfs_server       *server = NFS_SERVER(dir);
-	struct nfs_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs_client;
 	struct nfs4_opendata *opendata;
 	int                     status;
 
@@ -1133,7 +1133,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			break;
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
-			nfs4_schedule_state_recovery(server->nfs4_state);
+			nfs4_schedule_state_recovery(server->nfs_client);
 			break;
 		default:
 			if (nfs4_async_handle_error(task, server) == -EAGAIN) {
@@ -2791,7 +2791,7 @@ static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen
 static int
 nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server)
 {
-	struct nfs_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs_client;
 
 	if (!clp || task->tk_status >= 0)
 		return 0;
@@ -2871,7 +2871,7 @@ static int nfs4_delay(struct rpc_clnt *clnt, long *timeout)
  */
 int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct nfs4_exception *exception)
 {
-	struct nfs_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs_client;
 	int ret = errorcode;
 
 	exception->retry = 0;
@@ -3077,7 +3077,7 @@ int nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4
 		switch (err) {
 			case -NFS4ERR_STALE_STATEID:
 			case -NFS4ERR_EXPIRED:
-				nfs4_schedule_state_recovery(server->nfs4_state);
+				nfs4_schedule_state_recovery(server->nfs_client);
 			case 0:
 				return 0;
 		}
@@ -3106,7 +3106,7 @@ static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock 
 {
 	struct inode *inode = state->inode;
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs_client;
 	struct nfs_lockt_args arg = {
 		.fh = NFS_FH(inode),
 		.fl = request,
@@ -3231,7 +3231,7 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 			break;
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
-			nfs4_schedule_state_recovery(calldata->server->nfs4_state);
+			nfs4_schedule_state_recovery(calldata->server->nfs_client);
 			break;
 		default:
 			if (nfs4_async_handle_error(task, calldata->server) == -EAGAIN) {
@@ -3343,7 +3343,7 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 	if (p->arg.lock_seqid == NULL)
 		goto out_free;
 	p->arg.lock_stateid = &lsp->ls_stateid;
-	p->arg.lock_owner.clientid = server->nfs4_state->cl_clientid;
+	p->arg.lock_owner.clientid = server->nfs_client->cl_clientid;
 	p->arg.lock_owner.id = lsp->ls_id;
 	p->lsp = lsp;
 	atomic_inc(&lsp->ls_count);

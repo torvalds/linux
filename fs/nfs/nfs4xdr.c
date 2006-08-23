@@ -529,7 +529,7 @@ static int encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const s
 	if (iap->ia_valid & ATTR_MODE)
 		len += 4;
 	if (iap->ia_valid & ATTR_UID) {
-		owner_namelen = nfs_map_uid_to_name(server->nfs4_state, iap->ia_uid, owner_name);
+		owner_namelen = nfs_map_uid_to_name(server->nfs_client, iap->ia_uid, owner_name);
 		if (owner_namelen < 0) {
 			printk(KERN_WARNING "nfs: couldn't resolve uid %d to string\n",
 			       iap->ia_uid);
@@ -541,7 +541,7 @@ static int encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const s
 		len += 4 + (XDR_QUADLEN(owner_namelen) << 2);
 	}
 	if (iap->ia_valid & ATTR_GID) {
-		owner_grouplen = nfs_map_gid_to_group(server->nfs4_state, iap->ia_gid, owner_group);
+		owner_grouplen = nfs_map_gid_to_group(server->nfs_client, iap->ia_gid, owner_group);
 		if (owner_grouplen < 0) {
 			printk(KERN_WARNING "nfs4: couldn't resolve gid %d to string\n",
 			       iap->ia_gid);
@@ -3051,9 +3051,9 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 	fattr->mode |= fmode;
 	if ((status = decode_attr_nlink(xdr, bitmap, &fattr->nlink)) != 0)
 		goto xdr_error;
-	if ((status = decode_attr_owner(xdr, bitmap, server->nfs4_state, &fattr->uid)) != 0)
+	if ((status = decode_attr_owner(xdr, bitmap, server->nfs_client, &fattr->uid)) != 0)
 		goto xdr_error;
-	if ((status = decode_attr_group(xdr, bitmap, server->nfs4_state, &fattr->gid)) != 0)
+	if ((status = decode_attr_group(xdr, bitmap, server->nfs_client, &fattr->gid)) != 0)
 		goto xdr_error;
 	if ((status = decode_attr_rdev(xdr, bitmap, &fattr->rdev)) != 0)
 		goto xdr_error;
@@ -3254,7 +3254,7 @@ static int decode_delegation(struct xdr_stream *xdr, struct nfs_openres *res)
 			if (decode_space_limit(xdr, &res->maxsize) < 0)
 				return -EIO;
 	}
-	return decode_ace(xdr, NULL, res->server->nfs4_state);
+	return decode_ace(xdr, NULL, res->server->nfs_client);
 }
 
 static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)

@@ -52,7 +52,7 @@ static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_
 			case -NFS4ERR_EXPIRED:
 				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
 			case -NFS4ERR_STALE_CLIENTID:
-				nfs4_schedule_state_recovery(NFS_SERVER(inode)->nfs4_state);
+				nfs4_schedule_state_recovery(NFS_SERVER(inode)->nfs_client);
 				goto out_err;
 		}
 	}
@@ -114,7 +114,7 @@ void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred, st
  */
 int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res)
 {
-	struct nfs_client *clp = NFS_SERVER(inode)->nfs4_state;
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
 	int status = 0;
@@ -176,7 +176,7 @@ static void nfs_msync_inode(struct inode *inode)
  */
 int __nfs_inode_return_delegation(struct inode *inode)
 {
-	struct nfs_client *clp = NFS_SERVER(inode)->nfs4_state;
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
 	int res = 0;
@@ -208,7 +208,7 @@ int __nfs_inode_return_delegation(struct inode *inode)
  */
 void nfs_return_all_delegations(struct super_block *sb)
 {
-	struct nfs_client *clp = NFS_SB(sb)->nfs4_state;
+	struct nfs_client *clp = NFS_SB(sb)->nfs_client;
 	struct nfs_delegation *delegation;
 	struct inode *inode;
 
@@ -310,7 +310,7 @@ static int recall_thread(void *data)
 {
 	struct recall_threadargs *args = (struct recall_threadargs *)data;
 	struct inode *inode = igrab(args->inode);
-	struct nfs_client *clp = NFS_SERVER(inode)->nfs4_state;
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
 
@@ -423,7 +423,7 @@ void nfs_delegation_reap_unclaimed(struct nfs_client *clp)
 
 int nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode)
 {
-	struct nfs_client *clp = NFS_SERVER(inode)->nfs4_state;
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
 	int res = 0;

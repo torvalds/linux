@@ -1141,7 +1141,7 @@ static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
 	list_add_tail(&server->nfs4_siblings, &clp->cl_superblocks);
 	clnt = rpc_clone_client(clp->cl_rpcclient);
 	if (!IS_ERR(clnt))
-		server->nfs4_state = clp;
+		server->nfs_client = clp;
 	up_write(&clp->cl_sem);
 	clp = NULL;
 
@@ -1151,7 +1151,7 @@ static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
 		return clnt;
 	}
 
-	if (server->nfs4_state->cl_idmap == NULL) {
+	if (server->nfs_client->cl_idmap == NULL) {
 		dprintk("%s: failed to create idmapper.\n", __FUNCTION__);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1416,7 +1416,7 @@ static inline char *nfs4_dup_path(const struct dentry *dentry)
 static struct super_block *nfs4_clone_sb(struct nfs_server *server, struct nfs_clone_mount *data)
 {
 	const struct dentry *dentry = data->dentry;
-	struct nfs_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs_client;
 	struct super_block *sb;
 
 	server->fsid = data->fattr->fsid;

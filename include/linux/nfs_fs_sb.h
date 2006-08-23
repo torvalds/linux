@@ -43,7 +43,7 @@ struct nfs_server {
 	 */
 	char			ip_addr[16];
 	char *			mnt_path;
-	struct nfs_client *	nfs4_state;	/* all NFSv4 state starts here */
+	struct nfs_client *	nfs_client;	/* all NFSv4 state starts here */
 	struct list_head	nfs4_siblings;	/* List of other nfs_server structs
 						 * that share the same clientid
 						 */

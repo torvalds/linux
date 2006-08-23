@@ -61,7 +61,7 @@ static LIST_HEAD(nfs4_clientid_list);
 void
 init_nfsv4_state(struct nfs_server *server)
 {
-	server->nfs4_state = NULL;
+	server->nfs_client = NULL;
 	INIT_LIST_HEAD(&server->nfs4_siblings);
 }
 
@@ -70,9 +70,9 @@ destroy_nfsv4_state(struct nfs_server *server)
 {
 	kfree(server->mnt_path);
 	server->mnt_path = NULL;
-	if (server->nfs4_state) {
-		nfs4_put_client(server->nfs4_state);
-		server->nfs4_state = NULL;
+	if (server->nfs_client) {
+		nfs4_put_client(server->nfs_client);
+		server->nfs_client = NULL;
 	}
 }
 
@@ -306,7 +306,7 @@ nfs4_drop_state_owner(struct nfs4_state_owner *sp)
  */
 struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct rpc_cred *cred)
 {
-	struct nfs_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs_client;
 	struct nfs4_state_owner *sp, *new;
 
 	get_rpccred(cred);
