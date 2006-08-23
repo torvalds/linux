@@ -388,6 +388,7 @@ static int send_ls_not_ready(int nodeid, struct dlm_rcom *rc_in)
 	rc->rc_header.h_cmd = DLM_RCOM;
 
 	rc->rc_type = DLM_RCOM_STATUS_REPLY;
+	rc->rc_id = rc_in->rc_id;
 	rc->rc_result = -ESRCH;
 
 	dlm_rcom_out(rc);
