@@ -29,6 +29,7 @@
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/control.h>
+#include <sound/tlv.h>
 #include <sound/pcm.h>
 #include <sound/rawmidi.h>
 #include <sound/initval.h>
@@ -443,10 +444,13 @@ static int __init snd_card_dummy_pcm(struct snd_dummy *dummy, int device, int su
 }
 
 #define DUMMY_VOLUME(xname, xindex, addr) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .name = xname, .index = xindex, \
   .info = snd_dummy_volume_info, \
   .get = snd_dummy_volume_get, .put = snd_dummy_volume_put, \
-  .private_value = addr }
+  .private_value = addr, \
+  .tlv = { .p = db_scale_dummy } }
 
 static int snd_dummy_volume_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
@@ -496,6 +500,8 @@ static int snd_dummy_volume_put(struct snd_kcontrol *kcontrol,
 	spin_unlock_irq(&dummy->mixer_lock);
 	return change;
 }
+
+static DECLARE_TLV_DB_SCALE(db_scale_dummy, -4500, 30, 0);
 
 #define DUMMY_CAPSRC(xname, xindex, addr) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
