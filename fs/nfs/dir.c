@@ -30,6 +30,7 @@
 #include <linux/nfs_mount.h>
 #include <linux/pagemap.h>
 #include <linux/smp_lock.h>
+#include <linux/pagevec.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
 
@@ -1441,39 +1442,88 @@ static int nfs_unlink(struct inode *dir, struct dentry *dentry)
 	return error;
 }
 
-static int
-nfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
+/*
+ * To create a symbolic link, most file systems instantiate a new inode,
+ * add a page to it containing the path, then write it out to the disk
+ * using prepare_write/commit_write.
+ *
+ * Unfortunately the NFS client can't create the in-core inode first
+ * because it needs a file handle to create an in-core inode (see
+ * fs/nfs/inode.c:nfs_fhget).  We only have a file handle *after* the
+ * symlink request has completed on the server.
+ *
+ * So instead we allocate a raw page, copy the symname into it, then do
+ * the SYMLINK request with the page as the buffer.  If it succeeds, we
+ * now have a new file handle and can instantiate an in-core NFS inode
+ * and move the raw page into its mapping.
+ */
+static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 {
+	struct pagevec lru_pvec;
+	struct page *page;
+	char *kaddr;
 	struct iattr attr;
-	struct qstr qsymname;
+	unsigned int pathlen = strlen(symname);
+	struct qstr qsymname = {
+		.name	= symname,
+		.len	= pathlen,
+	};
 	int error;
 
 	dfprintk(VFS, "NFS: symlink(%s/%ld, %s, %s)\n", dir->i_sb->s_id,
 		dir->i_ino, dentry->d_name.name, symname);
 
-#ifdef NFS_PARANOIA
-if (dentry->d_inode)
-printk("nfs_proc_symlink: %s/%s not negative!\n",
-dentry->d_parent->d_name.name, dentry->d_name.name);
-#endif
-	/*
-	 * Fill in the sattr for the call.
- 	 * Note: SunOS 4.1.2 crashes if the mode isn't initialized!
-	 */
-	attr.ia_valid = ATTR_MODE;
-	attr.ia_mode = S_IFLNK | S_IRWXUGO;
+	if (pathlen > PAGE_SIZE)
+		return -ENAMETOOLONG;
 
-	qsymname.name = symname;
-	qsymname.len  = strlen(symname);
+	attr.ia_mode = S_IFLNK | S_IRWXUGO;
+	attr.ia_valid = ATTR_MODE;
 
 	lock_kernel();
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page) {
+		unlock_kernel();
+		return -ENOMEM;
+	}
+
+	kaddr = kmap_atomic(page, KM_USER0);
+	memcpy(kaddr, symname, pathlen);
+	if (pathlen < PAGE_SIZE)
+		memset(kaddr + pathlen, 0, PAGE_SIZE - pathlen);
+	kunmap_atomic(kaddr, KM_USER0);
+
+	/* XXX: eventually this will pass in {page, pathlen},
+	 *	instead of qsymname; need XDR changes for that */
 	nfs_begin_data_update(dir);
 	error = NFS_PROTO(dir)->symlink(dir, dentry, &qsymname, &attr);
 	nfs_end_data_update(dir);
-	if (!error)
+	if (error != 0) {
+		dfprintk(VFS, "NFS: symlink(%s/%ld, %s, %s) error %d\n",
+			dir->i_sb->s_id, dir->i_ino,
+			dentry->d_name.name, symname, error);
 		d_drop(dentry);
+		__free_page(page);
+		unlock_kernel();
+		return error;
+	}
+
+	/*
+	 * No big deal if we can't add this page to the page cache here.
+	 * READLINK will get the missing page from the server if needed.
+	 */
+	pagevec_init(&lru_pvec, 0);
+	if (!add_to_page_cache(page, dentry->d_inode->i_mapping, 0,
+							GFP_KERNEL)) {
+		if (!pagevec_add(&lru_pvec, page))
+			__pagevec_lru_add(&lru_pvec);
+		SetPageUptodate(page);
+		unlock_page(page);
+	} else
+		__free_page(page);
+
 	unlock_kernel();
-	return error;
+	return 0;
 }
 
 static int 
