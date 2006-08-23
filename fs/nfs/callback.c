@@ -149,10 +149,8 @@ out_err:
 /*
  * Kill the server process if it is not already up.
  */
-int nfs_callback_down(void)
+void nfs_callback_down(void)
 {
-	int ret = 0;
-
 	lock_kernel();
 	mutex_lock(&nfs_callback_mutex);
 	nfs_callback_info.users--;
@@ -164,7 +162,6 @@ int nfs_callback_down(void)
 	} while (wait_for_completion_timeout(&nfs_callback_info.stopped, 5*HZ) == 0);
 	mutex_unlock(&nfs_callback_mutex);
 	unlock_kernel();
-	return ret;
 }
 
 static int nfs_callback_authenticate(struct svc_rqst *rqstp)
