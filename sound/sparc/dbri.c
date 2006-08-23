@@ -85,7 +85,7 @@ MODULE_PARM_DESC(id, "ID string for Sun DBRI soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Sun DBRI soundcard.");
 
-#define DBRI_DEBUG
+#undef DBRI_DEBUG
 
 #define D_INT	(1<<0)
 #define D_GEN	(1<<1)
@@ -160,7 +160,7 @@ static struct {
      /* {    NA, (1 << 4), (5 << 3) }, */
 	{ 48000, (1 << 4), (6 << 3) },
 	{  9600, (1 << 4), (7 << 3) },
-	{  5513, (2 << 4), (0 << 3) },	/* Actually 5512.5 */
+	{  5512, (2 << 4), (0 << 3) },	/* Actually 5512.5 */
 	{ 11025, (2 << 4), (1 << 3) },
 	{ 18900, (2 << 4), (2 << 3) },
 	{ 22050, (2 << 4), (3 << 3) },
@@ -628,8 +628,6 @@ to send them to the DBRI.
 
 */
 
-static void dbri_process_interrupt_buffer(struct snd_dbri * dbri);
-
 #define MAXLOOPS 10
 /*
  * Wait for the current command string to execute
@@ -669,15 +667,15 @@ static s32 *dbri_cmdlock(struct snd_dbri * dbri, int len)
 }
 
 /*
- * Send prepared cmd string. It works by writting a JMP cmd into
+ * Send prepared cmd string. It works by writting a JUMP cmd into
  * the last WAIT cmd and force DBRI to reread the cmd.
- * The JMP cmd points to the new cmd string.
+ * The JUMP cmd points to the new cmd string.
  * It also releases the cmdlock spinlock.
  */
 static void dbri_cmdsend(struct snd_dbri * dbri, s32 * cmd,int len)
 {
-	s32 *ptr;
 	s32 tmp, addr;
+	unsigned long flags;
 	static int wait_id = 0;
 
 	wait_id++;
@@ -691,14 +689,17 @@ static void dbri_cmdsend(struct snd_dbri * dbri, s32 * cmd,int len)
 	*(dbri->cmdptr) = DBRI_CMD(D_JUMP, 0, 0);
 
 #ifdef DBRI_DEBUG
-	if (cmd > dbri->cmdptr )
+	if (cmd > dbri->cmdptr) {
+		s32 *ptr;
+
 		for (ptr = dbri->cmdptr; ptr < cmd+2; ptr++) {
 			dprintk(D_CMD, "cmd: %lx:%08x\n", (unsigned long)ptr, *ptr);
 		}
-	else {
-		ptr = dbri->cmdptr;
+	} else {
+		s32 *ptr = dbri->cmdptr;
+
 		dprintk(D_CMD, "cmd: %lx:%08x\n", (unsigned long)ptr, *ptr);
-		ptr = dbri->cmdptr+1;
+		ptr++;
 		dprintk(D_CMD, "cmd: %lx:%08x\n", (unsigned long)ptr, *ptr);
 		for (ptr = dbri->dma->cmd; ptr < cmd+2; ptr++) {
 			dprintk(D_CMD, "cmd: %lx:%08x\n", (unsigned long)ptr, *ptr);
@@ -706,10 +707,12 @@ static void dbri_cmdsend(struct snd_dbri * dbri, s32 * cmd,int len)
 	}
 #endif
 
+	spin_lock_irqsave(&dbri->lock, flags);
 	/* Reread the last command */
 	tmp = sbus_readl(dbri->regs + REG0);
 	tmp |= D_P;
 	sbus_writel(tmp, dbri->regs + REG0);
+	spin_unlock_irqrestore(&dbri->lock, flags);
 
 	dbri->cmdptr = cmd;
 	spin_unlock(&dbri->cmdlock);
@@ -1549,8 +1552,7 @@ static int cs4215_prepare(struct snd_dbri * dbri, unsigned int rate,
 	    CS4215_BSEL_128 | CS4215_FREQ[freq_idx].xtal;
 
 	dbri->mm.channels = channels;
-	/* Stereo bit: 8 bit stereo not working yet. */
-	if ((channels > 1) && (dbri->mm.precision == 16))
+	if (channels == 2)
 		dbri->mm.ctrl[1] |= CS4215_DFR_STEREO;
 
 	ret = cs4215_setctrl(dbri);
@@ -1624,7 +1626,7 @@ interrupts are disabled.
 
 /* xmit_descs()
  *
- * Transmit the current TD's for recording/playing, if needed.
+ * Starts transmiting the current TD's for recording/playing.
  * For playback, ALSA has filled the DMA memory with new data (we hope).
  */
 static void xmit_descs(struct snd_dbri *dbri)
@@ -1699,9 +1701,9 @@ play:
  * them as available. Stops when the first descriptor is found without
  * TBC (Transmit Buffer Complete) set, or we've run through them all.
  *
- * The DMA buffers are not released, but re-used. Since the transmit buffer
- * descriptors are not clobbered, they can be re-submitted as is. This is
- * done by the xmit_descs() tasklet above since that could take longer.
+ * The DMA buffers are not released. They form a ring buffer and
+ * they are filled by ALSA while others are transmitted by DMA.
+ *
  */
 
 static void transmission_complete_intr(struct snd_dbri * dbri, int pipe)
@@ -1944,8 +1946,8 @@ static struct snd_pcm_hardware snd_dbri_pcm_hw = {
 				  SNDRV_PCM_FMTBIT_A_LAW |
 				  SNDRV_PCM_FMTBIT_U8 |
 				  SNDRV_PCM_FMTBIT_S16_BE,
-	.rates			= SNDRV_PCM_RATE_8000_48000,
-	.rate_min		= 8000,
+	.rates			= SNDRV_PCM_RATE_8000_48000 | SNDRV_PCM_RATE_5512,
+	.rate_min		= 5512,
 	.rate_max		= 48000,
 	.channels_min		= 1,
 	.channels_max		= 2,
@@ -1955,6 +1957,39 @@ static struct snd_pcm_hardware snd_dbri_pcm_hw = {
 	.periods_min		= 1,
 	.periods_max		= 1024,
 };
+
+static int snd_hw_rule_format(struct snd_pcm_hw_params *params,
+			      struct snd_pcm_hw_rule *rule)
+{
+	struct snd_interval *c = hw_param_interval(params,
+				SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+	struct snd_mask fmt;
+
+	snd_mask_any(&fmt);
+	if (c->min > 1) {
+		fmt.bits[0] &= SNDRV_PCM_FMTBIT_S16_BE;
+		return snd_mask_refine(f, &fmt);
+	}
+	return 0;
+}
+
+static int snd_hw_rule_channels(struct snd_pcm_hw_params *params,
+				struct snd_pcm_hw_rule *rule)
+{
+	struct snd_interval *c = hw_param_interval(params,
+				SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+	struct snd_interval ch;
+
+	snd_interval_any(&ch);
+	if (!(f->bits[0] & SNDRV_PCM_FMTBIT_S16_BE)) {
+		ch.min = ch.max = 1;
+		ch.integer = 1;
+		return snd_interval_refine(c, &ch);
+	}
+	return 0;
+}
 
 static int snd_dbri_open(struct snd_pcm_substream *substream)
 {
@@ -1973,6 +2008,14 @@ static int snd_dbri_open(struct snd_pcm_substream *substream)
 	info->pipe = -1;
 	spin_unlock_irqrestore(&dbri->lock, flags);
 
+	snd_pcm_hw_rule_add(runtime,0,SNDRV_PCM_HW_PARAM_CHANNELS,
+			    snd_hw_rule_format, 0, SNDRV_PCM_HW_PARAM_FORMAT,
+			    -1);
+	snd_pcm_hw_rule_add(runtime,0,SNDRV_PCM_HW_PARAM_FORMAT,
+			    snd_hw_rule_channels, 0, 
+			    SNDRV_PCM_HW_PARAM_CHANNELS,
+			    -1);
+				
 	cs4215_open(dbri);
 
 	return 0;
