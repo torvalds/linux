@@ -109,30 +109,23 @@ nsm_unmonitor(struct nlm_host *host)
 static struct rpc_clnt *
 nsm_create(void)
 {
-	struct rpc_xprt		*xprt;
-	struct rpc_clnt		*clnt;
-	struct sockaddr_in	sin;
+	struct sockaddr_in	sin = {
+		.sin_family	= AF_INET,
+		.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
+		.sin_port	= 0,
+	};
+	struct rpc_create_args args = {
+		.protocol	= IPPROTO_UDP,
+		.address	= (struct sockaddr *)&sin,
+		.addrsize	= sizeof(sin),
+		.servername	= "localhost",
+		.program	= &nsm_program,
+		.version	= SM_VERSION,
+		.authflavor	= RPC_AUTH_NULL,
+		.flags		= (RPC_CLNT_CREATE_ONESHOT),
+	};
 
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	sin.sin_port = 0;
-
-	xprt = xprt_create_proto(IPPROTO_UDP, &sin, NULL);
-	if (IS_ERR(xprt))
-		return (struct rpc_clnt *)xprt;
-	xprt->resvport = 1;	/* NSM requires a reserved port */
-
-	clnt = rpc_create_client(xprt, "localhost",
-				&nsm_program, SM_VERSION,
-				RPC_AUTH_NULL);
-	if (IS_ERR(clnt))
-		goto out_err;
-	clnt->cl_softrtry = 1;
-	clnt->cl_oneshot  = 1;
-	return clnt;
-
-out_err:
-	return clnt;
+	return rpc_create(&args);
 }
 
 /*
