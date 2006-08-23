@@ -29,6 +29,7 @@
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#include <sound/tlv.h>
 #include <sound/ac97_codec.h>
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
@@ -1053,6 +1054,13 @@ static int snd_fm801_put_single(struct snd_kcontrol *kcontrol,
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .info = snd_fm801_info_double, \
   .get = snd_fm801_get_double, .put = snd_fm801_put_double, \
   .private_value = reg | (shift_left << 8) | (shift_right << 12) | (mask << 16) | (invert << 24) }
+#define FM801_DOUBLE_TLV(xname, reg, shift_left, shift_right, mask, invert, xtlv) \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .name = xname, .info = snd_fm801_info_double, \
+  .get = snd_fm801_get_double, .put = snd_fm801_put_double, \
+  .private_value = reg | (shift_left << 8) | (shift_right << 12) | (mask << 16) | (invert << 24), \
+  .tlv = { .p = (xtlv) } }
 
 static int snd_fm801_info_double(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
@@ -1149,14 +1157,19 @@ static int snd_fm801_put_mux(struct snd_kcontrol *kcontrol,
 	return snd_fm801_update_bits(chip, FM801_REC_SRC, 7, val);
 }
 
+static DECLARE_TLV_DB_SCALE(db_scale_dsp, -3450, 150, 0);
+
 #define FM801_CONTROLS ARRAY_SIZE(snd_fm801_controls)
 
 static struct snd_kcontrol_new snd_fm801_controls[] __devinitdata = {
-FM801_DOUBLE("Wave Playback Volume", FM801_PCM_VOL, 0, 8, 31, 1),
+FM801_DOUBLE_TLV("Wave Playback Volume", FM801_PCM_VOL, 0, 8, 31, 1,
+		 db_scale_dsp),
 FM801_SINGLE("Wave Playback Switch", FM801_PCM_VOL, 15, 1, 1),
-FM801_DOUBLE("I2S Playback Volume", FM801_I2S_VOL, 0, 8, 31, 1),
+FM801_DOUBLE_TLV("I2S Playback Volume", FM801_I2S_VOL, 0, 8, 31, 1,
+		 db_scale_dsp),
 FM801_SINGLE("I2S Playback Switch", FM801_I2S_VOL, 15, 1, 1),
-FM801_DOUBLE("FM Playback Volume", FM801_FM_VOL, 0, 8, 31, 1),
+FM801_DOUBLE_TLV("FM Playback Volume", FM801_FM_VOL, 0, 8, 31, 1,
+		 db_scale_dsp),
 FM801_SINGLE("FM Playback Switch", FM801_FM_VOL, 15, 1, 1),
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
