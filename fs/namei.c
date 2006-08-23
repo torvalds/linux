@@ -1767,6 +1767,8 @@ struct dentry *lookup_create(struct nameidata *nd, int is_dir)
 	if (nd->last_type != LAST_NORM)
 		goto fail;
 	nd->flags &= ~LOOKUP_PARENT;
+	nd->flags |= LOOKUP_CREATE;
+	nd->intent.open.flags = O_EXCL;
 
 	/*
 	 * Do the final lookup.
