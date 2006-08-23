@@ -922,12 +922,6 @@ int prepare_binprm(struct linux_binprm *bprm)
 	int retval;
 
 	mode = inode->i_mode;
-	/*
-	 * Check execute perms again - if the caller has CAP_DAC_OVERRIDE,
-	 * generic_permission lets a non-executable through
-	 */
-	if (!(mode & 0111))	/* with at least _one_ execute bit set */
-		return -EACCES;
 	if (bprm->file->f_op == NULL)
 		return -EACCES;
 
