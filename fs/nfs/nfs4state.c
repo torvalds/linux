@@ -58,24 +58,6 @@ const nfs4_stateid zero_stateid;
 
 static LIST_HEAD(nfs4_clientid_list);
 
-void
-init_nfsv4_state(struct nfs_server *server)
-{
-	server->nfs_client = NULL;
-	INIT_LIST_HEAD(&server->nfs4_siblings);
-}
-
-void
-destroy_nfsv4_state(struct nfs_server *server)
-{
-	kfree(server->mnt_path);
-	server->mnt_path = NULL;
-	if (server->nfs_client) {
-		nfs_put_client(server->nfs_client);
-		server->nfs_client = NULL;
-	}
-}
-
 static int nfs4_init_client(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	int status = nfs4_proc_setclientid(clp, NFS4_CALLBACK,

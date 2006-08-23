@@ -188,8 +188,6 @@ extern void nfs4_kill_renewd(struct nfs_client *);
 extern void nfs4_renew_state(void *);
 
 /* nfs4state.c */
-extern void init_nfsv4_state(struct nfs_server *);
-extern void destroy_nfsv4_state(struct nfs_server *);
 struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp);
 extern u32 nfs4_alloc_lockowner_id(struct nfs_client *);
 
@@ -224,10 +222,6 @@ extern struct svc_version nfs4_callback_version1;
 
 #else
 
-#define init_nfsv4_state(server)  do { } while (0)
-#define destroy_nfsv4_state(server)       do { } while (0)
-#define nfs4_put_state_owner(inode, owner) do { } while (0)
-#define nfs4_put_open_state(state) do { } while (0)
 #define nfs4_close_state(a, b) do { } while (0)
 
 #endif /* CONFIG_NFS_V4 */

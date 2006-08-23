@@ -171,7 +171,7 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 		rdata->args.offset = page_offset(page) + rdata->args.pgbase;
 
 		dprintk("NFS: nfs_proc_read(%s, (%s/%Ld), %Lu, %u)\n",
-			NFS_SERVER(inode)->hostname,
+			NFS_SERVER(inode)->nfs_client->cl_hostname,
 			inode->i_sb->s_id,
 			(long long)NFS_FILEID(inode),
 			(unsigned long long)rdata->args.pgbase,

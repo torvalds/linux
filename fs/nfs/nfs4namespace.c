@@ -2,6 +2,7 @@
  * linux/fs/nfs/nfs4namespace.c
  *
  * Copyright (C) 2005 Trond Myklebust <Trond.Myklebust@netapp.com>
+ * - Modified by David Howells <dhowells@redhat.com>
  *
  * NFSv4 namespace
  */
@@ -47,6 +48,68 @@ Elong:
 	return ERR_PTR(-ENAMETOOLONG);
 }
 
+/*
+ * Determine the mount path as a string
+ */
+static char *nfs4_path(const struct vfsmount *mnt_parent,
+		       const struct dentry *dentry,
+		       char *buffer, ssize_t buflen)
+{
+	const char *srvpath;
+
+	srvpath = strchr(mnt_parent->mnt_devname, ':');
+	if (srvpath)
+		srvpath++;
+	else
+		srvpath = mnt_parent->mnt_devname;
+
+	return nfs_path(srvpath, mnt_parent->mnt_root, dentry, buffer, buflen);
+}
+
+/*
+ * Check that fs_locations::fs_root [RFC3530 6.3] is a prefix for what we
+ * believe to be the server path to this dentry
+ */
+static int nfs4_validate_fspath(const struct vfsmount *mnt_parent,
+				const struct dentry *dentry,
+				const struct nfs4_fs_locations *locations,
+				char *page, char *page2)
+{
+	const char *path, *fs_path;
+
+	path = nfs4_path(mnt_parent, dentry, page, PAGE_SIZE);
+	if (IS_ERR(path))
+		return PTR_ERR(path);
+
+	fs_path = nfs4_pathname_string(&locations->fs_path, page2, PAGE_SIZE);
+	if (IS_ERR(fs_path))
+		return PTR_ERR(fs_path);
+
+	if (strncmp(path, fs_path, strlen(fs_path)) != 0) {
+		dprintk("%s: path %s does not begin with fsroot %s\n",
+			__FUNCTION__, path, fs_path);
+		return -ENOENT;
+	}
+
+	return 0;
+}
+
+/*
+ * Check if the string represents a "valid" IPv4 address
+ */
+static inline int valid_ipaddr4(const char *buf)
+{
+	int rc, count, in[4];
+
+	rc = sscanf(buf, "%d.%d.%d.%d", &in[0], &in[1], &in[2], &in[3]);
+	if (rc != 4)
+		return -EINVAL;
+	for (count = 0; count < 4; count++) {
+		if (in[count] > 255)
+			return -EINVAL;
+	}
+	return 0;
+}
 
 /**
  * nfs_follow_referral - set up mountpoint when hitting a referral on moved error
@@ -68,10 +131,9 @@ static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 		.dentry = dentry,
 		.authflavor = NFS_SB(mnt_parent->mnt_sb)->client->cl_auth->au_flavor,
 	};
-	char *page, *page2;
-	char *path, *fs_path;
+	char *page = NULL, *page2 = NULL;
 	char *devname;
-	int loc, s;
+	int loc, s, error;
 
 	if (locations == NULL || locations->nlocations <= 0)
 		goto out;
@@ -79,31 +141,25 @@ static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 	dprintk("%s: referral at %s/%s\n", __FUNCTION__,
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
-	/* Ensure fs path is a prefix of current dentry path */
 	page = (char *) __get_free_page(GFP_USER);
-	if (page == NULL)
+	if (!page)
 		goto out;
+
 	page2 = (char *) __get_free_page(GFP_USER);
-	if (page2 == NULL)
+	if (!page2)
 		goto out;
 
-	path = nfs4_path(dentry, page, PAGE_SIZE);
-	if (IS_ERR(path))
-		goto out_free;
-
-	fs_path = nfs4_pathname_string(&locations->fs_path, page2, PAGE_SIZE);
-	if (IS_ERR(fs_path))
-		goto out_free;
-
-	if (strncmp(path, fs_path, strlen(fs_path)) != 0) {
-		dprintk("%s: path %s does not begin with fsroot %s\n", __FUNCTION__, path, fs_path);
-		goto out_free;
+	/* Ensure fs path is a prefix of current dentry path */
+	error = nfs4_validate_fspath(mnt_parent, dentry, locations, page, page2);
+	if (error < 0) {
+		mnt = ERR_PTR(error);
+		goto out;
 	}
 
 	devname = nfs_devname(mnt_parent, dentry, page, PAGE_SIZE);
 	if (IS_ERR(devname)) {
 		mnt = (struct vfsmount *)devname;
-		goto out_free;
+		goto out;
 	}
 
 	loc = 0;
@@ -140,7 +196,7 @@ static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 			addr.sin_port = htons(NFS_PORT);
 			mountdata.addr = &addr;
 
-			mnt = vfs_kern_mount(&nfs_referral_nfs4_fs_type, 0, devname, &mountdata);
+			mnt = vfs_kern_mount(&nfs4_referral_fs_type, 0, devname, &mountdata);
 			if (!IS_ERR(mnt)) {
 				break;
 			}
@@ -149,10 +205,9 @@ static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 		loc++;
 	}
 
-out_free:
-	free_page((unsigned long)page);
-	free_page((unsigned long)page2);
 out:
+	free_page((unsigned long) page);
+	free_page((unsigned long) page2);
 	dprintk("%s: done\n", __FUNCTION__);
 	return mnt;
 }
@@ -165,7 +220,7 @@ out:
  */
 struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentry *dentry)
 {
-	struct vfsmount *mnt = ERR_PTR(-ENOENT);
+	struct vfsmount *mnt = ERR_PTR(-ENOMEM);
 	struct dentry *parent;
 	struct nfs4_fs_locations *fs_locations = NULL;
 	struct page *page;
@@ -183,11 +238,16 @@ struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentr
 		goto out_free;
 
 	/* Get locations */
+	mnt = ERR_PTR(-ENOENT);
+
 	parent = dget_parent(dentry);
-	dprintk("%s: getting locations for %s/%s\n", __FUNCTION__, parent->d_name.name, dentry->d_name.name);
+	dprintk("%s: getting locations for %s/%s\n",
+		__FUNCTION__, parent->d_name.name, dentry->d_name.name);
+
 	err = nfs4_proc_fs_locations(parent->d_inode, dentry, fs_locations, page);
 	dput(parent);
-	if (err != 0 || fs_locations->nlocations <= 0 ||
+	if (err != 0 ||
+	    fs_locations->nlocations <= 0 ||
 	    fs_locations->fs_path.ncomponents <= 0)
 		goto out_free;
 

@@ -81,7 +81,7 @@ do_proc_get_root(struct rpc_clnt *client, struct nfs_fh *fhandle,
 }
 
 /*
- * Bare-bones access to getattr: this is for nfs_read_super.
+ * Bare-bones access to getattr: this is for nfs_get_root/nfs_get_sb
  */
 static int
 nfs3_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,

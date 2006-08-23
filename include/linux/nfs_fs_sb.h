@@ -51,7 +51,6 @@ struct nfs_client {
 	unsigned long		cl_lease_time;
 	unsigned long		cl_last_renewal;
 	struct work_struct	cl_renewd;
-	struct work_struct	cl_recoverd;
 
 	struct rpc_wait_queue	cl_rpcwaitq;
 
@@ -74,6 +73,10 @@ struct nfs_client {
  */
 struct nfs_server {
 	struct nfs_client *	nfs_client;	/* shared client and NFS4 state */
+	struct list_head	client_link;	/* List of other nfs_server structs
+						 * that share the same client
+						 */
+	struct list_head	master_link;	/* link in master servers list */
 	struct rpc_clnt *	client;		/* RPC client handle */
 	struct rpc_clnt *	client_acl;	/* ACL RPC client handle */
 	struct nfs_iostats *	io_stats;	/* I/O statistics */
@@ -92,20 +95,13 @@ struct nfs_server {
 	unsigned int		acdirmin;
 	unsigned int		acdirmax;
 	unsigned int		namelen;
-	char *			hostname;	/* remote hostname */
-	struct nfs_fh		fh;
-	struct sockaddr_in	addr;
+
 	struct nfs_fsid		fsid;
+	__u64			maxfilesize;	/* maximum file size */
 	unsigned long		mount_time;	/* when this fs was mounted */
+	dev_t			s_dev;		/* superblock dev numbers */
+
 #ifdef CONFIG_NFS_V4
-	/* Our own IP address, as a null-terminated string.
-	 * This is used to generate the clientid, and the callback address.
-	 */
-	char			ip_addr[16];
-	char *			mnt_path;
-	struct list_head	nfs4_siblings;	/* List of other nfs_server structs
-						 * that share the same clientid
-						 */
 	u32			attr_bitmask[2];/* V4 bitmask representing the set
 						   of attributes supported on this
 						   filesystem */
@@ -113,6 +109,7 @@ struct nfs_server {
 						   that are supported on this
 						   filesystem */
 #endif
+	void (*destroy)(struct nfs_server *);
 };
 
 /* Server capabilities */

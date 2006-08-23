@@ -31,6 +31,7 @@
 #include <linux/pagemap.h>
 #include <linux/smp_lock.h>
 #include <linux/namei.h>
+#include <linux/mount.h>
 
 #include "nfs4_fs.h"
 #include "delegation.h"
@@ -870,14 +871,14 @@ int nfs_is_exclusive_create(struct inode *dir, struct nameidata *nd)
 	return (nd->intent.open.flags & O_EXCL) != 0;
 }
 
-static inline int nfs_reval_fsid(struct inode *dir,
-		struct nfs_fh *fh, struct nfs_fattr *fattr)
+static inline int nfs_reval_fsid(struct vfsmount *mnt, struct inode *dir,
+				 struct nfs_fh *fh, struct nfs_fattr *fattr)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
 
 	if (!nfs_fsid_equal(&server->fsid, &fattr->fsid))
 		/* Revalidate fsid on root dir */
-		return __nfs_revalidate_inode(server, dir->i_sb->s_root->d_inode);
+		return __nfs_revalidate_inode(server, mnt->mnt_root->d_inode);
 	return 0;
 }
 
@@ -913,7 +914,7 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 		res = ERR_PTR(error);
 		goto out_unlock;
 	}
-	error = nfs_reval_fsid(dir, &fhandle, &fattr);
+	error = nfs_reval_fsid(nd->mnt, dir, &fhandle, &fattr);
 	if (error < 0) {
 		res = ERR_PTR(error);
 		goto out_unlock;
@@ -922,8 +923,9 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 	res = (struct dentry *)inode;
 	if (IS_ERR(res))
 		goto out_unlock;
+
 no_entry:
-	res = d_add_unique(dentry, inode);
+	res = d_materialise_unique(dentry, inode);
 	if (res != NULL)
 		dentry = res;
 	nfs_renew_times(dentry);
@@ -1117,11 +1119,13 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 		dput(dentry);
 		return NULL;
 	}
-	alias = d_add_unique(dentry, inode);
+
+	alias = d_materialise_unique(dentry, inode);
 	if (alias != NULL) {
 		dput(dentry);
 		dentry = alias;
 	}
+
 	nfs_renew_times(dentry);
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	return dentry;

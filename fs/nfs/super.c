@@ -13,6 +13,11 @@
  *
  *  Split from inode.c by David Howells <dhowells@redhat.com>
  *
+ * - superblocks are indexed on server only - all inodes, dentries, etc. associated with a
+ *   particular server are held in the same superblock
+ * - NFS superblocks can have several effective roots to the dentry tree
+ * - directory type roots are spliced into the tree when a path from one root reaches the root
+ *   of another (see nfs_lookup())
  */
 
 #include <linux/config.h>
@@ -52,20 +57,12 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
-/* Maximum number of readahead requests
- * FIXME: this should really be a sysctl so that users may tune it to suit
- *        their needs. People that do NFS over a slow network, might for
- *        instance want to reduce it to something closer to 1 for improved
- *        interactive response.
- */
-#define NFS_MAX_READAHEAD	(RPC_DEF_SLOT_TABLE - 1)
-
 static void nfs_umount_begin(struct vfsmount *, int);
 static int  nfs_statfs(struct dentry *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
 static int  nfs_show_stats(struct seq_file *, struct vfsmount *);
 static int nfs_get_sb(struct file_system_type *, int, const char *, void *, struct vfsmount *);
-static int nfs_clone_nfs_sb(struct file_system_type *fs_type,
+static int nfs_xdev_get_sb(struct file_system_type *fs_type,
 		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
 static void nfs_kill_super(struct super_block *);
 
@@ -77,10 +74,10 @@ static struct file_system_type nfs_fs_type = {
 	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
 
-struct file_system_type clone_nfs_fs_type = {
+struct file_system_type nfs_xdev_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs",
-	.get_sb		= nfs_clone_nfs_sb,
+	.get_sb		= nfs_xdev_get_sb,
 	.kill_sb	= nfs_kill_super,
 	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
@@ -99,10 +96,10 @@ static struct super_operations nfs_sops = {
 #ifdef CONFIG_NFS_V4
 static int nfs4_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
-static int nfs_clone_nfs4_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
-static int nfs_referral_nfs4_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
+static int nfs4_xdev_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
+static int nfs4_referral_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
 static void nfs4_kill_super(struct super_block *sb);
 
 static struct file_system_type nfs4_fs_type = {
@@ -113,18 +110,18 @@ static struct file_system_type nfs4_fs_type = {
 	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
 
-struct file_system_type clone_nfs4_fs_type = {
+struct file_system_type nfs4_xdev_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs4",
-	.get_sb		= nfs_clone_nfs4_sb,
+	.get_sb		= nfs4_xdev_get_sb,
 	.kill_sb	= nfs4_kill_super,
 	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
 
-struct file_system_type nfs_referral_nfs4_fs_type = {
+struct file_system_type nfs4_referral_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs4",
-	.get_sb		= nfs_referral_nfs4_sb,
+	.get_sb		= nfs4_referral_get_sb,
 	.kill_sb	= nfs4_kill_super,
 	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
@@ -345,7 +342,7 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 	nfs_show_mount_options(m, nfss, 0);
 
 	seq_puts(m, ",addr=");
-	seq_escape(m, nfss->hostname, " \t\n\\");
+	seq_escape(m, nfss->nfs_client->cl_hostname, " \t\n\\");
 
 	return 0;
 }
@@ -429,449 +426,30 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 
 /*
  * Begin unmount by attempting to remove all automounted mountpoints we added
- * in response to traversals
+ * in response to xdev traversals and referrals
  */
 static void nfs_umount_begin(struct vfsmount *vfsmnt, int flags)
 {
-	struct nfs_server *server;
-	struct rpc_clnt	*rpc;
-
 	shrink_submounts(vfsmnt, &nfs_automount_list);
-	if (!(flags & MNT_FORCE))
-		return;
-	/* -EIO all pending I/O */
-	server = NFS_SB(vfsmnt->mnt_sb);
-	rpc = server->client;
-	if (!IS_ERR(rpc))
-		rpc_killall_tasks(rpc);
-	rpc = server->client_acl;
-	if (!IS_ERR(rpc))
-		rpc_killall_tasks(rpc);
 }
 
 /*
- * Obtain the root inode of the file system.
+ * Validate the NFS2/NFS3 mount data
+ * - fills in the mount root filehandle
  */
-static struct inode *
-nfs_get_root(struct super_block *sb, struct nfs_fh *rootfh, struct nfs_fsinfo *fsinfo)
+static int nfs_validate_mount_data(struct nfs_mount_data *data,
+				   struct nfs_fh *mntfh)
 {
-	struct nfs_server	*server = NFS_SB(sb);
-	int			error;
-
-	error = server->nfs_client->rpc_ops->getroot(server, rootfh, fsinfo);
-	if (error < 0) {
-		dprintk("nfs_get_root: getattr error = %d\n", -error);
-		return ERR_PTR(error);
-	}
-
-	server->fsid = fsinfo->fattr->fsid;
-	return nfs_fhget(sb, rootfh, fsinfo->fattr);
-}
-
-/*
- * Do NFS version-independent mount processing, and sanity checking
- */
-static int
-nfs_sb_init(struct super_block *sb, rpc_authflavor_t authflavor)
-{
-	struct nfs_server	*server;
-	struct inode		*root_inode;
-	struct nfs_fattr	fattr;
-	struct nfs_fsinfo	fsinfo = {
-					.fattr = &fattr,
-				};
-	struct nfs_pathconf pathinfo = {
-			.fattr = &fattr,
-	};
-	int no_root_error = 0;
-	unsigned long max_rpc_payload;
-
-	/* We probably want something more informative here */
-	snprintf(sb->s_id, sizeof(sb->s_id), "%x:%x", MAJOR(sb->s_dev), MINOR(sb->s_dev));
-
-	server = NFS_SB(sb);
-
-	sb->s_magic      = NFS_SUPER_MAGIC;
-
-	server->io_stats = nfs_alloc_iostats();
-	if (server->io_stats == NULL)
-		return -ENOMEM;
-
-	root_inode = nfs_get_root(sb, &server->fh, &fsinfo);
-	/* Did getting the root inode fail? */
-	if (IS_ERR(root_inode)) {
-		no_root_error = PTR_ERR(root_inode);
-		goto out_no_root;
-	}
-	sb->s_root = d_alloc_root(root_inode);
-	if (!sb->s_root) {
-		no_root_error = -ENOMEM;
-		goto out_no_root;
-	}
-	sb->s_root->d_op = server->nfs_client->rpc_ops->dentry_ops;
-
-	/* mount time stamp, in seconds */
-	server->mount_time = jiffies;
-
-	/* Get some general file system info */
-	if (server->namelen == 0 &&
-	    server->nfs_client->rpc_ops->pathconf(server, &server->fh, &pathinfo) >= 0)
-		server->namelen = pathinfo.max_namelen;
-	/* Work out a lot of parameters */
-	if (server->rsize == 0)
-		server->rsize = nfs_block_size(fsinfo.rtpref, NULL);
-	if (server->wsize == 0)
-		server->wsize = nfs_block_size(fsinfo.wtpref, NULL);
-
-	if (fsinfo.rtmax >= 512 && server->rsize > fsinfo.rtmax)
-		server->rsize = nfs_block_size(fsinfo.rtmax, NULL);
-	if (fsinfo.wtmax >= 512 && server->wsize > fsinfo.wtmax)
-		server->wsize = nfs_block_size(fsinfo.wtmax, NULL);
-
-	max_rpc_payload = nfs_block_size(rpc_max_payload(server->client), NULL);
-	if (server->rsize > max_rpc_payload)
-		server->rsize = max_rpc_payload;
-	if (server->rsize > NFS_MAX_FILE_IO_SIZE)
-		server->rsize = NFS_MAX_FILE_IO_SIZE;
-	server->rpages = (server->rsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-
-	if (server->wsize > max_rpc_payload)
-		server->wsize = max_rpc_payload;
-	if (server->wsize > NFS_MAX_FILE_IO_SIZE)
-		server->wsize = NFS_MAX_FILE_IO_SIZE;
-	server->wpages = (server->wsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-
-	if (sb->s_blocksize == 0)
-		sb->s_blocksize = nfs_block_bits(server->wsize,
-							 &sb->s_blocksize_bits);
-	server->wtmult = nfs_block_bits(fsinfo.wtmult, NULL);
-
-	server->dtsize = nfs_block_size(fsinfo.dtpref, NULL);
-	if (server->dtsize > PAGE_CACHE_SIZE)
-		server->dtsize = PAGE_CACHE_SIZE;
-	if (server->dtsize > server->rsize)
-		server->dtsize = server->rsize;
-
-	if (server->flags & NFS_MOUNT_NOAC) {
-		server->acregmin = server->acregmax = 0;
-		server->acdirmin = server->acdirmax = 0;
-		sb->s_flags |= MS_SYNCHRONOUS;
-	}
-	server->backing_dev_info.ra_pages = server->rpages * NFS_MAX_READAHEAD;
-
-	nfs_super_set_maxbytes(sb, fsinfo.maxfilesize);
-
-	server->client->cl_intr = (server->flags & NFS_MOUNT_INTR) ? 1 : 0;
-	server->client->cl_softrtry = (server->flags & NFS_MOUNT_SOFT) ? 1 : 0;
-
-	/* We're airborne Set socket buffersize */
-	rpc_setbufsize(server->client, server->wsize + 100, server->rsize + 100);
-	return 0;
-	/* Yargs. It didn't work out. */
-out_no_root:
-	dprintk("nfs_sb_init: get root inode failed: errno %d\n", -no_root_error);
-	if (!IS_ERR(root_inode))
-		iput(root_inode);
-	return no_root_error;
-}
-
-/*
- * Create an RPC client handle.
- */
-static struct rpc_clnt *
-nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
-{
-	struct nfs_client	*clp;
-	struct rpc_clnt		*clnt;
-	int			proto = (data->flags & NFS_MOUNT_TCP) ? IPPROTO_TCP : IPPROTO_UDP;
-	int			nfsversion = 2;
-	int			err;
-
-#ifdef CONFIG_NFS_V3
-	if (server->flags & NFS_MOUNT_VER3)
-		nfsversion = 3;
-#endif
-
-	clp = nfs_get_client(server->hostname, &server->addr, nfsversion);
-	if (!clp) {
-		dprintk("%s: failed to create NFS4 client.\n", __FUNCTION__);
-		return ERR_PTR(PTR_ERR(clp));
-	}
-
-	if (clp->cl_cons_state == NFS_CS_INITING) {
-		/* Check NFS protocol revision and initialize RPC op
-		 * vector and file handle pool. */
-#ifdef CONFIG_NFS_V3
-		if (nfsversion == 3) {
-			clp->rpc_ops = &nfs_v3_clientops;
-			server->caps |= NFS_CAP_READDIRPLUS;
-		} else {
-			clp->rpc_ops = &nfs_v2_clientops;
-		}
-#else
-		clp->rpc_ops = &nfs_v2_clientops;
-#endif
-
-		/* create transport and client */
-		err = nfs_create_rpc_client(clp, proto, data->timeo,
-					    data->retrans, RPC_AUTH_UNIX);
-		if (err < 0)
-			goto client_init_error;
-
-		nfs_mark_client_ready(clp, 0);
-	}
-
-	/* create an nfs_server-specific client */
-	clnt = rpc_clone_client(clp->cl_rpcclient);
-	if (IS_ERR(clnt)) {
-		dprintk("%s: couldn't create rpc_client!\n", __FUNCTION__);
-		nfs_put_client(clp);
-		return ERR_PTR(PTR_ERR(clnt));
-	}
-
-	if (data->pseudoflavor != clp->cl_rpcclient->cl_auth->au_flavor) {
-		struct rpc_auth *auth;
-
-		auth = rpcauth_create(data->pseudoflavor, server->client);
-		if (IS_ERR(auth)) {
-			dprintk("%s: couldn't create credcache!\n", __FUNCTION__);
-			return ERR_PTR(PTR_ERR(auth));
-		}
-	}
-
-	server->nfs_client = clp;
-	return clnt;
-
-client_init_error:
-	nfs_mark_client_ready(clp, err);
-	nfs_put_client(clp);
-	return ERR_PTR(err);
-}
-
-/*
- * Clone a server record
- */
-static struct nfs_server *nfs_clone_server(struct super_block *sb, struct nfs_clone_mount *data)
-{
-	struct nfs_server *server = NFS_SB(sb);
-	struct nfs_server *parent = NFS_SB(data->sb);
-	struct inode *root_inode;
-	struct nfs_fsinfo fsinfo;
-	void *err = ERR_PTR(-ENOMEM);
-
-	sb->s_op = data->sb->s_op;
-	sb->s_blocksize = data->sb->s_blocksize;
-	sb->s_blocksize_bits = data->sb->s_blocksize_bits;
-	sb->s_maxbytes = data->sb->s_maxbytes;
-
-	server->client_acl = ERR_PTR(-EINVAL);
-	server->io_stats = nfs_alloc_iostats();
-	if (server->io_stats == NULL)
-		goto out;
-
-	server->client = rpc_clone_client(parent->client);
-	if (IS_ERR((err = server->client)))
-		goto out;
-
-	if (!IS_ERR(parent->client_acl)) {
-		server->client_acl = rpc_clone_client(parent->client_acl);
-		if (IS_ERR((err = server->client_acl)))
-			goto out;
-	}
-	root_inode = nfs_fhget(sb, data->fh, data->fattr);
-	if (!root_inode)
-		goto out;
-	sb->s_root = d_alloc_root(root_inode);
-	if (!sb->s_root)
-		goto out_put_root;
-	fsinfo.fattr = data->fattr;
-	if (NFS_PROTO(root_inode)->fsinfo(server, data->fh, &fsinfo) == 0)
-		nfs_super_set_maxbytes(sb, fsinfo.maxfilesize);
-	sb->s_root->d_op = server->nfs_client->rpc_ops->dentry_ops;
-	sb->s_flags |= MS_ACTIVE;
-	return server;
-out_put_root:
-	iput(root_inode);
-out:
-	return err;
-}
-
-/*
- * Copy an existing superblock and attach revised data
- */
-static int nfs_clone_generic_sb(struct nfs_clone_mount *data,
-		struct super_block *(*fill_sb)(struct nfs_server *, struct nfs_clone_mount *),
-		struct nfs_server *(*fill_server)(struct super_block *, struct nfs_clone_mount *),
-		struct vfsmount *mnt)
-{
-	struct nfs_server *server;
-	struct nfs_server *parent = NFS_SB(data->sb);
-	struct super_block *sb = ERR_PTR(-EINVAL);
-	char *hostname;
-	int error = -ENOMEM;
-	int len;
-
-	server = kmalloc(sizeof(struct nfs_server), GFP_KERNEL);
-	if (server == NULL)
-		goto out_err;
-	memcpy(server, parent, sizeof(*server));
-	atomic_inc(&server->nfs_client->cl_count);
-	hostname = (data->hostname != NULL) ? data->hostname : parent->hostname;
-	len = strlen(hostname) + 1;
-	server->hostname = kmalloc(len, GFP_KERNEL);
-	if (server->hostname == NULL)
-		goto free_server;
-	memcpy(server->hostname, hostname, len);
-
-	sb = fill_sb(server, data);
-	if (IS_ERR(sb)) {
-		error = PTR_ERR(sb);
-		goto free_hostname;
-	}
-
-	if (sb->s_root)
-		goto out_share;
-
-	server = fill_server(sb, data);
-	if (IS_ERR(server)) {
-		error = PTR_ERR(server);
-		goto out_deactivate;
-	}
-	return simple_set_mnt(mnt, sb);
-out_deactivate:
-	up_write(&sb->s_umount);
-	deactivate_super(sb);
-	return error;
-out_share:
-	kfree(server->hostname);
-	nfs_put_client(server->nfs_client);
-	kfree(server);
-	return simple_set_mnt(mnt, sb);
-free_hostname:
-	kfree(server->hostname);
-free_server:
-	nfs_put_client(server->nfs_client);
-	kfree(server);
-out_err:
-	return error;
-}
-
-/*
- * Set up an NFS2/3 superblock
- *
- * The way this works is that the mount process passes a structure
- * in the data argument which contains the server's IP address
- * and the root file handle obtained from the server's mount
- * daemon. We stash these away in the private superblock fields.
- */
-static int
-nfs_fill_super(struct super_block *sb, struct nfs_mount_data *data, int silent)
-{
-	struct nfs_server	*server;
-	rpc_authflavor_t	authflavor;
-
-	server           = NFS_SB(sb);
-	sb->s_blocksize_bits = 0;
-	sb->s_blocksize = 0;
-	if (data->bsize)
-		sb->s_blocksize = nfs_block_size(data->bsize, &sb->s_blocksize_bits);
-	if (data->rsize)
-		server->rsize = nfs_block_size(data->rsize, NULL);
-	if (data->wsize)
-		server->wsize = nfs_block_size(data->wsize, NULL);
-	server->flags    = data->flags & NFS_MOUNT_FLAGMASK;
-
-	server->acregmin = data->acregmin*HZ;
-	server->acregmax = data->acregmax*HZ;
-	server->acdirmin = data->acdirmin*HZ;
-	server->acdirmax = data->acdirmax*HZ;
-
-	/* Start lockd here, before we might error out */
-	if (!(server->flags & NFS_MOUNT_NONLM))
-		lockd_up();
-
-	server->namelen  = data->namlen;
-	server->hostname = kmalloc(strlen(data->hostname) + 1, GFP_KERNEL);
-	if (!server->hostname)
-		return -ENOMEM;
-	strcpy(server->hostname, data->hostname);
-
-	/* Fill in pseudoflavor for mount version < 5 */
-	if (!(data->flags & NFS_MOUNT_SECFLAVOUR))
-		data->pseudoflavor = RPC_AUTH_UNIX;
-	authflavor = data->pseudoflavor;	/* save for sb_init() */
-	/* XXX maybe we want to add a server->pseudoflavor field */
-
-	/* Create RPC client handles */
-	server->client = nfs_create_client(server, data);
-	if (IS_ERR(server->client))
-		return PTR_ERR(server->client);
-
-	/* RFC 2623, sec 2.3.2 */
-	if (server->flags & NFS_MOUNT_VER3) {
-#ifdef CONFIG_NFS_V3_ACL
-		if (!(server->flags & NFS_MOUNT_NOACL)) {
-			server->client_acl = rpc_bind_new_program(server->client, &nfsacl_program, 3);
-			/* No errors! Assume that Sun nfsacls are supported */
-			if (!IS_ERR(server->client_acl))
-				server->caps |= NFS_CAP_ACLS;
-		}
-#else
-		server->flags &= ~NFS_MOUNT_NOACL;
-#endif /* CONFIG_NFS_V3_ACL */
-		/*
-		 * The VFS shouldn't apply the umask to mode bits. We will
-		 * do so ourselves when necessary.
-		 */
-		sb->s_flags |= MS_POSIXACL;
-		if (server->namelen == 0 || server->namelen > NFS3_MAXNAMLEN)
-			server->namelen = NFS3_MAXNAMLEN;
-		sb->s_time_gran = 1;
-	} else {
-		if (server->namelen == 0 || server->namelen > NFS2_MAXNAMLEN)
-			server->namelen = NFS2_MAXNAMLEN;
-	}
-
-	sb->s_op = &nfs_sops;
-	return nfs_sb_init(sb, authflavor);
-}
-
-static int nfs_set_super(struct super_block *s, void *data)
-{
-	s->s_fs_info = data;
-	return set_anon_super(s, data);
-}
-
-static int nfs_compare_super(struct super_block *sb, void *data)
-{
-	struct nfs_server *server = data;
-	struct nfs_server *old = NFS_SB(sb);
-
-	if (old->addr.sin_addr.s_addr != server->addr.sin_addr.s_addr)
-		return 0;
-	if (old->addr.sin_port != server->addr.sin_port)
-		return 0;
-	return !nfs_compare_fh(&old->fh, &server->fh);
-}
-
-static int nfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
-{
-	int error;
-	struct nfs_server *server = NULL;
-	struct super_block *s;
-	struct nfs_fh *root;
-	struct nfs_mount_data *data = raw_data;
-
-	error = -EINVAL;
 	if (data == NULL) {
 		dprintk("%s: missing data argument\n", __FUNCTION__);
-		goto out_err_noserver;
+		return -EINVAL;
 	}
+
 	if (data->version <= 0 || data->version > NFS_MOUNT_VERSION) {
 		dprintk("%s: bad mount version\n", __FUNCTION__);
-		goto out_err_noserver;
+		return -EINVAL;
 	}
+
 	switch (data->version) {
 		case 1:
 			data->namlen = 0;
@@ -882,7 +460,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 				dprintk("%s: mount structure version %d does not support NFSv3\n",
 						__FUNCTION__,
 						data->version);
-				goto out_err_noserver;
+				return -EINVAL;
 			}
 			data->root.size = NFS2_FHSIZE;
 			memcpy(data->root.data, data->old_root.data, NFS2_FHSIZE);
@@ -891,252 +469,308 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 				dprintk("%s: mount structure version %d does not support strong security\n",
 						__FUNCTION__,
 						data->version);
-				goto out_err_noserver;
+				return -EINVAL;
 			}
+			/* Fill in pseudoflavor for mount version < 5 */
+			data->pseudoflavor = RPC_AUTH_UNIX;
 		case 5:
 			memset(data->context, 0, sizeof(data->context));
 	}
+
 #ifndef CONFIG_NFS_V3
 	/* If NFSv3 is not compiled in, return -EPROTONOSUPPORT */
-	error = -EPROTONOSUPPORT;
 	if (data->flags & NFS_MOUNT_VER3) {
 		dprintk("%s: NFSv3 not compiled into kernel\n", __FUNCTION__);
-		goto out_err_noserver;
+		return -EPROTONOSUPPORT;
 	}
 #endif /* CONFIG_NFS_V3 */
 
-	error = -ENOMEM;
-	server = kzalloc(sizeof(struct nfs_server), GFP_KERNEL);
-	if (!server)
-		goto out_err_noserver;
-	/* Zero out the NFS state stuff */
-	init_nfsv4_state(server);
-	server->client = server->client_acl = ERR_PTR(-EINVAL);
-
-	root = &server->fh;
-	if (data->flags & NFS_MOUNT_VER3)
-		root->size = data->root.size;
-	else
-		root->size = NFS2_FHSIZE;
-	error = -EINVAL;
-	if (root->size > sizeof(root->data)) {
-		dprintk("%s: invalid root filehandle\n", __FUNCTION__);
-		goto out_err;
-	}
-	memcpy(root->data, data->root.data, root->size);
-
 	/* We now require that the mount process passes the remote address */
-	memcpy(&server->addr, &data->addr, sizeof(server->addr));
-	if (server->addr.sin_addr.s_addr == INADDR_ANY) {
+	if (data->addr.sin_addr.s_addr == INADDR_ANY) {
 		dprintk("%s: mount program didn't pass remote address!\n",
-				__FUNCTION__);
-		goto out_err;
+			__FUNCTION__);
+		return -EINVAL;
 	}
 
+	/* Prepare the root filehandle */
+	if (data->flags & NFS_MOUNT_VER3)
+		mntfh->size = data->root.size;
+	else
+		mntfh->size = NFS2_FHSIZE;
+
+	if (mntfh->size > sizeof(mntfh->data)) {
+		dprintk("%s: invalid root filehandle\n", __FUNCTION__);
+		return -EINVAL;
+	}
+
+	memcpy(mntfh->data, data->root.data, mntfh->size);
+	if (mntfh->size < sizeof(mntfh->data))
+		memset(mntfh->data + mntfh->size, 0,
+		       sizeof(mntfh->data) - mntfh->size);
+
+	return 0;
+}
+
+/*
+ * Initialise the common bits of the superblock
+ */
+static inline void nfs_initialise_sb(struct super_block *sb)
+{
+	struct nfs_server *server = NFS_SB(sb);
+
+	sb->s_magic = NFS_SUPER_MAGIC;
+
+	/* We probably want something more informative here */
+	snprintf(sb->s_id, sizeof(sb->s_id),
+		 "%x:%x", MAJOR(sb->s_dev), MINOR(sb->s_dev));
+
+	if (sb->s_blocksize == 0)
+		sb->s_blocksize = nfs_block_bits(server->wsize,
+						 &sb->s_blocksize_bits);
+
+	if (server->flags & NFS_MOUNT_NOAC)
+		sb->s_flags |= MS_SYNCHRONOUS;
+
+	nfs_super_set_maxbytes(sb, server->maxfilesize);
+}
+
+/*
+ * Finish setting up an NFS2/3 superblock
+ */
+static void nfs_fill_super(struct super_block *sb, struct nfs_mount_data *data)
+{
+	struct nfs_server *server = NFS_SB(sb);
+
+	sb->s_blocksize_bits = 0;
+	sb->s_blocksize = 0;
+	if (data->bsize)
+		sb->s_blocksize = nfs_block_size(data->bsize, &sb->s_blocksize_bits);
+
+	if (server->flags & NFS_MOUNT_VER3) {
+		/* The VFS shouldn't apply the umask to mode bits. We will do
+		 * so ourselves when necessary.
+		 */
+		sb->s_flags |= MS_POSIXACL;
+		sb->s_time_gran = 1;
+	}
+
+	sb->s_op = &nfs_sops;
+ 	nfs_initialise_sb(sb);
+}
+
+/*
+ * Finish setting up a cloned NFS2/3 superblock
+ */
+static void nfs_clone_super(struct super_block *sb,
+			    const struct super_block *old_sb)
+{
+	struct nfs_server *server = NFS_SB(sb);
+
+	sb->s_blocksize_bits = old_sb->s_blocksize_bits;
+	sb->s_blocksize = old_sb->s_blocksize;
+	sb->s_maxbytes = old_sb->s_maxbytes;
+
+	if (server->flags & NFS_MOUNT_VER3) {
+		/* The VFS shouldn't apply the umask to mode bits. We will do
+		 * so ourselves when necessary.
+		 */
+		sb->s_flags |= MS_POSIXACL;
+		sb->s_time_gran = 1;
+	}
+
+	sb->s_op = old_sb->s_op;
+ 	nfs_initialise_sb(sb);
+}
+
+static int nfs_set_super(struct super_block *s, void *_server)
+{
+	struct nfs_server *server = _server;
+	int ret;
+
+	s->s_fs_info = server;
+	ret = set_anon_super(s, server);
+	if (ret == 0)
+		server->s_dev = s->s_dev;
+	return ret;
+}
+
+static int nfs_compare_super(struct super_block *sb, void *data)
+{
+	struct nfs_server *server = data, *old = NFS_SB(sb);
+
+	if (old->nfs_client != server->nfs_client)
+		return 0;
+	if (memcmp(&old->fsid, &server->fsid, sizeof(old->fsid)) != 0)
+		return 0;
+	return 1;
+}
+
+static int nfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
+{
+	struct nfs_server *server = NULL;
+	struct super_block *s;
+	struct nfs_fh mntfh;
+	struct nfs_mount_data *data = raw_data;
+	struct dentry *mntroot;
+	int error;
+
+	/* Validate the mount data */
+	error = nfs_validate_mount_data(data, &mntfh);
+	if (error < 0)
+		return error;
+
+	/* Get a volume representation */
+	server = nfs_create_server(data, &mntfh);
+	if (IS_ERR(server)) {
+		error = PTR_ERR(server);
+		goto out_err_noserver;
+	}
+
+	/* Get a superblock - note that we may end up sharing one that already exists */
 	s = sget(fs_type, nfs_compare_super, nfs_set_super, server);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
-		goto out_err;
+		goto out_err_nosb;
 	}
 
-	if (s->s_root)
-		goto out_share;
-
-	s->s_flags = flags;
-
-	error = nfs_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
-	if (error) {
-		up_write(&s->s_umount);
-		deactivate_super(s);
-		return error;
+	if (s->s_fs_info != server) {
+		nfs_free_server(server);
+		server = NULL;
 	}
+
+	if (!s->s_root) {
+		/* initial superblock/root creation */
+		s->s_flags = flags;
+		nfs_fill_super(s, data);
+	}
+
+	mntroot = nfs_get_root(s, &mntfh);
+	if (IS_ERR(mntroot)) {
+		error = PTR_ERR(mntroot);
+		goto error_splat_super;
+	}
+
 	s->s_flags |= MS_ACTIVE;
-	return simple_set_mnt(mnt, s);
+	mnt->mnt_sb = s;
+	mnt->mnt_root = mntroot;
+	return 0;
 
-out_share:
-	kfree(server);
-	return simple_set_mnt(mnt, s);
-
-out_err:
-	kfree(server);
+out_err_nosb:
+	nfs_free_server(server);
 out_err_noserver:
+	return error;
+
+error_splat_super:
+	up_write(&s->s_umount);
+	deactivate_super(s);
 	return error;
 }
 
+/*
+ * Destroy an NFS2/3 superblock
+ */
 static void nfs_kill_super(struct super_block *s)
 {
 	struct nfs_server *server = NFS_SB(s);
 
 	kill_anon_super(s);
-
-	if (!IS_ERR(server->client))
-		rpc_shutdown_client(server->client);
-	if (!IS_ERR(server->client_acl))
-		rpc_shutdown_client(server->client_acl);
-
-	if (!(server->flags & NFS_MOUNT_NONLM))
-		lockd_down();	/* release rpc.lockd */
-
-	nfs_free_iostats(server->io_stats);
-	kfree(server->hostname);
-	nfs_put_client(server->nfs_client);
-	kfree(server);
-	nfs_release_automount_timer();
+	nfs_free_server(server);
 }
 
-static struct super_block *nfs_clone_sb(struct nfs_server *server, struct nfs_clone_mount *data)
-{
-	struct super_block *sb;
-
-	server->fsid = data->fattr->fsid;
-	nfs_copy_fh(&server->fh, data->fh);
-	sb = sget(&nfs_fs_type, nfs_compare_super, nfs_set_super, server);
-	if (!IS_ERR(sb) && sb->s_root == NULL && !(server->flags & NFS_MOUNT_NONLM))
-		lockd_up();
-	return sb;
-}
-
-static int nfs_clone_nfs_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
+/*
+ * Clone an NFS2/3 server record on xdev traversal (FSID-change)
+ */
+static int nfs_xdev_get_sb(struct file_system_type *fs_type, int flags,
+			   const char *dev_name, void *raw_data,
+			   struct vfsmount *mnt)
 {
 	struct nfs_clone_mount *data = raw_data;
-	return nfs_clone_generic_sb(data, nfs_clone_sb, nfs_clone_server, mnt);
+	struct super_block *s;
+	struct nfs_server *server;
+	struct dentry *mntroot;
+	int error;
+
+	dprintk("--> nfs_xdev_get_sb()\n");
+
+	/* create a new volume representation */
+	server = nfs_clone_server(NFS_SB(data->sb), data->fh, data->fattr);
+	if (IS_ERR(server)) {
+		error = PTR_ERR(server);
+		goto out_err_noserver;
+	}
+
+	/* Get a superblock - note that we may end up sharing one that already exists */
+	s = sget(&nfs_fs_type, nfs_compare_super, nfs_set_super, server);
+	if (IS_ERR(s)) {
+		error = PTR_ERR(s);
+		goto out_err_nosb;
+	}
+
+	if (s->s_fs_info != server) {
+		nfs_free_server(server);
+		server = NULL;
+	}
+
+	if (!s->s_root) {
+		/* initial superblock/root creation */
+		s->s_flags = flags;
+		nfs_clone_super(s, data->sb);
+	}
+
+	mntroot = nfs_get_root(s, data->fh);
+	if (IS_ERR(mntroot)) {
+		error = PTR_ERR(mntroot);
+		goto error_splat_super;
+	}
+
+	s->s_flags |= MS_ACTIVE;
+	mnt->mnt_sb = s;
+	mnt->mnt_root = mntroot;
+
+	dprintk("<-- nfs_xdev_get_sb() = 0\n");
+	return 0;
+
+out_err_nosb:
+	nfs_free_server(server);
+out_err_noserver:
+	dprintk("<-- nfs_xdev_get_sb() = %d [error]\n", error);
+	return error;
+
+error_splat_super:
+	up_write(&s->s_umount);
+	deactivate_super(s);
+	dprintk("<-- nfs_xdev_get_sb() = %d [splat]\n", error);
+	return error;
 }
 
 #ifdef CONFIG_NFS_V4
-static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
-	int timeo, int retrans, int proto, rpc_authflavor_t flavor)
+
+/*
+ * Finish setting up a cloned NFS4 superblock
+ */
+static void nfs4_clone_super(struct super_block *sb,
+			    const struct super_block *old_sb)
 {
-	struct nfs_client *clp;
-	struct rpc_clnt *clnt = NULL;
-	int err = -EIO;
-
-	clp = nfs_get_client(server->hostname, &server->addr, 4);
-	if (!clp) {
-		dprintk("%s: failed to create NFS4 client.\n", __FUNCTION__);
-		return ERR_PTR(err);
-	}
-
-	/* Now create transport and client */
-	if (clp->cl_cons_state == NFS_CS_INITING) {
-		clp->rpc_ops = &nfs_v4_clientops;
-
-		err = nfs_create_rpc_client(clp, proto, timeo, retrans, flavor);
-		if (err < 0)
-			goto client_init_error;
-
-		memcpy(clp->cl_ipaddr, server->ip_addr, sizeof(clp->cl_ipaddr));
-		err = nfs_idmap_new(clp);
-		if (err < 0) {
-			dprintk("%s: failed to create idmapper.\n",
-				__FUNCTION__);
-			goto client_init_error;
-		}
-		__set_bit(NFS_CS_IDMAP, &clp->cl_res_state);
-		nfs_mark_client_ready(clp, 0);
-	}
-
-	clnt = rpc_clone_client(clp->cl_rpcclient);
-
-	if (IS_ERR(clnt)) {
-		dprintk("%s: cannot create RPC client. Error = %d\n",
-				__FUNCTION__, err);
-		return clnt;
-	}
-
-	if (clnt->cl_auth->au_flavor != flavor) {
-		struct rpc_auth *auth;
-
-		auth = rpcauth_create(flavor, clnt);
-		if (IS_ERR(auth)) {
-			dprintk("%s: couldn't create credcache!\n", __FUNCTION__);
-			return (struct rpc_clnt *)auth;
-		}
-	}
-
-	server->nfs_client = clp;
-	down_write(&clp->cl_sem);
-	list_add_tail(&server->nfs4_siblings, &clp->cl_superblocks);
-	up_write(&clp->cl_sem);
-	return clnt;
-
-client_init_error:
-	nfs_mark_client_ready(clp, err);
-	nfs_put_client(clp);
-	return ERR_PTR(err);
+	sb->s_blocksize_bits = old_sb->s_blocksize_bits;
+	sb->s_blocksize = old_sb->s_blocksize;
+	sb->s_maxbytes = old_sb->s_maxbytes;
+	sb->s_time_gran = 1;
+	sb->s_op = old_sb->s_op;
+ 	nfs_initialise_sb(sb);
 }
 
 /*
  * Set up an NFS4 superblock
  */
-static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data, int silent)
+static void nfs4_fill_super(struct super_block *sb)
 {
-	struct nfs_server *server;
-	rpc_authflavor_t authflavour;
-	int err = -EIO;
-
-	sb->s_blocksize_bits = 0;
-	sb->s_blocksize = 0;
-	server = NFS_SB(sb);
-	if (data->rsize != 0)
-		server->rsize = nfs_block_size(data->rsize, NULL);
-	if (data->wsize != 0)
-		server->wsize = nfs_block_size(data->wsize, NULL);
-	server->flags = data->flags & NFS_MOUNT_FLAGMASK;
-	server->caps = NFS_CAP_ATOMIC_OPEN;
-
-	server->acregmin = data->acregmin*HZ;
-	server->acregmax = data->acregmax*HZ;
-	server->acdirmin = data->acdirmin*HZ;
-	server->acdirmax = data->acdirmax*HZ;
-
-	/* Now create transport and client */
-	authflavour = RPC_AUTH_UNIX;
-	if (data->auth_flavourlen != 0) {
-		if (data->auth_flavourlen != 1) {
-			dprintk("%s: Invalid number of RPC auth flavours %d.\n",
-					__FUNCTION__, data->auth_flavourlen);
-			err = -EINVAL;
-			goto out_fail;
-		}
-		if (copy_from_user(&authflavour, data->auth_flavours, sizeof(authflavour))) {
-			err = -EFAULT;
-			goto out_fail;
-		}
-	}
-
-	server->client = nfs4_create_client(server, data->timeo, data->retrans,
-					    data->proto, authflavour);
-	if (IS_ERR(server->client)) {
-		err = PTR_ERR(server->client);
-			dprintk("%s: cannot create RPC client. Error = %d\n",
-					__FUNCTION__, err);
-			goto out_fail;
-	}
-
 	sb->s_time_gran = 1;
-
 	sb->s_op = &nfs4_sops;
-	err = nfs_sb_init(sb, authflavour);
-
- out_fail:
-	return err;
+	nfs_initialise_sb(sb);
 }
 
-static int nfs4_compare_super(struct super_block *sb, void *data)
-{
-	struct nfs_server *server = data;
-	struct nfs_server *old = NFS_SB(sb);
-
-	if (strcmp(server->hostname, old->hostname) != 0)
-		return 0;
-	if (strcmp(server->mnt_path, old->mnt_path) != 0)
-		return 0;
-	return 1;
-}
-
-static void *
-nfs_copy_user_string(char *dst, struct nfs_string *src, int maxlen)
+static void *nfs_copy_user_string(char *dst, struct nfs_string *src, int maxlen)
 {
 	void *p = NULL;
 
@@ -1157,14 +791,22 @@ nfs_copy_user_string(char *dst, struct nfs_string *src, int maxlen)
 	return dst;
 }
 
+/*
+ * Get the superblock for an NFS4 mountpoint
+ */
 static int nfs4_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
 {
-	int error;
-	struct nfs_server *server;
-	struct super_block *s;
 	struct nfs4_mount_data *data = raw_data;
+	struct super_block *s;
+	struct nfs_server *server;
+	struct sockaddr_in addr;
+	rpc_authflavor_t authflavour;
+	struct nfs_fh mntfh;
+	struct dentry *mntroot;
+	char *mntpath = NULL, *hostname = NULL, ip_addr[16];
 	void *p;
+	int error;
 
 	if (data == NULL) {
 		dprintk("%s: missing data argument\n", __FUNCTION__);
@@ -1175,75 +817,107 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 		return -EINVAL;
 	}
 
-	server = kzalloc(sizeof(struct nfs_server), GFP_KERNEL);
-	if (!server)
-		return -ENOMEM;
-	/* Zero out the NFS state stuff */
-	init_nfsv4_state(server);
-	server->client = server->client_acl = ERR_PTR(-EINVAL);
+	/* We now require that the mount process passes the remote address */
+	if (data->host_addrlen != sizeof(addr))
+		return -EINVAL;
+
+	if (copy_from_user(&addr, data->host_addr, sizeof(addr)))
+		return -EFAULT;
+
+	if (addr.sin_family != AF_INET ||
+	    addr.sin_addr.s_addr == INADDR_ANY
+	    ) {
+		dprintk("%s: mount program didn't pass remote IP address!\n",
+				__FUNCTION__);
+		return -EINVAL;
+	}
+
+	/* Grab the authentication type */
+	authflavour = RPC_AUTH_UNIX;
+	if (data->auth_flavourlen != 0) {
+		if (data->auth_flavourlen != 1) {
+			dprintk("%s: Invalid number of RPC auth flavours %d.\n",
+					__FUNCTION__, data->auth_flavourlen);
+			error = -EINVAL;
+			goto out_err_noserver;
+		}
+
+		if (copy_from_user(&authflavour, data->auth_flavours,
+				   sizeof(authflavour))) {
+			error = -EFAULT;
+			goto out_err_noserver;
+		}
+	}
 
 	p = nfs_copy_user_string(NULL, &data->hostname, 256);
 	if (IS_ERR(p))
 		goto out_err;
-	server->hostname = p;
+	hostname = p;
 
 	p = nfs_copy_user_string(NULL, &data->mnt_path, 1024);
 	if (IS_ERR(p))
 		goto out_err;
-	server->mnt_path = p;
+	mntpath = p;
 
-	p = nfs_copy_user_string(server->ip_addr, &data->client_addr,
-			sizeof(server->ip_addr) - 1);
+	dprintk("MNTPATH: %s\n", mntpath);
+
+	p = nfs_copy_user_string(ip_addr, &data->client_addr,
+				 sizeof(ip_addr) - 1);
 	if (IS_ERR(p))
 		goto out_err;
 
-	/* We now require that the mount process passes the remote address */
-	if (data->host_addrlen != sizeof(server->addr)) {
-		error = -EINVAL;
-		goto out_free;
-	}
-	if (copy_from_user(&server->addr, data->host_addr, sizeof(server->addr))) {
-		error = -EFAULT;
-		goto out_free;
-	}
-	if (server->addr.sin_family != AF_INET ||
-	    server->addr.sin_addr.s_addr == INADDR_ANY) {
-		dprintk("%s: mount program didn't pass remote IP address!\n",
-				__FUNCTION__);
-		error = -EINVAL;
-		goto out_free;
+	/* Get a volume representation */
+	server = nfs4_create_server(data, hostname, &addr, mntpath, ip_addr,
+				    authflavour, &mntfh);
+	if (IS_ERR(server)) {
+		error = PTR_ERR(server);
+		goto out_err_noserver;
 	}
 
-	s = sget(fs_type, nfs4_compare_super, nfs_set_super, server);
+	/* Get a superblock - note that we may end up sharing one that already exists */
+	s = sget(fs_type, nfs_compare_super, nfs_set_super, server);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
 		goto out_free;
 	}
 
-	if (s->s_root) {
-		kfree(server->mnt_path);
-		kfree(server->hostname);
-		kfree(server);
-		return simple_set_mnt(mnt, s);
+	if (!s->s_root) {
+		/* initial superblock/root creation */
+		s->s_flags = flags;
+
+		nfs4_fill_super(s);
+	} else {
+		nfs_free_server(server);
 	}
 
-	s->s_flags = flags;
-
-	error = nfs4_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
-	if (error) {
-		up_write(&s->s_umount);
-		deactivate_super(s);
-		return error;
+	mntroot = nfs4_get_root(s, &mntfh);
+	if (IS_ERR(mntroot)) {
+		error = PTR_ERR(mntroot);
+		goto error_splat_super;
 	}
+
 	s->s_flags |= MS_ACTIVE;
-	return simple_set_mnt(mnt, s);
+	mnt->mnt_sb = s;
+	mnt->mnt_root = mntroot;
+	kfree(mntpath);
+	kfree(hostname);
+	return 0;
+
 out_err:
 	error = PTR_ERR(p);
+	goto out_err_noserver;
+
 out_free:
-	kfree(server->mnt_path);
-	kfree(server->hostname);
-	kfree(server);
+	nfs_free_server(server);
+out_err_noserver:
+	kfree(mntpath);
+	kfree(hostname);
 	return error;
+
+error_splat_super:
+	up_write(&s->s_umount);
+	deactivate_super(s);
+	goto out_err_noserver;
 }
 
 static void nfs4_kill_super(struct super_block *sb)
@@ -1254,133 +928,140 @@ static void nfs4_kill_super(struct super_block *sb)
 	kill_anon_super(sb);
 
 	nfs4_renewd_prepare_shutdown(server);
-
-	if (server->client != NULL && !IS_ERR(server->client))
-		rpc_shutdown_client(server->client);
-
-	destroy_nfsv4_state(server);
-
-	nfs_free_iostats(server->io_stats);
-	kfree(server->hostname);
-	kfree(server);
-	nfs_release_automount_timer();
+	nfs_free_server(server);
 }
 
 /*
- * Constructs the SERVER-side path
+ * Clone an NFS4 server record on xdev traversal (FSID-change)
  */
-static inline char *nfs4_dup_path(const struct dentry *dentry)
-{
-	char *page = (char *) __get_free_page(GFP_USER);
-	char *path;
-
-	path = nfs4_path(dentry, page, PAGE_SIZE);
-	if (!IS_ERR(path)) {
-		int len = PAGE_SIZE + page - path;
-		char *tmp = path;
-
-		path = kmalloc(len, GFP_KERNEL);
-		if (path)
-			memcpy(path, tmp, len);
-		else
-			path = ERR_PTR(-ENOMEM);
-	}
-	free_page((unsigned long)page);
-	return path;
-}
-
-static struct super_block *nfs4_clone_sb(struct nfs_server *server, struct nfs_clone_mount *data)
-{
-	const struct dentry *dentry = data->dentry;
-	struct nfs_client *clp = server->nfs_client;
-	struct super_block *sb;
-
-	server->fsid = data->fattr->fsid;
-	nfs_copy_fh(&server->fh, data->fh);
-	server->mnt_path = nfs4_dup_path(dentry);
-	if (IS_ERR(server->mnt_path)) {
-		sb = (struct super_block *)server->mnt_path;
-		goto err;
-	}
-	sb = sget(&nfs4_fs_type, nfs4_compare_super, nfs_set_super, server);
-	if (IS_ERR(sb) || sb->s_root)
-		goto free_path;
-	nfs4_server_capabilities(server, &server->fh);
-
-	down_write(&clp->cl_sem);
-	list_add_tail(&server->nfs4_siblings, &clp->cl_superblocks);
-	up_write(&clp->cl_sem);
-	return sb;
-free_path:
-	kfree(server->mnt_path);
-err:
-	server->mnt_path = NULL;
-	return sb;
-}
-
-static int nfs_clone_nfs4_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
+static int nfs4_xdev_get_sb(struct file_system_type *fs_type, int flags,
+			    const char *dev_name, void *raw_data,
+			    struct vfsmount *mnt)
 {
 	struct nfs_clone_mount *data = raw_data;
-	return nfs_clone_generic_sb(data, nfs4_clone_sb, nfs_clone_server, mnt);
+	struct super_block *s;
+	struct nfs_server *server;
+	struct dentry *mntroot;
+	int error;
+
+	dprintk("--> nfs4_xdev_get_sb()\n");
+
+	/* create a new volume representation */
+	server = nfs_clone_server(NFS_SB(data->sb), data->fh, data->fattr);
+	if (IS_ERR(server)) {
+		error = PTR_ERR(server);
+		goto out_err_noserver;
+	}
+
+	/* Get a superblock - note that we may end up sharing one that already exists */
+	s = sget(&nfs_fs_type, nfs_compare_super, nfs_set_super, server);
+	if (IS_ERR(s)) {
+		error = PTR_ERR(s);
+		goto out_err_nosb;
+	}
+
+	if (s->s_fs_info != server) {
+		nfs_free_server(server);
+		server = NULL;
+	}
+
+	if (!s->s_root) {
+		/* initial superblock/root creation */
+		s->s_flags = flags;
+		nfs4_clone_super(s, data->sb);
+	}
+
+	mntroot = nfs4_get_root(s, data->fh);
+	if (IS_ERR(mntroot)) {
+		error = PTR_ERR(mntroot);
+		goto error_splat_super;
+	}
+
+	s->s_flags |= MS_ACTIVE;
+	mnt->mnt_sb = s;
+	mnt->mnt_root = mntroot;
+
+	dprintk("<-- nfs4_xdev_get_sb() = 0\n");
+	return 0;
+
+out_err_nosb:
+	nfs_free_server(server);
+out_err_noserver:
+	dprintk("<-- nfs4_xdev_get_sb() = %d [error]\n", error);
+	return error;
+
+error_splat_super:
+	up_write(&s->s_umount);
+	deactivate_super(s);
+	dprintk("<-- nfs4_xdev_get_sb() = %d [splat]\n", error);
+	return error;
 }
 
-static struct super_block *nfs4_referral_sb(struct nfs_server *server, struct nfs_clone_mount *data)
-{
-	struct super_block *sb = ERR_PTR(-ENOMEM);
-	int len;
-
-	len = strlen(data->mnt_path) + 1;
-	server->mnt_path = kmalloc(len, GFP_KERNEL);
-	if (server->mnt_path == NULL)
-		goto err;
-	memcpy(server->mnt_path, data->mnt_path, len);
-	memcpy(&server->addr, data->addr, sizeof(struct sockaddr_in));
-
-	sb = sget(&nfs4_fs_type, nfs4_compare_super, nfs_set_super, server);
-	if (IS_ERR(sb) || sb->s_root)
-		goto free_path;
-	return sb;
-free_path:
-	kfree(server->mnt_path);
-err:
-	server->mnt_path = NULL;
-	return sb;
-}
-
-static struct nfs_server *nfs4_referral_server(struct super_block *sb, struct nfs_clone_mount *data)
-{
-	struct nfs_server *server = NFS_SB(sb);
-	int proto, timeo, retrans;
-	void *err;
-
-	proto = IPPROTO_TCP;
-	/* Since we are following a referral and there may be alternatives,
-	   set the timeouts and retries to low values */
-	timeo = 2;
-	retrans = 1;
-
-	nfs_put_client(server->nfs_client);
-	server->nfs_client = NULL;
-	server->client = nfs4_create_client(server, timeo, retrans, proto,
-					    data->authflavor);
-	if (IS_ERR((err = server->client)))
-		goto out_err;
-
-	sb->s_time_gran = 1;
-	sb->s_op = &nfs4_sops;
-	err = ERR_PTR(nfs_sb_init(sb, data->authflavor));
-	if (!IS_ERR(err))
-		return server;
-out_err:
-	return (struct nfs_server *)err;
-}
-
-static int nfs_referral_nfs4_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
+/*
+ * Create an NFS4 server record on referral traversal
+ */
+static int nfs4_referral_get_sb(struct file_system_type *fs_type, int flags,
+				const char *dev_name, void *raw_data,
+				struct vfsmount *mnt)
 {
 	struct nfs_clone_mount *data = raw_data;
-	return nfs_clone_generic_sb(data, nfs4_referral_sb, nfs4_referral_server, mnt);
+	struct super_block *s;
+	struct nfs_server *server;
+	struct dentry *mntroot;
+	struct nfs_fh mntfh;
+	int error;
+
+	dprintk("--> nfs4_referral_get_sb()\n");
+
+	/* create a new volume representation */
+	server = nfs4_create_referral_server(data, &mntfh);
+	if (IS_ERR(server)) {
+		error = PTR_ERR(server);
+		goto out_err_noserver;
+	}
+
+	/* Get a superblock - note that we may end up sharing one that already exists */
+	s = sget(&nfs_fs_type, nfs_compare_super, nfs_set_super, server);
+	if (IS_ERR(s)) {
+		error = PTR_ERR(s);
+		goto out_err_nosb;
+	}
+
+	if (s->s_fs_info != server) {
+		nfs_free_server(server);
+		server = NULL;
+	}
+
+	if (!s->s_root) {
+		/* initial superblock/root creation */
+		s->s_flags = flags;
+		nfs4_fill_super(s);
+	}
+
+	mntroot = nfs4_get_root(s, data->fh);
+	if (IS_ERR(mntroot)) {
+		error = PTR_ERR(mntroot);
+		goto error_splat_super;
+	}
+
+	s->s_flags |= MS_ACTIVE;
+	mnt->mnt_sb = s;
+	mnt->mnt_root = mntroot;
+
+	dprintk("<-- nfs4_referral_get_sb() = 0\n");
+	return 0;
+
+out_err_nosb:
+	nfs_free_server(server);
+out_err_noserver:
+	dprintk("<-- nfs4_referral_get_sb() = %d [error]\n", error);
+	return error;
+
+error_splat_super:
+	up_write(&s->s_umount);
+	deactivate_super(s);
+	dprintk("<-- nfs4_referral_get_sb() = %d [splat]\n", error);
+	return error;
 }
 
-#endif
+#endif /* CONFIG_NFS_V4 */

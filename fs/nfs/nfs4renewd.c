@@ -127,26 +127,13 @@ nfs4_schedule_state_renewal(struct nfs_client *clp)
 void
 nfs4_renewd_prepare_shutdown(struct nfs_server *server)
 {
-	struct nfs_client *clp = server->nfs_client;
-
-	if (!clp)
-		return;
 	flush_scheduled_work();
-	down_write(&clp->cl_sem);
-	if (!list_empty(&server->nfs4_siblings))
-		list_del_init(&server->nfs4_siblings);
-	up_write(&clp->cl_sem);
 }
 
-/* Must be called with clp->cl_sem locked for writes */
 void
 nfs4_kill_renewd(struct nfs_client *clp)
 {
 	down_read(&clp->cl_sem);
-	if (!list_empty(&clp->cl_superblocks)) {
-		up_read(&clp->cl_sem);
-		return;
-	}
 	cancel_delayed_work(&clp->cl_renewd);
 	up_read(&clp->cl_sem);
 	flush_scheduled_work();

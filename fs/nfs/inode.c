@@ -1020,7 +1020,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  out_fileid:
 	printk(KERN_ERR "NFS: server %s error: fileid changed\n"
 		"fsid %s: expected fileid 0x%Lx, got 0x%Lx\n",
-		NFS_SERVER(inode)->hostname, inode->i_sb->s_id,
+		NFS_SERVER(inode)->nfs_client->cl_hostname, inode->i_sb->s_id,
 		(long long)nfsi->fileid, (long long)fattr->fileid);
 	goto out_err;
 }

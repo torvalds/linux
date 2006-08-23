@@ -1393,70 +1393,19 @@ static int nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
 	return err;
 }
 
+/*
+ * get the file handle for the "/" directory on the server
+ */
 static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
-		struct nfs_fsinfo *info)
+			      struct nfs_fsinfo *info)
 {
-	struct nfs_fattr *	fattr = info->fattr;
-	unsigned char *		p;
-	struct qstr		q;
-	struct nfs4_lookup_arg args = {
-		.dir_fh = fhandle,
-		.name = &q,
-		.bitmask = nfs4_fattr_bitmap,
-	};
-	struct nfs4_lookup_res res = {
-		.server = server,
-		.fattr = fattr,
-		.fh = fhandle,
-	};
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LOOKUP],
-		.rpc_argp = &args,
-		.rpc_resp = &res,
-	};
 	int status;
 
-	/*
-	 * Now we do a separate LOOKUP for each component of the mount path.
-	 * The LOOKUPs are done separately so that we can conveniently
-	 * catch an ERR_WRONGSEC if it occurs along the way...
-	 */
 	status = nfs4_lookup_root(server, fhandle, info);
-	if (status)
-		goto out;
-
-	p = server->mnt_path;
-	for (;;) {
-		struct nfs4_exception exception = { };
-
-		while (*p == '/')
-			p++;
-		if (!*p)
-			break;
-		q.name = p;
-		while (*p && (*p != '/'))
-			p++;
-		q.len = p - q.name;
-
-		do {
-			nfs_fattr_init(fattr);
-			status = nfs4_handle_exception(server,
-					rpc_call_sync(server->client, &msg, 0),
-					&exception);
-		} while (exception.retry);
-		if (status == 0)
-			continue;
-		if (status == -ENOENT) {
-			printk(KERN_NOTICE "NFS: mount path %s does not exist!\n", server->mnt_path);
-			printk(KERN_NOTICE "NFS: suggestion: try mounting '/' instead.\n");
-		}
-		break;
-	}
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);
 	if (status == 0)
 		status = nfs4_do_fsinfo(server, fhandle, info);
-out:
 	return nfs4_map_errors(status);
 }
 

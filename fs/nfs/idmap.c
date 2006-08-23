@@ -114,8 +114,7 @@ nfs_idmap_new(struct nfs_client *clp)
 	struct idmap *idmap;
 	int error;
 
-	if (clp->cl_idmap != NULL)
-		return 0;
+	BUG_ON(clp->cl_idmap != NULL);
 
         if ((idmap = kzalloc(sizeof(*idmap), GFP_KERNEL)) == NULL)
                 return -ENOMEM;
