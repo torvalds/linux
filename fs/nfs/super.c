@@ -1099,7 +1099,7 @@ static int nfs_clone_nfs_sb(struct file_system_type *fs_type,
 static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
 	struct rpc_timeout *timeparms, int proto, rpc_authflavor_t flavor)
 {
-	struct nfs4_client *clp;
+	struct nfs_client *clp;
 	struct rpc_xprt *xprt = NULL;
 	struct rpc_clnt *clnt = NULL;
 	int err = -EIO;
@@ -1416,7 +1416,7 @@ static inline char *nfs4_dup_path(const struct dentry *dentry)
 static struct super_block *nfs4_clone_sb(struct nfs_server *server, struct nfs_clone_mount *data)
 {
 	const struct dentry *dentry = data->dentry;
-	struct nfs4_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs4_state;
 	struct super_block *sb;
 
 	server->fsid = data->fattr->fsid;

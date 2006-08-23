@@ -15,7 +15,7 @@
  
 unsigned nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res)
 {
-	struct nfs4_client *clp;
+	struct nfs_client *clp;
 	struct nfs_delegation *delegation;
 	struct nfs_inode *nfsi;
 	struct inode *inode;
@@ -56,7 +56,7 @@ out:
 
 unsigned nfs4_callback_recall(struct cb_recallargs *args, void *dummy)
 {
-	struct nfs4_client *clp;
+	struct nfs_client *clp;
 	struct inode *inode;
 	unsigned res;
 	

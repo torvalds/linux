@@ -64,7 +64,7 @@ static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinf
 static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *);
 static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry);
 static int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct nfs4_exception *exception);
-static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs4_client *clp);
+static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs_client *clp);
 
 /* Prevent leaks of NFSv4 errors into userland */
 int nfs4_map_errors(int err)
@@ -195,7 +195,7 @@ static void nfs4_setup_readdir(u64 cookie, u32 *verifier, struct dentry *dentry,
 
 static void renew_lease(const struct nfs_server *server, unsigned long timestamp)
 {
-	struct nfs4_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs4_state;
 	spin_lock(&clp->cl_lock);
 	if (time_before(clp->cl_last_renewal,timestamp))
 		clp->cl_last_renewal = timestamp;
@@ -792,7 +792,7 @@ out:
 
 int nfs4_recover_expired_lease(struct nfs_server *server)
 {
-	struct nfs4_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs4_state;
 
 	if (test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
 		nfs4_schedule_state_recovery(clp);
@@ -867,7 +867,7 @@ static int _nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred 
 {
 	struct nfs_delegation *delegation;
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs4_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs4_state;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs4_state_owner *sp = NULL;
 	struct nfs4_state *state = NULL;
@@ -953,7 +953,7 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, int flags, st
 	struct nfs4_state_owner  *sp;
 	struct nfs4_state     *state = NULL;
 	struct nfs_server       *server = NFS_SERVER(dir);
-	struct nfs4_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs4_state;
 	struct nfs4_opendata *opendata;
 	int                     status;
 
@@ -2521,7 +2521,7 @@ static void nfs4_proc_commit_setup(struct nfs_write_data *data, int how)
  */
 static void nfs4_renew_done(struct rpc_task *task, void *data)
 {
-	struct nfs4_client *clp = (struct nfs4_client *)task->tk_msg.rpc_argp;
+	struct nfs_client *clp = (struct nfs_client *)task->tk_msg.rpc_argp;
 	unsigned long timestamp = (unsigned long)data;
 
 	if (task->tk_status < 0) {
@@ -2543,7 +2543,7 @@ static const struct rpc_call_ops nfs4_renew_ops = {
 	.rpc_call_done = nfs4_renew_done,
 };
 
-int nfs4_proc_async_renew(struct nfs4_client *clp, struct rpc_cred *cred)
+int nfs4_proc_async_renew(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_RENEW],
@@ -2555,7 +2555,7 @@ int nfs4_proc_async_renew(struct nfs4_client *clp, struct rpc_cred *cred)
 			&nfs4_renew_ops, (void *)jiffies);
 }
 
-int nfs4_proc_renew(struct nfs4_client *clp, struct rpc_cred *cred)
+int nfs4_proc_renew(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_RENEW],
@@ -2791,7 +2791,7 @@ static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen
 static int
 nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server)
 {
-	struct nfs4_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs4_state;
 
 	if (!clp || task->tk_status >= 0)
 		return 0;
@@ -2828,7 +2828,7 @@ static int nfs4_wait_bit_interruptible(void *word)
 	return 0;
 }
 
-static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs4_client *clp)
+static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs_client *clp)
 {
 	sigset_t oldset;
 	int res;
@@ -2871,7 +2871,7 @@ static int nfs4_delay(struct rpc_clnt *clnt, long *timeout)
  */
 int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct nfs4_exception *exception)
 {
-	struct nfs4_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs4_state;
 	int ret = errorcode;
 
 	exception->retry = 0;
@@ -2898,7 +2898,7 @@ int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct
 	return nfs4_map_errors(ret);
 }
 
-int nfs4_proc_setclientid(struct nfs4_client *clp, u32 program, unsigned short port, struct rpc_cred *cred)
+int nfs4_proc_setclientid(struct nfs_client *clp, u32 program, unsigned short port, struct rpc_cred *cred)
 {
 	nfs4_verifier sc_verifier;
 	struct nfs4_setclientid setclientid = {
@@ -2945,7 +2945,7 @@ int nfs4_proc_setclientid(struct nfs4_client *clp, u32 program, unsigned short p
 	return status;
 }
 
-static int _nfs4_proc_setclientid_confirm(struct nfs4_client *clp, struct rpc_cred *cred)
+static int _nfs4_proc_setclientid_confirm(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	struct nfs_fsinfo fsinfo;
 	struct rpc_message msg = {
@@ -2969,7 +2969,7 @@ static int _nfs4_proc_setclientid_confirm(struct nfs4_client *clp, struct rpc_cr
 	return status;
 }
 
-int nfs4_proc_setclientid_confirm(struct nfs4_client *clp, struct rpc_cred *cred)
+int nfs4_proc_setclientid_confirm(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	long timeout;
 	int err;
@@ -3106,7 +3106,7 @@ static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock 
 {
 	struct inode *inode = state->inode;
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs4_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs4_state;
 	struct nfs_lockt_args arg = {
 		.fh = NFS_FH(inode),
 		.fl = request,
@@ -3513,7 +3513,7 @@ static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request
 
 static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
-	struct nfs4_client *clp = state->owner->so_client;
+	struct nfs_client *clp = state->owner->so_client;
 	unsigned char fl_flags = request->fl_flags;
 	int status;
 

@@ -114,7 +114,7 @@ void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred, st
  */
 int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res)
 {
-	struct nfs4_client *clp = NFS_SERVER(inode)->nfs4_state;
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs4_state;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
 	int status = 0;
@@ -176,7 +176,7 @@ static void nfs_msync_inode(struct inode *inode)
  */
 int __nfs_inode_return_delegation(struct inode *inode)
 {
-	struct nfs4_client *clp = NFS_SERVER(inode)->nfs4_state;
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs4_state;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
 	int res = 0;
@@ -208,7 +208,7 @@ int __nfs_inode_return_delegation(struct inode *inode)
  */
 void nfs_return_all_delegations(struct super_block *sb)
 {
-	struct nfs4_client *clp = NFS_SB(sb)->nfs4_state;
+	struct nfs_client *clp = NFS_SB(sb)->nfs4_state;
 	struct nfs_delegation *delegation;
 	struct inode *inode;
 
@@ -232,7 +232,7 @@ restart:
 
 int nfs_do_expire_all_delegations(void *ptr)
 {
-	struct nfs4_client *clp = ptr;
+	struct nfs_client *clp = ptr;
 	struct nfs_delegation *delegation;
 	struct inode *inode;
 
@@ -258,7 +258,7 @@ out:
 	module_put_and_exit(0);
 }
 
-void nfs_expire_all_delegations(struct nfs4_client *clp)
+void nfs_expire_all_delegations(struct nfs_client *clp)
 {
 	struct task_struct *task;
 
@@ -276,7 +276,7 @@ void nfs_expire_all_delegations(struct nfs4_client *clp)
 /*
  * Return all delegations following an NFS4ERR_CB_PATH_DOWN error.
  */
-void nfs_handle_cb_pathdown(struct nfs4_client *clp)
+void nfs_handle_cb_pathdown(struct nfs_client *clp)
 {
 	struct nfs_delegation *delegation;
 	struct inode *inode;
@@ -299,7 +299,7 @@ restart:
 
 struct recall_threadargs {
 	struct inode *inode;
-	struct nfs4_client *clp;
+	struct nfs_client *clp;
 	const nfs4_stateid *stateid;
 
 	struct completion started;
@@ -310,7 +310,7 @@ static int recall_thread(void *data)
 {
 	struct recall_threadargs *args = (struct recall_threadargs *)data;
 	struct inode *inode = igrab(args->inode);
-	struct nfs4_client *clp = NFS_SERVER(inode)->nfs4_state;
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs4_state;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
 
@@ -371,7 +371,7 @@ out_module_put:
 /*
  * Retrieve the inode associated with a delegation
  */
-struct inode *nfs_delegation_find_inode(struct nfs4_client *clp, const struct nfs_fh *fhandle)
+struct inode *nfs_delegation_find_inode(struct nfs_client *clp, const struct nfs_fh *fhandle)
 {
 	struct nfs_delegation *delegation;
 	struct inode *res = NULL;
@@ -389,7 +389,7 @@ struct inode *nfs_delegation_find_inode(struct nfs4_client *clp, const struct nf
 /*
  * Mark all delegations as needing to be reclaimed
  */
-void nfs_delegation_mark_reclaim(struct nfs4_client *clp)
+void nfs_delegation_mark_reclaim(struct nfs_client *clp)
 {
 	struct nfs_delegation *delegation;
 	spin_lock(&clp->cl_lock);
@@ -401,7 +401,7 @@ void nfs_delegation_mark_reclaim(struct nfs4_client *clp)
 /*
  * Reap all unclaimed delegations after reboot recovery is done
  */
-void nfs_delegation_reap_unclaimed(struct nfs4_client *clp)
+void nfs_delegation_reap_unclaimed(struct nfs_client *clp)
 {
 	struct nfs_delegation *delegation, *n;
 	LIST_HEAD(head);
@@ -423,7 +423,7 @@ void nfs_delegation_reap_unclaimed(struct nfs4_client *clp)
 
 int nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode)
 {
-	struct nfs4_client *clp = NFS_SERVER(inode)->nfs4_state;
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs4_state;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
 	int res = 0;

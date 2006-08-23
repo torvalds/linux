@@ -109,7 +109,7 @@ static struct rpc_pipe_ops idmap_upcall_ops = {
 };
 
 void
-nfs_idmap_new(struct nfs4_client *clp)
+nfs_idmap_new(struct nfs_client *clp)
 {
 	struct idmap *idmap;
 
@@ -138,7 +138,7 @@ nfs_idmap_new(struct nfs4_client *clp)
 }
 
 void
-nfs_idmap_delete(struct nfs4_client *clp)
+nfs_idmap_delete(struct nfs_client *clp)
 {
 	struct idmap *idmap = clp->cl_idmap;
 
@@ -491,27 +491,27 @@ static unsigned int fnvhash32(const void *buf, size_t buflen)
 	return (hash);
 }
 
-int nfs_map_name_to_uid(struct nfs4_client *clp, const char *name, size_t namelen, __u32 *uid)
+int nfs_map_name_to_uid(struct nfs_client *clp, const char *name, size_t namelen, __u32 *uid)
 {
 	struct idmap *idmap = clp->cl_idmap;
 
 	return nfs_idmap_id(idmap, &idmap->idmap_user_hash, name, namelen, uid);
 }
 
-int nfs_map_group_to_gid(struct nfs4_client *clp, const char *name, size_t namelen, __u32 *uid)
+int nfs_map_group_to_gid(struct nfs_client *clp, const char *name, size_t namelen, __u32 *uid)
 {
 	struct idmap *idmap = clp->cl_idmap;
 
 	return nfs_idmap_id(idmap, &idmap->idmap_group_hash, name, namelen, uid);
 }
 
-int nfs_map_uid_to_name(struct nfs4_client *clp, __u32 uid, char *buf)
+int nfs_map_uid_to_name(struct nfs_client *clp, __u32 uid, char *buf)
 {
 	struct idmap *idmap = clp->cl_idmap;
 
 	return nfs_idmap_name(idmap, &idmap->idmap_user_hash, uid, buf);
 }
-int nfs_map_gid_to_group(struct nfs4_client *clp, __u32 uid, char *buf)
+int nfs_map_gid_to_group(struct nfs_client *clp, __u32 uid, char *buf)
 {
 	struct idmap *idmap = clp->cl_idmap;
 

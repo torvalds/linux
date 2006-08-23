@@ -167,7 +167,7 @@ void nfs_callback_down(void)
 static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 {
 	struct in_addr *addr = &rqstp->rq_addr.sin_addr;
-	struct nfs4_client *clp;
+	struct nfs_client *clp;
 
 	/* Don't talk to strangers */
 	clp = nfs4_find_client(addr);

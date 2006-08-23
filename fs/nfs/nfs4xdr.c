@@ -1160,7 +1160,7 @@ static int encode_rename(struct xdr_stream *xdr, const struct qstr *oldname, con
 	return 0;
 }
 
-static int encode_renew(struct xdr_stream *xdr, const struct nfs4_client *client_stateid)
+static int encode_renew(struct xdr_stream *xdr, const struct nfs_client *client_stateid)
 {
 	uint32_t *p;
 
@@ -1246,7 +1246,7 @@ static int encode_setclientid(struct xdr_stream *xdr, const struct nfs4_setclien
 	return 0;
 }
 
-static int encode_setclientid_confirm(struct xdr_stream *xdr, const struct nfs4_client *client_state)
+static int encode_setclientid_confirm(struct xdr_stream *xdr, const struct nfs_client *client_state)
 {
         uint32_t *p;
 
@@ -1945,7 +1945,7 @@ static int nfs4_xdr_enc_server_caps(struct rpc_rqst *req, uint32_t *p, const str
 /*
  * a RENEW request
  */
-static int nfs4_xdr_enc_renew(struct rpc_rqst *req, uint32_t *p, struct nfs4_client *clp)
+static int nfs4_xdr_enc_renew(struct rpc_rqst *req, uint32_t *p, struct nfs_client *clp)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
@@ -1975,7 +1975,7 @@ static int nfs4_xdr_enc_setclientid(struct rpc_rqst *req, uint32_t *p, struct nf
 /*
  * a SETCLIENTID_CONFIRM request
  */
-static int nfs4_xdr_enc_setclientid_confirm(struct rpc_rqst *req, uint32_t *p, struct nfs4_client *clp)
+static int nfs4_xdr_enc_setclientid_confirm(struct rpc_rqst *req, uint32_t *p, struct nfs_client *clp)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
@@ -2132,7 +2132,7 @@ static int decode_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected)
 }
 
 /* Dummy routine */
-static int decode_ace(struct xdr_stream *xdr, void *ace, struct nfs4_client *clp)
+static int decode_ace(struct xdr_stream *xdr, void *ace, struct nfs_client *clp)
 {
 	uint32_t *p;
 	unsigned int strlen;
@@ -2636,7 +2636,7 @@ static int decode_attr_nlink(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t 
 	return 0;
 }
 
-static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs4_client *clp, int32_t *uid)
+static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_client *clp, int32_t *uid)
 {
 	uint32_t len, *p;
 
@@ -2660,7 +2660,7 @@ static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap, struct nf
 	return 0;
 }
 
-static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs4_client *clp, int32_t *gid)
+static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_client *clp, int32_t *gid)
 {
 	uint32_t len, *p;
 
@@ -3565,7 +3565,7 @@ static int decode_setattr(struct xdr_stream *xdr, struct nfs_setattrres *res)
 	return 0;
 }
 
-static int decode_setclientid(struct xdr_stream *xdr, struct nfs4_client *clp)
+static int decode_setclientid(struct xdr_stream *xdr, struct nfs_client *clp)
 {
 	uint32_t *p;
 	uint32_t opnum;
@@ -4335,7 +4335,7 @@ static int nfs4_xdr_dec_renew(struct rpc_rqst *rqstp, uint32_t *p, void *dummy)
  * a SETCLIENTID request
  */
 static int nfs4_xdr_dec_setclientid(struct rpc_rqst *req, uint32_t *p,
-		struct nfs4_client *clp)
+		struct nfs_client *clp)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;

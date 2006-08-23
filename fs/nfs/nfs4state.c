@@ -83,10 +83,10 @@ destroy_nfsv4_state(struct nfs_server *server)
  * Since these are allocated/deallocated very rarely, we don't
  * bother putting them in a slab cache...
  */
-static struct nfs4_client *
+static struct nfs_client *
 nfs4_alloc_client(struct in_addr *addr)
 {
-	struct nfs4_client *clp;
+	struct nfs_client *clp;
 
 	if (nfs_callback_up() < 0)
 		return NULL;
@@ -111,7 +111,7 @@ nfs4_alloc_client(struct in_addr *addr)
 }
 
 static void
-nfs4_free_client(struct nfs4_client *clp)
+nfs4_free_client(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
 
@@ -130,9 +130,9 @@ nfs4_free_client(struct nfs4_client *clp)
 	nfs_callback_down();
 }
 
-static struct nfs4_client *__nfs4_find_client(struct in_addr *addr)
+static struct nfs_client *__nfs4_find_client(struct in_addr *addr)
 {
-	struct nfs4_client *clp;
+	struct nfs_client *clp;
 	list_for_each_entry(clp, &nfs4_clientid_list, cl_servers) {
 		if (memcmp(&clp->cl_addr, addr, sizeof(clp->cl_addr)) == 0) {
 			atomic_inc(&clp->cl_count);
@@ -142,19 +142,19 @@ static struct nfs4_client *__nfs4_find_client(struct in_addr *addr)
 	return NULL;
 }
 
-struct nfs4_client *nfs4_find_client(struct in_addr *addr)
+struct nfs_client *nfs4_find_client(struct in_addr *addr)
 {
-	struct nfs4_client *clp;
+	struct nfs_client *clp;
 	spin_lock(&state_spinlock);
 	clp = __nfs4_find_client(addr);
 	spin_unlock(&state_spinlock);
 	return clp;
 }
 
-struct nfs4_client *
+struct nfs_client *
 nfs4_get_client(struct in_addr *addr)
 {
-	struct nfs4_client *clp, *new = NULL;
+	struct nfs_client *clp, *new = NULL;
 
 	spin_lock(&state_spinlock);
 	for (;;) {
@@ -180,7 +180,7 @@ nfs4_get_client(struct in_addr *addr)
 }
 
 void
-nfs4_put_client(struct nfs4_client *clp)
+nfs4_put_client(struct nfs_client *clp)
 {
 	if (!atomic_dec_and_lock(&clp->cl_count, &state_spinlock))
 		return;
@@ -192,7 +192,7 @@ nfs4_put_client(struct nfs4_client *clp)
 	nfs4_free_client(clp);
 }
 
-static int nfs4_init_client(struct nfs4_client *clp, struct rpc_cred *cred)
+static int nfs4_init_client(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	int status = nfs4_proc_setclientid(clp, NFS4_CALLBACK,
 			nfs_callback_tcpport, cred);
@@ -204,13 +204,13 @@ static int nfs4_init_client(struct nfs4_client *clp, struct rpc_cred *cred)
 }
 
 u32
-nfs4_alloc_lockowner_id(struct nfs4_client *clp)
+nfs4_alloc_lockowner_id(struct nfs_client *clp)
 {
 	return clp->cl_lockowner_id ++;
 }
 
 static struct nfs4_state_owner *
-nfs4_client_grab_unused(struct nfs4_client *clp, struct rpc_cred *cred)
+nfs4_client_grab_unused(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	struct nfs4_state_owner *sp = NULL;
 
@@ -224,7 +224,7 @@ nfs4_client_grab_unused(struct nfs4_client *clp, struct rpc_cred *cred)
 	return sp;
 }
 
-struct rpc_cred *nfs4_get_renew_cred(struct nfs4_client *clp)
+struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
 	struct rpc_cred *cred = NULL;
@@ -238,7 +238,7 @@ struct rpc_cred *nfs4_get_renew_cred(struct nfs4_client *clp)
 	return cred;
 }
 
-struct rpc_cred *nfs4_get_setclientid_cred(struct nfs4_client *clp)
+struct rpc_cred *nfs4_get_setclientid_cred(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
 
@@ -251,7 +251,7 @@ struct rpc_cred *nfs4_get_setclientid_cred(struct nfs4_client *clp)
 }
 
 static struct nfs4_state_owner *
-nfs4_find_state_owner(struct nfs4_client *clp, struct rpc_cred *cred)
+nfs4_find_state_owner(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	struct nfs4_state_owner *sp, *res = NULL;
 
@@ -294,7 +294,7 @@ nfs4_alloc_state_owner(void)
 void
 nfs4_drop_state_owner(struct nfs4_state_owner *sp)
 {
-	struct nfs4_client *clp = sp->so_client;
+	struct nfs_client *clp = sp->so_client;
 	spin_lock(&clp->cl_lock);
 	list_del_init(&sp->so_list);
 	spin_unlock(&clp->cl_lock);
@@ -306,7 +306,7 @@ nfs4_drop_state_owner(struct nfs4_state_owner *sp)
  */
 struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct rpc_cred *cred)
 {
-	struct nfs4_client *clp = server->nfs4_state;
+	struct nfs_client *clp = server->nfs4_state;
 	struct nfs4_state_owner *sp, *new;
 
 	get_rpccred(cred);
@@ -337,7 +337,7 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
  */
 void nfs4_put_state_owner(struct nfs4_state_owner *sp)
 {
-	struct nfs4_client *clp = sp->so_client;
+	struct nfs_client *clp = sp->so_client;
 	struct rpc_cred *cred = sp->so_cred;
 
 	if (!atomic_dec_and_lock(&sp->so_count, &clp->cl_lock))
@@ -540,7 +540,7 @@ __nfs4_find_lock_state(struct nfs4_state *state, fl_owner_t fl_owner)
 static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, fl_owner_t fl_owner)
 {
 	struct nfs4_lock_state *lsp;
-	struct nfs4_client *clp = state->owner->so_client;
+	struct nfs_client *clp = state->owner->so_client;
 
 	lsp = kzalloc(sizeof(*lsp), GFP_KERNEL);
 	if (lsp == NULL)
@@ -752,7 +752,7 @@ out:
 
 static int reclaimer(void *);
 
-static inline void nfs4_clear_recover_bit(struct nfs4_client *clp)
+static inline void nfs4_clear_recover_bit(struct nfs_client *clp)
 {
 	smp_mb__before_clear_bit();
 	clear_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state);
@@ -764,7 +764,7 @@ static inline void nfs4_clear_recover_bit(struct nfs4_client *clp)
 /*
  * State recovery routine
  */
-static void nfs4_recover_state(struct nfs4_client *clp)
+static void nfs4_recover_state(struct nfs_client *clp)
 {
 	struct task_struct *task;
 
@@ -782,7 +782,7 @@ static void nfs4_recover_state(struct nfs4_client *clp)
 /*
  * Schedule a state recovery attempt
  */
-void nfs4_schedule_state_recovery(struct nfs4_client *clp)
+void nfs4_schedule_state_recovery(struct nfs_client *clp)
 {
 	if (!clp)
 		return;
@@ -879,7 +879,7 @@ out_err:
 	return status;
 }
 
-static void nfs4_state_mark_reclaim(struct nfs4_client *clp)
+static void nfs4_state_mark_reclaim(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
 	struct nfs4_state *state;
@@ -903,7 +903,7 @@ static void nfs4_state_mark_reclaim(struct nfs4_client *clp)
 
 static int reclaimer(void *ptr)
 {
-	struct nfs4_client *clp = ptr;
+	struct nfs_client *clp = ptr;
 	struct nfs4_state_owner *sp;
 	struct nfs4_state_recovery_ops *ops;
 	struct rpc_cred *cred;
