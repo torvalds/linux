@@ -722,18 +722,15 @@ static int nfs_clone_generic_sb(struct nfs_clone_mount *data,
 	if (server->hostname == NULL)
 		goto free_server;
 	memcpy(server->hostname, hostname, len);
-	error = rpciod_up();
-	if (error != 0)
-		goto free_hostname;
 
 	sb = fill_sb(server, data);
 	if (IS_ERR(sb)) {
 		error = PTR_ERR(sb);
-		goto kill_rpciod;
+		goto free_hostname;
 	}
 
 	if (sb->s_root)
-		goto out_rpciod_down;
+		goto out_share;
 
 	server = fill_server(sb, data);
 	if (IS_ERR(server)) {
@@ -745,14 +742,11 @@ out_deactivate:
 	up_write(&sb->s_umount);
 	deactivate_super(sb);
 	return error;
-out_rpciod_down:
-	rpciod_down();
+out_share:
 	kfree(server->hostname);
 	nfs_put_client(server->nfs_client);
 	kfree(server);
 	return simple_set_mnt(mnt, sb);
-kill_rpciod:
-	rpciod_down();
 free_hostname:
 	kfree(server->hostname);
 free_server:
@@ -939,22 +933,14 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 		goto out_err;
 	}
 
-	/* Fire up rpciod if not yet running */
-	error = rpciod_up();
-	if (error < 0) {
-		dprintk("%s: couldn't start rpciod! Error = %d\n",
-				__FUNCTION__, error);
-		goto out_err;
-	}
-
 	s = sget(fs_type, nfs_compare_super, nfs_set_super, server);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
-		goto out_err_rpciod;
+		goto out_err;
 	}
 
 	if (s->s_root)
-		goto out_rpciod_down;
+		goto out_share;
 
 	s->s_flags = flags;
 
@@ -967,13 +953,10 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	s->s_flags |= MS_ACTIVE;
 	return simple_set_mnt(mnt, s);
 
-out_rpciod_down:
-	rpciod_down();
+out_share:
 	kfree(server);
 	return simple_set_mnt(mnt, s);
 
-out_err_rpciod:
-	rpciod_down();
 out_err:
 	kfree(server);
 out_err_noserver:
@@ -993,8 +976,6 @@ static void nfs_kill_super(struct super_block *s)
 
 	if (!(server->flags & NFS_MOUNT_NONLM))
 		lockd_down();	/* release rpc.lockd */
-
-	rpciod_down();		/* release rpciod */
 
 	nfs_free_iostats(server->io_stats);
 	kfree(server->hostname);
