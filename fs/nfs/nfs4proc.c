@@ -758,7 +758,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	}
 	nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	if (!(o_res->f_attr->valid & NFS_ATTR_FATTR))
-		return server->rpc_ops->getattr(server, &o_res->fh, o_res->f_attr);
+		return server->nfs_client->rpc_ops->getattr(server, &o_res->fh, o_res->f_attr);
 	return 0;
 }
 

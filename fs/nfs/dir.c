@@ -1147,7 +1147,7 @@ int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
 	}
 	if (!(fattr->valid & NFS_ATTR_FATTR)) {
 		struct nfs_server *server = NFS_SB(dentry->d_sb);
-		error = server->rpc_ops->getattr(server, fhandle, fattr);
+		error = server->nfs_client->rpc_ops->getattr(server, fhandle, fattr);
 		if (error < 0)
 			goto out_err;
 	}

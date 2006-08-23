@@ -104,7 +104,9 @@ static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 		goto out_follow;
 	/* Look it up again */
 	parent = dget_parent(nd->dentry);
-	err = server->rpc_ops->lookup(parent->d_inode, &nd->dentry->d_name, &fh, &fattr);
+	err = server->nfs_client->rpc_ops->lookup(parent->d_inode,
+						  &nd->dentry->d_name,
+						  &fh, &fattr);
 	dput(parent);
 	if (err != 0)
 		goto out_err;
@@ -178,7 +180,7 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
 {
 #ifdef CONFIG_NFS_V4
 	struct vfsmount *mnt = NULL;
-	switch (server->rpc_ops->version) {
+	switch (server->nfs_client->cl_nfsversion) {
 		case 2:
 		case 3:
 			mnt = vfs_kern_mount(&clone_nfs_fs_type, 0, devname, mountdata);

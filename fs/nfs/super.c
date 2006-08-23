@@ -252,7 +252,7 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	lock_kernel();
 
-	error = server->rpc_ops->statfs(server, fh, &res);
+	error = server->nfs_client->rpc_ops->statfs(server, fh, &res);
 	buf->f_type = NFS_SUPER_MAGIC;
 	if (error < 0)
 		goto out_err;
@@ -343,10 +343,11 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss, 
 		{ 0, NULL, NULL }
 	};
 	const struct proc_nfs_info *nfs_infop;
+	struct nfs_client *clp = nfss->nfs_client;
 	char buf[12];
 	const char *proto;
 
-	seq_printf(m, ",vers=%d", nfss->rpc_ops->version);
+	seq_printf(m, ",vers=%d", clp->rpc_ops->version);
 	seq_printf(m, ",rsize=%d", nfss->rsize);
 	seq_printf(m, ",wsize=%d", nfss->wsize);
 	if (nfss->acregmin != 3*HZ || showdefaults)
@@ -427,7 +428,7 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 	seq_printf(m, ",namelen=%d", nfss->namelen);
 
 #ifdef CONFIG_NFS_V4
-	if (nfss->rpc_ops->version == 4) {
+	if (nfss->nfs_client->cl_nfsversion == 4) {
 		seq_printf(m, "\n\tnfsv4:\t");
 		seq_printf(m, "bm0=0x%x", nfss->attr_bitmask[0]);
 		seq_printf(m, ",bm1=0x%x", nfss->attr_bitmask[1]);
@@ -503,7 +504,7 @@ nfs_get_root(struct super_block *sb, struct nfs_fh *rootfh, struct nfs_fsinfo *f
 	struct nfs_server	*server = NFS_SB(sb);
 	int			error;
 
-	error = server->rpc_ops->getroot(server, rootfh, fsinfo);
+	error = server->nfs_client->rpc_ops->getroot(server, rootfh, fsinfo);
 	if (error < 0) {
 		dprintk("nfs_get_root: getattr error = %d\n", -error);
 		return ERR_PTR(error);
@@ -553,14 +554,14 @@ nfs_sb_init(struct super_block *sb, rpc_authflavor_t authflavor)
 		no_root_error = -ENOMEM;
 		goto out_no_root;
 	}
-	sb->s_root->d_op = server->rpc_ops->dentry_ops;
+	sb->s_root->d_op = server->nfs_client->rpc_ops->dentry_ops;
 
 	/* mount time stamp, in seconds */
 	server->mount_time = jiffies;
 
 	/* Get some general file system info */
 	if (server->namelen == 0 &&
-	    server->rpc_ops->pathconf(server, &server->fh, &pathinfo) >= 0)
+	    server->nfs_client->rpc_ops->pathconf(server, &server->fh, &pathinfo) >= 0)
 		server->namelen = pathinfo.max_namelen;
 	/* Work out a lot of parameters */
 	if (server->rsize == 0)
@@ -663,9 +664,14 @@ nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 	struct rpc_xprt		*xprt = NULL;
 	struct rpc_clnt		*clnt = NULL;
 	int			proto = (data->flags & NFS_MOUNT_TCP) ? IPPROTO_TCP : IPPROTO_UDP;
+	int			nfsversion = 2;
 
-	clp = nfs_get_client(server->hostname, &server->addr,
-			     server->rpc_ops->version);
+#ifdef CONFIG_NFS_V3
+	if (server->flags & NFS_MOUNT_VER3)
+		nfsversion = 3;
+#endif
+
+	clp = nfs_get_client(server->hostname, &server->addr, nfsversion);
 	if (!clp) {
 		dprintk("%s: failed to create NFS4 client.\n", __FUNCTION__);
 		return ERR_PTR(PTR_ERR(clp));
@@ -675,6 +681,19 @@ nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 
 	server->retrans_timeo = timeparms.to_initval;
 	server->retrans_count = timeparms.to_retries;
+
+	/* Check NFS protocol revision and initialize RPC op vector
+	 * and file handle pool. */
+#ifdef CONFIG_NFS_V3
+	if (nfsversion == 3) {
+		clp->rpc_ops = &nfs_v3_clientops;
+		server->caps |= NFS_CAP_READDIRPLUS;
+	} else {
+		clp->rpc_ops = &nfs_v2_clientops;
+	}
+#else
+	clp->rpc_ops = &nfs_v2_clientops;
+#endif
 
 	/* create transport and client */
 	xprt = xprt_create_proto(proto, &server->addr, &timeparms);
@@ -686,7 +705,7 @@ nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 		return (struct rpc_clnt *)xprt;
 	}
 	clnt = rpc_create_client(xprt, server->hostname, &nfs_program,
-				 server->rpc_ops->version, data->pseudoflavor);
+				 clp->cl_nfsversion, data->pseudoflavor);
 	if (IS_ERR(clnt)) {
 		dprintk("%s: cannot create RPC client. Error = %ld\n",
 				__FUNCTION__, PTR_ERR(xprt));
@@ -750,7 +769,7 @@ static struct nfs_server *nfs_clone_server(struct super_block *sb, struct nfs_cl
 	fsinfo.fattr = data->fattr;
 	if (NFS_PROTO(root_inode)->fsinfo(server, data->fh, &fsinfo) == 0)
 		nfs_super_set_maxbytes(sb, fsinfo.maxfilesize);
-	sb->s_root->d_op = server->rpc_ops->dentry_ops;
+	sb->s_root->d_op = server->nfs_client->rpc_ops->dentry_ops;
 	sb->s_flags |= MS_ACTIVE;
 	return server;
 out_put_root:
@@ -865,19 +884,6 @@ nfs_fill_super(struct super_block *sb, struct nfs_mount_data *data, int silent)
 		return -ENOMEM;
 	strcpy(server->hostname, data->hostname);
 
-	/* Check NFS protocol revision and initialize RPC op vector
-	 * and file handle pool. */
-#ifdef CONFIG_NFS_V3
-	if (server->flags & NFS_MOUNT_VER3) {
-		server->rpc_ops = &nfs_v3_clientops;
-		server->caps |= NFS_CAP_READDIRPLUS;
-	} else {
-		server->rpc_ops = &nfs_v2_clientops;
-	}
-#else
-	server->rpc_ops = &nfs_v2_clientops;
-#endif
-
 	/* Fill in pseudoflavor for mount version < 5 */
 	if (!(data->flags & NFS_MOUNT_SECFLAVOUR))
 		data->pseudoflavor = RPC_AUTH_UNIX;
@@ -888,6 +894,7 @@ nfs_fill_super(struct super_block *sb, struct nfs_mount_data *data, int silent)
 	server->client = nfs_create_client(server, data);
 	if (IS_ERR(server->client))
 		return PTR_ERR(server->client);
+
 	/* RFC 2623, sec 2.3.2 */
 	if (authflavor != RPC_AUTH_UNIX) {
 		struct rpc_auth *auth;
@@ -1129,6 +1136,8 @@ static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
 
 	/* Now create transport and client */
 	if (clp->cl_cons_state == NFS_CS_INITING) {
+		clp->rpc_ops = &nfs_v4_clientops;
+
 		xprt = xprt_create_proto(proto, &server->addr, timeparms);
 		if (IS_ERR(xprt)) {
 			err = PTR_ERR(xprt);
@@ -1139,7 +1148,7 @@ static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
 		/* Bind to a reserved port! */
 		xprt->resvport = 1;
 		clnt = rpc_create_client(xprt, server->hostname, &nfs_program,
-				server->rpc_ops->version, flavor);
+				clp->cl_nfsversion, flavor);
 		if (IS_ERR(clnt)) {
 			err = PTR_ERR(clnt);
 			dprintk("%s: cannot create RPC client. Error = %d\n",
@@ -1214,8 +1223,6 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 	server->acregmax = data->acregmax*HZ;
 	server->acdirmin = data->acdirmin*HZ;
 	server->acdirmax = data->acdirmax*HZ;
-
-	server->rpc_ops = &nfs_v4_clientops;
 
 	nfs_init_timeout_values(&timeparms, data->proto, data->timeo, data->retrans);
 

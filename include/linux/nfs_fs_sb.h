@@ -25,6 +25,7 @@ struct nfs_client {
 	struct list_head	cl_superblocks;	/* List of nfs_server structs */
 
 	struct rpc_clnt *	cl_rpcclient;
+	const struct nfs_rpc_ops *rpc_ops;	/* NFS protocol vector */
 
 #ifdef CONFIG_NFS_V4
 	u64			cl_clientid;	/* constant */
@@ -74,7 +75,6 @@ struct nfs_server {
 	struct rpc_clnt *	client;		/* RPC client handle */
 	struct rpc_clnt *	client_sys;	/* 2nd handle for FSINFO */
 	struct rpc_clnt *	client_acl;	/* ACL RPC client handle */
-	const struct nfs_rpc_ops *rpc_ops;	/* NFS protocol vector */
 	struct nfs_iostats *	io_stats;	/* I/O statistics */
 	struct backing_dev_info	backing_dev_info;
 	int			flags;		/* various flags */
