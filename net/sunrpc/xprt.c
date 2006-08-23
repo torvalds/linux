@@ -896,7 +896,8 @@ static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc
 	if ((xprt = kzalloc(sizeof(struct rpc_xprt), GFP_KERNEL)) == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	xprt->addr = *ap;
+	memcpy(&xprt->addr, ap, sizeof(*ap));
+	xprt->addrlen = sizeof(*ap);
 
 	switch (proto) {
 	case IPPROTO_UDP:

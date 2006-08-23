@@ -134,7 +134,8 @@ struct rpc_xprt {
 	struct sock *		inet;		/* INET layer */
 
 	struct rpc_timeout	timeout;	/* timeout parms */
-	struct sockaddr_in	addr;		/* server address */
+	struct sockaddr_storage	addr;		/* server address */
+	size_t			addrlen;	/* size of server address */
 	int			prot;		/* IP protocol */
 
 	unsigned long		cong;		/* current congestion */

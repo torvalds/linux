@@ -341,7 +341,7 @@ static int xs_udp_send_request(struct rpc_task *task)
 
 	req->rq_xtime = jiffies;
 	status = xs_sendpages(xprt->sock, (struct sockaddr *) &xprt->addr,
-				sizeof(xprt->addr), xdr, req->rq_bytes_sent);
+				xprt->addrlen, xdr, req->rq_bytes_sent);
 
 	dprintk("RPC:      xs_udp_send_request(%u) = %d\n",
 			xdr->len - req->rq_bytes_sent, status);
@@ -1027,8 +1027,11 @@ static char *xs_print_peer_address(struct rpc_xprt *xprt, enum rpc_display_forma
  */
 static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 {
+	struct sockaddr_in *sap = (struct sockaddr_in *) &xprt->addr;
+
 	dprintk("RPC:      setting port for xprt %p to %u\n", xprt, port);
-	xprt->addr.sin_port = htons(port);
+
+	sap->sin_port = htons(port);
 }
 
 static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
@@ -1209,7 +1212,7 @@ static void xs_tcp_connect_worker(void *args)
 	xprt->stat.connect_count++;
 	xprt->stat.connect_start = jiffies;
 	status = sock->ops->connect(sock, (struct sockaddr *) &xprt->addr,
-			sizeof(xprt->addr), O_NONBLOCK);
+			xprt->addrlen, O_NONBLOCK);
 	dprintk("RPC: %p  connect status %d connected %d sock state %d\n",
 			xprt, -status, xprt_connected(xprt), sock->sk->sk_state);
 	if (status < 0) {
@@ -1359,6 +1362,7 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 {
 	size_t slot_table_size;
+	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
 
 	xprt->max_reqs = xprt_udp_slot_table_entries;
 	slot_table_size = xprt->max_reqs * sizeof(xprt->slot[0]);
@@ -1366,7 +1370,7 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	if (xprt->slot == NULL)
 		return -ENOMEM;
 
-	if (ntohs(xprt->addr.sin_port) != 0)
+	if (ntohs(addr->sin_port != 0))
 		xprt_set_bound(xprt);
 	xprt->port = xs_get_random_port();
 
@@ -1405,6 +1409,7 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 {
 	size_t slot_table_size;
+	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
 
 	xprt->max_reqs = xprt_tcp_slot_table_entries;
 	slot_table_size = xprt->max_reqs * sizeof(xprt->slot[0]);
@@ -1412,7 +1417,7 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	if (xprt->slot == NULL)
 		return -ENOMEM;
 
-	if (ntohs(xprt->addr.sin_port) != 0)
+	if (ntohs(addr->sin_port) != 0)
 		xprt_set_bound(xprt);
 	xprt->port = xs_get_random_port();
 

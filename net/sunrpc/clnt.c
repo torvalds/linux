@@ -550,7 +550,7 @@ size_t rpc_peeraddr(struct rpc_clnt *clnt, struct sockaddr *buf, size_t bufsize)
 	if (bytes > bufsize)
 		bytes = bufsize;
 	memcpy(buf, &clnt->cl_xprt->addr, bytes);
-	return sizeof(xprt->addr);
+	return xprt->addrlen;
 }
 EXPORT_SYMBOL(rpc_peeraddr);
 
