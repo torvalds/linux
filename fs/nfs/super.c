@@ -471,11 +471,13 @@ static int nfs_validate_mount_data(struct nfs_mount_data *data,
 						data->version);
 				return -EINVAL;
 			}
-			/* Fill in pseudoflavor for mount version < 5 */
-			data->pseudoflavor = RPC_AUTH_UNIX;
 		case 5:
 			memset(data->context, 0, sizeof(data->context));
 	}
+
+	/* Set the pseudoflavor */
+	if (!(data->flags & NFS_MOUNT_SECFLAVOUR))
+		data->pseudoflavor = RPC_AUTH_UNIX;
 
 #ifndef CONFIG_NFS_V3
 	/* If NFSv3 is not compiled in, return -EPROTONOSUPPORT */
