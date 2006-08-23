@@ -3790,6 +3790,7 @@ struct nfs_rpc_ops	nfs_v4_clientops = {
 	.statfs		= nfs4_proc_statfs,
 	.fsinfo		= nfs4_proc_fsinfo,
 	.pathconf	= nfs4_proc_pathconf,
+	.set_capabilities = nfs4_server_capabilities,
 	.decode_dirent	= nfs4_decode_dirent,
 	.read_setup	= nfs4_proc_read_setup,
 	.read_done	= nfs4_read_done,
