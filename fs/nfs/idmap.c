@@ -108,15 +108,17 @@ static struct rpc_pipe_ops idmap_upcall_ops = {
         .destroy_msg    = idmap_pipe_destroy_msg,
 };
 
-void
+int
 nfs_idmap_new(struct nfs_client *clp)
 {
 	struct idmap *idmap;
+	int error;
 
 	if (clp->cl_idmap != NULL)
-		return;
+		return 0;
+
         if ((idmap = kzalloc(sizeof(*idmap), GFP_KERNEL)) == NULL)
-                return;
+                return -ENOMEM;
 
 	snprintf(idmap->idmap_path, sizeof(idmap->idmap_path),
 	    "%s/idmap", clp->cl_rpcclient->cl_pathname);
@@ -124,8 +126,9 @@ nfs_idmap_new(struct nfs_client *clp)
         idmap->idmap_dentry = rpc_mkpipe(idmap->idmap_path,
 	    idmap, &idmap_upcall_ops, 0);
         if (IS_ERR(idmap->idmap_dentry)) {
+		error = PTR_ERR(idmap->idmap_dentry);
 		kfree(idmap);
-		return;
+		return error;
 	}
 
         mutex_init(&idmap->idmap_lock);
@@ -135,6 +138,7 @@ nfs_idmap_new(struct nfs_client *clp)
 	idmap->idmap_group_hash.h_type = IDMAP_TYPE_GROUP;
 
 	clp->cl_idmap = idmap;
+	return 0;
 }
 
 void

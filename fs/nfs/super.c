@@ -1136,7 +1136,8 @@ static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
 		clnt->cl_softrtry = 1;
 		clp->cl_rpcclient = clnt;
 		memcpy(clp->cl_ipaddr, server->ip_addr, sizeof(clp->cl_ipaddr));
-		nfs_idmap_new(clp);
+		if (nfs_idmap_new(clp) < 0)
+			goto out_fail;
 	}
 	list_add_tail(&server->nfs4_siblings, &clp->cl_superblocks);
 	clnt = rpc_clone_client(clp->cl_rpcclient);

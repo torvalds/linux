@@ -64,7 +64,7 @@ struct idmap_msg {
 /* Forward declaration to make this header independent of others */
 struct nfs_client;
 
-void nfs_idmap_new(struct nfs_client *);
+int nfs_idmap_new(struct nfs_client *);
 void nfs_idmap_delete(struct nfs_client *);
 
 int nfs_map_name_to_uid(struct nfs_client *, const char *, size_t, __u32 *);
