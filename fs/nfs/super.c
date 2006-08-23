@@ -240,11 +240,10 @@ void __exit unregister_nfs_fs(void)
  */
 static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct super_block *sb = dentry->d_sb;
-	struct nfs_server *server = NFS_SB(sb);
+	struct nfs_server *server = NFS_SB(dentry->d_sb);
 	unsigned char blockbits;
 	unsigned long blockres;
-	struct nfs_fh *rootfh = NFS_FH(sb->s_root->d_inode);
+	struct nfs_fh *fh = NFS_FH(dentry->d_inode);
 	struct nfs_fattr fattr;
 	struct nfs_fsstat res = {
 			.fattr = &fattr,
@@ -253,7 +252,7 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	lock_kernel();
 
-	error = server->rpc_ops->statfs(server, rootfh, &res);
+	error = server->rpc_ops->statfs(server, fh, &res);
 	buf->f_type = NFS_SUPER_MAGIC;
 	if (error < 0)
 		goto out_err;
@@ -263,7 +262,7 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	 * case where f_frsize != f_bsize.  Eventually we want to
 	 * report the value of wtmult in this field.
 	 */
-	buf->f_frsize = sb->s_blocksize;
+	buf->f_frsize = dentry->d_sb->s_blocksize;
 
 	/*
 	 * On most *nix systems, f_blocks, f_bfree, and f_bavail
@@ -272,8 +271,8 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	 * thus historically Linux's sys_statfs reports these
 	 * fields in units of f_bsize.
 	 */
-	buf->f_bsize = sb->s_blocksize;
-	blockbits = sb->s_blocksize_bits;
+	buf->f_bsize = dentry->d_sb->s_blocksize;
+	blockbits = dentry->d_sb->s_blocksize_bits;
 	blockres = (1 << blockbits) - 1;
 	buf->f_blocks = (res.tbytes + blockres) >> blockbits;
 	buf->f_bfree = (res.fbytes + blockres) >> blockbits;
