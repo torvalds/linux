@@ -281,25 +281,22 @@ int rpc_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
 
 static struct rpc_clnt *pmap_create(char *hostname, struct sockaddr_in *srvaddr, int proto, int privileged)
 {
-	struct rpc_xprt	*xprt;
-	struct rpc_clnt	*clnt;
+	struct rpc_create_args args = {
+		.protocol	= proto,
+		.address	= (struct sockaddr *)srvaddr,
+		.addrsize	= sizeof(*srvaddr),
+		.servername	= hostname,
+		.program	= &pmap_program,
+		.version	= RPC_PMAP_VERSION,
+		.authflavor	= RPC_AUTH_UNIX,
+		.flags		= (RPC_CLNT_CREATE_ONESHOT |
+				   RPC_CLNT_CREATE_NOPING),
+	};
 
-	xprt = xprt_create_proto(proto, srvaddr, NULL);
-	if (IS_ERR(xprt))
-		return (struct rpc_clnt *)xprt;
-	xprt->ops->set_port(xprt, RPC_PMAP_PORT);
-	xprt_set_bound(xprt);
+	srvaddr->sin_port = htons(RPC_PMAP_PORT);
 	if (!privileged)
-		xprt->resvport = 0;
-
-	clnt = rpc_new_client(xprt, hostname,
-				&pmap_program, RPC_PMAP_VERSION,
-				RPC_AUTH_UNIX);
-	if (!IS_ERR(clnt)) {
-		clnt->cl_softrtry = 1;
-		clnt->cl_oneshot  = 1;
-	}
-	return clnt;
+		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
+	return rpc_create(&args);
 }
 
 /*
