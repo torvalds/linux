@@ -123,6 +123,7 @@ void		rpc_setbufsize(struct rpc_clnt *, unsigned int, unsigned int);
 size_t		rpc_max_payload(struct rpc_clnt *);
 void		rpc_force_rebind(struct rpc_clnt *);
 int		rpc_ping(struct rpc_clnt *clnt, int flags);
+size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
 
 /*
  * Helper function for NFSroot support
