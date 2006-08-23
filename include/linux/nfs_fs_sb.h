@@ -70,6 +70,7 @@ struct nfs_client {
  * NFS client parameters stored in the superblock.
  */
 struct nfs_server {
+	struct nfs_client *	nfs_client;	/* shared client and NFS4 state */
 	struct rpc_clnt *	client;		/* RPC client handle */
 	struct rpc_clnt *	client_sys;	/* 2nd handle for FSINFO */
 	struct rpc_clnt *	client_acl;	/* ACL RPC client handle */
@@ -103,7 +104,6 @@ struct nfs_server {
 	 */
 	char			ip_addr[16];
 	char *			mnt_path;
-	struct nfs_client *	nfs_client;	/* all NFSv4 state starts here */
 	struct list_head	nfs4_siblings;	/* List of other nfs_server structs
 						 * that share the same clientid
 						 */

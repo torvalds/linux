@@ -658,10 +658,18 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto, unsigned 
 static struct rpc_clnt *
 nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 {
+	struct nfs_client	*clp;
 	struct rpc_timeout	timeparms;
 	struct rpc_xprt		*xprt = NULL;
 	struct rpc_clnt		*clnt = NULL;
 	int			proto = (data->flags & NFS_MOUNT_TCP) ? IPPROTO_TCP : IPPROTO_UDP;
+
+	clp = nfs_get_client(server->hostname, &server->addr,
+			     server->rpc_ops->version);
+	if (!clp) {
+		dprintk("%s: failed to create NFS4 client.\n", __FUNCTION__);
+		return ERR_PTR(PTR_ERR(clp));
+	}
 
 	nfs_init_timeout_values(&timeparms, proto, data->timeo, data->retrans);
 
@@ -673,6 +681,8 @@ nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 	if (IS_ERR(xprt)) {
 		dprintk("%s: cannot create RPC transport. Error = %ld\n",
 				__FUNCTION__, PTR_ERR(xprt));
+		nfs_mark_client_ready(clp, PTR_ERR(xprt));
+		nfs_put_client(clp);
 		return (struct rpc_clnt *)xprt;
 	}
 	clnt = rpc_create_client(xprt, server->hostname, &nfs_program,
@@ -686,9 +696,13 @@ nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 	clnt->cl_intr     = 1;
 	clnt->cl_softrtry = 1;
 
+	nfs_mark_client_ready(clp, 0);
+	server->nfs_client = clp;
 	return clnt;
 
 out_fail:
+	nfs_mark_client_ready(clp, PTR_ERR(xprt));
+	nfs_put_client(clp);
 	return clnt;
 }
 
@@ -764,6 +778,7 @@ static int nfs_clone_generic_sb(struct nfs_clone_mount *data,
 	if (server == NULL)
 		goto out_err;
 	memcpy(server, parent, sizeof(*server));
+	atomic_inc(&server->nfs_client->cl_count);
 	hostname = (data->hostname != NULL) ? data->hostname : parent->hostname;
 	len = strlen(hostname) + 1;
 	server->hostname = kmalloc(len, GFP_KERNEL);
@@ -796,6 +811,7 @@ out_deactivate:
 out_rpciod_down:
 	rpciod_down();
 	kfree(server->hostname);
+	nfs_put_client(server->nfs_client);
 	kfree(server);
 	return simple_set_mnt(mnt, sb);
 kill_rpciod:
@@ -803,6 +819,7 @@ kill_rpciod:
 free_hostname:
 	kfree(server->hostname);
 free_server:
+	nfs_put_client(server->nfs_client);
 	kfree(server);
 out_err:
 	return error;
@@ -1071,6 +1088,7 @@ static void nfs_kill_super(struct super_block *s)
 
 	nfs_free_iostats(server->io_stats);
 	kfree(server->hostname);
+	nfs_put_client(server->nfs_client);
 	kfree(server);
 	nfs_release_automount_timer();
 }
@@ -1421,7 +1439,6 @@ static struct super_block *nfs4_clone_sb(struct nfs_server *server, struct nfs_c
 	nfs4_server_capabilities(server, &server->fh);
 
 	down_write(&clp->cl_sem);
-	atomic_inc(&clp->cl_count);
 	list_add_tail(&server->nfs4_siblings, &clp->cl_superblocks);
 	up_write(&clp->cl_sem);
 	return sb;
@@ -1476,6 +1493,8 @@ static struct nfs_server *nfs4_referral_server(struct super_block *sb, struct nf
 	retrans = 1;
 	nfs_init_timeout_values(&timeparms, proto, timeo, retrans);
 
+	nfs_put_client(server->nfs_client);
+	server->nfs_client = NULL;
 	server->client = nfs4_create_client(server, &timeparms, proto, data->authflavor);
 	if (IS_ERR((err = server->client)))
 		goto out_err;
