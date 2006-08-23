@@ -81,13 +81,13 @@ static inline void pmap_wake_portmap_waiters(struct rpc_xprt *xprt)
 /**
  * rpc_getport - obtain the port for a given RPC service on a given host
  * @task: task that is waiting for portmapper request
- * @clnt: controlling rpc_clnt
  *
  * This one can be called for an ongoing RPC request, and can be used in
  * an async (rpciod) context.
  */
-void rpc_getport(struct rpc_task *task, struct rpc_clnt *clnt)
+void rpc_getport(struct rpc_task *task)
 {
+	struct rpc_clnt *clnt = task->tk_client;
 	struct rpc_xprt *xprt = task->tk_xprt;
 	struct sockaddr_in *sap = &xprt->addr;
 	struct portmap_args *map;

@@ -106,7 +106,7 @@ struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 int		rpc_shutdown_client(struct rpc_clnt *);
 int		rpc_destroy_client(struct rpc_clnt *);
 void		rpc_release_client(struct rpc_clnt *);
-void		rpc_getport(struct rpc_task *, struct rpc_clnt *);
+void		rpc_getport(struct rpc_task *);
 int		rpc_register(u32, u32, int, unsigned short, int *);
 
 void		rpc_call_setup(struct rpc_task *, struct rpc_message *, int);

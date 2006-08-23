@@ -774,7 +774,6 @@ call_encode(struct rpc_task *task)
 static void
 call_bind(struct rpc_task *task)
 {
-	struct rpc_clnt	*clnt = task->tk_client;
 	struct rpc_xprt *xprt = task->tk_xprt;
 
 	dprintk("RPC: %4d call_bind (status %d)\n",
@@ -784,7 +783,7 @@ call_bind(struct rpc_task *task)
 	if (!xprt_bound(xprt)) {
 		task->tk_action = call_bind_status;
 		task->tk_timeout = xprt->bind_timeout;
-		rpc_getport(task, clnt);
+		xprt->ops->rpcbind(task);
 	}
 }
 
