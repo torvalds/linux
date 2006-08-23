@@ -89,9 +89,6 @@ struct rpc_procinfo {
 	char *			p_name;		/* name of procedure */
 };
 
-#define RPC_CONGESTED(clnt)	(RPCXPRT_CONGESTED((clnt)->cl_xprt))
-#define RPC_PEERADDR(clnt)	(&(clnt)->cl_xprt->addr)
-
 #ifdef __KERNEL__
 
 struct rpc_clnt *rpc_create_client(struct rpc_xprt *xprt, char *servname,
