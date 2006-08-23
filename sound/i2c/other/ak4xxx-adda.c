@@ -284,11 +284,13 @@ EXPORT_SYMBOL(snd_akm4xxx_init);
 
 #define AK_GET_CHIP(val)		(((val) >> 8) & 0xff)
 #define AK_GET_ADDR(val)		((val) & 0xff)
-#define AK_GET_SHIFT(val)		(((val) >> 16) & 0x7f)
+#define AK_GET_SHIFT(val)		(((val) >> 16) & 0x3f)
+#define AK_GET_NEEDSMSB(val)		(((val) >> 22) & 1)
 #define AK_GET_INVERT(val)		(((val) >> 23) & 1)
 #define AK_GET_MASK(val)		(((val) >> 24) & 0xff)
 #define AK_COMPOSE(chip,addr,shift,mask) \
 	(((chip) << 8) | (addr) | ((shift) << 16) | ((mask) << 24))
+#define AK_NEEDSMSB 			(1<<22)
 #define AK_INVERT 			(1<<23)
 
 static int snd_akm4xxx_volume_info(struct snd_kcontrol *kcontrol,
@@ -309,10 +311,13 @@ static int snd_akm4xxx_volume_get(struct snd_kcontrol *kcontrol,
 	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
+	int needsmsb = AK_GET_NEEDSMSB(kcontrol->private_value);
 	int invert = AK_GET_INVERT(kcontrol->private_value);
 	unsigned int mask = AK_GET_MASK(kcontrol->private_value);
 	unsigned char val = snd_akm4xxx_get(ak, chip, addr);
-	
+
+	if (needsmsb)
+		val &= 0x7f;
 	ucontrol->value.integer.value[0] = invert ? mask - val : val;
 	return 0;
 }
@@ -323,6 +328,7 @@ static int snd_akm4xxx_volume_put(struct snd_kcontrol *kcontrol,
 	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
+	int needsmsb = AK_GET_NEEDSMSB(kcontrol->private_value);
 	int invert = AK_GET_INVERT(kcontrol->private_value);
 	unsigned int mask = AK_GET_MASK(kcontrol->private_value);
 	unsigned char nval = ucontrol->value.integer.value[0] % (mask+1);
@@ -330,6 +336,8 @@ static int snd_akm4xxx_volume_put(struct snd_kcontrol *kcontrol,
 
 	if (invert)
 		nval = mask - nval;
+	if (needsmsb)
+		nval |= 0x80;
 	change = snd_akm4xxx_get(ak, chip, addr) != nval;
 	if (change)
 		snd_akm4xxx_write(ak, chip, addr, nval);
@@ -354,13 +362,19 @@ static int snd_akm4xxx_stereo_volume_get(struct snd_kcontrol *kcontrol,
 	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
+	int needsmsb = AK_GET_NEEDSMSB(kcontrol->private_value);
 	int invert = AK_GET_INVERT(kcontrol->private_value);
 	unsigned int mask = AK_GET_MASK(kcontrol->private_value);
-	unsigned char val = snd_akm4xxx_get(ak, chip, addr);
-	
+	unsigned char val;
+
+	val = snd_akm4xxx_get(ak, chip, addr);
+	if (needsmsb)
+		val &= 0x7f;
 	ucontrol->value.integer.value[0] = invert ? mask - val : val;
 
 	val = snd_akm4xxx_get(ak, chip, addr+1);
+	if (needsmsb)
+		val &= 0x7f;
 	ucontrol->value.integer.value[1] = invert ? mask - val : val;
 
 	return 0;
@@ -372,6 +386,7 @@ static int snd_akm4xxx_stereo_volume_put(struct snd_kcontrol *kcontrol,
 	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
+	int needsmsb = AK_GET_NEEDSMSB(kcontrol->private_value);
 	int invert = AK_GET_INVERT(kcontrol->private_value);
 	unsigned int mask = AK_GET_MASK(kcontrol->private_value);
 	unsigned char nval = ucontrol->value.integer.value[0] % (mask+1);
@@ -379,6 +394,8 @@ static int snd_akm4xxx_stereo_volume_put(struct snd_kcontrol *kcontrol,
 
 	if (invert)
 		nval = mask - nval;
+	if (needsmsb)
+		nval |= 0x80;
 	change0 = snd_akm4xxx_get(ak, chip, addr) != nval;
 	if (change0)
 		snd_akm4xxx_write(ak, chip, addr, nval);
@@ -386,6 +403,8 @@ static int snd_akm4xxx_stereo_volume_put(struct snd_kcontrol *kcontrol,
 	nval = ucontrol->value.integer.value[1] % (mask+1);
 	if (invert)
 		nval = mask - nval;
+	if (needsmsb)
+		nval |= 0x80;
 	change1 = snd_akm4xxx_get(ak, chip, addr+1) != nval;
 	if (change1)
 		snd_akm4xxx_write(ak, chip, addr+1, nval);
@@ -585,16 +604,13 @@ int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
 			/* register 4-9, chip #0 only */
 			ctl->private_value = AK_COMPOSE(0, idx + 4, 0, 255);
 			break;
-		case SND_AK4358:
-			if (idx >= 6)
-				/* register 4-9, chip #0 only */
-				ctl->private_value =
-					AK_COMPOSE(0, idx + 5, 0, 255);
-			else
-				/* register 4-9, chip #0 only */
-				ctl->private_value =
-					AK_COMPOSE(0, idx + 4, 0, 255);
+		case SND_AK4358: {
+			/* register 4-9 and 11-12, chip #0 only */
+			int  addr = idx < 6 ? idx + 4 : idx + 5;
+			ctl->private_value =
+				AK_COMPOSE(0, addr, 0, 127) | AK_NEEDSMSB;
 			break;
+		}
 		case SND_AK4381:
 			/* register 3 & 4 */
 			ctl->private_value =
