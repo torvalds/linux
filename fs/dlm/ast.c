@@ -38,6 +38,7 @@ void dlm_add_ast(struct dlm_lkb *lkb, int type)
 		dlm_user_add_ast(lkb, type);
 		return;
 	}
+	DLM_ASSERT(lkb->lkb_astaddr != DLM_FAKE_USER_AST, dlm_print_lkb(lkb););
 
 	spin_lock(&ast_queue_lock);
 	if (!(lkb->lkb_ast_type & (AST_COMP | AST_BAST))) {

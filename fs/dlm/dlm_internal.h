@@ -91,6 +91,8 @@ struct dlm_mhandle;
   } \
 }
 
+#define DLM_FAKE_USER_AST ERR_PTR(-EINVAL)
+
 
 struct dlm_direntry {
 	struct list_head	list;

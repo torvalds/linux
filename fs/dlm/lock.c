@@ -86,8 +86,6 @@ static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 				    struct dlm_message *ms);
 static int receive_extralen(struct dlm_message *ms);
 
-#define FAKE_USER_AST (void*)0xff00ff00
-
 /*
  * Lock compatibilty matrix - thanks Steve
  * UN = Unlocked state. Not really a state, used as a flag
@@ -2195,6 +2193,7 @@ static int send_convert(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	if (!error && down_conversion(lkb)) {
 		remove_from_waiters(lkb);
 		r->res_ls->ls_stub_ms.m_result = 0;
+		r->res_ls->ls_stub_ms.m_flags = lkb->lkb_flags;
 		__receive_convert_reply(r, lkb, &r->res_ls->ls_stub_ms);
 	}
 
@@ -3615,7 +3614,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 	   lock and that lkb_astparam is the dlm_user_args structure. */
 
 	error = set_lock_args(mode, &ua->lksb, flags, namelen, parent_lkid,
-			      FAKE_USER_AST, ua, FAKE_USER_AST, &args);
+			      DLM_FAKE_USER_AST, ua, DLM_FAKE_USER_AST, &args);
 	lkb->lkb_flags |= DLM_IFL_USER;
 	ua->old_mode = DLM_LOCK_IV;
 
@@ -3686,8 +3685,8 @@ int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	ua->user_lksb = ua_tmp->user_lksb;
 	ua->old_mode = lkb->lkb_grmode;
 
-	error = set_lock_args(mode, &ua->lksb, flags, 0, 0, FAKE_USER_AST, ua,
-			      FAKE_USER_AST, &args);
+	error = set_lock_args(mode, &ua->lksb, flags, 0, 0, DLM_FAKE_USER_AST,
+			      ua, DLM_FAKE_USER_AST, &args);
 	if (error)
 		goto out_put;
 
