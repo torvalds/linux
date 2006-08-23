@@ -554,6 +554,19 @@ size_t rpc_peeraddr(struct rpc_clnt *clnt, struct sockaddr *buf, size_t bufsize)
 }
 EXPORT_SYMBOL(rpc_peeraddr);
 
+/**
+ * rpc_peeraddr2str - return remote peer address in printable format
+ * @clnt: RPC client structure
+ * @format: address format
+ *
+ */
+char *rpc_peeraddr2str(struct rpc_clnt *clnt, enum rpc_display_format_t format)
+{
+	struct rpc_xprt *xprt = clnt->cl_xprt;
+	return xprt->ops->print_addr(xprt, format);
+}
+EXPORT_SYMBOL(rpc_peeraddr2str);
+
 void
 rpc_setbufsize(struct rpc_clnt *clnt, unsigned int sndsize, unsigned int rcvsize)
 {

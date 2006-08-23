@@ -124,6 +124,7 @@ size_t		rpc_max_payload(struct rpc_clnt *);
 void		rpc_force_rebind(struct rpc_clnt *);
 int		rpc_ping(struct rpc_clnt *clnt, int flags);
 size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
+char *		rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
 
 /*
  * Helper function for NFSroot support
