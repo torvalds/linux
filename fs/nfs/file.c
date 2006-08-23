@@ -111,7 +111,7 @@ nfs_file_open(struct inode *inode, struct file *filp)
 
 	nfs_inc_stats(inode, NFSIOS_VFSOPEN);
 	lock_kernel();
-	res = NFS_SERVER(inode)->rpc_ops->file_open(inode, filp);
+	res = NFS_PROTO(inode)->file_open(inode, filp);
 	unlock_kernel();
 	return res;
 }
