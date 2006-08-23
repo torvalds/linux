@@ -3363,6 +3363,8 @@ static void prepare_priv_for_init(struct bcm43xx_private *bcm)
 	memset(bcm->dma_reason, 0, sizeof(bcm->dma_reason));
 	bcm->irq_savedstate = BCM43xx_IRQ_INITIAL;
 
+	bcm->mac_suspended = 1;
+
 	/* Noise calculation context */
 	memset(&bcm->noisecalc, 0, sizeof(bcm->noisecalc));
 
