@@ -473,22 +473,11 @@ static int recover_locks_queue(struct dlm_rsb *r, struct list_head *head)
 	return error;
 }
 
-static int all_queues_empty(struct dlm_rsb *r)
-{
-	if (!list_empty(&r->res_grantqueue) ||
-	    !list_empty(&r->res_convertqueue) ||
-	    !list_empty(&r->res_waitqueue))
-		return 0;
-	return 1;
-}
-
 static int recover_locks(struct dlm_rsb *r)
 {
 	int error = 0;
 
 	lock_rsb(r);
-	if (all_queues_empty(r))
-		goto out;
 
 	DLM_ASSERT(!r->res_recover_locks_count, dlm_dump_rsb(r););
 
