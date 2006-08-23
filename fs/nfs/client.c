@@ -113,9 +113,9 @@ static struct nfs_client *nfs_alloc_client(const char *hostname,
 	if (error < 0) {
 		dprintk("%s: couldn't start rpciod! Error = %d\n",
 				__FUNCTION__, error);
-		__set_bit(NFS_CS_RPCIOD, &clp->cl_res_state);
 		goto error_1;
 	}
+	__set_bit(NFS_CS_RPCIOD, &clp->cl_res_state);
 
 	if (nfsversion == 4) {
 		if (nfs_callback_up() < 0)
@@ -153,8 +153,8 @@ static struct nfs_client *nfs_alloc_client(const char *hostname,
 	return clp;
 
 error_3:
-	nfs_callback_down();
-	__clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state);
+	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
+		nfs_callback_down();
 error_2:
 	rpciod_down();
 	__clear_bit(NFS_CS_RPCIOD, &clp->cl_res_state);
@@ -195,7 +195,7 @@ static void nfs_free_client(struct nfs_client *clp)
 		nfs_callback_down();
 
 	if (__test_and_clear_bit(NFS_CS_RPCIOD, &clp->cl_res_state))
-	rpciod_down();
+		rpciod_down();
 
 	kfree(clp->cl_hostname);
 	kfree(clp);
@@ -881,9 +881,9 @@ static int nfs4_init_client(struct nfs_client *clp,
 	if (error < 0) {
 		dprintk("%s: failed to create idmapper. Error = %d\n",
 			__FUNCTION__, error);
-		__set_bit(NFS_CS_IDMAP, &clp->cl_res_state);
 		goto error;
 	}
+	__set_bit(NFS_CS_IDMAP, &clp->cl_res_state);
 
 	nfs_mark_client_ready(clp, NFS_CS_READY);
 	return 0;
