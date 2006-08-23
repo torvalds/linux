@@ -91,13 +91,6 @@ struct rpc_procinfo {
 
 #ifdef __KERNEL__
 
-struct rpc_clnt *rpc_create_client(struct rpc_xprt *xprt, char *servname,
-				struct rpc_program *info,
-				u32 version, rpc_authflavor_t authflavor);
-struct rpc_clnt *rpc_new_client(struct rpc_xprt *xprt, char *servname,
-				struct rpc_program *info,
-				u32 version, rpc_authflavor_t authflavor);
-
 struct rpc_create_args {
 	int			protocol;
 	struct sockaddr		*address;

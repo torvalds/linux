@@ -97,17 +97,7 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 	}
 }
 
-/*
- * Create an RPC client
- * FIXME: This should also take a flags argument (as in task->tk_flags).
- * It's called (among others) from pmap_create_client, which may in
- * turn be called by an async task. In this case, rpciod should not be
- * made to sleep too long.
- */
-struct rpc_clnt *
-rpc_new_client(struct rpc_xprt *xprt, char *servname,
-		  struct rpc_program *program, u32 vers,
-		  rpc_authflavor_t flavor)
+static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, struct rpc_program *program, u32 vers, rpc_authflavor_t flavor)
 {
 	struct rpc_version	*version;
 	struct rpc_clnt		*clnt = NULL;
@@ -252,36 +242,6 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	return clnt;
 }
 EXPORT_SYMBOL(rpc_create);
-
-/**
- * Create an RPC client
- * @xprt - pointer to xprt struct
- * @servname - name of server
- * @info - rpc_program
- * @version - rpc_program version
- * @authflavor - rpc_auth flavour to use
- *
- * Creates an RPC client structure, then pings the server in order to
- * determine if it is up, and if it supports this program and version.
- *
- * This function should never be called by asynchronous tasks such as
- * the portmapper.
- */
-struct rpc_clnt *rpc_create_client(struct rpc_xprt *xprt, char *servname,
-		struct rpc_program *info, u32 version, rpc_authflavor_t authflavor)
-{
-	struct rpc_clnt *clnt;
-	int err;
-	
-	clnt = rpc_new_client(xprt, servname, info, version, authflavor);
-	if (IS_ERR(clnt))
-		return clnt;
-	err = rpc_ping(clnt, RPC_TASK_SOFT|RPC_TASK_NOINTR);
-	if (err == 0)
-		return clnt;
-	rpc_shutdown_client(clnt);
-	return ERR_PTR(err);
-}
 
 /*
  * This function clones the RPC client structure. It allows us to share the

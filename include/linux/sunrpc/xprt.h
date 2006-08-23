@@ -231,7 +231,6 @@ struct rpc_xprt {
 /*
  * Transport operations used by ULPs
  */
-struct rpc_xprt *	xprt_create_proto(int proto, struct sockaddr_in *addr, struct rpc_timeout *to);
 void			xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long incr);
 
 /*
