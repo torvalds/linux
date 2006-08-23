@@ -241,7 +241,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 
 	return clnt;
 }
-EXPORT_SYMBOL(rpc_create);
+EXPORT_SYMBOL_GPL(rpc_create);
 
 /*
  * This function clones the RPC client structure. It allows us to share the
@@ -573,7 +573,7 @@ size_t rpc_peeraddr(struct rpc_clnt *clnt, struct sockaddr *buf, size_t bufsize)
 	memcpy(buf, &clnt->cl_xprt->addr, bytes);
 	return xprt->addrlen;
 }
-EXPORT_SYMBOL(rpc_peeraddr);
+EXPORT_SYMBOL_GPL(rpc_peeraddr);
 
 /**
  * rpc_peeraddr2str - return remote peer address in printable format
@@ -586,7 +586,7 @@ char *rpc_peeraddr2str(struct rpc_clnt *clnt, enum rpc_display_format_t format)
 	struct rpc_xprt *xprt = clnt->cl_xprt;
 	return xprt->ops->print_addr(xprt, format);
 }
-EXPORT_SYMBOL(rpc_peeraddr2str);
+EXPORT_SYMBOL_GPL(rpc_peeraddr2str);
 
 void
 rpc_setbufsize(struct rpc_clnt *clnt, unsigned int sndsize, unsigned int rcvsize)
@@ -608,7 +608,7 @@ size_t rpc_max_payload(struct rpc_clnt *clnt)
 {
 	return clnt->cl_xprt->max_payload;
 }
-EXPORT_SYMBOL(rpc_max_payload);
+EXPORT_SYMBOL_GPL(rpc_max_payload);
 
 /**
  * rpc_force_rebind - force transport to check that remote port is unchanged
@@ -620,7 +620,7 @@ void rpc_force_rebind(struct rpc_clnt *clnt)
 	if (clnt->cl_autobind)
 		xprt_clear_bound(clnt->cl_xprt);
 }
-EXPORT_SYMBOL(rpc_force_rebind);
+EXPORT_SYMBOL_GPL(rpc_force_rebind);
 
 /*
  * Restart an (async) RPC call. Usually called from within the
