@@ -3683,6 +3683,7 @@ int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	ua->castaddr = ua_tmp->castaddr;
 	ua->bastparam = ua_tmp->bastparam;
 	ua->bastaddr = ua_tmp->bastaddr;
+	ua->user_lksb = ua_tmp->user_lksb;
 	ua->old_mode = lkb->lkb_grmode;
 
 	error = set_lock_args(mode, &ua->lksb, flags, 0, 0, FAKE_USER_AST, ua,
