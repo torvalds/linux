@@ -461,14 +461,19 @@ static const char *get_input_type(struct hda_gnode *node, unsigned int *pinctl)
 			return "Front Line";
 		return "Line";
 	case AC_JACK_CD:
+#if 0
 		if (pinctl)
 			*pinctl |= AC_PINCTL_VREF_GRD;
+#endif
 		return "CD";
 	case AC_JACK_AUX:
 		if ((location & 0x0f) == AC_JACK_LOC_FRONT)
 			return "Front Aux";
 		return "Aux";
 	case AC_JACK_MIC_IN:
+		if (node->pin_caps &
+		    (AC_PINCAP_VREF_80 << AC_PINCAP_VREF_SHIFT))
+			*pinctl |= AC_PINCTL_VREF_80;
 		if ((location & 0x0f) == AC_JACK_LOC_FRONT)
 			return "Front Mic";
 		return "Mic";
@@ -556,6 +561,29 @@ static int parse_adc_sub_nodes(struct hda_codec *codec, struct hda_gspec *spec,
 	return 1; /* found */
 }
 
+/* add a capture source element */
+static void add_cap_src(struct hda_gspec *spec, int idx)
+{
+	struct hda_input_mux_item *csrc;
+	char *buf;
+	int num, ocap;
+
+	num = spec->input_mux.num_items;
+	csrc = &spec->input_mux.items[num];
+	buf = spec->cap_labels[num];
+	for (ocap = 0; ocap < num; ocap++) {
+		if (! strcmp(buf, spec->cap_labels[ocap])) {
+			/* same label already exists,
+			 * put the index number to be unique
+			 */
+			sprintf(buf, "%s %d", spec->cap_labels[ocap], num);
+			break;
+		}
+	}
+	csrc->index = idx;
+	spec->input_mux.num_items++;
+}
+
 /*
  * parse input
  */
@@ -576,28 +604,26 @@ static int parse_input_path(struct hda_codec *codec, struct hda_gnode *adc_node)
 	 * if it reaches to a proper input PIN, add the path as the
 	 * input path.
 	 */
+	/* first, check the direct connections to PIN widgets */
 	for (i = 0; i < adc_node->nconns; i++) {
 		node = hda_get_node(spec, adc_node->conn_list[i]);
-		if (! node)
-			continue;
-		err = parse_adc_sub_nodes(codec, spec, node);
-		if (err < 0)
-			return err;
-		else if (err > 0) {
-			struct hda_input_mux_item *csrc = &spec->input_mux.items[spec->input_mux.num_items];
-			char *buf = spec->cap_labels[spec->input_mux.num_items];
-			int ocap;
-			for (ocap = 0; ocap < spec->input_mux.num_items; ocap++) {
-				if (! strcmp(buf, spec->cap_labels[ocap])) {
-					/* same label already exists,
-					 * put the index number to be unique
-					 */
-					sprintf(buf, "%s %d", spec->cap_labels[ocap],
-						spec->input_mux.num_items);
-				}
-			}
-			csrc->index = i;
-			spec->input_mux.num_items++;
+		if (node && node->type == AC_WID_PIN) {
+			err = parse_adc_sub_nodes(codec, spec, node);
+			if (err < 0)
+				return err;
+			else if (err > 0)
+				add_cap_src(spec, i);
+		}
+	}
+	/* ... then check the rests, more complicated connections */
+	for (i = 0; i < adc_node->nconns; i++) {
+		node = hda_get_node(spec, adc_node->conn_list[i]);
+		if (node && node->type != AC_WID_PIN) {
+			err = parse_adc_sub_nodes(codec, spec, node);
+			if (err < 0)
+				return err;
+			else if (err > 0)
+				add_cap_src(spec, i);
 		}
 	}
 
@@ -647,9 +673,6 @@ static int parse_input(struct hda_codec *codec)
 /*
  * create mixer controls if possible
  */
-#define DIR_OUT		0x1
-#define DIR_IN		0x2
-
 static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 			unsigned int index, const char *type, const char *dir_sfx)
 {
@@ -743,28 +766,57 @@ static int build_input_controls(struct hda_codec *codec)
 {
 	struct hda_gspec *spec = codec->spec;
 	struct hda_gnode *adc_node = spec->adc_node;
-	int err;
+	int i, err;
+	static struct snd_kcontrol_new cap_sel = {
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.info = capture_source_info,
+		.get = capture_source_get,
+		.put = capture_source_put,
+	};
 
-	if (! adc_node)
+	if (! adc_node || ! spec->input_mux.num_items)
 		return 0; /* not found */
 
+	spec->cur_cap_src = 0;
+	select_input_connection(codec, adc_node,
+				spec->input_mux.items[0].index);
+
 	/* create capture volume and switch controls if the ADC has an amp */
-	err = create_mixer(codec, adc_node, 0, NULL, "Capture");
+	/* do we have only a single item? */
+	if (spec->input_mux.num_items == 1) {
+		err = create_mixer(codec, adc_node,
+				   spec->input_mux.items[0].index,
+				   NULL, "Capture");
+		if (err < 0)
+			return err;
+		return 0;
+	}
 
 	/* create input MUX if multiple sources are available */
-	if (spec->input_mux.num_items > 1) {
-		static struct snd_kcontrol_new cap_sel = {
-			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-			.name = "Capture Source",
-			.info = capture_source_info,
-			.get = capture_source_get,
-			.put = capture_source_put,
-		};
-		if ((err = snd_ctl_add(codec->bus->card, snd_ctl_new1(&cap_sel, codec))) < 0)
+	if ((err = snd_ctl_add(codec->bus->card,
+			       snd_ctl_new1(&cap_sel, codec))) < 0)
+		return err;
+
+	/* no volume control? */
+	if (! (adc_node->wid_caps & AC_WCAP_IN_AMP) ||
+	    ! (adc_node->amp_in_caps & AC_AMPCAP_NUM_STEPS))
+		return 0;
+
+	for (i = 0; i < spec->input_mux.num_items; i++) {
+		struct snd_kcontrol_new knew;
+		char name[32];
+		sprintf(name, "%s Capture Volume",
+			spec->input_mux.items[i].label);
+		knew = (struct snd_kcontrol_new)
+			HDA_CODEC_VOLUME(name, adc_node->nid,
+					 spec->input_mux.items[i].index,
+					 HDA_INPUT);
+		if ((err = snd_ctl_add(codec->bus->card,
+				       snd_ctl_new1(&knew, codec))) < 0)
 			return err;
-		spec->cur_cap_src = 0;
-		select_input_connection(codec, adc_node, spec->input_mux.items[0].index);
 	}
+
 	return 0;
 }
 
