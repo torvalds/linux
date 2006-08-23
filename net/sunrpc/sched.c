@@ -45,12 +45,6 @@ static void			rpciod_killall(void);
 static void			rpc_async_schedule(void *);
 
 /*
- * RPC tasks that create another task (e.g. for contacting the portmapper)
- * will wait on this queue for their child's completion
- */
-static RPC_WAITQ(childq, "childq");
-
-/*
  * RPC tasks sit here while waiting for conditions to improve.
  */
 static RPC_WAITQ(delay_queue, "delayq");
@@ -321,16 +315,6 @@ static void rpc_make_runnable(struct rpc_task *task)
 		}
 	} else
 		wake_up_bit(&task->tk_runstate, RPC_TASK_QUEUED);
-}
-
-/*
- * Place a newly initialized task on the workqueue.
- */
-static inline void
-rpc_schedule_run(struct rpc_task *task)
-{
-	rpc_set_active(task);
-	rpc_make_runnable(task);
 }
 
 /*
@@ -932,72 +916,6 @@ struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
 	return task;
 }
 EXPORT_SYMBOL(rpc_run_task);
-
-/**
- * rpc_find_parent - find the parent of a child task.
- * @child: child task
- * @parent: parent task
- *
- * Checks that the parent task is still sleeping on the
- * queue 'childq'. If so returns a pointer to the parent.
- * Upon failure returns NULL.
- *
- * Caller must hold childq.lock
- */
-static inline struct rpc_task *rpc_find_parent(struct rpc_task *child, struct rpc_task *parent)
-{
-	struct rpc_task	*task;
-	struct list_head *le;
-
-	task_for_each(task, le, &childq.tasks[0])
-		if (task == parent)
-			return parent;
-
-	return NULL;
-}
-
-static void rpc_child_exit(struct rpc_task *child, void *calldata)
-{
-	struct rpc_task	*parent;
-
-	spin_lock_bh(&childq.lock);
-	if ((parent = rpc_find_parent(child, calldata)) != NULL) {
-		parent->tk_status = child->tk_status;
-		__rpc_wake_up_task(parent);
-	}
-	spin_unlock_bh(&childq.lock);
-}
-
-static const struct rpc_call_ops rpc_child_ops = {
-	.rpc_call_done = rpc_child_exit,
-};
-
-/*
- * Note: rpc_new_task releases the client after a failure.
- */
-struct rpc_task *
-rpc_new_child(struct rpc_clnt *clnt, struct rpc_task *parent)
-{
-	struct rpc_task	*task;
-
-	task = rpc_new_task(clnt, RPC_TASK_ASYNC | RPC_TASK_CHILD, &rpc_child_ops, parent);
-	if (!task)
-		goto fail;
-	return task;
-
-fail:
-	parent->tk_status = -ENOMEM;
-	return NULL;
-}
-
-void rpc_run_child(struct rpc_task *task, struct rpc_task *child, rpc_action func)
-{
-	spin_lock_bh(&childq.lock);
-	/* N.B. Is it possible for the child to have already finished? */
-	__rpc_sleep_on(&childq, task, func, NULL);
-	rpc_schedule_run(child);
-	spin_unlock_bh(&childq.lock);
-}
 
 /*
  * Kill all tasks for the given client.
