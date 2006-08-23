@@ -887,6 +887,81 @@ void xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long i
 	to->to_exponential = 0;
 }
 
+/**
+ * xprt_create_transport - create an RPC transport
+ * @proto: requested transport protocol
+ * @ap: remote peer address
+ * @size: length of address
+ * @to: timeout parameters
+ *
+ */
+struct rpc_xprt *xprt_create_transport(int proto, struct sockaddr *ap, size_t size, struct rpc_timeout *to)
+{
+	int result;
+	struct rpc_xprt	*xprt;
+	struct rpc_rqst	*req;
+
+	if ((xprt = kzalloc(sizeof(struct rpc_xprt), GFP_KERNEL)) == NULL) {
+		dprintk("RPC:      xprt_create_transport: no memory\n");
+		return ERR_PTR(-ENOMEM);
+	}
+	if (size <= sizeof(xprt->addr)) {
+		memcpy(&xprt->addr, ap, size);
+		xprt->addrlen = size;
+	} else {
+		kfree(xprt);
+		dprintk("RPC:      xprt_create_transport: address too large\n");
+		return ERR_PTR(-EBADF);
+	}
+
+	switch (proto) {
+	case IPPROTO_UDP:
+		result = xs_setup_udp(xprt, to);
+		break;
+	case IPPROTO_TCP:
+		result = xs_setup_tcp(xprt, to);
+		break;
+	default:
+		printk(KERN_ERR "RPC: unrecognized transport protocol: %d\n",
+				proto);
+		return ERR_PTR(-EIO);
+	}
+	if (result) {
+		kfree(xprt);
+		dprintk("RPC:      xprt_create_transport: failed, %d\n", result);
+		return ERR_PTR(result);
+	}
+
+	spin_lock_init(&xprt->transport_lock);
+	spin_lock_init(&xprt->reserve_lock);
+
+	INIT_LIST_HEAD(&xprt->free);
+	INIT_LIST_HEAD(&xprt->recv);
+	INIT_WORK(&xprt->task_cleanup, xprt_autoclose, xprt);
+	init_timer(&xprt->timer);
+	xprt->timer.function = xprt_init_autodisconnect;
+	xprt->timer.data = (unsigned long) xprt;
+	xprt->last_used = jiffies;
+	xprt->cwnd = RPC_INITCWND;
+
+	rpc_init_wait_queue(&xprt->binding, "xprt_binding");
+	rpc_init_wait_queue(&xprt->pending, "xprt_pending");
+	rpc_init_wait_queue(&xprt->sending, "xprt_sending");
+	rpc_init_wait_queue(&xprt->resend, "xprt_resend");
+	rpc_init_priority_wait_queue(&xprt->backlog, "xprt_backlog");
+
+	/* initialize free list */
+	for (req = &xprt->slot[xprt->max_reqs-1]; req >= &xprt->slot[0]; req--)
+		list_add(&req->rq_list, &xprt->free);
+
+	xprt_init_xid(xprt);
+
+	dprintk("RPC:      created transport %p with %u slots\n", xprt,
+			xprt->max_reqs);
+
+	return xprt;
+}
+
 static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc_timeout *to)
 {
 	int result;

@@ -97,6 +97,28 @@ struct rpc_clnt *rpc_create_client(struct rpc_xprt *xprt, char *servname,
 struct rpc_clnt *rpc_new_client(struct rpc_xprt *xprt, char *servname,
 				struct rpc_program *info,
 				u32 version, rpc_authflavor_t authflavor);
+
+struct rpc_create_args {
+	int			protocol;
+	struct sockaddr		*address;
+	size_t			addrsize;
+	struct rpc_timeout	*timeout;
+	char			*servername;
+	struct rpc_program	*program;
+	u32			version;
+	rpc_authflavor_t	authflavor;
+	unsigned long		flags;
+};
+
+/* Values for "flags" field */
+#define RPC_CLNT_CREATE_HARDRTRY	(1UL << 0)
+#define RPC_CLNT_CREATE_INTR		(1UL << 1)
+#define RPC_CLNT_CREATE_AUTOBIND	(1UL << 2)
+#define RPC_CLNT_CREATE_ONESHOT		(1UL << 3)
+#define RPC_CLNT_CREATE_NONPRIVPORT	(1UL << 4)
+#define RPC_CLNT_CREATE_NOPING		(1UL << 5)
+
+struct rpc_clnt *rpc_create(struct rpc_create_args *args);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
 				struct rpc_program *, int);
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);

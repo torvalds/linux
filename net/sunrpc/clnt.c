@@ -192,6 +192,67 @@ out_no_xprt:
 	return ERR_PTR(err);
 }
 
+/*
+ * rpc_create - create an RPC client and transport with one call
+ * @args: rpc_clnt create argument structure
+ *
+ * Creates and initializes an RPC transport and an RPC client.
+ *
+ * It can ping the server in order to determine if it is up, and to see if
+ * it supports this program and version.  RPC_CLNT_CREATE_NOPING disables
+ * this behavior so asynchronous tasks can also use rpc_create.
+ */
+struct rpc_clnt *rpc_create(struct rpc_create_args *args)
+{
+	struct rpc_xprt *xprt;
+	struct rpc_clnt *clnt;
+
+	xprt = xprt_create_transport(args->protocol, args->address,
+					args->addrsize, args->timeout);
+	if (IS_ERR(xprt))
+		return (struct rpc_clnt *)xprt;
+
+	/*
+	 * By default, kernel RPC client connects from a reserved port.
+	 * CAP_NET_BIND_SERVICE will not be set for unprivileged requesters,
+	 * but it is always enabled for rpciod, which handles the connect
+	 * operation.
+	 */
+	xprt->resvport = 1;
+	if (args->flags & RPC_CLNT_CREATE_NONPRIVPORT)
+		xprt->resvport = 0;
+
+	dprintk("RPC:       creating %s client for %s (xprt %p)\n",
+		args->program->name, args->servername, xprt);
+
+	clnt = rpc_new_client(xprt, args->servername, args->program,
+				args->version, args->authflavor);
+	if (IS_ERR(clnt))
+		return clnt;
+
+	if (!(args->flags & RPC_CLNT_CREATE_NOPING)) {
+		int err = rpc_ping(clnt, RPC_TASK_SOFT|RPC_TASK_NOINTR);
+		if (err != 0) {
+			rpc_shutdown_client(clnt);
+			return ERR_PTR(err);
+		}
+	}
+
+	clnt->cl_softrtry = 1;
+	if (args->flags & RPC_CLNT_CREATE_HARDRTRY)
+		clnt->cl_softrtry = 0;
+
+	if (args->flags & RPC_CLNT_CREATE_INTR)
+		clnt->cl_intr = 1;
+	if (args->flags & RPC_CLNT_CREATE_AUTOBIND)
+		clnt->cl_autobind = 1;
+	if (args->flags & RPC_CLNT_CREATE_ONESHOT)
+		clnt->cl_oneshot = 1;
+
+	return clnt;
+}
+EXPORT_SYMBOL(rpc_create);
+
 /**
  * Create an RPC client
  * @xprt - pointer to xprt struct

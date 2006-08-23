@@ -237,6 +237,7 @@ void			xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long
 /*
  * Generic internal transport functions
  */
+struct rpc_xprt *	xprt_create_transport(int proto, struct sockaddr *addr, size_t size, struct rpc_timeout *toparms);
 void			xprt_connect(struct rpc_task *task);
 void			xprt_reserve(struct rpc_task *task);
 int			xprt_reserve_xprt(struct rpc_task *task);
