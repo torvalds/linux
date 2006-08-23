@@ -332,6 +332,19 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define cpu_relax()	barrier()
 
+/* Used as a macro to identify the combined VIPT/PIPT cached
+ * CPUs which require a guarantee of coherency (no inequivalent
+ * aliases with different data, whether clean or not) to operate */
+static inline int parisc_requires_coherency(void)
+{
+#ifdef CONFIG_PA8X00
+	/* FIXME: also pa8900 - when we see one */
+	return boot_cpu_data.cpu_type == mako;
+#else
+	return 0;
+#endif
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __ASM_PARISC_PROCESSOR_H */

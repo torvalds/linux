@@ -91,7 +91,8 @@ update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 
 		flush_kernel_dcache_page(page);
 		clear_bit(PG_dcache_dirty, &page->flags);
-	}
+	} else if (parisc_requires_coherency())
+		flush_kernel_dcache_page(page);
 }
 
 void
@@ -370,3 +371,45 @@ void parisc_setup_cache_timing(void)
 
 	printk(KERN_INFO "Setting cache flush threshold to %x (%d CPUs online)\n", parisc_cache_flush_threshold, num_online_cpus());
 }
+
+extern void purge_kernel_dcache_page(unsigned long);
+extern void clear_user_page_asm(void *page, unsigned long vaddr);
+
+void
+clear_user_page(void *page, unsigned long vaddr, struct page *pg)
+{
+	purge_kernel_dcache_page((unsigned long)page);
+	purge_tlb_start();
+	pdtlb_kernel(page);
+	purge_tlb_end();
+	clear_user_page_asm(page, vaddr);
+}
+
+void flush_kernel_dcache_page_addr(void *addr)
+{
+	flush_kernel_dcache_page_asm(addr);
+	purge_tlb_start();
+	pdtlb_kernel(addr);
+	purge_tlb_end();
+}
+EXPORT_SYMBOL(flush_kernel_dcache_page_addr);
+
+void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
+		    struct page *pg)
+{
+	/* no coherency needed (all in kmap/kunmap) */
+	copy_user_page_asm(vto, vfrom);
+	if (!parisc_requires_coherency())
+		flush_kernel_dcache_page_asm(vto);
+}
+EXPORT_SYMBOL(copy_user_page);
+
+#ifdef CONFIG_PA8X00
+
+void kunmap_parisc(void *addr)
+{
+	if (parisc_requires_coherency())
+		flush_kernel_dcache_page_addr(addr);
+}
+EXPORT_SYMBOL(kunmap_parisc);
+#endif
