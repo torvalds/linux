@@ -1,7 +1,6 @@
 #ifndef _LINUX_NFS_XDR_H
 #define _LINUX_NFS_XDR_H
 
-#include <linux/sunrpc/xprt.h>
 #include <linux/nfsacl.h>
 
 /*

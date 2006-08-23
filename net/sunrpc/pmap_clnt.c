@@ -15,7 +15,6 @@
 #include <linux/uio.h>
 #include <linux/in.h>
 #include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/xprt.h>
 #include <linux/sunrpc/sched.h>
 
 #ifdef RPC_DEBUG
