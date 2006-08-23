@@ -3765,6 +3765,7 @@ int dlm_user_cancel(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 
 	ua = (struct dlm_user_args *)lkb->lkb_astparam;
 	ua->castparam = ua_tmp->castparam;
+	ua->user_lksb = ua_tmp->user_lksb;
 
 	error = set_unlock_args(flags, ua, &args);
 	if (error)
