@@ -498,7 +498,7 @@ static int atkbd_set_repeat_rate(struct atkbd *atkbd)
 		i++;
 	dev->rep[REP_PERIOD] = period[i];
 
-	while (j < ARRAY_SIZE(period) - 1 && delay[j] < dev->rep[REP_DELAY])
+	while (j < ARRAY_SIZE(delay) - 1 && delay[j] < dev->rep[REP_DELAY])
 		j++;
 	dev->rep[REP_DELAY] = delay[j];
 
