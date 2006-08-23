@@ -803,6 +803,15 @@ int test_set_page_writeback(struct page *page)
 EXPORT_SYMBOL(test_set_page_writeback);
 
 /*
+ * Wakes up tasks that are being throttled due to writeback congestion
+ */
+void writeback_congestion_end(void)
+{
+	blk_congestion_end(WRITE);
+}
+EXPORT_SYMBOL(writeback_congestion_end);
+
+/*
  * Return true if any of the pages in the mapping are marged with the
  * passed tag.
  */

@@ -2734,6 +2734,18 @@ long blk_congestion_wait(int rw, long timeout)
 
 EXPORT_SYMBOL(blk_congestion_wait);
 
+/**
+ * blk_congestion_end - wake up sleepers on a congestion queue
+ * @rw: READ or WRITE
+ */
+void blk_congestion_end(int rw)
+{
+	wait_queue_head_t *wqh = &congestion_wqh[rw];
+
+	if (waitqueue_active(wqh))
+		wake_up(wqh);
+}
+
 /*
  * Has to be called with the request spinlock acquired
  */

@@ -396,6 +396,7 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 out:
 	clear_bit(BDI_write_congested, &bdi->state);
 	wake_up_all(&nfs_write_congestion);
+	writeback_congestion_end();
 	return err;
 }
 
