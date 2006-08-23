@@ -15,7 +15,7 @@ struct nfs_clone_mount {
 	rpc_authflavor_t authflavor;
 };
 
-/* namespace-nfs4.c */
+/* nfs4namespace.c */
 #ifdef CONFIG_NFS_V4
 extern struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentry *dentry);
 #else
@@ -46,6 +46,7 @@ extern void nfs_destroy_directcache(void);
 #endif
 
 /* nfs2xdr.c */
+extern int nfs_stat_to_errno(int);
 extern struct rpc_procinfo nfs_procedures[];
 extern u32 * nfs_decode_dirent(u32 *, struct nfs_entry *, int);
 
@@ -54,8 +55,9 @@ extern struct rpc_procinfo nfs3_procedures[];
 extern u32 *nfs3_decode_dirent(u32 *, struct nfs_entry *, int);
 
 /* nfs4xdr.c */
-extern int nfs_stat_to_errno(int);
+#ifdef CONFIG_NFS_V4
 extern u32 *nfs4_decode_dirent(u32 *p, struct nfs_entry *entry, int plus);
+#endif
 
 /* nfs4proc.c */
 #ifdef CONFIG_NFS_V4
@@ -97,15 +99,13 @@ extern char *nfs_path(const char *base, const struct dentry *dentry,
 /*
  * Determine the mount path as a string
  */
+#ifdef CONFIG_NFS_V4
 static inline char *
 nfs4_path(const struct dentry *dentry, char *buffer, ssize_t buflen)
 {
-#ifdef CONFIG_NFS_V4
 	return nfs_path(NFS_SB(dentry->d_sb)->mnt_path, dentry, buffer, buflen);
-#else
-	return NULL;
-#endif
 }
+#endif
 
 /*
  * Determine the device name as a string

@@ -187,40 +187,6 @@ static struct super_operations nfs4_sops = {
 };
 #endif
 
-#ifdef CONFIG_NFS_V4
-static const int nfs_set_port_min = 0;
-static const int nfs_set_port_max = 65535;
-
-static int param_set_port(const char *val, struct kernel_param *kp)
-{
-	char *endp;
-	int num = simple_strtol(val, &endp, 0);
-	if (endp == val || *endp || num < nfs_set_port_min || num > nfs_set_port_max)
-		return -EINVAL;
-	*((int *)kp->arg) = num;
-	return 0;
-}
-
-module_param_call(callback_tcpport, param_set_port, param_get_int,
-		 &nfs_callback_set_tcpport, 0644);
-#endif
-
-#ifdef CONFIG_NFS_V4
-static int param_set_idmap_timeout(const char *val, struct kernel_param *kp)
-{
-	char *endp;
-	int num = simple_strtol(val, &endp, 0);
-	int jif = num * HZ;
-	if (endp == val || *endp || num < 0 || jif < num)
-		return -EINVAL;
-	*((int *)kp->arg) = jif;
-	return 0;
-}
-
-module_param_call(idmap_cache_timeout, param_set_idmap_timeout, param_get_int,
-		 &nfs_idmap_cache_timeout, 0644);
-#endif
-
 static struct shrinker *acl_shrinker;
 
 /*
@@ -328,9 +294,12 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 }
 
+/*
+ * Map the security flavour number to a name
+ */
 static const char *nfs_pseudoflavour_to_name(rpc_authflavor_t flavour)
 {
-	static struct {
+	static const struct {
 		rpc_authflavor_t flavour;
 		const char *str;
 	} sec_flavours[] = {
@@ -1368,7 +1337,6 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 	}
 
 	s = sget(fs_type, nfs4_compare_super, nfs_set_super, server);
-
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
 		goto out_free;
