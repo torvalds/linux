@@ -47,6 +47,18 @@ extern void nfs_free_server(struct nfs_server *server);
 extern struct nfs_server *nfs_clone_server(struct nfs_server *,
 					   struct nfs_fh *,
 					   struct nfs_fattr *);
+#ifdef CONFIG_PROC_FS
+extern int __init nfs_fs_proc_init(void);
+extern void nfs_fs_proc_exit(void);
+#else
+static inline int nfs_fs_proc_init(void)
+{
+	return 0;
+}
+static inline void nfs_fs_proc_exit(void)
+{
+}
+#endif
 
 /* nfs4namespace.c */
 #ifdef CONFIG_NFS_V4

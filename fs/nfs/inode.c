@@ -1141,6 +1141,10 @@ static int __init init_nfs_fs(void)
 {
 	int err;
 
+	err = nfs_fs_proc_init();
+	if (err)
+		goto out5;
+
 	err = nfs_init_nfspagecache();
 	if (err)
 		goto out4;
@@ -1181,6 +1185,8 @@ out2:
 out3:
 	nfs_destroy_nfspagecache();
 out4:
+	nfs_fs_proc_exit();
+out5:
 	return err;
 }
 
@@ -1195,6 +1201,7 @@ static void __exit exit_nfs_fs(void)
 	rpc_proc_unregister("nfs");
 #endif
 	unregister_nfs_fs();
+	nfs_fs_proc_exit();
 }
 
 /* Not quite true; I just maintain it */

@@ -1148,3 +1148,287 @@ out_free_server:
 	dprintk("<-- nfs_clone_server() = error %d\n", error);
 	return ERR_PTR(error);
 }
+
+#ifdef CONFIG_PROC_FS
+static struct proc_dir_entry *proc_fs_nfs;
+
+static int nfs_server_list_open(struct inode *inode, struct file *file);
+static void *nfs_server_list_start(struct seq_file *p, loff_t *pos);
+static void *nfs_server_list_next(struct seq_file *p, void *v, loff_t *pos);
+static void nfs_server_list_stop(struct seq_file *p, void *v);
+static int nfs_server_list_show(struct seq_file *m, void *v);
+
+static struct seq_operations nfs_server_list_ops = {
+	.start	= nfs_server_list_start,
+	.next	= nfs_server_list_next,
+	.stop	= nfs_server_list_stop,
+	.show	= nfs_server_list_show,
+};
+
+static struct file_operations nfs_server_list_fops = {
+	.open		= nfs_server_list_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+static int nfs_volume_list_open(struct inode *inode, struct file *file);
+static void *nfs_volume_list_start(struct seq_file *p, loff_t *pos);
+static void *nfs_volume_list_next(struct seq_file *p, void *v, loff_t *pos);
+static void nfs_volume_list_stop(struct seq_file *p, void *v);
+static int nfs_volume_list_show(struct seq_file *m, void *v);
+
+static struct seq_operations nfs_volume_list_ops = {
+	.start	= nfs_volume_list_start,
+	.next	= nfs_volume_list_next,
+	.stop	= nfs_volume_list_stop,
+	.show	= nfs_volume_list_show,
+};
+
+static struct file_operations nfs_volume_list_fops = {
+	.open		= nfs_volume_list_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+/*
+ * open "/proc/fs/nfsfs/servers" which provides a summary of servers with which
+ * we're dealing
+ */
+static int nfs_server_list_open(struct inode *inode, struct file *file)
+{
+	struct seq_file *m;
+	int ret;
+
+	ret = seq_open(file, &nfs_server_list_ops);
+	if (ret < 0)
+		return ret;
+
+	m = file->private_data;
+	m->private = PDE(inode)->data;
+
+	return 0;
+}
+
+/*
+ * set up the iterator to start reading from the server list and return the first item
+ */
+static void *nfs_server_list_start(struct seq_file *m, loff_t *_pos)
+{
+	struct list_head *_p;
+	loff_t pos = *_pos;
+
+	/* lock the list against modification */
+	spin_lock(&nfs_client_lock);
+
+	/* allow for the header line */
+	if (!pos)
+		return SEQ_START_TOKEN;
+	pos--;
+
+	/* find the n'th element in the list */
+	list_for_each(_p, &nfs_client_list)
+		if (!pos--)
+			break;
+
+	return _p != &nfs_client_list ? _p : NULL;
+}
+
+/*
+ * move to next server
+ */
+static void *nfs_server_list_next(struct seq_file *p, void *v, loff_t *pos)
+{
+	struct list_head *_p;
+
+	(*pos)++;
+
+	_p = v;
+	_p = (v == SEQ_START_TOKEN) ? nfs_client_list.next : _p->next;
+
+	return _p != &nfs_client_list ? _p : NULL;
+}
+
+/*
+ * clean up after reading from the transports list
+ */
+static void nfs_server_list_stop(struct seq_file *p, void *v)
+{
+	spin_unlock(&nfs_client_lock);
+}
+
+/*
+ * display a header line followed by a load of call lines
+ */
+static int nfs_server_list_show(struct seq_file *m, void *v)
+{
+	struct nfs_client *clp;
+
+	/* display header on line 1 */
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(m, "NV SERVER   PORT USE HOSTNAME\n");
+		return 0;
+	}
+
+	/* display one transport per line on subsequent lines */
+	clp = list_entry(v, struct nfs_client, cl_share_link);
+
+	seq_printf(m, "v%d %02x%02x%02x%02x %4hx %3d %s\n",
+		   clp->cl_nfsversion,
+		   NIPQUAD(clp->cl_addr.sin_addr),
+		   ntohs(clp->cl_addr.sin_port),
+		   atomic_read(&clp->cl_count),
+		   clp->cl_hostname);
+
+	return 0;
+}
+
+/*
+ * open "/proc/fs/nfsfs/volumes" which provides a summary of extant volumes
+ */
+static int nfs_volume_list_open(struct inode *inode, struct file *file)
+{
+	struct seq_file *m;
+	int ret;
+
+	ret = seq_open(file, &nfs_volume_list_ops);
+	if (ret < 0)
+		return ret;
+
+	m = file->private_data;
+	m->private = PDE(inode)->data;
+
+	return 0;
+}
+
+/*
+ * set up the iterator to start reading from the volume list and return the first item
+ */
+static void *nfs_volume_list_start(struct seq_file *m, loff_t *_pos)
+{
+	struct list_head *_p;
+	loff_t pos = *_pos;
+
+	/* lock the list against modification */
+	spin_lock(&nfs_client_lock);
+
+	/* allow for the header line */
+	if (!pos)
+		return SEQ_START_TOKEN;
+	pos--;
+
+	/* find the n'th element in the list */
+	list_for_each(_p, &nfs_volume_list)
+		if (!pos--)
+			break;
+
+	return _p != &nfs_volume_list ? _p : NULL;
+}
+
+/*
+ * move to next volume
+ */
+static void *nfs_volume_list_next(struct seq_file *p, void *v, loff_t *pos)
+{
+	struct list_head *_p;
+
+	(*pos)++;
+
+	_p = v;
+	_p = (v == SEQ_START_TOKEN) ? nfs_volume_list.next : _p->next;
+
+	return _p != &nfs_volume_list ? _p : NULL;
+}
+
+/*
+ * clean up after reading from the transports list
+ */
+static void nfs_volume_list_stop(struct seq_file *p, void *v)
+{
+	spin_unlock(&nfs_client_lock);
+}
+
+/*
+ * display a header line followed by a load of call lines
+ */
+static int nfs_volume_list_show(struct seq_file *m, void *v)
+{
+	struct nfs_server *server;
+	struct nfs_client *clp;
+	char dev[8], fsid[17];
+
+	/* display header on line 1 */
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(m, "NV SERVER   PORT DEV     FSID\n");
+		return 0;
+	}
+	/* display one transport per line on subsequent lines */
+	server = list_entry(v, struct nfs_server, master_link);
+	clp = server->nfs_client;
+
+	snprintf(dev, 8, "%u:%u",
+		 MAJOR(server->s_dev), MINOR(server->s_dev));
+
+	snprintf(fsid, 17, "%llx:%llx",
+		 server->fsid.major, server->fsid.minor);
+
+	seq_printf(m, "v%d %02x%02x%02x%02x %4hx %-7s %-17s\n",
+		   clp->cl_nfsversion,
+		   NIPQUAD(clp->cl_addr.sin_addr),
+		   ntohs(clp->cl_addr.sin_port),
+		   dev,
+		   fsid);
+
+	return 0;
+}
+
+/*
+ * initialise the /proc/fs/nfsfs/ directory
+ */
+int __init nfs_fs_proc_init(void)
+{
+	struct proc_dir_entry *p;
+
+	proc_fs_nfs = proc_mkdir("nfsfs", proc_root_fs);
+	if (!proc_fs_nfs)
+		goto error_0;
+
+	proc_fs_nfs->owner = THIS_MODULE;
+
+	/* a file of servers with which we're dealing */
+	p = create_proc_entry("servers", S_IFREG|S_IRUGO, proc_fs_nfs);
+	if (!p)
+		goto error_1;
+
+	p->proc_fops = &nfs_server_list_fops;
+	p->owner = THIS_MODULE;
+
+	/* a file of volumes that we have mounted */
+	p = create_proc_entry("volumes", S_IFREG|S_IRUGO, proc_fs_nfs);
+	if (!p)
+		goto error_2;
+
+	p->proc_fops = &nfs_volume_list_fops;
+	p->owner = THIS_MODULE;
+	return 0;
+
+error_2:
+	remove_proc_entry("servers", proc_fs_nfs);
+error_1:
+	remove_proc_entry("nfsfs", proc_root_fs);
+error_0:
+	return -ENOMEM;
+}
+
+/*
+ * clean up the /proc/fs/nfsfs/ directory
+ */
+void nfs_fs_proc_exit(void)
+{
+	remove_proc_entry("volumes", proc_fs_nfs);
+	remove_proc_entry("servers", proc_fs_nfs);
+	remove_proc_entry("nfsfs", proc_root_fs);
+}
+
+#endif /* CONFIG_PROC_FS */
