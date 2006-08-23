@@ -89,7 +89,7 @@ void rpc_getport(struct rpc_task *task)
 {
 	struct rpc_clnt *clnt = task->tk_client;
 	struct rpc_xprt *xprt = task->tk_xprt;
-	struct sockaddr_in *sap = &xprt->addr;
+	struct sockaddr_in addr;
 	struct portmap_args *map;
 	struct rpc_clnt	*pmap_clnt;
 	struct rpc_task *child;
@@ -124,7 +124,8 @@ void rpc_getport(struct rpc_task *task)
 	map->pm_port = 0;
 	map->pm_task = task;
 
-	pmap_clnt = pmap_create(clnt->cl_server, sap, map->pm_prot, 0);
+	rpc_peeraddr(clnt, (struct sockaddr *) &addr, sizeof(addr));
+	pmap_clnt = pmap_create(clnt->cl_server, &addr, map->pm_prot, 0);
 	if (IS_ERR(pmap_clnt)) {
 		task->tk_status = PTR_ERR(pmap_clnt);
 		goto bailout;
