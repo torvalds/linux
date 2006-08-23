@@ -401,8 +401,17 @@ static int nfs_create_rpc_client(struct nfs_client *clp, int proto,
 						rpc_authflavor_t flavor)
 {
 	struct rpc_timeout	timeparms;
-	struct rpc_xprt		*xprt = NULL;
 	struct rpc_clnt		*clnt = NULL;
+	struct rpc_create_args args = {
+		.protocol	= proto,
+		.address	= (struct sockaddr *)&clp->cl_addr,
+		.addrsize	= sizeof(clp->cl_addr),
+		.timeout	= &timeparms,
+		.servername	= clp->cl_hostname,
+		.program	= &nfs_program,
+		.version	= clp->rpc_ops->version,
+		.authflavor	= flavor,
+	};
 
 	if (!IS_ERR(clp->cl_rpcclient))
 		return 0;
@@ -411,27 +420,13 @@ static int nfs_create_rpc_client(struct nfs_client *clp, int proto,
 	clp->retrans_timeo = timeparms.to_initval;
 	clp->retrans_count = timeparms.to_retries;
 
-	/* create transport and client */
-	xprt = xprt_create_proto(proto, &clp->cl_addr, &timeparms);
-	if (IS_ERR(xprt)) {
-		dprintk("%s: cannot create RPC transport. Error = %ld\n",
-				__FUNCTION__, PTR_ERR(xprt));
-		return PTR_ERR(xprt);
-	}
-
-	/* Bind to a reserved port! */
-	xprt->resvport = 1;
-	/* Create the client RPC handle */
-	clnt = rpc_create_client(xprt, clp->cl_hostname, &nfs_program,
-				 clp->rpc_ops->version, RPC_AUTH_UNIX);
+	clnt = rpc_create(&args);
 	if (IS_ERR(clnt)) {
 		dprintk("%s: cannot create RPC client. Error = %ld\n",
 				__FUNCTION__, PTR_ERR(clnt));
 		return PTR_ERR(clnt);
 	}
 
-	clnt->cl_intr     = 1;
-	clnt->cl_softrtry = 1;
 	clp->cl_rpcclient = clnt;
 	return 0;
 }
