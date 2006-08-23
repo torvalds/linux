@@ -269,6 +269,7 @@ int			xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to);
 #define XPRT_CONNECTED		(1)
 #define XPRT_CONNECTING		(2)
 #define XPRT_CLOSE_WAIT		(3)
+#define XPRT_BOUND		(4)
 
 static inline void xprt_set_connected(struct rpc_xprt *xprt)
 {
@@ -310,6 +311,21 @@ static inline int xprt_connecting(struct rpc_xprt *xprt)
 static inline int xprt_test_and_set_connecting(struct rpc_xprt *xprt)
 {
 	return test_and_set_bit(XPRT_CONNECTING, &xprt->state);
+}
+
+static inline void xprt_set_bound(struct rpc_xprt *xprt)
+{
+	test_and_set_bit(XPRT_BOUND, &xprt->state);
+}
+
+static inline int xprt_bound(struct rpc_xprt *xprt)
+{
+	return test_bit(XPRT_BOUND, &xprt->state);
+}
+
+static inline void xprt_clear_bound(struct rpc_xprt *xprt)
+{
+	clear_bit(XPRT_BOUND, &xprt->state);
 }
 
 #endif /* __KERNEL__*/

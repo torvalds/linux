@@ -142,15 +142,17 @@ pmap_getport_done(struct rpc_task *task)
 	dprintk("RPC: %4d pmap_getport_done(status %d, port %d)\n",
 			task->tk_pid, task->tk_status, clnt->cl_port);
 
-	xprt->ops->set_port(xprt, 0);
 	if (task->tk_status < 0) {
 		/* Make the calling task exit with an error */
+		xprt->ops->set_port(xprt, 0);
 		task->tk_action = rpc_exit_task;
 	} else if (clnt->cl_port == 0) {
 		/* Program not registered */
+		xprt->ops->set_port(xprt, 0);
 		rpc_exit(task, -EACCES);
 	} else {
 		xprt->ops->set_port(xprt, clnt->cl_port);
+		xprt_set_bound(xprt);
 		clnt->cl_port = htons(clnt->cl_port);
 	}
 	spin_lock(&pmap_lock);
@@ -218,6 +220,7 @@ pmap_create(char *hostname, struct sockaddr_in *srvaddr, int proto, int privileg
 	if (IS_ERR(xprt))
 		return (struct rpc_clnt *)xprt;
 	xprt->ops->set_port(xprt, RPC_PMAP_PORT);
+	xprt_set_bound(xprt);
 	if (!privileged)
 		xprt->resvport = 0;
 

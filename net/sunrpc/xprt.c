@@ -534,7 +534,7 @@ void xprt_connect(struct rpc_task *task)
 	dprintk("RPC: %4d xprt_connect xprt %p %s connected\n", task->tk_pid,
 			xprt, (xprt_connected(xprt) ? "is" : "is not"));
 
-	if (!xprt->addr.sin_port) {
+	if (!xprt_bound(xprt)) {
 		task->tk_status = -EIO;
 		return;
 	}

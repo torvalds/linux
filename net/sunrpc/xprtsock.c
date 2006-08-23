@@ -1016,7 +1016,7 @@ static void xs_udp_connect_worker(void *args)
 	struct socket *sock = xprt->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || xprt->addr.sin_port == 0)
+	if (xprt->shutdown || !xprt_bound(xprt))
 		goto out;
 
 	dprintk("RPC:      xs_udp_connect_worker for xprt %p\n", xprt);
@@ -1099,7 +1099,7 @@ static void xs_tcp_connect_worker(void *args)
 	struct socket *sock = xprt->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || xprt->addr.sin_port == 0)
+	if (xprt->shutdown || !xprt_bound(xprt))
 		goto out;
 
 	dprintk("RPC:      xs_tcp_connect_worker for xprt %p\n", xprt);
@@ -1307,8 +1307,11 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	if (xprt->slot == NULL)
 		return -ENOMEM;
 
-	xprt->prot = IPPROTO_UDP;
+	if (ntohs(xprt->addr.sin_port) != 0)
+		xprt_set_bound(xprt);
 	xprt->port = xs_get_random_port();
+
+	xprt->prot = IPPROTO_UDP;
 	xprt->tsh_size = 0;
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
@@ -1348,8 +1351,11 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	if (xprt->slot == NULL)
 		return -ENOMEM;
 
-	xprt->prot = IPPROTO_TCP;
+	if (ntohs(xprt->addr.sin_port) != 0)
+		xprt_set_bound(xprt);
 	xprt->port = xs_get_random_port();
+
+	xprt->prot = IPPROTO_TCP;
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;

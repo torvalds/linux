@@ -148,7 +148,6 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 	clnt->cl_maxproc  = version->nrprocs;
 	clnt->cl_protname = program->name;
 	clnt->cl_pmap	  = &clnt->cl_pmap_default;
-	clnt->cl_port     = xprt->addr.sin_port;
 	clnt->cl_prog     = program->number;
 	clnt->cl_vers     = version->number;
 	clnt->cl_prot     = xprt->prot;
@@ -156,7 +155,7 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 	clnt->cl_metrics  = rpc_alloc_iostats(clnt);
 	rpc_init_wait_queue(&clnt->cl_pmap_default.pm_bindwait, "bindwait");
 
-	if (!clnt->cl_port)
+	if (!xprt_bound(clnt->cl_xprt))
 		clnt->cl_autobind = 1;
 
 	clnt->cl_rtt = &clnt->cl_rtt_default;
@@ -570,7 +569,7 @@ EXPORT_SYMBOL(rpc_max_payload);
 void rpc_force_rebind(struct rpc_clnt *clnt)
 {
 	if (clnt->cl_autobind)
-		clnt->cl_port = 0;
+		xprt_clear_bound(clnt->cl_xprt);
 }
 EXPORT_SYMBOL(rpc_force_rebind);
 
@@ -782,14 +781,15 @@ static void
 call_bind(struct rpc_task *task)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
+	struct rpc_xprt *xprt = task->tk_xprt;
 
 	dprintk("RPC: %4d call_bind (status %d)\n",
 				task->tk_pid, task->tk_status);
 
 	task->tk_action = call_connect;
-	if (!clnt->cl_port) {
+	if (!xprt_bound(xprt)) {
 		task->tk_action = call_bind_status;
-		task->tk_timeout = task->tk_xprt->bind_timeout;
+		task->tk_timeout = xprt->bind_timeout;
 		rpc_getport(task, clnt);
 	}
 }
