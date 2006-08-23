@@ -24,11 +24,57 @@
 #define PMAP_UNSET		2
 #define PMAP_GETPORT		3
 
+struct portmap_args {
+	u32			pm_prog;
+	u32			pm_vers;
+	u32			pm_prot;
+	unsigned short		pm_port;
+	struct rpc_task *	pm_task;
+};
+
 static struct rpc_procinfo	pmap_procedures[];
 static struct rpc_clnt *	pmap_create(char *, struct sockaddr_in *, int, int);
-static void			pmap_getport_done(struct rpc_task *);
+static void			pmap_getport_done(struct rpc_task *, void *);
 static struct rpc_program	pmap_program;
-static DEFINE_SPINLOCK(pmap_lock);
+
+static void pmap_getport_prepare(struct rpc_task *task, void *calldata)
+{
+	struct portmap_args *map = calldata;
+	struct rpc_message msg = {
+		.rpc_proc	= &pmap_procedures[PMAP_GETPORT],
+		.rpc_argp	= map,
+		.rpc_resp	= &map->pm_port,
+	};
+
+	rpc_call_setup(task, &msg, 0);
+}
+
+static inline struct portmap_args *pmap_map_alloc(void)
+{
+	return kmalloc(sizeof(struct portmap_args), GFP_NOFS);
+}
+
+static inline void pmap_map_free(struct portmap_args *map)
+{
+	kfree(map);
+}
+
+static void pmap_map_release(void *data)
+{
+	pmap_map_free(data);
+}
+
+static const struct rpc_call_ops pmap_getport_ops = {
+	.rpc_call_prepare	= pmap_getport_prepare,
+	.rpc_call_done		= pmap_getport_done,
+	.rpc_release		= pmap_map_release,
+};
+
+static inline void pmap_wake_portmap_waiters(struct rpc_xprt *xprt)
+{
+	xprt_clear_binding(xprt);
+	rpc_wake_up(&xprt->binding);
+}
 
 /*
  * Obtain the port for a given RPC service on a given host. This one can
@@ -37,67 +83,71 @@ static DEFINE_SPINLOCK(pmap_lock);
 void
 rpc_getport(struct rpc_task *task, struct rpc_clnt *clnt)
 {
-	struct rpc_portmap *map = clnt->cl_pmap;
-	struct sockaddr_in *sap = &clnt->cl_xprt->addr;
-	struct rpc_message msg = {
-		.rpc_proc	= &pmap_procedures[PMAP_GETPORT],
-		.rpc_argp	= map,
-		.rpc_resp	= &clnt->cl_port,
-		.rpc_cred	= NULL
-	};
+	struct rpc_xprt *xprt = task->tk_xprt;
+	struct sockaddr_in *sap = &xprt->addr;
+	struct portmap_args *map;
 	struct rpc_clnt	*pmap_clnt;
-	struct rpc_task	*child;
+	struct rpc_task *child;
 
-	dprintk("RPC: %4d rpc_getport(%s, %d, %d, %d)\n",
+	dprintk("RPC: %4d rpc_getport(%s, %u, %u, %d)\n",
 			task->tk_pid, clnt->cl_server,
-			map->pm_prog, map->pm_vers, map->pm_prot);
+			clnt->cl_prog, clnt->cl_vers, xprt->prot);
 
 	/* Autobind on cloned rpc clients is discouraged */
 	BUG_ON(clnt->cl_parent != clnt);
 
-	spin_lock(&pmap_lock);
-	if (map->pm_binding) {
-		rpc_sleep_on(&map->pm_bindwait, task, NULL, NULL);
-		spin_unlock(&pmap_lock);
+	if (xprt_test_and_set_binding(xprt)) {
+		task->tk_status = -EACCES;	/* tell caller to check again */
+		rpc_sleep_on(&xprt->binding, task, NULL, NULL);
 		return;
 	}
-	map->pm_binding = 1;
-	spin_unlock(&pmap_lock);
+
+	/* Someone else may have bound if we slept */
+	if (xprt_bound(xprt)) {
+		task->tk_status = 0;
+		goto bailout_nofree;
+	}
+
+	map = pmap_map_alloc();
+	if (!map) {
+		task->tk_status = -ENOMEM;
+		goto bailout_nofree;
+	}
+	map->pm_prog = clnt->cl_prog;
+	map->pm_vers = clnt->cl_vers;
+	map->pm_prot = xprt->prot;
+	map->pm_port = 0;
+	map->pm_task = task;
 
 	pmap_clnt = pmap_create(clnt->cl_server, sap, map->pm_prot, 0);
 	if (IS_ERR(pmap_clnt)) {
 		task->tk_status = PTR_ERR(pmap_clnt);
 		goto bailout;
 	}
-	task->tk_status = 0;
 
-	/*
-	 * Note: rpc_new_child will release client after a failure.
-	 */
-	if (!(child = rpc_new_child(pmap_clnt, task)))
+	child = rpc_run_task(pmap_clnt, RPC_TASK_ASYNC, &pmap_getport_ops, map);
+	if (IS_ERR(child)) {
+		task->tk_status = -EIO;
 		goto bailout;
+	}
+	rpc_release_task(child);
 
-	/* Setup the call info struct */
-	rpc_call_setup(child, &msg, 0);
+	rpc_sleep_on(&xprt->binding, task, NULL, NULL);
 
-	/* ... and run the child task */
 	task->tk_xprt->stat.bind_count++;
-	rpc_run_child(task, child, pmap_getport_done);
 	return;
 
 bailout:
-	spin_lock(&pmap_lock);
-	map->pm_binding = 0;
-	rpc_wake_up(&map->pm_bindwait);
-	spin_unlock(&pmap_lock);
-	rpc_exit(task, -EIO);
+	pmap_map_free(map);
+bailout_nofree:
+	pmap_wake_portmap_waiters(xprt);
 }
 
 #ifdef CONFIG_ROOT_NFS
 int
 rpc_getport_external(struct sockaddr_in *sin, __u32 prog, __u32 vers, int prot)
 {
-	struct rpc_portmap map = {
+	struct portmap_args map = {
 		.pm_prog	= prog,
 		.pm_vers	= vers,
 		.pm_prot	= prot,
@@ -133,32 +183,32 @@ rpc_getport_external(struct sockaddr_in *sin, __u32 prog, __u32 vers, int prot)
 #endif
 
 static void
-pmap_getport_done(struct rpc_task *task)
+pmap_getport_done(struct rpc_task *child, void *data)
 {
-	struct rpc_clnt	*clnt = task->tk_client;
+	struct portmap_args *map = data;
+	struct rpc_task *task = map->pm_task;
 	struct rpc_xprt *xprt = task->tk_xprt;
-	struct rpc_portmap *map = clnt->cl_pmap;
+	int status = child->tk_status;
 
-	dprintk("RPC: %4d pmap_getport_done(status %d, port %d)\n",
-			task->tk_pid, task->tk_status, clnt->cl_port);
-
-	if (task->tk_status < 0) {
-		/* Make the calling task exit with an error */
+	if (status < 0) {
+		/* Portmapper not available */
 		xprt->ops->set_port(xprt, 0);
-		task->tk_action = rpc_exit_task;
-	} else if (clnt->cl_port == 0) {
-		/* Program not registered */
+		task->tk_status = status;
+	} else if (map->pm_port == 0) {
+		/* Requested RPC service wasn't registered */
 		xprt->ops->set_port(xprt, 0);
-		rpc_exit(task, -EACCES);
+		task->tk_status = -EACCES;
 	} else {
-		xprt->ops->set_port(xprt, clnt->cl_port);
+		/* Succeeded */
+		xprt->ops->set_port(xprt, map->pm_port);
 		xprt_set_bound(xprt);
-		clnt->cl_port = htons(clnt->cl_port);
+		task->tk_status = 0;
 	}
-	spin_lock(&pmap_lock);
-	map->pm_binding = 0;
-	rpc_wake_up(&map->pm_bindwait);
-	spin_unlock(&pmap_lock);
+
+	dprintk("RPC: %4d pmap_getport_done(status %d, port %u)\n",
+			child->tk_pid, child->tk_status, map->pm_port);
+
+	pmap_wake_portmap_waiters(xprt);
 }
 
 /*
@@ -172,7 +222,7 @@ rpc_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
 		.sin_family	= AF_INET,
 		.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
 	};
-	struct rpc_portmap	map = {
+	struct portmap_args	map = {
 		.pm_prog	= prog,
 		.pm_vers	= vers,
 		.pm_prot	= prot,
@@ -239,7 +289,7 @@ pmap_create(char *hostname, struct sockaddr_in *srvaddr, int proto, int privileg
  * XDR encode/decode functions for PMAP
  */
 static int
-xdr_encode_mapping(struct rpc_rqst *req, u32 *p, struct rpc_portmap *map)
+xdr_encode_mapping(struct rpc_rqst *req, u32 *p, struct portmap_args *map)
 {
 	dprintk("RPC: xdr_encode_mapping(%d, %d, %d, %d)\n",
 		map->pm_prog, map->pm_vers, map->pm_prot, map->pm_port);

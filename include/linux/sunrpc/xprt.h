@@ -138,6 +138,7 @@ struct rpc_xprt {
 	unsigned int		tsh_size;	/* size of transport specific
 						   header */
 
+	struct rpc_wait_queue	binding;	/* requests waiting on rpcbind */
 	struct rpc_wait_queue	sending;	/* requests waiting to send */
 	struct rpc_wait_queue	resend;		/* requests waiting to resend */
 	struct rpc_wait_queue	pending;	/* requests in flight */
@@ -270,6 +271,7 @@ int			xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to);
 #define XPRT_CONNECTING		(2)
 #define XPRT_CLOSE_WAIT		(3)
 #define XPRT_BOUND		(4)
+#define XPRT_BINDING		(5)
 
 static inline void xprt_set_connected(struct rpc_xprt *xprt)
 {
@@ -326,6 +328,18 @@ static inline int xprt_bound(struct rpc_xprt *xprt)
 static inline void xprt_clear_bound(struct rpc_xprt *xprt)
 {
 	clear_bit(XPRT_BOUND, &xprt->state);
+}
+
+static inline void xprt_clear_binding(struct rpc_xprt *xprt)
+{
+	smp_mb__before_clear_bit();
+	clear_bit(XPRT_BINDING, &xprt->state);
+	smp_mb__after_clear_bit();
+}
+
+static inline int xprt_test_and_set_binding(struct rpc_xprt *xprt)
+{
+	return test_and_set_bit(XPRT_BINDING, &xprt->state);
 }
 
 #endif /* __KERNEL__*/

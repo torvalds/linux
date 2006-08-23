@@ -18,18 +18,6 @@
 #include <linux/sunrpc/timer.h>
 #include <asm/signal.h>
 
-/*
- * This defines an RPC port mapping
- */
-struct rpc_portmap {
-	__u32			pm_prog;
-	__u32			pm_vers;
-	__u32			pm_prot;
-	__u16			pm_port;
-	unsigned char		pm_binding : 1;	/* doing a getport() */
-	struct rpc_wait_queue	pm_bindwait;	/* waiting on getport() */
-};
-
 struct rpc_inode;
 
 /*
@@ -40,7 +28,9 @@ struct rpc_clnt {
 	atomic_t		cl_users;	/* number of references */
 	struct rpc_xprt *	cl_xprt;	/* transport */
 	struct rpc_procinfo *	cl_procinfo;	/* procedure info */
-	u32			cl_maxproc;	/* max procedure number */
+	u32			cl_prog,	/* RPC program number */
+				cl_vers,	/* RPC version number */
+				cl_maxproc;	/* max procedure number */
 
 	char *			cl_server;	/* server machine name */
 	char *			cl_protname;	/* protocol name */
@@ -55,7 +45,6 @@ struct rpc_clnt {
 				cl_dead     : 1;/* abandoned */
 
 	struct rpc_rtt *	cl_rtt;		/* RTO estimator data */
-	struct rpc_portmap *	cl_pmap;	/* port mapping */
 
 	int			cl_nodelen;	/* nodename length */
 	char 			cl_nodename[UNX_MAXNODENAME];
@@ -64,14 +53,8 @@ struct rpc_clnt {
 	struct dentry *		cl_dentry;	/* inode */
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
-	struct rpc_portmap	cl_pmap_default;
 	char			cl_inline_name[32];
 };
-#define cl_timeout		cl_xprt->timeout
-#define cl_prog			cl_pmap->pm_prog
-#define cl_vers			cl_pmap->pm_vers
-#define cl_port			cl_pmap->pm_port
-#define cl_prot			cl_pmap->pm_prot
 
 /*
  * General RPC program info
