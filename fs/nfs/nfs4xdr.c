@@ -58,7 +58,7 @@
 /* Mapping from NFS error code to "errno" error code. */
 #define errno_NFSERR_IO		EIO
 
-static int nfs_stat_to_errno(int);
+static int nfs4_stat_to_errno(int);
 
 /* NFSv4 COMPOUND tags are only wanted for debugging purposes */
 #ifdef DEBUG
@@ -2127,7 +2127,7 @@ static int decode_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected)
 	}
 	READ32(nfserr);
 	if (nfserr != NFS_OK)
-		return -nfs_stat_to_errno(nfserr);
+		return -nfs4_stat_to_errno(nfserr);
 	return 0;
 }
 
@@ -3598,7 +3598,7 @@ static int decode_setclientid(struct xdr_stream *xdr, struct nfs4_client *clp)
 		READ_BUF(len);
 		return -NFSERR_CLID_INUSE;
 	} else
-		return -nfs_stat_to_errno(nfserr);
+		return -nfs4_stat_to_errno(nfserr);
 
 	return 0;
 }
@@ -4256,7 +4256,7 @@ static int nfs4_xdr_dec_fsinfo(struct rpc_rqst *req, uint32_t *p, struct nfs_fsi
 	if (!status)
 		status = decode_fsinfo(&xdr, fsinfo);
 	if (!status)
-		status = -nfs_stat_to_errno(hdr.status);
+		status = -nfs4_stat_to_errno(hdr.status);
 	return status;
 }
 
@@ -4346,7 +4346,7 @@ static int nfs4_xdr_dec_setclientid(struct rpc_rqst *req, uint32_t *p,
 	if (!status)
 		status = decode_setclientid(&xdr, clp);
 	if (!status)
-		status = -nfs_stat_to_errno(hdr.status);
+		status = -nfs4_stat_to_errno(hdr.status);
 	return status;
 }
 
@@ -4368,7 +4368,7 @@ static int nfs4_xdr_dec_setclientid_confirm(struct rpc_rqst *req, uint32_t *p, s
 	if (!status)
 		status = decode_fsinfo(&xdr, fsinfo);
 	if (!status)
-		status = -nfs_stat_to_errno(hdr.status);
+		status = -nfs4_stat_to_errno(hdr.status);
 	return status;
 }
 
@@ -4521,7 +4521,7 @@ static struct {
  * This one is used jointly by NFSv2 and NFSv3.
  */
 static int
-nfs_stat_to_errno(int stat)
+nfs4_stat_to_errno(int stat)
 {
 	int i;
 	for (i = 0; nfs_errtbl[i].stat != -1; i++) {
