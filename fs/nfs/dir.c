@@ -1464,10 +1464,6 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 	char *kaddr;
 	struct iattr attr;
 	unsigned int pathlen = strlen(symname);
-	struct qstr qsymname = {
-		.name	= symname,
-		.len	= pathlen,
-	};
 	int error;
 
 	dfprintk(VFS, "NFS: symlink(%s/%ld, %s, %s)\n", dir->i_sb->s_id,
@@ -1493,10 +1489,8 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 		memset(kaddr + pathlen, 0, PAGE_SIZE - pathlen);
 	kunmap_atomic(kaddr, KM_USER0);
 
-	/* XXX: eventually this will pass in {page, pathlen},
-	 *	instead of qsymname; need XDR changes for that */
 	nfs_begin_data_update(dir);
-	error = NFS_PROTO(dir)->symlink(dir, dentry, &qsymname, &attr);
+	error = NFS_PROTO(dir)->symlink(dir, dentry, page, pathlen, &attr);
 	nfs_end_data_update(dir);
 	if (error != 0) {
 		dfprintk(VFS, "NFS: symlink(%s/%ld, %s, %s) error %d\n",

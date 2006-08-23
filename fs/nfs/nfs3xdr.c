@@ -56,7 +56,7 @@
 #define NFS3_writeargs_sz	(NFS3_fh_sz+5)
 #define NFS3_createargs_sz	(NFS3_diropargs_sz+NFS3_sattr_sz)
 #define NFS3_mkdirargs_sz	(NFS3_diropargs_sz+NFS3_sattr_sz)
-#define NFS3_symlinkargs_sz	(NFS3_diropargs_sz+NFS3_path_sz+NFS3_sattr_sz)
+#define NFS3_symlinkargs_sz	(NFS3_diropargs_sz+1+NFS3_sattr_sz)
 #define NFS3_mknodargs_sz	(NFS3_diropargs_sz+2+NFS3_sattr_sz)
 #define NFS3_renameargs_sz	(NFS3_diropargs_sz+NFS3_diropargs_sz)
 #define NFS3_linkargs_sz		(NFS3_fh_sz+NFS3_diropargs_sz)
@@ -398,8 +398,11 @@ nfs3_xdr_symlinkargs(struct rpc_rqst *req, u32 *p, struct nfs3_symlinkargs *args
 	p = xdr_encode_fhandle(p, args->fromfh);
 	p = xdr_encode_array(p, args->fromname, args->fromlen);
 	p = xdr_encode_sattr(p, args->sattr);
-	p = xdr_encode_array(p, args->topath, args->tolen);
+	*p++ = htonl(args->pathlen);
 	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
+
+	/* Copy the page */
+	xdr_encode_pages(&req->rq_snd_buf, args->pages, 0, args->pathlen);
 	return 0;
 }
 

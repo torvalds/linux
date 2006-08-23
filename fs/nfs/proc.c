@@ -425,8 +425,8 @@ nfs_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
 }
 
 static int
-nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct qstr *path,
-		 struct iattr *sattr)
+nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct page *page,
+		 unsigned int len, struct iattr *sattr)
 {
 	struct nfs_fh fhandle;
 	struct nfs_fattr fattr;
@@ -434,8 +434,8 @@ nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct qstr *path,
 		.fromfh		= NFS_FH(dir),
 		.fromname	= dentry->d_name.name,
 		.fromlen	= dentry->d_name.len,
-		.topath		= path->name,
-		.tolen		= path->len,
+		.pages		= &page,
+		.pathlen	= len,
 		.sattr		= sattr
 	};
 	struct rpc_message msg = {
@@ -444,11 +444,11 @@ nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct qstr *path,
 	};
 	int			status;
 
-	if (path->len > NFS2_MAXPATHLEN)
+	if (len > NFS2_MAXPATHLEN)
 		return -ENAMETOOLONG;
 
-	dprintk("NFS call  symlink %s -> %s\n", dentry->d_name.name,
-			path->name);
+	dprintk("NFS call  symlink %s\n", dentry->d_name.name);
+
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	nfs_mark_for_revalidate(dir);
 

@@ -2085,7 +2085,7 @@ static int nfs4_proc_link(struct inode *inode, struct inode *dir, struct qstr *n
 }
 
 static int _nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
-		struct qstr *path, struct iattr *sattr)
+		struct page *page, unsigned int len, struct iattr *sattr)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs_fh fhandle;
@@ -2111,10 +2111,11 @@ static int _nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
 	};
 	int			status;
 
-	if (path->len > NFS4_MAXPATHLEN)
+	if (len > NFS4_MAXPATHLEN)
 		return -ENAMETOOLONG;
 
-	arg.u.symlink = path;
+	arg.u.symlink.pages = &page;
+	arg.u.symlink.len = len;
 	nfs_fattr_init(&fattr);
 	nfs_fattr_init(&dir_fattr);
 	
@@ -2128,13 +2129,14 @@ static int _nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
 }
 
 static int nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
-		struct qstr *path, struct iattr *sattr)
+		struct page *page, unsigned int len, struct iattr *sattr)
 {
 	struct nfs4_exception exception = { };
 	int err;
 	do {
 		err = nfs4_handle_exception(NFS_SERVER(dir),
-				_nfs4_proc_symlink(dir, dentry, path, sattr),
+				_nfs4_proc_symlink(dir, dentry, page,
+							len, sattr),
 				&exception);
 	} while (exception.retry);
 	return err;
