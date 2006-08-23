@@ -886,7 +886,7 @@ nfs3_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 	return nlmclnt_proc(filp->f_dentry->d_inode, cmd, fl);
 }
 
-struct nfs_rpc_ops	nfs_v3_clientops = {
+const struct nfs_rpc_ops nfs_v3_clientops = {
 	.version	= 3,			/* protocol version */
 	.dentry_ops	= &nfs_dentry_operations,
 	.dir_inode_ops	= &nfs3_dir_inode_operations,

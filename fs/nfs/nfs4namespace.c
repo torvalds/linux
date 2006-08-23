@@ -23,7 +23,7 @@
 /*
  * Check if fs_root is valid
  */
-static inline char *nfs4_pathname_string(struct nfs4_pathname *pathname,
+static inline char *nfs4_pathname_string(const struct nfs4_pathname *pathname,
 					 char *buffer, ssize_t buflen)
 {
 	char *end = buffer + buflen;
@@ -34,7 +34,7 @@ static inline char *nfs4_pathname_string(struct nfs4_pathname *pathname,
 
 	n = pathname->ncomponents;
 	while (--n >= 0) {
-		struct nfs4_string *component = &pathname->components[n];
+		const struct nfs4_string *component = &pathname->components[n];
 		buflen -= component->len + 1;
 		if (buflen < 0)
 			goto Elong;
@@ -60,7 +60,7 @@ Elong:
  */
 static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 					    const struct dentry *dentry,
-					    struct nfs4_fs_locations *locations)
+					    const struct nfs4_fs_locations *locations)
 {
 	struct vfsmount *mnt = ERR_PTR(-ENOENT);
 	struct nfs_clone_mount mountdata = {
@@ -108,7 +108,7 @@ static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 
 	loc = 0;
 	while (loc < locations->nlocations && IS_ERR(mnt)) {
-		struct nfs4_fs_location *location = &locations->locations[loc];
+		const struct nfs4_fs_location *location = &locations->locations[loc];
 		char *mnt_path;
 
 		if (location == NULL || location->nservers <= 0 ||

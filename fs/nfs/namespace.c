@@ -172,7 +172,8 @@ void nfs_release_automount_timer(void)
 /*
  * Clone a mountpoint of the appropriate type
  */
-static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server, char *devname,
+static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
+					   const char *devname,
 					   struct nfs_clone_mount *mountdata)
 {
 #ifdef CONFIG_NFS_V4

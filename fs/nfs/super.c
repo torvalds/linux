@@ -329,10 +329,10 @@ static const char *nfs_pseudoflavour_to_name(rpc_authflavor_t flavour)
  */
 static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss, int showdefaults)
 {
-	static struct proc_nfs_info {
+	static const struct proc_nfs_info {
 		int flag;
-		char *str;
-		char *nostr;
+		const char *str;
+		const char *nostr;
 	} nfs_info[] = {
 		{ NFS_MOUNT_SOFT, ",soft", ",hard" },
 		{ NFS_MOUNT_INTR, ",intr", "" },
@@ -342,9 +342,9 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss, 
 		{ NFS_MOUNT_NOACL, ",noacl", "" },
 		{ 0, NULL, NULL }
 	};
-	struct proc_nfs_info *nfs_infop;
+	const struct proc_nfs_info *nfs_infop;
 	char buf[12];
-	char *proto;
+	const char *proto;
 
 	seq_printf(m, ",vers=%d", nfss->rpc_ops->version);
 	seq_printf(m, ",rsize=%d", nfss->rsize);
