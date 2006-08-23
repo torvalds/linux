@@ -15,6 +15,12 @@ struct nfs_clone_mount {
 	rpc_authflavor_t authflavor;
 };
 
+/* client.c */
+extern void nfs_put_client(struct nfs_client *);
+extern struct nfs_client *nfs_find_client(const struct sockaddr_in *, int);
+extern struct nfs_client *nfs_get_client(const char *, const struct sockaddr_in *, int);
+extern void nfs_mark_client_ready(struct nfs_client *, int);
+
 /* nfs4namespace.c */
 #ifdef CONFIG_NFS_V4
 extern struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentry *dentry);

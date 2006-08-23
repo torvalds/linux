@@ -18,6 +18,7 @@
 
 #include "nfs4_fs.h"
 #include "delegation.h"
+#include "internal.h"
 
 static struct nfs_delegation *nfs_alloc_delegation(void)
 {
@@ -145,7 +146,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 					sizeof(delegation->stateid)) != 0 ||
 				delegation->type != nfsi->delegation->type) {
 			printk("%s: server %u.%u.%u.%u, handed out a duplicate delegation!\n",
-					__FUNCTION__, NIPQUAD(clp->cl_addr));
+					__FUNCTION__, NIPQUAD(clp->cl_addr.sin_addr));
 			status = -EIO;
 		}
 	}
@@ -254,7 +255,7 @@ restart:
 	}
 out:
 	spin_unlock(&clp->cl_lock);
-	nfs4_put_client(clp);
+	nfs_put_client(clp);
 	module_put_and_exit(0);
 }
 
@@ -266,10 +267,10 @@ void nfs_expire_all_delegations(struct nfs_client *clp)
 	atomic_inc(&clp->cl_count);
 	task = kthread_run(nfs_do_expire_all_delegations, clp,
 			"%u.%u.%u.%u-delegreturn",
-			NIPQUAD(clp->cl_addr));
+			NIPQUAD(clp->cl_addr.sin_addr));
 	if (!IS_ERR(task))
 		return;
-	nfs4_put_client(clp);
+	nfs_put_client(clp);
 	module_put(THIS_MODULE);
 }
 

@@ -43,55 +43,6 @@ enum nfs4_client_state {
 };
 
 /*
- * The nfs_client identifies our client state to the server.
- */
-struct nfs_client {
-	struct list_head	cl_servers;	/* Global list of servers */
-	struct in_addr		cl_addr;	/* Server identifier */
-	u64			cl_clientid;	/* constant */
-	nfs4_verifier		cl_confirm;
-	unsigned long		cl_state;
-
-	u32			cl_lockowner_id;
-
-	/*
-	 * The following rwsem ensures exclusive access to the server
-	 * while we recover the state following a lease expiration.
-	 */
-	struct rw_semaphore	cl_sem;
-
-	struct list_head	cl_delegations;
-	struct list_head	cl_state_owners;
-	struct list_head	cl_unused;
-	int			cl_nunused;
-	spinlock_t		cl_lock;
-	atomic_t		cl_count;
-
-	struct rpc_clnt *	cl_rpcclient;
-
-	struct list_head	cl_superblocks;	/* List of nfs_server structs */
-
-	unsigned long		cl_lease_time;
-	unsigned long		cl_last_renewal;
-	struct work_struct	cl_renewd;
-	struct work_struct	cl_recoverd;
-
-	struct rpc_wait_queue	cl_rpcwaitq;
-
-	/* used for the setclientid verifier */
-	struct timespec		cl_boot_time;
-
-	/* idmapper */
-	struct idmap *		cl_idmap;
-
-	/* Our own IP address, as a null-terminated string.
-	 * This is used to generate the clientid, and the callback address.
-	 */
-	char			cl_ipaddr[16];
-	unsigned char		cl_id_uniquifier;
-};
-
-/*
  * struct rpc_sequence ensures that RPC calls are sent in the exact
  * order that they appear on the list.
  */
@@ -239,9 +190,6 @@ extern void nfs4_renew_state(void *);
 /* nfs4state.c */
 extern void init_nfsv4_state(struct nfs_server *);
 extern void destroy_nfsv4_state(struct nfs_server *);
-extern struct nfs_client *nfs4_get_client(struct in_addr *);
-extern void nfs4_put_client(struct nfs_client *clp);
-extern struct nfs_client *nfs4_find_client(struct in_addr *);
 struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp);
 extern u32 nfs4_alloc_lockowner_id(struct nfs_client *);
 

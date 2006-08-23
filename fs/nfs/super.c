@@ -1104,57 +1104,51 @@ static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
 	struct rpc_clnt *clnt = NULL;
 	int err = -EIO;
 
-	clp = nfs4_get_client(&server->addr.sin_addr);
+	clp = nfs_get_client(server->hostname, &server->addr, 4);
 	if (!clp) {
 		dprintk("%s: failed to create NFS4 client.\n", __FUNCTION__);
 		return ERR_PTR(err);
 	}
 
 	/* Now create transport and client */
-	down_write(&clp->cl_sem);
-	if (IS_ERR(clp->cl_rpcclient)) {
+	if (clp->cl_cons_state == NFS_CS_INITING) {
 		xprt = xprt_create_proto(proto, &server->addr, timeparms);
 		if (IS_ERR(xprt)) {
-			up_write(&clp->cl_sem);
 			err = PTR_ERR(xprt);
 			dprintk("%s: cannot create RPC transport. Error = %d\n",
 					__FUNCTION__, err);
-			goto out_fail;
+			goto client_init_error;
 		}
 		/* Bind to a reserved port! */
 		xprt->resvport = 1;
 		clnt = rpc_create_client(xprt, server->hostname, &nfs_program,
 				server->rpc_ops->version, flavor);
 		if (IS_ERR(clnt)) {
-			up_write(&clp->cl_sem);
 			err = PTR_ERR(clnt);
 			dprintk("%s: cannot create RPC client. Error = %d\n",
 					__FUNCTION__, err);
-			goto out_fail;
+			goto client_init_error;
 		}
 		clnt->cl_intr     = 1;
 		clnt->cl_softrtry = 1;
 		clp->cl_rpcclient = clnt;
 		memcpy(clp->cl_ipaddr, server->ip_addr, sizeof(clp->cl_ipaddr));
-		if (nfs_idmap_new(clp) < 0)
-			goto out_fail;
+		err = nfs_idmap_new(clp);
+		if (err < 0) {
+			dprintk("%s: failed to create idmapper.\n",
+				__FUNCTION__);
+			goto client_init_error;
+		}
+		__set_bit(NFS_CS_IDMAP, &clp->cl_res_state);
+		nfs_mark_client_ready(clp, 0);
 	}
-	list_add_tail(&server->nfs4_siblings, &clp->cl_superblocks);
+
 	clnt = rpc_clone_client(clp->cl_rpcclient);
-	if (!IS_ERR(clnt))
-		server->nfs_client = clp;
-	up_write(&clp->cl_sem);
-	clp = NULL;
 
 	if (IS_ERR(clnt)) {
 		dprintk("%s: cannot create RPC client. Error = %d\n",
 				__FUNCTION__, err);
 		return clnt;
-	}
-
-	if (server->nfs_client->cl_idmap == NULL) {
-		dprintk("%s: failed to create idmapper.\n", __FUNCTION__);
-		return ERR_PTR(-ENOMEM);
 	}
 
 	if (clnt->cl_auth->au_flavor != flavor) {
@@ -1166,11 +1160,16 @@ static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
 			return (struct rpc_clnt *)auth;
 		}
 	}
+
+	server->nfs_client = clp;
+	down_write(&clp->cl_sem);
+	list_add_tail(&server->nfs4_siblings, &clp->cl_superblocks);
+	up_write(&clp->cl_sem);
 	return clnt;
 
- out_fail:
-	if (clp)
-		nfs4_put_client(clp);
+client_init_error:
+	nfs_mark_client_ready(clp, err);
+	nfs_put_client(clp);
 	return ERR_PTR(err);
 }
 
@@ -1329,14 +1328,6 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 		goto out_free;
 	}
 
-	/* Fire up rpciod if not yet running */
-	error = rpciod_up();
-	if (error < 0) {
-		dprintk("%s: couldn't start rpciod! Error = %d\n",
-				__FUNCTION__, error);
-		goto out_free;
-	}
-
 	s = sget(fs_type, nfs4_compare_super, nfs_set_super, server);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
@@ -1382,8 +1373,6 @@ static void nfs4_kill_super(struct super_block *sb)
 		rpc_shutdown_client(server->client);
 
 	destroy_nfsv4_state(server);
-
-	rpciod_down();
 
 	nfs_free_iostats(server->io_stats);
 	kfree(server->hostname);

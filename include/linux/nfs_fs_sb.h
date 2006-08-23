@@ -7,6 +7,66 @@
 struct nfs_iostats;
 
 /*
+ * The nfs_client identifies our client state to the server.
+ */
+struct nfs_client {
+	atomic_t		cl_count;
+	int			cl_cons_state;	/* current construction state (-ve: init error) */
+#define NFS_CS_READY		0		/* ready to be used */
+#define NFS_CS_INITING		1		/* busy initialising */
+	int			cl_nfsversion;	/* NFS protocol version */
+	unsigned long		cl_res_state;	/* NFS resources state */
+#define NFS_CS_RPCIOD		0		/* - rpciod started */
+#define NFS_CS_CALLBACK		1		/* - callback started */
+#define NFS_CS_IDMAP		2		/* - idmap started */
+	struct sockaddr_in	cl_addr;	/* server identifier */
+	char *			cl_hostname;	/* hostname of server */
+	struct list_head	cl_share_link;	/* link in global client list */
+	struct list_head	cl_superblocks;	/* List of nfs_server structs */
+
+	struct rpc_clnt *	cl_rpcclient;
+
+#ifdef CONFIG_NFS_V4
+	u64			cl_clientid;	/* constant */
+	nfs4_verifier		cl_confirm;
+	unsigned long		cl_state;
+
+	u32			cl_lockowner_id;
+
+	/*
+	 * The following rwsem ensures exclusive access to the server
+	 * while we recover the state following a lease expiration.
+	 */
+	struct rw_semaphore	cl_sem;
+
+	struct list_head	cl_delegations;
+	struct list_head	cl_state_owners;
+	struct list_head	cl_unused;
+	int			cl_nunused;
+	spinlock_t		cl_lock;
+
+	unsigned long		cl_lease_time;
+	unsigned long		cl_last_renewal;
+	struct work_struct	cl_renewd;
+	struct work_struct	cl_recoverd;
+
+	struct rpc_wait_queue	cl_rpcwaitq;
+
+	/* used for the setclientid verifier */
+	struct timespec		cl_boot_time;
+
+	/* idmapper */
+	struct idmap *		cl_idmap;
+
+	/* Our own IP address, as a null-terminated string.
+	 * This is used to generate the clientid, and the callback address.
+	 */
+	char			cl_ipaddr[16];
+	unsigned char		cl_id_uniquifier;
+#endif
+};
+
+/*
  * NFS client parameters stored in the superblock.
  */
 struct nfs_server {

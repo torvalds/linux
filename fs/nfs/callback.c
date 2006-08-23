@@ -19,6 +19,7 @@
 
 #include "nfs4_fs.h"
 #include "callback.h"
+#include "internal.h"
 
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
 
@@ -166,15 +167,15 @@ void nfs_callback_down(void)
 
 static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 {
-	struct in_addr *addr = &rqstp->rq_addr.sin_addr;
+	struct sockaddr_in *addr = &rqstp->rq_addr;
 	struct nfs_client *clp;
 
 	/* Don't talk to strangers */
-	clp = nfs4_find_client(addr);
+	clp = nfs_find_client(addr, 4);
 	if (clp == NULL)
 		return SVC_DROP;
-	dprintk("%s: %u.%u.%u.%u NFSv4 callback!\n", __FUNCTION__, NIPQUAD(addr));
-	nfs4_put_client(clp);
+	dprintk("%s: %u.%u.%u.%u NFSv4 callback!\n", __FUNCTION__, NIPQUAD(addr->sin_addr));
+	nfs_put_client(clp);
 	switch (rqstp->rq_authop->flavour) {
 		case RPC_AUTH_NULL:
 			if (rqstp->rq_proc != CB_NULL)
