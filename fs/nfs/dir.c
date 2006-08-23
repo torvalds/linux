@@ -1147,23 +1147,20 @@ int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
 		struct inode *dir = dentry->d_parent->d_inode;
 		error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, fhandle, fattr);
 		if (error)
-			goto out_err;
+			return error;
 	}
 	if (!(fattr->valid & NFS_ATTR_FATTR)) {
 		struct nfs_server *server = NFS_SB(dentry->d_sb);
 		error = server->nfs_client->rpc_ops->getattr(server, fhandle, fattr);
 		if (error < 0)
-			goto out_err;
+			return error;
 	}
 	inode = nfs_fhget(dentry->d_sb, fhandle, fattr);
 	error = PTR_ERR(inode);
 	if (IS_ERR(inode))
-		goto out_err;
+		return error;
 	d_instantiate(dentry, inode);
 	return 0;
-out_err:
-	d_drop(dentry);
-	return error;
 }
 
 /*
@@ -1448,8 +1445,6 @@ static int
 nfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 {
 	struct iattr attr;
-	struct nfs_fattr sym_attr;
-	struct nfs_fh sym_fh;
 	struct qstr qsymname;
 	int error;
 
@@ -1473,12 +1468,9 @@ dentry->d_parent->d_name.name, dentry->d_name.name);
 
 	lock_kernel();
 	nfs_begin_data_update(dir);
-	error = NFS_PROTO(dir)->symlink(dir, &dentry->d_name, &qsymname,
-					  &attr, &sym_fh, &sym_attr);
+	error = NFS_PROTO(dir)->symlink(dir, dentry, &qsymname, &attr);
 	nfs_end_data_update(dir);
 	if (!error)
-		error = nfs_instantiate(dentry, &sym_fh, &sym_attr);
-	else
 		d_drop(dentry);
 	unlock_kernel();
 	return error;

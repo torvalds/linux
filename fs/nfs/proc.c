@@ -425,14 +425,15 @@ nfs_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
 }
 
 static int
-nfs_proc_symlink(struct inode *dir, struct qstr *name, struct qstr *path,
-		 struct iattr *sattr, struct nfs_fh *fhandle,
-		 struct nfs_fattr *fattr)
+nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct qstr *path,
+		 struct iattr *sattr)
 {
+	struct nfs_fh fhandle;
+	struct nfs_fattr fattr;
 	struct nfs_symlinkargs	arg = {
 		.fromfh		= NFS_FH(dir),
-		.fromname	= name->name,
-		.fromlen	= name->len,
+		.fromname	= dentry->d_name.name,
+		.fromlen	= dentry->d_name.len,
 		.topath		= path->name,
 		.tolen		= path->len,
 		.sattr		= sattr
@@ -445,11 +446,23 @@ nfs_proc_symlink(struct inode *dir, struct qstr *name, struct qstr *path,
 
 	if (path->len > NFS2_MAXPATHLEN)
 		return -ENAMETOOLONG;
-	dprintk("NFS call  symlink %s -> %s\n", name->name, path->name);
-	nfs_fattr_init(fattr);
-	fhandle->size = 0;
+
+	dprintk("NFS call  symlink %s -> %s\n", dentry->d_name.name,
+			path->name);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	nfs_mark_for_revalidate(dir);
+
+	/*
+	 * V2 SYMLINK requests don't return any attributes.  Setting the
+	 * filehandle size to zero indicates to nfs_instantiate that it
+	 * should fill in the data with a LOOKUP call on the wire.
+	 */
+	if (status == 0) {
+		nfs_fattr_init(&fattr);
+		fhandle.size = 0;
+		status = nfs_instantiate(dentry, &fhandle, &fattr);
+	}
+
 	dprintk("NFS reply symlink: %d\n", status);
 	return status;
 }

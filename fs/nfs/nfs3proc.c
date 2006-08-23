@@ -544,23 +544,23 @@ nfs3_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
 }
 
 static int
-nfs3_proc_symlink(struct inode *dir, struct qstr *name, struct qstr *path,
-		  struct iattr *sattr, struct nfs_fh *fhandle,
-		  struct nfs_fattr *fattr)
+nfs3_proc_symlink(struct inode *dir, struct dentry *dentry, struct qstr *path,
+		  struct iattr *sattr)
 {
-	struct nfs_fattr	dir_attr;
+	struct nfs_fh fhandle;
+	struct nfs_fattr fattr, dir_attr;
 	struct nfs3_symlinkargs	arg = {
 		.fromfh		= NFS_FH(dir),
-		.fromname	= name->name,
-		.fromlen	= name->len,
+		.fromname	= dentry->d_name.name,
+		.fromlen	= dentry->d_name.len,
 		.topath		= path->name,
 		.tolen		= path->len,
 		.sattr		= sattr
 	};
 	struct nfs3_diropres	res = {
 		.dir_attr	= &dir_attr,
-		.fh		= fhandle,
-		.fattr		= fattr
+		.fh		= &fhandle,
+		.fattr		= &fattr
 	};
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_SYMLINK],
@@ -571,11 +571,17 @@ nfs3_proc_symlink(struct inode *dir, struct qstr *name, struct qstr *path,
 
 	if (path->len > NFS3_MAXPATHLEN)
 		return -ENAMETOOLONG;
-	dprintk("NFS call  symlink %s -> %s\n", name->name, path->name);
+
+	dprintk("NFS call  symlink %s -> %s\n", dentry->d_name.name,
+			path->name);
 	nfs_fattr_init(&dir_attr);
-	nfs_fattr_init(fattr);
+	nfs_fattr_init(&fattr);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	nfs_post_op_update_inode(dir, &dir_attr);
+	if (status != 0)
+		goto out;
+	status = nfs_instantiate(dentry, &fhandle, &fattr);
+out:
 	dprintk("NFS reply symlink: %d\n", status);
 	return status;
 }

@@ -793,9 +793,8 @@ struct nfs_rpc_ops {
 	int	(*rename)  (struct inode *, struct qstr *,
 			    struct inode *, struct qstr *);
 	int	(*link)    (struct inode *, struct inode *, struct qstr *);
-	int	(*symlink) (struct inode *, struct qstr *, struct qstr *,
-			    struct iattr *, struct nfs_fh *,
-			    struct nfs_fattr *);
+	int	(*symlink) (struct inode *, struct dentry *, struct qstr *,
+			    struct iattr *);
 	int	(*mkdir)   (struct inode *, struct dentry *, struct iattr *);
 	int	(*rmdir)   (struct inode *, struct qstr *);
 	int	(*readdir) (struct dentry *, struct rpc_cred *,

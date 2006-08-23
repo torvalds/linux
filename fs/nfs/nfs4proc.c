@@ -2084,24 +2084,24 @@ static int nfs4_proc_link(struct inode *inode, struct inode *dir, struct qstr *n
 	return err;
 }
 
-static int _nfs4_proc_symlink(struct inode *dir, struct qstr *name,
-		struct qstr *path, struct iattr *sattr, struct nfs_fh *fhandle,
-		struct nfs_fattr *fattr)
+static int _nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
+		struct qstr *path, struct iattr *sattr)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
-	struct nfs_fattr dir_fattr;
+	struct nfs_fh fhandle;
+	struct nfs_fattr fattr, dir_fattr;
 	struct nfs4_create_arg arg = {
 		.dir_fh = NFS_FH(dir),
 		.server = server,
-		.name = name,
+		.name = &dentry->d_name,
 		.attrs = sattr,
 		.ftype = NF4LNK,
 		.bitmask = server->attr_bitmask,
 	};
 	struct nfs4_create_res res = {
 		.server = server,
-		.fh = fhandle,
-		.fattr = fattr,
+		.fh = &fhandle,
+		.fattr = &fattr,
 		.dir_fattr = &dir_fattr,
 	};
 	struct rpc_message msg = {
@@ -2113,27 +2113,28 @@ static int _nfs4_proc_symlink(struct inode *dir, struct qstr *name,
 
 	if (path->len > NFS4_MAXPATHLEN)
 		return -ENAMETOOLONG;
+
 	arg.u.symlink = path;
-	nfs_fattr_init(fattr);
+	nfs_fattr_init(&fattr);
 	nfs_fattr_init(&dir_fattr);
 	
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
-	if (!status)
+	if (!status) {
 		update_changeattr(dir, &res.dir_cinfo);
-	nfs_post_op_update_inode(dir, res.dir_fattr);
+		nfs_post_op_update_inode(dir, res.dir_fattr);
+		status = nfs_instantiate(dentry, &fhandle, &fattr);
+	}
 	return status;
 }
 
-static int nfs4_proc_symlink(struct inode *dir, struct qstr *name,
-		struct qstr *path, struct iattr *sattr, struct nfs_fh *fhandle,
-		struct nfs_fattr *fattr)
+static int nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
+		struct qstr *path, struct iattr *sattr)
 {
 	struct nfs4_exception exception = { };
 	int err;
 	do {
 		err = nfs4_handle_exception(NFS_SERVER(dir),
-				_nfs4_proc_symlink(dir, name, path, sattr,
-					fhandle, fattr),
+				_nfs4_proc_symlink(dir, dentry, path, sattr),
 				&exception);
 	} while (exception.retry);
 	return err;
