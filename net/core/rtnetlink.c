@@ -202,8 +202,10 @@ int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics)
 		}
 	}
 
-	if (!valid)
-		goto nla_put_failure;
+	if (!valid) {
+		nla_nest_cancel(skb, mx);
+		return 0;
+	}
 
 	return nla_nest_end(skb, mx);
 
