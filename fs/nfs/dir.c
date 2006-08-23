@@ -1476,14 +1476,10 @@ dentry->d_parent->d_name.name, dentry->d_name.name);
 	error = NFS_PROTO(dir)->symlink(dir, &dentry->d_name, &qsymname,
 					  &attr, &sym_fh, &sym_attr);
 	nfs_end_data_update(dir);
-	if (!error) {
+	if (!error)
 		error = nfs_instantiate(dentry, &sym_fh, &sym_attr);
-	} else {
-		if (error == -EEXIST)
-			printk("nfs_proc_symlink: %s/%s already exists??\n",
-			       dentry->d_parent->d_name.name, dentry->d_name.name);
+	else
 		d_drop(dentry);
-	}
 	unlock_kernel();
 	return error;
 }
