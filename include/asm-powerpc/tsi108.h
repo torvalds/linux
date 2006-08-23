@@ -1,16 +1,18 @@
 /*
- * include/asm-ppc/tsi108.h
- *
  * common routine and memory layout for Tundra TSI108(Grendel) host bridge
  * memory controller.
  *
  * Author: Jacob Pan (jacob.pan@freescale.com)
  *	   Alex Bounine (alexandreb@tundra.com)
- * 2004 (c) Freescale Semiconductor Inc.  This file is licensed under
- * the terms of the GNU General Public License version 2.  This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ *
+ * Copyright 2004-2006 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  */
+
 #ifndef __PPC_KERNEL_TSI108_H
 #define __PPC_KERNEL_TSI108_H
 
