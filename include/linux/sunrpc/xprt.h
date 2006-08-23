@@ -51,6 +51,14 @@ struct rpc_timeout {
 	unsigned char		to_exponential;
 };
 
+enum rpc_display_format_t {
+	RPC_DISPLAY_ADDR = 0,
+	RPC_DISPLAY_PORT,
+	RPC_DISPLAY_PROTO,
+	RPC_DISPLAY_ALL,
+	RPC_DISPLAY_MAX,
+};
+
 struct rpc_task;
 struct rpc_xprt;
 struct seq_file;
@@ -103,6 +111,7 @@ struct rpc_rqst {
 
 struct rpc_xprt_ops {
 	void		(*set_buffer_size)(struct rpc_xprt *xprt, size_t sndsize, size_t rcvsize);
+	char *		(*print_addr)(struct rpc_xprt *xprt, enum rpc_display_format_t format);
 	int		(*reserve_xprt)(struct rpc_task *task);
 	void		(*release_xprt)(struct rpc_xprt *xprt, struct rpc_task *task);
 	void		(*rpcbind)(struct rpc_task *task);
@@ -207,6 +216,8 @@ struct rpc_xprt {
 	void			(*old_data_ready)(struct sock *, int);
 	void			(*old_state_change)(struct sock *);
 	void			(*old_write_space)(struct sock *);
+
+	char *			address_strings[RPC_DISPLAY_MAX];
 };
 
 #define XPRT_LAST_FRAG		(1 << 0)
