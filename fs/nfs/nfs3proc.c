@@ -90,8 +90,8 @@ nfs3_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 	int	status;
 
 	status = do_proc_get_root(server->client, fhandle, info);
-	if (status && server->client_sys != server->client)
-		status = do_proc_get_root(server->client_sys, fhandle, info);
+	if (status && server->nfs_client->cl_rpcclient != server->client)
+		status = do_proc_get_root(server->nfs_client->cl_rpcclient, fhandle, info);
 	return status;
 }
 
@@ -785,7 +785,7 @@ nfs3_proc_fsinfo(struct nfs_server *server, struct nfs_fh *fhandle,
 
 	dprintk("NFS call  fsinfo\n");
 	nfs_fattr_init(info->fattr);
-	status = rpc_call_sync(server->client_sys, &msg, 0);
+	status = rpc_call_sync(server->nfs_client->cl_rpcclient, &msg, 0);
 	dprintk("NFS reply fsinfo: %d\n", status);
 	return status;
 }

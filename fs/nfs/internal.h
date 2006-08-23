@@ -20,6 +20,8 @@ extern void nfs_put_client(struct nfs_client *);
 extern struct nfs_client *nfs_find_client(const struct sockaddr_in *, int);
 extern struct nfs_client *nfs_get_client(const char *, const struct sockaddr_in *, int);
 extern void nfs_mark_client_ready(struct nfs_client *, int);
+extern int nfs_create_rpc_client(struct nfs_client *, int, unsigned int,
+				 unsigned int, rpc_authflavor_t);
 
 /* nfs4namespace.c */
 #ifdef CONFIG_NFS_V4

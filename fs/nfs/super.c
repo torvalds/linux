@@ -60,52 +60,6 @@
  */
 #define NFS_MAX_READAHEAD	(RPC_DEF_SLOT_TABLE - 1)
 
-/*
- * RPC cruft for NFS
- */
-static struct rpc_version * nfs_version[] = {
-	NULL,
-	NULL,
-	&nfs_version2,
-#if defined(CONFIG_NFS_V3)
-	&nfs_version3,
-#elif defined(CONFIG_NFS_V4)
-	NULL,
-#endif
-#if defined(CONFIG_NFS_V4)
-	&nfs_version4,
-#endif
-};
-
-static struct rpc_program nfs_program = {
-	.name			= "nfs",
-	.number			= NFS_PROGRAM,
-	.nrvers			= ARRAY_SIZE(nfs_version),
-	.version		= nfs_version,
-	.stats			= &nfs_rpcstat,
-	.pipe_dir_name		= "/nfs",
-};
-
-struct rpc_stat nfs_rpcstat = {
-	.program		= &nfs_program
-};
-
-
-#ifdef CONFIG_NFS_V3_ACL
-static struct rpc_stat		nfsacl_rpcstat = { &nfsacl_program };
-static struct rpc_version *	nfsacl_version[] = {
-	[3]			= &nfsacl_version3,
-};
-
-struct rpc_program		nfsacl_program = {
-	.name =			"nfsacl",
-	.number =		NFS_ACL_PROGRAM,
-	.nrvers =		ARRAY_SIZE(nfsacl_version),
-	.version =		nfsacl_version,
-	.stats =		&nfsacl_rpcstat,
-};
-#endif  /* CONFIG_NFS_V3_ACL */
-
 static void nfs_umount_begin(struct vfsmount *, int);
 static int  nfs_statfs(struct dentry *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
@@ -376,8 +330,8 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss, 
 			proto = buf;
 	}
 	seq_printf(m, ",proto=%s", proto);
-	seq_printf(m, ",timeo=%lu", 10U * nfss->retrans_timeo / HZ);
-	seq_printf(m, ",retrans=%u", nfss->retrans_count);
+	seq_printf(m, ",timeo=%lu", 10U * clp->retrans_timeo / HZ);
+	seq_printf(m, ",retrans=%u", clp->retrans_count);
 	seq_printf(m, ",sec=%s", nfs_pseudoflavour_to_name(nfss->client->cl_auth->au_flavor));
 }
 
@@ -622,49 +576,16 @@ out_no_root:
 }
 
 /*
- * Initialise the timeout values for a connection
- */
-static void nfs_init_timeout_values(struct rpc_timeout *to, int proto, unsigned int timeo, unsigned int retrans)
-{
-	to->to_initval = timeo * HZ / 10;
-	to->to_retries = retrans;
-	if (!to->to_retries)
-		to->to_retries = 2;
-
-	switch (proto) {
-	case IPPROTO_TCP:
-		if (!to->to_initval)
-			to->to_initval = 60 * HZ;
-		if (to->to_initval > NFS_MAX_TCP_TIMEOUT)
-			to->to_initval = NFS_MAX_TCP_TIMEOUT;
-		to->to_increment = to->to_initval;
-		to->to_maxval = to->to_initval + (to->to_increment * to->to_retries);
-		to->to_exponential = 0;
-		break;
-	case IPPROTO_UDP:
-	default:
-		if (!to->to_initval)
-			to->to_initval = 11 * HZ / 10;
-		if (to->to_initval > NFS_MAX_UDP_TIMEOUT)
-			to->to_initval = NFS_MAX_UDP_TIMEOUT;
-		to->to_maxval = NFS_MAX_UDP_TIMEOUT;
-		to->to_exponential = 1;
-		break;
-	}
-}
-
-/*
  * Create an RPC client handle.
  */
 static struct rpc_clnt *
 nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 {
 	struct nfs_client	*clp;
-	struct rpc_timeout	timeparms;
-	struct rpc_xprt		*xprt = NULL;
-	struct rpc_clnt		*clnt = NULL;
+	struct rpc_clnt		*clnt;
 	int			proto = (data->flags & NFS_MOUNT_TCP) ? IPPROTO_TCP : IPPROTO_UDP;
 	int			nfsversion = 2;
+	int			err;
 
 #ifdef CONFIG_NFS_V3
 	if (server->flags & NFS_MOUNT_VER3)
@@ -677,52 +598,54 @@ nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 		return ERR_PTR(PTR_ERR(clp));
 	}
 
-	nfs_init_timeout_values(&timeparms, proto, data->timeo, data->retrans);
-
-	server->retrans_timeo = timeparms.to_initval;
-	server->retrans_count = timeparms.to_retries;
-
-	/* Check NFS protocol revision and initialize RPC op vector
-	 * and file handle pool. */
+	if (clp->cl_cons_state == NFS_CS_INITING) {
+		/* Check NFS protocol revision and initialize RPC op
+		 * vector and file handle pool. */
 #ifdef CONFIG_NFS_V3
-	if (nfsversion == 3) {
-		clp->rpc_ops = &nfs_v3_clientops;
-		server->caps |= NFS_CAP_READDIRPLUS;
-	} else {
-		clp->rpc_ops = &nfs_v2_clientops;
-	}
+		if (nfsversion == 3) {
+			clp->rpc_ops = &nfs_v3_clientops;
+			server->caps |= NFS_CAP_READDIRPLUS;
+		} else {
+			clp->rpc_ops = &nfs_v2_clientops;
+		}
 #else
-	clp->rpc_ops = &nfs_v2_clientops;
+		clp->rpc_ops = &nfs_v2_clientops;
 #endif
 
-	/* create transport and client */
-	xprt = xprt_create_proto(proto, &server->addr, &timeparms);
-	if (IS_ERR(xprt)) {
-		dprintk("%s: cannot create RPC transport. Error = %ld\n",
-				__FUNCTION__, PTR_ERR(xprt));
-		nfs_mark_client_ready(clp, PTR_ERR(xprt));
-		nfs_put_client(clp);
-		return (struct rpc_clnt *)xprt;
+		/* create transport and client */
+		err = nfs_create_rpc_client(clp, proto, data->timeo,
+					    data->retrans, RPC_AUTH_UNIX);
+		if (err < 0)
+			goto client_init_error;
+
+		nfs_mark_client_ready(clp, 0);
 	}
-	clnt = rpc_create_client(xprt, server->hostname, &nfs_program,
-				 clp->cl_nfsversion, data->pseudoflavor);
+
+	/* create an nfs_server-specific client */
+	clnt = rpc_clone_client(clp->cl_rpcclient);
 	if (IS_ERR(clnt)) {
-		dprintk("%s: cannot create RPC client. Error = %ld\n",
-				__FUNCTION__, PTR_ERR(xprt));
-		goto out_fail;
+		dprintk("%s: couldn't create rpc_client!\n", __FUNCTION__);
+		nfs_put_client(clp);
+		return ERR_PTR(PTR_ERR(clnt));
 	}
 
-	clnt->cl_intr     = 1;
-	clnt->cl_softrtry = 1;
+	if (data->pseudoflavor != clp->cl_rpcclient->cl_auth->au_flavor) {
+		struct rpc_auth *auth;
 
-	nfs_mark_client_ready(clp, 0);
+		auth = rpcauth_create(data->pseudoflavor, server->client);
+		if (IS_ERR(auth)) {
+			dprintk("%s: couldn't create credcache!\n", __FUNCTION__);
+			return ERR_PTR(PTR_ERR(auth));
+		}
+	}
+
 	server->nfs_client = clp;
 	return clnt;
 
-out_fail:
-	nfs_mark_client_ready(clp, PTR_ERR(xprt));
+client_init_error:
+	nfs_mark_client_ready(clp, err);
 	nfs_put_client(clp);
-	return clnt;
+	return ERR_PTR(err);
 }
 
 /*
@@ -741,7 +664,7 @@ static struct nfs_server *nfs_clone_server(struct super_block *sb, struct nfs_cl
 	sb->s_blocksize_bits = data->sb->s_blocksize_bits;
 	sb->s_maxbytes = data->sb->s_maxbytes;
 
-	server->client_sys = server->client_acl = ERR_PTR(-EINVAL);
+	server->client_acl = ERR_PTR(-EINVAL);
 	server->io_stats = nfs_alloc_iostats();
 	if (server->io_stats == NULL)
 		goto out;
@@ -750,11 +673,6 @@ static struct nfs_server *nfs_clone_server(struct super_block *sb, struct nfs_cl
 	if (IS_ERR((err = server->client)))
 		goto out;
 
-	if (!IS_ERR(parent->client_sys)) {
-		server->client_sys = rpc_clone_client(parent->client_sys);
-		if (IS_ERR((err = server->client_sys)))
-			goto out;
-	}
 	if (!IS_ERR(parent->client_acl)) {
 		server->client_acl = rpc_clone_client(parent->client_acl);
 		if (IS_ERR((err = server->client_acl)))
@@ -813,7 +731,7 @@ static int nfs_clone_generic_sb(struct nfs_clone_mount *data,
 		error = PTR_ERR(sb);
 		goto kill_rpciod;
 	}
-		
+
 	if (sb->s_root)
 		goto out_rpciod_down;
 
@@ -896,19 +814,6 @@ nfs_fill_super(struct super_block *sb, struct nfs_mount_data *data, int silent)
 		return PTR_ERR(server->client);
 
 	/* RFC 2623, sec 2.3.2 */
-	if (authflavor != RPC_AUTH_UNIX) {
-		struct rpc_auth *auth;
-
-		server->client_sys = rpc_clone_client(server->client);
-		if (IS_ERR(server->client_sys))
-			return PTR_ERR(server->client_sys);
-		auth = rpcauth_create(RPC_AUTH_UNIX, server->client_sys);
-		if (IS_ERR(auth))
-			return PTR_ERR(auth);
-	} else {
-		atomic_inc(&server->client->cl_count);
-		server->client_sys = server->client;
-	}
 	if (server->flags & NFS_MOUNT_VER3) {
 #ifdef CONFIG_NFS_V3_ACL
 		if (!(server->flags & NFS_MOUNT_NOACL)) {
@@ -1012,7 +917,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 		goto out_err_noserver;
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
-	server->client = server->client_sys = server->client_acl = ERR_PTR(-EINVAL);
+	server->client = server->client_acl = ERR_PTR(-EINVAL);
 
 	root = &server->fh;
 	if (data->flags & NFS_MOUNT_VER3)
@@ -1083,8 +988,6 @@ static void nfs_kill_super(struct super_block *s)
 
 	if (!IS_ERR(server->client))
 		rpc_shutdown_client(server->client);
-	if (!IS_ERR(server->client_sys))
-		rpc_shutdown_client(server->client_sys);
 	if (!IS_ERR(server->client_acl))
 		rpc_shutdown_client(server->client_acl);
 
@@ -1121,10 +1024,9 @@ static int nfs_clone_nfs_sb(struct file_system_type *fs_type,
 
 #ifdef CONFIG_NFS_V4
 static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
-	struct rpc_timeout *timeparms, int proto, rpc_authflavor_t flavor)
+	int timeo, int retrans, int proto, rpc_authflavor_t flavor)
 {
 	struct nfs_client *clp;
-	struct rpc_xprt *xprt = NULL;
 	struct rpc_clnt *clnt = NULL;
 	int err = -EIO;
 
@@ -1138,26 +1040,10 @@ static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
 	if (clp->cl_cons_state == NFS_CS_INITING) {
 		clp->rpc_ops = &nfs_v4_clientops;
 
-		xprt = xprt_create_proto(proto, &server->addr, timeparms);
-		if (IS_ERR(xprt)) {
-			err = PTR_ERR(xprt);
-			dprintk("%s: cannot create RPC transport. Error = %d\n",
-					__FUNCTION__, err);
+		err = nfs_create_rpc_client(clp, proto, timeo, retrans, flavor);
+		if (err < 0)
 			goto client_init_error;
-		}
-		/* Bind to a reserved port! */
-		xprt->resvport = 1;
-		clnt = rpc_create_client(xprt, server->hostname, &nfs_program,
-				clp->cl_nfsversion, flavor);
-		if (IS_ERR(clnt)) {
-			err = PTR_ERR(clnt);
-			dprintk("%s: cannot create RPC client. Error = %d\n",
-					__FUNCTION__, err);
-			goto client_init_error;
-		}
-		clnt->cl_intr     = 1;
-		clnt->cl_softrtry = 1;
-		clp->cl_rpcclient = clnt;
+
 		memcpy(clp->cl_ipaddr, server->ip_addr, sizeof(clp->cl_ipaddr));
 		err = nfs_idmap_new(clp);
 		if (err < 0) {
@@ -1205,7 +1091,6 @@ client_init_error:
 static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data, int silent)
 {
 	struct nfs_server *server;
-	struct rpc_timeout timeparms;
 	rpc_authflavor_t authflavour;
 	int err = -EIO;
 
@@ -1224,11 +1109,6 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 	server->acdirmin = data->acdirmin*HZ;
 	server->acdirmax = data->acdirmax*HZ;
 
-	nfs_init_timeout_values(&timeparms, data->proto, data->timeo, data->retrans);
-
-	server->retrans_timeo = timeparms.to_initval;
-	server->retrans_count = timeparms.to_retries;
-
 	/* Now create transport and client */
 	authflavour = RPC_AUTH_UNIX;
 	if (data->auth_flavourlen != 0) {
@@ -1244,7 +1124,8 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 		}
 	}
 
-	server->client = nfs4_create_client(server, &timeparms, data->proto, authflavour);
+	server->client = nfs4_create_client(server, data->timeo, data->retrans,
+					    data->proto, authflavour);
 	if (IS_ERR(server->client)) {
 		err = PTR_ERR(server->client);
 			dprintk("%s: cannot create RPC client. Error = %d\n",
@@ -1318,7 +1199,7 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 		return -ENOMEM;
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
-	server->client = server->client_sys = server->client_acl = ERR_PTR(-EINVAL);
+	server->client = server->client_acl = ERR_PTR(-EINVAL);
 
 	p = nfs_copy_user_string(NULL, &data->hostname, 256);
 	if (IS_ERR(p))
@@ -1489,7 +1370,6 @@ err:
 static struct nfs_server *nfs4_referral_server(struct super_block *sb, struct nfs_clone_mount *data)
 {
 	struct nfs_server *server = NFS_SB(sb);
-	struct rpc_timeout timeparms;
 	int proto, timeo, retrans;
 	void *err;
 
@@ -1498,11 +1378,11 @@ static struct nfs_server *nfs4_referral_server(struct super_block *sb, struct nf
 	   set the timeouts and retries to low values */
 	timeo = 2;
 	retrans = 1;
-	nfs_init_timeout_values(&timeparms, proto, timeo, retrans);
 
 	nfs_put_client(server->nfs_client);
 	server->nfs_client = NULL;
-	server->client = nfs4_create_client(server, &timeparms, proto, data->authflavor);
+	server->client = nfs4_create_client(server, timeo, retrans, proto,
+					    data->authflavor);
 	if (IS_ERR((err = server->client)))
 		goto out_err;
 

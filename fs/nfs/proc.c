@@ -66,14 +66,14 @@ nfs_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 
 	dprintk("%s: call getattr\n", __FUNCTION__);
 	nfs_fattr_init(fattr);
-	status = rpc_call_sync(server->client_sys, &msg, 0);
+	status = rpc_call_sync(server->nfs_client->cl_rpcclient, &msg, 0);
 	dprintk("%s: reply getattr: %d\n", __FUNCTION__, status);
 	if (status)
 		return status;
 	dprintk("%s: call statfs\n", __FUNCTION__);
 	msg.rpc_proc = &nfs_procedures[NFSPROC_STATFS];
 	msg.rpc_resp = &fsinfo;
-	status = rpc_call_sync(server->client_sys, &msg, 0);
+	status = rpc_call_sync(server->nfs_client->cl_rpcclient, &msg, 0);
 	dprintk("%s: reply statfs: %d\n", __FUNCTION__, status);
 	if (status)
 		return status;

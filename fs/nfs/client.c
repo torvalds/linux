@@ -51,6 +51,48 @@ static LIST_HEAD(nfs_client_list);
 static DECLARE_WAIT_QUEUE_HEAD(nfs_client_active_wq);
 
 /*
+ * RPC cruft for NFS
+ */
+static struct rpc_version *nfs_version[5] = {
+	[2]			= &nfs_version2,
+#ifdef CONFIG_NFS_V3
+	[3]			= &nfs_version3,
+#endif
+#ifdef CONFIG_NFS_V4
+	[4]			= &nfs_version4,
+#endif
+};
+
+struct rpc_program nfs_program = {
+	.name			= "nfs",
+	.number			= NFS_PROGRAM,
+	.nrvers			= ARRAY_SIZE(nfs_version),
+	.version		= nfs_version,
+	.stats			= &nfs_rpcstat,
+	.pipe_dir_name		= "/nfs",
+};
+
+struct rpc_stat nfs_rpcstat = {
+	.program		= &nfs_program
+};
+
+
+#ifdef CONFIG_NFS_V3_ACL
+static struct rpc_stat		nfsacl_rpcstat = { &nfsacl_program };
+static struct rpc_version *	nfsacl_version[] = {
+	[3]			= &nfsacl_version3,
+};
+
+struct rpc_program		nfsacl_program = {
+	.name			= "nfsacl",
+	.number			= NFS_ACL_PROGRAM,
+	.nrvers			= ARRAY_SIZE(nfsacl_version),
+	.version		= nfsacl_version,
+	.stats			= &nfsacl_rpcstat,
+};
+#endif  /* CONFIG_NFS_V3_ACL */
+
+/*
  * Allocate a shared client record
  *
  * Since these are allocated/deallocated very rarely, we don't
@@ -309,4 +351,81 @@ void nfs_mark_client_ready(struct nfs_client *clp, int state)
 {
 	clp->cl_cons_state = state;
 	wake_up_all(&nfs_client_active_wq);
+}
+
+/*
+ * Initialise the timeout values for a connection
+ */
+static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
+				    unsigned int timeo, unsigned int retrans)
+{
+	to->to_initval = timeo * HZ / 10;
+	to->to_retries = retrans;
+	if (!to->to_retries)
+		to->to_retries = 2;
+
+	switch (proto) {
+	case IPPROTO_TCP:
+		if (!to->to_initval)
+			to->to_initval = 60 * HZ;
+		if (to->to_initval > NFS_MAX_TCP_TIMEOUT)
+			to->to_initval = NFS_MAX_TCP_TIMEOUT;
+		to->to_increment = to->to_initval;
+		to->to_maxval = to->to_initval + (to->to_increment * to->to_retries);
+		to->to_exponential = 0;
+		break;
+	case IPPROTO_UDP:
+	default:
+		if (!to->to_initval)
+			to->to_initval = 11 * HZ / 10;
+		if (to->to_initval > NFS_MAX_UDP_TIMEOUT)
+			to->to_initval = NFS_MAX_UDP_TIMEOUT;
+		to->to_maxval = NFS_MAX_UDP_TIMEOUT;
+		to->to_exponential = 1;
+		break;
+	}
+}
+
+/*
+ * Create an RPC client handle
+ */
+int nfs_create_rpc_client(struct nfs_client *clp, int proto,
+			  unsigned int timeo,
+			  unsigned int retrans,
+			  rpc_authflavor_t flavor)
+{
+	struct rpc_timeout	timeparms;
+	struct rpc_xprt		*xprt = NULL;
+	struct rpc_clnt		*clnt = NULL;
+
+	if (!IS_ERR(clp->cl_rpcclient))
+		return 0;
+
+	nfs_init_timeout_values(&timeparms, proto, timeo, retrans);
+	clp->retrans_timeo = timeparms.to_initval;
+	clp->retrans_count = timeparms.to_retries;
+
+	/* create transport and client */
+	xprt = xprt_create_proto(proto, &clp->cl_addr, &timeparms);
+	if (IS_ERR(xprt)) {
+		dprintk("%s: cannot create RPC transport. Error = %ld\n",
+				__FUNCTION__, PTR_ERR(xprt));
+		return PTR_ERR(xprt);
+	}
+
+	/* Bind to a reserved port! */
+	xprt->resvport = 1;
+	/* Create the client RPC handle */
+	clnt = rpc_create_client(xprt, clp->cl_hostname, &nfs_program,
+				 clp->rpc_ops->version, RPC_AUTH_UNIX);
+	if (IS_ERR(clnt)) {
+		dprintk("%s: cannot create RPC client. Error = %ld\n",
+				__FUNCTION__, PTR_ERR(clnt));
+		return PTR_ERR(clnt);
+	}
+
+	clnt->cl_intr     = 1;
+	clnt->cl_softrtry = 1;
+	clp->cl_rpcclient = clnt;
+	return 0;
 }

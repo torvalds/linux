@@ -26,6 +26,8 @@ struct nfs_client {
 
 	struct rpc_clnt *	cl_rpcclient;
 	const struct nfs_rpc_ops *rpc_ops;	/* NFS protocol vector */
+	unsigned long		retrans_timeo;	/* retransmit timeout */
+	unsigned int		retrans_count;	/* number of retransmit tries */
 
 #ifdef CONFIG_NFS_V4
 	u64			cl_clientid;	/* constant */
@@ -73,7 +75,6 @@ struct nfs_client {
 struct nfs_server {
 	struct nfs_client *	nfs_client;	/* shared client and NFS4 state */
 	struct rpc_clnt *	client;		/* RPC client handle */
-	struct rpc_clnt *	client_sys;	/* 2nd handle for FSINFO */
 	struct rpc_clnt *	client_acl;	/* ACL RPC client handle */
 	struct nfs_iostats *	io_stats;	/* I/O statistics */
 	struct backing_dev_info	backing_dev_info;
@@ -90,8 +91,6 @@ struct nfs_server {
 	unsigned int		acregmax;
 	unsigned int		acdirmin;
 	unsigned int		acdirmax;
-	unsigned long		retrans_timeo;	/* retransmit timeout */
-	unsigned int		retrans_count;	/* number of retransmit tries */
 	unsigned int		namelen;
 	char *			hostname;	/* remote hostname */
 	struct nfs_fh		fh;
