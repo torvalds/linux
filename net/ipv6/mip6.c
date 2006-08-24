@@ -121,7 +121,8 @@ int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 				    &skb->nh.ipv6h->daddr,
 				    mhlen, IPPROTO_MH,
 				    skb_checksum(skb, 0, mhlen, 0))) {
-			LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH checksum failed [%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x > %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]\n",
+			LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH checksum failed "
+				       "[" NIP6_FMT " > " NIP6_FMT "]\n",
 				       NIP6(skb->nh.ipv6h->saddr),
 				       NIP6(skb->nh.ipv6h->daddr));
 			return -1;
@@ -234,7 +235,8 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb, struct
 	struct timeval stamp;
 	int err = 0;
 
-	if (unlikely(fl->proto == IPPROTO_MH && fl->fl_mh_type <= IP6_MH_TYPE_MAX))
+	if (unlikely(fl->proto == IPPROTO_MH &&
+		     fl->fl_mh_type <= IP6_MH_TYPE_MAX))
 		goto out;
 
 	if (likely(opt->dsthao)) {

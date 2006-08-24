@@ -87,7 +87,6 @@ int ipv6_find_tlv(struct sk_buff *skb, int offset, int type)
 		len -= optlen;
 	}
 	/* not_found */
-	return -1;
  bad:
 	return -1;
 }
