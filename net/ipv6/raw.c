@@ -609,6 +609,9 @@ static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 	struct iovec *iov;
 	u8 __user *type = NULL;
 	u8 __user *code = NULL;
+#ifdef CONFIG_IPV6_MIP6
+	u8 len = 0;
+#endif
 	int probed = 0;
 	int i;
 
@@ -640,6 +643,20 @@ static void rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 				probed = 1;
 			}
 			break;
+#ifdef CONFIG_IPV6_MIP6
+		case IPPROTO_MH:
+			if (iov->iov_base && iov->iov_len < 1)
+				break;
+			/* check if type field is readable or not. */
+			if (iov->iov_len > 2 - len) {
+				u8 __user *p = iov->iov_base;
+				get_user(fl->fl_mh_type, &p[2 - len]);
+				probed = 1;
+			} else
+				len += iov->iov_len;
+
+			break;
+#endif
 		default:
 			probed = 1;
 			break;
