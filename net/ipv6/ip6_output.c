@@ -475,17 +475,25 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 		switch (**nexthdr) {
 
 		case NEXTHDR_HOP:
+			break;
 		case NEXTHDR_ROUTING:
+			found_rhdr = 1;
+			break;
 		case NEXTHDR_DEST:
-			if (**nexthdr == NEXTHDR_ROUTING) found_rhdr = 1;
-			if (**nexthdr == NEXTHDR_DEST && found_rhdr) return offset;
-			offset += ipv6_optlen(exthdr);
-			*nexthdr = &exthdr->nexthdr;
-			exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
+#ifdef CONFIG_IPV6_MIP6
+			if (ipv6_find_tlv(skb, offset, IPV6_TLV_HAO) >= 0)
+				break;
+#endif
+			if (found_rhdr)
+				return offset;
 			break;
 		default :
 			return offset;
 		}
+
+		offset += ipv6_optlen(exthdr);
+		*nexthdr = &exthdr->nexthdr;
+		exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
 	}
 
 	return offset;
