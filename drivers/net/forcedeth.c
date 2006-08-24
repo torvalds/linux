@@ -543,6 +543,9 @@ union ring_type {
 #define PHYID1_OUI_SHFT	6
 #define PHYID2_OUI_MASK	0xfc00
 #define PHYID2_OUI_SHFT	10
+#define PHYID2_MODEL_MASK		0x03f0
+#define PHY_MODEL_MARVELL_E3016		0x220
+#define PHY_MARVELL_E3016_INITMASK	0x0300
 #define PHY_INIT1	0x0f000
 #define PHY_INIT2	0x0e00
 #define PHY_INIT3	0x01000
@@ -701,6 +704,7 @@ struct fe_priv {
 	int phyaddr;
 	int wolenabled;
 	unsigned int phy_oui;
+	unsigned int phy_model;
 	u16 gigabit;
 	int intr_test;
 
@@ -1027,14 +1031,13 @@ static int mii_rw(struct net_device *dev, int addr, int miireg, int value)
 	return retval;
 }
 
-static int phy_reset(struct net_device *dev)
+static int phy_reset(struct net_device *dev, u32 bmcr_setup)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u32 miicontrol;
 	unsigned int tries = 0;
 
-	miicontrol = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
-	miicontrol |= BMCR_RESET;
+	miicontrol = BMCR_RESET | bmcr_setup;
 	if (mii_rw(dev, np->phyaddr, MII_BMCR, miicontrol)) {
 		return -1;
 	}
@@ -1058,6 +1061,16 @@ static int phy_init(struct net_device *dev)
 	struct fe_priv *np = get_nvpriv(dev);
 	u8 __iomem *base = get_hwbase(dev);
 	u32 phyinterface, phy_reserved, mii_status, mii_control, mii_control_1000,reg;
+
+	/* phy errata for E3016 phy */
+	if (np->phy_model == PHY_MODEL_MARVELL_E3016) {
+		reg = mii_rw(dev, np->phyaddr, MII_NCONFIG, MII_READ);
+		reg &= ~PHY_MARVELL_E3016_INITMASK;
+		if (mii_rw(dev, np->phyaddr, MII_NCONFIG, reg)) {
+			printk(KERN_INFO "%s: phy write to errata reg failed.\n", pci_name(np->pci_dev));
+			return PHY_ERROR;
+		}
+	}
 
 	/* set advertise register */
 	reg = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
@@ -1089,8 +1102,13 @@ static int phy_init(struct net_device *dev)
 	else
 		np->gigabit = 0;
 
-	/* reset the phy */
-	if (phy_reset(dev)) {
+	mii_control = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
+	mii_control |= BMCR_ANENABLE;
+
+	/* reset the phy
+	 * (certain phys need bmcr to be setup with reset)
+	 */
+	if (phy_reset(dev, mii_control)) {
 		printk(KERN_INFO "%s: phy reset failed\n", pci_name(np->pci_dev));
 		return PHY_ERROR;
 	}
@@ -3158,9 +3176,18 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (netif_running(dev))
 			printk(KERN_INFO "%s: link down.\n", dev->name);
 		bmcr = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
-		bmcr |= (BMCR_ANENABLE | BMCR_ANRESTART);
-		mii_rw(dev, np->phyaddr, MII_BMCR, bmcr);
-
+		if (np->phy_model == PHY_MODEL_MARVELL_E3016) {
+			bmcr |= BMCR_ANENABLE;
+			/* reset the phy in order for settings to stick,
+			 * and cause autoneg to start */
+			if (phy_reset(dev, bmcr)) {
+				printk(KERN_INFO "%s: phy reset failed\n", dev->name);
+				return -EINVAL;
+			}
+		} else {
+			bmcr |= (BMCR_ANENABLE | BMCR_ANRESTART);
+			mii_rw(dev, np->phyaddr, MII_BMCR, bmcr);
+		}
 	} else {
 		int adv, bmcr;
 
@@ -3200,17 +3227,19 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			bmcr |= BMCR_FULLDPLX;
 		if (np->fixed_mode & (ADVERTISE_100HALF|ADVERTISE_100FULL))
 			bmcr |= BMCR_SPEED100;
-		mii_rw(dev, np->phyaddr, MII_BMCR, bmcr);
 		if (np->phy_oui == PHY_OUI_MARVELL) {
-			/* reset the phy */
-			if (phy_reset(dev)) {
+			/* reset the phy in order for forced mode settings to stick */
+			if (phy_reset(dev, bmcr)) {
 				printk(KERN_INFO "%s: phy reset failed\n", dev->name);
 				return -EINVAL;
 			}
-		} else if (netif_running(dev)) {
-			/* Wait a bit and then reconfigure the nic. */
-			udelay(10);
-			nv_linkchange(dev);
+		} else {
+			mii_rw(dev, np->phyaddr, MII_BMCR, bmcr);
+			if (netif_running(dev)) {
+				/* Wait a bit and then reconfigure the nic. */
+				udelay(10);
+				nv_linkchange(dev);
+			}
 		}
 	}
 
@@ -3267,8 +3296,17 @@ static int nv_nway_reset(struct net_device *dev)
 		}
 
 		bmcr = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
-		bmcr |= (BMCR_ANENABLE | BMCR_ANRESTART);
-		mii_rw(dev, np->phyaddr, MII_BMCR, bmcr);
+		if (np->phy_model == PHY_MODEL_MARVELL_E3016) {
+			bmcr |= BMCR_ANENABLE;
+			/* reset the phy in order for settings to stick*/
+			if (phy_reset(dev, bmcr)) {
+				printk(KERN_INFO "%s: phy reset failed\n", dev->name);
+				return -EINVAL;
+			}
+		} else {
+			bmcr |= (BMCR_ANENABLE | BMCR_ANRESTART);
+			mii_rw(dev, np->phyaddr, MII_BMCR, bmcr);
+		}
 
 		if (netif_running(dev)) {
 			nv_start_rx(dev);
@@ -4488,6 +4526,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		if (id2 < 0 || id2 == 0xffff)
 			continue;
 
+		np->phy_model = id2 & PHYID2_MODEL_MASK;
 		id1 = (id1 & PHYID1_OUI_MASK) << PHYID1_OUI_SHFT;
 		id2 = (id2 & PHYID2_OUI_MASK) >> PHYID2_OUI_SHFT;
 		dprintk(KERN_DEBUG "%s: open: Found PHY %04x:%04x at address %d.\n",
