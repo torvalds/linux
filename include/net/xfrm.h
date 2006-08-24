@@ -266,6 +266,8 @@ struct xfrm_type
 	int			(*input)(struct xfrm_state *, struct sk_buff *skb);
 	int			(*output)(struct xfrm_state *, struct sk_buff *pskb);
 	int			(*hdr_offset)(struct xfrm_state *, struct sk_buff *, u8 **);
+	xfrm_address_t		*(*local_addr)(struct xfrm_state *, xfrm_address_t *);
+	xfrm_address_t		*(*remote_addr)(struct xfrm_state *, xfrm_address_t *);
 	/* Estimate maximal size of result of transformation of a dgram */
 	u32			(*get_max_size)(struct xfrm_state *, int size);
 };

@@ -59,6 +59,22 @@ __xfrm6_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 	return dst;
 }
 
+static inline struct in6_addr*
+__xfrm6_bundle_addr_remote(struct xfrm_state *x, struct in6_addr *addr)
+{
+	return (x->type->remote_addr) ?
+		(struct in6_addr*)x->type->remote_addr(x, (xfrm_address_t *)addr) :
+		(struct in6_addr*)&x->id.daddr;
+}
+
+static inline struct in6_addr*
+__xfrm6_bundle_addr_local(struct xfrm_state *x, struct in6_addr *addr)
+{
+	return (x->type->local_addr) ?
+		(struct in6_addr*)x->type->local_addr(x, (xfrm_address_t *)addr) :
+		(struct in6_addr*)&x->props.saddr;
+}
+
 /* Allocate chain of dst_entry's, attach known xfrm's, calculate
  * all the metrics... Shortly, bundle a bundle.
  */
@@ -115,8 +131,8 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		dst1->next = dst_prev;
 		dst_prev = dst1;
 		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
-			remote = (struct in6_addr*)&xfrm[i]->id.daddr;
-			local  = (struct in6_addr*)&xfrm[i]->props.saddr;
+			remote = __xfrm6_bundle_addr_remote(xfrm[i], remote);
+			local  = __xfrm6_bundle_addr_local(xfrm[i], local);
 			tunnel = 1;
 		}
 		header_len += xfrm[i]->props.header_len;
