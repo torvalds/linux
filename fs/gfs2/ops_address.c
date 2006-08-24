@@ -683,6 +683,10 @@ static void stuck_releasepage(struct buffer_head *bh)
 	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
 	struct gfs2_bufdata *bd = bh->b_private;
 	struct gfs2_glock *gl;
+static unsigned limit = 0;
+
+	if (limit++ > 3)
+		return;
 
 	fs_warn(sdp, "stuck in gfs2_releasepage() %p\n", inode);
 	fs_warn(sdp, "blkno = %llu, bh->b_count = %d\n",
@@ -736,28 +740,24 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 	struct gfs2_sbd *sdp = aspace->i_sb->s_fs_info;
 	struct buffer_head *bh, *head;
 	struct gfs2_bufdata *bd;
-	unsigned long t;
+	unsigned long t = jiffies + gfs2_tune_get(sdp, gt_stall_secs) * HZ;
 
 	if (!page_has_buffers(page))
 		goto out;
 
 	head = bh = page_buffers(page);
 	do {
-		t = jiffies;
-
 		while (atomic_read(&bh->b_count)) {
-			if (atomic_read(&aspace->i_writecount)) {
-				if (time_after_eq(jiffies, t +
-				    gfs2_tune_get(sdp, gt_stall_secs) * HZ)) {
-					stuck_releasepage(bh);
-					t = jiffies;
-				}
+			if (!atomic_read(&aspace->i_writecount))
+				return 0;
 
-				yield();
-				continue;
+			if (time_after_eq(jiffies, t)) {
+				stuck_releasepage(bh);
+				/* should we withdraw here? */
+				return 0;
 			}
 
-			return 0;
+			yield();
 		}
 
 		gfs2_assert_warn(sdp, !buffer_pinned(bh));
@@ -773,8 +773,7 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		}
 
 		bh = bh->b_this_page;
-	}
-	while (bh != head);
+	} while (bh != head);
 
 out:
 	return try_to_free_buffers(page);
