@@ -28,6 +28,9 @@
 #include <net/xfrm.h>
 #include <net/netlink.h>
 #include <asm/uaccess.h>
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#include <linux/in6.h>
+#endif
 
 static int verify_one_alg(struct rtattr **xfrma, enum xfrm_attr_type_t type)
 {
@@ -172,6 +175,19 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 		    xfrma[XFRMA_ALG_CRYPT-1])
 			goto out;
 		break;
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case IPPROTO_DSTOPTS:
+	case IPPROTO_ROUTING:
+		if (xfrma[XFRMA_ALG_COMP-1]	||
+		    xfrma[XFRMA_ALG_AUTH-1]	||
+		    xfrma[XFRMA_ALG_CRYPT-1]	||
+		    xfrma[XFRMA_ENCAP-1]	||
+		    xfrma[XFRMA_SEC_CTX-1]	||
+		    !xfrma[XFRMA_COADDR-1])
+			goto out;
+		break;
+#endif
 
 	default:
 		goto out;
