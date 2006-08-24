@@ -60,6 +60,11 @@ struct fib6_node
 	__u32			fn_sernum;
 };
 
+#ifndef CONFIG_IPV6_SUBTREES
+#define FIB6_SUBTREE(fn)	NULL
+#else
+#define FIB6_SUBTREE(fn)	((fn)->subtree)
+#endif
 
 /*
  *	routing information

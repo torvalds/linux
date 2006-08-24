@@ -73,10 +73,8 @@ static DEFINE_RWLOCK(fib6_walker_lock);
 
 #ifdef CONFIG_IPV6_SUBTREES
 #define FWS_INIT FWS_S
-#define SUBTREE(fn) ((fn)->subtree)
 #else
 #define FWS_INIT FWS_L
-#define SUBTREE(fn) NULL
 #endif
 
 static void fib6_prune_clones(struct fib6_node *fn, struct rt6_info *rt);
@@ -854,7 +852,7 @@ static struct fib6_node * fib6_lookup_1(struct fib6_node *root,
 	}
 
 	while(fn) {
-		if (SUBTREE(fn) || fn->fn_flags & RTN_RTINFO) {
+		if (FIB6_SUBTREE(fn) || fn->fn_flags & RTN_RTINFO) {
 			struct rt6key *key;
 
 			key = (struct rt6key *) ((u8 *) fn->leaf +
@@ -985,7 +983,7 @@ static struct rt6_info * fib6_find_prefix(struct fib6_node *fn)
 		if(fn->right)
 			return fn->right->leaf;
 
-		fn = SUBTREE(fn);
+		fn = FIB6_SUBTREE(fn);
 	}
 	return NULL;
 }
@@ -1016,7 +1014,7 @@ static struct fib6_node * fib6_repair_tree(struct fib6_node *fn)
 		if (fn->right) child = fn->right, children |= 1;
 		if (fn->left) child = fn->left, children |= 2;
 
-		if (children == 3 || SUBTREE(fn) 
+		if (children == 3 || FIB6_SUBTREE(fn)
 #ifdef CONFIG_IPV6_SUBTREES
 		    /* Subtree root (i.e. fn) may have one child */
 		    || (children && fn->fn_flags&RTN_ROOT)
@@ -1035,9 +1033,9 @@ static struct fib6_node * fib6_repair_tree(struct fib6_node *fn)
 
 		pn = fn->parent;
 #ifdef CONFIG_IPV6_SUBTREES
-		if (SUBTREE(pn) == fn) {
+		if (FIB6_SUBTREE(pn) == fn) {
 			BUG_TRAP(fn->fn_flags&RTN_ROOT);
-			SUBTREE(pn) = NULL;
+			FIB6_SUBTREE(pn) = NULL;
 			nstate = FWS_L;
 		} else {
 			BUG_TRAP(!(fn->fn_flags&RTN_ROOT));
@@ -1085,7 +1083,7 @@ static struct fib6_node * fib6_repair_tree(struct fib6_node *fn)
 		read_unlock(&fib6_walker_lock);
 
 		node_free(fn);
-		if (pn->fn_flags&RTN_RTINFO || SUBTREE(pn))
+		if (pn->fn_flags&RTN_RTINFO || FIB6_SUBTREE(pn))
 			return pn;
 
 		rt6_release(pn->leaf);
@@ -1228,8 +1226,8 @@ static int fib6_walk_continue(struct fib6_walker_t *w)
 		switch (w->state) {
 #ifdef CONFIG_IPV6_SUBTREES
 		case FWS_S:
-			if (SUBTREE(fn)) {
-				w->node = SUBTREE(fn);
+			if (FIB6_SUBTREE(fn)) {
+				w->node = FIB6_SUBTREE(fn);
 				continue;
 			}
 			w->state = FWS_L;
@@ -1263,7 +1261,7 @@ static int fib6_walk_continue(struct fib6_walker_t *w)
 			pn = fn->parent;
 			w->node = pn;
 #ifdef CONFIG_IPV6_SUBTREES
-			if (SUBTREE(pn) == fn) {
+			if (FIB6_SUBTREE(pn) == fn) {
 				BUG_TRAP(fn->fn_flags&RTN_ROOT);
 				w->state = FWS_L;
 				continue;
