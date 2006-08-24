@@ -236,6 +236,17 @@ ixgb_identify_phy(struct ixgb_hw *hw)
 		DEBUGOUT("Identified G6104 optics\n");
 		phy_type = ixgb_phy_type_g6104;
 		break;
+	case IXGB_DEVICE_ID_82597EX_CX4:
+		DEBUGOUT("Identified CX4\n");
+		xpak_vendor = ixgb_identify_xpak_vendor(hw);
+		if (xpak_vendor == ixgb_xpak_vendor_intel) {
+			DEBUGOUT("Identified TXN17201 optics\n");
+			phy_type = ixgb_phy_type_txn17201;
+		} else {
+			DEBUGOUT("Identified G6005 optics\n");
+			phy_type = ixgb_phy_type_g6005;
+		}
+		break;
 	default:
 		DEBUGOUT("Unknown physical layer module\n");
 		phy_type = ixgb_phy_type_unknown;

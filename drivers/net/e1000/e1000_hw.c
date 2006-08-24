@@ -745,6 +745,17 @@ e1000_init_hw(struct e1000_hw *hw)
 
     DEBUGFUNC("e1000_init_hw");
 
+    /* force full DMA clock frequency for 10/100 on ICH8 A0-B0 */
+    if (hw->mac_type == e1000_ich8lan) {
+        reg_data = E1000_READ_REG(hw, TARC0);
+        reg_data |= 0x30000000;
+        E1000_WRITE_REG(hw, TARC0, reg_data);
+
+        reg_data = E1000_READ_REG(hw, STATUS);
+        reg_data &= ~0x80000000;
+        E1000_WRITE_REG(hw, STATUS, reg_data);
+    }
+
     /* Initialize Identification LED */
     ret_val = e1000_id_led_init(hw);
     if(ret_val) {
@@ -1351,11 +1362,14 @@ e1000_copper_link_igp_setup(struct e1000_hw *hw)
     E1000_WRITE_REG(hw, LEDCTL, led_ctrl);
     }
 
-    /* disable lplu d3 during driver init */
-    ret_val = e1000_set_d3_lplu_state(hw, FALSE);
-    if (ret_val) {
-        DEBUGOUT("Error Disabling LPLU D3\n");
-        return ret_val;
+    /* The NVM settings will configure LPLU in D3 for IGP2 and IGP3 PHYs */
+    if (hw->phy_type == e1000_phy_igp) {
+        /* disable lplu d3 during driver init */
+        ret_val = e1000_set_d3_lplu_state(hw, FALSE);
+        if (ret_val) {
+            DEBUGOUT("Error Disabling LPLU D3\n");
+            return ret_val;
+        }
     }
 
     /* disable lplu d0 during driver init */

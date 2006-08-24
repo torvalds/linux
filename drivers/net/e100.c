@@ -1,7 +1,7 @@
 /*******************************************************************************
 
 
-  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License as published by the Free
@@ -158,10 +158,10 @@
 
 
 #define DRV_NAME		"e100"
-#define DRV_EXT		"-NAPI"
-#define DRV_VERSION		"3.5.10-k2"DRV_EXT
+#define DRV_EXT			"-NAPI"
+#define DRV_VERSION		"3.5.10-k4"DRV_EXT
 #define DRV_DESCRIPTION		"Intel(R) PRO/100 Network Driver"
-#define DRV_COPYRIGHT		"Copyright(c) 1999-2005 Intel Corporation"
+#define DRV_COPYRIGHT		"Copyright(c) 1999-2006 Intel Corporation"
 #define PFX			DRV_NAME ": "
 
 #define E100_WATCHDOG_PERIOD	(2 * HZ)
@@ -1391,15 +1391,11 @@ static int e100_phy_init(struct nic *nic)
 	}
 
 	if((nic->mac >= mac_82550_D102) || ((nic->flags & ich) &&
-	   (mdio_read(netdev, nic->mii.phy_id, MII_TPISTATUS) & 0x8000))) {
-		/* enable/disable MDI/MDI-X auto-switching.
-		   MDI/MDI-X auto-switching is disabled for 82551ER/QM chips */
-		if((nic->mac == mac_82551_E) || (nic->mac == mac_82551_F) ||
-		   (nic->mac == mac_82551_10) || (nic->mii.force_media) ||
-		   !(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled))
-			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, 0);
-		else
-			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, NCONFIG_AUTO_SWITCH);
+	   (mdio_read(netdev, nic->mii.phy_id, MII_TPISTATUS) & 0x8000) &&
+		!(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled))) {
+		/* enable/disable MDI/MDI-X auto-switching. */
+		mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG,
+				nic->mii.force_media ? 0 : NCONFIG_AUTO_SWITCH);
 	}
 
 	return 0;

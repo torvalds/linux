@@ -36,7 +36,7 @@ static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION "7.1.9-k4"DRIVERNAPI
+#define DRV_VERSION "7.1.9-k6"DRIVERNAPI
 char e1000_driver_version[] = DRV_VERSION;
 static char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
@@ -48,7 +48,6 @@ static char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
  *   {PCI_DEVICE(PCI_VENDOR_ID_INTEL, device_id)}
  */
 static struct pci_device_id e1000_pci_tbl[] = {
-	INTEL_E1000_ETHERNET_DEVICE(0x1000),
 	INTEL_E1000_ETHERNET_DEVICE(0x1001),
 	INTEL_E1000_ETHERNET_DEVICE(0x1004),
 	INTEL_E1000_ETHERNET_DEVICE(0x1008),
@@ -485,7 +484,7 @@ e1000_up(struct e1000_adapter *adapter)
  *
  **/
 
-static void e1000_power_up_phy(struct e1000_adapter *adapter)
+void e1000_power_up_phy(struct e1000_adapter *adapter)
 {
 	uint16_t mii_reg = 0;
 
@@ -1499,8 +1498,6 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 	} else if (hw->mac_type == e1000_80003es2lan) {
 		tarc = E1000_READ_REG(hw, TARC0);
 		tarc |= 1;
-		if (hw->media_type == e1000_media_type_internal_serdes)
-			tarc |= (1 << 20);
 		E1000_WRITE_REG(hw, TARC0, tarc);
 		tarc = E1000_READ_REG(hw, TARC1);
 		tarc |= 1;
@@ -2545,7 +2542,7 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 			cmd_length = E1000_TXD_CMD_IP;
 			ipcse = skb->h.raw - skb->data - 1;
 #ifdef NETIF_F_TSO_IPV6
-		} else if (skb->protocol == ntohs(ETH_P_IPV6)) {
+		} else if (skb->protocol == htons(ETH_P_IPV6)) {
 			skb->nh.ipv6h->payload_len = 0;
 			skb->h.th->check =
 				~csum_ipv6_magic(&skb->nh.ipv6h->saddr,
