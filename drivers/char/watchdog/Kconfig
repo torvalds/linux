@@ -363,6 +363,20 @@ config SCx200_WDT
 
 	  If compiled as a module, it will be called scx200_wdt.
 
+config PC87413_WDT
+	tristate "NS PC87413 watchdog"
+	depends on WATCHDOG && X86
+	---help---
+	  This is the driver for the hardware watchdog on the PC87413 chipset
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pc87413_wdt.
+
+	  Most people will say N.
+ 
 config 60XX_WDT
 	tristate "SBC-60XX Watchdog Timer"
 	depends on WATCHDOG && X86
