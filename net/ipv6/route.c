@@ -22,6 +22,8 @@
  *		routers in REACHABLE, STALE, DELAY or PROBE states).
  *		- always select the same router if it is (probably)
  *		reachable.  otherwise, round-robin the list.
+ *	Ville Nuorvala
+ *		Fixed routing subtrees.
  */
 
 #include <linux/capability.h>

@@ -18,6 +18,7 @@
  * 	Yuji SEKIYA @USAGI:	Support default route on router node;
  * 				remove ip6_null_entry from the top of
  * 				routing table.
+ * 	Ville Nuorvala:		Fixed routing subtrees.
  */
 #include <linux/errno.h>
 #include <linux/types.h>
