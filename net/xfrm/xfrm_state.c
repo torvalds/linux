@@ -761,13 +761,30 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 		schedule_work(&xfrm_hash_work);
 }
 
+/* xfrm_state_lock is held */
+static void __xfrm_state_bump_genids(struct xfrm_state *xnew)
+{
+	unsigned short family = xnew->props.family;
+	u32 reqid = xnew->props.reqid;
+	struct xfrm_state *x;
+	struct hlist_node *entry;
+	unsigned int h;
+
+	h = xfrm_dst_hash(&xnew->id.daddr, reqid, family);
+	hlist_for_each_entry(x, entry, xfrm_state_bydst+h, bydst) {
+		if (x->props.family	== family &&
+		    x->props.reqid	== reqid &&
+		    !xfrm_addr_cmp(&x->id.daddr, &xnew->id.daddr, family))
+			x->genid = xfrm_state_genid;
+	}
+}
+
 void xfrm_state_insert(struct xfrm_state *x)
 {
 	spin_lock_bh(&xfrm_state_lock);
+	__xfrm_state_bump_genids(x);
 	__xfrm_state_insert(x);
 	spin_unlock_bh(&xfrm_state_lock);
-
-	xfrm_flush_all_bundles();
 }
 EXPORT_SYMBOL(xfrm_state_insert);
 
@@ -889,14 +906,12 @@ int xfrm_state_add(struct xfrm_state *x)
 				     x->id.proto,
 				     &x->id.daddr, &x->props.saddr, 0);
 
+	__xfrm_state_bump_genids(x);
 	__xfrm_state_insert(x);
 	err = 0;
 
 out:
 	spin_unlock_bh(&xfrm_state_lock);
-
-	if (!err)
-		xfrm_flush_all_bundles();
 
 	if (x1) {
 		xfrm_state_delete(x1);

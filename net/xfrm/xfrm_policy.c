@@ -1478,16 +1478,6 @@ int xfrm_flush_bundles(void)
 	return 0;
 }
 
-static int always_true(struct dst_entry *dst)
-{
-	return 1;
-}
-
-void xfrm_flush_all_bundles(void)
-{
-	xfrm_prune_bundles(always_true);
-}
-
 void xfrm_init_pmtu(struct dst_entry *dst)
 {
 	do {
