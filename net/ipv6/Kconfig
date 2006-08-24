@@ -98,6 +98,15 @@ config INET6_IPCOMP
 
 	  If unsure, say Y.
 
+config IPV6_MIP6
+	bool "IPv6: Mobility (EXPERIMENTAL)"
+	depends on IPV6 && EXPERIMENTAL
+	select XFRM
+	---help---
+	  Support for IPv6 Mobility described in RFC 3775.
+
+	  If unsure, say N.
+
 config INET6_XFRM_TUNNEL
 	tristate
 	select INET6_TUNNEL
