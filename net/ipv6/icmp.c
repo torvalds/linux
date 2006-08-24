@@ -273,6 +273,29 @@ static int icmpv6_getfrag(void *from, char *to, int offset, int len, int odd, st
 	return 0;
 }
 
+#ifdef CONFIG_IPV6_MIP6
+static void mip6_addr_swap(struct sk_buff *skb)
+{
+	struct ipv6hdr *iph = skb->nh.ipv6h;
+	struct inet6_skb_parm *opt = IP6CB(skb);
+	struct ipv6_destopt_hao *hao;
+	struct in6_addr tmp;
+	int off;
+
+	if (opt->dsthao) {
+		off = ipv6_find_tlv(skb, opt->dsthao, IPV6_TLV_HAO);
+		if (likely(off >= 0)) {
+			hao = (struct ipv6_destopt_hao *)(skb->nh.raw + off);
+			ipv6_addr_copy(&tmp, &iph->saddr);
+			ipv6_addr_copy(&iph->saddr, &hao->addr);
+			ipv6_addr_copy(&hao->addr, &tmp);
+		}
+	}
+}
+#else
+static inline void mip6_addr_swap(struct sk_buff *skb) {}
+#endif
+
 /*
  *	Send an ICMP message in response to a packet in error
  */
@@ -349,6 +372,8 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		LIMIT_NETDEBUG(KERN_DEBUG "icmpv6_send: no reply to icmp error\n");
 		return;
 	}
+
+	mip6_addr_swap(skb);
 
 	memset(&fl, 0, sizeof(fl));
 	fl.proto = IPPROTO_ICMPV6;
