@@ -107,35 +107,20 @@ static inline unsigned xfrm_src_hash(xfrm_address_t *addr, unsigned short family
 	return __xfrm_src_hash(addr, family, xfrm_state_hmask);
 }
 
-static inline unsigned int __xfrm4_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto,
-					unsigned int hmask)
+static inline unsigned int
+__xfrm_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto, unsigned short family,
+		unsigned int hmask)
 {
-	unsigned int h;
-	h = ntohl(addr->a4^spi^proto);
-	h = (h ^ (h>>10) ^ (h>>20)) & hmask;
-	return h;
-}
-
-static inline unsigned int __xfrm6_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto,
-					    unsigned int hmask)
-{
-	unsigned int h;
-	h = ntohl(addr->a6[2]^addr->a6[3]^spi^proto);
-	h = (h ^ (h>>10) ^ (h>>20)) & hmask;
-	return h;
-}
-
-static inline
-unsigned __xfrm_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto, unsigned short family,
-			 unsigned int hmask)
-{
+	unsigned int h = spi ^ proto;
 	switch (family) {
 	case AF_INET:
-		return __xfrm4_spi_hash(addr, spi, proto, hmask);
+		h ^= __xfrm4_addr_hash(addr);
+		break;
 	case AF_INET6:
-		return __xfrm6_spi_hash(addr, spi, proto, hmask);
+		h ^= __xfrm6_addr_hash(addr);
+		break;
 	}
-	return 0;	/*XXX*/
+	return (h ^ (h >> 10) ^ (h >> 20)) & hmask;
 }
 
 static inline unsigned int
