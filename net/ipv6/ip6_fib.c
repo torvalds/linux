@@ -776,7 +776,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
 	if (err == 0) {
 		fib6_start_gc(rt);
 		if (!(rt->rt6i_flags&RTF_CACHE))
-			fib6_prune_clones(fn, rt);
+			fib6_prune_clones(pn, rt);
 	}
 
 out:
