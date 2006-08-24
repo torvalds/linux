@@ -861,6 +861,8 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, struct flowi *fl,
 		  struct xfrm_state **xfrm,
 		  unsigned short family)
 {
+	struct xfrm_state *tp[XFRM_MAX_DEPTH];
+	struct xfrm_state **tpp = (npols > 1) ? tp : xfrm;
 	int cnx = 0;
 	int error;
 	int ret;
@@ -871,7 +873,8 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, struct flowi *fl,
 			error = -ENOBUFS;
 			goto fail;
 		}
-		ret = xfrm_tmpl_resolve_one(pols[i], fl, &xfrm[cnx], family);
+
+		ret = xfrm_tmpl_resolve_one(pols[i], fl, &tpp[cnx], family);
 		if (ret < 0) {
 			error = ret;
 			goto fail;
@@ -879,11 +882,15 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, struct flowi *fl,
 			cnx += ret;
 	}
 
+	/* found states are sorted for outbound processing */
+	if (npols > 1)
+		xfrm_state_sort(xfrm, tpp, cnx, family);
+
 	return cnx;
 
  fail:
 	for (cnx--; cnx>=0; cnx--)
-		xfrm_state_put(xfrm[cnx]);
+		xfrm_state_put(tpp[cnx]);
 	return error;
 
 }
@@ -1280,6 +1287,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 		struct sec_path *sp;
 		static struct sec_path dummy;
 		struct xfrm_tmpl *tp[XFRM_MAX_DEPTH];
+		struct xfrm_tmpl *stp[XFRM_MAX_DEPTH];
 		struct xfrm_tmpl **tpp = tp;
 		int ti = 0;
 		int i, k;
@@ -1297,6 +1305,10 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 				tpp[ti++] = &pols[pi]->xfrm_vec[i];
 		}
 		xfrm_nr = ti;
+		if (npols > 1) {
+			xfrm_tmpl_sort(stp, tpp, xfrm_nr, family);
+			tpp = stp;
+		}
 
 		/* For each tunnel xfrm, find the first matching tmpl.
 		 * For each tmpl before that, find corresponding xfrm.

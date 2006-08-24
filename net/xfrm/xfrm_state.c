@@ -728,6 +728,44 @@ xfrm_find_acq(u8 mode, u32 reqid, u8 proto,
 }
 EXPORT_SYMBOL(xfrm_find_acq);
 
+#ifdef CONFIG_XFRM_SUB_POLICY
+int
+xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n,
+	       unsigned short family)
+{
+	int err = 0;
+	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
+	if (!afinfo)
+		return -EAFNOSUPPORT;
+
+	spin_lock_bh(&xfrm_state_lock);
+	if (afinfo->tmpl_sort)
+		err = afinfo->tmpl_sort(dst, src, n);
+	spin_unlock_bh(&xfrm_state_lock);
+	xfrm_state_put_afinfo(afinfo);
+	return err;
+}
+EXPORT_SYMBOL(xfrm_tmpl_sort);
+
+int
+xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n,
+		unsigned short family)
+{
+	int err = 0;
+	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
+	if (!afinfo)
+		return -EAFNOSUPPORT;
+
+	spin_lock_bh(&xfrm_state_lock);
+	if (afinfo->state_sort)
+		err = afinfo->state_sort(dst, src, n);
+	spin_unlock_bh(&xfrm_state_lock);
+	xfrm_state_put_afinfo(afinfo);
+	return err;
+}
+EXPORT_SYMBOL(xfrm_state_sort);
+#endif
+
 /* Silly enough, but I'm lazy to build resolution list */
 
 static struct xfrm_state *__xfrm_find_acq_byseq(u32 seq)

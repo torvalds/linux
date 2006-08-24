@@ -254,6 +254,8 @@ struct xfrm_state_afinfo {
 	struct xfrm_state	*(*find_acq)(u8 mode, u32 reqid, u8 proto, 
 					     xfrm_address_t *daddr, xfrm_address_t *saddr, 
 					     int create);
+	int			(*tmpl_sort)(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n);
+	int			(*state_sort)(struct xfrm_state **dst, struct xfrm_state **src, int n);
 };
 
 extern int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo);
@@ -1002,6 +1004,24 @@ extern int xfrm_state_add(struct xfrm_state *x);
 extern int xfrm_state_update(struct xfrm_state *x);
 extern struct xfrm_state *xfrm_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto, unsigned short family);
 extern struct xfrm_state *xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr, u8 proto, unsigned short family);
+#ifdef CONFIG_XFRM_SUB_POLICY
+extern int xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src,
+			  int n, unsigned short family);
+extern int xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src,
+			   int n, unsigned short family);
+#else
+static inline int xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src,
+				 int n, unsigned short family)
+{
+	return -ENOSYS;
+}
+
+static inline int xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src,
+				  int n, unsigned short family)
+{
+	return -ENOSYS;
+}
+#endif
 extern struct xfrm_state *xfrm_find_acq_byseq(u32 seq);
 extern int xfrm_state_delete(struct xfrm_state *x);
 extern void xfrm_state_flush(u8 proto);
