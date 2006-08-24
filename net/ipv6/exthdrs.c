@@ -102,7 +102,7 @@ int ipv6_find_tlv(struct sk_buff *skb, int offset, int type)
 
 struct tlvtype_proc {
 	int	type;
-	int	(*func)(struct sk_buff *skb, int offset);
+	int	(*func)(struct sk_buff **skbp, int offset);
 };
 
 /*********************
@@ -111,8 +111,10 @@ struct tlvtype_proc {
 
 /* An unknown option is detected, decide what to do */
 
-static int ip6_tlvopt_unknown(struct sk_buff *skb, int optoff)
+static int ip6_tlvopt_unknown(struct sk_buff **skbp, int optoff)
 {
+	struct sk_buff *skb = *skbp;
+
 	switch ((skb->nh.raw[optoff] & 0xC0) >> 6) {
 	case 0: /* ignore */
 		return 1;
@@ -137,8 +139,9 @@ static int ip6_tlvopt_unknown(struct sk_buff *skb, int optoff)
 
 /* Parse tlv encoded option header (hop-by-hop or destination) */
 
-static int ip6_parse_tlv(struct tlvtype_proc *procs, struct sk_buff *skb)
+static int ip6_parse_tlv(struct tlvtype_proc *procs, struct sk_buff **skbp)
 {
+	struct sk_buff *skb = *skbp;
 	struct tlvtype_proc *curr;
 	int off = skb->h.raw - skb->nh.raw;
 	int len = ((skb->h.raw[1]+1)<<3);
@@ -168,13 +171,13 @@ static int ip6_parse_tlv(struct tlvtype_proc *procs, struct sk_buff *skb)
 					/* type specific length/alignment 
 					   checks will be performed in the 
 					   func(). */
-					if (curr->func(skb, off) == 0)
+					if (curr->func(skbp, off) == 0)
 						return 0;
 					break;
 				}
 			}
 			if (curr->type < 0) {
-				if (ip6_tlvopt_unknown(skb, off) == 0)
+				if (ip6_tlvopt_unknown(skbp, off) == 0)
 					return 0;
 			}
 			break;
@@ -213,7 +216,8 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 	opt->lastopt = skb->h.raw - skb->nh.raw;
 	opt->dst1 = skb->h.raw - skb->nh.raw;
 
-	if (ip6_parse_tlv(tlvprocdestopt_lst, skb)) {
+	if (ip6_parse_tlv(tlvprocdestopt_lst, skbp)) {
+		skb = *skbp;
 		skb->h.raw += ((skb->h.raw[1]+1)<<3);
 		opt->nhoff = opt->dst1;
 		return 1;
@@ -517,8 +521,10 @@ EXPORT_SYMBOL_GPL(ipv6_invert_rthdr);
 
 /* Router Alert as of RFC 2711 */
 
-static int ipv6_hop_ra(struct sk_buff *skb, int optoff)
+static int ipv6_hop_ra(struct sk_buff **skbp, int optoff)
 {
+	struct sk_buff *skb = *skbp;
+
 	if (skb->nh.raw[optoff+1] == 2) {
 		IP6CB(skb)->ra = optoff;
 		return 1;
@@ -531,8 +537,9 @@ static int ipv6_hop_ra(struct sk_buff *skb, int optoff)
 
 /* Jumbo payload */
 
-static int ipv6_hop_jumbo(struct sk_buff *skb, int optoff)
+static int ipv6_hop_jumbo(struct sk_buff **skbp, int optoff)
 {
+	struct sk_buff *skb = *skbp;
 	u32 pkt_len;
 
 	if (skb->nh.raw[optoff+1] != 4 || (optoff&3) != 2) {
@@ -581,8 +588,9 @@ static struct tlvtype_proc tlvprochopopt_lst[] = {
 	{ -1, }
 };
 
-int ipv6_parse_hopopts(struct sk_buff *skb)
+int ipv6_parse_hopopts(struct sk_buff **skbp)
 {
+	struct sk_buff *skb = *skbp;
 	struct inet6_skb_parm *opt = IP6CB(skb);
 
 	/*
@@ -598,7 +606,8 @@ int ipv6_parse_hopopts(struct sk_buff *skb)
 	}
 
 	opt->hop = sizeof(struct ipv6hdr);
-	if (ip6_parse_tlv(tlvprochopopt_lst, skb)) {
+	if (ip6_parse_tlv(tlvprochopopt_lst, skbp)) {
+		skb = *skbp;
 		skb->h.raw += (skb->h.raw[1]+1)<<3;
 		opt->nhoff = sizeof(struct ipv6hdr);
 		return 1;
