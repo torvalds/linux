@@ -226,6 +226,9 @@ struct inet6_skb_parm {
 	__u16			dst0;
 	__u16			srcrt;
 	__u16			dst1;
+#ifdef CONFIG_IPV6_MIP6
+	__u16			dsthao;
+#endif
 	__u16			lastopt;
 	__u32			nhoff;
 	__u16			flags;

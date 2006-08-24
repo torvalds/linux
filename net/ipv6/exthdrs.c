@@ -196,8 +196,80 @@ bad:
   Destination options header.
  *****************************/
 
+#ifdef CONFIG_IPV6_MIP6
+static int ipv6_dest_hao(struct sk_buff **skbp, int optoff)
+{
+	struct sk_buff *skb = *skbp;
+	struct ipv6_destopt_hao *hao;
+	struct inet6_skb_parm *opt = IP6CB(skb);
+	struct ipv6hdr *ipv6h = (struct ipv6hdr *)skb->nh.raw;
+	struct in6_addr tmp_addr;
+	int ret;
+
+	if (opt->dsthao) {
+		LIMIT_NETDEBUG(KERN_DEBUG "hao duplicated\n");
+		goto discard;
+	}
+	opt->dsthao = opt->dst1;
+	opt->dst1 = 0;
+
+	hao = (struct ipv6_destopt_hao *)(skb->nh.raw + optoff);
+
+	if (hao->length != 16) {
+		LIMIT_NETDEBUG(
+			KERN_DEBUG "hao invalid option length = %d\n", hao->length);
+		goto discard;
+	}
+
+	if (!(ipv6_addr_type(&hao->addr) & IPV6_ADDR_UNICAST)) {
+		LIMIT_NETDEBUG(
+			KERN_DEBUG "hao is not an unicast addr: " NIP6_FMT "\n", NIP6(hao->addr));
+		goto discard;
+	}
+
+	ret = xfrm6_input_addr(skb, (xfrm_address_t *)&ipv6h->daddr,
+			       (xfrm_address_t *)&hao->addr, IPPROTO_DSTOPTS);
+	if (unlikely(ret < 0))
+		goto discard;
+
+	if (skb_cloned(skb)) {
+		struct sk_buff *skb2 = skb_copy(skb, GFP_ATOMIC);
+		if (skb2 == NULL)
+			goto discard;
+
+		kfree_skb(skb);
+
+		/* update all variable using below by copied skbuff */
+		*skbp = skb = skb2;
+		hao = (struct ipv6_destopt_hao *)(skb2->nh.raw + optoff);
+		ipv6h = (struct ipv6hdr *)skb2->nh.raw;
+	}
+
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->ip_summed = CHECKSUM_NONE;
+
+	ipv6_addr_copy(&tmp_addr, &ipv6h->saddr);
+	ipv6_addr_copy(&ipv6h->saddr, &hao->addr);
+	ipv6_addr_copy(&hao->addr, &tmp_addr);
+
+	if (skb->tstamp.off_sec == 0)
+		__net_timestamp(skb);
+
+	return 1;
+
+ discard:
+	kfree_skb(skb);
+	return 0;
+}
+#endif
+
 static struct tlvtype_proc tlvprocdestopt_lst[] = {
-	/* No destination options are defined now */
+#ifdef CONFIG_IPV6_MIP6
+	{
+		.type	= IPV6_TLV_HAO,
+		.func	= ipv6_dest_hao,
+	},
+#endif
 	{-1,			NULL}
 };
 
@@ -205,6 +277,9 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
 	struct inet6_skb_parm *opt = IP6CB(skb);
+#ifdef CONFIG_IPV6_MIP6
+	__u16 dstbuf;
+#endif
 
 	if (!pskb_may_pull(skb, (skb->h.raw-skb->data)+8) ||
 	    !pskb_may_pull(skb, (skb->h.raw-skb->data)+((skb->h.raw[1]+1)<<3))) {
@@ -215,11 +290,18 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 
 	opt->lastopt = skb->h.raw - skb->nh.raw;
 	opt->dst1 = skb->h.raw - skb->nh.raw;
+#ifdef CONFIG_IPV6_MIP6
+	dstbuf = opt->dst1;
+#endif
 
 	if (ip6_parse_tlv(tlvprocdestopt_lst, skbp)) {
 		skb = *skbp;
 		skb->h.raw += ((skb->h.raw[1]+1)<<3);
+#ifdef CONFIG_IPV6_MIP6
+		opt->nhoff = dstbuf;
+#else
 		opt->nhoff = opt->dst1;
+#endif
 		return 1;
 	}
 
