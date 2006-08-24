@@ -726,6 +726,14 @@ fail:
 	return err;
 }
 
+static inline int ip6_rt_check(struct rt6key *rt_key,
+			       struct in6_addr *fl_addr,
+			       struct in6_addr *addr_cache)
+{
+	return ((rt_key->plen != 128 || !ipv6_addr_equal(fl_addr, &rt_key->addr)) &&
+		(addr_cache == NULL || !ipv6_addr_equal(fl_addr, addr_cache)));
+}
+
 static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
 					  struct dst_entry *dst,
 					  struct flowi *fl)
@@ -741,8 +749,8 @@ static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
 	 * that we do not support routing by source, TOS,
 	 * and MSG_DONTROUTE 		--ANK (980726)
 	 *
-	 * 1. If route was host route, check that
-	 *    cached destination is current.
+	 * 1. ip6_rt_check(): If route was host route,
+	 *    check that cached destination is current.
 	 *    If it is network route, we still may
 	 *    check its validity using saved pointer
 	 *    to the last used address: daddr_cache.
@@ -753,11 +761,8 @@ static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
 	 *    sockets.
 	 * 2. oif also should be the same.
 	 */
-	if (((rt->rt6i_dst.plen != 128 ||
-	      !ipv6_addr_equal(&fl->fl6_dst, &rt->rt6i_dst.addr))
-	     && (np->daddr_cache == NULL ||
-		 !ipv6_addr_equal(&fl->fl6_dst, np->daddr_cache)))
-	    || (fl->oif && fl->oif != dst->dev->ifindex)) {
+	if (ip6_rt_check(&rt->rt6i_dst, &fl->fl6_dst, np->daddr_cache) ||
+	    (fl->oif && fl->oif != dst->dev->ifindex)) {
 		dst_release(dst);
 		dst = NULL;
 	}
