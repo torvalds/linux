@@ -1042,6 +1042,9 @@ static int prism2_reset_port(struct net_device *dev)
 		       dev->name, local->fragm_threshold);
 	}
 
+	/* Some firmwares lose antenna selection settings on reset */
+	(void) hostap_set_antsel(local);
+
 	return res;
 }
 

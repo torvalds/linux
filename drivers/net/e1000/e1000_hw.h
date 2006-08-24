@@ -323,13 +323,8 @@ int32_t e1000_write_phy_reg(struct e1000_hw *hw, uint32_t reg_addr, uint16_t dat
 int32_t e1000_phy_hw_reset(struct e1000_hw *hw);
 int32_t e1000_phy_reset(struct e1000_hw *hw);
 void e1000_phy_powerdown_workaround(struct e1000_hw *hw);
-int32_t e1000_kumeran_lock_loss_workaround(struct e1000_hw *hw);
-int32_t e1000_init_lcd_from_nvm_config_region(struct e1000_hw *hw, uint32_t cnf_base_addr, uint32_t cnf_size);
-int32_t e1000_init_lcd_from_nvm(struct e1000_hw *hw);
 int32_t e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
 int32_t e1000_validate_mdi_setting(struct e1000_hw *hw);
-int32_t e1000_read_kmrn_reg(struct e1000_hw *hw, uint32_t reg_addr, uint16_t *data);
-int32_t e1000_write_kmrn_reg(struct e1000_hw *hw, uint32_t reg_addr, uint16_t data);
 
 /* EEPROM Functions */
 int32_t e1000_init_eeprom_params(struct e1000_hw *hw);
@@ -400,13 +395,8 @@ int32_t e1000_update_eeprom_checksum(struct e1000_hw *hw);
 int32_t e1000_write_eeprom(struct e1000_hw *hw, uint16_t reg, uint16_t words, uint16_t *data);
 int32_t e1000_read_part_num(struct e1000_hw *hw, uint32_t * part_num);
 int32_t e1000_read_mac_addr(struct e1000_hw * hw);
-int32_t e1000_swfw_sync_acquire(struct e1000_hw *hw, uint16_t mask);
-void e1000_swfw_sync_release(struct e1000_hw *hw, uint16_t mask);
-void e1000_release_software_flag(struct e1000_hw *hw);
-int32_t e1000_get_software_flag(struct e1000_hw *hw);
 
 /* Filters (multicast, vlan, receive) */
-void e1000_mc_addr_list_update(struct e1000_hw *hw, uint8_t * mc_addr_list, uint32_t mc_addr_count, uint32_t pad, uint32_t rar_used_count);
 uint32_t e1000_hash_mc_addr(struct e1000_hw *hw, uint8_t * mc_addr);
 void e1000_mta_set(struct e1000_hw *hw, uint32_t hash_value);
 void e1000_rar_set(struct e1000_hw *hw, uint8_t * mc_addr, uint32_t rar_index);
@@ -431,31 +421,9 @@ void e1000_pci_clear_mwi(struct e1000_hw *hw);
 void e1000_read_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t * value);
 void e1000_write_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t * value);
 /* Port I/O is only supported on 82544 and newer */
-uint32_t e1000_io_read(struct e1000_hw *hw, unsigned long port);
-uint32_t e1000_read_reg_io(struct e1000_hw *hw, uint32_t offset);
 void e1000_io_write(struct e1000_hw *hw, unsigned long port, uint32_t value);
-void e1000_enable_pciex_master(struct e1000_hw *hw);
 int32_t e1000_disable_pciex_master(struct e1000_hw *hw);
-int32_t e1000_get_software_semaphore(struct e1000_hw *hw);
-void e1000_release_software_semaphore(struct e1000_hw *hw);
 int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
-int32_t e1000_set_pci_ex_no_snoop(struct e1000_hw *hw, uint32_t no_snoop);
-
-int32_t e1000_read_ich8_byte(struct e1000_hw *hw, uint32_t index,
-                             uint8_t *data);
-int32_t e1000_verify_write_ich8_byte(struct e1000_hw *hw, uint32_t index,
-                                     uint8_t byte);
-int32_t e1000_write_ich8_byte(struct e1000_hw *hw, uint32_t index,
-                              uint8_t byte);
-int32_t e1000_read_ich8_word(struct e1000_hw *hw, uint32_t index,
-                             uint16_t *data);
-int32_t e1000_read_ich8_data(struct e1000_hw *hw, uint32_t index,
-                             uint32_t size, uint16_t *data);
-int32_t e1000_read_eeprom_ich8(struct e1000_hw *hw, uint16_t offset,
-                               uint16_t words, uint16_t *data);
-int32_t e1000_write_eeprom_ich8(struct e1000_hw *hw, uint16_t offset,
-                                uint16_t words, uint16_t *data);
-int32_t e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t segment);
 
 
 #define E1000_READ_REG_IO(a, reg) \
