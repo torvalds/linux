@@ -64,6 +64,26 @@ __xfrm6_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 }
 
 static struct xfrm_state *
+__xfrm6_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr,
+			    u8 proto)
+{
+	struct xfrm_state *x = NULL;
+	unsigned h;
+
+	h = __xfrm6_src_hash(saddr);
+	list_for_each_entry(x, xfrm6_state_afinfo.state_bysrc+h, bysrc) {
+		if (x->props.family == AF_INET6 &&
+		    ipv6_addr_equal((struct in6_addr *)daddr, (struct in6_addr *)x->id.daddr.a6) &&
+		    ipv6_addr_equal((struct in6_addr *)saddr, (struct in6_addr *)x->props.saddr.a6) &&
+		    proto == x->id.proto) {
+			xfrm_state_hold(x);
+			return x;
+		}
+	}
+	return NULL;
+}
+
+static struct xfrm_state *
 __xfrm6_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto)
 {
 	unsigned h = __xfrm6_spi_hash(daddr, spi, proto);
@@ -140,6 +160,7 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.family			= AF_INET6,
 	.init_tempsel		= __xfrm6_init_tempsel,
 	.state_lookup		= __xfrm6_state_lookup,
+	.state_lookup_byaddr	= __xfrm6_state_lookup_byaddr,
 	.find_acq		= __xfrm6_find_acq,
 };
 

@@ -487,6 +487,16 @@ void xfrm_state_insert(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(xfrm_state_insert);
 
+static inline struct xfrm_state *
+__xfrm_state_locate(struct xfrm_state_afinfo *afinfo, struct xfrm_state *x,
+		    int use_spi)
+{
+	if (use_spi)
+		return afinfo->state_lookup(&x->id.daddr, x->id.spi, x->id.proto);
+	else
+		return afinfo->state_lookup_byaddr(&x->id.daddr, &x->props.saddr, x->id.proto);
+}
+
 static struct xfrm_state *__xfrm_find_acq_byseq(u32 seq);
 
 int xfrm_state_add(struct xfrm_state *x)
@@ -495,6 +505,7 @@ int xfrm_state_add(struct xfrm_state *x)
 	struct xfrm_state *x1;
 	int family;
 	int err;
+	int use_spi = xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY);
 
 	family = x->props.family;
 	afinfo = xfrm_state_get_afinfo(family);
@@ -503,7 +514,7 @@ int xfrm_state_add(struct xfrm_state *x)
 
 	spin_lock_bh(&xfrm_state_lock);
 
-	x1 = afinfo->state_lookup(&x->id.daddr, x->id.spi, x->id.proto);
+	x1 = __xfrm_state_locate(afinfo, x, use_spi);
 	if (x1) {
 		xfrm_state_put(x1);
 		x1 = NULL;
@@ -511,7 +522,7 @@ int xfrm_state_add(struct xfrm_state *x)
 		goto out;
 	}
 
-	if (x->km.seq) {
+	if (use_spi && x->km.seq) {
 		x1 = __xfrm_find_acq_byseq(x->km.seq);
 		if (x1 && xfrm_addr_cmp(&x1->id.daddr, &x->id.daddr, family)) {
 			xfrm_state_put(x1);
@@ -519,7 +530,7 @@ int xfrm_state_add(struct xfrm_state *x)
 		}
 	}
 
-	if (!x1)
+	if (use_spi && !x1)
 		x1 = afinfo->find_acq(
 			x->props.mode, x->props.reqid, x->id.proto,
 			&x->id.daddr, &x->props.saddr, 0);
@@ -548,13 +559,14 @@ int xfrm_state_update(struct xfrm_state *x)
 	struct xfrm_state_afinfo *afinfo;
 	struct xfrm_state *x1;
 	int err;
+	int use_spi = xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY);
 
 	afinfo = xfrm_state_get_afinfo(x->props.family);
 	if (unlikely(afinfo == NULL))
 		return -EAFNOSUPPORT;
 
 	spin_lock_bh(&xfrm_state_lock);
-	x1 = afinfo->state_lookup(&x->id.daddr, x->id.spi, x->id.proto);
+	x1 = __xfrm_state_locate(afinfo, x, use_spi);
 
 	err = -ESRCH;
 	if (!x1)
@@ -673,6 +685,23 @@ xfrm_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto,
 	return x;
 }
 EXPORT_SYMBOL(xfrm_state_lookup);
+
+struct xfrm_state *
+xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr,
+			 u8 proto, unsigned short family)
+{
+	struct xfrm_state *x;
+	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
+	if (!afinfo)
+		return NULL;
+
+	spin_lock_bh(&xfrm_state_lock);
+	x = afinfo->state_lookup_byaddr(daddr, saddr, proto);
+	spin_unlock_bh(&xfrm_state_lock);
+	xfrm_state_put_afinfo(afinfo);
+	return x;
+}
+EXPORT_SYMBOL(xfrm_state_lookup_byaddr);
 
 struct xfrm_state *
 xfrm_find_acq(u8 mode, u32 reqid, u8 proto, 

@@ -80,6 +80,14 @@ __xfrm4_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto)
 	return NULL;
 }
 
+/* placeholder until ipv4's code is written */
+static struct xfrm_state *
+__xfrm4_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr,
+			    u8 proto)
+{
+	return NULL;
+}
+
 static struct xfrm_state *
 __xfrm4_find_acq(u8 mode, u32 reqid, u8 proto, 
 		 xfrm_address_t *daddr, xfrm_address_t *saddr, 
@@ -137,6 +145,7 @@ static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.init_flags		= xfrm4_init_flags,
 	.init_tempsel		= __xfrm4_init_tempsel,
 	.state_lookup		= __xfrm4_state_lookup,
+	.state_lookup_byaddr	= __xfrm4_state_lookup_byaddr,
 	.find_acq		= __xfrm4_find_acq,
 };
 

@@ -87,6 +87,22 @@ static int verify_encap_tmpl(struct rtattr **xfrma)
 	return 0;
 }
 
+static int verify_one_addr(struct rtattr **xfrma, enum xfrm_attr_type_t type,
+			   xfrm_address_t **addrp)
+{
+	struct rtattr *rt = xfrma[type - 1];
+
+	if (!rt)
+		return 0;
+
+	if ((rt->rta_len - sizeof(*rt)) < sizeof(**addrp))
+		return -EINVAL;
+
+	if (addrp)
+		*addrp = RTA_DATA(rt);
+
+	return 0;
+}
 
 static inline int verify_sec_ctx_len(struct rtattr **xfrma)
 {
@@ -418,16 +434,48 @@ out:
 	return err;
 }
 
+static struct xfrm_state *xfrm_user_state_lookup(struct xfrm_usersa_id *p,
+						 struct rtattr **xfrma,
+						 int *errp)
+{
+	struct xfrm_state *x = NULL;
+	int err;
+
+	if (xfrm_id_proto_match(p->proto, IPSEC_PROTO_ANY)) {
+		err = -ESRCH;
+		x = xfrm_state_lookup(&p->daddr, p->spi, p->proto, p->family);
+	} else {
+		xfrm_address_t *saddr = NULL;
+
+		err = verify_one_addr(xfrma, XFRMA_SRCADDR, &saddr);
+		if (err)
+			goto out;
+
+		if (!saddr) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		x = xfrm_state_lookup_byaddr(&p->daddr, saddr, p->proto,
+					     p->family);
+	}
+
+ out:
+	if (!x && errp)
+		*errp = err;
+	return x;
+}
+
 static int xfrm_del_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 {
 	struct xfrm_state *x;
-	int err;
+	int err = -ESRCH;
 	struct km_event c;
 	struct xfrm_usersa_id *p = NLMSG_DATA(nlh);
 
-	x = xfrm_state_lookup(&p->daddr, p->spi, p->proto, p->family);
+	x = xfrm_user_state_lookup(p, (struct rtattr **)xfrma, &err);
 	if (x == NULL)
-		return -ESRCH;
+		return err;
 
 	if ((err = security_xfrm_state_delete(x)) != 0)
 		goto out;
@@ -578,10 +626,9 @@ static int xfrm_get_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 	struct xfrm_usersa_id *p = NLMSG_DATA(nlh);
 	struct xfrm_state *x;
 	struct sk_buff *resp_skb;
-	int err;
+	int err = -ESRCH;
 
-	x = xfrm_state_lookup(&p->daddr, p->spi, p->proto, p->family);
-	err = -ESRCH;
+	x = xfrm_user_state_lookup(p, (struct rtattr **)xfrma, &err);
 	if (x == NULL)
 		goto out_noput;
 
