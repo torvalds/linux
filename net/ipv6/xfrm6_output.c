@@ -17,6 +17,12 @@
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
+int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
+			  u8 **prevhdr)
+{
+	return ip6_find_1stfragopt(skb, prevhdr);
+}
+
 static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 {
 	int mtu, ret = 0;

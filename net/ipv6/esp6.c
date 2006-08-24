@@ -379,7 +379,8 @@ static struct xfrm_type esp6_type =
 	.destructor	= esp6_destroy,
 	.get_max_size	= esp6_get_max_size,
 	.input		= esp6_input,
-	.output		= esp6_output
+	.output		= esp6_output,
+	.hdr_offset	= xfrm6_find_1stfragopt,
 };
 
 static struct inet6_protocol esp6_protocol = {

@@ -435,7 +435,8 @@ static struct xfrm_type ah6_type =
 	.init_state	= ah6_init_state,
 	.destructor	= ah6_destroy,
 	.input		= ah6_input,
-	.output		= ah6_output
+	.output		= ah6_output,
+	.hdr_offset	= xfrm6_find_1stfragopt,
 };
 
 static struct inet6_protocol ah6_protocol = {

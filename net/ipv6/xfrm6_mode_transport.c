@@ -35,7 +35,7 @@ static int xfrm6_transport_output(struct sk_buff *skb)
 	skb_push(skb, x->props.header_len);
 	iph = skb->nh.ipv6h;
 
-	hdr_len = ip6_find_1stfragopt(skb, &prevhdr);
+	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
 	skb->nh.raw = prevhdr - x->props.header_len;
 	skb->h.raw = skb->data + hdr_len;
 	memmove(skb->data, iph, hdr_len);

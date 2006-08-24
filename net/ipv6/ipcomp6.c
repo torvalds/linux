@@ -461,6 +461,7 @@ static struct xfrm_type ipcomp6_type =
 	.destructor	= ipcomp6_destroy,
 	.input		= ipcomp6_input,
 	.output		= ipcomp6_output,
+	.hdr_offset	= xfrm6_find_1stfragopt,
 };
 
 static struct inet6_protocol ipcomp6_protocol = 
