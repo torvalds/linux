@@ -1491,6 +1491,7 @@ static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 	[XFRM_MSG_FLUSHPOLICY - XFRM_MSG_BASE] = NLMSG_LENGTH(0),
 	[XFRM_MSG_NEWAE       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_aevent_id),
 	[XFRM_MSG_GETAE       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_aevent_id),
+	[XFRM_MSG_REPORT      - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_report),
 };
 
 #undef XMSGSIZE
@@ -2058,12 +2059,57 @@ static int xfrm_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_ev
 
 }
 
+static int build_report(struct sk_buff *skb, u8 proto,
+			struct xfrm_selector *sel, xfrm_address_t *addr)
+{
+	struct xfrm_user_report *ur;
+	struct nlmsghdr *nlh;
+	unsigned char *b = skb->tail;
+
+	nlh = NLMSG_PUT(skb, 0, 0, XFRM_MSG_REPORT, sizeof(*ur));
+	ur = NLMSG_DATA(nlh);
+	nlh->nlmsg_flags = 0;
+
+	ur->proto = proto;
+	memcpy(&ur->sel, sel, sizeof(ur->sel));
+
+	if (addr)
+		RTA_PUT(skb, XFRMA_COADDR, sizeof(*addr), addr);
+
+	nlh->nlmsg_len = skb->tail - b;
+	return skb->len;
+
+nlmsg_failure:
+rtattr_failure:
+	skb_trim(skb, b - skb->data);
+	return -1;
+}
+
+static int xfrm_send_report(u8 proto, struct xfrm_selector *sel,
+			    xfrm_address_t *addr)
+{
+	struct sk_buff *skb;
+	size_t len;
+
+	len = NLMSG_ALIGN(NLMSG_LENGTH(sizeof(struct xfrm_user_report)));
+	skb = alloc_skb(len, GFP_ATOMIC);
+	if (skb == NULL)
+		return -ENOMEM;
+
+	if (build_report(skb, proto, sel, addr) < 0)
+		BUG();
+
+	NETLINK_CB(skb).dst_group = XFRMNLGRP_REPORT;
+	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_REPORT, GFP_ATOMIC);
+}
+
 static struct xfrm_mgr netlink_mgr = {
 	.id		= "netlink",
 	.notify		= xfrm_send_state_notify,
 	.acquire	= xfrm_send_acquire,
 	.compile_policy	= xfrm_compile_policy,
 	.notify_policy	= xfrm_send_policy_notify,
+	.report		= xfrm_send_report,
 };
 
 static int __init xfrm_user_init(void)

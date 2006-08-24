@@ -1055,6 +1055,25 @@ void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid)
 }
 EXPORT_SYMBOL(km_policy_expired);
 
+int km_report(u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr)
+{
+	int err = -EINVAL;
+	int ret;
+	struct xfrm_mgr *km;
+
+	read_lock(&xfrm_km_lock);
+	list_for_each_entry(km, &xfrm_km_list, list) {
+		if (km->report) {
+			ret = km->report(proto, sel, addr);
+			if (!ret)
+				err = ret;
+		}
+	}
+	read_unlock(&xfrm_km_lock);
+	return err;
+}
+EXPORT_SYMBOL(km_report);
+
 int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen)
 {
 	int err;

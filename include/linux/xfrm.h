@@ -166,6 +166,10 @@ enum {
 #define XFRM_MSG_NEWAE XFRM_MSG_NEWAE
 	XFRM_MSG_GETAE,
 #define XFRM_MSG_GETAE XFRM_MSG_GETAE
+
+	XFRM_MSG_REPORT,
+#define XFRM_MSG_REPORT XFRM_MSG_REPORT
+
 	__XFRM_MSG_MAX
 };
 #define XFRM_MSG_MAX (__XFRM_MSG_MAX - 1)
@@ -325,12 +329,18 @@ struct xfrm_usersa_flush {
 	__u8				proto;
 };
 
+struct xfrm_user_report {
+	__u8				proto;
+	struct xfrm_selector		sel;
+};
+
 #ifndef __KERNEL__
 /* backwards compatibility for userspace */
 #define XFRMGRP_ACQUIRE		1
 #define XFRMGRP_EXPIRE		2
 #define XFRMGRP_SA		4
 #define XFRMGRP_POLICY		8
+#define XFRMGRP_REPORT		0x10
 #endif
 
 enum xfrm_nlgroups {
@@ -346,6 +356,8 @@ enum xfrm_nlgroups {
 #define XFRMNLGRP_POLICY	XFRMNLGRP_POLICY
 	XFRMNLGRP_AEVENTS,
 #define XFRMNLGRP_AEVENTS	XFRMNLGRP_AEVENTS
+	XFRMNLGRP_REPORT,
+#define XFRMNLGRP_REPORT	XFRMNLGRP_REPORT
 	__XFRMNLGRP_MAX
 };
 #define XFRMNLGRP_MAX	(__XFRMNLGRP_MAX - 1)
