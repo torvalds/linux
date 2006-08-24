@@ -25,6 +25,9 @@
 #ifndef _NET_MIP6_H
 #define _NET_MIP6_H
 
+#define MIP6_OPT_PAD_1	0
+#define MIP6_OPT_PAD_N	1
+
 extern int mip6_init(void);
 extern void mip6_fini(void);
 
