@@ -35,7 +35,7 @@ EXPORT_SYMBOL(sysctl_xfrm_aevent_rseqth);
 /* Each xfrm_state may be linked to two tables:
 
    1. Hash table by (spi,daddr,ah/esp) to find SA by SPI. (input,ctl)
-   2. Hash table by daddr to find what SAs exist for given
+   2. Hash table by (daddr,family,reqid) to find what SAs exist for given
       destination/tunnel endpoint. (output)
  */
 
@@ -55,62 +55,56 @@ static unsigned int xfrm_state_hashmax __read_mostly = 1 * 1024 * 1024;
 static unsigned int xfrm_state_num;
 static unsigned int xfrm_state_genid;
 
-static inline unsigned int __xfrm4_dst_hash(xfrm_address_t *addr, unsigned int hmask)
+static inline unsigned int __xfrm4_addr_hash(xfrm_address_t *addr)
 {
-	unsigned int h;
-	h = ntohl(addr->a4);
-	h = (h ^ (h>>16)) & hmask;
-	return h;
+	return ntohl(addr->a4);
 }
 
-static inline unsigned int __xfrm6_dst_hash(xfrm_address_t *addr, unsigned int hmask)
+static inline unsigned int __xfrm6_addr_hash(xfrm_address_t *addr)
 {
-	unsigned int h;
-	h = ntohl(addr->a6[2]^addr->a6[3]);
-	h = (h ^ (h>>16)) & hmask;
-	return h;
+	return ntohl(addr->a6[2]^addr->a6[3]);
 }
 
-static inline unsigned int __xfrm4_src_hash(xfrm_address_t *addr, unsigned int hmask)
+static inline unsigned int __xfrm_dst_hash(xfrm_address_t *addr,
+					   u32 reqid, unsigned short family,
+					   unsigned int hmask)
 {
-	return __xfrm4_dst_hash(addr, hmask);
-}
-
-static inline unsigned int __xfrm6_src_hash(xfrm_address_t *addr, unsigned int hmask)
-{
-	return __xfrm6_dst_hash(addr, hmask);
-}
-
-static inline unsigned __xfrm_src_hash(xfrm_address_t *addr, unsigned short family,  unsigned int hmask)
-{
+	unsigned int h = family ^ reqid;
 	switch (family) {
 	case AF_INET:
-		return __xfrm4_src_hash(addr, hmask);
+		h ^= __xfrm4_addr_hash(addr);
+		break;
 	case AF_INET6:
-		return __xfrm6_src_hash(addr, hmask);
-	}
-	return 0;
+		h ^= __xfrm6_addr_hash(addr);
+		break;
+	};
+	return (h ^ (h >> 16)) & hmask;
+}
+
+static inline unsigned int xfrm_dst_hash(xfrm_address_t *addr, u32 reqid,
+					 unsigned short family)
+{
+	return __xfrm_dst_hash(addr, reqid, family, xfrm_state_hmask);
+}
+
+static inline unsigned __xfrm_src_hash(xfrm_address_t *addr, unsigned short family,
+				       unsigned int hmask)
+{
+	unsigned int h = family;
+	switch (family) {
+	case AF_INET:
+		h ^= __xfrm4_addr_hash(addr);
+		break;
+	case AF_INET6:
+		h ^= __xfrm6_addr_hash(addr);
+		break;
+	};
+	return (h ^ (h >> 16)) & hmask;
 }
 
 static inline unsigned xfrm_src_hash(xfrm_address_t *addr, unsigned short family)
 {
 	return __xfrm_src_hash(addr, family, xfrm_state_hmask);
-}
-
-static inline unsigned int __xfrm_dst_hash(xfrm_address_t *addr, unsigned short family, unsigned int hmask)
-{
-	switch (family) {
-	case AF_INET:
-		return __xfrm4_dst_hash(addr, hmask);
-	case AF_INET6:
-		return __xfrm6_dst_hash(addr, hmask);
-	}
-	return 0;
-}
-
-static inline unsigned int xfrm_dst_hash(xfrm_address_t *addr, unsigned short family)
-{
-	return __xfrm_dst_hash(addr, family, xfrm_state_hmask);
 }
 
 static inline unsigned int __xfrm4_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto,
@@ -190,7 +184,8 @@ static void xfrm_hash_transfer(struct hlist_head *list,
 	hlist_for_each_entry_safe(x, entry, tmp, list, bydst) {
 		unsigned int h;
 
-		h = __xfrm_dst_hash(&x->id.daddr, x->props.family, nhashmask);
+		h = __xfrm_dst_hash(&x->id.daddr, x->props.reqid,
+				    x->props.family, nhashmask);
 		hlist_add_head(&x->bydst, ndsttable+h);
 
 		h = __xfrm_src_hash(&x->props.saddr, x->props.family,
@@ -635,7 +630,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		struct xfrm_policy *pol, int *err,
 		unsigned short family)
 {
-	unsigned int h = xfrm_dst_hash(daddr, family);
+	unsigned int h = xfrm_dst_hash(daddr, tmpl->reqid, family);
 	struct hlist_node *entry;
 	struct xfrm_state *x, *x0;
 	int acquire_in_progress = 0;
@@ -744,15 +739,15 @@ out:
 
 static void __xfrm_state_insert(struct xfrm_state *x)
 {
-	unsigned int h = xfrm_dst_hash(&x->id.daddr, x->props.family);
+	unsigned int h;
 
 	x->genid = ++xfrm_state_genid;
 
+	h = xfrm_dst_hash(&x->id.daddr, x->props.reqid, x->props.family);
 	hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 	xfrm_state_hold(x);
 
 	h = xfrm_src_hash(&x->props.saddr, x->props.family);
-
 	hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 	xfrm_state_hold(x);
 
@@ -794,7 +789,7 @@ EXPORT_SYMBOL(xfrm_state_insert);
 /* xfrm_state_lock is held */
 static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 reqid, u8 proto, xfrm_address_t *daddr, xfrm_address_t *saddr, int create)
 {
-	unsigned int h = xfrm_dst_hash(daddr, family);
+	unsigned int h = xfrm_dst_hash(daddr, reqid, family);
 	struct hlist_node *entry;
 	struct xfrm_state *x;
 
