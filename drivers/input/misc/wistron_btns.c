@@ -259,11 +259,11 @@ static int __init dmi_matched(struct dmi_system_id *dmi)
 	return 1;
 }
 
-static struct key_entry keymap_empty[] __initdata = {
+static struct key_entry keymap_empty[] = {
 	{ KE_END, 0 }
 };
 
-static struct key_entry keymap_fs_amilo_pro_v2000[] __initdata = {
+static struct key_entry keymap_fs_amilo_pro_v2000[] = {
 	{ KE_KEY,  0x01, KEY_HELP },
 	{ KE_KEY,  0x11, KEY_PROG1 },
 	{ KE_KEY,  0x12, KEY_PROG2 },
@@ -273,7 +273,7 @@ static struct key_entry keymap_fs_amilo_pro_v2000[] __initdata = {
 	{ KE_END,  0 }
 };
 
-static struct key_entry keymap_fujitsu_n3510[] __initdata = {
+static struct key_entry keymap_fujitsu_n3510[] = {
 	{ KE_KEY, 0x11, KEY_PROG1 },
 	{ KE_KEY, 0x12, KEY_PROG2 },
 	{ KE_KEY, 0x36, KEY_WWW },
@@ -285,7 +285,7 @@ static struct key_entry keymap_fujitsu_n3510[] __initdata = {
 	{ KE_END, 0 }
 };
 
-static struct key_entry keymap_wistron_ms2111[] __initdata = {
+static struct key_entry keymap_wistron_ms2111[] = {
 	{ KE_KEY,  0x11, KEY_PROG1 },
 	{ KE_KEY,  0x12, KEY_PROG2 },
 	{ KE_KEY,  0x13, KEY_PROG3 },
@@ -294,7 +294,7 @@ static struct key_entry keymap_wistron_ms2111[] __initdata = {
 	{ KE_END,  0 }
 };
 
-static struct key_entry keymap_wistron_ms2141[] __initdata = {
+static struct key_entry keymap_wistron_ms2141[] = {
 	{ KE_KEY,  0x11, KEY_PROG1 },
 	{ KE_KEY,  0x12, KEY_PROG2 },
 	{ KE_WIFI, 0x30, 0 },
@@ -307,7 +307,7 @@ static struct key_entry keymap_wistron_ms2141[] __initdata = {
 	{ KE_END,  0 }
 };
 
-static struct key_entry keymap_acer_aspire_1500[] __initdata = {
+static struct key_entry keymap_acer_aspire_1500[] = {
 	{ KE_KEY, 0x11, KEY_PROG1 },
 	{ KE_KEY, 0x12, KEY_PROG2 },
 	{ KE_WIFI, 0x30, 0 },
@@ -317,7 +317,7 @@ static struct key_entry keymap_acer_aspire_1500[] __initdata = {
 	{ KE_END, 0 }
 };
 
-static struct key_entry keymap_acer_travelmate_240[] __initdata = {
+static struct key_entry keymap_acer_travelmate_240[] = {
 	{ KE_KEY, 0x31, KEY_MAIL },
 	{ KE_KEY, 0x36, KEY_WWW },
 	{ KE_KEY, 0x11, KEY_PROG1 },
@@ -327,7 +327,7 @@ static struct key_entry keymap_acer_travelmate_240[] __initdata = {
 	{ KE_END, 0 }
 };
 
-static struct key_entry keymap_aopen_1559as[] __initdata = {
+static struct key_entry keymap_aopen_1559as[] = {
 	{ KE_KEY,  0x01, KEY_HELP },
 	{ KE_KEY,  0x06, KEY_PROG3 },
 	{ KE_KEY,  0x11, KEY_PROG1 },

@@ -39,7 +39,6 @@ them. Bug reports and success stories are also welcome.
 
   The input project website is at:
 
-	http://www.suse.cz/development/input/
 	http://atrey.karlin.mff.cuni.cz/~vojtech/input/
 
   There is also a mailing list for the driver at:
