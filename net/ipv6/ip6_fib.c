@@ -850,32 +850,25 @@ static struct fib6_node * fib6_lookup_1(struct fib6_node *root,
 		break;
 	}
 
-	while ((fn->fn_flags & RTN_ROOT) == 0) {
-#ifdef CONFIG_IPV6_SUBTREES
-		if (fn->subtree) {
-			struct fib6_node *st;
-			struct lookup_args *narg;
-
-			narg = args + 1;
-
-			if (narg->addr) {
-				st = fib6_lookup_1(fn->subtree, narg);
-
-				if (st && !(st->fn_flags & RTN_ROOT))
-					return st;
-			}
-		}
-#endif
-
-		if (fn->fn_flags & RTN_RTINFO) {
+	while(fn) {
+		if (SUBTREE(fn) || fn->fn_flags & RTN_RTINFO) {
 			struct rt6key *key;
 
 			key = (struct rt6key *) ((u8 *) fn->leaf +
 						 args->offset);
 
-			if (ipv6_prefix_equal(&key->addr, args->addr, key->plen))
-				return fn;
+			if (ipv6_prefix_equal(&key->addr, args->addr, key->plen)) {
+#ifdef CONFIG_IPV6_SUBTREES
+				if (fn->subtree)
+					fn = fib6_lookup_1(fn->subtree, args + 1);
+#endif
+				if (!fn || fn->fn_flags & RTN_RTINFO)
+					return fn;
+			}
 		}
+
+		if (fn->fn_flags & RTN_ROOT)
+			break;
 
 		fn = fn->parent;
 	}
@@ -953,10 +946,8 @@ struct fib6_node * fib6_locate(struct fib6_node *root,
 #ifdef CONFIG_IPV6_SUBTREES
 	if (src_len) {
 		BUG_TRAP(saddr!=NULL);
-		if (fn == NULL)
-			fn = fn->subtree;
-		if (fn)
-			fn = fib6_locate_1(fn, saddr, src_len,
+		if (fn && fn->subtree)
+			fn = fib6_locate_1(fn->subtree, saddr, src_len,
 					   offsetof(struct rt6_info, rt6i_src));
 	}
 #endif
