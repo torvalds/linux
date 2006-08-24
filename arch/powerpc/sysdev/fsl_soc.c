@@ -85,11 +85,8 @@ static int __init gfar_mdio_of_init(void)
 			mdio_data.irq[k] = -1;
 
 		while ((child = of_get_next_child(np, child)) != NULL) {
-			if (child->n_intrs) {
-				u32 *id =
-				    (u32 *) get_property(child, "reg", NULL);
-				mdio_data.irq[*id] = child->intrs[0].line;
-			}
+			u32 *id = get_property(child, "reg", NULL);
+			mdio_data.irq[*id] = irq_of_parse_and_map(child, 0);
 		}
 
 		ret =
@@ -131,6 +128,7 @@ static int __init gfar_of_init(void)
 		char *model;
 		void *mac_addr;
 		phandle *ph;
+		int n_res = 1;
 
 		memset(r, 0, sizeof(r));
 		memset(&gfar_data, 0, sizeof(gfar_data));
@@ -139,8 +137,7 @@ static int __init gfar_of_init(void)
 		if (ret)
 			goto err;
 
-		r[1].start = np->intrs[0].line;
-		r[1].end = np->intrs[0].line;
+		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
 		r[1].flags = IORESOURCE_IRQ;
 
 		model = get_property(np, "model", NULL);
@@ -150,19 +147,19 @@ static int __init gfar_of_init(void)
 			r[1].name = gfar_tx_intr;
 
 			r[2].name = gfar_rx_intr;
-			r[2].start = np->intrs[1].line;
-			r[2].end = np->intrs[1].line;
+			r[2].start = r[2].end = irq_of_parse_and_map(np, 1);
 			r[2].flags = IORESOURCE_IRQ;
 
 			r[3].name = gfar_err_intr;
-			r[3].start = np->intrs[2].line;
-			r[3].end = np->intrs[2].line;
+			r[3].start = r[3].end = irq_of_parse_and_map(np, 2);
 			r[3].flags = IORESOURCE_IRQ;
+
+			n_res += 2;
 		}
 
 		gfar_dev =
 		    platform_device_register_simple("fsl-gianfar", i, &r[0],
-						    np->n_intrs + 1);
+						    n_res + 1);
 
 		if (IS_ERR(gfar_dev)) {
 			ret = PTR_ERR(gfar_dev);
@@ -259,8 +256,7 @@ static int __init fsl_i2c_of_init(void)
 		if (ret)
 			goto err;
 
-		r[1].start = np->intrs[0].line;
-		r[1].end = np->intrs[0].line;
+		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
 		r[1].flags = IORESOURCE_IRQ;
 
 		i2c_dev = platform_device_register_simple("fsl-i2c", i, r, 2);
@@ -396,8 +392,7 @@ static int __init fsl_usb_of_init(void)
 		if (ret)
 			goto err;
 
-		r[1].start = np->intrs[0].line;
-		r[1].end = np->intrs[0].line;
+		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
 		r[1].flags = IORESOURCE_IRQ;
 
 		usb_dev_mph =
@@ -445,8 +440,7 @@ static int __init fsl_usb_of_init(void)
 		if (ret)
 			goto unreg_mph;
 
-		r[1].start = np->intrs[0].line;
-		r[1].end = np->intrs[0].line;
+		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
 		r[1].flags = IORESOURCE_IRQ;
 
 		usb_dev_dr =

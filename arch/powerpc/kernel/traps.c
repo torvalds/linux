@@ -585,14 +585,14 @@ static void parse_fpe(struct pt_regs *regs)
 #define INST_MFSPR_PVR_MASK	0xfc1fffff
 
 #define INST_DCBA		0x7c0005ec
-#define INST_DCBA_MASK		0x7c0007fe
+#define INST_DCBA_MASK		0xfc0007fe
 
 #define INST_MCRXR		0x7c000400
-#define INST_MCRXR_MASK		0x7c0007fe
+#define INST_MCRXR_MASK		0xfc0007fe
 
 #define INST_STRING		0x7c00042a
-#define INST_STRING_MASK	0x7c0007fe
-#define INST_STRING_GEN_MASK	0x7c00067e
+#define INST_STRING_MASK	0xfc0007fe
+#define INST_STRING_GEN_MASK	0xfc00067e
 #define INST_LSWI		0x7c0004aa
 #define INST_LSWX		0x7c00042a
 #define INST_STSWI		0x7c0005aa
