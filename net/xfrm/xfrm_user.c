@@ -595,6 +595,9 @@ static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
 	if (x->coaddr)
 		RTA_PUT(skb, XFRMA_COADDR, sizeof(*x->coaddr), x->coaddr);
 
+	if (x->lastused)
+		RTA_PUT(skb, XFRMA_LASTUSED, sizeof(x->lastused), &x->lastused);
+
 	nlh->nlmsg_len = skb->tail - b;
 out:
 	sp->this_idx++;

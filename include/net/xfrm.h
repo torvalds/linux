@@ -167,6 +167,9 @@ struct xfrm_state
 	struct xfrm_lifetime_cur curlft;
 	struct timer_list	timer;
 
+	/* Last used time */
+	u64			lastused;
+
 	/* Reference to data common to all the instances of this
 	 * transformer. */
 	struct xfrm_type	*type;
