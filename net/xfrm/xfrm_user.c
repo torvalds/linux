@@ -2054,7 +2054,7 @@ static int __init xfrm_user_init(void)
 {
 	struct sock *nlsk;
 
-	printk(KERN_INFO "Initializing IPsec netlink socket\n");
+	printk(KERN_INFO "Initializing XFRM netlink socket\n");
 
 	nlsk = netlink_kernel_create(NETLINK_XFRM, XFRMNLGRP_MAX,
 	                             xfrm_netlink_rcv, THIS_MODULE);

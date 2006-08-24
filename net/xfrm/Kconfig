@@ -6,11 +6,11 @@ config XFRM
        depends on NET
 
 config XFRM_USER
-	tristate "IPsec user configuration interface"
+	tristate "Transformation user configuration interface"
 	depends on INET && XFRM
 	---help---
-	  Support for IPsec user configuration interface used
-	  by native Linux tools.
+	  Support for Transformation(XFRM) user configuration interface
+	  like IPsec used by native Linux tools.
 
 	  If unsure, say Y.
 
