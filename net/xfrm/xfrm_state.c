@@ -256,8 +256,6 @@ static struct work_struct xfrm_state_gc_work;
 static HLIST_HEAD(xfrm_state_gc_list);
 static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 
-static int xfrm_state_gc_flush_bundles;
-
 int __xfrm_state_delete(struct xfrm_state *x);
 
 static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family);
@@ -292,11 +290,6 @@ static void xfrm_state_gc_task(void *data)
 	struct xfrm_state *x;
 	struct hlist_node *entry, *tmp;
 	struct hlist_head gc_list;
-
-	if (xfrm_state_gc_flush_bundles) {
-		xfrm_state_gc_flush_bundles = 0;
-		xfrm_flush_bundles();
-	}
 
 	spin_lock_bh(&xfrm_state_gc_lock);
 	gc_list.first = xfrm_state_gc_list.first;
@@ -453,16 +446,6 @@ int __xfrm_state_delete(struct xfrm_state *x)
 			__xfrm_state_put(x);
 		if (del_timer(&x->rtimer))
 			__xfrm_state_put(x);
-
-		/* The number two in this test is the reference
-		 * mentioned in the comment below plus the reference
-		 * our caller holds.  A larger value means that
-		 * there are DSTs attached to this xfrm_state.
-		 */
-		if (atomic_read(&x->refcnt) > 2) {
-			xfrm_state_gc_flush_bundles = 1;
-			schedule_work(&xfrm_state_gc_work);
-		}
 
 		/* All xfrm_state objects are created by xfrm_state_alloc.
 		 * The xfrm_state_alloc call gives a reference, and that

@@ -1472,7 +1472,7 @@ static void __xfrm_garbage_collect(void)
 	xfrm_prune_bundles(unused_bundle);
 }
 
-int xfrm_flush_bundles(void)
+static int xfrm_flush_bundles(void)
 {
 	xfrm_prune_bundles(stale_bundle);
 	return 0;
