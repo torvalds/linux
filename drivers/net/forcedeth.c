@@ -718,6 +718,7 @@ struct fe_priv {
 	u32 vlanctl_bits;
 	u32 driver_data;
 	u32 register_size;
+	int rx_csum;
 
 	void __iomem *base;
 
@@ -1897,7 +1898,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					}
 				}
 			}
-			if (np->txrxctl_bits & NVREG_TXRXCTL_RXCHECK) {
+			if (np->rx_csum) {
 				flags &= NV_RX2_CHECKSUMMASK;
 				if (flags == NV_RX2_CHECKSUMOK1 ||
 				    flags == NV_RX2_CHECKSUMOK2 ||
@@ -3557,7 +3558,7 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 static u32 nv_get_rx_csum(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
-	return (np->txrxctl_bits & NVREG_TXRXCTL_RXCHECK) != 0;
+	return (np->rx_csum) != 0;
 }
 
 static int nv_set_rx_csum(struct net_device *dev, u32 data)
@@ -3567,22 +3568,15 @@ static int nv_set_rx_csum(struct net_device *dev, u32 data)
 	int retcode = 0;
 
 	if (np->driver_data & DEV_HAS_CHECKSUM) {
-
-		if (((np->txrxctl_bits & NVREG_TXRXCTL_RXCHECK) && data) ||
-		    (!(np->txrxctl_bits & NVREG_TXRXCTL_RXCHECK) && !data)) {
-			/* already set or unset */
-			return 0;
-		}
-
 		if (data) {
+			np->rx_csum = 1;
 			np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
-		} else if (!(np->vlanctl_bits & NVREG_VLANCONTROL_ENABLE)) {
-			np->txrxctl_bits &= ~NVREG_TXRXCTL_RXCHECK;
 		} else {
-			printk(KERN_INFO "Can not disable rx checksum if vlan is enabled\n");
-			return -EINVAL;
+			np->rx_csum = 0;
+			/* vlan is dependent on rx checksum offload */
+			if (!(np->vlanctl_bits & NVREG_VLANCONTROL_ENABLE))
+				np->txrxctl_bits &= ~NVREG_TXRXCTL_RXCHECK;
 		}
-
 		if (netif_running(dev)) {
 			spin_lock_irq(&np->lock);
 			writel(np->txrxctl_bits, base + NvRegTxRxControl);
@@ -4322,6 +4316,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->pkt_limit = NV_PKTLIMIT_2;
 
 	if (id->driver_data & DEV_HAS_CHECKSUM) {
+		np->rx_csum = 1;
 		np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
 		dev->features |= NETIF_F_HW_CSUM | NETIF_F_SG;
 #ifdef NETIF_F_TSO
