@@ -101,61 +101,6 @@ __xfrm6_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto)
 	return NULL;
 }
 
-static struct xfrm_state *
-__xfrm6_find_acq(u8 mode, u32 reqid, u8 proto, 
-		 xfrm_address_t *daddr, xfrm_address_t *saddr, 
-		 int create)
-{
-	struct xfrm_state *x, *x0;
-	unsigned h = __xfrm6_dst_hash(daddr);
-
-	x0 = NULL;
-
-	list_for_each_entry(x, xfrm6_state_afinfo.state_bydst+h, bydst) {
-		if (x->props.family == AF_INET6 &&
-		    ipv6_addr_equal((struct in6_addr *)daddr, (struct in6_addr *)x->id.daddr.a6) &&
-		    mode == x->props.mode &&
-		    proto == x->id.proto &&
-		    ipv6_addr_equal((struct in6_addr *)saddr, (struct in6_addr *)x->props.saddr.a6) &&
-		    reqid == x->props.reqid &&
-		    x->km.state == XFRM_STATE_ACQ &&
-		    !x->id.spi) {
-			    x0 = x;
-			    break;
-		    }
-	}
-	if (!x0 && create && (x0 = xfrm_state_alloc()) != NULL) {
-		ipv6_addr_copy((struct in6_addr *)x0->sel.daddr.a6,
-			       (struct in6_addr *)daddr);
-		ipv6_addr_copy((struct in6_addr *)x0->sel.saddr.a6,
-			       (struct in6_addr *)saddr);
-		x0->sel.prefixlen_d = 128;
-		x0->sel.prefixlen_s = 128;
-		ipv6_addr_copy((struct in6_addr *)x0->props.saddr.a6,
-			       (struct in6_addr *)saddr);
-		x0->km.state = XFRM_STATE_ACQ;
-		ipv6_addr_copy((struct in6_addr *)x0->id.daddr.a6,
-			       (struct in6_addr *)daddr);
-		x0->id.proto = proto;
-		x0->props.family = AF_INET6;
-		x0->props.mode = mode;
-		x0->props.reqid = reqid;
-		x0->lft.hard_add_expires_seconds = XFRM_ACQ_EXPIRES;
-		xfrm_state_hold(x0);
-		x0->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
-		add_timer(&x0->timer);
-		xfrm_state_hold(x0);
-		list_add_tail(&x0->bydst, xfrm6_state_afinfo.state_bydst+h);
-		h = __xfrm6_src_hash(saddr);
-		xfrm_state_hold(x0);
-		list_add_tail(&x0->bysrc, xfrm6_state_afinfo.state_bysrc+h);
-		wake_up(&km_waitq);
-	}
-	if (x0)
-		xfrm_state_hold(x0);
-	return x0;
-}
-
 static int
 __xfrm6_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n)
 {
@@ -280,7 +225,6 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.init_tempsel		= __xfrm6_init_tempsel,
 	.state_lookup		= __xfrm6_state_lookup,
 	.state_lookup_byaddr	= __xfrm6_state_lookup_byaddr,
-	.find_acq		= __xfrm6_find_acq,
 	.tmpl_sort		= __xfrm6_tmpl_sort,
 	.state_sort		= __xfrm6_state_sort,
 };

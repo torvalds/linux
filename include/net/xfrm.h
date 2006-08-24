@@ -243,7 +243,6 @@ extern int __xfrm_state_delete(struct xfrm_state *x);
 
 struct xfrm_state_afinfo {
 	unsigned short		family;
-	struct list_head	*state_bydst;
 	struct list_head	*state_bysrc;
 	struct list_head	*state_byspi;
 	int			(*init_flags)(struct xfrm_state *x);
@@ -252,9 +251,6 @@ struct xfrm_state_afinfo {
 						xfrm_address_t *daddr, xfrm_address_t *saddr);
 	struct xfrm_state	*(*state_lookup)(xfrm_address_t *daddr, u32 spi, u8 proto);
 	struct xfrm_state	*(*state_lookup_byaddr)(xfrm_address_t *daddr, xfrm_address_t *saddr, u8 proto);
-	struct xfrm_state	*(*find_acq)(u8 mode, u32 reqid, u8 proto, 
-					     xfrm_address_t *daddr, xfrm_address_t *saddr, 
-					     int create);
 	int			(*tmpl_sort)(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n);
 	int			(*state_sort)(struct xfrm_state **dst, struct xfrm_state **src, int n);
 };
@@ -453,18 +449,6 @@ unsigned __xfrm6_dst_hash(xfrm_address_t *addr)
 	h = ntohl(addr->a6[2]^addr->a6[3]);
 	h = (h ^ (h>>16)) % XFRM_DST_HSIZE;
 	return h;
-}
-
-static __inline__
-unsigned xfrm_dst_hash(xfrm_address_t *addr, unsigned short family)
-{
-	switch (family) {
-	case AF_INET:
-		return __xfrm4_dst_hash(addr);
-	case AF_INET6:
-		return __xfrm6_dst_hash(addr);
-	}
-	return 0;
 }
 
 static __inline__

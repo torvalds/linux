@@ -48,6 +48,18 @@ static struct list_head xfrm_state_bydst[XFRM_DST_HSIZE];
 static struct list_head xfrm_state_bysrc[XFRM_DST_HSIZE];
 static struct list_head xfrm_state_byspi[XFRM_DST_HSIZE];
 
+static __inline__
+unsigned xfrm_dst_hash(xfrm_address_t *addr, unsigned short family)
+{
+	switch (family) {
+	case AF_INET:
+		return __xfrm4_dst_hash(addr);
+	case AF_INET6:
+		return __xfrm6_dst_hash(addr);
+	}
+	return 0;
+}
+
 DECLARE_WAIT_QUEUE_HEAD(km_waitq);
 EXPORT_SYMBOL(km_waitq);
 
@@ -489,6 +501,89 @@ void xfrm_state_insert(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(xfrm_state_insert);
 
+/* xfrm_state_lock is held */
+static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 reqid, u8 proto, xfrm_address_t *daddr, xfrm_address_t *saddr, int create)
+{
+	unsigned int h = xfrm_dst_hash(daddr, family);
+	struct xfrm_state *x;
+
+	list_for_each_entry(x, xfrm_state_bydst+h, bydst) {
+		if (x->props.reqid  != reqid ||
+		    x->props.mode   != mode ||
+		    x->props.family != family ||
+		    x->km.state     != XFRM_STATE_ACQ ||
+		    x->id.spi       != 0)
+			continue;
+
+		switch (family) {
+		case AF_INET:
+			if (x->id.daddr.a4    != daddr->a4 ||
+			    x->props.saddr.a4 != saddr->a4)
+				continue;
+			break;
+		case AF_INET6:
+			if (!ipv6_addr_equal((struct in6_addr *)x->id.daddr.a6,
+					     (struct in6_addr *)daddr) ||
+			    !ipv6_addr_equal((struct in6_addr *)
+					     x->props.saddr.a6,
+					     (struct in6_addr *)saddr))
+				continue;
+			break;
+		};
+
+		xfrm_state_hold(x);
+		return x;
+	}
+
+	if (!create)
+		return NULL;
+
+	x = xfrm_state_alloc();
+	if (likely(x)) {
+		switch (family) {
+		case AF_INET:
+			x->sel.daddr.a4 = daddr->a4;
+			x->sel.saddr.a4 = saddr->a4;
+			x->sel.prefixlen_d = 32;
+			x->sel.prefixlen_s = 32;
+			x->props.saddr.a4 = saddr->a4;
+			x->id.daddr.a4 = daddr->a4;
+			break;
+
+		case AF_INET6:
+			ipv6_addr_copy((struct in6_addr *)x->sel.daddr.a6,
+				       (struct in6_addr *)daddr);
+			ipv6_addr_copy((struct in6_addr *)x->sel.saddr.a6,
+				       (struct in6_addr *)saddr);
+			x->sel.prefixlen_d = 128;
+			x->sel.prefixlen_s = 128;
+			ipv6_addr_copy((struct in6_addr *)x->props.saddr.a6,
+				       (struct in6_addr *)saddr);
+			ipv6_addr_copy((struct in6_addr *)x->id.daddr.a6,
+				       (struct in6_addr *)daddr);
+			break;
+		};
+
+		x->km.state = XFRM_STATE_ACQ;
+		x->id.proto = proto;
+		x->props.family = family;
+		x->props.mode = mode;
+		x->props.reqid = reqid;
+		x->lft.hard_add_expires_seconds = XFRM_ACQ_EXPIRES;
+		xfrm_state_hold(x);
+		x->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
+		add_timer(&x->timer);
+		xfrm_state_hold(x);
+		list_add_tail(&x->bydst, xfrm_state_bydst+h);
+		h = xfrm_src_hash(saddr, family);
+		xfrm_state_hold(x);
+		list_add_tail(&x->bysrc, xfrm_state_bysrc+h);
+		wake_up(&km_waitq);
+	}
+
+	return x;
+}
+
 static inline struct xfrm_state *
 __xfrm_state_locate(struct xfrm_state_afinfo *afinfo, struct xfrm_state *x,
 		    int use_spi)
@@ -533,9 +628,9 @@ int xfrm_state_add(struct xfrm_state *x)
 	}
 
 	if (use_spi && !x1)
-		x1 = afinfo->find_acq(
-			x->props.mode, x->props.reqid, x->id.proto,
-			&x->id.daddr, &x->props.saddr, 0);
+		x1 = __find_acq_core(family, x->props.mode, x->props.reqid,
+				     x->id.proto,
+				     &x->id.daddr, &x->props.saddr, 0);
 
 	__xfrm_state_insert(x);
 	err = 0;
@@ -716,14 +811,11 @@ xfrm_find_acq(u8 mode, u32 reqid, u8 proto,
 	      int create, unsigned short family)
 {
 	struct xfrm_state *x;
-	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	if (!afinfo)
-		return NULL;
 
 	spin_lock_bh(&xfrm_state_lock);
-	x = afinfo->find_acq(mode, reqid, proto, daddr, saddr, create);
+	x = __find_acq_core(family, mode, reqid, proto, daddr, saddr, create);
 	spin_unlock_bh(&xfrm_state_lock);
-	xfrm_state_put_afinfo(afinfo);
+
 	return x;
 }
 EXPORT_SYMBOL(xfrm_find_acq);
@@ -1181,7 +1273,6 @@ int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo)
 	if (unlikely(xfrm_state_afinfo[afinfo->family] != NULL))
 		err = -ENOBUFS;
 	else {
-		afinfo->state_bydst = xfrm_state_bydst;
 		afinfo->state_bysrc = xfrm_state_bysrc;
 		afinfo->state_byspi = xfrm_state_byspi;
 		xfrm_state_afinfo[afinfo->family] = afinfo;
@@ -1206,7 +1297,6 @@ int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo)
 			xfrm_state_afinfo[afinfo->family] = NULL;
 			afinfo->state_byspi = NULL;
 			afinfo->state_bysrc = NULL;
-			afinfo->state_bydst = NULL;
 		}
 	}
 	write_unlock_bh(&xfrm_state_afinfo_lock);
