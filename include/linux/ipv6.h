@@ -86,6 +86,16 @@ struct rt2_hdr {
 #define rt2_type		rt_hdr.type
 };
 
+/*
+ *	home address option in destination options header
+ */
+
+struct ipv6_destopt_hao {
+	__u8			type;
+	__u8			length;
+	struct in6_addr		addr;
+} __attribute__ ((__packed__));
+
 struct ipv6_auth_hdr {
 	__u8  nexthdr;
 	__u8  hdrlen;           /* This one is measured in 32 bit units! */
