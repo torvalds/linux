@@ -1279,19 +1279,18 @@ static int ip6_route_del(struct fib6_config *cfg)
 /*
  *	Handle redirects
  */
-void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
-		  struct in6_addr *saddr,
-		  struct neighbour *neigh, u8 *lladdr, int on_link)
-{
-	struct rt6_info *rt, *nrt = NULL;
-	struct fib6_node *fn;
-	struct fib6_table *table;
-	struct netevent_redirect netevent;
+struct ip6rd_flowi {
+	struct flowi fl;
+	struct in6_addr gateway;
+};
 
-	/* TODO: Very lazy, might need to check all tables */
-	table = fib6_get_table(RT6_TABLE_MAIN);
-	if (table == NULL)
-		return;
+static struct rt6_info *__ip6_route_redirect(struct fib6_table *table,
+					     struct flowi *fl,
+					     int flags)
+{
+	struct ip6rd_flowi *rdfl = (struct ip6rd_flowi *)fl;
+	struct rt6_info *rt;
+	struct fib6_node *fn;
 
 	/*
 	 * Get the "current" route for this destination and
@@ -1305,7 +1304,7 @@ void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
 	 */
 
 	read_lock_bh(&table->tb6_lock);
-	fn = fib6_lookup(&table->tb6_root, dest, src);
+	fn = fib6_lookup(&table->tb6_root, &fl->fl6_dst, &fl->fl6_src);
 restart:
 	for (rt = fn->leaf; rt; rt = rt->u.next) {
 		/*
@@ -1320,29 +1319,67 @@ restart:
 			continue;
 		if (!(rt->rt6i_flags & RTF_GATEWAY))
 			continue;
-		if (neigh->dev != rt->rt6i_dev)
+		if (fl->oif != rt->rt6i_dev->ifindex)
 			continue;
-		if (!ipv6_addr_equal(saddr, &rt->rt6i_gateway))
+		if (!ipv6_addr_equal(&rdfl->gateway, &rt->rt6i_gateway))
 			continue;
 		break;
 	}
-	if (rt)
-		dst_hold(&rt->u.dst);
-	else if (rt6_need_strict(dest)) {
-		while ((fn = fn->parent) != NULL) {
-			if (fn->fn_flags & RTN_ROOT)
-				break;
-			if (fn->fn_flags & RTN_RTINFO)
-				goto restart;
-		}
-	}
-	read_unlock_bh(&table->tb6_lock);
 
 	if (!rt) {
+		if (rt6_need_strict(&fl->fl6_dst)) {
+			while ((fn = fn->parent) != NULL) {
+				if (fn->fn_flags & RTN_ROOT)
+					break;
+				if (fn->fn_flags & RTN_RTINFO)
+					goto restart;
+			}
+		}
+		rt = &ip6_null_entry;
+	}
+	dst_hold(&rt->u.dst);
+
+	read_unlock_bh(&table->tb6_lock);
+
+	return rt;
+};
+
+static struct rt6_info *ip6_route_redirect(struct in6_addr *dest,
+					   struct in6_addr *src,
+					   struct in6_addr *gateway,
+					   struct net_device *dev)
+{
+	struct ip6rd_flowi rdfl = {
+		.fl = {
+			.oif = dev->ifindex,
+			.nl_u = {
+				.ip6_u = {
+					.daddr = *dest,
+					.saddr = *src,
+				},
+			},
+		},
+		.gateway = *gateway,
+	};
+	int flags = rt6_need_strict(dest) ? RT6_F_STRICT : 0;
+
+	return (struct rt6_info *)fib6_rule_lookup((struct flowi *)&rdfl, flags, __ip6_route_redirect);
+}
+
+void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
+		  struct in6_addr *saddr,
+		  struct neighbour *neigh, u8 *lladdr, int on_link)
+{
+	struct rt6_info *rt, *nrt = NULL;
+	struct netevent_redirect netevent;
+
+	rt = ip6_route_redirect(dest, src, saddr, neigh->dev);
+
+	if (rt == &ip6_null_entry) {
 		if (net_ratelimit())
 			printk(KERN_DEBUG "rt6_redirect: source isn't a valid nexthop "
 			       "for redirect target\n");
-		return;
+		goto out;
 	}
 
 	/*
