@@ -266,10 +266,8 @@ void km_state_expired(struct xfrm_state *x, int hard, u32 pid);
 
 static void xfrm_state_gc_destroy(struct xfrm_state *x)
 {
-	if (del_timer(&x->timer))
-		BUG();
-	if (del_timer(&x->rtimer))
-		BUG();
+	del_timer_sync(&x->timer);
+	del_timer_sync(&x->rtimer);
 	kfree(x->aalg);
 	kfree(x->ealg);
 	kfree(x->calg);
@@ -361,9 +359,9 @@ static void xfrm_timer_handler(unsigned long data)
 	if (warn)
 		km_state_expired(x, 0, 0);
 resched:
-	if (next != LONG_MAX &&
-	    !mod_timer(&x->timer, jiffies + make_jiffies(next)))
-		xfrm_state_hold(x);
+	if (next != LONG_MAX)
+		mod_timer(&x->timer, jiffies + make_jiffies(next));
+
 	goto out;
 
 expired:
@@ -378,7 +376,6 @@ expired:
 
 out:
 	spin_unlock(&x->lock);
-	xfrm_state_put(x);
 }
 
 static void xfrm_replay_timer_handler(unsigned long data);
@@ -433,19 +430,11 @@ int __xfrm_state_delete(struct xfrm_state *x)
 		x->km.state = XFRM_STATE_DEAD;
 		spin_lock(&xfrm_state_lock);
 		hlist_del(&x->bydst);
-		__xfrm_state_put(x);
 		hlist_del(&x->bysrc);
-		__xfrm_state_put(x);
-		if (x->id.spi) {
+		if (x->id.spi)
 			hlist_del(&x->byspi);
-			__xfrm_state_put(x);
-		}
 		xfrm_state_num--;
 		spin_unlock(&xfrm_state_lock);
-		if (del_timer(&x->timer))
-			__xfrm_state_put(x);
-		if (del_timer(&x->rtimer))
-			__xfrm_state_put(x);
 
 		/* All xfrm_state objects are created by xfrm_state_alloc.
 		 * The xfrm_state_alloc call gives a reference, and that
@@ -676,17 +665,13 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		if (km_query(x, tmpl, pol) == 0) {
 			x->km.state = XFRM_STATE_ACQ;
 			hlist_add_head(&x->bydst, xfrm_state_bydst+h);
-			xfrm_state_hold(x);
 			h = xfrm_src_hash(saddr, family);
 			hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
-			xfrm_state_hold(x);
 			if (x->id.spi) {
 				h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto, family);
 				hlist_add_head(&x->byspi, xfrm_state_byspi+h);
-				xfrm_state_hold(x);
 			}
 			x->lft.hard_add_expires_seconds = XFRM_ACQ_EXPIRES;
-			xfrm_state_hold(x);
 			x->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
 			add_timer(&x->timer);
 		} else {
@@ -713,26 +698,20 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 
 	h = xfrm_dst_hash(&x->id.daddr, x->props.reqid, x->props.family);
 	hlist_add_head(&x->bydst, xfrm_state_bydst+h);
-	xfrm_state_hold(x);
 
 	h = xfrm_src_hash(&x->props.saddr, x->props.family);
 	hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
-	xfrm_state_hold(x);
 
 	if (xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY)) {
 		h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto,
 				  x->props.family);
 
 		hlist_add_head(&x->byspi, xfrm_state_byspi+h);
-		xfrm_state_hold(x);
 	}
 
-	if (!mod_timer(&x->timer, jiffies + HZ))
-		xfrm_state_hold(x);
-
-	if (x->replay_maxage &&
-	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
-		xfrm_state_hold(x);
+	mod_timer(&x->timer, jiffies + HZ);
+	if (x->replay_maxage)
+		mod_timer(&x->rtimer, jiffies + x->replay_maxage);
 
 	wake_up(&km_waitq);
 
@@ -844,10 +823,8 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		xfrm_state_hold(x);
 		x->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
 		add_timer(&x->timer);
-		xfrm_state_hold(x);
 		hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 		h = xfrm_src_hash(saddr, family);
-		xfrm_state_hold(x);
 		hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 		wake_up(&km_waitq);
 	}
@@ -955,8 +932,7 @@ out:
 		memcpy(&x1->lft, &x->lft, sizeof(x1->lft));
 		x1->km.dying = 0;
 
-		if (!mod_timer(&x1->timer, jiffies + HZ))
-			xfrm_state_hold(x1);
+		mod_timer(&x1->timer, jiffies + HZ);
 		if (x1->curlft.use_time)
 			xfrm_state_check_expire(x1);
 
@@ -981,8 +957,7 @@ int xfrm_state_check_expire(struct xfrm_state *x)
 	if (x->curlft.bytes >= x->lft.hard_byte_limit ||
 	    x->curlft.packets >= x->lft.hard_packet_limit) {
 		x->km.state = XFRM_STATE_EXPIRED;
-		if (!mod_timer(&x->timer, jiffies))
-			xfrm_state_hold(x);
+		mod_timer(&x->timer, jiffies);
 		return -EINVAL;
 	}
 
@@ -1177,7 +1152,6 @@ xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi)
 		spin_lock_bh(&xfrm_state_lock);
 		h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto, x->props.family);
 		hlist_add_head(&x->byspi, xfrm_state_byspi+h);
-		xfrm_state_hold(x);
 		spin_unlock_bh(&xfrm_state_lock);
 		wake_up(&km_waitq);
 	}
@@ -1264,10 +1238,8 @@ void xfrm_replay_notify(struct xfrm_state *x, int event)
 	km_state_notify(x, &c);
 
 	if (x->replay_maxage &&
-	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage)) {
-		xfrm_state_hold(x);
+	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
 		x->xflags &= ~XFRM_TIME_DEFER;
-	}
 }
 EXPORT_SYMBOL(xfrm_replay_notify);
 
@@ -1285,7 +1257,6 @@ static void xfrm_replay_timer_handler(unsigned long data)
 	}
 
 	spin_unlock(&x->lock);
-	xfrm_state_put(x);
 }
 
 int xfrm_replay_check(struct xfrm_state *x, u32 seq)
