@@ -223,12 +223,7 @@ static void pseries_lpar_enable_pmcs(void)
 }
 
 #ifdef CONFIG_KEXEC
-static void pseries_kexec_cpu_down_mpic(int crash_shutdown, int secondary)
-{
-	mpic_teardown_this_cpu(secondary);
-}
-
-static void pseries_kexec_cpu_down_xics(int crash_shutdown, int secondary)
+static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 {
 	/* Don't risk a hypervisor call if we're crashing */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR) && !crash_shutdown) {
@@ -248,6 +243,17 @@ static void pseries_kexec_cpu_down_xics(int crash_shutdown, int secondary)
 					hard_smp_processor_id());
 		}
 	}
+}
+
+static void pseries_kexec_cpu_down_mpic(int crash_shutdown, int secondary)
+{
+	pseries_kexec_cpu_down(crash_shutdown, secondary);
+	mpic_teardown_this_cpu(secondary);
+}
+
+static void pseries_kexec_cpu_down_xics(int crash_shutdown, int secondary)
+{
+	pseries_kexec_cpu_down(crash_shutdown, secondary);
 	xics_teardown_cpu(secondary);
 }
 #endif /* CONFIG_KEXEC */
