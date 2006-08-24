@@ -1332,17 +1332,10 @@ restart:
 		break;
 	}
 
-	if (!rt) {
-		if (rt6_need_strict(&fl->fl6_dst)) {
-			while ((fn = fn->parent) != NULL) {
-				if (fn->fn_flags & RTN_ROOT)
-					break;
-				if (fn->fn_flags & RTN_RTINFO)
-					goto restart;
-			}
-		}
+	if (!rt)
 		rt = &ip6_null_entry;
-	}
+	BACKTRACK(&fl->fl6_src);
+out:
 	dst_hold(&rt->u.dst);
 
 	read_unlock_bh(&table->tb6_lock);
