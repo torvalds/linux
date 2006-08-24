@@ -17,5 +17,5 @@ obj-$(CONFIG_SATA_ULI)		+= sata_uli.o
 obj-$(CONFIG_SATA_MV)		+= sata_mv.o
 obj-$(CONFIG_PDC_ADMA)		+= pdc_adma.o
 
-libata-objs	:= libata-core.o libata-scsi.o libata-bmdma.o libata-eh.o
+libata-objs	:= libata-core.o libata-scsi.o libata-sff.o libata-eh.o
 
