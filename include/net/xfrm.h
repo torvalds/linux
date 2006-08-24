@@ -134,6 +134,9 @@ struct xfrm_state
 	/* Data for encapsulator */
 	struct xfrm_encap_tmpl	*encap;
 
+	/* Data for care-of address */
+	xfrm_address_t	*coaddr;
+
 	/* IPComp needs an IPIP tunnel for handling uncompressed packets */
 	struct xfrm_state	*tunnel;
 

@@ -187,11 +187,14 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 		goto out;
 	if ((err = verify_sec_ctx_len(xfrma)))
 		goto out;
+	if ((err = verify_one_addr(xfrma, XFRMA_COADDR, NULL)))
+		goto out;
 
 	err = -EINVAL;
 	switch (p->mode) {
 	case XFRM_MODE_TRANSPORT:
 	case XFRM_MODE_TUNNEL:
+	case XFRM_MODE_ROUTEOPTIMIZATION:
 		break;
 
 	default:
@@ -274,6 +277,24 @@ static int attach_sec_ctx(struct xfrm_state *x, struct rtattr *u_arg)
 
 	uctx = RTA_DATA(u_arg);
 	return security_xfrm_state_alloc(x, uctx);
+}
+
+static int attach_one_addr(xfrm_address_t **addrpp, struct rtattr *u_arg)
+{
+	struct rtattr *rta = u_arg;
+	xfrm_address_t *p, *uaddrp;
+
+	if (!rta)
+		return 0;
+
+	uaddrp = RTA_DATA(rta);
+	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	memcpy(p, uaddrp, sizeof(*p));
+	*addrpp = p;
+	return 0;
 }
 
 static void copy_from_user_state(struct xfrm_state *x, struct xfrm_usersa_info *p)
@@ -365,7 +386,8 @@ static struct xfrm_state *xfrm_state_construct(struct xfrm_usersa_info *p,
 		goto error;
 	if ((err = attach_encap_tmpl(&x->encap, xfrma[XFRMA_ENCAP-1])))
 		goto error;
-
+	if ((err = attach_one_addr(&x->coaddr, xfrma[XFRMA_COADDR-1])))
+		goto error;
 	err = xfrm_init_state(x);
 	if (err)
 		goto error;
@@ -569,6 +591,10 @@ static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
 		uctx->ctx_len = x->security->ctx_len;
 		memcpy(uctx + 1, x->security->ctx_str, x->security->ctx_len);
 	}
+
+	if (x->coaddr)
+		RTA_PUT(skb, XFRMA_COADDR, sizeof(*x->coaddr), x->coaddr);
+
 	nlh->nlmsg_len = skb->tail - b;
 out:
 	sp->this_idx++;

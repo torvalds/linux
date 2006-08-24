@@ -78,6 +78,7 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 	kfree(x->ealg);
 	kfree(x->calg);
 	kfree(x->encap);
+	kfree(x->coaddr);
 	if (x->mode)
 		xfrm_put_mode(x->mode);
 	if (x->type) {
@@ -603,6 +604,11 @@ out:
 	if (likely(x1->km.state == XFRM_STATE_VALID)) {
 		if (x->encap && x1->encap)
 			memcpy(x1->encap, x->encap, sizeof(*x1->encap));
+		if (x->coaddr && x1->coaddr) {
+			memcpy(x1->coaddr, x->coaddr, sizeof(*x1->coaddr));
+		}
+		if (!use_spi && memcmp(&x1->sel, &x->sel, sizeof(x1->sel)))
+			memcpy(&x1->sel, &x->sel, sizeof(x1->sel));
 		memcpy(&x1->lft, &x->lft, sizeof(x1->lft));
 		x1->km.dying = 0;
 
