@@ -80,6 +80,7 @@ static DEFINE_RWLOCK(fib6_walker_lock);
 #endif
 
 static void fib6_prune_clones(struct fib6_node *fn, struct rt6_info *rt);
+static struct rt6_info * fib6_find_prefix(struct fib6_node *fn);
 static struct fib6_node * fib6_repair_tree(struct fib6_node *fn);
 static int fib6_walk(struct fib6_walker_t *w);
 static int fib6_walk_continue(struct fib6_walker_t *w);
@@ -697,7 +698,7 @@ void fib6_force_start_gc(void)
 
 int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
 {
-	struct fib6_node *fn;
+	struct fib6_node *fn, *pn = NULL;
 	int err = -ENOMEM;
 
 	fn = fib6_add_1(root, &rt->rt6i_dst.addr, sizeof(struct in6_addr),
@@ -705,6 +706,8 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
 
 	if (fn == NULL)
 		goto out;
+
+	pn = fn;
 
 #ifdef CONFIG_IPV6_SUBTREES
 	if (rt->rt6i_src.plen) {
@@ -751,10 +754,6 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
 			/* Now link new subtree to main tree */
 			sfn->parent = fn;
 			fn->subtree = sfn;
-			if (fn->leaf == NULL) {
-				fn->leaf = rt;
-				atomic_inc(&rt->rt6i_ref);
-			}
 		} else {
 			sn = fib6_add_1(fn->subtree, &rt->rt6i_src.addr,
 					sizeof(struct in6_addr), rt->rt6i_src.plen,
@@ -764,6 +763,10 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
 				goto st_failure;
 		}
 
+		if (fn->leaf == NULL) {
+			fn->leaf = rt;
+			atomic_inc(&rt->rt6i_ref);
+		}
 		fn = sn;
 	}
 #endif
@@ -777,8 +780,25 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
 	}
 
 out:
-	if (err)
+	if (err) {
+#ifdef CONFIG_IPV6_SUBTREES
+		/*
+		 * If fib6_add_1 has cleared the old leaf pointer in the
+		 * super-tree leaf node we have to find a new one for it.
+		 */
+		if (pn != fn && !pn->leaf && !(pn->fn_flags & RTN_RTINFO)) {
+			pn->leaf = fib6_find_prefix(pn);
+#if RT6_DEBUG >= 2
+			if (!pn->leaf) {
+				BUG_TRAP(pn->leaf != NULL);
+				pn->leaf = &ip6_null_entry;
+			}
+#endif
+			atomic_inc(&pn->leaf->rt6i_ref);
+		}
+#endif
 		dst_free(&rt->u.dst);
+	}
 	return err;
 
 #ifdef CONFIG_IPV6_SUBTREES
