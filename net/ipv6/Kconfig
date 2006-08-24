@@ -127,6 +127,13 @@ config INET6_XFRM_MODE_TUNNEL
 
 	  If unsure, say Y.
 
+config INET6_XFRM_MODE_ROUTEOPTIMIZATION
+	tristate "IPv6: MIPv6 route optimization mode (EXPERIMENTAL)"
+	depends on IPV6 && EXPERIMENTAL
+	select XFRM
+	---help---
+	  Support for MIPv6 route optimization mode.
+
 config IPV6_TUNNEL
 	tristate "IPv6: IPv6-in-IPv6 tunnel"
 	select INET6_TUNNEL
