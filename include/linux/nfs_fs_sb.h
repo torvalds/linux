@@ -19,6 +19,7 @@ struct nfs_client {
 #define NFS_CS_RPCIOD		0		/* - rpciod started */
 #define NFS_CS_CALLBACK		1		/* - callback started */
 #define NFS_CS_IDMAP		2		/* - idmap started */
+#define NFS_CS_RENEWD		3		/* - renewd started */
 	struct sockaddr_in	cl_addr;	/* server identifier */
 	char *			cl_hostname;	/* hostname of server */
 	struct list_head	cl_share_link;	/* link in global client list */

@@ -121,6 +121,7 @@ nfs4_schedule_state_renewal(struct nfs_client *clp)
 			__FUNCTION__, (timeout + HZ - 1) / HZ);
 	cancel_delayed_work(&clp->cl_renewd);
 	schedule_delayed_work(&clp->cl_renewd, timeout);
+	set_bit(NFS_CS_RENEWD, &clp->cl_res_state);
 	spin_unlock(&clp->cl_lock);
 }
 

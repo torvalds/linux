@@ -164,6 +164,26 @@ error_0:
 	return NULL;
 }
 
+static void nfs4_shutdown_client(struct nfs_client *clp)
+{
+#ifdef CONFIG_NFS_V4
+	if (__test_and_clear_bit(NFS_CS_RENEWD, &clp->cl_res_state))
+		nfs4_kill_renewd(clp);
+	while (!list_empty(&clp->cl_unused)) {
+		struct nfs4_state_owner *sp;
+
+		sp = list_entry(clp->cl_unused.next,
+				struct nfs4_state_owner,
+				so_list);
+		list_del(&sp->so_list);
+		kfree(sp);
+	}
+	BUG_ON(!list_empty(&clp->cl_state_owners));
+	if (__test_and_clear_bit(NFS_CS_IDMAP, &clp->cl_res_state))
+		nfs_idmap_delete(clp);
+#endif
+}
+
 /*
  * Destroy a shared client record
  */
@@ -171,21 +191,7 @@ static void nfs_free_client(struct nfs_client *clp)
 {
 	dprintk("--> nfs_free_client(%d)\n", clp->cl_nfsversion);
 
-#ifdef CONFIG_NFS_V4
-	if (__test_and_clear_bit(NFS_CS_IDMAP, &clp->cl_res_state)) {
-		while (!list_empty(&clp->cl_unused)) {
-			struct nfs4_state_owner *sp;
-
-			sp = list_entry(clp->cl_unused.next,
-					struct nfs4_state_owner,
-					so_list);
-			list_del(&sp->so_list);
-			kfree(sp);
-		}
-		BUG_ON(!list_empty(&clp->cl_state_owners));
-		nfs_idmap_delete(clp);
-	}
-#endif
+	nfs4_shutdown_client(clp);
 
 	/* -EIO all pending I/O */
 	if (!IS_ERR(clp->cl_rpcclient))

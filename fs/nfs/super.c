@@ -883,13 +883,15 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 		goto out_free;
 	}
 
+	if (s->s_fs_info != server) {
+		nfs_free_server(server);
+		server = NULL;
+	}
+
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		s->s_flags = flags;
-
 		nfs4_fill_super(s);
-	} else {
-		nfs_free_server(server);
 	}
 
 	mntroot = nfs4_get_root(s, &mntfh);
