@@ -94,9 +94,9 @@ extern struct mutex xfrm_cfg_mutex;
 struct xfrm_state
 {
 	/* Note: bydst is re-used during gc */
-	struct list_head	bydst;
-	struct list_head	bysrc;
-	struct list_head	byspi;
+	struct hlist_node	bydst;
+	struct hlist_node	bysrc;
+	struct hlist_node	byspi;
 
 	atomic_t		refcnt;
 	spinlock_t		lock;

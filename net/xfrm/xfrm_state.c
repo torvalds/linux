@@ -46,9 +46,9 @@ static DEFINE_SPINLOCK(xfrm_state_lock);
  * Main use is finding SA after policy selected tunnel or transport mode.
  * Also, it can be used by ah/esp icmp error handler to find offending SA.
  */
-static struct list_head xfrm_state_bydst[XFRM_DST_HSIZE];
-static struct list_head xfrm_state_bysrc[XFRM_DST_HSIZE];
-static struct list_head xfrm_state_byspi[XFRM_DST_HSIZE];
+static struct hlist_head xfrm_state_bydst[XFRM_DST_HSIZE];
+static struct hlist_head xfrm_state_bysrc[XFRM_DST_HSIZE];
+static struct hlist_head xfrm_state_byspi[XFRM_DST_HSIZE];
 
 static __inline__
 unsigned __xfrm4_dst_hash(xfrm_address_t *addr)
@@ -141,7 +141,7 @@ static DEFINE_RWLOCK(xfrm_state_afinfo_lock);
 static struct xfrm_state_afinfo *xfrm_state_afinfo[NPROTO];
 
 static struct work_struct xfrm_state_gc_work;
-static struct list_head xfrm_state_gc_list = LIST_HEAD_INIT(xfrm_state_gc_list);
+static HLIST_HEAD(xfrm_state_gc_list);
 static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 
 static int xfrm_state_gc_flush_bundles;
@@ -178,8 +178,8 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 static void xfrm_state_gc_task(void *data)
 {
 	struct xfrm_state *x;
-	struct list_head *entry, *tmp;
-	struct list_head gc_list = LIST_HEAD_INIT(gc_list);
+	struct hlist_node *entry, *tmp;
+	struct hlist_head gc_list;
 
 	if (xfrm_state_gc_flush_bundles) {
 		xfrm_state_gc_flush_bundles = 0;
@@ -187,13 +187,13 @@ static void xfrm_state_gc_task(void *data)
 	}
 
 	spin_lock_bh(&xfrm_state_gc_lock);
-	list_splice_init(&xfrm_state_gc_list, &gc_list);
+	gc_list.first = xfrm_state_gc_list.first;
+	INIT_HLIST_HEAD(&xfrm_state_gc_list);
 	spin_unlock_bh(&xfrm_state_gc_lock);
 
-	list_for_each_safe(entry, tmp, &gc_list) {
-		x = list_entry(entry, struct xfrm_state, bydst);
+	hlist_for_each_entry_safe(x, entry, tmp, &gc_list, bydst)
 		xfrm_state_gc_destroy(x);
-	}
+
 	wake_up(&km_waitq);
 }
 
@@ -287,9 +287,9 @@ struct xfrm_state *xfrm_state_alloc(void)
 	if (x) {
 		atomic_set(&x->refcnt, 1);
 		atomic_set(&x->tunnel_users, 0);
-		INIT_LIST_HEAD(&x->bydst);
-		INIT_LIST_HEAD(&x->bysrc);
-		INIT_LIST_HEAD(&x->byspi);
+		INIT_HLIST_NODE(&x->bydst);
+		INIT_HLIST_NODE(&x->bysrc);
+		INIT_HLIST_NODE(&x->byspi);
 		init_timer(&x->timer);
 		x->timer.function = xfrm_timer_handler;
 		x->timer.data	  = (unsigned long)x;
@@ -314,7 +314,7 @@ void __xfrm_state_destroy(struct xfrm_state *x)
 	BUG_TRAP(x->km.state == XFRM_STATE_DEAD);
 
 	spin_lock_bh(&xfrm_state_gc_lock);
-	list_add(&x->bydst, &xfrm_state_gc_list);
+	hlist_add_head(&x->bydst, &xfrm_state_gc_list);
 	spin_unlock_bh(&xfrm_state_gc_lock);
 	schedule_work(&xfrm_state_gc_work);
 }
@@ -327,12 +327,12 @@ int __xfrm_state_delete(struct xfrm_state *x)
 	if (x->km.state != XFRM_STATE_DEAD) {
 		x->km.state = XFRM_STATE_DEAD;
 		spin_lock(&xfrm_state_lock);
-		list_del(&x->bydst);
+		hlist_del(&x->bydst);
 		__xfrm_state_put(x);
-		list_del(&x->bysrc);
+		hlist_del(&x->bysrc);
 		__xfrm_state_put(x);
 		if (x->id.spi) {
-			list_del(&x->byspi);
+			hlist_del(&x->byspi);
 			__xfrm_state_put(x);
 		}
 		spin_unlock(&xfrm_state_lock);
@@ -378,12 +378,13 @@ EXPORT_SYMBOL(xfrm_state_delete);
 void xfrm_state_flush(u8 proto)
 {
 	int i;
-	struct xfrm_state *x;
 
 	spin_lock_bh(&xfrm_state_lock);
 	for (i = 0; i < XFRM_DST_HSIZE; i++) {
+		struct hlist_node *entry;
+		struct xfrm_state *x;
 restart:
-		list_for_each_entry(x, xfrm_state_bydst+i, bydst) {
+		hlist_for_each_entry(x, entry, xfrm_state_bydst+i, bydst) {
 			if (!xfrm_state_kern(x) &&
 			    xfrm_id_proto_match(x->id.proto, proto)) {
 				xfrm_state_hold(x);
@@ -420,8 +421,9 @@ static struct xfrm_state *__xfrm_state_lookup(xfrm_address_t *daddr, u32 spi, u8
 {
 	unsigned int h = xfrm_spi_hash(daddr, spi, proto, family);
 	struct xfrm_state *x;
+	struct hlist_node *entry;
 
-	list_for_each_entry(x, xfrm_state_byspi+h, byspi) {
+	hlist_for_each_entry(x, entry, xfrm_state_byspi+h, byspi) {
 		if (x->props.family != family ||
 		    x->id.spi       != spi ||
 		    x->id.proto     != proto)
@@ -451,8 +453,9 @@ static struct xfrm_state *__xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm
 {
 	unsigned int h = xfrm_src_hash(saddr, family);
 	struct xfrm_state *x;
+	struct hlist_node *entry;
 
-	list_for_each_entry(x, xfrm_state_bysrc+h, bysrc) {
+	hlist_for_each_entry(x, entry, xfrm_state_bysrc+h, bysrc) {
 		if (x->props.family != family ||
 		    x->id.proto     != proto)
 			continue;
@@ -499,14 +502,15 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		struct xfrm_policy *pol, int *err,
 		unsigned short family)
 {
-	unsigned h = xfrm_dst_hash(daddr, family);
+	unsigned int h = xfrm_dst_hash(daddr, family);
+	struct hlist_node *entry;
 	struct xfrm_state *x, *x0;
 	int acquire_in_progress = 0;
 	int error = 0;
 	struct xfrm_state *best = NULL;
 	
 	spin_lock_bh(&xfrm_state_lock);
-	list_for_each_entry(x, xfrm_state_bydst+h, bydst) {
+	hlist_for_each_entry(x, entry, xfrm_state_bydst+h, bydst) {
 		if (x->props.family == family &&
 		    x->props.reqid == tmpl->reqid &&
 		    !(x->props.flags & XFRM_STATE_WILDRECV) &&
@@ -575,13 +579,14 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 
 		if (km_query(x, tmpl, pol) == 0) {
 			x->km.state = XFRM_STATE_ACQ;
-			list_add_tail(&x->bydst, xfrm_state_bydst+h);
+			hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 			xfrm_state_hold(x);
-			list_add_tail(&x->bysrc, xfrm_state_bysrc+h);
+			h = xfrm_src_hash(saddr, family);
+			hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 			xfrm_state_hold(x);
 			if (x->id.spi) {
 				h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto, family);
-				list_add(&x->byspi, xfrm_state_byspi+h);
+				hlist_add_head(&x->byspi, xfrm_state_byspi+h);
 				xfrm_state_hold(x);
 			}
 			x->lft.hard_add_expires_seconds = XFRM_ACQ_EXPIRES;
@@ -608,19 +613,19 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 {
 	unsigned h = xfrm_dst_hash(&x->id.daddr, x->props.family);
 
-	list_add(&x->bydst, xfrm_state_bydst+h);
+	hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 	xfrm_state_hold(x);
 
 	h = xfrm_src_hash(&x->props.saddr, x->props.family);
 
-	list_add(&x->bysrc, xfrm_state_bysrc+h);
+	hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 	xfrm_state_hold(x);
 
 	if (xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY)) {
 		h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto,
 				  x->props.family);
 
-		list_add(&x->byspi, xfrm_state_byspi+h);
+		hlist_add_head(&x->byspi, xfrm_state_byspi+h);
 		xfrm_state_hold(x);
 	}
 
@@ -648,9 +653,10 @@ EXPORT_SYMBOL(xfrm_state_insert);
 static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 reqid, u8 proto, xfrm_address_t *daddr, xfrm_address_t *saddr, int create)
 {
 	unsigned int h = xfrm_dst_hash(daddr, family);
+	struct hlist_node *entry;
 	struct xfrm_state *x;
 
-	list_for_each_entry(x, xfrm_state_bydst+h, bydst) {
+	hlist_for_each_entry(x, entry, xfrm_state_bydst+h, bydst) {
 		if (x->props.reqid  != reqid ||
 		    x->props.mode   != mode ||
 		    x->props.family != family ||
@@ -717,10 +723,10 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		x->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
 		add_timer(&x->timer);
 		xfrm_state_hold(x);
-		list_add_tail(&x->bydst, xfrm_state_bydst+h);
+		hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 		h = xfrm_src_hash(saddr, family);
 		xfrm_state_hold(x);
-		list_add_tail(&x->bysrc, xfrm_state_bysrc+h);
+		hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 		wake_up(&km_waitq);
 	}
 
@@ -977,11 +983,14 @@ EXPORT_SYMBOL(xfrm_state_sort);
 static struct xfrm_state *__xfrm_find_acq_byseq(u32 seq)
 {
 	int i;
-	struct xfrm_state *x;
 
 	for (i = 0; i < XFRM_DST_HSIZE; i++) {
-		list_for_each_entry(x, xfrm_state_bydst+i, bydst) {
-			if (x->km.seq == seq && x->km.state == XFRM_STATE_ACQ) {
+		struct hlist_node *entry;
+		struct xfrm_state *x;
+
+		hlist_for_each_entry(x, entry, xfrm_state_bydst+i, bydst) {
+			if (x->km.seq == seq &&
+			    x->km.state == XFRM_STATE_ACQ) {
 				xfrm_state_hold(x);
 				return x;
 			}
@@ -1047,7 +1056,7 @@ xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi)
 	if (x->id.spi) {
 		spin_lock_bh(&xfrm_state_lock);
 		h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto, x->props.family);
-		list_add(&x->byspi, xfrm_state_byspi+h);
+		hlist_add_head(&x->byspi, xfrm_state_byspi+h);
 		xfrm_state_hold(x);
 		spin_unlock_bh(&xfrm_state_lock);
 		wake_up(&km_waitq);
@@ -1060,12 +1069,13 @@ int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*),
 {
 	int i;
 	struct xfrm_state *x;
+	struct hlist_node *entry;
 	int count = 0;
 	int err = 0;
 
 	spin_lock_bh(&xfrm_state_lock);
 	for (i = 0; i < XFRM_DST_HSIZE; i++) {
-		list_for_each_entry(x, xfrm_state_bydst+i, bydst) {
+		hlist_for_each_entry(x, entry, xfrm_state_bydst+i, bydst) {
 			if (xfrm_id_proto_match(x->id.proto, proto))
 				count++;
 		}
@@ -1076,7 +1086,7 @@ int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*),
 	}
 
 	for (i = 0; i < XFRM_DST_HSIZE; i++) {
-		list_for_each_entry(x, xfrm_state_bydst+i, bydst) {
+		hlist_for_each_entry(x, entry, xfrm_state_bydst+i, bydst) {
 			if (!xfrm_id_proto_match(x->id.proto, proto))
 				continue;
 			err = func(x, --count, data);
@@ -1524,9 +1534,9 @@ void __init xfrm_state_init(void)
 	int i;
 
 	for (i=0; i<XFRM_DST_HSIZE; i++) {
-		INIT_LIST_HEAD(&xfrm_state_bydst[i]);
-		INIT_LIST_HEAD(&xfrm_state_bysrc[i]);
-		INIT_LIST_HEAD(&xfrm_state_byspi[i]);
+		INIT_HLIST_HEAD(&xfrm_state_bydst[i]);
+		INIT_HLIST_HEAD(&xfrm_state_bysrc[i]);
+		INIT_HLIST_HEAD(&xfrm_state_byspi[i]);
 	}
 	INIT_WORK(&xfrm_state_gc_work, xfrm_state_gc_task, NULL);
 }
