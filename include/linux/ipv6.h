@@ -29,6 +29,7 @@ struct in6_ifreq {
 
 #define IPV6_SRCRT_STRICT	0x01	/* this hop must be a neighbor	*/
 #define IPV6_SRCRT_TYPE_0	0	/* IPv6 type 0 Routing Header	*/
+#define IPV6_SRCRT_TYPE_2	2	/* IPv6 type 2 Routing Header	*/
 
 /*
  *	routing header
@@ -71,6 +72,18 @@ struct rt0_hdr {
 	struct in6_addr		addr[0];
 
 #define rt0_type		rt_hdr.type
+};
+
+/*
+ *	routing header type 2
+ */
+
+struct rt2_hdr {
+	struct ipv6_rt_hdr	rt_hdr;
+	__u32			reserved;
+	struct in6_addr		addr;
+
+#define rt2_type		rt_hdr.type
 };
 
 struct ipv6_auth_hdr {
