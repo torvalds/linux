@@ -14,6 +14,16 @@ config XFRM_USER
 
 	  If unsure, say Y.
 
+config XFRM_SUB_POLICY
+	bool "Transformation sub policy support (EXPERIMENTAL)"
+	depends on XFRM && EXPERIMENTAL
+	---help---
+	  Support sub policy for developers. By using sub policy with main
+	  one, two policies can be applied to the same packet at once.
+	  Policy which lives shorter time in kernel should be a sub.
+
+	  If unsure, say N.
+
 config NET_KEY
 	tristate "PF_KEY sockets"
 	select XFRM
