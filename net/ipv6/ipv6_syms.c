@@ -31,6 +31,7 @@ EXPORT_SYMBOL(ipv6_chk_addr);
 EXPORT_SYMBOL(in6_dev_finish_destroy);
 #ifdef CONFIG_XFRM
 EXPORT_SYMBOL(xfrm6_rcv);
+EXPORT_SYMBOL(xfrm6_input_addr);
 EXPORT_SYMBOL(xfrm6_find_1stfragopt);
 #endif
 EXPORT_SYMBOL(rt6_lookup);

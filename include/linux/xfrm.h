@@ -256,6 +256,7 @@ struct xfrm_usersa_info {
 #define XFRM_STATE_NOECN	1
 #define XFRM_STATE_DECAP_DSCP	2
 #define XFRM_STATE_NOPMTUDISC	4
+#define XFRM_STATE_WILDRECV	8
 };
 
 struct xfrm_usersa_id {
