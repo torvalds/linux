@@ -104,6 +104,13 @@ struct xfrm_stats {
 
 enum
 {
+	XFRM_POLICY_TYPE_MAIN	= 0,
+	XFRM_POLICY_TYPE_SUB	= 1,
+	XFRM_POLICY_TYPE_MAX	= 2
+};
+
+enum
+{
 	XFRM_POLICY_IN	= 0,
 	XFRM_POLICY_OUT	= 1,
 	XFRM_POLICY_FWD	= 2,

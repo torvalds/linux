@@ -32,6 +32,24 @@ static DEFINE_RWLOCK(xfrm_policy_lock);
 
 struct xfrm_policy *xfrm_policy_list[XFRM_POLICY_MAX*2];
 EXPORT_SYMBOL(xfrm_policy_list);
+#ifdef CONFIG_XFRM_SUB_POLICY
+struct xfrm_policy *xfrm_policy_list_sub[XFRM_POLICY_MAX*2];
+EXPORT_SYMBOL(xfrm_policy_list_sub);
+
+#define XFRM_POLICY_LISTS(type) \
+	((type == XFRM_POLICY_TYPE_SUB) ? xfrm_policy_list_sub : \
+	 xfrm_policy_list)
+#define XFRM_POLICY_LISTHEAD(type, dir) \
+	((type == XFRM_POLICY_TYPE_SUB) ? xfrm_policy_list_sub[dir] : \
+	 xfrm_policy_list[dir])
+#define XFRM_POLICY_LISTHEADP(type, dir) \
+	((type == XFRM_POLICY_TYPE_SUB) ? &xfrm_policy_list_sub[dir] : \
+	 &xfrm_policy_list[dir])
+#else
+#define XFRM_POLICY_LISTS(type)              xfrm_policy_list
+#define XFRM_POLICY_LISTHEAD(type, dif)      xfrm_policy_list[dir]
+#define XFRM_POLICY_LISTHEADP(type, dif)     &xfrm_policy_list[dir]
+#endif
 
 static DEFINE_RWLOCK(xfrm_policy_afinfo_lock);
 static struct xfrm_policy_afinfo *xfrm_policy_afinfo[NPROTO];
@@ -397,7 +415,7 @@ static void xfrm_policy_kill(struct xfrm_policy *policy)
 
 /* Generate new index... KAME seems to generate them ordered by cost
  * of an absolute inpredictability of ordering of rules. This will not pass. */
-static u32 xfrm_gen_index(int dir)
+static u32 xfrm_gen_index(u8 type, int dir)
 {
 	u32 idx;
 	struct xfrm_policy *p;
@@ -408,7 +426,7 @@ static u32 xfrm_gen_index(int dir)
 		idx_generator += 8;
 		if (idx == 0)
 			idx = 8;
-		for (p = xfrm_policy_list[dir]; p; p = p->next) {
+		for (p = XFRM_POLICY_LISTHEAD(type, dir); p; p = p->next) {
 			if (p->index == idx)
 				break;
 		}
@@ -425,7 +443,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	struct dst_entry *gc_list;
 
 	write_lock_bh(&xfrm_policy_lock);
-	for (p = &xfrm_policy_list[dir]; (pol=*p)!=NULL;) {
+	for (p = XFRM_POLICY_LISTHEADP(policy->type, dir); (pol=*p)!=NULL;) {
 		if (!delpol && memcmp(&policy->selector, &pol->selector, sizeof(pol->selector)) == 0 &&
 		    xfrm_sec_ctx_match(pol->security, policy->security)) {
 			if (excl) {
@@ -452,7 +470,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	policy->next = *p;
 	*p = policy;
 	atomic_inc(&flow_cache_genid);
-	policy->index = delpol ? delpol->index : xfrm_gen_index(dir);
+	policy->index = delpol ? delpol->index : xfrm_gen_index(policy->type, dir);
 	policy->curlft.add_time = (unsigned long)xtime.tv_sec;
 	policy->curlft.use_time = 0;
 	if (!mod_timer(&policy->timer, jiffies + HZ))
@@ -493,13 +511,14 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 }
 EXPORT_SYMBOL(xfrm_policy_insert);
 
-struct xfrm_policy *xfrm_policy_bysel_ctx(int dir, struct xfrm_selector *sel,
+struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
+					  struct xfrm_selector *sel,
 					  struct xfrm_sec_ctx *ctx, int delete)
 {
 	struct xfrm_policy *pol, **p;
 
 	write_lock_bh(&xfrm_policy_lock);
-	for (p = &xfrm_policy_list[dir]; (pol=*p)!=NULL; p = &pol->next) {
+	for (p = XFRM_POLICY_LISTHEADP(type, dir); (pol=*p)!=NULL; p = &pol->next) {
 		if ((memcmp(sel, &pol->selector, sizeof(*sel)) == 0) &&
 		    (xfrm_sec_ctx_match(ctx, pol->security))) {
 			xfrm_pol_hold(pol);
@@ -518,12 +537,12 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(int dir, struct xfrm_selector *sel,
 }
 EXPORT_SYMBOL(xfrm_policy_bysel_ctx);
 
-struct xfrm_policy *xfrm_policy_byid(int dir, u32 id, int delete)
+struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete)
 {
 	struct xfrm_policy *pol, **p;
 
 	write_lock_bh(&xfrm_policy_lock);
-	for (p = &xfrm_policy_list[dir]; (pol=*p)!=NULL; p = &pol->next) {
+	for (p = XFRM_POLICY_LISTHEADP(type, dir); (pol=*p)!=NULL; p = &pol->next) {
 		if (pol->index == id) {
 			xfrm_pol_hold(pol);
 			if (delete)
@@ -541,15 +560,16 @@ struct xfrm_policy *xfrm_policy_byid(int dir, u32 id, int delete)
 }
 EXPORT_SYMBOL(xfrm_policy_byid);
 
-void xfrm_policy_flush(void)
+void xfrm_policy_flush(u8 type)
 {
 	struct xfrm_policy *xp;
+	struct xfrm_policy **p_list = XFRM_POLICY_LISTS(type);
 	int dir;
 
 	write_lock_bh(&xfrm_policy_lock);
 	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
-		while ((xp = xfrm_policy_list[dir]) != NULL) {
-			xfrm_policy_list[dir] = xp->next;
+		while ((xp = p_list[dir]) != NULL) {
+			p_list[dir] = xp->next;
 			write_unlock_bh(&xfrm_policy_lock);
 
 			xfrm_policy_kill(xp);
@@ -562,7 +582,7 @@ void xfrm_policy_flush(void)
 }
 EXPORT_SYMBOL(xfrm_policy_flush);
 
-int xfrm_policy_walk(int (*func)(struct xfrm_policy *, int, int, void*),
+int xfrm_policy_walk(u8 type, int (*func)(struct xfrm_policy *, int, int, void*),
 		     void *data)
 {
 	struct xfrm_policy *xp;
@@ -572,7 +592,7 @@ int xfrm_policy_walk(int (*func)(struct xfrm_policy *, int, int, void*),
 
 	read_lock_bh(&xfrm_policy_lock);
 	for (dir = 0; dir < 2*XFRM_POLICY_MAX; dir++) {
-		for (xp = xfrm_policy_list[dir]; xp; xp = xp->next)
+		for (xp = XFRM_POLICY_LISTHEAD(type, dir); xp; xp = xp->next)
 			count++;
 	}
 
@@ -582,7 +602,7 @@ int xfrm_policy_walk(int (*func)(struct xfrm_policy *, int, int, void*),
 	}
 
 	for (dir = 0; dir < 2*XFRM_POLICY_MAX; dir++) {
-		for (xp = xfrm_policy_list[dir]; xp; xp = xp->next) {
+		for (xp = XFRM_POLICY_LISTHEAD(type, dir); xp; xp = xp->next) {
 			error = func(xp, dir%XFRM_POLICY_MAX, --count, data);
 			if (error)
 				goto out;
@@ -597,13 +617,13 @@ EXPORT_SYMBOL(xfrm_policy_walk);
 
 /* Find policy to apply to this flow. */
 
-static void xfrm_policy_lookup(struct flowi *fl, u16 family, u8 dir,
-			       void **objp, atomic_t **obj_refp)
+static struct xfrm_policy *xfrm_policy_lookup_bytype(u8 type, struct flowi *fl,
+						     u16 family, u8 dir)
 {
 	struct xfrm_policy *pol;
 
 	read_lock_bh(&xfrm_policy_lock);
-	for (pol = xfrm_policy_list[dir]; pol; pol = pol->next) {
+	for (pol = XFRM_POLICY_LISTHEAD(type, dir); pol; pol = pol->next) {
 		struct xfrm_selector *sel = &pol->selector;
 		int match;
 
@@ -620,6 +640,25 @@ static void xfrm_policy_lookup(struct flowi *fl, u16 family, u8 dir,
 		}
 	}
 	read_unlock_bh(&xfrm_policy_lock);
+
+	return pol;
+}
+
+static void xfrm_policy_lookup(struct flowi *fl, u16 family, u8 dir,
+			       void **objp, atomic_t **obj_refp)
+{
+	struct xfrm_policy *pol;
+
+#ifdef CONFIG_XFRM_SUB_POLICY
+	pol = xfrm_policy_lookup_bytype(XFRM_POLICY_TYPE_SUB, fl, family, dir);
+	if (pol)
+		goto end;
+#endif
+	pol = xfrm_policy_lookup_bytype(XFRM_POLICY_TYPE_MAIN, fl, family, dir);
+
+#ifdef CONFIG_XFRM_SUB_POLICY
+ end:
+#endif
 	if ((*objp = (void *) pol) != NULL)
 		*obj_refp = &pol->refcnt;
 }
@@ -665,8 +704,10 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(struct sock *sk, int dir, struc
 
 static void __xfrm_policy_link(struct xfrm_policy *pol, int dir)
 {
-	pol->next = xfrm_policy_list[dir];
-	xfrm_policy_list[dir] = pol;
+	struct xfrm_policy **p_list = XFRM_POLICY_LISTS(pol->type);
+
+	pol->next = p_list[dir];
+	p_list[dir] = pol;
 	xfrm_pol_hold(pol);
 }
 
@@ -675,7 +716,7 @@ static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 {
 	struct xfrm_policy **polp;
 
-	for (polp = &xfrm_policy_list[dir];
+	for (polp = XFRM_POLICY_LISTHEADP(pol->type, dir);
 	     *polp != NULL; polp = &(*polp)->next) {
 		if (*polp == pol) {
 			*polp = pol->next;
@@ -704,12 +745,17 @@ int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol)
 {
 	struct xfrm_policy *old_pol;
 
+#ifdef CONFIG_XFRM_SUB_POLICY
+	if (pol && pol->type != XFRM_POLICY_TYPE_MAIN)
+		return -EINVAL;
+#endif
+
 	write_lock_bh(&xfrm_policy_lock);
 	old_pol = sk->sk_policy[dir];
 	sk->sk_policy[dir] = pol;
 	if (pol) {
 		pol->curlft.add_time = (unsigned long)xtime.tv_sec;
-		pol->index = xfrm_gen_index(XFRM_POLICY_MAX+dir);
+		pol->index = xfrm_gen_index(pol->type, XFRM_POLICY_MAX+dir);
 		__xfrm_policy_link(pol, XFRM_POLICY_MAX+dir);
 	}
 	if (old_pol)
@@ -738,6 +784,7 @@ static struct xfrm_policy *clone_policy(struct xfrm_policy *old, int dir)
 		newp->flags = old->flags;
 		newp->xfrm_nr = old->xfrm_nr;
 		newp->index = old->index;
+		newp->type = old->type;
 		memcpy(newp->xfrm_vec, old->xfrm_vec,
 		       newp->xfrm_nr*sizeof(struct xfrm_tmpl));
 		write_lock_bh(&xfrm_policy_lock);
@@ -764,9 +811,9 @@ int __xfrm_sk_clone_policy(struct sock *sk)
 /* Resolve list of templates for the flow, given policy. */
 
 static int
-xfrm_tmpl_resolve(struct xfrm_policy *policy, struct flowi *fl,
-		  struct xfrm_state **xfrm,
-		  unsigned short family)
+xfrm_tmpl_resolve_one(struct xfrm_policy *policy, struct flowi *fl,
+		      struct xfrm_state **xfrm,
+		      unsigned short family)
 {
 	int nx;
 	int i, error;
@@ -807,6 +854,38 @@ fail:
 	for (nx--; nx>=0; nx--)
 		xfrm_state_put(xfrm[nx]);
 	return error;
+}
+
+static int
+xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, struct flowi *fl,
+		  struct xfrm_state **xfrm,
+		  unsigned short family)
+{
+	int cnx = 0;
+	int error;
+	int ret;
+	int i;
+
+	for (i = 0; i < npols; i++) {
+		if (cnx + pols[i]->xfrm_nr >= XFRM_MAX_DEPTH) {
+			error = -ENOBUFS;
+			goto fail;
+		}
+		ret = xfrm_tmpl_resolve_one(pols[i], fl, &xfrm[cnx], family);
+		if (ret < 0) {
+			error = ret;
+			goto fail;
+		} else
+			cnx += ret;
+	}
+
+	return cnx;
+
+ fail:
+	for (cnx--; cnx>=0; cnx--)
+		xfrm_state_put(xfrm[cnx]);
+	return error;
+
 }
 
 /* Check that the bundle accepts the flow and its components are
@@ -855,6 +934,11 @@ int xfrm_lookup(struct dst_entry **dst_p, struct flowi *fl,
 		struct sock *sk, int flags)
 {
 	struct xfrm_policy *policy;
+	struct xfrm_policy *pols[XFRM_POLICY_TYPE_MAX];
+	int npols;
+	int pol_dead;
+	int xfrm_nr;
+	int pi;
 	struct xfrm_state *xfrm[XFRM_MAX_DEPTH];
 	struct dst_entry *dst, *dst_orig = *dst_p;
 	int nx = 0;
@@ -866,12 +950,18 @@ int xfrm_lookup(struct dst_entry **dst_p, struct flowi *fl,
 restart:
 	genid = atomic_read(&flow_cache_genid);
 	policy = NULL;
+	for (pi = 0; pi < ARRAY_SIZE(pols); pi++)
+		pols[pi] = NULL;
+	npols = 0;
+	pol_dead = 0;
+	xfrm_nr = 0;
+
 	if (sk && sk->sk_policy[1])
 		policy = xfrm_sk_policy_lookup(sk, XFRM_POLICY_OUT, fl);
 
 	if (!policy) {
 		/* To accelerate a bit...  */
-		if ((dst_orig->flags & DST_NOXFRM) || !xfrm_policy_list[XFRM_POLICY_OUT])
+		if ((dst_orig->flags & DST_NOXFRM) || xfrm_policy_lists_empty(XFRM_POLICY_OUT))
 			return 0;
 
 		policy = flow_cache_lookup(fl, dst_orig->ops->family,
@@ -883,6 +973,9 @@ restart:
 
 	family = dst_orig->ops->family;
 	policy->curlft.use_time = (unsigned long)xtime.tv_sec;
+	pols[0] = policy;
+	npols ++;
+	xfrm_nr += pols[0]->xfrm_nr;
 
 	switch (policy->action) {
 	case XFRM_POLICY_BLOCK:
@@ -891,11 +984,13 @@ restart:
 		goto error;
 
 	case XFRM_POLICY_ALLOW:
+#ifndef CONFIG_XFRM_SUB_POLICY
 		if (policy->xfrm_nr == 0) {
 			/* Flow passes not transformed. */
 			xfrm_pol_put(policy);
 			return 0;
 		}
+#endif
 
 		/* Try to find matching bundle.
 		 *
@@ -911,7 +1006,36 @@ restart:
 		if (dst)
 			break;
 
-		nx = xfrm_tmpl_resolve(policy, fl, xfrm, family);
+#ifdef CONFIG_XFRM_SUB_POLICY
+		if (pols[0]->type != XFRM_POLICY_TYPE_MAIN) {
+			pols[1] = xfrm_policy_lookup_bytype(XFRM_POLICY_TYPE_MAIN,
+							    fl, family,
+							    XFRM_POLICY_OUT);
+			if (pols[1]) {
+				if (pols[1]->action == XFRM_POLICY_BLOCK) {
+					err = -EPERM;
+					goto error;
+				}
+				npols ++;
+				xfrm_nr += pols[1]->xfrm_nr;
+			}
+		}
+
+		/*
+		 * Because neither flowi nor bundle information knows about
+		 * transformation template size. On more than one policy usage
+		 * we can realize whether all of them is bypass or not after
+		 * they are searched. See above not-transformed bypass
+		 * is surrounded by non-sub policy configuration, too.
+		 */
+		if (xfrm_nr == 0) {
+			/* Flow passes not transformed. */
+			xfrm_pols_put(pols, npols);
+			return 0;
+		}
+
+#endif
+		nx = xfrm_tmpl_resolve(pols, npols, fl, xfrm, family);
 
 		if (unlikely(nx<0)) {
 			err = nx;
@@ -924,7 +1048,7 @@ restart:
 				set_current_state(TASK_RUNNING);
 				remove_wait_queue(&km_waitq, &wait);
 
-				nx = xfrm_tmpl_resolve(policy, fl, xfrm, family);
+				nx = xfrm_tmpl_resolve(pols, npols, fl, xfrm, family);
 
 				if (nx == -EAGAIN && signal_pending(current)) {
 					err = -ERESTART;
@@ -932,7 +1056,7 @@ restart:
 				}
 				if (nx == -EAGAIN ||
 				    genid != atomic_read(&flow_cache_genid)) {
-					xfrm_pol_put(policy);
+					xfrm_pols_put(pols, npols);
 					goto restart;
 				}
 				err = nx;
@@ -942,7 +1066,7 @@ restart:
 		}
 		if (nx == 0) {
 			/* Flow passes not transformed. */
-			xfrm_pol_put(policy);
+			xfrm_pols_put(pols, npols);
 			return 0;
 		}
 
@@ -956,8 +1080,14 @@ restart:
 			goto error;
 		}
 
+		for (pi = 0; pi < npols; pi++) {
+			read_lock_bh(&pols[pi]->lock);
+			pol_dead |= pols[pi]->dead;
+			read_unlock_bh(&pols[pi]->lock);
+		}
+
 		write_lock_bh(&policy->lock);
-		if (unlikely(policy->dead || stale_bundle(dst))) {
+		if (unlikely(pol_dead || stale_bundle(dst))) {
 			/* Wow! While we worked on resolving, this
 			 * policy has gone. Retry. It is not paranoia,
 			 * we just cannot enlist new bundle to dead object.
@@ -977,12 +1107,12 @@ restart:
 	}
 	*dst_p = dst;
 	dst_release(dst_orig);
-	xfrm_pol_put(policy);
+ 	xfrm_pols_put(pols, npols);
 	return 0;
 
 error:
 	dst_release(dst_orig);
-	xfrm_pol_put(policy);
+	xfrm_pols_put(pols, npols);
 	*dst_p = NULL;
 	return err;
 }
@@ -1090,6 +1220,10 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 			unsigned short family)
 {
 	struct xfrm_policy *pol;
+	struct xfrm_policy *pols[XFRM_POLICY_TYPE_MAX];
+	int npols = 0;
+	int xfrm_nr;
+	int pi;
 	struct flowi fl;
 	u8 fl_dir = policy_to_flow_dir(dir);
 	int xerr_idx = -1;
@@ -1128,13 +1262,41 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 
 	pol->curlft.use_time = (unsigned long)xtime.tv_sec;
 
+	pols[0] = pol;
+	npols ++;
+#ifdef CONFIG_XFRM_SUB_POLICY
+	if (pols[0]->type != XFRM_POLICY_TYPE_MAIN) {
+		pols[1] = xfrm_policy_lookup_bytype(XFRM_POLICY_TYPE_MAIN,
+						    &fl, family,
+						    XFRM_POLICY_IN);
+		if (pols[1]) {
+			pols[1]->curlft.use_time = (unsigned long)xtime.tv_sec;
+			npols ++;
+		}
+	}
+#endif
+
 	if (pol->action == XFRM_POLICY_ALLOW) {
 		struct sec_path *sp;
 		static struct sec_path dummy;
+		struct xfrm_tmpl *tp[XFRM_MAX_DEPTH];
+		struct xfrm_tmpl **tpp = tp;
+		int ti = 0;
 		int i, k;
 
 		if ((sp = skb->sp) == NULL)
 			sp = &dummy;
+
+		for (pi = 0; pi < npols; pi++) {
+			if (pols[pi] != pol &&
+			    pols[pi]->action != XFRM_POLICY_ALLOW)
+				goto reject;
+			if (ti + pols[pi]->xfrm_nr >= XFRM_MAX_DEPTH)
+				goto reject_error;
+			for (i = 0; i < pols[pi]->xfrm_nr; i++)
+				tpp[ti++] = &pols[pi]->xfrm_vec[i];
+		}
+		xfrm_nr = ti;
 
 		/* For each tunnel xfrm, find the first matching tmpl.
 		 * For each tmpl before that, find corresponding xfrm.
@@ -1142,8 +1304,8 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 		 * some barriers, but at the moment barriers
 		 * are implied between each two transformations.
 		 */
-		for (i = pol->xfrm_nr-1, k = 0; i >= 0; i--) {
-			k = xfrm_policy_ok(pol->xfrm_vec+i, sp, k, family);
+		for (i = xfrm_nr-1, k = 0; i >= 0; i--) {
+			k = xfrm_policy_ok(tpp[i], sp, k, family);
 			if (k < 0) {
 				if (k < -1 && xerr_idxp)
 					*xerr_idxp = -(2+k);
@@ -1154,13 +1316,14 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 		if (secpath_has_nontransport(sp, k, xerr_idxp))
 			goto reject;
 
-		xfrm_pol_put(pol);
+		xfrm_pols_put(pols, npols);
 		return 1;
 	}
 
 reject:
 	xfrm_secpath_reject(xerr_idx, skb, &fl);
-	xfrm_pol_put(pol);
+reject_error:
+	xfrm_pols_put(pols, npols);
 	return 0;
 }
 EXPORT_SYMBOL(__xfrm_policy_check);
@@ -1246,6 +1409,23 @@ static void xfrm_prune_bundles(int (*func)(struct dst_entry *))
 
 	read_lock_bh(&xfrm_policy_lock);
 	for (i=0; i<2*XFRM_POLICY_MAX; i++) {
+#ifdef CONFIG_XFRM_SUB_POLICY
+		for (pol = xfrm_policy_list_sub[i]; pol; pol = pol->next) {
+			write_lock(&pol->lock);
+			dstp = &pol->bundles;
+			while ((dst=*dstp) != NULL) {
+				if (func(dst)) {
+					*dstp = dst->next;
+					dst->next = gc_list;
+					gc_list = dst;
+				} else {
+					dstp = &dst->next;
+				}
+			}
+			write_unlock(&pol->lock);
+		}
+
+#endif
 		for (pol = xfrm_policy_list[i]; pol; pol = pol->next) {
 			write_lock(&pol->lock);
 			dstp = &pol->bundles;

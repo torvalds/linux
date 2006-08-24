@@ -341,6 +341,7 @@ struct xfrm_policy
 	atomic_t		refcnt;
 	struct timer_list	timer;
 
+	u8			type;
 	u32			priority;
 	u32			index;
 	struct xfrm_selector	selector;
@@ -389,6 +390,19 @@ extern int xfrm_unregister_km(struct xfrm_mgr *km);
 
 
 extern struct xfrm_policy *xfrm_policy_list[XFRM_POLICY_MAX*2];
+#ifdef CONFIG_XFRM_SUB_POLICY
+extern struct xfrm_policy *xfrm_policy_list_sub[XFRM_POLICY_MAX*2];
+
+static inline int xfrm_policy_lists_empty(int dir)
+{
+	return (!xfrm_policy_list[dir] && !xfrm_policy_list_sub[dir]);
+}
+#else
+static inline int xfrm_policy_lists_empty(int dir)
+{
+	return (!xfrm_policy_list[dir]);
+}
+#endif
 
 static inline void xfrm_pol_hold(struct xfrm_policy *policy)
 {
@@ -403,6 +417,20 @@ static inline void xfrm_pol_put(struct xfrm_policy *policy)
 	if (atomic_dec_and_test(&policy->refcnt))
 		__xfrm_policy_destroy(policy);
 }
+
+#ifdef CONFIG_XFRM_SUB_POLICY
+static inline void xfrm_pols_put(struct xfrm_policy **pols, int npols)
+{
+	int i;
+	for (i = npols - 1; i >= 0; --i)
+		xfrm_pol_put(pols[i]);
+}
+#else
+static inline void xfrm_pols_put(struct xfrm_policy **pols, int npols)
+{
+	xfrm_pol_put(pols[0]);
+}
+#endif
 
 #define XFRM_DST_HSIZE		1024
 
@@ -737,8 +765,8 @@ static inline int xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *sk
 {
 	if (sk && sk->sk_policy[XFRM_POLICY_IN])
 		return __xfrm_policy_check(sk, dir, skb, family);
-		
-	return	(!xfrm_policy_list[dir] && !skb->sp) ||
+
+	return	(xfrm_policy_lists_empty(dir) && !skb->sp) ||
 		(skb->dst->flags & DST_NOPOLICY) ||
 		__xfrm_policy_check(sk, dir, skb, family);
 }
@@ -758,7 +786,7 @@ extern int __xfrm_route_forward(struct sk_buff *skb, unsigned short family);
 
 static inline int xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 {
-	return	!xfrm_policy_list[XFRM_POLICY_OUT] ||
+	return	xfrm_policy_lists_empty(XFRM_POLICY_OUT) ||
 		(skb->dst->flags & DST_NOXFRM) ||
 		__xfrm_route_forward(skb, family);
 }
@@ -1023,18 +1051,19 @@ static inline int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, unsig
 #endif
 
 struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp);
-extern int xfrm_policy_walk(int (*func)(struct xfrm_policy *, int, int, void*), void *);
+extern int xfrm_policy_walk(u8 type, int (*func)(struct xfrm_policy *, int, int, void*), void *);
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl);
-struct xfrm_policy *xfrm_policy_bysel_ctx(int dir, struct xfrm_selector *sel,
+struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
+					  struct xfrm_selector *sel,
 					  struct xfrm_sec_ctx *ctx, int delete);
-struct xfrm_policy *xfrm_policy_byid(int dir, u32 id, int delete);
-void xfrm_policy_flush(void);
+struct xfrm_policy *xfrm_policy_byid(u8, int dir, u32 id, int delete);
+void xfrm_policy_flush(u8 type);
 u32 xfrm_get_acqseq(void);
 void xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi);
 struct xfrm_state * xfrm_find_acq(u8 mode, u32 reqid, u8 proto, 
 				  xfrm_address_t *daddr, xfrm_address_t *saddr, 
 				  int create, unsigned short family);
-extern void xfrm_policy_flush(void);
+extern void xfrm_policy_flush(u8 type);
 extern int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol);
 extern int xfrm_flush_bundles(void);
 extern void xfrm_flush_all_bundles(void);
