@@ -59,6 +59,9 @@
 #ifdef CONFIG_IPV6_TUNNEL
 #include <net/ip6_tunnel.h>
 #endif
+#ifdef CONFIG_IPV6_MIP6
+#include <net/mip6.h>
+#endif
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -857,6 +860,9 @@ static int __init inet6_init(void)
 	ipv6_frag_init();
 	ipv6_nodata_init();
 	ipv6_destopt_init();
+#ifdef CONFIG_IPV6_MIP6
+	mip6_init();
+#endif
 
 	/* Init v6 transport protocols. */
 	udpv6_init();
@@ -919,6 +925,9 @@ static void __exit inet6_exit(void)
  	udp6_proc_exit();
  	tcp6_proc_exit();
  	raw6_proc_exit();
+#endif
+#ifdef CONFIG_IPV6_MIP6
+	mip6_fini();
 #endif
 	/* Cleanup code parts. */
 	sit_cleanup();
