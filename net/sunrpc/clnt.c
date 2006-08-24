@@ -1181,6 +1181,17 @@ call_verify(struct rpc_task *task)
 	u32	*p = iov->iov_base, n;
 	int error = -EACCES;
 
+	if ((task->tk_rqstp->rq_rcv_buf.len & 3) != 0) {
+		/* RFC-1014 says that the representation of XDR data must be a
+		 * multiple of four bytes
+		 * - if it isn't pointer subtraction in the NFS client may give
+		 *   undefined results
+		 */
+		printk(KERN_WARNING
+		       "call_verify: XDR representation not a multiple of"
+		       " 4 bytes: 0x%x\n", task->tk_rqstp->rq_rcv_buf.len);
+		goto out_eio;
+	}
 	if ((len -= 3) < 0)
 		goto out_overflow;
 	p += 1;	/* skip XID */

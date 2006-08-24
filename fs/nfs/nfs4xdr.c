@@ -3355,7 +3355,7 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 	struct kvec	*iov = rcvbuf->head;
 	unsigned int	nr, pglen = rcvbuf->page_len;
 	uint32_t	*end, *entry, *p, *kaddr;
-	uint32_t	len, attrlen;
+	uint32_t	len, attrlen, xlen;
 	int 		hdrlen, recvd, status;
 
 	status = decode_op_hdr(xdr, OP_READDIR);
@@ -3377,10 +3377,10 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 
 	BUG_ON(pglen + readdir->pgbase > PAGE_CACHE_SIZE);
 	kaddr = p = (uint32_t *) kmap_atomic(page, KM_USER0);
-	end = (uint32_t *) ((char *)p + pglen + readdir->pgbase);
+	end = p + ((pglen + readdir->pgbase) >> 2);
 	entry = p;
 	for (nr = 0; *p++; nr++) {
-		if (p + 3 > end)
+		if (end - p < 3)
 			goto short_pkt;
 		dprintk("cookie = %Lu, ", *((unsigned long long *)p));
 		p += 2;			/* cookie */
@@ -3389,18 +3389,19 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 			printk(KERN_WARNING "NFS: giant filename in readdir (len 0x%x)\n", len);
 			goto err_unmap;
 		}
+		xlen = XDR_QUADLEN(len);
+		if (end - p < xlen + 1)
+			goto short_pkt;
 		dprintk("filename = %*s\n", len, (char *)p);
-		p += XDR_QUADLEN(len);
-		if (p + 1 > end)
-			goto short_pkt;
+		p += xlen;
 		len = ntohl(*p++);	/* bitmap length */
+		if (end - p < len + 1)
+			goto short_pkt;
 		p += len;
-		if (p + 1 > end)
-			goto short_pkt;
 		attrlen = XDR_QUADLEN(ntohl(*p++));
-		p += attrlen;		/* attributes */
-		if (p + 2 > end)
+		if (end - p < attrlen + 2)
 			goto short_pkt;
+		p += attrlen;		/* attributes */
 		entry = p;
 	}
 	if (!nr && (entry[0] != 0 || entry[1] == 0))
