@@ -829,6 +829,9 @@ static struct fib6_node * fib6_lookup_1(struct fib6_node *root,
 	struct fib6_node *fn;
 	int dir;
 
+	if (unlikely(args->offset == 0))
+		return NULL;
+
 	/*
 	 *	Descend on a tree
 	 */
@@ -879,16 +882,22 @@ static struct fib6_node * fib6_lookup_1(struct fib6_node *root,
 struct fib6_node * fib6_lookup(struct fib6_node *root, struct in6_addr *daddr,
 			       struct in6_addr *saddr)
 {
-	struct lookup_args args[2];
 	struct fib6_node *fn;
-
-	args[0].offset = offsetof(struct rt6_info, rt6i_dst);
-	args[0].addr = daddr;
-
+	struct lookup_args args[] = {
+		{
+			.offset = offsetof(struct rt6_info, rt6i_dst),
+			.addr = daddr,
+		},
 #ifdef CONFIG_IPV6_SUBTREES
-	args[1].offset = offsetof(struct rt6_info, rt6i_src);
-	args[1].addr = saddr;
+		{
+			.offset = offsetof(struct rt6_info, rt6i_src),
+			.addr = saddr,
+		},
 #endif
+		{
+			.offset = 0,	/* sentinel */
+		}
+	};
 
 	fn = fib6_lookup_1(root, args);
 
