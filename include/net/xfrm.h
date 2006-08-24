@@ -314,7 +314,7 @@ struct xfrm_tmpl
 	__u32			calgos;
 };
 
-#define XFRM_MAX_DEPTH		4
+#define XFRM_MAX_DEPTH		6
 
 struct xfrm_policy
 {
