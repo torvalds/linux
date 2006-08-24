@@ -54,11 +54,11 @@ struct dasd_devmap {
  */
 struct dasd_server_ssid_map {
 	struct list_head list;
-	struct server_id {
+	struct system_id {
 		char vendor[4];
 		char serial[15];
+		__u16 ssid;
 	} sid;
-	__u16 ssid;
 };
 
 static struct list_head dasd_server_ssid_list;
@@ -904,14 +904,14 @@ dasd_set_uid(struct ccw_device *cdev, struct dasd_uid *uid)
 		return -ENOMEM;
 	strncpy(srv->sid.vendor, uid->vendor, sizeof(srv->sid.vendor) - 1);
 	strncpy(srv->sid.serial, uid->serial, sizeof(srv->sid.serial) - 1);
-	srv->ssid = uid->ssid;
+	srv->sid.ssid = uid->ssid;
 
 	/* server is already contained ? */
 	spin_lock(&dasd_devmap_lock);
 	devmap->uid = *uid;
 	list_for_each_entry(tmp, &dasd_server_ssid_list, list) {
 		if (!memcmp(&srv->sid, &tmp->sid,
-			    sizeof(struct dasd_server_ssid_map))) {
+			    sizeof(struct system_id))) {
 			kfree(srv);
 			srv = NULL;
 			break;
