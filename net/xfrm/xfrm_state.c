@@ -45,6 +45,7 @@ static DEFINE_SPINLOCK(xfrm_state_lock);
  * Also, it can be used by ah/esp icmp error handler to find offending SA.
  */
 static struct list_head xfrm_state_bydst[XFRM_DST_HSIZE];
+static struct list_head xfrm_state_bysrc[XFRM_DST_HSIZE];
 static struct list_head xfrm_state_byspi[XFRM_DST_HSIZE];
 
 DECLARE_WAIT_QUEUE_HEAD(km_waitq);
@@ -200,6 +201,7 @@ struct xfrm_state *xfrm_state_alloc(void)
 		atomic_set(&x->refcnt, 1);
 		atomic_set(&x->tunnel_users, 0);
 		INIT_LIST_HEAD(&x->bydst);
+		INIT_LIST_HEAD(&x->bysrc);
 		INIT_LIST_HEAD(&x->byspi);
 		init_timer(&x->timer);
 		x->timer.function = xfrm_timer_handler;
@@ -239,6 +241,8 @@ int __xfrm_state_delete(struct xfrm_state *x)
 		x->km.state = XFRM_STATE_DEAD;
 		spin_lock(&xfrm_state_lock);
 		list_del(&x->bydst);
+		__xfrm_state_put(x);
+		list_del(&x->bysrc);
 		__xfrm_state_put(x);
 		if (x->id.spi) {
 			list_del(&x->byspi);
@@ -415,6 +419,8 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			x->km.state = XFRM_STATE_ACQ;
 			list_add_tail(&x->bydst, xfrm_state_bydst+h);
 			xfrm_state_hold(x);
+			list_add_tail(&x->bysrc, xfrm_state_bysrc+h);
+			xfrm_state_hold(x);
 			if (x->id.spi) {
 				h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto, family);
 				list_add(&x->byspi, xfrm_state_byspi+h);
@@ -448,10 +454,18 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 	list_add(&x->bydst, xfrm_state_bydst+h);
 	xfrm_state_hold(x);
 
-	h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto, x->props.family);
+	h = xfrm_src_hash(&x->props.saddr, x->props.family);
 
-	list_add(&x->byspi, xfrm_state_byspi+h);
+	list_add(&x->bysrc, xfrm_state_bysrc+h);
 	xfrm_state_hold(x);
+
+	if (xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY)) {
+		h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto,
+				  x->props.family);
+
+		list_add(&x->byspi, xfrm_state_byspi+h);
+		xfrm_state_hold(x);
+	}
 
 	if (!mod_timer(&x->timer, jiffies + HZ))
 		xfrm_state_hold(x);
@@ -1075,6 +1089,7 @@ int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo)
 		err = -ENOBUFS;
 	else {
 		afinfo->state_bydst = xfrm_state_bydst;
+		afinfo->state_bysrc = xfrm_state_bysrc;
 		afinfo->state_byspi = xfrm_state_byspi;
 		xfrm_state_afinfo[afinfo->family] = afinfo;
 	}
@@ -1097,6 +1112,7 @@ int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo)
 		else {
 			xfrm_state_afinfo[afinfo->family] = NULL;
 			afinfo->state_byspi = NULL;
+			afinfo->state_bysrc = NULL;
 			afinfo->state_bydst = NULL;
 		}
 	}
@@ -1218,6 +1234,7 @@ void __init xfrm_state_init(void)
 
 	for (i=0; i<XFRM_DST_HSIZE; i++) {
 		INIT_LIST_HEAD(&xfrm_state_bydst[i]);
+		INIT_LIST_HEAD(&xfrm_state_bysrc[i]);
 		INIT_LIST_HEAD(&xfrm_state_byspi[i]);
 	}
 	INIT_WORK(&xfrm_state_gc_work, xfrm_state_gc_task, NULL);

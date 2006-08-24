@@ -122,6 +122,9 @@ __xfrm4_find_acq(u8 mode, u32 reqid, u8 proto,
 		add_timer(&x0->timer);
 		xfrm_state_hold(x0);
 		list_add_tail(&x0->bydst, xfrm4_state_afinfo.state_bydst+h);
+		h = __xfrm4_src_hash(saddr);
+		xfrm_state_hold(x0);
+		list_add_tail(&x0->bysrc, xfrm4_state_afinfo.state_bysrc+h);
 		wake_up(&km_waitq);
 	}
 	if (x0)

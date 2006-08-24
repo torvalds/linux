@@ -95,6 +95,7 @@ struct xfrm_state
 {
 	/* Note: bydst is re-used during gc */
 	struct list_head	bydst;
+	struct list_head	bysrc;
 	struct list_head	byspi;
 
 	atomic_t		refcnt;
@@ -236,6 +237,7 @@ extern int __xfrm_state_delete(struct xfrm_state *x);
 struct xfrm_state_afinfo {
 	unsigned short		family;
 	struct list_head	*state_bydst;
+	struct list_head	*state_bysrc;
 	struct list_head	*state_byspi;
 	int			(*init_flags)(struct xfrm_state *x);
 	void			(*init_tempsel)(struct xfrm_state *x, struct flowi *fl,
@@ -416,6 +418,30 @@ unsigned xfrm_dst_hash(xfrm_address_t *addr, unsigned short family)
 		return __xfrm4_dst_hash(addr);
 	case AF_INET6:
 		return __xfrm6_dst_hash(addr);
+	}
+	return 0;
+}
+
+static __inline__
+unsigned __xfrm4_src_hash(xfrm_address_t *addr)
+{
+	return __xfrm4_dst_hash(addr);
+}
+
+static __inline__
+unsigned __xfrm6_src_hash(xfrm_address_t *addr)
+{
+	return __xfrm6_dst_hash(addr);
+}
+
+static __inline__
+unsigned xfrm_src_hash(xfrm_address_t *addr, unsigned short family)
+{
+	switch (family) {
+	case AF_INET:
+		return __xfrm4_src_hash(addr);
+	case AF_INET6:
+		return __xfrm6_src_hash(addr);
 	}
 	return 0;
 }
