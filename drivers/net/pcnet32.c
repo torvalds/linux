@@ -202,6 +202,8 @@ static int homepna[MAX_UNITS];
 #define CSR15		15
 #define PCNET32_MC_FILTER	8
 
+#define PCNET32_79C970A	0x2621
+
 /* The PCNET32 Rx and Tx ring descriptors. */
 struct pcnet32_rx_head {
 	u32	base;
@@ -289,6 +291,7 @@ struct pcnet32_private {
 
 	/* each bit indicates an available PHY */
 	u32			phymask;
+	unsigned short		chip_version;	/* which variant this is */
 };
 
 static int pcnet32_probe_pci(struct pci_dev *, const struct pci_device_id *);
@@ -724,9 +727,11 @@ static u32 pcnet32_get_link(struct net_device *dev)
 	spin_lock_irqsave(&lp->lock, flags);
 	if (lp->mii) {
 		r = mii_link_ok(&lp->mii_if);
-	} else {
+	} else if (lp->chip_version >= PCNET32_79C970A) {
 		ulong ioaddr = dev->base_addr;	/* card base I/O address */
 		r = (lp->a.read_bcr(ioaddr, 4) != 0xc0);
+	} else {	/* can not detect link on really old chips */
+		r = 1;
 	}
 	spin_unlock_irqrestore(&lp->lock, flags);
 
@@ -1090,6 +1095,10 @@ static int pcnet32_suspend(struct net_device *dev, unsigned long *flags,
 	struct pcnet32_access *a = &lp->a;
 	ulong ioaddr = dev->base_addr;
 	int ticks;
+
+	/* really old chips have to be stopped. */
+	if (lp->chip_version < PCNET32_79C970A)
+		return 0;
 
 	/* set SUSPEND (SPND) - CSR5 bit 0 */
 	csr5 = a->read_csr(ioaddr, CSR5);
@@ -1529,6 +1538,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	lp->mii_if.reg_num_mask = 0x1f;
 	lp->dxsuflo = dxsuflo;
 	lp->mii = mii;
+	lp->chip_version = chip_version;
 	lp->msg_enable = pcnet32_debug;
 	if ((cards_found >= MAX_UNITS)
 	    || (options[cards_found] > sizeof(options_mapping)))
@@ -1839,10 +1849,7 @@ static int pcnet32_open(struct net_device *dev)
 				val |= 2;
 		} else if (lp->options & PCNET32_PORT_ASEL) {
 			/* workaround of xSeries250, turn on for 79C975 only */
-			i = ((lp->a.read_csr(ioaddr, 88) |
-			      (lp->a.
-			       read_csr(ioaddr, 89) << 16)) >> 12) & 0xffff;
-			if (i == 0x2627)
+			if (lp->chip_version == 0x2627)
 				val |= 3;
 		}
 		lp->a.write_bcr(ioaddr, 9, val);
@@ -1986,9 +1993,11 @@ static int pcnet32_open(struct net_device *dev)
 
 	netif_start_queue(dev);
 
-	/* Print the link status and start the watchdog */
-	pcnet32_check_media(dev, 1);
-	mod_timer(&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
+	if (lp->chip_version >= PCNET32_79C970A) {
+		/* Print the link status and start the watchdog */
+		pcnet32_check_media(dev, 1);
+		mod_timer(&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
+	}
 
 	i = 0;
 	while (i++ < 100)
