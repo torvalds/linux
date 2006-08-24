@@ -26,7 +26,10 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ipv6.h>
+#include <linux/icmpv6.h>
+#include <net/sock.h>
 #include <net/ipv6.h>
+#include <net/ip6_checksum.h>
 #include <net/xfrm.h>
 #include <net/mip6.h>
 
@@ -53,6 +56,86 @@ static inline void *mip6_padn(__u8 *data, __u8 padlen)
 			memset(data+2, 0, data[1]);
 	}
 	return data + padlen;
+}
+
+static inline void mip6_param_prob(struct sk_buff *skb, int code, int pos)
+{
+	icmpv6_send(skb, ICMPV6_PARAMPROB, code, pos, skb->dev);
+}
+
+static int mip6_mh_len(int type)
+{
+	int len = 0;
+
+	switch (type) {
+	case IP6_MH_TYPE_BRR:
+		len = 0;
+		break;
+	case IP6_MH_TYPE_HOTI:
+	case IP6_MH_TYPE_COTI:
+	case IP6_MH_TYPE_BU:
+	case IP6_MH_TYPE_BACK:
+		len = 1;
+		break;
+	case IP6_MH_TYPE_HOT:
+	case IP6_MH_TYPE_COT:
+	case IP6_MH_TYPE_BERROR:
+		len = 2;
+		break;
+	}
+	return len;
+}
+
+int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
+{
+	struct ip6_mh *mh;
+	int mhlen;
+
+	if (!pskb_may_pull(skb, (skb->h.raw - skb->data) + 8) ||
+	    !pskb_may_pull(skb, (skb->h.raw - skb->data) + ((skb->h.raw[1] + 1) << 3)))
+		return -1;
+
+	mh = (struct ip6_mh *)skb->h.raw;
+
+	if (mh->ip6mh_hdrlen < mip6_mh_len(mh->ip6mh_type)) {
+		LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH message too short: %d vs >=%d\n",
+			       mh->ip6mh_hdrlen, mip6_mh_len(mh->ip6mh_type));
+		mip6_param_prob(skb, 0, (&mh->ip6mh_hdrlen) - skb->nh.raw);
+		return -1;
+	}
+	mhlen = (mh->ip6mh_hdrlen + 1) << 3;
+
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		if (csum_ipv6_magic(&skb->nh.ipv6h->saddr,
+				    &skb->nh.ipv6h->daddr,
+				    mhlen, IPPROTO_MH,
+				    skb->csum)) {
+			LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH hw checksum failed\n");
+			skb->ip_summed = CHECKSUM_NONE;
+		}
+	}
+	if (skb->ip_summed == CHECKSUM_NONE) {
+		if (csum_ipv6_magic(&skb->nh.ipv6h->saddr,
+				    &skb->nh.ipv6h->daddr,
+				    mhlen, IPPROTO_MH,
+				    skb_checksum(skb, 0, mhlen, 0))) {
+			LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH checksum failed [%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x > %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]\n",
+				       NIP6(skb->nh.ipv6h->saddr),
+				       NIP6(skb->nh.ipv6h->daddr));
+			return -1;
+		}
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
+
+	if (mh->ip6mh_proto != IPPROTO_NONE) {
+		LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH invalid payload proto = %d\n",
+			       mh->ip6mh_proto);
+		mip6_param_prob(skb, 0, (&mh->ip6mh_proto) - skb->nh.raw);
+		return -1;
+	}
+
+	return 0;
 }
 
 static int mip6_destopt_input(struct xfrm_state *x, struct sk_buff *skb)

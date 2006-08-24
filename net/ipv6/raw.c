@@ -50,6 +50,9 @@
 #include <net/udp.h>
 #include <net/inet_common.h>
 #include <net/tcp_states.h>
+#ifdef CONFIG_IPV6_MIP6
+#include <net/mip6.h>
+#endif
 
 #include <net/rawv6.h>
 #include <net/xfrm.h>
@@ -169,8 +172,32 @@ int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	sk = __raw_v6_lookup(sk, nexthdr, daddr, saddr, IP6CB(skb)->iif);
 
 	while (sk) {
+		int filtered;
+
 		delivered = 1;
-		if (nexthdr != IPPROTO_ICMPV6 || !icmpv6_filter(sk, skb)) {
+		switch (nexthdr) {
+		case IPPROTO_ICMPV6:
+			filtered = icmpv6_filter(sk, skb);
+			break;
+#ifdef CONFIG_IPV6_MIP6
+		case IPPROTO_MH:
+			/* XXX: To validate MH only once for each packet,
+			 * this is placed here. It should be after checking
+			 * xfrm policy, however it doesn't. The checking xfrm
+			 * policy is placed in rawv6_rcv() because it is
+			 * required for each socket.
+			 */
+			filtered = mip6_mh_filter(sk, skb);
+			break;
+#endif
+		default:
+			filtered = 0;
+			break;
+		}
+
+		if (filtered < 0)
+			break;
+		if (filtered == 0) {
 			struct sk_buff *clone = skb_clone(skb, GFP_ATOMIC);
 
 			/* Not releasing hash table! */

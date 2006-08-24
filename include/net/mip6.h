@@ -25,6 +25,9 @@
 #ifndef _NET_MIP6_H
 #define _NET_MIP6_H
 
+#include <linux/skbuff.h>
+#include <net/sock.h>
+
 #define MIP6_OPT_PAD_1	0
 #define MIP6_OPT_PAD_N	1
 
@@ -53,5 +56,6 @@ struct ip6_mh {
 
 extern int mip6_init(void);
 extern void mip6_fini(void);
+extern int mip6_mh_filter(struct sock *sk, struct sk_buff *skb);
 
 #endif
