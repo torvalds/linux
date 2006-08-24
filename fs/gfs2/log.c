@@ -509,7 +509,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 
 static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
-	unsigned int reserved = 1;
+	unsigned int reserved = 0;
 	unsigned int old;
 
 	gfs2_log_lock(sdp);
@@ -524,6 +524,8 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	if (sdp->sd_log_commited_revoke)
 		reserved += gfs2_struct2blk(sdp, sdp->sd_log_commited_revoke,
 					    sizeof(uint64_t));
+	if (reserved)
+		reserved++;
 
 	old = sdp->sd_log_blks_free;
 	sdp->sd_log_blks_free += tr->tr_reserved -
