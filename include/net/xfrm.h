@@ -546,6 +546,11 @@ u16 xfrm_flowi_sport(struct flowi *fl)
 	case IPPROTO_ICMPV6:
 		port = htons(fl->fl_icmp_type);
 		break;
+#ifdef CONFIG_IPV6_MIP6
+	case IPPROTO_MH:
+		port = htons(fl->fl_mh_type);
+		break;
+#endif
 	default:
 		port = 0;	/*XXX*/
 	}

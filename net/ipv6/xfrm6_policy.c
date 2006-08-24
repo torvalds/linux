@@ -18,6 +18,9 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
+#ifdef CONFIG_IPV6_MIP6
+#include <net/mip6.h>
+#endif
 
 static struct dst_ops xfrm6_dst_ops;
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo;
@@ -269,6 +272,18 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 			}
 			fl->proto = nexthdr;
 			return;
+
+#ifdef CONFIG_IPV6_MIP6
+		case IPPROTO_MH:
+			if (pskb_may_pull(skb, skb->nh.raw + offset + 3 - skb->data)) {
+				struct ip6_mh *mh;
+				mh = (struct ip6_mh *)exthdr;
+
+				fl->fl_mh_type = mh->ip6mh_type;
+			}
+			fl->proto = nexthdr;
+			return;
+#endif
 
 		/* XXX Why are there these headers? */
 		case IPPROTO_AH:
