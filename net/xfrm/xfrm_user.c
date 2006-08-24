@@ -542,7 +542,7 @@ static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
 	info.nlmsg_flags = NLM_F_MULTI;
 	info.this_idx = 0;
 	info.start_idx = cb->args[0];
-	(void) xfrm_state_walk(IPSEC_PROTO_ANY, dump_one_state, &info);
+	(void) xfrm_state_walk(0, dump_one_state, &info);
 	cb->args[0] = info.this_idx;
 
 	return skb->len;
