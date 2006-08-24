@@ -38,6 +38,8 @@ EXPORT_SYMBOL(sysctl_xfrm_aevent_rseqth);
 
 static DEFINE_SPINLOCK(xfrm_state_lock);
 
+#define XFRM_DST_HSIZE		1024
+
 /* Hash table to find appropriate SA towards given target (endpoint
  * of tunnel or destination of transport mode) allowed by selector.
  *
@@ -49,6 +51,48 @@ static struct list_head xfrm_state_bysrc[XFRM_DST_HSIZE];
 static struct list_head xfrm_state_byspi[XFRM_DST_HSIZE];
 
 static __inline__
+unsigned __xfrm4_dst_hash(xfrm_address_t *addr)
+{
+	unsigned h;
+	h = ntohl(addr->a4);
+	h = (h ^ (h>>16)) % XFRM_DST_HSIZE;
+	return h;
+}
+
+static __inline__
+unsigned __xfrm6_dst_hash(xfrm_address_t *addr)
+{
+	unsigned h;
+	h = ntohl(addr->a6[2]^addr->a6[3]);
+	h = (h ^ (h>>16)) % XFRM_DST_HSIZE;
+	return h;
+}
+
+static __inline__
+unsigned __xfrm4_src_hash(xfrm_address_t *addr)
+{
+	return __xfrm4_dst_hash(addr);
+}
+
+static __inline__
+unsigned __xfrm6_src_hash(xfrm_address_t *addr)
+{
+	return __xfrm6_dst_hash(addr);
+}
+
+static __inline__
+unsigned xfrm_src_hash(xfrm_address_t *addr, unsigned short family)
+{
+	switch (family) {
+	case AF_INET:
+		return __xfrm4_src_hash(addr);
+	case AF_INET6:
+		return __xfrm6_src_hash(addr);
+	}
+	return 0;
+}
+
+static __inline__
 unsigned xfrm_dst_hash(xfrm_address_t *addr, unsigned short family)
 {
 	switch (family) {
@@ -58,6 +102,36 @@ unsigned xfrm_dst_hash(xfrm_address_t *addr, unsigned short family)
 		return __xfrm6_dst_hash(addr);
 	}
 	return 0;
+}
+
+static __inline__
+unsigned __xfrm4_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto)
+{
+	unsigned h;
+	h = ntohl(addr->a4^spi^proto);
+	h = (h ^ (h>>10) ^ (h>>20)) % XFRM_DST_HSIZE;
+	return h;
+}
+
+static __inline__
+unsigned __xfrm6_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto)
+{
+	unsigned h;
+	h = ntohl(addr->a6[2]^addr->a6[3]^spi^proto);
+	h = (h ^ (h>>10) ^ (h>>20)) % XFRM_DST_HSIZE;
+	return h;
+}
+
+static __inline__
+unsigned xfrm_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto, unsigned short family)
+{
+	switch (family) {
+	case AF_INET:
+		return __xfrm4_spi_hash(addr, spi, proto);
+	case AF_INET6:
+		return __xfrm6_spi_hash(addr, spi, proto);
+	}
+	return 0;	/*XXX*/
 }
 
 DECLARE_WAIT_QUEUE_HEAD(km_waitq);
@@ -342,6 +416,83 @@ xfrm_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	return 0;
 }
 
+static struct xfrm_state *__xfrm_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto, unsigned short family)
+{
+	unsigned int h = xfrm_spi_hash(daddr, spi, proto, family);
+	struct xfrm_state *x;
+
+	list_for_each_entry(x, xfrm_state_byspi+h, byspi) {
+		if (x->props.family != family ||
+		    x->id.spi       != spi ||
+		    x->id.proto     != proto)
+			continue;
+
+		switch (family) {
+		case AF_INET:
+			if (x->id.daddr.a4 != daddr->a4)
+				continue;
+			break;
+		case AF_INET6:
+			if (!ipv6_addr_equal((struct in6_addr *)daddr,
+					     (struct in6_addr *)
+					     x->id.daddr.a6))
+				continue;
+			break;
+		};
+
+		xfrm_state_hold(x);
+		return x;
+	}
+
+	return NULL;
+}
+
+static struct xfrm_state *__xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr, u8 proto, unsigned short family)
+{
+	unsigned int h = xfrm_src_hash(saddr, family);
+	struct xfrm_state *x;
+
+	list_for_each_entry(x, xfrm_state_bysrc+h, bysrc) {
+		if (x->props.family != family ||
+		    x->id.proto     != proto)
+			continue;
+
+		switch (family) {
+		case AF_INET:
+			if (x->id.daddr.a4 != daddr->a4 ||
+			    x->props.saddr.a4 != saddr->a4)
+				continue;
+			break;
+		case AF_INET6:
+			if (!ipv6_addr_equal((struct in6_addr *)daddr,
+					     (struct in6_addr *)
+					     x->id.daddr.a6) ||
+			    !ipv6_addr_equal((struct in6_addr *)saddr,
+					     (struct in6_addr *)
+					     x->props.saddr.a6))
+				continue;
+			break;
+		};
+
+		xfrm_state_hold(x);
+		return x;
+	}
+
+	return NULL;
+}
+
+static inline struct xfrm_state *
+__xfrm_state_locate(struct xfrm_state *x, int use_spi, int family)
+{
+	if (use_spi)
+		return __xfrm_state_lookup(&x->id.daddr, x->id.spi,
+					   x->id.proto, family);
+	else
+		return __xfrm_state_lookup_byaddr(&x->id.daddr,
+						  &x->props.saddr,
+						  x->id.proto, family);
+}
+
 struct xfrm_state *
 xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr, 
 		struct flowi *fl, struct xfrm_tmpl *tmpl,
@@ -353,14 +504,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 	int acquire_in_progress = 0;
 	int error = 0;
 	struct xfrm_state *best = NULL;
-	struct xfrm_state_afinfo *afinfo;
 	
-	afinfo = xfrm_state_get_afinfo(family);
-	if (afinfo == NULL) {
-		*err = -EAFNOSUPPORT;
-		return NULL;
-	}
-
 	spin_lock_bh(&xfrm_state_lock);
 	list_for_each_entry(x, xfrm_state_bydst+h, bydst) {
 		if (x->props.family == family &&
@@ -406,8 +550,8 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 	x = best;
 	if (!x && !error && !acquire_in_progress) {
 		if (tmpl->id.spi &&
-		    (x0 = afinfo->state_lookup(daddr, tmpl->id.spi,
-		                               tmpl->id.proto)) != NULL) {
+		    (x0 = __xfrm_state_lookup(daddr, tmpl->id.spi,
+					      tmpl->id.proto, family)) != NULL) {
 			xfrm_state_put(x0);
 			error = -EEXIST;
 			goto out;
@@ -457,7 +601,6 @@ out:
 	else
 		*err = acquire_in_progress ? -EAGAIN : error;
 	spin_unlock_bh(&xfrm_state_lock);
-	xfrm_state_put_afinfo(afinfo);
 	return x;
 }
 
@@ -584,34 +727,20 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 	return x;
 }
 
-static inline struct xfrm_state *
-__xfrm_state_locate(struct xfrm_state_afinfo *afinfo, struct xfrm_state *x,
-		    int use_spi)
-{
-	if (use_spi)
-		return afinfo->state_lookup(&x->id.daddr, x->id.spi, x->id.proto);
-	else
-		return afinfo->state_lookup_byaddr(&x->id.daddr, &x->props.saddr, x->id.proto);
-}
-
 static struct xfrm_state *__xfrm_find_acq_byseq(u32 seq);
 
 int xfrm_state_add(struct xfrm_state *x)
 {
-	struct xfrm_state_afinfo *afinfo;
 	struct xfrm_state *x1;
 	int family;
 	int err;
 	int use_spi = xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY);
 
 	family = x->props.family;
-	afinfo = xfrm_state_get_afinfo(family);
-	if (unlikely(afinfo == NULL))
-		return -EAFNOSUPPORT;
 
 	spin_lock_bh(&xfrm_state_lock);
 
-	x1 = __xfrm_state_locate(afinfo, x, use_spi);
+	x1 = __xfrm_state_locate(x, use_spi, family);
 	if (x1) {
 		xfrm_state_put(x1);
 		x1 = NULL;
@@ -637,7 +766,6 @@ int xfrm_state_add(struct xfrm_state *x)
 
 out:
 	spin_unlock_bh(&xfrm_state_lock);
-	xfrm_state_put_afinfo(afinfo);
 
 	if (!err)
 		xfrm_flush_all_bundles();
@@ -653,17 +781,12 @@ EXPORT_SYMBOL(xfrm_state_add);
 
 int xfrm_state_update(struct xfrm_state *x)
 {
-	struct xfrm_state_afinfo *afinfo;
 	struct xfrm_state *x1;
 	int err;
 	int use_spi = xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY);
 
-	afinfo = xfrm_state_get_afinfo(x->props.family);
-	if (unlikely(afinfo == NULL))
-		return -EAFNOSUPPORT;
-
 	spin_lock_bh(&xfrm_state_lock);
-	x1 = __xfrm_state_locate(afinfo, x, use_spi);
+	x1 = __xfrm_state_locate(x, use_spi, x->props.family);
 
 	err = -ESRCH;
 	if (!x1)
@@ -683,7 +806,6 @@ int xfrm_state_update(struct xfrm_state *x)
 
 out:
 	spin_unlock_bh(&xfrm_state_lock);
-	xfrm_state_put_afinfo(afinfo);
 
 	if (err)
 		return err;
@@ -776,14 +898,10 @@ xfrm_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto,
 		  unsigned short family)
 {
 	struct xfrm_state *x;
-	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	if (!afinfo)
-		return NULL;
 
 	spin_lock_bh(&xfrm_state_lock);
-	x = afinfo->state_lookup(daddr, spi, proto);
+	x = __xfrm_state_lookup(daddr, spi, proto, family);
 	spin_unlock_bh(&xfrm_state_lock);
-	xfrm_state_put_afinfo(afinfo);
 	return x;
 }
 EXPORT_SYMBOL(xfrm_state_lookup);
@@ -793,14 +911,10 @@ xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			 u8 proto, unsigned short family)
 {
 	struct xfrm_state *x;
-	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	if (!afinfo)
-		return NULL;
 
 	spin_lock_bh(&xfrm_state_lock);
-	x = afinfo->state_lookup_byaddr(daddr, saddr, proto);
+	x = __xfrm_state_lookup_byaddr(daddr, saddr, proto, family);
 	spin_unlock_bh(&xfrm_state_lock);
-	xfrm_state_put_afinfo(afinfo);
 	return x;
 }
 EXPORT_SYMBOL(xfrm_state_lookup_byaddr);
@@ -1272,11 +1386,8 @@ int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo)
 	write_lock_bh(&xfrm_state_afinfo_lock);
 	if (unlikely(xfrm_state_afinfo[afinfo->family] != NULL))
 		err = -ENOBUFS;
-	else {
-		afinfo->state_bysrc = xfrm_state_bysrc;
-		afinfo->state_byspi = xfrm_state_byspi;
+	else
 		xfrm_state_afinfo[afinfo->family] = afinfo;
-	}
 	write_unlock_bh(&xfrm_state_afinfo_lock);
 	return err;
 }
@@ -1293,11 +1404,8 @@ int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo)
 	if (likely(xfrm_state_afinfo[afinfo->family] != NULL)) {
 		if (unlikely(xfrm_state_afinfo[afinfo->family] != afinfo))
 			err = -EINVAL;
-		else {
+		else
 			xfrm_state_afinfo[afinfo->family] = NULL;
-			afinfo->state_byspi = NULL;
-			afinfo->state_bysrc = NULL;
-		}
 	}
 	write_unlock_bh(&xfrm_state_afinfo_lock);
 	return err;

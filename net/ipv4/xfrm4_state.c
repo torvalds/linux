@@ -62,38 +62,10 @@ __xfrm4_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	x->props.family = AF_INET;
 }
 
-static struct xfrm_state *
-__xfrm4_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto)
-{
-	unsigned h = __xfrm4_spi_hash(daddr, spi, proto);
-	struct xfrm_state *x;
-
-	list_for_each_entry(x, xfrm4_state_afinfo.state_byspi+h, byspi) {
-		if (x->props.family == AF_INET &&
-		    spi == x->id.spi &&
-		    daddr->a4 == x->id.daddr.a4 &&
-		    proto == x->id.proto) {
-			xfrm_state_hold(x);
-			return x;
-		}
-	}
-	return NULL;
-}
-
-/* placeholder until ipv4's code is written */
-static struct xfrm_state *
-__xfrm4_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr,
-			    u8 proto)
-{
-	return NULL;
-}
-
 static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.family			= AF_INET,
 	.init_flags		= xfrm4_init_flags,
 	.init_tempsel		= __xfrm4_init_tempsel,
-	.state_lookup		= __xfrm4_state_lookup,
-	.state_lookup_byaddr	= __xfrm4_state_lookup_byaddr,
 };
 
 void __init xfrm4_state_init(void)
