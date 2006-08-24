@@ -390,7 +390,8 @@ static struct ata_port_info piix_port_info[] = {
 	/* ich5_sata */
 	{
 		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SATA | PIIX_FLAG_CHECKINTR,
+		.host_flags	= ATA_FLAG_SATA | PIIX_FLAG_CHECKINTR |
+				  PIIX_FLAG_IGNORE_PCS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
@@ -467,6 +468,11 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, piix_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
+static int force_pcs = 0;
+module_param(force_pcs, int, 0444);
+MODULE_PARM_DESC(force_pcs, "force honoring or ignoring PCS to work around "
+		 "device mis-detection (0=default, 1=ignore PCS, 2=honor PCS)");
+
 /**
  *	piix_pata_cbl_detect - Probe host controller cable detect info
  *	@ap: Port for which cable detect info is desired
@@ -531,27 +537,25 @@ static void piix_pata_error_handler(struct ata_port *ap)
 }
 
 /**
- *	piix_sata_prereset - prereset for SATA host controller
+ *	piix_sata_present_mask - determine present mask for SATA host controller
  *	@ap: Target port
  *
- *	Reads and configures SATA PCI device's PCI config register
- *	Port Configuration and Status (PCS) to determine port and
- *	device availability.  Return -ENODEV to skip reset if no
- *	device is present.
+ *	Reads SATA PCI device's PCI config register Port Configuration
+ *	and Status (PCS) to determine port and device availability.
  *
  *	LOCKING:
  *	None (inherited from caller).
  *
  *	RETURNS:
- *	0 if device is present, -ENODEV otherwise.
+ *	determined present_mask
  */
-static int piix_sata_prereset(struct ata_port *ap)
+static unsigned int piix_sata_present_mask(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
 	struct piix_host_priv *hpriv = ap->host_set->private_data;
 	const unsigned int *map = hpriv->map;
 	int base = 2 * ap->hard_port_no;
-	unsigned int present = 0;
+	unsigned int present_mask = 0;
 	int port, i;
 	u16 pcs;
 
@@ -564,24 +568,52 @@ static int piix_sata_prereset(struct ata_port *ap)
 			continue;
 		if ((ap->flags & PIIX_FLAG_IGNORE_PCS) ||
 		    (pcs & 1 << (hpriv->map_db->present_shift + port)))
-			present = 1;
+			present_mask |= 1 << i;
 	}
 
-	DPRINTK("ata%u: LEAVE, pcs=0x%x present=0x%x\n",
-		ap->id, pcs, present);
+	DPRINTK("ata%u: LEAVE, pcs=0x%x present_mask=0x%x\n",
+		ap->id, pcs, present_mask);
 
-	if (!present) {
-		ata_port_printk(ap, KERN_INFO, "SATA port has no device.\n");
-		ap->eh_context.i.action &= ~ATA_EH_RESET_MASK;
-		return 0;
+	return present_mask;
+}
+
+/**
+ *	piix_sata_softreset - reset SATA host port via ATA SRST
+ *	@ap: port to reset
+ *	@classes: resulting classes of attached devices
+ *
+ *	Reset SATA host port via ATA SRST.  On controllers with
+ *	reliable PCS present bits, the bits are used to determine
+ *	device presence.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+static int piix_sata_softreset(struct ata_port *ap, unsigned int *classes)
+{
+	unsigned int present_mask;
+	int i, rc;
+
+	present_mask = piix_sata_present_mask(ap);
+
+	rc = ata_std_softreset(ap, classes);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+		if (!(present_mask & (1 << i)))
+			classes[i] = ATA_DEV_NONE;
 	}
 
-	return ata_std_prereset(ap);
+	return 0;
 }
 
 static void piix_sata_error_handler(struct ata_port *ap)
 {
-	ata_bmdma_drive_eh(ap, piix_sata_prereset, ata_std_softreset, NULL,
+	ata_bmdma_drive_eh(ap, ata_std_prereset, piix_sata_softreset, NULL,
 			   ata_std_postreset);
 }
 
@@ -785,6 +817,7 @@ static int __devinit piix_check_450nx_errata(struct pci_dev *ata_dev)
 }
 
 static void __devinit piix_init_pcs(struct pci_dev *pdev,
+				    struct ata_port_info *pinfo,
 				    const struct piix_map_db *map_db)
 {
 	u16 pcs, new_pcs;
@@ -797,6 +830,18 @@ static void __devinit piix_init_pcs(struct pci_dev *pdev,
 		DPRINTK("updating PCS from 0x%x to 0x%x\n", pcs, new_pcs);
 		pci_write_config_word(pdev, ICH5_PCS, new_pcs);
 		msleep(150);
+	}
+
+	if (force_pcs == 1) {
+		dev_printk(KERN_INFO, &pdev->dev,
+			   "force ignoring PCS (0x%x)\n", new_pcs);
+		pinfo[0].host_flags |= PIIX_FLAG_IGNORE_PCS;
+		pinfo[1].host_flags |= PIIX_FLAG_IGNORE_PCS;
+	} else if (force_pcs == 2) {
+		dev_printk(KERN_INFO, &pdev->dev,
+			   "force honoring PCS (0x%x)\n", new_pcs);
+		pinfo[0].host_flags &= ~PIIX_FLAG_IGNORE_PCS;
+		pinfo[1].host_flags &= ~PIIX_FLAG_IGNORE_PCS;
 	}
 }
 
@@ -906,7 +951,8 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (host_flags & ATA_FLAG_SATA) {
 		piix_init_sata_map(pdev, port_info,
 				   piix_map_db_table[ent->driver_data]);
-		piix_init_pcs(pdev, piix_map_db_table[ent->driver_data]);
+		piix_init_pcs(pdev, port_info,
+			      piix_map_db_table[ent->driver_data]);
 	}
 
 	/* On ICH5, some BIOSen disable the interrupt using the
