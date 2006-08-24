@@ -481,17 +481,23 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 }
 #endif
 
-#define BACKTRACK() \
-if (rt == &ip6_null_entry && flags & RT6_F_STRICT) { \
-	while ((fn = fn->parent) != NULL) { \
-		if (fn->fn_flags & RTN_TL_ROOT) { \
-			dst_hold(&rt->u.dst); \
-			goto out; \
+#define BACKTRACK(saddr) \
+do { \
+	if (rt == &ip6_null_entry) { \
+		struct fib6_node *pn; \
+		while (fn) { \
+			if (fn->fn_flags & RTN_TL_ROOT) \
+				goto out; \
+			pn = fn->parent; \
+			if (FIB6_SUBTREE(pn) && FIB6_SUBTREE(pn) != fn) \
+				fn = fib6_lookup(pn->subtree, NULL, saddr); \
+			else \
+				fn = pn; \
+			if (fn->fn_flags & RTN_RTINFO) \
+				goto restart; \
 		} \
-		if (fn->fn_flags & RTN_RTINFO) \
-			goto restart; \
 	} \
-}
+} while(0)
 
 static struct rt6_info *ip6_pol_route_lookup(struct fib6_table *table,
 					     struct flowi *fl, int flags)
@@ -504,7 +510,7 @@ static struct rt6_info *ip6_pol_route_lookup(struct fib6_table *table,
 restart:
 	rt = fn->leaf;
 	rt = rt6_device_match(rt, fl->oif, flags & RT6_F_STRICT);
-	BACKTRACK();
+	BACKTRACK(&fl->fl6_src);
 	dst_hold(&rt->u.dst);
 out:
 	read_unlock_bh(&table->tb6_lock);
@@ -638,7 +644,7 @@ restart_2:
 
 restart:
 	rt = rt6_select(&fn->leaf, fl->iif, strict | reachable);
-	BACKTRACK();
+	BACKTRACK(&fl->fl6_src);
 	if (rt == &ip6_null_entry ||
 	    rt->rt6i_flags & RTF_CACHE)
 		goto out;
@@ -733,7 +739,7 @@ restart_2:
 
 restart:
 	rt = rt6_select(&fn->leaf, fl->oif, strict | reachable);
-	BACKTRACK();
+	BACKTRACK(&fl->fl6_src);
 	if (rt == &ip6_null_entry ||
 	    rt->rt6i_flags & RTF_CACHE)
 		goto out;
