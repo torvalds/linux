@@ -110,6 +110,7 @@ extern int			rt6_route_rcv(struct net_device *dev,
 					      struct in6_addr *gwaddr);
 
 extern void			rt6_redirect(struct in6_addr *dest,
+					     struct in6_addr *src,
 					     struct in6_addr *saddr,
 					     struct neighbour *neigh,
 					     u8 *lladdr,

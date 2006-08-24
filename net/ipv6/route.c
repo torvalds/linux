@@ -1279,7 +1279,8 @@ static int ip6_route_del(struct fib6_config *cfg)
 /*
  *	Handle redirects
  */
-void rt6_redirect(struct in6_addr *dest, struct in6_addr *saddr,
+void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
+		  struct in6_addr *saddr,
 		  struct neighbour *neigh, u8 *lladdr, int on_link)
 {
 	struct rt6_info *rt, *nrt = NULL;
@@ -1304,7 +1305,7 @@ void rt6_redirect(struct in6_addr *dest, struct in6_addr *saddr,
 	 */
 
 	read_lock_bh(&table->tb6_lock);
-	fn = fib6_lookup(&table->tb6_root, dest, NULL);
+	fn = fib6_lookup(&table->tb6_root, dest, src);
 restart:
 	for (rt = fn->leaf; rt; rt = rt->u.next) {
 		/*
