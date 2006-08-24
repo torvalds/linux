@@ -836,7 +836,9 @@ struct nfs_server *nfs_create_server(const struct nfs_mount_data *data,
 	}
 	memcpy(&server->fsid, &fattr.fsid, sizeof(server->fsid));
 
-	dprintk("Server FSID: %llx:%llx\n", server->fsid.major, server->fsid.minor);
+	dprintk("Server FSID: %llx:%llx\n",
+		(unsigned long long) server->fsid.major,
+		(unsigned long long) server->fsid.minor);
 
 	BUG_ON(!server->nfs_client);
 	BUG_ON(!server->nfs_client->rpc_ops);
@@ -1002,7 +1004,9 @@ struct nfs_server *nfs4_create_server(const struct nfs4_mount_data *data,
 	if (error < 0)
 		goto error;
 
-	dprintk("Server FSID: %llx:%llx\n", server->fsid.major, server->fsid.minor);
+	dprintk("Server FSID: %llx:%llx\n",
+		(unsigned long long) server->fsid.major,
+		(unsigned long long) server->fsid.minor);
 	dprintk("Mount FH: %d\n", mntfh->size);
 
 	error = nfs_probe_fsinfo(server, mntfh, &fattr);
@@ -1074,7 +1078,8 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 		goto error;
 
 	dprintk("Referral FSID: %llx:%llx\n",
-		server->fsid.major, server->fsid.minor);
+		(unsigned long long) server->fsid.major,
+		(unsigned long long) server->fsid.minor);
 
 	spin_lock(&nfs_client_lock);
 	list_add_tail(&server->client_link, &server->nfs_client->cl_superblocks);
@@ -1106,7 +1111,8 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 	int error;
 
 	dprintk("--> nfs_clone_server(,%llx:%llx,)\n",
-		fattr->fsid.major, fattr->fsid.minor);
+		(unsigned long long) fattr->fsid.major,
+		(unsigned long long) fattr->fsid.minor);
 
 	server = nfs_alloc_server();
 	if (!server)
@@ -1131,7 +1137,8 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 		goto out_free_server;
 
 	dprintk("Cloned FSID: %llx:%llx\n",
-		server->fsid.major, server->fsid.minor);
+		(unsigned long long) server->fsid.major,
+		(unsigned long long) server->fsid.minor);
 
 	error = nfs_start_lockd(server);
 	if (error < 0)
@@ -1375,7 +1382,8 @@ static int nfs_volume_list_show(struct seq_file *m, void *v)
 		 MAJOR(server->s_dev), MINOR(server->s_dev));
 
 	snprintf(fsid, 17, "%llx:%llx",
-		 server->fsid.major, server->fsid.minor);
+		 (unsigned long long) server->fsid.major,
+		 (unsigned long long) server->fsid.minor);
 
 	seq_printf(m, "v%d %02x%02x%02x%02x %4hx %-7s %-17s\n",
 		   clp->cl_nfsversion,
