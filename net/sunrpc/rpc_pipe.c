@@ -621,17 +621,13 @@ __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static struct dentry *
-rpc_lookup_negative(char *path, struct nameidata *nd)
+rpc_lookup_create(struct dentry *parent, const char *name, int len)
 {
+	struct inode *dir = parent->d_inode;
 	struct dentry *dentry;
-	struct inode *dir;
-	int error;
 
-	if ((error = rpc_lookup_parent(path, nd)) != 0)
-		return ERR_PTR(error);
-	dir = nd->dentry->d_inode;
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_one_len(nd->last.name, nd->dentry, nd->last.len);
+	dentry = lookup_one_len(name, parent, len);
 	if (IS_ERR(dentry))
 		goto out_err;
 	if (dentry->d_inode) {
@@ -642,7 +638,20 @@ rpc_lookup_negative(char *path, struct nameidata *nd)
 	return dentry;
 out_err:
 	mutex_unlock(&dir->i_mutex);
-	rpc_release_path(nd);
+	return dentry;
+}
+
+static struct dentry *
+rpc_lookup_negative(char *path, struct nameidata *nd)
+{
+	struct dentry *dentry;
+	int error;
+
+	if ((error = rpc_lookup_parent(path, nd)) != 0)
+		return ERR_PTR(error);
+	dentry = rpc_lookup_create(nd->dentry, nd->last.name, nd->last.len);
+	if (IS_ERR(dentry))
+		rpc_release_path(nd);
 	return dentry;
 }
 
@@ -701,17 +710,16 @@ rpc_rmdir(struct dentry *dentry)
 }
 
 struct dentry *
-rpc_mkpipe(char *path, void *private, struct rpc_pipe_ops *ops, int flags)
+rpc_mkpipe(struct dentry *parent, const char *name, void *private, struct rpc_pipe_ops *ops, int flags)
 {
-	struct nameidata nd;
 	struct dentry *dentry;
 	struct inode *dir, *inode;
 	struct rpc_inode *rpci;
 
-	dentry = rpc_lookup_negative(path, &nd);
+	dentry = rpc_lookup_create(parent, name, strlen(name));
 	if (IS_ERR(dentry))
 		return dentry;
-	dir = nd.dentry->d_inode;
+	dir = parent->d_inode;
 	inode = rpc_get_inode(dir->i_sb, S_IFSOCK | S_IRUSR | S_IWUSR);
 	if (!inode)
 		goto err_dput;
@@ -726,13 +734,13 @@ rpc_mkpipe(char *path, void *private, struct rpc_pipe_ops *ops, int flags)
 	dget(dentry);
 out:
 	mutex_unlock(&dir->i_mutex);
-	rpc_release_path(&nd);
 	return dentry;
 err_dput:
 	dput(dentry);
 	dentry = ERR_PTR(-ENOMEM);
-	printk(KERN_WARNING "%s: %s() failed to create pipe %s (errno = %d)\n",
-			__FILE__, __FUNCTION__, path, -ENOMEM);
+	printk(KERN_WARNING "%s: %s() failed to create pipe %s/%s (errno = %d)\n",
+			__FILE__, __FUNCTION__, parent->d_name.name, name,
+			-ENOMEM);
 	goto out;
 }
 
