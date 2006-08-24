@@ -32,6 +32,10 @@ struct route_info {
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
+#define RT6_LOOKUP_F_IFACE	0x1
+#define RT6_LOOKUP_F_REACHABLE	0x2
+#define RT6_LOOKUP_F_HAS_SADDR	0x4
+
 struct pol_chain {
 	int			type;
 	int			priority;

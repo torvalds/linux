@@ -76,9 +76,6 @@
 
 #define CLONE_OFFLINK_ROUTE 0
 
-#define RT6_SELECT_F_IFACE	0x1
-#define RT6_SELECT_F_REACHABLE	0x2
-
 static int ip6_rt_max_size = 4096;
 static int ip6_rt_gc_min_interval = HZ / 2;
 static int ip6_rt_gc_timeout = 60*HZ;
@@ -340,7 +337,7 @@ static int rt6_score_route(struct rt6_info *rt, int oif,
 	int m, n;
 		
 	m = rt6_check_dev(rt, oif);
-	if (!m && (strict & RT6_SELECT_F_IFACE))
+	if (!m && (strict & RT6_LOOKUP_F_IFACE))
 		return -1;
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	m |= IPV6_DECODE_PREF(IPV6_EXTRACT_PREF(rt->rt6i_flags)) << 2;
@@ -348,7 +345,7 @@ static int rt6_score_route(struct rt6_info *rt, int oif,
 	n = rt6_check_neigh(rt);
 	if (n > 1)
 		m |= 16;
-	else if (!n && strict & RT6_SELECT_F_REACHABLE)
+	else if (!n && strict & RT6_LOOKUP_F_REACHABLE)
 		return -1;
 	return m;
 }
@@ -388,7 +385,7 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 	}
 
 	if (!match &&
-	    (strict & RT6_SELECT_F_REACHABLE) &&
+	    (strict & RT6_LOOKUP_F_REACHABLE) &&
 	    last && last != rt0) {
 		/* no entries matched; do round-robin */
 		static DEFINE_SPINLOCK(lock);
@@ -511,7 +508,7 @@ static struct rt6_info *ip6_pol_route_lookup(struct fib6_table *table,
 	fn = fib6_lookup(&table->tb6_root, &fl->fl6_dst, &fl->fl6_src);
 restart:
 	rt = fn->leaf;
-	rt = rt6_device_match(rt, fl->oif, flags & RT6_F_STRICT);
+	rt = rt6_device_match(rt, fl->oif, flags);
 	BACKTRACK(&fl->fl6_src);
 	dst_hold(&rt->u.dst);
 out:
@@ -537,7 +534,7 @@ struct rt6_info *rt6_lookup(struct in6_addr *daddr, struct in6_addr *saddr,
 		},
 	};
 	struct dst_entry *dst;
-	int flags = strict ? RT6_F_STRICT : 0;
+	int flags = strict ? RT6_LOOKUP_F_IFACE : 0;
 
 	dst = fib6_rule_lookup(&fl, flags, ip6_pol_route_lookup);
 	if (dst->error == 0)
@@ -633,10 +630,9 @@ static struct rt6_info *ip6_pol_route_input(struct fib6_table *table,
 	int strict = 0;
 	int attempts = 3;
 	int err;
-	int reachable = RT6_SELECT_F_REACHABLE;
+	int reachable = RT6_LOOKUP_F_REACHABLE;
 
-	if (flags & RT6_F_STRICT)
-		strict = RT6_SELECT_F_IFACE;
+	strict |= flags & RT6_LOOKUP_F_IFACE;
 
 relookup:
 	read_lock_bh(&table->tb6_lock);
@@ -712,10 +708,7 @@ void ip6_route_input(struct sk_buff *skb)
 		},
 		.proto = iph->nexthdr,
 	};
-	int flags = 0;
-
-	if (rt6_need_strict(&iph->daddr))
-		flags |= RT6_F_STRICT;
+	int flags = rt6_need_strict(&iph->daddr) ? RT6_LOOKUP_F_IFACE : 0;
 
 	skb->dst = fib6_rule_lookup(&fl, flags, ip6_pol_route_input);
 }
@@ -728,10 +721,9 @@ static struct rt6_info *ip6_pol_route_output(struct fib6_table *table,
 	int strict = 0;
 	int attempts = 3;
 	int err;
-	int reachable = RT6_SELECT_F_REACHABLE;
+	int reachable = RT6_LOOKUP_F_REACHABLE;
 
-	if (flags & RT6_F_STRICT)
-		strict = RT6_SELECT_F_IFACE;
+	strict |= flags & RT6_LOOKUP_F_IFACE;
 
 relookup:
 	read_lock_bh(&table->tb6_lock);
@@ -797,7 +789,7 @@ struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
 	int flags = 0;
 
 	if (rt6_need_strict(&fl->fl6_dst))
-		flags |= RT6_F_STRICT;
+		flags |= RT6_LOOKUP_F_IFACE;
 
 	return fib6_rule_lookup(fl, flags, ip6_pol_route_output);
 }
@@ -1362,7 +1354,7 @@ static struct rt6_info *ip6_route_redirect(struct in6_addr *dest,
 		},
 		.gateway = *gateway,
 	};
-	int flags = rt6_need_strict(dest) ? RT6_F_STRICT : 0;
+	int flags = rt6_need_strict(dest) ? RT6_LOOKUP_F_IFACE : 0;
 
 	return (struct rt6_info *)fib6_rule_lookup((struct flowi *)&rdfl, flags, __ip6_route_redirect);
 }

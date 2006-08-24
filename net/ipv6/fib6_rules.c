@@ -117,7 +117,7 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	if (!ipv6_prefix_equal(&fl->fl6_dst, &r->dst.addr, r->dst.plen))
 		return 0;
 
-	if ((flags & RT6_F_HAS_SADDR) &&
+	if ((flags & RT6_LOOKUP_F_HAS_SADDR) &&
 	    !ipv6_prefix_equal(&fl->fl6_src, &r->src.addr, r->src.plen))
 		return 0;
 

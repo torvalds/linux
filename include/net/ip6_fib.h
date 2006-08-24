@@ -173,9 +173,6 @@ struct fib6_table {
 #define RT6_TABLE_LOCAL		RT6_TABLE_MAIN
 #endif
 
-#define RT6_F_STRICT		1
-#define RT6_F_HAS_SADDR		2
-
 typedef struct rt6_info *(*pol_lookup_t)(struct fib6_table *,
 					 struct flowi *, int);
 
