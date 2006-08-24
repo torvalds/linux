@@ -260,6 +260,8 @@ struct xfrm_type
 	char			*description;
 	struct module		*owner;
 	__u8			proto;
+	__u8			flags;
+#define XFRM_TYPE_NON_FRAGMENT	1
 
 	int			(*init_state)(struct xfrm_state *x);
 	void			(*destructor)(struct xfrm_state *);
