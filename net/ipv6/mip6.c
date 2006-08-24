@@ -25,6 +25,7 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/time.h>
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
 #include <net/sock.h>
@@ -138,6 +139,18 @@ int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
+struct mip6_report_rate_limiter {
+	spinlock_t lock;
+	struct timeval stamp;
+	int iif;
+	struct in6_addr src;
+	struct in6_addr dst;
+};
+
+static struct mip6_report_rate_limiter mip6_report_rl = {
+	.lock = SPIN_LOCK_UNLOCKED
+};
+
 static int mip6_destopt_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = skb->nh.ipv6h;
@@ -187,6 +200,75 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 	dstopt->hdrlen = (x->props.header_len >> 3) - 1;
 
 	return 0;
+}
+
+static inline int mip6_report_rl_allow(struct timeval *stamp,
+				       struct in6_addr *dst,
+				       struct in6_addr *src, int iif)
+{
+	int allow = 0;
+
+	spin_lock_bh(&mip6_report_rl.lock);
+	if (mip6_report_rl.stamp.tv_sec != stamp->tv_sec ||
+	    mip6_report_rl.stamp.tv_usec != stamp->tv_usec ||
+	    mip6_report_rl.iif != iif ||
+	    !ipv6_addr_equal(&mip6_report_rl.src, src) ||
+	    !ipv6_addr_equal(&mip6_report_rl.dst, dst)) {
+		mip6_report_rl.stamp.tv_sec = stamp->tv_sec;
+		mip6_report_rl.stamp.tv_usec = stamp->tv_usec;
+		mip6_report_rl.iif = iif;
+		ipv6_addr_copy(&mip6_report_rl.src, src);
+		ipv6_addr_copy(&mip6_report_rl.dst, dst);
+		allow = 1;
+	}
+	spin_unlock_bh(&mip6_report_rl.lock);
+	return allow;
+}
+
+static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb, struct flowi *fl)
+{
+	struct inet6_skb_parm *opt = (struct inet6_skb_parm *)skb->cb;
+	struct ipv6_destopt_hao *hao = NULL;
+	struct xfrm_selector sel;
+	int offset;
+	struct timeval stamp;
+	int err = 0;
+
+	if (likely(opt->dsthao)) {
+		offset = ipv6_find_tlv(skb, opt->dsthao, IPV6_TLV_HAO);
+		if (likely(offset >= 0))
+			hao = (struct ipv6_destopt_hao *)(skb->nh.raw + offset);
+	}
+
+	skb_get_timestamp(skb, &stamp);
+
+	if (!mip6_report_rl_allow(&stamp, &skb->nh.ipv6h->daddr,
+				  hao ? &hao->addr : &skb->nh.ipv6h->saddr,
+				  opt->iif))
+		goto out;
+
+	memset(&sel, 0, sizeof(sel));
+	memcpy(&sel.daddr, (xfrm_address_t *)&skb->nh.ipv6h->daddr,
+	       sizeof(sel.daddr));
+	sel.prefixlen_d = 128;
+	memcpy(&sel.saddr, (xfrm_address_t *)&skb->nh.ipv6h->saddr,
+	       sizeof(sel.saddr));
+	sel.prefixlen_s = 128;
+	sel.family = AF_INET6;
+	sel.proto = fl->proto;
+	sel.dport = xfrm_flowi_dport(fl);
+	if (sel.dport)
+		sel.dport_mask = ~((__u16)0);
+	sel.sport = xfrm_flowi_sport(fl);
+	if (sel.sport)
+		sel.sport_mask = ~((__u16)0);
+	sel.ifindex = fl->oif;
+
+	err = km_report(IPPROTO_DSTOPTS, &sel,
+			(hao ? (xfrm_address_t *)&hao->addr : NULL));
+
+ out:
+	return err;
 }
 
 static int mip6_destopt_offset(struct xfrm_state *x, struct sk_buff *skb,
@@ -273,6 +355,7 @@ static struct xfrm_type mip6_destopt_type =
 	.destructor	= mip6_destopt_destroy,
 	.input		= mip6_destopt_input,
 	.output		= mip6_destopt_output,
+ 	.reject		= mip6_destopt_reject,
 	.hdr_offset	= mip6_destopt_offset,
 	.local_addr	= mip6_xfrm_addr,
 };
