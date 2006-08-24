@@ -412,7 +412,8 @@ static void pndisc_destructor(struct pneigh_entry *n)
  */
 
 static inline void ndisc_flow_init(struct flowi *fl, u8 type,
-			    struct in6_addr *saddr, struct in6_addr *daddr)
+			    struct in6_addr *saddr, struct in6_addr *daddr,
+			    int oif)
 {
 	memset(fl, 0, sizeof(*fl));
 	ipv6_addr_copy(&fl->fl6_src, saddr);
@@ -420,6 +421,7 @@ static inline void ndisc_flow_init(struct flowi *fl, u8 type,
 	fl->proto	 	= IPPROTO_ICMPV6;
 	fl->fl_icmp_type	= type;
 	fl->fl_icmp_code	= 0;
+	fl->oif			= oif;
 	security_sk_classify_flow(ndisc_socket->sk, fl);
 }
 
@@ -452,7 +454,8 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 		src_addr = &tmpaddr;
 	}
 
-	ndisc_flow_init(&fl, NDISC_NEIGHBOUR_ADVERTISEMENT, src_addr, daddr);
+	ndisc_flow_init(&fl, NDISC_NEIGHBOUR_ADVERTISEMENT, src_addr, daddr,
+			dev->ifindex);
 
 	dst = ndisc_dst_alloc(dev, neigh, daddr, ip6_output);
 	if (!dst)
@@ -542,7 +545,8 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 		saddr = &addr_buf;
 	}
 
-	ndisc_flow_init(&fl, NDISC_NEIGHBOUR_SOLICITATION, saddr, daddr);
+	ndisc_flow_init(&fl, NDISC_NEIGHBOUR_SOLICITATION, saddr, daddr,
+			dev->ifindex);
 
 	dst = ndisc_dst_alloc(dev, neigh, daddr, ip6_output);
 	if (!dst)
@@ -617,7 +621,8 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
         int len;
 	int err;
 
-	ndisc_flow_init(&fl, NDISC_ROUTER_SOLICITATION, saddr, daddr);
+	ndisc_flow_init(&fl, NDISC_ROUTER_SOLICITATION, saddr, daddr,
+			dev->ifindex);
 
 	dst = ndisc_dst_alloc(dev, NULL, daddr, ip6_output);
 	if (!dst)
@@ -1383,7 +1388,8 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
  		return;
  	}
 
-	ndisc_flow_init(&fl, NDISC_REDIRECT, &saddr_buf, &skb->nh.ipv6h->saddr);
+	ndisc_flow_init(&fl, NDISC_REDIRECT, &saddr_buf, &skb->nh.ipv6h->saddr,
+			dev->ifindex);
 
 	dst = ip6_route_output(NULL, &fl);
 	if (dst == NULL)
