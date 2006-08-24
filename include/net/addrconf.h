@@ -61,6 +61,13 @@ extern int			addrconf_set_dstaddr(void __user *arg);
 extern int			ipv6_chk_addr(struct in6_addr *addr,
 					      struct net_device *dev,
 					      int strict);
+/* XXX: this is a placeholder till addrconf supports */
+#ifdef CONFIG_IPV6_MIP6
+static inline int ipv6_chk_home_addr(struct in6_addr *addr)
+{
+	return 0;
+}
+#endif
 extern struct inet6_ifaddr *	ipv6_get_ifaddr(struct in6_addr *addr,
 						struct net_device *dev,
 						int strict);

@@ -43,6 +43,9 @@
 #include <net/ndisc.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
+#ifdef CONFIG_IPV6_MIP6
+#include <net/xfrm.h>
+#endif
 
 #include <asm/uaccess.h>
 
@@ -219,7 +222,7 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
 	struct inet6_skb_parm *opt = IP6CB(skb);
-	struct in6_addr *addr;
+	struct in6_addr *addr = NULL;
 	struct in6_addr daddr;
 	int n, i;
 
@@ -244,6 +247,23 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 
 looped_back:
 	if (hdr->segments_left == 0) {
+		switch (hdr->type) {
+#ifdef CONFIG_IPV6_MIP6
+		case IPV6_SRCRT_TYPE_2:
+			/* Silently discard type 2 header unless it was
+			 * processed by own
+			 */
+			if (!addr) {
+				IP6_INC_STATS_BH(IPSTATS_MIB_INADDRERRORS);
+				kfree_skb(skb);
+				return -1;
+			}
+			break;
+#endif
+		default:
+			break;
+		}
+
 		opt->lastopt = skb->h.raw - skb->nh.raw;
 		opt->srcrt = skb->h.raw - skb->nh.raw;
 		skb->h.raw += (hdr->hdrlen + 1) << 3;
@@ -253,15 +273,27 @@ looped_back:
 		return 1;
 	}
 
-	if (hdr->type != IPV6_SRCRT_TYPE_0) {
+	switch (hdr->type) {
+	case IPV6_SRCRT_TYPE_0:
+		if (hdr->hdrlen & 0x01) {
+			IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
+			icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, (&hdr->hdrlen) - skb->nh.raw);
+			return -1;
+		}
+		break;
+#ifdef CONFIG_IPV6_MIP6
+	case IPV6_SRCRT_TYPE_2:
+		/* Silently discard invalid RTH type 2 */
+		if (hdr->hdrlen != 2 || hdr->segments_left != 1) {
+			IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
+			kfree_skb(skb);
+			return -1;
+		}
+		break;
+#endif
+	default:
 		IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, (&hdr->type) - skb->nh.raw);
-		return -1;
-	}
-	
-	if (hdr->hdrlen & 0x01) {
-		IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
-		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, (&hdr->hdrlen) - skb->nh.raw);
 		return -1;
 	}
 
@@ -302,6 +334,27 @@ looped_back:
 	rthdr = (struct rt0_hdr *) hdr;
 	addr = rthdr->addr;
 	addr += i - 1;
+
+	switch (hdr->type) {
+#ifdef CONFIG_IPV6_MIP6
+	case IPV6_SRCRT_TYPE_2:
+		if (xfrm6_input_addr(skb, (xfrm_address_t *)addr,
+				     (xfrm_address_t *)&skb->nh.ipv6h->saddr,
+				     IPPROTO_ROUTING) < 0) {
+			IP6_INC_STATS_BH(IPSTATS_MIB_INADDRERRORS);
+			kfree_skb(skb);
+			return -1;
+		}
+		if (!ipv6_chk_home_addr(addr)) {
+			IP6_INC_STATS_BH(IPSTATS_MIB_INADDRERRORS);
+			kfree_skb(skb);
+			return -1;
+		}
+		break;
+#endif
+	default:
+		break;
+	}
 
 	if (ipv6_addr_is_multicast(addr)) {
 		IP6_INC_STATS_BH(IPSTATS_MIB_INADDRERRORS);
