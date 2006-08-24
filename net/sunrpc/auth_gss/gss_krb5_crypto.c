@@ -34,6 +34,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <linux/err.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -199,11 +200,9 @@ out:
 static int
 checksummer(struct scatterlist *sg, void *data)
 {
-	struct crypto_tfm *tfm = (struct crypto_tfm *)data;
+	struct hash_desc *desc = data;
 
-	crypto_digest_update(tfm, sg, 1);
-
-	return 0;
+	return crypto_hash_update(desc, sg, sg->length);
 }
 
 /* checksum the plaintext data and hdrlen bytes of the token header */
@@ -212,8 +211,9 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 		   int body_offset, struct xdr_netobj *cksum)
 {
 	char                            *cksumname;
-	struct crypto_tfm               *tfm = NULL; /* XXX add to ctx? */
+	struct hash_desc                desc; /* XXX add to ctx? */
 	struct scatterlist              sg[1];
+	int err;
 
 	switch (cksumtype) {
 		case CKSUMTYPE_RSA_MD5:
@@ -224,18 +224,28 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 				" unsupported checksum %d", cksumtype);
 			return GSS_S_FAILURE;
 	}
-	if (!(tfm = crypto_alloc_tfm(cksumname, CRYPTO_TFM_REQ_MAY_SLEEP)))
+	desc.tfm = crypto_alloc_hash(cksumname, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(desc.tfm))
 		return GSS_S_FAILURE;
-	cksum->len = crypto_tfm_alg_digestsize(tfm);
+	cksum->len = crypto_hash_digestsize(desc.tfm);
+	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
-	crypto_digest_init(tfm);
+	err = crypto_hash_init(&desc);
+	if (err)
+		goto out;
 	sg_set_buf(sg, header, hdrlen);
-	crypto_digest_update(tfm, sg, 1);
-	process_xdr_buf(body, body_offset, body->len - body_offset,
-			checksummer, tfm);
-	crypto_digest_final(tfm, cksum->data);
-	crypto_free_tfm(tfm);
-	return 0;
+	err = crypto_hash_update(&desc, sg, hdrlen);
+	if (err)
+		goto out;
+	err = process_xdr_buf(body, body_offset, body->len - body_offset,
+			      checksummer, &desc);
+	if (err)
+		goto out;
+	err = crypto_hash_final(&desc, cksum->data);
+
+out:
+	crypto_free_hash(desc.tfm);
+	return err ? GSS_S_FAILURE : 0;
 }
 
 EXPORT_SYMBOL(make_checksum);

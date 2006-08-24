@@ -122,7 +122,8 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 	                      const char *opts)
 {
 	struct crypto_cipher *essiv_tfm;
-	struct crypto_tfm *hash_tfm;
+	struct crypto_hash *hash_tfm;
+	struct hash_desc desc;
 	struct scatterlist sg;
 	unsigned int saltsize;
 	u8 *salt;
@@ -134,29 +135,30 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 	}
 
 	/* Hash the cipher key with the given hash algorithm */
-	hash_tfm = crypto_alloc_tfm(opts, CRYPTO_TFM_REQ_MAY_SLEEP);
-	if (hash_tfm == NULL) {
+	hash_tfm = crypto_alloc_hash(opts, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hash_tfm)) {
 		ti->error = "Error initializing ESSIV hash";
-		return -EINVAL;
+		return PTR_ERR(hash_tfm);
 	}
 
-	if (crypto_tfm_alg_type(hash_tfm) != CRYPTO_ALG_TYPE_DIGEST) {
-		ti->error = "Expected digest algorithm for ESSIV hash";
-		crypto_free_tfm(hash_tfm);
-		return -EINVAL;
-	}
-
-	saltsize = crypto_tfm_alg_digestsize(hash_tfm);
+	saltsize = crypto_hash_digestsize(hash_tfm);
 	salt = kmalloc(saltsize, GFP_KERNEL);
 	if (salt == NULL) {
 		ti->error = "Error kmallocing salt storage in ESSIV";
-		crypto_free_tfm(hash_tfm);
+		crypto_free_hash(hash_tfm);
 		return -ENOMEM;
 	}
 
 	sg_set_buf(&sg, cc->key, cc->key_size);
-	crypto_digest_digest(hash_tfm, &sg, 1, salt);
-	crypto_free_tfm(hash_tfm);
+	desc.tfm = hash_tfm;
+	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+	err = crypto_hash_digest(&desc, &sg, cc->key_size, salt);
+	crypto_free_hash(hash_tfm);
+
+	if (err) {
+		ti->error = "Error calculating hash in ESSIV";
+		return err;
+	}
 
 	/* Setup the essiv_tfm with the given salt */
 	essiv_tfm = crypto_alloc_cipher(cc->cipher, 0, CRYPTO_ALG_ASYNC);
