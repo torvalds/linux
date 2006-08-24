@@ -18,10 +18,10 @@
 #include <linux/pfkeyv2.h>
 #include <linux/ipsec.h>
 #include <linux/module.h>
-#include <linux/bootmem.h>
-#include <linux/vmalloc.h>
 #include <linux/cache.h>
 #include <asm/uaccess.h>
+
+#include "xfrm_hash.h"
 
 struct sock *xfrm_nl;
 EXPORT_SYMBOL(xfrm_nl);
@@ -55,44 +55,6 @@ static unsigned int xfrm_state_hashmax __read_mostly = 1 * 1024 * 1024;
 static unsigned int xfrm_state_num;
 static unsigned int xfrm_state_genid;
 
-static inline unsigned int __xfrm4_addr_hash(xfrm_address_t *addr)
-{
-	return ntohl(addr->a4);
-}
-
-static inline unsigned int __xfrm6_addr_hash(xfrm_address_t *addr)
-{
-	return ntohl(addr->a6[2]^addr->a6[3]);
-}
-
-static inline unsigned int __xfrm4_daddr_saddr_hash(xfrm_address_t *daddr, xfrm_address_t *saddr)
-{
-	return ntohl(daddr->a4 ^ saddr->a4);
-}
-
-static inline unsigned int __xfrm6_daddr_saddr_hash(xfrm_address_t *daddr, xfrm_address_t *saddr)
-{
-	return ntohl(daddr->a6[2] ^ daddr->a6[3] ^
-		     saddr->a6[2] ^ saddr->a6[3]);
-}
-
-static inline unsigned int __xfrm_dst_hash(xfrm_address_t *daddr,
-					   xfrm_address_t *saddr,
-					   u32 reqid, unsigned short family,
-					   unsigned int hmask)
-{
-	unsigned int h = family ^ reqid;
-	switch (family) {
-	case AF_INET:
-		h ^= __xfrm4_daddr_saddr_hash(daddr, saddr);
-		break;
-	case AF_INET6:
-		h ^= __xfrm6_daddr_saddr_hash(daddr, saddr);
-		break;
-	};
-	return (h ^ (h >> 16)) & hmask;
-}
-
 static inline unsigned int xfrm_dst_hash(xfrm_address_t *daddr,
 					 xfrm_address_t *saddr,
 					 u32 reqid,
@@ -101,74 +63,16 @@ static inline unsigned int xfrm_dst_hash(xfrm_address_t *daddr,
 	return __xfrm_dst_hash(daddr, saddr, reqid, family, xfrm_state_hmask);
 }
 
-static inline unsigned __xfrm_src_hash(xfrm_address_t *addr, unsigned short family,
-				       unsigned int hmask)
-{
-	unsigned int h = family;
-	switch (family) {
-	case AF_INET:
-		h ^= __xfrm4_addr_hash(addr);
-		break;
-	case AF_INET6:
-		h ^= __xfrm6_addr_hash(addr);
-		break;
-	};
-	return (h ^ (h >> 16)) & hmask;
-}
-
-static inline unsigned xfrm_src_hash(xfrm_address_t *addr, unsigned short family)
+static inline unsigned int xfrm_src_hash(xfrm_address_t *addr,
+					 unsigned short family)
 {
 	return __xfrm_src_hash(addr, family, xfrm_state_hmask);
-}
-
-static inline unsigned int
-__xfrm_spi_hash(xfrm_address_t *daddr, u32 spi, u8 proto,
-		unsigned short family, unsigned int hmask)
-{
-	unsigned int h = spi ^ proto;
-	switch (family) {
-	case AF_INET:
-		h ^= __xfrm4_addr_hash(daddr);
-		break;
-	case AF_INET6:
-		h ^= __xfrm6_addr_hash(daddr);
-		break;
-	}
-	return (h ^ (h >> 10) ^ (h >> 20)) & hmask;
 }
 
 static inline unsigned int
 xfrm_spi_hash(xfrm_address_t *daddr, u32 spi, u8 proto, unsigned short family)
 {
 	return __xfrm_spi_hash(daddr, spi, proto, family, xfrm_state_hmask);
-}
-
-static struct hlist_head *xfrm_state_hash_alloc(unsigned int sz)
-{
-	struct hlist_head *n;
-
-	if (sz <= PAGE_SIZE)
-		n = kmalloc(sz, GFP_KERNEL);
-	else if (hashdist)
-		n = __vmalloc(sz, GFP_KERNEL, PAGE_KERNEL);
-	else
-		n = (struct hlist_head *)
-			__get_free_pages(GFP_KERNEL, get_order(sz));
-
-	if (n)
-		memset(n, 0, sz);
-
-	return n;
-}
-
-static void xfrm_state_hash_free(struct hlist_head *n, unsigned int sz)
-{
-	if (sz <= PAGE_SIZE)
-		kfree(n);
-	else if (hashdist)
-		vfree(n);
-	else
-		free_pages((unsigned long)n, get_order(sz));
 }
 
 static void xfrm_hash_transfer(struct hlist_head *list,
@@ -216,18 +120,18 @@ static void xfrm_hash_resize(void *__unused)
 	mutex_lock(&hash_resize_mutex);
 
 	nsize = xfrm_hash_new_size();
-	ndst = xfrm_state_hash_alloc(nsize);
+	ndst = xfrm_hash_alloc(nsize);
 	if (!ndst)
 		goto out_unlock;
-	nsrc = xfrm_state_hash_alloc(nsize);
+	nsrc = xfrm_hash_alloc(nsize);
 	if (!nsrc) {
-		xfrm_state_hash_free(ndst, nsize);
+		xfrm_hash_free(ndst, nsize);
 		goto out_unlock;
 	}
-	nspi = xfrm_state_hash_alloc(nsize);
+	nspi = xfrm_hash_alloc(nsize);
 	if (!nspi) {
-		xfrm_state_hash_free(ndst, nsize);
-		xfrm_state_hash_free(nsrc, nsize);
+		xfrm_hash_free(ndst, nsize);
+		xfrm_hash_free(nsrc, nsize);
 		goto out_unlock;
 	}
 
@@ -251,9 +155,9 @@ static void xfrm_hash_resize(void *__unused)
 	spin_unlock_bh(&xfrm_state_lock);
 
 	osize = (ohashmask + 1) * sizeof(struct hlist_head);
-	xfrm_state_hash_free(odst, osize);
-	xfrm_state_hash_free(osrc, osize);
-	xfrm_state_hash_free(ospi, osize);
+	xfrm_hash_free(odst, osize);
+	xfrm_hash_free(osrc, osize);
+	xfrm_hash_free(ospi, osize);
 
 out_unlock:
 	mutex_unlock(&hash_resize_mutex);
@@ -1643,9 +1547,9 @@ void __init xfrm_state_init(void)
 
 	sz = sizeof(struct hlist_head) * 8;
 
-	xfrm_state_bydst = xfrm_state_hash_alloc(sz);
-	xfrm_state_bysrc = xfrm_state_hash_alloc(sz);
-	xfrm_state_byspi = xfrm_state_hash_alloc(sz);
+	xfrm_state_bydst = xfrm_hash_alloc(sz);
+	xfrm_state_bysrc = xfrm_hash_alloc(sz);
+	xfrm_state_byspi = xfrm_hash_alloc(sz);
 	if (!xfrm_state_bydst || !xfrm_state_bysrc || !xfrm_state_byspi)
 		panic("XFRM: Cannot allocate bydst/bysrc/byspi hashes.");
 	xfrm_state_hmask = ((sz / sizeof(struct hlist_head)) - 1);

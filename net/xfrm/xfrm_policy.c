@@ -22,11 +22,11 @@
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
 #include <linux/module.h>
-#include <linux/bootmem.h>
-#include <linux/vmalloc.h>
 #include <linux/cache.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
+
+#include "xfrm_hash.h"
 
 DEFINE_MUTEX(xfrm_cfg_mutex);
 EXPORT_SYMBOL(xfrm_cfg_mutex);
@@ -409,60 +409,9 @@ static struct hlist_head *xfrm_policy_byidx __read_mostly;
 static unsigned int xfrm_idx_hmask __read_mostly;
 static unsigned int xfrm_policy_hashmax __read_mostly = 1 * 1024 * 1024;
 
-static inline unsigned int __idx_hash(u32 index, unsigned int hmask)
-{
-	return (index ^ (index >> 8)) & hmask;
-}
-
 static inline unsigned int idx_hash(u32 index)
 {
 	return __idx_hash(index, xfrm_idx_hmask);
-}
-
-static inline unsigned int __sel_hash(struct xfrm_selector *sel, unsigned short family, unsigned int hmask)
-{
-	xfrm_address_t *daddr = &sel->daddr;
-	xfrm_address_t *saddr = &sel->saddr;
-	unsigned int h = 0;
-
-	switch (family) {
-	case AF_INET:
-		if (sel->prefixlen_d != 32 ||
-		    sel->prefixlen_s != 32)
-			return hmask + 1;
-
-		h = ntohl(daddr->a4 ^ saddr->a4);
-		break;
-
-	case AF_INET6:
-		if (sel->prefixlen_d != 128 ||
-		    sel->prefixlen_s != 128)
-			return hmask + 1;
-
-		h = ntohl(daddr->a6[2] ^ daddr->a6[3] ^
-			  saddr->a6[2] ^ saddr->a6[3]);
-		break;
-	};
-	h ^= (h >> 16);
-	return h & hmask;
-}
-
-static inline unsigned int __addr_hash(xfrm_address_t *daddr, xfrm_address_t *saddr, unsigned short family, unsigned int hmask)
-{
-	unsigned int h = 0;
-
-	switch (family) {
-	case AF_INET:
-		h = ntohl(daddr->a4 ^ saddr->a4);
-		break;
-
-	case AF_INET6:
-		h = ntohl(daddr->a6[2] ^ daddr->a6[3] ^
-			  saddr->a6[2] ^ saddr->a6[3]);
-		break;
-	};
-	h ^= (h >> 16);
-	return h & hmask;
 }
 
 static struct hlist_head *policy_hash_bysel(struct xfrm_selector *sel, unsigned short family, int dir)
@@ -481,34 +430,6 @@ static struct hlist_head *policy_hash_direct(xfrm_address_t *daddr, xfrm_address
 	unsigned int hash = __addr_hash(daddr, saddr, family, hmask);
 
 	return xfrm_policy_bydst[dir].table + hash;
-}
-
-static struct hlist_head *xfrm_policy_hash_alloc(unsigned int sz)
-{
-	struct hlist_head *n;
-
-	if (sz <= PAGE_SIZE)
-		n = kmalloc(sz, GFP_KERNEL);
-	else if (hashdist)
-		n = __vmalloc(sz, GFP_KERNEL, PAGE_KERNEL);
-	else
-		n = (struct hlist_head *)
-			__get_free_pages(GFP_KERNEL, get_order(sz));
-
-	if (n)
-		memset(n, 0, sz);
-
-	return n;
-}
-
-static void xfrm_policy_hash_free(struct hlist_head *n, unsigned int sz)
-{
-	if (sz <= PAGE_SIZE)
-		kfree(n);
-	else if (hashdist)
-		vfree(n);
-	else
-		free_pages((unsigned long)n, get_order(sz));
 }
 
 static void xfrm_dst_hash_transfer(struct hlist_head *list,
@@ -553,7 +474,7 @@ static void xfrm_bydst_resize(int dir)
 	unsigned int nhashmask = xfrm_new_hash_mask(hmask);
 	unsigned int nsize = (nhashmask + 1) * sizeof(struct hlist_head);
 	struct hlist_head *odst = xfrm_policy_bydst[dir].table;
-	struct hlist_head *ndst = xfrm_policy_hash_alloc(nsize);
+	struct hlist_head *ndst = xfrm_hash_alloc(nsize);
 	int i;
 
 	if (!ndst)
@@ -569,7 +490,7 @@ static void xfrm_bydst_resize(int dir)
 
 	write_unlock_bh(&xfrm_policy_lock);
 
-	xfrm_policy_hash_free(odst, (hmask + 1) * sizeof(struct hlist_head));
+	xfrm_hash_free(odst, (hmask + 1) * sizeof(struct hlist_head));
 }
 
 static void xfrm_byidx_resize(int total)
@@ -578,7 +499,7 @@ static void xfrm_byidx_resize(int total)
 	unsigned int nhashmask = xfrm_new_hash_mask(hmask);
 	unsigned int nsize = (nhashmask + 1) * sizeof(struct hlist_head);
 	struct hlist_head *oidx = xfrm_policy_byidx;
-	struct hlist_head *nidx = xfrm_policy_hash_alloc(nsize);
+	struct hlist_head *nidx = xfrm_hash_alloc(nsize);
 	int i;
 
 	if (!nidx)
@@ -594,7 +515,7 @@ static void xfrm_byidx_resize(int total)
 
 	write_unlock_bh(&xfrm_policy_lock);
 
-	xfrm_policy_hash_free(oidx, (hmask + 1) * sizeof(struct hlist_head));
+	xfrm_hash_free(oidx, (hmask + 1) * sizeof(struct hlist_head));
 }
 
 static inline int xfrm_bydst_should_resize(int dir, int *total)
@@ -2071,7 +1992,7 @@ static void __init xfrm_policy_init(void)
 	hmask = 8 - 1;
 	sz = (hmask+1) * sizeof(struct hlist_head);
 
-	xfrm_policy_byidx = xfrm_policy_hash_alloc(sz);
+	xfrm_policy_byidx = xfrm_hash_alloc(sz);
 	xfrm_idx_hmask = hmask;
 	if (!xfrm_policy_byidx)
 		panic("XFRM: failed to allocate byidx hash\n");
@@ -2082,7 +2003,7 @@ static void __init xfrm_policy_init(void)
 		INIT_HLIST_HEAD(&xfrm_policy_inexact[dir]);
 
 		htab = &xfrm_policy_bydst[dir];
-		htab->table = xfrm_policy_hash_alloc(sz);
+		htab->table = xfrm_hash_alloc(sz);
 		htab->hmask = hmask;
 		if (!htab->table)
 			panic("XFRM: failed to allocate bydst hash\n");
