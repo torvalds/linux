@@ -1169,8 +1169,18 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 
 	BUG_TRAP(fn->fn_flags&RTN_RTINFO);
 
-	if (!(rt->rt6i_flags&RTF_CACHE))
-		fib6_prune_clones(fn, rt);
+	if (!(rt->rt6i_flags&RTF_CACHE)) {
+		struct fib6_node *pn = fn;
+#ifdef CONFIG_IPV6_SUBTREES
+		/* clones of this route might be in another subtree */
+		if (rt->rt6i_src.plen) {
+			while (!(pn->fn_flags&RTN_ROOT))
+				pn = pn->parent;
+			pn = pn->parent;
+		}
+#endif
+		fib6_prune_clones(pn, rt);
+	}
 
 	/*
 	 *	Walk the leaf entries looking for ourself
