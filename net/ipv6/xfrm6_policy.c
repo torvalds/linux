@@ -149,6 +149,7 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 
 		xdst = (struct xfrm_dst *)dst1;
 		xdst->route = &rt->u.dst;
+		xdst->genid = xfrm[i]->genid;
 		if (rt->rt6i_node)
 			xdst->route_cookie = rt->rt6i_node->fn_sernum;
 

@@ -93,6 +93,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 
 		xdst = (struct xfrm_dst *)dst1;
 		xdst->route = &rt->u.dst;
+		xdst->genid = xfrm[i]->genid;
 
 		dst1->next = dst_prev;
 		dst_prev = dst1;

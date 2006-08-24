@@ -104,6 +104,8 @@ struct xfrm_state
 	struct xfrm_id		id;
 	struct xfrm_selector	sel;
 
+	u32			genid;
+
 	/* Key manger bits */
 	struct {
 		u8		state;
@@ -590,6 +592,7 @@ struct xfrm_dst
 		struct rt6_info		rt6;
 	} u;
 	struct dst_entry *route;
+	u32 genid;
 	u32 route_mtu_cached;
 	u32 child_mtu_cached;
 	u32 route_cookie;

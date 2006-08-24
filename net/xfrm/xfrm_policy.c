@@ -1536,6 +1536,8 @@ int xfrm_bundle_ok(struct xfrm_dst *first, struct flowi *fl, int family, int str
 			return 0;
 		if (dst->xfrm->km.state != XFRM_STATE_VALID)
 			return 0;
+		if (xdst->genid != dst->xfrm->genid)
+			return 0;
 
 		if (strict && fl && dst->xfrm->props.mode != XFRM_MODE_TUNNEL &&
 		    !xfrm_state_addr_flow_check(dst->xfrm, fl, family))

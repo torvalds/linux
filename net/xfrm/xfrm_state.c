@@ -53,6 +53,7 @@ static struct hlist_head *xfrm_state_byspi __read_mostly;
 static unsigned int xfrm_state_hmask __read_mostly;
 static unsigned int xfrm_state_hashmax __read_mostly = 1 * 1024 * 1024;
 static unsigned int xfrm_state_num;
+static unsigned int xfrm_state_genid;
 
 static inline unsigned int __xfrm4_dst_hash(xfrm_address_t *addr, unsigned int hmask)
 {
@@ -744,6 +745,8 @@ out:
 static void __xfrm_state_insert(struct xfrm_state *x)
 {
 	unsigned int h = xfrm_dst_hash(&x->id.daddr, x->props.family);
+
+	x->genid = ++xfrm_state_genid;
 
 	hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 	xfrm_state_hold(x);
