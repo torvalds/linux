@@ -488,15 +488,16 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 
 	down_write(&ls->ls_in_recovery);
 
+	spin_lock(&lslist_lock);
+	list_add(&ls->ls_list, &lslist);
+	spin_unlock(&lslist_lock);
+
+	/* needs to find ls in lslist */
 	error = dlm_recoverd_start(ls);
 	if (error) {
 		log_error(ls, "can't start dlm_recoverd %d", error);
 		goto out_rcomfree;
 	}
-
-	spin_lock(&lslist_lock);
-	list_add(&ls->ls_list, &lslist);
-	spin_unlock(&lslist_lock);
 
 	dlm_create_debug_file(ls);
 
@@ -519,11 +520,11 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	kobject_unregister(&ls->ls_kobj);
  out_del:
 	dlm_delete_debug_file(ls);
+	dlm_recoverd_stop(ls);
+ out_rcomfree:
 	spin_lock(&lslist_lock);
 	list_del(&ls->ls_list);
 	spin_unlock(&lslist_lock);
-	dlm_recoverd_stop(ls);
- out_rcomfree:
 	kfree(ls->ls_recover_buf);
  out_dirfree:
 	kfree(ls->ls_dirtbl);

@@ -234,6 +234,10 @@ static int dlm_recoverd(void *arg)
 	struct dlm_ls *ls;
 
 	ls = dlm_find_lockspace_local(arg);
+	if (!ls) {
+		log_print("dlm_recoverd: no lockspace %p", arg);
+		return -1;
+	}
 
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
