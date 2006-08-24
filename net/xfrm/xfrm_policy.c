@@ -1046,7 +1046,7 @@ xfrm_decode_session(struct sk_buff *skb, struct flowi *fl, unsigned short family
 }
 EXPORT_SYMBOL(xfrm_decode_session);
 
-static inline int secpath_has_tunnel(struct sec_path *sp, int k)
+static inline int secpath_has_nontransport(struct sec_path *sp, int k)
 {
 	for (; k < sp->len; k++) {
 		if (sp->xvec[k]->props.mode != XFRM_MODE_TRANSPORT)
@@ -1087,7 +1087,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 					xfrm_policy_lookup);
 
 	if (!pol)
-		return !skb->sp || !secpath_has_tunnel(skb->sp, 0);
+		return !skb->sp || !secpath_has_nontransport(skb->sp, 0);
 
 	pol->curlft.use_time = (unsigned long)xtime.tv_sec;
 
@@ -1111,7 +1111,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 				goto reject;
 		}
 
-		if (secpath_has_tunnel(sp, k))
+		if (secpath_has_nontransport(sp, k))
 			goto reject;
 
 		xfrm_pol_put(pol);
