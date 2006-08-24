@@ -234,6 +234,9 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb, struct
 	struct timeval stamp;
 	int err = 0;
 
+	if (unlikely(fl->proto == IPPROTO_MH && fl->fl_mh_type <= IP6_MH_TYPE_MAX))
+		goto out;
+
 	if (likely(opt->dsthao)) {
 		offset = ipv6_find_tlv(skb, opt->dsthao, IPV6_TLV_HAO);
 		if (likely(offset >= 0))
