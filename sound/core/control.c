@@ -1048,6 +1048,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	if (ue == NULL)
 		return -ENOMEM;
 	ue->info = *info;
+	ue->info.access = 0;
 	ue->elem_data = (char *)ue + sizeof(*ue);
 	ue->elem_data_size = private_size;
 	kctl.private_free = snd_ctl_elem_user_free;
