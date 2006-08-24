@@ -203,6 +203,7 @@ struct km_event
 		u32 proto;
 		u32 byid;
 		u32 aevent;
+		u32 type;
 	} data;
 
 	u32	seq;

@@ -1731,7 +1731,8 @@ static u32 gen_reqid(void)
 		++reqid;
 		if (reqid == 0)
 			reqid = IPSEC_MANUAL_REQID_MAX+1;
-		if (xfrm_policy_walk(check_reqid, (void*)&reqid) != -EEXIST)
+		if (xfrm_policy_walk(XFRM_POLICY_TYPE_MAIN, check_reqid,
+				     (void*)&reqid) != -EEXIST)
 			return reqid;
 	} while (reqid != start);
 	return 0;
@@ -2268,7 +2269,8 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 			return err;
 	}
 
-	xp = xfrm_policy_bysel_ctx(pol->sadb_x_policy_dir-1, &sel, tmp.security, 1);
+	xp = xfrm_policy_bysel_ctx(XFRM_POLICY_TYPE_MAIN, pol->sadb_x_policy_dir-1,
+				   &sel, tmp.security, 1);
 	security_xfrm_policy_free(&tmp);
 	if (xp == NULL)
 		return -ENOENT;
@@ -2330,7 +2332,7 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	if (dir >= XFRM_POLICY_MAX)
 		return -EINVAL;
 
-	xp = xfrm_policy_byid(dir, pol->sadb_x_policy_id,
+	xp = xfrm_policy_byid(XFRM_POLICY_TYPE_MAIN, dir, pol->sadb_x_policy_id,
 			      hdr->sadb_msg_type == SADB_X_SPDDELETE2);
 	if (xp == NULL)
 		return -ENOENT;
@@ -2378,7 +2380,7 @@ static int pfkey_spddump(struct sock *sk, struct sk_buff *skb, struct sadb_msg *
 {
 	struct pfkey_dump_data data = { .skb = skb, .hdr = hdr, .sk = sk };
 
-	return xfrm_policy_walk(dump_sp, &data);
+	return xfrm_policy_walk(XFRM_POLICY_TYPE_MAIN, dump_sp, &data);
 }
 
 static int key_notify_policy_flush(struct km_event *c)
@@ -2405,7 +2407,8 @@ static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 {
 	struct km_event c;
 
-	xfrm_policy_flush();
+	xfrm_policy_flush(XFRM_POLICY_TYPE_MAIN);
+	c.data.type = XFRM_POLICY_TYPE_MAIN;
 	c.event = XFRM_MSG_FLUSHPOLICY;
 	c.pid = hdr->sadb_msg_pid;
 	c.seq = hdr->sadb_msg_seq;
@@ -2667,6 +2670,9 @@ static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
 
 static int pfkey_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
 {
+	if (xp && xp->type != XFRM_POLICY_TYPE_MAIN)
+		return 0;
+
 	switch (c->event) {
 	case XFRM_MSG_POLEXPIRE:
 		return key_notify_policy_expire(xp, c);
@@ -2675,6 +2681,8 @@ static int pfkey_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_e
 	case XFRM_MSG_UPDPOLICY:
 		return key_notify_policy(xp, dir, c);
 	case XFRM_MSG_FLUSHPOLICY:
+		if (c->data.type != XFRM_POLICY_TYPE_MAIN)
+			break;
 		return key_notify_policy_flush(c);
 	default:
 		printk("pfkey: Unknown policy event %d\n", c->event);

@@ -786,6 +786,22 @@ static int verify_policy_dir(__u8 dir)
 	return 0;
 }
 
+static int verify_policy_type(__u8 type)
+{
+	switch (type) {
+	case XFRM_POLICY_TYPE_MAIN:
+#ifdef CONFIG_XFRM_SUB_POLICY
+	case XFRM_POLICY_TYPE_SUB:
+#endif
+		break;
+
+	default:
+		return -EINVAL;
+	};
+
+	return 0;
+}
+
 static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
 {
 	switch (p->share) {
@@ -879,6 +895,29 @@ static int copy_from_user_tmpl(struct xfrm_policy *pol, struct rtattr **xfrma)
 	return 0;
 }
 
+static int copy_from_user_policy_type(u8 *tp, struct rtattr **xfrma)
+{
+	struct rtattr *rt = xfrma[XFRMA_POLICY_TYPE-1];
+	struct xfrm_userpolicy_type *upt;
+	__u8 type = XFRM_POLICY_TYPE_MAIN;
+	int err;
+
+	if (rt) {
+		if (rt->rta_len < sizeof(*upt))
+			return -EINVAL;
+
+		upt = RTA_DATA(rt);
+		type = upt->type;
+	}
+
+	err = verify_policy_type(type);
+	if (err)
+		return err;
+
+	*tp = type;
+	return 0;
+}
+
 static void copy_from_user_policy(struct xfrm_policy *xp, struct xfrm_userpolicy_info *p)
 {
 	xp->priority = p->priority;
@@ -917,16 +956,20 @@ static struct xfrm_policy *xfrm_policy_construct(struct xfrm_userpolicy_info *p,
 
 	copy_from_user_policy(xp, p);
 
+	err = copy_from_user_policy_type(&xp->type, xfrma);
+	if (err)
+		goto error;
+
 	if (!(err = copy_from_user_tmpl(xp, xfrma)))
 		err = copy_from_user_sec_ctx(xp, xfrma);
-
-	if (err) {
-		*errp = err;
-		kfree(xp);
-		xp = NULL;
-	}
+	if (err)
+		goto error;
 
 	return xp;
+ error:
+	*errp = err;
+	kfree(xp);
+	return NULL;
 }
 
 static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
@@ -1037,6 +1080,29 @@ static inline int copy_to_user_sec_ctx(struct xfrm_policy *xp, struct sk_buff *s
 	return 0;
 }
 
+#ifdef CONFIG_XFRM_SUB_POLICY
+static int copy_to_user_policy_type(struct xfrm_policy *xp, struct sk_buff *skb)
+{
+	struct xfrm_userpolicy_type upt;
+
+	memset(&upt, 0, sizeof(upt));
+	upt.type = xp->type;
+
+	RTA_PUT(skb, XFRMA_POLICY_TYPE, sizeof(upt), &upt);
+
+	return 0;
+
+rtattr_failure:
+	return -1;
+}
+
+#else
+static inline int copy_to_user_policy_type(struct xfrm_policy *xp, struct sk_buff *skb)
+{
+	return 0;
+}
+#endif
+
 static int dump_one_policy(struct xfrm_policy *xp, int dir, int count, void *ptr)
 {
 	struct xfrm_dump_info *sp = ptr;
@@ -1060,6 +1126,8 @@ static int dump_one_policy(struct xfrm_policy *xp, int dir, int count, void *ptr
 		goto nlmsg_failure;
 	if (copy_to_user_sec_ctx(xp, skb))
 		goto nlmsg_failure;
+	if (copy_to_user_policy_type(xp, skb) < 0)
+		goto nlmsg_failure;
 
 	nlh->nlmsg_len = skb->tail - b;
 out:
@@ -1081,7 +1149,10 @@ static int xfrm_dump_policy(struct sk_buff *skb, struct netlink_callback *cb)
 	info.nlmsg_flags = NLM_F_MULTI;
 	info.this_idx = 0;
 	info.start_idx = cb->args[0];
-	(void) xfrm_policy_walk(dump_one_policy, &info);
+	(void) xfrm_policy_walk(XFRM_POLICY_TYPE_MAIN, dump_one_policy, &info);
+#ifdef CONFIG_XFRM_SUB_POLICY
+	(void) xfrm_policy_walk(XFRM_POLICY_TYPE_SUB, dump_one_policy, &info);
+#endif
 	cb->args[0] = info.this_idx;
 
 	return skb->len;
@@ -1117,6 +1188,7 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 {
 	struct xfrm_policy *xp;
 	struct xfrm_userpolicy_id *p;
+	__u8 type = XFRM_POLICY_TYPE_MAIN;
 	int err;
 	struct km_event c;
 	int delete;
@@ -1124,12 +1196,16 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 	p = NLMSG_DATA(nlh);
 	delete = nlh->nlmsg_type == XFRM_MSG_DELPOLICY;
 
+	err = copy_from_user_policy_type(&type, (struct rtattr **)xfrma);
+	if (err)
+		return err;
+
 	err = verify_policy_dir(p->dir);
 	if (err)
 		return err;
 
 	if (p->index)
-		xp = xfrm_policy_byid(p->dir, p->index, delete);
+		xp = xfrm_policy_byid(type, p->dir, p->index, delete);
 	else {
 		struct rtattr **rtattrs = (struct rtattr **)xfrma;
 		struct rtattr *rt = rtattrs[XFRMA_SEC_CTX-1];
@@ -1146,7 +1222,7 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 			if ((err = security_xfrm_policy_alloc(&tmp, uctx)))
 				return err;
 		}
-		xp = xfrm_policy_bysel_ctx(p->dir, &p->sel, tmp.security, delete);
+		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, tmp.security, delete);
 		security_xfrm_policy_free(&tmp);
 	}
 	if (xp == NULL)
@@ -1329,9 +1405,16 @@ out:
 
 static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 {
-struct km_event c;
+	struct km_event c;
+	__u8 type = XFRM_POLICY_TYPE_MAIN;
+	int err;
 
-	xfrm_policy_flush();
+	err = copy_from_user_policy_type(&type, (struct rtattr **)xfrma);
+	if (err)
+		return err;
+
+	xfrm_policy_flush(type);
+	c.data.type = type;
 	c.event = nlh->nlmsg_type;
 	c.seq = nlh->nlmsg_seq;
 	c.pid = nlh->nlmsg_pid;
@@ -1344,10 +1427,15 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh, void *
 	struct xfrm_policy *xp;
 	struct xfrm_user_polexpire *up = NLMSG_DATA(nlh);
 	struct xfrm_userpolicy_info *p = &up->pol;
+	__u8 type = XFRM_POLICY_TYPE_MAIN;
 	int err = -ENOENT;
 
+	err = copy_from_user_policy_type(&type, (struct rtattr **)xfrma);
+	if (err)
+		return err;
+
 	if (p->index)
-		xp = xfrm_policy_byid(p->dir, p->index, 0);
+		xp = xfrm_policy_byid(type, p->dir, p->index, 0);
 	else {
 		struct rtattr **rtattrs = (struct rtattr **)xfrma;
 		struct rtattr *rt = rtattrs[XFRMA_SEC_CTX-1];
@@ -1364,7 +1452,7 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh, void *
 			if ((err = security_xfrm_policy_alloc(&tmp, uctx)))
 				return err;
 		}
-		xp = xfrm_policy_bysel_ctx(p->dir, &p->sel, tmp.security, 0);
+		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, tmp.security, 0);
 		security_xfrm_policy_free(&tmp);
 	}
 
@@ -1818,6 +1906,8 @@ static int build_acquire(struct sk_buff *skb, struct xfrm_state *x,
 		goto nlmsg_failure;
 	if (copy_to_user_state_sec_ctx(x, skb))
 		goto nlmsg_failure;
+	if (copy_to_user_policy_type(xp, skb) < 0)
+		goto nlmsg_failure;
 
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
@@ -1898,6 +1988,7 @@ static struct xfrm_policy *xfrm_compile_policy(struct sock *sk, int opt,
 	}
 
 	copy_from_user_policy(xp, p);
+	xp->type = XFRM_POLICY_TYPE_MAIN;
 	copy_templates(xp, ut, nr);
 
 	if (!xp->security) {
@@ -1930,6 +2021,8 @@ static int build_polexpire(struct sk_buff *skb, struct xfrm_policy *xp,
 	if (copy_to_user_tmpl(xp, skb) < 0)
 		goto nlmsg_failure;
 	if (copy_to_user_sec_ctx(xp, skb))
+		goto nlmsg_failure;
+	if (copy_to_user_policy_type(xp, skb) < 0)
 		goto nlmsg_failure;
 	upe->hard = !!hard;
 
@@ -2002,6 +2095,8 @@ static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *
 	copy_to_user_policy(xp, p, dir);
 	if (copy_to_user_tmpl(xp, skb) < 0)
 		goto nlmsg_failure;
+	if (copy_to_user_policy_type(xp, skb) < 0)
+		goto nlmsg_failure;
 
 	nlh->nlmsg_len = skb->tail - b;
 
@@ -2019,6 +2114,9 @@ static int xfrm_notify_policy_flush(struct km_event *c)
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
 	unsigned char *b;
+#ifdef CONFIG_XFRM_SUB_POLICY
+	struct xfrm_userpolicy_type upt;
+#endif
 	int len = NLMSG_LENGTH(0);
 
 	skb = alloc_skb(len, GFP_ATOMIC);
@@ -2028,6 +2126,13 @@ static int xfrm_notify_policy_flush(struct km_event *c)
 
 
 	nlh = NLMSG_PUT(skb, c->pid, c->seq, XFRM_MSG_FLUSHPOLICY, 0);
+	nlh->nlmsg_flags = 0;
+
+#ifdef CONFIG_XFRM_SUB_POLICY
+	memset(&upt, 0, sizeof(upt));
+	upt.type = c->data.type;
+	RTA_PUT(skb, XFRMA_POLICY_TYPE, sizeof(upt), &upt);
+#endif
 
 	nlh->nlmsg_len = skb->tail - b;
 
@@ -2035,6 +2140,9 @@ static int xfrm_notify_policy_flush(struct km_event *c)
 	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_POLICY, GFP_ATOMIC);
 
 nlmsg_failure:
+#ifdef CONFIG_XFRM_SUB_POLICY
+rtattr_failure:
+#endif
 	kfree_skb(skb);
 	return -1;
 }

@@ -230,6 +230,12 @@ enum xfrm_ae_ftype_t {
 #define XFRM_AE_MAX (__XFRM_AE_MAX - 1)
 };
 
+struct xfrm_userpolicy_type {
+	__u8		type;
+	__u16		reserved1;
+	__u8		reserved2;
+};
+
 /* Netlink message attributes.  */
 enum xfrm_attr_type_t {
 	XFRMA_UNSPEC,
@@ -248,6 +254,7 @@ enum xfrm_attr_type_t {
 	XFRMA_SRCADDR,		/* xfrm_address_t */
 	XFRMA_COADDR,		/* xfrm_address_t */
 	XFRMA_LASTUSED,
+	XFRMA_POLICY_TYPE,	/* struct xfrm_userpolicy_type */
 	__XFRMA_MAX
 
 #define XFRMA_MAX (__XFRMA_MAX - 1)
