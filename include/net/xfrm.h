@@ -331,7 +331,8 @@ struct xfrm_tmpl
 struct xfrm_policy
 {
 	struct xfrm_policy	*next;
-	struct list_head	list;
+	struct hlist_node	bydst;
+	struct hlist_node	byidx;
 
 	/* This lock only affects elements except for entry. */
 	rwlock_t		lock;
@@ -385,21 +386,7 @@ struct xfrm_mgr
 extern int xfrm_register_km(struct xfrm_mgr *km);
 extern int xfrm_unregister_km(struct xfrm_mgr *km);
 
-
-extern struct xfrm_policy *xfrm_policy_list[XFRM_POLICY_MAX*2];
-#ifdef CONFIG_XFRM_SUB_POLICY
-extern struct xfrm_policy *xfrm_policy_list_sub[XFRM_POLICY_MAX*2];
-
-static inline int xfrm_policy_lists_empty(int dir)
-{
-	return (!xfrm_policy_list[dir] && !xfrm_policy_list_sub[dir]);
-}
-#else
-static inline int xfrm_policy_lists_empty(int dir)
-{
-	return (!xfrm_policy_list[dir]);
-}
-#endif
+extern unsigned int xfrm_policy_count[XFRM_POLICY_MAX*2];
 
 static inline void xfrm_pol_hold(struct xfrm_policy *policy)
 {
@@ -678,7 +665,7 @@ static inline int xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *sk
 	if (sk && sk->sk_policy[XFRM_POLICY_IN])
 		return __xfrm_policy_check(sk, dir, skb, family);
 
-	return	(xfrm_policy_lists_empty(dir) && !skb->sp) ||
+	return	(!xfrm_policy_count[dir] && !skb->sp) ||
 		(skb->dst->flags & DST_NOPOLICY) ||
 		__xfrm_policy_check(sk, dir, skb, family);
 }
@@ -698,7 +685,7 @@ extern int __xfrm_route_forward(struct sk_buff *skb, unsigned short family);
 
 static inline int xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 {
-	return	xfrm_policy_lists_empty(XFRM_POLICY_OUT) ||
+	return	!xfrm_policy_count[XFRM_POLICY_OUT] ||
 		(skb->dst->flags & DST_NOXFRM) ||
 		__xfrm_route_forward(skb, family);
 }
