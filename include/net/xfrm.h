@@ -869,6 +869,23 @@ xfrm_state_addr_check(struct xfrm_state *x,
 	return 0;
 }
 
+static __inline__ int
+xfrm_state_addr_flow_check(struct xfrm_state *x, struct flowi *fl,
+			   unsigned short family)
+{
+	switch (family) {
+	case AF_INET:
+		return __xfrm4_state_addr_check(x,
+						(xfrm_address_t *)&fl->fl4_dst,
+						(xfrm_address_t *)&fl->fl4_src);
+	case AF_INET6:
+		return __xfrm6_state_addr_check(x,
+						(xfrm_address_t *)&fl->fl6_dst,
+						(xfrm_address_t *)&fl->fl6_src);
+	}
+	return 0;
+}
+
 static inline int xfrm_state_kern(struct xfrm_state *x)
 {
 	return atomic_read(&x->tunnel_users);
@@ -1014,7 +1031,7 @@ extern void xfrm_policy_flush(void);
 extern int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol);
 extern int xfrm_flush_bundles(void);
 extern void xfrm_flush_all_bundles(void);
-extern int xfrm_bundle_ok(struct xfrm_dst *xdst, struct flowi *fl, int family);
+extern int xfrm_bundle_ok(struct xfrm_dst *xdst, struct flowi *fl, int family, int strict);
 extern void xfrm_init_pmtu(struct dst_entry *dst);
 
 extern wait_queue_head_t km_waitq;

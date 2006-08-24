@@ -1167,7 +1167,7 @@ static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 
 static int stale_bundle(struct dst_entry *dst)
 {
-	return !xfrm_bundle_ok((struct xfrm_dst *)dst, NULL, AF_UNSPEC);
+	return !xfrm_bundle_ok((struct xfrm_dst *)dst, NULL, AF_UNSPEC, 0);
 }
 
 void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev)
@@ -1282,7 +1282,7 @@ EXPORT_SYMBOL(xfrm_init_pmtu);
  * still valid.
  */
 
-int xfrm_bundle_ok(struct xfrm_dst *first, struct flowi *fl, int family)
+int xfrm_bundle_ok(struct xfrm_dst *first, struct flowi *fl, int family, int strict)
 {
 	struct dst_entry *dst = &first->u.dst;
 	struct xfrm_dst *last;
@@ -1302,6 +1302,10 @@ int xfrm_bundle_ok(struct xfrm_dst *first, struct flowi *fl, int family)
 		if (fl && !security_xfrm_flow_state_match(fl, dst->xfrm))
 			return 0;
 		if (dst->xfrm->km.state != XFRM_STATE_VALID)
+			return 0;
+
+		if (strict && fl && dst->xfrm->props.mode != XFRM_MODE_TUNNEL &&
+		    !xfrm_state_addr_flow_check(dst->xfrm, fl, family))
 			return 0;
 
 		mtu = dst_mtu(dst->child);
