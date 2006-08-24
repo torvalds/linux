@@ -229,8 +229,8 @@ static int bcm43xx_wx_get_rangeparams(struct net_device *net_dev,
 	range->throughput = 27 * 1000 * 1000;
 
 	range->max_qual.qual = 100;
-	range->max_qual.level = 152; /* set floor at -104 dBm (152 - 256) */
-	range->max_qual.noise = 152;
+	range->max_qual.level = 146; /* set floor at -110 dBm (146 - 256) */
+	range->max_qual.noise = 146;
 	range->max_qual.updated = IW_QUAL_ALL_UPDATED;
 
 	range->avg_qual.qual = 50;
