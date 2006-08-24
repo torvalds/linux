@@ -200,7 +200,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 	/* synchronize with port task */
 	ata_port_flush_task(ap);
 
-	/* synchronize with host_set lock and sort out timeouts */
+	/* synchronize with host lock and sort out timeouts */
 
 	/* For new EH, all qcs are finished in one of three ways -
 	 * normal completion, error completion, and SCSI timeout.
@@ -377,7 +377,7 @@ void ata_port_wait_eh(struct ata_port *ap)
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	/* make sure SCSI EH is complete */
-	if (scsi_host_in_recovery(ap->host)) {
+	if (scsi_host_in_recovery(ap->scsi_host)) {
 		msleep(10);
 		goto retry;
 	}
@@ -486,7 +486,7 @@ void ata_eng_timeout(struct ata_port *ap)
  *	other commands are drained.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 {
@@ -513,14 +513,14 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
  *	all commands are drained.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 void ata_port_schedule_eh(struct ata_port *ap)
 {
 	WARN_ON(!ap->ops->error_handler);
 
 	ap->pflags |= ATA_PFLAG_EH_PENDING;
-	scsi_schedule_eh(ap->host);
+	scsi_schedule_eh(ap->scsi_host);
 
 	DPRINTK("port EH scheduled\n");
 }
@@ -532,7 +532,7 @@ void ata_port_schedule_eh(struct ata_port *ap)
  *	Abort all active qc's of @ap and schedule EH.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Number of aborted qc's.
@@ -575,7 +575,7 @@ int ata_port_abort(struct ata_port *ap)
  *	is frozen.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 static void __ata_port_freeze(struct ata_port *ap)
 {
@@ -596,7 +596,7 @@ static void __ata_port_freeze(struct ata_port *ap)
  *	Abort and freeze @ap.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Number of aborted commands.

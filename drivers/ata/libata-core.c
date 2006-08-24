@@ -1335,7 +1335,7 @@ static void ata_dev_config_ncq(struct ata_device *dev,
 	}
 
 	if (ap->flags & ATA_FLAG_NCQ) {
-		hdepth = min(ap->host->can_queue, ATA_MAX_QUEUE - 1);
+		hdepth = min(ap->scsi_host->can_queue, ATA_MAX_QUEUE - 1);
 		dev->flags |= ATA_DFLAG_NCQ;
 	}
 
@@ -1349,12 +1349,13 @@ static void ata_set_port_max_cmd_len(struct ata_port *ap)
 {
 	int i;
 
-	if (ap->host) {
-		ap->host->max_cmd_len = 0;
+	if (ap->scsi_host) {
+		unsigned int len = 0;
+
 		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			ap->host->max_cmd_len = max_t(unsigned int,
-						      ap->host->max_cmd_len,
-						      ap->device[i].cdb_len);
+			len = max(len, ap->device[i].cdb_len);
+
+		ap->scsi_host->max_cmd_len = len;
 	}
 }
 
@@ -1662,7 +1663,7 @@ int ata_bus_probe(struct ata_port *ap)
  *	Modify @ap data structure such that the system
  *	thinks that the entire port is enabled.
  *
- *	LOCKING: host_set lock, or some other form of
+ *	LOCKING: host lock, or some other form of
  *	serialization.
  */
 
@@ -1800,7 +1801,7 @@ struct ata_device *ata_dev_pair(struct ata_device *adev)
  *	never attempt to probe or communicate with devices
  *	on this port.
  *
- *	LOCKING: host_set lock, or some other form of
+ *	LOCKING: host lock, or some other form of
  *	serialization.
  */
 
@@ -2258,8 +2259,8 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 	/* Record simplex status. If we selected DMA then the other
 	 * host channels are not permitted to do so.
 	 */
-	if (used_dma && (ap->host_set->flags & ATA_HOST_SIMPLEX))
-		ap->host_set->simplex_claimed = 1;
+	if (used_dma && (ap->host->flags & ATA_HOST_SIMPLEX))
+		ap->host->simplex_claimed = 1;
 
 	/* step5: chip specific finalisation */
 	if (ap->ops->post_set_mode)
@@ -2281,7 +2282,7 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
  *	other threads.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 static inline void ata_tf_to_host(struct ata_port *ap,
@@ -2445,7 +2446,7 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
  *
  *	LOCKING:
  *	PCI/etc. bus probe sem.
- *	Obtains host_set lock.
+ *	Obtains host lock.
  *
  *	SIDE EFFECTS:
  *	Sets ATA_FLAG_DISABLED if bus reset fails.
@@ -3080,7 +3081,7 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
 static void ata_dev_xfermask(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->ap;
-	struct ata_host_set *hs = ap->host_set;
+	struct ata_host *host = ap->host;
 	unsigned long xfer_mask;
 
 	/* controller modes available */
@@ -3114,7 +3115,7 @@ static void ata_dev_xfermask(struct ata_device *dev)
 			       "device is on DMA blacklist, disabling DMA\n");
 	}
 
-	if ((hs->flags & ATA_HOST_SIMPLEX) && hs->simplex_claimed) {
+	if ((host->flags & ATA_HOST_SIMPLEX) && host->simplex_claimed) {
 		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 		ata_dev_printk(dev, KERN_WARNING, "simplex DMA is claimed by "
 			       "other device, disabling DMA\n");
@@ -3207,7 +3208,7 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
  *	Unmap all mapped DMA memory associated with this command.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 static void ata_sg_clean(struct ata_queued_cmd *qc)
@@ -3267,7 +3268,7 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
  *	associated with the current disk command.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  */
 static void ata_fill_sg(struct ata_queued_cmd *qc)
@@ -3319,7 +3320,7 @@ static void ata_fill_sg(struct ata_queued_cmd *qc)
  *	supplied PACKET command.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS: 0 when ATAPI DMA can be used
  *               nonzero otherwise
@@ -3341,7 +3342,7 @@ int ata_check_atapi_dma(struct ata_queued_cmd *qc)
  *	Prepare ATA taskfile for submission.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 void ata_qc_prep(struct ata_queued_cmd *qc)
 {
@@ -3363,7 +3364,7 @@ void ata_noop_qc_prep(struct ata_queued_cmd *qc) { }
  *	to point to a single memory buffer, @buf of byte length @buflen.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
@@ -3394,7 +3395,7 @@ void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
  *	elements.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
@@ -3413,7 +3414,7 @@ void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
  *	DMA-map the memory buffer associated with queued_cmd @qc.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Zero on success, negative on error.
@@ -3482,7 +3483,7 @@ skip_map:
  *	DMA-map the scatter-gather table associated with queued_cmd @qc.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Zero on success, negative on error.
@@ -3991,7 +3992,7 @@ static inline int ata_hsm_ok_in_wq(struct ata_port *ap, struct ata_queued_cmd *q
  *	Finish @qc which is running on standard HSM.
  *
  *	LOCKING:
- *	If @in_wq is zero, spin_lock_irqsave(host_set lock).
+ *	If @in_wq is zero, spin_lock_irqsave(host lock).
  *	Otherwise, none on entry and grabs host lock.
  */
 static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
@@ -4003,8 +4004,8 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 		if (in_wq) {
 			spin_lock_irqsave(ap->lock, flags);
 
-			/* EH might have kicked in while host_set lock
-			 * is released.
+			/* EH might have kicked in while host lock is
+			 * released.
 			 */
 			qc = ata_qc_from_tag(ap, qc->tag);
 			if (qc) {
@@ -4369,7 +4370,7 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev)
  *	in case something prevents using it.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 void ata_qc_free(struct ata_queued_cmd *qc)
 {
@@ -4422,7 +4423,7 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
  *	command has completed, with either an ok or not-ok status.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 void ata_qc_complete(struct ata_queued_cmd *qc)
 {
@@ -4485,7 +4486,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
  *	and commands are completed accordingly.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Number of completed commands on success, -errno otherwise.
@@ -4556,7 +4557,7 @@ static inline int ata_should_dma_map(struct ata_queued_cmd *qc)
  *	writing the taskfile to hardware, starting the command.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 void ata_qc_issue(struct ata_queued_cmd *qc)
 {
@@ -4617,7 +4618,7 @@ err:
  *	May be used as the qc_issue() entry in ata_port_operations.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
@@ -4746,7 +4747,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
  *	handled via polling with interrupts disabled (nIEN bit).
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	One if interrupt was handled, zero if not (shared irq).
@@ -4833,14 +4834,14 @@ idle_irq:
 /**
  *	ata_interrupt - Default ATA host interrupt handler
  *	@irq: irq line (unused)
- *	@dev_instance: pointer to our ata_host_set information structure
+ *	@dev_instance: pointer to our ata_host information structure
  *	@regs: unused
  *
  *	Default interrupt handler for PCI IDE devices.  Calls
  *	ata_host_intr() for each port that is not disabled.
  *
  *	LOCKING:
- *	Obtains host_set lock during operation.
+ *	Obtains host lock during operation.
  *
  *	RETURNS:
  *	IRQ_NONE or IRQ_HANDLED.
@@ -4848,18 +4849,18 @@ idle_irq:
 
 irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 {
-	struct ata_host_set *host_set = dev_instance;
+	struct ata_host *host = dev_instance;
 	unsigned int i;
 	unsigned int handled = 0;
 	unsigned long flags;
 
 	/* TODO: make _irqsave conditional on x86 PCI IDE legacy mode */
-	spin_lock_irqsave(&host_set->lock, flags);
+	spin_lock_irqsave(&host->lock, flags);
 
-	for (i = 0; i < host_set->n_ports; i++) {
+	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap;
 
-		ap = host_set->ports[i];
+		ap = host->ports[i];
 		if (ap &&
 		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
@@ -4871,7 +4872,7 @@ irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 		}
 	}
 
-	spin_unlock_irqrestore(&host_set->lock, flags);
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	return IRQ_RETVAL(handled);
 }
@@ -5036,15 +5037,15 @@ int ata_flush_cache(struct ata_device *dev)
 	return 0;
 }
 
-static int ata_host_set_request_pm(struct ata_host_set *host_set,
-				   pm_message_t mesg, unsigned int action,
-				   unsigned int ehi_flags, int wait)
+static int ata_host_request_pm(struct ata_host *host, pm_message_t mesg,
+			       unsigned int action, unsigned int ehi_flags,
+			       int wait)
 {
 	unsigned long flags;
 	int i, rc;
 
-	for (i = 0; i < host_set->n_ports; i++) {
-		struct ata_port *ap = host_set->ports[i];
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
 
 		/* Previous resume operation might still be in
 		 * progress.  Wait for PM_PENDING to clear.
@@ -5084,11 +5085,11 @@ static int ata_host_set_request_pm(struct ata_host_set *host_set,
 }
 
 /**
- *	ata_host_set_suspend - suspend host_set
- *	@host_set: host_set to suspend
+ *	ata_host_suspend - suspend host
+ *	@host: host to suspend
  *	@mesg: PM message
  *
- *	Suspend @host_set.  Actual operation is performed by EH.  This
+ *	Suspend @host.  Actual operation is performed by EH.  This
  *	function requests EH to perform PM operations and waits for EH
  *	to finish.
  *
@@ -5098,11 +5099,11 @@ static int ata_host_set_request_pm(struct ata_host_set *host_set,
  *	RETURNS:
  *	0 on success, -errno on failure.
  */
-int ata_host_set_suspend(struct ata_host_set *host_set, pm_message_t mesg)
+int ata_host_suspend(struct ata_host *host, pm_message_t mesg)
 {
 	int i, j, rc;
 
-	rc = ata_host_set_request_pm(host_set, mesg, 0, ATA_EHI_QUIET, 1);
+	rc = ata_host_request_pm(host, mesg, 0, ATA_EHI_QUIET, 1);
 	if (rc)
 		goto fail;
 
@@ -5110,8 +5111,8 @@ int ata_host_set_suspend(struct ata_host_set *host_set, pm_message_t mesg)
 	 * This happens if hotplug occurs between completion of device
 	 * suspension and here.
 	 */
-	for (i = 0; i < host_set->n_ports; i++) {
-		struct ata_port *ap = host_set->ports[i];
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
 
 		for (j = 0; j < ATA_MAX_DEVICES; j++) {
 			struct ata_device *dev = &ap->device[j];
@@ -5126,30 +5127,30 @@ int ata_host_set_suspend(struct ata_host_set *host_set, pm_message_t mesg)
 		}
 	}
 
-	host_set->dev->power.power_state = mesg;
+	host->dev->power.power_state = mesg;
 	return 0;
 
  fail:
-	ata_host_set_resume(host_set);
+	ata_host_resume(host);
 	return rc;
 }
 
 /**
- *	ata_host_set_resume - resume host_set
- *	@host_set: host_set to resume
+ *	ata_host_resume - resume host
+ *	@host: host to resume
  *
- *	Resume @host_set.  Actual operation is performed by EH.  This
+ *	Resume @host.  Actual operation is performed by EH.  This
  *	function requests EH to perform PM operations and returns.
  *	Note that all resume operations are performed parallely.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep).
  */
-void ata_host_set_resume(struct ata_host_set *host_set)
+void ata_host_resume(struct ata_host *host)
 {
-	ata_host_set_request_pm(host_set, PMSG_ON, ATA_EH_SOFTRESET,
-				ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET, 0);
-	host_set->dev->power.power_state = PMSG_ON;
+	ata_host_request_pm(host, PMSG_ON, ATA_EH_SOFTRESET,
+			    ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET, 0);
+	host->dev->power.power_state = PMSG_ON;
 }
 
 /**
@@ -5206,10 +5207,10 @@ void ata_port_stop (struct ata_port *ap)
 	ata_pad_free(ap, dev);
 }
 
-void ata_host_stop (struct ata_host_set *host_set)
+void ata_host_stop (struct ata_host *host)
 {
-	if (host_set->mmio_base)
-		iounmap(host_set->mmio_base);
+	if (host->mmio_base)
+		iounmap(host->mmio_base);
 }
 
 /**
@@ -5231,7 +5232,7 @@ void ata_dev_init(struct ata_device *dev)
 
 	/* High bits of dev->flags are used to record warm plug
 	 * requests which occur asynchronously.  Synchronize using
-	 * host_set lock.
+	 * host lock.
 	 */
 	spin_lock_irqsave(ap->lock, flags);
 	dev->flags &= ~ATA_DFLAG_INIT_MASK;
@@ -5247,7 +5248,7 @@ void ata_dev_init(struct ata_device *dev)
 /**
  *	ata_port_init - Initialize an ata_port structure
  *	@ap: Structure to initialize
- *	@host_set: Collection of hosts to which @ap belongs
+ *	@host: Collection of hosts to which @ap belongs
  *	@ent: Probe information provided by low-level driver
  *	@port_no: Port number associated with this ata_port
  *
@@ -5256,22 +5257,22 @@ void ata_dev_init(struct ata_device *dev)
  *	LOCKING:
  *	Inherited from caller.
  */
-void ata_port_init(struct ata_port *ap, struct ata_host_set *host_set,
+void ata_port_init(struct ata_port *ap, struct ata_host *host,
 		   const struct ata_probe_ent *ent, unsigned int port_no)
 {
 	unsigned int i;
 
-	ap->lock = &host_set->lock;
+	ap->lock = &host->lock;
 	ap->flags = ATA_FLAG_DISABLED;
 	ap->id = ata_unique_id++;
 	ap->ctl = ATA_DEVCTL_OBS;
-	ap->host_set = host_set;
+	ap->host = host;
 	ap->dev = ent->dev;
 	ap->port_no = port_no;
 	ap->pio_mask = ent->pio_mask;
 	ap->mwdma_mask = ent->mwdma_mask;
 	ap->udma_mask = ent->udma_mask;
-	ap->flags |= ent->host_flags;
+	ap->flags |= ent->port_flags;
 	ap->ops = ent->port_ops;
 	ap->hw_sata_spd_limit = UINT_MAX;
 	ap->active_tag = ATA_TAG_POISON;
@@ -5324,7 +5325,7 @@ void ata_port_init(struct ata_port *ap, struct ata_host_set *host_set,
  */
 static void ata_port_init_shost(struct ata_port *ap, struct Scsi_Host *shost)
 {
-	ap->host = shost;
+	ap->scsi_host = shost;
 
 	shost->unique_id = ap->id;
 	shost->max_id = 16;
@@ -5336,7 +5337,7 @@ static void ata_port_init_shost(struct ata_port *ap, struct Scsi_Host *shost)
 /**
  *	ata_port_add - Attach low-level ATA driver to system
  *	@ent: Information provided by low-level driver
- *	@host_set: Collections of ports to which we add
+ *	@host: Collections of ports to which we add
  *	@port_no: Port number associated with this host
  *
  *	Attach low-level ATA driver to system.
@@ -5348,7 +5349,7 @@ static void ata_port_init_shost(struct ata_port *ap, struct Scsi_Host *shost)
  *	New ata_port on success, for NULL on error.
  */
 static struct ata_port * ata_port_add(const struct ata_probe_ent *ent,
-				      struct ata_host_set *host_set,
+				      struct ata_host *host,
 				      unsigned int port_no)
 {
 	struct Scsi_Host *shost;
@@ -5357,7 +5358,7 @@ static struct ata_port * ata_port_add(const struct ata_probe_ent *ent,
 	DPRINTK("ENTER\n");
 
 	if (!ent->port_ops->error_handler &&
-	    !(ent->host_flags & (ATA_FLAG_SATA_RESET | ATA_FLAG_SRST))) {
+	    !(ent->port_flags & (ATA_FLAG_SATA_RESET | ATA_FLAG_SRST))) {
 		printk(KERN_ERR "ata%u: no reset mechanism available\n",
 		       port_no);
 		return NULL;
@@ -5371,32 +5372,31 @@ static struct ata_port * ata_port_add(const struct ata_probe_ent *ent,
 
 	ap = ata_shost_to_port(shost);
 
-	ata_port_init(ap, host_set, ent, port_no);
+	ata_port_init(ap, host, ent, port_no);
 	ata_port_init_shost(ap, shost);
 
 	return ap;
 }
 
 /**
- *	ata_sas_host_init - Initialize a host_set struct
- *	@host_set:	host_set to initialize
- *	@dev:		device host_set is attached to
- *	@flags:	host_set flags
- *	@ops:		port_ops
+ *	ata_sas_host_init - Initialize a host struct
+ *	@host:	host to initialize
+ *	@dev:	device host is attached to
+ *	@flags:	host flags
+ *	@ops:	port_ops
  *
  *	LOCKING:
  *	PCI/etc. bus probe sem.
  *
  */
 
-void ata_host_set_init(struct ata_host_set *host_set,
-		       struct device *dev, unsigned long flags,
-		       const struct ata_port_operations *ops)
+void ata_host_init(struct ata_host *host, struct device *dev,
+		   unsigned long flags, const struct ata_port_operations *ops)
 {
-	spin_lock_init(&host_set->lock);
-	host_set->dev = dev;
-	host_set->flags = flags;
-	host_set->ops = ops;
+	spin_lock_init(&host->lock);
+	host->dev = dev;
+	host->flags = flags;
+	host->ops = ops;
 }
 
 /**
@@ -5421,34 +5421,34 @@ int ata_device_add(const struct ata_probe_ent *ent)
 {
 	unsigned int i;
 	struct device *dev = ent->dev;
-	struct ata_host_set *host_set;
+	struct ata_host *host;
 	int rc;
 
 	DPRINTK("ENTER\n");
 	/* alloc a container for our list of ATA ports (buses) */
-	host_set = kzalloc(sizeof(struct ata_host_set) +
-			   (ent->n_ports * sizeof(void *)), GFP_KERNEL);
-	if (!host_set)
+	host = kzalloc(sizeof(struct ata_host) +
+		       (ent->n_ports * sizeof(void *)), GFP_KERNEL);
+	if (!host)
 		return 0;
 
-	ata_host_set_init(host_set, dev, ent->host_set_flags, ent->port_ops);
-	host_set->n_ports = ent->n_ports;
-	host_set->irq = ent->irq;
-	host_set->irq2 = ent->irq2;
-	host_set->mmio_base = ent->mmio_base;
-	host_set->private_data = ent->private_data;
+	ata_host_init(host, dev, ent->_host_flags, ent->port_ops);
+	host->n_ports = ent->n_ports;
+	host->irq = ent->irq;
+	host->irq2 = ent->irq2;
+	host->mmio_base = ent->mmio_base;
+	host->private_data = ent->private_data;
 
 	/* register each port bound to this device */
-	for (i = 0; i < host_set->n_ports; i++) {
+	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap;
 		unsigned long xfer_mode_mask;
 		int irq_line = ent->irq;
 
-		ap = ata_port_add(ent, host_set, i);
+		ap = ata_port_add(ent, host, i);
 		if (!ap)
 			goto err_out;
 
-		host_set->ports[i] = ap;
+		host->ports[i] = ap;
 
 		/* dummy? */
 		if (ent->dummy_port_mask & (1 << i)) {
@@ -5460,8 +5460,8 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		/* start port */
 		rc = ap->ops->port_start(ap);
 		if (rc) {
-			host_set->ports[i] = NULL;
-			scsi_host_put(ap->host);
+			host->ports[i] = NULL;
+			scsi_host_put(ap->scsi_host);
 			goto err_out;
 		}
 
@@ -5484,13 +5484,13 @@ int ata_device_add(const struct ata_probe_ent *ent)
 				irq_line);
 
 		ata_chk_status(ap);
-		host_set->ops->irq_clear(ap);
+		host->ops->irq_clear(ap);
 		ata_eh_freeze_port(ap);	/* freeze port before requesting IRQ */
 	}
 
 	/* obtain irq, that may be shared between channels */
 	rc = request_irq(ent->irq, ent->port_ops->irq_handler, ent->irq_flags,
-			 DRV_NAME, host_set);
+			 DRV_NAME, host);
 	if (rc) {
 		dev_printk(KERN_ERR, dev, "irq %lu request failed: %d\n",
 			   ent->irq, rc);
@@ -5504,7 +5504,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		BUG_ON(ent->irq == ent->irq2);
 
 		rc = request_irq(ent->irq2, ent->port_ops->irq_handler, ent->irq_flags,
-			 DRV_NAME, host_set);
+			 DRV_NAME, host);
 		if (rc) {
 			dev_printk(KERN_ERR, dev, "irq %lu request failed: %d\n",
 				   ent->irq2, rc);
@@ -5514,8 +5514,8 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 	/* perform each probe synchronously */
 	DPRINTK("probe begin\n");
-	for (i = 0; i < host_set->n_ports; i++) {
-		struct ata_port *ap = host_set->ports[i];
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
 		u32 scontrol;
 		int rc;
 
@@ -5526,7 +5526,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		}
 		ap->sata_spd_limit = ap->hw_sata_spd_limit;
 
-		rc = scsi_add_host(ap->host, dev);
+		rc = scsi_add_host(ap->scsi_host, dev);
 		if (rc) {
 			ata_port_printk(ap, KERN_ERR, "scsi_add_host failed\n");
 			/* FIXME: do something useful here */
@@ -5574,29 +5574,29 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 	/* probes are done, now scan each port's disk(s) */
 	DPRINTK("host probe begin\n");
-	for (i = 0; i < host_set->n_ports; i++) {
-		struct ata_port *ap = host_set->ports[i];
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
 
 		ata_scsi_scan_host(ap);
 	}
 
-	dev_set_drvdata(dev, host_set);
+	dev_set_drvdata(dev, host);
 
 	VPRINTK("EXIT, returning %u\n", ent->n_ports);
 	return ent->n_ports; /* success */
 
 err_out_free_irq:
-	free_irq(ent->irq, host_set);
+	free_irq(ent->irq, host);
 err_out:
-	for (i = 0; i < host_set->n_ports; i++) {
-		struct ata_port *ap = host_set->ports[i];
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
 		if (ap) {
 			ap->ops->port_stop(ap);
-			scsi_host_put(ap->host);
+			scsi_host_put(ap->scsi_host);
 		}
 	}
 
-	kfree(host_set);
+	kfree(host);
 	VPRINTK("EXIT, returning 0\n");
 	return 0;
 }
@@ -5656,12 +5656,12 @@ void ata_port_detach(struct ata_port *ap)
 
  skip_eh:
 	/* remove the associated SCSI host */
-	scsi_remove_host(ap->host);
+	scsi_remove_host(ap->scsi_host);
 }
 
 /**
- *	ata_host_set_remove - PCI layer callback for device removal
- *	@host_set: ATA host set that was removed
+ *	ata_host_remove - PCI layer callback for device removal
+ *	@host: ATA host set that was removed
  *
  *	Unregister all objects associated with this host set. Free those
  *	objects.
@@ -5670,21 +5670,21 @@ void ata_port_detach(struct ata_port *ap)
  *	Inherited from calling layer (may sleep).
  */
 
-void ata_host_set_remove(struct ata_host_set *host_set)
+void ata_host_remove(struct ata_host *host)
 {
 	unsigned int i;
 
-	for (i = 0; i < host_set->n_ports; i++)
-		ata_port_detach(host_set->ports[i]);
+	for (i = 0; i < host->n_ports; i++)
+		ata_port_detach(host->ports[i]);
 
-	free_irq(host_set->irq, host_set);
-	if (host_set->irq2)
-		free_irq(host_set->irq2, host_set);
+	free_irq(host->irq, host);
+	if (host->irq2)
+		free_irq(host->irq2, host);
 
-	for (i = 0; i < host_set->n_ports; i++) {
-		struct ata_port *ap = host_set->ports[i];
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
 
-		ata_scsi_release(ap->host);
+		ata_scsi_release(ap->scsi_host);
 
 		if ((ap->flags & ATA_FLAG_NO_LEGACY) == 0) {
 			struct ata_ioports *ioaddr = &ap->ioaddr;
@@ -5696,13 +5696,13 @@ void ata_host_set_remove(struct ata_host_set *host_set)
 				release_region(ATA_SECONDARY_CMD, 8);
 		}
 
-		scsi_host_put(ap->host);
+		scsi_host_put(ap->scsi_host);
 	}
 
-	if (host_set->ops->host_stop)
-		host_set->ops->host_stop(host_set);
+	if (host->ops->host_stop)
+		host->ops->host_stop(host);
 
-	kfree(host_set);
+	kfree(host);
 }
 
 /**
@@ -5719,9 +5719,9 @@ void ata_host_set_remove(struct ata_host_set *host_set)
  *	One.
  */
 
-int ata_scsi_release(struct Scsi_Host *host)
+int ata_scsi_release(struct Scsi_Host *shost)
 {
-	struct ata_port *ap = ata_shost_to_port(host);
+	struct ata_port *ap = ata_shost_to_port(shost);
 
 	DPRINTK("ENTER\n");
 
@@ -5748,7 +5748,7 @@ ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
 	probe_ent->dev = dev;
 
 	probe_ent->sht = port->sht;
-	probe_ent->host_flags = port->host_flags;
+	probe_ent->port_flags = port->flags;
 	probe_ent->pio_mask = port->pio_mask;
 	probe_ent->mwdma_mask = port->mwdma_mask;
 	probe_ent->udma_mask = port->udma_mask;
@@ -5786,11 +5786,11 @@ void ata_std_ports(struct ata_ioports *ioaddr)
 
 #ifdef CONFIG_PCI
 
-void ata_pci_host_stop (struct ata_host_set *host_set)
+void ata_pci_host_stop (struct ata_host *host)
 {
-	struct pci_dev *pdev = to_pci_dev(host_set->dev);
+	struct pci_dev *pdev = to_pci_dev(host->dev);
 
-	pci_iounmap(pdev, host_set->mmio_base);
+	pci_iounmap(pdev, host->mmio_base);
 }
 
 /**
@@ -5810,9 +5810,9 @@ void ata_pci_host_stop (struct ata_host_set *host_set)
 void ata_pci_remove_one (struct pci_dev *pdev)
 {
 	struct device *dev = pci_dev_to_dev(pdev);
-	struct ata_host_set *host_set = dev_get_drvdata(dev);
+	struct ata_host *host = dev_get_drvdata(dev);
 
-	ata_host_set_remove(host_set);
+	ata_host_remove(host);
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -5873,10 +5873,10 @@ void ata_pci_device_do_resume(struct pci_dev *pdev)
 
 int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
-	struct ata_host_set *host_set = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 	int rc = 0;
 
-	rc = ata_host_set_suspend(host_set, mesg);
+	rc = ata_host_suspend(host, mesg);
 	if (rc)
 		return rc;
 
@@ -5887,10 +5887,10 @@ int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 
 int ata_pci_device_resume(struct pci_dev *pdev)
 {
-	struct ata_host_set *host_set = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 
 	ata_pci_device_do_resume(pdev);
-	ata_host_set_resume(host_set);
+	ata_host_resume(host);
 	return 0;
 }
 #endif /* CONFIG_PCI */
@@ -6035,10 +6035,10 @@ EXPORT_SYMBOL_GPL(sata_deb_timing_long);
 EXPORT_SYMBOL_GPL(ata_dummy_port_ops);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
-EXPORT_SYMBOL_GPL(ata_host_set_init);
+EXPORT_SYMBOL_GPL(ata_host_init);
 EXPORT_SYMBOL_GPL(ata_device_add);
 EXPORT_SYMBOL_GPL(ata_port_detach);
-EXPORT_SYMBOL_GPL(ata_host_set_remove);
+EXPORT_SYMBOL_GPL(ata_host_remove);
 EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_sg_init_one);
 EXPORT_SYMBOL_GPL(ata_hsm_move);
@@ -6105,8 +6105,8 @@ EXPORT_SYMBOL_GPL(sata_scr_write);
 EXPORT_SYMBOL_GPL(sata_scr_write_flush);
 EXPORT_SYMBOL_GPL(ata_port_online);
 EXPORT_SYMBOL_GPL(ata_port_offline);
-EXPORT_SYMBOL_GPL(ata_host_set_suspend);
-EXPORT_SYMBOL_GPL(ata_host_set_resume);
+EXPORT_SYMBOL_GPL(ata_host_suspend);
+EXPORT_SYMBOL_GPL(ata_host_resume);
 EXPORT_SYMBOL_GPL(ata_id_string);
 EXPORT_SYMBOL_GPL(ata_id_c_string);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);

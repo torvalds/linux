@@ -169,7 +169,7 @@ static void k2_sata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
  *	@qc: Info associated with this ATA transaction.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 static void k2_bmdma_setup_mmio (struct ata_queued_cmd *qc)
@@ -199,7 +199,7 @@ static void k2_bmdma_setup_mmio (struct ata_queued_cmd *qc)
  *	@qc: Info associated with this ATA transaction.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 static void k2_bmdma_start_mmio (struct ata_queued_cmd *qc)
@@ -261,12 +261,12 @@ static int k2_sata_proc_info(struct Scsi_Host *shost, char *page, char **start,
 		return 0;
 
 	/* Find the OF node for the PCI device proper */
-	np = pci_device_to_OF_node(to_pci_dev(ap->host_set->dev));
+	np = pci_device_to_OF_node(to_pci_dev(ap->host->dev));
 	if (np == NULL)
 		return 0;
 
 	/* Match it to a port node */
-	index = (ap == ap->host_set->ports[0]) ? 0 : 1;
+	index = (ap == ap->host->ports[0]) ? 0 : 1;
 	for (np = np->child; np != NULL; np = np->sibling) {
 		u32 *reg = (u32 *)get_property(np, "reg", NULL);
 		if (!reg)
@@ -423,7 +423,7 @@ static int k2_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	writel(0x0, mmio_base + K2_SATA_SIM_OFFSET);
 
 	probe_ent->sht = &k2_sata_sht;
-	probe_ent->host_flags = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+	probe_ent->port_flags = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				ATA_FLAG_MMIO;
 	probe_ent->port_ops = &k2_sata_ops;
 	probe_ent->n_ports = 4;

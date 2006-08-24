@@ -197,7 +197,7 @@ enum {
 	ATA_QCFLAG_EH_SCHEDULED = (1 << 18), /* EH scheduled (obsolete) */
 
 	/* host set flags */
-	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host_set only */
+	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host only */
 	
 	/* various lengths of time */
 	ATA_TMOUT_BOOT		= 30 * HZ,	/* heuristic */
@@ -357,13 +357,13 @@ struct ata_probe_ent {
 	unsigned long		irq;
 	unsigned long		irq2;
 	unsigned int		irq_flags;
-	unsigned long		host_flags;
-	unsigned long		host_set_flags;
+	unsigned long		port_flags;
+	unsigned long		_host_flags;
 	void __iomem		*mmio_base;
 	void			*private_data;
 };
 
-struct ata_host_set {
+struct ata_host {
 	spinlock_t		lock;
 	struct device 		*dev;
 	unsigned long		irq;
@@ -420,7 +420,7 @@ struct ata_queued_cmd {
 	void			*private_data;
 };
 
-struct ata_host_stats {
+struct ata_port_stats {
 	unsigned long		unhandled_irq;
 	unsigned long		idle_irq;
 	unsigned long		rw_reqbuf;
@@ -498,7 +498,7 @@ struct ata_eh_context {
 };
 
 struct ata_port {
-	struct Scsi_Host	*host;	/* our co-allocated scsi host */
+	struct Scsi_Host	*scsi_host; /* our co-allocated scsi host */
 	const struct ata_port_operations *ops;
 	spinlock_t		*lock;
 	unsigned long		flags;	/* ATA_FLAG_xxx */
@@ -523,7 +523,7 @@ struct ata_port {
 	unsigned int		hw_sata_spd_limit;
 	unsigned int		sata_spd_limit;	/* SATA PHY speed limit */
 
-	/* record runtime error info, protected by host_set lock */
+	/* record runtime error info, protected by host lock */
 	struct ata_eh_info	eh_info;
 	/* EH context owned by EH */
 	struct ata_eh_context	eh_context;
@@ -537,8 +537,8 @@ struct ata_port {
 	unsigned int		active_tag;
 	u32			sactive;
 
-	struct ata_host_stats	stats;
-	struct ata_host_set	*host_set;
+	struct ata_port_stats	stats;
+	struct ata_host		*host;
 	struct device 		*dev;
 
 	struct work_struct	port_task;
@@ -614,7 +614,7 @@ struct ata_port_operations {
 	int (*port_start) (struct ata_port *ap);
 	void (*port_stop) (struct ata_port *ap);
 
-	void (*host_stop) (struct ata_host_set *host_set);
+	void (*host_stop) (struct ata_host *host);
 
 	void (*bmdma_stop) (struct ata_queued_cmd *qc);
 	u8   (*bmdma_status) (struct ata_port *ap);
@@ -622,7 +622,7 @@ struct ata_port_operations {
 
 struct ata_port_info {
 	struct scsi_host_template	*sht;
-	unsigned long		host_flags;
+	unsigned long		flags;
 	unsigned long		pio_mask;
 	unsigned long		mwdma_mask;
 	unsigned long		udma_mask;
@@ -690,15 +690,15 @@ extern int ata_pci_clear_simplex(struct pci_dev *pdev);
 #endif /* CONFIG_PCI */
 extern int ata_device_add(const struct ata_probe_ent *ent);
 extern void ata_port_detach(struct ata_port *ap);
-extern void ata_host_set_init(struct ata_host_set *, struct device *,
-			      unsigned long, const struct ata_port_operations *);
-extern void ata_host_set_remove(struct ata_host_set *host_set);
+extern void ata_host_init(struct ata_host *, struct device *,
+			  unsigned long, const struct ata_port_operations *);
+extern void ata_host_remove(struct ata_host *host);
 extern int ata_scsi_detect(struct scsi_host_template *sht);
 extern int ata_scsi_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 extern int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *));
 extern int ata_scsi_release(struct Scsi_Host *host);
 extern void ata_sas_port_destroy(struct ata_port *);
-extern struct ata_port *ata_sas_port_alloc(struct ata_host_set *,
+extern struct ata_port *ata_sas_port_alloc(struct ata_host *,
 					   struct ata_port_info *, struct Scsi_Host *);
 extern int ata_sas_port_init(struct ata_port *);
 extern int ata_sas_port_start(struct ata_port *ap);
@@ -715,9 +715,8 @@ extern int ata_port_online(struct ata_port *ap);
 extern int ata_port_offline(struct ata_port *ap);
 extern int ata_scsi_device_resume(struct scsi_device *);
 extern int ata_scsi_device_suspend(struct scsi_device *, pm_message_t mesg);
-extern int ata_host_set_suspend(struct ata_host_set *host_set,
-				pm_message_t mesg);
-extern void ata_host_set_resume(struct ata_host_set *host_set);
+extern int ata_host_suspend(struct ata_host *host, pm_message_t mesg);
+extern void ata_host_resume(struct ata_host *host);
 extern int ata_ratelimit(void);
 extern unsigned int ata_busy_sleep(struct ata_port *ap,
 				   unsigned long timeout_pat,
@@ -742,7 +741,7 @@ extern u8 ata_altstatus(struct ata_port *ap);
 extern void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf);
 extern int ata_port_start (struct ata_port *ap);
 extern void ata_port_stop (struct ata_port *ap);
-extern void ata_host_stop (struct ata_host_set *host_set);
+extern void ata_host_stop (struct ata_host *host);
 extern irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs);
 extern void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
 			       unsigned int buflen, int write_data);
@@ -828,7 +827,7 @@ struct pci_bits {
 	unsigned long		val;
 };
 
-extern void ata_pci_host_stop (struct ata_host_set *host_set);
+extern void ata_pci_host_stop (struct ata_host *host);
 extern struct ata_probe_ent *
 ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int portmask);
 extern int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits);

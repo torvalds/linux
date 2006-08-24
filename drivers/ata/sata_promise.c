@@ -104,7 +104,7 @@ static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static void pdc_irq_clear(struct ata_port *ap);
 static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc);
-static void pdc_host_stop(struct ata_host_set *host_set);
+static void pdc_host_stop(struct ata_host *host);
 
 
 static struct scsi_host_template pdc_ata_sht = {
@@ -175,7 +175,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_2037x */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
+		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -185,7 +185,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_20319 */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
+		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -195,7 +195,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_20619 */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS,
+		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -205,7 +205,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_20771 */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
+		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -215,7 +215,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_2057x */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
+		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -225,7 +225,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_40518 */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
+		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -292,7 +292,7 @@ static struct pci_driver pdc_ata_pci_driver = {
 
 static int pdc_port_start(struct ata_port *ap)
 {
-	struct device *dev = ap->host_set->dev;
+	struct device *dev = ap->host->dev;
 	struct pdc_port_priv *pp;
 	int rc;
 
@@ -326,7 +326,7 @@ err_out:
 
 static void pdc_port_stop(struct ata_port *ap)
 {
-	struct device *dev = ap->host_set->dev;
+	struct device *dev = ap->host->dev;
 	struct pdc_port_priv *pp = ap->private_data;
 
 	ap->private_data = NULL;
@@ -336,11 +336,11 @@ static void pdc_port_stop(struct ata_port *ap)
 }
 
 
-static void pdc_host_stop(struct ata_host_set *host_set)
+static void pdc_host_stop(struct ata_host *host)
 {
-	struct pdc_host_priv *hp = host_set->private_data;
+	struct pdc_host_priv *hp = host->private_data;
 
-	ata_pci_host_stop(host_set);
+	ata_pci_host_stop(host);
 
 	kfree(hp);
 }
@@ -443,14 +443,14 @@ static void pdc_qc_prep(struct ata_queued_cmd *qc)
 
 static void pdc_eng_timeout(struct ata_port *ap)
 {
-	struct ata_host_set *host_set = ap->host_set;
+	struct ata_host *host = ap->host;
 	u8 drv_stat;
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 
 	DPRINTK("ENTER\n");
 
-	spin_lock_irqsave(&host_set->lock, flags);
+	spin_lock_irqsave(&host->lock, flags);
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 
@@ -473,7 +473,7 @@ static void pdc_eng_timeout(struct ata_port *ap)
 		break;
 	}
 
-	spin_unlock_irqrestore(&host_set->lock, flags);
+	spin_unlock_irqrestore(&host->lock, flags);
 	ata_eh_qc_complete(qc);
 	DPRINTK("EXIT\n");
 }
@@ -509,15 +509,15 @@ static inline unsigned int pdc_host_intr( struct ata_port *ap,
 
 static void pdc_irq_clear(struct ata_port *ap)
 {
-	struct ata_host_set *host_set = ap->host_set;
-	void __iomem *mmio = host_set->mmio_base;
+	struct ata_host *host = ap->host;
+	void __iomem *mmio = host->mmio_base;
 
 	readl(mmio + PDC_INT_SEQMASK);
 }
 
 static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 {
-	struct ata_host_set *host_set = dev_instance;
+	struct ata_host *host = dev_instance;
 	struct ata_port *ap;
 	u32 mask = 0;
 	unsigned int i, tmp;
@@ -526,12 +526,12 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *r
 
 	VPRINTK("ENTER\n");
 
-	if (!host_set || !host_set->mmio_base) {
+	if (!host || !host->mmio_base) {
 		VPRINTK("QUICK EXIT\n");
 		return IRQ_NONE;
 	}
 
-	mmio_base = host_set->mmio_base;
+	mmio_base = host->mmio_base;
 
 	/* reading should also clear interrupts */
 	mask = readl(mmio_base + PDC_INT_SEQMASK);
@@ -541,7 +541,7 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *r
 		return IRQ_NONE;
 	}
 
-	spin_lock(&host_set->lock);
+	spin_lock(&host->lock);
 
 	mask &= 0xffff;		/* only 16 tags possible */
 	if (!mask) {
@@ -551,9 +551,9 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *r
 
 	writel(mask, mmio_base + PDC_INT_SEQMASK);
 
-	for (i = 0; i < host_set->n_ports; i++) {
+	for (i = 0; i < host->n_ports; i++) {
 		VPRINTK("port %u\n", i);
-		ap = host_set->ports[i];
+		ap = host->ports[i];
 		tmp = mask & (1 << (i + 1));
 		if (tmp && ap &&
 		    !(ap->flags & ATA_FLAG_DISABLED)) {
@@ -568,7 +568,7 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *r
 	VPRINTK("EXIT\n");
 
 done_irq:
-	spin_unlock(&host_set->lock);
+	spin_unlock(&host->lock);
 	return IRQ_RETVAL(handled);
 }
 
@@ -581,8 +581,8 @@ static inline void pdc_packet_start(struct ata_queued_cmd *qc)
 
 	VPRINTK("ENTER, ap %p\n", ap);
 
-	writel(0x00000001, ap->host_set->mmio_base + (seq * 4));
-	readl(ap->host_set->mmio_base + (seq * 4));	/* flush */
+	writel(0x00000001, ap->host->mmio_base + (seq * 4));
+	readl(ap->host->mmio_base + (seq * 4));	/* flush */
 
 	pp->pkt[2] = seq;
 	wmb();			/* flush PRD, pkt writes */
@@ -743,7 +743,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	probe_ent->private_data = hp;
 
 	probe_ent->sht		= pdc_port_info[board_idx].sht;
-	probe_ent->host_flags	= pdc_port_info[board_idx].host_flags;
+	probe_ent->port_flags	= pdc_port_info[board_idx].flags;
 	probe_ent->pio_mask	= pdc_port_info[board_idx].pio_mask;
 	probe_ent->mwdma_mask	= pdc_port_info[board_idx].mwdma_mask;
 	probe_ent->udma_mask	= pdc_port_info[board_idx].udma_mask;

@@ -277,7 +277,7 @@ static const struct ata_port_info ahci_port_info[] = {
 	/* board_ahci */
 	{
 		.sht		= &ahci_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
 				  ATA_FLAG_SKIP_D2H_BSY,
 		.pio_mask	= 0x1f, /* pio0-4 */
@@ -287,7 +287,7 @@ static const struct ata_port_info ahci_port_info[] = {
 	/* board_ahci_vt8251 */
 	{
 		.sht		= &ahci_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
 				  ATA_FLAG_SKIP_D2H_BSY |
 				  AHCI_FLAG_RESET_NEEDS_CLO | AHCI_FLAG_NO_NCQ,
@@ -709,7 +709,7 @@ static void ahci_fill_cmd_slot(struct ahci_port_priv *pp, unsigned int tag,
 static int ahci_clo(struct ata_port *ap)
 {
 	void __iomem *port_mmio = (void __iomem *) ap->ioaddr.cmd_addr;
-	struct ahci_host_priv *hpriv = ap->host_set->private_data;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	u32 tmp;
 
 	if (!(hpriv->cap & HOST_CAP_CLO))
@@ -741,7 +741,7 @@ static int ahci_prereset(struct ata_port *ap)
 static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 {
 	struct ahci_port_priv *pp = ap->private_data;
-	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	const u32 cmd_fis_len = 5; /* five dwords */
 	const char *reason = NULL;
@@ -850,7 +850,7 @@ static int ahci_hardreset(struct ata_port *ap, unsigned int *class)
 	struct ahci_port_priv *pp = ap->private_data;
 	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
 	struct ata_taskfile tf;
-	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	int rc;
 
@@ -1039,7 +1039,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 
 static void ahci_host_intr(struct ata_port *ap)
 {
-	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	struct ata_eh_info *ehi = &ap->eh_info;
 	u32 status, qc_active;
@@ -1091,7 +1091,7 @@ static void ahci_irq_clear(struct ata_port *ap)
 
 static irqreturn_t ahci_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 {
-	struct ata_host_set *host_set = dev_instance;
+	struct ata_host *host = dev_instance;
 	struct ahci_host_priv *hpriv;
 	unsigned int i, handled = 0;
 	void __iomem *mmio;
@@ -1099,8 +1099,8 @@ static irqreturn_t ahci_interrupt(int irq, void *dev_instance, struct pt_regs *r
 
 	VPRINTK("ENTER\n");
 
-	hpriv = host_set->private_data;
-	mmio = host_set->mmio_base;
+	hpriv = host->private_data;
+	mmio = host->mmio_base;
 
 	/* sigh.  0xffffffff is a valid return from h/w */
 	irq_stat = readl(mmio + HOST_IRQ_STAT);
@@ -1108,22 +1108,22 @@ static irqreturn_t ahci_interrupt(int irq, void *dev_instance, struct pt_regs *r
 	if (!irq_stat)
 		return IRQ_NONE;
 
-        spin_lock(&host_set->lock);
+        spin_lock(&host->lock);
 
-        for (i = 0; i < host_set->n_ports; i++) {
+        for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap;
 
 		if (!(irq_stat & (1 << i)))
 			continue;
 
-		ap = host_set->ports[i];
+		ap = host->ports[i];
 		if (ap) {
 			ahci_host_intr(ap);
 			VPRINTK("port %u\n", i);
 		} else {
 			VPRINTK("port %u (no irq)\n", i);
 			if (ata_ratelimit())
-				dev_printk(KERN_WARNING, host_set->dev,
+				dev_printk(KERN_WARNING, host->dev,
 					"interrupt on disabled port %u\n", i);
 		}
 
@@ -1135,7 +1135,7 @@ static irqreturn_t ahci_interrupt(int irq, void *dev_instance, struct pt_regs *r
 		handled = 1;
 	}
 
-	spin_unlock(&host_set->lock);
+	spin_unlock(&host->lock);
 
 	VPRINTK("EXIT\n");
 
@@ -1157,7 +1157,7 @@ static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
 
 static void ahci_freeze(struct ata_port *ap)
 {
-	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 
 	/* turn IRQ off */
@@ -1166,7 +1166,7 @@ static void ahci_freeze(struct ata_port *ap)
 
 static void ahci_thaw(struct ata_port *ap)
 {
-	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	u32 tmp;
 
@@ -1181,7 +1181,7 @@ static void ahci_thaw(struct ata_port *ap)
 
 static void ahci_error_handler(struct ata_port *ap)
 {
-	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 
 	if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
@@ -1198,7 +1198,7 @@ static void ahci_error_handler(struct ata_port *ap)
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 
 	if (qc->flags & ATA_QCFLAG_FAILED)
@@ -1213,9 +1213,9 @@ static void ahci_post_internal_cmd(struct ata_queued_cmd *qc)
 
 static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg)
 {
-	struct ahci_host_priv *hpriv = ap->host_set->private_data;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	struct ahci_port_priv *pp = ap->private_data;
-	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	const char *emsg = NULL;
 	int rc;
@@ -1233,8 +1233,8 @@ static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg)
 static int ahci_port_resume(struct ata_port *ap)
 {
 	struct ahci_port_priv *pp = ap->private_data;
-	struct ahci_host_priv *hpriv = ap->host_set->private_data;
-	void __iomem *mmio = ap->host_set->mmio_base;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
+	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 
 	ahci_init_port(port_mmio, hpriv->cap, pp->cmd_slot_dma, pp->rx_fis_dma);
@@ -1244,8 +1244,8 @@ static int ahci_port_resume(struct ata_port *ap)
 
 static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
-	struct ata_host_set *host_set = dev_get_drvdata(&pdev->dev);
-	void __iomem *mmio = host_set->mmio_base;
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	void __iomem *mmio = host->mmio_base;
 	u32 ctl;
 
 	if (mesg.event == PM_EVENT_SUSPEND) {
@@ -1264,9 +1264,9 @@ static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 
 static int ahci_pci_device_resume(struct pci_dev *pdev)
 {
-	struct ata_host_set *host_set = dev_get_drvdata(&pdev->dev);
-	struct ahci_host_priv *hpriv = host_set->private_data;
-	void __iomem *mmio = host_set->mmio_base;
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ahci_host_priv *hpriv = host->private_data;
+	void __iomem *mmio = host->mmio_base;
 	int rc;
 
 	ata_pci_device_do_resume(pdev);
@@ -1276,20 +1276,20 @@ static int ahci_pci_device_resume(struct pci_dev *pdev)
 		if (rc)
 			return rc;
 
-		ahci_init_controller(mmio, pdev, host_set->n_ports, hpriv->cap);
+		ahci_init_controller(mmio, pdev, host->n_ports, hpriv->cap);
 	}
 
-	ata_host_set_resume(host_set);
+	ata_host_resume(host);
 
 	return 0;
 }
 
 static int ahci_port_start(struct ata_port *ap)
 {
-	struct device *dev = ap->host_set->dev;
-	struct ahci_host_priv *hpriv = ap->host_set->private_data;
+	struct device *dev = ap->host->dev;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	struct ahci_port_priv *pp;
-	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	void *mem;
 	dma_addr_t mem_dma;
@@ -1350,10 +1350,10 @@ static int ahci_port_start(struct ata_port *ap)
 
 static void ahci_port_stop(struct ata_port *ap)
 {
-	struct device *dev = ap->host_set->dev;
-	struct ahci_host_priv *hpriv = ap->host_set->private_data;
+	struct device *dev = ap->host->dev;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	struct ahci_port_priv *pp = ap->private_data;
-	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	const char *emsg = NULL;
 	int rc;
@@ -1581,7 +1581,7 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	memset(hpriv, 0, sizeof(*hpriv));
 
 	probe_ent->sht		= ahci_port_info[board_idx].sht;
-	probe_ent->host_flags	= ahci_port_info[board_idx].host_flags;
+	probe_ent->port_flags	= ahci_port_info[board_idx].flags;
 	probe_ent->pio_mask	= ahci_port_info[board_idx].pio_mask;
 	probe_ent->udma_mask	= ahci_port_info[board_idx].udma_mask;
 	probe_ent->port_ops	= ahci_port_info[board_idx].port_ops;
@@ -1599,9 +1599,9 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto err_out_hpriv;
 
-	if (!(probe_ent->host_flags & AHCI_FLAG_NO_NCQ) &&
+	if (!(probe_ent->port_flags & AHCI_FLAG_NO_NCQ) &&
 	    (hpriv->cap & HOST_CAP_NCQ))
-		probe_ent->host_flags |= ATA_FLAG_NCQ;
+		probe_ent->port_flags |= ATA_FLAG_NCQ;
 
 	ahci_print_info(probe_ent);
 
@@ -1632,27 +1632,27 @@ err_out:
 static void ahci_remove_one (struct pci_dev *pdev)
 {
 	struct device *dev = pci_dev_to_dev(pdev);
-	struct ata_host_set *host_set = dev_get_drvdata(dev);
-	struct ahci_host_priv *hpriv = host_set->private_data;
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct ahci_host_priv *hpriv = host->private_data;
 	unsigned int i;
 	int have_msi;
 
-	for (i = 0; i < host_set->n_ports; i++)
-		ata_port_detach(host_set->ports[i]);
+	for (i = 0; i < host->n_ports; i++)
+		ata_port_detach(host->ports[i]);
 
 	have_msi = hpriv->flags & AHCI_FLAG_MSI;
-	free_irq(host_set->irq, host_set);
+	free_irq(host->irq, host);
 
-	for (i = 0; i < host_set->n_ports; i++) {
-		struct ata_port *ap = host_set->ports[i];
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
 
-		ata_scsi_release(ap->host);
-		scsi_host_put(ap->host);
+		ata_scsi_release(ap->scsi_host);
+		scsi_host_put(ap->scsi_host);
 	}
 
 	kfree(hpriv);
-	pci_iounmap(pdev, host_set->mmio_base);
-	kfree(host_set);
+	pci_iounmap(pdev, host->mmio_base);
+	kfree(host);
 
 	if (have_msi)
 		pci_disable_msi(pdev);

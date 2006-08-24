@@ -123,7 +123,7 @@ static void vsc_intr_mask_update(struct ata_port *ap, u8 ctl)
 	void __iomem *mask_addr;
 	u8 mask;
 
-	mask_addr = ap->host_set->mmio_base +
+	mask_addr = ap->host->mmio_base +
 		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
 	mask = readb(mask_addr);
 	if (ctl & ATA_NIEN)
@@ -206,20 +206,20 @@ static void vsc_sata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 				       struct pt_regs *regs)
 {
-	struct ata_host_set *host_set = dev_instance;
+	struct ata_host *host = dev_instance;
 	unsigned int i;
 	unsigned int handled = 0;
 	u32 int_status;
 
-	spin_lock(&host_set->lock);
+	spin_lock(&host->lock);
 
-	int_status = readl(host_set->mmio_base + VSC_SATA_INT_STAT_OFFSET);
+	int_status = readl(host->mmio_base + VSC_SATA_INT_STAT_OFFSET);
 
-	for (i = 0; i < host_set->n_ports; i++) {
+	for (i = 0; i < host->n_ports; i++) {
 		if (int_status & ((u32) 0xFF << (8 * i))) {
 			struct ata_port *ap;
 
-			ap = host_set->ports[i];
+			ap = host->ports[i];
 
 			if (is_vsc_sata_int_err(i, int_status)) {
 				u32 err_status;
@@ -259,7 +259,7 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 		}
 	}
 
-	spin_unlock(&host_set->lock);
+	spin_unlock(&host->lock);
 
 	return IRQ_RETVAL(handled);
 }
@@ -395,7 +395,7 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, 0x80);
 
 	probe_ent->sht = &vsc_sata_sht;
-	probe_ent->host_flags = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+	probe_ent->port_flags = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				ATA_FLAG_MMIO;
 	probe_ent->port_ops = &vsc_sata_ops;
 	probe_ent->n_ports = 4;

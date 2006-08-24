@@ -116,7 +116,7 @@ static void qs_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int qs_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static irqreturn_t qs_intr (int irq, void *dev_instance, struct pt_regs *regs);
 static int qs_port_start(struct ata_port *ap);
-static void qs_host_stop(struct ata_host_set *host_set);
+static void qs_host_stop(struct ata_host *host);
 static void qs_port_stop(struct ata_port *ap);
 static void qs_phy_reset(struct ata_port *ap);
 static void qs_qc_prep(struct ata_queued_cmd *qc);
@@ -174,7 +174,7 @@ static const struct ata_port_info qs_port_info[] = {
 	/* board_2068_idx */
 	{
 		.sht		= &qs_ata_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_SATA_RESET |
 				  //FIXME ATA_FLAG_SRST |
 				  ATA_FLAG_MMIO | ATA_FLAG_PIO_POLLING,
@@ -220,7 +220,7 @@ static void qs_irq_clear(struct ata_port *ap)
 
 static inline void qs_enter_reg_mode(struct ata_port *ap)
 {
-	u8 __iomem *chan = ap->host_set->mmio_base + (ap->port_no * 0x4000);
+	u8 __iomem *chan = ap->host->mmio_base + (ap->port_no * 0x4000);
 
 	writeb(QS_CTR0_REG, chan + QS_CCT_CTR0);
 	readb(chan + QS_CCT_CTR0);        /* flush */
@@ -228,7 +228,7 @@ static inline void qs_enter_reg_mode(struct ata_port *ap)
 
 static inline void qs_reset_channel_logic(struct ata_port *ap)
 {
-	u8 __iomem *chan = ap->host_set->mmio_base + (ap->port_no * 0x4000);
+	u8 __iomem *chan = ap->host->mmio_base + (ap->port_no * 0x4000);
 
 	writeb(QS_CTR1_RCHN, chan + QS_CCT_CTR1);
 	readb(chan + QS_CCT_CTR0);        /* flush */
@@ -342,7 +342,7 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 static inline void qs_packet_start(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	u8 __iomem *chan = ap->host_set->mmio_base + (ap->port_no * 0x4000);
+	u8 __iomem *chan = ap->host->mmio_base + (ap->port_no * 0x4000);
 
 	VPRINTK("ENTER, ap %p\n", ap);
 
@@ -375,11 +375,11 @@ static unsigned int qs_qc_issue(struct ata_queued_cmd *qc)
 	return ata_qc_issue_prot(qc);
 }
 
-static inline unsigned int qs_intr_pkt(struct ata_host_set *host_set)
+static inline unsigned int qs_intr_pkt(struct ata_host *host)
 {
 	unsigned int handled = 0;
 	u8 sFFE;
-	u8 __iomem *mmio_base = host_set->mmio_base;
+	u8 __iomem *mmio_base = host->mmio_base;
 
 	do {
 		u32 sff0 = readl(mmio_base + QS_HST_SFF);
@@ -391,7 +391,7 @@ static inline unsigned int qs_intr_pkt(struct ata_host_set *host_set)
 			u8 sDST = sff0 >> 16;	/* dev status */
 			u8 sHST = sff1 & 0x3f;	/* host status */
 			unsigned int port_no = (sff1 >> 8) & 0x03;
-			struct ata_port *ap = host_set->ports[port_no];
+			struct ata_port *ap = host->ports[port_no];
 
 			DPRINTK("SFF=%08x%08x: sCHAN=%u sHST=%d sDST=%02x\n",
 					sff1, sff0, port_no, sHST, sDST);
@@ -421,13 +421,13 @@ static inline unsigned int qs_intr_pkt(struct ata_host_set *host_set)
 	return handled;
 }
 
-static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
+static inline unsigned int qs_intr_mmio(struct ata_host *host)
 {
 	unsigned int handled = 0, port_no;
 
-	for (port_no = 0; port_no < host_set->n_ports; ++port_no) {
+	for (port_no = 0; port_no < host->n_ports; ++port_no) {
 		struct ata_port *ap;
-		ap = host_set->ports[port_no];
+		ap = host->ports[port_no];
 		if (ap &&
 		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
@@ -457,14 +457,14 @@ static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
 
 static irqreturn_t qs_intr(int irq, void *dev_instance, struct pt_regs *regs)
 {
-	struct ata_host_set *host_set = dev_instance;
+	struct ata_host *host = dev_instance;
 	unsigned int handled = 0;
 
 	VPRINTK("ENTER\n");
 
-	spin_lock(&host_set->lock);
-	handled  = qs_intr_pkt(host_set) | qs_intr_mmio(host_set);
-	spin_unlock(&host_set->lock);
+	spin_lock(&host->lock);
+	handled  = qs_intr_pkt(host) | qs_intr_mmio(host);
+	spin_unlock(&host->lock);
 
 	VPRINTK("EXIT\n");
 
@@ -491,9 +491,9 @@ static void qs_ata_setup_port(struct ata_ioports *port, unsigned long base)
 
 static int qs_port_start(struct ata_port *ap)
 {
-	struct device *dev = ap->host_set->dev;
+	struct device *dev = ap->host->dev;
 	struct qs_port_priv *pp;
-	void __iomem *mmio_base = ap->host_set->mmio_base;
+	void __iomem *mmio_base = ap->host->mmio_base;
 	void __iomem *chan = mmio_base + (ap->port_no * 0x4000);
 	u64 addr;
 	int rc;
@@ -530,7 +530,7 @@ err_out:
 
 static void qs_port_stop(struct ata_port *ap)
 {
-	struct device *dev = ap->host_set->dev;
+	struct device *dev = ap->host->dev;
 	struct qs_port_priv *pp = ap->private_data;
 
 	if (pp != NULL) {
@@ -543,10 +543,10 @@ static void qs_port_stop(struct ata_port *ap)
 	ata_port_stop(ap);
 }
 
-static void qs_host_stop(struct ata_host_set *host_set)
+static void qs_host_stop(struct ata_host *host)
 {
-	void __iomem *mmio_base = host_set->mmio_base;
-	struct pci_dev *pdev = to_pci_dev(host_set->dev);
+	void __iomem *mmio_base = host->mmio_base;
+	struct pci_dev *pdev = to_pci_dev(host->dev);
 
 	writeb(0, mmio_base + QS_HCT_CTRL); /* disable host interrupts */
 	writeb(QS_CNFG3_GSRST, mmio_base + QS_HCF_CNFG3); /* global reset */
@@ -673,7 +673,7 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 	INIT_LIST_HEAD(&probe_ent->node);
 
 	probe_ent->sht		= qs_port_info[board_idx].sht;
-	probe_ent->host_flags	= qs_port_info[board_idx].host_flags;
+	probe_ent->port_flags	= qs_port_info[board_idx].flags;
 	probe_ent->pio_mask	= qs_port_info[board_idx].pio_mask;
 	probe_ent->mwdma_mask	= qs_port_info[board_idx].mwdma_mask;
 	probe_ent->udma_mask	= qs_port_info[board_idx].udma_mask;

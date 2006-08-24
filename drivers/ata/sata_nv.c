@@ -81,7 +81,7 @@ enum {
 };
 
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
-static void nv_ck804_host_stop(struct ata_host_set *host_set);
+static void nv_ck804_host_stop(struct ata_host *host);
 static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance,
 					struct pt_regs *regs);
 static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance,
@@ -257,7 +257,7 @@ static struct ata_port_info nv_port_info[] = {
 	/* generic */
 	{
 		.sht		= &nv_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -266,7 +266,7 @@ static struct ata_port_info nv_port_info[] = {
 	/* nforce2/3 */
 	{
 		.sht		= &nv_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -275,7 +275,7 @@ static struct ata_port_info nv_port_info[] = {
 	/* ck804 */
 	{
 		.sht		= &nv_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
@@ -292,17 +292,17 @@ MODULE_VERSION(DRV_VERSION);
 static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance,
 					struct pt_regs *regs)
 {
-	struct ata_host_set *host_set = dev_instance;
+	struct ata_host *host = dev_instance;
 	unsigned int i;
 	unsigned int handled = 0;
 	unsigned long flags;
 
-	spin_lock_irqsave(&host_set->lock, flags);
+	spin_lock_irqsave(&host->lock, flags);
 
-	for (i = 0; i < host_set->n_ports; i++) {
+	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap;
 
-		ap = host_set->ports[i];
+		ap = host->ports[i];
 		if (ap &&
 		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
@@ -318,7 +318,7 @@ static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance,
 
 	}
 
-	spin_unlock_irqrestore(&host_set->lock, flags);
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	return IRQ_RETVAL(handled);
 }
@@ -354,12 +354,12 @@ static int nv_host_intr(struct ata_port *ap, u8 irq_stat)
 	return 1;
 }
 
-static irqreturn_t nv_do_interrupt(struct ata_host_set *host_set, u8 irq_stat)
+static irqreturn_t nv_do_interrupt(struct ata_host *host, u8 irq_stat)
 {
 	int i, handled = 0;
 
-	for (i = 0; i < host_set->n_ports; i++) {
-		struct ata_port *ap = host_set->ports[i];
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
 
 		if (ap && !(ap->flags & ATA_FLAG_DISABLED))
 			handled += nv_host_intr(ap, irq_stat);
@@ -373,14 +373,14 @@ static irqreturn_t nv_do_interrupt(struct ata_host_set *host_set, u8 irq_stat)
 static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance,
 				    struct pt_regs *regs)
 {
-	struct ata_host_set *host_set = dev_instance;
+	struct ata_host *host = dev_instance;
 	u8 irq_stat;
 	irqreturn_t ret;
 
-	spin_lock(&host_set->lock);
-	irq_stat = inb(host_set->ports[0]->ioaddr.scr_addr + NV_INT_STATUS);
-	ret = nv_do_interrupt(host_set, irq_stat);
-	spin_unlock(&host_set->lock);
+	spin_lock(&host->lock);
+	irq_stat = inb(host->ports[0]->ioaddr.scr_addr + NV_INT_STATUS);
+	ret = nv_do_interrupt(host, irq_stat);
+	spin_unlock(&host->lock);
 
 	return ret;
 }
@@ -388,14 +388,14 @@ static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance,
 static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance,
 				      struct pt_regs *regs)
 {
-	struct ata_host_set *host_set = dev_instance;
+	struct ata_host *host = dev_instance;
 	u8 irq_stat;
 	irqreturn_t ret;
 
-	spin_lock(&host_set->lock);
-	irq_stat = readb(host_set->mmio_base + NV_INT_STATUS_CK804);
-	ret = nv_do_interrupt(host_set, irq_stat);
-	spin_unlock(&host_set->lock);
+	spin_lock(&host->lock);
+	irq_stat = readb(host->mmio_base + NV_INT_STATUS_CK804);
+	ret = nv_do_interrupt(host, irq_stat);
+	spin_unlock(&host->lock);
 
 	return ret;
 }
@@ -418,7 +418,7 @@ static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 
 static void nv_nf2_freeze(struct ata_port *ap)
 {
-	unsigned long scr_addr = ap->host_set->ports[0]->ioaddr.scr_addr;
+	unsigned long scr_addr = ap->host->ports[0]->ioaddr.scr_addr;
 	int shift = ap->port_no * NV_INT_PORT_SHIFT;
 	u8 mask;
 
@@ -429,7 +429,7 @@ static void nv_nf2_freeze(struct ata_port *ap)
 
 static void nv_nf2_thaw(struct ata_port *ap)
 {
-	unsigned long scr_addr = ap->host_set->ports[0]->ioaddr.scr_addr;
+	unsigned long scr_addr = ap->host->ports[0]->ioaddr.scr_addr;
 	int shift = ap->port_no * NV_INT_PORT_SHIFT;
 	u8 mask;
 
@@ -442,7 +442,7 @@ static void nv_nf2_thaw(struct ata_port *ap)
 
 static void nv_ck804_freeze(struct ata_port *ap)
 {
-	void __iomem *mmio_base = ap->host_set->mmio_base;
+	void __iomem *mmio_base = ap->host->mmio_base;
 	int shift = ap->port_no * NV_INT_PORT_SHIFT;
 	u8 mask;
 
@@ -453,7 +453,7 @@ static void nv_ck804_freeze(struct ata_port *ap)
 
 static void nv_ck804_thaw(struct ata_port *ap)
 {
-	void __iomem *mmio_base = ap->host_set->mmio_base;
+	void __iomem *mmio_base = ap->host->mmio_base;
 	int shift = ap->port_no * NV_INT_PORT_SHIFT;
 	u8 mask;
 
@@ -568,9 +568,9 @@ err_out:
 	return rc;
 }
 
-static void nv_ck804_host_stop(struct ata_host_set *host_set)
+static void nv_ck804_host_stop(struct ata_host *host)
 {
-	struct pci_dev *pdev = to_pci_dev(host_set->dev);
+	struct pci_dev *pdev = to_pci_dev(host->dev);
 	u8 regval;
 
 	/* disable SATA space for CK804 */
@@ -578,7 +578,7 @@ static void nv_ck804_host_stop(struct ata_host_set *host_set)
 	regval &= ~NV_MCP_SATA_CFG_20_SATA_SPACE_EN;
 	pci_write_config_byte(pdev, NV_MCP_SATA_CFG_20, regval);
 
-	ata_pci_host_stop(host_set);
+	ata_pci_host_stop(host);
 }
 
 static int __init nv_init(void)

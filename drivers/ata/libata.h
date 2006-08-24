@@ -69,7 +69,7 @@ extern int ata_flush_cache(struct ata_device *dev);
 extern void ata_dev_init(struct ata_device *dev);
 extern int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg);
 extern int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg);
-extern void ata_port_init(struct ata_port *ap, struct ata_host_set *host_set,
+extern void ata_port_init(struct ata_port *ap, struct ata_host *host,
 			  const struct ata_probe_ent *ent, unsigned int port_no);
 extern struct ata_probe_ent *ata_probe_ent_alloc(struct device *dev,
 						 const struct ata_port_info *port);

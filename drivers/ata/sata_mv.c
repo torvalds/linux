@@ -342,7 +342,7 @@ static u32 mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in);
 static void mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
 static void mv_phy_reset(struct ata_port *ap);
 static void __mv_phy_reset(struct ata_port *ap, int can_sleep);
-static void mv_host_stop(struct ata_host_set *host_set);
+static void mv_host_stop(struct ata_host *host);
 static int mv_port_start(struct ata_port *ap);
 static void mv_port_stop(struct ata_port *ap);
 static void mv_qc_prep(struct ata_queued_cmd *qc);
@@ -480,35 +480,35 @@ static const struct ata_port_operations mv_iie_ops = {
 static const struct ata_port_info mv_port_info[] = {
 	{  /* chip_504x */
 		.sht		= &mv_sht,
-		.host_flags	= MV_COMMON_FLAGS,
+		.flags		= MV_COMMON_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_508x */
 		.sht		= &mv_sht,
-		.host_flags	= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
+		.flags		= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_5080 */
 		.sht		= &mv_sht,
-		.host_flags	= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
+		.flags		= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_604x */
 		.sht		= &mv_sht,
-		.host_flags	= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
+		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv6_ops,
 	},
 	{  /* chip_608x */
 		.sht		= &mv_sht,
-		.host_flags	= (MV_COMMON_FLAGS | MV_6XXX_FLAGS |
+		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS |
 				   MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
@@ -516,14 +516,14 @@ static const struct ata_port_info mv_port_info[] = {
 	},
 	{  /* chip_6042 */
 		.sht		= &mv_sht,
-		.host_flags	= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
+		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv_iie_ops,
 	},
 	{  /* chip_7042 */
 		.sht		= &mv_sht,
-		.host_flags	= (MV_COMMON_FLAGS | MV_6XXX_FLAGS |
+		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS |
 				   MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
@@ -618,12 +618,12 @@ static inline void __iomem *mv_port_base(void __iomem *base, unsigned int port)
 
 static inline void __iomem *mv_ap_base(struct ata_port *ap)
 {
-	return mv_port_base(ap->host_set->mmio_base, ap->port_no);
+	return mv_port_base(ap->host->mmio_base, ap->port_no);
 }
 
-static inline int mv_get_hc_count(unsigned long host_flags)
+static inline int mv_get_hc_count(unsigned long port_flags)
 {
-	return ((host_flags & MV_FLAG_DUAL_HC) ? 2 : 1);
+	return ((port_flags & MV_FLAG_DUAL_HC) ? 2 : 1);
 }
 
 static void mv_irq_clear(struct ata_port *ap)
@@ -809,7 +809,7 @@ static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 
 /**
  *      mv_host_stop - Host specific cleanup/stop routine.
- *      @host_set: host data structure
+ *      @host: host data structure
  *
  *      Disable ints, cleanup host memory, call general purpose
  *      host_stop.
@@ -817,10 +817,10 @@ static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_host_stop(struct ata_host_set *host_set)
+static void mv_host_stop(struct ata_host *host)
 {
-	struct mv_host_priv *hpriv = host_set->private_data;
-	struct pci_dev *pdev = to_pci_dev(host_set->dev);
+	struct mv_host_priv *hpriv = host->private_data;
+	struct pci_dev *pdev = to_pci_dev(host->dev);
 
 	if (hpriv->hp_flags & MV_HP_FLAG_MSI) {
 		pci_disable_msi(pdev);
@@ -828,7 +828,7 @@ static void mv_host_stop(struct ata_host_set *host_set)
 		pci_intx(pdev, 0);
 	}
 	kfree(hpriv);
-	ata_host_stop(host_set);
+	ata_host_stop(host);
 }
 
 static inline void mv_priv_free(struct mv_port_priv *pp, struct device *dev)
@@ -875,8 +875,8 @@ static void mv_edma_cfg(struct mv_host_priv *hpriv, void __iomem *port_mmio)
  */
 static int mv_port_start(struct ata_port *ap)
 {
-	struct device *dev = ap->host_set->dev;
-	struct mv_host_priv *hpriv = ap->host_set->private_data;
+	struct device *dev = ap->host->dev;
+	struct mv_host_priv *hpriv = ap->host->private_data;
 	struct mv_port_priv *pp;
 	void __iomem *port_mmio = mv_ap_base(ap);
 	void *mem;
@@ -965,17 +965,17 @@ err_out:
  *      Stop DMA, cleanup port memory.
  *
  *      LOCKING:
- *      This routine uses the host_set lock to protect the DMA stop.
+ *      This routine uses the host lock to protect the DMA stop.
  */
 static void mv_port_stop(struct ata_port *ap)
 {
-	struct device *dev = ap->host_set->dev;
+	struct device *dev = ap->host->dev;
 	struct mv_port_priv *pp = ap->private_data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(&ap->host->lock, flags);
 	mv_stop_dma(ap);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(&ap->host->lock, flags);
 
 	ap->private_data = NULL;
 	ata_pad_free(ap, dev);
@@ -1330,7 +1330,7 @@ static void mv_err_intr(struct ata_port *ap, int reset_allowed)
 
 /**
  *      mv_host_intr - Handle all interrupts on the given host controller
- *      @host_set: host specific structure
+ *      @host: host specific structure
  *      @relevant: port error bits relevant to this host controller
  *      @hc: which host controller we're to look at
  *
@@ -1344,10 +1344,9 @@ static void mv_err_intr(struct ata_port *ap, int reset_allowed)
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
-			 unsigned int hc)
+static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 {
-	void __iomem *mmio = host_set->mmio_base;
+	void __iomem *mmio = host->mmio_base;
 	void __iomem *hc_mmio = mv_hc_base(mmio, hc);
 	struct ata_queued_cmd *qc;
 	u32 hc_irq_cause;
@@ -1371,7 +1370,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 
 	for (port = port0; port < port0 + MV_PORTS_PER_HC; port++) {
 		u8 ata_status = 0;
-		struct ata_port *ap = host_set->ports[port];
+		struct ata_port *ap = host->ports[port];
 		struct mv_port_priv *pp = ap->private_data;
 
 		hard_port = mv_hardport_from_port(port); /* range 0..3 */
@@ -1444,15 +1443,15 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
  *      reported here.
  *
  *      LOCKING:
- *      This routine holds the host_set lock while processing pending
+ *      This routine holds the host lock while processing pending
  *      interrupts.
  */
 static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 				struct pt_regs *regs)
 {
-	struct ata_host_set *host_set = dev_instance;
+	struct ata_host *host = dev_instance;
 	unsigned int hc, handled = 0, n_hcs;
-	void __iomem *mmio = host_set->mmio_base;
+	void __iomem *mmio = host->mmio_base;
 	struct mv_host_priv *hpriv;
 	u32 irq_stat;
 
@@ -1465,18 +1464,18 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 		return IRQ_NONE;
 	}
 
-	n_hcs = mv_get_hc_count(host_set->ports[0]->flags);
-	spin_lock(&host_set->lock);
+	n_hcs = mv_get_hc_count(host->ports[0]->flags);
+	spin_lock(&host->lock);
 
 	for (hc = 0; hc < n_hcs; hc++) {
 		u32 relevant = irq_stat & (HC0_IRQ_PEND << (hc * HC_SHIFT));
 		if (relevant) {
-			mv_host_intr(host_set, relevant, hc);
+			mv_host_intr(host, relevant, hc);
 			handled++;
 		}
 	}
 
-	hpriv = host_set->private_data;
+	hpriv = host->private_data;
 	if (IS_60XX(hpriv)) {
 		/* deal with the interrupt coalescing bits */
 		if (irq_stat & (TRAN_LO_DONE | TRAN_HI_DONE | PORTS_0_7_COAL_DONE)) {
@@ -1491,12 +1490,12 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 		       readl(mmio + PCI_IRQ_CAUSE_OFS));
 
 		DPRINTK("All regs @ PCI error\n");
-		mv_dump_all_regs(mmio, -1, to_pci_dev(host_set->dev));
+		mv_dump_all_regs(mmio, -1, to_pci_dev(host->dev));
 
 		writelfl(0, mmio + PCI_IRQ_CAUSE_OFS);
 		handled++;
 	}
-	spin_unlock(&host_set->lock);
+	spin_unlock(&host->lock);
 
 	return IRQ_RETVAL(handled);
 }
@@ -1528,7 +1527,7 @@ static unsigned int mv5_scr_offset(unsigned int sc_reg_in)
 
 static u32 mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in)
 {
-	void __iomem *mmio = mv5_phy_base(ap->host_set->mmio_base, ap->port_no);
+	void __iomem *mmio = mv5_phy_base(ap->host->mmio_base, ap->port_no);
 	unsigned int ofs = mv5_scr_offset(sc_reg_in);
 
 	if (ofs != 0xffffffffU)
@@ -1539,7 +1538,7 @@ static u32 mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in)
 
 static void mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 {
-	void __iomem *mmio = mv5_phy_base(ap->host_set->mmio_base, ap->port_no);
+	void __iomem *mmio = mv5_phy_base(ap->host->mmio_base, ap->port_no);
 	unsigned int ofs = mv5_scr_offset(sc_reg_in);
 
 	if (ofs != 0xffffffffU)
@@ -1904,8 +1903,8 @@ static void mv_channel_reset(struct mv_host_priv *hpriv, void __iomem *mmio,
 
 static void mv_stop_and_reset(struct ata_port *ap)
 {
-	struct mv_host_priv *hpriv = ap->host_set->private_data;
-	void __iomem *mmio = ap->host_set->mmio_base;
+	struct mv_host_priv *hpriv = ap->host->private_data;
+	void __iomem *mmio = ap->host->mmio_base;
 
 	mv_stop_dma(ap);
 
@@ -1936,7 +1935,7 @@ static inline void __msleep(unsigned int msec, int can_sleep)
 static void __mv_phy_reset(struct ata_port *ap, int can_sleep)
 {
 	struct mv_port_priv *pp	= ap->private_data;
-	struct mv_host_priv *hpriv = ap->host_set->private_data;
+	struct mv_host_priv *hpriv = ap->host->private_data;
 	void __iomem *port_mmio = mv_ap_base(ap);
 	struct ata_taskfile tf;
 	struct ata_device *dev = &ap->device[0];
@@ -2035,7 +2034,7 @@ static void mv_phy_reset(struct ata_port *ap)
  *      chip/bus, fail the command, and move on.
  *
  *      LOCKING:
- *      This routine holds the host_set lock while failing the command.
+ *      This routine holds the host lock while failing the command.
  */
 static void mv_eng_timeout(struct ata_port *ap)
 {
@@ -2044,18 +2043,17 @@ static void mv_eng_timeout(struct ata_port *ap)
 
 	ata_port_printk(ap, KERN_ERR, "Entering mv_eng_timeout\n");
 	DPRINTK("All regs @ start of eng_timeout\n");
-	mv_dump_all_regs(ap->host_set->mmio_base, ap->port_no,
-			 to_pci_dev(ap->host_set->dev));
+	mv_dump_all_regs(ap->host->mmio_base, ap->port_no,
+			 to_pci_dev(ap->host->dev));
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
         printk(KERN_ERR "mmio_base %p ap %p qc %p scsi_cmnd %p &cmnd %p\n",
-	       ap->host_set->mmio_base, ap, qc, qc->scsicmd,
-	       &qc->scsicmd->cmnd);
+	       ap->host->mmio_base, ap, qc, qc->scsicmd, &qc->scsicmd->cmnd);
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(&ap->host->lock, flags);
 	mv_err_intr(ap, 0);
 	mv_stop_and_reset(ap);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(&ap->host->lock, flags);
 
 	WARN_ON(!(qc->flags & ATA_QCFLAG_ACTIVE));
 	if (qc->flags & ATA_QCFLAG_ACTIVE) {
@@ -2236,7 +2234,7 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 	if (rc)
 		goto done;
 
-	n_hc = mv_get_hc_count(probe_ent->host_flags);
+	n_hc = mv_get_hc_count(probe_ent->port_flags);
 	probe_ent->n_ports = MV_PORTS_PER_HC * n_hc;
 
 	for (port = 0; port < probe_ent->n_ports; port++)
@@ -2389,7 +2387,7 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memset(hpriv, 0, sizeof(*hpriv));
 
 	probe_ent->sht = mv_port_info[board_idx].sht;
-	probe_ent->host_flags = mv_port_info[board_idx].host_flags;
+	probe_ent->port_flags = mv_port_info[board_idx].flags;
 	probe_ent->pio_mask = mv_port_info[board_idx].pio_mask;
 	probe_ent->udma_mask = mv_port_info[board_idx].udma_mask;
 	probe_ent->port_ops = mv_port_info[board_idx].port_ops;

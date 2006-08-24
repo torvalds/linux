@@ -56,7 +56,7 @@ enum {
 	SIL_FLAG_RERR_ON_DMA_ACT = (1 << 29),
 	SIL_FLAG_MOD15WRITE	= (1 << 30),
 
-	SIL_DFL_HOST_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+	SIL_DFL_PORT_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_HRST_TO_RESUME,
 
 	/*
@@ -218,7 +218,7 @@ static const struct ata_port_info sil_port_info[] = {
 	/* sil_3112 */
 	{
 		.sht		= &sil_sht,
-		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_MOD15WRITE,
+		.flags		= SIL_DFL_PORT_FLAGS | SIL_FLAG_MOD15WRITE,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -227,7 +227,7 @@ static const struct ata_port_info sil_port_info[] = {
 	/* sil_3112_no_sata_irq */
 	{
 		.sht		= &sil_sht,
-		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_MOD15WRITE |
+		.flags		= SIL_DFL_PORT_FLAGS | SIL_FLAG_MOD15WRITE |
 				  SIL_FLAG_NO_SATA_IRQ,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
@@ -237,7 +237,7 @@ static const struct ata_port_info sil_port_info[] = {
 	/* sil_3512 */
 	{
 		.sht		= &sil_sht,
-		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_RERR_ON_DMA_ACT,
+		.flags		= SIL_DFL_PORT_FLAGS | SIL_FLAG_RERR_ON_DMA_ACT,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -246,7 +246,7 @@ static const struct ata_port_info sil_port_info[] = {
 	/* sil_3114 */
 	{
 		.sht		= &sil_sht,
-		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_RERR_ON_DMA_ACT,
+		.flags		= SIL_DFL_PORT_FLAGS | SIL_FLAG_RERR_ON_DMA_ACT,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -295,10 +295,9 @@ static unsigned char sil_get_device_cache_line(struct pci_dev *pdev)
 
 static void sil_post_set_mode (struct ata_port *ap)
 {
-	struct ata_host_set *host_set = ap->host_set;
+	struct ata_host *host = ap->host;
 	struct ata_device *dev;
-	void __iomem *addr =
-		host_set->mmio_base + sil_port[ap->port_no].xfer_mode;
+	void __iomem *addr = host->mmio_base + sil_port[ap->port_no].xfer_mode;
 	u32 tmp, dev_mode[2];
 	unsigned int i;
 
@@ -440,15 +439,15 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 static irqreturn_t sil_interrupt(int irq, void *dev_instance,
 				 struct pt_regs *regs)
 {
-	struct ata_host_set *host_set = dev_instance;
-	void __iomem *mmio_base = host_set->mmio_base;
+	struct ata_host *host = dev_instance;
+	void __iomem *mmio_base = host->mmio_base;
 	int handled = 0;
 	int i;
 
-	spin_lock(&host_set->lock);
+	spin_lock(&host->lock);
 
-	for (i = 0; i < host_set->n_ports; i++) {
-		struct ata_port *ap = host_set->ports[i];
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
 		u32 bmdma2 = readl(mmio_base + sil_port[ap->port_no].bmdma2);
 
 		if (unlikely(!ap || ap->flags & ATA_FLAG_DISABLED))
@@ -466,14 +465,14 @@ static irqreturn_t sil_interrupt(int irq, void *dev_instance,
 		handled = 1;
 	}
 
-	spin_unlock(&host_set->lock);
+	spin_unlock(&host->lock);
 
 	return IRQ_RETVAL(handled);
 }
 
 static void sil_freeze(struct ata_port *ap)
 {
-	void __iomem *mmio_base = ap->host_set->mmio_base;
+	void __iomem *mmio_base = ap->host->mmio_base;
 	u32 tmp;
 
 	/* global IRQ mask doesn't block SATA IRQ, turn off explicitly */
@@ -488,7 +487,7 @@ static void sil_freeze(struct ata_port *ap)
 
 static void sil_thaw(struct ata_port *ap)
 {
-	void __iomem *mmio_base = ap->host_set->mmio_base;
+	void __iomem *mmio_base = ap->host->mmio_base;
 	u32 tmp;
 
 	/* clear IRQ */
@@ -567,7 +566,7 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 }
 
 static void sil_init_controller(struct pci_dev *pdev,
-				int n_ports, unsigned long host_flags,
+				int n_ports, unsigned long port_flags,
 				void __iomem *mmio_base)
 {
 	u8 cls;
@@ -587,7 +586,7 @@ static void sil_init_controller(struct pci_dev *pdev,
 			   "cache line size not set.  Driver may not function\n");
 
 	/* Apply R_ERR on DMA activate FIS errata workaround */
-	if (host_flags & SIL_FLAG_RERR_ON_DMA_ACT) {
+	if (port_flags & SIL_FLAG_RERR_ON_DMA_ACT) {
 		int cnt;
 
 		for (i = 0, cnt = 0; i < n_ports; i++) {
@@ -658,7 +657,7 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->udma_mask = sil_port_info[ent->driver_data].udma_mask;
        	probe_ent->irq = pdev->irq;
        	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->host_flags = sil_port_info[ent->driver_data].host_flags;
+	probe_ent->port_flags = sil_port_info[ent->driver_data].flags;
 
 	mmio_base = pci_iomap(pdev, 5, 0);
 	if (mmio_base == NULL) {
@@ -679,7 +678,7 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		ata_std_ports(&probe_ent->port[i]);
 	}
 
-	sil_init_controller(pdev, probe_ent->n_ports, probe_ent->host_flags,
+	sil_init_controller(pdev, probe_ent->n_ports, probe_ent->port_flags,
 			    mmio_base);
 
 	pci_set_master(pdev);
@@ -703,12 +702,12 @@ err_out:
 #ifdef CONFIG_PM
 static int sil_pci_device_resume(struct pci_dev *pdev)
 {
-	struct ata_host_set *host_set = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 
 	ata_pci_device_do_resume(pdev);
-	sil_init_controller(pdev, host_set->n_ports, host_set->ports[0]->flags,
-			    host_set->mmio_base);
-	ata_host_set_resume(host_set);
+	sil_init_controller(pdev, host->n_ports, host->ports[0]->flags,
+			    host->mmio_base);
+	ata_host_resume(host);
 
 	return 0;
 }

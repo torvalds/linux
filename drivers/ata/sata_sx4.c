@@ -160,7 +160,7 @@ static void pdc_port_stop(struct ata_port *ap);
 static void pdc20621_qc_prep(struct ata_queued_cmd *qc);
 static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
-static void pdc20621_host_stop(struct ata_host_set *host_set);
+static void pdc20621_host_stop(struct ata_host *host);
 static unsigned int pdc20621_dimm_init(struct ata_probe_ent *pe);
 static int pdc20621_detect_dimm(struct ata_probe_ent *pe);
 static unsigned int pdc20621_i2c_read(struct ata_probe_ent *pe,
@@ -218,7 +218,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_20621 */
 	{
 		.sht		= &pdc_sata_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
 				  ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING,
 		.pio_mask	= 0x1f, /* pio0-4 */
@@ -244,21 +244,21 @@ static struct pci_driver pdc_sata_pci_driver = {
 };
 
 
-static void pdc20621_host_stop(struct ata_host_set *host_set)
+static void pdc20621_host_stop(struct ata_host *host)
 {
-	struct pci_dev *pdev = to_pci_dev(host_set->dev);
-	struct pdc_host_priv *hpriv = host_set->private_data;
+	struct pci_dev *pdev = to_pci_dev(host->dev);
+	struct pdc_host_priv *hpriv = host->private_data;
 	void __iomem *dimm_mmio = hpriv->dimm_mmio;
 
 	pci_iounmap(pdev, dimm_mmio);
 	kfree(hpriv);
 
-	pci_iounmap(pdev, host_set->mmio_base);
+	pci_iounmap(pdev, host->mmio_base);
 }
 
 static int pdc_port_start(struct ata_port *ap)
 {
-	struct device *dev = ap->host_set->dev;
+	struct device *dev = ap->host->dev;
 	struct pdc_port_priv *pp;
 	int rc;
 
@@ -293,7 +293,7 @@ err_out:
 
 static void pdc_port_stop(struct ata_port *ap)
 {
-	struct device *dev = ap->host_set->dev;
+	struct device *dev = ap->host->dev;
 	struct pdc_port_priv *pp = ap->private_data;
 
 	ap->private_data = NULL;
@@ -453,8 +453,8 @@ static void pdc20621_dma_prep(struct ata_queued_cmd *qc)
 	struct scatterlist *sg;
 	struct ata_port *ap = qc->ap;
 	struct pdc_port_priv *pp = ap->private_data;
-	void __iomem *mmio = ap->host_set->mmio_base;
-	struct pdc_host_priv *hpriv = ap->host_set->private_data;
+	void __iomem *mmio = ap->host->mmio_base;
+	struct pdc_host_priv *hpriv = ap->host->private_data;
 	void __iomem *dimm_mmio = hpriv->dimm_mmio;
 	unsigned int portno = ap->port_no;
 	unsigned int i, idx, total_len = 0, sgt_len;
@@ -514,8 +514,8 @@ static void pdc20621_nodata_prep(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pdc_port_priv *pp = ap->private_data;
-	void __iomem *mmio = ap->host_set->mmio_base;
-	struct pdc_host_priv *hpriv = ap->host_set->private_data;
+	void __iomem *mmio = ap->host->mmio_base;
+	struct pdc_host_priv *hpriv = ap->host->private_data;
 	void __iomem *dimm_mmio = hpriv->dimm_mmio;
 	unsigned int portno = ap->port_no;
 	unsigned int i;
@@ -565,8 +565,8 @@ static void __pdc20621_push_hdma(struct ata_queued_cmd *qc,
 				 u32 pkt_ofs)
 {
 	struct ata_port *ap = qc->ap;
-	struct ata_host_set *host_set = ap->host_set;
-	void __iomem *mmio = host_set->mmio_base;
+	struct ata_host *host = ap->host;
+	void __iomem *mmio = host->mmio_base;
 
 	/* hard-code chip #0 */
 	mmio += PDC_CHIP0_OFS;
@@ -583,7 +583,7 @@ static void pdc20621_push_hdma(struct ata_queued_cmd *qc,
 				u32 pkt_ofs)
 {
 	struct ata_port *ap = qc->ap;
-	struct pdc_host_priv *pp = ap->host_set->private_data;
+	struct pdc_host_priv *pp = ap->host->private_data;
 	unsigned int idx = pp->hdma_prod & PDC_HDMA_Q_MASK;
 
 	if (!pp->doing_hdma) {
@@ -601,7 +601,7 @@ static void pdc20621_push_hdma(struct ata_queued_cmd *qc,
 static void pdc20621_pop_hdma(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	struct pdc_host_priv *pp = ap->host_set->private_data;
+	struct pdc_host_priv *pp = ap->host->private_data;
 	unsigned int idx = pp->hdma_cons & PDC_HDMA_Q_MASK;
 
 	/* if nothing on queue, we're done */
@@ -620,7 +620,7 @@ static void pdc20621_dump_hdma(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned int port_no = ap->port_no;
-	struct pdc_host_priv *hpriv = ap->host_set->private_data;
+	struct pdc_host_priv *hpriv = ap->host->private_data;
 	void *dimm_mmio = hpriv->dimm_mmio;
 
 	dimm_mmio += (port_no * PDC_DIMM_WINDOW_STEP);
@@ -638,9 +638,9 @@ static inline void pdc20621_dump_hdma(struct ata_queued_cmd *qc) { }
 static void pdc20621_packet_start(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	struct ata_host_set *host_set = ap->host_set;
+	struct ata_host *host = ap->host;
 	unsigned int port_no = ap->port_no;
-	void __iomem *mmio = host_set->mmio_base;
+	void __iomem *mmio = host->mmio_base;
 	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
 	u8 seq = (u8) (port_no + 1);
 	unsigned int port_ofs;
@@ -781,8 +781,8 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 
 static void pdc20621_irq_clear(struct ata_port *ap)
 {
-	struct ata_host_set *host_set = ap->host_set;
-	void __iomem *mmio = host_set->mmio_base;
+	struct ata_host *host = ap->host;
+	void __iomem *mmio = host->mmio_base;
 
 	mmio += PDC_CHIP0_OFS;
 
@@ -791,7 +791,7 @@ static void pdc20621_irq_clear(struct ata_port *ap)
 
 static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 {
-	struct ata_host_set *host_set = dev_instance;
+	struct ata_host *host = dev_instance;
 	struct ata_port *ap;
 	u32 mask = 0;
 	unsigned int i, tmp, port_no;
@@ -800,12 +800,12 @@ static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_re
 
 	VPRINTK("ENTER\n");
 
-	if (!host_set || !host_set->mmio_base) {
+	if (!host || !host->mmio_base) {
 		VPRINTK("QUICK EXIT\n");
 		return IRQ_NONE;
 	}
 
-	mmio_base = host_set->mmio_base;
+	mmio_base = host->mmio_base;
 
 	/* reading should also clear interrupts */
 	mmio_base += PDC_CHIP0_OFS;
@@ -822,16 +822,16 @@ static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_re
 		return IRQ_NONE;
 	}
 
-        spin_lock(&host_set->lock);
+        spin_lock(&host->lock);
 
         for (i = 1; i < 9; i++) {
 		port_no = i - 1;
 		if (port_no > 3)
 			port_no -= 4;
-		if (port_no >= host_set->n_ports)
+		if (port_no >= host->n_ports)
 			ap = NULL;
 		else
-			ap = host_set->ports[port_no];
+			ap = host->ports[port_no];
 		tmp = mask & (1 << i);
 		VPRINTK("seq %u, port_no %u, ap %p, tmp %x\n", i, port_no, ap, tmp);
 		if (tmp && ap &&
@@ -845,7 +845,7 @@ static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_re
 		}
 	}
 
-        spin_unlock(&host_set->lock);
+        spin_unlock(&host->lock);
 
 	VPRINTK("mask == 0x%x\n", mask);
 
@@ -857,13 +857,13 @@ static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_re
 static void pdc_eng_timeout(struct ata_port *ap)
 {
 	u8 drv_stat;
-	struct ata_host_set *host_set = ap->host_set;
+	struct ata_host *host = ap->host;
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 
 	DPRINTK("ENTER\n");
 
-	spin_lock_irqsave(&host_set->lock, flags);
+	spin_lock_irqsave(&host->lock, flags);
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 
@@ -885,7 +885,7 @@ static void pdc_eng_timeout(struct ata_port *ap)
 		break;
 	}
 
-	spin_unlock_irqrestore(&host_set->lock, flags);
+	spin_unlock_irqrestore(&host->lock, flags);
 	ata_eh_qc_complete(qc);
 	DPRINTK("EXIT\n");
 }
@@ -1429,7 +1429,7 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 	hpriv->dimm_mmio = dimm_mmio;
 
 	probe_ent->sht		= pdc_port_info[board_idx].sht;
-	probe_ent->host_flags	= pdc_port_info[board_idx].host_flags;
+	probe_ent->port_flags	= pdc_port_info[board_idx].flags;
 	probe_ent->pio_mask	= pdc_port_info[board_idx].pio_mask;
 	probe_ent->mwdma_mask	= pdc_port_info[board_idx].mwdma_mask;
 	probe_ent->udma_mask	= pdc_port_info[board_idx].udma_mask;

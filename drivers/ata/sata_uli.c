@@ -128,7 +128,7 @@ static const struct ata_port_operations uli_ops = {
 
 static struct ata_port_info uli_port_info = {
 	.sht            = &uli_sht,
-	.host_flags     = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
 	.pio_mask       = 0x1f,		/* pio0-4 */
 	.udma_mask      = 0x7f,		/* udma0-6 */
 	.port_ops       = &uli_ops,
@@ -143,13 +143,13 @@ MODULE_VERSION(DRV_VERSION);
 
 static unsigned int get_scr_cfg_addr(struct ata_port *ap, unsigned int sc_reg)
 {
-	struct uli_priv *hpriv = ap->host_set->private_data;
+	struct uli_priv *hpriv = ap->host->private_data;
 	return hpriv->scr_cfg_addr[ap->port_no] + (4 * sc_reg);
 }
 
 static u32 uli_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg)
 {
-	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned int cfg_addr = get_scr_cfg_addr(ap, sc_reg);
 	u32 val;
 
@@ -159,7 +159,7 @@ static u32 uli_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg)
 
 static void uli_scr_cfg_write (struct ata_port *ap, unsigned int scr, u32 val)
 {
-	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned int cfg_addr = get_scr_cfg_addr(ap, scr);
 
 	pci_write_config_dword(pdev, cfg_addr, val);

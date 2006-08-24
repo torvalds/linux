@@ -193,7 +193,7 @@ void ata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
  *	synchronization with interrupt handler / other threads.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 static void ata_exec_command_pio(struct ata_port *ap, const struct ata_taskfile *tf)
@@ -216,7 +216,7 @@ static void ata_exec_command_pio(struct ata_port *ap, const struct ata_taskfile 
  *	FIXME: missing write posting for 400nS delay enforcement
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 static void ata_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
@@ -237,7 +237,7 @@ static void ata_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile
  *	synchronization with interrupt handler / other threads.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf)
 {
@@ -422,7 +422,7 @@ u8 ata_altstatus(struct ata_port *ap)
  *	@qc: Info associated with this ATA transaction.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 static void ata_bmdma_setup_mmio (struct ata_queued_cmd *qc)
@@ -452,7 +452,7 @@ static void ata_bmdma_setup_mmio (struct ata_queued_cmd *qc)
  *	@qc: Info associated with this ATA transaction.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 static void ata_bmdma_start_mmio (struct ata_queued_cmd *qc)
@@ -483,7 +483,7 @@ static void ata_bmdma_start_mmio (struct ata_queued_cmd *qc)
  *	@qc: Info associated with this ATA transaction.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 static void ata_bmdma_setup_pio (struct ata_queued_cmd *qc)
@@ -511,7 +511,7 @@ static void ata_bmdma_setup_pio (struct ata_queued_cmd *qc)
  *	@qc: Info associated with this ATA transaction.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 static void ata_bmdma_start_pio (struct ata_queued_cmd *qc)
@@ -535,7 +535,7 @@ static void ata_bmdma_start_pio (struct ata_queued_cmd *qc)
  *	May be used as the bmdma_start() entry in ata_port_operations.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 void ata_bmdma_start(struct ata_queued_cmd *qc)
 {
@@ -557,7 +557,7 @@ void ata_bmdma_start(struct ata_queued_cmd *qc)
  *	May be used as the bmdma_setup() entry in ata_port_operations.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 void ata_bmdma_setup(struct ata_queued_cmd *qc)
 {
@@ -577,7 +577,7 @@ void ata_bmdma_setup(struct ata_queued_cmd *qc)
  *	May be used as the irq_clear() entry in ata_port_operations.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 void ata_bmdma_irq_clear(struct ata_port *ap)
@@ -605,7 +605,7 @@ void ata_bmdma_irq_clear(struct ata_port *ap)
  *	May be used as the bmdma_status() entry in ata_port_operations.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 u8 ata_bmdma_status(struct ata_port *ap)
@@ -629,7 +629,7 @@ u8 ata_bmdma_status(struct ata_port *ap)
  *	May be used as the bmdma_stop() entry in ata_port_operations.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 void ata_bmdma_stop(struct ata_queued_cmd *qc)
@@ -838,7 +838,7 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 		bmdma = pci_resource_start(pdev, 4);
 		if (bmdma) {
 			if (inb(bmdma + 2) & 0x80)
-				probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
+				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 			probe_ent->port[p].bmdma_addr = bmdma;
 		}
 		ata_std_ports(&probe_ent->port[p]);
@@ -854,7 +854,7 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 		if (bmdma) {
 			bmdma += 8;
 			if(inb(bmdma + 2) & 0x80)
-				probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
+				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 			probe_ent->port[p].bmdma_addr = bmdma;
 		}
 		ata_std_ports(&probe_ent->port[p]);
@@ -887,7 +887,7 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 		if (bmdma) {
 			probe_ent->port[0].bmdma_addr = bmdma;
 			if (inb(bmdma + 2) & 0x80)
-				probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
+				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 		}
 		ata_std_ports(&probe_ent->port[0]);
 	} else
@@ -904,7 +904,7 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 		if (bmdma) {
 			probe_ent->port[1].bmdma_addr = bmdma + 8;
 			if (inb(bmdma + 10) & 0x80)
-				probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
+				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 		}
 		ata_std_ports(&probe_ent->port[1]);
 	} else
@@ -957,7 +957,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	else
 		port[1] = port[0];
 
-	if ((port[0]->host_flags & ATA_FLAG_NO_LEGACY) == 0
+	if ((port[0]->flags & ATA_FLAG_NO_LEGACY) == 0
 	    && (pdev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
 		/* TODO: What if one channel is in native mode ... */
 		pci_read_config_byte(pdev, PCI_CLASS_PROG, &tmp8);

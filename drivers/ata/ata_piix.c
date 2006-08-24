@@ -151,7 +151,7 @@ struct piix_host_priv {
 
 static int piix_init_one (struct pci_dev *pdev,
 				    const struct pci_device_id *ent);
-static void piix_host_stop(struct ata_host_set *host_set);
+static void piix_host_stop(struct ata_host *host);
 static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev);
 static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev);
 static void piix_pata_error_handler(struct ata_port *ap);
@@ -362,7 +362,7 @@ static struct ata_port_info piix_port_info[] = {
 	/* piix4_pata */
 	{
 		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SLAVE_POSS,
+		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 #if 0
 		.mwdma_mask	= 0x06, /* mwdma1-2 */
@@ -376,7 +376,7 @@ static struct ata_port_info piix_port_info[] = {
 	/* ich5_pata */
 	{
 		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SLAVE_POSS | PIIX_FLAG_CHECKINTR,
+		.flags		= ATA_FLAG_SLAVE_POSS | PIIX_FLAG_CHECKINTR,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 #if 0
 		.mwdma_mask	= 0x06, /* mwdma1-2 */
@@ -390,7 +390,7 @@ static struct ata_port_info piix_port_info[] = {
 	/* ich5_sata */
 	{
 		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SATA | PIIX_FLAG_CHECKINTR |
+		.flags		= ATA_FLAG_SATA | PIIX_FLAG_CHECKINTR |
 				  PIIX_FLAG_IGNORE_PCS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
@@ -401,7 +401,7 @@ static struct ata_port_info piix_port_info[] = {
 	/* i6300esb_sata */
 	{
 		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SATA |
+		.flags		= ATA_FLAG_SATA |
 				  PIIX_FLAG_CHECKINTR | PIIX_FLAG_IGNORE_PCS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
@@ -412,7 +412,7 @@ static struct ata_port_info piix_port_info[] = {
 	/* ich6_sata */
 	{
 		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SATA |
+		.flags		= ATA_FLAG_SATA |
 				  PIIX_FLAG_CHECKINTR | PIIX_FLAG_SCR,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
@@ -423,7 +423,7 @@ static struct ata_port_info piix_port_info[] = {
 	/* ich6_sata_ahci */
 	{
 		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SATA |
+		.flags		= ATA_FLAG_SATA |
 				  PIIX_FLAG_CHECKINTR | PIIX_FLAG_SCR |
 				  PIIX_FLAG_AHCI,
 		.pio_mask	= 0x1f,	/* pio0-4 */
@@ -435,7 +435,7 @@ static struct ata_port_info piix_port_info[] = {
 	/* ich6m_sata_ahci */
 	{
 		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SATA |
+		.flags		= ATA_FLAG_SATA |
 				  PIIX_FLAG_CHECKINTR | PIIX_FLAG_SCR |
 				  PIIX_FLAG_AHCI,
 		.pio_mask	= 0x1f,	/* pio0-4 */
@@ -447,7 +447,7 @@ static struct ata_port_info piix_port_info[] = {
 	/* ich8_sata_ahci */
 	{
 		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SATA |
+		.flags		= ATA_FLAG_SATA |
 				  PIIX_FLAG_CHECKINTR | PIIX_FLAG_SCR |
 				  PIIX_FLAG_AHCI,
 		.pio_mask	= 0x1f,	/* pio0-4 */
@@ -485,7 +485,7 @@ MODULE_PARM_DESC(force_pcs, "force honoring or ignoring PCS to work around "
  */
 static void piix_pata_cbl_detect(struct ata_port *ap)
 {
-	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 tmp, mask;
 
 	/* no 80c support in host controller? */
@@ -517,7 +517,7 @@ cbl40:
  */
 static int piix_pata_prereset(struct ata_port *ap)
 {
-	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->port_no])) {
 		ata_port_printk(ap, KERN_INFO, "port disabled. ignoring.\n");
@@ -551,8 +551,8 @@ static void piix_pata_error_handler(struct ata_port *ap)
  */
 static unsigned int piix_sata_present_mask(struct ata_port *ap)
 {
-	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
-	struct piix_host_priv *hpriv = ap->host_set->private_data;
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	struct piix_host_priv *hpriv = ap->host->private_data;
 	const unsigned int *map = hpriv->map;
 	int base = 2 * ap->port_no;
 	unsigned int present_mask = 0;
@@ -631,7 +631,7 @@ static void piix_sata_error_handler(struct ata_port *ap)
 static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int pio	= adev->pio_mode - XFER_PIO_0;
-	struct pci_dev *dev	= to_pci_dev(ap->host_set->dev);
+	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
 	unsigned int is_slave	= (adev->devno != 0);
 	unsigned int master_port= ap->port_no ? 0x42 : 0x40;
 	unsigned int slave_port	= 0x44;
@@ -683,7 +683,7 @@ static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev)
 static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int udma	= adev->dma_mode; /* FIXME: MWDMA too */
-	struct pci_dev *dev	= to_pci_dev(ap->host_set->dev);
+	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
 	u8 maslave		= ap->port_no ? 0x42 : 0x40;
 	u8 speed		= udma;
 	unsigned int drive_dn	= (ap->port_no ? 2 : 0) + adev->devno;
@@ -835,13 +835,13 @@ static void __devinit piix_init_pcs(struct pci_dev *pdev,
 	if (force_pcs == 1) {
 		dev_printk(KERN_INFO, &pdev->dev,
 			   "force ignoring PCS (0x%x)\n", new_pcs);
-		pinfo[0].host_flags |= PIIX_FLAG_IGNORE_PCS;
-		pinfo[1].host_flags |= PIIX_FLAG_IGNORE_PCS;
+		pinfo[0].flags |= PIIX_FLAG_IGNORE_PCS;
+		pinfo[1].flags |= PIIX_FLAG_IGNORE_PCS;
 	} else if (force_pcs == 2) {
 		dev_printk(KERN_INFO, &pdev->dev,
 			   "force honoring PCS (0x%x)\n", new_pcs);
-		pinfo[0].host_flags &= ~PIIX_FLAG_IGNORE_PCS;
-		pinfo[1].host_flags &= ~PIIX_FLAG_IGNORE_PCS;
+		pinfo[0].flags &= ~PIIX_FLAG_IGNORE_PCS;
+		pinfo[1].flags &= ~PIIX_FLAG_IGNORE_PCS;
 	}
 }
 
@@ -881,7 +881,7 @@ static void __devinit piix_init_sata_map(struct pci_dev *pdev,
 		default:
 			printk(" P%d", map[i]);
 			if (i & 1)
-				pinfo[i / 2].host_flags |= ATA_FLAG_SLAVE_POSS;
+				pinfo[i / 2].flags |= ATA_FLAG_SLAVE_POSS;
 			break;
 		}
 	}
@@ -916,7 +916,7 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_port_info port_info[2];
 	struct ata_port_info *ppinfo[2] = { &port_info[0], &port_info[1] };
 	struct piix_host_priv *hpriv;
-	unsigned long host_flags;
+	unsigned long port_flags;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev,
@@ -935,9 +935,9 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	port_info[0].private_data = hpriv;
 	port_info[1].private_data = hpriv;
 
-	host_flags = port_info[0].host_flags;
+	port_flags = port_info[0].flags;
 
-	if (host_flags & PIIX_FLAG_AHCI) {
+	if (port_flags & PIIX_FLAG_AHCI) {
 		u8 tmp;
 		pci_read_config_byte(pdev, PIIX_SCC, &tmp);
 		if (tmp == PIIX_AHCI_DEVICE) {
@@ -948,7 +948,7 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Initialize SATA map */
-	if (host_flags & ATA_FLAG_SATA) {
+	if (port_flags & ATA_FLAG_SATA) {
 		piix_init_sata_map(pdev, port_info,
 				   piix_map_db_table[ent->driver_data]);
 		piix_init_pcs(pdev, port_info,
@@ -961,7 +961,7 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * MSI is disabled (and it is disabled, as we don't use
 	 * message-signalled interrupts currently).
 	 */
-	if (host_flags & PIIX_FLAG_CHECKINTR)
+	if (port_flags & PIIX_FLAG_CHECKINTR)
 		pci_intx(pdev, 1);
 
 	if (piix_check_450nx_errata(pdev)) {
@@ -976,11 +976,11 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	return ata_pci_init_one(pdev, ppinfo, 2);
 }
 
-static void piix_host_stop(struct ata_host_set *host_set)
+static void piix_host_stop(struct ata_host *host)
 {
-	struct piix_host_priv *hpriv = host_set->private_data;
+	struct piix_host_priv *hpriv = host->private_data;
 
-	ata_host_stop(host_set);
+	ata_host_stop(host);
 
 	kfree(hpriv);
 }

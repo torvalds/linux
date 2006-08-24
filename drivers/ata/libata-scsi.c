@@ -321,7 +321,7 @@ int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
  *	current command.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Command allocated, or %NULL if none available.
@@ -537,7 +537,7 @@ int ata_scsi_device_resume(struct scsi_device *sdev)
  *	format sense blocks.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 			u8 *ascq, int verbose)
@@ -649,7 +649,7 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
  *	block. Clear sense key, ASC & ASCQ if there is no error.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
 {
@@ -918,7 +918,7 @@ int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
  *	[See SAT revision 5 at www.t10.org]
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Zero on success, non-zero on error.
@@ -986,7 +986,7 @@ invalid_fld:
  *	FLUSH CACHE EXT.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Zero on success, non-zero on error.
@@ -1109,7 +1109,7 @@ static void scsi_16_lba_len(const u8 *scsicmd, u64 *plba, u32 *plen)
  *	Converts SCSI VERIFY command to an ATA READ VERIFY command.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Zero on success, non-zero on error.
@@ -1233,7 +1233,7 @@ nothing_to_do:
  *	%WRITE_16 are currently supported.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Zero on success, non-zero on error.
@@ -1467,7 +1467,7 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
  *	issued to @dev.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	1 if deferring is needed, 0 otherwise.
@@ -1510,7 +1510,7 @@ static int ata_scmd_need_defer(struct ata_device *dev, int is_io)
  *	termination.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	0 on success, SCSI_ML_QUEUE_DEVICE_BUSY if the command
@@ -1589,7 +1589,7 @@ defer:
  *	Maps buffer contained within SCSI command @cmd.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Length of response buffer.
@@ -1623,7 +1623,7 @@ static unsigned int ata_scsi_rbuf_get(struct scsi_cmnd *cmd, u8 **buf_out)
  *	Unmaps response buffer contained within @cmd.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 static inline void ata_scsi_rbuf_put(struct scsi_cmnd *cmd, u8 *buf)
@@ -1649,7 +1649,7 @@ static inline void ata_scsi_rbuf_put(struct scsi_cmnd *cmd, u8 *buf)
  *	and sense buffer are assumed to be set).
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
@@ -1680,7 +1680,7 @@ void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
  *	with non-VPD INQUIRY command output.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
@@ -1736,7 +1736,7 @@ unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
  *	Returns list of inquiry VPD pages available.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf,
@@ -1764,7 +1764,7 @@ unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf,
  *	Returns ATA device serial number.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
@@ -1797,7 +1797,7 @@ unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
  *	   name ("ATA     "), model and serial numbers.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
@@ -1849,7 +1849,7 @@ unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
  *	that the caller should successfully complete this SCSI command.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 unsigned int ata_scsiop_noop(struct ata_scsi_args *args, u8 *rbuf,
@@ -1990,7 +1990,7 @@ static int ata_dev_supports_fua(u16 *id)
  *	descriptor for other device types.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf,
@@ -2129,7 +2129,7 @@ saving_not_supp:
  *	Simulate READ CAPACITY commands.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf,
@@ -2204,7 +2204,7 @@ unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf,
  *	Simulate REPORT LUNS command.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 unsigned int ata_scsiop_report_luns(struct ata_scsi_args *args, u8 *rbuf,
@@ -2256,7 +2256,7 @@ void ata_scsi_set_sense(struct scsi_cmnd *cmd, u8 sk, u8 asc, u8 ascq)
  *	and the specified additional sense codes.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 void ata_scsi_badcmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *), u8 asc, u8 ascq)
@@ -2421,7 +2421,7 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
  *	@scsicmd: SCSI CDB associated with this PACKET command
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Zero on success, non-zero on failure.
@@ -2500,7 +2500,7 @@ static struct ata_device * __ata_scsi_find_dev(struct ata_port *ap,
  *	Determine if commands should be sent to the specified device.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	0 if commands are not allowed / 1 if commands are allowed
@@ -2534,7 +2534,7 @@ static int ata_scsi_dev_enabled(struct ata_device *dev)
  *	SCSI command to be sent.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	Associated ATA device, or %NULL if not found.
@@ -2808,7 +2808,7 @@ static inline int __ata_scsi_queuecmd(struct scsi_cmnd *cmd,
  *	ATA and ATAPI devices appearing as SCSI devices.
  *
  *	LOCKING:
- *	Releases scsi-layer-held lock, and obtains host_set lock.
+ *	Releases scsi-layer-held lock, and obtains host lock.
  *
  *	RETURNS:
  *	Return value from __ata_scsi_queuecmd() if @cmd can be queued,
@@ -2852,7 +2852,7 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
  *	that can be handled internally.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  */
 
 void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
@@ -2944,7 +2944,7 @@ void ata_scsi_scan_host(struct ata_port *ap)
 		if (!ata_dev_enabled(dev) || dev->sdev)
 			continue;
 
-		sdev = __scsi_add_device(ap->host, 0, i, 0, NULL);
+		sdev = __scsi_add_device(ap->scsi_host, 0, i, 0, NULL);
 		if (!IS_ERR(sdev)) {
 			dev->sdev = sdev;
 			scsi_device_put(sdev);
@@ -2958,11 +2958,11 @@ void ata_scsi_scan_host(struct ata_port *ap)
  *
  *	This function is called from ata_eh_hotplug() and responsible
  *	for taking the SCSI device attached to @dev offline.  This
- *	function is called with host_set lock which protects dev->sdev
+ *	function is called with host lock which protects dev->sdev
  *	against clearing.
  *
  *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
  *	1 if attached SCSI device exists, 0 otherwise.
@@ -2998,16 +2998,16 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	 * be removed if there is __scsi_device_get() interface which
 	 * increments reference counts regardless of device state.
 	 */
-	mutex_lock(&ap->host->scan_mutex);
+	mutex_lock(&ap->scsi_host->scan_mutex);
 	spin_lock_irqsave(ap->lock, flags);
 
-	/* clearing dev->sdev is protected by host_set lock */
+	/* clearing dev->sdev is protected by host lock */
 	sdev = dev->sdev;
 	dev->sdev = NULL;
 
 	if (sdev) {
 		/* If user initiated unplug races with us, sdev can go
-		 * away underneath us after the host_set lock and
+		 * away underneath us after the host lock and
 		 * scan_mutex are released.  Hold onto it.
 		 */
 		if (scsi_device_get(sdev) == 0) {
@@ -3024,7 +3024,7 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	}
 
 	spin_unlock_irqrestore(ap->lock, flags);
-	mutex_unlock(&ap->host->scan_mutex);
+	mutex_unlock(&ap->scsi_host->scan_mutex);
 
 	if (sdev) {
 		ata_dev_printk(dev, KERN_INFO, "detaching (SCSI %s)\n",
@@ -3176,7 +3176,7 @@ void ata_scsi_dev_rescan(void *data)
  *	ata_sas_port_alloc - Allocate port for a SAS attached SATA device
  *	@pdev: PCI device that the scsi device is attached to
  *	@port_info: Information from low-level host driver
- *	@host: SCSI host that the scsi device is attached to
+ *	@shost: SCSI host that the scsi device is attached to
  *
  *	LOCKING:
  *	PCI/etc. bus probe sem.
@@ -3185,9 +3185,9 @@ void ata_scsi_dev_rescan(void *data)
  *	ata_port pointer on success / NULL on failure.
  */
 
-struct ata_port *ata_sas_port_alloc(struct ata_host_set *host_set,
+struct ata_port *ata_sas_port_alloc(struct ata_host *host,
 				    struct ata_port_info *port_info,
-				    struct Scsi_Host *host)
+				    struct Scsi_Host *shost)
 {
 	struct ata_port *ap = kzalloc(sizeof(*ap), GFP_KERNEL);
 	struct ata_probe_ent *ent;
@@ -3195,14 +3195,14 @@ struct ata_port *ata_sas_port_alloc(struct ata_host_set *host_set,
 	if (!ap)
 		return NULL;
 
-	ent = ata_probe_ent_alloc(host_set->dev, port_info);
+	ent = ata_probe_ent_alloc(host->dev, port_info);
 	if (!ent) {
 		kfree(ap);
 		return NULL;
 	}
 
-	ata_port_init(ap, host_set, ent, 0);
-	ap->lock = host->host_lock;
+	ata_port_init(ap, host, ent, 0);
+	ap->lock = shost->host_lock;
 	kfree(ent);
 	return ap;
 }
