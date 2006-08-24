@@ -395,6 +395,26 @@ config CPU5_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called cpu5wdt.
 
+config SMSC37B787_WDT
+	tristate "Winbond SMsC37B787 Watchdog Timer"
+	depends on WATCHDOG && X86
+	---help---
+	  This is the driver for the hardware watchdog component on the
+	  Winbond SMsC37B787 chipset as used on the NetRunner Mainboard
+	  from Vision Systems and maybe others.
+
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
+
+	  Usually a userspace daemon will notify the kernel WDT driver that
+	  userspace is still alive, at regular intervals.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called smsc37b787_wdt.
+
+	  Most people will say N.
+
 config W83627HF_WDT
 	tristate "W83627HF Watchdog Timer"
 	depends on WATCHDOG && X86
