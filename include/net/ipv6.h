@@ -506,6 +506,8 @@ extern int			ipv6_skip_exthdr(const struct sk_buff *, int start,
 
 extern int 			ipv6_ext_hdr(u8 nexthdr);
 
+extern int ipv6_find_tlv(struct sk_buff *skb, int offset, int type);
+
 extern struct ipv6_txoptions *	ipv6_invert_rthdr(struct sock *sk,
 						  struct ipv6_rt_hdr *hdr);
 
