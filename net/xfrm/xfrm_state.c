@@ -18,6 +18,9 @@
 #include <linux/pfkeyv2.h>
 #include <linux/ipsec.h>
 #include <linux/module.h>
+#include <linux/bootmem.h>
+#include <linux/vmalloc.h>
+#include <linux/cache.h>
 #include <asm/uaccess.h>
 
 struct sock *xfrm_nl;
@@ -38,101 +41,229 @@ EXPORT_SYMBOL(sysctl_xfrm_aevent_rseqth);
 
 static DEFINE_SPINLOCK(xfrm_state_lock);
 
-#define XFRM_DST_HSIZE		1024
-
 /* Hash table to find appropriate SA towards given target (endpoint
  * of tunnel or destination of transport mode) allowed by selector.
  *
  * Main use is finding SA after policy selected tunnel or transport mode.
  * Also, it can be used by ah/esp icmp error handler to find offending SA.
  */
-static struct hlist_head xfrm_state_bydst[XFRM_DST_HSIZE];
-static struct hlist_head xfrm_state_bysrc[XFRM_DST_HSIZE];
-static struct hlist_head xfrm_state_byspi[XFRM_DST_HSIZE];
+static struct hlist_head *xfrm_state_bydst __read_mostly;
+static struct hlist_head *xfrm_state_bysrc __read_mostly;
+static struct hlist_head *xfrm_state_byspi __read_mostly;
+static unsigned int xfrm_state_hmask __read_mostly;
+static unsigned int xfrm_state_hashmax __read_mostly = 1 * 1024 * 1024;
+static unsigned int xfrm_state_num;
 
-static __inline__
-unsigned __xfrm4_dst_hash(xfrm_address_t *addr)
+static inline unsigned int __xfrm4_dst_hash(xfrm_address_t *addr, unsigned int hmask)
 {
-	unsigned h;
+	unsigned int h;
 	h = ntohl(addr->a4);
-	h = (h ^ (h>>16)) % XFRM_DST_HSIZE;
+	h = (h ^ (h>>16)) & hmask;
 	return h;
 }
 
-static __inline__
-unsigned __xfrm6_dst_hash(xfrm_address_t *addr)
+static inline unsigned int __xfrm6_dst_hash(xfrm_address_t *addr, unsigned int hmask)
 {
-	unsigned h;
+	unsigned int h;
 	h = ntohl(addr->a6[2]^addr->a6[3]);
-	h = (h ^ (h>>16)) % XFRM_DST_HSIZE;
+	h = (h ^ (h>>16)) & hmask;
 	return h;
 }
 
-static __inline__
-unsigned __xfrm4_src_hash(xfrm_address_t *addr)
+static inline unsigned int __xfrm4_src_hash(xfrm_address_t *addr, unsigned int hmask)
 {
-	return __xfrm4_dst_hash(addr);
+	return __xfrm4_dst_hash(addr, hmask);
 }
 
-static __inline__
-unsigned __xfrm6_src_hash(xfrm_address_t *addr)
+static inline unsigned int __xfrm6_src_hash(xfrm_address_t *addr, unsigned int hmask)
 {
-	return __xfrm6_dst_hash(addr);
+	return __xfrm6_dst_hash(addr, hmask);
 }
 
-static __inline__
-unsigned xfrm_src_hash(xfrm_address_t *addr, unsigned short family)
+static inline unsigned __xfrm_src_hash(xfrm_address_t *addr, unsigned short family,  unsigned int hmask)
 {
 	switch (family) {
 	case AF_INET:
-		return __xfrm4_src_hash(addr);
+		return __xfrm4_src_hash(addr, hmask);
 	case AF_INET6:
-		return __xfrm6_src_hash(addr);
+		return __xfrm6_src_hash(addr, hmask);
 	}
 	return 0;
 }
 
-static __inline__
-unsigned xfrm_dst_hash(xfrm_address_t *addr, unsigned short family)
+static inline unsigned xfrm_src_hash(xfrm_address_t *addr, unsigned short family)
+{
+	return __xfrm_src_hash(addr, family, xfrm_state_hmask);
+}
+
+static inline unsigned int __xfrm_dst_hash(xfrm_address_t *addr, unsigned short family, unsigned int hmask)
 {
 	switch (family) {
 	case AF_INET:
-		return __xfrm4_dst_hash(addr);
+		return __xfrm4_dst_hash(addr, hmask);
 	case AF_INET6:
-		return __xfrm6_dst_hash(addr);
+		return __xfrm6_dst_hash(addr, hmask);
 	}
 	return 0;
 }
 
-static __inline__
-unsigned __xfrm4_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto)
+static inline unsigned int xfrm_dst_hash(xfrm_address_t *addr, unsigned short family)
 {
-	unsigned h;
+	return __xfrm_dst_hash(addr, family, xfrm_state_hmask);
+}
+
+static inline unsigned int __xfrm4_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto,
+					unsigned int hmask)
+{
+	unsigned int h;
 	h = ntohl(addr->a4^spi^proto);
-	h = (h ^ (h>>10) ^ (h>>20)) % XFRM_DST_HSIZE;
+	h = (h ^ (h>>10) ^ (h>>20)) & hmask;
 	return h;
 }
 
-static __inline__
-unsigned __xfrm6_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto)
+static inline unsigned int __xfrm6_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto,
+					    unsigned int hmask)
 {
-	unsigned h;
+	unsigned int h;
 	h = ntohl(addr->a6[2]^addr->a6[3]^spi^proto);
-	h = (h ^ (h>>10) ^ (h>>20)) % XFRM_DST_HSIZE;
+	h = (h ^ (h>>10) ^ (h>>20)) & hmask;
 	return h;
 }
 
-static __inline__
-unsigned xfrm_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto, unsigned short family)
+static inline
+unsigned __xfrm_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto, unsigned short family,
+			 unsigned int hmask)
 {
 	switch (family) {
 	case AF_INET:
-		return __xfrm4_spi_hash(addr, spi, proto);
+		return __xfrm4_spi_hash(addr, spi, proto, hmask);
 	case AF_INET6:
-		return __xfrm6_spi_hash(addr, spi, proto);
+		return __xfrm6_spi_hash(addr, spi, proto, hmask);
 	}
 	return 0;	/*XXX*/
 }
+
+static inline unsigned int
+xfrm_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto, unsigned short family)
+{
+	return __xfrm_spi_hash(addr, spi, proto, family, xfrm_state_hmask);
+}
+
+static struct hlist_head *xfrm_state_hash_alloc(unsigned int sz)
+{
+	struct hlist_head *n;
+
+	if (sz <= PAGE_SIZE)
+		n = kmalloc(sz, GFP_KERNEL);
+	else if (hashdist)
+		n = __vmalloc(sz, GFP_KERNEL, PAGE_KERNEL);
+	else
+		n = (struct hlist_head *)
+			__get_free_pages(GFP_KERNEL, get_order(sz));
+
+	if (n)
+		memset(n, 0, sz);
+
+	return n;
+}
+
+static void xfrm_state_hash_free(struct hlist_head *n, unsigned int sz)
+{
+	if (sz <= PAGE_SIZE)
+		kfree(n);
+	else if (hashdist)
+		vfree(n);
+	else
+		free_pages((unsigned long)n, get_order(sz));
+}
+
+static void xfrm_hash_transfer(struct hlist_head *list,
+			       struct hlist_head *ndsttable,
+			       struct hlist_head *nsrctable,
+			       struct hlist_head *nspitable,
+			       unsigned int nhashmask)
+{
+	struct hlist_node *entry, *tmp;
+	struct xfrm_state *x;
+
+	hlist_for_each_entry_safe(x, entry, tmp, list, bydst) {
+		unsigned int h;
+
+		h = __xfrm_dst_hash(&x->id.daddr, x->props.family, nhashmask);
+		hlist_add_head(&x->bydst, ndsttable+h);
+
+		h = __xfrm_src_hash(&x->props.saddr, x->props.family,
+				    nhashmask);
+		hlist_add_head(&x->bysrc, nsrctable+h);
+
+		h = __xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto,
+				    x->props.family, nhashmask);
+		hlist_add_head(&x->byspi, nspitable+h);
+	}
+}
+
+static unsigned long xfrm_hash_new_size(void)
+{
+	return ((xfrm_state_hmask + 1) << 1) *
+		sizeof(struct hlist_head);
+}
+
+static DEFINE_MUTEX(hash_resize_mutex);
+
+static void xfrm_hash_resize(void *__unused)
+{
+	struct hlist_head *ndst, *nsrc, *nspi, *odst, *osrc, *ospi;
+	unsigned long nsize, osize;
+	unsigned int nhashmask, ohashmask;
+	int i;
+
+	mutex_lock(&hash_resize_mutex);
+
+	nsize = xfrm_hash_new_size();
+	ndst = xfrm_state_hash_alloc(nsize);
+	if (!ndst)
+		goto out_unlock;
+	nsrc = xfrm_state_hash_alloc(nsize);
+	if (!nsrc) {
+		xfrm_state_hash_free(ndst, nsize);
+		goto out_unlock;
+	}
+	nspi = xfrm_state_hash_alloc(nsize);
+	if (!nspi) {
+		xfrm_state_hash_free(ndst, nsize);
+		xfrm_state_hash_free(nsrc, nsize);
+		goto out_unlock;
+	}
+
+	spin_lock_bh(&xfrm_state_lock);
+
+	nhashmask = (nsize / sizeof(struct hlist_head)) - 1U;
+	for (i = xfrm_state_hmask; i >= 0; i--)
+		xfrm_hash_transfer(xfrm_state_bydst+i, ndst, nsrc, nspi,
+				   nhashmask);
+
+	odst = xfrm_state_bydst;
+	osrc = xfrm_state_bysrc;
+	ospi = xfrm_state_byspi;
+	ohashmask = xfrm_state_hmask;
+
+	xfrm_state_bydst = ndst;
+	xfrm_state_bysrc = nsrc;
+	xfrm_state_byspi = nspi;
+	xfrm_state_hmask = nhashmask;
+
+	spin_unlock_bh(&xfrm_state_lock);
+
+	osize = (ohashmask + 1) * sizeof(struct hlist_head);
+	xfrm_state_hash_free(odst, osize);
+	xfrm_state_hash_free(osrc, osize);
+	xfrm_state_hash_free(ospi, osize);
+
+out_unlock:
+	mutex_unlock(&hash_resize_mutex);
+}
+
+static DECLARE_WORK(xfrm_hash_work, xfrm_hash_resize, NULL);
 
 DECLARE_WAIT_QUEUE_HEAD(km_waitq);
 EXPORT_SYMBOL(km_waitq);
@@ -335,6 +466,7 @@ int __xfrm_state_delete(struct xfrm_state *x)
 			hlist_del(&x->byspi);
 			__xfrm_state_put(x);
 		}
+		xfrm_state_num--;
 		spin_unlock(&xfrm_state_lock);
 		if (del_timer(&x->timer))
 			__xfrm_state_put(x);
@@ -380,7 +512,7 @@ void xfrm_state_flush(u8 proto)
 	int i;
 
 	spin_lock_bh(&xfrm_state_lock);
-	for (i = 0; i < XFRM_DST_HSIZE; i++) {
+	for (i = 0; i < xfrm_state_hmask; i++) {
 		struct hlist_node *entry;
 		struct xfrm_state *x;
 restart:
@@ -611,7 +743,7 @@ out:
 
 static void __xfrm_state_insert(struct xfrm_state *x)
 {
-	unsigned h = xfrm_dst_hash(&x->id.daddr, x->props.family);
+	unsigned int h = xfrm_dst_hash(&x->id.daddr, x->props.family);
 
 	hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 	xfrm_state_hold(x);
@@ -637,6 +769,13 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 		xfrm_state_hold(x);
 
 	wake_up(&km_waitq);
+
+	xfrm_state_num++;
+
+	if (x->bydst.next != NULL &&
+	    (xfrm_state_hmask + 1) < xfrm_state_hashmax &&
+	    xfrm_state_num > xfrm_state_hmask)
+		schedule_work(&xfrm_hash_work);
 }
 
 void xfrm_state_insert(struct xfrm_state *x)
@@ -984,7 +1123,7 @@ static struct xfrm_state *__xfrm_find_acq_byseq(u32 seq)
 {
 	int i;
 
-	for (i = 0; i < XFRM_DST_HSIZE; i++) {
+	for (i = 0; i <= xfrm_state_hmask; i++) {
 		struct hlist_node *entry;
 		struct xfrm_state *x;
 
@@ -1026,7 +1165,7 @@ EXPORT_SYMBOL(xfrm_get_acqseq);
 void
 xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi)
 {
-	u32 h;
+	unsigned int h;
 	struct xfrm_state *x0;
 
 	if (x->id.spi)
@@ -1074,7 +1213,7 @@ int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*),
 	int err = 0;
 
 	spin_lock_bh(&xfrm_state_lock);
-	for (i = 0; i < XFRM_DST_HSIZE; i++) {
+	for (i = 0; i <= xfrm_state_hmask; i++) {
 		hlist_for_each_entry(x, entry, xfrm_state_bydst+i, bydst) {
 			if (xfrm_id_proto_match(x->id.proto, proto))
 				count++;
@@ -1085,7 +1224,7 @@ int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*),
 		goto out;
 	}
 
-	for (i = 0; i < XFRM_DST_HSIZE; i++) {
+	for (i = 0; i <= xfrm_state_hmask; i++) {
 		hlist_for_each_entry(x, entry, xfrm_state_bydst+i, bydst) {
 			if (!xfrm_id_proto_match(x->id.proto, proto))
 				continue;
@@ -1531,13 +1670,17 @@ EXPORT_SYMBOL(xfrm_init_state);
  
 void __init xfrm_state_init(void)
 {
-	int i;
+	unsigned int sz;
 
-	for (i=0; i<XFRM_DST_HSIZE; i++) {
-		INIT_HLIST_HEAD(&xfrm_state_bydst[i]);
-		INIT_HLIST_HEAD(&xfrm_state_bysrc[i]);
-		INIT_HLIST_HEAD(&xfrm_state_byspi[i]);
-	}
+	sz = sizeof(struct hlist_head) * 8;
+
+	xfrm_state_bydst = xfrm_state_hash_alloc(sz);
+	xfrm_state_bysrc = xfrm_state_hash_alloc(sz);
+	xfrm_state_byspi = xfrm_state_hash_alloc(sz);
+	if (!xfrm_state_bydst || !xfrm_state_bysrc || !xfrm_state_byspi)
+		panic("XFRM: Cannot allocate bydst/bysrc/byspi hashes.");
+	xfrm_state_hmask = ((sz / sizeof(struct hlist_head)) - 1);
+
 	INIT_WORK(&xfrm_state_gc_work, xfrm_state_gc_task, NULL);
 }
 
