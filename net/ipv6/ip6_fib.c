@@ -899,7 +899,7 @@ struct fib6_node * fib6_lookup(struct fib6_node *root, struct in6_addr *daddr,
 		}
 	};
 
-	fn = fib6_lookup_1(root, args);
+	fn = fib6_lookup_1(root, daddr ? args : args + 1);
 
 	if (fn == NULL || fn->fn_flags & RTN_TL_ROOT)
 		fn = root;
