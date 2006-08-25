@@ -582,6 +582,13 @@ static struct hda_board_config stac9205_cfg_tbl[] = {
 	  .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2668,	/* DFI LanParty */
 	  .config = STAC_REF },		/* SigmaTel reference board */
+	/* Dell laptops have BIOS problem */
+	{ .pci_subvendor = PCI_VENDOR_ID_DELL, .pci_subdevice = 0x01b5,
+	  .config = STAC_REF },	/* Dell Inspiron 630m */
+	{ .pci_subvendor = PCI_VENDOR_ID_DELL, .pci_subdevice = 0x01c2,
+	  .config = STAC_REF },	/* Dell Latitude D620 */
+	{ .pci_subvendor = PCI_VENDOR_ID_DELL, .pci_subdevice = 0x01cb,
+	  .config = STAC_REF },	/* Dell Latitude 120L */
 	{} /* terminator */
 };
 
