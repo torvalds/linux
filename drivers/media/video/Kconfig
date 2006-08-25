@@ -45,7 +45,7 @@ comment "Audio decoders"
 
 config VIDEO_TVAUDIO
 	tristate "Simple audio decoder chips"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for several audio decoder chips found on some bt8xx boards:
 	  Philips: tda9840, tda9873h, tda9874h/a, tda9850, tda985x, tea6300,
@@ -57,7 +57,7 @@ config VIDEO_TVAUDIO
 
 config VIDEO_TDA7432
 	tristate "Philips TDA7432 audio processor"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for tda7432 audio decoder chip found on some bt8xx boards.
 
@@ -75,7 +75,7 @@ config VIDEO_TDA9840
 
 config VIDEO_TDA9875
 	tristate "Philips TDA9875 audio processor"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for tda9875 audio decoder chip found on some bt8xx boards.
 
