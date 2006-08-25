@@ -368,7 +368,7 @@ static void ipath_qp_rcv(struct ipath_ibdev *dev,
 }
 
 /**
- * ipath_ib_rcv - process and incoming packet
+ * ipath_ib_rcv - process an incoming packet
  * @arg: the device pointer
  * @rhdr: the header of the packet
  * @data: the packet data
@@ -377,9 +377,9 @@ static void ipath_qp_rcv(struct ipath_ibdev *dev,
  * This is called from ipath_kreceive() to process an incoming packet at
  * interrupt level. Tlen is the length of the header + data + CRC in bytes.
  */
-static void ipath_ib_rcv(void *arg, void *rhdr, void *data, u32 tlen)
+void ipath_ib_rcv(struct ipath_ibdev *dev, void *rhdr, void *data,
+		  u32 tlen)
 {
-	struct ipath_ibdev *dev = (struct ipath_ibdev *) arg;
 	struct ipath_ib_header *hdr = rhdr;
 	struct ipath_other_headers *ohdr;
 	struct ipath_qp *qp;
@@ -468,9 +468,8 @@ bail:;
  * This is called from ipath_do_rcv_timer() at interrupt level to check for
  * QPs which need retransmits and to collect performance numbers.
  */
-static void ipath_ib_timer(void *arg)
+void ipath_ib_timer(struct ipath_ibdev *dev)
 {
-	struct ipath_ibdev *dev = (struct ipath_ibdev *) arg;
 	struct ipath_qp *resend = NULL;
 	struct list_head *last;
 	struct ipath_qp *qp;
@@ -564,9 +563,8 @@ static void ipath_ib_timer(void *arg)
  * QPs waiting for buffers (for now, just do a tasklet_hi_schedule and
  * return zero).
  */
-static int ipath_ib_piobufavail(void *arg)
+int ipath_ib_piobufavail(struct ipath_ibdev *dev)
 {
-	struct ipath_ibdev *dev = (struct ipath_ibdev *) arg;
 	struct ipath_qp *qp;
 	unsigned long flags;
 
@@ -957,11 +955,10 @@ static int ipath_verbs_register_sysfs(struct ib_device *dev);
 
 /**
  * ipath_register_ib_device - register our device with the infiniband core
- * @unit: the device number to register
  * @dd: the device data structure
  * Return the allocated ipath_ibdev pointer or NULL on error.
  */
-static void *ipath_register_ib_device(int unit, struct ipath_devdata *dd)
+int ipath_register_ib_device(struct ipath_devdata *dd)
 {
 	struct ipath_layer_counters cntrs;
 	struct ipath_ibdev *idev;
@@ -969,8 +966,10 @@ static void *ipath_register_ib_device(int unit, struct ipath_devdata *dd)
 	int ret;
 
 	idev = (struct ipath_ibdev *)ib_alloc_device(sizeof *idev);
-	if (idev == NULL)
+	if (idev == NULL) {
+		ret = -ENOMEM;
 		goto bail;
+	}
 
 	dev = &idev->ibdev;
 
@@ -1047,7 +1046,7 @@ static void *ipath_register_ib_device(int unit, struct ipath_devdata *dd)
 	if (!sys_image_guid)
 		sys_image_guid = ipath_layer_get_guid(dd);
 	idev->sys_image_guid = sys_image_guid;
-	idev->ib_unit = unit;
+	idev->ib_unit = dd->ipath_unit;
 	idev->dd = dd;
 
 	strlcpy(dev->name, "ipath%d", IB_DEVICE_NAME_MAX);
@@ -1153,16 +1152,16 @@ err_lk:
 err_qp:
 	ib_dealloc_device(dev);
 	_VERBS_ERROR("ib_ipath%d cannot register verbs (%d)!\n",
-		     unit, -ret);
+		     dd->ipath_unit, -ret);
 	idev = NULL;
 
 bail:
-	return idev;
+	dd->verbs_dev = idev;
+	return ret;
 }
 
-static void ipath_unregister_ib_device(void *arg)
+void ipath_unregister_ib_device(struct ipath_ibdev *dev)
 {
-	struct ipath_ibdev *dev = (struct ipath_ibdev *) arg;
 	struct ib_device *ibdev = &dev->ibdev;
 
 	ipath_layer_disable_timer(dev->dd);
@@ -1191,19 +1190,6 @@ static void ipath_unregister_ib_device(void *arg)
 	kfree(dev->qp_table.table);
 	kfree(dev->lk_table.table);
 	ib_dealloc_device(ibdev);
-}
-
-static int __init ipath_verbs_init(void)
-{
-	return ipath_verbs_register(ipath_register_ib_device,
-				    ipath_unregister_ib_device,
-				    ipath_ib_piobufavail, ipath_ib_rcv,
-				    ipath_ib_timer);
-}
-
-static void __exit ipath_verbs_cleanup(void)
-{
-	ipath_verbs_unregister();
 }
 
 static ssize_t show_rev(struct class_device *cdev, char *buf)
@@ -1297,6 +1283,3 @@ static int ipath_verbs_register_sysfs(struct ib_device *dev)
 bail:
 	return ret;
 }
-
-module_init(ipath_verbs_init);
-module_exit(ipath_verbs_cleanup);

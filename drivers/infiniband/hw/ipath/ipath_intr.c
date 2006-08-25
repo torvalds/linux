@@ -35,6 +35,7 @@
 
 #include "ipath_kernel.h"
 #include "ipath_layer.h"
+#include "ipath_verbs.h"
 #include "ipath_common.h"
 
 /* These are all rcv-related errors which we want to count for stats */
@@ -712,7 +713,7 @@ static void handle_layer_pioavail(struct ipath_devdata *dd)
 	if (ret > 0)
 		goto set;
 
-	ret = __ipath_verbs_piobufavail(dd);
+	ret = ipath_ib_piobufavail(dd->verbs_dev);
 	if (ret > 0)
 		goto set;
 

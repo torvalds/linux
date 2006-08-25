@@ -711,6 +711,16 @@ int ipath_make_rc_req(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
 int ipath_make_uc_req(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
 		      u32 pmtu, u32 *bth0p, u32 *bth2p);
 
+int ipath_register_ib_device(struct ipath_devdata *);
+
+void ipath_unregister_ib_device(struct ipath_ibdev *);
+
+void ipath_ib_rcv(struct ipath_ibdev *, void *, void *, u32);
+
+int ipath_ib_piobufavail(struct ipath_ibdev *);
+
+void ipath_ib_timer(struct ipath_ibdev *);
+
 extern const enum ib_wc_opcode ib_ipath_wc_opcode[];
 
 extern const u8 ipath_cvt_physportstate[];

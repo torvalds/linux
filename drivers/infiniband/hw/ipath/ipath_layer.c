@@ -42,26 +42,20 @@
 
 #include "ipath_kernel.h"
 #include "ipath_layer.h"
+#include "ipath_verbs.h"
 #include "ipath_common.h"
 
 /* Acquire before ipath_devs_lock. */
 static DEFINE_MUTEX(ipath_layer_mutex);
-
-static int ipath_verbs_registered;
 
 u16 ipath_layer_rcv_opcode;
 
 static int (*layer_intr)(void *, u32);
 static int (*layer_rcv)(void *, void *, struct sk_buff *);
 static int (*layer_rcv_lid)(void *, void *);
-static int (*verbs_piobufavail)(void *);
-static void (*verbs_rcv)(void *, void *, void *, u32);
 
 static void *(*layer_add_one)(int, struct ipath_devdata *);
 static void (*layer_remove_one)(void *);
-static void *(*verbs_add_one)(int, struct ipath_devdata *);
-static void (*verbs_remove_one)(void *);
-static void (*verbs_timer_cb)(void *);
 
 int __ipath_layer_intr(struct ipath_devdata *dd, u32 arg)
 {
@@ -103,29 +97,6 @@ int __ipath_layer_rcv_lid(struct ipath_devdata *dd, void *hdr)
 
 	if (dd->ipath_layer.l_arg && layer_rcv_lid)
 		ret = layer_rcv_lid(dd->ipath_layer.l_arg, hdr);
-
-	return ret;
-}
-
-int __ipath_verbs_piobufavail(struct ipath_devdata *dd)
-{
-	int ret = -ENODEV;
-
-	if (dd->verbs_layer.l_arg && verbs_piobufavail)
-		ret = verbs_piobufavail(dd->verbs_layer.l_arg);
-
-	return ret;
-}
-
-int __ipath_verbs_rcv(struct ipath_devdata *dd, void *rc, void *ebuf,
-		      u32 tlen)
-{
-	int ret = -ENODEV;
-
-	if (dd->verbs_layer.l_arg && verbs_rcv) {
-		verbs_rcv(dd->verbs_layer.l_arg, rc, ebuf, tlen);
-		ret = 0;
-	}
 
 	return ret;
 }
@@ -212,8 +183,6 @@ bail:
 	return ret;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_set_linkstate);
-
 /**
  * ipath_layer_set_mtu - set the MTU
  * @dd: the infinipath device
@@ -298,8 +267,6 @@ bail:
 	return ret;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_set_mtu);
-
 int ipath_set_lid(struct ipath_devdata *dd, u32 arg, u8 lmc)
 {
 	dd->ipath_lid = arg;
@@ -315,8 +282,6 @@ int ipath_set_lid(struct ipath_devdata *dd, u32 arg, u8 lmc)
 	return 0;
 }
 
-EXPORT_SYMBOL_GPL(ipath_set_lid);
-
 int ipath_layer_set_guid(struct ipath_devdata *dd, __be64 guid)
 {
 	/* XXX - need to inform anyone who cares this just happened. */
@@ -324,84 +289,55 @@ int ipath_layer_set_guid(struct ipath_devdata *dd, __be64 guid)
 	return 0;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_set_guid);
-
 __be64 ipath_layer_get_guid(struct ipath_devdata *dd)
 {
 	return dd->ipath_guid;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_guid);
-
-u32 ipath_layer_get_nguid(struct ipath_devdata *dd)
-{
-	return dd->ipath_nguid;
-}
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_nguid);
 
 u32 ipath_layer_get_majrev(struct ipath_devdata *dd)
 {
 	return dd->ipath_majrev;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_get_majrev);
-
 u32 ipath_layer_get_minrev(struct ipath_devdata *dd)
 {
 	return dd->ipath_minrev;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_minrev);
 
 u32 ipath_layer_get_pcirev(struct ipath_devdata *dd)
 {
 	return dd->ipath_pcirev;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_get_pcirev);
-
 u32 ipath_layer_get_flags(struct ipath_devdata *dd)
 {
 	return dd->ipath_flags;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_flags);
 
 struct device *ipath_layer_get_device(struct ipath_devdata *dd)
 {
 	return &dd->pcidev->dev;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_get_device);
-
 u16 ipath_layer_get_deviceid(struct ipath_devdata *dd)
 {
 	return dd->ipath_deviceid;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_deviceid);
 
 u32 ipath_layer_get_vendorid(struct ipath_devdata *dd)
 {
 	return dd->ipath_vendorid;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_get_vendorid);
-
 u64 ipath_layer_get_lastibcstat(struct ipath_devdata *dd)
 {
 	return dd->ipath_lastibcstat;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_get_lastibcstat);
-
 u32 ipath_layer_get_ibmtu(struct ipath_devdata *dd)
 {
 	return dd->ipath_ibmtu;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_ibmtu);
 
 void ipath_layer_add(struct ipath_devdata *dd)
 {
@@ -410,10 +346,6 @@ void ipath_layer_add(struct ipath_devdata *dd)
 	if (layer_add_one)
 		dd->ipath_layer.l_arg =
 			layer_add_one(dd->ipath_unit, dd);
-
-	if (verbs_add_one)
-		dd->verbs_layer.l_arg =
-			verbs_add_one(dd->ipath_unit, dd);
 
 	mutex_unlock(&ipath_layer_mutex);
 }
@@ -425,11 +357,6 @@ void ipath_layer_remove(struct ipath_devdata *dd)
 	if (dd->ipath_layer.l_arg && layer_remove_one) {
 		layer_remove_one(dd->ipath_layer.l_arg);
 		dd->ipath_layer.l_arg = NULL;
-	}
-
-	if (dd->verbs_layer.l_arg && verbs_remove_one) {
-		verbs_remove_one(dd->verbs_layer.l_arg);
-		dd->verbs_layer.l_arg = NULL;
 	}
 
 	mutex_unlock(&ipath_layer_mutex);
@@ -521,94 +448,9 @@ static void __ipath_verbs_timer(unsigned long arg)
 		ipath_kreceive(dd);
 
 	/* Handle verbs layer timeouts. */
-	if (dd->verbs_layer.l_arg && verbs_timer_cb)
-		verbs_timer_cb(dd->verbs_layer.l_arg);
-
-	mod_timer(&dd->verbs_layer.l_timer, jiffies + 1);
+	ipath_ib_timer(dd->verbs_dev);
+	mod_timer(&dd->verbs_timer, jiffies + 1);
 }
-
-/**
- * ipath_verbs_register - verbs layer registration
- * @l_piobufavail: callback for when PIO buffers become available
- * @l_rcv: callback for receiving a packet
- * @l_timer_cb: timer callback
- * @ipath_devdata: device data structure is put here
- */
-int ipath_verbs_register(void *(*l_add)(int, struct ipath_devdata *),
-			 void (*l_remove)(void *arg),
-			 int (*l_piobufavail) (void *arg),
-			 void (*l_rcv) (void *arg, void *rhdr,
-					void *data, u32 tlen),
-			 void (*l_timer_cb) (void *arg))
-{
-	struct ipath_devdata *dd, *tmp;
-	unsigned long flags;
-
-	mutex_lock(&ipath_layer_mutex);
-
-	verbs_add_one = l_add;
-	verbs_remove_one = l_remove;
-	verbs_piobufavail = l_piobufavail;
-	verbs_rcv = l_rcv;
-	verbs_timer_cb = l_timer_cb;
-
-	spin_lock_irqsave(&ipath_devs_lock, flags);
-
-	list_for_each_entry_safe(dd, tmp, &ipath_dev_list, ipath_list) {
-		if (!(dd->ipath_flags & IPATH_INITTED))
-			continue;
-
-		if (dd->verbs_layer.l_arg)
-			continue;
-
-		spin_unlock_irqrestore(&ipath_devs_lock, flags);
-		dd->verbs_layer.l_arg = l_add(dd->ipath_unit, dd);
-		spin_lock_irqsave(&ipath_devs_lock, flags);
-	}
-
-	spin_unlock_irqrestore(&ipath_devs_lock, flags);
-	mutex_unlock(&ipath_layer_mutex);
-
-	ipath_verbs_registered = 1;
-
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(ipath_verbs_register);
-
-void ipath_verbs_unregister(void)
-{
-	struct ipath_devdata *dd, *tmp;
-	unsigned long flags;
-
-	mutex_lock(&ipath_layer_mutex);
-	spin_lock_irqsave(&ipath_devs_lock, flags);
-
-	list_for_each_entry_safe(dd, tmp, &ipath_dev_list, ipath_list) {
-		*dd->ipath_statusp &= ~IPATH_STATUS_OIB_SMA;
-
-		if (dd->verbs_layer.l_arg && verbs_remove_one) {
-			spin_unlock_irqrestore(&ipath_devs_lock, flags);
-			verbs_remove_one(dd->verbs_layer.l_arg);
-			spin_lock_irqsave(&ipath_devs_lock, flags);
-			dd->verbs_layer.l_arg = NULL;
-		}
-	}
-
-	spin_unlock_irqrestore(&ipath_devs_lock, flags);
-
-	verbs_add_one = NULL;
-	verbs_remove_one = NULL;
-	verbs_piobufavail = NULL;
-	verbs_rcv = NULL;
-	verbs_timer_cb = NULL;
-
-	ipath_verbs_registered = 0;
-
-	mutex_unlock(&ipath_layer_mutex);
-}
-
-EXPORT_SYMBOL_GPL(ipath_verbs_unregister);
 
 int ipath_layer_open(struct ipath_devdata *dd, u32 * pktmax)
 {
@@ -702,8 +544,6 @@ u32 ipath_layer_get_cr_errpkey(struct ipath_devdata *dd)
 {
 	return ipath_read_creg32(dd, dd->ipath_cregs->cr_errpkey);
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_cr_errpkey);
 
 static void update_sge(struct ipath_sge_state *ss, u32 length)
 {
@@ -981,8 +821,6 @@ bail:
 	return ret;
 }
 
-EXPORT_SYMBOL_GPL(ipath_verbs_send);
-
 int ipath_layer_snapshot_counters(struct ipath_devdata *dd, u64 *swords,
 				  u64 *rwords, u64 *spkts, u64 *rpkts,
 				  u64 *xmit_wait)
@@ -1006,8 +844,6 @@ int ipath_layer_snapshot_counters(struct ipath_devdata *dd, u64 *swords,
 bail:
 	return ret;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_snapshot_counters);
 
 /**
  * ipath_layer_get_counters - get various chip counters
@@ -1069,8 +905,6 @@ bail:
 	return ret;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_get_counters);
-
 int ipath_layer_want_buffer(struct ipath_devdata *dd)
 {
 	set_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
@@ -1079,8 +913,6 @@ int ipath_layer_want_buffer(struct ipath_devdata *dd)
 
 	return 0;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_want_buffer);
 
 int ipath_layer_send_hdr(struct ipath_devdata *dd, struct ether_header *hdr)
 {
@@ -1174,16 +1006,14 @@ int ipath_layer_enable_timer(struct ipath_devdata *dd)
 				 (u64) (1 << 2));
 	}
 
-	init_timer(&dd->verbs_layer.l_timer);
-	dd->verbs_layer.l_timer.function = __ipath_verbs_timer;
-	dd->verbs_layer.l_timer.data = (unsigned long)dd;
-	dd->verbs_layer.l_timer.expires = jiffies + 1;
-	add_timer(&dd->verbs_layer.l_timer);
+	init_timer(&dd->verbs_timer);
+	dd->verbs_timer.function = __ipath_verbs_timer;
+	dd->verbs_timer.data = (unsigned long)dd;
+	dd->verbs_timer.expires = jiffies + 1;
+	add_timer(&dd->verbs_timer);
 
 	return 0;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_enable_timer);
 
 int ipath_layer_disable_timer(struct ipath_devdata *dd)
 {
@@ -1191,12 +1021,10 @@ int ipath_layer_disable_timer(struct ipath_devdata *dd)
 	if (dd->ipath_flags & IPATH_GPIO_INTR)
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_mask, 0);
 
-	del_timer_sync(&dd->verbs_layer.l_timer);
+	del_timer_sync(&dd->verbs_timer);
 
 	return 0;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_disable_timer);
 
 /**
  * ipath_layer_set_verbs_flags - set the verbs layer flags
@@ -1225,8 +1053,6 @@ int ipath_layer_set_verbs_flags(struct ipath_devdata *dd, unsigned flags)
 	return 0;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_set_verbs_flags);
-
 /**
  * ipath_layer_get_npkeys - return the size of the PKEY table for port 0
  * @dd: the infinipath device
@@ -1235,8 +1061,6 @@ unsigned ipath_layer_get_npkeys(struct ipath_devdata *dd)
 {
 	return ARRAY_SIZE(dd->ipath_pd[0]->port_pkeys);
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_npkeys);
 
 /**
  * ipath_layer_get_pkey - return the indexed PKEY from the port 0 PKEY table
@@ -1255,8 +1079,6 @@ unsigned ipath_layer_get_pkey(struct ipath_devdata *dd, unsigned index)
 	return ret;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_get_pkey);
-
 /**
  * ipath_layer_get_pkeys - return the PKEY table for port 0
  * @dd: the infinipath device
@@ -1270,8 +1092,6 @@ int ipath_layer_get_pkeys(struct ipath_devdata *dd, u16 * pkeys)
 
 	return 0;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_pkeys);
 
 /**
  * rm_pkey - decrecment the reference count for the given PKEY
@@ -1419,8 +1239,6 @@ int ipath_layer_set_pkeys(struct ipath_devdata *dd, u16 * pkeys)
 	return 0;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_set_pkeys);
-
 /**
  * ipath_layer_get_linkdowndefaultstate - get the default linkdown state
  * @dd: the infinipath device
@@ -1431,8 +1249,6 @@ int ipath_layer_get_linkdowndefaultstate(struct ipath_devdata *dd)
 {
 	return !!(dd->ipath_ibcctrl & INFINIPATH_IBCC_LINKDOWNDEFAULTSTATE);
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_linkdowndefaultstate);
 
 /**
  * ipath_layer_set_linkdowndefaultstate - set the default linkdown state
@@ -1453,16 +1269,12 @@ int ipath_layer_set_linkdowndefaultstate(struct ipath_devdata *dd,
 	return 0;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_set_linkdowndefaultstate);
-
 int ipath_layer_get_phyerrthreshold(struct ipath_devdata *dd)
 {
 	return (dd->ipath_ibcctrl >>
 		INFINIPATH_IBCC_PHYERRTHRESHOLD_SHIFT) &
 		INFINIPATH_IBCC_PHYERRTHRESHOLD_MASK;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_phyerrthreshold);
 
 /**
  * ipath_layer_set_phyerrthreshold - set the physical error threshold
@@ -1489,16 +1301,12 @@ int ipath_layer_set_phyerrthreshold(struct ipath_devdata *dd, unsigned n)
 	return 0;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_set_phyerrthreshold);
-
 int ipath_layer_get_overrunthreshold(struct ipath_devdata *dd)
 {
 	return (dd->ipath_ibcctrl >>
 		INFINIPATH_IBCC_OVERRUNTHRESHOLD_SHIFT) &
 		INFINIPATH_IBCC_OVERRUNTHRESHOLD_MASK;
 }
-
-EXPORT_SYMBOL_GPL(ipath_layer_get_overrunthreshold);
 
 /**
  * ipath_layer_set_overrunthreshold - set the overrun threshold
@@ -1525,17 +1333,13 @@ int ipath_layer_set_overrunthreshold(struct ipath_devdata *dd, unsigned n)
 	return 0;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_set_overrunthreshold);
-
 int ipath_layer_get_boardname(struct ipath_devdata *dd, char *name,
 			      size_t namelen)
 {
 	return dd->ipath_f_get_boardname(dd, name, namelen);
 }
-EXPORT_SYMBOL_GPL(ipath_layer_get_boardname);
 
 u32 ipath_layer_get_rcvhdrentsize(struct ipath_devdata *dd)
 {
 	return dd->ipath_rcvhdrentsize;
 }
-EXPORT_SYMBOL_GPL(ipath_layer_get_rcvhdrentsize);

@@ -132,12 +132,6 @@ struct _ipath_layer {
 	void *l_arg;
 };
 
-/* Verbs layer interface */
-struct _verbs_layer {
-	void *l_arg;
-	struct timer_list l_timer;
-};
-
 struct ipath_devdata {
 	struct list_head ipath_list;
 
@@ -198,7 +192,8 @@ struct ipath_devdata {
 	void (*ipath_f_setextled)(struct ipath_devdata *, u64, u64);
 	/* fill out chip-specific fields */
 	int (*ipath_f_get_base_info)(struct ipath_portdata *, void *);
-	struct _verbs_layer verbs_layer;
+	struct ipath_ibdev *verbs_dev;
+	struct timer_list verbs_timer;
 	/* total dwords sent (summed from counter) */
 	u64 ipath_sword;
 	/* total dwords rcvd (summed from counter) */
@@ -529,8 +524,6 @@ extern int ipath_layer_intr(struct ipath_devdata *, u32);
 extern int __ipath_layer_rcv(struct ipath_devdata *, void *,
 			     struct sk_buff *);
 extern int __ipath_layer_rcv_lid(struct ipath_devdata *, void *);
-extern int __ipath_verbs_piobufavail(struct ipath_devdata *);
-extern int __ipath_verbs_rcv(struct ipath_devdata *, void *, void *, u32);
 
 void ipath_layer_add(struct ipath_devdata *);
 void ipath_layer_remove(struct ipath_devdata *);

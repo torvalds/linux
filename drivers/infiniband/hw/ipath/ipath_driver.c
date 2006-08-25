@@ -40,6 +40,7 @@
 
 #include "ipath_kernel.h"
 #include "ipath_layer.h"
+#include "ipath_verbs.h"
 #include "ipath_common.h"
 
 static void ipath_update_pio_bufs(struct ipath_devdata *);
@@ -50,8 +51,6 @@ const char *ipath_get_unit_name(int unit)
 	snprintf(iname, sizeof iname, "infinipath%u", unit);
 	return iname;
 }
-
-EXPORT_SYMBOL_GPL(ipath_get_unit_name);
 
 #define DRIVER_LOAD_MSG "QLogic " IPATH_DRV_NAME " loaded: "
 #define PFX IPATH_DRV_NAME ": "
@@ -510,6 +509,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	ipath_user_add(dd);
 	ipath_diag_add(dd);
 	ipath_layer_add(dd);
+	ipath_register_ib_device(dd);
 
 	goto bail;
 
@@ -538,6 +538,7 @@ static void __devexit ipath_remove_one(struct pci_dev *pdev)
 		return;
 
 	dd = pci_get_drvdata(pdev);
+	ipath_unregister_ib_device(dd->verbs_dev);
 	ipath_layer_remove(dd);
 	ipath_diag_remove(dd);
 	ipath_user_remove(dd);
@@ -978,12 +979,8 @@ reloop:
 		if (unlikely(eflags))
 			ipath_rcv_hdrerr(dd, eflags, l, etail, rc);
 		else if (etype == RCVHQ_RCV_TYPE_NON_KD) {
-				int ret = __ipath_verbs_rcv(dd, rc + 1,
-							    ebuf, tlen);
-				if (ret == -ENODEV)
-					ipath_cdbg(VERBOSE,
-						   "received IB packet, "
-						   "not SMA (QP=%x)\n", qp);
+				ipath_ib_rcv(dd->verbs_dev, rc + 1, ebuf,
+					     tlen);
 				if (dd->ipath_lli_counter)
 					dd->ipath_lli_counter--;
 

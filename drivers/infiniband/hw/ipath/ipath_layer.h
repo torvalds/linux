@@ -114,14 +114,7 @@ int ipath_layer_register(void *(*l_add)(int, struct ipath_devdata *),
 				      struct sk_buff *),
 			 u16 rcv_opcode,
 			 int (*l_rcv_lid)(void *, void *));
-int ipath_verbs_register(void *(*l_add)(int, struct ipath_devdata *),
-			 void (*l_remove)(void *arg),
-			 int (*l_piobufavail)(void *arg),
-			 void (*l_rcv)(void *arg, void *rhdr,
-				       void *data, u32 tlen),
-			 void (*l_timer_cb)(void *arg));
 void ipath_layer_unregister(void);
-void ipath_verbs_unregister(void);
 int ipath_layer_open(struct ipath_devdata *, u32 * pktmax);
 u16 ipath_layer_get_lid(struct ipath_devdata *dd);
 int ipath_layer_get_mac(struct ipath_devdata *dd, u8 *);
@@ -145,7 +138,6 @@ int ipath_layer_get_counters(struct ipath_devdata *dd,
 int ipath_layer_want_buffer(struct ipath_devdata *dd);
 int ipath_layer_set_guid(struct ipath_devdata *, __be64 guid);
 __be64 ipath_layer_get_guid(struct ipath_devdata *);
-u32 ipath_layer_get_nguid(struct ipath_devdata *);
 u32 ipath_layer_get_majrev(struct ipath_devdata *);
 u32 ipath_layer_get_minrev(struct ipath_devdata *);
 u32 ipath_layer_get_pcirev(struct ipath_devdata *);
