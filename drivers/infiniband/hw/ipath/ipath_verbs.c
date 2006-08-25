@@ -107,6 +107,10 @@ module_param_named(max_srq_wrs, ib_ipath_max_srq_wrs,
 		   uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(max_srq_wrs, "Maximum number of SRQ WRs support");
 
+static unsigned int ib_ipath_disable_sma;
+module_param_named(disable_sma, ib_ipath_disable_sma, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(ib_ipath_disable_sma, "Disable the SMA");
+
 const int ib_ipath_state_ops[IB_QPS_ERR + 1] = {
 	[IB_QPS_RESET] = 0,
 	[IB_QPS_INIT] = IPATH_POST_RECV_OK,
@@ -354,6 +358,9 @@ static void ipath_qp_rcv(struct ipath_ibdev *dev,
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
+		if (ib_ipath_disable_sma)
+			break;
+		/* FALLTHROUGH */
 	case IB_QPT_UD:
 		ipath_ud_rcv(dev, hdr, has_grh, data, tlen, qp);
 		break;
