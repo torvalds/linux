@@ -306,8 +306,6 @@ int in6_pton(const char *src, int srclen,
 	if (srclen < 0)
 		srclen = strlen(src);
 
-	printf("srclen=%d\n", srclen);
-
 	while (1) {
 		int c;
 
