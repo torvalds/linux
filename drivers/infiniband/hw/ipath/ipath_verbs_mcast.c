@@ -217,6 +217,8 @@ static int ipath_mcast_add(struct ipath_ibdev *dev,
 	dev->n_mcast_grps_allocated++;
 	spin_unlock(&dev->n_mcast_grps_lock);
 
+	mcast->n_attached++;
+
 	list_add_tail_rcu(&mqp->list, &mcast->qp_list);
 
 	atomic_inc(&mcast->refcount);
