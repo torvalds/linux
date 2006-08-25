@@ -908,6 +908,7 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(u8 type, struct flowi *fl,
 	xfrm_address_t *daddr, *saddr;
 	struct hlist_node *entry;
 	struct hlist_head *chain;
+	u32 priority = ~0U;
 
 	daddr = xfrm_flowi_daddr(fl, family);
 	saddr = xfrm_flowi_saddr(fl, family);
@@ -919,21 +920,21 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(u8 type, struct flowi *fl,
 	ret = NULL;
 	hlist_for_each_entry(pol, entry, chain, bydst) {
 		if (xfrm_policy_match(pol, fl, type, family, dir)) {
-			xfrm_pol_hold(pol);
+			ret = pol;
+			priority = ret->priority;
+			break;
+		}
+	}
+	chain = &xfrm_policy_inexact[dir];
+	hlist_for_each_entry(pol, entry, chain, bydst) {
+		if (xfrm_policy_match(pol, fl, type, family, dir) &&
+		    pol->priority < priority) {
 			ret = pol;
 			break;
 		}
 	}
-	if (!ret) {
-		chain = &xfrm_policy_inexact[dir];
-		hlist_for_each_entry(pol, entry, chain, bydst) {
-			if (xfrm_policy_match(pol, fl, type, family, dir)) {
-				xfrm_pol_hold(pol);
-				ret = pol;
-				break;
-			}
-		}
-	}
+	if (ret)
+		xfrm_pol_hold(ret);
 	read_unlock_bh(&xfrm_policy_lock);
 
 	return ret;
