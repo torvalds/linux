@@ -1891,47 +1891,6 @@ static struct videobuf_queue_ops bttv_video_qops = {
 static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 {
 	switch (cmd) {
-#ifdef CONFIG_VIDEO_V4L1
-	case VIDIOCGAUDIO:
-	{
-		struct video_audio *v = arg;
-
-		memset(v,0,sizeof(*v));
-		strcpy(v->name,"Television");
-		v->flags |= VIDEO_AUDIO_MUTABLE;
-		v->mode  = VIDEO_SOUND_MONO;
-
-		mutex_lock(&btv->lock);
-		bttv_call_i2c_clients(btv,cmd,v);
-
-		/* card specific hooks */
-		if (btv->audio_hook)
-			btv->audio_hook(btv,v,0);
-
-		mutex_unlock(&btv->lock);
-		return 0;
-	}
-	case VIDIOCSAUDIO:
-	{
-		struct video_audio *v = arg;
-		unsigned int audio = v->audio;
-
-		if (audio >= bttv_tvcards[btv->c.type].audio_inputs)
-			return -EINVAL;
-
-		mutex_lock(&btv->lock);
-		audio_mute(btv, (v->flags&VIDEO_AUDIO_MUTE) ? 1 : 0);
-		bttv_call_i2c_clients(btv,cmd,v);
-
-		/* card specific hooks */
-		if (btv->audio_hook)
-			btv->audio_hook(btv,v,1);
-
-		mutex_unlock(&btv->lock);
-		return 0;
-	}
-#endif
-	/* ***  v4l2  *** ************************************************ */
 	case VIDIOC_ENUMSTD:
 	{
 		struct v4l2_standard *e = arg;
