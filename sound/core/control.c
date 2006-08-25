@@ -951,6 +951,8 @@ static int snd_ctl_elem_user_tlv(struct snd_kcontrol *kcontrol,
 		ue->tlv_data = new_data;
 		ue->tlv_data_size = size;
 	} else {
+		if (! ue->tlv_data_size || ! ue->tlv_data)
+			return -ENXIO;
 		if (size < ue->tlv_data_size)
 			return -ENOSPC;
 		if (copy_to_user(tlv, ue->tlv_data, ue->tlv_data_size))
