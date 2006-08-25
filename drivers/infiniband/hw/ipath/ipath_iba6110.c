@@ -461,8 +461,9 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			 * times.
 			 */
 			if (dd->ipath_flags & IPATH_INITTED) {
-				ipath_dev_err(dd, "Fatal Error (freeze "
-					      "mode), no longer usable\n");
+				ipath_dev_err(dd, "Fatal Hardware Error (freeze "
+					      "mode), no longer usable, SN %.16s\n",
+						  dd->ipath_serial);
 				isfatal = 1;
 			}
 			*dd->ipath_statusp &= ~IPATH_STATUS_IB_READY;

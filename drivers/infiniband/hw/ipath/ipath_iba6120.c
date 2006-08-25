@@ -363,8 +363,9 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			 * and we get here multiple times
 			 */
 			if (dd->ipath_flags & IPATH_INITTED) {
-				ipath_dev_err(dd, "Fatal Error (freeze "
-					      "mode), no longer usable\n");
+				ipath_dev_err(dd, "Fatal Hardware Error (freeze "
+					      "mode), no longer usable, SN %.16s\n",
+						  dd->ipath_serial);
 				isfatal = 1;
 			}
 			/*
