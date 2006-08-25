@@ -371,6 +371,7 @@ struct ipath_qp {
 	u8 s_retry;		/* requester retry counter */
 	u8 s_rnr_retry;		/* requester RNR retry counter */
 	u8 s_pkey_index;	/* PKEY index to use */
+	u8 timeout;		/* Timeout for this QP */
 	enum ib_mtu path_mtu;
 	u32 remote_qpn;
 	u32 qkey;		/* QKEY for this QP (for UD or RD) */

@@ -455,10 +455,15 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				attr_mask))
 		goto inval;
 
-	if (attr_mask & IB_QP_AV)
+	if (attr_mask & IB_QP_AV) {
 		if (attr->ah_attr.dlid == 0 ||
 		    attr->ah_attr.dlid >= IPATH_MULTICAST_LID_BASE)
 			goto inval;
+
+		if ((attr->ah_attr.ah_flags & IB_AH_GRH) &&
+		    (attr->ah_attr.grh.sgid_index > 1))
+			goto inval;
+	}
 
 	if (attr_mask & IB_QP_PKEY_INDEX)
 		if (attr->pkey_index >= ipath_get_npkeys(dev->dd))
@@ -466,6 +471,27 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_MIN_RNR_TIMER)
 		if (attr->min_rnr_timer > 31)
+			goto inval;
+
+	if (attr_mask & IB_QP_PORT)
+		if (attr->port_num == 0 ||
+		    attr->port_num > ibqp->device->phys_port_cnt)
+			goto inval;
+
+	if (attr_mask & IB_QP_PATH_MTU)
+		if (attr->path_mtu > IB_MTU_4096)
+			goto inval;
+
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
+		if (attr->max_dest_rd_atomic > 1)
+			goto inval;
+
+	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC)
+		if (attr->max_rd_atomic > 1)
+			goto inval;
+
+	if (attr_mask & IB_QP_PATH_MIG_STATE)
+		if (attr->path_mig_state != IB_MIG_MIGRATED)
 			goto inval;
 
 	switch (new_state) {
@@ -518,6 +544,9 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_MIN_RNR_TIMER)
 		qp->r_min_rnr_timer = attr->min_rnr_timer;
 
+	if (attr_mask & IB_QP_TIMEOUT)
+		qp->timeout = attr->timeout;
+
 	if (attr_mask & IB_QP_QKEY)
 		qp->qkey = attr->qkey;
 
@@ -564,7 +593,7 @@ int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->max_dest_rd_atomic = 1;
 	attr->min_rnr_timer = qp->r_min_rnr_timer;
 	attr->port_num = 1;
-	attr->timeout = 0;
+	attr->timeout = qp->timeout;
 	attr->retry_cnt = qp->s_retry_cnt;
 	attr->rnr_retry = qp->s_rnr_retry;
 	attr->alt_port_num = 0;
