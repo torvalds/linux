@@ -15,6 +15,8 @@
 #include <linux/vmalloc.h>
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
+#include <linux/namei.h>
+#include <linux/mount.h>
 #include <linux/gfs2_ondisk.h>
 
 #include "gfs2.h"
@@ -813,12 +815,151 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
 		const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, fill_super, mnt);
+	struct super_block *sb;
+	struct gfs2_sbd *sdp;
+	int error = get_sb_bdev(fs_type, flags, dev_name, data, fill_super, mnt);
+	if (error)
+		goto out;
+	sb = mnt->mnt_sb;
+	sdp = (struct gfs2_sbd*)sb->s_fs_info;
+	sdp->sd_gfs2mnt = mnt;
+out:
+	return error;
+}
+
+static int fill_super_meta(struct super_block *sb, struct super_block *new, 
+			   void *data, int silent)
+{
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+	struct inode *inode;
+	int error = 0;
+
+	new->s_fs_info = sdp;
+	sdp->sd_vfs_meta = sb;
+
+	init_vfs(new, SDF_NOATIME);
+
+        /* Get the master inode */
+	inode = igrab(sdp->sd_master_dir);
+
+	new->s_root = d_alloc_root(inode);
+	if (!new->s_root) {
+		fs_err(sdp, "can't get root dentry\n");
+		error = -ENOMEM;
+		iput(inode);
+	}
+	new->s_root->d_op = &gfs2_dops;
+
+	return error;
+}
+static int set_bdev_super(struct super_block *s, void *data)
+{
+	s->s_bdev = data;
+	s->s_dev = s->s_bdev->bd_dev;
+	return 0;
+}
+ 
+static int test_bdev_super(struct super_block *s, void *data)
+{
+	return (void *)s->s_bdev == data;
+}
+
+static struct super_block* get_gfs2_sb(const char *dev_name)
+{
+	struct kstat stat;
+	struct nameidata nd;
+	struct file_system_type *fstype;
+	struct super_block *sb = NULL, *s;
+	struct list_head *l;
+	int error;
+	
+	error = path_lookup(dev_name, LOOKUP_FOLLOW, &nd);
+	if (error) {
+		printk(KERN_WARNING "GFS2: path_lookup on %s returned error\n", 
+		       dev_name);
+		goto out;
+	}
+	error = vfs_getattr(nd.mnt, nd.dentry, &stat);
+
+	fstype = get_fs_type("gfs2");
+	list_for_each(l, &fstype->fs_supers) {
+		s = list_entry(l, struct super_block, s_instances);
+		if ((S_ISBLK(stat.mode) && s->s_dev == stat.rdev) ||
+		    (S_ISDIR(stat.mode) && s == nd.dentry->d_inode->i_sb)) {
+			sb = s;
+			goto free_nd;
+		}
+	}
+
+	printk(KERN_WARNING "GFS2: Unrecognized block device or "
+	       "mount point %s", dev_name);
+
+free_nd:
+	path_release(&nd);
+out:
+	return sb;
+}
+
+static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
+			    const char *dev_name, void *data, struct vfsmount *mnt)
+{
+	int error = 0;
+	struct super_block *sb = NULL, *new;
+	struct gfs2_sbd *sdp;
+	char *gfs2mnt = NULL;
+
+	sb = get_gfs2_sb(dev_name);
+	if (!sb) {
+		printk(KERN_WARNING "GFS2: gfs2 mount does not exist\n");
+		error = -ENOENT;
+		goto error;
+	}
+	sdp = (struct gfs2_sbd*) sb->s_fs_info;
+	if (sdp->sd_vfs_meta) {
+		printk(KERN_WARNING "GFS2: gfs2meta mount already exists\n");
+		error = -EBUSY;
+		goto error;
+	}
+	mutex_lock(&sb->s_bdev->bd_mount_mutex);
+	new = sget(fs_type, test_bdev_super, set_bdev_super, sb->s_bdev);
+	mutex_unlock(&sb->s_bdev->bd_mount_mutex);
+	if (IS_ERR(new)) {
+		error = PTR_ERR(new);
+		goto error;
+	}
+	module_put(fs_type->owner);
+	new->s_flags = flags;
+	strlcpy(new->s_id, sb->s_id, sizeof(new->s_id));
+	sb_set_blocksize(new, sb->s_blocksize);
+	error = fill_super_meta(sb, new, data, flags & MS_SILENT ? 1 : 0);
+	if (error) {
+		up_write(&new->s_umount);
+		deactivate_super(new);
+		goto error;
+	}
+	
+	new->s_flags |= MS_ACTIVE;
+	
+	/* Grab a reference to the gfs2 mount point */
+	atomic_inc(&sdp->sd_gfs2mnt->mnt_count);
+	return simple_set_mnt(mnt, new);
+error:
+	if (gfs2mnt)
+		kfree(gfs2mnt);
+	return error;
 }
 
 static void gfs2_kill_sb(struct super_block *sb)
 {
 	kill_block_super(sb);
+}
+
+static void gfs2_kill_sb_meta(struct super_block *sb)
+{
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+	generic_shutdown_super(sb);
+	sdp->sd_vfs_meta = NULL;
+	atomic_dec(&sdp->sd_gfs2mnt->mnt_count);
 }
 
 struct file_system_type gfs2_fs_type = {
@@ -832,8 +973,8 @@ struct file_system_type gfs2_fs_type = {
 struct file_system_type gfs2meta_fs_type = {
 	.name = "gfs2meta",
 	.fs_flags = FS_REQUIRES_DEV,
-	.get_sb = gfs2_get_sb,
-	.kill_sb = gfs2_kill_sb,
+	.get_sb = gfs2_get_sb_meta,
+	.kill_sb = gfs2_kill_sb_meta,
 	.owner = THIS_MODULE,
 };
 

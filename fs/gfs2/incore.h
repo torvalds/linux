@@ -472,6 +472,7 @@ enum {
 
 struct gfs2_sbd {
 	struct super_block *sd_vfs;
+	struct super_block *sd_vfs_meta;
 	struct kobject sd_kobj;
 	unsigned long sd_flags;	/* SDF_... */
 	struct gfs2_sb sd_sb;
@@ -652,6 +653,7 @@ struct gfs2_sbd {
 	/* Debugging crud */
 
 	unsigned long sd_last_warning;
+	struct vfsmount *sd_gfs2mnt;
 };
 
 #endif /* __INCORE_DOT_H__ */

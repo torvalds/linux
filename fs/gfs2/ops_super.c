@@ -78,6 +78,9 @@ static void gfs2_put_super(struct super_block *sb)
 	if (!sdp)
 		return;
 
+	if (!strncmp(sb->s_type->name, "gfs2meta", 8))
+		return; /* meta fs. don't do nothin' */
+
 	/*  Unfreeze the filesystem, if we need to  */
 
 	mutex_lock(&sdp->sd_freeze_lock);

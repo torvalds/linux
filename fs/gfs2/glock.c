@@ -1165,7 +1165,13 @@ static void add_to_queue(struct gfs2_holder *gh)
 	existing = find_holder_by_owner(&gl->gl_holders, gh->gh_owner);
 	if (existing) {
 		print_symbol(KERN_WARNING "original: %s\n", existing->gh_ip);
+		printk(KERN_INFO "pid : %d\n", existing->gh_owner->pid);
+		printk(KERN_INFO "lock type : %d lock state : %d\n", 
+				existing->gh_gl->gl_name.ln_type, existing->gh_gl->gl_state);
 		print_symbol(KERN_WARNING "new: %s\n", gh->gh_ip);
+		printk(KERN_INFO "pid : %d\n", gh->gh_owner->pid);
+		printk(KERN_INFO "lock type : %d lock state : %d\n", 
+				gl->gl_name.ln_type, gl->gl_state);
 		BUG();
 	}
 
