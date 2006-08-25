@@ -789,6 +789,9 @@ int ipath_device_create_group(struct device *, struct ipath_devdata *);
 void ipath_device_remove_group(struct device *, struct ipath_devdata *);
 int ipath_expose_reset(struct device *);
 
+int ipath_diagpkt_add(void);
+void ipath_diagpkt_remove(void);
+
 int ipath_init_ipathfs(void);
 void ipath_exit_ipathfs(void);
 int ipathfs_add_device(struct ipath_devdata *);
@@ -813,6 +816,7 @@ extern struct mutex ipath_mutex;
 #define IPATH_DRV_NAME		"ib_ipath"
 #define IPATH_MAJOR		233
 #define IPATH_USER_MINOR_BASE	0
+#define IPATH_DIAGPKT_MINOR	127
 #define IPATH_DIAG_MINOR_BASE	129
 #define IPATH_NMINORS		255
 

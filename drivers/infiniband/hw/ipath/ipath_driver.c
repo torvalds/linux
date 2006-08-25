@@ -1881,7 +1881,17 @@ static int __init infinipath_init(void)
 		goto bail_group;
 	}
 
+	ret = ipath_diagpkt_add();
+	if (ret < 0) {
+		printk(KERN_ERR IPATH_DRV_NAME ": Unable to create "
+		       "diag data device: error %d\n", -ret);
+		goto bail_ipathfs;
+	}
+
 	goto bail;
+
+bail_ipathfs:
+	ipath_exit_ipathfs();
 
 bail_group:
 	ipath_driver_remove_group(&ipath_driver.driver);
@@ -1992,6 +2002,8 @@ static void __exit infinipath_cleanup(void)
 {
 	struct ipath_devdata *dd, *tmp;
 	unsigned long flags;
+
+	ipath_diagpkt_remove();
 
 	ipath_exit_ipathfs();
 

@@ -41,6 +41,7 @@
  * through the /sys/bus/pci resource mmap interface.
  */
 
+#include <linux/io.h>
 #include <linux/pci.h>
 #include <asm/uaccess.h>
 
@@ -270,6 +271,158 @@ static int ipath_diag_open(struct inode *in, struct file *fp)
 bail:
 	mutex_unlock(&ipath_mutex);
 
+	return ret;
+}
+
+static ssize_t ipath_diagpkt_write(struct file *fp,
+				   const char __user *data,
+				   size_t count, loff_t *off);
+
+static struct file_operations diagpkt_file_ops = {
+	.owner = THIS_MODULE,
+	.write = ipath_diagpkt_write,
+};
+
+static struct cdev *diagpkt_cdev;
+static struct class_device *diagpkt_class_dev;
+
+int __init ipath_diagpkt_add(void)
+{
+	return ipath_cdev_init(IPATH_DIAGPKT_MINOR,
+			       "ipath_diagpkt", &diagpkt_file_ops,
+			       &diagpkt_cdev, &diagpkt_class_dev);
+}
+
+void __exit ipath_diagpkt_remove(void)
+{
+	ipath_cdev_cleanup(&diagpkt_cdev, &diagpkt_class_dev);
+}
+
+/**
+ * ipath_diagpkt_write - write an IB packet
+ * @fp: the diag data device file pointer
+ * @data: ipath_diag_pkt structure saying where to get the packet
+ * @count: size of data to write
+ * @off: unused by this code
+ */
+static ssize_t ipath_diagpkt_write(struct file *fp,
+				   const char __user *data,
+				   size_t count, loff_t *off)
+{
+	u32 __iomem *piobuf;
+	u32 plen, clen, pbufn;
+	struct ipath_diag_pkt dp;
+	u32 *tmpbuf = NULL;
+	struct ipath_devdata *dd;
+	ssize_t ret = 0;
+	u64 val;
+
+	if (count < sizeof(dp)) {
+		ret = -EINVAL;
+		goto bail;
+	}
+
+	if (copy_from_user(&dp, data, sizeof(dp))) {
+		ret = -EFAULT;
+		goto bail;
+	}
+
+	/* send count must be an exact number of dwords */
+	if (dp.len & 3) {
+		ret = -EINVAL;
+		goto bail;
+	}
+
+	clen = dp.len >> 2;
+
+	dd = ipath_lookup(dp.unit);
+	if (!dd || !(dd->ipath_flags & IPATH_PRESENT) ||
+	    !dd->ipath_kregbase) {
+		ipath_cdbg(VERBOSE, "illegal unit %u for diag data send\n",
+			   dp.unit);
+		ret = -ENODEV;
+		goto bail;
+	}
+
+	if (ipath_diag_inuse && !diag_set_link &&
+	    !(dd->ipath_flags & IPATH_LINKACTIVE)) {
+		diag_set_link = 1;
+		ipath_cdbg(VERBOSE, "Trying to set to set link active for "
+			   "diag pkt\n");
+		ipath_set_linkstate(dd, IPATH_IB_LINKARM);
+		ipath_set_linkstate(dd, IPATH_IB_LINKACTIVE);
+	}
+
+	if (!(dd->ipath_flags & IPATH_INITTED)) {
+		/* no hardware, freeze, etc. */
+		ipath_cdbg(VERBOSE, "unit %u not usable\n", dd->ipath_unit);
+		ret = -ENODEV;
+		goto bail;
+	}
+	val = dd->ipath_lastibcstat & IPATH_IBSTATE_MASK;
+	if (val != IPATH_IBSTATE_INIT && val != IPATH_IBSTATE_ARM &&
+	    val != IPATH_IBSTATE_ACTIVE) {
+		ipath_cdbg(VERBOSE, "unit %u not ready (state %llx)\n",
+			   dd->ipath_unit, (unsigned long long) val);
+		ret = -EINVAL;
+		goto bail;
+	}
+
+	/* need total length before first word written */
+	/* +1 word is for the qword padding */
+	plen = sizeof(u32) + dp.len;
+
+	if ((plen + 4) > dd->ipath_ibmaxlen) {
+		ipath_dbg("Pkt len 0x%x > ibmaxlen %x\n",
+			  plen - 4, dd->ipath_ibmaxlen);
+		ret = -EINVAL;
+		goto bail;	/* before writing pbc */
+	}
+	tmpbuf = vmalloc(plen);
+	if (!tmpbuf) {
+		dev_info(&dd->pcidev->dev, "Unable to allocate tmp buffer, "
+			 "failing\n");
+		ret = -ENOMEM;
+		goto bail;
+	}
+
+	if (copy_from_user(tmpbuf,
+			   (const void __user *) (unsigned long) dp.data,
+			   dp.len)) {
+		ret = -EFAULT;
+		goto bail;
+	}
+
+	piobuf = ipath_getpiobuf(dd, &pbufn);
+	if (!piobuf) {
+		ipath_cdbg(VERBOSE, "No PIO buffers avail unit for %u\n",
+			   dd->ipath_unit);
+		ret = -EBUSY;
+		goto bail;
+	}
+
+	plen >>= 2;		/* in dwords */
+
+	if (ipath_debug & __IPATH_PKTDBG)
+		ipath_cdbg(VERBOSE, "unit %u 0x%x+1w pio%d\n",
+			   dd->ipath_unit, plen - 1, pbufn);
+
+	/* we have to flush after the PBC for correctness on some cpus
+	 * or WC buffer can be written out of order */
+	writeq(plen, piobuf);
+	ipath_flush_wc();
+	/* copy all by the trigger word, then flush, so it's written
+	 * to chip before trigger word, then write trigger word, then
+	 * flush again, so packet is sent. */
+	__iowrite32_copy(piobuf + 2, tmpbuf, clen - 1);
+	ipath_flush_wc();
+	__raw_writel(tmpbuf[clen - 1], piobuf + clen + 1);
+	ipath_flush_wc();
+
+	ret = sizeof(dp);
+
+bail:
+	vfree(tmpbuf);
 	return ret;
 }
 

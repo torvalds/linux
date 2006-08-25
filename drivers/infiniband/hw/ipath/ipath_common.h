@@ -463,6 +463,13 @@ struct __ipath_sendpkt {
 	struct ipath_iovec sps_iov[4];
 };
 
+/* Passed into diag data special file's ->write method. */
+struct ipath_diag_pkt {
+	__u32 unit;
+	__u64 data;
+	__u32 len;
+};
+
 /*
  * Data layout in I2C flash (for GUID, etc.)
  * All fields are little-endian binary unless otherwise stated
