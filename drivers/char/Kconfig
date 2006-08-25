@@ -497,7 +497,7 @@ config LEGACY_PTY_COUNT
 
 config BRIQ_PANEL
 	tristate 'Total Impact briQ front panel driver'
-	depends on PPC
+	depends on PPC_CHRP
 	---help---
 	  The briQ is a small footprint CHRP computer with a frontpanel VFD, a
 	  tristate led and two switches. It is the size of a CDROM drive.
