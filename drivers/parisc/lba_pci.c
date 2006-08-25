@@ -1542,8 +1542,8 @@ lba_driver_probe(struct parisc_device *dev)
 		default: version = "TR4+";
 		}
 
-		printk(KERN_INFO "%s version %s (0x%x) found at 0x%lx\n",
-			MODULE_NAME, version, func_class & 0xf, dev->hpa.start);
+		printk(KERN_INFO "Elroy version %s (0x%x) found at 0x%lx\n",
+		       version, func_class & 0xf, dev->hpa.start);
 
 		if (func_class < 2) {
 			printk(KERN_WARNING "Can't support LBA older than "
@@ -1563,14 +1563,18 @@ lba_driver_probe(struct parisc_device *dev)
 		}
 
 	} else if (IS_MERCURY(dev) || IS_QUICKSILVER(dev)) {
+		int major, minor;
+
 		func_class &= 0xff;
-		version = kmalloc(6, GFP_KERNEL);
-		snprintf(version, 6, "TR%d.%d",(func_class >> 4),(func_class & 0xf));
+		major = func_class >> 4, minor = func_class & 0xf;
+
 		/* We could use one printk for both Elroy and Mercury,
                  * but for the mask for func_class.
                  */ 
-		printk(KERN_INFO "%s version %s (0x%x) found at 0x%lx\n",
-		       MODULE_NAME, version, func_class & 0xff, dev->hpa.start);
+		printk(KERN_INFO "%s version TR%d.%d (0x%x) found at 0x%lx\n",
+		       IS_MERCURY(dev) ? "Mercury" : "Quicksilver", major,
+		       minor, func_class, dev->hpa.start);
+
 		cfg_ops = &mercury_cfg_ops;
 	} else {
 		printk(KERN_ERR "Unknown LBA found at 0x%lx\n", dev->hpa.start);
