@@ -691,7 +691,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	dd->ipath_pioavregs = ALIGN(val, sizeof(u64) * BITS_PER_BYTE / 2)
 		/ (sizeof(u64) * BITS_PER_BYTE / 2);
 	if (ipath_kpiobufs == 0) {
-		/* not set by user, or set explictly to default  */
+		/* not set by user (this is default) */
 		if ((dd->ipath_piobcnt2k + dd->ipath_piobcnt4k) > 128)
 			kpiobufs = 32;
 		else
@@ -950,6 +950,7 @@ static int ipath_set_kpiobufs(const char *str, struct kernel_param *kp)
 			dd->ipath_piobcnt2k + dd->ipath_piobcnt4k - val;
 	}
 
+	ipath_kpiobufs = val;
 	ret = 0;
 bail:
 	spin_unlock_irqrestore(&ipath_devs_lock, flags);
