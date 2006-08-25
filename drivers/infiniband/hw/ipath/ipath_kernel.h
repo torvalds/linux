@@ -528,7 +528,6 @@ void ipath_cdev_cleanup(struct cdev **cdevp,
 
 int ipath_diag_add(struct ipath_devdata *);
 void ipath_diag_remove(struct ipath_devdata *);
-void ipath_diag_bringup_link(struct ipath_devdata *);
 
 extern wait_queue_head_t ipath_state_wait;
 
