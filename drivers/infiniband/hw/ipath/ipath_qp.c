@@ -491,7 +491,8 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			goto inval;
 
 	if (attr_mask & IB_QP_PATH_MIG_STATE)
-		if (attr->path_mig_state != IB_MIG_MIGRATED)
+		if (attr->path_mig_state != IB_MIG_MIGRATED &&
+		    attr->path_mig_state != IB_MIG_REARM)
 			goto inval;
 
 	switch (new_state) {
