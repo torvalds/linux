@@ -117,9 +117,17 @@
 #define SBA_FUNC_ID	0x0000	/* function id */
 #define SBA_FCLASS	0x0008	/* function class, bist, header, rev... */
 
-#define IS_ASTRO(id)		((id)->hversion == ASTRO_RUNWAY_PORT)
-#define IS_IKE(id)		((id)->hversion == IKE_MERCED_PORT)
-#define IS_PLUTO(id)		((id)->hversion == PLUTO_MCKINLEY_PORT)
+static inline int IS_ASTRO(struct parisc_device *d) {
+	return d->id.hversion == ASTRO_RUNWAY_PORT;
+}
+
+static inline int IS_IKE(struct parisc_device *d) {
+	return d->id.hversion == IKE_MERCED_PORT;
+}
+
+static inline int IS_PLUTO(struct parisc_device *d) {
+	return d->id.hversion == PLUTO_MCKINLEY_PORT;
+}
 
 #define SBA_FUNC_SIZE 4096   /* SBA configuration function reg set */
 
@@ -269,7 +277,6 @@ struct ioc {
 struct sba_device {
 	struct sba_device	*next;	/* list of SBA's in system */
 	struct parisc_device	*dev;	/* dev found in bus walk */
-	struct parisc_device_id	*iodc;	/* data about dev from firmware */
 	const char 		*name;
 	void __iomem		*sba_hpa; /* base address */
 	spinlock_t		sba_lock;
@@ -1698,7 +1705,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 	}
 #endif
 
-	if (!IS_PLUTO(sba_dev->iodc)) {
+	if (!IS_PLUTO(sba_dev->dev)) {
 		ioc_ctl = READ_REG(sba_dev->sba_hpa+IOC_CTRL);
 		DBG_INIT("%s() hpa 0x%lx ioc_ctl 0x%Lx ->",
 			__FUNCTION__, sba_dev->sba_hpa, ioc_ctl);
@@ -1715,7 +1722,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 #endif
 	} /* if !PLUTO */
 
-	if (IS_ASTRO(sba_dev->iodc)) {
+	if (IS_ASTRO(sba_dev->dev)) {
 		int err;
 		sba_dev->ioc[0].ioc_hpa = ioc_remap(sba_dev, ASTRO_IOC_OFFSET);
 		num_ioc = 1;
@@ -1726,7 +1733,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 		err = request_resource(&iomem_resource, &(sba_dev->chip_resv));
 		BUG_ON(err < 0);
 
-	} else if (IS_PLUTO(sba_dev->iodc)) {
+	} else if (IS_PLUTO(sba_dev->dev)) {
 		int err;
 
 		sba_dev->ioc[0].ioc_hpa = ioc_remap(sba_dev, PLUTO_IOC_OFFSET);
@@ -1766,7 +1773,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 			 * Overrides bit 1 in DMA Hint Sets.
 			 * Improves netperf UDP_STREAM by ~10% for bcm5701.
 			 */
-			if (IS_PLUTO(sba_dev->iodc)) {
+			if (IS_PLUTO(sba_dev->dev)) {
 				void __iomem *rope_cfg;
 				unsigned long cfg_val;
 
@@ -1795,7 +1802,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 				READ_REG(sba_dev->ioc[i].ioc_hpa + 0x400)
 			);
 
-		if (IS_PLUTO(sba_dev->iodc)) {
+		if (IS_PLUTO(sba_dev->dev)) {
 			sba_ioc_init_pluto(sba_dev->dev, &(sba_dev->ioc[i]), i);
 		} else {
 			sba_ioc_init(sba_dev->dev, &(sba_dev->ioc[i]), i);
@@ -2059,7 +2066,7 @@ sba_driver_callback(struct parisc_device *dev)
 	/* Read HW Rev First */
 	func_class = READ_REG(sba_addr + SBA_FCLASS);
 
-	if (IS_ASTRO(&dev->id)) {
+	if (IS_ASTRO(dev)) {
 		unsigned long fclass;
 		static char astro_rev[]="Astro ?.?";
 
@@ -2070,11 +2077,11 @@ sba_driver_callback(struct parisc_device *dev)
 		astro_rev[8] = '0' + (char) ((fclass & 0x18) >> 3);
 		version = astro_rev;
 
-	} else if (IS_IKE(&dev->id)) {
+	} else if (IS_IKE(dev)) {
 		static char ike_rev[] = "Ike rev ?";
 		ike_rev[8] = '0' + (char) (func_class & 0xff);
 		version = ike_rev;
-	} else if (IS_PLUTO(&dev->id)) {
+	} else if (IS_PLUTO(dev)) {
 		static char pluto_rev[]="Pluto ?.?";
 		pluto_rev[6] = '0' + (char) ((func_class & 0xf0) >> 4); 
 		pluto_rev[8] = '0' + (char) (func_class & 0x0f); 
@@ -2089,7 +2096,7 @@ sba_driver_callback(struct parisc_device *dev)
 		global_ioc_cnt = count_parisc_driver(&sba_driver);
 
 		/* Astro and Pluto have one IOC per SBA */
-		if ((!IS_ASTRO(&dev->id)) || (!IS_PLUTO(&dev->id)))
+		if ((!IS_ASTRO(dev)) || (!IS_PLUTO(dev)))
 			global_ioc_cnt *= 2;
 	}
 
@@ -2109,7 +2116,6 @@ sba_driver_callback(struct parisc_device *dev)
 
 	sba_dev->dev = dev;
 	sba_dev->hw_rev = func_class;
-	sba_dev->iodc = &dev->id;
 	sba_dev->name = dev->name;
 	sba_dev->sba_hpa = sba_addr;
 
