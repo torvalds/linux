@@ -4624,6 +4624,7 @@ fv2000s_audio(struct bttv *btv, struct video_audio *v, int set)
 
 	if (btv->radio_user)
 		return;
+
 	if (set) {
 		if (v->mode & VIDEO_SOUND_MONO)	{
 			val = 0x0000;
