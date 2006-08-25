@@ -215,7 +215,7 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 
 	mpic = mpic_alloc(tsi_pic, mpic_paddr,
 			MPIC_PRIMARY | MPIC_BIG_ENDIAN | MPIC_WANTS_RESET |
-			MPIC_SPV_EOI | MPIC_MOD_ID(MPIC_ID_TSI108),
+			MPIC_SPV_EOI | MPIC_NO_PTHROU_DIS | MPIC_REGSET_TSI108,
 			0, /* num_sources used */
 			0, /* num_sources used */
 			"Tsi108_PIC");
