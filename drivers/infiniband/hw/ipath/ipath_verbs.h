@@ -434,11 +434,18 @@ struct ipath_ibdev {
 	__be64 sys_image_guid;	/* in network order */
 	__be64 gid_prefix;	/* in network order */
 	__be64 mkey;
+
 	u32 n_pds_allocated;	/* number of PDs allocated for device */
+	spinlock_t n_pds_lock;
 	u32 n_ahs_allocated;	/* number of AHs allocated for device */
+	spinlock_t n_ahs_lock;
 	u32 n_cqs_allocated;	/* number of CQs allocated for device */
+	spinlock_t n_cqs_lock;
 	u32 n_srqs_allocated;	/* number of SRQs allocated for device */
+	spinlock_t n_srqs_lock;
 	u32 n_mcast_grps_allocated; /* number of mcast groups allocated */
+	spinlock_t n_mcast_grps_lock;
+
 	u64 ipath_sword;	/* total dwords sent (sample result) */
 	u64 ipath_rword;	/* total dwords received (sample result) */
 	u64 ipath_spkts;	/* total packets sent (sample result) */

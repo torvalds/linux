@@ -776,18 +776,22 @@ static struct ib_pd *ipath_alloc_pd(struct ib_device *ibdev,
 	 * we allow allocations of more than we report for this value.
 	 */
 
-	if (dev->n_pds_allocated == ib_ipath_max_pds) {
-		ret = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
-
 	pd = kmalloc(sizeof *pd, GFP_KERNEL);
 	if (!pd) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
 	}
 
+	spin_lock(&dev->n_pds_lock);
+	if (dev->n_pds_allocated == ib_ipath_max_pds) {
+		spin_unlock(&dev->n_pds_lock);
+		kfree(pd);
+		ret = ERR_PTR(-ENOMEM);
+		goto bail;
+	}
+
 	dev->n_pds_allocated++;
+	spin_unlock(&dev->n_pds_lock);
 
 	/* ib_alloc_pd() will initialize pd->ibpd. */
 	pd->user = udata != NULL;
@@ -803,7 +807,9 @@ static int ipath_dealloc_pd(struct ib_pd *ibpd)
 	struct ipath_pd *pd = to_ipd(ibpd);
 	struct ipath_ibdev *dev = to_idev(ibpd->device);
 
+	spin_lock(&dev->n_pds_lock);
 	dev->n_pds_allocated--;
+	spin_unlock(&dev->n_pds_lock);
 
 	kfree(pd);
 
@@ -823,11 +829,6 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 	struct ipath_ah *ah;
 	struct ib_ah *ret;
 	struct ipath_ibdev *dev = to_idev(pd->device);
-
-	if (dev->n_ahs_allocated == ib_ipath_max_ahs) {
-		ret = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
 
 	/* A multicast address requires a GRH (see ch. 8.4.1). */
 	if (ah_attr->dlid >= IPATH_MULTICAST_LID_BASE &&
@@ -854,7 +855,16 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 		goto bail;
 	}
 
+	spin_lock(&dev->n_ahs_lock);
+	if (dev->n_ahs_allocated == ib_ipath_max_ahs) {
+		spin_unlock(&dev->n_ahs_lock);
+		kfree(ah);
+		ret = ERR_PTR(-ENOMEM);
+		goto bail;
+	}
+
 	dev->n_ahs_allocated++;
+	spin_unlock(&dev->n_ahs_lock);
 
 	/* ib_create_ah() will initialize ah->ibah. */
 	ah->attr = *ah_attr;
@@ -876,7 +886,9 @@ static int ipath_destroy_ah(struct ib_ah *ibah)
 	struct ipath_ibdev *dev = to_idev(ibah->device);
 	struct ipath_ah *ah = to_iah(ibah);
 
+	spin_lock(&dev->n_ahs_lock);
 	dev->n_ahs_allocated--;
+	spin_unlock(&dev->n_ahs_lock);
 
 	kfree(ah);
 
@@ -963,6 +975,12 @@ static void *ipath_register_ib_device(int unit, struct ipath_devdata *dd)
 	dev = &idev->ibdev;
 
 	/* Only need to initialize non-zero fields. */
+	spin_lock_init(&idev->n_pds_lock);
+	spin_lock_init(&idev->n_ahs_lock);
+	spin_lock_init(&idev->n_cqs_lock);
+	spin_lock_init(&idev->n_srqs_lock);
+	spin_lock_init(&idev->n_mcast_grps_lock);
+
 	spin_lock_init(&idev->qp_table.lock);
 	spin_lock_init(&idev->lk_table.lock);
 	idev->sm_lid = __constant_be16_to_cpu(IB_LID_PERMISSIVE);
