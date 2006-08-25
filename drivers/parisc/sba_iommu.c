@@ -89,101 +89,6 @@
 
 #define DEFAULT_DMA_HINT_REG	0
 
-#define SBA_FUNC_ID	0x0000	/* function id */
-#define SBA_FCLASS	0x0008	/* function class, bist, header, rev... */
-
-#define SBA_FUNC_SIZE 4096   /* SBA configuration function reg set */
-
-#define ASTRO_IOC_OFFSET	(32 * SBA_FUNC_SIZE)
-#define PLUTO_IOC_OFFSET	(1 * SBA_FUNC_SIZE)
-/* Ike's IOC's occupy functions 2 and 3 */
-#define IKE_IOC_OFFSET(p)	((p+2) * SBA_FUNC_SIZE)
-
-#define IOC_CTRL          0x8	/* IOC_CTRL offset */
-#define IOC_CTRL_TC       (1 << 0) /* TOC Enable */
-#define IOC_CTRL_CE       (1 << 1) /* Coalesce Enable */
-#define IOC_CTRL_DE       (1 << 2) /* Dillon Enable */
-#define IOC_CTRL_RM       (1 << 8) /* Real Mode */
-#define IOC_CTRL_NC       (1 << 9) /* Non Coherent Mode */
-#define IOC_CTRL_D4       (1 << 11) /* Disable 4-byte coalescing */
-#define IOC_CTRL_DD       (1 << 13) /* Disable distr. LMMIO range coalescing */
-
-
-/*
-** Offsets into MBIB (Function 0 on Ike and hopefully Astro)
-** Firmware programs this stuff. Don't touch it.
-*/
-#define LMMIO_DIRECT0_BASE  0x300
-#define LMMIO_DIRECT0_MASK  0x308
-#define LMMIO_DIRECT0_ROUTE 0x310
-
-#define LMMIO_DIST_BASE  0x360
-#define LMMIO_DIST_MASK  0x368
-#define LMMIO_DIST_ROUTE 0x370
-
-#define IOS_DIST_BASE	0x390
-#define IOS_DIST_MASK	0x398
-#define IOS_DIST_ROUTE	0x3A0
-
-#define IOS_DIRECT_BASE	0x3C0
-#define IOS_DIRECT_MASK	0x3C8
-#define IOS_DIRECT_ROUTE 0x3D0
-
-/*
-** Offsets into I/O TLB (Function 2 and 3 on Ike)
-*/
-#define ROPE0_CTL	0x200  /* "regbus pci0" */
-#define ROPE1_CTL	0x208
-#define ROPE2_CTL	0x210
-#define ROPE3_CTL	0x218
-#define ROPE4_CTL	0x220
-#define ROPE5_CTL	0x228
-#define ROPE6_CTL	0x230
-#define ROPE7_CTL	0x238
-
-#define IOC_ROPE0_CFG	0x500	/* pluto only */
-#define   IOC_ROPE_AO	  0x10	/* Allow "Relaxed Ordering" */
-
-
-
-#define HF_ENABLE	0x40
-
-
-#define IOC_IBASE	0x300	/* IO TLB */
-#define IOC_IMASK	0x308
-#define IOC_PCOM	0x310
-#define IOC_TCNFG	0x318
-#define IOC_PDIR_BASE	0x320
-
-
-/*
-** IOC supports 4/8/16/64KB page sizes (see TCNFG register)
-** It's safer (avoid memory corruption) to keep DMA page mappings
-** equivalently sized to VM PAGE_SIZE.
-**
-** We really can't avoid generating a new mapping for each
-** page since the Virtual Coherence Index has to be generated
-** and updated for each page.
-**
-** PAGE_SIZE could be greater than IOVP_SIZE. But not the inverse.
-*/
-#define IOVP_SIZE	PAGE_SIZE
-#define IOVP_SHIFT	PAGE_SHIFT
-#define IOVP_MASK	PAGE_MASK
-
-#define SBA_PERF_CFG	0x708	/* Performance Counter stuff */
-#define SBA_PERF_MASK1	0x718
-#define SBA_PERF_MASK2	0x730
-
-
-/*
-** Offsets into PCI Performance Counters (functions 12 and 13)
-** Controlled by PERF registers in function 2 & 3 respectively.
-*/
-#define SBA_PERF_CNT1	0x200
-#define SBA_PERF_CNT2	0x208
-#define SBA_PERF_CNT3	0x210
-
 static struct sba_device *sba_list;
 
 static unsigned long ioc_needs_fdc = 0;
@@ -638,7 +543,7 @@ sba_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 	asm("lci 0(%%sr1, %1), %0" : "=r" (ci) : "r" (vba));
 	pa |= (ci >> 12) & 0xff;  /* move CI (8 bits) into lowest byte */
 
-	pa |= 0x8000000000000000ULL;	/* set "valid" bit */
+	pa |= SBA_PDIR_VALID_BIT;	/* set "valid" bit */
 	*pdir_ptr = cpu_to_le64(pa);	/* swap and store into I/O Pdir */
 
 	/*
