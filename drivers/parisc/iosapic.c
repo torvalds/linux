@@ -146,7 +146,7 @@
 #include <asm/superio.h>
 #endif
 
-#include <asm/iosapic.h>
+#include <asm/ropes.h>
 #include "./iosapic_private.h"
 
 #define MODULE_NAME "iosapic"

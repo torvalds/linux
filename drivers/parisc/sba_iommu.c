@@ -38,6 +38,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#include <asm/ropes.h>
 #include <asm/mckinley.h>	/* for proc_mckinley_root */
 #include <asm/runway.h>		/* for proc_runway_root */
 #include <asm/pdc.h>		/* for PDC_MODEL_* */
@@ -45,11 +46,6 @@
 #include <asm/parisc-device.h>
 
 #define MODULE_NAME "SBA"
-
-#ifdef CONFIG_PROC_FS
-/* depends on proc fs support. But costs CPU performance */
-#undef SBA_COLLECT_STATS
-#endif
 
 /*
 ** The number of debug flags is a clue - this code is fragile.
@@ -89,45 +85,12 @@
 #define DBG_RES(x...)
 #endif
 
-#if defined(CONFIG_64BIT)
-/* "low end" PA8800 machines use ZX1 chipset: PAT PDC and only run 64-bit */
-#define ZX1_SUPPORT
-#endif
-
 #define SBA_INLINE	__inline__
-
-
-/*
-** The number of pdir entries to "free" before issueing
-** a read to PCOM register to flush out PCOM writes.
-** Interacts with allocation granularity (ie 4 or 8 entries
-** allocated and free'd/purged at a time might make this
-** less interesting).
-*/
-#define DELAYED_RESOURCE_CNT	16
 
 #define DEFAULT_DMA_HINT_REG	0
 
-#define ASTRO_RUNWAY_PORT	0x582
-#define IKE_MERCED_PORT		0x803
-#define REO_MERCED_PORT		0x804
-#define REOG_MERCED_PORT	0x805
-#define PLUTO_MCKINLEY_PORT	0x880
-
 #define SBA_FUNC_ID	0x0000	/* function id */
 #define SBA_FCLASS	0x0008	/* function class, bist, header, rev... */
-
-static inline int IS_ASTRO(struct parisc_device *d) {
-	return d->id.hversion == ASTRO_RUNWAY_PORT;
-}
-
-static inline int IS_IKE(struct parisc_device *d) {
-	return d->id.hversion == IKE_MERCED_PORT;
-}
-
-static inline int IS_PLUTO(struct parisc_device *d) {
-	return d->id.hversion == PLUTO_MCKINLEY_PORT;
-}
 
 #define SBA_FUNC_SIZE 4096   /* SBA configuration function reg set */
 
@@ -144,10 +107,6 @@ static inline int IS_PLUTO(struct parisc_device *d) {
 #define IOC_CTRL_NC       (1 << 9) /* Non Coherent Mode */
 #define IOC_CTRL_D4       (1 << 11) /* Disable 4-byte coalescing */
 #define IOC_CTRL_DD       (1 << 13) /* Disable distr. LMMIO range coalescing */
-
-#define MAX_IOC		2	/* per Ike. Pluto/Astro only have 1. */
-
-#define ROPES_PER_IOC	8	/* per Ike half or Pluto/Astro */
 
 
 /*
@@ -196,9 +155,6 @@ static inline int IS_PLUTO(struct parisc_device *d) {
 #define IOC_TCNFG	0x318
 #define IOC_PDIR_BASE	0x320
 
-/* AGP GART driver looks for this */
-#define SBA_IOMMU_COOKIE    0x0000badbadc0ffeeUL
-
 
 /*
 ** IOC supports 4/8/16/64KB page sizes (see TCNFG register)
@@ -227,69 +183,6 @@ static inline int IS_PLUTO(struct parisc_device *d) {
 #define SBA_PERF_CNT1	0x200
 #define SBA_PERF_CNT2	0x208
 #define SBA_PERF_CNT3	0x210
-
-
-struct ioc {
-	void __iomem	*ioc_hpa;	/* I/O MMU base address */
-	char		*res_map;	/* resource map, bit == pdir entry */
-	u64		*pdir_base;	/* physical base address */
-	unsigned long	ibase;	/* pdir IOV Space base - shared w/lba_pci */
-	unsigned long	imask;	/* pdir IOV Space mask - shared w/lba_pci */
-#ifdef ZX1_SUPPORT
-	unsigned long	iovp_mask;	/* help convert IOVA to IOVP */
-#endif
-	unsigned long	*res_hint;	/* next avail IOVP - circular search */
-	spinlock_t	res_lock;
-	unsigned int	res_bitshift;	/* from the LEFT! */
-	unsigned int	res_size;	/* size of resource map in bytes */
-#ifdef SBA_HINT_SUPPORT
-/* FIXME : DMA HINTs not used */
-	unsigned long	hint_mask_pdir;	/* bits used for DMA hints */
-	unsigned int	hint_shift_pdir;
-#endif
-#if DELAYED_RESOURCE_CNT > 0
-	int saved_cnt;
-	struct sba_dma_pair {
-		dma_addr_t	iova;
-		size_t		size;
-	} saved[DELAYED_RESOURCE_CNT];
-#endif
-
-#ifdef SBA_COLLECT_STATS
-#define SBA_SEARCH_SAMPLE	0x100
-	unsigned long avg_search[SBA_SEARCH_SAMPLE];
-	unsigned long avg_idx;	/* current index into avg_search */
-	unsigned long used_pages;
-	unsigned long msingle_calls;
-	unsigned long msingle_pages;
-	unsigned long msg_calls;
-	unsigned long msg_pages;
-	unsigned long usingle_calls;
-	unsigned long usingle_pages;
-	unsigned long usg_calls;
-	unsigned long usg_pages;
-#endif
-
-	/* STUFF We don't need in performance path */
-	unsigned int	pdir_size;	/* in bytes, determined by IOV Space size */
-};
-
-struct sba_device {
-	struct sba_device	*next;	/* list of SBA's in system */
-	struct parisc_device	*dev;	/* dev found in bus walk */
-	const char 		*name;
-	void __iomem		*sba_hpa; /* base address */
-	spinlock_t		sba_lock;
-	unsigned int		flags;  /* state/functionality enabled */
-	unsigned int		hw_rev;  /* HW revision of chip */
-
-	struct resource		chip_resv; /* MMIO reserved for chip */
-	struct resource		iommu_resv; /* MMIO reserved for iommu */
-
-	unsigned int		num_ioc;  /* number of on-board IOC's */
-	struct ioc		ioc[MAX_IOC];
-};
-
 
 static struct sba_device *sba_list;
 

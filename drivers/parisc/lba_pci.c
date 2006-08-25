@@ -46,9 +46,9 @@
 #include <asm/page.h>
 #include <asm/system.h>
 
+#include <asm/ropes.h>
 #include <asm/hardware.h>	/* for register_parisc_driver() stuff */
 #include <asm/parisc-device.h>
-#include <asm/iosapic.h>	/* for iosapic_register() */
 #include <asm/io.h>		/* read/write stuff */
 
 #undef DEBUG_LBA	/* general stuff */
@@ -168,44 +168,6 @@
 /* non-postable I/O port space, densely packed */
 #define LBA_PORT_BASE	(PCI_F_EXTEND | 0xfee00000UL)
 static void __iomem *astro_iop_base __read_mostly;
-
-#define ELROY_HVERS	0x782
-#define MERCURY_HVERS	0x783
-#define QUICKSILVER_HVERS	0x784
-
-static inline int IS_ELROY(struct parisc_device *d)
-{
-	return (d->id.hversion == ELROY_HVERS);
-}
-
-static inline int IS_MERCURY(struct parisc_device *d)
-{
-	return (d->id.hversion == MERCURY_HVERS);
-}
-
-static inline int IS_QUICKSILVER(struct parisc_device *d)
-{
-	return (d->id.hversion == QUICKSILVER_HVERS);
-}
-
-
-/*
-** lba_device: Per instance Elroy data structure
-*/
-struct lba_device {
-	struct pci_hba_data hba;
-
-	spinlock_t	lba_lock;
-	void		*iosapic_obj;
-
-#ifdef CONFIG_64BIT
-	void __iomem *	iop_base;    /* PA_VIEW - for IO port accessor funcs */
-#endif
-
-	int		flags;       /* state/functionality enabled */
-	int		hw_rev;      /* HW revision of chip */
-};
-
 
 static u32 lba_t32;
 
