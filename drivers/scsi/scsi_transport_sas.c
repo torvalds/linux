@@ -266,9 +266,6 @@ show_sas_phy_##field(struct class_device *cdev, char *buf)		\
 	struct sas_internal *i = to_sas_internal(shost->transportt);	\
 	int error;							\
 									\
-	if (!phy->local_attached)					\
-		return -EINVAL;						\
-									\
 	error = i->f->get_linkerrors ? i->f->get_linkerrors(phy) : 0;	\
 	if (error)							\
 		return error;						\
@@ -298,9 +295,6 @@ static ssize_t do_sas_phy_reset(struct class_device *cdev,
 	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 	int error;
-
-	if (!phy->local_attached)
-		return -EINVAL;
 
 	error = i->f->phy_reset(phy, hard_reset);
 	if (error)
@@ -849,7 +843,7 @@ show_sas_rphy_enclosure_identifier(struct class_device *cdev, char *buf)
 	 * Only devices behind an expander are supported, because the
 	 * enclosure identifier is a SMP feature.
 	 */
-	if (phy->local_attached)
+	if (scsi_is_sas_phy_local(phy))
 		return -EINVAL;
 
 	error = i->f->get_enclosure_identifier(rphy, &identifier);
@@ -870,7 +864,7 @@ show_sas_rphy_bay_identifier(struct class_device *cdev, char *buf)
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 	int val;
 
-	if (phy->local_attached)
+	if (scsi_is_sas_phy_local(phy))
 		return -EINVAL;
 
 	val = i->f->get_bay_identifier(rphy);

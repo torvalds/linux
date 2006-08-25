@@ -57,9 +57,6 @@ struct sas_phy {
 	enum sas_linkrate	maximum_linkrate_hw;
 	enum sas_linkrate	maximum_linkrate;
 
-	/* internal state */
-	unsigned int		local_attached : 1;
-
 	/* link error statistics */
 	u32			invalid_dword_count;
 	u32			running_disparity_error_count;
@@ -195,5 +192,7 @@ scsi_is_sas_expander_device(struct device *dev)
 	return rphy->identify.device_type == SAS_FANOUT_EXPANDER_DEVICE ||
 		rphy->identify.device_type == SAS_EDGE_EXPANDER_DEVICE;
 }
+
+#define scsi_is_sas_phy_local(phy)	scsi_is_host_device((phy)->dev.parent)
 
 #endif /* SCSI_TRANSPORT_SAS_H */
