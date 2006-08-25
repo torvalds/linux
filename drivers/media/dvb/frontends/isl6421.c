@@ -126,7 +126,7 @@ struct dvb_frontend *isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	}
 
 	/* install release callback */
-	fe->ops.release = isl6421_release;
+	fe->ops.release_sec = isl6421_release;
 
 	/* override frontend ops */
 	fe->ops.set_voltage = isl6421_set_voltage;
