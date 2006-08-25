@@ -101,24 +101,28 @@ void gvbctv5pci_audio(struct bttv *btv, struct v4l2_tuner *t, int set)
 	} else {
 		switch (val & 0x70) {
 		  case 0x10:
-			t->audmode = V4L2_TUNER_MODE_LANG1 | V4L2_TUNER_MODE_LANG2;
+			t->rxsubchans = V4L2_TUNER_SUB_LANG1 |  V4L2_TUNER_SUB_LANG2;
 			break;
 		  case 0x30:
-			t->audmode = V4L2_TUNER_MODE_LANG2;
+			t->rxsubchans = V4L2_TUNER_SUB_LANG2;
 			break;
 		  case 0x50:
-			t->audmode = V4L2_TUNER_MODE_LANG1;
+			t->rxsubchans = V4L2_TUNER_SUB_LANG1;
 			break;
 		  case 0x60:
-			t->audmode = V4L2_TUNER_MODE_STEREO;
+			t->rxsubchans = V4L2_TUNER_SUB_STEREO;
 			break;
 		  case 0x70:
-			t->audmode = V4L2_TUNER_MODE_MONO;
+			t->rxsubchans = V4L2_TUNER_SUB_MONO;
 			break;
 		  default:
-			t->audmode = V4L2_TUNER_MODE_MONO | V4L2_TUNER_MODE_STEREO |
-				  V4L2_TUNER_MODE_LANG1 | V4L2_TUNER_MODE_LANG2;
+			t->rxsubchans = V4L2_TUNER_SUB_MONO |
+				         V4L2_TUNER_SUB_STEREO |
+				         V4L2_TUNER_SUB_LANG1 |
+				         V4L2_TUNER_SUB_LANG2;
 		}
+		t->audmode = V4L2_TUNER_MODE_STEREO |
+			  V4L2_TUNER_MODE_LANG1  | V4L2_TUNER_MODE_LANG2;
 	}
 }
 
