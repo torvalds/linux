@@ -27,7 +27,7 @@ struct fib6_rule
 	struct rt6key		src;
 	struct rt6key		dst;
 #ifdef CONFIG_IPV6_ROUTE_FWMARK
-	u8			fwmark;
+	u32			fwmark;
 #endif
 	u8			tclass;
 };
@@ -140,6 +140,7 @@ static struct nla_policy fib6_rule_policy[RTA_MAX+1] __read_mostly = {
 	[FRA_PRIORITY]	= { .type = NLA_U32 },
 	[FRA_SRC]	= { .minlen = sizeof(struct in6_addr) },
 	[FRA_DST]	= { .minlen = sizeof(struct in6_addr) },
+	[FRA_FWMARK]	= { .type = NLA_U32 },
 	[FRA_TABLE]	= { .type = NLA_U32 },
 };
 
