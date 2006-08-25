@@ -155,6 +155,26 @@ static inline void __sb1_flush_icache_all(void)
 }
 
 /*
+ * Invalidate a range of the icache.  The addresses are virtual, and
+ * the cache is virtually indexed and tagged.  However, we don't
+ * necessarily have the right ASID context, so use index ops instead
+ * of hit ops.
+ */
+static inline void __sb1_flush_icache_range(unsigned long start,
+	unsigned long end)
+{
+	start &= ~(icache_line_size - 1);
+	end = (end + icache_line_size - 1) & ~(icache_line_size - 1);
+
+	while (start != end) {
+		cache_set_op(Index_Invalidate_I, start & icache_index_mask);
+		start += icache_line_size;
+	}
+	mispredict();
+	sync();
+}
+
+/*
  * Flush the icache for a given physical page.  Need to writeback the
  * dcache first, then invalidate the icache.  If the page isn't
  * executable, nothing is required.
@@ -173,8 +193,11 @@ static void local_sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long
 	/*
 	 * Bumping the ASID is probably cheaper than the flush ...
 	 */
-	if (cpu_context(cpu, vma->vm_mm) != 0)
-		drop_mmu_context(vma->vm_mm, cpu);
+	if (vma->vm_mm == current->active_mm) {
+		if (cpu_context(cpu, vma->vm_mm) != 0)
+			drop_mmu_context(vma->vm_mm, cpu);
+	} else
+		__sb1_flush_icache_range(addr, addr + PAGE_SIZE);
 }
 
 #ifdef CONFIG_SMP
@@ -209,26 +232,6 @@ static void sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr,
 void sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
 	__attribute__((alias("local_sb1_flush_cache_page")));
 #endif
-
-/*
- * Invalidate a range of the icache.  The addresses are virtual, and
- * the cache is virtually indexed and tagged.  However, we don't
- * necessarily have the right ASID context, so use index ops instead
- * of hit ops.
- */
-static inline void __sb1_flush_icache_range(unsigned long start,
-	unsigned long end)
-{
-	start &= ~(icache_line_size - 1);
-	end = (end + icache_line_size - 1) & ~(icache_line_size - 1);
-
-	while (start != end) {
-		cache_set_op(Index_Invalidate_I, start & icache_index_mask);
-		start += icache_line_size;
-	}
-	mispredict();
-	sync();
-}
 
 
 /*
@@ -326,9 +329,12 @@ static void local_sb1_flush_icache_page(struct vm_area_struct *vma,
 	 * If there's a context, bump the ASID (cheaper than a flush,
 	 * since we don't know VAs!)
 	 */
-	if (cpu_context(cpu, vma->vm_mm) != 0) {
-		drop_mmu_context(vma->vm_mm, cpu);
-	}
+	if (vma->vm_mm == current->active_mm) {
+		if (cpu_context(cpu, vma->vm_mm) != 0)
+			drop_mmu_context(vma->vm_mm, cpu);
+	} else
+		__sb1_flush_icache_range(start, start + PAGE_SIZE);
+
 }
 
 #ifdef CONFIG_SMP
