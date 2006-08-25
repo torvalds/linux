@@ -89,7 +89,8 @@
 
 #define DEFAULT_DMA_HINT_REG	0
 
-static struct sba_device *sba_list;
+struct sba_device *sba_list;
+EXPORT_SYMBOL_GPL(sba_list);
 
 static unsigned long ioc_needs_fdc = 0;
 
@@ -102,8 +103,14 @@ static unsigned long piranha_bad_128k = 0;
 /* Looks nice and keeps the compiler happy */
 #define SBA_DEV(d) ((struct sba_device *) (d))
 
+#ifdef CONFIG_AGP_PARISC
+#define SBA_AGP_SUPPORT
+#endif /*CONFIG_AGP_PARISC*/
+
 #ifdef SBA_AGP_SUPPORT
-static int reserve_sba_gart = 1;
+static int sba_reserve_agpgart = 1;
+module_param(sba_reserve_agpgart, int, 1);
+MODULE_PARM_DESC(sba_reserve_agpgart, "Reserve half of IO pdir as AGPGART");
 #endif
 
 #define ROUNDUP(x,y) ((x + ((y)-1)) & ~((y)-1))
@@ -1300,6 +1307,10 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	WRITE_REG(ioc->ibase | 31, ioc->ioc_hpa + IOC_PCOM);
 
 #ifdef SBA_AGP_SUPPORT
+{
+	struct klist_iter i;
+	struct device *dev = NULL;
+
 	/*
 	** If an AGP device is present, only use half of the IOV space
 	** for PCI DMA.  Unfortunately we can't know ahead of time
@@ -1308,20 +1319,22 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	** We program the next pdir index after we stop w/ a key for
 	** the GART code to handshake on.
 	*/
-	device=NULL;
-	for (lba = sba->child; lba; lba = lba->sibling) {
+	klist_iter_init(&sba->dev.klist_children, &i);
+	while (dev = next_device(&i)) {
+		struct parisc_device *lba = to_parisc_device(dev);
 		if (IS_QUICKSILVER(lba))
-			break;
+			agp_found = 1;
 	}
+	klist_iter_exit(&sba->dev.klist_children, &i);
 
-	if (lba) {
-		DBG_INIT("%s: Reserving half of IOVA space for AGP GART support\n", __FUNCTION__);
+	if (agp_found && sba_reserve_agpgart) {
+		printk(KERN_INFO "%s: reserving %dMb of IOVA space for agpgart\n",
+		       __FUNCTION__, (iova_space_size/2) >> 20);
 		ioc->pdir_size /= 2;
-		((u64 *)ioc->pdir_base)[PDIR_INDEX(iova_space_size/2)] = SBA_IOMMU_COOKIE;
-	} else {
-		DBG_INIT("%s: No GART needed - no AGP controller found\n", __FUNCTION__);
+		ioc->pdir_base[PDIR_INDEX(iova_space_size/2)] = SBA_AGPGART_COOKIE;
 	}
-#endif /* 0 */
+}
+#endif /*SBA_AGP_SUPPORT*/
 
 }
 

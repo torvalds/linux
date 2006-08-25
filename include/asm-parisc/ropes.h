@@ -1,6 +1,8 @@
 #ifndef _ASM_PARISC_ROPES_H_
 #define _ASM_PARISC_ROPES_H_
 
+#include <asm-parisc/parisc-device.h>
+
 #ifdef CONFIG_64BIT
 /* "low end" PA8800 machines use ZX1 chipset: PAT PDC and only run 64-bit */
 #define ZX1_SUPPORT
@@ -229,6 +231,16 @@ static inline int IS_MERCURY(struct parisc_device *d) {
 
 static inline int IS_QUICKSILVER(struct parisc_device *d) {
 	return (d->id.hversion == QUICKSILVER_HVERS);
+}
+
+static inline int agp_mode_mercury(void __iomem *hpa) {
+	u64 bus_mode;
+
+	bus_mode = readl(hpa + 0x0620);
+	if (bus_mode & 1)
+		return 1;
+
+	return 0;
 }
 
 /*
