@@ -336,9 +336,10 @@ struct bttv {
 	/* old gpio interface */
 	wait_queue_head_t gpioq;
 	int shutdown;
-#ifdef CONFIG_VIDEO_V4L1
-	void (*audio_hook)(struct bttv *btv, struct video_audio *v, int set);
-#endif
+
+	void (*volume_gpio)(struct bttv *btv, __u16 volume);
+	void (*audio_mode_gpio)(struct bttv *btv, struct v4l2_tuner *tuner, int set);
+
 	/* new gpio interface */
 	spinlock_t gpio_lock;
 

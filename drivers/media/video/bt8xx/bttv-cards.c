@@ -414,7 +414,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook	= avermedia_tvphone_audio,
+		.audio_mode_gpio= avermedia_tvphone_audio,
 		.has_remote     = 1,
 	},
 	[BTTV_BOARD_MATRIX_VISION] = {
@@ -526,7 +526,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook     = avermedia_tv_stereo_audio,
+		.audio_mode_gpio= avermedia_tv_stereo_audio,
 		.no_gpioirq     = 1,
 	},
 	[BTTV_BOARD_VHX] = {
@@ -591,7 +591,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook	= winview_audio,
+		.volume_gpio	= winview_volume,
 		.has_radio	= 1,
 	},
 	[BTTV_BOARD_AVEC_INTERCAP] = {
@@ -715,7 +715,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook     = terratv_audio,
+		.audio_mode_gpio= terratv_audio,
 	},
 	[BTTV_BOARD_HAUPPAUG_WCAM] = {
 		.name		= "Hauppauge WinCam newer (bt878)",
@@ -763,7 +763,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook	= terratv_audio,
+		.audio_mode_gpio= terratv_audio,
 		/* GPIO wiring:
 		External 20 pin connector (for Active Radio Upgrade board)
 		gpio00: i2c-sda
@@ -902,7 +902,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_PHILIPS_PAL, /* default for now, gpio reads BFFF06 for Pal bg+dk */
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook	= winfast2000_audio,
+		.audio_mode_gpio= winfast2000_audio,
 		.has_remote     = 1,
 	},
 	[BTTV_BOARD_CHRONOS_VS2] = {
@@ -1022,7 +1022,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_radio	= 1,
-		.audio_hook	= avermedia_tvphone_audio,
+		.audio_mode_gpio= avermedia_tvphone_audio,
 	},
 	[BTTV_BOARD_PV951] = {
 		.name		= "ProVideo PV951", /* pic16c54 */
@@ -1154,7 +1154,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_ALPS_TSHC6_NTSC,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook	= gvbctv3pci_audio,
+		.audio_mode_gpio= gvbctv3pci_audio,
 	},
 	[BTTV_BOARD_PXELVWPLTVPAK] = {
 		.name		= "Prolink PV-BT878P+4E / PixelView PlayTV PAK / Lenco MXTV-9578 CP",
@@ -1459,7 +1459,7 @@ struct tvcard bttv_tvcards[] = {
 				/* -dk-???: set mute=0x1800 for tda9874h daughterboard */
 		.gpiomux 	= { 0x0000,0x0800,0x1000,0x1000 },
 		.gpiomute 	= 0x1800,
-		.audio_hook	= fv2000s_audio,
+		.audio_mode_gpio= fv2000s_audio,
 		.no_msp34xx	= 1,
 		.no_tda9875	= 1,
 		.needs_tvaudio  = 1,
@@ -1500,7 +1500,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_SHARP_2U5JF5540_NTSC,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook     = gvbctv3pci_audio,
+		.audio_mode_gpio= gvbctv3pci_audio,
 	},
 
 	/* ---- card 0x44 ---------------------------------- */
@@ -1619,7 +1619,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook	= pvbt878p9b_audio, /* Note: not all cards have stereo */
+		.audio_mode_gpio= pvbt878p9b_audio, /* Note: not all cards have stereo */
 		.has_radio	= 1,  /* Note: not all cards have radio */
 		.has_remote     = 1,
 		/* GPIO wiring:
@@ -1697,7 +1697,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_PHILIPS_NTSC,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook     = windvr_audio,
+		.audio_mode_gpio= windvr_audio,
 	},
 	[BTTV_BOARD_GRANDTEC_MULTI] = {
 		.name           = "GrandTec Multi Capture Card (Bt878)",
@@ -1794,7 +1794,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_PHILIPS_NTSC_M,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook     = gvbctv5pci_audio,
+		.audio_mode_gpio= gvbctv5pci_audio,
 		.has_radio      = 1,
 	},
 	[BTTV_BOARD_OSPREY1x0] = {
@@ -2093,7 +2093,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_PHILIPS_NTSC,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.audio_hook	= adtvk503_audio,
+		.audio_mode_gpio= adtvk503_audio,
 	},
 
 		/* ---- card 0x64 ---------------------------------- */
@@ -3160,8 +3160,8 @@ static void flyvideo_gpio(struct bttv *btv)
 	/* LR90 Audio Routing is done by 2 hef4052, so Audio_Mask has 4 bits: 0x001c80
 	 * LR26/LR50 only has 1 hef4052, Audio_Mask 0x000c00
 	 * Audio options: from tuner, from tda9821/tda9821(mono,stereo,sap), from tda9874, ext., mute */
-	if(has_tda9820_tda9821) btv->audio_hook = lt9415_audio;
-	/* todo: if(has_tda9874) btv->audio_hook = fv2000s_audio; */
+	if(has_tda9820_tda9821) btv->audio_mode_gpio = lt9415_audio;
+	/* todo: if(has_tda9874) btv->audio_mode_gpio = fv2000s_audio; */
 }
 
 static int miro_tunermap[] = { 0,6,2,3,   4,5,6,0,  3,0,4,5,  5,2,16,1,
@@ -3581,8 +3581,10 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		btv->has_remote=1;
 	if (!bttv_tvcards[btv->c.type].no_gpioirq)
 		btv->gpioirq=1;
-	if (bttv_tvcards[btv->c.type].audio_hook)
-		btv->audio_hook=bttv_tvcards[btv->c.type].audio_hook;
+	if (bttv_tvcards[btv->c.type].volume_gpio)
+		btv->volume_gpio=bttv_tvcards[btv->c.type].volume_gpio;
+	if (bttv_tvcards[btv->c.type].audio_mode_gpio)
+		btv->audio_mode_gpio=bttv_tvcards[btv->c.type].audio_mode_gpio;
 
 	if (bttv_tvcards[btv->c.type].digital_mode == DIGITAL_MODE_CAMERA) {
 		/* detect Bt832 chip for quartzsight digital camera */
