@@ -606,9 +606,10 @@ int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	init_attr->recv_cq = qp->ibqp.recv_cq;
 	init_attr->srq = qp->ibqp.srq;
 	init_attr->cap = attr->cap;
-	init_attr->sq_sig_type =
-		(qp->s_flags & (1 << IPATH_S_SIGNAL_REQ_WR))
-		? IB_SIGNAL_REQ_WR : 0;
+	if (qp->s_flags & (1 << IPATH_S_SIGNAL_REQ_WR))
+		init_attr->sq_sig_type = IB_SIGNAL_REQ_WR;
+	else
+		init_attr->sq_sig_type = IB_SIGNAL_ALL_WR;
 	init_attr->qp_type = qp->ibqp.qp_type;
 	init_attr->port_num = 1;
 	return 0;
@@ -776,8 +777,10 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		qp->s_wq = swq;
 		qp->s_size = init_attr->cap.max_send_wr + 1;
 		qp->s_max_sge = init_attr->cap.max_send_sge;
-		qp->s_flags = init_attr->sq_sig_type == IB_SIGNAL_REQ_WR ?
-			1 << IPATH_S_SIGNAL_REQ_WR : 0;
+		if (init_attr->sq_sig_type == IB_SIGNAL_REQ_WR)
+			qp->s_flags = 1 << IPATH_S_SIGNAL_REQ_WR;
+		else
+			qp->s_flags = 0;
 		dev = to_idev(ibpd->device);
 		err = ipath_alloc_qpn(&dev->qp_table, qp,
 				      init_attr->qp_type);
