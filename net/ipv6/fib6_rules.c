@@ -135,7 +135,7 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	return 1;
 }
 
-static struct nla_policy fib6_rule_policy[RTA_MAX+1] __read_mostly = {
+static struct nla_policy fib6_rule_policy[FRA_MAX+1] __read_mostly = {
 	[FRA_IFNAME]	= { .type = NLA_STRING },
 	[FRA_PRIORITY]	= { .type = NLA_U32 },
 	[FRA_SRC]	= { .minlen = sizeof(struct in6_addr) },
