@@ -470,6 +470,15 @@ done:
 		wake_up(&qp->wait);
 }
 
+static int want_buffer(struct ipath_devdata *dd)
+{
+	set_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+			 dd->ipath_sendctrl);
+
+	return 0;
+}
+
 /**
  * ipath_no_bufs_available - tell the layer driver we need buffers
  * @qp: the QP that caused the problem
@@ -486,7 +495,7 @@ void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev)
 		list_add_tail(&qp->piowait, &dev->piowait);
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 	/*
-	 * Note that as soon as ipath_layer_want_buffer() is called and
+	 * Note that as soon as want_buffer() is called and
 	 * possibly before it returns, ipath_ib_piobufavail()
 	 * could be called.  If we are still in the tasklet function,
 	 * tasklet_hi_schedule() will not call us until the next time
@@ -496,7 +505,7 @@ void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev)
 	 */
 	clear_bit(IPATH_S_BUSY, &qp->s_flags);
 	tasklet_unlock(&qp->s_task);
-	ipath_layer_want_buffer(dev->dd);
+	want_buffer(dev->dd);
 	dev->n_piowait++;
 }
 
@@ -611,7 +620,7 @@ u32 ipath_make_grh(struct ipath_ibdev *dev, struct ib_grh *hdr,
 	hdr->hop_limit = grh->hop_limit;
 	/* The SGID is 32-bit aligned. */
 	hdr->sgid.global.subnet_prefix = dev->gid_prefix;
-	hdr->sgid.global.interface_id = ipath_layer_get_guid(dev->dd);
+	hdr->sgid.global.interface_id = dev->dd->ipath_guid;
 	hdr->dgid = grh->dgid;
 
 	/* GRH header size in 32-bit words. */
@@ -643,8 +652,7 @@ void ipath_do_ruc_send(unsigned long data)
 	if (test_and_set_bit(IPATH_S_BUSY, &qp->s_flags))
 		goto bail;
 
-	if (unlikely(qp->remote_ah_attr.dlid ==
-		     ipath_layer_get_lid(dev->dd))) {
+	if (unlikely(qp->remote_ah_attr.dlid == dev->dd->ipath_lid)) {
 		ipath_ruc_loopback(qp);
 		goto clear;
 	}
@@ -711,8 +719,8 @@ again:
 	qp->s_hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
 	qp->s_hdr.lrh[2] = cpu_to_be16(qp->s_hdrwords + nwords +
 				       SIZE_OF_CRC);
-	qp->s_hdr.lrh[3] = cpu_to_be16(ipath_layer_get_lid(dev->dd));
-	bth0 |= ipath_layer_get_pkey(dev->dd, qp->s_pkey_index);
+	qp->s_hdr.lrh[3] = cpu_to_be16(dev->dd->ipath_lid);
+	bth0 |= ipath_get_pkey(dev->dd, qp->s_pkey_index);
 	bth0 |= extra_bytes << 20;
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);

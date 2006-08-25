@@ -45,7 +45,6 @@
 #include <asm/uaccess.h>
 
 #include "ipath_kernel.h"
-#include "ipath_layer.h"
 #include "ipath_common.h"
 
 int ipath_diag_inuse;

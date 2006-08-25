@@ -39,7 +39,6 @@
 #include <asm/pgtable.h>
 
 #include "ipath_kernel.h"
-#include "ipath_layer.h"
 #include "ipath_common.h"
 
 static int ipath_open(struct inode *, struct file *);

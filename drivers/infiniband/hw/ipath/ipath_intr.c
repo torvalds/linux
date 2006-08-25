@@ -34,7 +34,6 @@
 #include <linux/pci.h>
 
 #include "ipath_kernel.h"
-#include "ipath_layer.h"
 #include "ipath_verbs.h"
 #include "ipath_common.h"
 
@@ -290,8 +289,6 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 		*dd->ipath_statusp |=
 			IPATH_STATUS_IB_READY | IPATH_STATUS_IB_CONF;
 		dd->ipath_f_setextled(dd, lstate, ltstate);
-
-		__ipath_layer_intr(dd, IPATH_LAYER_INT_IF_UP);
 	} else if ((val & IPATH_IBSTATE_MASK) == IPATH_IBSTATE_INIT) {
 		/*
 		 * set INIT and DOWN.  Down is checked by most of the other
@@ -708,10 +705,6 @@ static void handle_port_pioavail(struct ipath_devdata *dd)
 static void handle_layer_pioavail(struct ipath_devdata *dd)
 {
 	int ret;
-
-	ret = __ipath_layer_intr(dd, IPATH_LAYER_INT_SEND_CONTINUE);
-	if (ret > 0)
-		goto set;
 
 	ret = ipath_ib_piobufavail(dd->verbs_dev);
 	if (ret > 0)

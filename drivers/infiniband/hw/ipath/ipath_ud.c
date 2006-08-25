@@ -353,7 +353,7 @@ int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 		ss.num_sge++;
 	}
 	/* Check for invalid packet size. */
-	if (len > ipath_layer_get_ibmtu(dev->dd)) {
+	if (len > dev->dd->ipath_ibmtu) {
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -375,7 +375,7 @@ int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 		dev->n_unicast_xmit++;
 		lid = ah_attr->dlid &
 			~((1 << (dev->mkeyprot_resv_lmc & 7)) - 1);
-		if (unlikely(lid == ipath_layer_get_lid(dev->dd))) {
+		if (unlikely(lid == dev->dd->ipath_lid)) {
 			/*
 			 * Pass in an uninitialized ib_wc to save stack
 			 * space.
@@ -404,7 +404,7 @@ int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 		qp->s_hdr.u.l.grh.sgid.global.subnet_prefix =
 			dev->gid_prefix;
 		qp->s_hdr.u.l.grh.sgid.global.interface_id =
-			ipath_layer_get_guid(dev->dd);
+			dev->dd->ipath_guid;
 		qp->s_hdr.u.l.grh.dgid = ah_attr->grh.dgid;
 		/*
 		 * Don't worry about sending to locally attached multicast
@@ -434,7 +434,7 @@ int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 	qp->s_hdr.lrh[0] = cpu_to_be16(lrh0);
 	qp->s_hdr.lrh[1] = cpu_to_be16(ah_attr->dlid);	/* DEST LID */
 	qp->s_hdr.lrh[2] = cpu_to_be16(hwords + nwords + SIZE_OF_CRC);
-	lid = ipath_layer_get_lid(dev->dd);
+	lid = dev->dd->ipath_lid;
 	if (lid) {
 		lid |= ah_attr->src_path_bits &
 			((1 << (dev->mkeyprot_resv_lmc & 7)) - 1);
@@ -445,7 +445,7 @@ int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 		bth0 |= 1 << 23;
 	bth0 |= extra_bytes << 20;
 	bth0 |= qp->ibqp.qp_type == IB_QPT_SMI ? IPATH_DEFAULT_P_KEY :
-		ipath_layer_get_pkey(dev->dd, qp->s_pkey_index);
+		ipath_get_pkey(dev->dd, qp->s_pkey_index);
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	/*
 	 * Use the multicast QP if the destination LID is a multicast LID.
@@ -531,8 +531,7 @@ void ipath_ud_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		 * the eager header buffer size to 56 bytes so the last 12
 		 * bytes of the IB header is in the data buffer.
 		 */
-		header_in_data =
-			ipath_layer_get_rcvhdrentsize(dev->dd) == 16;
+		header_in_data = dev->dd->ipath_rcvhdrentsize == 16;
 		if (header_in_data) {
 			qkey = be32_to_cpu(((__be32 *) data)[1]);
 			src_qp = be32_to_cpu(((__be32 *) data)[2]);

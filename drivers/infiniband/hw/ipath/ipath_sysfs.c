@@ -35,7 +35,6 @@
 #include <linux/pci.h>
 
 #include "ipath_kernel.h"
-#include "ipath_layer.h"
 #include "ipath_common.h"
 
 /**
@@ -227,7 +226,6 @@ static ssize_t store_mlid(struct device *dev,
 	unit = dd->ipath_unit;
 
 	dd->ipath_mlid = mlid;
-	ipath_layer_intr(dd, IPATH_LAYER_INT_BCAST);
 
 	goto bail;
 invalid:
@@ -467,7 +465,7 @@ static ssize_t store_link_state(struct device *dev,
 	if (ret < 0)
 		goto invalid;
 
-	r = ipath_layer_set_linkstate(dd, state);
+	r = ipath_set_linkstate(dd, state);
 	if (r < 0) {
 		ret = r;
 		goto bail;
@@ -502,7 +500,7 @@ static ssize_t store_mtu(struct device *dev,
 	if (ret < 0)
 		goto invalid;
 
-	r = ipath_layer_set_mtu(dd, mtu);
+	r = ipath_set_mtu(dd, mtu);
 	if (r < 0)
 		ret = r;
 

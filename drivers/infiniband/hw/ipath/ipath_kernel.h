@@ -518,16 +518,6 @@ extern struct list_head ipath_dev_list;
 extern spinlock_t ipath_devs_lock;
 extern struct ipath_devdata *ipath_lookup(int unit);
 
-extern u16 ipath_layer_rcv_opcode;
-extern int __ipath_layer_intr(struct ipath_devdata *, u32);
-extern int ipath_layer_intr(struct ipath_devdata *, u32);
-extern int __ipath_layer_rcv(struct ipath_devdata *, void *,
-			     struct sk_buff *);
-extern int __ipath_layer_rcv_lid(struct ipath_devdata *, void *);
-
-void ipath_layer_add(struct ipath_devdata *);
-void ipath_layer_remove(struct ipath_devdata *);
-
 int ipath_init_chip(struct ipath_devdata *, int);
 int ipath_enable_wc(struct ipath_devdata *dd);
 void ipath_disable_wc(struct ipath_devdata *dd);
@@ -575,12 +565,13 @@ void ipath_free_pddata(struct ipath_devdata *, struct ipath_portdata *);
 
 int ipath_parse_ushort(const char *str, unsigned short *valp);
 
-int ipath_wait_linkstate(struct ipath_devdata *, u32, int);
-void ipath_set_ib_lstate(struct ipath_devdata *, int);
 void ipath_kreceive(struct ipath_devdata *);
 int ipath_setrcvhdrsize(struct ipath_devdata *, unsigned);
 int ipath_reset_device(int);
 void ipath_get_faststats(unsigned long);
+int ipath_set_linkstate(struct ipath_devdata *, u8);
+int ipath_set_mtu(struct ipath_devdata *, u16);
+int ipath_set_lid(struct ipath_devdata *, u32, u8);
 
 /* for use in system calls, where we want to know device type, etc. */
 #define port_fp(fp) ((struct ipath_portdata *) (fp)->private_data)
