@@ -46,26 +46,6 @@ unsigned long isa_io_base = 0;
 unsigned long isa_mem_base = 0;
 #endif
 
-#ifdef CONFIG_PCI
-static int
-mpc83xx_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
-{
-	static char pci_irq_table[][4] =
-	    /*
-	     *      PCI IDSEL/INTPIN->INTLINE
-	     *       A      B      C      D
-	     */
-	{
-		{PIRQB, PIRQC, PIRQD, PIRQA},	/* idsel 0x0e */
-		{PIRQA, PIRQB, PIRQC, PIRQD},	/* idsel 0x0f */
-		{PIRQC, PIRQD, PIRQA, PIRQB},	/* idsel 0x10 */
-	};
-
-	const long min_idsel = 0x0e, max_idsel = 0x10, irqs_per_slot = 4;
-	return PCI_IRQ_TABLE_LOOKUP;
-}
-#endif				/* CONFIG_PCI */
-
 /* ************************************************************************
  *
  * Setup the architecture
@@ -92,8 +72,6 @@ static void __init mpc834x_itx_setup_arch(void)
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
 		add_bridge(np);
 
-	ppc_md.pci_swizzle = common_swizzle;
-	ppc_md.pci_map_irq = mpc83xx_map_irq;
 	ppc_md.pci_exclude_device = mpc83xx_exclude_device;
 #endif
 
@@ -106,25 +84,13 @@ static void __init mpc834x_itx_setup_arch(void)
 
 void __init mpc834x_itx_init_IRQ(void)
 {
-	u8 senses[8] = {
-		0,			/* EXT 0 */
-		IRQ_SENSE_LEVEL,	/* EXT 1 */
-		IRQ_SENSE_LEVEL,	/* EXT 2 */
-		0,			/* EXT 3 */
-#ifdef CONFIG_PCI
-		IRQ_SENSE_LEVEL,	/* EXT 4 */
-		IRQ_SENSE_LEVEL,	/* EXT 5 */
-		IRQ_SENSE_LEVEL,	/* EXT 6 */
-		IRQ_SENSE_LEVEL,	/* EXT 7 */
-#else
-		0,			/* EXT 4 */
-		0,			/* EXT 5 */
-		0,			/* EXT 6 */
-		0,			/* EXT 7 */
-#endif
-	};
+	struct device_node *np;
 
-	ipic_init(get_immrbase() + 0x00700, 0, 0, senses, 8);
+	np = of_find_node_by_type(NULL, "ipic");
+	if (!np)
+		return;
+
+	ipic_init(np, 0);
 
 	/* Initialize the default interrupt mapping priorities,
 	 * in case the boot rom changed something on us.
@@ -153,4 +119,7 @@ define_machine(mpc834x_itx) {
 	.time_init		= mpc83xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
+#ifdef CONFIG_PCI
+	.pcibios_fixup		= mpc83xx_pcibios_fixup,
+#endif
 };
