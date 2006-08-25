@@ -237,19 +237,22 @@ static int
 nlm_traverse_files(struct nlm_host *host, int action)
 {
 	struct nlm_file	*file, **fp;
-	int		i;
+	int i, ret = 0;
 
 	mutex_lock(&nlm_file_mutex);
 	for (i = 0; i < FILE_NRHASH; i++) {
 		fp = nlm_files + i;
 		while ((file = *fp) != NULL) {
+			file->f_count++;
+			mutex_unlock(&nlm_file_mutex);
+
 			/* Traverse locks, blocks and shares of this file
 			 * and update file->f_locks count */
-			if (nlm_inspect_file(host, file, action)) {
-				mutex_unlock(&nlm_file_mutex);
-				return 1;
-			}
+			if (nlm_inspect_file(host, file, action))
+				ret = 1;
 
+			mutex_lock(&nlm_file_mutex);
+			file->f_count--;
 			/* No more references to this file. Let go of it. */
 			if (!file->f_blocks && !file->f_locks
 			 && !file->f_shares && !file->f_count) {
@@ -262,7 +265,7 @@ nlm_traverse_files(struct nlm_host *host, int action)
 		}
 	}
 	mutex_unlock(&nlm_file_mutex);
-	return 0;
+	return ret;
 }
 
 /*

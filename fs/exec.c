@@ -486,8 +486,6 @@ struct file *open_exec(const char *name)
 		if (!(nd.mnt->mnt_flags & MNT_NOEXEC) &&
 		    S_ISREG(inode->i_mode)) {
 			int err = vfs_permission(&nd, MAY_EXEC);
-			if (!err && !(inode->i_mode & 0111))
-				err = -EACCES;
 			file = ERR_PTR(err);
 			if (!err) {
 				file = nameidata_to_filp(&nd, O_RDONLY);
@@ -922,12 +920,6 @@ int prepare_binprm(struct linux_binprm *bprm)
 	int retval;
 
 	mode = inode->i_mode;
-	/*
-	 * Check execute perms again - if the caller has CAP_DAC_OVERRIDE,
-	 * generic_permission lets a non-executable through
-	 */
-	if (!(mode & 0111))	/* with at least _one_ execute bit set */
-		return -EACCES;
 	if (bprm->file->f_op == NULL)
 		return -EACCES;
 

@@ -227,10 +227,10 @@ int generic_permission(struct inode *inode, int mask,
 
 int permission(struct inode *inode, int mask, struct nameidata *nd)
 {
+	umode_t mode = inode->i_mode;
 	int retval, submask;
 
 	if (mask & MAY_WRITE) {
-		umode_t mode = inode->i_mode;
 
 		/*
 		 * Nobody gets write access to a read-only fs.
@@ -246,6 +246,13 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 			return -EACCES;
 	}
 
+
+	/*
+	 * MAY_EXEC on regular files requires special handling: We override
+	 * filesystem execute permissions if the mode bits aren't set.
+	 */
+	if ((mask & MAY_EXEC) && S_ISREG(mode) && !(mode & S_IXUGO))
+		return -EACCES;
 
 	/* Ordinary permission routines do not understand MAY_APPEND. */
 	submask = mask & ~MAY_APPEND;
@@ -1767,6 +1774,8 @@ struct dentry *lookup_create(struct nameidata *nd, int is_dir)
 	if (nd->last_type != LAST_NORM)
 		goto fail;
 	nd->flags &= ~LOOKUP_PARENT;
+	nd->flags |= LOOKUP_CREATE;
+	nd->intent.open.flags = O_EXCL;
 
 	/*
 	 * Do the final lookup.
