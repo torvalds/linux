@@ -50,10 +50,6 @@ module_param_named(lkey_table_size, ib_ipath_lkey_table_size, uint,
 MODULE_PARM_DESC(lkey_table_size,
 		 "LKEY table size in bits (2^n, 1 <= n <= 23)");
 
-unsigned int ib_ipath_debug;	/* debug mask */
-module_param_named(debug, ib_ipath_debug, uint, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(debug, "Verbs debug mask");
-
 static unsigned int ib_ipath_max_pds = 0xFFFF;
 module_param_named(max_pds, ib_ipath_max_pds, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(max_pds,
@@ -1598,8 +1594,7 @@ err_lk:
 	kfree(idev->qp_table.table);
 err_qp:
 	ib_dealloc_device(dev);
-	_VERBS_ERROR("ib_ipath%d cannot register verbs (%d)!\n",
-		     dd->ipath_unit, -ret);
+	ipath_dev_err(dd, "cannot register verbs: %d!\n", -ret);
 	idev = NULL;
 
 bail:
@@ -1618,17 +1613,13 @@ void ipath_unregister_ib_device(struct ipath_ibdev *dev)
 	if (!list_empty(&dev->pending[0]) ||
 	    !list_empty(&dev->pending[1]) ||
 	    !list_empty(&dev->pending[2]))
-		_VERBS_ERROR("ipath%d pending list not empty!\n",
-			     dev->ib_unit);
+		ipath_dev_err(dev->dd, "pending list not empty!\n");
 	if (!list_empty(&dev->piowait))
-		_VERBS_ERROR("ipath%d piowait list not empty!\n",
-			     dev->ib_unit);
+		ipath_dev_err(dev->dd, "piowait list not empty!\n");
 	if (!list_empty(&dev->rnrwait))
-		_VERBS_ERROR("ipath%d rnrwait list not empty!\n",
-			     dev->ib_unit);
+		ipath_dev_err(dev->dd, "rnrwait list not empty!\n");
 	if (!ipath_mcast_tree_empty())
-		_VERBS_ERROR("ipath%d multicast table memory leak!\n",
-			     dev->ib_unit);
+		ipath_dev_err(dev->dd, "multicast table memory leak!\n");
 	/*
 	 * Note that ipath_unregister_ib_device() can be called before all
 	 * the QPs are destroyed!

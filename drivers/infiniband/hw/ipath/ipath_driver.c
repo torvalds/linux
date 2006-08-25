@@ -58,7 +58,7 @@ const char *ipath_get_unit_name(int unit)
  * The size has to be longer than this string, so we can append
  * board/chip information to it in the init code.
  */
-const char ipath_core_version[] = IPATH_IDSTR "\n";
+const char ib_ipath_version[] = IPATH_IDSTR "\n";
 
 static struct idr unit_table;
 DEFINE_SPINLOCK(ipath_devs_lock);
@@ -1847,7 +1847,7 @@ static int __init infinipath_init(void)
 {
 	int ret;
 
-	ipath_dbg(KERN_INFO DRIVER_LOAD_MSG "%s", ipath_core_version);
+	ipath_dbg(KERN_INFO DRIVER_LOAD_MSG "%s", ib_ipath_version);
 
 	/*
 	 * These must be called before the driver is registered with

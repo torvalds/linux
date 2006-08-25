@@ -42,7 +42,6 @@
 #include <rdma/ib_pack.h>
 
 #include "ipath_layer.h"
-#include "verbs_debug.h"
 
 #define QPN_MAX                 (1 << 24)
 #define QPNMAP_ENTRIES          (QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)

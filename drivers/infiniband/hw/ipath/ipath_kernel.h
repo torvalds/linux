@@ -785,7 +785,7 @@ static inline u32 ipath_read_creg32(const struct ipath_devdata *dd,
 
 struct device_driver;
 
-extern const char ipath_core_version[];
+extern const char ib_ipath_version[];
 
 int ipath_driver_create_group(struct device_driver *);
 void ipath_driver_remove_group(struct device_driver *);
@@ -815,7 +815,7 @@ const char *ipath_get_unit_name(int unit);
 
 extern struct mutex ipath_mutex;
 
-#define IPATH_DRV_NAME		"ipath_core"
+#define IPATH_DRV_NAME		"ib_ipath"
 #define IPATH_MAJOR		233
 #define IPATH_USER_MINOR_BASE	0
 #define IPATH_SMA_MINOR		128

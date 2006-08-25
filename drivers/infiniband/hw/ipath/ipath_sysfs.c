@@ -75,7 +75,7 @@ bail:
 static ssize_t show_version(struct device_driver *dev, char *buf)
 {
 	/* The string printed here is already newline-terminated. */
-	return scnprintf(buf, PAGE_SIZE, "%s", ipath_core_version);
+	return scnprintf(buf, PAGE_SIZE, "%s", ib_ipath_version);
 }
 
 static ssize_t show_num_units(struct device_driver *dev, char *buf)

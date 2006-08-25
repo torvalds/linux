@@ -274,7 +274,7 @@ void ipath_free_all_qps(struct ipath_qp_table *qpt)
 				free_qpn(qpt, qp->ibqp.qp_num);
 			if (!atomic_dec_and_test(&qp->refcount) ||
 			    !ipath_destroy_qp(&qp->ibqp))
-				_VERBS_INFO("QP memory leak!\n");
+				ipath_dbg(KERN_INFO "QP memory leak!\n");
 			qp = nqp;
 		}
 	}
@@ -362,8 +362,8 @@ void ipath_error_qp(struct ipath_qp *qp)
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
 	struct ib_wc wc;
 
-	_VERBS_INFO("QP%d/%d in error state\n",
-		    qp->ibqp.qp_num, qp->remote_qpn);
+	ipath_dbg(KERN_INFO "QP%d/%d in error state\n",
+		  qp->ibqp.qp_num, qp->remote_qpn);
 
 	spin_lock(&dev->pending_lock);
 	/* XXX What if its already removed by the timeout code? */
@@ -945,8 +945,8 @@ void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc)
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
 	struct ipath_swqe *wqe = get_swqe_ptr(qp, qp->s_last);
 
-	_VERBS_INFO("Send queue error on QP%d/%d: err: %d\n",
-		    qp->ibqp.qp_num, qp->remote_qpn, wc->status);
+	ipath_dbg(KERN_INFO "Send queue error on QP%d/%d: err: %d\n",
+		  qp->ibqp.qp_num, qp->remote_qpn, wc->status);
 
 	spin_lock(&dev->pending_lock);
 	/* XXX What if its already removed by the timeout code? */
