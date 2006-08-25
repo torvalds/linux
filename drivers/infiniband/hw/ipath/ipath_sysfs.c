@@ -107,8 +107,8 @@ static const char *ipath_status_str[] = {
 	"Initted",
 	"Disabled",
 	"Admin_Disabled",
-	"OIB_SMA",
-	"SMA",
+	"", /* This used to be the old "OIB_SMA" status. */
+	"", /* This used to be the old "SMA" status. */
 	"Present",
 	"IB_link_up",
 	"IB_configured",

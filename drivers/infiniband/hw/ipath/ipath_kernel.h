@@ -245,8 +245,8 @@ struct ipath_devdata {
 	u32 ipath_pioavregs;
 	/* IPATH_POLL, etc. */
 	u32 ipath_flags;
-	/* ipath_flags sma is waiting for */
-	u32 ipath_sma_state_wanted;
+	/* ipath_flags driver is waiting for */
+	u32 ipath_state_wanted;
 	/* last buffer for user use, first buf for kernel use is this
 	 * index. */
 	u32 ipath_lastport_piobuf;
@@ -306,10 +306,6 @@ struct ipath_devdata {
 	u32 ipath_pcibar0;
 	/* so we can rewrite it after a chip reset */
 	u32 ipath_pcibar1;
-	/* sequential tries for SMA send and no bufs */
-	u32 ipath_nosma_bufs;
-	/* duration (seconds) ipath_nosma_bufs set */
-	u32 ipath_nosma_secs;
 
 	/* HT/PCI Vendor ID (here for NodeInfo) */
 	u16 ipath_vendorid;
@@ -534,7 +530,7 @@ int ipath_diag_add(struct ipath_devdata *);
 void ipath_diag_remove(struct ipath_devdata *);
 void ipath_diag_bringup_link(struct ipath_devdata *);
 
-extern wait_queue_head_t ipath_sma_state_wait;
+extern wait_queue_head_t ipath_state_wait;
 
 int ipath_user_add(struct ipath_devdata *dd);
 void ipath_user_remove(struct ipath_devdata *dd);
@@ -818,7 +814,6 @@ extern struct mutex ipath_mutex;
 #define IPATH_DRV_NAME		"ib_ipath"
 #define IPATH_MAJOR		233
 #define IPATH_USER_MINOR_BASE	0
-#define IPATH_SMA_MINOR		128
 #define IPATH_DIAG_MINOR_BASE	129
 #define IPATH_NMINORS		255
 

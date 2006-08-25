@@ -106,9 +106,9 @@ struct infinipath_stats {
 	__u64 sps_ether_spkts;
 	/* number of "ethernet" packets received by driver */
 	__u64 sps_ether_rpkts;
-	/* number of SMA packets sent by driver */
+	/* number of SMA packets sent by driver. Obsolete. */
 	__u64 sps_sma_spkts;
-	/* number of SMA packets received by driver */
+	/* number of SMA packets received by driver. Obsolete. */
 	__u64 sps_sma_rpkts;
 	/* number of times all ports rcvhdrq was full and packet dropped */
 	__u64 sps_hdrqfull;
@@ -138,7 +138,7 @@ struct infinipath_stats {
 	__u64 sps_pageunlocks;
 	/*
 	 * Number of packets dropped in kernel other than errors (ether
-	 * packets if ipath not configured, sma/mad, etc.)
+	 * packets if ipath not configured, etc.)
 	 */
 	__u64 sps_krdrops;
 	/* pad for future growth */
@@ -153,8 +153,6 @@ struct infinipath_stats {
 #define IPATH_STATUS_DISABLED      0x2	/* hardware disabled */
 /* Device has been disabled via admin request */
 #define IPATH_STATUS_ADMIN_DISABLED    0x4
-#define IPATH_STATUS_OIB_SMA       0x8	/* ipath_mad kernel SMA running */
-#define IPATH_STATUS_SMA          0x10	/* user SMA running */
 /* Chip has been found and initted */
 #define IPATH_STATUS_CHIP_PRESENT 0x20
 /* IB link is at ACTIVE, usable for data traffic */
@@ -463,14 +461,6 @@ struct __ipath_sendpkt {
 	__u32 sps_cnt;		/* number of entries to use in sps_iov */
 	/* array of iov's describing packet. TEMPORARY */
 	struct ipath_iovec sps_iov[4];
-};
-
-/* Passed into SMA special file's ->read and ->write methods. */
-struct ipath_sma_pkt
-{
-	__u32 unit;	/* unit on which to send packet */
-	__u64 data;	/* address of payload in userspace */
-	__u32 len;	/* length of payload */
 };
 
 /*

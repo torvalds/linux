@@ -64,7 +64,7 @@ static struct idr unit_table;
 DEFINE_SPINLOCK(ipath_devs_lock);
 LIST_HEAD(ipath_dev_list);
 
-wait_queue_head_t ipath_sma_state_wait;
+wait_queue_head_t ipath_state_wait;
 
 unsigned ipath_debug = __IPATH_INFO;
 
@@ -618,15 +618,16 @@ void ipath_disarm_piobufs(struct ipath_devdata *dd, unsigned first,
 static int ipath_wait_linkstate(struct ipath_devdata *dd, u32 state,
 				int msecs)
 {
-	dd->ipath_sma_state_wanted = state;
-	wait_event_interruptible_timeout(ipath_sma_state_wait,
+	dd->ipath_state_wanted = state;
+	wait_event_interruptible_timeout(ipath_state_wait,
 					 (dd->ipath_flags & state),
 					 msecs_to_jiffies(msecs));
-	dd->ipath_sma_state_wanted = 0;
+	dd->ipath_state_wanted = 0;
 
 	if (!(dd->ipath_flags & state)) {
 		u64 val;
-		ipath_cdbg(SMA, "Didn't reach linkstate %s within %u ms\n",
+		ipath_cdbg(VERBOSE, "Didn't reach linkstate %s within %u"
+			   " ms\n",
 			   /* test INIT ahead of DOWN, both can be set */
 			   (state & IPATH_LINKINIT) ? "INIT" :
 			   ((state & IPATH_LINKDOWN) ? "DOWN" :
@@ -1155,7 +1156,7 @@ int ipath_setrcvhdrsize(struct ipath_devdata *dd, unsigned rhdrsize)
  *
  * do appropriate marking as busy, etc.
  * returns buffer number if one found (>=0), negative number is error.
- * Used by ipath_sma_send_pkt and ipath_layer_send
+ * Used by ipath_layer_send
  */
 u32 __iomem *ipath_getpiobuf(struct ipath_devdata *dd, u32 * pbufnum)
 {
@@ -1448,7 +1449,7 @@ static void ipath_set_ib_lstate(struct ipath_devdata *dd, int which)
 	int linkcmd = (which >> INFINIPATH_IBCC_LINKCMD_SHIFT) &
 			INFINIPATH_IBCC_LINKCMD_MASK;
 
-	ipath_cdbg(SMA, "Trying to move unit %u to %s, current ltstate "
+	ipath_cdbg(VERBOSE, "Trying to move unit %u to %s, current ltstate "
 		   "is %s\n", dd->ipath_unit,
 		   what[linkcmd],
 		   ipath_ibcstatus_str[
@@ -1457,7 +1458,7 @@ static void ipath_set_ib_lstate(struct ipath_devdata *dd, int which)
 			    INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) &
 			   INFINIPATH_IBCS_LINKTRAININGSTATE_MASK]);
 	/* flush all queued sends when going to DOWN or INIT, to be sure that
-	 * they don't block SMA and other MAD packets */
+	 * they don't block MAD packets */
 	if (!linkcmd || linkcmd == INFINIPATH_IBCC_LINKCMD_INIT) {
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 				 INFINIPATH_S_ABORT);

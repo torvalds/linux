@@ -645,33 +645,6 @@ __be32 ipath_compute_aeth(struct ipath_qp *qp)
 }
 
 /**
- * set_verbs_flags - set the verbs layer flags
- * @dd: the infinipath device
- * @flags: the flags to set
- */
-static int set_verbs_flags(struct ipath_devdata *dd, unsigned flags)
-{
-	struct ipath_devdata *ss;
-	unsigned long lflags;
-
-	spin_lock_irqsave(&ipath_devs_lock, lflags);
-
-	list_for_each_entry(ss, &ipath_dev_list, ipath_list) {
-		if (!(ss->ipath_flags & IPATH_INITTED))
-			continue;
-		if ((flags & IPATH_VERBS_KERNEL_SMA) &&
-		    !(*ss->ipath_statusp & IPATH_STATUS_SMA))
-			*ss->ipath_statusp |= IPATH_STATUS_OIB_SMA;
-		else
-			*ss->ipath_statusp &= ~IPATH_STATUS_OIB_SMA;
-	}
-
-	spin_unlock_irqrestore(&ipath_devs_lock, lflags);
-
-	return 0;
-}
-
-/**
  * ipath_create_qp - create a queue pair for a device
  * @ibpd: the protection domain who's device we create the queue pair for
  * @init_attr: the attributes of the queue pair
@@ -784,10 +757,6 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		}
 		qp->ip = NULL;
 		ipath_reset_qp(qp);
-
-		/* Tell the core driver that the kernel SMA is present. */
-		if (init_attr->qp_type == IB_QPT_SMI)
-			set_verbs_flags(dev->dd, IPATH_VERBS_KERNEL_SMA);
 		break;
 
 	default:
@@ -861,10 +830,6 @@ int ipath_destroy_qp(struct ib_qp *ibqp)
 	struct ipath_qp *qp = to_iqp(ibqp);
 	struct ipath_ibdev *dev = to_idev(ibqp->device);
 	unsigned long flags;
-
-	/* Tell the core driver that the kernel SMA is gone. */
-	if (qp->ibqp.qp_type == IB_QPT_SMI)
-		set_verbs_flags(dev->dd, 0);
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 	qp->state = IB_QPS_ERR;

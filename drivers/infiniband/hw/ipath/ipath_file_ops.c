@@ -1816,7 +1816,7 @@ int ipath_user_add(struct ipath_devdata *dd)
 		if (ret < 0) {
 			ipath_dev_err(dd, "Could not create wildcard "
 				      "minor: error %d\n", -ret);
-			goto bail_sma;
+			goto bail_user;
 		}
 
 		atomic_set(&user_setup, 1);
@@ -1832,7 +1832,7 @@ int ipath_user_add(struct ipath_devdata *dd)
 
 	goto bail;
 
-bail_sma:
+bail_user:
 	user_cleanup();
 bail:
 	return ret;

@@ -66,9 +66,6 @@ int ipath_layer_set_piointbufavail_int(struct ipath_devdata *dd);
 #define IPATH_LAYER_INT_SEND_CONTINUE 0x10
 #define IPATH_LAYER_INT_BCAST 0x40
 
-/* _verbs_layer.l_flags */
-#define IPATH_VERBS_KERNEL_SMA 0x1
-
 extern unsigned ipath_debug; /* debugging bit mask */
 
 #endif				/* _IPATH_LAYER_H */

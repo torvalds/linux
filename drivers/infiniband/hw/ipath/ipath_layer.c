@@ -162,9 +162,6 @@ int ipath_layer_register(void *(*l_add)(int, struct ipath_devdata *),
 		if (dd->ipath_layer.l_arg)
 			continue;
 
-		if (!(*dd->ipath_statusp & IPATH_STATUS_SMA))
-			*dd->ipath_statusp |= IPATH_STATUS_OIB_SMA;
-
 		spin_unlock_irqrestore(&ipath_devs_lock, flags);
 		dd->ipath_layer.l_arg = l_add(dd->ipath_unit, dd);
 		spin_lock_irqsave(&ipath_devs_lock, flags);
