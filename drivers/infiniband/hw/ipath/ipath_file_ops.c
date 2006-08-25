@@ -992,15 +992,10 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	pgprot_val(vma->vm_page_prot) &= ~_PAGE_GUARDED;
 #endif
 
-	if (vma->vm_flags & VM_READ) {
-		dev_info(&dd->pcidev->dev,
-			 "Can't map piobufs as readable (flags=%lx)\n",
-			 vma->vm_flags);
-		ret = -EPERM;
-		goto bail;
-	}
-
-	/* don't allow them to later change to readable with mprotect */
+	/*
+	 * don't allow them to later change to readable with mprotect (for when
+	 * not initially mapped readable, as is normally the case)
+	 */
 	vma->vm_flags &= ~VM_MAYREAD;
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
 
