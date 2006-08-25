@@ -34,12 +34,13 @@ enum
 	FRA_UNUSED3,
 	FRA_UNUSED4,
 	FRA_UNUSED5,
-	FRA_FWMARK,	/* netfilter mark (IPv4/IPv6) */
+	FRA_FWMARK,	/* netfilter mark */
 	FRA_FLOW,	/* flow/class id */
 	FRA_UNUSED6,
 	FRA_UNUSED7,
 	FRA_UNUSED8,
 	FRA_TABLE,	/* Extended table id */
+	FRA_FWMASK,	/* mask for netfilter mark */
 	__FRA_MAX
 };
 
