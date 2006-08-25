@@ -172,7 +172,7 @@ struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries,
 	struct ipath_cq_wc *wc;
 	struct ib_cq *ret;
 
-	if (entries > ib_ipath_max_cqes) {
+	if (entries < 1 || entries > ib_ipath_max_cqes) {
 		ret = ERR_PTR(-EINVAL);
 		goto done;
 	}
@@ -323,6 +323,11 @@ int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	struct ipath_cq_wc *wc;
 	u32 head, tail, n;
 	int ret;
+
+	if (cqe < 1 || cqe > ib_ipath_max_cqes) {
+		ret = -EINVAL;
+		goto bail;
+	}
 
 	/*
 	 * Need to use vmalloc() if we want to support large #s of entries.
