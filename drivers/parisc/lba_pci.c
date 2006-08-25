@@ -1604,6 +1604,7 @@ lba_driver_probe(struct parisc_device *dev)
 	lba_dev->hba.dev = dev;
 	lba_dev->iosapic_obj = tmp_obj;  /* save interrupt handle */
 	lba_dev->hba.iommu = sba_get_iommu(dev);  /* get iommu data */
+	parisc_set_drvdata(dev, lba_dev);
 
 	/* ------------ Second : initialize common stuff ---------- */
 	pci_bios = &lba_bios_ops;
