@@ -8,6 +8,7 @@
  * Muting and tone control by Jonathan Isom <jisom@ematic.com>
  *
  * Copyright (c) 2000 Eric Sandeen <eric_sandeen@bigfoot.com>
+ * Copyright (c) 2006 Mauro Carvalho Chehab <mchehab@infradead.org>
  * This code is placed under the terms of the GNU General Public License
  * Based on tda9855.c by Steve VanDeBogart (vandebo@uclink.berkeley.edu)
  * Which was based on tda8425.c by Greg Alexander (c) 1998
@@ -276,7 +277,7 @@ static void do_tda7432_init(struct i2c_client *client)
 	t->volume =  0x3b ;				 /* -27dB Volume            */
 	if (loudness)			 /* Turn loudness on?     */
 		t->volume |= TDA7432_LD_ON;
-	t->muted    = VIDEO_AUDIO_MUTE;
+	t->muted    = 1;
 	t->treble   = TDA7432_TREBLE_0DB; /* 0dB Treble            */
 	t->bass		= TDA7432_BASS_0DB; 	 /* 0dB Bass              */
 	t->lf     = TDA7432_ATTEN_0DB;	 /* 0dB attenuation       */
@@ -332,10 +333,132 @@ static int tda7432_detach(struct i2c_client *client)
 	return 0;
 }
 
+static int tda7432_get_ctrl(struct i2c_client *client,
+			    struct v4l2_control *ctrl)
+{
+	struct tda7432 *t = i2c_get_clientdata(client);
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value=t->muted;
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		if (!maxvol){  /* max +20db */
+			ctrl->value = ( 0x6f - (t->volume & 0x7F) ) * 630;
+		} else {       /* max 0db   */
+			ctrl->value = ( 0x6f - (t->volume & 0x7F) ) * 829;
+		}
+		return 0;
+	case V4L2_CID_AUDIO_BALANCE:
+	{
+		if ( (t->lf) < (t->rf) )
+			/* right is attenuated, balance shifted left */
+			ctrl->value = (32768 - 1057*(t->rf));
+		else
+			/* left is attenuated, balance shifted right */
+			ctrl->value = (32768 + 1057*(t->lf));
+		return 0;
+	}
+	case V4L2_CID_AUDIO_BASS:
+	{
+		/* Bass/treble 4 bits each */
+		int bass=t->bass;
+		if(bass >= 0x8)
+			bass = ~(bass - 0x8) & 0xf;
+		ctrl->value = (bass << 12)+(bass << 8)+(bass << 4)+(bass);
+		return 0;
+	}
+	case V4L2_CID_AUDIO_TREBLE:
+	{
+		int treble=t->treble;
+		if(treble >= 0x8)
+			treble = ~(treble - 0x8) & 0xf;
+		ctrl->value = (treble << 12)+(treble << 8)+(treble << 4)+(treble);
+		return 0;
+	}
+	}
+	return -EINVAL;
+}
+
+static int tda7432_set_ctrl(struct i2c_client *client,
+			    struct v4l2_control *ctrl)
+{
+	struct tda7432 *t = i2c_get_clientdata(client);
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		t->muted=ctrl->value;
+		break;
+	case V4L2_CID_AUDIO_VOLUME:
+		if(!maxvol){ /* max +20db */
+			t->volume = 0x6f - ((ctrl->value)/630);
+		} else {    /* max 0db   */
+			t->volume = 0x6f - ((ctrl->value)/829);
+		}
+		if (loudness)		/* Turn on the loudness bit */
+			t->volume |= TDA7432_LD_ON;
+
+		tda7432_write(client,TDA7432_VL, t->volume);
+		return 0;
+	case V4L2_CID_AUDIO_BALANCE:
+		if (ctrl->value < 32768) {
+			/* shifted to left, attenuate right */
+			t->rr = (32768 - ctrl->value)/1057;
+			t->rf = t->rr;
+			t->lr = TDA7432_ATTEN_0DB;
+			t->lf = TDA7432_ATTEN_0DB;
+		} else if(ctrl->value > 32769) {
+			/* shifted to right, attenuate left */
+			t->lf = (ctrl->value - 32768)/1057;
+			t->lr = t->lf;
+			t->rr = TDA7432_ATTEN_0DB;
+			t->rf = TDA7432_ATTEN_0DB;
+		} else {
+			/* centered */
+			t->rr = TDA7432_ATTEN_0DB;
+			t->rf = TDA7432_ATTEN_0DB;
+			t->lf = TDA7432_ATTEN_0DB;
+			t->lr = TDA7432_ATTEN_0DB;
+		}
+		break;
+	case V4L2_CID_AUDIO_BASS:
+		t->bass = ctrl->value >> 12;
+		if(t->bass>= 0x8)
+				t->bass = (~t->bass & 0xf) + 0x8 ;
+
+		tda7432_write(client,TDA7432_TN, 0x10 | (t->bass << 4) | t->treble );
+		return 0;
+	case V4L2_CID_AUDIO_TREBLE:
+		t->treble= ctrl->value >> 12;
+		if(t->treble>= 0x8)
+				t->treble = (~t->treble & 0xf) + 0x8 ;
+
+		tda7432_write(client,TDA7432_TN, 0x10 | (t->bass << 4) | t->treble );
+		return 0;
+	default:
+		return -EINVAL;
+	}
+
+	/* Used for both mute and balance changes */
+	if (t->muted)
+	{
+		/* Mute & update balance*/
+		tda7432_write(client,TDA7432_LF, t->lf | TDA7432_MUTE);
+		tda7432_write(client,TDA7432_LR, t->lr | TDA7432_MUTE);
+		tda7432_write(client,TDA7432_RF, t->rf | TDA7432_MUTE);
+		tda7432_write(client,TDA7432_RR, t->rr | TDA7432_MUTE);
+	} else {
+		tda7432_write(client,TDA7432_LF, t->lf);
+		tda7432_write(client,TDA7432_LR, t->lr);
+		tda7432_write(client,TDA7432_RF, t->rf);
+		tda7432_write(client,TDA7432_RR, t->rr);
+	}
+	return 0;
+}
+
 static int tda7432_command(struct i2c_client *client,
 			   unsigned int cmd, void *arg)
 {
-	struct tda7432 *t = i2c_get_clientdata(client);
 	v4l_dbg(2, debug,client,"In tda7432_command\n");
 	if (debug>1)
 		v4l_i2c_print_ioctl(client,cmd);
@@ -344,139 +467,26 @@ static int tda7432_command(struct i2c_client *client,
 	/* --- v4l ioctls --- */
 	/* take care: bttv does userspace copying, we'll get a
 	   kernel pointer here... */
-
-	/* Query card - scale from TDA7432 settings to V4L settings */
-	case VIDIOCGAUDIO:
+	case VIDIOC_QUERYCTRL:
 	{
-		struct video_audio *va = arg;
+		struct v4l2_queryctrl *qc = arg;
 
-		va->flags |= VIDEO_AUDIO_VOLUME |
-			VIDEO_AUDIO_BASS |
-			VIDEO_AUDIO_TREBLE |
-			VIDEO_AUDIO_MUTABLE;
-		if (t->muted)
-			va->flags |= VIDEO_AUDIO_MUTE;
-		va->mode |= VIDEO_SOUND_STEREO;
-		/* Master volume control
-		 * V4L volume is min 0, max 65535
-		 * TDA7432 Volume:
-		 * Min (-79dB) is 0x6f
-		 * Max (+20dB) is 0x07 (630)
-		 * Max (0dB) is 0x20 (829)
-		 * (Mask out bit 7 of vol - it's for the loudness setting)
-		 */
-		if (!maxvol){  /* max +20db */
-			va->volume = ( 0x6f - (t->volume & 0x7F) ) * 630;
-		} else {       /* max 0db   */
-			va->volume = ( 0x6f - (t->volume & 0x7F) ) * 829;
+		switch (qc->id) {
+			case V4L2_CID_AUDIO_MUTE:
+			case V4L2_CID_AUDIO_VOLUME:
+			case V4L2_CID_AUDIO_BALANCE:
+			case V4L2_CID_AUDIO_BASS:
+			case V4L2_CID_AUDIO_TREBLE:
+			default:
+				return -EINVAL;
 		}
-
-		/* Balance depends on L,R attenuation
-		 * V4L balance is 0 to 65535, middle is 32768
-		 * TDA7432 attenuation: min (0dB) is 0, max (-37.5dB) is 0x1f
-		 * to scale up to V4L numbers, mult by 1057
-		 * attenuation exists for lf, lr, rf, rr
-		 * we use only lf and rf (front channels)
-		 */
-
-		if ( (t->lf) < (t->rf) )
-			/* right is attenuated, balance shifted left */
-			va->balance = (32768 - 1057*(t->rf));
-		else
-			/* left is attenuated, balance shifted right */
-			va->balance = (32768 + 1057*(t->lf));
-
-		/* Bass/treble 4 bits each */
-		va->bass=t->bass;
-		if(va->bass >= 0x8)
-			va->bass = ~(va->bass - 0x8) & 0xf;
-		va->bass = (va->bass << 12)+(va->bass << 8)+(va->bass << 4)+(va->bass);
-		va->treble=t->treble;
-		if(va->treble >= 0x8)
-			va->treble = ~(va->treble - 0x8) & 0xf;
-		va->treble = (va->treble << 12)+(va->treble << 8)+(va->treble << 4)+(va->treble);
-
-		break; /* VIDIOCGAUDIO case */
+		return v4l2_ctrl_query_fill_std(qc);
 	}
+	case VIDIOC_S_CTRL:
+		return tda7432_set_ctrl(client, arg);
 
-	/* Set card - scale from V4L settings to TDA7432 settings */
-	case VIDIOCSAUDIO:
-	{
-		struct video_audio *va = arg;
-
-		if(va->flags & VIDEO_AUDIO_VOLUME){
-			if(!maxvol){ /* max +20db */
-				t->volume = 0x6f - ((va->volume)/630);
-			} else {    /* max 0db   */
-				t->volume = 0x6f - ((va->volume)/829);
-			}
-
-		if (loudness)		/* Turn on the loudness bit */
-			t->volume |= TDA7432_LD_ON;
-
-			tda7432_write(client,TDA7432_VL, t->volume);
-		}
-
-		if(va->flags & VIDEO_AUDIO_BASS)
-		{
-			t->bass = va->bass >> 12;
-			if(t->bass>= 0x8)
-					t->bass = (~t->bass & 0xf) + 0x8 ;
-		}
-		if(va->flags & VIDEO_AUDIO_TREBLE)
-		{
-			t->treble= va->treble >> 12;
-			if(t->treble>= 0x8)
-					t->treble = (~t->treble & 0xf) + 0x8 ;
-		}
-		if(va->flags & (VIDEO_AUDIO_TREBLE| VIDEO_AUDIO_BASS))
-			tda7432_write(client,TDA7432_TN, 0x10 | (t->bass << 4) | t->treble );
-
-		if(va->flags & VIDEO_AUDIO_BALANCE)	{
-		if (va->balance < 32768)
-		{
-			/* shifted to left, attenuate right */
-			t->rr = (32768 - va->balance)/1057;
-			t->rf = t->rr;
-			t->lr = TDA7432_ATTEN_0DB;
-			t->lf = TDA7432_ATTEN_0DB;
-		}
-		else if(va->balance > 32769)
-		{
-			/* shifted to right, attenuate left */
-			t->lf = (va->balance - 32768)/1057;
-			t->lr = t->lf;
-			t->rr = TDA7432_ATTEN_0DB;
-			t->rf = TDA7432_ATTEN_0DB;
-		}
-		else
-		{
-			/* centered */
-			t->rr = TDA7432_ATTEN_0DB;
-			t->rf = TDA7432_ATTEN_0DB;
-			t->lf = TDA7432_ATTEN_0DB;
-			t->lr = TDA7432_ATTEN_0DB;
-		}
-		}
-
-		t->muted=(va->flags & VIDEO_AUDIO_MUTE);
-		if (t->muted)
-		{
-			/* Mute & update balance*/
-			tda7432_write(client,TDA7432_LF, t->lf | TDA7432_MUTE);
-			tda7432_write(client,TDA7432_LR, t->lr | TDA7432_MUTE);
-			tda7432_write(client,TDA7432_RF, t->rf | TDA7432_MUTE);
-			tda7432_write(client,TDA7432_RR, t->rr | TDA7432_MUTE);
-		} else {
-			tda7432_write(client,TDA7432_LF, t->lf);
-			tda7432_write(client,TDA7432_LR, t->lr);
-			tda7432_write(client,TDA7432_RF, t->rf);
-			tda7432_write(client,TDA7432_RR, t->rr);
-		}
-
-		break;
-
-	} /* end of VIDEOCSAUDIO case */
+	case VIDIOC_G_CTRL:
+		return tda7432_get_ctrl(client, arg);
 
 	} /* end of (cmd) switch */
 
