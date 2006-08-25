@@ -73,6 +73,10 @@ module_param_named(max_qp_wrs, ib_ipath_max_qp_wrs, uint,
 		   S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(max_qp_wrs, "Maximum number of QP WRs to support");
 
+unsigned int ib_ipath_max_qps = 16384;
+module_param_named(max_qps, ib_ipath_max_qps, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_qps, "Maximum number of QPs to support");
+
 unsigned int ib_ipath_max_sges = 0x60;
 module_param_named(max_sges, ib_ipath_max_sges, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(max_sges, "Maximum number of SGEs to support");
@@ -958,7 +962,7 @@ static int ipath_query_device(struct ib_device *ibdev,
 	props->sys_image_guid = dev->sys_image_guid;
 
 	props->max_mr_size = ~0ull;
-	props->max_qp = dev->qp_table.max;
+	props->max_qp = ib_ipath_max_qps;
 	props->max_qp_wr = ib_ipath_max_qp_wrs;
 	props->max_sge = ib_ipath_max_sges;
 	props->max_cq = ib_ipath_max_cqs;
@@ -1420,6 +1424,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	spin_lock_init(&idev->n_pds_lock);
 	spin_lock_init(&idev->n_ahs_lock);
 	spin_lock_init(&idev->n_cqs_lock);
+	spin_lock_init(&idev->n_qps_lock);
 	spin_lock_init(&idev->n_srqs_lock);
 	spin_lock_init(&idev->n_mcast_grps_lock);
 

@@ -482,6 +482,8 @@ struct ipath_ibdev {
 	spinlock_t n_ahs_lock;
 	u32 n_cqs_allocated;	/* number of CQs allocated for device */
 	spinlock_t n_cqs_lock;
+	u32 n_qps_allocated;	/* number of QPs allocated for device */
+	spinlock_t n_qps_lock;
 	u32 n_srqs_allocated;	/* number of SRQs allocated for device */
 	spinlock_t n_srqs_lock;
 	u32 n_mcast_grps_allocated; /* number of mcast groups allocated */
@@ -791,6 +793,8 @@ extern unsigned int ib_ipath_max_cqes;
 extern unsigned int ib_ipath_max_cqs;
 
 extern unsigned int ib_ipath_max_qp_wrs;
+
+extern unsigned int ib_ipath_max_qps;
 
 extern unsigned int ib_ipath_max_sges;
 

@@ -833,9 +833,21 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		}
 	}
 
+	spin_lock(&dev->n_qps_lock);
+	if (dev->n_qps_allocated == ib_ipath_max_qps) {
+		spin_unlock(&dev->n_qps_lock);
+		ret = ERR_PTR(-ENOMEM);
+		goto bail_ip;
+	}
+
+	dev->n_qps_allocated++;
+	spin_unlock(&dev->n_qps_lock);
+
 	ret = &qp->ibqp;
 	goto bail;
 
+bail_ip:
+	kfree(qp->ip);
 bail_rwq:
 	vfree(qp->r_rq.wq);
 bail_qp:
@@ -864,6 +876,9 @@ int ipath_destroy_qp(struct ib_qp *ibqp)
 	spin_lock_irqsave(&qp->s_lock, flags);
 	qp->state = IB_QPS_ERR;
 	spin_unlock_irqrestore(&qp->s_lock, flags);
+	spin_lock(&dev->n_qps_lock);
+	dev->n_qps_allocated--;
+	spin_unlock(&dev->n_qps_lock);
 
 	/* Stop the sending tasklet. */
 	tasklet_kill(&qp->s_task);
