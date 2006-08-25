@@ -654,6 +654,15 @@ static int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
 		val &= ~INFINIPATH_XGXS_RESET;
 		change = 1;
 	}
+	if (((val >> INFINIPATH_XGXS_RX_POL_SHIFT) &
+	     INFINIPATH_XGXS_RX_POL_MASK) != dd->ipath_rx_pol_inv ) {
+		/* need to compensate for Tx inversion in partner */
+		val &= ~(INFINIPATH_XGXS_RX_POL_MASK <<
+		         INFINIPATH_XGXS_RX_POL_SHIFT);
+		val |= dd->ipath_rx_pol_inv <<
+			INFINIPATH_XGXS_RX_POL_SHIFT;
+		change = 1;
+	}
 	if (change)
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_xgxsconfig, val);
 

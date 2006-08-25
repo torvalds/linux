@@ -503,6 +503,8 @@ struct ipath_devdata {
 	u8 ipath_pci_cacheline;
 	/* LID mask control */
 	u8 ipath_lmc;
+	/* Rx Polarity inversion (compensate for ~tx on partner) */
+	u8 ipath_rx_pol_inv;
 
 	/* local link integrity counter */
 	u32 ipath_lli_counter;
@@ -567,6 +569,7 @@ void ipath_get_faststats(unsigned long);
 int ipath_set_linkstate(struct ipath_devdata *, u8);
 int ipath_set_mtu(struct ipath_devdata *, u16);
 int ipath_set_lid(struct ipath_devdata *, u32, u8);
+int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 
 /* for use in system calls, where we want to know device type, etc. */
 #define port_fp(fp) ((struct ipath_portdata *) (fp)->private_data)

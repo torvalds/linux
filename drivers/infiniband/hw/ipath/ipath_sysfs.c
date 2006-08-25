@@ -561,6 +561,33 @@ bail:
 	return ret;
 }
 
+static ssize_t store_rx_pol_inv(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf,
+			  size_t count)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+	int ret, r;
+	u16 val;
+
+	ret = ipath_parse_ushort(buf, &val);
+	if (ret < 0)
+		goto invalid;
+
+	r = ipath_set_rx_pol_inv(dd, val);
+	if (r < 0) {
+		ret = r;
+		goto bail;
+	}
+
+	goto bail;
+invalid:
+	ipath_dev_err(dd, "attempt to set invalid Rx Polarity invert\n");
+bail:
+	return ret;
+}
+
+
 static DRIVER_ATTR(num_units, S_IRUGO, show_num_units, NULL);
 static DRIVER_ATTR(version, S_IRUGO, show_version, NULL);
 
@@ -587,6 +614,7 @@ static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
 static DEVICE_ATTR(status_str, S_IRUGO, show_status_str, NULL);
 static DEVICE_ATTR(boardversion, S_IRUGO, show_boardversion, NULL);
 static DEVICE_ATTR(unit, S_IRUGO, show_unit, NULL);
+static DEVICE_ATTR(rx_pol_inv, S_IWUSR, NULL, store_rx_pol_inv);
 
 static struct attribute *dev_attributes[] = {
 	&dev_attr_guid.attr,
@@ -601,6 +629,7 @@ static struct attribute *dev_attributes[] = {
 	&dev_attr_boardversion.attr,
 	&dev_attr_unit.attr,
 	&dev_attr_enabled.attr,
+	&dev_attr_rx_pol_inv.attr,
 	NULL
 };
 
