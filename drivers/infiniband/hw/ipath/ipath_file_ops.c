@@ -985,6 +985,13 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	 * write combining behavior we want on the PIO buffers!
 	 */
 
+#if defined(__powerpc__)
+	/* There isn't a generic way to specify writethrough mappings */
+	pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
+	pgprot_val(vma->vm_page_prot) |= _PAGE_WRITETHRU;
+	pgprot_val(vma->vm_page_prot) &= ~_PAGE_GUARDED;
+#endif
+
 	if (vma->vm_flags & VM_READ) {
 		dev_info(&dd->pcidev->dev,
 			 "Can't map piobufs as readable (flags=%lx)\n",

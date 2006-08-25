@@ -20,6 +20,7 @@ ipath_core-y := \
 	ipath_user_pages.o
 
 ipath_core-$(CONFIG_X86_64) += ipath_wc_x86_64.o
+ipath_core-$(CONFIG_PPC64) += ipath_wc_ppc64.o
 
 ib_ipath-y := \
 	ipath_cq.o \

@@ -440,7 +440,13 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	}
 	dd->ipath_pcirev = rev;
 
+#if defined(__powerpc__)
+	/* There isn't a generic way to specify writethrough mappings */
+	dd->ipath_kregbase = __ioremap(addr, len,
+		(_PAGE_NO_CACHE|_PAGE_WRITETHRU));
+#else
 	dd->ipath_kregbase = ioremap_nocache(addr, len);
+#endif
 
 	if (!dd->ipath_kregbase) {
 		ipath_dbg("Unable to map io addr %llx to kvirt, failing\n",
