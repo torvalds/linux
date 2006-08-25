@@ -28,6 +28,7 @@ struct fib6_rule
 	struct rt6key		dst;
 #ifdef CONFIG_IPV6_ROUTE_FWMARK
 	u32			fwmark;
+	u32			fwmask;
 #endif
 	u8			tclass;
 };
@@ -128,7 +129,7 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 		return 0;
 
 #ifdef CONFIG_IPV6_ROUTE_FWMARK
-	if (r->fwmark && (r->fwmark != fl->fl6_fwmark))
+	if ((r->fwmark ^ fl->fl6_fwmark) / r->fwmask)
 		return 0;
 #endif
 
@@ -141,6 +142,7 @@ static struct nla_policy fib6_rule_policy[FRA_MAX+1] __read_mostly = {
 	[FRA_SRC]	= { .minlen = sizeof(struct in6_addr) },
 	[FRA_DST]	= { .minlen = sizeof(struct in6_addr) },
 	[FRA_FWMARK]	= { .type = NLA_U32 },
+	[FRA_FWMASK]	= { .type = NLA_U32 },
 	[FRA_TABLE]	= { .type = NLA_U32 },
 };
 
@@ -174,8 +176,20 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 			   sizeof(struct in6_addr));
 
 #ifdef CONFIG_IPV6_ROUTE_FWMARK
-	if (tb[FRA_FWMARK])
+	if (tb[FRA_FWMARK]) {
 		rule6->fwmark = nla_get_u32(tb[FRA_FWMARK]);
+		if (rule6->fwmark) {
+			/*
+			 * if the mark value is non-zero,
+			 * all bits are compared by default
+			 * unless a mask is explicitly specified.
+			 */
+			rule6->fwmask = 0xFFFFFFFF;
+		}
+	}
+
+	if (tb[FRA_FWMASK])
+		rule6->fwmask = nla_get_u32(tb[FRA_FWMASK]);
 #endif
 
 	rule6->src.plen = frh->src_len;
@@ -212,6 +226,9 @@ static int fib6_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 #ifdef CONFIG_IPV6_ROUTE_FWMARK
 	if (tb[FRA_FWMARK] && (rule6->fwmark != nla_get_u32(tb[FRA_FWMARK])))
 		return 0;
+
+	if (tb[FRA_FWMASK] && (rule6->fwmask != nla_get_u32(tb[FRA_FWMASK])))
+		return 0;
 #endif
 
 	return 1;
@@ -238,6 +255,9 @@ static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 #ifdef CONFIG_IPV6_ROUTE_FWMARK
 	if (rule6->fwmark)
 		NLA_PUT_U32(skb, FRA_FWMARK, rule6->fwmark);
+
+	if (rule6->fwmask)
+		NLA_PUT_U32(skb, FRA_FWMASK, rule6->fwmask);
 #endif
 
 	return 0;
