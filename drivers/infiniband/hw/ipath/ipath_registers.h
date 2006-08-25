@@ -36,8 +36,7 @@
 
 /*
  * This file should only be included by kernel source, and by the diags.  It
- * defines the registers, and their contents, for the InfiniPath HT-400
- * chip.
+ * defines the registers, and their contents, for InfiniPath chips.
  */
 
 /*
@@ -286,7 +285,7 @@
 
 #define INFINIPATH_RT_ADDR_MASK 0xFFFFFFFFFFULL	/* 40 bits valid */
 
-/* TID entries (memory), HT400-only */
+/* TID entries (memory), HT-only */
 #define INFINIPATH_RT_VALID 0x8000000000000000ULL
 #define INFINIPATH_RT_ADDR_SHIFT 0
 #define INFINIPATH_RT_BUFSIZE_MASK 0x3FFF

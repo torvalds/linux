@@ -10,7 +10,8 @@ ib_ipath-y := \
 	ipath_eeprom.o \
 	ipath_file_ops.o \
 	ipath_fs.o \
-	ipath_ht400.o \
+	ipath_iba6110.o \
+	ipath_iba6120.o \
 	ipath_init_chip.o \
 	ipath_intr.o \
 	ipath_keys.o \
@@ -18,7 +19,6 @@ ib_ipath-y := \
 	ipath_mad.o \
 	ipath_mmap.o \
 	ipath_mr.o \
-	ipath_pe800.o \
 	ipath_qp.o \
 	ipath_rc.o \
 	ipath_ruc.o \

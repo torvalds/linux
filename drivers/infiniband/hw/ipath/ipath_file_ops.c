@@ -1110,7 +1110,7 @@ static int ipath_mmap(struct file *fp, struct vm_area_struct *vma)
 		ret = mmap_rcvegrbufs(vma, pd);
 	else if (pgaddr == (u64) pd->port_rcvhdrq_phys) {
 		/*
-		 * The rcvhdrq itself; readonly except on HT-400 (so have
+		 * The rcvhdrq itself; readonly except on HT (so have
 		 * to allow writable mapping), multiple pages, contiguous
 		 * from an i/o perspective.
 		 */
@@ -1298,14 +1298,14 @@ static int find_best_unit(struct file *fp)
 	 * This code is present to allow a knowledgeable person to
 	 * specify the layout of processes to processors before opening
 	 * this driver, and then we'll assign the process to the "closest"
-	 * HT-400 to that processor (we assume reasonable connectivity,
+	 * InfiniPath chip to that processor (we assume reasonable connectivity,
 	 * for now).  This code assumes that if affinity has been set
 	 * before this point, that at most one cpu is set; for now this
 	 * is reasonable.  I check for both cpus_empty() and cpus_full(),
 	 * in case some kernel variant sets none of the bits when no
 	 * affinity is set.  2.6.11 and 12 kernels have all present
 	 * cpus set.  Some day we'll have to fix it up further to handle
-	 * a cpu subset.  This algorithm fails for two HT-400's connected
+	 * a cpu subset.  This algorithm fails for two HT chips connected
 	 * in tunnel fashion.  Eventually this needs real topology
 	 * information.  There may be some issues with dual core numbering
 	 * as well.  This needs more work prior to release.

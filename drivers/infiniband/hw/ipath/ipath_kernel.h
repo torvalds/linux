@@ -236,7 +236,7 @@ struct ipath_devdata {
 	u64 ipath_tidtemplate;
 	/* value to write to free TIDs */
 	u64 ipath_tidinvalid;
-	/* PE-800 rcv interrupt setup */
+	/* IBA6120 rcv interrupt setup */
 	u64 ipath_rhdrhead_intr_off;
 
 	/* size of memory at ipath_kregbase */
@@ -621,10 +621,8 @@ void ipath_free_data(struct ipath_portdata *dd);
 int ipath_waitfor_mdio_cmdready(struct ipath_devdata *);
 int ipath_waitfor_complete(struct ipath_devdata *, ipath_kreg, u64, u64 *);
 u32 __iomem *ipath_getpiobuf(struct ipath_devdata *, u32 *);
-/* init PE-800-specific func */
-void ipath_init_pe800_funcs(struct ipath_devdata *);
-/* init HT-400-specific func */
-void ipath_init_ht400_funcs(struct ipath_devdata *);
+void ipath_init_iba6120_funcs(struct ipath_devdata *);
+void ipath_init_iba6110_funcs(struct ipath_devdata *);
 void ipath_get_eeprom_info(struct ipath_devdata *);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
 

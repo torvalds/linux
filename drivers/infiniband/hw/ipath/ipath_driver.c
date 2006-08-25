@@ -401,10 +401,10 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	/* setup the chip-specific functions, as early as possible. */
 	switch (ent->device) {
 	case PCI_DEVICE_ID_INFINIPATH_HT:
-		ipath_init_ht400_funcs(dd);
+		ipath_init_iba6110_funcs(dd);
 		break;
 	case PCI_DEVICE_ID_INFINIPATH_PE800:
-		ipath_init_pe800_funcs(dd);
+		ipath_init_iba6120_funcs(dd);
 		break;
 	default:
 		ipath_dev_err(dd, "Found unknown QLogic deviceid 0x%x, "
@@ -969,7 +969,8 @@ reloop:
 		 */
 		if (l == hdrqtail || (i && !(i&0xf))) {
 			u64 lval;
-			if (l == hdrqtail) /* PE-800 interrupt only on last */
+			if (l == hdrqtail)
+				/* request IBA6120 interrupt only on last */
 				lval = dd->ipath_rhdrhead_intr_off | l;
 			else
 				lval = l;
@@ -983,7 +984,7 @@ reloop:
 	}
 
 	if (!dd->ipath_rhdrhead_intr_off && !reloop) {
-		/* HT-400 workaround; we can have a race clearing chip
+		/* IBA6110 workaround; we can have a race clearing chip
 		 * interrupt with another interrupt about to be delivered,
 		 * and can clear it before it is delivered on the GPIO
 		 * workaround.  By doing the extra check here for the
