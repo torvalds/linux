@@ -144,6 +144,7 @@ extern int tuner_debug;
 #define TDA9887_DEEMPHASIS_50 		(2<<16)
 #define TDA9887_DEEMPHASIS_75 		(3<<16)
 #define TDA9887_AUTOMUTE 		(1<<18)
+#define TDA9887_GATING_18		(1<<19)
 
 #ifdef __KERNEL__
 

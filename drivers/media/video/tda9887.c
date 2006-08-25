@@ -480,6 +480,8 @@ static int tda9887_set_config(struct tuner *t, char *buf)
 	}
 	if ((t->tda9887_config & TDA9887_INTERCARRIER_NTSC) && (t->std & V4L2_STD_NTSC))
 		buf[1] &= ~cQSS;
+	if (t->tda9887_config & TDA9887_GATING_18)
+		buf[3] &= ~cGating_36;
 	return 0;
 }
 
