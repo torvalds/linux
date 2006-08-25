@@ -601,11 +601,6 @@ static struct device_node *of_irq_find_parent(struct device_node *child)
 	return p;
 }
 
-static u8 of_irq_pci_swizzle(u8 slot, u8 pin)
-{
-	return (((pin - 1) + slot) % 4) + 1;
-}
-
 /* This doesn't need to be called if you don't have any special workaround
  * flags to pass
  */
@@ -895,6 +890,12 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 }
 EXPORT_SYMBOL_GPL(of_irq_map_one);
 
+#ifdef CONFIG_PCI
+static u8 of_irq_pci_swizzle(u8 slot, u8 pin)
+{
+	return (((pin - 1) + slot) % 4) + 1;
+}
+
 int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
 {
 	struct device_node *dn, *ppnode;
@@ -971,4 +972,4 @@ int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
 	return of_irq_map_raw(ppnode, &lspec, laddr, out_irq);
 }
 EXPORT_SYMBOL_GPL(of_irq_map_pci);
-
+#endif /* CONFIG_PCI */

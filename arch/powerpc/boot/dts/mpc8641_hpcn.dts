@@ -293,6 +293,7 @@
 				f800 0 0 4 4d0 0 0
 				>;
 			i8259@4d0 {
+				linux,phandle = <4d0>;
 				clock-frequency = <0>;
 				interrupt-controller;
 				device_type = "interrupt-controller";

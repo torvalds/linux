@@ -53,6 +53,15 @@
 #define smp_read_barrier_depends()	do { } while(0)
 #endif /* CONFIG_SMP */
 
+/*
+ * This is a barrier which prevents following instructions from being
+ * started until the value of the argument x is known.  For example, if
+ * x is a variable loaded from memory, this prevents following
+ * instructions from being executed until the load has been performed.
+ */
+#define data_barrier(x)	\
+	asm volatile("twi 0,%0,0; isync" : : "r" (x) : "memory");
+
 struct task_struct;
 struct pt_regs;
 
