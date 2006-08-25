@@ -1150,6 +1150,7 @@ static unsigned int ipath_poll(struct file *fp,
 	struct ipath_portdata *pd;
 	u32 head, tail;
 	int bit;
+	unsigned pollflag = 0;
 	struct ipath_devdata *dd;
 
 	pd = port_fp(fp);
@@ -1186,9 +1187,12 @@ static unsigned int ipath_poll(struct file *fp,
 			clear_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag);
 			pd->port_rcvwait_to++;
 		}
+		else
+			pollflag = POLLIN | POLLRDNORM;
 	}
 	else {
 		/* it's already happened; don't do wait_event overhead */
+		pollflag = POLLIN | POLLRDNORM;
 		pd->port_rcvnowait++;
 	}
 
@@ -1196,7 +1200,7 @@ static unsigned int ipath_poll(struct file *fp,
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
 
-	return 0;
+	return pollflag;
 }
 
 static int try_alloc_port(struct ipath_devdata *dd, int port,
