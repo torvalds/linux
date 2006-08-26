@@ -85,6 +85,7 @@ struct usb_hcd {	/* usb_bus.hcpriv points to this */
 	unsigned		uses_new_polling:1;
 	unsigned		poll_rh:1;	/* poll for rh status? */
 	unsigned		poll_pending:1;	/* status has changed? */
+	unsigned		wireless:1;	/* Wireless USB HCD */
 
 	int			irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */

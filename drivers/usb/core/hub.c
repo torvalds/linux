@@ -1331,6 +1331,18 @@ static int hub_port_status(struct usb_hub *hub, int port1,
 	return ret;
 }
 
+
+/* Returns 1 if @hub is a WUSB root hub, 0 otherwise */
+static unsigned hub_is_wusb(struct usb_hub *hub)
+{
+	struct usb_hcd *hcd;
+	if (hub->hdev->parent != NULL)  /* not a root hub? */
+		return 0;
+	hcd = container_of(hub->hdev->bus, struct usb_hcd, self);
+	return hcd->wireless;
+}
+
+
 #define PORT_RESET_TRIES	5
 #define SET_ADDRESS_TRIES	2
 #define GET_DESCRIPTOR_TRIES	2
@@ -1371,7 +1383,9 @@ static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 		/* if we`ve finished resetting, then break out of the loop */
 		if (!(portstatus & USB_PORT_STAT_RESET) &&
 		    (portstatus & USB_PORT_STAT_ENABLE)) {
-			if (portstatus & USB_PORT_STAT_HIGH_SPEED)
+			if (hub_is_wusb(hub))
+				udev->speed = USB_SPEED_VARIABLE;
+			else if (portstatus & USB_PORT_STAT_HIGH_SPEED)
 				udev->speed = USB_SPEED_HIGH;
 			else if (portstatus & USB_PORT_STAT_LOW_SPEED)
 				udev->speed = USB_SPEED_LOW;
