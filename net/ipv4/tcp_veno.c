@@ -212,7 +212,7 @@ static struct tcp_congestion_ops tcp_veno = {
 
 static int __init tcp_veno_register(void)
 {
-	BUG_ON(sizeof(struct veno) > ICSK_CA_PRIV_SIZE);
+	BUILD_BUG_ON(sizeof(struct veno) > ICSK_CA_PRIV_SIZE);
 	tcp_register_congestion_control(&tcp_veno);
 	return 0;
 }
