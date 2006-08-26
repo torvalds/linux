@@ -1135,7 +1135,8 @@ struct v4l2_sliced_vbi_cap
 				 (equals frame lines 313-336 for 625 line video
 				  standards, 263-286 for 525 line standards) */
 	__u16   service_lines[2][24];
-	__u32   reserved[4];    /* must be 0 */
+	enum v4l2_buf_type type;
+	__u32   reserved[3];    /* must be 0 */
 };
 
 struct v4l2_sliced_vbi_data
