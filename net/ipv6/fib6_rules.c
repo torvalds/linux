@@ -129,7 +129,7 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 		return 0;
 
 #ifdef CONFIG_IPV6_ROUTE_FWMARK
-	if ((r->fwmark ^ fl->fl6_fwmark) / r->fwmask)
+	if ((r->fwmark ^ fl->fl6_fwmark) & r->fwmask)
 		return 0;
 #endif
 
@@ -256,7 +256,7 @@ static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	if (rule6->fwmark)
 		NLA_PUT_U32(skb, FRA_FWMARK, rule6->fwmark);
 
-	if (rule6->fwmask)
+	if (rule6->fwmask || rule6->fwmark)
 		NLA_PUT_U32(skb, FRA_FWMASK, rule6->fwmask);
 #endif
 
