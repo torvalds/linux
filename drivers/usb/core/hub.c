@@ -2060,8 +2060,13 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
   
 	/* USB 2.0 section 5.5.3 talks about ep0 maxpacket ...
 	 * it's fixed size except for full speed devices.
+	 * For Wireless USB devices, ep0 max packet is always 512 (tho
+	 * reported as 0xff in the device descriptor). WUSB1.0[4.8.1].
 	 */
 	switch (udev->speed) {
+	case USB_SPEED_VARIABLE:	/* fixed at 512 */
+		udev->ep0.desc.wMaxPacketSize = __constant_cpu_to_le16(512);
+		break;
 	case USB_SPEED_HIGH:		/* fixed at 64 */
 		udev->ep0.desc.wMaxPacketSize = __constant_cpu_to_le16(64);
 		break;
@@ -2131,6 +2136,8 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 			 * down tremendously by NAKing the unexpectedly
 			 * early status stage.  Also, retry on all errors;
 			 * some devices are flakey.
+			 * 255 is for WUSB devices, we actually need to use 512.
+			 * WUSB1.0[4.8.1].
 			 */
 			for (j = 0; j < 3; ++j) {
 				buf->bMaxPacketSize0 = 0;
@@ -2140,7 +2147,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 					buf, GET_DESCRIPTOR_BUFSIZE,
 					(i ? USB_CTRL_GET_TIMEOUT : 1000));
 				switch (buf->bMaxPacketSize0) {
-				case 8: case 16: case 32: case 64:
+				case 8: case 16: case 32: case 64: case 255:
 					if (buf->bDescriptorType ==
 							USB_DT_DEVICE) {
 						r = 0;
@@ -2214,7 +2221,8 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	if (retval)
 		goto fail;
 
-	i = udev->descriptor.bMaxPacketSize0;
+	i = udev->descriptor.bMaxPacketSize0 == 0xff?
+	    512 : udev->descriptor.bMaxPacketSize0;
 	if (le16_to_cpu(udev->ep0.desc.wMaxPacketSize) != i) {
 		if (udev->speed != USB_SPEED_FULL ||
 				!(i == 8 || i == 16 || i == 32 || i == 64)) {
