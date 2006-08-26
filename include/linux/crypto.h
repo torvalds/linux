@@ -43,6 +43,12 @@
 #define CRYPTO_ALG_ASYNC		0x00000080
 
 /*
+ * Set this bit if and only if the algorithm requires another algorithm of
+ * the same type to handle corner cases.
+ */
+#define CRYPTO_ALG_NEED_FALLBACK	0x00000100
+
+/*
  * Transform masks and values (for crt_flags).
  */
 #define CRYPTO_TFM_MODE_MASK		0x000000ff
