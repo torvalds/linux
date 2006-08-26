@@ -2028,6 +2028,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	int			i, j, retval;
 	unsigned		delay = HUB_SHORT_RESET_TIME;
 	enum usb_device_speed	oldspeed = udev->speed;
+	char 			*speed, *type;
 
 	/* root hub ports have a slightly longer reset period
 	 * (from USB 2.0 spec, section 7.1.7.5)
@@ -2084,17 +2085,21 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		goto fail;
 	}
  
+	type = "";
+	switch (udev->speed) {
+	case USB_SPEED_LOW:	speed = "low";	break;
+	case USB_SPEED_FULL:	speed = "full";	break;
+	case USB_SPEED_HIGH:	speed = "high";	break;
+	case USB_SPEED_VARIABLE:
+				speed = "variable";
+				type = "Wireless ";
+				break;
+	default: 		speed = "?";	break;
+	}
 	dev_info (&udev->dev,
-			"%s %s speed USB device using %s and address %d\n",
-			(udev->config) ? "reset" : "new",
-			({ char *speed; switch (udev->speed) {
-			case USB_SPEED_LOW:	speed = "low";	break;
-			case USB_SPEED_FULL:	speed = "full";	break;
-			case USB_SPEED_HIGH:	speed = "high";	break;
-			default: 		speed = "?";	break;
-			}; speed;}),
-			udev->bus->controller->driver->name,
-			udev->devnum);
+		  "%s %s speed %sUSB device using %s and address %d\n",
+		  (udev->config) ? "reset" : "new", speed, type,
+		  udev->bus->controller->driver->name, udev->devnum);
 
 	/* Set up TT records, if needed  */
 	if (hdev->tt) {
