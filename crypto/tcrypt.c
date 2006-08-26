@@ -749,7 +749,7 @@ static void test_deflate(void)
 {
 	unsigned int i;
 	char result[COMP_BUF_SIZE];
-	struct crypto_tfm *tfm;
+	struct crypto_comp *tfm;
 	struct comp_testvec *tv;
 	unsigned int tsize;
 
@@ -821,7 +821,7 @@ static void test_deflate(void)
 		       ilen, dlen);
 	}
 out:
-	crypto_free_tfm(tfm);
+	crypto_free_comp(tfm);
 }
 
 static void test_available(void)
@@ -830,8 +830,8 @@ static void test_available(void)
 
 	while (*name) {
 		printk("alg %s ", *name);
-		printk((crypto_alg_available(*name, 0)) ?
-			"found\n" : "not found\n");
+		printk(crypto_has_alg(*name, 0, CRYPTO_ALG_ASYNC) ?
+		       "found\n" : "not found\n");
 		name++;
 	}
 }

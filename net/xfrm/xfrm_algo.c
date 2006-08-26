@@ -363,8 +363,8 @@ struct xfrm_algo_desc *xfrm_calg_get_byid(int alg_id)
 EXPORT_SYMBOL_GPL(xfrm_calg_get_byid);
 
 static struct xfrm_algo_desc *xfrm_get_byname(struct xfrm_algo_desc *list,
-					      int entries, char *name,
-					      int probe)
+					      int entries, u32 type, u32 mask,
+					      char *name, int probe)
 {
 	int i, status;
 
@@ -382,7 +382,7 @@ static struct xfrm_algo_desc *xfrm_get_byname(struct xfrm_algo_desc *list,
 		if (!probe)
 			break;
 
-		status = crypto_alg_available(name, 0);
+		status = crypto_has_alg(name, type, mask | CRYPTO_ALG_ASYNC);
 		if (!status)
 			break;
 
@@ -394,19 +394,25 @@ static struct xfrm_algo_desc *xfrm_get_byname(struct xfrm_algo_desc *list,
 
 struct xfrm_algo_desc *xfrm_aalg_get_byname(char *name, int probe)
 {
-	return xfrm_get_byname(aalg_list, aalg_entries(), name, probe);
+	return xfrm_get_byname(aalg_list, aalg_entries(),
+			       CRYPTO_ALG_TYPE_HASH, CRYPTO_ALG_TYPE_HASH_MASK,
+			       name, probe);
 }
 EXPORT_SYMBOL_GPL(xfrm_aalg_get_byname);
 
 struct xfrm_algo_desc *xfrm_ealg_get_byname(char *name, int probe)
 {
-	return xfrm_get_byname(ealg_list, ealg_entries(), name, probe);
+	return xfrm_get_byname(ealg_list, ealg_entries(),
+			       CRYPTO_ALG_TYPE_BLKCIPHER, CRYPTO_ALG_TYPE_MASK,
+			       name, probe);
 }
 EXPORT_SYMBOL_GPL(xfrm_ealg_get_byname);
 
 struct xfrm_algo_desc *xfrm_calg_get_byname(char *name, int probe)
 {
-	return xfrm_get_byname(calg_list, calg_entries(), name, probe);
+	return xfrm_get_byname(calg_list, calg_entries(),
+			       CRYPTO_ALG_TYPE_COMPRESS, CRYPTO_ALG_TYPE_MASK,
+			       name, probe);
 }
 EXPORT_SYMBOL_GPL(xfrm_calg_get_byname);
 
@@ -441,19 +447,22 @@ void xfrm_probe_algs(void)
 	BUG_ON(in_softirq());
 
 	for (i = 0; i < aalg_entries(); i++) {
-		status = crypto_alg_available(aalg_list[i].name, 0);
+		status = crypto_has_hash(aalg_list[i].name, 0,
+					 CRYPTO_ALG_ASYNC);
 		if (aalg_list[i].available != status)
 			aalg_list[i].available = status;
 	}
 	
 	for (i = 0; i < ealg_entries(); i++) {
-		status = crypto_alg_available(ealg_list[i].name, 0);
+		status = crypto_has_blkcipher(ealg_list[i].name, 0,
+					      CRYPTO_ALG_ASYNC);
 		if (ealg_list[i].available != status)
 			ealg_list[i].available = status;
 	}
 	
 	for (i = 0; i < calg_entries(); i++) {
-		status = crypto_alg_available(calg_list[i].name, 0);
+		status = crypto_has_comp(calg_list[i].name, 0,
+					 CRYPTO_ALG_ASYNC);
 		if (calg_list[i].available != status)
 			calg_list[i].available = status;
 	}

@@ -928,6 +928,11 @@ static inline int crypto_has_comp(const char *alg_name, u32 type, u32 mask)
 	return crypto_has_alg(alg_name, type, mask);
 }
 
+static inline const char *crypto_comp_name(struct crypto_comp *tfm)
+{
+	return crypto_tfm_alg_name(crypto_comp_tfm(tfm));
+}
+
 static inline struct compress_tfm *crypto_comp_crt(struct crypto_comp *tfm)
 {
 	return &crypto_comp_tfm(tfm)->crt_compress;

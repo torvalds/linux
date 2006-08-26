@@ -26,13 +26,13 @@ static int __init padlock_init(void)
 {
 	int success = 0;
 
-	if (crypto_alg_available("aes-padlock", 0))
+	if (crypto_has_cipher("aes-padlock", 0, 0))
 		success++;
 
-	if (crypto_alg_available("sha1-padlock", 0))
+	if (crypto_has_hash("sha1-padlock", 0, 0))
 		success++;
 
-	if (crypto_alg_available("sha256-padlock", 0))
+	if (crypto_has_hash("sha256-padlock", 0, 0))
 		success++;
 
 	if (!success) {
