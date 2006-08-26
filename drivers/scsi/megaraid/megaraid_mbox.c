@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_mbox.c
- * Version	: v2.20.4.8 (Apr 11 2006)
+ * Version	: v2.20.4.9 (Jul 16 2006)
  *
  * Authors:
  * 	Atul Mukker		<Atul.Mukker@lsil.com>
@@ -720,6 +720,7 @@ megaraid_init_mbox(adapter_t *adapter)
 	struct pci_dev		*pdev;
 	mraid_device_t		*raid_dev;
 	int			i;
+	uint32_t		magic64;
 
 
 	adapter->ito	= MBOX_TIMEOUT;
@@ -863,12 +864,33 @@ megaraid_init_mbox(adapter_t *adapter)
 
 	// Set the DMA mask to 64-bit. All supported controllers as capable of
 	// DMA in this range
-	if (pci_set_dma_mask(adapter->pdev, DMA_64BIT_MASK) != 0) {
+	pci_read_config_dword(adapter->pdev, PCI_CONF_AMISIG64, &magic64);
 
-		con_log(CL_ANN, (KERN_WARNING
-			"megaraid: could not set DMA mask for 64-bit.\n"));
+	if (((magic64 == HBA_SIGNATURE_64_BIT) &&
+		((adapter->pdev->subsystem_device !=
+		PCI_SUBSYS_ID_MEGARAID_SATA_150_6) ||
+		(adapter->pdev->subsystem_device !=
+		PCI_SUBSYS_ID_MEGARAID_SATA_150_4))) ||
+		(adapter->pdev->vendor == PCI_VENDOR_ID_LSI_LOGIC &&
+		adapter->pdev->device == PCI_DEVICE_ID_VERDE) ||
+		(adapter->pdev->vendor == PCI_VENDOR_ID_LSI_LOGIC &&
+		adapter->pdev->device == PCI_DEVICE_ID_DOBSON) ||
+		(adapter->pdev->vendor == PCI_VENDOR_ID_LSI_LOGIC &&
+		adapter->pdev->device == PCI_DEVICE_ID_LINDSAY) ||
+		(adapter->pdev->vendor == PCI_VENDOR_ID_DELL &&
+		adapter->pdev->device == PCI_DEVICE_ID_PERC4_DI_EVERGLADES) ||
+		(adapter->pdev->vendor == PCI_VENDOR_ID_DELL &&
+		adapter->pdev->device == PCI_DEVICE_ID_PERC4E_DI_KOBUK)) {
+		if (pci_set_dma_mask(adapter->pdev, DMA_64BIT_MASK)) {
+			con_log(CL_ANN, (KERN_WARNING
+				"megaraid: DMA mask for 64-bit failed\n"));
 
-		goto out_free_sysfs_res;
+			if (pci_set_dma_mask (adapter->pdev, DMA_32BIT_MASK)) {
+				con_log(CL_ANN, (KERN_WARNING
+					"megaraid: 32-bit DMA mask failed\n"));
+				goto out_free_sysfs_res;
+			}
+		}
 	}
 
 	// setup tasklet for DPC
@@ -1620,6 +1642,14 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 					" [virtual] for logical drives\n"));
 
 				rdev->last_disp |= (1L << SCP2CHANNEL(scp));
+			}
+
+			if (scp->cmnd[1] & MEGA_SCSI_INQ_EVPD) {
+				scp->sense_buffer[0] = 0x70;
+				scp->sense_buffer[2] = ILLEGAL_REQUEST;
+				scp->sense_buffer[12] = MEGA_INVALID_FIELD_IN_CDB;
+				scp->result = CHECK_CONDITION << 1;
+				return NULL;
 			}
 
 			/* Fall through */

@@ -164,6 +164,11 @@ zfcp_ccw_set_online(struct ccw_device *ccw_device)
 	retval = zfcp_adapter_scsi_register(adapter);
 	if (retval)
 		goto out_scsi_register;
+
+	/* initialize request counter */
+	BUG_ON(!zfcp_reqlist_isempty(adapter));
+	adapter->req_no = 0;
+
 	zfcp_erp_modify_adapter_status(adapter, ZFCP_STATUS_COMMON_RUNNING,
 				       ZFCP_SET);
 	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED);

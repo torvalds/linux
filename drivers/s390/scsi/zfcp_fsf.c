@@ -49,7 +49,6 @@ static int zfcp_fsf_fsfstatus_qual_eval(struct zfcp_fsf_req *);
 static void zfcp_fsf_link_down_info_eval(struct zfcp_adapter *,
 	struct fsf_link_down_info *);
 static int zfcp_fsf_req_dispatch(struct zfcp_fsf_req *);
-static void zfcp_fsf_req_dismiss(struct zfcp_fsf_req *);
 
 /* association between FSF command and FSF QTCB type */
 static u32 fsf_qtcb_type[] = {
@@ -146,47 +145,48 @@ zfcp_fsf_req_free(struct zfcp_fsf_req *fsf_req)
 		kfree(fsf_req);
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- *
- * note: qdio queues shall be down (no ongoing inbound processing)
+/**
+ * zfcp_fsf_req_dismiss - dismiss a single fsf request
  */
-int
-zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
+static void zfcp_fsf_req_dismiss(struct zfcp_adapter *adapter,
+				 struct zfcp_fsf_req *fsf_req,
+				 unsigned int counter)
 {
-	struct zfcp_fsf_req *fsf_req, *tmp;
-	unsigned long flags;
-	LIST_HEAD(remove_queue);
+	u64 dbg_tmp[2];
 
-	spin_lock_irqsave(&adapter->fsf_req_list_lock, flags);
-	list_splice_init(&adapter->fsf_req_list_head, &remove_queue);
-	atomic_set(&adapter->fsf_reqs_active, 0);
-	spin_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
-
-	list_for_each_entry_safe(fsf_req, tmp, &remove_queue, list) {
-		list_del(&fsf_req->list);
-		zfcp_fsf_req_dismiss(fsf_req);
-	}
-
-	return 0;
-}
-
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
-static void
-zfcp_fsf_req_dismiss(struct zfcp_fsf_req *fsf_req)
-{
+	dbg_tmp[0] = (u64) atomic_read(&adapter->reqs_active);
+	dbg_tmp[1] = (u64) counter;
+	debug_event(adapter->erp_dbf, 4, (void *) dbg_tmp, 16);
+	list_del(&fsf_req->list);
 	fsf_req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
 	zfcp_fsf_req_complete(fsf_req);
+}
+
+/**
+ * zfcp_fsf_req_dismiss_all - dismiss all remaining fsf requests
+ */
+int zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
+{
+	struct zfcp_fsf_req *request, *tmp;
+	unsigned long flags;
+	unsigned int i, counter;
+
+	spin_lock_irqsave(&adapter->req_list_lock, flags);
+	atomic_set(&adapter->reqs_active, 0);
+	for (i=0; i<REQUEST_LIST_SIZE; i++) {
+		if (list_empty(&adapter->req_list[i]))
+			continue;
+
+		counter = 0;
+		list_for_each_entry_safe(request, tmp,
+					 &adapter->req_list[i], list) {
+			zfcp_fsf_req_dismiss(adapter, request, counter);
+			counter++;
+		}
+	}
+	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
+
+	return 0;
 }
 
 /*
@@ -4592,12 +4592,14 @@ static inline void
 zfcp_fsf_req_qtcb_init(struct zfcp_fsf_req *fsf_req)
 {
 	if (likely(fsf_req->qtcb != NULL)) {
-		fsf_req->qtcb->prefix.req_seq_no = fsf_req->adapter->fsf_req_seq_no;
-		fsf_req->qtcb->prefix.req_id = (unsigned long)fsf_req;
+		fsf_req->qtcb->prefix.req_seq_no =
+			fsf_req->adapter->fsf_req_seq_no;
+		fsf_req->qtcb->prefix.req_id = fsf_req->req_id;
 		fsf_req->qtcb->prefix.ulp_info = ZFCP_ULP_INFO_VERSION;
-		fsf_req->qtcb->prefix.qtcb_type = fsf_qtcb_type[fsf_req->fsf_command];
+		fsf_req->qtcb->prefix.qtcb_type =
+			fsf_qtcb_type[fsf_req->fsf_command];
 		fsf_req->qtcb->prefix.qtcb_version = ZFCP_QTCB_VERSION;
-		fsf_req->qtcb->header.req_handle = (unsigned long)fsf_req;
+		fsf_req->qtcb->header.req_handle = fsf_req->req_id;
 		fsf_req->qtcb->header.fsf_command = fsf_req->fsf_command;
 	}
 }
@@ -4654,6 +4656,7 @@ zfcp_fsf_req_create(struct zfcp_adapter *adapter, u32 fsf_cmd, int req_flags,
 {
 	volatile struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *fsf_req = NULL;
+	unsigned long flags;
 	int ret = 0;
 	struct zfcp_qdio_queue *req_queue = &adapter->request_queue;
 
@@ -4668,6 +4671,12 @@ zfcp_fsf_req_create(struct zfcp_adapter *adapter, u32 fsf_cmd, int req_flags,
 
 	fsf_req->adapter = adapter;
 	fsf_req->fsf_command = fsf_cmd;
+	INIT_LIST_HEAD(&fsf_req->list);
+	
+	/* unique request id */
+	spin_lock_irqsave(&adapter->req_list_lock, flags);
+	fsf_req->req_id = adapter->req_no++;
+	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
 
         zfcp_fsf_req_qtcb_init(fsf_req);
 
@@ -4707,7 +4716,7 @@ zfcp_fsf_req_create(struct zfcp_adapter *adapter, u32 fsf_cmd, int req_flags,
 	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
 
 	/* setup common SBALE fields */
-	sbale[0].addr = fsf_req;
+	sbale[0].addr = (void *) fsf_req->req_id;
 	sbale[0].flags |= SBAL_FLAGS0_COMMAND;
 	if (likely(fsf_req->qtcb != NULL)) {
 		sbale[1].addr = (void *) fsf_req->qtcb;
@@ -4747,7 +4756,7 @@ zfcp_fsf_req_send(struct zfcp_fsf_req *fsf_req, struct timer_list *timer)
 	volatile struct qdio_buffer_element *sbale;
 	int inc_seq_no;
 	int new_distance_from_int;
-	unsigned long flags;
+	u64 dbg_tmp[2];
 	int retval = 0;
 
 	adapter = fsf_req->adapter;
@@ -4761,10 +4770,10 @@ zfcp_fsf_req_send(struct zfcp_fsf_req *fsf_req, struct timer_list *timer)
 	ZFCP_HEX_DUMP(ZFCP_LOG_LEVEL_TRACE, (char *) sbale[1].addr,
 		      sbale[1].length);
 
-	/* put allocated FSF request at list tail */
-	spin_lock_irqsave(&adapter->fsf_req_list_lock, flags);
-	list_add_tail(&fsf_req->list, &adapter->fsf_req_list_head);
-	spin_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
+	/* put allocated FSF request into hash table */
+	spin_lock(&adapter->req_list_lock);
+	zfcp_reqlist_add(adapter, fsf_req);
+	spin_unlock(&adapter->req_list_lock);
 
 	inc_seq_no = (fsf_req->qtcb != NULL);
 
@@ -4803,6 +4812,10 @@ zfcp_fsf_req_send(struct zfcp_fsf_req *fsf_req, struct timer_list *timer)
 			 QDIO_FLAG_SYNC_OUTPUT,
 			 0, fsf_req->sbal_first, fsf_req->sbal_number, NULL);
 
+	dbg_tmp[0] = (unsigned long) sbale[0].addr;
+	dbg_tmp[1] = (u64) retval;
+	debug_event(adapter->erp_dbf, 4, (void *) dbg_tmp, 16);
+
 	if (unlikely(retval)) {
 		/* Queues are down..... */
 		retval = -EIO;
@@ -4812,22 +4825,17 @@ zfcp_fsf_req_send(struct zfcp_fsf_req *fsf_req, struct timer_list *timer)
 		 */
 		if (timer)
 			del_timer(timer);
-		spin_lock_irqsave(&adapter->fsf_req_list_lock, flags);
-		list_del(&fsf_req->list);
-		spin_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
-		/*
-		 * adjust the number of free SBALs in request queue as well as
-		 * position of first one
-		 */
+		spin_lock(&adapter->req_list_lock);
+		zfcp_reqlist_remove(adapter, fsf_req->req_id);
+		spin_unlock(&adapter->req_list_lock);
+		/* undo changes in request queue made for this request */
 		zfcp_qdio_zero_sbals(req_queue->buffer,
 				     fsf_req->sbal_first, fsf_req->sbal_number);
 		atomic_add(fsf_req->sbal_number, &req_queue->free_count);
-		req_queue->free_index -= fsf_req->sbal_number;	 /* increase */
+		req_queue->free_index -= fsf_req->sbal_number;
 		req_queue->free_index += QDIO_MAX_BUFFERS_PER_Q;
 		req_queue->free_index %= QDIO_MAX_BUFFERS_PER_Q; /* wrap */
-		ZFCP_LOG_DEBUG
-			("error: do_QDIO failed. Buffers could not be enqueued "
-			 "to request queue.\n");
+		zfcp_erp_adapter_reopen(adapter, 0);
 	} else {
 		req_queue->distance_from_int = new_distance_from_int;
 		/*
@@ -4843,7 +4851,7 @@ zfcp_fsf_req_send(struct zfcp_fsf_req *fsf_req, struct timer_list *timer)
 			adapter->fsf_req_seq_no++;
 
 		/* count FSF requests pending */
-		atomic_inc(&adapter->fsf_reqs_active);
+		atomic_inc(&adapter->reqs_active);
 	}
 	return retval;
 }
