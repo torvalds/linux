@@ -169,8 +169,9 @@ enum v4l2_chip_ident {
 #define	VIDIOC_INT_S_REGISTER 		_IOR ('d', 100, struct v4l2_register)
 #define	VIDIOC_INT_G_REGISTER 		_IOWR('d', 101, struct v4l2_register)
 
-/* Reset the I2C chip */
-#define VIDIOC_INT_RESET            	_IO  ('d', 102)
+/* Generic reset command. The argument selects which subsystems to reset.
+   Passing 0 will always reset the whole chip. */
+#define VIDIOC_INT_RESET            	_IOW ('d', 102, u32)
 
 /* Set the frequency (in Hz) of the audio clock output.
    Used to slave an audio processor to the video decoder, ensuring that audio
