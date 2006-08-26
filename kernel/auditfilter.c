@@ -404,6 +404,7 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		case AUDIT_PERS:
 		case AUDIT_ARCH:
 		case AUDIT_MSGTYPE:
+		case AUDIT_PPID:
 		case AUDIT_DEVMAJOR:
 		case AUDIT_DEVMINOR:
 		case AUDIT_EXIT:
