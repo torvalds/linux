@@ -218,7 +218,7 @@ static void aircable_send(struct usb_serial_port *port)
 
 	buf = kzalloc(count + HCI_HEADER_LENGTH, GFP_ATOMIC);
 	if (!buf) {
-		err("%s- kzalloc(%Zd) failed.", __FUNCTION__,
+		err("%s- kzalloc(%d) failed.", __FUNCTION__,
 		    count + HCI_HEADER_LENGTH);
 		return;
 	}
@@ -280,7 +280,7 @@ static void aircable_read(void *params)
 
 	tty_prepare_flip_string(tty, &data, count);
 	if (!data){
-		err("%s- kzalloc(%Zd) failed.", __FUNCTION__, count);
+		err("%s- kzalloc(%d) failed.", __FUNCTION__, count);
 		return;
 	}
 
