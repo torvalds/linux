@@ -236,8 +236,14 @@ int crypto_unregister_alg(struct crypto_alg *alg);
  */
 #ifdef CONFIG_CRYPTO
 int crypto_alg_available(const char *name, u32 flags);
+int crypto_has_alg(const char *name, u32 type, u32 mask);
 #else
 static inline int crypto_alg_available(const char *name, u32 flags)
+{
+	return 0;
+}
+
+static inline int crypto_has_alg(const char *name, u32 type, u32 mask)
 {
 	return 0;
 }
@@ -329,6 +335,7 @@ struct crypto_tfm {
 };
 
 #define crypto_cipher crypto_tfm
+#define crypto_comp crypto_tfm
 
 struct crypto_blkcipher {
 	struct crypto_tfm base;
@@ -485,6 +492,15 @@ static inline void crypto_free_blkcipher(struct crypto_blkcipher *tfm)
 	crypto_free_tfm(crypto_blkcipher_tfm(tfm));
 }
 
+static inline int crypto_has_blkcipher(const char *alg_name, u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return crypto_has_alg(alg_name, type, mask);
+}
+
 static inline const char *crypto_blkcipher_name(struct crypto_blkcipher *tfm)
 {
 	return crypto_tfm_alg_name(crypto_blkcipher_tfm(tfm));
@@ -620,6 +636,15 @@ static inline void crypto_free_cipher(struct crypto_cipher *tfm)
 	crypto_free_tfm(crypto_cipher_tfm(tfm));
 }
 
+static inline int crypto_has_cipher(const char *alg_name, u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_CIPHER;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return crypto_has_alg(alg_name, type, mask);
+}
+
 static inline struct cipher_tfm *crypto_cipher_crt(struct crypto_cipher *tfm)
 {
 	return &crypto_cipher_tfm(tfm)->crt_cipher;
@@ -716,6 +741,15 @@ static inline struct crypto_tfm *crypto_hash_tfm(struct crypto_hash *tfm)
 static inline void crypto_free_hash(struct crypto_hash *tfm)
 {
 	crypto_free_tfm(crypto_hash_tfm(tfm));
+}
+
+static inline int crypto_has_hash(const char *alg_name, u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_HASH;
+	mask |= CRYPTO_ALG_TYPE_HASH_MASK;
+
+	return crypto_has_alg(alg_name, type, mask);
 }
 
 static inline struct hash_tfm *crypto_hash_crt(struct crypto_hash *tfm)
@@ -853,20 +887,64 @@ static inline void crypto_cipher_get_iv(struct crypto_tfm *tfm,
 	memcpy(dst, tfm->crt_cipher.cit_iv, len);
 }
 
-static inline int crypto_comp_compress(struct crypto_tfm *tfm,
+static inline struct crypto_comp *__crypto_comp_cast(struct crypto_tfm *tfm)
+{
+	return (struct crypto_comp *)tfm;
+}
+
+static inline struct crypto_comp *crypto_comp_cast(struct crypto_tfm *tfm)
+{
+	BUG_ON((crypto_tfm_alg_type(tfm) ^ CRYPTO_ALG_TYPE_COMPRESS) &
+	       CRYPTO_ALG_TYPE_MASK);
+	return __crypto_comp_cast(tfm);
+}
+
+static inline struct crypto_comp *crypto_alloc_comp(const char *alg_name,
+						    u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_COMPRESS;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return __crypto_comp_cast(crypto_alloc_base(alg_name, type, mask));
+}
+
+static inline struct crypto_tfm *crypto_comp_tfm(struct crypto_comp *tfm)
+{
+	return tfm;
+}
+
+static inline void crypto_free_comp(struct crypto_comp *tfm)
+{
+	crypto_free_tfm(crypto_comp_tfm(tfm));
+}
+
+static inline int crypto_has_comp(const char *alg_name, u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_COMPRESS;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return crypto_has_alg(alg_name, type, mask);
+}
+
+static inline struct compress_tfm *crypto_comp_crt(struct crypto_comp *tfm)
+{
+	return &crypto_comp_tfm(tfm)->crt_compress;
+}
+
+static inline int crypto_comp_compress(struct crypto_comp *tfm,
                                        const u8 *src, unsigned int slen,
                                        u8 *dst, unsigned int *dlen)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_COMPRESS);
-	return tfm->crt_compress.cot_compress(tfm, src, slen, dst, dlen);
+	return crypto_comp_crt(tfm)->cot_compress(tfm, src, slen, dst, dlen);
 }
 
-static inline int crypto_comp_decompress(struct crypto_tfm *tfm,
+static inline int crypto_comp_decompress(struct crypto_comp *tfm,
                                          const u8 *src, unsigned int slen,
                                          u8 *dst, unsigned int *dlen)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_COMPRESS);
-	return tfm->crt_compress.cot_decompress(tfm, src, slen, dst, dlen);
+	return crypto_comp_crt(tfm)->cot_decompress(tfm, src, slen, dst, dlen);
 }
 
 #endif	/* _LINUX_CRYPTO_H */
