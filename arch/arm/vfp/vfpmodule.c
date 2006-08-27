@@ -131,7 +131,7 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
 
 	pr_debug("VFP: raising exceptions %08x\n", exceptions);
 
-	if (exceptions == (u32)-1) {
+	if (exceptions == VFP_EXCEPTION_ERROR) {
 		vfp_panic("unhandled bounce");
 		vfp_raise_sigfpe(0, regs);
 		return;
@@ -170,7 +170,7 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
  */
 static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
 {
-	u32 exceptions = (u32)-1;
+	u32 exceptions = VFP_EXCEPTION_ERROR;
 
 	pr_debug("VFP: emulate: INST=0x%08x SCR=0x%08x\n", inst, fpscr);
 
