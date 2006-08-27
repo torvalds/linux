@@ -397,7 +397,7 @@ static struct task_struct * futex_find_get_task(pid_t pid)
 		p = NULL;
 		goto out_unlock;
 	}
-	if (p->state == EXIT_ZOMBIE || p->exit_state == EXIT_ZOMBIE) {
+	if (p->exit_state != 0) {
 		p = NULL;
 		goto out_unlock;
 	}
