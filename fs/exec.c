@@ -751,7 +751,7 @@ no_thread_group:
 
 		write_lock_irq(&tasklist_lock);
 		spin_lock(&oldsighand->siglock);
-		spin_lock(&newsighand->siglock);
+		spin_lock_nested(&newsighand->siglock, SINGLE_DEPTH_NESTING);
 
 		rcu_assign_pointer(current->sighand, newsighand);
 		recalc_sigpending();
