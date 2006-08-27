@@ -30,12 +30,20 @@ extern struct node node_devices[];
 
 extern int register_node(struct node *, int, struct node *);
 extern void unregister_node(struct node *node);
+#ifdef CONFIG_NUMA
 extern int register_one_node(int nid);
 extern void unregister_one_node(int nid);
-#ifdef CONFIG_NUMA
 extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
 extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
 #else
+static inline int register_one_node(int nid)
+{
+	return 0;
+}
+static inline int unregister_one_node(int nid)
+{
+	return 0;
+}
 static inline int register_cpu_under_node(unsigned int cpu, unsigned int nid)
 {
 	return 0;
