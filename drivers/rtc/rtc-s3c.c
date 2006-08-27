@@ -153,24 +153,25 @@ static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
 {
 	void __iomem *base = s3c_rtc_base;
-
-	/* the rtc gets round the y2k problem by just not supporting it */
-
-	if (tm->tm_year > 100) {
-		dev_err(dev, "rtc only supports 100 years\n");
-		return -EINVAL;
-	}
+	int year = tm->tm_year - 100;
 
 	pr_debug("set time %02d.%02d.%02d %02d/%02d/%02d\n",
 		 tm->tm_year, tm->tm_mon, tm->tm_mday,
 		 tm->tm_hour, tm->tm_min, tm->tm_sec);
+
+	/* we get around y2k by simply not supporting it */
+
+	if (year < 0 || year >= 100) {
+		dev_err(dev, "rtc only supports 100 years\n");
+		return -EINVAL;
+	}
 
 	writeb(BIN2BCD(tm->tm_sec),  base + S3C2410_RTCSEC);
 	writeb(BIN2BCD(tm->tm_min),  base + S3C2410_RTCMIN);
 	writeb(BIN2BCD(tm->tm_hour), base + S3C2410_RTCHOUR);
 	writeb(BIN2BCD(tm->tm_mday), base + S3C2410_RTCDATE);
 	writeb(BIN2BCD(tm->tm_mon + 1), base + S3C2410_RTCMON);
-	writeb(BIN2BCD(tm->tm_year - 100), base + S3C2410_RTCYEAR);
+	writeb(BIN2BCD(year), base + S3C2410_RTCYEAR);
 
 	return 0;
 }
