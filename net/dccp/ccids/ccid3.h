@@ -120,9 +120,10 @@ struct ccid3_hc_rx_sock {
 #define ccid3hcrx_x_recv	ccid3hcrx_tfrc.tfrcrx_x_recv
 #define ccid3hcrx_rtt		ccid3hcrx_tfrc.tfrcrx_rtt
 #define ccid3hcrx_p		ccid3hcrx_tfrc.tfrcrx_p
-  	u64			ccid3hcrx_seqno_last_counter:48,
+  	u64			ccid3hcrx_seqno_nonloss:48,
+				ccid3hcrx_ccval_nonloss:4,
 				ccid3hcrx_state:8,
-				ccid3hcrx_last_counter:4;
+				ccid3hcrx_ccval_last_counter:4;
   	u32			ccid3hcrx_bytes_recv;
   	struct timeval		ccid3hcrx_tstamp_last_feedback;
   	struct timeval		ccid3hcrx_tstamp_last_ack;

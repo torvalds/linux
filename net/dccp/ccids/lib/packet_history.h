@@ -166,12 +166,6 @@ static inline void dccp_rx_hist_entry_delete(struct dccp_rx_hist *hist,
 extern void dccp_rx_hist_purge(struct dccp_rx_hist *hist,
 			       struct list_head *list);
 
-static inline void dccp_rx_hist_add_entry(struct list_head *list,
-					  struct dccp_rx_hist_entry *entry)
-{
-	list_add(&entry->dccphrx_node, list);
-}
-
 static inline struct dccp_rx_hist_entry *
 		dccp_rx_hist_head(struct list_head *list)
 {
@@ -190,10 +184,11 @@ static inline int
 	       entry->dccphrx_type == DCCP_PKT_DATAACK;
 }
 
-extern int dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
+extern void dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
 				   struct list_head *rx_list,
 				   struct list_head *li_list,
-				   struct dccp_rx_hist_entry *packet);
+				   struct dccp_rx_hist_entry *packet,
+				   u64 nonloss_seqno);
 
 extern u64 dccp_rx_hist_detect_loss(struct list_head *rx_list,
 				    struct list_head *li_list, u8 *win_loss);
