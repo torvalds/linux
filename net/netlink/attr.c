@@ -20,7 +20,6 @@ static u16 nla_attr_minlen[NLA_TYPE_MAX+1] __read_mostly = {
 	[NLA_U16]	= sizeof(u16),
 	[NLA_U32]	= sizeof(u32),
 	[NLA_U64]	= sizeof(u64),
-	[NLA_STRING]	= 1,
 	[NLA_NESTED]	= NLA_HDRLEN,
 };
 
@@ -28,7 +27,7 @@ static int validate_nla(struct nlattr *nla, int maxtype,
 			struct nla_policy *policy)
 {
 	struct nla_policy *pt;
-	int minlen = 0;
+	int minlen = 0, attrlen = nla_len(nla);
 
 	if (nla->nla_type <= 0 || nla->nla_type > maxtype)
 		return 0;
@@ -37,16 +36,46 @@ static int validate_nla(struct nlattr *nla, int maxtype,
 
 	BUG_ON(pt->type > NLA_TYPE_MAX);
 
-	if (pt->minlen)
-		minlen = pt->minlen;
-	else if (pt->type != NLA_UNSPEC)
-		minlen = nla_attr_minlen[pt->type];
+	switch (pt->type) {
+	case NLA_FLAG:
+		if (attrlen > 0)
+			return -ERANGE;
+		break;
 
-	if (pt->type == NLA_FLAG && nla_len(nla) > 0)
-		return -ERANGE;
+	case NLA_NUL_STRING:
+		if (pt->len)
+			minlen = min_t(int, attrlen, pt->len + 1);
+		else
+			minlen = attrlen;
 
-	if (nla_len(nla) < minlen)
-		return -ERANGE;
+		if (!minlen || memchr(nla_data(nla), '\0', minlen) == NULL)
+			return -EINVAL;
+		/* fall through */
+
+	case NLA_STRING:
+		if (attrlen < 1)
+			return -ERANGE;
+
+		if (pt->len) {
+			char *buf = nla_data(nla);
+
+			if (buf[attrlen - 1] == '\0')
+				attrlen--;
+
+			if (attrlen > pt->len)
+				return -ERANGE;
+		}
+		break;
+
+	default:
+		if (pt->len)
+			minlen = pt->len;
+		else if (pt->type != NLA_UNSPEC)
+			minlen = nla_attr_minlen[pt->type];
+
+		if (attrlen < minlen)
+			return -ERANGE;
+	}
 
 	return 0;
 }

@@ -167,6 +167,7 @@ enum {
 	NLA_FLAG,
 	NLA_MSECS,
 	NLA_NESTED,
+	NLA_NUL_STRING,
 	__NLA_TYPE_MAX,
 };
 
@@ -175,21 +176,27 @@ enum {
 /**
  * struct nla_policy - attribute validation policy
  * @type: Type of attribute or NLA_UNSPEC
- * @minlen: Minimal length of payload required to be available
+ * @len: Type specific length of payload
  *
  * Policies are defined as arrays of this struct, the array must be
  * accessible by attribute type up to the highest identifier to be expected.
  *
+ * Meaning of `len' field:
+ *    NLA_STRING           Maximum length of string
+ *    NLA_NUL_STRING       Maximum length of string (excluding NUL)
+ *    NLA_FLAG             Unused
+ *    All other            Exact length of attribute payload
+ *
  * Example:
  * static struct nla_policy my_policy[ATTR_MAX+1] __read_mostly = {
  * 	[ATTR_FOO] = { .type = NLA_U16 },
- *	[ATTR_BAR] = { .type = NLA_STRING },
- *	[ATTR_BAZ] = { .minlen = sizeof(struct mystruct) },
+ *	[ATTR_BAR] = { .type = NLA_STRING, len = BARSIZ },
+ *	[ATTR_BAZ] = { .len = sizeof(struct mystruct) },
  * };
  */
 struct nla_policy {
 	u16		type;
-	u16		minlen;
+	u16		len;
 };
 
 /**
