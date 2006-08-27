@@ -21,6 +21,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/ctype.h>
+#include <linux/inet.h>
 #include <net/checksum.h>
 #include <net/tcp.h>
 
@@ -114,7 +115,8 @@ static struct ftp_search {
 static int
 get_ipv6_addr(const char *src, size_t dlen, struct in6_addr *dst, u_int8_t term)
 {
-	int ret = in6_pton(src, min_t(size_t, dlen, 0xffff), dst, term, &end);
+	const char *end;
+	int ret = in6_pton(src, min_t(size_t, dlen, 0xffff), (u8 *)dst, term, &end);
 	if (ret > 0)
 		return (int)(end - src);
 	return 0;
