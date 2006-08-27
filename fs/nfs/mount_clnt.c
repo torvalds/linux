@@ -76,22 +76,19 @@ static struct rpc_clnt *
 mnt_create(char *hostname, struct sockaddr_in *srvaddr, int version,
 		int protocol)
 {
-	struct rpc_xprt	*xprt;
-	struct rpc_clnt	*clnt;
+	struct rpc_create_args args = {
+		.protocol	= protocol,
+		.address	= (struct sockaddr *)srvaddr,
+		.addrsize	= sizeof(*srvaddr),
+		.servername	= hostname,
+		.program	= &mnt_program,
+		.version	= version,
+		.authflavor	= RPC_AUTH_UNIX,
+		.flags		= (RPC_CLNT_CREATE_ONESHOT |
+				   RPC_CLNT_CREATE_INTR),
+	};
 
-	xprt = xprt_create_proto(protocol, srvaddr, NULL);
-	if (IS_ERR(xprt))
-		return (struct rpc_clnt *)xprt;
-
-	clnt = rpc_create_client(xprt, hostname,
-				&mnt_program, version,
-				RPC_AUTH_UNIX);
-	if (!IS_ERR(clnt)) {
-		clnt->cl_softrtry = 1;
-		clnt->cl_oneshot  = 1;
-		clnt->cl_intr = 1;
-	}
-	return clnt;
+	return rpc_create(&args);
 }
 
 /*
