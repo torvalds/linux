@@ -371,8 +371,8 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 }
 
 static struct nla_policy ifla_policy[IFLA_MAX+1] __read_mostly = {
-	[IFLA_IFNAME]		= { .type = NLA_STRING },
-	[IFLA_MAP]		= { .minlen = sizeof(struct rtnl_link_ifmap) },
+	[IFLA_IFNAME]		= { .type = NLA_STRING, .len = IFNAMSIZ-1 },
+	[IFLA_MAP]		= { .len = sizeof(struct rtnl_link_ifmap) },
 	[IFLA_MTU]		= { .type = NLA_U32 },
 	[IFLA_TXQLEN]		= { .type = NLA_U32 },
 	[IFLA_WEIGHT]		= { .type = NLA_U32 },
@@ -392,9 +392,8 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if (err < 0)
 		goto errout;
 
-	if (tb[IFLA_IFNAME] &&
-	    nla_strlcpy(ifname, tb[IFLA_IFNAME], IFNAMSIZ) >= IFNAMSIZ)
-		return -EINVAL;
+	if (tb[IFLA_IFNAME])
+		nla_strlcpy(ifname, tb[IFLA_IFNAME], IFNAMSIZ);
 
 	err = -EINVAL;
 	ifm = nlmsg_data(nlh);

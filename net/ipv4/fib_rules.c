@@ -179,7 +179,7 @@ static struct fib_table *fib_empty_table(void)
 }
 
 static struct nla_policy fib4_rule_policy[FRA_MAX+1] __read_mostly = {
-	[FRA_IFNAME]	= { .type = NLA_STRING },
+	[FRA_IFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
 	[FRA_PRIORITY]	= { .type = NLA_U32 },
 	[FRA_SRC]	= { .type = NLA_U32 },
 	[FRA_DST]	= { .type = NLA_U32 },

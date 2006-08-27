@@ -85,7 +85,7 @@ static struct nla_policy ifa_ipv4_policy[IFA_MAX+1] __read_mostly = {
 	[IFA_ADDRESS]   	= { .type = NLA_U32 },
 	[IFA_BROADCAST] 	= { .type = NLA_U32 },
 	[IFA_ANYCAST]   	= { .type = NLA_U32 },
-	[IFA_LABEL]     	= { .type = NLA_STRING },
+	[IFA_LABEL]     	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
 };
 
 static void rtmsg_ifa(int event, struct in_ifaddr *, struct nlmsghdr *, u32);

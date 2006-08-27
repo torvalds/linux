@@ -161,9 +161,6 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	if (err < 0)
 		goto errout;
 
-	if (tb[FRA_IFNAME] && nla_len(tb[FRA_IFNAME]) > IFNAMSIZ)
-		goto errout;
-
 	rule = kzalloc(ops->rule_size, GFP_KERNEL);
 	if (rule == NULL) {
 		err = -ENOMEM;
@@ -177,10 +174,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		struct net_device *dev;
 
 		rule->ifindex = -1;
-		if (nla_strlcpy(rule->ifname, tb[FRA_IFNAME],
-				IFNAMSIZ) >= IFNAMSIZ)
-			goto errout_free;
-
+		nla_strlcpy(rule->ifname, tb[FRA_IFNAME], IFNAMSIZ);
 		dev = __dev_get_by_name(rule->ifname);
 		if (dev)
 			rule->ifindex = dev->ifindex;

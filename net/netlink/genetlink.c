@@ -455,7 +455,8 @@ static struct sk_buff *ctrl_build_msg(struct genl_family *family, u32 pid,
 
 static struct nla_policy ctrl_policy[CTRL_ATTR_MAX+1] __read_mostly = {
 	[CTRL_ATTR_FAMILY_ID]	= { .type = NLA_U16 },
-	[CTRL_ATTR_FAMILY_NAME]	= { .type = NLA_STRING },
+	[CTRL_ATTR_FAMILY_NAME]	= { .type = NLA_NUL_STRING,
+				    .len = GENL_NAMSIZ - 1 },
 };
 
 static int ctrl_getfamily(struct sk_buff *skb, struct genl_info *info)
@@ -470,12 +471,9 @@ static int ctrl_getfamily(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[CTRL_ATTR_FAMILY_NAME]) {
-		char name[GENL_NAMSIZ];
+		char *name;
 
-		if (nla_strlcpy(name, info->attrs[CTRL_ATTR_FAMILY_NAME],
-				GENL_NAMSIZ) >= GENL_NAMSIZ)
-			goto errout;
-
+		name = nla_data(info->attrs[CTRL_ATTR_FAMILY_NAME]);
 		res = genl_family_find_byname(name);
 	}
 

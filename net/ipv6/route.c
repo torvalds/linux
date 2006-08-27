@@ -1865,7 +1865,7 @@ void rt6_mtu_change(struct net_device *dev, unsigned mtu)
 }
 
 static struct nla_policy rtm_ipv6_policy[RTA_MAX+1] __read_mostly = {
-	[RTA_GATEWAY]           = { .minlen = sizeof(struct in6_addr) },
+	[RTA_GATEWAY]           = { .len = sizeof(struct in6_addr) },
 	[RTA_OIF]               = { .type = NLA_U32 },
 	[RTA_IIF]		= { .type = NLA_U32 },
 	[RTA_PRIORITY]          = { .type = NLA_U32 },
