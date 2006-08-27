@@ -118,8 +118,7 @@ DEFINE_SNMP_STAT(struct udp_mib, udp_statistics) __read_mostly;
 struct hlist_head udp_hash[UDP_HTABLE_SIZE];
 DEFINE_RWLOCK(udp_hash_lock);
 
-/* Shared by v4/v6 udp_get_port */
-int udp_port_rover;
+static int udp_port_rover;
 
 static inline int udp_lport_inuse(u16 num)
 {
