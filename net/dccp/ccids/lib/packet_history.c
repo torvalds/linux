@@ -1,13 +1,13 @@
 /*
  *  net/dccp/packet_history.c
  *
- *  Copyright (c) 2005 The University of Waikato, Hamilton, New Zealand.
+ *  Copyright (c) 2005-6 The University of Waikato, Hamilton, New Zealand.
  *
  *  An implementation of the DCCP protocol
  *
  *  This code has been developed by the University of Waikato WAND
  *  research group. For further information please see http://www.wand.net.nz/
- *  or e-mail Ian McDonald - iam4@cs.waikato.ac.nz
+ *  or e-mail Ian McDonald - ian.mcdonald@jandi.co.nz
  *
  *  This code also uses code from Lulea University, rereleased as GPL by its
  *  authors:
@@ -391,7 +391,7 @@ void dccp_tx_hist_purge(struct dccp_tx_hist *hist, struct list_head *list)
 
 EXPORT_SYMBOL_GPL(dccp_tx_hist_purge);
 
-MODULE_AUTHOR("Ian McDonald <iam4@cs.waikato.ac.nz>, "
+MODULE_AUTHOR("Ian McDonald <ian.mcdonald@jandi.co.nz>, "
 	      "Arnaldo Carvalho de Melo <acme@ghostprotocols.net>");
 MODULE_DESCRIPTION("DCCP TFRC library");
 MODULE_LICENSE("GPL");
