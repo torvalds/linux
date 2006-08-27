@@ -26,7 +26,6 @@
 #include <linux/stddef.h>
 #include <linux/compat.h>
 #include <linux/elf.h>
-#include <linux/personality.h>
 #include <asm/ucontext.h>
 #include <asm/rt_sigframe.h>
 #include <asm/uaccess.h>
@@ -433,13 +432,13 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (in_syscall) {
 		regs->gr[31] = haddr;
 #ifdef __LP64__
-		if (personality(current->personality) == PER_LINUX)
+		if (!test_thread_flag(TIF_32BIT))
 			sigframe_size |= 1;
 #endif
 	} else {
 		unsigned long psw = USER_PSW;
 #ifdef __LP64__
-		if (personality(current->personality) == PER_LINUX)
+		if (!test_thread_flag(TIF_32BIT))
 			psw |= PSW_W;
 #endif
 

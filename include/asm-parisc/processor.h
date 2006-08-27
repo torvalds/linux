@@ -278,7 +278,7 @@ on downward growing arches, it looks like this:
  */
 
 #ifdef __LP64__
-#define USER_WIDE_MODE	(personality(current->personality) == PER_LINUX)
+#define USER_WIDE_MODE	(!test_thread_flag(TIF_32BIT))
 #else
 #define USER_WIDE_MODE	0
 #endif
