@@ -828,7 +828,7 @@ static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
 #define NLA_PUT_STRING(skb, attrtype, value) \
 	NLA_PUT(skb, attrtype, strlen(value) + 1, value)
 
-#define NLA_PUT_FLAG(skb, attrtype, value) \
+#define NLA_PUT_FLAG(skb, attrtype) \
 	NLA_PUT(skb, attrtype, 0, NULL)
 
 #define NLA_PUT_MSECS(skb, attrtype, jiffies) \
