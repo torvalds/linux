@@ -1,5 +1,5 @@
 /*
- *  net/dccp/packet_history.h
+ *  net/dccp/packet_history.c
  *
  *  Copyright (c) 2005 The University of Waikato, Hamilton, New Zealand.
  *
