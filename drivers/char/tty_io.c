@@ -3094,7 +3094,6 @@ int tty_register_driver(struct tty_driver *driver)
 	driver->cdev.owner = driver->owner;
 	error = cdev_add(&driver->cdev, dev, driver->num);
 	if (error) {
-		cdev_del(&driver->cdev);
 		unregister_chrdev_region(dev, driver->num);
 		driver->ttys = NULL;
 		driver->termios = driver->termios_locked = NULL;
