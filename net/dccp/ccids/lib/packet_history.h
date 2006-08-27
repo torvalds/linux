@@ -106,6 +106,8 @@ static inline void dccp_tx_hist_entry_delete(struct dccp_tx_hist *hist,
 extern struct dccp_tx_hist_entry *
 			dccp_tx_hist_find_entry(const struct list_head *list,
 						const u64 seq);
+extern int dccp_rx_hist_find_entry(const struct list_head *list, const u64 seq,
+   u8 *ccval);
 
 static inline void dccp_tx_hist_add_entry(struct list_head *list,
 					  struct dccp_tx_hist_entry *entry)

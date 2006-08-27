@@ -365,6 +365,25 @@ struct dccp_tx_hist_entry *
 
 EXPORT_SYMBOL_GPL(dccp_tx_hist_find_entry);
 
+int dccp_rx_hist_find_entry(const struct list_head *list, const u64 seq,
+   u8 *ccval)
+{
+	struct dccp_rx_hist_entry *packet = NULL, *entry;
+
+	list_for_each_entry(entry, list, dccphrx_node)
+		if (entry->dccphrx_seqno == seq) {
+			packet = entry;
+			break;
+		}
+
+	if (packet)
+		*ccval = packet->dccphrx_ccval;
+
+	return packet != NULL;
+}
+
+EXPORT_SYMBOL_GPL(dccp_rx_hist_find_entry);
+
 void dccp_tx_hist_purge_older(struct dccp_tx_hist *hist,
 			      struct list_head *list,
 			      struct dccp_tx_hist_entry *packet)
