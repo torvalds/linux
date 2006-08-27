@@ -343,12 +343,8 @@ static int __init flow_cache_init(void)
 
 	flow_cachep = kmem_cache_create("flow_cache",
 					sizeof(struct flow_cache_entry),
-					0, SLAB_HWCACHE_ALIGN,
+					0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 					NULL, NULL);
-
-	if (!flow_cachep)
-		panic("NET: failed to allocate flow cache slab\n");
-
 	flow_hash_shift = 10;
 	flow_lwm = 2 * flow_hash_size;
 	flow_hwm = 4 * flow_hash_size;

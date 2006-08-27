@@ -2254,9 +2254,7 @@ void __init tcp_init(void)
 	tcp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("tcp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
-				  SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if (!tcp_hashinfo.bind_bucket_cachep)
-		panic("tcp_init: Cannot alloc tcp_bind_bucket cache.");
+				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
 
 	/* Size and allocate the main established and bind bucket
 	 * hash tables.

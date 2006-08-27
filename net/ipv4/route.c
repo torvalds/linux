@@ -3147,13 +3147,9 @@ int __init ip_rt_init(void)
 	}
 #endif
 
-	ipv4_dst_ops.kmem_cachep = kmem_cache_create("ip_dst_cache",
-						     sizeof(struct rtable),
-						     0, SLAB_HWCACHE_ALIGN,
-						     NULL, NULL);
-
-	if (!ipv4_dst_ops.kmem_cachep)
-		panic("IP: failed to allocate ip_dst_cache\n");
+	ipv4_dst_ops.kmem_cachep =
+		kmem_cache_create("ip_dst_cache", sizeof(struct rtable), 0,
+				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
 
 	rt_hash_table = (struct rt_hash_bucket *)
 		alloc_large_system_hash("IP route cache",

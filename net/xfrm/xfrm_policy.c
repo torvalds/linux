@@ -1985,10 +1985,8 @@ static void __init xfrm_policy_init(void)
 
 	xfrm_dst_cache = kmem_cache_create("xfrm_dst_cache",
 					   sizeof(struct xfrm_dst),
-					   0, SLAB_HWCACHE_ALIGN,
+					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 					   NULL, NULL);
-	if (!xfrm_dst_cache)
-		panic("XFRM: failed to allocate xfrm_dst_cache\n");
 
 	hmask = 8 - 1;
 	sz = (hmask+1) * sizeof(struct hlist_head);

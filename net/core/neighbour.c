@@ -1339,14 +1339,10 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 			  neigh_rand_reach_time(tbl->parms.base_reachable_time);
 
 	if (!tbl->kmem_cachep)
-		tbl->kmem_cachep = kmem_cache_create(tbl->id,
-						     tbl->entry_size,
-						     0, SLAB_HWCACHE_ALIGN,
-						     NULL, NULL);
-
-	if (!tbl->kmem_cachep)
-		panic("cannot create neighbour cache");
-
+		tbl->kmem_cachep =
+			kmem_cache_create(tbl->id, tbl->entry_size, 0,
+					  SLAB_HWCACHE_ALIGN|SLAB_PANIC,
+					  NULL, NULL);
 	tbl->stats = alloc_percpu(struct neigh_statistics);
 	if (!tbl->stats)
 		panic("cannot create neighbour cache statistics");
