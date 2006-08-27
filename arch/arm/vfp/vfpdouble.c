@@ -465,7 +465,7 @@ static u32 vfp_double_fcvts(int sd, int unused, int dm, u32 fpscr)
 	 */
 	if (tm & (VFP_INFINITY|VFP_NAN)) {
 		vsd.exponent = 255;
-		if (tm & VFP_NAN)
+		if (tm == VFP_QNAN)
 			vsd.significand |= VFP_SINGLE_SIGNIFICAND_QNAN;
 		goto pack_nan;
 	} else if (tm & VFP_ZERO)

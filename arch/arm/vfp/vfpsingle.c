@@ -506,7 +506,7 @@ static u32 vfp_single_fcvtd(int dd, int unused, s32 m, u32 fpscr)
 	 */
 	if (tm & (VFP_INFINITY|VFP_NAN)) {
 		vdd.exponent = 2047;
-		if (tm & VFP_NAN)
+		if (tm == VFP_QNAN)
 			vdd.significand |= VFP_DOUBLE_SIGNIFICAND_QNAN;
 		goto pack_nan;
 	} else if (tm & VFP_ZERO)
