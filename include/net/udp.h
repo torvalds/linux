@@ -30,25 +30,9 @@
 
 #define UDP_HTABLE_SIZE		128
 
-/* udp.c: This needs to be shared by v4 and v6 because the lookup
- *        and hashing code needs to work with different AF's yet
- *        the port space is shared.
- */
 extern struct hlist_head udp_hash[UDP_HTABLE_SIZE];
 extern rwlock_t udp_hash_lock;
 
-extern int udp_port_rover;
-
-static inline int udp_lport_inuse(u16 num)
-{
-	struct sock *sk;
-	struct hlist_node *node;
-
-	sk_for_each(sk, node, &udp_hash[num & (UDP_HTABLE_SIZE - 1)])
-		if (inet_sk(sk)->num == num)
-			return 1;
-	return 0;
-}
 
 /* Note: this must match 'valbool' in sock_setsockopt */
 #define UDP_CSUM_NOXMIT		1
@@ -63,6 +47,8 @@ extern struct proto udp_prot;
 
 struct sk_buff;
 
+extern int	udp_get_port(struct sock *sk, unsigned short snum,
+			     int (*saddr_cmp)(struct sock *, struct sock *));
 extern void	udp_err(struct sk_buff *, u32);
 
 extern int	udp_sendmsg(struct kiocb *iocb, struct sock *sk,

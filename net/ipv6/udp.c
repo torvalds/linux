@@ -61,81 +61,9 @@
 
 DEFINE_SNMP_STAT(struct udp_mib, udp_stats_in6) __read_mostly;
 
-/* Grrr, addr_type already calculated by caller, but I don't want
- * to add some silly "cookie" argument to this method just for that.
- */
-static int udp_v6_get_port(struct sock *sk, unsigned short snum)
+static inline int udp_v6_get_port(struct sock *sk, unsigned short snum)
 {
-	struct sock *sk2;
-	struct hlist_node *node;
-
-	write_lock_bh(&udp_hash_lock);
-	if (snum == 0) {
-		int best_size_so_far, best, result, i;
-
-		if (udp_port_rover > sysctl_local_port_range[1] ||
-		    udp_port_rover < sysctl_local_port_range[0])
-			udp_port_rover = sysctl_local_port_range[0];
-		best_size_so_far = 32767;
-		best = result = udp_port_rover;
-		for (i = 0; i < UDP_HTABLE_SIZE; i++, result++) {
-			int size;
-			struct hlist_head *list;
-
-			list = &udp_hash[result & (UDP_HTABLE_SIZE - 1)];
-			if (hlist_empty(list)) {
-				if (result > sysctl_local_port_range[1])
-					result = sysctl_local_port_range[0] +
-						((result - sysctl_local_port_range[0]) &
-						 (UDP_HTABLE_SIZE - 1));
-				goto gotit;
-			}
-			size = 0;
-			sk_for_each(sk2, node, list)
-				if (++size >= best_size_so_far)
-					goto next;
-			best_size_so_far = size;
-			best = result;
-		next:;
-		}
-		result = best;
-		for(i = 0; i < (1 << 16) / UDP_HTABLE_SIZE; i++, result += UDP_HTABLE_SIZE) {
-			if (result > sysctl_local_port_range[1])
-				result = sysctl_local_port_range[0]
-					+ ((result - sysctl_local_port_range[0]) &
-					   (UDP_HTABLE_SIZE - 1));
-			if (!udp_lport_inuse(result))
-				break;
-		}
-		if (i >= (1 << 16) / UDP_HTABLE_SIZE)
-			goto fail;
-gotit:
-		udp_port_rover = snum = result;
-	} else {
-		sk_for_each(sk2, node,
-			    &udp_hash[snum & (UDP_HTABLE_SIZE - 1)]) {
-			if (inet_sk(sk2)->num == snum &&
-			    sk2 != sk &&
-			    (!sk2->sk_bound_dev_if ||
-			     !sk->sk_bound_dev_if ||
-			     sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
-			    (!sk2->sk_reuse || !sk->sk_reuse) &&
-			    ipv6_rcv_saddr_equal(sk, sk2))
-				goto fail;
-		}
-	}
-
-	inet_sk(sk)->num = snum;
-	if (sk_unhashed(sk)) {
-		sk_add_node(sk, &udp_hash[snum & (UDP_HTABLE_SIZE - 1)]);
-		sock_prot_inc_use(sk->sk_prot);
-	}
-	write_unlock_bh(&udp_hash_lock);
-	return 0;
-
-fail:
-	write_unlock_bh(&udp_hash_lock);
-	return 1;
+	return udp_get_port(sk, snum, ipv6_rcv_saddr_equal);
 }
 
 static void udp_v6_hash(struct sock *sk)

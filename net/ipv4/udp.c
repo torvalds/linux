@@ -118,14 +118,34 @@ DEFINE_SNMP_STAT(struct udp_mib, udp_statistics) __read_mostly;
 struct hlist_head udp_hash[UDP_HTABLE_SIZE];
 DEFINE_RWLOCK(udp_hash_lock);
 
-/* Shared by v4/v6 udp. */
+/* Shared by v4/v6 udp_get_port */
 int udp_port_rover;
 
-static int udp_v4_get_port(struct sock *sk, unsigned short snum)
+static inline int udp_lport_inuse(u16 num)
+{
+	struct sock *sk;
+	struct hlist_node *node;
+
+	sk_for_each(sk, node, &udp_hash[num & (UDP_HTABLE_SIZE - 1)])
+		if (inet_sk(sk)->num == num)
+			return 1;
+	return 0;
+}
+
+/**
+ *  udp_get_port  -  common port lookup for IPv4 and IPv6
+ *
+ *  @sk:          socket struct in question
+ *  @snum:        port number to look up
+ *  @saddr_comp:  AF-dependent comparison of bound local IP addresses
+ */
+int udp_get_port(struct sock *sk, unsigned short snum,
+		 int (*saddr_cmp)(struct sock *sk1, struct sock *sk2))
 {
 	struct hlist_node *node;
+	struct hlist_head *head;
 	struct sock *sk2;
-	struct inet_sock *inet = inet_sk(sk);
+	int    error = 1;
 
 	write_lock_bh(&udp_hash_lock);
 	if (snum == 0) {
@@ -137,11 +157,10 @@ static int udp_v4_get_port(struct sock *sk, unsigned short snum)
 		best_size_so_far = 32767;
 		best = result = udp_port_rover;
 		for (i = 0; i < UDP_HTABLE_SIZE; i++, result++) {
-			struct hlist_head *list;
 			int size;
 
-			list = &udp_hash[result & (UDP_HTABLE_SIZE - 1)];
-			if (hlist_empty(list)) {
+			head = &udp_hash[result & (UDP_HTABLE_SIZE - 1)];
+			if (hlist_empty(head)) {
 				if (result > sysctl_local_port_range[1])
 					result = sysctl_local_port_range[0] +
 						((result - sysctl_local_port_range[0]) &
@@ -149,12 +168,11 @@ static int udp_v4_get_port(struct sock *sk, unsigned short snum)
 				goto gotit;
 			}
 			size = 0;
-			sk_for_each(sk2, node, list)
-				if (++size >= best_size_so_far)
-					goto next;
-			best_size_so_far = size;
-			best = result;
-		next:;
+			sk_for_each(sk2, node, head)
+				if (++size < best_size_so_far) {
+					best_size_so_far = size;
+					best = result;
+				}
 		}
 		result = best;
 		for(i = 0; i < (1 << 16) / UDP_HTABLE_SIZE; i++, result += UDP_HTABLE_SIZE) {
@@ -170,37 +188,43 @@ static int udp_v4_get_port(struct sock *sk, unsigned short snum)
 gotit:
 		udp_port_rover = snum = result;
 	} else {
-		sk_for_each(sk2, node,
-			    &udp_hash[snum & (UDP_HTABLE_SIZE - 1)]) {
-			struct inet_sock *inet2 = inet_sk(sk2);
+		head = &udp_hash[snum & (UDP_HTABLE_SIZE - 1)];
 
-			if (inet2->num == snum &&
-			    sk2 != sk &&
-			    !ipv6_only_sock(sk2) &&
-			    (!sk2->sk_bound_dev_if ||
-			     !sk->sk_bound_dev_if ||
-			     sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
-			    (!inet2->rcv_saddr ||
-			     !inet->rcv_saddr ||
-			     inet2->rcv_saddr == inet->rcv_saddr) &&
-			    (!sk2->sk_reuse || !sk->sk_reuse))
+		sk_for_each(sk2, node, head)
+			if (inet_sk(sk2)->num == snum                        &&
+			    sk2 != sk                                        &&
+			    (!sk2->sk_reuse        || !sk->sk_reuse)         &&
+			    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if
+			     || sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
+			    (*saddr_cmp)(sk, sk2)                              )
 				goto fail;
-		}
 	}
-	inet->num = snum;
+	inet_sk(sk)->num = snum;
 	if (sk_unhashed(sk)) {
-		struct hlist_head *h = &udp_hash[snum & (UDP_HTABLE_SIZE - 1)];
-
-		sk_add_node(sk, h);
+		head = &udp_hash[snum & (UDP_HTABLE_SIZE - 1)];
+		sk_add_node(sk, head);
 		sock_prot_inc_use(sk->sk_prot);
 	}
-	write_unlock_bh(&udp_hash_lock);
-	return 0;
-
+	error = 0;
 fail:
 	write_unlock_bh(&udp_hash_lock);
-	return 1;
+	return error;
 }
+
+static inline int  ipv4_rcv_saddr_equal(struct sock *sk1, struct sock *sk2)
+{
+	struct inet_sock *inet1 = inet_sk(sk1), *inet2 = inet_sk(sk2);
+
+	return 	( !ipv6_only_sock(sk2)  &&
+		  (!inet1->rcv_saddr || !inet2->rcv_saddr ||
+		   inet1->rcv_saddr == inet2->rcv_saddr      ));
+}
+
+static inline int udp_v4_get_port(struct sock *sk, unsigned short snum)
+{
+	return udp_get_port(sk, snum, ipv4_rcv_saddr_equal);
+}
+
 
 static void udp_v4_hash(struct sock *sk)
 {
@@ -1596,7 +1620,7 @@ EXPORT_SYMBOL(udp_disconnect);
 EXPORT_SYMBOL(udp_hash);
 EXPORT_SYMBOL(udp_hash_lock);
 EXPORT_SYMBOL(udp_ioctl);
-EXPORT_SYMBOL(udp_port_rover);
+EXPORT_SYMBOL(udp_get_port);
 EXPORT_SYMBOL(udp_prot);
 EXPORT_SYMBOL(udp_sendmsg);
 EXPORT_SYMBOL(udp_poll);
