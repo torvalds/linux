@@ -387,7 +387,7 @@ extern void usb_put_dev(struct usb_device *dev);
 #define usb_unlock_device(udev)		up(&(udev)->dev.sem)
 #define usb_trylock_device(udev)	down_trylock(&(udev)->dev.sem)
 extern int usb_lock_device_for_reset(struct usb_device *udev,
-		struct usb_interface *iface);
+				     const struct usb_interface *iface);
 
 /* USB port reset for device reinitialization */
 extern int usb_reset_device(struct usb_device *dev);
@@ -426,10 +426,10 @@ const struct usb_device_id *usb_match_id(struct usb_interface *interface,
 
 extern struct usb_interface *usb_find_interface(struct usb_driver *drv,
 		int minor);
-extern struct usb_interface *usb_ifnum_to_if(struct usb_device *dev,
+extern struct usb_interface *usb_ifnum_to_if(const struct usb_device *dev,
 		unsigned ifnum);
 extern struct usb_host_interface *usb_altnum_to_altsetting(
-		struct usb_interface *intf, unsigned int altnum);
+		const struct usb_interface *intf, unsigned int altnum);
 
 
 /**
@@ -1064,14 +1064,14 @@ void usb_buffer_unmap (struct urb *urb);
 #endif
 
 struct scatterlist;
-int usb_buffer_map_sg (struct usb_device *dev, unsigned pipe,
-		struct scatterlist *sg, int nents);
+int usb_buffer_map_sg(const struct usb_device *dev, unsigned pipe,
+		      struct scatterlist *sg, int nents);
 #if 0
-void usb_buffer_dmasync_sg (struct usb_device *dev, unsigned pipe,
-		struct scatterlist *sg, int n_hw_ents);
+void usb_buffer_dmasync_sg(const struct usb_device *dev, unsigned pipe,
+			   struct scatterlist *sg, int n_hw_ents);
 #endif
-void usb_buffer_unmap_sg (struct usb_device *dev, unsigned pipe,
-		struct scatterlist *sg, int n_hw_ents);
+void usb_buffer_unmap_sg(const struct usb_device *dev, unsigned pipe,
+			 struct scatterlist *sg, int n_hw_ents);
 
 /*-------------------------------------------------------------------*
  *                         SYNCHRONOUS CALL SUPPORT                  *

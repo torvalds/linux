@@ -53,7 +53,7 @@ extern struct usb_device_driver usb_generic_driver;
  * no such thing as a platform USB device, so we can steal the use
  * of the platform_data field. */
 
-static inline int is_usb_device(struct device *dev)
+static inline int is_usb_device(const struct device *dev)
 {
 	return dev->platform_data == &usb_generic_driver;
 }
@@ -78,7 +78,7 @@ static inline void mark_quiesced(struct usb_interface *f)
 	f->is_active = 0;
 }
 
-static inline int is_active(struct usb_interface *f)
+static inline int is_active(const struct usb_interface *f)
 {
 	return f->is_active;
 }

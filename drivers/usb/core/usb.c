@@ -67,7 +67,8 @@ static int nousb;	/* Disable USB when built into kernel image */
  * Don't call this function unless you are bound to one of the interfaces
  * on this device or you have locked the device!
  */
-struct usb_interface *usb_ifnum_to_if(struct usb_device *dev, unsigned ifnum)
+struct usb_interface *usb_ifnum_to_if(const struct usb_device *dev,
+				      unsigned ifnum)
 {
 	struct usb_host_config *config = dev->actconfig;
 	int i;
@@ -100,8 +101,8 @@ struct usb_interface *usb_ifnum_to_if(struct usb_device *dev, unsigned ifnum)
  * Don't call this function unless you are bound to the intf interface
  * or you have locked the device!
  */
-struct usb_host_interface *usb_altnum_to_altsetting(struct usb_interface *intf,
-		unsigned int altnum)
+struct usb_host_interface *usb_altnum_to_altsetting(const struct usb_interface *intf,
+						    unsigned int altnum)
 {
 	int i;
 
@@ -356,7 +357,7 @@ void usb_put_intf(struct usb_interface *intf)
  * case the driver already owns the device lock.)
  */
 int usb_lock_device_for_reset(struct usb_device *udev,
-		struct usb_interface *iface)
+			      const struct usb_interface *iface)
 {
 	unsigned long jiffies_expire = jiffies + HZ;
 
@@ -852,8 +853,8 @@ void usb_buffer_unmap (struct urb *urb)
  *
  * Reverse the effect of this call with usb_buffer_unmap_sg().
  */
-int usb_buffer_map_sg (struct usb_device *dev, unsigned pipe,
-		struct scatterlist *sg, int nents)
+int usb_buffer_map_sg(const struct usb_device *dev, unsigned pipe,
+		      struct scatterlist *sg, int nents)
 {
 	struct usb_bus		*bus;
 	struct device		*controller;
@@ -887,8 +888,8 @@ int usb_buffer_map_sg (struct usb_device *dev, unsigned pipe,
  * Use this when you are re-using a scatterlist's data buffers for
  * another USB request.
  */
-void usb_buffer_dmasync_sg (struct usb_device *dev, unsigned pipe,
-		struct scatterlist *sg, int n_hw_ents)
+void usb_buffer_dmasync_sg(const struct usb_device *dev, unsigned pipe,
+			   struct scatterlist *sg, int n_hw_ents)
 {
 	struct usb_bus		*bus;
 	struct device		*controller;
@@ -913,8 +914,8 @@ void usb_buffer_dmasync_sg (struct usb_device *dev, unsigned pipe,
  *
  * Reverses the effect of usb_buffer_map_sg().
  */
-void usb_buffer_unmap_sg (struct usb_device *dev, unsigned pipe,
-		struct scatterlist *sg, int n_hw_ents)
+void usb_buffer_unmap_sg(const struct usb_device *dev, unsigned pipe,
+			 struct scatterlist *sg, int n_hw_ents)
 {
 	struct usb_bus		*bus;
 	struct device		*controller;
