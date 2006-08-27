@@ -60,5 +60,6 @@ struct vt_consize {
 #define VT_RESIZEX      0x560A  /* set kernel's idea of screensize + more */
 #define VT_LOCKSWITCH   0x560B  /* disallow vt switching */
 #define VT_UNLOCKSWITCH 0x560C  /* allow vt switching */
+#define VT_GETHIFONTMASK 0x560D  /* return hi font mask */
 
 #endif /* _LINUX_VT_H */
