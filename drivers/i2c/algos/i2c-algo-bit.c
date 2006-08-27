@@ -354,10 +354,6 @@ static int sendbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 			return (retval<0)? retval : -EFAULT;
 			        /* got a better one ?? */
 		}
-#if 0
-		/* from asm/delay.h */
-		__delay(adap->mdelay * (loops_per_sec / 1000) );
-#endif
 	}
 	return wrcount;
 }

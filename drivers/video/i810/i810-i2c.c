@@ -98,7 +98,6 @@ static int i810_setup_i2c_bus(struct i810fb_i2c_chan *chan, const char *name)
 	chan->algo.getsda               = i810i2c_getsda;
 	chan->algo.getscl               = i810i2c_getscl;
 	chan->algo.udelay               = 10;
-	chan->algo.mdelay               = 10;
         chan->algo.timeout              = (HZ/2);
         chan->algo.data                 = chan;
 

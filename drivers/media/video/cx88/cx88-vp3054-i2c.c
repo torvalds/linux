@@ -100,7 +100,6 @@ static struct i2c_algo_bit_data vp3054_i2c_algo_template = {
 	.getsda  = vp3054_bit_getsda,
 	.getscl  = vp3054_bit_getscl,
 	.udelay  = 16,
-	.mdelay  = 10,
 	.timeout = 200,
 };
 

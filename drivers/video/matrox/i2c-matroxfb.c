@@ -100,7 +100,6 @@ static struct i2c_algo_bit_data matrox_i2c_algo_template =
 	.getsda		= matroxfb_gpio_getsda,
 	.getscl		= matroxfb_gpio_getscl,
 	.udelay		= 10,
-	.mdelay		= 10,
 	.timeout	= 100,
 };
 
