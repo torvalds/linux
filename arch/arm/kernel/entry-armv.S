@@ -191,6 +191,9 @@ __dabt_svc:
 __irq_svc:
 	svc_entry
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	trace_hardirqs_off
+#endif
 #ifdef CONFIG_PREEMPT
 	get_thread_info tsk
 	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
@@ -211,6 +214,10 @@ preempt_return:
 #endif
 	ldr	r0, [sp, #S_PSR]		@ irqs are already disabled
 	msr	spsr_cxsf, r0
+#ifdef CONFIG_TRACE_IRQFLAGS
+	tst	r0, #PSR_I_BIT
+	bleq	trace_hardirqs_on
+#endif
 	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
 
 	.ltorg
@@ -398,6 +405,9 @@ __dabt_usr:
 __irq_usr:
 	usr_entry
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	trace_hardirqs_off
+#endif
 	get_thread_info tsk
 #ifdef CONFIG_PREEMPT
 	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
@@ -411,6 +421,9 @@ __irq_usr:
 	str	r8, [tsk, #TI_PREEMPT]
 	teq	r0, r7
 	strne	r0, [r0, -r0]
+#endif
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	trace_hardirqs_on
 #endif
 
 	mov	why, #0

@@ -51,6 +51,10 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
+config TRACE_IRQFLAGS_SUPPORT
+	bool
+	default y
+
 config HARDIRQS_SW_RESEND
 	bool
 	default y
