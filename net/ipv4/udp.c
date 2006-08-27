@@ -139,7 +139,7 @@ static inline int udp_lport_inuse(u16 num)
  *  @saddr_comp:  AF-dependent comparison of bound local IP addresses
  */
 int udp_get_port(struct sock *sk, unsigned short snum,
-		 int (*saddr_cmp)(struct sock *sk1, struct sock *sk2))
+		 int (*saddr_cmp)(const struct sock *sk1, const struct sock *sk2))
 {
 	struct hlist_node *node;
 	struct hlist_head *head;
@@ -210,7 +210,7 @@ fail:
 	return error;
 }
 
-static inline int  ipv4_rcv_saddr_equal(struct sock *sk1, struct sock *sk2)
+static inline int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
 {
 	struct inet_sock *inet1 = inet_sk(sk1), *inet2 = inet_sk(sk2);
 

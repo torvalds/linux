@@ -48,7 +48,7 @@ extern struct proto udp_prot;
 struct sk_buff;
 
 extern int	udp_get_port(struct sock *sk, unsigned short snum,
-			     int (*saddr_cmp)(struct sock *, struct sock *));
+			     int (*saddr_cmp)(const struct sock *, const struct sock *));
 extern void	udp_err(struct sk_buff *, u32);
 
 extern int	udp_sendmsg(struct kiocb *iocb, struct sock *sk,
