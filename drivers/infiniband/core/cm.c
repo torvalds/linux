@@ -1354,7 +1354,7 @@ static int cm_req_handler(struct cm_work *work)
 							    id.local_id);
 	if (IS_ERR(cm_id_priv->timewait_info)) {
 		ret = PTR_ERR(cm_id_priv->timewait_info);
-		goto error1;
+		goto destroy;
 	}
 	cm_id_priv->timewait_info->work.remote_id = req_msg->local_comm_id;
 	cm_id_priv->timewait_info->remote_ca_guid = req_msg->local_ca_guid;
@@ -1363,7 +1363,8 @@ static int cm_req_handler(struct cm_work *work)
 	listen_cm_id_priv = cm_match_req(work, cm_id_priv);
 	if (!listen_cm_id_priv) {
 		ret = -EINVAL;
-		goto error2;
+		kfree(cm_id_priv->timewait_info);
+		goto destroy;
 	}
 
 	cm_id_priv->id.cm_handler = listen_cm_id_priv->id.cm_handler;
@@ -1373,12 +1374,22 @@ static int cm_req_handler(struct cm_work *work)
 
 	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
 	ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av);
-	if (ret)
-		goto error3;
+	if (ret) {
+		ib_get_cached_gid(work->port->cm_dev->device,
+				  work->port->port_num, 0, &work->path[0].sgid);
+		ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
+			       &work->path[0].sgid, sizeof work->path[0].sgid,
+			       NULL, 0);
+		goto rejected;
+	}
 	if (req_msg->alt_local_lid) {
 		ret = cm_init_av_by_path(&work->path[1], &cm_id_priv->alt_av);
-		if (ret)
-			goto error3;
+		if (ret) {
+			ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_ALT_GID,
+				       &work->path[0].sgid,
+				       sizeof work->path[0].sgid, NULL, 0);
+			goto rejected;
+		}
 	}
 	cm_id_priv->tid = req_msg->hdr.tid;
 	cm_id_priv->timeout_ms = cm_convert_to_ms(
@@ -1400,12 +1411,11 @@ static int cm_req_handler(struct cm_work *work)
 	cm_deref_id(listen_cm_id_priv);
 	return 0;
 
-error3:	atomic_dec(&cm_id_priv->refcount);
+rejected:
+	atomic_dec(&cm_id_priv->refcount);
 	cm_deref_id(listen_cm_id_priv);
-	cm_cleanup_timewait(cm_id_priv->timewait_info);
-error2:	kfree(cm_id_priv->timewait_info);
-	cm_id_priv->timewait_info = NULL;
-error1:	ib_destroy_cm_id(&cm_id_priv->id);
+destroy:
+	ib_destroy_cm_id(cm_id);
 	return ret;
 }
 
