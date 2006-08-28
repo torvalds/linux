@@ -1308,6 +1308,8 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *client;
 	struct saa7115_state *state;
+	int	i;
+	char	name[17];
 	u8 chip_id;
 
 	/* Check if the adapter supports the needed features */
@@ -1324,6 +1326,14 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 
 	v4l_dbg(1, debug, client, "detecting saa7115 client on address 0x%x\n", address << 1);
 
+	for (i=0;i<0x0f;i++) {
+		saa7115_write(client, 0, i);
+		name[i] = (saa7115_read(client, 0) &0x0f) +'0';
+		if (name[i]>'9')
+			name[i]+='a'-'9'-1;
+	}
+	name[i]='\0';
+
 	saa7115_write(client, 0, 5);
 	chip_id = saa7115_read(client, 0) & 0x0f;
 	if (chip_id < 3 && chip_id > 5) {
@@ -1332,7 +1342,7 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 		return 0;
 	}
 	snprintf(client->name, sizeof(client->name) - 1, "saa711%d",chip_id);
-	v4l_info(client, "saa711%d found @ 0x%x (%s)\n", chip_id, address << 1, adapter->name);
+	v4l_info(client, "saa711%d found (%s) @ 0x%x (%s)\n", chip_id, name, address << 1, adapter->name);
 
 	state = kzalloc(sizeof(struct saa7115_state), GFP_KERNEL);
 	i2c_set_clientdata(client, state);
