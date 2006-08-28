@@ -2799,6 +2799,10 @@ int patch_vt1616(struct snd_ac97 * ac97)
  */
 int patch_vt1617a(struct snd_ac97 * ac97)
 {
+	/* bring analog power consumption to normal, like WinXP driver
+	 * for EPIA SP
+	 */
+	snd_ac97_write_cache(ac97, 0x5c, 0x20);
 	ac97->ext_id |= AC97_EI_SPDIF;	/* force the detection of spdif */
 	ac97->rates[AC97_RATES_SPDIF] = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000;
 	return 0;
