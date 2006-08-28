@@ -220,8 +220,8 @@ struct it87_data {
 	unsigned long last_updated;	/* In jiffies */
 
 	u8 in[9];		/* Register value */
-	u8 in_max[9];		/* Register value */
-	u8 in_min[9];		/* Register value */
+	u8 in_max[8];		/* Register value */
+	u8 in_min[8];		/* Register value */
 	u8 has_fan;		/* Bitfield, fans enabled */
 	u16 fan[3];		/* Register values, possibly combined */
 	u16 fan_min[3];		/* Register values, possibly combined */
@@ -1251,12 +1251,9 @@ static struct it87_data *it87_update_device(struct device *dev)
 			data->in_max[i] =
 			    it87_read_value(client, IT87_REG_VIN_MAX(i));
 		}
+		/* in8 (battery) has no limit registers */
 		data->in[8] =
 		    it87_read_value(client, IT87_REG_VIN(8));
-		/* Temperature sensor doesn't have limit registers, set
-		   to min and max value */
-		data->in_min[8] = 0;
-		data->in_max[8] = 255;
 
 		for (i = 0; i < 3; i++) {
 			/* Skip disabled fans */
