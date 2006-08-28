@@ -133,6 +133,8 @@ static struct pci_device_id k8temp_ids[] = {
 	{ 0 },
 };
 
+MODULE_DEVICE_TABLE(pci, k8temp_ids);
+
 static int __devinit k8temp_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *id)
 {
