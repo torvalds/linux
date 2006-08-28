@@ -932,7 +932,10 @@ int usb_serial_probe(struct usb_interface *interface,
 
 		snprintf (&port->dev.bus_id[0], sizeof(port->dev.bus_id), "ttyUSB%d", port->number);
 		dbg ("%s - registering %s", __FUNCTION__, port->dev.bus_id);
-		device_register (&port->dev);
+		retval = device_register(&port->dev);
+		if (retval)
+			dev_err(&port->dev, "Error registering port device, "
+				"continuing\n");
 	}
 
 	usb_serial_console_init (debug, minor);
