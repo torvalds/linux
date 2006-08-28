@@ -1044,7 +1044,7 @@ static int setup_descs(struct snd_dbri * dbri, int streamno, unsigned int period
 {
 	struct dbri_streaminfo *info = &dbri->stream_info[streamno];
 	__u32 dvma_buffer;
-	int desc = 0;
+	int desc;
 	int len;
 	int first_desc = -1;
 	int last_desc = -1;
@@ -1087,6 +1087,18 @@ static int setup_descs(struct snd_dbri * dbri, int streamno, unsigned int period
 		len &= ~3;
 	}
 
+	/* Free descriptors if pipe has any */
+	desc = dbri->pipes[info->pipe].first_desc;
+	if ( desc >= 0)
+		do {
+			dbri->dma->desc[desc].nda = dbri->dma->desc[desc].ba = 0;
+			desc = dbri->next_desc[desc];
+		} while (desc != -1 && desc != dbri->pipes[info->pipe].first_desc);
+
+	dbri->pipes[info->pipe].desc = -1;
+	dbri->pipes[info->pipe].first_desc = -1;
+
+	desc = 0;
 	while (len > 0) {
 		int mylen;
 
@@ -2054,6 +2066,7 @@ static int snd_dbri_hw_free(struct snd_pcm_substream *substream)
 	struct snd_dbri *dbri = snd_pcm_substream_chip(substream);
 	struct dbri_streaminfo *info = DBRI_STREAM(dbri, substream);
 	int direction;
+
 	dprintk(D_USR, "hw_free.\n");
 
 	/* hw_free can get called multiple times. Only unmap the DMA once.
@@ -2068,7 +2081,10 @@ static int snd_dbri_hw_free(struct snd_pcm_substream *substream)
 				  substream->runtime->buffer_size, direction);
 		info->dvma_buffer = 0;
 	}
-	info->pipe = -1;
+	if (info->pipe != -1) {
+		reset_pipe(dbri, info->pipe);
+		info->pipe = -1;
+	}
 
 	return snd_pcm_lib_free_pages(substream);
 }
