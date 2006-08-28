@@ -1239,13 +1239,6 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	/* Check for TCP Segmentation Offload */
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss != 0) {
-		/* just drop the packet if non-linear expansion fails */
-		if (skb_header_cloned(skb) &&
-		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
-			dev_kfree_skb(skb);
-			goto out_unlock;
-		}
-
 		mss += ((skb->h.th->doff - 5) * 4);	/* TCP options */
 		mss += (skb->nh.iph->ihl * 4) + sizeof(struct tcphdr);
 		mss += ETH_HLEN;
@@ -1341,7 +1334,6 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod);
 
-out_unlock:
 	spin_unlock(&sky2->tx_lock);
 
 	dev->trans_start = jiffies;
