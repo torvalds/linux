@@ -1207,7 +1207,7 @@ e1000_open(struct net_device *netdev)
 
 	err = e1000_request_irq(adapter);
 	if (err)
-		goto err_up;
+		goto err_req_irq;
 
 	e1000_power_up_phy(adapter);
 
@@ -1228,6 +1228,9 @@ e1000_open(struct net_device *netdev)
 	return E1000_SUCCESS;
 
 err_up:
+	e1000_power_down_phy(adapter);
+	e1000_free_irq(adapter);
+err_req_irq:
 	e1000_free_all_rx_resources(adapter);
 err_setup_rx:
 	e1000_free_all_tx_resources(adapter);
