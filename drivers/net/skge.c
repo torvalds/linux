@@ -827,7 +827,8 @@ static int skge_rx_fill(struct skge_port *skge)
 	do {
 		struct sk_buff *skb;
 
-		skb = alloc_skb(skge->rx_buf_size + NET_IP_ALIGN, GFP_KERNEL);
+		skb = __dev_alloc_skb(skge->rx_buf_size + NET_IP_ALIGN,
+				      GFP_KERNEL);
 		if (!skb)
 			return -ENOMEM;
 
@@ -2609,7 +2610,7 @@ static inline struct sk_buff *skge_rx_get(struct skge_port *skge,
 		goto error;
 
 	if (len < RX_COPY_THRESHOLD) {
-		skb = alloc_skb(len + 2, GFP_ATOMIC);
+		skb = dev_alloc_skb(len + 2);
 		if (!skb)
 			goto resubmit;
 
@@ -2624,7 +2625,7 @@ static inline struct sk_buff *skge_rx_get(struct skge_port *skge,
 		skge_rx_reuse(e, skge->rx_buf_size);
 	} else {
 		struct sk_buff *nskb;
-		nskb = alloc_skb(skge->rx_buf_size + NET_IP_ALIGN, GFP_ATOMIC);
+		nskb = dev_alloc_skb(skge->rx_buf_size + NET_IP_ALIGN);
 		if (!nskb)
 			goto resubmit;
 
