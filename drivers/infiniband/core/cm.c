@@ -685,6 +685,8 @@ static void cm_enter_timewait(struct cm_id_private *cm_id_priv)
 {
 	int wait_time;
 
+	cm_cleanup_timewait(cm_id_priv->timewait_info);
+
 	/*
 	 * The cm_id could be destroyed by the user before we exit timewait.
 	 * To protect against this, we search for the cm_id after exiting
