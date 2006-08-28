@@ -1192,7 +1192,6 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	struct sky2_tx_le *le = NULL;
 	struct tx_ring_info *re;
 	unsigned i, len;
-	int avail;
 	dma_addr_t mapping;
 	u32 addr64;
 	u16 mss;
@@ -1328,12 +1327,8 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	re->idx = sky2->tx_prod;
 	le->ctrl |= EOP;
 
-	avail = tx_avail(sky2);
-	if (mss != 0 || avail < TX_MIN_PENDING) {
- 		le->ctrl |= FRC_STAT;
-		if (avail <= MAX_SKB_TX_LE)
-			netif_stop_queue(dev);
-	}
+	if (tx_avail(sky2) <= MAX_SKB_TX_LE)
+		netif_stop_queue(dev);
 
 	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod);
 

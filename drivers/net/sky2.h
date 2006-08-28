@@ -1748,7 +1748,6 @@ enum {
 	INIT_SUM= 1<<3,
 	LOCK_SUM= 1<<4,
 	INS_VLAN= 1<<5,
-	FRC_STAT= 1<<6,
 	EOP	= 1<<7,
 };
 
