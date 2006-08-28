@@ -348,9 +348,9 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.context = (unsigned long) NO_CONTEXT;
 	init_task.thread.kregs = &fake_swapper_regs;
 
-	smp_setup_cpu_possible_map();
-
 	paging_init();
+
+	smp_setup_cpu_possible_map();
 }
 
 static int __init set_preferred_console(void)

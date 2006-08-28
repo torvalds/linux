@@ -470,7 +470,8 @@ static void ecard_irq_mask(unsigned int irqnr)
 	}
 }
 
-static struct irqchip ecard_chip = {
+static struct irq_chip ecard_chip = {
+	.name	= "ECARD",
 	.ack	= ecard_irq_mask,
 	.mask	= ecard_irq_mask,
 	.unmask = ecard_irq_unmask,

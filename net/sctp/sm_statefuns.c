@@ -4031,18 +4031,12 @@ sctp_disposition_t sctp_sf_do_9_1_prm_abort(
 	 * from its upper layer, but retransmits data to the far end
 	 * if necessary to fill gaps.
 	 */
-	struct msghdr *msg = arg;
-	struct sctp_chunk *abort;
+	struct sctp_chunk *abort = arg;
 	sctp_disposition_t retval;
 
 	retval = SCTP_DISPOSITION_CONSUME;
 
-	/* Generate ABORT chunk to send the peer.  */
-	abort = sctp_make_abort_user(asoc, NULL, msg);
-	if (!abort)
-		retval = SCTP_DISPOSITION_NOMEM;
-	else
-		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
+	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
 
 	/* Even if we can't send the ABORT due to low memory delete the
 	 * TCB.  This is a departure from our typical NOMEM handling.
@@ -4166,8 +4160,7 @@ sctp_disposition_t sctp_sf_cookie_wait_prm_abort(
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
-	struct msghdr *msg = arg;
-	struct sctp_chunk *abort;
+	struct sctp_chunk *abort = arg;
 	sctp_disposition_t retval;
 
 	/* Stop T1-init timer */
@@ -4175,12 +4168,7 @@ sctp_disposition_t sctp_sf_cookie_wait_prm_abort(
 			SCTP_TO(SCTP_EVENT_TIMEOUT_T1_INIT));
 	retval = SCTP_DISPOSITION_CONSUME;
 
-	/* Generate ABORT chunk to send the peer */
-	abort = sctp_make_abort_user(asoc, NULL, msg);
-	if (!abort)
-		retval = SCTP_DISPOSITION_NOMEM;
-	else
-		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
+	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_CLOSED));

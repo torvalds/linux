@@ -285,6 +285,8 @@ static int __init acpi_ac_init(void)
 {
 	int result;
 
+	if (acpi_disabled)
+		return -ENODEV;
 
 	acpi_ac_dir = acpi_lock_ac_dir();
 	if (!acpi_ac_dir)

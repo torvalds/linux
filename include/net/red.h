@@ -212,7 +212,7 @@ static inline unsigned long red_calc_qavg_from_idle_time(struct red_parms *p)
 		 * Seems, it is the best solution to
 		 * problem of too coarse exponent tabulation.
 		 */
-		us_idle = (p->qavg * us_idle) >> p->Scell_log;
+		us_idle = (p->qavg * (u64)us_idle) >> p->Scell_log;
 
 		if (us_idle < (p->qavg >> 1))
 			return p->qavg - us_idle;

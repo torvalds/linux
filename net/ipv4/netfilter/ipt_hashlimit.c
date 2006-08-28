@@ -454,15 +454,12 @@ hashlimit_match(const struct sk_buff *skb,
 		dh->rateinfo.credit_cap = user2credits(hinfo->cfg.avg * 
 							hinfo->cfg.burst);
 		dh->rateinfo.cost = user2credits(hinfo->cfg.avg);
-
-		spin_unlock_bh(&hinfo->lock);
-		return 1;
+	} else {
+		/* update expiration timeout */
+		dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
+		rateinfo_recalc(dh, now);
 	}
 
-	/* update expiration timeout */
-	dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
-
-	rateinfo_recalc(dh, now);
 	if (dh->rateinfo.credit >= dh->rateinfo.cost) {
 		/* We're underlimit. */
 		dh->rateinfo.credit -= dh->rateinfo.cost;
@@ -506,6 +503,9 @@ hashlimit_checkentry(const char *tablename,
 		return 0;
 	
 	if (!r->cfg.expire)
+		return 0;
+
+	if (r->name[sizeof(r->name) - 1] != '\0')
 		return 0;
 
 	/* This is the best we've got: We cannot release and re-grab lock,

@@ -455,7 +455,10 @@ static void do_wait_for_fifo(u16 entries, struct aty128fb_par *par);
 static void wait_for_fifo(u16 entries, struct aty128fb_par *par);
 static void wait_for_idle(struct aty128fb_par *par);
 static u32 depth_to_dst(u32 depth);
+
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
 static void aty128_bl_set_power(struct fb_info *info, int power);
+#endif
 
 #define BIOS_IN8(v)  	(readb(bios + (v)))
 #define BIOS_IN16(v) 	(readb(bios + (v)) | \
@@ -1910,9 +1913,6 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 	u8 chip_rev;
 	u32 dac;
 
-	if (!par->vram_size)	/* may have already been probed */
-		par->vram_size = aty_ld_le32(CONFIG_MEMSIZE) & 0x03FFFFFF;
-
 	/* Get the chip revision */
 	chip_rev = (aty_ld_le32(CONFIG_CNTL) >> 16) & 0x1F;
 
@@ -2025,9 +2025,6 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 
 	aty128_init_engine(par);
 
-	if (register_framebuffer(info) < 0)
-		return 0;
-
 	par->pm_reg = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	par->pdev = pdev;
 	par->asleep = 0;
@@ -2036,6 +2033,9 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 #ifdef CONFIG_FB_ATY128_BACKLIGHT
 	aty128_bl_init(par);
 #endif
+
+	if (register_framebuffer(info) < 0)
+		return 0;
 
 	printk(KERN_INFO "fb%d: %s frame buffer device on %s\n",
 	       info->node, info->fix.id, video_card);
@@ -2086,7 +2086,6 @@ static int __devinit aty128_probe(struct pci_dev *pdev, const struct pci_device_
 	par = info->par;
 
 	info->pseudo_palette = par->pseudo_palette;
-	info->fix = aty128fb_fix;
 
 	/* Virtualize mmio region */
 	info->fix.mmio_start = reg_addr;

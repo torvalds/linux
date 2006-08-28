@@ -1387,8 +1387,10 @@ long do_fork(unsigned long clone_flags,
 
 		if (clone_flags & CLONE_VFORK) {
 			wait_for_completion(&vfork);
-			if (unlikely (current->ptrace & PT_TRACE_VFORK_DONE))
+			if (unlikely (current->ptrace & PT_TRACE_VFORK_DONE)) {
+				current->ptrace_message = nr;
 				ptrace_notify ((PTRACE_EVENT_VFORK_DONE << 8) | SIGTRAP);
+			}
 		}
 	} else {
 		free_pid(pid);

@@ -3628,6 +3628,8 @@ struct io_context *current_io_context(gfp_t gfp_flags)
 		ret->nr_batch_requests = 0; /* because this is 0 */
 		ret->aic = NULL;
 		ret->cic_root.rb_node = NULL;
+		/* make sure set_task_ioprio() sees the settings above */
+		smp_wmb();
 		tsk->io_context = ret;
 	}
 

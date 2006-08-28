@@ -62,6 +62,7 @@ static LIST_HEAD(serio_list);
 
 static struct bus_type serio_bus;
 
+static void serio_add_driver(struct serio_driver *drv);
 static void serio_add_port(struct serio *serio);
 static void serio_destroy_port(struct serio *serio);
 static void serio_reconnect_port(struct serio *serio);
@@ -140,8 +141,14 @@ static void serio_release_driver(struct serio *serio)
 
 static void serio_find_driver(struct serio *serio)
 {
+	int error;
+
 	down_write(&serio_bus.subsys.rwsem);
-	device_attach(&serio->dev);
+	error = device_attach(&serio->dev);
+	if (error < 0)
+		printk(KERN_WARNING
+			"serio: device_attach() failed for %s (%s), error: %d\n",
+			serio->phys, serio->name, error);
 	up_write(&serio_bus.subsys.rwsem);
 }
 
@@ -272,7 +279,6 @@ static struct serio_event *serio_get_event(void)
 static void serio_handle_event(void)
 {
 	struct serio_event *event;
-	struct serio_driver *serio_drv;
 
 	mutex_lock(&serio_mutex);
 
@@ -304,8 +310,7 @@ static void serio_handle_event(void)
 				break;
 
 			case SERIO_REGISTER_DRIVER:
-				serio_drv = event->object;
-				driver_register(&serio_drv->driver);
+				serio_add_driver(event->object);
 				break;
 
 			default:
@@ -525,6 +530,7 @@ static void serio_init_port(struct serio *serio)
 
 	__module_get(THIS_MODULE);
 
+	INIT_LIST_HEAD(&serio->node);
 	spin_lock_init(&serio->lock);
 	mutex_init(&serio->drv_mutex);
 	device_initialize(&serio->dev);
@@ -542,6 +548,8 @@ static void serio_init_port(struct serio *serio)
  */
 static void serio_add_port(struct serio *serio)
 {
+	int error;
+
 	if (serio->parent) {
 		serio_pause_rx(serio->parent);
 		serio->parent->child = serio;
@@ -551,9 +559,19 @@ static void serio_add_port(struct serio *serio)
 	list_add_tail(&serio->node, &serio_list);
 	if (serio->start)
 		serio->start(serio);
-	device_add(&serio->dev);
-	sysfs_create_group(&serio->dev.kobj, &serio_id_attr_group);
-	serio->registered = 1;
+	error = device_add(&serio->dev);
+	if (error)
+		printk(KERN_ERR
+			"serio: device_add() failed for %s (%s), error: %d\n",
+			serio->phys, serio->name, error);
+	else {
+		serio->registered = 1;
+		error = sysfs_create_group(&serio->dev.kobj, &serio_id_attr_group);
+		if (error)
+			printk(KERN_ERR
+				"serio: sysfs_create_group() failed for %s (%s), error: %d\n",
+				serio->phys, serio->name, error);
+	}
 }
 
 /*
@@ -583,10 +601,10 @@ static void serio_destroy_port(struct serio *serio)
 	if (serio->registered) {
 		sysfs_remove_group(&serio->dev.kobj, &serio_id_attr_group);
 		device_del(&serio->dev);
-		list_del_init(&serio->node);
 		serio->registered = 0;
 	}
 
+	list_del_init(&serio->node);
 	serio_remove_pending_events(serio);
 	put_device(&serio->dev);
 }
@@ -756,6 +774,17 @@ static struct bus_type serio_bus = {
 	.remove = serio_driver_remove,
 };
 
+static void serio_add_driver(struct serio_driver *drv)
+{
+	int error;
+
+	error = driver_register(&drv->driver);
+	if (error)
+		printk(KERN_ERR
+			"serio: driver_register() failed for %s, error: %d\n",
+			drv->driver.name, error);
+}
+
 void __serio_register_driver(struct serio_driver *drv, struct module *owner)
 {
 	drv->driver.bus = &serio_bus;
@@ -903,18 +932,26 @@ irqreturn_t serio_interrupt(struct serio *serio,
 
 static int __init serio_init(void)
 {
-	serio_task = kthread_run(serio_thread, NULL, "kseriod");
-	if (IS_ERR(serio_task)) {
-		printk(KERN_ERR "serio: Failed to start kseriod\n");
-		return PTR_ERR(serio_task);
-	}
+	int error;
 
 	serio_bus.dev_attrs = serio_device_attrs;
 	serio_bus.drv_attrs = serio_driver_attrs;
 	serio_bus.match = serio_bus_match;
 	serio_bus.uevent = serio_uevent;
 	serio_bus.resume = serio_resume;
-	bus_register(&serio_bus);
+	error = bus_register(&serio_bus);
+	if (error) {
+		printk(KERN_ERR "serio: failed to register serio bus, error: %d\n", error);
+		return error;
+	}
+
+	serio_task = kthread_run(serio_thread, NULL, "kseriod");
+	if (IS_ERR(serio_task)) {
+		bus_unregister(&serio_bus);
+		error = PTR_ERR(serio_task);
+		printk(KERN_ERR "serio: Failed to start kseriod, error: %d\n", error);
+		return error;
+	}
 
 	return 0;
 }

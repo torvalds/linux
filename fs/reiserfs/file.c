@@ -48,8 +48,8 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
-	reiserfs_write_lock(inode->i_sb);
 	mutex_lock(&inode->i_mutex);
+	reiserfs_write_lock(inode->i_sb);
 	/* freeing preallocation only involves relogging blocks that
 	 * are already in the current transaction.  preallocation gets
 	 * freed at the end of each transaction, so it is impossible for

@@ -504,7 +504,7 @@ config CPU_FREQ_PMAC
 
 config CPU_FREQ_PMAC64
 	bool "Support for some Apple G5s"
-	depends on CPU_FREQ && PMAC_SMU && PPC64
+	depends on CPU_FREQ && PPC64
 	select CPU_FREQ_TABLE
 	help
 	  This adds support for frequency switching on Apple iMac G5,
@@ -836,9 +836,10 @@ config MCA
 	bool
 
 config PCI
-	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_MPC52xx || (EMBEDDED && PPC_ISERIES) \
-				  || MPC7448HPC2
-	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx && !PPC_85xx && !PPC_86xx
+	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx \
+		|| PPC_MPC52xx || (EMBEDDED && PPC_ISERIES) || MPC7448HPC2
+	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx \
+		&& !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
 	help

@@ -201,6 +201,7 @@ void tcp_select_initial_window(int __space, __u32 mss,
 		 * See RFC1323 for an explanation of the limit to 14 
 		 */
 		space = max_t(u32, sysctl_tcp_rmem[2], sysctl_rmem_max);
+		space = min_t(u32, space, *window_clamp);
 		while (space > 65535 && (*rcv_wscale) < 14) {
 			space >>= 1;
 			(*rcv_wscale)++;
@@ -466,7 +467,8 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	if (skb->len != tcp_header_size)
 		tcp_event_data_sent(tp, skb, sk);
 
-	TCP_INC_STATS(TCP_MIB_OUTSEGS);
+	if (after(tcb->end_seq, tp->snd_nxt) || tcb->seq == tcb->end_seq)
+		TCP_INC_STATS(TCP_MIB_OUTSEGS);
 
 	err = icsk->icsk_af_ops->queue_xmit(skb, 0);
 	if (likely(err <= 0))
@@ -2157,10 +2159,9 @@ int tcp_connect(struct sock *sk)
 	skb_shinfo(buff)->gso_size = 0;
 	skb_shinfo(buff)->gso_type = 0;
 	buff->csum = 0;
+	tp->snd_nxt = tp->write_seq;
 	TCP_SKB_CB(buff)->seq = tp->write_seq++;
 	TCP_SKB_CB(buff)->end_seq = tp->write_seq;
-	tp->snd_nxt = tp->write_seq;
-	tp->pushed_seq = tp->write_seq;
 
 	/* Send it off. */
 	TCP_SKB_CB(buff)->when = tcp_time_stamp;
@@ -2170,6 +2171,12 @@ int tcp_connect(struct sock *sk)
 	sk_charge_skb(sk, buff);
 	tp->packets_out += tcp_skb_pcount(buff);
 	tcp_transmit_skb(sk, buff, 1, GFP_KERNEL);
+
+	/* We change tp->snd_nxt after the tcp_transmit_skb() call
+	 * in order to make this packet get counted in tcpOutSegs.
+	 */
+	tp->snd_nxt = tp->write_seq;
+	tp->pushed_seq = tp->write_seq;
 	TCP_INC_STATS(TCP_MIB_ACTIVEOPENS);
 
 	/* Timer for repeating the SYN until an answer. */

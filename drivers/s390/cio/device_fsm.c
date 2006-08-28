@@ -152,7 +152,8 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 		if (cdev->private->iretry) {
 			cdev->private->iretry--;
 			ret = cio_halt(sch);
-			return (ret == 0) ? -EBUSY : ret;
+			if (ret != -EBUSY)
+				return (ret == 0) ? -EBUSY : ret;
 		}
 		/* halt io unsuccessful. */
 		cdev->private->iretry = 255;	/* 255 clear retries. */
@@ -771,6 +772,7 @@ ccw_device_online_verify(struct ccw_device *cdev, enum dev_event dev_event)
 	stsch(sch->schid, &sch->schib);
 
 	if (sch->schib.scsw.actl != 0 ||
+	    (sch->schib.scsw.stctl & SCSW_STCTL_STATUS_PEND) ||
 	    (cdev->private->irb.scsw.stctl & SCSW_STCTL_STATUS_PEND)) {
 		/*
 		 * No final status yet or final status not yet delivered

@@ -442,6 +442,7 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		case AUDIT_EQUAL:
 			break;
 		default:
+			err = -EINVAL;
 			goto exit_free;
 		}
 	}
@@ -579,6 +580,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		case AUDIT_EQUAL:
 			break;
 		default:
+			err = -EINVAL;
 			goto exit_free;
 		}
 	}
@@ -1134,6 +1136,14 @@ static inline int audit_add_rule(struct audit_entry *entry,
 	struct audit_watch *watch = entry->rule.watch;
 	struct nameidata *ndp, *ndw;
 	int h, err, putnd_needed = 0;
+#ifdef CONFIG_AUDITSYSCALL
+	int dont_count = 0;
+
+	/* If either of these, don't count towards total */
+	if (entry->rule.listnr == AUDIT_FILTER_USER ||
+		entry->rule.listnr == AUDIT_FILTER_TYPE)
+		dont_count = 1;
+#endif
 
 	if (inode_f) {
 		h = audit_hash_ino(inode_f->val);
@@ -1174,6 +1184,10 @@ static inline int audit_add_rule(struct audit_entry *entry,
 	} else {
 		list_add_tail_rcu(&entry->list, list);
 	}
+#ifdef CONFIG_AUDITSYSCALL
+	if (!dont_count)
+		audit_n_rules++;
+#endif
 	mutex_unlock(&audit_filter_mutex);
 
 	if (putnd_needed)
@@ -1198,6 +1212,14 @@ static inline int audit_del_rule(struct audit_entry *entry,
 	struct audit_watch *watch, *tmp_watch = entry->rule.watch;
 	LIST_HEAD(inotify_list);
 	int h, ret = 0;
+#ifdef CONFIG_AUDITSYSCALL
+	int dont_count = 0;
+
+	/* If either of these, don't count towards total */
+	if (entry->rule.listnr == AUDIT_FILTER_USER ||
+		entry->rule.listnr == AUDIT_FILTER_TYPE)
+		dont_count = 1;
+#endif
 
 	if (inode_f) {
 		h = audit_hash_ino(inode_f->val);
@@ -1235,6 +1257,10 @@ static inline int audit_del_rule(struct audit_entry *entry,
 	list_del_rcu(&e->list);
 	call_rcu(&e->rcu, audit_free_rule_rcu);
 
+#ifdef CONFIG_AUDITSYSCALL
+	if (!dont_count)
+		audit_n_rules--;
+#endif
 	mutex_unlock(&audit_filter_mutex);
 
 	if (!list_empty(&inotify_list))

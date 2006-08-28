@@ -330,7 +330,7 @@ static int acpi_ec_hc_add(struct acpi_device *device)
 	status = acpi_evaluate_integer(ec_hc->handle, "_EC", NULL, &val);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Error obtaining _EC\n"));
-		kfree(ec_hc->smbus);
+		kfree(ec_hc);
 		kfree(smbus);
 		return -EIO;
 	}

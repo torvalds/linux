@@ -12,6 +12,7 @@ SECTIONS
   . = GATE_ADDR + SIZEOF_HEADERS;
 
   .hash				: { *(.hash) }				:readable
+  .gnu.hash			: { *(.gnu.hash) }
   .dynsym			: { *(.dynsym) }
   .dynstr			: { *(.dynstr) }
   .gnu.version			: { *(.gnu.version) }

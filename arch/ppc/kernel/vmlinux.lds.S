@@ -8,6 +8,7 @@ SECTIONS
   . = + SIZEOF_HEADERS;
   .interp : { *(.interp) }
   .hash          : { *(.hash)		}
+  .gnu.hash      : { *(.gnu.hash)	}
   .dynsym        : { *(.dynsym)		}
   .dynstr        : { *(.dynstr)		}
   .rel.text      : { *(.rel.text)		}

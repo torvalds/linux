@@ -99,7 +99,7 @@ config IBM_PARTITION
 
 config MAC_PARTITION
 	bool "Macintosh partition map support" if PARTITION_ADVANCED
-	default y if MAC
+	default y if (MAC || PPC_PMAC)
 	help
 	  Say Y here if you would like to use hard disks under Linux which
 	  were partitioned on a Macintosh.

@@ -141,6 +141,7 @@ struct at91_udc {
 	struct clk			*iclk, *fclk;
 	struct platform_device		*pdev;
 	struct proc_dir_entry		*pde;
+	int				udp_irq;
 };
 
 static inline struct at91_udc *to_udc(struct usb_gadget *g)

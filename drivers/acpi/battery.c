@@ -757,6 +757,9 @@ static int __init acpi_battery_init(void)
 {
 	int result;
 
+	if (acpi_disabled)
+		return -ENODEV;
+
 	acpi_battery_dir = acpi_lock_battery_dir();
 	if (!acpi_battery_dir)
 		return -ENODEV;

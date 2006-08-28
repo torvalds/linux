@@ -128,23 +128,17 @@ static atomic_t unix_nr_socks = ATOMIC_INIT(0);
 #define UNIX_ABSTRACT(sk)	(unix_sk(sk)->addr->hash != UNIX_HASH_SIZE)
 
 #ifdef CONFIG_SECURITY_NETWORK
-static void unix_get_peersec_dgram(struct sk_buff *skb)
+static void unix_get_secdata(struct scm_cookie *scm, struct sk_buff *skb)
 {
-	int err;
-
-	err = security_socket_getpeersec_dgram(skb, UNIXSECDATA(skb),
-					       UNIXSECLEN(skb));
-	if (err)
-		*(UNIXSECDATA(skb)) = NULL;
+	memcpy(UNIXSID(skb), &scm->secid, sizeof(u32));
 }
 
 static inline void unix_set_secdata(struct scm_cookie *scm, struct sk_buff *skb)
 {
-	scm->secdata = *UNIXSECDATA(skb);
-	scm->seclen = *UNIXSECLEN(skb);
+	scm->secid = *UNIXSID(skb);
 }
 #else
-static inline void unix_get_peersec_dgram(struct sk_buff *skb)
+static inline void unix_get_secdata(struct scm_cookie *scm, struct sk_buff *skb)
 { }
 
 static inline void unix_set_secdata(struct scm_cookie *scm, struct sk_buff *skb)
@@ -1322,8 +1316,7 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	memcpy(UNIXCREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
 	if (siocb->scm->fp)
 		unix_attach_fds(siocb->scm, skb);
-
-	unix_get_peersec_dgram(skb);
+	unix_get_secdata(siocb->scm, skb);
 
 	skb->h.raw = skb->data;
 	err = memcpy_fromiovec(skb_put(skb,len), msg->msg_iov, len);

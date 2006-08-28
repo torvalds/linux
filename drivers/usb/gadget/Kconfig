@@ -207,7 +207,7 @@ config USB_AT91
 
 config USB_GADGET_DUMMY_HCD
 	boolean "Dummy HCD (DEVELOPMENT)"
-	depends on USB && EXPERIMENTAL
+	depends on (USB=y || (USB=m && USB_GADGET=m)) && EXPERIMENTAL
 	select USB_GADGET_DUALSPEED
 	help
 	  This host controller driver emulates USB, looping all data transfer

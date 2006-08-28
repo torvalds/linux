@@ -716,7 +716,7 @@ struct v4l2_ext_control
 		__s64 value64;
 		void *reserved;
 	};
-};
+} __attribute__ ((packed));
 
 struct v4l2_ext_controls
 {

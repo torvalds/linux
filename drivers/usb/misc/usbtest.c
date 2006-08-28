@@ -1242,11 +1242,12 @@ done:
 static int ctrl_out (struct usbtest_dev *dev,
 		unsigned count, unsigned length, unsigned vary)
 {
-	unsigned		i, j, len, retval;
+	unsigned		i, j, len;
+	int			retval;
 	u8			*buf;
 	char			*what = "?";
 	struct usb_device	*udev;
-	
+
 	if (length < 1 || length > 0xffff || vary >= length)
 		return -EINVAL;
 

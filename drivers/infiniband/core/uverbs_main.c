@@ -122,7 +122,7 @@ static void ib_uverbs_release_dev(struct kref *ref)
 	struct ib_uverbs_device *dev =
 		container_of(ref, struct ib_uverbs_device, ref);
 
-	kfree(dev);
+	complete(&dev->comp);
 }
 
 void ib_uverbs_release_ucq(struct ib_uverbs_file *file,
@@ -740,6 +740,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 		return;
 
 	kref_init(&uverbs_dev->ref);
+	init_completion(&uverbs_dev->comp);
 
 	spin_lock(&map_lock);
 	uverbs_dev->devnum = find_first_zero_bit(dev_map, IB_UVERBS_MAX_DEVICES);
@@ -793,6 +794,8 @@ err_cdev:
 
 err:
 	kref_put(&uverbs_dev->ref, ib_uverbs_release_dev);
+	wait_for_completion(&uverbs_dev->comp);
+	kfree(uverbs_dev);
 	return;
 }
 
@@ -812,7 +815,10 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 	spin_unlock(&map_lock);
 
 	clear_bit(uverbs_dev->devnum, dev_map);
+
 	kref_put(&uverbs_dev->ref, ib_uverbs_release_dev);
+	wait_for_completion(&uverbs_dev->comp);
+	kfree(uverbs_dev);
 }
 
 static int uverbs_event_get_sb(struct file_system_type *fs_type, int flags,

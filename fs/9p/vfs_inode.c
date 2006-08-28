@@ -434,10 +434,10 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 	result = v9fs_t_remove(v9ses, fid, &fcall);
 	if (result < 0) {
 		PRINT_FCALL_ERROR("remove fails", fcall);
-	} else {
-		v9fs_put_idpool(fid, &v9ses->fidpool);
-		v9fs_fid_destroy(v9fid);
 	}
+
+	v9fs_put_idpool(fid, &v9ses->fidpool);
+	v9fs_fid_destroy(v9fid);
 
 	kfree(fcall);
 	return result;

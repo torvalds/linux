@@ -3524,25 +3524,21 @@ out:
 	return err;
 }
 
-static int selinux_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata, u32 *seclen)
+static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
+	u32 peer_secid = SECSID_NULL;
 	int err = 0;
-	u32 peer_sid;
 
-	if (skb->sk->sk_family == PF_UNIX)
-		selinux_get_inode_sid(SOCK_INODE(skb->sk->sk_socket),
-				      &peer_sid);
-	else
-		peer_sid = selinux_socket_getpeer_dgram(skb);
+	if (sock && (sock->sk->sk_family == PF_UNIX))
+		selinux_get_inode_sid(SOCK_INODE(sock), &peer_secid);
+	else if (skb)
+		peer_secid = selinux_socket_getpeer_dgram(skb);
 
-	if (peer_sid == SECSID_NULL)
-		return -EINVAL;
+	if (peer_secid == SECSID_NULL)
+		err = -EINVAL;
+	*secid = peer_secid;
 
-	err = security_sid_to_context(peer_sid, secdata, seclen);
-	if (err)
-		return err;
-
-	return 0;
+	return err;
 }
 
 static int selinux_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
@@ -4407,6 +4403,17 @@ static int selinux_setprocattr(struct task_struct *p,
 	return size;
 }
 
+static int selinux_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
+{
+	return security_sid_to_context(secid, secdata, seclen);
+}
+
+static void selinux_release_secctx(char *secdata, u32 seclen)
+{
+	if (secdata)
+		kfree(secdata);
+}
+
 #ifdef CONFIG_KEYS
 
 static int selinux_key_alloc(struct key *k, struct task_struct *tsk,
@@ -4586,6 +4593,9 @@ static struct security_operations selinux_ops = {
 
 	.getprocattr =                  selinux_getprocattr,
 	.setprocattr =                  selinux_setprocattr,
+
+	.secid_to_secctx =		selinux_secid_to_secctx,
+	.release_secctx =		selinux_release_secctx,
 
         .unix_stream_connect =		selinux_socket_unix_stream_connect,
 	.unix_may_send =		selinux_socket_unix_may_send,

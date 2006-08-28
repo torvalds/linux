@@ -666,8 +666,9 @@ repeat:
 			if (!frozen_buffer) {
 				JBUFFER_TRACE(jh, "allocate memory for buffer");
 				jbd_unlock_bh_state(bh);
-				frozen_buffer = jbd_kmalloc(jh2bh(jh)->b_size,
-							    GFP_NOFS);
+				frozen_buffer =
+					jbd_slab_alloc(jh2bh(jh)->b_size,
+							 GFP_NOFS);
 				if (!frozen_buffer) {
 					printk(KERN_EMERG
 					       "%s: OOM for frozen_buffer\n",
@@ -879,7 +880,7 @@ int journal_get_undo_access(handle_t *handle, struct buffer_head *bh)
 
 repeat:
 	if (!jh->b_committed_data) {
-		committed_data = jbd_kmalloc(jh2bh(jh)->b_size, GFP_NOFS);
+		committed_data = jbd_slab_alloc(jh2bh(jh)->b_size, GFP_NOFS);
 		if (!committed_data) {
 			printk(KERN_EMERG "%s: No memory for committed data\n",
 				__FUNCTION__);
@@ -906,7 +907,7 @@ repeat:
 out:
 	journal_put_journal_head(jh);
 	if (unlikely(committed_data))
-		kfree(committed_data);
+		jbd_slab_free(committed_data, bh->b_size);
 	return err;
 }
 

@@ -145,6 +145,13 @@ UNUSUAL_DEV(  0x0420, 0x0001, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Mario Rettig <mariorettig@web.de> */
+UNUSUAL_DEV(  0x0421, 0x042e, 0x0100, 0x0100,
+		"Nokia",
+		"Nokia 3250",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+
 /* Reported by Sumedha Swamy <sumedhaswamy@gmail.com> and
  * Einar Th. Einarsson <einarthered@gmail.com> */
 UNUSUAL_DEV(  0x0421, 0x0444, 0x0100, 0x0100,
@@ -627,18 +634,6 @@ UNUSUAL_DEV(  0x0595, 0x4343, 0x0000, 0x2210,
 		"Digital Camera EX-20 DSC",
 		US_SC_8070, US_PR_DEVICE, NULL, 0 ),
 
-/* The entry was here before I took over, and had US_SC_RBC. It turns
- * out that isn't needed. Additionally, Torsten Eriksson
- * <Torsten.Eriksson@bergianska.se> is able to use his device fine
- * without this entry at all - but I don't suspect that will be true
- * for all users (the protocol is likely needed), so is staying at
- * this time. - Phil Dibowitz <phil@ipom.com>
- */
-UNUSUAL_DEV(  0x059f, 0xa601, 0x0200, 0x0200, 
-		"LaCie",
-		"USB Hard Disk",
-		US_SC_DEVICE, US_PR_CB, NULL, 0 ),
-
 /* Submitted by Joel Bourquard <numlock@freesurf.ch>
  * Some versions of this device need the SubClass and Protocol overrides
  * while others don't.
@@ -1106,7 +1101,15 @@ UNUSUAL_DEV( 0x0a17, 0x006, 0x0000, 0xffff,
                 "Optio S/S4",
                 US_SC_DEVICE, US_PR_DEVICE, NULL,
                 US_FL_FIX_INQUIRY ),
-		
+
+/* This is a virtual windows driver CD, which the zd1211rw driver automatically
+ * converts into a WLAN device. */
+UNUSUAL_DEV( 0x0ace, 0x2011, 0x0101, 0x0101,
+                "ZyXEL",
+                "G-220F USB-WLAN Install",
+                US_SC_DEVICE, US_PR_DEVICE, NULL,
+                US_FL_IGNORE_DEVICE ),
+
 #ifdef CONFIG_USB_STORAGE_ISD200
 UNUSUAL_DEV(  0x0bf6, 0xa001, 0x0100, 0x0110,
 		"ATI",
@@ -1237,6 +1240,16 @@ UNUSUAL_DEV(  0x0ed1, 0x7636, 0x0103, 0x0103,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_GO_SLOW | US_FL_MAX_SECTORS_64),
 
+/* David Kuehling <dvdkhlng@gmx.de>:
+ * for MP3-Player AVOX WSX-300ER (bought in Japan).  Reports lots of SCSI
+ * errors when trying to write.
+ */
+UNUSUAL_DEV(  0x0f19, 0x0105, 0x0100, 0x0100,
+		"C-MEX",
+		"A-VOX",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Michael Stattmann <michael@stattmann.com> */
 UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
 		"Sony Ericsson",
@@ -1248,7 +1261,7 @@ UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
  * Tested on hardware version 1.10.
  * Entry is needed only for the initializer function override.
  */
-UNUSUAL_DEV(  0x1019, 0x0c55, 0x0000, 0x9999,
+UNUSUAL_DEV(  0x1019, 0x0c55, 0x0110, 0x0110,
 		"Desknote",
 		"UCR-61S2B",
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_ucr61s2b_init,

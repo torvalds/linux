@@ -262,7 +262,7 @@ acpi_evaluate_integer(acpi_handle handle,
 	if (!data)
 		return AE_BAD_PARAMETER;
 
-	element = kmalloc(sizeof(union acpi_object), GFP_KERNEL);
+	element = kmalloc(sizeof(union acpi_object), irqs_disabled() ? GFP_ATOMIC: GFP_KERNEL);
 	if (!element)
 		return AE_NO_MEMORY;
 

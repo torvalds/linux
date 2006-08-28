@@ -63,7 +63,8 @@ static void kev7a400_unmask_cpld_irq (u32 irq)
 	CPLD_WR_PB_INT_MASK = CPLD_IRQ_mask;
 }
 
-static struct irqchip kev7a400_cpld_chip = {
+static struct irq_chip kev7a400_cpld_chip = {
+	.name	= "CPLD",
 	.ack	= kev7a400_ack_cpld_irq,
 	.mask	= kev7a400_mask_cpld_irq,
 	.unmask	= kev7a400_unmask_cpld_irq,

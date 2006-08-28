@@ -110,7 +110,6 @@ static void au1xxx_start_ohc(struct platform_device *dev)
 
 	printk(KERN_DEBUG __FILE__
 	": Clock to USB host has been enabled \n");
-#endif
 }
 
 static void au1xxx_stop_ohc(struct platform_device *dev)

@@ -116,12 +116,12 @@ static int reiserfs_unpack(struct inode *inode, struct file *filp)
 	if (REISERFS_I(inode)->i_flags & i_nopack_mask) {
 		return 0;
 	}
-	reiserfs_write_lock(inode->i_sb);
 
 	/* we need to make sure nobody is changing the file size beneath
 	 ** us
 	 */
 	mutex_lock(&inode->i_mutex);
+	reiserfs_write_lock(inode->i_sb);
 
 	write_from = inode->i_size & (blocksize - 1);
 	/* if we are on a block boundary, we are already unpacked.  */

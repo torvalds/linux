@@ -12,8 +12,13 @@
 *	the single I/O ports of the device.
 *
 *	Supported vendors:	AK Modul-Bus Computer GmbH
-*	Supported devices:	CY7C63001A-PC (to be continued...)
-*	Supported functions:	Read/Write Ports (to be continued...)
+*				(Firmware "Port-Chip")
+*
+*	Supported devices:	CY7C63001A-PC
+*				CY7C63001C-PXC
+*				CY7C63001C-SXC
+*
+*	Supported functions:	Read/Write Ports
 *
 *
 *	This program is free software; you can redistribute it and/or
@@ -203,7 +208,7 @@ static int cypress_probe(struct usb_interface *interface,
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		dev_err(&dev->udev->dev, "Out of memory!\n");
+		dev_err(&interface->dev, "Out of memory!\n");
 		goto error;
 	}
 
