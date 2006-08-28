@@ -4709,11 +4709,14 @@ e1000_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	uint32_t manc, ret_val;
+	uint32_t manc, err;
 
 	pci_set_power_state(pdev, PCI_D0);
 	e1000_pci_restore_state(adapter);
-	ret_val = pci_enable_device(pdev);
+	if ((err = pci_enable_device(pdev))) {
+		printk(KERN_ERR "e1000: Cannot enable PCI device from suspend\n");
+		return err;
+	}
 	pci_set_master(pdev);
 
 	pci_enable_wake(pdev, PCI_D3hot, 0);
