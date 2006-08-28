@@ -510,8 +510,8 @@ restart:
 	rt = fn->leaf;
 	rt = rt6_device_match(rt, fl->oif, flags);
 	BACKTRACK(&fl->fl6_src);
-	dst_hold(&rt->u.dst);
 out:
+	dst_hold(&rt->u.dst);
 	read_unlock_bh(&table->tb6_lock);
 
 	rt->u.dst.lastuse = jiffies;
