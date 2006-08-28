@@ -28,6 +28,7 @@
 
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/module.h>
 #include <linux/firmware.h>
 #include "aic94xx_reg.h"
 #include "aic94xx_hwi.h"
@@ -1399,3 +1400,5 @@ void asd_update_port_links(struct asd_sas_phy *sas_phy)
 	if (err)
 		asd_printk("couldn't update DDB 0:error:%d\n", err);
 }
+
+MODULE_FIRMWARE(SAS_RAZOR_SEQUENCER_FW_FILE);
