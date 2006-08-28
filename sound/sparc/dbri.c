@@ -2111,8 +2111,6 @@ static int snd_dbri_prepare(struct snd_pcm_substream *substream)
 	ret = setup_descs(dbri, DBRI_STREAMNO(substream),
 			  snd_pcm_lib_period_bytes(substream));
 
-	runtime->stop_threshold = DBRI_TD_MAXCNT / runtime->channels;
-
 	spin_unlock_irq(&dbri->lock);
 
 	dprintk(D_USR, "prepare audio output. %d bytes\n", info->size);
