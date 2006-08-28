@@ -1069,7 +1069,7 @@ intr_do_preempt:
 	BL	preempt_schedule_irq, %r2
 	nop
 
-	b	intr_restore		/* ssm PSW_SM_I done by intr_restore */
+	b,n	intr_restore		/* ssm PSW_SM_I done by intr_restore */
 #endif /* CONFIG_PREEMPT */
 
 	.import do_signal,code
