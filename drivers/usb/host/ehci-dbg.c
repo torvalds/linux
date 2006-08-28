@@ -785,10 +785,11 @@ static CLASS_DEVICE_ATTR (registers, S_IRUGO, show_registers, NULL);
 static inline void create_debug_files (struct ehci_hcd *ehci)
 {
 	struct class_device *cldev = ehci_to_hcd(ehci)->self.class_dev;
+	int retval;
 
-	class_device_create_file(cldev, &class_device_attr_async);
-	class_device_create_file(cldev, &class_device_attr_periodic);
-	class_device_create_file(cldev, &class_device_attr_registers);
+	retval = class_device_create_file(cldev, &class_device_attr_async);
+	retval = class_device_create_file(cldev, &class_device_attr_periodic);
+	retval = class_device_create_file(cldev, &class_device_attr_registers);
 }
 
 static inline void remove_debug_files (struct ehci_hcd *ehci)
