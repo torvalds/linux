@@ -1202,6 +1202,22 @@ static void it87_init_client(struct i2c_client *client, struct it87_data *data)
 		data->manual_pwm_ctl[i] = 0xff;
 	}
 
+	/* Some chips seem to have default value 0xff for all limit
+	 * registers. For low voltage limits it makes no sense and triggers
+	 * alarms, so change to 0 instead. For high temperature limits, it
+	 * means -1 degree C, which surprisingly doesn't trigger an alarm,
+	 * but is still confusing, so change to 127 degrees C. */
+	for (i = 0; i < 8; i++) {
+		tmp = it87_read_value(client, IT87_REG_VIN_MIN(i));
+		if (tmp == 0xff)
+			it87_write_value(client, IT87_REG_VIN_MIN(i), 0);
+	}
+	for (i = 0; i < 3; i++) {
+		tmp = it87_read_value(client, IT87_REG_TEMP_HIGH(i));
+		if (tmp == 0xff)
+			it87_write_value(client, IT87_REG_TEMP_HIGH(i), 127);
+	}
+
 	/* Check if temperature channnels are reset manually or by some reason */
 	tmp = it87_read_value(client, IT87_REG_TEMP_ENABLE);
 	if ((tmp & 0x3f) == 0) {
