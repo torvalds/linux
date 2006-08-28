@@ -472,10 +472,14 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 	if (qp->transport == RC || qp->transport == UC) {
 		to_ib_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
 		to_ib_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
+		qp_attr->alt_pkey_index =
+			be32_to_cpu(context->alt_path.port_pkey) & 0x7f;
+		qp_attr->alt_port_num 	= qp_attr->alt_ah_attr.port_num;
 	}
 
-	qp_attr->pkey_index     = be32_to_cpu(context->pri_path.port_pkey) & 0x7f;
-	qp_attr->alt_pkey_index = be32_to_cpu(context->alt_path.port_pkey) & 0x7f;
+	qp_attr->pkey_index = be32_to_cpu(context->pri_path.port_pkey) & 0x7f;
+	qp_attr->port_num   =
+		(be32_to_cpu(context->pri_path.port_pkey) >> 24) & 0x3;
 
 	/* qp_attr->en_sqd_async_notify is only applicable in modify qp */
 	qp_attr->sq_draining = mthca_state == MTHCA_QP_STATE_DRAINING;
@@ -486,11 +490,9 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 		1 << ((be32_to_cpu(context->params2) >> 21) & 0x7);
 	qp_attr->min_rnr_timer 	    =
 		(be32_to_cpu(context->rnr_nextrecvpsn) >> 24) & 0x1f;
-	qp_attr->port_num 	    = qp_attr->ah_attr.port_num;
 	qp_attr->timeout 	    = context->pri_path.ackto >> 3;
 	qp_attr->retry_cnt 	    = (be32_to_cpu(context->params1) >> 16) & 0x7;
 	qp_attr->rnr_retry 	    = context->pri_path.rnr_retry >> 5;
-	qp_attr->alt_port_num 	    = qp_attr->alt_ah_attr.port_num;
 	qp_attr->alt_timeout 	    = context->alt_path.ackto >> 3;
 	qp_init_attr->cap 	    = qp_attr->cap;
 
