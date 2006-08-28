@@ -2439,10 +2439,9 @@ e1000_watchdog(unsigned long data)
 			 * disable receives in the ISR and
 			 * reset device here in the watchdog
 			 */
-			if (adapter->hw.mac_type == e1000_80003es2lan) {
+			if (adapter->hw.mac_type == e1000_80003es2lan)
 				/* reset device */
 				schedule_work(&adapter->reset_task);
-			}
 		}
 
 		e1000_smartspeed(adapter);
@@ -3677,7 +3676,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			E1000_DBG("%s: Receive packet consumed multiple"
 				  " buffers\n", netdev->name);
 			/* recycle */
-			buffer_info-> skb = skb;
+			buffer_info->skb = skb;
 			goto next_desc;
 		}
 

@@ -428,12 +428,12 @@ e1000_get_regs(struct net_device *netdev,
 		regs_buff[23] = regs_buff[18]; /* mdix mode */
 		e1000_write_phy_reg(hw, IGP01E1000_PHY_PAGE_SELECT, 0x0);
 	} else {
-        	e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_STATUS, &phy_data);
+		e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_STATUS, &phy_data);
 		regs_buff[13] = (uint32_t)phy_data; /* cable length */
 		regs_buff[14] = 0;  /* Dummy (to align w/ IGP phy reg dump) */
 		regs_buff[15] = 0;  /* Dummy (to align w/ IGP phy reg dump) */
 		regs_buff[16] = 0;  /* Dummy (to align w/ IGP phy reg dump) */
-        	e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
+		e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
 		regs_buff[17] = (uint32_t)phy_data; /* extended 10bt distance */
 		regs_buff[18] = regs_buff[13]; /* cable polarity */
 		regs_buff[19] = 0;  /* Dummy (to align w/ IGP phy reg dump) */
@@ -709,7 +709,6 @@ e1000_set_ringparam(struct net_device *netdev,
 	}
 
 	clear_bit(__E1000_RESETTING, &adapter->flags);
-
 	return 0;
 err_setup_tx:
 	e1000_free_all_rx_resources(adapter);
@@ -894,16 +893,17 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 
 	*data = 0;
 
+	/* NOTE: we don't test MSI interrupts here, yet */
 	/* Hook up test interrupt handler just for this test */
 	if (!request_irq(irq, &e1000_test_intr, IRQF_PROBE_SHARED,
-			 netdev->name, netdev)) {
- 		shared_int = FALSE;
- 	} else if (request_irq(irq, &e1000_test_intr, IRQF_SHARED,
-			      netdev->name, netdev)){
+			 netdev->name, netdev))
+		shared_int = FALSE;
+	else if (request_irq(irq, &e1000_test_intr, IRQF_SHARED,
+			      netdev->name, netdev)) {
 		*data = 1;
 		return -1;
 	}
-	DPRINTK(PROBE,INFO, "testing %s interrupt\n",
+	DPRINTK(HW, INFO, "testing %s interrupt\n",
 	        (shared_int ? "shared" : "unshared"));
 
 	/* Disable all the interrupts */
@@ -1269,11 +1269,10 @@ e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x9140);
 		/* autoneg off */
 		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x8140);
-	} else if (adapter->hw.phy_type == e1000_phy_gg82563) {
+	} else if (adapter->hw.phy_type == e1000_phy_gg82563)
 		e1000_write_phy_reg(&adapter->hw,
 		                    GG82563_PHY_KMRN_MODE_CTRL,
 		                    0x1CC);
-	}
 
 	ctrl_reg = E1000_READ_REG(&adapter->hw, CTRL);
 
@@ -1301,9 +1300,9 @@ e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	}
 
 	if (adapter->hw.media_type == e1000_media_type_copper &&
-	   adapter->hw.phy_type == e1000_phy_m88) {
+	   adapter->hw.phy_type == e1000_phy_m88)
 		ctrl_reg |= E1000_CTRL_ILOS; /* Invert Loss of Signal */
-	} else {
+	else {
 		/* Set the ILOS bit on the fiber Nic is half
 		 * duplex link is detected. */
 		stat_reg = E1000_READ_REG(&adapter->hw, STATUS);
@@ -1439,11 +1438,10 @@ e1000_loopback_cleanup(struct e1000_adapter *adapter)
 	case e1000_82546_rev_3:
 	default:
 		hw->autoneg = TRUE;
-		if (hw->phy_type == e1000_phy_gg82563) {
+		if (hw->phy_type == e1000_phy_gg82563)
 			e1000_write_phy_reg(hw,
 					    GG82563_PHY_KMRN_MODE_CTRL,
 					    0x180);
-		}
 		e1000_read_phy_reg(hw, PHY_CTRL, &phy_reg);
 		if (phy_reg & MII_CR_LOOPBACK) {
 			phy_reg &= ~MII_CR_LOOPBACK;
@@ -1915,8 +1913,8 @@ static struct ethtool_ops e1000_ethtool_ops = {
 	.get_regs               = e1000_get_regs,
 	.get_wol                = e1000_get_wol,
 	.set_wol                = e1000_set_wol,
-	.get_msglevel	        = e1000_get_msglevel,
-	.set_msglevel	        = e1000_set_msglevel,
+	.get_msglevel           = e1000_get_msglevel,
+	.set_msglevel           = e1000_set_msglevel,
 	.nway_reset             = e1000_nway_reset,
 	.get_link               = ethtool_op_get_link,
 	.get_eeprom_len         = e1000_get_eeprom_len,
@@ -1924,17 +1922,17 @@ static struct ethtool_ops e1000_ethtool_ops = {
 	.set_eeprom             = e1000_set_eeprom,
 	.get_ringparam          = e1000_get_ringparam,
 	.set_ringparam          = e1000_set_ringparam,
-	.get_pauseparam		= e1000_get_pauseparam,
-	.set_pauseparam		= e1000_set_pauseparam,
-	.get_rx_csum		= e1000_get_rx_csum,
-	.set_rx_csum		= e1000_set_rx_csum,
-	.get_tx_csum		= e1000_get_tx_csum,
-	.set_tx_csum		= e1000_set_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.set_sg			= ethtool_op_set_sg,
+	.get_pauseparam         = e1000_get_pauseparam,
+	.set_pauseparam         = e1000_set_pauseparam,
+	.get_rx_csum            = e1000_get_rx_csum,
+	.set_rx_csum            = e1000_set_rx_csum,
+	.get_tx_csum            = e1000_get_tx_csum,
+	.set_tx_csum            = e1000_set_tx_csum,
+	.get_sg                 = ethtool_op_get_sg,
+	.set_sg                 = ethtool_op_set_sg,
 #ifdef NETIF_F_TSO
-	.get_tso		= ethtool_op_get_tso,
-	.set_tso		= e1000_set_tso,
+	.get_tso                = ethtool_op_get_tso,
+	.set_tso                = e1000_set_tso,
 #endif
 	.self_test_count        = e1000_diag_test_count,
 	.self_test              = e1000_diag_test,
@@ -1942,7 +1940,7 @@ static struct ethtool_ops e1000_ethtool_ops = {
 	.phys_id                = e1000_phys_id,
 	.get_stats_count        = e1000_get_stats_count,
 	.get_ethtool_stats      = e1000_get_ethtool_stats,
-	.get_perm_addr		= ethtool_op_get_perm_addr,
+	.get_perm_addr          = ethtool_op_get_perm_addr,
 };
 
 void e1000_set_ethtool_ops(struct net_device *netdev)

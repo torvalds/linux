@@ -242,7 +242,7 @@ struct e1000_adapter {
 	struct timer_list watchdog_timer;
 	struct timer_list phy_info_timer;
 	struct vlan_group *vlgrp;
-    	uint16_t mng_vlan_id;
+	uint16_t mng_vlan_id;
 	uint32_t bd_number;
 	uint32_t rx_buffer_len;
 	uint32_t part_num;
