@@ -531,6 +531,7 @@ static void sky2_phy_power(struct sky2_hw *hw, unsigned port, int onoff)
 		reg1 |= phy_power[port];
 
 	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
+	sky2_pci_read32(hw, PCI_DEV_REG1);
 	udelay(100);
 }
 
@@ -766,9 +767,10 @@ static inline struct sky2_tx_le *get_tx_le(struct sky2_port *sky2)
 /* Update chip's next pointer */
 static inline void sky2_put_idx(struct sky2_hw *hw, unsigned q, u16 idx)
 {
+	q = Y2_QADDR(q, PREF_UNIT_PUT_IDX);
 	wmb();
-	sky2_write16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX), idx);
-	mmiowb();
+	sky2_write16(hw, q, idx);
+	sky2_read16(hw, q);
 }
 
 
