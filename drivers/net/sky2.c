@@ -1244,15 +1244,15 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		mss += ((skb->h.th->doff - 5) * 4);	/* TCP options */
 		mss += (skb->nh.iph->ihl * 4) + sizeof(struct tcphdr);
 		mss += ETH_HLEN;
-	}
 
-	if (mss != sky2->tx_last_mss) {
-		le = get_tx_le(sky2);
-		le->tx.tso.size = cpu_to_le16(mss);
-		le->tx.tso.rsvd = 0;
-		le->opcode = OP_LRGLEN | HW_OWNER;
-		le->ctrl = 0;
-		sky2->tx_last_mss = mss;
+		if (mss != sky2->tx_last_mss) {
+			le = get_tx_le(sky2);
+			le->tx.tso.size = cpu_to_le16(mss);
+			le->tx.tso.rsvd = 0;
+			le->opcode = OP_LRGLEN | HW_OWNER;
+			le->ctrl = 0;
+			sky2->tx_last_mss = mss;
+		}
 	}
 
 	ctrl = 0;
@@ -1320,7 +1320,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		le->opcode = OP_BUFFER | HW_OWNER;
 
 		fre = sky2->tx_ring
-		    + RING_NEXT((re - sky2->tx_ring) + i, TX_RING_SIZE);
+			+ RING_NEXT((re - sky2->tx_ring) + i, TX_RING_SIZE);
 		pci_unmap_addr_set(fre, mapaddr, mapping);
 	}
 
