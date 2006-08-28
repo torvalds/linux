@@ -453,14 +453,25 @@
 	    file in your Linux kernel sources.
 	    </para>
 
-	    <para>Otherwise the main use for this file from programs
-	    is to poll() it to get notifications of usb devices
-	    as they're plugged or unplugged.
-	    To see what changed, you'd need to read the file and
-	    compare "before" and "after" contents, scan the filesystem,
-	    or see its hotplug event.
-	    </para>
+	    <para>This file, in combination with the poll() system call, can
+	    also be used to detect when devices are added or removed:
+<programlisting>int fd;
+struct pollfd pfd;
 
+fd = open("/proc/bus/usb/devices", O_RDONLY);
+pfd = { fd, POLLIN, 0 };
+for (;;) {
+	/* The first time through, this call will return immediately. */
+	poll(&amp;pfd, 1, -1);
+
+	/* To see what's changed, compare the file's previous and current
+	   contents or scan the filesystem.  (Scanning is more precise.) */
+}</programlisting>
+	    Note that this behavior is intended to be used for informational
+	    and debug purposes.  It would be more appropriate to use programs
+	    such as udev or HAL to initialize a device or start a user-mode
+	    helper program, for instance.
+	    </para>
 	</sect1>
 
 	<sect1>
