@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2005 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2004-2006 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004, 2005 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
@@ -41,6 +41,7 @@
 #include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/random.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -73,6 +74,7 @@ static struct ib_cm {
 	struct rb_root remote_id_table;
 	struct rb_root remote_sidr_table;
 	struct idr local_id_table;
+	__be32 random_id_operand;
 	struct workqueue_struct *wq;
 } cm;
 
@@ -299,15 +301,17 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 static int cm_alloc_id(struct cm_id_private *cm_id_priv)
 {
 	unsigned long flags;
-	int ret;
+	int ret, id;
 	static int next_id;
 
 	do {
 		spin_lock_irqsave(&cm.lock, flags);
-		ret = idr_get_new_above(&cm.local_id_table, cm_id_priv, next_id++,
-					(__force int *) &cm_id_priv->id.local_id);
+		ret = idr_get_new_above(&cm.local_id_table, cm_id_priv,
+					next_id++, &id);
 		spin_unlock_irqrestore(&cm.lock, flags);
 	} while( (ret == -EAGAIN) && idr_pre_get(&cm.local_id_table, GFP_KERNEL) );
+
+	cm_id_priv->id.local_id = (__force __be32) (id ^ cm.random_id_operand);
 	return ret;
 }
 
@@ -316,7 +320,8 @@ static void cm_free_id(__be32 local_id)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cm.lock, flags);
-	idr_remove(&cm.local_id_table, (__force int) local_id);
+	idr_remove(&cm.local_id_table,
+		   (__force int) (local_id ^ cm.random_id_operand));
 	spin_unlock_irqrestore(&cm.lock, flags);
 }
 
@@ -324,7 +329,8 @@ static struct cm_id_private * cm_get_id(__be32 local_id, __be32 remote_id)
 {
 	struct cm_id_private *cm_id_priv;
 
-	cm_id_priv = idr_find(&cm.local_id_table, (__force int) local_id);
+	cm_id_priv = idr_find(&cm.local_id_table,
+			      (__force int) (local_id ^ cm.random_id_operand));
 	if (cm_id_priv) {
 		if (cm_id_priv->id.remote_id == remote_id)
 			atomic_inc(&cm_id_priv->refcount);
@@ -2082,8 +2088,9 @@ static struct cm_id_private * cm_acquire_rejected_id(struct cm_rej_msg *rej_msg)
 			spin_unlock_irqrestore(&cm.lock, flags);
 			return NULL;
 		}
-		cm_id_priv = idr_find(&cm.local_id_table,
-				      (__force int) timewait_info->work.local_id);
+		cm_id_priv = idr_find(&cm.local_id_table, (__force int)
+				      (timewait_info->work.local_id ^
+				       cm.random_id_operand));
 		if (cm_id_priv) {
 			if (cm_id_priv->id.remote_id == remote_id)
 				atomic_inc(&cm_id_priv->refcount);
@@ -3360,6 +3367,7 @@ static int __init ib_cm_init(void)
 	cm.remote_qp_table = RB_ROOT;
 	cm.remote_sidr_table = RB_ROOT;
 	idr_init(&cm.local_id_table);
+	get_random_bytes(&cm.random_id_operand, sizeof cm.random_id_operand);
 	idr_pre_get(&cm.local_id_table, GFP_KERNEL);
 
 	cm.wq = create_workqueue("ib_cm");
