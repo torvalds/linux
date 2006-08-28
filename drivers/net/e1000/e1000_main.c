@@ -1395,10 +1395,6 @@ setup_tx_desc_die:
  * 				  (Descriptors) for all queues
  * @adapter: board private structure
  *
- * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
- * callers duty to clean those orphaned rings.
- *
  * Return 0 on success, negative on failure
  **/
 
@@ -1412,6 +1408,9 @@ e1000_setup_all_tx_resources(struct e1000_adapter *adapter)
 		if (err) {
 			DPRINTK(PROBE, ERR,
 				"Allocation for Tx Queue %u failed\n", i);
+			for (i-- ; i >= 0; i--)
+				e1000_free_tx_resources(adapter,
+							&adapter->tx_ring[i]);
 			break;
 		}
 	}
@@ -1651,10 +1650,6 @@ setup_rx_desc_die:
  * 				  (Descriptors) for all queues
  * @adapter: board private structure
  *
- * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
- * callers duty to clean those orphaned rings.
- *
  * Return 0 on success, negative on failure
  **/
 
@@ -1668,6 +1663,9 @@ e1000_setup_all_rx_resources(struct e1000_adapter *adapter)
 		if (err) {
 			DPRINTK(PROBE, ERR,
 				"Allocation for Rx Queue %u failed\n", i);
+			for (i-- ; i >= 0; i--)
+				e1000_free_rx_resources(adapter,
+							&adapter->rx_ring[i]);
 			break;
 		}
 	}
