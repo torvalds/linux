@@ -116,8 +116,7 @@ static ssize_t atxp1_storevcore(struct device *dev, struct device_attribute *att
 {
 	struct atxp1_data *data;
 	struct i2c_client *client;
-	char vid;
-	char cvid;
+	int vid, cvid;
 	unsigned int vcore;
 
 	client = to_i2c_client(dev);
