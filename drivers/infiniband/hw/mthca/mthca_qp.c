@@ -408,7 +408,7 @@ static void to_ib_ah_attr(struct mthca_dev *dev, struct ib_ah_attr *ib_ah_attr,
 	ib_ah_attr->sl       	  = be32_to_cpu(path->sl_tclass_flowlabel) >> 28;
 	ib_ah_attr->src_path_bits = path->g_mylmc & 0x7f;
 	ib_ah_attr->static_rate   = mthca_rate_to_ib(dev,
-						     path->static_rate & 0x7,
+						     path->static_rate & 0xf,
 						     ib_ah_attr->port_num);
 	ib_ah_attr->ah_flags      = (path->g_mylmc & (1 << 7)) ? IB_AH_GRH : 0;
 	if (ib_ah_attr->ah_flags) {
