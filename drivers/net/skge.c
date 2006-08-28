@@ -2747,7 +2747,7 @@ static int skge_poll(struct net_device *dev, int *budget)
 	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask |= rxirqmask[skge->port];
   	skge_write32(hw, B0_IMSK, hw->intr_mask);
-	mmiowb();
+	skge_read32(hw, B0_IMSK);
 	spin_unlock_irq(&hw->hw_lock);
 
 	return 0;
@@ -2881,6 +2881,7 @@ static void skge_extirq(void *arg)
 	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask |= IS_EXT_REG;
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
+	skge_read32(hw, B0_IMSK);
 	spin_unlock_irq(&hw->hw_lock);
 }
 
@@ -2955,6 +2956,7 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 		skge_error_irq(hw);
 
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
+	skge_read32(hw, B0_IMSK);
 	spin_unlock(&hw->hw_lock);
 
 	return IRQ_HANDLED;
@@ -3424,6 +3426,7 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask = 0;
 	skge_write32(hw, B0_IMSK, 0);
+	skge_read32(hw, B0_IMSK);
 	spin_unlock_irq(&hw->hw_lock);
 
 	skge_write16(hw, B0_LED, LED_STAT_OFF);
