@@ -198,7 +198,7 @@ static inline u16 FAN16_TO_REG(long rpm)
 static int DIV_TO_REG(int val)
 {
 	int answer = 0;
-	while ((val >>= 1) != 0)
+	while (answer < 7 && (val >>= 1))
 		answer++;
 	return answer;
 }
@@ -563,7 +563,7 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 
 	struct i2c_client *client = to_i2c_client(dev);
 	struct it87_data *data = i2c_get_clientdata(client);
-	int val = simple_strtol(buf, NULL, 10);
+	unsigned long val = simple_strtoul(buf, NULL, 10);
 	int i, min[3];
 	u8 old;
 
