@@ -29,7 +29,9 @@ Supported chips:
     Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: No longer be available
 
-Author: Christophe Gauthron <chrisg@0-in.com>
+Authors:
+    Christophe Gauthron <chrisg@0-in.com>
+    Jean Delvare <khali@linux-fr.org>
 
 
 Module Parameters

@@ -9,7 +9,7 @@
               Sis950   A clone of the IT8705F
 
     Copyright (C) 2001 Chris Gauthron <chrisg@0-in.com> 
-    Largely inspired by lm78.c of the same package
+    Copyright (C) 2005-2006 Jean Delvare <khali@linux-fr.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,13 +24,6 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
-
-/*
-    djg@pdp8.net David Gesswein 7/18/01
-    Modified to fix bug with not all alarms enabled.
-    Added ability to read battery voltage and select temperature sensor
-    type at module load time.
 */
 
 #include <linux/module.h>
@@ -1392,7 +1385,8 @@ static void __exit sm_it87_exit(void)
 }
 
 
-MODULE_AUTHOR("Chris Gauthron <chrisg@0-in.com>");
+MODULE_AUTHOR("Chris Gauthron <chrisg@0-in.com>, "
+	      "Jean Delvare <khali@linux-fr.org>");
 MODULE_DESCRIPTION("IT8705F/8712F/8716F/8718F, SiS950 driver");
 module_param(update_vbat, bool, 0);
 MODULE_PARM_DESC(update_vbat, "Update vbat if set else return powerup value");
