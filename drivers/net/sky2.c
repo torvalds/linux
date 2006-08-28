@@ -1280,12 +1280,17 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		if (skb->nh.iph->protocol == IPPROTO_UDP)
 			ctrl |= UDPTCP;
 
-		le = get_tx_le(sky2);
-		le->tx.csum.start = cpu_to_le16(hdr);
-		le->tx.csum.offset = cpu_to_le16(offset);
-		le->length = 0;	/* initial checksum value */
-		le->ctrl = 1;	/* one packet */
-		le->opcode = OP_TCPLISW | HW_OWNER;
+		if (hdr != sky2->tx_csum_start || offset != sky2->tx_csum_offset) {
+			sky2->tx_csum_start = hdr;
+			sky2->tx_csum_offset = offset;
+
+			le = get_tx_le(sky2);
+			le->tx.csum.start = cpu_to_le16(hdr);
+			le->tx.csum.offset = cpu_to_le16(offset);
+			le->length = 0;	/* initial checksum value */
+			le->ctrl = 1;	/* one packet */
+			le->opcode = OP_TCPLISW | HW_OWNER;
+		}
 	}
 
 	le = get_tx_le(sky2);

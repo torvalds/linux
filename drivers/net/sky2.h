@@ -1843,6 +1843,8 @@ struct sky2_port {
 	u32		     tx_addr64;
 	u16		     tx_pending;
 	u16		     tx_last_mss;
+	u16		     tx_csum_start;
+	u16		     tx_csum_offset;
 
 	struct ring_info     *rx_ring ____cacheline_aligned_in_smp;
 	struct sky2_rx_le    *rx_le;
