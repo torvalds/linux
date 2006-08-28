@@ -357,7 +357,8 @@ static int find_aer_service_iter(struct device *device, void *data)
 static void find_aer_service(struct pci_dev *dev,
 		struct find_aer_service_data *data)
 {
-	device_for_each_child(&dev->dev, data, find_aer_service_iter);
+	int retval;
+	retval = device_for_each_child(&dev->dev, data, find_aer_service_iter);
 }
 
 static pci_ers_result_t reset_link(struct pcie_device *aerdev,

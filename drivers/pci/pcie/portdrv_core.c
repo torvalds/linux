@@ -340,8 +340,7 @@ static int suspend_iter(struct device *dev, void *data)
 
 int pcie_port_device_suspend(struct pci_dev *dev, pm_message_t state)
 {
-	device_for_each_child(&dev->dev, &state, suspend_iter);
-	return 0;
+	return device_for_each_child(&dev->dev, &state, suspend_iter);
 }
 
 static int resume_iter(struct device *dev, void *data)
@@ -359,8 +358,7 @@ static int resume_iter(struct device *dev, void *data)
 
 int pcie_port_device_resume(struct pci_dev *dev)
 {
-	device_for_each_child(&dev->dev, NULL, resume_iter);
-	return 0;
+	return device_for_each_child(&dev->dev, NULL, resume_iter);
 }
 #endif
 

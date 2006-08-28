@@ -147,8 +147,10 @@ static pci_ers_result_t pcie_portdrv_error_detected(struct pci_dev *dev,
 {
 	struct aer_broadcast_data result_data =
 			{error, PCI_ERS_RESULT_CAN_RECOVER};
+	int retval;
 
-	device_for_each_child(&dev->dev, &result_data, error_detected_iter);
+	/* can not fail */
+	retval = device_for_each_child(&dev->dev, &result_data, error_detected_iter);
 
 	return result_data.result;
 }
@@ -181,8 +183,10 @@ static int mmio_enabled_iter(struct device *device, void *data)
 static pci_ers_result_t pcie_portdrv_mmio_enabled(struct pci_dev *dev)
 {
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
+	int retval;
 
-	device_for_each_child(&dev->dev, &status, mmio_enabled_iter);
+	/* get true return value from &status */
+	retval = device_for_each_child(&dev->dev, &status, mmio_enabled_iter);
 	return status;
 }
 
@@ -214,6 +218,7 @@ static int slot_reset_iter(struct device *device, void *data)
 static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 {
 	pci_ers_result_t status;
+	int retval;
 
 	/* If fatal, restore cfg space for possible link reset at upstream */
 	if (dev->error_state == pci_channel_io_frozen) {
@@ -221,7 +226,8 @@ static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 		pci_enable_pcie_error_reporting(dev);
 	}
 
-	device_for_each_child(&dev->dev, &status, slot_reset_iter);
+	/* get true return value from &status */
+	retval = device_for_each_child(&dev->dev, &status, slot_reset_iter);
 
 	return status;
 }
@@ -248,7 +254,9 @@ static int resume_iter(struct device *device, void *data)
 
 static void pcie_portdrv_err_resume(struct pci_dev *dev)
 {
-	device_for_each_child(&dev->dev, NULL, resume_iter);
+	int retval;
+	/* nothing to do with error value, if it ever happens */
+	retval = device_for_each_child(&dev->dev, NULL, resume_iter);
 }
 
 /*
