@@ -564,14 +564,14 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct it87_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
-	int i, min[3];
+	int min;
 	u8 old;
 
 	mutex_lock(&data->update_lock);
 	old = it87_read_value(client, IT87_REG_FAN_DIV);
 
-	for (i = 0; i < 3; i++)
-		min[i] = FAN_FROM_REG(data->fan_min[i], DIV_FROM_REG(data->fan_div[i]));
+	/* Save fan min limit */
+	min = FAN_FROM_REG(data->fan_min[nr], DIV_FROM_REG(data->fan_div[nr]));
 
 	switch (nr) {
 	case 0:
@@ -591,10 +591,10 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 		val |= 0x1 << 6;
 	it87_write_value(client, IT87_REG_FAN_DIV, val);
 
-	for (i = 0; i < 3; i++) {
-		data->fan_min[i]=FAN_TO_REG(min[i], DIV_FROM_REG(data->fan_div[i]));
-		it87_write_value(client, IT87_REG_FAN_MIN(i), data->fan_min[i]);
-	}
+	/* Restore fan min limit */
+	data->fan_min[nr] = FAN_TO_REG(min, DIV_FROM_REG(data->fan_div[nr]));
+	it87_write_value(client, IT87_REG_FAN_MIN(nr), data->fan_min[nr]);
+
 	mutex_unlock(&data->update_lock);
 	return count;
 }
