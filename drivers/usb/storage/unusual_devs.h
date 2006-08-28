@@ -599,6 +599,13 @@ UNUSUAL_DEV(  0x054c, 0x0099, 0x0000, 0x9999,
                 US_SC_DEVICE, US_PR_DEVICE, NULL,
                 US_FL_FIX_INQUIRY ),
 
+/* floppy reports multiple luns */
+UNUSUAL_DEV(  0x055d, 0x2020, 0x0000, 0x0210,
+               "SAMSUNG",
+               "SFD-321U [FW 0C]",
+               US_SC_DEVICE, US_PR_DEVICE, NULL,
+               US_FL_SINGLE_LUN ),
+
 		
 UNUSUAL_DEV(  0x057b, 0x0000, 0x0000, 0x0299, 
 		"Y-E Data",
