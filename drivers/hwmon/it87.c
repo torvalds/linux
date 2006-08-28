@@ -4,6 +4,7 @@
 
     Supports: IT8705F  Super I/O chip w/LPC interface
               IT8712F  Super I/O chip w/LPC interface & SMBus
+              IT8716F  Super I/O chip w/LPC interface
               Sis950   A clone of the IT8705F
 
     Copyright (C) 2001 Chris Gauthron <chrisg@0-in.com> 
@@ -50,7 +51,7 @@ static unsigned short normal_i2c[] = { 0x2d, I2C_CLIENT_END };
 static unsigned short isa_address;
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_2(it87, it8712);
+I2C_CLIENT_INSMOD_3(it87, it8712, it8716);
 
 #define	REG	0x2e	/* The register to read/write */
 #define	DEV	0x07	/* Register: Logical device select */
@@ -101,6 +102,7 @@ superio_exit(void)
 
 #define IT8712F_DEVID 0x8712
 #define IT8705F_DEVID 0x8705
+#define IT8716F_DEVID 0x8716
 #define IT87_ACT_REG  0x30
 #define IT87_BASE_REG 0x60
 
@@ -132,12 +134,18 @@ static u16 chip_type;
 #define IT87_REG_ALARM3        0x03
 
 #define IT87_REG_VID           0x0a
+/* Warning: register 0x0b is used for something completely different in
+   new chips/revisions. I suspect only 16-bit tachometer mode will work
+   for these. */
 #define IT87_REG_FAN_DIV       0x0b
+#define IT87_REG_FAN_16BIT     0x0c
 
 /* Monitors: 9 voltage (0 to 7, battery), 3 temp (1 to 3), 3 fan (1 to 3) */
 
 #define IT87_REG_FAN(nr)       (0x0d + (nr))
 #define IT87_REG_FAN_MIN(nr)   (0x10 + (nr))
+#define IT87_REG_FANX(nr)      (0x18 + (nr))
+#define IT87_REG_FANX_MIN(nr)  (0x1b + (nr))
 #define IT87_REG_FAN_MAIN_CTRL 0x13
 #define IT87_REG_FAN_CTL       0x14
 #define IT87_REG_PWM(nr)       (0x15 + (nr))
@@ -169,7 +177,16 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 			     254);
 }
 
+static inline u16 FAN16_TO_REG(long rpm)
+{
+	if (rpm == 0)
+		return 0xffff;
+	return SENSORS_LIMIT((1350000 + rpm) / (rpm * 2), 1, 0xfffe);
+}
+
 #define FAN_FROM_REG(val,div) ((val)==0?-1:(val)==255?0:1350000/((val)*(div)))
+/* The divider is fixed to 2 in 16-bit mode */
+#define FAN16_FROM_REG(val) ((val)==0?-1:(val)==0xffff?0:1350000/((val)*2))
 
 #define TEMP_TO_REG(val) (SENSORS_LIMIT(((val)<0?(((val)-500)/1000):\
 					((val)+500)/1000),-128,127))
@@ -205,8 +222,8 @@ struct it87_data {
 	u8 in[9];		/* Register value */
 	u8 in_max[9];		/* Register value */
 	u8 in_min[9];		/* Register value */
-	u8 fan[3];		/* Register value */
-	u8 fan_min[3];		/* Register value */
+	u16 fan[3];		/* Register values, possibly combined */
+	u16 fan_min[3];		/* Register values, possibly combined */
 	u8 temp[3];		/* Register value */
 	u8 temp_high[3];	/* Register value */
 	u8 temp_low[3];		/* Register value */
@@ -657,6 +674,59 @@ show_pwm_offset(1);
 show_pwm_offset(2);
 show_pwm_offset(3);
 
+/* A different set of callbacks for 16-bit fans */
+static ssize_t show_fan16(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
+	struct it87_data *data = it87_update_device(dev);
+	return sprintf(buf, "%d\n", FAN16_FROM_REG(data->fan[nr]));
+}
+
+static ssize_t show_fan16_min(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
+	struct it87_data *data = it87_update_device(dev);
+	return sprintf(buf, "%d\n", FAN16_FROM_REG(data->fan_min[nr]));
+}
+
+static ssize_t set_fan16_min(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct it87_data *data = i2c_get_clientdata(client);
+	int val = simple_strtol(buf, NULL, 10);
+
+	mutex_lock(&data->update_lock);
+	data->fan_min[nr] = FAN16_TO_REG(val);
+	it87_write_value(client, IT87_REG_FAN_MIN(nr),
+			 data->fan_min[nr] & 0xff);
+	it87_write_value(client, IT87_REG_FANX_MIN(nr),
+			 data->fan_min[nr] >> 8);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+/* We want to use the same sysfs file names as 8-bit fans, but we need
+   different variable names, so we have to use SENSOR_ATTR instead of
+   SENSOR_DEVICE_ATTR. */
+#define show_fan16_offset(offset) \
+static struct sensor_device_attribute sensor_dev_attr_fan##offset##_input16 \
+	= SENSOR_ATTR(fan##offset##_input, S_IRUGO,		\
+		show_fan16, NULL, offset - 1);			\
+static struct sensor_device_attribute sensor_dev_attr_fan##offset##_min16 \
+	= SENSOR_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR,	\
+		show_fan16_min, set_fan16_min, offset - 1)
+
+show_fan16_offset(1);
+show_fan16_offset(2);
+show_fan16_offset(3);
+
 /* Alarms */
 static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -721,6 +791,7 @@ static int __init it87_find(unsigned short *address)
 	superio_enter();
 	chip_type = superio_inw(DEVID);
 	if (chip_type != IT8712F_DEVID
+	 && chip_type != IT8716F_DEVID
 	 && chip_type != IT8705F_DEVID)
 	 	goto exit;
 
@@ -800,8 +871,16 @@ static int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 		i = it87_read_value(new_client, IT87_REG_CHIPID);
 		if (i == 0x90) {
 			kind = it87;
-			if ((is_isa) && (chip_type == IT8712F_DEVID))
-				kind = it8712;
+			if (is_isa) {
+				switch (chip_type) {
+				case IT8712F_DEVID:
+					kind = it8712;
+					break;
+				case IT8716F_DEVID:
+					kind = it8716;
+					break;
+				}
+			}
 		}
 		else {
 			if (kind == 0)
@@ -818,6 +897,8 @@ static int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 		name = "it87";
 	} else if (kind == it8712) {
 		name = "it8712";
+	} else if (kind == it8716) {
+		name = "it8716";
 	}
 
 	/* Fill in the remaining client fields and put it into the global list */
@@ -885,15 +966,41 @@ static int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 	device_create_file(&new_client->dev, &sensor_dev_attr_temp1_type.dev_attr);
 	device_create_file(&new_client->dev, &sensor_dev_attr_temp2_type.dev_attr);
 	device_create_file(&new_client->dev, &sensor_dev_attr_temp3_type.dev_attr);
-	device_create_file(&new_client->dev, &sensor_dev_attr_fan1_input.dev_attr);
-	device_create_file(&new_client->dev, &sensor_dev_attr_fan2_input.dev_attr);
-	device_create_file(&new_client->dev, &sensor_dev_attr_fan3_input.dev_attr);
-	device_create_file(&new_client->dev, &sensor_dev_attr_fan1_min.dev_attr);
-	device_create_file(&new_client->dev, &sensor_dev_attr_fan2_min.dev_attr);
-	device_create_file(&new_client->dev, &sensor_dev_attr_fan3_min.dev_attr);
-	device_create_file(&new_client->dev, &sensor_dev_attr_fan1_div.dev_attr);
-	device_create_file(&new_client->dev, &sensor_dev_attr_fan2_div.dev_attr);
-	device_create_file(&new_client->dev, &sensor_dev_attr_fan3_div.dev_attr);
+
+	if (data->type == it8716) { /* 16-bit tachometers */
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan1_input16.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan2_input16.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan3_input16.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan1_min16.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan2_min16.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan3_min16.dev_attr);
+	} else {
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan1_input.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan2_input.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan3_input.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan1_min.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan2_min.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan3_min.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan1_div.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan2_div.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan3_div.dev_attr);
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_alarms);
 	if (enable_pwm_interface) {
 		device_create_file(&new_client->dev, &sensor_dev_attr_pwm1_enable.dev_attr);
@@ -904,7 +1011,7 @@ static int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 		device_create_file(&new_client->dev, &sensor_dev_attr_pwm3.dev_attr);
 	}
 
-	if (data->type == it8712) {
+	if (data->type == it8712 || data->type == it8716) {
 		data->vrm = vid_which_vrm();
 		device_create_file_vrm(new_client);
 		device_create_file_vid(new_client);
@@ -1069,6 +1176,17 @@ static void it87_init_client(struct i2c_client *client, struct it87_data *data)
 		it87_write_value(client, IT87_REG_FAN_MAIN_CTRL, data->fan_main_ctrl);
 	}
 
+	/* Set tachometers to 16-bit mode if needed */
+	if (data->type == it8716) {
+		tmp = it87_read_value(client, IT87_REG_FAN_16BIT);
+		if ((tmp & 0x07) != 0x07) {
+			dev_dbg(&client->dev,
+				"Setting fan1-3 to 16-bit mode\n");
+			it87_write_value(client, IT87_REG_FAN_16BIT,
+					 tmp | 0x07);
+		}
+	}
+
 	/* Set current fan mode registers and the default settings for the
 	 * other mode registers */
 	for (i = 0; i < 3; i++) {
@@ -1126,10 +1244,17 @@ static struct it87_data *it87_update_device(struct device *dev)
 		data->in_max[8] = 255;
 
 		for (i = 0; i < 3; i++) {
-			data->fan[i] =
-			    it87_read_value(client, IT87_REG_FAN(i));
 			data->fan_min[i] =
 			    it87_read_value(client, IT87_REG_FAN_MIN(i));
+			data->fan[i] = it87_read_value(client,
+				       IT87_REG_FAN(i));
+			/* Add high byte if in 16-bit mode */
+			if (data->type == it8716) {
+				data->fan[i] |= it87_read_value(client,
+						IT87_REG_FANX(i)) << 8;
+				data->fan_min[i] |= it87_read_value(client,
+						IT87_REG_FANX_MIN(i)) << 8;
+			}
 		}
 		for (i = 0; i < 3; i++) {
 			data->temp[i] =
@@ -1140,10 +1265,13 @@ static struct it87_data *it87_update_device(struct device *dev)
 			    it87_read_value(client, IT87_REG_TEMP_LOW(i));
 		}
 
-		i = it87_read_value(client, IT87_REG_FAN_DIV);
-		data->fan_div[0] = i & 0x07;
-		data->fan_div[1] = (i >> 3) & 0x07;
-		data->fan_div[2] = (i & 0x40) ? 3 : 1;
+		/* Newer chips don't have clock dividers */
+		if (data->type != it8716) {
+			i = it87_read_value(client, IT87_REG_FAN_DIV);
+			data->fan_div[0] = i & 0x07;
+			data->fan_div[1] = (i >> 3) & 0x07;
+			data->fan_div[2] = (i & 0x40) ? 3 : 1;
+		}
 
 		data->alarms =
 			it87_read_value(client, IT87_REG_ALARM1) |
@@ -1153,9 +1281,11 @@ static struct it87_data *it87_update_device(struct device *dev)
 
 		data->sensor = it87_read_value(client, IT87_REG_TEMP_ENABLE);
 		/* The 8705 does not have VID capability */
-		if (data->type == it8712) {
+		if (data->type == it8712 || data->type == it8716) {
 			data->vid = it87_read_value(client, IT87_REG_VID);
-			data->vid &= 0x1f;
+			/* The older IT8712F revisions had only 5 VID pins,
+			   but we assume it is always safe to read 6 bits. */
+			data->vid &= 0x3f;
 		}
 		data->last_updated = jiffies;
 		data->valid = 1;
@@ -1194,7 +1324,7 @@ static void __exit sm_it87_exit(void)
 
 
 MODULE_AUTHOR("Chris Gauthron <chrisg@0-in.com>");
-MODULE_DESCRIPTION("IT8705F, IT8712F, Sis950 driver");
+MODULE_DESCRIPTION("IT8705F/8712F/8716F, SiS950 driver");
 module_param(update_vbat, bool, 0);
 MODULE_PARM_DESC(update_vbat, "Update vbat if set else return powerup value");
 module_param(fix_pwm_polarity, bool, 0);
