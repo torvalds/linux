@@ -5,6 +5,7 @@
     Supports: IT8705F  Super I/O chip w/LPC interface
               IT8712F  Super I/O chip w/LPC interface & SMBus
               IT8716F  Super I/O chip w/LPC interface
+              IT8718F  Super I/O chip w/LPC interface
               Sis950   A clone of the IT8705F
 
     Copyright (C) 2001 Chris Gauthron <chrisg@0-in.com> 
@@ -51,12 +52,13 @@ static unsigned short normal_i2c[] = { 0x2d, I2C_CLIENT_END };
 static unsigned short isa_address;
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_3(it87, it8712, it8716);
+I2C_CLIENT_INSMOD_4(it87, it8712, it8716, it8718);
 
 #define	REG	0x2e	/* The register to read/write */
 #define	DEV	0x07	/* Register: Logical device select */
 #define	VAL	0x2f	/* The value to read/write */
 #define PME	0x04	/* The device with the fan registers in it */
+#define GPIO	0x07	/* The device with the IT8718F VID value in it */
 #define	DEVID	0x20	/* Register: Device ID */
 #define	DEVREV	0x22	/* Register: Device Revision */
 
@@ -78,10 +80,10 @@ static int superio_inw(int reg)
 }
 
 static inline void
-superio_select(void)
+superio_select(int ldn)
 {
 	outb(DEV, REG);
-	outb(PME, VAL);
+	outb(ldn, VAL);
 }
 
 static inline void
@@ -100,11 +102,17 @@ superio_exit(void)
 	outb(0x02, VAL);
 }
 
+/* Logical device 4 registers */
 #define IT8712F_DEVID 0x8712
 #define IT8705F_DEVID 0x8705
 #define IT8716F_DEVID 0x8716
+#define IT8718F_DEVID 0x8718
 #define IT87_ACT_REG  0x30
 #define IT87_BASE_REG 0x60
+
+/* Logical device 7 registers (IT8712F and later) */
+#define IT87_SIO_PINX2_REG	0x2c	/* Pin selection */
+#define IT87_SIO_VID_REG	0xfc	/* VID value */
 
 /* Update battery voltage after every reading if true */
 static int update_vbat;
@@ -112,9 +120,9 @@ static int update_vbat;
 /* Not all BIOSes properly configure the PWM registers */
 static int fix_pwm_polarity;
 
-/* Chip Type */
-
+/* Values read from Super-I/O config space */
 static u16 chip_type;
+static u8 vid_value;
 
 /* Many IT87 constants specified below */
 
@@ -133,6 +141,8 @@ static u16 chip_type;
 #define IT87_REG_ALARM2        0x02
 #define IT87_REG_ALARM3        0x03
 
+/* The IT8718F has the VID value in a different register, in Super-I/O
+   configuration space. */
 #define IT87_REG_VID           0x0a
 /* Warning: register 0x0b is used for something completely different in
    new chips/revisions. I suspect only 16-bit tachometer mode will work
@@ -793,10 +803,11 @@ static int __init it87_find(unsigned short *address)
 	chip_type = superio_inw(DEVID);
 	if (chip_type != IT8712F_DEVID
 	 && chip_type != IT8716F_DEVID
+	 && chip_type != IT8718F_DEVID
 	 && chip_type != IT8705F_DEVID)
 	 	goto exit;
 
-	superio_select();
+	superio_select(PME);
 	if (!(superio_inb(IT87_ACT_REG) & 0x01)) {
 		pr_info("it87: Device not activated, skipping\n");
 		goto exit;
@@ -811,6 +822,21 @@ static int __init it87_find(unsigned short *address)
 	err = 0;
 	pr_info("it87: Found IT%04xF chip at 0x%x, revision %d\n",
 		chip_type, *address, superio_inb(DEVREV) & 0x0f);
+
+	/* Read GPIO config and VID value from LDN 7 (GPIO) */
+	if (chip_type != IT8705F_DEVID) {
+		int reg;
+
+		superio_select(GPIO);
+		if (chip_type == it8718)
+			vid_value = superio_inb(IT87_SIO_VID_REG);
+
+		reg = superio_inb(IT87_SIO_PINX2_REG);
+		if (reg & (1 << 0))
+			pr_info("it87: in3 is VCC (+5V)\n");
+		if (reg & (1 << 1))
+			pr_info("it87: in7 is VCCH (+5V Stand-By)\n");
+	}
 
 exit:
 	superio_exit();
@@ -880,6 +906,9 @@ static int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 				case IT8716F_DEVID:
 					kind = it8716;
 					break;
+				case IT8718F_DEVID:
+					kind = it8718;
+					break;
 				}
 			}
 		}
@@ -900,6 +929,8 @@ static int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 		name = "it8712";
 	} else if (kind == it8716) {
 		name = "it8716";
+	} else if (kind == it8718) {
+		name = "it8718";
 	}
 
 	/* Fill in the remaining client fields and put it into the global list */
@@ -969,7 +1000,8 @@ static int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 	device_create_file(&new_client->dev, &sensor_dev_attr_temp3_type.dev_attr);
 
 	/* Do not create fan files for disabled fans */
-	if (data->type == it8716) { /* 16-bit tachometers */
+	if (data->type == it8716 || data->type == it8718) {
+		/* 16-bit tachometers */
 		if (data->has_fan & (1 << 0)) {
 			device_create_file(&new_client->dev,
 				&sensor_dev_attr_fan1_input16.dev_attr);
@@ -989,6 +1021,7 @@ static int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 				&sensor_dev_attr_fan3_min16.dev_attr);
 		}
 	} else {
+		/* 8-bit tachometers with clock divider */
 		if (data->has_fan & (1 << 0)) {
 			device_create_file(&new_client->dev,
 				&sensor_dev_attr_fan1_input.dev_attr);
@@ -1025,8 +1058,11 @@ static int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 		device_create_file(&new_client->dev, &sensor_dev_attr_pwm3.dev_attr);
 	}
 
-	if (data->type == it8712 || data->type == it8716) {
+	if (data->type == it8712 || data->type == it8716
+	 || data->type == it8718) {
 		data->vrm = vid_which_vrm();
+		/* VID reading from Super-I/O config space if available */
+		data->vid = vid_value;
 		device_create_file_vrm(new_client);
 		device_create_file_vid(new_client);
 	}
@@ -1192,7 +1228,7 @@ static void it87_init_client(struct i2c_client *client, struct it87_data *data)
 	data->has_fan = (data->fan_main_ctrl >> 4) & 0x07;
 
 	/* Set tachometers to 16-bit mode if needed */
-	if (data->type == it8716) {
+	if (data->type == it8716 || data->type == it8718) {
 		tmp = it87_read_value(client, IT87_REG_FAN_16BIT);
 		if (~tmp & 0x07 & data->has_fan) {
 			dev_dbg(&client->dev,
@@ -1265,7 +1301,7 @@ static struct it87_data *it87_update_device(struct device *dev)
 			data->fan[i] = it87_read_value(client,
 				       IT87_REG_FAN(i));
 			/* Add high byte if in 16-bit mode */
-			if (data->type == it8716) {
+			if (data->type == it8716 || data->type == it8718) {
 				data->fan[i] |= it87_read_value(client,
 						IT87_REG_FANX(i)) << 8;
 				data->fan_min[i] |= it87_read_value(client,
@@ -1282,7 +1318,8 @@ static struct it87_data *it87_update_device(struct device *dev)
 		}
 
 		/* Newer chips don't have clock dividers */
-		if ((data->has_fan & 0x07) && data->type != it8716) {
+		if ((data->has_fan & 0x07) && data->type != it8716
+		 && data->type != it8718) {
 			i = it87_read_value(client, IT87_REG_FAN_DIV);
 			data->fan_div[0] = i & 0x07;
 			data->fan_div[1] = (i >> 3) & 0x07;
@@ -1340,7 +1377,7 @@ static void __exit sm_it87_exit(void)
 
 
 MODULE_AUTHOR("Chris Gauthron <chrisg@0-in.com>");
-MODULE_DESCRIPTION("IT8705F/8712F/8716F, SiS950 driver");
+MODULE_DESCRIPTION("IT8705F/8712F/8716F/8718F, SiS950 driver");
 module_param(update_vbat, bool, 0);
 MODULE_PARM_DESC(update_vbat, "Update vbat if set else return powerup value");
 module_param(fix_pwm_polarity, bool, 0);
