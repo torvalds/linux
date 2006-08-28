@@ -695,21 +695,20 @@ e1000_probe(struct pci_dev *pdev,
 		if ((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) &&
 		    (err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))) {
 			E1000_ERR("No usable DMA configuration, aborting\n");
-			return err;
+			goto err_dma;
 		}
 		pci_using_dac = 0;
 	}
 
 	if ((err = pci_request_regions(pdev, e1000_driver_name)))
-		return err;
+		goto err_pci_reg;
 
 	pci_set_master(pdev);
 
+	err = -ENOMEM;
 	netdev = alloc_etherdev(sizeof(struct e1000_adapter));
-	if (!netdev) {
-		err = -ENOMEM;
+	if (!netdev)
 		goto err_alloc_etherdev;
-	}
 
 	SET_MODULE_OWNER(netdev);
 	SET_NETDEV_DEV(netdev, &pdev->dev);
@@ -724,11 +723,10 @@ e1000_probe(struct pci_dev *pdev,
 	mmio_start = pci_resource_start(pdev, BAR_0);
 	mmio_len = pci_resource_len(pdev, BAR_0);
 
+	err = -EIO;
 	adapter->hw.hw_addr = ioremap(mmio_start, mmio_len);
-	if (!adapter->hw.hw_addr) {
-		err = -EIO;
+	if (!adapter->hw.hw_addr)
 		goto err_ioremap;
-	}
 
 	for (i = BAR_1; i <= BAR_5; i++) {
 		if (pci_resource_len(pdev, i) == 0)
@@ -773,6 +771,7 @@ e1000_probe(struct pci_dev *pdev,
 	if ((err = e1000_sw_init(adapter)))
 		goto err_sw_init;
 
+	err = -EIO;
 	/* Flash BAR mapping must happen after e1000_sw_init
 	 * because it depends on mac_type */
 	if ((adapter->hw.mac_type == e1000_ich8lan) &&
@@ -780,13 +779,11 @@ e1000_probe(struct pci_dev *pdev,
 		flash_start = pci_resource_start(pdev, 1);
 		flash_len = pci_resource_len(pdev, 1);
 		adapter->hw.flash_address = ioremap(flash_start, flash_len);
-		if (!adapter->hw.flash_address) {
-			err = -EIO;
+		if (!adapter->hw.flash_address)
 			goto err_flashmap;
-		}
 	}
 
-	if ((err = e1000_check_phy_reset_block(&adapter->hw)))
+	if (e1000_check_phy_reset_block(&adapter->hw))
 		DPRINTK(PROBE, INFO, "PHY reset is blocked due to SOL/IDER session.\n");
 
 	/* if ksp3, indicate if it's port a being setup */
@@ -829,7 +826,7 @@ e1000_probe(struct pci_dev *pdev,
 
 	if (e1000_init_eeprom_params(&adapter->hw)) {
 		E1000_ERR("EEPROM initialization failed\n");
-		return -EIO;
+		goto err_eeprom;
 	}
 
 	/* before reading the EEPROM, reset the controller to
@@ -841,7 +838,6 @@ e1000_probe(struct pci_dev *pdev,
 
 	if (e1000_validate_eeprom_checksum(&adapter->hw) < 0) {
 		DPRINTK(PROBE, ERR, "The EEPROM Checksum Is Not Valid\n");
-		err = -EIO;
 		goto err_eeprom;
 	}
 
@@ -854,7 +850,6 @@ e1000_probe(struct pci_dev *pdev,
 
 	if (!is_valid_ether_addr(netdev->perm_addr)) {
 		DPRINTK(PROBE, ERR, "Invalid MAC Address\n");
-		err = -EIO;
 		goto err_eeprom;
 	}
 
@@ -963,16 +958,33 @@ e1000_probe(struct pci_dev *pdev,
 	return 0;
 
 err_register:
+	e1000_release_hw_control(adapter);
+err_eeprom:
+	if (!e1000_check_phy_reset_block(&adapter->hw))
+		e1000_phy_hw_reset(&adapter->hw);
+
 	if (adapter->hw.flash_address)
 		iounmap(adapter->hw.flash_address);
 err_flashmap:
+#ifdef CONFIG_E1000_NAPI
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		dev_put(&adapter->polling_netdev[i]);
+#endif
+
+	kfree(adapter->tx_ring);
+	kfree(adapter->rx_ring);
+#ifdef CONFIG_E1000_NAPI
+	kfree(adapter->polling_netdev);
+#endif
 err_sw_init:
-err_eeprom:
 	iounmap(adapter->hw.hw_addr);
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
 	pci_release_regions(pdev);
+err_pci_reg:
+err_dma:
+	pci_disable_device(pdev);
 	return err;
 }
 
