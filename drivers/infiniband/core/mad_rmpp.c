@@ -33,8 +33,6 @@
  * $Id: mad_rmpp.c 1921 2005-03-02 22:58:44Z sean.hefty $
  */
 
-#include <linux/dma-mapping.h>
-
 #include "mad_priv.h"
 #include "mad_rmpp.h"
 
