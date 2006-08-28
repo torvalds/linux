@@ -49,6 +49,7 @@ static ssize_t store_new_id(struct device_driver *driver,
 	u32 idVendor = 0;
 	u32 idProduct = 0;
 	int fields = 0;
+	int retval = 0;
 
 	fields = sscanf(buf, "%x %x", &idVendor, &idProduct);
 	if (fields < 2)
@@ -68,10 +69,12 @@ static ssize_t store_new_id(struct device_driver *driver,
 	spin_unlock(&usb_drv->dynids.lock);
 
 	if (get_driver(driver)) {
-		driver_attach(driver);
+		retval = driver_attach(driver);
 		put_driver(driver);
 	}
 
+	if (retval)
+		return retval;
 	return count;
 }
 static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
@@ -291,6 +294,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 {
 	struct device *dev = &iface->dev;
 	struct usb_device *udev = interface_to_usbdev(iface);
+	int retval = 0;
 
 	if (dev->driver)
 		return -EBUSY;
@@ -308,9 +312,9 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 	 * the future device_add() bind it, bypassing probe()
 	 */
 	if (device_is_registered(dev))
-		device_bind_driver(dev);
+		retval = device_bind_driver(dev);
 
-	return 0;
+	return retval;
 }
 EXPORT_SYMBOL(usb_driver_claim_interface);
 

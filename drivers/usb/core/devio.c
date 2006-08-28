@@ -1359,7 +1359,7 @@ static int proc_ioctl(struct dev_state *ps, struct usbdevfs_ioctl *ctl)
 	/* let kernel drivers try to (re)bind to the interface */
 	case USBDEVFS_CONNECT:
 		usb_unlock_device(ps->dev);
-		bus_rescan_devices(intf->dev.bus);
+		retval = bus_rescan_devices(intf->dev.bus);
 		usb_lock_device(ps->dev);
 		break;
 

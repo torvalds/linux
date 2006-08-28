@@ -147,11 +147,13 @@ static int __find_interface(struct device * dev, void * data)
 struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
 {
 	struct find_interface_arg argb;
+	int retval;
 
 	argb.minor = minor;
 	argb.interface = NULL;
-	driver_for_each_device(&drv->drvwrap.driver, NULL, &argb,
-			__find_interface);
+	/* eat the error, it will be in argb.interface */
+	retval = driver_for_each_device(&drv->drvwrap.driver, NULL, &argb,
+					__find_interface);
 	return argb.interface;
 }
 
