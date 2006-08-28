@@ -3125,7 +3125,8 @@ static int cm_init_qp_init_attr(struct cm_id_private *cm_id_priv,
 		qp_attr->qp_access_flags = IB_ACCESS_LOCAL_WRITE |
 					   IB_ACCESS_REMOTE_WRITE;
 		if (cm_id_priv->responder_resources)
-			qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_READ;
+			qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_READ |
+						    IB_ACCESS_REMOTE_ATOMIC;
 		qp_attr->pkey_index = cm_id_priv->av.pkey_index;
 		qp_attr->port_num = cm_id_priv->av.port->port_num;
 		ret = 0;
