@@ -33,11 +33,21 @@
 
 #define SNDRV_CTL_TLVT_CONTAINER 0	/* one level down - group of TLVs */
 #define SNDRV_CTL_TLVT_DB_SCALE	1       /* dB scale */
+#define SNDRV_CTL_TLVT_DB_LINEAR 2	/* linear volume */
 
 #define DECLARE_TLV_DB_SCALE(name, min, step, mute) \
 unsigned int name[] = { \
         SNDRV_CTL_TLVT_DB_SCALE, 2 * sizeof(unsigned int), \
         (min), ((step) & 0xffff) | ((mute) ? 0x10000 : 0) \
 }
+
+/* linear volume between min_dB and max_dB (.01dB unit) */
+#define DECLARE_TLV_DB_LINEAR(name, min_dB, max_dB)	\
+unsigned int name[] = { \
+        SNDRV_CTL_TLVT_DB_LINEAR, 2 * sizeof(unsigned int), \
+        (min_dB), (max_dB)				\
+}
+
+#define TLV_DB_GAIN_MUTE	-9999999
 
 #endif /* __SOUND_TLV_H */
