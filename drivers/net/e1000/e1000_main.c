@@ -853,8 +853,6 @@ e1000_probe(struct pci_dev *pdev,
 		goto err_eeprom;
 	}
 
-	e1000_read_part_num(&adapter->hw, &(adapter->part_num));
-
 	e1000_get_bus_info(&adapter->hw);
 
 	init_timer(&adapter->tx_fifo_stall_timer);

@@ -245,7 +245,6 @@ struct e1000_adapter {
 	uint16_t mng_vlan_id;
 	uint32_t bd_number;
 	uint32_t rx_buffer_len;
-	uint32_t part_num;
 	uint32_t wol;
 	uint32_t ksp3_port_a;
 	uint32_t smartspeed;

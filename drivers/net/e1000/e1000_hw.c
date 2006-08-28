@@ -5556,40 +5556,6 @@ e1000_commit_shadow_ram(struct e1000_hw *hw)
 }
 
 /******************************************************************************
- * Reads the adapter's part number from the EEPROM
- *
- * hw - Struct containing variables accessed by shared code
- * part_num - Adapter's part number
- *****************************************************************************/
-int32_t
-e1000_read_part_num(struct e1000_hw *hw,
-                    uint32_t *part_num)
-{
-    uint16_t offset = EEPROM_PBA_BYTE_1;
-    uint16_t eeprom_data;
-
-    DEBUGFUNC("e1000_read_part_num");
-
-    /* Get word 0 from EEPROM */
-    if (e1000_read_eeprom(hw, offset, 1, &eeprom_data) < 0) {
-        DEBUGOUT("EEPROM Read Error\n");
-        return -E1000_ERR_EEPROM;
-    }
-    /* Save word 0 in upper half of part_num */
-    *part_num = (uint32_t) (eeprom_data << 16);
-
-    /* Get word 1 from EEPROM */
-    if (e1000_read_eeprom(hw, ++offset, 1, &eeprom_data) < 0) {
-        DEBUGOUT("EEPROM Read Error\n");
-        return -E1000_ERR_EEPROM;
-    }
-    /* Save word 1 in lower half of part_num */
-    *part_num |= eeprom_data;
-
-    return E1000_SUCCESS;
-}
-
-/******************************************************************************
  * Reads the adapter's MAC address from the EEPROM and inverts the LSB for the
  * second function of dual function devices
  *
