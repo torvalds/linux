@@ -927,7 +927,9 @@ static int usblp_probe(struct usb_interface *intf,
 
 	/* Retrieve and store the device ID string. */
 	usblp_cache_device_id_string(usblp);
-	device_create_file(&intf->dev, &dev_attr_ieee1284_id);
+	retval = device_create_file(&intf->dev, &dev_attr_ieee1284_id);
+	if (retval)
+		goto abort_intfdata;
 
 #ifdef DEBUG
 	usblp_check_status(usblp, 0);
