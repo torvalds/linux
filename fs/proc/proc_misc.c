@@ -169,7 +169,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		"Mapped:       %8lu kB\n"
 		"Slab:         %8lu kB\n"
 		"PageTables:   %8lu kB\n"
-		"NFS Unstable: %8lu kB\n"
+		"NFS_Unstable: %8lu kB\n"
 		"Bounce:       %8lu kB\n"
 		"CommitLimit:  %8lu kB\n"
 		"Committed_AS: %8lu kB\n"

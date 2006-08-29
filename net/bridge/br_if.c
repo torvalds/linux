@@ -386,11 +386,16 @@ void br_features_recompute(struct net_bridge *br)
 			checksum = 0;
 
 		if (feature & NETIF_F_GSO)
-			feature |= NETIF_F_TSO;
+			feature |= NETIF_F_GSO_SOFTWARE;
 		feature |= NETIF_F_GSO;
 
 		features &= feature;
 	}
+
+	if (!(checksum & NETIF_F_ALL_CSUM))
+		features &= ~NETIF_F_SG;
+	if (!(features & NETIF_F_SG))
+		features &= ~NETIF_F_GSO_MASK;
 
 	br->dev->features = features | checksum | NETIF_F_LLTX |
 			    NETIF_F_GSO_ROBUST;

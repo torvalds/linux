@@ -1040,6 +1040,21 @@ static inline int pskb_trim(struct sk_buff *skb, unsigned int len)
 }
 
 /**
+ *	pskb_trim_unique - remove end from a paged unique (not cloned) buffer
+ *	@skb: buffer to alter
+ *	@len: new length
+ *
+ *	This is identical to pskb_trim except that the caller knows that
+ *	the skb is not cloned so we should never get an error due to out-
+ *	of-memory.
+ */
+static inline void pskb_trim_unique(struct sk_buff *skb, unsigned int len)
+{
+	int err = pskb_trim(skb, len);
+	BUG_ON(err);
+}
+
+/**
  *	skb_orphan - orphan a buffer
  *	@skb: buffer to orphan
  *
@@ -1081,7 +1096,7 @@ static inline void __skb_queue_purge(struct sk_buff_head *list)
  *	the headroom they think they need without accounting for the
  *	built in space. The built in space is used for optimisations.
  *
- *	%NULL is returned in there is no free memory.
+ *	%NULL is returned if there is no free memory.
  */
 static inline struct sk_buff *__dev_alloc_skb(unsigned int length,
 					      gfp_t gfp_mask)
@@ -1101,7 +1116,7 @@ static inline struct sk_buff *__dev_alloc_skb(unsigned int length,
  *	the headroom they think they need without accounting for the
  *	built in space. The built in space is used for optimisations.
  *
- *	%NULL is returned in there is no free memory. Although this function
+ *	%NULL is returned if there is no free memory. Although this function
  *	allocates memory it can be called from an interrupt.
  */
 static inline struct sk_buff *dev_alloc_skb(unsigned int length)

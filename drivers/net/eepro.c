@@ -1807,8 +1807,7 @@ MODULE_PARM_DESC(irq, "EtherExpress Pro/10 IRQ number(s)");
 MODULE_PARM_DESC(mem, "EtherExpress Pro/10 Rx buffer size(es) in kB (3-29)");
 MODULE_PARM_DESC(autodetect, "EtherExpress Pro/10 force board(s) detection (0-1)");
 
-int
-init_module(void)
+int __init init_module(void)
 {
 	struct net_device *dev;
 	int i;

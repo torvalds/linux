@@ -153,7 +153,7 @@ static void free_hugepte_range(struct mmu_gather *tlb, hugepd_t *hpdp)
 	hpdp->pd = 0;
 	tlb->need_flush = 1;
 	pgtable_free_tlb(tlb, pgtable_free_cache(hugepte, HUGEPTE_CACHE_NUM,
-						 HUGEPTE_TABLE_SIZE-1));
+						 PGF_CACHENUM_MASK));
 }
 
 #ifdef CONFIG_PPC_64K_PAGES

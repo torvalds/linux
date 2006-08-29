@@ -45,7 +45,7 @@ config WATCHDOG_NOWAYOUT
 comment "Watchdog Device Drivers"
 	depends on WATCHDOG
 
-# Architecture Independant
+# Architecture Independent
 
 config SOFT_WATCHDOG
 	tristate "Software watchdog"
@@ -127,7 +127,7 @@ config S3C2410_WATCHDOG
 	  enabled.
 
 	  The driver is limited by the speed of the system's PCLK
-	  signal, so with reasonbaly fast systems (PCLK around 50-66MHz)
+	  signal, so with reasonably fast systems (PCLK around 50-66MHz)
 	  then watchdog intervals of over approximately 20seconds are
 	  unavailable.
 
@@ -423,7 +423,7 @@ config SBC_EPX_C3_WATCHDOG
 	  is no way to know if writing to its IO address will corrupt
 	  your system or have any real effect.  The only way to be sure
 	  that this driver does what you want is to make sure you
-	  are runnning it on an EPX-C3 from Winsystems with the watchdog
+	  are running it on an EPX-C3 from Winsystems with the watchdog
 	  timer at IO address 0x1ee and 0x1ef.  It will write to both those
 	  IO ports.  Basically, the assumption is made that if you compile
 	  this driver into your kernel and/or load it as a module, that you
@@ -472,7 +472,7 @@ config INDYDOG
 	tristate "Indy/I2 Hardware Watchdog"
 	depends on WATCHDOG && SGI_IP22
 	help
-	  Hardwaredriver for the Indy's/I2's watchdog. This is a
+	  Hardware driver for the Indy's/I2's watchdog. This is a
 	  watchdog timer that will reboot the machine after a 60 second
 	  timer expired and no process has written to /dev/watchdog during
 	  that time.

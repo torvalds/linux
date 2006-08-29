@@ -179,7 +179,7 @@ lpfc_els_abort(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
 
 	/* Abort outstanding I/O on NPort <nlp_DID> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-			"%d:0201 Abort outstanding I/O on NPort x%x "
+			"%d:0205 Abort outstanding I/O on NPort x%x "
 			"Data: x%x x%x x%x\n",
 			phba->brd_no, ndlp->nlp_DID, ndlp->nlp_flag,
 			ndlp->nlp_state, ndlp->nlp_rpi);
@@ -392,6 +392,20 @@ lpfc_rcv_plogi(struct lpfc_hba * phba,
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_reg_login;
 	mbox->context2  = ndlp;
 	ndlp->nlp_flag |= (NLP_ACC_REGLOGIN | NLP_RCV_PLOGI);
+
+	/*
+	 * If there is an outstanding PLOGI issued, abort it before
+	 * sending ACC rsp for received PLOGI. If pending plogi
+	 * is not canceled here, the plogi will be rejected by
+	 * remote port and will be retried. On a configuration with
+	 * single discovery thread, this will cause a huge delay in
+	 * discovery. Also this will cause multiple state machines
+	 * running in parallel for this node.
+	 */
+	if (ndlp->nlp_state == NLP_STE_PLOGI_ISSUE) {
+		/* software abort outstanding PLOGI */
+		lpfc_els_abort(phba, ndlp, 1);
+	}
 
 	lpfc_els_rsp_acc(phba, ELS_CMD_PLOGI, cmdiocb, ndlp, mbox, 0);
 	return 1;
@@ -1601,7 +1615,13 @@ lpfc_rcv_padisc_npr_node(struct lpfc_hba * phba,
 
 	lpfc_rcv_padisc(phba, ndlp, cmdiocb);
 
-	if (!(ndlp->nlp_flag & NLP_DELAY_TMO)) {
+	/*
+	 * Do not start discovery if discovery is about to start
+	 * or discovery in progress for this node. Starting discovery
+	 * here will affect the counting of discovery threads.
+	 */
+	if ((!(ndlp->nlp_flag & NLP_DELAY_TMO)) &&
+		(ndlp->nlp_flag & NLP_NPR_2B_DISC)){
 		if (ndlp->nlp_flag & NLP_NPR_ADISC) {
 			ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
 			ndlp->nlp_state = NLP_STE_ADISC_ISSUE;

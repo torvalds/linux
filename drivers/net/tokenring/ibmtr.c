@@ -140,7 +140,7 @@ in the event that chatty debug messages are desired - jjs 12/30/98 */
 
 /* version and credits */
 #ifndef PCMCIA
-static char version[] __initdata =
+static char version[] __devinitdata =
     "\nibmtr.c: v1.3.57   8/ 7/94 Peter De Schrijver and Mark Swanson\n"
     "         v2.1.125 10/20/98 Paul Norton    <pnorton@ieee.org>\n"
     "         v2.2.0   12/30/98 Joel Sloan     <jjs@c-me.com>\n"
@@ -216,7 +216,7 @@ static int __devinitdata turbo_irq[IBMTR_MAX_ADAPTERS] = {0};
 static int __devinitdata turbo_searched = 0;
 
 #ifndef PCMCIA
-static __u32 ibmtr_mem_base __initdata = 0xd0000;
+static __u32 ibmtr_mem_base __devinitdata = 0xd0000;
 #endif
 
 static void __devinit PrtChanID(char *pcid, short stride)

@@ -31,7 +31,7 @@ config SOUND_EMU10K1
 	  For more information on this driver and the degree of support for
 	  the different card models please check:
 
-	        <http://sourceforge.net/projects/emu10k1/>
+		<http://sourceforge.net/projects/emu10k1/>
 
 	  It is now possible to load dsp microcode patches into the EMU10K1
 	  chip.  These patches are used to implement real time sound
@@ -140,7 +140,7 @@ config SOUND_TRIDENT
 	  system support" and "Sysctl support", and after the /proc file
 	  system has been mounted, executing the command
 
-	  	command			what is enabled
+		command			what is enabled
 
 	  echo 0>/proc/ALi5451	pcm out is also set to S/PDIF out. (Default).
 
@@ -838,7 +838,7 @@ config SOUND_WAVEARTIST
 
 config SOUND_TVMIXER
 	tristate "TV card (bt848) mixer support"
-	depends on SOUND_PRIME && I2C
+	depends on SOUND_PRIME && I2C && VIDEO_V4L1
 	help
 	  Support for audio mixer facilities on the BT848 TV frame-grabber
 	  card.

@@ -1106,7 +1106,6 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	probe_ent->irq = pdev->irq;
 	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->mmio_base = port_base;
 	probe_ent->private_data = hpriv;
 
 	hpriv->host_base = host_base;

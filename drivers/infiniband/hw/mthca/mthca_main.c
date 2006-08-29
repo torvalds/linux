@@ -967,12 +967,12 @@ static struct {
 } mthca_hca_table[] = {
 	[TAVOR]        = { .latest_fw = MTHCA_FW_VER(3, 4, 0),
 			   .flags     = 0 },
-	[ARBEL_COMPAT] = { .latest_fw = MTHCA_FW_VER(4, 7, 400),
+	[ARBEL_COMPAT] = { .latest_fw = MTHCA_FW_VER(4, 7, 600),
 			   .flags     = MTHCA_FLAG_PCIE },
-	[ARBEL_NATIVE] = { .latest_fw = MTHCA_FW_VER(5, 1, 0),
+	[ARBEL_NATIVE] = { .latest_fw = MTHCA_FW_VER(5, 1, 400),
 			   .flags     = MTHCA_FLAG_MEMFREE |
 					MTHCA_FLAG_PCIE },
-	[SINAI]        = { .latest_fw = MTHCA_FW_VER(1, 0, 800),
+	[SINAI]        = { .latest_fw = MTHCA_FW_VER(1, 1, 0),
 			   .flags     = MTHCA_FLAG_MEMFREE |
 					MTHCA_FLAG_PCIE    |
 					MTHCA_FLAG_SINAI_OPT }

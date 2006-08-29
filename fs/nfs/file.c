@@ -312,7 +312,13 @@ static void nfs_invalidate_page(struct page *page, unsigned long offset)
 
 static int nfs_release_page(struct page *page, gfp_t gfp)
 {
-	return !nfs_wb_page(page->mapping->host, page);
+	if (gfp & __GFP_FS)
+		return !nfs_wb_page(page->mapping->host, page);
+	else
+		/*
+		 * Avoid deadlock on nfs_wait_on_request().
+		 */
+		return 0;
 }
 
 const struct address_space_operations nfs_file_aops = {

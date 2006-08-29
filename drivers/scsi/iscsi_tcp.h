@@ -78,8 +78,6 @@ struct iscsi_tcp_conn {
 	char			hdrext[4*sizeof(__u16) +
 				    sizeof(__u32)];
 	int			data_copied;
-	char			*data;		/* data placeholder */
-	int			data_size;	/* actual recv_dlength */
 	int			stop_stage;	/* conn_stop() flag: *
 						 * stop to recover,  *
 						 * stop to terminate */

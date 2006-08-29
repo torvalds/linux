@@ -130,11 +130,12 @@ static ssize_t tcpprobe_read(struct file *file, char __user *buf,
 	error = wait_event_interruptible(tcpw.wait,
 					 __kfifo_len(tcpw.fifo) != 0);
 	if (error)
-		return error;
+		goto out_free;
 
 	cnt = kfifo_get(tcpw.fifo, tbuf, len);
 	error = copy_to_user(buf, tbuf, cnt);
 
+out_free:
 	vfree(tbuf);
 
 	return error ? error : cnt;

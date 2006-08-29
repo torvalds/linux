@@ -263,6 +263,9 @@ ccw_device_wake_up(struct ccw_device *cdev, unsigned long ip, struct irb *irb)
 	/* Abuse intparm for error reporting. */
 	if (IS_ERR(irb))
 		cdev->private->intparm = -EIO;
+	else if (irb->scsw.cc == 1)
+		/* Retry for deferred condition code. */
+		cdev->private->intparm = -EAGAIN;
 	else if ((irb->scsw.dstat !=
 		  (DEV_STAT_CHN_END|DEV_STAT_DEV_END)) ||
 		 (irb->scsw.cstat != 0)) {

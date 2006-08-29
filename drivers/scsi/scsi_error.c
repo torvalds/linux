@@ -460,7 +460,8 @@ static void scsi_eh_done(struct scsi_cmnd *scmd)
  * Return value:
  *    SUCCESS or FAILED or NEEDS_RETRY
  **/
-static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout, int copy_sense)
+static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
+			     int cmnd_size, int timeout, int copy_sense)
 {
 	struct scsi_device *sdev = scmd->device;
 	struct Scsi_Host *shost = sdev->host;
@@ -489,6 +490,9 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout, int copy_sense
 	old_data_direction = scmd->sc_data_direction;
 	old_cmd_len = scmd->cmd_len;
 	old_use_sg = scmd->use_sg;
+
+	memset(scmd->cmnd, 0, sizeof(scmd->cmnd));
+	memcpy(scmd->cmnd, cmnd, cmnd_size);
 
 	if (copy_sense) {
 		int gfp_mask = GFP_ATOMIC;
@@ -610,8 +614,7 @@ static int scsi_request_sense(struct scsi_cmnd *scmd)
 	static unsigned char generic_sense[6] =
 		{REQUEST_SENSE, 0, 0, 0, 252, 0};
 
-	memcpy(scmd->cmnd, generic_sense, sizeof(generic_sense));
-	return scsi_send_eh_cmnd(scmd, SENSE_TIMEOUT, 1);
+	return scsi_send_eh_cmnd(scmd, generic_sense, 6, SENSE_TIMEOUT, 1);
 }
 
 /**
@@ -736,10 +739,7 @@ static int scsi_eh_tur(struct scsi_cmnd *scmd)
 	int retry_cnt = 1, rtn;
 
 retry_tur:
-	memcpy(scmd->cmnd, tur_command, sizeof(tur_command));
-
-
-	rtn = scsi_send_eh_cmnd(scmd, SENSE_TIMEOUT, 0);
+	rtn = scsi_send_eh_cmnd(scmd, tur_command, 6, SENSE_TIMEOUT, 0);
 
 	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: scmd %p rtn %x\n",
 		__FUNCTION__, scmd, rtn));
@@ -839,8 +839,8 @@ static int scsi_eh_try_stu(struct scsi_cmnd *scmd)
 	if (scmd->device->allow_restart) {
 		int rtn;
 
-		memcpy(scmd->cmnd, stu_command, sizeof(stu_command));
-		rtn = scsi_send_eh_cmnd(scmd, START_UNIT_TIMEOUT, 0);
+		rtn = scsi_send_eh_cmnd(scmd, stu_command, 6,
+					START_UNIT_TIMEOUT, 0);
 		if (rtn == SUCCESS)
 			return 0;
 	}

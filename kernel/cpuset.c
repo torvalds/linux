@@ -816,6 +816,10 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 	struct cpuset trialcs;
 	int retval, cpus_unchanged;
 
+	/* top_cpuset.cpus_allowed tracks cpu_online_map; it's read-only */
+	if (cs == &top_cpuset)
+		return -EACCES;
+
 	trialcs = *cs;
 	retval = cpulist_parse(buf, trialcs.cpus_allowed);
 	if (retval < 0)
@@ -2033,6 +2037,33 @@ out:
 	return err;
 }
 
+/*
+ * The top_cpuset tracks what CPUs and Memory Nodes are online,
+ * period.  This is necessary in order to make cpusets transparent
+ * (of no affect) on systems that are actively using CPU hotplug
+ * but making no active use of cpusets.
+ *
+ * This handles CPU hotplug (cpuhp) events.  If someday Memory
+ * Nodes can be hotplugged (dynamically changing node_online_map)
+ * then we should handle that too, perhaps in a similar way.
+ */
+
+#ifdef CONFIG_HOTPLUG_CPU
+static int cpuset_handle_cpuhp(struct notifier_block *nb,
+				unsigned long phase, void *cpu)
+{
+	mutex_lock(&manage_mutex);
+	mutex_lock(&callback_mutex);
+
+	top_cpuset.cpus_allowed = cpu_online_map;
+
+	mutex_unlock(&callback_mutex);
+	mutex_unlock(&manage_mutex);
+
+	return 0;
+}
+#endif
+
 /**
  * cpuset_init_smp - initialize cpus_allowed
  *
@@ -2043,6 +2074,8 @@ void __init cpuset_init_smp(void)
 {
 	top_cpuset.cpus_allowed = cpu_online_map;
 	top_cpuset.mems_allowed = node_online_map;
+
+	hotcpu_notifier(cpuset_handle_cpuhp, 0);
 }
 
 /**
@@ -2387,7 +2420,7 @@ EXPORT_SYMBOL_GPL(cpuset_mem_spread_node);
 int cpuset_excl_nodes_overlap(const struct task_struct *p)
 {
 	const struct cpuset *cs1, *cs2;	/* my and p's cpuset ancestors */
-	int overlap = 0;		/* do cpusets overlap? */
+	int overlap = 1;		/* do cpusets overlap? */
 
 	task_lock(current);
 	if (current->flags & PF_EXITING) {

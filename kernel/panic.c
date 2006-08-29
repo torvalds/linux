@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/nmi.h>
 #include <linux/kexec.h>
+#include <linux/debug_locks.h>
 
 int panic_on_oops;
 int tainted;

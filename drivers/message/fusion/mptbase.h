@@ -640,7 +640,6 @@ typedef struct _MPT_ADAPTER
 	struct work_struct	 fc_setup_reset_work;
 	struct list_head	 fc_rports;
 	spinlock_t		 fc_rescan_work_lock;
-	int			 fc_rescan_work_count;
 	struct work_struct	 fc_rescan_work;
 	char			 fc_rescan_work_q_name[KOBJ_NAME_LEN];
 	struct workqueue_struct *fc_rescan_work_q;

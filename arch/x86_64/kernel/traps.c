@@ -529,7 +529,7 @@ void __kprobes oops_end(unsigned long flags)
 		/* Nest count reaches zero, release the lock. */
 		spin_unlock_irqrestore(&die_lock, flags);
 	if (panic_on_oops)
-		panic("Fatal exception: panic_on_oops");
+		panic("Fatal exception");
 }
 
 void __kprobes __die(const char * str, struct pt_regs * regs, long err)

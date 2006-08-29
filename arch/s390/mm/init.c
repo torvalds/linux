@@ -129,7 +129,7 @@ void __init paging_init(void)
                 /*
                  * pg_table is physical at this point
                  */
-		pg_table = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
+		pg_table = (pte_t *) alloc_bootmem_pages(PAGE_SIZE);
 
                 pg_dir->pgd0 =  (_PAGE_TABLE | __pa(pg_table));
                 pg_dir->pgd1 =  (_PAGE_TABLE | (__pa(pg_table)+1024));
@@ -219,7 +219,7 @@ void __init paging_init(void)
                         continue;
                 }          
         
-	        pm_dir = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE*4);
+		pm_dir = (pmd_t *) alloc_bootmem_pages(PAGE_SIZE * 4);
                 pgd_populate(&init_mm, pg_dir, pm_dir);
 
                 for (j = 0 ; j < PTRS_PER_PMD ; j++,pm_dir++) {
@@ -228,7 +228,7 @@ void __init paging_init(void)
                                 continue; 
                         }          
                         
-                        pt_dir = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
+			pt_dir = (pte_t *) alloc_bootmem_pages(PAGE_SIZE);
                         pmd_populate_kernel(&init_mm, pm_dir, pt_dir);
 	
                         for (k = 0 ; k < PTRS_PER_PTE ; k++,pt_dir++) {

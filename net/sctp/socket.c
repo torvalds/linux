@@ -1520,8 +1520,16 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			goto out_unlock;
 		}
 		if (sinfo_flags & SCTP_ABORT) {
+			struct sctp_chunk *chunk;
+
+			chunk = sctp_make_abort_user(asoc, msg, msg_len);
+			if (!chunk) {
+				err = -ENOMEM;
+				goto out_unlock;
+			}
+
 			SCTP_DEBUG_PRINTK("Aborting association: %p\n", asoc);
-			sctp_primitive_ABORT(asoc, msg);
+			sctp_primitive_ABORT(asoc, chunk);
 			err = 0;
 			goto out_unlock;
 		}

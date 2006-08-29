@@ -600,4 +600,6 @@ void __init pci_v3_postinit(void)
 		printk(KERN_ERR "PCI: unable to grab local bus timeout "
 		       "interrupt: %d\n", ret);
 #endif
+
+	register_isa_ports(PHYS_PCI_MEM_BASE, PHYS_PCI_IO_BASE, 0);
 }

@@ -115,6 +115,7 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	u64 addr;
 	u32 *addrp;
 	upf_t flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_SHARE_IRQ;
+	struct device_node *tsi = of_get_parent(np);
 
 	/* We only support ports that have a clock frequency properly
 	 * encoded in the device-tree.
@@ -134,7 +135,10 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	/* Add port, irq will be dealt with later. We passed a translated
 	 * IO port value. It will be fixed up later along with the irq
 	 */
-	return add_legacy_port(np, -1, UPIO_MEM, addr, addr, NO_IRQ, flags, 0);
+	if (tsi && !strcmp(tsi->type, "tsi-bridge"))
+		return add_legacy_port(np, -1, UPIO_TSI, addr, addr, NO_IRQ, flags, 0);
+	else
+		return add_legacy_port(np, -1, UPIO_MEM, addr, addr, NO_IRQ, flags, 0);
 }
 
 static int __init add_legacy_isa_port(struct device_node *np,
@@ -464,7 +468,7 @@ static int __init serial_dev_init(void)
 			fixup_port_irq(i, np, port);
 		if (port->iotype == UPIO_PORT)
 			fixup_port_pio(i, np, port);
-		if (port->iotype == UPIO_MEM)
+		if ((port->iotype == UPIO_MEM) || (port->iotype == UPIO_TSI))
 			fixup_port_mmio(i, np, port);
 	}
 
