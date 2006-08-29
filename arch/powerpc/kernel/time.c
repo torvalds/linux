@@ -417,7 +417,7 @@ static __inline__ void timer_check_rtc(void)
 /*
  * This version of gettimeofday has microsecond resolution.
  */
-static inline void __do_gettimeofday(struct timeval *tv, u64 tb_val)
+static inline void __do_gettimeofday(struct timeval *tv)
 {
 	unsigned long sec, usec;
 	u64 tb_ticks, xsec;
@@ -431,7 +431,12 @@ static inline void __do_gettimeofday(struct timeval *tv, u64 tb_val)
 	 * without a divide (and in fact, without a multiply)
 	 */
 	temp_varp = do_gtod.varp;
-	tb_ticks = tb_val - temp_varp->tb_orig_stamp;
+
+	/* Sampling the time base must be done after loading
+	 * do_gtod.varp in order to avoid racing with update_gtod.
+	 */
+	data_barrier(temp_varp);
+	tb_ticks = get_tb() - temp_varp->tb_orig_stamp;
 	temp_tb_to_xs = temp_varp->tb_to_xs;
 	temp_stamp_xsec = temp_varp->stamp_xsec;
 	xsec = temp_stamp_xsec + mulhdu(tb_ticks, temp_tb_to_xs);
@@ -464,7 +469,7 @@ void do_gettimeofday(struct timeval *tv)
 		tv->tv_usec = usec;
 		return;
 	}
-	__do_gettimeofday(tv, get_tb());
+	__do_gettimeofday(tv);
 }
 
 EXPORT_SYMBOL(do_gettimeofday);
@@ -650,6 +655,7 @@ void timer_interrupt(struct pt_regs * regs)
 	int next_dec;
 	int cpu = smp_processor_id();
 	unsigned long ticks;
+	u64 tb_next_jiffy;
 
 #ifdef CONFIG_PPC32
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)
@@ -691,11 +697,14 @@ void timer_interrupt(struct pt_regs * regs)
 			continue;
 
 		write_seqlock(&xtime_lock);
-		tb_last_jiffy += tb_ticks_per_jiffy;
-		tb_last_stamp = per_cpu(last_jiffy, cpu);
-		do_timer(regs);
-		timer_recalc_offset(tb_last_jiffy);
-		timer_check_rtc();
+		tb_next_jiffy = tb_last_jiffy + tb_ticks_per_jiffy;
+		if (per_cpu(last_jiffy, cpu) >= tb_next_jiffy) {
+			tb_last_jiffy = tb_next_jiffy;
+			tb_last_stamp = per_cpu(last_jiffy, cpu);
+			do_timer(regs);
+			timer_recalc_offset(tb_last_jiffy);
+			timer_check_rtc();
+		}
 		write_sequnlock(&xtime_lock);
 	}
 	

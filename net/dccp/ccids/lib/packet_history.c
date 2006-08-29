@@ -1,13 +1,13 @@
 /*
- *  net/dccp/packet_history.h
+ *  net/dccp/packet_history.c
  *
- *  Copyright (c) 2005 The University of Waikato, Hamilton, New Zealand.
+ *  Copyright (c) 2005-6 The University of Waikato, Hamilton, New Zealand.
  *
  *  An implementation of the DCCP protocol
  *
  *  This code has been developed by the University of Waikato WAND
  *  research group. For further information please see http://www.wand.net.nz/
- *  or e-mail Ian McDonald - iam4@cs.waikato.ac.nz
+ *  or e-mail Ian McDonald - ian.mcdonald@jandi.co.nz
  *
  *  This code also uses code from Lulea University, rereleased as GPL by its
  *  authors:
@@ -112,64 +112,27 @@ struct dccp_rx_hist_entry *
 
 EXPORT_SYMBOL_GPL(dccp_rx_hist_find_data_packet);
 
-int dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
+void dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
 			    struct list_head *rx_list,
 			    struct list_head *li_list,
-			    struct dccp_rx_hist_entry *packet)
+			    struct dccp_rx_hist_entry *packet,
+			    u64 nonloss_seqno)
 {
-	struct dccp_rx_hist_entry *entry, *next, *iter;
+	struct dccp_rx_hist_entry *entry, *next;
 	u8 num_later = 0;
 
-	iter = dccp_rx_hist_head(rx_list);
-	if (iter == NULL)
-		dccp_rx_hist_add_entry(rx_list, packet);
-	else {
-		const u64 seqno = packet->dccphrx_seqno;
+	list_add(&packet->dccphrx_node, rx_list);
 
-		if (after48(seqno, iter->dccphrx_seqno))
-			dccp_rx_hist_add_entry(rx_list, packet);
-		else {
-			if (dccp_rx_hist_entry_data_packet(iter))
-				num_later = 1;
-
-			list_for_each_entry_continue(iter, rx_list,
-						     dccphrx_node) {
-				if (after48(seqno, iter->dccphrx_seqno)) {
-					dccp_rx_hist_add_entry(&iter->dccphrx_node,
-							       packet);
-					goto trim_history;
-				}
-
-				if (dccp_rx_hist_entry_data_packet(iter))
-					num_later++;
-
-				if (num_later == TFRC_RECV_NUM_LATE_LOSS) {
-					dccp_rx_hist_entry_delete(hist, packet);
-					return 1;
-				}
-			}
-
-			if (num_later < TFRC_RECV_NUM_LATE_LOSS)
-				dccp_rx_hist_add_entry(rx_list, packet);
-			/*
-			 * FIXME: else what? should we destroy the packet
-			 * like above?
-			 */
-		}
-	}
-
-trim_history:
-	/*
-	 * Trim history (remove all packets after the NUM_LATE_LOSS + 1
-	 * data packets)
-	 */
 	num_later = TFRC_RECV_NUM_LATE_LOSS + 1;
 
 	if (!list_empty(li_list)) {
 		list_for_each_entry_safe(entry, next, rx_list, dccphrx_node) {
 			if (num_later == 0) {
-				list_del_init(&entry->dccphrx_node);
-				dccp_rx_hist_entry_delete(hist, entry);
+				if (after48(nonloss_seqno,
+				   entry->dccphrx_seqno)) {
+					list_del_init(&entry->dccphrx_node);
+					dccp_rx_hist_entry_delete(hist, entry);
+				}
 			} else if (dccp_rx_hist_entry_data_packet(entry))
 				--num_later;
 		}
@@ -217,93 +180,9 @@ trim_history:
 				--num_later;
 		}
 	}
-
-	return 0;
 }
 
 EXPORT_SYMBOL_GPL(dccp_rx_hist_add_packet);
-
-u64 dccp_rx_hist_detect_loss(struct list_head *rx_list,
-			     struct list_head *li_list, u8 *win_loss)
-{
-	struct dccp_rx_hist_entry *entry, *next, *packet;
-	struct dccp_rx_hist_entry *a_loss = NULL;
-	struct dccp_rx_hist_entry *b_loss = NULL;
-	u64 seq_loss = DCCP_MAX_SEQNO + 1;
-	u8 num_later = TFRC_RECV_NUM_LATE_LOSS;
-
-	list_for_each_entry_safe(entry, next, rx_list, dccphrx_node) {
-		if (num_later == 0) {
-			b_loss = entry;
-			break;
-		} else if (dccp_rx_hist_entry_data_packet(entry))
-			--num_later;
-	}
-
-	if (b_loss == NULL)
-		goto out;
-
-	num_later = 1;
-	list_for_each_entry_safe_continue(entry, next, rx_list, dccphrx_node) {
-		if (num_later == 0) {
-			a_loss = entry;
-			break;
-		} else if (dccp_rx_hist_entry_data_packet(entry))
-			--num_later;
-	}
-
-	if (a_loss == NULL) {
-		if (list_empty(li_list)) {
-			/* no loss event have occured yet */
-			LIMIT_NETDEBUG("%s: TODO: find a lost data packet by "
-				       "comparing to initial seqno\n",
-				       __FUNCTION__);
-			goto out;
-		} else {
-			LIMIT_NETDEBUG("%s: Less than 4 data pkts in history!",
-				       __FUNCTION__);
-			goto out;
-		}
-	}
-
-	/* Locate a lost data packet */
-	entry = packet = b_loss;
-	list_for_each_entry_safe_continue(entry, next, rx_list, dccphrx_node) {
-		u64 delta = dccp_delta_seqno(entry->dccphrx_seqno,
-					     packet->dccphrx_seqno);
-
-		if (delta != 0) {
-			if (dccp_rx_hist_entry_data_packet(packet))
-				--delta;
-			/*
-			 * FIXME: check this, probably this % usage is because
-			 * in earlier drafts the ndp count was just 8 bits
-			 * long, but now it cam be up to 24 bits long.
-			 */
-#if 0
-			if (delta % DCCP_NDP_LIMIT !=
-			    (packet->dccphrx_ndp -
-			     entry->dccphrx_ndp) % DCCP_NDP_LIMIT)
-#endif
-			if (delta != packet->dccphrx_ndp - entry->dccphrx_ndp) {
-				seq_loss = entry->dccphrx_seqno;
-				dccp_inc_seqno(&seq_loss);
-			}
-		}
-		packet = entry;
-		if (packet == a_loss)
-			break;
-	}
-out:
-	if (seq_loss != DCCP_MAX_SEQNO + 1)
-		*win_loss = a_loss->dccphrx_ccval;
-	else
-		*win_loss = 0; /* Paranoia */
-
-	return seq_loss;
-}
-
-EXPORT_SYMBOL_GPL(dccp_rx_hist_detect_loss);
 
 struct dccp_tx_hist *dccp_tx_hist_new(const char *name)
 {
@@ -365,6 +244,25 @@ struct dccp_tx_hist_entry *
 
 EXPORT_SYMBOL_GPL(dccp_tx_hist_find_entry);
 
+int dccp_rx_hist_find_entry(const struct list_head *list, const u64 seq,
+   u8 *ccval)
+{
+	struct dccp_rx_hist_entry *packet = NULL, *entry;
+
+	list_for_each_entry(entry, list, dccphrx_node)
+		if (entry->dccphrx_seqno == seq) {
+			packet = entry;
+			break;
+		}
+
+	if (packet)
+		*ccval = packet->dccphrx_ccval;
+
+	return packet != NULL;
+}
+
+EXPORT_SYMBOL_GPL(dccp_rx_hist_find_entry);
+
 void dccp_tx_hist_purge_older(struct dccp_tx_hist *hist,
 			      struct list_head *list,
 			      struct dccp_tx_hist_entry *packet)
@@ -391,7 +289,7 @@ void dccp_tx_hist_purge(struct dccp_tx_hist *hist, struct list_head *list)
 
 EXPORT_SYMBOL_GPL(dccp_tx_hist_purge);
 
-MODULE_AUTHOR("Ian McDonald <iam4@cs.waikato.ac.nz>, "
+MODULE_AUTHOR("Ian McDonald <ian.mcdonald@jandi.co.nz>, "
 	      "Arnaldo Carvalho de Melo <acme@ghostprotocols.net>");
 MODULE_DESCRIPTION("DCCP TFRC library");
 MODULE_LICENSE("GPL");

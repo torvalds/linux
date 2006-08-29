@@ -2,7 +2,7 @@
  *  net/dccp/ccids/lib/loss_interval.c
  *
  *  Copyright (c) 2005 The University of Waikato, Hamilton, New Zealand.
- *  Copyright (c) 2005 Ian McDonald <iam4@cs.waikato.ac.nz>
+ *  Copyright (c) 2005-6 Ian McDonald <ian.mcdonald@jandi.co.nz>
  *  Copyright (c) 2005 Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -12,6 +12,7 @@
  */
 
 #include <linux/module.h>
+#include <net/sock.h>
 
 #include "loss_interval.h"
 
@@ -90,13 +91,13 @@ u32 dccp_li_hist_calc_i_mean(struct list_head *list)
 	u32 w_tot  = 0;
 
 	list_for_each_entry_safe(li_entry, li_next, list, dccplih_node) {
-		if (i < DCCP_LI_HIST_IVAL_F_LENGTH) {
+		if (li_entry->dccplih_interval != ~0) {
 			i_tot0 += li_entry->dccplih_interval * dccp_li_hist_w[i];
 			w_tot  += dccp_li_hist_w[i];
+			if (i != 0)
+				i_tot1 += li_entry->dccplih_interval * dccp_li_hist_w[i - 1];
 		}
 
-		if (i != 0)
-			i_tot1 += li_entry->dccplih_interval * dccp_li_hist_w[i - 1];
 
 		if (++i > DCCP_LI_HIST_IVAL_F_LENGTH)
 			break;
@@ -107,37 +108,36 @@ u32 dccp_li_hist_calc_i_mean(struct list_head *list)
 
 	i_tot = max(i_tot0, i_tot1);
 
-	/* FIXME: Why do we do this? -Ian McDonald */
-	if (i_tot * 4 < w_tot)
-		i_tot = w_tot * 4;
+	if (!w_tot) {
+		LIMIT_NETDEBUG(KERN_WARNING "%s: w_tot = 0\n", __FUNCTION__);
+		return 1;
+	}
 
-	return i_tot * 4 / w_tot;
+	return i_tot / w_tot;
 }
 
 EXPORT_SYMBOL_GPL(dccp_li_hist_calc_i_mean);
 
-struct dccp_li_hist_entry *dccp_li_hist_interval_new(struct dccp_li_hist *hist,
-						     struct list_head *list,
-						     const u64 seq_loss,
-						     const u8 win_loss)
+int dccp_li_hist_interval_new(struct dccp_li_hist *hist,
+   struct list_head *list, const u64 seq_loss, const u8 win_loss)
 {
-	struct dccp_li_hist_entry *tail = NULL, *entry;
+	struct dccp_li_hist_entry *entry;
 	int i;
 
-	for (i = 0; i <= DCCP_LI_HIST_IVAL_F_LENGTH; ++i) {
+	for (i = 0; i < DCCP_LI_HIST_IVAL_F_LENGTH; i++) {
 		entry = dccp_li_hist_entry_new(hist, SLAB_ATOMIC);
 		if (entry == NULL) {
 			dccp_li_hist_purge(hist, list);
-			return NULL;
+			dump_stack();
+			return 0;
 		}
-		if (tail == NULL)
-			tail = entry;
+		entry->dccplih_interval = ~0;
 		list_add(&entry->dccplih_node, list);
 	}
 
 	entry->dccplih_seqno     = seq_loss;
 	entry->dccplih_win_count = win_loss;
-	return tail;
+	return 1;
 }
 
 EXPORT_SYMBOL_GPL(dccp_li_hist_interval_new);

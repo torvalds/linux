@@ -71,10 +71,10 @@ static int set_system(struct dmi_system_id *id)
 static struct dmi_system_id __initdata dmi_system_table[] = {
 	{ set_system, "iMac4,1", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"Apple Computer, Inc."),
-	  DMI_MATCH(DMI_BIOS_VERSION,"iMac4,1") }, (void*)M_I17},
+	  DMI_MATCH(DMI_PRODUCT_NAME,"iMac4,1") }, (void*)M_I17},
 	{ set_system, "MacBookPro1,1", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"Apple Computer, Inc."),
-	  DMI_MATCH(DMI_BIOS_VERSION,"MacBookPro1,1") }, (void*)M_I17},
+	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBookPro1,1") }, (void*)M_I17},
 	{ set_system, "MacBook1,1", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"Apple Computer, Inc."),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBook1,1")}, (void *)M_MACBOOK},

@@ -4386,11 +4386,13 @@ e1000_write_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
 	pci_write_config_word(adapter->pdev, reg, *value);
 }
 
+#if 0
 uint32_t
 e1000_io_read(struct e1000_hw *hw, unsigned long port)
 {
 	return inl(port);
 }
+#endif  /*  0  */
 
 void
 e1000_io_write(struct e1000_hw *hw, unsigned long port, uint32_t value)

@@ -33,6 +33,7 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
+#include <linux/platform_device.h>
 
 #include <asm/pgtable.h>
 #include <asm/irq.h>
@@ -40,129 +41,25 @@
 
 #include "fs_enet.h"
 
-#ifdef CONFIG_8xx
-static int bitbang_prep_bit(u8 **dirp, u8 **datp, u8 *mskp, int port, int bit)
+static int bitbang_prep_bit(u8 **datp, u8 *mskp,
+		struct fs_mii_bit *mii_bit)
 {
-	immap_t *im = (immap_t *)fs_enet_immap;
-	void *dir, *dat, *ppar;
+	void *dat;
 	int adv;
 	u8 msk;
 
-	switch (port) {
-		case fsiop_porta:
-			dir = &im->im_ioport.iop_padir;
-			dat = &im->im_ioport.iop_padat;
-			ppar = &im->im_ioport.iop_papar;
-			break;
+	dat = (void*) mii_bit->offset;
 
-		case fsiop_portb:
-			dir = &im->im_cpm.cp_pbdir;
-			dat = &im->im_cpm.cp_pbdat;
-			ppar = &im->im_cpm.cp_pbpar;
-			break;
-
-		case fsiop_portc:
-			dir = &im->im_ioport.iop_pcdir;
-			dat = &im->im_ioport.iop_pcdat;
-			ppar = &im->im_ioport.iop_pcpar;
-			break;
-
-		case fsiop_portd:
-			dir = &im->im_ioport.iop_pddir;
-			dat = &im->im_ioport.iop_pddat;
-			ppar = &im->im_ioport.iop_pdpar;
-			break;
-
-		case fsiop_porte:
-			dir = &im->im_cpm.cp_pedir;
-			dat = &im->im_cpm.cp_pedat;
-			ppar = &im->im_cpm.cp_pepar;
-			break;
-
-		default:
-			printk(KERN_ERR DRV_MODULE_NAME
-			       "Illegal port value %d!\n", port);
-			return -EINVAL;
-	}
-
-	adv = bit >> 3;
-	dir = (char *)dir + adv;
+	adv = mii_bit->bit >> 3;
 	dat = (char *)dat + adv;
-	ppar = (char *)ppar + adv;
 
-	msk = 1 << (7 - (bit & 7));
-	if ((in_8(ppar) & msk) != 0) {
-		printk(KERN_ERR DRV_MODULE_NAME
-		       "pin %d on port %d is not general purpose!\n", bit, port);
-		return -EINVAL;
-	}
+	msk = 1 << (7 - (mii_bit->bit & 7));
 
-	*dirp = dir;
 	*datp = dat;
 	*mskp = msk;
 
 	return 0;
 }
-#endif
-
-#ifdef CONFIG_8260
-static int bitbang_prep_bit(u8 **dirp, u8 **datp, u8 *mskp, int port, int bit)
-{
-	iop_cpm2_t *io = &((cpm2_map_t *)fs_enet_immap)->im_ioport;
-	void *dir, *dat, *ppar;
-	int adv;
-	u8 msk;
-
-	switch (port) {
-		case fsiop_porta:
-			dir = &io->iop_pdira;
-			dat = &io->iop_pdata;
-			ppar = &io->iop_ppara;
-			break;
-
-		case fsiop_portb:
-			dir = &io->iop_pdirb;
-			dat = &io->iop_pdatb;
-			ppar = &io->iop_pparb;
-			break;
-
-		case fsiop_portc:
-			dir = &io->iop_pdirc;
-			dat = &io->iop_pdatc;
-			ppar = &io->iop_pparc;
-			break;
-
-		case fsiop_portd:
-			dir = &io->iop_pdird;
-			dat = &io->iop_pdatd;
-			ppar = &io->iop_ppard;
-			break;
-
-		default:
-			printk(KERN_ERR DRV_MODULE_NAME
-			       "Illegal port value %d!\n", port);
-			return -EINVAL;
-	}
-
-	adv = bit >> 3;
-	dir = (char *)dir + adv;
-	dat = (char *)dat + adv;
-	ppar = (char *)ppar + adv;
-
-	msk = 1 << (7 - (bit & 7));
-	if ((in_8(ppar) & msk) != 0) {
-		printk(KERN_ERR DRV_MODULE_NAME
-		       "pin %d on port %d is not general purpose!\n", bit, port);
-		return -EINVAL;
-	}
-
-	*dirp = dir;
-	*datp = dat;
-	*mskp = msk;
-
-	return 0;
-}
-#endif
 
 static inline void bb_set(u8 *p, u8 m)
 {
@@ -179,44 +76,44 @@ static inline int bb_read(u8 *p, u8 m)
 	return (in_8(p) & m) != 0;
 }
 
-static inline void mdio_active(struct fs_enet_mii_bus *bus)
+static inline void mdio_active(struct bb_info *bitbang)
 {
-	bb_set(bus->bitbang.mdio_dir, bus->bitbang.mdio_msk);
+	bb_set(bitbang->mdio_dir, bitbang->mdio_dir_msk);
 }
 
-static inline void mdio_tristate(struct fs_enet_mii_bus *bus)
+static inline void mdio_tristate(struct bb_info *bitbang )
 {
-	bb_clr(bus->bitbang.mdio_dir, bus->bitbang.mdio_msk);
+	bb_clr(bitbang->mdio_dir, bitbang->mdio_dir_msk);
 }
 
-static inline int mdio_read(struct fs_enet_mii_bus *bus)
+static inline int mdio_read(struct bb_info *bitbang )
 {
-	return bb_read(bus->bitbang.mdio_dat, bus->bitbang.mdio_msk);
+	return bb_read(bitbang->mdio_dat, bitbang->mdio_dat_msk);
 }
 
-static inline void mdio(struct fs_enet_mii_bus *bus, int what)
+static inline void mdio(struct bb_info *bitbang , int what)
 {
 	if (what)
-		bb_set(bus->bitbang.mdio_dat, bus->bitbang.mdio_msk);
+		bb_set(bitbang->mdio_dat, bitbang->mdio_dat_msk);
 	else
-		bb_clr(bus->bitbang.mdio_dat, bus->bitbang.mdio_msk);
+		bb_clr(bitbang->mdio_dat, bitbang->mdio_dat_msk);
 }
 
-static inline void mdc(struct fs_enet_mii_bus *bus, int what)
+static inline void mdc(struct bb_info *bitbang , int what)
 {
 	if (what)
-		bb_set(bus->bitbang.mdc_dat, bus->bitbang.mdc_msk);
+		bb_set(bitbang->mdc_dat, bitbang->mdc_msk);
 	else
-		bb_clr(bus->bitbang.mdc_dat, bus->bitbang.mdc_msk);
+		bb_clr(bitbang->mdc_dat, bitbang->mdc_msk);
 }
 
-static inline void mii_delay(struct fs_enet_mii_bus *bus)
+static inline void mii_delay(struct bb_info *bitbang )
 {
-	udelay(bus->bus_info->i.bitbang.delay);
+	udelay(bitbang->delay);
 }
 
 /* Utility to send the preamble, address, and register (common to read and write). */
-static void bitbang_pre(struct fs_enet_mii_bus *bus, int read, u8 addr, u8 reg)
+static void bitbang_pre(struct bb_info *bitbang , int read, u8 addr, u8 reg)
 {
 	int j;
 
@@ -228,177 +125,284 @@ static void bitbang_pre(struct fs_enet_mii_bus *bus, int read, u8 addr, u8 reg)
 	 * but it is safer and will be much more robust.
 	 */
 
-	mdio_active(bus);
-	mdio(bus, 1);
+	mdio_active(bitbang);
+	mdio(bitbang, 1);
 	for (j = 0; j < 32; j++) {
-		mdc(bus, 0);
-		mii_delay(bus);
-		mdc(bus, 1);
-		mii_delay(bus);
+		mdc(bitbang, 0);
+		mii_delay(bitbang);
+		mdc(bitbang, 1);
+		mii_delay(bitbang);
 	}
 
 	/* send the start bit (01) and the read opcode (10) or write (10) */
-	mdc(bus, 0);
-	mdio(bus, 0);
-	mii_delay(bus);
-	mdc(bus, 1);
-	mii_delay(bus);
-	mdc(bus, 0);
-	mdio(bus, 1);
-	mii_delay(bus);
-	mdc(bus, 1);
-	mii_delay(bus);
-	mdc(bus, 0);
-	mdio(bus, read);
-	mii_delay(bus);
-	mdc(bus, 1);
-	mii_delay(bus);
-	mdc(bus, 0);
-	mdio(bus, !read);
-	mii_delay(bus);
-	mdc(bus, 1);
-	mii_delay(bus);
+	mdc(bitbang, 0);
+	mdio(bitbang, 0);
+	mii_delay(bitbang);
+	mdc(bitbang, 1);
+	mii_delay(bitbang);
+	mdc(bitbang, 0);
+	mdio(bitbang, 1);
+	mii_delay(bitbang);
+	mdc(bitbang, 1);
+	mii_delay(bitbang);
+	mdc(bitbang, 0);
+	mdio(bitbang, read);
+	mii_delay(bitbang);
+	mdc(bitbang, 1);
+	mii_delay(bitbang);
+	mdc(bitbang, 0);
+	mdio(bitbang, !read);
+	mii_delay(bitbang);
+	mdc(bitbang, 1);
+	mii_delay(bitbang);
 
 	/* send the PHY address */
 	for (j = 0; j < 5; j++) {
-		mdc(bus, 0);
-		mdio(bus, (addr & 0x10) != 0);
-		mii_delay(bus);
-		mdc(bus, 1);
-		mii_delay(bus);
+		mdc(bitbang, 0);
+		mdio(bitbang, (addr & 0x10) != 0);
+		mii_delay(bitbang);
+		mdc(bitbang, 1);
+		mii_delay(bitbang);
 		addr <<= 1;
 	}
 
 	/* send the register address */
 	for (j = 0; j < 5; j++) {
-		mdc(bus, 0);
-		mdio(bus, (reg & 0x10) != 0);
-		mii_delay(bus);
-		mdc(bus, 1);
-		mii_delay(bus);
+		mdc(bitbang, 0);
+		mdio(bitbang, (reg & 0x10) != 0);
+		mii_delay(bitbang);
+		mdc(bitbang, 1);
+		mii_delay(bitbang);
 		reg <<= 1;
 	}
 }
 
-static int mii_read(struct fs_enet_mii_bus *bus, int phy_id, int location)
+static int fs_enet_mii_bb_read(struct mii_bus *bus , int phy_id, int location)
 {
 	u16 rdreg;
 	int ret, j;
 	u8 addr = phy_id & 0xff;
 	u8 reg = location & 0xff;
+	struct bb_info* bitbang = bus->priv;
 
-	bitbang_pre(bus, 1, addr, reg);
+	bitbang_pre(bitbang, 1, addr, reg);
 
 	/* tri-state our MDIO I/O pin so we can read */
-	mdc(bus, 0);
-	mdio_tristate(bus);
-	mii_delay(bus);
-	mdc(bus, 1);
-	mii_delay(bus);
+	mdc(bitbang, 0);
+	mdio_tristate(bitbang);
+	mii_delay(bitbang);
+	mdc(bitbang, 1);
+	mii_delay(bitbang);
 
 	/* check the turnaround bit: the PHY should be driving it to zero */
-	if (mdio_read(bus) != 0) {
+	if (mdio_read(bitbang) != 0) {
 		/* PHY didn't drive TA low */
 		for (j = 0; j < 32; j++) {
-			mdc(bus, 0);
-			mii_delay(bus);
-			mdc(bus, 1);
-			mii_delay(bus);
+			mdc(bitbang, 0);
+			mii_delay(bitbang);
+			mdc(bitbang, 1);
+			mii_delay(bitbang);
 		}
 		ret = -1;
 		goto out;
 	}
 
-	mdc(bus, 0);
-	mii_delay(bus);
+	mdc(bitbang, 0);
+	mii_delay(bitbang);
 
 	/* read 16 bits of register data, MSB first */
 	rdreg = 0;
 	for (j = 0; j < 16; j++) {
-		mdc(bus, 1);
-		mii_delay(bus);
+		mdc(bitbang, 1);
+		mii_delay(bitbang);
 		rdreg <<= 1;
-		rdreg |= mdio_read(bus);
-		mdc(bus, 0);
-		mii_delay(bus);
+		rdreg |= mdio_read(bitbang);
+		mdc(bitbang, 0);
+		mii_delay(bitbang);
 	}
 
-	mdc(bus, 1);
-	mii_delay(bus);
-	mdc(bus, 0);
-	mii_delay(bus);
-	mdc(bus, 1);
-	mii_delay(bus);
+	mdc(bitbang, 1);
+	mii_delay(bitbang);
+	mdc(bitbang, 0);
+	mii_delay(bitbang);
+	mdc(bitbang, 1);
+	mii_delay(bitbang);
 
 	ret = rdreg;
 out:
 	return ret;
 }
 
-static void mii_write(struct fs_enet_mii_bus *bus, int phy_id, int location, int val)
+static int fs_enet_mii_bb_write(struct mii_bus *bus, int phy_id, int location, u16 val)
 {
 	int j;
+	struct bb_info* bitbang = bus->priv;
+
 	u8 addr = phy_id & 0xff;
 	u8 reg = location & 0xff;
 	u16 value = val & 0xffff;
 
-	bitbang_pre(bus, 0, addr, reg);
+	bitbang_pre(bitbang, 0, addr, reg);
 
 	/* send the turnaround (10) */
-	mdc(bus, 0);
-	mdio(bus, 1);
-	mii_delay(bus);
-	mdc(bus, 1);
-	mii_delay(bus);
-	mdc(bus, 0);
-	mdio(bus, 0);
-	mii_delay(bus);
-	mdc(bus, 1);
-	mii_delay(bus);
+	mdc(bitbang, 0);
+	mdio(bitbang, 1);
+	mii_delay(bitbang);
+	mdc(bitbang, 1);
+	mii_delay(bitbang);
+	mdc(bitbang, 0);
+	mdio(bitbang, 0);
+	mii_delay(bitbang);
+	mdc(bitbang, 1);
+	mii_delay(bitbang);
 
 	/* write 16 bits of register data, MSB first */
 	for (j = 0; j < 16; j++) {
-		mdc(bus, 0);
-		mdio(bus, (value & 0x8000) != 0);
-		mii_delay(bus);
-		mdc(bus, 1);
-		mii_delay(bus);
+		mdc(bitbang, 0);
+		mdio(bitbang, (value & 0x8000) != 0);
+		mii_delay(bitbang);
+		mdc(bitbang, 1);
+		mii_delay(bitbang);
 		value <<= 1;
 	}
 
 	/*
 	 * Tri-state the MDIO line.
 	 */
-	mdio_tristate(bus);
-	mdc(bus, 0);
-	mii_delay(bus);
-	mdc(bus, 1);
-	mii_delay(bus);
+	mdio_tristate(bitbang);
+	mdc(bitbang, 0);
+	mii_delay(bitbang);
+	mdc(bitbang, 1);
+	mii_delay(bitbang);
+	return 0;
 }
 
-int fs_mii_bitbang_init(struct fs_enet_mii_bus *bus)
+static int fs_enet_mii_bb_reset(struct mii_bus *bus)
 {
-	const struct fs_mii_bus_info *bi = bus->bus_info;
+	/*nothing here - dunno how to reset it*/
+	return 0;
+}
+
+static int fs_mii_bitbang_init(struct bb_info *bitbang, struct fs_mii_bb_platform_info* fmpi)
+{
 	int r;
 
-	r = bitbang_prep_bit(&bus->bitbang.mdio_dir,
-			 &bus->bitbang.mdio_dat,
-			 &bus->bitbang.mdio_msk,
-			 bi->i.bitbang.mdio_port,
-			 bi->i.bitbang.mdio_bit);
+	bitbang->delay = fmpi->delay;
+
+	r = bitbang_prep_bit(&bitbang->mdio_dir,
+			 &bitbang->mdio_dir_msk,
+			 &fmpi->mdio_dir);
 	if (r != 0)
 		return r;
 
-	r = bitbang_prep_bit(&bus->bitbang.mdc_dir,
-			 &bus->bitbang.mdc_dat,
-			 &bus->bitbang.mdc_msk,
-			 bi->i.bitbang.mdc_port,
-			 bi->i.bitbang.mdc_bit);
+	r = bitbang_prep_bit(&bitbang->mdio_dat,
+			 &bitbang->mdio_dat_msk,
+			 &fmpi->mdio_dat);
 	if (r != 0)
 		return r;
 
-	bus->mii_read = mii_read;
-	bus->mii_write = mii_write;
+	r = bitbang_prep_bit(&bitbang->mdc_dat,
+			 &bitbang->mdc_msk,
+			 &fmpi->mdc_dat);
+	if (r != 0)
+		return r;
 
 	return 0;
 }
+
+
+static int __devinit fs_enet_mdio_probe(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct fs_mii_bb_platform_info *pdata;
+	struct mii_bus *new_bus;
+	struct bb_info *bitbang;
+	int err = 0;
+
+	if (NULL == dev)
+		return -EINVAL;
+
+	new_bus = kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
+
+	if (NULL == new_bus)
+		return -ENOMEM;
+
+	bitbang = kzalloc(sizeof(struct bb_info), GFP_KERNEL);
+
+	if (NULL == bitbang)
+		return -ENOMEM;
+
+	new_bus->name = "BB MII Bus",
+	new_bus->read = &fs_enet_mii_bb_read,
+	new_bus->write = &fs_enet_mii_bb_write,
+	new_bus->reset = &fs_enet_mii_bb_reset,
+	new_bus->id = pdev->id;
+
+	new_bus->phy_mask = ~0x9;
+	pdata = (struct fs_mii_bb_platform_info *)pdev->dev.platform_data;
+
+	if (NULL == pdata) {
+		printk(KERN_ERR "gfar mdio %d: Missing platform data!\n", pdev->id);
+		return -ENODEV;
+	}
+
+	/*set up workspace*/
+	fs_mii_bitbang_init(bitbang, pdata);
+
+	new_bus->priv = bitbang;
+
+	new_bus->irq = pdata->irq;
+
+	new_bus->dev = dev;
+	dev_set_drvdata(dev, new_bus);
+
+	err = mdiobus_register(new_bus);
+
+	if (0 != err) {
+		printk (KERN_ERR "%s: Cannot register as MDIO bus\n",
+				new_bus->name);
+		goto bus_register_fail;
+	}
+
+	return 0;
+
+bus_register_fail:
+	kfree(bitbang);
+	kfree(new_bus);
+
+	return err;
+}
+
+
+static int fs_enet_mdio_remove(struct device *dev)
+{
+	struct mii_bus *bus = dev_get_drvdata(dev);
+
+	mdiobus_unregister(bus);
+
+	dev_set_drvdata(dev, NULL);
+
+	iounmap((void *) (&bus->priv));
+	bus->priv = NULL;
+	kfree(bus);
+
+	return 0;
+}
+
+static struct device_driver fs_enet_bb_mdio_driver = {
+	.name = "fsl-bb-mdio",
+	.bus = &platform_bus_type,
+	.probe = fs_enet_mdio_probe,
+	.remove = fs_enet_mdio_remove,
+};
+
+int fs_enet_mdio_bb_init(void)
+{
+	return driver_register(&fs_enet_bb_mdio_driver);
+}
+
+void fs_enet_mdio_bb_exit(void)
+{
+	driver_unregister(&fs_enet_bb_mdio_driver);
+}
+

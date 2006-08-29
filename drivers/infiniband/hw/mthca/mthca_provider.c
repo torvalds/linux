@@ -1287,11 +1287,7 @@ int mthca_register_device(struct mthca_dev *dev)
 		(1ull << IB_USER_VERBS_CMD_MODIFY_QP)		|
 		(1ull << IB_USER_VERBS_CMD_DESTROY_QP)		|
 		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST)	|
-		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST)	|
-		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
+		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST);
 	dev->ib_dev.node_type            = IB_NODE_CA;
 	dev->ib_dev.phys_port_cnt        = dev->limits.num_ports;
 	dev->ib_dev.dma_device           = &dev->pdev->dev;
@@ -1316,6 +1312,11 @@ int mthca_register_device(struct mthca_dev *dev)
 		dev->ib_dev.modify_srq           = mthca_modify_srq;
 		dev->ib_dev.query_srq            = mthca_query_srq;
 		dev->ib_dev.destroy_srq          = mthca_destroy_srq;
+		dev->ib_dev.uverbs_cmd_mask	|=
+			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
+			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
+			(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
+			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
 
 		if (mthca_is_memfree(dev))
 			dev->ib_dev.post_srq_recv = mthca_arbel_post_srq_recv;

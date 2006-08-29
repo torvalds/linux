@@ -517,7 +517,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		/* No more interrupts */
 		if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
 			printk (KERN_INFO "Packet command completed, %d bytes transferred\n", pc->actually_transferred);
-		local_irq_enable();
+		local_irq_enable_in_hardirq();
 		if (status.b.check)
 			rq->errors++;
 		idescsi_end_request (drive, 1, 0);

@@ -1,7 +1,7 @@
 /*
  * mpc7448_hpc2.c
  *
- * Board setup routines for the Freescale Taiga platform
+ * Board setup routines for the Freescale mpc7448hpc2(taiga) platform
  *
  * Author: Jacob Pan
  *	 jacob.pan@freescale.com
@@ -12,10 +12,10 @@
  *
  * Copyright 2004-2006 Freescale Semiconductor, Inc.
  *
- * This file is licensed under
- * the terms of the GNU General Public License version 2.  This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/config.h>
@@ -62,43 +62,8 @@ pci_dram_offset = MPC7448_HPC2_PCI_MEM_OFFSET;
 extern int tsi108_setup_pci(struct device_node *dev);
 extern void _nmask_and_or_msr(unsigned long nmask, unsigned long or_val);
 extern void tsi108_pci_int_init(void);
-extern int tsi108_irq_cascade(struct pt_regs *regs, void *unused);
-
-/*
- * Define all of the IRQ senses and polarities.  Taken from the
- * mpc7448hpc  manual.
- * Note:  Likely, this table and the following function should be
- *        obtained and derived from the OF Device Tree.
- */
-
-static u_char mpc7448_hpc2_pic_initsenses[] __initdata = {
-	/* External on-board sources */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* INT[0] XINT0 from FPGA */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* INT[1] XINT1 from FPGA */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* INT[2] PHY_INT from both GIGE */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* INT[3] RESERVED */
-	/* Internal Tsi108/109 interrupt sources */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* Reserved IRQ */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* Reserved IRQ */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* Reserved IRQ */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* Reserved IRQ */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* DMA0 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* DMA1 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* DMA2 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* DMA3 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* UART0 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* UART1 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* I2C */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* GPIO */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* GIGE0 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* GIGE1 */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* Reserved IRQ */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* HLP */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* SDC */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* Processor IF */
-	(IRQ_SENSE_EDGE  | IRQ_POLARITY_POSITIVE),	/* Reserved IRQ */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* PCI/X block */
-};
+extern void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc,
+			    struct pt_regs *regs);
 
 int mpc7448_hpc2_exclude_device(u_char bus, u_char devfn)
 {
@@ -229,6 +194,8 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 {
 	struct mpic *mpic;
 	phys_addr_t mpic_paddr = 0;
+	unsigned int cascade_pci_irq;
+	struct device_node *tsi_pci;
 	struct device_node *tsi_pic;
 
 	tsi_pic = of_find_node_by_type(NULL, "open-pic");
@@ -246,24 +213,31 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 	DBG("%s: tsi108pic phys_addr = 0x%x\n", __FUNCTION__,
 	    (u32) mpic_paddr);
 
-	mpic = mpic_alloc(mpic_paddr,
+	mpic = mpic_alloc(tsi_pic, mpic_paddr,
 			MPIC_PRIMARY | MPIC_BIG_ENDIAN | MPIC_WANTS_RESET |
 			MPIC_SPV_EOI | MPIC_MOD_ID(MPIC_ID_TSI108),
 			0, /* num_sources used */
-			TSI108_IRQ_BASE,
 			0, /* num_sources used */
-			NR_IRQS - 4 /* XXXX */,
-			mpc7448_hpc2_pic_initsenses,
-			sizeof(mpc7448_hpc2_pic_initsenses), "Tsi108_PIC");
+			"Tsi108_PIC");
 
 	BUG_ON(mpic == NULL); /* XXXX */
-
 	mpic_init(mpic);
-	mpic_setup_cascade(IRQ_TSI108_PCI, tsi108_irq_cascade, mpic);
+
+	tsi_pci = of_find_node_by_type(NULL, "pci");
+	if (tsi_pci == 0) {
+		printk("%s: No tsi108 pci node found !\n", __FUNCTION__);
+		return;
+	}
+
+	cascade_pci_irq = irq_of_parse_and_map(tsi_pci, 0);
+	set_irq_data(cascade_pci_irq, mpic);
+	set_irq_chained_handler(cascade_pci_irq, tsi108_irq_cascade);
+
 	tsi108_pci_int_init();
 
 	/* Configure MPIC outputs to CPU0 */
 	tsi108_write_reg(TSI108_MPIC_OFFSET + 0x30c, 0);
+	of_node_put(tsi_pic);
 }
 
 void mpc7448_hpc2_show_cpuinfo(struct seq_file *m)
@@ -320,6 +294,7 @@ static int mpc7448_machine_check_exception(struct pt_regs *regs)
 	return 0;
 
 }
+
 define_machine(mpc7448_hpc2){
 	.name 			= "MPC7448 HPC2",
 	.probe 			= mpc7448_hpc2_probe,
