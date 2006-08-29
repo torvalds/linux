@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/blkpg.h>
 #include <linux/buffer_head.h>
+#include <linux/writeback.h>
 #include <linux/mpage.h>
 #include <linux/mount.h>
 #include <linux/uio.h>

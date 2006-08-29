@@ -20,9 +20,3 @@ int mpage_writepages(struct address_space *mapping,
 		struct writeback_control *wbc, get_block_t get_block);
 int mpage_writepage(struct page *page, get_block_t *get_block,
 		struct writeback_control *wbc);
-
-static inline int
-generic_writepages(struct address_space *mapping, struct writeback_control *wbc)
-{
-	return mpage_writepages(mapping, wbc, NULL);
-}
