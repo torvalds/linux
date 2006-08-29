@@ -123,6 +123,7 @@ struct audioformat {
 	unsigned int rate_min, rate_max;	/* min/max rates */
 	unsigned int nr_rates;		/* number of rate table entries */
 	unsigned int *rate_table;	/* rate table */
+	unsigned int needs_knot;	/* any unusual rates? */
 };
 
 struct snd_usb_substream;
@@ -1759,6 +1760,9 @@ static int check_hw_params_convention(struct snd_usb_substream *subs)
 		}
 		channels[f->format] |= (1 << f->channels);
 		rates[f->format] |= f->rates;
+		/* needs knot? */
+		if (f->needs_knot)
+			goto __out;
 	}
 	/* check whether channels and rates match for all formats */
 	cmaster = rmaster = 0;
@@ -1797,6 +1801,38 @@ static int check_hw_params_convention(struct snd_usb_substream *subs)
 	kfree(channels);
 	kfree(rates);
 	return err;
+}
+
+/*
+ *  If the device supports unusual bit rates, does the request meet these?
+ */
+static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
+				  struct snd_usb_substream *subs)
+{
+	struct list_head *p;
+	struct snd_pcm_hw_constraint_list constraints_rates;
+	int err;
+
+	list_for_each(p, &subs->fmt_list) {
+		struct audioformat *fp;
+		fp = list_entry(p, struct audioformat, list);
+
+		if (!fp->needs_knot)
+			continue;
+
+		constraints_rates.count = fp->nr_rates;
+		constraints_rates.list = fp->rate_table;
+		constraints_rates.mask = 0;
+
+		err = snd_pcm_hw_constraint_list(runtime, 0,
+			SNDRV_PCM_HW_PARAM_RATE,
+			&constraints_rates);
+
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 
@@ -1860,6 +1896,8 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 					       SNDRV_PCM_HW_PARAM_RATE,
 					       SNDRV_PCM_HW_PARAM_CHANNELS,
 					       -1)) < 0)
+			return err;
+		if ((err = snd_usb_pcm_check_knot(runtime, subs)) < 0)
 			return err;
 	}
 	return 0;
@@ -2406,6 +2444,7 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
 				    unsigned char *fmt, int offset)
 {
 	int nr_rates = fmt[offset];
+	int found;
 	if (fmt[0] < offset + 1 + 3 * (nr_rates ? nr_rates : 2)) {
 		snd_printk(KERN_ERR "%d:%u:%d : invalid FORMAT_TYPE desc\n",
 				   chip->dev->devnum, fp->iface, fp->altsetting);
@@ -2428,6 +2467,7 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
 			return -1;
 		}
 
+		fp->needs_knot = 0;
 		fp->nr_rates = nr_rates;
 		fp->rate_min = fp->rate_max = combine_triple(&fmt[8]);
 		for (r = 0, idx = offset + 1; r < nr_rates; r++, idx += 3) {
@@ -2436,13 +2476,19 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
 				fp->rate_min = rate;
 			else if (rate > fp->rate_max)
 				fp->rate_max = rate;
+			found = 0;
 			for (c = 0; c < (int)ARRAY_SIZE(conv_rates); c++) {
 				if (rate == conv_rates[c]) {
+					found = 1;
 					fp->rates |= (1 << c);
 					break;
 				}
 			}
+			if (!found)
+				fp->needs_knot = 1;
 		}
+		if (fp->needs_knot)
+			fp->rates |= SNDRV_PCM_RATE_KNOT;
 	} else {
 		/* continuous rates */
 		fp->rates = SNDRV_PCM_RATE_CONTINUOUS;
