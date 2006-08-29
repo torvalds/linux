@@ -182,6 +182,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 
 	while ((server->tcpStatus != CifsExiting) && (server->tcpStatus != CifsGood))
 	{
+		try_to_freeze();
 		if(server->protocolType == IPV6) {
 			rc = ipv6_connect(&server->addr.sockAddr6,&server->ssocket);
 		} else {
@@ -612,6 +613,10 @@ multi_t2_fnd:
 #ifdef CONFIG_CIFS_STATS2
 				mid_entry->when_received = jiffies;
 #endif
+				/* so we do not time out requests to  server
+				which is still responding (since server could
+				be busy but not dead) */
+				server->lstrp = jiffies;
 				break;
 			}
 		}
@@ -1266,33 +1271,35 @@ find_unc(__be32 new_target_ip_addr, char *uncName, char *userName)
 
 	read_lock(&GlobalSMBSeslock);
 	list_for_each(tmp, &GlobalTreeConnectionList) {
-		cFYI(1, ("Next tcon - "));
+		cFYI(1, ("Next tcon"));
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
 		if (tcon->ses) {
 			if (tcon->ses->server) {
 				cFYI(1,
-				     (" old ip addr: %x == new ip %x ?",
+				     ("old ip addr: %x == new ip %x ?",
 				      tcon->ses->server->addr.sockAddr.sin_addr.
 				      s_addr, new_target_ip_addr));
 				if (tcon->ses->server->addr.sockAddr.sin_addr.
 				    s_addr == new_target_ip_addr) {
-	/* BB lock tcon and server and tcp session and increment use count here? */
+	/* BB lock tcon, server and tcp session and increment use count here? */
 					/* found a match on the TCP session */
 					/* BB check if reconnection needed */
-					cFYI(1,("Matched ip, old UNC: %s == new: %s ?",
+					cFYI(1,("IP match, old UNC: %s new: %s",
 					      tcon->treeName, uncName));
 					if (strncmp
 					    (tcon->treeName, uncName,
 					     MAX_TREE_SIZE) == 0) {
 						cFYI(1,
-						     ("Matched UNC, old user: %s == new: %s ?",
+						     ("and old usr: %s new: %s",
 						      tcon->treeName, uncName));
 						if (strncmp
 						    (tcon->ses->userName,
 						     userName,
 						     MAX_USERNAME_SIZE) == 0) {
 							read_unlock(&GlobalSMBSeslock);
-							return tcon;/* also matched user (smb session)*/
+							/* matched smb session
+							(user name */
+							return tcon;
 						}
 					}
 				}
@@ -1969,7 +1976,18 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				}
 					
 				cFYI(1,("Negotiate caps 0x%x",(int)cap));
-
+#ifdef CONFIG_CIFS_DEBUG2
+				if(cap & CIFS_UNIX_FCNTL_CAP)
+					cFYI(1,("FCNTL cap"));
+				if(cap & CIFS_UNIX_EXTATTR_CAP)
+					cFYI(1,("EXTATTR cap"));
+				if(cap & CIFS_UNIX_POSIX_PATHNAMES_CAP)
+					cFYI(1,("POSIX path cap"));
+				if(cap & CIFS_UNIX_XATTR_CAP)
+					cFYI(1,("XATTR cap"));
+				if(cap & CIFS_UNIX_POSIX_ACL_CAP)
+					cFYI(1,("POSIX ACL cap"));
+#endif /* CIFS_DEBUG2 */
 				if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
 					cFYI(1,("setting capabilities failed"));
 				}
