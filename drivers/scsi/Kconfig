@@ -209,7 +209,7 @@ config SCSI_LOGGING
 	  there should be no noticeable performance impact as long as you have
 	  logging turned off.
 
-menu "SCSI Transport Attributes"
+menu "SCSI Transports"
 	depends on SCSI
 
 config SCSI_SPI_ATTRS
@@ -241,6 +241,8 @@ config SCSI_SAS_ATTRS
 	help
 	  If you wish to export transport-specific information about
 	  each attached SAS device to sysfs, say Y.
+
+source "drivers/scsi/libsas/Kconfig"
 
 endmenu
 
@@ -431,6 +433,7 @@ config SCSI_AIC7XXX_OLD
 	  module will be called aic7xxx_old.
 
 source "drivers/scsi/aic7xxx/Kconfig.aic79xx"
+source "drivers/scsi/aic94xx/Kconfig"
 
 # All the I2O code and drivers do not seem to be 64bit safe.
 config SCSI_DPT_I2O

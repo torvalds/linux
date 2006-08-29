@@ -1,0 +1,39 @@
+#
+# Kernel configuration file for the SAS Class
+#
+# Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
+# Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
+#
+# This file is licensed under GPLv2.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; version 2 of the
+# License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+# USA
+#
+
+config SCSI_SAS_LIBSAS
+	tristate "SAS Domain Transport Attributes"
+	depends on SCSI
+	select SCSI_SAS_ATTRS
+	help
+	  This provides transport specific helpers for SAS drivers which
+	  use the domain device construct (like the aic94xxx).
+
+config SCSI_SAS_LIBSAS_DEBUG
+	bool "Compile the SAS Domain Transport Attributes in debug mode"
+	default y
+	depends on SCSI_SAS_LIBSAS
+	help
+		Compiles the SAS Layer in debug mode.  In debug mode, the
+		SAS Layer prints diagnostic and debug messages.
