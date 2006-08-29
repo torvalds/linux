@@ -93,7 +93,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"ata_piix"
-#define DRV_VERSION	"2.00"
+#define DRV_VERSION	"2.00ac6"
 
 enum {
 	PIIX_IOCFG		= 0x54, /* IDE I/O configuration register */
@@ -116,15 +116,18 @@ enum {
 	PIIX_80C_SEC		= (1 << 7) | (1 << 6),
 
 	/* controller IDs */
-	piix4_pata		= 0,
-	ich5_pata		= 1,
-	ich5_sata		= 2,
-	esb_sata		= 3,
-	ich6_sata		= 4,
-	ich6_sata_ahci		= 5,
-	ich6m_sata_ahci		= 6,
-	ich8_sata_ahci		= 7,
-
+	piix_pata_33		= 0,	/* PIIX3 or 4 at 33Mhz */
+	ich_pata_33		= 1,	/* ICH up to UDMA 33 only */
+	ich_pata_66		= 2,	/* ICH up to 66 Mhz */
+	ich_pata_100		= 3,	/* ICH up to UDMA 100 */
+	ich_pata_133		= 4,	/* ICH up to UDMA 133 */
+	ich5_sata		= 5,
+	esb_sata		= 6,
+	ich6_sata		= 7,
+	ich6_sata_ahci		= 8,
+	ich6m_sata_ahci		= 9,
+	ich8_sata_ahci		= 10,
+	
 	/* constants for mapping table */
 	P0			= 0,  /* port 0 */
 	P1			= 1,  /* port 1 */
@@ -152,19 +155,54 @@ struct piix_host_priv {
 static int piix_init_one (struct pci_dev *pdev,
 				    const struct pci_device_id *ent);
 static void piix_host_stop(struct ata_host *host);
+static void piix_pata_error_handler(struct ata_port *ap);
+static void ich_pata_error_handler(struct ata_port *ap);
+static void piix_sata_error_handler(struct ata_port *ap);
 static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev);
 static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev);
-static void piix_pata_error_handler(struct ata_port *ap);
-static void piix_sata_error_handler(struct ata_port *ap);
+static void ich_set_dmamode (struct ata_port *ap, struct ata_device *adev);
 
 static unsigned int in_module_init = 1;
 
 static const struct pci_device_id piix_pci_tbl[] = {
 #ifdef ATA_ENABLE_PATA
-	{ 0x8086, 0x7111, PCI_ANY_ID, PCI_ANY_ID, 0, 0, piix4_pata },
-	{ 0x8086, 0x24db, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_pata },
-	{ 0x8086, 0x25a2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_pata },
-	{ 0x8086, 0x27df, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_pata },
+	/* Intel PIIX4 for the 430TX/440BX/MX chipset: UDMA 33 */
+	/* Also PIIX4E (fn3 rev 2) and PIIX4M (fn3 rev 3) */
+	{ 0x8086, 0x7111, PCI_ANY_ID, PCI_ANY_ID, 0, 0, piix_pata_33 },
+	{ 0x8086, 0x24db, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	{ 0x8086, 0x25a2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	/* Intel PIIX4 */
+	{ 0x8086, 0x7199, PCI_ANY_ID, PCI_ANY_ID, 0, 0, piix_pata_33 },
+	/* Intel PIIX4 */
+	{ 0x8086, 0x7601, PCI_ANY_ID, PCI_ANY_ID, 0, 0, piix_pata_33 },
+	/* Intel PIIX */
+	{ 0x8086, 0x84CA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, piix_pata_33 },
+	/* Intel ICH (i810, i815, i840) UDMA 66*/
+	{ 0x8086, 0x2411, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_66 },
+	/* Intel ICH0 : UDMA 33*/
+	{ 0x8086, 0x2421, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_33 },
+	/* Intel ICH2M */
+	{ 0x8086, 0x244A, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	/* Intel ICH2 (i810E2, i845, 850, 860) UDMA 100 */
+	{ 0x8086, 0x244B, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	/*  Intel ICH3M */
+	{ 0x8086, 0x248A, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	/* Intel ICH3 (E7500/1) UDMA 100 */
+	{ 0x8086, 0x248B, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	/* Intel ICH4 (i845GV, i845E, i852, i855) UDMA 100 */
+	{ 0x8086, 0x24CA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	{ 0x8086, 0x24CB, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	/* Intel ICH5 */
+	{ 0x8086, 0x24DB, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_133 },
+	/* C-ICH (i810E2) */
+	{ 0x8086, 0x245B, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	/* ESB (855GME/875P + 6300ESB) UDMA 100  */	
+	{ 0x8086, 0x25A2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	/* ICH6 (and 6) (i915) UDMA 100 */
+	{ 0x8086, 0x266F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	/* ICH7/7-R (i945, i975) UDMA 100*/
+	{ 0x8086, 0x27DF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_133 },
+	{ 0x8086, 0x269E, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
 #endif
 
 	/* NOTE: The following PCI ids must be kept in sync with the
@@ -263,6 +301,39 @@ static const struct ata_port_operations piix_pata_ops = {
 	.host_stop		= piix_host_stop,
 };
 
+static const struct ata_port_operations ich_pata_ops = {
+	.port_disable		= ata_port_disable,
+	.set_piomode		= piix_set_piomode,
+	.set_dmamode		= ich_set_dmamode,
+	.mode_filter		= ata_pci_default_filter,
+
+	.tf_load		= ata_tf_load,
+	.tf_read		= ata_tf_read,
+	.check_status		= ata_check_status,
+	.exec_command		= ata_exec_command,
+	.dev_select		= ata_std_dev_select,
+
+	.bmdma_setup		= ata_bmdma_setup,
+	.bmdma_start		= ata_bmdma_start,
+	.bmdma_stop		= ata_bmdma_stop,
+	.bmdma_status		= ata_bmdma_status,
+	.qc_prep		= ata_qc_prep,
+	.qc_issue		= ata_qc_issue_prot,
+	.data_xfer		= ata_pio_data_xfer,
+
+	.freeze			= ata_bmdma_freeze,
+	.thaw			= ata_bmdma_thaw,
+	.error_handler		= ich_pata_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+
+	.irq_handler		= ata_interrupt,
+	.irq_clear		= ata_bmdma_irq_clear,
+
+	.port_start		= ata_port_start,
+	.port_stop		= ata_port_stop,
+	.host_stop		= ata_host_stop,
+};
+
 static const struct ata_port_operations piix_sata_ops = {
 	.port_disable		= ata_port_disable,
 
@@ -359,35 +430,56 @@ static const struct piix_map_db *piix_map_db_table[] = {
 };
 
 static struct ata_port_info piix_port_info[] = {
-	/* piix4_pata */
+	/* piix_pata_33: 0:  PIIX3 or 4 at 33MHz */
 	{
 		.sht		= &piix_sht,
-		.flags		= ATA_FLAG_SLAVE_POSS,
+		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask	= 0x1f,	/* pio0-4 */
-#if 0
-		.mwdma_mask	= 0x06, /* mwdma1-2 */
-#else
-		.mwdma_mask	= 0x00, /* mwdma broken */
-#endif
+		.mwdma_mask	= 0x06, /* mwdma1-2 ?? CHECK 0 should be ok but slow */
 		.udma_mask	= ATA_UDMA_MASK_40C,
 		.port_ops	= &piix_pata_ops,
 	},
 
-	/* ich5_pata */
+	/* ich_pata_33: 1 	ICH0 - ICH at 33Mhz*/
 	{
 		.sht		= &piix_sht,
-		.flags		= ATA_FLAG_SLAVE_POSS | PIIX_FLAG_CHECKINTR,
+		.flags		= ATA_FLAG_SRST | ATA_FLAG_SLAVE_POSS,
+		.pio_mask 	= 0x1f,	/* pio 0-4 */
+		.mwdma_mask	= 0x06, /* Check: maybe 0x07  */
+		.udma_mask	= ATA_UDMA2, /* UDMA33 */
+		.port_ops	= &ich_pata_ops,
+	},
+	/* ich_pata_66: 2 	ICH controllers up to 66MHz */
+	{
+		.sht		= &piix_sht,
+		.flags		= ATA_FLAG_SRST | ATA_FLAG_SLAVE_POSS,
+		.pio_mask 	= 0x1f,	/* pio 0-4 */
+		.mwdma_mask	= 0x06, /* MWDMA0 is broken on chip */
+		.udma_mask	= ATA_UDMA4,
+		.port_ops	= &ich_pata_ops,
+	},
+	
+	/* ich_pata_100: 3 */
+	{
+		.sht		= &piix_sht,
+		.flags		= ATA_FLAG_SRST | ATA_FLAG_SLAVE_POSS | PIIX_FLAG_CHECKINTR,
 		.pio_mask	= 0x1f,	/* pio0-4 */
-#if 0
 		.mwdma_mask	= 0x06, /* mwdma1-2 */
-#else
-		.mwdma_mask	= 0x00, /* mwdma broken */
-#endif
-		.udma_mask	= 0x3f, /* udma0-5 */
-		.port_ops	= &piix_pata_ops,
+		.udma_mask	= ATA_UDMA5, /* udma0-5 */
+		.port_ops	= &ich_pata_ops,
 	},
 
-	/* ich5_sata */
+	/* ich_pata_133: 4 	ICH with full UDMA6 */
+	{
+		.sht		= &piix_sht,
+		.flags		= ATA_FLAG_SRST | ATA_FLAG_SLAVE_POSS | PIIX_FLAG_CHECKINTR,
+		.pio_mask 	= 0x1f,	/* pio 0-4 */
+		.mwdma_mask	= 0x06, /* Check: maybe 0x07  */
+		.udma_mask	= ATA_UDMA6, /* UDMA133 */
+		.port_ops	= &ich_pata_ops,
+	},
+
+	/* ich5_sata: 5 */
 	{
 		.sht		= &piix_sht,
 		.flags		= ATA_FLAG_SATA | PIIX_FLAG_CHECKINTR |
@@ -398,7 +490,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_sata_ops,
 	},
 
-	/* i6300esb_sata */
+	/* i6300esb_sata: 6 */
 	{
 		.sht		= &piix_sht,
 		.flags		= ATA_FLAG_SATA |
@@ -409,7 +501,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_sata_ops,
 	},
 
-	/* ich6_sata */
+	/* ich6_sata: 7 */
 	{
 		.sht		= &piix_sht,
 		.flags		= ATA_FLAG_SATA |
@@ -420,7 +512,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_sata_ops,
 	},
 
-	/* ich6_sata_ahci */
+	/* ich6_sata_ahci:8 */
 	{
 		.sht		= &piix_sht,
 		.flags		= ATA_FLAG_SATA |
@@ -432,7 +524,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_sata_ops,
 	},
 
-	/* ich6m_sata_ahci */
+	/* ich6m_sata_ahci: 9 */
 	{
 		.sht		= &piix_sht,
 		.flags		= ATA_FLAG_SATA |
@@ -455,6 +547,7 @@ static struct ata_port_info piix_port_info[] = {
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &piix_sata_ops,
 	},
+
 };
 
 static struct pci_bits piix_enable_bits[] = {
@@ -483,7 +576,8 @@ MODULE_PARM_DESC(force_pcs, "force honoring or ignoring PCS to work around "
  *	LOCKING:
  *	None (inherited from caller).
  */
-static void piix_pata_cbl_detect(struct ata_port *ap)
+
+static void ich_pata_cbl_detect(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 tmp, mask;
@@ -503,14 +597,12 @@ static void piix_pata_cbl_detect(struct ata_port *ap)
 
 cbl40:
 	ap->cbl = ATA_CBL_PATA40;
-	ap->udma_mask &= ATA_UDMA_MASK_40C;
 }
 
 /**
  *	piix_pata_prereset - prereset for PATA host controller
  *	@ap: Target port
  *
- *	Prereset including cable detection.
  *
  *	LOCKING:
  *	None (inherited from caller).
@@ -524,15 +616,43 @@ static int piix_pata_prereset(struct ata_port *ap)
 		ap->eh_context.i.action &= ~ATA_EH_RESET_MASK;
 		return 0;
 	}
-
-	piix_pata_cbl_detect(ap);
-
+	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
 
 static void piix_pata_error_handler(struct ata_port *ap)
 {
 	ata_bmdma_drive_eh(ap, piix_pata_prereset, ata_std_softreset, NULL,
+			   ata_std_postreset);
+}
+
+
+/**
+ *	ich_pata_prereset - prereset for PATA host controller
+ *	@ap: Target port
+ *
+ *
+ *	LOCKING:
+ *	None (inherited from caller).
+ */
+static int ich_pata_prereset(struct ata_port *ap)
+{
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+
+	if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->port_no])) {
+		ata_port_printk(ap, KERN_INFO, "port disabled. ignoring.\n");
+		ap->eh_context.i.action &= ~ATA_EH_RESET_MASK;
+		return 0;
+	}
+
+	ich_pata_cbl_detect(ap);
+
+	return ata_std_prereset(ap);
+}
+
+static void ich_pata_error_handler(struct ata_port *ap)
+{
+	ata_bmdma_drive_eh(ap, ich_pata_prereset, ata_std_softreset, NULL,
 			   ata_std_postreset);
 }
 
@@ -637,6 +757,13 @@ static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	unsigned int slave_port	= 0x44;
 	u16 master_data;
 	u8 slave_data;
+	u8 udma_enable;
+	int control = 0;
+	
+	/*
+	 *	See Intel Document 298600-004 for the timing programing rules
+	 *	for ICH controllers.
+	 */
 
 	static const	 /* ISP  RTC */
 	u8 timings[][2]	= { { 0, 0 },
@@ -645,20 +772,30 @@ static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev)
 			    { 2, 1 },
 			    { 2, 3 }, };
 
+	if (pio >= 2)
+		control |= 1;	/* TIME1 enable */
+	if (ata_pio_need_iordy(adev))
+		control |= 2;	/* IE enable */
+
+	/* Intel specifies that the PPE functionality is for disk only */	   
+	if (adev->class == ATA_DEV_ATA)
+		control |= 4;	/* PPE enable */
+
 	pci_read_config_word(dev, master_port, &master_data);
 	if (is_slave) {
+		/* Enable SITRE (seperate slave timing register) */
 		master_data |= 0x4000;
-		/* enable PPE, IE and TIME */
-		master_data |= 0x0070;
+		/* enable PPE1, IE1 and TIME1 as needed */
+		master_data |= (control << 4);
 		pci_read_config_byte(dev, slave_port, &slave_data);
 		slave_data &= (ap->port_no ? 0x0f : 0xf0);
-		slave_data |=
-			(timings[pio][0] << 2) |
-			(timings[pio][1] << (ap->port_no ? 4 : 0));
+		/* Load the timing nibble for this slave */
+		slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) << (ap->port_no ? 4 : 0);
 	} else {
+		/* Master keeps the bits in a different format */
 		master_data &= 0xccf8;
-		/* enable PPE, IE and TIME */
-		master_data |= 0x0007;
+		/* Enable PPE, IE and TIME as appropriate */
+		master_data |= control;
 		master_data |=
 			(timings[pio][0] << 12) |
 			(timings[pio][1] << 8);
@@ -666,13 +803,23 @@ static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	pci_write_config_word(dev, master_port, master_data);
 	if (is_slave)
 		pci_write_config_byte(dev, slave_port, slave_data);
+
+	/* Ensure the UDMA bit is off - it will be turned back on if
+	   UDMA is selected */
+	   
+	if (ap->udma_mask) {
+		pci_read_config_byte(dev, 0x48, &udma_enable);
+		udma_enable &= ~(1 << (2 * ap->port_no + adev->devno));
+		pci_write_config_byte(dev, 0x48, udma_enable);
+	}
 }
 
 /**
- *	piix_set_dmamode - Initialize host controller PATA PIO timings
+ *	do_pata_set_dmamode - Initialize host controller PATA PIO timings
  *	@ap: Port whose timings we are configuring
- *	@adev: um
+ *	@adev: Drive in question
  *	@udma: udma mode, 0 - 6
+ *	@is_ich: set if the chip is an ICH device
  *
  *	Set UDMA mode for device, in host controller PCI config space.
  *
@@ -680,70 +827,140 @@ static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev)
  *	None (inherited from caller).
  */
 
-static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev)
+static void do_pata_set_dmamode (struct ata_port *ap, struct ata_device *adev, int isich)
 {
-	unsigned int udma	= adev->dma_mode; /* FIXME: MWDMA too */
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
-	u8 maslave		= ap->port_no ? 0x42 : 0x40;
-	u8 speed		= udma;
-	unsigned int drive_dn	= (ap->port_no ? 2 : 0) + adev->devno;
-	int a_speed		= 3 << (drive_dn * 4);
-	int u_flag		= 1 << drive_dn;
-	int v_flag		= 0x01 << drive_dn;
-	int w_flag		= 0x10 << drive_dn;
-	int u_speed		= 0;
-	int			sitre;
-	u16			reg4042, reg4a;
-	u8			reg48, reg54, reg55;
+	u8 master_port		= ap->port_no ? 0x42 : 0x40;
+	u16 master_data;
+	u8 speed		= adev->dma_mode;
+	int devid		= adev->devno + 2 * ap->port_no;
+	u8 udma_enable;
+	
+	static const	 /* ISP  RTC */
+	u8 timings[][2]	= { { 0, 0 },
+			    { 0, 0 },
+			    { 1, 0 },
+			    { 2, 1 },
+			    { 2, 3 }, };
 
-	pci_read_config_word(dev, maslave, &reg4042);
-	DPRINTK("reg4042 = 0x%04x\n", reg4042);
-	sitre = (reg4042 & 0x4000) ? 1 : 0;
-	pci_read_config_byte(dev, 0x48, &reg48);
-	pci_read_config_word(dev, 0x4a, &reg4a);
-	pci_read_config_byte(dev, 0x54, &reg54);
-	pci_read_config_byte(dev, 0x55, &reg55);
-
-	switch(speed) {
-		case XFER_UDMA_4:
-		case XFER_UDMA_2:	u_speed = 2 << (drive_dn * 4); break;
-		case XFER_UDMA_6:
-		case XFER_UDMA_5:
-		case XFER_UDMA_3:
-		case XFER_UDMA_1:	u_speed = 1 << (drive_dn * 4); break;
-		case XFER_UDMA_0:	u_speed = 0 << (drive_dn * 4); break;
-		case XFER_MW_DMA_2:
-		case XFER_MW_DMA_1:	break;
-		default:
-			BUG();
-			return;
-	}
+	pci_read_config_word(dev, master_port, &master_data);
+	pci_read_config_byte(dev, 0x48, &udma_enable);
 
 	if (speed >= XFER_UDMA_0) {
-		if (!(reg48 & u_flag))
-			pci_write_config_byte(dev, 0x48, reg48 | u_flag);
-		if (speed == XFER_UDMA_5) {
-			pci_write_config_byte(dev, 0x55, (u8) reg55|w_flag);
-		} else {
-			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
+		unsigned int udma = adev->dma_mode - XFER_UDMA_0;
+		u16 udma_timing;
+		u16 ideconf;
+		int u_clock, u_speed;
+		
+		/*
+	 	 * UDMA is handled by a combination of clock switching and
+		 * selection of dividers 
+		 *  
+		 * Handy rule: Odd modes are UDMATIMx 01, even are 02
+		 *	       except UDMA0 which is 00 
+		 */
+		u_speed = min(2 - (udma & 1), udma);
+		if (udma == 5)
+			u_clock = 0x1000;	/* 100Mhz */
+		else if (udma > 2)
+			u_clock = 1;		/* 66Mhz */
+		else
+			u_clock = 0;		/* 33Mhz */
+			
+		udma_enable |= (1 << devid);
+			
+		/* Load the CT/RP selection */
+		pci_read_config_word(dev, 0x4A, &udma_timing);
+		udma_timing &= ~(3 << (4 * devid));
+		udma_timing |= u_speed << (4 * devid);
+		pci_write_config_word(dev, 0x4A, udma_timing);
+
+		if (isich) {		
+			/* Select a 33/66/100Mhz clock */
+			pci_read_config_word(dev, 0x54, &ideconf);
+			ideconf &= ~(0x1001 << devid);
+			ideconf |= u_clock << devid;
+			/* For ICH or later we should set bit 10 for better
+			   performance (WR_PingPong_En) */
+			pci_write_config_word(dev, 0x54, ideconf);
 		}
-		if ((reg4a & a_speed) != u_speed)
-			pci_write_config_word(dev, 0x4a, (reg4a & ~a_speed) | u_speed);
-		if (speed > XFER_UDMA_2) {
-			if (!(reg54 & v_flag))
-				pci_write_config_byte(dev, 0x54, reg54 | v_flag);
-		} else
-			pci_write_config_byte(dev, 0x54, reg54 & ~v_flag);
 	} else {
-		if (reg48 & u_flag)
-			pci_write_config_byte(dev, 0x48, reg48 & ~u_flag);
-		if (reg4a & a_speed)
-			pci_write_config_word(dev, 0x4a, reg4a & ~a_speed);
-		if (reg54 & v_flag)
-			pci_write_config_byte(dev, 0x54, reg54 & ~v_flag);
-		if (reg55 & w_flag)
-			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
+		/*
+		 * MWDMA is driven by the PIO timings. We must also enable
+		 * IORDY unconditionally along with TIME1. PPE has already
+		 * been set when the PIO timing was set.
+		 */
+		unsigned int mwdma	= adev->dma_mode - XFER_MW_DMA_0;
+		unsigned int control;
+		u8 slave_data;
+		const unsigned int needed_pio[3] = {
+			XFER_PIO_0, XFER_PIO_3, XFER_PIO_4
+		};
+		int pio = needed_pio[mwdma] - XFER_PIO_0;
+		
+		control = 3;	/* IORDY|TIME1 */
+		
+		/* If the drive MWDMA is faster than it can do PIO then
+		   we must force PIO into PIO0 */
+		   
+		if (adev->pio_mode < needed_pio[mwdma])
+			/* Enable DMA timing only */
+			control |= 8;	/* PIO cycles in PIO0 */
+
+		if (adev->devno) {	/* Slave */
+			master_data &= 0xFF4F;  /* Mask out IORDY|TIME1|DMAONLY */
+			master_data |= control << 4;
+			pci_read_config_byte(dev, 0x44, &slave_data);
+			slave_data &= (0x0F + 0xE1 * ap->port_no);
+			/* Load the matching timing */
+			slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) << (ap->port_no ? 4 : 0);
+			pci_write_config_byte(dev, 0x44, slave_data);
+		} else { 	/* Master */
+			master_data &= 0xCCF4;	/* Mask out IORDY|TIME1|DMAONLY 
+						   and master timing bits */
+			master_data |= control;
+			master_data |=
+				(timings[pio][0] << 12) |
+				(timings[pio][1] << 8);
+		}
+		udma_enable &= ~(1 << devid);
+		pci_write_config_word(dev, master_port, master_data);
 	}
+	/* Don't scribble on 0x48 if the controller does not support UDMA */
+	if (ap->udma_mask)
+		pci_write_config_byte(dev, 0x48, udma_enable);
+}
+
+/**
+ *	piix_set_dmamode - Initialize host controller PATA DMA timings
+ *	@ap: Port whose timings we are configuring
+ *	@adev: um
+ *
+ *	Set MW/UDMA mode for device, in host controller PCI config space.
+ *
+ *	LOCKING:
+ *	None (inherited from caller).
+ */
+
+static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev)
+{
+	do_pata_set_dmamode(ap, adev, 0);
+}
+
+/**
+ *	ich_set_dmamode - Initialize host controller PATA DMA timings
+ *	@ap: Port whose timings we are configuring
+ *	@adev: um
+ *
+ *	Set MW/UDMA mode for device, in host controller PCI config space.
+ *
+ *	LOCKING:
+ *	None (inherited from caller).
+ */
+
+static void ich_set_dmamode (struct ata_port *ap, struct ata_device *adev)
+{
+	do_pata_set_dmamode(ap, adev, 1);
 }
 
 #define AHCI_PCI_BAR 5
@@ -872,7 +1089,7 @@ static void __devinit piix_init_sata_map(struct pci_dev *pdev,
 
 		case IDE:
 			WARN_ON((i & 1) || map[i + 1] != IDE);
-			pinfo[i / 2] = piix_port_info[ich5_pata];
+			pinfo[i / 2] = piix_port_info[ich_pata_100];
 			pinfo[i / 2].private_data = hpriv;
 			i++;
 			printk(" IDE IDE");
@@ -1007,4 +1224,3 @@ static void __exit piix_exit(void)
 
 module_init(piix_init);
 module_exit(piix_exit);
-
