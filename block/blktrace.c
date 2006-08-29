@@ -476,6 +476,9 @@ static void blk_check_time(unsigned long long *t)
 	*t -= (a + b) / 2;
 }
 
+/*
+ * calibrate our inter-CPU timings
+ */
 static void blk_trace_check_cpu_time(void *data)
 {
 	unsigned long long *t;
@@ -491,20 +494,6 @@ static void blk_trace_check_cpu_time(void *data)
 	blk_check_time(t);
 
 	put_cpu();
-}
-
-/*
- * Call blk_trace_check_cpu_time() on each CPU to calibrate our inter-CPU
- * timings
- */
-static void blk_trace_calibrate_offsets(void)
-{
-	unsigned long flags;
-
-	smp_call_function(blk_trace_check_cpu_time, NULL, 1, 1);
-	local_irq_save(flags);
-	blk_trace_check_cpu_time(NULL);
-	local_irq_restore(flags);
 }
 
 static void blk_trace_set_ht_offsets(void)
@@ -535,7 +524,7 @@ static void blk_trace_set_ht_offsets(void)
 static __init int blk_trace_init(void)
 {
 	mutex_init(&blk_tree_mutex);
-	blk_trace_calibrate_offsets();
+	on_each_cpu(blk_trace_check_cpu_time, NULL, 1, 1);
 	blk_trace_set_ht_offsets();
 
 	return 0;
