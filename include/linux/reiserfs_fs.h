@@ -2161,6 +2161,8 @@ __u32 r5_hash(const signed char *msg, int len);
 /* prototypes from ioctl.c */
 int reiserfs_ioctl(struct inode *inode, struct file *filp,
 		   unsigned int cmd, unsigned long arg);
+long reiserfs_compat_ioctl(struct file *filp,
+		   unsigned int cmd, unsigned long arg);
 
 /* ioctl's command */
 #define REISERFS_IOC_UNPACK		_IOW(0xCD,1,long)
@@ -2170,6 +2172,13 @@ int reiserfs_ioctl(struct inode *inode, struct file *filp,
 #define REISERFS_IOC_SETFLAGS		FS_IOC_SETFLAGS
 #define REISERFS_IOC_GETVERSION		FS_IOC_GETVERSION
 #define REISERFS_IOC_SETVERSION		FS_IOC_SETVERSION
+
+/* the 32 bit compat definitions with int argument */
+#define REISERFS_IOC32_UNPACK		_IOW(0xCD, 1, int)
+#define REISERFS_IOC32_GETFLAGS		FS_IOC32_GETFLAGS
+#define REISERFS_IOC32_SETFLAGS		FS_IOC32_SETFLAGS
+#define REISERFS_IOC32_GETVERSION	FS_IOC32_GETVERSION
+#define REISERFS_IOC32_SETVERSION	FS_IOC32_SETVERSION
 
 /* Locking primitives */
 /* Right now we are still falling back to (un)lock_kernel, but eventually that

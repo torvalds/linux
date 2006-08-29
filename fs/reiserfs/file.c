@@ -2,6 +2,7 @@
  * Copyright 2000 by Hans Reiser, licensing governed by reiserfs/README
  */
 
+#include <linux/config.h>
 #include <linux/time.h>
 #include <linux/reiserfs_fs.h>
 #include <linux/reiserfs_acl.h>
@@ -1568,6 +1569,9 @@ const struct file_operations reiserfs_file_operations = {
 	.read = generic_file_read,
 	.write = reiserfs_file_write,
 	.ioctl = reiserfs_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = reiserfs_compat_ioctl,
+#endif
 	.mmap = generic_file_mmap,
 	.release = reiserfs_file_release,
 	.fsync = reiserfs_sync_file,

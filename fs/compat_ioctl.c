@@ -59,7 +59,6 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/serial.h>
-#include <linux/reiserfs_fs.h>
 #include <linux/if_tun.h>
 #include <linux/ctype.h>
 #include <linux/ioctl32.h>
@@ -2014,16 +2013,6 @@ static int vfat_ioctl32(unsigned fd, unsigned cmd, unsigned long arg)
 	return ret;
 }
 
-#define REISERFS_IOC_UNPACK32               _IOW(0xCD,1,int)
-
-static int reiserfs_ioctl32(unsigned fd, unsigned cmd, unsigned long ptr)
-{
-        if (cmd == REISERFS_IOC_UNPACK32)
-                cmd = REISERFS_IOC_UNPACK;
-
-        return sys_ioctl(fd,cmd,ptr);
-}
-
 struct raw32_config_request
 {
         compat_int_t    raw_minor;
@@ -2784,7 +2773,6 @@ HANDLE_IOCTL(BLKGETSIZE64_32, do_blkgetsize64)
 /* vfat */
 HANDLE_IOCTL(VFAT_IOCTL_READDIR_BOTH32, vfat_ioctl32)
 HANDLE_IOCTL(VFAT_IOCTL_READDIR_SHORT32, vfat_ioctl32)
-HANDLE_IOCTL(REISERFS_IOC_UNPACK32, reiserfs_ioctl32)
 /* Raw devices */
 HANDLE_IOCTL(RAW_SETBIND, raw_ioctl)
 HANDLE_IOCTL(RAW_GETBIND, raw_ioctl)
