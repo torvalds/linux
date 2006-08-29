@@ -545,7 +545,7 @@ static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcphdr *th = skb->h.th;
 
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		th->check = ~csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP,  0);
 		skb->csum = offsetof(struct tcphdr, check);
 	} else {
@@ -570,7 +570,7 @@ static int tcp_v6_gso_send_check(struct sk_buff *skb)
 	th->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr, skb->len,
 				     IPPROTO_TCP, 0);
 	skb->csum = offsetof(struct tcphdr, check);
-	skb->ip_summed = CHECKSUM_HW;
+	skb->ip_summed = CHECKSUM_PARTIAL;
 	return 0;
 }
 
@@ -1033,7 +1033,7 @@ out:
 
 static int tcp_v6_checksum_init(struct sk_buff *skb)
 {
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
 		if (!tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
 				  &skb->nh.ipv6h->daddr,skb->csum)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;

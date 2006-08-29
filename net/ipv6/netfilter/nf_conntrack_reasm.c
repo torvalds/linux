@@ -408,7 +408,7 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
  		return -1;
 	}
 
- 	if (skb->ip_summed == CHECKSUM_HW)
+ 	if (skb->ip_summed == CHECKSUM_COMPLETE)
  		skb->csum = csum_sub(skb->csum,
  				     csum_partial(skb->nh.raw,
 						  (u8*)(fhdr + 1) - skb->nh.raw,
@@ -640,7 +640,7 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 		head->len += fp->len;
 		if (head->ip_summed != fp->ip_summed)
 			head->ip_summed = CHECKSUM_NONE;
-		else if (head->ip_summed == CHECKSUM_HW)
+		else if (head->ip_summed == CHECKSUM_COMPLETE)
 			head->csum = csum_add(head->csum, fp->csum);
 		head->truesize += fp->truesize;
 		atomic_sub(fp->truesize, &nf_ct_frag6_mem);
@@ -652,7 +652,7 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 	head->nh.ipv6h->payload_len = htons(payload_len);
 
 	/* Yes, and fold redundant checksum back. 8) */
-	if (head->ip_summed == CHECKSUM_HW)
+	if (head->ip_summed == CHECKSUM_COMPLETE)
 		head->csum = csum_partial(head->nh.raw, head->h.raw-head->nh.raw, head->csum);
 
 	fq->fragments = NULL;

@@ -377,9 +377,9 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		break;
 	
 	case NFQNL_COPY_PACKET:
-		if (entskb->ip_summed == CHECKSUM_HW &&
-		    (*errp = skb_checksum_help(entskb,
-		                               outdev == NULL))) {
+		if ((entskb->ip_summed == CHECKSUM_PARTIAL ||
+		     entskb->ip_summed == CHECKSUM_COMPLETE) &&
+		    (*errp = skb_checksum_help(entskb))) {
 			spin_unlock_bh(&queue->lock);
 			return NULL;
 		}

@@ -606,7 +606,7 @@ static int icmpv6_rcv(struct sk_buff **pskb)
 
 	/* Perform checksum. */
 	switch (skb->ip_summed) {
-	case CHECKSUM_HW:
+	case CHECKSUM_COMPLETE:
 		if (!csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
 				     skb->csum))
 			break;

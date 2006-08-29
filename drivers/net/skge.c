@@ -2338,7 +2338,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	td->dma_lo = map;
 	td->dma_hi = map >> 32;
 
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		int offset = skb->h.raw - skb->data;
 
 		/* This seems backwards, but it is what the sk98lin
@@ -2642,7 +2642,7 @@ static inline struct sk_buff *skge_rx_get(struct skge_port *skge,
 	skb->dev = skge->netdev;
 	if (skge->rx_csum) {
 		skb->csum = csum;
-		skb->ip_summed = CHECKSUM_HW;
+		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 
 	skb->protocol = eth_type_trans(skb, skge->netdev);

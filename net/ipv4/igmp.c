@@ -931,7 +931,7 @@ int igmp_rcv(struct sk_buff *skb)
 		goto drop;
 
 	switch (skb->ip_summed) {
-	case CHECKSUM_HW:
+	case CHECKSUM_COMPLETE:
 		if (!(u16)csum_fold(skb->csum))
 			break;
 		/* fall through */

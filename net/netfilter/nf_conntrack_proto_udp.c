@@ -131,8 +131,7 @@ static int udp_error(struct sk_buff *skb, unsigned int dataoff,
 
 	/* Checksum invalid? Ignore.
 	 * We skip checking packets on the outgoing path
-	 * because the semantic of CHECKSUM_HW is different there
-	 * and moreover root might send raw packets.
+	 * because the checksum is assumed to be correct.
 	 * FIXME: Source route IP option packets --RR */
 	if (nf_conntrack_checksum &&
 	    ((pf == PF_INET && hooknum == NF_IP_PRE_ROUTING) ||

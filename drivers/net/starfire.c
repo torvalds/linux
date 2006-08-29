@@ -1230,7 +1230,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 #if defined(ZEROCOPY) && defined(HAS_BROKEN_FIRMWARE)
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (skb_padto(skb, (skb->len + PADDING_MASK) & ~PADDING_MASK))
 			return NETDEV_TX_OK;
 	}
@@ -1252,7 +1252,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 				status |= TxDescIntr;
 				np->reap_tx = 0;
 			}
-			if (skb->ip_summed == CHECKSUM_HW) {
+			if (skb->ip_summed == CHECKSUM_PARTIAL) {
 				status |= TxCalTCP;
 				np->stats.tx_compressed++;
 			}
@@ -1499,7 +1499,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		 * Until then, the printk stays. :-) -Ion
 		 */
 		else if (le16_to_cpu(desc->status2) & 0x0040) {
-			skb->ip_summed = CHECKSUM_HW;
+			skb->ip_summed = CHECKSUM_COMPLETE;
 			skb->csum = le16_to_cpu(desc->csum);
 			printk(KERN_DEBUG "%s: checksum_hw, status2 = %#x\n", dev->name, le16_to_cpu(desc->status2));
 		}

@@ -3851,11 +3851,11 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb->h.th->check = 0;
 
 	}
-	else if (skb->ip_summed == CHECKSUM_HW)
+	else if (skb->ip_summed == CHECKSUM_PARTIAL)
 		base_flags |= TXD_FLAG_TCPUDP_CSUM;
 #else
 	mss = 0;
-	if (skb->ip_summed == CHECKSUM_HW)
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		base_flags |= TXD_FLAG_TCPUDP_CSUM;
 #endif
 #if TG3_VLAN_TAG_USED
@@ -3981,7 +3981,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 
 	entry = tp->tx_prod;
 	base_flags = 0;
-	if (skb->ip_summed == CHECKSUM_HW)
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		base_flags |= TXD_FLAG_TCPUDP_CSUM;
 #if TG3_TSO_SUPPORT != 0
 	mss = 0;

@@ -475,7 +475,7 @@ static int udpv6_rcv(struct sk_buff **pskb)
 		uh = skb->h.uh;
 	}
 
-	if (skb->ip_summed == CHECKSUM_HW &&
+	if (skb->ip_summed == CHECKSUM_COMPLETE &&
 	    !csum_ipv6_magic(saddr, daddr, ulen, IPPROTO_UDP, skb->csum))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 

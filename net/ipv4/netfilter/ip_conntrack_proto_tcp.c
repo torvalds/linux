@@ -865,8 +865,7 @@ static int tcp_error(struct sk_buff *skb,
   
 	/* Checksum invalid? Ignore.
 	 * We skip checking packets on the outgoing path
-	 * because the semantic of CHECKSUM_HW is different there 
-	 * and moreover root might send raw packets.
+	 * because it is assumed to be correct.
 	 */
 	/* FIXME: Source route IP option packets --RR */
 	if (ip_conntrack_checksum && hooknum == NF_IP_PRE_ROUTING &&

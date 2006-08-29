@@ -334,7 +334,7 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 	if (!rp->checksum)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
 		skb_postpull_rcsum(skb, skb->nh.raw,
 		                   skb->h.raw - skb->nh.raw);
 		if (!csum_ipv6_magic(&skb->nh.ipv6h->saddr,

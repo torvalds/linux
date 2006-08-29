@@ -294,7 +294,7 @@ looped_back:
 		hdr = (struct ipv6_rt_hdr *) skb2->h.raw;
 	}
 
-	if (skb->ip_summed == CHECKSUM_HW)
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->ip_summed = CHECKSUM_NONE;
 
 	i = n - --hdr->segments_left;

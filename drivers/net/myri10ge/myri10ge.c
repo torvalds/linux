@@ -930,7 +930,7 @@ static inline void myri10ge_vlan_ip_csum(struct sk_buff *skb, u16 hw_csum)
 	    (vh->h_vlan_encapsulated_proto == htons(ETH_P_IP) ||
 	     vh->h_vlan_encapsulated_proto == htons(ETH_P_IPV6))) {
 		skb->csum = hw_csum;
-		skb->ip_summed = CHECKSUM_HW;
+		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 }
 
@@ -973,7 +973,7 @@ myri10ge_rx_done(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 		if ((skb->protocol == ntohs(ETH_P_IP)) ||
 		    (skb->protocol == ntohs(ETH_P_IPV6))) {
 			skb->csum = ntohs((u16) csum);
-			skb->ip_summed = CHECKSUM_HW;
+			skb->ip_summed = CHECKSUM_COMPLETE;
 		} else
 			myri10ge_vlan_ip_csum(skb, ntohs((u16) csum));
 	}
@@ -1897,13 +1897,13 @@ again:
 	pseudo_hdr_offset = 0;
 	odd_flag = 0;
 	flags = (MXGEFW_FLAGS_NO_TSO | MXGEFW_FLAGS_FIRST);
-	if (likely(skb->ip_summed == CHECKSUM_HW)) {
+	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		cksum_offset = (skb->h.raw - skb->data);
 		pseudo_hdr_offset = (skb->h.raw + skb->csum) - skb->data;
 		/* If the headers are excessively large, then we must
 		 * fall back to a software checksum */
 		if (unlikely(cksum_offset > 255 || pseudo_hdr_offset > 127)) {
-			if (skb_checksum_help(skb, 0))
+			if (skb_checksum_help(skb))
 				goto drop;
 			cksum_offset = 0;
 			pseudo_hdr_offset = 0;

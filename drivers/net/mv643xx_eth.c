@@ -1147,7 +1147,7 @@ static void eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
 	desc->byte_cnt = length;
 	desc->buf_ptr = dma_map_single(NULL, skb->data, length, DMA_TO_DEVICE);
 
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		BUG_ON(skb->protocol != ETH_P_IP);
 
 		cmd_sts |= ETH_GEN_TCP_UDP_CHECKSUM |

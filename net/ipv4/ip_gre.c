@@ -576,7 +576,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 
 		if (flags&GRE_CSUM) {
 			switch (skb->ip_summed) {
-			case CHECKSUM_HW:
+			case CHECKSUM_COMPLETE:
 				csum = (u16)csum_fold(skb->csum);
 				if (!csum)
 					break;
@@ -584,7 +584,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 			case CHECKSUM_NONE:
 				skb->csum = 0;
 				csum = __skb_checksum_complete(skb);
-				skb->ip_summed = CHECKSUM_HW;
+				skb->ip_summed = CHECKSUM_COMPLETE;
 			}
 			offset += 4;
 		}

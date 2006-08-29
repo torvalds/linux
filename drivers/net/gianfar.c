@@ -947,7 +947,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Set up checksumming */
 	if (likely((dev->features & NETIF_F_IP_CSUM)
-			&& (CHECKSUM_HW == skb->ip_summed))) {
+			&& (CHECKSUM_PARTIAL == skb->ip_summed))) {
 		fcb = gfar_add_fcb(skb, txbdp);
 		status |= TXBD_TOE;
 		gfar_tx_checksum(skb, fcb);

@@ -62,8 +62,9 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	if (!skb_make_writable(pskb, (*pskb)->len))
 		return NF_DROP;
 
-	if ((*pskb)->ip_summed == CHECKSUM_HW &&
-	    skb_checksum_help(*pskb, out == NULL))
+	if (((*pskb)->ip_summed == CHECKSUM_PARTIAL ||
+	     (*pskb)->ip_summed == CHECKSUM_COMPLETE) &&
+	    skb_checksum_help(*pskb))
 		return NF_DROP;
 
 	iph = (*pskb)->nh.iph;

@@ -1163,7 +1163,7 @@ static unsigned tx_le_req(const struct sk_buff *skb)
 	if (skb_is_gso(skb))
 		++count;
 
-	if (skb->ip_summed == CHECKSUM_HW)
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		++count;
 
 	return count;
@@ -1272,7 +1272,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 	/* Handle TCP checksum offload */
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		u16 hdr = skb->h.raw - skb->data;
 		u16 offset = hdr + skb->csum;
 
@@ -2000,7 +2000,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 #endif
 		case OP_RXCHKS:
 			skb = sky2->rx_ring[sky2->rx_next].skb;
-			skb->ip_summed = CHECKSUM_HW;
+			skb->ip_summed = CHECKSUM_COMPLETE;
 			skb->csum = le16_to_cpu(status);
 			break;
 

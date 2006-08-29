@@ -49,7 +49,7 @@ set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 
 /* Return 0 if there was an error. */
 static inline int
-set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo, int inward)
+set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 {
 	struct tcphdr _tcph, *tcph;
 	u_int16_t diffs[2];
@@ -70,8 +70,9 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo, int inward)
 		return 0;
 	tcph = (void *)(*pskb)->nh.iph + (*pskb)->nh.iph->ihl*4;
 
-	if ((*pskb)->ip_summed == CHECKSUM_HW &&
-	    skb_checksum_help(*pskb, inward))
+	if (((*pskb)->ip_summed == CHECKSUM_PARTIAL ||
+	     (*pskb)->ip_summed == CHECKSUM_COMPLETE) &&
+	    skb_checksum_help(*pskb))
 		return 0;
 
 	diffs[0] = ((u_int16_t *)tcph)[6];
@@ -106,7 +107,7 @@ target(struct sk_buff **pskb,
 
 	if (einfo->operation & (IPT_ECN_OP_SET_ECE | IPT_ECN_OP_SET_CWR)
 	    && (*pskb)->nh.iph->protocol == IPPROTO_TCP)
-		if (!set_ect_tcp(pskb, einfo, (out == NULL)))
+		if (!set_ect_tcp(pskb, einfo))
 			return NF_DROP;
 
 	return IPT_CONTINUE;

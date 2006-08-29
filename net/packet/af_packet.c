@@ -586,7 +586,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 		else if (skb->pkt_type == PACKET_OUTGOING) {
 			/* Special case: outgoing packets have ll header at head */
 			skb_pull(skb, skb->nh.raw - skb->data);
-			if (skb->ip_summed == CHECKSUM_HW)
+			if (skb->ip_summed == CHECKSUM_PARTIAL)
 				status |= TP_STATUS_CSUMNOTREADY;
 		}
 	}

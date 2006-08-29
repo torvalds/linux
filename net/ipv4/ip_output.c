@@ -680,7 +680,7 @@ ip_generic_getfrag(void *from, char *to, int offset, int len, int odd, struct sk
 {
 	struct iovec *iov = from;
 
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (memcpy_fromiovecend(to, iov, offset, len) < 0)
 			return -EFAULT;
 	} else {
@@ -736,7 +736,7 @@ static inline int ip_ufo_append_data(struct sock *sk,
 		/* initialize protocol header pointer */
 		skb->h.raw = skb->data + fragheaderlen;
 
-		skb->ip_summed = CHECKSUM_HW;
+		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum = 0;
 		sk->sk_sndmsg_off = 0;
 	}
@@ -844,7 +844,7 @@ int ip_append_data(struct sock *sk,
 	    length + fragheaderlen <= mtu &&
 	    rt->u.dst.dev->features & NETIF_F_ALL_CSUM &&
 	    !exthdrlen)
-		csummode = CHECKSUM_HW;
+		csummode = CHECKSUM_PARTIAL;
 
 	inet->cork.length += length;
 	if (((length > mtu) && (sk->sk_protocol == IPPROTO_UDP)) &&

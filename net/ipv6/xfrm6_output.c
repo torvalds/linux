@@ -41,8 +41,8 @@ static int xfrm6_output_one(struct sk_buff *skb)
 	struct xfrm_state *x = dst->xfrm;
 	int err;
 	
-	if (skb->ip_summed == CHECKSUM_HW) {
-		err = skb_checksum_help(skb, 0);
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		err = skb_checksum_help(skb);
 		if (err)
 			goto error_nolock;
 	}

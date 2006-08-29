@@ -429,7 +429,7 @@ static int udp_push_pending_frames(struct sock *sk, struct udp_sock *up)
 		/*
 		 * Only one fragment on the socket.
 		 */
-		if (skb->ip_summed == CHECKSUM_HW) {
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			skb->csum = offsetof(struct udphdr, check);
 			uh->check = ~csum_tcpudp_magic(fl->fl4_src, fl->fl4_dst,
 					up->len, IPPROTO_UDP, 0);
@@ -448,7 +448,7 @@ static int udp_push_pending_frames(struct sock *sk, struct udp_sock *up)
 		 * fragments on the socket so that all csums of sk_buffs
 		 * should be together.
 		 */
-		if (skb->ip_summed == CHECKSUM_HW) {
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			int offset = (unsigned char *)uh - skb->data;
 			skb->csum = skb_checksum(skb, offset, skb->len - offset, 0);
 
@@ -1088,7 +1088,7 @@ static void udp_checksum_init(struct sk_buff *skb, struct udphdr *uh,
 {
 	if (uh->check == 0) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	} else if (skb->ip_summed == CHECKSUM_HW) {
+	} else if (skb->ip_summed == CHECKSUM_COMPLETE) {
 		if (!udp_check(uh, ulen, saddr, daddr, skb->csum))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}

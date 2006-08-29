@@ -568,7 +568,7 @@ new_segment:
 		skb->truesize += copy;
 		sk->sk_wmem_queued += copy;
 		sk->sk_forward_alloc -= copy;
-		skb->ip_summed = CHECKSUM_HW;
+		skb->ip_summed = CHECKSUM_PARTIAL;
 		tp->write_seq += copy;
 		TCP_SKB_CB(skb)->end_seq += copy;
 		skb_shinfo(skb)->gso_segs = 0;
@@ -723,7 +723,7 @@ new_segment:
 				 * Check whether we can use HW checksum.
 				 */
 				if (sk->sk_route_caps & NETIF_F_ALL_CSUM)
-					skb->ip_summed = CHECKSUM_HW;
+					skb->ip_summed = CHECKSUM_PARTIAL;
 
 				skb_entail(sk, tp, skb);
 				copy = size_goal;
@@ -2205,7 +2205,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 		th->fin = th->psh = 0;
 
 		th->check = ~csum_fold(th->check + delta);
-		if (skb->ip_summed != CHECKSUM_HW)
+		if (skb->ip_summed != CHECKSUM_PARTIAL)
 			th->check = csum_fold(csum_partial(skb->h.raw, thlen,
 							   skb->csum));
 
@@ -2219,7 +2219,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 
 	delta = htonl(oldlen + (skb->tail - skb->h.raw) + skb->data_len);
 	th->check = ~csum_fold(th->check + delta);
-	if (skb->ip_summed != CHECKSUM_HW)
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		th->check = csum_fold(csum_partial(skb->h.raw, thlen,
 						   skb->csum));
 
