@@ -53,7 +53,7 @@ target(struct sk_buff **pskb,
 			newmark = (*ctmark & ~markinfo->mask) | markinfo->mark;
 			if (newmark != *ctmark) {
 				*ctmark = newmark;
-#ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
+#if defined(CONFIG_IP_NF_CONNTRACK) || defined(CONFIG_IP_NF_CONNTRACK_MODULE)
 				ip_conntrack_event_cache(IPCT_MARK, *pskb);
 #else
 				nf_conntrack_event_cache(IPCT_MARK, *pskb);
@@ -65,7 +65,7 @@ target(struct sk_buff **pskb,
 				  ((*pskb)->nfmark & markinfo->mask);
 			if (*ctmark != newmark) {
 				*ctmark = newmark;
-#ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
+#if defined(CONFIG_IP_NF_CONNTRACK) || defined(CONFIG_IP_NF_CONNTRACK_MODULE)
 				ip_conntrack_event_cache(IPCT_MARK, *pskb);
 #else
 				nf_conntrack_event_cache(IPCT_MARK, *pskb);
