@@ -17,6 +17,8 @@
 extern struct super_block *blockdev_superblock;
 extern void __init bdev_cache_init(void);
 
+#define sb_is_blkdev_sb(sb) ((sb) == blockdev_superblock)
+
 /*
  * char_dev.c
  */
