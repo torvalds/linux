@@ -30,6 +30,7 @@
 #include <linux/sysctl.h>
 #include <linux/cpu.h>
 #include <linux/syscalls.h>
+#include <linux/buffer_head.h>
 
 /*
  * The maximum number of pages to writeout in a single bdflush/kupdate
