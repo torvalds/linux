@@ -1059,6 +1059,8 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 			parent_server->client->cl_xprt->prot,
 			parent_client->retrans_timeo,
 			parent_client->retrans_count);
+	if (error < 0)
+		goto error;
 
 	/* Initialise the client representation from the parent server */
 	nfs_server_copy_userdata(server, parent_server);
