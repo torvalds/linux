@@ -1,4 +1,4 @@
-/* zd_mac.c
+/* zd_mac.h
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -87,9 +87,9 @@ struct rx_length_info {
 #define RX_LENGTH_INFO_TAG		0x697e
 
 struct rx_status {
+	u8 signal_quality_cck;
 	/* rssi */
 	u8 signal_strength;
-	u8 signal_quality_cck;
 	u8 signal_quality_ofdm;
 	u8 decryption_type;
 	u8 frame_status;
@@ -120,14 +120,17 @@ enum mac_flags {
 	MAC_FIXED_CHANNEL = 0x01,
 };
 
+#define ZD_MAC_STATS_BUFFER_SIZE 16
+
 struct zd_mac {
 	struct net_device *netdev;
 	struct zd_chip chip;
 	spinlock_t lock;
 	/* Unlocked reading possible */
 	struct iw_statistics iw_stats;
-	u8 qual_average;
-	u8 rssi_average;
+	unsigned int stats_count;
+	u8 qual_buffer[ZD_MAC_STATS_BUFFER_SIZE];
+	u8 rssi_buffer[ZD_MAC_STATS_BUFFER_SIZE];
 	u8 regdomain;
 	u8 default_regdomain;
 	u8 requested_channel;
