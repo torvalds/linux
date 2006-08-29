@@ -234,7 +234,7 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 	sz_bits = 0UL;
 	if (_PAGE_SZBITS_4U != 0UL || _PAGE_SZBITS_4V != 0UL) {
 		__asm__ __volatile__(
-		"\n661:	sethi		%uhi(%1), %0\n"
+		"\n661:	sethi		%%uhi(%1), %0\n"
 		"	sllx		%0, 32, %0\n"
 		"	.section	.sun4v_2insn_patch, \"ax\"\n"
 		"	.word		661b\n"

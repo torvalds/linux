@@ -34,6 +34,7 @@
 #include <linux/bitops.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
+#include <linux/phy.h>
 
 #include <asm/immap_cpm2.h>
 #include <asm/mpc8260.h>
@@ -122,20 +123,30 @@ static int do_pd_setup(struct fs_enet_private *fep)
 
 	/* Attach the memory for the FCC Parameter RAM */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fcc_pram");
-	fep->fcc.ep = (void *)r->start;
-
+	fep->fcc.ep = (void *)ioremap(r->start, r->end - r->start + 1);
 	if (fep->fcc.ep == NULL)
 		return -EINVAL;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fcc_regs");
-	fep->fcc.fccp = (void *)r->start;
-
+	fep->fcc.fccp = (void *)ioremap(r->start, r->end - r->start + 1);
 	if (fep->fcc.fccp == NULL)
 		return -EINVAL;
 
-	fep->fcc.fcccp = (void *)fep->fpi->fcc_regs_c;
+	if (fep->fpi->fcc_regs_c) {
+
+		fep->fcc.fcccp = (void *)fep->fpi->fcc_regs_c;
+	} else {
+		r = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+				"fcc_regs_c");
+		fep->fcc.fcccp = (void *)ioremap(r->start,
+				r->end - r->start + 1);
+	}
 
 	if (fep->fcc.fcccp == NULL)
+		return -EINVAL;
+
+	fep->fcc.mem = (void *)fep->fpi->mem_offset;
+	if (fep->fcc.mem == NULL)
 		return -EINVAL;
 
 	return 0;
@@ -154,8 +165,6 @@ static int setup_data(struct net_device *dev)
 	fep->fcc.idx = fs_get_fcc_index(fpi->fs_no);
 	if ((unsigned int)fep->fcc.idx >= 3)	/* max 3 FCCs */
 		return -EINVAL;
-
-	fep->fcc.mem = (void *)fpi->mem_offset;
 
 	if (do_pd_setup(fep) != 0)
 		return -EINVAL;
@@ -394,7 +403,7 @@ static void restart(struct net_device *dev)
 
 	/* adjust to speed (for RMII mode) */
 	if (fpi->use_rmii) {
-		if (fep->speed == 100)
+		if (fep->phydev->speed == 100)
 			C8(fcccp, fcc_gfemr, 0x20);
 		else
 			S8(fcccp, fcc_gfemr, 0x20);
@@ -420,7 +429,7 @@ static void restart(struct net_device *dev)
 		S32(fccp, fcc_fpsmr, FCC_PSMR_RMII);
 
 	/* adjust to duplex mode */
-	if (fep->duplex)
+	if (fep->phydev->duplex)
 		S32(fccp, fcc_fpsmr, FCC_PSMR_FDE | FCC_PSMR_LPB);
 	else
 		C32(fccp, fcc_fpsmr, FCC_PSMR_FDE | FCC_PSMR_LPB);
@@ -486,7 +495,10 @@ static void rx_bd_done(struct net_device *dev)
 
 static void tx_kickstart(struct net_device *dev)
 {
-	/* nothing */
+	struct fs_enet_private *fep = netdev_priv(dev);
+	fcc_t *fccp = fep->fcc.fccp;
+
+	S32(fccp, fcc_ftodr, 0x80);
 }
 
 static u32 get_int_events(struct net_device *dev)

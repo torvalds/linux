@@ -411,8 +411,15 @@ static unsigned long __init bootx_flatten_dt(unsigned long start)
 	DBG("End of boot params: %x\n", mem_end);
 	rsvmap[0] = mem_start;
 	rsvmap[1] = mem_end;
-	rsvmap[2] = 0;
-	rsvmap[3] = 0;
+	if (bootx_info->ramDisk) {
+		rsvmap[2] = ((unsigned long)bootx_info) + bootx_info->ramDisk;
+		rsvmap[3] = rsvmap[2] + bootx_info->ramDiskSize;
+		rsvmap[4] = 0;
+		rsvmap[5] = 0;
+	} else {
+		rsvmap[2] = 0;
+		rsvmap[3] = 0;
+	}
 
 	return (unsigned long)hdr;
 }
@@ -543,12 +550,12 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 	 */
 	if (bi->version < 5) {
 		space = bi->deviceTreeOffset + bi->deviceTreeSize;
-		if (bi->ramDisk)
+		if (bi->ramDisk >= space)
 			space = bi->ramDisk + bi->ramDiskSize;
 	} else
 		space = bi->totalParamsSize;
 
-	bootx_printf("Total space used by parameters & ramdisk: %x \n", space);
+	bootx_printf("Total space used by parameters & ramdisk: 0x%x \n", space);
 
 	/* New BootX will have flushed all TLBs and enters kernel with
 	 * MMU switched OFF, so this should not be useful anymore.

@@ -131,6 +131,7 @@ lpfc_ct_unsol_event(struct lpfc_hba * phba,
 	}
 
 ct_unsol_event_exit_piocbq:
+	list_del(&head);
 	if (pmbuf) {
 		list_for_each_entry_safe(matp, next_matp, &pmbuf->list, list) {
 			lpfc_mbuf_free(phba, matp->virt, matp->phys);
@@ -481,7 +482,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC)) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-					"%d:0239 NameServer Rsp "
+					"%d:0208 NameServer Rsp "
 					"Data: x%x\n",
 					phba->brd_no,
 					phba->fc_flag);
@@ -588,13 +589,9 @@ lpfc_get_hba_sym_node_name(struct lpfc_hba * phba, uint8_t * symbp)
 
 	lpfc_decode_firmware_rev(phba, fwrev, 0);
 
-	if (phba->Port[0]) {
-		sprintf(symbp, "Emulex %s Port %s FV%s DV%s", phba->ModelName,
-			phba->Port, fwrev, lpfc_release_version);
-	} else {
-		sprintf(symbp, "Emulex %s FV%s DV%s", phba->ModelName,
-			fwrev, lpfc_release_version);
-	}
+	sprintf(symbp, "Emulex %s FV%s DV%s", phba->ModelName,
+		fwrev, lpfc_release_version);
+	return;
 }
 
 /*

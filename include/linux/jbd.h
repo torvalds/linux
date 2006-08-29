@@ -72,6 +72,9 @@ extern int journal_enable_debug;
 #endif
 
 extern void * __jbd_kmalloc (const char *where, size_t size, gfp_t flags, int retry);
+extern void * jbd_slab_alloc(size_t size, gfp_t flags);
+extern void jbd_slab_free(void *ptr, size_t size);
+
 #define jbd_kmalloc(size, flags) \
 	__jbd_kmalloc(__FUNCTION__, (size), (flags), journal_oom_retry)
 #define jbd_rep_kmalloc(size, flags) \

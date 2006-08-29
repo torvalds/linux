@@ -34,7 +34,6 @@
 #include <asm/tlbflush.h>
 #include <asm/cpudata.h>
 
-volatile int smp_processors_ready = 0;
 int smp_num_cpus = 1;
 volatile unsigned long cpu_callin_map[NR_CPUS] __initdata = {0,};
 unsigned char boot_cpu_id = 0;

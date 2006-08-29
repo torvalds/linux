@@ -26,6 +26,7 @@
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -64,17 +65,17 @@
 #define ABIT_UGURU_IN_SENSOR			0
 #define ABIT_UGURU_TEMP_SENSOR			1
 #define ABIT_UGURU_NC				2
-/* Timeouts / Retries, if these turn out to need a lot of fiddling we could
-   convert them to params. */
-/* 250 was determined by trial and error, 200 works most of the time, but not
-   always. I assume this is cpu-speed independent, since the ISA-bus and not
-   the CPU should be the bottleneck. Note that 250 sometimes is still not
-   enough (only reported on AN7 mb) this is handled by a higher layer. */
-#define ABIT_UGURU_WAIT_TIMEOUT			250
+/* In many cases we need to wait for the uGuru to reach a certain status, most
+   of the time it will reach this status within 30 - 90 ISA reads, and thus we
+   can best busy wait. This define gives the total amount of reads to try. */
+#define ABIT_UGURU_WAIT_TIMEOUT			125
+/* However sometimes older versions of the uGuru seem to be distracted and they
+   do not respond for a long time. To handle this we sleep before each of the
+   last ABIT_UGURU_WAIT_TIMEOUT_SLEEP tries. */
+#define ABIT_UGURU_WAIT_TIMEOUT_SLEEP		5
 /* Normally all expected status in abituguru_ready, are reported after the
-   first read, but sometimes not and we need to poll, 5 polls was not enough
-   50 sofar is. */
-#define ABIT_UGURU_READY_TIMEOUT		50
+   first read, but sometimes not and we need to poll. */
+#define ABIT_UGURU_READY_TIMEOUT		5
 /* Maximum 3 retries on timedout reads/writes, delay 200 ms before retrying */
 #define ABIT_UGURU_MAX_RETRIES			3
 #define ABIT_UGURU_RETRY_DELAY			(HZ/5)
@@ -226,6 +227,10 @@ static int abituguru_wait(struct abituguru_data *data, u8 state)
 		timeout--;
 		if (timeout == 0)
 			return -EBUSY;
+		/* sleep a bit before our last few tries, see the comment on
+		   this where ABIT_UGURU_WAIT_TIMEOUT_SLEEP is defined. */
+		if (timeout <= ABIT_UGURU_WAIT_TIMEOUT_SLEEP)
+			msleep(0);
 	}
 	return 0;
 }
@@ -256,6 +261,7 @@ static int abituguru_ready(struct abituguru_data *data)
 			   "CMD reg does not hold 0xAC after ready command\n");
 			return -EIO;
 		}
+		msleep(0);
 	}
 
 	/* After this the ABIT_UGURU_DATA port should contain
@@ -268,6 +274,7 @@ static int abituguru_ready(struct abituguru_data *data)
 				"state != more input after ready command\n");
 			return -EIO;
 		}
+		msleep(0);
 	}
 
 	data->uguru_ready = 1;
@@ -331,7 +338,8 @@ static int abituguru_read(struct abituguru_data *data,
 	/* And read the data */
 	for (i = 0; i < count; i++) {
 		if (abituguru_wait(data, ABIT_UGURU_STATUS_READ)) {
-			ABIT_UGURU_DEBUG(1, "timeout exceeded waiting for "
+			ABIT_UGURU_DEBUG(retries ? 1 : 3,
+				"timeout exceeded waiting for "
 				"read state (bank: %d, sensor: %d)\n",
 				(int)bank_addr, (int)sensor_addr);
 			break;
@@ -350,7 +358,9 @@ static int abituguru_read(struct abituguru_data *data,
 static int abituguru_write(struct abituguru_data *data,
 	u8 bank_addr, u8 sensor_addr, u8 *buf, int count)
 {
-	int i;
+	/* We use the ready timeout as we have to wait for 0xAC just like the
+	   ready function */
+	int i, timeout = ABIT_UGURU_READY_TIMEOUT;
 
 	/* Send the address */
 	i = abituguru_send_address(data, bank_addr, sensor_addr,
@@ -370,7 +380,8 @@ static int abituguru_write(struct abituguru_data *data,
 	}
 
 	/* Now we need to wait till the chip is ready to be read again,
-	   don't ask why */
+	   so that we can read 0xAC as confirmation that our write has
+	   succeeded. */
 	if (abituguru_wait(data, ABIT_UGURU_STATUS_READ)) {
 		ABIT_UGURU_DEBUG(1, "timeout exceeded waiting for read state "
 			"after write (bank: %d, sensor: %d)\n", (int)bank_addr,
@@ -379,11 +390,15 @@ static int abituguru_write(struct abituguru_data *data,
 	}
 
 	/* Cmd port MUST be read now and should contain 0xAC */
-	if (inb_p(data->addr + ABIT_UGURU_CMD) != 0xAC) {
-		ABIT_UGURU_DEBUG(1, "CMD reg does not hold 0xAC after write "
-			"(bank: %d, sensor: %d)\n", (int)bank_addr,
-			(int)sensor_addr);
-		return -EIO;
+	while (inb_p(data->addr + ABIT_UGURU_CMD) != 0xAC) {
+		timeout--;
+		if (timeout == 0) {
+			ABIT_UGURU_DEBUG(1, "CMD reg does not hold 0xAC after "
+				"write (bank: %d, sensor: %d)\n",
+				(int)bank_addr, (int)sensor_addr);
+			return -EIO;
+		}
+		msleep(0);
 	}
 
 	/* Last put the chip back in ready state */
@@ -403,7 +418,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 				   u8 sensor_addr)
 {
 	u8 val, buf[3];
-	int ret = ABIT_UGURU_NC;
+	int i, ret = -ENODEV; /* error is the most common used retval :| */
 
 	/* If overriden by the user return the user selected type */
 	if (bank1_types[sensor_addr] >= ABIT_UGURU_IN_SENSOR &&
@@ -439,7 +454,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	buf[2] = 250;
 	if (abituguru_write(data, ABIT_UGURU_SENSOR_BANK1 + 2, sensor_addr,
 			buf, 3) != 3)
-		return -ENODEV;
+		goto abituguru_detect_bank1_sensor_type_exit;
 	/* Now we need 20 ms to give the uguru time to read the sensors
 	   and raise a voltage alarm */
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -447,21 +462,16 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	/* Check for alarm and check the alarm is a volt low alarm. */
 	if (abituguru_read(data, ABIT_UGURU_ALARM_BANK, 0, buf, 3,
 			ABIT_UGURU_MAX_RETRIES) != 3)
-		return -ENODEV;
+		goto abituguru_detect_bank1_sensor_type_exit;
 	if (buf[sensor_addr/8] & (0x01 << (sensor_addr % 8))) {
 		if (abituguru_read(data, ABIT_UGURU_SENSOR_BANK1 + 1,
 				sensor_addr, buf, 3,
 				ABIT_UGURU_MAX_RETRIES) != 3)
-			return -ENODEV;
+			goto abituguru_detect_bank1_sensor_type_exit;
 		if (buf[0] & ABIT_UGURU_VOLT_LOW_ALARM_FLAG) {
-			/* Restore original settings */
-			if (abituguru_write(data, ABIT_UGURU_SENSOR_BANK1 + 2,
-					sensor_addr,
-					data->bank1_settings[sensor_addr],
-					3) != 3)
-				return -ENODEV;
 			ABIT_UGURU_DEBUG(2, "  found volt sensor\n");
-			return ABIT_UGURU_IN_SENSOR;
+			ret = ABIT_UGURU_IN_SENSOR;
+			goto abituguru_detect_bank1_sensor_type_exit;
 		} else
 			ABIT_UGURU_DEBUG(2, "  alarm raised during volt "
 				"sensor test, but volt low flag not set\n");
@@ -477,7 +487,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	buf[2] = 10;
 	if (abituguru_write(data, ABIT_UGURU_SENSOR_BANK1 + 2, sensor_addr,
 			buf, 3) != 3)
-		return -ENODEV;
+		goto abituguru_detect_bank1_sensor_type_exit;
 	/* Now we need 50 ms to give the uguru time to read the sensors
 	   and raise a temp alarm */
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -485,15 +495,16 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	/* Check for alarm and check the alarm is a temp high alarm. */
 	if (abituguru_read(data, ABIT_UGURU_ALARM_BANK, 0, buf, 3,
 			ABIT_UGURU_MAX_RETRIES) != 3)
-		return -ENODEV;
+		goto abituguru_detect_bank1_sensor_type_exit;
 	if (buf[sensor_addr/8] & (0x01 << (sensor_addr % 8))) {
 		if (abituguru_read(data, ABIT_UGURU_SENSOR_BANK1 + 1,
 				sensor_addr, buf, 3,
 				ABIT_UGURU_MAX_RETRIES) != 3)
-			return -ENODEV;
+			goto abituguru_detect_bank1_sensor_type_exit;
 		if (buf[0] & ABIT_UGURU_TEMP_HIGH_ALARM_FLAG) {
-			ret = ABIT_UGURU_TEMP_SENSOR;
 			ABIT_UGURU_DEBUG(2, "  found temp sensor\n");
+			ret = ABIT_UGURU_TEMP_SENSOR;
+			goto abituguru_detect_bank1_sensor_type_exit;
 		} else
 			ABIT_UGURU_DEBUG(2, "  alarm raised during temp "
 				"sensor test, but temp high flag not set\n");
@@ -501,11 +512,23 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 		ABIT_UGURU_DEBUG(2, "  alarm not raised during temp sensor "
 			"test\n");
 
-	/* Restore original settings */
-	if (abituguru_write(data, ABIT_UGURU_SENSOR_BANK1 + 2, sensor_addr,
-			data->bank1_settings[sensor_addr], 3) != 3)
+	ret = ABIT_UGURU_NC;
+abituguru_detect_bank1_sensor_type_exit:
+	/* Restore original settings, failing here is really BAD, it has been
+	   reported that some BIOS-es hang when entering the uGuru menu with
+	   invalid settings present in the uGuru, so we try this 3 times. */
+	for (i = 0; i < 3; i++)
+		if (abituguru_write(data, ABIT_UGURU_SENSOR_BANK1 + 2,
+				sensor_addr, data->bank1_settings[sensor_addr],
+				3) == 3)
+			break;
+	if (i == 3) {
+		printk(KERN_ERR ABIT_UGURU_NAME
+			": Fatal error could not restore original settings. "
+			"This should never happen please report this to the "
+			"abituguru maintainer (see MAINTAINERS)\n");
 		return -ENODEV;
-
+	}
 	return ret;
 }
 
@@ -1305,7 +1328,7 @@ static struct abituguru_data *abituguru_update_device(struct device *dev)
 		data->update_timeouts = 0;
 LEAVE_UPDATE:
 		/* handle timeout condition */
-		if (err == -EBUSY) {
+		if (!success && (err == -EBUSY || err >= 0)) {
 			/* No overflow please */
 			if (data->update_timeouts < 255u)
 				data->update_timeouts++;

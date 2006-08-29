@@ -82,10 +82,6 @@
 #define SPEEDDRAGON_VENDOR_ID	0x0e55
 #define SPEEDDRAGON_PRODUCT_ID	0x110b
 
-/* Ours Technology Inc DKU-5 clone, chipset: Prolific Technology Inc */
-#define OTI_VENDOR_ID	0x0ea0
-#define OTI_PRODUCT_ID	0x6858
-
 /* DATAPILOT Universal-2 Phone Cable */
 #define DATAPILOT_U2_VENDOR_ID	0x0731
 #define DATAPILOT_U2_PRODUCT_ID	0x2003

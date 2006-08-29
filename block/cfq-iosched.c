@@ -1561,7 +1561,7 @@ restart:
 		/* ->key must be copied to avoid race with cfq_exit_queue() */
 		k = __cic->key;
 		if (unlikely(!k)) {
-			cfq_drop_dead_cic(ioc, cic);
+			cfq_drop_dead_cic(ioc, __cic);
 			goto restart;
 		}
 

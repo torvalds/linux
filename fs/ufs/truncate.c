@@ -375,17 +375,15 @@ static int ufs_alloc_lastblock(struct inode *inode)
 	int err = 0;
 	struct address_space *mapping = inode->i_mapping;
 	struct ufs_sb_private_info *uspi = UFS_SB(inode->i_sb)->s_uspi;
-	struct ufs_inode_info *ufsi = UFS_I(inode);
 	unsigned lastfrag, i, end;
 	struct page *lastpage;
 	struct buffer_head *bh;
 
 	lastfrag = (i_size_read(inode) + uspi->s_fsize - 1) >> uspi->s_fshift;
 
-	if (!lastfrag) {
-		ufsi->i_lastfrag = 0;
+	if (!lastfrag)
 		goto out;
-	}
+
 	lastfrag--;
 
 	lastpage = ufs_get_locked_page(mapping, lastfrag >>
@@ -400,25 +398,25 @@ static int ufs_alloc_lastblock(struct inode *inode)
        for (i = 0; i < end; ++i)
                bh = bh->b_this_page;
 
-       if (!buffer_mapped(bh)) {
-               err = ufs_getfrag_block(inode, lastfrag, bh, 1);
 
-               if (unlikely(err))
-                       goto out_unlock;
+       err = ufs_getfrag_block(inode, lastfrag, bh, 1);
 
-               if (buffer_new(bh)) {
-                       clear_buffer_new(bh);
-                       unmap_underlying_metadata(bh->b_bdev,
-						 bh->b_blocknr);
-		       /*
-			* we do not zeroize fragment, because of
-			* if it maped to hole, it already contains zeroes
-			*/
-                       set_buffer_uptodate(bh);
-                       mark_buffer_dirty(bh);
-                       set_page_dirty(lastpage);
-               }
+       if (unlikely(err))
+	       goto out_unlock;
+
+       if (buffer_new(bh)) {
+	       clear_buffer_new(bh);
+	       unmap_underlying_metadata(bh->b_bdev,
+					 bh->b_blocknr);
+	       /*
+		* we do not zeroize fragment, because of
+		* if it maped to hole, it already contains zeroes
+		*/
+	       set_buffer_uptodate(bh);
+	       mark_buffer_dirty(bh);
+	       set_page_dirty(lastpage);
        }
+
 out_unlock:
        ufs_put_locked_page(lastpage);
 out:
@@ -440,23 +438,11 @@ int ufs_truncate(struct inode *inode, loff_t old_i_size)
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
 		return -EPERM;
 
-	if (inode->i_size > old_i_size) {
-		/*
-		 * if we expand file we should care about
-		 * allocation of block for last byte first of all
-		 */
-		err = ufs_alloc_lastblock(inode);
+	err = ufs_alloc_lastblock(inode);
 
-		if (err) {
-			i_size_write(inode, old_i_size);
-			goto out;
-		}
-		/*
-		 * go away, because of we expand file, and we do not
-		 * need free blocks, and zeroizes page
-		 */
-		lock_kernel();
-		goto almost_end;
+	if (err) {
+		i_size_write(inode, old_i_size);
+		goto out;
 	}
 
 	block_truncate_page(inode->i_mapping, inode->i_size, ufs_getfrag_block);
@@ -477,21 +463,8 @@ int ufs_truncate(struct inode *inode, loff_t old_i_size)
 		yield();
 	}
 
-	if (inode->i_size < old_i_size) {
-		/*
-		 * now we should have enough space
-		 * to allocate block for last byte
-		 */
-		err = ufs_alloc_lastblock(inode);
-		if (err)
-			/*
-			 * looks like all the same - we have no space,
-			 * but we truncate file already
-			 */
-			inode->i_size = (ufsi->i_lastfrag - 1) * uspi->s_fsize;
-	}
-almost_end:
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
+	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	unlock_kernel();
 	mark_inode_dirty(inode);
 out:

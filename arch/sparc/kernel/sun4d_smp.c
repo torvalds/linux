@@ -42,7 +42,7 @@ extern ctxd_t *srmmu_ctx_table_phys;
 
 extern void calibrate_delay(void);
 
-extern volatile int smp_processors_ready;
+static volatile int smp_processors_ready = 0;
 static int smp_highest_cpu;
 extern volatile unsigned long cpu_callin_map[NR_CPUS];
 extern cpuinfo_sparc cpu_data[NR_CPUS];

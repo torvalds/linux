@@ -36,6 +36,18 @@
 #define TERMIOS_WAIT	2
 #define TERMIOS_TERMIO	4
 
+
+/**
+ *	tty_wait_until_sent	-	wait for I/O to finish
+ *	@tty: tty we are waiting for
+ *	@timeout: how long we will wait
+ *
+ *	Wait for characters pending in a tty driver to hit the wire, or
+ *	for a timeout to occur (eg due to flow control)
+ *
+ *	Locking: none
+ */
+
 void tty_wait_until_sent(struct tty_struct * tty, long timeout)
 {
 	DECLARE_WAITQUEUE(wait, current);
@@ -93,6 +105,18 @@ static void unset_locked_termios(struct termios *termios,
 		termios->c_cc[i] = locked->c_cc[i] ?
 			old->c_cc[i] : termios->c_cc[i];
 }
+
+/**
+ *	change_termios		-	update termios values
+ *	@tty: tty to update
+ *	@new_termios: desired new value
+ *
+ *	Perform updates to the termios values set on this terminal. There
+ *	is a bit of layering violation here with n_tty in terms of the
+ *	internal knowledge of this function.
+ *
+ *	Locking: termios_sem
+ */
 
 static void change_termios(struct tty_struct * tty, struct termios * new_termios)
 {
@@ -154,6 +178,19 @@ static void change_termios(struct tty_struct * tty, struct termios * new_termios
 	}
 	up(&tty->termios_sem);
 }
+
+/**
+ *	set_termios		-	set termios values for a tty
+ *	@tty: terminal device
+ *	@arg: user data
+ *	@opt: option information
+ *
+ *	Helper function to prepare termios data and run neccessary other
+ *	functions before using change_termios to do the actual changes.
+ *
+ *	Locking:
+ *		Called functions take ldisc and termios_sem locks
+ */
 
 static int set_termios(struct tty_struct * tty, void __user *arg, int opt)
 {
@@ -284,6 +321,17 @@ static void set_sgflags(struct termios * termios, int flags)
 	}
 }
 
+/**
+ *	set_sgttyb		-	set legacy terminal values
+ *	@tty: tty structure
+ *	@sgttyb: pointer to old style terminal structure
+ *
+ *	Updates a terminal from the legacy BSD style terminal information
+ *	structure.
+ *
+ *	Locking: termios_sem
+ */
+
 static int set_sgttyb(struct tty_struct * tty, struct sgttyb __user * sgttyb)
 {
 	int retval;
@@ -369,9 +417,16 @@ static int set_ltchars(struct tty_struct * tty, struct ltchars __user * ltchars)
 }
 #endif
 
-/*
- * Send a high priority character to the tty.
+/**
+ *	send_prio_char		-	send priority character
+ *
+ *	Send a high priority character to the tty even if stopped
+ *
+ *	Locking: none
+ *
+ *	FIXME: overlapping calls with start/stop tty lose state of tty
  */
+
 static void send_prio_char(struct tty_struct *tty, char ch)
 {
 	int	was_stopped = tty->stopped;

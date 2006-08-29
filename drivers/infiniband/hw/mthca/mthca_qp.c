@@ -99,6 +99,10 @@ enum {
 	MTHCA_QP_BIT_RSC = 1 <<  3
 };
 
+enum {
+	MTHCA_SEND_DOORBELL_FENCE = 1 << 5
+};
+
 struct mthca_qp_path {
 	__be32 port_pkey;
 	u8     rnr_retry;
@@ -1259,6 +1263,32 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 	return 0;
 }
 
+static void mthca_lock_cqs(struct mthca_cq *send_cq, struct mthca_cq *recv_cq)
+{
+	if (send_cq == recv_cq)
+		spin_lock_irq(&send_cq->lock);
+	else if (send_cq->cqn < recv_cq->cqn) {
+		spin_lock_irq(&send_cq->lock);
+		spin_lock_nested(&recv_cq->lock, SINGLE_DEPTH_NESTING);
+	} else {
+		spin_lock_irq(&recv_cq->lock);
+		spin_lock_nested(&send_cq->lock, SINGLE_DEPTH_NESTING);
+	}
+}
+
+static void mthca_unlock_cqs(struct mthca_cq *send_cq, struct mthca_cq *recv_cq)
+{
+	if (send_cq == recv_cq)
+		spin_unlock_irq(&send_cq->lock);
+	else if (send_cq->cqn < recv_cq->cqn) {
+		spin_unlock(&recv_cq->lock);
+		spin_unlock_irq(&send_cq->lock);
+	} else {
+		spin_unlock(&send_cq->lock);
+		spin_unlock_irq(&recv_cq->lock);
+	}
+}
+
 int mthca_alloc_sqp(struct mthca_dev *dev,
 		    struct mthca_pd *pd,
 		    struct mthca_cq *send_cq,
@@ -1311,17 +1341,13 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 	 * Lock CQs here, so that CQ polling code can do QP lookup
 	 * without taking a lock.
 	 */
-	spin_lock_irq(&send_cq->lock);
-	if (send_cq != recv_cq)
-		spin_lock(&recv_cq->lock);
+	mthca_lock_cqs(send_cq, recv_cq);
 
 	spin_lock(&dev->qp_table.lock);
 	mthca_array_clear(&dev->qp_table.qp, mqpn);
 	spin_unlock(&dev->qp_table.lock);
 
-	if (send_cq != recv_cq)
-		spin_unlock(&recv_cq->lock);
-	spin_unlock_irq(&send_cq->lock);
+	mthca_unlock_cqs(send_cq, recv_cq);
 
  err_out:
 	dma_free_coherent(&dev->pdev->dev, sqp->header_buf_size,
@@ -1355,9 +1381,7 @@ void mthca_free_qp(struct mthca_dev *dev,
 	 * Lock CQs here, so that CQ polling code can do QP lookup
 	 * without taking a lock.
 	 */
-	spin_lock_irq(&send_cq->lock);
-	if (send_cq != recv_cq)
-		spin_lock(&recv_cq->lock);
+	mthca_lock_cqs(send_cq, recv_cq);
 
 	spin_lock(&dev->qp_table.lock);
 	mthca_array_clear(&dev->qp_table.qp,
@@ -1365,9 +1389,7 @@ void mthca_free_qp(struct mthca_dev *dev,
 	--qp->refcount;
 	spin_unlock(&dev->qp_table.lock);
 
-	if (send_cq != recv_cq)
-		spin_unlock(&recv_cq->lock);
-	spin_unlock_irq(&send_cq->lock);
+	mthca_unlock_cqs(send_cq, recv_cq);
 
 	wait_event(qp->wait, !get_qp_refcount(dev, qp));
 
@@ -1502,7 +1524,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int i;
 	int size;
 	int size0 = 0;
-	u32 f0 = 0;
+	u32 f0;
 	int ind;
 	u8 op0 = 0;
 
@@ -1686,6 +1708,8 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		if (!size0) {
 			size0 = size;
 			op0   = mthca_opcode[wr->opcode];
+			f0    = wr->send_flags & IB_SEND_FENCE ?
+				MTHCA_SEND_DOORBELL_FENCE : 0;
 		}
 
 		++ind;
@@ -1843,7 +1867,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int i;
 	int size;
 	int size0 = 0;
-	u32 f0 = 0;
+	u32 f0;
 	int ind;
 	u8 op0 = 0;
 
@@ -2051,6 +2075,8 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		if (!size0) {
 			size0 = size;
 			op0   = mthca_opcode[wr->opcode];
+			f0    = wr->send_flags & IB_SEND_FENCE ?
+				MTHCA_SEND_DOORBELL_FENCE : 0;
 		}
 
 		++ind;

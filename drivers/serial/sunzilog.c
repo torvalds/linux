@@ -1146,6 +1146,9 @@ static int __init sunzilog_console_setup(struct console *con, char *options)
 	unsigned long flags;
 	int baud, brg;
 
+	if (up->port.type != PORT_SUNZILOG)
+		return -1;
+
 	printk(KERN_INFO "Console: ttyS%d (SunZilog zs%d)\n",
 	       (sunzilog_reg.minor - 64) + con->index, con->index);
 

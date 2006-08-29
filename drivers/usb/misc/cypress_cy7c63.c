@@ -208,7 +208,7 @@ static int cypress_probe(struct usb_interface *interface,
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		dev_err(&dev->udev->dev, "Out of memory!\n");
+		dev_err(&interface->dev, "Out of memory!\n");
 		goto error;
 	}
 

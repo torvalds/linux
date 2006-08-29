@@ -44,6 +44,9 @@ static int set_task_ioprio(struct task_struct *task, int ioprio)
 	task->ioprio = ioprio;
 
 	ioc = task->io_context;
+	/* see wmb() in current_io_context() */
+	smp_read_barrier_depends();
+
 	if (ioc && ioc->set_ioprio)
 		ioc->set_ioprio(ioc, ioprio);
 
@@ -111,9 +114,9 @@ asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 					continue;
 				ret = set_task_ioprio(p, ioprio);
 				if (ret)
-					break;
+					goto free_uid;
 			} while_each_thread(g, p);
-
+free_uid:
 			if (who)
 				free_uid(user);
 			break;
@@ -135,6 +138,29 @@ static int get_task_ioprio(struct task_struct *p)
 	ret = p->ioprio;
 out:
 	return ret;
+}
+
+int ioprio_best(unsigned short aprio, unsigned short bprio)
+{
+	unsigned short aclass = IOPRIO_PRIO_CLASS(aprio);
+	unsigned short bclass = IOPRIO_PRIO_CLASS(bprio);
+
+	if (!ioprio_valid(aprio))
+		return bprio;
+	if (!ioprio_valid(bprio))
+		return aprio;
+
+	if (aclass == IOPRIO_CLASS_NONE)
+		aclass = IOPRIO_CLASS_BE;
+	if (bclass == IOPRIO_CLASS_NONE)
+		bclass = IOPRIO_CLASS_BE;
+
+	if (aclass == bclass)
+		return min(aprio, bprio);
+	if (aclass > bclass)
+		return bprio;
+	else
+		return aprio;
 }
 
 asmlinkage long sys_ioprio_get(int which, int who)

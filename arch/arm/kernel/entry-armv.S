@@ -634,6 +634,14 @@ ENTRY(__switch_to)
  * purpose.
  */
 
+	.macro	usr_ret, reg
+#ifdef CONFIG_ARM_THUMB
+	bx	\reg
+#else
+	mov	pc, \reg
+#endif
+	.endm
+
 	.align	5
 	.globl	__kuser_helper_start
 __kuser_helper_start:
@@ -675,7 +683,7 @@ __kuser_memory_barrier:				@ 0xffff0fa0
 #if __LINUX_ARM_ARCH__ >= 6 && defined(CONFIG_SMP)
 	mcr	p15, 0, r0, c7, c10, 5	@ dmb
 #endif
-	mov	pc, lr
+	usr_ret	lr
 
 	.align	5
 
@@ -778,7 +786,7 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	mov	r0, #-1
 	adds	r0, r0, #0
 #endif
-	mov	pc, lr
+	usr_ret	lr
 
 #else
 
@@ -792,7 +800,7 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 #ifdef CONFIG_SMP
 	mcr	p15, 0, r0, c7, c10, 5	@ dmb
 #endif
-	mov	pc, lr
+	usr_ret	lr
 
 #endif
 
@@ -834,16 +842,11 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 __kuser_get_tls:				@ 0xffff0fe0
 
 #if !defined(CONFIG_HAS_TLS_REG) && !defined(CONFIG_TLS_REG_EMUL)
-
 	ldr	r0, [pc, #(16 - 8)]		@ TLS stored at 0xffff0ff0
-	mov	pc, lr
-
 #else
-
 	mrc	p15, 0, r0, c13, c0, 3		@ read TLS register
-	mov	pc, lr
-
 #endif
+	usr_ret	lr
 
 	.rep	5
 	.word	0			@ pad up to __kuser_helper_version

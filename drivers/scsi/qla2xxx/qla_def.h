@@ -487,6 +487,7 @@ typedef struct {
 #define MBA_IP_RCV_BUFFER_EMPTY 0x8026	/* IP receive buffer queue empty. */
 #define MBA_IP_HDR_DATA_SPLIT	0x8027	/* IP header/data splitting feature */
 					/* used. */
+#define MBA_TRACE_NOTIFICATION	0x8028	/* Trace/Diagnostic notification. */
 #define MBA_POINT_TO_POINT	0x8030	/* Point to point mode. */
 #define MBA_CMPLT_1_16BIT	0x8031	/* Completion 1 16bit IOSB. */
 #define MBA_CMPLT_2_16BIT	0x8032	/* Completion 2 16bit IOSB. */

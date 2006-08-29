@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_mm.c
- * Version	: v2.20.2.6 (Mar 7 2005)
+ * Version	: v2.20.2.7 (Jul 16 2006)
  *
  * Common management module
  */

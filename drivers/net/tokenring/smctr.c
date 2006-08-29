@@ -5666,7 +5666,7 @@ module_param_array(io, int, NULL, 0);
 module_param_array(irq, int, NULL, 0);
 module_param(ringspeed, int, 0);
 
-static struct net_device *setup_card(int n)
+static struct net_device * __init setup_card(int n)
 {
 	struct net_device *dev = alloc_trdev(sizeof(struct net_local));
 	int err;
@@ -5696,9 +5696,8 @@ out:
 	free_netdev(dev);
 	return ERR_PTR(err);
 }
-			
 
-int init_module(void)
+int __init init_module(void)
 {
         int i, found = 0;
 	struct net_device *dev;
