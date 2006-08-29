@@ -31,8 +31,6 @@ static int cfq_slice_idle = HZ / 125;
 
 #define CFQ_KEY_ASYNC		(0)
 
-static DEFINE_SPINLOCK(cfq_exit_lock);
-
 /*
  * for the hash of cfqq inside the cfqd
  */
@@ -1084,12 +1082,6 @@ static void cfq_free_io_context(struct io_context *ioc)
 		complete(ioc_gone);
 }
 
-static void cfq_trim(struct io_context *ioc)
-{
-	ioc->set_ioprio = NULL;
-	cfq_free_io_context(ioc);
-}
-
 static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	if (unlikely(cfqq == cfqd->active_queue))
@@ -1101,6 +1093,10 @@ static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
 					 struct cfq_io_context *cic)
 {
+	list_del_init(&cic->queue_list);
+	smp_wmb();
+	cic->key = NULL;
+
 	if (cic->cfqq[ASYNC]) {
 		cfq_exit_cfqq(cfqd, cic->cfqq[ASYNC]);
 		cic->cfqq[ASYNC] = NULL;
@@ -1110,9 +1106,6 @@ static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
 		cfq_exit_cfqq(cfqd, cic->cfqq[SYNC]);
 		cic->cfqq[SYNC] = NULL;
 	}
-
-	cic->key = NULL;
-	list_del_init(&cic->queue_list);
 }
 
 
@@ -1123,27 +1116,23 @@ static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 {
 	struct cfq_data *cfqd = cic->key;
 
-	WARN_ON(!irqs_disabled());
-
 	if (cfqd) {
 		request_queue_t *q = cfqd->queue;
 
-		spin_lock(q->queue_lock);
+		spin_lock_irq(q->queue_lock);
 		__cfq_exit_single_io_context(cfqd, cic);
-		spin_unlock(q->queue_lock);
+		spin_unlock_irq(q->queue_lock);
 	}
 }
 
 static void cfq_exit_io_context(struct io_context *ioc)
 {
 	struct cfq_io_context *__cic;
-	unsigned long flags;
 	struct rb_node *n;
 
 	/*
 	 * put the reference this task is holding to the various queues
 	 */
-	spin_lock_irqsave(&cfq_exit_lock, flags);
 
 	n = rb_first(&ioc->cic_root);
 	while (n != NULL) {
@@ -1152,8 +1141,6 @@ static void cfq_exit_io_context(struct io_context *ioc)
 		cfq_exit_single_io_context(__cic);
 		n = rb_next(n);
 	}
-
-	spin_unlock_irqrestore(&cfq_exit_lock, flags);
 }
 
 static struct cfq_io_context *
@@ -1248,15 +1235,12 @@ static inline void changed_ioprio(struct cfq_io_context *cic)
 	spin_unlock(cfqd->queue->queue_lock);
 }
 
-/*
- * callback from sys_ioprio_set, irqs are disabled
- */
-static int cfq_ioc_set_ioprio(struct io_context *ioc, unsigned int ioprio)
+static void cfq_ioc_set_ioprio(struct io_context *ioc)
 {
 	struct cfq_io_context *cic;
 	struct rb_node *n;
 
-	spin_lock(&cfq_exit_lock);
+	ioc->ioprio_changed = 0;
 
 	n = rb_first(&ioc->cic_root);
 	while (n != NULL) {
@@ -1265,10 +1249,6 @@ static int cfq_ioc_set_ioprio(struct io_context *ioc, unsigned int ioprio)
 		changed_ioprio(cic);
 		n = rb_next(n);
 	}
-
-	spin_unlock(&cfq_exit_lock);
-
-	return 0;
 }
 
 static struct cfq_queue *
@@ -1336,10 +1316,8 @@ out:
 static void
 cfq_drop_dead_cic(struct io_context *ioc, struct cfq_io_context *cic)
 {
-	spin_lock(&cfq_exit_lock);
+	WARN_ON(!list_empty(&cic->queue_list));
 	rb_erase(&cic->rb_node, &ioc->cic_root);
-	list_del_init(&cic->queue_list);
-	spin_unlock(&cfq_exit_lock);
 	kmem_cache_free(cfq_ioc_pool, cic);
 	atomic_dec(&ioc_count);
 }
@@ -1385,7 +1363,6 @@ cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
 	cic->ioc = ioc;
 	cic->key = cfqd;
 
-	ioc->set_ioprio = cfq_ioc_set_ioprio;
 restart:
 	parent = NULL;
 	p = &ioc->cic_root.rb_node;
@@ -1407,11 +1384,12 @@ restart:
 			BUG();
 	}
 
-	spin_lock(&cfq_exit_lock);
 	rb_link_node(&cic->rb_node, parent, p);
 	rb_insert_color(&cic->rb_node, &ioc->cic_root);
+
+	spin_lock_irq(cfqd->queue->queue_lock);
 	list_add(&cic->queue_list, &cfqd->cic_list);
-	spin_unlock(&cfq_exit_lock);
+	spin_unlock_irq(cfqd->queue->queue_lock);
 }
 
 /*
@@ -1441,6 +1419,10 @@ cfq_get_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 
 	cfq_cic_link(cfqd, ioc, cic);
 out:
+	smp_read_barrier_depends();
+	if (unlikely(ioc->ioprio_changed))
+		cfq_ioc_set_ioprio(ioc);
+
 	return cic;
 err:
 	put_io_context(ioc);
@@ -1945,7 +1927,6 @@ static void cfq_exit_queue(elevator_t *e)
 
 	cfq_shutdown_timer_wq(cfqd);
 
-	spin_lock(&cfq_exit_lock);
 	spin_lock_irq(q->queue_lock);
 
 	if (cfqd->active_queue)
@@ -1960,7 +1941,6 @@ static void cfq_exit_queue(elevator_t *e)
 	}
 
 	spin_unlock_irq(q->queue_lock);
-	spin_unlock(&cfq_exit_lock);
 
 	cfq_shutdown_timer_wq(cfqd);
 
@@ -2149,7 +2129,7 @@ static struct elevator_type iosched_cfq = {
 		.elevator_may_queue_fn =	cfq_may_queue,
 		.elevator_init_fn =		cfq_init_queue,
 		.elevator_exit_fn =		cfq_exit_queue,
-		.trim =				cfq_trim,
+		.trim =				cfq_free_io_context,
 	},
 	.elevator_attrs =	cfq_attrs,
 	.elevator_name =	"cfq",

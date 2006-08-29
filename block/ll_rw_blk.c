@@ -3654,7 +3654,7 @@ struct io_context *current_io_context(gfp_t gfp_flags)
 	if (ret) {
 		atomic_set(&ret->refcount, 1);
 		ret->task = current;
-		ret->set_ioprio = NULL;
+		ret->ioprio_changed = 0;
 		ret->last_waited = jiffies; /* doesn't matter... */
 		ret->nr_batch_requests = 0; /* because this is 0 */
 		ret->aic = NULL;

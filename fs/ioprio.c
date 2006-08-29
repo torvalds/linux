@@ -47,8 +47,8 @@ static int set_task_ioprio(struct task_struct *task, int ioprio)
 	/* see wmb() in current_io_context() */
 	smp_read_barrier_depends();
 
-	if (ioc && ioc->set_ioprio)
-		ioc->set_ioprio(ioc, ioprio);
+	if (ioc)
+		ioc->ioprio_changed = 1;
 
 	task_unlock(task);
 	return 0;

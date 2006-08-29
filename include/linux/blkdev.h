@@ -90,7 +90,7 @@ struct io_context {
 	atomic_t refcount;
 	struct task_struct *task;
 
-	int (*set_ioprio)(struct io_context *, unsigned int);
+	unsigned int ioprio_changed;
 
 	/*
 	 * For request batching
