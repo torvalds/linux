@@ -3629,25 +3629,22 @@ EXPORT_SYMBOL(put_io_context);
 /* Called by the exitting task */
 void exit_io_context(void)
 {
-	unsigned long flags;
 	struct io_context *ioc;
 	struct cfq_io_context *cic;
 
-	local_irq_save(flags);
 	task_lock(current);
 	ioc = current->io_context;
 	current->io_context = NULL;
-	ioc->task = NULL;
 	task_unlock(current);
-	local_irq_restore(flags);
 
+	ioc->task = NULL;
 	if (ioc->aic && ioc->aic->exit)
 		ioc->aic->exit(ioc->aic);
 	if (ioc->cic_root.rb_node != NULL) {
 		cic = rb_entry(rb_first(&ioc->cic_root), struct cfq_io_context, rb_node);
 		cic->exit(ioc);
 	}
- 
+
 	put_io_context(ioc);
 }
 
