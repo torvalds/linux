@@ -161,16 +161,20 @@ static void show_stacktrace(struct task_struct *task, struct pt_regs *regs)
 static __always_inline void prepare_frametrace(struct pt_regs *regs)
 {
 	__asm__ __volatile__(
-		"1: la $2, 1b\n\t"
+		".set push\n\t"
+		".set noat\n\t"
 #ifdef CONFIG_64BIT
-		"sd $2, %0\n\t"
+		"1: dla $1, 1b\n\t"
+		"sd $1, %0\n\t"
 		"sd $29, %1\n\t"
 		"sd $31, %2\n\t"
 #else
-		"sw $2, %0\n\t"
+		"1: la $1, 1b\n\t"
+		"sw $1, %0\n\t"
 		"sw $29, %1\n\t"
 		"sw $31, %2\n\t"
 #endif
+		".set pop\n\t"
 		: "=m" (regs->cp0_epc),
 		"=m" (regs->regs[29]), "=m" (regs->regs[31])
 		: : "memory");
