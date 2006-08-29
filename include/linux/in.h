@@ -52,7 +52,7 @@ enum {
 
 /* Internet address. */
 struct in_addr {
-	__u32	s_addr;
+	__be32	s_addr;
 };
 
 #define IP_TOS		1
