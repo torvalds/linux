@@ -81,7 +81,12 @@ asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 	}
 
 	ret = -ESRCH;
-	read_lock_irq(&tasklist_lock);
+	/*
+	 * We want IOPRIO_WHO_PGRP/IOPRIO_WHO_USER to be "atomic",
+	 * so we can't use rcu_read_lock(). See re-copy of ->ioprio
+	 * in copy_process().
+	 */
+	read_lock(&tasklist_lock);
 	switch (which) {
 		case IOPRIO_WHO_PROCESS:
 			if (!who)
@@ -124,7 +129,7 @@ free_uid:
 			ret = -EINVAL;
 	}
 
-	read_unlock_irq(&tasklist_lock);
+	read_unlock(&tasklist_lock);
 	return ret;
 }
 
@@ -170,7 +175,7 @@ asmlinkage long sys_ioprio_get(int which, int who)
 	int ret = -ESRCH;
 	int tmpio;
 
-	read_lock_irq(&tasklist_lock);
+	read_lock(&tasklist_lock);
 	switch (which) {
 		case IOPRIO_WHO_PROCESS:
 			if (!who)
@@ -221,7 +226,7 @@ asmlinkage long sys_ioprio_get(int which, int who)
 			ret = -EINVAL;
 	}
 
-	read_unlock_irq(&tasklist_lock);
+	read_unlock(&tasklist_lock);
 	return ret;
 }
 
