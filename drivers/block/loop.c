@@ -66,6 +66,7 @@
 #include <linux/swap.h>
 #include <linux/slab.h>
 #include <linux/loop.h>
+#include <linux/compat.h>
 #include <linux/suspend.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>		/* for invalidate_bdev() */
@@ -1165,6 +1166,162 @@ static int lo_ioctl(struct inode * inode, struct file * file,
 	return err;
 }
 
+#ifdef CONFIG_COMPAT
+struct compat_loop_info {
+	compat_int_t	lo_number;      /* ioctl r/o */
+	compat_dev_t	lo_device;      /* ioctl r/o */
+	compat_ulong_t	lo_inode;       /* ioctl r/o */
+	compat_dev_t	lo_rdevice;     /* ioctl r/o */
+	compat_int_t	lo_offset;
+	compat_int_t	lo_encrypt_type;
+	compat_int_t	lo_encrypt_key_size;    /* ioctl w/o */
+	compat_int_t	lo_flags;       /* ioctl r/o */
+	char		lo_name[LO_NAME_SIZE];
+	unsigned char	lo_encrypt_key[LO_KEY_SIZE]; /* ioctl w/o */
+	compat_ulong_t	lo_init[2];
+	char		reserved[4];
+};
+
+/*
+ * Transfer 32-bit compatibility structure in userspace to 64-bit loop info
+ * - noinlined to reduce stack space usage in main part of driver
+ */
+static noinline int
+loop_info64_from_compat(const struct compat_loop_info *arg,
+			struct loop_info64 *info64)
+{
+	struct compat_loop_info info;
+
+	if (copy_from_user(&info, arg, sizeof(info)))
+		return -EFAULT;
+
+	memset(info64, 0, sizeof(*info64));
+	info64->lo_number = info.lo_number;
+	info64->lo_device = info.lo_device;
+	info64->lo_inode = info.lo_inode;
+	info64->lo_rdevice = info.lo_rdevice;
+	info64->lo_offset = info.lo_offset;
+	info64->lo_sizelimit = 0;
+	info64->lo_encrypt_type = info.lo_encrypt_type;
+	info64->lo_encrypt_key_size = info.lo_encrypt_key_size;
+	info64->lo_flags = info.lo_flags;
+	info64->lo_init[0] = info.lo_init[0];
+	info64->lo_init[1] = info.lo_init[1];
+	if (info.lo_encrypt_type == LO_CRYPT_CRYPTOAPI)
+		memcpy(info64->lo_crypt_name, info.lo_name, LO_NAME_SIZE);
+	else
+		memcpy(info64->lo_file_name, info.lo_name, LO_NAME_SIZE);
+	memcpy(info64->lo_encrypt_key, info.lo_encrypt_key, LO_KEY_SIZE);
+	return 0;
+}
+
+/*
+ * Transfer 64-bit loop info to 32-bit compatibility structure in userspace
+ * - noinlined to reduce stack space usage in main part of driver
+ */
+static noinline int
+loop_info64_to_compat(const struct loop_info64 *info64,
+		      struct compat_loop_info __user *arg)
+{
+	struct compat_loop_info info;
+
+	memset(&info, 0, sizeof(info));
+	info.lo_number = info64->lo_number;
+	info.lo_device = info64->lo_device;
+	info.lo_inode = info64->lo_inode;
+	info.lo_rdevice = info64->lo_rdevice;
+	info.lo_offset = info64->lo_offset;
+	info.lo_encrypt_type = info64->lo_encrypt_type;
+	info.lo_encrypt_key_size = info64->lo_encrypt_key_size;
+	info.lo_flags = info64->lo_flags;
+	info.lo_init[0] = info64->lo_init[0];
+	info.lo_init[1] = info64->lo_init[1];
+	if (info.lo_encrypt_type == LO_CRYPT_CRYPTOAPI)
+		memcpy(info.lo_name, info64->lo_crypt_name, LO_NAME_SIZE);
+	else
+		memcpy(info.lo_name, info64->lo_file_name, LO_NAME_SIZE);
+	memcpy(info.lo_encrypt_key, info64->lo_encrypt_key, LO_KEY_SIZE);
+
+	/* error in case values were truncated */
+	if (info.lo_device != info64->lo_device ||
+	    info.lo_rdevice != info64->lo_rdevice ||
+	    info.lo_inode != info64->lo_inode ||
+	    info.lo_offset != info64->lo_offset ||
+	    info.lo_init[0] != info64->lo_init[0] ||
+	    info.lo_init[1] != info64->lo_init[1])
+		return -EOVERFLOW;
+
+	if (copy_to_user(arg, &info, sizeof(info)))
+		return -EFAULT;
+	return 0;
+}
+
+static int
+loop_set_status_compat(struct loop_device *lo,
+		       const struct compat_loop_info __user *arg)
+{
+	struct loop_info64 info64;
+	int ret;
+
+	ret = loop_info64_from_compat(arg, &info64);
+	if (ret < 0)
+		return ret;
+	return loop_set_status(lo, &info64);
+}
+
+static int
+loop_get_status_compat(struct loop_device *lo,
+		       struct compat_loop_info __user *arg)
+{
+	struct loop_info64 info64;
+	int err = 0;
+
+	if (!arg)
+		err = -EINVAL;
+	if (!err)
+		err = loop_get_status(lo, &info64);
+	if (!err)
+		err = loop_info64_to_compat(&info64, arg);
+	return err;
+}
+
+static long lo_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
+	int err;
+
+	lock_kernel();
+	switch(cmd) {
+	case LOOP_SET_STATUS:
+		mutex_lock(&lo->lo_ctl_mutex);
+		err = loop_set_status_compat(
+			lo, (const struct compat_loop_info __user *) arg);
+		mutex_unlock(&lo->lo_ctl_mutex);
+		break;
+	case LOOP_GET_STATUS:
+		mutex_lock(&lo->lo_ctl_mutex);
+		err = loop_get_status_compat(
+			lo, (struct compat_loop_info __user *) arg);
+		mutex_unlock(&lo->lo_ctl_mutex);
+		break;
+	case LOOP_CLR_FD:
+	case LOOP_GET_STATUS64:
+	case LOOP_SET_STATUS64:
+		arg = (unsigned long) compat_ptr(arg);
+	case LOOP_SET_FD:
+	case LOOP_CHANGE_FD:
+		err = lo_ioctl(inode, file, cmd, arg);
+		break;
+	default:
+		err = -ENOIOCTLCMD;
+		break;
+	}
+	unlock_kernel();
+	return err;
+}
+#endif
+
 static int lo_open(struct inode *inode, struct file *file)
 {
 	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
@@ -1192,6 +1349,9 @@ static struct block_device_operations lo_fops = {
 	.open =		lo_open,
 	.release =	lo_release,
 	.ioctl =	lo_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =	lo_compat_ioctl,
+#endif
 };
 
 /*
