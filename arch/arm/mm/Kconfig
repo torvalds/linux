@@ -46,7 +46,7 @@ config CPU_ARM710
 config CPU_ARM720T
 	bool "Support ARM720T processor" if !ARCH_CLPS711X && !ARCH_L7200 && !ARCH_CDB89712 && ARCH_INTEGRATOR
 	default y if ARCH_CLPS711X || ARCH_L7200 || ARCH_CDB89712 || ARCH_H720X
-	select CPU_32v4
+	select CPU_32v4T
 	select CPU_ABRT_LV4T
 	select CPU_CACHE_V4
 	select CPU_CACHE_VIVT
@@ -64,7 +64,7 @@ config CPU_ARM920T
 	bool "Support ARM920T processor"
 	depends on ARCH_EP93XX || ARCH_INTEGRATOR || CPU_S3C2410 || CPU_S3C2440 || CPU_S3C2442 || ARCH_IMX || ARCH_AAEC2000 || ARCH_AT91RM9200
 	default y if CPU_S3C2410 || CPU_S3C2440 || CPU_S3C2442 || ARCH_AT91RM9200
-	select CPU_32v4
+	select CPU_32v4T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
@@ -85,7 +85,7 @@ config CPU_ARM922T
 	bool "Support ARM922T processor" if ARCH_INTEGRATOR
 	depends on ARCH_LH7A40X || ARCH_INTEGRATOR
 	default y if ARCH_LH7A40X
-	select CPU_32v4
+	select CPU_32v4T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
@@ -104,7 +104,7 @@ config CPU_ARM925T
  	bool "Support ARM925T processor" if ARCH_OMAP1
  	depends on ARCH_OMAP15XX
  	default y if ARCH_OMAP15XX
-	select CPU_32v4
+	select CPU_32v4T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
@@ -281,6 +281,11 @@ config CPU_32v3
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v4
+	bool
+	select TLS_REG_EMUL if SMP || !MMU
+	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
+
+config CPU_32v4T
 	bool
 	select TLS_REG_EMUL if SMP || !MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
