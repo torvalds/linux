@@ -84,6 +84,7 @@ EXPORT_SYMBOL(journal_force_commit);
 
 static int journal_convert_superblock_v1(journal_t *, journal_superblock_t *);
 static void __journal_abort_soft (journal_t *journal, int errno);
+static int journal_create_jbd_slab(size_t slab_size);
 
 /*
  * Helper function used to manage commit timeouts
@@ -328,10 +329,10 @@ repeat:
 		char *tmp;
 
 		jbd_unlock_bh_state(bh_in);
-		tmp = jbd_rep_kmalloc(bh_in->b_size, GFP_NOFS);
+		tmp = jbd_slab_alloc(bh_in->b_size, GFP_NOFS);
 		jbd_lock_bh_state(bh_in);
 		if (jh_in->b_frozen_data) {
-			kfree(tmp);
+			jbd_slab_free(tmp, bh_in->b_size);
 			goto repeat;
 		}
 
@@ -1069,17 +1070,17 @@ static int load_superblock(journal_t *journal)
 int journal_load(journal_t *journal)
 {
 	int err;
+	journal_superblock_t *sb;
 
 	err = load_superblock(journal);
 	if (err)
 		return err;
 
+	sb = journal->j_superblock;
 	/* If this is a V2 superblock, then we have to check the
 	 * features flags on it. */
 
 	if (journal->j_format_version >= 2) {
-		journal_superblock_t *sb = journal->j_superblock;
-
 		if ((sb->s_feature_ro_compat &
 		     ~cpu_to_be32(JFS_KNOWN_ROCOMPAT_FEATURES)) ||
 		    (sb->s_feature_incompat &
@@ -1089,6 +1090,13 @@ int journal_load(journal_t *journal)
 			return -EINVAL;
 		}
 	}
+
+	/*
+	 * Create a slab for this blocksize
+	 */
+	err = journal_create_jbd_slab(cpu_to_be32(sb->s_blocksize));
+	if (err)
+		return err;
 
 	/* Let the recovery code check whether it needs to recover any
 	 * data from the journal. */
@@ -1612,6 +1620,77 @@ void * __jbd_kmalloc (const char *where, size_t size, gfp_t flags, int retry)
 }
 
 /*
+ * jbd slab management: create 1k, 2k, 4k, 8k slabs as needed
+ * and allocate frozen and commit buffers from these slabs.
+ *
+ * Reason for doing this is to avoid, SLAB_DEBUG - since it could
+ * cause bh to cross page boundary.
+ */
+
+#define JBD_MAX_SLABS 5
+#define JBD_SLAB_INDEX(size)  (size >> 11)
+
+static kmem_cache_t *jbd_slab[JBD_MAX_SLABS];
+static const char *jbd_slab_names[JBD_MAX_SLABS] = {
+	"jbd_1k", "jbd_2k", "jbd_4k", NULL, "jbd_8k"
+};
+
+static void journal_destroy_jbd_slabs(void)
+{
+	int i;
+
+	for (i = 0; i < JBD_MAX_SLABS; i++) {
+		if (jbd_slab[i])
+			kmem_cache_destroy(jbd_slab[i]);
+		jbd_slab[i] = NULL;
+	}
+}
+
+static int journal_create_jbd_slab(size_t slab_size)
+{
+	int i = JBD_SLAB_INDEX(slab_size);
+
+	BUG_ON(i >= JBD_MAX_SLABS);
+
+	/*
+	 * Check if we already have a slab created for this size
+	 */
+	if (jbd_slab[i])
+		return 0;
+
+	/*
+	 * Create a slab and force alignment to be same as slabsize -
+	 * this will make sure that allocations won't cross the page
+	 * boundary.
+	 */
+	jbd_slab[i] = kmem_cache_create(jbd_slab_names[i],
+				slab_size, slab_size, 0, NULL, NULL);
+	if (!jbd_slab[i]) {
+		printk(KERN_EMERG "JBD: no memory for jbd_slab cache\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+void * jbd_slab_alloc(size_t size, gfp_t flags)
+{
+	int idx;
+
+	idx = JBD_SLAB_INDEX(size);
+	BUG_ON(jbd_slab[idx] == NULL);
+	return kmem_cache_alloc(jbd_slab[idx], flags | __GFP_NOFAIL);
+}
+
+void jbd_slab_free(void *ptr,  size_t size)
+{
+	int idx;
+
+	idx = JBD_SLAB_INDEX(size);
+	BUG_ON(jbd_slab[idx] == NULL);
+	kmem_cache_free(jbd_slab[idx], ptr);
+}
+
+/*
  * Journal_head storage management
  */
 static kmem_cache_t *journal_head_cache;
@@ -1799,13 +1878,13 @@ static void __journal_remove_journal_head(struct buffer_head *bh)
 				printk(KERN_WARNING "%s: freeing "
 						"b_frozen_data\n",
 						__FUNCTION__);
-				kfree(jh->b_frozen_data);
+				jbd_slab_free(jh->b_frozen_data, bh->b_size);
 			}
 			if (jh->b_committed_data) {
 				printk(KERN_WARNING "%s: freeing "
 						"b_committed_data\n",
 						__FUNCTION__);
-				kfree(jh->b_committed_data);
+				jbd_slab_free(jh->b_committed_data, bh->b_size);
 			}
 			bh->b_private = NULL;
 			jh->b_bh = NULL;	/* debug, really */
@@ -1961,6 +2040,7 @@ static void journal_destroy_caches(void)
 	journal_destroy_revoke_caches();
 	journal_destroy_journal_head_cache();
 	journal_destroy_handle_cache();
+	journal_destroy_jbd_slabs();
 }
 
 static int __init journal_init(void)

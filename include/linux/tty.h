@@ -59,6 +59,7 @@ struct tty_bufhead {
 	struct tty_buffer *head;	/* Queue head */
 	struct tty_buffer *tail;	/* Active buffer */
 	struct tty_buffer *free;	/* Free queue head */
+	int memory_used;		/* Buffer space used excluding free queue */
 };
 /*
  * The pty uses char_buf and flag_buf as a contiguous buffer

@@ -204,6 +204,8 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	/*
 	 * Allocate the buffer map to keep the superblock small.
 	 */
+	if (sbi->s_imap_blocks == 0 || sbi->s_zmap_blocks == 0)
+		goto out_illegal_sb;
 	i = (sbi->s_imap_blocks + sbi->s_zmap_blocks) * sizeof(bh);
 	map = kmalloc(i, GFP_KERNEL);
 	if (!map)
@@ -263,7 +265,7 @@ out_no_root:
 
 out_no_bitmap:
 	printk("MINIX-fs: bad superblock or unable to read bitmaps\n");
-    out_freemap:
+out_freemap:
 	for (i = 0; i < sbi->s_imap_blocks; i++)
 		brelse(sbi->s_imap[i]);
 	for (i = 0; i < sbi->s_zmap_blocks; i++)
@@ -276,11 +278,16 @@ out_no_map:
 		printk("MINIX-fs: can't allocate map\n");
 	goto out_release;
 
+out_illegal_sb:
+	if (!silent)
+		printk("MINIX-fs: bad superblock\n");
+	goto out_release;
+
 out_no_fs:
 	if (!silent)
 		printk("VFS: Can't find a Minix or Minix V2 filesystem "
 			"on device %s\n", s->s_id);
-    out_release:
+out_release:
 	brelse(bh);
 	goto out;
 
@@ -290,7 +297,7 @@ out_bad_hblock:
 
 out_bad_sb:
 	printk("MINIX-fs: unable to read superblock\n");
- out:
+out:
 	s->s_fs_info = NULL;
 	kfree(sbi);
 	return -EINVAL;

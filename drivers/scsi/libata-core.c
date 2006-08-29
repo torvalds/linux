@@ -2746,7 +2746,7 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 		if ((rc = sata_scr_read(ap, SCR_CONTROL, &scontrol)))
 			return rc;
 
-		scontrol = (scontrol & 0x0f0) | 0x302;
+		scontrol = (scontrol & 0x0f0) | 0x304;
 
 		if ((rc = sata_scr_write(ap, SCR_CONTROL, scontrol)))
 			return rc;

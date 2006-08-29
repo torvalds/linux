@@ -14,8 +14,12 @@ static __init int pci_access_init(void)
 #ifdef CONFIG_PCI_BIOS
 	pci_pcbios_init();
 #endif
-	if (raw_pci_ops)
-		return 0;
+	/*
+	 * don't check for raw_pci_ops here because we want pcbios as last
+	 * fallback, yet it's needed to run first to set pcibios_last_bus
+	 * in case legacy PCI probing is used. otherwise detecting peer busses
+	 * fails.
+	 */
 #ifdef CONFIG_PCI_DIRECT
 	pci_direct_init();
 #endif

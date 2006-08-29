@@ -806,38 +806,26 @@ no_mem:
 
 /* Helper to create ABORT with a SCTP_ERROR_USER_ABORT error.  */
 struct sctp_chunk *sctp_make_abort_user(const struct sctp_association *asoc,
-				   const struct sctp_chunk *chunk,
-				   const struct msghdr *msg)
+					const struct msghdr *msg,
+					size_t paylen)
 {
 	struct sctp_chunk *retval;
-	void *payload = NULL, *payoff;
-	size_t paylen = 0;
-	struct iovec *iov = NULL;
-	int iovlen = 0;
+	void *payload = NULL;
+	int err;
 
-	if (msg) {
-		iov = msg->msg_iov;
-		iovlen = msg->msg_iovlen;
-		paylen = get_user_iov_size(iov, iovlen);
-	}
-
-	retval = sctp_make_abort(asoc, chunk, sizeof(sctp_errhdr_t) + paylen);
+	retval = sctp_make_abort(asoc, NULL, sizeof(sctp_errhdr_t) + paylen);
 	if (!retval)
 		goto err_chunk;
 
 	if (paylen) {
 		/* Put the msg_iov together into payload.  */
-		payload = kmalloc(paylen, GFP_ATOMIC);
+		payload = kmalloc(paylen, GFP_KERNEL);
 		if (!payload)
 			goto err_payload;
-		payoff = payload;
 
-		for (; iovlen > 0; --iovlen) {
-			if (copy_from_user(payoff, iov->iov_base,iov->iov_len))
-				goto err_copy;
-			payoff += iov->iov_len;
-			iov++;
-		}
+		err = memcpy_fromiovec(payload, msg->msg_iov, paylen);
+		if (err < 0)
+			goto err_copy;
 	}
 
 	sctp_init_cause(retval, SCTP_ERROR_USER_ABORT, payload, paylen);

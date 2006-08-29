@@ -21,6 +21,7 @@
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -841,6 +842,21 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	return 0;
 }
 
+static void
+lpfc_block_error_handler(struct scsi_cmnd *cmnd)
+{
+	struct Scsi_Host *shost = cmnd->device->host;
+	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
+
+	spin_lock_irq(shost->host_lock);
+	while (rport->port_state == FC_PORTSTATE_BLOCKED) {
+		spin_unlock_irq(shost->host_lock);
+		msleep(1000);
+		spin_lock_irq(shost->host_lock);
+	}
+	spin_unlock_irq(shost->host_lock);
+	return;
+}
 
 static int
 lpfc_abort_handler(struct scsi_cmnd *cmnd)
@@ -855,6 +871,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	unsigned int loop_count = 0;
 	int ret = SUCCESS;
 
+	lpfc_block_error_handler(cmnd);
 	spin_lock_irq(shost->host_lock);
 
 	lpfc_cmd = (struct lpfc_scsi_buf *)cmnd->host_scribble;
@@ -957,6 +974,7 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	int ret = FAILED;
 	int cnt, loopcnt;
 
+	lpfc_block_error_handler(cmnd);
 	spin_lock_irq(shost->host_lock);
 	/*
 	 * If target is not in a MAPPED state, delay the reset until
@@ -1073,6 +1091,7 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 	int cnt, loopcnt;
 	struct lpfc_scsi_buf * lpfc_cmd;
 
+	lpfc_block_error_handler(cmnd);
 	spin_lock_irq(shost->host_lock);
 
 	lpfc_cmd = lpfc_get_scsi_buf(phba);
@@ -1104,7 +1123,7 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 					  ndlp->rport->dd_data);
 		if (ret != SUCCESS) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-				"%d:0713 Bus Reset on target %d failed\n",
+				"%d:0700 Bus Reset on target %d failed\n",
 				phba->brd_no, i);
 			err_count++;
 		}

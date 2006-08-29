@@ -62,8 +62,8 @@ ramfs-rootfs-initramfs.txt
 	- info on the 'in memory' filesystems ramfs, rootfs and initramfs.
 reiser4.txt
 	- info on the Reiser4 filesystem based on dancing tree algorithms.
-relayfs.txt
-	- info on relayfs, for efficient streaming from kernel to user space.
+relay.txt
+	- info on relay, for efficient streaming from kernel to user space.
 romfs.txt
 	- description of the ROMFS filesystem.
 smbfs.txt

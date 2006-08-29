@@ -57,8 +57,6 @@ struct sockaddr;
  * @stop_conn:		suspend/recover/terminate connection
  * @send_pdu:		send iSCSI PDU, Login, Logout, NOP-Out, Reject, Text.
  * @session_recovery_timedout: notify LLD a block during recovery timed out
- * @suspend_conn_recv:	susepend the recv side of the connection
- * @termincate_conn:	destroy socket connection. Called with mutex lock.
  * @init_cmd_task:	Initialize a iscsi_cmd_task and any internal structs.
  *			Called from queuecommand with session lock held.
  * @init_mgmt_task:	Initialize a iscsi_mgmt_task and any internal structs.
@@ -112,8 +110,6 @@ struct iscsi_transport {
 			 char *data, uint32_t data_size);
 	void (*get_stats) (struct iscsi_cls_conn *conn,
 			   struct iscsi_stats *stats);
-	void (*suspend_conn_recv) (struct iscsi_conn *conn);
-	void (*terminate_conn) (struct iscsi_conn *conn);
 	void (*init_cmd_task) (struct iscsi_cmd_task *ctask);
 	void (*init_mgmt_task) (struct iscsi_conn *conn,
 				struct iscsi_mgmt_task *mtask,

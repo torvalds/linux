@@ -3063,6 +3063,7 @@ qla2x00_update_fcports(scsi_qla_host_t *ha)
 int
 qla2x00_abort_isp(scsi_qla_host_t *ha)
 {
+	int rval;
 	unsigned long flags = 0;
 	uint16_t       cnt;
 	srb_t          *sp;
@@ -3119,6 +3120,16 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 
 			ha->isp_abort_cnt = 0;
 			clear_bit(ISP_ABORT_RETRY, &ha->dpc_flags);
+
+			if (ha->eft) {
+				rval = qla2x00_trace_control(ha, TC_ENABLE,
+				    ha->eft_dma, EFT_NUM_BUFFERS);
+				if (rval) {
+					qla_printk(KERN_WARNING, ha,
+					    "Unable to reinitialize EFT "
+					    "(%d).\n", rval);
+				}
+			}
 		} else {	/* failed the ISP abort */
 			ha->flags.online = 1;
 			if (test_bit(ISP_ABORT_RETRY, &ha->dpc_flags)) {

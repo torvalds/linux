@@ -1168,7 +1168,7 @@ static int ep_unlink(struct eventpoll *ep, struct epitem *epi)
 eexit_1:
 
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: ep_unlink(%p, %p) = %d\n",
-		     current, ep, epi->file, error));
+		     current, ep, epi->ffd.file, error));
 
 	return error;
 }
@@ -1236,7 +1236,7 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 	struct eventpoll *ep = epi->ep;
 
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: poll_callback(%p) epi=%p ep=%p\n",
-		     current, epi->file, epi, ep));
+		     current, epi->ffd.file, epi, ep));
 
 	write_lock_irqsave(&ep->lock, flags);
 

@@ -659,7 +659,7 @@ struct nfs4_rename_res {
 struct nfs4_setclientid {
 	const nfs4_verifier *		sc_verifier;      /* request */
 	unsigned int			sc_name_len;
-	char				sc_name[32];	  /* request */
+	char				sc_name[48];	  /* request */
 	u32				sc_prog;          /* request */
 	unsigned int			sc_netid_len;
 	char				sc_netid[4];	  /* request */

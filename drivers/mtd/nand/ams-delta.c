@@ -130,11 +130,13 @@ static void ams_delta_hwcontrol(struct mtd_info *mtd, int cmd,
 	if (ctrl & NAND_CTRL_CHANGE) {
 		unsigned long bits;
 
-		bits = (~ctrl & NAND_NCE) << 2;
-		bits |= (ctrl & NAND_CLE) << 7;
-		bits |= (ctrl & NAND_ALE) << 6;
+		bits = (~ctrl & NAND_NCE) ? AMS_DELTA_LATCH2_NAND_NCE : 0;
+		bits |= (ctrl & NAND_CLE) ? AMS_DELTA_LATCH2_NAND_CLE : 0;
+		bits |= (ctrl & NAND_ALE) ? AMS_DELTA_LATCH2_NAND_ALE : 0;
 
-		ams_delta_latch2_write(0xC2, bits);
+		ams_delta_latch2_write(AMS_DELTA_LATCH2_NAND_CLE |
+				AMS_DELTA_LATCH2_NAND_ALE |
+				AMS_DELTA_LATCH2_NAND_NCE, bits);
 	}
 
 	if (cmd != NAND_CMD_NONE)
