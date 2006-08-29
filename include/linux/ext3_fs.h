@@ -233,6 +233,8 @@ struct ext3_new_group_data {
 /*
  * ioctl commands in 32 bit emulation
  */
+#define EXT3_IOC32_GETFLAGS		FS_IOC32_GETFLAGS
+#define EXT3_IOC32_SETFLAGS		FS_IOC32_SETFLAGS
 #define EXT3_IOC32_GETVERSION		_IOR('f', 3, int)
 #define EXT3_IOC32_SETVERSION		_IOW('f', 4, int)
 #define EXT3_IOC32_GETRSVSZ		_IOR('f', 5, int)
@@ -241,6 +243,9 @@ struct ext3_new_group_data {
 #ifdef CONFIG_JBD_DEBUG
 #define EXT3_IOC32_WAIT_FOR_READONLY	_IOR('f', 99, int)
 #endif
+#define EXT3_IOC32_GETVERSION_OLD	FS_IOC32_GETVERSION
+#define EXT3_IOC32_SETVERSION_OLD	FS_IOC32_SETVERSION
+
 
 /*
  *  Mount options
@@ -824,6 +829,7 @@ extern void ext3_set_aops(struct inode *inode);
 /* ioctl.c */
 extern int ext3_ioctl (struct inode *, struct file *, unsigned int,
 		       unsigned long);
+extern long ext3_compat_ioctl (struct file *, unsigned int, unsigned long);
 
 /* namei.c */
 extern int ext3_orphan_add(handle_t *, struct inode *);

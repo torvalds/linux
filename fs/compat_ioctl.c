@@ -45,8 +45,6 @@
 #include <linux/tty.h>
 #include <linux/vt_kern.h>
 #include <linux/fb.h>
-#include <linux/ext3_jbd.h>
-#include <linux/ext3_fs.h>
 #include <linux/videodev.h>
 #include <linux/netdevice.h>
 #include <linux/raw.h>
@@ -156,22 +154,6 @@ static int rw_long(unsigned int fd, unsigned int cmd, unsigned long arg)
 	if (!err && put_user(val, argptr))
 		return -EFAULT;
 	return err;
-}
-
-static int do_ext3_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	/* These are just misnamed, they actually get/put from/to user an int */
-	switch (cmd) {
-	case EXT3_IOC32_GETVERSION: cmd = EXT3_IOC_GETVERSION; break;
-	case EXT3_IOC32_SETVERSION: cmd = EXT3_IOC_SETVERSION; break;
-	case EXT3_IOC32_GETRSVSZ: cmd = EXT3_IOC_GETRSVSZ; break;
-	case EXT3_IOC32_SETRSVSZ: cmd = EXT3_IOC_SETRSVSZ; break;
-	case EXT3_IOC32_GROUP_EXTEND: cmd = EXT3_IOC_GROUP_EXTEND; break;
-#ifdef CONFIG_JBD_DEBUG
-	case EXT3_IOC32_WAIT_FOR_READONLY: cmd = EXT3_IOC_WAIT_FOR_READONLY; break;
-#endif
-	}
-	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
 }
 
 struct compat_video_event {
@@ -2711,15 +2693,6 @@ HANDLE_IOCTL(GIO_FONTX, do_fontx_ioctl)
 HANDLE_IOCTL(PIO_UNIMAP, do_unimap_ioctl)
 HANDLE_IOCTL(GIO_UNIMAP, do_unimap_ioctl)
 HANDLE_IOCTL(KDFONTOP, do_kdfontop_ioctl)
-#endif
-HANDLE_IOCTL(EXT3_IOC32_GETVERSION, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_SETVERSION, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_GETRSVSZ, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_SETRSVSZ, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_GROUP_EXTEND, do_ext3_ioctl)
-COMPATIBLE_IOCTL(EXT3_IOC_GROUP_ADD)
-#ifdef CONFIG_JBD_DEBUG
-HANDLE_IOCTL(EXT3_IOC32_WAIT_FOR_READONLY, do_ext3_ioctl)
 #endif
 /* One SMB ioctl needs translations. */
 #define SMB_IOC_GETMOUNTUID_32 _IOR('u', 1, compat_uid_t)

@@ -114,6 +114,9 @@ const struct file_operations ext3_file_operations = {
 	.readv		= generic_file_readv,
 	.writev		= generic_file_writev,
 	.ioctl		= ext3_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ext3_compat_ioctl,
+#endif
 	.mmap		= generic_file_mmap,
 	.open		= generic_file_open,
 	.release	= ext3_release_file,
