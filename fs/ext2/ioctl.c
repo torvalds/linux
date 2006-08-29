@@ -11,6 +11,8 @@
 #include <linux/capability.h>
 #include <linux/time.h>
 #include <linux/sched.h>
+#include <linux/compat.h>
+#include <linux/smp_lock.h>
 #include <asm/current.h>
 #include <asm/uaccess.h>
 
@@ -80,3 +82,33 @@ int ext2_ioctl (struct inode * inode, struct file * filp, unsigned int cmd,
 		return -ENOTTY;
 	}
 }
+
+#ifdef CONFIG_COMPAT
+long ext2_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	int ret;
+
+	/* These are just misnamed, they actually get/put from/to user an int */
+	switch (cmd) {
+	case EXT2_IOC32_GETFLAGS:
+		cmd = EXT2_IOC_GETFLAGS;
+		break;
+	case EXT2_IOC32_SETFLAGS:
+		cmd = EXT2_IOC_SETFLAGS;
+		break;
+	case EXT2_IOC32_GETVERSION:
+		cmd = EXT2_IOC_GETVERSION;
+		break;
+	case EXT2_IOC32_SETVERSION:
+		cmd = EXT2_IOC_SETVERSION;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+	lock_kernel();
+	ret = ext2_ioctl(inode, file, cmd, (unsigned long) compat_ptr(arg));
+	unlock_kernel();
+	return ret;
+}
+#endif

@@ -45,7 +45,6 @@
 #include <linux/tty.h>
 #include <linux/vt_kern.h>
 #include <linux/fb.h>
-#include <linux/ext2_fs.h>
 #include <linux/ext3_jbd.h>
 #include <linux/ext3_fs.h>
 #include <linux/videodev.h>
@@ -157,18 +156,6 @@ static int rw_long(unsigned int fd, unsigned int cmd, unsigned long arg)
 	if (!err && put_user(val, argptr))
 		return -EFAULT;
 	return err;
-}
-
-static int do_ext2_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	/* These are just misnamed, they actually get/put from/to user an int */
-	switch (cmd) {
-	case EXT2_IOC32_GETFLAGS: cmd = EXT2_IOC_GETFLAGS; break;
-	case EXT2_IOC32_SETFLAGS: cmd = EXT2_IOC_SETFLAGS; break;
-	case EXT2_IOC32_GETVERSION: cmd = EXT2_IOC_GETVERSION; break;
-	case EXT2_IOC32_SETVERSION: cmd = EXT2_IOC_SETVERSION; break;
-	}
-	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
 }
 
 static int do_ext3_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
@@ -2725,10 +2712,6 @@ HANDLE_IOCTL(PIO_UNIMAP, do_unimap_ioctl)
 HANDLE_IOCTL(GIO_UNIMAP, do_unimap_ioctl)
 HANDLE_IOCTL(KDFONTOP, do_kdfontop_ioctl)
 #endif
-HANDLE_IOCTL(EXT2_IOC32_GETFLAGS, do_ext2_ioctl)
-HANDLE_IOCTL(EXT2_IOC32_SETFLAGS, do_ext2_ioctl)
-HANDLE_IOCTL(EXT2_IOC32_GETVERSION, do_ext2_ioctl)
-HANDLE_IOCTL(EXT2_IOC32_SETVERSION, do_ext2_ioctl)
 HANDLE_IOCTL(EXT3_IOC32_GETVERSION, do_ext3_ioctl)
 HANDLE_IOCTL(EXT3_IOC32_SETVERSION, do_ext3_ioctl)
 HANDLE_IOCTL(EXT3_IOC32_GETRSVSZ, do_ext3_ioctl)
