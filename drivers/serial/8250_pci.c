@@ -936,6 +936,7 @@ enum pci_board_num_t {
 	pbn_b1_8_1382400,
 
 	pbn_b2_1_115200,
+	pbn_b2_2_115200,
 	pbn_b2_8_115200,
 
 	pbn_b2_1_460800,
@@ -1240,6 +1241,12 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 	[pbn_b2_1_115200] = {
 		.flags		= FL_BASE2,
 		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[pbn_b2_2_115200] = {
+		.flags		= FL_BASE2,
+		.num_ports	= 2,
 		.base_baud	= 115200,
 		.uart_offset	= 8,
 	},
@@ -2338,6 +2345,13 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_TOPIC, PCI_DEVICE_ID_TOPIC_TP560,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b0_1_115200 },
+
+	/*
+	 * IntaShield IS-200
+	 */
+	{	PCI_VENDOR_ID_INTASHIELD, PCI_DEVICE_ID_INTASHIELD_IS200,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,	/* 135a.0811 */
+		pbn_b2_2_115200 },
 
 	/*
 	 * These entries match devices with class COMMUNICATION_SERIAL,
