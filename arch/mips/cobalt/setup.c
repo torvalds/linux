@@ -23,7 +23,6 @@
 #include <asm/processor.h>
 #include <asm/reboot.h>
 #include <asm/gt64120.h>
-#include <asm/serial.h>
 
 #include <asm/mach-cobalt/cobalt.h>
 
