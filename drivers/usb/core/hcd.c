@@ -1431,50 +1431,6 @@ int hcd_bus_resume (struct usb_bus *bus)
 	return status;
 }
 
-/*
- * usb_hcd_suspend_root_hub - HCD autosuspends downstream ports
- * @hcd: host controller for this root hub
- *
- * This call arranges that usb_hcd_resume_root_hub() is safe to call later;
- * that the HCD's root hub polling is deactivated; and that the root's hub
- * driver is suspended.  HCDs may call this to autosuspend when their root
- * hub's downstream ports are all inactive:  unpowered, disconnected,
- * disabled, or suspended.
- *
- * The HCD will autoresume on device connect change detection (using SRP
- * or a D+/D- pullup).  The HCD also autoresumes on remote wakeup signaling
- * from any ports that are suspended (if that is enabled).  In most cases,
- * overcurrent signaling (on powered ports) will also start autoresume.
- *
- * Always called with IRQs blocked.
- */
-void usb_hcd_suspend_root_hub (struct usb_hcd *hcd)
-{
-	struct urb	*urb;
-
-	spin_lock (&hcd_root_hub_lock);
-	usb_suspend_root_hub (hcd->self.root_hub);
-
-	/* force status urb to complete/unlink while suspended */
-	if (hcd->status_urb) {
-		urb = hcd->status_urb;
-		urb->status = -ECONNRESET;
-		urb->hcpriv = NULL;
-		urb->actual_length = 0;
-
-		del_timer (&hcd->rh_timer);
-		hcd->poll_pending = 0;
-		hcd->status_urb = NULL;
-	} else
-		urb = NULL;
-	spin_unlock (&hcd_root_hub_lock);
-	hcd->state = HC_STATE_SUSPENDED;
-
-	if (urb)
-		usb_hcd_giveback_urb (hcd, urb, NULL);
-}
-EXPORT_SYMBOL_GPL(usb_hcd_suspend_root_hub);
-
 /**
  * usb_hcd_resume_root_hub - called by HCD to resume its root hub 
  * @hcd: host controller for this root hub

@@ -452,18 +452,14 @@ static void hub_power_on(struct usb_hub *hub)
 	msleep(max(pgood_delay, (unsigned) 100));
 }
 
-static inline void __hub_quiesce(struct usb_hub *hub)
+static void hub_quiesce(struct usb_hub *hub)
 {
 	/* (nonblocking) khubd and related activity won't re-trigger */
 	hub->quiescing = 1;
 	hub->activating = 0;
 	hub->resume_root_hub = 0;
-}
 
-static void hub_quiesce(struct usb_hub *hub)
-{
 	/* (blocking) stop khubd and related activity */
-	__hub_quiesce(hub);
 	usb_kill_urb(hub->urb);
 	if (hub->has_indicators)
 		cancel_delayed_work(&hub->leds);
@@ -1913,18 +1909,6 @@ static inline int remote_wakeup(struct usb_device *udev)
 #define hub_suspend NULL
 #define hub_resume NULL
 #endif
-
-void usb_suspend_root_hub(struct usb_device *hdev)
-{
-	struct usb_hub *hub = hdev_to_hub(hdev);
-
-	/* This also makes any led blinker stop retriggering.  We're called
-	 * from irq, so the blinker might still be scheduled.  Caller promises
-	 * that the root hub status URB will be canceled.
-	 */
-	__hub_quiesce(hub);
-	mark_quiesced(to_usb_interface(hub->intfdev));
-}
 
 void usb_resume_root_hub(struct usb_device *hdev)
 {

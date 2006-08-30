@@ -368,17 +368,11 @@ extern int usb_find_interface_driver (struct usb_device *dev,
 #define usb_endpoint_out(ep_dir)	(!((ep_dir) & USB_DIR_IN))
 
 #ifdef CONFIG_PM
-extern void usb_hcd_suspend_root_hub (struct usb_hcd *hcd);
 extern void usb_hcd_resume_root_hub (struct usb_hcd *hcd);
 extern void usb_root_hub_lost_power (struct usb_device *rhdev);
 extern int hcd_bus_suspend (struct usb_bus *bus);
 extern int hcd_bus_resume (struct usb_bus *bus);
 #else
-static inline void usb_hcd_suspend_root_hub(struct usb_hcd *hcd)
-{
-	return;
-}
-
 static inline void usb_hcd_resume_root_hub(struct usb_hcd *hcd)
 {
 	return;

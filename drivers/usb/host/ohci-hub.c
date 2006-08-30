@@ -135,9 +135,6 @@ static int ohci_bus_suspend (struct usb_hcd *hcd)
 	hcd->poll_rh = 0;
 
 done:
-	/* external suspend vs self autosuspend ... same effect */
-	if (status == 0)
-		usb_hcd_suspend_root_hub(hcd);
 	spin_unlock_irqrestore (&ohci->lock, flags);
 	return status;
 }
