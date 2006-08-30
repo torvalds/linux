@@ -2617,7 +2617,7 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 }
 
 /**
- * selinux_netlbl_socket_peersid - Return the peer SID of a connected socket
+ * selinux_netlbl_socket_getpeersec_stream - Return the connected peer's SID
  * @sock: the socket
  *
  * Description:
