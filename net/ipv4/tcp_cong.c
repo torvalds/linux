@@ -189,7 +189,7 @@ void tcp_slow_start(struct tcp_sock *tp)
 			return;
 
 		/* We MAY increase by 2 if discovered delayed ack */
-		if (sysctl_tcp_abc > 1 && tp->bytes_acked > 2*tp->mss_cache) {
+		if (sysctl_tcp_abc > 1 && tp->bytes_acked >= 2*tp->mss_cache) {
 			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
 				tp->snd_cwnd++;
 		}
