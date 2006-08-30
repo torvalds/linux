@@ -28,7 +28,7 @@ static struct tcf_common *tcf_simp_ht[SIMP_TAB_MASK + 1];
 static u32 simp_idx_gen;
 static DEFINE_RWLOCK(simp_lock);
 
-struct tcf_hashinfo simp_hash_info = {
+static struct tcf_hashinfo simp_hash_info = {
 	.htab	=	tcf_simp_ht,
 	.hmask	=	SIMP_TAB_MASK,
 	.lock	=	&simp_lock,
