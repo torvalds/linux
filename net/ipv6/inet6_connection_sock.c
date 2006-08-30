@@ -186,7 +186,7 @@ int inet6_csk_xmit(struct sk_buff *skb, int ipfragok)
 			return err;
 		}
 
-		__ip6_dst_store(sk, dst, NULL);
+		__ip6_dst_store(sk, dst, NULL, NULL);
 	}
 
 	skb->dst = dst_clone(dst);

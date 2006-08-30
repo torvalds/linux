@@ -242,6 +242,9 @@ struct ipv6_pinfo {
 	struct in6_addr 	rcv_saddr;
 	struct in6_addr		daddr;
 	struct in6_addr		*daddr_cache;
+#ifdef CONFIG_IPV6_SUBTREES
+	struct in6_addr		*saddr_cache;
+#endif
 
 	__u32			flow_label;
 	__u32			frag_size;

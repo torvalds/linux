@@ -193,7 +193,12 @@ ipv4_connected:
 
 	ip6_dst_store(sk, dst,
 		      ipv6_addr_equal(&fl.fl6_dst, &np->daddr) ?
-		      &np->daddr : NULL);
+		      &np->daddr : NULL,
+#ifdef CONFIG_IPV6_SUBTREES
+		      ipv6_addr_equal(&fl.fl6_src, &np->saddr) ?
+		      &np->saddr :
+#endif
+		      NULL);
 
 	sk->sk_state = TCP_ESTABLISHED;
 out:
