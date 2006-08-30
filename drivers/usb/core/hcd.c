@@ -1152,7 +1152,7 @@ doit:
 	/* lower level hcd code should use *_dma exclusively,
 	 * unless it uses pio or talks to another transport.
 	 */
-	if (hcd->self.controller->dma_mask) {
+	if (hcd->self.uses_dma) {
 		if (usb_pipecontrol (urb->pipe)
 			&& !(urb->transfer_flags & URB_NO_SETUP_DMA_MAP))
 			urb->setup_dma = dma_map_single (
@@ -1585,8 +1585,9 @@ void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb, struct pt_regs 
 	at_root_hub = (urb->dev == hcd->self.root_hub);
 	urb_unlink (urb);
 
-	/* lower level hcd code should use *_dma exclusively */
-	if (hcd->self.controller->dma_mask && !at_root_hub) {
+	/* lower level hcd code should use *_dma exclusively if the
+	 * host controller does DMA */
+	if (hcd->self.uses_dma && !at_root_hub) {
 		if (usb_pipecontrol (urb->pipe)
 			&& !(urb->transfer_flags & URB_NO_SETUP_DMA_MAP))
 			dma_unmap_single (hcd->self.controller, urb->setup_dma,
@@ -1710,6 +1711,7 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 	hcd->self.release = &hcd_release;
 	hcd->self.controller = dev;
 	hcd->self.bus_name = bus_name;
+	hcd->self.uses_dma = (dev->dma_mask != NULL);
 
 	init_timer(&hcd->rh_timer);
 	hcd->rh_timer.function = rh_timer_func;
