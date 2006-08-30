@@ -118,33 +118,6 @@ static int suspend_device_late(struct device *dev, pm_message_t state)
 }
 
 /**
- *	device_prepare_suspend - save state and prepare to suspend
- *
- *	NOTE! Devices cannot detach at this point - not only do we
- *	hold the device list semaphores over the whole prepare, but
- *	the whole point is to do non-invasive preparatory work, not
- *	the actual suspend.
- */
-int device_prepare_suspend(pm_message_t state)
-{
-	int error = 0;
-	struct device * dev;
-
-	down(&dpm_sem);
-	down(&dpm_list_sem);
-	list_for_each_entry_reverse(dev, &dpm_active, power.entry) {
-		if (!dev->bus || !dev->bus->suspend_prepare)
-			continue;
-		error = dev->bus->suspend_prepare(dev, state);
-		if (error)
-			break;
-	}
-	up(&dpm_list_sem);
-	up(&dpm_sem);
-	return error;
-}
-
-/**
  *	device_suspend - Save state and stop all devices in system.
  *	@state:		Power state to put each device in.
  *

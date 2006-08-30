@@ -264,19 +264,6 @@ static int pci_device_remove(struct device * dev)
 	return 0;
 }
 
-static int pci_device_suspend_prepare(struct device * dev, pm_message_t state)
-{
-	struct pci_dev * pci_dev = to_pci_dev(dev);
-	struct pci_driver * drv = pci_dev->driver;
-	int i = 0;
-
-	if (drv && drv->suspend_prepare) {
-		i = drv->suspend_prepare(pci_dev, state);
-		suspend_report_result(drv->suspend_prepare, i);
-	}
-	return i;
-}
-
 static int pci_device_suspend(struct device * dev, pm_message_t state)
 {
 	struct pci_dev * pci_dev = to_pci_dev(dev);
@@ -544,7 +531,6 @@ struct bus_type pci_bus_type = {
 	.uevent		= pci_uevent,
 	.probe		= pci_device_probe,
 	.remove		= pci_device_remove,
-	.suspend_prepare= pci_device_suspend_prepare,
 	.suspend	= pci_device_suspend,
 	.suspend_late	= pci_device_suspend_late,
 	.resume_early	= pci_device_resume_early,

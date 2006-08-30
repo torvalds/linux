@@ -52,7 +52,6 @@ struct bus_type {
 	int		(*remove)(struct device * dev);
 	void		(*shutdown)(struct device * dev);
 
-	int (*suspend_prepare)(struct device * dev, pm_message_t state);
 	int (*suspend)(struct device * dev, pm_message_t state);
 	int (*suspend_late)(struct device * dev, pm_message_t state);
 	int (*resume_early)(struct device * dev);
