@@ -1030,6 +1030,14 @@ call_status(struct rpc_task *task)
 
 	task->tk_status = 0;
 	switch(status) {
+	case -EHOSTDOWN:
+	case -EHOSTUNREACH:
+	case -ENETUNREACH:
+		/*
+		 * Delay any retries for 3 seconds, then handle as if it
+		 * were a timeout.
+		 */
+		rpc_delay(task, 3*HZ);
 	case -ETIMEDOUT:
 		task->tk_action = call_timeout;
 		break;
