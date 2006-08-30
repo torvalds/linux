@@ -301,6 +301,7 @@ static void mon_bus_init(struct dentry *mondir, struct usb_bus *ubus)
 	 */
 	mbus->u_bus = ubus;
 	ubus->mon_bus = mbus;
+	mbus->uses_dma = ubus->uses_dma;
 
 	rc = snprintf(name, NAMESZ, "%dt", ubus->busnum);
 	if (rc <= 0 || rc >= NAMESZ)

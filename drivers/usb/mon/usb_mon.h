@@ -20,6 +20,7 @@ struct mon_bus {
 	struct dentry *dent_s;		/* Debugging file */
 	struct dentry *dent_t;		/* Text interface file */
 	struct usb_bus *u_bus;
+	int uses_dma;
 
 	/* Ref */
 	int nreaders;			/* Under mon_lock AND mbus->lock */
