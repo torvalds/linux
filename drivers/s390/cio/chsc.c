@@ -238,8 +238,6 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 	/* Check for single path devices. */
 	if (sch->schib.pmcw.pim == 0x80)
 		goto out_unreg;
-	if (sch->vpm == mask)
-		goto out_unreg;
 
 	if ((sch->schib.scsw.actl & SCSW_ACTL_DEVACT) &&
 	    (sch->schib.scsw.actl & SCSW_ACTL_SCHACT) &&
@@ -258,6 +256,8 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 	/* trigger path verification. */
 	if (sch->driver && sch->driver->verify)
 		sch->driver->verify(&sch->dev);
+	else if (sch->vpm == mask)
+		goto out_unreg;
 out_unlock:
 	spin_unlock_irq(&sch->lock);
 	return 0;
