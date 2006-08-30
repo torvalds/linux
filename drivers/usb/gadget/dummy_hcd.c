@@ -889,11 +889,9 @@ EXPORT_SYMBOL (net2280_set_fifo_mode);
 static void
 dummy_gadget_release (struct device *dev)
 {
-#if 0		/* usb_bus_put isn't EXPORTed! */
 	struct dummy	*dum = gadget_dev_to_dummy (dev);
 
-	usb_bus_put (&dummy_to_hcd (dum)->self);
-#endif
+	usb_put_hcd (dummy_to_hcd (dum));
 }
 
 static int dummy_udc_probe (struct platform_device *pdev)
@@ -915,9 +913,7 @@ static int dummy_udc_probe (struct platform_device *pdev)
 	if (rc < 0)
 		return rc;
 
-#if 0		/* usb_bus_get isn't EXPORTed! */
-	usb_bus_get (&dummy_to_hcd (dum)->self);
-#endif
+	usb_get_hcd (dummy_to_hcd (dum));
 
 	platform_set_drvdata (pdev, dum);
 	device_create_file (&dum->gadget.dev, &dev_attr_function);

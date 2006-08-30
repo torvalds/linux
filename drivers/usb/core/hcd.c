@@ -664,31 +664,6 @@ static int usb_rh_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 
 /*-------------------------------------------------------------------------*/
 
-/* exported only within usbcore */
-struct usb_bus *usb_bus_get(struct usb_bus *bus)
-{
-	if (bus)
-		kref_get(&bus->kref);
-	return bus;
-}
-
-static void usb_host_release(struct kref *kref)
-{
-	struct usb_bus *bus = container_of(kref, struct usb_bus, kref);
-
-	if (bus->release)
-		bus->release(bus);
-}
-
-/* exported only within usbcore */
-void usb_bus_put(struct usb_bus *bus)
-{
-	if (bus)
-		kref_put(&bus->kref, usb_host_release);
-}
-
-/*-------------------------------------------------------------------------*/
-
 static struct class *usb_host_class;
 
 int usb_host_init(void)
@@ -720,15 +695,12 @@ static void usb_bus_init (struct usb_bus *bus)
 	bus->devnum_next = 1;
 
 	bus->root_hub = NULL;
-	bus->hcpriv = NULL;
 	bus->busnum = -1;
 	bus->bandwidth_allocated = 0;
 	bus->bandwidth_int_reqs  = 0;
 	bus->bandwidth_isoc_reqs = 0;
 
 	INIT_LIST_HEAD (&bus->bus_list);
-
-	kref_init(&bus->kref);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1081,7 +1053,7 @@ static void urb_unlink (struct urb *urb)
 int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 {
 	int			status;
-	struct usb_hcd		*hcd = urb->dev->bus->hcpriv;
+	struct usb_hcd		*hcd = bus_to_hcd(urb->dev->bus);
 	struct usb_host_endpoint *ep;
 	unsigned long		flags;
 
@@ -1189,7 +1161,8 @@ done:
 /* called in any context */
 int usb_hcd_get_frame_number (struct usb_device *udev)
 {
-	struct usb_hcd	*hcd = (struct usb_hcd *)udev->bus->hcpriv;
+	struct usb_hcd	*hcd = bus_to_hcd(udev->bus);
+
 	if (!HC_IS_RUNNING (hcd->state))
 		return -ESHUTDOWN;
 	return hcd->driver->get_frame_number (hcd);
@@ -1262,7 +1235,7 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
 	spin_lock (&hcd_data_lock);
 
 	sys = &urb->dev->dev;
-	hcd = urb->dev->bus->hcpriv;
+	hcd = bus_to_hcd(urb->dev->bus);
 	if (hcd == NULL) {
 		retval = -ENODEV;
 		goto done;
@@ -1333,7 +1306,7 @@ void usb_hcd_endpoint_disable (struct usb_device *udev,
 	struct usb_hcd		*hcd;
 	struct urb		*urb;
 
-	hcd = udev->bus->hcpriv;
+	hcd = bus_to_hcd(udev->bus);
 
 	WARN_ON (!HC_IS_RUNNING (hcd->state) && hcd->state != HC_STATE_HALT &&
 			udev->state != USB_STATE_NOTATTACHED);
@@ -1673,14 +1646,6 @@ EXPORT_SYMBOL_GPL (usb_hc_died);
 
 /*-------------------------------------------------------------------------*/
 
-static void hcd_release (struct usb_bus *bus)
-{
-	struct usb_hcd *hcd;
-
-	hcd = container_of(bus, struct usb_hcd, self);
-	kfree(hcd);
-}
-
 /**
  * usb_create_hcd - create and initialize an HCD structure
  * @driver: HC driver that will use this hcd
@@ -1705,10 +1670,9 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 		return NULL;
 	}
 	dev_set_drvdata(dev, hcd);
+	kref_init(&hcd->kref);
 
 	usb_bus_init(&hcd->self);
-	hcd->self.hcpriv = hcd;
-	hcd->self.release = &hcd_release;
 	hcd->self.controller = dev;
 	hcd->self.bus_name = bus_name;
 	hcd->self.uses_dma = (dev->dma_mask != NULL);
@@ -1725,10 +1689,25 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 }
 EXPORT_SYMBOL (usb_create_hcd);
 
+static void hcd_release (struct kref *kref)
+{
+	struct usb_hcd *hcd = container_of (kref, struct usb_hcd, kref);
+
+	kfree(hcd);
+}
+
+struct usb_hcd *usb_get_hcd (struct usb_hcd *hcd)
+{
+	if (hcd)
+		kref_get (&hcd->kref);
+	return hcd;
+}
+EXPORT_SYMBOL (usb_get_hcd);
+
 void usb_put_hcd (struct usb_hcd *hcd)
 {
-	dev_set_drvdata(hcd->self.controller, NULL);
-	usb_bus_put(&hcd->self);
+	if (hcd)
+		kref_put (&hcd->kref, hcd_release);
 }
 EXPORT_SYMBOL (usb_put_hcd);
 

@@ -55,12 +55,13 @@
 
 /*-------------------------------------------------------------------------*/
 
-struct usb_hcd {	/* usb_bus.hcpriv points to this */
+struct usb_hcd {
 
 	/*
 	 * housekeeping
 	 */
 	struct usb_bus		self;		/* hcd is-a bus */
+	struct kref		kref;		/* reference counter */
 
 	const char		*product_desc;	/* product/vendor string */
 	char			irq_descr[24];	/* driver + bus # */
@@ -129,8 +130,10 @@ static inline struct usb_bus *hcd_to_bus (struct usb_hcd *hcd)
 	return &hcd->self;
 }
 
-
-// urb.hcpriv is really hardware-specific
+static inline struct usb_hcd *bus_to_hcd (struct usb_bus *bus)
+{
+	return container_of(bus, struct usb_hcd, self);
+}
 
 struct hcd_timeout {	/* timeouts we allocate */
 	struct list_head	timeout_list;
@@ -210,6 +213,7 @@ extern int usb_hcd_get_frame_number (struct usb_device *udev);
 
 extern struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 		struct device *dev, char *bus_name);
+extern struct usb_hcd *usb_get_hcd (struct usb_hcd *hcd);
 extern void usb_put_hcd (struct usb_hcd *hcd);
 extern int usb_add_hcd(struct usb_hcd *hcd,
 		unsigned int irqnum, unsigned long irqflags);
@@ -355,9 +359,6 @@ extern void usb_set_device_state(struct usb_device *udev,
 extern struct list_head usb_bus_list;
 extern struct mutex usb_bus_list_lock;
 extern wait_queue_head_t usb_kill_urb_queue;
-
-extern struct usb_bus *usb_bus_get (struct usb_bus *bus);
-extern void usb_bus_put (struct usb_bus *bus);
 
 extern void usb_enable_root_hub_irq (struct usb_bus *bus);
 

@@ -280,7 +280,6 @@ struct usb_bus {
 	struct usb_devmap devmap;	/* device address allocation map */
 	struct usb_device *root_hub;	/* Root hub */
 	struct list_head bus_list;	/* list of busses */
-	void *hcpriv;                   /* Host Controller private data */
 
 	int bandwidth_allocated;	/* on this bus: how much of the time
 					 * reserved for periodic (intr/iso)
@@ -295,8 +294,6 @@ struct usb_bus {
 	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the bus */
 
 	struct class_device *class_dev;	/* class device for this bus */
-	struct kref kref;		/* reference counting for this bus */
-	void (*release)(struct usb_bus *bus);
 
 #if defined(CONFIG_USB_MON)
 	struct mon_bus *mon_bus;	/* non-null when associated */

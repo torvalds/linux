@@ -477,7 +477,7 @@ show_async (struct class_device *class_dev, char *buf)
 	unsigned long		flags;
 
 	bus = class_get_devdata(class_dev);
-	hcd = bus->hcpriv;
+	hcd = bus_to_hcd(bus);
 	ohci = hcd_to_ohci(hcd);
 
 	/* display control and bulk lists together, for simplicity */
@@ -510,7 +510,7 @@ show_periodic (struct class_device *class_dev, char *buf)
 	seen_count = 0;
 
 	bus = class_get_devdata(class_dev);
-	hcd = bus->hcpriv;
+	hcd = bus_to_hcd(bus);
 	ohci = hcd_to_ohci(hcd);
 	next = buf;
 	size = PAGE_SIZE;
@@ -607,7 +607,7 @@ show_registers (struct class_device *class_dev, char *buf)
 	u32			rdata;
 
 	bus = class_get_devdata(class_dev);
-	hcd = bus->hcpriv;
+	hcd = bus_to_hcd(bus);
 	ohci = hcd_to_ohci(hcd);
 	regs = ohci->regs;
 	next = buf;

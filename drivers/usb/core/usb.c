@@ -169,7 +169,7 @@ static void usb_release_dev(struct device *dev)
 	udev = to_usb_device(dev);
 
 	usb_destroy_configuration(udev);
-	usb_bus_put(udev->bus);
+	usb_put_hcd(bus_to_hcd(udev->bus));
 	kfree(udev->product);
 	kfree(udev->manufacturer);
 	kfree(udev->serial);
@@ -197,8 +197,7 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	if (!dev)
 		return NULL;
 
-	bus = usb_bus_get(bus);
-	if (!bus) {
+	if (!usb_get_hcd(bus_to_hcd(bus))) {
 		kfree(dev);
 		return NULL;
 	}
