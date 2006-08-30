@@ -353,3 +353,11 @@ u32 vfp_estimate_sqrt_significand(u32 exponent, u32 significand);
  * A special flag to tell the normalisation code not to normalise.
  */
 #define VFP_NAN_FLAG	0x100
+
+/*
+ * A bit pattern used to indicate the initial (unset) value of the
+ * exception mask, in case nothing handles an instruction.  This
+ * doesn't include the NAN flag, which get masked out before
+ * we check for an error.
+ */
+#define VFP_EXCEPTION_ERROR	((u32)-1 & ~VFP_NAN_FLAG)

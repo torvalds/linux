@@ -1698,7 +1698,7 @@ MODULE_LICENSE("GPL");
  * are specified, we verify and then use them.  If no parameters are given, we
  * autoprobe for one card only.
  */
-int init_module(void)
+int __init init_module(void)
 {
 	struct net_device *dev;
 	int this_dev, found = 0;

@@ -512,7 +512,11 @@ befs_utf2nls(struct super_block *sb, const char *in,
 	wchar_t uni;
 	int unilen, utflen;
 	char *result;
-	int maxlen = in_len; /* The utf8->nls conversion can't make more chars */
+	/* The utf8->nls conversion won't make the final nls string bigger
+	 * than the utf one, but if the string is pure ascii they'll have the
+	 * same width and an extra char is needed to save the additional \0
+	 */
+	int maxlen = in_len + 1;
 
 	befs_debug(sb, "---> utf2nls()");
 
@@ -588,7 +592,10 @@ befs_nls2utf(struct super_block *sb, const char *in,
 	wchar_t uni;
 	int unilen, utflen;
 	char *result;
-	int maxlen = 3 * in_len;
+	/* There're nls characters that will translate to 3-chars-wide UTF-8
+	 * characters, a additional byte is needed to save the final \0
+	 * in special cases */
+	int maxlen = (3 * in_len) + 1;
 
 	befs_debug(sb, "---> nls2utf()\n");
 

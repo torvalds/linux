@@ -219,8 +219,18 @@ lpfc_issue_lip(struct Scsi_Host *host)
 		return -ENOMEM;
 
 	memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));
-	lpfc_init_link(phba, pmboxq, phba->cfg_topology, phba->cfg_link_speed);
-	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
+	pmboxq->mb.mbxCommand = MBX_DOWN_LINK;
+	pmboxq->mb.mbxOwner = OWN_HOST;
+
+	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, LPFC_MBOX_TMO * 2);
+
+	if ((mbxstatus == MBX_SUCCESS) && (pmboxq->mb.mbxStatus == 0)) {
+		memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));
+		lpfc_init_link(phba, pmboxq, phba->cfg_topology,
+			       phba->cfg_link_speed);
+		mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq,
+						     phba->fc_ratov * 2);
+	}
 
 	if (mbxstatus == MBX_TIMEOUT)
 		pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -233,51 +243,53 @@ lpfc_issue_lip(struct Scsi_Host *host)
 	return 0;
 }
 
+static int
+lpfc_selective_reset(struct lpfc_hba *phba)
+{
+	struct completion online_compl;
+	int status = 0;
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &status, &online_compl,
+			      LPFC_EVT_OFFLINE);
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &status, &online_compl,
+			      LPFC_EVT_ONLINE);
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	return 0;
+}
+
+static ssize_t
+lpfc_issue_reset(struct class_device *cdev, const char *buf, size_t count)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	int status = -EINVAL;
+
+	if (strncmp(buf, "selective", sizeof("selective") - 1) == 0)
+		status = lpfc_selective_reset(phba);
+
+	if (status == 0)
+		return strlen(buf);
+	else
+		return status;
+}
+
 static ssize_t
 lpfc_nport_evt_cnt_show(struct class_device *cdev, char *buf)
 {
 	struct Scsi_Host *host = class_to_shost(cdev);
 	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
 	return snprintf(buf, PAGE_SIZE, "%d\n", phba->nport_event_cnt);
-}
-
-static ssize_t
-lpfc_board_online_show(struct class_device *cdev, char *buf)
-{
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
-
-	if (phba->fc_flag & FC_OFFLINE_MODE)
-		return snprintf(buf, PAGE_SIZE, "0\n");
-	else
-		return snprintf(buf, PAGE_SIZE, "1\n");
-}
-
-static ssize_t
-lpfc_board_online_store(struct class_device *cdev, const char *buf,
-								size_t count)
-{
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
-	struct completion online_compl;
-	int val=0, status=0;
-
-	if (sscanf(buf, "%d", &val) != 1)
-		return -EINVAL;
-
-	init_completion(&online_compl);
-
-	if (val)
-		lpfc_workq_post_event(phba, &status, &online_compl,
-							LPFC_EVT_ONLINE);
-	else
-		lpfc_workq_post_event(phba, &status, &online_compl,
-							LPFC_EVT_OFFLINE);
-	wait_for_completion(&online_compl);
-	if (!status)
-		return strlen(buf);
-	else
-		return -EIO;
 }
 
 static ssize_t
@@ -532,10 +544,9 @@ static CLASS_DEVICE_ATTR(lpfc_drvr_version, S_IRUGO, lpfc_drvr_version_show,
 			 NULL);
 static CLASS_DEVICE_ATTR(management_version, S_IRUGO, management_version_show,
 			 NULL);
-static CLASS_DEVICE_ATTR(board_online, S_IRUGO | S_IWUSR,
-			 lpfc_board_online_show, lpfc_board_online_store);
 static CLASS_DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 			 lpfc_board_mode_show, lpfc_board_mode_store);
+static CLASS_DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
 
 static int lpfc_poll = 0;
 module_param(lpfc_poll, int, 0);
@@ -695,12 +706,12 @@ LPFC_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands "
 		 "during discovery");
 
 /*
-# lpfc_max_luns: maximum number of LUNs per target driver will support
-# Value range is [1,32768]. Default value is 256.
-# NOTE: The SCSI layer will scan each target for this many luns
+# lpfc_max_luns: maximum allowed LUN.
+# Value range is [0,65535]. Default value is 255.
+# NOTE: The SCSI layer might probe all allowed LUN on some old targets.
 */
-LPFC_ATTR_R(max_luns, 256, 1, 32768,
-	     "Maximum number of LUNs per target driver will support");
+LPFC_ATTR_R(max_luns, 255, 0, 65535,
+	     "Maximum allowed LUN");
 
 /*
 # lpfc_poll_tmo: .Milliseconds driver will wait between polling FCP ring.
@@ -739,8 +750,8 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_max_luns,
 	&class_device_attr_nport_evt_cnt,
 	&class_device_attr_management_version,
-	&class_device_attr_board_online,
 	&class_device_attr_board_mode,
+	&class_device_attr_issue_reset,
 	&class_device_attr_lpfc_poll,
 	&class_device_attr_lpfc_poll_tmo,
 	NULL,
@@ -873,7 +884,7 @@ sysfs_mbox_write(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		    phba->sysfs_mbox.mbox   == NULL ) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(host->host_lock);
-			return -EINVAL;
+			return -EAGAIN;
 		}
 	}
 
@@ -989,14 +1000,15 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 			spin_unlock_irq(phba->host->host_lock);
 			rc = lpfc_sli_issue_mbox_wait (phba,
 						       phba->sysfs_mbox.mbox,
-						       phba->fc_ratov * 2);
+				lpfc_mbox_tmo_val(phba,
+				    phba->sysfs_mbox.mbox->mb.mbxCommand) * HZ);
 			spin_lock_irq(phba->host->host_lock);
 		}
 
 		if (rc != MBX_SUCCESS) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(host->host_lock);
-			return -ENODEV;
+			return  (rc == MBX_TIMEOUT) ? -ETIME : -ENODEV;
 		}
 		phba->sysfs_mbox.state = SMBOX_READING;
 	}
@@ -1005,7 +1017,7 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		printk(KERN_WARNING  "mbox_read: Bad State\n");
 		sysfs_mbox_idle(phba);
 		spin_unlock_irq(host->host_lock);
-		return -EINVAL;
+		return -EAGAIN;
 	}
 
 	memcpy(buf, (uint8_t *) & phba->sysfs_mbox.mbox->mb + off, count);
@@ -1199,8 +1211,10 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata;
 	struct lpfc_sli *psli = &phba->sli;
 	struct fc_host_statistics *hs = &phba->link_stats;
+	struct lpfc_lnk_stat * lso = &psli->lnk_stat_offsets;
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
+	unsigned long seconds;
 	int rc = 0;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -1261,22 +1275,103 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	hs->invalid_crc_count = pmb->un.varRdLnk.crcCnt;
 	hs->error_frames = pmb->un.varRdLnk.crcCnt;
 
+	hs->link_failure_count -= lso->link_failure_count;
+	hs->loss_of_sync_count -= lso->loss_of_sync_count;
+	hs->loss_of_signal_count -= lso->loss_of_signal_count;
+	hs->prim_seq_protocol_err_count -= lso->prim_seq_protocol_err_count;
+	hs->invalid_tx_word_count -= lso->invalid_tx_word_count;
+	hs->invalid_crc_count -= lso->invalid_crc_count;
+	hs->error_frames -= lso->error_frames;
+
 	if (phba->fc_topology == TOPOLOGY_LOOP) {
 		hs->lip_count = (phba->fc_eventTag >> 1);
+		hs->lip_count -= lso->link_events;
 		hs->nos_count = -1;
 	} else {
 		hs->lip_count = -1;
 		hs->nos_count = (phba->fc_eventTag >> 1);
+		hs->nos_count -= lso->link_events;
 	}
 
 	hs->dumped_frames = -1;
 
-/* FIX ME */
-	/*hs->SecondsSinceLastReset = (jiffies - lpfc_loadtime) / HZ;*/
+	seconds = get_seconds();
+	if (seconds < psli->stats_start)
+		hs->seconds_since_last_reset = seconds +
+				((unsigned long)-1 - psli->stats_start);
+	else
+		hs->seconds_since_last_reset = seconds - psli->stats_start;
 
 	return hs;
 }
 
+static void
+lpfc_reset_stats(struct Scsi_Host *shost)
+{
+	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata;
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_lnk_stat * lso = &psli->lnk_stat_offsets;
+	LPFC_MBOXQ_t *pmboxq;
+	MAILBOX_t *pmb;
+	int rc = 0;
+
+	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmboxq)
+		return;
+	memset(pmboxq, 0, sizeof(LPFC_MBOXQ_t));
+
+	pmb = &pmboxq->mb;
+	pmb->mbxCommand = MBX_READ_STATUS;
+	pmb->mbxOwner = OWN_HOST;
+	pmb->un.varWords[0] = 0x1; /* reset request */
+	pmboxq->context1 = NULL;
+
+	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
+		(!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
+		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
+	else
+		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
+
+	if (rc != MBX_SUCCESS) {
+		if (rc == MBX_TIMEOUT)
+			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		else
+			mempool_free(pmboxq, phba->mbox_mem_pool);
+		return;
+	}
+
+	memset(pmboxq, 0, sizeof(LPFC_MBOXQ_t));
+	pmb->mbxCommand = MBX_READ_LNK_STAT;
+	pmb->mbxOwner = OWN_HOST;
+	pmboxq->context1 = NULL;
+
+	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
+	    (!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
+		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
+	else
+		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
+
+	if (rc != MBX_SUCCESS) {
+		if (rc == MBX_TIMEOUT)
+			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		else
+			mempool_free( pmboxq, phba->mbox_mem_pool);
+		return;
+	}
+
+	lso->link_failure_count = pmb->un.varRdLnk.linkFailureCnt;
+	lso->loss_of_sync_count = pmb->un.varRdLnk.lossSyncCnt;
+	lso->loss_of_signal_count = pmb->un.varRdLnk.lossSignalCnt;
+	lso->prim_seq_protocol_err_count = pmb->un.varRdLnk.primSeqErrCnt;
+	lso->invalid_tx_word_count = pmb->un.varRdLnk.invalidXmitWord;
+	lso->invalid_crc_count = pmb->un.varRdLnk.crcCnt;
+	lso->error_frames = pmb->un.varRdLnk.crcCnt;
+	lso->link_events = (phba->fc_eventTag >> 1);
+
+	psli->stats_start = get_seconds();
+
+	return;
+}
 
 /*
  * The LPFC driver treats linkdown handling as target loss events so there
@@ -1420,8 +1515,7 @@ struct fc_function_template lpfc_transport_functions = {
 	 */
 
 	.get_fc_host_stats = lpfc_get_stats,
-
-	/* the LPFC driver doesn't support resetting stats yet */
+	.reset_fc_host_stats = lpfc_reset_stats,
 
 	.dd_fcrport_size = sizeof(struct lpfc_rport_data),
 	.show_rport_maxframe_size = 1,

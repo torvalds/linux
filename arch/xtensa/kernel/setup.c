@@ -17,7 +17,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/bootmem.h>
 #include <linux/kernel.h>
 

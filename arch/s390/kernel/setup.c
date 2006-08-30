@@ -877,31 +877,57 @@ static struct bin_attribute ipl_scp_data_attr = {
 
 static decl_subsys(ipl, NULL, NULL);
 
+static int ipl_register_fcp_files(void)
+{
+	int rc;
+
+	rc = sysfs_create_group(&ipl_subsys.kset.kobj,
+				&ipl_fcp_attr_group);
+	if (rc)
+		goto out;
+	rc = sysfs_create_bin_file(&ipl_subsys.kset.kobj,
+				   &ipl_parameter_attr);
+	if (rc)
+		goto out_ipl_parm;
+	rc = sysfs_create_bin_file(&ipl_subsys.kset.kobj,
+				   &ipl_scp_data_attr);
+	if (!rc)
+		goto out;
+
+	sysfs_remove_bin_file(&ipl_subsys.kset.kobj, &ipl_parameter_attr);
+
+out_ipl_parm:
+	sysfs_remove_group(&ipl_subsys.kset.kobj, &ipl_fcp_attr_group);
+out:
+	return rc;
+}
+
 static int __init
 ipl_device_sysfs_register(void) {
 	int rc;
 
 	rc = firmware_register(&ipl_subsys);
 	if (rc)
-		return rc;
+		goto out;
 
 	switch (get_ipl_type()) {
 	case ipl_type_ccw:
-		sysfs_create_group(&ipl_subsys.kset.kobj, &ipl_ccw_attr_group);
+		rc = sysfs_create_group(&ipl_subsys.kset.kobj,
+					&ipl_ccw_attr_group);
 		break;
 	case ipl_type_fcp:
-		sysfs_create_group(&ipl_subsys.kset.kobj, &ipl_fcp_attr_group);
-		sysfs_create_bin_file(&ipl_subsys.kset.kobj,
-				      &ipl_parameter_attr);
-		sysfs_create_bin_file(&ipl_subsys.kset.kobj,
-				      &ipl_scp_data_attr);
+		rc = ipl_register_fcp_files();
 		break;
 	default:
-		sysfs_create_group(&ipl_subsys.kset.kobj,
-				   &ipl_unknown_attr_group);
+		rc = sysfs_create_group(&ipl_subsys.kset.kobj,
+					&ipl_unknown_attr_group);
 		break;
 	}
-	return 0;
+
+	if (rc)
+		firmware_unregister(&ipl_subsys);
+out:
+	return rc;
 }
 
 __initcall(ipl_device_sysfs_register);

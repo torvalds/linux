@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/irq.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -24,10 +25,7 @@
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/grackle.h>
-#ifdef CONFIG_PPC64
-//#include <asm/iommu.h>
 #include <asm/ppc-pci.h>
-#endif
 
 #undef DEBUG
 
@@ -46,7 +44,6 @@ static int has_uninorth;
 static struct pci_controller *u3_agp;
 static struct pci_controller *u4_pcie;
 static struct pci_controller *u3_ht;
-#define has_second_ohare 0
 #else
 static int has_second_ohare;
 #endif /* CONFIG_PPC64 */
@@ -993,6 +990,7 @@ void __init pmac_pcibios_fixup(void)
 		/* Read interrupt from the device-tree */
 		pci_read_irq_line(dev);
 
+#ifdef CONFIG_PPC32
 		/* Fixup interrupt for the modem/ethernet combo controller.
 		 * on machines with a second ohare chip.
 		 * The number in the device tree (27) is bogus (correct for
@@ -1002,8 +1000,11 @@ void __init pmac_pcibios_fixup(void)
 		 */
 		if (has_second_ohare &&
 		    dev->vendor == PCI_VENDOR_ID_DEC &&
-		    dev->device == PCI_DEVICE_ID_DEC_TULIP_PLUS)
-			dev->irq = irq_create_mapping(NULL, 60, 0);
+		    dev->device == PCI_DEVICE_ID_DEC_TULIP_PLUS) {
+			dev->irq = irq_create_mapping(NULL, 60);
+			set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);
+		}
+#endif /* CONFIG_PPC32 */
 	}
 }
 

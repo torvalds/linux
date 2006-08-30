@@ -231,12 +231,12 @@ static int __devinit ne2k_pci_init_one (struct pci_dev *pdev,
 	irq = pdev->irq;
 
 	if (!ioaddr || ((pci_resource_flags (pdev, 0) & IORESOURCE_IO) == 0)) {
-		printk (KERN_ERR PFX "no I/O resource at PCI BAR #0\n");
+		dev_err(&pdev->dev, "no I/O resource at PCI BAR #0\n");
 		return -ENODEV;
 	}
 
 	if (request_region (ioaddr, NE_IO_EXTENT, DRV_NAME) == NULL) {
-		printk (KERN_ERR PFX "I/O resource 0x%x @ 0x%lx busy\n",
+		dev_err(&pdev->dev, "I/O resource 0x%x @ 0x%lx busy\n",
 			NE_IO_EXTENT, ioaddr);
 		return -EBUSY;
 	}
@@ -263,7 +263,7 @@ static int __devinit ne2k_pci_init_one (struct pci_dev *pdev,
 	/* Allocate net_device, dev->priv; fill in 8390 specific dev fields. */
 	dev = alloc_ei_netdev();
 	if (!dev) {
-		printk (KERN_ERR PFX "cannot allocate ethernet device\n");
+		dev_err(&pdev->dev, "cannot allocate ethernet device\n");
 		goto err_out_free_res;
 	}
 	SET_MODULE_OWNER(dev);
@@ -281,7 +281,8 @@ static int __devinit ne2k_pci_init_one (struct pci_dev *pdev,
 		while ((inb(ioaddr + EN0_ISR) & ENISR_RESET) == 0)
 			/* Limit wait: '2' avoids jiffy roll-over. */
 			if (jiffies - reset_start_time > 2) {
-				printk(KERN_ERR PFX "Card failure (no reset ack).\n");
+				dev_err(&pdev->dev,
+					"Card failure (no reset ack).\n");
 				goto err_out_free_netdev;
 			}
 

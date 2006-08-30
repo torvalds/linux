@@ -107,10 +107,14 @@ found:
 	if (err) {
 		printk(KERN_ERR PFX "RNG registering failed (%d)\n",
 		       err);
-		goto out;
+		goto err_unmap;
 	}
 out:
 	return err;
+
+err_unmap:
+	iounmap(mem);
+	goto out;
 }
 
 static void __exit mod_exit(void)

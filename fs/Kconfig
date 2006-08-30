@@ -1801,6 +1801,7 @@ config CIFS_POSIX
 
 config CIFS_DEBUG2
 	bool "Enable additional CIFS debugging routines"
+	depends on CIFS
 	help
 	   Enabling this option adds a few more debugging routines
 	   to the cifs code which slightly increases the size of

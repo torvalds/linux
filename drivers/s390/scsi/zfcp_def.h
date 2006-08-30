@@ -52,7 +52,7 @@
 /********************* GENERAL DEFINES *********************************/
 
 /* zfcp version number, it consists of major, minor, and patch-level number */
-#define ZFCP_VERSION		"4.7.0"
+#define ZFCP_VERSION		"4.8.0"
 
 /**
  * zfcp_sg_to_address - determine kernel address from struct scatterlist
@@ -80,7 +80,7 @@ zfcp_address_to_sg(void *address, struct scatterlist *list)
 #define REQUEST_LIST_SIZE 128
 
 /********************* SCSI SPECIFIC DEFINES *********************************/
-#define ZFCP_SCSI_ER_TIMEOUT                    (100*HZ)
+#define ZFCP_SCSI_ER_TIMEOUT                    (10*HZ)
 
 /********************* CIO/QDIO SPECIFIC DEFINES *****************************/
 
@@ -886,11 +886,11 @@ struct zfcp_adapter {
 	struct list_head        port_remove_lh;    /* head of ports to be
 						      removed */
 	u32			ports;	           /* number of remote ports */
-        struct timer_list       scsi_er_timer;     /* SCSI err recovery watch */
-	struct list_head	fsf_req_list_head; /* head of FSF req list */
-	spinlock_t		fsf_req_list_lock; /* lock for ops on list of
-						      FSF requests */
-        atomic_t       		fsf_reqs_active;   /* # active FSF reqs */
+	struct timer_list	scsi_er_timer;     /* SCSI err recovery watch */
+	atomic_t		reqs_active;	   /* # active FSF reqs */
+	unsigned long		req_no;		   /* unique FSF req number */
+	struct list_head	*req_list;	   /* list of pending reqs */
+	spinlock_t		req_list_lock;	   /* request list lock */
 	struct zfcp_qdio_queue	request_queue;	   /* request queue */
 	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
 	wait_queue_head_t	request_wq;	   /* can be used to wait for
@@ -986,6 +986,7 @@ struct zfcp_unit {
 /* FSF request */
 struct zfcp_fsf_req {
 	struct list_head       list;	       /* list of FSF requests */
+	unsigned long	       req_id;	       /* unique request ID */
 	struct zfcp_adapter    *adapter;       /* adapter request belongs to */
 	u8		       sbal_number;    /* nr of SBALs free for use */
 	u8		       sbal_first;     /* first SBAL for this request */

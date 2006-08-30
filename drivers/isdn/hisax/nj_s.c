@@ -148,9 +148,9 @@ NETjet_S_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return(0);
 }
 
-static struct pci_dev *dev_netjet __initdata = NULL;
+static struct pci_dev *dev_netjet __devinitdata = NULL;
 
-int __init
+int __devinit
 setup_netjet_s(struct IsdnCard *card)
 {
 	int bytecnt,cfg;

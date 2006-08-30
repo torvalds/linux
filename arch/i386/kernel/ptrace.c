@@ -468,8 +468,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				  for(i=0; i<4; i++)
 					  if ((0x5f54 >> ((data >> (16 + 4*i)) & 0xf)) & 1)
 						  goto out_tsk;
+				  if (data)
+					  set_tsk_thread_flag(child, TIF_DEBUG);
+				  else
+					  clear_tsk_thread_flag(child, TIF_DEBUG);
 			  }
-
 			  addr -= (long) &dummy->u_debugreg;
 			  addr = addr >> 2;
 			  child->thread.debugreg[addr] = data;

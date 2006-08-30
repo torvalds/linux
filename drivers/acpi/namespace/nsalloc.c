@@ -386,18 +386,28 @@ void acpi_ns_delete_namespace_subtree(struct acpi_namespace_node *parent_node)
  *              specific ID.  Used to delete entire ACPI tables.  All
  *              reference counts are updated.
  *
+ * MUTEX:       Locks namespace during deletion walk.
+ *
  ******************************************************************************/
 
 void acpi_ns_delete_namespace_by_owner(acpi_owner_id owner_id)
 {
 	struct acpi_namespace_node *child_node;
 	struct acpi_namespace_node *deletion_node;
-	u32 level;
 	struct acpi_namespace_node *parent_node;
+	u32 level;
+	acpi_status status;
 
 	ACPI_FUNCTION_TRACE_U32(ns_delete_namespace_by_owner, owner_id);
 
 	if (owner_id == 0) {
+		return_VOID;
+	}
+
+	/* Lock namespace for possible update */
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
 		return_VOID;
 	}
 
@@ -469,5 +479,6 @@ void acpi_ns_delete_namespace_by_owner(acpi_owner_id owner_id)
 		}
 	}
 
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_VOID;
 }

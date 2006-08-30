@@ -14,11 +14,10 @@ unsigned long __do_user_copy(void *to, const void *from, int n,
 					int n), int *faulted_out)
 {
 	unsigned long *faddrp = (unsigned long *) fault_addr, ret;
-	int enable;
 
 	jmp_buf jbuf;
 	*fault_catcher = &jbuf;
-	if(UML_SETJMP(&jbuf, enable) == 0){
+	if(UML_SETJMP(&jbuf) == 0){
 		(*op)(to, from, n);
 		ret = 0;
 		*faulted_out = 0;

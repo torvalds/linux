@@ -1820,6 +1820,8 @@ static int zd1201_probe(struct usb_interface *interface,
 	    zd->dev->name);
 
 	usb_set_intfdata(interface, zd);
+	zd1201_enable(zd);	/* zd1201 likes to startup enabled, */
+	zd1201_disable(zd);	/* interfering with all the wifis in range */
 	return 0;
 
 err_net:

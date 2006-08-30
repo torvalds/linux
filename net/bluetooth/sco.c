@@ -108,17 +108,14 @@ static void sco_sock_init_timer(struct sock *sk)
 static struct sco_conn *sco_conn_add(struct hci_conn *hcon, __u8 status)
 {
 	struct hci_dev *hdev = hcon->hdev;
-	struct sco_conn *conn;
+	struct sco_conn *conn = hcon->sco_data;
 
-	if ((conn = hcon->sco_data))
+	if (conn || status)
 		return conn;
 
-	if (status)
-		return conn;
-
-	if (!(conn = kmalloc(sizeof(struct sco_conn), GFP_ATOMIC)))
+	conn = kzalloc(sizeof(struct sco_conn), GFP_ATOMIC);
+	if (!conn)
 		return NULL;
-	memset(conn, 0, sizeof(struct sco_conn));
 
 	spin_lock_init(&conn->lock);
 
@@ -134,6 +131,7 @@ static struct sco_conn *sco_conn_add(struct hci_conn *hcon, __u8 status)
 		conn->mtu = 60;
 
 	BT_DBG("hcon %p conn %p", hcon, conn);
+
 	return conn;
 }
 

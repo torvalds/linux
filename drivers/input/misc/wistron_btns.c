@@ -94,7 +94,7 @@ static void call_bios(struct regs *regs)
 
 static ssize_t __init locate_wistron_bios(void __iomem *base)
 {
-	static const unsigned char __initdata signature[] =
+	static unsigned char __initdata signature[] =
 		{ 0x42, 0x21, 0x55, 0x30 };
 	ssize_t offset;
 
@@ -343,7 +343,7 @@ static struct key_entry keymap_aopen_1559as[] = {
  * a list of buttons and their key codes (reported when loading this module
  * with force=1) and the output of dmidecode to $MODULE_AUTHOR.
  */
-static struct dmi_system_id dmi_ids[] = {
+static struct dmi_system_id dmi_ids[] __initdata = {
 	{
 		.callback = dmi_matched,
 		.ident = "Fujitsu-Siemens Amilo Pro V2000",

@@ -133,6 +133,11 @@ lpfc_mem_free(struct lpfc_hba * phba)
 
 	pci_pool_destroy(phba->lpfc_scsi_dma_buf_pool);
 	pci_pool_destroy(phba->lpfc_mbuf_pool);
+
+	/* Free the iocb lookup array */
+	kfree(psli->iocbq_lookup);
+	psli->iocbq_lookup = NULL;
+
 }
 
 void *

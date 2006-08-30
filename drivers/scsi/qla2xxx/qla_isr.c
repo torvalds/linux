@@ -587,6 +587,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		DEBUG2(printk("scsi(%ld): Discard RND Frame -- %04x %04x "
 		    "%04x.\n", ha->host_no, mb[1], mb[2], mb[3]));
 		break;
+
+	case MBA_TRACE_NOTIFICATION:
+		DEBUG2(printk("scsi(%ld): Trace Notification -- %04x %04x.\n",
+		ha->host_no, mb[1], mb[2]));
+		break;
 	}
 }
 

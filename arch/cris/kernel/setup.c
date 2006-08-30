@@ -15,7 +15,7 @@
 #include <linux/bootmem.h>
 #include <asm/pgtable.h>
 #include <linux/seq_file.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/utsname.h>
 #include <linux/pfn.h>
 

@@ -94,7 +94,7 @@ static void end_kn02_irq(unsigned int irq)
 		enable_kn02_irq(irq);
 }
 
-static struct hw_interrupt_type kn02_irq_type = {
+static struct irq_chip kn02_irq_type = {
 	.typename = "KN02-CSR",
 	.startup = startup_kn02_irq,
 	.shutdown = shutdown_kn02_irq,

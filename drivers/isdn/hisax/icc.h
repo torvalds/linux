@@ -65,7 +65,7 @@
 #define ICC_IND_AIL    0xE
 #define ICC_IND_DC     0xF
 
-extern void __init ICCVersion(struct IsdnCardState *cs, char *s);
+extern void ICCVersion(struct IsdnCardState *cs, char *s);
 extern void initicc(struct IsdnCardState *cs);
 extern void icc_interrupt(struct IsdnCardState *cs, u_char val);
 extern void clear_pending_icc_ints(struct IsdnCardState *cs);

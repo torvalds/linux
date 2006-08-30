@@ -233,7 +233,7 @@ static void __init build_one_sbus(struct device_node *dp, int num_sbus)
 	sbus->ofdev.node = dp;
 	sbus->ofdev.dev.parent = NULL;
 	sbus->ofdev.dev.bus = &sbus_bus_type;
-	strcpy(sbus->ofdev.dev.bus_id, dp->path_component_name);
+	sprintf(sbus->ofdev.dev.bus_id, "sbus%d", num_sbus);
 
 	if (of_device_register(&sbus->ofdev) != 0)
 		printk(KERN_DEBUG "sbus: device registration error for %s!\n",

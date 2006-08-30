@@ -108,6 +108,24 @@ css_subchannel_release(struct device *dev)
 
 extern int css_get_ssd_info(struct subchannel *sch);
 
+
+int css_sch_device_register(struct subchannel *sch)
+{
+	int ret;
+
+	mutex_lock(&sch->reg_mutex);
+	ret = device_register(&sch->dev);
+	mutex_unlock(&sch->reg_mutex);
+	return ret;
+}
+
+void css_sch_device_unregister(struct subchannel *sch)
+{
+	mutex_lock(&sch->reg_mutex);
+	device_unregister(&sch->dev);
+	mutex_unlock(&sch->reg_mutex);
+}
+
 static int
 css_register_subchannel(struct subchannel *sch)
 {
@@ -119,7 +137,7 @@ css_register_subchannel(struct subchannel *sch)
 	sch->dev.release = &css_subchannel_release;
 	
 	/* make it known to the system */
-	ret = device_register(&sch->dev);
+	ret = css_sch_device_register(sch);
 	if (ret)
 		printk (KERN_WARNING "%s: could not register %s\n",
 			__func__, sch->dev.bus_id);
@@ -250,7 +268,7 @@ css_evaluate_subchannel(struct subchannel_id schid, int slow)
 		 * The device will be killed automatically.
 		 */
 		cio_disable_subchannel(sch);
-		device_unregister(&sch->dev);
+		css_sch_device_unregister(sch);
 		/* Reset intparm to zeroes. */
 		sch->schib.pmcw.intparm = 0;
 		cio_modify(sch);
@@ -264,7 +282,7 @@ css_evaluate_subchannel(struct subchannel_id schid, int slow)
 		 * away in any case.
 		 */
 		if (!disc) {
-			device_unregister(&sch->dev);
+			css_sch_device_unregister(sch);
 			/* Reset intparm to zeroes. */
 			sch->schib.pmcw.intparm = 0;
 			cio_modify(sch);
@@ -605,9 +623,13 @@ init_channel_subsystem (void)
 		ret = device_register(&css[i]->device);
 		if (ret)
 			goto out_free;
-		if (css_characteristics_avail && css_chsc_characteristics.secm)
-			device_create_file(&css[i]->device,
-					   &dev_attr_cm_enable);
+		if (css_characteristics_avail &&
+		    css_chsc_characteristics.secm) {
+			ret = device_create_file(&css[i]->device,
+						 &dev_attr_cm_enable);
+			if (ret)
+				goto out_device;
+		}
 	}
 	css_init_done = 1;
 
@@ -615,6 +637,8 @@ init_channel_subsystem (void)
 
 	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;
+out_device:
+	device_unregister(&css[i]->device);
 out_free:
 	kfree(css[i]);
 out_unregister:

@@ -28,7 +28,6 @@ obj-$(CONFIG_COSA)		+=		syncppp.o	cosa.o
 obj-$(CONFIG_FARSYNC)		+=		syncppp.o	farsync.o
 obj-$(CONFIG_DSCC4)             +=				dscc4.o
 obj-$(CONFIG_LANMEDIA)		+=		syncppp.o
-obj-$(CONFIG_SYNCLINK_SYNCPPP)	+=		syncppp.o
 obj-$(CONFIG_X25_ASY)		+= x25_asy.o
 
 obj-$(CONFIG_LANMEDIA)		+= lmc/

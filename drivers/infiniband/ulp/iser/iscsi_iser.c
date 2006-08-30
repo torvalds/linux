@@ -378,21 +378,6 @@ iscsi_iser_conn_start(struct iscsi_cls_conn *cls_conn)
 	return iser_conn_set_full_featured_mode(conn);
 }
 
-static void
-iscsi_iser_conn_terminate(struct iscsi_conn *conn)
-{
-	struct iscsi_iser_conn *iser_conn = conn->dd_data;
-	struct iser_conn *ib_conn = iser_conn->ib_conn;
-
-	BUG_ON(!ib_conn);
-	/* starts conn teardown process, waits until all previously   *
-	 * posted buffers get flushed, deallocates all conn resources */
-	iser_conn_terminate(ib_conn);
-	iser_conn->ib_conn = NULL;
-	conn->recv_lock = NULL;
-}
-
-
 static struct iscsi_transport iscsi_iser_transport;
 
 static struct iscsi_cls_session *
@@ -555,13 +540,13 @@ iscsi_iser_ep_poll(__u64 ep_handle, int timeout_ms)
 static void
 iscsi_iser_ep_disconnect(__u64 ep_handle)
 {
-	struct iser_conn *ib_conn = iscsi_iser_ib_conn_lookup(ep_handle);
+	struct iser_conn *ib_conn;
 
+	ib_conn = iscsi_iser_ib_conn_lookup(ep_handle);
 	if (!ib_conn)
 		return;
 
 	iser_err("ib conn %p state %d\n",ib_conn, ib_conn->state);
-
 	iser_conn_terminate(ib_conn);
 }
 
@@ -614,9 +599,6 @@ static struct iscsi_transport iscsi_iser_transport = {
 	.get_session_param	= iscsi_session_get_param,
 	.start_conn             = iscsi_iser_conn_start,
 	.stop_conn              = iscsi_conn_stop,
-	/* these are called as part of conn recovery */
-	.suspend_conn_recv	= NULL, /* FIXME is/how this relvant to iser? */
-	.terminate_conn		= iscsi_iser_conn_terminate,
 	/* IO */
 	.send_pdu		= iscsi_conn_send_pdu,
 	.get_stats		= iscsi_iser_conn_get_stats,

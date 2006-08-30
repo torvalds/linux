@@ -292,7 +292,10 @@ ENTRY(do_suspend_lowlevel)
 	pushl	$3
 	call	acpi_enter_sleep_state
 	addl	$4, %esp
-	ret
+
+#	In case of S3 failure, we'll emerge here.  Jump
+# 	to ret_point to recover
+	jmp	ret_point
 	.p2align 4,,7
 ret_point:
 	call	restore_registers

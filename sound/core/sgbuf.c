@@ -68,21 +68,18 @@ void *snd_malloc_sgbuf_pages(struct device *device,
 
 	dmab->area = NULL;
 	dmab->addr = 0;
-	dmab->private_data = sgbuf = kmalloc(sizeof(*sgbuf), GFP_KERNEL);
+	dmab->private_data = sgbuf = kzalloc(sizeof(*sgbuf), GFP_KERNEL);
 	if (! sgbuf)
 		return NULL;
-	memset(sgbuf, 0, sizeof(*sgbuf));
 	sgbuf->dev = device;
 	pages = snd_sgbuf_aligned_pages(size);
 	sgbuf->tblsize = sgbuf_align_table(pages);
-	sgbuf->table = kmalloc(sizeof(*sgbuf->table) * sgbuf->tblsize, GFP_KERNEL);
+	sgbuf->table = kcalloc(sgbuf->tblsize, sizeof(*sgbuf->table), GFP_KERNEL);
 	if (! sgbuf->table)
 		goto _failed;
-	memset(sgbuf->table, 0, sizeof(*sgbuf->table) * sgbuf->tblsize);
-	sgbuf->page_table = kmalloc(sizeof(*sgbuf->page_table) * sgbuf->tblsize, GFP_KERNEL);
+	sgbuf->page_table = kcalloc(sgbuf->tblsize, sizeof(*sgbuf->page_table), GFP_KERNEL);
 	if (! sgbuf->page_table)
 		goto _failed;
-	memset(sgbuf->page_table, 0, sizeof(*sgbuf->page_table) * sgbuf->tblsize);
 
 	/* allocate each page */
 	for (i = 0; i < pages; i++) {

@@ -46,8 +46,6 @@ enum kobject_action {
 	KOBJ_UMOUNT	= (__force kobject_action_t) 0x05,	/* umount event for block devices (broken) */
 	KOBJ_OFFLINE	= (__force kobject_action_t) 0x06,	/* device offline */
 	KOBJ_ONLINE	= (__force kobject_action_t) 0x07,	/* device online */
-	KOBJ_UNDOCK	= (__force kobject_action_t) 0x08, 	/* undocking */
-	KOBJ_DOCK	= (__force kobject_action_t) 0x09,	/* dock */
 };
 
 struct kobject {

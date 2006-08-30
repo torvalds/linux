@@ -18,7 +18,7 @@
 #ifndef __ASM_ARCH_REGS_RTC_H
 #define __ASM_ARCH_REGS_RTC_H __FILE__
 
-#define S3C2410_RTCREG(x) ((x) + S3C24XX_VA_RTC)
+#define S3C2410_RTCREG(x) (x)
 
 #define S3C2410_RTCCON	      S3C2410_RTCREG(0x40)
 #define S3C2410_RTCCON_RTCEN  (1<<0)

@@ -57,7 +57,7 @@ static int acpi_system_info_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_system_read_info, PDE(inode)->data);
 }
 
-static struct file_operations acpi_system_info_ops = {
+static const struct file_operations acpi_system_info_ops = {
 	.open = acpi_system_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -67,7 +67,7 @@ static struct file_operations acpi_system_info_ops = {
 static ssize_t acpi_system_read_dsdt(struct file *, char __user *, size_t,
 				     loff_t *);
 
-static struct file_operations acpi_system_dsdt_ops = {
+static const struct file_operations acpi_system_dsdt_ops = {
 	.read = acpi_system_read_dsdt,
 };
 
@@ -94,7 +94,7 @@ acpi_system_read_dsdt(struct file *file,
 static ssize_t acpi_system_read_fadt(struct file *, char __user *, size_t,
 				     loff_t *);
 
-static struct file_operations acpi_system_fadt_ops = {
+static const struct file_operations acpi_system_fadt_ops = {
 	.read = acpi_system_read_fadt,
 };
 

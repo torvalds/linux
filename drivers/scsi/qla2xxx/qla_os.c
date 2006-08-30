@@ -744,7 +744,6 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
-	srb_t *sp;
 	int ret;
 	unsigned int id, lun;
 	unsigned long serial;
@@ -755,8 +754,7 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	lun = cmd->device->lun;
 	serial = cmd->serial_number;
 
-	sp = (srb_t *) CMD_SP(cmd);
-	if (!sp || !fcport)
+	if (!fcport)
 		return ret;
 
 	qla_printk(KERN_INFO, ha,
@@ -875,7 +873,6 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
-	srb_t *sp;
 	int ret;
 	unsigned int id, lun;
 	unsigned long serial;
@@ -886,8 +883,7 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 	lun = cmd->device->lun;
 	serial = cmd->serial_number;
 
-	sp = (srb_t *) CMD_SP(cmd);
-	if (!sp || !fcport)
+	if (!fcport)
 		return ret;
 
 	qla_printk(KERN_INFO, ha,
@@ -936,7 +932,6 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
-	srb_t *sp;
 	int ret;
 	unsigned int id, lun;
 	unsigned long serial;
@@ -947,8 +942,7 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	lun = cmd->device->lun;
 	serial = cmd->serial_number;
 
-	sp = (srb_t *) CMD_SP(cmd);
-	if (!sp || !fcport)
+	if (!fcport)
 		return ret;
 
 	qla_printk(KERN_INFO, ha,
@@ -2244,9 +2238,6 @@ qla2x00_do_dpc(void *data)
 
 			next_loopid = 0;
 			list_for_each_entry(fcport, &ha->fcports, list) {
-				if (fcport->port_type != FCT_TARGET)
-					continue;
-
 				/*
 				 * If the port is not ONLINE then try to login
 				 * to it if we haven't run out of retries.

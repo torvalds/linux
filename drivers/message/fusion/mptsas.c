@@ -67,20 +67,19 @@
 #define my_VERSION	MPT_LINUX_VERSION_COMMON
 #define MYNAM		"mptsas"
 
+/*
+ * Reserved channel for integrated raid
+ */
+#define MPTSAS_RAID_CHANNEL	1
+
 MODULE_AUTHOR(MODULEAUTHOR);
 MODULE_DESCRIPTION(my_NAME);
 MODULE_LICENSE("GPL");
 
-static int mpt_pq_filter;
-module_param(mpt_pq_filter, int, 0);
-MODULE_PARM_DESC(mpt_pq_filter,
-		"Enable peripheral qualifier filter: enable=1  "
-		"(default=0)");
-
 static int mpt_pt_clear;
 module_param(mpt_pt_clear, int, 0);
 MODULE_PARM_DESC(mpt_pt_clear,
-		"Clear persistency table: enable=1  "
+		" Clear persistency table: enable=1  "
 		"(default=MPTSCSIH_PT_CLEAR=0)");
 
 static int	mptsasDoneCtx = -1;
@@ -144,7 +143,6 @@ struct mptsas_devinfo {
  * Specific details on ports, wide/narrow
  */
 struct mptsas_portinfo_details{
-	u8	port_id; 	/* port number provided to transport */
 	u16	num_phys;	/* number of phys belong to this port */
 	u64	phy_bitmask; 	/* TODO, extend support for 255 phys */
 	struct sas_rphy *rphy;	/* transport layer rphy object */
@@ -350,10 +348,10 @@ mptsas_port_delete(struct mptsas_portinfo_details * port_details)
 	port_info = port_details->port_info;
 	phy_info = port_info->phy_info;
 
-	dsaswideprintk((KERN_DEBUG "%s: [%p]: port=%02d num_phys=%02d "
+	dsaswideprintk((KERN_DEBUG "%s: [%p]: num_phys=%02d "
 	    	"bitmask=0x%016llX\n",
-		__FUNCTION__, port_details, port_details->port_id,
-		port_details->num_phys, port_details->phy_bitmask));
+		__FUNCTION__, port_details, port_details->num_phys,
+		    port_details->phy_bitmask));
 
 	for (i = 0; i < port_info->num_phys; i++, phy_info++) {
 		if(phy_info->port_details != port_details)
@@ -462,9 +460,8 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		 * phy be removed by firmware events.
 		 */
 		dsaswideprintk((KERN_DEBUG
-			"%s: [%p]: port=%d deleting phy = %d\n",
-			__FUNCTION__, port_details,
-			port_details->port_id, i));
+			"%s: [%p]: deleting phy = %d\n",
+			__FUNCTION__, port_details, i));
 		port_details->num_phys--;
 		port_details->phy_bitmask &= ~ (1 << phy_info->phy_id);
 		memset(&phy_info->attached, 0, sizeof(struct mptsas_devinfo));
@@ -493,7 +490,6 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 				goto out;
 			port_details->num_phys = 1;
 			port_details->port_info = port_info;
-			port_details->port_id = ioc->port_serial_number++;
 			if (phy_info->phy_id < 64 )
 				port_details->phy_bitmask |=
 				    (1 << phy_info->phy_id);
@@ -525,12 +521,8 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 				    mptsas_get_port(phy_info_cmp);
 				port_details->starget =
 				    mptsas_get_starget(phy_info_cmp);
-				port_details->port_id =
-					phy_info_cmp->port_details->port_id;
 				port_details->num_phys =
 					phy_info_cmp->port_details->num_phys;
-//				port_info->port_serial_number--;
-				ioc->port_serial_number--;
 				if (!phy_info_cmp->port_details->num_phys)
 					kfree(phy_info_cmp->port_details);
 			} else
@@ -554,11 +546,11 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		if (!port_details)
 			continue;
 		dsaswideprintk((KERN_DEBUG
-			"%s: [%p]: phy_id=%02d port_id=%02d num_phys=%02d "
+			"%s: [%p]: phy_id=%02d num_phys=%02d "
 		    	"bitmask=0x%016llX\n",
 			__FUNCTION__,
-			port_details, i, port_details->port_id,
-			port_details->num_phys, port_details->phy_bitmask));
+			port_details, i, port_details->num_phys,
+			port_details->phy_bitmask));
 		dsaswideprintk((KERN_DEBUG"\t\tport = %p rphy=%p\n",
 			port_details->port, port_details->rphy));
 	}
@@ -651,16 +643,13 @@ mptsas_sas_enclosure_pg0(MPT_ADAPTER *ioc, struct mptsas_enclosure *enclosure,
 static int
 mptsas_slave_configure(struct scsi_device *sdev)
 {
-	struct Scsi_Host	*host = sdev->host;
-	MPT_SCSI_HOST		*hd = (MPT_SCSI_HOST *)host->hostdata;
 
-	/*
-	 * RAID volumes placed beyond the last expected port.
-	 * Ignore sending sas mode pages in that case..
-	 */
-	if (sdev->channel < hd->ioc->num_ports)
-		sas_read_port_mode_page(sdev);
+	if (sdev->channel == MPTSAS_RAID_CHANNEL)
+		goto out;
 
+	sas_read_port_mode_page(sdev);
+
+ out:
 	return mptscsih_slave_configure(sdev);
 }
 
@@ -689,10 +678,7 @@ mptsas_target_alloc(struct scsi_target *starget)
 
 	hd->Targets[target_id] = vtarget;
 
-	/*
-	 * RAID volumes placed beyond the last expected port.
-	 */
-	if (starget->channel == hd->ioc->num_ports)
+	if (starget->channel == MPTSAS_RAID_CHANNEL)
 		goto out;
 
 	rphy = dev_to_rphy(starget->dev.parent);
@@ -743,7 +729,7 @@ mptsas_target_destroy(struct scsi_target *starget)
 	if (!starget->hostdata)
 		return;
 
-	if (starget->channel == hd->ioc->num_ports)
+	if (starget->channel == MPTSAS_RAID_CHANNEL)
 		goto out;
 
 	rphy = dev_to_rphy(starget->dev.parent);
@@ -783,10 +769,7 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	starget = scsi_target(sdev);
 	vdev->vtarget = starget->hostdata;
 
-	/*
-	 * RAID volumes placed beyond the last expected port.
-	 */
-	if (sdev->channel == hd->ioc->num_ports)
+	if (sdev->channel == MPTSAS_RAID_CHANNEL)
 		goto out;
 
 	rphy = dev_to_rphy(sdev->sdev_target->dev.parent);
@@ -1608,11 +1591,7 @@ static int mptsas_probe_one_phy(struct device *dev,
 	if (phy_info->sas_port_add_phy) {
 
 		if (!port) {
-			port = sas_port_alloc(dev,
-			    phy_info->port_details->port_id);
-			dsaswideprintk((KERN_DEBUG
-			    "sas_port_alloc: port=%p dev=%p port_id=%d\n",
-			    port, dev, phy_info->port_details->port_id));
+			port = sas_port_alloc_num(dev);
 			if (!port) {
 				error = -ENOMEM;
 				goto out;
@@ -1625,6 +1604,9 @@ static int mptsas_probe_one_phy(struct device *dev,
 				goto out;
 			}
 			mptsas_set_port(phy_info, port);
+			dsaswideprintk((KERN_DEBUG
+			    "sas_port_alloc: port=%p dev=%p port_id=%d\n",
+			    port, dev, port->port_identifier));
 		}
 		dsaswideprintk((KERN_DEBUG "sas_port_add_phy: phy_id=%d\n",
 		    phy_info->phy_id));
@@ -1736,7 +1718,6 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc)
 		hba = NULL;
 	}
 	mutex_unlock(&ioc->sas_topology_mutex);
-	ioc->num_ports = port_info->num_phys;
 
 	for (i = 0; i < port_info->num_phys; i++) {
 		mptsas_sas_phy_pg0(ioc, &port_info->phy_info[i],
@@ -1939,7 +1920,8 @@ mptsas_delete_expander_phys(MPT_ADAPTER *ioc)
 					expander_sas_address)
 					continue;
 #ifdef MPT_DEBUG_SAS_WIDE
-				dev_printk(KERN_DEBUG, &port->dev, "delete\n");
+				dev_printk(KERN_DEBUG, &port->dev,
+				    "delete port (%d)\n", port->port_identifier);
 #endif
 				sas_port_delete(port);
 				mptsas_port_delete(phy_info->port_details);
@@ -1984,7 +1966,7 @@ mptsas_scan_sas_topology(MPT_ADAPTER *ioc)
 	if (!ioc->raid_data.pIocPg2->NumActiveVolumes)
 		goto out;
 	for (i=0; i<ioc->raid_data.pIocPg2->NumActiveVolumes; i++) {
-		scsi_add_device(ioc->sh, ioc->num_ports,
+		scsi_add_device(ioc->sh, MPTSAS_RAID_CHANNEL,
 		    ioc->raid_data.pIocPg2->RaidVolume[i].VolumeID, 0);
 	}
  out:
@@ -2185,7 +2167,8 @@ mptsas_hotplug_work(void *arg)
 		       ioc->name, ds, ev->channel, ev->id, phy_info->phy_id);
 
 #ifdef MPT_DEBUG_SAS_WIDE
-		dev_printk(KERN_DEBUG, &port->dev, "delete\n");
+		dev_printk(KERN_DEBUG, &port->dev,
+		    "delete port (%d)\n", port->port_identifier);
 #endif
 		sas_port_delete(port);
 		mptsas_port_delete(phy_info->port_details);
@@ -2289,35 +2272,26 @@ mptsas_hotplug_work(void *arg)
 		mptsas_set_rphy(phy_info, rphy);
 		break;
 	case MPTSAS_ADD_RAID:
-		sdev = scsi_device_lookup(
-			ioc->sh,
-			ioc->num_ports,
-			ev->id,
-			0);
+		sdev = scsi_device_lookup(ioc->sh, MPTSAS_RAID_CHANNEL,
+		    ev->id, 0);
 		if (sdev) {
 			scsi_device_put(sdev);
 			break;
 		}
 		printk(MYIOC_s_INFO_FMT
 		       "attaching raid volume, channel %d, id %d\n",
-		       ioc->name, ioc->num_ports, ev->id);
-		scsi_add_device(ioc->sh,
-			ioc->num_ports,
-			ev->id,
-			0);
+		       ioc->name, MPTSAS_RAID_CHANNEL, ev->id);
+		scsi_add_device(ioc->sh, MPTSAS_RAID_CHANNEL, ev->id, 0);
 		mpt_findImVolumes(ioc);
 		break;
 	case MPTSAS_DEL_RAID:
-		sdev = scsi_device_lookup(
-			ioc->sh,
-			ioc->num_ports,
-			ev->id,
-			0);
+		sdev = scsi_device_lookup(ioc->sh, MPTSAS_RAID_CHANNEL,
+	    	    ev->id, 0);
 		if (!sdev)
 			break;
 		printk(MYIOC_s_INFO_FMT
 		       "removing raid volume, channel %d, id %d\n",
-		       ioc->name, ioc->num_ports, ev->id);
+		       ioc->name, MPTSAS_RAID_CHANNEL, ev->id);
 		vdevice = sdev->hostdata;
 		vdevice->vtarget->deleted = 1;
 		mptsas_target_reset(ioc, vdevice->vtarget);
@@ -2723,19 +2697,12 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hd->timer.data = (unsigned long) hd;
 	hd->timer.function = mptscsih_timer_expired;
 
-	hd->mpt_pq_filter = mpt_pq_filter;
 	ioc->sas_data.ptClear = mpt_pt_clear;
 
 	if (ioc->sas_data.ptClear==1) {
 		mptbase_sas_persist_operation(
 		    ioc, MPI_SAS_OP_CLEAR_ALL_PERSISTENT);
 	}
-
-	ddvprintk((MYIOC_s_INFO_FMT
-		"mpt_pq_filter %x mpt_pq_filter %x\n",
-		ioc->name,
-		mpt_pq_filter,
-		mpt_pq_filter));
 
 	init_waitqueue_head(&hd->scandv_waitq);
 	hd->scandv_wait_done = 0;

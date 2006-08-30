@@ -17,10 +17,6 @@
 
 #include "pci.h"
 
-#ifdef CONFIG_PCI_BIOS
-extern  void pcibios_sort(void);
-#endif
-
 unsigned int pci_probe = PCI_PROBE_BIOS | PCI_PROBE_CONF1 | PCI_PROBE_CONF2 |
 				PCI_PROBE_MMCONF;
 

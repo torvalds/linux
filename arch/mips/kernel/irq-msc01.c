@@ -137,7 +137,7 @@ msc_bind_eic_interrupt (unsigned int irq, unsigned int set)
 
 #define shutdown_msc_irq	disable_msc_irq
 
-struct hw_interrupt_type msc_levelirq_type = {
+struct irq_chip msc_levelirq_type = {
 	.typename = "SOC-it-Level",
 	.startup = startup_msc_irq,
 	.shutdown = shutdown_msc_irq,
@@ -147,7 +147,7 @@ struct hw_interrupt_type msc_levelirq_type = {
 	.end = end_msc_irq,
 };
 
-struct hw_interrupt_type msc_edgeirq_type = {
+struct irq_chip msc_edgeirq_type = {
 	.typename = "SOC-it-Edge",
 	.startup =startup_msc_irq,
 	.shutdown = shutdown_msc_irq,

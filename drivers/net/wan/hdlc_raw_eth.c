@@ -100,6 +100,7 @@ int hdlc_raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
 		dev->tx_queue_len = old_qlen;
 		memcpy(dev->dev_addr, "\x00\x01", 2);
                 get_random_bytes(dev->dev_addr + 2, ETH_ALEN - 2);
+		netif_dormant_off(dev);
 		return 0;
 	}
 

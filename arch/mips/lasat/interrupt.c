@@ -69,7 +69,7 @@ static void end_lasat_irq(unsigned int irq)
 		enable_lasat_irq(irq);
 }
 
-static struct hw_interrupt_type lasat_irq_type = {
+static struct irq_chip lasat_irq_type = {
 	.typename = "Lasat",
 	.startup = startup_lasat_irq,
 	.shutdown = shutdown_lasat_irq,

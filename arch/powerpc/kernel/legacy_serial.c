@@ -112,9 +112,10 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 static int __init add_legacy_soc_port(struct device_node *np,
 				      struct device_node *soc_dev)
 {
-	phys_addr_t addr;
+	u64 addr;
 	u32 *addrp;
 	upf_t flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_SHARE_IRQ;
+	struct device_node *tsi = of_get_parent(np);
 
 	/* We only support ports that have a clock frequency properly
 	 * encoded in the device-tree.
@@ -134,7 +135,10 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	/* Add port, irq will be dealt with later. We passed a translated
 	 * IO port value. It will be fixed up later along with the irq
 	 */
-	return add_legacy_port(np, -1, UPIO_MEM, addr, addr, NO_IRQ, flags, 0);
+	if (tsi && !strcmp(tsi->type, "tsi-bridge"))
+		return add_legacy_port(np, -1, UPIO_TSI, addr, addr, NO_IRQ, flags, 0);
+	else
+		return add_legacy_port(np, -1, UPIO_MEM, addr, addr, NO_IRQ, flags, 0);
 }
 
 static int __init add_legacy_isa_port(struct device_node *np,
@@ -143,7 +147,7 @@ static int __init add_legacy_isa_port(struct device_node *np,
 	u32 *reg;
 	char *typep;
 	int index = -1;
-	phys_addr_t taddr;
+	u64 taddr;
 
 	DBG(" -> add_legacy_isa_port(%s)\n", np->full_name);
 
@@ -165,10 +169,13 @@ static int __init add_legacy_isa_port(struct device_node *np,
 	if (typep && *typep == 'S')
 		index = simple_strtol(typep+1, NULL, 0) - 1;
 
-	/* Translate ISA address */
+	/* Translate ISA address. If it fails, we still register the port
+	 * with no translated address so that it can be picked up as an IO
+	 * port later by the serial driver
+	 */
 	taddr = of_translate_address(np, reg);
 	if (taddr == OF_BAD_ADDR)
-		return -1;
+		taddr = 0;
 
 	/* Add port, irq will be dealt with later */
 	return add_legacy_port(np, index, UPIO_PORT, reg[1], taddr,
@@ -180,7 +187,7 @@ static int __init add_legacy_isa_port(struct device_node *np,
 static int __init add_legacy_pci_port(struct device_node *np,
 				      struct device_node *pci_dev)
 {
-	phys_addr_t addr, base;
+	u64 addr, base;
 	u32 *addrp;
 	unsigned int flags;
 	int iotype, index = -1, lindex = 0;
@@ -461,7 +468,7 @@ static int __init serial_dev_init(void)
 			fixup_port_irq(i, np, port);
 		if (port->iotype == UPIO_PORT)
 			fixup_port_pio(i, np, port);
-		if (port->iotype == UPIO_MEM)
+		if ((port->iotype == UPIO_MEM) || (port->iotype == UPIO_TSI))
 			fixup_port_mmio(i, np, port);
 	}
 

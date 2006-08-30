@@ -1,8 +1,10 @@
 /*
  * Derived from arch/powerpc/platforms/pseries/iommu.c
  *
- * Copyright (C) 2006 Jon Mason <jdmason@us.ibm.com>, IBM Corporation
- * Copyright (C) 2006 Muli Ben-Yehuda <muli@il.ibm.com>, IBM Corporation
+ * Copyright (C) IBM Corporation, 2006
+ *
+ * Author: Jon Mason <jdmason@us.ibm.com>
+ * Author: Muli Ben-Yehuda <muli@il.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -94,7 +96,6 @@ static inline unsigned int table_size_to_number_of_entries(unsigned char size)
 static int tce_table_setparms(struct pci_dev *dev, struct iommu_table *tbl)
 {
 	unsigned int bitmapsz;
-	unsigned int tce_table_index;
 	unsigned long bmppages;
 	int ret;
 
@@ -103,8 +104,7 @@ static int tce_table_setparms(struct pci_dev *dev, struct iommu_table *tbl)
 	/* set the tce table size - measured in entries */
 	tbl->it_size = table_size_to_number_of_entries(specified_table_size);
 
-	tce_table_index = bus_to_phb(tbl->it_busno);
-	tbl->it_base = (unsigned long)tce_table_kva[tce_table_index];
+	tbl->it_base = (unsigned long)tce_table_kva[dev->bus->number];
 	if (!tbl->it_base) {
 		printk(KERN_ERR "Calgary: iommu_table_setparms: "
 		       "no table allocated?!\n");

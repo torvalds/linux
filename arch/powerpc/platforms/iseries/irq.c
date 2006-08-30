@@ -300,7 +300,7 @@ int __init iSeries_allocate_IRQ(HvBusNumber bus,
 	realirq = (((((sub_bus << 8) + (bus - 1)) << 3) + (idsel - 1)) << 3)
 		+ function;
 
-	return irq_create_mapping(NULL, realirq, IRQ_TYPE_NONE);
+	return irq_create_mapping(NULL, realirq);
 }
 
 #endif /* CONFIG_PCI */
@@ -341,7 +341,7 @@ unsigned int iSeries_get_irq(struct pt_regs *regs)
 }
 
 static int iseries_irq_host_map(struct irq_host *h, unsigned int virq,
-				irq_hw_number_t hw, unsigned int flags)
+				irq_hw_number_t hw)
 {
 	set_irq_chip_and_handler(virq, &iseries_pic, handle_fasteoi_irq);
 

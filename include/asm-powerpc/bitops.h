@@ -65,8 +65,8 @@ static __inline__ void set_bit(int nr, volatile unsigned long *addr)
 	PPC405_ERR77(0,%3)
 	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
-	: "=&r"(old), "=m"(*p)
-	: "r"(mask), "r"(p), "m"(*p)
+	: "=&r" (old), "+m" (*p)
+	: "r" (mask), "r" (p)
 	: "cc" );
 }
 
@@ -82,8 +82,8 @@ static __inline__ void clear_bit(int nr, volatile unsigned long *addr)
 	PPC405_ERR77(0,%3)
 	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
-	: "=&r"(old), "=m"(*p)
-	: "r"(mask), "r"(p), "m"(*p)
+	: "=&r" (old), "+m" (*p)
+	: "r" (mask), "r" (p)
 	: "cc" );
 }
 
@@ -99,8 +99,8 @@ static __inline__ void change_bit(int nr, volatile unsigned long *addr)
 	PPC405_ERR77(0,%3)
 	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
-	: "=&r"(old), "=m"(*p)
-	: "r"(mask), "r"(p), "m"(*p)
+	: "=&r" (old), "+m" (*p)
+	: "r" (mask), "r" (p)
 	: "cc" );
 }
 
@@ -179,8 +179,8 @@ static __inline__ void set_bits(unsigned long mask, unsigned long *addr)
 	"or	%0,%0,%2\n"
 	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
-	: "=&r" (old), "=m" (*addr)
-	: "r" (mask), "r" (addr), "m" (*addr)
+	: "=&r" (old), "+m" (*addr)
+	: "r" (mask), "r" (addr)
 	: "cc");
 }
 

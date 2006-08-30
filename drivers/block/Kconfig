@@ -400,6 +400,16 @@ config BLK_DEV_RAM_SIZE
 	  what are you doing. If you are using IBM S/390, then set this to
 	  8192.
 
+config BLK_DEV_RAM_BLOCKSIZE
+	int "Default RAM disk block size (bytes)"
+	depends on BLK_DEV_RAM
+	default "1024"
+	help
+	  The default value is 1024 kilobytes.  PAGE_SIZE is a much more
+	  efficient choice however.  The default is kept to ensure initrd
+	  setups function - apparently needed by the rd_load_image routine
+	  that supposes the filesystem in the image uses a 1024 blocksize.
+
 config BLK_DEV_INITRD
 	bool "Initial RAM filesystem and RAM disk (initramfs/initrd) support"
 	depends on BROKEN || !FRV

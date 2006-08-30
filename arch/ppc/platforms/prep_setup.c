@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/a.out.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/major.h>
 #include <linux/interrupt.h>
 #include <linux/reboot.h>

@@ -1,8 +1,8 @@
 /*
  * arch/v850/kernel/setup.c -- Arch-dependent initialization functions
  *
- *  Copyright (C) 2001,02,03,05  NEC Electronics Corporation
- *  Copyright (C) 2001,02,03,05  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2001,02,03,05,06  NEC Electronics Corporation
+ *  Copyright (C) 2001,02,03,05,06  Miles Bader <miles@gnu.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -190,7 +190,7 @@ void free_initmem (void)
 		for (addr = start; addr < end; addr += PAGE_SIZE) {
 			struct page *page = virt_to_page (addr);
 			ClearPageReserved (page);
-			set_page_count (page, 1);
+			init_page_count (page);
 			__free_page (page);
 			total_ram_pages++;
 		}

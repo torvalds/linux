@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>
+#include <linux/irq.h>
 #include <linux/serial_reg.h>
 #include <linux/major.h>
 #include <linux/kdev_t.h>
@@ -58,10 +59,7 @@ extern void it8172_restart(char *command);
 extern void it8172_halt(void);
 extern void it8172_power_off(void);
 
-extern void (*board_time_init)(void);
-extern void (*board_timer_setup)(struct irqaction *irq);
 extern void it8172_time_init(void);
-extern void it8172_timer_setup(struct irqaction *irq);
 
 #ifdef CONFIG_IT8172_REVC
 struct {
@@ -169,7 +167,6 @@ void __init plat_mem_setup(void)
 	clear_c0_status(ST0_FR);
 
 	board_time_init = it8172_time_init;
-	board_timer_setup = it8172_timer_setup;
 
 	_machine_restart = it8172_restart;
 	_machine_halt = it8172_halt;

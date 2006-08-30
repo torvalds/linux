@@ -465,7 +465,7 @@ static u32 vfp_double_fcvts(int sd, int unused, int dm, u32 fpscr)
 	 */
 	if (tm & (VFP_INFINITY|VFP_NAN)) {
 		vsd.exponent = 255;
-		if (tm & VFP_NAN)
+		if (tm == VFP_QNAN)
 			vsd.significand |= VFP_SINGLE_SIGNIFICAND_QNAN;
 		goto pack_nan;
 	} else if (tm & VFP_ZERO)
@@ -1127,7 +1127,7 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 {
 	u32 op = inst & FOP_MASK;
 	u32 exceptions = 0;
-	unsigned int dd = vfp_get_dd(inst);
+	unsigned int dest;
 	unsigned int dn = vfp_get_dn(inst);
 	unsigned int dm = vfp_get_dm(inst);
 	unsigned int vecitr, veclen, vecstride;
@@ -1137,10 +1137,20 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 	vecstride = (1 + ((fpscr & FPSCR_STRIDE_MASK) == FPSCR_STRIDE_MASK)) * 2;
 
 	/*
+	 * fcvtds takes an sN register number as destination, not dN.
+	 * It also always operates on scalars.
+	 */
+	if ((inst & FEXT_MASK) == FEXT_FCVT) {
+		veclen = 0;
+		dest = vfp_get_sd(inst);
+	} else
+		dest = vfp_get_dd(inst);
+
+	/*
 	 * If destination bank is zero, vector length is always '1'.
 	 * ARM DDI0100F C5.1.3, C5.3.2.
 	 */
-	if (FREG_BANK(dd) == 0)
+	if (FREG_BANK(dest) == 0)
 		veclen = 0;
 
 	pr_debug("VFP: vecstride=%u veclen=%u\n", vecstride,
@@ -1153,16 +1163,20 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 	for (vecitr = 0; vecitr <= veclen; vecitr += 1 << FPSCR_LENGTH_BIT) {
 		u32 except;
 
-		if (op == FOP_EXT)
+		if (op == FOP_EXT && (inst & FEXT_MASK) == FEXT_FCVT)
+			pr_debug("VFP: itr%d (s%u) = op[%u] (d%u)\n",
+				 vecitr >> FPSCR_LENGTH_BIT,
+				 dest, dn, dm);
+		else if (op == FOP_EXT)
 			pr_debug("VFP: itr%d (d%u) = op[%u] (d%u)\n",
 				 vecitr >> FPSCR_LENGTH_BIT,
-				 dd, dn, dm);
+				 dest, dn, dm);
 		else
 			pr_debug("VFP: itr%d (d%u) = (d%u) op[%u] (d%u)\n",
 				 vecitr >> FPSCR_LENGTH_BIT,
-				 dd, dn, FOP_TO_IDX(op), dm);
+				 dest, dn, FOP_TO_IDX(op), dm);
 
-		except = fop(dd, dn, dm, fpscr);
+		except = fop(dest, dn, dm, fpscr);
 		pr_debug("VFP: itr%d: exceptions=%08x\n",
 			 vecitr >> FPSCR_LENGTH_BIT, except);
 
@@ -1180,7 +1194,7 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 		 * we encounter an exception.  We continue.
 		 */
 
-		dd = FREG_BANK(dd) + ((FREG_IDX(dd) + vecstride) & 6);
+		dest = FREG_BANK(dest) + ((FREG_IDX(dest) + vecstride) & 6);
 		dn = FREG_BANK(dn) + ((FREG_IDX(dn) + vecstride) & 6);
 		if (FREG_BANK(dm) != 0)
 			dm = FREG_BANK(dm) + ((FREG_IDX(dm) + vecstride) & 6);

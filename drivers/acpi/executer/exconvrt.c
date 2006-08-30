@@ -170,6 +170,9 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Converted value: %8.8X%8.8X\n",
+			  ACPI_FORMAT_UINT64(result)));
+
 	/* Save the Result */
 
 	return_desc->integer.value = result;

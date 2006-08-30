@@ -687,8 +687,9 @@ diff shows how closely related RCU and reader-writer locking can be.
 	+	spin_lock(&listmutex);
 		list_for_each_entry(p, head, lp) {
 			if (p->key == key) {
-				list_del(&p->list);
+	-			list_del(&p->list);
 	-			write_unlock(&listmutex);
+	+			list_del_rcu(&p->list);
 	+			spin_unlock(&listmutex);
 	+			synchronize_rcu();
 				kfree(p);
@@ -736,7 +737,7 @@ Or, for those who prefer a side-by-side listing:
  5   write_lock(&listmutex);            5   spin_lock(&listmutex);
  6   list_for_each_entry(p, head, lp) { 6   list_for_each_entry(p, head, lp) {
  7     if (p->key == key) {             7     if (p->key == key) {
- 8       list_del(&p->list);            8       list_del(&p->list);
+ 8       list_del(&p->list);            8       list_del_rcu(&p->list);
  9       write_unlock(&listmutex);      9       spin_unlock(&listmutex);
                                        10       synchronize_rcu();
 10       kfree(p);                     11       kfree(p);

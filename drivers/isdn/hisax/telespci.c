@@ -284,9 +284,9 @@ TelesPCI_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return(0);
 }
 
-static struct pci_dev *dev_tel __initdata = NULL;
+static struct pci_dev *dev_tel __devinitdata = NULL;
 
-int __init
+int __devinit
 setup_telespci(struct IsdnCard *card)
 {
 	struct IsdnCardState *cs = card->cs;

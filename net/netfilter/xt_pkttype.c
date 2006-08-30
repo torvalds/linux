@@ -9,6 +9,8 @@
 #include <linux/skbuff.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
+#include <linux/in.h>
+#include <linux/ip.h>
 
 #include <linux/netfilter/xt_pkttype.h>
 #include <linux/netfilter/x_tables.h>
@@ -28,9 +30,17 @@ static int match(const struct sk_buff *skb,
       unsigned int protoff,
       int *hotdrop)
 {
+	u_int8_t type;
 	const struct xt_pkttype_info *info = matchinfo;
 
-	return (skb->pkt_type == info->pkttype) ^ info->invert;
+	if (skb->pkt_type == PACKET_LOOPBACK)
+		type = (MULTICAST(skb->nh.iph->daddr)
+			? PACKET_MULTICAST
+			: PACKET_BROADCAST);
+	else
+		type = skb->pkt_type;
+
+	return (type == info->pkttype) ^ info->invert;
 }
 
 static struct xt_match pkttype_match = {

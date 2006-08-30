@@ -56,8 +56,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4.43"
-#define DRV_MODULE_RELDATE	"June 28, 2006"
+#define DRV_MODULE_VERSION	"1.4.44"
+#define DRV_MODULE_RELDATE	"August 10, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -209,8 +209,10 @@ MODULE_DEVICE_TABLE(pci, bnx2_pci_tbl);
 
 static inline u32 bnx2_tx_avail(struct bnx2 *bp)
 {
-	u32 diff = TX_RING_IDX(bp->tx_prod) - TX_RING_IDX(bp->tx_cons);
+	u32 diff;
 
+	smp_mb();
+	diff = TX_RING_IDX(bp->tx_prod) - TX_RING_IDX(bp->tx_cons);
 	if (diff > MAX_TX_DESC_CNT)
 		diff = (diff & MAX_TX_DESC_CNT) - 1;
 	return (bp->tx_ring_size - diff);
@@ -1569,7 +1571,7 @@ bnx2_alloc_rx_skb(struct bnx2 *bp, u16 index)
 	struct rx_bd *rxbd = &bp->rx_desc_ring[RX_RING(index)][RX_IDX(index)];
 	unsigned long align;
 
-	skb = dev_alloc_skb(bp->rx_buf_size);
+	skb = netdev_alloc_skb(bp->dev, bp->rx_buf_size);
 	if (skb == NULL) {
 		return -ENOMEM;
 	}
@@ -1578,7 +1580,6 @@ bnx2_alloc_rx_skb(struct bnx2 *bp, u16 index)
 		skb_reserve(skb, 8 - align);
 	}
 
-	skb->dev = bp->dev;
 	mapping = pci_map_single(bp->pdev, skb->data, bp->rx_buf_use_size,
 		PCI_DMA_FROMDEVICE);
 
@@ -1639,7 +1640,7 @@ bnx2_tx_int(struct bnx2 *bp)
 		skb = tx_buf->skb;
 #ifdef BCM_TSO 
 		/* partial BD completions possible with TSO packets */
-		if (skb_shinfo(skb)->gso_size) {
+		if (skb_is_gso(skb)) {
 			u16 last_idx, last_ring_idx;
 
 			last_idx = sw_cons +
@@ -1686,15 +1687,20 @@ bnx2_tx_int(struct bnx2 *bp)
 	}
 
 	bp->tx_cons = sw_cons;
+	/* Need to make the tx_cons update visible to bnx2_start_xmit()
+	 * before checking for netif_queue_stopped().  Without the
+	 * memory barrier, there is a small possibility that bnx2_start_xmit()
+	 * will miss it and cause the queue to be stopped forever.
+	 */
+	smp_mb();
 
-	if (unlikely(netif_queue_stopped(bp->dev))) {
-		spin_lock(&bp->tx_lock);
+	if (unlikely(netif_queue_stopped(bp->dev)) &&
+		     (bnx2_tx_avail(bp) > bp->tx_wake_thresh)) {
+		netif_tx_lock(bp->dev);
 		if ((netif_queue_stopped(bp->dev)) &&
-		    (bnx2_tx_avail(bp) > MAX_SKB_FRAGS)) {
-
+		    (bnx2_tx_avail(bp) > bp->tx_wake_thresh))
 			netif_wake_queue(bp->dev);
-		}
-		spin_unlock(&bp->tx_lock);
+		netif_tx_unlock(bp->dev);
 	}
 }
 
@@ -1786,7 +1792,7 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 		if ((bp->dev->mtu > 1500) && (len <= RX_COPY_THRESH)) {
 			struct sk_buff *new_skb;
 
-			new_skb = dev_alloc_skb(len + 2);
+			new_skb = netdev_alloc_skb(bp->dev, len + 2);
 			if (new_skb == NULL)
 				goto reuse_rx;
 
@@ -1797,7 +1803,6 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 
 			skb_reserve(new_skb, 2);
 			skb_put(new_skb, len);
-			new_skb->dev = bp->dev;
 
 			bnx2_reuse_rx_skb(bp, skb,
 				sw_ring_cons, sw_ring_prod);
@@ -3503,6 +3508,8 @@ bnx2_init_tx_ring(struct bnx2 *bp)
 	struct tx_bd *txbd;
 	u32 val;
 
+	bp->tx_wake_thresh = bp->tx_ring_size / 2;
+
 	txbd = &bp->tx_desc_ring[MAX_TX_DESC_CNT];
 		
 	txbd->tx_bd_haddr_hi = (u64) bp->tx_desc_mapping >> 32;
@@ -3952,7 +3959,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 		return -EINVAL;
 
 	pkt_size = 1514;
-	skb = dev_alloc_skb(pkt_size);
+	skb = netdev_alloc_skb(bp->dev, pkt_size);
 	if (!skb)
 		return -ENOMEM;
 	packet = skb_put(skb, pkt_size);
@@ -4390,10 +4397,8 @@ bnx2_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 #endif
 
 /* Called with netif_tx_lock.
- * hard_start_xmit is pseudo-lockless - a lock is only required when
- * the tx queue is full. This way, we get the benefit of lockless
- * operations most of the time without the complexities to handle
- * netif_stop_queue/wake_queue race conditions.
+ * bnx2_tx_int() runs without netif_tx_lock unless it needs to call
+ * netif_wake_queue().
  */
 static int
 bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -4512,12 +4517,9 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->trans_start = jiffies;
 
 	if (unlikely(bnx2_tx_avail(bp) <= MAX_SKB_FRAGS)) {
-		spin_lock(&bp->tx_lock);
 		netif_stop_queue(dev);
-		
-		if (bnx2_tx_avail(bp) > MAX_SKB_FRAGS)
+		if (bnx2_tx_avail(bp) > bp->tx_wake_thresh)
 			netif_wake_queue(dev);
-		spin_unlock(&bp->tx_lock);
 	}
 
 	return NETDEV_TX_OK;
@@ -5575,20 +5577,20 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	/* enable device (incl. PCI PM wakeup), and bus-mastering */
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		printk(KERN_ERR PFX "Cannot enable PCI device, aborting.");
+		dev_err(&pdev->dev, "Cannot enable PCI device, aborting.");
 		goto err_out;
 	}
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX "Cannot find PCI device base address, "
-		       "aborting.\n");
+		dev_err(&pdev->dev,
+			"Cannot find PCI device base address, aborting.\n");
 		rc = -ENODEV;
 		goto err_out_disable;
 	}
 
 	rc = pci_request_regions(pdev, DRV_MODULE_NAME);
 	if (rc) {
-		printk(KERN_ERR PFX "Cannot obtain PCI resources, aborting.\n");
+		dev_err(&pdev->dev, "Cannot obtain PCI resources, aborting.\n");
 		goto err_out_disable;
 	}
 
@@ -5596,15 +5598,15 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	bp->pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	if (bp->pm_cap == 0) {
-		printk(KERN_ERR PFX "Cannot find power management capability, "
-			       "aborting.\n");
+		dev_err(&pdev->dev,
+			"Cannot find power management capability, aborting.\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
 
 	bp->pcix_cap = pci_find_capability(pdev, PCI_CAP_ID_PCIX);
 	if (bp->pcix_cap == 0) {
-		printk(KERN_ERR PFX "Cannot find PCIX capability, aborting.\n");
+		dev_err(&pdev->dev, "Cannot find PCIX capability, aborting.\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
@@ -5612,14 +5614,14 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) == 0) {
 		bp->flags |= USING_DAC_FLAG;
 		if (pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK) != 0) {
-			printk(KERN_ERR PFX "pci_set_consistent_dma_mask "
-			       "failed, aborting.\n");
+			dev_err(&pdev->dev,
+				"pci_set_consistent_dma_mask failed, aborting.\n");
 			rc = -EIO;
 			goto err_out_release;
 		}
 	}
 	else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0) {
-		printk(KERN_ERR PFX "System does not support DMA, aborting.\n");
+		dev_err(&pdev->dev, "System does not support DMA, aborting.\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
@@ -5628,7 +5630,6 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->pdev = pdev;
 
 	spin_lock_init(&bp->phy_lock);
-	spin_lock_init(&bp->tx_lock);
 	INIT_WORK(&bp->reset_task, bnx2_reset_task, bp);
 
 	dev->base_addr = dev->mem_start = pci_resource_start(pdev, 0);
@@ -5639,7 +5640,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->regview = ioremap_nocache(dev->base_addr, mem_len);
 
 	if (!bp->regview) {
-		printk(KERN_ERR PFX "Cannot map register space, aborting.\n");
+		dev_err(&pdev->dev, "Cannot map register space, aborting.\n");
 		rc = -ENOMEM;
 		goto err_out_release;
 	}
@@ -5711,8 +5712,8 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	else if ((CHIP_ID(bp) == CHIP_ID_5706_A1) &&
 		!(bp->flags & PCIX_FLAG)) {
 
-		printk(KERN_ERR PFX "5706 A1 can only be used in a PCIX bus, "
-		       "aborting.\n");
+		dev_err(&pdev->dev,
+			"5706 A1 can only be used in a PCIX bus, aborting.\n");
 		goto err_out_unmap;
 	}
 
@@ -5733,7 +5734,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	if ((reg & BNX2_DEV_INFO_SIGNATURE_MAGIC_MASK) !=
 	    BNX2_DEV_INFO_SIGNATURE_MAGIC) {
-		printk(KERN_ERR PFX "Firmware not running, aborting.\n");
+		dev_err(&pdev->dev, "Firmware not running, aborting.\n");
 		rc = -ENODEV;
 		goto err_out_unmap;
 	}
@@ -5751,7 +5752,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->mac_addr[5] = (u8) reg;
 
 	bp->tx_ring_size = MAX_TX_DESC_CNT;
-	bnx2_set_rx_ring_size(bp, 100);
+	bnx2_set_rx_ring_size(bp, 255);
 
 	bp->rx_csum = 1;
 
@@ -5895,7 +5896,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	if ((rc = register_netdev(dev))) {
-		printk(KERN_ERR PFX "Cannot register net device\n");
+		dev_err(&pdev->dev, "Cannot register net device\n");
 		if (bp->regview)
 			iounmap(bp->regview);
 		pci_release_regions(pdev);

@@ -16,91 +16,13 @@
 
 	Support and updates available at
 	http://www.scyld.com/network/sundance.html
+	[link no longer provides useful info -jgarzik]
 
-
-	Version LK1.01a (jgarzik):
-	- Replace some MII-related magic numbers with constants
-
-	Version LK1.02 (D-Link):
-	- Add new board to PCI ID list
-	- Fix multicast bug
-
-	Version LK1.03 (D-Link):
-	- New Rx scheme, reduce Rx congestion
-	- Option to disable flow control
-
-	Version LK1.04 (D-Link):
-	- Tx timeout recovery
-	- More support for ethtool.
-
-	Version LK1.04a:
-	- Remove unused/constant members from struct pci_id_info
-	(which then allows removal of 'drv_flags' from private struct)
-	(jgarzik)
-	- If no phy is found, fail to load that board (jgarzik)
-	- Always start phy id scan at id 1 to avoid problems (Donald Becker)
-	- Autodetect where mii_preable_required is needed,
-	default to not needed.  (Donald Becker)
-
-	Version LK1.04b:
-	- Remove mii_preamble_required module parameter (Donald Becker)
-	- Add per-interface mii_preamble_required (setting is autodetected)
-	  (Donald Becker)
-	- Remove unnecessary cast from void pointer (jgarzik)
-	- Re-align comments in private struct (jgarzik)
-
-	Version LK1.04c (jgarzik):
-	- Support bitmapped message levels (NETIF_MSG_xxx), and the
-	  two ethtool ioctls that get/set them
-	- Don't hand-code MII ethtool support, use standard API/lib
-
-	Version LK1.04d:
-	- Merge from Donald Becker's sundance.c: (Jason Lunz)
-		* proper support for variably-sized MTUs
-		* default to PIO, to fix chip bugs
-	- Add missing unregister_netdev (Jason Lunz)
-	- Add CONFIG_SUNDANCE_MMIO config option (jgarzik)
-	- Better rx buf size calculation (Donald Becker)
-
-	Version LK1.05 (D-Link):
-	- Fix DFE-580TX packet drop issue (for DL10050C)
-	- Fix reset_tx logic
-
-	Version LK1.06 (D-Link):
-	- Fix crash while unloading driver
-
-	Versin LK1.06b (D-Link):
-	- New tx scheme, adaptive tx_coalesce
-	
-	Version LK1.07 (D-Link):
-	- Fix tx bugs in big-endian machines
-	- Remove unused max_interrupt_work module parameter, the new 
-	  NAPI-like rx scheme doesn't need it.
-	- Remove redundancy get_stats() in intr_handler(), those 
-	  I/O access could affect performance in ARM-based system
-	- Add Linux software VLAN support
-	
-	Version LK1.08 (Philippe De Muyter phdm@macqel.be):
-	- Fix bug of custom mac address 
-	(StationAddr register only accept word write) 
-
-	Version LK1.09 (D-Link):
-	- Fix the flowctrl bug.	
-	- Set Pause bit in MII ANAR if flow control enabled.	
-
-	Version LK1.09a (ICPlus):
-	- Add the delay time in reading the contents of EEPROM
-
-	Version LK1.10 (Philippe De Muyter phdm@macqel.be):
-	- Make 'unblock interface after Tx underrun' work
-
-	Version LK1.11 (Pedro Alejandro Lopez-Valencia palopezv at gmail.com):
-	- Add support for IC Plus Corporation IP100A chipset
 */
 
 #define DRV_NAME	"sundance"
-#define DRV_VERSION	"1.01+LK1.11"
-#define DRV_RELDATE	"14-Jun-2006"
+#define DRV_VERSION	"1.1"
+#define DRV_RELDATE	"27-Jun-2006"
 
 
 /* The user-configurable values.
@@ -185,7 +107,7 @@ static char *media[MAX_UNITS];
 #endif
 
 /* These identify the driver base version and may not be removed. */
-static char version[] __devinitdata =
+static char version[] =
 KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE "  Written by Donald Becker\n"
 KERN_INFO "  http://www.scyld.com/network/sundance.html\n";
 
@@ -282,15 +204,15 @@ IVc. Errata
 #define USE_IO_OPS 1
 #endif
 
-static struct pci_device_id sundance_pci_tbl[] = {
-	{0x1186, 0x1002, 0x1186, 0x1002, 0, 0, 0},
-	{0x1186, 0x1002, 0x1186, 0x1003, 0, 0, 1},
-	{0x1186, 0x1002, 0x1186, 0x1012, 0, 0, 2},
-	{0x1186, 0x1002, 0x1186, 0x1040, 0, 0, 3},
-	{0x1186, 0x1002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4},
-	{0x13F0, 0x0201, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 5},
-	{0x13F0, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 6},
-	{0,}
+static const struct pci_device_id sundance_pci_tbl[] = {
+	{ 0x1186, 0x1002, 0x1186, 0x1002, 0, 0, 0 },
+	{ 0x1186, 0x1002, 0x1186, 0x1003, 0, 0, 1 },
+	{ 0x1186, 0x1002, 0x1186, 0x1012, 0, 0, 2 },
+	{ 0x1186, 0x1002, 0x1186, 0x1040, 0, 0, 3 },
+	{ 0x1186, 0x1002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
+	{ 0x13F0, 0x0201, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 5 },
+	{ 0x13F0, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 6 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, sundance_pci_tbl);
 
@@ -301,7 +223,7 @@ enum {
 struct pci_id_info {
         const char *name;
 };
-static const struct pci_id_info pci_id_tbl[] = {
+static const struct pci_id_info pci_id_tbl[] __devinitdata = {
 	{"D-Link DFE-550TX FAST Ethernet Adapter"},
 	{"D-Link DFE-550FX 100Mbps Fiber-optics Adapter"},
 	{"D-Link DFE-580TX 4 port Server Adapter"},
@@ -309,7 +231,7 @@ static const struct pci_id_info pci_id_tbl[] = {
 	{"D-Link DL10050-based FAST Ethernet Adapter"},
 	{"Sundance Technology Alta"},
 	{"IC Plus Corporation IP100A FAST Ethernet Adapter"},
-	{NULL,},			/* 0 terminated list. */
+	{ }	/* terminate list. */
 };
 
 /* This driver was written to use PCI memory space, however x86-oriented

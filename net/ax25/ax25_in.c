@@ -102,8 +102,8 @@ static int ax25_rx_fragment(ax25_cb *ax25, struct sk_buff *skb)
 int ax25_rx_iframe(ax25_cb *ax25, struct sk_buff *skb)
 {
 	int (*func)(struct sk_buff *, ax25_cb *);
-	volatile int queued = 0;
 	unsigned char pid;
+	int queued = 0;
 
 	if (skb == NULL) return 0;
 

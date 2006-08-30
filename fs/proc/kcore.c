@@ -42,8 +42,6 @@ const struct file_operations proc_kcore_operations = {
 #define	kc_offset_to_vaddr(o) ((o) + PAGE_OFFSET)
 #endif
 
-#define roundup(x, y)  ((((x)+((y)-1))/(y))*(y))
-
 /* An ELF note in memory */
 struct memelfnote
 {
@@ -384,7 +382,7 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 				 */
 				if (n) { 
 					if (clear_user(buffer + tsz - n,
-								tsz - n))
+								n))
 						return -EFAULT;
 				}
 			} else {

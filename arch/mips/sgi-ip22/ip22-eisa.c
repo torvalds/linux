@@ -144,7 +144,7 @@ static void end_eisa1_irq(unsigned int irq)
 		enable_eisa1_irq(irq);
 }
 
-static struct hw_interrupt_type ip22_eisa1_irq_type = {
+static struct irq_chip ip22_eisa1_irq_type = {
 	.typename	= "IP22 EISA",
 	.startup	= startup_eisa1_irq,
 	.shutdown	= shutdown_eisa1_irq,
@@ -206,7 +206,7 @@ static void end_eisa2_irq(unsigned int irq)
 		enable_eisa2_irq(irq);
 }
 
-static struct hw_interrupt_type ip22_eisa2_irq_type = {
+static struct irq_chip ip22_eisa2_irq_type = {
 	.typename	= "IP22 EISA",
 	.startup	= startup_eisa2_irq,
 	.shutdown	= shutdown_eisa2_irq,

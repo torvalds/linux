@@ -83,25 +83,24 @@ struct irq_host_ops {
 	int (*match)(struct irq_host *h, struct device_node *node);
 
 	/* Create or update a mapping between a virtual irq number and a hw
-	 * irq number. This can be called several times for the same mapping
-	 * but with different flags, though unmap shall always be called
-	 * before the virq->hw mapping is changed.
+	 * irq number. This is called only once for a given mapping.
 	 */
-	int (*map)(struct irq_host *h, unsigned int virq,
-		   irq_hw_number_t hw, unsigned int flags);
+	int (*map)(struct irq_host *h, unsigned int virq, irq_hw_number_t hw);
 
 	/* Dispose of such a mapping */
 	void (*unmap)(struct irq_host *h, unsigned int virq);
 
 	/* Translate device-tree interrupt specifier from raw format coming
 	 * from the firmware to a irq_hw_number_t (interrupt line number) and
-	 * trigger flags that can be passed to irq_create_mapping().
-	 * If no translation is provided, raw format is assumed to be one cell
-	 * for interrupt line and default sense.
+	 * type (sense) that can be passed to set_irq_type(). In the absence
+	 * of this callback, irq_create_of_mapping() and irq_of_parse_and_map()
+	 * will return the hw number in the first cell and IRQ_TYPE_NONE for
+	 * the type (which amount to keeping whatever default value the
+	 * interrupt controller has for that line)
 	 */
 	int (*xlate)(struct irq_host *h, struct device_node *ctrler,
 		     u32 *intspec, unsigned int intsize,
-		     irq_hw_number_t *out_hwirq, unsigned int *out_flags);
+		     irq_hw_number_t *out_hwirq, unsigned int *out_type);
 };
 
 struct irq_host {
@@ -193,25 +192,14 @@ extern void irq_set_virq_count(unsigned int count);
  * irq_create_mapping - Map a hardware interrupt into linux virq space
  * @host: host owning this hardware interrupt or NULL for default host
  * @hwirq: hardware irq number in that host space
- * @flags: flags passed to the controller. contains the trigger type among
- *         others. Use IRQ_TYPE_* defined in include/linux/irq.h
  *
  * Only one mapping per hardware interrupt is permitted. Returns a linux
- * virq number. The flags can be used to provide sense information to the
- * controller (typically extracted from the device-tree). If no information
- * is passed, the controller defaults will apply (for example, xics can only
- * do edge so flags are irrelevant for some pseries specific irqs).
- *
- * The device-tree generally contains the trigger info in an encoding that is
- * specific to a given type of controller. In that case, you can directly use
- * host->ops->trigger_xlate() to translate that.
- *
- * It is recommended that new PICs that don't have existing OF bindings chose
- * to use a representation of triggers identical to linux.
+ * virq number.
+ * If the sense/trigger is to be specified, set_irq_type() should be called
+ * on the number returned from that call.
  */
 extern unsigned int irq_create_mapping(struct irq_host *host,
-				       irq_hw_number_t hwirq,
-				       unsigned int flags);
+				       irq_hw_number_t hwirq);
 
 
 /***
@@ -295,7 +283,7 @@ extern void irq_free_virt(unsigned int virq, unsigned int count);
  *
  * This function is identical to irq_create_mapping except that it takes
  * as input informations straight from the device-tree (typically the results
- * of the of_irq_map_*() functions
+ * of the of_irq_map_*() functions.
  */
 extern unsigned int irq_create_of_mapping(struct device_node *controller,
 					  u32 *intspec, unsigned int intsize);

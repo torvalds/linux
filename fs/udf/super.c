@@ -115,6 +115,13 @@ static struct inode *udf_alloc_inode(struct super_block *sb)
 	ei = (struct udf_inode_info *)kmem_cache_alloc(udf_inode_cachep, SLAB_KERNEL);
 	if (!ei)
 		return NULL;
+
+	ei->i_unique = 0;
+	ei->i_lenExtents = 0;
+	ei->i_next_alloc_block = 0;
+	ei->i_next_alloc_goal = 0;
+	ei->i_strat4096 = 0;
+
 	return &ei->vfs_inode;
 }
 
@@ -1652,7 +1659,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 		iput(inode);
 		goto error_out;
 	}
-	sb->s_maxbytes = MAX_LFS_FILESIZE;
+	sb->s_maxbytes = 1<<30;
 	return 0;
 
 error_out:

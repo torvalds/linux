@@ -296,11 +296,14 @@ void bcm43xx_generate_txhdr(struct bcm43xx_private *bcm,
 	u16 control = 0;
 	u16 wsec_rate = 0;
 	u16 encrypt_frame;
+	const u16 ftype = WLAN_FC_GET_TYPE(le16_to_cpu(wireless_header->frame_ctl));
+	const int is_mgt = (ftype == IEEE80211_FTYPE_MGMT);
 
 	/* Now construct the TX header. */
 	memset(txhdr, 0, sizeof(*txhdr));
 
-	bitrate = bcm->softmac->txrates.default_rate;
+	bitrate = ieee80211softmac_suggest_txrate(bcm->softmac,
+		is_multicast_ether_addr(wireless_header->addr1), is_mgt);
 	ofdm_modulation = !(ieee80211_is_cck_rate(bitrate));
 	fallback_bitrate = bcm43xx_calc_fallback_rate(bitrate);
 	fallback_ofdm_modulation = !(ieee80211_is_cck_rate(fallback_bitrate));

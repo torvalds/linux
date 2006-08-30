@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>
+#include <linux/irq.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -48,10 +49,7 @@ extern void pnx8550_machine_halt(void);
 extern void pnx8550_machine_power_off(void);
 extern struct resource ioport_resource;
 extern struct resource iomem_resource;
-extern void (*board_time_init)(void);
 extern void pnx8550_time_init(void);
-extern void (*board_timer_setup)(struct irqaction *irq);
-extern void pnx8550_timer_setup(struct irqaction *irq);
 extern void rs_kgdb_hook(int tty_no);
 extern void prom_printf(char *fmt, ...);
 extern char *prom_getcmdline(void);
@@ -110,7 +108,6 @@ void __init plat_mem_setup(void)
         pm_power_off = pnx8550_machine_power_off;
 
 	board_time_init = pnx8550_time_init;
-	board_timer_setup = pnx8550_timer_setup;
 
 	/* Clear the Global 2 Register, PCI Inta Output Enable Registers
 	   Bit 1:Enable DAC Powerdown

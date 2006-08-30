@@ -7,20 +7,22 @@
  */
 #ifndef __I2SBUS_H
 #define __I2SBUS_H
-#include <asm/dbdma.h>
 #include <linux/interrupt.h>
-#include <sound/pcm.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
+
+#include <sound/pcm.h>
+
 #include <asm/prom.h>
+#include <asm/pmac_feature.h>
+#include <asm/dbdma.h>
+
 #include "i2sbus-interface.h"
-#include "i2sbus-control.h"
 #include "../soundbus.h"
 
 struct i2sbus_control {
-	volatile struct i2s_control_regs __iomem *controlregs;
-	struct resource rsrc;
 	struct list_head list;
+	struct macio_chip *macio;
 };
 
 #define MAX_DBDMA_COMMANDS	32
@@ -43,6 +45,12 @@ struct pcm_info {
 	u32 frame_count;
 	struct dbdma_command_mem dbdma_ring;
 	volatile struct dbdma_regs __iomem *dbdma;
+};
+
+enum {
+	aoa_resource_i2smmio = 0,
+	aoa_resource_txdbdma,
+	aoa_resource_rxdbdma,
 };
 
 struct i2sbus_dev {

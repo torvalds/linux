@@ -26,7 +26,6 @@
  * for more details.
  *
  */
-#include <linux/tty.h>
 #include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/pci.h>

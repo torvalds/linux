@@ -112,13 +112,11 @@ static int slave_configure(struct scsi_device *sdev)
 	if (sdev->scsi_level < SCSI_2)
 		sdev->scsi_level = sdev->sdev_target->scsi_level = SCSI_2;
 
-	/* According to the technical support people at Genesys Logic,
-	 * devices using their chips have problems transferring more than
-	 * 32 KB at a time.  In practice people have found that 64 KB
-	 * works okay and that's what Windows does.  But we'll be
-	 * conservative; people can always use the sysfs interface to
-	 * increase max_sectors. */
-	if (le16_to_cpu(us->pusb_dev->descriptor.idVendor) == USB_VENDOR_ID_GENESYS &&
+	/* Many devices have trouble transfering more than 32KB at a time,
+	 * while others have trouble with more than 64K. At this time we
+	 * are limiting both to 32K (64 sectores).
+	 */
+	if ((us->flags & US_FL_MAX_SECTORS_64) &&
 			sdev->request_queue->max_sectors > 64)
 		blk_queue_max_sectors(sdev->request_queue, 64);
 

@@ -29,7 +29,7 @@ config ATALK
 	  even politically correct people are allowed to say Y here.
 
 config DEV_APPLETALK
-	bool "Appletalk interfaces support"
+	tristate "Appletalk interfaces support"
 	depends on ATALK
 	help
 	  AppleTalk is the protocol that Apple computers can use to communicate

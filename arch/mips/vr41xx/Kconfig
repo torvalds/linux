@@ -86,9 +86,3 @@ config PCI_VR41XX
 	depends on MACH_VR41XX && HW_HAS_PCI
 	default y
 	select PCI
-
-config VRC4173
-	tristate "Add NEC VRC4173 companion chip support"
-	depends on MACH_VR41XX && PCI_VR41XX
-	help
-	  The NEC VRC4173 is a companion chip for NEC VR4122/VR4131.

@@ -39,10 +39,9 @@ do {						\
 	gdbstub_do_rx();			\
 } while(!FLOWCTL_QUERY(LINE))
 
-static void __init debug_stub_init(void);
+struct frv_debug_status __debug_status;
 
-extern asmlinkage void __break_hijack_kernel_event(void);
-extern asmlinkage void __break_hijack_kernel_event_breaks_here(void);
+static void __init debug_stub_init(void);
 
 /*****************************************************************************/
 /*
@@ -67,7 +66,7 @@ asmlinkage void debug_stub(void)
 		__set_HSR(0, hsr0 & ~HSR0_ETMD);
 
 	/* disable single stepping */
-	__debug_regs->dcr &= ~DCR_SE;
+	__debug_status.dcr &= ~DCR_SE;
 
 	/* kernel mode can propose an exception be handled in debug mode by jumping to a special
 	 * location */
@@ -76,8 +75,8 @@ asmlinkage void debug_stub(void)
 		 * the top kernel context */
 		*__debug_frame = *__frame;
 		__frame = __debug_frame->next_frame;
-		__debug_regs->brr = (__debug_frame->tbr & TBR_TT) << 12;
-		__debug_regs->brr |= BRR_EB;
+		__debug_status.brr = (__debug_frame->tbr & TBR_TT) << 12;
+		__debug_status.brr |= BRR_EB;
 	}
 
 	if (__debug_frame->pc == (unsigned long) __debug_bug_trap + 4) {
@@ -124,7 +123,7 @@ static void __init debug_stub_init(void)
 		__debug_frame->pc = (unsigned long) start_kernel;
 
 	/* enable the debug events we want to trap */
-	__debug_regs->dcr = DCR_EBE;
+	__debug_status.dcr = DCR_EBE;
 
 #ifdef CONFIG_GDBSTUB
 	gdbstub_init();

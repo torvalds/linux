@@ -1015,10 +1015,9 @@ CPU from reordering them.
 There are some more advanced barrier functions:
 
  (*) set_mb(var, value)
- (*) set_wmb(var, value)
 
-     These assign the value to the variable and then insert at least a write
-     barrier after it, depending on the function.  They aren't guaranteed to
+     This assigns the value to the variable and then inserts at least a write
+     barrier after it, depending on the function.  It isn't guaranteed to
      insert anything more than a compiler barrier in a UP compilation.
 
 

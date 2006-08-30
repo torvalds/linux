@@ -169,22 +169,17 @@ EXPORT_SYMBOL(lockdep_internal);
  */
 static int class_filter(struct lock_class *class)
 {
+#if 0
+	/* Example */
 	if (class->name_version == 1 &&
-			!strcmp(class->name, "&rl->lock"))
+			!strcmp(class->name, "lockname"))
 		return 1;
 	if (class->name_version == 1 &&
-			!strcmp(class->name, "&ni->mrec_lock"))
+			!strcmp(class->name, "&struct->lockfield"))
 		return 1;
-	if (class->name_version == 1 &&
-			!strcmp(class->name, "mft_ni_runlist_lock"))
-		return 1;
-	if (class->name_version == 1 &&
-			!strcmp(class->name, "mft_ni_mrec_lock"))
-		return 1;
-	if (class->name_version == 1 &&
-			!strcmp(class->name, "&vol->lcnbmp_lock"))
-		return 1;
-	return 0;
+#endif
+	/* Allow everything else. 0 would be filter everything else */
+	return 1;
 }
 #endif
 
@@ -408,23 +403,12 @@ static void lockdep_print_held_locks(struct task_struct *curr)
 		print_lock(curr->held_locks + i);
 	}
 }
-/*
- * Helper to print a nice hierarchy of lock dependencies:
- */
-static void print_spaces(int nr)
-{
-	int i;
-
-	for (i = 0; i < nr; i++)
-		printk("  ");
-}
 
 static void print_lock_class_header(struct lock_class *class, int depth)
 {
 	int bit;
 
-	print_spaces(depth);
-	printk("->");
+	printk("%*s->", depth, "");
 	print_lock_name(class);
 	printk(" ops: %lu", class->ops);
 	printk(" {\n");
@@ -433,17 +417,14 @@ static void print_lock_class_header(struct lock_class *class, int depth)
 		if (class->usage_mask & (1 << bit)) {
 			int len = depth;
 
-			print_spaces(depth);
-			len += printk("   %s", usage_str[bit]);
+			len += printk("%*s   %s", depth, "", usage_str[bit]);
 			len += printk(" at:\n");
 			print_stack_trace(class->usage_traces + bit, len);
 		}
 	}
-	print_spaces(depth);
-	printk(" }\n");
+	printk("%*s }\n", depth, "");
 
-	print_spaces(depth);
-	printk(" ... key      at: ");
+	printk("%*s ... key      at: ",depth,"");
 	print_ip_sym((unsigned long)class->key);
 }
 
@@ -463,8 +444,7 @@ static void print_lock_dependencies(struct lock_class *class, int depth)
 		DEBUG_LOCKS_WARN_ON(!entry->class);
 		print_lock_dependencies(entry->class, depth + 1);
 
-		print_spaces(depth);
-		printk(" ... acquired at:\n");
+		printk("%*s ... acquired at:\n",depth,"");
 		print_stack_trace(&entry->trace, 2);
 		printk("\n");
 	}
@@ -1124,7 +1104,7 @@ extern void __error_too_big_MAX_LOCKDEP_SUBCLASSES(void);
  * itself, so actual lookup of the hash should be once per lock object.
  */
 static inline struct lock_class *
-register_lock_class(struct lockdep_map *lock, unsigned int subclass)
+look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
 {
 	struct lockdep_subclass_key *key;
 	struct list_head *hash_head;
@@ -1168,7 +1148,26 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass)
 	 */
 	list_for_each_entry(class, hash_head, hash_entry)
 		if (class->key == key)
-			goto out_set;
+			return class;
+
+	return NULL;
+}
+
+/*
+ * Register a lock's class in the hash-table, if the class is not present
+ * yet. Otherwise we look it up. We cache the result in the lock object
+ * itself, so actual lookup of the hash should be once per lock object.
+ */
+static inline struct lock_class *
+register_lock_class(struct lockdep_map *lock, unsigned int subclass)
+{
+	struct lockdep_subclass_key *key;
+	struct list_head *hash_head;
+	struct lock_class *class;
+
+	class = look_up_lock_class(lock, subclass);
+	if (likely(class))
+		return class;
 
 	/*
 	 * Debug-check: all keys must be persistent!
@@ -1182,6 +1181,9 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass)
 
 		return NULL;
 	}
+
+	key = lock->key->subkeys + subclass;
+	hash_head = classhashentry(key);
 
 	__raw_spin_lock(&hash_lock);
 	/*
@@ -1229,8 +1231,8 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass)
 out_unlock_set:
 	__raw_spin_unlock(&hash_lock);
 
-out_set:
-	lock->class[subclass] = class;
+	if (!subclass)
+		lock->class_cache = class;
 
 	DEBUG_LOCKS_WARN_ON(class->subclass != subclass);
 
@@ -1934,7 +1936,7 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 	}
 	lock->name = name;
 	lock->key = key;
-	memset(lock->class, 0, sizeof(lock->class[0])*MAX_LOCKDEP_SUBCLASSES);
+	lock->class_cache = NULL;
 }
 
 EXPORT_SYMBOL_GPL(lockdep_init_map);
@@ -1948,8 +1950,8 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			  unsigned long ip)
 {
 	struct task_struct *curr = current;
+	struct lock_class *class = NULL;
 	struct held_lock *hlock;
-	struct lock_class *class;
 	unsigned int depth, id;
 	int chain_head = 0;
 	u64 chain_key;
@@ -1967,8 +1969,11 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		return 0;
 	}
 
-	class = lock->class[subclass];
-	/* not cached yet? */
+	if (!subclass)
+		class = lock->class_cache;
+	/*
+	 * Not cached yet or subclass?
+	 */
 	if (unlikely(!class)) {
 		class = register_lock_class(lock, subclass);
 		if (!class)
@@ -2469,48 +2474,44 @@ void lockdep_free_key_range(void *start, unsigned long size)
 
 void lockdep_reset_lock(struct lockdep_map *lock)
 {
-	struct lock_class *class, *next, *entry;
+	struct lock_class *class, *next;
 	struct list_head *head;
 	unsigned long flags;
 	int i, j;
 
 	raw_local_irq_save(flags);
-	__raw_spin_lock(&hash_lock);
 
 	/*
-	 * Remove all classes this lock has:
+	 * Remove all classes this lock might have:
 	 */
+	for (j = 0; j < MAX_LOCKDEP_SUBCLASSES; j++) {
+		/*
+		 * If the class exists we look it up and zap it:
+		 */
+		class = look_up_lock_class(lock, j);
+		if (class)
+			zap_class(class);
+	}
+	/*
+	 * Debug check: in the end all mapped classes should
+	 * be gone.
+	 */
+	__raw_spin_lock(&hash_lock);
 	for (i = 0; i < CLASSHASH_SIZE; i++) {
 		head = classhash_table + i;
 		if (list_empty(head))
 			continue;
 		list_for_each_entry_safe(class, next, head, hash_entry) {
-			for (j = 0; j < MAX_LOCKDEP_SUBCLASSES; j++) {
-				entry = lock->class[j];
-				if (class == entry) {
-					zap_class(class);
-					lock->class[j] = NULL;
-					break;
-				}
+			if (unlikely(class == lock->class_cache)) {
+				__raw_spin_unlock(&hash_lock);
+				DEBUG_LOCKS_WARN_ON(1);
+				goto out_restore;
 			}
 		}
 	}
-
-	/*
-	 * Debug check: in the end all mapped classes should
-	 * be gone.
-	 */
-	for (j = 0; j < MAX_LOCKDEP_SUBCLASSES; j++) {
-		entry = lock->class[j];
-		if (!entry)
-			continue;
-		__raw_spin_unlock(&hash_lock);
-		DEBUG_LOCKS_WARN_ON(1);
-		raw_local_irq_restore(flags);
-		return;
-	}
-
 	__raw_spin_unlock(&hash_lock);
+
+out_restore:
 	raw_local_irq_restore(flags);
 }
 
@@ -2571,7 +2572,7 @@ static inline int in_range(const void *start, const void *addr, const void *end)
 
 static void
 print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
-		     const void *mem_to)
+		     const void *mem_to, struct held_lock *hlock)
 {
 	if (!debug_locks_off())
 		return;
@@ -2583,6 +2584,7 @@ print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
 	printk(  "-------------------------\n");
 	printk("%s/%d is freeing memory %p-%p, with a lock still held there!\n",
 		curr->comm, curr->pid, mem_from, mem_to-1);
+	print_lock(hlock);
 	lockdep_print_held_locks(curr);
 
 	printk("\nstack backtrace:\n");
@@ -2616,7 +2618,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 					!in_range(mem_from, lock_to, mem_to))
 			continue;
 
-		print_freed_lock_bug(curr, mem_from, mem_to);
+		print_freed_lock_bug(curr, mem_from, mem_to, hlock);
 		break;
 	}
 	local_irq_restore(flags);

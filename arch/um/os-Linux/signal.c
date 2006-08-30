@@ -106,29 +106,6 @@ void alarm_handler(ARCH_SIGHDLR_PARAM)
 	set_signals(enabled);
 }
 
-extern void do_boot_timer_handler(struct sigcontext * sc);
-
-void boot_timer_handler(ARCH_SIGHDLR_PARAM)
-{
-	struct sigcontext *sc;
-	int enabled;
-
-	ARCH_GET_SIGCONTEXT(sc, sig);
-
-	enabled = signals_enabled;
-	if(!enabled){
-		if(sig == SIGVTALRM)
-			pending |= SIGVTALRM_MASK;
-		else pending |= SIGALRM_MASK;
-		return;
-	}
-
-	block_signals();
-
-	do_boot_timer_handler(sc);
-	set_signals(enabled);
-}
-
 void set_sigstack(void *sig_stack, int size)
 {
 	stack_t stack = ((stack_t) { .ss_flags	= 0,

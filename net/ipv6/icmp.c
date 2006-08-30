@@ -712,6 +712,11 @@ discard_it:
 	return 0;
 }
 
+/*
+ * Special lock-class for __icmpv6_socket:
+ */
+static struct lock_class_key icmpv6_socket_sk_dst_lock_key;
+
 int __init icmpv6_init(struct net_proto_family *ops)
 {
 	struct sock *sk;
@@ -730,6 +735,14 @@ int __init icmpv6_init(struct net_proto_family *ops)
 
 		sk = per_cpu(__icmpv6_socket, i)->sk;
 		sk->sk_allocation = GFP_ATOMIC;
+		/*
+		 * Split off their lock-class, because sk->sk_dst_lock
+		 * gets used from softirqs, which is safe for
+		 * __icmpv6_socket (because those never get directly used
+		 * via userspace syscalls), but unsafe for normal sockets.
+		 */
+		lockdep_set_class(&sk->sk_dst_lock,
+				  &icmpv6_socket_sk_dst_lock_key);
 
 		/* Enough space for 2 64K ICMP packets, including
 		 * sk_buff struct overhead.

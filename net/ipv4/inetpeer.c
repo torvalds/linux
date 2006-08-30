@@ -86,7 +86,7 @@ static struct inet_peer *peer_root = peer_avl_empty;
 static DEFINE_RWLOCK(peer_pool_lock);
 #define PEER_MAXDEPTH 40 /* sufficient for about 2^27 nodes */
 
-static volatile int peer_total;
+static int peer_total;
 /* Exported for sysctl_net_ipv4.  */
 int inet_peer_threshold = 65536 + 128;	/* start to throw entries more
 					 * aggressively at this stage */

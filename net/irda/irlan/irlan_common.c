@@ -636,7 +636,7 @@ void irlan_get_provider_info(struct irlan_cb *self)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
-	skb = dev_alloc_skb(64);
+	skb = alloc_skb(64, GFP_ATOMIC);
 	if (!skb)
 		return;
 
@@ -668,7 +668,7 @@ void irlan_open_data_channel(struct irlan_cb *self)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 	
-	skb = dev_alloc_skb(64);
+	skb = alloc_skb(64, GFP_ATOMIC);
 	if (!skb)
 		return;
 
@@ -704,7 +704,7 @@ void irlan_close_data_channel(struct irlan_cb *self)
 	if (self->client.tsap_ctrl == NULL)
 		return;
 
-	skb = dev_alloc_skb(64);
+	skb = alloc_skb(64, GFP_ATOMIC);
 	if (!skb)
 		return;
 
@@ -739,7 +739,7 @@ static void irlan_open_unicast_addr(struct irlan_cb *self)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);	
 	
-	skb = dev_alloc_skb(128);
+	skb = alloc_skb(128, GFP_ATOMIC);
 	if (!skb)
 		return;
 
@@ -777,7 +777,7 @@ void irlan_set_broadcast_filter(struct irlan_cb *self, int status)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 	
- 	skb = dev_alloc_skb(128);
+ 	skb = alloc_skb(128, GFP_ATOMIC);
 	if (!skb)
 		return;
 
@@ -816,7 +816,7 @@ void irlan_set_multicast_filter(struct irlan_cb *self, int status)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
- 	skb = dev_alloc_skb(128);
+ 	skb = alloc_skb(128, GFP_ATOMIC);
 	if (!skb)
 		return;
 	
@@ -856,7 +856,7 @@ static void irlan_get_unicast_addr(struct irlan_cb *self)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 	
-	skb = dev_alloc_skb(128);
+	skb = alloc_skb(128, GFP_ATOMIC);
 	if (!skb)
 		return;
 
@@ -891,7 +891,7 @@ void irlan_get_media_char(struct irlan_cb *self)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 	
-	skb = dev_alloc_skb(64);
+	skb = alloc_skb(64, GFP_ATOMIC);
 	if (!skb)
 		return;
 

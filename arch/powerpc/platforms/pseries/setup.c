@@ -213,8 +213,6 @@ static void pseries_lpar_enable_pmcs(void)
 {
 	unsigned long set, reset;
 
-	power4_enable_pmcs();
-
 	set = 1UL << 63;
 	reset = 0;
 	plpar_hcall_norets(H_PERFMON, set, reset);
@@ -501,7 +499,8 @@ static void pseries_dedicated_idle_sleep(void)
 	}
 
 	/*
-	 * Cede if the other thread is not idle, so that it can
+	 * If not SMT, cede processor.  If CPU is running SMT
+	 * cede if the other thread is not idle, so that it can
 	 * go single-threaded.  If the other thread is idle,
 	 * we ask the hypervisor if it has pending work it
 	 * wants to do and cede if it does.  Otherwise we keep
@@ -514,7 +513,8 @@ static void pseries_dedicated_idle_sleep(void)
 	 * very low priority.  The cede enables interrupts, which
 	 * doesn't matter here.
 	 */
-	if (!lppaca[cpu ^ 1].idle || poll_pending() == H_PENDING)
+	if (!cpu_has_feature(CPU_FTR_SMT) || !lppaca[cpu ^ 1].idle
+	    || poll_pending() == H_PENDING)
 		cede_processor();
 
 out:

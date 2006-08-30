@@ -543,20 +543,24 @@ int
 tape_generic_probe(struct ccw_device *cdev)
 {
 	struct tape_device *device;
+	int ret;
 
 	device = tape_alloc_device();
 	if (IS_ERR(device))
 		return -ENODEV;
-	PRINT_INFO("tape device %s found\n", cdev->dev.bus_id);
+	ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP);
+	ret = sysfs_create_group(&cdev->dev.kobj, &tape_attr_group);
+	if (ret) {
+		tape_put_device(device);
+		PRINT_ERR("probe failed for tape device %s\n", cdev->dev.bus_id);
+		return ret;
+	}
 	cdev->dev.driver_data = device;
+	cdev->handler = __tape_do_irq;
 	device->cdev = cdev;
 	device->cdev_id = busid_to_int(cdev->dev.bus_id);
-	cdev->handler = __tape_do_irq;
-
-	ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP);
-	sysfs_create_group(&cdev->dev.kobj, &tape_attr_group);
-
-	return 0;
+	PRINT_INFO("tape device %s found\n", cdev->dev.bus_id);
+	return ret;
 }
 
 static inline void

@@ -20,22 +20,15 @@
 
 	Support and updates available at
 	http://www.scyld.com/network/hamachi.html
+	[link no longer provides useful info -jgarzik]
 	or
 	http://www.parl.clemson.edu/~keithu/hamachi.html
-
-
-
-	Linux kernel changelog:
-
-	LK1.0.1:
-	- fix lack of pci_dev<->dev association
-	- ethtool support (jgarzik)
 
 */
 
 #define DRV_NAME	"hamachi"
-#define DRV_VERSION	"1.01+LK1.0.1"
-#define DRV_RELDATE	"5/18/2001"
+#define DRV_VERSION	"2.0"
+#define DRV_RELDATE	"June 27, 2006"
 
 
 /* A few user-configurable values. */
@@ -608,7 +601,8 @@ static int __devinit hamachi_init_one (struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	i = pci_request_regions(pdev, DRV_NAME);
-	if (i) return i;
+	if (i)
+		return i;
 
 	irq = pdev->irq;
 	ioaddr = ioremap(base, 0x400);

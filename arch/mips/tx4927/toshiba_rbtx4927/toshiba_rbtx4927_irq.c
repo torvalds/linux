@@ -251,7 +251,7 @@ static DEFINE_SPINLOCK(toshiba_rbtx4927_ioc_lock);
 
 
 #define TOSHIBA_RBTX4927_IOC_NAME "RBTX4927-IOC"
-static struct hw_interrupt_type toshiba_rbtx4927_irq_ioc_type = {
+static struct irq_chip toshiba_rbtx4927_irq_ioc_type = {
 	.typename = TOSHIBA_RBTX4927_IOC_NAME,
 	.startup = toshiba_rbtx4927_irq_ioc_startup,
 	.shutdown = toshiba_rbtx4927_irq_ioc_shutdown,
@@ -267,7 +267,7 @@ static struct hw_interrupt_type toshiba_rbtx4927_irq_ioc_type = {
 
 #ifdef CONFIG_TOSHIBA_FPCIB0
 #define TOSHIBA_RBTX4927_ISA_NAME "RBTX4927-ISA"
-static struct hw_interrupt_type toshiba_rbtx4927_irq_isa_type = {
+static struct irq_chip toshiba_rbtx4927_irq_isa_type = {
 	.typename = TOSHIBA_RBTX4927_ISA_NAME,
 	.startup = toshiba_rbtx4927_irq_isa_startup,
 	.shutdown = toshiba_rbtx4927_irq_isa_shutdown,

@@ -567,10 +567,9 @@ static inline struct ipv6_txoptions *create_tel(__u8 encap_limit)
 
 	int opt_len = sizeof(*opt) + 8;
 
-	if (!(opt = kmalloc(opt_len, GFP_ATOMIC))) {
+	if (!(opt = kzalloc(opt_len, GFP_ATOMIC))) {
 		return NULL;
 	}
-	memset(opt, 0, opt_len);
 	opt->tot_len = opt_len;
 	opt->dst0opt = (struct ipv6_opt_hdr *) (opt + 1);
 	opt->opt_nflen = 8;

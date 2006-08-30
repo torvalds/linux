@@ -43,13 +43,12 @@
 /*-------------------------------------------------------------------------*/
 
 #define	DRIVER_VERSION	"2 May 2005"
-#define	DRIVER_NAME	(tps65010_driver.name)
+#define	DRIVER_NAME	(tps65010_driver.driver.name)
 
 MODULE_DESCRIPTION("TPS6501x Power Management Driver");
 MODULE_LICENSE("GPL");
 
 static unsigned short normal_i2c[] = { 0x48, /* 0x49, */ I2C_CLIENT_END };
-static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
 
 I2C_CLIENT_INSMOD;
 
@@ -100,7 +99,7 @@ struct tps65010 {
 	/* not currently tracking GPIO state */
 };
 
-#define	POWER_POLL_DELAY	msecs_to_jiffies(800)
+#define	POWER_POLL_DELAY	msecs_to_jiffies(5000)
 
 /*-------------------------------------------------------------------------*/
 
@@ -520,8 +519,11 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 		goto fail1;
 	}
 
+	/* the IRQ is active low, but many gpio lines can't support that
+	 * so this driver can use falling-edge triggers instead.
+	 */
+	irqflags = IRQF_SAMPLE_RANDOM;
 #ifdef	CONFIG_ARM
-	irqflags = IRQF_SAMPLE_RANDOM | IRQF_TRIGGER_LOW;
 	if (machine_is_omap_h2()) {
 		tps->model = TPS65010;
 		omap_cfg_reg(W4_GPIO58);
@@ -543,8 +545,6 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 
 		// FIXME set up this board's IRQ ...
 	}
-#else
-	irqflags = IRQF_SAMPLE_RANDOM;
 #endif
 
 	if (tps->irq > 0) {

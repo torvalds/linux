@@ -124,6 +124,7 @@
 #include <linux/slab.h>
 #include <linux/nmi.h>
 
+#include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
 #include <asm/gdb-stub.h>
@@ -136,7 +137,6 @@ extern void debug_to_serial(const char *p, int n);
 extern void gdbstub_console_write(struct console *co, const char *p, unsigned n);
 
 extern volatile uint32_t __break_error_detect[3]; /* ESFR1, ESR15, EAR15 */
-extern struct user_context __break_user_context;
 
 struct __debug_amr {
 	unsigned long L, P;
@@ -926,6 +926,7 @@ static int gdbstub_set_breakpoint(unsigned long type, unsigned long addr, unsign
 		if (!(__debug_regs->dcr & DCR_IBE0)) {
 			//gdbstub_printk("set h/w break 0: %08lx\n", addr);
 			__debug_regs->dcr |= DCR_IBE0;
+			__debug_regs->ibar[0] = addr;
 			asm volatile("movgs %0,ibar0" : : "r"(addr));
 			return 0;
 		}
@@ -933,6 +934,7 @@ static int gdbstub_set_breakpoint(unsigned long type, unsigned long addr, unsign
 		if (!(__debug_regs->dcr & DCR_IBE1)) {
 			//gdbstub_printk("set h/w break 1: %08lx\n", addr);
 			__debug_regs->dcr |= DCR_IBE1;
+			__debug_regs->ibar[1] = addr;
 			asm volatile("movgs %0,ibar1" : : "r"(addr));
 			return 0;
 		}
@@ -940,6 +942,7 @@ static int gdbstub_set_breakpoint(unsigned long type, unsigned long addr, unsign
 		if (!(__debug_regs->dcr & DCR_IBE2)) {
 			//gdbstub_printk("set h/w break 2: %08lx\n", addr);
 			__debug_regs->dcr |= DCR_IBE2;
+			__debug_regs->ibar[2] = addr;
 			asm volatile("movgs %0,ibar2" : : "r"(addr));
 			return 0;
 		}
@@ -947,6 +950,7 @@ static int gdbstub_set_breakpoint(unsigned long type, unsigned long addr, unsign
 		if (!(__debug_regs->dcr & DCR_IBE3)) {
 			//gdbstub_printk("set h/w break 3: %08lx\n", addr);
 			__debug_regs->dcr |= DCR_IBE3;
+			__debug_regs->ibar[3] = addr;
 			asm volatile("movgs %0,ibar3" : : "r"(addr));
 			return 0;
 		}
@@ -971,7 +975,14 @@ static int gdbstub_set_breakpoint(unsigned long type, unsigned long addr, unsign
 		if (!(__debug_regs->dcr & (DCR_DRBE0|DCR_DWBE0))) {
 			//gdbstub_printk("set h/w watchpoint 0 type %ld: %08lx\n", type, addr);
 			tmp = type==2 ? DCR_DWBE0 : type==3 ? DCR_DRBE0 : DCR_DRBE0|DCR_DWBE0;
+
 			__debug_regs->dcr |= tmp;
+			__debug_regs->dbar[0] = addr;
+			__debug_regs->dbmr[0][0] = dbmr.mask0;
+			__debug_regs->dbmr[0][1] = dbmr.mask1;
+			__debug_regs->dbdr[0][0] = 0;
+			__debug_regs->dbdr[0][1] = 0;
+
 			asm volatile("	movgs	%0,dbar0	\n"
 				     "	movgs	%1,dbmr00	\n"
 				     "	movgs	%2,dbmr01	\n"
@@ -984,7 +995,14 @@ static int gdbstub_set_breakpoint(unsigned long type, unsigned long addr, unsign
 		if (!(__debug_regs->dcr & (DCR_DRBE1|DCR_DWBE1))) {
 			//gdbstub_printk("set h/w watchpoint 1 type %ld: %08lx\n", type, addr);
 			tmp = type==2 ? DCR_DWBE1 : type==3 ? DCR_DRBE1 : DCR_DRBE1|DCR_DWBE1;
+
 			__debug_regs->dcr |= tmp;
+			__debug_regs->dbar[1] = addr;
+			__debug_regs->dbmr[1][0] = dbmr.mask0;
+			__debug_regs->dbmr[1][1] = dbmr.mask1;
+			__debug_regs->dbdr[1][0] = 0;
+			__debug_regs->dbdr[1][1] = 0;
+
 			asm volatile("	movgs	%0,dbar1	\n"
 				     "	movgs	%1,dbmr10	\n"
 				     "	movgs	%2,dbmr11	\n"
@@ -1047,6 +1065,7 @@ int gdbstub_clear_breakpoint(unsigned long type, unsigned long addr, unsigned lo
 		if (__debug_regs->dcr & DCR_IBE0 && __get_ibar(0) == addr) {
 			//gdbstub_printk("clear h/w break 0: %08lx\n", addr);
 			__debug_regs->dcr &= ~DCR_IBE0;
+			__debug_regs->ibar[0] = 0;
 			asm volatile("movgs gr0,ibar0");
 			return 0;
 		}
@@ -1054,6 +1073,7 @@ int gdbstub_clear_breakpoint(unsigned long type, unsigned long addr, unsigned lo
 		if (__debug_regs->dcr & DCR_IBE1 && __get_ibar(1) == addr) {
 			//gdbstub_printk("clear h/w break 1: %08lx\n", addr);
 			__debug_regs->dcr &= ~DCR_IBE1;
+			__debug_regs->ibar[1] = 0;
 			asm volatile("movgs gr0,ibar1");
 			return 0;
 		}
@@ -1061,6 +1081,7 @@ int gdbstub_clear_breakpoint(unsigned long type, unsigned long addr, unsigned lo
 		if (__debug_regs->dcr & DCR_IBE2 && __get_ibar(2) == addr) {
 			//gdbstub_printk("clear h/w break 2: %08lx\n", addr);
 			__debug_regs->dcr &= ~DCR_IBE2;
+			__debug_regs->ibar[2] = 0;
 			asm volatile("movgs gr0,ibar2");
 			return 0;
 		}
@@ -1068,6 +1089,7 @@ int gdbstub_clear_breakpoint(unsigned long type, unsigned long addr, unsigned lo
 		if (__debug_regs->dcr & DCR_IBE3 && __get_ibar(3) == addr) {
 			//gdbstub_printk("clear h/w break 3: %08lx\n", addr);
 			__debug_regs->dcr &= ~DCR_IBE3;
+			__debug_regs->ibar[3] = 0;
 			asm volatile("movgs gr0,ibar3");
 			return 0;
 		}
@@ -1104,6 +1126,12 @@ int gdbstub_clear_breakpoint(unsigned long type, unsigned long addr, unsigned lo
 
 		//gdbstub_printk("clear h/w watchpoint 0 type %ld: %08lx\n", type, addr);
 		__debug_regs->dcr &= ~(DCR_DRBE0|DCR_DWBE0);
+		__debug_regs->dbar[0] = 0;
+		__debug_regs->dbmr[0][0] = 0;
+		__debug_regs->dbmr[0][1] = 0;
+		__debug_regs->dbdr[0][0] = 0;
+		__debug_regs->dbdr[0][1] = 0;
+
 		asm volatile("	movgs	gr0,dbar0	\n"
 			     "	movgs	gr0,dbmr00	\n"
 			     "	movgs	gr0,dbmr01	\n"
@@ -1123,6 +1151,12 @@ int gdbstub_clear_breakpoint(unsigned long type, unsigned long addr, unsigned lo
 
 		//gdbstub_printk("clear h/w watchpoint 1 type %ld: %08lx\n", type, addr);
 		__debug_regs->dcr &= ~(DCR_DRBE1|DCR_DWBE1);
+		__debug_regs->dbar[1] = 0;
+		__debug_regs->dbmr[1][0] = 0;
+		__debug_regs->dbmr[1][1] = 0;
+		__debug_regs->dbdr[1][0] = 0;
+		__debug_regs->dbdr[1][1] = 0;
+
 		asm volatile("	movgs	gr0,dbar1	\n"
 			     "	movgs	gr0,dbmr10	\n"
 			     "	movgs	gr0,dbmr11	\n"
@@ -1163,7 +1197,7 @@ static void gdbstub_check_breakpoint(void)
  */
 static void __attribute__((unused)) gdbstub_show_regs(void)
 {
-	uint32_t *reg;
+	unsigned long *reg;
 	int loop;
 
 	gdbstub_printk("\n");
@@ -1172,11 +1206,11 @@ static void __attribute__((unused)) gdbstub_show_regs(void)
 		       __debug_frame,
 		       __debug_frame->psr & PSR_S ? "kernel" : "user");
 
-	reg = (uint32_t *) __debug_frame;
-	for (loop = 0; loop < REG__END; loop++) {
-		printk("%s %08x", regnames[loop + 0], reg[loop + 0]);
+	reg = (unsigned long *) __debug_frame;
+	for (loop = 0; loop < NR_PT_REGS; loop++) {
+		printk("%s %08lx", regnames[loop + 0], reg[loop + 0]);
 
-		if (loop == REG__END - 1 || loop % 5 == 4)
+		if (loop == NR_PT_REGS - 1 || loop % 5 == 4)
 			printk("\n");
 		else
 			printk(" | ");
@@ -1191,13 +1225,8 @@ static void __attribute__((unused)) gdbstub_show_regs(void)
  */
 static void __attribute__((unused)) gdbstub_dump_debugregs(void)
 {
-	unsigned long x;
-
-	x = __debug_regs->dcr;
-	gdbstub_printk("DCR    %08lx  ", x);
-
-	x = __debug_regs->brr;
-	gdbstub_printk("BRR %08lx\n", x);
+	gdbstub_printk("DCR    %08lx  ", __debug_status.dcr);
+	gdbstub_printk("BRR    %08lx\n", __debug_status.brr);
 
 	gdbstub_printk("IBAR0  %08lx  ", __get_ibar(0));
 	gdbstub_printk("IBAR1  %08lx  ", __get_ibar(1));
@@ -1360,7 +1389,7 @@ void gdbstub(int sigval)
 #endif
 	}
 
-	save_user_regs(&__break_user_context);
+	save_user_regs(&__debug_frame0->uc);
 
 #if 0
 	gdbstub_printk("--> gdbstub() %08x %p %08x %08x\n",
@@ -1389,8 +1418,8 @@ void gdbstub(int sigval)
 		__debug_frame->psr &= ~PSR_S;
 		if (__debug_frame->psr & PSR_PS)
 			__debug_frame->psr |= PSR_S;
-		__debug_regs->brr = (__debug_frame->tbr & TBR_TT) << 12;
-		__debug_regs->brr |= BRR_EB;
+		__debug_status.brr = (__debug_frame->tbr & TBR_TT) << 12;
+		__debug_status.brr |= BRR_EB;
 		sigval = SIGINT;
 	}
 
@@ -1404,15 +1433,15 @@ void gdbstub(int sigval)
 		__debug_frame->psr &= ~PSR_S;
 		if (__debug_frame->psr & PSR_PS)
 			__debug_frame->psr |= PSR_S;
-		__debug_regs->brr = (__debug_frame->tbr & TBR_TT) << 12;
-		__debug_regs->brr |= BRR_EB;
+		__debug_status.brr = (__debug_frame->tbr & TBR_TT) << 12;
+		__debug_status.brr |= BRR_EB;
 		sigval = SIGXCPU;
 	}
 
 	LEDS(0x5002);
 
 	/* after a BREAK insn, the PC lands on the far side of it */
-	if (__debug_regs->brr & BRR_SB)
+	if (__debug_status.brr & BRR_SB)
 		gdbstub_check_breakpoint();
 
 	LEDS(0x5003);
@@ -1431,7 +1460,7 @@ void gdbstub(int sigval)
 	}
 
 	if (!sigval)
-		sigval = gdbstub_compute_signal(__debug_regs->brr);
+		sigval = gdbstub_compute_signal(__debug_status.brr);
 
 	LEDS(0x5004);
 
@@ -1441,7 +1470,7 @@ void gdbstub(int sigval)
 	if (sigval != SIGINT && sigval != SIGTRAP && sigval != SIGILL) {
 		static const char title[] = "Break ";
 		static const char crlf[] = "\r\n";
-		unsigned long brr = __debug_regs->brr;
+		unsigned long brr = __debug_status.brr;
 		char hx;
 
 		ptr = output_buffer;
@@ -1565,28 +1594,24 @@ void gdbstub(int sigval)
 			ptr = mem2hex(&zero, ptr, 4, 0);
 
 			for (loop = 1; loop <= 27; loop++)
-				ptr = mem2hex((unsigned long *)__debug_frame + REG_GR(loop),
-					      ptr, 4, 0);
+				ptr = mem2hex(&__debug_user_context->i.gr[loop], ptr, 4, 0);
 			temp = (unsigned long) __frame;
 			ptr = mem2hex(&temp, ptr, 4, 0);
-			ptr = mem2hex((unsigned long *)__debug_frame + REG_GR(29), ptr, 4, 0);
-			ptr = mem2hex((unsigned long *)__debug_frame + REG_GR(30), ptr, 4, 0);
+			ptr = mem2hex(&__debug_user_context->i.gr[29], ptr, 4, 0);
+			ptr = mem2hex(&__debug_user_context->i.gr[30], ptr, 4, 0);
 #ifdef CONFIG_MMU
-			ptr = mem2hex((unsigned long *)__debug_frame + REG_GR(31), ptr, 4, 0);
+			ptr = mem2hex(&__debug_user_context->i.gr[31], ptr, 4, 0);
 #else
 			temp = (unsigned long) __debug_frame;
 			ptr = mem2hex(&temp, ptr, 4, 0);
 #endif
 
 			for (loop = 32; loop <= 63; loop++)
-				ptr = mem2hex((unsigned long *)__debug_frame + REG_GR(loop),
-					      ptr, 4, 0);
+				ptr = mem2hex(&__debug_user_context->i.gr[loop], ptr, 4, 0);
 
 			/* deal with FR0-FR63 */
 			for (loop = 0; loop <= 63; loop++)
-				ptr = mem2hex((unsigned long *)&__break_user_context +
-					      __FPMEDIA_FR(loop),
-					      ptr, 4, 0);
+				ptr = mem2hex(&__debug_user_context->f.fr[loop], ptr, 4, 0);
 
 			/* deal with special registers */
 			ptr = mem2hex(&__debug_frame->pc,    ptr, 4, 0);
@@ -1597,7 +1622,7 @@ void gdbstub(int sigval)
 			ptr = mem2hex(&zero, ptr, 4, 0);
 			ptr = mem2hex(&zero, ptr, 4, 0);
 			ptr = mem2hex(&__debug_frame->tbr,   ptr, 4, 0);
-			ptr = mem2hex(&__debug_regs->brr ,   ptr, 4, 0);
+			ptr = mem2hex(&__debug_status.brr ,   ptr, 4, 0);
 
 			asm volatile("movsg dbar0,%0" : "=r"(dbar));
 			ptr = mem2hex(&dbar, ptr, 4, 0);
@@ -1622,21 +1647,21 @@ void gdbstub(int sigval)
 
 			ptr = mem2hex(&__debug_frame->iacc0, ptr, 8, 0);
 
-			ptr = mem2hex(&__break_user_context.f.fsr[0], ptr, 4, 0);
+			ptr = mem2hex(&__debug_user_context->f.fsr[0], ptr, 4, 0);
 
 			for (loop = 0; loop <= 7; loop++)
-				ptr = mem2hex(&__break_user_context.f.acc[loop], ptr, 4, 0);
+				ptr = mem2hex(&__debug_user_context->f.acc[loop], ptr, 4, 0);
 
-			ptr = mem2hex(&__break_user_context.f.accg, ptr, 8, 0);
+			ptr = mem2hex(&__debug_user_context->f.accg, ptr, 8, 0);
 
 			for (loop = 0; loop <= 1; loop++)
-				ptr = mem2hex(&__break_user_context.f.msr[loop], ptr, 4, 0);
+				ptr = mem2hex(&__debug_user_context->f.msr[loop], ptr, 4, 0);
 
 			ptr = mem2hex(&__debug_frame->gner0, ptr, 4, 0);
 			ptr = mem2hex(&__debug_frame->gner1, ptr, 4, 0);
 
-			ptr = mem2hex(&__break_user_context.f.fner[0], ptr, 4, 0);
-			ptr = mem2hex(&__break_user_context.f.fner[1], ptr, 4, 0);
+			ptr = mem2hex(&__debug_user_context->f.fner[0], ptr, 4, 0);
+			ptr = mem2hex(&__debug_user_context->f.fner[1], ptr, 4, 0);
 
 			break;
 
@@ -1648,8 +1673,7 @@ void gdbstub(int sigval)
 			ptr = hex2mem(ptr, &temp, 4);
 
 			for (loop = 1; loop <= 27; loop++)
-				ptr = hex2mem(ptr, (unsigned long *)__debug_frame + REG_GR(loop),
-					      4);
+				ptr = hex2mem(ptr, &__debug_user_context->i.gr[loop], 4);
 
 			ptr = hex2mem(ptr, &temp, 4);
 			__frame = (struct pt_regs *) temp;
@@ -1662,14 +1686,11 @@ void gdbstub(int sigval)
 #endif
 
 			for (loop = 32; loop <= 63; loop++)
-				ptr = hex2mem(ptr, (unsigned long *)__debug_frame + REG_GR(loop),
-					      4);
+				ptr = hex2mem(ptr, &__debug_user_context->i.gr[loop], 4);
 
 			/* deal with FR0-FR63 */
 			for (loop = 0; loop <= 63; loop++)
-				ptr = mem2hex((unsigned long *)&__break_user_context +
-					      __FPMEDIA_FR(loop),
-					      ptr, 4, 0);
+				ptr = mem2hex(&__debug_user_context->f.fr[loop], ptr, 4, 0);
 
 			/* deal with special registers */
 			ptr = hex2mem(ptr, &__debug_frame->pc,  4);
@@ -1694,21 +1715,21 @@ void gdbstub(int sigval)
 
 			ptr = hex2mem(ptr, &__debug_frame->iacc0, 8);
 
-			ptr = hex2mem(ptr, &__break_user_context.f.fsr[0], 4);
+			ptr = hex2mem(ptr, &__debug_user_context->f.fsr[0], 4);
 
 			for (loop = 0; loop <= 7; loop++)
-				ptr = hex2mem(ptr, &__break_user_context.f.acc[loop], 4);
+				ptr = hex2mem(ptr, &__debug_user_context->f.acc[loop], 4);
 
-			ptr = hex2mem(ptr, &__break_user_context.f.accg, 8);
+			ptr = hex2mem(ptr, &__debug_user_context->f.accg, 8);
 
 			for (loop = 0; loop <= 1; loop++)
-				ptr = hex2mem(ptr, &__break_user_context.f.msr[loop], 4);
+				ptr = hex2mem(ptr, &__debug_user_context->f.msr[loop], 4);
 
 			ptr = hex2mem(ptr, &__debug_frame->gner0, 4);
 			ptr = hex2mem(ptr, &__debug_frame->gner1, 4);
 
-			ptr = hex2mem(ptr, &__break_user_context.f.fner[0], 4);
-			ptr = hex2mem(ptr, &__break_user_context.f.fner[1], 4);
+			ptr = hex2mem(ptr, &__debug_user_context->f.fner[0], 4);
+			ptr = hex2mem(ptr, &__debug_user_context->f.fner[1], 4);
 
 			gdbstub_strcpy(output_buffer,"OK");
 			break;
@@ -1769,52 +1790,52 @@ void gdbstub(int sigval)
 			case GDB_REG_GR(0):
 				break;
 			case GDB_REG_GR(1) ... GDB_REG_GR(63):
-				__break_user_context.i.gr[addr - GDB_REG_GR(0)] = temp;
+				__debug_user_context->i.gr[addr - GDB_REG_GR(0)] = temp;
 				break;
 			case GDB_REG_FR(0) ... GDB_REG_FR(63):
-				__break_user_context.f.fr[addr - GDB_REG_FR(0)] = temp;
+				__debug_user_context->f.fr[addr - GDB_REG_FR(0)] = temp;
 				break;
 			case GDB_REG_PC:
-				__break_user_context.i.pc = temp;
+				__debug_user_context->i.pc = temp;
 				break;
 			case GDB_REG_PSR:
-				__break_user_context.i.psr = temp;
+				__debug_user_context->i.psr = temp;
 				break;
 			case GDB_REG_CCR:
-				__break_user_context.i.ccr = temp;
+				__debug_user_context->i.ccr = temp;
 				break;
 			case GDB_REG_CCCR:
-				__break_user_context.i.cccr = temp;
+				__debug_user_context->i.cccr = temp;
 				break;
 			case GDB_REG_BRR:
-				__debug_regs->brr = temp;
+				__debug_status.brr = temp;
 				break;
 			case GDB_REG_LR:
-				__break_user_context.i.lr = temp;
+				__debug_user_context->i.lr = temp;
 				break;
 			case GDB_REG_LCR:
-				__break_user_context.i.lcr = temp;
+				__debug_user_context->i.lcr = temp;
 				break;
 			case GDB_REG_FSR0:
-				__break_user_context.f.fsr[0] = temp;
+				__debug_user_context->f.fsr[0] = temp;
 				break;
 			case GDB_REG_ACC(0) ... GDB_REG_ACC(7):
-				__break_user_context.f.acc[addr - GDB_REG_ACC(0)] = temp;
+				__debug_user_context->f.acc[addr - GDB_REG_ACC(0)] = temp;
 				break;
 			case GDB_REG_ACCG(0):
-				*(uint32_t *) &__break_user_context.f.accg[0] = temp;
+				*(uint32_t *) &__debug_user_context->f.accg[0] = temp;
 				break;
 			case GDB_REG_ACCG(4):
-				*(uint32_t *) &__break_user_context.f.accg[4] = temp;
+				*(uint32_t *) &__debug_user_context->f.accg[4] = temp;
 				break;
 			case GDB_REG_MSR(0) ... GDB_REG_MSR(1):
-				__break_user_context.f.msr[addr - GDB_REG_MSR(0)] = temp;
+				__debug_user_context->f.msr[addr - GDB_REG_MSR(0)] = temp;
 				break;
 			case GDB_REG_GNER(0) ... GDB_REG_GNER(1):
-				__break_user_context.i.gner[addr - GDB_REG_GNER(0)] = temp;
+				__debug_user_context->i.gner[addr - GDB_REG_GNER(0)] = temp;
 				break;
 			case GDB_REG_FNER(0) ... GDB_REG_FNER(1):
-				__break_user_context.f.fner[addr - GDB_REG_FNER(0)] = temp;
+				__debug_user_context->f.fner[addr - GDB_REG_FNER(0)] = temp;
 				break;
 			default:
 				temp2 = 0;
@@ -1850,6 +1871,7 @@ void gdbstub(int sigval)
 			/* step to next instruction */
 		case 's':
 			__debug_regs->dcr |= DCR_SE;
+			__debug_status.dcr |= DCR_SE;
 			goto done;
 
 			/* set baud rate (bBB) */
@@ -1934,7 +1956,7 @@ void gdbstub(int sigval)
 	}
 
  done:
-	restore_user_regs(&__break_user_context);
+	restore_user_regs(&__debug_frame0->uc);
 
 	//gdbstub_dump_debugregs();
 	//gdbstub_printk("<-- gdbstub() %08x\n", __debug_frame->pc);
@@ -1966,7 +1988,6 @@ void __init gdbstub_init(void)
 #endif
 
 	gdbstub_printk("%s", gdbstub_banner);
-	gdbstub_printk("DCR: %x\n", __debug_regs->dcr);
 
 	gdbstub_io_init();
 

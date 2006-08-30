@@ -345,7 +345,7 @@ dasd_ioctl_set_ro(struct block_device *bdev, void __user *argp)
 	if (bdev != bdev->bd_contains)
 		// ro setting is not allowed for partitions
 		return -EINVAL;
-	if (get_user(intval, (int *)argp))
+	if (get_user(intval, (int __user *)argp))
 		return -EFAULT;
 
 	set_disk_ro(bdev->bd_disk, intval);

@@ -38,7 +38,6 @@
 #include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
-#include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/string.h>
 #include <linux/kd.h>
@@ -48,6 +47,7 @@
 #include <linux/spinlock.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/screen_info.h>
 #include <linux/smp_lock.h>
 #include <video/vga.h>
 #include <asm/io.h>

@@ -178,7 +178,7 @@ static __init void unreachable_devices(void)
 				pci_exp_set_dev_base(addr, k, PCI_DEVFN(i, 0));
 			if (addr == 0 ||
 			    readl((u32 __iomem *)mmcfg_virt_addr) != val1) {
-				set_bit(i, fallback_slots);
+				set_bit(i + 32*k, fallback_slots);
 				printk(KERN_NOTICE
 			"PCI: No mmconfig possible on %x:%x\n", k, i);
 			}

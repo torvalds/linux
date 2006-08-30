@@ -516,10 +516,7 @@ static int skge_set_pauseparam(struct net_device *dev,
 /* Chip internal frequency for clock calculations */
 static inline u32 hwkhz(const struct skge_hw *hw)
 {
-	if (hw->chip_id == CHIP_ID_GENESIS)
-		return 53215; /* or:  53.125 MHz */
-	else
-		return 78215; /* or:  78.125 MHz */
+	return (hw->chip_id == CHIP_ID_GENESIS) ? 53125 : 78125;
 }
 
 /* Chip HZ to microseconds */
@@ -2214,6 +2211,7 @@ static int skge_up(struct net_device *dev)
 	skge_write8(hw, Q_ADDR(rxqaddr[port], Q_CSR), CSR_START | CSR_IRQ_CL_F);
 	skge_led(skge, LED_MODE_ON);
 
+	netif_poll_enable(dev);
 	return 0;
 
  free_rx_ring:
@@ -2282,6 +2280,7 @@ static int skge_down(struct net_device *dev)
 
 	skge_led(skge, LED_MODE_OFF);
 
+	netif_poll_disable(dev);
 	skge_tx_clean(skge);
 	skge_rx_clean(skge);
 

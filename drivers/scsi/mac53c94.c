@@ -378,7 +378,7 @@ static void set_dma_cmds(struct fsc_state *state, struct scsi_cmnd *cmd)
 		int nseg;
 
 		total = 0;
-		scl = (struct scatterlist *) cmd->buffer;
+		scl = (struct scatterlist *) cmd->request_buffer;
 		nseg = pci_map_sg(state->pdev, scl, cmd->use_sg,
 				cmd->sc_data_direction);
 		for (i = 0; i < nseg; ++i) {

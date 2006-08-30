@@ -158,12 +158,10 @@ static void dn_rehash_zone(struct dn_zone *dz)
 			break;
 	}
 
-	ht = kmalloc(new_divisor*sizeof(struct dn_fib_node*), GFP_KERNEL);
-
+	ht = kcalloc(new_divisor, sizeof(struct dn_fib_node*), GFP_KERNEL);
 	if (ht == NULL)
 		return;
 
-	memset(ht, 0, new_divisor*sizeof(struct dn_fib_node *));
 	write_lock_bh(&dn_fib_tables_lock);
 	old_ht = dz->dz_hash;
 	dz->dz_hash = ht;
@@ -184,11 +182,10 @@ static void dn_free_node(struct dn_fib_node *f)
 static struct dn_zone *dn_new_zone(struct dn_hash *table, int z)
 {
 	int i;
-	struct dn_zone *dz = kmalloc(sizeof(struct dn_zone), GFP_KERNEL);
+	struct dn_zone *dz = kzalloc(sizeof(struct dn_zone), GFP_KERNEL);
 	if (!dz)
 		return NULL;
 
-	memset(dz, 0, sizeof(struct dn_zone));
 	if (z) {
 		dz->dz_divisor = 16;
 		dz->dz_hashmask = 0x0F;
@@ -197,14 +194,12 @@ static struct dn_zone *dn_new_zone(struct dn_hash *table, int z)
 		dz->dz_hashmask = 0;
 	}
 
-	dz->dz_hash = kmalloc(dz->dz_divisor*sizeof(struct dn_fib_node *), GFP_KERNEL);
-
+	dz->dz_hash = kcalloc(dz->dz_divisor, sizeof(struct dn_fib_node *), GFP_KERNEL);
 	if (!dz->dz_hash) {
 		kfree(dz);
 		return NULL;
 	}
 
-	memset(dz->dz_hash, 0, dz->dz_divisor*sizeof(struct dn_fib_node*));
 	dz->dz_order = z;
 	dz->dz_mask = dnet_make_mask(z);
 

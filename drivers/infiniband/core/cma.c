@@ -262,14 +262,14 @@ static void cma_detach_from_dev(struct rdma_id_private *id_priv)
 static int cma_acquire_ib_dev(struct rdma_id_private *id_priv)
 {
 	struct cma_device *cma_dev;
-	union ib_gid *gid;
+	union ib_gid gid;
 	int ret = -ENODEV;
 
-	gid = ib_addr_get_sgid(&id_priv->id.route.addr.dev_addr);
+	ib_addr_get_sgid(&id_priv->id.route.addr.dev_addr, &gid),
 
 	mutex_lock(&lock);
 	list_for_each_entry(cma_dev, &dev_list, list) {
-		ret = ib_find_cached_gid(cma_dev->device, gid,
+		ret = ib_find_cached_gid(cma_dev->device, &gid,
 					 &id_priv->id.port_num, NULL);
 		if (!ret) {
 			cma_attach_to_dev(id_priv, cma_dev);
@@ -812,6 +812,7 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		cma_modify_qp_err(&id_priv->id);
 		status = ib_event->param.rej_rcvd.reason;
 		event = RDMA_CM_EVENT_REJECTED;
+		private_data_len = IB_CM_REJ_PRIVATE_DATA_SIZE;
 		break;
 	default:
 		printk(KERN_ERR "RDMA CMA: unexpected IB CM event: %d",
@@ -1134,8 +1135,8 @@ static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
 	struct ib_sa_path_rec path_rec;
 
 	memset(&path_rec, 0, sizeof path_rec);
-	path_rec.sgid = *ib_addr_get_sgid(addr);
-	path_rec.dgid = *ib_addr_get_dgid(addr);
+	ib_addr_get_sgid(addr, &path_rec.sgid);
+	ib_addr_get_dgid(addr, &path_rec.dgid);
 	path_rec.pkey = cpu_to_be16(ib_addr_get_pkey(addr));
 	path_rec.numb_path = 1;
 
@@ -1263,7 +1264,7 @@ static int cma_bind_loopback(struct rdma_id_private *id_priv)
 {
 	struct cma_device *cma_dev;
 	struct ib_port_attr port_attr;
-	union ib_gid *gid;
+	union ib_gid gid;
 	u16 pkey;
 	int ret;
 	u8 p;
@@ -1284,8 +1285,7 @@ static int cma_bind_loopback(struct rdma_id_private *id_priv)
 	}
 
 port_found:
-	gid = ib_addr_get_sgid(&id_priv->id.route.addr.dev_addr);
-	ret = ib_get_cached_gid(cma_dev->device, p, 0, gid);
+	ret = ib_get_cached_gid(cma_dev->device, p, 0, &gid);
 	if (ret)
 		goto out;
 
@@ -1293,6 +1293,7 @@ port_found:
 	if (ret)
 		goto out;
 
+	ib_addr_set_sgid(&id_priv->id.route.addr.dev_addr, &gid);
 	ib_addr_set_pkey(&id_priv->id.route.addr.dev_addr, pkey);
 	id_priv->id.port_num = p;
 	cma_attach_to_dev(id_priv, cma_dev);
@@ -1339,6 +1340,7 @@ static int cma_resolve_loopback(struct rdma_id_private *id_priv)
 {
 	struct cma_work *work;
 	struct sockaddr_in *src_in, *dst_in;
+	union ib_gid gid;
 	int ret;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
@@ -1351,8 +1353,8 @@ static int cma_resolve_loopback(struct rdma_id_private *id_priv)
 			goto err;
 	}
 
-	ib_addr_set_dgid(&id_priv->id.route.addr.dev_addr,
-			 ib_addr_get_sgid(&id_priv->id.route.addr.dev_addr));
+	ib_addr_get_sgid(&id_priv->id.route.addr.dev_addr, &gid);
+	ib_addr_set_dgid(&id_priv->id.route.addr.dev_addr, &gid);
 
 	if (cma_zero_addr(&id_priv->id.route.addr.src_addr)) {
 		src_in = (struct sockaddr_in *)&id_priv->id.route.addr.src_addr;

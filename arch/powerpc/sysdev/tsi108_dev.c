@@ -93,13 +93,15 @@ static int __init tsi108_eth_of_init(void)
 			goto err;
 
 		r[1].name = "tx";
-		r[1].start = np->intrs[0].line;
-		r[1].end = np->intrs[0].line;
+		r[1].start = irq_of_parse_and_map(np, 0);
+		r[1].end = irq_of_parse_and_map(np, 0);
 		r[1].flags = IORESOURCE_IRQ;
+		DBG("%s: name:start->end = %s:0x%lx-> 0x%lx\n",
+			__FUNCTION__,r[1].name, r[1].start, r[1].end);
 
 		tsi_eth_dev =
 		    platform_device_register_simple("tsi-ethernet", i, &r[0],
-						    np->n_intrs + 1);
+						    1);
 
 		if (IS_ERR(tsi_eth_dev)) {
 			ret = PTR_ERR(tsi_eth_dev);
@@ -127,7 +129,7 @@ static int __init tsi108_eth_of_init(void)
 		tsi_eth_data.regs = r[0].start;
 		tsi_eth_data.phyregs = res.start;
 		tsi_eth_data.phy = *phy_id;
-		tsi_eth_data.irq_num = np->intrs[0].line;
+		tsi_eth_data.irq_num = irq_of_parse_and_map(np, 0);
 		of_node_put(phy);
 		ret =
 		    platform_device_add_data(tsi_eth_dev, &tsi_eth_data,
