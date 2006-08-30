@@ -620,6 +620,8 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 		   asd_ha->hw_prof.bios.present ? "build " : "not present",
 		   asd_ha->hw_prof.bios.bld);
 
+	shost->can_queue = asd_ha->seq.can_queue;
+
 	if (use_msi)
 		pci_enable_msi(asd_ha->pcidev);
 
