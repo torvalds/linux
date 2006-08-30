@@ -191,7 +191,7 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 	if (tsk != current)
 		fp = thread_saved_fp(tsk);
 	else
-		asm("mov%? %0, fp" : "=r" (fp));
+		asm("mov %0, fp" : "=r" (fp) : : "cc");
 
 	c_backtrace(fp, 0x10);
 	barrier();

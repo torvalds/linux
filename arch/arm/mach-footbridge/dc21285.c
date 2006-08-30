@@ -69,16 +69,16 @@ dc21285_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	if (addr)
 		switch (size) {
 		case 1:
-			asm("ldr%?b	%0, [%1, %2]"
-				: "=r" (v) : "r" (addr), "r" (where));
+			asm("ldrb	%0, [%1, %2]"
+				: "=r" (v) : "r" (addr), "r" (where) : "cc");
 			break;
 		case 2:
-			asm("ldr%?h	%0, [%1, %2]"
-				: "=r" (v) : "r" (addr), "r" (where));
+			asm("ldrh	%0, [%1, %2]"
+				: "=r" (v) : "r" (addr), "r" (where) : "cc");
 			break;
 		case 4:
-			asm("ldr%?	%0, [%1, %2]"
-				: "=r" (v) : "r" (addr), "r" (where));
+			asm("ldr	%0, [%1, %2]"
+				: "=r" (v) : "r" (addr), "r" (where) : "cc");
 			break;
 		}
 
@@ -103,16 +103,19 @@ dc21285_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	if (addr)
 		switch (size) {
 		case 1:
-			asm("str%?b	%0, [%1, %2]"
-				: : "r" (value), "r" (addr), "r" (where));
+			asm("strb	%0, [%1, %2]"
+				: : "r" (value), "r" (addr), "r" (where)
+				: "cc");
 			break;
 		case 2:
-			asm("str%?h	%0, [%1, %2]"
-				: : "r" (value), "r" (addr), "r" (where));
+			asm("strh	%0, [%1, %2]"
+				: : "r" (value), "r" (addr), "r" (where)
+				: "cc");
 			break;
 		case 4:
-			asm("str%?	%0, [%1, %2]"
-				: : "r" (value), "r" (addr), "r" (where));
+			asm("str	%0, [%1, %2]"
+				: : "r" (value), "r" (addr), "r" (where)
+				: "cc");
 			break;
 		}
 
