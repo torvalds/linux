@@ -1391,10 +1391,8 @@ new_channel_path(int chpid)
 	/* fill in status, etc. */
 	chp->id = chpid;
 	chp->state = 1;
-	chp->dev = (struct device) {
-		.parent  = &css[0]->device,
-		.release = chp_release,
-	};
+	chp->dev.parent = &css[0]->device;
+	chp->dev.release = chp_release;
 	snprintf(chp->dev.bus_id, BUS_ID_SIZE, "chp0.%x", chpid);
 
 	/* Obtain channel path description and fill it in. */
