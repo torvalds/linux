@@ -265,6 +265,9 @@ static void scsi_host_dev_release(struct device *dev)
 		destroy_workqueue(shost->work_q);
 
 	scsi_destroy_command_freelist(shost);
+	if (shost->bqt)
+		blk_free_tags(shost->bqt);
+
 	kfree(shost->shost_data);
 
 	if (parent)

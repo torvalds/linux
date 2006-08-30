@@ -16,6 +16,7 @@ struct scsi_target;
 struct Scsi_Host;
 struct scsi_host_cmd_pool;
 struct scsi_transport_template;
+struct blk_queue_tags;
 
 
 /*
@@ -464,6 +465,12 @@ struct Scsi_Host {
 	wait_queue_head_t       host_wait;
 	struct scsi_host_template *hostt;
 	struct scsi_transport_template *transportt;
+
+	/*
+	 * area to keep a shared tag map (if needed, will be
+	 * NULL if not)
+	 */
+	struct blk_queue_tag	*bqt;
 
 	/*
 	 * The following two fields are protected with host_lock;
