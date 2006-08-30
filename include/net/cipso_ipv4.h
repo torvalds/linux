@@ -37,6 +37,8 @@
 #include <linux/types.h>
 #include <linux/rcupdate.h>
 #include <linux/list.h>
+#include <linux/net.h>
+#include <linux/skbuff.h>
 #include <net/netlabel.h>
 
 /* known doi values */

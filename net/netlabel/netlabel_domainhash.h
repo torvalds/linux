@@ -32,6 +32,10 @@
 #ifndef _NETLABEL_DOMAINHASH_H
 #define _NETLABEL_DOMAINHASH_H
 
+#include <linux/types.h>
+#include <linux/rcupdate.h>
+#include <linux/list.h>
+
 /* Domain hash table size */
 /* XXX - currently this number is an uneducated guess */
 #define NETLBL_DOMHSH_BITSIZE       7

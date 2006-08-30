@@ -31,11 +31,12 @@
 #ifndef _NETLABEL_USER_H
 #define _NETLABEL_USER_H
 
+#include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/capability.h>
-#include <linux/genetlink.h>
-#include <net/netlabel.h>
+#include <net/netlink.h>
 #include <net/genetlink.h>
+#include <net/netlabel.h>
 
 /* NetLabel NETLINK helper functions */
 

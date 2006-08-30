@@ -27,6 +27,15 @@
 #ifndef _SELINUX_NETLABEL_H_
 #define _SELINUX_NETLABEL_H_
 
+#include <linux/types.h>
+#include <linux/fs.h>
+#include <linux/net.h>
+#include <linux/skbuff.h>
+#include <net/sock.h>
+
+#include "avc.h"
+#include "objsec.h"
+
 #ifdef CONFIG_NETLABEL
 void selinux_netlbl_cache_invalidate(void);
 int selinux_netlbl_socket_post_create(struct socket *sock,
