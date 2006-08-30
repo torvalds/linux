@@ -71,7 +71,11 @@ static inline int bad_addr(unsigned long *addrp, unsigned long size)
 #endif
 	/* kernel code + 640k memory hole (later should not be needed, but 
 	   be paranoid for now) */
-	if (last >= 640*1024 && addr < __pa_symbol(&_end)) { 
+	if (last >= 640*1024 && addr < 1024*1024) {
+		*addrp = 1024*1024;
+		return 1;
+	}
+	if (last >= __pa_symbol(&_text) && last < __pa_symbol(&_end)) {
 		*addrp = __pa_symbol(&_end);
 		return 1;
 	}
