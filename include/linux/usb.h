@@ -348,6 +348,7 @@ struct usb_device {
 
 	unsigned short bus_mA;		/* Current available from the bus */
 	u8 portnum;			/* Parent port number (origin 1) */
+	u8 level;			/* Number of USB hub ancestors */
 
 	int have_langid;		/* whether string_langid is valid */
 	int string_langid;		/* language ID for strings */

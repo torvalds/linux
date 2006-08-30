@@ -2414,6 +2414,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		usb_set_device_state(udev, USB_STATE_POWERED);
 		udev->speed = USB_SPEED_UNKNOWN;
  		udev->bus_mA = hub->mA_per_port;
+		udev->level = hdev->level + 1;
 
 		/* set the address */
 		choose_address(udev);
