@@ -32,6 +32,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/protocol.h>
+#include <linux/mmc/host.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -165,6 +166,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	do {
 		struct mmc_blk_request brq;
 		struct mmc_command cmd;
+		u32 readcmd, writecmd;
 
 		memset(&brq, 0, sizeof(struct mmc_blk_request));
 		brq.mrq.cmd = &brq.cmd;
@@ -180,20 +182,31 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 		mmc_set_data_timeout(&brq.data, card, rq_data_dir(req) != READ);
 
-		if (rq_data_dir(req) == READ) {
-			brq.cmd.opcode = brq.data.blocks > 1 ? MMC_READ_MULTIPLE_BLOCK : MMC_READ_SINGLE_BLOCK;
-			brq.data.flags |= MMC_DATA_READ;
-		} else {
-			brq.cmd.opcode = MMC_WRITE_BLOCK;
-			brq.data.flags |= MMC_DATA_WRITE;
+		/*
+		 * If the host doesn't support multiple block writes, force
+		 * block writes to single block.
+		 */
+		if (rq_data_dir(req) != READ &&
+		    !(card->host->caps & MMC_CAP_MULTIWRITE))
 			brq.data.blocks = 1;
-		}
 
 		if (brq.data.blocks > 1) {
 			brq.data.flags |= MMC_DATA_MULTI;
 			brq.mrq.stop = &brq.stop;
+			readcmd = MMC_READ_MULTIPLE_BLOCK;
+			writecmd = MMC_WRITE_MULTIPLE_BLOCK;
 		} else {
 			brq.mrq.stop = NULL;
+			readcmd = MMC_READ_SINGLE_BLOCK;
+			writecmd = MMC_WRITE_BLOCK;
+		}
+
+		if (rq_data_dir(req) == READ) {
+			brq.cmd.opcode = readcmd;
+			brq.data.flags |= MMC_DATA_READ;
+		} else {
+			brq.cmd.opcode = writecmd;
+			brq.data.flags |= MMC_DATA_WRITE;
 		}
 
 		brq.data.sg = mq->sg;
