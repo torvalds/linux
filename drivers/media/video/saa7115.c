@@ -270,44 +270,6 @@ static const unsigned char saa7115_cfg_reset_scaler[] = {
 
 /* ============== SAA7715 VIDEO templates =============  */
 
-/* Used on saa7114 and saa7115 */
-static const unsigned char saa7115_cfg_60hz_fullres_x[] = {
-	/* hsize = 0x2d0 = 720 */
-	R_CC_B_HORIZ_OUTPUT_WINDOW_LENGTH, 0xd0,
-	R_CD_B_HORIZ_OUTPUT_WINDOW_LENGTH_MSB, 0x02,
-
-	/* Why not in 60hz-Land, too? */
-	R_D0_B_HORIZ_PRESCALING, 0x01,		/* downscale = 1 */
-	/* hor lum scaling 0x0400 = 1 */
-	R_D8_B_HORIZ_LUMA_SCALING_INC, 0x00,
-	R_D9_B_HORIZ_LUMA_SCALING_INC_MSB, 0x04,
-
-	/* must be hor lum scaling / 2 */
-	R_DC_B_HORIZ_CHROMA_SCALING, 0x00,
-	R_DD_B_HORIZ_CHROMA_SCALING_MSB, 0x02,
-
-	0x00, 0x00
-};
-
-/* Used on saa7114 and saa7115 */
-static const unsigned char saa7115_cfg_60hz_fullres_y[] = {
-	/* output window size = 248 (but 60hz is 240?) */
-	R_CE_B_VERT_OUTPUT_WINDOW_LENGTH, 0xf8,
-	R_CF_B_VERT_OUTPUT_WINDOW_LENGTH_MSB, 0x00,
-
-	/* Why not in 60hz-Land, too? */
-	R_D5_B_LUMA_CONTRAST_CNTL, 0x40,		/* Lum contrast, nominal value = 0x40 */
-	R_D6_B_CHROMA_SATURATION_CNTL, 0x40,		/* Chroma satur. nominal value = 0x80 */
-
-	R_E0_B_VERT_LUMA_SCALING_INC, 0x00,
-	R_E1_B_VERT_LUMA_SCALING_INC_MSB, 0x04,
-
-	R_E2_B_VERT_CHROMA_SCALING_INC, 0x00,
-	R_E3_B_VERT_CHROMA_SCALING_INC_MSB, 0x04,
-
-	0x00, 0x00
-};
-
 static const unsigned char saa7115_cfg_60hz_video[] = {
 	R_80_GLOBAL_CNTL_1, 0x00,			/* reset tasks */
 	R_88_POWER_SAVE_ADC_PORT_CNTL, 0xd0,		/* reset scaler */
@@ -383,38 +345,6 @@ static const unsigned char saa7115_cfg_60hz_video[] = {
 	R_80_GLOBAL_CNTL_1, 0x20,			/* Activate only task "B", continuous mode (was 0xA0) */
 	R_88_POWER_SAVE_ADC_PORT_CNTL, 0xf0,		/* activate scaler */
 	R_87_I_PORT_I_O_ENA_OUT_CLK_AND_GATED, 0x01,	/* Enable I-port output */
-	0x00, 0x00
-};
-
-static const unsigned char saa7115_cfg_50hz_fullres_x[] = {
-	/* hsize low (output), 720 same as 60hz */
-	R_CC_B_HORIZ_OUTPUT_WINDOW_LENGTH, 0xd0,
-	R_CD_B_HORIZ_OUTPUT_WINDOW_LENGTH_MSB, 0x02,
-
-	R_D0_B_HORIZ_PRESCALING, 0x01,		/* down scale = 1 */
-	R_D8_B_HORIZ_LUMA_SCALING_INC, 0x00,	/* hor lum scaling 0x0400 = 1 */
-	R_D9_B_HORIZ_LUMA_SCALING_INC_MSB, 0x04,
-
-	/* must be hor lum scaling / 2 */
-	R_DC_B_HORIZ_CHROMA_SCALING, 0x00,
-	R_DD_B_HORIZ_CHROMA_SCALING_MSB, 0x02,
-
-	0x00, 0x00
-};
-static const unsigned char saa7115_cfg_50hz_fullres_y[] = {
-	/* vsize low (output), 0x0120 = 288 */
-	R_CE_B_VERT_OUTPUT_WINDOW_LENGTH, 0x20,
-	R_CF_B_VERT_OUTPUT_WINDOW_LENGTH_MSB, 0x01,
-
-	R_D5_B_LUMA_CONTRAST_CNTL, 0x40,	/* Lum contrast, nominal value = 0x40 */
-	R_D6_B_CHROMA_SATURATION_CNTL, 0x40,	/* Chroma satur. nominal value = 0x80 */
-
-	R_E0_B_VERT_LUMA_SCALING_INC, 0x00,
-	R_E1_B_VERT_LUMA_SCALING_INC_MSB, 0x04,
-
-	R_E2_B_VERT_CHROMA_SCALING_INC, 0x00,
-	R_E3_B_VERT_CHROMA_SCALING_INC_MSB, 0x04,
-
 	0x00, 0x00
 };
 
@@ -920,6 +850,8 @@ static void saa711x_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 	011 NTSC N (3.58MHz)            PAL M (3.58MHz)
 	100 reserved                    NTSC-Japan (3.58MHz)
 	*/
+	state->std = std;
+
 	if (state->ident == V4L2_IDENT_SAA7111 ||
 	    state->ident == V4L2_IDENT_SAA7113) {
 		u8 reg = saa711x_read(client, R_0E_CHROMA_CNTL_1) & 0x8f;
@@ -945,8 +877,6 @@ static void saa711x_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 		/* switch audio mode too! */
 		saa711x_set_audio_clock_freq(client, state->audclk_freq);
 	}
-
-	state->std = std;
 }
 
 static v4l2_std_id saa711x_get_v4lstd(struct i2c_client *client)
@@ -1116,15 +1046,110 @@ static int saa711x_get_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 	return 0;
 }
 
-static int saa711x_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
+static int saa711x_set_size(struct i2c_client *client, int width, int height)
 {
 	struct saa711x_state *state = i2c_get_clientdata(client);
-	struct v4l2_pix_format *pix;
 	int HPSC, HFSC;
 	int VSCY;
+	int res;
 	int is_50hz = state->std & V4L2_STD_625_50;
 	int Vsrc = is_50hz ? 576 : 480;
 
+	v4l_dbg(1, debug, client, "decoder set size to %ix%i\n",width,height);
+
+	/* FIXME need better bounds checking here */
+	if ((width < 1) || (width > 1440))
+		return -EINVAL;
+	if ((height < 1) || (height > 960))
+		return -EINVAL;
+
+	if (!saa711x_has_reg(state->ident,R_D0_B_HORIZ_PRESCALING)) {
+		/* Decoder only supports 720 columns and 480 or 576 lines */
+		if (width != 720)
+			return -EINVAL;
+		if (height != Vsrc)
+			return -EINVAL;
+	}
+	if (!saa711x_has_reg(state->ident,R_CC_B_HORIZ_OUTPUT_WINDOW_LENGTH))
+		return 0;
+
+	/* probably have a valid size, let's set it */
+	/* Set output width/height */
+	/* width */
+
+	saa711x_write(client, R_CC_B_HORIZ_OUTPUT_WINDOW_LENGTH,
+					(u8) (width & 0xff));
+	saa711x_write(client, R_CD_B_HORIZ_OUTPUT_WINDOW_LENGTH_MSB,
+					(u8) ((width >> 8) & 0xff));
+
+	if (height == Vsrc) {
+		/*FIXME: This code seems weird, however, this is how it is
+		  working right now.
+		 */
+		res=height/2;
+		if (!is_50hz)
+			res+=8;
+	} else
+		res=height;
+
+		/* height */
+	saa711x_write(client, R_CE_B_VERT_OUTPUT_WINDOW_LENGTH,
+					(u8) (res & 0xff));
+	saa711x_write(client, R_CF_B_VERT_OUTPUT_WINDOW_LENGTH_MSB,
+					(u8) (res & 0xff));
+
+
+	/* Scaling settings */
+	/* Hprescaler is floor(inres/outres) */
+	HPSC = (int)(720 / width);
+	/* 0 is not allowed (div. by zero) */
+	HPSC = HPSC ? HPSC : 1;
+	HFSC = (int)((1024 * 720) / (HPSC * width));
+	/* FIXME hardcodes to "Task B"
+	 * write H prescaler integer */
+	saa711x_write(client, R_D0_B_HORIZ_PRESCALING,
+				(u8) (HPSC & 0x3f));
+
+	v4l_dbg(1, debug, client, "Hpsc: 0x%05x, Hfsc: 0x%05x\n", HPSC, HFSC);
+	/* write H fine-scaling (luminance) */
+	saa711x_write(client, R_D8_B_HORIZ_LUMA_SCALING_INC,
+				(u8) (HFSC & 0xff));
+	saa711x_write(client, R_D9_B_HORIZ_LUMA_SCALING_INC_MSB,
+				(u8) ((HFSC >> 8) & 0xff));
+	/* write H fine-scaling (chrominance)
+	 * must be lum/2, so i'll just bitshift :) */
+	saa711x_write(client, R_DC_B_HORIZ_CHROMA_SCALING,
+				(u8) ((HFSC >> 1) & 0xff));
+	saa711x_write(client, R_DD_B_HORIZ_CHROMA_SCALING_MSB,
+				(u8) ((HFSC >> 9) & 0xff));
+
+	VSCY = (int)((1024 * Vsrc) / height);
+	v4l_dbg(1, debug, client, "Vsrc: %d, Vscy: 0x%05x\n", Vsrc, VSCY);
+
+	/* Correct Contrast and Luminance */
+	saa711x_write(client, R_D5_B_LUMA_CONTRAST_CNTL,
+					(u8) (64 * 1024 / VSCY));
+	saa711x_write(client, R_D6_B_CHROMA_SATURATION_CNTL,
+					(u8) (64 * 1024 / VSCY));
+
+		/* write V fine-scaling (luminance) */
+	saa711x_write(client, R_E0_B_VERT_LUMA_SCALING_INC,
+					(u8) (VSCY & 0xff));
+	saa711x_write(client, R_E1_B_VERT_LUMA_SCALING_INC_MSB,
+					(u8) ((VSCY >> 8) & 0xff));
+		/* write V fine-scaling (chrominance) */
+	saa711x_write(client, R_E2_B_VERT_CHROMA_SCALING_INC,
+					(u8) (VSCY & 0xff));
+	saa711x_write(client, R_E3_B_VERT_CHROMA_SCALING_INC_MSB,
+					(u8) ((VSCY >> 8) & 0xff));
+
+	saa711x_writeregs(client, saa7115_cfg_reset_scaler);
+
+	return 0;
+}
+
+static int saa711x_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
+{
 	if (fmt->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
 		saa711x_set_lcr(client, &fmt->fmt.sliced);
 		return 0;
@@ -1132,109 +1157,7 @@ static int saa711x_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	pix = &(fmt->fmt.pix);
-
-	v4l_dbg(1, debug, client, "decoder set size\n");
-
-	/* FIXME need better bounds checking here */
-	if ((pix->width < 1) || (pix->width > 1440))
-		return -EINVAL;
-	if ((pix->height < 1) || (pix->height > 960))
-		return -EINVAL;
-
-	if (!saa711x_has_reg(state->ident,R_D0_B_HORIZ_PRESCALING)) {
-		/* Decoder only supports 720 columns and 480 or 576 lines */
-		if (pix->width != 720)
-			return -EINVAL;
-		if (pix->height != Vsrc)
-			return -EINVAL;
-	}
-
-	/* probably have a valid size, let's set it */
-	/* Set output width/height */
-	/* width */
-
-	if (!saa711x_has_reg(state->ident,R_CC_B_HORIZ_OUTPUT_WINDOW_LENGTH)) {
-		saa711x_write(client, R_CC_B_HORIZ_OUTPUT_WINDOW_LENGTH,
-					(u8) (pix->width & 0xff));
-		saa711x_write(client, R_CD_B_HORIZ_OUTPUT_WINDOW_LENGTH_MSB,
-					(u8) ((pix->width >> 8) & 0xff));
-		/* height */
-		saa711x_write(client, R_CE_B_VERT_OUTPUT_WINDOW_LENGTH,
-					(u8) (pix->height & 0xff));
-		saa711x_write(client, R_CF_B_VERT_OUTPUT_WINDOW_LENGTH_MSB,
-					(u8) ((pix->height >> 8) & 0xff));
-	}
-
-	/* Scaling settings */
-	/* Hprescaler is floor(inres/outres) */
-	/* FIXME hardcoding input res */
-	if (pix->width != 720) {
-		HPSC = (int)(720 / pix->width);
-		/* 0 is not allowed (div. by zero) */
-		HPSC = HPSC ? HPSC : 1;
-		HFSC = (int)((1024 * 720) / (HPSC * pix->width));
-
-		v4l_dbg(1, debug, client, "Hpsc: 0x%05x, Hfsc: 0x%05x\n", HPSC, HFSC);
-		/* FIXME hardcodes to "Task B"
-		 * write H prescaler integer */
-		saa711x_write(client, R_D0_B_HORIZ_PRESCALING,
-					(u8) (HPSC & 0x3f));
-
-		/* write H fine-scaling (luminance) */
-		saa711x_write(client, R_D8_B_HORIZ_LUMA_SCALING_INC,
-					(u8) (HFSC & 0xff));
-		saa711x_write(client, R_D9_B_HORIZ_LUMA_SCALING_INC_MSB,
-					(u8) ((HFSC >> 8) & 0xff));
-		/* write H fine-scaling (chrominance)
-		 * must be lum/2, so i'll just bitshift :) */
-		saa711x_write(client, R_DC_B_HORIZ_CHROMA_SCALING,
-					(u8) ((HFSC >> 1) & 0xff));
-		saa711x_write(client, R_DD_B_HORIZ_CHROMA_SCALING_MSB,
-					(u8) ((HFSC >> 9) & 0xff));
-	} else {
-		if (is_50hz) {
-			v4l_dbg(1, debug, client, "Setting full 50hz width\n");
-			saa711x_writeregs(client, saa7115_cfg_50hz_fullres_x);
-		} else {
-			v4l_dbg(1, debug, client, "Setting full 60hz width\n");
-			saa711x_writeregs(client, saa7115_cfg_60hz_fullres_x);
-		}
-	}
-
-	if (pix->height != Vsrc) {
-		VSCY = (int)((1024 * Vsrc) / pix->height);
-		v4l_dbg(1, debug, client, "Vsrc: %d, Vscy: 0x%05x\n", Vsrc, VSCY);
-
-		/* Correct Contrast and Luminance */
-		saa711x_write(client, R_D5_B_LUMA_CONTRAST_CNTL,
-					(u8) (64 * 1024 / VSCY));
-		saa711x_write(client, R_D6_B_CHROMA_SATURATION_CNTL,
-					(u8) (64 * 1024 / VSCY));
-
-		/* write V fine-scaling (luminance) */
-		saa711x_write(client, R_E0_B_VERT_LUMA_SCALING_INC,
-					(u8) (VSCY & 0xff));
-		saa711x_write(client, R_E1_B_VERT_LUMA_SCALING_INC_MSB,
-					(u8) ((VSCY >> 8) & 0xff));
-		/* write V fine-scaling (chrominance) */
-		saa711x_write(client, R_E2_B_VERT_CHROMA_SCALING_INC,
-					(u8) (VSCY & 0xff));
-		saa711x_write(client, R_E3_B_VERT_CHROMA_SCALING_INC_MSB,
-					(u8) ((VSCY >> 8) & 0xff));
-	} else {
-		if (is_50hz) {
-			v4l_dbg(1, debug, client, "Setting full 50Hz height\n");
-			saa711x_writeregs(client, saa7115_cfg_50hz_fullres_y);
-		} else {
-			v4l_dbg(1, debug, client, "Setting full 60hz height\n");
-			saa711x_writeregs(client, saa7115_cfg_60hz_fullres_y);
-		}
-	}
-
-	saa711x_writeregs(client, saa7115_cfg_reset_scaler);
-
-	return 0;
+	return saa711x_set_size(client,fmt->fmt.pix.width,fmt->fmt.pix.height);
 }
 
 /* Decode the sliced VBI data stream as created by the saa7115.
@@ -1284,7 +1207,7 @@ static void saa711x_decode_vbi_line(struct i2c_client *client,
 		vbi->type = V4L2_SLICED_TELETEXT_B;
 		break;
 	case 4:
-		if (!saa711x_odd_parity(p[0]) || !saa7115_odd_parity(p[1]))
+		if (!saa711x_odd_parity(p[0]) || !saa711x_odd_parity(p[1]))
 			return;
 		vbi->type = V4L2_SLICED_CAPTION_525;
 		break;
@@ -1570,7 +1493,6 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 		kfree(client);
 		return -ENOMEM;
 	}
-	state->std = V4L2_STD_NTSC;
 	state->input = -1;
 	state->enable = 1;
 	state->radio = 0;
@@ -1614,8 +1536,8 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 		saa711x_writeregs(client, saa7115_init_auto_input);
 	}
 	saa711x_writeregs(client, saa7115_init_misc);
-	saa711x_writeregs(client, saa7115_cfg_60hz_fullres_x);
-	saa711x_writeregs(client, saa7115_cfg_60hz_fullres_y);
+	state->std = V4L2_STD_NTSC;
+	saa711x_set_size(client, 720, 480);
 	saa711x_writeregs(client, saa7115_cfg_60hz_video);
 	saa711x_set_audio_clock_freq(client, state->audclk_freq);
 	saa711x_writeregs(client, saa7115_cfg_reset_scaler);
@@ -1623,7 +1545,7 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 	i2c_attach_client(client);
 
 	v4l_dbg(1, debug, client, "status: (1E) 0x%02x, (1F) 0x%02x\n",
-		saa711x_read(client, R_1E_STATUS_BYTE_1_VD_DEC), saa7115_read(client, R_1F_STATUS_BYTE_2_VD_DEC));
+		saa711x_read(client, R_1E_STATUS_BYTE_1_VD_DEC), saa711x_read(client, R_1F_STATUS_BYTE_2_VD_DEC));
 
 	return 0;
 }
