@@ -19,6 +19,7 @@
 #include <linux/fs.h>		/* for struct file_operations */
 #include <linux/completion.h>	/* for struct completion */
 #include <linux/sched.h>	/* for current && schedule_timeout */
+#include <linux/mutex.h>	/* for struct mutex */
 
 struct usb_device;
 struct usb_driver;
@@ -103,8 +104,12 @@ enum usb_interface_condition {
  * @condition: binding state of the interface: not bound, binding
  *	(in probe()), bound to a driver, or unbinding (in disconnect())
  * @is_active: flag set when the interface is bound and not suspended.
+ * @needs_remote_wakeup: flag set when the driver requires remote-wakeup
+ *	capability during autosuspend.
  * @dev: driver model's view of this device
  * @class_dev: driver model's class view of this device.
+ * @pm_usage_cnt: PM usage counter for this interface; autosuspend is not
+ *	allowed unless the counter is 0.
  *
  * USB device drivers attach to interfaces on a physical device.  Each
  * interface encapsulates a single high level function, such as feeding
@@ -144,9 +149,11 @@ struct usb_interface {
 					 * bound to */
 	enum usb_interface_condition condition;		/* state of binding */
 	unsigned is_active:1;		/* the interface is not suspended */
+	unsigned needs_remote_wakeup:1;	/* driver requires remote wakeup */
 
 	struct device dev;		/* interface specific device info */
 	struct class_device *class_dev;
+	int pm_usage_cnt;		/* usage counter for autosuspend */
 };
 #define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
 #define	interface_to_usbdev(intf) \
@@ -372,6 +379,15 @@ struct usb_device {
 
 	int maxchild;			/* Number of ports if hub */
 	struct usb_device *children[USB_MAXCHILDREN];
+
+#ifdef CONFIG_PM
+	struct work_struct autosuspend;	/* for delayed autosuspends */
+	struct mutex pm_mutex;		/* protects PM operations */
+	int pm_usage_cnt;		/* usage counter for autosuspend */
+
+	unsigned auto_pm:1;		/* autosuspend/resume in progress */
+	unsigned do_remote_wakeup:1;	/* remote wakeup should be enabled */
+#endif
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
 
@@ -391,6 +407,17 @@ extern int usb_reset_composite_device(struct usb_device *dev,
 		struct usb_interface *iface);
 
 extern struct usb_device *usb_find_device(u16 vendor_id, u16 product_id);
+
+/* USB autosuspend and autoresume */
+#ifdef CONFIG_USB_SUSPEND
+extern int usb_autopm_get_interface(struct usb_interface *intf);
+extern void usb_autopm_put_interface(struct usb_interface *intf);
+
+#else
+#define usb_autopm_get_interface(intf)		0
+#define usb_autopm_put_interface(intf)		do {} while (0)
+#endif
+
 
 /*-------------------------------------------------------------------------*/
 
@@ -593,6 +620,8 @@ struct usbdrv_wrap {
  * @drvwrap: Driver-model core structure wrapper.
  * @no_dynamic_id: if set to 1, the USB core will not allow dynamic ids to be
  *	added to this driver by preventing the sysfs file from being created.
+ * @supports_autosuspend: if set to 0, the USB core will not allow autosuspend
+ *	for interfaces bound to this driver.
  *
  * USB interface drivers must provide a name, probe() and disconnect()
  * methods, and an id_table.  Other driver fields are optional.
@@ -631,6 +660,7 @@ struct usb_driver {
 	struct usb_dynids dynids;
 	struct usbdrv_wrap drvwrap;
 	unsigned int no_dynamic_id:1;
+	unsigned int supports_autosuspend:1;
 };
 #define	to_usb_driver(d) container_of(d, struct usb_driver, drvwrap.driver)
 
@@ -648,6 +678,8 @@ struct usb_driver {
  * @suspend: Called when the device is going to be suspended by the system.
  * @resume: Called when the device is being resumed by the system.
  * @drvwrap: Driver-model core structure wrapper.
+ * @supports_autosuspend: if set to 0, the USB core will not allow autosuspend
+ *	for devices bound to this driver.
  *
  * USB drivers must provide all the fields listed above except drvwrap.
  */
@@ -660,6 +692,7 @@ struct usb_device_driver {
 	int (*suspend) (struct usb_device *udev, pm_message_t message);
 	int (*resume) (struct usb_device *udev);
 	struct usbdrv_wrap drvwrap;
+	unsigned int supports_autosuspend:1;
 };
 #define	to_usb_device_driver(d) container_of(d, struct usb_device_driver, \
 		drvwrap.driver)

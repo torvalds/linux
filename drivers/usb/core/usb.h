@@ -49,6 +49,20 @@ static inline int usb_resume_both(struct usb_device *udev)
 
 #endif
 
+#ifdef CONFIG_USB_SUSPEND
+
+#define USB_AUTOSUSPEND_DELAY	(HZ*2)
+
+extern void usb_autosuspend_device(struct usb_device *udev, int dec_busy_cnt);
+extern int usb_autoresume_device(struct usb_device *udev, int inc_busy_cnt);
+
+#else
+
+#define usb_autosuspend_device(udev, dec_busy_cnt)	do {} while (0)
+#define usb_autoresume_device(udev, inc_busy_cnt)	0
+
+#endif
+
 extern struct bus_type usb_bus_type;
 extern struct usb_device_driver usb_generic_driver;
 

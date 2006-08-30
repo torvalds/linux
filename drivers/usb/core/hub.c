@@ -1017,19 +1017,22 @@ void usb_set_device_state(struct usb_device *udev,
 	if (udev->state == USB_STATE_NOTATTACHED)
 		;	/* do nothing */
 	else if (new_state != USB_STATE_NOTATTACHED) {
-		udev->state = new_state;
 
 		/* root hub wakeup capabilities are managed out-of-band
 		 * and may involve silicon errata ... ignore them here.
 		 */
 		if (udev->parent) {
-			if (new_state == USB_STATE_CONFIGURED)
+			if (udev->state == USB_STATE_SUSPENDED
+					|| new_state == USB_STATE_SUSPENDED)
+				;	/* No change to wakeup settings */
+			else if (new_state == USB_STATE_CONFIGURED)
 				device_init_wakeup(&udev->dev,
 					(udev->actconfig->desc.bmAttributes
 					 & USB_CONFIG_ATT_WAKEUP));
-			else if (new_state != USB_STATE_SUSPENDED)
+			else
 				device_init_wakeup(&udev->dev, 0);
 		}
+		udev->state = new_state;
 	} else
 		recursively_mark_NOTATTACHED(udev);
 	spin_unlock_irqrestore(&device_state_lock, flags);
@@ -1507,7 +1510,7 @@ static int hub_port_suspend(struct usb_hub *hub, int port1,
 	 * NOTE:  OTG devices may issue remote wakeup (or SRP) even when
 	 * we don't explicitly enable it here.
 	 */
-	if (device_may_wakeup(&udev->dev)) {
+	if (udev->do_remote_wakeup) {
 		status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				USB_REQ_SET_FEATURE, USB_RECIP_DEVICE,
 				USB_DEVICE_REMOTE_WAKEUP, 0,
@@ -1533,7 +1536,8 @@ static int hub_port_suspend(struct usb_hub *hub, int port1,
 				USB_CTRL_SET_TIMEOUT);
 	} else {
 		/* device has up to 10 msec to fully suspend */
-		dev_dbg(&udev->dev, "usb suspend\n");
+		dev_dbg(&udev->dev, "usb %ssuspend\n",
+				udev->auto_pm ? "auto-" : "");
 		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 		msleep(10);
 	}
@@ -1573,7 +1577,8 @@ static int __usb_port_suspend (struct usb_device *udev, int port1)
 		status = hub_port_suspend(hdev_to_hub(udev->parent), port1,
 				udev);
 	else {
-		dev_dbg(&udev->dev, "usb suspend\n");
+		dev_dbg(&udev->dev, "usb %ssuspend\n",
+				udev->auto_pm ? "auto-" : "");
 		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 	}
 	return status;
@@ -1687,7 +1692,8 @@ hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
 
 		/* drive resume for at least 20 msec */
 		if (udev)
-			dev_dbg(&udev->dev, "RESUME\n");
+			dev_dbg(&udev->dev, "usb %sresume\n",
+					udev->auto_pm ? "auto-" : "");
 		msleep(25);
 
 #define LIVE_FLAGS	( USB_PORT_STAT_POWER \
@@ -1754,8 +1760,11 @@ int usb_port_resume(struct usb_device *udev)
 		// NOTE this fails if parent is also suspended...
 		status = hub_port_resume(hdev_to_hub(udev->parent),
 				udev->portnum, udev);
-	} else
+	} else {
+		dev_dbg(&udev->dev, "usb %sresume\n",
+				udev->auto_pm ? "auto-" : "");
 		status = finish_port_resume(udev);
+	}
 	if (status < 0)
 		dev_dbg(&udev->dev, "can't resume, status %d\n", status);
 	return status;
@@ -1765,19 +1774,23 @@ static int remote_wakeup(struct usb_device *udev)
 {
 	int	status = 0;
 
-	/* don't repeat RESUME sequence if this device
-	 * was already woken up by some other task
-	 */
+	/* All this just to avoid sending a port-resume message
+	 * to the parent hub! */
+
 	usb_lock_device(udev);
+	mutex_lock_nested(&udev->pm_mutex, udev->level);
 	if (udev->state == USB_STATE_SUSPENDED) {
-		dev_dbg(&udev->dev, "RESUME (wakeup)\n");
+		dev_dbg(&udev->dev, "usb %sresume\n", "wakeup-");
 		/* TRSMRCY = 10 msec */
 		msleep(10);
 		status = finish_port_resume(udev);
+		if (status == 0)
+			udev->dev.power.power_state.event = PM_EVENT_ON;
 	}
+	mutex_unlock(&udev->pm_mutex);
 
 	if (status == 0)
-		usb_resume_both(udev);
+		usb_autoresume_device(udev, 0);
 	usb_unlock_device(udev);
 	return status;
 }
@@ -1834,7 +1847,9 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 					== PM_EVENT_ON
 #endif
 				) {
-			dev_dbg(&intf->dev, "port %d nyet suspended\n", port1);
+			if (!hdev->auto_pm)
+				dev_dbg(&intf->dev, "port %d nyet suspended\n",
+						port1);
 			return -EBUSY;
 		}
 	}
@@ -2587,7 +2602,7 @@ static void hub_events(void)
 		 * stub "device" node was never suspended.
 		 */
 		if (i)
-			usb_resume_both(hdev);
+			usb_autoresume_device(hdev, 0);
 
 		/* If this is an inactive or suspended hub, do nothing */
 		if (hub->quiescing)
@@ -2993,6 +3008,9 @@ int usb_reset_composite_device(struct usb_device *udev,
 		return -EINVAL;
 	}
 
+	/* Prevent autosuspend during the reset */
+	usb_autoresume_device(udev, 1);
+
 	if (iface && iface->condition != USB_INTERFACE_BINDING)
 		iface = NULL;
 
@@ -3034,6 +3052,7 @@ int usb_reset_composite_device(struct usb_device *udev,
 		}
 	}
 
+	usb_autosuspend_device(udev, 1);
 	return ret;
 }
 EXPORT_SYMBOL(usb_reset_composite_device);

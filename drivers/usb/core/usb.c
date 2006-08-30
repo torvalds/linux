@@ -168,6 +168,10 @@ static void usb_release_dev(struct device *dev)
 
 	udev = to_usb_device(dev);
 
+#ifdef	CONFIG_PM
+	cancel_delayed_work(&udev->autosuspend);
+	flush_scheduled_work();
+#endif
 	usb_destroy_configuration(udev);
 	usb_put_hcd(bus_to_hcd(udev->bus));
 	kfree(udev->product);
@@ -175,6 +179,21 @@ static void usb_release_dev(struct device *dev)
 	kfree(udev->serial);
 	kfree(udev);
 }
+
+#ifdef	CONFIG_PM
+
+/* usb_autosuspend_work - callback routine to autosuspend a USB device */
+static void usb_autosuspend_work(void *_udev)
+{
+	struct usb_device	*udev = _udev;
+
+	mutex_lock_nested(&udev->pm_mutex, udev->level);
+	udev->auto_pm = 1;
+	usb_suspend_both(udev, PMSG_SUSPEND);
+	mutex_unlock(&udev->pm_mutex);
+}
+
+#endif
 
 /**
  * usb_alloc_dev - usb device constructor (usbcore-internal)
@@ -251,6 +270,10 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	dev->parent = parent;
 	INIT_LIST_HEAD(&dev->filelist);
 
+#ifdef	CONFIG_PM
+	mutex_init(&dev->pm_mutex);
+	INIT_WORK(&dev->autosuspend, usb_autosuspend_work, dev);
+#endif
 	return dev;
 }
 
