@@ -1053,7 +1053,7 @@ static int saa711x_set_size(struct i2c_client *client, int width, int height)
 	int VSCY;
 	int res;
 	int is_50hz = state->std & V4L2_STD_625_50;
-	int Vsrc = is_50hz ? 576 : 480;
+	int Vsrc = is_50hz ? 576 : 480+16;
 
 	v4l_dbg(1, debug, client, "decoder set size to %ix%i\n",width,height);
 
@@ -1082,22 +1082,14 @@ static int saa711x_set_size(struct i2c_client *client, int width, int height)
 	saa711x_write(client, R_CD_B_HORIZ_OUTPUT_WINDOW_LENGTH_MSB,
 					(u8) ((width >> 8) & 0xff));
 
-	if (height == Vsrc) {
-		/*FIXME: This code seems weird, however, this is how it is
-		  working right now.
-		 */
-		res=height/2;
-		if (!is_50hz)
-			res+=8;
-	} else
-		res=height;
+	/* Vertical Scaling uses height/2 */
+	res=height/2;
 
 		/* height */
 	saa711x_write(client, R_CE_B_VERT_OUTPUT_WINDOW_LENGTH,
 					(u8) (res & 0xff));
 	saa711x_write(client, R_CF_B_VERT_OUTPUT_WINDOW_LENGTH_MSB,
-					(u8) (res & 0xff));
-
+					(u8) ((res >> 8) & 0xff));
 
 	/* Scaling settings */
 	/* Hprescaler is floor(inres/outres) */
