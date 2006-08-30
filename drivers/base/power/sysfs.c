@@ -11,18 +11,23 @@
  *	state - Control current power state of device
  *
  *	show() returns the current power state of the device. '0' indicates
- *	the device is on. Other values (1-3) indicate the device is in a low
+ *	the device is on. Other values (2) indicate the device is in some low
  *	power state.
  *
- *	store() sets the current power state, which is an integer value
- *	between 0-3. If the device is on ('0'), and the value written is
- *	greater than 0, then the device is placed directly into the low-power
- *	state (via its driver's ->suspend() method).
- *	If the device is currently in a low-power state, and the value is 0,
- *	the device is powered back on (via the ->resume() method).
- *	If the device is in a low-power state, and a different low-power state
- *	is requested, the device is first resumed, then suspended into the new
- *	low-power state.
+ *	store() sets the current power state, which is an integer valued
+ *	0, 2, or 3.  Devices with bus.suspend_late(), or bus.resume_early()
+ *	methods fail this operation; those methods couldn't be called.
+ *	Otherwise,
+ *
+ *	- If the recorded dev->power.power_state.event matches the
+ *	  target value, nothing is done.
+ *	- If the recorded event code is nonzero, the device is reactivated
+ *	  by calling bus.resume() and/or class.resume().
+ *	- If the target value is nonzero, the device is suspended by
+ *	  calling class.suspend() and/or bus.suspend() with event code
+ *	  PM_EVENT_SUSPEND.
+ *
+ *	This mechanism is DEPRECATED and should only be used for testing.
  */
 
 static ssize_t state_show(struct device * dev, struct device_attribute *attr, char * buf)
@@ -37,6 +42,10 @@ static ssize_t state_store(struct device * dev, struct device_attribute *attr, c
 {
 	pm_message_t state;
 	int error = -EINVAL;
+
+	/* disallow incomplete suspend sequences */
+	if (dev->bus && (dev->bus->suspend_late || dev->bus->resume_early))
+		return error;
 
 	state.event = PM_EVENT_SUSPEND;
 	/* Older apps expected to write "3" here - confused with PCI D3 */
