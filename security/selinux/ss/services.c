@@ -2544,24 +2544,39 @@ u32 selinux_netlbl_inet_conn_request(struct sk_buff *skb, u32 sock_sid)
 }
 
 /**
- * __selinux_netlbl_inode_permission - Label a socket using NetLabel
+ * selinux_netlbl_inode_permission - Verify the socket is NetLabel labeled
  * @inode: the file descriptor's inode
  * @mask: the permission mask
  *
  * Description:
- * Try to label a socket with the inode's SID using NetLabel.  Returns zero on
- * success, negative values on failure.
+ * Looks at a file's inode and if it is marked as a socket protected by
+ * NetLabel then verify that the socket has been labeled, if not try to label
+ * the socket now with the inode's SID.  Returns zero on success, negative
+ * values on failure.
  *
  */
-int __selinux_netlbl_inode_permission(struct inode *inode, int mask)
+int selinux_netlbl_inode_permission(struct inode *inode, int mask)
 {
 	int rc;
-	struct socket *sock = SOCKET_I(inode);
-	struct sk_security_struct *sksec = sock->sk->sk_security;
+	struct inode_security_struct *isec;
+	struct sk_security_struct *sksec;
+	struct socket *sock;
 
-	lock_sock(sock->sk);
-	rc = selinux_netlbl_socket_setsid(sock, sksec->sid);
-	release_sock(sock->sk);
+	if (!S_ISSOCK(inode->i_mode))
+		return 0;
+
+	sock = SOCKET_I(inode);
+	isec = inode->i_security;
+	sksec = sock->sk->sk_security;
+	down(&isec->sem);
+	if (unlikely(sksec->nlbl_state == NLBL_REQUIRE &&
+		     (mask & (MAY_WRITE | MAY_APPEND)))) {
+		lock_sock(sock->sk);
+		rc = selinux_netlbl_socket_setsid(sock, sksec->sid);
+		release_sock(sock->sk);
+	} else
+		rc = 0;
+	up(&isec->sem);
 
 	return rc;
 }

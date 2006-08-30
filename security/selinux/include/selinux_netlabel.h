@@ -43,40 +43,7 @@ void selinux_netlbl_sk_security_init(struct sk_security_struct *ssec,
 				     int family);
 void selinux_netlbl_sk_clone_security(struct sk_security_struct *ssec,
 				      struct sk_security_struct *newssec);
-
-int __selinux_netlbl_inode_permission(struct inode *inode, int mask);
-/**
- * selinux_netlbl_inode_permission - Verify the socket is NetLabel labeled
- * @inode: the file descriptor's inode
- * @mask: the permission mask
- *
- * Description:
- * Looks at a file's inode and if it is marked as a socket protected by
- * NetLabel then verify that the socket has been labeled, if not try to label
- * the socket now with the inode's SID.  Returns zero on success, negative
- * values on failure.
- *
- */
-static inline int selinux_netlbl_inode_permission(struct inode *inode,
-						  int mask)
-{
-	int rc = 0;
-	struct inode_security_struct *isec;
-	struct sk_security_struct *sksec;
-
-	if (!S_ISSOCK(inode->i_mode))
-		return 0;
-
-	isec = inode->i_security;
-	sksec = SOCKET_I(inode)->sk->sk_security;
-	down(&isec->sem);
-	if (unlikely(sksec->nlbl_state == NLBL_REQUIRE &&
-		     (mask & (MAY_WRITE | MAY_APPEND))))
-		rc = __selinux_netlbl_inode_permission(inode, mask);
-	up(&isec->sem);
-
-	return rc;
-}
+int selinux_netlbl_inode_permission(struct inode *inode, int mask);
 #else
 static inline void selinux_netlbl_cache_invalidate(void)
 {
