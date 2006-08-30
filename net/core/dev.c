@@ -640,6 +640,8 @@ int dev_valid_name(const char *name)
 {
 	if (*name == '\0')
 		return 0;
+	if (strlen(name) >= IFNAMSIZ)
+		return 0;
 	if (!strcmp(name, ".") || !strcmp(name, ".."))
 		return 0;
 
@@ -3191,13 +3193,15 @@ struct net_device *alloc_netdev(int sizeof_priv, const char *name,
 	struct net_device *dev;
 	int alloc_size;
 
+	BUG_ON(strlen(name) >= sizeof(dev->name));
+
 	/* ensure 32-byte alignment of both the device and private area */
 	alloc_size = (sizeof(*dev) + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST;
 	alloc_size += sizeof_priv + NETDEV_ALIGN_CONST;
 
 	p = kzalloc(alloc_size, GFP_KERNEL);
 	if (!p) {
-		printk(KERN_ERR "alloc_dev: Unable to allocate device.\n");
+		printk(KERN_ERR "alloc_netdev: Unable to allocate device.\n");
 		return NULL;
 	}
 
