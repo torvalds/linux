@@ -426,7 +426,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 	int ptr;
 	struct net_device *dev;
 	struct sk_buff *skb2;
-	unsigned int mtu, hlen, left, len, ll_rs;
+	unsigned int mtu, hlen, left, len, ll_rs, pad;
 	int offset;
 	__be16 not_last_frag;
 	struct rtable *rt = (struct rtable*)skb->dst;
@@ -556,14 +556,13 @@ slow_path:
 	left = skb->len - hlen;		/* Space per frame */
 	ptr = raw + hlen;		/* Where to start from */
 
-#ifdef CONFIG_BRIDGE_NETFILTER
 	/* for bridged IP traffic encapsulated inside f.e. a vlan header,
-	 * we need to make room for the encapsulating header */
-	ll_rs = LL_RESERVED_SPACE_EXTRA(rt->u.dst.dev, nf_bridge_pad(skb));
-	mtu -= nf_bridge_pad(skb);
-#else
-	ll_rs = LL_RESERVED_SPACE(rt->u.dst.dev);
-#endif
+	 * we need to make room for the encapsulating header
+	 */
+	pad = nf_bridge_pad(skb);
+	ll_rs = LL_RESERVED_SPACE_EXTRA(rt->u.dst.dev, pad);
+	mtu -= pad;
+
 	/*
 	 *	Fragment the datagram.
 	 */
