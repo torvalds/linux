@@ -137,7 +137,6 @@ static void meta_go_sync(struct gfs2_glock *gl, int flags)
 			gfs2_ail_empty_gl(gl);
 	}
 
-	clear_bit(GLF_SYNC, &gl->gl_flags);
 }
 
 /**
@@ -236,7 +235,6 @@ static void inode_go_sync(struct gfs2_glock *gl, int flags)
 			gfs2_ail_empty_gl(gl);
 	}
 
-	clear_bit(GLF_SYNC, &gl->gl_flags);
 }
 
 /**

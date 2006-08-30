@@ -1296,9 +1296,6 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 
-	if (gh->gh_flags & GL_SYNC)
-		set_bit(GLF_SYNC, &gl->gl_flags);
-
 	if (gh->gh_flags & GL_NOCACHE)
 		handle_callback(gl, LM_ST_UNLOCKED);
 
@@ -1312,11 +1309,6 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 
 		if (glops->go_unlock)
 			glops->go_unlock(gh);
-
-		if (test_bit(GLF_SYNC, &gl->gl_flags)) {
-			if (glops->go_sync)
-				glops->go_sync(gl, DIO_METADATA | DIO_DATA);
-		}
 
 		gl->gl_stamp = jiffies;
 

@@ -167,7 +167,6 @@ enum {
 	GLF_LOCK		= 1,
 	GLF_STICKY		= 2,
 	GLF_PREFETCH		= 3,
-	GLF_SYNC		= 4,
 	GLF_DIRTY		= 5,
 	GLF_SKIP_WAITERS2	= 6,
 	GLF_GREEDY		= 7,
