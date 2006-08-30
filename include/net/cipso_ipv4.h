@@ -200,15 +200,9 @@ static inline int cipso_v4_cache_add(const struct sk_buff *skb,
 
 #ifdef CONFIG_NETLABEL
 void cipso_v4_error(struct sk_buff *skb, int error, u32 gateway);
-int cipso_v4_socket_setopt(struct socket *sock,
-			   unsigned char *opt,
-			   u32 opt_len);
 int cipso_v4_socket_setattr(const struct socket *sock,
 			    const struct cipso_v4_doi *doi_def,
 			    const struct netlbl_lsm_secattr *secattr);
-int cipso_v4_socket_getopt(const struct socket *sock,
-			   unsigned char **opt,
-			   u32 *opt_len);
 int cipso_v4_socket_getattr(const struct socket *sock,
 			    struct netlbl_lsm_secattr *secattr);
 int cipso_v4_skbuff_getattr(const struct sk_buff *skb,
