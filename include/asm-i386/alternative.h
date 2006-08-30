@@ -116,7 +116,7 @@ static inline void alternatives_smp_switch(int smp) {}
 		      "  .align 4\n"					\
 		      "  .long 661b\n"            /* label */		\
 		      "  .long 663f\n"		  /* new instruction */	\
-		      "  .byte 0x68\n"            /* X86_FEATURE_UP */	\
+		      "  .byte " __stringify(X86_FEATURE_UP) "\n"	\
 		      "  .byte 662b-661b\n"       /* sourcelen */	\
 		      "  .byte 664f-663f\n"       /* replacementlen */	\
 		      ".previous\n"					\
