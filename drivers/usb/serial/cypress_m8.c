@@ -129,6 +129,8 @@ struct cypress_private {
 	int cmd_ctrl;			   /* always set this to 1 before issuing a command */
 	struct cypress_buf *buf;	   /* write buffer */
 	int write_urb_in_use;		   /* write urb in use indicator */
+	int write_urb_interval;            /* interval to use for write urb */
+	int read_urb_interval;             /* interval to use for read urb */
 	int termios_initialized;
 	__u8 line_control;	   	   /* holds dtr / rts value */
 	__u8 current_status;	   	   /* received from last read - info on dsr,cts,cd,ri,etc */
@@ -472,8 +474,9 @@ static unsigned rate_to_mask (int rate)
 static int generic_startup (struct usb_serial *serial)
 {
 	struct cypress_private *priv;
+	struct usb_serial_port *port = serial->port[0];
 
-	dbg("%s - port %d", __FUNCTION__, serial->port[0]->number);
+	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	priv = kzalloc(sizeof (struct cypress_private), GFP_KERNEL);
 	if (!priv)
@@ -489,13 +492,24 @@ static int generic_startup (struct usb_serial *serial)
 	
 	usb_reset_configuration (serial->dev);
 	
-	interval = 1;
 	priv->cmd_ctrl = 0;
 	priv->line_control = 0;
 	priv->termios_initialized = 0;
 	priv->rx_flags = 0;
 	priv->cbr_mask = B300;
-	usb_set_serial_port_data(serial->port[0], priv);
+	if (interval > 0) {
+		priv->write_urb_interval = interval;
+		priv->read_urb_interval = interval;
+		dbg("%s - port %d read & write intervals forced to %d",
+		    __FUNCTION__,port->number,interval);
+	} else {
+		priv->write_urb_interval = port->interrupt_out_urb->interval;
+		priv->read_urb_interval = port->interrupt_in_urb->interval;
+		dbg("%s - port %d intervals: read=%d write=%d",
+		    __FUNCTION__,port->number,
+		    priv->read_urb_interval,priv->write_urb_interval);
+	}
+	usb_set_serial_port_data(port, priv);
 	
 	return 0;
 }
@@ -624,7 +638,7 @@ static int cypress_open (struct usb_serial_port *port, struct file *filp)
 	usb_fill_int_urb(port->interrupt_in_urb, serial->dev,
 		usb_rcvintpipe(serial->dev, port->interrupt_in_endpointAddress),
 		port->interrupt_in_urb->transfer_buffer, port->interrupt_in_urb->transfer_buffer_length,
-		cypress_read_int_callback, port, interval);
+		cypress_read_int_callback, port, priv->read_urb_interval);
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 
 	if (result){
@@ -808,7 +822,7 @@ send:
 
 	port->interrupt_out_urb->transfer_buffer_length = actual_size;
 	port->interrupt_out_urb->dev = port->serial->dev;
-	port->interrupt_out_urb->interval = interval;
+	port->interrupt_out_urb->interval = priv->write_urb_interval;
 	result = usb_submit_urb (port->interrupt_out_urb, GFP_ATOMIC);
 	if (result) {
 		dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __FUNCTION__,
@@ -1349,7 +1363,7 @@ continue_read:
 					port->interrupt_in_endpointAddress),
 				port->interrupt_in_urb->transfer_buffer,
 				port->interrupt_in_urb->transfer_buffer_length,
-				cypress_read_int_callback, port, interval);
+				cypress_read_int_callback, port, priv->read_urb_interval);
 		result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&urb->dev->dev, "%s - failed resubmitting "
