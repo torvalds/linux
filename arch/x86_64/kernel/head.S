@@ -191,6 +191,7 @@ startup_64:
 	 * jump
 	 */
 	movq	initial_code(%rip),%rax
+	pushq	$0		# fake return address
 	jmp	*%rax
 
 	/* SMP bootup changes these two */
