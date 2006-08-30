@@ -121,10 +121,17 @@ enum v4l2_chip_ident {
 	/* general idents: reserved range 0-49 */
 	V4L2_IDENT_UNKNOWN = 0,
 
-	/* module saa7115: reserved range 100-149 */
+	/* module saa7110: just ident= 100 */
+	V4L2_IDENT_SAA7110 = 100,
+
+	/* module saa7111: just ident= 101 */
+	V4L2_IDENT_SAA7111 = 101,
+
+	/* module saa7115: reserved range 102-149 */
 	V4L2_IDENT_SAA7113 = 103,
 	V4L2_IDENT_SAA7114 = 104,
 	V4L2_IDENT_SAA7115 = 105,
+	V4L2_IDENT_SAA7118 = 108,
 
 	/* module saa7127: reserved range 150-199 */
 	V4L2_IDENT_SAA7127 = 157,

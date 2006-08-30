@@ -1,4 +1,6 @@
-/* saa7115 - Philips SAA7113/SAA7114/SAA7115 video decoder driver
+/* saa711x - Philips SAA711x video decoder driver
+ * This driver can work with saa7111, saa7111a, saa7113, saa7114,
+ *			     saa7115 and saa7118.
  *
  * Based on saa7114 driver by Maxim Yevtyushkin, which is based on
  * the saa7111 driver by Dave Perks.
@@ -16,7 +18,9 @@
  * (2/17/2003)
  *
  * VBI support (2004) and cleanups (2005) by Hans Verkuil <hverkuil@xs4all.nl>
- * SAA7113 support by Mauro Carvalho Chehab <mchehab@infradead.org>
+ *
+ * Copyright (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *	SAA7111, SAA7113 and SAA7118 support
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,7 +48,7 @@
 #include <media/saa7115.h>
 #include <asm/div64.h>
 
-MODULE_DESCRIPTION("Philips SAA7113/SAA7114/SAA7115 video decoder driver");
+MODULE_DESCRIPTION("Philips SAA7111/SAA7113/SAA7114/SAA7115/SAA7118 video decoder driver");
 MODULE_AUTHOR(  "Maxim Yevtyushkin, Kevin Thayer, Chris Kennedy, "
 		"Hans Verkuil, Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
@@ -55,8 +59,8 @@ module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 static unsigned short normal_i2c[] = {
-		0x4a >> 1, 0x48 >> 1,	/* SAA7113 */
-		0x42 >> 1, 0x40 >> 1,	/* SAA7114 and SAA7115 */
+		0x4a >> 1, 0x48 >> 1,	/* SAA7111, SAA7111A and SAA7113 */
+		0x42 >> 1, 0x40 >> 1,	/* SAA7114, SAA7115 and SAA7118 */
 		I2C_CLIENT_END };
 
 
@@ -86,15 +90,58 @@ static inline int saa7115_write(struct i2c_client *client, u8 reg, u8 value)
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
+/* Sanity routine to check if a register is present */
+static int saa711x_has_reg(const int id, const u8 reg)
+{
+	switch (id) {
+	case V4L2_IDENT_SAA7111:
+		if (reg>0x1f || reg==1 || reg==0x0f || reg==0x14 || reg==0x18
+				       || reg==0x19 || reg==0x1d || reg==0x1e)
+			return 0;
+	case V4L2_IDENT_SAA7113:
+		if (reg>0x62 || reg==0x14 || (reg>=0x18 && reg<=0x1e) ||
+				    (reg>=0x20 && reg<=0x3f) ||reg==0x5f )
+			return 0;
+	case V4L2_IDENT_SAA7114:
+		if (reg>=0xf0 || (reg>=0x1a && reg<=0x1e) ||
+				  (reg>=0x20 && reg<=0x2f) ||
+				  (reg>=0x63 && reg<=0x7f) )
+			return 0;
+	case V4L2_IDENT_SAA7115:
+		if ((reg>=0x20 && reg<=0x2f) || (reg==0x5c) ||
+				(reg>=0xfc && reg<=0xfe) )
+			return 0;
+	case V4L2_IDENT_SAA7118:
+		if (reg>=0xf0 || (reg>=0x1a && reg<=0x1d) ||
+					(reg>=0x63 && reg<=0x6f) )
+			return 0;
+	}
+
+	/* Those registers are reserved for all family */
+	if (unlikely((reg>=0x20 && reg<=0x22) ||
+			(reg>=0x26 && reg<=0x28) ||
+			(reg>=0x3b && reg<=0x3f) || (reg==0x5f) ||
+			(reg>=0x63 && reg<=0x6f) ) )
+		return 0;
+
+	return 1;
+}
+
 static int saa7115_writeregs(struct i2c_client *client, const unsigned char *regs)
 {
+	struct saa7115_state *state = i2c_get_clientdata(client);
 	unsigned char reg, data;
 
 	while (*regs != 0x00) {
 		reg = *(regs++);
 		data = *(regs++);
-		if (saa7115_write(client, reg, data) < 0)
-			return -1;
+
+		/* According with datasheets, reserved regs should be
+		   filled with 0 - seems better not to touch on they */
+		if (saa711x_has_reg(state->ident,reg)) {
+			if (saa7115_write(client, reg, data) < 0)
+				return -1;
+		}
 	}
 	return 0;
 }
@@ -106,10 +153,80 @@ static inline int saa7115_read(struct i2c_client *client, u8 reg)
 
 /* ----------------------------------------------------------------------- */
 
+/* SAA7111 initialization table */
+static const unsigned char saa7111_init_auto_input[] = {
+	R_01_INC_DELAY, 0x00,		/* reserved */
+
+	/*front end */
+	R_02_INPUT_CNTL_1, 0xd0,	/* FUSE=3, GUDL=2, MODE=0 */
+	R_03_INPUT_CNTL_2, 0x23,	/* HLNRS=0, VBSL=1, WPOFF=0, HOLDG=0,
+					 * GAFIX=0, GAI1=256, GAI2=256 */
+	R_04_INPUT_CNTL_3, 0x00,	/* GAI1=256 */
+	R_05_INPUT_CNTL_4, 0x00,	/* GAI2=256 */
+
+	/* decoder */
+	R_06_H_SYNC_START, 0xf3,	/* HSB at  13(50Hz) /  17(60Hz)
+					 * pixels after end of last line */
+	R_07_H_SYNC_STOP, 0xe8,		/* HSS seems to be needed to
+					 * work with NTSC, too */
+	R_08_SYNC_CNTL, 0xc8,		/* AUFD=1, FSEL=1, EXFIL=0,
+					 * VTRC=1, HPLL=0, VNOI=0 */
+	R_09_LUMA_CNTL, 0x01,		/* BYPS=0, PREF=0, BPSS=0,
+					 * VBLB=0, UPTCV=0, APER=1 */
+	R_0A_LUMA_BRIGHT_CNTL, 0x80,
+	R_0B_LUMA_CONTRAST_CNTL, 0x47,	/* 0b - CONT=1.109 */
+	R_0C_CHROMA_SAT_CNTL, 0x40,
+	R_0D_CHROMA_HUE_CNTL, 0x00,
+	R_0E_CHROMA_CNTL_1, 0x01,	/* 0e - CDTO=0, CSTD=0, DCCF=0,
+					 * FCTC=0, CHBW=1 */
+	R_0F_CHROMA_GAIN_CNTL, 0x00,	/* reserved */
+	R_10_CHROMA_CNTL_2, 0x48,	/* 10 - OFTS=1, HDEL=0, VRLN=1, YDEL=0 */
+	R_11_MODE_DELAY_CNTL, 0x1c,	/* 11 - GPSW=0, CM99=0, FECO=0, COMPO=1,
+					 * OEYC=1, OEHV=1, VIPB=0, COLO=0 */
+	R_12_RT_SIGNAL_CNTL, 0x00,	/* 12 - output control 2 */
+	R_13_RT_X_PORT_OUT_CNTL, 0x00,	/* 13 - output control 3 */
+	R_14_ANAL_ADC_COMPAT_CNTL, 0x00,
+	R_15_VGATE_START_FID_CHG, 0x00,
+	R_16_VGATE_STOP, 0x00,
+	R_17_MISC_VGATE_CONF_AND_MSB, 0x00,
+
+	0x00, 0x00
+};
+
+/* SAA7113 init codes */
+static const unsigned char saa7113_init_auto_input[] = {
+	R_01_INC_DELAY, 0x08,
+	R_02_INPUT_CNTL_1, 0xc2,
+	R_03_INPUT_CNTL_2, 0x30,
+	R_04_INPUT_CNTL_3, 0x00,
+	R_05_INPUT_CNTL_4, 0x00,
+	R_06_H_SYNC_START, 0x89,
+	R_07_H_SYNC_STOP, 0x0d,
+	R_08_SYNC_CNTL, 0x88,
+	R_09_LUMA_CNTL, 0x01,
+	R_0A_LUMA_BRIGHT_CNTL, 0x80,
+	R_0B_LUMA_CONTRAST_CNTL, 0x47,
+	R_0C_CHROMA_SAT_CNTL, 0x40,
+	R_0D_CHROMA_HUE_CNTL, 0x00,
+	R_0E_CHROMA_CNTL_1, 0x01,
+	R_0F_CHROMA_GAIN_CNTL, 0x2a,
+	R_10_CHROMA_CNTL_2, 0x08,
+	R_11_MODE_DELAY_CNTL, 0x0c,
+	R_12_RT_SIGNAL_CNTL, 0x07,
+	R_13_RT_X_PORT_OUT_CNTL, 0x00,
+	R_14_ANAL_ADC_COMPAT_CNTL, 0x00,
+	R_15_VGATE_START_FID_CHG, 0x00,
+	R_16_VGATE_STOP, 0x00,
+	R_17_MISC_VGATE_CONF_AND_MSB, 0x00,
+
+	0x00, 0x00
+};
+
 /* If a value differs from the Hauppauge driver values, then the comment starts with
    'was 0xXX' to denote the Hauppauge value. Otherwise the value is identical to what the
    Hauppauge driver sets. */
 
+/* SAA7114 and SAA7115 initialization table */
 static const unsigned char saa7115_init_auto_input[] = {
 		/* Front-End Part */
 	R_01_INC_DELAY, 0x48,			/* white peak control disabled */
@@ -142,6 +259,7 @@ static const unsigned char saa7115_init_auto_input[] = {
 	0x00, 0x00
 };
 
+/* Used to reset saa7113, saa7114 and saa7115 */
 static const unsigned char saa7115_cfg_reset_scaler[] = {
 	R_87_I_PORT_I_O_ENA_OUT_CLK_AND_GATED, 0x00,	/* disable I-port output */
 	R_88_POWER_SAVE_ADC_PORT_CNTL, 0xd0,		/* reset scaler */
@@ -152,6 +270,7 @@ static const unsigned char saa7115_cfg_reset_scaler[] = {
 
 /* ============== SAA7715 VIDEO templates =============  */
 
+/* Used on saa7114 and saa7115 */
 static const unsigned char saa7115_cfg_60hz_fullres_x[] = {
 	/* hsize = 0x2d0 = 720 */
 	R_CC_B_HORIZ_OUTPUT_WINDOW_LENGTH, 0xd0,
@@ -170,6 +289,7 @@ static const unsigned char saa7115_cfg_60hz_fullres_x[] = {
 	0x00, 0x00
 };
 
+/* Used on saa7114 and saa7115 */
 static const unsigned char saa7115_cfg_60hz_fullres_y[] = {
 	/* output window size = 248 (but 60hz is 240?) */
 	R_CE_B_VERT_OUTPUT_WINDOW_LENGTH, 0xf8,
@@ -408,33 +528,6 @@ static const unsigned char saa7115_cfg_vbi_off[] = {
 	0x00, 0x00
 };
 
-static const unsigned char saa7113_init_auto_input[] = {
-	R_01_INC_DELAY, 0x08,
-	R_02_INPUT_CNTL_1, 0xc2,
-	R_03_INPUT_CNTL_2, 0x30,
-	R_04_INPUT_CNTL_3, 0x00,
-	R_05_INPUT_CNTL_4, 0x00,
-	R_06_H_SYNC_START, 0x89,
-	R_07_H_SYNC_STOP, 0x0d,
-	R_08_SYNC_CNTL, 0x88,
-	R_09_LUMA_CNTL, 0x01,
-	R_0A_LUMA_BRIGHT_CNTL, 0x80,
-	R_0B_LUMA_CONTRAST_CNTL, 0x47,
-	R_0C_CHROMA_SAT_CNTL, 0x40,
-	R_0D_CHROMA_HUE_CNTL, 0x00,
-	R_0E_CHROMA_CNTL_1, 0x01,
-	R_0F_CHROMA_GAIN_CNTL, 0x2a,
-	R_10_CHROMA_CNTL_2, 0x08,
-	R_11_MODE_DELAY_CNTL, 0x0c,
-	R_12_RT_SIGNAL_CNTL, 0x07,
-	R_13_RT_X_PORT_OUT_CNTL, 0x00,
-	R_14_ANAL_ADC_COMPAT_CNTL, 0x00,
-	R_15_VGATE_START_FID_CHG, 0x00,
-	R_16_VGATE_STOP, 0x00,
-	R_17_MISC_VGATE_CONF_AND_MSB, 0x00,
-
-	0x00, 0x00
-};
 
 static const unsigned char saa7115_init_misc[] = {
 	R_81_V_SYNC_FLD_ID_SRC_SEL_AND_RETIMED_V_F, 0x01,
@@ -662,7 +755,6 @@ static int saa7115_decode_wss(u8 * p)
 	return wss;
 }
 
-
 static int saa7115_set_audio_clock_freq(struct i2c_client *client, u32 freq)
 {
 	struct saa7115_state *state = i2c_get_clientdata(client);
@@ -672,15 +764,15 @@ static int saa7115_set_audio_clock_freq(struct i2c_client *client, u32 freq)
 	u64 f;
 	u8 acc = 0; 	/* reg 0x3a, audio clock control */
 
+	/* Checks for chips that don't have audio clock (saa7111, saa7113) */
+	if (!saa711x_has_reg(state->ident,R_30_AUD_MAST_CLK_CYCLES_PER_FIELD))
+		return 0;
+
 	v4l_dbg(1, debug, client, "set audio clock freq: %d\n", freq);
 
 	/* sanity check */
 	if (freq < 32000 || freq > 48000)
 		return -EINVAL;
-
-	/* The saa7113 has no audio clock */
-	if (state->ident == V4L2_IDENT_SAA7113)
-		return 0;
 
 	/* hz is the refresh rate times 100 */
 	hz = (state->std & V4L2_STD_525_60) ? 5994 : 5000;
@@ -799,7 +891,6 @@ static int saa7115_get_v4lctrl(struct i2c_client *client, struct v4l2_control *c
 static void saa7115_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 {
 	struct saa7115_state *state = i2c_get_clientdata(client);
-	int taskb = saa7115_read(client, R_80_GLOBAL_CNTL_1) & 0x10;
 
 	/* Prevent unnecessary standard changes. During a standard
 	   change the I-Port is temporarily disabled. Any devices
@@ -821,7 +912,7 @@ static void saa7115_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 	}
 
 	/* Register 0E - Bits D6-D4 on NO-AUTO mode
-		(SAA7113 doesn't have auto mode)
+		(SAA7111 and SAA7113 doesn't have auto mode)
 	    50 Hz / 625 lines           60 Hz / 525 lines
 	000 PAL BGDHI (4.43Mhz)         NTSC M (3.58MHz)
 	001 NTSC 4.43 (50 Hz)           PAL 4.43 (60 Hz)
@@ -829,7 +920,8 @@ static void saa7115_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 	011 NTSC N (3.58MHz)            PAL M (3.58MHz)
 	100 reserved                    NTSC-Japan (3.58MHz)
 	*/
-	if (state->ident == V4L2_IDENT_SAA7113) {
+	if (state->ident == V4L2_IDENT_SAA7111 ||
+	    state->ident == V4L2_IDENT_SAA7113) {
 		u8 reg = saa7115_read(client, R_0E_CHROMA_CNTL_1) & 0x8f;
 
 		if (std == V4L2_STD_PAL_M) {
@@ -842,18 +934,19 @@ static void saa7115_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 			reg |= 0x40;
 		}
 		saa7115_write(client, R_0E_CHROMA_CNTL_1, reg);
-	}
+	} else {
+		/* restart task B if needed */
+		int taskb = saa7115_read(client, R_80_GLOBAL_CNTL_1) & 0x10;
 
+		if (taskb && state->ident == V4L2_IDENT_SAA7114) {
+			saa7115_writeregs(client, saa7115_cfg_vbi_on);
+		}
+
+		/* switch audio mode too! */
+		saa7115_set_audio_clock_freq(client, state->audclk_freq);
+	}
 
 	state->std = std;
-
-	/* restart task B if needed */
-	if (taskb && state->ident != V4L2_IDENT_SAA7115) {
-		saa7115_writeregs(client, saa7115_cfg_vbi_on);
-	}
-
-	/* switch audio mode too! */
-	saa7115_set_audio_clock_freq(client, state->audclk_freq);
 }
 
 static v4l2_std_id saa7115_get_v4lstd(struct i2c_client *client)
@@ -919,9 +1012,16 @@ static void saa7115_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 	u8 lcr[24];
 	int i, x;
 
-	/* saa7113/7114 doesn't yet support VBI */
+#if 1
+	/* saa7113/7114/7118 VBI support are experimental */
+	if (!saa711x_has_reg(state->ident,R_41_LCR_BASE))
+		return;
+
+#else
+	/* SAA7113 and SAA7118 also should support VBI - Need testing */
 	if (state->ident != V4L2_IDENT_SAA7115)
 		return;
+#endif
 
 	for (i = 0; i <= 23; i++)
 		lcr[i] = 0xff;
@@ -1021,8 +1121,9 @@ static int saa7115_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 	struct saa7115_state *state = i2c_get_clientdata(client);
 	struct v4l2_pix_format *pix;
 	int HPSC, HFSC;
-	int VSCY, Vsrc;
+	int VSCY;
 	int is_50hz = state->std & V4L2_STD_625_50;
+	int Vsrc = is_50hz ? 576 : 480;
 
 	if (fmt->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
 		saa7115_set_lcr(client, &fmt->fmt.sliced);
@@ -1041,18 +1142,29 @@ static int saa7115_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 	if ((pix->height < 1) || (pix->height > 960))
 		return -EINVAL;
 
+	if (!saa711x_has_reg(state->ident,R_D0_B_HORIZ_PRESCALING)) {
+		/* Decoder only supports 720 columns and 480 or 576 lines */
+		if (pix->width != 720)
+			return -EINVAL;
+		if (pix->height != Vsrc)
+			return -EINVAL;
+	}
+
 	/* probably have a valid size, let's set it */
 	/* Set output width/height */
 	/* width */
-	saa7115_write(client, R_CC_B_HORIZ_OUTPUT_WINDOW_LENGTH,
-				(u8) (pix->width & 0xff));
-	saa7115_write(client, R_CD_B_HORIZ_OUTPUT_WINDOW_LENGTH_MSB,
-				(u8) ((pix->width >> 8) & 0xff));
-	/* height */
-	saa7115_write(client, R_CE_B_VERT_OUTPUT_WINDOW_LENGTH,
-				(u8) (pix->height & 0xff));
-	saa7115_write(client, R_CF_B_VERT_OUTPUT_WINDOW_LENGTH_MSB,
-				(u8) ((pix->height >> 8) & 0xff));
+
+	if (!saa711x_has_reg(state->ident,R_CC_B_HORIZ_OUTPUT_WINDOW_LENGTH)) {
+		saa7115_write(client, R_CC_B_HORIZ_OUTPUT_WINDOW_LENGTH,
+					(u8) (pix->width & 0xff));
+		saa7115_write(client, R_CD_B_HORIZ_OUTPUT_WINDOW_LENGTH_MSB,
+					(u8) ((pix->width >> 8) & 0xff));
+		/* height */
+		saa7115_write(client, R_CE_B_VERT_OUTPUT_WINDOW_LENGTH,
+					(u8) (pix->height & 0xff));
+		saa7115_write(client, R_CF_B_VERT_OUTPUT_WINDOW_LENGTH_MSB,
+					(u8) ((pix->height >> 8) & 0xff));
+	}
 
 	/* Scaling settings */
 	/* Hprescaler is floor(inres/outres) */
@@ -1090,8 +1202,6 @@ static int saa7115_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 		}
 	}
 
-	Vsrc = is_50hz ? 576 : 480;
-
 	if (pix->height != Vsrc) {
 		VSCY = (int)((1024 * Vsrc) / pix->height);
 		v4l_dbg(1, debug, client, "Vsrc: %d, Vscy: 0x%05x\n", Vsrc, VSCY);
@@ -1123,6 +1233,7 @@ static int saa7115_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 	}
 
 	saa7115_writeregs(client, saa7115_cfg_reset_scaler);
+
 	return 0;
 }
 
@@ -1468,15 +1579,25 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	state->hue = 0;
 	state->sat = 64;
 	switch (chip_id) {
+	case 1:
+		state->ident = V4L2_IDENT_SAA7111;
+		break;
 	case 3:
 		state->ident = V4L2_IDENT_SAA7113;
 		break;
 	case 4:
 		state->ident = V4L2_IDENT_SAA7114;
 		break;
-	default:
+	case 5:
 		state->ident = V4L2_IDENT_SAA7115;
 		break;
+	case 8:
+		state->ident = V4L2_IDENT_SAA7118;
+		break;
+	default:
+		state->ident = V4L2_IDENT_SAA7111;
+		v4l_info(client, "WARNING: Chip is not known - Falling back to saa7111\n");
+
 	}
 
 	state->audclk_freq = 48000;
@@ -1484,7 +1605,8 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	v4l_dbg(1, debug, client, "writing init values\n");
 
 	/* init to 60hz/48khz */
-	if (state->ident == V4L2_IDENT_SAA7113) {
+	if (state->ident == V4L2_IDENT_SAA7111 ||
+			state->ident == V4L2_IDENT_SAA7113) {
 		state->crystal_freq = SAA7115_FREQ_24_576_MHZ;
 		saa7115_writeregs(client, saa7113_init_auto_input);
 	} else {
