@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2000-2004 by David Brownell
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -70,7 +70,7 @@
  * 2002-08-06	Handling for bulk and interrupt transfers is mostly shared;
  *	only scheduling is different, no arbitrary limitations.
  * 2002-07-25	Sanity check PCI reads, mostly for better cardbus support,
- * 	clean up HC run state handshaking.
+ *	clean up HC run state handshaking.
  * 2002-05-24	Preliminary FS/LS interrupts, using scheduling shortcuts
  * 2002-05-11	Clear TT errors for FS/LS ctrl/bulk.  Fill in some other
  *	missing pieces:  enabling 64bit dma, handoff from BIOS/SMM.
@@ -425,7 +425,7 @@ static int ehci_init(struct usb_hcd *hcd)
 
 	/* controllers may cache some of the periodic schedule ... */
 	hcc_params = readl(&ehci->caps->hcc_params);
-	if (HCC_ISOC_CACHE(hcc_params)) 	// full frame cache
+	if (HCC_ISOC_CACHE(hcc_params))		// full frame cache
 		ehci->i_thresh = 8;
 	else					// N microframes cached
 		ehci->i_thresh = 2 + HCC_ISOC_THRES(hcc_params);
