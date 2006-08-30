@@ -39,6 +39,10 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 				struct avc_audit_data *ad);
 u32 selinux_netlbl_socket_getpeersec_stream(struct socket *sock);
 u32 selinux_netlbl_socket_getpeersec_dgram(struct sk_buff *skb);
+void selinux_netlbl_sk_security_init(struct sk_security_struct *ssec,
+				     int family);
+void selinux_netlbl_sk_clone_security(struct sk_security_struct *ssec,
+				      struct sk_security_struct *newssec);
 
 int __selinux_netlbl_inode_permission(struct inode *inode, int mask);
 /**
@@ -113,6 +117,20 @@ static inline u32 selinux_netlbl_socket_getpeersec_stream(struct socket *sock)
 static inline u32 selinux_netlbl_socket_getpeersec_dgram(struct sk_buff *skb)
 {
 	return SECSID_NULL;
+}
+
+static inline void selinux_netlbl_sk_security_init(
+	                                       struct sk_security_struct *ssec,
+					       int family)
+{
+	return;
+}
+
+static inline void selinux_netlbl_sk_clone_security(
+	                                   struct sk_security_struct *ssec,
+					   struct sk_security_struct *newssec)
+{
+	return;
 }
 
 static inline int selinux_netlbl_inode_permission(struct inode *inode,

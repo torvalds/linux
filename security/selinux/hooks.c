@@ -281,6 +281,8 @@ static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 	ssec->sid = SECINITSID_UNLABELED;
 	sk->sk_security = ssec;
 
+	selinux_netlbl_sk_security_init(ssec, family);
+
 	return 0;
 }
 
@@ -3585,6 +3587,8 @@ static void selinux_sk_clone_security(const struct sock *sk, struct sock *newsk)
 
 	newssec->sid = ssec->sid;
 	newssec->peer_sid = ssec->peer_sid;
+
+	selinux_netlbl_sk_clone_security(ssec, newssec);
 }
 
 static void selinux_sk_getsecid(struct sock *sk, u32 *secid)
@@ -3648,6 +3652,8 @@ static void selinux_inet_csk_clone(struct sock *newsk,
 	   new socket in sync, but we don't have the isec available yet.
 	   So we will wait until sock_graft to do it, by which
 	   time it will have been created and available. */
+
+	selinux_netlbl_sk_security_init(newsksec, req->rsk_ops->family);
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,

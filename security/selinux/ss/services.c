@@ -2423,6 +2423,45 @@ netlbl_socket_setsid_return:
 }
 
 /**
+ * selinux_netlbl_sk_security_init - Setup the NetLabel fields
+ * @ssec: the sk_security_struct
+ * @family: the socket family
+ *
+ * Description:
+ * Called when a new sk_security_struct is allocated to initialize the NetLabel
+ * fields.
+ *
+ */
+void selinux_netlbl_sk_security_init(struct sk_security_struct *ssec,
+				     int family)
+{
+        if (family == PF_INET)
+		ssec->nlbl_state = NLBL_REQUIRE;
+	else
+		ssec->nlbl_state = NLBL_UNSET;
+}
+
+/**
+ * selinux_netlbl_sk_clone_security - Copy the NetLabel fields
+ * @ssec: the original sk_security_struct
+ * @newssec: the cloned sk_security_struct
+ *
+ * Description:
+ * Clone the NetLabel specific sk_security_struct fields from @ssec to
+ * @newssec.
+ *
+ */
+void selinux_netlbl_sk_clone_security(struct sk_security_struct *ssec,
+				      struct sk_security_struct *newssec)
+{
+	newssec->sclass = ssec->sclass;
+	if (ssec->nlbl_state != NLBL_UNSET)
+		newssec->nlbl_state = NLBL_REQUIRE;
+	else
+		newssec->nlbl_state = NLBL_UNSET;
+}
+
+/**
  * selinux_netlbl_socket_post_create - Label a socket using NetLabel
  * @sock: the socket to label
  * @sock_family: the socket family
@@ -2440,10 +2479,11 @@ int selinux_netlbl_socket_post_create(struct socket *sock,
 	struct inode_security_struct *isec = SOCK_INODE(sock)->i_security;
 	struct sk_security_struct *sksec = sock->sk->sk_security;
 
+	sksec->sclass = isec->sclass;
+
 	if (sock_family != PF_INET)
 		return 0;
 
-	sksec->sclass = isec->sclass;
 	sksec->nlbl_state = NLBL_REQUIRE;
 	return selinux_netlbl_socket_setsid(sock, sid);
 }
@@ -2463,12 +2503,13 @@ void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
 	struct inode_security_struct *isec = SOCK_INODE(sock)->i_security;
 	struct sk_security_struct *sksec = sk->sk_security;
 
+	sksec->sclass = isec->sclass;
+
 	if (sk->sk_family != PF_INET)
 		return;
 
 	sksec->nlbl_state = NLBL_REQUIRE;
 	sksec->peer_sid = sksec->sid;
-	sksec->sclass = isec->sclass;
 
 	/* Try to set the NetLabel on the socket to save time later, if we fail
 	 * here we will pick up the pieces in later calls to
