@@ -178,7 +178,7 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 			break;
 #endif
 		default:
-			end = per_cpu(init_tss, cpu).ist[k];
+			end = per_cpu(orig_ist, cpu).ist[k];
 			break;
 		}
 		/*
