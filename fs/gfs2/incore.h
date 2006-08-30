@@ -130,7 +130,7 @@ struct gfs2_glock_operations {
 	void (*go_unlock) (struct gfs2_holder * gh);
 	void (*go_callback) (struct gfs2_glock * gl, unsigned int state);
 	void (*go_greedy) (struct gfs2_glock * gl);
-	int go_type;
+	const int go_type;
 };
 
 enum {
@@ -189,7 +189,7 @@ struct gfs2_glock {
 	struct list_head gl_waiters2;	/* HIF_DEMOTE, HIF_GREEDY */
 	struct list_head gl_waiters3;	/* HIF_PROMOTE */
 
-	struct gfs2_glock_operations *gl_ops;
+	const struct gfs2_glock_operations *gl_ops;
 
 	struct gfs2_holder *gl_req_gh;
 	gfs2_glop_bh_t gl_req_bh;

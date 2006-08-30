@@ -493,13 +493,13 @@ static int quota_go_demote_ok(struct gfs2_glock *gl)
 	return !atomic_read(&gl->gl_lvb_count);
 }
 
-struct gfs2_glock_operations gfs2_meta_glops = {
+const struct gfs2_glock_operations gfs2_meta_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
 	.go_type = LM_TYPE_META
 };
 
-struct gfs2_glock_operations gfs2_inode_glops = {
+const struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_xmote_th = inode_go_xmote_th,
 	.go_xmote_bh = inode_go_xmote_bh,
 	.go_drop_th = inode_go_drop_th,
@@ -512,7 +512,7 @@ struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_type = LM_TYPE_INODE
 };
 
-struct gfs2_glock_operations gfs2_rgrp_glops = {
+const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
 	.go_sync = meta_go_sync,
@@ -523,40 +523,40 @@ struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_type = LM_TYPE_RGRP
 };
 
-struct gfs2_glock_operations gfs2_trans_glops = {
+const struct gfs2_glock_operations gfs2_trans_glops = {
 	.go_xmote_th = trans_go_xmote_th,
 	.go_xmote_bh = trans_go_xmote_bh,
 	.go_drop_th = trans_go_drop_th,
 	.go_type = LM_TYPE_NONDISK
 };
 
-struct gfs2_glock_operations gfs2_iopen_glops = {
+const struct gfs2_glock_operations gfs2_iopen_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
 	.go_callback = gfs2_iopen_go_callback,
 	.go_type = LM_TYPE_IOPEN
 };
 
-struct gfs2_glock_operations gfs2_flock_glops = {
+const struct gfs2_glock_operations gfs2_flock_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
 	.go_type = LM_TYPE_FLOCK
 };
 
-struct gfs2_glock_operations gfs2_nondisk_glops = {
+const struct gfs2_glock_operations gfs2_nondisk_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
 	.go_type = LM_TYPE_NONDISK
 };
 
-struct gfs2_glock_operations gfs2_quota_glops = {
+const struct gfs2_glock_operations gfs2_quota_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
 	.go_demote_ok = quota_go_demote_ok,
 	.go_type = LM_TYPE_QUOTA
 };
 
-struct gfs2_glock_operations gfs2_journal_glops = {
+const struct gfs2_glock_operations gfs2_journal_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
 	.go_type = LM_TYPE_JOURNAL

@@ -253,7 +253,7 @@ static struct gfs2_glock *gfs2_glock_find(struct gfs2_sbd *sdp,
  */
 
 int gfs2_glock_get(struct gfs2_sbd *sdp, uint64_t number,
-		   struct gfs2_glock_operations *glops, int create,
+		   const struct gfs2_glock_operations *glops, int create,
 		   struct gfs2_glock **glp)
 {
 	struct lm_lockname name;
@@ -480,7 +480,7 @@ static int rq_promote(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_glock_operations *glops = gl->gl_ops;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
 
 	if (!relaxed_state_ok(gl->gl_state, gh->gh_state, gh->gh_flags)) {
 		if (list_empty(&gl->gl_holders)) {
@@ -535,7 +535,7 @@ static int rq_promote(struct gfs2_holder *gh)
 static int rq_demote(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_glock_operations *glops = gl->gl_ops;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
 
 	if (!list_empty(&gl->gl_holders))
 		return 1;
@@ -805,7 +805,7 @@ static void state_change(struct gfs2_glock *gl, unsigned int new_state)
 static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_glock_operations *glops = gl->gl_ops;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_holder *gh = gl->gl_req_gh;
 	int prev_state = gl->gl_state;
 	int op_done = 1;
@@ -915,7 +915,7 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 void gfs2_glock_xmote_th(struct gfs2_glock *gl, unsigned int state, int flags)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_glock_operations *glops = gl->gl_ops;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	int lck_flags = flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB |
 				 LM_FLAG_NOEXP | LM_FLAG_ANY |
 				 LM_FLAG_PRIORITY);
@@ -960,7 +960,7 @@ void gfs2_glock_xmote_th(struct gfs2_glock *gl, unsigned int state, int flags)
 static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_glock_operations *glops = gl->gl_ops;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_holder *gh = gl->gl_req_gh;
 
 	clear_bit(GLF_PREFETCH, &gl->gl_flags);
@@ -1010,7 +1010,7 @@ static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 void gfs2_glock_drop_th(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_glock_operations *glops = gl->gl_ops;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	unsigned int ret;
 
 	gfs2_assert_warn(sdp, test_bit(GLF_LOCK, &gl->gl_flags));
@@ -1081,7 +1081,7 @@ static int glock_wait_internal(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_glock_operations *glops = gl->gl_ops;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
 
 	if (test_bit(HIF_ABORTED, &gh->gh_iflags))
 		return -EIO;
@@ -1294,7 +1294,7 @@ int gfs2_glock_wait(struct gfs2_holder *gh)
 void gfs2_glock_dq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_glock_operations *glops = gl->gl_ops;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
 
 	if (gh->gh_flags & GL_SYNC)
 		set_bit(GLF_SYNC, &gl->gl_flags);
@@ -1339,7 +1339,7 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 static void gfs2_glock_prefetch(struct gfs2_glock *gl, unsigned int state,
 				int flags)
 {
-	struct gfs2_glock_operations *glops = gl->gl_ops;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
 
 	spin_lock(&gl->gl_spin);
 
@@ -1365,7 +1365,7 @@ static void greedy_work(void *data)
 	struct greedy *gr = data;
 	struct gfs2_holder *gh = &gr->gr_gh;
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_glock_operations *glops = gl->gl_ops;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
 
 	clear_bit(GLF_SKIP_WAITERS2, &gl->gl_flags);
 
@@ -1447,8 +1447,8 @@ void gfs2_glock_dq_uninit(struct gfs2_holder *gh)
  */
 
 int gfs2_glock_nq_num(struct gfs2_sbd *sdp, uint64_t number,
-		      struct gfs2_glock_operations *glops, unsigned int state,
-		      int flags, struct gfs2_holder *gh)
+		      const struct gfs2_glock_operations *glops,
+		      unsigned int state, int flags, struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl;
 	int error;
@@ -1645,7 +1645,7 @@ void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs)
  */
 
 void gfs2_glock_prefetch_num(struct gfs2_sbd *sdp, uint64_t number,
-			     struct gfs2_glock_operations *glops,
+			     const struct gfs2_glock_operations *glops,
 			     unsigned int state, int flags)
 {
 	struct gfs2_glock *gl;
@@ -1827,7 +1827,7 @@ void gfs2_iopen_go_callback(struct gfs2_glock *io_gl, unsigned int state)
 static int demote_ok(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_glock_operations *glops = gl->gl_ops;
+	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	int demote = 1;
 
 	if (test_bit(GLF_STICKY, &gl->gl_flags))

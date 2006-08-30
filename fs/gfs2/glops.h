@@ -10,14 +10,14 @@
 #ifndef __GLOPS_DOT_H__
 #define __GLOPS_DOT_H__
 
-extern struct gfs2_glock_operations gfs2_meta_glops;
-extern struct gfs2_glock_operations gfs2_inode_glops;
-extern struct gfs2_glock_operations gfs2_rgrp_glops;
-extern struct gfs2_glock_operations gfs2_trans_glops;
-extern struct gfs2_glock_operations gfs2_iopen_glops;
-extern struct gfs2_glock_operations gfs2_flock_glops;
-extern struct gfs2_glock_operations gfs2_nondisk_glops;
-extern struct gfs2_glock_operations gfs2_quota_glops;
-extern struct gfs2_glock_operations gfs2_journal_glops;
+extern const struct gfs2_glock_operations gfs2_meta_glops;
+extern const struct gfs2_glock_operations gfs2_inode_glops;
+extern const struct gfs2_glock_operations gfs2_rgrp_glops;
+extern const struct gfs2_glock_operations gfs2_trans_glops;
+extern const struct gfs2_glock_operations gfs2_iopen_glops;
+extern const struct gfs2_glock_operations gfs2_flock_glops;
+extern const struct gfs2_glock_operations gfs2_nondisk_glops;
+extern const struct gfs2_glock_operations gfs2_quota_glops;
+extern const struct gfs2_glock_operations gfs2_journal_glops;
 
 #endif /* __GLOPS_DOT_H__ */
