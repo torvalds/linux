@@ -172,14 +172,10 @@ static void generic_disconnect(struct usb_device *udev)
 
 	/* if this is only an unbind, not a physical disconnect, then
 	 * unconfigure the device */
-	if (udev->state == USB_STATE_CONFIGURED)
+	if (udev->actconfig)
 		usb_set_configuration(udev, 0);
 
 	usb_remove_sysfs_dev_files(udev);
-
-	/* in case the call failed or the device was suspended */
-	if (udev->state >= USB_STATE_CONFIGURED)
-		usb_disable_device(udev, 0);
 }
 
 #ifdef	CONFIG_PM
@@ -208,4 +204,5 @@ struct usb_device_driver usb_generic_driver = {
 	.suspend = generic_suspend,
 	.resume = generic_resume,
 #endif
+	.supports_autosuspend = 1,
 };

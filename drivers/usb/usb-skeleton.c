@@ -90,6 +90,11 @@ static int skel_open(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
+	/* prevent the device from being autosuspended */
+	retval = usb_autopm_get_interface(interface);
+	if (retval)
+		goto exit;
+
 	/* increment our usage count for the device */
 	kref_get(&dev->kref);
 
@@ -107,6 +112,12 @@ static int skel_release(struct inode *inode, struct file *file)
 	dev = (struct usb_skel *)file->private_data;
 	if (dev == NULL)
 		return -ENODEV;
+
+	/* allow the device to be autosuspended */
+	mutex_lock(&dev->io_mutex);
+	if (dev->interface)
+		usb_autopm_put_interface(dev->interface);
+	mutex_unlock(&dev->io_mutex);
 
 	/* decrement the count on our device */
 	kref_put(&dev->kref, skel_delete);

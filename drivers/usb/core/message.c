@@ -1366,9 +1366,6 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	if (cp && configuration == 0)
 		dev_warn(&dev->dev, "config 0 descriptor??\n");
 
-	if (dev->state == USB_STATE_SUSPENDED)
-		return -EHOSTUNREACH;
-
 	/* Allocate memory for new interfaces before doing anything else,
 	 * so that if we run out then nothing will have changed. */
 	n = nintf = 0;
@@ -1403,6 +1400,11 @@ free_interfaces:
 					configuration, -i);
 	}
 
+	/* Wake up the device so we can send it the Set-Config request */
+	ret = usb_autoresume_device(dev, 1);
+	if (ret)
+		goto free_interfaces;
+
 	/* if it's already configured, clear out old state first.
 	 * getting rid of old interfaces means unbinding their drivers.
 	 */
@@ -1422,6 +1424,7 @@ free_interfaces:
 	dev->actconfig = cp;
 	if (!cp) {
 		usb_set_device_state(dev, USB_STATE_ADDRESS);
+		usb_autosuspend_device(dev, 1);
 		goto free_interfaces;
 	}
 	usb_set_device_state(dev, USB_STATE_CONFIGURED);
@@ -1490,6 +1493,7 @@ free_interfaces:
 		usb_create_sysfs_intf_files (intf);
 	}
 
+	usb_autosuspend_device(dev, 1);
 	return 0;
 }
 

@@ -558,10 +558,12 @@ static int usbdev_open(struct inode *inode, struct file *file)
 		dev = usbdev_lookup_minor(iminor(inode));
 	if (!dev)
 		dev = inode->i_private;
-	if (!dev) {
-		kfree(ps);
+	if (!dev)
 		goto out;
-	}
+	ret = usb_autoresume_device(dev, 1);
+	if (ret)
+		goto out;
+
 	usb_get_dev(dev);
 	ret = 0;
 	ps->dev = dev;
@@ -581,6 +583,8 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	list_add_tail(&ps->list, &dev->filelist);
 	file->private_data = ps;
  out:
+	if (ret)
+		kfree(ps);
 	mutex_unlock(&usbfs_mutex);
 	return ret;
 }
@@ -604,6 +608,7 @@ static int usbdev_release(struct inode *inode, struct file *file)
 			releaseintf(ps, ifnum);
 	}
 	destroy_all_async(ps);
+	usb_autosuspend_device(dev, 1);
 	usb_unlock_device(dev);
 	usb_put_dev(dev);
 	kfree(ps);
