@@ -325,7 +325,7 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 {
 	dlm_lockspace_t *lockspace;
 	struct dlm_ls *ls;
-	int error;
+	int error, force = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -341,6 +341,9 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 	}
 	kfree(ls->ls_device.name);
 
+	if (params->flags & DLM_USER_LSFLG_FORCEFREE)
+		force = 2;
+
 	lockspace = ls->ls_local_handle;
 
 	/* dlm_release_lockspace waits for references to go to zero,
@@ -348,8 +351,8 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 	   before the release will procede */
 
 	dlm_put_lockspace(ls);
-	error = dlm_release_lockspace(lockspace, 0);
-out:
+	error = dlm_release_lockspace(lockspace, force);
+ out:
 	return error;
 }
 
