@@ -278,31 +278,22 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, uint64_t number,
 	if (!gl)
 		return -ENOMEM;
 
-	memset(gl, 0, sizeof(struct gfs2_glock));
-
-	INIT_LIST_HEAD(&gl->gl_list);
+	gl->gl_flags = 0;
 	gl->gl_name = name;
 	kref_init(&gl->gl_ref);
-
-	spin_lock_init(&gl->gl_spin);
-
 	gl->gl_state = LM_ST_UNLOCKED;
 	gl->gl_owner = NULL;
 	gl->gl_ip = 0;
-	INIT_LIST_HEAD(&gl->gl_holders);
-	INIT_LIST_HEAD(&gl->gl_waiters1);
-	INIT_LIST_HEAD(&gl->gl_waiters2);
-	INIT_LIST_HEAD(&gl->gl_waiters3);
-
 	gl->gl_ops = glops;
-
+	gl->gl_req_gh = NULL;
+	gl->gl_req_bh = NULL;
+	gl->gl_vn = 0;
+	gl->gl_stamp = jiffies;
+	gl->gl_object = NULL;
 	gl->gl_bucket = bucket;
-	INIT_LIST_HEAD(&gl->gl_reclaim);
-
 	gl->gl_sbd = sdp;
-
+	gl->gl_aspace = NULL;
 	lops_init_le(&gl->gl_le, &gfs2_glock_lops);
-	INIT_LIST_HEAD(&gl->gl_ail_list);
 
 	/* If this glock protects actual on-disk data or metadata blocks,
 	   create a VFS inode to manage the pages/buffers holding them. */
@@ -334,13 +325,11 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, uint64_t number,
 
 	return 0;
 
- fail_aspace:
+fail_aspace:
 	if (gl->gl_aspace)
 		gfs2_aspace_put(gl->gl_aspace);
-
- fail:
+fail:
 	kmem_cache_free(gfs2_glock_cachep, gl);	
-
 	return error;
 }
 
@@ -495,9 +484,7 @@ static int rq_promote(struct gfs2_holder *gh)
 				gfs2_reclaim_glock(sdp);
 			}
 
-			glops->go_xmote_th(gl, gh->gh_state,
-					   gh->gh_flags);
-
+			glops->go_xmote_th(gl, gh->gh_state, gh->gh_flags);
 			spin_lock(&gl->gl_spin);
 		}
 		return 1;
@@ -935,8 +922,7 @@ void gfs2_glock_xmote_th(struct gfs2_glock *gl, unsigned int state, int flags)
 	gfs2_glock_hold(gl);
 	gl->gl_req_bh = xmote_bh;
 
-	lck_ret = gfs2_lm_lock(sdp, gl->gl_lock, gl->gl_state, state,
-			       lck_flags);
+	lck_ret = gfs2_lm_lock(sdp, gl->gl_lock, gl->gl_state, state, lck_flags);
 
 	if (gfs2_assert_withdraw(sdp, !(lck_ret & LM_OUT_ERROR)))
 		return;
@@ -1019,8 +1005,7 @@ void gfs2_glock_drop_th(struct gfs2_glock *gl)
 
 	if (gl->gl_state == LM_ST_EXCLUSIVE) {
 		if (glops->go_sync)
-			glops->go_sync(gl,
-				       DIO_METADATA | DIO_DATA | DIO_RELEASE);
+			glops->go_sync(gl, DIO_METADATA | DIO_DATA | DIO_RELEASE);
 	}
 
 	gfs2_glock_hold(gl);
