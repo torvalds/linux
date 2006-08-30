@@ -145,29 +145,28 @@ int ebitmap_import(const unsigned char *src,
 		   struct ebitmap *dst)
 {
 	size_t src_off = 0;
+	size_t node_limit;
 	struct ebitmap_node *node_new;
 	struct ebitmap_node *node_last = NULL;
-	size_t iter;
-	size_t iter_bit;
-	size_t iter_limit;
+	u32 i_byte;
+	u32 i_bit;
 	unsigned char src_byte;
 
-	do {
-		iter_limit = src_len - src_off;
-		if (iter_limit >= sizeof(MAPTYPE)) {
+	while (src_off < src_len) {
+		if (src_len - src_off >= sizeof(MAPTYPE)) {
 			if (*(MAPTYPE *)&src[src_off] == 0) {
 				src_off += sizeof(MAPTYPE);
 				continue;
 			}
-			iter_limit = sizeof(MAPTYPE);
+			node_limit = sizeof(MAPTYPE);
 		} else {
-			iter = src_off;
-			src_byte = 0;
-			do {
-				src_byte |= src[iter++];
-			} while (iter < src_len && src_byte == 0);
+			for (src_byte = 0, i_byte = src_off;
+			     i_byte < src_len && src_byte == 0;
+			     i_byte++)
+				src_byte |= src[i_byte];
 			if (src_byte == 0)
 				break;
+			node_limit = src_len - src_off;
 		}
 
 		node_new = kzalloc(sizeof(*node_new), GFP_ATOMIC);
@@ -176,24 +175,21 @@ int ebitmap_import(const unsigned char *src,
 			return -ENOMEM;
 		}
 		node_new->startbit = src_off * 8;
-		iter = 0;
-		do {
+		for (i_byte = 0; i_byte < node_limit; i_byte++) {
 			src_byte = src[src_off++];
-			iter_bit = iter++ * 8;
-			while (src_byte != 0) {
+			for (i_bit = i_byte * 8; src_byte != 0; i_bit++) {
 				if (src_byte & 0x80)
-					node_new->map |= MAPBIT << iter_bit;
-				iter_bit++;
+					node_new->map |= MAPBIT << i_bit;
 				src_byte <<= 1;
 			}
-		} while (iter < iter_limit);
+		}
 
 		if (node_last != NULL)
 			node_last->next = node_new;
 		else
 			dst->node = node_new;
 		node_last = node_new;
-	} while (src_off < src_len);
+	}
 
 	if (likely(node_last != NULL))
 		dst->highbit = node_last->startbit + MAPSIZE;
