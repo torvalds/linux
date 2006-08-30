@@ -848,6 +848,35 @@ struct request *blk_queue_find_tag(request_queue_t *q, int tag)
 EXPORT_SYMBOL(blk_queue_find_tag);
 
 /**
+ * __blk_free_tags - release a given set of tag maintenance info
+ * @bqt:	the tag map to free
+ *
+ * Tries to free the specified @bqt@.  Returns true if it was
+ * actually freed and false if there are still references using it
+ */
+static int __blk_free_tags(struct blk_queue_tag *bqt)
+{
+	int retval;
+
+	retval = atomic_dec_and_test(&bqt->refcnt);
+	if (retval) {
+		BUG_ON(bqt->busy);
+		BUG_ON(!list_empty(&bqt->busy_list));
+
+		kfree(bqt->tag_index);
+		bqt->tag_index = NULL;
+
+		kfree(bqt->tag_map);
+		bqt->tag_map = NULL;
+
+		kfree(bqt);
+
+	}
+
+	return retval;
+}
+
+/**
  * __blk_queue_free_tags - release tag maintenance info
  * @q:  the request queue for the device
  *
@@ -862,22 +891,27 @@ static void __blk_queue_free_tags(request_queue_t *q)
 	if (!bqt)
 		return;
 
-	if (atomic_dec_and_test(&bqt->refcnt)) {
-		BUG_ON(bqt->busy);
-		BUG_ON(!list_empty(&bqt->busy_list));
-
-		kfree(bqt->tag_index);
-		bqt->tag_index = NULL;
-
-		kfree(bqt->tag_map);
-		bqt->tag_map = NULL;
-
-		kfree(bqt);
-	}
+	__blk_free_tags(bqt);
 
 	q->queue_tags = NULL;
 	q->queue_flags &= ~(1 << QUEUE_FLAG_QUEUED);
 }
+
+
+/**
+ * blk_free_tags - release a given set of tag maintenance info
+ * @bqt:	the tag map to free
+ *
+ * For externally managed @bqt@ frees the map.  Callers of this
+ * function must guarantee to have released all the queues that
+ * might have been using this tag map.
+ */
+void blk_free_tags(struct blk_queue_tag *bqt)
+{
+	if (unlikely(!__blk_free_tags(bqt)))
+		BUG();
+}
+EXPORT_SYMBOL(blk_free_tags);
 
 /**
  * blk_queue_free_tags - release tag maintenance info
@@ -901,7 +935,7 @@ init_tag_map(request_queue_t *q, struct blk_queue_tag *tags, int depth)
 	unsigned long *tag_map;
 	int nr_ulongs;
 
-	if (depth > q->nr_requests * 2) {
+	if (q && depth > q->nr_requests * 2) {
 		depth = q->nr_requests * 2;
 		printk(KERN_ERR "%s: adjusted depth to %d\n",
 				__FUNCTION__, depth);
@@ -927,6 +961,38 @@ fail:
 	return -ENOMEM;
 }
 
+static struct blk_queue_tag *__blk_queue_init_tags(struct request_queue *q,
+						   int depth)
+{
+	struct blk_queue_tag *tags;
+
+	tags = kmalloc(sizeof(struct blk_queue_tag), GFP_ATOMIC);
+	if (!tags)
+		goto fail;
+
+	if (init_tag_map(q, tags, depth))
+		goto fail;
+
+	INIT_LIST_HEAD(&tags->busy_list);
+	tags->busy = 0;
+	atomic_set(&tags->refcnt, 1);
+	return tags;
+fail:
+	kfree(tags);
+	return NULL;
+}
+
+/**
+ * blk_init_tags - initialize the tag info for an external tag map
+ * @depth:	the maximum queue depth supported
+ * @tags: the tag to use
+ **/
+struct blk_queue_tag *blk_init_tags(int depth)
+{
+	return __blk_queue_init_tags(NULL, depth);
+}
+EXPORT_SYMBOL(blk_init_tags);
+
 /**
  * blk_queue_init_tags - initialize the queue tag info
  * @q:  the request queue for the device
@@ -941,16 +1007,10 @@ int blk_queue_init_tags(request_queue_t *q, int depth,
 	BUG_ON(tags && q->queue_tags && tags != q->queue_tags);
 
 	if (!tags && !q->queue_tags) {
-		tags = kmalloc(sizeof(struct blk_queue_tag), GFP_ATOMIC);
+		tags = __blk_queue_init_tags(q, depth);
+
 		if (!tags)
 			goto fail;
-
-		if (init_tag_map(q, tags, depth))
-			goto fail;
-
-		INIT_LIST_HEAD(&tags->busy_list);
-		tags->busy = 0;
-		atomic_set(&tags->refcnt, 1);
 	} else if (q->queue_tags) {
 		if ((rc = blk_queue_resize_tags(q, depth)))
 			return rc;
@@ -1000,6 +1060,13 @@ int blk_queue_resize_tags(request_queue_t *q, int new_depth)
 		bqt->max_depth = new_depth;
 		return 0;
 	}
+
+	/*
+	 * Currently cannot replace a shared tag map with a new
+	 * one, so error out if this is the case
+	 */
+	if (atomic_read(&bqt->refcnt) != 1)
+		return -EBUSY;
 
 	/*
 	 * save the old state info, so we can copy it back
