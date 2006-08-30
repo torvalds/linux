@@ -620,8 +620,6 @@ __SYSCALL(__NR_vmsplice, sys_vmsplice)
 #define __NR_move_pages		279
 __SYSCALL(__NR_move_pages, sys_move_pages)
 
-#ifdef __KERNEL__
-
 #define __NR_syscall_max __NR_move_pages
 
 #ifndef __NO_STUBS
@@ -746,6 +744,8 @@ __syscall_return(type,__res); \
 
 #else /* __KERNEL_SYSCALLS__ */
 
+#ifdef __KERNEL__
+
 #include <linux/syscalls.h>
 #include <asm/ptrace.h>
 
@@ -838,9 +838,9 @@ asmlinkage long sys_rt_sigaction(int sig,
 				struct sigaction __user *oact,
 				size_t sigsetsize);
 
-#endif	/* __ASSEMBLY__ */
+#endif
 
-#endif /* __NO_STUBS */
+#endif
 
 /*
  * "Conditional" syscalls
@@ -850,5 +850,6 @@ asmlinkage long sys_rt_sigaction(int sig,
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 
-#endif /* __KERNEL__ */
+#endif
+
 #endif
