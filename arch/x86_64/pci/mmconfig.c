@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/bitmap.h>
+#include <linux/dmi.h>
 #include <asm/e820.h>
 
 #include "pci.h"
@@ -164,11 +165,33 @@ static __init void unreachable_devices(void)
 	}
 }
 
+static int disable_mcfg(struct dmi_system_id *d)
+{
+	printk("PCI: %s detected. Disabling MCFG.\n", d->ident);
+	pci_probe &= ~PCI_PROBE_MMCONF;
+	return 0;
+}
+
+static struct dmi_system_id __initdata dmi_bad_mcfg[] = {
+	/* Has broken MCFG table that makes the system hang when used */
+        {
+         .callback = disable_mcfg,
+         .ident = "Intel D3C5105 SDV",
+         .matches = {
+                     DMI_MATCH(DMI_BIOS_VENDOR, "Intel"),
+                     DMI_MATCH(DMI_BOARD_NAME, "D26928"),
+                     },
+         },
+         {}
+};
+
 void __init pci_mmcfg_init(void)
 {
 	int i;
 
-	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
+	dmi_check_system(dmi_bad_mcfg);
+
+	if ((pci_probe & (PCI_PROBE_MMCONF|PCI_PROBE_MMCONF_FORCE)) == 0)
 		return;
 
 	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
