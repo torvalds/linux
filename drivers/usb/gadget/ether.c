@@ -2230,6 +2230,9 @@ eth_bind (struct usb_gadget *gadget)
 	if (gadget_is_pxa (gadget)) {
 		/* pxa doesn't support altsettings */
 		cdc = 0;
+	} else if (gadget_is_musbhdrc(gadget)) {
+		/* reduce tx dma overhead by avoiding special cases */
+		zlp = 0;
 	} else if (gadget_is_sh(gadget)) {
 		/* sh doesn't support multiple interfaces or configs */
 		cdc = 0;
