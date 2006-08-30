@@ -480,7 +480,7 @@ exit:
  */
 int usb_get_current_frame_number(struct usb_device *dev)
 {
-	return dev->bus->op->get_frame_number (dev);
+	return usb_hcd_get_frame_number (dev);
 }
 
 /**
@@ -677,9 +677,9 @@ void *usb_buffer_alloc (
 	dma_addr_t *dma
 )
 {
-	if (!dev || !dev->bus || !dev->bus->op || !dev->bus->op->buffer_alloc)
+	if (!dev || !dev->bus)
 		return NULL;
-	return dev->bus->op->buffer_alloc (dev->bus, size, mem_flags, dma);
+	return hcd_buffer_alloc (dev->bus, size, mem_flags, dma);
 }
 
 /**
@@ -700,11 +700,11 @@ void usb_buffer_free (
 	dma_addr_t dma
 )
 {
-	if (!dev || !dev->bus || !dev->bus->op || !dev->bus->op->buffer_free)
+	if (!dev || !dev->bus)
 		return;
 	if (!addr)
 		return;
-	dev->bus->op->buffer_free (dev->bus, size, addr, dma);
+	hcd_buffer_free (dev->bus, size, addr, dma);
 }
 
 /**

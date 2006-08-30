@@ -257,8 +257,6 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 
 /* ----------------------------------------------------------------------- */
 
-struct usb_operations;
-
 /* USB device number allocation bitmap */
 struct usb_devmap {
 	unsigned long devicemap[128 / (8*sizeof(unsigned long))];
@@ -279,7 +277,6 @@ struct usb_bus {
 					 * round-robin allocation */
 
 	struct usb_devmap devmap;	/* device address allocation map */
-	struct usb_operations *op;	/* Operations (specific to the HC) */
 	struct usb_device *root_hub;	/* Root hub */
 	struct list_head bus_list;	/* list of busses */
 	void *hcpriv;                   /* Host Controller private data */
@@ -1051,7 +1048,6 @@ extern int usb_submit_urb(struct urb *urb, gfp_t mem_flags);
 extern int usb_unlink_urb(struct urb *urb);
 extern void usb_kill_urb(struct urb *urb);
 
-#define HAVE_USB_BUFFERS
 void *usb_buffer_alloc (struct usb_device *dev, size_t size,
 	gfp_t mem_flags, dma_addr_t *dma);
 void usb_buffer_free (struct usb_device *dev, size_t size,

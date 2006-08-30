@@ -139,28 +139,6 @@ struct hcd_timeout {	/* timeouts we allocate */
 
 /*-------------------------------------------------------------------------*/
 
-/*
- * FIXME usb_operations should vanish or become hc_driver,
- * when usb_bus and usb_hcd become the same thing.
- */
-
-struct usb_operations {
-	int (*get_frame_number) (struct usb_device *usb_dev);
-	int (*submit_urb) (struct urb *urb, gfp_t mem_flags);
-	int (*unlink_urb) (struct urb *urb, int status);
-
-	/* allocate dma-consistent buffer for URB_DMA_NOMAPPING */
-	void *(*buffer_alloc)(struct usb_bus *bus, size_t size,
-			gfp_t mem_flags,
-			dma_addr_t *dma);
-	void (*buffer_free)(struct usb_bus *bus, size_t size,
-			void *addr, dma_addr_t dma);
-
-	void (*disable)(struct usb_device *udev,
-			struct usb_host_endpoint *ep);
-};
-
-/* each driver provides one of these, and hardware init support */
 
 struct pt_regs;
 
@@ -222,7 +200,13 @@ struct hc_driver {
 		/* Needed only if port-change IRQs are level-triggered */
 };
 
-extern void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb, struct pt_regs *regs);
+extern int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags);
+extern int usb_hcd_unlink_urb (struct urb *urb, int status);
+extern void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb,
+		struct pt_regs *regs);
+extern void usb_hcd_endpoint_disable (struct usb_device *udev,
+		struct usb_host_endpoint *ep);
+extern int usb_hcd_get_frame_number (struct usb_device *udev);
 
 extern struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 		struct device *dev, char *bus_name);
@@ -360,8 +344,6 @@ extern long usb_calc_bus_time (int speed, int is_input,
 			int isoc, int bytecount);
 
 /*-------------------------------------------------------------------------*/
-
-extern struct usb_bus *usb_alloc_bus (struct usb_operations *);
 
 extern void usb_set_device_state(struct usb_device *udev,
 		enum usb_device_state new_state);

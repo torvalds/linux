@@ -731,30 +731,6 @@ static void usb_bus_init (struct usb_bus *bus)
 	kref_init(&bus->kref);
 }
 
-/**
- * usb_alloc_bus - creates a new USB host controller structure
- * @op: pointer to a struct usb_operations that this bus structure should use
- * Context: !in_interrupt()
- *
- * Creates a USB host controller bus structure with the specified 
- * usb_operations and initializes all the necessary internal objects.
- *
- * If no memory is available, NULL is returned.
- *
- * The caller should call usb_put_bus() when it is finished with the structure.
- */
-struct usb_bus *usb_alloc_bus (struct usb_operations *op)
-{
-	struct usb_bus *bus;
-
-	bus = kzalloc (sizeof *bus, GFP_KERNEL);
-	if (!bus)
-		return NULL;
-	usb_bus_init (bus);
-	bus->op = op;
-	return bus;
-}
-
 /*-------------------------------------------------------------------------*/
 
 /**
@@ -1102,7 +1078,7 @@ static void urb_unlink (struct urb *urb)
  * expects usb_submit_urb() to have sanity checked and conditioned all
  * inputs in the urb
  */
-static int hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
+int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 {
 	int			status;
 	struct usb_hcd		*hcd = urb->dev->bus->hcpriv;
@@ -1211,7 +1187,7 @@ done:
 /*-------------------------------------------------------------------------*/
 
 /* called in any context */
-static int hcd_get_frame_number (struct usb_device *udev)
+int usb_hcd_get_frame_number (struct usb_device *udev)
 {
 	struct usb_hcd	*hcd = (struct usb_hcd *)udev->bus->hcpriv;
 	if (!HC_IS_RUNNING (hcd->state))
@@ -1253,7 +1229,7 @@ unlink1 (struct usb_hcd *hcd, struct urb *urb)
  * caller guarantees urb won't be recycled till both unlink()
  * and the urb's completion function return
  */
-static int hcd_unlink_urb (struct urb *urb, int status)
+int usb_hcd_unlink_urb (struct urb *urb, int status)
 {
 	struct usb_host_endpoint	*ep;
 	struct usb_hcd			*hcd = NULL;
@@ -1351,8 +1327,8 @@ done:
  * example:  a qh stored in ep->hcpriv, holding state related to endpoint
  * type, maxpacket size, toggle, halt status, and scheduling.
  */
-static void
-hcd_endpoint_disable (struct usb_device *udev, struct usb_host_endpoint *ep)
+void usb_hcd_endpoint_disable (struct usb_device *udev,
+		struct usb_host_endpoint *ep)
 {
 	struct usb_hcd		*hcd;
 	struct urb		*urb;
@@ -1589,20 +1565,6 @@ EXPORT_SYMBOL (usb_bus_start_enum);
 
 /*-------------------------------------------------------------------------*/
 
-/*
- * usb_hcd_operations - adapts usb_bus framework to HCD framework (bus glue)
- */
-static struct usb_operations usb_hcd_operations = {
-	.get_frame_number =	hcd_get_frame_number,
-	.submit_urb =		hcd_submit_urb,
-	.unlink_urb =		hcd_unlink_urb,
-	.buffer_alloc =		hcd_buffer_alloc,
-	.buffer_free =		hcd_buffer_free,
-	.disable =		hcd_endpoint_disable,
-};
-
-/*-------------------------------------------------------------------------*/
-
 /**
  * usb_hcd_giveback_urb - return URB from HCD to device driver
  * @hcd: host controller returning the URB
@@ -1744,7 +1706,6 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 	dev_set_drvdata(dev, hcd);
 
 	usb_bus_init(&hcd->self);
-	hcd->self.op = &usb_hcd_operations;
 	hcd->self.hcpriv = hcd;
 	hcd->self.release = &hcd_release;
 	hcd->self.controller = dev;
