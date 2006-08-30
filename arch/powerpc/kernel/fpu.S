@@ -2,6 +2,11 @@
  *  FPU support code, moved here from head.S so that it can be used
  *  by chips which use other head-whatever.S files.
  *
+ *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
+ *    Copyright (C) 1996 Cort Dougan <cort@cs.nmt.edu>
+ *    Copyright (C) 1996 Paul Mackerras.
+ *    Copyright (C) 1997 Dan Malek (dmalek@jlc.net).
+ *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
  *  as published by the Free Software Foundation; either version
