@@ -367,9 +367,7 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 				if (tries++ >= 3)
 					break;
 
-				if (retval == EPIPE)
-					usb_clear_halt(port->serial->dev, 0x00);
-			} while (retval != 8 && retval != ENODEV);
+			} while (retval != 8 && retval != -ENODEV);
 
 			if (retval != 8)
 				err("%s - failed sending serial line settings - %d", __FUNCTION__, retval);
@@ -394,9 +392,7 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 				if (tries++ >= 3)
 					break;
 
-				if (retval == EPIPE)
-					usb_clear_halt(port->serial->dev, 0x00);
-			} while (retval != 5 && retval != ENODEV);
+			} while (retval != 5 && retval != -ENODEV);
 
 			if (retval != 5) {
 				err("%s - failed to retrieve serial line settings - %d", __FUNCTION__, retval);
