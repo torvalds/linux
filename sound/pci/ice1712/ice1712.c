@@ -62,6 +62,7 @@
 #include <sound/cs8427.h>
 #include <sound/info.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
 #include <sound/asoundef.h>
 
@@ -1377,6 +1378,7 @@ static int snd_ice1712_pro_mixer_volume_put(struct snd_kcontrol *kcontrol, struc
 	return change;
 }
 
+static DECLARE_TLV_DB_SCALE(db_scale_playback, -14400, 150, 0);
 
 static struct snd_kcontrol_new snd_ice1712_multi_playback_ctrls[] __devinitdata = {
 	{
@@ -1390,12 +1392,15 @@ static struct snd_kcontrol_new snd_ice1712_multi_playback_ctrls[] __devinitdata 
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "Multi Playback Volume",
 		.info = snd_ice1712_pro_mixer_volume_info,
 		.get = snd_ice1712_pro_mixer_volume_get,
 		.put = snd_ice1712_pro_mixer_volume_put,
 		.private_value = 0,
 		.count = 10,
+		.tlv = { .p = db_scale_playback }
 	},
 };
 
@@ -1420,11 +1425,14 @@ static struct snd_kcontrol_new snd_ice1712_multi_capture_spdif_switch __devinitd
 
 static struct snd_kcontrol_new snd_ice1712_multi_capture_analog_volume __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 	.name = "H/W Multi Capture Volume",
 	.info = snd_ice1712_pro_mixer_volume_info,
 	.get = snd_ice1712_pro_mixer_volume_get,
 	.put = snd_ice1712_pro_mixer_volume_put,
 	.private_value = 10,
+	.tlv = { .p = db_scale_playback }
 };
 
 static struct snd_kcontrol_new snd_ice1712_multi_capture_spdif_volume __devinitdata = {
