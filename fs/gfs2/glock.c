@@ -200,6 +200,7 @@ static inline int queue_empty(struct gfs2_glock *gl, struct list_head *head)
  */
 
 static struct gfs2_glock *search_bucket(struct gfs2_gl_hash_bucket *bucket,
+					const struct gfs2_sbd *sdp,
 					const struct lm_lockname *name)
 {
 	struct gfs2_glock *gl;
@@ -208,6 +209,8 @@ static struct gfs2_glock *search_bucket(struct gfs2_gl_hash_bucket *bucket,
 		if (test_bit(GLF_PLUG, &gl->gl_flags))
 			continue;
 		if (!lm_name_equal(&gl->gl_name, name))
+			continue;
+		if (gl->gl_sbd != sdp)
 			continue;
 
 		kref_get(&gl->gl_ref);
@@ -233,7 +236,7 @@ static struct gfs2_glock *gfs2_glock_find(struct gfs2_sbd *sdp,
 	struct gfs2_glock *gl;
 
 	read_lock(&bucket->hb_lock);
-	gl = search_bucket(bucket, name);
+	gl = search_bucket(bucket, sdp, name);
 	read_unlock(&bucket->hb_lock);
 
 	return gl;
@@ -266,7 +269,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, uint64_t number,
 	bucket = &sdp->sd_gl_hash[gl_hash(&name)];
 
 	read_lock(&bucket->hb_lock);
-	gl = search_bucket(bucket, &name);
+	gl = search_bucket(bucket, sdp, &name);
 	read_unlock(&bucket->hb_lock);
 
 	if (gl || !create) {
@@ -311,7 +314,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, uint64_t number,
 		goto fail_aspace;
 
 	write_lock(&bucket->hb_lock);
-	tmp = search_bucket(bucket, &name);
+	tmp = search_bucket(bucket, sdp, &name);
 	if (tmp) {
 		write_unlock(&bucket->hb_lock);
 		glock_free(gl);
