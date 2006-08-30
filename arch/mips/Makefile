@@ -330,6 +330,7 @@ load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
 # MIPS SEAD board
 #
 core-$(CONFIG_MIPS_SEAD)	+= arch/mips/mips-boards/sead/
+cflags-$(CONFIG_MIPS_SEAD)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_SEAD)	+= 0xffffffff80100000
 
 #
