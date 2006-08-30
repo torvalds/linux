@@ -7,6 +7,8 @@
 #include "power.h"
 
 
+#ifdef	CONFIG_PM_SYSFS_DEPRECATED
+
 /**
  *	state - Control current power state of device
  *
@@ -65,6 +67,8 @@ static ssize_t state_store(struct device * dev, struct device_attribute *attr, c
 
 static DEVICE_ATTR(state, 0644, state_show, state_store);
 
+
+#endif	/* CONFIG_PM_SYSFS_DEPRECATED */
 
 /*
  *	wakeup - Report/change current wakeup option for device
@@ -139,7 +143,9 @@ static DEVICE_ATTR(wakeup, 0644, wake_show, wake_store);
 
 
 static struct attribute * power_attrs[] = {
+#ifdef	CONFIG_PM_SYSFS_DEPRECATED
 	&dev_attr_state.attr,
+#endif
 	&dev_attr_wakeup.attr,
 	NULL,
 };
