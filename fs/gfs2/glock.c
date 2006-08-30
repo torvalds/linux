@@ -83,7 +83,7 @@ static inline int relaxed_state_ok(unsigned int actual, unsigned requested,
  * Returns: The number of the corresponding hash bucket
  */
 
-static unsigned int gl_hash(struct lm_lockname *name)
+static unsigned int gl_hash(const struct lm_lockname *name)
 {
 	unsigned int h;
 
@@ -200,7 +200,7 @@ static inline int queue_empty(struct gfs2_glock *gl, struct list_head *head)
  */
 
 static struct gfs2_glock *search_bucket(struct gfs2_gl_hash_bucket *bucket,
-					struct lm_lockname *name)
+					const struct lm_lockname *name)
 {
 	struct gfs2_glock *gl;
 
@@ -227,7 +227,7 @@ static struct gfs2_glock *search_bucket(struct gfs2_gl_hash_bucket *bucket,
  */
 
 static struct gfs2_glock *gfs2_glock_find(struct gfs2_sbd *sdp,
-					  struct lm_lockname *name)
+					  const struct lm_lockname *name)
 {
 	struct gfs2_gl_hash_bucket *bucket = &sdp->sd_gl_hash[gl_hash(name)];
 	struct gfs2_glock *gl;
