@@ -21,22 +21,20 @@
 #define RW_LOCK_BIAS_STR	"0x01000000"
 
 #define __build_read_lock_ptr(rw, helper)   \
-	alternative_smp("lock; subl $1,(%0)\n\t" \
+	asm volatile(LOCK_PREFIX " ; subl $1,(%0)\n\t" \
 			"jns 1f\n" \
 			"call " helper "\n\t" \
-			"1:\n", \
-			"subl $1,(%0)\n\t", \
+			"1:\n" \
 			:"a" (rw) : "memory")
 
 #define __build_read_lock_const(rw, helper)   \
-	alternative_smp("lock; subl $1,%0\n\t" \
+	asm volatile(LOCK_PREFIX " ; subl $1,%0\n\t" \
 			"jns 1f\n" \
 			"pushl %%eax\n\t" \
 			"leal %0,%%eax\n\t" \
 			"call " helper "\n\t" \
 			"popl %%eax\n\t" \
-			"1:\n", \
-			"subl $1,%0\n\t", \
+			"1:\n" : \
 			"+m" (*(volatile int *)rw) : : "memory")
 
 #define __build_read_lock(rw, helper)	do { \
@@ -47,7 +45,7 @@
 					} while (0)
 
 #define __build_write_lock_ptr(rw, helper) \
-	alternative_smp("lock; subl $" RW_LOCK_BIAS_STR ",(%0)\n\t" \
+	asm volatile(LOCK_PREFIX " ; subl $" RW_LOCK_BIAS_STR ",(%0)\n\t" \
 			"jz 1f\n" \
 			"call " helper "\n\t" \
 			"1:\n", \
@@ -55,7 +53,7 @@
 			:"a" (rw) : "memory")
 
 #define __build_write_lock_const(rw, helper) \
-	alternative_smp("lock; subl $" RW_LOCK_BIAS_STR ",%0\n\t" \
+	asm volatile(LOCK_PREFIX " ; subl $" RW_LOCK_BIAS_STR ",%0\n\t" \
 			"jz 1f\n" \
 			"pushl %%eax\n\t" \
 			"leal %0,%%eax\n\t" \
