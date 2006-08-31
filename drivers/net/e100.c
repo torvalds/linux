@@ -1759,7 +1759,7 @@ static inline void e100_start_receiver(struct nic *nic, struct rx *rx)
 #define RFD_BUF_LEN (sizeof(struct rfd) + VLAN_ETH_FRAME_LEN)
 static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 {
-	if(!(rx->skb = dev_alloc_skb(RFD_BUF_LEN + NET_IP_ALIGN)))
+	if(!(rx->skb = netdev_alloc_skb(nic->netdev, RFD_BUF_LEN + NET_IP_ALIGN)))
 		return -ENOMEM;
 
 	/* Align, init, and map the RFD. */
@@ -2139,7 +2139,7 @@ static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)
 
 	e100_start_receiver(nic, NULL);
 
-	if(!(skb = dev_alloc_skb(ETH_DATA_LEN))) {
+	if(!(skb = netdev_alloc_skb(nic->netdev, ETH_DATA_LEN))) {
 		err = -ENOMEM;
 		goto err_loopback_none;
 	}
