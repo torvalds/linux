@@ -181,6 +181,7 @@
 #define AUDIT_EXIT	103
 #define AUDIT_SUCCESS   104	/* exit >= 0; value ignored */
 #define AUDIT_WATCH	105
+#define AUDIT_PERM	106
 
 #define AUDIT_ARG0      200
 #define AUDIT_ARG1      (AUDIT_ARG0+1)
@@ -256,6 +257,11 @@
 #define AUDIT_ARCH_V850		(EM_V850|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_X86_64	(EM_X86_64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 
+#define AUDIT_PERM_EXEC		1
+#define AUDIT_PERM_WRITE	2
+#define AUDIT_PERM_READ		4
+#define AUDIT_PERM_ATTR		8
+
 struct audit_status {
 	__u32		mask;		/* Bit mask for valid entries */
 	__u32		enabled;	/* 1 = enabled, 0 = disabled */
@@ -318,6 +324,7 @@ struct mqstat;
 #define AUDITSC_FAILURE 2
 #define AUDITSC_RESULT(x) ( ((long)(x))<0?AUDITSC_FAILURE:AUDITSC_SUCCESS )
 extern int __init audit_register_class(int class, unsigned *list);
+extern int audit_classify_syscall(int abi, unsigned syscall);
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
 				/* Public API */

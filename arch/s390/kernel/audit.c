@@ -23,6 +23,27 @@ static unsigned chattr_class[] = {
 ~0U
 };
 
+int audit_classify_syscall(int abi, unsigned syscall)
+{
+#ifdef CONFIG_COMPAT
+	extern int s390_classify_syscall(unsigned);
+	if (abi == AUDIT_ARCH_S390)
+		return s390_classify_syscall(syscall);
+#endif
+	switch(syscall) {
+	case __NR_open:
+		return 2;
+	case __NR_openat:
+		return 3;
+	case __NR_socketcall:
+		return 4;
+	case __NR_execve:
+		return 5;
+	default:
+		return 0;
+	}
+}
+
 static int __init audit_classes_init(void)
 {
 #ifdef CONFIG_COMPAT

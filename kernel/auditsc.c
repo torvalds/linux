@@ -209,6 +209,54 @@ struct audit_context {
 #endif
 };
 
+#define ACC_MODE(x) ("\004\002\006\006"[(x)&O_ACCMODE])
+static inline int open_arg(int flags, int mask)
+{
+	int n = ACC_MODE(flags);
+	if (flags & (O_TRUNC | O_CREAT))
+		n |= AUDIT_PERM_WRITE;
+	return n & mask;
+}
+
+static int audit_match_perm(struct audit_context *ctx, int mask)
+{
+	unsigned n = ctx->major;
+	switch (audit_classify_syscall(ctx->arch, n)) {
+	case 0:	/* native */
+		if ((mask & AUDIT_PERM_WRITE) &&
+		     audit_match_class(AUDIT_CLASS_WRITE, n))
+			return 1;
+		if ((mask & AUDIT_PERM_READ) &&
+		     audit_match_class(AUDIT_CLASS_READ, n))
+			return 1;
+		if ((mask & AUDIT_PERM_ATTR) &&
+		     audit_match_class(AUDIT_CLASS_CHATTR, n))
+			return 1;
+		return 0;
+	case 1: /* 32bit on biarch */
+		if ((mask & AUDIT_PERM_WRITE) &&
+		     audit_match_class(AUDIT_CLASS_WRITE_32, n))
+			return 1;
+		if ((mask & AUDIT_PERM_READ) &&
+		     audit_match_class(AUDIT_CLASS_READ_32, n))
+			return 1;
+		if ((mask & AUDIT_PERM_ATTR) &&
+		     audit_match_class(AUDIT_CLASS_CHATTR_32, n))
+			return 1;
+		return 0;
+	case 2: /* open */
+		return mask & ACC_MODE(ctx->argv[1]);
+	case 3: /* openat */
+		return mask & ACC_MODE(ctx->argv[2]);
+	case 4: /* socketcall */
+		return ((mask & AUDIT_PERM_WRITE) && ctx->argv[0] == SYS_BIND);
+	case 5: /* execve */
+		return mask & AUDIT_PERM_EXEC;
+	default:
+		return 0;
+	}
+}
+
 /* Determine if any context name data matches a rule's watch data */
 /* Compare a task_struct with an audit_rule.  Return 1 on match, 0
  * otherwise. */
@@ -396,6 +444,9 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_FILTERKEY:
 			/* ignore this field for filtering */
 			result = 1;
+			break;
+		case AUDIT_PERM:
+			result = audit_match_perm(ctx, f->val);
 			break;
 		}
 

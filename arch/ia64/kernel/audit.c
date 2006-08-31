@@ -23,6 +23,25 @@ static unsigned chattr_class[] = {
 ~0U
 };
 
+int audit_classify_syscall(int abi, unsigned syscall)
+{
+#ifdef CONFIG_IA32_SUPPORT
+	extern int ia32_classify_syscall(unsigned);
+	if (abi == AUDIT_ARCH_I386)
+		return ia32_classify_syscall(syscall);
+#endif
+	switch(syscall) {
+	case __NR_open:
+		return 2;
+	case __NR_openat:
+		return 3;
+	case __NR_execve:
+		return 5;
+	default:
+		return 0;
+	}
+}
+
 static int __init audit_classes_init(void)
 {
 #ifdef CONFIG_IA32_SUPPORT

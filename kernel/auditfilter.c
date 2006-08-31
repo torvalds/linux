@@ -302,6 +302,15 @@ int __init audit_register_class(int class, unsigned *list)
 	return 0;
 }
 
+int audit_match_class(int class, unsigned syscall)
+{
+	if (unlikely(syscall >= AUDIT_BITMASK_SIZE * sizeof(__u32)))
+		return 0;
+	if (unlikely(class >= AUDIT_SYSCALL_CLASSES || !classes[class]))
+		return 0;
+	return classes[class][AUDIT_WORD(syscall)] & AUDIT_BIT(syscall);
+}
+
 /* Common user-space to kernel rule translation. */
 static inline struct audit_entry *audit_to_entry_common(struct audit_rule *rule)
 {
@@ -413,6 +422,10 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		case AUDIT_ARG1:
 		case AUDIT_ARG2:
 		case AUDIT_ARG3:
+			break;
+		case AUDIT_PERM:
+			if (f->val & ~15)
+				goto exit_free;
 			break;
 		case AUDIT_INODE:
 			err = audit_to_inode(&entry->rule, f);
@@ -567,6 +580,10 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 				goto exit_free;
 			entry->rule.buflen += f->val;
 			entry->rule.filterkey = str;
+			break;
+		case AUDIT_PERM:
+			if (f->val & ~15)
+				goto exit_free;
 			break;
 		default:
 			goto exit_free;
