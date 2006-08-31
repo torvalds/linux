@@ -648,10 +648,9 @@ iscsi_ctask_copy(struct iscsi_tcp_conn *tcp_conn, struct iscsi_cmd_task *ctask,
  *	byte counters.
  **/
 static inline int
-iscsi_tcp_copy(struct iscsi_conn *conn)
+iscsi_tcp_copy(struct iscsi_conn *conn, int buf_size)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-	int buf_size = tcp_conn->in.datalen;
 	int buf_left = buf_size - tcp_conn->data_copied;
 	int size = min(tcp_conn->in.copy, buf_left);
 	int rc;
@@ -812,7 +811,7 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		 * Collect data segment to the connection's data
 		 * placeholder
 		 */
-		if (iscsi_tcp_copy(conn)) {
+		if (iscsi_tcp_copy(conn, tcp_conn->in.datalen)) {
 			rc = -EAGAIN;
 			goto exit;
 		}
@@ -899,10 +898,15 @@ more:
 
 		debug_tcp("extra data_recv offset %d copy %d\n",
 			  tcp_conn->in.offset, tcp_conn->in.copy);
-		skb_copy_bits(tcp_conn->in.skb, tcp_conn->in.offset,
-				&recv_digest, 4);
-		tcp_conn->in.offset += 4;
-		tcp_conn->in.copy -= 4;
+		rc = iscsi_tcp_copy(conn, sizeof(uint32_t));
+		if (rc) {
+			if (rc == -EAGAIN)
+				goto again;
+			iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+			return 0;
+		}
+
+		memcpy(&recv_digest, conn->data, sizeof(uint32_t));
 		if (recv_digest != tcp_conn->in.datadgst) {
 			debug_tcp("iscsi_tcp: data digest error!"
 				  "0x%x != 0x%x\n", recv_digest,
@@ -942,9 +946,10 @@ more:
 						     &sg, 1);
 			}
 			crypto_digest_final(tcp_conn->rx_tfm,
-					    (u8 *) & tcp_conn->in.datadgst);
+					    (u8 *) &tcp_conn->in.datadgst);
 			debug_tcp("rx digest 0x%x\n", tcp_conn->in.datadgst);
 			tcp_conn->in_progress = IN_PROGRESS_DDIGEST_RECV;
+			tcp_conn->data_copied = 0;
 		} else
 			tcp_conn->in_progress = IN_PROGRESS_WAIT_HEADER;
 	}
