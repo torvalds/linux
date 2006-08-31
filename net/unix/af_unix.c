@@ -117,7 +117,7 @@
 #include <net/checksum.h>
 #include <linux/security.h>
 
-int sysctl_unix_max_dgram_qlen = 10;
+int sysctl_unix_max_dgram_qlen __read_mostly = 10;
 
 struct hlist_head unix_socket_table[UNIX_HASH_SIZE + 1];
 DEFINE_SPINLOCK(unix_table_lock);
