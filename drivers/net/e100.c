@@ -1763,7 +1763,6 @@ static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 		return -ENOMEM;
 
 	/* Align, init, and map the RFD. */
-	rx->skb->dev = nic->netdev;
 	skb_reserve(rx->skb, NET_IP_ALIGN);
 	memcpy(rx->skb->data, &nic->blank_rfd, sizeof(struct rfd));
 	rx->dma_addr = pci_map_single(nic->pdev, rx->skb->data,
