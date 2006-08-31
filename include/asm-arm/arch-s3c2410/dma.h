@@ -1,18 +1,13 @@
-/* linux/include/asm-arm/arch-bast/dma.h
+/* linux/include/asm-arm/arch-s3c2410/dma.h
  *
- * Copyright (C) 2003,2004 Simtec Electronics
+ * Copyright (C) 2003,2004,2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * Samsung S3C2410X DMA support
+ * Samsung S3C241XX DMA support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Changelog:
- *  ??-May-2003 BJD   Created file
- *  ??-Jun-2003 BJD   Added more dma functionality to go with arch
- *  10-Nov-2004 BJD   Added sys_device support
 */
 
 #ifndef __ASM_ARCH_DMA_H
@@ -21,14 +16,12 @@
 #include <linux/sysdev.h>
 #include "hardware.h"
 
-
 /*
  * This is the maximum DMA address(physical address) that can be DMAd to.
  *
  */
-#define MAX_DMA_ADDRESS		0x20000000
+#define MAX_DMA_ADDRESS		0x40000000
 #define MAX_DMA_TRANSFER_SIZE   0x100000 /* Data Unit is half word  */
-
 
 /* we have 4 dma channels */
 #define S3C2410_DMA_CHANNELS        (4)
@@ -83,10 +76,9 @@ enum s3c2410_dma_buffresult {
 	S3C2410_RES_ABORT
 };
 
-
 enum s3c2410_dmasrc {
-	S3C2410_DMASRC_HW,      /* source is memory */
-	S3C2410_DMASRC_MEM      /* source is hardware */
+	S3C2410_DMASRC_HW,		/* source is memory */
+	S3C2410_DMASRC_MEM		/* source is hardware */
 };
 
 /* enum s3c2410_chan_op
@@ -101,7 +93,7 @@ enum s3c2410_chan_op {
 	S3C2410_DMAOP_PAUSE,
 	S3C2410_DMAOP_RESUME,
 	S3C2410_DMAOP_FLUSH,
-	S3C2410_DMAOP_TIMEOUT,           /* internal signal to handler */
+	S3C2410_DMAOP_TIMEOUT,		/* internal signal to handler */
 	S3C2410_DMAOP_STARTED,		/* indicate channel started */
 };
 
@@ -125,12 +117,12 @@ struct s3c2410_dma_client {
 
 struct s3c2410_dma_buf;
 struct s3c2410_dma_buf {
-	struct s3c2410_dma_buf   *next;
-	int                  magic;        /* magic */
-	int                  size;         /* buffer size in bytes */
-	dma_addr_t           data;         /* start of DMA data */
-	dma_addr_t           ptr;          /* where the DMA got to [1] */
-	void                *id;           /* client's id */
+	struct s3c2410_dma_buf	*next;
+	int			 magic;		/* magic */
+	int			 size;		/* buffer size in bytes */
+	dma_addr_t		 data;		/* start of DMA data */
+	dma_addr_t		 ptr;		/* where the DMA got to [1] */
+	void			*id;		/* client's id */
 };
 
 /* [1] is this updated for both recv/send modes? */
@@ -150,11 +142,11 @@ typedef int  (*s3c2410_dma_opfn_t)(struct s3c2410_dma_chan *,
 				   enum s3c2410_chan_op );
 
 struct s3c2410_dma_stats {
-	unsigned long          loads;
-	unsigned long          timeout_longest;
-	unsigned long          timeout_shortest;
-	unsigned long          timeout_avg;
-	unsigned long          timeout_failed;
+	unsigned long		loads;
+	unsigned long		timeout_longest;
+	unsigned long		timeout_shortest;
+	unsigned long		timeout_avg;
+	unsigned long		timeout_failed;
 };
 
 /* struct s3c2410_dma_chan
@@ -164,42 +156,42 @@ struct s3c2410_dma_stats {
 
 struct s3c2410_dma_chan {
 	/* channel state flags and information */
-	unsigned char          number;      /* number of this dma channel */
-	unsigned char          in_use;      /* channel allocated */
-	unsigned char          irq_claimed; /* irq claimed for channel */
-	unsigned char          irq_enabled; /* irq enabled for channel */
-	unsigned char          xfer_unit;   /* size of an transfer */
+	unsigned char		 number;      /* number of this dma channel */
+	unsigned char		 in_use;      /* channel allocated */
+	unsigned char		 irq_claimed; /* irq claimed for channel */
+	unsigned char		 irq_enabled; /* irq enabled for channel */
+	unsigned char		 xfer_unit;   /* size of an transfer */
 
 	/* channel state */
 
-	enum s3c2410_dma_state    state;
-	enum s3c2410_dma_loadst   load_state;
-	struct s3c2410_dma_client  *client;
+	enum s3c2410_dma_state	 state;
+	enum s3c2410_dma_loadst	 load_state;
+	struct s3c2410_dma_client *client;
 
 	/* channel configuration */
-	enum s3c2410_dmasrc       source;
-	unsigned long          dev_addr;
-	unsigned long          load_timeout;
-	unsigned int           flags;        /* channel flags */
+	enum s3c2410_dmasrc	 source;
+	unsigned long		 dev_addr;
+	unsigned long		 load_timeout;
+	unsigned int		 flags;		/* channel flags */
 
 	/* channel's hardware position and configuration */
-	void __iomem           *regs;        /* channels registers */
-	void __iomem           *addr_reg;    /* data address register */
-	unsigned int           irq;          /* channel irq */
-	unsigned long          dcon;         /* default value of DCON */
+	void __iomem		*regs;		/* channels registers */
+	void __iomem		*addr_reg;	/* data address register */
+	unsigned int		 irq;		/* channel irq */
+	unsigned long		 dcon;		/* default value of DCON */
 
 	/* driver handles */
-	s3c2410_dma_cbfn_t     callback_fn;  /* buffer done callback */
-	s3c2410_dma_opfn_t     op_fn;        /* channel operation callback */
+	s3c2410_dma_cbfn_t	 callback_fn;	/* buffer done callback */
+	s3c2410_dma_opfn_t	 op_fn;		/* channel op callback */
 
 	/* stats gathering */
-	struct s3c2410_dma_stats   *stats;
-	struct s3c2410_dma_stats    stats_store;
+	struct s3c2410_dma_stats *stats;
+	struct s3c2410_dma_stats  stats_store;
 
 	/* buffer list and information */
-	struct s3c2410_dma_buf      *curr;        /* current dma buffer */
-	struct s3c2410_dma_buf      *next;        /* next buffer to load */
-	struct s3c2410_dma_buf      *end;         /* end of queue */
+	struct s3c2410_dma_buf	*curr;		/* current dma buffer */
+	struct s3c2410_dma_buf	*next;		/* next buffer to load */
+	struct s3c2410_dma_buf	*end;		/* end of queue */
 
 	/* system device */
 	struct sys_device	dev;
