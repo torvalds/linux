@@ -592,6 +592,17 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 				gfs2_log_lock(sdp);
 				if (n++ > num)
 					break;
+			} else if (!bd1->bd_bh) {
+				total_dbuf--;
+				sdp->sd_log_num_databuf--;
+				list_del_init(&bd1->bd_le.le_list);
+				if (bd1 == bd2) {
+					bd2 = NULL;
+					bd2 = list_prepare_entry(bd2,
+						&sdp->sd_log_le_databuf,
+						bd_le.le_list);
+                                }
+				kmem_cache_free(gfs2_bufdata_cachep, bd1);
 			}
 		}
 		gfs2_log_unlock(sdp);

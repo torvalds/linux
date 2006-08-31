@@ -118,6 +118,25 @@ static int get_block_noalloc(struct inode *inode, sector_t lblock,
 	return error;
 }
 
+static int get_block_direct(struct inode *inode, sector_t lblock,
+			    struct buffer_head *bh_result, int create)
+{
+	int new = 0;
+	u64 dblock;
+	int error, boundary;
+
+	error = gfs2_block_map(inode, lblock, &new, &dblock, &boundary);
+	if (error)
+		return error;
+
+	if (dblock) {
+		map_bh(bh_result, inode->i_sb, dblock);
+		if (boundary)
+			set_buffer_boundary(bh_result);
+	}
+
+	return 0;
+}
 /**
  * gfs2_writepage - Write complete page
  * @page: Page to write
@@ -661,7 +680,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	rv = blockdev_direct_IO_own_locking(rw, iocb, inode,
 					    inode->i_sb->s_bdev,
 					    iov, offset, nr_segs,
-					    gfs2_get_block, NULL);
+					    get_block_direct, NULL);
 out:
 	gfs2_glock_dq_m(1, &gh);
 	gfs2_holder_uninit(&gh);
@@ -724,7 +743,7 @@ static unsigned limit = 0;
 }
 
 /**
- * gfs2_aspace_releasepage - free the metadata associated with a page
+ * gfs2_releasepage - free the metadata associated with a page
  * @page: the page that's being released
  * @gfp_mask: passed from Linux VFS, ignored by us
  *
@@ -761,16 +780,22 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		}
 
 		gfs2_assert_warn(sdp, !buffer_pinned(bh));
+		gfs2_assert_warn(sdp, !buffer_dirty(bh));
 
+		gfs2_log_lock(sdp);
 		bd = bh->b_private;
 		if (bd) {
 			gfs2_assert_warn(sdp, bd->bd_bh == bh);
 			gfs2_assert_warn(sdp, list_empty(&bd->bd_list_tr));
-			gfs2_assert_warn(sdp, list_empty(&bd->bd_le.le_list));
 			gfs2_assert_warn(sdp, !bd->bd_ail);
-			kmem_cache_free(gfs2_bufdata_cachep, bd);
+			bd->bd_bh = NULL;
+			if (!list_empty(&bd->bd_le.le_list))
+				bd = NULL;
 			bh->b_private = NULL;
 		}
+		gfs2_log_unlock(sdp);
+		if (bd)
+			kmem_cache_free(gfs2_bufdata_cachep, bd);
 
 		bh = bh->b_this_page;
 	} while (bh != head);
