@@ -3741,7 +3741,6 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			    netdev_alloc_skb(netdev, length + NET_IP_ALIGN);
 			if (new_skb) {
 				skb_reserve(new_skb, NET_IP_ALIGN);
-				new_skb->dev = netdev;
 				memcpy(new_skb->data - NET_IP_ALIGN,
 				       skb->data - NET_IP_ALIGN,
 				       length + NET_IP_ALIGN);
@@ -4008,13 +4007,13 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 	buffer_info = &rx_ring->buffer_info[i];
 
 	while (cleaned_count--) {
-		if (!(skb = buffer_info->skb))
-			skb = netdev_alloc_skb(netdev, bufsz);
-		else {
+		skb = buffer_info->skb;
+		if (skb) {
 			skb_trim(skb, 0);
 			goto map_skb;
 		}
 
+		skb = netdev_alloc_skb(netdev, bufsz);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			adapter->alloc_rx_buff_failed++;
@@ -4039,18 +4038,16 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 				dev_kfree_skb(skb);
 				dev_kfree_skb(oldskb);
 				break; /* while !buffer_info->skb */
-			} else {
-				/* Use new allocation */
-				dev_kfree_skb(oldskb);
 			}
+
+			/* Use new allocation */
+			dev_kfree_skb(oldskb);
 		}
 		/* Make buffer alignment 2 beyond a 16 byte boundary
 		 * this will result in a 16 byte aligned IP header after
 		 * the 14 byte MAC header is removed
 		 */
 		skb_reserve(skb, NET_IP_ALIGN);
-
-		skb->dev = netdev;
 
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
@@ -4164,8 +4161,6 @@ e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 		 * the 14 byte MAC header is removed
 		 */
 		skb_reserve(skb, NET_IP_ALIGN);
-
-		skb->dev = netdev;
 
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_ps_bsize0;
