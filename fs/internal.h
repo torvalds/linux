@@ -11,6 +11,8 @@
 
 #include <linux/ioctl32.h>
 
+struct super_block;
+
 /*
  * block_dev.c
  */
@@ -18,11 +20,20 @@
 extern struct super_block *blockdev_superblock;
 extern void __init bdev_cache_init(void);
 
-#define sb_is_blkdev_sb(sb) ((sb) == blockdev_superblock)
-#else
-static inline void bdev_cache_init(void) {}
+static inline int sb_is_blkdev_sb(struct super_block *sb)
+{
+	return sb == blockdev_superblock;
+}
 
-#define sb_is_blkdev_sb(sb) 0
+#else
+static inline void bdev_cache_init(void)
+{
+}
+
+static inline int sb_is_blkdev_sb(struct super_block *sb)
+{
+	return 0;
+}
 #endif
 
 /*
