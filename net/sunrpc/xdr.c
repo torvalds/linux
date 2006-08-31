@@ -640,41 +640,30 @@ xdr_buf_from_iov(struct kvec *iov, struct xdr_buf *buf)
 	buf->buflen = buf->len = iov->iov_len;
 }
 
-/* Sets subiov to the intersection of iov with the buffer of length len
- * starting base bytes after iov.  Indicates empty intersection by setting
- * length of subiov to zero.  Decrements len by length of subiov, sets base
- * to zero (or decrements it by length of iov if subiov is empty). */
-static void
-iov_subsegment(struct kvec *iov, struct kvec *subiov, int *base, int *len)
-{
-	if (*base > iov->iov_len) {
-		subiov->iov_base = NULL;
-		subiov->iov_len = 0;
-		*base -= iov->iov_len;
-	} else {
-		subiov->iov_base = iov->iov_base + *base;
-		subiov->iov_len = min(*len, (int)iov->iov_len - *base);
-		*base = 0;
-	}
-	*len -= subiov->iov_len; 
-}
-
 /* Sets subbuf to the portion of buf of length len beginning base bytes
  * from the start of buf. Returns -1 if base of length are out of bounds. */
 int
 xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
-			int base, int len)
+			unsigned int base, unsigned int len)
 {
-	int i;
-
 	subbuf->buflen = subbuf->len = len;
-	iov_subsegment(buf->head, subbuf->head, &base, &len);
+	if (base < buf->head[0].iov_len) {
+		subbuf->head[0].iov_base = buf->head[0].iov_base + base;
+		subbuf->head[0].iov_len = min_t(unsigned int, len,
+						buf->head[0].iov_len - base);
+		len -= subbuf->head[0].iov_len;
+		base = 0;
+	} else {
+		subbuf->head[0].iov_base = NULL;
+		subbuf->head[0].iov_len = 0;
+		base -= buf->head[0].iov_len;
+	}
 
 	if (base < buf->page_len) {
-		i = (base + buf->page_base) >> PAGE_CACHE_SHIFT;
-		subbuf->pages = &buf->pages[i];
-		subbuf->page_base = (base + buf->page_base) & ~PAGE_CACHE_MASK;
-		subbuf->page_len = min((int)buf->page_len - base, len);
+		subbuf->page_len = min(buf->page_len - base, len);
+		base += buf->page_base;
+		subbuf->page_base = base & ~PAGE_CACHE_MASK;
+		subbuf->pages = &buf->pages[base >> PAGE_CACHE_SHIFT];
 		len -= subbuf->page_len;
 		base = 0;
 	} else {
@@ -682,7 +671,18 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 		subbuf->page_len = 0;
 	}
 
-	iov_subsegment(buf->tail, subbuf->tail, &base, &len);
+	if (base < buf->tail[0].iov_len) {
+		subbuf->tail[0].iov_base = buf->tail[0].iov_base + base;
+		subbuf->tail[0].iov_len = min_t(unsigned int, len,
+						buf->tail[0].iov_len - base);
+		len -= subbuf->tail[0].iov_len;
+		base = 0;
+	} else {
+		subbuf->tail[0].iov_base = NULL;
+		subbuf->tail[0].iov_len = 0;
+		base -= buf->tail[0].iov_len;
+	}
+
 	if (base || len)
 		return -1;
 	return 0;
@@ -690,25 +690,25 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 
 /* obj is assumed to point to allocated memory of size at least len: */
 int
-read_bytes_from_xdr_buf(struct xdr_buf *buf, int base, void *obj, int len)
+read_bytes_from_xdr_buf(struct xdr_buf *buf, unsigned int base, void *obj, unsigned int len)
 {
 	struct xdr_buf subbuf;
-	int this_len;
+	unsigned int this_len;
 	int status;
 
 	status = xdr_buf_subsegment(buf, &subbuf, base, len);
 	if (status)
 		goto out;
-	this_len = min(len, (int)subbuf.head[0].iov_len);
+	this_len = min_t(unsigned int, len, subbuf.head[0].iov_len);
 	memcpy(obj, subbuf.head[0].iov_base, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min(len, (int)subbuf.page_len);
+	this_len = min_t(unsigned int, len, subbuf.page_len);
 	if (this_len)
 		_copy_from_pages(obj, subbuf.pages, subbuf.page_base, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min(len, (int)subbuf.tail[0].iov_len);
+	this_len = min_t(unsigned int, len, subbuf.tail[0].iov_len);
 	memcpy(obj, subbuf.tail[0].iov_base, this_len);
 out:
 	return status;
@@ -716,32 +716,32 @@ out:
 
 /* obj is assumed to point to allocated memory of size at least len: */
 int
-write_bytes_to_xdr_buf(struct xdr_buf *buf, int base, void *obj, int len)
+write_bytes_to_xdr_buf(struct xdr_buf *buf, unsigned int base, void *obj, unsigned int len)
 {
 	struct xdr_buf subbuf;
-	int this_len;
+	unsigned int this_len;
 	int status;
 
 	status = xdr_buf_subsegment(buf, &subbuf, base, len);
 	if (status)
 		goto out;
-	this_len = min(len, (int)subbuf.head[0].iov_len);
+	this_len = min_t(unsigned int, len, subbuf.head[0].iov_len);
 	memcpy(subbuf.head[0].iov_base, obj, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min(len, (int)subbuf.page_len);
+	this_len = min_t(unsigned int, len, subbuf.page_len);
 	if (this_len)
 		_copy_to_pages(subbuf.pages, subbuf.page_base, obj, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min(len, (int)subbuf.tail[0].iov_len);
+	this_len = min_t(unsigned int, len, subbuf.tail[0].iov_len);
 	memcpy(subbuf.tail[0].iov_base, obj, this_len);
 out:
 	return status;
 }
 
 int
-xdr_decode_word(struct xdr_buf *buf, int base, u32 *obj)
+xdr_decode_word(struct xdr_buf *buf, unsigned int base, u32 *obj)
 {
 	__be32	raw;
 	int	status;
@@ -754,7 +754,7 @@ xdr_decode_word(struct xdr_buf *buf, int base, u32 *obj)
 }
 
 int
-xdr_encode_word(struct xdr_buf *buf, int base, u32 obj)
+xdr_encode_word(struct xdr_buf *buf, unsigned int base, u32 obj)
 {
 	__be32	raw = htonl(obj);
 
@@ -766,10 +766,10 @@ xdr_encode_word(struct xdr_buf *buf, int base, u32 obj)
  * try to find space for it at the end of the tail, copy it there, and
  * set obj to point to it. */
 int
-xdr_buf_read_netobj(struct xdr_buf *buf, struct xdr_netobj *obj, int offset)
+xdr_buf_read_netobj(struct xdr_buf *buf, struct xdr_netobj *obj, unsigned int offset)
 {
-	u32	tail_offset = buf->head[0].iov_len + buf->page_len;
-	u32	obj_end_offset;
+	unsigned int tail_offset = buf->head[0].iov_len + buf->page_len;
+	unsigned int obj_end_offset;
 
 	if (xdr_decode_word(buf, offset, &obj->len))
 		goto out;

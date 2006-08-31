@@ -139,10 +139,10 @@ xdr_adjust_iovec(struct kvec *iov, __be32 *p)
  */
 extern void xdr_shift_buf(struct xdr_buf *, size_t);
 extern void xdr_buf_from_iov(struct kvec *, struct xdr_buf *);
-extern int xdr_buf_subsegment(struct xdr_buf *, struct xdr_buf *, int, int);
-extern int xdr_buf_read_netobj(struct xdr_buf *, struct xdr_netobj *, int);
-extern int read_bytes_from_xdr_buf(struct xdr_buf *, int, void *, int);
-extern int write_bytes_to_xdr_buf(struct xdr_buf *, int, void *, int);
+extern int xdr_buf_subsegment(struct xdr_buf *, struct xdr_buf *, unsigned int, unsigned int);
+extern int xdr_buf_read_netobj(struct xdr_buf *, struct xdr_netobj *, unsigned int);
+extern int read_bytes_from_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
+extern int write_bytes_to_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
 
 /*
  * Helper structure for copying from an sk_buff.
@@ -160,8 +160,8 @@ extern int csum_partial_copy_to_xdr(struct xdr_buf *, struct sk_buff *);
 extern ssize_t xdr_partial_copy_from_skb(struct xdr_buf *, unsigned int,
 		skb_reader_t *, skb_read_actor_t);
 
-extern int xdr_encode_word(struct xdr_buf *, int, u32);
-extern int xdr_decode_word(struct xdr_buf *, int, u32 *);
+extern int xdr_encode_word(struct xdr_buf *, unsigned int, u32);
+extern int xdr_decode_word(struct xdr_buf *, unsigned int, u32 *);
 
 struct xdr_array2_desc;
 typedef int (*xdr_xcode_elem_t)(struct xdr_array2_desc *desc, void *elem);
