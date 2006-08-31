@@ -1827,9 +1827,11 @@ static void
 iscsi_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
+	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 
 	iscsi_conn_stop(cls_conn, flag);
 	iscsi_tcp_release_conn(conn);
+	tcp_conn->hdr_size = sizeof(struct iscsi_hdr);
 }
 
 static int
