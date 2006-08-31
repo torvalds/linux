@@ -34,7 +34,7 @@
 #define ISCSI_SESSION_ATTRS 11
 #define ISCSI_CONN_ATTRS 11
 #define ISCSI_HOST_ATTRS 0
-#define ISCSI_TRANSPORT_VERSION "1.1-646"
+#define ISCSI_TRANSPORT_VERSION "2.0-685"
 
 struct iscsi_internal {
 	int daemon_pid;
