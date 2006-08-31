@@ -1948,7 +1948,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 #define IXGB_CB_LENGTH 256
 		if (length < IXGB_CB_LENGTH) {
 			struct sk_buff *new_skb =
-			    dev_alloc_skb(length + NET_IP_ALIGN);
+			    netdev_alloc_skb(netdev, length + NET_IP_ALIGN);
 			if (new_skb) {
 				skb_reserve(new_skb, NET_IP_ALIGN);
 				new_skb->dev = netdev;
@@ -2032,7 +2032,7 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter)
 	while(--cleancount > 2) {
 		/* recycle! its good for you */
 		if (!(skb = buffer_info->skb))
-			skb = dev_alloc_skb(adapter->rx_buffer_len
+			skb = netdev_alloc_skb(netdev, adapter->rx_buffer_len
 			                    + NET_IP_ALIGN);
 		else {
 			skb_trim(skb, 0);
