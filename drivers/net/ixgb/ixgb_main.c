@@ -2190,7 +2190,7 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 
 static void ixgb_netpoll(struct net_device *dev)
 {
-	struct ixgb_adapter *adapter = dev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(dev);
 
 	disable_irq(adapter->pdev->irq);
 	ixgb_intr(adapter->pdev->irq, dev, NULL);
