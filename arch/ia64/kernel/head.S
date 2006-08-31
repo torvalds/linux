@@ -197,6 +197,11 @@ start_ap:
 	;;
 	srlz.i
 	;;
+ {
+	flushrs				// must be first insn in group
+	srlz.i
+ }
+	;;
 	/*
 	 * Save the region registers, predicate before they get clobbered
 	 */
