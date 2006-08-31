@@ -179,16 +179,15 @@ EXPORT_SYMBOL_GPL(iscsi_prep_scsi_cmd_pdu);
 
 /**
  * iscsi_complete_command - return command back to scsi-ml
- * @session: iscsi session
  * @ctask: iscsi cmd task
  *
  * Must be called with session lock.
  * This function returns the scsi command to scsi-ml and returns
  * the cmd task to the pool of available cmd tasks.
  */
-static void iscsi_complete_command(struct iscsi_session *session,
-				   struct iscsi_cmd_task *ctask)
+static void iscsi_complete_command(struct iscsi_cmd_task *ctask)
 {
+	struct iscsi_session *session = ctask->conn->session;
 	struct scsi_cmnd *sc = ctask->sc;
 
 	ctask->state = ISCSI_TASK_COMPLETED;
@@ -196,6 +195,35 @@ static void iscsi_complete_command(struct iscsi_session *session,
 	list_del_init(&ctask->running);
 	__kfifo_put(session->cmdpool.queue, (void*)&ctask, sizeof(void*));
 	sc->scsi_done(sc);
+}
+
+static void __iscsi_get_ctask(struct iscsi_cmd_task *ctask)
+{
+	atomic_inc(&ctask->refcount);
+}
+
+static void iscsi_get_ctask(struct iscsi_cmd_task *ctask)
+{
+	spin_lock_bh(&ctask->conn->session->lock);
+	__iscsi_get_ctask(ctask);
+	spin_unlock_bh(&ctask->conn->session->lock);
+}
+
+static void __iscsi_put_ctask(struct iscsi_cmd_task *ctask)
+{
+	struct iscsi_conn *conn = ctask->conn;
+
+	if (atomic_dec_and_test(&ctask->refcount)) {
+		conn->session->tt->cleanup_cmd_task(conn, ctask);
+		iscsi_complete_command(ctask);
+	}
+}
+
+static void iscsi_put_ctask(struct iscsi_cmd_task *ctask)
+{
+	spin_lock_bh(&ctask->conn->session->lock);
+	__iscsi_put_ctask(ctask);
+	spin_unlock_bh(&ctask->conn->session->lock);
 }
 
 /**
@@ -274,7 +302,7 @@ out:
 		   (long)sc, sc->result, ctask->itt);
 	conn->scsirsp_pdus_cnt++;
 
-	iscsi_complete_command(conn->session, ctask);
+	__iscsi_put_ctask(ctask);
 	return rc;
 }
 
@@ -338,7 +366,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			BUG_ON((void*)ctask != ctask->sc->SCp.ptr);
 			if (hdr->flags & ISCSI_FLAG_DATA_STATUS) {
 				conn->scsirsp_pdus_cnt++;
-				iscsi_complete_command(session, ctask);
+				__iscsi_put_ctask(ctask);
 			}
 			break;
 		case ISCSI_OP_R2T:
@@ -563,7 +591,9 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 	BUG_ON(conn->ctask && conn->mtask);
 
 	if (conn->ctask) {
+		iscsi_get_ctask(conn->ctask);
 		rc = tt->xmit_cmd_task(conn, conn->ctask);
+		iscsi_put_ctask(conn->ctask);
 		if (rc)
 			goto again;
 		/* done with this in-progress ctask */
@@ -604,12 +634,19 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 					 struct iscsi_cmd_task, running);
 		conn->ctask->state = ISCSI_TASK_RUNNING;
 		list_move_tail(conn->xmitqueue.next, &conn->run_list);
+		__iscsi_get_ctask(conn->ctask);
 		spin_unlock_bh(&conn->session->lock);
 
 		rc = tt->xmit_cmd_task(conn, conn->ctask);
 		if (rc)
 			goto again;
+
 		spin_lock_bh(&conn->session->lock);
+		__iscsi_put_ctask(conn->ctask);
+		if (rc) {
+			spin_unlock_bh(&conn->session->lock);
+			goto again;
+		}
 	}
 	spin_unlock_bh(&conn->session->lock);
 	/* done with this ctask */
@@ -659,6 +696,7 @@ enum {
 	FAILURE_SESSION_FAILED,
 	FAILURE_SESSION_FREED,
 	FAILURE_WINDOW_CLOSED,
+	FAILURE_OOM,
 	FAILURE_SESSION_TERMINATE,
 	FAILURE_SESSION_IN_RECOVERY,
 	FAILURE_SESSION_RECOVERY_TIMEOUT,
@@ -717,10 +755,15 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 
 	conn = session->leadconn;
 
-	__kfifo_get(session->cmdpool.queue, (void*)&ctask, sizeof(void*));
+	if (!__kfifo_get(session->cmdpool.queue, (void*)&ctask,
+			 sizeof(void*))) {
+		reason = FAILURE_OOM;
+		goto reject;
+	}
 	sc->SCp.phase = session->age;
 	sc->SCp.ptr = (char *)ctask;
 
+	atomic_set(&ctask->refcount, 1);
 	ctask->state = ISCSI_TASK_PENDING;
 	ctask->mtask = NULL;
 	ctask->conn = conn;
@@ -1057,13 +1100,11 @@ static void fail_command(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	sc = ctask->sc;
 	if (!sc)
 		return;
-
-	conn->session->tt->cleanup_cmd_task(conn, ctask);
 	iscsi_ctask_mtask_cleanup(ctask);
 
 	sc->result = err;
 	sc->resid = sc->request_bufflen;
-	iscsi_complete_command(conn->session, ctask);
+	__iscsi_put_ctask(ctask);
 }
 
 int iscsi_eh_abort(struct scsi_cmnd *sc)
