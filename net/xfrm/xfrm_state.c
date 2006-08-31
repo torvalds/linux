@@ -384,7 +384,7 @@ void xfrm_state_flush(u8 proto)
 	int i;
 
 	spin_lock_bh(&xfrm_state_lock);
-	for (i = 0; i < xfrm_state_hmask; i++) {
+	for (i = 0; i <= xfrm_state_hmask; i++) {
 		struct hlist_node *entry;
 		struct xfrm_state *x;
 restart:
