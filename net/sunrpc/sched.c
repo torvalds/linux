@@ -542,22 +542,18 @@ void rpc_wake_up_status(struct rpc_wait_queue *queue, int status)
 	spin_unlock_bh(&queue->lock);
 }
 
+static void __rpc_atrun(struct rpc_task *task)
+{
+	rpc_wake_up_task(task);
+}
+
 /*
  * Run a task at a later time
  */
-static void	__rpc_atrun(struct rpc_task *);
-void
-rpc_delay(struct rpc_task *task, unsigned long delay)
+void rpc_delay(struct rpc_task *task, unsigned long delay)
 {
 	task->tk_timeout = delay;
 	rpc_sleep_on(&delay_queue, task, NULL, __rpc_atrun);
-}
-
-static void
-__rpc_atrun(struct rpc_task *task)
-{
-	task->tk_status = 0;
-	rpc_wake_up_task(task);
 }
 
 /*
