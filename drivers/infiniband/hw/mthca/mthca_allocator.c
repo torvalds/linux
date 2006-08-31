@@ -41,9 +41,11 @@
 /* Trivial bitmap-based allocator */
 u32 mthca_alloc(struct mthca_alloc *alloc)
 {
+	unsigned long flags;
 	u32 obj;
 
-	spin_lock(&alloc->lock);
+	spin_lock_irqsave(&alloc->lock, flags);
+
 	obj = find_next_zero_bit(alloc->table, alloc->max, alloc->last);
 	if (obj >= alloc->max) {
 		alloc->top = (alloc->top + alloc->max) & alloc->mask;
@@ -56,19 +58,24 @@ u32 mthca_alloc(struct mthca_alloc *alloc)
 	} else
 		obj = -1;
 
-	spin_unlock(&alloc->lock);
+	spin_unlock_irqrestore(&alloc->lock, flags);
 
 	return obj;
 }
 
 void mthca_free(struct mthca_alloc *alloc, u32 obj)
 {
+	unsigned long flags;
+
 	obj &= alloc->max - 1;
-	spin_lock(&alloc->lock);
+
+	spin_lock_irqsave(&alloc->lock, flags);
+
 	clear_bit(obj, alloc->table);
 	alloc->last = min(alloc->last, obj);
 	alloc->top = (alloc->top + alloc->max) & alloc->mask;
-	spin_unlock(&alloc->lock);
+
+	spin_unlock_irqrestore(&alloc->lock, flags);
 }
 
 int mthca_alloc_init(struct mthca_alloc *alloc, u32 num, u32 mask,
