@@ -127,7 +127,7 @@ static void tcp_measure_rcv_mss(struct sock *sk,
 	/* skb->len may jitter because of SACKs, even if peer
 	 * sends good full-sized frames.
 	 */
-	len = skb->len;
+	len = skb_shinfo(skb)->gso_size ?: skb->len;
 	if (len >= icsk->icsk_ack.rcv_mss) {
 		icsk->icsk_ack.rcv_mss = len;
 	} else {
