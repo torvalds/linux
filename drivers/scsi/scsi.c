@@ -851,14 +851,14 @@ EXPORT_SYMBOL(scsi_track_queue_full);
  */
 int scsi_device_get(struct scsi_device *sdev)
 {
-	if (sdev->sdev_state == SDEV_DEL || sdev->sdev_state == SDEV_CANCEL)
+	if (sdev->sdev_state == SDEV_DEL)
 		return -ENXIO;
 	if (!get_device(&sdev->sdev_gendev))
 		return -ENXIO;
-	if (!try_module_get(sdev->host->hostt->module)) {
-		put_device(&sdev->sdev_gendev);
-		return -ENXIO;
-	}
+	/* We can fail this if we're doing SCSI operations
+	 * from module exit (like cache flush) */
+	try_module_get(sdev->host->hostt->module);
+
 	return 0;
 }
 EXPORT_SYMBOL(scsi_device_get);
@@ -873,7 +873,10 @@ EXPORT_SYMBOL(scsi_device_get);
  */
 void scsi_device_put(struct scsi_device *sdev)
 {
-	module_put(sdev->host->hostt->module);
+	/* The module refcount will be zero if scsi_device_get()
+	 * was called from a module removal routine */
+	if (likely(module_refcount(sdev->host->hostt->module) != 0))
+		module_put(sdev->host->hostt->module);
 	put_device(&sdev->sdev_gendev);
 }
 EXPORT_SYMBOL(scsi_device_put);
