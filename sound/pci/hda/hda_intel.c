@@ -255,7 +255,7 @@ enum {
 struct azx_dev {
 	u32 *bdl;			/* virtual address of the BDL */
 	dma_addr_t bdl_addr;		/* physical address of the BDL */
-	volatile u32 *posbuf;			/* position buffer pointer */
+	u32 *posbuf;			/* position buffer pointer */
 
 	unsigned int bufsize;		/* size of the play buffer in bytes */
 	unsigned int fragsize;		/* size of each period in bytes */
@@ -1197,7 +1197,7 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 	if (chip->position_fix == POS_FIX_POSBUF ||
 	    chip->position_fix == POS_FIX_AUTO) {
 		/* use the position buffer */
-		pos = *azx_dev->posbuf;
+		pos = le32_to_cpu(*azx_dev->posbuf);
 		if (chip->position_fix == POS_FIX_AUTO &&
 		    azx_dev->period_intr == 1 && ! pos) {
 			printk(KERN_WARNING
@@ -1345,7 +1345,7 @@ static int __devinit azx_init_stream(struct azx *chip)
 		struct azx_dev *azx_dev = &chip->azx_dev[i];
 		azx_dev->bdl = (u32 *)(chip->bdl.area + off);
 		azx_dev->bdl_addr = chip->bdl.addr + off;
-		azx_dev->posbuf = (volatile u32 *)(chip->posbuf.area + i * 8);
+		azx_dev->posbuf = (u32 __iomem *)(chip->posbuf.area + i * 8);
 		/* offset: SDI0=0x80, SDI1=0xa0, ... SDO3=0x160 */
 		azx_dev->sd_addr = chip->remap_addr + (0x20 * i + 0x80);
 		/* int mask: SDI0=0x01, SDI1=0x02, ... SDO3=0x80 */
@@ -1417,8 +1417,7 @@ static int azx_free(struct azx *chip)
 		azx_writel(chip, DPLBASE, 0);
 		azx_writel(chip, DPUBASE, 0);
 
-		/* wait a little for interrupts to finish */
-		msleep(1);
+		synchronize_irq(chip->irq);
 	}
 
 	if (chip->irq >= 0) {
