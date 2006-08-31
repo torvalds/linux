@@ -68,8 +68,7 @@ iscsi_check_assign_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
 EXPORT_SYMBOL_GPL(iscsi_check_assign_cmdsn);
 
 void iscsi_prep_unsolicit_data_pdu(struct iscsi_cmd_task *ctask,
-				   struct iscsi_data *hdr,
-				   int transport_data_cnt)
+				   struct iscsi_data *hdr)
 {
 	struct iscsi_conn *conn = ctask->conn;
 
@@ -82,14 +81,12 @@ void iscsi_prep_unsolicit_data_pdu(struct iscsi_cmd_task *ctask,
 
 	hdr->itt = ctask->hdr->itt;
 	hdr->exp_statsn = cpu_to_be32(conn->exp_statsn);
-
-	hdr->offset = cpu_to_be32(ctask->total_length -
-				  transport_data_cnt -
-				  ctask->unsol_count);
+	hdr->offset = cpu_to_be32(ctask->unsol_offset);
 
 	if (ctask->unsol_count > conn->max_xmit_dlength) {
 		hton24(hdr->dlength, conn->max_xmit_dlength);
 		ctask->data_count = conn->max_xmit_dlength;
+		ctask->unsol_offset += ctask->data_count;
 		hdr->flags = 0;
 	} else {
 		hton24(hdr->dlength, ctask->unsol_count);
@@ -125,6 +122,7 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
         memcpy(hdr->cdb, sc->cmnd, sc->cmd_len);
         memset(&hdr->cdb[sc->cmd_len], 0, MAX_COMMAND_SIZE - sc->cmd_len);
 
+	ctask->data_count = 0;
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
 		hdr->flags |= ISCSI_FLAG_CMD_WRITE;
 		/*
@@ -143,6 +141,7 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 		 */
 		ctask->imm_count = 0;
 		ctask->unsol_count = 0;
+		ctask->unsol_offset = 0;
 		ctask->unsol_datasn = 0;
 
 		if (session->imm_data_en) {
@@ -156,9 +155,12 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 		} else
 			zero_data(ctask->hdr->dlength);
 
-		if (!session->initial_r2t_en)
+		if (!session->initial_r2t_en) {
 			ctask->unsol_count = min(session->first_burst,
 				ctask->total_length) - ctask->imm_count;
+			ctask->unsol_offset = ctask->imm_count;
+		}
+
 		if (!ctask->unsol_count)
 			/* No unsolicit Data-Out's */
 			ctask->hdr->flags |= ISCSI_FLAG_CMD_FINAL;
@@ -1520,9 +1522,16 @@ int iscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_session *session = conn->session;
 
-	if (session == NULL) {
+	if (!session) {
 		printk(KERN_ERR "iscsi: can't start unbound connection\n");
 		return -EPERM;
+	}
+
+	if (session->first_burst > session->max_burst) {
+		printk("iscsi: invalid burst lengths: "
+		       "first_burst %d max_burst %d\n",
+		       session->first_burst, session->max_burst);
+		return -EINVAL;
 	}
 
 	spin_lock_bh(&session->lock);

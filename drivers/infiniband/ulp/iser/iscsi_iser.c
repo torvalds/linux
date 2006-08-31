@@ -141,18 +141,11 @@ iscsi_iser_cmd_init(struct iscsi_cmd_task *ctask)
 
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
 		BUG_ON(ctask->total_length == 0);
-		/* bytes to be sent via RDMA operations */
-		iser_ctask->rdma_data_count = ctask->total_length -
-					 ctask->imm_count -
-					 ctask->unsol_count;
 
-		debug_scsi("cmd [itt %x total %d imm %d unsol_data %d "
-			   "rdma_data %d]\n",
+		debug_scsi("cmd [itt %x total %d imm %d unsol_data %d\n",
 			   ctask->itt, ctask->total_length, ctask->imm_count,
-			   ctask->unsol_count, iser_ctask->rdma_data_count);
-	} else
-		/* bytes to be sent via RDMA operations */
-		iser_ctask->rdma_data_count = ctask->total_length;
+			   ctask->unsol_count);
+	}
 
 	iser_ctask_rdma_init(iser_ctask);
 }
@@ -196,13 +189,10 @@ iscsi_iser_ctask_xmit_unsol_data(struct iscsi_conn *conn,
 {
 	struct iscsi_data  hdr;
 	int error = 0;
-	struct iscsi_iser_cmd_task *iser_ctask = ctask->dd_data;
 
 	/* Send data-out PDUs while there's still unsolicited data to send */
 	while (ctask->unsol_count > 0) {
-		iscsi_prep_unsolicit_data_pdu(ctask, &hdr,
-					      iser_ctask->rdma_data_count);
-
+		iscsi_prep_unsolicit_data_pdu(ctask, &hdr);
 		debug_scsi("Sending data-out: itt 0x%x, data count %d\n",
 			   hdr.itt, ctask->data_count);
 

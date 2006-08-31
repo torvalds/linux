@@ -1264,19 +1264,6 @@ iscsi_solicit_data_cont(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 			    r2t->data_count);
 }
 
-static void
-iscsi_unsolicit_data_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
-{
-	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
-	struct iscsi_data_task *dtask;
-
-	dtask = tcp_ctask->dtask = &tcp_ctask->unsol_dtask;
-	iscsi_prep_unsolicit_data_pdu(ctask, &dtask->hdr,
-				      tcp_ctask->r2t_data_count);
-	iscsi_buf_init_iov(&tcp_ctask->headbuf, (char*)&dtask->hdr,
-			   sizeof(struct iscsi_hdr));
-}
-
 /**
  * iscsi_tcp_cmd_init - Initialize iSCSI SCSI_READ or SCSI_WRITE commands
  * @conn: iscsi connection
@@ -1326,14 +1313,11 @@ iscsi_tcp_cmd_init(struct iscsi_cmd_task *ctask)
 		if (ctask->unsol_count)
 			tcp_ctask->xmstate |= XMSTATE_UNS_HDR |
 						XMSTATE_UNS_INIT;
-		tcp_ctask->r2t_data_count = ctask->total_length -
-				    ctask->imm_count -
-				    ctask->unsol_count;
 
-		debug_scsi("cmd [itt 0x%x total %d imm %d imm_data %d "
-			   "r2t_data %d]\n",
+		debug_scsi("cmd [itt 0x%x total %d imm_data %d "
+			   "unsol count %d, unsol offset %d]\n",
 			   ctask->itt, ctask->total_length, ctask->imm_count,
-			   ctask->unsol_count, tcp_ctask->r2t_data_count);
+			   ctask->unsol_count, ctask->unsol_offset);
 	} else
 		tcp_ctask->xmstate = XMSTATE_R_HDR;
 
@@ -1531,8 +1515,10 @@ handle_xmstate_uns_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 
 	tcp_ctask->xmstate |= XMSTATE_UNS_DATA;
 	if (tcp_ctask->xmstate & XMSTATE_UNS_INIT) {
-		iscsi_unsolicit_data_init(conn, ctask);
-		dtask = tcp_ctask->dtask;
+		dtask = tcp_ctask->dtask = &tcp_ctask->unsol_dtask;
+		iscsi_prep_unsolicit_data_pdu(ctask, &dtask->hdr);
+		iscsi_buf_init_iov(&tcp_ctask->headbuf, (char*)&dtask->hdr,
+				   sizeof(struct iscsi_hdr));
 		if (conn->hdrdgst_en)
 			iscsi_hdr_digest(conn, &tcp_ctask->headbuf,
 					(u8*)dtask->hdrext);
@@ -1720,7 +1706,6 @@ data_out_done:
 	 * Done with this R2T. Check if there are more
 	 * outstanding R2Ts ready to be processed.
 	 */
-	BUG_ON(tcp_ctask->r2t_data_count - r2t->data_length < 0);
 	if (conn->datadgst_en) {
 		rc = iscsi_digest_final_send(conn, ctask, &dtask->digestbuf,
 					    &dtask->digest, 1);
@@ -1732,7 +1717,6 @@ data_out_done:
 		debug_tcp("r2t done dout digest 0x%x\n", dtask->digest);
 	}
 
-	tcp_ctask->r2t_data_count -= r2t->data_length;
 	tcp_ctask->r2t = NULL;
 	spin_lock_bh(&session->lock);
 	__kfifo_put(tcp_ctask->r2tpool.queue, (void*)&r2t, sizeof(void*));
