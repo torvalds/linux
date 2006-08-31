@@ -16,9 +16,11 @@ extra-y				+= head.o init_task.o vmlinux.lds
 obj-$(CONFIG_MODULES)		+= s390_ksyms.o module.o
 obj-$(CONFIG_SMP)		+= smp.o
 
+obj-$(CONFIG_AUDIT)		+= audit.o
+compat-obj-$(CONFIG_AUDIT)	+= compat_audit.o
 obj-$(CONFIG_COMPAT)		+= compat_linux.o compat_signal.o \
 					compat_wrapper.o compat_exec_domain.o \
-					binfmt_elf32.o
+					binfmt_elf32.o $(compat-obj-y)
 
 obj-$(CONFIG_VIRT_TIMER)	+= vtime.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
