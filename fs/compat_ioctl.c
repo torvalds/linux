@@ -108,7 +108,6 @@
 #include <linux/nbd.h>
 #include <linux/random.h>
 #include <linux/filter.h>
-#include <linux/msdos_fs.h>
 #include <linux/pktcdvd.h>
 
 #include <linux/hiddev.h>
@@ -1937,51 +1936,6 @@ static int mtd_rw_oob(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return err;
 }	
 
-#define	VFAT_IOCTL_READDIR_BOTH32	_IOR('r', 1, struct compat_dirent[2])
-#define	VFAT_IOCTL_READDIR_SHORT32	_IOR('r', 2, struct compat_dirent[2])
-
-static long
-put_dirent32 (struct dirent *d, struct compat_dirent __user *d32)
-{
-        if (!access_ok(VERIFY_WRITE, d32, sizeof(struct compat_dirent)))
-                return -EFAULT;
-
-        __put_user(d->d_ino, &d32->d_ino);
-        __put_user(d->d_off, &d32->d_off);
-        __put_user(d->d_reclen, &d32->d_reclen);
-        if (__copy_to_user(d32->d_name, d->d_name, d->d_reclen))
-		return -EFAULT;
-
-        return 0;
-}
-
-static int vfat_ioctl32(unsigned fd, unsigned cmd, unsigned long arg)
-{
-	struct compat_dirent __user *p = compat_ptr(arg);
-	int ret;
-	mm_segment_t oldfs = get_fs();
-	struct dirent d[2];
-
-	switch(cmd)
-	{
-        	case VFAT_IOCTL_READDIR_BOTH32:
-                	cmd = VFAT_IOCTL_READDIR_BOTH;
-                	break;
-        	case VFAT_IOCTL_READDIR_SHORT32:
-                	cmd = VFAT_IOCTL_READDIR_SHORT;
-                	break;
-	}
-
-	set_fs(KERNEL_DS);
-	ret = sys_ioctl(fd,cmd,(unsigned long)&d);
-	set_fs(oldfs);
-	if (ret >= 0) {
-		ret |= put_dirent32(&d[0], p);
-		ret |= put_dirent32(&d[1], p + 1);
-	}
-	return ret;
-}
-
 struct raw32_config_request
 {
         compat_int_t    raw_minor;
@@ -2726,9 +2680,6 @@ HANDLE_IOCTL(SONET_GETFRSENSE, do_atm_ioctl)
 HANDLE_IOCTL(BLKBSZGET_32, do_blkbszget)
 HANDLE_IOCTL(BLKBSZSET_32, do_blkbszset)
 HANDLE_IOCTL(BLKGETSIZE64_32, do_blkgetsize64)
-/* vfat */
-HANDLE_IOCTL(VFAT_IOCTL_READDIR_BOTH32, vfat_ioctl32)
-HANDLE_IOCTL(VFAT_IOCTL_READDIR_SHORT32, vfat_ioctl32)
 /* Raw devices */
 HANDLE_IOCTL(RAW_SETBIND, raw_ioctl)
 HANDLE_IOCTL(RAW_GETBIND, raw_ioctl)
