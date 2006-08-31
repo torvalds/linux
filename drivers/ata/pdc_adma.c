@@ -497,7 +497,7 @@ static inline unsigned int adma_intr_mmio(struct ata_host *host)
 					continue;
 				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
 					ap->id, qc->tf.protocol, status);
-		
+
 				/* complete taskfile transaction */
 				pp->state = adma_state_idle;
 				qc->err_mask |= ac_err_mask(status);

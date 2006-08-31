@@ -1075,7 +1075,7 @@ static void ahci_host_intr(struct ata_port *ap)
 		return;
 
 	/* ignore interim PIO setup fis interrupts */
-	if (ata_tag_valid(ap->active_tag) && (status & PORT_IRQ_PIOS_FIS)) 
+	if (ata_tag_valid(ap->active_tag) && (status & PORT_IRQ_PIOS_FIS))
 		return;
 
 	if (ata_ratelimit())

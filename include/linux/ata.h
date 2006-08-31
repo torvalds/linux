@@ -320,8 +320,8 @@ static inline unsigned int ata_id_major_version(const u16 *id)
 
 static inline int ata_id_current_chs_valid(const u16 *id)
 {
-	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command 
-	   has not been issued to the device then the values of 
+	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command
+	   has not been issued to the device then the values of
 	   id[54] to id[56] are vendor specific. */
 	return (id[53] & 0x01) && /* Current translation valid */
 		id[54] &&  /* cylinders in current translation */
