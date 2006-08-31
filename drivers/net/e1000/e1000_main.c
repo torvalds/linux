@@ -681,9 +681,9 @@ e1000_probe(struct pci_dev *pdev,
 	unsigned long flash_start, flash_len;
 
 	static int cards_found = 0;
-	static int e1000_ksp3_port_a = 0; /* global ksp3 port a indication */
+	static int global_quad_port_a = 0; /* global ksp3 port a indication */
 	int i, err, pci_using_dac;
-	uint16_t eeprom_data;
+	uint16_t eeprom_data = 0;
 	uint16_t eeprom_apme_mask = E1000_EEPROM_APME;
 	if ((err = pci_enable_device(pdev)))
 		return err;
@@ -785,15 +785,6 @@ e1000_probe(struct pci_dev *pdev,
 
 	if (e1000_check_phy_reset_block(&adapter->hw))
 		DPRINTK(PROBE, INFO, "PHY reset is blocked due to SOL/IDER session.\n");
-
-	/* if ksp3, indicate if it's port a being setup */
-	if (pdev->device == E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 &&
-			e1000_ksp3_port_a == 0)
-		adapter->ksp3_port_a = 1;
-	e1000_ksp3_port_a++;
-	/* Reset for multiple KP3 adapters */
-	if (e1000_ksp3_port_a == 4)
-		e1000_ksp3_port_a = 0;
 
 	if (adapter->hw.mac_type >= e1000_82543) {
 		netdev->features = NETIF_F_SG |
@@ -913,7 +904,37 @@ e1000_probe(struct pci_dev *pdev,
 		break;
 	}
 	if (eeprom_data & eeprom_apme_mask)
-		adapter->wol |= E1000_WUFC_MAG;
+		adapter->eeprom_wol |= E1000_WUFC_MAG;
+
+	/* now that we have the eeprom settings, apply the special cases
+	 * where the eeprom may be wrong or the board simply won't support
+	 * wake on lan on a particular port */
+	switch (pdev->device) {
+	case E1000_DEV_ID_82546GB_PCIE:
+		adapter->eeprom_wol = 0;
+		break;
+	case E1000_DEV_ID_82546EB_FIBER:
+	case E1000_DEV_ID_82546GB_FIBER:
+	case E1000_DEV_ID_82571EB_FIBER:
+		/* Wake events only supported on port A for dual fiber
+		 * regardless of eeprom setting */
+		if (E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_FUNC_1)
+			adapter->eeprom_wol = 0;
+		break;
+	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
+		/* if quad port adapter, disable WoL on all but port A */
+		if (global_quad_port_a != 0)
+			adapter->eeprom_wol = 0;
+		else
+			adapter->quad_port_a = 1;
+		/* Reset for multiple quad port adapters */
+		if (++global_quad_port_a == 4)
+			global_quad_port_a = 0;
+		break;
+	}
+
+	/* initialize the wol settings based on the eeprom settings */
+	adapter->wol = adapter->eeprom_wol;
 
 	/* print bus type/speed/width info */
 	{
@@ -4635,7 +4656,7 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 		e1000_set_multi(netdev);
 
 		/* turn on all-multi mode if wake on multicast is enabled */
-		if (adapter->wol & E1000_WUFC_MC) {
+		if (wufc & E1000_WUFC_MC) {
 			rctl = E1000_READ_REG(&adapter->hw, RCTL);
 			rctl |= E1000_RCTL_MPE;
 			E1000_WRITE_REG(&adapter->hw, RCTL, rctl);

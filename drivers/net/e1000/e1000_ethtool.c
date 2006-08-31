@@ -1675,14 +1675,12 @@ e1000_diag_test(struct net_device *netdev,
 	msleep_interruptible(4 * 1000);
 }
 
-static void
-e1000_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+static int e1000_wol_exclusion(struct e1000_adapter *adapter, struct ethtool_wolinfo *wol)
 {
-	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	int retval = 1; /* fail by default */
 
-	switch (adapter->hw.device_id) {
-	case E1000_DEV_ID_82542:
+	switch (hw->device_id) {
 	case E1000_DEV_ID_82543GC_FIBER:
 	case E1000_DEV_ID_82543GC_COPPER:
 	case E1000_DEV_ID_82544EI_FIBER:
@@ -1690,52 +1688,86 @@ e1000_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	case E1000_DEV_ID_82545EM_FIBER:
 	case E1000_DEV_ID_82545EM_COPPER:
 	case E1000_DEV_ID_82546GB_QUAD_COPPER:
+	case E1000_DEV_ID_82546GB_PCIE:
+		/* these don't support WoL at all */
 		wol->supported = 0;
-		wol->wolopts   = 0;
+		break;
+	case E1000_DEV_ID_82546EB_FIBER:
+	case E1000_DEV_ID_82546GB_FIBER:
+	case E1000_DEV_ID_82571EB_FIBER:
+	case E1000_DEV_ID_82571EB_SERDES:
+	case E1000_DEV_ID_82571EB_COPPER:
+		/* Wake events not supported on port B */
+		if (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1) {
+			wol->supported = 0;
+			break;
+		}
+		/* return success for non excluded adapter ports */
+		retval = 0;
+		break;
+	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
+		/* quad port adapters only support WoL on port A */
+		if (!adapter->quad_port_a) {
+			wol->supported = 0;
+			break;
+		}
+		/* return success for non excluded adapter ports */
+		retval = 0;
+		break;
+	default:
+		/* dual port cards only support WoL on port A from now on
+		 * unless it was enabled in the eeprom for port B
+		 * so exclude FUNC_1 ports from having WoL enabled */
+		if (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1 &&
+		    !adapter->eeprom_wol) {
+			wol->supported = 0;
+			break;
+		}
+
+		retval = 0;
+	}
+
+	return retval;
+}
+
+static void
+e1000_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+
+	wol->supported = WAKE_UCAST | WAKE_MCAST |
+	                 WAKE_BCAST | WAKE_MAGIC;
+	wol->wolopts = 0;
+
+	/* this function will set ->supported = 0 and return 1 if wol is not
+	 * supported by this hardware */
+	if (e1000_wol_exclusion(adapter, wol))
 		return;
 
+	/* apply any specific unsupported masks here */
+	switch (adapter->hw.device_id) {
 	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
-		/* device id 10B5 port-A supports wol */
-		if (!adapter->ksp3_port_a) {
-			wol->supported = 0;
-			return;
-		}
-		/* KSP3 does not suppport UCAST wake-ups for any interface */
-		wol->supported = WAKE_MCAST | WAKE_BCAST | WAKE_MAGIC;
+		/* KSP3 does not suppport UCAST wake-ups */
+		wol->supported &= ~WAKE_UCAST;
 
 		if (adapter->wol & E1000_WUFC_EX)
 			DPRINTK(DRV, ERR, "Interface does not support "
 		        "directed (unicast) frame wake-up packets\n");
-		wol->wolopts = 0;
-		goto do_defaults;
-
-	case E1000_DEV_ID_82546EB_FIBER:
-	case E1000_DEV_ID_82546GB_FIBER:
-	case E1000_DEV_ID_82571EB_FIBER:
-		/* Wake events only supported on port A for dual fiber */
-		if (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1) {
-			wol->supported = 0;
-			wol->wolopts   = 0;
-			return;
-		}
-		/* Fall Through */
-
+		break;
 	default:
-		wol->supported = WAKE_UCAST | WAKE_MCAST |
-				 WAKE_BCAST | WAKE_MAGIC;
-		wol->wolopts = 0;
-
-do_defaults:
-		if (adapter->wol & E1000_WUFC_EX)
-			wol->wolopts |= WAKE_UCAST;
-		if (adapter->wol & E1000_WUFC_MC)
-			wol->wolopts |= WAKE_MCAST;
-		if (adapter->wol & E1000_WUFC_BC)
-			wol->wolopts |= WAKE_BCAST;
-		if (adapter->wol & E1000_WUFC_MAG)
-			wol->wolopts |= WAKE_MAGIC;
-		return;
+		break;
 	}
+
+	if (adapter->wol & E1000_WUFC_EX)
+		wol->wolopts |= WAKE_UCAST;
+	if (adapter->wol & E1000_WUFC_MC)
+		wol->wolopts |= WAKE_MCAST;
+	if (adapter->wol & E1000_WUFC_BC)
+		wol->wolopts |= WAKE_BCAST;
+	if (adapter->wol & E1000_WUFC_MAG)
+		wol->wolopts |= WAKE_MAGIC;
+
+	return;
 }
 
 static int
@@ -1744,51 +1776,35 @@ e1000_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	switch (adapter->hw.device_id) {
-	case E1000_DEV_ID_82542:
-	case E1000_DEV_ID_82543GC_FIBER:
-	case E1000_DEV_ID_82543GC_COPPER:
-	case E1000_DEV_ID_82544EI_FIBER:
-	case E1000_DEV_ID_82546EB_QUAD_COPPER:
-	case E1000_DEV_ID_82546GB_QUAD_COPPER:
-	case E1000_DEV_ID_82545EM_FIBER:
-	case E1000_DEV_ID_82545EM_COPPER:
+	if (wol->wolopts & (WAKE_PHY | WAKE_ARP | WAKE_MAGICSECURE))
+		return -EOPNOTSUPP;
+
+	if (e1000_wol_exclusion(adapter, wol))
 		return wol->wolopts ? -EOPNOTSUPP : 0;
 
+	switch (hw->device_id) {
 	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
-		/* device id 10B5 port-A supports wol */
-		if (!adapter->ksp3_port_a)
-			return wol->wolopts ? -EOPNOTSUPP : 0;
-
 		if (wol->wolopts & WAKE_UCAST) {
 			DPRINTK(DRV, ERR, "Interface does not support "
 		        "directed (unicast) frame wake-up packets\n");
 			return -EOPNOTSUPP;
 		}
-
-	case E1000_DEV_ID_82546EB_FIBER:
-	case E1000_DEV_ID_82546GB_FIBER:
-	case E1000_DEV_ID_82571EB_FIBER:
-		/* Wake events only supported on port A for dual fiber */
-		if (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)
-			return wol->wolopts ? -EOPNOTSUPP : 0;
-		/* Fall Through */
-
+		break;
 	default:
-		if (wol->wolopts & (WAKE_PHY | WAKE_ARP | WAKE_MAGICSECURE))
-			return -EOPNOTSUPP;
-
-		adapter->wol = 0;
-
-		if (wol->wolopts & WAKE_UCAST)
-			adapter->wol |= E1000_WUFC_EX;
-		if (wol->wolopts & WAKE_MCAST)
-			adapter->wol |= E1000_WUFC_MC;
-		if (wol->wolopts & WAKE_BCAST)
-			adapter->wol |= E1000_WUFC_BC;
-		if (wol->wolopts & WAKE_MAGIC)
-			adapter->wol |= E1000_WUFC_MAG;
+		break;
 	}
+
+	/* these settings will always override what we currently have */
+	adapter->wol = 0;
+
+	if (wol->wolopts & WAKE_UCAST)
+		adapter->wol |= E1000_WUFC_EX;
+	if (wol->wolopts & WAKE_MCAST)
+		adapter->wol |= E1000_WUFC_MC;
+	if (wol->wolopts & WAKE_BCAST)
+		adapter->wol |= E1000_WUFC_BC;
+	if (wol->wolopts & WAKE_MAGIC)
+		adapter->wol |= E1000_WUFC_MAG;
 
 	return 0;
 }

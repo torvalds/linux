@@ -246,7 +246,6 @@ struct e1000_adapter {
 	uint32_t bd_number;
 	uint32_t rx_buffer_len;
 	uint32_t wol;
-	uint32_t ksp3_port_a;
 	uint32_t smartspeed;
 	uint32_t en_mng_pt;
 	uint16_t link_speed;
@@ -341,7 +340,9 @@ struct e1000_adapter {
 	boolean_t tso_force;
 #endif
 	boolean_t smart_power_down;	/* phy smart power down */
+	boolean_t quad_port_a;
 	unsigned long flags;
+	uint32_t eeprom_wol;
 };
 
 enum e1000_state_t {
