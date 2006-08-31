@@ -132,6 +132,10 @@
 #define AUDIT_CLASS_DIR_WRITE_32 1
 #define AUDIT_CLASS_CHATTR 2
 #define AUDIT_CLASS_CHATTR_32 3
+#define AUDIT_CLASS_READ 4
+#define AUDIT_CLASS_READ_32 5
+#define AUDIT_CLASS_WRITE 6
+#define AUDIT_CLASS_WRITE_32 7
 
 /* This bitmask is used to validate user input.  It represents all bits that
  * are currently used in an audit field constant understood by the kernel.
