@@ -213,12 +213,8 @@ static void iscsi_get_ctask(struct iscsi_cmd_task *ctask)
 
 static void __iscsi_put_ctask(struct iscsi_cmd_task *ctask)
 {
-	struct iscsi_conn *conn = ctask->conn;
-
-	if (atomic_dec_and_test(&ctask->refcount)) {
-		conn->session->tt->cleanup_cmd_task(conn, ctask);
+	if (atomic_dec_and_test(&ctask->refcount))
 		iscsi_complete_command(ctask);
-	}
 }
 
 static void iscsi_put_ctask(struct iscsi_cmd_task *ctask)
@@ -1129,10 +1125,13 @@ static void fail_command(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	sc = ctask->sc;
 	if (!sc)
 		return;
+
+	conn->session->tt->cleanup_cmd_task(conn, ctask);
 	iscsi_ctask_mtask_cleanup(ctask);
 
 	sc->result = err;
 	sc->resid = sc->request_bufflen;
+	/* release ref from queuecommand */
 	__iscsi_put_ctask(ctask);
 }
 
