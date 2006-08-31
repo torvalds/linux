@@ -35,14 +35,14 @@
 
 /* types */
 
-typedef enum {
+enum s3c2410_dma_state {
 	S3C2410_DMA_IDLE,
 	S3C2410_DMA_RUNNING,
 	S3C2410_DMA_PAUSED
-} s3c2410_dma_state_t;
+};
 
 
-/* s3c2410_dma_loadst_t
+/* enum s3c2410_dma_loadst
  *
  * This represents the state of the DMA engine, wrt to the loaded / running
  * transfers. Since we don't have any way of knowing exactly the state of
@@ -70,34 +70,32 @@ typedef enum {
  * currently running.
 */
 
-typedef enum {
+enum s3c2410_dma_loadst {
 	S3C2410_DMALOAD_NONE,
 	S3C2410_DMALOAD_1LOADED,
 	S3C2410_DMALOAD_1RUNNING,
 	S3C2410_DMALOAD_1LOADED_1RUNNING,
-} s3c2410_dma_loadst_t;
+};
 
-typedef enum {
+enum s3c2410_dma_buffresult {
 	S3C2410_RES_OK,
 	S3C2410_RES_ERR,
 	S3C2410_RES_ABORT
-} s3c2410_dma_buffresult_t;
+};
 
 
-typedef enum s3c2410_dmasrc_e s3c2410_dmasrc_t;
-
-enum s3c2410_dmasrc_e {
+enum s3c2410_dmasrc {
 	S3C2410_DMASRC_HW,      /* source is memory */
 	S3C2410_DMASRC_MEM      /* source is hardware */
 };
 
-/* enum s3c2410_chan_op_e
+/* enum s3c2410_chan_op
  *
  * operation codes passed to the DMA code by the user, and also used
  * to inform the current channel owner of any changes to the system state
 */
 
-enum s3c2410_chan_op_e {
+enum s3c2410_chan_op {
 	S3C2410_DMAOP_START,
 	S3C2410_DMAOP_STOP,
 	S3C2410_DMAOP_PAUSE,
@@ -107,8 +105,6 @@ enum s3c2410_chan_op_e {
 	S3C2410_DMAOP_STARTED,		/* indicate channel started */
 };
 
-typedef enum s3c2410_chan_op_e s3c2410_chan_op_t;
-
 /* flags */
 
 #define S3C2410_DMAF_SLOW         (1<<0)   /* slow, so don't worry about
@@ -117,13 +113,9 @@ typedef enum s3c2410_chan_op_e s3c2410_chan_op_t;
 
 /* dma buffer */
 
-typedef struct s3c2410_dma_buf_s s3c2410_dma_buf_t;
-
 struct s3c2410_dma_client {
 	char                *name;
 };
-
-typedef struct s3c2410_dma_client s3c2410_dma_client_t;
 
 /* s3c2410_dma_buf_s
  *
@@ -131,8 +123,9 @@ typedef struct s3c2410_dma_client s3c2410_dma_client_t;
  * buffer.
 */
 
-struct s3c2410_dma_buf_s {
-	s3c2410_dma_buf_t   *next;
+struct s3c2410_dma_buf;
+struct s3c2410_dma_buf {
+	struct s3c2410_dma_buf   *next;
 	int                  magic;        /* magic */
 	int                  size;         /* buffer size in bytes */
 	dma_addr_t           data;         /* start of DMA data */
@@ -142,20 +135,21 @@ struct s3c2410_dma_buf_s {
 
 /* [1] is this updated for both recv/send modes? */
 
-typedef struct s3c2410_dma_chan_s s3c2410_dma_chan_t;
+struct s3c2410_dma_chan;
 
 /* s3c2410_dma_cbfn_t
  *
  * buffer callback routine type
 */
 
-typedef void (*s3c2410_dma_cbfn_t)(s3c2410_dma_chan_t *, void *buf, int size,
-				   s3c2410_dma_buffresult_t result);
+typedef void (*s3c2410_dma_cbfn_t)(struct s3c2410_dma_chan *,
+				   void *buf, int size,
+				   enum s3c2410_dma_buffresult result);
 
-typedef int  (*s3c2410_dma_opfn_t)(s3c2410_dma_chan_t *,
-				   s3c2410_chan_op_t );
+typedef int  (*s3c2410_dma_opfn_t)(struct s3c2410_dma_chan *,
+				   enum s3c2410_chan_op );
 
-struct s3c2410_dma_stats_s {
+struct s3c2410_dma_stats {
 	unsigned long          loads;
 	unsigned long          timeout_longest;
 	unsigned long          timeout_shortest;
@@ -163,14 +157,12 @@ struct s3c2410_dma_stats_s {
 	unsigned long          timeout_failed;
 };
 
-typedef struct s3c2410_dma_stats_s s3c2410_dma_stats_t;
-
-/* struct s3c2410_dma_chan_s
+/* struct s3c2410_dma_chan
  *
  * full state information for each DMA channel
 */
 
-struct s3c2410_dma_chan_s {
+struct s3c2410_dma_chan {
 	/* channel state flags and information */
 	unsigned char          number;      /* number of this dma channel */
 	unsigned char          in_use;      /* channel allocated */
@@ -180,12 +172,12 @@ struct s3c2410_dma_chan_s {
 
 	/* channel state */
 
-	s3c2410_dma_state_t    state;
-	s3c2410_dma_loadst_t   load_state;
-	s3c2410_dma_client_t  *client;
+	enum s3c2410_dma_state    state;
+	enum s3c2410_dma_loadst   load_state;
+	struct s3c2410_dma_client  *client;
 
 	/* channel configuration */
-	s3c2410_dmasrc_t       source;
+	enum s3c2410_dmasrc       source;
 	unsigned long          dev_addr;
 	unsigned long          load_timeout;
 	unsigned int           flags;        /* channel flags */
@@ -201,20 +193,20 @@ struct s3c2410_dma_chan_s {
 	s3c2410_dma_opfn_t     op_fn;        /* channel operation callback */
 
 	/* stats gathering */
-	s3c2410_dma_stats_t   *stats;
-	s3c2410_dma_stats_t    stats_store;
+	struct s3c2410_dma_stats   *stats;
+	struct s3c2410_dma_stats    stats_store;
 
 	/* buffer list and information */
-	s3c2410_dma_buf_t      *curr;        /* current dma buffer */
-	s3c2410_dma_buf_t      *next;        /* next buffer to load */
-	s3c2410_dma_buf_t      *end;         /* end of queue */
+	struct s3c2410_dma_buf      *curr;        /* current dma buffer */
+	struct s3c2410_dma_buf      *next;        /* next buffer to load */
+	struct s3c2410_dma_buf      *end;         /* end of queue */
 
 	/* system device */
 	struct sys_device	dev;
 };
 
 /* the currently allocated channel information */
-extern s3c2410_dma_chan_t s3c2410_chans[];
+extern struct s3c2410_dma_chan s3c2410_chans[];
 
 /* note, we don't really use dma_device_t at the moment */
 typedef unsigned long dma_device_t;
@@ -227,7 +219,7 @@ typedef unsigned long dma_device_t;
 */
 
 extern int s3c2410_dma_request(dmach_t channel,
-			       s3c2410_dma_client_t *, void *dev);
+			       struct s3c2410_dma_client *, void *dev);
 
 
 /* s3c2410_dma_ctrl
@@ -235,7 +227,7 @@ extern int s3c2410_dma_request(dmach_t channel,
  * change the state of the dma channel
 */
 
-extern int s3c2410_dma_ctrl(dmach_t channel, s3c2410_chan_op_t op);
+extern int s3c2410_dma_ctrl(dmach_t channel, enum s3c2410_chan_op op);
 
 /* s3c2410_dma_setflags
  *
@@ -250,7 +242,7 @@ extern int s3c2410_dma_setflags(dmach_t channel,
  * free the dma channel (will also abort any outstanding operations)
 */
 
-extern int s3c2410_dma_free(dmach_t channel, s3c2410_dma_client_t *);
+extern int s3c2410_dma_free(dmach_t channel, struct s3c2410_dma_client *);
 
 /* s3c2410_dma_enqueue
  *
@@ -274,7 +266,7 @@ extern int s3c2410_dma_config(dmach_t channel, int xferunit, int dcon);
  * configure the device we're talking to
 */
 
-extern int s3c2410_dma_devconfig(int channel, s3c2410_dmasrc_t source,
+extern int s3c2410_dma_devconfig(int channel, enum s3c2410_dmasrc source,
 				 int hwcfg, unsigned long devaddr);
 
 /* s3c2410_dma_getposition
