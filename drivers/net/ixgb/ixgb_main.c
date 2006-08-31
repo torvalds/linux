@@ -1974,7 +1974,6 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 			    netdev_alloc_skb(netdev, length + NET_IP_ALIGN);
 			if (new_skb) {
 				skb_reserve(new_skb, NET_IP_ALIGN);
-				new_skb->dev = netdev;
 				memcpy(new_skb->data - NET_IP_ALIGN,
 				       skb->data - NET_IP_ALIGN,
 				       length + NET_IP_ALIGN);
@@ -2054,14 +2053,14 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter)
 	/* leave three descriptors unused */
 	while(--cleancount > 2) {
 		/* recycle! its good for you */
-		if (!(skb = buffer_info->skb))
-			skb = netdev_alloc_skb(netdev, adapter->rx_buffer_len
-			                    + NET_IP_ALIGN);
-		else {
+		skb = buffer_info->skb;
+		if (skb) {
 			skb_trim(skb, 0);
 			goto map_skb;
 		}
 
+		skb = netdev_alloc_skb(netdev, adapter->rx_buffer_len
+			               + NET_IP_ALIGN);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			adapter->alloc_rx_buff_failed++;
@@ -2073,8 +2072,6 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter)
 		 * the 14 byte MAC header is removed
 		 */
 		skb_reserve(skb, NET_IP_ALIGN);
-
-		skb->dev = netdev;
 
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
