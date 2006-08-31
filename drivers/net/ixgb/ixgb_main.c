@@ -1174,6 +1174,7 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	int err;
 
 	if (likely(skb_is_gso(skb))) {
+		struct ixgb_buffer *buffer_info;
 		if (skb_header_cloned(skb)) {
 			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 			if (err)
@@ -1196,6 +1197,8 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 
 		i = adapter->tx_ring.next_to_use;
 		context_desc = IXGB_CONTEXT_DESC(adapter->tx_ring, i);
+		buffer_info = &adapter->tx_ring.buffer_info[i];
+		WARN_ON(buffer_info->dma != 0);
 
 		context_desc->ipcss = ipcss;
 		context_desc->ipcso = ipcso;
@@ -1233,11 +1236,14 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	uint8_t css, cso;
 
 	if(likely(skb->ip_summed == CHECKSUM_HW)) {
+		struct ixgb_buffer *buffer_info;
 		css = skb->h.raw - skb->data;
 		cso = (skb->h.raw + skb->csum) - skb->data;
 
 		i = adapter->tx_ring.next_to_use;
 		context_desc = IXGB_CONTEXT_DESC(adapter->tx_ring, i);
+		buffer_info = &adapter->tx_ring.buffer_info[i];
+		WARN_ON(buffer_info->dma != 0);
 
 		context_desc->tucss = css;
 		context_desc->tucso = cso;
@@ -1283,6 +1289,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 		buffer_info = &tx_ring->buffer_info[i];
 		size = min(len, IXGB_MAX_DATA_PER_TXD);
 		buffer_info->length = size;
+		WARN_ON(buffer_info->dma != 0);
 		buffer_info->dma =
 			pci_map_single(adapter->pdev,
 				skb->data + offset,
