@@ -31,23 +31,21 @@
 #define IN_PROGRESS_DDIGEST_RECV	0x3
 
 /* xmit state machine */
-#define	XMSTATE_IDLE			0x0
-#define	XMSTATE_R_HDR			0x1
-#define	XMSTATE_W_HDR			0x2
-#define	XMSTATE_IMM_HDR			0x4
-#define	XMSTATE_IMM_DATA		0x8
-#define	XMSTATE_UNS_INIT		0x10
-#define	XMSTATE_UNS_HDR			0x20
-#define	XMSTATE_UNS_DATA		0x40
-#define	XMSTATE_SOL_HDR			0x80
-#define	XMSTATE_SOL_DATA		0x100
-#define	XMSTATE_W_PAD			0x200
-#define XMSTATE_DATA_DIGEST		0x400
+#define XMSTATE_IDLE			0x0
+#define XMSTATE_R_HDR			0x1
+#define XMSTATE_W_HDR			0x2
+#define XMSTATE_IMM_HDR			0x4
+#define XMSTATE_IMM_DATA		0x8
+#define XMSTATE_UNS_INIT		0x10
+#define XMSTATE_UNS_HDR			0x20
+#define XMSTATE_UNS_DATA		0x40
+#define XMSTATE_SOL_HDR			0x80
+#define XMSTATE_SOL_DATA		0x100
+#define XMSTATE_W_PAD			0x200
+#define XMSTATE_W_RESEND_PAD		0x400
+#define XMSTATE_W_RESEND_DATA_DIGEST	0x800
 
-#define ISCSI_CONN_RCVBUF_MIN		262144
-#define ISCSI_CONN_SNDBUF_MIN		262144
 #define ISCSI_PAD_LEN			4
-#define ISCSI_R2T_MAX			16
 #define ISCSI_SG_TABLESIZE		SG_ALL
 #define ISCSI_TCP_MAX_CMD_LEN		16
 
@@ -162,13 +160,10 @@ struct iscsi_tcp_cmd_task {
 	struct iscsi_queue	r2tpool;
 	struct kfifo		*r2tqueue;
 	struct iscsi_r2t_info	**r2ts;
-	uint32_t		datadigest;		/* for recover digest */
 	int			digest_count;
 	uint32_t		immdigest;		/* for imm data */
 	struct iscsi_buf	immbuf;			/* for imm data digest */
-	struct iscsi_data_task	*dtask;		/* data task in progress*/
 	struct iscsi_data_task	unsol_dtask;	/* unsol data task */
-	int			digest_offset;	/* for partial buff digest */
 };
 
 #endif /* ISCSI_H */

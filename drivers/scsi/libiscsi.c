@@ -325,6 +325,30 @@ static void iscsi_tmf_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 	wake_up(&conn->ehwait);
 }
 
+static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
+			       char *data, int datalen)
+{
+	struct iscsi_reject *reject = (struct iscsi_reject *)hdr;
+	struct iscsi_hdr rejected_pdu;
+	uint32_t itt;
+
+	conn->exp_statsn = be32_to_cpu(reject->statsn) + 1;
+
+	if (reject->reason == ISCSI_REASON_DATA_DIGEST_ERROR) {
+		if (ntoh24(reject->dlength) > datalen)
+			return ISCSI_ERR_PROTO;
+
+		if (ntoh24(reject->dlength) >= sizeof(struct iscsi_hdr)) {
+			memcpy(&rejected_pdu, data, sizeof(struct iscsi_hdr));
+			itt = rejected_pdu.itt & ISCSI_ITT_MASK;
+			printk(KERN_ERR "itt 0x%x had pdu (op 0x%x) rejected "
+				"due to DataDigest error.\n", itt,
+				rejected_pdu.opcode);
+		}
+	}
+	return 0;
+}
+
 /**
  * __iscsi_complete_pdu - complete pdu
  * @conn: iscsi conn
@@ -436,17 +460,17 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			break;
 		}
 	} else if (itt == ISCSI_RESERVED_TAG) {
+		rc = iscsi_check_assign_cmdsn(session,
+					     (struct iscsi_nopin*)hdr);
+		if (rc)
+			goto done;
+
 		switch(opcode) {
 		case ISCSI_OP_NOOP_IN:
 			if (datalen) {
 				rc = ISCSI_ERR_PROTO;
 				break;
 			}
-
-			rc = iscsi_check_assign_cmdsn(session,
-						 (struct iscsi_nopin*)hdr);
-			if (rc)
-				break;
 
 			if (hdr->ttt == ISCSI_RESERVED_TAG)
 				break;
@@ -455,7 +479,8 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 				rc = ISCSI_ERR_CONN_FAILED;
 			break;
 		case ISCSI_OP_REJECT:
-			/* we need sth like iscsi_reject_rsp()*/
+			rc = iscsi_handle_reject(conn, hdr, data, datalen);
+			break;
 		case ISCSI_OP_ASYNC_EVENT:
 			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
 			/* we need sth like iscsi_async_event_rsp() */
