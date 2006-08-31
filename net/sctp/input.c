@@ -228,7 +228,7 @@ int sctp_rcv(struct sk_buff *skb)
 		goto discard_release;
 	nf_reset(skb);
 
-	if (sk_filter(sk, skb, 1))
+	if (sk_filter(sk, skb))
                 goto discard_release;
 
 	/* Create an SCTP packet structure. */

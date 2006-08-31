@@ -862,30 +862,24 @@ extern void sock_init_data(struct socket *sock, struct sock *sk);
  *
  */
 
-static inline int sk_filter(struct sock *sk, struct sk_buff *skb, int needlock)
+static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
 {
 	int err;
+	struct sk_filter *filter;
 	
 	err = security_sock_rcv_skb(sk, skb);
 	if (err)
 		return err;
 	
-	if (sk->sk_filter) {
-		struct sk_filter *filter;
-		
-		if (needlock)
-			bh_lock_sock(sk);
-		
-		filter = sk->sk_filter;
-		if (filter) {
-			unsigned int pkt_len = sk_run_filter(skb, filter->insns,
-							     filter->len);
-			err = pkt_len ? pskb_trim(skb, pkt_len) : -EPERM;
-		}
-
-		if (needlock)
-			bh_unlock_sock(sk);
+	rcu_read_lock_bh();
+	filter = sk->sk_filter;
+	if (filter) {
+		unsigned int pkt_len = sk_run_filter(skb, filter->insns,
+				filter->len);
+		err = pkt_len ? pskb_trim(skb, pkt_len) : -EPERM;
 	}
+ 	rcu_read_unlock_bh();
+
 	return err;
 }
 
@@ -897,6 +891,12 @@ static inline int sk_filter(struct sock *sk, struct sk_buff *skb, int needlock)
  *	Remove a filter from a socket and release its resources.
  */
  
+static inline void sk_filter_rcu_free(struct rcu_head *rcu)
+{
+	struct sk_filter *fp = container_of(rcu, struct sk_filter, rcu);
+	kfree(fp);
+}
+
 static inline void sk_filter_release(struct sock *sk, struct sk_filter *fp)
 {
 	unsigned int size = sk_filter_len(fp);
@@ -904,7 +904,7 @@ static inline void sk_filter_release(struct sock *sk, struct sk_filter *fp)
 	atomic_sub(size, &sk->sk_omem_alloc);
 
 	if (atomic_dec_and_test(&fp->refcnt))
-		kfree(fp);
+		call_rcu_bh(&fp->rcu, sk_filter_rcu_free);
 }
 
 static inline void sk_filter_charge(struct sock *sk, struct sk_filter *fp)

@@ -970,7 +970,7 @@ static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	if (skb->protocol == htons(ETH_P_IP))
 		return dccp_v4_do_rcv(sk, skb);
 
-	if (sk_filter(sk, skb, 0))
+	if (sk_filter(sk, skb))
 		goto discard;
 
 	/*

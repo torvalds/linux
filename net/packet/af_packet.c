@@ -427,21 +427,24 @@ out_unlock:
 }
 #endif
 
-static inline unsigned run_filter(struct sk_buff *skb, struct sock *sk, unsigned res)
+static inline int run_filter(struct sk_buff *skb, struct sock *sk,
+							unsigned *snaplen)
 {
 	struct sk_filter *filter;
+	int err = 0;
 
-	bh_lock_sock(sk);
-	filter = sk->sk_filter;
-	/*
-	 * Our caller already checked that filter != NULL but we need to
-	 * verify that under bh_lock_sock() to be safe
-	 */
-	if (likely(filter != NULL))
-		res = sk_run_filter(skb, filter->insns, filter->len);
-	bh_unlock_sock(sk);
+	rcu_read_lock_bh();
+	filter = rcu_dereference(sk->sk_filter);
+	if (filter != NULL) {
+		err = sk_run_filter(skb, filter->insns, filter->len);
+		if (!err)
+			err = -EPERM;
+		else if (*snaplen > err)
+			*snaplen = err;
+	}
+	rcu_read_unlock_bh();
 
-	return res;
+	return err;
 }
 
 /*
@@ -491,13 +494,8 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 
 	snaplen = skb->len;
 
-	if (sk->sk_filter) {
-		unsigned res = run_filter(skb, sk, snaplen);
-		if (res == 0)
-			goto drop_n_restore;
-		if (snaplen > res)
-			snaplen = res;
-	}
+	if (run_filter(skb, sk, &snaplen) < 0)
+		goto drop_n_restore;
 
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
 	    (unsigned)sk->sk_rcvbuf)
@@ -593,13 +591,8 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 
 	snaplen = skb->len;
 
-	if (sk->sk_filter) {
-		unsigned res = run_filter(skb, sk, snaplen);
-		if (res == 0)
-			goto drop_n_restore;
-		if (snaplen > res)
-			snaplen = res;
-	}
+	if (run_filter(skb, sk, &snaplen) < 0)
+		goto drop_n_restore;
 
 	if (sk->sk_type == SOCK_DGRAM) {
 		macoff = netoff = TPACKET_ALIGN(TPACKET_HDRLEN) + 16;

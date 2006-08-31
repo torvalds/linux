@@ -25,10 +25,10 @@
  
 struct sock_filter	/* Filter block */
 {
-        __u16	code;   /* Actual filter code */
-        __u8	jt;	/* Jump true */
-        __u8	jf;	/* Jump false */
-        __u32	k;      /* Generic multiuse field */
+	__u16	code;   /* Actual filter code */
+	__u8	jt;	/* Jump true */
+	__u8	jf;	/* Jump false */
+	__u32	k;      /* Generic multiuse field */
 };
 
 struct sock_fprog	/* Required for SO_ATTACH_FILTER. */
@@ -41,8 +41,9 @@ struct sock_fprog	/* Required for SO_ATTACH_FILTER. */
 struct sk_filter
 {
 	atomic_t		refcnt;
-        unsigned int         	len;	/* Number of filter blocks */
-        struct sock_filter     	insns[0];
+	unsigned int         	len;	/* Number of filter blocks */
+	struct rcu_head		rcu;
+	struct sock_filter     	insns[0];
 };
 
 static inline unsigned int sk_filter_len(struct sk_filter *fp)
