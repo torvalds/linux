@@ -334,7 +334,7 @@ static int bcm43xx_wx_get_nick(struct net_device *net_dev,
 	size_t len;
 
 	mutex_lock(&bcm->mutex);
-	len = strlen(bcm->nick) + 1;
+	len = strlen(bcm->nick);
 	memcpy(extra, bcm->nick, len);
 	data->data.length = (__u16)len;
 	data->data.flags = 1;
