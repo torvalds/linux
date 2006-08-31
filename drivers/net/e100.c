@@ -2791,6 +2791,7 @@ static pci_ers_result_t e100_io_error_detected(struct pci_dev *pdev, pci_channel
 	/* Detach; put netif into state similar to hotplug unplug. */
 	netif_poll_enable(netdev);
 	netif_device_detach(netdev);
+	pci_disable_device(pdev);
 
 	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
