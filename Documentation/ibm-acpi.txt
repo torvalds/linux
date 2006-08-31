@@ -53,40 +53,7 @@ Installation
 
 If you are compiling this driver as included in the Linux kernel
 sources, simply enable the CONFIG_ACPI_IBM option (Power Management /
-ACPI / IBM ThinkPad Laptop Extras). The rest of this section describes
-how to install this driver when downloaded from the web site.
-
-First, you need to get a kernel with ACPI support up and running.
-Please refer to http://acpi.sourceforge.net/ for help with this
-step. How successful you will be depends a lot on you ThinkPad model,
-the kernel you are using and any additional patches applied. The
-kernel provided with your distribution may not be good enough. I
-needed to compile a 2.6.7 kernel with the 20040715 ACPI patch to get
-ACPI working reliably on my ThinkPad X40. Old ThinkPad models may not
-be supported at all.
-
-Assuming you have the basic ACPI support working (e.g. you can see the
-/proc/acpi directory), follow the following steps to install this
-driver:
-
-	- unpack the archive:
-
-		tar xzvf ibm-acpi-x.y.tar.gz; cd ibm-acpi-x.y
-
-	- compile the driver:
-
-		make
-
-	- install the module in your kernel modules directory:
-
-		make install
-
-	- load the module:
-
-		modprobe ibm_acpi
-
-After loading the module, check the "dmesg" output for any error messages.
-
+ACPI / IBM ThinkPad Laptop Extras).
 
 Features
 --------
