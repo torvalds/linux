@@ -47,6 +47,7 @@ obj-$(CONFIG_VIDEO_VPX3220) += vpx3220.o
 obj-$(CONFIG_VIDEO_BT819) += bt819.o
 obj-$(CONFIG_VIDEO_BT856) += bt856.o
 obj-$(CONFIG_VIDEO_BT866) += bt866.o
+obj-$(CONFIG_VIDEO_KS0127) += ks0127.o
 
 obj-$(CONFIG_VIDEO_ZORAN) += zr36067.o videocodec.o
 obj-$(CONFIG_VIDEO_ZORAN_DC30) += zr36050.o zr36016.o
