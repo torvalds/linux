@@ -268,13 +268,14 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex, struct in6_addr *addr)
 			if ((dev = dev_get_by_index(mc_lst->ifindex)) != NULL) {
 				struct inet6_dev *idev = in6_dev_get(dev);
 
+				(void) ip6_mc_leave_src(sk, mc_lst, idev);
 				if (idev) {
-					(void) ip6_mc_leave_src(sk,mc_lst,idev);
 					__ipv6_dev_mc_dec(idev, &mc_lst->addr);
 					in6_dev_put(idev);
 				}
 				dev_put(dev);
-			}
+			} else
+				(void) ip6_mc_leave_src(sk, mc_lst, NULL);
 			sock_kfree_s(sk, mc_lst, sizeof(*mc_lst));
 			return 0;
 		}
@@ -334,13 +335,14 @@ void ipv6_sock_mc_close(struct sock *sk)
 		if (dev) {
 			struct inet6_dev *idev = in6_dev_get(dev);
 
+			(void) ip6_mc_leave_src(sk, mc_lst, idev);
 			if (idev) {
-				(void) ip6_mc_leave_src(sk, mc_lst, idev);
 				__ipv6_dev_mc_dec(idev, &mc_lst->addr);
 				in6_dev_put(idev);
 			}
 			dev_put(dev);
-		}
+		} else
+			(void) ip6_mc_leave_src(sk, mc_lst, NULL);
 
 		sock_kfree_s(sk, mc_lst, sizeof(*mc_lst));
 

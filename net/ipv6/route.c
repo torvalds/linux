@@ -1532,6 +1532,10 @@ int ipv6_route_ioctl(unsigned int cmd, void __user *arg)
 
 static int ip6_pkt_discard(struct sk_buff *skb)
 {
+	int type = ipv6_addr_type(&skb->nh.ipv6h->daddr);
+	if (type == IPV6_ADDR_ANY || type == IPV6_ADDR_RESERVED)
+		IP6_INC_STATS(IPSTATS_MIB_INADDRERRORS);
+
 	IP6_INC_STATS(IPSTATS_MIB_OUTNOROUTES);
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_NOROUTE, 0, skb->dev);
 	kfree_skb(skb);

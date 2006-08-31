@@ -320,7 +320,8 @@ lpfc_sli_next_iotag(struct lpfc_hba * phba, struct lpfc_iocbq * iocbq)
 			kfree(old_arr);
 			return iotag;
 		}
-	}
+	} else
+		spin_unlock_irq(phba->host->host_lock);
 
 	lpfc_printf_log(phba, KERN_ERR,LOG_SLI,
 			"%d:0318 Failed to allocate IOTAG.last IOTAG is %d\n",
@@ -969,9 +970,11 @@ void lpfc_sli_poll_fcp_ring(struct lpfc_hba * phba)
 			 * resources need to be recovered.
 			 */
 			if (unlikely(irsp->ulpCommand == CMD_XRI_ABORTED_CX)) {
-				printk(KERN_INFO "%s: IOCB cmd 0x%x processed."
-				       " Skipping completion\n", __FUNCTION__,
-				       irsp->ulpCommand);
+				lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+						"%d:0314 IOCB cmd 0x%x"
+						" processed. Skipping"
+						" completion", phba->brd_no,
+						irsp->ulpCommand);
 				break;
 			}
 
@@ -1104,7 +1107,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 		if (unlikely(irsp->ulpStatus)) {
 			/* Rsp ring <ringno> error: IOCB */
 			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-				"%d:0326 Rsp Ring %d error: IOCB Data: "
+				"%d:0336 Rsp Ring %d error: IOCB Data: "
 				"x%x x%x x%x x%x x%x x%x x%x x%x\n",
 				phba->brd_no, pring->ringno,
 				irsp->un.ulpWord[0], irsp->un.ulpWord[1],
@@ -1122,9 +1125,11 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 			 * resources need to be recovered.
 			 */
 			if (unlikely(irsp->ulpCommand == CMD_XRI_ABORTED_CX)) {
-				printk(KERN_INFO "%s: IOCB cmd 0x%x processed. "
-				       "Skipping completion\n", __FUNCTION__,
-				       irsp->ulpCommand);
+				lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+						"%d:0333 IOCB cmd 0x%x"
+						" processed. Skipping"
+						" completion\n", phba->brd_no,
+						irsp->ulpCommand);
 				break;
 			}
 
@@ -1155,7 +1160,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 			} else {
 				/* Unknown IOCB command */
 				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"%d:0321 Unknown IOCB command "
+					"%d:0334 Unknown IOCB command "
 					"Data: x%x, x%x x%x x%x x%x\n",
 					phba->brd_no, type, irsp->ulpCommand,
 					irsp->ulpStatus, irsp->ulpIoTag,
@@ -1238,7 +1243,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 		lpfc_printf_log(phba,
 				KERN_ERR,
 				LOG_SLI,
-				"%d:0312 Ring %d handler: portRspPut %d "
+				"%d:0303 Ring %d handler: portRspPut %d "
 				"is bigger then rsp ring %d\n",
 				phba->brd_no,
 				pring->ringno, portRspPut, portRspMax);
@@ -1383,7 +1388,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 					lpfc_printf_log(phba,
 						KERN_ERR,
 						LOG_SLI,
-						"%d:0321 Unknown IOCB command "
+						"%d:0335 Unknown IOCB command "
 						"Data: x%x x%x x%x x%x\n",
 						phba->brd_no,
 						irsp->ulpCommand,
@@ -1399,11 +1404,11 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 								 next_iocb,
 								 &saveq->list,
 								 list) {
+						list_del(&rspiocbp->list);
 						lpfc_sli_release_iocbq(phba,
 								     rspiocbp);
 					}
 				}
-
 				lpfc_sli_release_iocbq(phba, saveq);
 			}
 		}
@@ -1711,15 +1716,13 @@ lpfc_sli_brdreset(struct lpfc_hba * phba)
 	phba->fc_myDID = 0;
 	phba->fc_prevDID = 0;
 
-	psli->sli_flag = 0;
-
 	/* Turn off parity checking and serr during the physical reset */
 	pci_read_config_word(phba->pcidev, PCI_COMMAND, &cfg_value);
 	pci_write_config_word(phba->pcidev, PCI_COMMAND,
 			      (cfg_value &
 			       ~(PCI_COMMAND_PARITY | PCI_COMMAND_SERR)));
 
-	psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+	psli->sli_flag &= ~(LPFC_SLI2_ACTIVE | LPFC_PROCESS_LA);
 	/* Now toggle INITFF bit in the Host Control Register */
 	writel(HC_INITFF, phba->HCregaddr);
 	mdelay(1);
@@ -1760,7 +1763,7 @@ lpfc_sli_brdrestart(struct lpfc_hba * phba)
 
 	/* Restart HBA */
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"%d:0328 Restart HBA Data: x%x x%x\n", phba->brd_no,
+			"%d:0337 Restart HBA Data: x%x x%x\n", phba->brd_no,
 			phba->hba_state, psli->sli_flag);
 
 	word0 = 0;
@@ -1791,6 +1794,9 @@ lpfc_sli_brdrestart(struct lpfc_hba * phba)
 	phba->hba_state = LPFC_INIT_START;
 
 	spin_unlock_irq(phba->host->host_lock);
+
+	memset(&psli->lnk_stat_offsets, 0, sizeof(psli->lnk_stat_offsets));
+	psli->stats_start = get_seconds();
 
 	if (skip_post)
 		mdelay(100);
@@ -1902,6 +1908,9 @@ lpfc_sli_hba_setup(struct lpfc_hba * phba)
 	}
 
 	while (resetcount < 2 && !done) {
+		spin_lock_irq(phba->host->host_lock);
+		phba->sli.sli_flag |= LPFC_SLI_MBOX_ACTIVE;
+		spin_unlock_irq(phba->host->host_lock);
 		phba->hba_state = LPFC_STATE_UNKNOWN;
 		lpfc_sli_brdrestart(phba);
 		msleep(2500);
@@ -1909,6 +1918,9 @@ lpfc_sli_hba_setup(struct lpfc_hba * phba)
 		if (rc)
 			break;
 
+		spin_lock_irq(phba->host->host_lock);
+		phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
+		spin_unlock_irq(phba->host->host_lock);
 		resetcount++;
 
 	/* Call pre CONFIG_PORT mailbox command initialization.  A value of 0
@@ -2194,7 +2206,8 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 			return (MBX_NOT_FINISHED);
 		}
 		/* timeout active mbox command */
-		mod_timer(&psli->mbox_tmo, jiffies + HZ * LPFC_MBOX_TMO);
+		mod_timer(&psli->mbox_tmo, (jiffies +
+			       (HZ * lpfc_mbox_tmo_val(phba, mb->mbxCommand))));
 	}
 
 	/* Mailbox cmd <cmd> issue */
@@ -2254,7 +2267,6 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 		break;
 
 	case MBX_POLL:
-		i = 0;
 		psli->mbox_active = NULL;
 		if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 			/* First read mbox status word */
@@ -2268,11 +2280,14 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 		/* Read the HBA Host Attention Register */
 		ha_copy = readl(phba->HAregaddr);
 
+		i = lpfc_mbox_tmo_val(phba, mb->mbxCommand);
+		i *= 1000; /* Convert to ms */
+
 		/* Wait for command to complete */
 		while (((word0 & OWN_CHIP) == OWN_CHIP) ||
 		       (!(ha_copy & HA_MBATT) &&
 			(phba->hba_state > LPFC_WARM_START))) {
-			if (i++ >= 100) {
+			if (i-- <= 0) {
 				psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 				spin_unlock_irqrestore(phba->host->host_lock,
 						       drvr_flag);
@@ -2290,7 +2305,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 
 			/* Can be in interrupt context, do not sleep */
 			/* (or might be called with interrupts disabled) */
-			mdelay(i);
+			mdelay(1);
 
 			spin_lock_irqsave(phba->host->host_lock, drvr_flag);
 
@@ -3005,7 +3020,7 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
 
 		if (timeleft == 0) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"%d:0329 IOCB wait timeout error - no "
+					"%d:0338 IOCB wait timeout error - no "
 					"wake response Data x%x\n",
 					phba->brd_no, timeout);
 			retval = IOCB_TIMEDOUT;

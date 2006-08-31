@@ -1557,6 +1557,8 @@ lpfc_freenode(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		}
 	}
+
+	spin_lock_irq(phba->host->host_lock);
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
@@ -1569,6 +1571,7 @@ lpfc_freenode(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 			mempool_free(mb, phba->mbox_mem_pool);
 		}
 	}
+	spin_unlock_irq(phba->host->host_lock);
 
 	lpfc_els_abort(phba,ndlp,0);
 	spin_lock_irq(phba->host->host_lock);
@@ -1782,7 +1785,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 				/* LOG change to REGLOGIN */
 				/* FIND node DID reglogin */
 				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0931 FIND node DID reglogin"
+						"%d:0901 FIND node DID reglogin"
 						" Data: x%p x%x x%x x%x\n",
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
@@ -1805,7 +1808,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 				/* LOG change to PRLI */
 				/* FIND node DID prli */
 				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0931 FIND node DID prli "
+						"%d:0902 FIND node DID prli "
 						"Data: x%p x%x x%x x%x\n",
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
@@ -1828,7 +1831,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 				/* LOG change to NPR */
 				/* FIND node DID npr */
 				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0931 FIND node DID npr "
+						"%d:0903 FIND node DID npr "
 						"Data: x%p x%x x%x x%x\n",
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
@@ -1851,7 +1854,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 				/* LOG change to UNUSED */
 				/* FIND node DID unused */
 				lpfc_printf_log(phba, KERN_INFO, LOG_NODE,
-						"%d:0931 FIND node DID unused "
+						"%d:0905 FIND node DID unused "
 						"Data: x%p x%x x%x x%x\n",
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
@@ -2335,7 +2338,7 @@ lpfc_disc_timeout_handler(struct lpfc_hba *phba)
 		initlinkmbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (!initlinkmbox) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-					"%d:0226 Device Discovery "
+					"%d:0206 Device Discovery "
 					"completion error\n",
 					phba->brd_no);
 			phba->hba_state = LPFC_HBA_ERROR;
@@ -2365,7 +2368,7 @@ lpfc_disc_timeout_handler(struct lpfc_hba *phba)
 		if (!clearlambox) {
 			clrlaerr = 1;
 			lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-					"%d:0226 Device Discovery "
+					"%d:0207 Device Discovery "
 					"completion error\n",
 					phba->brd_no);
 			phba->hba_state = LPFC_HBA_ERROR;

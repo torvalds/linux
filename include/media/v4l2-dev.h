@@ -16,7 +16,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/compiler.h> /* need __user */
-#ifdef CONFIG_VIDEO_V4L1
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 #include <linux/videodev.h>
 #else
 #include <linux/videodev2.h>

@@ -484,10 +484,8 @@ acpi_memory_register_notify_handler(acpi_handle handle,
 
 
 	status = is_memory_device(handle);
-	if (ACPI_FAILURE(status)){
-		ACPI_EXCEPTION((AE_INFO, status, "handle is no memory device"));
+	if (ACPI_FAILURE(status))
 		return AE_OK;	/* continue */
-	}
 
 	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
 					     acpi_memory_device_notify, NULL);
@@ -503,10 +501,8 @@ acpi_memory_deregister_notify_handler(acpi_handle handle,
 
 
 	status = is_memory_device(handle);
-	if (ACPI_FAILURE(status)){
-		ACPI_EXCEPTION((AE_INFO, status, "handle is no memory device"));
+	if (ACPI_FAILURE(status))
 		return AE_OK;	/* continue */
-	}
 
 	status = acpi_remove_notify_handler(handle,
 					    ACPI_SYSTEM_NOTIFY,

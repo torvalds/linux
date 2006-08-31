@@ -578,6 +578,8 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 	ifa->flags = flags | IFA_F_TENTATIVE;
 	ifa->cstamp = ifa->tstamp = jiffies;
 
+	ifa->rt = rt;
+
 	ifa->idev = idev;
 	in6_dev_hold(idev);
 	/* For caller */
@@ -602,8 +604,6 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 		in6_ifa_hold(ifa);
 	}
 #endif
-
-	ifa->rt = rt;
 
 	in6_ifa_hold(ifa);
 	write_unlock(&idev->lock);
@@ -1909,11 +1909,11 @@ static int inet6_addr_add(int ifindex, struct in6_addr *pfx, int plen,
 	ifp = ipv6_add_addr(idev, pfx, plen, scope, ifa_flags);
 
 	if (!IS_ERR(ifp)) {
-		spin_lock(&ifp->lock);
+		spin_lock_bh(&ifp->lock);
 		ifp->valid_lft = valid_lft;
 		ifp->prefered_lft = prefered_lft;
 		ifp->tstamp = jiffies;
-		spin_unlock(&ifp->lock);
+		spin_unlock_bh(&ifp->lock);
 
 		addrconf_dad_start(ifp, 0);
 		in6_ifa_put(ifp);

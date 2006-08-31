@@ -746,6 +746,16 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Waiting for semaphore[%p|%d|%d]\n",
 			  handle, units, timeout));
 
+	/*
+	 * This can be called during resume with interrupts off.
+	 * Like boot-time, we should be single threaded and will
+	 * always get the lock if we try -- timeout or not.
+	 * If this doesn't succeed, then we will oops courtesy of
+	 * might_sleep() in down().
+	 */
+	if (!down_trylock(sem))
+		return AE_OK;
+
 	switch (timeout) {
 		/*
 		 * No Wait:

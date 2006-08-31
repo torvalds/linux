@@ -1146,7 +1146,7 @@ static struct sbus_dev sun4_esp_dev;
 static int __init esp_sun4_probe(struct scsi_host_template *tpnt)
 {
 	if (sun4_esp_physaddr) {
-		memset(&sun4_esp_dev, 0, sizeof(esp_dev));
+		memset(&sun4_esp_dev, 0, sizeof(sun4_esp_dev));
 		sun4_esp_dev.reg_addrs[0].phys_addr = sun4_esp_physaddr;
 		sun4_esp_dev.irqs[0] = 4;
 		sun4_esp_dev.resource[0].start = sun4_esp_physaddr;
@@ -1162,6 +1162,7 @@ static int __init esp_sun4_probe(struct scsi_host_template *tpnt)
 
 static int __devexit esp_sun4_remove(void)
 {
+	struct of_device *dev = &sun4_esp_dev.ofdev;
 	struct esp *esp = dev_get_drvdata(&dev->dev);
 
 	return esp_remove_common(esp);

@@ -775,7 +775,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	if (EXT2_INODE_SIZE(sb) == 0)
 		goto cantfind_ext2;
 	sbi->s_inodes_per_block = sb->s_blocksize / EXT2_INODE_SIZE(sb);
-	if (sbi->s_inodes_per_block == 0)
+	if (sbi->s_inodes_per_block == 0 || sbi->s_inodes_per_group == 0)
 		goto cantfind_ext2;
 	sbi->s_itb_per_group = sbi->s_inodes_per_group /
 					sbi->s_inodes_per_block;

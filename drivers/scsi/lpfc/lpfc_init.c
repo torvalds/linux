@@ -1379,6 +1379,7 @@ lpfc_offline(struct lpfc_hba * phba)
 	/* stop all timers associated with this hba */
 	lpfc_stop_timer(phba);
 	phba->work_hba_events = 0;
+	phba->work_ha = 0;
 
 	lpfc_printf_log(phba,
 		       KERN_WARNING,
@@ -1616,7 +1617,11 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_free_iocbq;
 	}
 
-	/* We can rely on a queue depth attribute only after SLI HBA setup */
+	/*
+	 * Set initial can_queue value since 0 is no longer supported and
+	 * scsi_add_host will fail. This will be adjusted later based on the
+	 * max xri value determined in hba setup.
+	 */
 	host->can_queue = phba->cfg_hba_queue_depth - 10;
 
 	/* Tell the midlayer we support 16 byte commands */
@@ -1655,6 +1660,12 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		error = -ENODEV;
 		goto out_free_irq;
 	}
+
+	/*
+	 * hba setup may have changed the hba_queue_depth so we need to adjust
+	 * the value of can_queue.
+	 */
+	host->can_queue = phba->cfg_hba_queue_depth - 10;
 
 	lpfc_discovery_wait(phba);
 

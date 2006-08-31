@@ -172,6 +172,18 @@ struct lpfc_sli_stat {
 	uint32_t mbox_busy;	 /* Mailbox cmd busy */
 };
 
+/* Structure to store link status values when port stats are reset */
+struct lpfc_lnk_stat {
+	uint32_t link_failure_count;
+	uint32_t loss_of_sync_count;
+	uint32_t loss_of_signal_count;
+	uint32_t prim_seq_protocol_err_count;
+	uint32_t invalid_tx_word_count;
+	uint32_t invalid_crc_count;
+	uint32_t error_frames;
+	uint32_t link_events;
+};
+
 /* Structure used to hold SLI information */
 struct lpfc_sli {
 	uint32_t num_rings;
@@ -201,6 +213,8 @@ struct lpfc_sli {
 	struct lpfc_iocbq ** iocbq_lookup; /* array to lookup IOCB by IOTAG */
 	size_t iocbq_lookup_len;           /* current lengs of the array */
 	uint16_t  last_iotag;              /* last allocated IOTAG */
+	unsigned long  stats_start;        /* in seconds */
+	struct lpfc_lnk_stat lnk_stat_offsets;
 };
 
 /* Given a pointer to the start of the ring, and the slot number of
@@ -211,3 +225,9 @@ struct lpfc_sli {
 
 #define LPFC_MBOX_TMO           30	/* Sec tmo for outstanding mbox
 					   command */
+#define LPFC_MBOX_TMO_FLASH_CMD 300     /* Sec tmo for outstanding FLASH write
+					 * or erase cmds. This is especially
+					 * long because of the potential of
+					 * multiple flash erases that can be
+					 * spawned.
+					 */

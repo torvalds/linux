@@ -947,7 +947,7 @@ alloc_new_skb:
 				skb_prev->csum = csum_sub(skb_prev->csum,
 							  skb->csum);
 				data += fraggap;
-				skb_trim(skb_prev, maxfraglen);
+				pskb_trim_unique(skb_prev, maxfraglen);
 			}
 
 			copy = datalen - transhdrlen - fraggap;
@@ -1142,7 +1142,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 					data, fraggap, 0);
 				skb_prev->csum = csum_sub(skb_prev->csum,
 							  skb->csum);
-				skb_trim(skb_prev, maxfraglen);
+				pskb_trim_unique(skb_prev, maxfraglen);
 			}
 
 			/*

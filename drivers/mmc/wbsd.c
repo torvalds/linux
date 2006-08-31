@@ -41,7 +41,7 @@
 #include "wbsd.h"
 
 #define DRIVER_NAME "wbsd"
-#define DRIVER_VERSION "1.5"
+#define DRIVER_VERSION "1.6"
 
 #define DBG(x...) \
 	pr_debug(DRIVER_NAME ": " x)
@@ -1439,13 +1439,13 @@ static int __devinit wbsd_scan(struct wbsd_host *host)
 
 static int __devinit wbsd_request_region(struct wbsd_host *host, int base)
 {
-	if (io & 0x7)
+	if (base & 0x7)
 		return -EINVAL;
 
 	if (!request_region(base, 8, DRIVER_NAME))
 		return -EIO;
 
-	host->base = io;
+	host->base = base;
 
 	return 0;
 }
@@ -1773,7 +1773,7 @@ static int __devinit wbsd_init(struct device *dev, int base, int irq, int dma,
 	/*
 	 * Request resources.
 	 */
-	ret = wbsd_request_resources(host, io, irq, dma);
+	ret = wbsd_request_resources(host, base, irq, dma);
 	if (ret) {
 		wbsd_release_resources(host);
 		wbsd_free_mmc(dev);
@@ -1861,6 +1861,7 @@ static void __devexit wbsd_shutdown(struct device *dev, int pnp)
 
 static int __devinit wbsd_probe(struct platform_device *dev)
 {
+	/* Use the module parameters for resources */
 	return wbsd_init(&dev->dev, io, irq, dma, 0);
 }
 

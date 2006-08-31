@@ -82,10 +82,6 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 	}
 #endif
 
-	if (!irq_desc[irq].handle_irq) {
-		__do_IRQ(irq, regs);
-		goto out_exit;
-	}
 #ifdef CONFIG_4KSTACKS
 
 	curctx = (union irq_ctx *) current_thread_info();
@@ -125,7 +121,6 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 #endif
 		__do_IRQ(irq, regs);
 
-out_exit:
 	irq_exit();
 
 	return 1;

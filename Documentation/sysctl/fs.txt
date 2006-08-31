@@ -25,6 +25,7 @@ Currently, these files are in /proc/sys/fs:
 - inode-state
 - overflowuid
 - overflowgid
+- suid_dumpable
 - super-max
 - super-nr
 
@@ -128,6 +129,25 @@ to a fixed value before being written to disk.
 
 These sysctls allow you to change the value of the fixed UID and GID.
 The default is 65534.
+
+==============================================================
+
+suid_dumpable:
+
+This value can be used to query and set the core dump mode for setuid
+or otherwise protected/tainted binaries. The modes are
+
+0 - (default) - traditional behaviour. Any process which has changed
+	privilege levels or is execute only will not be dumped
+1 - (debug) - all processes dump core when possible. The core dump is
+	owned by the current user and no security is applied. This is
+	intended for system debugging situations only. Ptrace is unchecked.
+2 - (suidsafe) - any binary which normally would not be dumped is dumped
+	readable by root only. This allows the end user to remove
+	such a dump but not access it directly. For security reasons
+	core dumps in this mode will not overwrite one another or
+	other files. This mode is appropriate when adminstrators are
+	attempting to debug problems in a normal environment.
 
 ==============================================================
 

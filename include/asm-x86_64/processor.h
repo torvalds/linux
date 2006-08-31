@@ -232,8 +232,14 @@ struct tss_struct {
 	unsigned long io_bitmap[IO_BITMAP_LONGS + 1];
 } __attribute__((packed)) ____cacheline_aligned;
 
+
 extern struct cpuinfo_x86 boot_cpu_data;
 DECLARE_PER_CPU(struct tss_struct,init_tss);
+/* Save the original ist values for checking stack pointers during debugging */
+struct orig_ist {
+	unsigned long ist[7];
+};
+DECLARE_PER_CPU(struct orig_ist, orig_ist);
 
 #ifdef CONFIG_X86_VSMP
 #define ARCH_MIN_TASKALIGN	(1 << INTERNODE_CACHE_SHIFT)

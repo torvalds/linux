@@ -37,7 +37,7 @@ static int match(const struct sk_buff *skb,
 
 	return (skb_find_text((struct sk_buff *)skb, conf->from_offset, 
 			     conf->to_offset, conf->config, &state) 
-			     != UINT_MAX) && !conf->invert;
+			     != UINT_MAX) ^ conf->invert;
 }
 
 #define STRING_TEXT_PRIV(m) ((struct xt_string_info *) m)

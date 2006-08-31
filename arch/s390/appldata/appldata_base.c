@@ -618,7 +618,7 @@ appldata_offline_cpu(int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int
+static int __cpuinit
 appldata_cpu_notify(struct notifier_block *self,
 		    unsigned long action, void *hcpu)
 {

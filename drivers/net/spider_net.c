@@ -1611,13 +1611,12 @@ spider_net_open(struct net_device *netdev)
 	int result;
 
 	result = -ENOMEM;
-	if (spider_net_init_chain(card, &card->tx_chain,
-			card->descr,
-			PCI_DMA_TODEVICE, tx_descriptors))
+	if (spider_net_init_chain(card, &card->tx_chain, card->descr,
+			PCI_DMA_TODEVICE, card->tx_desc))
 		goto alloc_tx_failed;
 	if (spider_net_init_chain(card, &card->rx_chain,
-			card->descr + tx_descriptors,
-			PCI_DMA_FROMDEVICE, rx_descriptors))
+			card->descr + card->rx_desc,
+			PCI_DMA_FROMDEVICE, card->rx_desc))
 		goto alloc_rx_failed;
 
 	/* allocate rx skbs */
@@ -2004,6 +2003,9 @@ spider_net_setup_netdev(struct spider_net_card *card)
 	netdev->irq = card->pdev->irq;
 
 	card->options.rx_csum = SPIDER_NET_RX_CSUM_DEFAULT;
+
+	card->tx_desc = tx_descriptors;
+	card->rx_desc = rx_descriptors;
 
 	spider_net_setup_netdev_ops(netdev);
 

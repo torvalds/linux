@@ -1714,6 +1714,9 @@ static int __init acpi_sbs_init(void)
 {
 	int result = 0;
 
+	if (acpi_disabled)
+		return -ENODEV;
+
 	init_MUTEX(&sbs_sem);
 
 	if (capacity_mode != DEF_CAPACITY_UNIT

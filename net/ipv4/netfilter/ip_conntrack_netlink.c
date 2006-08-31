@@ -415,21 +415,18 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 			cb->args[0], *id);
 
 	read_lock_bh(&ip_conntrack_lock);
+	last = (struct ip_conntrack *)cb->args[1];
 	for (; cb->args[0] < ip_conntrack_htable_size; cb->args[0]++) {
 restart:
-		last = (struct ip_conntrack *)cb->args[1];
 		list_for_each_prev(i, &ip_conntrack_hash[cb->args[0]]) {
 			h = (struct ip_conntrack_tuple_hash *) i;
 			if (DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 			ct = tuplehash_to_ctrack(h);
-			if (last != NULL) {
-				if (ct == last) {
-					ip_conntrack_put(last);
-					cb->args[1] = 0;
-					last = NULL;
-				} else
+			if (cb->args[1]) {
+				if (ct != last)
 					continue;
+				cb->args[1] = 0;
 			}
 			if (ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
 		                        	cb->nlh->nlmsg_seq,
@@ -440,17 +437,17 @@ restart:
 				goto out;
 			}
 		}
-		if (last != NULL) {
-			ip_conntrack_put(last);
+		if (cb->args[1]) {
 			cb->args[1] = 0;
 			goto restart;
 		}
 	}
 out:
 	read_unlock_bh(&ip_conntrack_lock);
+	if (last)
+		ip_conntrack_put(last);
 
 	DEBUGP("leaving, last bucket=%lu id=%u\n", cb->args[0], *id);
-
 	return skb->len;
 }
 

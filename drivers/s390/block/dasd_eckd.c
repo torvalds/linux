@@ -468,11 +468,11 @@ dasd_eckd_generate_uid(struct dasd_device *device, struct dasd_uid *uid)
 		return -ENODEV;
 
 	memset(uid, 0, sizeof(struct dasd_uid));
-	strncpy(uid->vendor, confdata->ned1.HDA_manufacturer,
-		sizeof(uid->vendor) - 1);
+	memcpy(uid->vendor, confdata->ned1.HDA_manufacturer,
+	       sizeof(uid->vendor) - 1);
 	EBCASC(uid->vendor, sizeof(uid->vendor) - 1);
-	strncpy(uid->serial, confdata->ned1.HDA_location,
-		sizeof(uid->serial) - 1);
+	memcpy(uid->serial, confdata->ned1.HDA_location,
+	       sizeof(uid->serial) - 1);
 	EBCASC(uid->serial, sizeof(uid->serial) - 1);
 	uid->ssid = confdata->neq.subsystemID;
 	if (confdata->ned2.sneq.flags == 0x40) {
@@ -607,7 +607,7 @@ dasd_eckd_psf_ssc(struct dasd_device *device)
  * Valide storage server of current device.
  */
 static int
-dasd_eckd_validate_server(struct dasd_device *device)
+dasd_eckd_validate_server(struct dasd_device *device, struct dasd_uid *uid)
 {
 	int rc;
 
@@ -616,11 +616,11 @@ dasd_eckd_validate_server(struct dasd_device *device)
 		return 0;
 
 	rc = dasd_eckd_psf_ssc(device);
-	if (rc)
-		/* may be requested feature is not available on server,
-		 * therefore just report error and go ahead */
-		DEV_MESSAGE(KERN_INFO, device,
-			    "Perform Subsystem Function returned rc=%d", rc);
+	/* may be requested feature is not available on server,
+	 * therefore just report error and go ahead */
+	DEV_MESSAGE(KERN_INFO, device,
+		    "PSF-SSC on storage subsystem %s.%s.%04x returned rc=%d",
+		    uid->vendor, uid->serial, uid->ssid, rc);
 	/* RE-Read Configuration Data */
 	return dasd_eckd_read_conf(device);
 }
@@ -666,7 +666,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		return rc;
 	rc = dasd_set_uid(device->cdev, &uid);
 	if (rc == 1)	/* new server found */
-		rc = dasd_eckd_validate_server(device);
+		rc = dasd_eckd_validate_server(device, &uid);
 	if (rc)
 		return rc;
 

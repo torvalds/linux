@@ -115,6 +115,11 @@ static void ulog_send(unsigned int nlgroupnum)
 		del_timer(&ub->timer);
 	}
 
+	if (!ub->skb) {
+		DEBUGP("ipt_ULOG: ulog_send: nothing to send\n");
+		return;
+	}
+
 	/* last nlmsg needs NLMSG_DONE */
 	if (ub->qlen > 1)
 		ub->lastnlh->nlmsg_type = NLMSG_DONE;

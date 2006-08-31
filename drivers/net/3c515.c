@@ -1003,7 +1003,8 @@ static int corkscrew_start_xmit(struct sk_buff *skb,
 		/* Calculate the next Tx descriptor entry. */
 		int entry = vp->cur_tx % TX_RING_SIZE;
 		struct boom_tx_desc *prev_entry;
-		unsigned long flags, i;
+		unsigned long flags;
+		int i;
 
 		if (vp->tx_full)	/* No room to transmit with */
 			return 1;

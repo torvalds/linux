@@ -254,8 +254,8 @@ int cpci_led_off(struct slot* slot)
 
 int cpci_configure_slot(struct slot* slot)
 {
-	unsigned char busnr;
-	struct pci_bus *child;
+	struct pci_bus *parent;
+	int fn;
 
 	dbg("%s - enter", __FUNCTION__);
 
@@ -276,23 +276,53 @@ int cpci_configure_slot(struct slot* slot)
 		 */
 		n = pci_scan_slot(slot->bus, slot->devfn);
 		dbg("%s: pci_scan_slot returned %d", __FUNCTION__, n);
-		if (n > 0)
-			pci_bus_add_devices(slot->bus);
 		slot->dev = pci_get_slot(slot->bus, slot->devfn);
 		if (slot->dev == NULL) {
 			err("Could not find PCI device for slot %02x", slot->number);
-			return 1;
+			return -ENODEV;
 		}
 	}
+	parent = slot->dev->bus;
 
-	if (slot->dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-		pci_read_config_byte(slot->dev, PCI_SECONDARY_BUS, &busnr);
-		child = pci_add_new_bus(slot->dev->bus, slot->dev, busnr);
-		pci_do_scan_bus(child);
-		pci_bus_size_bridges(child);
+	for (fn = 0; fn < 8; fn++) {
+		struct pci_dev *dev;
+
+		dev = pci_get_slot(parent, PCI_DEVFN(PCI_SLOT(slot->devfn), fn));
+		if (!dev)
+			continue;
+		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
+		    (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)) {
+			/* Find an unused bus number for the new bridge */
+			struct pci_bus *child;
+			unsigned char busnr, start = parent->secondary;
+			unsigned char end = parent->subordinate;
+
+			for (busnr = start; busnr <= end; busnr++) {
+				if (!pci_find_bus(pci_domain_nr(parent),
+						  busnr))
+					break;
+			}
+			if (busnr >= end) {
+				err("No free bus for hot-added bridge\n");
+				pci_dev_put(dev);
+				continue;
+			}
+			child = pci_add_new_bus(parent, dev, busnr);
+			if (!child) {
+				err("Cannot add new bus for %s\n",
+				    pci_name(dev));
+				pci_dev_put(dev);
+				continue;
+			}
+			child->subordinate = pci_do_scan_bus(child);
+			pci_bus_size_bridges(child);
+		}
+		pci_dev_put(dev);
 	}
 
-	pci_bus_assign_resources(slot->dev->bus);
+	pci_bus_assign_resources(parent);
+	pci_bus_add_devices(parent);
+	pci_enable_bridges(parent);
 
 	dbg("%s - exit", __FUNCTION__);
 	return 0;

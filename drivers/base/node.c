@@ -64,7 +64,7 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 		       "Node %d Mapped:       %8lu kB\n"
 		       "Node %d AnonPages:    %8lu kB\n"
 		       "Node %d PageTables:   %8lu kB\n"
-		       "Node %d NFS Unstable: %8lu kB\n"
+		       "Node %d NFS_Unstable: %8lu kB\n"
 		       "Node %d Bounce:       %8lu kB\n"
 		       "Node %d Slab:         %8lu kB\n",
 		       nid, K(i.totalram),

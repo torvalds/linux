@@ -159,6 +159,7 @@ struct bus_type mdio_bus_type = {
 	.suspend	= mdio_bus_suspend,
 	.resume		= mdio_bus_resume,
 };
+EXPORT_SYMBOL(mdio_bus_type);
 
 int __init mdio_bus_init(void)
 {

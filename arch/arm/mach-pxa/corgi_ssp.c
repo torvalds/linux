@@ -47,14 +47,15 @@ static struct corgissp_machinfo *ssp_machinfo;
  */
 unsigned long corgi_ssp_ads7846_putget(ulong data)
 {
-	unsigned long ret,flag;
+	unsigned long flag;
+	u32 ret = 0;
 
 	spin_lock_irqsave(&corgi_ssp_lock, flag);
 	if (ssp_machinfo->cs_ads7846 >= 0)
 		GPCR(ssp_machinfo->cs_ads7846) = GPIO_bit(ssp_machinfo->cs_ads7846);
 
 	ssp_write_word(&corgi_ssp_dev,data);
-	ret = ssp_read_word(&corgi_ssp_dev);
+ 	ssp_read_word(&corgi_ssp_dev, &ret);
 
 	if (ssp_machinfo->cs_ads7846 >= 0)
 		GPSR(ssp_machinfo->cs_ads7846) = GPIO_bit(ssp_machinfo->cs_ads7846);
@@ -88,7 +89,9 @@ void corgi_ssp_ads7846_put(ulong data)
 
 unsigned long corgi_ssp_ads7846_get(void)
 {
-	return ssp_read_word(&corgi_ssp_dev);
+	u32 ret = 0;
+	ssp_read_word(&corgi_ssp_dev, &ret);
+	return ret;
 }
 
 EXPORT_SYMBOL(corgi_ssp_ads7846_putget);
@@ -104,6 +107,7 @@ EXPORT_SYMBOL(corgi_ssp_ads7846_get);
 unsigned long corgi_ssp_dac_put(ulong data)
 {
 	unsigned long flag, sscr1 = SSCR1_SPH;
+	u32 tmp;
 
 	spin_lock_irqsave(&corgi_ssp_lock, flag);
 
@@ -118,7 +122,7 @@ unsigned long corgi_ssp_dac_put(ulong data)
 		GPCR(ssp_machinfo->cs_lcdcon) = GPIO_bit(ssp_machinfo->cs_lcdcon);
 	ssp_write_word(&corgi_ssp_dev,data);
 	/* Read null data back from device to prevent SSP overflow */
-	ssp_read_word(&corgi_ssp_dev);
+	ssp_read_word(&corgi_ssp_dev, &tmp);
 	if (ssp_machinfo->cs_lcdcon >= 0)
 		GPSR(ssp_machinfo->cs_lcdcon) = GPIO_bit(ssp_machinfo->cs_lcdcon);
 
@@ -150,7 +154,7 @@ EXPORT_SYMBOL(corgi_ssp_blduty_set);
 int corgi_ssp_max1111_get(ulong data)
 {
 	unsigned long flag;
-	int voltage,voltage1,voltage2;
+	long voltage = 0, voltage1 = 0, voltage2 = 0;
 
 	spin_lock_irqsave(&corgi_ssp_lock, flag);
 	if (ssp_machinfo->cs_max1111 >= 0)
@@ -163,15 +167,15 @@ int corgi_ssp_max1111_get(ulong data)
 
 	/* TB1/RB1 */
 	ssp_write_word(&corgi_ssp_dev,data);
-	ssp_read_word(&corgi_ssp_dev); /* null read */
+	ssp_read_word(&corgi_ssp_dev, (u32*)&voltage1); /* null read */
 
 	/* TB12/RB2 */
 	ssp_write_word(&corgi_ssp_dev,0);
-	voltage1=ssp_read_word(&corgi_ssp_dev);
+	ssp_read_word(&corgi_ssp_dev, (u32*)&voltage1);
 
 	/* TB13/RB3*/
 	ssp_write_word(&corgi_ssp_dev,0);
-	voltage2=ssp_read_word(&corgi_ssp_dev);
+	ssp_read_word(&corgi_ssp_dev, (u32*)&voltage2);
 
 	ssp_disable(&corgi_ssp_dev);
 	ssp_config(&corgi_ssp_dev, (SSCR0_National | (SSCR0_DSS & 0x0b )), 0, 0, SSCR0_SerClkDiv(ssp_machinfo->clk_ads7846));

@@ -112,6 +112,8 @@ static struct backlight_properties nvidia_bl_data = {
 
 void nvidia_bl_set_power(struct fb_info *info, int power)
 {
+	if (info->bl_dev == NULL)
+		return;
 	mutex_lock(&info->bl_mutex);
 	up(&info->bl_dev->sem);
 	info->bl_dev->props->power = power;
@@ -140,7 +142,7 @@ void nvidia_bl_init(struct nvidia_par *par)
 	bd = backlight_device_register(name, par, &nvidia_bl_data);
 	if (IS_ERR(bd)) {
 		info->bl_dev = NULL;
-		printk("nvidia: Backlight registration failed\n");
+		printk(KERN_WARNING "nvidia: Backlight registration failed\n");
 		goto error;
 	}
 

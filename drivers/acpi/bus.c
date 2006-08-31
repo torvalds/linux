@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
@@ -68,7 +69,8 @@ int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
 
 	status = acpi_get_data(handle, acpi_bus_data_handler, (void **)device);
 	if (ACPI_FAILURE(status) || !*device) {
-		ACPI_EXCEPTION((AE_INFO, status, "No context for object [%p]", handle));
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
+				  handle));
 		return -ENODEV;
 	}
 
@@ -192,7 +194,7 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 	/* Make sure this is a valid target state */
 
 	if (!device->flags.power_manageable) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device `[%s]' is not power manageable",
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device `[%s]' is not power manageable\n",
 				device->kobj.name));
 		return -ENODEV;
 	}
@@ -738,7 +740,10 @@ static int __init acpi_init(void)
 		return -ENODEV;
 	}
 
-	firmware_register(&acpi_subsys);
+	result = firmware_register(&acpi_subsys);
+	if (result < 0)
+		printk(KERN_WARNING "%s: firmware_register error: %d\n",
+			__FUNCTION__, result);
 
 	result = acpi_bus_init();
 

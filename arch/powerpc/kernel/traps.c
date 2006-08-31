@@ -148,7 +148,7 @@ int die(const char *str, struct pt_regs *regs, long err)
 		panic("Fatal exception in interrupt");
 
 	if (panic_on_oops)
-		panic("Fatal exception: panic_on_oops");
+		panic("Fatal exception");
 
 	do_exit(err);
 

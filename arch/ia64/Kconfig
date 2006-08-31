@@ -258,7 +258,7 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-1024)"
 	range 2 1024
 	depends on SMP
-	default "64"
+	default "1024"
 	help
 	  You should set this to the number of CPUs in your system, but
 	  keep in mind that a kernel compiled for, e.g., 2 CPUs will boot but
@@ -354,7 +354,7 @@ config NUMA
 config NODES_SHIFT
 	int "Max num nodes shift(3-10)"
 	range 3 10
-	default "8"
+	default "10"
 	depends on NEED_MULTIPLE_NODES
 	help
 	  This option specifies the maximum number of nodes in your SSI system.
