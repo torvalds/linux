@@ -901,6 +901,33 @@ static int msix_capability_init(struct pci_dev *dev,
 }
 
 /**
+ * pci_msi_supported - check whether MSI may be enabled on device
+ * @dev: pointer to the pci_dev data structure of MSI device function
+ *
+ * MSI must be globally enabled and supported by the device and its root
+ * bus. But, the root bus is not easy to find since some architectures
+ * have virtual busses on top of the PCI hierarchy (for instance the
+ * hypertransport bus), while the actual bus where MSI must be supported
+ * is below. So we test the MSI flag on all parent busses and assume
+ * that no quirk will ever set the NO_MSI flag on a non-root bus.
+ **/
+static
+int pci_msi_supported(struct pci_dev * dev)
+{
+	struct pci_bus *bus;
+
+	if (!pci_msi_enable || !dev || dev->no_msi)
+		return -EINVAL;
+
+	/* check MSI flags of all parent busses */
+	for (bus = dev->bus; bus; bus = bus->parent)
+		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
+			return -EINVAL;
+
+	return 0;
+}
+
+/**
  * pci_enable_msi - configure device's MSI capability structure
  * @dev: pointer to the pci_dev data structure of MSI device function
  *
@@ -912,19 +939,11 @@ static int msix_capability_init(struct pci_dev *dev,
  **/
 int pci_enable_msi(struct pci_dev* dev)
 {
-	struct pci_bus *bus;
-	int pos, temp, status = -EINVAL;
+	int pos, temp, status;
 	u16 control;
 
-	if (!pci_msi_enable || !dev)
- 		return status;
-
-	if (dev->no_msi)
-		return status;
-
-	for (bus = dev->bus; bus; bus = bus->parent)
-		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
-			return -EINVAL;
+	if (pci_msi_supported(dev) < 0)
+		return -EINVAL;
 
 	temp = dev->irq;
 
@@ -1134,21 +1153,13 @@ static int reroute_msix_table(int head, struct msix_entry *entries, int *nvec)
  **/
 int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 {
-	struct pci_bus *bus;
 	int status, pos, nr_entries, free_vectors;
 	int i, j, temp;
 	u16 control;
 	unsigned long flags;
 
-	if (!pci_msi_enable || !dev || !entries)
+	if (!entries || pci_msi_supported(dev) < 0)
  		return -EINVAL;
-
-	if (dev->no_msi)
-		return -EINVAL;
-
-	for (bus = dev->bus; bus; bus = bus->parent)
-		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
-			return -EINVAL;
 
 	status = msi_init();
 	if (status < 0)
