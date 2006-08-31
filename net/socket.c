@@ -1337,7 +1337,7 @@ asmlinkage long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
  *	ready for listening.
  */
 
-int sysctl_somaxconn = SOMAXCONN;
+int sysctl_somaxconn __read_mostly = SOMAXCONN;
 
 asmlinkage long sys_listen(int fd, int backlog)
 {
