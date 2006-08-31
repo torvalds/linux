@@ -42,7 +42,7 @@ extern void pci_remove_legacy_files(struct pci_bus *bus);
 /* Lock for read/write access to pci device and bus lists */
 extern struct rw_semaphore pci_bus_sem;
 
-#ifdef CONFIG_X86_IO_APIC
+#ifdef CONFIG_PCI_MSI
 extern int pci_msi_quirk;
 #else
 #define pci_msi_quirk 0
