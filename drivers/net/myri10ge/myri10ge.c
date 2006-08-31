@@ -2417,6 +2417,8 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
  */
 
 #define PCI_DEVICE_ID_SERVERWORKS_HT2000_PCIE	0x0132
+#define PCI_DEVICE_ID_INTEL_E5000_PCIE23 0x25f7
+#define PCI_DEVICE_ID_INTEL_E5000_PCIE47 0x25fa
 
 static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 {
@@ -2426,15 +2428,34 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 	mgp->fw_name = myri10ge_fw_unaligned;
 
 	if (myri10ge_force_firmware == 0) {
+		int link_width, exp_cap;
+		u16 lnk;
+
+		exp_cap = pci_find_capability(mgp->pdev, PCI_CAP_ID_EXP);
+		pci_read_config_word(mgp->pdev, exp_cap + PCI_EXP_LNKSTA, &lnk);
+		link_width = (lnk >> 4) & 0x3f;
+
 		myri10ge_enable_ecrc(mgp);
 
-		/* Check to see if the upstream bridge is known to
-		 * provide aligned completions */
-		if (bridge
-		    /* ServerWorks HT2000/HT1000 */
-		    && bridge->vendor == PCI_VENDOR_ID_SERVERWORKS
-		    && bridge->device ==
-		    PCI_DEVICE_ID_SERVERWORKS_HT2000_PCIE) {
+		/* Check to see if Link is less than 8 or if the
+		 * upstream bridge is known to provide aligned
+		 * completions */
+		if (link_width < 8) {
+			dev_info(&mgp->pdev->dev, "PCIE x%d Link\n",
+				 link_width);
+			mgp->tx.boundary = 4096;
+			mgp->fw_name = myri10ge_fw_aligned;
+		} else if (bridge &&
+			   /* ServerWorks HT2000/HT1000 */
+			   ((bridge->vendor == PCI_VENDOR_ID_SERVERWORKS
+			     && bridge->device ==
+			     PCI_DEVICE_ID_SERVERWORKS_HT2000_PCIE)
+			    /* All Intel E5000 PCIE ports */
+			    || (bridge->vendor == PCI_VENDOR_ID_INTEL
+				&& bridge->device >=
+				PCI_DEVICE_ID_INTEL_E5000_PCIE23
+				&& bridge->device <=
+				PCI_DEVICE_ID_INTEL_E5000_PCIE47))) {
 			dev_info(&mgp->pdev->dev,
 				 "Assuming aligned completions (0x%x:0x%x)\n",
 				 bridge->vendor, bridge->device);
