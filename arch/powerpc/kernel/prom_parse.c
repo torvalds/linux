@@ -639,13 +639,16 @@ void of_irq_map_init(unsigned int flags)
 
 }
 
-int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 *addr,
-		   struct of_irq *out_irq)
+int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 ointsize,
+		   u32 *addr, struct of_irq *out_irq)
 {
 	struct device_node *ipar, *tnode, *old = NULL, *newpar = NULL;
 	u32 *tmp, *imap, *imask;
 	u32 intsize = 1, addrsize, newintsize = 0, newaddrsize = 0;
 	int imaplen, match, i;
+
+	DBG("of_irq_map_raw: par=%s,intspec=[0x%08x 0x%08x...],ointsize=%d\n",
+	    parent->full_name, intspec[0], intspec[1], ointsize);
 
 	ipar = of_node_get(parent);
 
@@ -669,6 +672,9 @@ int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 *addr,
 	}
 
 	DBG("of_irq_map_raw: ipar=%s, size=%d\n", ipar->full_name, intsize);
+
+	if (ointsize != intsize)
+		return -EINVAL;
 
 	/* Look for this #address-cells. We have to implement the old linux
 	 * trick of looking for the parent here as some device-trees rely on it
@@ -875,12 +881,15 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 	}
 	intsize = *tmp;
 
+	DBG(" intsize=%d intlen=%d\n", intsize, intlen);
+
 	/* Check index */
 	if ((index + 1) * intsize > intlen)
 		return -EINVAL;
 
 	/* Get new specifier and map it */
-	res = of_irq_map_raw(p, intspec + index * intsize, addr, out_irq);
+	res = of_irq_map_raw(p, intspec + index * intsize, intsize,
+			     addr, out_irq);
 	of_node_put(p);
 	return res;
 }
@@ -965,7 +974,7 @@ int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
 	laddr[0] = (pdev->bus->number << 16)
 		| (pdev->devfn << 8);
 	laddr[1]  = laddr[2] = 0;
-	return of_irq_map_raw(ppnode, &lspec, laddr, out_irq);
+	return of_irq_map_raw(ppnode, &lspec, 1, laddr, out_irq);
 }
 EXPORT_SYMBOL_GPL(of_irq_map_pci);
 #endif /* CONFIG_PCI */
