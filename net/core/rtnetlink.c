@@ -596,7 +596,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	err = rtnl_fill_ifinfo(nskb, dev, iw, iw_buf_len, RTM_NEWLINK,
 			       NETLINK_CB(skb).pid, nlh->nlmsg_seq, 0, 0);
 	if (err <= 0) {
-		kfree_skb(skb);
+		kfree_skb(nskb);
 		goto errout;
 	}
 
