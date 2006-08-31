@@ -274,8 +274,8 @@ struct azx_dev {
 	/* for sanity check of position buffer */
 	unsigned int period_intr;
 
-	unsigned int opened: 1;
-	unsigned int running: 1;
+	unsigned int opened :1;
+	unsigned int running :1;
 };
 
 /* CORB/RIRB */
@@ -333,9 +333,9 @@ struct azx {
 
 	/* flags */
 	int position_fix;
-	unsigned int initialized: 1;
-	unsigned int single_cmd: 1;
-	unsigned int polling_mode: 1;
+	unsigned int initialized :1;
+	unsigned int single_cmd :1;
+	unsigned int polling_mode :1;
 };
 
 /* driver types */
@@ -661,14 +661,14 @@ static int azx_reset(struct azx *chip)
 	azx_writeb(chip, GCTL, azx_readb(chip, GCTL) | ICH6_GCTL_RESET);
 
 	count = 50;
-	while (! azx_readb(chip, GCTL) && --count)
+	while (!azx_readb(chip, GCTL) && --count)
 		msleep(1);
 
-	/* Brent Chartrand said to wait >= 540us for codecs to intialize */
+	/* Brent Chartrand said to wait >= 540us for codecs to initialize */
 	msleep(1);
 
 	/* check to see if controller is ready */
-	if (! azx_readb(chip, GCTL)) {
+	if (!azx_readb(chip, GCTL)) {
 		snd_printd("azx_reset: controller not ready!\n");
 		return -EBUSY;
 	}
@@ -677,7 +677,7 @@ static int azx_reset(struct azx *chip)
 	azx_writel(chip, GCTL, azx_readl(chip, GCTL) | ICH6_GCTL_UREN);
 
 	/* detect codecs */
-	if (! chip->codec_mask) {
+	if (!chip->codec_mask) {
 		chip->codec_mask = azx_readw(chip, STATESTS);
 		snd_printdd("codec_mask = 0x%x\n", chip->codec_mask);
 	}
@@ -785,7 +785,7 @@ static void azx_init_chip(struct azx *chip)
 	azx_int_enable(chip);
 
 	/* initialize the codec command I/O */
-	if (! chip->single_cmd)
+	if (!chip->single_cmd)
 		azx_init_cmd_io(chip);
 
 	/* program the position buffer */
@@ -813,7 +813,7 @@ static void azx_init_chip(struct azx *chip)
 /*
  * interrupt handler
  */
-static irqreturn_t azx_interrupt(int irq, void* dev_id, struct pt_regs *regs)
+static irqreturn_t azx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct azx *chip = dev_id;
 	struct azx_dev *azx_dev;
@@ -1018,8 +1018,9 @@ static struct snd_pcm_hardware azx_pcm_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID |
-				 SNDRV_PCM_INFO_PAUSE /*|*/
-				 /*SNDRV_PCM_INFO_RESUME*/),
+				 /* No full-resume yet implemented */
+				 /* SNDRV_PCM_INFO_RESUME |*/
+				 SNDRV_PCM_INFO_PAUSE),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_48000,
 	.rate_min =		48000,
@@ -1454,19 +1455,19 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 				struct azx **rchip)
 {
 	struct azx *chip;
-	int err = 0;
+	int err;
 	static struct snd_device_ops ops = {
 		.dev_free = azx_dev_free,
 	};
 
 	*rchip = NULL;
 	
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	
-	if (NULL == chip) {
+	if (!chip) {
 		snd_printk(KERN_ERR SFX "cannot allocate chip\n");
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1492,13 +1493,14 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	}
 #endif
 
-	if ((err = pci_request_regions(pci, "ICH HD audio")) < 0) {
+	err = pci_request_regions(pci, "ICH HD audio");
+	if (err < 0) {
 		kfree(chip);
 		pci_disable_device(pci);
 		return err;
 	}
 
-	chip->addr = pci_resource_start(pci,0);
+	chip->addr = pci_resource_start(pci, 0);
 	chip->remap_addr = ioremap_nocache(chip->addr, pci_resource_len(pci,0));
 	if (chip->remap_addr == NULL) {
 		snd_printk(KERN_ERR SFX "ioremap error\n");
@@ -1542,7 +1544,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	}
 	chip->num_streams = chip->playback_streams + chip->capture_streams;
 	chip->azx_dev = kcalloc(chip->num_streams, sizeof(*chip->azx_dev), GFP_KERNEL);
-	if (! chip->azx_dev) {
+	if (!chip->azx_dev) {
 		snd_printk(KERN_ERR "cannot malloc azx_dev\n");
 		goto errout;
 	}
@@ -1573,7 +1575,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->initialized = 1;
 
 	/* codec detection */
-	if (! chip->codec_mask) {
+	if (!chip->codec_mask) {
 		snd_printk(KERN_ERR SFX "no codecs found!\n");
 		err = -ENODEV;
 		goto errout;
@@ -1600,16 +1602,16 @@ static int __devinit azx_probe(struct pci_dev *pci, const struct pci_device_id *
 {
 	struct snd_card *card;
 	struct azx *chip;
-	int err = 0;
+	int err;
 
 	card = snd_card_new(index, id, THIS_MODULE, 0);
-	if (NULL == card) {
+	if (!card) {
 		snd_printk(KERN_ERR SFX "Error creating card!\n");
 		return -ENOMEM;
 	}
 
-	if ((err = azx_create(card, pci, pci_id->driver_data,
-			      &chip)) < 0) {
+	err = azx_create(card, pci, pci_id->driver_data, &chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
