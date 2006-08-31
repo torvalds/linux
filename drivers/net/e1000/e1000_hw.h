@@ -336,9 +336,9 @@ uint32_t e1000_enable_mng_pass_thru(struct e1000_hw *hw);
 #define E1000_HI_MAX_MNG_DATA_LENGTH    0x6F8   /* Host Interface data length */
 
 #define E1000_MNG_DHCP_COMMAND_TIMEOUT  10      /* Time in ms to process MNG command */
-#define E1000_MNG_DHCP_COOKIE_OFFSET	0x6F0   /* Cookie offset */
-#define E1000_MNG_DHCP_COOKIE_LENGTH	0x10    /* Cookie length */
-#define E1000_MNG_IAMT_MODE		0x3
+#define E1000_MNG_DHCP_COOKIE_OFFSET    0x6F0   /* Cookie offset */
+#define E1000_MNG_DHCP_COOKIE_LENGTH    0x10    /* Cookie length */
+#define E1000_MNG_IAMT_MODE             0x3
 #define E1000_MNG_ICH_IAMT_MODE         0x2
 #define E1000_IAMT_SIGNATURE            0x544D4149 /* Intel(R) Active Management Technology signature */
 
@@ -385,7 +385,7 @@ struct e1000_host_mng_dhcp_cookie{
 #endif
 
 int32_t e1000_mng_write_dhcp_info(struct e1000_hw *hw, uint8_t *buffer,
-							uint16_t length);
+                                  uint16_t length);
 boolean_t e1000_check_mng_mode(struct e1000_hw *hw);
 boolean_t e1000_enable_tx_pkt_filtering(struct e1000_hw *hw);
 
@@ -470,6 +470,7 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
 #define E1000_DEV_ID_82571EB_COPPER      0x105E
 #define E1000_DEV_ID_82571EB_FIBER       0x105F
 #define E1000_DEV_ID_82571EB_SERDES      0x1060
+#define E1000_DEV_ID_82571EB_QUAD_COPPER 0x10A4
 #define E1000_DEV_ID_82572EI_COPPER      0x107D
 #define E1000_DEV_ID_82572EI_FIBER       0x107E
 #define E1000_DEV_ID_82572EI_SERDES      0x107F
@@ -523,7 +524,7 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
 
 
 /* 802.1q VLAN Packet Sizes */
-#define VLAN_TAG_SIZE                     4     /* 802.3ac tag (not DMAed) */
+#define VLAN_TAG_SIZE  4     /* 802.3ac tag (not DMAed) */
 
 /* Ethertype field values */
 #define ETHERNET_IEEE_VLAN_TYPE 0x8100  /* 802.3ac packet */
@@ -696,6 +697,7 @@ union e1000_rx_desc_packet_split {
     E1000_RXDEXT_STATERR_SEQ |            \
     E1000_RXDEXT_STATERR_CXE |            \
     E1000_RXDEXT_STATERR_RXE)
+
 
 /* Transmit Descriptor */
 struct e1000_tx_desc {
@@ -2086,7 +2088,7 @@ struct e1000_hw {
 #define E1000_MANC_EN_IP_ADDR_FILTER    0x00400000 /* Enable IP address
                                                     * filtering */
 #define E1000_MANC_EN_XSUM_FILTER   0x00800000 /* Enable checksum filtering */
-#define E1000_MANC_BR_EN            0x01000000 /* Enable broadcast filtering */
+#define E1000_MANC_BR_EN         0x01000000 /* Enable broadcast filtering */
 #define E1000_MANC_SMB_REQ       0x01000000 /* SMBus Request */
 #define E1000_MANC_SMB_GNT       0x02000000 /* SMBus Grant */
 #define E1000_MANC_SMB_CLK_IN    0x04000000 /* SMBus Clock In */
@@ -2172,7 +2174,7 @@ struct e1000_host_command_info {
 
 #define E1000_MDALIGN          4096
 
-/* PCI-Ex registers */
+/* PCI-Ex registers*/
 
 /* PCI-Ex Control Register */
 #define E1000_GCR_RXD_NO_SNOOP          0x00000001
@@ -2224,7 +2226,7 @@ struct e1000_host_command_info {
 #define EEPROM_EWDS_OPCODE_MICROWIRE  0x10 /* EEPROM erast/write disable */
 
 /* EEPROM Commands - SPI */
-#define EEPROM_MAX_RETRY_SPI    5000 /* Max wait of 5ms, for RDY signal */
+#define EEPROM_MAX_RETRY_SPI        5000 /* Max wait of 5ms, for RDY signal */
 #define EEPROM_READ_OPCODE_SPI      0x03  /* EEPROM read opcode */
 #define EEPROM_WRITE_OPCODE_SPI     0x02  /* EEPROM write opcode */
 #define EEPROM_A8_OPCODE_SPI        0x08  /* opcode bit-3 = address bit-8 */
@@ -3082,10 +3084,10 @@ struct e1000_host_command_info {
 
 /* DSP Distance Register (Page 5, Register 26) */
 #define GG82563_DSPD_CABLE_LENGTH               0x0007 /* 0 = <50M;
-							      1 = 50-80M;
-							      2 = 80-110M;
-							      3 = 110-140M;
-							      4 = >140M */
+                                                          1 = 50-80M;
+                                                          2 = 80-110M;
+                                                          3 = 110-140M;
+                                                          4 = >140M */
 
 /* Kumeran Mode Control Register (Page 193, Register 16) */
 #define GG82563_KMCR_PHY_LEDS_EN                    0x0020 /* 1=PHY LEDs, 0=Kumeran Inband LEDs */
