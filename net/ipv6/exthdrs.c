@@ -233,8 +233,13 @@ static int ipv6_dest_hao(struct sk_buff **skbp, int optoff)
 
 	if (skb_cloned(skb)) {
 		struct sk_buff *skb2 = skb_copy(skb, GFP_ATOMIC);
+		struct inet6_skb_parm *opt2;
+
 		if (skb2 == NULL)
 			goto discard;
+
+		opt2 = IP6CB(skb2);
+		memcpy(opt2, opt, sizeof(*opt2));
 
 		kfree_skb(skb);
 
@@ -296,6 +301,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 	if (ip6_parse_tlv(tlvprocdestopt_lst, skbp)) {
 		skb = *skbp;
 		skb->h.raw += ((skb->h.raw[1]+1)<<3);
+		opt = IP6CB(skb);
 #ifdef CONFIG_IPV6_MIP6
 		opt->nhoff = dstbuf;
 #else
@@ -690,6 +696,7 @@ int ipv6_parse_hopopts(struct sk_buff **skbp)
 	if (ip6_parse_tlv(tlvprochopopt_lst, skbp)) {
 		skb = *skbp;
 		skb->h.raw += (skb->h.raw[1]+1)<<3;
+		opt = IP6CB(skb);
 		opt->nhoff = sizeof(struct ipv6hdr);
 		return 1;
 	}
