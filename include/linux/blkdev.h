@@ -1,6 +1,7 @@
 #ifndef _LINUX_BLKDEV_H
 #define _LINUX_BLKDEV_H
 
+#include <linux/sched.h>
 #include <linux/major.h>
 #include <linux/genhd.h>
 #include <linux/list.h>
@@ -848,7 +849,7 @@ void kblockd_flush(void);
 
 static inline long blk_congestion_wait(int rw, long timeout)
 {
-	return timeout;
+	return io_schedule_timeout(timeout);
 }
 
 static inline long nr_blockdev_pages(void)
@@ -856,7 +857,9 @@ static inline long nr_blockdev_pages(void)
 	return 0;
 }
 
-static inline void exit_io_context(void) {}
+static inline void exit_io_context(void)
+{
+}
 
 #endif /* CONFIG_BLOCK */
 
