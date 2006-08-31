@@ -131,6 +131,46 @@ is_enabled_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t
+msi_bus_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	if (!pdev->subordinate)
+		return 0;
+
+	return sprintf (buf, "%u\n",
+			!(pdev->subordinate->bus_flags & PCI_BUS_FLAGS_NO_MSI));
+}
+
+static ssize_t
+msi_bus_store(struct device *dev, struct device_attribute *attr,
+	      const char *buf, size_t count)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	/* bad things may happen if the no_msi flag is changed
+	 * while some drivers are loaded */
+	if (!capable(CAP_SYS_ADMIN))
+		return count;
+
+	if (!pdev->subordinate)
+		return count;
+
+	if (*buf == '0') {
+		pdev->subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
+		dev_warn(&pdev->dev, "forced subordinate bus to not support MSI,"
+			 " bad things could happen.\n");
+	}
+
+	if (*buf == '1') {
+		pdev->subordinate->bus_flags &= ~PCI_BUS_FLAGS_NO_MSI;
+		dev_warn(&pdev->dev, "forced subordinate bus to support MSI,"
+			 " bad things could happen.\n");
+	}
+
+	return count;
+}
 
 struct device_attribute pci_dev_attrs[] = {
 	__ATTR_RO(resource),
@@ -145,6 +185,7 @@ struct device_attribute pci_dev_attrs[] = {
 	__ATTR(enable, 0600, is_enabled_show, is_enabled_store),
 	__ATTR(broken_parity_status,(S_IRUGO|S_IWUSR),
 		broken_parity_status_show,broken_parity_status_store),
+	__ATTR(msi_bus, 0644, msi_bus_show, msi_bus_store),
 	__ATTR_NULL,
 };
 
