@@ -7,7 +7,7 @@
  * linux/drivers/ide/pci/cy82c693.c		Version 0.40	Sep. 10, 2002
  *
  */
- 
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -59,7 +59,7 @@ static void cy82c693_error_handler(struct ata_port *ap)
  *
  *	Called to do the PIO mode setup.
  */
- 
+
 static void cy82c693_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -67,7 +67,7 @@ static void cy82c693_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	const unsigned long T = 1000000 / 33;
 	short time_16, time_8;
 	u32 addr;
-	
+
 	if (ata_timing_compute(adev, adev->pio_mode, &t, T, 1) < 0) {
 		printk(KERN_ERR DRV_NAME ": mome computation failed.\n");
 		return;
@@ -75,20 +75,20 @@ static void cy82c693_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	time_16 = FIT(t.recover, 0, 15) | (FIT(t.active, 0, 15) << 4);
 	time_8 = FIT(t.act8b, 0, 15) | (FIT(t.rec8b, 0, 15) << 4);
-	
+
 	if (adev->devno == 0) {
 		pci_read_config_dword(pdev, CY82_IDE_ADDRSETUP, &addr);
-		
+
 		addr &= ~0x0F;	/* Mask bits */
 		addr |= FIT(t.setup, 0, 15);
-		
+
 		pci_write_config_dword(pdev, CY82_IDE_ADDRSETUP, addr);
 		pci_write_config_byte(pdev, CY82_IDE_MASTER_IOR, time_16);
 		pci_write_config_byte(pdev, CY82_IDE_MASTER_IOW, time_16);
 		pci_write_config_byte(pdev, CY82_IDE_MASTER_8BIT, time_8);
 	} else {
 		pci_read_config_dword(pdev, CY82_IDE_ADDRSETUP, &addr);
-		
+
 		addr &= ~0xF0;	/* Mask bits */
 		addr |= (FIT(t.setup, 0, 15) << 4);
 
@@ -106,15 +106,15 @@ static void cy82c693_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *
  *	Called to do the DMA mode setup.
  */
- 
+
 static void cy82c693_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	int reg = CY82_INDEX_CHANNEL0 + ap->port_no;
-	
+
 	/* Be afraid, be very afraid. Magic registers  in low I/O space */
 	outb(reg, 0x22);
 	outb(adev->dma_mode - XFER_MW_DMA_0, 0x23);
-	
+
 	/* 0x50 gives the best behaviour on the Alpha's using this chip */
 	outb(CY82_INDEX_TIMEOUT, 0x22);
 	outb(0x50, 0x23);
@@ -143,7 +143,7 @@ static struct ata_port_operations cy82c693_port_ops = {
 	.set_piomode	= cy82c693_set_piomode,
 	.set_dmamode	= cy82c693_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
-	
+
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -167,11 +167,11 @@ static struct ata_port_operations cy82c693_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
-	
+
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 static int cy82c693_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -183,13 +183,13 @@ static int cy82c693_init_one(struct pci_dev *pdev, const struct pci_device_id *i
 		.port_ops = &cy82c693_port_ops
 	};
 	static struct ata_port_info *port_info[1] = { &info };
-	
+
 	/* Devfn 1 is the ATA primary. The secondary is magic and on devfn2. For the
 	   moment we don't handle the secondary. FIXME */
-	   
+
 	if (PCI_FUNC(pdev->devfn) != 1)
 		return -ENODEV;
-	
+
 	return ata_pci_init_one(pdev, port_info, 1);
 }
 

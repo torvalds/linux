@@ -184,7 +184,7 @@ static void ali_fifo_control(struct ata_port *ap, struct ata_device *adev, int o
 	/* ATA - FIFO on set nibble to 0x05, ATAPI - FIFO off, set nibble to
 	   0x00. Not all the docs agree but the behaviour we now use is the
 	   one stated in the BIOS Programming Guide */
-	   
+
 	pci_read_config_byte(pdev, pio_fifo, &fifo);
 	fifo &= ~(0x0F << shift);
 	if (on)
@@ -526,7 +526,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.sht = &ali_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_PIO_LBA48,
 		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07, 
+		.mwdma_mask = 0x07,
 		.udma_mask = 0x07,	/* UDMA33 */
 		.port_ops = &ali_20_port_ops
 	};

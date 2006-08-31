@@ -36,7 +36,7 @@ struct qdi_data {
 	u8 last;
 	int fast;
 	struct platform_device *platform_dev;
-	
+
 };
 
 static struct ata_host *qdi_host[NR_HOST];
@@ -58,7 +58,7 @@ static void qdi6500_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	/* Get the timing data in cycles */
 	ata_timing_compute(adev, adev->pio_mode, &t, 30303, 1000);
-	
+
 	if (qdi->fast) {
 		active = 8 - FIT(t.active, 1, 8);
 		recovery = 18 - FIT(t.recover, 3, 18);
@@ -67,10 +67,10 @@ static void qdi6500_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		recovery = 15 - FIT(t.recover, 0, 15);
 	}
 	timing = (recovery << 4) | active | 0x08;
-	
+
 	qdi->clock[adev->devno] = timing;
 
-	outb(timing, qdi->timing);	
+	outb(timing, qdi->timing);
 }
 
 static void qdi6580_set_piomode(struct ata_port *ap, struct ata_device *adev)
@@ -82,7 +82,7 @@ static void qdi6580_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	/* Get the timing data in cycles */
 	ata_timing_compute(adev, adev->pio_mode, &t, 30303, 1000);
-	
+
 	if (qdi->fast) {
 		active = 8 - FIT(t.active, 1, 8);
 		recovery = 18 - FIT(t.recover, 3, 18);
@@ -91,11 +91,11 @@ static void qdi6580_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		recovery = 15 - FIT(t.recover, 0, 15);
 	}
 	timing = (recovery << 4) | active | 0x08;
-	
+
 	qdi->clock[adev->devno] = timing;
 
 	outb(timing, qdi->timing);
-	
+
 	/* Clear the FIFO */
 	if (adev->class != ATA_DEV_ATA)
 		outb(0x5F, (qdi->timing & 0xFFF0) + 3);
@@ -128,13 +128,13 @@ static void qdi_data_xfer(struct ata_device *adev, unsigned char *buf, unsigned 
 {
 	struct ata_port *ap = adev->ap;
 	int slop = buflen & 3;
-	
+
 	if (ata_id_has_dword_io(adev->id)) {
 		if (write_data)
 			outsl(ap->ioaddr.data_addr, buf, buflen >> 2);
 		else
 			insl(ap->ioaddr.data_addr, buf, buflen >> 2);
-	
+
 		if (unlikely(slop)) {
 			u32 pad;
 			if (write_data) {
@@ -181,7 +181,7 @@ static struct ata_port_operations qdi6500_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
-	
+
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= qdi_qc_issue_prot,
 	.eng_timeout	= ata_eng_timeout,
@@ -189,11 +189,11 @@ static struct ata_port_operations qdi6500_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
-	
+
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 static struct ata_port_operations qdi6580_port_ops = {
 	.port_disable	= ata_port_disable,
@@ -209,7 +209,7 @@ static struct ata_port_operations qdi6580_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
-	
+
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= qdi_qc_issue_prot,
 	.eng_timeout	= ata_eng_timeout,
@@ -217,11 +217,11 @@ static struct ata_port_operations qdi6580_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
-	
+
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 /**
  *	qdi_init_one		-	attach a qdi interface
@@ -233,7 +233,7 @@ static struct ata_port_operations qdi6580_port_ops = {
  *	Register an ISA bus IDE interface. Such interfaces are PIO and we
  *	assume do not support IRQ sharing.
  */
- 
+
 static __init int qdi_init_one(unsigned long port, int type, unsigned long io, int irq, int fast)
 {
 	struct ata_probe_ent ae;
@@ -249,11 +249,11 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 	pdev = platform_device_register_simple(DRV_NAME, nr_qdi_host, NULL, 0);
 	if (pdev == NULL)
 		return -ENOMEM;
-	
+
 	memset(&ae, 0, sizeof(struct ata_probe_ent));
 	INIT_LIST_HEAD(&ae.node);
 	ae.dev = &pdev->dev;
-	
+
 	if (type == 6580) {
 		ae.port_ops = &qdi6580_port_ops;
 		ae.pio_mask = 0x1F;
@@ -261,7 +261,7 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 		ae.port_ops = &qdi6500_port_ops;
 		ae.pio_mask = 0x07;	/* Actually PIO3 !IORDY is possible */
 	}
-	
+
 	ae.sht = &qdi_sht;
 	ae.n_ports = 1;
 	ae.irq = irq;
@@ -287,9 +287,9 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 		platform_device_unregister(pdev);
 		return -ENODEV;
 	}
-		
+
 	qdi_host[nr_qdi_host++] = dev_get_drvdata(&pdev->dev);
-	return 0;	
+	return 0;
 }
 
 /**
@@ -297,29 +297,29 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
  *
  *	Attach qdi IDE interfaces by scanning the ports it may occupy.
  */
- 
+
 static __init int qdi_init(void)
 {
 	unsigned long flags;
 	static const unsigned long qd_port[2] = { 0x30, 0xB0 };
 	static const unsigned long ide_port[2] = { 0x170, 0x1F0 };
 	static const int ide_irq[2] = { 14, 15 };
-	
+
 	int ct = 0;
 	int i;
-	
+
 	if (probe_qdi == 0)
 		return -ENODEV;
-	
+
 	/*
  	 *	Check each possible QD65xx base address
 	 */
-	
+
 	for (i = 0; i < 2; i++) {
 		unsigned long port = qd_port[i];
 		u8 r, res;
-		
-		
+
+
 		if (request_region(port, 2, "pata_qdi")) {
 			/* Check for a card */
 			local_irq_save(flags);
@@ -328,14 +328,14 @@ static __init int qdi_init(void)
 			res = inb_p(port);
 			outb_p(r, port);
 			local_irq_restore(flags);
-		
+
 			/* Fail */
 			if (res == 0x19)
 			{
 				release_region(port, 2);
 				continue;
 			}
-			
+
 			/* Passes the presence test */
 			r = inb_p(port + 1);	/* Check port agrees with port set */
 			if ((r & 2) >> 1 != i) {
@@ -343,7 +343,7 @@ static __init int qdi_init(void)
 				continue;
 			}
 
-			/* Check card type */			
+			/* Check card type */
 			if ((r & 0xF0) == 0xC0) {
 				/* QD6500: single channel */
 				if (r & 8) {
@@ -388,7 +388,7 @@ static __exit void qdi_exit(void)
 		 */
 		release_region(qdi_data[i].timing, 2);
 		platform_device_unregister(qdi_data[i].platform_dev);
-	}	
+	}
 }
 
 MODULE_AUTHOR("Alan Cox");

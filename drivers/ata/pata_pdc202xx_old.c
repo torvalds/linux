@@ -10,7 +10,7 @@
  * TODO:
  *	Channel interlock/reset on both required ?
  */
- 
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -29,7 +29,7 @@
  *
  *	Set up cable type and use generic probe init
  */
- 
+
 static int pdc2024x_pre_reset(struct ata_port *ap)
 {
 	ap->cbl = ATA_CBL_PATA40;
@@ -47,7 +47,7 @@ static int pdc2026x_pre_reset(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u16 cis;
-	
+
 	pci_read_config_word(pdev, 0x50, &cis);
 	if (cis & (1 << (10 + ap->port_no)))
 		ap->cbl = ATA_CBL_PATA80;
@@ -72,7 +72,7 @@ static void pdc2026x_error_handler(struct ata_port *ap)
  *	so a configure_dmamode call will undo any work we do here and vice
  *	versa
  */
- 
+
 static void pdc_configure_piomode(struct ata_port *ap, struct ata_device *adev, int pio)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -88,7 +88,7 @@ static void pdc_configure_piomode(struct ata_port *ap, struct ata_device *adev, 
 	r_bp &= ~0x07;
 	r_ap |= (pio_timing[pio] >> 8);
 	r_bp |= (pio_timing[pio] & 0xFF);
-	
+
 	if (ata_pio_need_iordy(adev))
 		r_ap |= 0x20;	/* IORDY enable */
 	if (adev->class == ATA_DEV_ATA)
@@ -105,7 +105,7 @@ static void pdc_configure_piomode(struct ata_port *ap, struct ata_device *adev, 
  *	Called to do the PIO mode setup. Our timing registers are shared
  *	but we want to set the PIO timing by default.
  */
- 
+
 static void pdc_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	pdc_configure_piomode(ap, adev, adev->pio_mode - XFER_PIO_0);
@@ -119,7 +119,7 @@ static void pdc_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	Load DMA cycle times into the chip ready for a DMA transfer
  *	to occur.
  */
- 
+
 static void pdc_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -130,21 +130,21 @@ static void pdc_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		{ 0x20, 0x01 },
 		{ 0x40, 0x02 },	/* 66 Mhz Clock */
 		{ 0x20, 0x01 },
-		{ 0x20, 0x01 }		
+		{ 0x20, 0x01 }
 	};
 	u8 r_bp, r_cp;
-	
+
 	pci_read_config_byte(pdev, port + 1, &r_bp);
 	pci_read_config_byte(pdev, port + 2, &r_cp);
-	
+
 	r_bp &= ~0xF0;
 	r_cp &= ~0x0F;
-	
+
 	if (adev->dma_mode >= XFER_UDMA_0) {
 		int speed = adev->dma_mode - XFER_UDMA_0;
 		r_bp |= udma_timing[speed][0];
 		r_cp |= udma_timing[speed][1];
-		
+
 	} else {
 		int speed = adev->dma_mode - XFER_MW_DMA_0;
 		r_bp |= 0x60;
@@ -152,7 +152,7 @@ static void pdc_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	}
 	pci_write_config_byte(pdev, port + 1, r_bp);
 	pci_write_config_byte(pdev, port + 2, r_cp);
-	
+
 }
 
 /**
@@ -162,7 +162,7 @@ static void pdc_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	In UDMA3 or higher we have to clock switch for the duration of the
  *	DMA transfer sequence.
  */
- 
+
 static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
@@ -173,16 +173,16 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
 	unsigned long master = ap->host->ports[0]->ioaddr.bmdma_addr;
 	unsigned long clock = master + 0x11;
 	unsigned long atapi_reg = master + 0x20 + (4 * ap->port_no);
-	
+
 	u32 len;
-	
+
 	/* Check we keep host level locking here */
 	if (adev->dma_mode >= XFER_UDMA_2)
 		outb(inb(clock) | sel66, clock);
 	else
 		outb(inb(clock) & ~sel66, clock);
 
-	/* The DMA clocks may have been trashed by a reset. FIXME: make conditional 
+	/* The DMA clocks may have been trashed by a reset. FIXME: make conditional
 	   and move to qc_issue ? */
 	pdc_set_dmamode(ap, qc->dev);
 
@@ -193,16 +193,16 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
 			len = qc->nsect * 512;
 		else
 			len = qc->nbytes;
-		
+
 		if (tf->flags & ATA_TFLAG_WRITE)
 			len |= 0x06000000;
 		else
 			len |= 0x05000000;
-			
+
 		outl(len, atapi_reg);
 	}
-	
-	/* Activate DMA */	
+
+	/* Activate DMA */
 	ata_bmdma_start(qc);
 }
 
@@ -213,19 +213,19 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
  *	After a DMA completes we need to put the clock back to 33MHz for
  *	PIO timings.
  */
- 
+
 static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
 	struct ata_taskfile *tf = &qc->tf;
-	
+
 	int sel66 = ap->port_no ? 0x08: 0x02;
 	/* The clock bits are in the same register for both channels */
 	unsigned long master = ap->host->ports[0]->ioaddr.bmdma_addr;
 	unsigned long clock = master + 0x11;
 	unsigned long atapi_reg = master + 0x20 + (4 * ap->port_no);
-	
+
 	/* Cases the state machine will not complete correctly */
 	if (tf->protocol == ATA_PROT_ATAPI_DMA || ( tf->flags & ATA_TFLAG_LBA48)) {
 		outl(0, atapi_reg);
@@ -248,7 +248,7 @@ static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
  *	sizes to 8bit to avoid making the state engine on the 2026x cards
  *	barf.
  */
- 
+
 static void pdc2026x_dev_config(struct ata_port *ap, struct ata_device *adev)
 {
 	adev->max_sectors = 256;
@@ -299,11 +299,11 @@ static struct ata_port_operations pdc2024x_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
-	
+
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 static struct ata_port_operations pdc2026x_port_ops = {
 	.port_disable	= ata_port_disable,
@@ -333,11 +333,11 @@ static struct ata_port_operations pdc2026x_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
-	
+
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 static int pdc_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
@@ -349,7 +349,7 @@ static int pdc_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			.mwdma_mask = 0x07,
 			.udma_mask = ATA_UDMA2,
 			.port_ops = &pdc2024x_port_ops
-		}, 
+		},
 		{
 			.sht = &pdc_sht,
 			.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
@@ -366,12 +366,12 @@ static int pdc_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			.udma_mask = ATA_UDMA5,
 			.port_ops = &pdc2026x_port_ops
 		}
-		
+
 	};
 	static struct ata_port_info *port_info[2];
 
 	port_info[0] = port_info[1] = &info[id->driver_data];
-	
+
 	if (dev->device == PCI_DEVICE_ID_PROMISE_20265) {
 		struct pci_dev *bridge = dev->bus->self;
 		/* Don't grab anything behind a Promise I2O RAID */

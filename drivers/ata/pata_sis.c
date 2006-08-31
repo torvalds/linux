@@ -70,7 +70,7 @@ static int sis_133_pre_reset(struct ata_port *ap)
 		{ 0x4aU, 1U, 0x02UL, 0x02UL },	/* port 0 */
 		{ 0x4aU, 1U, 0x04UL, 0x04UL },	/* port 1 */
 	};
-	
+
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u16 tmp;
 
@@ -164,7 +164,7 @@ static int sis_old_pre_reset(struct ata_port *ap)
 		{ 0x4aU, 1U, 0x02UL, 0x02UL },	/* port 0 */
 		{ 0x4aU, 1U, 0x04UL, 0x04UL },	/* port 1 */
 	};
-	
+
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (!pci_test_config_bits(pdev, &sis_enable_bits[ap->port_no])) {
@@ -601,7 +601,7 @@ static const struct ata_port_operations sis_133_early_ops = {
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= sis_66_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	
+
 	.bmdma_setup		= ata_bmdma_setup,
 	.bmdma_start		= ata_bmdma_start,
 	.bmdma_stop		= ata_bmdma_stop,
@@ -636,7 +636,7 @@ static const struct ata_port_operations sis_100_ops = {
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= sis_66_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	
+
 
 	.bmdma_setup		= ata_bmdma_setup,
 	.bmdma_start		= ata_bmdma_start,

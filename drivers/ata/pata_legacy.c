@@ -211,11 +211,11 @@ static void pdc20230_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	int pio = adev->pio_mode - XFER_PIO_0;
 	u8 rt;
 	unsigned long flags;
-	
+
 	/* Safe as UP only. Force I/Os to occur together */
-	
+
 	local_irq_save(flags);
-	
+
 	/* Unlock the control interface */
 	do
 	{
@@ -230,7 +230,7 @@ static void pdc20230_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	while((inb(0x1F2) & 0x80) && --tries);
 
 	local_irq_restore(flags);
-	
+
 	outb(inb(0x1F4) & 0x07, 0x1F4);
 
 	rt = inb(0x1F3);
@@ -425,7 +425,7 @@ static struct ata_port_operations ht6560b_port_ops = {
 /*
  *	Opti core chipset helpers
  */
- 
+
 /**
  *	opti_syscfg	-	read OPTI chipset configuration
  *	@reg: Configuration register to read
@@ -437,7 +437,7 @@ static u8 opti_syscfg(u8 reg)
 {
 	unsigned long flags;
 	u8 r;
-	
+
 	/* Uniprocessor chipset and must force cycles adjancent */
 	local_irq_save(flags);
 	outb(reg, 0x22);
@@ -719,7 +719,7 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	}
 
 	/* Probe for automatically detectable controllers */
- 
+
 	if (io == 0x1F0 && ops == &legacy_port_ops) {
 		unsigned long flags;
 
@@ -868,7 +868,7 @@ static __init int legacy_init(void)
 			last_port = 2;
 	}
 
-	/* If an OPTI 82C46X is present find out where the channels are */	
+	/* If an OPTI 82C46X is present find out where the channels are */
 	if (opti82c46x) {
 		static const char *optis[4] = {
 			"3/463MV", "5MV",
@@ -876,7 +876,7 @@ static __init int legacy_init(void)
 		};
 		u8 chans = 1;
 		u8 ctrl = (opti_syscfg(0x30) & 0xC0) >> 6;
-		
+
 		opti82c46x = 3;	/* Assume master and slave first */
 		printk(KERN_INFO DRV_NAME ": Opti 82C46%s chipset support.\n", optis[ctrl]);
 		if (ctrl == 3)

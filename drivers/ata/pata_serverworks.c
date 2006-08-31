@@ -6,7 +6,7 @@
  * based upon
  *
  * serverworks.c
- * 
+ *
  * Copyright (C) 1998-2000 Michel Aubry
  * Copyright (C) 1998-2000 Andrzej Krzysztofowicz
  * Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
@@ -62,12 +62,12 @@ static const char *csb_bad_ata100[] = {
  *	@ap: ATA port to do cable detect
  *
  *	Dell hide the 40/80 pin select for their interfaces in the top two
- *	bits of the subsystem ID. 
+ *	bits of the subsystem ID.
  */
- 
+
 static int dell_cable(struct ata_port *ap) {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	
+
 	if (pdev->subsystem_device & (1 << (ap->port_no + 14)))
 		return ATA_CBL_PATA80;
 	return ATA_CBL_PATA40;
@@ -81,10 +81,10 @@ static int dell_cable(struct ata_port *ap) {
  *	subsystem ID the same as dell. We could use one function but we may
  *	need to extend the Dell one in future
  */
- 
+
 static int sun_cable(struct ata_port *ap) {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	
+
 	if (pdev->subsystem_device & (1 << (ap->port_no + 14)))
 		return ATA_CBL_PATA80;
 	return ATA_CBL_PATA40;
@@ -123,7 +123,7 @@ struct sv_cable_table {
  *	Note that we don't copy the old serverworks code because the old
  *	code contains obvious mistakes
  */
- 
+
 static struct sv_cable_table cable_detect[] = {
 	{ PCI_DEVICE_ID_SERVERWORKS_CSB5IDE, PCI_VENDOR_ID_DELL, dell_cable },
 	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE, PCI_VENDOR_ID_DELL, dell_cable },
@@ -140,16 +140,16 @@ static struct sv_cable_table cable_detect[] = {
  *	serverworks_pre_reset		-	cable detection
  *	@ap: ATA port
  *
- *	Perform cable detection according to the device and subvendor 
+ *	Perform cable detection according to the device and subvendor
  *	identifications
  */
- 
+
 static int serverworks_pre_reset(struct ata_port *ap) {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct sv_cable_table *cb = cable_detect;
 
 	while(cb->device) {
-		if (cb->device == pdev->device && 
+		if (cb->device == pdev->device &&
 		    (cb->subvendor == pdev->subsystem_vendor ||
 		      cb->subvendor == PCI_ANY_ID)) {
 			ap->cbl = cb->cable_detect(ap);
@@ -174,7 +174,7 @@ static void serverworks_error_handler(struct ata_port *ap)
  *	Returns true if the device being checked is known to be a CSB
  *	series device.
  */
- 
+
 static u8 serverworks_is_csb(struct pci_dev *pdev)
 {
 	switch (pdev->device) {
@@ -198,7 +198,7 @@ static u8 serverworks_is_csb(struct pci_dev *pdev)
  *	specific rules. OSB4 requires no UDMA for disks due to a FIFO
  *	bug we hit.
  */
- 
+
 static unsigned long serverworks_osb4_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
 {
 	if (adev->class == ATA_DEV_ATA)
@@ -221,14 +221,14 @@ static unsigned long serverworks_csb_filter(const struct ata_port *ap, struct at
 	char model_num[40];
 	int len, i;
 
-	/* Disk, UDMA */	
+	/* Disk, UDMA */
 	if (adev->class != ATA_DEV_ATA)
 		return ata_pci_default_filter(ap, adev, mask);
 
 	/* Actually do need to check */
 	ata_id_string(adev->id, model_num, ATA_ID_PROD_OFS, sizeof(model_num));
 	/* Precuationary - why not do this in the libata core ?? */
-	
+
 	len = strlen(model_num);
 	while ((len > 0) && (model_num[len - 1] == ' ')) {
 		len--;
@@ -261,7 +261,7 @@ static void serverworks_set_piomode(struct ata_port *ap, struct ata_device *adev
 	int pio = adev->pio_mode - XFER_PIO_0;
 
 	pci_write_config_byte(pdev, 0x40 + offset, pio_mode[pio]);
-	
+
 	/* The OSB4 just requires the timing but the CSB series want the
 	   mode number as well */
 	if (serverworks_is_csb(pdev)) {
@@ -303,7 +303,7 @@ static void serverworks_set_dmamode(struct ata_port *ap, struct ata_device *adev
 
 		ultra_cfg |=  (1 << devbits);
 	} else {
-		pci_write_config_byte(pdev, 0x44 + offset, 
+		pci_write_config_byte(pdev, 0x44 + offset,
 			dma_mode[adev->dma_mode - XFER_MW_DMA_0]);
 		ultra_cfg &= ~(1 << devbits);
 	}
@@ -333,7 +333,7 @@ static struct ata_port_operations serverworks_osb4_port_ops = {
 	.set_piomode	= serverworks_set_piomode,
 	.set_dmamode	= serverworks_set_dmamode,
 	.mode_filter	= serverworks_osb4_filter,
-	
+
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -354,19 +354,19 @@ static struct ata_port_operations serverworks_osb4_port_ops = {
 	.qc_issue	= ata_qc_issue_prot,
 	.eng_timeout	= ata_eng_timeout,
 	.data_xfer	= ata_pio_data_xfer,
-	
+
 	.irq_handler	= ata_interrupt,
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 static struct ata_port_operations serverworks_csb_port_ops = {
 	.port_disable	= ata_port_disable,
 	.set_piomode	= serverworks_set_piomode,
 	.set_dmamode	= serverworks_set_dmamode,
 	.mode_filter	= serverworks_csb_filter,
-	
+
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -387,12 +387,12 @@ static struct ata_port_operations serverworks_csb_port_ops = {
 	.qc_issue	= ata_qc_issue_prot,
 	.eng_timeout	= ata_eng_timeout,
 	.data_xfer	= ata_pio_data_xfer,
-	
+
 	.irq_handler	= ata_interrupt,
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 static int serverworks_fixup_osb4(struct pci_dev *pdev)
 {
@@ -417,7 +417,7 @@ static int serverworks_fixup_csb(struct pci_dev *pdev)
 {
 	u8 rev;
 	u8 btr;
-	
+
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 
 	/* Third Channel Test */
@@ -463,7 +463,7 @@ static int serverworks_fixup_csb(struct pci_dev *pdev)
 	else
 		btr |= (rev >= SVWKS_CSB5_REVISION_NEW) ? 0x3 : 0x2;
 	pci_write_config_byte(pdev, 0x5A, btr);
-	
+
 	return btr;
 }
 
@@ -514,7 +514,7 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 	};
 	static struct ata_port_info *port_info[2];
 	struct ata_port_info *devinfo = &info[id->driver_data];
-	
+
 	/* Force master latency timer to 64 PCI clocks */
 	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x40);
 
@@ -528,12 +528,12 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 	else if ((pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5IDE) ||
 		 (pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE) ||
 		 (pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2)) {
-		 
+
 		 /* If the returned btr is the newer revision then
 		    select the right info block */
 		 if (serverworks_fixup_csb(pdev) == 3)
 		 	devinfo = &info[3];
-		 	
+
 		/* Is this the 3rd channel CSB6 IDE ? */
 		if (pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2)
 			ports = 1;
@@ -541,10 +541,10 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 	/* setup HT1000E */
 	else if (pdev->device == PCI_DEVICE_ID_SERVERWORKS_HT1000IDE)
 		serverworks_fixup_ht1000(pdev);
-		
+
 	if (pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5IDE)
 		ata_pci_clear_simplex(pdev);
-		
+
 	port_info[0] = port_info[1] = devinfo;
 	return ata_pci_init_one(pdev, port_info, ports);
 }

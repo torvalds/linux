@@ -32,7 +32,7 @@
  *
  *	Set up cable type and use generic probe init
  */
- 
+
 static int radisys_pre_reset(struct ata_port *ap)
 {
 	ap->cbl = ATA_CBL_PATA80;
@@ -122,7 +122,7 @@ static void radisys_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
 	u16 idetm_data;
 	u8 udma_enable;
-	
+
 	static const	 /* ISP  RTC */
 	u8 timings[][2]	= { { 0, 0 },
 			    { 0, 0 },
@@ -154,7 +154,7 @@ static void radisys_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 
 		/* Mask out the relevant control and timing bits we will load. Also
 		   clear the other drive TIME register as a precaution */
-		   
+
 		idetm_data &= 0xCCCC;
 		idetm_data |= control << (4 * adev->devno);
 		idetm_data |= (timings[pio][0] << 12) | (timings[pio][1] << 8);
@@ -162,18 +162,18 @@ static void radisys_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 		udma_enable &= ~(1 << adev->devno);
 	} else {
 		u8 udma_mode;
-		
+
 		/* UDMA66 on: UDMA 33 and 66 are switchable via register 0x4A */
-		
+
 		pci_read_config_byte(dev, 0x4A, &udma_mode);
-		
+
 		if (adev->xfer_mode == XFER_UDMA_2)
 			udma_mode &= ~ (1 << adev->devno);
 		else /* UDMA 4 */
 			udma_mode |= (1 << adev->devno);
-			
+
 		pci_write_config_byte(dev, 0x4A, udma_mode);
-		
+
 		udma_enable |= (1 << adev->devno);
 	}
 	pci_write_config_word(dev, 0x40, idetm_data);

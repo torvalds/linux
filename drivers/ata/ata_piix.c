@@ -127,7 +127,7 @@ enum {
 	ich6_sata_ahci		= 8,
 	ich6m_sata_ahci		= 9,
 	ich8_sata_ahci		= 10,
-	
+
 	/* constants for mapping table */
 	P0			= 0,  /* port 0 */
 	P1			= 1,  /* port 1 */
@@ -196,7 +196,7 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	{ 0x8086, 0x24DB, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_133 },
 	/* C-ICH (i810E2) */
 	{ 0x8086, 0x245B, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
-	/* ESB (855GME/875P + 6300ESB) UDMA 100  */	
+	/* ESB (855GME/875P + 6300ESB) UDMA 100  */
 	{ 0x8086, 0x25A2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
 	/* ICH6 (and 6) (i915) UDMA 100 */
 	{ 0x8086, 0x266F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
@@ -458,7 +458,7 @@ static struct ata_port_info piix_port_info[] = {
 		.udma_mask	= ATA_UDMA4,
 		.port_ops	= &ich_pata_ops,
 	},
-	
+
 	/* ich_pata_100: 3 */
 	{
 		.sht		= &piix_sht,
@@ -759,7 +759,7 @@ static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	u8 slave_data;
 	u8 udma_enable;
 	int control = 0;
-	
+
 	/*
 	 *	See Intel Document 298600-004 for the timing programing rules
 	 *	for ICH controllers.
@@ -777,7 +777,7 @@ static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	if (ata_pio_need_iordy(adev))
 		control |= 2;	/* IE enable */
 
-	/* Intel specifies that the PPE functionality is for disk only */	   
+	/* Intel specifies that the PPE functionality is for disk only */
 	if (adev->class == ATA_DEV_ATA)
 		control |= 4;	/* PPE enable */
 
@@ -806,7 +806,7 @@ static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev)
 
 	/* Ensure the UDMA bit is off - it will be turned back on if
 	   UDMA is selected */
-	   
+
 	if (ap->udma_mask) {
 		pci_read_config_byte(dev, 0x48, &udma_enable);
 		udma_enable &= ~(1 << (2 * ap->port_no + adev->devno));
@@ -835,7 +835,7 @@ static void do_pata_set_dmamode (struct ata_port *ap, struct ata_device *adev, i
 	u8 speed		= adev->dma_mode;
 	int devid		= adev->devno + 2 * ap->port_no;
 	u8 udma_enable;
-	
+
 	static const	 /* ISP  RTC */
 	u8 timings[][2]	= { { 0, 0 },
 			    { 0, 0 },
@@ -851,13 +851,13 @@ static void do_pata_set_dmamode (struct ata_port *ap, struct ata_device *adev, i
 		u16 udma_timing;
 		u16 ideconf;
 		int u_clock, u_speed;
-		
+
 		/*
 	 	 * UDMA is handled by a combination of clock switching and
-		 * selection of dividers 
-		 *  
+		 * selection of dividers
+		 *
 		 * Handy rule: Odd modes are UDMATIMx 01, even are 02
-		 *	       except UDMA0 which is 00 
+		 *	       except UDMA0 which is 00
 		 */
 		u_speed = min(2 - (udma & 1), udma);
 		if (udma == 5)
@@ -866,16 +866,16 @@ static void do_pata_set_dmamode (struct ata_port *ap, struct ata_device *adev, i
 			u_clock = 1;		/* 66Mhz */
 		else
 			u_clock = 0;		/* 33Mhz */
-			
+
 		udma_enable |= (1 << devid);
-			
+
 		/* Load the CT/RP selection */
 		pci_read_config_word(dev, 0x4A, &udma_timing);
 		udma_timing &= ~(3 << (4 * devid));
 		udma_timing |= u_speed << (4 * devid);
 		pci_write_config_word(dev, 0x4A, udma_timing);
 
-		if (isich) {		
+		if (isich) {
 			/* Select a 33/66/100Mhz clock */
 			pci_read_config_word(dev, 0x54, &ideconf);
 			ideconf &= ~(0x1001 << devid);
@@ -897,12 +897,12 @@ static void do_pata_set_dmamode (struct ata_port *ap, struct ata_device *adev, i
 			XFER_PIO_0, XFER_PIO_3, XFER_PIO_4
 		};
 		int pio = needed_pio[mwdma] - XFER_PIO_0;
-		
+
 		control = 3;	/* IORDY|TIME1 */
-		
+
 		/* If the drive MWDMA is faster than it can do PIO then
 		   we must force PIO into PIO0 */
-		   
+
 		if (adev->pio_mode < needed_pio[mwdma])
 			/* Enable DMA timing only */
 			control |= 8;	/* PIO cycles in PIO0 */
@@ -916,7 +916,7 @@ static void do_pata_set_dmamode (struct ata_port *ap, struct ata_device *adev, i
 			slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) << (ap->port_no ? 4 : 0);
 			pci_write_config_byte(dev, 0x44, slave_data);
 		} else { 	/* Master */
-			master_data &= 0xCCF4;	/* Mask out IORDY|TIME1|DMAONLY 
+			master_data &= 0xCCF4;	/* Mask out IORDY|TIME1|DMAONLY
 						   and master timing bits */
 			master_data |= control;
 			master_data |=

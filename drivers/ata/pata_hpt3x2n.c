@@ -65,7 +65,7 @@ struct hpt_chip {
  *        PIO.
  * 31     FIFO enable.
  */
- 
+
 /* 66MHz DPLL clocks */
 
 static struct hpt_clock hpt3x2n_clocks[] = {
@@ -100,11 +100,11 @@ static struct hpt_clock hpt3x2n_clocks[] = {
  *	is hard coded but easy to change. This will be needed if we use
  *	different DPLLs
  */
- 
+
 static u32 hpt3x2n_find_mode(struct ata_port *ap, int speed)
 {
 	struct hpt_clock *clocks = hpt3x2n_clocks;
-	
+
 	while(clocks->xfer_speed) {
 		if (clocks->xfer_speed == speed)
 			return clocks->timing;
@@ -121,52 +121,52 @@ static u32 hpt3x2n_find_mode(struct ata_port *ap, int speed)
  *	Perform the initial reset handling for the 3x2n series controllers.
  *	Reset the hardware and state machine, obtain the cable type.
  */
- 
+
 static int hpt3xn_pre_reset(struct ata_port *ap)
 {
 	u8 scr2, ata66;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	
+
 	pci_read_config_byte(pdev, 0x5B, &scr2);
 	pci_write_config_byte(pdev, 0x5B, scr2 & ~0x01);
 	/* Cable register now active */
 	pci_read_config_byte(pdev, 0x5A, &ata66);
 	/* Restore state */
 	pci_write_config_byte(pdev, 0x5B, scr2);
-	
+
 	if (ata66 & (1 << ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;
 	else
 		ap->cbl = ATA_CBL_PATA80;
 
 	/* Reset the state machine */
-	pci_write_config_byte(pdev, 0x50, 0x37); 
-	pci_write_config_byte(pdev, 0x54, 0x37); 
+	pci_write_config_byte(pdev, 0x50, 0x37);
+	pci_write_config_byte(pdev, 0x54, 0x37);
 	udelay(100);
 
 	return ata_std_prereset(ap);
 }
-	
+
 /**
  *	hpt3x2n_error_handler	-	probe the hpt3x2n bus
  *	@ap: ATA port to reset
  *
  *	Perform the probe reset handling for the 3x2N
  */
- 
+
 static void hpt3x2n_error_handler(struct ata_port *ap)
 {
 	ata_bmdma_drive_eh(ap, hpt3xn_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
 }
-				     
+
 /**
  *	hpt3x2n_set_piomode		-	PIO setup
  *	@ap: ATA interface
  *	@adev: device on the interface
  *
- *	Perform PIO mode setup. 
+ *	Perform PIO mode setup.
  */
- 
+
 static void hpt3x2n_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -177,12 +177,12 @@ static void hpt3x2n_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	addr2 = 0x51 + 4 * ap->port_no;
-	
+
 	/* Fast interrupt prediction disable, hold off interrupt disable */
 	pci_read_config_byte(pdev, addr2, &fast);
 	fast &= ~0x07;
 	pci_write_config_byte(pdev, addr2, fast);
-	
+
 	pci_read_config_dword(pdev, addr1, &reg);
 	mode = hpt3x2n_find_mode(ap, adev->pio_mode);
 	mode &= ~0x8000000;	/* No FIFO in PIO */
@@ -199,7 +199,7 @@ static void hpt3x2n_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	Set up the channel for MWDMA or UDMA modes. Much the same as with
  *	PIO, load the mode number and then set MWDMA or UDMA flag.
  */
- 
+
 static void hpt3x2n_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -210,12 +210,12 @@ static void hpt3x2n_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	addr2 = 0x51 + 4 * ap->port_no;
-	
+
 	/* Fast interrupt prediction disable, hold off interrupt disable */
 	pci_read_config_byte(pdev, addr2, &fast);
 	fast &= ~0x07;
 	pci_write_config_byte(pdev, addr2, fast);
-	
+
 	pci_read_config_dword(pdev, addr1, &reg);
 	mode = hpt3x2n_find_mode(ap, adev->dma_mode);
 	mode |= 0x8000000;	/* FIFO in MWDMA or UDMA */
@@ -230,14 +230,14 @@ static void hpt3x2n_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *
  *	Clean up after the HPT3x2n and later DMA engine
  */
- 
+
 static void hpt3x2n_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int mscreg = 0x50 + 2 * ap->port_no;
 	u8 bwsr_stat, msc_stat;
-	
+
 	pci_read_config_byte(pdev, 0x6A, &bwsr_stat);
 	pci_read_config_byte(pdev, mscreg, &msc_stat);
 	if (bwsr_stat & (1 << ap->port_no))
@@ -257,29 +257,29 @@ static void hpt3x2n_bmdma_stop(struct ata_queued_cmd *qc)
  *	-	writing
  *	-	second channel UDMA7 (SATA ports) or higher
  *	-	66MHz PCI
- *	
+ *
  *	or we will underclock the device and get reduced performance.
  */
- 
+
 static void hpt3x2n_set_clock(struct ata_port *ap, int source)
 {
 	unsigned long bmdma = ap->ioaddr.bmdma_addr;
-	
+
 	/* Tristate the bus */
 	outb(0x80, bmdma+0x73);
 	outb(0x80, bmdma+0x77);
-	
+
 	/* Switch clock and reset channels */
 	outb(source, bmdma+0x7B);
 	outb(0xC0, bmdma+0x79);
-	
+
 	/* Reset state machines */
 	outb(0x37, bmdma+0x70);
 	outb(0x37, bmdma+0x74);
-	
+
 	/* Complete reset */
 	outb(0x00, bmdma+0x79);
-	
+
 	/* Reconnect channels to bus */
 	outb(0x00, bmdma+0x73);
 	outb(0x00, bmdma+0x77);
@@ -291,7 +291,7 @@ static int hpt3x2n_pair_idle(struct ata_port *ap)
 {
 	struct ata_host *host = ap->host;
 	struct ata_port *pair = host->ports[ap->port_no ^ 1];
-	
+
 	if (pair->hsm_task_state == HSM_ST_IDLE)
 		return 1;
 	return 0;
@@ -305,7 +305,7 @@ static int hpt3x2n_use_dpll(struct ata_port *ap, int reading)
 		return USE_DPLL;	/* Needed for write */
 	if (flags & PCI66)
 		return USE_DPLL;	/* Needed at 66Mhz */
-	return 0;	
+	return 0;
 }
 
 static unsigned int hpt3x2n_qc_issue_prot(struct ata_queued_cmd *qc)
@@ -313,7 +313,7 @@ static unsigned int hpt3x2n_qc_issue_prot(struct ata_queued_cmd *qc)
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_port *ap = qc->ap;
 	int flags = (long)ap->host->private_data;
-	
+
 	if (hpt3x2n_pair_idle(ap)) {
 		int dpll = hpt3x2n_use_dpll(ap, (tf->flags & ATA_TFLAG_WRITE));
 		if ((flags & USE_DPLL) != dpll) {
@@ -347,13 +347,13 @@ static struct scsi_host_template hpt3x2n_sht = {
 /*
  *	Configuration for HPT3x2n.
  */
- 
+
 static struct ata_port_operations hpt3x2n_port_ops = {
 	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt3x2n_set_piomode,
 	.set_dmamode	= hpt3x2n_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
-	
+
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -381,11 +381,11 @@ static struct ata_port_operations hpt3x2n_port_ops = {
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 /**
  *	hpt3xn_calibrate_dpll		-	Calibrate the DPLL loop
- *	@dev: PCI device 
+ *	@dev: PCI device
  *
  *	Perform a calibration cycle on the HPT3xN DPLL. Returns 1 if this
  *	succeeds
@@ -396,7 +396,7 @@ static int hpt3xn_calibrate_dpll(struct pci_dev *dev)
 	u8 reg5b;
 	u32 reg5c;
 	int tries;
- 
+
 	for(tries = 0; tries < 0x5000; tries++) {
 		udelay(50);
 		pci_read_config_byte(dev, 0x5b, &reg5b);
@@ -422,16 +422,16 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev)
 {
 	unsigned long freq;
 	u32 fcnt;
-	
+
 	pci_read_config_dword(pdev, 0x70/*CHECKME*/, &fcnt);
 	if ((fcnt >> 12) != 0xABCDE) {
 		printk(KERN_WARNING "hpt3xn: BIOS clock data not set.\n");
 		return 33;	/* Not BIOS set */
 	}
 	fcnt &= 0x1FF;
-	
+
 	freq = (fcnt * 77) / 192;
-	
+
 	/* Clamp to bands */
 	if (freq < 40)
 		return 33;
@@ -471,7 +471,7 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev)
  *
  *	To pin down		HPT371N
  */
- 
+
 static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	/* HPT372N and friends - UDMA133 */
@@ -488,14 +488,14 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	u8 irqmask;
 	u32 class_rev;
-	
+
 	unsigned int pci_mhz;
 	unsigned int f_low, f_high;
 	int adjust;
-	
+
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xFF;
-	
+
 	switch(dev->device) {
 		case PCI_DEVICE_ID_TTI_HPT366:
 			if (class_rev < 6)
@@ -530,16 +530,16 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	/* Tune the PLL. HPT recommend using 75 for SATA, 66 for UDMA133 or
 	   50 for UDMA100. Right now we always use 66 */
-	   
+
 	pci_mhz = hpt3x2n_pci_clock(dev);
-	
+
 	f_low = (pci_mhz * 48) / 66;	/* PCI Mhz for 66Mhz DPLL */
 	f_high = f_low + 2;		/* Tolerance */
-	
+
 	pci_write_config_dword(dev, 0x5C, (f_high << 16) | f_low | 0x100);
 	/* PLL clock */
 	pci_write_config_byte(dev, 0x5B, 0x21);
-	
+
 	/* Unlike the 37x we don't try jiggling the frequency */
 	for(adjust = 0; adjust < 8; adjust++) {
 		if (hpt3xn_calibrate_dpll(dev))
@@ -554,7 +554,7 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	port->private_data = NULL;
 	if (pci_mhz > 60)
 		port->private_data = (void *)PCI66;
-		
+
 	/* Now kick off ATA set up */
 	port_info[0] = port_info[1] = port;
 	return ata_pci_init_one(dev, port_info, 2);

@@ -154,7 +154,7 @@ static int via_pre_reset(struct ata_port *ap)
 		};
 
 		struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-		
+
 		if (!pci_test_config_bits(pdev, &via_enable_bits[ap->port_no])) {
 			ata_port_disable(ap);
 			printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);

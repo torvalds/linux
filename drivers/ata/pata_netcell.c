@@ -24,7 +24,7 @@
  *
  *	Cables are handled by the RAID controller. Report 80 pin.
  */
- 
+
 static int netcell_pre_reset(struct ata_port *ap)
 {
 	ap->cbl = ATA_CBL_PATA80;
@@ -137,7 +137,7 @@ static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 	/* Any chip specific setup/optimisation/messages here */
 	ata_pci_clear_simplex(pdev);
-	
+
 	/* And let the library code do the work */
 	return ata_pci_init_one(pdev, port_info, 2);
 }

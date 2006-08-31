@@ -27,7 +27,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- * 
+ *
  */
 
 #include <linux/kernel.h>
@@ -54,14 +54,14 @@
  *	Return the PCI bus clocking for the SC1200 chipset configuration
  *	in use. We return 0 for 33MHz 1 for 48MHz and 2 for 66Mhz
  */
- 
+
 static int sc1200_clock(void)
 {
 	/* Magic registers that give us the chipset data */
 	u8 chip_id = inb(0x903C);
 	u8 silicon_rev = inb(0x903D);
 	u16 pci_clock;
-	
+
 	if (chip_id == 0x04 && silicon_rev < SC1200_REV_B1)
 		return 0;	/* 33 MHz mode */
 
@@ -83,7 +83,7 @@ static int sc1200_clock(void)
  *
  *	Set our PIO requirements. This is fairly simple on the SC1200
  */
- 
+
 static void sc1200_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	static const u32 pio_timings[4][5] = {
@@ -97,11 +97,11 @@ static void sc1200_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	u32 format;
 	unsigned int reg = 0x40 + 0x10 * ap->port_no;
 	int mode = adev->pio_mode - XFER_PIO_0;
-	
+
 	pci_read_config_dword(pdev, reg + 4, &format);
 	format >>= 31;
 	format += sc1200_clock();
-	pci_write_config_dword(pdev, reg + 8 * adev->devno, 
+	pci_write_config_dword(pdev, reg + 8 * adev->devno,
 				pio_timings[format][mode]);
 }
 
@@ -113,7 +113,7 @@ static void sc1200_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	We cannot mix MWDMA and UDMA without reloading timings each switch
  *	master to slave.
  */
- 
+
 static void sc1200_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	static const u32 udma_timing[3][3] = {
@@ -121,13 +121,13 @@ static void sc1200_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		{ 0x00932470, 0x00922260, 0x00922140 },
 		{ 0x009436A1, 0x00933481, 0x00923261 }
 	};
-	
+
 	static const u32 mwdma_timing[3][3] = {
 		{ 0x00077771, 0x00012121, 0x00002020 },
 		{ 0x000BBBB2, 0x00024241, 0x00013131 },
 		{ 0x000FFFF3, 0x00035352, 0x00015151 }
 	};
-	
+
 	int clock = sc1200_clock();
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned int reg = 0x40 + 0x10 * ap->port_no;
@@ -138,10 +138,10 @@ static void sc1200_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		format = udma_timing[clock][mode - XFER_UDMA_0];
 	else
 		format = mwdma_timing[clock][mode - XFER_MW_DMA_0];
-	
+
 	if (adev->devno == 0) {
 		u32 timings;
-		
+
 		pci_read_config_dword(pdev, reg + 4, &timings);
 		timings &= 0x80000000UL;
 		timings |= format;
@@ -201,7 +201,7 @@ static struct ata_port_operations sc1200_port_ops = {
 	.set_piomode	= sc1200_set_piomode,
 	.set_dmamode	= sc1200_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
-	
+
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -226,7 +226,7 @@ static struct ata_port_operations sc1200_port_ops = {
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 /**
  *	sc1200_init_one		-	Initialise an SC1200
@@ -236,7 +236,7 @@ static struct ata_port_operations sc1200_port_ops = {
  *	Just throw the needed data at the libata helper and it does all
  *	our work.
  */
- 
+
 static int sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	static struct ata_port_info info = {
@@ -248,7 +248,7 @@ static int sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &sc1200_port_ops
 	};
 	static struct ata_port_info *port_info[2] = { &info, &info };
-	
+
 	/* Can't enable port 2 yet, see top comments */
 	return ata_pci_init_one(dev, port_info, 1);
 }

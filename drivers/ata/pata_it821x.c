@@ -6,7 +6,7 @@
  * based upon
  *
  * it821x.c
- * 
+ *
  * linux/drivers/ide/pci/it821x.c		Version 0.09	December 2004
  *
  * Copyright (C) 2004		Red Hat <alan@redhat.com>
@@ -118,7 +118,7 @@ static int it8212_noraid;
  *
  *	Set the cable type
  */
- 
+
 static int it821x_pre_reset(struct ata_port *ap)
 {
 	ap->cbl = ATA_CBL_PATA80;
@@ -131,7 +131,7 @@ static int it821x_pre_reset(struct ata_port *ap)
  *
  *	Set the cable type and trigger a probe
  */
- 
+
 static void it821x_error_handler(struct ata_port *ap)
 {
 	return ata_bmdma_drive_eh(ap, it821x_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
@@ -286,7 +286,7 @@ static void it821x_passthru_set_piomode(struct ata_port *ap, struct ata_device *
 	struct it821x_dev *itdev = ap->private_data;
 	int unit = adev->devno;
 	int mode_wanted = adev->pio_mode - XFER_PIO_0;
-	
+
 	/* We prefer 66Mhz clock for PIO 0-3, don't care for PIO4 */
 	itdev->want[unit][1] = pio_want[mode_wanted];
 	itdev->want[unit][0] = 1;	/* PIO is lowest priority */
@@ -301,7 +301,7 @@ static void it821x_passthru_set_piomode(struct ata_port *ap, struct ata_device *
  *	@adev: ATA device
  *
  *	Set up the DMA modes. The actions taken depend heavily on the mode
- *	to use. If UDMA is used as is hopefully the usual case then the 
+ *	to use. If UDMA is used as is hopefully the usual case then the
  *	timing register is private and we need only consider the clock. If
  *	we are using MWDMA then we have to manage the setting ourself as
  *	we switch devices and mode.
@@ -322,7 +322,7 @@ static void it821x_passthru_set_dmamode(struct ata_port *ap, struct ata_device *
 
 	if (adev->dma_mode >= XFER_UDMA_0) {
 		int mode_wanted = adev->dma_mode - XFER_UDMA_0;
-		
+
 		itdev->want[unit][1] = udma_want[mode_wanted];
 		itdev->want[unit][0] = 3;	/* UDMA is high priority */
 		itdev->mwdma[unit] = MWDMA_OFF;
@@ -341,7 +341,7 @@ static void it821x_passthru_set_dmamode(struct ata_port *ap, struct ata_device *
 		it821x_program_udma(ap, adev, itdev->udma[unit]);
 	} else {
 		int mode_wanted = adev->dma_mode - XFER_MW_DMA_0;
-		
+
 		itdev->want[unit][1] = mwdma_want[mode_wanted];
 		itdev->want[unit][0] = 2;	/* MWDMA is low priority */
 		itdev->mwdma[unit] = dma[mode_wanted];
@@ -363,7 +363,7 @@ static void it821x_passthru_set_dmamode(struct ata_port *ap, struct ata_device *
  *	@qc: Command in progress
  *
  *	Usually drivers set the DMA timing at the point the set_dmamode call
- *	is made. IT821x however requires we load new timings on the 
+ *	is made. IT821x however requires we load new timings on the
  *	transitions in some cases.
  */
 
@@ -410,7 +410,7 @@ static void it821x_passthru_bmdma_stop(struct ata_queued_cmd *qc)
  *
  *	Device selection hook. If neccessary perform clock switching
  */
- 
+
 static void it821x_passthru_dev_select(struct ata_port *ap,
 				       unsigned int device)
 {
@@ -431,7 +431,7 @@ static void it821x_passthru_dev_select(struct ata_port *ap,
  *	perform out own device selection timing loads before the
  *	usual happenings kick off
  */
- 
+
 static unsigned int it821x_smart_qc_issue_prot(struct ata_queued_cmd *qc)
 {
 	switch(qc->tf.command)
@@ -466,7 +466,7 @@ static unsigned int it821x_smart_qc_issue_prot(struct ata_queued_cmd *qc)
  *	perform out own device selection timing loads before the
  *	usual happenings kick off
  */
- 
+
 static unsigned int it821x_passthru_qc_issue_prot(struct ata_queued_cmd *qc)
 {
 	it821x_passthru_dev_select(qc->ap, qc->dev->devno);
@@ -480,9 +480,9 @@ static unsigned int it821x_passthru_qc_issue_prot(struct ata_queued_cmd *qc)
  *	Use a non standard set_mode function. We don't want to be tuned.
  *	The BIOS configured everything. Our job is not to fiddle. We
  *	read the dma enabled bits from the PCI configuration of the device
- *	and respect them. 
+ *	and respect them.
  */
- 
+
 static void it821x_smart_set_mode(struct ata_port *ap)
 {
 	int dma_enabled = 0;
@@ -492,14 +492,14 @@ static void it821x_smart_set_mode(struct ata_port *ap)
 	/* It is possible that BMDMA isn't allocated */
 	if (ap->ioaddr.bmdma_addr)
 		dma_enabled = inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-	
+
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
 		if (ata_dev_enabled(dev)) {
 			/* We don't really care */
 			dev->pio_mode = XFER_PIO_0;
 			dev->dma_mode = XFER_MW_DMA_0;
-			/* We do need the right mode information for DMA or PIO 
+			/* We do need the right mode information for DMA or PIO
 			   and this comes from the current configuration flags */
 			if (dma_enabled & (1 << (5 + i))) {
 				dev->xfer_mode = XFER_MW_DMA_0;
@@ -526,7 +526,7 @@ static void it821x_smart_set_mode(struct ata_port *ap)
  *	FIXME: When FUA appears we need to block FUA too. And SMART and
  *	basically we need to filter commands for this chip.
  */
- 
+
 static void it821x_dev_config(struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned char model_num[40];
@@ -535,7 +535,7 @@ static void it821x_dev_config(struct ata_port *ap, struct ata_device *adev)
 
 	/* This block ought to be a library routine as it is in several
 	   drivers now */
-	   
+
 	ata_id_string(adev->id, model_num, ATA_ID_PROD_OFS,
 			  sizeof(model_num));
 	s = &model_num[0];
@@ -549,7 +549,7 @@ static void it821x_dev_config(struct ata_port *ap, struct ata_device *adev)
 
 	if (adev->max_sectors > 255)
 		adev->max_sectors = 255;
-	
+
 	if (strstr(model_num, "Integrated Technology Express")) {
 		/* RAID mode */
 		printk(KERN_INFO "IT821x %sRAID%d volume",
@@ -569,12 +569,12 @@ static void it821x_dev_config(struct ata_port *ap, struct ata_device *adev)
  *	Decide if this ATAPI command can be issued by DMA on this
  *	controller. Return 0 if it can be.
  */
- 
+
 static int it821x_check_atapi_dma(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct it821x_dev *itdev = ap->private_data;
-	
+
 	/* No ATAPI DMA in smart mode */
 	if (itdev->smart)
 		return -EOPNOTSUPP;
@@ -584,7 +584,7 @@ static int it821x_check_atapi_dma(struct ata_queued_cmd *qc)
 	/* Cool */
 	return 0;
 }
-		
+
 
 /**
  *	it821x_port_start	-	port setup
@@ -592,10 +592,10 @@ static int it821x_check_atapi_dma(struct ata_queued_cmd *qc)
  *
  *	The it821x needs to maintain private data structures and also to
  *	use the standard PCI interface which lacks support for this
- *	functionality. We instead set up the private data on the port 
+ *	functionality. We instead set up the private data on the port
  *	start hook, and tear it down on port stop
  */
- 
+
 static int it821x_port_start(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -605,13 +605,13 @@ static int it821x_port_start(struct ata_port *ap)
 	int ret = ata_port_start(ap);
 	if (ret < 0)
 		return ret;
-		
+
 	ap->private_data = kmalloc(sizeof(struct it821x_dev), GFP_KERNEL);
 	if (ap->private_data == NULL) {
 		ata_port_stop(ap);
 		return -ENOMEM;
 	}
-	
+
 	itdev = ap->private_data;
 	memset(itdev, 0, sizeof(struct it821x_dev));
 
@@ -650,7 +650,7 @@ static int it821x_port_start(struct ata_port *ap)
  *
  *	Release the private objects we added in it821x_port_start
  */
- 
+
 static void it821x_port_stop(struct ata_port *ap) {
 	kfree(ap->private_data);
 	ap->private_data = NULL;	/* We want an OOPS if we reuse this
@@ -684,7 +684,7 @@ static struct ata_port_operations it821x_smart_port_ops = {
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.mode_filter	= ata_pci_default_filter,
-	
+
 	.check_status 	= ata_check_status,
 	.check_atapi_dma= it821x_check_atapi_dma,
 	.exec_command	= ata_exec_command,
@@ -712,14 +712,14 @@ static struct ata_port_operations it821x_smart_port_ops = {
 	.port_start	= it821x_port_start,
 	.port_stop	= it821x_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 static struct ata_port_operations it821x_passthru_port_ops = {
 	.port_disable	= ata_port_disable,
 	.set_piomode	= it821x_passthru_set_piomode,
 	.set_dmamode	= it821x_passthru_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
-	
+
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -748,7 +748,7 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 	.port_start	= it821x_port_start,
 	.port_stop	= it821x_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 static void __devinit it821x_disable_raid(struct pci_dev *pdev)
 {
@@ -767,11 +767,11 @@ static void __devinit it821x_disable_raid(struct pci_dev *pdev)
 	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x20);
 }
 
-	
+
 static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	u8 conf;
-	
+
 	static struct ata_port_info info_smart = {
 		.sht = &it821x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
@@ -788,7 +788,7 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &it821x_passthru_port_ops
 	};
 	static struct ata_port_info *port_info[2];
-	
+
 	static char *mode[2] = { "pass through", "smart" };
 
 	/* Force the card into bypass mode if so requested */
@@ -798,13 +798,13 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	pci_read_config_byte(pdev, 0x50, &conf);
 	conf &= 1;
-	
+
 	printk(KERN_INFO DRV_NAME ": controller in %s mode.\n", mode[conf]);
 	if (conf == 0)
 		port_info[0] = port_info[1] = &info_passthru;
 	else
 		port_info[0] = port_info[1] = &info_smart;
-	
+
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 

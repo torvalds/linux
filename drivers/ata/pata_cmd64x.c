@@ -20,7 +20,7 @@
  * TODO
  *	Testing work
  */
- 
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -36,7 +36,7 @@
 /*
  * CMD64x specific registers definition.
  */
- 
+
 enum {
 	CFR 		= 0x50,
 		CFR_INTR_CH0  = 0x02,
@@ -90,9 +90,9 @@ static int cmd648_pre_reset(struct ata_port *ap)
 	pci_read_config_byte(pdev, BMIDECSR, &r);
 	if (r & (1 << ap->port_no))
 		ap->cbl = ATA_CBL_PATA80;
-	else	
+	else
 		ap->cbl = ATA_CBL_PATA40;
-		
+
 	return ata_std_prereset(ap);
 }
 
@@ -113,18 +113,18 @@ static void cmd648_error_handler(struct ata_port *ap)
  *
  *	Called to do the PIO mode setup.
  */
- 
+
 static void cmd64x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct ata_timing t;
 	const unsigned long T = 1000000 / 33;
 	const u8 setup_data[] = { 0x40, 0x40, 0x40, 0x80, 0x00 };
-	
+
 	u8 reg;
-	
+
 	/* Port layout is not logical so use a table */
-	const u8 arttim_port[2][2] = { 
+	const u8 arttim_port[2][2] = {
 		{ ARTTIM0, ARTTIM1 },
 		{ ARTTIM23, ARTTIM23 }
 	};
@@ -132,11 +132,11 @@ static void cmd64x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		{ DRWTIM0, DRWTIM1 },
 		{ DRWTIM2, DRWTIM3 }
 	};
-	
+
 	int arttim = arttim_port[ap->port_no][adev->devno];
 	int drwtim = drwtim_port[ap->port_no][adev->devno];
-	
-	
+
+
 	if (ata_timing_compute(adev, adev->pio_mode, &t, T, 0) < 0) {
 		printk(KERN_ERR DRV_NAME ": mode computation failed.\n");
 		return;
@@ -144,14 +144,14 @@ static void cmd64x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	if (ap->port_no) {
 		/* Slave has shared address setup */
 		struct ata_device *pair = ata_dev_pair(adev);
-		
+
 		if (pair) {
 			struct ata_timing tp;
 			ata_timing_compute(pair, pair->pio_mode, &tp, T, 0);
 			ata_timing_merge(&t, &tp, &t, ATA_TIMING_SETUP);
 		}
 	}
-	
+
 	printk(KERN_DEBUG DRV_NAME ": active %d recovery %d setup %d.\n",
 		t.active, t.recover, t.setup);
 	if (t.recover > 16) {
@@ -160,30 +160,30 @@ static void cmd64x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	}
 	if (t.active > 16)
 		t.active = 16;
-		
+
 	/* Now convert the clocks into values we can actually stuff into
 	   the chip */
-	   
+
 	if (t.recover > 1)
 		t.recover--;
 	else
 		t.recover = 15;
-	
+
 	if (t.setup > 4)
 		t.setup = 0xC0;
 	else
 		t.setup = setup_data[t.setup];
-		
+
 	t.active &= 0x0F;	/* 0 = 16 */
-	
+
 	/* Load setup timing */
 	pci_read_config_byte(pdev, arttim, &reg);
 	reg &= 0x3F;
 	reg |= t.setup;
 	pci_write_config_byte(pdev, arttim, reg);
-	
+
 	/* Load active/recovery */
-	pci_write_config_byte(pdev, drwtim, (t.active << 4) | t.recover);	
+	pci_write_config_byte(pdev, drwtim, (t.active << 4) | t.recover);
 }
 
 /**
@@ -193,29 +193,29 @@ static void cmd64x_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *
  *	Called to do the DMA mode setup.
  */
- 
+
 static void cmd64x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	static const u8 udma_data[] = {
 		0x31, 0x21, 0x11, 0x25, 0x15, 0x05
 	};
-	static const u8 mwdma_data[] = { 
+	static const u8 mwdma_data[] = {
 		0x30, 0x20, 0x10
 	};
-	
+
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 regU, regD;
 
 	int pciU = UDIDETCR0 + 8 * ap->port_no;
 	int pciD = BMIDESR0 + 8 * ap->port_no;
 	int shift = 2 * adev->devno;
-	
+
 	pci_read_config_byte(pdev, pciD, &regD);
 	pci_read_config_byte(pdev, pciU, &regU);
 
 	regD &= ~(0x20 << shift);
 	regU &= ~(0x35 << shift);
-	
+
 	if (adev->dma_mode >= XFER_UDMA_0)
 		regU |= udma_data[adev->dma_mode - XFER_UDMA_0] << shift;
 	else
@@ -241,13 +241,13 @@ static void cmd648_bmdma_stop(struct ata_queued_cmd *qc)
 	u8 dma_intr;
 	int dma_reg = ap->port_no ? ARTTIM23_INTR_CH1 : CFR_INTR_CH0;
 	int dma_mask = ap->port_no ? ARTTIM2 : CFR;
-	
+
 	ata_bmdma_stop(qc);
-	
+
 	pci_read_config_byte(pdev, dma_reg, &dma_intr);
 	pci_write_config_byte(pdev, dma_reg, dma_intr | dma_mask);
 }
-		
+
 /**
  *	cmd646r1_dma_stop	-	DMA stop callback
  *	@qc: Command in progress
@@ -259,7 +259,7 @@ static void cmd646r1_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	ata_bmdma_stop(qc);
 }
-		
+
 static struct scsi_host_template cmd64x_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
@@ -306,11 +306,11 @@ static struct ata_port_operations cmd64x_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
-	
+
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 static struct ata_port_operations cmd646r1_port_ops = {
 	.port_disable	= ata_port_disable,
@@ -340,11 +340,11 @@ static struct ata_port_operations cmd646r1_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
-	
+
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 static struct ata_port_operations cmd648_port_ops = {
 	.port_disable	= ata_port_disable,
@@ -374,16 +374,16 @@ static struct ata_port_operations cmd648_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
-	
+
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
-	
+};
+
 static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	u32 class_rev;
-	
+
 	static struct ata_port_info cmd_info[6] = {
 		{	/* CMD 643 - no UDMA */
 			.sht = &cmd64x_sht,
@@ -433,15 +433,15 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	static struct ata_port_info *port_info[2], *info;
 	u8 mrdmode;
-	
+
 	info = &cmd_info[id->driver_data];
-	
+
 	pci_read_config_dword(pdev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xFF;
-	
+
 	if (id->driver_data == 0)	/* 643 */
 		ata_pci_clear_simplex(pdev);
-	
+
 	if (pdev->device == PCI_DEVICE_ID_CMD_646) {
 		/* Does UDMA work ? */
 		if (class_rev > 4)
@@ -456,14 +456,14 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	mrdmode &= ~ 0x30;	/* IRQ set up */
 	mrdmode |= 0x02;	/* Memory read line enable */
 	pci_write_config_byte(pdev, MRDMODE, mrdmode);
-	
+
 	/* Force PIO 0 here.. */
-	
+
 	/* PPC specific fixup copied from old driver */
 #ifdef CONFIG_PPC
 	pci_write_config_byte(pdev, UDIDETCR0, 0xF0);
 #endif
-	
+
 	port_info[0] = port_info[1] = info;
 	return ata_pci_init_one(pdev, port_info, 2);
 }

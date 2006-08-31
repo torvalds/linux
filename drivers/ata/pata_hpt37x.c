@@ -134,7 +134,7 @@ static const struct hpt_clock hpt370a_timings_66[] = {
 	{	XFER_UDMA_0,	0x14a0e73f	},
 
 	{	XFER_MW_DMA_2,	0x2480fa73	},
-	{	XFER_MW_DMA_1,	0x2480fa77	}, 
+	{	XFER_MW_DMA_1,	0x2480fa77	},
 	{	XFER_MW_DMA_0,	0x2480fb3f	},
 
 	{	XFER_PIO_4,	0x0c82be73	},
@@ -333,11 +333,11 @@ static const struct hpt_chip hpt374 = {
  *	Return the 32bit register programming information for this channel
  *	that matches the speed provided.
  */
- 
+
 static u32 hpt37x_find_mode(struct ata_port *ap, int speed)
 {
 	struct hpt_clock *clocks = ap->host->private_data;
-	
+
 	while(clocks->xfer_speed) {
 		if (clocks->xfer_speed == speed)
 			return clocks->timing;
@@ -367,7 +367,7 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr, cons
 
 	while(list[i] != NULL) {
 		if (!strncmp(list[i], s, len)) {
-			printk(KERN_WARNING DRV_NAME ": %s is not supported for %s.\n", 
+			printk(KERN_WARNING DRV_NAME ": %s is not supported for %s.\n",
 				modestr, list[i]);
 			return 1;
 		}
@@ -413,7 +413,7 @@ static const char *bad_ata100_5[] = {
  *
  *	Block UDMA on devices that cause trouble with this controller.
  */
- 
+
 static unsigned long hpt370_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
 {
 	if (adev->class != ATA_DEV_ATA) {
@@ -432,7 +432,7 @@ static unsigned long hpt370_filter(const struct ata_port *ap, struct ata_device 
  *
  *	Block UDMA on devices that cause trouble with this controller.
  */
- 
+
 static unsigned long hpt370a_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
 {
 	if (adev->class != ATA_DEV_ATA) {
@@ -441,36 +441,36 @@ static unsigned long hpt370a_filter(const struct ata_port *ap, struct ata_device
 	}
 	return ata_pci_default_filter(ap, adev, mask);
 }
-	
+
 /**
  *	hpt37x_pre_reset	-	reset the hpt37x bus
  *	@ap: ATA port to reset
  *
  *	Perform the initial reset handling for the 370/372 and 374 func 0
  */
- 
+
 static int hpt37x_pre_reset(struct ata_port *ap)
 {
 	u8 scr2, ata66;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	
+
 	pci_read_config_byte(pdev, 0x5B, &scr2);
 	pci_write_config_byte(pdev, 0x5B, scr2 & ~0x01);
 	/* Cable register now active */
 	pci_read_config_byte(pdev, 0x5A, &ata66);
 	/* Restore state */
 	pci_write_config_byte(pdev, 0x5B, scr2);
-	
+
 	if (ata66 & (1 << ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;
 	else
 		ap->cbl = ATA_CBL_PATA80;
 
 	/* Reset the state machine */
-	pci_write_config_byte(pdev, 0x50, 0x37); 
-	pci_write_config_byte(pdev, 0x54, 0x37); 
+	pci_write_config_byte(pdev, 0x50, 0x37);
+	pci_write_config_byte(pdev, 0x54, 0x37);
 	udelay(100);
-	
+
 	return ata_std_prereset(ap);
 }
 
@@ -480,7 +480,7 @@ static int hpt37x_pre_reset(struct ata_port *ap)
  *
  *	Perform probe for HPT37x, except for HPT374 channel 2
  */
- 
+
 static void hpt37x_error_handler(struct ata_port *ap)
 {
 	ata_bmdma_drive_eh(ap, hpt37x_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
@@ -490,7 +490,7 @@ static int hpt374_pre_reset(struct ata_port *ap)
 {
 	u16 mcr3, mcr6;
 	u8 ata66;
-	
+
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	/* Do the extra channel work */
 	pci_read_config_word(pdev, 0x52, &mcr3);
@@ -504,17 +504,17 @@ static int hpt374_pre_reset(struct ata_port *ap)
 	/* Reset TCBLID/FCBLID to output */
 	pci_write_config_word(pdev, 0x52, mcr3);
 	pci_write_config_word(pdev, 0x56, mcr6);
-	
+
 	if (ata66 & (1 << ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;
 	else
 		ap->cbl = ATA_CBL_PATA80;
 
 	/* Reset the state machine */
-	pci_write_config_byte(pdev, 0x50, 0x37); 
-	pci_write_config_byte(pdev, 0x54, 0x37); 
+	pci_write_config_byte(pdev, 0x50, 0x37);
+	pci_write_config_byte(pdev, 0x54, 0x37);
 	udelay(100);
-	
+
 	return ata_std_prereset(ap);
 }
 
@@ -526,11 +526,11 @@ static int hpt374_pre_reset(struct ata_port *ap)
  *	channels. The function 0 channels work like usual but function 1
  *	is special
  */
- 
+
 static void hpt374_error_handler(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-		
+
 	if (!(PCI_FUNC(pdev->devfn) & 1))
 		hpt37x_error_handler(ap);
 	else
@@ -542,9 +542,9 @@ static void hpt374_error_handler(struct ata_port *ap)
  *	@ap: ATA interface
  *	@adev: device on the interface
  *
- *	Perform PIO mode setup. 
+ *	Perform PIO mode setup.
  */
- 
+
 static void hpt370_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -555,13 +555,13 @@ static void hpt370_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	addr2 = 0x51 + 4 * ap->port_no;
-	
+
 	/* Fast interrupt prediction disable, hold off interrupt disable */
 	pci_read_config_byte(pdev, addr2, &fast);
 	fast &= ~0x02;
 	fast |= 0x01;
 	pci_write_config_byte(pdev, addr2, fast);
-	
+
 	pci_read_config_dword(pdev, addr1, &reg);
 	mode = hpt37x_find_mode(ap, adev->pio_mode);
 	mode &= ~0x8000000;	/* No FIFO in PIO */
@@ -578,7 +578,7 @@ static void hpt370_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	Set up the channel for MWDMA or UDMA modes. Much the same as with
  *	PIO, load the mode number and then set MWDMA or UDMA flag.
  */
- 
+
 static void hpt370_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -589,13 +589,13 @@ static void hpt370_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	addr2 = 0x51 + 4 * ap->port_no;
-	
+
 	/* Fast interrupt prediction disable, hold off interrupt disable */
 	pci_read_config_byte(pdev, addr2, &fast);
 	fast &= ~0x02;
 	fast |= 0x01;
 	pci_write_config_byte(pdev, addr2, fast);
-	
+
 	pci_read_config_dword(pdev, addr1, &reg);
 	mode = hpt37x_find_mode(ap, adev->dma_mode);
 	mode |= 0x8000000;	/* FIFO in MWDMA or UDMA */
@@ -611,7 +611,7 @@ static void hpt370_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	The 370 and 370A want us to reset the DMA engine each time we
  *	use it. The 372 and later are fine.
  */
- 
+
 static void hpt370_bmdma_start(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
@@ -627,7 +627,7 @@ static void hpt370_bmdma_start(struct ata_queued_cmd *qc)
  *
  *	Work around the HPT370 DMA engine.
  */
- 
+
 static void hpt370_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
@@ -635,7 +635,7 @@ static void hpt370_bmdma_stop(struct ata_queued_cmd *qc)
 	u8 dma_stat = inb(ap->ioaddr.bmdma_addr + 2);
 	u8 dma_cmd;
 	unsigned long bmdma = ap->ioaddr.bmdma_addr;
-	
+
 	if (dma_stat & 0x01) {
 		udelay(20);
 		dma_stat = inb(bmdma + 2);
@@ -662,9 +662,9 @@ static void hpt370_bmdma_stop(struct ata_queued_cmd *qc)
  *	@ap: ATA interface
  *	@adev: device on the interface
  *
- *	Perform PIO mode setup. 
+ *	Perform PIO mode setup.
  */
- 
+
 static void hpt372_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -675,15 +675,15 @@ static void hpt372_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	addr2 = 0x51 + 4 * ap->port_no;
-	
+
 	/* Fast interrupt prediction disable, hold off interrupt disable */
 	pci_read_config_byte(pdev, addr2, &fast);
 	fast &= ~0x07;
 	pci_write_config_byte(pdev, addr2, fast);
-	
+
 	pci_read_config_dword(pdev, addr1, &reg);
 	mode = hpt37x_find_mode(ap, adev->pio_mode);
-	
+
 	printk("Find mode for %d reports %X\n", adev->pio_mode, mode);
 	mode &= ~0x80000000;	/* No FIFO in PIO */
 	mode &= ~0x30070000;	/* Leave config bits alone */
@@ -699,7 +699,7 @@ static void hpt372_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	Set up the channel for MWDMA or UDMA modes. Much the same as with
  *	PIO, load the mode number and then set MWDMA or UDMA flag.
  */
- 
+
 static void hpt372_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -710,12 +710,12 @@ static void hpt372_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	addr2 = 0x51 + 4 * ap->port_no;
-	
+
 	/* Fast interrupt prediction disable, hold off interrupt disable */
 	pci_read_config_byte(pdev, addr2, &fast);
 	fast &= ~0x07;
 	pci_write_config_byte(pdev, addr2, fast);
-	
+
 	pci_read_config_dword(pdev, addr1, &reg);
 	mode = hpt37x_find_mode(ap, adev->dma_mode);
 	printk("Find mode for DMA %d reports %X\n", adev->dma_mode, mode);
@@ -731,14 +731,14 @@ static void hpt372_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *
  *	Clean up after the HPT372 and later DMA engine
  */
- 
+
 static void hpt37x_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int mscreg = 0x50 + 2 * ap->port_no;
 	u8 bwsr_stat, msc_stat;
-	
+
 	pci_read_config_byte(pdev, 0x6A, &bwsr_stat);
 	pci_read_config_byte(pdev, mscreg, &msc_stat);
 	if (bwsr_stat & (1 << ap->port_no))
@@ -768,13 +768,13 @@ static struct scsi_host_template hpt37x_sht = {
 /*
  *	Configuration for HPT370
  */
- 
+
 static struct ata_port_operations hpt370_port_ops = {
 	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt370_set_piomode,
 	.set_dmamode	= hpt370_set_dmamode,
 	.mode_filter	= hpt370_filter,
-	
+
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -802,18 +802,18 @@ static struct ata_port_operations hpt370_port_ops = {
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 /*
  *	Configuration for HPT370A. Close to 370 but less filters
  */
- 
+
 static struct ata_port_operations hpt370a_port_ops = {
 	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt370_set_piomode,
 	.set_dmamode	= hpt370_set_dmamode,
 	.mode_filter	= hpt370a_filter,
-	
+
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -841,19 +841,19 @@ static struct ata_port_operations hpt370a_port_ops = {
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 /*
  *	Configuration for HPT372, HPT371, HPT302. Slightly different PIO
  *	and DMA mode setting functionality.
  */
- 
+
 static struct ata_port_operations hpt372_port_ops = {
 	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt372_set_piomode,
 	.set_dmamode	= hpt372_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
-	
+
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -881,19 +881,19 @@ static struct ata_port_operations hpt372_port_ops = {
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 /*
  *	Configuration for HPT374. Mode setting works like 372 and friends
  *	but we have a different cable detection procedure.
  */
- 
+
 static struct ata_port_operations hpt374_port_ops = {
 	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt372_set_piomode,
 	.set_dmamode	= hpt372_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
-	
+
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -921,7 +921,7 @@ static struct ata_port_operations hpt374_port_ops = {
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 /**
  *	htp37x_clock_slot	-	Turn timing to PC clock entry
@@ -931,7 +931,7 @@ static struct ata_port_operations hpt374_port_ops = {
  *	Turn the timing data intoa clock slot (0 for 33, 1 for 40, 2 for 50
  *	and 3 for 66Mhz)
  */
- 
+
 static int hpt37x_clock_slot(unsigned int freq, unsigned int base)
 {
 	unsigned int f = (base * freq) / 192;	/* Mhz */
@@ -946,7 +946,7 @@ static int hpt37x_clock_slot(unsigned int freq, unsigned int base)
 
 /**
  *	hpt37x_calibrate_dpll		-	Calibrate the DPLL loop
- *	@dev: PCI device 
+ *	@dev: PCI device
  *
  *	Perform a calibration cycle on the HPT37x DPLL. Returns 1 if this
  *	succeeds
@@ -957,7 +957,7 @@ static int hpt37x_calibrate_dpll(struct pci_dev *dev)
 	u8 reg5b;
 	u32 reg5c;
 	int tries;
- 
+
 	for(tries = 0; tries < 0x5000; tries++) {
 		udelay(50);
 		pci_read_config_byte(dev, 0x5b, &reg5b);
@@ -1009,7 +1009,7 @@ static int hpt37x_calibrate_dpll(struct pci_dev *dev)
  *
  *	(1) UDMA133 support depends on the bus clock
  */
- 
+
 static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	/* HPT370 - UDMA100 */
@@ -1072,7 +1072,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xFF;
-	
+
 	if (dev->device == PCI_DEVICE_ID_TTI_HPT366) {
 		/* May be a later chip in disguise. Check */
 		/* Older chips are in the HPT366 driver. Ignore them */
@@ -1082,7 +1082,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		if (class_rev == 6)
 			return -ENODEV;
 
-		switch(class_rev) {			
+		switch(class_rev) {
 			case 3:
 				port = &info_hpt370;
 				chip_table = &hpt370;
@@ -1147,16 +1147,16 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	 * state on reset when PDIAG is a input.
 	 */
 
-	pci_write_config_byte(dev, 0x5b, 0x23);	
-	
+	pci_write_config_byte(dev, 0x5b, 0x23);
+
 	pci_read_config_dword(dev, 0x70, &freq);
 	if ((freq >> 12) != 0xABCDE) {
 		int i;
 		u8 sr;
 		u32 total = 0;
-		
+
 		printk(KERN_WARNING "pata_hpt37x: BIOS has not set timing clocks.\n");
-		
+
 		/* This is the process the HPT371 BIOS is reported to use */
 		for(i = 0; i < 128; i++) {
 			pci_read_config_byte(dev, 0x78, &sr);
@@ -1166,12 +1166,12 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		freq = total / 128;
 	}
 	freq &= 0x1FF;
-	
+
 	/*
 	 *	Turn the frequency check into a band and then find a timing
 	 *	table to match it.
 	 */
-	 
+
 	clock_slot = hpt37x_clock_slot(freq, chip_table->base);
 	if (chip_table->clocks[clock_slot] == NULL) {
 		/*
@@ -1180,7 +1180,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		unsigned int f_low = (MHz[clock_slot] * chip_table->base) / 192;
 		unsigned int f_high = f_low + 2;
 		int adjust;
-		
+
 		for(adjust = 0; adjust < 8; adjust++) {
 			if (hpt37x_calibrate_dpll(dev))
 				break;
@@ -1197,7 +1197,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		}
 		/* Check if this works for all cases */
 		port->private_data = (void *)hpt370_timings_66;
-		
+
 		printk(KERN_INFO "hpt37x: Bus clock %dMHz, using DPLL.\n", MHz[clock_slot]);
 	} else {
 		port->private_data = (void *)chip_table->clocks[clock_slot];
@@ -1205,7 +1205,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		 *	Perform a final fixup. The 371 and 372 clock determines
 		 *	if UDMA133 is available.
 		 */
-	 
+
 		if (clock_slot == 2 && chip_table == &hpt372) {	/* 50Mhz */
 			printk(KERN_WARNING "pata_hpt37x: No UDMA133 support available with 50MHz bus clock.\n");
 			if (port == &info_hpt372)
@@ -1214,7 +1214,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		}
 		printk(KERN_INFO "hpt37x: %s: Bus clock %dMHz.\n", chip_table->name, MHz[clock_slot]);
 	}
-	port_info[0] = port_info[1] = port;	
+	port_info[0] = port_info[1] = port;
 	/* Now kick off ATA set up */
 	return ata_pci_init_one(dev, port_info, 2);
 }

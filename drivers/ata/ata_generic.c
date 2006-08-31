@@ -2,18 +2,18 @@
  *  ata_generic.c - Generic PATA/SATA controller driver.
  *  Copyright 2005 Red Hat Inc <alan@redhat.com>, all rights reserved.
  *
- *  Elements from ide/pci/generic.c 
+ *  Elements from ide/pci/generic.c
  *	    Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  *	    Portions (C) Copyright 2002  Red Hat Inc <alan@redhat.com>
  *
  *  May be copied or modified under the terms of the GNU General Public License
- *  
+ *
  *  Driver for PCI IDE interfaces implementing the standard bus mastering
  *  interface functionality. This assumes the BIOS did the drive set up and
  *  tuning for us. By default we do not grab all IDE class devices as they
  *  may have other drivers or need fixups to avoid problems. Instead we keep
  *  a default list of stuff without documentation/driver that appears to
- *  work.  
+ *  work.
  */
 
 #include <linux/kernel.h>
@@ -38,7 +38,7 @@
  *
  *	Set up cable type and use generic probe init
  */
- 
+
 static int generic_pre_reset(struct ata_port *ap)
 {
 	ap->cbl = ATA_CBL_PATA80;
@@ -55,7 +55,7 @@ static int generic_pre_reset(struct ata_port *ap)
  *	None (inherited from caller).
  */
 
- 
+
 static void generic_error_handler(struct ata_port *ap)
 {
 	ata_bmdma_drive_eh(ap, generic_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
@@ -68,9 +68,9 @@ static void generic_error_handler(struct ata_port *ap)
  *	Use a non standard set_mode function. We don't want to be tuned.
  *	The BIOS configured everything. Our job is not to fiddle. We
  *	read the dma enabled bits from the PCI configuration of the device
- *	and respect them. 
+ *	and respect them.
  */
- 
+
 static void generic_set_mode(struct ata_port *ap)
 {
 	int dma_enabled = 0;
@@ -79,14 +79,14 @@ static void generic_set_mode(struct ata_port *ap)
 	/* Bits 5 and 6 indicate if DMA is active on master/slave */
 	if (ap->ioaddr.bmdma_addr)
 		dma_enabled = inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-	
+
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
 		if (ata_dev_enabled(dev)) {
 			/* We don't really care */
 			dev->pio_mode = XFER_PIO_0;
 			dev->dma_mode = XFER_MW_DMA_0;
-			/* We do need the right mode information for DMA or PIO 
+			/* We do need the right mode information for DMA or PIO
 			   and this comes from the current configuration flags */
 			if (dma_enabled & (1 << (5 + i))) {
 				dev->xfer_mode = XFER_MW_DMA_0;
@@ -121,7 +121,7 @@ static struct scsi_host_template generic_sht = {
 
 static struct ata_port_operations generic_port_ops = {
 	.set_mode	= generic_set_mode,
-	
+
 	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
@@ -133,7 +133,7 @@ static struct ata_port_operations generic_port_ops = {
 	.bmdma_start 	= ata_bmdma_start,
 	.bmdma_stop	= ata_bmdma_stop,
 	.bmdma_status 	= ata_bmdma_status,
-	
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.freeze		= ata_bmdma_freeze,
@@ -150,8 +150,8 @@ static struct ata_port_operations generic_port_ops = {
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
-	
+};
+
 static int all_generic_ide;		/* Set to claim all devices */
 
 /**
@@ -160,10 +160,10 @@ static int all_generic_ide;		/* Set to claim all devices */
  *	@id: match entry
  *
  *	Called each time a matching IDE interface is found. We check if the
- *	interface is one we wish to claim and if so we perform any chip 
+ *	interface is one we wish to claim and if so we perform any chip
  *	specific hacks then let the ATA layer do the heavy lifting.
  */
- 
+
 static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	u16 command;
@@ -176,7 +176,7 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 		.port_ops = &generic_port_ops
 	};
 	static struct ata_port_info *port_info[2] = { &info, &info };
-		
+
 	/* Don't use the generic entry unless instructed to do so */
 	if (id->driver_data == 1 && all_generic_ide == 0)
 		return -ENODEV;
@@ -197,7 +197,7 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 	pci_read_config_word(dev, PCI_COMMAND, &command);
 	if (!(command & PCI_COMMAND_IO))
 		return -ENODEV;
-		
+
 	if (dev->vendor == PCI_VENDOR_ID_AL)
 	    	ata_pci_clear_simplex(dev);
 
@@ -207,7 +207,7 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 static struct pci_device_id ata_generic[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PCTECH, PCI_DEVICE_ID_PCTECH_SAMURAI_IDE), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HOLTEK, PCI_DEVICE_ID_HOLTEK_6565), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_UMC,    PCI_DEVICE_ID_UMC_UM8673F), }, 
+	{ PCI_DEVICE(PCI_VENDOR_ID_UMC,    PCI_DEVICE_ID_UMC_UM8673F), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_UMC,    PCI_DEVICE_ID_UMC_UM8886A), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_UMC,    PCI_DEVICE_ID_UMC_UM8886BF), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HINT,   PCI_DEVICE_ID_HINT_VXPROII_IDE), },

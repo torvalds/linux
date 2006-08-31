@@ -168,7 +168,7 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr, cons
 
 	while(list[i] != NULL) {
 		if (!strncmp(list[i], s, len)) {
-			printk(KERN_WARNING DRV_NAME ": %s is not supported for %s.\n", 
+			printk(KERN_WARNING DRV_NAME ": %s is not supported for %s.\n",
 				modestr, list[i]);
 			return 1;
 		}
@@ -184,7 +184,7 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr, cons
  *
  *	Block UDMA on devices that cause trouble with this controller.
  */
- 
+
 static unsigned long hpt366_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
 {
 	if (adev->class == ATA_DEV_ATA) {
@@ -206,11 +206,11 @@ static unsigned long hpt366_filter(const struct ata_port *ap, struct ata_device 
  *	Return the 32bit register programming information for this channel
  *	that matches the speed provided.
  */
- 
+
 static u32 hpt36x_find_mode(struct ata_port *ap, int speed)
 {
 	struct hpt_clock *clocks = ap->host->private_data;
-	
+
 	while(clocks->xfer_speed) {
 		if (clocks->xfer_speed == speed)
 			return clocks->timing;
@@ -219,12 +219,12 @@ static u32 hpt36x_find_mode(struct ata_port *ap, int speed)
 	BUG();
 	return 0xffffffffU;	/* silence compiler warning */
 }
-	
+
 static int hpt36x_pre_reset(struct ata_port *ap)
 {
 	u8 ata66;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	
+
 	pci_read_config_byte(pdev, 0x5A, &ata66);
 	if (ata66 & (1 << ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;
@@ -239,7 +239,7 @@ static int hpt36x_pre_reset(struct ata_port *ap)
  *
  *	Perform the reset handling for the 366/368
  */
- 
+
 static void hpt36x_error_handler(struct ata_port *ap)
 {
 	ata_bmdma_drive_eh(ap, hpt36x_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
@@ -250,9 +250,9 @@ static void hpt36x_error_handler(struct ata_port *ap)
  *	@ap: ATA interface
  *	@adev: device on the interface
  *
- *	Perform PIO mode setup. 
+ *	Perform PIO mode setup.
  */
- 
+
 static void hpt366_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -263,14 +263,14 @@ static void hpt366_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	addr2 = 0x51 + 4 * ap->port_no;
-	
+
 	/* Fast interrupt prediction disable, hold off interrupt disable */
 	pci_read_config_byte(pdev, addr2, &fast);
 	if (fast & 0x80) {
 		fast &= ~0x80;
 		pci_write_config_byte(pdev, addr2, fast);
 	}
-	
+
 	pci_read_config_dword(pdev, addr1, &reg);
 	mode = hpt36x_find_mode(ap, adev->pio_mode);
 	mode &= ~0x8000000;	/* No FIFO in PIO */
@@ -287,7 +287,7 @@ static void hpt366_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	Set up the channel for MWDMA or UDMA modes. Much the same as with
  *	PIO, load the mode number and then set MWDMA or UDMA flag.
  */
- 
+
 static void hpt366_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -298,14 +298,14 @@ static void hpt366_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	addr2 = 0x51 + 4 * ap->port_no;
-	
+
 	/* Fast interrupt prediction disable, hold off interrupt disable */
 	pci_read_config_byte(pdev, addr2, &fast);
 	if (fast & 0x80) {
 		fast &= ~0x80;
 		pci_write_config_byte(pdev, addr2, fast);
 	}
-	
+
 	pci_read_config_dword(pdev, addr1, &reg);
 	mode = hpt36x_find_mode(ap, adev->dma_mode);
 	mode |= 0x8000000;	/* FIFO in MWDMA or UDMA */
@@ -335,13 +335,13 @@ static struct scsi_host_template hpt36x_sht = {
 /*
  *	Configuration for HPT366/68
  */
- 
+
 static struct ata_port_operations hpt366_port_ops = {
 	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt366_set_piomode,
 	.set_dmamode	= hpt366_set_dmamode,
 	.mode_filter	= hpt366_filter,
-	
+
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -369,7 +369,7 @@ static struct ata_port_operations hpt366_port_ops = {
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
-};	
+};
 
 /**
  *	hpt36x_init_one		-	Initialise an HPT366/368
@@ -391,7 +391,7 @@ static struct ata_port_operations hpt366_port_ops = {
  *	HPT37x/30x		4 (HPT366)	3+	Other driver
  *
  */
- 
+
 static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	static struct ata_port_info info_hpt366 = {
@@ -410,7 +410,7 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xFF;
-	
+
 	/* May be a later chip in disguise. Check */
 	/* Newer chips are not in the HPT36x driver. Ignore them */
 	if (class_rev > 2)
@@ -426,7 +426,7 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		pci_write_config_byte(dev, 0x51, drive_fast & ~0x80);
 
 	pci_read_config_dword(dev, 0x40,  &reg1);
-	
+
 	/* PCI clocking determines the ATA timing values to use */
 	/* info_hpt366 is safe against re-entry so we can scribble on it */
 	switch(reg1 & 0x700) {

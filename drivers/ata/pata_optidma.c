@@ -51,11 +51,11 @@ static int pci_clock;	/* 0 = 33 1 = 25 */
  *
  *	Set up cable type and use generic probe init
  */
- 
+
 static int optidma_pre_reset(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	static const struct pci_bits optidma_enable_bits = { 
+	static const struct pci_bits optidma_enable_bits = {
 		0x40, 1, 0x08, 0x00
 	};
 
@@ -90,11 +90,11 @@ static void optidma_error_handler(struct ata_port *ap)
  *	Unlock the control register block for this adapter. Registers must not
  *	be unlocked in a situation where libata might look at them.
  */
- 
+
 static void optidma_unlock(struct ata_port *ap)
 {
 	unsigned long regio = ap->ioaddr.cmd_addr;
-	
+
 	/* These 3 unlock the control register access */
 	inw(regio + 1);
 	inw(regio + 1);
@@ -107,11 +107,11 @@ static void optidma_unlock(struct ata_port *ap)
  *
  *	Re-lock the configuration register settings.
  */
- 
+
 static void optidma_lock(struct ata_port *ap)
 {
 	unsigned long regio = ap->ioaddr.cmd_addr;
-	
+
 	/* Relock */
 	outb(0x83, regio + 2);
 }
@@ -154,7 +154,7 @@ static void optidma_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
 
 	/* Switch from IDE to control mode */
 	optidma_unlock(ap);
-	
+
 
 	/*
  	 *	As with many controllers the address setup time is shared
@@ -166,7 +166,7 @@ static void optidma_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
 		addr = 0;
 	else
 		addr = addr_timing[pci_clock][pio];
-	
+
 	if (pair) {
 		u8 pair_addr;
 		/* Hardware constraint */
@@ -177,7 +177,7 @@ static void optidma_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
 		if (pair_addr > addr)
 			addr = pair_addr;
 	}
-	
+
 	/* Commence primary programming sequence */
 	/* First we load the device number into the timing select */
 	outb(adev->devno, regio + MISC_REG);
@@ -194,10 +194,10 @@ static void optidma_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
 
 	/* Programming sequence complete, timing 0 dev 0, timing 1 dev 1 */
 	outb(0x85, regio + CNTRL_REG);
-	
+
 	/* Switch back to IDE mode */
 	optidma_lock(ap);
-	
+
 	/* Note: at this point our programming is incomplete. We are
 	   not supposed to program PCI 0x43 "things we hacked onto the chip"
 	   until we've done both sets of PIO/DMA timings */
@@ -223,7 +223,7 @@ static void optiplus_set_mode(struct ata_port *ap, struct ata_device *adev, u8 m
 	int dev2 = 2 * adev->devno;
 	int unit = 2 * ap->port_no + adev->devno;
 	int udma = mode - XFER_UDMA_0;
-	
+
 	pci_read_config_byte(pdev, 0x44, &udcfg);
 	if (mode <= XFER_UDMA_0) {
 		udcfg &= ~(1 << unit);
@@ -252,7 +252,7 @@ static void optiplus_set_mode(struct ata_port *ap, struct ata_device *adev, u8 m
  *	DMA programming. The architecture of the Firestar makes it easier
  *	for us to have a common function so we provide wrappers
  */
- 
+
 static void optidma_set_pio_mode(struct ata_port *ap, struct ata_device *adev)
 {
 	optidma_set_mode(ap, adev, adev->pio_mode);
@@ -267,7 +267,7 @@ static void optidma_set_pio_mode(struct ata_port *ap, struct ata_device *adev)
  *	DMA programming. The architecture of the Firestar makes it easier
  *	for us to have a common function so we provide wrappers
  */
- 
+
 static void optidma_set_dma_mode(struct ata_port *ap, struct ata_device *adev)
 {
 	optidma_set_mode(ap, adev, adev->dma_mode);
@@ -282,7 +282,7 @@ static void optidma_set_dma_mode(struct ata_port *ap, struct ata_device *adev)
  *	DMA programming. The architecture of the Firestar makes it easier
  *	for us to have a common function so we provide wrappers
  */
- 
+
 static void optiplus_set_pio_mode(struct ata_port *ap, struct ata_device *adev)
 {
 	optiplus_set_mode(ap, adev, adev->pio_mode);
@@ -297,7 +297,7 @@ static void optiplus_set_pio_mode(struct ata_port *ap, struct ata_device *adev)
  *	DMA programming. The architecture of the Firestar makes it easier
  *	for us to have a common function so we provide wrappers
  */
- 
+
 static void optiplus_set_dma_mode(struct ata_port *ap, struct ata_device *adev)
 {
 	optiplus_set_mode(ap, adev, adev->dma_mode);
@@ -310,7 +310,7 @@ static void optiplus_set_dma_mode(struct ata_port *ap, struct ata_device *adev)
  *	Turn the ATA device setup into PCI configuration bits
  *	for register 0x43 and return the two bits needed.
  */
- 
+
 static u8 optidma_make_bits43(struct ata_device *adev)
 {
 	static const u8 bits43[5] = {
@@ -330,17 +330,17 @@ static u8 optidma_make_bits43(struct ata_device *adev)
  *	Finalise the configuration by writing the nibble of extra bits
  *	of data into the chip.
  */
- 
+
 static void optidma_post_set_mode(struct ata_port *ap)
 {
 	u8 r;
 	int nybble = 4 * ap->port_no;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	
+
 	pci_read_config_byte(pdev, 0x43, &r);
-	
+
 	r &= (0x0F << nybble);
-	r |= (optidma_make_bits43(&ap->device[0]) + 
+	r |= (optidma_make_bits43(&ap->device[0]) +
 	     (optidma_make_bits43(&ap->device[0]) << 2)) << nybble;
 
 	pci_write_config_byte(pdev, 0x43, r);
@@ -438,19 +438,19 @@ static struct ata_port_operations optiplus_port_ops = {
  *	optiplus_with_udma	-	Look for UDMA capable setup
  *	@pdev; ATA controller
  */
- 
+
 static int optiplus_with_udma(struct pci_dev *pdev)
 {
 	u8 r;
 	int ret = 0;
 	int ioport = 0x22;
 	struct pci_dev *dev1;
-	
+
 	/* Find function 1 */
 	dev1 = pci_get_device(0x1045, 0xC701, NULL);
 	if(dev1 == NULL)
 		return 0;
-	
+
 	/* Rev must be >= 0x10 */
 	pci_read_config_byte(dev1, 0x08, &r);
 	if (r < 0x10)
@@ -470,7 +470,7 @@ static int optiplus_with_udma(struct pci_dev *pdev)
 	pci_read_config_byte(dev1, 0x52, &r);
 	if (r & 0x80)	/* IDEDIR disabled */
 		ret = 1;
-done:		
+done:
 	printk(KERN_WARNING "UDMA not supported in this configuration.\n");
 done_nomsg:		/* Wrong chip revision */
 	pci_dev_put(dev1);
@@ -505,7 +505,7 @@ static int optidma_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	inw(0x1F1);
 	inw(0x1F1);
 	pci_clock = inb(0x1F5) & 1;		/* 0 = 33Mhz, 1 = 25Mhz */
-	
+
 	if (optiplus_with_udma(dev))
 		info = &info_82c700_udma;
 
