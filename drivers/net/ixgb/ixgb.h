@@ -170,7 +170,7 @@ struct ixgb_adapter {
 	unsigned long led_status;
 
 	/* TX */
-	struct ixgb_desc_ring tx_ring;
+	struct ixgb_desc_ring tx_ring ____cacheline_aligned_in_smp;
 	unsigned long timeo_start;
 	uint32_t tx_cmd_type;
 	uint64_t hw_csum_tx_good;
