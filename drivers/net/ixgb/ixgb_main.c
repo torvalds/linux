@@ -1787,7 +1787,7 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 	if (unlikely(netif_queue_stopped(netdev))) {
 		spin_lock(&adapter->tx_lock);
 		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev) &&
-		    (IXGB_DESC_UNUSED(tx_ring) > IXGB_TX_QUEUE_WAKE))
+		    (IXGB_DESC_UNUSED(tx_ring) >= DESC_NEEDED))
 			netif_wake_queue(netdev);
 		spin_unlock(&adapter->tx_lock);
 	}

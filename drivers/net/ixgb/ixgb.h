@@ -110,9 +110,6 @@ struct ixgb_adapter;
 #define IXGB_RXBUFFER_8192  8192
 #define IXGB_RXBUFFER_16384 16384
 
-/* How many Tx Descriptors do we need to call netif_wake_queue? */
-#define IXGB_TX_QUEUE_WAKE 16
-
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IXGB_RX_BUFFER_WRITE	4	/* Must be power of 2 */
 
