@@ -863,15 +863,11 @@ call_bind_status(struct rpc_task *task)
 		dprintk("RPC: %4d remote rpcbind: RPC program/version unavailable\n",
 				task->tk_pid);
 		rpc_delay(task, 3*HZ);
-		goto retry_bind;
+		goto retry_timeout;
 	case -ETIMEDOUT:
 		dprintk("RPC: %4d rpcbind request timed out\n",
 				task->tk_pid);
-		if (RPC_IS_SOFT(task)) {
-			status = -EIO;
-			break;
-		}
-		goto retry_bind;
+		goto retry_timeout;
 	case -EPFNOSUPPORT:
 		dprintk("RPC: %4d remote rpcbind service unavailable\n",
 				task->tk_pid);
@@ -884,16 +880,13 @@ call_bind_status(struct rpc_task *task)
 		dprintk("RPC: %4d unrecognized rpcbind error (%d)\n",
 				task->tk_pid, -task->tk_status);
 		status = -EIO;
-		break;
 	}
 
 	rpc_exit(task, status);
 	return;
 
-retry_bind:
-	task->tk_status = 0;
-	task->tk_action = call_bind;
-	return;
+retry_timeout:
+	task->tk_action = call_timeout;
 }
 
 /*
@@ -941,14 +934,16 @@ call_connect_status(struct rpc_task *task)
 
 	switch (status) {
 	case -ENOTCONN:
-	case -ETIMEDOUT:
 	case -EAGAIN:
 		task->tk_action = call_bind;
-		break;
-	default:
-		rpc_exit(task, -EIO);
-		break;
+		if (!RPC_IS_SOFT(task))
+			return;
+		/* if soft mounted, test if we've timed out */
+	case -ETIMEDOUT:
+		task->tk_action = call_timeout;
+		return;
 	}
+	rpc_exit(task, -EIO);
 }
 
 /*
@@ -1057,7 +1052,6 @@ call_status(struct rpc_task *task)
 		printk("%s: RPC call returned error %d\n",
 			       clnt->cl_protname, -status);
 		rpc_exit(task, status);
-		break;
 	}
 }
 
@@ -1125,10 +1119,10 @@ call_decode(struct rpc_task *task)
 			clnt->cl_stats->rpcretrans++;
 			goto out_retry;
 		}
-		printk(KERN_WARNING "%s: too small RPC reply size (%d bytes)\n",
+		dprintk("%s: too small RPC reply size (%d bytes)\n",
 			clnt->cl_protname, task->tk_status);
-		rpc_exit(task, -EIO);
-		return;
+		task->tk_action = call_timeout;
+		goto out_retry;
 	}
 
 	/*

@@ -585,13 +585,6 @@ static void xprt_connect_status(struct rpc_task *task)
 				task->tk_pid, -task->tk_status, task->tk_client->cl_server);
 		xprt_release_write(xprt, task);
 		task->tk_status = -EIO;
-		return;
-	}
-
-	/* if soft mounted, just cause this RPC to fail */
-	if (RPC_IS_SOFT(task)) {
-		xprt_release_write(xprt, task);
-		task->tk_status = -EIO;
 	}
 }
 
@@ -829,6 +822,7 @@ static void xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)
 	req->rq_bufsize = 0;
 	req->rq_xid     = xprt_alloc_xid(xprt);
 	req->rq_release_snd_buf = NULL;
+	xprt_reset_majortimeo(req);
 	dprintk("RPC: %4d reserved req %p xid %08x\n", task->tk_pid,
 			req, ntohl(req->rq_xid));
 }
