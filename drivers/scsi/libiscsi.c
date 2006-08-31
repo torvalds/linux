@@ -1593,7 +1593,8 @@ int iscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 		return -EPERM;
 	}
 
-	if (session->first_burst > session->max_burst) {
+	if ((session->imm_data_en || !session->initial_r2t_en) &&
+	     session->first_burst > session->max_burst) {
 		printk("iscsi: invalid burst lengths: "
 		       "first_burst %d max_burst %d\n",
 		       session->first_burst, session->max_burst);
