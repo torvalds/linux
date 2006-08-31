@@ -239,7 +239,51 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 	: "memory");
 }
 
-#define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
+static inline int __raw_read_trylock(raw_rwlock_t *rw)
+{
+	unsigned int tmp;
+	int ret;
+
+	if (R10000_LLSC_WAR) {
+		__asm__ __volatile__(
+		"	.set	noreorder	# __raw_read_trylock	\n"
+		"	li	%2, 0					\n"
+		"1:	ll	%1, %3					\n"
+		"	bnez	%1, 2f					\n"
+		"	 addu	%1, 1					\n"
+		"	sc	%1, %0					\n"
+		"	beqzl	%1, 1b					\n"
+		"	.set	reorder					\n"
+#ifdef CONFIG_SMP
+		"	 sync						\n"
+#endif
+		"	li	%2, 1					\n"
+		"2:							\n"
+		: "=m" (rw->lock), "=&r" (tmp), "=&r" (ret)
+		: "m" (rw->lock)
+		: "memory");
+	} else {
+		__asm__ __volatile__(
+		"	.set	noreorder	# __raw_read_trylock	\n"
+		"	li	%2, 0					\n"
+		"1:	ll	%1, %3					\n"
+		"	bnez	%1, 2f					\n"
+		"	 addu	%1, 1					\n"
+		"	sc	%1, %0					\n"
+		"	beqz	%1, 1b					\n"
+		"	.set	reorder					\n"
+#ifdef CONFIG_SMP
+		"	 sync						\n"
+#endif
+		"	li	%2, 1					\n"
+		"2:							\n"
+		: "=m" (rw->lock), "=&r" (tmp), "=&r" (ret)
+		: "m" (rw->lock)
+		: "memory");
+	}
+
+	return ret;
+}
 
 static inline int __raw_write_trylock(raw_rwlock_t *rw)
 {
@@ -282,5 +326,6 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 
 	return ret;
 }
+
 
 #endif /* _ASM_SPINLOCK_H */
