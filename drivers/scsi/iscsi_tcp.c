@@ -109,7 +109,7 @@ iscsi_hdr_digest(struct iscsi_conn *conn, struct iscsi_buf *buf,
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 
 	crypto_digest_digest(tcp_conn->tx_tfm, &buf->sg, 1, crc);
-	buf->sg.length += sizeof(uint32_t);
+	buf->sg.length = tcp_conn->hdr_size;
 }
 
 static inline int
