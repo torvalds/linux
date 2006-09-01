@@ -140,6 +140,7 @@ int device_suspend(pm_message_t state)
 {
 	int error = 0;
 
+	might_sleep();
 	down(&dpm_sem);
 	down(&dpm_list_sem);
 	while (!list_empty(&dpm_active) && error == 0) {

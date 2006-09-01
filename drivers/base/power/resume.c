@@ -96,6 +96,7 @@ void dpm_resume(void)
 
 void device_resume(void)
 {
+	might_sleep();
 	down(&dpm_sem);
 	dpm_resume();
 	up(&dpm_sem);
