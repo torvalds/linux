@@ -551,82 +551,6 @@ static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 	instruction_hazard();
 }
 
-/*
- * Ok, this seriously sucks.  We use them to flush a user page but don't
- * know the virtual address, so we have to blast away the whole icache
- * which is significantly more expensive than the real thing.  Otoh we at
- * least know the kernel address of the page so we can flush it
- * selectivly.
- */
-
-struct flush_icache_page_args {
-	struct vm_area_struct *vma;
-	struct page *page;
-};
-
-static inline void local_r4k_flush_icache_page(void *args)
-{
-	struct flush_icache_page_args *fip_args = args;
-	struct vm_area_struct *vma = fip_args->vma;
-	struct page *page = fip_args->page;
-
-	/*
-	 * Tricky ...  Because we don't know the virtual address we've got the
-	 * choice of either invalidating the entire primary and secondary
-	 * caches or invalidating the secondary caches also.  With the subset
-	 * enforcment on R4000SC, R4400SC, R10000 and R12000 invalidating the
-	 * secondary cache will result in any entries in the primary caches
-	 * also getting invalidated which hopefully is a bit more economical.
-	 */
-	if (cpu_has_inclusive_pcaches) {
-		unsigned long addr = (unsigned long) page_address(page);
-
-		r4k_blast_scache_page(addr);
-		ClearPageDcacheDirty(page);
-
-		return;
-	}
-
-	if (!cpu_has_ic_fills_f_dc) {
-		unsigned long addr = (unsigned long) page_address(page);
-		r4k_blast_dcache_page(addr);
-		if (!cpu_icache_snoops_remote_store)
-			r4k_blast_scache_page(addr);
-		ClearPageDcacheDirty(page);
-	}
-
-	/*
-	 * We're not sure of the virtual address(es) involved here, so
-	 * we have to flush the entire I-cache.
-	 */
-	if (cpu_has_vtag_icache && vma->vm_mm == current->active_mm) {
-		int cpu = smp_processor_id();
-
-		if (cpu_context(cpu, vma->vm_mm) != 0)
-			drop_mmu_context(vma->vm_mm, cpu);
-	} else
-		r4k_blast_icache();
-}
-
-static void r4k_flush_icache_page(struct vm_area_struct *vma,
-	struct page *page)
-{
-	struct flush_icache_page_args args;
-
-	/*
-	 * If there's no context yet, or the page isn't executable, no I-cache
-	 * flush is needed.
-	 */
-	if (!(vma->vm_flags & VM_EXEC))
-		return;
-
-	args.vma = vma;
-	args.page = page;
-
-	r4k_on_each_cpu(local_r4k_flush_icache_page, &args, 1, 1);
-}
-
-
 #ifdef CONFIG_DMA_NONCOHERENT
 
 static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
@@ -1291,7 +1215,6 @@ void __init r4k_cache_init(void)
 	__flush_cache_all	= r4k___flush_cache_all;
 	flush_cache_mm		= r4k_flush_cache_mm;
 	flush_cache_page	= r4k_flush_cache_page;
-	__flush_icache_page	= r4k_flush_icache_page;
 	flush_cache_range	= r4k_flush_cache_range;
 
 	flush_cache_sigtramp	= r4k_flush_cache_sigtramp;
