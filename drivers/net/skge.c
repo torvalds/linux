@@ -2891,13 +2891,15 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct skge_hw *hw = dev_id;
 	u32 status;
+	int handled = 0;
 
+	spin_lock(&hw->hw_lock);
 	/* Reading this register masks IRQ */
 	status = skge_read32(hw, B0_SP_ISRC);
 	if (status == 0)
-		return IRQ_NONE;
+		goto out;
 
-	spin_lock(&hw->hw_lock);
+	handled = 1;
 	status &= hw->intr_mask;
 	if (status & IS_EXT_REG) {
 		hw->intr_mask &= ~IS_EXT_REG;
@@ -2959,9 +2961,10 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
 	skge_read32(hw, B0_IMSK);
+out:
 	spin_unlock(&hw->hw_lock);
 
-	return IRQ_HANDLED;
+	return IRQ_RETVAL(handled);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
