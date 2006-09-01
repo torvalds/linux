@@ -32,6 +32,7 @@
 #include <linux/seq_file.h>
 #include <linux/compiler.h>
 #include <linux/sched.h>	/* current */
+#include <linux/dmi.h>
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>
@@ -387,6 +388,33 @@ static int acpi_cpufreq_early_init_acpi(void)
 	return acpi_processor_preregister_performance(acpi_perf_data);
 }
 
+/*
+ * Some BIOSes do SW_ANY coordination internally, either set it up in hw
+ * or do it in BIOS firmware and won't inform about it to OS. If not
+ * detected, this has a side effect of making CPU run at a different speed
+ * than OS intended it to run at. Detect it and handle it cleanly.
+ */
+static int bios_with_sw_any_bug;
+
+static int __init sw_any_bug_found(struct dmi_system_id *d)
+{
+	bios_with_sw_any_bug = 1;
+	return 0;
+}
+
+static struct dmi_system_id __initdata sw_any_bug_dmi_table[] = {
+	{
+		.callback = sw_any_bug_found,
+		.ident = "Supermicro Server X6DLP",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Supermicro"),
+			DMI_MATCH(DMI_BIOS_VERSION, "080010"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X6DLP"),
+		},
+	},
+	{ }
+};
+
 static int
 acpi_cpufreq_cpu_init (
 	struct cpufreq_policy   *policy)
@@ -422,8 +450,17 @@ acpi_cpufreq_cpu_init (
 	 * coordination is required.
 	 */
 	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL ||
-	    policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
+	    policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
 		policy->cpus = perf->shared_cpu_map;
+	}
+
+#ifdef CONFIG_SMP
+	dmi_check_system(sw_any_bug_dmi_table);
+	if (bios_with_sw_any_bug && cpus_weight(policy->cpus) == 1) {
+		policy->shared_type = CPUFREQ_SHARED_TYPE_ALL;
+		policy->cpus = cpu_core_map[cpu];
+	}
+#endif
 
 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 		acpi_cpufreq_driver.flags |= CPUFREQ_CONST_LOOPS;
