@@ -17,7 +17,10 @@ ifeq ($(CONFIG_VIDEO_V4L1_COMPAT),y)
 endif
 
 obj-$(CONFIG_VIDEO_BT848) += bt8xx/
-obj-$(CONFIG_VIDEO_BT848) += tvaudio.o tda7432.o tda9875.o ir-kbd-i2c.o
+obj-$(CONFIG_VIDEO_BT848) += ir-kbd-i2c.o
+obj-$(CONFIG_VIDEO_TVAUDIO) += tvaudio.o
+obj-$(CONFIG_VIDEO_TDA7432) += tda7432.o
+obj-$(CONFIG_VIDEO_TDA9875) += tda9875.o
 obj-$(CONFIG_SOUND_TVMIXER) += tvmixer.o
 
 obj-$(CONFIG_VIDEO_ZR36120) += zoran.o

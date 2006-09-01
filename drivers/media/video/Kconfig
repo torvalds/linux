@@ -338,6 +338,34 @@ config VIDEO_M32R_AR_M64278
 menu "Encoders and Decoders"
 	depends on VIDEO_DEV
 
+config VIDEO_TVAUDIO
+	tristate "Support for several audio decoder chips found on bt8xx boards"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for several audio decoder chips found on some bt8xx boards:
+		tda8425, tea6300, tea6420, tea9840, tda985x, tda9874, pic16c54.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tvaudio.
+
+config VIDEO_TDA7432
+	tristate "Support for tda7432 chip"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for tda7432 audio decoder chip found on some bt8xx boards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tda7432.
+
+config VIDEO_TDA9875
+	tristate "Support for tda9875 chip"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for tda9875 audio decoder chip found on some bt8xx boards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tda9875.
+
 config VIDEO_MSP3400
 	tristate "Micronas MSP34xx audio decoders"
 	depends on VIDEO_DEV && I2C
