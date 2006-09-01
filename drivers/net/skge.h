@@ -2417,7 +2417,6 @@ struct skge_port {
 	struct net_device    *netdev;
 	int		     port;
 
-	spinlock_t	     tx_lock;
 	struct skge_ring     tx_ring;
 	struct skge_ring     rx_ring;
 
