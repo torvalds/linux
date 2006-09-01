@@ -1514,8 +1514,7 @@ static inline int secpath_has_nontransport(struct sec_path *sp, int k, int *idxp
 {
 	for (; k < sp->len; k++) {
 		if (sp->xvec[k]->props.mode != XFRM_MODE_TRANSPORT) {
-			if (idxp)
-				*idxp = k;
+			*idxp = k;
 			return 1;
 		}
 	}
@@ -1534,7 +1533,6 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	struct flowi fl;
 	u8 fl_dir = policy_to_flow_dir(dir);
 	int xerr_idx = -1;
-	int *xerr_idxp = &xerr_idx;
 
 	if (xfrm_decode_session(skb, &fl, family) < 0)
 		return 0;
@@ -1560,7 +1558,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 					xfrm_policy_lookup);
 
 	if (!pol) {
-		if (skb->sp && secpath_has_nontransport(skb->sp, 0, xerr_idxp)) {
+		if (skb->sp && secpath_has_nontransport(skb->sp, 0, &xerr_idx)) {
 			xfrm_secpath_reject(xerr_idx, skb, &fl);
 			return 0;
 		}
@@ -1619,13 +1617,14 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 		for (i = xfrm_nr-1, k = 0; i >= 0; i--) {
 			k = xfrm_policy_ok(tpp[i], sp, k, family);
 			if (k < 0) {
-				if (k < -1 && xerr_idxp)
-					*xerr_idxp = -(2+k);
+				if (k < -1)
+					/* "-2 - errored_index" returned */
+					xerr_idx = -(2+k);
 				goto reject;
 			}
 		}
 
-		if (secpath_has_nontransport(sp, k, xerr_idxp))
+		if (secpath_has_nontransport(sp, k, &xerr_idx))
 			goto reject;
 
 		xfrm_pols_put(pols, npols);
