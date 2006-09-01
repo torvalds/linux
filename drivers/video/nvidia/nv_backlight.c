@@ -112,13 +112,15 @@ static struct backlight_properties nvidia_bl_data = {
 
 void nvidia_bl_set_power(struct fb_info *info, int power)
 {
-	if (info->bl_dev == NULL)
-		return;
 	mutex_lock(&info->bl_mutex);
-	up(&info->bl_dev->sem);
-	info->bl_dev->props->power = power;
-	__nvidia_bl_update_status(info->bl_dev);
-	down(&info->bl_dev->sem);
+
+	if (info->bl_dev) {
+		down(&info->bl_dev->sem);
+		info->bl_dev->props->power = power;
+		__nvidia_bl_update_status(info->bl_dev);
+		up(&info->bl_dev->sem);
+	}
+
 	mutex_unlock(&info->bl_mutex);
 }
 
@@ -153,11 +155,11 @@ void nvidia_bl_init(struct nvidia_par *par)
 		0x534 * FB_BACKLIGHT_MAX / MAX_LEVEL);
 	mutex_unlock(&info->bl_mutex);
 
-	up(&bd->sem);
+	down(&bd->sem);
 	bd->props->brightness = nvidia_bl_data.max_brightness;
 	bd->props->power = FB_BLANK_UNBLANK;
 	bd->props->update_status(bd);
-	down(&bd->sem);
+	up(&bd->sem);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	mutex_lock(&pmac_backlight_mutex);
