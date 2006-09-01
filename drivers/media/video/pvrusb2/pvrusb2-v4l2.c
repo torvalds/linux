@@ -468,17 +468,17 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 			lmin = pvr2_ctrl_get_min(hcp);
 			lmax = pvr2_ctrl_get_max(hcp);
-			if (h < lmin) {
-				h = lmin;
-			} else if (h > lmax) {
-				h = lmax;
-			}
-			lmin = pvr2_ctrl_get_min(vcp);
-			lmax = pvr2_ctrl_get_max(vcp);
 			if (w < lmin) {
 				w = lmin;
 			} else if (w > lmax) {
 				w = lmax;
+			}
+			lmin = pvr2_ctrl_get_min(vcp);
+			lmax = pvr2_ctrl_get_max(vcp);
+			if (h < lmin) {
+				h = lmin;
+			} else if (h > lmax) {
+				h = lmax;
 			}
 
 			memcpy(vf, &pvr_format[PVR_FORMAT_PIX],
