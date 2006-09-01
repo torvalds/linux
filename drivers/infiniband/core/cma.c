@@ -279,7 +279,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 	default:
 		return -ENODEV;
 	}
-	mutex_lock(&lock);
+
 	list_for_each_entry(cma_dev, &dev_list, list) {
 		ret = ib_find_cached_gid(cma_dev->device, &gid,
 					 &id_priv->id.port_num, NULL);
@@ -288,7 +288,6 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 			break;
 		}
 	}
-	mutex_unlock(&lock);
 	return ret;
 }
 
@@ -712,7 +711,9 @@ void rdma_destroy_id(struct rdma_cm_id *id)
 	state = cma_exch(id_priv, CMA_DESTROYING);
 	cma_cancel_operation(id_priv, state);
 
+	mutex_lock(&lock);
 	if (id_priv->cma_dev) {
+		mutex_unlock(&lock);
 		switch (rdma_node_get_transport(id->device->node_type)) {
 		case RDMA_TRANSPORT_IB:
 			if (id_priv->cm_id.ib && !IS_ERR(id_priv->cm_id.ib))
@@ -727,8 +728,8 @@ void rdma_destroy_id(struct rdma_cm_id *id)
 		}
 		mutex_lock(&lock);
 		cma_detach_from_dev(id_priv);
-		mutex_unlock(&lock);
 	}
+	mutex_unlock(&lock);
 
 	cma_release_port(id_priv);
 	cma_deref_id(id_priv);
@@ -925,7 +926,9 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	}
 
 	atomic_inc(&conn_id->dev_remove);
+	mutex_lock(&lock);
 	ret = cma_acquire_dev(conn_id);
+	mutex_unlock(&lock);
 	if (ret) {
 		ret = -ENODEV;
 		cma_release_remove(conn_id);
@@ -1097,7 +1100,9 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 		goto out;
 	}
 
+	mutex_lock(&lock);
 	ret = cma_acquire_dev(conn_id);
+	mutex_unlock(&lock);
 	if (ret) {
 		cma_release_remove(conn_id);
 		rdma_destroy_id(new_cm_id);
@@ -1507,16 +1512,26 @@ static void addr_handler(int status, struct sockaddr *src_addr,
 	enum rdma_cm_event_type event;
 
 	atomic_inc(&id_priv->dev_remove);
-	if (!id_priv->cma_dev && !status)
+
+	/*
+	 * Grab mutex to block rdma_destroy_id() from removing the device while
+	 * we're trying to acquire it.
+	 */
+	mutex_lock(&lock);
+	if (!cma_comp_exch(id_priv, CMA_ADDR_QUERY, CMA_ADDR_RESOLVED)) {
+		mutex_unlock(&lock);
+		goto out;
+	}
+
+	if (!status && !id_priv->cma_dev)
 		status = cma_acquire_dev(id_priv);
+	mutex_unlock(&lock);
 
 	if (status) {
-		if (!cma_comp_exch(id_priv, CMA_ADDR_QUERY, CMA_ADDR_BOUND))
+		if (!cma_comp_exch(id_priv, CMA_ADDR_RESOLVED, CMA_ADDR_BOUND))
 			goto out;
 		event = RDMA_CM_EVENT_ADDR_ERROR;
 	} else {
-		if (!cma_comp_exch(id_priv, CMA_ADDR_QUERY, CMA_ADDR_RESOLVED))
-			goto out;
 		memcpy(&id_priv->id.route.addr.src_addr, src_addr,
 		       ip_addr_size(src_addr));
 		event = RDMA_CM_EVENT_ADDR_RESOLVED;
@@ -1740,8 +1755,11 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 
 	if (!cma_any_addr(addr)) {
 		ret = rdma_translate_ip(addr, &id->route.addr.dev_addr);
-		if (!ret)
+		if (!ret) {
+			mutex_lock(&lock);
 			ret = cma_acquire_dev(id_priv);
+			mutex_unlock(&lock);
+		}
 		if (ret)
 			goto err;
 	}
