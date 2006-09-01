@@ -1243,7 +1243,7 @@ struct v4l2_streamparm
 #define VIDIOC_G_PRIORITY       _IOR  ('V', 67, enum v4l2_priority)
 #define VIDIOC_S_PRIORITY       _IOW  ('V', 68, enum v4l2_priority)
 #if 1
-#define VIDIOC_G_SLICED_VBI_CAP _IOR  ('V', 69, struct v4l2_sliced_vbi_cap)
+#define VIDIOC_G_SLICED_VBI_CAP _IOWR ('V', 69, struct v4l2_sliced_vbi_cap)
 #endif
 #define VIDIOC_LOG_STATUS       _IO   ('V', 70)
 #define VIDIOC_G_EXT_CTRLS	_IOWR ('V', 71, struct v4l2_ext_controls)
