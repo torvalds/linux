@@ -34,6 +34,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
 
 #define DRV_NAME "stex"
 #define ST_DRIVER_VERSION "2.9.0.13"
@@ -95,7 +96,6 @@ enum {
 
 	/* request count, etc. */
 	MU_MAX_REQUEST				= 32,
-	TAG_BITMAP_LENGTH			= MU_MAX_REQUEST,
 
 	/* one message wasted, use MU_MAX_REQUEST+1
 		to handle MU_MAX_REQUEST messages */
@@ -265,7 +265,6 @@ struct st_hba {
 	struct Scsi_Host *host;
 	struct pci_dev *pdev;
 
-	u32 tag;
 	u32 req_head;
 	u32 req_tail;
 	u32 status_head;
@@ -307,40 +306,6 @@ static void stex_gettime(__le32 *time)
 
 	*time = cpu_to_le32(tv.tv_sec & 0xffffffff);
 	*(time + 1) = cpu_to_le32((tv.tv_sec >> 16) >> 16);
-}
-
-static u16 __stex_alloc_tag(unsigned long *bitmap)
-{
-	int i;
-	i = find_first_zero_bit(bitmap, TAG_BITMAP_LENGTH);
-	if (i < TAG_BITMAP_LENGTH)
-		__set_bit(i, bitmap);
-	return (u16)i;
-}
-
-static u16 stex_alloc_tag(struct st_hba *hba, unsigned long *bitmap)
-{
-	unsigned long flags;
-	u16 tag;
-
-	spin_lock_irqsave(hba->host->host_lock, flags);
-	tag = __stex_alloc_tag(bitmap);
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
-	return tag;
-}
-
-static void __stex_free_tag(unsigned long *bitmap, u16 tag)
-{
-	__clear_bit((int)tag, bitmap);
-}
-
-static void stex_free_tag(struct st_hba *hba, unsigned long *bitmap, u16 tag)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(hba->host->host_lock, flags);
-	__stex_free_tag(bitmap, tag);
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
 }
 
 static struct status_msg *stex_get_status(struct st_hba *hba)
@@ -535,57 +500,31 @@ stex_send_cmd(struct st_hba *hba, struct req_msg *req, u16 tag)
 }
 
 static int
+stex_slave_alloc(struct scsi_device *sdev)
+{
+	/* Cheat: usually extracted from Inquiry data */
+	sdev->tagged_supported = 1;
+
+	scsi_activate_tcq(sdev, sdev->host->can_queue);
+
+	return 0;
+}
+
+static int
 stex_slave_config(struct scsi_device *sdev)
 {
 	sdev->use_10_for_rw = 1;
 	sdev->use_10_for_ms = 1;
 	sdev->timeout = 60 * HZ;
+	sdev->tagged_supported = 1;
+
 	return 0;
 }
 
 static void
 stex_slave_destroy(struct scsi_device *sdev)
 {
-	struct st_hba *hba = (struct st_hba *) sdev->host->hostdata;
-	struct req_msg *req;
-	unsigned long flags;
-	unsigned long before;
-	u16 tag;
-
-	if (sdev->type != TYPE_DISK)
-		return;
-
-	before = jiffies;
-	while ((tag = stex_alloc_tag(hba, (unsigned long *)&hba->tag))
-		== TAG_BITMAP_LENGTH) {
-		if (time_after(jiffies, before + ST_INTERNAL_TIMEOUT * HZ))
-			return;
-		msleep(10);
-	}
-
-	spin_lock_irqsave(hba->host->host_lock, flags);
-	req = stex_alloc_req(hba);
-	memset(req->cdb, 0, STEX_CDB_LENGTH);
-
-	req->target = sdev->id;
-	req->lun = sdev->channel; /* firmware lun issue work around */
-	req->cdb[0] = SYNCHRONIZE_CACHE;
-
-	hba->ccb[tag].cmd = NULL;
-	hba->ccb[tag].sg_count = 0;
-	hba->ccb[tag].sense_bufflen = 0;
-	hba->ccb[tag].sense_buffer = NULL;
-	hba->ccb[tag].req_type |= PASSTHRU_REQ_TYPE;
-
-	stex_send_cmd(hba, req, tag);
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
-
-	wait_event_timeout(hba->waitq,
-		!(hba->ccb[tag].req_type), ST_INTERNAL_TIMEOUT * HZ);
-	if (hba->ccb[tag].req_type & PASSTHRU_REQ_TYPE)
-		return;
-
-	stex_free_tag(hba, (unsigned long *)&hba->tag, tag);
+	scsi_deactivate_tcq(sdev, 1);
 }
 
 static int
@@ -650,8 +589,9 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 
 	cmd->scsi_done = done;
 
-	if (unlikely((tag = __stex_alloc_tag((unsigned long *)&hba->tag))
-		== TAG_BITMAP_LENGTH))
+	tag = cmd->request->tag;
+
+	if (unlikely(tag >= host->can_queue))
 		return SCSI_MLQUEUE_HOST_BUSY;
 
 	req = stex_alloc_req(hba);
@@ -771,26 +711,18 @@ static void stex_mu_intr(struct st_hba *hba, u32 doorbell)
 	while (hba->status_tail != hba->status_head) {
 		resp = stex_get_status(hba);
 		tag = le16_to_cpu(resp->tag);
-		if (unlikely(tag >= TAG_BITMAP_LENGTH)) {
+		if (unlikely(tag >= hba->host->can_queue)) {
 			printk(KERN_WARNING DRV_NAME
 				"(%s): invalid tag\n", pci_name(hba->pdev));
 			continue;
 		}
-		if (unlikely((hba->tag & (1 << tag)) == 0)) {
-			printk(KERN_WARNING DRV_NAME
-				"(%s): null tag\n", pci_name(hba->pdev));
-			continue;
-		}
 
-		hba->out_req_cnt--;
 		ccb = &hba->ccb[tag];
 		if (hba->wait_ccb == ccb)
 			hba->wait_ccb = NULL;
 		if (unlikely(ccb->req == NULL)) {
 			printk(KERN_WARNING DRV_NAME
 				"(%s): lagging req\n", pci_name(hba->pdev));
-			__stex_free_tag((unsigned long *)&hba->tag, tag);
-			stex_unmap_sg(hba, ccb->cmd); /* ??? */
 			continue;
 		}
 
@@ -808,7 +740,15 @@ static void stex_mu_intr(struct st_hba *hba, u32 doorbell)
 		ccb->srb_status = resp->srb_status;
 		ccb->scsi_status = resp->scsi_status;
 
-		if (ccb->req_type & PASSTHRU_REQ_TYPE) {
+		if (likely(ccb->cmd != NULL)) {
+			if (unlikely(ccb->cmd->cmnd[0] == PASSTHRU_CMD &&
+				ccb->cmd->cmnd[1] == PASSTHRU_GET_ADAPTER))
+				stex_controller_info(hba, ccb);
+			stex_unmap_sg(hba, ccb->cmd);
+			stex_scsi_done(ccb);
+			hba->out_req_cnt--;
+		} else if (ccb->req_type & PASSTHRU_REQ_TYPE) {
+			hba->out_req_cnt--;
 			if (ccb->req_type & PASSTHRU_REQ_NO_WAKEUP) {
 				ccb->req_type = 0;
 				continue;
@@ -816,14 +756,7 @@ static void stex_mu_intr(struct st_hba *hba, u32 doorbell)
 			ccb->req_type = 0;
 			if (waitqueue_active(&hba->waitq))
 				wake_up(&hba->waitq);
-			continue;
 		}
-		if (ccb->cmd->cmnd[0] == PASSTHRU_CMD &&
-			ccb->cmd->cmnd[1] == PASSTHRU_GET_ADAPTER)
-			stex_controller_info(hba, ccb);
-		__stex_free_tag((unsigned long *)&hba->tag, tag);
-		stex_unmap_sg(hba, ccb->cmd);
-		stex_scsi_done(ccb);
 	}
 
 update_status:
@@ -933,21 +866,24 @@ static int stex_abort(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *host = cmd->device->host;
 	struct st_hba *hba = (struct st_hba *)host->hostdata;
-	u16 tag;
+	u16 tag = cmd->request->tag;
 	void __iomem *base;
 	u32 data;
 	int result = SUCCESS;
 	unsigned long flags;
 	base = hba->mmio_base;
 	spin_lock_irqsave(host->host_lock, flags);
-
-	for (tag = 0; tag < MU_MAX_REQUEST; tag++)
-		if (hba->ccb[tag].cmd == cmd && (hba->tag & (1 << tag))) {
-			hba->wait_ccb = &(hba->ccb[tag]);
-			break;
-		}
-	if (tag >= MU_MAX_REQUEST)
-		goto out;
+	if (tag < host->can_queue && hba->ccb[tag].cmd == cmd)
+		hba->wait_ccb = &hba->ccb[tag];
+	else {
+		for (tag = 0; tag < host->can_queue; tag++)
+			if (hba->ccb[tag].cmd == cmd) {
+				hba->wait_ccb = &hba->ccb[tag];
+				break;
+			}
+		if (tag >= host->can_queue)
+			goto out;
+	}
 
 	data = readl(base + ODBL);
 	if (data == 0 || data == 0xffffffff)
@@ -965,6 +901,7 @@ static int stex_abort(struct scsi_cmnd *cmd)
 	}
 
 fail_out:
+	stex_unmap_sg(hba, cmd);
 	hba->wait_ccb->req = NULL; /* nullify the req's future return */
 	hba->wait_ccb = NULL;
 	result = FAILED;
@@ -1025,7 +962,6 @@ static int stex_reset(struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 	spin_lock_irqsave(hba->host->host_lock, flags);
-	hba->tag = 0;
 	hba->req_head = 0;
 	hba->req_tail = 0;
 	hba->status_head = 0;
@@ -1061,6 +997,7 @@ static struct scsi_host_template driver_template = {
 	.proc_name			= DRV_NAME,
 	.bios_param			= stex_biosparam,
 	.queuecommand			= stex_queuecommand,
+	.slave_alloc			= stex_slave_alloc,
 	.slave_configure		= stex_slave_config,
 	.slave_destroy			= stex_slave_destroy,
 	.eh_abort_handler		= stex_abort,
@@ -1171,6 +1108,14 @@ stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto out_free_irq;
 
+	scsi_init_shared_tag_map(host, ST_CAN_QUEUE);
+	if (host->bqt == NULL) {
+		err = -ENOMEM;
+		printk(KERN_ERR DRV_NAME "(%s): init shared queue failed\n",
+			pci_name(pdev));
+		goto out_free_irq;
+	}
+
 	pci_set_drvdata(pdev, hba);
 
 	err = scsi_add_host(host, &pdev->dev);
@@ -1206,15 +1151,7 @@ static void stex_hba_stop(struct st_hba *hba)
 	struct req_msg *req;
 	unsigned long flags;
 	unsigned long before;
-	u16 tag;
-
-	before = jiffies;
-	while ((tag = stex_alloc_tag(hba, (unsigned long *)&hba->tag))
-		== TAG_BITMAP_LENGTH) {
-		if (time_after(jiffies, before + ST_INTERNAL_TIMEOUT * HZ))
-			return;
-		msleep(10);
-	}
+	u16 tag = 0;
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	req = stex_alloc_req(hba);
@@ -1233,12 +1170,12 @@ static void stex_hba_stop(struct st_hba *hba)
 	stex_send_cmd(hba, req, tag);
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
-	wait_event_timeout(hba->waitq,
-		!(hba->ccb[tag].req_type), ST_INTERNAL_TIMEOUT * HZ);
-	if (hba->ccb[tag].req_type & PASSTHRU_REQ_TYPE)
-		return;
-
-	stex_free_tag(hba, (unsigned long *)&hba->tag, tag);
+	before = jiffies;
+	while (hba->ccb[tag].req_type & PASSTHRU_REQ_TYPE) {
+		if (time_after(jiffies, before + ST_INTERNAL_TIMEOUT * HZ))
+			return;
+		msleep(10);
+	}
 }
 
 static void stex_hba_free(struct st_hba *hba)
