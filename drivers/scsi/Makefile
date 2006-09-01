@@ -141,6 +141,7 @@ obj-$(CONFIG_SCSI_SATA_ULI)	+= libata.o sata_uli.o
 obj-$(CONFIG_SCSI_SATA_MV)	+= libata.o sata_mv.o
 obj-$(CONFIG_SCSI_PDC_ADMA)	+= libata.o pdc_adma.o
 obj-$(CONFIG_SCSI_HPTIOP)	+= hptiop.o
+obj-$(CONFIG_SCSI_STEX)		+= stex.o
 
 obj-$(CONFIG_ARM)		+= arm/
 
