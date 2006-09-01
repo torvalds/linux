@@ -641,11 +641,6 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto bail;
 	}
 
-	if (inode->i_nlink >= OCFS2_LINK_MAX) {
-		err = -EMLINK;
-		goto bail;
-	}
-
 	handle = ocfs2_alloc_handle(osb);
 	if (handle == NULL) {
 		err = -ENOMEM;
@@ -656,6 +651,11 @@ static int ocfs2_link(struct dentry *old_dentry,
 	if (err < 0) {
 		if (err != -ENOENT)
 			mlog_errno(err);
+		goto bail;
+	}
+
+	if (!dir->i_nlink) {
+		err = -ENOENT;
 		goto bail;
 	}
 
