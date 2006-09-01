@@ -173,7 +173,7 @@ enum v4l2_chip_ident {
 #define VIDIOC_INT_S_STANDBY 	     _IOW('d', 94, u32)
 
 /* only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
-#define	VIDIOC_INT_S_REGISTER 		_IOR ('d', 100, struct v4l2_register)
+#define	VIDIOC_INT_S_REGISTER 		_IOW ('d', 100, struct v4l2_register)
 #define	VIDIOC_INT_G_REGISTER 		_IOWR('d', 101, struct v4l2_register)
 
 /* Generic reset command. The argument selects which subsystems to reset.
