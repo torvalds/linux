@@ -65,7 +65,7 @@ static int xfrm6_output_one(struct sk_buff *skb)
 		if (err)
 			goto error;
 
-		err = x->mode->output(skb);
+		err = x->mode->output(x, skb);
 		if (err)
 			goto error;
 

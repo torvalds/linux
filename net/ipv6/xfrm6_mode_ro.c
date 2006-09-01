@@ -43,9 +43,8 @@
  * its absence, that of the top IP header.  The value of skb->data will always
  * point to the top IP header.
  */
-static int xfrm6_ro_output(struct sk_buff *skb)
+static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct xfrm_state *x = skb->dst->xfrm;
 	struct ipv6hdr *iph;
 	u8 *prevhdr;
 	int hdr_len;

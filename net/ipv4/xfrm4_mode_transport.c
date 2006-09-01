@@ -21,9 +21,8 @@
  * On exit, skb->h will be set to the start of the payload to be processed
  * by x->type->output and skb->nh will be set to the top IP header.
  */
-static int xfrm4_transport_output(struct sk_buff *skb)
+static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct xfrm_state *x;
 	struct iphdr *iph;
 	int ihl;
 
@@ -33,7 +32,6 @@ static int xfrm4_transport_output(struct sk_buff *skb)
 	ihl = iph->ihl * 4;
 	skb->h.raw += ihl;
 
-	x = skb->dst->xfrm;
 	skb->nh.raw = memmove(skb_push(skb, x->props.header_len), iph, ihl);
 	return 0;
 }

@@ -285,7 +285,7 @@ extern void xfrm_put_type(struct xfrm_type *type);
 
 struct xfrm_mode {
 	int (*input)(struct xfrm_state *x, struct sk_buff *skb);
-	int (*output)(struct sk_buff *skb);
+	int (*output)(struct xfrm_state *x,struct sk_buff *skb);
 
 	struct module *owner;
 	unsigned int encap;
