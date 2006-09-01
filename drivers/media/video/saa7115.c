@@ -98,19 +98,23 @@ static int saa711x_has_reg(const int id, const u8 reg)
 		if (reg>0x1f || reg==1 || reg==0x0f || reg==0x14 || reg==0x18
 				       || reg==0x19 || reg==0x1d || reg==0x1e)
 			return 0;
+		break;
 	case V4L2_IDENT_SAA7113:
 		if (reg>0x62 || reg==0x14 || (reg>=0x18 && reg<=0x1e) ||
 				    (reg>=0x20 && reg<=0x3f) ||reg==0x5f )
 			return 0;
+		break;
 	case V4L2_IDENT_SAA7114:
 		if (reg>=0xf0 || (reg>=0x1a && reg<=0x1e) ||
 				  (reg>=0x20 && reg<=0x2f) ||
 				  (reg>=0x63 && reg<=0x7f) )
 			return 0;
+		break;
 	case V4L2_IDENT_SAA7115:
 		if ((reg>=0x20 && reg<=0x2f) || (reg==0x5c) ||
 				(reg>=0xfc && reg<=0xfe) )
 			return 0;
+		break;
 	case V4L2_IDENT_SAA7118:
 		if (reg>=0xf0 || (reg>=0x1a && reg<=0x1d) ||
 					(reg>=0x63 && reg<=0x6f) )
@@ -123,7 +127,6 @@ static int saa711x_has_reg(const int id, const u8 reg)
 			(reg>=0x3b && reg<=0x3f) || (reg==0x5f) ||
 			(reg>=0x63 && reg<=0x6f) ) )
 		return 0;
-
 	return 1;
 }
 
@@ -141,6 +144,8 @@ static int saa711x_writeregs(struct i2c_client *client, const unsigned char *reg
 		if (saa711x_has_reg(state->ident,reg)) {
 			if (saa711x_write(client, reg, data) < 0)
 				return -1;
+		} else {
+			v4l_dbg(1, debug, client, "tried to access reserved reg 0x%02x\n", reg);
 		}
 	}
 	return 0;
