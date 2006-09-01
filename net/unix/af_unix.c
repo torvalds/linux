@@ -2060,10 +2060,7 @@ static int __init af_unix_init(void)
 	int rc = -1;
 	struct sk_buff *dummy_skb;
 
-	if (sizeof(struct unix_skb_parms) > sizeof(dummy_skb->cb)) {
-		printk(KERN_CRIT "%s: panic\n", __FUNCTION__);
-		goto out;
-	}
+	BUILD_BUG_ON(sizeof(struct unix_skb_parms) > sizeof(dummy_skb->cb));
 
 	rc = proto_register(&unix_proto, 1);
         if (rc != 0) {

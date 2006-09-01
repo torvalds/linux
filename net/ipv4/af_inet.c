@@ -1254,10 +1254,7 @@ static int __init inet_init(void)
 	struct list_head *r;
 	int rc = -EINVAL;
 
-	if (sizeof(struct inet_skb_parm) > sizeof(dummy_skb->cb)) {
-		printk(KERN_CRIT "%s: panic\n", __FUNCTION__);
-		goto out;
-	}
+	BUILD_BUG_ON(sizeof(struct inet_skb_parm) > sizeof(dummy_skb->cb));
 
 	rc = proto_register(&tcp_prot, 1);
 	if (rc)

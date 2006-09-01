@@ -761,6 +761,8 @@ static int __init inet6_init(void)
         struct list_head *r;
 	int err;
 
+	BUILD_BUG_ON(sizeof(struct inet6_skb_parm) > sizeof(dummy_skb->cb));
+
 #ifdef MODULE
 #if 0 /* FIXME --RR */
 	if (!mod_member_present(&__this_module, can_unload))
@@ -769,11 +771,6 @@ static int __init inet6_init(void)
 	__this_module.can_unload = &ipv6_unload;
 #endif
 #endif
-
-	if (sizeof(struct inet6_skb_parm) > sizeof(dummy_skb->cb)) {
-		printk(KERN_CRIT "inet6_proto_init: size fault\n");
-		return -EINVAL;
-	}
 
 	err = proto_register(&tcpv6_prot, 1);
 	if (err)

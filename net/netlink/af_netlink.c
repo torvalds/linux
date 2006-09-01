@@ -1762,8 +1762,6 @@ static struct net_proto_family netlink_family_ops = {
 	.owner	= THIS_MODULE,	/* for consistency 8) */
 };
 
-extern void netlink_skb_parms_too_large(void);
-
 static int __init netlink_proto_init(void)
 {
 	struct sk_buff *dummy_skb;
@@ -1775,8 +1773,7 @@ static int __init netlink_proto_init(void)
 	if (err != 0)
 		goto out;
 
-	if (sizeof(struct netlink_skb_parms) > sizeof(dummy_skb->cb))
-		netlink_skb_parms_too_large();
+	BUILD_BUG_ON(sizeof(struct netlink_skb_parms) > sizeof(dummy_skb->cb));
 
 	nl_table = kcalloc(MAX_LINKS, sizeof(*nl_table), GFP_KERNEL);
 	if (!nl_table)
