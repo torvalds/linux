@@ -41,22 +41,9 @@ void delayacct_init(void)
 
 void __delayacct_tsk_init(struct task_struct *tsk)
 {
-	spin_lock_init(&tsk->delays_lock);
-	/* No need to acquire tsk->delays_lock for allocation here unless
-	   __delayacct_tsk_init called after tsk is attached to tasklist
-	*/
 	tsk->delays = kmem_cache_zalloc(delayacct_cache, SLAB_KERNEL);
 	if (tsk->delays)
 		spin_lock_init(&tsk->delays->lock);
-}
-
-void __delayacct_tsk_exit(struct task_struct *tsk)
-{
-	struct task_delay_info *delays = tsk->delays;
-	spin_lock(&tsk->delays_lock);
-	tsk->delays = NULL;
-	spin_unlock(&tsk->delays_lock);
-	kmem_cache_free(delayacct_cache, delays);
 }
 
 /*
@@ -118,8 +105,6 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	struct timespec ts;
 	unsigned long t1,t2,t3;
 
-	spin_lock(&tsk->delays_lock);
-
 	/* Though tsk->delays accessed later, early exit avoids
 	 * unnecessary returning of other data
 	 */
@@ -161,7 +146,6 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	spin_unlock(&tsk->delays->lock);
 
 done:
-	spin_unlock(&tsk->delays_lock);
 	return 0;
 }
 

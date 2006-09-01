@@ -908,7 +908,6 @@ fastcall NORET_TYPE void do_exit(long code)
 		audit_free(tsk);
 	taskstats_exit_send(tsk, tidstats, group_dead, mycpu);
 	taskstats_exit_free(tidstats);
-	delayacct_tsk_exit(tsk);
 
 	exit_mm(tsk);
 

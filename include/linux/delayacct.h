@@ -59,10 +59,14 @@ static inline void delayacct_tsk_init(struct task_struct *tsk)
 		__delayacct_tsk_init(tsk);
 }
 
-static inline void delayacct_tsk_exit(struct task_struct *tsk)
+/* Free tsk->delays. Called from bad fork and __put_task_struct
+ * where there's no risk of tsk->delays being accessed elsewhere
+ */
+static inline void delayacct_tsk_free(struct task_struct *tsk)
 {
 	if (tsk->delays)
-		__delayacct_tsk_exit(tsk);
+		kmem_cache_free(delayacct_cache, tsk->delays);
+	tsk->delays = NULL;
 }
 
 static inline void delayacct_blkio_start(void)
@@ -101,7 +105,7 @@ static inline void delayacct_init(void)
 {}
 static inline void delayacct_tsk_init(struct task_struct *tsk)
 {}
-static inline void delayacct_tsk_exit(struct task_struct *tsk)
+static inline void delayacct_tsk_free(struct task_struct *tsk)
 {}
 static inline void delayacct_blkio_start(void)
 {}
