@@ -200,7 +200,7 @@ static int wd_margin = 0xB;
 static int wd_multiplier = 2;
 static int nowayout = WATCHDOG_NOWAYOUT;
 
-module_param(timeout, int, 27);
+module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Index into timeout table (0-63) (default=27 (60s))");
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout,
@@ -407,7 +407,7 @@ module_exit(sbc8360_exit);
 MODULE_AUTHOR("Ian E. Morgan <imorgan@webcon.ca>");
 MODULE_DESCRIPTION("SBC8360 watchdog driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0");
+MODULE_VERSION("1.01");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 /* end of sbc8360.c */
