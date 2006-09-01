@@ -59,11 +59,11 @@
  */
 
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/socket.h>
 #include <linux/file.h>
 #include <linux/net.h>
 #include <linux/interrupt.h>
+#include <linux/rcupdate.h>
 #include <linux/netdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -146,51 +146,8 @@ static struct file_operations socket_file_ops = {
  *	The protocol list. Each protocol is registered in here.
  */
 
-static struct net_proto_family *net_families[NPROTO];
-
-#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
-static atomic_t net_family_lockct = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(net_family_lock);
-
-/* The strategy is: modifications net_family vector are short, do not
-   sleep and veeery rare, but read access should be free of any exclusive
-   locks.
- */
-
-static void net_family_write_lock(void)
-{
-	spin_lock(&net_family_lock);
-	while (atomic_read(&net_family_lockct) != 0) {
-		spin_unlock(&net_family_lock);
-
-		yield();
-
-		spin_lock(&net_family_lock);
-	}
-}
-
-static __inline__ void net_family_write_unlock(void)
-{
-	spin_unlock(&net_family_lock);
-}
-
-static __inline__ void net_family_read_lock(void)
-{
-	atomic_inc(&net_family_lockct);
-	spin_unlock_wait(&net_family_lock);
-}
-
-static __inline__ void net_family_read_unlock(void)
-{
-	atomic_dec(&net_family_lockct);
-}
-
-#else
-#define net_family_write_lock() do { } while(0)
-#define net_family_write_unlock() do { } while(0)
-#define net_family_read_lock() do { } while(0)
-#define net_family_read_unlock() do { } while(0)
-#endif
+static const struct net_proto_family *net_families[NPROTO];
 
 /*
  *	Statistics counters of the socket lists
@@ -1138,6 +1095,7 @@ static int __sock_create(int family, int type, int protocol,
 {
 	int err;
 	struct socket *sock;
+	const struct net_proto_family *pf;
 
 	/*
 	 *      Check protocol is in range
@@ -1166,6 +1124,21 @@ static int __sock_create(int family, int type, int protocol,
 	if (err)
 		return err;
 
+	/*
+	 *	Allocate the socket and allow the family to set things up. if
+	 *	the protocol is 0, the family is instructed to select an appropriate
+	 *	default.
+	 */
+	sock = sock_alloc();
+	if (!sock) {
+		if (net_ratelimit())
+			printk(KERN_WARNING "socket: no more sockets\n");
+		return -ENFILE;	/* Not exactly a match, but its the
+				   closest posix thing */
+	}
+
+	sock->type = type;
+
 #if defined(CONFIG_KMOD)
 	/* Attempt to load a protocol module if the find failed.
 	 *
@@ -1173,72 +1146,61 @@ static int __sock_create(int family, int type, int protocol,
 	 * requested real, full-featured networking support upon configuration.
 	 * Otherwise module support will break!
 	 */
-	if (net_families[family] == NULL) {
+	if (net_families[family] == NULL)
 		request_module("net-pf-%d", family);
-	}
 #endif
 
-	net_family_read_lock();
-	if (net_families[family] == NULL) {
-		err = -EAFNOSUPPORT;
-		goto out;
-	}
-
-/*
- *	Allocate the socket and allow the family to set things up. if
- *	the protocol is 0, the family is instructed to select an appropriate
- *	default.
- */
-
-	if (!(sock = sock_alloc())) {
-		if (net_ratelimit())
-			printk(KERN_WARNING "socket: no more sockets\n");
-		err = -ENFILE;	/* Not exactly a match, but its the
-				   closest posix thing */
-		goto out;
-	}
-
-	sock->type = type;
+	rcu_read_lock();
+	pf = rcu_dereference(net_families[family]);
+	err = -EAFNOSUPPORT;
+	if (!pf)
+		goto out_release;
 
 	/*
 	 * We will call the ->create function, that possibly is in a loadable
 	 * module, so we have to bump that loadable module refcnt first.
 	 */
-	err = -EAFNOSUPPORT;
-	if (!try_module_get(net_families[family]->owner))
+	if (!try_module_get(pf->owner))
 		goto out_release;
 
-	if ((err = net_families[family]->create(sock, protocol)) < 0) {
-		sock->ops = NULL;
+	/* Now protected by module ref count */
+	rcu_read_unlock();
+
+	err = pf->create(sock, protocol);
+	if (err < 0)
 		goto out_module_put;
-	}
 
 	/*
 	 * Now to bump the refcnt of the [loadable] module that owns this
 	 * socket at sock_release time we decrement its refcnt.
 	 */
-	if (!try_module_get(sock->ops->owner)) {
-		sock->ops = NULL;
-		goto out_module_put;
-	}
+	if (!try_module_get(sock->ops->owner))
+		goto out_module_busy;
+
 	/*
 	 * Now that we're done with the ->create function, the [loadable]
 	 * module can have its refcnt decremented
 	 */
-	module_put(net_families[family]->owner);
-	*res = sock;
+	module_put(pf->owner);
 	err = security_socket_post_create(sock, family, type, protocol, kern);
 	if (err)
 		goto out_release;
+	*res = sock;
 
-out:
-	net_family_read_unlock();
-	return err;
+	return 0;
+
+out_module_busy:
+	err = -EAFNOSUPPORT;
 out_module_put:
-	module_put(net_families[family]->owner);
-out_release:
+	sock->ops = NULL;
+	module_put(pf->owner);
+out_sock_release:
 	sock_release(sock);
-	goto out;
+	return err;
+
+out_release:
+	rcu_read_unlock();
+	goto out_sock_release;
 }
 
 int sock_create(int family, int type, int protocol, struct socket **res)
@@ -2109,12 +2071,15 @@ asmlinkage long sys_socketcall(int call, unsigned long __user *args)
 
 #endif				/* __ARCH_WANT_SYS_SOCKETCALL */
 
-/*
+/**
+ *	sock_register - add a socket protocol handler
+ *	@ops: description of protocol
+ *
  *	This function is called by a protocol handler that wants to
  *	advertise its address family, and have it linked into the
- *	SOCKET module.
+ *	socket interface. The value ops->family coresponds to the
+ *	socket system call protocol family.
  */
-
 int sock_register(struct net_proto_family *ops)
 {
 	int err;
@@ -2124,31 +2089,44 @@ int sock_register(struct net_proto_family *ops)
 		       NPROTO);
 		return -ENOBUFS;
 	}
-	net_family_write_lock();
-	err = -EEXIST;
-	if (net_families[ops->family] == NULL) {
+
+	spin_lock(&net_family_lock);
+	if (net_families[ops->family])
+		err = -EEXIST;
+	else {
 		net_families[ops->family] = ops;
 		err = 0;
 	}
-	net_family_write_unlock();
+	spin_unlock(&net_family_lock);
+
 	printk(KERN_INFO "NET: Registered protocol family %d\n", ops->family);
 	return err;
 }
 
-/*
+/**
+ *	sock_unregister - remove a protocol handler
+ *	@family: protocol family to remove
+ *
  *	This function is called by a protocol handler that wants to
  *	remove its address family, and have it unlinked from the
- *	SOCKET module.
+ *	new socket creation.
+ *
+ *	If protocol handler is a module, then it can use module reference
+ *	counts to protect against new references. If protocol handler is not
+ *	a module then it needs to provide its own protection in
+ *	the ops->create routine.
  */
-
 int sock_unregister(int family)
 {
 	if (family < 0 || family >= NPROTO)
-		return -1;
+		return -EINVAL;
 
-	net_family_write_lock();
+	spin_lock(&net_family_lock);
 	net_families[family] = NULL;
-	net_family_write_unlock();
+	spin_unlock(&net_family_lock);
+
+	synchronize_rcu();
+
 	printk(KERN_INFO "NET: Unregistered protocol family %d\n", family);
 	return 0;
 }
