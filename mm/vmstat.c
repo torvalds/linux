@@ -190,8 +190,8 @@ static void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
 	(*p)++;
 
 	if (unlikely(*p > STAT_THRESHOLD)) {
-		zone_page_state_add(*p, zone, item);
-		*p = 0;
+		zone_page_state_add(*p + STAT_THRESHOLD / 2, zone, item);
+		*p = -STAT_THRESHOLD / 2;
 	}
 }
 
@@ -209,8 +209,8 @@ void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
 	(*p)--;
 
 	if (unlikely(*p < -STAT_THRESHOLD)) {
-		zone_page_state_add(*p, zone, item);
-		*p = 0;
+		zone_page_state_add(*p - STAT_THRESHOLD / 2, zone, item);
+		*p = STAT_THRESHOLD /2;
 	}
 }
 EXPORT_SYMBOL(__dec_zone_page_state);
@@ -239,19 +239,9 @@ EXPORT_SYMBOL(inc_zone_page_state);
 void dec_zone_page_state(struct page *page, enum zone_stat_item item)
 {
 	unsigned long flags;
-	struct zone *zone;
-	s8 *p;
 
-	zone = page_zone(page);
 	local_irq_save(flags);
-	p = diff_pointer(zone, item);
-
-	(*p)--;
-
-	if (unlikely(*p < -STAT_THRESHOLD)) {
-		zone_page_state_add(*p, zone, item);
-		*p = 0;
-	}
+	__dec_zone_page_state(page, item);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(dec_zone_page_state);
