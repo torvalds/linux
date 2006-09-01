@@ -1476,11 +1476,7 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 
 	saa711x_write(client, 0, 5);
 	chip_id = saa711x_read(client, 0) & 0x0f;
-	if (chip_id < 3 && chip_id > 5) {
-		v4l_dbg(1, debug, client, "saa7115 not found\n");
-		kfree(client);
-		return 0;
-	}
+
 	snprintf(client->name, sizeof(client->name) - 1, "saa711%d",chip_id);
 	v4l_info(client, "saa711%d found (%s) @ 0x%x (%s)\n", chip_id, name, address << 1, adapter->name);
 
