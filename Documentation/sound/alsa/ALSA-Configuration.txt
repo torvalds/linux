@@ -859,6 +859,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  laptop-dig	ditto with SPDIF
 	  auto		auto-config reading BIOS (default)
 
+	STAC9200/9205/9220/9221/9254
+	  ref		Reference board
+	  3stack	D945 3stack
+	  5stack	D945 5stack + SPDIF
+
+	STAC9227/9228/9229/927x
+	  ref		Reference board
+	  3stack	D965 3stack
+	  5stack	D965 5stack + SPDIF
+
 	STAC9872
 	  vaio		Setup for VAIO FE550G/SZ110
 	  vaio-ar Setup for VAIO AR

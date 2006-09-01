@@ -42,9 +42,10 @@
 #define STAC_D945GTP3		1
 #define STAC_D945GTP5		2
 #define STAC_MACMINI		3
-#define STAC_D965_2112		4
-#define STAC_D965_284B		5
-#define STAC_922X_MODELS	6	/* number of 922x models */
+#define STAC_922X_MODELS	4	/* number of 922x models */
+#define STAC_D965_3ST		4
+#define STAC_D965_5ST		5
+#define STAC_927X_MODELS	6	/* number of 922x models */
 
 struct sigmatel_spec {
 	struct snd_kcontrol_new *mixers[4];
@@ -111,22 +112,8 @@ static hda_nid_t stac922x_adc_nids[2] = {
         0x06, 0x07,
 };
 
-static hda_nid_t stac9227_adc_nids[2] = {
-        0x07, 0x08,
-};
-
-#if 0
-static hda_nid_t d965_2112_dac_nids[3] = {
-        0x02, 0x03, 0x05,
-};
-#endif
-
 static hda_nid_t stac922x_mux_nids[2] = {
         0x12, 0x13,
-};
-
-static hda_nid_t stac9227_mux_nids[2] = {
-        0x15, 0x16,
 };
 
 static hda_nid_t stac927x_adc_nids[3] = {
@@ -146,7 +133,8 @@ static hda_nid_t stac9205_mux_nids[2] = {
 };
 
 static hda_nid_t stac9200_pin_nids[8] = {
-	0x08, 0x09, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12,
+	0x08, 0x09, 0x0d, 0x0e, 
+	0x0f, 0x10, 0x11, 0x12,
 };
 
 static hda_nid_t stac922x_pin_nids[10] = {
@@ -206,17 +194,9 @@ static struct hda_verb stac922x_core_init[] = {
 	{}
 };
 
-static struct hda_verb stac9227_core_init[] = {
+static struct hda_verb d965_core_init[] = {
 	/* set master volume and direct control */	
-	{ 0x16, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
-	/* unmute node 0x1b */
-	{ 0x1b, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	{}
-};
-
-static struct hda_verb d965_2112_core_init[] = {
-	/* set master volume and direct control */	
-	{ 0x16, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
+	{ 0x24, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
 	/* unmute node 0x1b */
 	{ 0x1b, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
 	/* select node 0x03 as DAC */	
@@ -386,6 +366,8 @@ static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 };
 
 static struct hda_board_config stac922x_cfg_tbl[] = {
+	{ .modelname = "5stack", .config = STAC_D945GTP5 },
+	{ .modelname = "3stack", .config = STAC_D945GTP3 },
 	{ .modelname = "ref",
 	  .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2668,	/* DFI LanParty */
@@ -471,99 +453,127 @@ static struct hda_board_config stac922x_cfg_tbl[] = {
 	{ .pci_subvendor = 0x8384,
 	  .pci_subdevice = 0x7680,
 	  .config = STAC_MACMINI },	/* Apple Mac Mini (early 2006) */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2112,
-	  .config = STAC_D965_2112 },
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x284b,
-	  .config = STAC_D965_284B },
 	{} /* terminator */
 };
 
 static unsigned int ref927x_pin_configs[14] = {
-	0x01813122, 0x01a19021, 0x01014010, 0x01016011,
-	0x01012012, 0x01011014, 0x40000100, 0x40000100, 
-	0x40000100, 0x40000100, 0x40000100, 0x01441030,
-	0x01c41030, 0x40000100,
+	0x02214020, 0x02a19080, 0x0181304e, 0x01014010,
+	0x01a19040, 0x01011012, 0x01016011, 0x0101201f, 
+	0x183301f0, 0x18a001f0, 0x18a001f0, 0x01442070,
+	0x01c42190, 0x40000100,
 };
 
-static unsigned int d965_2112_pin_configs[14] = {
+static unsigned int d965_3st_pin_configs[14] = {
 	0x0221401f, 0x02a19120, 0x40000100, 0x01014011,
 	0x01a19021, 0x01813024, 0x40000100, 0x40000100,
 	0x40000100, 0x40000100, 0x40000100, 0x40000100,
 	0x40000100, 0x40000100
 };
 
-static unsigned int *stac927x_brd_tbl[] = {
+static unsigned int d965_5st_pin_configs[14] = {
+	0x02214020, 0x02a19080, 0x0181304e, 0x01014010,
+	0x01a19040, 0x01011012, 0x01016011, 0x40000100,
+	0x40000100, 0x40000100, 0x40000100, 0x01442070,
+	0x40000100, 0x40000100
+};
+
+static unsigned int *stac927x_brd_tbl[STAC_927X_MODELS] = {
 	[STAC_REF] =	ref927x_pin_configs,
-	[STAC_D965_2112] = d965_2112_pin_configs,
+	[STAC_D965_3ST] = d965_3st_pin_configs,
+	[STAC_D965_5ST] = d965_5st_pin_configs,
 };
 
 static struct hda_board_config stac927x_cfg_tbl[] = {
+	{ .modelname = "5stack", .config = STAC_D965_5ST },
+	{ .modelname = "3stack", .config = STAC_D965_3ST },
 	{ .modelname = "ref",
 	  .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2668,	/* DFI LanParty */
 	  .config = STAC_REF },		/* SigmaTel reference board */
-	/* SigmaTel 9227 reference board */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x284b,
-	  .config = STAC_D965_284B },
 	 /* Intel 946 based systems */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x3d01,
-	  .config = STAC_D965_2112 }, /* D946  configuration */
+	  .config = STAC_D965_3ST }, /* D946  configuration */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0xa301,
-	  .config = STAC_D965_2112 }, /* Intel D946GZT - 3 stack  */
-	/* 965 based systems */
+	  .config = STAC_D965_3ST }, /* Intel D946GZT - 3 stack  */
+	/* 965 based 3 stack systems */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2116,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2115,
-	  .config = STAC_D965_2112 }, /* Intel DQ965WC - 3 Stack  */
+	  .config = STAC_D965_3ST }, /* Intel DQ965WC - 3 Stack  */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2114,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2113,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2112,
-	  .config = STAC_D965_2112 }, /* Intel DG965MS - 3 Stack  */
+	  .config = STAC_D965_3ST }, /* Intel DG965MS - 3 Stack  */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2111,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2110,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2009,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2008,
-	  .config = STAC_D965_2112 }, /* Intel DQ965GF - 3 Stack  */
+	  .config = STAC_D965_3ST }, /* Intel DQ965GF - 3 Stack  */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2007,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2006,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2005,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2004,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2003,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2002,
-	  .config = STAC_D965_2112 }, /* Intel D965 3Stack config */
+	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x2001,
-	  .config = STAC_D965_2112 }, /* Intel DQ965GF - 3 Stackg */
+	  .config = STAC_D965_3ST }, /* Intel DQ965GF - 3 Stack */
+	/* 965 based 5 stack systems */
+	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
+	  .pci_subdevice = 0x2301,
+	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
+	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
+	  .pci_subdevice = 0x2302,
+	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
+	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
+	  .pci_subdevice = 0x2303,
+	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
+	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
+	  .pci_subdevice = 0x2304,
+	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
+	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
+	  .pci_subdevice = 0x2305,
+	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
+	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
+	  .pci_subdevice = 0x2501,
+	  .config = STAC_D965_5ST }, /* Intel DG965MQ - 5 Stack */
+	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
+	  .pci_subdevice = 0x2502,
+	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
+	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
+	  .pci_subdevice = 0x2503,
+	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
+	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
+	  .pci_subdevice = 0x2504,
+	  .config = STAC_D965_5ST }, /* Intel DQ965GF - 5 Stack */
 	{} /* terminator */
 };
 
@@ -1546,18 +1556,18 @@ static int patch_stac927x(struct hda_codec *codec)
 	}
 
 	switch (spec->board_config) {
-	case STAC_D965_2112:
+	case STAC_D965_3ST:
 		spec->adc_nids = stac927x_adc_nids;
 		spec->mux_nids = stac927x_mux_nids;
 		spec->num_muxes = 3;
-		spec->init = d965_2112_core_init;
+		spec->init = d965_core_init;
 		spec->mixer = stac9227_mixer;
 		break;
-	case STAC_D965_284B:
-		spec->adc_nids = stac9227_adc_nids;
-		spec->mux_nids = stac9227_mux_nids;
-		spec->num_muxes = 2;
-		spec->init = stac9227_core_init;
+	case STAC_D965_5ST:
+		spec->adc_nids = stac927x_adc_nids;
+		spec->mux_nids = stac927x_mux_nids;
+		spec->num_muxes = 3;
+		spec->init = d965_core_init;
 		spec->mixer = stac9227_mixer;
 		break;
 	default:
