@@ -4,11 +4,13 @@
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License v.2.
+ * of the GNU General Public License version 2.
  */
 
 #ifndef __LM_DOT_H__
 #define __LM_DOT_H__
+
+#define GFS2_MIN_LVB_SIZE 32
 
 int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent);
 void gfs2_lm_others_may_mount(struct gfs2_sbd *sdp);

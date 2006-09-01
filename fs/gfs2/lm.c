@@ -4,7 +4,7 @@
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License v.2.
+ * of the GNU General Public License version 2.
  */
 
 #include <linux/sched.h>
@@ -22,7 +22,6 @@
 #include "lm.h"
 #include "super.h"
 #include "util.h"
-#include "lvb.h"
 
 /**
  * gfs2_lm_mount - mount a locking protocol

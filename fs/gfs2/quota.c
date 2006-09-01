@@ -4,7 +4,7 @@
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License v.2.
+ * of the GNU General Public License version 2.
  */
 
 /*
@@ -52,7 +52,6 @@
 #include "glock.h"
 #include "glops.h"
 #include "log.h"
-#include "lvb.h"
 #include "meta_io.h"
 #include "quota.h"
 #include "rgrp.h"
@@ -586,7 +585,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	struct page *page;
 	void *kaddr;
 	__be64 *ptr;
-	u64 value;
+	s64 value;
 	int err = -EIO;
 
 	page = grab_cache_page(mapping, index);
@@ -627,7 +626,8 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 
 	kaddr = kmap_atomic(page, KM_USER0);
 	ptr = (__be64 *)(kaddr + offset);
-	value = *ptr = cpu_to_be64(be64_to_cpu(*ptr) + change);
+	value = (s64)be64_to_cpu(*ptr) + change;
+	*ptr = cpu_to_be64(value);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_USER0);
 	err = 0;
@@ -761,6 +761,7 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 	char buf[sizeof(struct gfs2_quota)];
 	struct file_ra_state ra_state;
 	int error;
+	struct gfs2_quota_lvb *qlvb;
 
 	file_ra_state_init(&ra_state, sdp->sd_quota_inode->i_mapping);
  restart:
@@ -768,9 +769,9 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 	if (error)
 		return error;
 
-	gfs2_quota_lvb_in(&qd->qd_qb, qd->qd_gl->gl_lvb);
+	qd->qd_qb = *(struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
 
-	if (force_refresh || qd->qd_qb.qb_magic != GFS2_MAGIC) {
+	if (force_refresh || qd->qd_qb.qb_magic != cpu_to_be32(GFS2_MAGIC)) {
 		loff_t pos;
 		gfs2_glock_dq_uninit(q_gh);
 		error = gfs2_glock_nq_init(qd->qd_gl,
@@ -779,9 +780,7 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 		if (error)
 			return error;
 
-		error = gfs2_glock_nq_init(ip->i_gl,
-					  LM_ST_SHARED, 0,
-					  &i_gh);
+		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &i_gh);
 		if (error)
 			goto fail;
 
@@ -794,15 +793,15 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 
 		gfs2_glock_dq_uninit(&i_gh);
 
+		
 		gfs2_quota_in(&q, buf);
-
-		memset(&qd->qd_qb, 0, sizeof(struct gfs2_quota_lvb));
-		qd->qd_qb.qb_magic = GFS2_MAGIC;
-		qd->qd_qb.qb_limit = q.qu_limit;
-		qd->qd_qb.qb_warn = q.qu_warn;
-		qd->qd_qb.qb_value = q.qu_value;
-
-		gfs2_quota_lvb_out(&qd->qd_qb, qd->qd_gl->gl_lvb);
+		qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
+		qlvb->qb_magic = cpu_to_be32(GFS2_MAGIC);
+		qlvb->__pad = 0;
+		qlvb->qb_limit = cpu_to_be64(q.qu_limit);
+		qlvb->qb_warn = cpu_to_be64(q.qu_warn);
+		qlvb->qb_value = cpu_to_be64(q.qu_value);
+		qd->qd_qb = *qlvb;
 
 		if (gfs2_glock_is_blocking(qd->qd_gl)) {
 			gfs2_glock_dq_uninit(q_gh);
@@ -877,13 +876,14 @@ static int need_sync(struct gfs2_quota_data *qd)
 
 	if (value < 0)
 		do_sync = 0;
-	else if (qd->qd_qb.qb_value >= (int64_t)qd->qd_qb.qb_limit)
+	else if ((s64)be64_to_cpu(qd->qd_qb.qb_value) >=
+		 (s64)be64_to_cpu(qd->qd_qb.qb_limit))
 		do_sync = 0;
 	else {
 		value *= gfs2_jindex_size(sdp) * num;
 		do_div(value, den);
-		value += qd->qd_qb.qb_value;
-		if (value < (int64_t)qd->qd_qb.qb_limit)
+		value += (s64)be64_to_cpu(qd->qd_qb.qb_value);
+		if (value < (int64_t)be64_to_cpu(qd->qd_qb.qb_limit))
 			do_sync = 0;
 	}
 
@@ -959,17 +959,17 @@ int gfs2_quota_check(struct gfs2_inode *ip, uint32_t uid, uint32_t gid)
 		      (qd->qd_id == gid && !test_bit(QDF_USER, &qd->qd_flags))))
 			continue;
 
-		value = qd->qd_qb.qb_value;
+		value = (s64)be64_to_cpu(qd->qd_qb.qb_value);
 		spin_lock(&sdp->sd_quota_spin);
 		value += qd->qd_change;
 		spin_unlock(&sdp->sd_quota_spin);
 
-		if (qd->qd_qb.qb_limit && (int64_t)qd->qd_qb.qb_limit < value) {
+		if (be64_to_cpu(qd->qd_qb.qb_limit) && (int64_t)be64_to_cpu(qd->qd_qb.qb_limit) < value) {
 			print_message(qd, "exceeded");
 			error = -EDQUOT;
 			break;
-		} else if (qd->qd_qb.qb_warn &&
-			   (int64_t)qd->qd_qb.qb_warn < value &&
+		} else if (be64_to_cpu(qd->qd_qb.qb_warn) &&
+			   (int64_t)be64_to_cpu(qd->qd_qb.qb_warn) < value &&
 			   time_after_eq(jiffies, qd->qd_last_warn +
 					 gfs2_tune_get(sdp,
 						gt_quota_warn_period) * HZ)) {
@@ -1088,9 +1088,9 @@ int gfs2_quota_read(struct gfs2_sbd *sdp, int user, uint32_t id,
 		goto out;
 
 	memset(q, 0, sizeof(struct gfs2_quota));
-	q->qu_limit = qd->qd_qb.qb_limit;
-	q->qu_warn = qd->qd_qb.qb_warn;
-	q->qu_value = qd->qd_qb.qb_value;
+	q->qu_limit = be64_to_cpu(qd->qd_qb.qb_limit);
+	q->qu_warn = be64_to_cpu(qd->qd_qb.qb_warn);
+	q->qu_value = be64_to_cpu(qd->qd_qb.qb_value);
 
 	spin_lock(&sdp->sd_quota_spin);
 	q->qu_value += qd->qd_change;

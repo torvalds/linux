@@ -4,7 +4,7 @@
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License v.2.
+ * of the GNU General Public License version 2.
  */
 
 #ifndef __EAOPS_DOT_H__

@@ -4,7 +4,7 @@
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License v.2.
+ * of the GNU General Public License version 2.
  */
 
 #ifndef __INCORE_DOT_H__
@@ -22,24 +22,12 @@
 
 struct gfs2_log_operations;
 struct gfs2_log_element;
-struct gfs2_bitmap;
-struct gfs2_rgrpd;
-struct gfs2_bufdata;
-struct gfs2_glock_operations;
 struct gfs2_holder;
 struct gfs2_glock;
-struct gfs2_alloc;
-struct gfs2_inode;
-struct gfs2_file;
-struct gfs2_revoke;
-struct gfs2_revoke_replay;
 struct gfs2_quota_data;
-struct gfs2_log_buf;
 struct gfs2_trans;
 struct gfs2_ail;
 struct gfs2_jdesc;
-struct gfs2_args;
-struct gfs2_tune;
 struct gfs2_gl_hash_bucket;
 struct gfs2_sbd;
 
@@ -215,8 +203,8 @@ struct gfs2_glock {
 struct gfs2_alloc {
 	/* Quota stuff */
 
-	struct gfs2_quota_data *al_qd[4];
-	struct gfs2_holder al_qd_ghs[4];
+	struct gfs2_quota_data *al_qd[2*MAXQUOTAS];
+	struct gfs2_holder al_qd_ghs[2*MAXQUOTAS];
 	unsigned int al_qd_num;
 
 	u32 al_requested; /* Filled in by caller of gfs2_inplace_reserve() */
@@ -305,11 +293,11 @@ enum {
 };
 
 struct gfs2_quota_lvb {
-        uint32_t qb_magic;
-        uint32_t __pad;
-        uint64_t qb_limit;      /* Hard limit of # blocks to alloc */
-        uint64_t qb_warn;       /* Warn user when alloc is above this # */
-        int64_t qb_value;       /* Current # blocks allocated */
+        __be32 qb_magic;
+        u32 __pad;
+        __be64 qb_limit;      /* Hard limit of # blocks to alloc */
+        __be64 qb_warn;       /* Warn user when alloc is above this # */
+        __be64 qb_value;       /* Current # blocks allocated */
 };
 
 struct gfs2_quota_data {
