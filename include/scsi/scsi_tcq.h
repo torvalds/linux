@@ -138,9 +138,10 @@ static inline struct scsi_cmnd *scsi_find_tag(struct scsi_device *sdev, int tag)
  * @shost:	the host to share the tag map among all devices
  * @depth:	the total depth of the map
  */
-static inline void scsi_init_shared_tag_map(struct Scsi_Host *shost, int depth)
+static inline int scsi_init_shared_tag_map(struct Scsi_Host *shost, int depth)
 {
 	shost->bqt = blk_init_tags(depth);
+	return shost->bqt ? 0 : -ENOMEM;
 }
 
 #endif /* _SCSI_SCSI_TCQ_H */

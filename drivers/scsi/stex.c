@@ -1108,9 +1108,8 @@ stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto out_free_irq;
 
-	scsi_init_shared_tag_map(host, ST_CAN_QUEUE);
-	if (host->bqt == NULL) {
-		err = -ENOMEM;
+	err = scsi_init_shared_tag_map(host, ST_CAN_QUEUE);
+	if (err) {
 		printk(KERN_ERR DRV_NAME "(%s): init shared queue failed\n",
 			pci_name(pdev));
 		goto out_free_irq;
