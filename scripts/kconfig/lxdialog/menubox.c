@@ -63,19 +63,19 @@ static int menu_width, item_x;
 /*
  * Print menu item
  */
-static void do_print_item(WINDOW * win, const char *item, int choice,
+static void do_print_item(WINDOW * win, const char *item, int line_y,
                           int selected, int hotkey)
 {
 	int j;
 	char *menu_item = malloc(menu_width + 1);
 
 	strncpy(menu_item, item, menu_width - item_x);
-	menu_item[menu_width] = 0;
+	menu_item[menu_width - item_x] = '\0';
 	j = first_alpha(menu_item, "YyNnMmHh");
 
 	/* Clear 'residue' of last item */
 	wattrset(win, dlg.menubox.atr);
-	wmove(win, choice, 0);
+	wmove(win, line_y, 0);
 #if OLD_NCURSES
 	{
 		int i;
@@ -86,14 +86,14 @@ static void do_print_item(WINDOW * win, const char *item, int choice,
 	wclrtoeol(win);
 #endif
 	wattrset(win, selected ? dlg.item_selected.atr : dlg.item.atr);
-	mvwaddstr(win, choice, item_x, menu_item);
+	mvwaddstr(win, line_y, item_x, menu_item);
 	if (hotkey) {
 		wattrset(win, selected ? dlg.tag_key_selected.atr
 			 : dlg.tag_key.atr);
-		mvwaddch(win, choice, item_x + j, menu_item[j]);
+		mvwaddch(win, line_y, item_x + j, menu_item[j]);
 	}
 	if (selected) {
-		wmove(win, choice, item_x + 1);
+		wmove(win, line_y, item_x + 1);
 	}
 	free(menu_item);
 	wrefresh(win);
