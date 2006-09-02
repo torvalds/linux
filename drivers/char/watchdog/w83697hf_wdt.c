@@ -33,6 +33,7 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
+#include <linux/spinlock.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -44,6 +45,7 @@
 
 static unsigned long wdt_is_open;
 static char expect_close;
+static spinlock_t io_lock;
 
 /* You must set this - there is no sane way to probe for this board. */
 static int wdt_io = 0x2E;
@@ -114,12 +116,16 @@ w83697hf_init(void)
 static void
 wdt_ctrl(int timeout)
 {
+	spin_lock(&io_lock);
+
 	w83697hf_select_wd_register();
 
 	outb_p(0xF4, WDT_EFER);    /* Select CRF4 */
 	outb_p(timeout, WDT_EFDR); /* Write Timeout counter to CRF4 */
 
 	w83697hf_unselect_wd_register();
+
+	spin_unlock(&io_lock);
 }
 
 static int
@@ -306,6 +312,8 @@ static int __init
 wdt_init(void)
 {
 	int ret;
+
+	spin_lock_init(&io_lock);
 
 	printk(KERN_INFO "WDT driver for the Winbond(TM) W83697HF Super I/O chip initialising.\n");
 
