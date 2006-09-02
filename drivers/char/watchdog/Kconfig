@@ -13,7 +13,7 @@ config WATCHDOG
 	  subsequently opening the file and then failing to write to it for
 	  longer than 1 minute will result in rebooting the machine. This
 	  could be useful for a networked machine that needs to come back
-	  online as fast as possible after a lock-up. There's both a watchdog
+	  on-line as fast as possible after a lock-up. There's both a watchdog
 	  implementation entirely in software (which can sometimes fail to
 	  reboot the machine) and a driver for hardware watchdog boards, which
 	  are more robust and can also keep track of the temperature inside
@@ -71,7 +71,7 @@ config 21285_WATCHDOG
 	tristate "DC21285 watchdog"
 	depends on WATCHDOG && FOOTBRIDGE
 	help
-	  The Intel Footbridge chip contains a builtin watchdog circuit. Say Y
+	  The Intel Footbridge chip contains a built-in watchdog circuit. Say Y
 	  here if you wish to use this. Alternatively say M to compile the
 	  driver as a module, which will be called wdt285.
 
@@ -273,7 +273,7 @@ config IBMASR
         depends on WATCHDOG && X86
         help
 	  This is the driver for the IBM Automatic Server Restart watchdog
-	  timer builtin into some eServer xSeries machines.
+	  timer built-in into some eServer xSeries machines.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmasr.
@@ -431,17 +431,17 @@ config W83627HF_WDT
 	  Most people will say N.
 
 config W83697HF_WDT
-        tristate "W83697HF Watchdog Timer"
-        depends on WATCHDOG && X86
-        ---help---
-          This is the driver for the hardware watchdog on the W83697HF chipset
-          This watchdog simply watches your kernel to make sure it doesn't freeze, 
-          and if it does, it reboots your computer after a certain amount of time.
+	tristate "W83697HF Watchdog Timer"
+	depends on WATCHDOG && X86
+	---help---
+	  This is the driver for the hardware watchdog on the W83697HF chipset
+	  This watchdog simply watches your kernel to make sure it doesn't freeze,
+	  and if it does, it reboots your computer after a certain amount of time.
 
-          To compile this driver as a module, choose M here: the
-          module will be called w83697hf_wdt.
+	  To compile this driver as a module, choose M here: the
+	  module will be called w83697hf_wdt.
 
-          Most people will say N.
+	  Most people will say N.
 
 config W83877F_WDT
 	tristate "W83877F (EMACS) Watchdog Timer"
@@ -476,7 +476,7 @@ config MACHZ_WDT
 	depends on WATCHDOG && X86
 	---help---
 	  If you are using a ZF Micro MachZ processor, say Y here, otherwise
-	  N.  This is the driver for the watchdog timer builtin on that
+	  N.  This is the driver for the watchdog timer built-in on that
 	  processor using ZF-Logic interface.  This watchdog simply watches
 	  your kernel to make sure it doesn't freeze, and if it does, it
 	  reboots your computer after a certain amount of time.
