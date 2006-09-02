@@ -54,6 +54,7 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
+#include <linux/spinlock.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -72,17 +73,17 @@
 #define MODNAME		"smsc37b787_wdt: "
 #define VERSION         "1.1"
 
-#define WATCHDOG_MINOR	130
-
 #define IOPORT          0x3F0
 #define IOPORT_SIZE     2
 #define IODEV_NO        8
 
 static int unit = UNIT_SECOND;  /* timer's unit */
 static int timeout = 60;        /* timeout value: default is 60 "units" */
-static int timer_enabled = 0;   /* is the timer enabled? */
+static unsigned long timer_enabled = 0;   /* is the timer enabled? */
 
 static char expect_close;       /* is the close expected? */
+
+static spinlock_t io_lock;	/* to guard the watchdog from io races */
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 
@@ -210,6 +211,7 @@ static void wb_smsc_wdt_initialize(void)
 {
         unsigned char old;
 
+	spin_lock(&io_lock);
         open_io_config();
         select_io_device(IODEV_NO);
 
@@ -234,12 +236,14 @@ static void wb_smsc_wdt_initialize(void)
         wdt_timer_units(old);
 
         close_io_config();
+	spin_unlock(&io_lock);
 }
 
 /* shutdown the watchdog */
 
 static void wb_smsc_wdt_shutdown(void)
 {
+	spin_lock(&io_lock);
         open_io_config();
         select_io_device(IODEV_NO);
 
@@ -257,12 +261,14 @@ static void wb_smsc_wdt_shutdown(void)
         wdt_timeout_value(0x00);
 
         close_io_config();
+	spin_unlock(&io_lock);
 }
 
 /* set timeout => enable watchdog */
 
 static void wb_smsc_wdt_set_timeout(unsigned char new_timeout)
 {
+	spin_lock(&io_lock);
         open_io_config();
         select_io_device(IODEV_NO);
 
@@ -273,6 +279,7 @@ static void wb_smsc_wdt_set_timeout(unsigned char new_timeout)
         wdt_timeout_value(new_timeout);
 
         close_io_config();
+	spin_unlock(&io_lock);
 }
 
 /* get timeout */
@@ -281,10 +288,12 @@ static unsigned char wb_smsc_wdt_get_timeout(void)
 {
         unsigned char set_timeout;
 
+	spin_lock(&io_lock);
         open_io_config();
         select_io_device(IODEV_NO);
         set_timeout = read_io_cr(0xF2);
         close_io_config();
+	spin_unlock(&io_lock);
 
         return set_timeout;
 }
@@ -309,6 +318,7 @@ static void wb_smsc_wdt_enable(void)
 
 static void wb_smsc_wdt_reset_timer(void)
 {
+	spin_lock(&io_lock);
         open_io_config();
         select_io_device(IODEV_NO);
 
@@ -317,6 +327,7 @@ static void wb_smsc_wdt_reset_timer(void)
 	wdt_timer_conf(0x08);
 
         close_io_config();
+	spin_unlock(&io_lock);
 }
 
 /* return, if the watchdog is enabled (timeout is set...) */
@@ -335,14 +346,13 @@ static int wb_smsc_wdt_open(struct inode *inode, struct file *file)
 {
 	/* /dev/watchdog can only be opened once */
 
-	if (timer_enabled)
+	if (test_and_set_bit(0, &timer_enabled))
 		return -EBUSY;
 
 	if (nowayout)
 		__module_get(THIS_MODULE);
 
 	/* Reload and activate timer */
-	timer_enabled = 1;
 	wb_smsc_wdt_enable();
 
 	printk(KERN_INFO MODNAME "Watchdog enabled. Timeout set to %d %s.\n", timeout, (unit == UNIT_SECOND) ? "second(s)" : "minute(s)");
@@ -364,7 +374,7 @@ static int wb_smsc_wdt_release(struct inode *inode, struct file *file)
 		wb_smsc_wdt_reset_timer();
 	}
 
-	timer_enabled = 0;
+	clear_bit(0, &timer_enabled);
 	expect_close = 0;
 	return 0;
 }
@@ -425,7 +435,8 @@ static int wb_smsc_wdt_ioctl(struct inode *inode, struct file *file,
 			return -ENOTTY;
 
 		case WDIOC_GETSUPPORT:
-			return copy_to_user(uarg.ident, &ident, sizeof(ident));
+			return copy_to_user(uarg.ident, &ident,
+				sizeof(ident)) ? -EFAULT : 0;
 
 		case WDIOC_GETSTATUS:
 			return put_user(wb_smsc_wdt_status(), uarg.i);
@@ -506,12 +517,12 @@ static struct file_operations wb_smsc_wdt_fops =
 	.write		= wb_smsc_wdt_write,
 	.ioctl		= wb_smsc_wdt_ioctl,
 	.open		= wb_smsc_wdt_open,
-	.release	= wb_smsc_wdt_release
+	.release	= wb_smsc_wdt_release,
 };
 
 static struct notifier_block wb_smsc_wdt_notifier =
 {
-	.notifier_call  = wb_smsc_wdt_notify_sys
+	.notifier_call  = wb_smsc_wdt_notify_sys,
 };
 
 static struct miscdevice wb_smsc_wdt_miscdev =
@@ -529,6 +540,8 @@ static int __init wb_smsc_wdt_init(void)
 {
 	int ret;
 
+	spin_lock_init(&io_lock);
+
 	printk("SMsC 37B787 watchdog component driver " VERSION " initialising...\n");
 
 	if (!request_region(IOPORT, IOPORT_SIZE, "SMsC 37B787 watchdog")) {
@@ -536,6 +549,13 @@ static int __init wb_smsc_wdt_init(void)
 		ret = -EBUSY;
 		goto out_pnp;
 	}
+
+        // set new maximum, if it's too big
+        if (timeout > MAX_TIMEOUT)
+               timeout = MAX_TIMEOUT;
+
+        // init the watchdog timer
+        wb_smsc_wdt_initialize();
 
 	ret = register_reboot_notifier(&wb_smsc_wdt_notifier);
 	if (ret) {
@@ -548,13 +568,6 @@ static int __init wb_smsc_wdt_init(void)
 		printk(KERN_ERR MODNAME "Unable to register miscdev on minor %d\n", WATCHDOG_MINOR);
 		goto out_rbt;
 	}
-
-        // init the watchdog timer
-        wb_smsc_wdt_initialize();
-
-        // set new maximum, if it's too big
-        if (timeout > MAX_TIMEOUT)
-               timeout = MAX_TIMEOUT;
 
 	// output info
 	printk(KERN_INFO MODNAME "Timeout set to %d %s.\n", timeout, (unit == UNIT_SECOND) ? "second(s)" : "minute(s)");
@@ -607,7 +620,7 @@ module_param(unit, int, 0);
 MODULE_PARM_DESC(unit, "set unit to use, 0=seconds or 1=minutes, default is 0");
 #endif
 
-module_param(timeout, int, 60);
+module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "range is 1-255 units, default is 60");
 
 module_param(nowayout, int, 0);
