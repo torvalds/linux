@@ -99,12 +99,12 @@ static kmem_cache_t *_crypt_io_pool;
 /*
  * Different IV generation algorithms:
  *
- * plain: the initial vector is the 32-bit low-endian version of the sector
+ * plain: the initial vector is the 32-bit little-endian version of the sector
  *        number, padded with zeros if neccessary.
  *
- * ess_iv: "encrypted sector|salt initial vector", the sector number is
- *         encrypted with the bulk cipher using a salt as key. The salt
- *         should be derived from the bulk cipher's key via hashing.
+ * essiv: "encrypted sector|salt initial vector", the sector number is
+ *        encrypted with the bulk cipher using a salt as key. The salt
+ *        should be derived from the bulk cipher's key via hashing.
  *
  * plumb: unimplemented, see:
  * http://article.gmane.org/gmane.linux.kernel.device-mapper.dm-crypt/454
