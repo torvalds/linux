@@ -272,7 +272,7 @@ crypt_convert_scatterlist(struct crypt_config *cc, struct scatterlist *out,
                           struct scatterlist *in, unsigned int length,
                           int write, sector_t sector)
 {
-	u8 iv[cc->iv_size];
+	u8 iv[cc->iv_size] __attribute__ ((aligned(__alignof__(u64))));
 	struct blkcipher_desc desc = {
 		.tfm = cc->tfm,
 		.info = iv,
