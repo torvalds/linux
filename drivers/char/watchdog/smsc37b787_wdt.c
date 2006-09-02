@@ -8,7 +8,7 @@
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
- *	
+ *
  *	The authors do NOT admit liability nor provide warranty for
  *	any of this software. This material is provided "AS-IS" in
  *      the hope that it may be useful for others.
@@ -422,7 +422,7 @@ static int wb_smsc_wdt_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 		default:
-			return -ENOTTY;	
+			return -ENOTTY;
 
 		case WDIOC_GETSUPPORT:
 			return copy_to_user(uarg.ident, &ident, sizeof(ident));
@@ -573,7 +573,7 @@ out_io:
 
 out_pnp:
 	goto out_clean;
-}	
+}
 
 /* module's "destructor" */
 
