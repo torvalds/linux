@@ -168,9 +168,7 @@ struct pvr2_decoder_ctrl {
 
 /* Known major hardware variants, keyed from device ID */
 #define PVR2_HDW_TYPE_29XXX 0
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 #define PVR2_HDW_TYPE_24XXX 1
-#endif
 
 typedef int (*pvr2_i2c_func)(struct pvr2_hdw *,u8,u8 *,u16,u8 *, u16);
 #define PVR2_I2C_FUNC_CNT 128

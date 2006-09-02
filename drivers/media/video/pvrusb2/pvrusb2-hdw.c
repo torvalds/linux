@@ -38,9 +38,7 @@
 
 struct usb_device_id pvr2_device_table[] = {
 	[PVR2_HDW_TYPE_29XXX] = { USB_DEVICE(0x2040, 0x2900) },
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 	[PVR2_HDW_TYPE_24XXX] = { USB_DEVICE(0x2040, 0x2400) },
-#endif
 	{ }
 };
 
@@ -48,9 +46,7 @@ MODULE_DEVICE_TABLE(usb, pvr2_device_table);
 
 static const char *pvr2_device_names[] = {
 	[PVR2_HDW_TYPE_29XXX] = "WinTV PVR USB2 Model Category 29xxxx",
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 	[PVR2_HDW_TYPE_24XXX] = "WinTV PVR USB2 Model Category 24xxxx",
-#endif
 };
 
 struct pvr2_string_table {
@@ -58,14 +54,12 @@ struct pvr2_string_table {
 	unsigned int cnt;
 };
 
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 // Names of other client modules to request for 24xxx model hardware
 static const char *pvr2_client_24xxx[] = {
 	"cx25840",
 	"tuner",
 	"wm8775",
 };
-#endif
 
 // Names of other client modules to request for 29xxx model hardware
 static const char *pvr2_client_29xxx[] = {
@@ -79,12 +73,10 @@ static struct pvr2_string_table pvr2_client_lists[] = {
 		pvr2_client_29xxx,
 		sizeof(pvr2_client_29xxx)/sizeof(pvr2_client_29xxx[0]),
 	},
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 	[PVR2_HDW_TYPE_24XXX] = {
 		pvr2_client_24xxx,
 		sizeof(pvr2_client_24xxx)/sizeof(pvr2_client_24xxx[0]),
 	},
-#endif
 };
 
 static struct pvr2_hdw *unit_pointers[PVR_NUM] = {[ 0 ... PVR_NUM-1 ] = NULL};
@@ -363,7 +355,6 @@ static int ctrl_freq_set(struct pvr2_ctrl *cptr,int m,int v)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 static int ctrl_hres_max_get(struct pvr2_ctrl *cptr,int *vp)
 {
 	/* If we're dealing with a 24xxx device, force the horizontal
@@ -385,7 +376,6 @@ static int ctrl_hres_min_get(struct pvr2_ctrl *cptr,int *vp)
 	if (cptr->hdw->hdw_type == PVR2_HDW_TYPE_24XXX) *vp = 720;
 	return 0;
 }
-#endif
 
 static int ctrl_cx2341x_is_dirty(struct pvr2_ctrl *cptr)
 {
@@ -745,12 +735,10 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.default_value = 720,
 		DEFREF(res_hor),
 		DEFINT(320,720),
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 		/* Hook in check for clamp on horizontal resolution in
 		   order to avoid unsolved problem involving cx25840. */
 		.get_max_value = ctrl_hres_max_get,
 		.get_min_value = ctrl_hres_min_get,
-#endif
 	},{
 		.desc = "Vertical capture resolution",
 		.name = "resolution_ver",
@@ -966,22 +954,18 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	static const char *fw_files_29xxx[] = {
 		"v4l-pvrusb2-29xxx-01.fw",
 	};
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 	static const char *fw_files_24xxx[] = {
 		"v4l-pvrusb2-24xxx-01.fw",
 	};
-#endif
 	static const struct pvr2_string_table fw_file_defs[] = {
 		[PVR2_HDW_TYPE_29XXX] = {
 			fw_files_29xxx,
 			sizeof(fw_files_29xxx)/sizeof(fw_files_29xxx[0]),
 		},
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 		[PVR2_HDW_TYPE_24XXX] = {
 			fw_files_24xxx,
 			sizeof(fw_files_24xxx)/sizeof(fw_files_24xxx[0]),
 		},
-#endif
 	};
 	hdw->fw1_state = FW1_STATE_FAILED; // default result
 
