@@ -200,7 +200,7 @@ u32 vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exce
 		s32 d = vfp_single_pack(vs);
 		pr_debug("VFP: %s: d(s%d)=%08x exceptions=%08x\n", func,
 			 sd, d, exceptions);
-		vfp_put_float(sd, d);
+		vfp_put_float(d, sd);
 	}
 
 	return exceptions;
@@ -257,19 +257,19 @@ vfp_propagate_nan(struct vfp_single *vsd, struct vfp_single *vsn,
  */
 static u32 vfp_single_fabs(int sd, int unused, s32 m, u32 fpscr)
 {
-	vfp_put_float(sd, vfp_single_packed_abs(m));
+	vfp_put_float(vfp_single_packed_abs(m), sd);
 	return 0;
 }
 
 static u32 vfp_single_fcpy(int sd, int unused, s32 m, u32 fpscr)
 {
-	vfp_put_float(sd, m);
+	vfp_put_float(m, sd);
 	return 0;
 }
 
 static u32 vfp_single_fneg(int sd, int unused, s32 m, u32 fpscr)
 {
-	vfp_put_float(sd, vfp_single_packed_negate(m));
+	vfp_put_float(vfp_single_packed_negate(m), sd);
 	return 0;
 }
 
@@ -333,7 +333,7 @@ static u32 vfp_single_fsqrt(int sd, int unused, s32 m, u32 fpscr)
 			vsp = &vfp_single_default_qnan;
 			ret = FPSCR_IOC;
 		}
-		vfp_put_float(sd, vfp_single_pack(vsp));
+		vfp_put_float(vfp_single_pack(vsp), sd);
 		return ret;
 	}
 
@@ -517,7 +517,7 @@ static u32 vfp_single_fcvtd(int dd, int unused, s32 m, u32 fpscr)
 	return vfp_double_normaliseround(dd, &vdd, fpscr, exceptions, "fcvtd");
 
  pack_nan:
-	vfp_put_double(dd, vfp_double_pack(&vdd));
+	vfp_put_double(vfp_double_pack(&vdd), dd);
 	return exceptions;
 }
 
@@ -613,7 +613,7 @@ static u32 vfp_single_ftoui(int sd, int unused, s32 m, u32 fpscr)
 
 	pr_debug("VFP: ftoui: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
 
-	vfp_put_float(sd, d);
+	vfp_put_float(d, sd);
 
 	return exceptions;
 }
@@ -692,7 +692,7 @@ static u32 vfp_single_ftosi(int sd, int unused, s32 m, u32 fpscr)
 
 	pr_debug("VFP: ftosi: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
 
-	vfp_put_float(sd, (s32)d);
+	vfp_put_float((s32)d, sd);
 
 	return exceptions;
 }
@@ -1127,7 +1127,7 @@ static u32 vfp_single_fdiv(int sd, int sn, s32 m, u32 fpscr)
  vsn_nan:
 	exceptions = vfp_propagate_nan(&vsd, &vsn, &vsm, fpscr);
  pack:
-	vfp_put_float(sd, vfp_single_pack(&vsd));
+	vfp_put_float(vfp_single_pack(&vsd), sd);
 	return exceptions;
 
  vsm_nan:
@@ -1147,7 +1147,7 @@ static u32 vfp_single_fdiv(int sd, int sn, s32 m, u32 fpscr)
 	goto pack;
 
  invalid:
-	vfp_put_float(sd, vfp_single_pack(&vfp_single_default_qnan));
+	vfp_put_float(vfp_single_pack(&vfp_single_default_qnan), sd);
 	return FPSCR_IOC;
 }
 

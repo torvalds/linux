@@ -621,9 +621,8 @@ CONFIG_AT91_WATCHDOG=y
 # USB-based Watchdog Cards
 #
 # CONFIG_USBPCWATCHDOG is not set
+# CONFIG_HW_RANDOM is not set
 # CONFIG_NVRAM is not set
-CONFIG_RTC=y
-# CONFIG_AT91_RTC is not set
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
 
@@ -956,8 +955,40 @@ CONFIG_USB_AT91=y
 CONFIG_MMC=y
 # CONFIG_MMC_DEBUG is not set
 CONFIG_MMC_BLOCK=y
-# CONFIG_MMC_WBSD is not set
 CONFIG_MMC_AT91RM9200=y
+
+#
+# Real Time Clock
+#
+CONFIG_RTC_LIB=y
+CONFIG_RTC_CLASS=y
+CONFIG_RTC_HCTOSYS=y
+CONFIG_RTC_HCTOSYS_DEVICE="rtc1"
+
+#
+# RTC interfaces
+#
+# CONFIG_RTC_INTF_SYSFS is not set
+CONFIG_RTC_INTF_PROC=y
+CONFIG_RTC_INTF_DEV=y
+# CONFIG_RTC_INTF_DEV_UIE_EMUL is not set
+
+#
+# RTC drivers
+#
+# CONFIG_RTC_DRV_X1205 is not set
+CONFIG_RTC_DRV_DS1307=y
+# CONFIG_RTC_DRV_DS1553 is not set
+# CONFIG_RTC_DRV_ISL1208 is not set
+# CONFIG_RTC_DRV_DS1672 is not set
+# CONFIG_RTC_DRV_DS1742 is not set
+# CONFIG_RTC_DRV_PCF8563 is not set
+# CONFIG_RTC_DRV_PCF8583 is not set
+# CONFIG_RTC_DRV_RS5C372 is not set
+# CONFIG_RTC_DRV_M48T86 is not set
+CONFIG_RTC_DRV_AT91=y
+# CONFIG_RTC_DRV_TEST is not set
+# CONFIG_RTC_DRV_V3020 is not set
 
 #
 # File systems
