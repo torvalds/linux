@@ -269,9 +269,9 @@ config IB700_WDT
 	  Most people will say N.
 
 config IBMASR
-        tristate "IBM Automatic Server Restart"
-        depends on WATCHDOG && X86
-        help
+	tristate "IBM Automatic Server Restart"
+	depends on WATCHDOG && X86
+	help
 	  This is the driver for the IBM Automatic Server Restart watchdog
 	  timer built-in into some eServer xSeries machines.
 
@@ -505,7 +505,6 @@ config SBC_EPX_C3_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called sbc_epx_c3.
 
-
 # PowerPC Architecture
 
 config 8xx_WDT
@@ -535,7 +534,7 @@ config WATCHDOG_RTAS
 	help
 	  This driver adds watchdog support for the RTAS watchdog.
 
-          To compile this driver as a module, choose M here. The module
+	  To compile this driver as a module, choose M here. The module
 	  will be called wdrtas.
 
 # MIPS Architecture
