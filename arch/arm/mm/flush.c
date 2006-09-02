@@ -87,6 +87,32 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsig
 	if (cache_is_vipt_aliasing())
 		flush_pfn_alias(pfn, user_addr);
 }
+
+void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
+			 unsigned long uaddr, void *kaddr,
+			 unsigned long len, int write)
+{
+	if (cache_is_vivt()) {
+		if (cpu_isset(smp_processor_id(), vma->vm_mm->cpu_vm_mask)) {
+			unsigned long addr = (unsigned long)kaddr;
+			__cpuc_coherent_kern_range(addr, addr + len);
+		}
+		return;
+	}
+
+	if (cache_is_vipt_aliasing()) {
+		flush_pfn_alias(page_to_pfn(page), uaddr);
+		return;
+	}
+
+	/* VIPT non-aliasing cache */
+	if (cpu_isset(smp_processor_id(), vma->vm_mm->cpu_vm_mask) &&
+	    vma->vm_flags | VM_EXEC) {
+		unsigned long addr = (unsigned long)kaddr;
+		/* only flushing the kernel mapping on non-aliasing VIPT */
+		__cpuc_coherent_kern_range(addr, addr + len);
+	}
+}
 #else
 #define flush_pfn_alias(pfn,vaddr)	do { } while (0)
 #endif
