@@ -1053,7 +1053,7 @@ static int eligible_child(pid_t pid, int options, struct task_struct *p)
 	 * Do not consider thread group leaders that are
 	 * in a non-empty thread group:
 	 */
-	if (current->tgid != p->tgid && delay_group_leader(p))
+	if (delay_group_leader(p))
 		return 2;
 
 	if (security_task_wait(p))
