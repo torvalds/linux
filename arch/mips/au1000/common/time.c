@@ -231,7 +231,6 @@ wakeup_counter0_set(int ticks)
  */
 unsigned long cal_r4koff(void)
 {
-	unsigned long count;
 	unsigned long cpu_speed;
 	unsigned long flags;
 	unsigned long counter;
@@ -258,7 +257,7 @@ unsigned long cal_r4koff(void)
 
 #if defined(CONFIG_AU1000_USE32K)
 		{
-			unsigned long start, end;
+			unsigned long start, end, count;
 
 			start = au_readl(SYS_RTCREAD);
 			start += 2;
@@ -282,7 +281,6 @@ unsigned long cal_r4koff(void)
 #else
 		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) *
 			AU1000_SRC_CLK;
-		count = cpu_speed / 2;
 #endif
 	}
 	else {
@@ -291,10 +289,9 @@ unsigned long cal_r4koff(void)
 		 * NOTE: some old silicon doesn't allow reading the PLL.
 		 */
 		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) * AU1000_SRC_CLK;
-		count = cpu_speed / 2;
 		no_au1xxx_32khz = 1;
 	}
-	mips_hpt_frequency = count;
+	mips_hpt_frequency = cpu_speed;
 	// Equation: Baudrate = CPU / (SD * 2 * CLKDIV * 16)
 	set_au1x00_uart_baud_base(cpu_speed / (2 * ((int)(au_readl(SYS_POWERCTRL)&0x03) + 2) * 16));
 	spin_unlock_irqrestore(&time_lock, flags);
