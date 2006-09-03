@@ -48,7 +48,7 @@
 #include <media/saa7115.h>
 #include <asm/div64.h>
 
-#define HRES_60HZ	(480+16)
+#define VRES_60HZ	(480+16)
 
 MODULE_DESCRIPTION("Philips SAA7111/SAA7113/SAA7114/SAA7115/SAA7118 video decoder driver");
 MODULE_AUTHOR(  "Maxim Yevtyushkin, Kevin Thayer, Chris Kennedy, "
@@ -332,8 +332,8 @@ static const unsigned char saa7115_cfg_60hz_video[] = {
 	R_C9_B_VERT_INPUT_WINDOW_START_MSB, 0x00,
 
 	/* vwindow length 0xf8 = 248 */
-	R_CA_B_VERT_INPUT_WINDOW_LENGTH, HRES_60HZ>>1,
-	R_CB_B_VERT_INPUT_WINDOW_LENGTH_MSB, HRES_60HZ>>9,
+	R_CA_B_VERT_INPUT_WINDOW_LENGTH, VRES_60HZ>>1,
+	R_CB_B_VERT_INPUT_WINDOW_LENGTH_MSB, VRES_60HZ>>9,
 
 	/* hwindow 0x02d0 = 720 */
 	R_CC_B_HORIZ_OUTPUT_WINDOW_LENGTH, 0xd0,
@@ -851,7 +851,7 @@ static int saa711x_set_size(struct i2c_client *client, int width, int height)
 
 	/* On 60Hz, it is using a higher Vertical Output Size */
 	if (!is_50hz)
-		res+=(HRES_60HZ-480)>>1;
+		res+=(VRES_60HZ-480)>>1;
 
 		/* height */
 	saa711x_write(client, R_CE_B_VERT_OUTPUT_WINDOW_LENGTH,
