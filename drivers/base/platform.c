@@ -505,12 +505,36 @@ static int platform_match(struct device * dev, struct device_driver * drv)
 	return (strncmp(pdev->name, drv->name, BUS_ID_SIZE) == 0);
 }
 
-static int platform_suspend(struct device * dev, pm_message_t state)
+static int platform_suspend(struct device *dev, pm_message_t mesg)
 {
 	int ret = 0;
 
 	if (dev->driver && dev->driver->suspend)
-		ret = dev->driver->suspend(dev, state);
+		ret = dev->driver->suspend(dev, mesg);
+
+	return ret;
+}
+
+static int platform_suspend_late(struct device *dev, pm_message_t mesg)
+{
+	struct platform_driver *drv = to_platform_driver(dev->driver);
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	int ret = 0;
+
+	if (dev->driver && drv->suspend_late)
+		ret = drv->suspend_late(pdev, mesg);
+
+	return ret;
+}
+
+static int platform_resume_early(struct device *dev)
+{
+	struct platform_driver *drv = to_platform_driver(dev->driver);
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	int ret = 0;
+
+	if (dev->driver && drv->resume_early)
+		ret = drv->resume_early(pdev);
 
 	return ret;
 }
@@ -531,6 +555,8 @@ struct bus_type platform_bus_type = {
 	.match		= platform_match,
 	.uevent		= platform_uevent,
 	.suspend	= platform_suspend,
+	.suspend_late	= platform_suspend_late,
+	.resume_early	= platform_resume_early,
 	.resume		= platform_resume,
 };
 EXPORT_SYMBOL_GPL(platform_bus_type);
