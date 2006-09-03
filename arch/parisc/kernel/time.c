@@ -223,22 +223,24 @@ unsigned long long sched_clock(void)
 }
 
 
+void __init start_cpu_itimer(void)
+{
+	unsigned int cpu = smp_processor_id();
+	unsigned long next_tick = mfctl(16) + clocktick;
+
+	mtctl(next_tick, 16);		/* kick off Interval Timer (CR16) */
+
+	cpu_data[cpu].it_value = next_tick;
+}
+
 void __init time_init(void)
 {
-	unsigned long next_tick;
 	static struct pdc_tod tod_data;
 
 	clocktick = (100 * PAGE0->mem_10msec) / HZ;
 	halftick = clocktick / 2;
 
-	/* Setup clock interrupt timing */
-
-	next_tick = mfctl(16);
-	next_tick += clocktick;
-	cpu_data[smp_processor_id()].it_value = next_tick;
-
-	/* kick off Itimer (CR16) */
-	mtctl(next_tick, 16);
+	start_cpu_itimer();	/* get CPU 0 started */
 
 	if(pdc_tod_read(&tod_data) == 0) {
 		write_seqlock_irq(&xtime_lock);
