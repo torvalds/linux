@@ -89,9 +89,14 @@ int i2c_isa_add_driver(struct i2c_driver *driver)
 	dev_dbg(&isa_adapter.dev, "Driver %s registered\n", driver->driver.name);
 
 	/* Now look for clients */
-	driver->attach_adapter(&isa_adapter);
-
-	return 0;
+	res = driver->attach_adapter(&isa_adapter);
+	if (res) {
+		dev_err(&isa_adapter.dev,
+			"Driver %s failed to attach adapter, unregistering\n",
+			driver->driver.name);
+		driver_unregister(&driver->driver);
+	}
+	return res;
 }
 
 int i2c_isa_del_driver(struct i2c_driver *driver)
