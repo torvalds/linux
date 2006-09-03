@@ -377,6 +377,28 @@ static int ctrl_hres_min_get(struct pvr2_ctrl *cptr,int *vp)
 	return 0;
 }
 
+static int ctrl_vres_max_get(struct pvr2_ctrl *cptr,int *vp)
+{
+	/* Actual maximum depends on the video standard in effect. */
+	if (cptr->hdw->std_mask_cur & V4L2_STD_525_60) {
+		*vp = 480;
+	} else {
+		*vp = 576;
+	}
+	return 0;
+}
+
+static int ctrl_vres_min_get(struct pvr2_ctrl *cptr,int *vp)
+{
+	/* Actual minimum depends on device type. */
+	if (cptr->hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
+		*vp = 75;
+	} else {
+		*vp = 17;
+	}
+	return 0;
+}
+
 static int ctrl_cx2341x_is_dirty(struct pvr2_ctrl *cptr)
 {
 	return cptr->hdw->enc_stale != 0;
@@ -734,7 +756,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.internal_id = PVR2_CID_HRES,
 		.default_value = 720,
 		DEFREF(res_hor),
-		DEFINT(320,720),
+		DEFINT(19,720),
 		/* Hook in check for clamp on horizontal resolution in
 		   order to avoid unsolved problem involving cx25840. */
 		.get_max_value = ctrl_hres_max_get,
@@ -745,7 +767,11 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.internal_id = PVR2_CID_VRES,
 		.default_value = 480,
 		DEFREF(res_ver),
-		DEFINT(200,625),
+		DEFINT(17,576),
+		/* Hook in check for video standard and adjust maximum
+		   depending on the standard. */
+		.get_max_value = ctrl_vres_max_get,
+		.get_min_value = ctrl_vres_min_get,
 	},{
 		.v4l_id = V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
 		.default_value = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000,
