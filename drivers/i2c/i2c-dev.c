@@ -412,9 +412,6 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 	if (IS_ERR(i2c_dev))
 		return PTR_ERR(i2c_dev);
 
-	pr_debug("i2c-dev: adapter [%s] registered as minor %d\n",
-		 adap->name, adap->nr);
-
 	/* register this i2c device with the driver core */
 	i2c_dev->class_dev = class_device_create(i2c_dev_class, NULL,
 						 MKDEV(I2C_MAJOR, adap->nr),
@@ -427,6 +424,9 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 	res = class_device_create_file(i2c_dev->class_dev, &class_device_attr_name);
 	if (res)
 		goto error_destroy;
+
+	pr_debug("i2c-dev: adapter [%s] registered as minor %d\n",
+		 adap->name, adap->nr);
 	return 0;
 error_destroy:
 	class_device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
@@ -441,8 +441,8 @@ static int i2cdev_detach_adapter(struct i2c_adapter *adap)
 	struct i2c_dev *i2c_dev;
 
 	i2c_dev = i2c_dev_get_by_minor(adap->nr);
-	if (!i2c_dev)
-		return -ENODEV;
+	if (!i2c_dev) /* attach_adapter must have failed */
+		return 0;
 
 	class_device_remove_file(i2c_dev->class_dev, &class_device_attr_name);
 	return_i2c_dev(i2c_dev);
