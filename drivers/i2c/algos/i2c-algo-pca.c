@@ -355,7 +355,7 @@ static int pca_init(struct i2c_algo_pca_data *adap)
 	return 0;
 }
 
-static struct i2c_algorithm pca_algo = {
+static const struct i2c_algorithm pca_algo = {
 	.master_xfer	= pca_xfer,
 	.functionality	= pca_func,
 };
