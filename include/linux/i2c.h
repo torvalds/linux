@@ -220,7 +220,7 @@ struct i2c_adapter {
 	struct module *owner;
 	unsigned int id;
 	unsigned int class;
-	struct i2c_algorithm *algo;/* the algorithm to access the bus	*/
+	const struct i2c_algorithm *algo; /* the algorithm to access the bus */
 	void *algo_data;
 
 	/* --- administration stuff. */
