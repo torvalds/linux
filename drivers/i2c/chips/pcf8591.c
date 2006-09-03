@@ -158,6 +158,28 @@ static ssize_t set_out0_enable(struct device *dev, struct device_attribute *attr
 static DEVICE_ATTR(out0_enable, S_IWUSR | S_IRUGO, 
 		   show_out0_enable, set_out0_enable);
 
+static struct attribute *pcf8591_attributes[] = {
+	&dev_attr_out0_enable.attr,
+	&dev_attr_out0_output.attr,
+	&dev_attr_in0_input.attr,
+	&dev_attr_in1_input.attr,
+	NULL
+};
+
+static const struct attribute_group pcf8591_attr_group = {
+	.attrs = pcf8591_attributes,
+};
+
+static struct attribute *pcf8591_attributes_opt[] = {
+	&dev_attr_in2_input.attr,
+	&dev_attr_in3_input.attr,
+	NULL
+};
+
+static const struct attribute_group pcf8591_attr_group_opt = {
+	.attrs = pcf8591_attributes_opt,
+};
+
 /*
  * Real code
  */
@@ -211,24 +233,31 @@ static int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
 	pcf8591_init_client(new_client);
 
 	/* Register sysfs hooks */
-	device_create_file(&new_client->dev, &dev_attr_out0_enable);
-	device_create_file(&new_client->dev, &dev_attr_out0_output);
-	device_create_file(&new_client->dev, &dev_attr_in0_input);
-	device_create_file(&new_client->dev, &dev_attr_in1_input);
+	err = sysfs_create_group(&new_client->dev.kobj, &pcf8591_attr_group);
+	if (err)
+		goto exit_detach;
 
 	/* Register input2 if not in "two differential inputs" mode */
-	if (input_mode != 3 )
-		device_create_file(&new_client->dev, &dev_attr_in2_input);
-		
-	/* Register input3 only in "four single ended inputs" mode */
-	if (input_mode == 0)
-		device_create_file(&new_client->dev, &dev_attr_in3_input);
-	
-	return 0;
-	
-	/* OK, this is not exactly good programming practice, usually. But it is
-	   very code-efficient in this case. */
+	if (input_mode != 3) {
+		if ((err = device_create_file(&new_client->dev,
+					      &dev_attr_in2_input)))
+			goto exit_sysfs_remove;
+	}
 
+	/* Register input3 only in "four single ended inputs" mode */
+	if (input_mode == 0) {
+		if ((err = device_create_file(&new_client->dev,
+					      &dev_attr_in3_input)))
+			goto exit_sysfs_remove;
+	}
+
+	return 0;
+
+exit_sysfs_remove:
+	sysfs_remove_group(&new_client->dev.kobj, &pcf8591_attr_group_opt);
+	sysfs_remove_group(&new_client->dev.kobj, &pcf8591_attr_group);
+exit_detach:
+	i2c_detach_client(new_client);
 exit_kfree:
 	kfree(data);
 exit:
@@ -238,6 +267,9 @@ exit:
 static int pcf8591_detach_client(struct i2c_client *client)
 {
 	int err;
+
+	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group_opt);
+	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group);
 
 	if ((err = i2c_detach_client(client)))
 		return err;
