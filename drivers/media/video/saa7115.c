@@ -851,7 +851,7 @@ static int saa711x_set_size(struct i2c_client *client, int width, int height)
 
 	/* On 60Hz, it is using a higher Vertical Output Size */
 	if (!is_50hz)
-		res+=(480-HRES_60HZ)>>1;
+		res+=(HRES_60HZ-480)>>1;
 
 		/* height */
 	saa711x_write(client, R_CE_B_VERT_OUTPUT_WINDOW_LENGTH,
