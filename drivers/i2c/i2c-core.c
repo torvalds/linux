@@ -707,11 +707,16 @@ static int i2c_probe_address(struct i2c_adapter *adapter, int addr, int kind,
 
 	/* Finally call the custom detection function */
 	err = found_proc(adapter, addr, kind);
-
 	/* -ENODEV can be returned if there is a chip at the given address
 	   but it isn't supported by this chip driver. We catch it here as
 	   this isn't an error. */
-	return (err == -ENODEV) ? 0 : err;
+	if (err == -ENODEV)
+		err = 0;
+
+	if (err)
+		dev_warn(&adapter->dev, "Client creation failed at 0x%x (%d)\n",
+			 addr, err);
+	return err;
 }
 
 int i2c_probe(struct i2c_adapter *adapter,
