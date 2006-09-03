@@ -1662,16 +1662,16 @@ static int uart_line_info(char *buf, struct uart_driver *drv, int i)
 	struct uart_port *port = state->port;
 	char stat_buf[32];
 	unsigned int status;
-	int ret;
+	int mmio, ret;
 
 	if (!port)
 		return 0;
 
+	mmio = port->iotype >= UPIO_MEM;
 	ret = sprintf(buf, "%d: uart:%s %s%08lX irq:%d",
 			port->line, uart_type(port),
-			port->iotype == UPIO_MEM ? "mmio:0x" : "port:",
-			port->iotype == UPIO_MEM ? port->mapbase :
-						(unsigned long) port->iobase,
+			mmio ? "mmio:0x" : "port:",
+			mmio ? port->mapbase : (unsigned long) port->iobase,
 			port->irq);
 
 	if (port->type == PORT_UNKNOWN) {
