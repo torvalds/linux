@@ -526,7 +526,7 @@ omap_i2c_isr(int this_irq, void *dev_id, struct pt_regs *regs)
 	return count ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static struct i2c_algorithm omap_i2c_algo = {
+static const struct i2c_algorithm omap_i2c_algo = {
 	.master_xfer	= omap_i2c_xfer,
 	.functionality	= omap_i2c_func,
 };

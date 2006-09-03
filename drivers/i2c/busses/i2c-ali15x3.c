@@ -463,7 +463,7 @@ static u32 ali15x3_func(struct i2c_adapter *adapter)
 	    I2C_FUNC_SMBUS_BLOCK_DATA;
 }
 
-static struct i2c_algorithm smbus_algorithm = {
+static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer	= ali15x3_access,
 	.functionality	= ali15x3_func,
 };

@@ -43,7 +43,7 @@
 static u32 isa_func(struct i2c_adapter *adapter);
 
 /* This is the actual algorithm we define */
-static struct i2c_algorithm isa_algorithm = {
+static const struct i2c_algorithm isa_algorithm = {
 	.functionality	= isa_func,
 };
 

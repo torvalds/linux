@@ -132,7 +132,7 @@ static u32 bit_func(struct i2c_adapter *adap)
 
 /* -----exported algorithm data: -------------------------------------	*/
 
-static struct i2c_algorithm i2c_sibyte_algo = {
+static const struct i2c_algorithm i2c_sibyte_algo = {
 	.smbus_xfer	= smbus_xfer,
 	.functionality	= bit_func,
 };

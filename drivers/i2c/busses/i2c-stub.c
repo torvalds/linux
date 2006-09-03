@@ -115,7 +115,7 @@ static u32 stub_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA;
 }
 
-static struct i2c_algorithm smbus_algorithm = {
+static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= stub_func,
 	.smbus_xfer	= stub_xfer,
 };

@@ -293,7 +293,7 @@ static u32 acpi_ec_smb_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_I2C_BLOCK | I2C_FUNC_SMBUS_HWPEC_CALC);
 }
 
-static struct i2c_algorithm acpi_ec_smbus_algorithm = {
+static const struct i2c_algorithm acpi_ec_smbus_algorithm = {
 	.smbus_xfer = acpi_ec_smb_access,
 	.functionality = acpi_ec_smb_func,
 };

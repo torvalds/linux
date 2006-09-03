@@ -287,7 +287,7 @@ au1550_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm au1550_algo = {
+static const struct i2c_algorithm au1550_algo = {
 	.master_xfer	= au1550_xfer,
 	.functionality	= au1550_func,
 };

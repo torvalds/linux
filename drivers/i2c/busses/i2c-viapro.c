@@ -299,7 +299,7 @@ static u32 vt596_func(struct i2c_adapter *adapter)
 	return func;
 }
 
-static struct i2c_algorithm smbus_algorithm = {
+static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer	= vt596_access,
 	.functionality	= vt596_func,
 };
