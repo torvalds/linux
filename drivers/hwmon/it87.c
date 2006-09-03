@@ -243,6 +243,7 @@ static struct i2c_driver it87_driver = {
 
 static struct i2c_driver it87_isa_driver = {
 	.driver = {
+		.owner	= THIS_MODULE,
 		.name	= "it87-isa",
 	},
 	.attach_adapter	= it87_isa_attach_adapter,
