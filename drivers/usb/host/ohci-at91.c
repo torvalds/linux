@@ -193,7 +193,7 @@ ohci_at91_start (struct usb_hcd *hcd)
 	if ((ret = ohci_init(ohci)) < 0)
 		return ret;
 
-	root->maxchild = board->ports;
+	ohci->num_ports = board->ports;
 
 	if ((ret = ohci_run(ohci)) < 0) {
 		err("can't start %s", hcd->self.bus_name);
@@ -297,6 +297,7 @@ static int ohci_hcd_at91_drv_resume(struct platform_device *pdev)
 	if (!clocked) {
 		clk_enable(iclk);
 		clk_enable(fclk);
+		clocked = 1;
 	}
 
 	return 0;
