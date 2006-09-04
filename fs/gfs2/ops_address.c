@@ -262,7 +262,7 @@ static int gfs2_readpage(struct file *file, struct page *page)
 	int error;
 	int do_unlock = 0;
 
-	if (likely(file != &gfs2_internal_file_sentinal)) {
+	if (likely(file != &gfs2_internal_file_sentinel)) {
 		if (file) {
 			struct gfs2_file *gf = file->private_data;
 			if (test_bit(GFF_EXLOCK, &gf->f_flags))
@@ -285,7 +285,7 @@ skip_lock:
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = -EIO;
 
-	if (file != &gfs2_internal_file_sentinal) {
+	if (file != &gfs2_internal_file_sentinel) {
 		gfs2_glock_dq_m(1, &gh);
 		gfs2_holder_uninit(&gh);
 	}
@@ -324,7 +324,7 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 	int ret;
 	int do_unlock = 0;
 
-	if (likely(file != &gfs2_internal_file_sentinal)) {
+	if (likely(file != &gfs2_internal_file_sentinel)) {
 		if (file) {
 			struct gfs2_file *gf = file->private_data;
 			if (test_bit(GFF_EXLOCK, &gf->f_flags))

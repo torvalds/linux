@@ -79,7 +79,7 @@ struct filldir_reg {
  * any other part of this. Its use is purely as a flag so that we
  * know (in readpage()) whether or not do to locking.
  */
-struct file gfs2_internal_file_sentinal = {
+struct file gfs2_internal_file_sentinel = {
 	.f_flags = O_NOATIME|O_RDONLY,
 };
 
@@ -112,7 +112,7 @@ int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
 	desc.count = size;
 	desc.error = 0;
 	do_generic_mapping_read(inode->i_mapping, ra_state,
-				&gfs2_internal_file_sentinal, pos, &desc,
+				&gfs2_internal_file_sentinel, pos, &desc,
 				gfs2_read_actor);
 	return desc.written ? desc.written : desc.error;
 }
