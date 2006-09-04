@@ -65,8 +65,6 @@ static int __init init_gfs2_fs(void)
 {
 	int error;
 
-	gfs2_init_lmh();
-
 	error = gfs2_sys_init();
 	if (error)
 		return error;

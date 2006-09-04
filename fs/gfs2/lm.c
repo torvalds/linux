@@ -124,10 +124,8 @@ int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...)
 int gfs2_lm_get_lock(struct gfs2_sbd *sdp, struct lm_lockname *name,
 		     lm_lock_t **lockp)
 {
-	int error;
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		error = -EIO;
-	else
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = sdp->sd_lockstruct.ls_ops->lm_get_lock(
 				sdp->sd_lockstruct.ls_lockspace, name, lockp);
 	return error;
@@ -143,12 +141,9 @@ unsigned int gfs2_lm_lock(struct gfs2_sbd *sdp, lm_lock_t *lock,
 			  unsigned int cur_state, unsigned int req_state,
 			  unsigned int flags)
 {
-	int ret;
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		ret = 0;
-	else
-		ret = sdp->sd_lockstruct.ls_ops->lm_lock(lock,
-							 cur_state,
+	int ret = 0;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		ret = sdp->sd_lockstruct.ls_ops->lm_lock(lock, cur_state,
 							 req_state, flags);
 	return ret;
 }
@@ -156,10 +151,8 @@ unsigned int gfs2_lm_lock(struct gfs2_sbd *sdp, lm_lock_t *lock,
 unsigned int gfs2_lm_unlock(struct gfs2_sbd *sdp, lm_lock_t *lock,
 			    unsigned int cur_state)
 {
-	int ret;
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		ret = 0;
-	else
+	int ret = 0;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		ret =  sdp->sd_lockstruct.ls_ops->lm_unlock(lock, cur_state);
 	return ret;
 }
@@ -172,10 +165,8 @@ void gfs2_lm_cancel(struct gfs2_sbd *sdp, lm_lock_t *lock)
 
 int gfs2_lm_hold_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char **lvbp)
 {
-	int error;
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		error = -EIO;
-	else
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = sdp->sd_lockstruct.ls_ops->lm_hold_lvb(lock, lvbp);
 	return error;
 }
@@ -186,50 +177,33 @@ void gfs2_lm_unhold_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char *lvb)
 		sdp->sd_lockstruct.ls_ops->lm_unhold_lvb(lock, lvb);
 }
 
-#if 0
-void gfs2_lm_sync_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char *lvb)
-{
-	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		sdp->sd_lockstruct.ls_ops->lm_sync_lvb(lock, lvb);
-}
-#endif  /*  0  */
-
 int gfs2_lm_plock_get(struct gfs2_sbd *sdp, struct lm_lockname *name,
 		      struct file *file, struct file_lock *fl)
 {
-	int error;
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		error = -EIO;
-	else
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = sdp->sd_lockstruct.ls_ops->lm_plock_get(
-			sdp->sd_lockstruct.ls_lockspace,
-			name, file, fl);
+				sdp->sd_lockstruct.ls_lockspace, name, file, fl);
 	return error;
 }
 
 int gfs2_lm_plock(struct gfs2_sbd *sdp, struct lm_lockname *name,
 		  struct file *file, int cmd, struct file_lock *fl)
 {
-	int error;
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		error = -EIO;
-	else
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = sdp->sd_lockstruct.ls_ops->lm_plock(
-			sdp->sd_lockstruct.ls_lockspace,
-			name, file, cmd, fl);
+				sdp->sd_lockstruct.ls_lockspace, name, file, cmd, fl);
 	return error;
 }
 
 int gfs2_lm_punlock(struct gfs2_sbd *sdp, struct lm_lockname *name,
 		    struct file *file, struct file_lock *fl)
 {
-	int error;
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		error = -EIO;
-	else
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = sdp->sd_lockstruct.ls_ops->lm_punlock(
-			sdp->sd_lockstruct.ls_lockspace,
-			name, file, fl);
+				sdp->sd_lockstruct.ls_lockspace, name, file, fl);
 	return error;
 }
 

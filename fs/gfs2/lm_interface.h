@@ -260,8 +260,6 @@ struct lm_lockstruct {
 	int ls_flags;
 };
 
-void __init gfs2_init_lmh(void);
-
 /*
  * Lock module bottom interface.  A lock module makes itself available to GFS
  * with these functions.

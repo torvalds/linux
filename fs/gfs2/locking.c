@@ -27,8 +27,8 @@ struct lmh_wrapper {
 /* List of registered low-level locking protocols.  A file system selects one
    of them by name at mount time, e.g. lock_nolock, lock_dlm. */
 
-static struct list_head lmh_list;
-static struct mutex lmh_lock;
+static LIST_HEAD(lmh_list);
+static DEFINE_MUTEX(lmh_lock);
 
 /**
  * gfs2_register_lockproto - Register a low-level locking protocol
@@ -178,12 +178,6 @@ void gfs2_withdraw_lockproto(struct lm_lockstruct *lockstruct)
 	if (lockstruct->ls_ops->lm_owner)
 		module_put(lockstruct->ls_ops->lm_owner);
 	mutex_unlock(&lmh_lock);
-}
-
-void __init gfs2_init_lmh(void)
-{
-	mutex_init(&lmh_lock);
-	INIT_LIST_HEAD(&lmh_list);
 }
 
 EXPORT_SYMBOL_GPL(gfs2_register_lockproto);
