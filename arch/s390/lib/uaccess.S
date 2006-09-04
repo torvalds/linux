@@ -88,30 +88,31 @@ __copy_to_user_asm:
         .globl __copy_in_user_asm
 	# %r2 = from, %r3 = n, %r4 = to
 __copy_in_user_asm:
+	ahi	%r3,-1
+	jo	6f
 	sacf	256
-	bras	1,1f
-	mvc	0(1,%r4),0(%r2)
-0:	mvc	0(256,%r4),0(%r2)
-	la	%r2,256(%r2)
-	la	%r4,256(%r4)
-1:	ahi	%r3,-256
-	jnm	0b
-2:	ex	%r3,0(%r1)
-	sacf	0
-	slr	%r2,%r2
-	br	14
-3:	mvc	0(1,%r4),0(%r2)
+	bras	%r1,4f
+0:	ahi	%r3,257
+1:	mvc	0(1,%r4),0(%r2)
 	la	%r2,1(%r2)
 	la	%r4,1(%r4)
 	ahi	%r3,-1
+	jnz	1b
+2:	lr	%r2,%r3
+	br	%r14
+3:	mvc	0(256,%r4),0(%r2)
+	la	%r2,256(%r2)
+	la	%r4,256(%r4)
+4:	ahi	%r3,-256
 	jnm	3b
-4:	lr	%r2,%r3
+5:	ex	%r3,4(%r1)
 	sacf	0
+6:	slr	%r2,%r2
 	br	%r14
         .section __ex_table,"a"
-	.long	0b,3b
-	.long	2b,3b
-	.long	3b,4b
+	.long	1b,2b
+	.long	3b,0b
+	.long	5b,0b
         .previous
 
         .align 4

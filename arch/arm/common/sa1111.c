@@ -618,7 +618,7 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 {
 	struct sa1111 *sachip;
 	unsigned long id;
-	unsigned int has_devs, val;
+	unsigned int has_devs;
 	int i, ret = -ENODEV;
 
 	sachip = kzalloc(sizeof(struct sa1111), GFP_KERNEL);
@@ -669,6 +669,9 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	sa1111_wake(sachip);
 
 #ifdef CONFIG_ARCH_SA1100
+	{
+	unsigned int val;
+
 	/*
 	 * The SDRAM configuration of the SA1110 and the SA1111 must
 	 * match.  This is very important to ensure that SA1111 accesses
@@ -692,6 +695,7 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	 * Enable the SA1110 memory bus request and grant signals.
 	 */
 	sa1110_mb_enable();
+	}
 #endif
 
 	/*

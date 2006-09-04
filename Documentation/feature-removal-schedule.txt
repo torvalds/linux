@@ -120,6 +120,13 @@ Who:    Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
+What:  drivers depending on OSS_OBSOLETE_DRIVER
+When:  options in 2.6.20, code in 2.6.22
+Why:   OSS drivers with ALSA replacements
+Who:   Adrian Bunk <bunk@stusta.de>
+
+---------------------------
+
 What:	pci_module_init(driver)
 When:	January 2007
 Why:	Is replaced by pci_register_driver(pci_driver).

@@ -994,7 +994,6 @@ struct task_struct {
 	 */
 	struct pipe_inode_info *splice_pipe;
 #ifdef	CONFIG_TASK_DELAY_ACCT
-	spinlock_t delays_lock;
 	struct task_delay_info *delays;
 #endif
 };
