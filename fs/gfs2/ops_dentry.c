@@ -81,31 +81,27 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 		goto fail_gunlock;
 	}
 
- valid_gunlock:
+valid_gunlock:
 	gfs2_glock_dq_uninit(&d_gh);
-
- valid:
+valid:
 	dput(parent);
 	return 1;
 
- invalid_gunlock:
+invalid_gunlock:
 	gfs2_glock_dq_uninit(&d_gh);
-
- invalid:
+invalid:
 	if (inode && S_ISDIR(inode->i_mode)) {
 		if (have_submounts(dentry))
 			goto valid;
 		shrink_dcache_parent(dentry);
 	}
 	d_drop(dentry);
-
 	dput(parent);
 	return 0;
 
- fail_gunlock:
+fail_gunlock:
 	gfs2_glock_dq_uninit(&d_gh);
-
- fail:
+fail:
 	dput(parent);
 	return 0;
 }

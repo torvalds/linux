@@ -756,7 +756,7 @@ void gfs2_meta_ra(struct gfs2_glock *gl, uint64_t dblock, uint32_t extlen)
 			break;
 	}
 
- out:
+out:
 	brelse(first_bh);
 }
 

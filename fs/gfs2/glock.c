@@ -2179,9 +2179,8 @@ static int dump_glock(struct gfs2_glock *gl)
 
 	error = 0;
 
- out:
+out:
 	spin_unlock(&gl->gl_spin);
-
 	return error;
 }
 

@@ -107,7 +107,7 @@ static int ea_foreach_i(struct gfs2_inode *ip, struct buffer_head *bh,
 
 	return error;
 
- fail:
+fail:
 	gfs2_consist_inode(ip);
 	return -EIO;
 }
@@ -152,9 +152,8 @@ static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 		if (error)
 			break;
 	}
- out:
+out:
 	brelse(bh);
-
 	return error;
 }
 
@@ -319,9 +318,8 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 
 	gfs2_trans_end(sdp);
 
- out_gunlock:
+out_gunlock:
 	gfs2_glock_dq_uninit(&rg_gh);
-
 	return error;
 }
 
@@ -348,12 +346,10 @@ static int ea_remove_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 
 	gfs2_glock_dq_uninit(&al->al_ri_gh);
 
- out_quota:
+out_quota:
 	gfs2_quota_unhold(ip);
-
- out_alloc:
+out_alloc:
 	gfs2_alloc_put(ip);
-
 	return error;
 }
 
@@ -506,9 +502,8 @@ static int ea_get_unstuffed(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 		brelse(bh[x]);
 	}
 
- out:
+out:
 	kfree(bh);
-
 	return error;
 }
 
@@ -747,18 +742,14 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 		brelse(dibh);
 	}
 
- out_end_trans:
+out_end_trans:
 	gfs2_trans_end(GFS2_SB(&ip->i_inode));
-
- out_ipres:
+out_ipres:
 	gfs2_inplace_release(ip);
-
- out_gunlock_q:
+out_gunlock_q:
 	gfs2_quota_unlock(ip);
-
- out:
+out:
 	gfs2_alloc_put(ip);
-
 	return error;
 }
 
@@ -884,9 +875,8 @@ static int ea_set_simple_noalloc(struct gfs2_inode *ip, struct buffer_head *bh,
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 	brelse(dibh);
- out:
+out:
 	gfs2_trans_end(GFS2_SB(&ip->i_inode));
-
 	return error;
 }
 
@@ -1025,9 +1015,8 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (private)
 		ea_set_remove_stuffed(ip, (struct gfs2_ea_location *)private);
 
- out:
+out:
 	brelse(indbh);
-
 	return error;
 }
 
@@ -1285,15 +1274,13 @@ static int ea_acl_chmod_unstuffed(struct gfs2_inode *ip,
 		brelse(bh[x]);
 	}
 
- out:
+out:
 	kfree(bh);
-
 	return error;
 
- fail:
+fail:
 	gfs2_trans_end(sdp);
 	kfree(bh);
-
 	return error;
 }
 
@@ -1442,15 +1429,12 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 
 	gfs2_trans_end(sdp);
 
- out_gunlock:
+out_gunlock:
 	gfs2_glock_dq_m(rlist.rl_rgrps, rlist.rl_ghs);
-
- out_rlist_free:
+out_rlist_free:
 	gfs2_rlist_free(&rlist);
-
- out:
+out:
 	brelse(indbh);
-
 	return error;
 }
 
@@ -1494,9 +1478,8 @@ static int ea_dealloc_block(struct gfs2_inode *ip)
 
 	gfs2_trans_end(sdp);
 
- out_gunlock:
+out_gunlock:
 	gfs2_glock_dq_uninit(&al->al_rgd_gh);
-
 	return error;
 }
 
@@ -1534,15 +1517,12 @@ int gfs2_ea_dealloc(struct gfs2_inode *ip)
 
 	error = ea_dealloc_block(ip);
 
- out_rindex:
+out_rindex:
 	gfs2_glock_dq_uninit(&al->al_ri_gh);
-
- out_quota:
+out_quota:
 	gfs2_quota_unhold(ip);
-
- out_alloc:
+out_alloc:
 	gfs2_alloc_put(ip);
-
 	return error;
 }
 

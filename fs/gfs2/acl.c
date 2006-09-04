@@ -65,9 +65,8 @@ int gfs2_acl_validate_set(struct gfs2_inode *ip, int access,
 			error = 0;
 	}
 
- out:
+out:
 	posix_acl_release(acl);
-
 	return error;
 }
 
@@ -132,18 +131,16 @@ static int acl_get(struct gfs2_inode *ip, int access, struct posix_acl **acl,
 			error = PTR_ERR(*acl);
 	}
 
- out_kfree:
+out_kfree:
 	if (error || !data)
 		kfree(er.er_data);
 	else {
 		*data = er.er_data;
 		*len = er.er_data_len;
 	}
-
- out:
+out:
 	if (error || el == &el_this)
 		brelse(el->el_bh);
-
 	return error;
 }
 
@@ -270,7 +267,7 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip)
 	} else
 		munge_mode(ip, mode);
 
- out:
+out:
 	posix_acl_release(acl);
 	kfree(er.er_data);
 	return error;
@@ -303,11 +300,10 @@ int gfs2_acl_chmod(struct gfs2_inode *ip, struct iattr *attr)
 		error = gfs2_ea_acl_chmod(ip, &el, attr, data);
 	}
 
- out:
+out:
 	posix_acl_release(acl);
 	brelse(el.el_bh);
 	kfree(data);
-
 	return error;
 }
 

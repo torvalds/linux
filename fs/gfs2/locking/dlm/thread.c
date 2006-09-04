@@ -206,7 +206,7 @@ static void process_complete(struct gdlm_lock *lp)
 	if (lp->lksb.sb_flags & DLM_SBF_DEMOTED)
 		set_bit(LFL_NOCACHE, &lp->flags);
 
- out:
+out:
 	/*
 	 * This is an internal lock_dlm lock
 	 */

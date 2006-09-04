@@ -535,7 +535,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 
 	error = gfs2_quota_init(sdp);
 	if (error)
-		goto fail_unlinked;
+		goto fail;
 
 	set_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 
@@ -543,9 +543,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 
 	return 0;
 
- fail_unlinked:
-
- fail:
+fail:
 	t_gh.gh_flags |= GL_NOCACHE;
 	gfs2_glock_dq_uninit(&t_gh);
 
@@ -625,12 +623,10 @@ int gfs2_statfs_init(struct gfs2_sbd *sdp)
 		brelse(l_bh);
 	}
 
- out_m_bh:
+out_m_bh:
 	brelse(m_bh);
-
- out:
+out:
 	gfs2_glock_dq_uninit(&gh);
-
 	return 0;
 }
 
@@ -715,15 +711,12 @@ int gfs2_statfs_sync(struct gfs2_sbd *sdp)
 
 	gfs2_trans_end(sdp);
 
- out_bh2:
+out_bh2:
 	brelse(l_bh);
-
- out_bh:
+out_bh:
 	brelse(m_bh);
-
- out:
+out:
 	gfs2_glock_dq_uninit(&gh);
-
 	return error;
 }
 
@@ -853,9 +846,8 @@ int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change *sc)
 
 	gfs2_glock_dq_uninit(&ri_gh);
 
- out:
+out:
 	kfree(gha);
-
 	return error;
 }
 
@@ -924,7 +916,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 	if (error)
 		gfs2_glock_dq_uninit(t_gh);
 
- out:
+out:
 	while (!list_empty(&list)) {
 		lfcc = list_entry(list.next, struct lfcc, list);
 		list_del(&lfcc->list);
@@ -932,7 +924,6 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 		kfree(lfcc);
 	}
 	gfs2_glock_dq_uninit(&ji_gh);
-
 	return error;
 }
 

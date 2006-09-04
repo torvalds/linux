@@ -164,13 +164,13 @@ static int gdlm_mount(char *table_name, char *host_data,
 	lockstruct->ls_lvb_size = GDLM_LVB_SIZE;
 	return 0;
 
- out_kobj:
+out_kobj:
 	gdlm_kobject_release(ls);
- out_thread:
+out_thread:
 	gdlm_release_threads(ls);
- out_free:
+out_free:
 	kfree(ls);
- out:
+out:
 	return error;
 }
 
@@ -194,7 +194,7 @@ static void gdlm_unmount(lm_lockspace_t *lockspace)
 	rv = gdlm_release_all_locks(ls);
 	if (rv)
 		log_info("gdlm_unmount: %d stray locks freed", rv);
- out:
+out:
 	kfree(ls);
 }
 

@@ -203,11 +203,11 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, char *data_arg, int remount)
 
 	return error;
 
- need_value:
+need_value:
 	fs_info(sdp, "need value for option %s\n", o);
 	return -EINVAL;
 
- cant_remount:
+cant_remount:
 	fs_info(sdp, "can't remount with option %s\n", o);
 	return -EINVAL;
 }

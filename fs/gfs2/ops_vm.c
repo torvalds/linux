@@ -115,18 +115,14 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 
 	gfs2_assert_warn(sdp, al->al_alloced);
 
- out_trans:
+out_trans:
 	gfs2_trans_end(sdp);
-
- out_ipres:
+out_ipres:
 	gfs2_inplace_release(ip);
-
- out_gunlock_q:
+out_gunlock_q:
 	gfs2_quota_unlock(ip);
-
- out:
+out:
 	gfs2_alloc_put(ip);
-
 	return error;
 }
 

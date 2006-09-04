@@ -173,9 +173,8 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 	snprintf(sdp->sd_proto_name, GFS2_FSNAME_LEN, "%s", proto);
 	snprintf(sdp->sd_table_name, GFS2_FSNAME_LEN, "%s", table);
 
- out:
+out:
 	kfree(sb);
-
 	return error;
 }
 
@@ -246,22 +245,17 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 
 fail_trans:
 	gfs2_glock_put(sdp->sd_trans_gl);
-
 fail_rename:
 	gfs2_glock_put(sdp->sd_rename_gl);
-
 fail_live:
 	gfs2_glock_dq_uninit(&sdp->sd_live_gh);
-
 fail_mount:
 	gfs2_glock_dq_uninit(mount_gh);
-
 fail:
 	while (sdp->sd_glockd_num--)
 		kthread_stop(sdp->sd_glockd_process[sdp->sd_glockd_num]);
 
 	kthread_stop(sdp->sd_scand_process);
-
 	return error;
 }
 
@@ -451,25 +445,20 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 
 	return 0;
 
- fail_recoverd:
+fail_recoverd:
 	kthread_stop(sdp->sd_recoverd_process);
-
- fail_jinode_gh:
+fail_jinode_gh:
 	if (!sdp->sd_args.ar_spectator)
 		gfs2_glock_dq_uninit(&sdp->sd_jinode_gh);
-
- fail_journal_gh:
+fail_journal_gh:
 	if (!sdp->sd_args.ar_spectator)
 		gfs2_glock_dq_uninit(&sdp->sd_journal_gh);
-
- fail_jindex:
+fail_jindex:
 	gfs2_jindex_free(sdp);
 	if (jindex)
 		gfs2_glock_dq_uninit(&ji_gh);
-
- fail:
+fail:
 	iput(sdp->sd_jindex);
-
 	return error;
 }
 
@@ -534,14 +523,11 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 
 fail_qinode:
 	iput(sdp->sd_quota_inode);
-
 fail_rindex:
 	gfs2_clear_rgrpd(sdp);
 	iput(sdp->sd_rindex);
-
 fail_statfs:
 	iput(sdp->sd_statfs_inode);
-
 fail_inum:
 	iput(sdp->sd_inum_inode);
 fail_journal:
@@ -628,27 +614,19 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 
 	return 0;
 
- fail_qc_gh:
+fail_qc_gh:
 	gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
-
- fail_ut_gh:
-
+fail_ut_gh:
 	gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
-
- fail_ir_gh:
+fail_ir_gh:
 	gfs2_glock_dq_uninit(&sdp->sd_ir_gh);
-
- fail_qc_i:
+fail_qc_i:
 	iput(sdp->sd_qc_inode);
-
- fail_ut_i:
-
+fail_ut_i:
 	iput(sdp->sd_sc_inode);
-
- fail_ir_i:
+fail_ir_i:
 	iput(sdp->sd_ir_inode);
-
- fail:
+fail:
 	if (pn)
 		iput(pn);
 	return error;
@@ -781,34 +759,26 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 
 	return 0;
 
- fail_threads:
+fail_threads:
 	init_threads(sdp, UNDO);
-
- fail_per_node:
+fail_per_node:
 	init_per_node(sdp, UNDO);
-
- fail_inodes:
+fail_inodes:
 	init_inodes(sdp, UNDO);
-
- fail_sb:
+fail_sb:
 	init_sb(sdp, 0, UNDO);
-
- fail_locking:
+fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);
-
- fail_lm:
+fail_lm:
 	gfs2_gl_hash_clear(sdp, WAIT);
 	gfs2_lm_unmount(sdp);
 	while (invalidate_inodes(sb))
 		yield();
-
- fail_sys:
+fail_sys:
 	gfs2_sys_fs_del(sdp);
-
- fail:
+fail:
 	vfree(sdp);
 	sb->s_fs_info = NULL;
-
 	return error;
 }
 
@@ -852,6 +822,7 @@ static int fill_super_meta(struct super_block *sb, struct super_block *new,
 
 	return error;
 }
+
 static int set_bdev_super(struct super_block *s, void *data)
 {
 	s->s_bdev = data;

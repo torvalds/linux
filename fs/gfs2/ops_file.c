@@ -345,9 +345,8 @@ static int readdir_bad(struct file *file, void *dirent, filldir_t filldir)
 
 	file->f_pos = offset;
 
- out:
+out:
 	kfree(fdb);
-
 	return error;
 }
 

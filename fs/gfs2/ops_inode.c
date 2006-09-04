@@ -228,32 +228,25 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 
 out_end_trans:
 	gfs2_trans_end(sdp);
-
 out_ipres:
 	if (alloc_required)
 		gfs2_inplace_release(dip);
-
 out_gunlock_q:
 	if (alloc_required)
 		gfs2_quota_unlock(dip);
-
 out_alloc:
 	if (alloc_required)
 		gfs2_alloc_put(dip);
-
 out_gunlock:
 	gfs2_glock_dq_m(2, ghs);
-
 out:
 	gfs2_holder_uninit(ghs);
 	gfs2_holder_uninit(ghs + 1);
-
 	if (!error) {
 		atomic_inc(&inode->i_count);
 		d_instantiate(dentry, inode);
 		mark_inode_dirty(inode);
 	}
-
 	return error;
 }
 
@@ -491,13 +484,11 @@ static int gfs2_rmdir(struct inode *dir, struct dentry *dentry)
 
 	gfs2_trans_end(sdp);
 
- out_gunlock:
+out_gunlock:
 	gfs2_glock_dq_m(2, ghs);
-
- out:
+out:
 	gfs2_holder_uninit(ghs);
 	gfs2_holder_uninit(ghs + 1);
-
 	return error;
 }
 
@@ -966,15 +957,12 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 		gfs2_quota_change(ip, ip->i_di.di_blocks, nuid, ngid);
 	}
 
- out_end_trans:
+out_end_trans:
 	gfs2_trans_end(sdp);
-
- out_gunlock_q:
+out_gunlock_q:
 	gfs2_quota_unlock(ip);
-
- out_alloc:
+out_alloc:
 	gfs2_alloc_put(ip);
-
 	return error;
 }
 
@@ -1017,12 +1005,10 @@ static int gfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	else
 		error = gfs2_setattr_simple(ip, attr);
 
- out:
+out:
 	gfs2_glock_dq_uninit(&i_gh);
-
 	if (!error)
 		mark_inode_dirty(inode);
-
 	return error;
 }
 

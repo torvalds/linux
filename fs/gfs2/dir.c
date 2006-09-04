@@ -1134,9 +1134,8 @@ static int dir_double_exhash(struct gfs2_inode *dip)
 
 	return error;
 
- fail:
+fail:
 	kfree(buf);
-
 	return error;
 }
 
@@ -1890,23 +1889,18 @@ static int leaf_dealloc(struct gfs2_inode *dip, uint32_t index, uint32_t len,
 	gfs2_dinode_out(&dip->i_di, dibh->b_data);
 	brelse(dibh);
 
- out_end_trans:
+out_end_trans:
 	gfs2_trans_end(sdp);
-
- out_rg_gunlock:
+out_rg_gunlock:
 	gfs2_glock_dq_m(rlist.rl_rgrps, rlist.rl_ghs);
-
- out_rlist:
+out_rlist:
 	gfs2_rlist_free(&rlist);
 	gfs2_glock_dq_uninit(&dip->i_alloc.al_ri_gh);
-
- out_qs:
+out_qs:
 	gfs2_quota_unhold(dip);
-
- out:
+out:
 	gfs2_alloc_put(dip);
 	kfree(ht);
-
 	return error;
 }
 

@@ -105,7 +105,7 @@ static int qd_alloc(struct gfs2_sbd *sdp, int user, uint32_t id,
 
 	return 0;
 
- fail:
+fail:
 	kfree(qd);
 	return error;
 }
@@ -199,7 +199,7 @@ static int slot_get(struct gfs2_quota_data *qd)
 
 	goto fail;
 
- found:
+found:
 	for (b = 0; b < 8; b++)
 		if (!(byte & (1 << b)))
 			break;
@@ -214,7 +214,7 @@ static int slot_get(struct gfs2_quota_data *qd)
 
 	return 0;
 
- fail:
+fail:
 	qd->qd_slot_count--;
 	spin_unlock(&sdp->sd_quota_spin);
 	return -ENOSPC;
@@ -283,10 +283,9 @@ static int bh_get(struct gfs2_quota_data *qd)
 
 	return 0;
 
- fail_brelse:
+fail_brelse:
 	brelse(bh);
-
- fail:
+fail:
 	qd->qd_bh_count--;
 	mutex_unlock(&sdp->sd_quota_mutex);
 	return error;
@@ -425,10 +424,9 @@ static int qdsb_get(struct gfs2_sbd *sdp, int user, uint32_t id, int create,
 
 	return 0;
 
- fail_slot:
+fail_slot:
 	slot_put(*qdp);
-
- fail:
+fail:
 	qd_put(*qdp);
 	return error;
 }
@@ -482,10 +480,9 @@ int gfs2_quota_hold(struct gfs2_inode *ip, uint32_t uid, uint32_t gid)
 		qd++;
 	}
 
- out:
+out:
 	if (error)
 		gfs2_quota_unhold(ip);
-
 	return error;
 }
 
@@ -728,26 +725,21 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 
 	error = 0;
 
- out_end_trans:
+out_end_trans:
 	gfs2_trans_end(sdp);
-
- out_ipres:
+out_ipres:
 	if (nalloc)
 		gfs2_inplace_release(ip);
-
- out_alloc:
+out_alloc:
 	if (nalloc)
 		gfs2_alloc_put(ip);
-
- out_gunlock:
+out_gunlock:
 	gfs2_glock_dq_uninit(&i_gh);
-
- out:
+out:
 	while (qx--)
 		gfs2_glock_dq_uninit(&ghs[qx]);
 	kfree(ghs);
 	gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl);
-
 	return error;
 }
 
@@ -764,7 +756,7 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 	struct gfs2_quota_lvb *qlvb;
 
 	file_ra_state_init(&ra_state, sdp->sd_quota_inode->i_mapping);
- restart:
+restart:
 	error = gfs2_glock_nq_init(qd->qd_gl, LM_ST_SHARED, 0, q_gh);
 	if (error)
 		return error;
@@ -812,12 +804,10 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 
 	return 0;
 
- fail_gunlock:
+fail_gunlock:
 	gfs2_glock_dq_uninit(&i_gh);
-
- fail:
+fail:
 	gfs2_glock_dq_uninit(q_gh);
-
 	return error;
 }
 
@@ -919,7 +909,7 @@ void gfs2_quota_unlock(struct gfs2_inode *ip)
 			qd_unlock(qda[x]);
 	}
 
- out:
+out:
 	gfs2_quota_unhold(ip);
 }
 
@@ -1098,9 +1088,8 @@ int gfs2_quota_read(struct gfs2_sbd *sdp, int user, uint32_t id,
 
 	gfs2_glock_dq_uninit(&q_gh);
 
- out:
+out:
 	qd_put(qd);
-
 	return error;
 }
 #endif  /*  0  */
@@ -1202,7 +1191,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 
 	return 0;
 
- fail:
+fail:
 	gfs2_quota_cleanup(sdp);
 	return error;
 }

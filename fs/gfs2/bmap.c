@@ -170,12 +170,10 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 
- out_brelse:
+out_brelse:
 	brelse(dibh);
-
- out:
+out:
 	up_write(&ip->i_rw_mutex);
-
 	return error;
 }
 
@@ -642,9 +640,8 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 				break;
 		}
 
- out:
+out:
 	brelse(bh);
-
 	return error;
 }
 
@@ -788,15 +785,12 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 	gfs2_trans_end(sdp);
 
- out_rg_gunlock:
+out_rg_gunlock:
 	gfs2_glock_dq_m(rlist.rl_rgrps, rlist.rl_ghs);
-
- out_rlist:
+out_rlist:
 	gfs2_rlist_free(&rlist);
-
- out:
+out:
 	gfs2_glock_dq_uninit(&ip->i_alloc.al_ri_gh);
-
 	return error;
 }
 
@@ -868,18 +862,14 @@ static int do_grow(struct gfs2_inode *ip, uint64_t size)
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 	brelse(dibh);
 
- out_end_trans:
+out_end_trans:
 	gfs2_trans_end(sdp);
-
- out_ipres:
+out_ipres:
 	gfs2_inplace_release(ip);
-
- out_gunlock_q:
+out_gunlock_q:
 	gfs2_quota_unlock(ip);
-
- out:
+out:
 	gfs2_alloc_put(ip);
-
 	return error;
 }
 
@@ -998,9 +988,8 @@ static int trunc_start(struct gfs2_inode *ip, uint64_t size)
 
 	brelse(dibh);
 
- out:
+out:
 	gfs2_trans_end(sdp);
-
 	return error;
 }
 
@@ -1035,7 +1024,7 @@ static int trunc_dealloc(struct gfs2_inode *ip, uint64_t size)
 
 	gfs2_quota_unhold(ip);
 
- out:
+out:
 	gfs2_alloc_put(ip);
 	return error;
 }
@@ -1070,11 +1059,9 @@ static int trunc_end(struct gfs2_inode *ip)
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 	brelse(dibh);
 
- out:
+out:
 	up_write(&ip->i_rw_mutex);
-
 	gfs2_trans_end(sdp);
-
 	return error;
 }
 

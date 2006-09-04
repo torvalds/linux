@@ -76,7 +76,7 @@ int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 		sdp->sd_args.ar_localcaching = 1;
 	}
 
- out:
+out:
 	return error;
 }
 

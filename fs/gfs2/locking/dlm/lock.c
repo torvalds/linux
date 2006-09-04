@@ -437,7 +437,7 @@ static int hold_null_lock(struct gdlm_lock *lp)
 		gdlm_delete_lp(lpn);
 		lpn = NULL;
 	}
- out:
+out:
 	lp->hold_null = lpn;
 	return error;
 }

@@ -543,15 +543,15 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 
 	return 0;
 
- fail_args:
+fail_args:
 	sysfs_remove_group(&sdp->sd_kobj, &args_group);
- fail_counters:
+fail_counters:
 	sysfs_remove_group(&sdp->sd_kobj, &counters_group);
- fail_lockstruct:
+fail_lockstruct:
 	sysfs_remove_group(&sdp->sd_kobj, &lockstruct_group);
- fail_reg:
+fail_reg:
 	kobject_unregister(&sdp->sd_kobj);
- fail:
+fail:
 	return error;
 }
 
