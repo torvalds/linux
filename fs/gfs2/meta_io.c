@@ -460,11 +460,10 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
 	bd->bd_gl = gl;
 
 	INIT_LIST_HEAD(&bd->bd_list_tr);
-	if (meta) {
+	if (meta)
 		lops_init_le(&bd->bd_le, &gfs2_buf_lops);
-	} else {
+	else
 		lops_init_le(&bd->bd_le, &gfs2_databuf_lops);
-	}
 	bh->b_private = bd;
 
 	if (meta)

@@ -118,7 +118,7 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 	unsigned n;
 	__be64 *ptr;
 
-	offset += (sizeof(__be64) - 1);
+	offset += sizeof(__be64) - 1;
 	offset &= ~(sizeof(__be64) - 1);
 	limit = (sdp->sd_sb.sb_bsize - offset)/sizeof(__be64);
 	/* for 4k blocks, limit = 503 */
@@ -219,8 +219,8 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 			continue;
 
 		error = gfs2_replay_read_block(jd, start, &bh_log);
-                if (error)
-                        return error;
+		if (error)
+			return error;
 
 		bh_ip = gfs2_meta_new(gl, blkno);
 		memcpy(bh_ip->b_data, bh_log->b_data, bh_log->b_size);
@@ -248,8 +248,7 @@ static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 
 	if (error) {
-		gfs2_meta_sync(ip->i_gl,
-			       DIO_START | DIO_WAIT);
+		gfs2_meta_sync(ip->i_gl, DIO_START | DIO_WAIT);
 		return;
 	}
 	if (pass != 1)
