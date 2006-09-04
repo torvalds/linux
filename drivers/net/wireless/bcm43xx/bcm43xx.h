@@ -306,6 +306,12 @@
 #define BCM43xx_SBF_TIME_UPDATE		0x10000000
 #define BCM43xx_SBF_80000000		0x80000000 /*FIXME: fix name*/
 
+/* Microcode */
+#define BCM43xx_UCODE_REVISION          0x0000
+#define BCM43xx_UCODE_PATCHLEVEL        0x0002
+#define BCM43xx_UCODE_DATE              0x0004
+#define BCM43xx_UCODE_TIME              0x0006
+
 /* MicrocodeFlagsBitfield (addr + lo-word values?)*/
 #define BCM43xx_UCODEFLAGS_OFFSET	0x005E
 

@@ -2384,6 +2384,33 @@ static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 	}
 	bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_REASON); /* dummy read */
 
+	value16 = bcm43xx_shm_read16(bcm, BCM43xx_SHM_SHARED,
+				     BCM43xx_UCODE_REVISION);
+
+	dprintk(KERN_INFO PFX "Microcode rev 0x%x, pl 0x%x "
+		"(20%.2i-%.2i-%.2i  %.2i:%.2i:%.2i)\n", value16,
+		bcm43xx_shm_read16(bcm, BCM43xx_SHM_SHARED,
+				   BCM43xx_UCODE_PATCHLEVEL),
+		(bcm43xx_shm_read16(bcm, BCM43xx_SHM_SHARED,
+				    BCM43xx_UCODE_DATE) >> 12) & 0xf,
+		(bcm43xx_shm_read16(bcm, BCM43xx_SHM_SHARED,
+				    BCM43xx_UCODE_DATE) >> 8) & 0xf,
+		bcm43xx_shm_read16(bcm, BCM43xx_SHM_SHARED,
+				   BCM43xx_UCODE_DATE) & 0xff,
+		(bcm43xx_shm_read16(bcm, BCM43xx_SHM_SHARED,
+				   BCM43xx_UCODE_TIME) >> 11) & 0x1f,
+		(bcm43xx_shm_read16(bcm, BCM43xx_SHM_SHARED,
+				   BCM43xx_UCODE_TIME) >> 5) & 0x3f,
+		bcm43xx_shm_read16(bcm, BCM43xx_SHM_SHARED,
+				   BCM43xx_UCODE_TIME) & 0x1f);
+
+	if ( value16 > 0x128 ) {
+		dprintk(KERN_ERR PFX
+			"Firmware: no support for microcode rev > 0x128\n");
+		err = -1;
+		goto err_release_fw;
+	}
+
 	err = bcm43xx_gpio_init(bcm);
 	if (err)
 		goto err_release_fw;
