@@ -94,12 +94,12 @@ static int gfs2_read_actor(read_descriptor_t *desc, struct page *page,
 
 	kaddr = kmap(page);
 	memcpy(desc->arg.buf, kaddr + offset, size);
-        kunmap(page);
+	kunmap(page);
 
-        desc->count = count - size;
-        desc->written += size;
-        desc->arg.buf += size;
-        return size;
+	desc->count = count - size;
+	desc->written += size;
+	desc->arg.buf += size;
+	return size;
 }
 
 int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
@@ -700,7 +700,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 	int error = 0;
 
 	state = (fl->fl_type == F_WRLCK) ? LM_ST_EXCLUSIVE : LM_ST_SHARED;
-	flags = ((IS_SETLKW(cmd)) ? 0 : LM_FLAG_TRY) | GL_EXACT | GL_NOCACHE;
+	flags = (IS_SETLKW(cmd) ? 0 : LM_FLAG_TRY) | GL_EXACT | GL_NOCACHE;
 
 	mutex_lock(&fp->f_fl_mutex);
 
@@ -780,32 +780,32 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 }
 
 const struct file_operations gfs2_file_fops = {
-	.llseek = gfs2_llseek,
-	.read = generic_file_read,
-	.readv = generic_file_readv,
-	.aio_read = generic_file_aio_read,
-	.write = generic_file_write,
-	.writev = generic_file_writev,
-	.aio_write = generic_file_aio_write,
-	.unlocked_ioctl = gfs2_ioctl,
-	.mmap = gfs2_mmap,
-	.open = gfs2_open,
-	.release = gfs2_close,
-	.fsync = gfs2_fsync,
-	.lock = gfs2_lock,
-	.sendfile = generic_file_sendfile,
-	.flock = gfs2_flock,
-	.splice_read = generic_file_splice_read,
-	.splice_write = generic_file_splice_write,
+	.llseek		= gfs2_llseek,
+	.read		= generic_file_read,
+	.readv		= generic_file_readv,
+	.aio_read	= generic_file_aio_read,
+	.write		= generic_file_write,
+	.writev		= generic_file_writev,
+	.aio_write	= generic_file_aio_write,
+	.unlocked_ioctl	= gfs2_ioctl,
+	.mmap		= gfs2_mmap,
+	.open		= gfs2_open,
+	.release	= gfs2_close,
+	.fsync		= gfs2_fsync,
+	.lock		= gfs2_lock,
+	.sendfile	= generic_file_sendfile,
+	.flock		= gfs2_flock,
+	.splice_read	= generic_file_splice_read,
+	.splice_write	= generic_file_splice_write,
 };
 
 const struct file_operations gfs2_dir_fops = {
-	.readdir = gfs2_readdir,
-	.unlocked_ioctl = gfs2_ioctl,
-	.open = gfs2_open,
-	.release = gfs2_close,
-	.fsync = gfs2_fsync,
-	.lock = gfs2_lock,
-	.flock = gfs2_flock,
+	.readdir	= gfs2_readdir,
+	.unlocked_ioctl	= gfs2_ioctl,
+	.open		= gfs2_open,
+	.release	= gfs2_close,
+	.fsync		= gfs2_fsync,
+	.lock		= gfs2_lock,
+	.flock		= gfs2_flock,
 };
 

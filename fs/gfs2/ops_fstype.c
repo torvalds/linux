@@ -791,7 +791,7 @@ static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
 	if (error)
 		goto out;
 	sb = mnt->mnt_sb;
-	sdp = (struct gfs2_sbd*)sb->s_fs_info;
+	sdp = sb->s_fs_info;
 	sdp->sd_gfs2mnt = mnt;
 out:
 	return error;
@@ -832,7 +832,7 @@ static int set_bdev_super(struct super_block *s, void *data)
  
 static int test_bdev_super(struct super_block *s, void *data)
 {
-	return (void *)s->s_bdev == data;
+	return s->s_bdev == data;
 }
 
 static struct super_block* get_gfs2_sb(const char *dev_name)

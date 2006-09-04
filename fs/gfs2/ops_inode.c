@@ -1014,7 +1014,7 @@ out:
 
 /**
  * gfs2_getattr - Read out an inode's attributes
- * @mnt: ?
+ * @mnt: The vfsmount the inode is being accessed from
  * @dentry: The dentry to stat
  * @stat: The inode's stats
  *
