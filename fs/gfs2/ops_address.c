@@ -517,7 +517,7 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 
 		kaddr = kmap_atomic(page, KM_USER0);
 		memcpy(dibh->b_data + sizeof(struct gfs2_dinode) + from,
-		       (char *)kaddr + from, to - from);
+		       kaddr + from, to - from);
 		kunmap_atomic(page, KM_USER0);
 
 		SetPageUptodate(page);
@@ -704,8 +704,9 @@ static void stuck_releasepage(struct buffer_head *bh)
 	struct gfs2_glock *gl;
 static unsigned limit = 0;
 
-	if (limit++ > 3)
+	if (limit > 3)
 		return;
+	limit++;
 
 	fs_warn(sdp, "stuck in gfs2_releasepage() %p\n", inode);
 	fs_warn(sdp, "blkno = %llu, bh->b_count = %d\n",
