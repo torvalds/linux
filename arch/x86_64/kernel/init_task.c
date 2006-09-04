@@ -46,4 +46,9 @@ EXPORT_SYMBOL(init_task);
  */ 
 DEFINE_PER_CPU(struct tss_struct, init_tss) ____cacheline_internodealigned_in_smp = INIT_TSS;
 
+/* Copies of the original ist values from the tss are only accessed during
+ * debugging, no special alignment required.
+ */
+DEFINE_PER_CPU(struct orig_ist, orig_ist);
+
 #define ALIGN_TO_4K __attribute__((section(".data.init_task")))

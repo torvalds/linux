@@ -4993,7 +4993,7 @@ xfs_bmapi(
 				bma.firstblock = *firstblock;
 				bma.alen = alen;
 				bma.off = aoff;
-				bma.conv = (flags & XFS_BMAPI_CONVERT);
+				bma.conv = !!(flags & XFS_BMAPI_CONVERT);
 				bma.wasdel = wasdelay;
 				bma.minlen = minlen;
 				bma.low = flist->xbf_low;

@@ -173,8 +173,11 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
 static int debug = 3;
+static int eeprom_bad_csum_allow = 0;
 module_param(debug, int, 0);
+module_param(eeprom_bad_csum_allow, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(eeprom_bad_csum_allow, "Allow bad eeprom checksums");
 #define DPRINTK(nlevel, klevel, fmt, args...) \
 	(void)((NETIF_MSG_##nlevel & nic->msg_enable) && \
 	printk(KERN_##klevel PFX "%s: %s: " fmt, nic->netdev->name, \
@@ -756,7 +759,8 @@ static int e100_eeprom_load(struct nic *nic)
 	checksum = le16_to_cpu(0xBABA - checksum);
 	if(checksum != nic->eeprom[nic->eeprom_wc - 1]) {
 		DPRINTK(PROBE, ERR, "EEPROM corrupted\n");
-		return -EAGAIN;
+		if (!eeprom_bad_csum_allow)
+			return -EAGAIN;
 	}
 
 	return 0;

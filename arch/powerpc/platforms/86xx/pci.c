@@ -188,7 +188,8 @@ int __init add_bridge(struct device_node *dev)
 
 	printk(KERN_INFO "Found MPC86xx PCIE host bridge at 0x%08lx. "
 	       "Firmware bus number: %d->%d\n",
-		rsrc.start, hose->first_busno, hose->last_busno);
+	       (unsigned long) rsrc.start,
+	       hose->first_busno, hose->last_busno);
 
 	DBG(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
 		hose, hose->cfg_addr, hose->cfg_data);

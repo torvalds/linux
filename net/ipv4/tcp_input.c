@@ -2505,8 +2505,13 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	if (before(ack, prior_snd_una))
 		goto old_ack;
 
-	if (sysctl_tcp_abc && icsk->icsk_ca_state < TCP_CA_CWR)
-		tp->bytes_acked += ack - prior_snd_una;
+	if (sysctl_tcp_abc) {
+		if (icsk->icsk_ca_state < TCP_CA_CWR)
+			tp->bytes_acked += ack - prior_snd_una;
+		else if (icsk->icsk_ca_state == TCP_CA_Loss)
+			/* we assume just one segment left network */
+			tp->bytes_acked += min(ack - prior_snd_una, tp->mss_cache);
+	}
 
 	if (!(flag&FLAG_SLOWPATH) && after(ack, prior_snd_una)) {
 		/* Window is constant, pure forward advance.

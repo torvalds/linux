@@ -440,6 +440,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 	iph = skb->nh.iph;
 
 	if (unlikely((iph->frag_off & htons(IP_DF)) && !skb->local_df)) {
+		IP_INC_STATS(IPSTATS_MIB_FRAGFAILS);
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 			  htonl(dst_mtu(&rt->u.dst)));
 		kfree_skb(skb);

@@ -973,6 +973,8 @@ ENTRY(kernel_thread)
 ENDPROC(kernel_thread)
 	
 child_rip:
+	pushq $0		# fake return address
+	CFI_STARTPROC
 	/*
 	 * Here we are in the child and the registers are set as they were
 	 * at kernel_thread() invocation in the parent.
@@ -983,6 +985,7 @@ child_rip:
 	# exit
 	xorl %edi, %edi
 	call do_exit
+	CFI_ENDPROC
 ENDPROC(child_rip)
 
 /*

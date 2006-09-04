@@ -402,7 +402,6 @@ static struct quotactl_ops cifs_quotactl_ops = {
 };
 #endif
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 static void cifs_umount_begin(struct vfsmount * vfsmnt, int flags)
 {
 	struct cifs_sb_info *cifs_sb;
@@ -422,7 +421,7 @@ static void cifs_umount_begin(struct vfsmount * vfsmnt, int flags)
 		tcon->tidStatus = CifsExiting;
 	up(&tcon->tconSem);
 
-	/* cancel_brl_requests(tcon); */
+	/* cancel_brl_requests(tcon); */ /* BB mark all brl mids as exiting */
 	/* cancel_notify_requests(tcon); */
 	if(tcon->ses && tcon->ses->server)
 	{
@@ -438,7 +437,6 @@ static void cifs_umount_begin(struct vfsmount * vfsmnt, int flags)
 
 	return;
 }
-#endif	
 
 static int cifs_remount(struct super_block *sb, int *flags, char *data)
 {
@@ -457,9 +455,7 @@ struct super_operations cifs_super_ops = {
    unless later we add lazy close of inodes or unless the kernel forgets to call
    us with the same number of releases (closes) as opens */
 	.show_options = cifs_show_options,
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 	.umount_begin   = cifs_umount_begin,
-#endif
 	.remount_fs = cifs_remount,
 };
 

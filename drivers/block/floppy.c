@@ -4177,6 +4177,11 @@ static int __init floppy_init(void)
 	int i, unit, drive;
 	int err, dr;
 
+#if defined(CONFIG_PPC_MERGE)
+	if (check_legacy_ioport(FDC1))
+		return -ENODEV;
+#endif
+
 	raw_cmd = NULL;
 
 	for (dr = 0; dr < N_DRIVE; dr++) {
@@ -4234,13 +4239,6 @@ static int __init floppy_init(void)
 	}
 
 	use_virtual_dma = can_use_virtual_dma & 1;
-#if defined(CONFIG_PPC_MERGE)
-	if (check_legacy_ioport(FDC1)) {
-		del_timer(&fd_timeout);
-		err = -ENODEV;
-		goto out_unreg_region;
-	}
-#endif
 	fdc_state[0].address = FDC1;
 	if (fdc_state[0].address == -1) {
 		del_timer(&fd_timeout);

@@ -47,8 +47,9 @@ void __devinit
 smp_generic_take_timebase( void )
 {
 	int cmd, tbl, tbu;
+	unsigned long flags;
 
-	local_irq_disable();
+	local_irq_save(flags);
 	while( !running )
 		;
 	rmb();
@@ -64,7 +65,7 @@ smp_generic_take_timebase( void )
 		tbu = tbsync->tbu;
 		tbsync->ack = 0;
 		if( cmd == kExit )
-			return;
+			break;
 
 		if( cmd == kSetAndTest ) {
 			while( tbsync->handshake )
@@ -77,7 +78,7 @@ smp_generic_take_timebase( void )
 		}
 		enter_contest( tbsync->mark, -1 );
 	}
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 static int __devinit

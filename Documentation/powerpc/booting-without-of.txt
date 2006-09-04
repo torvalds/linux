@@ -1136,10 +1136,10 @@ Sense and level information should be encoded as follows:
    Devices connected to openPIC-compatible controllers should encode
    sense and polarity as follows:
 
-	0 = high to low edge sensitive type enabled
+	0 = low to high edge sensitive type enabled
 	1 = active low level sensitive type enabled
-	2 = low to high edge sensitive type enabled
-	3 = active high level sensitive type enabled
+	2 = active high level sensitive type enabled
+	3 = high to low edge sensitive type enabled
 
    ISA PIC interrupt controllers should adhere to the ISA PIC
    encodings listed below:

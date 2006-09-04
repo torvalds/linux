@@ -20,6 +20,11 @@
 
 /**
  * handle_bad_irq - handle spurious and unhandled irqs
+ * @irq:       the interrupt number
+ * @desc:      description of the interrupt
+ * @regs:      pointer to a register structure
+ *
+ * Handles spurious and unhandled IRQ's. It also prints a debugmessage.
  */
 void fastcall
 handle_bad_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs)
