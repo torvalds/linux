@@ -1566,20 +1566,21 @@ static int __exit sunlance_sun4_remove(void)
 static int __devinit sunlance_sbus_probe(struct of_device *dev, const struct of_device_id *match)
 {
 	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
-	struct device_node *dp = dev->node;
 	int err;
 
-	if (!strcmp(dp->name, "le")) {
+	if (sdev->parent) {
+		struct of_device *parent = &sdev->parent->ofdev;
+
+		if (!strcmp(parent->node->name, "ledma")) {
+			struct sbus_dma *ledma = find_ledma(to_sbus_device(&parent->dev));
+
+			err = sparc_lance_probe_one(sdev, ledma, NULL);
+		} else if (!strcmp(parent->node->name, "lebuffer")) {
+			err = sparc_lance_probe_one(sdev, NULL, to_sbus_device(&parent->dev));
+		} else
+			err = sparc_lance_probe_one(sdev, NULL, NULL);
+	} else
 		err = sparc_lance_probe_one(sdev, NULL, NULL);
-	} else if (!strcmp(dp->name, "ledma")) {
-		struct sbus_dma *ledma = find_ledma(sdev);
-
-		err = sparc_lance_probe_one(sdev->child, ledma, NULL);
-	} else {
-		BUG_ON(strcmp(dp->name, "lebuffer"));
-
-		err = sparc_lance_probe_one(sdev->child, NULL, sdev);
-	}
 
 	return err;
 }
@@ -1603,12 +1604,6 @@ static int __devexit sunlance_sbus_remove(struct of_device *dev)
 static struct of_device_id sunlance_sbus_match[] = {
 	{
 		.name = "le",
-	},
-	{
-		.name = "ledma",
-	},
-	{
-		.name = "lebuffer",
 	},
 	{},
 };

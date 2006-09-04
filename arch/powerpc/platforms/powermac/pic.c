@@ -87,8 +87,8 @@ static void __pmac_retrigger(unsigned int irq_nr)
 static void pmac_mask_and_ack_irq(unsigned int virq)
 {
 	unsigned int src = irq_map[virq].hwirq;
-        unsigned long bit = 1UL << (virq & 0x1f);
-        int i = virq >> 5;
+        unsigned long bit = 1UL << (src & 0x1f);
+        int i = src >> 5;
         unsigned long flags;
 
 	spin_lock_irqsave(&pmac_pic_lock, flags);
@@ -175,7 +175,7 @@ static void pmac_mask_irq(unsigned int virq)
 
   	spin_lock_irqsave(&pmac_pic_lock, flags);
         __clear_bit(src, ppc_cached_irq_mask);
-        __pmac_set_irq_mask(src, 0);
+        __pmac_set_irq_mask(src, 1);
   	spin_unlock_irqrestore(&pmac_pic_lock, flags);
 }
 

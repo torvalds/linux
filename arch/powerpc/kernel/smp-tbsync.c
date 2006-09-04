@@ -45,8 +45,9 @@ void __devinit smp_generic_take_timebase(void)
 {
 	int cmd;
 	u64 tb;
+	unsigned long flags;
 
-	local_irq_disable();
+	local_irq_save(flags);
 	while (!running)
 		barrier();
 	rmb();
@@ -70,7 +71,7 @@ void __devinit smp_generic_take_timebase(void)
 			set_tb(tb >> 32, tb & 0xfffffffful);
 		enter_contest(tbsync->mark, -1);
 	}
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 static int __devinit start_contest(int cmd, long offset, int num)

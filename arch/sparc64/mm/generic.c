@@ -69,6 +69,8 @@ static inline void io_remap_pte_range(struct mm_struct *mm, pte_t * pte,
 		} else
 			offset += PAGE_SIZE;
 
+		if (pte_write(entry))
+			entry = pte_mkdirty(entry);
 		do {
 			BUG_ON(!pte_none(*pte));
 			set_pte_at(mm, address, pte, entry);

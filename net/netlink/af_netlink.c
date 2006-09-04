@@ -1273,8 +1273,7 @@ netlink_kernel_create(int unit, unsigned int groups,
 	struct netlink_sock *nlk;
 	unsigned long *listeners = NULL;
 
-	if (!nl_table)
-		return NULL;
+	BUG_ON(!nl_table);
 
 	if (unit<0 || unit>=MAX_LINKS)
 		return NULL;
@@ -1745,11 +1744,8 @@ static int __init netlink_proto_init(void)
 		netlink_skb_parms_too_large();
 
 	nl_table = kcalloc(MAX_LINKS, sizeof(*nl_table), GFP_KERNEL);
-	if (!nl_table) {
-enomem:
-		printk(KERN_CRIT "netlink_init: Cannot allocate nl_table\n");
-		return -ENOMEM;
-	}
+	if (!nl_table)
+		goto panic;
 
 	if (num_physpages >= (128 * 1024))
 		max = num_physpages >> (21 - PAGE_SHIFT);
@@ -1769,7 +1765,7 @@ enomem:
 				nl_pid_hash_free(nl_table[i].hash.table,
 						 1 * sizeof(*hash->table));
 			kfree(nl_table);
-			goto enomem;
+			goto panic;
 		}
 		memset(hash->table, 0, 1 * sizeof(*hash->table));
 		hash->max_shift = order;
@@ -1786,6 +1782,8 @@ enomem:
 	rtnetlink_init();
 out:
 	return err;
+panic:
+	panic("netlink_init: Cannot allocate nl_table\n");
 }
 
 core_initcall(netlink_proto_init);

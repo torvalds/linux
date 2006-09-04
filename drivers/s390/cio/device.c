@@ -556,12 +556,11 @@ get_disc_ccwdev_by_devno(unsigned int devno, unsigned int ssid,
 			 struct ccw_device *sibling)
 {
 	struct device *dev;
-	struct match_data data = {
-		.devno   = devno,
-		.ssid    = ssid,
-		.sibling = sibling,
-	};
+	struct match_data data;
 
+	data.devno = devno;
+	data.ssid = ssid;
+	data.sibling = sibling;
 	dev = bus_find_device(&ccw_bus_type, NULL, &data, match_devno);
 
 	return dev ? to_ccwdev(dev) : NULL;
@@ -835,10 +834,8 @@ io_subchannel_probe (struct subchannel *sch)
 		return -ENOMEM;
 	}
 	atomic_set(&cdev->private->onoff, 0);
-	cdev->dev = (struct device) {
-		.parent = &sch->dev,
-		.release = ccw_device_release,
-	};
+	cdev->dev.parent = &sch->dev;
+	cdev->dev.release = ccw_device_release;
 	INIT_LIST_HEAD(&cdev->private->kick_work.entry);
 	/* Do first half of device_register. */
 	device_initialize(&cdev->dev);
@@ -977,9 +974,7 @@ ccw_device_console_enable (struct ccw_device *cdev, struct subchannel *sch)
 	int rc;
 
 	/* Initialize the ccw_device structure. */
-	cdev->dev = (struct device) {
-		.parent = &sch->dev,
-	};
+	cdev->dev.parent= &sch->dev;
 	rc = io_subchannel_recog(cdev, sch);
 	if (rc)
 		return rc;

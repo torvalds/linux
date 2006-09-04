@@ -212,7 +212,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	 */
 	case PTRACE_KILL:
 		ret = 0;
-		if (child->state == EXIT_ZOMBIE)	/* already dead */
+		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			break;
 		child->exit_code = SIGKILL;
 		child->ptrace &= ~PT_SINGLESTEP;

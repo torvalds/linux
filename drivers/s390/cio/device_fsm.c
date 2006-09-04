@@ -267,12 +267,10 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 			notify = 1;
 		}
 		/* fill out sense information */
-		cdev->id = (struct ccw_device_id) {
-			.cu_type   = cdev->private->senseid.cu_type,
-			.cu_model  = cdev->private->senseid.cu_model,
-			.dev_type  = cdev->private->senseid.dev_type,
-			.dev_model = cdev->private->senseid.dev_model,
-		};
+		cdev->id.cu_type   = cdev->private->senseid.cu_type;
+		cdev->id.cu_model  = cdev->private->senseid.cu_model;
+		cdev->id.dev_type  = cdev->private->senseid.dev_type;
+		cdev->id.dev_model = cdev->private->senseid.dev_model;
 		if (notify) {
 			cdev->private->state = DEV_STATE_OFFLINE;
 			if (same_dev) {
@@ -566,12 +564,10 @@ ccw_device_verify_done(struct ccw_device *cdev, int err)
 		/* Deliver fake irb to device driver, if needed. */
 		if (cdev->private->flags.fake_irb) {
 			memset(&cdev->private->irb, 0, sizeof(struct irb));
-			cdev->private->irb.scsw = (struct scsw) {
-				.cc = 1,
-				.fctl = SCSW_FCTL_START_FUNC,
-				.actl = SCSW_ACTL_START_PEND,
-				.stctl = SCSW_STCTL_STATUS_PEND,
-			};
+			cdev->private->irb.scsw.cc = 1;
+			cdev->private->irb.scsw.fctl = SCSW_FCTL_START_FUNC;
+			cdev->private->irb.scsw.actl = SCSW_ACTL_START_PEND;
+			cdev->private->irb.scsw.stctl = SCSW_STCTL_STATUS_PEND;
 			cdev->private->flags.fake_irb = 0;
 			if (cdev->handler)
 				cdev->handler(cdev, cdev->private->intparm,

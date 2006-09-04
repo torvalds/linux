@@ -92,7 +92,11 @@ asmlinkage void spurious_interrupt_bug(void);
 asmlinkage void machine_check(void);
 
 static int kstack_depth_to_print = 24;
+#ifdef CONFIG_STACK_UNWIND
 static int call_trace = 1;
+#else
+#define call_trace (-1)
+#endif
 ATOMIC_NOTIFIER_HEAD(i386die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
@@ -187,22 +191,21 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			if (unwind_init_blocked(&info, task) == 0)
 				unw_ret = show_trace_unwind(&info, log_lvl);
 		}
-		if (unw_ret > 0 && !arch_unw_user_mode(&info)) {
-#ifdef CONFIG_STACK_UNWIND
-			print_symbol("DWARF2 unwinder stuck at %s\n",
-				     UNW_PC(&info));
-			if (call_trace == 1) {
-				printk("Leftover inexact backtrace:\n");
-				if (UNW_SP(&info))
+		if (unw_ret > 0) {
+			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
+				print_symbol("DWARF2 unwinder stuck at %s\n",
+					     UNW_PC(&info));
+				if (UNW_SP(&info) >= PAGE_OFFSET) {
+					printk("Leftover inexact backtrace:\n");
 					stack = (void *)UNW_SP(&info);
-			} else if (call_trace > 1)
+				} else
+					printk("Full inexact backtrace again:\n");
+			} else if (call_trace >= 1)
 				return;
 			else
 				printk("Full inexact backtrace again:\n");
-#else
+		} else
 			printk("Inexact backtrace:\n");
-#endif
-		}
 	}
 
 	if (task == current) {
@@ -1241,6 +1244,7 @@ static int __init kstack_setup(char *s)
 }
 __setup("kstack=", kstack_setup);
 
+#ifdef CONFIG_STACK_UNWIND
 static int __init call_trace_setup(char *s)
 {
 	if (strcmp(s, "old") == 0)
@@ -1254,3 +1258,4 @@ static int __init call_trace_setup(char *s)
 	return 1;
 }
 __setup("call_trace=", call_trace_setup);
+#endif
