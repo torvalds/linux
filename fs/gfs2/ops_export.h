@@ -10,6 +10,9 @@
 #ifndef __OPS_EXPORT_DOT_H__
 #define __OPS_EXPORT_DOT_H__
 
+#define GFS2_SMALL_FH_SIZE 4
+#define GFS2_LARGE_FH_SIZE 10
+
 extern struct export_operations gfs2_export_ops;
 struct gfs2_fh_obj {
 	struct gfs2_inum this;

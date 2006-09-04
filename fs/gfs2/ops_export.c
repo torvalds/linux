@@ -45,13 +45,13 @@ static struct dentry *gfs2_decode_fh(struct super_block *sb,
 	memset(&parent, 0, sizeof(struct gfs2_inum));
 
 	switch (fh_type) {
-	case 10:
+	case GFS2_LARGE_FH_SIZE:
 		parent.no_formal_ino = ((u64)be32_to_cpu(fh[4])) << 32;
 		parent.no_formal_ino |= be32_to_cpu(fh[5]);
 		parent.no_addr = ((u64)be32_to_cpu(fh[6])) << 32;
 		parent.no_addr |= be32_to_cpu(fh[7]);
 		fh_obj.imode = be32_to_cpu(fh[8]);
-	case 4:
+	case GFS2_SMALL_FH_SIZE:
 		this->no_formal_ino = ((u64)be32_to_cpu(fh[0])) << 32;
 		this->no_formal_ino |= be32_to_cpu(fh[1]);
 		this->no_addr = ((u64)be32_to_cpu(fh[2])) << 32;
@@ -72,7 +72,8 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	struct super_block *sb = inode->i_sb;
 	struct gfs2_inode *ip = GFS2_I(inode);
 
-	if (*len < 4 || (connectable && *len < 10))
+	if (*len < GFS2_SMALL_FH_SIZE ||
+	    (connectable && *len < GFS2_LARGE_FH_SIZE))
 		return 255;
 
 	fh[0] = ip->i_num.no_formal_ino >> 32;
@@ -83,7 +84,7 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	fh[2] = cpu_to_be32(fh[2]);
 	fh[3] = ip->i_num.no_addr & 0xFFFFFFFF;
 	fh[3] = cpu_to_be32(fh[3]);
-	*len = 4;
+	*len = GFS2_SMALL_FH_SIZE;
 
 	if (!connectable || inode == sb->s_root->d_inode)
 		return *len;
@@ -105,7 +106,7 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 
 	fh[8]  = cpu_to_be32(inode->i_mode);
 	fh[9]  = 0;	/* pad to double word */
-	*len = 10;
+	*len = GFS2_LARGE_FH_SIZE;
 
 	iput(inode);
 

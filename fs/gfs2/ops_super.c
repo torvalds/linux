@@ -79,7 +79,7 @@ static void gfs2_put_super(struct super_block *sb)
 		return;
 
 	if (!strncmp(sb->s_type->name, "gfs2meta", 8))
-		return; /* meta fs. don't do nothin' */
+		return; /* Nothing to do */
 
 	/*  Unfreeze the filesystem, if we need to  */
 
@@ -136,7 +136,6 @@ static void gfs2_put_super(struct super_block *sb)
 	/*  At this point, we're through participating in the lockspace  */
 	gfs2_sys_fs_del(sdp);
 	vfree(sdp);
-	sb->s_fs_info = NULL;
 }
 
 /**
@@ -149,8 +148,7 @@ static void gfs2_put_super(struct super_block *sb)
 
 static void gfs2_write_super(struct super_block *sb)
 {
-	struct gfs2_sbd *sdp = sb->s_fs_info;
-	gfs2_log_flush(sdp, NULL);
+	gfs2_log_flush(sb->s_fs_info, NULL);
 }
 
 /**
