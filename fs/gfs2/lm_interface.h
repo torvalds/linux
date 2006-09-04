@@ -160,7 +160,7 @@ typedef void (*lm_callback_t) (lm_fsdata_t *fsdata, unsigned int type,
 
 
 struct lm_lockname {
-	uint64_t ln_number;
+	u64 ln_number;
 	unsigned int ln_type;
 };
 

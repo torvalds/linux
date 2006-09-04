@@ -62,7 +62,7 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	unsigned long index = page->index;
-	uint64_t lblock = index << (PAGE_CACHE_SHIFT -
+	u64 lblock = index << (PAGE_CACHE_SHIFT -
 				    sdp->sd_sb.sb_bsize_shift);
 	unsigned int blocks = PAGE_CACHE_SIZE >> sdp->sd_sb.sb_bsize_shift;
 	struct gfs2_alloc *al;
@@ -101,7 +101,7 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 	}
 
 	for (x = 0; x < blocks; ) {
-		uint64_t dblock;
+		u64 dblock;
 		unsigned int extlen;
 		int new = 1;
 

@@ -12,7 +12,7 @@
 
 void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd);
 
-struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, uint64_t blk);
+struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, u64 blk);
 struct gfs2_rgrpd *gfs2_rgrpd_get_first(struct gfs2_sbd *sdp);
 struct gfs2_rgrpd *gfs2_rgrpd_get_next(struct gfs2_rgrpd *rgd);
 
@@ -35,14 +35,14 @@ gfs2_inplace_reserve_i((ip), __FILE__, __LINE__)
 
 void gfs2_inplace_release(struct gfs2_inode *ip);
 
-unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, uint64_t block);
+unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, u64 block);
 
 u64 gfs2_alloc_data(struct gfs2_inode *ip);
 u64 gfs2_alloc_meta(struct gfs2_inode *ip);
 u64 gfs2_alloc_di(struct gfs2_inode *ip, u64 *generation);
 
-void gfs2_free_data(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen);
-void gfs2_free_meta(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen);
+void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen);
+void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen);
 void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip);
 void gfs2_unlink_di(struct inode *inode);
 
@@ -54,7 +54,7 @@ struct gfs2_rgrp_list {
 };
 
 void gfs2_rlist_add(struct gfs2_sbd *sdp, struct gfs2_rgrp_list *rlist,
-		    uint64_t block);
+		    u64 block);
 void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state,
 		      int flags);
 void gfs2_rlist_free(struct gfs2_rgrp_list *rlist);

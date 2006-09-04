@@ -202,7 +202,7 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 	struct gfs2_glock *gl = ip->i_gl;
 	unsigned int blks = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh_log, *bh_ip;
-	uint64_t blkno;
+	u64 blkno;
 	int error = 0;
 
 	if (pass != 1 || be32_to_cpu(ld->ld_type) != GFS2_LOG_DESC_METADATA)
@@ -294,7 +294,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 	ld->ld_header.mh_format = cpu_to_be32(GFS2_FORMAT_LD);
 	ld->ld_type = cpu_to_be32(GFS2_LOG_DESC_REVOKE);
 	ld->ld_length = cpu_to_be32(gfs2_struct2blk(sdp, sdp->sd_log_num_revoke,
-						    sizeof(uint64_t)));
+						    sizeof(u64)));
 	ld->ld_data1 = cpu_to_be32(sdp->sd_log_num_revoke);
 	ld->ld_data2 = cpu_to_be32(0);
 	memset(ld->ld_reserved, 0, sizeof(ld->ld_reserved));
@@ -305,7 +305,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 		list_del_init(&rv->rv_le.le_list);
 		sdp->sd_log_num_revoke--;
 
-		if (offset + sizeof(uint64_t) > sdp->sd_sb.sb_bsize) {
+		if (offset + sizeof(u64) > sdp->sd_sb.sb_bsize) {
 			set_buffer_dirty(bh);
 			ll_rw_block(WRITE, 1, &bh);
 
@@ -320,7 +320,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 		*(__be64 *)(bh->b_data + offset) = cpu_to_be64(rv->rv_blkno);
 		kfree(rv);
 
-		offset += sizeof(uint64_t);
+		offset += sizeof(u64);
 	}
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_revoke);
 
@@ -349,7 +349,7 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 	unsigned int revokes = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh;
 	unsigned int offset;
-	uint64_t blkno;
+	u64 blkno;
 	int first = 1;
 	int error;
 
@@ -366,7 +366,7 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 		if (!first)
 			gfs2_metatype_check(sdp, bh, GFS2_METATYPE_LB);
 
-		while (offset + sizeof(uint64_t) <= sdp->sd_sb.sb_bsize) {
+		while (offset + sizeof(u64) <= sdp->sd_sb.sb_bsize) {
 			blkno = be64_to_cpu(*(__be64 *)(bh->b_data + offset));
 
 			error = gfs2_revoke_add(sdp, blkno, start);
@@ -377,7 +377,7 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 
 			if (!--revokes)
 				break;
-			offset += sizeof(uint64_t);
+			offset += sizeof(u64);
 		}
 
 		brelse(bh);
@@ -677,8 +677,8 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 	struct gfs2_glock *gl = ip->i_gl;
 	unsigned int blks = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh_log, *bh_ip;
-	uint64_t blkno;
-	uint64_t esc;
+	u64 blkno;
+	u64 esc;
 	int error = 0;
 
 	if (pass != 1 || be32_to_cpu(ld->ld_type) != GFS2_LOG_DESC_JDATA)

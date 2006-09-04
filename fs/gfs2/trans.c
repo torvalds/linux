@@ -46,7 +46,7 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 		tr->tr_reserved += 6 + blocks;
 	if (revokes)
 		tr->tr_reserved += gfs2_struct2blk(sdp, revokes,
-						   sizeof(uint64_t));
+						   sizeof(u64));
 	INIT_LIST_HEAD(&tr->tr_list_buf);
 
 	gfs2_holder_init(sdp->sd_trans_gl, LM_ST_SHARED, 0, &tr->tr_t_gh);
@@ -142,7 +142,7 @@ void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
 	lops_add(sdp, &bd->bd_le);
 }
 
-void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, uint64_t blkno)
+void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, u64 blkno)
 {
 	struct gfs2_revoke *rv = kmalloc(sizeof(struct gfs2_revoke),
 					 GFP_NOFS | __GFP_NOFAIL);
@@ -151,7 +151,7 @@ void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, uint64_t blkno)
 	lops_add(sdp, &rv->rv_le);
 }
 
-void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, uint64_t blkno)
+void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno)
 {
 	struct gfs2_revoke *rv;
 	int found = 0;

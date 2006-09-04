@@ -47,7 +47,7 @@
 struct filldir_bad_entry {
 	char *fbe_name;
 	unsigned int fbe_length;
-	uint64_t fbe_offset;
+	u64 fbe_offset;
 	struct gfs2_inum fbe_inum;
 	unsigned int fbe_type;
 };
@@ -161,7 +161,7 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int origin)
  */
 
 static int filldir_reg_func(void *opaque, const char *name, unsigned int length,
-			    uint64_t offset, struct gfs2_inum *inum,
+			    u64 offset, struct gfs2_inum *inum,
 			    unsigned int type)
 {
 	struct filldir_reg *fdr = (struct filldir_reg *)opaque;
@@ -200,7 +200,7 @@ static int readdir_reg(struct file *file, void *dirent, filldir_t filldir)
 	struct gfs2_inode *dip = GFS2_I(dir);
 	struct filldir_reg fdr;
 	struct gfs2_holder d_gh;
-	uint64_t offset = file->f_pos;
+	u64 offset = file->f_pos;
 	int error;
 
 	fdr.fdr_sbd = GFS2_SB(dir);
@@ -239,7 +239,7 @@ static int readdir_reg(struct file *file, void *dirent, filldir_t filldir)
  */
 
 static int filldir_bad_func(void *opaque, const char *name, unsigned int length,
-			    uint64_t offset, struct gfs2_inum *inum,
+			    u64 offset, struct gfs2_inum *inum,
 			    unsigned int type)
 {
 	struct filldir_bad *fdb = (struct filldir_bad *)opaque;
@@ -293,7 +293,7 @@ static int readdir_bad(struct file *file, void *dirent, filldir_t filldir)
 	unsigned int entries, size;
 	struct filldir_bad *fdb;
 	struct gfs2_holder d_gh;
-	uint64_t offset = file->f_pos;
+	u64 offset = file->f_pos;
 	unsigned int x;
 	struct filldir_bad_entry *fbe;
 	int error;

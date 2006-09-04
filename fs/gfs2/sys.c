@@ -138,7 +138,7 @@ static ssize_t quota_sync_store(struct gfs2_sbd *sdp, const char *buf,
 static ssize_t quota_refresh_user_store(struct gfs2_sbd *sdp, const char *buf,
 					size_t len)
 {
-	uint32_t id;
+	u32 id;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -152,7 +152,7 @@ static ssize_t quota_refresh_user_store(struct gfs2_sbd *sdp, const char *buf,
 static ssize_t quota_refresh_group_store(struct gfs2_sbd *sdp, const char *buf,
 					 size_t len)
 {
-	uint32_t id;
+	u32 id;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;

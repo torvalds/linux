@@ -115,7 +115,7 @@ fail:
 static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 {
 	struct buffer_head *bh, *eabh;
-	uint64_t *eablk, *end;
+	u64 *eablk, *end;
 	int error;
 
 	error = gfs2_meta_read(ip->i_gl, ip->i_di.di_eattr,
@@ -133,11 +133,11 @@ static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 		goto out;
 	}
 
-	eablk = (uint64_t *)(bh->b_data + sizeof(struct gfs2_meta_header));
+	eablk = (u64 *)(bh->b_data + sizeof(struct gfs2_meta_header));
 	end = eablk + GFS2_SB(&ip->i_inode)->sd_inptrs;
 
 	for (; eablk < end; eablk++) {
-		uint64_t bn;
+		u64 bn;
 
 		if (!*eablk)
 			break;
@@ -235,8 +235,8 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 	struct gfs2_rgrpd *rgd;
 	struct gfs2_holder rg_gh;
 	struct buffer_head *dibh;
-	uint64_t *dataptrs, bn = 0;
-	uint64_t bstart = 0;
+	u64 *dataptrs, bn = 0;
+	u64 bstart = 0;
 	unsigned int blen = 0;
 	unsigned int blks = 0;
 	unsigned int x;
@@ -296,7 +296,7 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 		gfs2_free_meta(ip, bstart, blen);
 
 	if (prev && !leave) {
-		uint32_t len;
+		u32 len;
 
 		len = GFS2_EA_REC_LEN(prev) + GFS2_EA_REC_LEN(ea);
 		prev->ea_rec_len = cpu_to_be32(len);
@@ -459,7 +459,7 @@ static int ea_get_unstuffed(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 	struct buffer_head **bh;
 	unsigned int amount = GFS2_EA_DATA_LEN(ea);
 	unsigned int nptrs = DIV_ROUND_UP(amount, sdp->sd_jbsize);
-	uint64_t *dataptrs = GFS2_EA2DATAPTRS(ea);
+	u64 *dataptrs = GFS2_EA2DATAPTRS(ea);
 	unsigned int x;
 	int error = 0;
 
@@ -601,7 +601,7 @@ static int ea_alloc_blk(struct gfs2_inode *ip, struct buffer_head **bhp)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_ea_header *ea;
-	uint64_t block;
+	u64 block;
 
 	block = gfs2_alloc_meta(ip);
 
@@ -649,7 +649,7 @@ static int ea_write(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 		ea->ea_num_ptrs = 0;
 		memcpy(GFS2_EA2DATA(ea), er->er_data, er->er_data_len);
 	} else {
-		uint64_t *dataptr = GFS2_EA2DATAPTRS(ea);
+		u64 *dataptr = GFS2_EA2DATAPTRS(ea);
 		const char *data = er->er_data;
 		unsigned int data_len = er->er_data_len;
 		unsigned int copy;
@@ -658,7 +658,7 @@ static int ea_write(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 		ea->ea_num_ptrs = DIV_ROUND_UP(er->er_data_len, sdp->sd_jbsize);
 		for (x = 0; x < ea->ea_num_ptrs; x++) {
 			struct buffer_head *bh;
-			uint64_t block;
+			u64 block;
 			int mh_size = sizeof(struct gfs2_meta_header);
 
 			block = gfs2_alloc_meta(ip);
@@ -676,7 +676,7 @@ static int ea_write(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 				memset(bh->b_data + mh_size + copy, 0,
 				       sdp->sd_jbsize - copy);
 
-			*dataptr++ = cpu_to_be64((uint64_t)bh->b_blocknr);
+			*dataptr++ = cpu_to_be64((u64)bh->b_blocknr);
 			data += copy;
 			data_len -= copy;
 
@@ -792,10 +792,10 @@ static int ea_init(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 
 static struct gfs2_ea_header *ea_split_ea(struct gfs2_ea_header *ea)
 {
-	uint32_t ea_size = GFS2_EA_SIZE(ea);
+	u32 ea_size = GFS2_EA_SIZE(ea);
 	struct gfs2_ea_header *new = (struct gfs2_ea_header *)((char *)ea +
 				     ea_size);
-	uint32_t new_size = GFS2_EA_REC_LEN(ea) - ea_size;
+	u32 new_size = GFS2_EA_REC_LEN(ea) - ea_size;
 	int last = ea->ea_flags & GFS2_EAFLAG_LAST;
 
 	ea->ea_rec_len = cpu_to_be32(ea_size);
@@ -812,7 +812,7 @@ static void ea_set_remove_stuffed(struct gfs2_inode *ip,
 {
 	struct gfs2_ea_header *ea = el->el_ea;
 	struct gfs2_ea_header *prev = el->el_prev;
-	uint32_t len;
+	u32 len;
 
 	gfs2_trans_add_bh(ip->i_gl, el->el_bh, 1);
 
@@ -953,12 +953,12 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *indbh, *newbh;
-	uint64_t *eablk;
+	u64 *eablk;
 	int error;
 	int mh_size = sizeof(struct gfs2_meta_header);
 
 	if (ip->i_di.di_flags & GFS2_DIF_EA_INDIRECT) {
-		uint64_t *end;
+		u64 *end;
 
 		error = gfs2_meta_read(ip->i_gl, ip->i_di.di_eattr,
 				       DIO_START | DIO_WAIT, &indbh);
@@ -970,7 +970,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 			goto out;
 		}
 
-		eablk = (uint64_t *)(indbh->b_data + mh_size);
+		eablk = (u64 *)(indbh->b_data + mh_size);
 		end = eablk + sdp->sd_inptrs;
 
 		for (; eablk < end; eablk++)
@@ -984,7 +984,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 
 		gfs2_trans_add_bh(ip->i_gl, indbh, 1);
 	} else {
-		uint64_t blk;
+		u64 blk;
 
 		blk = gfs2_alloc_meta(ip);
 
@@ -993,7 +993,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 		gfs2_metatype_set(indbh, GFS2_METATYPE_IN, GFS2_FORMAT_IN);
 		gfs2_buffer_clear_tail(indbh, mh_size);
 
-		eablk = (uint64_t *)(indbh->b_data + mh_size);
+		eablk = (u64 *)(indbh->b_data + mh_size);
 		*eablk = cpu_to_be64(ip->i_di.di_eattr);
 		ip->i_di.di_eattr = blk;
 		ip->i_di.di_flags |= GFS2_DIF_EA_INDIRECT;
@@ -1006,7 +1006,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (error)
 		goto out;
 
-	*eablk = cpu_to_be64((uint64_t)newbh->b_blocknr);
+	*eablk = cpu_to_be64((u64)newbh->b_blocknr);
 	error = ea_write(ip, GFS2_EA_BH2FIRST(newbh), er);
 	brelse(newbh);
 	if (error)
@@ -1140,7 +1140,7 @@ static int ea_remove_stuffed(struct gfs2_inode *ip, struct gfs2_ea_location *el)
 	gfs2_trans_add_bh(ip->i_gl, el->el_bh, 1);
 
 	if (prev) {
-		uint32_t len;
+		u32 len;
 
 		len = GFS2_EA_REC_LEN(prev) + GFS2_EA_REC_LEN(ea);
 		prev->ea_rec_len = cpu_to_be32(len);
@@ -1225,7 +1225,7 @@ static int ea_acl_chmod_unstuffed(struct gfs2_inode *ip,
 	struct buffer_head **bh;
 	unsigned int amount = GFS2_EA_DATA_LEN(ea);
 	unsigned int nptrs = DIV_ROUND_UP(amount, sdp->sd_jbsize);
-	uint64_t *dataptrs = GFS2_EA2DATAPTRS(ea);
+	u64 *dataptrs = GFS2_EA2DATAPTRS(ea);
 	unsigned int x;
 	int error;
 
@@ -1325,9 +1325,9 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrp_list rlist;
 	struct buffer_head *indbh, *dibh;
-	uint64_t *eablk, *end;
+	u64 *eablk, *end;
 	unsigned int rg_blocks = 0;
-	uint64_t bstart = 0;
+	u64 bstart = 0;
 	unsigned int blen = 0;
 	unsigned int blks = 0;
 	unsigned int x;
@@ -1345,11 +1345,11 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 		goto out;
 	}
 
-	eablk = (uint64_t *)(indbh->b_data + sizeof(struct gfs2_meta_header));
+	eablk = (u64 *)(indbh->b_data + sizeof(struct gfs2_meta_header));
 	end = eablk + sdp->sd_inptrs;
 
 	for (; eablk < end; eablk++) {
-		uint64_t bn;
+		u64 bn;
 
 		if (!*eablk)
 			break;
@@ -1390,12 +1390,12 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 
 	gfs2_trans_add_bh(ip->i_gl, indbh, 1);
 
-	eablk = (uint64_t *)(indbh->b_data + sizeof(struct gfs2_meta_header));
+	eablk = (u64 *)(indbh->b_data + sizeof(struct gfs2_meta_header));
 	bstart = 0;
 	blen = 0;
 
 	for (; eablk < end; eablk++) {
-		uint64_t bn;
+		u64 bn;
 
 		if (!*eablk)
 			break;

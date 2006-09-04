@@ -61,7 +61,7 @@ void gdlm_queue_delayed(struct gdlm_lock *lp)
 
 /* convert gfs lock-state to dlm lock-mode */
 
-static int16_t make_mode(int16_t lmstate)
+static s16 make_mode(s16 lmstate)
 {
 	switch (lmstate) {
 	case LM_ST_UNLOCKED:
@@ -79,7 +79,7 @@ static int16_t make_mode(int16_t lmstate)
 
 /* convert dlm lock-mode to gfs lock-state */
 
-int16_t gdlm_make_lmstate(int16_t dlmmode)
+s16 gdlm_make_lmstate(s16 dlmmode)
 {
 	switch (dlmmode) {
 	case DLM_LOCK_IV:
@@ -101,14 +101,14 @@ int16_t gdlm_make_lmstate(int16_t dlmmode)
 
 static void check_cur_state(struct gdlm_lock *lp, unsigned int cur_state)
 {
-	int16_t cur = make_mode(cur_state);
+	s16 cur = make_mode(cur_state);
 	if (lp->cur != DLM_LOCK_IV)
 		gdlm_assert(lp->cur == cur, "%d, %d", lp->cur, cur);
 }
 
 static inline unsigned int make_flags(struct gdlm_lock *lp,
 				      unsigned int gfs_flags,
-				      int16_t cur, int16_t req)
+				      s16 cur, s16 req)
 {
 	unsigned int lkf = 0;
 

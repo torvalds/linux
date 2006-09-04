@@ -35,8 +35,8 @@ int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_glock *gl = ip->i_gl;
 	int new = 0;
-	uint64_t dblock;
-	uint32_t extlen;
+	u64 dblock;
+	u32 extlen;
 	int error;
 
 	error = gfs2_extent_map(&ip->i_inode, blk, &new, &dblock, &extlen);
@@ -53,7 +53,7 @@ int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 	return error;
 }
 
-int gfs2_revoke_add(struct gfs2_sbd *sdp, uint64_t blkno, unsigned int where)
+int gfs2_revoke_add(struct gfs2_sbd *sdp, u64 blkno, unsigned int where)
 {
 	struct list_head *head = &sdp->sd_revoke_list;
 	struct gfs2_revoke_replay *rr;
@@ -82,7 +82,7 @@ int gfs2_revoke_add(struct gfs2_sbd *sdp, uint64_t blkno, unsigned int where)
 	return 1;
 }
 
-int gfs2_revoke_check(struct gfs2_sbd *sdp, uint64_t blkno, unsigned int where)
+int gfs2_revoke_check(struct gfs2_sbd *sdp, u64 blkno, unsigned int where)
 {
 	struct gfs2_revoke_replay *rr;
 	int wrap, a, b, revoke;
@@ -137,7 +137,7 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 {
 	struct buffer_head *bh;
 	struct gfs2_log_header lh;
-	uint32_t hash;
+	u32 hash;
 	int error;
 
 	error = gfs2_replay_read_block(jd, blk, &bh);
@@ -249,7 +249,7 @@ static int jhead_scan(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 {
 	struct gfs2_log_header lh_1, lh_m;
-	uint32_t blk_1, blk_2, blk_m;
+	u32 blk_1, blk_2, blk_m;
 	int error;
 
 	blk_1 = 0;
@@ -370,9 +370,9 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 	unsigned int lblock;
 	int new = 0;
-	uint64_t dblock;
+	u64 dblock;
 	struct gfs2_log_header *lh;
-	uint32_t hash;
+	u32 hash;
 	struct buffer_head *bh;
 	int error;
 	int boundary;

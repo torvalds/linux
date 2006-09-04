@@ -33,11 +33,11 @@
 #include "trans.h"
 #include "util.h"
 
-static const uint32_t gfs2_old_fs_formats[] = {
+static const u32 gfs2_old_fs_formats[] = {
         0
 };
 
-static const uint32_t gfs2_old_multihost_formats[] = {
+static const u32 gfs2_old_multihost_formats[] = {
         0
 };
 
@@ -225,8 +225,8 @@ static struct page *gfs2_read_super(struct super_block *sb, sector_t sector)
 
 int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
 {
-	uint32_t hash_blocks, ind_blocks, leaf_blocks;
-	uint32_t tmp_blocks;
+	u32 hash_blocks, ind_blocks, leaf_blocks;
+	u32 tmp_blocks;
 	unsigned int x;
 	int error;
 	struct page *page;
@@ -251,20 +251,20 @@ int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
 			       GFS2_BASIC_BLOCK_SHIFT;
 	sdp->sd_fsb2bb = 1 << sdp->sd_fsb2bb_shift;
 	sdp->sd_diptrs = (sdp->sd_sb.sb_bsize -
-			  sizeof(struct gfs2_dinode)) / sizeof(uint64_t);
+			  sizeof(struct gfs2_dinode)) / sizeof(u64);
 	sdp->sd_inptrs = (sdp->sd_sb.sb_bsize -
-			  sizeof(struct gfs2_meta_header)) / sizeof(uint64_t);
+			  sizeof(struct gfs2_meta_header)) / sizeof(u64);
 	sdp->sd_jbsize = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_meta_header);
 	sdp->sd_hash_bsize = sdp->sd_sb.sb_bsize / 2;
 	sdp->sd_hash_bsize_shift = sdp->sd_sb.sb_bsize_shift - 1;
-	sdp->sd_hash_ptrs = sdp->sd_hash_bsize / sizeof(uint64_t);
+	sdp->sd_hash_ptrs = sdp->sd_hash_bsize / sizeof(u64);
 	sdp->sd_qc_per_block = (sdp->sd_sb.sb_bsize -
 				sizeof(struct gfs2_meta_header)) /
 			        sizeof(struct gfs2_quota_change);
 
 	/* Compute maximum reservation required to add a entry to a directory */
 
-	hash_blocks = DIV_ROUND_UP(sizeof(uint64_t) * (1 << GFS2_DIR_MAX_DEPTH),
+	hash_blocks = DIV_ROUND_UP(sizeof(u64) * (1 << GFS2_DIR_MAX_DEPTH),
 			     sdp->sd_jbsize);
 
 	ind_blocks = 0;
@@ -281,8 +281,8 @@ int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
 				sizeof(struct gfs2_dinode);
 	sdp->sd_heightsize[1] = sdp->sd_sb.sb_bsize * sdp->sd_diptrs;
 	for (x = 2;; x++) {
-		uint64_t space, d;
-		uint32_t m;
+		u64 space, d;
+		u32 m;
 
 		space = sdp->sd_heightsize[x - 1] * sdp->sd_inptrs;
 		d = space;
@@ -299,8 +299,8 @@ int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
 				 sizeof(struct gfs2_dinode);
 	sdp->sd_jheightsize[1] = sdp->sd_jbsize * sdp->sd_diptrs;
 	for (x = 2;; x++) {
-		uint64_t space, d;
-		uint32_t m;
+		u64 space, d;
+		u32 m;
 
 		space = sdp->sd_jheightsize[x - 1] * sdp->sd_inptrs;
 		d = space;
@@ -630,8 +630,8 @@ out:
 	return 0;
 }
 
-void gfs2_statfs_change(struct gfs2_sbd *sdp, int64_t total, int64_t free,
-			int64_t dinodes)
+void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
+			s64 dinodes)
 {
 	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
 	struct gfs2_statfs_change *l_sc = &sdp->sd_statfs_local;

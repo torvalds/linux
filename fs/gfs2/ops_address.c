@@ -66,7 +66,7 @@ int gfs2_get_block(struct inode *inode, sector_t lblock,
 	           struct buffer_head *bh_result, int create)
 {
 	int new = create;
-	uint64_t dblock;
+	u64 dblock;
 	int error;
 	int boundary;
 
@@ -100,7 +100,7 @@ static int get_block_noalloc(struct inode *inode, sector_t lblock,
 			     struct buffer_head *bh_result, int create)
 {
 	int new = 0;
-	uint64_t dblock;
+	u64 dblock;
 	int error;
 	int boundary;
 
@@ -510,10 +510,10 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 
 	if (gfs2_is_stuffed(ip)) {
-		uint64_t file_size;
+		u64 file_size;
 		void *kaddr;
 
-		file_size = ((uint64_t)page->index << PAGE_CACHE_SHIFT) + to;
+		file_size = ((u64)page->index << PAGE_CACHE_SHIFT) + to;
 
 		kaddr = kmap_atomic(page, KM_USER0);
 		memcpy(dibh->b_data + sizeof(struct gfs2_dinode) + from,

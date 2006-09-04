@@ -213,7 +213,7 @@ void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	struct list_head *head = &gl->gl_ail_list;
 	struct gfs2_bufdata *bd;
 	struct buffer_head *bh;
-	uint64_t blkno;
+	u64 blkno;
 	int error;
 
 	blocks = atomic_read(&gl->gl_ail_count);
@@ -303,7 +303,7 @@ void gfs2_meta_sync(struct gfs2_glock *gl, int flags)
  */
 
 static struct buffer_head *getbuf(struct gfs2_sbd *sdp, struct inode *aspace,
-				  uint64_t blkno, int create)
+				  u64 blkno, int create)
 {
 	struct page *page;
 	struct buffer_head *bh;
@@ -366,7 +366,7 @@ static void meta_prep_new(struct buffer_head *bh)
  * Returns: The buffer
  */
 
-struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, uint64_t blkno)
+struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
 {
 	struct buffer_head *bh;
 	bh = getbuf(gl->gl_sbd, gl->gl_aspace, blkno, CREATE);
@@ -384,7 +384,7 @@ struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, uint64_t blkno)
  * Returns: errno
  */
 
-int gfs2_meta_read(struct gfs2_glock *gl, uint64_t blkno, int flags,
+int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		   struct buffer_head **bhp)
 {
 	int error;
@@ -549,7 +549,7 @@ void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
  *
  */
 
-void gfs2_meta_wipe(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen)
+void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct inode *aspace = ip->i_gl->gl_aspace;
@@ -573,7 +573,7 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen)
 			if (bd) {
 				gfs2_log_lock(sdp);
 				if (bd->bd_ail) {
-					uint64_t blkno = bh->b_blocknr;
+					u64 blkno = bh->b_blocknr;
 					bd->bd_ail = NULL;
 					list_del(&bd->bd_ail_st_list);
 					list_del(&bd->bd_ail_gl_list);
@@ -637,7 +637,7 @@ void gfs2_meta_cache_flush(struct gfs2_inode *ip)
  * Returns: errno
  */
 
-int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, uint64_t num,
+int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 			      int new, struct buffer_head **bhp)
 {
 	struct buffer_head *bh, **bh_slot = ip->i_cache + height;
@@ -711,12 +711,12 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, uint64_t num,
  *
  */
 
-void gfs2_meta_ra(struct gfs2_glock *gl, uint64_t dblock, uint32_t extlen)
+void gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct inode *aspace = gl->gl_aspace;
 	struct buffer_head *first_bh, *bh;
-	uint32_t max_ra = gfs2_tune_get(sdp, gt_max_readahead) >>
+	u32 max_ra = gfs2_tune_get(sdp, gt_max_readahead) >>
 			  sdp->sd_sb.sb_bsize_shift;
 	int error;
 

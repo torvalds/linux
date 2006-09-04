@@ -60,9 +60,9 @@ struct gfs2_log_element {
 struct gfs2_bitmap {
 	struct buffer_head *bi_bh;
 	char *bi_clone;
-	uint32_t bi_offset;
-	uint32_t bi_start;
-	uint32_t bi_len;
+	u32 bi_offset;
+	u32 bi_start;
+	u32 bi_len;
 };
 
 struct gfs2_rgrpd {
@@ -72,14 +72,14 @@ struct gfs2_rgrpd {
 	struct gfs2_glock *rd_gl;	/* Glock for this rgrp */
 	struct gfs2_rindex rd_ri;
 	struct gfs2_rgrp rd_rg;
-	uint64_t rd_rg_vn;
+	u64 rd_rg_vn;
 	struct gfs2_bitmap *rd_bits;
 	unsigned int rd_bh_count;
 	struct mutex rd_mutex;
-	uint32_t rd_free_clone;
+	u32 rd_free_clone;
 	struct gfs2_log_element rd_le;
-	uint32_t rd_last_alloc_data;
-	uint32_t rd_last_alloc_meta;
+	u32 rd_last_alloc_data;
+	u32 rd_last_alloc_meta;
 	struct gfs2_sbd *rd_sbd;
 };
 
@@ -185,7 +185,7 @@ struct gfs2_glock {
 	char *gl_lvb;
 	atomic_t gl_lvb_count;
 
-	uint64_t gl_vn;
+	u64 gl_vn;
 	unsigned long gl_stamp;
 	void *gl_object;
 
@@ -232,14 +232,14 @@ struct gfs2_inode {
 
 	unsigned long i_flags;		/* GIF_... */
 
-	uint64_t i_vn;
+	u64 i_vn;
 	struct gfs2_dinode i_di; /* To be replaced by ref to block */
 
 	struct gfs2_glock *i_gl; /* Move into i_gh? */
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
 	struct gfs2_alloc i_alloc;
-	uint64_t i_last_rg_alloc;
+	u64 i_last_rg_alloc;
 
 	spinlock_t i_spin;
 	struct rw_semaphore i_rw_mutex;
@@ -277,12 +277,12 @@ struct gfs2_file {
 
 struct gfs2_revoke {
 	struct gfs2_log_element rv_le;
-	uint64_t rv_blkno;
+	u64 rv_blkno;
 };
 
 struct gfs2_revoke_replay {
 	struct list_head rr_list;
-	uint64_t rr_blkno;
+	u64 rr_blkno;
 	unsigned int rr_where;
 };
 
@@ -304,11 +304,11 @@ struct gfs2_quota_data {
 	struct list_head qd_list;
 	unsigned int qd_count;
 
-	uint32_t qd_id;
+	u32 qd_id;
 	unsigned long qd_flags;		/* QDF_... */
 
-	int64_t qd_change;
-	int64_t qd_change_sync;
+	s64 qd_change;
+	s64 qd_change_sync;
 
 	unsigned int qd_slot;
 	unsigned int qd_slot_count;
@@ -320,7 +320,7 @@ struct gfs2_quota_data {
 	struct gfs2_glock *qd_gl;
 	struct gfs2_quota_lvb qd_qb;
 
-	uint64_t qd_sync_gen;
+	u64 qd_sync_gen;
 	unsigned long qd_last_warn;
 	unsigned long qd_last_touched;
 };
@@ -358,7 +358,7 @@ struct gfs2_ail {
 	struct list_head ai_ail1_list;
 	struct list_head ai_ail2_list;
 
-	uint64_t ai_sync_gen;
+	u64 ai_sync_gen;
 };
 
 struct gfs2_jdesc {
@@ -466,20 +466,20 @@ struct gfs2_sbd {
 
 	/* Constants computed on mount */
 
-	uint32_t sd_fsb2bb;
-	uint32_t sd_fsb2bb_shift;
-	uint32_t sd_diptrs;	/* Number of pointers in a dinode */
-	uint32_t sd_inptrs;	/* Number of pointers in a indirect block */
-	uint32_t sd_jbsize;	/* Size of a journaled data block */
-	uint32_t sd_hash_bsize;	/* sizeof(exhash block) */
-	uint32_t sd_hash_bsize_shift;
-	uint32_t sd_hash_ptrs;	/* Number of pointers in a hash block */
-	uint32_t sd_qc_per_block;
-	uint32_t sd_max_dirres;	/* Max blocks needed to add a directory entry */
-	uint32_t sd_max_height;	/* Max height of a file's metadata tree */
-	uint64_t sd_heightsize[GFS2_MAX_META_HEIGHT];
-	uint32_t sd_max_jheight; /* Max height of journaled file's meta tree */
-	uint64_t sd_jheightsize[GFS2_MAX_META_HEIGHT];
+	u32 sd_fsb2bb;
+	u32 sd_fsb2bb_shift;
+	u32 sd_diptrs;	/* Number of pointers in a dinode */
+	u32 sd_inptrs;	/* Number of pointers in a indirect block */
+	u32 sd_jbsize;	/* Size of a journaled data block */
+	u32 sd_hash_bsize;	/* sizeof(exhash block) */
+	u32 sd_hash_bsize_shift;
+	u32 sd_hash_ptrs;	/* Number of pointers in a hash block */
+	u32 sd_qc_per_block;
+	u32 sd_max_dirres;	/* Max blocks needed to add a directory entry */
+	u32 sd_max_height;	/* Max height of a file's metadata tree */
+	u64 sd_heightsize[GFS2_MAX_META_HEIGHT];
+	u32 sd_max_jheight; /* Max height of journaled file's meta tree */
+	u64 sd_jheightsize[GFS2_MAX_META_HEIGHT];
 
 	struct gfs2_args sd_args;	/* Mount arguments */
 	struct gfs2_tune sd_tune;	/* Filesystem tuning structure */
@@ -522,7 +522,7 @@ struct gfs2_sbd {
 
 	/* Resource group stuff */
 
-	uint64_t sd_rindex_vn;
+	u64 sd_rindex_vn;
 	spinlock_t sd_rindex_spin;
 	struct mutex sd_rindex_mutex;
 	struct list_head sd_rindex_list;
@@ -567,7 +567,7 @@ struct gfs2_sbd {
 	unsigned int sd_quota_chunks;
 	unsigned char **sd_quota_bitmap;
 
-	uint64_t sd_quota_sync_gen;
+	u64 sd_quota_sync_gen;
 	unsigned long sd_quota_sync_time;
 
 	/* Log stuff */
@@ -595,7 +595,7 @@ struct gfs2_sbd {
 	unsigned int sd_log_blks_free;
 	struct mutex sd_log_reserve_mutex;
 
-	uint64_t sd_log_sequence;
+	u64 sd_log_sequence;
 	unsigned int sd_log_head;
 	unsigned int sd_log_tail;
 	int sd_log_idle;
@@ -605,11 +605,11 @@ struct gfs2_sbd {
 	struct list_head sd_log_flush_list;
 
 	unsigned int sd_log_flush_head;
-	uint64_t sd_log_flush_wrapped;
+	u64 sd_log_flush_wrapped;
 
 	struct list_head sd_ail1_list;
 	struct list_head sd_ail2_list;
-	uint64_t sd_ail_sync_gen;
+	u64 sd_ail_sync_gen;
 
 	/* Replay stuff */
 

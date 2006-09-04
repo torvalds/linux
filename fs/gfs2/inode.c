@@ -311,7 +311,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 {
 	struct gfs2_sbd *sdp = ip->i_inode.i_sb->s_fs_info;
 	struct buffer_head *dibh;
-	uint32_t nlink;
+	u32 nlink;
 	int error;
 
 	BUG_ON(ip->i_di.di_nlink != ip->i_inode.i_nlink);
@@ -428,7 +428,7 @@ out:
 	return inode;
 }
 
-static int pick_formal_ino_1(struct gfs2_sbd *sdp, uint64_t *formal_ino)
+static int pick_formal_ino_1(struct gfs2_sbd *sdp, u64 *formal_ino)
 {
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_ir_inode);
 	struct buffer_head *bh;
@@ -469,7 +469,7 @@ static int pick_formal_ino_1(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 	return 1;
 }
 
-static int pick_formal_ino_2(struct gfs2_sbd *sdp, uint64_t *formal_ino)
+static int pick_formal_ino_2(struct gfs2_sbd *sdp, u64 *formal_ino)
 {
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_ir_inode);
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_inum_inode);
@@ -495,13 +495,13 @@ static int pick_formal_ino_2(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 
 	if (!ir.ir_length) {
 		struct buffer_head *m_bh;
-		uint64_t x, y;
+		u64 x, y;
 
 		error = gfs2_meta_inode_buffer(m_ip, &m_bh);
 		if (error)
 			goto out_brelse;
 
-		x = *(uint64_t *)(m_bh->b_data + sizeof(struct gfs2_dinode));
+		x = *(u64 *)(m_bh->b_data + sizeof(struct gfs2_dinode));
 		x = y = be64_to_cpu(x);
 		ir.ir_start = x;
 		ir.ir_length = GFS2_INUM_QUANTUM;
@@ -510,7 +510,7 @@ static int pick_formal_ino_2(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 			gfs2_consist_inode(m_ip);
 		x = cpu_to_be64(x);
 		gfs2_trans_add_bh(m_ip->i_gl, m_bh, 1);
-		*(uint64_t *)(m_bh->b_data + sizeof(struct gfs2_dinode)) = x;
+		*(u64 *)(m_bh->b_data + sizeof(struct gfs2_dinode)) = x;
 
 		brelse(m_bh);
 	}
@@ -531,7 +531,7 @@ out:
 	return error;
 }
 
-static int pick_formal_ino(struct gfs2_sbd *sdp, uint64_t *inum)
+static int pick_formal_ino(struct gfs2_sbd *sdp, u64 *inum)
 {
 	int error;
 
@@ -577,9 +577,9 @@ static int create_ok(struct gfs2_inode *dip, const struct qstr *name,
 		return error;
 	}
 
-	if (dip->i_di.di_entries == (uint32_t)-1)
+	if (dip->i_di.di_entries == (u32)-1)
 		return -EFBIG;
-	if (S_ISDIR(mode) && dip->i_di.di_nlink == (uint32_t)-1)
+	if (S_ISDIR(mode) && dip->i_di.di_nlink == (u32)-1)
 		return -EMLINK;
 
 	return 0;
@@ -1131,7 +1131,7 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_inode *ip = gl->gl_object;
-	int64_t curtime, quantum = gfs2_tune_get(sdp, gt_atime_quantum);
+	s64 curtime, quantum = gfs2_tune_get(sdp, gt_atime_quantum);
 	unsigned int state;
 	int flags;
 	int error;

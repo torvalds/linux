@@ -60,7 +60,7 @@ static const char valid_change[16] = {
  */
 
 static void gfs2_setbit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
-			unsigned int buflen, uint32_t block,
+			unsigned int buflen, u32 block,
 			unsigned char new_state)
 {
 	unsigned char *byte, *end, cur_state;
@@ -90,7 +90,7 @@ static void gfs2_setbit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
  */
 
 static unsigned char gfs2_testbit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
-				  unsigned int buflen, uint32_t block)
+				  unsigned int buflen, u32 block)
 {
 	unsigned char *byte, *end, cur_state;
 	unsigned int bit;
@@ -122,12 +122,12 @@ static unsigned char gfs2_testbit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
  * Return: the block number (bitmap buffer scope) that was found
  */
 
-static uint32_t gfs2_bitfit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
-			    unsigned int buflen, uint32_t goal,
+static u32 gfs2_bitfit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
+			    unsigned int buflen, u32 goal,
 			    unsigned char old_state)
 {
 	unsigned char *byte, *end, alloc;
-	uint32_t blk = goal;
+	u32 blk = goal;
 	unsigned int bit;
 
 	byte = buffer + (goal / GFS2_NBBY);
@@ -169,7 +169,7 @@ static uint32_t gfs2_bitfit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
  * Returns: The number of bits
  */
 
-static uint32_t gfs2_bitcount(struct gfs2_rgrpd *rgd, unsigned char *buffer,
+static u32 gfs2_bitcount(struct gfs2_rgrpd *rgd, unsigned char *buffer,
 			      unsigned int buflen, unsigned char state)
 {
 	unsigned char *byte = buffer;
@@ -177,7 +177,7 @@ static uint32_t gfs2_bitcount(struct gfs2_rgrpd *rgd, unsigned char *buffer,
 	unsigned char state1 = state << 2;
 	unsigned char state2 = state << 4;
 	unsigned char state3 = state << 6;
-	uint32_t count = 0;
+	u32 count = 0;
 
 	for (; byte < end; byte++) {
 		if (((*byte) & 0x03) == state)
@@ -204,11 +204,11 @@ void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	struct gfs2_bitmap *bi = NULL;
-	uint32_t length = rgd->rd_ri.ri_length;
-	uint32_t count[4], tmp;
+	u32 length = rgd->rd_ri.ri_length;
+	u32 count[4], tmp;
 	int buf, x;
 
-	memset(count, 0, 4 * sizeof(uint32_t));
+	memset(count, 0, 4 * sizeof(u32));
 
 	/* Count # blocks in each of 4 possible allocation states */
 	for (buf = 0; buf < length; buf++) {
@@ -253,10 +253,10 @@ void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd)
 
 }
 
-static inline int rgrp_contains_block(struct gfs2_rindex *ri, uint64_t block)
+static inline int rgrp_contains_block(struct gfs2_rindex *ri, u64 block)
 {
-	uint64_t first = ri->ri_data0;
-	uint64_t last = first + ri->ri_data;
+	u64 first = ri->ri_data0;
+	u64 last = first + ri->ri_data;
 	return !!(first <= block && block < last);
 }
 
@@ -268,7 +268,7 @@ static inline int rgrp_contains_block(struct gfs2_rindex *ri, uint64_t block)
  * Returns: The resource group, or NULL if not found
  */
 
-struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, uint64_t blk)
+struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, u64 blk)
 {
 	struct gfs2_rgrpd *rgd;
 
@@ -367,8 +367,8 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	struct gfs2_bitmap *bi;
-	uint32_t length = rgd->rd_ri.ri_length; /* # blocks in hdr & bitmap */
-	uint32_t bytes_left, bytes;
+	u32 length = rgd->rd_ri.ri_length; /* # blocks in hdr & bitmap */
+	u32 bytes_left, bytes;
 	int x;
 
 	if (!length)
@@ -444,7 +444,7 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 	struct gfs2_rgrpd *rgd;
 	char buf[sizeof(struct gfs2_rindex)];
 	struct file_ra_state ra_state;
-	uint64_t junk = ip->i_di.di_size;
+	u64 junk = ip->i_di.di_size;
 	int error;
 
 	if (do_div(junk, sizeof(struct gfs2_rindex))) {
@@ -741,7 +741,7 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
  */
 
 static struct gfs2_rgrpd *recent_rgrp_first(struct gfs2_sbd *sdp,
-					    uint64_t rglast)
+					    u64 rglast)
 {
 	struct gfs2_rgrpd *rgd = NULL;
 
@@ -1037,10 +1037,10 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
  * Returns: The block type (GFS2_BLKST_*)
  */
 
-unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, uint64_t block)
+unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, u64 block)
 {
 	struct gfs2_bitmap *bi = NULL;
-	uint32_t length, rgrp_block, buf_block;
+	u32 length, rgrp_block, buf_block;
 	unsigned int buf;
 	unsigned char type;
 
@@ -1083,12 +1083,12 @@ unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, uint64_t block)
  * Returns:  the block number allocated
  */
 
-static uint32_t rgblk_search(struct gfs2_rgrpd *rgd, uint32_t goal,
+static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 			     unsigned char old_state, unsigned char new_state)
 {
 	struct gfs2_bitmap *bi = NULL;
-	uint32_t length = rgd->rd_ri.ri_length;
-	uint32_t blk = 0;
+	u32 length = rgd->rd_ri.ri_length;
+	u32 blk = 0;
 	unsigned int buf, x;
 
 	/* Find bitmap block that contains bits for goal block */
@@ -1148,12 +1148,12 @@ static uint32_t rgblk_search(struct gfs2_rgrpd *rgd, uint32_t goal,
  * Returns:  Resource group containing the block(s)
  */
 
-static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, uint64_t bstart,
-				     uint32_t blen, unsigned char new_state)
+static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
+				     u32 blen, unsigned char new_state)
 {
 	struct gfs2_rgrpd *rgd;
 	struct gfs2_bitmap *bi = NULL;
-	uint32_t length, rgrp_blk, buf_blk;
+	u32 length, rgrp_blk, buf_blk;
 	unsigned int buf;
 
 	rgd = gfs2_blk2rgrpd(sdp, bstart);
@@ -1206,8 +1206,8 @@ u64 gfs2_alloc_data(struct gfs2_inode *ip)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = &ip->i_alloc;
 	struct gfs2_rgrpd *rgd = al->al_rgd;
-	uint32_t goal, blk;
-	uint64_t block;
+	u32 goal, blk;
+	u64 block;
 
 	if (rgrp_contains_block(&rgd->rd_ri, ip->i_di.di_goal_data))
 		goal = ip->i_di.di_goal_data - rgd->rd_ri.ri_data0;
@@ -1250,8 +1250,8 @@ u64 gfs2_alloc_meta(struct gfs2_inode *ip)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = &ip->i_alloc;
 	struct gfs2_rgrpd *rgd = al->al_rgd;
-	uint32_t goal, blk;
-	uint64_t block;
+	u32 goal, blk;
+	u64 block;
 
 	if (rgrp_contains_block(&rgd->rd_ri, ip->i_di.di_goal_meta))
 		goal = ip->i_di.di_goal_meta - rgd->rd_ri.ri_data0;
@@ -1332,7 +1332,7 @@ u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
  *
  */
 
-void gfs2_free_data(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen)
+void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd;
@@ -1349,7 +1349,7 @@ void gfs2_free_data(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen)
 	gfs2_trans_add_rg(rgd);
 
 	gfs2_statfs_change(sdp, 0, +blen, 0);
-	gfs2_quota_change(ip, -(int64_t)blen,
+	gfs2_quota_change(ip, -(s64)blen,
 			 ip->i_di.di_uid, ip->i_di.di_gid);
 }
 
@@ -1361,7 +1361,7 @@ void gfs2_free_data(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen)
  *
  */
 
-void gfs2_free_meta(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen)
+void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd;
@@ -1378,7 +1378,7 @@ void gfs2_free_meta(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen)
 	gfs2_trans_add_rg(rgd);
 
 	gfs2_statfs_change(sdp, 0, +blen, 0);
-	gfs2_quota_change(ip, -(int64_t)blen, ip->i_di.di_uid, ip->i_di.di_gid);
+	gfs2_quota_change(ip, -(s64)blen, ip->i_di.di_uid, ip->i_di.di_gid);
 	gfs2_meta_wipe(ip, bstart, blen);
 }
 
@@ -1397,7 +1397,7 @@ void gfs2_unlink_di(struct inode *inode)
 	gfs2_trans_add_rg(rgd);
 }
 
-static void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, uint64_t blkno)
+static void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, u64 blkno)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	struct gfs2_rgrpd *tmp_rgd;
@@ -1440,7 +1440,7 @@ void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
  */
 
 void gfs2_rlist_add(struct gfs2_sbd *sdp, struct gfs2_rgrp_list *rlist,
-		    uint64_t block)
+		    u64 block)
 {
 	struct gfs2_rgrpd *rgd;
 	struct gfs2_rgrpd **tmp;

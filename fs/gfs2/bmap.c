@@ -38,8 +38,8 @@ struct metapath {
 };
 
 typedef int (*block_call_t) (struct gfs2_inode *ip, struct buffer_head *dibh,
-			     struct buffer_head *bh, uint64_t *top,
-			     uint64_t *bottom, unsigned int height,
+			     struct buffer_head *bh, u64 *top,
+			     u64 *bottom, unsigned int height,
 			     void *data);
 
 struct strip_mine {
@@ -58,7 +58,7 @@ struct strip_mine {
  */
 
 static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
-			       uint64_t block, struct page *page)
+			       u64 block, struct page *page)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct inode *inode = &ip->i_inode;
@@ -121,7 +121,7 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 {
 	struct buffer_head *bh, *dibh;
-	uint64_t block = 0;
+	u64 block = 0;
 	int isdir = gfs2_is_dir(ip);
 	int error;
 
@@ -161,7 +161,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 
 	if (ip->i_di.di_size) {
-		*(uint64_t *)(dibh->b_data + sizeof(struct gfs2_dinode)) =
+		*(u64 *)(dibh->b_data + sizeof(struct gfs2_dinode)) =
 			cpu_to_be64(block);
 		ip->i_di.di_blocks++;
 	}
@@ -190,10 +190,10 @@ out:
  * Returns: the height the tree should be
  */
 
-static unsigned int calc_tree_height(struct gfs2_inode *ip, uint64_t size)
+static unsigned int calc_tree_height(struct gfs2_inode *ip, u64 size)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	uint64_t *arr;
+	u64 *arr;
 	unsigned int max, height;
 
 	if (ip->i_di.di_size > size)
@@ -336,11 +336,11 @@ static int build_height(struct inode *inode, unsigned height)
  *
  */
 
-static void find_metapath(struct gfs2_inode *ip, uint64_t block,
+static void find_metapath(struct gfs2_inode *ip, u64 block,
 			  struct metapath *mp)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	uint64_t b = block;
+	u64 b = block;
 	unsigned int i;
 
 	for (i = ip->i_di.di_height; i--;)
@@ -390,10 +390,10 @@ static inline u64 *metapointer(struct buffer_head *bh, int *boundary,
 
 static int lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
 			unsigned int height, struct metapath *mp, int create,
-			int *new, uint64_t *block)
+			int *new, u64 *block)
 {
 	int boundary;
-	uint64_t *ptr = metapointer(bh, &boundary, height, mp);
+	u64 *ptr = metapointer(bh, &boundary, height, mp);
 
 	if (*ptr) {
 		*block = be64_to_cpu(*ptr);
@@ -594,13 +594,13 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 
 static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 			  struct metapath *mp, unsigned int height,
-			  uint64_t block, int first, block_call_t bc,
+			  u64 block, int first, block_call_t bc,
 			  void *data)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *bh = NULL;
-	uint64_t *top, *bottom;
-	uint64_t bn;
+	u64 *top, *bottom;
+	u64 bn;
 	int error;
 	int mh_size = sizeof(struct gfs2_meta_header);
 
@@ -617,10 +617,10 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 		if (error)
 			return error;
 
-		top = (uint64_t *)(bh->b_data + mh_size) +
+		top = (u64 *)(bh->b_data + mh_size) +
 				  ((first) ? mp->mp_list[height] : 0);
 
-		bottom = (uint64_t *)(bh->b_data + mh_size) + sdp->sd_inptrs;
+		bottom = (u64 *)(bh->b_data + mh_size) + sdp->sd_inptrs;
 	}
 
 	error = bc(ip, dibh, bh, top, bottom, height, data);
@@ -659,15 +659,15 @@ out:
  */
 
 static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
-		    struct buffer_head *bh, uint64_t *top, uint64_t *bottom,
+		    struct buffer_head *bh, u64 *top, u64 *bottom,
 		    unsigned int height, void *data)
 {
 	struct strip_mine *sm = data;
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrp_list rlist;
-	uint64_t bn, bstart;
-	uint32_t blen;
-	uint64_t *p;
+	u64 bn, bstart;
+	u32 blen;
+	u64 *p;
 	unsigned int rg_blocks = 0;
 	int metadata;
 	unsigned int revokes = 0;
@@ -804,7 +804,7 @@ out:
  * Returns: errno
  */
 
-static int do_grow(struct gfs2_inode *ip, uint64_t size)
+static int do_grow(struct gfs2_inode *ip, u64 size)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al;
@@ -949,7 +949,7 @@ unlock:
 	return err;
 }
 
-static int trunc_start(struct gfs2_inode *ip, uint64_t size)
+static int trunc_start(struct gfs2_inode *ip, u64 size)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
@@ -974,7 +974,7 @@ static int trunc_start(struct gfs2_inode *ip, uint64_t size)
 		error = 1;
 
 	} else {
-		if (size & (uint64_t)(sdp->sd_sb.sb_bsize - 1))
+		if (size & (u64)(sdp->sd_sb.sb_bsize - 1))
 			error = gfs2_block_truncate_page(ip->i_inode.i_mapping);
 
 		if (!error) {
@@ -993,10 +993,10 @@ out:
 	return error;
 }
 
-static int trunc_dealloc(struct gfs2_inode *ip, uint64_t size)
+static int trunc_dealloc(struct gfs2_inode *ip, u64 size)
 {
 	unsigned int height = ip->i_di.di_height;
-	uint64_t lblock;
+	u64 lblock;
 	struct metapath mp;
 	int error;
 
@@ -1076,7 +1076,7 @@ out:
  * Returns: errno
  */
 
-static int do_shrink(struct gfs2_inode *ip, uint64_t size)
+static int do_shrink(struct gfs2_inode *ip, u64 size)
 {
 	int error;
 
@@ -1104,7 +1104,7 @@ static int do_shrink(struct gfs2_inode *ip, uint64_t size)
  * Returns: errno
  */
 
-int gfs2_truncatei(struct gfs2_inode *ip, uint64_t size)
+int gfs2_truncatei(struct gfs2_inode *ip, u64 size)
 {
 	int error;
 
@@ -1172,12 +1172,12 @@ void gfs2_write_calc_reserv(struct gfs2_inode *ip, unsigned int len,
  * Returns: errno
  */
 
-int gfs2_write_alloc_required(struct gfs2_inode *ip, uint64_t offset,
+int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 			      unsigned int len, int *alloc_required)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	uint64_t lblock, lblock_stop, dblock;
-	uint32_t extlen;
+	u64 lblock, lblock_stop, dblock;
+	u32 extlen;
 	int new = 0;
 	int error = 0;
 

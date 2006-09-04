@@ -14,14 +14,14 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page);
 int gfs2_block_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, int *boundary);
 int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsigned *extlen);
 
-int gfs2_truncatei(struct gfs2_inode *ip, uint64_t size);
+int gfs2_truncatei(struct gfs2_inode *ip, u64 size);
 int gfs2_truncatei_resume(struct gfs2_inode *ip);
 int gfs2_file_dealloc(struct gfs2_inode *ip);
 
 void gfs2_write_calc_reserv(struct gfs2_inode *ip, unsigned int len,
 			    unsigned int *data_blocks,
 			    unsigned int *ind_blocks);
-int gfs2_write_alloc_required(struct gfs2_inode *ip, uint64_t offset,
+int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 			      unsigned int len, int *alloc_required);
 
 #endif /* __BMAP_DOT_H__ */

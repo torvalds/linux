@@ -62,7 +62,7 @@ unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 void gfs2_ail1_start(struct gfs2_sbd *sdp, int flags)
 {
 	struct list_head *head = &sdp->sd_ail1_list;
-	uint64_t sync_gen;
+	u64 sync_gen;
 	struct list_head *first, *tmp;
 	struct gfs2_ail *first_ai, *ai;
 
@@ -205,10 +205,10 @@ void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 	up_read(&sdp->sd_log_flush_lock);
 }
 
-static uint64_t log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
+static u64 log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 {
 	int new = 0;
-	uint64_t dbn;
+	u64 dbn;
 	int error;
 	int bdy;
 
@@ -287,7 +287,7 @@ static inline void log_incr_head(struct gfs2_sbd *sdp)
 
 struct buffer_head *gfs2_log_get_buf(struct gfs2_sbd *sdp)
 {
-	uint64_t blkno = log_bmap(sdp, sdp->sd_log_flush_head);
+	u64 blkno = log_bmap(sdp, sdp->sd_log_flush_head);
 	struct gfs2_log_buf *lb;
 	struct buffer_head *bh;
 
@@ -317,7 +317,7 @@ struct buffer_head *gfs2_log_get_buf(struct gfs2_sbd *sdp)
 struct buffer_head *gfs2_log_fake_buf(struct gfs2_sbd *sdp,
 				      struct buffer_head *real)
 {
-	uint64_t blkno = log_bmap(sdp, sdp->sd_log_flush_head);
+	u64 blkno = log_bmap(sdp, sdp->sd_log_flush_head);
 	struct gfs2_log_buf *lb;
 	struct buffer_head *bh;
 
@@ -361,13 +361,13 @@ static void log_pull_tail(struct gfs2_sbd *sdp, unsigned int new_tail, int pull)
  * Returns: the initialized log buffer descriptor
  */
 
-static void log_write_header(struct gfs2_sbd *sdp, uint32_t flags, int pull)
+static void log_write_header(struct gfs2_sbd *sdp, u32 flags, int pull)
 {
-	uint64_t blkno = log_bmap(sdp, sdp->sd_log_flush_head);
+	u64 blkno = log_bmap(sdp, sdp->sd_log_flush_head);
 	struct buffer_head *bh;
 	struct gfs2_log_header *lh;
 	unsigned int tail;
-	uint32_t hash;
+	u32 hash;
 
 	/* printk(KERN_INFO "log write header start (flags=%08x, pull=%d)\n", flags, pull); */
 
@@ -523,7 +523,7 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 		reserved += sdp->sd_log_commited_buf;
 	if (sdp->sd_log_commited_revoke)
 		reserved += gfs2_struct2blk(sdp, sdp->sd_log_commited_revoke,
-					    sizeof(uint64_t));
+					    sizeof(u64));
 	if (reserved)
 		reserved++;
 

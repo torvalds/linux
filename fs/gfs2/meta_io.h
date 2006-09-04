@@ -44,8 +44,8 @@ void gfs2_ail_empty_gl(struct gfs2_glock *gl);
 void gfs2_meta_inval(struct gfs2_glock *gl);
 void gfs2_meta_sync(struct gfs2_glock *gl, int flags);
 
-struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, uint64_t blkno);
-int gfs2_meta_read(struct gfs2_glock *gl, uint64_t blkno,
+struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno);
+int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno,
 		   int flags, struct buffer_head **bhp);
 int gfs2_meta_reread(struct gfs2_sbd *sdp, struct buffer_head *bh, int flags);
 
@@ -55,10 +55,10 @@ void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh);
 void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 		struct gfs2_ail *ai);
 
-void gfs2_meta_wipe(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen);
+void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen);
 
 void gfs2_meta_cache_flush(struct gfs2_inode *ip);
-int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, uint64_t num,
+int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 			      int new, struct buffer_head **bhp);
 
 static inline int gfs2_meta_inode_buffer(struct gfs2_inode *ip,
@@ -67,7 +67,7 @@ static inline int gfs2_meta_inode_buffer(struct gfs2_inode *ip,
 	return gfs2_meta_indirect_buffer(ip, 0, ip->i_num.no_addr, 0, bhp);
 }
 
-void gfs2_meta_ra(struct gfs2_glock *gl, uint64_t dblock, uint32_t extlen);
+void gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen);
 void gfs2_meta_syncfs(struct gfs2_sbd *sdp);
 
 #endif /* __DIO_DOT_H__ */

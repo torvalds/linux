@@ -46,15 +46,15 @@ static struct dentry *gfs2_decode_fh(struct super_block *sb,
 
 	switch (fh_type) {
 	case 10:
-		parent.no_formal_ino = ((uint64_t)be32_to_cpu(fh[4])) << 32;
+		parent.no_formal_ino = ((u64)be32_to_cpu(fh[4])) << 32;
 		parent.no_formal_ino |= be32_to_cpu(fh[5]);
-		parent.no_addr = ((uint64_t)be32_to_cpu(fh[6])) << 32;
+		parent.no_addr = ((u64)be32_to_cpu(fh[6])) << 32;
 		parent.no_addr |= be32_to_cpu(fh[7]);
 		fh_obj.imode = be32_to_cpu(fh[8]);
 	case 4:
-		this->no_formal_ino = ((uint64_t)be32_to_cpu(fh[0])) << 32;
+		this->no_formal_ino = ((u64)be32_to_cpu(fh[0])) << 32;
 		this->no_formal_ino |= be32_to_cpu(fh[1]);
-		this->no_addr = ((uint64_t)be32_to_cpu(fh[2])) << 32;
+		this->no_addr = ((u64)be32_to_cpu(fh[2])) << 32;
 		this->no_addr |= be32_to_cpu(fh[3]);
 		break;
 	default:
@@ -118,7 +118,7 @@ struct get_name_filldir {
 };
 
 static int get_name_filldir(void *opaque, const char *name, unsigned int length,
-			    uint64_t offset, struct gfs2_inum *inum,
+			    u64 offset, struct gfs2_inum *inum,
 			    unsigned int type)
 {
 	struct get_name_filldir *gnfd = (struct get_name_filldir *)opaque;
@@ -140,7 +140,7 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 	struct gfs2_inode *dip, *ip;
 	struct get_name_filldir gnfd;
 	struct gfs2_holder gh;
-	uint64_t offset = 0;
+	u64 offset = 0;
 	int error;
 
 	if (!dir)

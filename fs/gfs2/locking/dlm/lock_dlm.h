@@ -56,7 +56,7 @@ enum {
 };
 
 struct gdlm_ls {
-	uint32_t		id;
+	u32		id;
 	int			jid;
 	int			first;
 	int			first_done;
@@ -77,7 +77,7 @@ struct gdlm_ls {
 	struct list_head	delayed;
 	struct list_head	submit;
 	struct list_head	all_locks;
-	uint32_t		all_locks_count;
+	u32		all_locks_count;
 	wait_queue_head_t	wait_control;
 	struct task_struct	*thread1;
 	struct task_struct	*thread2;
@@ -109,10 +109,10 @@ struct gdlm_lock {
 	char			*lvb;
 	struct dlm_lksb		lksb;
 
-	int16_t			cur;
-	int16_t			req;
-	int16_t			prev_req;
-	uint32_t		lkf;		/* dlm flags DLM_LKF_ */
+	s16			cur;
+	s16			req;
+	s16			prev_req;
+	u32		lkf;		/* dlm flags DLM_LKF_ */
 	unsigned long		flags;		/* lock_dlm flags LFL_ */
 
 	int			bast_mode;	/* protected by async_lock */
@@ -158,7 +158,7 @@ void gdlm_release_threads(struct gdlm_ls *);
 
 /* lock.c */
 
-int16_t gdlm_make_lmstate(int16_t);
+s16 gdlm_make_lmstate(s16);
 void gdlm_queue_delayed(struct gdlm_lock *);
 void gdlm_submit_delayed(struct gdlm_ls *);
 int gdlm_release_all_locks(struct gdlm_ls *);

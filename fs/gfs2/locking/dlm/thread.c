@@ -48,7 +48,7 @@ static void process_complete(struct gdlm_lock *lp)
 {
 	struct gdlm_ls *ls = lp->ls;
 	struct lm_async_cb acb;
-	int16_t prev_mode = lp->cur;
+	s16 prev_mode = lp->cur;
 
 	memset(&acb, 0, sizeof(acb));
 

@@ -172,7 +172,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	if (!dip->i_di.di_nlink)
 		goto out_gunlock;
 	error = -EFBIG;
-	if (dip->i_di.di_entries == (uint32_t)-1)
+	if (dip->i_di.di_entries == (u32)-1)
 		goto out_gunlock;
 	error = -EPERM;
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
@@ -181,7 +181,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	if (!ip->i_di.di_nlink)
 		goto out_gunlock;
 	error = -EMLINK;
-	if (ip->i_di.di_nlink == (uint32_t)-1)
+	if (ip->i_di.di_nlink == (u32)-1)
 		goto out_gunlock;
 
 	alloc_required = error = gfs2_diradd_alloc_required(dir, &dentry->d_name);
@@ -509,7 +509,7 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	struct gfs2_holder ghs[2];
 	struct inode *inode;
 	struct buffer_head *dibh;
-	uint32_t major = 0, minor = 0;
+	u32 major = 0, minor = 0;
 	int error;
 
 	switch (mode & S_IFMT) {
@@ -670,12 +670,12 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 				error = -EINVAL;
 				goto out_gunlock;
 			}
-			if (ndip->i_di.di_entries == (uint32_t)-1) {
+			if (ndip->i_di.di_entries == (u32)-1) {
 				error = -EFBIG;
 				goto out_gunlock;
 			}
 			if (S_ISDIR(ip->i_di.di_mode) &&
-			    ndip->i_di.di_nlink == (uint32_t)-1) {
+			    ndip->i_di.di_nlink == (u32)-1) {
 				error = -EMLINK;
 				goto out_gunlock;
 			}
@@ -911,7 +911,7 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct buffer_head *dibh;
-	uint32_t ouid, ogid, nuid, ngid;
+	u32 ouid, ogid, nuid, ngid;
 	int error;
 
 	ouid = ip->i_di.di_uid;

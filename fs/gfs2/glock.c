@@ -87,7 +87,7 @@ static unsigned int gl_hash(const struct lm_lockname *name)
 {
 	unsigned int h;
 
-	h = jhash(&name->ln_number, sizeof(uint64_t), 0);
+	h = jhash(&name->ln_number, sizeof(u64), 0);
 	h = jhash(&name->ln_type, sizeof(unsigned int), h);
 	h &= GFS2_GL_HASH_MASK;
 
@@ -255,7 +255,7 @@ static struct gfs2_glock *gfs2_glock_find(struct gfs2_sbd *sdp,
  * Returns: errno
  */
 
-int gfs2_glock_get(struct gfs2_sbd *sdp, uint64_t number,
+int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 		   const struct gfs2_glock_operations *glops, int create,
 		   struct gfs2_glock **glp)
 {
@@ -1415,7 +1415,7 @@ void gfs2_glock_dq_uninit(struct gfs2_holder *gh)
  * Returns: errno
  */
 
-int gfs2_glock_nq_num(struct gfs2_sbd *sdp, uint64_t number,
+int gfs2_glock_nq_num(struct gfs2_sbd *sdp, u64 number,
 		      const struct gfs2_glock_operations *glops,
 		      unsigned int state, int flags, struct gfs2_holder *gh)
 {
@@ -1613,7 +1613,7 @@ void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs)
  * Returns: errno
  */
 
-void gfs2_glock_prefetch_num(struct gfs2_sbd *sdp, uint64_t number,
+void gfs2_glock_prefetch_num(struct gfs2_sbd *sdp, u64 number,
 			     const struct gfs2_glock_operations *glops,
 			     unsigned int state, int flags)
 {
