@@ -1142,7 +1142,7 @@ static int biovec_create_pools(struct bio_set *bs, int pool_entries, int scale)
 		struct biovec_slab *bp = bvec_slabs + i;
 		mempool_t **bvp = bs->bvec_pools + i;
 
-		if (i >= scale)
+		if (pool_entries > 1 && i >= scale)
 			pool_entries >>= 1;
 
 		*bvp = mempool_create_slab_pool(pool_entries, bp->slab);
