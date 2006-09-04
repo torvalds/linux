@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2000 Andrea Arcangeli <andrea@suse.de> SuSE
  *
- * 30042000 Jens Axboe <axboe@suse.de> :
+ * 30042000 Jens Axboe <axboe@kernel.dk> :
  *
  * Split the elevator a bit so that it is possible to choose a different
  * one or even write a new "plug in". There are three pieces:

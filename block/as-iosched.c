@@ -1,7 +1,7 @@
 /*
  *  Anticipatory & deadline i/o scheduler.
  *
- *  Copyright (C) 2002 Jens Axboe <axboe@suse.de>
+ *  Copyright (C) 2002 Jens Axboe <axboe@kernel.dk>
  *                     Nick Piggin <nickpiggin@yahoo.com.au>
  *
  */

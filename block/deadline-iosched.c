@@ -1,7 +1,7 @@
 /*
  *  Deadline i/o scheduler.
  *
- *  Copyright (C) 2002 Jens Axboe <axboe@suse.de>
+ *  Copyright (C) 2002 Jens Axboe <axboe@kernel.dk>
  */
 #include <linux/kernel.h>
 #include <linux/fs.h>

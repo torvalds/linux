@@ -4,7 +4,7 @@
  *  Based on ideas from a previously unfinished io
  *  scheduler (round robin per-process disk scheduling) and Andrea Arcangeli.
  *
- *  Copyright (C) 2003 Jens Axboe <axboe@suse.de>
+ *  Copyright (C) 2003 Jens Axboe <axboe@kernel.dk>
  */
 #include <linux/module.h>
 #include <linux/blkdev.h>
