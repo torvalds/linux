@@ -1395,6 +1395,17 @@ static void ad1888_resume(struct snd_ac97 *ac97)
 
 #endif
 
+static const struct snd_ac97_res_table ad1819_restbl[] = {
+	{ AC97_PHONE, 0x9f1f },
+	{ AC97_MIC, 0x9f1f },
+	{ AC97_LINE, 0x9f1f },
+	{ AC97_CD, 0x9f1f },
+	{ AC97_VIDEO, 0x9f1f },
+	{ AC97_AUX, 0x9f1f },
+	{ AC97_PCM, 0x9f1f },
+	{ } /* terminator */
+};
+
 int patch_ad1819(struct snd_ac97 * ac97)
 {
 	unsigned short scfg;
@@ -1402,6 +1413,7 @@ int patch_ad1819(struct snd_ac97 * ac97)
 	// patch for Analog Devices
 	scfg = snd_ac97_read(ac97, AC97_AD_SERIAL_CFG);
 	snd_ac97_write_cache(ac97, AC97_AD_SERIAL_CFG, scfg | 0x7000); /* select all codecs */
+	ac97->res_table = ad1819_restbl;
 	return 0;
 }
 
