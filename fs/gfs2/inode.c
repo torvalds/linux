@@ -97,15 +97,15 @@ void gfs2_inode_attr_in(struct gfs2_inode *ip)
 void gfs2_inode_attr_out(struct gfs2_inode *ip)
 {
 	struct inode *inode = &ip->i_inode;
-
+	struct gfs2_dinode *di = &ip->i_di;
 	gfs2_assert_withdraw(GFS2_SB(inode),
-		(ip->i_di.di_mode & S_IFMT) == (inode->i_mode & S_IFMT));
-	ip->i_di.di_mode = inode->i_mode;
-	ip->i_di.di_uid = inode->i_uid;
-	ip->i_di.di_gid = inode->i_gid;
-	ip->i_di.di_atime = inode->i_atime.tv_sec;
-	ip->i_di.di_mtime = inode->i_mtime.tv_sec;
-	ip->i_di.di_ctime = inode->i_ctime.tv_sec;
+		(di->di_mode & S_IFMT) == (inode->i_mode & S_IFMT));
+	di->di_mode = inode->i_mode;
+	di->di_uid = inode->i_uid;
+	di->di_gid = inode->i_gid;
+	di->di_atime = inode->i_atime.tv_sec;
+	di->di_mtime = inode->i_mtime.tv_sec;
+	di->di_ctime = inode->i_ctime.tv_sec;
 }
 
 static int iget_test(struct inode *inode, void *opaque)
@@ -1213,31 +1213,26 @@ fail:
  *
  * Returns: 1 if A > B
  *         -1 if A < B
- *          0 if A = B
+ *          0 if A == B
  */
 
 static int glock_compare_atime(const void *arg_a, const void *arg_b)
 {
-	struct gfs2_holder *gh_a = *(struct gfs2_holder **)arg_a;
-	struct gfs2_holder *gh_b = *(struct gfs2_holder **)arg_b;
-	struct lm_lockname *a = &gh_a->gh_gl->gl_name;
-	struct lm_lockname *b = &gh_b->gh_gl->gl_name;
-	int ret = 0;
+	const struct gfs2_holder *gh_a = *(const struct gfs2_holder **)arg_a;
+	const struct gfs2_holder *gh_b = *(const struct gfs2_holder **)arg_b;
+	const struct lm_lockname *a = &gh_a->gh_gl->gl_name;
+	const struct lm_lockname *b = &gh_b->gh_gl->gl_name;
 
 	if (a->ln_number > b->ln_number)
-		ret = 1;
-	else if (a->ln_number < b->ln_number)
-		ret = -1;
-	else {
-		if (gh_a->gh_state == LM_ST_SHARED &&
-		    gh_b->gh_state == LM_ST_EXCLUSIVE)
-			ret = 1;
-		else if (gh_a->gh_state == LM_ST_SHARED &&
-			 (gh_b->gh_flags & GL_ATIME))
-			ret = 1;
-	}
+		return 1;
+	if (a->ln_number < b->ln_number)
+		return -1;
+	if (gh_a->gh_state == LM_ST_SHARED && gh_b->gh_state == LM_ST_EXCLUSIVE)
+		return 1;
+	if (gh_a->gh_state == LM_ST_SHARED && (gh_b->gh_flags & GL_ATIME))
+		return 1;
 
-	return ret;
+	return 0;
 }
 
 /**

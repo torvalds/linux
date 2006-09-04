@@ -234,7 +234,6 @@ static void inode_go_sync(struct gfs2_glock *gl, int flags)
 		if (flags & DIO_RELEASE)
 			gfs2_ail_empty_gl(gl);
 	}
-
 }
 
 /**
@@ -324,12 +323,11 @@ static void inode_go_unlock(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_inode *ip = gl->gl_object;
 
-	if (ip) {
-		if (test_bit(GLF_DIRTY, &gl->gl_flags))
-			gfs2_inode_attr_in(ip);
-
-		gfs2_meta_cache_flush(ip);
-	}
+	if (ip == NULL)
+		return;
+	if (test_bit(GLF_DIRTY, &gl->gl_flags))
+		gfs2_inode_attr_in(ip);
+	gfs2_meta_cache_flush(ip);
 }
 
 /**

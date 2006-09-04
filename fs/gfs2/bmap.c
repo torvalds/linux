@@ -94,7 +94,7 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 		map_bh(bh, inode->i_sb, block);
 
 	set_buffer_uptodate(bh);
-	if ((sdp->sd_args.ar_data == GFS2_DATA_ORDERED) || gfs2_is_jdata(ip))
+	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
 		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 	mark_buffer_dirty(bh);
 
@@ -369,7 +369,7 @@ static inline u64 *metapointer(struct buffer_head *bh, int *boundary,
 	u64 *ptr;
 	*boundary = 0;
 	ptr = ((u64 *)(bh->b_data + head_size)) + mp->mp_list[height];
-	if (ptr + 1 == (u64*)(bh->b_data + bh->b_size))
+	if (ptr + 1 == (u64 *)(bh->b_data + bh->b_size))
 		*boundary = 1;
 	return ptr;
 }
@@ -456,7 +456,7 @@ static struct buffer_head *gfs2_block_pointers(struct inode *inode, u64 lblock,
 	if (gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
 		goto out;
 
-	bsize = (gfs2_is_dir(ip)) ? sdp->sd_jbsize : sdp->sd_sb.sb_bsize;
+	bsize = gfs2_is_dir(ip) ? sdp->sd_jbsize : sdp->sd_sb.sb_bsize;
 
 	height = calc_tree_height(ip, (lblock + 1) * bsize);
 	if (ip->i_di.di_height < height) {
@@ -554,7 +554,7 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 	bh = gfs2_block_pointers(inode, lblock, new, dblock, &boundary, &mp);
 	*extlen = 1;
 
-	if (bh && !IS_ERR(bh) && *dblock && !*new) {
+	if (bh != NULL && !IS_ERR(bh) && *dblock != 0 && *new == 0) {
 		u64 tmp_dblock;
 		int tmp_new;
 		unsigned int nptrs;
@@ -565,7 +565,7 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 			lookup_block(ip, bh, end_of_metadata, &mp, 0, &tmp_new, &tmp_dblock);
 			if (*dblock + *extlen != tmp_dblock)
 				break;
-			(*extlen)++;
+			++*extlen;
 		}
 	}
 	bmap_unlock(inode, create);
@@ -612,10 +612,8 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 			return error;
 		dibh = bh;
 
-		top = (uint64_t *)(bh->b_data + sizeof(struct gfs2_dinode)) +
-			mp->mp_list[0];
-		bottom = (uint64_t *)(bh->b_data + sizeof(struct gfs2_dinode)) +
-			sdp->sd_diptrs;
+		top = (u64 *)(bh->b_data + sizeof(struct gfs2_dinode)) + mp->mp_list[0];
+		bottom = (u64 *)(bh->b_data + sizeof(struct gfs2_dinode)) + sdp->sd_diptrs;
 	} else {
 		error = gfs2_meta_indirect_buffer(ip, height, block, 0, &bh);
 		if (error)

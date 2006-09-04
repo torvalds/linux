@@ -21,7 +21,6 @@
 #include "incore.h"
 #include "bmap.h"
 #include "dir.h"
-#include "format.h"
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
@@ -33,6 +32,14 @@
 #include "super.h"
 #include "trans.h"
 #include "util.h"
+
+static const uint32_t gfs2_old_fs_formats[] = {
+        0
+};
+
+static const uint32_t gfs2_old_multihost_formats[] = {
+        0
+};
 
 /**
  * gfs2_tune_init - Fill a gfs2_tune structure with default values
