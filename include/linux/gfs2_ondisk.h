@@ -413,30 +413,30 @@ struct gfs2_quota_change {
 #ifdef __KERNEL__
 /* Translation functions */
 
-extern void gfs2_inum_in(struct gfs2_inum *no, char *buf);
-extern void gfs2_inum_out(const struct gfs2_inum *no, char *buf);
-extern void gfs2_sb_in(struct gfs2_sb *sb, char *buf);
-extern void gfs2_rindex_in(struct gfs2_rindex *ri, char *buf);
-extern void gfs2_rindex_out(struct gfs2_rindex *ri, char *buf);
-extern void gfs2_rgrp_in(struct gfs2_rgrp *rg, char *buf);
-extern void gfs2_rgrp_out(struct gfs2_rgrp *rg, char *buf);
-extern void gfs2_quota_in(struct gfs2_quota *qu, char *buf);
-extern void gfs2_quota_out(struct gfs2_quota *qu, char *buf);
-extern void gfs2_dinode_in(struct gfs2_dinode *di, char *buf);
-extern void gfs2_dinode_out(struct gfs2_dinode *di, char *buf);
-extern void gfs2_ea_header_in(struct gfs2_ea_header *ea, char *buf);
-extern void gfs2_ea_header_out(struct gfs2_ea_header *ea, char *buf);
-extern void gfs2_log_header_in(struct gfs2_log_header *lh, char *buf);
-extern void gfs2_inum_range_in(struct gfs2_inum_range *ir, char *buf);
-extern void gfs2_inum_range_out(struct gfs2_inum_range *ir, char *buf);
-extern void gfs2_statfs_change_in(struct gfs2_statfs_change *sc, char *buf);
-extern void gfs2_statfs_change_out(struct gfs2_statfs_change *sc, char *buf);
-extern void gfs2_quota_change_in(struct gfs2_quota_change *qc, char *buf);
+extern void gfs2_inum_in(struct gfs2_inum *no, const void *buf);
+extern void gfs2_inum_out(const struct gfs2_inum *no, void *buf);
+extern void gfs2_sb_in(struct gfs2_sb *sb, const void *buf);
+extern void gfs2_rindex_in(struct gfs2_rindex *ri, const void *buf);
+extern void gfs2_rindex_out(const struct gfs2_rindex *ri, void *buf);
+extern void gfs2_rgrp_in(struct gfs2_rgrp *rg, const void *buf);
+extern void gfs2_rgrp_out(const struct gfs2_rgrp *rg, void *buf);
+extern void gfs2_quota_in(struct gfs2_quota *qu, const void *buf);
+extern void gfs2_quota_out(const struct gfs2_quota *qu, void *buf);
+extern void gfs2_dinode_in(struct gfs2_dinode *di, const void *buf);
+extern void gfs2_dinode_out(const struct gfs2_dinode *di, void *buf);
+extern void gfs2_ea_header_in(struct gfs2_ea_header *ea, const void *buf);
+extern void gfs2_ea_header_out(const struct gfs2_ea_header *ea, void *buf);
+extern void gfs2_log_header_in(struct gfs2_log_header *lh, const void *buf);
+extern void gfs2_inum_range_in(struct gfs2_inum_range *ir, const void *buf);
+extern void gfs2_inum_range_out(const struct gfs2_inum_range *ir, void *buf);
+extern void gfs2_statfs_change_in(struct gfs2_statfs_change *sc, const void *buf);
+extern void gfs2_statfs_change_out(const struct gfs2_statfs_change *sc, void *buf);
+extern void gfs2_quota_change_in(struct gfs2_quota_change *qc, const void *buf);
 
 /* Printing functions */
 
-extern void gfs2_rindex_print(struct gfs2_rindex *ri);
-extern void gfs2_dinode_print(struct gfs2_dinode *di);
+extern void gfs2_rindex_print(const struct gfs2_rindex *ri);
+extern void gfs2_dinode_print(const struct gfs2_dinode *di);
 
 #endif /* __KERNEL__ */
 
