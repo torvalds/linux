@@ -1546,17 +1546,7 @@ static void handle_irq_noise(struct bcm43xx_private *bcm)
 		else
 			average -= 48;
 
-/* FIXME: This is wrong, but people want fancy stats. well... */
-bcm->stats.noise = average;
-		if (average > -65)
-			bcm->stats.link_quality = 0;
-		else if (average > -75)
-			bcm->stats.link_quality = 1;
-		else if (average > -85)
-			bcm->stats.link_quality = 2;
-		else
-			bcm->stats.link_quality = 3;
-//		dprintk(KERN_INFO PFX "Link Quality: %u (avg was %d)\n", bcm->stats.link_quality, average);
+		bcm->stats.noise = average;
 drop_calculation:
 		bcm->noisecalc.calculation_running = 0;
 		return;
