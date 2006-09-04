@@ -344,7 +344,7 @@ static void find_metapath(struct gfs2_inode *ip, u64 block,
 	unsigned int i;
 
 	for (i = ip->i_di.di_height; i--;)
-		mp->mp_list[i] = (__u16)do_div(b, sdp->sd_inptrs);
+		mp->mp_list[i] = do_div(b, sdp->sd_inptrs);
 
 }
 

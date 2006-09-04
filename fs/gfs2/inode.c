@@ -47,40 +47,41 @@
 void gfs2_inode_attr_in(struct gfs2_inode *ip)
 {
 	struct inode *inode = &ip->i_inode;
+	struct gfs2_dinode *di = &ip->i_di;
 
 	inode->i_ino = ip->i_num.no_addr;
 
-	switch (ip->i_di.di_mode & S_IFMT) {
+	switch (di->di_mode & S_IFMT) {
 	case S_IFBLK:
 	case S_IFCHR:
-		inode->i_rdev = MKDEV(ip->i_di.di_major, ip->i_di.di_minor);
+		inode->i_rdev = MKDEV(di->di_major, di->di_minor);
 		break;
 	default:
 		inode->i_rdev = 0;
 		break;
 	};
 
-	inode->i_mode = ip->i_di.di_mode;
-	inode->i_nlink = ip->i_di.di_nlink;
-	inode->i_uid = ip->i_di.di_uid;
-	inode->i_gid = ip->i_di.di_gid;
-	i_size_write(inode, ip->i_di.di_size);
-	inode->i_atime.tv_sec = ip->i_di.di_atime;
-	inode->i_mtime.tv_sec = ip->i_di.di_mtime;
-	inode->i_ctime.tv_sec = ip->i_di.di_ctime;
+	inode->i_mode = di->di_mode;
+	inode->i_nlink = di->di_nlink;
+	inode->i_uid = di->di_uid;
+	inode->i_gid = di->di_gid;
+	i_size_write(inode, di->di_size);
+	inode->i_atime.tv_sec = di->di_atime;
+	inode->i_mtime.tv_sec = di->di_mtime;
+	inode->i_ctime.tv_sec = di->di_ctime;
 	inode->i_atime.tv_nsec = 0;
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
 	inode->i_blksize = PAGE_SIZE;
-	inode->i_blocks = ip->i_di.di_blocks <<
+	inode->i_blocks = di->di_blocks <<
 		(GFS2_SB(inode)->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT);
 
-	if (ip->i_di.di_flags & GFS2_DIF_IMMUTABLE)
+	if (di->di_flags & GFS2_DIF_IMMUTABLE)
 		inode->i_flags |= S_IMMUTABLE;
 	else
 		inode->i_flags &= ~S_IMMUTABLE;
 
-	if (ip->i_di.di_flags & GFS2_DIF_APPENDONLY)
+	if (di->di_flags & GFS2_DIF_APPENDONLY)
 		inode->i_flags |= S_APPEND;
 	else
 		inode->i_flags &= ~S_APPEND;
