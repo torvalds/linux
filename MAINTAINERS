@@ -3296,10 +3296,11 @@ S:	Maintained
 
 XFS FILESYSTEM
 P:	Silicon Graphics Inc
+P:	Tim Shimmin, David Chatterton
 M:	xfs-masters@oss.sgi.com
-M:	nathans@sgi.com
 L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs
+T:	git git://oss.sgi.com:8090/xfs/xfs-2.6
 S:	Supported
 
 X86 3-LEVEL PAGING (PAE) SUPPORT

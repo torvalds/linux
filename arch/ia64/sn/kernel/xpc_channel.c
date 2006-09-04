@@ -279,8 +279,8 @@ xpc_pull_remote_cachelines(struct xpc_partition *part, void *dst,
 		return part->reason;
 	}
 
-	bte_ret = xp_bte_copy((u64) src, (u64) ia64_tpa((u64) dst),
-				(u64) cnt, (BTE_NORMAL | BTE_WACQUIRE), NULL);
+	bte_ret = xp_bte_copy((u64) src, (u64) dst, (u64) cnt,
+					(BTE_NORMAL | BTE_WACQUIRE), NULL);
 	if (bte_ret == BTE_SUCCESS) {
 		return xpcSuccess;
 	}

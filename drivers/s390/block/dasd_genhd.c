@@ -83,10 +83,12 @@ dasd_gendisk_alloc(struct dasd_device *device)
 void
 dasd_gendisk_free(struct dasd_device *device)
 {
-	del_gendisk(device->gdp);
-	device->gdp->queue = NULL;
-	put_disk(device->gdp);
-	device->gdp = NULL;
+	if (device->gdp) {
+		del_gendisk(device->gdp);
+		device->gdp->queue = NULL;
+		put_disk(device->gdp);
+		device->gdp = NULL;
+	}
 }
 
 /*

@@ -4,6 +4,7 @@
 #ifdef __KERNEL__
 
 #include <linux/types.h>
+#include <asm/cpufeature.h>
 
 struct alt_instr {
 	u8 *instr; 		/* original instruction */
@@ -102,9 +103,6 @@ static inline void alternatives_smp_switch(int smp) {}
 /*
  * Alternative inline assembly for SMP.
  *
- * alternative_smp() takes two versions (SMP first, UP second) and is
- * for more complex stuff such as spinlocks.
- *
  * The LOCK_PREFIX macro defined here replaces the LOCK and
  * LOCK_PREFIX macros used everywhere in the source tree.
  *
@@ -124,21 +122,6 @@ static inline void alternatives_smp_switch(int smp) {}
  */
 
 #ifdef CONFIG_SMP
-#define alternative_smp(smpinstr, upinstr, args...)			\
-	asm volatile ("661:\n\t" smpinstr "\n662:\n"			\
-		      ".section .smp_altinstructions,\"a\"\n"		\
-		      "  .align 8\n"					\
-		      "  .quad 661b\n"            /* label */		\
-		      "  .quad 663f\n"		  /* new instruction */	\
-		      "  .byte 0x66\n"            /* X86_FEATURE_UP */	\
-		      "  .byte 662b-661b\n"       /* sourcelen */	\
-		      "  .byte 664f-663f\n"       /* replacementlen */	\
-		      ".previous\n"					\
-		      ".section .smp_altinstr_replacement,\"awx\"\n"	\
-		      "663:\n\t" upinstr "\n"     /* replacement */	\
-		      "664:\n\t.fill 662b-661b,1,0x42\n" /* space for original */ \
-		      ".previous" : args)
-
 #define LOCK_PREFIX \
 		".section .smp_locks,\"a\"\n"	\
 		"  .align 8\n"			\
@@ -147,8 +130,6 @@ static inline void alternatives_smp_switch(int smp) {}
 	       	"661:\n\tlock; "
 
 #else /* ! CONFIG_SMP */
-#define alternative_smp(smpinstr, upinstr, args...) \
-	asm volatile (upinstr : args)
 #define LOCK_PREFIX ""
 #endif
 

@@ -175,6 +175,14 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 		}
 		break;
 
+	case R200_EMIT_VAP_CTL:{
+			RING_LOCALS;
+			BEGIN_RING(2);
+			OUT_RING_REG(RADEON_SE_TCL_STATE_FLUSH, 0);
+			ADVANCE_RING();
+		}
+		break;
+
 	case RADEON_EMIT_RB3D_COLORPITCH:
 	case RADEON_EMIT_RE_LINE_PATTERN:
 	case RADEON_EMIT_SE_LINE_WIDTH:
@@ -202,7 +210,6 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 	case R200_EMIT_TCL_LIGHT_MODEL_CTL_0:
 	case R200_EMIT_TFACTOR_0:
 	case R200_EMIT_VTX_FMT_0:
-	case R200_EMIT_VAP_CTL:
 	case R200_EMIT_MATRIX_SELECT_0:
 	case R200_EMIT_TEX_PROC_CTL_2:
 	case R200_EMIT_TCL_UCP_VERT_BLEND_CTL:

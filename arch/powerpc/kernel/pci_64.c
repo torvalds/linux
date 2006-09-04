@@ -1289,6 +1289,9 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 
 	DBG("Try to map irq for %s...\n", pci_name(pci_dev));
 
+#ifdef DEBUG
+	memset(&oirq, 0xff, sizeof(oirq));
+#endif
 	/* Try to get a mapping from the device-tree */
 	if (of_irq_map_pci(pci_dev, &oirq)) {
 		u8 line, pin;
@@ -1314,8 +1317,9 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 		if (virq != NO_IRQ)
 			set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
 	} else {
-		DBG(" -> got one, spec %d cells (0x%08x...) on %s\n",
-		    oirq.size, oirq.specifier[0], oirq.controller->full_name);
+		DBG(" -> got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
+		    oirq.size, oirq.specifier[0], oirq.specifier[1],
+		    oirq.controller->full_name);
 
 		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
 					     oirq.size);
@@ -1324,6 +1328,9 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 		DBG(" -> failed to map !\n");
 		return -1;
 	}
+
+	DBG(" -> mapped to linux irq %d\n", virq);
+
 	pci_dev->irq = virq;
 	pci_write_config_byte(pci_dev, PCI_INTERRUPT_LINE, virq);
 

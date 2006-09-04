@@ -72,6 +72,7 @@ static const struct smb_to_posix_error mapping_table_ERRDOS[] = {
 	{ERRinvlevel,-EOPNOTSUPP},
 	{ERRdirnotempty, -ENOTEMPTY},
 	{ERRnotlocked, -ENOLCK},
+	{ERRcancelviolation, -ENOLCK},
 	{ERRalreadyexists, -EEXIST},
 	{ERRmoredata, -EOVERFLOW},
 	{ERReasnotsupported,-EOPNOTSUPP},

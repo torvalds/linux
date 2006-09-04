@@ -183,11 +183,9 @@ ccwgroup_create(struct device *root,
 
 	gdev->creator_id = creator_id;
 	gdev->count = argc;
-	gdev->dev = (struct device ) {
-		.bus = &ccwgroup_bus_type,
-		.parent = root,
-		.release = ccwgroup_release,
-	};
+	gdev->dev.bus = &ccwgroup_bus_type;
+	gdev->dev.parent = root;
+	gdev->dev.release = ccwgroup_release;
 
 	snprintf (gdev->dev.bus_id, BUS_ID_SIZE, "%s",
 			gdev->cdev[0]->dev.bus_id);
@@ -391,10 +389,8 @@ int
 ccwgroup_driver_register (struct ccwgroup_driver *cdriver)
 {
 	/* register our new driver with the core */
-	cdriver->driver = (struct device_driver) {
-		.bus = &ccwgroup_bus_type,
-		.name = cdriver->name,
-	};
+	cdriver->driver.bus = &ccwgroup_bus_type;
+	cdriver->driver.name = cdriver->name;
 
 	return driver_register(&cdriver->driver);
 }

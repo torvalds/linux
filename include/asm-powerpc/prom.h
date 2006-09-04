@@ -276,6 +276,7 @@ extern void of_irq_map_init(unsigned int flags);
  * of_irq_map_raw - Low level interrupt tree parsing
  * @parent:	the device interrupt parent
  * @intspec:	interrupt specifier ("interrupts" property of the device)
+ * @ointsize:   size of the passed in interrupt specifier
  * @addr:	address specifier (start of "reg" property of the device)
  * @out_irq:	structure of_irq filled by this function
  *
@@ -288,7 +289,8 @@ extern void of_irq_map_init(unsigned int flags);
  *
  */
 
-extern int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 *addr,
+extern int of_irq_map_raw(struct device_node *parent, u32 *intspec,
+			  u32 ointsize, u32 *addr,
 			  struct of_irq *out_irq);
 
 

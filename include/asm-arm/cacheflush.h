@@ -247,14 +247,12 @@ extern void dmac_flush_range(unsigned long, unsigned long);
  */
 #define copy_to_user_page(vma, page, vaddr, dst, src, len) \
 	do {							\
-		flush_cache_page(vma, vaddr, page_to_pfn(page));\
 		memcpy(dst, src, len);				\
-		flush_dcache_page(page);			\
+		flush_ptrace_access(vma, page, vaddr, dst, len, 1);\
 	} while (0)
 
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	do {							\
-		flush_cache_page(vma, vaddr, page_to_pfn(page));\
 		memcpy(dst, src, len);				\
 	} while (0)
 
@@ -285,10 +283,24 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned l
 		__cpuc_flush_user_range(addr, addr + PAGE_SIZE, vma->vm_flags);
 	}
 }
+
+static inline void
+flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
+			 unsigned long uaddr, void *kaddr,
+			 unsigned long len, int write)
+{
+	if (cpu_isset(smp_processor_id(), vma->vm_mm->cpu_vm_mask)) {
+		unsigned long addr = (unsigned long)kaddr;
+		__cpuc_coherent_kern_range(addr, addr + len);
+	}
+}
 #else
 extern void flush_cache_mm(struct mm_struct *mm);
 extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
 extern void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned long pfn);
+extern void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
+				unsigned long uaddr, void *kaddr,
+				unsigned long len, int write);
 #endif
 
 /*
