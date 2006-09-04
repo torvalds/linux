@@ -33,7 +33,6 @@
 #include <linux/timex.h>
 
 static unsigned long clocktick __read_mostly;	/* timer cycles per tick */
-static unsigned long halftick __read_mostly;
 
 #ifdef CONFIG_SMP
 extern void smp_do_timer(struct pt_regs *regs);
@@ -47,6 +46,9 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
         unsigned long cycles_remainder;
 	unsigned long ticks_elapsed = 1;	/* at least one elapsed */
 	int cpu = smp_processor_id();
+
+	/* gcc can optimize for "read-only" case with a local clocktick */
+	unsigned long local_ct = clocktick;
 
 	profile_tick(CPU_PROFILING, regs);
 
@@ -74,8 +76,16 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		cycles_elapsed = ~cycles_elapsed;   /* off by one cycle - don't care */
 	}
 
-	ticks_elapsed += cycles_elapsed / clocktick;
-	cycles_remainder = cycles_elapsed % clocktick;
+	if (likely(cycles_elapsed < local_ct)) {
+		/* ticks_elapsed = 1 -- We already assumed one tick elapsed. */
+		cycles_remainder = cycles_elapsed;
+	} else {
+		/* more than one tick elapsed. Do "expensive" math. */
+		ticks_elapsed += cycles_elapsed / local_ct;
+
+		/* Faster version of "remainder = elapsed % clocktick" */
+		cycles_remainder = cycles_elapsed - (ticks_elapsed * local_ct);
+	}
 
 	/* Can we differentiate between "early CR16" (aka Scenario 1) and
 	 * "long delay" (aka Scenario 3)? I don't think so.
@@ -86,14 +96,12 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 */
 	if (ticks_elapsed > HZ) {
 		/* Scenario 3: very long delay?  bad in any case */
-		printk (KERN_CRIT "timer_interrupt(CPU %d): delayed! run ntpdate"
+		printk (KERN_CRIT "timer_interrupt(CPU %d): delayed!"
 			" ticks %ld cycles %lX rem %lX"
 			" next/now %lX/%lX\n",
 			cpu,
 			ticks_elapsed, cycles_elapsed, cycles_remainder,
 			next_tick, now );
-
-		ticks_elapsed = 1;	/* hack to limit damage in loop below */
 	}
 
 
@@ -101,12 +109,19 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * We want IT to fire modulo clocktick even if we miss/skip some.
 	 * But those interrupts don't in fact get delivered that regularly.
 	 */
-	next_tick = now + (clocktick - cycles_remainder);
+	next_tick = now + (local_ct - cycles_remainder);
+
+	/* Skip one clocktick on purpose if we are likely to miss next_tick.
+	 * We'll catch what we missed on the tick after that.
+	 * We should never need 0x1000 cycles to read CR16, calc the
+	 * new next_tick, then write CR16 back. */
+	if (!((local_ct - cycles_remainder) >> 12))
+		next_tick += local_ct;
 
 	/* Program the IT when to deliver the next interrupt. */
         /* Only bottom 32-bits of next_tick are written to cr16.  */
-	mtctl(next_tick, 16);
 	cpu_data[cpu].it_value = next_tick;
+	mtctl(next_tick, 16);
 
 	/* Now that we are done mucking with unreliable delivery of interrupts,
 	 * go do system house keeping.
@@ -169,35 +184,37 @@ gettimeoffset (void)
 	unsigned long next_tick;
 	unsigned long elapsed_cycles;
 	unsigned long usec;
+	unsigned long cpuid = smp_processor_id();
+	unsigned long local_ct = clocktick;
 
-	next_tick = cpu_data[smp_processor_id()].it_value;
+	next_tick = cpu_data[cpuid].it_value;
 	now = mfctl(16);	/* Read the hardware interval timer.  */
 
-	prev_tick = next_tick - clocktick;
+	prev_tick = next_tick - local_ct;
 
 	/* Assume Scenario 1: "now" is later than prev_tick.  */
 	elapsed_cycles = now - prev_tick;
 
 	if (now < prev_tick) {
 		/* Scenario 2: CR16 wrapped!
-		 * 1's complement is close enough.
+		 * ones complement is off-by-one. Don't care.
 		 */
 		elapsed_cycles = ~elapsed_cycles;
 	}
 
-	if (elapsed_cycles > (HZ * clocktick)) {
+	if (elapsed_cycles > (HZ * local_ct)) {
 		/* Scenario 3: clock ticks are missing. */
 		printk (KERN_CRIT "gettimeoffset(CPU %d): missing ticks!"
 			"cycles %lX prev/now/next %lX/%lX/%lX  clock %lX\n",
 			cpuid,
-			elapsed_cycles, prev_tick, now, next_tick, clocktick);
+			 elapsed_cycles, prev_tick, now, next_tick, local_ct);
 	}
 
 	/* FIXME: Can we improve the precision? Not with PAGE0. */
 	usec = (elapsed_cycles * 10000) / PAGE0->mem_10msec;
 
 	/* add in "lost" jiffies */
-	usec += clocktick * (jiffies - wall_jiffies);
+	usec += local_ct * (jiffies - wall_jiffies);
 	return usec;
 #else
 	return 0;
@@ -290,7 +307,6 @@ void __init time_init(void)
 	static struct pdc_tod tod_data;
 
 	clocktick = (100 * PAGE0->mem_10msec) / HZ;
-	halftick = clocktick / 2;
 
 	start_cpu_itimer();	/* get CPU 0 started */
 
