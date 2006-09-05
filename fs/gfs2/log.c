@@ -177,7 +177,6 @@ int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 		gfs2_log_lock(sdp);
 	}
 	sdp->sd_log_blks_free -= blks;
-	/* printk(KERN_INFO "reserved %u blocks (%u left)\n", blks, sdp->sd_log_blks_free); */
 	gfs2_log_unlock(sdp);
 	mutex_unlock(&sdp->sd_log_reserve_mutex);
 
@@ -198,7 +197,6 @@ void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 
 	gfs2_log_lock(sdp);
 	sdp->sd_log_blks_free += blks;
-	/* printk(KERN_INFO "released %u blocks (%u left)\n", blks, sdp->sd_log_blks_free); */
 	gfs2_assert_withdraw(sdp,
 			     sdp->sd_log_blks_free <= sdp->sd_jdesc->jd_blocks);
 	gfs2_log_unlock(sdp);
@@ -213,9 +211,8 @@ static u64 log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 	int bdy;
 
 	error = gfs2_block_map(sdp->sd_jdesc->jd_inode, lbn, &new, &dbn, &bdy);
-	if (!(!error && dbn)) {
+	if (error || !dbn)
 		printk(KERN_INFO "error=%d, dbn=%llu lbn=%u", error, (unsigned long long)dbn, lbn);
-	}
 	gfs2_assert_withdraw(sdp, !error && dbn);
 
 	return dbn;
@@ -414,13 +411,6 @@ static void log_flush_commit(struct gfs2_sbd *sdp)
 	struct list_head *head = &sdp->sd_log_flush_list;
 	struct gfs2_log_buf *lb;
 	struct buffer_head *bh;
-#if 0
-	unsigned int d;
-
-	d = log_distance(sdp, sdp->sd_log_flush_head, sdp->sd_log_head);
-
-	gfs2_assert_withdraw(sdp, d + 1 == sdp->sd_log_blks_reserved);
-#endif
 
 	while (!list_empty(head)) {
 		lb = list_entry(head->next, struct gfs2_log_buf, lb_list);

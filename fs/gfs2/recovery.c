@@ -306,8 +306,8 @@ static int foreach_descriptor(struct gfs2_jdesc *jd, unsigned int start,
 	u32 length;
 	__be64 *ptr;
 	unsigned int offset = sizeof(struct gfs2_log_descriptor);
-	offset += (sizeof(__be64)-1);
-	offset &= ~(sizeof(__be64)-1);
+	offset += sizeof(__be64) - 1;
+	offset &= ~(sizeof(__be64) - 1);
 
 	while (start != end) {
 		error = gfs2_replay_read_block(jd, start, &bh);

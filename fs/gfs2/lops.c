@@ -518,7 +518,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	unsigned int num, n;
 	__be64 *ptr = NULL;
 
-	offset += (2*sizeof(__be64) - 1);
+	offset += 2*sizeof(__be64) - 1;
 	offset &= ~(2*sizeof(__be64) - 1);
 	limit = (sdp->sd_sb.sb_bsize - offset)/sizeof(__be64);
 
