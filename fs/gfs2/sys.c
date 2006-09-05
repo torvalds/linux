@@ -223,7 +223,7 @@ static struct kobj_type gfs2_ktype = {
 
 static struct kset gfs2_kset = {
 	.subsys = &fs_subsys,
-	.kobj   = {.name = "gfs2",},
+	.kobj   = {.name = "gfs2"},
 	.ktype  = &gfs2_ktype,
 };
 

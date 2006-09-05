@@ -29,7 +29,7 @@
 #include "ops_file.h"
 #include "util.h"
 
-#define BFITNOENT (u32)~0
+#define BFITNOENT ((u32)~0)
 
 /*
  * These routines are used by the resource group routines (rgrp.c)
@@ -691,17 +691,6 @@ struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip)
 	/* FIXME: Should assert that the correct locks are held here... */
 	memset(al, 0, sizeof(*al));
 	return al;
-}
-
-/**
- * gfs2_alloc_put - throw away the struct gfs2_alloc for an inode
- * @ip: the inode
- *
- */
-
-void gfs2_alloc_put(struct gfs2_inode *ip)
-{
-	return;
 }
 
 /**
