@@ -179,17 +179,19 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 static inline struct safe_buffer *
 find_safe_buffer(struct dmabounce_device_info *device_info, dma_addr_t safe_dma_addr)
 {
-	struct safe_buffer *b = NULL;
+	struct safe_buffer *b, *rb = NULL;
 	unsigned long flags;
 
 	read_lock_irqsave(&device_info->lock, flags);
 
 	list_for_each_entry(b, &device_info->safe_buffers, node)
-		if (b->safe_dma_addr == safe_dma_addr)
+		if (b->safe_dma_addr == safe_dma_addr) {
+			rb = b;
 			break;
+		}
 
 	read_unlock_irqrestore(&device_info->lock, flags);
-	return b;
+	return rb;
 }
 
 static inline void

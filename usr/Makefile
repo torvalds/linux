@@ -35,6 +35,9 @@ quiet_cmd_initfs = GEN     $@
       cmd_initfs = $(initramfs) -o $@ $(ramfs-args) $(ramfs-input)
 
 targets := initramfs_data.cpio.gz
+# do not try to update files included in initramfs
+$(deps_initramfs): ;
+
 $(deps_initramfs): klibcdirs
 # We rebuild initramfs_data.cpio.gz if:
 # 1) Any included file is newer then initramfs_data.cpio.gz

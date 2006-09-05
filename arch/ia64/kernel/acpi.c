@@ -55,7 +55,7 @@
 
 #define BAD_MADT_ENTRY(entry, end) (                                        \
 		(!entry) || (unsigned long)entry + sizeof(*entry) > end ||  \
-		((acpi_table_entry_header *)entry)->length != sizeof(*entry))
+		((acpi_table_entry_header *)entry)->length < sizeof(*entry))
 
 #define PREFIX			"ACPI: "
 

@@ -2377,6 +2377,9 @@ int uart_match_port(struct uart_port *port1, struct uart_port *port2)
 		return (port1->iobase == port2->iobase) &&
 		       (port1->hub6   == port2->hub6);
 	case UPIO_MEM:
+	case UPIO_MEM32:
+	case UPIO_AU:
+	case UPIO_TSI:
 		return (port1->mapbase == port2->mapbase);
 	}
 	return 0;

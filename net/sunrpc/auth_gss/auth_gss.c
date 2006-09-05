@@ -718,8 +718,7 @@ gss_destroy(struct rpc_auth *auth)
 		auth, auth->au_flavor);
 
 	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
-	rpc_unlink(gss_auth->path);
-	dput(gss_auth->dentry);
+	rpc_unlink(gss_auth->dentry);
 	gss_auth->dentry = NULL;
 	gss_mech_put(gss_auth->mech);
 

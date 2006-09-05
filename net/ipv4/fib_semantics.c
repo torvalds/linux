@@ -159,7 +159,7 @@ void free_fib_info(struct fib_info *fi)
 
 void fib_release_info(struct fib_info *fi)
 {
-	write_lock(&fib_info_lock);
+	write_lock_bh(&fib_info_lock);
 	if (fi && --fi->fib_treeref == 0) {
 		hlist_del(&fi->fib_hash);
 		if (fi->fib_prefsrc)
@@ -172,7 +172,7 @@ void fib_release_info(struct fib_info *fi)
 		fi->fib_dead = 1;
 		fib_info_put(fi);
 	}
-	write_unlock(&fib_info_lock);
+	write_unlock_bh(&fib_info_lock);
 }
 
 static __inline__ int nh_comp(const struct fib_info *fi, const struct fib_info *ofi)
@@ -598,7 +598,7 @@ static void fib_hash_move(struct hlist_head *new_info_hash,
 	unsigned int old_size = fib_hash_size;
 	unsigned int i, bytes;
 
-	write_lock(&fib_info_lock);
+	write_lock_bh(&fib_info_lock);
 	old_info_hash = fib_info_hash;
 	old_laddrhash = fib_info_laddrhash;
 	fib_hash_size = new_size;
@@ -639,7 +639,7 @@ static void fib_hash_move(struct hlist_head *new_info_hash,
 	}
 	fib_info_laddrhash = new_laddrhash;
 
-	write_unlock(&fib_info_lock);
+	write_unlock_bh(&fib_info_lock);
 
 	bytes = old_size * sizeof(struct hlist_head *);
 	fib_hash_free(old_info_hash, bytes);
@@ -820,7 +820,7 @@ link_it:
 
 	fi->fib_treeref++;
 	atomic_inc(&fi->fib_clntref);
-	write_lock(&fib_info_lock);
+	write_lock_bh(&fib_info_lock);
 	hlist_add_head(&fi->fib_hash,
 		       &fib_info_hash[fib_info_hashfn(fi)]);
 	if (fi->fib_prefsrc) {
@@ -839,7 +839,7 @@ link_it:
 		head = &fib_info_devhash[hash];
 		hlist_add_head(&nh->nh_hash, head);
 	} endfor_nexthops(fi)
-	write_unlock(&fib_info_lock);
+	write_unlock_bh(&fib_info_lock);
 	return fi;
 
 err_inval:

@@ -477,7 +477,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		/* BB get server time for time conversions and add
 		code to use it and timezone since this is not UTC */	
 
-		if (rsp->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
+		if (rsp->EncryptionKeyLength == cpu_to_le16(CIFS_CRYPTO_KEY_SIZE)) {
 			memcpy(server->cryptKey, rsp->EncryptionKey,
 				CIFS_CRYPTO_KEY_SIZE);
 		} else if (server->secMode & SECMODE_PW_ENCRYPT) {
@@ -1460,8 +1460,13 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 	pSMB->hdr.smb_buf_length += count;
 	pSMB->ByteCount = cpu_to_le16(count);
 
-	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+	if (waitFlag) {
+		rc = SendReceiveBlockingLock(xid, tcon, (struct smb_hdr *) pSMB,
+			(struct smb_hdr *) pSMBr, &bytes_returned);
+	} else {
+		rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, timeout);
+	}
 	cifs_stats_inc(&tcon->num_locks);
 	if (rc) {
 		cFYI(1, ("Send error in Lock = %d", rc));
@@ -1484,6 +1489,7 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 	char *data_offset;
 	struct cifs_posix_lock *parm_data;
 	int rc = 0;
+	int timeout = 0;
 	int bytes_returned = 0;
 	__u16 params, param_offset, offset, byte_count, count;
 
@@ -1503,7 +1509,6 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 	pSMB->MaxSetupCount = 0;
 	pSMB->Reserved = 0;
 	pSMB->Flags = 0;
-	pSMB->Timeout = 0;
 	pSMB->Reserved2 = 0;
 	param_offset = offsetof(struct smb_com_transaction2_sfi_req, Fid) - 4;
 	offset = param_offset + params;
@@ -1529,8 +1534,13 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 			(((char *) &pSMB->hdr.Protocol) + offset);
 
 	parm_data->lock_type = cpu_to_le16(lock_type);
-	if(waitFlag)
+	if(waitFlag) {
+		timeout = 3;  /* blocking operation, no timeout */
 		parm_data->lock_flags = cpu_to_le16(1);
+		pSMB->Timeout = cpu_to_le32(-1);
+	} else
+		pSMB->Timeout = 0;
+
 	parm_data->pid = cpu_to_le32(current->tgid);
 	parm_data->start = cpu_to_le64(pLockData->fl_start);
 	parm_data->length = cpu_to_le64(len);  /* normalize negative numbers */
@@ -1541,8 +1551,14 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 	pSMB->Reserved4 = 0;
 	pSMB->hdr.smb_buf_length += byte_count;
 	pSMB->ByteCount = cpu_to_le16(byte_count);
-	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
-			(struct smb_hdr *) pSMBr, &bytes_returned, 0);
+	if (waitFlag) {
+		rc = SendReceiveBlockingLock(xid, tcon, (struct smb_hdr *) pSMB,
+			(struct smb_hdr *) pSMBr, &bytes_returned);
+	} else {
+		rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+			(struct smb_hdr *) pSMBr, &bytes_returned, timeout);
+	}
+
 	if (rc) {
 		cFYI(1, ("Send error in Posix Lock = %d", rc));
 	} else if (get_flag) {

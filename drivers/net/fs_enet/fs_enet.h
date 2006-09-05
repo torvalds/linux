@@ -5,6 +5,7 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/phy.h>
 
 #include <linux/fs_enet_pd.h>
 
@@ -12,11 +13,29 @@
 
 #ifdef CONFIG_CPM1
 #include <asm/commproc.h>
+
+struct fec_info {
+        fec_t*  fecp;
+	u32     mii_speed;
+};
 #endif
 
 #ifdef CONFIG_CPM2
 #include <asm/cpm2.h>
 #endif
+
+/* This is used to operate with pins.
+  Note that the actual port size may
+    be different; cpm(s) handle it OK  */
+struct bb_info {
+	u8 mdio_dat_msk;
+	u8 mdio_dir_msk;
+	u8 *mdio_dir;
+	u8 *mdio_dat;
+	u8 mdc_msk;
+	u8 *mdc_dat;
+	int delay;
+};
 
 /* hw driver ops */
 struct fs_ops {
@@ -25,6 +44,7 @@ struct fs_ops {
 	void (*free_bd)(struct net_device *dev);
 	void (*cleanup_data)(struct net_device *dev);
 	void (*set_multicast_list)(struct net_device *dev);
+	void (*adjust_link)(struct net_device *dev);
 	void (*restart)(struct net_device *dev);
 	void (*stop)(struct net_device *dev);
 	void (*pre_request_irq)(struct net_device *dev, int irq);
@@ -100,10 +120,6 @@ struct fs_enet_mii_bus {
 	};
 };
 
-int fs_mii_bitbang_init(struct fs_enet_mii_bus *bus);
-int fs_mii_fixed_init(struct fs_enet_mii_bus *bus);
-int fs_mii_fec_init(struct fs_enet_mii_bus *bus);
-
 struct fs_enet_private {
 	struct device *dev;	/* pointer back to the device (must be initialized first) */
 	spinlock_t lock;	/* during all ops except TX pckt processing */
@@ -130,7 +146,8 @@ struct fs_enet_private {
 	struct fs_enet_mii_bus *mii_bus;
 	int interrupt;
 
-	int duplex, speed;	/* current settings */
+	struct phy_device *phydev;
+	int oldduplex, oldspeed, oldlink;	/* current settings */
 
 	/* event masks */
 	u32 ev_napi_rx;		/* mask of NAPI rx events */
@@ -168,15 +185,9 @@ struct fs_enet_private {
 };
 
 /***************************************************************************/
-
-int fs_mii_read(struct net_device *dev, int phy_id, int location);
-void fs_mii_write(struct net_device *dev, int phy_id, int location, int value);
-
-void fs_mii_startup(struct net_device *dev);
-void fs_mii_shutdown(struct net_device *dev);
-void fs_mii_ack_int(struct net_device *dev);
-
-void fs_mii_link_status_change_check(struct net_device *dev, int init_media);
+int fs_enet_mdio_bb_init(void);
+int fs_mii_fixed_init(struct fs_enet_mii_bus *bus);
+int fs_enet_mdio_fec_init(void);
 
 void fs_init_bds(struct net_device *dev);
 void fs_cleanup_bds(struct net_device *dev);
@@ -194,7 +205,6 @@ int fs_enet_platform_init(void);
 void fs_enet_platform_cleanup(void);
 
 /***************************************************************************/
-
 /* buffer descriptor access macros */
 
 /* access macros */

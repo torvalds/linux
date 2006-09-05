@@ -567,16 +567,11 @@ static struct cpufreq_driver acpi_cpufreq_driver = {
 static int __init
 acpi_cpufreq_init (void)
 {
-	int                     result = 0;
-
 	dprintk("acpi_cpufreq_init\n");
 
-	result = acpi_cpufreq_early_init_acpi();
+	acpi_cpufreq_early_init_acpi();
 
-	if (!result)
- 		result = cpufreq_register_driver(&acpi_cpufreq_driver);
-	
-	return (result);
+ 	return cpufreq_register_driver(&acpi_cpufreq_driver);
 }
 
 

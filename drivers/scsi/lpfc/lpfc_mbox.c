@@ -651,3 +651,19 @@ lpfc_mbox_get(struct lpfc_hba * phba)
 
 	return mbq;
 }
+
+int
+lpfc_mbox_tmo_val(struct lpfc_hba *phba, int cmd)
+{
+	switch (cmd) {
+	case MBX_WRITE_NV:	/* 0x03 */
+	case MBX_UPDATE_CFG:	/* 0x1B */
+	case MBX_DOWN_LOAD:	/* 0x1C */
+	case MBX_DEL_LD_ENTRY:	/* 0x1D */
+	case MBX_LOAD_AREA:	/* 0x81 */
+	case MBX_FLASH_WR_ULA:  /* 0x98 */
+	case MBX_LOAD_EXP_ROM:	/* 0x9C */
+		return LPFC_MBOX_TMO_FLASH_CMD;
+	}
+	return LPFC_MBOX_TMO;
+}

@@ -24,6 +24,21 @@
 #include "ioasm.h"
 
 /*
+ * Helper function called from interrupt context to decide whether an
+ * operation should be tried again.
+ */
+static int __ccw_device_should_retry(struct scsw *scsw)
+{
+	/* CC is only valid if start function bit is set. */
+	if ((scsw->fctl & SCSW_FCTL_START_FUNC) && scsw->cc == 1)
+		return 1;
+	/* No more activity. For sense and set PGID we stubbornly try again. */
+	if (!scsw->actl)
+		return 1;
+	return 0;
+}
+
+/*
  * Start Sense Path Group ID helper function. Used in ccw_device_recog
  * and ccw_device_sense_pgid.
  */
@@ -155,10 +170,10 @@ ccw_device_sense_pgid_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	int ret;
 
 	irb = (struct irb *) __LC_IRB;
-	/* Retry sense pgid for cc=1. */
+
 	if (irb->scsw.stctl ==
 	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
-		if (irb->scsw.cc == 1) {
+		if (__ccw_device_should_retry(&irb->scsw)) {
 			ret = __ccw_device_sense_pgid_start(cdev);
 			if (ret && ret != -EBUSY)
 				ccw_device_sense_pgid_done(cdev, ret);
@@ -391,10 +406,10 @@ ccw_device_verify_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	int ret;
 
 	irb = (struct irb *) __LC_IRB;
-	/* Retry set pgid for cc=1. */
+
 	if (irb->scsw.stctl ==
 	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
-		if (irb->scsw.cc == 1)
+		if (__ccw_device_should_retry(&irb->scsw))
 			__ccw_device_verify_start(cdev);
 		return;
 	}
@@ -494,10 +509,10 @@ ccw_device_disband_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	int ret;
 
 	irb = (struct irb *) __LC_IRB;
-	/* Retry set pgid for cc=1. */
+
 	if (irb->scsw.stctl ==
 	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
-		if (irb->scsw.cc == 1)
+		if (__ccw_device_should_retry(&irb->scsw))
 			__ccw_device_disband_start(cdev);
 		return;
 	}

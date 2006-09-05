@@ -429,9 +429,9 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 			cb->args[0], *id);
 
 	read_lock_bh(&nf_conntrack_lock);
+	last = (struct nf_conn *)cb->args[1];
 	for (; cb->args[0] < nf_conntrack_htable_size; cb->args[0]++) {
 restart:
-		last = (struct nf_conn *)cb->args[1];
 		list_for_each_prev(i, &nf_conntrack_hash[cb->args[0]]) {
 			h = (struct nf_conntrack_tuple_hash *) i;
 			if (DIRECTION(h) != IP_CT_DIR_ORIGINAL)
@@ -442,13 +442,10 @@ restart:
 			 * then dump everything. */
 			if (l3proto && L3PROTO(ct) != l3proto)
 				continue;
-			if (last != NULL) {
-				if (ct == last) {
-					nf_ct_put(last);
-					cb->args[1] = 0;
-					last = NULL;
-				} else
+			if (cb->args[1]) {
+				if (ct != last)
 					continue;
+				cb->args[1] = 0;
 			}
 			if (ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
 		                        	cb->nlh->nlmsg_seq,
@@ -459,17 +456,17 @@ restart:
 				goto out;
 			}
 		}
-		if (last != NULL) {
-			nf_ct_put(last);
+		if (cb->args[1]) {
 			cb->args[1] = 0;
 			goto restart;
 		}
 	}
 out:
 	read_unlock_bh(&nf_conntrack_lock);
+	if (last)
+		nf_ct_put(last);
 
 	DEBUGP("leaving, last bucket=%lu id=%u\n", cb->args[0], *id);
-
 	return skb->len;
 }
 

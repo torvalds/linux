@@ -372,7 +372,7 @@ static void uhci_fixup_toggles(struct uhci_qh *qh, int skip_first)
 		 * need to change any toggles in this URB */
 		td = list_entry(urbp->td_list.next, struct uhci_td, list);
 		if (toggle > 1 || uhci_toggle(td_token(td)) == toggle) {
-			td = list_entry(urbp->td_list.next, struct uhci_td,
+			td = list_entry(urbp->td_list.prev, struct uhci_td,
 					list);
 			toggle = uhci_toggle(td_token(td)) ^ 1;
 
@@ -1348,7 +1348,7 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh,
 		}
 
 		uhci_giveback_urb(uhci, qh, urb, regs);
-		if (status < 0)
+		if (status < 0 && qh->type != USB_ENDPOINT_XFER_ISOC)
 			break;
 	}
 

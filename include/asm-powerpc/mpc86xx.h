@@ -23,8 +23,6 @@
 #define _ISA_MEM_BASE   isa_mem_base
 #ifdef CONFIG_PCI
 #define PCI_DRAM_OFFSET pci_dram_offset
-#else
-#define PCI_DRAM_OFFSET 0
 #endif
 
 #define CPU0_BOOT_RELEASE 0x01000000
@@ -33,7 +31,6 @@
 #define MCM_PORT_CONFIG_OFFSET 0x1010
 
 /* Offset from CCSRBAR */
-#define MPC86xx_OPENPIC_OFFSET	(0x40000)
 #define MPC86xx_MCM_OFFSET      (0x00000)
 #define MPC86xx_MCM_SIZE        (0x02000)
 

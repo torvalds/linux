@@ -646,13 +646,13 @@ static unsigned char ibm_architecture_vec[] = {
 	5 - 1,				/* 5 option vectors */
 
 	/* option vector 1: processor architectures supported */
-	3 - 1,				/* length */
+	3 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
 	OV1_PPC_2_00 | OV1_PPC_2_01 | OV1_PPC_2_02 | OV1_PPC_2_03 |
 	OV1_PPC_2_04 | OV1_PPC_2_05,
 
 	/* option vector 2: Open Firmware options supported */
-	34 - 1,				/* length */
+	34 - 2,				/* length */
 	OV2_REAL_MODE,
 	0, 0,
 	W(0xffffffff),			/* real_base */
@@ -666,16 +666,16 @@ static unsigned char ibm_architecture_vec[] = {
 	48,				/* max log_2(hash table size) */
 
 	/* option vector 3: processor options supported */
-	3 - 1,				/* length */
+	3 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
 	OV3_FP | OV3_VMX,
 
 	/* option vector 4: IBM PAPR implementation */
-	2 - 1,				/* length */
+	2 - 2,				/* length */
 	0,				/* don't halt */
 
 	/* option vector 5: PAPR/OF options */
-	3 - 1,				/* length */
+	3 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
 	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES,
 };

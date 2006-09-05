@@ -521,8 +521,6 @@ static void discover_ebda(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-	unsigned long kernel_end;
-
  	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
  	screen_info = SCREEN_INFO;
 	edid_info = EDID_INFO;
@@ -596,8 +594,8 @@ void __init setup_arch(char **cmdline_p)
 				(table_end - table_start) << PAGE_SHIFT);
 
 	/* reserve kernel */
-	kernel_end = round_up(__pa_symbol(&_end),PAGE_SIZE);
-	reserve_bootmem_generic(HIGH_MEMORY, kernel_end - HIGH_MEMORY);
+	reserve_bootmem_generic(__pa_symbol(&_text),
+				__pa_symbol(&_end) - __pa_symbol(&_text));
 
 	/*
 	 * reserve physical page 0 - it's a special BIOS page on many boxes,

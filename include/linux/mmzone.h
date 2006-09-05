@@ -77,6 +77,7 @@ struct per_cpu_pages {
 struct per_cpu_pageset {
 	struct per_cpu_pages pcp[2];	/* 0: hot.  1: cold */
 #ifdef CONFIG_SMP
+	s8 stat_threshold;
 	s8 vm_stat_diff[NR_VM_ZONE_STAT_ITEMS];
 #endif
 } ____cacheline_aligned_in_smp;

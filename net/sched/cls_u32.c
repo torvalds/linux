@@ -796,7 +796,7 @@ static int __init init_u32(void)
 {
 	printk("u32 classifier\n");
 #ifdef CONFIG_CLS_U32_PERF
-	printk("    Perfomance counters on\n");
+	printk("    Performance counters on\n");
 #endif
 #ifdef CONFIG_NET_CLS_POLICE
 	printk("    OLD policer on \n");

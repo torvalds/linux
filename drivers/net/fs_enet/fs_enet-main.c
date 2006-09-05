@@ -37,6 +37,7 @@
 #include <linux/bitops.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
+#include <linux/phy.h>
 
 #include <linux/vmalloc.h>
 #include <asm/pgtable.h>
@@ -682,35 +683,6 @@ static void fs_free_irq(struct net_device *dev, int irq)
 	(*fep->ops->post_free_irq)(dev, irq);
 }
 
-/**********************************************************************************/
-
-/* This interrupt occurs when the PHY detects a link change. */
-static irqreturn_t
-fs_mii_link_interrupt(int irq, void *dev_id, struct pt_regs *regs)
-{
-	struct net_device *dev = dev_id;
-	struct fs_enet_private *fep;
-	const struct fs_platform_info *fpi;
-
-	fep = netdev_priv(dev);
-	fpi = fep->fpi;
-
-	/*
-	 * Acknowledge the interrupt if possible. If we have not
-	 * found the PHY yet we can't process or acknowledge the
-	 * interrupt now. Instead we ignore this interrupt for now,
-	 * which we can do since it is edge triggered. It will be
-	 * acknowledged later by fs_enet_open().
-	 */
-	if (!fep->phy)
-		return IRQ_NONE;
-
-	fs_mii_ack_int(dev);
-	fs_mii_link_status_change_check(dev, 0);
-
-	return IRQ_HANDLED;
-}
-
 static void fs_timeout(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
@@ -722,10 +694,13 @@ static void fs_timeout(struct net_device *dev)
 	spin_lock_irqsave(&fep->lock, flags);
 
 	if (dev->flags & IFF_UP) {
+		phy_stop(fep->phydev);
 		(*fep->ops->stop)(dev);
 		(*fep->ops->restart)(dev);
+		phy_start(fep->phydev);
 	}
 
+	phy_start(fep->phydev);
 	wake = fep->tx_free && !(CBDR_SC(fep->cur_tx) & BD_ENET_TX_READY);
 	spin_unlock_irqrestore(&fep->lock, flags);
 
@@ -733,35 +708,112 @@ static void fs_timeout(struct net_device *dev)
 		netif_wake_queue(dev);
 }
 
+/*-----------------------------------------------------------------------------
+ *  generic link-change handler - should be sufficient for most cases
+ *-----------------------------------------------------------------------------*/
+static void generic_adjust_link(struct  net_device *dev)
+{
+       struct fs_enet_private *fep = netdev_priv(dev);
+       struct phy_device *phydev = fep->phydev;
+       int new_state = 0;
+
+       if (phydev->link) {
+
+               /* adjust to duplex mode */
+               if (phydev->duplex != fep->oldduplex){
+                       new_state = 1;
+                       fep->oldduplex = phydev->duplex;
+               }
+
+               if (phydev->speed != fep->oldspeed) {
+                       new_state = 1;
+                       fep->oldspeed = phydev->speed;
+               }
+
+               if (!fep->oldlink) {
+                       new_state = 1;
+                       fep->oldlink = 1;
+                       netif_schedule(dev);
+                       netif_carrier_on(dev);
+                       netif_start_queue(dev);
+               }
+
+               if (new_state)
+                       fep->ops->restart(dev);
+
+       } else if (fep->oldlink) {
+               new_state = 1;
+               fep->oldlink = 0;
+               fep->oldspeed = 0;
+               fep->oldduplex = -1;
+               netif_carrier_off(dev);
+               netif_stop_queue(dev);
+       }
+
+       if (new_state && netif_msg_link(fep))
+               phy_print_status(phydev);
+}
+
+
+static void fs_adjust_link(struct net_device *dev)
+{
+	struct fs_enet_private *fep = netdev_priv(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&fep->lock, flags);
+
+	if(fep->ops->adjust_link)
+		fep->ops->adjust_link(dev);
+	else
+		generic_adjust_link(dev);
+
+	spin_unlock_irqrestore(&fep->lock, flags);
+}
+
+static int fs_init_phy(struct net_device *dev)
+{
+	struct fs_enet_private *fep = netdev_priv(dev);
+	struct phy_device *phydev;
+
+	fep->oldlink = 0;
+	fep->oldspeed = 0;
+	fep->oldduplex = -1;
+	if(fep->fpi->bus_id)
+		phydev = phy_connect(dev, fep->fpi->bus_id, &fs_adjust_link, 0);
+	else {
+		printk("No phy bus ID specified in BSP code\n");
+		return -EINVAL;
+	}
+	if (IS_ERR(phydev)) {
+		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
+		return PTR_ERR(phydev);
+	}
+
+	fep->phydev = phydev;
+
+	return 0;
+}
+
+
 static int fs_enet_open(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	const struct fs_platform_info *fpi = fep->fpi;
 	int r;
+	int err;
 
 	/* Install our interrupt handler. */
 	r = fs_request_irq(dev, fep->interrupt, "fs_enet-mac", fs_enet_interrupt);
 	if (r != 0) {
 		printk(KERN_ERR DRV_MODULE_NAME
-		       ": %s Could not allocate FEC IRQ!", dev->name);
+		       ": %s Could not allocate FS_ENET IRQ!", dev->name);
 		return -EINVAL;
 	}
 
-	/* Install our phy interrupt handler */
-	if (fpi->phy_irq != -1) {
+	err = fs_init_phy(dev);
+	if(err)
+		return err;
 
-		r = fs_request_irq(dev, fpi->phy_irq, "fs_enet-phy", fs_mii_link_interrupt);
-		if (r != 0) {
-			printk(KERN_ERR DRV_MODULE_NAME
-			       ": %s Could not allocate PHY IRQ!", dev->name);
-			fs_free_irq(dev, fep->interrupt);
-			return -EINVAL;
-		}
-	}
-
-	fs_mii_startup(dev);
-	netif_carrier_off(dev);
-	fs_mii_link_status_change_check(dev, 1);
+	phy_start(fep->phydev);
 
 	return 0;
 }
@@ -769,20 +821,19 @@ static int fs_enet_open(struct net_device *dev)
 static int fs_enet_close(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	const struct fs_platform_info *fpi = fep->fpi;
 	unsigned long flags;
 
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
-	fs_mii_shutdown(dev);
+	phy_stop(fep->phydev);
 
 	spin_lock_irqsave(&fep->lock, flags);
 	(*fep->ops->stop)(dev);
 	spin_unlock_irqrestore(&fep->lock, flags);
 
 	/* release any irqs */
-	if (fpi->phy_irq != -1)
-		fs_free_irq(dev, fpi->phy_irq);
+	phy_disconnect(fep->phydev);
+	fep->phydev = NULL;
 	fs_free_irq(dev, fep->interrupt);
 
 	return 0;
@@ -830,33 +881,19 @@ static void fs_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 static int fs_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	unsigned long flags;
-	int rc;
-
-	spin_lock_irqsave(&fep->lock, flags);
-	rc = mii_ethtool_gset(&fep->mii_if, cmd);
-	spin_unlock_irqrestore(&fep->lock, flags);
-
-	return rc;
+	return phy_ethtool_gset(fep->phydev, cmd);
 }
 
 static int fs_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	unsigned long flags;
-	int rc;
-
-	spin_lock_irqsave(&fep->lock, flags);
-	rc = mii_ethtool_sset(&fep->mii_if, cmd);
-	spin_unlock_irqrestore(&fep->lock, flags);
-
-	return rc;
+	phy_ethtool_sset(fep->phydev, cmd);
+	return 0;
 }
 
 static int fs_nway_reset(struct net_device *dev)
 {
-	struct fs_enet_private *fep = netdev_priv(dev);
-	return mii_nway_restart(&fep->mii_if);
+	return 0;
 }
 
 static u32 fs_get_msglevel(struct net_device *dev)
@@ -898,7 +935,7 @@ static int fs_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return -EINVAL;
 
 	spin_lock_irqsave(&fep->lock, flags);
-	rc = generic_mii_ioctl(&fep->mii_if, mii, cmd, NULL);
+	rc = phy_mii_ioctl(fep->phydev, mii, cmd);
 	spin_unlock_irqrestore(&fep->lock, flags);
 	return rc;
 }
@@ -1030,12 +1067,6 @@ static struct net_device *fs_init_instance(struct device *dev,
 	}
 	registered = 1;
 
-	err = fs_mii_connect(ndev);
-	if (err != 0) {
-		printk(KERN_ERR DRV_MODULE_NAME
-		       ": %s fs_mii_connect failed.\n", ndev->name);
-		goto err;
-	}
 
 	return ndev;
 
@@ -1072,8 +1103,6 @@ static int fs_cleanup_instance(struct net_device *ndev)
 		return -EINVAL;
 
 	fpi = fep->fpi;
-
-	fs_mii_disconnect(ndev);
 
 	unregister_netdev(ndev);
 
@@ -1196,17 +1225,39 @@ static int __init fs_init(void)
 	r = setup_immap();
 	if (r != 0)
 		return r;
-	r = driver_register(&fs_enet_fec_driver);
-	if (r != 0)
-		goto err;
 
+#ifdef CONFIG_FS_ENET_HAS_FCC
+	/* let's insert mii stuff */
+	r = fs_enet_mdio_bb_init();
+
+	if (r != 0) {
+		printk(KERN_ERR DRV_MODULE_NAME
+			"BB PHY init failed.\n");
+		return r;
+	}
 	r = driver_register(&fs_enet_fcc_driver);
 	if (r != 0)
 		goto err;
+#endif
 
+#ifdef CONFIG_FS_ENET_HAS_FEC
+	r =  fs_enet_mdio_fec_init();
+	if (r != 0) {
+		printk(KERN_ERR DRV_MODULE_NAME
+			"FEC PHY init failed.\n");
+		return r;
+	}
+
+	r = driver_register(&fs_enet_fec_driver);
+	if (r != 0)
+		goto err;
+#endif
+
+#ifdef CONFIG_FS_ENET_HAS_SCC
 	r = driver_register(&fs_enet_scc_driver);
 	if (r != 0)
 		goto err;
+#endif
 
 	return 0;
 err:

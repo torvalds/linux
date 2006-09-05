@@ -1134,12 +1134,33 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 }
 EXPORT_SYMBOL(__xfrm_route_forward);
 
+/* Optimize later using cookies and generation ids. */
+
 static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 {
-	/* If it is marked obsolete, which is how we even get here,
-	 * then we have purged it from the policy bundle list and we
-	 * did that for a good reason.
+	/* Code (such as __xfrm4_bundle_create()) sets dst->obsolete
+	 * to "-1" to force all XFRM destinations to get validated by
+	 * dst_ops->check on every use.  We do this because when a
+	 * normal route referenced by an XFRM dst is obsoleted we do
+	 * not go looking around for all parent referencing XFRM dsts
+	 * so that we can invalidate them.  It is just too much work.
+	 * Instead we make the checks here on every use.  For example:
+	 *
+	 *	XFRM dst A --> IPv4 dst X
+	 *
+	 * X is the "xdst->route" of A (X is also the "dst->path" of A
+	 * in this example).  If X is marked obsolete, "A" will not
+	 * notice.  That's what we are validating here via the
+	 * stale_bundle() check.
+	 *
+	 * When a policy's bundle is pruned, we dst_free() the XFRM
+	 * dst which causes it's ->obsolete field to be set to a
+	 * positive non-zero integer.  If an XFRM dst has been pruned
+	 * like this, we want to force a new route lookup.
 	 */
+	if (dst->obsolete < 0 && !stale_bundle(dst))
+		return dst;
+
 	return NULL;
 }
 

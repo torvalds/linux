@@ -239,37 +239,51 @@ void udf_truncate_extents(struct inode * inode)
 	{
 		if (offset)
 		{
-			extoffset -= adsize;
-			etype = udf_next_aext(inode, &bloc, &extoffset, &eloc, &elen, &bh, 1);
-			if (etype == (EXT_NOT_RECORDED_NOT_ALLOCATED >> 30))
-			{
-				extoffset -= adsize;
-				elen = EXT_NOT_RECORDED_NOT_ALLOCATED | (elen + offset);
-				udf_write_aext(inode, bloc, &extoffset, eloc, elen, bh, 0);
-			}
-			else if (etype == (EXT_NOT_RECORDED_ALLOCATED >> 30))
-			{
-				kernel_lb_addr neloc = { 0, 0 };
-				extoffset -= adsize;
-				nelen = EXT_NOT_RECORDED_NOT_ALLOCATED |
-					((elen + offset + inode->i_sb->s_blocksize - 1) &
-					~(inode->i_sb->s_blocksize - 1));
-				udf_write_aext(inode, bloc, &extoffset, neloc, nelen, bh, 1);
-				udf_add_aext(inode, &bloc, &extoffset, eloc, (etype << 30) | elen, &bh, 1);
-			}
-			else
-			{
-				if (elen & (inode->i_sb->s_blocksize - 1))
-				{
-					extoffset -= adsize;
-					elen = EXT_RECORDED_ALLOCATED |
-						((elen + inode->i_sb->s_blocksize - 1) &
-						~(inode->i_sb->s_blocksize - 1));
-					udf_write_aext(inode, bloc, &extoffset, eloc, elen, bh, 1);
-				}
+			/*
+			 *  OK, there is not extent covering inode->i_size and
+			 *  no extent above inode->i_size => truncate is
+			 *  extending the file by 'offset'.
+			 */
+			if ((!bh && extoffset == udf_file_entry_alloc_offset(inode)) ||
+			    (bh && extoffset == sizeof(struct allocExtDesc))) {
+				/* File has no extents at all! */
 				memset(&eloc, 0x00, sizeof(kernel_lb_addr));
 				elen = EXT_NOT_RECORDED_NOT_ALLOCATED | offset;
 				udf_add_aext(inode, &bloc, &extoffset, eloc, elen, &bh, 1);
+			}
+			else {
+				extoffset -= adsize;
+				etype = udf_next_aext(inode, &bloc, &extoffset, &eloc, &elen, &bh, 1);
+				if (etype == (EXT_NOT_RECORDED_NOT_ALLOCATED >> 30))
+				{
+					extoffset -= adsize;
+					elen = EXT_NOT_RECORDED_NOT_ALLOCATED | (elen + offset);
+					udf_write_aext(inode, bloc, &extoffset, eloc, elen, bh, 0);
+				}
+				else if (etype == (EXT_NOT_RECORDED_ALLOCATED >> 30))
+				{
+					kernel_lb_addr neloc = { 0, 0 };
+					extoffset -= adsize;
+					nelen = EXT_NOT_RECORDED_NOT_ALLOCATED |
+						((elen + offset + inode->i_sb->s_blocksize - 1) &
+						~(inode->i_sb->s_blocksize - 1));
+					udf_write_aext(inode, bloc, &extoffset, neloc, nelen, bh, 1);
+					udf_add_aext(inode, &bloc, &extoffset, eloc, (etype << 30) | elen, &bh, 1);
+				}
+				else
+				{
+					if (elen & (inode->i_sb->s_blocksize - 1))
+					{
+						extoffset -= adsize;
+						elen = EXT_RECORDED_ALLOCATED |
+							((elen + inode->i_sb->s_blocksize - 1) &
+							~(inode->i_sb->s_blocksize - 1));
+						udf_write_aext(inode, bloc, &extoffset, eloc, elen, bh, 1);
+					}
+					memset(&eloc, 0x00, sizeof(kernel_lb_addr));
+					elen = EXT_NOT_RECORDED_NOT_ALLOCATED | offset;
+					udf_add_aext(inode, &bloc, &extoffset, eloc, elen, &bh, 1);
+				}
 			}
 		}
 	}

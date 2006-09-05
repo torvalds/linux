@@ -330,6 +330,9 @@ static void llc_sap_mcast(struct llc_sap *sap,
 		if (llc->laddr.lsap != laddr->lsap)
 			continue;
 
+		if (llc->dev != skb->dev)
+			continue;
+
 		skb1 = skb_clone(skb, GFP_ATOMIC);
 		if (!skb1)
 			break;

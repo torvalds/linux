@@ -889,6 +889,12 @@ M:	rdunlap@xenotime.net
 T:	git http://tali.admingilde.org/git/linux-docbook.git
 S:	Maintained
 
+DOCKING STATION DRIVER
+P:	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
+L:	linux-acpi@vger.kernel.org
+S:	Maintained
+
 DOUBLETALK DRIVER
 P:	James R. Van Zandt
 M:	jrv@vanzandt.mv.com
@@ -2656,6 +2662,14 @@ M:	chrisw@sous-sol.org
 L:	stable@kernel.org
 S:	Maintained
 
+STABLE BRANCH:
+P:	Greg Kroah-Hartman
+M:	greg@kroah.com
+P:	Chris Wright
+M:	chrisw@sous-sol.org
+L:	stable@kernel.org
+S:	Maintained
+
 TPM DEVICE DRIVER
 P:	Kylene Hall
 M:	kjhall@us.ibm.com
@@ -3282,10 +3296,11 @@ S:	Maintained
 
 XFS FILESYSTEM
 P:	Silicon Graphics Inc
+P:	Tim Shimmin, David Chatterton
 M:	xfs-masters@oss.sgi.com
-M:	nathans@sgi.com
 L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs
+T:	git git://oss.sgi.com:8090/xfs/xfs-2.6
 S:	Supported
 
 X86 3-LEVEL PAGING (PAE) SUPPORT

@@ -48,15 +48,6 @@
 #define PRINT_ERR(x...)		printk(KERN_ERR XPRAM_NAME " error:" x)
 
 
-static struct sysdev_class xpram_sysclass = {
-	set_kset_name("xpram"),
-};
-
-static struct sys_device xpram_sys_device = {
-	.id	= 0,
-	.cls	= &xpram_sysclass,
-}; 
-
 typedef struct {
 	unsigned int	size;		/* size of xpram segment in pages */
 	unsigned int	offset;		/* start page of xpram segment */
@@ -451,8 +442,6 @@ static void __exit xpram_exit(void)
 	}
 	unregister_blkdev(XPRAM_MAJOR, XPRAM_NAME);
 	blk_cleanup_queue(xpram_queue);
-	sysdev_unregister(&xpram_sys_device);
-	sysdev_class_unregister(&xpram_sysclass);
 }
 
 static int __init xpram_init(void)
@@ -470,19 +459,7 @@ static int __init xpram_init(void)
 	rc = xpram_setup_sizes(xpram_pages);
 	if (rc)
 		return rc;
-	rc = sysdev_class_register(&xpram_sysclass);
-	if (rc)
-		return rc;
-
-	rc = sysdev_register(&xpram_sys_device);
-	if (rc) {
-		sysdev_class_unregister(&xpram_sysclass);
-		return rc;
-	}
-	rc = xpram_setup_blkdev();
-	if (rc)
-		sysdev_unregister(&xpram_sys_device);
-	return rc;
+	return xpram_setup_blkdev();
 }
 
 module_init(xpram_init);

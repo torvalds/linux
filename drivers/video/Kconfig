@@ -554,7 +554,7 @@ config FB_VESA
 
 config FB_IMAC
 	bool "Intel-based Macintosh Framebuffer Support"
-	depends on (FB = y) && X86
+	depends on (FB = y) && X86 && EFI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

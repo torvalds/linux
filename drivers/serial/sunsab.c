@@ -886,6 +886,15 @@ static int sunsab_console_setup(struct console *con, char *options)
 	unsigned long flags;
 	unsigned int baud, quot;
 
+	/*
+	 * The console framework calls us for each and every port
+	 * registered. Defer the console setup until the requested
+	 * port has been properly discovered. A bit of a hack,
+	 * though...
+	 */
+	if (up->port.type != PORT_SUNSAB)
+		return -1;
+
 	printk("Console: ttyS%d (SAB82532)\n",
 	       (sunsab_reg.minor - 64) + con->index);
 

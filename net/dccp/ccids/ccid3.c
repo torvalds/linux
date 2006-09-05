@@ -2,7 +2,7 @@
  *  net/dccp/ccids/ccid3.c
  *
  *  Copyright (c) 2005 The University of Waikato, Hamilton, New Zealand.
- *  Copyright (c) 2005-6 Ian McDonald <imcdnzl@gmail.com>
+ *  Copyright (c) 2005-6 Ian McDonald <ian.mcdonald@jandi.co.nz>
  *
  *  An implementation of the DCCP protocol
  *
@@ -342,6 +342,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		new_packet->dccphtx_ccval =
 			DCCP_SKB_CB(skb)->dccpd_ccval =
 				hctx->ccid3hctx_last_win_count;
+		timeval_add_usecs(&hctx->ccid3hctx_t_nom,
+				  hctx->ccid3hctx_t_ipi);
 	}
 out:
 	return rc;
@@ -413,7 +415,8 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
 		if (len > 0) {
-			hctx->ccid3hctx_t_nom = now;
+			timeval_sub_usecs(&hctx->ccid3hctx_t_nom,
+				  hctx->ccid3hctx_t_ipi);
 			ccid3_calc_new_t_ipi(hctx);
 			ccid3_calc_new_delta(hctx);
 			timeval_add_usecs(&hctx->ccid3hctx_t_nom,
@@ -757,8 +760,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	}
 
 	hcrx->ccid3hcrx_tstamp_last_feedback = now;
-	hcrx->ccid3hcrx_last_counter	     = packet->dccphrx_ccval;
-	hcrx->ccid3hcrx_seqno_last_counter   = packet->dccphrx_seqno;
+	hcrx->ccid3hcrx_ccval_last_counter   = packet->dccphrx_ccval;
 	hcrx->ccid3hcrx_bytes_recv	     = 0;
 
 	/* Convert to multiples of 10us */
@@ -782,7 +784,7 @@ static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 	if (!(sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN))
 		return 0;
 
-	DCCP_SKB_CB(skb)->dccpd_ccval = hcrx->ccid3hcrx_last_counter;
+	DCCP_SKB_CB(skb)->dccpd_ccval = hcrx->ccid3hcrx_ccval_last_counter;
 
 	if (dccp_packet_without_ack(skb))
 		return 0;
@@ -854,6 +856,11 @@ static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
 		interval = 1;
 	}
 found:
+	if (!tail) {
+		LIMIT_NETDEBUG(KERN_WARNING "%s: tail is null\n",
+		   __FUNCTION__);
+		return ~0;
+	}
 	rtt = timeval_delta(&tstamp, &tail->dccphrx_tstamp) * 4 / interval;
 	ccid3_pr_debug("%s, sk=%p, approximated RTT to %uus\n",
 		       dccp_role(sk), sk, rtt);
@@ -864,9 +871,20 @@ found:
 	delta = timeval_delta(&tstamp, &hcrx->ccid3hcrx_tstamp_last_feedback);
 	x_recv = usecs_div(hcrx->ccid3hcrx_bytes_recv, delta);
 
+	if (x_recv == 0)
+		x_recv = hcrx->ccid3hcrx_x_recv;
+
 	tmp1 = (u64)x_recv * (u64)rtt;
 	do_div(tmp1,10000000);
 	tmp2 = (u32)tmp1;
+
+	if (!tmp2) {
+		LIMIT_NETDEBUG(KERN_WARNING "tmp2 = 0 "
+		   "%s: x_recv = %u, rtt =%u\n",
+		   __FUNCTION__, x_recv, rtt);
+		return ~0;
+	}
+
 	fval = (hcrx->ccid3hcrx_s * 100000) / tmp2;
 	/* do not alter order above or you will get overflow on 32 bit */
 	p = tfrc_calc_x_reverse_lookup(fval);
@@ -882,31 +900,101 @@ found:
 static void ccid3_hc_rx_update_li(struct sock *sk, u64 seq_loss, u8 win_loss)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
+	struct dccp_li_hist_entry *next, *head;
+	u64 seq_temp;
 
-	if (seq_loss != DCCP_MAX_SEQNO + 1 &&
-	    list_empty(&hcrx->ccid3hcrx_li_hist)) {
-		struct dccp_li_hist_entry *li_tail;
-
-		li_tail = dccp_li_hist_interval_new(ccid3_li_hist,
-						    &hcrx->ccid3hcrx_li_hist,
-						    seq_loss, win_loss);
-		if (li_tail == NULL)
+	if (list_empty(&hcrx->ccid3hcrx_li_hist)) {
+		if (!dccp_li_hist_interval_new(ccid3_li_hist,
+		   &hcrx->ccid3hcrx_li_hist, seq_loss, win_loss))
 			return;
-		li_tail->dccplih_interval = ccid3_hc_rx_calc_first_li(sk);
-	} else
-		    LIMIT_NETDEBUG(KERN_WARNING "%s: FIXME: find end of "
-				   "interval\n", __FUNCTION__);
+
+		next = (struct dccp_li_hist_entry *)
+		   hcrx->ccid3hcrx_li_hist.next;
+		next->dccplih_interval = ccid3_hc_rx_calc_first_li(sk);
+	} else {
+		struct dccp_li_hist_entry *entry;
+		struct list_head *tail;
+
+		head = (struct dccp_li_hist_entry *)
+		   hcrx->ccid3hcrx_li_hist.next;
+		/* FIXME win count check removed as was wrong */
+		/* should make this check with receive history */
+		/* and compare there as per section 10.2 of RFC4342 */
+
+		/* new loss event detected */
+		/* calculate last interval length */
+		seq_temp = dccp_delta_seqno(head->dccplih_seqno, seq_loss);
+		entry = dccp_li_hist_entry_new(ccid3_li_hist, SLAB_ATOMIC);
+
+		if (entry == NULL) {
+			printk(KERN_CRIT "%s: out of memory\n",__FUNCTION__);
+			dump_stack();
+			return;
+		}
+
+		list_add(&entry->dccplih_node, &hcrx->ccid3hcrx_li_hist);
+
+		tail = hcrx->ccid3hcrx_li_hist.prev;
+		list_del(tail);
+		kmem_cache_free(ccid3_li_hist->dccplih_slab, tail);
+
+		/* Create the newest interval */
+		entry->dccplih_seqno = seq_loss;
+		entry->dccplih_interval = seq_temp;
+		entry->dccplih_win_count = win_loss;
+	}
 }
 
-static void ccid3_hc_rx_detect_loss(struct sock *sk)
+static int ccid3_hc_rx_detect_loss(struct sock *sk,
+                                    struct dccp_rx_hist_entry *packet)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-	u8 win_loss;
-	const u64 seq_loss = dccp_rx_hist_detect_loss(&hcrx->ccid3hcrx_hist,
-						      &hcrx->ccid3hcrx_li_hist,
-						      &win_loss);
+	struct dccp_rx_hist_entry *rx_hist = dccp_rx_hist_head(&hcrx->ccid3hcrx_hist);
+	u64 seqno = packet->dccphrx_seqno;
+	u64 tmp_seqno;
+	int loss = 0;
+	u8 ccval;
 
-	ccid3_hc_rx_update_li(sk, seq_loss, win_loss);
+
+	tmp_seqno = hcrx->ccid3hcrx_seqno_nonloss;
+
+	if (!rx_hist ||
+	   follows48(packet->dccphrx_seqno, hcrx->ccid3hcrx_seqno_nonloss)) {
+		hcrx->ccid3hcrx_seqno_nonloss = seqno;
+		hcrx->ccid3hcrx_ccval_nonloss = packet->dccphrx_ccval;
+		goto detect_out;
+	}
+
+
+	while (dccp_delta_seqno(hcrx->ccid3hcrx_seqno_nonloss, seqno)
+	   > TFRC_RECV_NUM_LATE_LOSS) {
+		loss = 1;
+		ccid3_hc_rx_update_li(sk, hcrx->ccid3hcrx_seqno_nonloss,
+		   hcrx->ccid3hcrx_ccval_nonloss);
+		tmp_seqno = hcrx->ccid3hcrx_seqno_nonloss;
+		dccp_inc_seqno(&tmp_seqno);
+		hcrx->ccid3hcrx_seqno_nonloss = tmp_seqno;
+		dccp_inc_seqno(&tmp_seqno);
+		while (dccp_rx_hist_find_entry(&hcrx->ccid3hcrx_hist,
+		   tmp_seqno, &ccval)) {
+		   	hcrx->ccid3hcrx_seqno_nonloss = tmp_seqno;
+			hcrx->ccid3hcrx_ccval_nonloss = ccval;
+			dccp_inc_seqno(&tmp_seqno);
+		}
+	}
+
+	/* FIXME - this code could be simplified with above while */
+	/* but works at moment */
+	if (follows48(packet->dccphrx_seqno, hcrx->ccid3hcrx_seqno_nonloss)) {
+		hcrx->ccid3hcrx_seqno_nonloss = seqno;
+		hcrx->ccid3hcrx_ccval_nonloss = packet->dccphrx_ccval;
+	}
+
+detect_out:
+	dccp_rx_hist_add_packet(ccid3_rx_hist, &hcrx->ccid3hcrx_hist,
+		   &hcrx->ccid3hcrx_li_hist, packet,
+		   hcrx->ccid3hcrx_seqno_nonloss);
+	return loss;
 }
 
 static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
@@ -916,8 +1004,8 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct dccp_rx_hist_entry *packet;
 	struct timeval now;
 	u8 win_count;
-	u32 p_prev, r_sample, t_elapsed;
-	int ins;
+	u32 p_prev, rtt_prev, r_sample, t_elapsed;
+	int loss;
 
 	BUG_ON(hcrx == NULL ||
 	       !(hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA ||
@@ -932,7 +1020,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	case DCCP_PKT_DATAACK:
 		if (opt_recv->dccpor_timestamp_echo == 0)
 			break;
-		p_prev = hcrx->ccid3hcrx_rtt;
+		rtt_prev = hcrx->ccid3hcrx_rtt;
 		dccp_timestamp(sk, &now);
 		timeval_sub_usecs(&now, opt_recv->dccpor_timestamp_echo * 10);
 		r_sample = timeval_usecs(&now);
@@ -951,8 +1039,8 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			hcrx->ccid3hcrx_rtt = (hcrx->ccid3hcrx_rtt * 9) / 10 +
 					      r_sample / 10;
 
-		if (p_prev != hcrx->ccid3hcrx_rtt)
-			ccid3_pr_debug("%s, New RTT=%luus, elapsed time=%u\n",
+		if (rtt_prev != hcrx->ccid3hcrx_rtt)
+			ccid3_pr_debug("%s, New RTT=%uus, elapsed time=%u\n",
 				       dccp_role(sk), hcrx->ccid3hcrx_rtt,
 				       opt_recv->dccpor_elapsed_time);
 		break;
@@ -973,8 +1061,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 	win_count = packet->dccphrx_ccval;
 
-	ins = dccp_rx_hist_add_packet(ccid3_rx_hist, &hcrx->ccid3hcrx_hist,
-				      &hcrx->ccid3hcrx_li_hist, packet);
+	loss = ccid3_hc_rx_detect_loss(sk, packet);
 
 	if (DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_ACK)
 		return;
@@ -991,7 +1078,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	case TFRC_RSTATE_DATA:
 		hcrx->ccid3hcrx_bytes_recv += skb->len -
 					      dccp_hdr(skb)->dccph_doff * 4;
-		if (ins != 0)
+		if (loss)
 			break;
 
 		dccp_timestamp(sk, &now);
@@ -1012,7 +1099,6 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	ccid3_pr_debug("%s, sk=%p(%s), data loss! Reacting...\n",
 		       dccp_role(sk), sk, dccp_state_name(sk->sk_state));
 
-	ccid3_hc_rx_detect_loss(sk);
 	p_prev = hcrx->ccid3hcrx_p;
 	
 	/* Calculate loss event rate */
@@ -1022,6 +1108,9 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/* Scaling up by 1000000 as fixed decimal */
 		if (i_mean != 0)
 			hcrx->ccid3hcrx_p = 1000000 / i_mean;
+	} else {
+		printk(KERN_CRIT "%s: empty loss hist\n",__FUNCTION__);
+		dump_stack();
 	}
 
 	if (hcrx->ccid3hcrx_p > p_prev) {
@@ -1230,7 +1319,7 @@ static __exit void ccid3_module_exit(void)
 }
 module_exit(ccid3_module_exit);
 
-MODULE_AUTHOR("Ian McDonald <iam4@cs.waikato.ac.nz>, "
+MODULE_AUTHOR("Ian McDonald <ian.mcdonald@jandi.co.nz>, "
 	      "Arnaldo Carvalho de Melo <acme@ghostprotocols.net>");
 MODULE_DESCRIPTION("DCCP TFRC CCID3 CCID");
 MODULE_LICENSE("GPL");
