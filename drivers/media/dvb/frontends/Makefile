@@ -36,3 +36,4 @@ obj-$(CONFIG_DVB_ISL6421) += isl6421.o
 obj-$(CONFIG_DVB_TDA10086) += tda10086.o
 obj-$(CONFIG_DVB_TDA826X) += tda826x.o
 obj-$(CONFIG_DVB_TUNER_MT2060) += mt2060.o
+obj-$(CONFIG_DVB_TUA6100) += tua6100.o

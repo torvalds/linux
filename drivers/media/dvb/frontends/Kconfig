@@ -296,4 +296,11 @@ config DVB_ISL6421
 	help
 	  An SEC control chip.
 
+config DVB_TUA6100
+	tristate "TUA6100 PLL"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVBS PLL chip.
+
 endmenu
