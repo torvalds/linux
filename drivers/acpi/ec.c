@@ -122,12 +122,12 @@ union acpi_ec {
 
 static int acpi_ec_poll_wait(union acpi_ec *ec, u8 event);
 static int acpi_ec_intr_wait(union acpi_ec *ec, unsigned int event);
-static int acpi_ec_poll_read(union acpi_ec *ec, u8 address, u32 * data);
-static int acpi_ec_intr_read(union acpi_ec *ec, u8 address, u32 * data);
-static int acpi_ec_poll_write(union acpi_ec *ec, u8 address, u8 data);
-static int acpi_ec_intr_write(union acpi_ec *ec, u8 address, u8 data);
-static int acpi_ec_poll_query(union acpi_ec *ec, u32 * data);
-static int acpi_ec_intr_query(union acpi_ec *ec, u32 * data);
+static int acpi_ec_poll_transaction(union acpi_ec *ec, u8 command,
+                                    const u8 *wdata, unsigned wdata_len,
+                                    u8 *rdata, unsigned rdata_len);
+static int acpi_ec_intr_transaction(union acpi_ec *ec, u8 command,
+                                    const u8 *wdata, unsigned wdata_len,
+                                    u8 *rdata, unsigned rdata_len);
 static void acpi_ec_gpe_poll_query(void *ec_cxt);
 static void acpi_ec_gpe_intr_query(void *ec_cxt);
 static u32 acpi_ec_gpe_poll_handler(void *data);
@@ -302,61 +302,95 @@ end:
 }
 #endif /* ACPI_FUTURE_USAGE */
 
-static int acpi_ec_read(union acpi_ec *ec, u8 address, u32 * data)
+static int acpi_ec_transaction(union acpi_ec *ec, u8 command,
+                               const u8 *wdata, unsigned wdata_len,
+                               u8 *rdata, unsigned rdata_len)
 {
 	if (acpi_ec_poll_mode)
-		return acpi_ec_poll_read(ec, address, data);
+		return acpi_ec_poll_transaction(ec, command, wdata, wdata_len, rdata, rdata_len);
 	else
-		return acpi_ec_intr_read(ec, address, data);
+		return acpi_ec_intr_transaction(ec, command, wdata, wdata_len, rdata, rdata_len);
+}
+static int acpi_ec_read(union acpi_ec *ec, u8 address, u32 * data)
+{
+        int result;
+        u8 d;
+        result = acpi_ec_transaction(ec, ACPI_EC_COMMAND_READ, &address, 1, &d, 1);
+        *data = d;
+        return result;
 }
 static int acpi_ec_write(union acpi_ec *ec, u8 address, u8 data)
 {
-	if (acpi_ec_poll_mode)
-		return acpi_ec_poll_write(ec, address, data);
-	else
-		return acpi_ec_intr_write(ec, address, data);
+        u8 wdata[2] = { address, data };
+        return acpi_ec_transaction(ec, ACPI_EC_COMMAND_WRITE, wdata, 2, NULL, 0);
 }
-static int acpi_ec_poll_read(union acpi_ec *ec, u8 address, u32 * data)
+
+static int acpi_ec_transaction_unlocked(union acpi_ec *ec, u8 command,
+                                             const u8 *wdata, unsigned wdata_len,
+                                             u8 *rdata, unsigned rdata_len)
+{
+	int result;
+
+	acpi_hw_low_level_write(8, command, &ec->common.command_addr);
+
+        result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
+	if (result)
+		return result;
+
+        for (; wdata_len > 0; wdata_len --) {
+
+                acpi_hw_low_level_write(8, *(wdata++), &ec->common.data_addr);
+
+                result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
+                if (result)
+                        return result;
+        }
+
+
+        for (; rdata_len > 0; rdata_len --) {
+                u32 d;
+
+                result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
+                if (result)
+                        return result;
+
+                acpi_hw_low_level_read(8, &d, &ec->common.data_addr);
+                *(rdata++) = (u8) d;
+        }
+
+        return 0;
+}
+
+static int acpi_ec_poll_transaction(union acpi_ec *ec, u8 command,
+                                    const u8 *wdata, unsigned wdata_len,
+                                    u8 *rdata, unsigned rdata_len)
 {
 	acpi_status status = AE_OK;
-	int result = 0;
+	int result;
 	u32 glk = 0;
 
-
-	if (!ec || !data)
+	if (!ec || (wdata_len && !wdata) || (rdata_len && !rdata))
 		return -EINVAL;
 
-	*data = 0;
+        if (rdata)
+                memset(rdata, 0, rdata_len);
 
 	if (ec->common.global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
 		if (ACPI_FAILURE(status))
 			return -ENODEV;
-	}
+        }
 
 	if (down_interruptible(&ec->poll.sem)) {
 		result = -ERESTARTSYS;
 		goto end_nosem;
 	}
-	
-	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_READ,
-				&ec->common.command_addr);
-	result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	if (result)
-		goto end;
 
-	acpi_hw_low_level_write(8, address, &ec->common.data_addr);
-	result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
-	if (result)
-		goto end;
-
-	acpi_hw_low_level_read(8, data, &ec->common.data_addr);
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Read [%02x] from address [%02x]\n",
-			  *data, address));
-
-      end:
+        result = acpi_ec_transaction_unlocked(ec, command,
+                                              wdata, wdata_len,
+                                              rdata, rdata_len);
 	up(&ec->poll.sem);
+
 end_nosem:
 	if (ec->common.global_lock)
 		acpi_release_global_lock(glk);
@@ -364,65 +398,18 @@ end_nosem:
 	return result;
 }
 
-static int acpi_ec_poll_write(union acpi_ec *ec, u8 address, u8 data)
+static int acpi_ec_intr_transaction(union acpi_ec *ec, u8 command,
+                                    const u8 *wdata, unsigned wdata_len,
+                                    u8 *rdata, unsigned rdata_len)
 {
-	int result = 0;
-	acpi_status status = AE_OK;
-	u32 glk = 0;
-
-
-	if (!ec)
-		return -EINVAL;
-
-	if (ec->common.global_lock) {
-		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
-		if (ACPI_FAILURE(status))
-			return -ENODEV;
-	}
-
-	if (down_interruptible(&ec->poll.sem)) {
-		result = -ERESTARTSYS;
-		goto end_nosem;
-	}
-	
-	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_WRITE,
-				&ec->common.command_addr);
-	result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	if (result)
-		goto end;
-
-	acpi_hw_low_level_write(8, address, &ec->common.data_addr);
-	result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	if (result)
-		goto end;
-
-	acpi_hw_low_level_write(8, data, &ec->common.data_addr);
-	result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	if (result)
-		goto end;
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Wrote [%02x] to address [%02x]\n",
-			  data, address));
-
-      end:
-	up(&ec->poll.sem);
-end_nosem:
-	if (ec->common.global_lock)
-		acpi_release_global_lock(glk);
-
-	return result;
-}
-
-static int acpi_ec_intr_read(union acpi_ec *ec, u8 address, u32 * data)
-{
-	int status = 0;
+	int status;
 	u32 glk;
 
-
-	if (!ec || !data)
+	if (!ec || (wdata_len && !wdata) || (rdata_len && !rdata))
 		return -EINVAL;
 
-	*data = 0;
+        if (rdata)
+                memset(rdata, 0, rdata_len);
 
 	if (ec->common.global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
@@ -438,72 +425,12 @@ static int acpi_ec_intr_read(union acpi_ec *ec, u8 address, u32 * data)
 		printk(KERN_DEBUG PREFIX "read EC, IB not empty\n");
 		goto end;
 	}
-	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_READ,
-				&ec->common.command_addr);
-	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	if (status) {
-		printk(KERN_DEBUG PREFIX "read EC, IB not empty\n");
-	}
 
-	acpi_hw_low_level_write(8, address, &ec->common.data_addr);
-	status = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
-	if (status) {
-		printk(KERN_DEBUG PREFIX "read EC, OB not full\n");
-		goto end;
-	}
-	acpi_hw_low_level_read(8, data, &ec->common.data_addr);
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Read [%02x] from address [%02x]\n",
-			  *data, address));
+        status = acpi_ec_transaction_unlocked(ec, command,
+                                              wdata, wdata_len,
+                                              rdata, rdata_len);
 
-      end:
-	up(&ec->intr.sem);
-
-	if (ec->common.global_lock)
-		acpi_release_global_lock(glk);
-
-	return status;
-}
-
-static int acpi_ec_intr_write(union acpi_ec *ec, u8 address, u8 data)
-{
-	int status = 0;
-	u32 glk;
-
-
-	if (!ec)
-		return -EINVAL;
-
-	if (ec->common.global_lock) {
-		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
-		if (ACPI_FAILURE(status))
-			return -ENODEV;
-	}
-
-	WARN_ON(in_interrupt());
-	down(&ec->intr.sem);
-
-	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	if (status) {
-		printk(KERN_DEBUG PREFIX "write EC, IB not empty\n");
-	}
-	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_WRITE,
-				&ec->common.command_addr);
-	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	if (status) {
-		printk(KERN_DEBUG PREFIX "write EC, IB not empty\n");
-	}
-
-	acpi_hw_low_level_write(8, address, &ec->common.data_addr);
-	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	if (status) {
-		printk(KERN_DEBUG PREFIX "write EC, IB not empty\n");
-	}
-
-	acpi_hw_low_level_write(8, data, &ec->common.data_addr);
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Wrote [%02x] to address [%02x]\n",
-			  data, address));
-
+end:
 	up(&ec->intr.sem);
 
 	if (ec->common.global_lock)
@@ -554,106 +481,44 @@ int ec_write(u8 addr, u8 val)
 
 EXPORT_SYMBOL(ec_write);
 
-static int acpi_ec_query(union acpi_ec *ec, u32 * data)
+extern int ec_transaction(u8 command,
+                          const u8 *wdata, unsigned wdata_len,
+                          u8 *rdata, unsigned rdata_len)
 {
-	if (acpi_ec_poll_mode)
-		return acpi_ec_poll_query(ec, data);
-	else
-		return acpi_ec_intr_query(ec, data);
+	union acpi_ec *ec;
+
+	if (!first_ec)
+		return -ENODEV;
+
+	ec = acpi_driver_data(first_ec);
+
+	return acpi_ec_transaction(ec, command, wdata, wdata_len, rdata, rdata_len);
 }
-static int acpi_ec_poll_query(union acpi_ec *ec, u32 * data)
-{
-	int result = 0;
-	acpi_status status = AE_OK;
-	u32 glk = 0;
 
+EXPORT_SYMBOL(ec_transaction);
 
-	if (!ec || !data)
-		return -EINVAL;
+static int acpi_ec_query(union acpi_ec *ec, u32 * data) {
+        int result;
+        u8 d;
 
-	*data = 0;
+        if (!ec || !data)
+                return -EINVAL;
 
-	if (ec->common.global_lock) {
-		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
-		if (ACPI_FAILURE(status))
-			return -ENODEV;
-	}
+        /*
+         * Query the EC to find out which _Qxx method we need to evaluate.
+         * Note that successful completion of the query causes the ACPI_EC_SCI
+         * bit to be cleared (and thus clearing the interrupt source).
+         */
 
-	/*
-	 * Query the EC to find out which _Qxx method we need to evaluate.
-	 * Note that successful completion of the query causes the ACPI_EC_SCI
-	 * bit to be cleared (and thus clearing the interrupt source).
-	 */
-	if (down_interruptible(&ec->poll.sem)) {
-		result = -ERESTARTSYS;
-		goto end_nosem;
-	}
-	
-	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_QUERY,
-				&ec->common.command_addr);
-	result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
-	if (result)
-		goto end;
+        result = acpi_ec_transaction(ec, ACPI_EC_COMMAND_QUERY, NULL, 0, &d, 1);
+        if (result)
+                return result;
 
-	acpi_hw_low_level_read(8, data, &ec->common.data_addr);
-	if (!*data)
-		result = -ENODATA;
+        if (!d)
+                return -ENODATA;
 
-      end:
-	up(&ec->poll.sem);
-end_nosem:
-	if (ec->common.global_lock)
-		acpi_release_global_lock(glk);
-
-	return result;
-}
-static int acpi_ec_intr_query(union acpi_ec *ec, u32 * data)
-{
-	int status = 0;
-	u32 glk;
-
-
-	if (!ec || !data)
-		return -EINVAL;
-	*data = 0;
-
-	if (ec->common.global_lock) {
-		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
-		if (ACPI_FAILURE(status))
-			return -ENODEV;
-	}
-
-	down(&ec->intr.sem);
-
-	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	if (status) {
-		printk(KERN_DEBUG PREFIX "query EC, IB not empty\n");
-		goto end;
-	}
-	/*
-	 * Query the EC to find out which _Qxx method we need to evaluate.
-	 * Note that successful completion of the query causes the ACPI_EC_SCI
-	 * bit to be cleared (and thus clearing the interrupt source).
-	 */
-	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_QUERY,
-				&ec->common.command_addr);
-	status = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
-	if (status) {
-		printk(KERN_DEBUG PREFIX "query EC, OB not full\n");
-		goto end;
-	}
-
-	acpi_hw_low_level_read(8, data, &ec->common.data_addr);
-	if (!*data)
-		status = -ENODATA;
-
-      end:
-	up(&ec->intr.sem);
-
-	if (ec->common.global_lock)
-		acpi_release_global_lock(glk);
-
-	return status;
+        *data = d;
+        return 0;
 }
 
 /* --------------------------------------------------------------------------
