@@ -342,8 +342,8 @@ static void log_pull_tail(struct gfs2_sbd *sdp, unsigned int new_tail, int pull)
 	ail2_empty(sdp, new_tail);
 
 	gfs2_log_lock(sdp);
-	sdp->sd_log_blks_free += dist - ((pull) ? 1 : 0);
-	/* printk(KERN_INFO "pull tail refunding %u blocks (%u left) pull=%d\n", dist - ((pull) ? 1 : 0), sdp->sd_log_blks_free, pull); */
+	sdp->sd_log_blks_free += dist - (pull ? 1 : 0);
+	/* printk(KERN_INFO "pull tail refunding %u blocks (%u left) pull=%d\n", dist - (pull ? 1 : 0), sdp->sd_log_blks_free, pull); */
 	gfs2_assert_withdraw(sdp,
 			     sdp->sd_log_blks_free <= sdp->sd_jdesc->jd_blocks);
 	gfs2_log_unlock(sdp);

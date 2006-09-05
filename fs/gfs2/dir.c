@@ -284,7 +284,7 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf,
 	if (offset >= ip->i_di.di_size)
 		return 0;
 
-	if ((offset + size) > ip->i_di.di_size)
+	if (offset + size > ip->i_di.di_size)
 		size = ip->i_di.di_size - offset;
 
 	if (!size)
@@ -399,7 +399,7 @@ static int gfs2_dirent_find_space(const struct gfs2_dirent *dent,
 
 	if (!dent->de_inum.no_addr)
 		actual = GFS2_DIRENT_SIZE(0);
-	if ((totlen - actual) >= required)
+	if (totlen - actual >= required)
 		return 1;
 	return 0;
 }

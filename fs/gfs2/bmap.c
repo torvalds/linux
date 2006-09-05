@@ -618,7 +618,7 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 			return error;
 
 		top = (u64 *)(bh->b_data + mh_size) +
-				  ((first) ? mp->mp_list[height] : 0);
+				  (first ? mp->mp_list[height] : 0);
 
 		bottom = (u64 *)(bh->b_data + mh_size) + sdp->sd_inptrs;
 	}
@@ -957,7 +957,7 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 	int error;
 
 	error = gfs2_trans_begin(sdp,
-				 RES_DINODE + ((journaled) ? RES_JDATA : 0), 0);
+				 RES_DINODE + (journaled ? RES_JDATA : 0), 0);
 	if (error)
 		return error;
 
