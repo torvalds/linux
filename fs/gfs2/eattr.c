@@ -68,11 +68,9 @@ static int ea_check_size(struct gfs2_sbd *sdp, struct gfs2_ea_request *er)
 	return 0;
 }
 
-typedef int (*ea_call_t) (struct gfs2_inode *ip,
-			  struct buffer_head *bh,
+typedef int (*ea_call_t) (struct gfs2_inode *ip, struct buffer_head *bh,
 			  struct gfs2_ea_header *ea,
-			  struct gfs2_ea_header *prev,
-			  void *private);
+			  struct gfs2_ea_header *prev, void *private);
 
 static int ea_foreach_i(struct gfs2_inode *ip, struct buffer_head *bh,
 			ea_call_t ea_call, void *data)
@@ -86,9 +84,8 @@ static int ea_foreach_i(struct gfs2_inode *ip, struct buffer_head *bh,
 	for (ea = GFS2_EA_BH2FIRST(bh);; prev = ea, ea = GFS2_EA2NEXT(ea)) {
 		if (!GFS2_EA_REC_LEN(ea))
 			goto fail;
-		if (!(bh->b_data <= (char *)ea &&
-		      (char *)GFS2_EA2NEXT(ea) <=
-		      bh->b_data + bh->b_size))
+		if (!(bh->b_data <= (char *)ea && (char *)GFS2_EA2NEXT(ea) <=
+						  bh->b_data + bh->b_size))
 			goto fail;
 		if (!GFS2_EATYPE_VALID(ea->ea_type))
 			goto fail;
@@ -118,8 +115,7 @@ static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 	u64 *eablk, *end;
 	int error;
 
-	error = gfs2_meta_read(ip->i_gl, ip->i_di.di_eattr,
-			       DIO_START | DIO_WAIT, &bh);
+	error = gfs2_meta_read(ip->i_gl, ip->i_di.di_eattr, DIO_START | DIO_WAIT, &bh);
 	if (error)
 		return error;
 
@@ -143,8 +139,7 @@ static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 			break;
 		bn = be64_to_cpu(*eablk);
 
-		error = gfs2_meta_read(ip->i_gl, bn, DIO_START | DIO_WAIT,
-				       &eabh);
+		error = gfs2_meta_read(ip->i_gl, bn, DIO_START | DIO_WAIT, &eabh);
 		if (error)
 			break;
 		error = ea_foreach_i(ip, eabh, ea_call, data);
@@ -183,12 +178,6 @@ static int ea_find_i(struct gfs2_inode *ip, struct buffer_head *bh,
 			return 1;
 		}
 	}
-
-#if 0
-	else if ((ip->i_di.di_flags & GFS2_DIF_EA_PACKED) &&
-		 er->er_type == GFS2_EATYPE_SYS)
-		return 1;
-#endif
 
 	return 0;
 }
@@ -246,11 +235,12 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 		return 0;
 
 	dataptrs = GFS2_EA2DATAPTRS(ea);
-	for (x = 0; x < ea->ea_num_ptrs; x++, dataptrs++)
+	for (x = 0; x < ea->ea_num_ptrs; x++, dataptrs++) {
 		if (*dataptrs) {
 			blks++;
 			bn = be64_to_cpu(*dataptrs);
 		}
+	}
 	if (!blks)
 		return 0;
 
@@ -264,9 +254,8 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 	if (error)
 		return error;
 
-	error = gfs2_trans_begin(sdp, rgd->rd_ri.ri_length +
-				 RES_DINODE + RES_EATTR + RES_STATFS +
-				 RES_QUOTA, blks);
+	error = gfs2_trans_begin(sdp, rgd->rd_ri.ri_length + RES_DINODE +
+				 RES_EATTR + RES_STATFS + RES_QUOTA, blks);
 	if (error)
 		goto out_gunlock;
 
@@ -340,9 +329,7 @@ static int ea_remove_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 	if (error)
 		goto out_quota;
 
-	error = ea_dealloc_unstuffed(ip,
-				     bh, ea, prev,
-				     (leave) ? &error : NULL);
+	error = ea_dealloc_unstuffed(ip, bh, ea, prev, (leave) ? &error : NULL);
 
 	gfs2_glock_dq_uninit(&al->al_ri_gh);
 
@@ -423,9 +410,7 @@ int gfs2_ea_list(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 		er->er_data_len = 0;
 	}
 
-	error = gfs2_glock_nq_init(ip->i_gl,
-				  LM_ST_SHARED, LM_FLAG_ANY,
-				  &i_gh);
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 	if (error)
 		return error;
 
@@ -445,9 +430,9 @@ int gfs2_ea_list(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 /**
  * ea_get_unstuffed - actually copies the unstuffed data into the
  *                    request buffer
- * @ip:
- * @ea:
- * @data:
+ * @ip: The GFS2 inode
+ * @ea: The extended attribute header structure
+ * @data: The data to be copied
  *
  * Returns: errno
  */
@@ -492,8 +477,7 @@ static int ea_get_unstuffed(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 			goto out;
 		}
 
-		memcpy(data,
-		       bh[x]->b_data + sizeof(struct gfs2_meta_header),
+		memcpy(data, bh[x]->b_data + sizeof(struct gfs2_meta_header),
 		       (sdp->sd_jbsize > amount) ? amount : sdp->sd_jbsize);
 
 		amount -= sdp->sd_jbsize;
@@ -511,9 +495,7 @@ int gfs2_ea_get_copy(struct gfs2_inode *ip, struct gfs2_ea_location *el,
 		     char *data)
 {
 	if (GFS2_EA_IS_STUFFED(el->el_ea)) {
-		memcpy(data,
-		       GFS2_EA2DATA(el->el_ea),
-		       GFS2_EA_DATA_LEN(el->el_ea));
+		memcpy(data, GFS2_EA2DATA(el->el_ea), GFS2_EA_DATA_LEN(el->el_ea));
 		return 0;
 	} else
 		return ea_get_unstuffed(ip, el->el_ea, data);
@@ -521,8 +503,8 @@ int gfs2_ea_get_copy(struct gfs2_inode *ip, struct gfs2_ea_location *el,
 
 /**
  * gfs2_ea_get_i -
- * @ip:
- * @er:
+ * @ip: The GFS2 inode
+ * @er: The request structure
  *
  * Returns: actual size of data on success, -errno on error
  */
@@ -557,8 +539,8 @@ int gfs2_ea_get_i(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 
 /**
  * gfs2_ea_get -
- * @ip:
- * @er:
+ * @ip: The GFS2 inode
+ * @er: The request structure
  *
  * Returns: actual size of data on success, -errno on error
  */
@@ -576,9 +558,7 @@ int gfs2_ea_get(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 		er->er_data_len = 0;
 	}
 
-	error = gfs2_glock_nq_init(ip->i_gl,
-				  LM_ST_SHARED, LM_FLAG_ANY,
-				  &i_gh);
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 	if (error)
 		return error;
 
@@ -592,7 +572,7 @@ int gfs2_ea_get(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 /**
  * ea_alloc_blk - allocates a new block for extended attributes.
  * @ip: A pointer to the inode that's getting extended attributes
- * @bhp:
+ * @bhp: Pointer to pointer to a struct buffer_head
  *
  * Returns: errno
  */
@@ -624,8 +604,8 @@ static int ea_alloc_blk(struct gfs2_inode *ip, struct buffer_head **bhp)
 /**
  * ea_write - writes the request info to an ea, creating new blocks if
  *            necessary
- * @ip:  inode that is being modified
- * @ea:  the location of the new ea in a block
+ * @ip: inode that is being modified
+ * @ea: the location of the new ea in a block
  * @er: the write request
  *
  * Note: does not update ea_rec_len or the GFS2_EAFLAG_LAST bin of ea_flags
@@ -669,14 +649,14 @@ static int ea_write(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 
 			ip->i_di.di_blocks++;
 
-			copy = (data_len > sdp->sd_jbsize) ? sdp->sd_jbsize :
-							     data_len;
+			copy = data_len > sdp->sd_jbsize ? sdp->sd_jbsize :
+							   data_len;
 			memcpy(bh->b_data + mh_size, data, copy);
 			if (copy < sdp->sd_jbsize)
 				memset(bh->b_data + mh_size + copy, 0,
 				       sdp->sd_jbsize - copy);
 
-			*dataptr++ = cpu_to_be64((u64)bh->b_blocknr);
+			*dataptr++ = cpu_to_be64(bh->b_blocknr);
 			data += copy;
 			data_len -= copy;
 
@@ -690,13 +670,11 @@ static int ea_write(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 }
 
 typedef int (*ea_skeleton_call_t) (struct gfs2_inode *ip,
-				   struct gfs2_ea_request *er,
-				   void *private);
+				   struct gfs2_ea_request *er, void *private);
 
 static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 			     unsigned int blks,
-			     ea_skeleton_call_t skeleton_call,
-			     void *private)
+			     ea_skeleton_call_t skeleton_call, void *private)
 {
 	struct gfs2_alloc *al;
 	struct buffer_head *dibh;
@@ -1013,7 +991,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 		goto out;
 
 	if (private)
-		ea_set_remove_stuffed(ip, (struct gfs2_ea_location *)private);
+		ea_set_remove_stuffed(ip, private);
 
 out:
 	brelse(indbh);
@@ -1101,8 +1079,7 @@ int gfs2_ea_set(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 	struct gfs2_holder i_gh;
 	int error;
 
-	if (!er->er_name_len ||
-	    er->er_name_len > GFS2_EA_MAX_NAME_LEN)
+	if (!er->er_name_len || er->er_name_len > GFS2_EA_MAX_NAME_LEN)
 		return -EINVAL;
 	if (!er->er_data || !er->er_data_len) {
 		er->er_data = NULL;
@@ -1264,8 +1241,7 @@ static int ea_acl_chmod_unstuffed(struct gfs2_inode *ip,
 
 		gfs2_trans_add_bh(ip->i_gl, bh[x], 1);
 
-		memcpy(bh[x]->b_data + sizeof(struct gfs2_meta_header),
-		       data,
+		memcpy(bh[x]->b_data + sizeof(struct gfs2_meta_header), data,
 		       (sdp->sd_jbsize > amount) ? amount : sdp->sd_jbsize);
 
 		amount -= sdp->sd_jbsize;
@@ -1296,8 +1272,7 @@ int gfs2_ea_acl_chmod(struct gfs2_inode *ip, struct gfs2_ea_location *el,
 			return error;
 
 		gfs2_trans_add_bh(ip->i_gl, el->el_bh, 1);
-		memcpy(GFS2_EA2DATA(el->el_ea),
-		       data,
+		memcpy(GFS2_EA2DATA(el->el_ea), data,
 		       GFS2_EA_DATA_LEN(el->el_ea));
 	} else
 		error = ea_acl_chmod_unstuffed(ip, el->el_ea, data);
@@ -1382,9 +1357,8 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 	if (error)
 		goto out_rlist_free;
 
-	error = gfs2_trans_begin(sdp, rg_blocks + RES_DINODE +
-				 RES_INDIRECT + RES_STATFS +
-				 RES_QUOTA, blks);
+	error = gfs2_trans_begin(sdp, rg_blocks + RES_DINODE + RES_INDIRECT +
+				 RES_STATFS + RES_QUOTA, blks);
 	if (error)
 		goto out_gunlock;
 
@@ -1457,8 +1431,8 @@ static int ea_dealloc_block(struct gfs2_inode *ip)
 	if (error)
 		return error;
 
-	error = gfs2_trans_begin(sdp, RES_RG_BIT + RES_DINODE +
-				 RES_STATFS + RES_QUOTA, 1);
+	error = gfs2_trans_begin(sdp, RES_RG_BIT + RES_DINODE + RES_STATFS +
+				 RES_QUOTA, 1);
 	if (error)
 		goto out_gunlock;
 

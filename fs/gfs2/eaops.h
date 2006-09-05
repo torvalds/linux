@@ -20,7 +20,7 @@ struct gfs2_eattr_operations {
 	char *eo_name;
 };
 
-unsigned int gfs2_ea_name2type(const char *name, char **truncated_name);
+unsigned int gfs2_ea_name2type(const char *name, const char **truncated_name);
 
 extern struct gfs2_eattr_operations gfs2_system_eaops;
 

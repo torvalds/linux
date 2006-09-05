@@ -31,22 +31,22 @@
  * Returns: GFS2_EATYPE_XXX
  */
 
-unsigned int gfs2_ea_name2type(const char *name, char **truncated_name)
+unsigned int gfs2_ea_name2type(const char *name, const char **truncated_name)
 {
 	unsigned int type;
 
 	if (strncmp(name, "system.", 7) == 0) {
 		type = GFS2_EATYPE_SYS;
 		if (truncated_name)
-			*truncated_name = strchr(name, '.') + 1;
+			*truncated_name = name + sizeof("system.") - 1;
 	} else if (strncmp(name, "user.", 5) == 0) {
 		type = GFS2_EATYPE_USR;
 		if (truncated_name)
-			*truncated_name = strchr(name, '.') + 1;
+			*truncated_name = name + sizeof("user.") - 1;
 	} else if (strncmp(name, "security.", 9) == 0) {
 		type = GFS2_EATYPE_SECURITY;
 		if (truncated_name)
-			*truncated_name = strchr(name, '.') + 1;
+			*truncated_name = name + sizeof("security.") - 1;
 	} else {
 		type = GFS2_EATYPE_UNUSED;
 		if (truncated_name)

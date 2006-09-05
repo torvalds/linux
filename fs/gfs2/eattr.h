@@ -46,7 +46,7 @@ ALIGN(sizeof(struct gfs2_ea_header) + (er)->er_name_len + \
 #define GFS2_ERF_MODE 0x80000000
 
 struct gfs2_ea_request {
-	char *er_name;
+	const char *er_name;
 	char *er_data;
 	unsigned int er_name_len;
 	unsigned int er_data_len;
@@ -87,13 +87,13 @@ static inline unsigned int gfs2_ea_strlen(struct gfs2_ea_header *ea)
 {
 	switch (ea->ea_type) {
 	case GFS2_EATYPE_USR:
-		return (5 + (ea->ea_name_len + 1));
+		return 5 + ea->ea_name_len + 1;
 	case GFS2_EATYPE_SYS:
-		return (7 + (ea->ea_name_len + 1));
+		return 7 + ea->ea_name_len + 1;
 	case GFS2_EATYPE_SECURITY:
-		return (9 + (ea->ea_name_len + 1));
+		return 9 + ea->ea_name_len + 1;
 	default:
-		return (0);
+		return 0;
 	}
 }
 
