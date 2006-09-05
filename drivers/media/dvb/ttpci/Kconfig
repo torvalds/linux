@@ -113,6 +113,7 @@ config DVB_BUDGET_AV
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
 	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
 	select DVB_TDA10021 if !DVB_FE_CUSTOMISE
+	select DVB_TUA6100 if !DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help
 	  Support for simple SAA7146 based DVB cards
