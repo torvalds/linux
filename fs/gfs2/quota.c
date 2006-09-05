@@ -503,24 +503,22 @@ void gfs2_quota_unhold(struct gfs2_inode *ip)
 
 static int sort_qd(const void *a, const void *b)
 {
-	struct gfs2_quota_data *qd_a = *(struct gfs2_quota_data **)a;
-	struct gfs2_quota_data *qd_b = *(struct gfs2_quota_data **)b;
-	int ret = 0;
+	const struct gfs2_quota_data *qd_a = *(const struct gfs2_quota_data **)a;
+	const struct gfs2_quota_data *qd_b = *(const struct gfs2_quota_data **)b;
 
 	if (!test_bit(QDF_USER, &qd_a->qd_flags) !=
 	    !test_bit(QDF_USER, &qd_b->qd_flags)) {
 		if (test_bit(QDF_USER, &qd_a->qd_flags))
-			ret = -1;
+			return -1;
 		else
-			ret = 1;
-	} else {
-		if (qd_a->qd_id < qd_b->qd_id)
-			ret = -1;
-		else if (qd_a->qd_id > qd_b->qd_id)
-			ret = 1;
+			return 1;
 	}
+	if (qd_a->qd_id < qd_b->qd_id)
+		return -1;
+	if (qd_a->qd_id > qd_b->qd_id)
+		return 1;
 
-	return ret;
+	return 0;
 }
 
 static void do_qc(struct gfs2_quota_data *qd, s64 change)
@@ -622,17 +620,13 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	gfs2_trans_add_bh(ip->i_gl, bh, 0);
 
 	kaddr = kmap_atomic(page, KM_USER0);
-	ptr = (__be64 *)(kaddr + offset);
+	ptr = kaddr + offset;
 	value = (s64)be64_to_cpu(*ptr) + change;
 	*ptr = cpu_to_be64(value);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_USER0);
 	err = 0;
 	qd->qd_qb.qb_magic = cpu_to_be32(GFS2_MAGIC);
-#if 0
-	qd->qd_qb.qb_limit = cpu_to_be64(q.qu_limit);
-	qd->qd_qb.qb_warn = cpu_to_be64(q.qu_warn);
-#endif
 	qd->qd_qb.qb_value = cpu_to_be64(value);
 unlock:
 	unlock_page(page);
@@ -1056,43 +1050,6 @@ int gfs2_quota_refresh(struct gfs2_sbd *sdp, int user, u32 id)
 
 	return error;
 }
-
-#if 0
-int gfs2_quota_read(struct gfs2_sbd *sdp, int user, u32 id,
-		    struct gfs2_quota *q)
-{
-	struct gfs2_quota_data *qd;
-	struct gfs2_holder q_gh;
-	int error;
-
-	if (((user) ? (id != current->fsuid) : (!in_group_p(id))) &&
-	    !capable(CAP_SYS_ADMIN))
-		return -EACCES;
-
-	error = qd_get(sdp, user, id, CREATE, &qd);
-	if (error)
-		return error;
-
-	error = do_glock(qd, NO_FORCE, &q_gh);
-	if (error)
-		goto out;
-
-	memset(q, 0, sizeof(struct gfs2_quota));
-	q->qu_limit = be64_to_cpu(qd->qd_qb.qb_limit);
-	q->qu_warn = be64_to_cpu(qd->qd_qb.qb_warn);
-	q->qu_value = be64_to_cpu(qd->qd_qb.qb_value);
-
-	spin_lock(&sdp->sd_quota_spin);
-	q->qu_value += qd->qd_change;
-	spin_unlock(&sdp->sd_quota_spin);
-
-	gfs2_glock_dq_uninit(&q_gh);
-
-out:
-	qd_put(qd);
-	return error;
-}
-#endif  /*  0  */
 
 int gfs2_quota_init(struct gfs2_sbd *sdp)
 {
