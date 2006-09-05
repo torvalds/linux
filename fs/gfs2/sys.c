@@ -253,7 +253,7 @@ static struct attribute *lockstruct_attrs[] = {
 	&lockstruct_attr_first.attr,
 	&lockstruct_attr_lvb_size.attr,
 	&lockstruct_attr_flags.attr,
-	NULL
+	NULL,
 };
 
 /*
@@ -310,7 +310,7 @@ static struct attribute *args_attrs[] = {
 	&args_attr_suiddir.attr,
 	&args_attr_data.attr,
 	&args_attr_noatime.attr,
-	NULL
+	NULL,
 };
 
 /*
@@ -339,7 +339,7 @@ static struct attribute *counters_attrs[] = {
 	&counters_attr_glock_held_count.attr,
 	&counters_attr_inode_count.attr,
 	&counters_attr_reclaimed.attr,
-	NULL
+	NULL,
 };
 
 /*
@@ -487,27 +487,27 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_quota_scale.attr,
 	&tune_attr_new_files_jdata.attr,
 	&tune_attr_new_files_directio.attr,
-	NULL
+	NULL,
 };
 
 static struct attribute_group lockstruct_group = {
 	.name = "lockstruct",
-	.attrs = lockstruct_attrs
+	.attrs = lockstruct_attrs,
 };
 
 static struct attribute_group counters_group = {
 	.name = "counters",
-	.attrs = counters_attrs
+	.attrs = counters_attrs,
 };
 
 static struct attribute_group args_group = {
 	.name = "args",
-	.attrs = args_attrs
+	.attrs = args_attrs,
 };
 
 static struct attribute_group tune_group = {
 	.name = "tune",
-	.attrs = tune_attrs
+	.attrs = tune_attrs,
 };
 
 int gfs2_sys_fs_add(struct gfs2_sbd *sdp)

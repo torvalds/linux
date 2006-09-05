@@ -760,7 +760,7 @@ static void databuf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 const struct gfs2_log_operations gfs2_glock_lops = {
 	.lo_add = glock_lo_add,
 	.lo_after_commit = glock_lo_after_commit,
-	.lo_name = "glock"
+	.lo_name = "glock",
 };
 
 const struct gfs2_log_operations gfs2_buf_lops = {
@@ -771,7 +771,7 @@ const struct gfs2_log_operations gfs2_buf_lops = {
 	.lo_before_scan = buf_lo_before_scan,
 	.lo_scan_elements = buf_lo_scan_elements,
 	.lo_after_scan = buf_lo_after_scan,
-	.lo_name = "buf"
+	.lo_name = "buf",
 };
 
 const struct gfs2_log_operations gfs2_revoke_lops = {
@@ -780,13 +780,13 @@ const struct gfs2_log_operations gfs2_revoke_lops = {
 	.lo_before_scan = revoke_lo_before_scan,
 	.lo_scan_elements = revoke_lo_scan_elements,
 	.lo_after_scan = revoke_lo_after_scan,
-	.lo_name = "revoke"
+	.lo_name = "revoke",
 };
 
 const struct gfs2_log_operations gfs2_rg_lops = {
 	.lo_add = rg_lo_add,
 	.lo_after_commit = rg_lo_after_commit,
-	.lo_name = "rg"
+	.lo_name = "rg",
 };
 
 const struct gfs2_log_operations gfs2_databuf_lops = {
@@ -796,7 +796,7 @@ const struct gfs2_log_operations gfs2_databuf_lops = {
 	.lo_after_commit = databuf_lo_after_commit,
 	.lo_scan_elements = databuf_lo_scan_elements,
 	.lo_after_scan = databuf_lo_after_scan,
-	.lo_name = "databuf"
+	.lo_name = "databuf",
 };
 
 const struct gfs2_log_operations *gfs2_log_ops[] = {
@@ -805,6 +805,6 @@ const struct gfs2_log_operations *gfs2_log_ops[] = {
 	&gfs2_revoke_lops,
 	&gfs2_rg_lops,
 	&gfs2_databuf_lops,
-	NULL
+	NULL,
 };
 

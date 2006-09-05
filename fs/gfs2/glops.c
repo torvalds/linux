@@ -492,7 +492,7 @@ static int quota_go_demote_ok(struct gfs2_glock *gl)
 const struct gfs2_glock_operations gfs2_meta_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
-	.go_type = LM_TYPE_META
+	.go_type = LM_TYPE_META,
 };
 
 const struct gfs2_glock_operations gfs2_inode_glops = {
@@ -505,7 +505,7 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_lock = inode_go_lock,
 	.go_unlock = inode_go_unlock,
 	.go_greedy = inode_greedy,
-	.go_type = LM_TYPE_INODE
+	.go_type = LM_TYPE_INODE,
 };
 
 const struct gfs2_glock_operations gfs2_rgrp_glops = {
@@ -516,45 +516,45 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_demote_ok = rgrp_go_demote_ok,
 	.go_lock = rgrp_go_lock,
 	.go_unlock = rgrp_go_unlock,
-	.go_type = LM_TYPE_RGRP
+	.go_type = LM_TYPE_RGRP,
 };
 
 const struct gfs2_glock_operations gfs2_trans_glops = {
 	.go_xmote_th = trans_go_xmote_th,
 	.go_xmote_bh = trans_go_xmote_bh,
 	.go_drop_th = trans_go_drop_th,
-	.go_type = LM_TYPE_NONDISK
+	.go_type = LM_TYPE_NONDISK,
 };
 
 const struct gfs2_glock_operations gfs2_iopen_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
 	.go_callback = gfs2_iopen_go_callback,
-	.go_type = LM_TYPE_IOPEN
+	.go_type = LM_TYPE_IOPEN,
 };
 
 const struct gfs2_glock_operations gfs2_flock_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
-	.go_type = LM_TYPE_FLOCK
+	.go_type = LM_TYPE_FLOCK,
 };
 
 const struct gfs2_glock_operations gfs2_nondisk_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
-	.go_type = LM_TYPE_NONDISK
+	.go_type = LM_TYPE_NONDISK,
 };
 
 const struct gfs2_glock_operations gfs2_quota_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
 	.go_demote_ok = quota_go_demote_ok,
-	.go_type = LM_TYPE_QUOTA
+	.go_type = LM_TYPE_QUOTA,
 };
 
 const struct gfs2_glock_operations gfs2_journal_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
-	.go_type = LM_TYPE_JOURNAL
+	.go_type = LM_TYPE_JOURNAL,
 };
 
