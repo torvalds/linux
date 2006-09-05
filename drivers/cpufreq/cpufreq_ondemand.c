@@ -449,7 +449,7 @@ static inline void dbs_timer_init(unsigned int cpu)
 	delay -= jiffies % delay;
 
 	ondemand_powersave_bias_init();
-	INIT_WORK(&dbs_info->work, do_dbs_timer, 0);
+	INIT_WORK(&dbs_info->work, do_dbs_timer, NULL);
 	queue_delayed_work_on(cpu, kondemand_wq, &dbs_info->work, delay);
 }
 
