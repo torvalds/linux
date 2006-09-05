@@ -366,6 +366,9 @@ __nfulnl_send(struct nfulnl_instance *inst)
 	if (timer_pending(&inst->timer))
 		del_timer(&inst->timer);
 
+	if (!inst->skb)
+		return 0;
+
 	if (inst->qlen > 1)
 		inst->lastnlh->nlmsg_type = NLMSG_DONE;
 

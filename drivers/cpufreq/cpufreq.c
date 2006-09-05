@@ -284,39 +284,69 @@ EXPORT_SYMBOL_GPL(cpufreq_notify_transition);
  *                          SYSFS INTERFACE                          *
  *********************************************************************/
 
+static struct cpufreq_governor *__find_governor(const char *str_governor)
+{
+	struct cpufreq_governor *t;
+
+	list_for_each_entry(t, &cpufreq_governor_list, governor_list)
+		if (!strnicmp(str_governor,t->name,CPUFREQ_NAME_LEN))
+			return t;
+
+	return NULL;
+}
+
 /**
  * cpufreq_parse_governor - parse a governor string
  */
 static int cpufreq_parse_governor (char *str_governor, unsigned int *policy,
 				struct cpufreq_governor **governor)
 {
+	int err = -EINVAL;
+
 	if (!cpufreq_driver)
-		return -EINVAL;
+		goto out;
+
 	if (cpufreq_driver->setpolicy) {
 		if (!strnicmp(str_governor, "performance", CPUFREQ_NAME_LEN)) {
 			*policy = CPUFREQ_POLICY_PERFORMANCE;
-			return 0;
+			err = 0;
 		} else if (!strnicmp(str_governor, "powersave", CPUFREQ_NAME_LEN)) {
 			*policy = CPUFREQ_POLICY_POWERSAVE;
-			return 0;
+			err = 0;
 		}
-		return -EINVAL;
-	} else {
+	} else if (cpufreq_driver->target) {
 		struct cpufreq_governor *t;
+
 		mutex_lock(&cpufreq_governor_mutex);
-		if (!cpufreq_driver || !cpufreq_driver->target)
-			goto out;
-		list_for_each_entry(t, &cpufreq_governor_list, governor_list) {
-			if (!strnicmp(str_governor,t->name,CPUFREQ_NAME_LEN)) {
-				*governor = t;
+
+		t = __find_governor(str_governor);
+
+		if (t == NULL) {
+			char *name = kasprintf(GFP_KERNEL, "cpufreq_%s", str_governor);
+
+			if (name) {
+				int ret;
+
 				mutex_unlock(&cpufreq_governor_mutex);
-				return 0;
+				ret = request_module(name);
+				mutex_lock(&cpufreq_governor_mutex);
+
+				if (ret == 0)
+					t = __find_governor(str_governor);
 			}
+
+			kfree(name);
 		}
-out:
+
+		if (t != NULL) {
+			*governor = t;
+			err = 0;
+		}
+
 		mutex_unlock(&cpufreq_governor_mutex);
 	}
-	return -EINVAL;
+  out:
+	return err;
 }
 
 
@@ -1265,23 +1295,21 @@ static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event)
 
 int cpufreq_register_governor(struct cpufreq_governor *governor)
 {
-	struct cpufreq_governor *t;
+	int err;
 
 	if (!governor)
 		return -EINVAL;
 
 	mutex_lock(&cpufreq_governor_mutex);
 
-	list_for_each_entry(t, &cpufreq_governor_list, governor_list) {
-		if (!strnicmp(governor->name,t->name,CPUFREQ_NAME_LEN)) {
-			mutex_unlock(&cpufreq_governor_mutex);
-			return -EBUSY;
-		}
+	err = -EBUSY;
+	if (__find_governor(governor->name) == NULL) {
+		err = 0;
+		list_add(&governor->governor_list, &cpufreq_governor_list);
 	}
-	list_add(&governor->governor_list, &cpufreq_governor_list);
 
 	mutex_unlock(&cpufreq_governor_mutex);
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL_GPL(cpufreq_register_governor);
 
@@ -1342,6 +1370,11 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data, struct cpufreq_poli
 		policy->min, policy->max);
 
 	memcpy(&policy->cpuinfo, &data->cpuinfo, sizeof(struct cpufreq_cpuinfo));
+
+	if (policy->min > data->min && policy->min > policy->max) {
+		ret = -EINVAL;
+		goto error_out;
+	}
 
 	/* verify the cpu speed can be set within this limit */
 	ret = cpufreq_driver->verify(policy);

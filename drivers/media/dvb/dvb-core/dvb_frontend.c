@@ -526,7 +526,9 @@ static int dvb_frontend_thread(void *data)
 	fepriv->delay = 3*HZ;
 	fepriv->status = 0;
 	fepriv->wakeup = 0;
-	fepriv->reinitialise = 1;
+	fepriv->reinitialise = 0;
+
+	dvb_frontend_init(fe);
 
 	while (1) {
 		up(&fepriv->sem);	    /* is locked when we enter the thread... */
@@ -1013,17 +1015,18 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 		return ret;
 
 	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
+
+		/* normal tune mode when opened R/W */
+		fepriv->tune_mode_flags &= ~FE_TUNE_MODE_ONESHOT;
+		fepriv->tone = -1;
+		fepriv->voltage = -1;
+
 		ret = dvb_frontend_start (fe);
 		if (ret)
 			dvb_generic_release (inode, file);
 
 		/*  empty event queue */
 		fepriv->events.eventr = fepriv->events.eventw = 0;
-
-		/* normal tune mode when opened R/W */
-		fepriv->tune_mode_flags &= ~FE_TUNE_MODE_ONESHOT;
-		fepriv->tone = -1;
-		fepriv->voltage = -1;
 	}
 
 	return ret;

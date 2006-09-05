@@ -16,9 +16,11 @@
 #include <linux/device.h>
 #include <linux/serial_8250.h>
 #include <linux/fsl_devices.h>
+#include <linux/fs_enet_pd.h>
 #include <asm/mpc85xx.h>
 #include <asm/irq.h>
 #include <asm/ppc_sys.h>
+#include <asm/cpm2.h>
 
 /* We use offsets for IORESOURCE_MEM since we do not know at compile time
  * what CCSRBAR is, will get fixed up by mach_mpc85xx_fixup
@@ -80,6 +82,60 @@ static struct fsl_i2c_platform_data mpc85xx_fsl_i2c_pdata = {
 
 static struct fsl_i2c_platform_data mpc85xx_fsl_i2c2_pdata = {
 	.device_flags = FSL_I2C_DEV_SEPARATE_DFSRR,
+};
+
+static struct fs_platform_info mpc85xx_fcc1_pdata = {
+	.fs_no          = fsid_fcc1,
+	.cp_page        = CPM_CR_FCC1_PAGE,
+	.cp_block       = CPM_CR_FCC1_SBLOCK,
+
+	.rx_ring        = 32,
+	.tx_ring        = 32,
+	.rx_copybreak   = 240,
+	.use_napi       = 0,
+	.napi_weight    = 17,
+
+	.clk_mask	= CMX1_CLK_MASK,
+	.clk_route	= CMX1_CLK_ROUTE,
+	.clk_trx	= (PC_F1RXCLK | PC_F1TXCLK),
+
+	.mem_offset     = FCC1_MEM_OFFSET,
+};
+
+static struct fs_platform_info mpc85xx_fcc2_pdata = {
+	.fs_no          = fsid_fcc2,
+	.cp_page        = CPM_CR_FCC2_PAGE,
+	.cp_block       = CPM_CR_FCC2_SBLOCK,
+
+	.rx_ring        = 32,
+	.tx_ring        = 32,
+	.rx_copybreak   = 240,
+	.use_napi       = 0,
+	.napi_weight    = 17,
+
+	.clk_mask	= CMX2_CLK_MASK,
+	.clk_route	= CMX2_CLK_ROUTE,
+	.clk_trx	= (PC_F2RXCLK | PC_F2TXCLK),
+
+	.mem_offset     = FCC2_MEM_OFFSET,
+};
+
+static struct fs_platform_info mpc85xx_fcc3_pdata = {
+	.fs_no          = fsid_fcc3,
+	.cp_page        = CPM_CR_FCC3_PAGE,
+	.cp_block       = CPM_CR_FCC3_SBLOCK,
+
+	.rx_ring        = 32,
+	.tx_ring        = 32,
+	.rx_copybreak   = 240,
+	.use_napi       = 0,
+	.napi_weight    = 17,
+
+	.clk_mask	= CMX3_CLK_MASK,
+	.clk_route	= CMX3_CLK_ROUTE,
+	.clk_trx	= (PC_F3RXCLK | PC_F3TXCLK),
+
+	.mem_offset     = FCC3_MEM_OFFSET,
 };
 
 static struct plat_serial8250_port serial_platform_data[] = {
@@ -318,16 +374,25 @@ struct platform_device ppc_sys_platform_devices[] = {
 	[MPC85xx_CPM_FCC1] = {
 		.name = "fsl-cpm-fcc",
 		.id	= 1,
-		.num_resources	 = 3,
+		.num_resources	 = 4,
+		.dev.platform_data = &mpc85xx_fcc1_pdata,
 		.resource = (struct resource[]) {
 			{
+				.name	= "fcc_regs",
 				.start	= 0x91300,
 				.end	= 0x9131F,
 				.flags	= IORESOURCE_MEM,
 			},
 			{
+				.name   = "fcc_regs_c",
 				.start	= 0x91380,
 				.end	= 0x9139F,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.name	= "fcc_pram",
+				.start	= 0x88400,
+				.end	= 0x884ff,
 				.flags	= IORESOURCE_MEM,
 			},
 			{
@@ -340,16 +405,25 @@ struct platform_device ppc_sys_platform_devices[] = {
 	[MPC85xx_CPM_FCC2] = {
 		.name = "fsl-cpm-fcc",
 		.id	= 2,
-		.num_resources	 = 3,
+		.num_resources	 = 4,
+		.dev.platform_data = &mpc85xx_fcc2_pdata,
 		.resource = (struct resource[]) {
 			{
+				.name	= "fcc_regs",
 				.start	= 0x91320,
 				.end	= 0x9133F,
 				.flags	= IORESOURCE_MEM,
 			},
 			{
+				.name   = "fcc_regs_c",
 				.start	= 0x913A0,
 				.end	= 0x913CF,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.name	= "fcc_pram",
+				.start	= 0x88500,
+				.end	= 0x885ff,
 				.flags	= IORESOURCE_MEM,
 			},
 			{
@@ -362,16 +436,25 @@ struct platform_device ppc_sys_platform_devices[] = {
 	[MPC85xx_CPM_FCC3] = {
 		.name = "fsl-cpm-fcc",
 		.id	= 3,
-		.num_resources	 = 3,
+		.num_resources	 = 4,
+		.dev.platform_data = &mpc85xx_fcc3_pdata,
 		.resource = (struct resource[]) {
 			{
+				.name	= "fcc_regs",
 				.start	= 0x91340,
 				.end	= 0x9135F,
 				.flags	= IORESOURCE_MEM,
 			},
 			{
+				.name   = "fcc_regs_c",
 				.start	= 0x913D0,
 				.end	= 0x913FF,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.name	= "fcc_pram",
+				.start	= 0x88600,
+				.end	= 0x886ff,
 				.flags	= IORESOURCE_MEM,
 			},
 			{

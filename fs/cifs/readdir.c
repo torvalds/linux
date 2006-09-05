@@ -556,7 +556,7 @@ static int cifs_entry_is_dot(char *current_entry, struct cifsFileInfo *cfile)
 		FIND_FILE_STANDARD_INFO * pFindData =
 			(FIND_FILE_STANDARD_INFO *)current_entry;
 		filename = &pFindData->FileName[0];
-		len = le32_to_cpu(pFindData->FileNameLength);
+		len = pFindData->FileNameLength;
 	} else {
 		cFYI(1,("Unknown findfirst level %d",cfile->srch_inf.info_level));
 	}

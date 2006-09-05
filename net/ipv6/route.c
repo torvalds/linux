@@ -53,6 +53,7 @@
 #include <linux/rtnetlink.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
+#include <net/netevent.h>
 
 #include <asm/uaccess.h>
 
@@ -742,6 +743,7 @@ static void ip6_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 			dst->metrics[RTAX_FEATURES-1] |= RTAX_FEATURE_ALLFRAG;
 		}
 		dst->metrics[RTAX_MTU-1] = mtu;
+		call_netevent_notifiers(NETEVENT_PMTU_UPDATE, dst);
 	}
 }
 
@@ -1155,6 +1157,7 @@ void rt6_redirect(struct in6_addr *dest, struct in6_addr *saddr,
 	struct rt6_info *rt, *nrt = NULL;
 	int strict;
 	struct fib6_node *fn;
+	struct netevent_redirect netevent;
 
 	/*
 	 * Get the "current" route for this destination and
@@ -1251,6 +1254,10 @@ restart:
 
 	if (ip6_ins_rt(nrt, NULL, NULL, NULL))
 		goto out;
+
+	netevent.old = &rt->u.dst;
+	netevent.new = &nrt->u.dst;
+	call_netevent_notifiers(NETEVENT_REDIRECT, &netevent);
 
 	if (rt->rt6i_flags&RTF_CACHE) {
 		ip6_del_rt(rt, NULL, NULL, NULL);
@@ -1525,6 +1532,10 @@ int ipv6_route_ioctl(unsigned int cmd, void __user *arg)
 
 static int ip6_pkt_discard(struct sk_buff *skb)
 {
+	int type = ipv6_addr_type(&skb->nh.ipv6h->daddr);
+	if (type == IPV6_ADDR_ANY || type == IPV6_ADDR_RESERVED)
+		IP6_INC_STATS(IPSTATS_MIB_INADDRERRORS);
+
 	IP6_INC_STATS(IPSTATS_MIB_OUTNOROUTES);
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_NOROUTE, 0, skb->dev);
 	kfree_skb(skb);

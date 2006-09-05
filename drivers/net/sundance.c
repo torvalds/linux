@@ -107,7 +107,7 @@ static char *media[MAX_UNITS];
 #endif
 
 /* These identify the driver base version and may not be removed. */
-static char version[] __devinitdata =
+static char version[] =
 KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE "  Written by Donald Becker\n"
 KERN_INFO "  http://www.scyld.com/network/sundance.html\n";
 

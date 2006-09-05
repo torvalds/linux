@@ -384,8 +384,7 @@ static int acpi_cpufreq_early_init_acpi(void)
 	}
 
 	/* Do initialization in ACPI core */
-	acpi_processor_preregister_performance(acpi_perf_data);
-	return 0;
+	return acpi_processor_preregister_performance(acpi_perf_data);
 }
 
 static int
@@ -568,16 +567,11 @@ static struct cpufreq_driver acpi_cpufreq_driver = {
 static int __init
 acpi_cpufreq_init (void)
 {
-	int                     result = 0;
-
 	dprintk("acpi_cpufreq_init\n");
 
-	result = acpi_cpufreq_early_init_acpi();
+	acpi_cpufreq_early_init_acpi();
 
-	if (!result)
- 		result = cpufreq_register_driver(&acpi_cpufreq_driver);
-	
-	return (result);
+ 	return cpufreq_register_driver(&acpi_cpufreq_driver);
 }
 
 

@@ -74,7 +74,7 @@ tioce_mmr_war_pre(struct tioce_kernel *kern, void *mmr_addr)
 		else
 			mmr_war_offset = 0x158;
 
-		readq_relaxed((void *)(mmr_base + mmr_war_offset));
+		readq_relaxed((void __iomem *)(mmr_base + mmr_war_offset));
 	}
 }
 
@@ -92,8 +92,8 @@ tioce_mmr_war_post(struct tioce_kernel *kern, void *mmr_addr)
 
 	if (mmr_offset < 0x45000) {
 		if (mmr_offset == 0x100)
-			readq_relaxed((void *)(mmr_base + 0x38));
-		readq_relaxed((void *)(mmr_base + 0xb050));
+			readq_relaxed((void __iomem *)(mmr_base + 0x38));
+		readq_relaxed((void __iomem *)(mmr_base + 0xb050));
 	}
 }
 

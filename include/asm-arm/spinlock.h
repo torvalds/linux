@@ -199,7 +199,21 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 	: "cc");
 }
 
-#define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
+static inline int __raw_read_trylock(raw_rwlock_t *rw)
+{
+	unsigned long tmp tmp2 = 1;
+
+	__asm__ __volatile__(
+"1:	ldrex	%0, [%2]\n"
+"	adds	%0, %0, #1\n"
+"	strexpl	%1, %0, [%2]\n"
+	: "=&r" (tmp), "+r" (tmp2)
+	: "r" (&rw->lock)
+	: "cc");
+
+	smp_mb();
+	return tmp2 == 0;
+}
 
 /* read_can_lock - would read_trylock() succeed? */
 #define __raw_read_can_lock(x)		((x)->lock < 0x80000000)

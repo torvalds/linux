@@ -54,15 +54,13 @@ struct unix_skb_parms {
 	struct ucred		creds;		/* Skb credentials	*/
 	struct scm_fp_list	*fp;		/* Passed files		*/
 #ifdef CONFIG_SECURITY_NETWORK
-	char			*secdata;	/* Security context	*/
-	u32			seclen;		/* Security length	*/
+	u32			secid;		/* Security ID		*/
 #endif
 };
 
 #define UNIXCB(skb) 	(*(struct unix_skb_parms*)&((skb)->cb))
 #define UNIXCREDS(skb)	(&UNIXCB((skb)).creds)
-#define UNIXSECDATA(skb)	(&UNIXCB((skb)).secdata)
-#define UNIXSECLEN(skb)		(&UNIXCB((skb)).seclen)
+#define UNIXSID(skb)	(&UNIXCB((skb)).secid)
 
 #define unix_state_rlock(s)	spin_lock(&unix_sk(s)->lock)
 #define unix_state_runlock(s)	spin_unlock(&unix_sk(s)->lock)

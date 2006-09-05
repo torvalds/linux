@@ -362,7 +362,7 @@ int msp_sleep(struct msp_state *state, int timeout)
 }
 
 /* ------------------------------------------------------------------------ */
-
+#ifdef CONFIG_VIDEO_V4L1
 static int msp_mode_v4l2_to_v4l1(int rxsubchans, int audmode)
 {
 	if (rxsubchans == V4L2_TUNER_SUB_MONO)
@@ -384,6 +384,7 @@ static int msp_mode_v4l1_to_v4l2(int mode)
 		return V4L2_TUNER_MODE_LANG1;
 	return V4L2_TUNER_MODE_MONO;
 }
+#endif
 
 static int msp_get_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 {
@@ -509,6 +510,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	/* --- v4l ioctls --- */
 	/* take care: bttv does userspace copying, we'll get a
 	   kernel pointer here... */
+#ifdef CONFIG_VIDEO_V4L1
 	case VIDIOCGAUDIO:
 	{
 		struct video_audio *va = arg;
@@ -577,6 +579,12 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	}
 
 	case VIDIOCSFREQ:
+	{
+		/* new channel -- kick audio carrier scan */
+		msp_wake_thread(client);
+		break;
+	}
+#endif
 	case VIDIOC_S_FREQUENCY:
 	{
 		/* new channel -- kick audio carrier scan */

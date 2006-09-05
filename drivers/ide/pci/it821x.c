@@ -498,9 +498,14 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 {
 	u8 speed	= ide_dma_speed(drive, it821x_ratemask(drive));
 
-	config_it821x_chipset_for_pio(drive, !speed);
-	it821x_tune_chipset(drive, speed);
-	return ide_dma_enable(drive);
+	if (speed) {
+		config_it821x_chipset_for_pio(drive, 0);
+		it821x_tune_chipset(drive, speed);
+
+		return ide_dma_enable(drive);
+	}
+
+	return 0;
 }
 
 /**

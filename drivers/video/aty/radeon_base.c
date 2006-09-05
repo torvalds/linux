@@ -266,6 +266,8 @@ static int force_measure_pll = 0;
 #ifdef CONFIG_MTRR
 static int nomtrr = 0;
 #endif
+static int force_sleep;
+static int ignore_devlist;
 
 /*
  * prototypes
@@ -2327,9 +2329,9 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 		/* -2 is special: means  ON on mobility chips and do not
 		 * change on others
 		 */
-		radeonfb_pm_init(rinfo, rinfo->is_mobility ? 1 : -1);
+		radeonfb_pm_init(rinfo, rinfo->is_mobility ? 1 : -1, ignore_devlist, force_sleep);
 	} else
-		radeonfb_pm_init(rinfo, default_dynclk);
+		radeonfb_pm_init(rinfo, default_dynclk, ignore_devlist, force_sleep);
 
 	pci_set_drvdata(pdev, info);
 
@@ -2477,6 +2479,12 @@ static int __init radeonfb_setup (char *options)
 			force_measure_pll = 1;
 		} else if (!strncmp(this_opt, "ignore_edid", 11)) {
 			ignore_edid = 1;
+#if defined(CONFIG_PM) && defined(CONFIG_X86)
+	 	} else if (!strncmp(this_opt, "force_sleep", 11)) {
+			force_sleep = 1;
+		} else if (!strncmp(this_opt, "ignore_devlist", 14)) {
+			ignore_devlist = 1;
+#endif
 		} else
 			mode_option = this_opt;
 	}
@@ -2532,3 +2540,9 @@ module_param(panel_yres, int, 0);
 MODULE_PARM_DESC(panel_yres, "int: set panel yres");
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Specify resolution as \"<xres>x<yres>[-<bpp>][@<refresh>]\" ");
+#if defined(CONFIG_PM) && defined(CONFIG_X86)
+module_param(force_sleep, bool, 0);
+MODULE_PARM_DESC(force_sleep, "bool: force D2 sleep mode on all hardware");
+module_param(ignore_devlist, bool, 0);
+MODULE_PARM_DESC(ignore_devlist, "bool: ignore workarounds for bugs in specific laptops");
+#endif

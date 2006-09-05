@@ -2260,10 +2260,9 @@ static int add_audio_endpoint(struct snd_usb_audio *chip, int stream, struct aud
 	}
 
 	/* create a new pcm */
-	as = kmalloc(sizeof(*as), GFP_KERNEL);
+	as = kzalloc(sizeof(*as), GFP_KERNEL);
 	if (! as)
 		return -ENOMEM;
-	memset(as, 0, sizeof(*as));
 	as->pcm_index = chip->pcm_devs;
 	as->chip = chip;
 	as->fmt_type = fp->fmt_type;
@@ -2633,13 +2632,12 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 			csep = NULL;
 		}
 
-		fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+		fp = kzalloc(sizeof(*fp), GFP_KERNEL);
 		if (! fp) {
 			snd_printk(KERN_ERR "cannot malloc\n");
 			return -ENOMEM;
 		}
 
-		memset(fp, 0, sizeof(*fp));
 		fp->iface = iface_no;
 		fp->altsetting = altno;
 		fp->altset_idx = i;

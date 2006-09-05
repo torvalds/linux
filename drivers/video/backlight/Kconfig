@@ -10,7 +10,7 @@ menuconfig BACKLIGHT_LCD_SUPPORT
 
 config BACKLIGHT_CLASS_DEVICE
         tristate "Lowlevel Backlight controls"
-	depends on BACKLIGHT_LCD_SUPPORT && FB
+	depends on BACKLIGHT_LCD_SUPPORT
 	default m
 	help
 	  This framework adds support for low-level control of the LCD
@@ -26,7 +26,7 @@ config BACKLIGHT_DEVICE
 
 config LCD_CLASS_DEVICE
         tristate "Lowlevel LCD controls"
-	depends on BACKLIGHT_LCD_SUPPORT && FB
+	depends on BACKLIGHT_LCD_SUPPORT
 	default m
 	help
 	  This framework adds support for low-level control of LCD.

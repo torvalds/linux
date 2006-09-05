@@ -1264,8 +1264,7 @@ static void investigate_write_descriptor(struct net_device *dev, struct xircom_p
 
 static int __init xircom_init(void)
 {
-	pci_register_driver(&xircom_ops);
-	return 0;
+	return pci_register_driver(&xircom_ops);
 }
 
 static void __exit xircom_exit(void)

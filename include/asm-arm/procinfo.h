@@ -55,5 +55,6 @@ extern unsigned int elf_hwcap;
 #define HWCAP_VFP	64
 #define HWCAP_EDSP	128
 #define HWCAP_JAVA	256
+#define HWCAP_IWMMXT	512
 
 #endif

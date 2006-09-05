@@ -893,7 +893,6 @@ struct input_dev {
 
 	int (*open)(struct input_dev *dev);
 	void (*close)(struct input_dev *dev);
-	int (*accept)(struct input_dev *dev, struct file *file);
 	int (*flush)(struct input_dev *dev, struct file *file);
 	int (*event)(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 	int (*upload_effect)(struct input_dev *dev, struct ff_effect *effect);
@@ -961,6 +960,26 @@ struct input_dev {
 
 struct input_handle;
 
+/**
+ * struct input_handler - implements one of interfaces for input devices
+ * @private: driver-specific data
+ * @event: event handler
+ * @connect: called when attaching a handler to an input device
+ * @disconnect: disconnects a handler from input device
+ * @start: starts handler for given handle. This function is called by
+ *	input core right after connect() method and also when a process
+ *	that "grabbed" a device releases it
+ * @fops: file operations this driver implements
+ * @minor: beginning of range of 32 minors for devices this driver
+ *	can provide
+ * @name: name of the handler, to be shown in /proc/bus/input/handlers
+ * @id_table: pointer to a table of input_device_ids this driver can
+ *	handle
+ * @blacklist: prointer to a table of input_device_ids this driver should
+ *	ignore even if they match @id_table
+ * @h_list: list of input handles associated with the handler
+ * @node: for placing the driver onto input_handler_list
+ */
 struct input_handler {
 
 	void *private;
@@ -968,6 +987,7 @@ struct input_handler {
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 	struct input_handle* (*connect)(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id);
 	void (*disconnect)(struct input_handle *handle);
+	void (*start)(struct input_handle *handle);
 
 	const struct file_operations *fops;
 	int minor;
@@ -1030,10 +1050,10 @@ void input_release_device(struct input_handle *);
 int input_open_device(struct input_handle *);
 void input_close_device(struct input_handle *);
 
-int input_accept_process(struct input_handle *handle, struct file *file);
 int input_flush_device(struct input_handle* handle, struct file* file);
 
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
+void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 
 static inline void input_report_key(struct input_dev *dev, unsigned int code, int value)
 {

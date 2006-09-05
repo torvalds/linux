@@ -69,7 +69,8 @@ static void sic_unmask_irq(unsigned int irq)
 	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_SET);
 }
 
-static struct irqchip sic_chip = {
+static struct irq_chip sic_chip = {
+	.name	= "SIC",
 	.ack	= sic_mask_irq,
 	.mask	= sic_mask_irq,
 	.unmask	= sic_unmask_irq,
@@ -284,7 +285,7 @@ static struct flash_platform_data versatile_flash_data = {
 
 static struct resource versatile_flash_resource = {
 	.start			= VERSATILE_FLASH_BASE,
-	.end			= VERSATILE_FLASH_BASE + VERSATILE_FLASH_SIZE,
+	.end			= VERSATILE_FLASH_BASE + VERSATILE_FLASH_SIZE - 1,
 	.flags			= IORESOURCE_MEM,
 };
 

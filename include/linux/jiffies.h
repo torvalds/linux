@@ -47,8 +47,8 @@
  *   - (NOM / DEN) fits in (32 - LSH) bits.
  *   - (NOM % DEN) fits in (32 - LSH) bits.
  */
-#define SH_DIV(NOM,DEN,LSH) (   ((NOM / DEN) << LSH)                    \
-                             + (((NOM % DEN) << LSH) + DEN / 2) / DEN)
+#define SH_DIV(NOM,DEN,LSH) (   (((NOM) / (DEN)) << (LSH))              \
+                             + ((((NOM) % (DEN)) << (LSH)) + (DEN) / 2) / (DEN))
 
 /* HZ is the requested value. ACTHZ is actual HZ ("<< 8" is for accuracy) */
 #define ACTHZ (SH_DIV (CLOCK_TICK_RATE, LATCH, 8))

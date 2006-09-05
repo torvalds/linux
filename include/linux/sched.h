@@ -994,7 +994,6 @@ struct task_struct {
 	 */
 	struct pipe_inode_info *splice_pipe;
 #ifdef	CONFIG_TASK_DELAY_ACCT
-	spinlock_t delays_lock;
 	struct task_delay_info *delays;
 #endif
 };
@@ -1555,6 +1554,14 @@ static inline int freezing(struct task_struct *p)
 static inline void freeze(struct task_struct *p)
 {
 	p->flags |= PF_FREEZE;
+}
+
+/*
+ * Sometimes we may need to cancel the previous 'freeze' request
+ */
+static inline void do_not_freeze(struct task_struct *p)
+{
+	p->flags &= ~PF_FREEZE;
 }
 
 /*

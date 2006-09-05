@@ -334,10 +334,9 @@ xfs_itobp(
 #if !defined(__KERNEL__)
 	ni = 0;
 #elif defined(DEBUG)
-	ni = (imap_flags & XFS_IMAP_BULKSTAT) ? 0 :
-		(BBTOB(imap.im_len) >> mp->m_sb.sb_inodelog);
+	ni = BBTOB(imap.im_len) >> mp->m_sb.sb_inodelog;
 #else	/* usual case */
-	ni = (imap_flags & XFS_IMAP_BULKSTAT) ? 0 : 1;
+	ni = 1;
 #endif
 
 	for (i = 0; i < ni; i++) {
@@ -348,11 +347,15 @@ xfs_itobp(
 					(i << mp->m_sb.sb_inodelog));
 		di_ok = INT_GET(dip->di_core.di_magic, ARCH_CONVERT) == XFS_DINODE_MAGIC &&
 			    XFS_DINODE_GOOD_VERSION(INT_GET(dip->di_core.di_version, ARCH_CONVERT));
-		if (unlikely(XFS_TEST_ERROR(!di_ok, mp, XFS_ERRTAG_ITOBP_INOTOBP,
-				 XFS_RANDOM_ITOBP_INOTOBP))) {
+		if (unlikely(XFS_TEST_ERROR(!di_ok, mp,
+						XFS_ERRTAG_ITOBP_INOTOBP,
+						XFS_RANDOM_ITOBP_INOTOBP))) {
+			if (imap_flags & XFS_IMAP_BULKSTAT) {
+				xfs_trans_brelse(tp, bp);
+				return XFS_ERROR(EINVAL);
+			}
 #ifdef DEBUG
-			if (!(imap_flags & XFS_IMAP_BULKSTAT))
-				cmn_err(CE_ALERT,
+			cmn_err(CE_ALERT,
 					"Device %s - bad inode magic/vsn "
 					"daddr %lld #%d (magic=%x)",
 				XFS_BUFTARG_NAME(mp->m_ddev_targp),

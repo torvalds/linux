@@ -237,6 +237,11 @@ char * __devinit  pcibios_setup(char *str)
 		pci_probe &= ~PCI_PROBE_MMCONF;
 		return NULL;
 	}
+	/* override DMI blacklist */
+	else if (!strcmp(str, "mmconf")) {
+		pci_probe |= PCI_PROBE_MMCONF_FORCE;
+		return NULL;
+	}
 #endif
 	else if (!strcmp(str, "noacpi")) {
 		acpi_noirq_set();

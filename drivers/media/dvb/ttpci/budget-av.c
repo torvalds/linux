@@ -1303,6 +1303,9 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 	budget_av->budget.dvb_adapter.priv = budget_av;
 	frontend_init(budget_av);
 	ciintf_init(budget_av);
+
+	ttpci_budget_init_hooks(&budget_av->budget);
+
 	return 0;
 }
 

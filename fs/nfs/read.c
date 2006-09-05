@@ -63,7 +63,7 @@ struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
 	return p;
 }
 
-void nfs_readdata_free(struct nfs_read_data *p)
+static void nfs_readdata_free(struct nfs_read_data *p)
 {
 	if (p && (p->pagevec != &p->page_array[0]))
 		kfree(p->pagevec);
@@ -116,10 +116,17 @@ static void nfs_readpage_truncate_uninitialised_page(struct nfs_read_data *data)
 	pages = &data->args.pages[base >> PAGE_CACHE_SHIFT];
 	base &= ~PAGE_CACHE_MASK;
 	pglen = PAGE_CACHE_SIZE - base;
-	if (pglen < remainder)
+	for (;;) {
+		if (remainder <= pglen) {
+			memclear_highpage_flush(*pages, base, remainder);
+			break;
+		}
 		memclear_highpage_flush(*pages, base, pglen);
-	else
-		memclear_highpage_flush(*pages, base, remainder);
+		pages++;
+		remainder -= pglen;
+		pglen = PAGE_CACHE_SIZE;
+		base = 0;
+	}
 }
 
 /*
@@ -476,6 +483,8 @@ static void nfs_readpage_set_pages_uptodate(struct nfs_read_data *data)
 	unsigned int base = data->args.pgbase;
 	struct page **pages;
 
+	if (data->res.eof)
+		count = data->args.count;
 	if (unlikely(count == 0))
 		return;
 	pages = &data->args.pages[base >> PAGE_CACHE_SHIFT];
@@ -483,11 +492,7 @@ static void nfs_readpage_set_pages_uptodate(struct nfs_read_data *data)
 	count += base;
 	for (;count >= PAGE_CACHE_SIZE; count -= PAGE_CACHE_SIZE, pages++)
 		SetPageUptodate(*pages);
-	/*
-	 * Was this an eof or a short read? If the latter, don't mark the page
-	 * as uptodate yet.
-	 */
-	if (count > 0 && (data->res.eof || data->args.count == data->res.count))
+	if (count != 0)
 		SetPageUptodate(*pages);
 }
 
@@ -501,6 +506,8 @@ static void nfs_readpage_set_pages_error(struct nfs_read_data *data)
 	base &= ~PAGE_CACHE_MASK;
 	count += base;
 	for (;count >= PAGE_CACHE_SIZE; count -= PAGE_CACHE_SIZE, pages++)
+		SetPageError(*pages);
+	if (count != 0)
 		SetPageError(*pages);
 }
 

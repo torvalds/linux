@@ -372,7 +372,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 		/* no capabilities flags in old lanman negotiation */
 
-		pSMB->old_req.PasswordLength = CIFS_SESS_KEY_SIZE; 
+		pSMB->old_req.PasswordLength = cpu_to_le16(CIFS_SESS_KEY_SIZE); 
 		/* BB calculate hash with password */
 		/* and copy into bcc */
 

@@ -405,7 +405,8 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 	    event->event == IB_EVENT_PORT_ACTIVE ||
 	    event->event == IB_EVENT_LID_CHANGE  ||
 	    event->event == IB_EVENT_PKEY_CHANGE ||
-	    event->event == IB_EVENT_SM_CHANGE) {
+	    event->event == IB_EVENT_SM_CHANGE   ||
+	    event->event == IB_EVENT_CLIENT_REREGISTER) {
 		struct ib_sa_device *sa_dev;
 		sa_dev = container_of(handler, typeof(*sa_dev), event_handler);
 

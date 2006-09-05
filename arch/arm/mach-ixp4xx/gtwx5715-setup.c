@@ -107,9 +107,9 @@ static struct flash_platform_data gtwx5715_flash_data = {
 	.width		= 2,
 };
 
-static struct gtw5715_flash_resource = {
+static struct resource gtwx5715_flash_resource = {
 	.flags		= IORESOURCE_MEM,
-}
+};
 
 static struct platform_device gtwx5715_flash = {
 	.name		= "IXP4XX-Flash",
@@ -129,9 +129,6 @@ static struct platform_device *gtwx5715_devices[] __initdata = {
 static void __init gtwx5715_init(void)
 {
 	ixp4xx_sys_init();
-
-	if (!flash_resource)
-		printk(KERN_ERR "Could not allocate flash resource\n");
 
 	gtwx5715_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
 	gtwx5715_flash_resource.end = IXP4XX_EXP_BUS_BASE(0) + SZ_8M - 1;

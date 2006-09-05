@@ -187,6 +187,11 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 			goto out;
 		}
 
+		/* Set user creds for this exportpoint */
+		error = nfserrno(nfsd_setuser(rqstp, exp));
+		if (error)
+			goto out;
+
 		/*
 		 * Look up the dentry using the NFS file handle.
 		 */
@@ -241,16 +246,17 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 		dprintk("nfsd: fh_verify - just checking\n");
 		dentry = fhp->fh_dentry;
 		exp = fhp->fh_export;
+		/* Set user creds for this exportpoint; necessary even
+		 * in the "just checking" case because this may be a
+		 * filehandle that was created by fh_compose, and that
+		 * is about to be used in another nfsv4 compound
+		 * operation */
+		error = nfserrno(nfsd_setuser(rqstp, exp));
+		if (error)
+			goto out;
 	}
 	cache_get(&exp->h);
 
-	/* Set user creds for this exportpoint; necessary even in the "just
-	 * checking" case because this may be a filehandle that was created by
-	 * fh_compose, and that is about to be used in another nfsv4 compound
-	 * operation */
-	error = nfserrno(nfsd_setuser(rqstp, exp));
-	if (error)
-		goto out;
 
 	error = nfsd_mode_check(rqstp, dentry->d_inode->i_mode, type);
 	if (error)

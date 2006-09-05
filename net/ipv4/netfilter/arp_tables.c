@@ -236,7 +236,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 	struct arpt_entry *e, *back;
 	const char *indev, *outdev;
 	void *table_base;
-	struct xt_table_info *private = table->private;
+	struct xt_table_info *private;
 
 	/* ARP header, plus 2 device addresses, plus 2 IP addresses.  */
 	if (!pskb_may_pull((*pskb), (sizeof(struct arphdr) +
@@ -248,6 +248,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 	outdev = out ? out->name : nulldevname;
 
 	read_lock_bh(&table->lock);
+	private = table->private;
 	table_base = (void *)private->entries[smp_processor_id()];
 	e = get_entry(table_base, private->hook_entry[hook]);
 	back = get_entry(table_base, private->underflow[hook]);
@@ -1170,21 +1171,34 @@ static int __init arp_tables_init(void)
 {
 	int ret;
 
-	xt_proto_init(NF_ARP);
+	ret = xt_proto_init(NF_ARP);
+	if (ret < 0)
+		goto err1;
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	xt_register_target(&arpt_standard_target);
-	xt_register_target(&arpt_error_target);
+	ret = xt_register_target(&arpt_standard_target);
+	if (ret < 0)
+		goto err2;
+	ret = xt_register_target(&arpt_error_target);
+	if (ret < 0)
+		goto err3;
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&arpt_sockopts);
-	if (ret < 0) {
-		duprintf("Unable to register sockopts.\n");
-		return ret;
-	}
+	if (ret < 0)
+		goto err4;
 
 	printk("arp_tables: (C) 2002 David S. Miller\n");
 	return 0;
+
+err4:
+	xt_unregister_target(&arpt_error_target);
+err3:
+	xt_unregister_target(&arpt_standard_target);
+err2:
+	xt_proto_fini(NF_ARP);
+err1:
+	return ret;
 }
 
 static void __exit arp_tables_fini(void)

@@ -130,6 +130,18 @@ spider_net_ethtool_set_tx_csum(struct net_device *netdev, uint32_t data)
         return 0;
 }
 
+static void
+spider_net_ethtool_get_ringparam(struct net_device *netdev,
+				 struct ethtool_ringparam *ering)
+{
+	struct spider_net_card *card = netdev->priv;
+
+	ering->tx_max_pending = SPIDER_NET_TX_DESCRIPTORS_MAX;
+	ering->tx_pending = card->tx_desc;
+	ering->rx_max_pending = SPIDER_NET_RX_DESCRIPTORS_MAX;
+	ering->rx_pending = card->rx_desc;
+}
+
 struct ethtool_ops spider_net_ethtool_ops = {
 	.get_settings		= spider_net_ethtool_get_settings,
 	.get_drvinfo		= spider_net_ethtool_get_drvinfo,
@@ -141,5 +153,6 @@ struct ethtool_ops spider_net_ethtool_ops = {
 	.set_rx_csum		= spider_net_ethtool_set_rx_csum,
 	.get_tx_csum		= spider_net_ethtool_get_tx_csum,
 	.set_tx_csum		= spider_net_ethtool_set_tx_csum,
+	.get_ringparam          = spider_net_ethtool_get_ringparam,
 };
 

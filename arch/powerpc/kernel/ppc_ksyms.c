@@ -126,10 +126,6 @@ EXPORT_SYMBOL(pci_bus_mem_base_phys);
 EXPORT_SYMBOL(pci_bus_to_hose);
 #endif /* CONFIG_PCI */
 
-#ifdef CONFIG_NOT_COHERENT_CACHE
-EXPORT_SYMBOL(flush_dcache_all);
-#endif
-
 EXPORT_SYMBOL(start_thread);
 EXPORT_SYMBOL(kernel_thread);
 

@@ -32,6 +32,12 @@
 #define FTDI_NF_RIC_PID	0x0001	/* Product Id */
 
 
+/* www.canusb.com Lawicel CANUSB device */
+#define FTDI_CANUSB_PID 0xFFA8 /* Product Id */
+
+/* AlphaMicro Components AMC-232USB01 device */
+#define FTDI_AMC232_PID 0xFF00 /* Product Id */
+
 /* ACT Solutions HomePro ZWave interface (http://www.act-solutions.com/HomePro.htm) */
 #define FTDI_ACTZWAVE_PID	0xF2D0
 
@@ -181,6 +187,10 @@
 /* USB-UIRT - An infrared receiver and transmitter using the 8U232AM chip */
 /* http://home.earthlink.net/~jrhees/USBUIRT/index.htm */
 #define FTDI_USB_UIRT_PID	0xF850	/* Product Id */
+
+/* TNC-X USB-to-packet-radio adapter, versions prior to 3.0 (DLP module) */
+
+#define FTDI_TNC_X_PID		0xEBE0
 
 /*
  * ELV USB devices submitted by Christian Abt of ELV (www.elv.de).

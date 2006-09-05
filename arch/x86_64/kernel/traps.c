@@ -107,7 +107,11 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 }
 
 static int kstack_depth_to_print = 12;
+#ifdef CONFIG_STACK_UNWIND
 static int call_trace = 1;
+#else
+#define call_trace (-1)
+#endif
 
 #ifdef CONFIG_KALLSYMS
 # include <linux/kallsyms.h>
@@ -174,7 +178,7 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 			break;
 #endif
 		default:
-			end = per_cpu(init_tss, cpu).ist[k];
+			end = per_cpu(orig_ist, cpu).ist[k];
 			break;
 		}
 		/*
@@ -254,7 +258,6 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 {
 	const unsigned cpu = safe_smp_processor_id();
 	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
-	int i = 11;
 	unsigned used = 0;
 
 	printk("\nCall Trace:\n");
@@ -276,11 +279,20 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 				unw_ret = show_trace_unwind(&info, NULL);
 		}
 		if (unw_ret > 0) {
-			if (call_trace > 0)
+			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
+				print_symbol("DWARF2 unwinder stuck at %s\n",
+					     UNW_PC(&info));
+				if ((long)UNW_SP(&info) < 0) {
+					printk("Leftover inexact backtrace:\n");
+					stack = (unsigned long *)UNW_SP(&info);
+				} else
+					printk("Full inexact backtrace again:\n");
+			} else if (call_trace >= 1)
 				return;
-			printk("Legacy call trace:");
-			i = 18;
-		}
+			else
+				printk("Full inexact backtrace again:\n");
+		} else
+			printk("Inexact backtrace:\n");
 	}
 
 	/*
@@ -521,7 +533,7 @@ void __kprobes oops_end(unsigned long flags)
 		/* Nest count reaches zero, release the lock. */
 		spin_unlock_irqrestore(&die_lock, flags);
 	if (panic_on_oops)
-		panic("Oops");
+		panic("Fatal exception");
 }
 
 void __kprobes __die(const char * str, struct pt_regs * regs, long err)
@@ -1112,14 +1124,18 @@ static int __init kstack_setup(char *s)
 }
 __setup("kstack=", kstack_setup);
 
+#ifdef CONFIG_STACK_UNWIND
 static int __init call_trace_setup(char *s)
 {
 	if (strcmp(s, "old") == 0)
 		call_trace = -1;
 	else if (strcmp(s, "both") == 0)
 		call_trace = 0;
-	else if (strcmp(s, "new") == 0)
+	else if (strcmp(s, "newfallback") == 0)
 		call_trace = 1;
+	else if (strcmp(s, "new") == 0)
+		call_trace = 2;
 	return 1;
 }
 __setup("call_trace=", call_trace_setup);
+#endif

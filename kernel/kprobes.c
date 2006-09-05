@@ -393,6 +393,7 @@ static int __kprobes add_new_kprobe(struct kprobe *old_p, struct kprobe *p)
 static inline void add_aggr_kprobe(struct kprobe *ap, struct kprobe *p)
 {
 	copy_kprobe(p, ap);
+	flush_insn_slot(ap);
 	ap->addr = p->addr;
 	ap->pre_handler = aggr_pre_handler;
 	ap->fault_handler = aggr_fault_handler;

@@ -690,9 +690,7 @@ static const struct inotify_operations audit_inotify_ops = {
 /* Initialize audit support at boot time. */
 static int __init audit_init(void)
 {
-#ifdef CONFIG_AUDITSYSCALL
 	int i;
-#endif
 
 	printk(KERN_INFO "audit: initializing netlink socket (%s)\n",
 	       audit_default ? "enabled" : "disabled");
@@ -717,10 +715,10 @@ static int __init audit_init(void)
 	audit_ih = inotify_init(&audit_inotify_ops);
 	if (IS_ERR(audit_ih))
 		audit_panic("cannot initialize inotify handle");
+#endif
 
 	for (i = 0; i < AUDIT_INODE_BUCKETS; i++)
 		INIT_LIST_HEAD(&audit_inode_hash[i]);
-#endif
 
 	return 0;
 }

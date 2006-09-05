@@ -765,7 +765,8 @@ void elv_unregister(struct elevator_type *e)
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
 			task_lock(p);
-			e->ops.trim(p->io_context);
+			if (p->io_context)
+				e->ops.trim(p->io_context);
 			task_unlock(p);
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);

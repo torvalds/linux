@@ -26,7 +26,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
-
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -228,7 +227,7 @@ int __init tsi108_setup_pci(struct device_node *dev)
 
 	(hose)->ops = &tsi108_direct_pci_ops;
 
-	printk(KERN_INFO "Found tsi108 PCI host bridge at 0x%08lx. "
+	printk(KERN_INFO "Found tsi108 PCI host bridge at 0x%08x. "
 	       "Firmware bus number: %d->%d\n",
 	       rsrc.start, hose->first_busno, hose->last_busno);
 
@@ -278,7 +277,7 @@ static void init_pci_source(void)
 	mb();
 }
 
-static inline int get_pci_source(void)
+static inline unsigned int get_pci_source(void)
 {
 	u_int temp = 0;
 	int irq = -1;
@@ -371,12 +370,12 @@ static void tsi108_pci_irq_end(u_int irq)
  * Interrupt controller descriptor for cascaded PCI interrupt controller.
  */
 
-struct hw_interrupt_type tsi108_pci_irq = {
+static struct irq_chip tsi108_pci_irq = {
 	.typename = "tsi108_PCI_int",
-	.enable = tsi108_pci_irq_enable,
-	.disable = tsi108_pci_irq_disable,
+	.mask = tsi108_pci_irq_disable,
 	.ack = tsi108_pci_irq_ack,
 	.end = tsi108_pci_irq_end,
+	.unmask = tsi108_pci_irq_enable,
 };
 
 /*
@@ -399,14 +398,18 @@ void __init tsi108_pci_int_init(void)
 	DBG("Tsi108_pci_int_init: initializing PCI interrupts\n");
 
 	for (i = 0; i < NUM_PCI_IRQS; i++) {
-		irq_desc[i + IRQ_PCI_INTAD_BASE].handler = &tsi108_pci_irq;
+		irq_desc[i + IRQ_PCI_INTAD_BASE].chip = &tsi108_pci_irq;
 		irq_desc[i + IRQ_PCI_INTAD_BASE].status |= IRQ_LEVEL;
 	}
 
 	init_pci_source();
 }
 
-int tsi108_irq_cascade(struct pt_regs *regs, void *unused)
+void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc,
+			    struct pt_regs *regs)
 {
-	return get_pci_source();
+	unsigned int cascade_irq = get_pci_source();
+	if (cascade_irq != NO_IRQ)
+		generic_handle_irq(cascade_irq, regs);
+	desc->chip->eoi(irq);
 }

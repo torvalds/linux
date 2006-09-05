@@ -16,16 +16,16 @@ config SND_AD1889
 	  will be called snd-ad1889.
 
 config SND_ALS300
-        tristate "Avance Logic ALS300/ALS300+"
-        depends on SND
-        select SND_PCM
-        select SND_AC97_CODEC
-        select SND_OPL3_LIB
-        help
-          Say 'Y' or 'M' to include support for Avance Logic ALS300/ALS300+
+	tristate "Avance Logic ALS300/ALS300+"
+	depends on SND
+	select SND_PCM
+	select SND_AC97_CODEC
+	select SND_OPL3_LIB
+	help
+	  Say 'Y' or 'M' to include support for Avance Logic ALS300/ALS300+
 
-          To compile this driver as a module, choose M here: the module
-          will be called snd-als300
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-als300
 
 config SND_ALS4000
 	tristate "Avance Logic ALS4000"
@@ -78,49 +78,49 @@ config SND_ATIIXP_MODEM
 	  will be called snd-atiixp-modem.
 
 config SND_AU8810
-        tristate "Aureal Advantage"
-        depends on SND
+	tristate "Aureal Advantage"
+	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
-        help
+	help
 	  Say Y here to include support for Aureal Advantage soundcards.
 
 	  Supported features: Hardware Mixer, SRC, EQ and SPDIF output.
-          3D support code is in place, but not yet useable. For more info, 
-          email the ALSA developer list, or <mjander@users.sourceforge.net>.
+	  3D support code is in place, but not yet useable. For more info,
+	  email the ALSA developer list, or <mjander@users.sourceforge.net>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-au8810.
- 
+
 config SND_AU8820
-        tristate "Aureal Vortex"
-        depends on SND
+	tristate "Aureal Vortex"
+	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
-        help
+	help
 	  Say Y here to include support for Aureal Vortex soundcards.
 
-          Supported features: Hardware Mixer and SRC. For more info, email 
-          the ALSA developer list, or <mjander@users.sourceforge.net>.
+	  Supported features: Hardware Mixer and SRC. For more info, email
+	  the ALSA developer list, or <mjander@users.sourceforge.net>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-au8820.
- 
+
 config SND_AU8830
-        tristate "Aureal Vortex 2"
-        depends on SND
+	tristate "Aureal Vortex 2"
+	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
-        help
+	help
 	  Say Y here to include support for Aureal Vortex 2 soundcards.
 
-          Supported features: Hardware Mixer, SRC, EQ and SPDIF output.
-          3D support code is in place, but not yet useable. For more info, 
-          email the ALSA developer list, or <mjander@users.sourceforge.net>.
+	  Supported features: Hardware Mixer, SRC, EQ and SPDIF output.
+	  3D support code is in place, but not yet useable. For more info,
+	  email the ALSA developer list, or <mjander@users.sourceforge.net>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-au8830.
- 
+
 config SND_AZT3328
 	tristate "Aztech AZF3328 / PCI168 (EXPERIMENTAL)"
 	depends on SND && EXPERIMENTAL
@@ -135,10 +135,10 @@ config SND_AZT3328
 	  will be called snd-azt3328.
 
 config SND_BT87X
-        tristate "Bt87x Audio Capture"
-        depends on SND
+	tristate "Bt87x Audio Capture"
+	depends on SND
 	select SND_PCM
-        help
+	help
 	  If you want to record audio from TV cards based on
 	  Brooktree Bt878/Bt879 chips, say Y here and read
 	  <file:Documentation/sound/alsa/Bt87x.txt>.
@@ -209,7 +209,7 @@ config SND_CS46XX
 config SND_CS46XX_NEW_DSP
 	bool "Cirrus Logic (Sound Fusion) New DSP support"
 	depends on SND_CS46XX
-        default y
+	default y
 	help
 	  Say Y here to use a new DSP image for SPDIF and dual codecs.
 
@@ -225,7 +225,7 @@ config SND_CS5535AUDIO
 	  referred to as NS CS5535 IO or AMD CS5535 IO companion in
 	  various literature. This driver also supports the CS5536 audio
 	  device. However, for both chips, on certain boards, you may
-	  need to use ac97_quirk=hp_only if your board has physically 
+	  need to use ac97_quirk=hp_only if your board has physically
 	  mapped headphone out to master output. If that works for you,
 	  send lspci -vvv output to the mailing list so that your board
 	  can be identified in the quirks list.
@@ -468,11 +468,13 @@ config SND_FM801_TEA575X_BOOL
 	  FM801 chip with a TEA5757 tuner connected to GPIO1-3 pins (Media
 	  Forte SF256-PCS-02) into the snd-fm801 driver.
 
+	  This will enable support for the old V4L1 API.
+
 config SND_FM801_TEA575X
 	tristate
 	depends on SND_FM801_TEA575X_BOOL
 	default SND_FM801
-	select VIDEO_DEV
+	select VIDEO_V4L1
 
 config SND_HDA_INTEL
 	tristate "Intel HD Audio"

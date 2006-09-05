@@ -42,6 +42,8 @@ extern void swiotlb_free_coherent (struct device *hwdev, size_t size,
 extern int swiotlb_dma_supported(struct device *hwdev, u64 mask);
 extern void swiotlb_init(void);
 
+extern int swiotlb_force;
+
 #ifdef CONFIG_SWIOTLB
 extern int swiotlb;
 #else

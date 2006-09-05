@@ -85,6 +85,9 @@ extern int audit_enabled;
 /* Indicates that audit should log the full pathname. */
 #define AUDIT_NAME_FULL -1
 
+/* number of audit rules */
+int audit_n_rules;
+
 /* When fs/namei.c:getname() is called, we store the pointer in name and
  * we don't let putname() free it (instead we free all of the saved
  * pointers at syscall exit time).
@@ -174,6 +177,7 @@ struct audit_aux_data_path {
 
 /* The per-task audit context. */
 struct audit_context {
+	int		    dummy;	/* must be the first element */
 	int		    in_syscall;	/* 1 if task is in a syscall */
 	enum audit_state    state;
 	unsigned int	    serial;     /* serial number for record */
@@ -514,7 +518,7 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 	context->return_valid = return_valid;
 	context->return_code  = return_code;
 
-	if (context->in_syscall && !context->auditable) {
+	if (context->in_syscall && !context->dummy && !context->auditable) {
 		enum audit_state state;
 
 		state = audit_filter_syscall(tsk, context, &audit_filter_list[AUDIT_FILTER_EXIT]);
@@ -530,17 +534,7 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 	}
 
 get_context:
-	context->pid = tsk->pid;
-	context->ppid = sys_getppid();	/* sic.  tsk == current in all cases */
-	context->uid = tsk->uid;
-	context->gid = tsk->gid;
-	context->euid = tsk->euid;
-	context->suid = tsk->suid;
-	context->fsuid = tsk->fsuid;
-	context->egid = tsk->egid;
-	context->sgid = tsk->sgid;
-	context->fsgid = tsk->fsgid;
-	context->personality = tsk->personality;
+
 	tsk->audit_context = NULL;
 	return context;
 }
@@ -749,6 +743,17 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 	const char *tty;
 
 	/* tsk == current */
+	context->pid = tsk->pid;
+	context->ppid = sys_getppid();	/* sic.  tsk == current in all cases */
+	context->uid = tsk->uid;
+	context->gid = tsk->gid;
+	context->euid = tsk->euid;
+	context->suid = tsk->suid;
+	context->fsuid = tsk->fsuid;
+	context->egid = tsk->egid;
+	context->sgid = tsk->sgid;
+	context->fsgid = tsk->fsgid;
+	context->personality = tsk->personality;
 
 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_SYSCALL);
 	if (!ab)
@@ -1066,7 +1071,8 @@ void audit_syscall_entry(int arch, int major,
 	context->argv[3]    = a4;
 
 	state = context->state;
-	if (state == AUDIT_SETUP_CONTEXT || state == AUDIT_BUILD_CONTEXT)
+	context->dummy = !audit_n_rules;
+	if (!context->dummy && (state == AUDIT_SETUP_CONTEXT || state == AUDIT_BUILD_CONTEXT))
 		state = audit_filter_syscall(tsk, context, &audit_filter_list[AUDIT_FILTER_ENTRY]);
 	if (likely(state == AUDIT_DISABLED))
 		return;
@@ -1199,13 +1205,17 @@ void audit_putname(const char *name)
 #endif
 }
 
-static void audit_inode_context(int idx, const struct inode *inode)
+/* Copy inode data into an audit_names. */
+static void audit_copy_inode(struct audit_names *name, const struct inode *inode)
 {
-	struct audit_context *context = current->audit_context;
-
-	selinux_get_inode_sid(inode, &context->names[idx].osid);
+	name->ino   = inode->i_ino;
+	name->dev   = inode->i_sb->s_dev;
+	name->mode  = inode->i_mode;
+	name->uid   = inode->i_uid;
+	name->gid   = inode->i_gid;
+	name->rdev  = inode->i_rdev;
+	selinux_get_inode_sid(inode, &name->osid);
 }
-
 
 /**
  * audit_inode - store the inode and device from a lookup
@@ -1240,20 +1250,14 @@ void __audit_inode(const char *name, const struct inode *inode)
 		++context->ino_count;
 #endif
 	}
-	context->names[idx].ino   = inode->i_ino;
-	context->names[idx].dev	  = inode->i_sb->s_dev;
-	context->names[idx].mode  = inode->i_mode;
-	context->names[idx].uid   = inode->i_uid;
-	context->names[idx].gid   = inode->i_gid;
-	context->names[idx].rdev  = inode->i_rdev;
-	audit_inode_context(idx, inode);
+	audit_copy_inode(&context->names[idx], inode);
 }
 
 /**
  * audit_inode_child - collect inode info for created/removed objects
  * @dname: inode's dentry name
  * @inode: inode being audited
- * @pino: inode number of dentry parent
+ * @parent: inode of dentry parent
  *
  * For syscalls that create or remove filesystem objects, audit_inode
  * can only collect information for the filesystem object's parent.
@@ -1264,7 +1268,7 @@ void __audit_inode(const char *name, const struct inode *inode)
  * unsuccessful attempts.
  */
 void __audit_inode_child(const char *dname, const struct inode *inode,
-			 unsigned long pino)
+			 const struct inode *parent)
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
@@ -1278,7 +1282,7 @@ void __audit_inode_child(const char *dname, const struct inode *inode,
 	if (!dname)
 		goto update_context;
 	for (idx = 0; idx < context->name_count; idx++)
-		if (context->names[idx].ino == pino) {
+		if (context->names[idx].ino == parent->i_ino) {
 			const char *name = context->names[idx].name;
 
 			if (!name)
@@ -1302,16 +1306,47 @@ update_context:
 	context->names[idx].name_len = AUDIT_NAME_FULL;
 	context->names[idx].name_put = 0;	/* don't call __putname() */
 
-	if (inode) {
-		context->names[idx].ino   = inode->i_ino;
-		context->names[idx].dev	  = inode->i_sb->s_dev;
-		context->names[idx].mode  = inode->i_mode;
-		context->names[idx].uid   = inode->i_uid;
-		context->names[idx].gid   = inode->i_gid;
-		context->names[idx].rdev  = inode->i_rdev;
-		audit_inode_context(idx, inode);
-	} else
-		context->names[idx].ino   = (unsigned long)-1;
+	if (!inode)
+		context->names[idx].ino = (unsigned long)-1;
+	else
+		audit_copy_inode(&context->names[idx], inode);
+
+	/* A parent was not found in audit_names, so copy the inode data for the
+	 * provided parent. */
+	if (!found_name) {
+		idx = context->name_count++;
+#if AUDIT_DEBUG
+		context->ino_count++;
+#endif
+		audit_copy_inode(&context->names[idx], parent);
+	}
+}
+
+/**
+ * audit_inode_update - update inode info for last collected name
+ * @inode: inode being audited
+ *
+ * When open() is called on an existing object with the O_CREAT flag, the inode
+ * data audit initially collects is incorrect.  This additional hook ensures
+ * audit has the inode data for the actual object to be opened.
+ */
+void __audit_inode_update(const struct inode *inode)
+{
+	struct audit_context *context = current->audit_context;
+	int idx;
+
+	if (!context->in_syscall || !inode)
+		return;
+
+	if (context->name_count == 0) {
+		context->name_count++;
+#if AUDIT_DEBUG
+		context->ino_count++;
+#endif
+	}
+	idx = context->name_count - 1;
+
+	audit_copy_inode(&context->names[idx], inode);
 }
 
 /**
@@ -1642,7 +1677,7 @@ int audit_bprm(struct linux_binprm *bprm)
 	unsigned long p, next;
 	void *to;
 
-	if (likely(!audit_enabled || !context))
+	if (likely(!audit_enabled || !context || context->dummy))
 		return 0;
 
 	ax = kmalloc(sizeof(*ax) + PAGE_SIZE * MAX_ARG_PAGES - bprm->p,
@@ -1680,7 +1715,7 @@ int audit_socketcall(int nargs, unsigned long *args)
 	struct audit_aux_data_socketcall *ax;
 	struct audit_context *context = current->audit_context;
 
-	if (likely(!context))
+	if (likely(!context || context->dummy))
 		return 0;
 
 	ax = kmalloc(sizeof(*ax) + nargs * sizeof(unsigned long), GFP_KERNEL);
@@ -1708,7 +1743,7 @@ int audit_sockaddr(int len, void *a)
 	struct audit_aux_data_sockaddr *ax;
 	struct audit_context *context = current->audit_context;
 
-	if (likely(!context))
+	if (likely(!context || context->dummy))
 		return 0;
 
 	ax = kmalloc(sizeof(*ax) + len, GFP_KERNEL);

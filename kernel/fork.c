@@ -117,6 +117,7 @@ void __put_task_struct(struct task_struct *tsk)
 	security_task_free(tsk);
 	free_uid(tsk->user);
 	put_group_info(tsk->group_info);
+	delayacct_tsk_free(tsk);
 
 	if (!profile_handoff_task(tsk))
 		free_task(tsk);
@@ -1011,7 +1012,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	retval = -EFAULT;
 	if (clone_flags & CLONE_PARENT_SETTID)
 		if (put_user(p->pid, parent_tidptr))
-			goto bad_fork_cleanup;
+			goto bad_fork_cleanup_delays_binfmt;
 
 	INIT_LIST_HEAD(&p->children);
 	INIT_LIST_HEAD(&p->sibling);
@@ -1277,7 +1278,8 @@ bad_fork_cleanup_policy:
 bad_fork_cleanup_cpuset:
 #endif
 	cpuset_exit(p);
-bad_fork_cleanup:
+bad_fork_cleanup_delays_binfmt:
+	delayacct_tsk_free(p);
 	if (p->binfmt)
 		module_put(p->binfmt->module);
 bad_fork_cleanup_put_domain:
@@ -1387,8 +1389,10 @@ long do_fork(unsigned long clone_flags,
 
 		if (clone_flags & CLONE_VFORK) {
 			wait_for_completion(&vfork);
-			if (unlikely (current->ptrace & PT_TRACE_VFORK_DONE))
+			if (unlikely (current->ptrace & PT_TRACE_VFORK_DONE)) {
+				current->ptrace_message = nr;
 				ptrace_notify ((PTRACE_EVENT_VFORK_DONE << 8) | SIGTRAP);
+			}
 		}
 	} else {
 		free_pid(pid);

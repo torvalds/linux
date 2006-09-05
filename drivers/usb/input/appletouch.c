@@ -597,9 +597,9 @@ static void atp_disconnect(struct usb_interface *iface)
 	if (dev) {
 		usb_kill_urb(dev->urb);
 		input_unregister_device(dev->input);
-		usb_free_urb(dev->urb);
 		usb_buffer_free(dev->udev, dev->datalen,
 				dev->data, dev->urb->transfer_dma);
+		usb_free_urb(dev->urb);
 		kfree(dev);
 	}
 	printk(KERN_INFO "input: appletouch disconnected\n");

@@ -1442,8 +1442,13 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	osb->bitmap_blkno = OCFS2_I(inode)->ip_blkno;
 
+	/* We don't have a cluster lock on the bitmap here because
+	 * we're only interested in static information and the extra
+	 * complexity at mount time isn't worht it. Don't pass the
+	 * inode in to the read function though as we don't want it to
+	 * be put in the cache. */
 	status = ocfs2_read_block(osb, osb->bitmap_blkno, &bitmap_bh, 0,
-				  inode);
+				  NULL);
 	iput(inode);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1452,7 +1457,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	di = (struct ocfs2_dinode *) bitmap_bh->b_data;
 	osb->bitmap_cpg = le16_to_cpu(di->id2.i_chain.cl_cpg);
-	osb->num_clusters = le32_to_cpu(di->id1.bitmap1.i_total);
 	brelse(bitmap_bh);
 	mlog(0, "cluster bitmap inode: %llu, clusters per group: %u\n",
 	     (unsigned long long)osb->bitmap_blkno, osb->bitmap_cpg);

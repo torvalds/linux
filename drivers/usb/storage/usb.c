@@ -483,7 +483,7 @@ static struct us_unusual_dev *find_unusual(const struct usb_device_id *id)
 }
 
 /* Get the unusual_devs entries and the string descriptors */
-static void get_device_info(struct us_data *us, const struct usb_device_id *id)
+static int get_device_info(struct us_data *us, const struct usb_device_id *id)
 {
 	struct usb_device *dev = us->pusb_dev;
 	struct usb_interface_descriptor *idesc =
@@ -499,6 +499,11 @@ static void get_device_info(struct us_data *us, const struct usb_device_id *id)
 			idesc->bInterfaceProtocol :
 			unusual_dev->useTransport;
 	us->flags = USB_US_ORIG_FLAGS(id->driver_info);
+
+	if (us->flags & US_FL_IGNORE_DEVICE) {
+		printk(KERN_INFO USB_STORAGE "device ignored\n");
+		return -ENODEV;
+	}
 
 	/*
 	 * This flag is only needed when we're in high-speed, so let's
@@ -541,6 +546,8 @@ static void get_device_info(struct us_data *us, const struct usb_device_id *id)
 				msgs[msg],
 				UTS_RELEASE);
 	}
+
+	return 0;
 }
 
 /* Get the transport settings */
@@ -969,7 +976,9 @@ static int storage_probe(struct usb_interface *intf,
 	 * of the match from the usb_device_id table, so we can find the
 	 * corresponding entry in the private table.
 	 */
-	get_device_info(us, id);
+	result = get_device_info(us, id);
+	if (result)
+		goto BadDevice;
 
 	/* Get the transport, protocol, and pipe settings */
 	result = get_transport(us);

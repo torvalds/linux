@@ -1642,13 +1642,17 @@ static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
 		goto out;
 
-	ipx		= ipx_hdr(skb);
-	ipx_pktsize	= ntohs(ipx->ipx_pktsize);
+	if (!pskb_may_pull(skb, sizeof(struct ipxhdr)))
+		goto drop;
+
+	ipx_pktsize = ntohs(ipx_hdr(skb)->ipx_pktsize);
 	
 	/* Too small or invalid header? */
-	if (ipx_pktsize < sizeof(struct ipxhdr) || ipx_pktsize > skb->len)
+	if (ipx_pktsize < sizeof(struct ipxhdr) ||
+	    !pskb_may_pull(skb, ipx_pktsize))
 		goto drop;
                         
+	ipx = ipx_hdr(skb);
 	if (ipx->ipx_checksum != IPX_NO_CHECKSUM &&
 	   ipx->ipx_checksum != ipx_cksum(ipx, ipx_pktsize))
 		goto drop;

@@ -2668,7 +2668,7 @@ out:
 	nfs4_set_cached_acl(inode, acl);
 }
 
-static inline ssize_t nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t buflen)
+static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t buflen)
 {
 	struct page *pages[NFS4ACL_MAXPAGES];
 	struct nfs_getaclargs args = {
@@ -2721,6 +2721,19 @@ out_free:
 	return ret;
 }
 
+static ssize_t nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t buflen)
+{
+	struct nfs4_exception exception = { };
+	ssize_t ret;
+	do {
+		ret = __nfs4_get_acl_uncached(inode, buf, buflen);
+		if (ret >= 0)
+			break;
+		ret = nfs4_handle_exception(NFS_SERVER(inode), ret, &exception);
+	} while (exception.retry);
+	return ret;
+}
+
 static ssize_t nfs4_proc_get_acl(struct inode *inode, void *buf, size_t buflen)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
@@ -2737,7 +2750,7 @@ static ssize_t nfs4_proc_get_acl(struct inode *inode, void *buf, size_t buflen)
 	return nfs4_get_acl_uncached(inode, buf, buflen);
 }
 
-static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen)
+static int __nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct page *pages[NFS4ACL_MAXPAGES];
@@ -2761,6 +2774,18 @@ static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen
 	if (ret == 0)
 		nfs4_write_cached_acl(inode, buf, buflen);
 	return ret;
+}
+
+static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen)
+{
+	struct nfs4_exception exception = { };
+	int err;
+	do {
+		err = nfs4_handle_exception(NFS_SERVER(inode),
+				__nfs4_proc_set_acl(inode, buf, buflen),
+				&exception);
+	} while (exception.retry);
+	return err;
 }
 
 static int

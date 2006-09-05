@@ -71,7 +71,12 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 	new = detail->alloc();
 	if (!new)
 		return NULL;
+	/* must fully initialise 'new', else
+	 * we might get lose if we need to
+	 * cache_put it soon.
+	 */
 	cache_init(new);
+	detail->init(new, key);
 
 	write_lock(&detail->hash_lock);
 
@@ -85,7 +90,6 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 			return tmp;
 		}
 	}
-	detail->init(new, key);
 	new->next = *head;
 	*head = new;
 	detail->entries++;

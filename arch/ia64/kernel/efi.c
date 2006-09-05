@@ -632,7 +632,7 @@ kern_memory_descriptor (unsigned long phys_addr)
 		if (phys_addr - md->start < (md->num_pages << EFI_PAGE_SHIFT))
 			 return md;
 	}
-	return 0;
+	return NULL;
 }
 
 static efi_memory_desc_t *
@@ -652,7 +652,7 @@ efi_memory_descriptor (unsigned long phys_addr)
 		if (phys_addr - md->phys_addr < (md->num_pages << EFI_PAGE_SHIFT))
 			 return md;
 	}
-	return 0;
+	return NULL;
 }
 
 u32
@@ -923,7 +923,7 @@ find_memmap_space (void)
 void
 efi_memmap_init(unsigned long *s, unsigned long *e)
 {
-	struct kern_memdesc *k, *prev = 0;
+	struct kern_memdesc *k, *prev = NULL;
 	u64	contig_low=0, contig_high=0;
 	u64	as, ae, lim;
 	void *efi_map_start, *efi_map_end, *p, *q;

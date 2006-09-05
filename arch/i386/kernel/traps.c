@@ -92,7 +92,11 @@ asmlinkage void spurious_interrupt_bug(void);
 asmlinkage void machine_check(void);
 
 static int kstack_depth_to_print = 24;
+#ifdef CONFIG_STACK_UNWIND
 static int call_trace = 1;
+#else
+#define call_trace (-1)
+#endif
 ATOMIC_NOTIFIER_HEAD(i386die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
@@ -188,10 +192,20 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 				unw_ret = show_trace_unwind(&info, log_lvl);
 		}
 		if (unw_ret > 0) {
-			if (call_trace > 0)
+			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
+				print_symbol("DWARF2 unwinder stuck at %s\n",
+					     UNW_PC(&info));
+				if (UNW_SP(&info) >= PAGE_OFFSET) {
+					printk("Leftover inexact backtrace:\n");
+					stack = (void *)UNW_SP(&info);
+				} else
+					printk("Full inexact backtrace again:\n");
+			} else if (call_trace >= 1)
 				return;
-			printk("%sLegacy call trace:\n", log_lvl);
-		}
+			else
+				printk("Full inexact backtrace again:\n");
+		} else
+			printk("Inexact backtrace:\n");
 	}
 
 	if (task == current) {
@@ -442,11 +456,9 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 
-	if (panic_on_oops) {
-		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
-		ssleep(5);
+	if (panic_on_oops)
 		panic("Fatal exception");
-	}
+
 	oops_exit();
 	do_exit(SIGSEGV);
 }
@@ -1232,14 +1244,18 @@ static int __init kstack_setup(char *s)
 }
 __setup("kstack=", kstack_setup);
 
+#ifdef CONFIG_STACK_UNWIND
 static int __init call_trace_setup(char *s)
 {
 	if (strcmp(s, "old") == 0)
 		call_trace = -1;
 	else if (strcmp(s, "both") == 0)
 		call_trace = 0;
-	else if (strcmp(s, "new") == 0)
+	else if (strcmp(s, "newfallback") == 0)
 		call_trace = 1;
+	else if (strcmp(s, "new") == 2)
+		call_trace = 2;
 	return 1;
 }
 __setup("call_trace=", call_trace_setup);
+#endif

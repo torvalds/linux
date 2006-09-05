@@ -791,8 +791,7 @@ static int dummy_socket_getpeersec_stream(struct socket *sock, char __user *optv
 	return -ENOPROTOOPT;
 }
 
-static int dummy_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata,
-					 u32 *seclen)
+static int dummy_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
 	return -ENOPROTOOPT;
 }
@@ -874,6 +873,15 @@ static int dummy_getprocattr(struct task_struct *p, char *name, void *value, siz
 static int dummy_setprocattr(struct task_struct *p, char *name, void *value, size_t size)
 {
 	return -EINVAL;
+}
+
+static int dummy_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
+{
+	return -EOPNOTSUPP;
+}
+
+static void dummy_release_secctx(char *secdata, u32 seclen)
+{
 }
 
 #ifdef CONFIG_KEYS
@@ -1028,6 +1036,8 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, d_instantiate);
  	set_to_dummy_if_null(ops, getprocattr);
  	set_to_dummy_if_null(ops, setprocattr);
+ 	set_to_dummy_if_null(ops, secid_to_secctx);
+ 	set_to_dummy_if_null(ops, release_secctx);
 #ifdef CONFIG_SECURITY_NETWORK
 	set_to_dummy_if_null(ops, unix_stream_connect);
 	set_to_dummy_if_null(ops, unix_may_send);

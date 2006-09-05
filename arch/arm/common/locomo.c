@@ -204,7 +204,8 @@ static void locomo_unmask_irq(unsigned int irq)
 	locomo_writel(r, mapbase + LOCOMO_ICR);
 }
 
-static struct irqchip locomo_chip = {
+static struct irq_chip locomo_chip = {
+	.name	= "LOCOMO",
 	.ack	= locomo_ack_irq,
 	.mask	= locomo_mask_irq,
 	.unmask	= locomo_unmask_irq,
@@ -249,7 +250,8 @@ static void locomo_key_unmask_irq(unsigned int irq)
 	locomo_writel(r, mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC);
 }
 
-static struct irqchip locomo_key_chip = {
+static struct irq_chip locomo_key_chip = {
+	.name	= "LOCOMO-key",
 	.ack	= locomo_key_ack_irq,
 	.mask	= locomo_key_mask_irq,
 	.unmask	= locomo_key_unmask_irq,
@@ -312,7 +314,8 @@ static void locomo_gpio_unmask_irq(unsigned int irq)
 	locomo_writel(r, mapbase + LOCOMO_GIE);
 }
 
-static struct irqchip locomo_gpio_chip = {
+static struct irq_chip locomo_gpio_chip = {
+	.name	= "LOCOMO-gpio",
 	.ack	= locomo_gpio_ack_irq,
 	.mask	= locomo_gpio_mask_irq,
 	.unmask	= locomo_gpio_unmask_irq,
@@ -357,7 +360,8 @@ static void locomo_lt_unmask_irq(unsigned int irq)
 	locomo_writel(r, mapbase + LOCOMO_LTINT);
 }
 
-static struct irqchip locomo_lt_chip = {
+static struct irq_chip locomo_lt_chip = {
+	.name	= "LOCOMO-lt",
 	.ack	= locomo_lt_ack_irq,
 	.mask	= locomo_lt_mask_irq,
 	.unmask	= locomo_lt_unmask_irq,
@@ -418,7 +422,8 @@ static void locomo_spi_unmask_irq(unsigned int irq)
 	locomo_writel(r, mapbase + LOCOMO_SPIIE);
 }
 
-static struct irqchip locomo_spi_chip = {
+static struct irq_chip locomo_spi_chip = {
+	.name	= "LOCOMO-spi",
 	.ack	= locomo_spi_ack_irq,
 	.mask	= locomo_spi_mask_irq,
 	.unmask	= locomo_spi_unmask_irq,

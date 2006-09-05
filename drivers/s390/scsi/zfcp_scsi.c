@@ -30,7 +30,6 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *,
 				  void (*done) (struct scsi_cmnd *));
 static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *);
 static int zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *);
-static int zfcp_scsi_eh_bus_reset_handler(struct scsi_cmnd *);
 static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *);
 static int zfcp_task_management_function(struct zfcp_unit *, u8,
 					 struct scsi_cmnd *);
@@ -46,30 +45,22 @@ struct zfcp_data zfcp_data = {
 	.scsi_host_template = {
 		.name			= ZFCP_NAME,
 		.proc_name		= "zfcp",
-		.proc_info		= NULL,
-		.detect			= NULL,
 		.slave_alloc		= zfcp_scsi_slave_alloc,
 		.slave_configure	= zfcp_scsi_slave_configure,
 		.slave_destroy		= zfcp_scsi_slave_destroy,
 		.queuecommand		= zfcp_scsi_queuecommand,
 		.eh_abort_handler	= zfcp_scsi_eh_abort_handler,
 		.eh_device_reset_handler = zfcp_scsi_eh_device_reset_handler,
-		.eh_bus_reset_handler	= zfcp_scsi_eh_bus_reset_handler,
+		.eh_bus_reset_handler	= zfcp_scsi_eh_host_reset_handler,
 		.eh_host_reset_handler	= zfcp_scsi_eh_host_reset_handler,
 		.can_queue		= 4096,
 		.this_id		= -1,
-		/*
-		 * FIXME:
-		 * one less? can zfcp_create_sbale cope with it?
-		 */
 		.sg_tablesize		= ZFCP_MAX_SBALES_PER_REQ,
 		.cmd_per_lun		= 1,
-		.unchecked_isa_dma	= 0,
 		.use_clustering		= 1,
 		.sdev_attrs		= zfcp_sysfs_sdev_attrs,
 	},
 	.driver_version = ZFCP_VERSION,
-	/* rest initialised with zeros */
 };
 
 /* Find start of Response Information in FCP response unit*/
@@ -176,8 +167,14 @@ zfcp_scsi_slave_alloc(struct scsi_device *sdp)
 	return retval;
 }
 
-static void
-zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
+/**
+ * zfcp_scsi_slave_destroy - called when scsi device is removed
+ *
+ * Remove reference to associated scsi device for an zfcp_unit.
+ * Mark zfcp_unit as failed. The scsi device might be deleted via sysfs
+ * or a scan for this device might have failed.
+ */
+static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 {
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
 
@@ -185,6 +182,7 @@ zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 		atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
 		sdpnt->hostdata = NULL;
 		unit->device = NULL;
+		zfcp_erp_unit_failed(unit);
 		zfcp_unit_put(unit);
 	} else {
 		ZFCP_LOG_NORMAL("bug: no unit associated with SCSI device at "
@@ -549,35 +547,38 @@ zfcp_task_management_function(struct zfcp_unit *unit, u8 tm_flags,
 }
 
 /**
- * zfcp_scsi_eh_bus_reset_handler - reset bus (reopen adapter)
+ * zfcp_scsi_eh_host_reset_handler - handler for host and bus reset
+ *
+ * If ERP is already running it will be stopped.
  */
-int
-zfcp_scsi_eh_bus_reset_handler(struct scsi_cmnd *scpnt)
+int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 {
-	struct zfcp_unit *unit = (struct zfcp_unit*) scpnt->device->hostdata;
-	struct zfcp_adapter *adapter = unit->port->adapter;
+	struct zfcp_unit *unit;
+	struct zfcp_adapter *adapter;
+	unsigned long flags;
 
-	ZFCP_LOG_NORMAL("bus reset because of problems with "
+	unit = (struct zfcp_unit*) scpnt->device->hostdata;
+	adapter = unit->port->adapter;
+
+	ZFCP_LOG_NORMAL("host/bus reset because of problems with "
 			"unit 0x%016Lx\n", unit->fcp_lun);
-	zfcp_erp_adapter_reopen(adapter, 0);
-	zfcp_erp_wait(adapter);
 
-	return SUCCESS;
-}
-
-/**
- * zfcp_scsi_eh_host_reset_handler - reset host (reopen adapter)
- */
-int
-zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
-{
-	struct zfcp_unit *unit = (struct zfcp_unit*) scpnt->device->hostdata;
-	struct zfcp_adapter *adapter = unit->port->adapter;
-
-	ZFCP_LOG_NORMAL("host reset because of problems with "
-			"unit 0x%016Lx\n", unit->fcp_lun);
-	zfcp_erp_adapter_reopen(adapter, 0);
-	zfcp_erp_wait(adapter);
+	write_lock_irqsave(&adapter->erp_lock, flags);
+	if (atomic_test_mask(ZFCP_STATUS_ADAPTER_ERP_PENDING,
+			     &adapter->status)) {
+		zfcp_erp_modify_adapter_status(adapter,
+		       ZFCP_STATUS_COMMON_UNBLOCKED|ZFCP_STATUS_COMMON_OPEN,
+		       ZFCP_CLEAR);
+		zfcp_erp_action_dismiss_adapter(adapter);
+		write_unlock_irqrestore(&adapter->erp_lock, flags);
+		zfcp_fsf_req_dismiss_all(adapter);
+		adapter->fsf_req_seq_no = 0;
+		zfcp_erp_adapter_reopen(adapter, 0);
+	} else {
+		write_unlock_irqrestore(&adapter->erp_lock, flags);
+		zfcp_erp_adapter_reopen(adapter, 0);
+		zfcp_erp_wait(adapter);
+	}
 
 	return SUCCESS;
 }

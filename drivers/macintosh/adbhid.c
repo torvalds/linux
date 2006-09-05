@@ -45,12 +45,9 @@
 #include <linux/pmu.h>
 
 #include <asm/machdep.h>
+#include <asm/backlight.h>
 #ifdef CONFIG_PPC_PMAC
 #include <asm/pmac_feature.h>
-#endif
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-#include <asm/backlight.h>
 #endif
 
 MODULE_AUTHOR("Franz Sirl <Franz.Sirl-kernel@lauterbach.com>");
@@ -236,11 +233,6 @@ static void init_ms_a3(int id);
 static struct adb_ids keyboard_ids;
 static struct adb_ids mouse_ids;
 static struct adb_ids buttons_ids;
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-/* Exported to via-pmu.c */
-int disable_kernel_backlight = 0;
-#endif /* CONFIG_PMAC_BACKLIGHT */
 
 /* Kind of keyboard, see Apple technote 1152  */
 #define ADB_KEYBOARD_UNKNOWN	0
@@ -527,7 +519,7 @@ adbhid_buttons_input(unsigned char *data, int nb, struct pt_regs *regs, int auto
 
 		case 0xa:	/* brightness decrease */
 #ifdef CONFIG_PMAC_BACKLIGHT
-			if (!disable_kernel_backlight && down)
+			if (down)
 				pmac_backlight_key_down();
 #endif
 			input_report_key(adbhid[id]->input, KEY_BRIGHTNESSDOWN, down);
@@ -535,7 +527,7 @@ adbhid_buttons_input(unsigned char *data, int nb, struct pt_regs *regs, int auto
 
 		case 0x9:	/* brightness increase */
 #ifdef CONFIG_PMAC_BACKLIGHT
-			if (!disable_kernel_backlight && down)
+			if (down)
 				pmac_backlight_key_up();
 #endif
 			input_report_key(adbhid[id]->input, KEY_BRIGHTNESSUP, down);

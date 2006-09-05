@@ -11,6 +11,7 @@
 
 	.align	7
 _GLOBAL(memcpy)
+	std	r3,48(r1)	/* save destination pointer for return value */
 	mtcrf	0x01,r5
 	cmpldi	cr1,r5,16
 	neg	r6,r3		# LS 3 bits = # bytes to 8-byte dest bdry
@@ -38,7 +39,7 @@ _GLOBAL(memcpy)
 	stdu	r9,16(r3)
 	bdnz	1b
 3:	std	r8,8(r3)
-	beqlr
+	beq	3f
 	addi	r3,r3,16
 	ld	r9,8(r4)
 .Ldo_tail:
@@ -53,7 +54,8 @@ _GLOBAL(memcpy)
 2:	bf	cr7*4+3,3f
 	rotldi	r9,r9,8
 	stb	r9,0(r3)
-3:	blr
+3:	ld	r3,48(r1)	/* return dest pointer */
+	blr
 
 .Lsrc_unaligned:
 	srdi	r6,r5,3
@@ -115,7 +117,7 @@ _GLOBAL(memcpy)
 5:	srd	r12,r9,r11
 	or	r12,r8,r12
 	std	r12,24(r3)
-	beqlr
+	beq	4f
 	cmpwi	cr1,r5,8
 	addi	r3,r3,32
 	sld	r9,r9,r10
@@ -167,4 +169,5 @@ _GLOBAL(memcpy)
 3:	bf	cr7*4+3,4f
 	lbz	r0,0(r4)
 	stb	r0,0(r3)
-4:	blr
+4:	ld	r3,48(r1)	/* return dest pointer */
+	blr

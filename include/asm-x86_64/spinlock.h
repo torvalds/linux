@@ -21,7 +21,7 @@
 
 #define __raw_spin_lock_string \
 	"\n1:\t" \
-	"lock ; decl %0\n\t" \
+	LOCK_PREFIX " ; decl %0\n\t" \
 	"js 2f\n" \
 	LOCK_SECTION_START("") \
 	"2:\t" \
@@ -40,10 +40,7 @@
 
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
-	alternative_smp(
-		__raw_spin_lock_string,
-		__raw_spin_lock_string_up,
-		"=m" (lock->slock) : : "memory");
+	asm volatile(__raw_spin_lock_string : "=m" (lock->slock) : : "memory");
 }
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
@@ -125,12 +122,12 @@ static inline int __raw_write_trylock(raw_rwlock_t *lock)
 
 static inline void __raw_read_unlock(raw_rwlock_t *rw)
 {
-	asm volatile("lock ; incl %0" :"=m" (rw->lock) : : "memory");
+	asm volatile(LOCK_PREFIX " ; incl %0" :"=m" (rw->lock) : : "memory");
 }
 
 static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
-	asm volatile("lock ; addl $" RW_LOCK_BIAS_STR ",%0"
+	asm volatile(LOCK_PREFIX " ; addl $" RW_LOCK_BIAS_STR ",%0"
 				: "=m" (rw->lock) : : "memory");
 }
 

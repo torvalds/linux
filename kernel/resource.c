@@ -244,6 +244,7 @@ int find_next_system_ram(struct resource *res)
 
 	start = res->start;
 	end = res->end;
+	BUG_ON(start >= end);
 
 	read_lock(&resource_lock);
 	for (p = iomem_resource.child; p ; p = p->sibling) {
@@ -254,15 +255,17 @@ int find_next_system_ram(struct resource *res)
 			p = NULL;
 			break;
 		}
-		if (p->start >= start)
+		if ((p->end >= start) && (p->start < end))
 			break;
 	}
 	read_unlock(&resource_lock);
 	if (!p)
 		return -1;
 	/* copy data */
-	res->start = p->start;
-	res->end = p->end;
+	if (res->start < p->start)
+		res->start = p->start;
+	if (res->end > p->end)
+		res->end = p->end;
 	return 0;
 }
 #endif

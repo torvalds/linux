@@ -776,7 +776,7 @@ static void update_ordered(ide_drive_t *drive)
 		 * not available so we don't need to recheck that.
 		 */
 		capacity = idedisk_capacity(drive);
-		barrier = ide_id_has_flush_cache(id) &&
+		barrier = ide_id_has_flush_cache(id) && !drive->noflush &&
 			(drive->addressing == 0 || capacity <= (1ULL << 28) ||
 			 ide_id_has_flush_cache_ext(id));
 

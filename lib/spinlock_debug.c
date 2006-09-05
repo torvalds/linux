@@ -162,6 +162,7 @@ static void rwlock_bug(rwlock_t *lock, const char *msg)
 
 #define RWLOCK_BUG_ON(cond, lock, msg) if (unlikely(cond)) rwlock_bug(lock, msg)
 
+#if 0		/* __write_lock_debug() can lock up - maybe this can too? */
 static void __read_lock_debug(rwlock_t *lock)
 {
 	int print_once = 1;
@@ -184,12 +185,12 @@ static void __read_lock_debug(rwlock_t *lock)
 		}
 	}
 }
+#endif
 
 void _raw_read_lock(rwlock_t *lock)
 {
 	RWLOCK_BUG_ON(lock->magic != RWLOCK_MAGIC, lock, "bad magic");
-	if (unlikely(!__raw_read_trylock(&lock->raw_lock)))
-		__read_lock_debug(lock);
+	__raw_read_lock(&lock->raw_lock);
 }
 
 int _raw_read_trylock(rwlock_t *lock)
@@ -235,6 +236,7 @@ static inline void debug_write_unlock(rwlock_t *lock)
 	lock->owner_cpu = -1;
 }
 
+#if 0		/* This can cause lockups */
 static void __write_lock_debug(rwlock_t *lock)
 {
 	int print_once = 1;
@@ -257,12 +259,12 @@ static void __write_lock_debug(rwlock_t *lock)
 		}
 	}
 }
+#endif
 
 void _raw_write_lock(rwlock_t *lock)
 {
 	debug_write_lock_before(lock);
-	if (unlikely(!__raw_write_trylock(&lock->raw_lock)))
-		__write_lock_debug(lock);
+	__raw_write_lock(&lock->raw_lock);
 	debug_write_lock_after(lock);
 }
 

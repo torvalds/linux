@@ -145,7 +145,7 @@ config VIDEO_SAA5246A
 
 config VIDEO_SAA5249
 	tristate "SAA5249 Teletext processor"
-	depends on VIDEO_DEV && I2C
+	depends on VIDEO_DEV && I2C && VIDEO_V4L1
 	help
 	  Support for I2C bus based teletext using the SAA5249 chip. At the
 	  moment this is only useful on some European WinTV cards.
@@ -155,7 +155,7 @@ config VIDEO_SAA5249
 
 config TUNER_3036
 	tristate "SAB3036 tuner"
-	depends on VIDEO_DEV && I2C
+	depends on VIDEO_DEV && I2C && VIDEO_V4L1
 	help
 	  Say Y here to include support for Philips SAB3036 compatible tuners.
 	  If in doubt, say N.
@@ -448,18 +448,6 @@ menu "V4L USB devices"
 source "drivers/media/video/pvrusb2/Kconfig"
 
 source "drivers/media/video/em28xx/Kconfig"
-
-config USB_DSBR
-	tristate "D-Link USB FM radio support (EXPERIMENTAL)"
-	depends on USB && VIDEO_V4L1 && EXPERIMENTAL
-	---help---
-	  Say Y here if you want to connect this type of radio to your
-	  computer's USB port. Note that the audio is not digital, and
-	  you must connect the line out connector to a sound card or a
-	  set of speakers.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dsbr100.
 
 source "drivers/media/video/usbvideo/Kconfig"
 

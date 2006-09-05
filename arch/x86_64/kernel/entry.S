@@ -513,6 +513,7 @@ END(stub_rt_sigreturn)
 	swapgs	
 1:	incl	%gs:pda_irqcount	# RED-PEN should check preempt count
 	cmoveq %gs:pda_irqstackptr,%rsp
+	push    %rbp			# backlink for old unwinder
 	/*
 	 * We entered an interrupt context - irqs are off:
 	 */
@@ -972,6 +973,8 @@ ENTRY(kernel_thread)
 ENDPROC(kernel_thread)
 	
 child_rip:
+	pushq $0		# fake return address
+	CFI_STARTPROC
 	/*
 	 * Here we are in the child and the registers are set as they were
 	 * at kernel_thread() invocation in the parent.
@@ -982,6 +985,7 @@ child_rip:
 	# exit
 	xorl %edi, %edi
 	call do_exit
+	CFI_ENDPROC
 ENDPROC(child_rip)
 
 /*
@@ -1139,18 +1143,21 @@ ENTRY(machine_check)
 END(machine_check)
 #endif
 
+/* Call softirq on interrupt stack. Interrupts are off. */
 ENTRY(call_softirq)
 	CFI_STARTPROC
-	movq %gs:pda_irqstackptr,%rax
-	movq %rsp,%rdx
-	CFI_DEF_CFA_REGISTER	rdx
+	push %rbp
+	CFI_ADJUST_CFA_OFFSET	8
+	CFI_REL_OFFSET rbp,0
+	mov  %rsp,%rbp
+	CFI_DEF_CFA_REGISTER rbp
 	incl %gs:pda_irqcount
-	cmove %rax,%rsp
-	pushq %rdx
-	/*todo CFI_DEF_CFA_EXPRESSION ...*/
+	cmove %gs:pda_irqstackptr,%rsp
+	push  %rbp			# backlink for old unwinder
 	call __do_softirq
-	popq %rsp
+	leaveq
 	CFI_DEF_CFA_REGISTER	rsp
+	CFI_ADJUST_CFA_OFFSET   -8
 	decl %gs:pda_irqcount
 	ret
 	CFI_ENDPROC

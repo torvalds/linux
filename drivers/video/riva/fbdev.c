@@ -355,10 +355,14 @@ static struct backlight_properties riva_bl_data = {
 static void riva_bl_set_power(struct fb_info *info, int power)
 {
 	mutex_lock(&info->bl_mutex);
-	up(&info->bl_dev->sem);
-	info->bl_dev->props->power = power;
-	__riva_bl_update_status(info->bl_dev);
-	down(&info->bl_dev->sem);
+
+	if (info->bl_dev) {
+		down(&info->bl_dev->sem);
+		info->bl_dev->props->power = power;
+		__riva_bl_update_status(info->bl_dev);
+		up(&info->bl_dev->sem);
+	}
+
 	mutex_unlock(&info->bl_mutex);
 }
 
@@ -382,7 +386,7 @@ static void riva_bl_init(struct riva_par *par)
 	bd = backlight_device_register(name, par, &riva_bl_data);
 	if (IS_ERR(bd)) {
 		info->bl_dev = NULL;
-		printk("riva: Backlight registration failed\n");
+		printk(KERN_WARNING "riva: Backlight registration failed\n");
 		goto error;
 	}
 
@@ -393,11 +397,11 @@ static void riva_bl_init(struct riva_par *par)
 		0x534 * FB_BACKLIGHT_MAX / MAX_LEVEL);
 	mutex_unlock(&info->bl_mutex);
 
-	up(&bd->sem);
+	down(&bd->sem);
 	bd->props->brightness = riva_bl_data.max_brightness;
 	bd->props->power = FB_BLANK_UNBLANK;
 	bd->props->update_status(bd);
-	down(&bd->sem);
+	up(&bd->sem);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	mutex_lock(&pmac_backlight_mutex);
@@ -2132,6 +2136,9 @@ static int __devinit rivafb_probe(struct pci_dev *pd,
 
 	fb_destroy_modedb(info->monspecs.modedb);
 	info->monspecs.modedb = NULL;
+
+	pci_set_drvdata(pd, info);
+	riva_bl_init(info->par);
 	ret = register_framebuffer(info);
 	if (ret < 0) {
 		printk(KERN_ERR PFX
@@ -2139,16 +2146,12 @@ static int __devinit rivafb_probe(struct pci_dev *pd,
 		goto err_iounmap_screen_base;
 	}
 
-	pci_set_drvdata(pd, info);
-
 	printk(KERN_INFO PFX
 		"PCI nVidia %s framebuffer ver %s (%dMB @ 0x%lX)\n",
 		info->fix.id,
 		RIVAFB_VERSION,
 		info->fix.smem_len / (1024 * 1024),
 		info->fix.smem_start);
-
-	riva_bl_init(info->par);
 
 	NVTRACE_LEAVE();
 	return 0;
