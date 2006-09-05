@@ -926,6 +926,7 @@ struct rpc_xprt *xprt_create_transport(int proto, struct sockaddr *ap, size_t si
 		return ERR_PTR(result);
 	}
 
+	kref_init(&xprt->kref);
 	spin_lock_init(&xprt->transport_lock);
 	spin_lock_init(&xprt->reserve_lock);
 
@@ -958,16 +959,37 @@ struct rpc_xprt *xprt_create_transport(int proto, struct sockaddr *ap, size_t si
 
 /**
  * xprt_destroy - destroy an RPC transport, killing off all requests.
- * @xprt: transport to destroy
+ * @kref: kref for the transport to destroy
  *
  */
-int xprt_destroy(struct rpc_xprt *xprt)
+static void xprt_destroy(struct kref *kref)
 {
+	struct rpc_xprt *xprt = container_of(kref, struct rpc_xprt, kref);
+
 	dprintk("RPC:      destroying transport %p\n", xprt);
 	xprt->shutdown = 1;
 	del_timer_sync(&xprt->timer);
 	xprt->ops->destroy(xprt);
 	kfree(xprt);
+}
 
-	return 0;
+/**
+ * xprt_put - release a reference to an RPC transport.
+ * @xprt: pointer to the transport
+ *
+ */
+void xprt_put(struct rpc_xprt *xprt)
+{
+	kref_put(&xprt->kref, xprt_destroy);
+}
+
+/**
+ * xprt_get - return a reference to an RPC transport.
+ * @xprt: pointer to the transport
+ *
+ */
+struct rpc_xprt *xprt_get(struct rpc_xprt *xprt)
+{
+	kref_get(&xprt->kref);
+	return xprt;
 }

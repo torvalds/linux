@@ -12,6 +12,7 @@
 #include <linux/uio.h>
 #include <linux/socket.h>
 #include <linux/in.h>
+#include <linux/kref.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xdr.h>
 
@@ -129,6 +130,7 @@ struct rpc_xprt_ops {
 };
 
 struct rpc_xprt {
+	struct kref		kref;		/* Reference count */
 	struct rpc_xprt_ops *	ops;		/* transport methods */
 	struct socket *		sock;		/* BSD socket layer */
 	struct sock *		inet;		/* INET layer */
@@ -248,7 +250,8 @@ int			xprt_adjust_timeout(struct rpc_rqst *req);
 void			xprt_release_xprt(struct rpc_xprt *xprt, struct rpc_task *task);
 void			xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task);
 void			xprt_release(struct rpc_task *task);
-int			xprt_destroy(struct rpc_xprt *xprt);
+struct rpc_xprt *	xprt_get(struct rpc_xprt *xprt);
+void			xprt_put(struct rpc_xprt *xprt);
 
 static inline u32 *xprt_skip_transport_header(struct rpc_xprt *xprt, u32 *p)
 {

@@ -177,7 +177,7 @@ out_no_path:
 		kfree(clnt->cl_server);
 	kfree(clnt);
 out_err:
-	xprt_destroy(xprt);
+	xprt_put(xprt);
 out_no_xprt:
 	return ERR_PTR(err);
 }
@@ -261,6 +261,7 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	atomic_set(&new->cl_users, 0);
 	new->cl_parent = clnt;
 	atomic_inc(&clnt->cl_count);
+	new->cl_xprt = xprt_get(clnt->cl_xprt);
 	/* Turn off autobind on clones */
 	new->cl_autobind = 0;
 	new->cl_oneshot = 0;
@@ -337,15 +338,12 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 		rpc_rmdir(clnt->cl_dentry);
 		rpc_put_mount();
 	}
-	if (clnt->cl_xprt) {
-		xprt_destroy(clnt->cl_xprt);
-		clnt->cl_xprt = NULL;
-	}
 	if (clnt->cl_server != clnt->cl_inline_name)
 		kfree(clnt->cl_server);
 out_free:
 	rpc_free_iostats(clnt->cl_metrics);
 	clnt->cl_metrics = NULL;
+	xprt_put(clnt->cl_xprt);
 	kfree(clnt);
 	return 0;
 }
