@@ -29,7 +29,7 @@
 #include "ops_file.h"
 #include "util.h"
 
-#define BFITNOENT 0xFFFFFFFF
+#define BFITNOENT (u32)~0
 
 /*
  * These routines are used by the resource group routines (rgrp.c)
@@ -257,7 +257,7 @@ static inline int rgrp_contains_block(struct gfs2_rindex *ri, u64 block)
 {
 	u64 first = ri->ri_data0;
 	u64 last = first + ri->ri_data;
-	return !!(first <= block && block < last);
+	return first <= block && block < last;
 }
 
 /**
