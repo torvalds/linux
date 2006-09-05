@@ -46,7 +46,7 @@ int gfs2_dir_get_new_buffer(struct gfs2_inode *ip, u64 block,
 
 static inline u32 gfs2_disk_hash(const char *data, int len)
 {
-        return crc32_le(0xFFFFFFFF, data, len) ^ 0xFFFFFFFF;
+        return crc32_le((u32)~0, data, len) ^ (u32)~0;
 }
 
 
@@ -67,7 +67,7 @@ static inline void gfs2_qstr2dirent(const struct qstr *name, u16 reclen, struct 
 	dent->de_name_len = cpu_to_be16(name->len);
 	dent->de_type = cpu_to_be16(0);
 	memset(dent->__pad, 0, sizeof(dent->__pad));
-	memcpy((char*)(dent+1), name->name, name->len);
+	memcpy(dent + 1, name->name, name->len);
 }
 
 #endif /* __DIR_DOT_H__ */

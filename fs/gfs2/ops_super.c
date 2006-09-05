@@ -190,8 +190,7 @@ static void gfs2_write_super_lockfs(struct super_block *sb)
 
 static void gfs2_unlockfs(struct super_block *sb)
 {
-	struct gfs2_sbd *sdp = sb->s_fs_info;
-	gfs2_unfreeze_fs(sdp);
+	gfs2_unfreeze_fs(sb->s_fs_info);
 }
 
 /**
