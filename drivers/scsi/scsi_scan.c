@@ -266,6 +266,18 @@ static struct scsi_target *__scsi_find_target(struct device *parent,
 	return found_starget;
 }
 
+/**
+ * scsi_alloc_target - allocate a new or find an existing target
+ * @parent:	parent of the target (need not be a scsi host)
+ * @channel:	target channel number (zero if no channels)
+ * @id:		target id number
+ *
+ * Return an existing target if one exists, provided it hasn't already
+ * gone into STARGET_DEL state, otherwise allocate a new target.
+ *
+ * The target is returned with an incremented reference, so the caller
+ * is responsible for both reaping and doing a last put
+ */
 static struct scsi_target *scsi_alloc_target(struct device *parent,
 					     int channel, uint id)
 {
@@ -331,14 +343,15 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 			return NULL;
 		}
 	}
+	get_device(dev);
 
 	return starget;
 
  found:
 	found_target->reap_ref++;
 	spin_unlock_irqrestore(shost->host_lock, flags);
-	put_device(parent);
 	if (found_target->state != STARGET_DEL) {
+		put_device(parent);
 		kfree(starget);
 		return found_target;
 	}
@@ -1341,7 +1354,6 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	if (!starget)
 		return ERR_PTR(-ENOMEM);
 
-	get_device(&starget->dev);
 	mutex_lock(&shost->scan_mutex);
 	if (scsi_host_scan_allowed(shost))
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
@@ -1400,7 +1412,6 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	if (!starget)
 		return;
 
-	get_device(&starget->dev);
 	if (lun != SCAN_WILD_CARD) {
 		/*
 		 * Scan for a specific host/chan/id/lun.
@@ -1582,7 +1593,8 @@ struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
 	if (sdev) {
 		sdev->sdev_gendev.parent = get_device(&starget->dev);
 		sdev->borken = 0;
-	}
+	} else
+		scsi_target_reap(starget);
 	put_device(&starget->dev);
  out:
 	mutex_unlock(&shost->scan_mutex);
