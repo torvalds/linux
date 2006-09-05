@@ -98,11 +98,11 @@ static int update_info_mode = UPDATE_INFO_MODE;
 static int update_time = UPDATE_TIME;
 static int update_time2 = UPDATE_TIME2;
 
-module_param(capacity_mode, int, CAPACITY_UNIT);
-module_param(update_mode, int, UPDATE_MODE);
-module_param(update_info_mode, int, UPDATE_INFO_MODE);
-module_param(update_time, int, UPDATE_TIME);
-module_param(update_time2, int, UPDATE_TIME2);
+module_param(capacity_mode, int, 0);
+module_param(update_mode, int, 0);
+module_param(update_info_mode, int, 0);
+module_param(update_time, int, 0);
+module_param(update_time2, int, 0);
 
 static int acpi_sbs_add(struct acpi_device *device);
 static int acpi_sbs_remove(struct acpi_device *device, int type);
