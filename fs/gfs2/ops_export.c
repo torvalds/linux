@@ -182,6 +182,10 @@ static struct dentry *gfs2_get_parent(struct dentry *child)
 
 	if (!inode)
 		return ERR_PTR(-ENOENT);
+	/*
+	 * In case of an error, @inode carries the error value, and we
+	 * have to return that as a(n invalid) pointer to dentry.
+	 */
 	if (IS_ERR(inode))
 		return ERR_PTR(PTR_ERR(inode));
 
