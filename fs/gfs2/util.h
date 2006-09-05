@@ -10,6 +10,7 @@
 #ifndef __UTIL_DOT_H__
 #define __UTIL_DOT_H__
 
+#include "incore.h"
 
 #define fs_printk(level, fs, fmt, arg...) \
 	printk(level "GFS2: fsid=%s: " fmt , (fs)->sd_fsname , ## arg)

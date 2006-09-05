@@ -10,6 +10,10 @@
 #ifndef __DIO_DOT_H__
 #define __DIO_DOT_H__
 
+#include <linux/buffer_head.h>
+#include <linux/string.h>
+#include "incore.h"
+
 static inline void gfs2_buffer_clear(struct buffer_head *bh)
 {
 	memset(bh->b_data, 0, bh->b_size);

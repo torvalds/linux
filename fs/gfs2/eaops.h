@@ -11,6 +11,7 @@
 #define __EAOPS_DOT_H__
 
 struct gfs2_ea_request;
+struct gfs2_inode;
 
 struct gfs2_eattr_operations {
 	int (*eo_get) (struct gfs2_inode *ip, struct gfs2_ea_request *er);

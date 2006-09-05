@@ -10,6 +10,11 @@
 #ifndef __TRANS_DOT_H__
 #define __TRANS_DOT_H__
 
+#include <linux/buffer_head.h>
+struct gfs2_sbd;
+struct gfs2_rgrpd;
+struct gfs2_glock;
+
 #define RES_DINODE	1
 #define RES_INDIRECT	1
 #define RES_JDATA	1
@@ -20,8 +25,8 @@
 #define RES_STATFS	1
 #define RES_QUOTA	2
 
-int gfs2_trans_begin(struct gfs2_sbd *sdp,
-		      unsigned int blocks, unsigned int revokes);
+int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
+		     unsigned int revokes);
 
 void gfs2_trans_end(struct gfs2_sbd *sdp);
 

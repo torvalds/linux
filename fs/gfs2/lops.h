@@ -10,6 +10,9 @@
 #ifndef __LOPS_DOT_H__
 #define __LOPS_DOT_H__
 
+#include <linux/list.h>
+#include "incore.h"
+
 extern const struct gfs2_log_operations gfs2_glock_lops;
 extern const struct gfs2_log_operations gfs2_buf_lops;
 extern const struct gfs2_log_operations gfs2_revoke_lops;

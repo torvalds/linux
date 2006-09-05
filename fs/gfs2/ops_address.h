@@ -10,6 +10,10 @@
 #ifndef __OPS_ADDRESS_DOT_H__
 #define __OPS_ADDRESS_DOT_H__
 
+#include <linux/fs.h>
+#include <linux/buffer_head.h>
+#include <linux/mm.h>
+
 extern const struct address_space_operations gfs2_file_aops;
 extern int gfs2_get_block(struct inode *inode, sector_t lblock,
 			  struct buffer_head *bh_result, int create);

@@ -10,6 +10,9 @@
 #ifndef __EATTR_DOT_H__
 #define __EATTR_DOT_H__
 
+struct gfs2_inode;
+struct iattr;
+
 #define GFS2_EA_REC_LEN(ea) be32_to_cpu((ea)->ea_rec_len)
 #define GFS2_EA_DATA_LEN(ea) be32_to_cpu((ea)->ea_data_len)
 

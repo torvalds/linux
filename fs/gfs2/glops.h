@@ -10,6 +10,8 @@
 #ifndef __GLOPS_DOT_H__
 #define __GLOPS_DOT_H__
 
+#include "incore.h"
+
 extern const struct gfs2_glock_operations gfs2_meta_glops;
 extern const struct gfs2_glock_operations gfs2_inode_glops;
 extern const struct gfs2_glock_operations gfs2_rgrp_glops;

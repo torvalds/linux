@@ -10,6 +10,8 @@
 #ifndef __LM_DOT_H__
 #define __LM_DOT_H__
 
+struct gfs2_sbd;
+
 #define GFS2_MIN_LVB_SIZE 32
 
 int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent);

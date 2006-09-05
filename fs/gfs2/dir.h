@@ -10,6 +10,12 @@
 #ifndef __DIR_DOT_H__
 #define __DIR_DOT_H__
 
+#include <linux/dcache.h>
+
+struct inode;
+struct gfs2_inode;
+struct gfs2_inum;
+
 /**
  * gfs2_filldir_t - Report a directory entry to the caller of gfs2_dir_read()
  * @opaque: opaque data used by the function

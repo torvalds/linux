@@ -10,6 +10,9 @@
 #ifndef __SYS_DOT_H__
 #define __SYS_DOT_H__
 
+#include <linux/spinlock.h>
+struct gfs2_sbd;
+
 /* Allow args to be passed to GFS2 when using an initial ram disk */
 extern char *gfs2_sys_margs;
 extern spinlock_t gfs2_sys_margs_lock;

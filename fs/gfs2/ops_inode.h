@@ -10,6 +10,8 @@
 #ifndef __OPS_INODE_DOT_H__
 #define __OPS_INODE_DOT_H__
 
+#include <linux/fs.h>
+
 extern struct inode_operations gfs2_file_iops;
 extern struct inode_operations gfs2_dir_iops;
 extern struct inode_operations gfs2_symlink_iops;

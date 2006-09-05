@@ -10,6 +10,8 @@
 #ifndef __INCORE_DOT_H__
 #define __INCORE_DOT_H__
 
+#include <linux/fs.h>
+
 #define DIO_FORCE	0x00000001
 #define DIO_CLEAN	0x00000002
 #define DIO_DIRTY	0x00000004

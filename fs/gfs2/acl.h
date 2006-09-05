@@ -10,6 +10,8 @@
 #ifndef __ACL_DOT_H__
 #define __ACL_DOT_H__
 
+#include "incore.h"
+
 #define GFS2_POSIX_ACL_ACCESS		"posix_acl_access"
 #define GFS2_POSIX_ACL_ACCESS_LEN	16
 #define GFS2_POSIX_ACL_DEFAULT		"posix_acl_default"

@@ -10,6 +10,8 @@
 #ifndef __OPS_SUPER_DOT_H__
 #define __OPS_SUPER_DOT_H__
 
+#include <linux/fs.h>
+
 extern struct super_operations gfs2_super_ops;
 
 #endif /* __OPS_SUPER_DOT_H__ */

@@ -9,6 +9,10 @@
 
 #ifndef __OPS_FILE_DOT_H__
 #define __OPS_FILE_DOT_H__
+
+#include <linux/fs.h>
+struct gfs2_inode;
+
 extern struct file gfs2_internal_file_sentinel;
 extern int gfs2_internal_read(struct gfs2_inode *ip,
 			      struct file_ra_state *ra_state,

@@ -10,6 +10,8 @@
 #ifndef __SUPER_DOT_H__
 #define __SUPER_DOT_H__
 
+#include "incore.h"
+
 void gfs2_tune_init(struct gfs2_tune *gt);
 
 int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb *sb, int silent);

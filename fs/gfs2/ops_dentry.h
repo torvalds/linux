@@ -10,6 +10,8 @@
 #ifndef __OPS_DENTRY_DOT_H__
 #define __OPS_DENTRY_DOT_H__
 
+#include <linux/dcache.h>
+
 extern struct dentry_operations gfs2_dops;
 
 #endif /* __OPS_DENTRY_DOT_H__ */

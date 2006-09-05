@@ -10,6 +10,8 @@
 #ifndef __OPS_FSTYPE_DOT_H__
 #define __OPS_FSTYPE_DOT_H__
 
+#include <linux/fs.h>
+
 extern struct file_system_type gfs2_fs_type;
 extern struct file_system_type gfs2meta_fs_type;
 

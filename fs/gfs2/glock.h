@@ -10,6 +10,8 @@
 #ifndef __GLOCK_DOT_H__
 #define __GLOCK_DOT_H__
 
+#include "incore.h"
+
 /* Flags for lock requests; used in gfs2_holder gh_flag field.
    From lm_interface.h:
 #define LM_FLAG_TRY		0x00000001

@@ -10,6 +10,10 @@
 #ifndef __RGRP_DOT_H__
 #define __RGRP_DOT_H__
 
+struct gfs2_rgrpd;
+struct gfs2_sbd;
+struct gfs2_holder;
+
 void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd);
 
 struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, u64 blk);

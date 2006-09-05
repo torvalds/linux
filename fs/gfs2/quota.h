@@ -10,6 +10,9 @@
 #ifndef __QUOTA_DOT_H__
 #define __QUOTA_DOT_H__
 
+struct gfs2_inode;
+struct gfs2_sbd;
+
 #define NO_QUOTA_CHANGE ((u32)-1)
 
 int gfs2_quota_hold(struct gfs2_inode *ip, u32 uid, u32 gid);

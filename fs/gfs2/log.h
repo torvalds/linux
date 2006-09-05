@@ -10,6 +10,10 @@
 #ifndef __LOG_DOT_H__
 #define __LOG_DOT_H__
 
+#include <linux/list.h>
+#include <linux/spinlock.h>
+#include "incore.h"
+
 /**
  * gfs2_log_lock - acquire the right to mess with the log manager
  * @sdp: the filesystem
