@@ -1685,10 +1685,16 @@ static int acpi_sbs_add(struct acpi_device *device)
 
 int acpi_sbs_remove(struct acpi_device *device, int type)
 {
-	struct acpi_sbs *sbs = (struct acpi_sbs *)acpi_driver_data(device);
+	struct acpi_sbs *sbs = NULL;
 	int id;
 
-	if (!device || !sbs) {
+	if (!device) {
+		return -EINVAL;
+	}
+
+	sbs = (struct acpi_sbs *)acpi_driver_data(device);
+
+	if (!sbs) {
 		return -EINVAL;
 	}
 
