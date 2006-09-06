@@ -32,12 +32,12 @@ spinlock_t gfs2_sys_margs_lock;
 
 static ssize_t id_show(struct gfs2_sbd *sdp, char *buf)
 {
-	return sprintf(buf, "%s\n", sdp->sd_vfs->s_id);
+	return snprintf(buf, PAGE_SIZE, "%s\n", sdp->sd_vfs->s_id);
 }
 
 static ssize_t fsname_show(struct gfs2_sbd *sdp, char *buf)
 {
-	return sprintf(buf, "%s\n", sdp->sd_fsname);
+	return snprintf(buf, PAGE_SIZE, "%s\n", sdp->sd_fsname);
 }
 
 static ssize_t freeze_show(struct gfs2_sbd *sdp, char *buf)
@@ -48,7 +48,7 @@ static ssize_t freeze_show(struct gfs2_sbd *sdp, char *buf)
 	count = sdp->sd_freeze_count;
 	mutex_unlock(&sdp->sd_freeze_lock);
 
-	return sprintf(buf, "%u\n", count);
+	return snprintf(buf, PAGE_SIZE, "%u\n", count);
 }
 
 static ssize_t freeze_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
@@ -80,7 +80,7 @@ static ssize_t freeze_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 static ssize_t withdraw_show(struct gfs2_sbd *sdp, char *buf)
 {
 	unsigned int b = test_bit(SDF_SHUTDOWN, &sdp->sd_flags);
-	return sprintf(buf, "%u\n", b);
+	return snprintf(buf, PAGE_SIZE, "%u\n", b);
 }
 
 static ssize_t withdraw_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
@@ -239,7 +239,7 @@ struct lockstruct_attr {
 #define LOCKSTRUCT_ATTR(name, fmt)                                          \
 static ssize_t name##_show(struct gfs2_sbd *sdp, char *buf)                 \
 {                                                                           \
-	return sprintf(buf, fmt, sdp->sd_lockstruct.ls_##name);             \
+	return snprintf(buf, PAGE_SIZE, fmt, sdp->sd_lockstruct.ls_##name); \
 }                                                                           \
 static struct lockstruct_attr lockstruct_attr_##name = __ATTR_RO(name)
 
@@ -268,7 +268,7 @@ struct args_attr {
 #define ARGS_ATTR(name, fmt)                                                \
 static ssize_t name##_show(struct gfs2_sbd *sdp, char *buf)                 \
 {                                                                           \
-	return sprintf(buf, fmt, sdp->sd_args.ar_##name);                   \
+	return snprintf(buf, PAGE_SIZE, fmt, sdp->sd_args.ar_##name);       \
 }                                                                           \
 static struct args_attr args_attr_##name = __ATTR_RO(name)
 
@@ -290,7 +290,8 @@ ARGS_ATTR(data,            "%d\n");
 /* one oddball doesn't fit the macro mold */
 static ssize_t noatime_show(struct gfs2_sbd *sdp, char *buf)
 {
-	return sprintf(buf, "%d\n", !!test_bit(SDF_NOATIME, &sdp->sd_flags));
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			!!test_bit(SDF_NOATIME, &sdp->sd_flags));
 }
 static struct args_attr args_attr_noatime = __ATTR_RO(noatime);
 
@@ -325,7 +326,8 @@ struct counters_attr {
 #define COUNTERS_ATTR(name, fmt)                                            \
 static ssize_t name##_show(struct gfs2_sbd *sdp, char *buf)                 \
 {                                                                           \
-	return sprintf(buf, fmt, (unsigned int)atomic_read(&sdp->sd_##name)); \
+	return snprintf(buf, PAGE_SIZE, fmt,                                \
+			(unsigned int)atomic_read(&sdp->sd_##name));        \
 }                                                                           \
 static struct counters_attr counters_attr_##name = __ATTR_RO(name)
 
@@ -348,8 +350,9 @@ static struct attribute *counters_attrs[] = {
 
 static ssize_t quota_scale_show(struct gfs2_sbd *sdp, char *buf)
 {
-	return sprintf(buf, "%u %u\n", sdp->sd_tune.gt_quota_scale_num,
-				       sdp->sd_tune.gt_quota_scale_den);
+	return snprintf(buf, PAGE_SIZE, "%u %u\n",
+			sdp->sd_tune.gt_quota_scale_num,
+			sdp->sd_tune.gt_quota_scale_den);
 }
 
 static ssize_t quota_scale_store(struct gfs2_sbd *sdp, const char *buf,
@@ -403,7 +406,7 @@ static struct tune_attr tune_attr_##name = __ATTR(name, 0644, show, store)
 #define TUNE_ATTR_2(name, store)                                              \
 static ssize_t name##_show(struct gfs2_sbd *sdp, char *buf)                   \
 {                                                                             \
-	return sprintf(buf, "%u\n", sdp->sd_tune.gt_##name);                  \
+	return snprintf(buf, PAGE_SIZE, "%u\n", sdp->sd_tune.gt_##name);      \
 }                                                                             \
 TUNE_ATTR_3(name, name##_show, store)
 
