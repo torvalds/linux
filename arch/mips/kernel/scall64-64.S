@@ -466,3 +466,5 @@ sys_call_table:
 	PTR	sys_tee				/* 5265 */
 	PTR	sys_vmsplice
 	PTR	sys_move_pages
+	PTR	sys_set_robust_list
+	PTR	sys_get_robust_list
