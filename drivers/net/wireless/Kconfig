@@ -271,25 +271,14 @@ config IPW2200_DEBUG
 	bool "Enable full debugging output in IPW2200 module."
 	depends on IPW2200
 	---help---
-	  This option will enable debug tracing output for the IPW2200.  
+	  This option will enable low level debug tracing output for IPW2200.
 
-	  This will result in the kernel module being ~100k larger.  You can 
-	  control which debug output is sent to the kernel log by setting the 
-	  value in 
+	  Note, normal debug code is already compiled in. This low level
+	  debug option enables debug on hot paths (e.g Tx, Rx, ISR) and
+	  will result in the kernel module being ~70 larger.  Most users
+	  will typically not need this high verbosity debug information.
 
-	  /sys/bus/pci/drivers/ipw2200/debug_level
-
-	  This entry will only exist if this option is enabled.
-
-	  To set a value, simply echo an 8-byte hex value to the same file:
-
-	  % echo 0x00000FFO > /sys/bus/pci/drivers/ipw2200/debug_level
-
-	  You can find the list of debug mask values in 
-	  drivers/net/wireless/ipw2200.h
-
-	  If you are not trying to debug or develop the IPW2200 driver, you 
-	  most likely want to say N here.
+	  If you are not sure, say N here.
 
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"

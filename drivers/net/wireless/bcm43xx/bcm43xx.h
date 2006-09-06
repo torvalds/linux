@@ -33,14 +33,18 @@
 #define BCM43xx_PCICFG_ICR		0x94
 
 /* MMIO offsets */
-#define BCM43xx_MMIO_DMA1_REASON	0x20
-#define BCM43xx_MMIO_DMA1_IRQ_MASK	0x24
-#define BCM43xx_MMIO_DMA2_REASON	0x28
-#define BCM43xx_MMIO_DMA2_IRQ_MASK	0x2C
-#define BCM43xx_MMIO_DMA3_REASON	0x30
-#define BCM43xx_MMIO_DMA3_IRQ_MASK	0x34
-#define BCM43xx_MMIO_DMA4_REASON	0x38
-#define BCM43xx_MMIO_DMA4_IRQ_MASK	0x3C
+#define BCM43xx_MMIO_DMA0_REASON	0x20
+#define BCM43xx_MMIO_DMA0_IRQ_MASK	0x24
+#define BCM43xx_MMIO_DMA1_REASON	0x28
+#define BCM43xx_MMIO_DMA1_IRQ_MASK	0x2C
+#define BCM43xx_MMIO_DMA2_REASON	0x30
+#define BCM43xx_MMIO_DMA2_IRQ_MASK	0x34
+#define BCM43xx_MMIO_DMA3_REASON	0x38
+#define BCM43xx_MMIO_DMA3_IRQ_MASK	0x3C
+#define BCM43xx_MMIO_DMA4_REASON	0x40
+#define BCM43xx_MMIO_DMA4_IRQ_MASK	0x44
+#define BCM43xx_MMIO_DMA5_REASON	0x48
+#define BCM43xx_MMIO_DMA5_IRQ_MASK	0x4C
 #define BCM43xx_MMIO_STATUS_BITFIELD	0x120
 #define BCM43xx_MMIO_STATUS2_BITFIELD	0x124
 #define BCM43xx_MMIO_GEN_IRQ_REASON	0x128
@@ -56,14 +60,27 @@
 #define BCM43xx_MMIO_XMITSTAT_1		0x174
 #define BCM43xx_MMIO_REV3PLUS_TSF_LOW	0x180 /* core rev >= 3 only */
 #define BCM43xx_MMIO_REV3PLUS_TSF_HIGH	0x184 /* core rev >= 3 only */
-#define BCM43xx_MMIO_DMA1_BASE		0x200
-#define BCM43xx_MMIO_DMA2_BASE		0x220
-#define BCM43xx_MMIO_DMA3_BASE		0x240
-#define BCM43xx_MMIO_DMA4_BASE		0x260
+
+/* 32-bit DMA */
+#define BCM43xx_MMIO_DMA32_BASE0	0x200
+#define BCM43xx_MMIO_DMA32_BASE1	0x220
+#define BCM43xx_MMIO_DMA32_BASE2	0x240
+#define BCM43xx_MMIO_DMA32_BASE3	0x260
+#define BCM43xx_MMIO_DMA32_BASE4	0x280
+#define BCM43xx_MMIO_DMA32_BASE5	0x2A0
+/* 64-bit DMA */
+#define BCM43xx_MMIO_DMA64_BASE0	0x200
+#define BCM43xx_MMIO_DMA64_BASE1	0x240
+#define BCM43xx_MMIO_DMA64_BASE2	0x280
+#define BCM43xx_MMIO_DMA64_BASE3	0x2C0
+#define BCM43xx_MMIO_DMA64_BASE4	0x300
+#define BCM43xx_MMIO_DMA64_BASE5	0x340
+/* PIO */
 #define BCM43xx_MMIO_PIO1_BASE		0x300
 #define BCM43xx_MMIO_PIO2_BASE		0x310
 #define BCM43xx_MMIO_PIO3_BASE		0x320
 #define BCM43xx_MMIO_PIO4_BASE		0x330
+
 #define BCM43xx_MMIO_PHY_VER		0x3E0
 #define BCM43xx_MMIO_PHY_RADIO		0x3E2
 #define BCM43xx_MMIO_ANTENNA		0x3E8
@@ -233,8 +250,14 @@
 #define BCM43xx_SBTMSTATELOW_FORCE_GATE_CLOCK	0x20000
 
 /* sbtmstatehigh state flags */
-#define BCM43xx_SBTMSTATEHIGH_SERROR		0x1
-#define BCM43xx_SBTMSTATEHIGH_BUSY		0x4
+#define BCM43xx_SBTMSTATEHIGH_SERROR		0x00000001
+#define BCM43xx_SBTMSTATEHIGH_BUSY		0x00000004
+#define BCM43xx_SBTMSTATEHIGH_TIMEOUT		0x00000020
+#define BCM43xx_SBTMSTATEHIGH_COREFLAGS		0x1FFF0000
+#define BCM43xx_SBTMSTATEHIGH_DMA64BIT		0x10000000
+#define BCM43xx_SBTMSTATEHIGH_GATEDCLK		0x20000000
+#define BCM43xx_SBTMSTATEHIGH_BISTFAILED	0x40000000
+#define BCM43xx_SBTMSTATEHIGH_BISTCOMPLETE	0x80000000
 
 /* sbimstate flags */
 #define BCM43xx_SBIMSTATE_IB_ERROR		0x20000
@@ -574,8 +597,11 @@ struct bcm43xx_dma {
 	struct bcm43xx_dmaring *tx_ring1;
 	struct bcm43xx_dmaring *tx_ring2;
 	struct bcm43xx_dmaring *tx_ring3;
+	struct bcm43xx_dmaring *tx_ring4;
+	struct bcm43xx_dmaring *tx_ring5;
+
 	struct bcm43xx_dmaring *rx_ring0;
-	struct bcm43xx_dmaring *rx_ring1; /* only available on core.rev < 5 */
+	struct bcm43xx_dmaring *rx_ring3; /* only available on core.rev < 5 */
 };
 
 /* Data structures for PIO transmission, per 80211 core. */
@@ -739,7 +765,7 @@ struct bcm43xx_private {
 
 	/* Reason code of the last interrupt. */
 	u32 irq_reason;
-	u32 dma_reason[4];
+	u32 dma_reason[6];
 	/* saved irq enable/disable state bitfield. */
 	u32 irq_savedstate;
 	/* Link Quality calculation context. */
