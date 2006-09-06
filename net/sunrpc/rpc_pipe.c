@@ -720,7 +720,7 @@ rpc_mkpipe(struct dentry *parent, const char *name, void *private, struct rpc_pi
 	if (IS_ERR(dentry))
 		return dentry;
 	dir = parent->d_inode;
-	inode = rpc_get_inode(dir->i_sb, S_IFSOCK | S_IRUSR | S_IWUSR);
+	inode = rpc_get_inode(dir->i_sb, S_IFIFO | S_IRUSR | S_IWUSR);
 	if (!inode)
 		goto err_dput;
 	inode->i_ino = iunique(dir->i_sb, 100);
