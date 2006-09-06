@@ -78,10 +78,10 @@ u64 ppc64_pft_size;
  * before we've read this from the device tree.
  */
 struct ppc64_caches ppc64_caches = {
-	.dline_size = 0x80,
-	.log_dline_size = 7,
-	.iline_size = 0x80,
-	.log_iline_size = 7
+	.dline_size = 0x40,
+	.log_dline_size = 6,
+	.iline_size = 0x40,
+	.log_iline_size = 6
 };
 EXPORT_SYMBOL_GPL(ppc64_caches);
 

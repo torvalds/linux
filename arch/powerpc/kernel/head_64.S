@@ -1748,7 +1748,7 @@ _STATIC(__after_prom_start)
 _GLOBAL(copy_and_flush)
 	addi	r5,r5,-8
 	addi	r6,r6,-8
-4:	li	r0,16			/* Use the least common		*/
+4:	li	r0,8			/* Use the smallest common	*/
 					/* denominator cache line	*/
 					/* size.  This results in	*/
 					/* extra cache line flushes	*/
