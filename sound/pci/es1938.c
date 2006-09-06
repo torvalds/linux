@@ -62,6 +62,7 @@
 #include <sound/opl3.h>
 #include <sound/mpu401.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
 #include <asm/io.h>
 
@@ -1164,6 +1165,14 @@ static int snd_es1938_reg_read(struct es1938 *chip, unsigned char reg)
 		return snd_es1938_read(chip, reg);
 }
 
+#define ES1938_SINGLE_TLV(xname, xindex, reg, shift, mask, invert, xtlv)    \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ,\
+  .name = xname, .index = xindex, \
+  .info = snd_es1938_info_single, \
+  .get = snd_es1938_get_single, .put = snd_es1938_put_single, \
+  .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24), \
+  .tlv = { .p = xtlv } }
 #define ES1938_SINGLE(xname, xindex, reg, shift, mask, invert) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
   .info = snd_es1938_info_single, \
@@ -1217,6 +1226,14 @@ static int snd_es1938_put_single(struct snd_kcontrol *kcontrol,
 	return snd_es1938_reg_bits(chip, reg, mask, val) != val;
 }
 
+#define ES1938_DOUBLE_TLV(xname, xindex, left_reg, right_reg, shift_left, shift_right, mask, invert, xtlv) \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ,\
+  .name = xname, .index = xindex, \
+  .info = snd_es1938_info_double, \
+  .get = snd_es1938_get_double, .put = snd_es1938_put_double, \
+  .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | (shift_right << 19) | (mask << 24) | (invert << 22), \
+  .tlv = { .p = xtlv } }
 #define ES1938_DOUBLE(xname, xindex, left_reg, right_reg, shift_left, shift_right, mask, invert) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
   .info = snd_es1938_info_double, \
@@ -1297,8 +1314,41 @@ static int snd_es1938_put_double(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+static unsigned int db_scale_master[] = {
+	TLV_DB_RANGE_HEAD(2),
+	0, 54, TLV_DB_SCALE_ITEM(-3600, 50, 1),
+	54, 63, TLV_DB_SCALE_ITEM(-900, 100, 0),
+};
+
+static unsigned int db_scale_audio1[] = {
+	TLV_DB_RANGE_HEAD(2),
+	0, 8, TLV_DB_SCALE_ITEM(-3300, 300, 1),
+	8, 15, TLV_DB_SCALE_ITEM(-900, 150, 0),
+};
+
+static unsigned int db_scale_audio2[] = {
+	TLV_DB_RANGE_HEAD(2),
+	0, 8, TLV_DB_SCALE_ITEM(-3450, 300, 1),
+	8, 15, TLV_DB_SCALE_ITEM(-1050, 150, 0),
+};
+
+static unsigned int db_scale_mic[] = {
+	TLV_DB_RANGE_HEAD(2),
+	0, 8, TLV_DB_SCALE_ITEM(-2400, 300, 1),
+	8, 15, TLV_DB_SCALE_ITEM(0, 150, 0),
+};
+
+static unsigned int db_scale_line[] = {
+	TLV_DB_RANGE_HEAD(2),
+	0, 8, TLV_DB_SCALE_ITEM(-3150, 300, 1),
+	8, 15, TLV_DB_SCALE_ITEM(-750, 150, 0),
+};
+
+static DECLARE_TLV_DB_SCALE(db_scale_capture, 0, 150, 0);
+
 static struct snd_kcontrol_new snd_es1938_controls[] = {
-ES1938_DOUBLE("Master Playback Volume", 0, 0x60, 0x62, 0, 0, 63, 0),
+ES1938_DOUBLE_TLV("Master Playback Volume", 0, 0x60, 0x62, 0, 0, 63, 0,
+		  db_scale_master),
 ES1938_DOUBLE("Master Playback Switch", 0, 0x60, 0x62, 6, 6, 1, 1),
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1309,19 +1359,28 @@ ES1938_DOUBLE("Master Playback Switch", 0, 0x60, 0x62, 6, 6, 1, 1),
 },
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 	.name = "Hardware Master Playback Switch",
 	.access = SNDRV_CTL_ELEM_ACCESS_READ,
 	.info = snd_es1938_info_hw_switch,
 	.get = snd_es1938_get_hw_switch,
+	.tlv = { .p = db_scale_master },
 },
 ES1938_SINGLE("Hardware Volume Split", 0, 0x64, 7, 1, 0),
-ES1938_DOUBLE("Line Playback Volume", 0, 0x3e, 0x3e, 4, 0, 15, 0),
+ES1938_DOUBLE_TLV("Line Playback Volume", 0, 0x3e, 0x3e, 4, 0, 15, 0,
+		  db_scale_line),
 ES1938_DOUBLE("CD Playback Volume", 0, 0x38, 0x38, 4, 0, 15, 0),
-ES1938_DOUBLE("FM Playback Volume", 0, 0x36, 0x36, 4, 0, 15, 0),
-ES1938_DOUBLE("Mono Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
-ES1938_DOUBLE("Mic Playback Volume", 0, 0x1a, 0x1a, 4, 0, 15, 0),
-ES1938_DOUBLE("Aux Playback Volume", 0, 0x3a, 0x3a, 4, 0, 15, 0),
-ES1938_DOUBLE("Capture Volume", 0, 0xb4, 0xb4, 4, 0, 15, 0),
+ES1938_DOUBLE_TLV("FM Playback Volume", 0, 0x36, 0x36, 4, 0, 15, 0,
+		  db_scale_mic),
+ES1938_DOUBLE_TLV("Mono Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0,
+		  db_scale_line),
+ES1938_DOUBLE_TLV("Mic Playback Volume", 0, 0x1a, 0x1a, 4, 0, 15, 0,
+		  db_scale_mic),
+ES1938_DOUBLE_TLV("Aux Playback Volume", 0, 0x3a, 0x3a, 4, 0, 15, 0,
+		  db_scale_line),
+ES1938_DOUBLE_TLV("Capture Volume", 0, 0xb4, 0xb4, 4, 0, 15, 0,
+		  db_scale_capture),
 ES1938_SINGLE("PC Speaker Volume", 0, 0x3c, 0, 7, 0),
 ES1938_SINGLE("Record Monitor", 0, 0xa8, 3, 1, 0),
 ES1938_SINGLE("Capture Switch", 0, 0x1c, 4, 1, 1),
@@ -1332,16 +1391,26 @@ ES1938_SINGLE("Capture Switch", 0, 0x1c, 4, 1, 1),
 	.get = snd_es1938_get_mux,
 	.put = snd_es1938_put_mux,
 },
-ES1938_DOUBLE("Mono Input Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
-ES1938_DOUBLE("PCM Capture Volume", 0, 0x69, 0x69, 4, 0, 15, 0),
-ES1938_DOUBLE("Mic Capture Volume", 0, 0x68, 0x68, 4, 0, 15, 0),
-ES1938_DOUBLE("Line Capture Volume", 0, 0x6e, 0x6e, 4, 0, 15, 0),
-ES1938_DOUBLE("FM Capture Volume", 0, 0x6b, 0x6b, 4, 0, 15, 0),
-ES1938_DOUBLE("Mono Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0),
-ES1938_DOUBLE("CD Capture Volume", 0, 0x6a, 0x6a, 4, 0, 15, 0),
-ES1938_DOUBLE("Aux Capture Volume", 0, 0x6c, 0x6c, 4, 0, 15, 0),
-ES1938_DOUBLE("PCM Playback Volume", 0, 0x7c, 0x7c, 4, 0, 15, 0),
-ES1938_DOUBLE("PCM Playback Volume", 1, 0x14, 0x14, 4, 0, 15, 0),
+ES1938_DOUBLE_TLV("Mono Input Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0,
+		  db_scale_line),
+ES1938_DOUBLE_TLV("PCM Capture Volume", 0, 0x69, 0x69, 4, 0, 15, 0,
+		  db_scale_audio2),
+ES1938_DOUBLE_TLV("Mic Capture Volume", 0, 0x68, 0x68, 4, 0, 15, 0,
+		  db_scale_mic),
+ES1938_DOUBLE_TLV("Line Capture Volume", 0, 0x6e, 0x6e, 4, 0, 15, 0,
+		  db_scale_line),
+ES1938_DOUBLE_TLV("FM Capture Volume", 0, 0x6b, 0x6b, 4, 0, 15, 0,
+		  db_scale_mic),
+ES1938_DOUBLE_TLV("Mono Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0,
+		  db_scale_line),
+ES1938_DOUBLE_TLV("CD Capture Volume", 0, 0x6a, 0x6a, 4, 0, 15, 0,
+		  db_scale_line),
+ES1938_DOUBLE_TLV("Aux Capture Volume", 0, 0x6c, 0x6c, 4, 0, 15, 0,
+		  db_scale_line),
+ES1938_DOUBLE_TLV("PCM Playback Volume", 0, 0x7c, 0x7c, 4, 0, 15, 0,
+		  db_scale_audio2),
+ES1938_DOUBLE_TLV("PCM Playback Volume", 1, 0x14, 0x14, 4, 0, 15, 0,
+		  db_scale_audio1),
 ES1938_SINGLE("3D Control - Level", 0, 0x52, 0, 63, 0),
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
