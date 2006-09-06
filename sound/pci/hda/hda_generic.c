@@ -46,11 +46,18 @@ struct hda_gnode {
 };
 
 /* patch-specific record */
+
+#define MAX_PCM_VOLS	2
+struct pcm_vol {
+	struct hda_gnode *node;	/* Node for PCM volume */
+	unsigned int index;	/* connection of PCM volume */
+};
+
 struct hda_gspec {
 	struct hda_gnode *dac_node[2];	/* DAC node */
 	struct hda_gnode *out_pin_node[2];	/* Output pin (Line-Out) node */
-	struct hda_gnode *pcm_vol_node[2];	/* Node for PCM volume */
-	unsigned int pcm_vol_index[2];	/* connection of PCM volume */
+	struct pcm_vol pcm_vol[MAX_PCM_VOLS];	/* PCM volumes */
+	unsigned int pcm_vol_nodes;	/* number of PCM volumes */
 
 	struct hda_gnode *adc_node;	/* ADC node */
 	struct hda_gnode *cap_vol_node;	/* Node for capture volume */
@@ -285,9 +292,11 @@ static int parse_output_path(struct hda_codec *codec, struct hda_gspec *spec,
 			return node == spec->dac_node[dac_idx];
 		}
 		spec->dac_node[dac_idx] = node;
-		if (node->wid_caps & AC_WCAP_OUT_AMP) {
-			spec->pcm_vol_node[dac_idx] = node;
-			spec->pcm_vol_index[dac_idx] = 0;
+		if ((node->wid_caps & AC_WCAP_OUT_AMP) &&
+		    spec->pcm_vol_nodes < MAX_PCM_VOLS) {
+			spec->pcm_vol[spec->pcm_vol_nodes].node = node;
+			spec->pcm_vol[spec->pcm_vol_nodes].index = 0;
+			spec->pcm_vol_nodes++;
 		}
 		return 1; /* found */
 	}
@@ -307,13 +316,16 @@ static int parse_output_path(struct hda_codec *codec, struct hda_gspec *spec,
 				select_input_connection(codec, node, i);
 			unmute_input(codec, node, i);
 			unmute_output(codec, node);
-			if (! spec->pcm_vol_node[dac_idx]) {
-				if (node->wid_caps & AC_WCAP_IN_AMP) {
-					spec->pcm_vol_node[dac_idx] = node;
-					spec->pcm_vol_index[dac_idx] = i;
-				} else if (node->wid_caps & AC_WCAP_OUT_AMP) {
-					spec->pcm_vol_node[dac_idx] = node;
-					spec->pcm_vol_index[dac_idx] = 0;
+			if (spec->dac_node[dac_idx] &&
+			    spec->pcm_vol_nodes < MAX_PCM_VOLS &&
+			    !(spec->dac_node[dac_idx]->wid_caps &
+			      AC_WCAP_OUT_AMP)) {
+				if ((node->wid_caps & AC_WCAP_IN_AMP) ||
+				    (node->wid_caps & AC_WCAP_OUT_AMP)) {
+					int n = spec->pcm_vol_nodes;
+					spec->pcm_vol[n].node = node;
+					spec->pcm_vol[n].index = i;
+					spec->pcm_vol_nodes++;
 				}
 			}
 			return 1;
@@ -370,7 +382,9 @@ static struct hda_gnode *parse_output_jack(struct hda_codec *codec,
 			/* set PIN-Out enable */
 			snd_hda_codec_write(codec, node->nid, 0,
 					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN);
+					    AC_PINCTL_OUT_EN |
+					    ((node->pin_caps & AC_PINCAP_HP_DRV) ?
+					     AC_PINCTL_HP_EN : 0));
 			return node;
 		}
 	}
@@ -745,18 +759,37 @@ static int check_existing_control(struct hda_codec *codec, const char *type, con
 /*
  * build output mixer controls
  */
+static int create_output_mixers(struct hda_codec *codec, const char **names)
+{
+	struct hda_gspec *spec = codec->spec;
+	int i, err;
+
+	for (i = 0; i < spec->pcm_vol_nodes; i++) {
+		err = create_mixer(codec, spec->pcm_vol[i].node,
+				   spec->pcm_vol[i].index,
+				   names[i], "Playback");
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
 static int build_output_controls(struct hda_codec *codec)
 {
 	struct hda_gspec *spec = codec->spec;
-	static const char *types[2] = { "Master", "Headphone" };
-	int i, err;
+	static const char *types_speaker[] = { "Speaker", "Headphone" };
+	static const char *types_line[] = { "Front", "Headphone" };
 
-	for (i = 0; i < 2 && spec->pcm_vol_node[i]; i++) {
-		err = create_mixer(codec, spec->pcm_vol_node[i],
-				   spec->pcm_vol_index[i],
-				   types[i], "Playback");
-		if (err < 0)
-			return err;
+	switch (spec->pcm_vol_nodes) {
+	case 1:
+		return create_mixer(codec, spec->pcm_vol[0].node,
+				    spec->pcm_vol[0].index,
+				    "Master", "Playback");
+	case 2:
+		if (defcfg_type(spec->out_pin_node[0]) == AC_JACK_SPEAKER)
+			return create_output_mixers(codec, types_speaker);
+		else
+			return create_output_mixers(codec, types_line);
 	}
 	return 0;
 }
