@@ -1352,6 +1352,7 @@ static void nodemgr_resume_ne(struct node_entry *ne)
 	ne->in_limbo = 0;
 	device_remove_file(&ne->device, &dev_attr_ne_in_limbo);
 
+	down_read(&nodemgr_ud_class.subsys.rwsem);
 	down_read(&ne->device.bus->subsys.rwsem);
 	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
 		ud = container_of(cdev, struct unit_directory, class_dev);
@@ -1363,6 +1364,7 @@ static void nodemgr_resume_ne(struct node_entry *ne)
 			ud->device.driver->resume(&ud->device);
 	}
 	up_read(&ne->device.bus->subsys.rwsem);
+	up_read(&nodemgr_ud_class.subsys.rwsem);
 
 	HPSB_DEBUG("Node resumed: ID:BUS[" NODE_BUS_FMT "]  GUID[%016Lx]",
 		   NODE_BUS_ARGS(ne->host, ne->nodeid), (unsigned long long)ne->guid);
