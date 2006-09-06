@@ -208,7 +208,7 @@
 #define H_JOIN			0x298
 #define H_VASI_STATE            0x2A4
 #define H_ENABLE_CRQ		0x2B0
-#define MAX_HCALL_OPCODES	(H_ENABLE_CRQ >> 2)
+#define MAX_HCALL_OPCODE	H_ENABLE_CRQ
 
 #ifndef __ASSEMBLY__
 
@@ -245,6 +245,16 @@ long plpar_hcall(unsigned long opcode, unsigned long *retbuf, ...);
  */
 #define PLPAR_HCALL9_BUFSIZE 9
 long plpar_hcall9(unsigned long opcode, unsigned long *retbuf, ...);
+
+/* For hcall instrumentation.  One structure per-hcall, per-CPU */
+struct hcall_stats {
+	unsigned long	num_calls;	/* number of calls (on this CPU) */
+	unsigned long	tb_total;	/* total wall time (mftb) of calls. */
+	unsigned long	purr_total;	/* total cpu time (PURR) of calls. */
+};
+void update_hcall_stats(unsigned long opcode, unsigned long tb_delta,
+			unsigned long purr_delta);
+#define HCALL_STAT_ARRAY_SIZE	((MAX_HCALL_OPCODE >> 2) + 1)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

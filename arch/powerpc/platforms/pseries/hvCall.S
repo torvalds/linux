@@ -10,8 +10,68 @@
 #include <asm/hvcall.h>
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
+#include <asm/asm-offsets.h>
 	
 #define STK_PARM(i)     (48 + ((i)-3)*8)
+
+#ifdef CONFIG_HCALL_STATS
+/*
+ * precall must preserve all registers.  use unused STK_PARM()
+ * areas to save snapshots and opcode.
+ */
+#define HCALL_INST_PRECALL					\
+	std	r3,STK_PARM(r3)(r1);	/* save opcode */	\
+	mftb	r0;			/* get timebase and */	\
+	std     r0,STK_PARM(r5)(r1);	/* save for later */	\
+BEGIN_FTR_SECTION;						\
+	mfspr	r0,SPRN_PURR;		/* get PURR and */	\
+	std	r0,STK_PARM(r6)(r1);	/* save for later */	\
+END_FTR_SECTION_IFCLR(CPU_FTR_PURR);
+	
+/*
+ * postcall is performed immediately before function return which
+ * allows liberal use of volatile registers.
+ */
+#define HCALL_INST_POSTCALL					\
+	ld	r4,STK_PARM(r3)(r1);	/* validate opcode */	\
+	cmpldi	cr7,r4,MAX_HCALL_OPCODE;			\
+	bgt-	cr7,1f;						\
+								\
+	/* get time and PURR snapshots after hcall */		\
+	mftb	r7;			/* timebase after */	\
+BEGIN_FTR_SECTION;						\
+	mfspr	r8,SPRN_PURR;		/* PURR after */	\
+	ld	r6,STK_PARM(r6)(r1);	/* PURR before */	\
+	subf	r6,r6,r8;		/* delta */		\
+END_FTR_SECTION_IFCLR(CPU_FTR_PURR);				\
+	ld	r5,STK_PARM(r5)(r1);	/* timebase before */	\
+	subf	r5,r5,r7;		/* time delta */	\
+								\
+	/* calculate address of stat structure r4 = opcode */	\
+	srdi	r4,r4,2;		/* index into array */	\
+	mulli	r4,r4,HCALL_STAT_SIZE;				\
+	LOAD_REG_ADDR(r7, per_cpu__hcall_stats);		\
+	add	r4,r4,r7;					\
+	ld	r7,PACA_DATA_OFFSET(r13); /* per cpu offset */	\
+	add	r4,r4,r7;					\
+								\
+	/* update stats	*/					\
+	ld	r7,HCALL_STAT_CALLS(r4); /* count */		\
+	addi	r7,r7,1;					\
+	std	r7,HCALL_STAT_CALLS(r4);			\
+	ld      r7,HCALL_STAT_TB(r4);	/* timebase */		\
+	add	r7,r7,r5;					\
+	std	r7,HCALL_STAT_TB(r4);				\
+BEGIN_FTR_SECTION;						\
+	ld	r7,HCALL_STAT_PURR(r4);	/* PURR */		\
+	add	r7,r7,r6;					\
+	std	r7,HCALL_STAT_PURR(r4);				\
+END_FTR_SECTION_IFCLR(CPU_FTR_PURR);				\
+1:
+#else
+#define HCALL_INST_PRECALL
+#define HCALL_INST_POSTCALL
+#endif
 
 	.text
 
@@ -21,7 +81,11 @@ _GLOBAL(plpar_hcall_norets)
 	mfcr	r0
 	stw	r0,8(r1)
 
+	HCALL_INST_PRECALL
+
 	HVSC				/* invoke the hypervisor */
+
+	HCALL_INST_POSTCALL
 
 	lwz	r0,8(r1)
 	mtcrf	0xff,r0
@@ -32,6 +96,8 @@ _GLOBAL(plpar_hcall)
 
 	mfcr	r0
 	stw	r0,8(r1)
+
+	HCALL_INST_PRECALL
 
 	std     r4,STK_PARM(r4)(r1)     /* Save ret buffer */
 
@@ -50,6 +116,8 @@ _GLOBAL(plpar_hcall)
 	std	r6, 16(r12)
 	std	r7, 24(r12)
 
+	HCALL_INST_POSTCALL
+
 	lwz	r0,8(r1)
 	mtcrf	0xff,r0
 
@@ -60,6 +128,8 @@ _GLOBAL(plpar_hcall9)
 
 	mfcr	r0
 	stw	r0,8(r1)
+
+	HCALL_INST_PRECALL
 
 	std     r4,STK_PARM(r4)(r1)     /* Save ret buffer */
 
@@ -85,6 +155,8 @@ _GLOBAL(plpar_hcall9)
 	std	r10,48(r12)
 	std	r11,56(r12)
 	std	r12,64(r12)
+
+	HCALL_INST_POSTCALL
 
 	lwz	r0,8(r1)
 	mtcrf	0xff,r0
