@@ -27,10 +27,6 @@
  * derived from linux/arch/arm/mach-s3c2410/mach-bast.c, written by
  * Ben Dooks <ben@simtec.co.uk>
  *
- * 10-Mar-2005 LCVR  Changed S3C2410_VA to S3C24XX_VA
- * 20-Sep-2005 BJD   Added static to non-exported items
- * 01-Apr-2006 BJD   Moved init code to common smdk
- *
  ***********************************************************************/
 
 #include <linux/kernel.h>
