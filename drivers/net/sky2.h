@@ -1791,21 +1791,9 @@ enum {
 	OP_TXINDEXLE	= 0x68,
 };
 
-/* Yukon 2 hardware interface
- * Not tested on big endian
- */
+/* Yukon 2 hardware interface */
 struct sky2_tx_le {
-	union {
-		__le32	addr;
-		struct {
-			__le16	offset;
-			__le16	start;
-		} csum  __attribute((packed));
-		struct {
-			__le16	size;
-			__le16	rsvd;
-		} tso  __attribute((packed));
-	} tx;
+	__le32	addr;
 	__le16	length;	/* also vlan tag or checksum start */
 	u8	ctrl;
 	u8	opcode;
@@ -1851,8 +1839,7 @@ struct sky2_port {
 	u32		     tx_addr64;
 	u16		     tx_pending;
 	u16		     tx_last_mss;
-	u16		     tx_csum_start;
-	u16		     tx_csum_offset;
+	u32		     tx_tcpsum;
 
 	struct ring_info     *rx_ring ____cacheline_aligned_in_smp;
 	struct sky2_rx_le    *rx_le;
