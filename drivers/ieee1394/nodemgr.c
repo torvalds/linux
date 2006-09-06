@@ -1316,6 +1316,7 @@ static void nodemgr_node_scan(struct host_info *hi, int generation)
 }
 
 
+/* Caller needs to hold nodemgr_ud_class.subsys.rwsem as reader. */
 static void nodemgr_suspend_ne(struct node_entry *ne)
 {
 	struct class_device *cdev;
@@ -1368,15 +1369,14 @@ static void nodemgr_resume_ne(struct node_entry *ne)
 }
 
 
+/* Caller needs to hold nodemgr_ud_class.subsys.rwsem as reader. */
 static void nodemgr_update_pdrv(struct node_entry *ne)
 {
 	struct unit_directory *ud;
 	struct hpsb_protocol_driver *pdrv;
-	struct class *class = &nodemgr_ud_class;
 	struct class_device *cdev;
 
-	down_read(&class->subsys.rwsem);
-	list_for_each_entry(cdev, &class->children, node) {
+	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
 		ud = container_of(cdev, struct unit_directory, class_dev);
 		if (ud->ne != ne || !ud->device.driver)
 			continue;
@@ -1389,7 +1389,6 @@ static void nodemgr_update_pdrv(struct node_entry *ne)
 			up_write(&ud->device.bus->subsys.rwsem);
 		}
 	}
-	up_read(&class->subsys.rwsem);
 }
 
 
@@ -1420,6 +1419,8 @@ static void nodemgr_irm_write_bc(struct node_entry *ne, int generation)
 }
 
 
+/* Caller needs to hold nodemgr_ud_class.subsys.rwsem as reader because the
+ * calls to nodemgr_update_pdrv() and nodemgr_suspend_ne() here require it. */
 static void nodemgr_probe_ne(struct host_info *hi, struct node_entry *ne, int generation)
 {
 	struct device *dev;
