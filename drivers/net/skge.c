@@ -2884,7 +2884,7 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 	spin_lock(&hw->hw_lock);
 	/* Reading this register masks IRQ */
 	status = skge_read32(hw, B0_SP_ISRC);
-	if (status == 0)
+	if (status == 0 || status == ~0)
 		goto out;
 
 	handled = 1;
