@@ -1318,6 +1318,14 @@ enum {
 };
 
 /* for Yukon-2 Gigabit Ethernet PHY (88E1112 only) */
+/*****  PHY_MARV_PHY_CTRL (page 1)		16 bit r/w	Fiber Specific Ctrl *****/
+enum {
+	PHY_M_FIB_FORCE_LNK	= 1<<10,/* Force Link Good */
+	PHY_M_FIB_SIGD_POL	= 1<<9,	/* SIGDET Polarity */
+	PHY_M_FIB_TX_DIS	= 1<<3,	/* Transmitter Disable */
+};
+
+/* for Yukon-2 Gigabit Ethernet PHY (88E1112 only) */
 /*****  PHY_MARV_PHY_CTRL (page 2)		16 bit r/w	MAC Specific Ctrl *****/
 enum {
 	PHY_M_MAC_MD_MSK	= 7<<7, /* Bit  9.. 7: Mode Select Mask */
@@ -1880,7 +1888,7 @@ struct sky2_hw {
 	int		     pm_cap;
 	u8	     	     chip_id;
 	u8		     chip_rev;
-	u8		     copper;
+	u8		     pmd_type;
 	u8		     ports;
 
 	struct sky2_status_le *st_le;
@@ -1891,6 +1899,11 @@ struct sky2_hw {
 	int		     msi_detected;
 	wait_queue_head_t    msi_wait;
 };
+
+static inline int sky2_is_copper(const struct sky2_hw *hw)
+{
+	return !(hw->pmd_type == 'L' || hw->pmd_type == 'S' || hw->pmd_type == 'P');
+}
 
 /* Register accessor for memory mapped device */
 static inline u32 sky2_read32(const struct sky2_hw *hw, unsigned reg)
