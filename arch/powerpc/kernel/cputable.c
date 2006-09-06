@@ -58,6 +58,9 @@ extern void __restore_cpu_ppc970(void);
 #define COMMON_USER_POWER6	(COMMON_USER_PPC64 | PPC_FEATURE_ARCH_2_05 |\
 				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | \
 				 PPC_FEATURE_TRUE_LE)
+#define COMMON_USER_PA6T	(COMMON_USER_PPC64 | PPC_FEATURE_PA6T |\
+				 PPC_FEATURE_TRUE_LE | \
+				 PPC_FEATURE_HAS_ALTIVEC_COMP)
 #define COMMON_USER_BOOKE	(PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU | \
 				 PPC_FEATURE_BOOKE)
 
@@ -285,6 +288,17 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.platform		= "ppc-cell-be",
+	},
+	{	/* PA Semi PA6T */
+		.pvr_mask		= 0x7fff0000,
+		.pvr_value		= 0x00900000,
+		.cpu_name		= "PA6T",
+		.cpu_features		= CPU_FTRS_PA6T,
+		.cpu_user_features	= COMMON_USER_PA6T,
+		.icache_bsize		= 64,
+		.dcache_bsize		= 64,
+		.num_pmcs		= 6,
+		.platform		= "pa6t",
 	},
 	{	/* default match */
 		.pvr_mask		= 0x00000000,

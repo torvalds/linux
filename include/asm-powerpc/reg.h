@@ -592,6 +592,7 @@
 #define PV_630p	0x0041
 #define PV_970MP	0x0044
 #define PV_BE		0x0070
+#define PV_PA6T		0x0090
 
 /*
  * Number of entries in the SLB. If this ever changes we should handle
