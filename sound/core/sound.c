@@ -268,13 +268,35 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 	snd_minors[minor] = preg;
 	if (card)
 		device = card->dev;
-	class_device_create(sound_class, NULL, MKDEV(major, minor), device, "%s", name);
+	preg->class_dev = class_device_create(sound_class, NULL,
+					      MKDEV(major, minor),
+					      device, "%s", name);
+	if (preg->class_dev)
+		class_set_devdata(preg->class_dev, private_data);
 
 	mutex_unlock(&sound_mutex);
 	return 0;
 }
 
 EXPORT_SYMBOL(snd_register_device);
+
+/* find the matching minor record
+ * return the index of snd_minor, or -1 if not found
+ */
+static int find_snd_minor(int type, struct snd_card *card, int dev)
+{
+	int cardnum, minor;
+	struct snd_minor *mptr;
+
+	cardnum = card ? card->number : -1;
+	for (minor = 0; minor < ARRAY_SIZE(snd_minors); ++minor)
+		if ((mptr = snd_minors[minor]) != NULL &&
+		    mptr->type == type &&
+		    mptr->card == cardnum &&
+		    mptr->device == dev)
+			return minor;
+	return -1;
+}
 
 /**
  * snd_unregister_device - unregister the device on the given card
@@ -289,31 +311,41 @@ EXPORT_SYMBOL(snd_register_device);
  */
 int snd_unregister_device(int type, struct snd_card *card, int dev)
 {
-	int cardnum, minor;
-	struct snd_minor *mptr;
+	int minor;
 
-	cardnum = card ? card->number : -1;
 	mutex_lock(&sound_mutex);
-	for (minor = 0; minor < ARRAY_SIZE(snd_minors); ++minor)
-		if ((mptr = snd_minors[minor]) != NULL &&
-		    mptr->type == type &&
-		    mptr->card == cardnum &&
-		    mptr->device == dev)
-			break;
-	if (minor == ARRAY_SIZE(snd_minors)) {
+	minor = find_snd_minor(type, card, dev);
+	if (minor < 0) {
 		mutex_unlock(&sound_mutex);
 		return -EINVAL;
 	}
 
 	class_device_destroy(sound_class, MKDEV(major, minor));
 
+	kfree(snd_minors[minor]);
 	snd_minors[minor] = NULL;
 	mutex_unlock(&sound_mutex);
-	kfree(mptr);
 	return 0;
 }
 
 EXPORT_SYMBOL(snd_unregister_device);
+
+int snd_add_device_sysfs_file(int type, struct snd_card *card, int dev,
+			      const struct class_device_attribute *attr)
+{
+	int minor, ret = -EINVAL;
+	struct class_device *cdev;
+
+	mutex_lock(&sound_mutex);
+	minor = find_snd_minor(type, card, dev);
+	if (minor >= 0 && (cdev = snd_minors[minor]->class_dev) != NULL)
+		ret = class_device_create_file(cdev, attr);
+	mutex_unlock(&sound_mutex);
+	return ret;
+
+}
+
+EXPORT_SYMBOL(snd_add_device_sysfs_file);
 
 #ifdef CONFIG_PROC_FS
 /*

@@ -907,6 +907,28 @@ void snd_pcm_detach_substream(struct snd_pcm_substream *substream)
 	substream->pstr->substream_opened--;
 }
 
+static ssize_t show_pcm_class(struct class_device *class_device, char *buf)
+{
+	struct snd_pcm *pcm;
+	const char *str;
+	static const char *strs[SNDRV_PCM_CLASS_LAST + 1] = {
+		[SNDRV_PCM_CLASS_GENERIC] = "generic",
+		[SNDRV_PCM_CLASS_MULTI] = "multi",
+		[SNDRV_PCM_CLASS_MODEM] = "modem",
+		[SNDRV_PCM_CLASS_DIGITIZER] = "digitizer",
+	};
+
+	if (! (pcm = class_get_devdata(class_device)) ||
+	    pcm->dev_class > SNDRV_PCM_CLASS_LAST)
+		str = "none";
+	else
+		str = strs[pcm->dev_class];
+        return snprintf(buf, PAGE_SIZE, "%s\n", str);
+}
+
+static struct class_device_attribute pcm_attrs =
+	__ATTR(pcm_class, S_IRUGO, show_pcm_class, NULL);
+
 static int snd_pcm_dev_register(struct snd_device *device)
 {
 	int cidx, err;
@@ -945,6 +967,8 @@ static int snd_pcm_dev_register(struct snd_device *device)
 			mutex_unlock(&register_mutex);
 			return err;
 		}
+		snd_add_device_sysfs_file(devtype, pcm->card, pcm->device,
+					  &pcm_attrs);
 		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next)
 			snd_pcm_timer_init(substream);
 	}

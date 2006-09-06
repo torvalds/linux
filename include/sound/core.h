@@ -26,6 +26,7 @@
 #include <linux/mutex.h>		/* struct mutex */
 #include <linux/rwsem.h>		/* struct rw_semaphore */
 #include <linux/pm.h>			/* pm_message_t */
+#include <linux/device.h>
 
 /* forward declarations */
 #ifdef CONFIG_PCI
@@ -186,6 +187,7 @@ struct snd_minor {
 	int device;			/* device number */
 	const struct file_operations *f_ops;	/* file operations */
 	void *private_data;		/* private data for f_ops->open */
+	struct class_device *class_dev;	/* class device for sysfs */
 };
 
 /* sound.c */
@@ -200,6 +202,8 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 			const char *name);
 int snd_unregister_device(int type, struct snd_card *card, int dev);
 void *snd_lookup_minor_data(unsigned int minor, int type);
+int snd_add_device_sysfs_file(int type, struct snd_card *card, int dev,
+			      const struct class_device_attribute *attr);
 
 #ifdef CONFIG_SND_OSSEMUL
 int snd_register_oss_device(int type, struct snd_card *card, int dev,
