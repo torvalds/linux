@@ -873,10 +873,12 @@ EXPORT_SYMBOL(scsi_device_get);
  */
 void scsi_device_put(struct scsi_device *sdev)
 {
+	struct module *module = sdev->host->hostt->module;
+
 	/* The module refcount will be zero if scsi_device_get()
 	 * was called from a module removal routine */
-	if (likely(module_refcount(sdev->host->hostt->module) != 0))
-		module_put(sdev->host->hostt->module);
+	if (module && module_refcount(module) != 0)
+		module_put(module);
 	put_device(&sdev->sdev_gendev);
 }
 EXPORT_SYMBOL(scsi_device_put);
