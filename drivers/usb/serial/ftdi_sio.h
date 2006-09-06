@@ -467,6 +467,11 @@
 #define TESTO_VID			0x128D
 #define TESTO_USB_INTERFACE_PID		0x0001
 
+/*
+ * Gamma Scout (http://gamma-scout.com/). Submitted by rsc@runtux.com.
+ */
+#define FTDI_GAMMA_SCOUT_PID		0xD678	/* Gamma Scout online */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
