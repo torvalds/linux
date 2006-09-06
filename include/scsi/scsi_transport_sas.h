@@ -24,15 +24,23 @@ enum sas_protocol {
 };
 
 enum sas_linkrate {
-	SAS_LINK_RATE_UNKNOWN,
-	SAS_PHY_DISABLED,
-	SAS_LINK_RATE_FAILED,
-	SAS_SATA_SPINUP_HOLD,
-	SAS_SATA_PORT_SELECTOR,
-	SAS_LINK_RATE_1_5_GBPS,
-	SAS_LINK_RATE_3_0_GBPS,
-	SAS_LINK_RATE_6_0_GBPS,
-	SAS_LINK_VIRTUAL,
+	/* These Values are defined in the SAS standard */
+	SAS_LINK_RATE_UNKNOWN = 0,
+	SAS_PHY_DISABLED = 1,
+	SAS_PHY_RESET_PROBLEM = 2,
+	SAS_SATA_SPINUP_HOLD = 3,
+	SAS_SATA_PORT_SELECTOR = 4,
+	SAS_PHY_RESET_IN_PROGRESS = 5,
+	SAS_LINK_RATE_1_5_GBPS = 8,
+	SAS_LINK_RATE_G1 = SAS_LINK_RATE_1_5_GBPS,
+	SAS_LINK_RATE_3_0_GBPS = 9,
+	SAS_LINK_RATE_G2 = SAS_LINK_RATE_3_0_GBPS,
+	SAS_LINK_RATE_6_0_GBPS = 10,
+	/* These are virtual to the transport class and may never
+	 * be signalled normally since the standard defined field
+	 * is only 4 bits */
+	SAS_LINK_RATE_FAILED = 0x10,
+	SAS_PHY_VIRTUAL = 0x11,
 };
 
 struct sas_identify {

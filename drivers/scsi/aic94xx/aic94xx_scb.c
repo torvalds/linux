@@ -55,15 +55,15 @@ static inline void get_lrate_mode(struct asd_phy *phy, u8 oob_mode)
 	switch (oob_mode & 7) {
 	case PHY_SPEED_60:
 		/* FIXME: sas transport class doesn't have this */
-		phy->sas_phy.linkrate = PHY_LINKRATE_6;
+		phy->sas_phy.linkrate = SAS_LINK_RATE_6_0_GBPS;
 		phy->sas_phy.phy->negotiated_linkrate = SAS_LINK_RATE_6_0_GBPS;
 		break;
 	case PHY_SPEED_30:
-		phy->sas_phy.linkrate = PHY_LINKRATE_3;
+		phy->sas_phy.linkrate = SAS_LINK_RATE_3_0_GBPS;
 		phy->sas_phy.phy->negotiated_linkrate = SAS_LINK_RATE_3_0_GBPS;
 		break;
 	case PHY_SPEED_15:
-		phy->sas_phy.linkrate = PHY_LINKRATE_1_5;
+		phy->sas_phy.linkrate = SAS_LINK_RATE_1_5_GBPS;
 		phy->sas_phy.phy->negotiated_linkrate = SAS_LINK_RATE_1_5_GBPS;
 		break;
 	}
@@ -540,39 +540,39 @@ static inline void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 		| SATA_SPEED_30_DIS | SATA_SPEED_15_DIS;
 
 	switch (pd->max_sas_lrate) {
-	case PHY_LINKRATE_6:
+	case SAS_LINK_RATE_6_0_GBPS:
 		*speed_mask &= ~SAS_SPEED_60_DIS;
 	default:
-	case PHY_LINKRATE_3:
+	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask &= ~SAS_SPEED_30_DIS;
-	case PHY_LINKRATE_1_5:
+	case SAS_LINK_RATE_1_5_GBPS:
 		*speed_mask &= ~SAS_SPEED_15_DIS;
 	}
 
 	switch (pd->min_sas_lrate) {
-	case PHY_LINKRATE_6:
+	case SAS_LINK_RATE_6_0_GBPS:
 		*speed_mask |= SAS_SPEED_30_DIS;
-	case PHY_LINKRATE_3:
+	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask |= SAS_SPEED_15_DIS;
 	default:
-	case PHY_LINKRATE_1_5:
+	case SAS_LINK_RATE_1_5_GBPS:
 		/* nothing to do */
 		;
 	}
 
 	switch (pd->max_sata_lrate) {
-	case PHY_LINKRATE_3:
+	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask &= ~SATA_SPEED_30_DIS;
 	default:
-	case PHY_LINKRATE_1_5:
+	case SAS_LINK_RATE_1_5_GBPS:
 		*speed_mask &= ~SATA_SPEED_15_DIS;
 	}
 
 	switch (pd->min_sata_lrate) {
-	case PHY_LINKRATE_3:
+	case SAS_LINK_RATE_3_0_GBPS:
 		*speed_mask |= SATA_SPEED_15_DIS;
 	default:
-	case PHY_LINKRATE_1_5:
+	case SAS_LINK_RATE_1_5_GBPS:
 		/* nothing to do */
 		;
 	}

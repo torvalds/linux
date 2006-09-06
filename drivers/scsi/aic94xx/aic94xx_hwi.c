@@ -96,7 +96,7 @@ static int asd_init_phy(struct asd_phy *phy)
 	sas_phy->type = PHY_TYPE_PHYSICAL;
 	sas_phy->role = PHY_ROLE_INITIATOR;
 	sas_phy->oob_mode = OOB_NOT_CONNECTED;
-	sas_phy->linkrate = PHY_LINKRATE_NONE;
+	sas_phy->linkrate = SAS_LINK_RATE_UNKNOWN;
 
 	phy->id_frm_tok = asd_alloc_coherent(asd_ha,
 					     sizeof(*phy->identify_frame),

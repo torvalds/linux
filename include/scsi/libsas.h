@@ -114,7 +114,7 @@ struct ex_phy {
 	enum ex_phy_state phy_state;
 
 	enum sas_dev_type attached_dev_type;
-	enum sas_phy_linkrate linkrate;
+	enum sas_linkrate linkrate;
 
 	u8   attached_sata_host:1;
 	u8   attached_sata_dev:1;
@@ -170,9 +170,9 @@ struct sata_device {
 struct domain_device {
         enum sas_dev_type dev_type;
 
-        enum sas_phy_linkrate linkrate;
-        enum sas_phy_linkrate min_linkrate;
-        enum sas_phy_linkrate max_linkrate;
+        enum sas_linkrate linkrate;
+        enum sas_linkrate min_linkrate;
+        enum sas_linkrate max_linkrate;
 
         int  pathways;
 
@@ -220,7 +220,7 @@ struct asd_sas_port {
 	struct domain_device *port_dev;
 	spinlock_t dev_list_lock;
 	struct list_head dev_list;
-	enum   sas_phy_linkrate linkrate;
+	enum   sas_linkrate linkrate;
 
 	struct sas_phy *phy;
 	struct work_struct work;
@@ -276,7 +276,7 @@ struct asd_sas_phy {
 	enum sas_phy_type  type;
 	enum sas_phy_role  role;
 	enum sas_oob_mode  oob_mode;
-	enum sas_phy_linkrate linkrate;
+	enum sas_linkrate linkrate;
 
 	u8   *sas_addr;		  /* must be set */
 	u8   attached_sas_addr[SAS_ADDR_SIZE]; /* class:RO, driver: R/W */
@@ -368,7 +368,7 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr);
 static inline void sas_phy_disconnected(struct asd_sas_phy *phy)
 {
 	phy->oob_mode = OOB_NOT_CONNECTED;
-	phy->linkrate = PHY_LINKRATE_NONE;
+	phy->linkrate = SAS_LINK_RATE_UNKNOWN;
 }
 
 /* ---------- Tasks ---------- */

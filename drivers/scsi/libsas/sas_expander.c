@@ -191,20 +191,7 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	phy->phy->maximum_linkrate_hw = SAS_LINK_RATE_3_0_GBPS;
 	phy->phy->minimum_linkrate = SAS_LINK_RATE_1_5_GBPS;
 	phy->phy->maximum_linkrate = SAS_LINK_RATE_3_0_GBPS;
-	switch (phy->linkrate) {
-	case PHY_LINKRATE_1_5:
-		phy->phy->negotiated_linkrate = SAS_LINK_RATE_1_5_GBPS;
-		break;
-	case PHY_LINKRATE_3:
-		phy->phy->negotiated_linkrate = SAS_LINK_RATE_3_0_GBPS;
-		break;
-	case PHY_LINKRATE_6:
-		phy->phy->negotiated_linkrate = SAS_LINK_RATE_6_0_GBPS;
-		break;
-	default:
-		phy->phy->negotiated_linkrate = SAS_LINK_RATE_UNKNOWN;
-		break;
-	}
+	phy->phy->negotiated_linkrate = phy->linkrate;
 
 	if (!rediscover)
 		sas_phy_add(phy->phy);
@@ -450,7 +437,7 @@ static void sas_ex_disable_phy(struct domain_device *dev, int phy_id)
 	struct ex_phy *phy = &ex->ex_phy[phy_id];
 
 	sas_smp_phy_control(dev, phy_id, PHY_FUNC_DISABLE);
-	phy->linkrate = PHY_DISABLED;
+	phy->linkrate = SAS_PHY_DISABLED;
 }
 
 static void sas_ex_disable_port(struct domain_device *dev, u8 *sas_addr)
@@ -743,7 +730,7 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 	int res = 0;
 
 	/* Phy state */
-	if (ex_phy->linkrate == PHY_SPINUP_HOLD) {
+	if (ex_phy->linkrate == SAS_SATA_SPINUP_HOLD) {
 		if (!sas_smp_phy_control(dev, phy_id, PHY_FUNC_LINK_RESET))
 			res = sas_ex_phy_discover(dev, phy_id);
 		if (res)
@@ -773,7 +760,7 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 			sas_configure_routing(dev, ex_phy->attached_sas_addr);
 		}
 		return 0;
-	} else if (ex_phy->linkrate == PHY_LINKRATE_UNKNOWN)
+	} else if (ex_phy->linkrate == SAS_LINK_RATE_UNKNOWN)
 		return 0;
 
 	if (ex_phy->attached_dev_type != SAS_END_DEV &&
@@ -922,9 +909,9 @@ static int sas_ex_discover_devices(struct domain_device *dev, int single)
 			continue;
 
 		switch (ex_phy->linkrate) {
-		case PHY_DISABLED:
-		case PHY_RESET_PROBLEM:
-		case PHY_PORT_SELECTOR:
+		case SAS_PHY_DISABLED:
+		case SAS_PHY_RESET_PROBLEM:
+		case SAS_SATA_PORT_SELECTOR:
 			continue;
 		default:
 			res = sas_ex_discover_dev(dev, i);

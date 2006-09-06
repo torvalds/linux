@@ -240,10 +240,14 @@ static int __devinit asd_common_setup(struct asd_ha_struct *asd_ha)
 	/* All phys are enabled, by default. */
 	asd_ha->hw_prof.enabled_phys = 0xFF;
 	for (i = 0; i < ASD_MAX_PHYS; i++) {
-		asd_ha->hw_prof.phy_desc[i].max_sas_lrate = PHY_LINKRATE_3;
-		asd_ha->hw_prof.phy_desc[i].min_sas_lrate = PHY_LINKRATE_1_5;
-		asd_ha->hw_prof.phy_desc[i].max_sata_lrate= PHY_LINKRATE_1_5;
-		asd_ha->hw_prof.phy_desc[i].min_sata_lrate= PHY_LINKRATE_1_5;
+		asd_ha->hw_prof.phy_desc[i].max_sas_lrate =
+			SAS_LINK_RATE_3_0_GBPS;
+		asd_ha->hw_prof.phy_desc[i].min_sas_lrate =
+			SAS_LINK_RATE_1_5_GBPS;
+		asd_ha->hw_prof.phy_desc[i].max_sata_lrate =
+			SAS_LINK_RATE_1_5_GBPS;
+		asd_ha->hw_prof.phy_desc[i].min_sata_lrate =
+			SAS_LINK_RATE_1_5_GBPS;
 	}
 
 	return 0;

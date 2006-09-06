@@ -43,7 +43,7 @@ void sas_scsi_recover_host(struct Scsi_Host *shost);
 
 int sas_show_class(enum sas_class class, char *buf);
 int sas_show_proto(enum sas_proto proto, char *buf);
-int sas_show_linkrate(enum sas_phy_linkrate linkrate, char *buf);
+int sas_show_linkrate(enum sas_linkrate linkrate, char *buf);
 int sas_show_oob_mode(enum sas_oob_mode oob_mode, char *buf);
 
 int  sas_register_phys(struct sas_ha_struct *sas_ha);
