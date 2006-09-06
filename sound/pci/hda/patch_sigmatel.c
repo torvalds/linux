@@ -1223,6 +1223,66 @@ static int stac9200_auto_create_hp_ctls(struct hda_codec *codec,
 	return 0;
 }
 
+/* add playback controls for LFE output */
+static int stac9200_auto_create_lfe_ctls(struct hda_codec *codec,
+					struct auto_pin_cfg *cfg)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	int err;
+	hda_nid_t lfe_pin = 0x0;
+	int i;
+
+	/*
+	 * search speaker outs and line outs for a mono speaker pin
+	 * with an amp.  If one is found, add LFE controls
+	 * for it.
+	 */
+	for (i = 0; i < spec->autocfg.speaker_outs && lfe_pin == 0x0; i++) {
+		hda_nid_t pin = spec->autocfg.speaker_pins[i];
+		unsigned long wcaps = get_wcaps(codec, pin);
+		wcaps &= (AC_WCAP_STEREO | AC_WCAP_OUT_AMP);
+		if (wcaps == AC_WCAP_OUT_AMP)
+			/* found a mono speaker with an amp, must be lfe */
+			lfe_pin = pin;
+	}
+
+	/* if speaker_outs is 0, then speakers may be in line_outs */
+	if (lfe_pin == 0 && spec->autocfg.speaker_outs == 0) {
+		for (i = 0; i < spec->autocfg.line_outs && lfe_pin == 0x0; i++) {
+			hda_nid_t pin = spec->autocfg.line_out_pins[i];
+			unsigned long cfg;
+			cfg = snd_hda_codec_read(codec, pin, 0,
+						 AC_VERB_GET_CONFIG_DEFAULT,
+						 0x00);
+			if (get_defcfg_device(cfg) == AC_JACK_SPEAKER) {
+				unsigned long wcaps = get_wcaps(codec, pin);
+				wcaps &= (AC_WCAP_STEREO | AC_WCAP_OUT_AMP);
+				if (wcaps == AC_WCAP_OUT_AMP)
+					/* found a mono speaker with an amp,
+					   must be lfe */
+					lfe_pin = pin;
+			}
+		}
+	}
+
+	if (lfe_pin) {
+		err = stac92xx_add_control(spec, STAC_CTL_WIDGET_VOL,
+					   "LFE Playback Volume",
+					   HDA_COMPOSE_AMP_VAL(lfe_pin, 1, 0,
+							       HDA_OUTPUT));
+		if (err < 0)
+			return err;
+		err = stac92xx_add_control(spec, STAC_CTL_WIDGET_MUTE,
+					   "LFE Playback Switch",
+					   HDA_COMPOSE_AMP_VAL(lfe_pin, 1, 0,
+							       HDA_OUTPUT));
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 static int stac9200_parse_auto_config(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -1235,6 +1295,9 @@ static int stac9200_parse_auto_config(struct hda_codec *codec)
 		return err;
 
 	if ((err = stac9200_auto_create_hp_ctls(codec, &spec->autocfg)) < 0)
+		return err;
+
+	if ((err = stac9200_auto_create_lfe_ctls(codec, &spec->autocfg)) < 0)
 		return err;
 
 	if (spec->autocfg.dig_out_pin)
