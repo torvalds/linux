@@ -62,7 +62,7 @@
 #define CONFIG_S3C2410_WATCHDOG_ATBOOT		(0)
 #define CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME	(15)
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static int nowayout	= WATCHDOG_NOWAYOUT;
 static int tmr_margin	= CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME;
 static int tmr_atboot	= CONFIG_S3C2410_WATCHDOG_ATBOOT;
 static int soft_noboot	= 0;
@@ -213,11 +213,10 @@ static int s3c2410wdt_open(struct inode *inode, struct file *file)
 	if(down_trylock(&open_lock))
 		return -EBUSY;
 
-	if (nowayout) {
+	if (nowayout)
 		__module_get(THIS_MODULE);
-	} else {
-		allow_close = CLOSE_STATE_ALLOW;
-	}
+
+	allow_close = CLOSE_STATE_NOT;
 
 	/* start the timer */
 	s3c2410wdt_start();
@@ -230,6 +229,7 @@ static int s3c2410wdt_release(struct inode *inode, struct file *file)
 	 *	Shut off the timer.
 	 * 	Lock it in if it's a module and we set nowayout
 	 */
+
 	if (allow_close == CLOSE_STATE_ALLOW) {
 		s3c2410wdt_stop();
 	} else {
