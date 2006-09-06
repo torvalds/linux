@@ -307,6 +307,15 @@ config PATA_IT821X
 
 	  If unsure, say N.
 
+config PATA_JMICRON
+	tristate "JMicron PATA support"
+	depends on PCI
+	help
+	  Enable support for the JMicron IDE controller, via the new
+	  ATA layer.
+
+	  If unsure, say N.
+
 config PATA_LEGACY
 	tristate "Legacy ISA PATA support (Experimental)"
 	depends on PCI && EXPERIMENTAL
