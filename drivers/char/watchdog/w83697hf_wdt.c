@@ -54,7 +54,7 @@ MODULE_PARM_DESC(wdt_io, "w83697hf WDT io port (default 0x2E)");
 
 static int timeout = WATCHDOG_TIMEOUT;	/* in seconds */
 module_param(timeout, int, 0);
-MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. 1<= timeout <=63, default=" __MODULE_STRING(WATCHDOG_TIMEOUT) ".");
+MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. 1<= timeout <=255, default=" __MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
@@ -143,7 +143,7 @@ wdt_disable(void)
 static int
 wdt_set_heartbeat(int t)
 {
-	if ((t < 1) || (t > 63))
+	if ((t < 1) || (t > 255))
 		return -EINVAL;
 
 	timeout = t;
@@ -317,7 +317,7 @@ wdt_init(void)
 
 	if (wdt_set_heartbeat(timeout)) {
 		wdt_set_heartbeat(WATCHDOG_TIMEOUT);
-		printk (KERN_INFO PFX "timeout value must be 1<=timeout<=63, using %d\n",
+		printk (KERN_INFO PFX "timeout value must be 1<=timeout<=255, using %d\n",
 			WATCHDOG_TIMEOUT);
 	}
 
