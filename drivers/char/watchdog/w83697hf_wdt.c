@@ -76,6 +76,12 @@ w83697hf_unlock(void)
 	outb_p(0x87, W83697HF_EFER);	/* Again according to manual */
 }
 
+static inline void
+w83697hf_lock(void)
+{
+	outb_p(0xAA, W83697HF_EFER);	/* Leave extended function mode */
+}
+
 static void
 w83697hf_select_wd_register(void)
 {
@@ -93,7 +99,7 @@ w83697hf_select_wd_register(void)
 static void
 w83697hf_unselect_wd_register(void)
 {
-	outb_p(0xAA, W83697HF_EFER);	/* Leave extended function mode */
+	w83697hf_lock();
 }
 
 static void
