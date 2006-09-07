@@ -2739,7 +2739,7 @@ static void dma_rcv_tasklet (unsigned long data)
 				(cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>16)&0x1f,
 				(cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>21)&0x3,
 				tcode, length, d->ctx,
-				(cond_le32_to_cpu(d->spb[0], ohci->no_swap_incoming)>>10)&0x3f);
+				(d->spb[0]>>10)&0x3f);
 
 			ack = (((cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>16)&0x1f)
 				== 0x11) ? 1 : 0;
