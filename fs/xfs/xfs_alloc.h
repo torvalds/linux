@@ -44,6 +44,26 @@ typedef enum xfs_alloctype
 #define	XFS_ALLOC_FLAG_FREEING	0x00000002  /* indicate caller is freeing extents*/
 
 /*
+ * In order to avoid ENOSPC-related deadlock caused by
+ * out-of-order locking of AGF buffer (PV 947395), we place
+ * constraints on the relationship among actual allocations for
+ * data blocks, freelist blocks, and potential file data bmap
+ * btree blocks. However, these restrictions may result in no
+ * actual space allocated for a delayed extent, for example, a data
+ * block in a certain AG is allocated but there is no additional
+ * block for the additional bmap btree block due to a split of the
+ * bmap btree of the file. The result of this may lead to an
+ * infinite loop in xfssyncd when the file gets flushed to disk and
+ * all delayed extents need to be actually allocated. To get around
+ * this, we explicitly set aside a few blocks which will not be
+ * reserved in delayed allocation. Considering the minimum number of
+ * needed freelist blocks is 4 fsbs _per AG_, a potential split of file's bmap
+ * btree requires 1 fsb, so we set the number of set-aside blocks
+ * to 4 + 4*agcount.
+ */
+#define XFS_ALLOC_SET_ASIDE(mp)  (4 + ((mp)->m_sb.sb_agcount * 4))
+
+/*
  * Argument structure for xfs_alloc routines.
  * This is turned into a structure to avoid having 20 arguments passed
  * down several levels of the stack.

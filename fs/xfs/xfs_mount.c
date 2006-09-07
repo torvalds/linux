@@ -1243,24 +1243,6 @@ xfs_mod_sb(xfs_trans_t *tp, __int64_t fields)
 	xfs_trans_log_buf(tp, bp, first, last);
 }
 
-/*
- * In order to avoid ENOSPC-related deadlock caused by
- * out-of-order locking of AGF buffer (PV 947395), we place
- * constraints on the relationship among actual allocations for
- * data blocks, freelist blocks, and potential file data bmap
- * btree blocks. However, these restrictions may result in no
- * actual space allocated for a delayed extent, for example, a data
- * block in a certain AG is allocated but there is no additional
- * block for the additional bmap btree block due to a split of the
- * bmap btree of the file. The result of this may lead to an
- * infinite loop in xfssyncd when the file gets flushed to disk and
- * all delayed extents need to be actually allocated. To get around
- * this, we explicitly set aside a few blocks which will not be
- * reserved in delayed allocation. Considering the minimum number of
- * needed freelist blocks is 4 fsbs, a potential split of file's bmap
- * btree requires 1 fsb, so we set the number of set-aside blocks to 8.
-*/
-#define SET_ASIDE_BLOCKS 8
 
 /*
  * xfs_mod_incore_sb_unlocked() is a utility routine common used to apply
@@ -1306,7 +1288,8 @@ xfs_mod_incore_sb_unlocked(xfs_mount_t *mp, xfs_sb_field_t field,
 		return 0;
 	case XFS_SBS_FDBLOCKS:
 
-		lcounter = (long long)mp->m_sb.sb_fdblocks - SET_ASIDE_BLOCKS;
+		lcounter = (long long)
+			mp->m_sb.sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
 		res_used = (long long)(mp->m_resblks - mp->m_resblks_avail);
 
 		if (delta > 0) {		/* Putting blocks back */
@@ -1340,7 +1323,7 @@ xfs_mod_incore_sb_unlocked(xfs_mount_t *mp, xfs_sb_field_t field,
 			}
 		}
 
-		mp->m_sb.sb_fdblocks = lcounter + SET_ASIDE_BLOCKS;
+		mp->m_sb.sb_fdblocks = lcounter + XFS_ALLOC_SET_ASIDE(mp);
 		return 0;
 	case XFS_SBS_FREXTENTS:
 		lcounter = (long long)mp->m_sb.sb_frextents;
@@ -2021,7 +2004,8 @@ xfs_icsb_sync_counters_lazy(
  * when we get near ENOSPC.
  */
 #define XFS_ICSB_INO_CNTR_REENABLE	64
-#define XFS_ICSB_FDBLK_CNTR_REENABLE	512
+#define XFS_ICSB_FDBLK_CNTR_REENABLE(mp) \
+		(512 + XFS_ALLOC_SET_ASIDE(mp))
 STATIC void
 xfs_icsb_balance_counter(
 	xfs_mount_t	*mp,
@@ -2055,7 +2039,7 @@ xfs_icsb_balance_counter(
 	case XFS_SBS_FDBLOCKS:
 		count = mp->m_sb.sb_fdblocks;
 		resid = do_div(count, weight);
-		if (count < XFS_ICSB_FDBLK_CNTR_REENABLE)
+		if (count < XFS_ICSB_FDBLK_CNTR_REENABLE(mp))
 			goto out;
 		break;
 	default:
@@ -2110,11 +2094,11 @@ again:
 	case XFS_SBS_FDBLOCKS:
 		BUG_ON((mp->m_resblks - mp->m_resblks_avail) != 0);
 
-		lcounter = icsbp->icsb_fdblocks;
+		lcounter = icsbp->icsb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
 		lcounter += delta;
 		if (unlikely(lcounter < 0))
 			goto slow_path;
-		icsbp->icsb_fdblocks = lcounter;
+		icsbp->icsb_fdblocks = lcounter + XFS_ALLOC_SET_ASIDE(mp);
 		break;
 	default:
 		BUG();
