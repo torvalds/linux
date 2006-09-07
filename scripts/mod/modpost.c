@@ -23,6 +23,8 @@ int have_vmlinux = 0;
 static int all_versions = 0;
 /* If we are modposting external module set to 1 */
 static int external_module = 0;
+/* Only warn about unresolved symbols */
+static int warn_unresolved = 0;
 /* How a symbol is exported */
 enum export {
 	export_plain,      export_unused,     export_gpl,
@@ -1196,16 +1198,19 @@ static void add_header(struct buffer *b, struct module *mod)
 /**
  * Record CRCs for unresolved symbols
  **/
-static void add_versions(struct buffer *b, struct module *mod)
+static int add_versions(struct buffer *b, struct module *mod)
 {
 	struct symbol *s, *exp;
+	int err = 0;
 
 	for (s = mod->unres; s; s = s->next) {
 		exp = find_symbol(s->name);
 		if (!exp || exp->module == mod) {
-			if (have_vmlinux && !s->weak)
+			if (have_vmlinux && !s->weak) {
 				warn("\"%s\" [%s.ko] undefined!\n",
 				     s->name, mod->name);
+				err = warn_unresolved ? 0 : 1;
+			}
 			continue;
 		}
 		s->module = exp->module;
@@ -1214,7 +1219,7 @@ static void add_versions(struct buffer *b, struct module *mod)
 	}
 
 	if (!modversions)
-		return;
+		return err;
 
 	buf_printf(b, "\n");
 	buf_printf(b, "static const struct modversion_info ____versions[]\n");
@@ -1234,6 +1239,8 @@ static void add_versions(struct buffer *b, struct module *mod)
 	}
 
 	buf_printf(b, "};\n");
+
+	return err;
 }
 
 static void add_depends(struct buffer *b, struct module *mod,
@@ -1411,8 +1418,9 @@ int main(int argc, char **argv)
 	char *kernel_read = NULL, *module_read = NULL;
 	char *dump_write = NULL;
 	int opt;
+	int err;
 
-	while ((opt = getopt(argc, argv, "i:I:mo:a")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:mo:aw")) != -1) {
 		switch(opt) {
 			case 'i':
 				kernel_read = optarg;
@@ -1429,6 +1437,9 @@ int main(int argc, char **argv)
 				break;
 			case 'a':
 				all_versions = 1;
+				break;
+			case 'w':
+				warn_unresolved = 1;
 				break;
 			default:
 				exit(1);
@@ -1450,6 +1461,8 @@ int main(int argc, char **argv)
 		check_exports(mod);
 	}
 
+	err = 0;
+
 	for (mod = modules; mod; mod = mod->next) {
 		if (mod->skip)
 			continue;
@@ -1457,7 +1470,7 @@ int main(int argc, char **argv)
 		buf.pos = 0;
 
 		add_header(&buf, mod);
-		add_versions(&buf, mod);
+		err |= add_versions(&buf, mod);
 		add_depends(&buf, mod, modules);
 		add_moddevtable(&buf, mod);
 		add_srcversion(&buf, mod);
@@ -1469,5 +1482,5 @@ int main(int argc, char **argv)
 	if (dump_write)
 		write_dump(dump_write);
 
-	return 0;
+	return err;
 }
