@@ -179,40 +179,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		brq.stop.arg = 0;
 		brq.stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
 
-		brq.data.timeout_ns = card->csd.tacc_ns * 10;
-		brq.data.timeout_clks = card->csd.tacc_clks * 10;
-
-		/*
-		 * Scale up the timeout by the r2w factor
-		 */
-		if (rq_data_dir(req) == WRITE) {
-			brq.data.timeout_ns <<= card->csd.r2w_factor;
-			brq.data.timeout_clks <<= card->csd.r2w_factor;
-		}
-
-		/*
-		 * SD cards use a 100 multiplier and has a upper limit
-		 */
-		if (mmc_card_sd(card)) {
-			unsigned int limit_us, timeout_us;
-
-			brq.data.timeout_ns *= 10;
-			brq.data.timeout_clks *= 10;
-
-			if (rq_data_dir(req) == READ)
-				limit_us = 100000;
-			else
-				limit_us = 250000;
-
-			timeout_us = brq.data.timeout_ns / 1000;
-			timeout_us += brq.data.timeout_clks * 1000 /
-				(card->host->ios.clock / 1000);
-
-			if (timeout_us > limit_us) {
-				brq.data.timeout_ns = limit_us * 1000;
-				brq.data.timeout_clks = 0;
-			}
-		}
+		mmc_set_data_timeout(&brq.data, card, rq_data_dir(req) != READ);
 
 		if (rq_data_dir(req) == READ) {
 			brq.cmd.opcode = brq.data.blocks > 1 ? MMC_READ_MULTIPLE_BLOCK : MMC_READ_SINGLE_BLOCK;
