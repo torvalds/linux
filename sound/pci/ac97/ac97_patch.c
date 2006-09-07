@@ -481,7 +481,7 @@ int patch_wolfson05(struct snd_ac97 * ac97)
 	ac97->build_ops = &patch_wolfson_wm9705_ops;
 #ifdef CONFIG_TOUCHSCREEN_WM9705
 	/* WM9705 touchscreen uses AUX and VIDEO for touch */
-	ac97->flags |=3D AC97_HAS_NO_VIDEO | AC97_HAS_NO_AUX;
+	ac97->flags |= AC97_HAS_NO_VIDEO | AC97_HAS_NO_AUX;
 #endif
 	return 0;
 }
