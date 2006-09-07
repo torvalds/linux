@@ -172,7 +172,6 @@ unsigned int gdlm_unlock(lm_lock_t *, unsigned int);
 void gdlm_cancel(lm_lock_t *);
 int gdlm_hold_lvb(lm_lock_t *, char **);
 void gdlm_unhold_lvb(lm_lock_t *, char *);
-void gdlm_sync_lvb(lm_lock_t *, char *);
 
 /* plock.c */
 

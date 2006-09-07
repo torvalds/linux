@@ -249,7 +249,6 @@ struct lm_lockops gdlm_ops = {
 	.lm_cancel = gdlm_cancel,
 	.lm_hold_lvb = gdlm_hold_lvb,
 	.lm_unhold_lvb = gdlm_unhold_lvb,
-	.lm_sync_lvb = gdlm_sync_lvb,
 	.lm_recovery_done = gdlm_recovery_done,
 	.lm_owner = THIS_MODULE,
 };

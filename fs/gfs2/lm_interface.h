@@ -211,7 +211,6 @@ struct lm_lockops {
 
 	int (*lm_hold_lvb) (lm_lock_t *lock, char **lvbp);
 	void (*lm_unhold_lvb) (lm_lock_t *lock, char *lvb);
-	void (*lm_sync_lvb) (lm_lock_t *lock, char *lvb);
 
 	/*
 	 * Posix Lock oriented operations

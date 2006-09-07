@@ -490,23 +490,6 @@ void gdlm_unhold_lvb(lm_lock_t *lock, char *lvb)
 	gdlm_del_lvb(lp);
 }
 
-void gdlm_sync_lvb(lm_lock_t *lock, char *lvb)
-{
-	struct gdlm_lock *lp = (struct gdlm_lock *) lock;
-
-	if (lp->cur != DLM_LOCK_EX)
-		return;
-
-	init_completion(&lp->ast_wait);
-	set_bit(LFL_SYNC_LVB, &lp->flags);
-
-	lp->req = DLM_LOCK_EX;
-	lp->lkf = make_flags(lp, 0, lp->cur, lp->req);
-
-	gdlm_do_lock(lp);
-	wait_for_completion(&lp->ast_wait);
-}
-
 void gdlm_submit_delayed(struct gdlm_ls *ls)
 {
 	struct gdlm_lock *lp, *safe;

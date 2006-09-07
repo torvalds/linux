@@ -162,17 +162,6 @@ static void nolock_unhold_lvb(lm_lock_t *lock, char *lvb)
 	kfree(lvb);
 }
 
-/**
- * nolock_sync_lvb - sync out the value of a lvb
- * @lock: the lock the LVB is associated with
- * @lvb: the lock value block
- *
- */
-
-static void nolock_sync_lvb(lm_lock_t *lock, char *lvb)
-{
-}
-
 static int nolock_plock_get(lm_lockspace_t *lockspace, struct lm_lockname *name,
 			    struct file *file, struct file_lock *fl)
 {
@@ -221,7 +210,6 @@ static struct lm_lockops nolock_ops = {
 	.lm_cancel = nolock_cancel,
 	.lm_hold_lvb = nolock_hold_lvb,
 	.lm_unhold_lvb = nolock_unhold_lvb,
-	.lm_sync_lvb = nolock_sync_lvb,
 	.lm_plock_get = nolock_plock_get,
 	.lm_plock = nolock_plock,
 	.lm_punlock = nolock_punlock,
