@@ -150,12 +150,18 @@ struct sas_port {
 #define transport_class_to_sas_port(cdev) \
 	dev_to_sas_port((cdev)->dev)
 
+struct sas_phy_linkrates {
+	enum sas_linkrate maximum_linkrate;
+	enum sas_linkrate minimum_linkrate;
+};
+
 /* The functions by which the transport class and the driver communicate */
 struct sas_function_template {
 	int (*get_linkerrors)(struct sas_phy *);
 	int (*get_enclosure_identifier)(struct sas_rphy *, u64 *);
 	int (*get_bay_identifier)(struct sas_rphy *);
 	int (*phy_reset)(struct sas_phy *, int);
+	int (*set_phy_speed)(struct sas_phy *, struct sas_phy_linkrates *);
 };
 
 
