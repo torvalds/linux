@@ -1,6 +1,7 @@
 /*
  *	w83697hf/hg WDT driver
  *
+ *	(c) Copyright 2006 Samuel Tardieu <sam@rfc1149.net>
  *	(c) Copyright 2006 Marcus Junker <junker@anduras.de>
  *
  *	Based on w83627hf_wdt.c which is based on advantechwdt.c
@@ -442,6 +443,6 @@ module_init(wdt_init);
 module_exit(wdt_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Marcus Junker <junker@anduras.de>");
+MODULE_AUTHOR("Marcus Junker <junker@anduras.de>, Samuel Tardieu <sam@rfc1149.net>");
 MODULE_DESCRIPTION("w83697hf/hg WDT driver");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
