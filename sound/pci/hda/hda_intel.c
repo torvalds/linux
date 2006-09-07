@@ -1422,8 +1422,9 @@ static int azx_free(struct azx *chip)
 	}
 
 	if (chip->irq >= 0) {
-		pci_disable_msi(chip->pci);
 		free_irq(chip->irq, (void*)chip);
+		if (!disable_msi)
+			pci_disable_msi(chip->pci);
 	}
 	if (chip->remap_addr)
 		iounmap(chip->remap_addr);
