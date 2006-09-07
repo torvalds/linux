@@ -1,9 +1,10 @@
 /*
- *	w83697hf WDT driver
+ *	w83697hf/hg WDT driver
  *
  *	(c) Copyright 2006 Marcus Junker <junker@anduras.de>
  *
- *	Based on w83627hf_wdt.c advantechwdt.c which is based on wdt.c.
+ *	Based on w83627hf_wdt.c which is based on advantechwdt.c
+ *	which is based on wdt.c.
  *	Original copyright messages:
  *
  *	(c) Copyright 2003 Pádraig Brady <P@draigBrady.com>
@@ -39,7 +40,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-#define WATCHDOG_NAME "w83697hf WDT"
+#define WATCHDOG_NAME "w83697hf/hg WDT"
 #define PFX WATCHDOG_NAME ": "
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
 
@@ -313,7 +314,7 @@ wdt_init(void)
 
 	spin_lock_init(&io_lock);
 
-	printk (KERN_INFO "WDT driver for the Winbond(TM) W83697HF Super I/O chip initialising.\n");
+	printk (KERN_INFO PFX "WDT driver for W83697HF/HG initializing\n");
 
 	if (wdt_set_heartbeat(timeout)) {
 		wdt_set_heartbeat(WATCHDOG_TIMEOUT);
@@ -369,5 +370,5 @@ module_exit(wdt_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marcus Junker <junker@anduras.de>");
-MODULE_DESCRIPTION("w83697hf WDT driver");
+MODULE_DESCRIPTION("w83697hf/hg WDT driver");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
