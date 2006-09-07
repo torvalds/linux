@@ -6,7 +6,7 @@
  *	Based on w83627hf_wdt.c advantechwdt.c which is based on wdt.c.
  *	Original copyright messages:
  *
- *     (c) Copyright 2003 Pádraig Brady <P@draigBrady.com>
+ *	(c) Copyright 2003 Pádraig Brady <P@draigBrady.com>
  *
  *	(c) Copyright 2000-2001 Marek Michalkiewicz <marekm@linux.org.pl>
  *
@@ -96,16 +96,16 @@ w83697hf_init(void)
 
 	w83697hf_select_wd_register();
 
-	outb_p(0xF3, WDT_EFER); /* Select CRF3 */
+	outb_p(0xF3, WDT_EFER);	/* Select CRF3 */
 
 	t=inb_p(WDT_EFDR);	/* read CRF3 */
 	if (t != 0) {
 		printk (KERN_INFO PFX "Watchdog already running. Resetting timeout to %d sec\n", timeout);
 		outb_p(timeout, WDT_EFDR);	/* Write back to CRF3 */
 	}
-	outb_p(0xF4, WDT_EFER); /* Select CRF4 */
-	t=inb_p(WDT_EFDR);      /* read CRF4 */
-	t&=~0x0C;               /* set second mode & disable keyboard turning off watchdog */
+	outb_p(0xF4, WDT_EFER);	/* Select CRF4 */
+	t=inb_p(WDT_EFDR);	/* read CRF4 */
+	t&=~0x0C;		/* set second mode & disable keyboard turning off watchdog */
 	outb_p(t, WDT_EFDR);	/* Write back to CRF4 */
 
 	w83697hf_unselect_wd_register();
@@ -187,51 +187,51 @@ wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-	  if (copy_to_user(argp, &ident, sizeof(ident)))
-	    return -EFAULT;
-	  break;
+		if (copy_to_user(argp, &ident, sizeof(ident)))
+			return -EFAULT;
+		break;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-	  return put_user(0, p);
+		return put_user(0, p);
 
 	case WDIOC_KEEPALIVE:
-	  wdt_ping();
-	  break;
+		wdt_ping();
+		break;
 
 	case WDIOC_SETTIMEOUT:
-	  if (get_user(new_timeout, p))
-		  return -EFAULT;
-	  if (wdt_set_heartbeat(new_timeout))
-		  return -EINVAL;
-	  wdt_ping();
-	  /* Fall */
+		if (get_user(new_timeout, p))
+			return -EFAULT;
+		if (wdt_set_heartbeat(new_timeout))
+			return -EINVAL;
+		wdt_ping();
+		/* Fall */
 
 	case WDIOC_GETTIMEOUT:
-	  return put_user(timeout, p);
+		return put_user(timeout, p);
 
 	case WDIOC_SETOPTIONS:
 	{
-	  int options, retval = -EINVAL;
+		int options, retval = -EINVAL;
 
-	  if (get_user(options, p))
-	    return -EFAULT;
+		if (get_user(options, p))
+			return -EFAULT;
 
-	  if (options & WDIOS_DISABLECARD) {
-	    wdt_disable();
-	    retval = 0;
-	  }
+		if (options & WDIOS_DISABLECARD) {
+			wdt_disable();
+			retval = 0;
+		}
 
-	  if (options & WDIOS_ENABLECARD) {
-	    wdt_ping();
-	    retval = 0;
-	  }
+		if (options & WDIOS_ENABLECARD) {
+			wdt_ping();
+			retval = 0;
+		}
 
-	  return retval;
+		return retval;
 	}
 
 	default:
-	  return -ENOTTY;
+		return -ENOTTY;
 	}
 	return 0;
 }
@@ -255,7 +255,7 @@ wdt_close(struct inode *inode, struct file *file)
 	if (expect_close == 42) {
 		wdt_disable();
 	} else {
-		printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
+		printk (KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
 		wdt_ping();
 	}
 	expect_close = 0;
@@ -313,7 +313,7 @@ wdt_init(void)
 
 	spin_lock_init(&io_lock);
 
-	printk(KERN_INFO "WDT driver for the Winbond(TM) W83697HF Super I/O chip initialising.\n");
+	printk (KERN_INFO "WDT driver for the Winbond(TM) W83697HF Super I/O chip initialising.\n");
 
 	if (wdt_set_heartbeat(timeout)) {
 		wdt_set_heartbeat(WATCHDOG_TIMEOUT);
