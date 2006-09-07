@@ -42,8 +42,9 @@ static ssize_t block_store(struct gdlm_ls *ls, const char *buf, size_t len)
 	else if (val == 0) {
 		clear_bit(DFL_BLOCK_LOCKS, &ls->flags);
 		gdlm_submit_delayed(ls);
-	} else
+	} else {
 		ret = -EINVAL;
+	}
 	return ret;
 }
 
