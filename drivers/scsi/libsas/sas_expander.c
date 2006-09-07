@@ -242,7 +242,7 @@ static int sas_ex_phy_discover_helper(struct domain_device *dev, u8 *disc_req,
 			break;
 		/* In order to generate the dev to host FIS, we
 		 * send a link reset to the expander port */
-		sas_smp_phy_control(dev, single, PHY_FUNC_LINK_RESET);
+		sas_smp_phy_control(dev, single, PHY_FUNC_LINK_RESET, NULL);
 		/* Wait for the reset to trigger the negotiation */
 		msleep(500);
 	}
