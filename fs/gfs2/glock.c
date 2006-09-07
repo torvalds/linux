@@ -1704,7 +1704,7 @@ static void blocking_cb(struct gfs2_sbd *sdp, struct lm_lockname *name,
 
 /**
  * gfs2_glock_cb - Callback used by locking module
- * @fsdata: Pointer to the superblock
+ * @sdp: Pointer to the superblock
  * @type: Type of callback
  * @data: Type dependent data pointer
  *
@@ -1713,9 +1713,8 @@ static void blocking_cb(struct gfs2_sbd *sdp, struct lm_lockname *name,
  * a journal from another client needs to be recovered.
  */
 
-void gfs2_glock_cb(lm_fsdata_t *fsdata, unsigned int type, void *data)
+void gfs2_glock_cb(struct gfs2_sbd *sdp, unsigned int type, void *data)
 {
-	struct gfs2_sbd *sdp = (struct gfs2_sbd *)fsdata;
 
 	switch (type) {
 	case LM_CB_NEED_E:

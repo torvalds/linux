@@ -17,10 +17,9 @@
 
 typedef void lm_lockspace_t;
 typedef void lm_lock_t;
-typedef void lm_fsdata_t;
+struct gfs2_sbd;
 
-typedef void (*lm_callback_t) (lm_fsdata_t *fsdata, unsigned int type,
-			       void *data);
+typedef void (*lm_callback_t) (struct gfs2_sbd *sdp, unsigned int type, void *data);
 
 /*
  * lm_mount() flags
@@ -183,7 +182,7 @@ struct lm_lockops {
 	 */
 
 	int (*lm_mount) (char *table_name, char *host_data,
-			 lm_callback_t cb, lm_fsdata_t *fsdata,
+			 lm_callback_t cb, struct gfs2_sbd *sdp,
 			 unsigned int min_lvb_size, int flags,
 			 struct lm_lockstruct *lockstruct,
 			 struct kobject *fskobj);
@@ -275,7 +274,7 @@ void gfs2_unregister_lockproto(struct lm_lockops *proto);
  */
 
 int gfs2_mount_lockproto(char *proto_name, char *table_name, char *host_data,
-			 lm_callback_t cb, lm_fsdata_t *fsdata,
+			 lm_callback_t cb, struct gfs2_sbd *sdp,
 			 unsigned int min_lvb_size, int flags,
 			 struct lm_lockstruct *lockstruct,
 			 struct kobject *fskobj);

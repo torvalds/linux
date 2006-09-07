@@ -24,7 +24,7 @@ struct nolock_lockspace {
 static struct lm_lockops nolock_ops;
 
 static int nolock_mount(char *table_name, char *host_data,
-			lm_callback_t cb, lm_fsdata_t *fsdata,
+			lm_callback_t cb, struct gfs2_sbd *sdp,
 			unsigned int min_lvb_size, int flags,
 			struct lm_lockstruct *lockstruct,
 			struct kobject *fskobj)

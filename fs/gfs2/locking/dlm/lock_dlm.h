@@ -67,7 +67,7 @@ struct gdlm_ls {
 	int			fsflags;
 	dlm_lockspace_t		*dlm_lockspace;
 	lm_callback_t		fscb;
-	lm_fsdata_t		*fsdata;
+	struct gfs2_sbd		*sdp;
 	int			recover_jid;
 	int			recover_jid_done;
 	int			recover_jid_status;

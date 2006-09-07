@@ -41,7 +41,7 @@ static void process_blocking(struct gdlm_lock *lp, int bast_mode)
 		gdlm_assert(0, "unknown bast mode %u", lp->bast_mode);
 	}
 
-	ls->fscb(ls->fsdata, cb, &lp->lockname);
+	ls->fscb(ls->sdp, cb, &lp->lockname);
 }
 
 static void process_complete(struct gdlm_lock *lp)
@@ -232,7 +232,7 @@ out:
 	    (lp->cur > DLM_LOCK_NL) && (prev_mode > DLM_LOCK_NL))
 		acb.lc_ret |= LM_OUT_CACHEABLE;
 
-	ls->fscb(ls->fsdata, LM_CB_ASYNC, &acb);
+	ls->fscb(ls->sdp, LM_CB_ASYNC, &acb);
 }
 
 static inline int no_work(struct gdlm_ls *ls, int blocking)
@@ -318,7 +318,7 @@ static int gdlm_thread(void *data)
 			gdlm_do_lock(lp);
 
 		if (drop)
-			ls->fscb(ls->fsdata, LM_CB_DROPLOCKS, NULL);
+			ls->fscb(ls->sdp, LM_CB_DROPLOCKS, NULL);
 
 		schedule();
 	}

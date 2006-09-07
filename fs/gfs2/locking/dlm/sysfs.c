@@ -102,7 +102,7 @@ static ssize_t recover_show(struct gdlm_ls *ls, char *buf)
 static ssize_t recover_store(struct gdlm_ls *ls, const char *buf, size_t len)
 {
 	ls->recover_jid = simple_strtol(buf, NULL, 0);
-	ls->fscb(ls->fsdata, LM_CB_NEED_RECOVERY, &ls->recover_jid);
+	ls->fscb(ls->sdp, LM_CB_NEED_RECOVERY, &ls->recover_jid);
 	return len;
 }
 

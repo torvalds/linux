@@ -14,7 +14,7 @@ int gdlm_drop_period;
 struct lm_lockops gdlm_ops;
 
 
-static struct gdlm_ls *init_gdlm(lm_callback_t cb, lm_fsdata_t *fsdata,
+static struct gdlm_ls *init_gdlm(lm_callback_t cb, struct gfs2_sbd *sdp,
 				 int flags, char *table_name)
 {
 	struct gdlm_ls *ls;
@@ -27,7 +27,7 @@ static struct gdlm_ls *init_gdlm(lm_callback_t cb, lm_fsdata_t *fsdata,
 	ls->drop_locks_count = gdlm_drop_count;
 	ls->drop_locks_period = gdlm_drop_period;
 	ls->fscb = cb;
-	ls->fsdata = fsdata;
+	ls->sdp = sdp;
 	ls->fsflags = flags;
 	spin_lock_init(&ls->async_lock);
 	INIT_LIST_HEAD(&ls->complete);
@@ -120,7 +120,7 @@ static int make_args(struct gdlm_ls *ls, char *data_arg, int *nodir)
 }
 
 static int gdlm_mount(char *table_name, char *host_data,
-			lm_callback_t cb, lm_fsdata_t *fsdata,
+			lm_callback_t cb, struct gfs2_sbd *sdp,
 			unsigned int min_lvb_size, int flags,
 			struct lm_lockstruct *lockstruct,
 			struct kobject *fskobj)
@@ -131,7 +131,7 @@ static int gdlm_mount(char *table_name, char *host_data,
 	if (min_lvb_size > GDLM_LVB_SIZE)
 		goto out;
 
-	ls = init_gdlm(cb, fsdata, flags, table_name);
+	ls = init_gdlm(cb, sdp, flags, table_name);
 	if (!ls)
 		goto out;
 

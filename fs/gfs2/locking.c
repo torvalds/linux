@@ -99,7 +99,7 @@ void gfs2_unregister_lockproto(struct lm_lockops *proto)
  * @table_name - the name of the lock space
  * @host_data - data specific to this host
  * @cb - the callback to the code using the lock module
- * @fsdata - data to pass back with the callback
+ * @sdp - The GFS2 superblock
  * @min_lvb_size - the mininum LVB size that the caller can deal with
  * @flags - LM_MFLAG_*
  * @lockstruct - a structure returned describing the mount
@@ -108,7 +108,7 @@ void gfs2_unregister_lockproto(struct lm_lockops *proto)
  */
 
 int gfs2_mount_lockproto(char *proto_name, char *table_name, char *host_data,
-			 lm_callback_t cb, lm_fsdata_t *fsdata,
+			 lm_callback_t cb, struct gfs2_sbd *sdp,
 			 unsigned int min_lvb_size, int flags,
 			 struct lm_lockstruct *lockstruct,
 			 struct kobject *fskobj)
@@ -147,7 +147,7 @@ retry:
 		goto retry;
 	}
 
-	error = lw->lw_ops->lm_mount(table_name, host_data, cb, fsdata,
+	error = lw->lw_ops->lm_mount(table_name, host_data, cb, sdp,
 				     min_lvb_size, flags, lockstruct, fskobj);
 	if (error)
 		module_put(lw->lw_ops->lm_owner);
