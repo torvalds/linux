@@ -828,7 +828,7 @@ static int __init aic94xx_init(void)
 
 	aic94xx_transport_template =
 		sas_domain_attach_transport(&aic94xx_transport_functions);
-	if (err)
+	if (!aic94xx_transport_template)
 		goto out_destroy_caches;
 
 	err = pci_register_driver(&aic94xx_pci_driver);
