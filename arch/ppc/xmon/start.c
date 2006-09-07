@@ -15,6 +15,7 @@
 #include <asm/processor.h>
 #include <asm/delay.h>
 #include <asm/btext.h>
+#include <asm/ibm4xx.h>
 
 static volatile unsigned char *sccc, *sccd;
 unsigned int TXRDY, RXRDY, DLAB;
@@ -57,23 +58,30 @@ static struct sysrq_key_op sysrq_xmon_op =
 void
 xmon_map_scc(void)
 {
-#ifdef CONFIG_PPC_PREP
-	volatile unsigned char *base;
-
-#elif defined(CONFIG_GEMINI)
+#if defined(CONFIG_GEMINI)
 	/* should already be mapped by the kernel boot */
-	sccc = (volatile unsigned char *) 0xffeffb0d;
 	sccd = (volatile unsigned char *) 0xffeffb08;
-	TXRDY = 0x20;
-	RXRDY = 1;
-	DLAB = 0x80;
 #elif defined(CONFIG_405GP)
-	sccc = (volatile unsigned char *)0xef600305;
 	sccd = (volatile unsigned char *)0xef600300;
+#elif defined(CONFIG_440EP)
+	sccd = (volatile unsigned char *) ioremap(PPC440EP_UART0_ADDR, 8);
+#elif defined(CONFIG_440SP)
+	sccd = (volatile unsigned char *) ioremap64(PPC440SP_UART0_ADDR, 8);
+#elif defined(CONFIG_440SPE)
+	sccd = (volatile unsigned char *) ioremap64(PPC440SPE_UART0_ADDR, 8);
+#elif defined(CONFIG_44x)
+	/* This is the default for 44x platforms.  Any boards that have a
+	   different UART address need to be put in cases before this or the
+	   port will be mapped incorrectly */
+	sccd = (volatile unsigned char *) ioremap64(PPC440GP_UART0_ADDR, 8);
+#endif /* platform */
+
+#ifndef CONFIG_PPC_PREP
+	sccc = sccd + 5;
 	TXRDY = 0x20;
 	RXRDY = 1;
 	DLAB = 0x80;
-#endif /* platform */
+#endif
 
 	register_sysrq_key('x', &sysrq_xmon_op);
 }
