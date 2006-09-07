@@ -187,10 +187,10 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	phy->phy->identify.initiator_port_protocols = phy->attached_iproto;
 	phy->phy->identify.target_port_protocols = phy->attached_tproto;
 	phy->phy->identify.phy_identifier = phy_id;
-	phy->phy->minimum_linkrate_hw = SAS_LINK_RATE_1_5_GBPS;
-	phy->phy->maximum_linkrate_hw = SAS_LINK_RATE_3_0_GBPS;
-	phy->phy->minimum_linkrate = SAS_LINK_RATE_1_5_GBPS;
-	phy->phy->maximum_linkrate = SAS_LINK_RATE_3_0_GBPS;
+	phy->phy->minimum_linkrate_hw = dr->hmin_linkrate;
+	phy->phy->maximum_linkrate_hw = dr->hmax_linkrate;
+	phy->phy->minimum_linkrate = dr->pmin_linkrate;
+	phy->phy->maximum_linkrate = dr->pmax_linkrate;
 	phy->phy->negotiated_linkrate = phy->linkrate;
 
 	if (!rediscover)
@@ -404,7 +404,8 @@ out:
 #define PC_RESP_SIZE 8
 
 int sas_smp_phy_control(struct domain_device *dev, int phy_id,
-			enum phy_func phy_func)
+			enum phy_func phy_func,
+			struct sas_phy_linkrates *rates)
 {
 	u8 *pc_req;
 	u8 *pc_resp;
@@ -423,6 +424,10 @@ int sas_smp_phy_control(struct domain_device *dev, int phy_id,
 	pc_req[1] = SMP_PHY_CONTROL;
 	pc_req[9] = phy_id;
 	pc_req[10]= phy_func;
+	if (rates) {
+		pc_req[32] = rates->minimum_linkrate << 4;
+		pc_req[33] = rates->maximum_linkrate << 4;
+	}
 
 	res = smp_execute_task(dev, pc_req, PC_REQ_SIZE, pc_resp,PC_RESP_SIZE);
 
@@ -436,7 +441,7 @@ static void sas_ex_disable_phy(struct domain_device *dev, int phy_id)
 	struct expander_device *ex = &dev->ex_dev;
 	struct ex_phy *phy = &ex->ex_phy[phy_id];
 
-	sas_smp_phy_control(dev, phy_id, PHY_FUNC_DISABLE);
+	sas_smp_phy_control(dev, phy_id, PHY_FUNC_DISABLE, NULL);
 	phy->linkrate = SAS_PHY_DISABLED;
 }
 
@@ -731,7 +736,7 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 
 	/* Phy state */
 	if (ex_phy->linkrate == SAS_SATA_SPINUP_HOLD) {
-		if (!sas_smp_phy_control(dev, phy_id, PHY_FUNC_LINK_RESET))
+		if (!sas_smp_phy_control(dev, phy_id, PHY_FUNC_LINK_RESET, NULL))
 			res = sas_ex_phy_discover(dev, phy_id);
 		if (res)
 			return res;
@@ -1706,6 +1711,7 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id)
 		   SAS_ADDR(phy->attached_sas_addr)) {
 		SAS_DPRINTK("ex %016llx phy 0x%x broadcast flutter\n",
 			    SAS_ADDR(dev->sas_addr), phy_id);
+		sas_ex_phy_discover(dev, phy_id);
 	} else
 		res = sas_discover_new(dev, phy_id);
 out:

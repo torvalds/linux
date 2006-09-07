@@ -67,13 +67,14 @@ static void sas_phye_oob_error(void *data)
 		switch (phy->error) {
 		case 1:
 		case 2:
-			i->dft->lldd_control_phy(phy, PHY_FUNC_HARD_RESET);
+			i->dft->lldd_control_phy(phy, PHY_FUNC_HARD_RESET,
+						 NULL);
 			break;
 		case 3:
 		default:
 			phy->error = 0;
 			phy->enabled = 0;
-			i->dft->lldd_control_phy(phy, PHY_FUNC_DISABLE);
+			i->dft->lldd_control_phy(phy, PHY_FUNC_DISABLE, NULL);
 			break;
 		}
 	}
@@ -90,7 +91,7 @@ static void sas_phye_spinup_hold(void *data)
 			&phy->phy_events_pending);
 
 	phy->error = 0;
-	i->dft->lldd_control_phy(phy, PHY_FUNC_RELEASE_SPINUP_HOLD);
+	i->dft->lldd_control_phy(phy, PHY_FUNC_RELEASE_SPINUP_HOLD, NULL);
 }
 
 /* ---------- Phy class registration ---------- */
@@ -144,10 +145,10 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 		phy->phy->identify.target_port_protocols = phy->tproto;
 		phy->phy->identify.sas_address = SAS_ADDR(sas_ha->sas_addr);
 		phy->phy->identify.phy_identifier = i;
-		phy->phy->minimum_linkrate_hw = SAS_LINK_RATE_1_5_GBPS;
-		phy->phy->maximum_linkrate_hw = SAS_LINK_RATE_3_0_GBPS;
-		phy->phy->minimum_linkrate = SAS_LINK_RATE_1_5_GBPS;
-		phy->phy->maximum_linkrate = SAS_LINK_RATE_3_0_GBPS;
+		phy->phy->minimum_linkrate_hw = SAS_LINK_RATE_UNKNOWN;
+		phy->phy->maximum_linkrate_hw = SAS_LINK_RATE_UNKNOWN;
+		phy->phy->minimum_linkrate = SAS_LINK_RATE_UNKNOWN;
+		phy->phy->maximum_linkrate = SAS_LINK_RATE_UNKNOWN;
 		phy->phy->negotiated_linkrate = SAS_LINK_RATE_UNKNOWN;
 
 		sas_phy_add(phy->phy);

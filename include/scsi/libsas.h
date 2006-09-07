@@ -586,7 +586,7 @@ struct sas_domain_function_template {
 	int (*lldd_clear_nexus_ha)(struct sas_ha_struct *);
 
 	/* Phy management */
-	int (*lldd_control_phy)(struct asd_sas_phy *, enum phy_func);
+	int (*lldd_control_phy)(struct asd_sas_phy *, enum phy_func, void *);
 };
 
 extern int sas_register_ha(struct sas_ha_struct *);

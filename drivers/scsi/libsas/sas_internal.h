@@ -70,7 +70,7 @@ int sas_notify_lldd_dev_found(struct domain_device *);
 void sas_notify_lldd_dev_gone(struct domain_device *);
 
 int sas_smp_phy_control(struct domain_device *dev, int phy_id,
-			enum phy_func phy_func);
+			enum phy_func phy_func, struct sas_phy_linkrates *);
 int sas_smp_get_phy_events(struct sas_phy *phy);
 
 struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy);

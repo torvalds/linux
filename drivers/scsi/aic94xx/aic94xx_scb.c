@@ -52,6 +52,8 @@
 
 static inline void get_lrate_mode(struct asd_phy *phy, u8 oob_mode)
 {
+	struct sas_phy *sas_phy = phy->sas_phy.phy;
+
 	switch (oob_mode & 7) {
 	case PHY_SPEED_60:
 		/* FIXME: sas transport class doesn't have this */
@@ -67,6 +69,12 @@ static inline void get_lrate_mode(struct asd_phy *phy, u8 oob_mode)
 		phy->sas_phy.phy->negotiated_linkrate = SAS_LINK_RATE_1_5_GBPS;
 		break;
 	}
+	sas_phy->negotiated_linkrate = phy->sas_phy.linkrate;
+	sas_phy->maximum_linkrate_hw = SAS_LINK_RATE_3_0_GBPS;
+	sas_phy->minimum_linkrate_hw = SAS_LINK_RATE_1_5_GBPS;
+	sas_phy->maximum_linkrate = phy->phy_desc->max_sas_lrate;
+	sas_phy->minimum_linkrate = phy->phy_desc->min_sas_lrate;
+
 	if (oob_mode & SAS_MODE)
 		phy->sas_phy.oob_mode = SAS_OOB_MODE;
 	else if (oob_mode & SATA_MODE)
@@ -710,14 +718,32 @@ static const int phy_func_table[] = {
 	[PHY_FUNC_RELEASE_SPINUP_HOLD] = RELEASE_SPINUP_HOLD,
 };
 
-int asd_control_phy(struct asd_sas_phy *phy, enum phy_func func)
+int asd_control_phy(struct asd_sas_phy *phy, enum phy_func func, void *arg)
 {
 	struct asd_ha_struct *asd_ha = phy->ha->lldd_ha;
+	struct asd_phy_desc *pd = asd_ha->phys[phy->id].phy_desc;
 	struct asd_ascb *ascb;
+	struct sas_phy_linkrates *rates;
 	int res = 1;
 
-	if (func == PHY_FUNC_CLEAR_ERROR_LOG)
+	switch (func) {
+	case PHY_FUNC_CLEAR_ERROR_LOG:
 		return -ENOSYS;
+	case PHY_FUNC_SET_LINK_RATE:
+		rates = arg;
+		if (rates->minimum_linkrate) {
+			pd->min_sas_lrate = rates->minimum_linkrate;
+			pd->min_sata_lrate = rates->minimum_linkrate;
+		}
+		if (rates->maximum_linkrate) {
+			pd->max_sas_lrate = rates->maximum_linkrate;
+			pd->max_sata_lrate = rates->maximum_linkrate;
+		}
+		func = PHY_FUNC_LINK_RESET;
+		break;
+	default:
+		break;
+	}
 
 	ascb = asd_ascb_alloc_list(asd_ha, &res, GFP_KERNEL);
 	if (!ascb)

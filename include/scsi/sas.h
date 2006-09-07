@@ -121,6 +121,7 @@ enum phy_func {
 	PHY_FUNC_CLEAR_AFFIL,
 	PHY_FUNC_TX_SATA_PS_SIGNAL,
 	PHY_FUNC_RELEASE_SPINUP_HOLD = 0x10, /* LOCAL PORT ONLY! */
+	PHY_FUNC_SET_LINK_RATE,
 };
 
 /* SAS LLDD would need to report only _very_few_ of those, like BROADCAST.
