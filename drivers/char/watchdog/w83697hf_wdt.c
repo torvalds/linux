@@ -121,28 +121,13 @@ w83697hf_deselect_wdt(void)
 }
 
 static void
-w83697hf_select_wd_register(void)
-{
-	w83697hf_unlock();
-
-	w83697hf_set_reg(0x29, 0x20);	/* Set pin 119 to WDTO# mode (= CR29, WDT0) */
-
-	w83697hf_set_reg(0x07, 0x08);	/* Switch to logic device 8 (GPIO2) */
-	w83697hf_set_reg(0x30, 0x01);	/* Enable timer/activate GPIO2 via bit 0 */
-}
-
-static void
-w83697hf_unselect_wd_register(void)
-{
-	w83697hf_lock();
-}
-
-static void
 w83697hf_init(void)
 {
 	unsigned char t;
 
-	w83697hf_select_wd_register();
+	w83697hf_select_wdt();
+
+	w83697hf_set_reg(0x29, 0x20);	/* Set pin 119 to WDTO# mode (= CR29, WDT0) */
 
 	t = w83697hf_get_reg(0xF3);	/* Read CRF3 */
 	if (t != 0) {
@@ -153,7 +138,7 @@ w83697hf_init(void)
 	t&=~0x0C;			/* set second mode & disable keyboard turning off watchdog */
 	w83697hf_set_reg(0xF4, t);	/* Write back to CRF4 */
 
-	w83697hf_unselect_wd_register();
+	w83697hf_deselect_wdt();
 }
 
 static int
@@ -412,14 +397,14 @@ wdt_init(void)
 	goto out;
 
 found:
+	w83697hf_init();
+	wdt_disable();	/* Disable watchdog until first use */
 
 	if (wdt_set_heartbeat(timeout)) {
 		wdt_set_heartbeat(WATCHDOG_TIMEOUT);
 		printk (KERN_INFO PFX "timeout value must be 1<=timeout<=255, using %d\n",
 			WATCHDOG_TIMEOUT);
 	}
-
-	w83697hf_init();
 
 	ret = register_reboot_notifier(&wdt_notifier);
 	if (ret != 0) {
