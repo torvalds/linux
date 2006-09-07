@@ -176,7 +176,6 @@ static ssize_t bcm43xx_attr_interfmode_show(struct device *dev,
 					    char *buf)
 {
 	struct bcm43xx_private *bcm = dev_to_bcm(dev);
-	int err;
 	ssize_t count = 0;
 
 	if (!capable(CAP_NET_ADMIN))
@@ -197,11 +196,10 @@ static ssize_t bcm43xx_attr_interfmode_show(struct device *dev,
 	default:
 		assert(0);
 	}
-	err = 0;
 
 	mutex_unlock(&bcm->mutex);
 
-	return err ? err : count;
+	return count;
 
 }
 
@@ -259,7 +257,6 @@ static ssize_t bcm43xx_attr_preamble_show(struct device *dev,
 					  char *buf)
 {
 	struct bcm43xx_private *bcm = dev_to_bcm(dev);
-	int err;
 	ssize_t count;
 
 	if (!capable(CAP_NET_ADMIN))
@@ -272,10 +269,9 @@ static ssize_t bcm43xx_attr_preamble_show(struct device *dev,
 	else
 		count = snprintf(buf, PAGE_SIZE, "0 (Short Preamble disabled)\n");
 
-	err = 0;
 	mutex_unlock(&bcm->mutex);
 
-	return err ? err : count;
+	return count;
 }
 
 static ssize_t bcm43xx_attr_preamble_store(struct device *dev,
@@ -284,7 +280,6 @@ static ssize_t bcm43xx_attr_preamble_store(struct device *dev,
 {
 	struct bcm43xx_private *bcm = dev_to_bcm(dev);
 	unsigned long flags;
-	int err;
 	int value;
 
 	if (!capable(CAP_NET_ADMIN))
@@ -298,11 +293,10 @@ static ssize_t bcm43xx_attr_preamble_store(struct device *dev,
 
 	bcm->short_preamble = !!value;
 
-	err = 0;
 	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 	mutex_unlock(&bcm->mutex);
 
-	return err ? err : count;
+	return count;
 }
 
 static DEVICE_ATTR(shortpreamble, 0644,
