@@ -123,20 +123,18 @@ w83697hf_deselect_wdt(void)
 static void
 w83697hf_init(void)
 {
-	unsigned char t;
+	unsigned char bbuf;
 
 	w83697hf_select_wdt();
 
-	w83697hf_set_reg(0x29, 0x20);	/* Set pin 119 to WDTO# mode (= CR29, WDT0) */
+	bbuf = w83697hf_get_reg(0x29);
+	bbuf &= ~0x60;
+	bbuf |= 0x20;
+	w83697hf_set_reg(0x29, bbuf);	/* Set pin 119 to WDTO# mode (= CR29, WDT0) */
 
-	t = w83697hf_get_reg(0xF3);	/* Read CRF3 */
-	if (t != 0) {
-		printk (KERN_INFO PFX "Watchdog already running. Resetting timeout to %d sec\n", timeout);
-		w83697hf_set_reg(0xF3, timeout);	/* Write new timeout */
-	}
-	t = w83697hf_get_reg(0xF4);	/* Read CRF4 */
-	t&=~0x0C;			/* set second mode & disable keyboard turning off watchdog */
-	w83697hf_set_reg(0xF4, t);	/* Write back to CRF4 */
+	bbuf = w83697hf_get_reg(0xF3);
+	bbuf &= ~0x04;
+	w83697hf_set_reg(0xF3, bbuf);	/* Count mode is seconds */
 
 	w83697hf_deselect_wdt();
 }
