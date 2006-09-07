@@ -319,52 +319,11 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	md->read_only = mmc_blk_readonly(card);
 
 	/*
-	 * Figure out a workable block size.  MMC cards have:
-	 *  - two block sizes, one for read and one for write.
-	 *  - may support partial reads and/or writes
-	 *    (allows block sizes smaller than specified)
+	 * Both SD and MMC specifications state (although a bit
+	 * unclearly in the MMC case) that a block size of 512
+	 * bytes must always be supported by the card.
 	 */
-	md->block_bits = card->csd.read_blkbits;
-	if (card->csd.write_blkbits != card->csd.read_blkbits) {
-		if (card->csd.write_blkbits < card->csd.read_blkbits &&
-		    card->csd.read_partial) {
-			/*
-			 * write block size is smaller than read block
-			 * size, but we support partial reads, so choose
-			 * the smaller write block size.
-			 */
-			md->block_bits = card->csd.write_blkbits;
-		} else if (card->csd.write_blkbits > card->csd.read_blkbits &&
-			   card->csd.write_partial) {
-			/*
-			 * read block size is smaller than write block
-			 * size, but we support partial writes.  Use read
-			 * block size.
-			 */
-		} else {
-			/*
-			 * We don't support this configuration for writes.
-			 */
-			printk(KERN_ERR "%s: unable to select block size for "
-				"writing (rb%u wb%u rp%u wp%u)\n",
-				mmc_card_id(card),
-				1 << card->csd.read_blkbits,
-				1 << card->csd.write_blkbits,
-				card->csd.read_partial,
-				card->csd.write_partial);
-			md->read_only = 1;
-		}
-	}
-
-	/*
-	 * Refuse to allow block sizes smaller than 512 bytes.
-	 */
-	if (md->block_bits < 9) {
-		printk(KERN_ERR "%s: unable to support block size %u\n",
-			mmc_card_id(card), 1 << md->block_bits);
-		ret = -EINVAL;
-		goto err_kfree;
-	}
+	md->block_bits = 9;
 
 	md->disk = alloc_disk(1 << MMC_SHIFT);
 	if (md->disk == NULL) {
