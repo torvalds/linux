@@ -321,7 +321,7 @@ wdt_init(void)
 			WATCHDOG_TIMEOUT);
 	}
 
-	if (!request_region(wdt_io, 1, WATCHDOG_NAME)) {
+	if (!request_region(wdt_io, 2, WATCHDOG_NAME)) {
 		printk (KERN_ERR PFX "I/O address 0x%04x already in use\n",
 			wdt_io);
 		ret = -EIO;
@@ -352,7 +352,7 @@ out:
 unreg_reboot:
 	unregister_reboot_notifier(&wdt_notifier);
 unreg_regions:
-	release_region(wdt_io, 1);
+	release_region(wdt_io, 2);
 	goto out;
 }
 
@@ -361,7 +361,7 @@ wdt_exit(void)
 {
 	misc_deregister(&wdt_miscdev);
 	unregister_reboot_notifier(&wdt_notifier);
-	release_region(wdt_io,1);
+	release_region(wdt_io, 2);
 }
 
 module_init(wdt_init);
