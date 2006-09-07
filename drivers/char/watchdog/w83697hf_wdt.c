@@ -83,8 +83,8 @@ w83697hf_lock(void)
 }
 
 /*
- *	The two functions w83697hf_get_reg() and w83697hf_set_reg()
- *	must be called with the device unlocked.
+ *	The three functions w83697hf_get_reg(), w83697hf_set_reg() and
+ *	w83697hf_write_timeout() must be called with the device unlocked.
  */
 
 static unsigned char
@@ -99,6 +99,12 @@ w83697hf_set_reg(unsigned char reg, unsigned char data)
 {
 	outb_p(reg, W83697HF_EFIR);
 	outb_p(data, W83697HF_EFDR);
+}
+
+static void
+w83697hf_write_timeout(int timeout)
+{
+	w83697hf_set_reg(0xF4, timeout);	/* Write Timeout counter to CRF4 */
 }
 
 static void
@@ -157,7 +163,7 @@ wdt_ctrl(int timeout)
 
 	w83697hf_select_wdt();
 
-	w83697hf_set_reg(0xF4, timeout);	/* Write Timeout counter to CRF4 */
+	w83697hf_write_timeout(timeout);
 
 	w83697hf_deselect_wdt();
 
