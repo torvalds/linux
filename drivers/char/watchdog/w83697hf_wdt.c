@@ -89,8 +89,6 @@ w83697hf_unselect_wd_register(void)
 	outb_p(0xAA, WDT_EFER); /* Leave extended function mode */
 }
 
-/* tyan motherboards seem to set F5 to 0x4C ?
- * So explicitly init to appropriate value. */
 static void
 w83697hf_init(void)
 {
@@ -100,15 +98,15 @@ w83697hf_init(void)
 
 	outb_p(0xF3, WDT_EFER); /* Select CRF3 */
 
-	t=inb_p(WDT_EFDR);      /* read CRF6 */
+	t=inb_p(WDT_EFDR);	/* read CRF3 */
 	if (t != 0) {
 		printk (KERN_INFO PFX "Watchdog already running. Resetting timeout to %d sec\n", timeout);
-		outb_p(timeout, WDT_EFDR);    /* Write back to CRF6 */
+		outb_p(timeout, WDT_EFDR);	/* Write back to CRF3 */
 	}
 	outb_p(0xF4, WDT_EFER); /* Select CRF4 */
 	t=inb_p(WDT_EFDR);      /* read CRF4 */
 	t&=~0x0C;               /* set second mode & disable keyboard turning off watchdog */
-	outb_p(t, WDT_EFDR);    /* Write back to CRF5 */
+	outb_p(t, WDT_EFDR);	/* Write back to CRF4 */
 
 	w83697hf_unselect_wd_register();
 }
