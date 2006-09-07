@@ -320,10 +320,8 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	struct kobject *kobjp;
 
 	/* Auto increments kobject reference if found. */
-	if (!(hp = hvc_get_by_index(tty->index))) {
-		printk(KERN_WARNING "hvc_console: tty open failed, no vty associated with tty.\n");
+	if (!(hp = hvc_get_by_index(tty->index)))
 		return -ENODEV;
-	}
 
 	spin_lock_irqsave(&hp->lock, flags);
 	/* Check and then increment for fast path open. */
