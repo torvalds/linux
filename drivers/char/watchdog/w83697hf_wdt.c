@@ -102,6 +102,19 @@ w83697hf_set_reg(unsigned char reg, unsigned char data)
 }
 
 static void
+w83697hf_select_wdt(void)
+{
+	w83697hf_unlock();
+	w83697hf_set_reg(0x07, 0x08);	/* Switch to logic device 8 (GPIO2) */
+}
+
+static inline void
+w83697hf_deselect_wdt(void)
+{
+	w83697hf_lock();
+}
+
+static void
 w83697hf_select_wd_register(void)
 {
 	w83697hf_unlock();
@@ -142,11 +155,11 @@ wdt_ctrl(int timeout)
 {
 	spin_lock(&io_lock);
 
-	w83697hf_select_wd_register();
+	w83697hf_select_wdt();
 
 	w83697hf_set_reg(0xF4, timeout);	/* Write Timeout counter to CRF4 */
 
-	w83697hf_unselect_wd_register();
+	w83697hf_deselect_wdt();
 
 	spin_unlock(&io_lock);
 }
