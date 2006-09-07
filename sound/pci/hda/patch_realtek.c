@@ -1796,25 +1796,9 @@ static int alc_build_pcms(struct hda_codec *codec)
 		}
 	}
 
-	/* If the use of more than one ADC is requested for the current
-	 * model, configure a second analog capture-only PCM.
-	 */
-	if (spec->num_adc_nids > 1) {
-		codec->num_pcms++;
-		info++;
-		info->name = spec->stream_name_analog;
-		/* No playback stream for second PCM */
-		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = alc_pcm_null_playback;
-		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = 0;
-		if (spec->stream_analog_capture) {
-			snd_assert(spec->adc_nids, return -EINVAL);
-			info->stream[SNDRV_PCM_STREAM_CAPTURE] = *(spec->stream_analog_capture);
-			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[1];
-		}
-	}
-
+	/* SPDIF for stream index #1 */
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
-		codec->num_pcms++;
+		codec->num_pcms = 2;
 		info++;
 		info->name = spec->stream_name_digital;
 		if (spec->multiout.dig_out_nid &&
@@ -1826,6 +1810,24 @@ static int alc_build_pcms(struct hda_codec *codec)
 		    spec->stream_digital_capture) {
 			info->stream[SNDRV_PCM_STREAM_CAPTURE] = *(spec->stream_digital_capture);
 			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in_nid;
+		}
+	}
+
+	/* If the use of more than one ADC is requested for the current
+	 * model, configure a second analog capture-only PCM.
+	 */
+	/* Additional Analaog capture for index #2 */
+	if (spec->num_adc_nids > 1 && spec->stream_analog_capture &&
+	    spec->adc_nids) {
+		codec->num_pcms = 3;
+		info++;
+		info->name = spec->stream_name_analog;
+		/* No playback stream for second PCM */
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = alc_pcm_null_playback;
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = 0;
+		if (spec->stream_analog_capture) {
+			info->stream[SNDRV_PCM_STREAM_CAPTURE] = *(spec->stream_analog_capture);
+			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[1];
 		}
 	}
 

@@ -1242,7 +1242,12 @@ static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 	struct snd_pcm *pcm;
 	struct azx_pcm *apcm;
 
-	snd_assert(cpcm->stream[0].substreams || cpcm->stream[1].substreams, return -EINVAL);
+	/* if no substreams are defined for both playback and capture,
+	 * it's just a placeholder.  ignore it.
+	 */
+	if (!cpcm->stream[0].substreams && !cpcm->stream[1].substreams)
+		return 0;
+
 	snd_assert(cpcm->name, return -EINVAL);
 
 	err = snd_pcm_new(chip->card, cpcm->name, pcm_dev,
@@ -1268,7 +1273,8 @@ static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 					      snd_dma_pci_data(chip->pci),
 					      1024 * 64, 1024 * 128);
 	chip->pcm[pcm_dev] = pcm;
-	chip->pcm_devs = pcm_dev + 1;
+	if (chip->pcm_devs < pcm_dev + 1)
+		chip->pcm_devs = pcm_dev + 1;
 
 	return 0;
 }
