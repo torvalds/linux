@@ -264,13 +264,18 @@ xfs_read(
 					dmflags, &locktype);
 		if (ret) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-			goto unlock_mutex;
+			if (unlikely(ioflags & IO_ISDIRECT))
+				mutex_unlock(&inode->i_mutex);
+			return ret;
 		}
 	}
 
 	if (unlikely((ioflags & IO_ISDIRECT) && VN_CACHED(vp)))
 		bhv_vop_flushinval_pages(vp, ctooff(offtoct(*offset)),
 						-1, FI_REMAPF_LOCKED);
+
+	if (unlikely(ioflags & IO_ISDIRECT))
+		mutex_unlock(&inode->i_mutex);
 
 	xfs_rw_enter_trace(XFS_READ_ENTER, &ip->i_iocore,
 				(void *)iovp, segs, *offset, ioflags);
@@ -281,10 +286,6 @@ xfs_read(
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-
-unlock_mutex:
-	if (unlikely(ioflags & IO_ISDIRECT))
-		mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 
