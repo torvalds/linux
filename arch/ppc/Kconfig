@@ -1204,7 +1204,7 @@ config PCI_DOMAINS
 	default PCI
 
 config MPC83xx_PCI2
-	bool "  Supprt for 2nd PCI host controller"
+	bool "Support for 2nd PCI host controller"
 	depends on PCI && MPC834x
 	default y if MPC834x_SYS
 
@@ -1223,12 +1223,12 @@ config PCI_8260
 	default y
 
 config 8260_PCI9
-	bool "  Enable workaround for MPC826x erratum PCI 9"
+	bool "Enable workaround for MPC826x erratum PCI 9"
 	depends on PCI_8260 && !ADS8272
 	default y
 
 choice
-	prompt "  IDMA channel for PCI 9 workaround"
+	prompt "IDMA channel for PCI 9 workaround"
 	depends on 8260_PCI9
 
 config 8260_PCI9_IDMA1
