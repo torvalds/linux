@@ -376,7 +376,6 @@ out:
 /* ---------- FLASH stuff ---------- */
 
 #define FLASH_RESET			0xF0
-#define FLASH_MANUF_AMD                 1
 
 #define FLASH_SIZE                      0x200000
 #define FLASH_DIR_COOKIE                "*** ADAPTEC FLASH DIRECTORY *** "
@@ -627,7 +626,7 @@ static int asd_find_flash_dir(struct asd_ha_struct *asd_ha,
 static int asd_flash_getid(struct asd_ha_struct *asd_ha)
 {
 	int err = 0;
-	u32 reg, inc;
+	u32 reg;
 
 	reg = asd_read_reg_dword(asd_ha, EXSICNFGR);
 
@@ -648,53 +647,7 @@ static int asd_flash_getid(struct asd_ha_struct *asd_ha)
 		ASD_DPRINTK("couldn't reset flash(%d)\n", err);
 		return err;
 	}
-	/* Get flash info. This would most likely be AMD Am29LV family flash.
-	 * First try the sequence for word mode.  It is the same as for
-	 * 008B (byte mode only), 160B (word mode) and 800D (word mode).
-	 */
-	reg = asd_ha->hw_prof.flash.bar;
-	inc = asd_ha->hw_prof.flash.wide ? 2 : 1;
-	asd_write_reg_byte(asd_ha, reg + 0x555, 0xAA);
-	asd_write_reg_byte(asd_ha, reg + 0x2AA, 0x55);
-	asd_write_reg_byte(asd_ha, reg + 0x555, 0x90);
-	asd_ha->hw_prof.flash.manuf = asd_read_reg_byte(asd_ha, reg);
-	asd_ha->hw_prof.flash.dev_id= asd_read_reg_byte(asd_ha,reg+inc);
-	asd_ha->hw_prof.flash.sec_prot = asd_read_reg_byte(asd_ha,reg+inc+inc);
-	/* Get out of autoselect mode. */
-	err = asd_reset_flash(asd_ha);
-
-	if (asd_ha->hw_prof.flash.manuf == FLASH_MANUF_AMD) {
-		ASD_DPRINTK("0Found FLASH(%d) manuf:%d, dev_id:0x%x, "
-			    "sec_prot:%d\n",
-			    asd_ha->hw_prof.flash.wide ? 16 : 8,
-			    asd_ha->hw_prof.flash.manuf,
-			    asd_ha->hw_prof.flash.dev_id,
-			    asd_ha->hw_prof.flash.sec_prot);
-		return 0;
-	}
-
-	/* Ok, try the sequence for byte mode of 160B and 800D.
-	 * We may actually never need this.
-	 */
-	asd_write_reg_byte(asd_ha, reg + 0xAAA, 0xAA);
-	asd_write_reg_byte(asd_ha, reg + 0x555, 0x55);
-	asd_write_reg_byte(asd_ha, reg + 0xAAA, 0x90);
-	asd_ha->hw_prof.flash.manuf = asd_read_reg_byte(asd_ha, reg);
-	asd_ha->hw_prof.flash.dev_id = asd_read_reg_byte(asd_ha, reg + 2);
-	asd_ha->hw_prof.flash.sec_prot = asd_read_reg_byte(asd_ha, reg + 4);
-	err = asd_reset_flash(asd_ha);
-
-	if (asd_ha->hw_prof.flash.manuf == FLASH_MANUF_AMD) {
-		ASD_DPRINTK("1Found FLASH(%d) manuf:%d, dev_id:0x%x, "
-			    "sec_prot:%d\n",
-			    asd_ha->hw_prof.flash.wide ? 16 : 8,
-			    asd_ha->hw_prof.flash.manuf,
-			    asd_ha->hw_prof.flash.dev_id,
-			    asd_ha->hw_prof.flash.sec_prot);
-		return 0;
-	}
-
-	return -ENOENT;
+	return 0;
 }
 
 static u16 asd_calc_flash_chksum(u16 *p, int size)
