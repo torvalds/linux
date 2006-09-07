@@ -82,18 +82,34 @@ w83697hf_lock(void)
 	outb_p(0xAA, W83697HF_EFER);	/* Leave extended function mode */
 }
 
+/*
+ *	The two functions w83697hf_get_reg() and w83697hf_set_reg()
+ *	must be called with the device unlocked.
+ */
+
+static unsigned char
+w83697hf_get_reg(unsigned char reg)
+{
+	outb_p(reg, W83697HF_EFIR);
+	return inb_p(W83697HF_EFDR);
+}
+
+static void
+w83697hf_set_reg(unsigned char reg, unsigned char data)
+{
+	outb_p(reg, W83697HF_EFIR);
+	outb_p(data, W83697HF_EFDR);
+}
+
 static void
 w83697hf_select_wd_register(void)
 {
 	w83697hf_unlock();
 
-	outb_p(0x29, W83697HF_EFER);	/* select CR29 */
-	outb_p(0x20, W83697HF_EFDR);	/* select WDTO */
+	w83697hf_set_reg(0x29, 0x20);	/* Set pin 119 to WDTO# mode (= CR29, WDT0) */
 
-	outb_p(0x07, W83697HF_EFER);	/* point to logical device number reg */
-	outb_p(0x08, W83697HF_EFDR);	/* select logical device 8 (GPIO2) */
-	outb_p(0x30, W83697HF_EFER);	/* select CR30 */
-	outb_p(0x01, W83697HF_EFDR);	/* set bit 0 to activate GPIO2 */
+	w83697hf_set_reg(0x07, 0x08);	/* Switch to logic device 8 (GPIO2) */
+	w83697hf_set_reg(0x30, 0x01);	/* Enable timer/activate GPIO2 via bit 0 */
 }
 
 static void
@@ -109,17 +125,14 @@ w83697hf_init(void)
 
 	w83697hf_select_wd_register();
 
-	outb_p(0xF3, W83697HF_EFER);	/* Select CRF3 */
-
-	t=inb_p(W83697HF_EFDR);		/* read CRF3 */
+	t = w83697hf_get_reg(0xF3);	/* Read CRF3 */
 	if (t != 0) {
 		printk (KERN_INFO PFX "Watchdog already running. Resetting timeout to %d sec\n", timeout);
-		outb_p(timeout, W83697HF_EFDR);	/* Write back to CRF3 */
+		w83697hf_set_reg(0xF3, timeout);	/* Write new timeout */
 	}
-	outb_p(0xF4, W83697HF_EFER);	/* Select CRF4 */
-	t=inb_p(W83697HF_EFDR);		/* read CRF4 */
+	t = w83697hf_get_reg(0xF4);	/* Read CRF4 */
 	t&=~0x0C;			/* set second mode & disable keyboard turning off watchdog */
-	outb_p(t, W83697HF_EFDR);	/* Write back to CRF4 */
+	w83697hf_set_reg(0xF4, t);	/* Write back to CRF4 */
 
 	w83697hf_unselect_wd_register();
 }
@@ -131,8 +144,7 @@ wdt_ctrl(int timeout)
 
 	w83697hf_select_wd_register();
 
-	outb_p(0xF4, W83697HF_EFER);	/* Select CRF4 */
-	outb_p(timeout, W83697HF_EFDR);	/* Write Timeout counter to CRF4 */
+	w83697hf_set_reg(0xF4, timeout);	/* Write Timeout counter to CRF4 */
 
 	w83697hf_unselect_wd_register();
 
