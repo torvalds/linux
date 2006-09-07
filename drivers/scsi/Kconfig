@@ -28,7 +28,7 @@ config SCSI
 	  (the one containing the directory /) is located on a SCSI device.
 
 config SCSI_NETLINK
-	tristate
+	bool
 	default	n
 	select NET
 
