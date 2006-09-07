@@ -49,9 +49,9 @@ static char expect_close;
 static spinlock_t io_lock;
 
 /* You must set this - there is no sane way to probe for this board. */
-static int wdt_io = 0x2E;
+static int wdt_io = 0x2e;
 module_param(wdt_io, int, 0);
-MODULE_PARM_DESC(wdt_io, "w83697hf WDT io port (default 0x2E)");
+MODULE_PARM_DESC(wdt_io, "w83697hf/hg WDT io port (default 0x2e, 0 = autodetect)");
 
 static int timeout = WATCHDOG_TIMEOUT;	/* in seconds */
 module_param(timeout, int, 0);
@@ -331,26 +331,60 @@ static struct notifier_block wdt_notifier = {
 	.notifier_call = wdt_notify_sys,
 };
 
+static int
+w83697hf_check_wdt(void)
+{
+	if (!request_region(wdt_io, 2, WATCHDOG_NAME)) {
+		printk (KERN_ERR PFX "I/O address 0x%x already in use\n", wdt_io);
+		return -EIO;
+	}
+
+	printk (KERN_DEBUG PFX "Looking for watchdog at address 0x%x\n", wdt_io);
+	w83697hf_unlock();
+	if (w83697hf_get_reg(0x20) == 0x60) {
+		printk (KERN_INFO PFX "watchdog found at address 0x%x\n", wdt_io);
+		w83697hf_lock();
+		return 0;
+	}
+	w83697hf_lock();	/* Reprotect in case it was a compatible device */
+
+	printk (KERN_INFO PFX "watchdog not found at address 0x%x\n", wdt_io);
+	release_region(wdt_io, 2);
+	return -EIO;
+}
+
 static int __init
 wdt_init(void)
 {
-	int ret;
+	int ret, autodetect;
 
 	spin_lock_init(&io_lock);
 
 	printk (KERN_INFO PFX "WDT driver for W83697HF/HG initializing\n");
 
+	autodetect = wdt_io == 0;
+	if (autodetect)
+		wdt_io = 0x2e;
+
+	if (!w83697hf_check_wdt())
+		goto found;
+
+	if (autodetect) {
+		wdt_io = 0x4e;
+		if (!w83697hf_check_wdt())
+			goto found;
+	}
+
+	printk (KERN_ERR PFX "No W83697HF/HG could be found\n");
+	ret = -EIO;
+	goto out;
+
+found:
+
 	if (wdt_set_heartbeat(timeout)) {
 		wdt_set_heartbeat(WATCHDOG_TIMEOUT);
 		printk (KERN_INFO PFX "timeout value must be 1<=timeout<=255, using %d\n",
 			WATCHDOG_TIMEOUT);
-	}
-
-	if (!request_region(wdt_io, 2, WATCHDOG_NAME)) {
-		printk (KERN_ERR PFX "I/O address 0x%04x already in use\n",
-			wdt_io);
-		ret = -EIO;
-		goto out;
 	}
 
 	w83697hf_init();
