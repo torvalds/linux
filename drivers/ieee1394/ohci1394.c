@@ -181,36 +181,35 @@ static int alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
 static void ohci1394_pci_remove(struct pci_dev *pdev);
 
 #ifndef __LITTLE_ENDIAN
-static unsigned hdr_sizes[] =
-{
+const static size_t hdr_sizes[] = {
 	3,	/* TCODE_WRITEQ */
 	4,	/* TCODE_WRITEB */
 	3,	/* TCODE_WRITE_RESPONSE */
-	0,	/* ??? */
+	0,	/* reserved */
 	3,	/* TCODE_READQ */
 	4,	/* TCODE_READB */
 	3,	/* TCODE_READQ_RESPONSE */
 	4,	/* TCODE_READB_RESPONSE */
-	1,	/* TCODE_CYCLE_START (???) */
+	1,	/* TCODE_CYCLE_START */
 	4,	/* TCODE_LOCK_REQUEST */
 	2,	/* TCODE_ISO_DATA */
 	4,	/* TCODE_LOCK_RESPONSE */
+		/* rest is reserved or link-internal */
 };
 
-/* Swap headers */
-static inline void packet_swab(quadlet_t *data, int tcode)
+static inline void header_le32_to_cpu(quadlet_t *data, unsigned char tcode)
 {
-	size_t size = hdr_sizes[tcode];
+	size_t size;
 
-	if (tcode > TCODE_LOCK_RESPONSE || hdr_sizes[tcode] == 0)
+	if (unlikely(tcode >= ARRAY_SIZE(hdr_sizes)))
 		return;
 
+	size = hdr_sizes[tcode];
 	while (size--)
-		data[size] = swab32(data[size]);
+		data[size] = le32_to_cpu(data[size]);
 }
 #else
-/* Don't waste cycles on same sex byte swaps */
-#define packet_swab(w,x) do {} while (0)
+#define header_le32_to_cpu(w,x) do {} while (0)
 #endif /* !LITTLE_ENDIAN */
 
 /***********************************
@@ -701,7 +700,7 @@ static void insert_packet(struct ti_ohci *ohci,
 				d->prg_cpu[idx]->data[2] = packet->header[2];
 				d->prg_cpu[idx]->data[3] = packet->header[3];
 			}
-			packet_swab(d->prg_cpu[idx]->data, packet->tcode);
+			header_le32_to_cpu(d->prg_cpu[idx]->data, packet->tcode);
                 }
 
                 if (packet->data_size) { /* block transmit */
@@ -777,7 +776,7 @@ static void insert_packet(struct ti_ohci *ohci,
                 d->prg_cpu[idx]->data[0] = packet->speed_code<<16 |
                         (packet->header[0] & 0xFFFF);
                 d->prg_cpu[idx]->data[1] = packet->header[0] & 0xFFFF0000;
-		packet_swab(d->prg_cpu[idx]->data, packet->tcode);
+		header_le32_to_cpu(d->prg_cpu[idx]->data, packet->tcode);
 
                 d->prg_cpu[idx]->begin.control =
 			cpu_to_le32(DMA_CTL_OUTPUT_MORE |
@@ -2731,7 +2730,7 @@ static void dma_rcv_tasklet (unsigned long data)
 		 * bus reset. We always ignore it.  */
 		if (tcode != OHCI1394_TCODE_PHY) {
 			if (!ohci->no_swap_incoming)
-				packet_swab(d->spb, tcode);
+				header_le32_to_cpu(d->spb, tcode);
 			DBGMSG("Packet received from node"
 				" %d ack=0x%02X spd=%d tcode=0x%X"
 				" length=%d ctx=%d tlabel=%d",
