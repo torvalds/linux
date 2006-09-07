@@ -83,12 +83,14 @@ static inline int relaxed_state_ok(unsigned int actual, unsigned requested,
  * Returns: The number of the corresponding hash bucket
  */
 
-static unsigned int gl_hash(const struct lm_lockname *name)
+static unsigned int gl_hash(const struct gfs2_sbd *sdp,
+			    const struct lm_lockname *name)
 {
 	unsigned int h;
 
 	h = jhash(&name->ln_number, sizeof(u64), 0);
 	h = jhash(&name->ln_type, sizeof(unsigned int), h);
+	h = jhash(&sdp, sizeof(struct gfs2_sbd *), h);
 	h &= GFS2_GL_HASH_MASK;
 
 	return h;
@@ -232,7 +234,7 @@ static struct gfs2_glock *search_bucket(struct gfs2_gl_hash_bucket *bucket,
 static struct gfs2_glock *gfs2_glock_find(struct gfs2_sbd *sdp,
 					  const struct lm_lockname *name)
 {
-	struct gfs2_gl_hash_bucket *bucket = &sdp->sd_gl_hash[gl_hash(name)];
+	struct gfs2_gl_hash_bucket *bucket = &sdp->sd_gl_hash[gl_hash(sdp, name)];
 	struct gfs2_glock *gl;
 
 	read_lock(&bucket->hb_lock);
@@ -266,7 +268,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 
 	name.ln_number = number;
 	name.ln_type = glops->go_type;
-	bucket = &sdp->sd_gl_hash[gl_hash(&name)];
+	bucket = &sdp->sd_gl_hash[gl_hash(sdp, &name)];
 
 	read_lock(&bucket->hb_lock);
 	gl = search_bucket(bucket, sdp, &name);
