@@ -64,29 +64,29 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CON
  *	Kernel methods.
  */
 
-#define WDT_EFER (wdt_io+0)   /* Extended Function Enable Registers */
-#define WDT_EFIR (wdt_io+0)   /* Extended Function Index Register (same as EFER) */
-#define WDT_EFDR (WDT_EFIR+1) /* Extended Function Data Register */
+#define W83697HF_EFER (wdt_io+0)	/* Extended Function Enable Register */
+#define W83697HF_EFIR (wdt_io+0)	/* Extended Function Index Register (same as EFER) */
+#define W83697HF_EFDR (wdt_io+1)	/* Extended Function Data Register */
 
 static void
 w83697hf_select_wd_register(void)
 {
-	outb_p(0x87, WDT_EFER); /* Enter extended function mode */
-	outb_p(0x87, WDT_EFER); /* Again according to manual */
+	outb_p(0x87, W83697HF_EFER);	/* Enter extended function mode */
+	outb_p(0x87, W83697HF_EFER);	/* Again according to manual */
 
-	outb_p(0x29, WDT_EFER); /* select CR29 */
-	outb_p(0x20, WDT_EFDR); /* select WDTO */
+	outb_p(0x29, W83697HF_EFER);	/* select CR29 */
+	outb_p(0x20, W83697HF_EFDR);	/* select WDTO */
 
-	outb_p(0x07, WDT_EFER); /* point to logical device number reg */
-	outb_p(0x08, WDT_EFDR); /* select logical device 8 (GPIO2) */
-	outb_p(0x30, WDT_EFER); /* select CR30 */
-	outb_p(0x01, WDT_EFDR); /* set bit 0 to activate GPIO2 */
+	outb_p(0x07, W83697HF_EFER);	/* point to logical device number reg */
+	outb_p(0x08, W83697HF_EFDR);	/* select logical device 8 (GPIO2) */
+	outb_p(0x30, W83697HF_EFER);	/* select CR30 */
+	outb_p(0x01, W83697HF_EFDR);	/* set bit 0 to activate GPIO2 */
 }
 
 static void
 w83697hf_unselect_wd_register(void)
 {
-	outb_p(0xAA, WDT_EFER); /* Leave extended function mode */
+	outb_p(0xAA, W83697HF_EFER);	/* Leave extended function mode */
 }
 
 static void
@@ -96,17 +96,17 @@ w83697hf_init(void)
 
 	w83697hf_select_wd_register();
 
-	outb_p(0xF3, WDT_EFER);	/* Select CRF3 */
+	outb_p(0xF3, W83697HF_EFER);	/* Select CRF3 */
 
-	t=inb_p(WDT_EFDR);	/* read CRF3 */
+	t=inb_p(W83697HF_EFDR);		/* read CRF3 */
 	if (t != 0) {
 		printk (KERN_INFO PFX "Watchdog already running. Resetting timeout to %d sec\n", timeout);
-		outb_p(timeout, WDT_EFDR);	/* Write back to CRF3 */
+		outb_p(timeout, W83697HF_EFDR);	/* Write back to CRF3 */
 	}
-	outb_p(0xF4, WDT_EFER);	/* Select CRF4 */
-	t=inb_p(WDT_EFDR);	/* read CRF4 */
-	t&=~0x0C;		/* set second mode & disable keyboard turning off watchdog */
-	outb_p(t, WDT_EFDR);	/* Write back to CRF4 */
+	outb_p(0xF4, W83697HF_EFER);	/* Select CRF4 */
+	t=inb_p(W83697HF_EFDR);		/* read CRF4 */
+	t&=~0x0C;			/* set second mode & disable keyboard turning off watchdog */
+	outb_p(t, W83697HF_EFDR);	/* Write back to CRF4 */
 
 	w83697hf_unselect_wd_register();
 }
@@ -118,8 +118,8 @@ wdt_ctrl(int timeout)
 
 	w83697hf_select_wd_register();
 
-	outb_p(0xF4, WDT_EFER);    /* Select CRF4 */
-	outb_p(timeout, WDT_EFDR); /* Write Timeout counter to CRF4 */
+	outb_p(0xF4, W83697HF_EFER);	/* Select CRF4 */
+	outb_p(timeout, W83697HF_EFDR);	/* Write Timeout counter to CRF4 */
 
 	w83697hf_unselect_wd_register();
 
