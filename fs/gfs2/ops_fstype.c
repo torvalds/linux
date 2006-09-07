@@ -12,7 +12,6 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
-#include <linux/vmalloc.h>
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
 #include <linux/namei.h>
