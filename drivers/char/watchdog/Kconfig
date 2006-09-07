@@ -431,12 +431,14 @@ config W83627HF_WDT
 	  Most people will say N.
 
 config W83697HF_WDT
-	tristate "W83697HF Watchdog Timer"
+	tristate "W83697HF/W83697HG Watchdog Timer"
 	depends on WATCHDOG && X86
 	---help---
-	  This is the driver for the hardware watchdog on the W83697HF chipset
-	  This watchdog simply watches your kernel to make sure it doesn't freeze,
-	  and if it does, it reboots your computer after a certain amount of time.
+	  This is the driver for the hardware watchdog on the W83697HF/HG
+	  chipset as used in Dedibox/VIA motherboards (and likely others).
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w83697hf_wdt.
