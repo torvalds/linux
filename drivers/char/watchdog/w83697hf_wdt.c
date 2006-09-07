@@ -156,31 +156,44 @@ w83697hf_init(void)
 	w83697hf_unselect_wd_register();
 }
 
-static void
-wdt_ctrl(int timeout)
+static int
+wdt_ping(void)
 {
 	spin_lock(&io_lock);
-
 	w83697hf_select_wdt();
 
 	w83697hf_write_timeout(timeout);
 
 	w83697hf_deselect_wdt();
-
 	spin_unlock(&io_lock);
+	return 0;
 }
 
 static int
-wdt_ping(void)
+wdt_enable(void)
 {
-	wdt_ctrl(timeout);
+	spin_lock(&io_lock);
+	w83697hf_select_wdt();
+
+	w83697hf_write_timeout(timeout);
+	w83697hf_set_reg(0x30, 1);	/* Enable timer */
+
+	w83697hf_deselect_wdt();
+	spin_unlock(&io_lock);
 	return 0;
 }
 
 static int
 wdt_disable(void)
 {
-	wdt_ctrl(0);
+	spin_lock(&io_lock);
+	w83697hf_select_wdt();
+
+	w83697hf_set_reg(0x30, 0);	/* Disable timer */
+	w83697hf_write_timeout(0);
+
+	w83697hf_deselect_wdt();
+	spin_unlock(&io_lock);
 	return 0;
 }
 
@@ -267,7 +280,7 @@ wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		}
 
 		if (options & WDIOS_ENABLECARD) {
-			wdt_ping();
+			wdt_enable();
 			retval = 0;
 		}
 
@@ -289,7 +302,7 @@ wdt_open(struct inode *inode, struct file *file)
 	 *	Activate
 	 */
 
-	wdt_ping();
+	wdt_enable();
 	return nonseekable_open(inode, file);
 }
 
