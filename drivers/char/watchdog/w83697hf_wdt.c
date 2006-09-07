@@ -69,11 +69,17 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CON
 #define W83697HF_EFIR (wdt_io+0)	/* Extended Function Index Register (same as EFER) */
 #define W83697HF_EFDR (wdt_io+1)	/* Extended Function Data Register */
 
-static void
-w83697hf_select_wd_register(void)
+static inline void
+w83697hf_unlock(void)
 {
 	outb_p(0x87, W83697HF_EFER);	/* Enter extended function mode */
 	outb_p(0x87, W83697HF_EFER);	/* Again according to manual */
+}
+
+static void
+w83697hf_select_wd_register(void)
+{
+	w83697hf_unlock();
 
 	outb_p(0x29, W83697HF_EFER);	/* select CR29 */
 	outb_p(0x20, W83697HF_EFDR);	/* select WDTO */
