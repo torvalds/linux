@@ -45,23 +45,16 @@ extern struct dentry_operations gfs2_dops;
 static struct gfs2_sbd *init_sbd(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp;
-	unsigned int x;
 
-	sdp = vmalloc(sizeof(struct gfs2_sbd));
+	sdp = kzalloc(sizeof(struct gfs2_sbd), GFP_KERNEL);
 	if (!sdp)
 		return NULL;
-
-	memset(sdp, 0, sizeof(struct gfs2_sbd));
 
 	sb->s_fs_info = sdp;
 	sdp->sd_vfs = sb;
 
 	gfs2_tune_init(&sdp->sd_tune);
 
-	for (x = 0; x < GFS2_GL_HASH_SIZE; x++) {
-		rwlock_init(&sdp->sd_gl_hash[x].hb_lock);
-		INIT_LIST_HEAD(&sdp->sd_gl_hash[x].hb_list);
-	}
 	INIT_LIST_HEAD(&sdp->sd_reclaim_list);
 	spin_lock_init(&sdp->sd_reclaim_lock);
 	init_waitqueue_head(&sdp->sd_reclaim_wq);

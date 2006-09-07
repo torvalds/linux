@@ -23,6 +23,7 @@
 #include "ops_fstype.h"
 #include "sys.h"
 #include "util.h"
+#include "glock.h"
 
 static void gfs2_init_inode_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
 {
@@ -69,8 +70,11 @@ static int __init init_gfs2_fs(void)
 	if (error)
 		return error;
 
-	error = -ENOMEM;
+	error = gfs2_glock_init();
+	if (error)
+		goto fail;
 
+	error = -ENOMEM;
 	gfs2_glock_cachep = kmem_cache_create("gfs2_glock",
 					      sizeof(struct gfs2_glock),
 					      0, 0, 

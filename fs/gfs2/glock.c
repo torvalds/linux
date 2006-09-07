@@ -49,6 +49,8 @@ typedef void (*glock_examiner) (struct gfs2_glock * gl);
 static int gfs2_dump_lockstate(struct gfs2_sbd *sdp);
 static int dump_glock(struct gfs2_glock *gl);
 
+static struct gfs2_gl_hash_bucket gl_hash_table[GFS2_GL_HASH_SIZE];
+
 /**
  * relaxed_state_ok - is a requested lock compatible with the current lock mode?
  * @actual: the current state of the lock
@@ -231,10 +233,10 @@ static struct gfs2_glock *search_bucket(struct gfs2_gl_hash_bucket *bucket,
  * Returns: NULL, or the struct gfs2_glock with the requested number
  */
 
-static struct gfs2_glock *gfs2_glock_find(struct gfs2_sbd *sdp,
+static struct gfs2_glock *gfs2_glock_find(const struct gfs2_sbd *sdp,
 					  const struct lm_lockname *name)
 {
-	struct gfs2_gl_hash_bucket *bucket = &sdp->sd_gl_hash[gl_hash(sdp, name)];
+	struct gfs2_gl_hash_bucket *bucket = &gl_hash_table[gl_hash(sdp, name)];
 	struct gfs2_glock *gl;
 
 	read_lock(&bucket->hb_lock);
@@ -268,7 +270,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 
 	name.ln_number = number;
 	name.ln_type = glops->go_type;
-	bucket = &sdp->sd_gl_hash[gl_hash(sdp, &name)];
+	bucket = &gl_hash_table[gl_hash(sdp, &name)];
 
 	read_lock(&bucket->hb_lock);
 	gl = search_bucket(bucket, sdp, &name);
@@ -648,9 +650,9 @@ static void gfs2_glmutex_lock(struct gfs2_glock *gl)
 	set_bit(HIF_MUTEX, &gh.gh_iflags);
 
 	spin_lock(&gl->gl_spin);
-	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags))
+	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
 		list_add_tail(&gh.gh_list, &gl->gl_waiters1);
-	else {
+	} else {
 		gl->gl_owner = current;
 		gl->gl_ip = (unsigned long)__builtin_return_address(0);
 		complete(&gh.gh_wait);
@@ -673,9 +675,9 @@ static int gfs2_glmutex_trylock(struct gfs2_glock *gl)
 	int acquired = 1;
 
 	spin_lock(&gl->gl_spin);
-	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags))
+	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
 		acquired = 0;
-	else {
+	} else {
 		gl->gl_owner = current;
 		gl->gl_ip = (unsigned long)__builtin_return_address(0);
 	}
@@ -830,9 +832,9 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 		spin_lock(&gl->gl_spin);
 		list_del_init(&gh->gh_list);
 		if (gl->gl_state == gh->gh_state ||
-		    gl->gl_state == LM_ST_UNLOCKED)
+		    gl->gl_state == LM_ST_UNLOCKED) {
 			gh->gh_error = 0;
-		else {
+		} else {
 			if (gfs2_assert_warn(sdp, gh->gh_flags &
 					(LM_FLAG_TRY | LM_FLAG_TRY_1CB)) == -1)
 				fs_warn(sdp, "ret = 0x%.8X\n", ret);
@@ -1090,8 +1092,7 @@ static int glock_wait_internal(struct gfs2_holder *gh)
 		return gh->gh_error;
 
 	gfs2_assert_withdraw(sdp, test_bit(HIF_HOLDER, &gh->gh_iflags));
-	gfs2_assert_withdraw(sdp, relaxed_state_ok(gl->gl_state,
-						   gh->gh_state,
+	gfs2_assert_withdraw(sdp, relaxed_state_ok(gl->gl_state, gh->gh_state,
 						   gh->gh_flags));
 
 	if (test_bit(HIF_FIRST, &gh->gh_iflags)) {
@@ -1901,6 +1902,8 @@ static int examine_bucket(glock_examiner examiner, struct gfs2_sbd *sdp,
 
 			if (test_bit(GLF_PLUG, &gl->gl_flags))
 				continue;
+			if (gl->gl_sbd != sdp)
+				continue;
 
 			/* examiner() must glock_put() */
 			gfs2_glock_hold(gl);
@@ -1953,7 +1956,7 @@ void gfs2_scand_internal(struct gfs2_sbd *sdp)
 	unsigned int x;
 
 	for (x = 0; x < GFS2_GL_HASH_SIZE; x++) {
-		examine_bucket(scan_glock, sdp, &sdp->sd_gl_hash[x]);
+		examine_bucket(scan_glock, sdp, &gl_hash_table[x]);
 		cond_resched();
 	}
 }
@@ -2012,7 +2015,7 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait)
 		cont = 0;
 
 		for (x = 0; x < GFS2_GL_HASH_SIZE; x++)
-			if (examine_bucket(clear_glock, sdp, &sdp->sd_gl_hash[x]))
+			if (examine_bucket(clear_glock, sdp, &gl_hash_table[x]))
 				cont = 1;
 
 		if (!wait || !cont)
@@ -2114,14 +2117,13 @@ static int dump_glock(struct gfs2_glock *gl)
 
 	spin_lock(&gl->gl_spin);
 
-	printk(KERN_INFO "Glock 0x%p (%u, %llu)\n",
-	       gl,
-	       gl->gl_name.ln_type,
+	printk(KERN_INFO "Glock 0x%p (%u, %llu)\n", gl, gl->gl_name.ln_type,
 	       (unsigned long long)gl->gl_name.ln_number);
 	printk(KERN_INFO "  gl_flags =");
-	for (x = 0; x < 32; x++)
+	for (x = 0; x < 32; x++) {
 		if (test_bit(x, &gl->gl_flags))
 			printk(" %u", x);
+	}
 	printk(" \n");
 	printk(KERN_INFO "  gl_ref = %d\n", atomic_read(&gl->gl_ref.refcount));
 	printk(KERN_INFO "  gl_state = %u\n", gl->gl_state);
@@ -2136,8 +2138,7 @@ static int dump_glock(struct gfs2_glock *gl)
 	printk(KERN_INFO "  reclaim = %s\n",
 		    (list_empty(&gl->gl_reclaim)) ? "no" : "yes");
 	if (gl->gl_aspace)
-		printk(KERN_INFO "  aspace = 0x%p nrpages = %lu\n",
-		       gl->gl_aspace,
+		printk(KERN_INFO "  aspace = 0x%p nrpages = %lu\n", gl->gl_aspace,
 		       gl->gl_aspace->i_mapping->nrpages);
 	else
 		printk(KERN_INFO "  aspace = no\n");
@@ -2203,12 +2204,14 @@ static int gfs2_dump_lockstate(struct gfs2_sbd *sdp)
 	int error = 0;
 
 	for (x = 0; x < GFS2_GL_HASH_SIZE; x++) {
-		bucket = &sdp->sd_gl_hash[x];
+		bucket = &gl_hash_table[x];
 
 		read_lock(&bucket->hb_lock);
 
 		list_for_each_entry(gl, &bucket->hb_list, gl_list) {
 			if (test_bit(GLF_PLUG, &gl->gl_flags))
+				continue;
+			if (gl->gl_sbd != sdp)
 				continue;
 
 			error = dump_glock(gl);
@@ -2224,5 +2227,16 @@ static int gfs2_dump_lockstate(struct gfs2_sbd *sdp)
 
 
 	return error;
+}
+
+int __init gfs2_glock_init(void)
+{
+	unsigned i;
+	for(i = 0; i < GFS2_GL_HASH_SIZE; i++) {
+		struct gfs2_gl_hash_bucket *hb = &gl_hash_table[i];
+		rwlock_init(&hb->hb_lock);
+		INIT_LIST_HEAD(&hb->hb_list);
+	}
+	return 0;
 }
 

@@ -150,4 +150,6 @@ void gfs2_reclaim_glock(struct gfs2_sbd *sdp);
 void gfs2_scand_internal(struct gfs2_sbd *sdp);
 void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait);
 
+int __init gfs2_glock_init(void);
+
 #endif /* __GLOCK_DOT_H__ */

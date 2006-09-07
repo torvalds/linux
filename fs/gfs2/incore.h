@@ -30,7 +30,6 @@ struct gfs2_quota_data;
 struct gfs2_trans;
 struct gfs2_ail;
 struct gfs2_jdesc;
-struct gfs2_gl_hash_bucket;
 struct gfs2_sbd;
 
 typedef void (*gfs2_glop_bh_t) (struct gfs2_glock *gl, unsigned int ret);
@@ -105,6 +104,11 @@ struct gfs2_bufdata {
 	struct gfs2_ail *bd_ail;
 	struct list_head bd_ail_st_list;
 	struct list_head bd_ail_gl_list;
+};
+
+struct gfs2_gl_hash_bucket {
+        rwlock_t hb_lock;
+        struct list_head hb_list;
 };
 
 struct gfs2_glock_operations {
@@ -442,11 +446,6 @@ struct gfs2_tune {
 	unsigned int gt_statfs_slow;
 };
 
-struct gfs2_gl_hash_bucket {
-	rwlock_t hb_lock;
-	struct list_head hb_list;
-};
-
 enum {
 	SDF_JOURNAL_CHECKED	= 0,
 	SDF_JOURNAL_LIVE	= 1,
@@ -489,7 +488,6 @@ struct gfs2_sbd {
 	/* Lock Stuff */
 
 	struct lm_lockstruct sd_lockstruct;
-	struct gfs2_gl_hash_bucket sd_gl_hash[GFS2_GL_HASH_SIZE];
 	struct list_head sd_reclaim_list;
 	spinlock_t sd_reclaim_lock;
 	wait_queue_head_t sd_reclaim_wq;
