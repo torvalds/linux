@@ -41,17 +41,17 @@ struct ocfs2_dentry_lock {
 	struct ocfs2_lock_res	dl_lockres;
 };
 
-static inline void ocfs2_dentry_lock_put(struct ocfs2_super *osb,
-					 struct ocfs2_dentry_lock *dl)
-{
-}
+int ocfs2_dentry_attach_lock(struct dentry *dentry, struct inode *inode,
+			     u64 parent_blkno, int create);
 
-static inline struct dentry *ocfs2_find_local_alias(struct inode *inode,
-						    u64 parent_blkno,
-						    int skip_unhashed)
-{
-	return NULL;
-}
+void ocfs2_dentry_lock_put(struct ocfs2_super *osb,
+			   struct ocfs2_dentry_lock *dl);
+
+struct dentry *ocfs2_find_local_alias(struct inode *inode, u64 parent_blkno,
+				      int skip_unhashed);
+
+void ocfs2_dentry_move(struct dentry *dentry, struct dentry *target,
+		       struct inode *old_dir, struct inode *new_dir);
 
 extern spinlock_t dentry_attach_lock;
 

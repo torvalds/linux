@@ -28,10 +28,10 @@
 #include <linux/slab.h>
 #include <linux/highmem.h>
 
-#include "ocfs2.h"
-
 #define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
+
+#include "ocfs2.h"
 
 #include "alloc.h"
 #include "dir.h"
