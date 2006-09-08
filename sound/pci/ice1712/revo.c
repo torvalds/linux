@@ -110,7 +110,6 @@ static struct snd_akm4xxx_dac_channel revo51_dac[] = {
 static struct snd_akm4xxx_adc_channel revo51_adc[] = {
 	{
 		.name = "PCM Capture Volume",
-		.gain_name = "PCM Capture Gain Volume",
 		.switch_name = "PCM Capture Switch",
 		.num_channels = 2
 	},

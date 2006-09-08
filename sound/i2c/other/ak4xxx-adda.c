@@ -43,10 +43,7 @@ void snd_akm4xxx_write(struct snd_akm4xxx *ak, int chip, unsigned char reg,
 	ak->ops.write(ak, chip, reg, val);
 
 	/* save the data */
-	/* don't overwrite with IPGA data */
-	if ((ak->type != SND_AK4524 && ak->type != SND_AK5365) ||
-	    (reg != 0x04 && reg != 0x05) || (val & 0x80) == 0)
-		snd_akm4xxx_set(ak, chip, reg, val);
+	snd_akm4xxx_set(ak, chip, reg, val);
 	ak->ops.unlock(ak, chip);
 }
 
@@ -70,12 +67,6 @@ static void ak4524_reset(struct snd_akm4xxx *ak, int state)
 		for (reg = 0x04; reg < maxreg; reg++)
 			snd_akm4xxx_write(ak, chip, reg,
 					  snd_akm4xxx_get(ak, chip, reg));
-		if (ak->type == SND_AK4528)
-			continue;
-		/* IPGA */
-		for (reg = 0x04; reg < 0x06; reg++)
-			snd_akm4xxx_write(ak, chip, reg,
-					  snd_akm4xxx_get_ipga(ak, chip, reg) | 0x80);
 	}
 }
 
@@ -175,7 +166,6 @@ static DECLARE_TLV_DB_SCALE(db_scale_vol_datt, -6350, 50, 1);
 static DECLARE_TLV_DB_SCALE(db_scale_8bit, -12750, 50, 1);
 static DECLARE_TLV_DB_SCALE(db_scale_7bit, -6350, 50, 1);
 static DECLARE_TLV_DB_LINEAR(db_scale_linear, TLV_DB_GAIN_MUTE, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_ipga, 0, 50, 0);
 
 /*
  * initialize all the ak4xxx chips
@@ -190,8 +180,6 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x01, 0x03, /* 1: ADC/DAC enable */
 		0x04, 0x00, /* 4: ADC left muted */
 		0x05, 0x00, /* 5: ADC right muted */
-		0x04, 0x80, /* 4: ADC IPGA gain 0dB */
-		0x05, 0x80, /* 5: ADC IPGA gain 0dB */
 		0x06, 0x00, /* 6: DAC left muted */
 		0x07, 0x00, /* 7: DAC right muted */
 		0xff, 0xff
@@ -324,13 +312,15 @@ EXPORT_SYMBOL(snd_akm4xxx_init);
 /*
  * Mixer callbacks
  */
+#define AK_IPGA 			(1<<20)	/* including IPGA */
 #define AK_VOL_CVT 			(1<<21)	/* need dB conversion */
 #define AK_NEEDSMSB 			(1<<22)	/* need MSB update bit */
 #define AK_INVERT 			(1<<23)	/* data is inverted */
 #define AK_GET_CHIP(val)		(((val) >> 8) & 0xff)
 #define AK_GET_ADDR(val)		((val) & 0xff)
-#define AK_GET_SHIFT(val)		(((val) >> 16) & 0x1f)
+#define AK_GET_SHIFT(val)		(((val) >> 16) & 0x0f)
 #define AK_GET_VOL_CVT(val)		(((val) >> 21) & 1)
+#define AK_GET_IPGA(val)		(((val) >> 20) & 1)
 #define AK_GET_NEEDSMSB(val)		(((val) >> 22) & 1)
 #define AK_GET_INVERT(val)		(((val) >> 23) & 1)
 #define AK_GET_MASK(val)		(((val) >> 24) & 0xff)
@@ -371,8 +361,10 @@ static int put_ak_reg(struct snd_kcontrol *kcontrol, int addr,
 		return 0;
 
 	snd_akm4xxx_set_vol(ak, chip, addr, nval);
-	if (AK_GET_VOL_CVT(kcontrol->private_value))
+	if (AK_GET_VOL_CVT(kcontrol->private_value) && nval < 128)
 		nval = vol_cvt_datt[nval];
+	if (AK_GET_IPGA(kcontrol->private_value) && nval >= 128)
+		nval++; /* need to correct + 1 since both 127 and 128 are 0dB */
 	if (AK_GET_INVERT(kcontrol->private_value))
 		nval = mask - nval;
 	if (AK_GET_NEEDSMSB(kcontrol->private_value))
@@ -421,68 +413,6 @@ static int snd_akm4xxx_stereo_volume_put(struct snd_kcontrol *kcontrol,
 	change = put_ak_reg(kcontrol, addr, ucontrol->value.integer.value[0]);
 	change |= put_ak_reg(kcontrol, addr + 1,
 			     ucontrol->value.integer.value[1]);
-	return change;
-}
-
-#define snd_akm4xxx_ipga_gain_info	snd_akm4xxx_volume_info
-
-static int snd_akm4xxx_ipga_gain_get(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
-	int chip = AK_GET_CHIP(kcontrol->private_value);
-	int addr = AK_GET_ADDR(kcontrol->private_value);
-
-	ucontrol->value.integer.value[0] =
-		snd_akm4xxx_get_ipga(ak, chip, addr);
-	return 0;
-}
-
-static int put_ak_ipga(struct snd_kcontrol *kcontrol, int addr,
-		       unsigned char nval)
-{
-	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
-	int chip = AK_GET_CHIP(kcontrol->private_value);
-
-	if (snd_akm4xxx_get_ipga(ak, chip, addr) == nval)
-		return 0;
-	snd_akm4xxx_set_ipga(ak, chip, addr, nval);
-	snd_akm4xxx_write(ak, chip, addr, nval | 0x80); /* need MSB */
-	return 1;
-}
-
-static int snd_akm4xxx_ipga_gain_put(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
-{
-	return put_ak_ipga(kcontrol, AK_GET_ADDR(kcontrol->private_value),
-			   ucontrol->value.integer.value[0]);
-}
-
-#define snd_akm4xxx_stereo_gain_info	snd_akm4xxx_stereo_volume_info
-
-static int snd_akm4xxx_stereo_gain_get(struct snd_kcontrol *kcontrol,
-				       struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
-	int chip = AK_GET_CHIP(kcontrol->private_value);
-	int addr = AK_GET_ADDR(kcontrol->private_value);
-
-	ucontrol->value.integer.value[0] =
-		snd_akm4xxx_get_ipga(ak, chip, addr);
-	ucontrol->value.integer.value[1] =
-		snd_akm4xxx_get_ipga(ak, chip, addr + 1);
-	return 0;
-}
-
-static int snd_akm4xxx_stereo_gain_put(struct snd_kcontrol *kcontrol,
-				       struct snd_ctl_elem_value *ucontrol)
-{
-	int addr = AK_GET_ADDR(kcontrol->private_value);
-	int change;
-
-	change = put_ak_ipga(kcontrol, addr, ucontrol->value.integer.value[0]);
-	change |= put_ak_ipga(kcontrol, addr + 1,
-			      ucontrol->value.integer.value[1]);
 	return change;
 }
 
@@ -702,35 +632,15 @@ static int build_adc_controls(struct snd_akm4xxx *ak)
 			knew.put = snd_akm4xxx_volume_put;
 		}
 		/* register 4 & 5 */
-		knew.private_value =
-			AK_COMPOSE(idx/2, (idx%2) + 4, 0, 127) |
-			AK_VOL_CVT;
-		knew.tlv.p = db_scale_vol_datt;
-		err = snd_ctl_add(ak->card, snd_ctl_new1(&knew, ak));
-		if (err < 0)
-			return err;
-
-		if (! ak->adc_info || ! ak->adc_info[mixer_ch].gain_name)
-			knew.name = "IPGA Analog Capture Volume";
+		if (ak->type == SND_AK5365)
+			knew.private_value =
+				AK_COMPOSE(idx/2, (idx%2) + 4, 0, 151) |
+				AK_VOL_CVT | AK_IPGA;
 		else
-			knew.name = ak->adc_info[mixer_ch].gain_name;
-		if (num_stereo == 2) {
-			knew.info = snd_akm4xxx_stereo_gain_info;
-			knew.get = snd_akm4xxx_stereo_gain_get;
-			knew.put = snd_akm4xxx_stereo_gain_put;
-		} else {
-			knew.info = snd_akm4xxx_ipga_gain_info;
-			knew.get = snd_akm4xxx_ipga_gain_get;
-			knew.put = snd_akm4xxx_ipga_gain_put;
-		}
-		/* register 4 & 5 */
-		if (ak->type == SND_AK4524)
-			knew.private_value = AK_COMPOSE(idx/2, (idx%2) + 4, 0,
-							24);
-		else /* AK5365 */
-			knew.private_value = AK_COMPOSE(idx/2, (idx%2) + 4, 0,
-							36);
-		knew.tlv.p = db_scale_ipga;
+			knew.private_value =
+				AK_COMPOSE(idx/2, (idx%2) + 4, 0, 163) |
+				AK_VOL_CVT | AK_IPGA;
+		knew.tlv.p = db_scale_vol_datt;
 		err = snd_ctl_add(ak->card, snd_ctl_new1(&knew, ak));
 		if (err < 0)
 			return err;
@@ -811,11 +721,9 @@ int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
 	if (err < 0)
 		return err;
 
-	if (ak->type == SND_AK4524 || ak->type == SND_AK5365) {
-		err = build_adc_controls(ak);
-		if (err < 0)
-			return err;
-	}
+	err = build_adc_controls(ak);
+	if (err < 0)
+		return err;
 
 	if (ak->type == SND_AK4355 || ak->type == SND_AK4358)
 		num_emphs = 1;

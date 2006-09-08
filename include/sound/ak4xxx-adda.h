@@ -48,7 +48,6 @@ struct snd_akm4xxx_dac_channel {
 /* ADC labels and channels */
 struct snd_akm4xxx_adc_channel {
 	char *name;		/* capture gain volume label */
-	char *gain_name;	/* IPGA */
 	char *switch_name;	/* capture switch */
 	unsigned int num_channels;
 };
@@ -90,14 +89,5 @@ int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak);
 	(ak)->volumes[(chip) * 16 + (reg)]
 #define snd_akm4xxx_set_vol(ak,chip,reg,val) \
 	((ak)->volumes[(chip) * 16 + (reg)] = (val))
-
-/* Warning: IPGA is tricky - we assume the addr + 4 is unused
- *   so far, it's OK for all AK codecs with IPGA:
- *   AK4524, AK4528 and EK5365
- */
-#define snd_akm4xxx_get_ipga(ak,chip,reg) \
-	snd_akm4xxx_get_vol(ak, chip, (reg) + 4)
-#define snd_akm4xxx_set_ipga(ak,chip,reg,val) \
-	snd_akm4xxx_set_vol(ak, chip, (reg) + 4, val)
 
 #endif /* __SOUND_AK4XXX_ADDA_H */
