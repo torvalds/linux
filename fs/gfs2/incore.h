@@ -106,11 +106,6 @@ struct gfs2_bufdata {
 	struct list_head bd_ail_gl_list;
 };
 
-struct gfs2_gl_hash_bucket {
-        rwlock_t hb_lock;
-        struct list_head hb_list;
-};
-
 struct gfs2_glock_operations {
 	void (*go_xmote_th) (struct gfs2_glock * gl, unsigned int state,
 			     int flags);
@@ -175,6 +170,7 @@ struct gfs2_glock {
 	spinlock_t gl_spin;
 
 	unsigned int gl_state;
+	unsigned int gl_hash;
 	struct task_struct *gl_owner;
 	unsigned long gl_ip;
 	struct list_head gl_holders;
@@ -195,7 +191,6 @@ struct gfs2_glock {
 	unsigned long gl_stamp;
 	void *gl_object;
 
-	struct gfs2_gl_hash_bucket *gl_bucket;
 	struct list_head gl_reclaim;
 
 	struct gfs2_sbd *gl_sbd;
