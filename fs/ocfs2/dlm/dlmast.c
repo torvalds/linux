@@ -320,8 +320,8 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	res = dlm_lookup_lockres(dlm, name, locklen);
 	if (!res) {
-		mlog(ML_ERROR, "got %sast for unknown lockres! "
-			       "cookie=%u:%llu, name=%.*s, namelen=%u\n",
+		mlog(0, "got %sast for unknown lockres! "
+		     "cookie=%u:%llu, name=%.*s, namelen=%u\n",
 		     past->type == DLM_AST ? "" : "b",
 		     dlm_get_lock_cookie_node(cookie),
 		     dlm_get_lock_cookie_seq(cookie),
@@ -462,7 +462,7 @@ int dlm_send_proxy_ast_msg(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 			mlog(ML_ERROR, "sent AST to node %u, it returned "
 			     "DLM_MIGRATING!\n", lock->ml.node);
 			BUG();
-		} else if (status != DLM_NORMAL) {
+		} else if (status != DLM_NORMAL && status != DLM_IVLOCKID) {
 			mlog(ML_ERROR, "AST to node %u returned %d!\n",
 			     lock->ml.node, status);
 			/* ignore it */
