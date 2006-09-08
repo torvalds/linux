@@ -10,16 +10,8 @@
 #ifndef __LM_INTERFACE_DOT_H__
 #define __LM_INTERFACE_DOT_H__
 
-/*
- * Opaque handles represent the lock module's lockspace structure, the lock
- * module's lock structures, and GFS's file system (superblock) structure.
- */
 
-typedef void lm_lockspace_t;
-typedef void lm_lock_t;
-struct gfs2_sbd;
-
-typedef void (*lm_callback_t) (struct gfs2_sbd *sdp, unsigned int type, void *data);
+typedef void (*lm_callback_t) (void *ptr, unsigned int type, void *data);
 
 /*
  * lm_mount() flags
@@ -175,64 +167,60 @@ struct lm_async_cb {
 struct lm_lockstruct;
 
 struct lm_lockops {
-	char lm_proto_name[256];
+	const char *lm_proto_name;
 
 	/*
 	 * Mount/Unmount
 	 */
 
 	int (*lm_mount) (char *table_name, char *host_data,
-			 lm_callback_t cb, struct gfs2_sbd *sdp,
+			 lm_callback_t cb, void *cb_data,
 			 unsigned int min_lvb_size, int flags,
 			 struct lm_lockstruct *lockstruct,
 			 struct kobject *fskobj);
 
-	void (*lm_others_may_mount) (lm_lockspace_t *lockspace);
+	void (*lm_others_may_mount) (void *lockspace);
 
-	void (*lm_unmount) (lm_lockspace_t *lockspace);
+	void (*lm_unmount) (void *lockspace);
 
-	void (*lm_withdraw) (lm_lockspace_t *lockspace);
+	void (*lm_withdraw) (void *lockspace);
 
 	/*
 	 * Lock oriented operations
 	 */
 
-	int (*lm_get_lock) (lm_lockspace_t *lockspace,
-			    struct lm_lockname *name, lm_lock_t **lockp);
+	int (*lm_get_lock) (void *lockspace, struct lm_lockname *name, void **lockp);
 
-	void (*lm_put_lock) (lm_lock_t *lock);
+	void (*lm_put_lock) (void *lock);
 
-	unsigned int (*lm_lock) (lm_lock_t *lock, unsigned int cur_state,
+	unsigned int (*lm_lock) (void *lock, unsigned int cur_state,
 				 unsigned int req_state, unsigned int flags);
 
-	unsigned int (*lm_unlock) (lm_lock_t *lock, unsigned int cur_state);
+	unsigned int (*lm_unlock) (void *lock, unsigned int cur_state);
 
-	void (*lm_cancel) (lm_lock_t *lock);
+	void (*lm_cancel) (void *lock);
 
-	int (*lm_hold_lvb) (lm_lock_t *lock, char **lvbp);
-	void (*lm_unhold_lvb) (lm_lock_t *lock, char *lvb);
+	int (*lm_hold_lvb) (void *lock, char **lvbp);
+	void (*lm_unhold_lvb) (void *lock, char *lvb);
 
 	/*
 	 * Posix Lock oriented operations
 	 */
 
-	int (*lm_plock_get) (lm_lockspace_t *lockspace,
-			     struct lm_lockname *name,
+	int (*lm_plock_get) (void *lockspace, struct lm_lockname *name,
 			     struct file *file, struct file_lock *fl);
 
-	int (*lm_plock) (lm_lockspace_t *lockspace,
-			 struct lm_lockname *name,
+	int (*lm_plock) (void *lockspace, struct lm_lockname *name,
 			 struct file *file, int cmd, struct file_lock *fl);
 
-	int (*lm_punlock) (lm_lockspace_t *lockspace,
-			   struct lm_lockname *name,
+	int (*lm_punlock) (void *lockspace, struct lm_lockname *name,
 			   struct file *file, struct file_lock *fl);
 
 	/*
 	 * Client oriented operations
 	 */
 
-	void (*lm_recovery_done) (lm_lockspace_t *lockspace, unsigned int jid,
+	void (*lm_recovery_done) (void *lockspace, unsigned int jid,
 				  unsigned int message);
 
 	struct module *lm_owner;
@@ -253,8 +241,8 @@ struct lm_lockstruct {
 	unsigned int ls_jid;
 	unsigned int ls_first;
 	unsigned int ls_lvb_size;
-	lm_lockspace_t *ls_lockspace;
-	struct lm_lockops *ls_ops;
+	void *ls_lockspace;
+	const struct lm_lockops *ls_ops;
 	int ls_flags;
 };
 
@@ -263,9 +251,8 @@ struct lm_lockstruct {
  * with these functions.
  */
 
-int gfs2_register_lockproto(struct lm_lockops *proto);
-
-void gfs2_unregister_lockproto(struct lm_lockops *proto);
+int gfs2_register_lockproto(const struct lm_lockops *proto);
+void gfs2_unregister_lockproto(const struct lm_lockops *proto);
 
 /*
  * Lock module top interface.  GFS calls these functions when mounting or
@@ -273,7 +260,7 @@ void gfs2_unregister_lockproto(struct lm_lockops *proto);
  */
 
 int gfs2_mount_lockproto(char *proto_name, char *table_name, char *host_data,
-			 lm_callback_t cb, struct gfs2_sbd *sdp,
+			 lm_callback_t cb, void *cb_data,
 			 unsigned int min_lvb_size, int flags,
 			 struct lm_lockstruct *lockstruct,
 			 struct kobject *fskobj);

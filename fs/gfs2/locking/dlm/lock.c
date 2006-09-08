@@ -207,21 +207,21 @@ void gdlm_delete_lp(struct gdlm_lock *lp)
 	kfree(lp);
 }
 
-int gdlm_get_lock(lm_lockspace_t *lockspace, struct lm_lockname *name,
-		  lm_lock_t **lockp)
+int gdlm_get_lock(void *lockspace, struct lm_lockname *name,
+		  void **lockp)
 {
 	struct gdlm_lock *lp;
 	int error;
 
-	error = gdlm_create_lp((struct gdlm_ls *) lockspace, name, &lp);
+	error = gdlm_create_lp(lockspace, name, &lp);
 
-	*lockp = (lm_lock_t *) lp;
+	*lockp = lp;
 	return error;
 }
 
-void gdlm_put_lock(lm_lock_t *lock)
+void gdlm_put_lock(void *lock)
 {
-	gdlm_delete_lp((struct gdlm_lock *) lock);
+	gdlm_delete_lp(lock);
 }
 
 unsigned int gdlm_do_lock(struct gdlm_lock *lp)
@@ -305,10 +305,10 @@ static unsigned int gdlm_do_unlock(struct gdlm_lock *lp)
 	return LM_OUT_ASYNC;
 }
 
-unsigned int gdlm_lock(lm_lock_t *lock, unsigned int cur_state,
+unsigned int gdlm_lock(void *lock, unsigned int cur_state,
 		       unsigned int req_state, unsigned int flags)
 {
-	struct gdlm_lock *lp = (struct gdlm_lock *) lock;
+	struct gdlm_lock *lp = lock;
 
 	clear_bit(LFL_DLM_CANCEL, &lp->flags);
 	if (flags & LM_FLAG_NOEXP)
@@ -321,9 +321,9 @@ unsigned int gdlm_lock(lm_lock_t *lock, unsigned int cur_state,
 	return gdlm_do_lock(lp);
 }
 
-unsigned int gdlm_unlock(lm_lock_t *lock, unsigned int cur_state)
+unsigned int gdlm_unlock(void *lock, unsigned int cur_state)
 {
-	struct gdlm_lock *lp = (struct gdlm_lock *) lock;
+	struct gdlm_lock *lp = lock;
 
 	clear_bit(LFL_DLM_CANCEL, &lp->flags);
 	if (lp->cur == DLM_LOCK_IV)
@@ -331,9 +331,9 @@ unsigned int gdlm_unlock(lm_lock_t *lock, unsigned int cur_state)
 	return gdlm_do_unlock(lp);
 }
 
-void gdlm_cancel(lm_lock_t *lock)
+void gdlm_cancel(void *lock)
 {
-	struct gdlm_lock *lp = (struct gdlm_lock *) lock;
+	struct gdlm_lock *lp = lock;
 	struct gdlm_ls *ls = lp->ls;
 	int error, delay_list = 0;
 
@@ -464,9 +464,9 @@ static void unhold_null_lock(struct gdlm_lock *lp)
    intact on the resource while the lvb is "held" even if it's holding no locks
    on the resource. */
 
-int gdlm_hold_lvb(lm_lock_t *lock, char **lvbp)
+int gdlm_hold_lvb(void *lock, char **lvbp)
 {
-	struct gdlm_lock *lp = (struct gdlm_lock *) lock;
+	struct gdlm_lock *lp = lock;
 	int error;
 
 	error = gdlm_add_lvb(lp);
@@ -482,9 +482,9 @@ int gdlm_hold_lvb(lm_lock_t *lock, char **lvbp)
 	return error;
 }
 
-void gdlm_unhold_lvb(lm_lock_t *lock, char *lvb)
+void gdlm_unhold_lvb(void *lock, char *lvb)
 {
-	struct gdlm_lock *lp = (struct gdlm_lock *) lock;
+	struct gdlm_lock *lp = lock;
 
 	unhold_null_lock(lp);
 	gdlm_del_lvb(lp);

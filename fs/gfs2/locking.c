@@ -21,7 +21,7 @@
 
 struct lmh_wrapper {
 	struct list_head lw_list;
-	struct lm_lockops *lw_ops;
+	const struct lm_lockops *lw_ops;
 };
 
 /* List of registered low-level locking protocols.  A file system selects one
@@ -37,7 +37,7 @@ static DEFINE_MUTEX(lmh_lock);
  * Returns: 0 on success, -EXXX on failure
  */
 
-int gfs2_register_lockproto(struct lm_lockops *proto)
+int gfs2_register_lockproto(const struct lm_lockops *proto)
 {
 	struct lmh_wrapper *lw;
 
@@ -72,7 +72,7 @@ int gfs2_register_lockproto(struct lm_lockops *proto)
  *
  */
 
-void gfs2_unregister_lockproto(struct lm_lockops *proto)
+void gfs2_unregister_lockproto(const struct lm_lockops *proto)
 {
 	struct lmh_wrapper *lw;
 
@@ -108,7 +108,7 @@ void gfs2_unregister_lockproto(struct lm_lockops *proto)
  */
 
 int gfs2_mount_lockproto(char *proto_name, char *table_name, char *host_data,
-			 lm_callback_t cb, struct gfs2_sbd *sdp,
+			 lm_callback_t cb, void *cb_data,
 			 unsigned int min_lvb_size, int flags,
 			 struct lm_lockstruct *lockstruct,
 			 struct kobject *fskobj)
@@ -147,7 +147,7 @@ retry:
 		goto retry;
 	}
 
-	error = lw->lw_ops->lm_mount(table_name, host_data, cb, sdp,
+	error = lw->lw_ops->lm_mount(table_name, host_data, cb, cb_data,
 				     min_lvb_size, flags, lockstruct, fskobj);
 	if (error)
 		module_put(lw->lw_ops->lm_owner);

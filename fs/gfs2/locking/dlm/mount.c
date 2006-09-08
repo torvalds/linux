@@ -11,7 +11,7 @@
 
 int gdlm_drop_count;
 int gdlm_drop_period;
-struct lm_lockops gdlm_ops;
+const struct lm_lockops gdlm_ops;
 
 
 static struct gdlm_ls *init_gdlm(lm_callback_t cb, struct gfs2_sbd *sdp,
@@ -120,7 +120,7 @@ static int make_args(struct gdlm_ls *ls, char *data_arg, int *nodir)
 }
 
 static int gdlm_mount(char *table_name, char *host_data,
-			lm_callback_t cb, struct gfs2_sbd *sdp,
+			lm_callback_t cb, void *cb_data,
 			unsigned int min_lvb_size, int flags,
 			struct lm_lockstruct *lockstruct,
 			struct kobject *fskobj)
@@ -131,7 +131,7 @@ static int gdlm_mount(char *table_name, char *host_data,
 	if (min_lvb_size > GDLM_LVB_SIZE)
 		goto out;
 
-	ls = init_gdlm(cb, sdp, flags, table_name);
+	ls = init_gdlm(cb, cb_data, flags, table_name);
 	if (!ls)
 		goto out;
 
@@ -174,9 +174,9 @@ out:
 	return error;
 }
 
-static void gdlm_unmount(lm_lockspace_t *lockspace)
+static void gdlm_unmount(void *lockspace)
 {
-	struct gdlm_ls *ls = (struct gdlm_ls *) lockspace;
+	struct gdlm_ls *ls = lockspace;
 	int rv;
 
 	log_debug("unmount flags %lx", ls->flags);
@@ -198,18 +198,18 @@ out:
 	kfree(ls);
 }
 
-static void gdlm_recovery_done(lm_lockspace_t *lockspace, unsigned int jid,
+static void gdlm_recovery_done(void *lockspace, unsigned int jid,
                                unsigned int message)
 {
-	struct gdlm_ls *ls = (struct gdlm_ls *) lockspace;
+	struct gdlm_ls *ls = lockspace;
 	ls->recover_jid_done = jid;
 	ls->recover_jid_status = message;
 	kobject_uevent(&ls->kobj, KOBJ_CHANGE);
 }
 
-static void gdlm_others_may_mount(lm_lockspace_t *lockspace)
+static void gdlm_others_may_mount(void *lockspace)
 {
-	struct gdlm_ls *ls = (struct gdlm_ls *) lockspace;
+	struct gdlm_ls *ls = lockspace;
 	ls->first_done = 1;
 	kobject_uevent(&ls->kobj, KOBJ_CHANGE);
 }
@@ -218,9 +218,9 @@ static void gdlm_others_may_mount(lm_lockspace_t *lockspace)
    other mounters, and lets us know (sets WITHDRAW flag).  Then,
    userspace leaves the mount group while we leave the lockspace. */
 
-static void gdlm_withdraw(lm_lockspace_t *lockspace)
+static void gdlm_withdraw(void *lockspace)
 {
-	struct gdlm_ls *ls = (struct gdlm_ls *) lockspace;
+	struct gdlm_ls *ls = lockspace;
 
 	kobject_uevent(&ls->kobj, KOBJ_OFFLINE);
 
@@ -233,7 +233,7 @@ static void gdlm_withdraw(lm_lockspace_t *lockspace)
 	gdlm_kobject_release(ls);
 }
 
-struct lm_lockops gdlm_ops = {
+const struct lm_lockops gdlm_ops = {
 	.lm_proto_name = "lock_dlm",
 	.lm_mount = gdlm_mount,
 	.lm_others_may_mount = gdlm_others_may_mount,

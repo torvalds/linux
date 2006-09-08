@@ -21,10 +21,10 @@ struct nolock_lockspace {
 	unsigned int nl_lvb_size;
 };
 
-static struct lm_lockops nolock_ops;
+static const struct lm_lockops nolock_ops;
 
 static int nolock_mount(char *table_name, char *host_data,
-			lm_callback_t cb, struct gfs2_sbd *sdp,
+			lm_callback_t cb, void *cb_data,
 			unsigned int min_lvb_size, int flags,
 			struct lm_lockstruct *lockstruct,
 			struct kobject *fskobj)
@@ -50,24 +50,24 @@ static int nolock_mount(char *table_name, char *host_data,
 	lockstruct->ls_jid = jid;
 	lockstruct->ls_first = 1;
 	lockstruct->ls_lvb_size = min_lvb_size;
-	lockstruct->ls_lockspace = (lm_lockspace_t *)nl;
+	lockstruct->ls_lockspace = nl;
 	lockstruct->ls_ops = &nolock_ops;
 	lockstruct->ls_flags = LM_LSFLAG_LOCAL;
 
 	return 0;
 }
 
-static void nolock_others_may_mount(lm_lockspace_t *lockspace)
+static void nolock_others_may_mount(void *lockspace)
 {
 }
 
-static void nolock_unmount(lm_lockspace_t *lockspace)
+static void nolock_unmount(void *lockspace)
 {
-	struct nolock_lockspace *nl = (struct nolock_lockspace *)lockspace;
+	struct nolock_lockspace *nl = lockspace;
 	kfree(nl);
 }
 
-static void nolock_withdraw(lm_lockspace_t *lockspace)
+static void nolock_withdraw(void *lockspace)
 {
 }
 
@@ -80,10 +80,10 @@ static void nolock_withdraw(lm_lockspace_t *lockspace)
  * Returns: 0 on success, -EXXX on failure
  */
 
-static int nolock_get_lock(lm_lockspace_t *lockspace, struct lm_lockname *name,
-			   lm_lock_t **lockp)
+static int nolock_get_lock(void *lockspace, struct lm_lockname *name,
+			   void **lockp)
 {
-	*lockp = (lm_lock_t *)lockspace;
+	*lockp = lockspace;
 	return 0;
 }
 
@@ -93,7 +93,7 @@ static int nolock_get_lock(lm_lockspace_t *lockspace, struct lm_lockname *name,
  *
  */
 
-static void nolock_put_lock(lm_lock_t *lock)
+static void nolock_put_lock(void *lock)
 {
 }
 
@@ -107,7 +107,7 @@ static void nolock_put_lock(lm_lock_t *lock)
  * Returns: A bitmap of LM_OUT_*
  */
 
-static unsigned int nolock_lock(lm_lock_t *lock, unsigned int cur_state,
+static unsigned int nolock_lock(void *lock, unsigned int cur_state,
 				unsigned int req_state, unsigned int flags)
 {
 	return req_state | LM_OUT_CACHEABLE;
@@ -121,12 +121,12 @@ static unsigned int nolock_lock(lm_lock_t *lock, unsigned int cur_state,
  * Returns: 0
  */
 
-static unsigned int nolock_unlock(lm_lock_t *lock, unsigned int cur_state)
+static unsigned int nolock_unlock(void *lock, unsigned int cur_state)
 {
 	return 0;
 }
 
-static void nolock_cancel(lm_lock_t *lock)
+static void nolock_cancel(void *lock)
 {
 }
 
@@ -138,9 +138,9 @@ static void nolock_cancel(lm_lock_t *lock)
  * Returns: 0 on success, -EXXX on failure
  */
 
-static int nolock_hold_lvb(lm_lock_t *lock, char **lvbp)
+static int nolock_hold_lvb(void *lock, char **lvbp)
 {
-	struct nolock_lockspace *nl = (struct nolock_lockspace *)lock;
+	struct nolock_lockspace *nl = lock;
 	int error = 0;
 
 	*lvbp = kzalloc(nl->nl_lvb_size, GFP_KERNEL);
@@ -157,12 +157,12 @@ static int nolock_hold_lvb(lm_lock_t *lock, char **lvbp)
  *
  */
 
-static void nolock_unhold_lvb(lm_lock_t *lock, char *lvb)
+static void nolock_unhold_lvb(void *lock, char *lvb)
 {
 	kfree(lvb);
 }
 
-static int nolock_plock_get(lm_lockspace_t *lockspace, struct lm_lockname *name,
+static int nolock_plock_get(void *lockspace, struct lm_lockname *name,
 			    struct file *file, struct file_lock *fl)
 {
 	struct file_lock tmp;
@@ -176,7 +176,7 @@ static int nolock_plock_get(lm_lockspace_t *lockspace, struct lm_lockname *name,
 	return 0;
 }
 
-static int nolock_plock(lm_lockspace_t *lockspace, struct lm_lockname *name,
+static int nolock_plock(void *lockspace, struct lm_lockname *name,
 			struct file *file, int cmd, struct file_lock *fl)
 {
 	int error;
@@ -184,7 +184,7 @@ static int nolock_plock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 	return error;
 }
 
-static int nolock_punlock(lm_lockspace_t *lockspace, struct lm_lockname *name,
+static int nolock_punlock(void *lockspace, struct lm_lockname *name,
 			  struct file *file, struct file_lock *fl)
 {
 	int error;
@@ -192,12 +192,12 @@ static int nolock_punlock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 	return error;
 }
 
-static void nolock_recovery_done(lm_lockspace_t *lockspace, unsigned int jid,
+static void nolock_recovery_done(void *lockspace, unsigned int jid,
 				 unsigned int message)
 {
 }
 
-static struct lm_lockops nolock_ops = {
+static const struct lm_lockops nolock_ops = {
 	.lm_proto_name = "lock_nolock",
 	.lm_mount = nolock_mount,
 	.lm_others_may_mount = nolock_others_may_mount,

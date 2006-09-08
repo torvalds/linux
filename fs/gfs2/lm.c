@@ -122,7 +122,7 @@ int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...)
 }
 
 int gfs2_lm_get_lock(struct gfs2_sbd *sdp, struct lm_lockname *name,
-		     lm_lock_t **lockp)
+		     void **lockp)
 {
 	int error = -EIO;
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
@@ -131,13 +131,13 @@ int gfs2_lm_get_lock(struct gfs2_sbd *sdp, struct lm_lockname *name,
 	return error;
 }
 
-void gfs2_lm_put_lock(struct gfs2_sbd *sdp, lm_lock_t *lock)
+void gfs2_lm_put_lock(struct gfs2_sbd *sdp, void *lock)
 {
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		sdp->sd_lockstruct.ls_ops->lm_put_lock(lock);
 }
 
-unsigned int gfs2_lm_lock(struct gfs2_sbd *sdp, lm_lock_t *lock,
+unsigned int gfs2_lm_lock(struct gfs2_sbd *sdp, void *lock,
 			  unsigned int cur_state, unsigned int req_state,
 			  unsigned int flags)
 {
@@ -148,7 +148,7 @@ unsigned int gfs2_lm_lock(struct gfs2_sbd *sdp, lm_lock_t *lock,
 	return ret;
 }
 
-unsigned int gfs2_lm_unlock(struct gfs2_sbd *sdp, lm_lock_t *lock,
+unsigned int gfs2_lm_unlock(struct gfs2_sbd *sdp, void *lock,
 			    unsigned int cur_state)
 {
 	int ret = 0;
@@ -157,13 +157,13 @@ unsigned int gfs2_lm_unlock(struct gfs2_sbd *sdp, lm_lock_t *lock,
 	return ret;
 }
 
-void gfs2_lm_cancel(struct gfs2_sbd *sdp, lm_lock_t *lock)
+void gfs2_lm_cancel(struct gfs2_sbd *sdp, void *lock)
 {
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		sdp->sd_lockstruct.ls_ops->lm_cancel(lock);
 }
 
-int gfs2_lm_hold_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char **lvbp)
+int gfs2_lm_hold_lvb(struct gfs2_sbd *sdp, void *lock, char **lvbp)
 {
 	int error = -EIO;
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
@@ -171,7 +171,7 @@ int gfs2_lm_hold_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char **lvbp)
 	return error;
 }
 
-void gfs2_lm_unhold_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char *lvb)
+void gfs2_lm_unhold_lvb(struct gfs2_sbd *sdp, void *lock, char *lvb)
 {
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		sdp->sd_lockstruct.ls_ops->lm_unhold_lvb(lock, lvb);

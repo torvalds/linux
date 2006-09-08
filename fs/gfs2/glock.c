@@ -1713,8 +1713,9 @@ static void blocking_cb(struct gfs2_sbd *sdp, struct lm_lockname *name,
  * a journal from another client needs to be recovered.
  */
 
-void gfs2_glock_cb(struct gfs2_sbd *sdp, unsigned int type, void *data)
+void gfs2_glock_cb(void *cb_data, unsigned int type, void *data)
 {
+	struct gfs2_sbd *sdp = cb_data;
 
 	switch (type) {
 	case LM_CB_NEED_E:

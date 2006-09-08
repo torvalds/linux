@@ -20,16 +20,16 @@ void gfs2_lm_unmount(struct gfs2_sbd *sdp);
 int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...)
 				__attribute__ ((format(printf, 2, 3)));
 int gfs2_lm_get_lock(struct gfs2_sbd *sdp, struct lm_lockname *name,
-		     lm_lock_t **lockp);
-void gfs2_lm_put_lock(struct gfs2_sbd *sdp, lm_lock_t *lock);
-unsigned int gfs2_lm_lock(struct gfs2_sbd *sdp, lm_lock_t *lock,
+		     void **lockp);
+void gfs2_lm_put_lock(struct gfs2_sbd *sdp, void *lock);
+unsigned int gfs2_lm_lock(struct gfs2_sbd *sdp, void *lock,
 			 unsigned int cur_state, unsigned int req_state,
 			 unsigned int flags);
-unsigned int gfs2_lm_unlock(struct gfs2_sbd *sdp, lm_lock_t *lock,
+unsigned int gfs2_lm_unlock(struct gfs2_sbd *sdp, void *lock,
 			   unsigned int cur_state);
-void gfs2_lm_cancel(struct gfs2_sbd *sdp, lm_lock_t *lock);
-int gfs2_lm_hold_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char **lvbp);
-void gfs2_lm_unhold_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char *lvb);
+void gfs2_lm_cancel(struct gfs2_sbd *sdp, void *lock);
+int gfs2_lm_hold_lvb(struct gfs2_sbd *sdp, void *lock, char **lvbp);
+void gfs2_lm_unhold_lvb(struct gfs2_sbd *sdp, void *lock, char *lvb);
 int gfs2_lm_plock_get(struct gfs2_sbd *sdp, struct lm_lockname *name,
 		      struct file *file, struct file_lock *fl);
 int gfs2_lm_plock(struct gfs2_sbd *sdp, struct lm_lockname *name,

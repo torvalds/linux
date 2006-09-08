@@ -187,7 +187,7 @@ struct gfs2_glock {
 	struct gfs2_holder *gl_req_gh;
 	gfs2_glop_bh_t gl_req_bh;
 
-	lm_lock_t *gl_lock;
+	void *gl_lock;
 	char *gl_lvb;
 	atomic_t gl_lvb_count;
 

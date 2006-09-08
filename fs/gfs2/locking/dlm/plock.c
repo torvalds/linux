@@ -58,10 +58,10 @@ static void send_op(struct plock_op *op)
 	wake_up(&send_wq);
 }
 
-int gdlm_plock(lm_lockspace_t *lockspace, struct lm_lockname *name,
+int gdlm_plock(void *lockspace, struct lm_lockname *name,
 	       struct file *file, int cmd, struct file_lock *fl)
 {
-	struct gdlm_ls *ls = (struct gdlm_ls *) lockspace;
+	struct gdlm_ls *ls = lockspace;
 	struct plock_op *op;
 	int rv;
 
@@ -102,10 +102,10 @@ int gdlm_plock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 	return rv;
 }
 
-int gdlm_punlock(lm_lockspace_t *lockspace, struct lm_lockname *name,
+int gdlm_punlock(void *lockspace, struct lm_lockname *name,
 		 struct file *file, struct file_lock *fl)
 {
-	struct gdlm_ls *ls = (struct gdlm_ls *) lockspace;
+	struct gdlm_ls *ls = lockspace;
 	struct plock_op *op;
 	int rv;
 
@@ -141,10 +141,10 @@ int gdlm_punlock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 	return rv;
 }
 
-int gdlm_plock_get(lm_lockspace_t *lockspace, struct lm_lockname *name,
+int gdlm_plock_get(void *lockspace, struct lm_lockname *name,
 		   struct file *file, struct file_lock *fl)
 {
-	struct gdlm_ls *ls = (struct gdlm_ls *) lockspace;
+	struct gdlm_ls *ls = lockspace;
 	struct plock_op *op;
 	int rv;
 
@@ -231,8 +231,7 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 
 	spin_lock(&ops_lock);
 	list_for_each_entry(op, &recv_list, list) {
-		if (op->info.fsid == info.fsid &&
-		    op->info.number == info.number &&
+		if (op->info.fsid == info.fsid && op->info.number == info.number &&
 		    op->info.owner == info.owner) {
 			list_del_init(&op->list);
 			found = 1;

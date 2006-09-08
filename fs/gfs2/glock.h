@@ -140,7 +140,7 @@ static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
 int gfs2_lvb_hold(struct gfs2_glock *gl);
 void gfs2_lvb_unhold(struct gfs2_glock *gl);
 
-void gfs2_glock_cb(struct gfs2_sbd *sdp, unsigned int type, void *data);
+void gfs2_glock_cb(void *cb_data, unsigned int type, void *data);
 
 void gfs2_iopen_go_callback(struct gfs2_glock *gl, unsigned int state);
 

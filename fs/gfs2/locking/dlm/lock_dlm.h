@@ -112,7 +112,7 @@ struct gdlm_lock {
 	s16			cur;
 	s16			req;
 	s16			prev_req;
-	u32		lkf;		/* dlm flags DLM_LKF_ */
+	u32			lkf;		/* dlm flags DLM_LKF_ */
 	unsigned long		flags;		/* lock_dlm flags LFL_ */
 
 	int			bast_mode;	/* protected by async_lock */
@@ -165,23 +165,23 @@ int gdlm_release_all_locks(struct gdlm_ls *);
 void gdlm_delete_lp(struct gdlm_lock *);
 unsigned int gdlm_do_lock(struct gdlm_lock *);
 
-int gdlm_get_lock(lm_lockspace_t *, struct lm_lockname *, lm_lock_t **);
-void gdlm_put_lock(lm_lock_t *);
-unsigned int gdlm_lock(lm_lock_t *, unsigned int, unsigned int, unsigned int);
-unsigned int gdlm_unlock(lm_lock_t *, unsigned int);
-void gdlm_cancel(lm_lock_t *);
-int gdlm_hold_lvb(lm_lock_t *, char **);
-void gdlm_unhold_lvb(lm_lock_t *, char *);
+int gdlm_get_lock(void *, struct lm_lockname *, void **);
+void gdlm_put_lock(void *);
+unsigned int gdlm_lock(void *, unsigned int, unsigned int, unsigned int);
+unsigned int gdlm_unlock(void *, unsigned int);
+void gdlm_cancel(void *);
+int gdlm_hold_lvb(void *, char **);
+void gdlm_unhold_lvb(void *, char *);
 
 /* plock.c */
 
 int gdlm_plock_init(void);
 void gdlm_plock_exit(void);
-int gdlm_plock(lm_lockspace_t *, struct lm_lockname *, struct file *, int,
+int gdlm_plock(void *, struct lm_lockname *, struct file *, int,
 		struct file_lock *);
-int gdlm_plock_get(lm_lockspace_t *, struct lm_lockname *, struct file *,
+int gdlm_plock_get(void *, struct lm_lockname *, struct file *,
 		struct file_lock *);
-int gdlm_punlock(lm_lockspace_t *, struct lm_lockname *, struct file *,
+int gdlm_punlock(void *, struct lm_lockname *, struct file *,
 		struct file_lock *);
 #endif
 
