@@ -414,7 +414,7 @@ void ocfs2_dentry_move(struct dentry *dentry, struct dentry *target,
 	 * XXX: Is there any advantage to dropping the lock here?
 	 */
 	if (old_dir == new_dir)
-		return;
+		goto out_move;
 
 	ocfs2_dentry_lock_put(osb, dentry->d_fsdata);
 
@@ -423,6 +423,9 @@ void ocfs2_dentry_move(struct dentry *dentry, struct dentry *target,
 				       OCFS2_I(new_dir)->ip_blkno, 0);
 	if (ret)
 		mlog_errno(ret);
+
+out_move:
+	d_move(dentry, target);
 }
 
 struct dentry_operations ocfs2_dentry_ops = {
