@@ -102,10 +102,10 @@ static inline void user_recover_from_dlm_error(struct user_lock_res *lockres)
 	spin_unlock(&lockres->l_lock);
 }
 
-#define user_log_dlm_error(_func, _stat, _lockres) do {		\
-	mlog(ML_ERROR, "Dlm error \"%s\" while calling %s on "	\
-		"resource %s: %s\n", dlm_errname(_stat), _func,	\
-		_lockres->l_name, dlm_errmsg(_stat));		\
+#define user_log_dlm_error(_func, _stat, _lockres) do {			\
+	mlog(ML_ERROR, "Dlm error \"%s\" while calling %s on "		\
+		"resource %.*s: %s\n", dlm_errname(_stat), _func,	\
+		_lockres->l_namelen, _lockres->l_name, dlm_errmsg(_stat)); \
 } while (0)
 
 /* WARNING: This function lives in a world where the only three lock
@@ -127,21 +127,22 @@ static void user_ast(void *opaque)
 	struct user_lock_res *lockres = opaque;
 	struct dlm_lockstatus *lksb;
 
-	mlog(0, "AST fired for lockres %s\n", lockres->l_name);
+	mlog(0, "AST fired for lockres %.*s\n", lockres->l_namelen,
+	     lockres->l_name);
 
 	spin_lock(&lockres->l_lock);
 
 	lksb = &(lockres->l_lksb);
 	if (lksb->status != DLM_NORMAL) {
-		mlog(ML_ERROR, "lksb status value of %u on lockres %s\n",
-		     lksb->status, lockres->l_name);
+		mlog(ML_ERROR, "lksb status value of %u on lockres %.*s\n",
+		     lksb->status, lockres->l_namelen, lockres->l_name);
 		spin_unlock(&lockres->l_lock);
 		return;
 	}
 
 	mlog_bug_on_msg(lockres->l_requested == LKM_IVMODE,
-			"Lockres %s, requested ivmode. flags 0x%x\n",
-			lockres->l_name, lockres->l_flags);
+			"Lockres %.*s, requested ivmode. flags 0x%x\n",
+			lockres->l_namelen, lockres->l_name, lockres->l_flags);
 
 	/* we're downconverting. */
 	if (lockres->l_requested < lockres->l_level) {
@@ -213,8 +214,8 @@ static void user_bast(void *opaque, int level)
 {
 	struct user_lock_res *lockres = opaque;
 
-	mlog(0, "Blocking AST fired for lockres %s. Blocking level %d\n",
-		lockres->l_name, level);
+	mlog(0, "Blocking AST fired for lockres %.*s. Blocking level %d\n",
+	     lockres->l_namelen, lockres->l_name, level);
 
 	spin_lock(&lockres->l_lock);
 	lockres->l_flags |= USER_LOCK_BLOCKED;
@@ -231,7 +232,8 @@ static void user_unlock_ast(void *opaque, enum dlm_status status)
 {
 	struct user_lock_res *lockres = opaque;
 
-	mlog(0, "UNLOCK AST called on lock %s\n", lockres->l_name);
+	mlog(0, "UNLOCK AST called on lock %.*s\n", lockres->l_namelen,
+	     lockres->l_name);
 
 	if (status != DLM_NORMAL && status != DLM_CANCELGRANT)
 		mlog(ML_ERROR, "Dlm returns status %d\n", status);
@@ -244,8 +246,6 @@ static void user_unlock_ast(void *opaque, enum dlm_status status)
 	    && !(lockres->l_flags & USER_LOCK_IN_CANCEL)) {
 		lockres->l_level = LKM_IVMODE;
 	} else if (status == DLM_CANCELGRANT) {
-		mlog(0, "Lock %s, cancel fails, flags 0x%x\n",
-		     lockres->l_name, lockres->l_flags);
 		/* We tried to cancel a convert request, but it was
 		 * already granted. Don't clear the busy flag - the
 		 * ast should've done this already. */
@@ -255,8 +255,6 @@ static void user_unlock_ast(void *opaque, enum dlm_status status)
 	} else {
 		BUG_ON(!(lockres->l_flags & USER_LOCK_IN_CANCEL));
 		/* Cancel succeeded, we want to re-queue */
-		mlog(0, "Lock %s, cancel succeeds, flags 0x%x\n",
-		     lockres->l_name, lockres->l_flags);
 		lockres->l_requested = LKM_IVMODE; /* cancel an
 						    * upconvert
 						    * request. */
@@ -287,13 +285,14 @@ static void user_dlm_unblock_lock(void *opaque)
 	struct user_lock_res *lockres = (struct user_lock_res *) opaque;
 	struct dlm_ctxt *dlm = dlm_ctxt_from_user_lockres(lockres);
 
-	mlog(0, "processing lockres %s\n", lockres->l_name);
+	mlog(0, "processing lockres %.*s\n", lockres->l_namelen,
+	     lockres->l_name);
 
 	spin_lock(&lockres->l_lock);
 
 	mlog_bug_on_msg(!(lockres->l_flags & USER_LOCK_QUEUED),
-			"Lockres %s, flags 0x%x\n",
-			lockres->l_name, lockres->l_flags);
+			"Lockres %.*s, flags 0x%x\n",
+			lockres->l_namelen, lockres->l_name, lockres->l_flags);
 
 	/* notice that we don't clear USER_LOCK_BLOCKED here. If it's
 	 * set, we want user_ast clear it. */
@@ -305,22 +304,16 @@ static void user_dlm_unblock_lock(void *opaque)
 	 * flag, and finally we might get another bast which re-queues
 	 * us before our ast for the downconvert is called. */
 	if (!(lockres->l_flags & USER_LOCK_BLOCKED)) {
-		mlog(0, "Lockres %s, flags 0x%x: queued but not blocking\n",
-			lockres->l_name, lockres->l_flags);
 		spin_unlock(&lockres->l_lock);
 		goto drop_ref;
 	}
 
 	if (lockres->l_flags & USER_LOCK_IN_TEARDOWN) {
-		mlog(0, "lock is in teardown so we do nothing\n");
 		spin_unlock(&lockres->l_lock);
 		goto drop_ref;
 	}
 
 	if (lockres->l_flags & USER_LOCK_BUSY) {
-		mlog(0, "Cancel lock %s, flags 0x%x\n",
-		     lockres->l_name, lockres->l_flags);
-
 		if (lockres->l_flags & USER_LOCK_IN_CANCEL) {
 			spin_unlock(&lockres->l_lock);
 			goto drop_ref;
@@ -372,6 +365,7 @@ static void user_dlm_unblock_lock(void *opaque)
 			 &lockres->l_lksb,
 			 LKM_CONVERT|LKM_VALBLK,
 			 lockres->l_name,
+			 lockres->l_namelen,
 			 user_ast,
 			 lockres,
 			 user_bast);
@@ -420,16 +414,16 @@ int user_dlm_cluster_lock(struct user_lock_res *lockres,
 
 	if (level != LKM_EXMODE &&
 	    level != LKM_PRMODE) {
-		mlog(ML_ERROR, "lockres %s: invalid request!\n",
-		     lockres->l_name);
+		mlog(ML_ERROR, "lockres %.*s: invalid request!\n",
+		     lockres->l_namelen, lockres->l_name);
 		status = -EINVAL;
 		goto bail;
 	}
 
-	mlog(0, "lockres %s: asking for %s lock, passed flags = 0x%x\n",
-		lockres->l_name,
-		(level == LKM_EXMODE) ? "LKM_EXMODE" : "LKM_PRMODE",
-		lkm_flags);
+	mlog(0, "lockres %.*s: asking for %s lock, passed flags = 0x%x\n",
+	     lockres->l_namelen, lockres->l_name,
+	     (level == LKM_EXMODE) ? "LKM_EXMODE" : "LKM_PRMODE",
+	     lkm_flags);
 
 again:
 	if (signal_pending(current)) {
@@ -474,15 +468,13 @@ again:
 		BUG_ON(level == LKM_IVMODE);
 		BUG_ON(level == LKM_NLMODE);
 
-		mlog(0, "lock %s, get lock from %d to level = %d\n",
-			lockres->l_name, lockres->l_level, level);
-
 		/* call dlm_lock to upgrade lock now */
 		status = dlmlock(dlm,
 				 level,
 				 &lockres->l_lksb,
 				 local_flags,
 				 lockres->l_name,
+				 lockres->l_namelen,
 				 user_ast,
 				 lockres,
 				 user_bast);
@@ -498,18 +490,12 @@ again:
 			goto bail;
 		}
 
-		mlog(0, "lock %s, successfull return from dlmlock\n",
-			lockres->l_name);
-
 		user_wait_on_busy_lock(lockres);
 		goto again;
 	}
 
 	user_dlm_inc_holders(lockres, level);
 	spin_unlock(&lockres->l_lock);
-
-	mlog(0, "lockres %s: Got %s lock!\n", lockres->l_name,
-		(level == LKM_EXMODE) ? "LKM_EXMODE" : "LKM_PRMODE");
 
 	status = 0;
 bail:
@@ -538,12 +524,10 @@ void user_dlm_cluster_unlock(struct user_lock_res *lockres,
 {
 	if (level != LKM_EXMODE &&
 	    level != LKM_PRMODE) {
-		mlog(ML_ERROR, "lockres %s: invalid request!\n", lockres->l_name);
+		mlog(ML_ERROR, "lockres %.*s: invalid request!\n",
+		     lockres->l_namelen, lockres->l_name);
 		return;
 	}
-
-	mlog(0, "lockres %s: dropping %s lock\n", lockres->l_name,
-		(level == LKM_EXMODE) ? "LKM_EXMODE" : "LKM_PRMODE");
 
 	spin_lock(&lockres->l_lock);
 	user_dlm_dec_holders(lockres, level);
@@ -602,6 +586,7 @@ void user_dlm_lock_res_init(struct user_lock_res *lockres,
 	memcpy(lockres->l_name,
 	       dentry->d_name.name,
 	       dentry->d_name.len);
+	lockres->l_namelen = dentry->d_name.len;
 }
 
 int user_dlm_destroy_lock(struct user_lock_res *lockres)
@@ -609,11 +594,10 @@ int user_dlm_destroy_lock(struct user_lock_res *lockres)
 	int status = -EBUSY;
 	struct dlm_ctxt *dlm = dlm_ctxt_from_user_lockres(lockres);
 
-	mlog(0, "asked to destroy %s\n", lockres->l_name);
+	mlog(0, "asked to destroy %.*s\n", lockres->l_namelen, lockres->l_name);
 
 	spin_lock(&lockres->l_lock);
 	if (lockres->l_flags & USER_LOCK_IN_TEARDOWN) {
-		mlog(0, "Lock is already torn down\n");
 		spin_unlock(&lockres->l_lock);
 		return 0;
 	}
@@ -623,8 +607,6 @@ int user_dlm_destroy_lock(struct user_lock_res *lockres)
 	while (lockres->l_flags & USER_LOCK_BUSY) {
 		spin_unlock(&lockres->l_lock);
 
-		mlog(0, "lock %s is busy\n", lockres->l_name);
-
 		user_wait_on_busy_lock(lockres);
 
 		spin_lock(&lockres->l_lock);
@@ -632,14 +614,12 @@ int user_dlm_destroy_lock(struct user_lock_res *lockres)
 
 	if (lockres->l_ro_holders || lockres->l_ex_holders) {
 		spin_unlock(&lockres->l_lock);
-		mlog(0, "lock %s has holders\n", lockres->l_name);
 		goto bail;
 	}
 
 	status = 0;
 	if (!(lockres->l_flags & USER_LOCK_ATTACHED)) {
 		spin_unlock(&lockres->l_lock);
-		mlog(0, "lock %s is not attached\n", lockres->l_name);
 		goto bail;
 	}
 
@@ -647,7 +627,6 @@ int user_dlm_destroy_lock(struct user_lock_res *lockres)
 	lockres->l_flags |= USER_LOCK_BUSY;
 	spin_unlock(&lockres->l_lock);
 
-	mlog(0, "unlocking lockres %s\n", lockres->l_name);
 	status = dlmunlock(dlm,
 			   &lockres->l_lksb,
 			   LKM_VALBLK,
