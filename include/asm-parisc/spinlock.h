@@ -57,35 +57,42 @@ static inline int __raw_spin_trylock(raw_spinlock_t *x)
 
 /*
  * Read-write spinlocks, allowing multiple readers but only one writer.
- * The spinlock is held by the writer, preventing any readers or other
- * writers from grabbing the rwlock.  Readers use the lock to serialise their
- * access to the counter (which records how many readers currently hold the
- * lock).  Linux rwlocks are unfair to writers; they can be starved for
- * an indefinite time by readers.  They can also be taken in interrupt context,
- * so we have to disable interrupts when acquiring the spin lock to be sure
- * that an interrupting reader doesn't get an inconsistent view of the lock.
+ * Linux rwlocks are unfair to writers; they can be starved for an indefinite
+ * time by readers.  With care, they can also be taken in interrupt context.
+ *
+ * In the PA-RISC implementation, we have a spinlock and a counter.
+ * Readers use the lock to serialise their access to the counter (which
+ * records how many readers currently hold the lock).
+ * Writers hold the spinlock, preventing any readers or other writers from
+ * grabbing the rwlock.
  */
 
+/* Note that we have to ensure interrupts are disabled in case we're
+ * interrupted by some other code that wants to grab the same read lock */
 static  __inline__ void __raw_read_lock(raw_rwlock_t *rw)
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	__raw_spin_lock(&rw->lock);
+	__raw_spin_lock_flags(&rw->lock, flags);
 	rw->counter++;
 	__raw_spin_unlock(&rw->lock);
 	local_irq_restore(flags);
 }
 
+/* Note that we have to ensure interrupts are disabled in case we're
+ * interrupted by some other code that wants to grab the same read lock */
 static  __inline__ void __raw_read_unlock(raw_rwlock_t *rw)
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	__raw_spin_lock(&rw->lock);
+	__raw_spin_lock_flags(&rw->lock, flags);
 	rw->counter--;
 	__raw_spin_unlock(&rw->lock);
 	local_irq_restore(flags);
 }
 
+/* Note that we have to ensure interrupts are disabled in case we're
+ * interrupted by some other code that wants to grab the same read lock */
 static __inline__ int __raw_read_trylock(raw_rwlock_t *rw)
 {
 	unsigned long flags;
@@ -110,12 +117,14 @@ static __inline__ int __raw_read_trylock(raw_rwlock_t *rw)
 	goto retry;
 }
 
+/* Note that we have to ensure interrupts are disabled in case we're
+ * interrupted by some other code that wants to read_trylock() this lock */
 static __inline__ void __raw_write_lock(raw_rwlock_t *rw)
 {
 	unsigned long flags;
 retry:
 	local_irq_save(flags);
-	__raw_spin_lock(&rw->lock);
+	__raw_spin_lock_flags(&rw->lock, flags);
 
 	if (rw->counter != 0) {
 		__raw_spin_unlock(&rw->lock);
@@ -138,6 +147,8 @@ static __inline__ void __raw_write_unlock(raw_rwlock_t *rw)
 	__raw_spin_unlock(&rw->lock);
 }
 
+/* Note that we have to ensure interrupts are disabled in case we're
+ * interrupted by some other code that wants to read_trylock() this lock */
 static __inline__ int __raw_write_trylock(raw_rwlock_t *rw)
 {
 	unsigned long flags;
