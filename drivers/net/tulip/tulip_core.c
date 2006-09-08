@@ -1357,11 +1357,8 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	if (pci_request_regions (pdev, "tulip"))
 		goto err_out_free_netdev;
 
-#ifndef USE_IO_OPS
-	ioaddr =  pci_iomap(pdev, 1, tulip_tbl[chip_idx].io_size);
-#else
-	ioaddr =  pci_iomap(pdev, 0, tulip_tbl[chip_idx].io_size);
-#endif
+	ioaddr =  pci_iomap(pdev, TULIP_BAR, tulip_tbl[chip_idx].io_size);
+
 	if (!ioaddr)
 		goto err_out_free_res;
 

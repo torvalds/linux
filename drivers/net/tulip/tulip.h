@@ -30,11 +30,10 @@
 /* undefine, or define to various debugging levels (>4 == obscene levels) */
 #define TULIP_DEBUG 1
 
-/* undefine USE_IO_OPS for MMIO, define for PIO */
 #ifdef CONFIG_TULIP_MMIO
-# undef USE_IO_OPS
+#define TULIP_BAR	1	/* CBMA */
 #else
-# define USE_IO_OPS 1
+#define TULIP_BAR	0	/* CBIO */
 #endif
 
 
@@ -143,6 +142,7 @@ enum status_bits {
 	RxNoBuf = 0x80,
 	RxIntr = 0x40,
 	TxFIFOUnderflow = 0x20,
+	RxErrIntr = 0x10,
 	TxJabber = 0x08,
 	TxNoBuf = 0x04,
 	TxDied = 0x02,
@@ -193,9 +193,14 @@ struct tulip_tx_desc {
 
 
 enum desc_status_bits {
-	DescOwned = 0x80000000,
-	RxDescFatalErr = 0x8000,
-	RxWholePkt = 0x0300,
+	DescOwned    = 0x80000000,
+	DescWholePkt = 0x60000000,
+	DescEndPkt   = 0x40000000,
+	DescStartPkt = 0x20000000,
+	DescEndRing  = 0x02000000,
+	DescUseLink  = 0x01000000,
+	RxDescFatalErr = 0x008000,
+	RxWholePkt   = 0x00000300,
 };
 
 
