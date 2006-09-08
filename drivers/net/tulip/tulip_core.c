@@ -295,12 +295,14 @@ static void tulip_up(struct net_device *dev)
 
 	/* Reset the chip, holding bit 0 set at least 50 PCI cycles. */
 	iowrite32(0x00000001, ioaddr + CSR0);
+	pci_read_config_dword(tp->pdev, PCI_COMMAND, &i);  /* flush write */
 	udelay(100);
 
 	/* Deassert reset.
 	   Wait the specified 50 PCI cycles after a reset by initializing
 	   Tx and Rx queues and the address filter list. */
 	iowrite32(tp->csr0, ioaddr + CSR0);
+	pci_read_config_dword(tp->pdev, PCI_COMMAND, &i);  /* flush write */
 	udelay(100);
 
 	if (tulip_debug > 1)
