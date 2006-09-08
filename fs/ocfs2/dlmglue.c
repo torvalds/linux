@@ -810,6 +810,7 @@ static int ocfs2_lock_create(struct ocfs2_super *osb,
 			 &lockres->l_lksb,
 			 dlm_flags,
 			 lockres->l_name,
+			 OCFS2_LOCK_ID_MAX_LEN - 1,
 			 lockres->l_ops->ast,
 			 lockres,
 			 lockres->l_ops->bast);
@@ -999,6 +1000,7 @@ again:
 				 &lockres->l_lksb,
 				 lkm_flags|LKM_CONVERT|LKM_VALBLK,
 				 lockres->l_name,
+				 OCFS2_LOCK_ID_MAX_LEN - 1,
 				 lockres->l_ops->ast,
 				 lockres,
 				 lockres->l_ops->bast);
@@ -2419,6 +2421,7 @@ static int ocfs2_downconvert_lock(struct ocfs2_super *osb,
 			 &lockres->l_lksb,
 			 dlm_flags,
 			 lockres->l_name,
+			 OCFS2_LOCK_ID_MAX_LEN - 1,
 			 lockres->l_ops->ast,
 			 lockres,
 			 lockres->l_ops->bast);
