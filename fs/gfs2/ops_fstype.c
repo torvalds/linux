@@ -769,7 +769,7 @@ fail_lm:
 fail_sys:
 	gfs2_sys_fs_del(sdp);
 fail:
-	vfree(sdp);
+	kfree(sdp);
 	sb->s_fs_info = NULL;
 	return error;
 }
