@@ -88,6 +88,8 @@ config XMON
 	  very early during boot. 'xmon=on' will just enable the xmon
 	  debugger hooks.  'xmon=off' will disable the debugger hooks
 	  if CONFIG_XMON_DEFAULT is set.
+	  xmon will print a backtrace on the very first invocation.
+	  'xmon=nobt' will disable this autobacktrace.
 
 config XMON_DEFAULT
 	bool "Enable xmon by default"

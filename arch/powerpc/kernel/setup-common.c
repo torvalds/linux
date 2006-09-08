@@ -441,6 +441,8 @@ void __init smp_setup_cpu_maps(void)
 
 int __initdata do_early_xmon;
 #ifdef CONFIG_XMON
+extern int xmon_no_auto_backtrace;
+
 static int __init early_xmon(char *p)
 {
 	/* ensure xmon is enabled */
@@ -449,6 +451,8 @@ static int __init early_xmon(char *p)
 			xmon_init(1);
 		if (strncmp(p, "off", 3) == 0)
 			xmon_init(0);
+		if (strncmp(p, "nobt", 4) == 0)
+			xmon_no_auto_backtrace = 1;
 		if (strncmp(p, "early", 5) != 0)
 			return 0;
 	}
