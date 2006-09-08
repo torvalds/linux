@@ -342,7 +342,7 @@ struct net_device
 	/* Instance data managed by the core of Wireless Extensions. */
 	struct iw_public_data *	wireless_data;
 
-	struct ethtool_ops *ethtool_ops;
+	const struct ethtool_ops *ethtool_ops;
 
 	/*
 	 * This marks the end of the "visible" part of the structure. All
