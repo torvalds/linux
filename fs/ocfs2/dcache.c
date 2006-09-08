@@ -87,6 +87,8 @@ bail:
 	return ret;
 }
 
+DEFINE_SPINLOCK(dentry_attach_lock);
+
 struct dentry_operations ocfs2_dentry_ops = {
 	.d_revalidate		= ocfs2_dentry_revalidate,
 };

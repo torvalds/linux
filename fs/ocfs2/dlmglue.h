@@ -27,6 +27,8 @@
 #ifndef DLMGLUE_H
 #define DLMGLUE_H
 
+#include "dcache.h"
+
 #define OCFS2_LVB_VERSION 3
 
 struct ocfs2_meta_lvb {
@@ -58,8 +60,12 @@ void ocfs2_lock_res_init_once(struct ocfs2_lock_res *res);
 void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			       enum ocfs2_lock_type type,
 			       struct inode *inode);
+void ocfs2_dentry_lock_res_init(struct ocfs2_dentry_lock *dl,
+				u64 parent, struct inode *inode);
 void ocfs2_lock_res_free(struct ocfs2_lock_res *res);
 int ocfs2_create_new_inode_locks(struct inode *inode);
+int ocfs2_create_new_lock(struct ocfs2_super *osb,
+			  struct ocfs2_lock_res *lockres, int ex);
 int ocfs2_drop_inode_locks(struct inode *inode);
 int ocfs2_data_lock_full(struct inode *inode,
 			 int write,
@@ -93,7 +99,12 @@ void ocfs2_super_unlock(struct ocfs2_super *osb,
 			int ex);
 int ocfs2_rename_lock(struct ocfs2_super *osb);
 void ocfs2_rename_unlock(struct ocfs2_super *osb);
+int ocfs2_dentry_lock(struct dentry *dentry, int ex);
+void ocfs2_dentry_unlock(struct dentry *dentry, int ex);
+
 void ocfs2_mark_lockres_freeing(struct ocfs2_lock_res *lockres);
+void ocfs2_simple_drop_lockres(struct ocfs2_super *osb,
+			       struct ocfs2_lock_res *lockres);
 
 /* for the vote thread */
 void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
