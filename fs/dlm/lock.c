@@ -3283,6 +3283,8 @@ int dlm_recover_waiters_post(struct dlm_ls *ls)
 			hold_rsb(r);
 			lock_rsb(r);
 			_request_lock(r, lkb);
+			if (is_master(r))
+				confirm_master(r, 0);
 			unlock_rsb(r);
 			put_rsb(r);
 			break;
