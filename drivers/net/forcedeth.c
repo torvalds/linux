@@ -2080,7 +2080,6 @@ static void nv_set_multicast(struct net_device *dev)
 	memset(mask, 0, sizeof(mask));
 
 	if (dev->flags & IFF_PROMISC) {
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
 		pff |= NVREG_PFF_PROMISC;
 	} else {
 		pff |= NVREG_PFF_MYADDR;
