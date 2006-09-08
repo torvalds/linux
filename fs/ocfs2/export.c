@@ -33,6 +33,7 @@
 
 #include "dir.h"
 #include "dlmglue.h"
+#include "dcache.h"
 #include "export.h"
 #include "inode.h"
 
@@ -77,6 +78,7 @@ static struct dentry *ocfs2_get_dentry(struct super_block *sb, void *vobjp)
 		mlog_errno(-ENOMEM);
 		return ERR_PTR(-ENOMEM);
 	}
+	result->d_op = &ocfs2_dentry_ops;
 
 	mlog_exit_ptr(result);
 	return result;
@@ -126,6 +128,8 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 		iput(inode);
 		parent = ERR_PTR(-ENOMEM);
 	}
+
+	parent->d_op = &ocfs2_dentry_ops;
 
 bail_unlock:
 	ocfs2_meta_unlock(dir, 0);

@@ -1025,12 +1025,10 @@ void ocfs2_drop_inode(struct inode *inode)
 	/* Testing ip_orphaned_slot here wouldn't work because we may
 	 * not have gotten a delete_inode vote from any other nodes
 	 * yet. */
-	if (oi->ip_flags & OCFS2_INODE_MAYBE_ORPHANED) {
-		mlog(0, "Inode was orphaned on another node, clearing nlink.\n");
-		inode->i_nlink = 0;
-	}
-
-	generic_drop_inode(inode);
+	if (oi->ip_flags & OCFS2_INODE_MAYBE_ORPHANED)
+		generic_delete_inode(inode);
+	else
+		generic_drop_inode(inode);
 
 	mlog_exit_void();
 }
