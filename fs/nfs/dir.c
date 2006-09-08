@@ -1669,8 +1669,7 @@ out:
 	if (rehash)
 		d_rehash(rehash);
 	if (!error) {
-		if (!S_ISDIR(old_inode->i_mode))
-			d_move(old_dentry, new_dentry);
+		d_move(old_dentry, new_dentry);
 		nfs_renew_times(new_dentry);
 		nfs_set_verifier(new_dentry, nfs_save_change_attribute(new_dir));
 	}
