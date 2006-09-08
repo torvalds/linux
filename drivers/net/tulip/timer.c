@@ -18,13 +18,14 @@
 #include "tulip.h"
 
 
-void tulip_timer(unsigned long data)
+void tulip_media_task(void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct tulip_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->base_addr;
 	u32 csr12 = ioread32(ioaddr + CSR12);
 	int next_tick = 2*HZ;
+	unsigned long flags;
 
 	if (tulip_debug > 2) {
 		printk(KERN_DEBUG "%s: Media selection tick, %s, status %8.8x mode"
@@ -126,6 +127,15 @@ void tulip_timer(unsigned long data)
 	}
 	break;
 	}
+
+
+	spin_lock_irqsave(&tp->lock, flags);
+	if (tp->timeout_recovery) {
+		tulip_tx_timeout_complete(tp, ioaddr);
+		tp->timeout_recovery = 0;
+	}
+	spin_unlock_irqrestore(&tp->lock, flags);
+
 	/* mod_timer synchronizes us with potential add_timer calls
 	 * from interrupts.
 	 */

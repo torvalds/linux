@@ -44,7 +44,8 @@ struct tulip_chip_table {
 	int io_size;
 	int valid_intrs;	/* CSR7 interrupt enable settings */
 	int flags;
-	void (*media_timer) (unsigned long data);
+	void (*media_timer) (unsigned long);
+	void (*media_task) (void *);
 };
 
 
@@ -366,6 +367,7 @@ struct tulip_private {
 	unsigned int medialock:1;	/* Don't sense media type. */
 	unsigned int mediasense:1;	/* Media sensing in progress. */
 	unsigned int nway:1, nwayset:1;		/* 21143 internal NWay. */
+	unsigned int timeout_recovery:1;
 	unsigned int csr0;	/* CSR0 setting. */
 	unsigned int csr6;	/* Current CSR6 control settings. */
 	unsigned char eeprom[EEPROM_SIZE];	/* Serial EEPROM contents. */
@@ -384,6 +386,7 @@ struct tulip_private {
 	void __iomem *base_addr;
 	int csr12_shadow;
 	int pad0;		/* Used for 8-byte alignment */
+	struct work_struct media_work;
 };
 
 
@@ -398,7 +401,7 @@ struct eeprom_fixup {
 
 /* 21142.c */
 extern u16 t21142_csr14[];
-void t21142_timer(unsigned long data);
+void t21142_media_task(void *data);
 void t21142_start_nway(struct net_device *dev);
 void t21142_lnk_change(struct net_device *dev, int csr5);
 
@@ -436,7 +439,7 @@ void pnic_lnk_change(struct net_device *dev, int csr5);
 void pnic_timer(unsigned long data);
 
 /* timer.c */
-void tulip_timer(unsigned long data);
+void tulip_media_task(void *data);
 void mxic_timer(unsigned long data);
 void comet_timer(unsigned long data);
 
@@ -483,6 +486,16 @@ static inline void tulip_restart_rxtx(struct tulip_private *tp)
 	tulip_stop_rxtx(tp);
 	udelay(5);
 	tulip_start_rxtx(tp);
+}
+
+static inline void tulip_tx_timeout_complete(struct tulip_private *tp, void __iomem *ioaddr)
+{
+	/* Stop and restart the chip's Tx processes. */
+	tulip_restart_rxtx(tp);
+	/* Trigger an immediate transmit demand. */
+	iowrite32(0, ioaddr + CSR1);
+
+	tp->stats.tx_errors++;
 }
 
 #endif /* __NET_TULIP_H__ */
