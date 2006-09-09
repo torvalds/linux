@@ -727,11 +727,8 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	if (mtu < IPV6_MIN_MTU)
 		mtu = IPV6_MIN_MTU;
-	if (skb->dst && mtu < dst_mtu(skb->dst)) {
-		struct rt6_info *rt = (struct rt6_info *) skb->dst;
-		rt->rt6i_flags |= RTF_MODIFIED;
-		rt->u.dst.metrics[RTAX_MTU-1] = mtu;
-	}
+	if (skb->dst)
+		skb->dst->ops->update_pmtu(skb->dst, mtu);
 	if (skb->len > mtu) {
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, dev);
 		goto tx_err_dst_release;
