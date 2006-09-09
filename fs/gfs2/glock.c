@@ -98,7 +98,7 @@ static rwlock_t gl_hash_locks[GL_HASH_LOCK_SZ];
 
 static inline rwlock_t *gl_lock_addr(unsigned int x)
 {
-	return &gl_hash_locks[(x) & (GL_HASH_LOCK_SZ-1)];
+	return &gl_hash_locks[x & (GL_HASH_LOCK_SZ-1)];
 }
 #else /* not SMP, so no spinlocks required */
 static inline rwlock_t *gl_lock_addr(x)
@@ -1806,22 +1806,6 @@ void gfs2_glock_cb(void *cb_data, unsigned int type, void *data)
 }
 
 /**
- * gfs2_iopen_go_callback - Try to kick the inode/vnode associated with an
- *                          iopen glock from memory
- * @io_gl: the iopen glock
- * @state: the state into which the glock should be put
- *
- */
-
-void gfs2_iopen_go_callback(struct gfs2_glock *io_gl, unsigned int state)
-{
-
-	if (state != LM_ST_UNLOCKED)
-		return;
-	/* FIXME: remove this? */
-}
-
-/**
  * demote_ok - Check to see if it's ok to unlock a glock
  * @gl: the glock
  *
@@ -2000,10 +1984,8 @@ void gfs2_scand_internal(struct gfs2_sbd *sdp)
 {
 	unsigned int x;
 
-	for (x = 0; x < GFS2_GL_HASH_SIZE; x++) {
+	for (x = 0; x < GFS2_GL_HASH_SIZE; x++)
 		examine_bucket(scan_glock, sdp, x);
-		cond_resched();
-	}
 }
 
 /**

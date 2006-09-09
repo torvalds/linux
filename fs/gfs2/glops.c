@@ -529,7 +529,6 @@ const struct gfs2_glock_operations gfs2_trans_glops = {
 const struct gfs2_glock_operations gfs2_iopen_glops = {
 	.go_xmote_th = gfs2_glock_xmote_th,
 	.go_drop_th = gfs2_glock_drop_th,
-	.go_callback = gfs2_iopen_go_callback,
 	.go_type = LM_TYPE_IOPEN,
 };
 

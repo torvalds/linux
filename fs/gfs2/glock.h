@@ -142,8 +142,6 @@ void gfs2_lvb_unhold(struct gfs2_glock *gl);
 
 void gfs2_glock_cb(void *cb_data, unsigned int type, void *data);
 
-void gfs2_iopen_go_callback(struct gfs2_glock *gl, unsigned int state);
-
 void gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl);
 void gfs2_reclaim_glock(struct gfs2_sbd *sdp);
 
