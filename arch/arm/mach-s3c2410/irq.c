@@ -86,7 +86,7 @@ unsigned long s3c_irqwake_intmask	= 0xffffffffL;
 unsigned long s3c_irqwake_eintallow	= 0x0000fff0L;
 unsigned long s3c_irqwake_eintmask	= 0xffffffffL;
 
-static int
+int
 s3c_irq_wake(unsigned int irqno, unsigned int state)
 {
 	unsigned long irqbit = 1 << (irqno - IRQ_EINT0);
@@ -260,7 +260,7 @@ s3c_irqext_unmask(unsigned int irqno)
 	s3c_irq_unmask((irqno <= (IRQ_EINT7 - EXTINT_OFF)) ? IRQ_EINT4t7 : IRQ_EINT8t23);
 }
 
-static int
+int
 s3c_irqext_type(unsigned int irq, unsigned int type)
 {
 	void __iomem *extint_reg;
