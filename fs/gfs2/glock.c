@@ -1494,26 +1494,20 @@ int gfs2_glock_nq_num(struct gfs2_sbd *sdp, u64 number,
 
 static int glock_compare(const void *arg_a, const void *arg_b)
 {
-	struct gfs2_holder *gh_a = *(struct gfs2_holder **)arg_a;
-	struct gfs2_holder *gh_b = *(struct gfs2_holder **)arg_b;
-	struct lm_lockname *a = &gh_a->gh_gl->gl_name;
-	struct lm_lockname *b = &gh_b->gh_gl->gl_name;
-	int ret = 0;
+	const struct gfs2_holder *gh_a = *(const struct gfs2_holder **)arg_a;
+	const struct gfs2_holder *gh_b = *(const struct gfs2_holder **)arg_b;
+	const struct lm_lockname *a = &gh_a->gh_gl->gl_name;
+	const struct lm_lockname *b = &gh_b->gh_gl->gl_name;
 
 	if (a->ln_number > b->ln_number)
-		ret = 1;
-	else if (a->ln_number < b->ln_number)
-		ret = -1;
-	else {
-		if (gh_a->gh_state == LM_ST_SHARED &&
-		    gh_b->gh_state == LM_ST_EXCLUSIVE)
-			ret = 1;
-		else if (!(gh_a->gh_flags & GL_LOCAL_EXCL) &&
-			 (gh_b->gh_flags & GL_LOCAL_EXCL))
-			ret = 1;
-	}
-
-	return ret;
+		return 1;
+	if (a->ln_number < b->ln_number)
+		return -1;
+	if (gh_a->gh_state == LM_ST_SHARED && gh_b->gh_state == LM_ST_EXCLUSIVE)
+		return 1;
+	if (!(gh_a->gh_flags & GL_LOCAL_EXCL) && (gh_b->gh_flags & GL_LOCAL_EXCL))
+		return 1;
+	return 0;
 }
 
 /**
