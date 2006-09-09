@@ -262,6 +262,9 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 					this_cpu, which);
 				return IRQ_NONE;
 			} /* Switch */
+		/* let in any pending interrupts */
+		local_irq_enable();
+		local_irq_disable();
 		} /* while (ops) */
 	}
 	return IRQ_HANDLED;
