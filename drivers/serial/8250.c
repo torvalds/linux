@@ -1949,6 +1949,8 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 	case UPIO_AU:
 		size = 0x100000;
 		/* fall thru */
+	case UPIO_TSI:
+	case UPIO_MEM32:
 	case UPIO_MEM:
 		if (!up->port.mapbase)
 			break;
@@ -1984,6 +1986,8 @@ static void serial8250_release_std_resource(struct uart_8250_port *up)
 	case UPIO_AU:
 		size = 0x100000;
 		/* fall thru */
+	case UPIO_TSI:
+	case UPIO_MEM32:
 	case UPIO_MEM:
 		if (!up->port.mapbase)
 			break;
@@ -2007,17 +2011,15 @@ static int serial8250_request_rsa_resource(struct uart_8250_port *up)
 {
 	unsigned long start = UART_RSA_BASE << up->port.regshift;
 	unsigned int size = 8 << up->port.regshift;
-	int ret = 0;
+	int ret = -EINVAL;
 
 	switch (up->port.iotype) {
-	case UPIO_MEM:
-		ret = -EINVAL;
-		break;
-
 	case UPIO_HUB6:
 	case UPIO_PORT:
 		start += up->port.iobase;
-		if (!request_region(start, size, "serial-rsa"))
+		if (request_region(start, size, "serial-rsa"))
+			ret = 0;
+		else
 			ret = -EBUSY;
 		break;
 	}
@@ -2031,9 +2033,6 @@ static void serial8250_release_rsa_resource(struct uart_8250_port *up)
 	unsigned int size = 8 << up->port.regshift;
 
 	switch (up->port.iotype) {
-	case UPIO_MEM:
-		break;
-
 	case UPIO_HUB6:
 	case UPIO_PORT:
 		release_region(up->port.iobase + offset, size);
