@@ -236,7 +236,7 @@ static int ali_ioctl(struct inode *inode, struct file *file,
 			return put_user(timeout, p);
 
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 	}
 }
 

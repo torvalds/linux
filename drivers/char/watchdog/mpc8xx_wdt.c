@@ -126,7 +126,7 @@ static int mpc8xx_wdt_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	}
 
 	return 0;

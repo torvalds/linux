@@ -137,7 +137,7 @@ watchdog_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	       unsigned long arg)
 {
 	unsigned int new_margin;
-	int ret = -ENOIOCTLCMD;
+	int ret = -ENOTTY;
 
 	switch(cmd) {
 	case WDIOC_GETSUPPORT:

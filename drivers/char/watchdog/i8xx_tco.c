@@ -356,7 +356,7 @@ static int i8xx_tco_ioctl (struct inode *inode, struct file *file,
 		}
 
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 	}
 }
 

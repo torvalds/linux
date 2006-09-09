@@ -223,7 +223,7 @@ wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	}
 
 	default:
-	  return -ENOIOCTLCMD;
+	  return -ENOTTY;
 	}
 	return 0;
 }

@@ -277,7 +277,7 @@ static int fop_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 		case WDIOC_GETTIMEOUT:
 			return put_user(timeout, p);
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 	}
 }
 

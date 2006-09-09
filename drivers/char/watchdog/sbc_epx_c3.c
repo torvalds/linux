@@ -141,7 +141,7 @@ static int epx_c3_ioctl(struct inode *inode, struct file *file,
 
 		return retval;
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	}
 }
 

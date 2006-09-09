@@ -168,7 +168,7 @@ static int at91_wdt_ioctl(struct inode *inode, struct file *file,
 			return 0;
 
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 	}
 }
 

@@ -288,7 +288,7 @@ static int s3c2410wdt_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 
 		case WDIOC_GETSUPPORT:
 			return copy_to_user(argp, &s3c2410_wdt_ident,
