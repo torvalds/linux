@@ -13,7 +13,6 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/statfs.h>
-#include <linux/vmalloc.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
 #include <linux/kthread.h>
@@ -135,7 +134,7 @@ static void gfs2_put_super(struct super_block *sb)
 
 	/*  At this point, we're through participating in the lockspace  */
 	gfs2_sys_fs_del(sdp);
-	vfree(sdp);
+	kfree(sdp);
 }
 
 /**
