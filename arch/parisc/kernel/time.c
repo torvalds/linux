@@ -32,8 +32,8 @@
 
 #include <linux/timex.h>
 
-static long clocktick __read_mostly;	/* timer cycles per tick */
-static long halftick __read_mostly;
+static unsigned long clocktick __read_mostly;	/* timer cycles per tick */
+static unsigned long halftick __read_mostly;
 
 #ifdef CONFIG_SMP
 extern void smp_do_timer(struct pt_regs *regs);
@@ -41,34 +41,77 @@ extern void smp_do_timer(struct pt_regs *regs);
 
 irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	long now;
-	long next_tick;
-	int nticks;
+	unsigned long now;
+	unsigned long next_tick;
+	unsigned long cycles_elapsed;
+        unsigned long cycles_remainder;
+	unsigned long ticks_elapsed = 1;	/* at least one elapsed */
 	int cpu = smp_processor_id();
 
 	profile_tick(CPU_PROFILING, regs);
 
-	now = mfctl(16);
-	/* initialize next_tick to time at last clocktick */
+	/* Initialize next_tick to the expected tick time. */
 	next_tick = cpu_data[cpu].it_value;
 
-	/* since time passes between the interrupt and the mfctl()
-	 * above, it is never true that last_tick + clocktick == now.  If we
-	 * never miss a clocktick, we could set next_tick = last_tick + clocktick
-	 * but maybe we'll miss ticks, hence the loop.
-	 *
-	 * Variables are *signed*.
+	/* Get current interval timer.
+	 * CR16 reads as 64 bits in CPU wide mode.
+	 * CR16 reads as 32 bits in CPU narrow mode.
 	 */
+	now = mfctl(16);
 
-	nticks = 0;
-	while((next_tick - now) < halftick) {
-		next_tick += clocktick;
-		nticks++;
+	cycles_elapsed = now - next_tick;
+
+	/* Determine how much time elapsed.  */
+	if (now < next_tick) {
+		/* Scenario 2: CR16 wrapped after clock tick.
+		 * 1's complement will give us the "elapse cycles".
+		 *
+		 * This "cr16 wrapped" cruft is primarily for 32-bit kernels.
+		 * So think "unsigned long is u32" when reading the code.
+		 * And yes, of course 64-bit will someday wrap, but only
+	  	 * every 198841 days on a 1GHz machine.
+		 */
+		cycles_elapsed = ~cycles_elapsed;   /* off by one cycle - don't care */
 	}
+
+	ticks_elapsed += cycles_elapsed / clocktick;
+	cycles_remainder = cycles_elapsed % clocktick;
+
+	/* Can we differentiate between "early CR16" (aka Scenario 1) and
+	 * "long delay" (aka Scenario 3)? I don't think so.
+	 *
+	 * We expected timer_interrupt to be delivered at least a few hundred
+	 * cycles after the IT fires. But it's arbitrary how much time passes
+	 * before we call it "late". I've picked one second.
+	 */
+	if (ticks_elapsed > HZ) {
+		/* Scenario 3: very long delay?  bad in any case */
+		printk (KERN_CRIT "timer_interrupt(CPU %d): delayed! run ntpdate"
+			" ticks %ld cycles %lX rem %lX"
+			" next/now %lX/%lX\n",
+			cpu,
+			ticks_elapsed, cycles_elapsed, cycles_remainder,
+			next_tick, now );
+
+		ticks_elapsed = 1;	/* hack to limit damage in loop below */
+	}
+
+
+	/* Determine when (in CR16 cycles) next IT interrupt will fire.
+	 * We want IT to fire modulo clocktick even if we miss/skip some.
+	 * But those interrupts don't in fact get delivered that regularly.
+	 */
+	next_tick = now + (clocktick - cycles_remainder);
+
+	/* Program the IT when to deliver the next interrupt. */
+        /* Only bottom 32-bits of next_tick are written to cr16.  */
 	mtctl(next_tick, 16);
 	cpu_data[cpu].it_value = next_tick;
 
-	while (nticks--) {
+	/* Now that we are done mucking with unreliable delivery of interrupts,
+	 * go do system house keeping.
+	 */
+	while (ticks_elapsed--) {
 #ifdef CONFIG_SMP
 		smp_do_timer(regs);
 #else
@@ -121,21 +164,41 @@ gettimeoffset (void)
 	 *    Once parisc-linux learns the cr16 difference between processors,
 	 *    this could be made to work.
 	 */
-	long last_tick;
-	long elapsed_cycles;
+	unsigned long now;
+	unsigned long prev_tick;
+	unsigned long next_tick;
+	unsigned long elapsed_cycles;
+	unsigned long usec;
 
-	/* it_value is the intended time of the next tick */
-	last_tick = cpu_data[smp_processor_id()].it_value;
+	next_tick = cpu_data[smp_processor_id()].it_value;
+	now = mfctl(16);	/* Read the hardware interval timer.  */
 
-	/* Subtract one tick and account for possible difference between
-	 * when we expected the tick and when it actually arrived.
-	 * (aka wall vs real)
-	 */
-	last_tick -= clocktick * (jiffies - wall_jiffies + 1);
-	elapsed_cycles = mfctl(16) - last_tick;
+	prev_tick = next_tick - clocktick;
 
-	/* the precision of this math could be improved */
-	return elapsed_cycles / (PAGE0->mem_10msec / 10000);
+	/* Assume Scenario 1: "now" is later than prev_tick.  */
+	elapsed_cycles = now - prev_tick;
+
+	if (now < prev_tick) {
+		/* Scenario 2: CR16 wrapped!
+		 * 1's complement is close enough.
+		 */
+		elapsed_cycles = ~elapsed_cycles;
+	}
+
+	if (elapsed_cycles > (HZ * clocktick)) {
+		/* Scenario 3: clock ticks are missing. */
+		printk (KERN_CRIT "gettimeoffset(CPU %d): missing ticks!"
+			"cycles %lX prev/now/next %lX/%lX/%lX  clock %lX\n",
+			cpuid,
+			elapsed_cycles, prev_tick, now, next_tick, clocktick);
+	}
+
+	/* FIXME: Can we improve the precision? Not with PAGE0. */
+	usec = (elapsed_cycles * 10000) / PAGE0->mem_10msec;
+
+	/* add in "lost" jiffies */
+	usec += clocktick * (jiffies - wall_jiffies);
+	return usec;
 #else
 	return 0;
 #endif
@@ -146,6 +209,7 @@ do_gettimeofday (struct timeval *tv)
 {
 	unsigned long flags, seq, usec, sec;
 
+	/* Hold xtime_lock and adjust timeval.  */
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
 		usec = gettimeoffset();
@@ -153,25 +217,13 @@ do_gettimeofday (struct timeval *tv)
 		usec += (xtime.tv_nsec / 1000);
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
-	if (unlikely(usec > LONG_MAX)) {
-		/* This can happen if the gettimeoffset adjustment is
-		 * negative and xtime.tv_nsec is smaller than the
-		 * adjustment */
-		printk(KERN_ERR "do_gettimeofday() spurious xtime.tv_nsec of %ld\n", usec);
-		usec += USEC_PER_SEC;
-		--sec;
-		/* This should never happen, it means the negative
-		 * time adjustment was more than a second, so there's
-		 * something seriously wrong */
-		BUG_ON(usec > LONG_MAX);
-	}
-
-
+	/* Move adjusted usec's into sec's.  */
 	while (usec >= USEC_PER_SEC) {
 		usec -= USEC_PER_SEC;
 		++sec;
 	}
 
+	/* Return adjusted result.  */
 	tv->tv_sec = sec;
 	tv->tv_usec = usec;
 }
