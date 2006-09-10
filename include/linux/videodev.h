@@ -14,8 +14,7 @@
 
 #include <linux/videodev2.h>
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-#define HAVE_V4L1 1
+#if defined(CONFIG_VIDEO_V4L1_COMPAT) || !defined (__KERNEL__)
 
 struct video_capability
 {

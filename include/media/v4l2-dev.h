@@ -194,7 +194,7 @@ struct video_device
 
 
 	int (*vidioc_overlay) (struct file *file, void *fh, unsigned int i);
-#ifdef HAVE_V4L1
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 			/* buffer type is struct vidio_mbuf * */
 	int (*vidiocgmbuf)  (struct file *file, void *fh, struct video_mbuf *p);
 #endif
@@ -335,7 +335,7 @@ extern int video_usercopy(struct inode *inode, struct file *file,
 				      unsigned int cmd, void *arg));
 
 
-#ifdef HAVE_V4L1
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 #include <linux/mm.h>
 
 extern struct video_device* video_devdata(struct file*);
@@ -357,6 +357,8 @@ video_device_remove_file(struct video_device *vfd,
 	class_device_remove_file(&vfd->class_dev, attr);
 }
 
+#endif /* CONFIG_VIDEO_V4L1_COMPAT */
+
 #ifdef OBSOLETE_OWNER /* to be removed soon */
 /* helper functions to access driver private data. */
 static inline void *video_get_drvdata(struct video_device *dev)
@@ -372,6 +374,5 @@ static inline void video_set_drvdata(struct video_device *dev, void *data)
 
 extern int video_exclusive_open(struct inode *inode, struct file *file);
 extern int video_exclusive_release(struct inode *inode, struct file *file);
-#endif /* HAVE_V4L1 */
 
 #endif /* _V4L2_DEV_H */
