@@ -595,7 +595,7 @@ source "drivers/media/video/saa7134/Kconfig"
 
 config VIDEO_MXB
 	tristate "Siemens-Nixdorf 'Multimedia eXtension Board'"
-	depends on PCI && VIDEO_V4L1
+	depends on PCI && VIDEO_V4L1 && I2C
 	select VIDEO_SAA7146_VV
 	select VIDEO_TUNER
 	select VIDEO_SAA7111 if VIDEO_HELPER_CHIPS_AUTO
@@ -611,7 +611,7 @@ config VIDEO_MXB
 
 config VIDEO_DPC
 	tristate "Philips-Semiconductors 'dpc7146 demonstration board'"
-	depends on PCI && VIDEO_V4L1
+	depends on PCI && VIDEO_V4L1 && I2C
 	select VIDEO_SAA7146_VV
 	select VIDEO_SAA7111 if VIDEO_HELPER_CHIPS_AUTO
 	---help---
@@ -626,7 +626,7 @@ config VIDEO_DPC
 
 config VIDEO_HEXIUM_ORION
 	tristate "Hexium HV-PCI6 and Orion frame grabber"
-	depends on PCI && VIDEO_V4L2
+	depends on PCI && VIDEO_V4L2 && I2C
 	select VIDEO_SAA7146_VV
 	---help---
 	  This is a video4linux driver for the Hexium HV-PCI6 and
@@ -637,7 +637,7 @@ config VIDEO_HEXIUM_ORION
 
 config VIDEO_HEXIUM_GEMINI
 	tristate "Hexium Gemini frame grabber"
-	depends on PCI && VIDEO_V4L2
+	depends on PCI && VIDEO_V4L2 && I2C
 	select VIDEO_SAA7146_VV
 	---help---
 	  This is a video4linux driver for the Hexium Gemini frame
