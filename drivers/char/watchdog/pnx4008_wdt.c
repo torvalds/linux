@@ -28,6 +28,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/spinlock.h>
 
 #include <asm/hardware.h>
 #include <asm/uaccess.h>
@@ -80,6 +81,7 @@
 static int nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = DEFAULT_HEARTBEAT;
 
+static spinlock_t io_lock;
 static unsigned long wdt_status;
 #define WDT_IN_USE        0
 #define WDT_OK_TO_CLOSE   1
@@ -94,6 +96,8 @@ struct clk		*wdt_clk;
 
 static void wdt_enable(void)
 {
+	spin_lock(&io_lock);
+
 	if (wdt_clk)
 		clk_set_rate(wdt_clk, 1);
 
@@ -113,13 +117,19 @@ static void wdt_enable(void)
 	__raw_writel(heartbeat * WDOG_COUNTER_RATE, WDTIM_MATCH0(wdt_base));
 	/*enable counter, stop when debugger active */
 	__raw_writel(COUNT_ENAB | DEBUG_EN, WDTIM_CTRL(wdt_base));
+
+	spin_unlock(&io_lock);
 }
 
 static void wdt_disable(void)
 {
+	spin_lock(&io_lock);
+
 	__raw_writel(0, WDTIM_CTRL(wdt_base));	/*stop counter */
 	if (wdt_clk)
 		clk_set_rate(wdt_clk, 0);
+
+	spin_unlock(&io_lock);
 }
 
 static int pnx4008_wdt_open(struct inode *inode, struct file *file)
@@ -247,6 +257,8 @@ static int pnx4008_wdt_probe(struct platform_device *pdev)
 {
 	int ret = 0, size;
 	struct resource *res;
+
+	spin_lock_init(&io_lock);
 
 	if (heartbeat < 1 || heartbeat > MAX_HEARTBEAT)
 		heartbeat = DEFAULT_HEARTBEAT;
