@@ -272,8 +272,8 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 #endif
 	.devices = {
 		{	"Artec T1 USB1.1 TVBOX with AN2235",
-			{ &dibusb_dib3000mb_table[20], NULL },
 			{ &dibusb_dib3000mb_table[21], NULL },
+			{ &dibusb_dib3000mb_table[22], NULL },
 		},
 #ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
 		{	"Artec T1 USB1.1 TVBOX with AN2235 (faulty USB IDs)",
