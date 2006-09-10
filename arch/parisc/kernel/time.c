@@ -43,12 +43,11 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	unsigned long now;
 	unsigned long next_tick;
 	unsigned long cycles_elapsed;
-        unsigned long cycles_remainder;
-	unsigned long ticks_elapsed = 1;	/* at least one elapsed */
-	int cpu = smp_processor_id();
+	unsigned long cycles_remainder;
+	unsigned int cpu = smp_processor_id();
 
 	/* gcc can optimize for "read-only" case with a local clocktick */
-	unsigned long local_ct = clocktick;
+	unsigned long cpt = clocktick;
 
 	profile_tick(CPU_PROFILING, regs);
 
@@ -63,28 +62,16 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	cycles_elapsed = now - next_tick;
 
-	/* Determine how much time elapsed.  */
-	if (now < next_tick) {
-		/* Scenario 2: CR16 wrapped after clock tick.
-		 * 1's complement will give us the "elapse cycles".
-		 *
-		 * This "cr16 wrapped" cruft is primarily for 32-bit kernels.
-		 * So think "unsigned long is u32" when reading the code.
-		 * And yes, of course 64-bit will someday wrap, but only
-	  	 * every 198841 days on a 1GHz machine.
+	if ((cycles_elapsed >> 5) < cpt) {
+		/* use "cheap" math (add/subtract) instead
+		 * of the more expensive div/mul method
 		 */
-		cycles_elapsed = ~cycles_elapsed;   /* off by one cycle - don't care */
-	}
-
-	if (likely(cycles_elapsed < local_ct)) {
-		/* ticks_elapsed = 1 -- We already assumed one tick elapsed. */
 		cycles_remainder = cycles_elapsed;
+		while (cycles_remainder > cpt) {
+			cycles_remainder -= cpt;
+		}
 	} else {
-		/* more than one tick elapsed. Do "expensive" math. */
-		ticks_elapsed += cycles_elapsed / local_ct;
-
-		/* Faster version of "remainder = elapsed % clocktick" */
-		cycles_remainder = cycles_elapsed - (ticks_elapsed * local_ct);
+		cycles_remainder = cycles_elapsed % cpt;
 	}
 
 	/* Can we differentiate between "early CR16" (aka Scenario 1) and
@@ -94,51 +81,65 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * cycles after the IT fires. But it's arbitrary how much time passes
 	 * before we call it "late". I've picked one second.
 	 */
-	if (ticks_elapsed > HZ) {
+/* aproximate HZ with shifts. Intended math is "(elapsed/clocktick) > HZ" */
+#if HZ == 1000
+	if (cycles_elapsed > (cpt << 10) )
+#elif HZ == 250
+	if (cycles_elapsed > (cpt << 8) )
+#elif HZ == 100
+	if (cycles_elapsed > (cpt << 7) )
+#else
+#warn WTF is HZ set to anyway?
+	if (cycles_elapsed > (HZ * cpt) )
+#endif
+	{
 		/* Scenario 3: very long delay?  bad in any case */
 		printk (KERN_CRIT "timer_interrupt(CPU %d): delayed!"
-			" ticks %ld cycles %lX rem %lX"
+			" cycles %lX rem %lX "
 			" next/now %lX/%lX\n",
 			cpu,
-			ticks_elapsed, cycles_elapsed, cycles_remainder,
+			cycles_elapsed, cycles_remainder,
 			next_tick, now );
 	}
 
+	/* convert from "division remainder" to "remainder of clock tick" */
+	cycles_remainder = cpt - cycles_remainder;
 
 	/* Determine when (in CR16 cycles) next IT interrupt will fire.
 	 * We want IT to fire modulo clocktick even if we miss/skip some.
 	 * But those interrupts don't in fact get delivered that regularly.
 	 */
-	next_tick = now + (local_ct - cycles_remainder);
+	next_tick = now + cycles_remainder;
+
+	cpu_data[cpu].it_value = next_tick;
 
 	/* Skip one clocktick on purpose if we are likely to miss next_tick.
-	 * We'll catch what we missed on the tick after that.
-	 * We should never need 0x1000 cycles to read CR16, calc the
-	 * new next_tick, then write CR16 back. */
-	if (!((local_ct - cycles_remainder) >> 12))
-		next_tick += local_ct;
+	 * We want to avoid the new next_tick being less than CR16.
+	 * If that happened, itimer wouldn't fire until CR16 wrapped.
+	 * We'll catch the tick we missed on the tick after that.
+	 */
+	if (!(cycles_remainder >> 13))
+		next_tick += cpt;
 
 	/* Program the IT when to deliver the next interrupt. */
         /* Only bottom 32-bits of next_tick are written to cr16.  */
-	cpu_data[cpu].it_value = next_tick;
 	mtctl(next_tick, 16);
 
-	/* Now that we are done mucking with unreliable delivery of interrupts,
-	 * go do system house keeping.
+
+	/* Done mucking with unreliable delivery of interrupts.
+	 * Go do system house keeping.
 	 */
-	while (ticks_elapsed--) {
 #ifdef CONFIG_SMP
-		smp_do_timer(regs);
+	smp_do_timer(regs);
 #else
-		update_process_times(user_mode(regs));
+	update_process_times(user_mode(regs));
 #endif
-		if (cpu == 0) {
-			write_seqlock(&xtime_lock);
-			do_timer(1);
-			write_sequnlock(&xtime_lock);
-		}
+	if (cpu == 0) {
+		write_seqlock(&xtime_lock);
+		do_timer(regs);
+		write_sequnlock(&xtime_lock);
 	}
-    
+
 	/* check soft power switch status */
 	if (cpu == 0 && !atomic_read(&power_tasklet.count))
 		tasklet_schedule(&power_tasklet);
@@ -164,14 +165,12 @@ unsigned long profile_pc(struct pt_regs *regs)
 EXPORT_SYMBOL(profile_pc);
 
 
-/*** converted from ia64 ***/
 /*
  * Return the number of micro-seconds that elapsed since the last
  * update to wall time (aka xtime).  The xtime_lock
  * must be at least read-locked when calling this routine.
  */
-static inline unsigned long
-gettimeoffset (void)
+static inline unsigned long gettimeoffset (void)
 {
 #ifndef CONFIG_SMP
 	/*
@@ -185,36 +184,40 @@ gettimeoffset (void)
 	unsigned long elapsed_cycles;
 	unsigned long usec;
 	unsigned long cpuid = smp_processor_id();
-	unsigned long local_ct = clocktick;
+	unsigned long cpt = clocktick;
 
 	next_tick = cpu_data[cpuid].it_value;
 	now = mfctl(16);	/* Read the hardware interval timer.  */
 
-	prev_tick = next_tick - local_ct;
+	prev_tick = next_tick - cpt;
 
 	/* Assume Scenario 1: "now" is later than prev_tick.  */
 	elapsed_cycles = now - prev_tick;
 
-	if (now < prev_tick) {
-		/* Scenario 2: CR16 wrapped!
-		 * ones complement is off-by-one. Don't care.
-		 */
-		elapsed_cycles = ~elapsed_cycles;
-	}
-
-	if (elapsed_cycles > (HZ * local_ct)) {
+/* aproximate HZ with shifts. Intended math is "(elapsed/clocktick) > HZ" */
+#if HZ == 1000
+	if (elapsed_cycles > (cpt << 10) )
+#elif HZ == 250
+	if (elapsed_cycles > (cpt << 8) )
+#elif HZ == 100
+	if (elapsed_cycles > (cpt << 7) )
+#else
+#warn WTF is HZ set to anyway?
+	if (elapsed_cycles > (HZ * cpt) )
+#endif
+	{
 		/* Scenario 3: clock ticks are missing. */
-		printk (KERN_CRIT "gettimeoffset(CPU %d): missing ticks!"
-			"cycles %lX prev/now/next %lX/%lX/%lX  clock %lX\n",
-			cpuid,
-			 elapsed_cycles, prev_tick, now, next_tick, local_ct);
+		printk (KERN_CRIT "gettimeoffset(CPU %ld): missing %ld ticks!"
+			" cycles %lX prev/now/next %lX/%lX/%lX  clock %lX\n",
+			cpuid, elapsed_cycles / cpt,
+			elapsed_cycles, prev_tick, now, next_tick, cpt);
 	}
 
 	/* FIXME: Can we improve the precision? Not with PAGE0. */
 	usec = (elapsed_cycles * 10000) / PAGE0->mem_10msec;
 
 	/* add in "lost" jiffies */
-	usec += local_ct * (jiffies - wall_jiffies);
+	usec += cpt * (jiffies - wall_jiffies);
 	return usec;
 #else
 	return 0;
