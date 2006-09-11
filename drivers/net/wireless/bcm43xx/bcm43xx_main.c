@@ -3541,10 +3541,10 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 	err = bcm43xx_sysfs_register(bcm);
 	if (err)
 		goto err_wlshutdown;
-	bcm43xx_periodic_tasks_setup(bcm);
 	err = bcm43xx_rng_init(bcm);
 	if (err)
 		goto err_sysfs_unreg;
+	bcm43xx_periodic_tasks_setup(bcm);
 
 	/*FIXME: This should be handled by softmac instead. */
 	schedule_work(&bcm->softmac->associnfo.work);
