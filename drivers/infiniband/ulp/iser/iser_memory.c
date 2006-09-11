@@ -56,7 +56,7 @@ int iser_regd_buff_release(struct iser_regd_buf *regd_buf)
 	if ((atomic_read(&regd_buf->ref_count) == 0) ||
 	    atomic_dec_and_test(&regd_buf->ref_count)) {
 		/* if we used the dma mr, unreg is just NOP */
-		if (regd_buf->reg.rkey != 0)
+		if (regd_buf->reg.is_fmr)
 			iser_unreg_mem(&regd_buf->reg);
 
 		if (regd_buf->dma_addr) {
@@ -91,9 +91,9 @@ void iser_reg_single(struct iser_device *device,
 	BUG_ON(dma_mapping_error(dma_addr));
 
 	regd_buf->reg.lkey = device->mr->lkey;
-	regd_buf->reg.rkey = 0; /* indicate there's no need to unreg */
 	regd_buf->reg.len  = regd_buf->data_size;
 	regd_buf->reg.va   = dma_addr;
+	regd_buf->reg.is_fmr = 0;
 
 	regd_buf->dma_addr  = dma_addr;
 	regd_buf->direction = direction;
@@ -379,11 +379,13 @@ int iser_reg_rdma_mem(struct iscsi_iser_cmd_task *iser_ctask,
 		      enum   iser_data_dir        cmd_dir)
 {
 	struct iser_conn     *ib_conn = iser_ctask->iser_conn->ib_conn;
+	struct iser_device   *device = ib_conn->device;
 	struct iser_data_buf *mem = &iser_ctask->data[cmd_dir];
 	struct iser_regd_buf *regd_buf;
 	int aligned_len;
 	int err;
 	int i;
+	struct scatterlist *sg;
 
 	regd_buf = &iser_ctask->rdma_regd[cmd_dir];
 
@@ -399,19 +401,37 @@ int iser_reg_rdma_mem(struct iscsi_iser_cmd_task *iser_ctask,
 		mem = &iser_ctask->data_copy[cmd_dir];
 	}
 
-	iser_page_vec_build(mem, ib_conn->page_vec);
-	err = iser_reg_page_vec(ib_conn, ib_conn->page_vec, &regd_buf->reg);
-	if (err) {
-		iser_data_buf_dump(mem);
-		iser_err("mem->dma_nents = %d (dlength = 0x%x)\n", mem->dma_nents,
-			 ntoh24(iser_ctask->desc.iscsi_header.dlength));
-		iser_err("page_vec: data_size = 0x%x, length = %d, offset = 0x%x\n",
-			 ib_conn->page_vec->data_size, ib_conn->page_vec->length,
-			 ib_conn->page_vec->offset);
-		for (i=0 ; i<ib_conn->page_vec->length ; i++) {
-			iser_err("page_vec[%d] = 0x%lx\n", i, ib_conn->page_vec->pages[i]);
+	/* if there a single dma entry, FMR is not needed */
+	if (mem->dma_nents == 1) {
+		sg = (struct scatterlist *)mem->buf;
+
+		regd_buf->reg.lkey = device->mr->lkey;
+		regd_buf->reg.rkey = device->mr->rkey;
+		regd_buf->reg.len  = sg_dma_len(&sg[0]);
+		regd_buf->reg.va   = sg_dma_address(&sg[0]);
+		regd_buf->reg.is_fmr = 0;
+
+		iser_dbg("PHYSICAL Mem.register: lkey: 0x%08X rkey: 0x%08X  "
+			 "va: 0x%08lX sz: %ld]\n",
+			 (unsigned int)regd_buf->reg.lkey,
+			 (unsigned int)regd_buf->reg.rkey,
+			 (unsigned long)regd_buf->reg.va,
+			 (unsigned long)regd_buf->reg.len);
+	} else { /* use FMR for multiple dma entries */
+		iser_page_vec_build(mem, ib_conn->page_vec);
+		err = iser_reg_page_vec(ib_conn, ib_conn->page_vec, &regd_buf->reg);
+		if (err) {
+			iser_data_buf_dump(mem);
+			iser_err("mem->dma_nents = %d (dlength = 0x%x)\n", mem->dma_nents,
+				 ntoh24(iser_ctask->desc.iscsi_header.dlength));
+			iser_err("page_vec: data_size = 0x%x, length = %d, offset = 0x%x\n",
+				 ib_conn->page_vec->data_size, ib_conn->page_vec->length,
+				 ib_conn->page_vec->offset);
+			for (i=0 ; i<ib_conn->page_vec->length ; i++)
+				iser_err("page_vec[%d] = 0x%llx\n", i,
+					 (unsigned long long) ib_conn->page_vec->pages[i]);
+			return err;
 		}
-		return err;
 	}
 
 	/* take a reference on this regd buf such that it will not be released *

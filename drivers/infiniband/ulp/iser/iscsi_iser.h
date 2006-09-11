@@ -175,6 +175,7 @@ struct iser_mem_reg {
 	u64  va;
 	u64  len;
 	void *mem_h;
+	int  is_fmr;
 };
 
 struct iser_regd_buf {

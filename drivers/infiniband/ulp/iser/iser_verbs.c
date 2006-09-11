@@ -88,8 +88,9 @@ static int iser_create_device_ib_res(struct iser_device *device)
 		     iser_cq_tasklet_fn,
 		     (unsigned long)device);
 
-	device->mr = ib_get_dma_mr(device->pd,
-				   IB_ACCESS_LOCAL_WRITE);
+	device->mr = ib_get_dma_mr(device->pd, IB_ACCESS_LOCAL_WRITE |
+				   IB_ACCESS_REMOTE_WRITE |
+				   IB_ACCESS_REMOTE_READ);
 	if (IS_ERR(device->mr))
 		goto dma_mr_err;
 
@@ -606,6 +607,7 @@ int iser_reg_page_vec(struct iser_conn     *ib_conn,
 	mem_reg->rkey  = mem->fmr->rkey;
 	mem_reg->len   = page_vec->length * SIZE_4K;
 	mem_reg->va    = io_addr;
+	mem_reg->is_fmr = 1;
 	mem_reg->mem_h = (void *)mem;
 
 	mem_reg->va   += page_vec->offset;
