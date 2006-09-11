@@ -2564,11 +2564,9 @@ static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 	scsi_print_command(SCpnt);
 
 	if (sbp2util_node_is_available(scsi_id)) {
+		sbp2_agent_reset(scsi_id, 1);
 
-		/*
-		 * Right now, just return any matching command structures
-		 * to the free pool.
-		 */
+		/* Return a matching command structure to the free pool. */
 		spin_lock_irqsave(&scsi_id->sbp2_command_orb_lock, flags);
 		command = sbp2util_find_command_for_SCpnt(scsi_id, SCpnt);
 		if (command) {
@@ -2589,10 +2587,6 @@ static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 		}
 		spin_unlock_irqrestore(&scsi_id->sbp2_command_orb_lock, flags);
 
-		/*
-		 * Initiate a fetch agent reset.
-		 */
-		sbp2_agent_reset(scsi_id, 1);
 		sbp2scsi_complete_all_commands(scsi_id, DID_BUS_BUSY);
 	}
 
