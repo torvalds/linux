@@ -1,26 +1,27 @@
-#include <asm-i386/unistd.h>
+#undef __powerpc64__
+#include <asm/unistd.h>
 
-unsigned ia32_dir_class[] = {
+unsigned ppc32_dir_class[] = {
 #include <asm-generic/audit_dir_write.h>
 ~0U
 };
 
-unsigned ia32_chattr_class[] = {
+unsigned ppc32_chattr_class[] = {
 #include <asm-generic/audit_change_attr.h>
 ~0U
 };
 
-unsigned ia32_write_class[] = {
+unsigned ppc32_write_class[] = {
 #include <asm-generic/audit_write.h>
 ~0U
 };
 
-unsigned ia32_read_class[] = {
+unsigned ppc32_read_class[] = {
 #include <asm-generic/audit_read.h>
 ~0U
 };
 
-int ia32_classify_syscall(unsigned syscall)
+int ppc32_classify_syscall(unsigned syscall)
 {
 	switch(syscall) {
 	case __NR_open:
