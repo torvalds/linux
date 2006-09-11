@@ -990,7 +990,6 @@ int __init early_serial_txx9_setup(struct uart_port *port)
 /**
  *	serial_txx9_suspend_port - suspend one serial port
  *	@line:  serial line number
- *      @level: the level of port suspension, as per uart_suspend_port
  *
  *	Suspend one serial port.
  */
@@ -1002,7 +1001,6 @@ static void serial_txx9_suspend_port(int line)
 /**
  *	serial_txx9_resume_port - resume one serial port
  *	@line:  serial line number
- *      @level: the level of port resumption, as per uart_resume_port
  *
  *	Resume one serial port.
  */
