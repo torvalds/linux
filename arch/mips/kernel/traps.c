@@ -54,6 +54,8 @@ extern asmlinkage void handle_dbe(void);
 extern asmlinkage void handle_sys(void);
 extern asmlinkage void handle_bp(void);
 extern asmlinkage void handle_ri(void);
+extern asmlinkage void handle_ri_rdhwr_vivt(void);
+extern asmlinkage void handle_ri_rdhwr(void);
 extern asmlinkage void handle_cpu(void);
 extern asmlinkage void handle_ov(void);
 extern asmlinkage void handle_tr(void);
@@ -1423,6 +1425,15 @@ void __init set_uncached_handler (unsigned long offset, void *addr, unsigned lon
 	memcpy((void *)(uncached_ebase + offset), addr, size);
 }
 
+static int __initdata rdhwr_noopt;
+static int __init set_rdhwr_noopt(char *str)
+{
+	rdhwr_noopt = 1;
+	return 1;
+}
+
+__setup("rdhwr_noopt", set_rdhwr_noopt);
+
 void __init trap_init(void)
 {
 	extern char except_vec3_generic, except_vec3_r4000;
@@ -1502,7 +1513,9 @@ void __init trap_init(void)
 
 	set_except_vector(8, handle_sys);
 	set_except_vector(9, handle_bp);
-	set_except_vector(10, handle_ri);
+	set_except_vector(10, rdhwr_noopt ? handle_ri :
+			  (cpu_has_vtag_icache ?
+			   handle_ri_rdhwr_vivt : handle_ri_rdhwr));
 	set_except_vector(11, handle_cpu);
 	set_except_vector(12, handle_ov);
 	set_except_vector(13, handle_tr);
