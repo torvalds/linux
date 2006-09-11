@@ -150,7 +150,7 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 	}
 	ib_conn->page_vec->pages = (u64 *) (ib_conn->page_vec + 1);
 
-	params.page_shift        = PAGE_SHIFT;
+	params.page_shift        = SHIFT_4K;
 	/* when the first/last SG element are not start/end *
 	 * page aligned, the map whould be of N+1 pages     */
 	params.max_pages_per_fmr = ISCSI_ISER_SG_TABLESIZE + 1;
@@ -604,7 +604,7 @@ int iser_reg_page_vec(struct iser_conn     *ib_conn,
 
 	mem_reg->lkey  = mem->fmr->lkey;
 	mem_reg->rkey  = mem->fmr->rkey;
-	mem_reg->len   = page_vec->length * PAGE_SIZE;
+	mem_reg->len   = page_vec->length * SIZE_4K;
 	mem_reg->va    = io_addr;
 	mem_reg->mem_h = (void *)mem;
 

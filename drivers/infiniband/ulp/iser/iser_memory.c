@@ -42,6 +42,7 @@
 #include "iscsi_iser.h"
 
 #define ISER_KMALLOC_THRESHOLD 0x20000 /* 128K - kmalloc limit */
+
 /**
  * Decrements the reference count for the
  * registered buffer & releases it
@@ -239,7 +240,7 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
 	int i;
 
 	/* compute the offset of first element */
-	page_vec->offset = (u64) sg[0].offset;
+	page_vec->offset = (u64) sg[0].offset & ~MASK_4K;
 
 	for (i = 0; i < data->dma_nents; i++) {
 		total_sz += sg_dma_len(&sg[i]);
@@ -247,21 +248,30 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
 		first_addr = sg_dma_address(&sg[i]);
 		last_addr  = first_addr + sg_dma_len(&sg[i]);
 
-		start_aligned = !(first_addr & ~PAGE_MASK);
-		end_aligned   = !(last_addr  & ~PAGE_MASK);
+		start_aligned = !(first_addr & ~MASK_4K);
+		end_aligned   = !(last_addr  & ~MASK_4K);
 
 		/* continue to collect page fragments till aligned or SG ends */
 		while (!end_aligned && (i + 1 < data->dma_nents)) {
 			i++;
 			total_sz += sg_dma_len(&sg[i]);
 			last_addr = sg_dma_address(&sg[i]) + sg_dma_len(&sg[i]);
-			end_aligned = !(last_addr  & ~PAGE_MASK);
+			end_aligned = !(last_addr  & ~MASK_4K);
 		}
 
-		first_addr = first_addr & PAGE_MASK;
+		/* handle the 1st page in the 1st DMA element */
+		if (cur_page == 0) {
+			page = first_addr & MASK_4K;
+			page_vec->pages[cur_page] = page;
+			cur_page++;
+			page += SIZE_4K;
+		} else
+			page = first_addr;
 
-		for (page = first_addr; page < last_addr; page += PAGE_SIZE)
-			page_vec->pages[cur_page++] = page;
+		for (; page < last_addr; page += SIZE_4K) {
+			page_vec->pages[cur_page] = page;
+			cur_page++;
+		}
 
 	}
 	page_vec->data_size = total_sz;
@@ -269,8 +279,7 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
 	return cur_page;
 }
 
-#define MASK_4K			((1UL << 12) - 1) /* 0xFFF */
-#define IS_4K_ALIGNED(addr)	((((unsigned long)addr) & MASK_4K) == 0)
+#define IS_4K_ALIGNED(addr)	((((unsigned long)addr) & ~MASK_4K) == 0)
 
 /**
  * iser_data_buf_aligned_len - Tries to determine the maximal correctly aligned
@@ -352,7 +361,7 @@ static void iser_page_vec_build(struct iser_data_buf *data,
 
 	page_vec->length = page_vec_len;
 
-	if (page_vec_len * PAGE_SIZE < page_vec->data_size) {
+	if (page_vec_len * SIZE_4K < page_vec->data_size) {
 		iser_err("page_vec too short to hold this SG\n");
 		iser_data_buf_dump(data);
 		iser_dump_page_vec(page_vec);
