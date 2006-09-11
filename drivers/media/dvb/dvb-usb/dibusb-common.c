@@ -199,24 +199,24 @@ static struct dib3000mc_config stk3000p_dib3000p_config = {
 };
 
 static struct dibx000_agc_config dib3000p_panasonic_agc_config = {
-	.setup     = (0 << 15) | (0 << 14) | (1 << 13) | (1 << 12) | (29 << 0),
+	.setup    = (0 << 15) | (0 << 14) | (1 << 13) | (1 << 12) | (29 << 0),
 
 	.agc1_max = 56361,
 	.agc1_min = 22282,
-	.agc2_max = 43254,
+	.agc2_max = 47841,
 	.agc2_min = 36045,
 
-	.agc1_pt1 = 0x65,
-	.agc1_pt2 = 0xff,
+	.agc1_pt1 = 0x3b,
+	.agc1_pt2 = 0x6b,
 
-	.agc1_slope1 = 0x40,
-	.agc1_slope2 = 0xff,
+	.agc1_slope1 = 0x55,
+	.agc1_slope2 = 0x1d,
 
 	.agc2_pt1 = 0,
-	.agc2_pt2 = 0x8a,
+	.agc2_pt2 = 0x0a,
 
-	.agc2_slope1 = 0x11,
-	.agc2_slope2 = 0x14,
+	.agc2_slope1 = 0x95,
+	.agc2_slope2 = 0x1e,
 };
 
 static struct dib3000mc_config mod3000p_dib3000p_config = {
