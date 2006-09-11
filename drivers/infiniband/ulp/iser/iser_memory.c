@@ -378,7 +378,7 @@ int iser_reg_rdma_mem(struct iscsi_iser_cmd_task *iser_ctask,
 	regd_buf = &iser_ctask->rdma_regd[cmd_dir];
 
 	aligned_len = iser_data_buf_aligned_len(mem);
-	if (aligned_len != mem->size) {
+	if (aligned_len != mem->dma_nents) {
 		iser_err("rdma alignment violation %d/%d aligned\n",
 			 aligned_len, mem->size);
 		iser_data_buf_dump(mem);
