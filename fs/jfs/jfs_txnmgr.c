@@ -2026,8 +2026,6 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		 * truncate entry XAD[twm == next - 1]:
 		 */
 		if (twm == next - 1) {
-			struct pxd_lock *pxdlock;
-
 			/* format a maplock for txUpdateMap() to update bmap
 			 * to free truncated delta extent of the truncated
 			 * entry XAD[next - 1];
