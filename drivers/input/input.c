@@ -1014,9 +1014,12 @@ EXPORT_SYMBOL(input_register_device);
 void input_unregister_device(struct input_dev *dev)
 {
 	struct list_head *node, *next;
+	int code;
 
-	if (!dev)
-		return;
+	for (code = 0; code <= KEY_MAX; code++)
+		if (test_bit(code, dev->key))
+			input_report_key(dev, code, 0);
+	input_sync(dev);
 
 	del_timer_sync(&dev->timer);
 
