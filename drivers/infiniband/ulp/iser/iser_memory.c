@@ -329,9 +329,9 @@ static void iser_data_buf_dump(struct iser_data_buf *data)
 	struct scatterlist *sg = (struct scatterlist *)data->buf;
 	int i;
 
-	for (i = 0; i < data->size; i++)
+	for (i = 0; i < data->dma_nents; i++)
 		iser_err("sg[%d] dma_addr:0x%lX page:0x%p "
-			 "off:%d sz:%d dma_len:%d\n",
+			 "off:0x%x sz:0x%x dma_len:0x%x\n",
 			 i, (unsigned long)sg_dma_address(&sg[i]),
 			 sg[i].page, sg[i].offset,
 			 sg[i].length,sg_dma_len(&sg[i]));
@@ -383,6 +383,7 @@ int iser_reg_rdma_mem(struct iscsi_iser_cmd_task *iser_ctask,
 	struct iser_regd_buf *regd_buf;
 	int aligned_len;
 	int err;
+	int i;
 
 	regd_buf = &iser_ctask->rdma_regd[cmd_dir];
 
@@ -400,8 +401,18 @@ int iser_reg_rdma_mem(struct iscsi_iser_cmd_task *iser_ctask,
 
 	iser_page_vec_build(mem, ib_conn->page_vec);
 	err = iser_reg_page_vec(ib_conn, ib_conn->page_vec, &regd_buf->reg);
-	if (err)
+	if (err) {
+		iser_data_buf_dump(mem);
+		iser_err("mem->dma_nents = %d (dlength = 0x%x)\n", mem->dma_nents,
+			 ntoh24(iser_ctask->desc.iscsi_header.dlength));
+		iser_err("page_vec: data_size = 0x%x, length = %d, offset = 0x%x\n",
+			 ib_conn->page_vec->data_size, ib_conn->page_vec->length,
+			 ib_conn->page_vec->offset);
+		for (i=0 ; i<ib_conn->page_vec->length ; i++) {
+			iser_err("page_vec[%d] = 0x%lx\n", i, ib_conn->page_vec->pages[i]);
+		}
 		return err;
+	}
 
 	/* take a reference on this regd buf such that it will not be released *
 	 * (eg in send dto completion) before we get the scsi response         */
