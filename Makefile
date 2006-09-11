@@ -1060,6 +1060,7 @@ help:
 	@echo  'Cleaning targets:'
 	@echo  '  clean		  - remove most generated files but keep the config'
 	@echo  '  mrproper	  - remove all generated files + config + various backup files'
+	@echo  '  distclean	  - mrproper + patch files'
 	@echo  ''
 	@echo  'Configuration targets:'
 	@$(MAKE) -f $(srctree)/scripts/kconfig/Makefile help
