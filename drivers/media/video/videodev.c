@@ -739,13 +739,13 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_DQBUF:
 	{
 		struct v4l2_buffer *p=arg;
-		if (!vfd->vidioc_qbuf)
+		if (!vfd->vidioc_dqbuf)
 			break;
 		ret = check_fmt (vfd, p->type);
 		if (ret)
 			break;
 
-		ret=vfd->vidioc_qbuf(file, fh, p);
+		ret=vfd->vidioc_dqbuf(file, fh, p);
 		if (!ret)
 			dbgbuf(cmd,vfd,p);
 		break;
