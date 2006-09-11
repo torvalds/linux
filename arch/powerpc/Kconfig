@@ -354,6 +354,7 @@ endchoice
 config PPC_PSERIES
 	depends on PPC_MULTIPLATFORM && PPC64
 	bool "IBM pSeries & new (POWER5-based) iSeries"
+	select MPIC
 	select PPC_I8259
 	select PPC_RTAS
 	select RTAS_ERROR_LOGGING
@@ -363,6 +364,7 @@ config PPC_PSERIES
 config PPC_CHRP
 	bool "Common Hardware Reference Platform (CHRP) based machines"
 	depends on PPC_MULTIPLATFORM && PPC32
+	select MPIC
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	select PPC_RTAS
@@ -373,6 +375,7 @@ config PPC_CHRP
 config PPC_PMAC
 	bool "Apple PowerMac based machines"
 	depends on PPC_MULTIPLATFORM
+	select MPIC
 	select PPC_INDIRECT_PCI if PPC32
 	select PPC_MPC106 if PPC32
 	default y
@@ -380,6 +383,7 @@ config PPC_PMAC
 config PPC_PMAC64
 	bool
 	depends on PPC_PMAC && POWER4
+	select MPIC
 	select U3_DART
 	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
@@ -389,6 +393,7 @@ config PPC_PMAC64
 config PPC_PREP
 	bool "PowerPC Reference Platform (PReP) based machines"
 	depends on PPC_MULTIPLATFORM && PPC32 && BROKEN
+	select MPIC
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	select PPC_UDBG_16550
@@ -397,6 +402,7 @@ config PPC_PREP
 config PPC_MAPLE
 	depends on PPC_MULTIPLATFORM && PPC64
 	bool "Maple 970FX Evaluation Board"
+	select MPIC
 	select U3_DART
 	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
@@ -438,12 +444,6 @@ config U3_DART
 	bool 
 	depends on PPC_MULTIPLATFORM && PPC64
 	default n
-
-config MPIC
-	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE || PPC_CHRP \
-			       || MPC7448HPC2
-	bool
-	default y
 
 config PPC_RTAS
 	bool
@@ -811,6 +811,14 @@ config GENERIC_ISA_DMA
 	bool
 	depends on PPC64 || POWER4 || 6xx && !CPM2
 	default y
+
+config MPIC
+	bool
+	default n
+
+config MPIC_WEIRD
+	bool
+	default n
 
 config PPC_I8259
 	bool

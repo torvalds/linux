@@ -5,6 +5,7 @@
  * 
  *   Copyright (C) International Business Machines  Corp., 2002,2003
  *   Author(s): Steve French (sfrench@us.ibm.com)
+ *              Jeremy Allison (jra@samba.org)
  *
  *   This library is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published
@@ -47,6 +48,8 @@ static inline struct cifsFileInfo *cifs_init_private(
 	private_data->netfid = netfid;
 	private_data->pid = current->tgid;	
 	init_MUTEX(&private_data->fh_sem);
+	init_MUTEX(&private_data->lock_sem);
+	INIT_LIST_HEAD(&private_data->llist);
 	private_data->pfile = file; /* needed for writepage */
 	private_data->pInode = inode;
 	private_data->invalidHandle = FALSE;
@@ -473,6 +476,8 @@ int cifs_close(struct inode *inode, struct file *file)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 	if (pSMBFile) {
+		struct cifsLockInfo *li, *tmp;
+
 		pSMBFile->closePend = TRUE;
 		if (pTcon) {
 			/* no sense reconnecting to close a file that is
@@ -496,6 +501,16 @@ int cifs_close(struct inode *inode, struct file *file)
 						  pSMBFile->netfid);
 			}
 		}
+
+		/* Delete any outstanding lock records.
+		   We'll lose them when the file is closed anyway. */
+		down(&pSMBFile->lock_sem);
+		list_for_each_entry_safe(li, tmp, &pSMBFile->llist, llist) {
+			list_del(&li->llist);
+			kfree(li);
+		}
+		up(&pSMBFile->lock_sem);
+
 		write_lock(&GlobalSMBSeslock);
 		list_del(&pSMBFile->flist);
 		list_del(&pSMBFile->tlist);
@@ -570,6 +585,21 @@ int cifs_closedir(struct inode *inode, struct file *file)
 	return rc;
 }
 
+static int store_file_lock(struct cifsFileInfo *fid, __u64 len,
+				__u64 offset, __u8 lockType)
+{
+	struct cifsLockInfo *li = kmalloc(sizeof(struct cifsLockInfo), GFP_KERNEL);
+	if (li == NULL)
+		return -ENOMEM;
+	li->offset = offset;
+	li->length = len;
+	li->type = lockType;
+	down(&fid->lock_sem);
+	list_add(&li->llist, &fid->llist);
+	up(&fid->lock_sem);
+	return 0;
+}
+
 int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 {
 	int rc, xid;
@@ -581,6 +611,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 	struct cifsTconInfo *pTcon;
 	__u16 netfid;
 	__u8 lockType = LOCKING_ANDX_LARGE_FILES;
+	int posix_locking;
 
 	length = 1 + pfLock->fl_end - pfLock->fl_start;
 	rc = -EACCES;
@@ -639,15 +670,14 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 	}
 	netfid = ((struct cifsFileInfo *)file->private_data)->netfid;
 
+	posix_locking = (cifs_sb->tcon->ses->capabilities & CAP_UNIX) &&
+			(CIFS_UNIX_FCNTL_CAP & le64_to_cpu(cifs_sb->tcon->fsUnixInfo.Capability));
 
 	/* BB add code here to normalize offset and length to
 	account for negative length which we can not accept over the
 	wire */
 	if (IS_GETLK(cmd)) {
-		if(experimEnabled && 
-		   (cifs_sb->tcon->ses->capabilities & CAP_UNIX) &&
-		   (CIFS_UNIX_FCNTL_CAP & 
-			le64_to_cpu(cifs_sb->tcon->fsUnixInfo.Capability))) {
+		if(posix_locking) {
 			int posix_lock_type;
 			if(lockType & LOCKING_ANDX_SHARED_LOCK)
 				posix_lock_type = CIFS_RDLCK;
@@ -683,10 +713,15 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 		FreeXid(xid);
 		return rc;
 	}
-	if (experimEnabled &&
-		(cifs_sb->tcon->ses->capabilities & CAP_UNIX) &&
-		(CIFS_UNIX_FCNTL_CAP &
-			 le64_to_cpu(cifs_sb->tcon->fsUnixInfo.Capability))) {
+
+	if (!numLock && !numUnlock) {
+		/* if no lock or unlock then nothing
+		to do since we do not know what it is */
+		FreeXid(xid);
+		return -EOPNOTSUPP;
+	}
+
+	if (posix_locking) {
 		int posix_lock_type;
 		if(lockType & LOCKING_ANDX_SHARED_LOCK)
 			posix_lock_type = CIFS_RDLCK;
@@ -695,18 +730,46 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 		
 		if(numUnlock == 1)
 			posix_lock_type = CIFS_UNLCK;
-		else if(numLock == 0) {
-			/* if no lock or unlock then nothing
-			to do since we do not know what it is */
-			FreeXid(xid);
-			return -EOPNOTSUPP;
-		}
+
 		rc = CIFSSMBPosixLock(xid, pTcon, netfid, 0 /* set */,
 				      length, pfLock,
 				      posix_lock_type, wait_flag);
-	} else
-		rc = CIFSSMBLock(xid, pTcon, netfid, length, pfLock->fl_start,
-				numUnlock, numLock, lockType, wait_flag);
+	} else {
+		struct cifsFileInfo *fid = (struct cifsFileInfo *)file->private_data;
+
+		if (numLock) {
+			rc = CIFSSMBLock(xid, pTcon, netfid, length, pfLock->fl_start,
+					0, numLock, lockType, wait_flag);
+
+			if (rc == 0) {
+				/* For Windows locks we must store them. */
+				rc = store_file_lock(fid, length,
+						pfLock->fl_start, lockType);
+			}
+		} else if (numUnlock) {
+			/* For each stored lock that this unlock overlaps
+			   completely, unlock it. */
+			int stored_rc = 0;
+			struct cifsLockInfo *li, *tmp;
+
+			down(&fid->lock_sem);
+			list_for_each_entry_safe(li, tmp, &fid->llist, llist) {
+				if (pfLock->fl_start <= li->offset &&
+						length >= li->length) {
+					stored_rc = CIFSSMBLock(xid, pTcon, netfid,
+							li->length, li->offset,
+							1, 0, li->type, FALSE);
+					if (stored_rc)
+						rc = stored_rc;
+
+					list_del(&li->llist);
+					kfree(li);
+				}
+			}
+		up(&fid->lock_sem);
+		}
+	}
+
 	if (pfLock->fl_flags & FL_POSIX)
 		posix_lock_file_wait(file, pfLock);
 	FreeXid(xid);

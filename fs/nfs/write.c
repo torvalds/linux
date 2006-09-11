@@ -90,22 +90,13 @@ static mempool_t *nfs_commit_mempool;
 
 static DECLARE_WAIT_QUEUE_HEAD(nfs_write_congestion);
 
-struct nfs_write_data *nfs_commit_alloc(unsigned int pagecount)
+struct nfs_write_data *nfs_commit_alloc(void)
 {
 	struct nfs_write_data *p = mempool_alloc(nfs_commit_mempool, SLAB_NOFS);
 
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
-		if (pagecount <= ARRAY_SIZE(p->page_array))
-			p->pagevec = p->page_array;
-		else {
-			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
-			if (!p->pagevec) {
-				mempool_free(p, nfs_commit_mempool);
-				p = NULL;
-			}
-		}
 	}
 	return p;
 }
@@ -117,13 +108,15 @@ void nfs_commit_free(struct nfs_write_data *p)
 	mempool_free(p, nfs_commit_mempool);
 }
 
-struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
+struct nfs_write_data *nfs_writedata_alloc(size_t len)
 {
+	unsigned int pagecount = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	struct nfs_write_data *p = mempool_alloc(nfs_wdata_mempool, SLAB_NOFS);
 
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
+		p->npages = pagecount;
 		if (pagecount <= ARRAY_SIZE(p->page_array))
 			p->pagevec = p->page_array;
 		else {
@@ -208,7 +201,7 @@ static int nfs_writepage_sync(struct nfs_open_context *ctx, struct inode *inode,
 	int		result, written = 0;
 	struct nfs_write_data *wdata;
 
-	wdata = nfs_writedata_alloc(1);
+	wdata = nfs_writedata_alloc(wsize);
 	if (!wdata)
 		return -ENOMEM;
 
@@ -999,24 +992,24 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, int how)
 	struct nfs_page *req = nfs_list_entry(head->next);
 	struct page *page = req->wb_page;
 	struct nfs_write_data *data;
-	unsigned int wsize = NFS_SERVER(inode)->wsize;
-	unsigned int nbytes, offset;
+	size_t wsize = NFS_SERVER(inode)->wsize, nbytes;
+	unsigned int offset;
 	int requests = 0;
 	LIST_HEAD(list);
 
 	nfs_list_remove_request(req);
 
 	nbytes = req->wb_bytes;
-	for (;;) {
-		data = nfs_writedata_alloc(1);
+	do {
+		size_t len = min(nbytes, wsize);
+
+		data = nfs_writedata_alloc(len);
 		if (!data)
 			goto out_bad;
 		list_add(&data->pages, &list);
 		requests++;
-		if (nbytes <= wsize)
-			break;
-		nbytes -= wsize;
-	}
+		nbytes -= len;
+	} while (nbytes != 0);
 	atomic_set(&req->wb_complete, requests);
 
 	ClearPageError(page);
@@ -1070,7 +1063,7 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, int how)
 	struct nfs_write_data	*data;
 	unsigned int		count;
 
-	data = nfs_writedata_alloc(NFS_SERVER(inode)->wpages);
+	data = nfs_writedata_alloc(NFS_SERVER(inode)->wsize);
 	if (!data)
 		goto out_bad;
 
@@ -1378,7 +1371,7 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 	struct nfs_write_data	*data;
 	struct nfs_page         *req;
 
-	data = nfs_commit_alloc(NFS_SERVER(inode)->wpages);
+	data = nfs_commit_alloc();
 
 	if (!data)
 		goto out_bad;

@@ -5,6 +5,20 @@
 #
 # Prompt user for primary drivers.
 
+config OSS_OBSOLETE_DRIVER
+	bool "Obsolete OSS drivers"
+	depends on SOUND_PRIME
+	help
+	  This option enables support for obsolete OSS drivers that
+	  are scheduled for removal in the near future since there
+	  are ALSA drivers for the same hardware.
+
+	  Please contact Adrian Bunk <bunk@stusta.de> if you had to
+	  say Y here because your soundcard is not properly supported
+	  by ALSA.
+
+	  If unsure, say N.
+
 config SOUND_BT878
 	tristate "BT878 audio dma"
 	depends on SOUND_PRIME && PCI
@@ -23,7 +37,7 @@ config SOUND_BT878
 
 config SOUND_EMU10K1
 	tristate "Creative SBLive! (EMU10K1)"
-	depends on SOUND_PRIME && PCI
+	depends on SOUND_PRIME && PCI && OSS_OBSOLETE_DRIVER
 	---help---
 	  Say Y or M if you have a PCI sound card using the EMU10K1 chipset,
 	  such as the Creative SBLive!, SB PCI512 or Emu-APS.
@@ -49,7 +63,7 @@ config MIDI_EMU10K1
 
 config SOUND_FUSION
 	tristate "Crystal SoundFusion (CS4280/461x)"
-	depends on SOUND_PRIME && PCI
+	depends on SOUND_PRIME && PCI && OSS_OBSOLETE_DRIVER
 	help
 	  This module drives the Crystal SoundFusion devices (CS4280/46xx
 	  series) when wired as native sound drivers with AC97 codecs.  If
@@ -440,7 +454,7 @@ config SOUND_DMAP
 
 config SOUND_AD1816
 	tristate "AD1816(A) based cards (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && SOUND_OSS
+	depends on EXPERIMENTAL && SOUND_OSS && OSS_OBSOLETE_DRIVER
 	help
 	  Say M here if you have a sound card based on the Analog Devices
 	  AD1816(A) chip.
@@ -450,21 +464,21 @@ config SOUND_AD1816
 
 config SOUND_AD1889
 	tristate "AD1889 based cards (AD1819 codec) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && SOUND_OSS && PCI
+	depends on EXPERIMENTAL && SOUND_OSS && PCI && OSS_OBSOLETE_DRIVER
 	help
 	  Say M here if you have a sound card based on the Analog Devices
 	  AD1889 chip.
 
 config SOUND_ADLIB
 	tristate "Adlib Cards"
-	depends on SOUND_OSS
+	depends on SOUND_OSS && OSS_OBSOLETE_DRIVER
 	help
 	  Includes ASB 64 4D. Information on programming AdLib cards is
 	  available at <http://www.itsnet.com/home/ldragon/Specs/adlib.html>.
 
 config SOUND_ACI_MIXER
 	tristate "ACI mixer (miroSOUND PCM1-pro/PCM12/PCM20)"
-	depends on SOUND_OSS
+	depends on SOUND_OSS && OSS_OBSOLETE_DRIVER
 	---help---
 	  ACI (Audio Command Interface) is a protocol used to communicate with
 	  the microcontroller on some sound cards produced by miro and
@@ -586,7 +600,7 @@ config SOUND_MPU401
 
 config SOUND_NM256
 	tristate "NM256AV/NM256ZX audio support"
-	depends on SOUND_OSS
+	depends on SOUND_OSS && OSS_OBSOLETE_DRIVER
 	help
 	  Say M here to include audio support for the NeoMagic 256AV/256ZX
 	  chipsets. These are the audio chipsets found in the Sony
@@ -706,7 +720,7 @@ config SOUND_YM3812
 
 config SOUND_OPL3SA2
 	tristate "Yamaha OPL3-SA2 and SA3 based PnP cards"
-	depends on SOUND_OSS
+	depends on SOUND_OSS && OSS_OBSOLETE_DRIVER
 	help
 	  Say Y or M if you have a card based on one of these Yamaha sound
 	  chipsets or the "SAx", which is actually a SA3. Read

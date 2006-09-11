@@ -376,6 +376,8 @@ static int proc_ide_read_media
 				break;
 		case ide_floppy:media = "floppy\n";
 				break;
+		case ide_optical:media = "optical\n";
+				break;
 		default:	media = "UNKNOWN\n";
 				break;
 	}

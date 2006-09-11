@@ -427,7 +427,7 @@ extern int nfs_writeback_done(struct rpc_task *, struct nfs_write_data *);
 extern void nfs_writedata_release(void *);
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-struct nfs_write_data *nfs_commit_alloc(unsigned int pagecount);
+struct nfs_write_data *nfs_commit_alloc(void);
 void nfs_commit_free(struct nfs_write_data *p);
 #endif
 
@@ -478,7 +478,7 @@ static inline int nfs_wb_page(struct inode *inode, struct page* page)
 /*
  * Allocate nfs_write_data structures
  */
-extern struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount);
+extern struct nfs_write_data *nfs_writedata_alloc(size_t len);
 
 /*
  * linux/fs/nfs/read.c
@@ -492,7 +492,7 @@ extern void nfs_readdata_release(void *data);
 /*
  * Allocate nfs_read_data structures
  */
-extern struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount);
+extern struct nfs_read_data *nfs_readdata_alloc(size_t len);
 
 /*
  * linux/fs/nfs3proc.c

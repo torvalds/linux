@@ -391,8 +391,8 @@ static MGSL_PARAMS default_params = {
 #define DESC_LIST_SIZE 4096
 
 #define MASK_PARITY  BIT1
-#define MASK_FRAMING BIT2
-#define MASK_BREAK   BIT3
+#define MASK_FRAMING BIT0
+#define MASK_BREAK   BIT14
 #define MASK_OVERRUN BIT4
 
 #define GSR   0x00 /* global status */
@@ -1800,17 +1800,17 @@ static void rx_async(struct slgt_info *info)
 
 			stat = 0;
 
-			if ((status = *(p+1) & (BIT9 + BIT8))) {
-				if (status & BIT9)
+			if ((status = *(p+1) & (BIT1 + BIT0))) {
+				if (status & BIT1)
 					icount->parity++;
-				else if (status & BIT8)
+				else if (status & BIT0)
 					icount->frame++;
 				/* discard char if tty control flags say so */
 				if (status & info->ignore_status_mask)
 					continue;
-				if (status & BIT9)
+				if (status & BIT1)
 					stat = TTY_PARITY;
-				else if (status & BIT8)
+				else if (status & BIT0)
 					stat = TTY_FRAME;
 			}
 			if (tty) {

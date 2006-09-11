@@ -1995,6 +1995,8 @@ restore_via_state(void)
 	out_8(&via[IER], IER_SET | SR_INT | CB1_INT);
 }
 
+extern void pmu_backlight_set_sleep(int sleep);
+
 static int
 pmac_suspend_devices(void)
 {
@@ -2031,6 +2033,11 @@ pmac_suspend_devices(void)
 		printk(KERN_ERR "Driver sleep failed\n");
 		return -EBUSY;
 	}
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	/* Tell backlight code not to muck around with the chip anymore */
+	pmu_backlight_set_sleep(1);
+#endif
 
 	/* Call platform functions marked "on sleep" */
 	pmac_pfunc_i2c_suspend();
@@ -2089,6 +2096,11 @@ static int
 pmac_wakeup_devices(void)
 {
 	mdelay(100);
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	/* Tell backlight code it can use the chip again */
+	pmu_backlight_set_sleep(0);
+#endif
 
 	/* Power back up system devices (including the PIC) */
 	device_power_up();

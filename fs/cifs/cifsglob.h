@@ -3,6 +3,7 @@
  *
  *   Copyright (C) International Business Machines  Corp., 2002,2006
  *   Author(s): Steve French (sfrench@us.ibm.com)
+ *              Jeremy Allison (jra@samba.org)
  *
  *   This library is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published
@@ -158,7 +159,8 @@ struct TCP_Server_Info {
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* needed for CIFS PDU signature */
-	char mac_signing_key[CIFS_SESS_KEY_SIZE + 16]; 
+	char mac_signing_key[CIFS_SESS_KEY_SIZE + 16];
+	unsigned long lstrp; /* when we got last response from this server */
 };
 
 /*
@@ -266,14 +268,14 @@ struct cifsTconInfo {
 };
 
 /*
- * This info hangs off the cifsFileInfo structure.  This is used to track
- * byte stream locks on the file
+ * This info hangs off the cifsFileInfo structure, pointed to by llist.
+ * This is used to track byte stream locks on the file
  */
 struct cifsLockInfo {
-	struct cifsLockInfo *next;
-	int start;
-	int length;
-	int type;
+	struct list_head llist;	/* pointer to next cifsLockInfo */
+	__u64 offset;
+	__u64 length;
+	__u8 type;
 };
 
 /*
@@ -304,6 +306,8 @@ struct cifsFileInfo {
 	/* lock scope id (0 if none) */
 	struct file * pfile; /* needed for writepage */
 	struct inode * pInode; /* needed for oplock break */
+	struct semaphore lock_sem;
+	struct list_head llist; /* list of byte range locks we have. */
 	unsigned closePend:1;	/* file is marked to close */
 	unsigned invalidHandle:1;  /* file closed via session abend */
 	atomic_t wrtPending;   /* handle in use - defer close */

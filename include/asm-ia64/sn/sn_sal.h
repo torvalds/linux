@@ -706,12 +706,9 @@ static inline int
 sn_change_memprotect(u64 paddr, u64 len, u64 perms, u64 *nasid_array)
 {
 	struct ia64_sal_retval ret_stuff;
-	unsigned long irq_flags;
 
-	local_irq_save(irq_flags);
 	ia64_sal_oemcall_nolock(&ret_stuff, SN_SAL_MEMPROTECT, paddr, len,
 				(u64)nasid_array, perms, 0, 0, 0);
-	local_irq_restore(irq_flags);
 	return ret_stuff.status;
 }
 #define SN_MEMPROT_ACCESS_CLASS_0		0x14a080
@@ -1143,12 +1140,9 @@ static inline int
 sn_inject_error(u64 paddr, u64 *data, u64 *ecc)
 {
 	struct ia64_sal_retval ret_stuff;
-	unsigned long irq_flags;
 
-	local_irq_save(irq_flags);
 	ia64_sal_oemcall_nolock(&ret_stuff, SN_SAL_INJECT_ERROR, paddr, (u64)data,
 				(u64)ecc, 0, 0, 0, 0);
-	local_irq_restore(irq_flags);
 	return ret_stuff.status;
 }
 

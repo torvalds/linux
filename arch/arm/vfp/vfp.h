@@ -156,7 +156,7 @@ struct vfp_single {
 };
 
 extern s32 vfp_get_float(unsigned int reg);
-extern void vfp_put_float(unsigned int reg, s32 val);
+extern void vfp_put_float(s32 val, unsigned int reg);
 
 /*
  * VFP_SINGLE_MANTISSA_BITS - number of bits in the mantissa
@@ -267,7 +267,7 @@ struct vfp_double {
  */
 #define VFP_REG_ZERO	16
 extern u64 vfp_get_double(unsigned int reg);
-extern void vfp_put_double(unsigned int reg, u64 val);
+extern void vfp_put_double(u64 val, unsigned int reg);
 
 #define VFP_DOUBLE_MANTISSA_BITS	(52)
 #define VFP_DOUBLE_EXPONENT_BITS	(11)
@@ -340,12 +340,6 @@ static inline int vfp_double_type(struct vfp_double *s)
 }
 
 u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exceptions, const char *func);
-
-/*
- * System registers
- */
-extern u32 vfp_get_sys(unsigned int reg);
-extern void vfp_put_sys(unsigned int reg, u32 val);
 
 u32 vfp_estimate_sqrt_significand(u32 exponent, u32 significand);
 

@@ -12,6 +12,7 @@
 #include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/cpu.h>
 
 void __get_zone_counts(unsigned long *active, unsigned long *inactive,
 			unsigned long *free, struct pglist_data *pgdat)
@@ -114,17 +115,72 @@ EXPORT_SYMBOL(vm_stat);
 
 #ifdef CONFIG_SMP
 
-#define STAT_THRESHOLD 32
+static int calculate_threshold(struct zone *zone)
+{
+	int threshold;
+	int mem;	/* memory in 128 MB units */
+
+	/*
+	 * The threshold scales with the number of processors and the amount
+	 * of memory per zone. More memory means that we can defer updates for
+	 * longer, more processors could lead to more contention.
+ 	 * fls() is used to have a cheap way of logarithmic scaling.
+	 *
+	 * Some sample thresholds:
+	 *
+	 * Threshold	Processors	(fls)	Zonesize	fls(mem+1)
+	 * ------------------------------------------------------------------
+	 * 8		1		1	0.9-1 GB	4
+	 * 16		2		2	0.9-1 GB	4
+	 * 20 		2		2	1-2 GB		5
+	 * 24		2		2	2-4 GB		6
+	 * 28		2		2	4-8 GB		7
+	 * 32		2		2	8-16 GB		8
+	 * 4		2		2	<128M		1
+	 * 30		4		3	2-4 GB		5
+	 * 48		4		3	8-16 GB		8
+	 * 32		8		4	1-2 GB		4
+	 * 32		8		4	0.9-1GB		4
+	 * 10		16		5	<128M		1
+	 * 40		16		5	900M		4
+	 * 70		64		7	2-4 GB		5
+	 * 84		64		7	4-8 GB		6
+	 * 108		512		9	4-8 GB		6
+	 * 125		1024		10	8-16 GB		8
+	 * 125		1024		10	16-32 GB	9
+	 */
+
+	mem = zone->present_pages >> (27 - PAGE_SHIFT);
+
+	threshold = 2 * fls(num_online_cpus()) * (1 + fls(mem));
+
+	/*
+	 * Maximum threshold is 125
+	 */
+	threshold = min(125, threshold);
+
+	return threshold;
+}
 
 /*
- * Determine pointer to currently valid differential byte given a zone and
- * the item number.
- *
- * Preemption must be off
+ * Refresh the thresholds for each zone.
  */
-static inline s8 *diff_pointer(struct zone *zone, enum zone_stat_item item)
+static void refresh_zone_stat_thresholds(void)
 {
-	return &zone_pcp(zone, smp_processor_id())->vm_stat_diff[item];
+	struct zone *zone;
+	int cpu;
+	int threshold;
+
+	for_each_zone(zone) {
+
+		if (!zone->present_pages)
+			continue;
+
+		threshold = calculate_threshold(zone);
+
+		for_each_online_cpu(cpu)
+			zone_pcp(zone, cpu)->stat_threshold = threshold;
+	}
 }
 
 /*
@@ -133,17 +189,16 @@ static inline s8 *diff_pointer(struct zone *zone, enum zone_stat_item item)
 void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
 				int delta)
 {
-	s8 *p;
+	struct per_cpu_pageset *pcp = zone_pcp(zone, smp_processor_id());
+	s8 *p = pcp->vm_stat_diff + item;
 	long x;
 
-	p = diff_pointer(zone, item);
 	x = delta + *p;
 
-	if (unlikely(x > STAT_THRESHOLD || x < -STAT_THRESHOLD)) {
+	if (unlikely(x > pcp->stat_threshold || x < -pcp->stat_threshold)) {
 		zone_page_state_add(x, zone, item);
 		x = 0;
 	}
-
 	*p = x;
 }
 EXPORT_SYMBOL(__mod_zone_page_state);
@@ -172,9 +227,11 @@ EXPORT_SYMBOL(mod_zone_page_state);
  * No overflow check is necessary and therefore the differential can be
  * incremented or decremented in place which may allow the compilers to
  * generate better code.
- *
  * The increment or decrement is known and therefore one boundary check can
  * be omitted.
+ *
+ * NOTE: These functions are very performance sensitive. Change only
+ * with care.
  *
  * Some processors have inc/dec instructions that are atomic vs an interrupt.
  * However, the code must first determine the differential location in a zone
@@ -185,13 +242,16 @@ EXPORT_SYMBOL(mod_zone_page_state);
  */
 static void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
 {
-	s8 *p = diff_pointer(zone, item);
+	struct per_cpu_pageset *pcp = zone_pcp(zone, smp_processor_id());
+	s8 *p = pcp->vm_stat_diff + item;
 
 	(*p)++;
 
-	if (unlikely(*p > STAT_THRESHOLD)) {
-		zone_page_state_add(*p, zone, item);
-		*p = 0;
+	if (unlikely(*p > pcp->stat_threshold)) {
+		int overstep = pcp->stat_threshold / 2;
+
+		zone_page_state_add(*p + overstep, zone, item);
+		*p = -overstep;
 	}
 }
 
@@ -204,13 +264,16 @@ EXPORT_SYMBOL(__inc_zone_page_state);
 void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
 {
 	struct zone *zone = page_zone(page);
-	s8 *p = diff_pointer(zone, item);
+	struct per_cpu_pageset *pcp = zone_pcp(zone, smp_processor_id());
+	s8 *p = pcp->vm_stat_diff + item;
 
 	(*p)--;
 
-	if (unlikely(*p < -STAT_THRESHOLD)) {
-		zone_page_state_add(*p, zone, item);
-		*p = 0;
+	if (unlikely(*p < - pcp->stat_threshold)) {
+		int overstep = pcp->stat_threshold / 2;
+
+		zone_page_state_add(*p - overstep, zone, item);
+		*p = overstep;
 	}
 }
 EXPORT_SYMBOL(__dec_zone_page_state);
@@ -239,19 +302,9 @@ EXPORT_SYMBOL(inc_zone_page_state);
 void dec_zone_page_state(struct page *page, enum zone_stat_item item)
 {
 	unsigned long flags;
-	struct zone *zone;
-	s8 *p;
 
-	zone = page_zone(page);
 	local_irq_save(flags);
-	p = diff_pointer(zone, item);
-
-	(*p)--;
-
-	if (unlikely(*p < -STAT_THRESHOLD)) {
-		zone_page_state_add(*p, zone, item);
-		*p = 0;
-	}
+	__dec_zone_page_state(page, item);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(dec_zone_page_state);
@@ -525,6 +578,10 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 					   pageset->pcp[j].high,
 					   pageset->pcp[j].batch);
 			}
+#ifdef CONFIG_SMP
+			seq_printf(m, "\n  vm stats threshold: %d",
+					pageset->stat_threshold);
+#endif
 		}
 		seq_printf(m,
 			   "\n  all_unreclaimable: %u"
@@ -613,3 +670,35 @@ struct seq_operations vmstat_op = {
 
 #endif /* CONFIG_PROC_FS */
 
+#ifdef CONFIG_SMP
+/*
+ * Use the cpu notifier to insure that the thresholds are recalculated
+ * when necessary.
+ */
+static int __cpuinit vmstat_cpuup_callback(struct notifier_block *nfb,
+		unsigned long action,
+		void *hcpu)
+{
+	switch (action) {
+		case CPU_UP_PREPARE:
+		case CPU_UP_CANCELED:
+		case CPU_DEAD:
+			refresh_zone_stat_thresholds();
+			break;
+		default:
+			break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block __cpuinitdata vmstat_notifier =
+	{ &vmstat_cpuup_callback, NULL, 0 };
+
+int __init setup_vmstat(void)
+{
+	refresh_zone_stat_thresholds();
+	register_cpu_notifier(&vmstat_notifier);
+	return 0;
+}
+module_init(setup_vmstat)
+#endif
