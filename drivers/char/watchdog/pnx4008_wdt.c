@@ -104,7 +104,8 @@ static void wdt_enable(void)
 	/* stop counter, initiate counter reset */
 	__raw_writel(RESET_COUNT, WDTIM_CTRL(wdt_base));
 	/*wait for reset to complete. 100% guarantee event */
-	while (__raw_readl(WDTIM_COUNTER(wdt_base)));
+	while (__raw_readl(WDTIM_COUNTER(wdt_base)))
+		cpu_relax();
 	/* internal and external reset, stop after that */
 	__raw_writel(M_RES2 | STOP_COUNT0 | RESET_COUNT0,
 		WDTIM_MCTRL(wdt_base));
