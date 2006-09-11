@@ -115,13 +115,15 @@ static int lifebook_absolute_mode(struct psmouse *psmouse)
 
 static void lifebook_set_resolution(struct psmouse *psmouse, unsigned int resolution)
 {
-	unsigned char params[] = { 0, 1, 2, 2, 3 };
+	static const unsigned char params[] = { 0, 1, 2, 2, 3 };
+	unsigned char p;
 
 	if (resolution == 0 || resolution > 400)
 		resolution = 400;
 
-	ps2_command(&psmouse->ps2dev, &params[resolution / 100], PSMOUSE_CMD_SETRES);
-	psmouse->resolution = 50 << params[resolution / 100];
+	p = params[resolution / 100];
+	ps2_command(&psmouse->ps2dev, &p, PSMOUSE_CMD_SETRES);
+	psmouse->resolution = 50 << p;
 }
 
 static void lifebook_disconnect(struct psmouse *psmouse)

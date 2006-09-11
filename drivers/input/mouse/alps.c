@@ -36,7 +36,7 @@
 #define ALPS_PASS	0x20
 #define ALPS_FW_BK_2	0x40
 
-static struct alps_model_info alps_model_data[] = {
+static const struct alps_model_info alps_model_data[] = {
 	{ { 0x33, 0x02, 0x0a },	0x88, 0xf8, ALPS_OLDPROTO },		/* UMAX-530T */
 	{ { 0x53, 0x02, 0x0a },	0xf8, 0xf8, 0 },
 	{ { 0x53, 0x02, 0x14 },	0xf8, 0xf8, 0 },
@@ -209,10 +209,10 @@ static psmouse_ret_t alps_process_byte(struct psmouse *psmouse, struct pt_regs *
 	return PSMOUSE_GOOD_DATA;
 }
 
-static struct alps_model_info *alps_get_model(struct psmouse *psmouse, int *version)
+static const struct alps_model_info *alps_get_model(struct psmouse *psmouse, int *version)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
-	unsigned char rates[] = { 0, 10, 20, 40, 60, 80, 100, 200 };
+	static const unsigned char rates[] = { 0, 10, 20, 40, 60, 80, 100, 200 };
 	unsigned char param[4];
 	int i;
 
@@ -504,7 +504,7 @@ init_fail:
 int alps_detect(struct psmouse *psmouse, int set_properties)
 {
 	int version;
-	struct alps_model_info *model;
+	const struct alps_model_info *model;
 
 	if (!(model = alps_get_model(psmouse, &version)))
 		return -1;
