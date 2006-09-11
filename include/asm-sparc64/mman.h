@@ -35,4 +35,12 @@
 
 #define MADV_FREE	0x5		/* (Solaris) contents can be freed */
 
+#ifdef __KERNEL__
+#ifndef __ASSEMBLY__
+#define arch_mmap_check	sparc64_mmap_check
+int sparc64_mmap_check(unsigned long addr, unsigned long len,
+		unsigned long flags);
+#endif
+#endif
+
 #endif /* __SPARC64_MMAN_H__ */

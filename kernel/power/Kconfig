@@ -56,7 +56,7 @@ config PM_TRACE
 
 config SOFTWARE_SUSPEND
 	bool "Software Suspend"
-	depends on PM && SWAP && (X86 && (!SMP || SUSPEND_SMP)) || ((FRV || PPC32) && !SMP)
+	depends on PM && SWAP && ((X86 && (!SMP || SUSPEND_SMP) && !X86_PAE) || ((FRV || PPC32) && !SMP))
 	---help---
 	  Enable the possibility of suspending the machine.
 	  It doesn't need ACPI or APM.
@@ -77,6 +77,10 @@ config SOFTWARE_SUSPEND
 	  on disk won't match with saved ones.
 
 	  For more information take a look at <file:Documentation/power/swsusp.txt>.
+
+	  (For now, swsusp is incompatible with PAE aka HIGHMEM_64G on i386.
+	  we need identity mapping for resume to work, and that is trivial
+	  to get with 4MB pages, but less than trivial on PAE).
 
 config PM_STD_PARTITION
 	string "Default resume partition"
