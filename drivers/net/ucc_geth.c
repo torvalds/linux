@@ -47,7 +47,7 @@
 
 #undef DEBUG
 
-#define DRV_DESC "QE UCC Gigabit Ethernet Controller version:June 20, 2006"
+#define DRV_DESC "QE UCC Gigabit Ethernet Controller version:Sept 11, 2006"
 #define DRV_NAME "ucc_geth"
 
 #define ugeth_printk(level, format, arg...)  \
@@ -2510,8 +2510,6 @@ static void ucc_geth_set_multi(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {
 
-		/* Log any net taps. */
-		printk("%s: Promiscuous mode enabled.\n", dev->name);
 		uf_regs->upsmr |= UPSMR_PRO;
 
 	} else {

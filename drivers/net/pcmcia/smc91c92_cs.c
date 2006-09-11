@@ -80,14 +80,14 @@ INT_MODULE_PARM(if_port, 0);
 #ifdef PCMCIA_DEBUG
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 static const char *version =
-"smc91c92_cs.c 0.09 1996/8/4 Donald Becker, becker@scyld.com.\n";
+"smc91c92_cs.c 1.123 2006/11/09 Donald Becker, becker@scyld.com.\n";
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 #else
 #define DEBUG(n, args...)
 #endif
 
 #define DRV_NAME	"smc91c92_cs"
-#define DRV_VERSION	"1.122"
+#define DRV_VERSION	"1.123"
 
 /*====================================================================*/
 
@@ -1780,7 +1780,6 @@ static void set_rx_mode(struct net_device *dev)
     u_short rx_cfg_setting;
 
     if (dev->flags & IFF_PROMISC) {
-	printk(KERN_NOTICE "%s: setting Rx mode to promiscuous.\n", dev->name);
 	rx_cfg_setting = RxStripCRC | RxEnable | RxPromisc | RxAllMulti;
     } else if (dev->flags & IFF_ALLMULTI)
 	rx_cfg_setting = RxStripCRC | RxEnable | RxAllMulti;

@@ -1708,9 +1708,6 @@ static void gfar_set_multi(struct net_device *dev)
 	u32 tempval;
 
 	if(dev->flags & IFF_PROMISC) {
-		if (netif_msg_drv(priv))
-			printk(KERN_INFO "%s: Entering promiscuous mode.\n",
-					dev->name);
 		/* Set RCTRL to PROM */
 		tempval = gfar_read(&regs->rctrl);
 		tempval |= RCTRL_PROM;

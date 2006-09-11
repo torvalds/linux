@@ -45,8 +45,8 @@
 */
 
 #define DRV_NAME	"winbond-840"
-#define DRV_VERSION	"1.01-d"
-#define DRV_RELDATE	"Nov-17-2001"
+#define DRV_VERSION	"1.01-e"
+#define DRV_RELDATE	"Sep-11-2006"
 
 
 /* Automatically extracted configuration info:
@@ -1378,8 +1378,6 @@ static u32 __set_rx_mode(struct net_device *dev)
 	u32 rx_mode;
 
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
-		/* Unconditionally log net taps. */
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptAllPhys
 			| AcceptMyPhys;

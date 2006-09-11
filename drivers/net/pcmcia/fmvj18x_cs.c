@@ -29,7 +29,7 @@
 ======================================================================*/
 
 #define DRV_NAME	"fmvj18x_cs"
-#define DRV_VERSION	"2.8"
+#define DRV_VERSION	"2.9"
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -1193,8 +1193,6 @@ static void set_rx_mode(struct net_device *dev)
 	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
 
     if (dev->flags & IFF_PROMISC) {
-	/* Unconditionally log net taps. */
-	printk("%s: Promiscuous mode enabled.\n", dev->name);
 	memset(mc_filter, 0xff, sizeof(mc_filter));
 	outb(3, ioaddr + RX_MODE);	/* Enable promiscuous mode */
     } else if (dev->mc_count > MC_FILTERBREAK

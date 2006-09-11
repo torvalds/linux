@@ -25,8 +25,8 @@
 */
 
 #define DRV_NAME	"fealnx"
-#define DRV_VERSION	"2.51"
-#define DRV_RELDATE	"Nov-17-2001"
+#define DRV_VERSION	"2.52"
+#define DRV_RELDATE	"Sep-11-2006"
 
 static int debug;		/* 1-> print debug message */
 static int max_interrupt_work = 20;
@@ -1800,8 +1800,6 @@ static void __set_rx_mode(struct net_device *dev)
 	u32 rx_mode;
 
 	if (dev->flags & IFF_PROMISC) {	/* Set promiscuous. */
-		/* Unconditionally log net taps. */
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = CR_W_PROM | CR_W_AB | CR_W_AM;
 	} else if ((dev->mc_count > multicast_filter_limit)

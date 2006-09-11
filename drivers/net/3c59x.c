@@ -2928,7 +2928,7 @@ static void set_rx_mode(struct net_device *dev)
 	int new_mode;
 
 	if (dev->flags & IFF_PROMISC) {
-		if (vortex_debug > 0)
+		if (vortex_debug > 3)
 			printk(KERN_NOTICE "%s: Setting promiscuous mode.\n", dev->name);
 		new_mode = SetRxFilter|RxStation|RxMulticast|RxBroadcast|RxProm;
 	} else	if ((dev->mc_list)  ||  (dev->flags & IFF_ALLMULTI)) {

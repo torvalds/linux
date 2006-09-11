@@ -29,7 +29,7 @@
 
 #define VELOCITY_NAME          "via-velocity"
 #define VELOCITY_FULL_DRV_NAM  "VIA Networking Velocity Family Gigabit Ethernet Adapter Driver"
-#define VELOCITY_VERSION       "1.13"
+#define VELOCITY_VERSION       "1.14"
 
 #define VELOCITY_IO_SIZE	256
 

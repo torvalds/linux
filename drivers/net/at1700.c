@@ -58,7 +58,7 @@
 #include <asm/dma.h>
 
 static char version[] __initdata =
-	"at1700.c:v1.15 4/7/98  Donald Becker (becker@cesdis.gsfc.nasa.gov)\n";
+	"at1700.c:v1.16 9/11/06  Donald Becker (becker@cesdis.gsfc.nasa.gov)\n";
 
 #define DRV_NAME "at1700"
 
@@ -851,8 +851,6 @@ set_rx_mode(struct net_device *dev)
 	int i;
 
 	if (dev->flags & IFF_PROMISC) {
-		/* Unconditionally log net taps. */
-		printk("%s: Promiscuous mode enabled.\n", dev->name);
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		outb(3, ioaddr + RX_MODE);	/* Enable promiscuous mode */
 	} else if (dev->mc_count > MC_FILTERBREAK

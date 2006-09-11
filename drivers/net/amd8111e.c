@@ -101,9 +101,9 @@ Revision History:
 
 #include "amd8111e.h"
 #define MODULE_NAME	"amd8111e"
-#define MODULE_VERS	"3.0.5"
+#define MODULE_VERS	"3.0.6"
 MODULE_AUTHOR("Advanced Micro Devices, Inc.");
-MODULE_DESCRIPTION ("AMD8111 based 10/100 Ethernet Controller. Driver Version 3.0.3");
+MODULE_DESCRIPTION ("AMD8111 based 10/100 Ethernet Controller. Driver Version 3.0.6");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, amd8111e_pci_tbl);
 module_param_array(speed_duplex, int, NULL, 0);
@@ -1527,7 +1527,6 @@ static void amd8111e_set_multicast_list(struct net_device *dev)
 	u32 mc_filter[2] ;
 	int i,bit_num;
 	if(dev->flags & IFF_PROMISC){
-		printk(KERN_INFO "%s: Setting  promiscuous mode.\n",dev->name);
 		writel( VAL2 | PROM, lp->mmio + CMD2);
 		return;
 	}

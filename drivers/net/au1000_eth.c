@@ -72,7 +72,7 @@ static int au1000_debug = 3;
 #endif
 
 #define DRV_NAME	"au1000_eth"
-#define DRV_VERSION	"1.5"
+#define DRV_VERSION	"1.6"
 #define DRV_AUTHOR	"Pete Popov <ppopov@embeddedalley.com>"
 #define DRV_DESC	"Au1xxx on-chip Ethernet driver"
 
@@ -1292,7 +1292,6 @@ static void set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		aup->mac->control |= MAC_PROMISCUOUS;
-		printk(KERN_INFO "%s: Promiscuous mode enabled.\n", dev->name);
 	} else if ((dev->flags & IFF_ALLMULTI)  ||
 			   dev->mc_count > MULTICAST_FILTER_LIMIT) {
 		aup->mac->control |= MAC_PASS_ALL_MULTI;

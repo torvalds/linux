@@ -2227,8 +2227,6 @@ static void set_multicast_list(struct net_device *dev)
 	ep = fep->hwp;
 
 	if (dev->flags&IFF_PROMISC) {
-		/* Log any net taps. */
-		printk("%s: Promiscuous mode enabled.\n", dev->name);
 		ep->fec_r_cntrl |= 0x0008;
 	} else {
 

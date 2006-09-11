@@ -821,9 +821,6 @@ static void sis190_set_rx_mode(struct net_device *dev)
 	u16 rx_mode;
 
 	if (dev->flags & IFF_PROMISC) {
-		/* Unconditionally log net taps. */
-		net_drv(tp, KERN_NOTICE "%s: Promiscuous mode enabled.\n",
-			dev->name);
 		rx_mode =
 			AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
 			AcceptAllPhys;
