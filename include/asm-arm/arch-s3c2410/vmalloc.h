@@ -10,11 +10,7 @@
  * published by the Free Software Foundation.
  *
  * S3C2410 vmalloc definition
- *
- *  Changelog:
- *    12-Mar-2004 BJD	Fixed header, added include protection
- *    12=Mar-2004 BJD	Fixed VMALLOC_END definitions
- */
+*/
 
 #ifndef __ASM_ARCH_VMALLOC_H
 #define __ASM_ARCH_VMALLOC_H

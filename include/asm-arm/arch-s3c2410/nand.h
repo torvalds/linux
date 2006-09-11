@@ -8,9 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Changelog:
- *	23-Sep-2004 BJD  Created file
 */
 
 /* struct s3c2410_nand_set

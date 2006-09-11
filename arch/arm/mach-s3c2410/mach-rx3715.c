@@ -9,15 +9,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Modifications:
- *	16-Sep-2004 BJD  Copied from mach-h1940.c
- *	25-Oct-2004 BJD  Updates for 2.6.10-rc1
- *	10-Jan-2005 BJD  Removed include of s3c2410.h s3c2440.h
- *	14-Jan-2005 BJD  Added new clock init
- *	10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
- *	14-Mar-2005 BJD  Fixed __iomem warnings
- *	20-Sep-2005 BJD  Added static to non-exported items
- *	31-Oct-2005 BJD  Added LCD setup for framebuffer
 */
 
 #include <linux/kernel.h>

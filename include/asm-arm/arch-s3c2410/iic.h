@@ -8,10 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Changelog:
- *	05-Oct-2004 BJD  Created file
- *	19-Oct-2004 BJD	 Updated for s3c2440
 */
 
 #ifndef __ASM_ARCH_IIC_H

@@ -8,10 +8,6 @@
  * published by the Free Software Foundation.
  *
  * S3C2410 I2C Controller
- *
- *  Changelog:
- *	03-Oct-2004  BJD  Initial include for Linux
- *	08-Nov-2004  BJD  Added S3C2440 filter register
 */
 
 #ifndef __ASM_ARCH_REGS_IIC_H

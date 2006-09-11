@@ -8,21 +8,6 @@
  * published by the Free Software Foundation.
  *
  * S3C2410 GPIO register definitions
- *
- *  Changelog:
- *    19-06-2003     BJD     Created file
- *    23-06-2003     BJD     Updated GSTATUS registers
- *    12-03-2004     BJD     Updated include protection
- *    20-07-2004     BJD     Added GPIO pin numbers, added Port A definitions
- *    04-10-2004     BJD     Fixed number of bugs, added EXT IRQ filter defs
- *    17-10-2004     BJD     Added GSTATUS1 register definitions
- *    18-11-2004     BJD     Fixed definitions of GPE3, GPE4, GPE5 and GPE6
- *    18-11-2004     BJD     Added S3C2440 AC97 controls
- *    10-Mar-2005    LCVR    Changed S3C2410_VA to S3C24XX_VA
- *    28-Mar-2005    LCVR    Fixed definition of GPB10
- *    26-Oct-2005    BJD     Added generic configuration types
- *    27-Nov-2005    LCVR    Added definitions to S3C2400 registers
- *    15-Jan-2006    LCVR    Written S3C24XX_GPIO_BASE() macro
 */
 
 
