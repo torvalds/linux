@@ -91,6 +91,9 @@ EXPORT_SYMBOL(__copy_tofrom_user);
 EXPORT_SYMBOL(__clear_user);
 EXPORT_SYMBOL(__strncpy_from_user);
 EXPORT_SYMBOL(__strnlen_user);
+#ifdef CONFIG_PPC64
+EXPORT_SYMBOL(copy_4K_page);
+#endif
 
 #ifndef  __powerpc64__
 EXPORT_SYMBOL(__ide_mm_insl);
