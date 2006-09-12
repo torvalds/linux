@@ -117,6 +117,14 @@ struct rdma_cm_id {
 struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
 				  void *context, enum rdma_port_space ps);
 
+/**
+  * rdma_destroy_id - Destroys an RDMA identifier.
+  *
+  * @id: RDMA identifier.
+  *
+  * Note: calling this function has the effect of canceling in-flight
+  * asynchronous operations associated with the id.
+  */
 void rdma_destroy_id(struct rdma_cm_id *id);
 
 /**
