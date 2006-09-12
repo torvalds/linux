@@ -289,6 +289,11 @@ enum {
 	 * most devices.
 	 */
 	ATA_SPINUP_WAIT		= 8000,
+	
+	/* Horkage types. May be set by libata or controller on drives
+	   (some horkage may be drive/controller pair dependant */
+
+	ATA_HORKAGE_DIAGNOSTIC	= (1 << 0),	/* Failed boot diag */
 };
 
 enum hsm_task_states {
@@ -476,6 +481,7 @@ struct ata_device {
 
 	/* error history */
 	struct ata_ering	ering;
+	unsigned int		horkage;	/* List of broken features */
 };
 
 /* Offset into struct ata_device.  Fields above it are maintained

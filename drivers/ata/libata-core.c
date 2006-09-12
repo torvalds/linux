@@ -616,8 +616,11 @@ ata_dev_try_classify(struct ata_port *ap, unsigned int device, u8 *r_err)
 	if (r_err)
 		*r_err = err;
 
-	/* see if device passed diags */
-	if (err == 1)
+	/* see if device passed diags: if master then continue and warn later */
+	if (err == 0 && device == 0)
+		/* diagnostic fail : do nothing _YET_ */
+		ap->device[device].horkage |= ATA_HORKAGE_DIAGNOSTIC;
+	else if (err == 1)
 		/* do nothing */ ;
 	else if ((device == 0) && (err == 0x81))
 		/* do nothing */ ;
@@ -1521,6 +1524,18 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 			ata_dev_printk(dev, KERN_INFO, "ATAPI, max %s%s\n",
 				       ata_mode_string(xfer_mask),
 				       cdb_intr_string);
+	}
+
+	if (dev->horkage & ATA_HORKAGE_DIAGNOSTIC) {
+		/* Let the user know. We don't want to disallow opens for
+		   rescue purposes, or in case the vendor is just a blithering
+		   idiot */
+                if (print_info) {
+			ata_dev_printk(dev, KERN_WARNING,
+"Drive reports diagnostics failure. This may indicate a drive\n");
+			ata_dev_printk(dev, KERN_WARNING,
+"fault or invalid emulation. Contact drive vendor for information.\n");
+		}
 	}
 
 	ata_set_port_max_cmd_len(ap);
