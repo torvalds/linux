@@ -1074,9 +1074,9 @@ static int enable_device(struct acpiphp_slot *slot)
 
 	pci_bus_assign_resources(bus);
 	acpiphp_sanitize_bus(bus);
+	acpiphp_set_hpp_values(slot->bridge->handle, bus);
 	pci_enable_bridges(bus);
 	pci_bus_add_devices(bus);
-	acpiphp_set_hpp_values(slot->bridge->handle, bus);
 	acpiphp_configure_ioapics(slot->bridge->handle);
 
 	/* associate pci_dev to our representation */
