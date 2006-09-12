@@ -29,7 +29,7 @@
 
 #include "dcache.h"
 
-#define OCFS2_LVB_VERSION 3
+#define OCFS2_LVB_VERSION 4
 
 struct ocfs2_meta_lvb {
 	__be16       lvb_reserved0;
@@ -45,7 +45,8 @@ struct ocfs2_meta_lvb {
 	__be16       lvb_imode;
 	__be16       lvb_inlink;
 	__be32       lvb_iattr;
-	__be32       lvb_reserved[2];
+	__be32       lvb_igeneration;
+	__be32       lvb_reserved2;
 };
 
 /* ocfs2_meta_lock_full() and ocfs2_data_lock_full() 'arg_flags' flags */

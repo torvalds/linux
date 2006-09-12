@@ -1427,6 +1427,7 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 	lvb->lvb_imtime_packed =
 		cpu_to_be64(ocfs2_pack_timespec(&inode->i_mtime));
 	lvb->lvb_iattr    = cpu_to_be32(oi->ip_attr);
+	lvb->lvb_igeneration = cpu_to_be32(inode->i_generation);
 
 	mlog_meta_lvb(0, lockres);
 
@@ -1482,11 +1483,13 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	mlog_exit_void();
 }
 
-static inline int ocfs2_meta_lvb_is_trustable(struct ocfs2_lock_res *lockres)
+static inline int ocfs2_meta_lvb_is_trustable(struct inode *inode,
+					      struct ocfs2_lock_res *lockres)
 {
 	struct ocfs2_meta_lvb *lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
 
-	if (lvb->lvb_version == OCFS2_LVB_VERSION)
+	if (lvb->lvb_version == OCFS2_LVB_VERSION
+	    && be32_to_cpu(lvb->lvb_igeneration) == inode->i_generation)
 		return 1;
 	return 0;
 }
@@ -1583,7 +1586,7 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 	 * map (directories, bitmap files, etc) */
 	ocfs2_extent_map_trunc(inode, 0);
 
-	if (ocfs2_meta_lvb_is_trustable(lockres)) {
+	if (ocfs2_meta_lvb_is_trustable(inode, lockres)) {
 		mlog(0, "Trusting LVB on inode %llu\n",
 		     (unsigned long long)oi->ip_blkno);
 		ocfs2_refresh_inode_from_lvb(inode);
@@ -3166,8 +3169,9 @@ void ocfs2_dump_meta_lvb_info(u64 level,
 
 	mlog(level, "LVB information for %s (called from %s:%u):\n",
 	     lockres->l_name, function, line);
-	mlog(level, "version: %u, clusters: %u\n",
-	     lvb->lvb_version, be32_to_cpu(lvb->lvb_iclusters));
+	mlog(level, "version: %u, clusters: %u, generation: 0x%x\n",
+	     lvb->lvb_version, be32_to_cpu(lvb->lvb_iclusters),
+	     be32_to_cpu(lvb->lvb_igeneration));
 	mlog(level, "size: %llu, uid %u, gid %u, mode 0x%x\n",
 	     (unsigned long long)be64_to_cpu(lvb->lvb_isize),
 	     be32_to_cpu(lvb->lvb_iuid), be32_to_cpu(lvb->lvb_igid),
