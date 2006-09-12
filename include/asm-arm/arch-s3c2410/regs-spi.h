@@ -7,13 +7,7 @@
  * published by the Free Software Foundation.
  *
  * S3C2410 SPI register definition
- *
- *  Changelog:
- *    20-04-2004     KF      Created file
- *    04-10-2004     BJD     Removed VA address (no longer mapped)
- *			     tidied file for submission
- *    03-04-2005     LCVR    Added S3C2400_SPPIN_nCS definition
- */
+*/
 
 #ifndef __ASM_ARCH_REGS_SPI_H
 #define __ASM_ARCH_REGS_SPI_H

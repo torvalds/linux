@@ -105,6 +105,8 @@ extern int mmc_wait_for_cmd(struct mmc_host *, struct mmc_command *, int);
 extern int mmc_wait_for_app_cmd(struct mmc_host *, unsigned int,
 	struct mmc_command *, int);
 
+extern void mmc_set_data_timeout(struct mmc_data *, const struct mmc_card *, int);
+
 extern int __mmc_claim_host(struct mmc_host *host, struct mmc_card *card);
 
 static inline void mmc_claim_host(struct mmc_host *host)

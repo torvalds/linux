@@ -29,6 +29,10 @@ config GENERIC_HARDIRQS
 	bool
 	default n
 
+config GENERIC_TIME
+	bool
+	default y
+
 config TIME_LOW_RES
 	bool
 	default y

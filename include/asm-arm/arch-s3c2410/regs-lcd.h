@@ -6,14 +6,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- *
- *
- *  Changelog:
- *    12-06-2003     BJD     Created file
- *    26-06-2003     BJD     Updated LCDCON register definitions
- *    12-03-2004     BJD     Updated include protection
- *    10-03-2005     LCVR    Changed S3C2410_VA to S3C24XX_VA
 */
 
 

@@ -377,8 +377,8 @@ dm9000_release_board(struct platform_device *pdev, struct board_info *db)
 		kfree(db->data_req);
 	}
 
-	if (db->addr_res != NULL) {
-		release_resource(db->addr_res);
+	if (db->addr_req != NULL) {
+		release_resource(db->addr_req);
 		kfree(db->addr_req);
 	}
 }

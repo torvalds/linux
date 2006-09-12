@@ -247,6 +247,55 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, unsigned int rca,
 
 EXPORT_SYMBOL(mmc_wait_for_app_cmd);
 
+/**
+ *	mmc_set_data_timeout - set the timeout for a data command
+ *	@data: data phase for command
+ *	@card: the MMC card associated with the data transfer
+ *	@write: flag to differentiate reads from writes
+ */
+void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card,
+			  int write)
+{
+	unsigned int mult;
+
+	/*
+	 * SD cards use a 100 multiplier rather than 10
+	 */
+	mult = mmc_card_sd(card) ? 100 : 10;
+
+	/*
+	 * Scale up the multiplier (and therefore the timeout) by
+	 * the r2w factor for writes.
+	 */
+	if (write)
+		mult <<= card->csd.r2w_factor;
+
+	data->timeout_ns = card->csd.tacc_ns * mult;
+	data->timeout_clks = card->csd.tacc_clks * mult;
+
+	/*
+	 * SD cards also have an upper limit on the timeout.
+	 */
+	if (mmc_card_sd(card)) {
+		unsigned int timeout_us, limit_us;
+
+		timeout_us = data->timeout_ns / 1000;
+		timeout_us += data->timeout_clks * 1000 /
+			(card->host->ios.clock / 1000);
+
+		if (write)
+			limit_us = 250000;
+		else
+			limit_us = 100000;
+
+		if (timeout_us > limit_us) {
+			data->timeout_ns = limit_us * 1000;
+			data->timeout_clks = 0;
+		}
+	}
+}
+EXPORT_SYMBOL(mmc_set_data_timeout);
+
 static int mmc_select_card(struct mmc_host *host, struct mmc_card *card);
 
 /**
@@ -908,11 +957,9 @@ static void mmc_read_scrs(struct mmc_host *host)
 {
 	int err;
 	struct mmc_card *card;
-
 	struct mmc_request mrq;
 	struct mmc_command cmd;
 	struct mmc_data data;
-
 	struct scatterlist sg;
 
 	list_for_each_entry(card, &host->cards, node) {
@@ -947,8 +994,8 @@ static void mmc_read_scrs(struct mmc_host *host)
 
 		memset(&data, 0, sizeof(struct mmc_data));
 
-		data.timeout_ns = card->csd.tacc_ns * 10;
-		data.timeout_clks = card->csd.tacc_clks * 10;
+		mmc_set_data_timeout(&data, card, 0);
+
 		data.blksz_bits = 3;
 		data.blksz = 1 << 3;
 		data.blocks = 1;

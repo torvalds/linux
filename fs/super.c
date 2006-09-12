@@ -49,6 +49,7 @@ DEFINE_SPINLOCK(sb_lock);
 
 /**
  *	alloc_super	-	create new superblock
+ *	@type:	filesystem type superblock should belong to
  *
  *	Allocates and initializes a new &struct super_block.  alloc_super()
  *	returns a pointer new superblock or %NULL if allocation had failed.

@@ -8,31 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Modifications:
- *     14-Sep-2004 BJD  USB power control
- *     20-Aug-2004 BJD  Added s3c2410_board struct
- *     18-Aug-2004 BJD  Added platform devices from default set
- *     16-May-2003 BJD  Created initial version
- *     16-Aug-2003 BJD  Fixed header files and copyright, added URL
- *     05-Sep-2003 BJD  Moved to v2.6 kernel
- *     06-Jan-2003 BJD  Updates for <arch/map.h>
- *     18-Jan-2003 BJD  Added serial port configuration
- *     05-Oct-2004 BJD  Power management code
- *     04-Nov-2004 BJD  Updated serial port clocks
- *     04-Jan-2005 BJD  New uart init call
- *     10-Jan-2005 BJD  Removed include of s3c2410.h
- *     14-Jan-2005 BJD  Add support for muitlple NAND devices
- *     03-Mar-2005 BJD  Ensured that bast-cpld.h is included
- *     10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
- *     14-Mar-2005 BJD  Updated for __iomem changes
- *     22-Jun-2005 BJD  Added DM9000 platform information
- *     28-Jun-2005 BJD  Moved pm functionality out to common code
- *     17-Jul-2005 BJD  Changed to platform device for SuperIO 16550s
- *     25-Jul-2005 BJD  Removed ASIX static mappings
- *     27-Jul-2005 BJD  Ensure maximum frequency of i2c bus
- *     20-Sep-2005 BJD  Added static to non-exported items
- *     26-Oct-2005 BJD  Added FB platform data
 */
 
 #include <linux/kernel.h>
