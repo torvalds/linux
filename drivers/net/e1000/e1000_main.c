@@ -48,6 +48,7 @@ static char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
  *   {PCI_DEVICE(PCI_VENDOR_ID_INTEL, device_id)}
  */
 static struct pci_device_id e1000_pci_tbl[] = {
+	INTEL_E1000_ETHERNET_DEVICE(0x1000),
 	INTEL_E1000_ETHERNET_DEVICE(0x1001),
 	INTEL_E1000_ETHERNET_DEVICE(0x1004),
 	INTEL_E1000_ETHERNET_DEVICE(0x1008),
