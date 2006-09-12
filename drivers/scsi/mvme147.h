@@ -12,10 +12,6 @@
 
 int mvme147_detect(struct scsi_host_template *);
 int mvme147_release(struct Scsi_Host *);
-const char *wd33c93_info(void);
-int wd33c93_queuecommand(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
-int wd33c93_abort(Scsi_Cmnd *);
-int wd33c93_reset(Scsi_Cmnd *, unsigned int);
 
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2

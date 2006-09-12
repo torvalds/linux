@@ -47,7 +47,7 @@ void gvp11_setup (char *str, int *ints)
     gvp11_xfer_mask = ints[1];
 }
 
-static int dma_setup (Scsi_Cmnd *cmd, int dir_in)
+static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
     unsigned short cntr = GVP11_DMAC_INT_ENABLE;
     unsigned long addr = virt_to_bus(cmd->SCp.ptr);
@@ -142,8 +142,8 @@ static int dma_setup (Scsi_Cmnd *cmd, int dir_in)
     return 0;
 }
 
-static void dma_stop (struct Scsi_Host *instance, Scsi_Cmnd *SCpnt,
-		      int status)
+static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
+		     int status)
 {
     /* stop DMA */
     DMA(instance)->SP_DMA = 1;
@@ -341,7 +341,7 @@ release:
     return num_gvp11;
 }
 
-static int gvp11_bus_reset(Scsi_Cmnd *cmd)
+static int gvp11_bus_reset(struct scsi_cmnd *cmd)
 {
 	/* FIXME perform bus-specific reset */
 

@@ -29,7 +29,7 @@ static irqreturn_t mvme147_intr (int irq, void *dummy, struct pt_regs *fp)
     return IRQ_HANDLED;
 }
 
-static int dma_setup (Scsi_Cmnd *cmd, int dir_in)
+static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
     unsigned char flags = 0x01;
     unsigned long addr = virt_to_bus(cmd->SCp.ptr);
@@ -57,7 +57,7 @@ static int dma_setup (Scsi_Cmnd *cmd, int dir_in)
     return 0;
 }
 
-static void dma_stop (struct Scsi_Host *instance, Scsi_Cmnd *SCpnt,
+static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 		      int status)
 {
     m147_pcc->dma_cntrl = 0;
@@ -112,7 +112,7 @@ int mvme147_detect(struct scsi_host_template *tpnt)
     return 0;
 }
 
-static int mvme147_bus_reset(Scsi_Cmnd *cmd)
+static int mvme147_bus_reset(struct scsi_cmnd *cmd)
 {
 	/* FIXME perform bus-specific reset */
 

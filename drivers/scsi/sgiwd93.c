@@ -97,7 +97,7 @@ static irqreturn_t sgiwd93_intr(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 static inline
-void fill_hpc_entries(struct hpc_chunk *hcp, Scsi_Cmnd *cmd, int datainp)
+void fill_hpc_entries(struct hpc_chunk *hcp, struct scsi_cmnd *cmd, int datainp)
 {
 	unsigned long len = cmd->SCp.this_residual;
 	void *addr = cmd->SCp.ptr;
@@ -129,7 +129,7 @@ void fill_hpc_entries(struct hpc_chunk *hcp, Scsi_Cmnd *cmd, int datainp)
 	hcp->desc.cntinfo = HPCDMA_EOX;
 }
 
-static int dma_setup(Scsi_Cmnd *cmd, int datainp)
+static int dma_setup(struct scsi_cmnd *cmd, int datainp)
 {
 	struct ip22_hostdata *hdata = HDATA(cmd->device->host);
 	struct hpc3_scsiregs *hregs =
@@ -163,7 +163,7 @@ static int dma_setup(Scsi_Cmnd *cmd, int datainp)
 	return 0;
 }
 
-static void dma_stop(struct Scsi_Host *instance, Scsi_Cmnd *SCpnt,
+static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 		     int status)
 {
 	struct ip22_hostdata *hdata = HDATA(instance);
@@ -305,7 +305,7 @@ static int sgiwd93_release(struct Scsi_Host *instance)
 	return 1;
 }
 
-static int sgiwd93_bus_reset(Scsi_Cmnd *cmd)
+static int sgiwd93_bus_reset(struct scsi_cmnd *cmd)
 {
 	/* FIXME perform bus-specific reset */
 
