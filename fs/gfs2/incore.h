@@ -152,7 +152,6 @@ struct gfs2_holder {
 };
 
 enum {
-	GLF_PLUG		= 0,
 	GLF_LOCK		= 1,
 	GLF_STICKY		= 2,
 	GLF_PREFETCH		= 3,
