@@ -478,10 +478,10 @@ dump_bits(char **p, const char *prefix, unsigned int val, struct bittbl *bits, i
  *
  * Returns: the number of characters added to the buffer
  */
-static ssize_t show_status(struct class_device *class_dev, char *buf)
+static ssize_t show_status(struct device *dev, char *buf)
 {
 	struct soc_pcmcia_socket *skt =
-		container_of(class_dev, struct soc_pcmcia_socket, socket.dev);
+		container_of(dev, struct soc_pcmcia_socket, socket.dev);
 	char *p = buf;
 
 	p+=sprintf(p, "slot     : %d\n", skt->nr);
@@ -747,7 +747,7 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 
 		add_timer(&skt->poll_timer);
 
-		class_device_create_file(&skt->socket.dev, &class_device_attr_status);
+		device_create_file(&skt->socket.dev, &device_attr_status);
 	}
 
 	dev_set_drvdata(dev, sinfo);

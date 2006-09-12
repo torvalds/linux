@@ -284,7 +284,7 @@ struct pcmcia_socket {
 #endif
 
 	/* socket device */
-	struct class_device		dev;
+	struct device			dev;
 	void				*driver_data;	/* data internal to the socket driver */
 
 };
