@@ -1129,6 +1129,9 @@ static int disable_device(struct acpiphp_slot *slot)
 			func->bridge = NULL;
 		}
 
+		if (func->pci_dev)
+			pci_stop_bus_device(func->pci_dev);
+
 		acpiphp_bus_trim(func->handle);
 		/* try to remove anyway.
 		 * acpiphp_bus_add might have been failed */
