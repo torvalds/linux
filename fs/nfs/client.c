@@ -269,7 +269,7 @@ struct nfs_client *nfs_find_client(const struct sockaddr_in *addr, int nfsversio
 	clp = __nfs_find_client(addr, nfsversion);
 	spin_unlock(&nfs_client_lock);
 
-	BUG_ON(clp->cl_cons_state == 0);
+	BUG_ON(clp && clp->cl_cons_state == 0);
 
 	return clp;
 }
