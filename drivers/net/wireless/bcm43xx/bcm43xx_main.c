@@ -2405,9 +2405,10 @@ static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 				   BCM43xx_UCODE_TIME) & 0x1f);
 
 	if ( value16 > 0x128 ) {
-		dprintk(KERN_ERR PFX
-			"Firmware: no support for microcode rev > 0x128\n");
-		err = -1;
+		printk(KERN_ERR PFX
+			"Firmware: no support for microcode extracted "
+			"from version 4.x binary drivers.\n");
+		err = -EOPNOTSUPP;
 		goto err_release_fw;
 	}
 
