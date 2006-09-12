@@ -1413,7 +1413,7 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 
 	lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
 
-	lvb->lvb_version   = cpu_to_be32(OCFS2_LVB_VERSION);
+	lvb->lvb_version   = OCFS2_LVB_VERSION;
 	lvb->lvb_isize	   = cpu_to_be64(i_size_read(inode));
 	lvb->lvb_iclusters = cpu_to_be32(oi->ip_clusters);
 	lvb->lvb_iuid      = cpu_to_be32(inode->i_uid);
@@ -1486,7 +1486,7 @@ static inline int ocfs2_meta_lvb_is_trustable(struct ocfs2_lock_res *lockres)
 {
 	struct ocfs2_meta_lvb *lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
 
-	if (be32_to_cpu(lvb->lvb_version) == OCFS2_LVB_VERSION)
+	if (lvb->lvb_version == OCFS2_LVB_VERSION)
 		return 1;
 	return 0;
 }
@@ -3167,7 +3167,7 @@ void ocfs2_dump_meta_lvb_info(u64 level,
 	mlog(level, "LVB information for %s (called from %s:%u):\n",
 	     lockres->l_name, function, line);
 	mlog(level, "version: %u, clusters: %u\n",
-	     be32_to_cpu(lvb->lvb_version), be32_to_cpu(lvb->lvb_iclusters));
+	     lvb->lvb_version, be32_to_cpu(lvb->lvb_iclusters));
 	mlog(level, "size: %llu, uid %u, gid %u, mode 0x%x\n",
 	     (unsigned long long)be64_to_cpu(lvb->lvb_isize),
 	     be32_to_cpu(lvb->lvb_iuid), be32_to_cpu(lvb->lvb_igid),

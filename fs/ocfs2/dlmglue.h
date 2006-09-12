@@ -32,7 +32,9 @@
 #define OCFS2_LVB_VERSION 3
 
 struct ocfs2_meta_lvb {
-	__be32       lvb_version;
+	__be16       lvb_reserved0;
+	__u8         lvb_reserved1;
+	__u8         lvb_version;
 	__be32       lvb_iclusters;
 	__be32       lvb_iuid;
 	__be32       lvb_igid;
