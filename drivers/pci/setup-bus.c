@@ -55,11 +55,18 @@ pbus_assign_resources_sorted(struct pci_bus *bus)
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		u16 class = dev->class >> 8;
 
-		/* Don't touch classless devices or host bridges or ioapics.  */
+		/* Don't touch classless devices or host bridges. */
 		if (class == PCI_CLASS_NOT_DEFINED ||
-		    class == PCI_CLASS_BRIDGE_HOST ||
-		    class == PCI_CLASS_SYSTEM_PIC)
+		    class == PCI_CLASS_BRIDGE_HOST)
 			continue;
+
+		/* Don't touch ioapics if it has the assigned resources. */
+		if (class == PCI_CLASS_SYSTEM_PIC) {
+			res = &dev->resource[0];
+			if (res[0].start || res[1].start || res[2].start ||
+			    res[3].start || res[4].start || res[5].start)
+				continue;
+		}
 
 		pdev_sort_resources(dev, &head);
 	}
