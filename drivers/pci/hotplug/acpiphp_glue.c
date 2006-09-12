@@ -1105,6 +1105,16 @@ static int enable_device(struct acpiphp_slot *slot)
 	return retval;
 }
 
+static void disable_bridges(struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		if (dev->subordinate) {
+			disable_bridges(dev->subordinate);
+			pci_disable_device(dev);
+		}
+	}
+}
 
 /**
  * disable_device - disable a slot
@@ -1129,8 +1139,13 @@ static int disable_device(struct acpiphp_slot *slot)
 			func->bridge = NULL;
 		}
 
-		if (func->pci_dev)
+		if (func->pci_dev) {
 			pci_stop_bus_device(func->pci_dev);
+			if (func->pci_dev->subordinate) {
+				disable_bridges(func->pci_dev->subordinate);
+				pci_disable_device(func->pci_dev);
+			}
+		}
 
 		acpiphp_bus_trim(func->handle);
 		/* try to remove anyway.
