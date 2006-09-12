@@ -38,6 +38,11 @@ config LIBCRC32C
 	  require M here.  See Castagnoli93.
 	  Module will be libcrc32c.
 
+config AUDIT_GENERIC
+	bool
+	depends on AUDIT && !AUDIT_ARCH
+	default y
+
 #
 # compression support is select'ed if needed
 #
