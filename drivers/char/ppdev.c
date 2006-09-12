@@ -752,13 +752,13 @@ static const struct file_operations pp_fops = {
 
 static void pp_attach(struct parport *port)
 {
-	class_device_create(ppdev_class, NULL, MKDEV(PP_MAJOR, port->number),
-			NULL, "parport%d", port->number);
+	device_create(ppdev_class, NULL, MKDEV(PP_MAJOR, port->number),
+			"parport%d", port->number);
 }
 
 static void pp_detach(struct parport *port)
 {
-	class_device_destroy(ppdev_class, MKDEV(PP_MAJOR, port->number));
+	device_destroy(ppdev_class, MKDEV(PP_MAJOR, port->number));
 }
 
 static struct parport_driver pp_driver = {
