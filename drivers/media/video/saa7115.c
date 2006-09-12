@@ -155,7 +155,7 @@ static inline int saa711x_read(struct i2c_client *client, u8 reg)
 /* ----------------------------------------------------------------------- */
 
 /* SAA7111 initialization table */
-static const unsigned char saa7111_init_auto_input[] = {
+static const unsigned char saa7111_init[] = {
 	R_01_INC_DELAY, 0x00,		/* reserved */
 
 	/*front end */
@@ -195,7 +195,7 @@ static const unsigned char saa7111_init_auto_input[] = {
 };
 
 /* SAA7113 init codes */
-static const unsigned char saa7113_init_auto_input[] = {
+static const unsigned char saa7113_init[] = {
 	R_01_INC_DELAY, 0x08,
 	R_02_INPUT_CNTL_1, 0xc2,
 	R_03_INPUT_CNTL_2, 0x30,
@@ -237,6 +237,7 @@ static const unsigned char saa7115_init_auto_input[] = {
 		/* Decoder Part */
 	R_06_H_SYNC_START, 0xeb,		/* horiz sync begin = -21 */
 	R_07_H_SYNC_STOP, 0xe0,			/* horiz sync stop = -17 */
+	R_09_LUMA_CNTL, 0x53,			/* 0x53, was 0x56 for 60hz. luminance control */
 	R_0A_LUMA_BRIGHT_CNTL, 0x80,		/* was 0x88. decoder brightness, 0x80 is itu standard */
 	R_0B_LUMA_CONTRAST_CNTL, 0x44,		/* was 0x48. decoder contrast, 0x44 is itu standard */
 	R_0C_CHROMA_SAT_CNTL, 0x40,		/* was 0x47. decoder saturation, 0x40 is itu standard */
@@ -582,7 +583,6 @@ static const unsigned char saa7115_init_misc[] = {
 	R_5E_SDID, 0x35,
 
 	R_02_INPUT_CNTL_1, 0x84,		/* input tuner -> input 4, amplifier active */
-	R_09_LUMA_CNTL, 0x53,			/* 0x53, was 0x56 for 60hz. luminance control */
 
 	R_80_GLOBAL_CNTL_1, 0x20,		/* enable task B */
 	R_88_POWER_SAVE_ADC_PORT_CNTL, 0xd0,
@@ -1518,11 +1518,15 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 	v4l_dbg(1, debug, client, "writing init values\n");
 
 	/* init to 60hz/48khz */
-	if (state->ident == V4L2_IDENT_SAA7111 ||
-			state->ident == V4L2_IDENT_SAA7113) {
-		state->crystal_freq = SAA7115_FREQ_24_576_MHZ;
-		saa711x_writeregs(client, saa7113_init_auto_input);
-	} else {
+	state->crystal_freq = SAA7115_FREQ_24_576_MHZ;
+	switch (state->ident) {
+	case V4L2_IDENT_SAA7111:
+		saa711x_writeregs(client, saa7111_init);
+		break;
+	case V4L2_IDENT_SAA7113:
+		saa711x_writeregs(client, saa7113_init);
+		break;
+	default:
 		state->crystal_freq = SAA7115_FREQ_32_11_MHZ;
 		saa711x_writeregs(client, saa7115_init_auto_input);
 	}
