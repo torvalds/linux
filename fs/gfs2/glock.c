@@ -40,7 +40,7 @@ struct greedy {
 };
 
 struct gfs2_gl_hash_bucket {
-        struct list_head hb_list;
+        struct hlist_head hb_list;
 };
 
 typedef void (*glock_examiner) (struct gfs2_glock * gl);
@@ -49,7 +49,7 @@ static int gfs2_dump_lockstate(struct gfs2_sbd *sdp);
 static int dump_glock(struct gfs2_glock *gl);
 static int dump_inode(struct gfs2_inode *ip);
 
-#define GFS2_GL_HASH_SHIFT      13
+#define GFS2_GL_HASH_SHIFT      15
 #define GFS2_GL_HASH_SIZE       (1 << GFS2_GL_HASH_SHIFT)
 #define GFS2_GL_HASH_MASK       (GFS2_GL_HASH_SIZE - 1)
 
@@ -210,7 +210,7 @@ int gfs2_glock_put(struct gfs2_glock *gl)
 
 	write_lock(gl_lock_addr(gl->gl_hash));
 	if (kref_put(&gl->gl_ref, kill_glock)) {
-		list_del_init(&gl->gl_list);
+		hlist_del(&gl->gl_list);
 		write_unlock(gl_lock_addr(gl->gl_hash));
 		BUG_ON(spin_is_locked(&gl->gl_spin));
 		glock_free(gl);
@@ -259,8 +259,9 @@ static struct gfs2_glock *search_bucket(unsigned int hash,
 					const struct lm_lockname *name)
 {
 	struct gfs2_glock *gl;
+	struct hlist_node *h;
 
-	list_for_each_entry(gl, &gl_hash_table[hash].hb_list, gl_list) {
+	hlist_for_each_entry(gl, h, &gl_hash_table[hash].hb_list, gl_list) {
 		if (!lm_name_equal(&gl->gl_name, name))
 			continue;
 		if (gl->gl_sbd != sdp)
@@ -368,7 +369,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 		glock_free(gl);
 		gl = tmp;
 	} else {
-		list_add_tail(&gl->gl_list, &gl_hash_table[hash].hb_list);
+		hlist_add_head(&gl->gl_list, &gl_hash_table[hash].hb_list);
 		write_unlock(gl_lock_addr(hash));
 	}
 
@@ -1895,15 +1896,15 @@ static int examine_bucket(glock_examiner examiner, struct gfs2_sbd *sdp,
 {
 	struct gfs2_glock *gl, *prev = NULL;
 	int has_entries = 0;
-	struct list_head *head = &gl_hash_table[hash].hb_list;
+	struct hlist_head *head = &gl_hash_table[hash].hb_list;
 
 	read_lock(gl_lock_addr(hash));
-	/* Can't use list_for_each_entry - don't want prefetch here */
-	if (list_empty(head))
+	/* Can't use hlist_for_each_entry - don't want prefetch here */
+	if (hlist_empty(head))
 		goto out;
 	has_entries = 1;
-	gl = list_entry(head->next, struct gfs2_glock, gl_list);
-	while(&gl->gl_list != head) {
+	gl = list_entry(head->first, struct gfs2_glock, gl_list);
+	while(1) {
 		if (gl->gl_sbd == sdp) {
 			gfs2_glock_hold(gl);
 			read_unlock(gl_lock_addr(hash));
@@ -1913,6 +1914,8 @@ static int examine_bucket(glock_examiner examiner, struct gfs2_sbd *sdp,
 			examiner(gl);
 			read_lock(gl_lock_addr(hash));
 		}
+		if (gl->gl_list.next == NULL)
+			break;
 		gl = list_entry(gl->gl_list.next, struct gfs2_glock, gl_list);
 	}
 out:
@@ -2195,6 +2198,7 @@ out:
 static int gfs2_dump_lockstate(struct gfs2_sbd *sdp)
 {
 	struct gfs2_glock *gl;
+	struct hlist_node *h;
 	unsigned int x;
 	int error = 0;
 
@@ -2202,7 +2206,7 @@ static int gfs2_dump_lockstate(struct gfs2_sbd *sdp)
 
 		read_lock(gl_lock_addr(x));
 
-		list_for_each_entry(gl, &gl_hash_table[x].hb_list, gl_list) {
+		hlist_for_each_entry(gl, h, &gl_hash_table[x].hb_list, gl_list) {
 			if (gl->gl_sbd != sdp)
 				continue;
 
@@ -2225,7 +2229,7 @@ int __init gfs2_glock_init(void)
 {
 	unsigned i;
 	for(i = 0; i < GFS2_GL_HASH_SIZE; i++) {
-		INIT_LIST_HEAD(&gl_hash_table[i].hb_list);
+		INIT_HLIST_HEAD(&gl_hash_table[i].hb_list);
 	}
 #ifdef GL_HASH_LOCK_SZ
 	for(i = 0; i < GL_HASH_LOCK_SZ; i++) {

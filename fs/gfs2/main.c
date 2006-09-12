@@ -42,7 +42,7 @@ static void gfs2_init_glock_once(void *foo, kmem_cache_t *cachep, unsigned long 
 	struct gfs2_glock *gl = foo;
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 	    SLAB_CTOR_CONSTRUCTOR) {
-		INIT_LIST_HEAD(&gl->gl_list);
+		INIT_HLIST_NODE(&gl->gl_list);
 		spin_lock_init(&gl->gl_spin);
 		INIT_LIST_HEAD(&gl->gl_holders);
 		INIT_LIST_HEAD(&gl->gl_waiters1);

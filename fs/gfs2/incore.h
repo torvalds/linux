@@ -161,7 +161,7 @@ enum {
 };
 
 struct gfs2_glock {
-	struct list_head gl_list;
+	struct hlist_node gl_list;
 	unsigned long gl_flags;		/* GLF_... */
 	struct lm_lockname gl_name;
 	struct kref gl_ref;
