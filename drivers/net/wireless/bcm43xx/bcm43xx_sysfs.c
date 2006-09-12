@@ -176,7 +176,6 @@ static ssize_t bcm43xx_attr_interfmode_show(struct device *dev,
 					    char *buf)
 {
 	struct bcm43xx_private *bcm = dev_to_bcm(dev);
-	int err;
 	ssize_t count = 0;
 
 	if (!capable(CAP_NET_ADMIN))
@@ -197,11 +196,10 @@ static ssize_t bcm43xx_attr_interfmode_show(struct device *dev,
 	default:
 		assert(0);
 	}
-	err = 0;
 
 	mutex_unlock(&bcm->mutex);
 
-	return err ? err : count;
+	return count;
 
 }
 
@@ -259,7 +257,6 @@ static ssize_t bcm43xx_attr_preamble_show(struct device *dev,
 					  char *buf)
 {
 	struct bcm43xx_private *bcm = dev_to_bcm(dev);
-	int err;
 	ssize_t count;
 
 	if (!capable(CAP_NET_ADMIN))
@@ -272,10 +269,9 @@ static ssize_t bcm43xx_attr_preamble_show(struct device *dev,
 	else
 		count = snprintf(buf, PAGE_SIZE, "0 (Short Preamble disabled)\n");
 
-	err = 0;
 	mutex_unlock(&bcm->mutex);
 
-	return err ? err : count;
+	return count;
 }
 
 static ssize_t bcm43xx_attr_preamble_store(struct device *dev,
@@ -284,7 +280,6 @@ static ssize_t bcm43xx_attr_preamble_store(struct device *dev,
 {
 	struct bcm43xx_private *bcm = dev_to_bcm(dev);
 	unsigned long flags;
-	int err;
 	int value;
 
 	if (!capable(CAP_NET_ADMIN))
@@ -298,11 +293,10 @@ static ssize_t bcm43xx_attr_preamble_store(struct device *dev,
 
 	bcm->short_preamble = !!value;
 
-	err = 0;
 	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 	mutex_unlock(&bcm->mutex);
 
-	return err ? err : count;
+	return count;
 }
 
 static DEVICE_ATTR(shortpreamble, 0644,
@@ -333,8 +327,11 @@ static ssize_t bcm43xx_attr_phymode_store(struct device *dev,
 		goto out;
 	}
 
+	bcm43xx_periodic_tasks_delete(bcm);
 	mutex_lock(&(bcm)->mutex);
 	err = bcm43xx_select_wireless_core(bcm, phytype);
+	if (!err)
+		bcm43xx_periodic_tasks_setup(bcm);
 	mutex_unlock(&(bcm)->mutex);
 	if (err == -ESRCH)
 		err = -ENODEV;
@@ -373,6 +370,59 @@ static DEVICE_ATTR(phymode, 0644,
 		   bcm43xx_attr_phymode_show,
 		   bcm43xx_attr_phymode_store);
 
+static ssize_t bcm43xx_attr_microcode_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	unsigned long flags;
+	struct bcm43xx_private *bcm = dev_to_bcm(dev);
+	ssize_t count = 0;
+	u16 status;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	mutex_lock(&(bcm)->mutex);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
+	status = bcm43xx_shm_read16(bcm, BCM43xx_SHM_SHARED,
+				    BCM43xx_UCODE_STATUS);
+
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
+	mutex_unlock(&(bcm)->mutex);
+	switch (status) {
+	case 0x0000:
+		count = snprintf(buf, PAGE_SIZE, "0x%.4x (invalid)\n",
+				 status);
+		break;
+	case 0x0001:
+		count = snprintf(buf, PAGE_SIZE, "0x%.4x (init)\n",
+				 status);
+		break;
+	case 0x0002:
+		count = snprintf(buf, PAGE_SIZE, "0x%.4x (active)\n",
+				 status);
+		break;
+	case 0x0003:
+		count = snprintf(buf, PAGE_SIZE, "0x%.4x (suspended)\n",
+				 status);
+		break;
+	case 0x0004:
+		count = snprintf(buf, PAGE_SIZE, "0x%.4x (asleep)\n",
+				 status);
+		break;
+	default:
+		count = snprintf(buf, PAGE_SIZE, "0x%.4x (unknown)\n",
+				 status);
+		break;
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(microcodestatus, 0444,
+		   bcm43xx_attr_microcode_show,
+		   NULL);
+
 int bcm43xx_sysfs_register(struct bcm43xx_private *bcm)
 {
 	struct device *dev = &bcm->pci_dev->dev;
@@ -392,9 +442,14 @@ int bcm43xx_sysfs_register(struct bcm43xx_private *bcm)
 	err = device_create_file(dev, &dev_attr_phymode);
 	if (err)
 		goto err_remove_shortpreamble;
+	err = device_create_file(dev, &dev_attr_microcodestatus);
+	if (err)
+		goto err_remove_phymode;
 
 out:
 	return err;
+err_remove_phymode:
+	device_remove_file(dev, &dev_attr_phymode);
 err_remove_shortpreamble:
 	device_remove_file(dev, &dev_attr_shortpreamble);
 err_remove_interfmode:
@@ -408,6 +463,7 @@ void bcm43xx_sysfs_unregister(struct bcm43xx_private *bcm)
 {
 	struct device *dev = &bcm->pci_dev->dev;
 
+	device_remove_file(dev, &dev_attr_microcodestatus);
 	device_remove_file(dev, &dev_attr_phymode);
 	device_remove_file(dev, &dev_attr_shortpreamble);
 	device_remove_file(dev, &dev_attr_interference);

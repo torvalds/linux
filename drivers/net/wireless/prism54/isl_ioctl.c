@@ -46,6 +46,10 @@ static size_t prism54_wpa_bss_ie_get(islpci_private *priv, u8 *bssid, u8 *wpa_ie
 static int prism54_set_wpa(struct net_device *, struct iw_request_info *,
 				__u32 *, char *);
 
+/* In 500 kbps */
+static const unsigned char scan_rate_list[] = { 2, 4, 11, 22,
+						12, 18, 24, 36,
+						48, 72, 96, 108 };
 
 /**
  * prism54_mib_mode_helper - MIB change mode helper function
@@ -644,6 +648,32 @@ prism54_translate_bss(struct net_device *ndev, char *current_ev,
 		current_ev = iwe_stream_add_point(current_ev, end_buf,
 				&iwe, wpa_ie);
 	}
+	/* Do the bitrates */
+	{
+		char *	current_val = current_ev + IW_EV_LCP_LEN;
+		int i;
+		int mask;
+
+		iwe.cmd = SIOCGIWRATE;
+		/* Those two flags are ignored... */
+		iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
+
+		/* Parse the bitmask */
+		mask = 0x1;
+		for(i = 0; i < sizeof(scan_rate_list); i++) {
+			if(bss->rates & mask) {
+				iwe.u.bitrate.value = (scan_rate_list[i] * 500000);
+				current_val = iwe_stream_add_value(current_ev, current_val,
+								   end_buf, &iwe,
+								   IW_EV_PARAM_LEN);
+			}
+			mask <<= 1;
+		}
+		/* Check if we added any event */
+		if ((current_val - current_ev) > IW_EV_LCP_LEN)
+			current_ev = current_val;
+	}
+
 	return current_ev;
 }
 
