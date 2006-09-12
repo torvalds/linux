@@ -34,7 +34,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_sis"
-#define DRV_VERSION	"0.4.2"
+#define DRV_VERSION	"0.4.3"
 
 struct sis_chipset {
 	u16 device;			/* PCI host ID */
@@ -857,6 +857,10 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct sis_chipset *chipset = NULL;
 
 	static struct sis_chipset sis_chipsets[] = {
+	
+		{ 0x0968, &sis_info133 },
+		{ 0x0966, &sis_info133 },
+		{ 0x0965, &sis_info133 },
 		{ 0x0745, &sis_info100 },
 		{ 0x0735, &sis_info100 },
 		{ 0x0733, &sis_info100 },
