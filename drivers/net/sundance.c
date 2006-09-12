@@ -23,8 +23,8 @@
 */
 
 #define DRV_NAME	"sundance"
-#define DRV_VERSION	"1.1"
-#define DRV_RELDATE	"27-Jun-2006"
+#define DRV_VERSION	"1.2"
+#define DRV_RELDATE	"11-Sep-2006"
 
 
 /* The user-configurable values.
@@ -1464,8 +1464,6 @@ static void set_rx_mode(struct net_device *dev)
 	int i;
 
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
-		/* Unconditionally log net taps. */
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptAll | AcceptMyPhys;
 	} else if ((dev->mc_count > multicast_filter_limit)

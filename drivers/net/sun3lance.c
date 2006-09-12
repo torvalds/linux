@@ -914,7 +914,7 @@ static void set_multicast_list( struct net_device *dev )
 
 	if (dev->flags & IFF_PROMISC) {
 		/* Log any net taps. */
-		DPRINTK( 1, ( "%s: Promiscuous mode enabled.\n", dev->name ));
+		DPRINTK( 3, ( "%s: Promiscuous mode enabled.\n", dev->name ));
 		REGA( CSR15 ) = 0x8000; /* Set promiscuous mode */
 	} else {
 		short multicast_table[4];

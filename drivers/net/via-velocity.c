@@ -2109,8 +2109,6 @@ static void velocity_set_multi(struct net_device *dev)
 	struct dev_mc_list *mclist;
 
 	if (dev->flags & IFF_PROMISC) {	/* Set promiscuous. */
-		/* Unconditionally log net taps. */
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
 		writel(0xffffffff, &regs->MARCAM[0]);
 		writel(0xffffffff, &regs->MARCAM[4]);
 		rx_mode = (RCR_AM | RCR_AB | RCR_PROM);

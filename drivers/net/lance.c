@@ -42,7 +42,7 @@
 	Vesselin Kostadinov <vesok at yahoo dot com > - 22/4/2004
 */
 
-static const char version[] = "lance.c:v1.15ac 1999/11/13 dplatt@3do.com, becker@cesdis.gsfc.nasa.gov\n";
+static const char version[] = "lance.c:v1.16 2006/11/09 dplatt@3do.com, becker@cesdis.gsfc.nasa.gov\n";
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -1281,8 +1281,6 @@ static void set_multicast_list(struct net_device *dev)
 	outw(0x0004, ioaddr+LANCE_DATA); /* Temporarily stop the lance.	 */
 
 	if (dev->flags&IFF_PROMISC) {
-		/* Log any net taps. */
-		printk("%s: Promiscuous mode enabled.\n", dev->name);
 		outw(15, ioaddr+LANCE_ADDR);
 		outw(0x8000, ioaddr+LANCE_DATA); /* Set promiscuous mode */
 	} else {

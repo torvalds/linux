@@ -17,9 +17,9 @@
 
 #define DRV_NAME	"tulip"
 #ifdef CONFIG_TULIP_NAPI
-#define DRV_VERSION    "1.1.13-NAPI" /* Keep at least for test */
+#define DRV_VERSION    "1.1.14-NAPI" /* Keep at least for test */
 #else
-#define DRV_VERSION	"1.1.13"
+#define DRV_VERSION	"1.1.14"
 #endif
 #define DRV_RELDATE	"May 11, 2002"
 
@@ -1019,8 +1019,6 @@ static void set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		tp->csr6 |= AcceptAllMulticast | AcceptAllPhys;
 		csr6 |= AcceptAllMulticast | AcceptAllPhys;
-		/* Unconditionally log net taps. */
-		printk(KERN_INFO "%s: Promiscuous mode enabled.\n", dev->name);
 	} else if ((dev->mc_count > 1000)  ||  (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to filter well -- accept all multicasts. */
 		tp->csr6 |= AcceptAllMulticast;

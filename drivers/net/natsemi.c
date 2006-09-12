@@ -54,8 +54,8 @@
 #include <asm/uaccess.h>
 
 #define DRV_NAME	"natsemi"
-#define DRV_VERSION	"2.0"
-#define DRV_RELDATE	"June 27, 2006"
+#define DRV_VERSION	"2.1"
+#define DRV_RELDATE	"Sept 11, 2006"
 
 #define RX_OFFSET	2
 
@@ -2387,9 +2387,6 @@ static void __set_rx_mode(struct net_device *dev)
 	u32 rx_mode;
 
 	if (dev->flags & IFF_PROMISC) { /* Set promiscuous. */
-		/* Unconditionally log net taps. */
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n",
-			dev->name);
 		rx_mode = RxFilterEnable | AcceptBroadcast
 			| AcceptAllMulticast | AcceptAllPhys | AcceptMyPhys;
 	} else if ((dev->mc_count > multicast_filter_limit)

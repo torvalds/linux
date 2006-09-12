@@ -24,8 +24,8 @@
 */
 
 #define DRV_NAME	"yellowfin"
-#define DRV_VERSION	"2.0"
-#define DRV_RELDATE	"Jun 27, 2006"
+#define DRV_VERSION	"2.1"
+#define DRV_RELDATE	"Sep 11, 2006"
 
 #define PFX DRV_NAME ": "
 
@@ -1307,8 +1307,6 @@ static void set_rx_mode(struct net_device *dev)
 	/* Stop the Rx process to change any value. */
 	iowrite16(cfg_value & ~0x1000, ioaddr + Cnfg);
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
-		/* Unconditionally log net taps. */
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
 		iowrite16(0x000F, ioaddr + AddrMode);
 	} else if ((dev->mc_count > 64)  ||  (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to filter well, or accept all multicasts. */

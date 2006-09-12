@@ -27,8 +27,8 @@
 */
 
 #define DRV_NAME	"hamachi"
-#define DRV_VERSION	"2.0"
-#define DRV_RELDATE	"June 27, 2006"
+#define DRV_VERSION	"2.1"
+#define DRV_RELDATE	"Sept 11, 2006"
 
 
 /* A few user-configurable values. */
@@ -1851,8 +1851,6 @@ static void set_rx_mode(struct net_device *dev)
 	void __iomem *ioaddr = hmp->base;
 
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
-		/* Unconditionally log net taps. */
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
 		writew(0x000F, ioaddr + AddrMode);
 	} else if ((dev->mc_count > 63)  ||  (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */

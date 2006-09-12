@@ -26,8 +26,8 @@
 */
 
 #define DRV_NAME        "epic100"
-#define DRV_VERSION     "2.0"
-#define DRV_RELDATE     "June 27, 2006"
+#define DRV_VERSION     "2.1"
+#define DRV_RELDATE     "Sept 11, 2006"
 
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
@@ -1386,7 +1386,6 @@ static void set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		outl(0x002C, ioaddr + RxCtrl);
 		/* Unconditionally log net taps. */
-		printk(KERN_INFO "%s: Promiscuous mode enabled.\n", dev->name);
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 	} else if ((dev->mc_count > 0)  ||  (dev->flags & IFF_ALLMULTI)) {
 		/* There is apparently a chip bug, so the multicast filter

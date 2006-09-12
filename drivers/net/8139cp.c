@@ -48,7 +48,7 @@
  */
 
 #define DRV_NAME		"8139cp"
-#define DRV_VERSION		"1.2"
+#define DRV_VERSION		"1.3"
 #define DRV_RELDATE		"Mar 22, 2004"
 
 
@@ -942,8 +942,6 @@ static void __cp_set_rx_mode (struct net_device *dev)
 	/* Note: do not reorder, GCC is clever about common statements. */
 	if (dev->flags & IFF_PROMISC) {
 		/* Unconditionally log net taps. */
-		printk (KERN_NOTICE "%s: Promiscuous mode enabled.\n",
-			dev->name);
 		rx_mode =
 		    AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
 		    AcceptAllPhys;

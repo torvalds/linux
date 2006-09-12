@@ -825,8 +825,6 @@ static void set_multicast_list(struct net_device *dev)
     ariadne_init_ring(dev);
 
     if (dev->flags & IFF_PROMISC) {
-	/* Log any net taps. */
-	printk(KERN_INFO "%s: Promiscuous mode enabled.\n", dev->name);
 	lance->RAP = CSR15;		/* Mode Register */
 	lance->RDP = PROM;		/* Set promiscuous mode */
     } else {

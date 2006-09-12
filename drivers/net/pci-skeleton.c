@@ -98,7 +98,7 @@ IVc. Errata
 #include <linux/crc32.h>
 #include <asm/io.h>
 
-#define NETDRV_VERSION		"1.0.0"
+#define NETDRV_VERSION		"1.0.1"
 #define MODNAME			"netdrv"
 #define NETDRV_DRIVER_LOAD_MSG	"MyVendor Fast Ethernet driver " NETDRV_VERSION " loaded"
 #define PFX			MODNAME ": "
@@ -1853,9 +1853,6 @@ static void netdrv_set_rx_mode (struct net_device *dev)
 
 	/* Note: do not reorder, GCC is clever about common statements. */
 	if (dev->flags & IFF_PROMISC) {
-		/* Unconditionally log net taps. */
-		printk (KERN_NOTICE "%s: Promiscuous mode enabled.\n",
-			dev->name);
 		rx_mode =
 		    AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
 		    AcceptAllPhys;

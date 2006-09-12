@@ -2708,7 +2708,6 @@ static struct net_device_stats *sbmac_get_stats(struct net_device *dev)
 static void sbmac_set_rx_mode(struct net_device *dev)
 {
 	unsigned long flags;
-	int msg_flag = 0;
 	struct sbmac_softc *sc = netdev_priv(dev);
 
 	spin_lock_irqsave(&sc->sbm_lock, flags);
@@ -2718,21 +2717,13 @@ static void sbmac_set_rx_mode(struct net_device *dev)
 		 */
 
 		if (dev->flags & IFF_PROMISC) {
-			/* Unconditionally log net taps. */
-			msg_flag = 1;
 			sbmac_promiscuous_mode(sc,1);
 		}
 		else {
-			msg_flag = 2;
 			sbmac_promiscuous_mode(sc,0);
 		}
 	}
 	spin_unlock_irqrestore(&sc->sbm_lock, flags);
-
-	if (msg_flag) {
-		printk(KERN_NOTICE "%s: Promiscuous mode %sabled.\n",
-		       dev->name,(msg_flag==1)?"en":"dis");
-	}
 
 	/*
 	 * Program the multicasts.  Do this every time.

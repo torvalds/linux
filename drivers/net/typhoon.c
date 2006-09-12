@@ -100,8 +100,8 @@ static const int multicast_filter_limit = 32;
 #define PKT_BUF_SZ		1536
 
 #define DRV_MODULE_NAME		"typhoon"
-#define DRV_MODULE_VERSION 	"1.5.7"
-#define DRV_MODULE_RELDATE	"05/01/07"
+#define DRV_MODULE_VERSION 	"1.5.8"
+#define DRV_MODULE_RELDATE	"06/11/09"
 #define PFX			DRV_MODULE_NAME ": "
 #define ERR_PFX			KERN_ERR PFX
 
@@ -937,8 +937,6 @@ typhoon_set_rx_mode(struct net_device *dev)
 
 	filter = TYPHOON_RX_FILTER_DIRECTED | TYPHOON_RX_FILTER_BROADCAST;
 	if(dev->flags & IFF_PROMISC) {
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n",
-		       dev->name);
 		filter |= TYPHOON_RX_FILTER_PROMISCOUS;
 	} else if((dev->mc_count > multicast_filter_limit) ||
 		  (dev->flags & IFF_ALLMULTI)) {
