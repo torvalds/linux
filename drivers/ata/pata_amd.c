@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_amd"
-#define DRV_VERSION "0.2.2"
+#define DRV_VERSION "0.2.3"
 
 /**
  *	timing_setup		-	shared timing computation and load
@@ -253,10 +253,21 @@ static void amd133_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 static int nv_pre_reset(struct ata_port *ap) {
 	static const u8 bitmask[2] = {0x03, 0xC0};
+	static const struct pci_bits nv_enable_bits[] = {
+		{ 0x50, 1, 0x02, 0x02 },
+		{ 0x50, 1, 0x01, 0x01 }
+	};
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 ata66;
 	u16 udma;
+
+	if (!pci_test_config_bits(pdev, &nv_enable_bits[ap->port_no])) {
+		ata_port_disable(ap);
+		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
+		return 0;
+	}
+
 
 	pci_read_config_byte(pdev, 0x52, &ata66);
 	if (ata66 & bitmask[ap->port_no])
