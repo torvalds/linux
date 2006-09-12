@@ -1717,7 +1717,6 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 
 	if (IS_ASTRO(sba_dev->iodc)) {
 		int err;
-		/* PAT_PDC (L-class) also reports the same goofy base */
 		sba_dev->ioc[0].ioc_hpa = ioc_remap(sba_dev, ASTRO_IOC_OFFSET);
 		num_ioc = 1;
 
@@ -1730,10 +1729,6 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 	} else if (IS_PLUTO(sba_dev->iodc)) {
 		int err;
 
-		/* We use a negative value for IOC HPA so it gets 
-                 * corrected when we add it with IKE's IOC offset.
-		 * Doesnt look clean, but fewer code. 
-                 */
 		sba_dev->ioc[0].ioc_hpa = ioc_remap(sba_dev, PLUTO_IOC_OFFSET);
 		num_ioc = 1;
 
@@ -1749,14 +1744,14 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 		err = request_resource(&iomem_resource, &(sba_dev->iommu_resv));
 		WARN_ON(err < 0);
 	} else {
-		/* IS_IKE (ie N-class, L3000, L1500) */
+		/* IKE, REO */
 		sba_dev->ioc[0].ioc_hpa = ioc_remap(sba_dev, IKE_IOC_OFFSET(0));
 		sba_dev->ioc[1].ioc_hpa = ioc_remap(sba_dev, IKE_IOC_OFFSET(1));
 		num_ioc = 2;
 
 		/* TODO - LOOKUP Ike/Stretch chipset mem map */
 	}
-	/* XXX: What about Reo? */
+	/* XXX: What about Reo Grande? */
 
 	sba_dev->num_ioc = num_ioc;
 	for (i = 0; i < num_ioc; i++) {
