@@ -760,12 +760,34 @@ $(vmlinux-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
 
 # Build the kernel release string
-# The KERNELRELEASE is stored in a file named include/config/kernel.release
-# to be used when executing for example make install or make modules_install
 #
-# Take the contents of any files called localversion* and the config
-# variable CONFIG_LOCALVERSION and append them to KERNELRELEASE.
-# LOCALVERSION from the command line override all of this
+# The KERNELRELEASE value built here is stored in the file
+# include/config/kernel.release, and is used when executing several
+# make targets, such as "make install" or "make modules_install."
+#
+# The eventual kernel release string consists of the following fields,
+# shown in a hierarchical format to show how smaller parts are concatenated
+# to form the larger and final value, with values coming from places like
+# the Makefile, kernel config options, make command line options and/or
+# SCM tag information.
+#
+#	$(KERNELVERSION)
+#	  $(VERSION)			eg, 2
+#	  $(PATCHLEVEL)			eg, 6
+#	  $(SUBLEVEL)			eg, 18
+#	  $(EXTRAVERSION)		eg, -rc6
+#	$(localver-full)
+#	  $(localver)
+#	    localversion*		(all localversion* files)
+#	    $(CONFIG_LOCALVERSION)	(from kernel config setting)
+#	  $(localver-auto)		(only if CONFIG_LOCALVERSION_AUTO is set)
+#	    ./scripts/setlocalversion	(SCM tag, if one exists)
+#	    $(LOCALVERSION)		(from make command line if provided)
+#
+#  Note how the final $(localver-auto) string is included *only* if the
+# kernel config option CONFIG_LOCALVERSION_AUTO is selected.  Also, at the
+# moment, only git is supported but other SCMs can edit the script
+# scripts/setlocalversion and add the appropriate checks as needed.
 
 nullstring :=
 space      := $(nullstring) # end of line
