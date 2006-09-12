@@ -8,11 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Changelog:
- *  11-Sep-2004 BJD  Created file
- *  21-Sep-2004 BJD  Updated port info
- *  09-Aug-2005 BJD  Renamed s3c2410_report_oc s3c2410_usb_report_oc
 */
 
 #ifndef __ASM_ARCH_USBCONTROL_H

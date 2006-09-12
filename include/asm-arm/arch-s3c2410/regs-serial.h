@@ -27,10 +27,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Modifications:
- *     10-Mar-2005 LCVR  Changed S3C2410_VA to S3C24XX_VA (s3c2400 support)
- */
+*/
 
 #ifndef __ASM_ARM_REGS_SERIAL_H
 #define __ASM_ARM_REGS_SERIAL_H

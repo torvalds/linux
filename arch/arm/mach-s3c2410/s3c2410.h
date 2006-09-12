@@ -9,14 +9,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Modifications:
- *     18-Aug-2004 BJD  Created initial version
- *     20-Aug-2004 BJD  Added s3c2410_board struct
- *     04-Sep-2004 BJD  Added s3c2410_init_uarts() call
- *     17-Oct-2004 BJD  Moved board out to cpu
- *     04-Jan-2005 BJD  Changed uart init
- *     10-Jan-2005 BJD  Removed timer to cpu.h, moved 2410 specific bits here
- *     14-Jan-2005 BJD  Added s3c2410_init_clocks call
 */
 
 #ifdef CONFIG_CPU_S3C2410

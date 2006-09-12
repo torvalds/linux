@@ -8,10 +8,6 @@
  * published by the Free Software Foundation.
  *
  * S3C2440 GPIO J register definitions
- *
- *  Changelog:
- *    11-Aug-2004     BJD     Created file
- *    10-Feb-2005     BJD     Fix GPJ12 definition (Guillaume Gourat)
 */
 
 

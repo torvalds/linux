@@ -9,23 +9,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Modifications:
- *     16-May-2003 BJD  Created initial version
- *     16-Aug-2003 BJD  Fixed header files and copyright, added URL
- *     05-Sep-2003 BJD  Moved to v2.6 kernel
- *     06-Jan-2003 BJD  Updates for <arch/map.h>
- *     18-Jan-2003 BJD  Added serial port configuration
- *     17-Feb-2003 BJD  Copied to mach-ipaq.c
- *     21-Aug-2004 BJD  Added struct s3c2410_board
- *     04-Sep-2004 BJD  Changed uart init, renamed ipaq_ -> h1940_
- *     18-Oct-2004 BJD  Updated new board structure name
- *     04-Nov-2004 BJD  Change for new serial clock
- *     04-Jan-2005 BJD  Updated uart init call
- *     10-Jan-2005 BJD  Removed include of s3c2410.h
- *     14-Jan-2005 BJD  Added clock init
- *     10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
- *     20-Sep-2005 BJD  Added static to non-exported items
- *     26-Oct-2005 BJD  Changed name of fb init call
 */
 
 #include <linux/kernel.h>

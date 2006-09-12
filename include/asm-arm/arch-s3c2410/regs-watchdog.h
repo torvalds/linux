@@ -1,4 +1,4 @@
-/* linux/include/asm/arch-s3c2410/regs0watchdog.h
+/* linux/include/asm/arch-s3c2410/regs-watchdog.h
  *
  * Copyright (c) 2003 Simtec Electronics <linux@simtec.co.uk>
  *		      http://www.simtec.co.uk/products/SWLINUX/
@@ -8,11 +8,6 @@
  * published by the Free Software Foundation.
  *
  * S3C2410 Watchdog timer control
- *
- *  Changelog:
- *    21-06-2003     BJD     Created file
- *    12-03-2004     BJD     Updated include protection
- *    10-03-2005     LCVR    Changed S3C2410_VA to S3C24XX_VA
 */
 
 

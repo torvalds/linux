@@ -8,12 +8,6 @@
  * published by the Free Software Foundation.
  *
  * S3C2410 Memory Control register definitions
- *
- *  Changelog:
- *	29-Sep-2004  BJD  Initial include for Linux
- *      10-Mar-2005  LCVR Changed S3C2410_VA to S3C24XX_VA
- *      04-Apr-2005  LCVR Added S3C2400 DRAM/BANKSIZE_MASK definitions
- *
 */
 
 #ifndef __ASM_ARM_MEMREGS_H

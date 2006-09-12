@@ -10,25 +10,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Modifications:
- *     14-Sep-2004 BJD  USB Power control
- *     04-Sep-2004 BJD  Added new uart init, and io init
- *     21-Aug-2004 BJD  Added struct s3c2410_board
- *     06-Aug-2004 BJD  Fixed call to time initialisation
- *     05-Apr-2004 BJD  Copied to make mach-vr1000.c
- *     18-Oct-2004 BJD  Updated board struct
- *     04-Nov-2004 BJD  Clock and serial configuration update
- *
- *     04-Jan-2005 BJD  Updated uart init call
- *     10-Jan-2005 BJD  Removed include of s3c2410.h
- *     14-Jan-2005 BJD  Added clock init
- *     15-Jan-2005 BJD  Add serial port device definition
- *     20-Jan-2005 BJD  Use UPF_IOREMAP for ports
- *     10-Feb-2005 BJD  Added power-off capability
- *     10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
- *     14-Mar-2006 BJD  void __iomem fixes
- *     22-Jun-2006 BJD  Added DM9000 platform information
- *     20-Sep-2005 BJD  Added static to non-exported items
 */
 
 #include <linux/kernel.h>
