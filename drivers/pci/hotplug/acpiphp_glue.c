@@ -841,6 +841,7 @@ ioapic_add(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 static int acpiphp_configure_ioapics(acpi_handle handle)
 {
+	ioapic_add(handle, 0, NULL, NULL);
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
 			    ACPI_UINT32_MAX, ioapic_add, NULL, NULL);
 	return 0;
@@ -1075,7 +1076,8 @@ static int enable_device(struct acpiphp_slot *slot)
 	pci_bus_assign_resources(bus);
 	acpiphp_sanitize_bus(bus);
 	acpiphp_set_hpp_values(slot->bridge->handle, bus);
-	acpiphp_configure_ioapics(slot->bridge->handle);
+	list_for_each_entry(func, &slot->funcs, sibling)
+		acpiphp_configure_ioapics(func->handle);
 	pci_enable_bridges(bus);
 	pci_bus_add_devices(bus);
 
