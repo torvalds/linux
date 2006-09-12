@@ -355,6 +355,9 @@ void machine_power_off(void)
 	enter_deep_standby();
 }
 
+void (*pm_power_off)(void) = machine_power_off;
+EXPORT_SYMBOL(pm_power_off);
+
 void show_regs(struct pt_regs * regs)
 {
 	unsigned long long ah, al, bh, bl, ch, cl;
