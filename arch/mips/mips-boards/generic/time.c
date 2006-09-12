@@ -41,8 +41,13 @@
 
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
+
+#ifdef CONFIG_MIPS_ATLAS
+#include <asm/mips-boards/atlasint.h>
+#endif
+#ifdef CONFIG_MIPS_MALTA
 #include <asm/mips-boards/maltaint.h>
-#include <asm/mc146818-time.h>
+#endif
 
 unsigned long cpu_khz;
 
