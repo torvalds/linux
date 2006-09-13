@@ -325,13 +325,22 @@ static int read_pod(struct zd_chip *chip, u8 *rf_type)
 	chip->patch_cr157 = (value >> 13) & 0x1;
 	chip->patch_6m_band_edge = (value >> 21) & 0x1;
 	chip->new_phy_layout = (value >> 31) & 0x1;
+	chip->link_led = ((value >> 4) & 1) ? LED1 : LED2;
+	chip->supports_tx_led = 1;
+	if (value & (1 << 24)) { /* LED scenario */
+		if (value & (1 << 29))
+			chip->supports_tx_led = 0;
+	}
 
 	dev_dbg_f(zd_chip_dev(chip),
 		"RF %s %#01x PA type %#01x patch CCK %d patch CR157 %d "
-		"patch 6M %d new PHY %d\n",
+		"patch 6M %d new PHY %d link LED%d tx led %d\n",
 		zd_rf_name(*rf_type), *rf_type,
 		chip->pa_type, chip->patch_cck_gain,
-		chip->patch_cr157, chip->patch_6m_band_edge, chip->new_phy_layout);
+		chip->patch_cr157, chip->patch_6m_band_edge,
+		chip->new_phy_layout,
+		chip->link_led == LED1 ? 1 : 2,
+		chip->supports_tx_led);
 	return 0;
 error:
 	*rf_type = 0;
@@ -1289,89 +1298,60 @@ u8 zd_chip_get_channel(struct zd_chip *chip)
 	return channel;
 }
 
-static u16 led_mask(int led)
+int zd_chip_control_leds(struct zd_chip *chip, enum led_status status)
 {
-	switch (led) {
-	case 1:
-		return LED1;
-	case 2:
-		return LED2;
-	default:
-		return 0;
-	}
-}
+	static const zd_addr_t a[] = {
+		FW_LINK_STATUS,
+		CR_LED,
+	};
 
-static int read_led_reg(struct zd_chip *chip, u16 *status)
-{
-	ZD_ASSERT(mutex_is_locked(&chip->mutex));
-	return zd_ioread16_locked(chip, status, CR_LED);
-}
+	int r;
+	u16 v[ARRAY_SIZE(a)];
+	struct zd_ioreq16 ioreqs[ARRAY_SIZE(a)] = {
+		[0] = { FW_LINK_STATUS },
+		[1] = { CR_LED },
+	};
+	u16 other_led;
 
-static int write_led_reg(struct zd_chip *chip, u16 status)
-{
-	ZD_ASSERT(mutex_is_locked(&chip->mutex));
-	return zd_iowrite16_locked(chip, status, CR_LED);
-}
-
-int zd_chip_led_status(struct zd_chip *chip, int led, enum led_status status)
-{
-	int r, ret;
-	u16 mask = led_mask(led);
-	u16 reg;
-
-	if (!mask)
-		return -EINVAL;
 	mutex_lock(&chip->mutex);
-	r = read_led_reg(chip, &reg);
+	r = zd_ioread16v_locked(chip, v, (const zd_addr_t *)a, ARRAY_SIZE(a));
 	if (r)
-		return r;
+		goto out;
+
+	other_led = chip->link_led == LED1 ? LED2 : LED1;
+
 	switch (status) {
-	case LED_STATUS:
-		return (reg & mask) ? LED_ON : LED_OFF;
 	case LED_OFF:
-		reg &= ~mask;
-		ret = LED_OFF;
+		ioreqs[0].value = FW_LINK_OFF;
+		ioreqs[1].value = v[1] & ~(LED1|LED2);
 		break;
-	case LED_FLIP:
-		reg ^= mask;
-		ret = (reg&mask) ? LED_ON : LED_OFF;
+	case LED_SCANNING:
+		ioreqs[0].value = FW_LINK_OFF;
+		ioreqs[1].value = v[1] & ~other_led;
+		if (get_seconds() % 3 == 0) {
+			ioreqs[1].value &= ~chip->link_led;
+		} else {
+			ioreqs[1].value |= chip->link_led;
+		}
 		break;
-	case LED_ON:
-		reg |= mask;
-		ret = LED_ON;
+	case LED_ASSOCIATED:
+		ioreqs[0].value = FW_LINK_TX;
+		ioreqs[1].value = v[1] & ~other_led;
+		ioreqs[1].value |= chip->link_led;
 		break;
 	default:
-		return -EINVAL;
-	}
-	r = write_led_reg(chip, reg);
-	if (r) {
-		ret = r;
+		r = -EINVAL;
 		goto out;
 	}
+
+	if (v[0] != ioreqs[0].value || v[1] != ioreqs[1].value) {
+		r = zd_iowrite16a_locked(chip, ioreqs, ARRAY_SIZE(ioreqs));
+		if (r)
+			goto out;
+	}
+	r = 0;
 out:
 	mutex_unlock(&chip->mutex);
-	return r;
-}
-
-int zd_chip_led_flip(struct zd_chip *chip, int led,
-	const unsigned int *phases_msecs, unsigned int count)
-{
-	int i, r;
-	enum led_status status;
-
-	r = zd_chip_led_status(chip, led, LED_STATUS);
-	if (r)
-		return r;
-	status = r;
-	for (i = 0; i < count; i++) {
-		r = zd_chip_led_status(chip, led, LED_FLIP);
-		if (r < 0)
-			goto out;
-		msleep(phases_msecs[i]);
-	}
-
-out:
-	zd_chip_led_status(chip, led, status);
 	return r;
 }
 
@@ -1673,4 +1653,3 @@ int zd_rfwritev_cr_locked(struct zd_chip *chip,
 
 	return 0;
 }
-
