@@ -313,8 +313,10 @@ MODULE_LICENSE("GPL");
 
 static int __init fixed_init(void)
 {
+#if 0
 	int ret;
 	int duplex = 0;
+#endif
 
 	/* register on the bus... Not expected to be matched with anything there... */
 	phy_driver_register(&fixed_mdio_driver);
@@ -335,7 +337,9 @@ static int __init fixed_init(void)
 	*/
 
 #ifdef CONFIG_FIXED_MII_DUPLEX
+#if 0
 	duplex = 1;
+#endif
 #endif
 
 #ifdef CONFIG_FIXED_MII_100_FDX
