@@ -14,7 +14,7 @@
 
 /* Shared memory management parameters. NB: The 8 bit cards have only
    one bank (MB1) which serves both Tx and Rx packet space. The 16bit
-   cards have 2 banks, MB0 for Tx packets, and MB1 for Rx packets. 
+   cards have 2 banks, MB0 for Tx packets, and MB1 for Rx packets.
    You choose which bank appears in the sh. mem window with EGACFR_MBSn */
 
 #define EL2_MB0_START_PG	(0x00)	/* EL2/16 Tx packets go in bank 0 */
@@ -82,7 +82,7 @@
 	0	1	0	0x4000 -- bank 2, not used
 	0	1	1	0x6000 -- bank 3, not used
 
-There was going to be a 32k card that used bank 2 and 3, but it 
+There was going to be a 32k card that used bank 2 and 3, but it
 never got produced.
 
 */

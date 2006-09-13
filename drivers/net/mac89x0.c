@@ -12,24 +12,24 @@
   Changelog:
 
   Mike Cruse        : mcruse@cti-ltd.com
-                    : Changes for Linux 2.0 compatibility. 
+                    : Changes for Linux 2.0 compatibility.
                     : Added dev_id parameter in net_interrupt(),
                     : request_irq() and free_irq(). Just NULL for now.
 
   Mike Cruse        : Added MOD_INC_USE_COUNT and MOD_DEC_USE_COUNT macros
                     : in net_open() and net_close() so kerneld would know
-                    : that the module is in use and wouldn't eject the 
+                    : that the module is in use and wouldn't eject the
                     : driver prematurely.
 
   Mike Cruse        : Rewrote init_module() and cleanup_module using 8390.c
                     : as an example. Disabled autoprobing in init_module(),
                     : not a good thing to do to other devices while Linux
                     : is running from all accounts.
-                    
+
   Alan Cox          : Removed 1.2 support, added 2.1 extra counters.
 
   David Huggins-Daines <dhd@debian.org>
-  
+
   Split this off into mac89x0.c, and gutted it of all parts which are
   not relevant to the existing CS8900 cards on the Macintosh
   (i.e. basically the Daynaport CS and LC cards).  To be precise:
@@ -210,7 +210,7 @@ struct net_device * __init mac89x0_probe(int unit)
 	{
 		unsigned long flags;
 		int card_present;
-		
+
 		local_irq_save(flags);
 		card_present = hwreg_present((void*) ioaddr+4)
 		  && hwreg_present((void*) ioaddr + DATA_PORT);
@@ -230,7 +230,7 @@ struct net_device * __init mac89x0_probe(int unit)
 
 	/* Fill in the 'dev' fields. */
 	dev->base_addr = ioaddr;
-	dev->mem_start = (unsigned long) 
+	dev->mem_start = (unsigned long)
 		nubus_slot_addr(slot) | (((slot&0xf) << 20) + MMIOBASE);
 	dev->mem_end = dev->mem_start + 0x1000;
 
@@ -428,7 +428,7 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	return 0;
 }
-
+
 /* The typical workload of the driver:
    Handle the network interface interrupts. */
 static irqreturn_t net_interrupt(int irq, void *dev_id, struct pt_regs * regs)
@@ -596,7 +596,7 @@ static void set_multicast_list(struct net_device *dev)
 		/* The multicast-accept list is initialized to accept-all, and we
 		   rely on higher-level filtering for now. */
 		lp->rx_mode = RX_MULTCAST_ACCEPT;
-	} 
+	}
 	else
 		lp->rx_mode = 0;
 
@@ -653,7 +653,7 @@ cleanup_module(void)
 	free_netdev(dev_cs89x0);
 }
 #endif /* MODULE */
-
+
 /*
  * Local variables:
  *  compile-command: "m68k-linux-gcc -D__KERNEL__ -I../../include -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -pipe -fno-strength-reduce -ffixed-a2 -DMODULE -DMODVERSIONS -include ../../include/linux/modversions.h   -c -o mac89x0.o mac89x0.c"

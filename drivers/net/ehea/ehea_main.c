@@ -544,7 +544,7 @@ static irqreturn_t ehea_send_irq_handler(int irq, void *param,
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ehea_recv_irq_handler(int irq, void *param, 
+static irqreturn_t ehea_recv_irq_handler(int irq, void *param,
 					 struct pt_regs *regs)
 {
 	struct ehea_port_res *pr = param;
@@ -553,7 +553,7 @@ static irqreturn_t ehea_recv_irq_handler(int irq, void *param,
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param, 
+static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param,
 					   struct pt_regs *regs)
 {
 	struct ehea_port *port = param;
@@ -850,7 +850,7 @@ static void ehea_neq_tasklet(unsigned long data)
 			    adapter->neq->fw_handle, event_mask);
 }
 
-static irqreturn_t ehea_interrupt_neq(int irq, void *param, 
+static irqreturn_t ehea_interrupt_neq(int irq, void *param,
 				      struct pt_regs *regs)
 {
 	struct ehea_adapter *adapter = param;

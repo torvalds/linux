@@ -1318,7 +1318,7 @@ static void netdrv_tx_timeout (struct net_device *dev)
 
 	/* Stop a shared interrupt from scavenging while we are. */
 	spin_lock_irqsave (&tp->lock, flags);
-	
+
 	netdrv_tx_clear (tp);
 
 	spin_unlock_irqrestore (&tp->lock, flags);

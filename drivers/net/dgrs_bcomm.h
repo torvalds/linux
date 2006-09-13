@@ -27,7 +27,7 @@
  *	bc_nowait
  *	bc_hostarea_len
  *	bc_filter_len
- *			
+ *
  */
 BEGIN_STRUCT(bios_comm)
 	S4(ulong, bc_intflag)	/* Count of all interrupts */

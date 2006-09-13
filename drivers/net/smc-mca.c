@@ -250,9 +250,9 @@ static int __init ultramca_probe(struct device *gen_dev)
 			break;
 		}
 	}
-	
-	if(!tirq || !tbase 
-	   || (irq && irq != tirq) 
+
+	if(!tirq || !tbase
+	   || (irq && irq != tirq)
 	   || (base_addr && tbase != base_addr))
 		/* FIXME: we're trying to force the ordering of the
 		 * devices here, there should be a way of getting this
@@ -310,7 +310,7 @@ static int __init ultramca_probe(struct device *gen_dev)
 			 * the index of the 0x2000 step.
 			 * beware different number of pages [hs]
 			 */
-			dev->mem_start = (unsigned long) 
+			dev->mem_start = (unsigned long)
 			  mca_device_transform_memory(mca_dev, (void *)(0xc0000 + (0x2000 * (pos3 & 0xf))));
 			num_pages = 0x20 + (2 * (pos3 & 0x10));
 			break;
@@ -501,7 +501,7 @@ static int ultramca_close_card(struct net_device *dev)
 	int ioaddr = dev->base_addr - ULTRA_NIC_OFFSET; /* ASIC addr */
 
 	netif_stop_queue(dev);
-	
+
 	if (ei_debug > 1)
 		printk("%s: Shutting down ethercard.\n", dev->name);
 

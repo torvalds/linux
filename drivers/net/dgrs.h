@@ -31,8 +31,8 @@ typedef struct dgrs_ioctl {
 	unsigned short	filter;	/* filter number for command, if needed */
 } DGRS_IOCTL;
 
-/* 
- *	Commands for the driver 
+/*
+ *	Commands for the driver
  */
 #define	DGRS_GETMEM		0x01	/* Get the dual port memory address */
 #define	DGRS_SETFILTER		0x02	/* Set a filter */

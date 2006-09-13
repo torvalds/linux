@@ -28,7 +28,7 @@
 	FIXES:
 		Alan Cox:       Removed the 'Unexpected interrupt' bug.
 		Michael Meskes:	Upgraded to Donald Becker's version 1.07.
-		Alan Cox:	Increased the eeprom delay. Regardless of 
+		Alan Cox:	Increased the eeprom delay. Regardless of
 				what the docs say some people definitely
 				get problems with lower (but in card spec)
 				delays
@@ -162,7 +162,7 @@ enum RxFilter {
 #define WN4_MEDIA	0x0A		/* Window 4: Various transcvr/media bits. */
 #define	MEDIA_TP	0x00C0		/* Enable link beat and jabber for 10baseT. */
 #define WN4_NETDIAG	0x06		/* Window 4: Net diagnostic */
-#define FD_ENABLE	0x8000		/* Enable full-duplex ("external loopback") */  
+#define FD_ENABLE	0x8000		/* Enable full-duplex ("external loopback") */
 
 /*
  * Must be a power of two (we use a binary and in the
@@ -350,7 +350,7 @@ static int __init el3_common_init(struct net_device *dev)
 	{
 		const char *if_names[] = {"10baseT", "AUI", "undefined", "BNC"};
 		printk("%s: 3c5x9 found at %#3.3lx, %s port, address ",
-			dev->name, dev->base_addr, 
+			dev->name, dev->base_addr,
 			if_names[(dev->if_port & 0x03)]);
 	}
 
@@ -528,7 +528,7 @@ no_pnp:
 	SET_MODULE_OWNER(dev);
 
 	netdev_boot_setup_check(dev);
-	
+
 	/* Set passed-in IRQ or I/O Addr. */
 	if (dev->irq > 1  &&  dev->irq < 16)
 			irq = dev->irq;
@@ -630,7 +630,7 @@ static int __init el3_mca_probe(struct device *device)
 	if_port = pos4 & 0x03;
 
 	irq = mca_device_transform_irq(mdev, irq);
-	ioaddr = mca_device_transform_ioport(mdev, ioaddr); 
+	ioaddr = mca_device_transform_ioport(mdev, ioaddr);
 	if (el3_debug > 2) {
 			printk("3c529: irq %d  ioaddr 0x%x  ifport %d\n", irq, ioaddr, if_port);
 	}
@@ -667,7 +667,7 @@ static int __init el3_mca_probe(struct device *device)
 	el3_cards++;
 	return 0;
 }
-		
+
 #endif /* CONFIG_MCA */
 
 #ifdef CONFIG_EISA
@@ -684,7 +684,7 @@ static int __init el3_eisa_probe (struct device *device)
 	/* Yeepee, The driver framework is calling us ! */
 	edev = to_eisa_device (device);
 	ioaddr = edev->base_addr;
-	
+
 	if (!request_region(ioaddr, EL3_IO_EXTENT, "3c509"))
 		return -EBUSY;
 
@@ -751,7 +751,7 @@ static int __devexit el3_device_remove (struct device *device)
 static ushort read_eeprom(int ioaddr, int index)
 {
 	outw(EEPROM_READ + index, ioaddr + 10);
-	/* Pause for at least 162 us. for the read to take place. 
+	/* Pause for at least 162 us. for the read to take place.
 	   Some chips seem to require much longer */
 	mdelay(2);
 	return inw(ioaddr + 12);
@@ -769,7 +769,7 @@ static ushort __init id_read_eeprom(int index)
 	/* Pause for at least 162 us. for the read to take place. */
 	/* Some chips seem to require much longer */
 	mdelay(4);
-	
+
 	for (bit = 15; bit >= 0; bit--)
 		word = (word << 1) + (inb(id_port) & 0x01);
 
@@ -838,7 +838,7 @@ el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue (dev);
 
 	lp->stats.tx_bytes += skb->len;
-	
+
 	if (el3_debug > 4) {
 		printk("%s: el3_start_xmit(length = %u) called, status %4.4x.\n",
 			   dev->name, skb->len, inw(ioaddr + EL3_STATUS));
@@ -1024,7 +1024,7 @@ el3_get_stats(struct net_device *dev)
 	 *	This is fast enough not to bother with disable IRQ
 	 *	stuff.
 	 */
-	 
+
 	spin_lock_irqsave(&lp->lock, flags);
 	update_stats(dev);
 	spin_unlock_irqrestore(&lp->lock, flags);
@@ -1168,7 +1168,7 @@ el3_close(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 	struct el3_private *lp = netdev_priv(dev);
-	
+
 	if (el3_debug > 2)
 		printk("%s: Shutting down ethercard.\n", dev->name);
 
@@ -1187,7 +1187,7 @@ el3_close(struct net_device *dev)
 	return 0;
 }
 
-static int 
+static int
 el3_link_ok(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
@@ -1204,9 +1204,9 @@ el3_netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	u16 tmp;
 	int ioaddr = dev->base_addr;
-	
+
 	EL3WINDOW(0);
-	/* obtain current transceiver via WN4_MEDIA? */	
+	/* obtain current transceiver via WN4_MEDIA? */
 	tmp = inw(ioaddr + WN0_ADDR_CONF);
 	ecmd->transceiver = XCVR_INTERNAL;
 	switch (tmp >> 14) {
@@ -1391,7 +1391,7 @@ el3_up(struct net_device *dev)
 {
 	int i, sw_info, net_diag;
 	int ioaddr = dev->base_addr;
-	
+
 	/* Activating the board required and does no harm otherwise */
 	outw(0x0001, ioaddr + 4);
 
@@ -1411,7 +1411,7 @@ el3_up(struct net_device *dev)
 		/* Combine secondary sw_info word (the adapter level) and primary
 			sw_info word (duplex setting plus other useless bits) */
 		EL3WINDOW(0);
-		sw_info = (read_eeprom(ioaddr, 0x14) & 0x400f) | 
+		sw_info = (read_eeprom(ioaddr, 0x14) & 0x400f) |
 			(read_eeprom(ioaddr, 0x0d) & 0xBff0);
 
 		EL3WINDOW(4);
@@ -1483,7 +1483,7 @@ el3_suspend(struct device *pdev, pm_message_t state)
 	struct net_device *dev;
 	struct el3_private *lp;
 	int ioaddr;
-	
+
 	dev = pdev->driver_data;
 	lp = netdev_priv(dev);
 	ioaddr = dev->base_addr;
@@ -1507,7 +1507,7 @@ el3_resume(struct device *pdev)
 	struct net_device *dev;
 	struct el3_private *lp;
 	int ioaddr;
-	
+
 	dev = pdev->driver_data;
 	lp = netdev_priv(dev);
 	ioaddr = dev->base_addr;
@@ -1519,7 +1519,7 @@ el3_resume(struct device *pdev)
 
 	if (netif_running(dev))
 		netif_device_attach(dev);
-		
+
 	spin_unlock_irqrestore(&lp->lock, flags);
 	return 0;
 }

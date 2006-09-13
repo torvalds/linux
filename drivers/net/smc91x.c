@@ -154,7 +154,7 @@ MODULE_LICENSE("GPL");
 
 /*
  * The maximum number of processing loops allowed for each call to the
- * IRQ handler.  
+ * IRQ handler.
  */
 #define MAX_IRQ_LOOPS		8
 
@@ -765,7 +765,7 @@ static int smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/*
 		 * Allocation succeeded: push packet to the chip's own memory
 		 * immediately.
-		 */  
+		 */
 		smc_hardware_send_pkt((unsigned long)dev);
 	}
 
@@ -2344,7 +2344,7 @@ static int __init smc_init(void)
 #ifdef MODULE
 #ifdef CONFIG_ISA
 	if (io == -1)
-		printk(KERN_WARNING 
+		printk(KERN_WARNING
 			"%s: You shouldn't use auto-probing with insmod!\n",
 			CARDNAME);
 #endif

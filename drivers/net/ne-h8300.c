@@ -593,7 +593,7 @@ retry:
 	return;
 }
 
-
+
 #ifdef MODULE
 #define MAX_NE_CARDS	1	/* Max number of NE cards per module */
 static struct net_device *dev_ne[MAX_NE_CARDS];

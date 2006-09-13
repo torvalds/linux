@@ -7,10 +7,10 @@
  * (from the mac68k project) introduced dhd's support for 16-bit cards.
  *
  * (C) 1996,1998 by Thomas Bogendoerfer (tsbogend@alpha.franken.de)
- * 
+ *
  * This driver is based on work from Andreas Busse, but most of
  * the code is rewritten.
- * 
+ *
  * (C) 1995 by Andreas Busse (andy@waldorf-gmbh.de)
  *
  *    Core code included by system sonic drivers
@@ -46,7 +46,7 @@ static int sonic_open(struct net_device *dev)
 {
 	struct sonic_local *lp = netdev_priv(dev);
 	int i;
-	
+
 	if (sonic_debug > 2)
 		printk("sonic_open: initializing sonic driver.\n");
 
@@ -246,7 +246,7 @@ static int sonic_send_packet(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 		return 1;
 	}
-   
+
 	sonic_tda_put(dev, entry, SONIC_TD_STATUS, 0);       /* clear status */
 	sonic_tda_put(dev, entry, SONIC_TD_FRAG_COUNT, 1);   /* single fragment */
 	sonic_tda_put(dev, entry, SONIC_TD_PKTSIZE, length); /* length of packet */
@@ -459,7 +459,7 @@ static void sonic_rx(struct net_device *dev)
 			new_skb->dev = dev;
 			/* provide 16 byte IP header alignment unless DMA requires otherwise */
 			if(SONIC_BUS_SCALE(lp->dma_bitmode) == 2)
-				skb_reserve(new_skb, 2); 
+				skb_reserve(new_skb, 2);
 
 			new_laddr = dma_map_single(lp->device, skb_put(new_skb, SONIC_RBSIZE),
 		                               SONIC_RBSIZE, DMA_FROM_DEVICE);
@@ -641,7 +641,7 @@ static int sonic_init(struct net_device *dev)
 					SONIC_BUS_SCALE(lp->dma_bitmode)) & 0xffff;
 	lp->cur_rwp = (lp->rra_laddr + (SONIC_NUM_RRS - 1) * SIZEOF_SONIC_RR *
 					SONIC_BUS_SCALE(lp->dma_bitmode)) & 0xffff;
-  
+
 	SONIC_WRITE(SONIC_RSA, lp->rra_laddr & 0xffff);
 	SONIC_WRITE(SONIC_REA, lp->rra_end);
 	SONIC_WRITE(SONIC_RRP, lp->rra_laddr & 0xffff);
@@ -652,7 +652,7 @@ static int sonic_init(struct net_device *dev)
 	/* load the resource pointers */
 	if (sonic_debug > 3)
 		printk("sonic_init: issuing RRRA command\n");
-  
+
 	SONIC_WRITE(SONIC_CMD, SONIC_CR_RRRA);
 	i = 0;
 	while (i++ < 100) {
@@ -662,14 +662,14 @@ static int sonic_init(struct net_device *dev)
 
 	if (sonic_debug > 2)
 		printk("sonic_init: status=%x i=%d\n", SONIC_READ(SONIC_CMD), i);
-    
+
 	/*
 	 * Initialize the receive descriptors so that they
 	 * become a circular linked list, ie. let the last
 	 * descriptor point to the first again.
 	 */
 	if (sonic_debug > 2)
-		printk("sonic_init: initialize receive descriptors\n");      
+		printk("sonic_init: initialize receive descriptors\n");
 	for (i=0; i<SONIC_NUM_RDS; i++) {
 		sonic_rda_put(dev, i, SONIC_RD_STATUS, 0);
 		sonic_rda_put(dev, i, SONIC_RD_PKTLEN, 0);
@@ -689,7 +689,7 @@ static int sonic_init(struct net_device *dev)
 	SONIC_WRITE(SONIC_URDA, lp->rda_laddr >> 16);
 	SONIC_WRITE(SONIC_CRDA, lp->rda_laddr & 0xffff);
 
-	/* 
+	/*
 	 * initialize transmit descriptors
 	 */
 	if (sonic_debug > 2)
@@ -712,7 +712,7 @@ static int sonic_init(struct net_device *dev)
 	SONIC_WRITE(SONIC_CTDA, lp->tda_laddr & 0xffff);
 	lp->cur_tx = lp->next_tx = 0;
 	lp->eol_tx = SONIC_NUM_TDS - 1;
-    
+
 	/*
 	 * put our own address to CAM desc[0]
 	 */

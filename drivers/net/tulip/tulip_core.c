@@ -1545,7 +1545,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		if (pcp) {
 			unsigned char *addr;
 			int len;
-		  
+
 			addr = of_get_property(pcp->prom_node,
 					       "local-mac-address", &len);
 			if (addr && len == 6)

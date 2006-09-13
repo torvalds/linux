@@ -132,9 +132,9 @@ struct net_device * __init apne_probe(int unit)
 
 	if ( !(AMIGAHW_PRESENT(PCMCIA)) )
 		return ERR_PTR(-ENODEV);
-                                
+
 	printk("Looking for PCMCIA ethernet card : ");
-                                        
+
 	/* check if a card is inserted */
 	if (!(PCMCIA_INSERTED)) {
 		printk("NO PCMCIA card inserted\n");
@@ -205,7 +205,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     int neX000, ctron;
 #endif
     static unsigned version_printed;
- 
+
     if (ei_debug  &&  version_printed++ == 0)
 	printk(version);
 
@@ -261,13 +261,13 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
 
     /*	At this point, wordlength *only* tells us if the SA_prom is doubled
 	up or not because some broken PCI cards don't respect the byte-wide
-	request in program_seq above, and hence don't have doubled up values. 
+	request in program_seq above, and hence don't have doubled up values.
 	These broken cards would otherwise be detected as an ne1000.  */
 
     if (wordlength == 2)
 	for (i = 0; i < 16; i++)
 		SA_prom[i] = SA_prom[i+i];
-    
+
     if (wordlength == 2) {
 	/* We must set the 8390 for word mode. */
 	outb(0x49, ioaddr + NE_EN0_DCFG);

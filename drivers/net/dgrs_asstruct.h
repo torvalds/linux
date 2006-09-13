@@ -19,7 +19,7 @@
 #	define	S1(t,x)		_Off=(_Off+0)&~0; x=_Off; _Off=_Off+1
 #	define	S2(t,x)		_Off=(_Off+1)&~1; x=_Off; _Off=_Off+2
 #	define	S4(t,x)		_Off=(_Off+3)&~3; x=_Off; _Off=_Off+4
-#	define	END_STRUCT(x)	_Off=(_Off+3)&~3; x=_Off 
+#	define	END_STRUCT(x)	_Off=(_Off+3)&~3; x=_Off
 
 #else	/* C */
 

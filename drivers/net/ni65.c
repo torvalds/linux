@@ -324,7 +324,7 @@ static int ni65_close(struct net_device *dev)
 	struct priv *p = (struct priv *) dev->priv;
 
 	netif_stop_queue(dev);
-	
+
 	outw(inw(PORT+L_RESET),PORT+L_RESET); /* that's the hard way */
 
 #ifdef XMT_VIA_SKB
@@ -489,20 +489,20 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 				int dma = dmatab[i];
 				if(test_bit(dma,&dma_channels) || request_dma(dma,"ni6510"))
 					continue;
-					
+
 				flags=claim_dma_lock();
 				disable_dma(dma);
 				set_dma_mode(dma,DMA_MODE_CASCADE);
 				enable_dma(dma);
 				release_dma_lock(flags);
-				
+
 				ni65_init_lance(p,dev->dev_addr,0,0); /* trigger memory access */
-				
+
 				flags=claim_dma_lock();
 				disable_dma(dma);
 				free_dma(dma);
 				release_dma_lock(flags);
-				
+
 				if(readreg(CSR0) & CSR0_IDON)
 					break;
 			}
@@ -881,7 +881,7 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 	p = (struct priv *) dev->priv;
 
 	spin_lock(&p->ring_lock);
-	
+
 	while(--bcnt) {
 		csr0 = inw(PORT+L_DATAREG);
 
@@ -1139,7 +1139,7 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
 /*
  * kick xmitter ..
  */
- 
+
 static void ni65_timeout(struct net_device *dev)
 {
 	int i;
@@ -1163,7 +1163,7 @@ static int ni65_send_packet(struct sk_buff *skb, struct net_device *dev)
 	struct priv *p = (struct priv *) dev->priv;
 
 	netif_stop_queue(dev);
-	
+
 	if (test_and_set_bit(0, (void*)&p->lock)) {
 		printk(KERN_ERR "%s: Queue was locked.\n", dev->name);
 		return 1;
@@ -1209,10 +1209,10 @@ static int ni65_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 		if(p->tmdnum != p->tmdlast)
 			netif_wake_queue(dev);
-			
+
 		p->lock = 0;
 		dev->trans_start = jiffies;
-		
+
 		spin_unlock_irqrestore(&p->ring_lock, flags);
 	}
 

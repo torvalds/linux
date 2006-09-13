@@ -9,13 +9,13 @@
  *
  *  (C) 1997-1998 Caldera, Inc.
  *  (C) 1999-2001 Torben Mathiasen
- * 
+ *
  *  This software may be used and distributed according to the terms
  *  of the GNU General Public License, incorporated herein by reference.
  *
  ** This file is best viewed/edited with tabstop=4, colums>=132
  *
- *  
+ *
  *  Dec 10, 1999	Torben Mathiasen <torben.mathiasen@compaq.com>
  *			New Maintainer
  *
@@ -48,7 +48,7 @@
 #define TLAN_DBG(lvl, format, args...)	if (debug&lvl) printk(KERN_DEBUG "TLAN: " format, ##args );
 #define TLAN_DEBUG_GNRL		0x0001
 #define TLAN_DEBUG_TX		0x0002
-#define TLAN_DEBUG_RX		0x0004 
+#define TLAN_DEBUG_RX		0x0004
 #define TLAN_DEBUG_LIST		0x0008
 #define TLAN_DEBUG_PROBE	0x0010
 
@@ -60,7 +60,7 @@
 	 * Device Identification Definitions
 	 *
 	 ****************************************************************/
-		
+
 #define PCI_DEVICE_ID_NETELLIGENT_10_T2			0xB012
 #define PCI_DEVICE_ID_NETELLIGENT_10_100_WS_5100	0xB030
 #ifndef PCI_DEVICE_ID_OLICOM_OC2183
@@ -102,11 +102,11 @@ typedef struct tlan_adapter_entry {
 	 *
 	 ****************************************************************/
 
-#define EISA_ID      0xc80   /* EISA ID Registers */ 
-#define EISA_ID0     0xc80   /* EISA ID Register 0 */ 
-#define EISA_ID1     0xc81   /* EISA ID Register 1 */ 
-#define EISA_ID2     0xc82   /* EISA ID Register 2 */ 
-#define EISA_ID3     0xc83   /* EISA ID Register 3 */ 
+#define EISA_ID      0xc80   /* EISA ID Registers */
+#define EISA_ID0     0xc80   /* EISA ID Register 0 */
+#define EISA_ID1     0xc81   /* EISA ID Register 1 */
+#define EISA_ID2     0xc82   /* EISA ID Register 2 */
+#define EISA_ID3     0xc83   /* EISA ID Register 3 */
 #define EISA_CR      0xc84   /* EISA Control Register */
 #define EISA_REG0    0xc88   /* EISA Configuration Register 0 */
 #define EISA_REG1    0xc89   /* EISA Configuration Register 1 */
@@ -447,7 +447,7 @@ static inline u8 TLan_DioRead8(u16 base_addr, u16 internal_addr)
 {
 	outw(internal_addr, base_addr + TLAN_DIO_ADR);
 	return (inb((base_addr + TLAN_DIO_DATA) + (internal_addr & 0x3)));
-	
+
 } /* TLan_DioRead8 */
 
 
@@ -505,8 +505,8 @@ static inline void TLan_DioWrite32(u16 base_addr, u16 internal_addr, u32 data)
 #define TLan_SetBit( bit, port )	outb_p(inb_p(port) | bit, port)
 
 /*
- * given 6 bytes, view them as 8 6-bit numbers and return the XOR of those 
- * the code below is about seven times as fast as the original code 
+ * given 6 bytes, view them as 8 6-bit numbers and return the XOR of those
+ * the code below is about seven times as fast as the original code
  *
  * The original code was:
  *

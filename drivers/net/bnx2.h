@@ -22,9 +22,9 @@
  */
 struct tx_bd {
 	u32 tx_bd_haddr_hi;
-	u32 tx_bd_haddr_lo;                                   
-	u32 tx_bd_mss_nbytes;                                     
-	u32 tx_bd_vlan_tag_flags;                                      
+	u32 tx_bd_haddr_lo;
+	u32 tx_bd_mss_nbytes;
+	u32 tx_bd_vlan_tag_flags;
 		#define TX_BD_FLAGS_CONN_FAULT		(1<<0)
 		#define TX_BD_FLAGS_TCP_UDP_CKSUM	(1<<1)
 		#define TX_BD_FLAGS_IP_CKSUM		(1<<2)
@@ -3893,7 +3893,7 @@ struct bnx2 {
 	u16		tx_cons __attribute__((aligned(L1_CACHE_BYTES)));
 	u16		hw_tx_cons;
 
-#ifdef BCM_VLAN 
+#ifdef BCM_VLAN
 	struct			vlan_group *vlgrp;
 #endif
 
@@ -3950,7 +3950,7 @@ struct bnx2 {
 #define CHIP_REV_Ax			0x00000000
 #define CHIP_REV_Bx			0x00001000
 #define CHIP_REV_Cx			0x00002000
-    
+
 #define CHIP_METAL(bp)			(((bp)->chip_id) & 0x00000ff0)
 #define CHIP_BONDING(bp)		(((bp)->chip_id) & 0x0000000f)
 
@@ -3969,7 +3969,7 @@ struct bnx2 {
 
 	u32			phy_addr;
 	u32			phy_id;
-	
+
 	u16			bus_speed_mhz;
 	u8			wol;
 
@@ -4025,7 +4025,7 @@ struct bnx2 {
 
 	u32			advertising;
 
-	u8			req_flow_ctrl;	/* flow ctrl advertisement */ 
+	u8			req_flow_ctrl;	/* flow ctrl advertisement */
 						/* settings or forced      */
 						/* settings                */
 	u8			autoneg;
@@ -4179,7 +4179,7 @@ struct fw_info {
 #define BNX2_DRV_MSG_DATA_WAIT1			 0x00020000
 #define BNX2_DRV_MSG_DATA_WAIT2			 0x00030000
 #define BNX2_DRV_MSG_DATA_WAIT3			 0x00040000
-        
+
 #define BNX2_DRV_MSG_SEQ			 0x0000ffff
 
 #define BNX2_FW_MB				0x00000008
@@ -4189,38 +4189,38 @@ struct fw_info {
 #define BNX2_FW_MSG_STATUS_FAILURE		 0x00ff0000
 
 #define BNX2_LINK_STATUS			0x0000000c
-#define BNX2_LINK_STATUS_INIT_VALUE		 0xffffffff 
-#define BNX2_LINK_STATUS_LINK_UP		 0x1 
-#define BNX2_LINK_STATUS_LINK_DOWN		 0x0 
+#define BNX2_LINK_STATUS_INIT_VALUE		 0xffffffff
+#define BNX2_LINK_STATUS_LINK_UP		 0x1
+#define BNX2_LINK_STATUS_LINK_DOWN		 0x0
 #define BNX2_LINK_STATUS_SPEED_MASK		 0x1e
-#define BNX2_LINK_STATUS_AN_INCOMPLETE		 (0<<1) 
-#define BNX2_LINK_STATUS_10HALF			 (1<<1) 
-#define BNX2_LINK_STATUS_10FULL			 (2<<1) 
-#define BNX2_LINK_STATUS_100HALF		 (3<<1) 
-#define BNX2_LINK_STATUS_100BASE_T4		 (4<<1) 
-#define BNX2_LINK_STATUS_100FULL		 (5<<1) 
-#define BNX2_LINK_STATUS_1000HALF		 (6<<1) 
-#define BNX2_LINK_STATUS_1000FULL		 (7<<1) 
-#define BNX2_LINK_STATUS_2500HALF		 (8<<1) 
-#define BNX2_LINK_STATUS_2500FULL		 (9<<1) 
-#define BNX2_LINK_STATUS_AN_ENABLED		 (1<<5) 
-#define BNX2_LINK_STATUS_AN_COMPLETE		 (1<<6) 
-#define BNX2_LINK_STATUS_PARALLEL_DET		 (1<<7) 
-#define BNX2_LINK_STATUS_RESERVED		 (1<<8) 
-#define BNX2_LINK_STATUS_PARTNER_AD_1000FULL	 (1<<9) 
-#define BNX2_LINK_STATUS_PARTNER_AD_1000HALF	 (1<<10) 
-#define BNX2_LINK_STATUS_PARTNER_AD_100BT4	 (1<<11) 
-#define BNX2_LINK_STATUS_PARTNER_AD_100FULL	 (1<<12) 
-#define BNX2_LINK_STATUS_PARTNER_AD_100HALF	 (1<<13) 
-#define BNX2_LINK_STATUS_PARTNER_AD_10FULL	 (1<<14) 
-#define BNX2_LINK_STATUS_PARTNER_AD_10HALF	 (1<<15) 
-#define BNX2_LINK_STATUS_TX_FC_ENABLED		 (1<<16) 
-#define BNX2_LINK_STATUS_RX_FC_ENABLED		 (1<<17) 
-#define BNX2_LINK_STATUS_PARTNER_SYM_PAUSE_CAP	 (1<<18) 
-#define BNX2_LINK_STATUS_PARTNER_ASYM_PAUSE_CAP	 (1<<19) 
-#define BNX2_LINK_STATUS_SERDES_LINK		 (1<<20) 
-#define BNX2_LINK_STATUS_PARTNER_AD_2500FULL	 (1<<21) 
-#define BNX2_LINK_STATUS_PARTNER_AD_2500HALF	 (1<<22) 
+#define BNX2_LINK_STATUS_AN_INCOMPLETE		 (0<<1)
+#define BNX2_LINK_STATUS_10HALF			 (1<<1)
+#define BNX2_LINK_STATUS_10FULL			 (2<<1)
+#define BNX2_LINK_STATUS_100HALF		 (3<<1)
+#define BNX2_LINK_STATUS_100BASE_T4		 (4<<1)
+#define BNX2_LINK_STATUS_100FULL		 (5<<1)
+#define BNX2_LINK_STATUS_1000HALF		 (6<<1)
+#define BNX2_LINK_STATUS_1000FULL		 (7<<1)
+#define BNX2_LINK_STATUS_2500HALF		 (8<<1)
+#define BNX2_LINK_STATUS_2500FULL		 (9<<1)
+#define BNX2_LINK_STATUS_AN_ENABLED		 (1<<5)
+#define BNX2_LINK_STATUS_AN_COMPLETE		 (1<<6)
+#define BNX2_LINK_STATUS_PARALLEL_DET		 (1<<7)
+#define BNX2_LINK_STATUS_RESERVED		 (1<<8)
+#define BNX2_LINK_STATUS_PARTNER_AD_1000FULL	 (1<<9)
+#define BNX2_LINK_STATUS_PARTNER_AD_1000HALF	 (1<<10)
+#define BNX2_LINK_STATUS_PARTNER_AD_100BT4	 (1<<11)
+#define BNX2_LINK_STATUS_PARTNER_AD_100FULL	 (1<<12)
+#define BNX2_LINK_STATUS_PARTNER_AD_100HALF	 (1<<13)
+#define BNX2_LINK_STATUS_PARTNER_AD_10FULL	 (1<<14)
+#define BNX2_LINK_STATUS_PARTNER_AD_10HALF	 (1<<15)
+#define BNX2_LINK_STATUS_TX_FC_ENABLED		 (1<<16)
+#define BNX2_LINK_STATUS_RX_FC_ENABLED		 (1<<17)
+#define BNX2_LINK_STATUS_PARTNER_SYM_PAUSE_CAP	 (1<<18)
+#define BNX2_LINK_STATUS_PARTNER_ASYM_PAUSE_CAP	 (1<<19)
+#define BNX2_LINK_STATUS_SERDES_LINK		 (1<<20)
+#define BNX2_LINK_STATUS_PARTNER_AD_2500FULL	 (1<<21)
+#define BNX2_LINK_STATUS_PARTNER_AD_2500HALF	 (1<<22)
 
 #define BNX2_DRV_PULSE_MB			0x00000010
 #define BNX2_DRV_PULSE_SEQ_MASK			 0x00007fff
@@ -4400,7 +4400,7 @@ struct fw_info {
 					  0x00020000)
 #define BNX2_BC_STATE_RESET_TYPE_VAUX	 (BNX2_BC_STATE_RESET_TYPE_SIG | \
 					  0x00030000)
-#define BNX2_BC_STATE_RESET_TYPE_DRV_MASK	 DRV_MSG_CODE         
+#define BNX2_BC_STATE_RESET_TYPE_DRV_MASK	 DRV_MSG_CODE
 #define BNX2_BC_STATE_RESET_TYPE_DRV_RESET (BNX2_BC_STATE_RESET_TYPE_SIG | \
 					    DRV_MSG_CODE_RESET)
 #define BNX2_BC_STATE_RESET_TYPE_DRV_UNLOAD (BNX2_BC_STATE_RESET_TYPE_SIG | \
@@ -4443,7 +4443,7 @@ struct fw_info {
 #define BNX2_BC_STATE_ERR_DRV_DEAD		 (BNX2_BC_STATE_SIGN | 0x0500)
 #define BNX2_BC_STATE_ERR_NO_RXP		 (BNX2_BC_STATE_SIGN | 0x0600)
 #define BNX2_BC_STATE_ERR_TOO_MANY_RBUF		 (BNX2_BC_STATE_SIGN | 0x0700)
-	
+
 #define BNX2_BC_STATE_DEBUG_CMD			0x1dc
 #define BNX2_BC_STATE_BC_DBG_CMD_SIGNATURE	 0x42440000
 #define BNX2_BC_STATE_BC_DBG_CMD_SIGNATURE_MASK	 0xffff0000

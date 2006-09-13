@@ -107,12 +107,12 @@ struct slip {
 #define SL_MODE_CSLIP6	(SL_MODE_SLIP6|SL_MODE_CSLIP)
 #define SL_MODE_AX25	4
 #define SL_MODE_ADAPTIVE 8
-#ifdef CONFIG_SLIP_SMART  
+#ifdef CONFIG_SLIP_SMART
   unsigned char		outfill;	/* # of sec between outfill packet */
   unsigned char		keepalive;	/* keepalive seconds		*/
   struct timer_list	outfill_timer;
   struct timer_list	keepalive_timer;
-#endif  
+#endif
 };
 
 #define SLIP_MAGIC 0x5302

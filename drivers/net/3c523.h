@@ -130,7 +130,7 @@ struct rfd_struct
 /*
  * Receive Buffer Descriptor (RBD)
  */
-struct rbd_struct 
+struct rbd_struct
 {
   unsigned short status;	/* status word,number of used bytes in buff */
   unsigned short next;		/* pointeroffset to next RBD */
@@ -182,7 +182,7 @@ struct nop_cmd_struct
 /*
  * IA Setup command
  */
-struct iasetup_cmd_struct 
+struct iasetup_cmd_struct
 {
   unsigned short cmd_status;
   unsigned short cmd_cmd;
@@ -191,7 +191,7 @@ struct iasetup_cmd_struct
 };
 
 /*
- * Configure command 
+ * Configure command
  */
 struct configure_cmd_struct
 {
@@ -213,9 +213,9 @@ struct configure_cmd_struct
 };
 
 /*
- * Multicast Setup command 
+ * Multicast Setup command
  */
-struct mcsetup_cmd_struct 
+struct mcsetup_cmd_struct
 {
   unsigned short cmd_status;
   unsigned short cmd_cmd;
@@ -225,9 +225,9 @@ struct mcsetup_cmd_struct
 };
 
 /*
- * transmit command 
+ * transmit command
  */
-struct transmit_cmd_struct 
+struct transmit_cmd_struct
 {
   unsigned short cmd_status;
   unsigned short cmd_cmd;

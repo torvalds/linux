@@ -1,7 +1,7 @@
-/* 
+/*
  * defines, etc for the seeq8005
  */
- 
+
 /*
  * This file is distributed under GPL.
  *

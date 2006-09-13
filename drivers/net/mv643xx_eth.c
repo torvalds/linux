@@ -2723,7 +2723,7 @@ static void mv643xx_get_ethtool_stats(struct net_device *netdev,
 	eth_update_mib_counters(mp);
 
 	for (i = 0; i < MV643XX_STATS_LEN; i++) {
-		char *p = (char *)mp+mv643xx_gstrings_stats[i].stat_offset;	
+		char *p = (char *)mp+mv643xx_gstrings_stats[i].stat_offset;
 		data[i] = (mv643xx_gstrings_stats[i].sizeof_stat ==
 			sizeof(uint64_t)) ? *(uint64_t *)p : *(uint32_t *)p;
 	}

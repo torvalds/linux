@@ -6,7 +6,7 @@
  *
  * Complete PPP frames without encoding/decoding are exchanged between
  * the channel driver and the device driver.
- * 
+ *
  * The async map IOCTL codes are implemented to keep the user mode
  * applications happy if they call them. Synchronous PPP does not use
  * the async maps.

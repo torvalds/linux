@@ -460,7 +460,7 @@ bionet_send_packet(struct sk_buff *skb, struct net_device *dev) {
 		if (bionet_debug >1) {
 			u_char *data = nic_packet->buffer, *p;
 			int i;
-			
+
 			printk( "%s: TX pkt type 0x%4x from ", dev->name,
 				  ((u_short *)data)[6]);
 
@@ -551,7 +551,7 @@ bionet_poll_rx(struct net_device *dev) {
 			/* 'skb->data' points to the start of sk_buff data area.
 			 */
 			memcpy(skb->data, nic_packet->buffer, pkt_len);
-			skb->protocol = eth_type_trans( skb, dev ); 
+			skb->protocol = eth_type_trans( skb, dev );
 			netif_rx(skb);
 			dev->last_rx = jiffies;
 			lp->stats.rx_packets++;
@@ -565,17 +565,17 @@ bionet_poll_rx(struct net_device *dev) {
  			if (bionet_debug >1) {
  				u_char *data = nic_packet->buffer, *p;
  				int i;
- 				
+
  				printk( "%s: RX pkt type 0x%4x from ", dev->name,
  					  ((u_short *)data)[6]);
- 					 
- 				
+
+
  				for( p = &data[6], i = 0; i < 6; i++ )
  					printk("%02x%s", *p++,i != 5 ? ":" : "" );
  				printk(" to ");
  				for( p = data, i = 0; i < 6; i++ )
  					printk("%02x%s", *p++,i != 5 ? ":" : "" "\n" );
- 
+
  				printk( "%s: ", dev->name );
  				printk(" data %02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x"
  				       " %02x%02x%02x%02x len %d\n",
@@ -636,7 +636,7 @@ bionet_close(struct net_device *dev) {
 /* Get the current statistics.
    This may be called with the card open or closed.
  */
-static struct net_device_stats *net_get_stats(struct net_device *dev) 
+static struct net_device_stats *net_get_stats(struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
 	return &lp->stats;

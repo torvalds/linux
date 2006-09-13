@@ -1,4 +1,4 @@
-/*     
+/*
  *    Lance ethernet driver for the MIPS processor based
  *      DECstation family
  *
@@ -158,9 +158,9 @@ MODULE_LICENSE("GPL");
 
 /* The DS2000/3000 have a linear 64 KB buffer.
 
- * The PMAD-AA has 128 kb buffer on-board. 
+ * The PMAD-AA has 128 kb buffer on-board.
  *
- * The IOASIC LANCE devices use a shared memory region. This region as seen 
+ * The IOASIC LANCE devices use a shared memory region. This region as seen
  * from the CPU is (max) 128 KB long and has to be on an 128 KB boundary.
  * The LANCE sees this as a 64 KB long continuous memory region.
  *
@@ -882,7 +882,7 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	skblen = skb->len;
 
 	len = skblen;
-	
+
 	if (len < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
 			return 0;

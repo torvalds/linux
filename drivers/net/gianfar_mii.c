@@ -1,4 +1,4 @@
-/* 
+/*
  * drivers/net/gianfar_mii.c
  *
  * Gianfar Ethernet Driver -- MIIM bus implementation
@@ -171,7 +171,7 @@ int gfar_mdio_probe(struct device *dev)
 	err = mdiobus_register(new_bus);
 
 	if (0 != err) {
-		printk (KERN_ERR "%s: Cannot register as MDIO bus\n", 
+		printk (KERN_ERR "%s: Cannot register as MDIO bus\n",
 				new_bus->name);
 		goto bus_register_fail;
 	}

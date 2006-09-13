@@ -639,7 +639,7 @@ static int init586(struct net_device *dev)
 	/*
 	 * TDR, wire check .. e.g. no resistor e.t.c
 	 */
-	 
+
 	tdr_cmd = (struct tdr_cmd_struct *)ptr;
 
 	tdr_cmd->cmd_status	= 0;

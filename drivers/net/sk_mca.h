@@ -25,11 +25,11 @@ typedef struct {
 	int nextrx;		/* index of next RX descriptor to
 				   be read                          */
 	int nexttxput;		/* index of next free TX descriptor */
-	int nexttxdone;		/* index of next TX descriptor to 
+	int nexttxdone;		/* index of next TX descriptor to
 				   be finished                      */
 	int txbusy;		/* # of busy TX descriptors         */
 	struct net_device_stats stat;	/* packet statistics            */
-	int realirq;		/* memorizes actual IRQ, even when 
+	int realirq;		/* memorizes actual IRQ, even when
 				   currently not allocated          */
 	skmca_medium medium;	/* physical cannector               */
 	spinlock_t lock;

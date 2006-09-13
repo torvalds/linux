@@ -813,7 +813,7 @@
 /* MII BCM5400 AUXSTATUS register */
 #define MII_BCM5400_AUXSTATUS                   0x19
 #define MII_BCM5400_AUXSTATUS_LINKMODE_MASK     0x0700
-#define MII_BCM5400_AUXSTATUS_LINKMODE_SHIFT    8  
+#define MII_BCM5400_AUXSTATUS_LINKMODE_SHIFT    8
 
 /* When it can, GEM internally caches 4 aligned TX descriptors
  * at a time, so that it can use full cacheline DMA reads.
@@ -984,10 +984,10 @@ struct gem {
 	unsigned int asleep_wol : 1;	/* was asleep with WOL enabled */
 	unsigned int opened : 1;	/* driver opened, protected by pm_mutex */
 	unsigned int running : 1;	/* chip running, protected by lock */
-	
+
 	/* cell enable count, protected by lock */
-	int			cell_enabled;  
-	
+	int			cell_enabled;
+
 	struct mutex		pm_mutex;
 
 	u32			msg_enable;
@@ -1017,7 +1017,7 @@ struct gem {
 	enum gem_phy_type	phy_type;
 	struct mii_phy		phy_mii;
 	int			mii_phy_addr;
-		
+
 	struct gem_init_block	*init_block;
 	struct sk_buff		*rx_skbs[RX_RING_SIZE];
 	struct sk_buff		*tx_skbs[TX_RING_SIZE];
@@ -1032,7 +1032,7 @@ struct gem {
 
 #define found_mii_phy(gp) ((gp->phy_type == phy_mii_mdio0 || gp->phy_type == phy_mii_mdio1) \
 				&& gp->phy_mii.def && gp->phy_mii.def->ops)
-			
+
 #define ALIGNED_RX_SKB_ADDR(addr) \
         ((((unsigned long)(addr) + (64UL - 1UL)) & ~(64UL - 1UL)) - (unsigned long)(addr))
 static __inline__ struct sk_buff *gem_alloc_skb(int size,

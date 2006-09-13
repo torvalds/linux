@@ -635,7 +635,7 @@ static struct compressor ppp_deflate_draft = {
 };
 
 static int __init deflate_init(void)
-{  
+{
         int answer = ppp_register_compressor(&ppp_deflate);
         if (answer == 0)
                 printk(KERN_INFO
@@ -643,7 +643,7 @@ static int __init deflate_init(void)
 	ppp_register_compressor(&ppp_deflate_draft);
         return answer;
 }
-     
+
 static void __exit deflate_cleanup(void)
 {
 	ppp_unregister_compressor(&ppp_deflate);

@@ -486,23 +486,23 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 #else
 	int bar = 1;
 #endif
-	
+
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
 	static int printed_version;
 	if (!printed_version++)
 		printk(version);
 #endif
-	
+
 	card_idx++;
 	sprintf(boardname, "fealnx%d", card_idx);
-	
+
 	option = card_idx < MAX_UNITS ? options[card_idx] : 0;
 
 	i = pci_enable_device(pdev);
 	if (i) return i;
 	pci_set_master(pdev);
-	
+
 	len = pci_resource_len(pdev, bar);
 	if (len < MIN_REGION_SIZE) {
 		dev_err(&pdev->dev,
@@ -513,7 +513,7 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 	i = pci_request_regions(pdev, boardname);
 	if (i)
 		return i;
-	
+
 	irq = pdev->irq;
 
 	ioaddr = pci_iomap(pdev, bar, len);
@@ -660,7 +660,7 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->tx_timeout = &tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	
+
 	err = register_netdev(dev);
 	if (err)
 		goto err_out_free_tx;
@@ -865,25 +865,25 @@ static int netdev_open(struct net_device *dev)
 	   Tx and Rx queues and the address filter list.
 	   FIXME (Ueimor): optimistic for alpha + posted writes ? */
 #if defined(__powerpc__) || defined(__sparc__)
-// 89/9/1 modify, 
+// 89/9/1 modify,
 //   np->bcrvalue=0x04 | 0x0x38;  /* big-endian, 256 burst length */
 	np->bcrvalue = 0x04 | 0x10;	/* big-endian, tx 8 burst length */
 	np->crvalue = 0xe00;	/* rx 128 burst length */
 #elif defined(__alpha__) || defined(__x86_64__)
-// 89/9/1 modify, 
+// 89/9/1 modify,
 //   np->bcrvalue=0x38;           /* little-endian, 256 burst length */
 	np->bcrvalue = 0x10;	/* little-endian, 8 burst length */
 	np->crvalue = 0xe00;	/* rx 128 burst length */
 #elif defined(__i386__)
 #if defined(MODULE)
-// 89/9/1 modify, 
+// 89/9/1 modify,
 //   np->bcrvalue=0x38;           /* little-endian, 256 burst length */
 	np->bcrvalue = 0x10;	/* little-endian, 8 burst length */
 	np->crvalue = 0xe00;	/* rx 128 burst length */
 #else
 	/* When not a module we can work around broken '486 PCI boards. */
 #define x86 boot_cpu_data.x86
-// 89/9/1 modify, 
+// 89/9/1 modify,
 //   np->bcrvalue=(x86 <= 4 ? 0x10 : 0x38);
 	np->bcrvalue = 0x10;
 	np->crvalue = (x86 <= 4 ? 0xa00 : 0xe00);
@@ -1160,7 +1160,7 @@ static void reset_and_disable_rxtx(struct net_device *dev)
 	/* Reset the chip to erase previous misconfiguration. */
 	iowrite32(0x00000001, ioaddr + BCR);
 
-	/* Ueimor: wait for 50 PCI cycles (and flush posted writes btw). 
+	/* Ueimor: wait for 50 PCI cycles (and flush posted writes btw).
 	   We surely wait too long (address+data phase). Who cares? */
 	while (--delay) {
 		ioread32(ioaddr + BCR);
@@ -1213,7 +1213,7 @@ static void reset_timer(unsigned long data)
 	reset_tx_descriptors(dev); */
 	enable_rxtx(dev);
 	netif_start_queue(dev); /* FIXME: or netif_wake_queue(dev); ? */
-		
+
 	np->reset_timer_armed = 0;
 
 	spin_unlock_irqrestore(&np->lock, flags);
@@ -1239,7 +1239,7 @@ static void tx_timeout(struct net_device *dev)
 			printk(" %4.4x", np->tx_ring[i].status);
 		printk("\n");
 	}
-	
+
 	spin_lock_irqsave(&np->lock, flags);
 
 	reset_and_disable_rxtx(dev);
@@ -1509,7 +1509,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 				stop_nic_rx(ioaddr, np->crvalue);
 				reset_rx_descriptors(dev);
 				iowrite32(np->crvalue, ioaddr + TCRRCR);
-			}				
+			}
 		}
 
 		while (np->really_tx_count) {
@@ -1571,7 +1571,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 			}
 			num_tx++;
 		}		/* end of for loop */
-		
+
 		if (num_tx && np->free_tx_count >= 2)
 			netif_wake_queue(dev);
 
@@ -1728,7 +1728,7 @@ static int netdev_rx(struct net_device *dev)
 				/* Call copy + cksum if available. */
 
 #if ! defined(__alpha__)
-				eth_copy_and_sum(skb, 
+				eth_copy_and_sum(skb,
 					np->cur_rx->skbuff->data, pkt_len, 0);
 				skb_put(skb, pkt_len);
 #else

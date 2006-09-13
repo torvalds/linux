@@ -74,7 +74,7 @@ static void ultra32_block_output(struct net_device *dev, int count,
 				 const unsigned char *buf,
 				 const int start_page);
 static int ultra32_close(struct net_device *dev);
-
+
 #define ULTRA32_CMDREG	0	/* Offset to ASIC command register. */
 #define	 ULTRA32_RESET	0x80	/* Board reset, in ULTRA32_CMDREG. */
 #define	 ULTRA32_MEMENB	0x40	/* Enable the shared memory. */
@@ -314,7 +314,7 @@ static int ultra32_close(struct net_device *dev)
 	int ioaddr = dev->base_addr - ULTRA32_NIC_OFFSET; /* CMDREG */
 
 	netif_stop_queue(dev);
-	
+
 	if (ei_debug > 1)
 		printk("%s: Shutting down ethercard.\n", dev->name);
 
@@ -413,7 +413,7 @@ static void ultra32_block_output(struct net_device *dev,
 
 	memcpy_toio(xfer_start, buf, count);
 }
-
+
 #ifdef MODULE
 #define MAX_ULTRA32_CARDS   4	/* Max number of Ultra cards per module */
 static struct net_device *dev_ultra[MAX_ULTRA32_CARDS];

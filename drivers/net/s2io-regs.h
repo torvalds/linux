@@ -656,8 +656,8 @@ typedef struct _XENA_dev_config {
         u64 rmac_addr_cfg;
 #define RMAC_ADDR_UCASTn_EN(n)     mBIT(0)_n(n)
 #define RMAC_ADDR_MCASTn_EN(n)     mBIT(0)_n(n)
-#define RMAC_ADDR_BCAST_EN         vBIT(0)_48 
-#define RMAC_ADDR_ALL_ADDR_EN      vBIT(0)_49 
+#define RMAC_ADDR_BCAST_EN         vBIT(0)_48
+#define RMAC_ADDR_ALL_ADDR_EN      vBIT(0)_49
 */
 	u64 tmac_ipg_cfg;
 

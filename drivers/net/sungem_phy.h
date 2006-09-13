@@ -96,7 +96,7 @@ extern int mii_phy_probe(struct mii_phy *phy, int mii_id);
 /* MII BCM5400 AUXSTATUS register */
 #define MII_BCM5400_AUXSTATUS                   0x19
 #define MII_BCM5400_AUXSTATUS_LINKMODE_MASK     0x0700
-#define MII_BCM5400_AUXSTATUS_LINKMODE_SHIFT    8  
+#define MII_BCM5400_AUXSTATUS_LINKMODE_SHIFT    8
 
 /* 1000BT control (Marvell & BCM54xx at least) */
 #define MII_1000BASETCONTROL			0x09

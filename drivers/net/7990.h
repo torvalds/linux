@@ -1,9 +1,9 @@
-/* 
+/*
  * 7990.h -- LANCE ethernet IC generic routines.
  * This is an attempt to separate out the bits of various ethernet
  * drivers that are common because they all use the AMD 7990 LANCE
  * (Local Area Network Controller for Ethernet) chip.
- * 
+ *
  * Copyright (C) 05/1998 Peter Maydell <pmaydell@chiark.greenend.org.uk>
  *
  * Most of this stuff was obtained by looking at other LANCE drivers,
@@ -55,7 +55,7 @@ struct lance_rx_desc {
 				     */
 	volatile unsigned short mblength;    /* Actual number of bytes received */
 };
- 
+
 /* Ditto for TMD: */
 struct lance_tx_desc {
 	volatile unsigned short tmd0;        /* low address of packet */
@@ -80,8 +80,8 @@ struct lance_init_block {
         volatile unsigned short rx_len;          /* receive len and high addr */
         volatile unsigned short tx_ptr;          /* transmit descriptor addr */
         volatile unsigned short tx_len;          /* transmit len and high addr */
-    
-        /* The Tx and Rx ring entries must be aligned on 8-byte boundaries. 
+
+        /* The Tx and Rx ring entries must be aligned on 8-byte boundaries.
          * This will be true if this whole struct is 8-byte aligned.
          */
         volatile struct lance_tx_desc btx_ring[TX_RING_SIZE];
@@ -104,21 +104,21 @@ struct lance_private
 	unsigned long base;
         volatile struct lance_init_block *init_block; /* CPU address of RAM */
         volatile struct lance_init_block *lance_init_block; /* LANCE address of RAM */
-        
+
         int rx_new, tx_new;
         int rx_old, tx_old;
-        
+
         int lance_log_rx_bufs, lance_log_tx_bufs;
         int rx_ring_mod_mask, tx_ring_mod_mask;
-        
+
         struct net_device_stats stats;
         int tpe;                                  /* TPE is selected */
         int auto_select;                          /* cable-selection is by carrier */
         unsigned short busmaster_regval;
 
         unsigned int irq;                         /* IRQ to register */
-        
-        /* This is because the HP LANCE is disgusting and you have to check 
+
+        /* This is because the HP LANCE is disgusting and you have to check
          * a DIO-specific register every time you read/write the LANCE regs :-<
          * [could we get away with making these some sort of macro?]
          */
@@ -148,7 +148,7 @@ struct lance_private
 #define LE_C0_RINT	0x0400		/* Receive Interrupt */
 #define LE_C0_TINT	0x0200		/* Transmit Interrupt */
 #define LE_C0_IDON	0x0100		/* Initialization Done */
-#define LE_C0_INTR	0x0080		/* Interrupt Flag 
+#define LE_C0_INTR	0x0080		/* Interrupt Flag
                                          = BABL | MISS | MERR | RINT | TINT | IDON */
 #define LE_C0_INEA	0x0040		/* Interrupt Enable */
 #define LE_C0_RXON	0x0020		/* Receive On */
@@ -185,7 +185,7 @@ struct lance_private
 #define LE_MO_PSEL1   0x0100          /* port selection bit1 */
 #define LE_MO_PSEL0   0x0080          /* port selection bit0 */
 /* and this one is from the C-LANCE data sheet... */
-#define LE_MO_EMBA      0x0080          /* Enable Modified Backoff Algorithm 
+#define LE_MO_EMBA      0x0080          /* Enable Modified Backoff Algorithm
                                            (C-LANCE, not original LANCE) */
 #define LE_MO_INTL	0x0040		/* Internal Loopback */
 #define LE_MO_DRTY	0x0020		/* Disable Retry */

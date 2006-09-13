@@ -37,7 +37,7 @@ struct net_local
 	spinlock_t	lock;		/* Serializing lock */
 };
 
-
+
 #define RX_STATUS (ioaddr + 0x06)
 #define RX_CMD	  RX_STATUS
 #define TX_STATUS (ioaddr + 0x07)

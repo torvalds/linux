@@ -42,7 +42,7 @@
  *                      Modularization.
  *	- Jan 1995	Bjorn Ekwall
  *			Use ip_fast_csum from ip.h
- *	- July 1995	Christos A. Polyzols 
+ *	- July 1995	Christos A. Polyzols
  *			Spotted bug in tcp option checking
  *
  *
@@ -238,10 +238,10 @@ slhc_compress(struct slcompress *comp, unsigned char *icp, int isize,
 	/*
 	 *	Don't play with runt packets.
 	 */
-	 
+
 	if(isize<sizeof(struct iphdr))
 		return isize;
-		
+
 	ip = (struct iphdr *) icp;
 
 	/* Bail if this packet isn't TCP, or is an IP fragment */

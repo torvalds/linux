@@ -7,12 +7,12 @@
    This software may be used and distributed according to the terms of
    the GNU Public License, incorporated herein by reference.  */
 
-/* 2000-02-28: support added for Dayna and Kinetics cards by 
+/* 2000-02-28: support added for Dayna and Kinetics cards by
    A.G.deWijn@phys.uu.nl */
 /* 2000-04-04: support added for Dayna2 by bart@etpmod.phys.tue.nl */
 /* 2001-04-18: support for DaynaPort E/LC-M by rayk@knightsmanor.org */
 /* 2001-05-15: support for Cabletron ported from old daynaport driver
- * and fixed access to Sonic Sys card which masquerades as a Farallon 
+ * and fixed access to Sonic Sys card which masquerades as a Farallon
  * by rayk@knightsmanor.org */
 
 #include <linux/module.h>
@@ -55,7 +55,7 @@
 #define KINETICS_8390_BASE	0x80000
 #define KINETICS_8390_MEM	0x00000
 
-#define CABLETRON_8390_BASE	0x90000	
+#define CABLETRON_8390_BASE	0x90000
 #define CABLETRON_8390_MEM	0x00000
 
 enum mac8390_type {
@@ -118,7 +118,7 @@ static int useresources[] = {
 
 static char version[] __initdata =
 	"mac8390.c: v0.4 2001-05-15 David Huggins-Daines <dhd@debian.org> and others\n";
-		
+
 extern enum mac8390_type mac8390_ident(struct nubus_dev * dev);
 extern int mac8390_memsize(unsigned long membase);
 extern int mac8390_memtest(struct net_device * dev);
@@ -168,7 +168,7 @@ enum mac8390_type __init mac8390_ident(struct nubus_dev * dev)
 {
 	if (dev->dr_sw == NUBUS_DRSW_ASANTE)
 		return MAC8390_ASANTE;
-	if (dev->dr_sw == NUBUS_DRSW_FARALLON) 
+	if (dev->dr_sw == NUBUS_DRSW_FARALLON)
 		return MAC8390_FARALLON;
 	if (dev->dr_sw == NUBUS_DRSW_KINETICS)
 		return MAC8390_KINETICS;
@@ -187,7 +187,7 @@ int __init mac8390_memsize(unsigned long membase)
 {
 	unsigned long flags;
 	int i, j;
-	
+
 	local_irq_save(flags);
 	/* Check up to 32K in 4K increments */
 	for (i = 0; i < 8; i++) {
@@ -197,7 +197,7 @@ int __init mac8390_memsize(unsigned long membase)
 		   RAM end located */
 		if (hwreg_present(m) == 0)
 			break;
-		
+
 		/* write a distinctive byte */
 		*m = 0xA5A0 | i;
 		/* check that we read back what we wrote */
@@ -224,7 +224,7 @@ struct net_device * __init mac8390_probe(int unit)
 	int version_disp = 0;
 	struct nubus_dev * ndev = NULL;
 	int err = -ENODEV;
-	
+
 	struct nubus_dir dir;
 	struct nubus_dirent ent;
 	int offset;
@@ -273,7 +273,7 @@ struct net_device * __init mac8390_probe(int unit)
 			       dev->name, ndev->board->slot);
 			continue;
 		}
-		
+
 		/* Get the MAC address */
 		if ((nubus_find_rsrc(&dir, NUBUS_RESID_MAC_ADDRESS, &ent)) == -1) {
 			printk(KERN_INFO "%s: Couldn't get MAC address!\n",
@@ -282,7 +282,7 @@ struct net_device * __init mac8390_probe(int unit)
 		} else {
 			nubus_get_rsrc_mem(dev->dev_addr, &ent, 6);
 			/* Some Sonic Sys cards masquerade as Farallon */
-			if (cardtype == MAC8390_FARALLON && 
+			if (cardtype == MAC8390_FARALLON &&
 					dev->dev_addr[0] == 0x0 &&
 					dev->dev_addr[1] == 0x40 &&
 					dev->dev_addr[2] == 0x10) {
@@ -290,7 +290,7 @@ struct net_device * __init mac8390_probe(int unit)
 				cardtype = MAC8390_SONICSYS;
 			}
 		}
-		
+
 		if (useresources[cardtype] == 1) {
 			nubus_rewinddir(&dir);
 			if (nubus_find_rsrc(&dir, NUBUS_RESID_MINOR_BASEOS, &ent) == -1) {
@@ -318,10 +318,10 @@ struct net_device * __init mac8390_probe(int unit)
 			switch (cardtype) {
 				case MAC8390_KINETICS:
 				case MAC8390_DAYNA: /* it's the same */
-					dev->base_addr = 
+					dev->base_addr =
 						(int)(ndev->board->slot_addr +
 						DAYNA_8390_BASE);
-					dev->mem_start = 
+					dev->mem_start =
 						(int)(ndev->board->slot_addr +
 						DAYNA_8390_MEM);
 					dev->mem_end =
@@ -343,11 +343,11 @@ struct net_device * __init mac8390_probe(int unit)
 					 */
 					i = (void *)dev->base_addr;
 					*i = 0x21;
-					dev->mem_end = 
+					dev->mem_end =
 						dev->mem_start +
 						mac8390_memsize(dev->mem_start);
 					break;
-					
+
 				default:
 					printk(KERN_ERR "Card type %s is"
 							" unsupported, sorry\n",
@@ -433,7 +433,7 @@ static int __init mac8390_initdev(struct net_device * dev, struct nubus_dev * nd
 	};
 
 	int access_bitmode;
-	
+
 	/* Now fill in our stuff */
 	dev->open = &mac8390_open;
 	dev->stop = &mac8390_close;
@@ -459,7 +459,7 @@ static int __init mac8390_initdev(struct net_device * dev, struct nubus_dev * nd
                ei_status.rmem_start = dev->mem_start + TX_PAGES*256;
                ei_status.rmem_end = dev->mem_end;
 	}
-	
+
 	/* Fill in model-specific information and functions */
 	switch(type) {
 	case MAC8390_SONICSYS:
@@ -509,7 +509,7 @@ static int __init mac8390_initdev(struct net_device * dev, struct nubus_dev * nd
 		printk(KERN_ERR "Card type %s is unsupported, sorry\n", cardname[type]);
 		return -ENODEV;
 	}
-		
+
 	NS8390_init(dev, 0);
 
 	/* Good, done, now spit out some messages */
@@ -525,7 +525,7 @@ static int __init mac8390_initdev(struct net_device * dev, struct nubus_dev * nd
 		}
 	}
 	printk(" IRQ %d, shared memory at %#lx-%#lx,  %d-bit access.\n",
-		   dev->irq, dev->mem_start, dev->mem_end-1, 
+		   dev->irq, dev->mem_start, dev->mem_end-1,
 		   access_bitmode?32:16);
 	return 0;
 }
@@ -536,7 +536,7 @@ static int mac8390_open(struct net_device *dev)
 	if (request_irq(dev->irq, ei_interrupt, 0, "8390 Ethernet", dev)) {
 		printk ("%s: unable to get IRQ %d.\n", dev->name, dev->irq);
 		return -EAGAIN;
-	}	
+	}
 	return 0;
 }
 
@@ -639,7 +639,7 @@ static void sane_block_output(struct net_device *dev, int count,
 			      const unsigned char *buf, int start_page)
 {
 	long shmem = (start_page - WD_START_PG)<<8;
-	
+
 	memcpy_toio((char *)dev->mem_start + shmem, buf, count);
 }
 
@@ -681,12 +681,12 @@ static void dayna_block_output(struct net_device *dev, int count, const unsigned
 				int start_page)
 {
 	long shmem = (start_page - WD_START_PG)<<8;
-	
+
 	dayna_memcpy_tocard(dev, shmem, buf, count);
 }
 
 /* Cabletron block I/O */
-static void slow_sane_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, 
+static void slow_sane_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 	int ring_page)
 {
 	unsigned long hdr_start = (ring_page - WD_START_PG)<<8;
@@ -750,4 +750,4 @@ static void word_memcpy_fromcard(void *tp, const void *fp, int count)
 		*to++=*from++;
 }
 
-	
+

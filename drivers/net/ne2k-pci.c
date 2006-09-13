@@ -177,7 +177,7 @@ static void ne2k_pci_block_output(struct net_device *dev, const int count,
 		const unsigned char *buf, const int start_page);
 static struct ethtool_ops ne2k_pci_ethtool_ops;
 
-
+
 
 /* There is no room in the standard 8390 structure for extra info we need,
    so we build a meta/outer-wrapper structure.. */
@@ -386,7 +386,7 @@ err_out_free_res:
 
 }
 
-/* 
+/*
  * Magic incantation sequence for full duplex on the supported cards.
  */
 static inline int set_realtek_fdx(struct net_device *dev)
@@ -411,7 +411,7 @@ static inline int set_holtek_fdx(struct net_device *dev)
 
 static int ne2k_pci_set_fdx(struct net_device *dev)
 {
-	if (ei_status.ne2k_flags & REALTEK_FDX) 
+	if (ei_status.ne2k_flags & REALTEK_FDX)
 		return set_realtek_fdx(dev);
 	else if (ei_status.ne2k_flags & HOLTEK_FDX)
 		return set_holtek_fdx(dev);

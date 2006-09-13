@@ -1984,7 +1984,7 @@ static int starfire_suspend(struct pci_dev *pdev, pm_message_t state)
 static int starfire_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	
+
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 

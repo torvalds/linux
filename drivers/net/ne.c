@@ -160,7 +160,7 @@ static void ne_block_input(struct net_device *dev, int count,
 static void ne_block_output(struct net_device *dev, const int count,
 		const unsigned char *buf, const int start_page);
 
-
+
 /*  Probe for various non-shared-memory ethercards.
 
    NEx000-clone boards have a Station Address PROM (SAPROM) in the packet
@@ -807,7 +807,7 @@ retry:
 	return;
 }
 
-
+
 #ifdef MODULE
 #define MAX_NE_CARDS	4	/* Max number of NE cards per module */
 static struct net_device *dev_ne[MAX_NE_CARDS];

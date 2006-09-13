@@ -907,7 +907,7 @@ static void tx_timeout(struct net_device *dev)
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
 	unsigned long flag;
-	
+
 	netif_stop_queue(dev);
 	tasklet_disable(&np->tx_tasklet);
 	iowrite16(0, ioaddr + IntrEnable);
@@ -924,13 +924,13 @@ static void tx_timeout(struct net_device *dev)
 				le32_to_cpu(np->tx_ring[i].next_desc),
 				le32_to_cpu(np->tx_ring[i].status),
 				(le32_to_cpu(np->tx_ring[i].status) >> 2) & 0xff,
-				le32_to_cpu(np->tx_ring[i].frag[0].addr), 
+				le32_to_cpu(np->tx_ring[i].frag[0].addr),
 				le32_to_cpu(np->tx_ring[i].frag[0].length));
 		}
-		printk(KERN_DEBUG "TxListPtr=%08x netif_queue_stopped=%d\n", 
-			ioread32(np->base + TxListPtr), 
+		printk(KERN_DEBUG "TxListPtr=%08x netif_queue_stopped=%d\n",
+			ioread32(np->base + TxListPtr),
 			netif_queue_stopped(dev));
-		printk(KERN_DEBUG "cur_tx=%d(%02x) dirty_tx=%d(%02x)\n", 
+		printk(KERN_DEBUG "cur_tx=%d(%02x) dirty_tx=%d(%02x)\n",
 			np->cur_tx, np->cur_tx % TX_RING_SIZE,
 			np->dirty_tx, np->dirty_tx % TX_RING_SIZE);
 		printk(KERN_DEBUG "cur_rx=%d dirty_rx=%d\n", np->cur_rx, np->dirty_rx);
@@ -1002,9 +1002,9 @@ static void tx_poll (unsigned long data)
 	struct net_device *dev = (struct net_device *)data;
 	struct netdev_private *np = netdev_priv(dev);
 	unsigned head = np->cur_task % TX_RING_SIZE;
-	struct netdev_desc *txdesc = 
+	struct netdev_desc *txdesc =
 		&np->tx_ring[(np->cur_tx - 1) % TX_RING_SIZE];
-	
+
 	/* Chain the next pointer */
 	for (; np->cur_tx - np->cur_task > 0; np->cur_task++) {
 		int entry = np->cur_task % TX_RING_SIZE;
@@ -1074,7 +1074,7 @@ reset_tx (struct net_device *dev)
 	struct sk_buff *skb;
 	int i;
 	int irq = in_interrupt();
-	
+
 	/* Reset tx logic, TxListPtr will be cleaned */
 	iowrite16 (TxDisable, ioaddr + MACCtrl1);
 	sundance_reset(dev, (NetworkReset|FIFOReset|DMAReset|TxReset) << 16);
@@ -1083,7 +1083,7 @@ reset_tx (struct net_device *dev)
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		skb = np->tx_skbuff[i];
 		if (skb) {
-			pci_unmap_single(np->pci_dev, 
+			pci_unmap_single(np->pci_dev,
 				np->tx_ring[i].frag[0].addr, skb->len,
 				PCI_DMA_TODEVICE);
 			if (irq)
@@ -1100,7 +1100,7 @@ reset_tx (struct net_device *dev)
 	return 0;
 }
 
-/* The interrupt handler cleans up after the Tx thread, 
+/* The interrupt handler cleans up after the Tx thread,
    and schedule a Rx thread work */
 static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs)
 {
@@ -1181,8 +1181,8 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 		} else 	{
 			hw_frame_id = ioread8(ioaddr + TxFrameId);
 		}
-			
-		if (np->pci_rev_id >= 0x14) {	
+
+		if (np->pci_rev_id >= 0x14) {
 			spin_lock(&np->lock);
 			for (; np->cur_tx - np->dirty_tx > 0; np->dirty_tx++) {
 				int entry = np->dirty_tx % TX_RING_SIZE;
@@ -1194,7 +1194,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 					!(le32_to_cpu(np->tx_ring[entry].status)
 					& 0x00010000))
 						break;
-				if (sw_frame_id == (hw_frame_id + 1) % 
+				if (sw_frame_id == (hw_frame_id + 1) %
 					TX_RING_SIZE)
 						break;
 				skb = np->tx_skbuff[entry];
@@ -1213,7 +1213,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 			for (; np->cur_tx - np->dirty_tx > 0; np->dirty_tx++) {
 				int entry = np->dirty_tx % TX_RING_SIZE;
 				struct sk_buff *skb;
-				if (!(le32_to_cpu(np->tx_ring[entry].status) 
+				if (!(le32_to_cpu(np->tx_ring[entry].status)
 							& 0x00010000))
 					break;
 				skb = np->tx_skbuff[entry];
@@ -1228,7 +1228,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 			}
 			spin_unlock(&np->lock);
 		}
-		
+
 		if (netif_queue_stopped(dev) &&
 			np->cur_tx - np->dirty_tx < TX_QUEUE_LEN - 4) {
 			/* The ring is no longer full, clear busy flag. */
@@ -1598,18 +1598,18 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		case SIOCDEVPRIVATE:
 		for (i=0; i<TX_RING_SIZE; i++) {
 			printk(KERN_DEBUG "%02x %08llx %08x %08x(%02x) %08x %08x\n", i,
-				(unsigned long long)(np->tx_ring_dma + i*sizeof(*np->tx_ring)),	
+				(unsigned long long)(np->tx_ring_dma + i*sizeof(*np->tx_ring)),
 				le32_to_cpu(np->tx_ring[i].next_desc),
 				le32_to_cpu(np->tx_ring[i].status),
-				(le32_to_cpu(np->tx_ring[i].status) >> 2) 
+				(le32_to_cpu(np->tx_ring[i].status) >> 2)
 					& 0xff,
-				le32_to_cpu(np->tx_ring[i].frag[0].addr), 
+				le32_to_cpu(np->tx_ring[i].frag[0].addr),
 				le32_to_cpu(np->tx_ring[i].frag[0].length));
 		}
-		printk(KERN_DEBUG "TxListPtr=%08x netif_queue_stopped=%d\n", 
-			ioread32(np->base + TxListPtr), 
+		printk(KERN_DEBUG "TxListPtr=%08x netif_queue_stopped=%d\n",
+			ioread32(np->base + TxListPtr),
 			netif_queue_stopped(dev));
-		printk(KERN_DEBUG "cur_tx=%d(%02x) dirty_tx=%d(%02x)\n", 
+		printk(KERN_DEBUG "cur_tx=%d(%02x) dirty_tx=%d(%02x)\n",
 			np->cur_tx, np->cur_tx % TX_RING_SIZE,
 			np->dirty_tx, np->dirty_tx % TX_RING_SIZE);
 		printk(KERN_DEBUG "cur_rx=%d dirty_rx=%d\n", np->cur_rx, np->dirty_rx);
@@ -1617,7 +1617,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		printk(KERN_DEBUG "TxStatus=%04x\n", ioread16(ioaddr + TxStatus));
 			return 0;
 	}
-				
+
 
 	return rc;
 }

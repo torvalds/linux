@@ -11,7 +11,7 @@
 	One solution is to set up a dummy link using PPP/SLIP/PLIP,
 	but this seems (to me) too much overhead for too little gain.
 	This driver provides a small alternative. Thus you can do
-	
+
 	[when not running slip]
 		ifconfig dummy slip.addr.ess.here up
 	[to go to slip]
@@ -44,9 +44,9 @@ static int dummy_set_address(struct net_device *dev, void *p)
 {
 	struct sockaddr *sa = p;
 
-	if (!is_valid_ether_addr(sa->sa_data)) 
+	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
-		
+
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 	return 0;
 }
@@ -111,7 +111,7 @@ static int __init dummy_init_one(int index)
 		free_netdev(dev_dummy);
 		dev_dummy = NULL;
 	} else {
-		dummies[index] = dev_dummy; 
+		dummies[index] = dev_dummy;
 	}
 
 	return err;
@@ -121,30 +121,30 @@ static void dummy_free_one(int index)
 {
 	unregister_netdev(dummies[index]);
 	free_netdev(dummies[index]);
-} 
+}
 
 static int __init dummy_init_module(void)
-{ 
+{
 	int i, err = 0;
-	dummies = kmalloc(numdummies * sizeof(void *), GFP_KERNEL); 
+	dummies = kmalloc(numdummies * sizeof(void *), GFP_KERNEL);
 	if (!dummies)
-		return -ENOMEM; 
+		return -ENOMEM;
 	for (i = 0; i < numdummies && !err; i++)
-		err = dummy_init_one(i); 
-	if (err) { 
+		err = dummy_init_one(i);
+	if (err) {
 		i--;
 		while (--i >= 0)
 			dummy_free_one(i);
 	}
 	return err;
-} 
+}
 
 static void __exit dummy_cleanup_module(void)
 {
 	int i;
-	for (i = 0; i < numdummies; i++) 
-		dummy_free_one(i); 
-	kfree(dummies);	
+	for (i = 0; i < numdummies; i++)
+		dummy_free_one(i);
+	kfree(dummies);
 }
 
 module_init(dummy_init_module);

@@ -1,4 +1,4 @@
-/* 
+/*
  * drivers/net/gianfar_mii.h
  *
  * Gianfar Ethernet Driver -- MII Management Bus Implementation

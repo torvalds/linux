@@ -21,7 +21,7 @@
 #include <asm/io.h>
 #include <asm/se/se.h>
 #include <asm/machvec.h>
-#ifdef CONFIG_SH_STANDARD_BIOS 
+#ifdef CONFIG_SH_STANDARD_BIOS
 #include <asm/sh_bios.h>
 #endif
 
@@ -98,7 +98,7 @@ STNIC_WRITE (int reg, byte val)
   *(vhalf *) (PA_83902 + ((reg) << 1)) = ((half) (val) << 8);
   STNIC_DELAY ();
 }
-
+
 static int __init stnic_probe(void)
 {
   struct net_device *dev;
@@ -114,7 +114,7 @@ static int __init stnic_probe(void)
   	return -ENOMEM;
   SET_MODULE_OWNER(dev);
 
-#ifdef CONFIG_SH_STANDARD_BIOS 
+#ifdef CONFIG_SH_STANDARD_BIOS
   sh_bios_get_node_addr (stnic_eadr);
 #endif
   for (i = 0; i < ETHER_ADDR_LEN; i++)
@@ -140,7 +140,7 @@ static int __init stnic_probe(void)
 
   ei_status.name = dev->name;
   ei_status.word16 = 1;
-#ifdef __LITTLE_ENDIAN__ 
+#ifdef __LITTLE_ENDIAN__
   ei_status.bigendian = 0;
 #else
   ei_status.bigendian = 1;

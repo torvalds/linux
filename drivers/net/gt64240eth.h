@@ -25,7 +25,7 @@
  *
  * Ethernet driver definitions for the MIPS GT96100 Advanced
  * Communication Controller.
- * 
+ *
  * Modified for the Marvellous GT64240 Retarded Communication Controller.
  */
 #ifndef _GT64240ETH_H

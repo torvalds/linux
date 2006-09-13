@@ -22,7 +22,7 @@
  *
  * Ethernet driver definitions for the MIPS GT96100 Advanced
  * Communication Controller.
- * 
+ *
  */
 #ifndef _GT96100ETH_H
 #define _GT96100ETH_H
@@ -314,7 +314,7 @@ struct gt96100_private {
 	// The Hash Table must be 8-byte aligned
 	dma_addr_t hash_table_dma;
 	int hash_mode;
-    
+
 	// The Rx buffers must be 8-byte aligned
 	char* rx_buff;
 	dma_addr_t rx_buff_dma;
@@ -327,14 +327,14 @@ struct gt96100_private {
 	int tx_count;    /* current # of pkts waiting to be sent in Tx ring */
 	int intr_work_done; /* number of Rx and Tx pkts processed in the isr */
 	int tx_full;        /* Tx ring is full */
-    
+
 	mib_counters_t mib;
 	struct net_device_stats stats;
 
 	int port_num;  // 0 or 1
 	int chip_rev;
 	u32 port_offset;
-    
+
 	int phy_addr; // PHY address
 	u32 last_psr; // last value of the port status register
 

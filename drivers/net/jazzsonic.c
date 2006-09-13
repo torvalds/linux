@@ -7,10 +7,10 @@
  * dhd's support for 16-bit cards.
  *
  * (C) 1996,1998 by Thomas Bogendoerfer (tsbogend@alpha.franken.de)
- * 
+ *
  * This driver is based on work from Andreas Busse, but most of
  * the code is rewritten.
- * 
+ *
  * (C) 1995 by Andreas Busse (andy@waldorf-gmbh.de)
  *
  * A driver for the onboard Sonic ethernet controller on Mips Jazz
@@ -65,7 +65,7 @@ do {									\
 /* use 0 for production, 1 for verification, >1 for debug */
 #ifdef SONIC_DEBUG
 static unsigned int sonic_debug = SONIC_DEBUG;
-#else 
+#else
 static unsigned int sonic_debug = 1;
 #endif
 
@@ -80,7 +80,7 @@ static struct {
 /*
  * We cannot use station (ethernet) address prefixes to detect the
  * sonic controller since these are board manufacturer depended.
- * So we check for known Silicon Revision IDs instead. 
+ * So we check for known Silicon Revision IDs instead.
  */
 static unsigned short known_revisions[] =
 {
@@ -119,7 +119,7 @@ static int __init sonic_probe1(struct net_device *dev)
 		       silicon_revision);
 		goto out;
 	}
-    
+
 	if (sonic_debug  &&  version_printed++ == 0)
 		printk(version);
 
@@ -138,7 +138,7 @@ static int __init sonic_probe1(struct net_device *dev)
 	}
 
 	err = -ENOMEM;
-    
+
 	/* Initialize the device structure. */
 
 	lp->dma_bitmode = SONIC_BITMODE32;

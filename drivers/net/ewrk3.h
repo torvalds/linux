@@ -63,7 +63,7 @@
 */
 #define CSR_RA		0x80	    /* Runt Accept */
 #define CSR_PME		0x40	    /* Promiscuous Mode Enable */
-#define CSR_MCE		0x20	    /* Multicast Enable */ 
+#define CSR_MCE		0x20	    /* Multicast Enable */
 #define CSR_TNE		0x08	    /* TX Done Queue Not Empty */
 #define CSR_RNE		0x04	    /* RX Queue Not Empty */
 #define CSR_TXD		0x02	    /* TX Disable */
@@ -127,7 +127,7 @@
 #define CMR_DRAM        0x02	/* 0-> 1DRAM, 1-> 2 DRAM on board */
 #define CMR_0WS         0x01    /* Zero Wait State */
 
-/* 
+/*
 ** MAC Receive Status Register bit definitions
 */
 
@@ -138,7 +138,7 @@
 #define R_CRC     	0x02 	/* CRC error */
 #define R_PLL     	0x01 	/* Phase Lock Lost */
 
-/* 
+/*
 ** MAC Transmit Control Register bit definitions
 */
 
@@ -150,7 +150,7 @@
 #define TCR_IFC     	0x02 	/* Insert Frame Check */
 #define TCR_ISA     	0x01 	/* Insert Source Address */
 
-/* 
+/*
 ** MAC Transmit Status Register bit definitions
 */
 
@@ -168,15 +168,15 @@
 #define T_XUR           0x03    /* Excessive Underruns */
 #define T_TXE           0x7f    /* TX Errors */
 
-/* 
-** EISA Configuration Register bit definitions 
+/*
+** EISA Configuration Register bit definitions
 */
 
-#define EISA_ID       iobase + 0x0c80  /* EISA ID Registers */ 
-#define EISA_ID0      iobase + 0x0c80  /* EISA ID Register 0 */ 
-#define EISA_ID1      iobase + 0x0c81  /* EISA ID Register 1 */ 
-#define EISA_ID2      iobase + 0x0c82  /* EISA ID Register 2 */ 
-#define EISA_ID3      iobase + 0x0c83  /* EISA ID Register 3 */ 
+#define EISA_ID       iobase + 0x0c80  /* EISA ID Registers */
+#define EISA_ID0      iobase + 0x0c80  /* EISA ID Register 0 */
+#define EISA_ID1      iobase + 0x0c81  /* EISA ID Register 1 */
+#define EISA_ID2      iobase + 0x0c82  /* EISA ID Register 2 */
+#define EISA_ID3      iobase + 0x0c83  /* EISA ID Register 3 */
 #define EISA_CR       iobase + 0x0c84  /* EISA Control Register */
 
 /*
@@ -223,7 +223,7 @@
 /*
 ** EEPROM MISCELLANEOUS FLAGS
 */
-#define RBE_SHADOW	0x0100	/* Remote Boot Enable Shadow */ 
+#define RBE_SHADOW	0x0100	/* Remote Boot Enable Shadow */
 #define READ_AHEAD      0x0080  /* Read Ahead feature */
 #define IRQ_SEL2        0x0070  /* IRQ line selection (LeMAC2) */
 #define IRQ_SEL         0x0060  /* IRQ line selection */
@@ -242,7 +242,7 @@
 /*
 ** EEPROM SW FLAGS
 */
-#define SW_SQE		0x10	/* Signal Quality Error */ 
+#define SW_SQE		0x10	/* Signal Quality Error */
 #define SW_LAB		0x08	/* Less Aggressive Backoff */
 #define SW_INIT		0x04	/* Initialized */
 #define SW_TIMEOUT     	0x02	/* 0:2.5 mins, 1: 30 secs */
@@ -299,8 +299,8 @@ struct ewrk3_ioctl {
 	unsigned char  __user *data;       /* Pointer to the data buffer */
 };
 
-/* 
-** Recognised commands for the driver 
+/*
+** Recognised commands for the driver
 */
 #define EWRK3_GET_HWADDR	0x01 /* Get the hardware address */
 #define EWRK3_SET_HWADDR	0x02 /* Get the hardware address */

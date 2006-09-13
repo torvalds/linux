@@ -179,7 +179,7 @@ static inline void trigger_interrupt(struct net_device *dev)
  * Copy a buffer to the adapter transmit page memory.
  * Start sending.
  */
- 
+
 static int de600_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned long flags;
@@ -272,7 +272,7 @@ static irqreturn_t de600_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	}
 
 	spin_lock(&de600_lock);
-	
+
 	select_nic();
 	irq_status = de600_read_status(dev);
 

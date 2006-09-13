@@ -61,7 +61,7 @@ static void wd_block_output(struct net_device *dev, int count,
 							const unsigned char *buf, int start_page);
 static int wd_close(struct net_device *dev);
 
-
+
 #define WD_START_PG		0x00	/* First page of TX buffer */
 #define WD03_STOP_PG	0x20	/* Last page +1 of RX ring */
 #define WD13_STOP_PG	0x40	/* Last page +1 of RX ring */
@@ -75,7 +75,7 @@ static int wd_close(struct net_device *dev);
 #define WD_NIC_OFFSET	16		/* Offset to the 8390 from the base_addr. */
 #define WD_IO_EXTENT	32
 
-
+
 /*	Probe for the WD8003 and WD8013.  These cards have the station
 	address PROM at I/O ports <base>+8 to <base>+13, with a checksum
 	following. A Soundblaster can have the same checksum as an WDethercard,
@@ -100,7 +100,7 @@ static int __init do_wd_probe(struct net_device *dev)
 		if ( r == NULL)
 			return -EBUSY;
 		i = wd_probe1(dev, base_addr);
-		if (i != 0)  
+		if (i != 0)
 			release_region(base_addr, WD_IO_EXTENT);
 		else
 			r->name = dev->name;
@@ -272,7 +272,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 			   a reliable way to trigger an interrupt. */
 			outb_p(E8390_NODMA + E8390_STOP, nic_addr);
 			outb(0x00, nic_addr+EN0_IMR);	/* Disable all intrs. */
-			
+
 			irq_mask = probe_irq_on();
 			outb_p(0xff, nic_addr + EN0_IMR);	/* Enable all interrupts. */
 			outb_p(0x00, nic_addr + EN0_RCNTLO);
@@ -280,7 +280,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 			outb(E8390_RREAD+E8390_START, nic_addr); /* Trigger it... */
 			mdelay(20);
 			dev->irq = probe_irq_off(irq_mask);
-			
+
 			outb_p(0x00, nic_addr+EN0_IMR);	/* Mask all intrs. again. */
 
 			if (ei_debug > 2)
@@ -478,7 +478,7 @@ wd_close(struct net_device *dev)
 	return 0;
 }
 
-
+
 #ifdef MODULE
 #define MAX_WD_CARDS	4	/* Max number of wd cards per module */
 static struct net_device *dev_wd[MAX_WD_CARDS];

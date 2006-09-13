@@ -1063,7 +1063,7 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 		tempval |= TCTRL_VLINS;
 
 		gfar_write(&priv->regs->tctrl, tempval);
-		
+
 		/* Enable VLAN tag extraction */
 		tempval = gfar_read(&priv->regs->rctrl);
 		tempval |= RCTRL_VLEX;
@@ -1718,7 +1718,7 @@ static void gfar_set_multi(struct net_device *dev)
 		tempval &= ~(RCTRL_PROM);
 		gfar_write(&regs->rctrl, tempval);
 	}
-	
+
 	if(dev->flags & IFF_ALLMULTI) {
 		/* Set the hash to rx all multicast frames */
 		gfar_write(&regs->igaddr0, 0xffffffff);
@@ -1954,7 +1954,7 @@ static int __init gfar_init(void)
 
 	if (err)
 		gfar_mdio_exit();
-	
+
 	return err;
 }
 

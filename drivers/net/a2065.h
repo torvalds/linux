@@ -109,7 +109,7 @@ struct lance_rx_desc {
 				     */
 	unsigned short mblength;    /* Aactual number of bytes received */
 };
- 
+
 struct lance_tx_desc {
 	unsigned short tmd0;        /* low address of packet */
 	unsigned char  tmd1_bits;   /* descriptor bits */
@@ -117,7 +117,7 @@ struct lance_tx_desc {
 	short    length;       	    /* Length is 2s complement (negative)! */
 	unsigned short misc;
 };
-		
+
 
 /*
  *		Receive Flags

@@ -20,7 +20,7 @@ static const char version[] =
 /*
   Sources:
   	SEEQ 8005 databook
-  	
+
   Version history:
   	1.00	Public release. cosmetic changes (no warnings now)
   	0.68	Turning per- packet,interrupt debug messages off - testing for release.
@@ -95,7 +95,7 @@ static void hardware_send_packet(struct net_device *dev, char *buf, int length);
 extern void seeq8005_init(struct net_device *dev, int startp);
 static inline void wait_for_buffer(struct net_device *dev);
 
-
+
 /* Check for a network adaptor of this type, and return '0' iff one exists.
    If dev->base_addr == 0, probe all likely locations.
    If dev->base_addr == 1, always return failure.
@@ -196,11 +196,11 @@ static int __init seeq8005_probe1(struct net_device *dev, int ioaddr)
 		retval = -ENODEV;
 		goto out;
 	}
-	
+
 	old_cfg2 = inw(SEEQ_CFG2);					/* read CFG2 register */
 	old_cfg1 = inw(SEEQ_CFG1);
 	old_dmaar = inw(SEEQ_DMAAR);
-	
+
 	if (net_debug>4) {
 		printk("seeq8005: stat = 0x%04x\n",old_stat);
 		printk("seeq8005: cfg1 = 0x%04x\n",old_cfg1);
@@ -208,7 +208,7 @@ static int __init seeq8005_probe1(struct net_device *dev, int ioaddr)
 		printk("seeq8005: raer = 0x%04x\n",old_rear);
 		printk("seeq8005: dmaar= 0x%04x\n",old_dmaar);
 	}
-	
+
 	outw( SEEQCMD_FIFO_WRITE | SEEQCMD_SET_ALL_OFF, SEEQ_CMD);	/* setup for reading PROM */
 	outw( 0, SEEQ_DMAAR);						/* set starting PROM address */
 	outw( SEEQCFG1_BUFFER_PROM, SEEQ_CFG1);				/* set buffer to look at PROM */
@@ -236,7 +236,7 @@ static int __init seeq8005_probe1(struct net_device *dev, int ioaddr)
 	outw( SEEQCFG2_RESET, SEEQ_CFG2);				/* reset the card */
 	udelay(5);
 	outw( SEEQCMD_SET_ALL_OFF, SEEQ_CMD);
-	
+
 	if (net_debug) {
 		printk("seeq8005: prom sum = 0x%08x\n",j);
 		for(j=0; j<32; j+=16) {
@@ -256,10 +256,10 @@ static int __init seeq8005_probe1(struct net_device *dev, int ioaddr)
 		}
 	}
 
-#if 0	
-	/* 
+#if 0
+	/*
 	 * testing the packet buffer memory doesn't work yet
-	 * but all other buffer accesses do 
+	 * but all other buffer accesses do
 	 *			- fixing is not a priority
 	 */
 	if (net_debug>1) {					/* test packet buffer memory */
@@ -309,16 +309,16 @@ static int __init seeq8005_probe1(struct net_device *dev, int ioaddr)
 		;			/* Do nothing: a user-level program will set it. */
 	else if (dev->irq < 2) {	/* "Auto-IRQ" */
 		unsigned long cookie = probe_irq_on();
-		
+
 		outw( SEEQCMD_RX_INT_EN | SEEQCMD_SET_RX_ON | SEEQCMD_SET_RX_OFF, SEEQ_CMD );
 
 		dev->irq = probe_irq_off(cookie);
-		
+
 		if (net_debug >= 2)
 			printk(" autoirq is %d\n", dev->irq);
 	} else if (dev->irq == 2)
 	  /* Fixup for users that don't know that IRQ 2 is really IRQ 9,
-	   * or don't know which one to set. 
+	   * or don't know which one to set.
 	   */
 	  dev->irq = 9;
 
@@ -348,7 +348,7 @@ out:
 	return retval;
 }
 
-
+
 /* Open/initialize the board.  This is called (in the current kernel)
    sometime after booting when the 'ifconfig' program is run.
 
@@ -404,8 +404,8 @@ static int seeq8005_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	/* Block a timer-based transmit from overlapping */
 	netif_stop_queue(dev);
-	
-	hardware_send_packet(dev, buf, length); 
+
+	hardware_send_packet(dev, buf, length);
 	dev->trans_start = jiffies;
 	lp->stats.tx_bytes += length;
 	dev_kfree_skb (skb);
@@ -413,7 +413,7 @@ static int seeq8005_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	return 0;
 }
-
+
 /*
  * wait_for_buffer
  *
@@ -426,15 +426,15 @@ inline void wait_for_buffer(struct net_device * dev)
 	int ioaddr = dev->base_addr;
 	unsigned long tmp;
 	int status;
-	
+
 	tmp = jiffies + HZ;
 	while ( ( ((status=inw(SEEQ_STATUS)) & SEEQSTAT_WINDOW_INT) != SEEQSTAT_WINDOW_INT) && time_before(jiffies, tmp))
 		cpu_relax();
-		
+
 	if ( (status & SEEQSTAT_WINDOW_INT) == SEEQSTAT_WINDOW_INT)
 		outw( SEEQCMD_WINDOW_INT_ACK | (status & SEEQCMD_INT_MASK), SEEQ_CMD);
 }
-
+
 /* The typical workload of the driver:
    Handle the network interface interrupts. */
 static irqreturn_t seeq8005_interrupt(int irq, void *dev_id, struct pt_regs * regs)
@@ -452,7 +452,7 @@ static irqreturn_t seeq8005_interrupt(int irq, void *dev_id, struct pt_regs * re
 		if (net_debug >2) {
 			printk("%s: int, status=0x%04x\n",dev->name,status);
 		}
-		
+
 		if (status & SEEQSTAT_WINDOW_INT) {
 			handled = 1;
 			outw( SEEQCMD_WINDOW_INT_ACK | (status & SEEQCMD_INT_MASK), SEEQ_CMD);
@@ -500,32 +500,32 @@ static void seeq8005_rx(struct net_device *dev)
 	  	wait_for_buffer(dev);
 	  	next_packet = ntohs(inw(SEEQ_BUFFER));
 	  	pkt_hdr = inw(SEEQ_BUFFER);
-	  	
+
 		if (net_debug>2) {
 			printk("%s: 0x%04x recv next=0x%04x, hdr=0x%04x\n",dev->name,lp->receive_ptr,next_packet,pkt_hdr);
 		}
-			
+
 		if ((next_packet == 0) || ((pkt_hdr & SEEQPKTH_CHAIN)==0)) {	/* Read all the frames? */
 			return;							/* Done for now */
 		}
-			
+
 		if ((pkt_hdr & SEEQPKTS_DONE)==0)
 			break;
-			
+
 		if (next_packet < lp->receive_ptr) {
 			pkt_len = (next_packet + 0x10000 - ((DEFAULT_TEA+1)<<8)) - lp->receive_ptr - 4;
 		} else {
 			pkt_len = next_packet - lp->receive_ptr - 4;
 		}
-		
+
 		if (next_packet < ((DEFAULT_TEA+1)<<8)) {			/* is the next_packet address sane? */
 			printk("%s: recv packet ring corrupt, resetting board\n",dev->name);
 			seeq8005_init(dev,1);
 			return;
 		}
-		
+
 		lp->receive_ptr = next_packet;
-		
+
 		if (net_debug>2) {
 			printk("%s: recv len=0x%04x\n",dev->name,pkt_len);
 		}
@@ -553,9 +553,9 @@ static void seeq8005_rx(struct net_device *dev)
 			skb->dev = dev;
 			skb_reserve(skb, 2);	/* align data on 16 byte */
 			buf = skb_put(skb,pkt_len);
-			
+
 			insw(SEEQ_BUFFER, buf, (pkt_len + 1) >> 1);
-			
+
 			if (net_debug>2) {
 				char * p = buf;
 				printk("%s: recv ",dev->name);
@@ -588,7 +588,7 @@ static int seeq8005_close(struct net_device *dev)
 	lp->open_time = 0;
 
 	netif_stop_queue(dev);
-	
+
 	/* Flush the Tx and disable Rx here. */
 	outw( SEEQCMD_SET_ALL_OFF, SEEQ_CMD);
 
@@ -627,7 +627,7 @@ static void set_multicast_list(struct net_device *dev)
  * hmm, not even sure if my matching works _anyway_ - seem to be receiving
  * _everything_ . . .
  */
- 
+
 	if (num_addrs) {			/* Enable promiscuous mode */
 		outw( (inw(SEEQ_CFG1) & ~SEEQCFG1_MATCH_MASK)| SEEQCFG1_MATCH_ALL,  SEEQ_CFG1);
 		dev->flags|=IFF_PROMISC;
@@ -642,26 +642,26 @@ void seeq8005_init(struct net_device *dev, int startp)
 	struct net_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
 	int i;
-	
+
 	outw(SEEQCFG2_RESET, SEEQ_CFG2);	/* reset device */
 	udelay(5);
-	
+
 	outw( SEEQCMD_FIFO_WRITE | SEEQCMD_SET_ALL_OFF, SEEQ_CMD);
 	outw( 0, SEEQ_DMAAR);			/* load start address into both low and high byte */
 /*	wait_for_buffer(dev); */		/* I think that you only need a wait for memory buffer */
 	outw( SEEQCFG1_BUFFER_MAC0, SEEQ_CFG1);
-	
+
 	for(i=0;i<6;i++) {			/* set Station address */
 		outb(dev->dev_addr[i], SEEQ_BUFFER);
 		udelay(2);
 	}
-	
+
 	outw( SEEQCFG1_BUFFER_TEA, SEEQ_CFG1);	/* set xmit end area pointer to 16K */
 	outb( DEFAULT_TEA, SEEQ_BUFFER);	/* this gives us 16K of send buffer and 48K of recv buffer */
-	
+
 	lp->receive_ptr = (DEFAULT_TEA+1)<<8;	/* so we can find our packet_header */
 	outw( lp->receive_ptr, SEEQ_RPR);	/* Receive Pointer Register is set to recv buffer memory */
-	
+
 	outw( 0x00ff, SEEQ_REA);		/* Receive Area End */
 
 	if (net_debug>4) {
@@ -670,13 +670,13 @@ void seeq8005_init(struct net_device *dev, int startp)
 		outw( SEEQCMD_FIFO_READ | SEEQCMD_SET_ALL_OFF, SEEQ_CMD);
 		outw( 0, SEEQ_DMAAR);
 		outw( SEEQCFG1_BUFFER_MAC0, SEEQ_CFG1);
-		
+
 		for(i=0;i<6;i++) {
 			printk("%02x ",inb(SEEQ_BUFFER));
 		}
 		printk("\n");
 	}
-	
+
 	outw( SEEQCFG1_MAC0_EN | SEEQCFG1_MATCH_BROAD | SEEQCFG1_BUFFER_BUFFER, SEEQ_CFG1);
 	outw( SEEQCFG2_AUTO_REA | SEEQCFG2_CTRLO, SEEQ_CFG2);
 	outw( SEEQCMD_SET_RX_ON | SEEQCMD_TX_INT_EN | SEEQCMD_RX_INT_EN, SEEQ_CMD);
@@ -689,9 +689,9 @@ void seeq8005_init(struct net_device *dev, int startp)
 		printk("%s: cfg2 = 0x%04x\n",dev->name,inw(SEEQ_CFG2));
 		printk("%s: raer = 0x%04x\n",dev->name,inw(SEEQ_REA));
 		printk("%s: dmaar= 0x%04x\n",dev->name,inw(SEEQ_DMAAR));
-		
+
 	}
-}	
+}
 
 
 static void hardware_send_packet(struct net_device * dev, char *buf, int length)
@@ -704,32 +704,32 @@ static void hardware_send_packet(struct net_device * dev, char *buf, int length)
 	if (net_debug>4) {
 		printk("%s: send 0x%04x\n",dev->name,length);
 	}
-	
+
 	/* Set FIFO to writemode and set packet-buffer address */
 	outw( SEEQCMD_FIFO_WRITE | (status & SEEQCMD_INT_MASK), SEEQ_CMD);
 	outw( transmit_ptr, SEEQ_DMAAR);
-	
+
 	/* output SEEQ Packet header barfage */
 	outw( htons(length + 4), SEEQ_BUFFER);
 	outw( SEEQPKTH_XMIT | SEEQPKTH_DATA_FOLLOWS | SEEQPKTH_XMIT_INT_EN, SEEQ_BUFFER );
-	
+
 	/* blat the buffer */
 	outsw( SEEQ_BUFFER, buf, (length +1) >> 1);
 	/* paranoia !! */
 	outw( 0, SEEQ_BUFFER);
 	outw( 0, SEEQ_BUFFER);
-	
+
 	/* set address of start of transmit chain */
 	outw( transmit_ptr, SEEQ_TPR);
-	
+
 	/* drain FIFO */
 	tmp = jiffies;
 	while ( (((status=inw(SEEQ_STATUS)) & SEEQSTAT_FIFO_EMPTY) == 0) && time_before(jiffies, tmp + HZ))
 		mb();
-	
+
 	/* doit ! */
 	outw( SEEQCMD_WINDOW_INT_ACK | SEEQCMD_SET_TX_ON | (status & SEEQCMD_INT_MASK), SEEQ_CMD);
-	
+
 }
 
 
@@ -758,7 +758,7 @@ void cleanup_module(void)
 }
 
 #endif /* MODULE */
-
+
 /*
  * Local variables:
  *  compile-command: "gcc -D__KERNEL__ -I/usr/src/linux/net/inet -Wall -Wstrict-prototypes -O6 -m486 -c skeleton.c"

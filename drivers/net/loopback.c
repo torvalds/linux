@@ -181,7 +181,7 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 		stats->rx_packets += lb_stats->rx_packets;
 		stats->tx_packets += lb_stats->tx_packets;
 	}
-				
+
 	return stats;
 }
 
@@ -230,7 +230,7 @@ int __init loopback_init(void)
 		loopback_dev.priv = stats;
 		loopback_dev.get_stats = &get_stats;
 	}
-	
+
 	return register_netdev(&loopback_dev);
 };
 

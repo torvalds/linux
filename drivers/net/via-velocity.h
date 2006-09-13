@@ -246,7 +246,7 @@ struct tdesc1 {
 struct td_buf {
 	u32 pa_low;
 	u16 pa_high;
-	u16 bufsize:14;	
+	u16 bufsize:14;
 	u16 reserved:1;
 	u16 queue:1;
 } __attribute__ ((__packed__));

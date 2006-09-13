@@ -53,8 +53,8 @@
 #define SCB_START 0x0008
 
 /* Start of buffer region.  Everything before this is used for control
- * structures and the CU configuration program.  The memory layout is 
- * determined in eexp_hw_probe(), once we know how much memory is 
+ * structures and the CU configuration program.  The memory layout is
+ * determined in eexp_hw_probe(), once we know how much memory is
  * available on the card.
  */
 
@@ -64,7 +64,7 @@
 #define RX_BUF_SIZE ((32+ETH_FRAME_LEN+31)&~0x1f)
 
 /*
- * SCB defines 
+ * SCB defines
  */
 
 /* these functions take the SCB status word and test the relevant status bit */
@@ -95,7 +95,7 @@
 #define SCB_RUabort     0x0040
 
 /*
- * Command block defines 
+ * Command block defines
  */
 
 #define Stat_Done(s)    ((s&0x8000)!=0)
@@ -158,9 +158,9 @@ struct rfd_header {
 	volatile unsigned short srcaddr2;
 	volatile unsigned short srcaddr3;
 	volatile unsigned short length;
-  
-	/* This is actually a Receive Buffer Descriptor.  The way we 
-	 * arrange memory means that an RBD always follows the RFD that 
+
+	/* This is actually a Receive Buffer Descriptor.  The way we
+	 * arrange memory means that an RBD always follows the RFD that
 	 * points to it, so they might as well be in the same structure.
 	 */
 	volatile unsigned short actual_count;

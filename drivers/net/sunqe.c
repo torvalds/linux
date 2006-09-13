@@ -451,7 +451,7 @@ static void qe_rx(struct sunqe *qep)
 		}
 		end_rxd->rx_addr = this_qbuf_dvma;
 		end_rxd->rx_flags = (RXD_OWN | ((RXD_PKT_SZ) & RXD_LENGTH));
-		
+
 		elem = NEXT_RX(elem);
 		this = &rxbase[elem];
 	}
@@ -858,7 +858,7 @@ static int __init qec_ether_init(struct sbus_dev *sdev)
 	}
 	qe->channel = i;
 	spin_lock_init(&qe->lock);
-	
+
 	res = -ENODEV;
 	qecp = get_qec(sdev);
 	if (!qecp)

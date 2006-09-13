@@ -857,7 +857,7 @@ pamsnet_close(struct net_device *dev) {
 /* Get the current statistics.
    This may be called with the card open or closed.
  */
-static struct net_device_stats *net_get_stats(struct net_device *dev) 
+static struct net_device_stats *net_get_stats(struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
 	return &lp->stats;

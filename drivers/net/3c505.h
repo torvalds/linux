@@ -72,7 +72,7 @@
 /*****************************************************************
  *
  *  timeout value
- *	this is a rough value used for loops to stop them from 
+ *	this is a rough value used for loops to stop them from
  *	locking up the whole machine in the case of failure or
  *	error conditions
  *

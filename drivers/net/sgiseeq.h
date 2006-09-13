@@ -16,7 +16,7 @@ struct sgiseeq_rregs {
 	volatile unsigned int collision_tx[2];
 	volatile unsigned int collision_all[2];
 	volatile unsigned int _unused0;
-	volatile unsigned int rflags; 
+	volatile unsigned int rflags;
 };
 
 struct sgiseeq_regs {
@@ -73,7 +73,7 @@ struct sgiseeq_regs {
 #define SEEQ_TCMD_IC       0x02 /* IRQ on collisions */
 #define SEEQ_TCMD_I16      0x04 /* IRQ after 16 failed attempts to tx frame */
 #define SEEQ_TCMD_IPT      0x08 /* IRQ when packet successfully transmitted */
-#define SEEQ_TCMD_RB1      0x20 /* Register bank one w/multi-cast low byte */ 
+#define SEEQ_TCMD_RB1      0x20 /* Register bank one w/multi-cast low byte */
 #define SEEQ_TCMD_RB2      0x40 /* Register bank two w/multi-cast high byte */
 
 /* Seeq8003 control register */

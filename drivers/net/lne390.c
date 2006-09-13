@@ -188,7 +188,7 @@ static int __init lne390_probe1(struct net_device *dev, int ioaddr)
 	}
 
 	revision = (eisa_id >> 24) & 0x01;	/* 0 = rev A, 1 rev B */
-	
+
 #if 0
 /*	Check the Mylex vendor ID as well. Not really required. */
 	if (inb(ioaddr + LNE390_SA_PROM + 0) != LNE390_ADDR0
@@ -341,7 +341,7 @@ lne390_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_
 	hdr->count = (hdr->count + 3) & ~3;     /* Round up allocation. */
 }
 
-/*	
+/*
  *	Block input and output are easy on shared memory ethercards, the only
  *	complication is when the ring buffer wraps. The count will already
  *	be rounded up to a doubleword value via lne390_get_8390_hdr() above.

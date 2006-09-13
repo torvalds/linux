@@ -883,10 +883,10 @@ static inline void writeq(u64 val, void __iomem *addr)
 }
 #endif
 
-/* 
- * Some registers have to be written in a particular order to 
- * expect correct hardware operation. The macro SPECIAL_REG_WRITE 
- * is used to perform such ordered writes. Defines UF (Upper First) 
+/*
+ * Some registers have to be written in a particular order to
+ * expect correct hardware operation. The macro SPECIAL_REG_WRITE
+ * is used to perform such ordered writes. Defines UF (Upper First)
  * and LF (Lower First) will be used to specify the required write order.
  */
 #define UF	1

@@ -40,7 +40,7 @@
  *****************************************************************************/
 static const char version[] =
 	"de620.c: $Revision: 1.40 $,  Bjorn Ekwall <bj0rn@blox.se>\n";
-
+
 /***********************************************************************
  *
  * "Tuning" section.
@@ -115,7 +115,7 @@ static const char version[] =
 #define COUNT_LOOPS
  */
 #endif
-
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -250,7 +250,7 @@ static struct nic {
 	byte	Media;
 	byte	SCR;
 } nic_data;
-
+
 /**********************************************************
  *                                                        *
  * Convenience macros/functions for D-Link DE-620 adapter *
@@ -432,7 +432,7 @@ de620_get_register(struct net_device *dev, byte reg)
 
 	return value;
 }
-
+
 /*********************************************************************
  *
  * Open/initialize the board.
@@ -515,10 +515,10 @@ static void de620_set_multicast_list(struct net_device *dev)
 }
 
 /*******************************************************
- *	
+ *
  * Handle timeouts on transmit
  */
- 
+
 static void de620_timeout(struct net_device *dev)
 {
 	printk(KERN_WARNING "%s: transmit timed out, %s?\n", dev->name, "network cable problem");
@@ -540,9 +540,9 @@ static int de620_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	byte using_txbuf;
 
 	using_txbuf = de620_tx_buffs(dev); /* Peek at the adapter */
-	
+
 	netif_stop_queue(dev);
-	
+
 
 	if ((len = skb->len) < RUNT)
 		len = RUNT;
@@ -584,7 +584,7 @@ static int de620_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb (skb);
 	return 0;
 }
-
+
 /*****************************************************
  *
  * Handle the network interface interrupts.
@@ -599,7 +599,7 @@ de620_interrupt(int irq_in, void *dev_id, struct pt_regs *regs)
 	int again = 0;
 
 	spin_lock(&de620_lock);
-	
+
 	/* Read the status register (_not_ the status port) */
 	irq_status = de620_get_register(dev, R_STS);
 
@@ -615,7 +615,7 @@ de620_interrupt(int irq_in, void *dev_id, struct pt_regs *regs)
 
 	if(de620_tx_buffs(dev) != (TXBF0 | TXBF1))
 		netif_wake_queue(dev);
-		
+
 	spin_unlock(&de620_lock);
 	return IRQ_HANDLED;
 }
@@ -720,7 +720,7 @@ static int de620_rx_intr(struct net_device *dev)
 
 	return (next_rx_page != curr_page); /* That was slightly tricky... */
 }
-
+
 /*********************************************
  *
  * Reset the adapter to a known state
@@ -803,7 +803,7 @@ static int adapter_init(struct net_device *dev)
 
 	return 0; /* all ok */
 }
-
+
 /******************************************************************************
  *
  * Only start-up code below
@@ -827,7 +827,7 @@ struct net_device * __init de620_probe(int unit)
 	SET_MODULE_OWNER(dev);
 
 	spin_lock_init(&de620_lock);
-	
+
 	/*
 	 * This is where the base_addr and irq gets set.
 	 * Tunable at compile-time and insmod-time
@@ -840,7 +840,7 @@ struct net_device * __init de620_probe(int unit)
 		sprintf(dev->name, "eth%d", unit);
 		netdev_boot_setup_check(dev);
 	}
-	
+
 	if (de620_debug)
 		printk(version);
 
@@ -889,7 +889,7 @@ struct net_device * __init de620_probe(int unit)
 	dev->tx_timeout 	= de620_timeout;
 	dev->watchdog_timeo	= HZ*2;
 	dev->set_multicast_list = de620_set_multicast_list;
-	
+
 	/* base_addr and irq are already set, see above! */
 
 	/* dump eeprom */
@@ -917,7 +917,7 @@ out1:
 out:
 	return ERR_PTR(err);
 }
-
+
 /**********************************
  *
  * Read info from on-board EEPROM
@@ -1003,7 +1003,7 @@ static int __init read_eeprom(struct net_device *dev)
 
 	return 0; /* no errors */
 }
-
+
 /******************************************************************************
  *
  * Loadable module skeleton
@@ -1029,7 +1029,7 @@ void cleanup_module(void)
 #endif /* MODULE */
 MODULE_LICENSE("GPL");
 
-
+
 /*
  * (add '-DMODULE' when compiling as loadable module)
  *

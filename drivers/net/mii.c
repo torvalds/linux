@@ -83,9 +83,9 @@ int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 	if (bmcr & BMCR_ANENABLE) {
 		ecmd->advertising |= ADVERTISED_Autoneg;
 		ecmd->autoneg = AUTONEG_ENABLE;
-		
+
 		nego = mii_nway_result(advert & lpa);
-		if ((bmcr2 & (ADVERTISE_1000HALF | ADVERTISE_1000FULL)) & 
+		if ((bmcr2 & (ADVERTISE_1000HALF | ADVERTISE_1000FULL)) &
 		    (lpa2 >> 2))
 			ecmd->speed = SPEED_1000;
 		else if (nego == LPA_100FULL || nego == LPA_100HALF)
@@ -103,7 +103,7 @@ int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 	} else {
 		ecmd->autoneg = AUTONEG_DISABLE;
 
-		ecmd->speed = ((bmcr & BMCR_SPEED1000 && 
+		ecmd->speed = ((bmcr & BMCR_SPEED1000 &&
 				(bmcr & BMCR_SPEED100) == 0) ? SPEED_1000 :
 			       (bmcr & BMCR_SPEED100) ? SPEED_100 : SPEED_10);
 		ecmd->duplex = (bmcr & BMCR_FULLDPLX) ? DUPLEX_FULL : DUPLEX_HALF;
@@ -118,8 +118,8 @@ int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 {
 	struct net_device *dev = mii->dev;
 
-	if (ecmd->speed != SPEED_10 && 
-	    ecmd->speed != SPEED_100 && 
+	if (ecmd->speed != SPEED_10 &&
+	    ecmd->speed != SPEED_100 &&
 	    ecmd->speed != SPEED_1000)
 		return -EINVAL;
 	if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
@@ -134,9 +134,9 @@ int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 		return -EINVAL;
 	if ((ecmd->speed == SPEED_1000) && (!mii->supports_gmii))
 		return -EINVAL;
-				  
+
 	/* ignore supported, maxtxpkt, maxrxpkt */
-	
+
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		u32 bmcr, advert, tmp;
 		u32 advert2 = 0, tmp2 = 0;
@@ -176,7 +176,7 @@ int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 		}
 		if ((mii->supports_gmii) && (advert2 != tmp2))
 			mii->mdio_write(dev, mii->phy_id, MII_CTRL1000, tmp2);
-		
+
 		/* turn on autonegotiation, and force a renegotiate */
 		bmcr = mii->mdio_read(dev, mii->phy_id, MII_BMCR);
 		bmcr |= (BMCR_ANENABLE | BMCR_ANRESTART);
@@ -188,7 +188,7 @@ int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 
 		/* turn off auto negotiation, set speed and duplexity */
 		bmcr = mii->mdio_read(dev, mii->phy_id, MII_BMCR);
-		tmp = bmcr & ~(BMCR_ANENABLE | BMCR_SPEED100 | 
+		tmp = bmcr & ~(BMCR_ANENABLE | BMCR_SPEED100 |
 			       BMCR_SPEED1000 | BMCR_FULLDPLX);
 		if (ecmd->speed == SPEED_1000)
 			tmp |= BMCR_SPEED1000;

@@ -75,7 +75,7 @@
    - Now survives unplugging/replugging cable.
 
    Some code was taken from wavelan_cs.
-   
+
    Tested on a vintage Zenith Z-Note 433Lnp+. Probably broken on
    anything else. Testers (and detailed bug reports) are welcome :-).
 
@@ -171,7 +171,7 @@ static int znet_request_resources (struct net_device *dev)
 {
 	struct znet_private *znet = dev->priv;
 	unsigned long flags;
-		
+
 	if (request_irq (dev->irq, &znet_interrupt, 0, "ZNet", dev))
 		goto failed;
 	if (request_dma (znet->rx_dma, "ZNet rx"))
@@ -205,7 +205,7 @@ static void znet_release_resources (struct net_device *dev)
 {
 	struct znet_private *znet = dev->priv;
 	unsigned long flags;
-		
+
 	release_region (znet->sia_base, znet->sia_size);
 	release_region (dev->base_addr, znet->io_size);
 	flags = claim_dma_lock();
@@ -229,7 +229,7 @@ static void znet_transceiver_power (struct net_device *dev, int on)
 		v = inb(znet->sia_base + 1) | 0x84;
 	else
 		v = inb(znet->sia_base + 1) & ~0x84;
-		
+
 	outb(v, znet->sia_base+1); /* Turn on/off LAN power (bit 2). */
 }
 
@@ -242,7 +242,7 @@ static void znet_set_multicast_list (struct net_device *dev)
 	struct i82593_conf_block *cfblk = &znet->i593_init;
 
 	memset(cfblk, 0x00, sizeof(struct i82593_conf_block));
-	
+
         /* The configuration block.  What an undocumented nightmare.
 	   The first set of values are those suggested (without explanation)
 	   for ethernet in the Intel 82586 databook.  The rest appear to be
@@ -251,7 +251,7 @@ static void znet_set_multicast_list (struct net_device *dev)
 
 	/* maz : Rewritten to take advantage of the wanvelan includes.
 	   At least we have names, not just blind values */
-	
+
 	/* Byte 0 */
 	cfblk->fifo_limit = 10;	/* = 16 B rx and 80 B tx fifo thresholds */
 	cfblk->forgnesi = 0;	/* 0=82C501, 1=AMD7992B compatibility */
@@ -269,23 +269,23 @@ static void znet_set_multicast_list (struct net_device *dev)
 	cfblk->acloc = 1;	/* Disable source addr insertion by i82593 */
 	cfblk->preamb_len = 2;	/* 8 bytes preamble */
 	cfblk->loopback = 0;	/* Loopback off */
-  
+
 	/* Byte 3 */
 	cfblk->lin_prio = 0;	/* Default priorities & backoff methods. */
 	cfblk->tbofstop = 0;
 	cfblk->exp_prio = 0;
 	cfblk->bof_met = 0;
-  
+
 	/* Byte 4 */
 	cfblk->ifrm_spc = 6;	/* 96 bit times interframe spacing */
-	
+
 	/* Byte 5 */
 	cfblk->slottim_low = 0; /* 512 bit times slot time (low) */
-	
+
 	/* Byte 6 */
 	cfblk->slottim_hi = 2;	/* 512 bit times slot time (high) */
 	cfblk->max_retr = 15;	/* 15 collisions retries */
-	
+
 	/* Byte 7 */
 	cfblk->prmisc = ((dev->flags & IFF_PROMISC) ? 1 : 0); /* Promiscuous mode */
 	cfblk->bc_dis = 0;	/* Enable broadcast reception */
@@ -293,15 +293,15 @@ static void znet_set_multicast_list (struct net_device *dev)
 	cfblk->nocrc_ins = 0;	/* i82593 generates CRC */
 	cfblk->crc_1632 = 0;	/* 32-bit Autodin-II CRC */
 	cfblk->crs_cdt = 0;	/* CD not to be interpreted as CS */
-	
+
 	/* Byte 8 */
 	cfblk->cs_filter = 0;  	/* CS is recognized immediately */
 	cfblk->crs_src = 0;	/* External carrier sense */
 	cfblk->cd_filter = 0;  	/* CD is recognized immediately */
-	
+
 	/* Byte 9 */
 	cfblk->min_fr_len = ETH_ZLEN >> 2; /* Minimum frame length */
-	
+
 	/* Byte A */
 	cfblk->lng_typ = 1;	/* Type/length checks OFF */
 	cfblk->lng_fld = 1; 	/* Disable 802.3 length field check */
@@ -311,15 +311,15 @@ static void znet_set_multicast_list (struct net_device *dev)
 	cfblk->tx_jabber = 0;	/* Disable jabber jam sequence */
 	cfblk->hash_1 = 1; 	/* Use bits 0-5 in mc address hash */
 	cfblk->lbpkpol = 0; 	/* Loopback pin active high */
-	
+
 	/* Byte B */
 	cfblk->fdx = 0;		/* Disable full duplex operation */
-	
+
 	/* Byte C */
 	cfblk->dummy_6 = 0x3f; 	/* all ones, Default multicast addresses & backoff. */
 	cfblk->mult_ia = 0;	/* No multiple individual addresses */
 	cfblk->dis_bof = 0;	/* Disable the backoff algorithm ?! */
-	
+
 	/* Byte D */
 	cfblk->dummy_1 = 1; 	/* set to 1 */
 	cfblk->tx_ifs_retrig = 3; /* Hmm... Disabled */
@@ -327,7 +327,7 @@ static void znet_set_multicast_list (struct net_device *dev)
 	cfblk->rcv_mon = 0;	/* Monitor mode disabled */
 	cfblk->frag_acpt = 0;	/* Do not accept fragments */
 	cfblk->tstrttrs = 0;	/* No start transmission threshold */
-	
+
 	/* Byte E */
 	cfblk->fretx = 1;	/* FIFO automatic retransmission */
 	cfblk->runt_eop = 0;	/* drop "runt" packets */
@@ -350,7 +350,7 @@ static void znet_set_multicast_list (struct net_device *dev)
 			printk ("%02X ", c[i]);
 		printk ("\n");
 	}
-	
+
 	*znet->tx_cur++ = sizeof(struct i82593_conf_block);
 	memcpy(znet->tx_cur, cfblk, sizeof(struct i82593_conf_block));
 	znet->tx_cur += sizeof(struct i82593_conf_block)/2;
@@ -359,7 +359,7 @@ static void znet_set_multicast_list (struct net_device *dev)
 	/* XXX FIXME maz : Add multicast addresses here, so having a
 	 * multicast address configured isn't equal to IFF_ALLMULTI */
 }
-
+
 /* The Z-Note probe is pretty easy.  The NETIDBLK exists in the safe-to-probe
    BIOS area.  We just scan for the signature, and pull the vital parameters
    out of the structure. */
@@ -438,7 +438,7 @@ static int __init znet_probe (void)
 		printk (KERN_WARNING "tx/rx crossing DMA frontiers, giving up\n");
 		goto free_tx;
 	}
-	
+
 	znet->rx_end = znet->rx_start + RX_BUF_SIZE/2;
 	znet->tx_buf_len = TX_BUF_SIZE/2;
 	znet->tx_end = znet->tx_start + znet->tx_buf_len;
@@ -466,7 +466,7 @@ static int __init znet_probe (void)
 	return err;
 }
 
-
+
 static int znet_open(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
@@ -481,7 +481,7 @@ static int znet_open(struct net_device *dev)
 	}
 
 	znet_transceiver_power (dev, 1);
-	
+
 	/* According to the Crynwr driver we should wait 50 msec. for the
 	   LAN clock to stabilize.  My experiments indicates that the '593 can
 	   be initialized immediately.  The delay is probably needed for the
@@ -496,7 +496,7 @@ static int znet_open(struct net_device *dev)
 	 * all, even if the message is completly harmless on my
 	 * setup. */
 	mdelay (50);
-	
+
 	/* This follows the packet driver's lead, and checks for success. */
 	if (inb(ioaddr) != 0x10 && inb(ioaddr) != 0x00)
 		printk(KERN_WARNING "%s: Problem turning on the transceiver power.\n",
@@ -547,9 +547,9 @@ static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 			return 0;
 		length = ETH_ZLEN;
 	}
-	
+
 	netif_stop_queue (dev);
-	
+
 	/* Check that the part hasn't reset itself, probably from suspend. */
 	outb(CR0_STATUS_0, ioaddr);
 	if (inw(ioaddr) == 0x0010 &&
@@ -565,7 +565,7 @@ static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 		unsigned char *buf = (void *)skb->data;
 		ushort *tx_link = znet->tx_cur - 1;
 		ushort rnd_len = (length + 1)>>1;
-		
+
 		znet->stats.tx_bytes+=length;
 
 		if (znet->tx_cur >= znet->tx_end)
@@ -597,7 +597,7 @@ static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 		if (znet_debug > 4)
 		  printk(KERN_DEBUG "%s: Transmitter queued, length %d.\n", dev->name, length);
 	}
-	dev_kfree_skb(skb); 
+	dev_kfree_skb(skb);
 	return 0;
 }
 
@@ -616,7 +616,7 @@ static irqreturn_t znet_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	}
 
 	spin_lock (&znet->lock);
-	
+
 	ioaddr = dev->base_addr;
 
 	outb(CR0_STATUS_0, ioaddr);
@@ -666,7 +666,7 @@ static irqreturn_t znet_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				 * packet. Flip it off, then on to
 				 * reset it. This is very empirical,
 				 * but it seems to work. */
-				
+
 				znet_transceiver_power (dev, 0);
 				znet_transceiver_power (dev, 1);
 			}
@@ -682,7 +682,7 @@ static irqreturn_t znet_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	} while (boguscnt--);
 
 	spin_unlock (&znet->lock);
-	
+
 	return IRQ_RETVAL(handled);
 }
 
@@ -748,7 +748,7 @@ static void znet_rx(struct net_device *dev)
 		ushort *this_rfp_ptr = znet->rx_start + next_frame_end_offset;
 		int status = this_rfp_ptr[-4];
 		int pkt_len = this_rfp_ptr[-2];
-	  
+
 		if (znet_debug > 5)
 		  printk(KERN_DEBUG "Looking at trailer ending at %04x status %04x length %03x"
 				 " next %04x.\n", next_frame_end_offset<<1, status, pkt_len,
@@ -829,9 +829,9 @@ static int znet_close(struct net_device *dev)
 		printk(KERN_DEBUG "%s: Shutting down ethercard.\n", dev->name);
 	/* Turn off transceiver power. */
 	znet_transceiver_power (dev, 0);
-	
+
 	znet_release_resources (dev);
-	
+
 	return 0;
 }
 
@@ -856,7 +856,7 @@ static void show_dma(struct net_device *dev)
 
 	addr |= inb(dma_port) << 8;
 	residue = get_dma_residue(znet->tx_dma);
-		
+
 	if (znet_debug > 1) {
 		flags=claim_dma_lock();
 		printk(KERN_DEBUG "Stat:%02x Addr: %04x cnt:%3x\n",
@@ -894,7 +894,7 @@ static void hardware_init(struct net_device *dev)
 	set_dma_count(znet->tx_dma, znet->tx_buf_len<<1);
 	enable_dma(znet->tx_dma);
 	release_dma_lock(flags);
-	
+
 	if (znet_debug > 1)
 	  printk(KERN_DEBUG "%s: Initializing the i82593, rx buf %p tx buf %p\n",
 			 dev->name, znet->rx_start,znet->tx_start);

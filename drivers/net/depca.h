@@ -20,17 +20,17 @@
 #define DEPCA_RBSA  ioaddr+0x0e   /* RAM buffer starting address (2k buff.) */
 
 /*
-** These are LANCE registers addressable through DEPCA_ADDR 
+** These are LANCE registers addressable through DEPCA_ADDR
 */
 #define CSR0       0
 #define CSR1       1
 #define CSR2       2
 #define CSR3       3
 
-/* 
-** NETWORK INTERFACE CSR (NI_CSR) bit definitions 
+/*
+** NETWORK INTERFACE CSR (NI_CSR) bit definitions
 */
- 
+
 #define TO       	0x0100	/* Time Out for remote boot */
 #define SHE      	0x0080  /* SHadow memory Enable */
 #define BS       	0x0040  /* Bank Select */
@@ -42,8 +42,8 @@
 #define IEN      	0x0002	/* Interrupt tristate ENable (1->enable) */
 #define LED      	0x0001	/* LED control */
 
-/* 
-** Control and Status Register 0 (CSR0) bit definitions 
+/*
+** Control and Status Register 0 (CSR0) bit definitions
 */
 
 #define ERR     	0x8000 	/* Error summary */
@@ -74,7 +74,7 @@
 #define BCON    	0x0001	/* Byte CONtrol */
 
 /*
-** Initialization Block Mode Register 
+** Initialization Block Mode Register
 */
 
 #define PROM       	0x8000 	/* Promiscuous Mode */
@@ -88,7 +88,7 @@
 #define DRX        	0x0001 	/* Disable the Receiver */
 
 /*
-** Receive Message Descriptor 1 (RMD1) bit definitions. 
+** Receive Message Descriptor 1 (RMD1) bit definitions.
 */
 
 #define R_OWN       0x80000000 	/* Owner bit 0 = host, 1 = lance */
@@ -101,7 +101,7 @@
 #define R_ENP     	0x0100 	/* End of Packet */
 
 /*
-** Transmit Message Descriptor 1 (TMD1) bit definitions. 
+** Transmit Message Descriptor 1 (TMD1) bit definitions.
 */
 
 #define T_OWN       0x80000000 	/* Owner bit 0 = host, 1 = lance */
@@ -125,10 +125,10 @@
 #define TMD3_LCAR    0x0800	/* Loss of CARrier */
 #define TMD3_RTRY    0x0400	/* ReTRY error */
 
-/* 
-** EISA configuration Register (CNFG) bit definitions 
+/*
+** EISA configuration Register (CNFG) bit definitions
 */
- 
+
 #define TIMEOUT       	0x0100	/* 0:2.5 mins, 1: 30 secs */
 #define REMOTE      	0x0080  /* Remote Boot Enable -> 1 */
 #define IRQ11       	0x0040  /* Enable -> 1 */
@@ -165,8 +165,8 @@ struct depca_ioctl {
 	unsigned char  __user *data;       /* Pointer to the data buffer */
 };
 
-/* 
-** Recognised commands for the driver 
+/*
+** Recognised commands for the driver
 */
 #define DEPCA_GET_HWADDR	0x01 /* Get the hardware address */
 #define DEPCA_SET_HWADDR	0x02 /* Get the hardware address */

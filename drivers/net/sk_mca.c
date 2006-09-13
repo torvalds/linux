@@ -1,4 +1,4 @@
-/* 
+/*
 net-3-driver for the SKNET MCA-based cards
 
 This is an extension to the Linux operating system, and is covered by the
@@ -10,9 +10,9 @@ Copyright 1999 by Alfred Arnold (alfred@ccac.rwth-aachen.de,
 This driver is based both on the 3C523 driver and the SK_G16 driver.
 
 paper sources:
-  'PC Hardware: Aufbau, Funktionsweise, Programmierung' by 
+  'PC Hardware: Aufbau, Funktionsweise, Programmierung' by
   Hans-Peter Messmer for the basic Microchannel stuff
-  
+
   'Linux Geraetetreiber' by Allesandro Rubini, Kalle Dalheimer
   for help on Ethernet driver programming
 
@@ -24,7 +24,7 @@ paper sources:
 
   'SK-NET MC2+ Technical Manual", Version 1.1 by Schneider&Koch for
   documentation on the MC2 bord
-  
+
   A big thank you to the S&K support for providing me so quickly with
   documentation!
 
@@ -34,7 +34,7 @@ paper sources:
 
   -> set debug level via ioctl instead of compile-time switches
   -> I didn't follow the development of the 2.1.x kernels, so my
-     assumptions about which things changed with which kernel version 
+     assumptions about which things changed with which kernel version
      are probably nonsense
 
 History:
@@ -57,7 +57,7 @@ History:
 	fixed problem in GetLANCE leaving interrupts turned off
         increase TX queue to 4 packets to improve send performance
   May 29th, 1999
-	a few corrections in statistics, caught rcvr overruns 
+	a few corrections in statistics, caught rcvr overruns
         reinitialization of LANCE/board in critical situations
         MCA info implemented
 	implemented LANCE multicast filter
@@ -427,7 +427,7 @@ static void InitLANCE(struct net_device *dev)
 	InitDscrs(dev);
 
 	/* next RX descriptor to be read is the first one.  Since the LANCE
-	   will start from the beginning after initialization, we have to 
+	   will start from the beginning after initialization, we have to
 	   reset out pointers too. */
 
 	priv->nextrx = 0;
@@ -868,7 +868,7 @@ static int skmca_tx(struct sk_buff *skb, struct net_device *dev)
 	int tmplen, retval = 0;
 	unsigned long flags;
 
-	/* if we get called with a NULL descriptor, the Ethernet layer thinks 
+	/* if we get called with a NULL descriptor, the Ethernet layer thinks
 	   our card is stuck an we should reset it.  We'll do this completely: */
 
 	if (skb == NULL) {
@@ -896,7 +896,7 @@ static int skmca_tx(struct sk_buff *skb, struct net_device *dev)
 		tmplen = 60;
 	descr.Len = 65536 - tmplen;
 
-	/* copy filler into RAM - in case we're filling up... 
+	/* copy filler into RAM - in case we're filling up...
 	   we're filling a bit more than necessary, but that doesn't harm
 	   since the buffer is far larger... */
 	if (tmplen > skb->len) {

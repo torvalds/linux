@@ -360,7 +360,7 @@ static void myri_tx(struct myri_eth *mp, struct net_device *dev)
 	mp->tx_old = entry;
 }
 
-/* Determine the packet's protocol ID. The rule here is that we 
+/* Determine the packet's protocol ID. The rule here is that we
  * assume 802.3 if the type field is short enough to be a length.
  * This is normal practice and works for any 'now in use' protocol.
  */
@@ -368,11 +368,11 @@ static __be16 myri_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
 	unsigned char *rawp;
-	
+
 	skb->mac.raw = (((unsigned char *)skb->data) + MYRI_PAD_LEN);
 	skb_pull(skb, dev->hard_header_len);
 	eth = eth_hdr(skb);
-	
+
 #ifdef DEBUG_HEADER
 	DHDR(("myri_type_trans: "));
 	dump_ehdr(eth);
@@ -386,12 +386,12 @@ static __be16 myri_type_trans(struct sk_buff *skb, struct net_device *dev)
 		if (memcmp(eth->h_dest, dev->dev_addr, ETH_ALEN))
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
-	
+
 	if (ntohs(eth->h_proto) >= 1536)
 		return eth->h_proto;
-		
+
 	rawp = skb->data;
-	
+
 	/* This is a magic hack to spot IPX packets. Older Novell breaks
 	 * the protocol design and runs IPX over 802.3 without an 802.2 LLC
 	 * layer. We look for FFFF which isn't a used 802.2 SSAP/DSAP. This
@@ -399,7 +399,7 @@ static __be16 myri_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (*(unsigned short *)rawp == 0xFFFF)
 		return htons(ETH_P_802_3);
-		
+
 	/* Real 802.2 LLC */
 	return htons(ETH_P_802_2);
 }
@@ -678,7 +678,7 @@ static int myri_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-/* Create the MyriNet MAC header for an arbitrary protocol layer 
+/* Create the MyriNet MAC header for an arbitrary protocol layer
  *
  * saddr=NULL	means use device source address
  * daddr=NULL	means leave destination address (eg unresolved arp)
@@ -701,7 +701,7 @@ static int myri_header(struct sk_buff *skb, struct net_device *dev, unsigned sho
 	/* Set the protocol type. For a packet of type ETH_P_802_3 we put the length
 	 * in here instead. It is up to the 802.2 layer to carry protocol information.
 	 */
-	if (type != ETH_P_802_3) 
+	if (type != ETH_P_802_3)
 		eth->h_proto = htons(type);
 	else
 		eth->h_proto = htons(len);
@@ -719,7 +719,7 @@ static int myri_header(struct sk_buff *skb, struct net_device *dev, unsigned sho
 			eth->h_dest[i] = 0;
 		return(dev->hard_header_len);
 	}
-	
+
 	if (daddr) {
 		memcpy(eth->h_dest, daddr, dev->addr_len);
 		return dev->hard_header_len;
@@ -754,16 +754,16 @@ static int myri_rebuild_header(struct sk_buff *skb)
 #endif
 
 	default:
-		printk(KERN_DEBUG 
-		       "%s: unable to resolve type %X addresses.\n", 
+		printk(KERN_DEBUG
+		       "%s: unable to resolve type %X addresses.\n",
 		       dev->name, (int)eth->h_proto);
-		
+
 		memcpy(eth->h_source, dev->dev_addr, dev->addr_len);
 		return 0;
 		break;
 	}
 
-	return 0;	
+	return 0;
 }
 
 int myri_header_cache(struct neighbour *neigh, struct hh_cache *hh)

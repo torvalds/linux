@@ -1602,7 +1602,7 @@ static int w840_suspend (struct pci_dev *pdev, pm_message_t state)
 
 		synchronize_irq(dev->irq);
 		netif_tx_disable(dev);
-	
+
 		np->stats.rx_missed_errors += ioread32(ioaddr + RxMissed) & 0xffff;
 
 		/* no more hardware accesses behind this line. */

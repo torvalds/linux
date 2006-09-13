@@ -1,18 +1,18 @@
 /*------------------------------------------------------------------------
  . smc9194.h
- . Copyright (C) 1996 by Erik Stahlman 
+ . Copyright (C) 1996 by Erik Stahlman
  .
  . This software may be used and distributed according to the terms
  . of the GNU General Public License, incorporated herein by reference.
  .
- . This file contains register information and access macros for 
- . the SMC91xxx chipset.   
- . 
- . Information contained in this file was obtained from the SMC91C94 
- . manual from SMC.  To get a copy, if you really want one, you can find 
+ . This file contains register information and access macros for
+ . the SMC91xxx chipset.
+ .
+ . Information contained in this file was obtained from the SMC91C94
+ . manual from SMC.  To get a copy, if you really want one, you can find
  . information under www.smc.com in the components division.
  . ( this thanks to advice from Donald Becker ).
- . 
+ .
  . Authors
  . 	Erik Stahlman				( erik@vt.edu )
  .
@@ -38,22 +38,22 @@ typedef unsigned long int 		dword;
 
 
 /*---------------------------------------------------------------
- .  
+ .
  . A description of the SMC registers is probably in order here,
- . although for details, the SMC datasheet is invaluable.  
- . 
+ . although for details, the SMC datasheet is invaluable.
+ .
  . Basically, the chip has 4 banks of registers ( 0 to 3 ), which
  . are accessed by writing a number into the BANK_SELECT register
  . ( I also use a SMC_SELECT_BANK macro for this ).
- . 
+ .
  . The banks are configured so that for most purposes, bank 2 is all
- . that is needed for simple run time tasks.  
+ . that is needed for simple run time tasks.
  -----------------------------------------------------------------------*/
 
 /*
- . Bank Select Register: 
+ . Bank Select Register:
  .
- .		yyyy yyyy 0000 00xx  
+ .		yyyy yyyy 0000 00xx
  .		xx 		= bank number
  .		yyyy yyyy	= 0x33, for identification purposes.
 */
@@ -62,23 +62,23 @@ typedef unsigned long int 		dword;
 /* BANK 0  */
 
 #define	TCR 		0    	/* transmit control register */
-#define TCR_ENABLE	0x0001	/* if this is 1, we can transmit */ 
+#define TCR_ENABLE	0x0001	/* if this is 1, we can transmit */
 #define TCR_FDUPLX    	0x0800  /* receive packets sent out */
 #define TCR_STP_SQET	0x1000	/* stop transmitting if Signal quality error */
 #define	TCR_MON_CNS	0x0400	/* monitors the carrier status */
 #define	TCR_PAD_ENABLE	0x0080	/* pads short packets to 64 bytes */
 
 #define	TCR_CLEAR	0	/* do NOTHING */
-/* the normal settings for the TCR register : */ 
+/* the normal settings for the TCR register : */
 /* QUESTION: do I want to enable padding of short packets ? */
-#define	TCR_NORMAL  	TCR_ENABLE 
+#define	TCR_NORMAL  	TCR_ENABLE
 
 
 #define EPH_STATUS	2
 #define ES_LINK_OK	0x4000	/* is the link integrity ok ? */
 
 #define	RCR		4
-#define RCR_SOFTRESET	0x8000 	/* resets the chip */	
+#define RCR_SOFTRESET	0x8000 	/* resets the chip */
 #define	RCR_STRIP_CRC	0x200	/* strips CRC */
 #define RCR_ENABLE	0x100	/* IFF this is set, we can receive packets */
 #define RCR_ALMUL	0x4 	/* receive all multicast packets */
@@ -114,12 +114,12 @@ typedef unsigned long int 		dword;
 #define MC_BUSY		1	/* only readable bit in the register */
 #define MC_NOP		0
 #define	MC_ALLOC	0x20  	/* or with number of 256 byte packets */
-#define	MC_RESET	0x40	
+#define	MC_RESET	0x40
 #define	MC_REMOVE	0x60  	/* remove the current rx packet */
 #define MC_RELEASE  	0x80  	/* remove and release the current rx packet */
 #define MC_FREEPKT  	0xA0  	/* Release packet in PNR register */
 #define MC_ENQUEUE	0xC0 	/* Enqueue the packet for transmit */
- 	
+
 #define	PNR_ARR		2
 #define FIFO_PORTS	4
 
@@ -139,11 +139,11 @@ typedef unsigned long int 		dword;
 #define INT_MASK	13
 #define IM_RCV_INT	0x1
 #define	IM_TX_INT	0x2
-#define	IM_TX_EMPTY_INT	0x4	
+#define	IM_TX_EMPTY_INT	0x4
 #define	IM_ALLOC_INT	0x8
 #define	IM_RX_OVRN_INT	0x10
 #define	IM_EPH_INT	0x20
-#define	IM_ERCV_INT	0x40 /* not on SMC9192 */		
+#define	IM_ERCV_INT	0x40 /* not on SMC9192 */
 
 /* BANK 3 */
 #define	MULTICAST1	0
@@ -162,19 +162,19 @@ typedef unsigned long int 		dword;
 #define CHIP_9195	5
 #define CHIP_91100	7
 
-static const char * chip_ids[ 15 ] =  { 
-	NULL, NULL, NULL, 
+static const char * chip_ids[ 15 ] =  {
+	NULL, NULL, NULL,
 	/* 3 */ "SMC91C90/91C92",
 	/* 4 */ "SMC91C94",
 	/* 5 */ "SMC91C95",
 	NULL,
-	/* 7 */ "SMC91C100", 
-	/* 8 */ "SMC91C100FD", 
-	NULL, NULL, NULL, 
-	NULL, NULL, NULL};  
+	/* 7 */ "SMC91C100",
+	/* 8 */ "SMC91C100FD",
+	NULL, NULL, NULL,
+	NULL, NULL, NULL};
 
-/* 
- . Transmit status bits 
+/*
+ . Transmit status bits
 */
 #define TS_SUCCESS 0x0001
 #define TS_LOSTCAR 0x0400
@@ -190,18 +190,18 @@ static const char * chip_ids[ 15 ] =  {
 #define RS_TOOLONG	0x0800
 #define RS_TOOSHORT	0x0400
 #define RS_MULTICAST	0x0001
-#define RS_ERRORS	(RS_ALGNERR | RS_BADCRC | RS_TOOLONG | RS_TOOSHORT) 
+#define RS_ERRORS	(RS_ALGNERR | RS_BADCRC | RS_TOOLONG | RS_TOOSHORT)
 
 static const char * interfaces[ 2 ] = { "TP", "AUI" };
 
 /*-------------------------------------------------------------------------
  .  I define some macros to make it easier to do somewhat common
- . or slightly complicated, repeated tasks. 
+ . or slightly complicated, repeated tasks.
  --------------------------------------------------------------------------*/
 
 /* select a register bank, 0 to 3  */
 
-#define SMC_SELECT_BANK(x)  { outw( x, ioaddr + BANK_SELECT ); } 
+#define SMC_SELECT_BANK(x)  { outw( x, ioaddr + BANK_SELECT ); }
 
 /* define a small delay for the reset */
 #define SMC_DELAY() { inw( ioaddr + RCR );\
@@ -229,13 +229,13 @@ static const char * interfaces[ 2 ] = { "TP", "AUI" };
 
 /*----------------------------------------------------------------------
  . Define the interrupts that I want to receive from the card
- . 
- . I want: 
+ .
+ . I want:
  .  IM_EPH_INT, for nasty errors
  .  IM_RCV_INT, for happy received packets
  .  IM_RX_OVRN_INT, because I have to kick the receiver
  --------------------------------------------------------------------------*/
-#define SMC_INTERRUPT_MASK   (IM_EPH_INT | IM_RX_OVRN_INT | IM_RCV_INT) 
+#define SMC_INTERRUPT_MASK   (IM_EPH_INT | IM_RX_OVRN_INT | IM_RCV_INT)
 
 #endif  /* _SMC_9194_H_ */
 

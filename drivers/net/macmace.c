@@ -63,7 +63,7 @@ struct mace_frame {
 	u16	rcvcc;
 	u32	pad1;
 	u32	pad2;
-	u8	data[1];	
+	u8	data[1];
 	/* And frame continues.. */
 };
 
@@ -118,17 +118,17 @@ static void mace_rxdma_reset(struct net_device *dev)
 	struct mace_data *mp = (struct mace_data *) dev->priv;
 	volatile struct mace *mace = mp->mace;
 	u8 maccc = mace->maccc;
-	
+
 	mace->maccc = maccc & ~ENRCV;
-	
+
 	psc_write_word(PSC_ENETRD_CTL, 0x8800);
 	mace_load_rxdma_base(dev, 0x00);
 	psc_write_word(PSC_ENETRD_CTL, 0x0400);
-	
+
 	psc_write_word(PSC_ENETRD_CTL, 0x8800);
 	mace_load_rxdma_base(dev, 0x10);
 	psc_write_word(PSC_ENETRD_CTL, 0x0400);
-	
+
 	mace->maccc = maccc;
 	mp->rx_slot = 0;
 
@@ -139,7 +139,7 @@ static void mace_rxdma_reset(struct net_device *dev)
 /*
  * Reset the transmit DMA subsystem
  */
- 
+
 static void mace_txdma_reset(struct net_device *dev)
 {
 	struct mace_data *mp = (struct mace_data *) dev->priv;
@@ -161,7 +161,7 @@ static void mace_txdma_reset(struct net_device *dev)
 /*
  * Disable DMA
  */
- 
+
 static void mace_dma_off(struct net_device *dev)
 {
 	psc_write_word(PSC_ENETRD_CTL, 0x8800);
@@ -179,7 +179,7 @@ static void mace_dma_off(struct net_device *dev)
  * Not really much of a probe. The hardware table tells us if this
  * model of Macintrash has a MACE (AV macintoshes)
  */
- 
+
 struct net_device *mace_probe(int unit)
 {
 	int j;
@@ -189,7 +189,7 @@ struct net_device *mace_probe(int unit)
 	unsigned char checksum = 0;
 	static int found = 0;
 	int err;
-	
+
 	if (found || macintosh_config->ether_type != MAC_ETHER_MACE)
 		return ERR_PTR(-ENODEV);
 
@@ -205,7 +205,7 @@ struct net_device *mace_probe(int unit)
 	mp = (struct mace_data *) dev->priv;
 	dev->base_addr = (u32)MACE_BASE;
 	mp->mace = (volatile struct mace *) MACE_BASE;
-	
+
 	dev->irq = IRQ_MAC_MACE;
 	mp->dma_intr = IRQ_MAC_MACE_DMA;
 
@@ -217,7 +217,7 @@ struct net_device *mace_probe(int unit)
 	 */
 
 	addr = (void *)MACE_PROM;
-		 
+
 	for (j = 0; j < 6; ++j) {
 		u8 v=bitrev(addr[j<<4]);
 		checksum ^= v;
@@ -226,7 +226,7 @@ struct net_device *mace_probe(int unit)
 	for (; j < 8; ++j) {
 		checksum ^= bitrev(addr[j<<4]);
 	}
-	
+
 	if (checksum != 0xFF) {
 		free_netdev(dev);
 		return ERR_PTR(-ENODEV);
@@ -275,7 +275,7 @@ static int mace_set_address(struct net_device *dev, void *addr)
 	/* load up the hardware address */
 	mb->iac = ADDRCHG | PHYADDR;
 	while ((mb->iac & ADDRCHG) != 0);
-	
+
 	for (i = 0; i < 6; ++i) {
 		mb->padr = dev->dev_addr[i] = p[i];
 	}
@@ -290,7 +290,7 @@ static int mace_set_address(struct net_device *dev, void *addr)
  * Open the Macintosh MACE. Most of this is playing with the DMA
  * engine. The ethernet chip is quite friendly.
  */
- 
+
 static int mace_open(struct net_device *dev)
 {
 	struct mace_data *mp = (struct mace_data *) dev->priv;
@@ -333,7 +333,7 @@ static int mace_open(struct net_device *dev)
 
 	mp->rx_ring = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, N_RX_PAGES);
 	mp->tx_ring = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, 0);
-	
+
 	if (mp->tx_ring==NULL || mp->rx_ring==NULL) {
 		if (mp->rx_ring) free_pages((u32) mp->rx_ring, N_RX_PAGES);
 		if (mp->tx_ring) free_pages((u32) mp->tx_ring, 0);
@@ -348,7 +348,7 @@ static int mace_open(struct net_device *dev)
 
 	/* We want the Rx buffer to be uncached and the Tx buffer to be writethrough */
 
-	kernel_set_cachemode((void *)mp->rx_ring, N_RX_PAGES * PAGE_SIZE, IOMAP_NOCACHE_NONSER);	
+	kernel_set_cachemode((void *)mp->rx_ring, N_RX_PAGES * PAGE_SIZE, IOMAP_NOCACHE_NONSER);
 	kernel_set_cachemode((void *)mp->tx_ring, PAGE_SIZE, IOMAP_WRITETHROUGH);
 
 	mace_dma_off(dev);
@@ -362,11 +362,11 @@ static int mace_open(struct net_device *dev)
 
 #if 0
 	/* load up the hardware address */
-	
+
 	mb->iac = ADDRCHG | PHYADDR;
-	
+
 	while ((mb->iac & ADDRCHG) != 0);
-	
+
 	for (i = 0; i < 6; ++i)
 		mb->padr = dev->dev_addr[i];
 
@@ -374,7 +374,7 @@ static int mace_open(struct net_device *dev)
 	mb->iac = ADDRCHG | LOGADDR;
 
 	while ((mb->iac & ADDRCHG) != 0);
-	
+
 	for (i = 0; i < 8; ++i)
 		mb->ladrf = 0;
 
@@ -386,14 +386,14 @@ static int mace_open(struct net_device *dev)
 
 	mace_rxdma_reset(dev);
 	mace_txdma_reset(dev);
-	
+
 	return 0;
 }
 
 /*
  * Shut down the mace and its interrupt channel
  */
- 
+
 static int mace_close(struct net_device *dev)
 {
 	struct mace_data *mp = (struct mace_data *) dev->priv;
@@ -415,7 +415,7 @@ static int mace_close(struct net_device *dev)
 /*
  * Transmit a frame
  */
- 
+
 static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mace_data *mp = (struct mace_data *) dev->priv;
@@ -427,7 +427,7 @@ static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 		return 1;
 	}
 	mp->tx_count--;
-	
+
 	mp->stats.tx_packets++;
 	mp->stats.tx_bytes += skb->len;
 
@@ -488,7 +488,7 @@ static void mace_set_multicast(struct net_device *dev)
 
 		mb->iac = ADDRCHG | LOGADDR;
 		while (mb->iac & ADDRCHG);
-		
+
 		for (i = 0; i < 8; ++i) {
 			mb->ladrf = multicast_filter[i];
 		}
@@ -498,10 +498,10 @@ static void mace_set_multicast(struct net_device *dev)
 }
 
 /*
- * Miscellaneous interrupts are handled here. We may end up 
+ * Miscellaneous interrupts are handled here. We may end up
  * having to bash the chip on the head for bad errors
  */
- 
+
 static void mace_handle_misc_intrs(struct mace_data *mp, int intr)
 {
 	volatile struct mace *mb = mp->mace;
@@ -536,16 +536,16 @@ static void mace_handle_misc_intrs(struct mace_data *mp, int intr)
  *	A transmit error has occurred. (We kick the transmit side from
  *	the DMA completion)
  */
- 
+
 static void mace_xmit_error(struct net_device *dev)
 {
 	struct mace_data *mp = (struct mace_data *) dev->priv;
 	volatile struct mace *mb = mp->mace;
 	u8 xmtfs, xmtrc;
-	
+
 	xmtfs = mb->xmtfs;
 	xmtrc = mb->xmtrc;
-	
+
 	if (xmtfs & XMTSV) {
 		if (xmtfs & UFLO) {
 			printk("%s: DMA underrun.\n", dev->name);
@@ -556,13 +556,13 @@ static void mace_xmit_error(struct net_device *dev)
 		if (xmtfs & RTRY) {
 			mp->stats.collisions++;
 		}
-	}			
+	}
 }
 
 /*
  *	A receive interrupt occurred.
  */
- 
+
 static void mace_recv_interrupt(struct net_device *dev)
 {
 /*	struct mace_data *mp = (struct mace_data *) dev->priv; */
@@ -572,17 +572,17 @@ static void mace_recv_interrupt(struct net_device *dev)
 /*
  * Process the chip interrupt
  */
- 
+
 static irqreturn_t mace_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct mace_data *mp = (struct mace_data *) dev->priv;
 	volatile struct mace *mb = mp->mace;
 	u8 ir;
-	
+
 	ir = mb->ir;
 	mace_handle_misc_intrs(mp, ir);
-	
+
 	if (ir & XMTINT) {
 		mace_xmit_error(dev);
 	}
@@ -601,7 +601,7 @@ static void mace_tx_timeout(struct net_device *dev)
 /*
  * Handle a newly arrived frame
  */
- 
+
 static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 {
 	struct mace_data *mp = (struct mace_data *) dev->priv;
@@ -614,7 +614,7 @@ static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 	}
 	if (mf->status&(RS_CLSN|RS_FRAMERR|RS_FCSERR))
 		mp->stats.rx_errors++;
-		
+
 	if (mf->status&RS_CLSN) {
 		mp->stats.collisions++;
 	}
@@ -624,7 +624,7 @@ static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 	if (mf->status&RS_FCSERR) {
 		mp->stats.rx_crc_errors++;
 	}
-		
+
 	skb = dev_alloc_skb(mf->len+2);
 	if (!skb) {
 		mp->stats.rx_dropped++;
@@ -632,7 +632,7 @@ static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 	}
 	skb_reserve(skb,2);
 	memcpy(skb_put(skb, mf->len), mf->data, mf->len);
-	
+
 	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 	netif_rx(skb);
@@ -644,7 +644,7 @@ static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 /*
  * The PSC has passed us a DMA interrupt event.
  */
- 
+
 static irqreturn_t mace_dma_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
@@ -661,9 +661,9 @@ static irqreturn_t mace_dma_intr(int irq, void *dev_id, struct pt_regs *regs)
 	/*
 	 * Process the read queue
 	 */
-		 
+
 	status = psc_read_word(PSC_ENETRD_CTL);
-		
+
 	if (status & 0x2000) {
 		mace_rxdma_reset(dev);
 	} else if (status & 0x0100) {
@@ -678,7 +678,7 @@ static irqreturn_t mace_dma_intr(int irq, void *dev_id, struct pt_regs *regs)
 			mace_dma_rx_frame(dev, (struct mace_frame *) (mp->rx_ring + (mp->rx_tail * 0x0800)));
 			mp->rx_tail++;
 		}
-			
+
 		/* If we're out of buffers in this ring then switch to */
 		/* the other set, otherwise just reactivate this one.  */
 
@@ -689,7 +689,7 @@ static irqreturn_t mace_dma_intr(int irq, void *dev_id, struct pt_regs *regs)
 			psc_write_word(PSC_ENETRD_CMD + mp->rx_slot, 0x9800);
 		}
 	}
-		
+
 	/*
 	 * Process the write queue
 	 */

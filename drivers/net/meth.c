@@ -93,7 +93,7 @@ struct meth_private {
 
 static void meth_tx_timeout(struct net_device *dev);
 static irqreturn_t meth_interrupt(int irq, void *dev_id, struct pt_regs *pregs);
-        
+
 /* global, initialized in ip32-setup.c */
 char o2meth_eaddr[8]={0,0,0,0,0,0,0,0};
 
@@ -232,7 +232,7 @@ static int meth_init_rx_ring(struct meth_private *priv)
 		skb_reserve(priv->rx_skbs[i],METH_RX_HEAD);
 		priv->rx_ring[i]=(rx_packet*)(priv->rx_skbs[i]->head);
 		/* I'll need to re-sync it after each RX */
-		priv->rx_ring_dmas[i] = 
+		priv->rx_ring_dmas[i] =
 			dma_map_single(NULL, priv->rx_ring[i],
 				       METH_RX_BUFF_SIZE, DMA_FROM_DEVICE);
 		mace->eth.rx_fifo = priv->rx_ring_dmas[i];
@@ -281,7 +281,7 @@ int meth_reset(struct net_device *dev)
 	/* Load ethernet address */
 	load_eaddr(dev);
 	/* Should load some "errata", but later */
-	
+
 	/* Check for device */
 	if (mdio_probe(priv) < 0) {
 		DPRINTK("Unable to find PHY\n");
@@ -452,7 +452,7 @@ static void meth_rx(struct net_device* dev, unsigned long int_status)
 		}
 		priv->rx_ring[priv->rx_write] = (rx_packet*)skb->head;
 		priv->rx_ring[priv->rx_write]->status.raw = 0;
-		priv->rx_ring_dmas[priv->rx_write] = 
+		priv->rx_ring_dmas[priv->rx_write] =
 			dma_map_single(NULL, priv->rx_ring[priv->rx_write],
 				       METH_RX_BUFF_SIZE, DMA_FROM_DEVICE);
 		mace->eth.rx_fifo = priv->rx_ring_dmas[priv->rx_write];
@@ -555,7 +555,7 @@ static void meth_error(struct net_device* dev, unsigned status)
 		printk(KERN_WARNING "meth: Rx underflow\n");
 		spin_lock(&priv->meth_lock);
 		mace->eth.int_stat = METH_INT_RX_UNDERFLOW;
-		/* more underflow interrupts will be delivered, 
+		/* more underflow interrupts will be delivered,
 		 * effectively throwing us into an infinite loop.
 		 *  Thus I stop processing Rx in this case. */
 		priv->dma_ctrl &= ~METH_DMA_RX_EN;
@@ -761,12 +761,12 @@ static void meth_tx_timeout(struct net_device *dev)
 }
 
 /*
- * Ioctl commands 
+ * Ioctl commands
  */
 static int meth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	/* XXX Not yet implemented */
-	switch(cmd) { 
+	switch(cmd) {
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:

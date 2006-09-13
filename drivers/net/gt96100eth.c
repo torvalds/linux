@@ -17,9 +17,9 @@
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
  * Ethernet driver for the MIPS GT96100 Advanced Communication Controller.
- * 
+ *
  *  Revision history
- *    
+ *
  *    11.11.2001  Moved to 2.4.14, ppopov@mvista.com.  Modified driver to add
  *                proper gt96100A support.
  *    12.05.2001  Moved eth port 0 to irq 3 (mapped to GT_SERINT0 on EV96100A)
@@ -160,9 +160,9 @@ chip_name(int chip_rev)
 static void * dmaalloc(size_t size, dma_addr_t *dma_handle)
 {
 	void *ret;
-	
+
 	ret = (void *)__get_free_pages(GFP_ATOMIC | GFP_DMA, get_order(size));
-	
+
 	if (ret != NULL) {
 		dma_cache_inv((unsigned long)ret, size);
 		if (dma_handle != NULL)
@@ -194,7 +194,7 @@ parse_mac_addr(struct net_device *dev, char* macstr)
 {
 	int i, j;
 	unsigned char result, value;
-	
+
 	for (i=0; i<6; i++) {
 		result = 0;
 		if (i != 5 && *(macstr+2) != '.') {
@@ -202,10 +202,10 @@ parse_mac_addr(struct net_device *dev, char* macstr)
 			    i, *(macstr+2));
 			return -EINVAL;
 		}
-		
+
 		for (j=0; j<2; j++) {
 			if (isxdigit(*macstr) &&
-			    (value = isdigit(*macstr) ? *macstr-'0' : 
+			    (value = isdigit(*macstr) ? *macstr-'0' :
 			     toupper(*macstr)-'A'+10) < 16) {
 				result = result*16 + value;
 				macstr++;
@@ -241,7 +241,7 @@ read_MII(int phy_addr, u32 reg)
 			return -ENODEV;
 		}
 	}
-    
+
 	GT96100_WRITE(GT96100_ETH_SMI_REG, smir);
 
 	timedout = 20;
@@ -249,7 +249,7 @@ read_MII(int phy_addr, u32 reg)
 	while (!((smir = GT96100_READ(GT96100_ETH_SMI_REG)) & smirReadValid)) {
 		// snooze for 1 msec and check again
 		gt96100_delay(1);
-	
+
 		if (--timedout == 0) {
 			printk(KERN_ERR "%s: timeout!!\n", __FUNCTION__);
 			return -ENODEV;
@@ -301,7 +301,7 @@ write_MII(int phy_addr, u32 reg, u16 data)
 	while (GT96100_READ(GT96100_ETH_SMI_REG) & smirBusy) {
 		// snooze for 1 msec and check again
 		gt96100_delay(1);
-	
+
 		if (--timedout == 0) {
 			printk(KERN_ERR "%s: busy timeout!!\n", __FUNCTION__);
 			return -1;
@@ -317,7 +317,7 @@ dump_MII(int dbg_lvl, struct net_device *dev)
 {
 	int i, val;
 	struct gt96100_private *gp = netdev_priv(dev);
-    
+
 	if (dbg_lvl <= GT96100_DEBUG) {
 		for (i=0; i<7; i++) {
 			if ((val = read_MII(gp->phy_addr, i)) >= 0)
@@ -336,7 +336,7 @@ dump_hw_addr(int dbg_lvl, struct net_device *dev, const char* pfx,
 {
 	int i;
 	char buf[100], octet[5];
-    
+
 	if (dbg_lvl <= GT96100_DEBUG) {
 		sprintf(buf, pfx, func);
 		for (i = 0; i < 6; i++) {
@@ -354,13 +354,13 @@ dump_skb(int dbg_lvl, struct net_device *dev, struct sk_buff *skb)
 {
 	int i;
 	unsigned char* skbdata;
-    
+
 	if (dbg_lvl <= GT96100_DEBUG) {
 		dbg(dbg_lvl, "%s: skb=%p, skb->data=%p, skb->len=%d\n",
 		    __FUNCTION__, skb, skb->data, skb->len);
 
 		skbdata = (unsigned char*)KSEG1ADDR(skb->data);
-    
+
 		for (i=0; i<skb->len; i++) {
 			if (!(i % 16))
 				printk(KERN_DEBUG "\n   %3.3x: %2.2x,",
@@ -406,7 +406,7 @@ gt96100_add_hash_entry(struct net_device *dev, unsigned char* addr)
 	}
 
 	dump_hw_addr(3, dev, "%s: nib swap/invt addr=", __FUNCTION__, hash_ea);
-    
+
 	if (gp->hash_mode == 0) {
 		hashResult = ((u16)hash_ea[0] & 0xfc) << 7;
 		stmp = ((u16)hash_ea[0] & 0x03) |
@@ -423,7 +423,7 @@ gt96100_add_hash_entry(struct net_device *dev, unsigned char* addr)
 
 	tblEntryAddr =
 		(u32 *)(&gp->hash_table[((u32)hashResult & 0x7ff) << 3]);
-    
+
 	dbg(3, "%s: tblEntryAddr=%p\n", tblEntryAddr, __FUNCTION__);
 
 	for (i=0; i<HASH_HOP_NUMBER; i++) {
@@ -431,7 +431,7 @@ gt96100_add_hash_entry(struct net_device *dev, unsigned char* addr)
 		    !(*tblEntryAddr & hteSkip)) {
 			// This entry is already occupied, go to next entry
 			tblEntryAddr += 2;
-			dbg(3, "%s: skipping to %p\n", __FUNCTION__, 
+			dbg(3, "%s: skipping to %p\n", __FUNCTION__,
 			    tblEntryAddr);
 		} else {
 			memset(tblEntryAddr, 0, 8);
@@ -455,7 +455,7 @@ gt96100_add_hash_entry(struct net_device *dev, unsigned char* addr)
 	}
 
 #endif
-    
+
 	return 0;
 }
 
@@ -465,7 +465,7 @@ read_mib_counters(struct gt96100_private *gp)
 {
 	u32* mib_regs = (u32*)&gp->mib;
 	int i;
-    
+
 	for (i=0; i<sizeof(mib_counters_t)/sizeof(u32); i++)
 		mib_regs[i] = GT96100ETH_READ(gp, GT96100_ETH_MIB_COUNT_BASE +
 					      i*sizeof(u32));
@@ -477,9 +477,9 @@ update_stats(struct gt96100_private *gp)
 {
 	mib_counters_t *mib = &gp->mib;
 	struct net_device_stats *stats = &gp->stats;
-    
+
 	read_mib_counters(gp);
-    
+
 	stats->rx_packets = mib->totalFramesReceived;
 	stats->tx_packets = mib->framesSent;
 	stats->rx_bytes = mib->totalByteReceived;
@@ -512,7 +512,7 @@ abort(struct net_device *dev, u32 abort_bits)
 
 	// make sure only the Rx/Tx abort bits are set
 	abort_bits &= (sdcmrAR | sdcmrAT);
-    
+
 	spin_lock(&gp->lock);
 
 	// abort any Rx/Tx DMA immediately
@@ -525,7 +525,7 @@ abort(struct net_device *dev, u32 abort_bits)
 	while (GT96100ETH_READ(gp, GT96100_ETH_SDMA_COMM) & abort_bits) {
 		// snooze for 1 msec and check again
 		gt96100_delay(1);
-	
+
 		if (--timedout == 0) {
 			err("%s: timeout!!\n", __FUNCTION__);
 			break;
@@ -563,7 +563,7 @@ enable_ether_irq(struct net_device *dev)
 	 */
 	int intr_mask_reg = (gp->port_num == 0) ?
 		GT96100_SERINT0_MASK : GT96100_INT0_HIGH_MASK;
-	
+
 	if (gp->chip_rev >= REV_GT96100A_1) {
 		intMask = icrTxBufferLow | icrTxEndLow |
 			icrTxErrorLow  | icrRxOVR | icrTxUdr |
@@ -576,10 +576,10 @@ enable_ether_irq(struct net_device *dev)
 			icrRxBuffer | icrRxError |
 			icrMIIPhySTC | icrEtherIntSum;
 	}
-	
+
 	// unmask interrupts
 	GT96100ETH_WRITE(gp, GT96100_ETH_INT_MASK, intMask);
-    
+
 	intMask = GT96100_READ(intr_mask_reg);
 	intMask |= 1<<gp->port_num;
 	GT96100_WRITE(intr_mask_reg, intMask);
@@ -596,7 +596,7 @@ disable_ether_irq(struct net_device *dev)
 	intMask = GT96100_READ(intr_mask_reg);
 	intMask &= ~(1<<gp->port_num);
 	GT96100_WRITE(intr_mask_reg, intMask);
-    
+
 	GT96100ETH_WRITE(gp, GT96100_ETH_INT_MASK, 0);
 }
 
@@ -643,13 +643,13 @@ static int __init gt96100_probe1(struct pci_dev *pci, int port_num)
 	int retval;
 	unsigned char chip_rev;
 	struct net_device *dev = NULL;
-    
+
 	if (gtif->irq < 0) {
 		printk(KERN_ERR "%s: irq unknown - probing not supported\n",
 		      __FUNCTION__);
 		return -ENODEV;
 	}
-    
+
 	pci_read_config_byte(pci, PCI_REVISION_ID, &chip_rev);
 
 	if (chip_rev >= REV_GT96100A_1) {
@@ -665,14 +665,14 @@ static int __init gt96100_probe1(struct pci_dev *pci, int port_num)
 		phyAD |= phy_addr << (port_num*5);
 		GT96100_WRITE(GT96100_ETH_PHY_ADDR_REG, phyAD);
 	}
-	
+
 	// probe for the external PHY
 	if ((phy_id1 = read_MII(phy_addr, 2)) <= 0 ||
 	    (phy_id2 = read_MII(phy_addr, 3)) <= 0) {
 		printk(KERN_ERR "%s: no PHY found on MII%d\n", __FUNCTION__, port_num);
 		return -ENODEV;
 	}
-	
+
 	if (!request_region(gtif->iobase, GT96100_ETH_IO_SIZE, "GT96100ETH")) {
 		printk(KERN_ERR "%s: request_region failed\n", __FUNCTION__);
 		return -EBUSY;
@@ -682,7 +682,7 @@ static int __init gt96100_probe1(struct pci_dev *pci, int port_num)
 	if (!dev)
 		goto out;
 	gtif->dev = dev;
-	
+
 	/* private struct aligned and zeroed by alloc_etherdev */
 	/* Fill in the 'dev' fields. */
 	dev->base_addr = gtif->iobase;
@@ -720,12 +720,12 @@ static int __init gt96100_probe1(struct pci_dev *pci, int port_num)
 			retval = -ENOMEM;
 			goto out1;
 		}
-	
+
 		gp->tx_ring = (gt96100_td_t *)(gp->rx_ring + RX_RING_SIZE);
 		gp->tx_ring_dma =
 			gp->rx_ring_dma + sizeof(gt96100_rd_t) * RX_RING_SIZE;
 	}
-    
+
 	// Allocate the Rx Data Buffers
 	if (gp->rx_buff == NULL) {
 		gp->rx_buff = dmaalloc(PKT_BUF_SZ*RX_RING_SIZE,
@@ -735,7 +735,7 @@ static int __init gt96100_probe1(struct pci_dev *pci, int port_num)
 			goto out2;
 		}
 	}
-    
+
 	dbg(3, "%s: rx_ring=%p, tx_ring=%p\n", __FUNCTION__,
 	    gp->rx_ring, gp->tx_ring);
 
@@ -748,11 +748,11 @@ static int __init gt96100_probe1(struct pci_dev *pci, int port_num)
 			goto out3;
 		}
 	}
-    
+
 	dbg(3, "%s: hash=%p\n", __FUNCTION__, gp->hash_table);
 
 	spin_lock_init(&gp->lock);
-    
+
 	dev->open = gt96100_open;
 	dev->hard_start_xmit = gt96100_tx;
 	dev->stop = gt96100_close;
@@ -812,7 +812,7 @@ reset_tx(struct net_device *dev)
 	}
 	/* Wrap the ring. */
 	gp->tx_ring[i-1].next = cpu_to_dma32(gp->tx_ring_dma);
-    
+
 	// setup only the lowest priority TxCDP reg
 	GT96100ETH_WRITE(gp, GT96100_ETH_CURR_TX_DESC_PTR0, gp->tx_ring_dma);
 	GT96100ETH_WRITE(gp, GT96100_ETH_CURR_TX_DESC_PTR1, 0);
@@ -830,7 +830,7 @@ reset_rx(struct net_device *dev)
 	int i;
 
 	abort(dev, sdcmrAR);
-    
+
 	for (i=0; i<RX_RING_SIZE; i++) {
 		gp->rx_ring[i].next =
 			cpu_to_dma32(gp->rx_ring_dma +
@@ -876,7 +876,7 @@ gt96100_check_tx_consistent(struct gt96100_private *gp)
 
 	diff = diff<0 ? TX_RING_SIZE + diff : diff;
 	diff = gp->tx_count == TX_RING_SIZE ? diff + TX_RING_SIZE : diff;
-    
+
 	return (diff != gp->tx_count);
 }
 
@@ -886,16 +886,16 @@ gt96100_init(struct net_device *dev)
 	struct gt96100_private *gp = netdev_priv(dev);
 	u32 tmp;
 	u16 mii_reg;
-    
+
 	dbg(3, "%s: dev=%p\n", __FUNCTION__, dev);
-	dbg(3, "%s: scs10_lo=%4x, scs10_hi=%4x\n", __FUNCTION__, 
+	dbg(3, "%s: scs10_lo=%4x, scs10_hi=%4x\n", __FUNCTION__,
 	    GT96100_READ(0x8), GT96100_READ(0x10));
 	dbg(3, "%s: scs32_lo=%4x, scs32_hi=%4x\n", __FUNCTION__,
 	    GT96100_READ(0x18), GT96100_READ(0x20));
-    
+
 	// Stop and disable Port
 	hard_stop(dev);
-    
+
 	// Setup CIU Arbiter
 	tmp = GT96100_READ(GT96100_CIU_ARBITER_CONFIG);
 	tmp |= (0x0c << (gp->port_num*2)); // set Ether DMA req priority to hi
@@ -905,7 +905,7 @@ gt96100_init(struct net_device *dev)
 	tmp |= (1<<31);
 #endif
 	GT96100_WRITE(GT96100_CIU_ARBITER_CONFIG, tmp);
-	dbg(3, "%s: CIU Config=%x/%x\n", __FUNCTION__, 
+	dbg(3, "%s: CIU Config=%x/%x\n", __FUNCTION__,
 	    tmp, GT96100_READ(GT96100_CIU_ARBITER_CONFIG));
 
 	// Set routing.
@@ -917,7 +917,7 @@ gt96100_init(struct net_device *dev)
 	tmp = GT96100_READ(GT96100_GPP_CONFIG2);
 	tmp |= 0x7fff << (gp->port_num*16);
 	GT96100_WRITE(GT96100_GPP_CONFIG2, tmp);
-	
+
 	/* Set up MII port pin directions */
 	tmp = GT96100_READ(GT96100_GPP_IO2);
 	tmp |= 0x003d << (gp->port_num*16);
@@ -953,7 +953,7 @@ gt96100_init(struct net_device *dev)
 	mii_reg = read_MII(gp->phy_addr, 0x11); /* int enable register */
 	mii_reg |= 2;  /* enable mii interrupt */
 	write_MII(gp->phy_addr, 0x11, mii_reg);
-	
+
 	dbg(3, "%s: PhyAD=%x\n", __FUNCTION__,
 	    GT96100_READ(GT96100_ETH_PHY_ADDR_REG));
 
@@ -976,12 +976,12 @@ gt96100_init(struct net_device *dev)
 	GT96100ETH_WRITE(gp, GT96100_ETH_SDMA_COMM, sdcmrERD);
 	dbg(3, "%s: SDMA Comm=%x\n", __FUNCTION__,
 	    GT96100ETH_READ(gp, GT96100_ETH_SDMA_COMM));
-    
+
 	// enable this port (set hash size to 1/2K)
 	GT96100ETH_WRITE(gp, GT96100_ETH_PORT_CONFIG, pcrEN | pcrHS);
 	dbg(3, "%s: Port Config=%x\n", __FUNCTION__,
 	    GT96100ETH_READ(gp, GT96100_ETH_PORT_CONFIG));
-    
+
 	/*
 	 * Disable all Type-of-Service queueing. All Rx packets will be
 	 * treated normally and will be sent to the lowest priority
@@ -998,7 +998,7 @@ gt96100_init(struct net_device *dev)
 	GT96100ETH_WRITE(gp, GT96100_ETH_PORT_CONFIG_EXT,
 			 pcxrFCTL | pcxrFCTLen | pcxrFLP |
 			 pcxrPRIOrxOverride | pcxrMIBclrMode);
-    
+
 	dbg(3, "%s: Port Config Ext=%x\n", __FUNCTION__,
 	    GT96100ETH_READ(gp, GT96100_ETH_PORT_CONFIG_EXT));
 
@@ -1018,7 +1018,7 @@ static int
 gt96100_open(struct net_device *dev)
 {
 	int retval;
-    
+
 	dbg(2, "%s: dev=%p\n", __FUNCTION__, dev);
 
 	// Initialize and startup the GT-96100 ethernet port
@@ -1033,7 +1033,7 @@ gt96100_open(struct net_device *dev)
 		err("unable to get IRQ %d\n", dev->irq);
 		return retval;
 	}
-	
+
 	dbg(2, "%s: Initialization done.\n", __FUNCTION__);
 
 	return 0;
@@ -1051,7 +1051,7 @@ gt96100_close(struct net_device *dev)
 	}
 
 	free_irq(dev->irq, dev);
-    
+
 	return 0;
 }
 
@@ -1068,21 +1068,21 @@ gt96100_tx(struct sk_buff *skb, struct net_device *dev)
 	nextIn = gp->tx_next_in;
 
 	dbg(3, "%s: nextIn=%d\n", __FUNCTION__, nextIn);
-    
+
 	if (gp->tx_count >= TX_RING_SIZE) {
 		warn("Tx Ring full, pkt dropped.\n");
 		gp->stats.tx_dropped++;
 		spin_unlock_irqrestore(&gp->lock, flags);
 		return 1;
 	}
-    
+
 	if (!(gp->last_psr & psrLink)) {
 		err("%s: Link down, pkt dropped.\n", __FUNCTION__);
 		gp->stats.tx_dropped++;
 		spin_unlock_irqrestore(&gp->lock, flags);
 		return 1;
 	}
-    
+
 	if (dma32_to_cpu(gp->tx_ring[nextIn].cmdstat) & txOwn) {
 		err("%s: device owns descriptor, pkt dropped.\n", __FUNCTION__);
 		gp->stats.tx_dropped++;
@@ -1091,7 +1091,7 @@ gt96100_tx(struct sk_buff *skb, struct net_device *dev)
 		spin_unlock_irqrestore(&gp->lock, flags);
 		return 1;
 	}
-    
+
 	// Prepare the Descriptor at tx_next_in
 	gp->tx_skbuff[nextIn] = skb;
 	gp->tx_ring[nextIn].byte_cnt = cpu_to_dma16(skb->len);
@@ -1103,7 +1103,7 @@ gt96100_tx(struct sk_buff *skb, struct net_device *dev)
 	gp->tx_ring[nextIn].cmdstat =
 		cpu_to_dma32((u32)(txOwn | txGenCRC | txEI |
 				   txPad | txFirst | txLast));
-    
+
 	dump_tx_desc(4, dev, nextIn);
 	dump_skb(4, dev, skb);
 
@@ -1120,7 +1120,7 @@ gt96100_tx(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 		dbg(2, "Tx Ring now full, queue stopped.\n");
 	}
-    
+
 	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&gp->lock, flags);
 
@@ -1136,7 +1136,7 @@ gt96100_rx(struct net_device *dev, u32 status)
 	int pkt_len, nextOut, cdp;
 	gt96100_rd_t *rd;
 	u32 cmdstat;
-    
+
 	dbg(3, "%s: dev=%p, status=%x\n", __FUNCTION__, dev, status);
 
 	cdp = (GT96100ETH_READ(gp, GT96100_ETH_1ST_RX_DESC_PTR0)
@@ -1145,13 +1145,13 @@ gt96100_rx(struct net_device *dev, u32 status)
 	// Continue until we reach 1st descriptor pointer
 	for (nextOut = gp->rx_next_out; nextOut != cdp;
 	     nextOut = (nextOut + 1) % RX_RING_SIZE) {
-	
+
 		if (--gp->intr_work_done == 0)
 			break;
 
 		rd = &gp->rx_ring[nextOut];
 		cmdstat = dma32_to_cpu(rd->cmdstat);
-	
+
 		dbg(4, "%s: Rx desc cmdstat=%x, nextOut=%d\n", __FUNCTION__,
 		    cmdstat, nextOut);
 
@@ -1202,9 +1202,9 @@ gt96100_rx(struct net_device *dev, u32 status)
 			// continue to drop every descriptor of this packet
 			continue;
 		}
-	
+
 		pkt_len = dma16_to_cpu(rd->byte_cnt);
-	
+
 		/* Create new skb. */
 		skb = dev_alloc_skb(pkt_len+2);
 		if (skb == NULL) {
@@ -1220,7 +1220,7 @@ gt96100_rx(struct net_device *dev, u32 status)
 		       &gp->rx_buff[nextOut*PKT_BUF_SZ], pkt_len);
 		skb->protocol = eth_type_trans(skb, dev);
 		dump_skb(4, dev, skb);
-	
+
 		netif_rx(skb);        /* pass the packet to upper layers */
 		dev->last_rx = jiffies;
 
@@ -1228,7 +1228,7 @@ gt96100_rx(struct net_device *dev, u32 status)
 		cmdstat |= (u32)rxOwn;
 		rd->cmdstat = cpu_to_dma32(cmdstat);
 	}
-    
+
 	if (nextOut == gp->rx_next_out)
 		dbg(3, "%s: RxCDP did not increment?\n", __FUNCTION__);
 
@@ -1247,20 +1247,20 @@ gt96100_tx_complete(struct net_device *dev, u32 status)
 
 	cdp = (GT96100ETH_READ(gp, GT96100_ETH_CURR_TX_DESC_PTR0)
 	       - gp->tx_ring_dma) / sizeof(gt96100_td_t);
-    
+
 	// Continue until we reach the current descriptor pointer
 	for (nextOut = gp->tx_next_out; nextOut != cdp;
 	     nextOut = (nextOut + 1) % TX_RING_SIZE) {
-	
+
 		if (--gp->intr_work_done == 0)
 			break;
 
 		td = &gp->tx_ring[nextOut];
 		cmdstat = dma32_to_cpu(td->cmdstat);
-	
+
 		dbg(3, "%s: Tx desc cmdstat=%x, nextOut=%d\n", __FUNCTION__,
 		    cmdstat, nextOut);
-	
+
 		if (cmdstat & (u32)txOwn) {
 			/*
 			 * DMA is not finished writing descriptor???
@@ -1269,7 +1269,7 @@ gt96100_tx_complete(struct net_device *dev, u32 status)
 			 */
 			break;
 		}
-	
+
 		// increment Tx error stats
 		if (cmdstat & (u32)txErrorSummary) {
 			dbg(2, "%s: Tx error, cmdstat = %x\n", __FUNCTION__,
@@ -1282,7 +1282,7 @@ gt96100_tx_complete(struct net_device *dev, u32 status)
 			if (cmdstat & (u32)txLateCollision)
 				gp->stats.tx_window_errors++;
 		}
-	
+
 		if (cmdstat & (u32)txCollision)
 			gp->stats.collisions +=
 				(u32)((cmdstat & txReTxCntMask) >>
@@ -1297,10 +1297,10 @@ gt96100_tx_complete(struct net_device *dev, u32 status)
 				    __FUNCTION__);
 			}
 		}
-	
+
 		// decrement tx ring buffer count
 		if (gp->tx_count) gp->tx_count--;
-	
+
 		// free the skb
 		if (gp->tx_skbuff[nextOut]) {
 			dbg(3, "%s: good Tx, skb=%p\n", __FUNCTION__,
@@ -1317,7 +1317,7 @@ gt96100_tx_complete(struct net_device *dev, u32 status)
 	if (gt96100_check_tx_consistent(gp)) {
 		err("%s: Tx queue inconsistent!\n", __FUNCTION__);
 	}
-    
+
 	if ((status & icrTxEndLow) && gp->tx_count != 0) {
 		// we must restart the DMA
 		dbg(3, "%s: Restarting Tx DMA\n", __FUNCTION__);
@@ -1374,7 +1374,7 @@ gt96100_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				    psr & psrTxLow ? "running":"stopped",
 				    psr & psrTxHigh ? "running":"stopped",
 				    psr & psrTxInProg ? "on":"off");
-		
+
 				if ((psr & psrLink) && !gp->tx_full &&
 				    netif_queue_stopped(dev)) {
 					dbg(0, "%s: Link up, waking queue.\n",
@@ -1393,21 +1393,21 @@ gt96100_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			if (--gp->intr_work_done == 0)
 				break;
 		}
-	
+
 		if (status & (icrTxBufferLow | icrTxEndLow))
 			gt96100_tx_complete(dev, status);
 
 		if (status & (icrRxBuffer | icrRxError)) {
 			gt96100_rx(dev, status);
 		}
-	
+
 		// Now check TX errors (RX errors were handled in gt96100_rx)
 		if (status & icrTxErrorLow) {
 			err("%s: Tx resource error\n", __FUNCTION__);
 			if (--gp->intr_work_done == 0)
 				break;
 		}
-	
+
 		if (status & icrTxUdr) {
 			err("%s: Tx underrun error\n", __FUNCTION__);
 			if (--gp->intr_work_done == 0)
@@ -1420,7 +1420,7 @@ gt96100_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		GT96100ETH_WRITE(gp, GT96100_ETH_INT_CAUSE, 0);
 		dbg(3, "%s: hit max work\n", __FUNCTION__);
 	}
-    
+
 	dbg(3, "%s: exit, icr=%x\n", __FUNCTION__,
 	    GT96100ETH_READ(gp, GT96100_ETH_INT_CAUSE));
 
@@ -1434,9 +1434,9 @@ gt96100_tx_timeout(struct net_device *dev)
 {
 	struct gt96100_private *gp = netdev_priv(dev);
 	unsigned long flags;
-    
+
 	spin_lock_irqsave(&gp->lock, flags);
-    
+
 	if (!(gp->last_psr & psrLink)) {
 		err("tx_timeout: link down.\n");
 		spin_unlock_irqrestore(&gp->lock, flags);
@@ -1448,7 +1448,7 @@ gt96100_tx_timeout(struct net_device *dev)
 		spin_unlock_irqrestore(&gp->lock, flags);
 		reset_tx(dev);
 		enable_ether_irq(dev);
-	
+
 		netif_wake_queue(dev);
 	}
 }
@@ -1460,7 +1460,7 @@ gt96100_set_rx_mode(struct net_device *dev)
 	struct gt96100_private *gp = netdev_priv(dev);
 	unsigned long flags;
 	//struct dev_mc_list *mcptr;
-    
+
 	dbg(3, "%s: dev=%p, flags=%x\n", __FUNCTION__, dev, dev->flags);
 
 	// stop the Receiver DMA
@@ -1491,7 +1491,7 @@ gt96100_set_rx_mode(struct net_device *dev)
 		}
 	}
 #endif
-    
+
 	// restart Rx DMA
 	GT96100ETH_WRITE(gp, GT96100_ETH_SDMA_COMM, sdcmrERD);
 

@@ -46,7 +46,7 @@ struct transmit_ring {
 
 /* The host<->Typhoon ring index structure
  * This indicates the current positions in the rings
- * 
+ *
  * All values must be in little endian format for the 3XP
  *
  * rxHiCleared:   entry we've cleared to in the Hi receive ring
@@ -131,7 +131,7 @@ struct typhoon_interface {
  *
  * A packet is described by a packet descriptor, followed by option descriptors,
  * if any, then one or more fragment descriptors.
- * 
+ *
  * Packet descriptor:
  * flags:	Descriptor type
  * len:i	zero, or length of this packet

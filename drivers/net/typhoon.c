@@ -86,7 +86,7 @@ static const int multicast_filter_limit = 32;
 #define RESPONSE_RING_SIZE	(RESPONSE_ENTRIES * sizeof(struct resp_desc))
 
 /* The 3XP will preload and remove 64 entries from the free buffer
- * list, and we need one entry to keep the ring from wrapping, so 
+ * list, and we need one entry to keep the ring from wrapping, so
  * to keep this a power of two, we use 128 entries.
  */
 #define RXFREE_ENTRIES		128
@@ -269,7 +269,7 @@ struct rxbuff_ent {
 
 struct typhoon {
 	/* Tx cache line section */
-	struct transmit_ring 	txLoRing	____cacheline_aligned;	
+	struct transmit_ring 	txLoRing	____cacheline_aligned;
 	struct pci_dev *	tx_pdev;
 	void __iomem		*tx_ioaddr;
 	u32			txlo_dma_addr;
@@ -1071,7 +1071,7 @@ typhoon_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 		} else {
 			u32 sleep_ver = xp_resp[0].parm2;
 			snprintf(info->fw_version, 32, "%02x.%03x.%03x",
-				 sleep_ver >> 24, (sleep_ver >> 12) & 0xfff, 
+				 sleep_ver >> 24, (sleep_ver >> 12) & 0xfff,
 				 sleep_ver & 0xfff);
 		}
 	}
@@ -2152,7 +2152,7 @@ out_sleep:
 		goto out;
 	}
 
-	if(typhoon_sleep(tp, PCI_D3hot, 0) < 0) 
+	if(typhoon_sleep(tp, PCI_D3hot, 0) < 0)
 		printk(KERN_ERR "%s: unable to go back to sleep\n", dev->name);
 
 out:
@@ -2600,7 +2600,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			"(%u:%04x)\n", dev->name, xp_resp[0].numDesc,
 			le32_to_cpu(xp_resp[0].parm2));
 	}
-		
+
 	return 0;
 
 error_out_reset:
