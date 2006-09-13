@@ -372,6 +372,7 @@ int device_add(struct device *dev)
 {
 	struct device *parent = NULL;
 	char *class_name = NULL;
+	struct class_interface *class_intf;
 	int error = -EINVAL;
 
 	dev = get_device(dev);
@@ -451,9 +452,14 @@ int device_add(struct device *dev)
 		klist_add_tail(&dev->knode_parent, &parent->klist_children);
 
 	if (dev->class) {
-		/* tie the class to the device */
 		down(&dev->class->sem);
+		/* tie the class to the device */
 		list_add_tail(&dev->node, &dev->class->devices);
+
+		/* notify any interfaces that the device is here */
+		list_for_each_entry(class_intf, &dev->class->interfaces, node)
+			if (class_intf->add_dev)
+				class_intf->add_dev(dev, class_intf);
 		up(&dev->class->sem);
 	}
 
@@ -548,6 +554,7 @@ void device_del(struct device * dev)
 {
 	struct device * parent = dev->parent;
 	char *class_name = NULL;
+	struct class_interface *class_intf;
 
 	if (parent)
 		klist_del(&dev->knode_parent);
@@ -563,6 +570,11 @@ void device_del(struct device * dev)
 		}
 		kfree(class_name);
 		down(&dev->class->sem);
+		/* notify any interfaces that the device is now gone */
+		list_for_each_entry(class_intf, &dev->class->interfaces, node)
+			if (class_intf->remove_dev)
+				class_intf->remove_dev(dev, class_intf);
+		/* remove the device from the class list */
 		list_del_init(&dev->node);
 		up(&dev->class->sem);
 	}

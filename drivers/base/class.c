@@ -842,6 +842,7 @@ int class_interface_register(struct class_interface *class_intf)
 {
 	struct class *parent;
 	struct class_device *class_dev;
+	struct device *dev;
 
 	if (!class_intf || !class_intf->class)
 		return -ENODEV;
@@ -856,6 +857,10 @@ int class_interface_register(struct class_interface *class_intf)
 		list_for_each_entry(class_dev, &parent->children, node)
 			class_intf->add(class_dev, class_intf);
 	}
+	if (class_intf->add_dev) {
+		list_for_each_entry(dev, &parent->devices, node)
+			class_intf->add_dev(dev, class_intf);
+	}
 	up(&parent->sem);
 
 	return 0;
@@ -865,6 +870,7 @@ void class_interface_unregister(struct class_interface *class_intf)
 {
 	struct class * parent = class_intf->class;
 	struct class_device *class_dev;
+	struct device *dev;
 
 	if (!parent)
 		return;
@@ -874,6 +880,10 @@ void class_interface_unregister(struct class_interface *class_intf)
 	if (class_intf->remove) {
 		list_for_each_entry(class_dev, &parent->children, node)
 			class_intf->remove(class_dev, class_intf);
+	}
+	if (class_intf->remove_dev) {
+		list_for_each_entry(dev, &parent->devices, node)
+			class_intf->remove_dev(dev, class_intf);
 	}
 	up(&parent->sem);
 

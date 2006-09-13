@@ -278,6 +278,8 @@ struct class_interface {
 
 	int (*add)	(struct class_device *, struct class_interface *);
 	void (*remove)	(struct class_device *, struct class_interface *);
+	int (*add_dev)		(struct device *, struct class_interface *);
+	void (*remove_dev)	(struct device *, struct class_interface *);
 };
 
 extern int class_interface_register(struct class_interface *);
