@@ -43,6 +43,7 @@
 #include <asm/cache.h>
 #include <asm/compat.h>
 #include <asm/mmu.h>
+#include <asm/hvcall.h>
 #endif
 
 #define DEFINE(sym, val) \
