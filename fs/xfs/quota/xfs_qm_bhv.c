@@ -203,7 +203,7 @@ xfs_qm_statvfs(
 	if (error || !vnode)
 		return error;
 
-	mp = XFS_BHVTOM(bhv);
+	mp = xfs_vfstom(bhvtovfs(bhv));
 	ip = xfs_vtoi(vnode);
 
 	if (!(ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT))

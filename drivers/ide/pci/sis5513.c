@@ -86,6 +86,8 @@ static const struct {
 	u8 chipset_family;
 	u8 flags;
 } SiSHostChipInfo[] = {
+	{ "SiS968",	PCI_DEVICE_ID_SI_968,	ATA_133  },
+	{ "SiS966",	PCI_DEVICE_ID_SI_966,	ATA_133  },
 	{ "SiS965",	PCI_DEVICE_ID_SI_965,	ATA_133  },
 	{ "SiS745",	PCI_DEVICE_ID_SI_745,	ATA_100  },
 	{ "SiS735",	PCI_DEVICE_ID_SI_735,	ATA_100  },

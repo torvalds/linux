@@ -264,13 +264,18 @@ xfs_read(
 					dmflags, &locktype);
 		if (ret) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-			goto unlock_mutex;
+			if (unlikely(ioflags & IO_ISDIRECT))
+				mutex_unlock(&inode->i_mutex);
+			return ret;
 		}
 	}
 
 	if (unlikely((ioflags & IO_ISDIRECT) && VN_CACHED(vp)))
 		bhv_vop_flushinval_pages(vp, ctooff(offtoct(*offset)),
 						-1, FI_REMAPF_LOCKED);
+
+	if (unlikely(ioflags & IO_ISDIRECT))
+		mutex_unlock(&inode->i_mutex);
 
 	xfs_rw_enter_trace(XFS_READ_ENTER, &ip->i_iocore,
 				(void *)iovp, segs, *offset, ioflags);
@@ -281,10 +286,6 @@ xfs_read(
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-
-unlock_mutex:
-	if (unlikely(ioflags & IO_ISDIRECT))
-		mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 
@@ -390,6 +391,8 @@ xfs_splice_write(
 	xfs_inode_t		*ip = XFS_BHVTOI(bdp);
 	xfs_mount_t		*mp = ip->i_mount;
 	ssize_t			ret;
+	struct inode		*inode = outfilp->f_mapping->host;
+	xfs_fsize_t		isize;
 
 	XFS_STATS_INC(xs_write_calls);
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
@@ -416,6 +419,20 @@ xfs_splice_write(
 	if (ret > 0)
 		XFS_STATS_ADD(xs_write_bytes, ret);
 
+	isize = i_size_read(inode);
+	if (unlikely(ret < 0 && ret != -EFAULT && *ppos > isize))
+		*ppos = isize;
+
+	if (*ppos > ip->i_d.di_size) {
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		if (*ppos > ip->i_d.di_size) {
+			ip->i_d.di_size = *ppos;
+			i_size_write(inode, *ppos);
+			ip->i_update_core = 1;
+			ip->i_update_size = 1;
+		}
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	}
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 	return ret;
 }

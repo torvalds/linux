@@ -201,7 +201,7 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 
 static inline int __raw_read_trylock(raw_rwlock_t *rw)
 {
-	unsigned long tmp tmp2 = 1;
+	unsigned long tmp, tmp2 = 1;
 
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%2]\n"

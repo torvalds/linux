@@ -4,13 +4,7 @@
  *
  * Copyright (C) 1997 Russell King
  *	     (C) 2003 Simtec Electronics
- *
- * Modifications:
- *  06-Dec-1997	RMK	Created.
- *  02-Sep-2003 BJD	Modified for S3C2410
- *  10-Mar-2005 LCVR	Changed S3C2410_VA to S3C24XX_VA
- *  13-Oct-2005 BJD	Fixed problems with LDRH/STRH offset range
- */
+*/
 
 #ifndef __ASM_ARM_ARCH_IO_H
 #define __ASM_ARM_ARCH_IO_H

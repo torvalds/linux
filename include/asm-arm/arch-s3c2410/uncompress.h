@@ -8,15 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Changelog:
- *  22-May-2003 BJD  Created
- *  08-Sep-2003 BJD  Moved to linux v2.6
- *  12-Mar-2004 BJD  Updated header protection
- *  12-Oct-2004 BJD  Take account of debug uart configuration
- *  15-Nov-2004 BJD  Fixed uart configuration
- *  22-Feb-2005 BJD  Added watchdog to uncompress
- *  04-Apr-2005 LCVR Added support to S3C2400 (no cpuid at GSTATUS1)
 */
 
 #ifndef __ASM_ARCH_UNCOMPRESS_H
