@@ -22,8 +22,6 @@
 #endif
 #include <linux/types.h>
 
-#define HAVE_V4L2 1
-
 /*
  * Common stuff for both V4L1 and V4L2
  * Moved from videodev.h

@@ -6,43 +6,43 @@ comment "DVB-S (satellite) frontends"
 
 config DVB_STV0299
 	tristate "ST STV0299 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_CX24110
 	tristate "Conexant CX24110 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_CX24123
 	tristate "Conexant CX24123 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_TDA8083
 	tristate "Philips TDA8083 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_MT312
 	tristate "Zarlink VP310/MT312 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_VES1X93
 	tristate "VLSI VES1893 or VES1993 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_S5H1420
 	tristate "Samsung S5H1420 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
@@ -51,7 +51,7 @@ comment "DVB-T (terrestrial) frontends"
 
 config DVB_SP8870
 	tristate "Spase sp8870 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	select FW_LOADER
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
@@ -63,7 +63,7 @@ config DVB_SP8870
 
 config DVB_SP887X
 	tristate "Spase sp887x based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	select FW_LOADER
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
@@ -75,25 +75,25 @@ config DVB_SP887X
 
 config DVB_CX22700
 	tristate "Conexant CX22700 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_CX22702
 	tristate "Conexant cx22702 demodulator (OFDM)"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_L64781
 	tristate "LSI L64781"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_TDA1004X
 	tristate "Philips TDA10045H/TDA10046H based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	select FW_LOADER
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
@@ -106,32 +106,32 @@ config DVB_TDA1004X
 
 config DVB_NXT6000
 	tristate "NxtWave Communications NXT6000 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_MT352
 	tristate "Zarlink MT352 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_ZL10353
 	tristate "Zarlink ZL10353 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_DIB3000MB
 	tristate "DiBcom 3000M-B"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
 
 config DVB_DIB3000MC
 	tristate "DiBcom 3000P/M-C"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
@@ -141,19 +141,19 @@ comment "DVB-C (cable) frontends"
 
 config DVB_VES1820
 	tristate "VLSI VES1820 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-C tuner module. Say Y when you want to support this frontend.
 
 config DVB_TDA10021
 	tristate "Philips TDA10021 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-C tuner module. Say Y when you want to support this frontend.
 
 config DVB_STV0297
 	tristate "ST STV0297 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  A DVB-C tuner module. Say Y when you want to support this frontend.
 
@@ -162,7 +162,7 @@ comment "ATSC (North American/Korean Terrestrial/Cable DTV) frontends"
 
 config DVB_NXT200X
 	tristate "NxtWave Communications NXT2002/NXT2004 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	select FW_LOADER
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
@@ -176,7 +176,7 @@ config DVB_NXT200X
 
 config DVB_OR51211
 	tristate "Oren OR51211 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	select FW_LOADER
 	help
 	  An ATSC 8VSB tuner module. Say Y when you want to support this frontend.
@@ -188,7 +188,7 @@ config DVB_OR51211
 
 config DVB_OR51132
 	tristate "Oren OR51132 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	select FW_LOADER
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
@@ -203,7 +203,7 @@ config DVB_OR51132
 
 config DVB_BCM3510
 	tristate "Broadcom BCM3510"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	select FW_LOADER
 	help
 	  An ATSC 8VSB/16VSB and QAM64/256 tuner module. Say Y when you want to
@@ -211,7 +211,7 @@ config DVB_BCM3510
 
 config DVB_LGDT330X
 	tristate "LG Electronics LGDT3302/LGDT3303 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
@@ -220,15 +220,19 @@ config DVB_LGDT330X
 comment "Miscellaneous devices"
 	depends on DVB_CORE
 
+config DVB_PLL
+	tristate
+	depends on DVB_CORE && I2C
+
 config DVB_LNBP21
 	tristate "LNBP21 SEC controller"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  An SEC control chip.
 
 config DVB_ISL6421
 	tristate "ISL6421 SEC controller"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	help
 	  An SEC control chip.
 
