@@ -2262,7 +2262,7 @@ pcnet32_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	struct net_device *dev = dev_id;
 	struct pcnet32_private *lp;
 	unsigned long ioaddr;
-	u16 csr0, rap;
+	u16 csr0;
 	int boguscnt = max_interrupt_work;
 	int must_restart;
 
@@ -2278,7 +2278,6 @@ pcnet32_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	spin_lock(&lp->lock);
 
-	rap = lp->a.read_rap(ioaddr);
 	while ((csr0 = lp->a.read_csr(ioaddr, 0)) & 0x8f00 && --boguscnt >= 0) {
 		if (csr0 == 0xffff) {
 			break;	/* PCMCIA remove happened */
@@ -2434,7 +2433,6 @@ pcnet32_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	/* Set interrupt enable. */
 	lp->a.write_csr(ioaddr, 0, 0x0040);
-	lp->a.write_rap(ioaddr, rap);
 
 	if (netif_msg_intr(lp))
 		printk(KERN_DEBUG "%s: exiting interrupt, csr0=%#4.4x.\n",
@@ -2647,13 +2645,10 @@ static struct net_device_stats *pcnet32_get_stats(struct net_device *dev)
 {
 	struct pcnet32_private *lp = dev->priv;
 	unsigned long ioaddr = dev->base_addr;
-	u16 saved_addr;
 	unsigned long flags;
 
 	spin_lock_irqsave(&lp->lock, flags);
-	saved_addr = lp->a.read_rap(ioaddr);
 	lp->stats.rx_missed_errors = lp->a.read_csr(ioaddr, 112);
-	lp->a.write_rap(ioaddr, saved_addr);
 	spin_unlock_irqrestore(&lp->lock, flags);
 
 	return &lp->stats;
