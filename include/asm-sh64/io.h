@@ -123,6 +123,13 @@ void insw(unsigned long port, void *addr, unsigned long count);
 void outsl(unsigned long port, const void *addr, unsigned long count);
 void insl(unsigned long port, void *addr, unsigned long count);
 
+#define __raw_readb		readb
+#define __raw_readw		readw
+#define __raw_readl		readl
+#define __raw_writeb		writeb
+#define __raw_writew		writew
+#define __raw_writel		writel
+
 void memcpy_toio(void __iomem *to, const void *from, long count);
 void memcpy_fromio(void *to, void __iomem *from, long count);
 
