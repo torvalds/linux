@@ -75,6 +75,8 @@ static void ocfs2_super_bast_func(void *opaque,
 				  int level);
 static void ocfs2_rename_bast_func(void *opaque,
 				   int level);
+static struct ocfs2_super *ocfs2_get_dentry_osb(struct ocfs2_lock_res *lockres);
+static struct ocfs2_super *ocfs2_get_inode_osb(struct ocfs2_lock_res *lockres);
 
 /*
  * Return value from ocfs2_convert_worker_t functions.
@@ -116,6 +118,11 @@ static void ocfs2_dentry_post_unlock(struct ocfs2_super *osb,
  * These fine tune the behavior of the generic dlmglue locking infrastructure.
  */
 struct ocfs2_lock_res_ops {
+	/*
+	 * Translate an ocfs2_lock_res * into an ocfs2_super *. Define
+	 * this callback if ->l_priv is not an ocfs2_super pointer
+	 */
+	struct ocfs2_super * (*get_osb)(struct ocfs2_lock_res *);
 	void (*bast)(void *, int);
 	int  (*unblock)(struct ocfs2_lock_res *, struct ocfs2_unblock_ctl *);
 	void (*post_unlock)(struct ocfs2_super *, struct ocfs2_lock_res *);
@@ -144,18 +151,21 @@ static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
 				      ocfs2_convert_worker_t *worker);
 
 static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
+	.get_osb	= ocfs2_get_inode_osb,
 	.bast		= ocfs2_inode_bast_func,
 	.unblock	= ocfs2_unblock_inode_lock,
 	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
+	.get_osb	= ocfs2_get_inode_osb,
 	.bast		= ocfs2_inode_bast_func,
 	.unblock	= ocfs2_unblock_meta,
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_data_lops = {
+	.get_osb	= ocfs2_get_inode_osb,
 	.bast		= ocfs2_inode_bast_func,
 	.unblock	= ocfs2_unblock_data,
 	.flags		= 0,
@@ -174,6 +184,7 @@ static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
 };
 
 static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
+	.get_osb	= ocfs2_get_dentry_osb,
 	.bast		= ocfs2_dentry_bast_func,
 	.unblock	= ocfs2_unblock_dentry_lock,
 	.post_unlock	= ocfs2_dentry_post_unlock,
@@ -217,6 +228,14 @@ static inline struct ocfs2_dentry_lock *ocfs2_lock_res_dl(struct ocfs2_lock_res 
 	BUG_ON(lockres->l_type != OCFS2_LOCK_TYPE_DENTRY);
 
 	return (struct ocfs2_dentry_lock *)lockres->l_priv;
+}
+
+static inline struct ocfs2_super *ocfs2_get_lockres_osb(struct ocfs2_lock_res *lockres)
+{
+	if (lockres->l_ops->get_osb)
+		return lockres->l_ops->get_osb(lockres);
+
+	return (struct ocfs2_super *)lockres->l_priv;
 }
 
 static int ocfs2_lock_create(struct ocfs2_super *osb,
@@ -352,6 +371,13 @@ void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 	ocfs2_lock_res_init_common(OCFS2_SB(inode->i_sb), res, type, ops, inode);
 }
 
+static struct ocfs2_super *ocfs2_get_inode_osb(struct ocfs2_lock_res *lockres)
+{
+	struct inode *inode = ocfs2_lock_res_inode(lockres);
+
+	return OCFS2_SB(inode->i_sb);
+}
+
 static __u64 ocfs2_get_dentry_lock_ino(struct ocfs2_lock_res *lockres)
 {
 	__be64 inode_blkno_be;
@@ -360,6 +386,13 @@ static __u64 ocfs2_get_dentry_lock_ino(struct ocfs2_lock_res *lockres)
 	       sizeof(__be64));
 
 	return be64_to_cpu(inode_blkno_be);
+}
+
+static struct ocfs2_super *ocfs2_get_dentry_osb(struct ocfs2_lock_res *lockres)
+{
+	struct ocfs2_dentry_lock *dl = lockres->l_priv;
+
+	return OCFS2_SB(dl->dl_inode->i_sb);
 }
 
 void ocfs2_dentry_lock_res_init(struct ocfs2_dentry_lock *dl,
