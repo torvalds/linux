@@ -85,6 +85,10 @@ config DMI
 	bool
 	default y
 
+config AUDIT_ARCH
+	bool
+	default y
+
 source "init/Kconfig"
 
 

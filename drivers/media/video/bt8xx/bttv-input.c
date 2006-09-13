@@ -303,6 +303,7 @@ int bttv_input_init(struct bttv *btv)
 		ir->mask_keyup   = 0x010000;
 		ir->polling      = 50; // ms
 		break;
+	case BTTV_BOARD_PV_M4900:
 	case BTTV_BOARD_PV_BT878P_9B:
 	case BTTV_BOARD_PV_BT878P_PLUS:
 		ir_codes         = ir_codes_pixelview;

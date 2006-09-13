@@ -14,7 +14,7 @@
 
 #include <asm/types.h>
 
-static __inline__ __const__ __u32 ___arch__swab32(__u32 x)
+static inline __attribute_const__ __u32 ___arch__swab32(__u32 x)
 {
 	__asm__("byterev	%0, %0\n\t"
 		"shari		%0, 32, %0"
@@ -23,7 +23,7 @@ static __inline__ __const__ __u32 ___arch__swab32(__u32 x)
 	return x;
 }
 
-static __inline__ __const__ __u16 ___arch__swab16(__u16 x)
+static inline __attribute_const__ __u16 ___arch__swab16(__u16 x)
 {
 	__asm__("byterev	%0, %0\n\t"
 		"shari		%0, 48, %0"

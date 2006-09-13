@@ -34,6 +34,10 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config AUDIT_ARCH
+	bool
+	default y
+
 choice
 	prompt "Kernel page size"
 	default SPARC64_PAGE_SIZE_8KB

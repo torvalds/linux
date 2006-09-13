@@ -53,7 +53,7 @@ config VIDEO_V4L1_COMPAT
 	  If you are unsure as to whether this is required, answer Y.
 
 config VIDEO_V4L2
-	tristate
+	bool
 	default y
 
 source "drivers/media/video/Kconfig"

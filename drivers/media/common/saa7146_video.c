@@ -1190,6 +1190,7 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 		}
 		return err;
 	}
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case VIDIOCGMBUF:
 	{
 		struct video_mbuf *mbuf = arg;
@@ -1218,6 +1219,7 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 		mutex_unlock(&q->lock);
 		return 0;
 	}
+#endif
 	default:
 		return v4l_compat_translate_ioctl(inode,file,cmd,arg,
 						  saa7146_video_do_ioctl);

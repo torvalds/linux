@@ -30,8 +30,10 @@ int audit_classify_syscall(int abi, unsigned syscall)
 		return 2;
 	case __NR_openat:
 		return 3;
+#ifdef __NR_socketcall
 	case __NR_socketcall:
 		return 4;
+#endif
 	case __NR_execve:
 		return 5;
 	default:
