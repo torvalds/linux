@@ -41,9 +41,15 @@ ifndef KBUILD_VERBOSE
   KBUILD_VERBOSE = 0
 endif
 
-# Call checker as part of compilation of C files
-# Use 'make C=1' to enable checking (sparse, by default)
-# Override with 'make C=1 CHECK=checker_executable CHECKFLAGS=....'
+# Call a source code checker (by default, "sparse") as part of the
+# C compilation.
+#
+# Use 'make C=1' to enable checking of only re-compiled files.
+# Use 'make C=2' to enable checking of *all* source files, regardless
+# of whether they are re-compiled or not.
+#
+# See the file "Documentation/sparse.txt" for more details, including
+# where to get the "sparse" utility.
 
 ifdef C
   ifeq ("$(origin C)", "command line")
