@@ -135,6 +135,11 @@ struct ocfs2_lock_res_ops {
  */
 #define LOCK_TYPE_REQUIRES_REFRESH 0x1
 
+/*
+ * Indicate that a lock type makes use of the lock value block.
+ */
+#define LOCK_TYPE_USES_LVB		0x2
+
 typedef int (ocfs2_convert_worker_t)(struct ocfs2_lock_res *, int);
 static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
 				      struct ocfs2_lock_res *lockres,
@@ -150,7 +155,7 @@ static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
 static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
 	.unblock	= ocfs2_unblock_meta,
-	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
+	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_data_lops = {
@@ -870,6 +875,9 @@ static int ocfs2_cluster_lock(struct ocfs2_super *osb,
 
 	ocfs2_init_mask_waiter(&mw);
 
+	if (lockres->l_ops->flags & LOCK_TYPE_USES_LVB)
+		lkm_flags |= LKM_VALBLK;
+
 again:
 	wait = 0;
 
@@ -937,7 +945,7 @@ again:
 		status = dlmlock(osb->dlm,
 				 level,
 				 &lockres->l_lksb,
-				 lkm_flags|LKM_CONVERT|LKM_VALBLK,
+				 lkm_flags|LKM_CONVERT,
 				 lockres->l_name,
 				 OCFS2_LOCK_ID_MAX_LEN - 1,
 				 ocfs2_locking_ast,
@@ -2212,10 +2220,14 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 {
 	enum dlm_status status;
 	unsigned long flags;
+	int lkm_flags = 0;
 
 	/* We didn't get anywhere near actually using this lockres. */
 	if (!(lockres->l_flags & OCFS2_LOCK_INITIALIZED))
 		goto out;
+
+	if (lockres->l_ops->flags & LOCK_TYPE_USES_LVB)
+		lkm_flags |= LKM_VALBLK;
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
 
@@ -2266,7 +2278,7 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 
 	mlog(0, "lock %s\n", lockres->l_name);
 
-	status = dlmunlock(osb->dlm, &lockres->l_lksb, LKM_VALBLK,
+	status = dlmunlock(osb->dlm, &lockres->l_lksb, lkm_flags,
 			   ocfs2_unlock_ast, lockres);
 	if (status != DLM_NORMAL) {
 		ocfs2_log_dlm_error("dlmunlock", status, lockres);
