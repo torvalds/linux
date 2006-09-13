@@ -464,8 +464,10 @@ static int serial_read_proc (char *page, char **start, off_t off, int count, int
 		length += sprintf (page+length, " path:%s", tmp);
 			
 		length += sprintf (page+length, "\n");
-		if ((length + begin) > (off + count))
+		if ((length + begin) > (off + count)) {
+			usb_serial_put(serial);
 			goto done;
+		}
 		if ((length + begin) < off) {
 			begin += length;
 			length = 0;

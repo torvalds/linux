@@ -810,12 +810,9 @@ static int usb_cleanup(struct yealink_dev *yld, int err)
 	if (yld == NULL)
 		return err;
 
-        if (yld->urb_irq) {
-		usb_kill_urb(yld->urb_irq);
-		usb_free_urb(yld->urb_irq);
-	}
-        if (yld->urb_ctl)
-		usb_free_urb(yld->urb_ctl);
+	usb_kill_urb(yld->urb_irq);	/* parameter validation in core/urb */
+	usb_kill_urb(yld->urb_ctl);	/* parameter validation in core/urb */
+
         if (yld->idev) {
 		if (err)
 			input_free_device(yld->idev);
@@ -831,6 +828,9 @@ static int usb_cleanup(struct yealink_dev *yld, int err)
 	if (yld->irq_data)
 		usb_buffer_free(yld->udev, USB_PKT_LEN,
 				yld->irq_data, yld->irq_dma);
+
+	usb_free_urb(yld->urb_irq);	/* parameter validation in core/urb */
+	usb_free_urb(yld->urb_ctl);	/* parameter validation in core/urb */
 	kfree(yld);
 	return err;
 }
