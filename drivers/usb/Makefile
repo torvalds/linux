@@ -14,6 +14,7 @@ obj-$(CONFIG_USB_ISP116X_HCD)	+= host/
 obj-$(CONFIG_USB_OHCI_HCD)	+= host/
 obj-$(CONFIG_USB_UHCI_HCD)	+= host/
 obj-$(CONFIG_USB_SL811_HCD)	+= host/
+obj-$(CONFIG_USB_U132_HCD)	+= host/
 obj-$(CONFIG_ETRAX_USB_HOST)	+= host/
 obj-$(CONFIG_USB_OHCI_AT91)	+= host/
 
