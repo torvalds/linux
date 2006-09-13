@@ -7,7 +7,6 @@
 #define LINUX_ATMDEV_H
 
 
-#include <linux/device.h>
 #include <linux/atmapi.h>
 #include <linux/atm.h>
 #include <linux/atmioc.h>
@@ -210,6 +209,7 @@ struct atm_cirange {
 
 #ifdef __KERNEL__
 
+#include <linux/device.h>
 #include <linux/wait.h> /* wait_queue_head_t */
 #include <linux/time.h> /* struct timeval */
 #include <linux/net.h>

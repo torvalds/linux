@@ -117,6 +117,8 @@ struct eth_dev {
 	struct usb_ep		*in_ep, *out_ep, *status_ep;
 	const struct usb_endpoint_descriptor
 				*in, *out, *status;
+
+	spinlock_t		req_lock;
 	struct list_head	tx_reqs, rx_reqs;
 
 	struct net_device	*net;
@@ -1066,21 +1068,31 @@ static void eth_reset_config (struct eth_dev *dev)
 	 */
 	if (dev->in) {
 		usb_ep_disable (dev->in_ep);
+		spin_lock(&dev->req_lock);
 		while (likely (!list_empty (&dev->tx_reqs))) {
 			req = container_of (dev->tx_reqs.next,
 						struct usb_request, list);
 			list_del (&req->list);
+
+			spin_unlock(&dev->req_lock);
 			usb_ep_free_request (dev->in_ep, req);
+			spin_lock(&dev->req_lock);
 		}
+		spin_unlock(&dev->req_lock);
 	}
 	if (dev->out) {
 		usb_ep_disable (dev->out_ep);
+		spin_lock(&dev->req_lock);
 		while (likely (!list_empty (&dev->rx_reqs))) {
 			req = container_of (dev->rx_reqs.next,
 						struct usb_request, list);
 			list_del (&req->list);
+
+			spin_unlock(&dev->req_lock);
 			usb_ep_free_request (dev->out_ep, req);
+			spin_lock(&dev->req_lock);
 		}
+		spin_unlock(&dev->req_lock);
 	}
 
 	if (dev->status) {
@@ -1659,9 +1671,9 @@ enomem:
 	if (retval) {
 		DEBUG (dev, "rx submit --> %d\n", retval);
 		dev_kfree_skb_any (skb);
-		spin_lock (&dev->lock);
+		spin_lock(&dev->req_lock);
 		list_add (&req->list, &dev->rx_reqs);
-		spin_unlock (&dev->lock);
+		spin_unlock(&dev->req_lock);
 	}
 	return retval;
 }
@@ -1730,8 +1742,9 @@ quiesce:
 		dev_kfree_skb_any (skb);
 	if (!netif_running (dev->net)) {
 clean:
-		/* nobody reading rx_reqs, so no dev->lock */
+		spin_lock(&dev->req_lock);
 		list_add (&req->list, &dev->rx_reqs);
+		spin_unlock(&dev->req_lock);
 		req = NULL;
 	}
 	if (req)
@@ -1782,15 +1795,18 @@ static int alloc_requests (struct eth_dev *dev, unsigned n, gfp_t gfp_flags)
 {
 	int status;
 
+	spin_lock(&dev->req_lock);
 	status = prealloc (&dev->tx_reqs, dev->in_ep, n, gfp_flags);
 	if (status < 0)
 		goto fail;
 	status = prealloc (&dev->rx_reqs, dev->out_ep, n, gfp_flags);
 	if (status < 0)
 		goto fail;
-	return 0;
+	goto done;
 fail:
 	DEBUG (dev, "can't alloc requests\n");
+done:
+	spin_unlock(&dev->req_lock);
 	return status;
 }
 
@@ -1800,21 +1816,21 @@ static void rx_fill (struct eth_dev *dev, gfp_t gfp_flags)
 	unsigned long		flags;
 
 	/* fill unused rxq slots with some skb */
-	spin_lock_irqsave (&dev->lock, flags);
+	spin_lock_irqsave(&dev->req_lock, flags);
 	while (!list_empty (&dev->rx_reqs)) {
 		req = container_of (dev->rx_reqs.next,
 				struct usb_request, list);
 		list_del_init (&req->list);
-		spin_unlock_irqrestore (&dev->lock, flags);
+		spin_unlock_irqrestore(&dev->req_lock, flags);
 
 		if (rx_submit (dev, req, gfp_flags) < 0) {
 			defer_kevent (dev, WORK_RX_MEMORY);
 			return;
 		}
 
-		spin_lock_irqsave (&dev->lock, flags);
+		spin_lock_irqsave(&dev->req_lock, flags);
 	}
-	spin_unlock_irqrestore (&dev->lock, flags);
+	spin_unlock_irqrestore(&dev->req_lock, flags);
 }
 
 static void eth_work (void *_dev)
@@ -1848,9 +1864,9 @@ static void tx_complete (struct usb_ep *ep, struct usb_request *req)
 	}
 	dev->stats.tx_packets++;
 
-	spin_lock (&dev->lock);
+	spin_lock(&dev->req_lock);
 	list_add (&req->list, &dev->tx_reqs);
-	spin_unlock (&dev->lock);
+	spin_unlock(&dev->req_lock);
 	dev_kfree_skb_any (skb);
 
 	atomic_dec (&dev->tx_qlen);
@@ -1896,12 +1912,12 @@ static int eth_start_xmit (struct sk_buff *skb, struct net_device *net)
 		/* ignores USB_CDC_PACKET_TYPE_DIRECTED */
 	}
 
-	spin_lock_irqsave (&dev->lock, flags);
+	spin_lock_irqsave(&dev->req_lock, flags);
 	req = container_of (dev->tx_reqs.next, struct usb_request, list);
 	list_del (&req->list);
 	if (list_empty (&dev->tx_reqs))
 		netif_stop_queue (net);
-	spin_unlock_irqrestore (&dev->lock, flags);
+	spin_unlock_irqrestore(&dev->req_lock, flags);
 
 	/* no buffer copies needed, unless the network stack did it
 	 * or the hardware can't use skb buffers.
@@ -1955,11 +1971,11 @@ static int eth_start_xmit (struct sk_buff *skb, struct net_device *net)
 drop:
 		dev->stats.tx_dropped++;
 		dev_kfree_skb_any (skb);
-		spin_lock_irqsave (&dev->lock, flags);
+		spin_lock_irqsave(&dev->req_lock, flags);
 		if (list_empty (&dev->tx_reqs))
 			netif_start_queue (net);
 		list_add (&req->list, &dev->tx_reqs);
-		spin_unlock_irqrestore (&dev->lock, flags);
+		spin_unlock_irqrestore(&dev->req_lock, flags);
 	}
 	return 0;
 }
@@ -2378,6 +2394,7 @@ autoconf_fail:
 		return status;
 	dev = netdev_priv(net);
 	spin_lock_init (&dev->lock);
+	spin_lock_init (&dev->req_lock);
 	INIT_WORK (&dev->work, eth_work, dev);
 	INIT_LIST_HEAD (&dev->tx_reqs);
 	INIT_LIST_HEAD (&dev->rx_reqs);

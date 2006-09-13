@@ -22,4 +22,12 @@
 #define MCL_CURRENT	1		/* lock all current mappings */
 #define MCL_FUTURE	2		/* lock all future mappings */
 
+#ifdef __KERNEL__
+#ifndef __ASSEMBLY__
+#define arch_mmap_check	ia64_mmap_check
+int ia64_mmap_check(unsigned long addr, unsigned long len,
+		unsigned long flags);
+#endif
+#endif
+
 #endif /* _ASM_IA64_MMAN_H */

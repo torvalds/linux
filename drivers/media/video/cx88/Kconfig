@@ -51,6 +51,7 @@ config VIDEO_CX88_DVB
 	tristate "DVB/ATSC Support for cx2388x based TV cards"
 	depends on VIDEO_CX88 && DVB_CORE
 	select VIDEO_BUF_DVB
+	select DVB_PLL
 	---help---
 	  This adds support for DVB/ATSC cards based on the
 	  Conexant 2388x chip.

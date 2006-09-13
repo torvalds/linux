@@ -178,12 +178,12 @@ vfp_get_float:
 
 	.globl	vfp_put_float
 vfp_put_float:
-	add	pc, pc, r0, lsl #3
+	add	pc, pc, r1, lsl #3
 	mov	r0, r0
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-	mcr	p10, 0, r1, c\dr, c0, 0	@ fmsr	r0, s0
+	mcr	p10, 0, r0, c\dr, c0, 0	@ fmsr	r0, s0
 	mov	pc, lr
-	mcr	p10, 0, r1, c\dr, c0, 4	@ fmsr	r0, s1
+	mcr	p10, 0, r0, c\dr, c0, 4	@ fmsr	r0, s1
 	mov	pc, lr
 	.endr
 
@@ -203,9 +203,9 @@ vfp_get_double:
 
 	.globl	vfp_put_double
 vfp_put_double:
-	add	pc, pc, r0, lsl #3
+	add	pc, pc, r2, lsl #3
 	mov	r0, r0
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-	fmdrr	d\dr, r1, r2
+	fmdrr	d\dr, r0, r1
 	mov	pc, lr
 	.endr

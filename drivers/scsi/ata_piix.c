@@ -123,7 +123,8 @@ enum {
 	ich6_sata		= 4,
 	ich6_sata_ahci		= 5,
 	ich6m_sata_ahci		= 6,
-	ich8_sata_ahci		= 7,
+	ich7m_sata_ahci		= 7,
+	ich8_sata_ahci		= 8,
 
 	/* constants for mapping table */
 	P0			= 0,  /* port 0 */
@@ -188,7 +189,7 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	/* 82801GB/GR/GH (ICH7, identical to ICH6) */
 	{ 0x8086, 0x27c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
 	/* 2801GBM/GHM (ICH7M, identical to ICH6M) */
-	{ 0x8086, 0x27c4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6m_sata_ahci },
+	{ 0x8086, 0x27c4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich7m_sata_ahci },
 	/* Enterprise Southbridge 2 (where's the datasheet?) */
 	{ 0x8086, 0x2680, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
 	/* SATA Controller 1 IDE (ICH8, no datasheet yet) */
@@ -336,6 +337,24 @@ static const struct piix_map_db ich6m_map_db = {
 	},
 };
 
+static const struct piix_map_db ich7m_map_db = {
+	.mask = 0x3,
+	.port_enable = 0x5,
+	.present_shift = 4,
+
+	/* Map 01b isn't specified in the doc but some notebooks use
+	 * it anyway.  ATM, the only case spotted carries subsystem ID
+	 * 1025:0107.  This is the only difference from ich6m.
+	 */
+	.map = {
+		/* PM   PS   SM   SS       MAP */
+		{  P0,  P2,  RV,  RV }, /* 00b */
+		{ IDE, IDE,  P1,  P3 }, /* 01b */
+		{  P0,  P2, IDE, IDE }, /* 10b */
+		{  RV,  RV,  RV,  RV },
+	},
+};
+
 static const struct piix_map_db ich8_map_db = {
 	.mask = 0x3,
 	.port_enable = 0x3,
@@ -355,6 +374,7 @@ static const struct piix_map_db *piix_map_db_table[] = {
 	[ich6_sata]		= &ich6_map_db,
 	[ich6_sata_ahci]	= &ich6_map_db,
 	[ich6m_sata_ahci]	= &ich6m_map_db,
+	[ich7m_sata_ahci]	= &ich7m_map_db,
 	[ich8_sata_ahci]	= &ich8_map_db,
 };
 
@@ -433,6 +453,18 @@ static struct ata_port_info piix_port_info[] = {
 	},
 
 	/* ich6m_sata_ahci */
+	{
+		.sht		= &piix_sht,
+		.host_flags	= ATA_FLAG_SATA |
+				  PIIX_FLAG_CHECKINTR | PIIX_FLAG_SCR |
+				  PIIX_FLAG_AHCI,
+		.pio_mask	= 0x1f,	/* pio0-4 */
+		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.udma_mask	= 0x7f,	/* udma0-6 */
+		.port_ops	= &piix_sata_ops,
+	},
+
+	/* ich7m_sata_ahci */
 	{
 		.sht		= &piix_sht,
 		.host_flags	= ATA_FLAG_SATA |

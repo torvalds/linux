@@ -635,14 +635,17 @@ ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
 	struct ipv6_txoptions *opt2;
 	int err;
 
-	if (newtype != IPV6_HOPOPTS && opt->hopopt)
-		tot_len += CMSG_ALIGN(ipv6_optlen(opt->hopopt));
-	if (newtype != IPV6_RTHDRDSTOPTS && opt->dst0opt)
-		tot_len += CMSG_ALIGN(ipv6_optlen(opt->dst0opt));
-	if (newtype != IPV6_RTHDR && opt->srcrt)
-		tot_len += CMSG_ALIGN(ipv6_optlen(opt->srcrt));
-	if (newtype != IPV6_DSTOPTS && opt->dst1opt)
-		tot_len += CMSG_ALIGN(ipv6_optlen(opt->dst1opt));
+	if (opt) {
+		if (newtype != IPV6_HOPOPTS && opt->hopopt)
+			tot_len += CMSG_ALIGN(ipv6_optlen(opt->hopopt));
+		if (newtype != IPV6_RTHDRDSTOPTS && opt->dst0opt)
+			tot_len += CMSG_ALIGN(ipv6_optlen(opt->dst0opt));
+		if (newtype != IPV6_RTHDR && opt->srcrt)
+			tot_len += CMSG_ALIGN(ipv6_optlen(opt->srcrt));
+		if (newtype != IPV6_DSTOPTS && opt->dst1opt)
+			tot_len += CMSG_ALIGN(ipv6_optlen(opt->dst1opt));
+	}
+
 	if (newopt && newoptlen)
 		tot_len += CMSG_ALIGN(newoptlen);
 
@@ -659,25 +662,25 @@ ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
 	opt2->tot_len = tot_len;
 	p = (char *)(opt2 + 1);
 
-	err = ipv6_renew_option(opt->hopopt, newopt, newoptlen,
+	err = ipv6_renew_option(opt ? opt->hopopt : NULL, newopt, newoptlen,
 				newtype != IPV6_HOPOPTS,
 				&opt2->hopopt, &p);
 	if (err)
 		goto out;
 
-	err = ipv6_renew_option(opt->dst0opt, newopt, newoptlen,
+	err = ipv6_renew_option(opt ? opt->dst0opt : NULL, newopt, newoptlen,
 				newtype != IPV6_RTHDRDSTOPTS,
 				&opt2->dst0opt, &p);
 	if (err)
 		goto out;
 
-	err = ipv6_renew_option(opt->srcrt, newopt, newoptlen,
+	err = ipv6_renew_option(opt ? opt->srcrt : NULL, newopt, newoptlen,
 				newtype != IPV6_RTHDR,
-				(struct ipv6_opt_hdr **)opt2->srcrt, &p);
+				(struct ipv6_opt_hdr **)&opt2->srcrt, &p);
 	if (err)
 		goto out;
 
-	err = ipv6_renew_option(opt->dst1opt, newopt, newoptlen,
+	err = ipv6_renew_option(opt ? opt->dst1opt : NULL, newopt, newoptlen,
 				newtype != IPV6_DSTOPTS,
 				&opt2->dst1opt, &p);
 	if (err)

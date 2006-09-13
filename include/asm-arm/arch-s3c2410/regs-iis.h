@@ -8,17 +8,7 @@
  * published by the Free Software Foundation.
  *
  * S3C2410 IIS register definition
- *
- *  Changelog:
- *    19-06-2003     BJD     Created file
- *    26-06-2003     BJD     Finished off definitions for register addresses
- *    12-03-2004     BJD     Updated include protection
- *    07-03-2005     BJD     Added FIFO size flags and S3C2440 MPLL
- *    05-04-2005     LCVR    Added IISFCON definitions for the S3C2400
- *    18-07-2005     DA      Change IISCON_MPLL to IISMOD_MPLL
- *                           Correct IISMOD_256FS and IISMOD_384FS
- *                           Add IISCON_PSCEN
- */
+*/
 
 #ifndef __ASM_ARCH_REGS_IIS_H
 #define __ASM_ARCH_REGS_IIS_H

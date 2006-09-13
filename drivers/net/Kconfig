@@ -2393,7 +2393,7 @@ config MYRI10GE
 	  you will need a newer firmware image.
 	  You may get this image or more information, at:
 
-	  <http://www.myri.com/Myri-10G/>
+	  <http://www.myri.com/scs/download-Myri10GE.html>
 
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>.  The module

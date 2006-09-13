@@ -8,10 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Changelog:
- *  06-Jan-2003 BJD  Linux 2.6.0 version, moved bast specifics from arch/map.h
- *  12-Mar-2004 BJD  Fixed header include protection
 */
 
 /* needs arch/map.h including with this */

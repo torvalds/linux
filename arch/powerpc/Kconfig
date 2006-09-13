@@ -95,6 +95,10 @@ config GENERIC_TBSYNC
 	default y if PPC32 && SMP
 	default n
 
+config AUDIT_ARCH
+	bool
+	default y
+
 config DEFAULT_UIMAGE
 	bool
 	help

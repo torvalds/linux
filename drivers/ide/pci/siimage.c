@@ -1082,10 +1082,10 @@ static int __devinit siimage_init_one(struct pci_dev *dev, const struct pci_devi
 }
 
 static struct pci_device_id siimage_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_680), 0},
+	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_680,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 #ifdef CONFIG_BLK_DEV_IDE_SATA
-	{ PCI_DEVICE(PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_3112), 1},
-	{ PCI_DEVICE(PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_1210SA), 2},
+	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_3112, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
+	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_1210SA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
 #endif
 	{ 0, },
 };

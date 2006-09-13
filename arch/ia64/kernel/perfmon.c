@@ -4936,13 +4936,15 @@ abort_locked:
 	if (likely(ctx)) {
 		DPRINT(("context unlocked\n"));
 		UNPROTECT_CTX(ctx, flags);
-		fput(file);
 	}
 
 	/* copy argument back to user, if needed */
 	if (call_made && PFM_CMD_RW_ARG(cmd) && copy_to_user(arg, args_k, base_sz*count)) ret = -EFAULT;
 
 error_args:
+	if (file)
+		fput(file);
+
 	kfree(args_k);
 
 	DPRINT(("cmd=%s ret=%ld\n", PFM_CMD_NAME(cmd), ret));

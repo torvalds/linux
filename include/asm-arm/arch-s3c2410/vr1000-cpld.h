@@ -8,10 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Changelog:
- *  25-May-2003 BJD  Created file, added CTRL1 registers
- *  19-Mar-2004 BJD  Added VR1000 CPLD definitions
 */
 
 #ifndef __ASM_ARCH_VR1000CPLD_H

@@ -17,9 +17,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Changelog:
- *	25-Jul-2005 BJD		Split from irq.c
- *
 */
 
 #include <linux/init.h>
@@ -122,21 +119,24 @@ static int s3c244x_irq_add(struct sys_device *sysdev)
 	return 0;
 }
 
-static struct sysdev_driver s3c244x_irq_driver = {
+static struct sysdev_driver s3c2440_irq_driver = {
 	.add	= s3c244x_irq_add,
 };
 
 static int s3c2440_irq_init(void)
 {
-	return sysdev_driver_register(&s3c2440_sysclass, &s3c244x_irq_driver);
+	return sysdev_driver_register(&s3c2440_sysclass, &s3c2440_irq_driver);
 }
 
 arch_initcall(s3c2440_irq_init);
 
+static struct sysdev_driver s3c2442_irq_driver = {
+	.add	= s3c244x_irq_add,
+};
 
 static int s3c2442_irq_init(void)
 {
-	return sysdev_driver_register(&s3c2442_sysclass, &s3c244x_irq_driver);
+	return sysdev_driver_register(&s3c2442_sysclass, &s3c2442_irq_driver);
 }
 
 arch_initcall(s3c2442_irq_init);

@@ -158,7 +158,7 @@ get_pci_irq_from_of(struct pci_controller *hose, int slot, int pin)
 
 	laddr[0] = (hose->first_busno << 16) | (PCI_DEVFN(slot, 0) << 8);
 	laddr[1] = laddr[2] = 0;
-	of_irq_map_raw(hosenode, &pin, laddr, &oirq);
+	of_irq_map_raw(hosenode, &pin, 1, laddr, &oirq);
 	DBG("mpc86xx_hpcn: pci irq addr %x, slot %d, pin %d, irq %d\n",
 			laddr[0], slot, pin, oirq.specifier[0]);
 	return oirq.specifier[0];

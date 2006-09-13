@@ -82,7 +82,6 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 			if(*ptmp_inode == NULL)
 				return rc;
 			rc = 1;
-			d_instantiate(tmp_dentry, *ptmp_inode);
 		}
 	} else {
 		tmp_dentry = d_alloc(file->f_dentry, qstring);
@@ -99,9 +98,7 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 			tmp_dentry->d_op = &cifs_dentry_ops;
 		if(*ptmp_inode == NULL)
 			return rc;
-		rc = 1;
-		d_instantiate(tmp_dentry, *ptmp_inode);
-		d_rehash(tmp_dentry);
+		rc = 2;
 	}
 
 	tmp_dentry->d_time = jiffies;
@@ -870,6 +867,12 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 				pfindEntry, &obj_type, rc);
 	else
 		fill_in_inode(tmp_inode, 1 /* NT */, pfindEntry, &obj_type, rc);
+
+	if(rc) /* new inode - needs to be tied to dentry */ {
+		d_instantiate(tmp_dentry, tmp_inode);
+		if(rc == 2)
+			d_rehash(tmp_dentry);
+	}
 	
 	
 	rc = filldir(direntry,qstring.name,qstring.len,file->f_pos,

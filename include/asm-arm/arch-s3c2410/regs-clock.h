@@ -8,18 +8,6 @@
  * published by the Free Software Foundation.
  *
  * S3C2410 clock register definitions
- *
- *  Changelog:
- *    18-Aug-2004 Ben Dooks         Added 2440 definitions
- *    08-Aug-2004 Herbert Pötzl     Added CLKCON definitions
- *    19-06-2003  Ben Dooks         Created file
- *    12-03-2004  Ben Dooks         Updated include protection
- *    29-Sep-2004 Ben Dooks	    Fixed usage for assembly inclusion
- *    10-Feb-2005 Ben Dooks	    Fixed CAMDIVN address (Guillaume Gourat)
- *    10-Mar-2005 Lucas Villa Real  Changed S3C2410_VA to S3C24XX_VA
- *    27-Aug-2005 Ben Dooks	    Add clock-slow info
- *    20-Oct-2005 Ben Dooks	    Fixed overflow in PLL (Guillaume Gourat)
- *    20-Oct-2005 Ben Dooks	    Add masks for DCLK (Guillaume Gourat)
 */
 
 #ifndef __ASM_ARM_REGS_CLOCK

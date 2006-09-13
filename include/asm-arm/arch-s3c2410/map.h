@@ -8,13 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Changelog:
- *  12-May-2003 BJD   Created file
- *  06-Jan-2003 BJD   Linux 2.6.0 version, moved bast specifics out
- *  10-Feb-2005 BJD   Added CAMIF definition from guillaume.gourat@nexvision.tv
- *  10-Mar-2005 LCVR  Added support to S3C2400, changed {VA,SZ} names
- *  15-Jan-2006 LCVR  Added S3C24XX_PA macros for common S3C24XX resources
 */
 
 #ifndef __ASM_ARCH_MAP_H

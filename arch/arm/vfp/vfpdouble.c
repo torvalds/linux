@@ -195,7 +195,7 @@ u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exce
 		s64 d = vfp_double_pack(vd);
 		pr_debug("VFP: %s: d(d%d)=%016llx exceptions=%08x\n", func,
 			 dd, d, exceptions);
-		vfp_put_double(dd, d);
+		vfp_put_double(d, dd);
 	}
 	return exceptions;
 }
@@ -250,19 +250,19 @@ vfp_propagate_nan(struct vfp_double *vdd, struct vfp_double *vdn,
  */
 static u32 vfp_double_fabs(int dd, int unused, int dm, u32 fpscr)
 {
-	vfp_put_double(dd, vfp_double_packed_abs(vfp_get_double(dm)));
+	vfp_put_double(vfp_double_packed_abs(vfp_get_double(dm)), dd);
 	return 0;
 }
 
 static u32 vfp_double_fcpy(int dd, int unused, int dm, u32 fpscr)
 {
-	vfp_put_double(dd, vfp_get_double(dm));
+	vfp_put_double(vfp_get_double(dm), dd);
 	return 0;
 }
 
 static u32 vfp_double_fneg(int dd, int unused, int dm, u32 fpscr)
 {
-	vfp_put_double(dd, vfp_double_packed_negate(vfp_get_double(dm)));
+	vfp_put_double(vfp_double_packed_negate(vfp_get_double(dm)), dd);
 	return 0;
 }
 
@@ -287,7 +287,7 @@ static u32 vfp_double_fsqrt(int dd, int unused, int dm, u32 fpscr)
 			vdp = &vfp_double_default_qnan;
 			ret = FPSCR_IOC;
 		}
-		vfp_put_double(dd, vfp_double_pack(vdp));
+		vfp_put_double(vfp_double_pack(vdp), dd);
 		return ret;
 	}
 
@@ -476,7 +476,7 @@ static u32 vfp_double_fcvts(int sd, int unused, int dm, u32 fpscr)
 	return vfp_single_normaliseround(sd, &vsd, fpscr, exceptions, "fcvts");
 
  pack_nan:
-	vfp_put_float(sd, vfp_single_pack(&vsd));
+	vfp_put_float(vfp_single_pack(&vsd), sd);
 	return exceptions;
 }
 
@@ -573,7 +573,7 @@ static u32 vfp_double_ftoui(int sd, int unused, int dm, u32 fpscr)
 
 	pr_debug("VFP: ftoui: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
 
-	vfp_put_float(sd, d);
+	vfp_put_float(d, sd);
 
 	return exceptions;
 }
@@ -648,7 +648,7 @@ static u32 vfp_double_ftosi(int sd, int unused, int dm, u32 fpscr)
 
 	pr_debug("VFP: ftosi: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
 
-	vfp_put_float(sd, (s32)d);
+	vfp_put_float((s32)d, sd);
 
 	return exceptions;
 }
@@ -1084,7 +1084,7 @@ static u32 vfp_double_fdiv(int dd, int dn, int dm, u32 fpscr)
  vdn_nan:
 	exceptions = vfp_propagate_nan(&vdd, &vdn, &vdm, fpscr);
  pack:
-	vfp_put_double(dd, vfp_double_pack(&vdd));
+	vfp_put_double(vfp_double_pack(&vdd), dd);
 	return exceptions;
 
  vdm_nan:
@@ -1104,7 +1104,7 @@ static u32 vfp_double_fdiv(int dd, int dn, int dm, u32 fpscr)
 	goto pack;
 
  invalid:
-	vfp_put_double(dd, vfp_double_pack(&vfp_double_default_qnan));
+	vfp_put_double(vfp_double_pack(&vfp_double_default_qnan), dd);
 	return FPSCR_IOC;
 }
 

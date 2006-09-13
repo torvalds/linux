@@ -100,25 +100,6 @@ static inline int put_dreq(struct nfs_direct_req *dreq)
 	return atomic_dec_and_test(&dreq->io_count);
 }
 
-/*
- * "size" is never larger than rsize or wsize.
- */
-static inline int nfs_direct_count_pages(unsigned long user_addr, size_t size)
-{
-	int page_count;
-
-	page_count = (user_addr + size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	page_count -= user_addr >> PAGE_SHIFT;
-	BUG_ON(page_count < 0);
-
-	return page_count;
-}
-
-static inline unsigned int nfs_max_pages(unsigned int size)
-{
-	return (size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-}
-
 /**
  * nfs_direct_IO - NFS address space operation for direct I/O
  * @rw: direction (read or write)
@@ -276,28 +257,24 @@ static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned lo
 	struct nfs_open_context *ctx = dreq->ctx;
 	struct inode *inode = ctx->dentry->d_inode;
 	size_t rsize = NFS_SERVER(inode)->rsize;
-	unsigned int rpages = nfs_max_pages(rsize);
 	unsigned int pgbase;
 	int result;
 	ssize_t started = 0;
 
 	get_dreq(dreq);
 
-	pgbase = user_addr & ~PAGE_MASK;
 	do {
 		struct nfs_read_data *data;
 		size_t bytes;
 
+		pgbase = user_addr & ~PAGE_MASK;
+		bytes = min(rsize,count);
+
 		result = -ENOMEM;
-		data = nfs_readdata_alloc(rpages);
+		data = nfs_readdata_alloc(pgbase + bytes);
 		if (unlikely(!data))
 			break;
 
-		bytes = rsize;
-		if (count < rsize)
-			bytes = count;
-
-		data->npages = nfs_direct_count_pages(user_addr, bytes);
 		down_read(&current->mm->mmap_sem);
 		result = get_user_pages(current, current->mm, user_addr,
 					data->npages, 1, 0, data->pagevec, NULL);
@@ -344,8 +321,10 @@ static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned lo
 		started += bytes;
 		user_addr += bytes;
 		pos += bytes;
+		/* FIXME: Remove this unnecessary math from final patch */
 		pgbase += bytes;
 		pgbase &= ~PAGE_MASK;
+		BUG_ON(pgbase != (user_addr & ~PAGE_MASK));
 
 		count -= bytes;
 	} while (count != 0);
@@ -524,7 +503,7 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 
 static void nfs_alloc_commit_data(struct nfs_direct_req *dreq)
 {
-	dreq->commit_data = nfs_commit_alloc(0);
+	dreq->commit_data = nfs_commit_alloc();
 	if (dreq->commit_data != NULL)
 		dreq->commit_data->req = (struct nfs_page *) dreq;
 }
@@ -605,28 +584,24 @@ static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned l
 	struct nfs_open_context *ctx = dreq->ctx;
 	struct inode *inode = ctx->dentry->d_inode;
 	size_t wsize = NFS_SERVER(inode)->wsize;
-	unsigned int wpages = nfs_max_pages(wsize);
 	unsigned int pgbase;
 	int result;
 	ssize_t started = 0;
 
 	get_dreq(dreq);
 
-	pgbase = user_addr & ~PAGE_MASK;
 	do {
 		struct nfs_write_data *data;
 		size_t bytes;
 
+		pgbase = user_addr & ~PAGE_MASK;
+		bytes = min(wsize,count);
+
 		result = -ENOMEM;
-		data = nfs_writedata_alloc(wpages);
+		data = nfs_writedata_alloc(pgbase + bytes);
 		if (unlikely(!data))
 			break;
 
-		bytes = wsize;
-		if (count < wsize)
-			bytes = count;
-
-		data->npages = nfs_direct_count_pages(user_addr, bytes);
 		down_read(&current->mm->mmap_sem);
 		result = get_user_pages(current, current->mm, user_addr,
 					data->npages, 0, 0, data->pagevec, NULL);
@@ -676,8 +651,11 @@ static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned l
 		started += bytes;
 		user_addr += bytes;
 		pos += bytes;
+
+		/* FIXME: Remove this useless math from the final patch */
 		pgbase += bytes;
 		pgbase &= ~PAGE_MASK;
+		BUG_ON(pgbase != (user_addr & ~PAGE_MASK));
 
 		count -= bytes;
 	} while (count != 0);

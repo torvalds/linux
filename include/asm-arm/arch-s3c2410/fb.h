@@ -7,13 +7,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- *
- *  Changelog:
- *	07-Sep-2004	RTP	Created file
- *	03-Nov-2004	BJD	Updated and minor cleanups
- *	03-Aug-2005     RTP     Renamed to fb.h
- *	26-Oct-2005	BJD	Changed name of platdata init
 */
 
 #ifndef __ASM_ARM_FB_H

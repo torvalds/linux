@@ -8,11 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Changelog:
- *  25-May-2003 BJD  Created file, added CTRL1 registers
- *  30-Aug-2004 BJD  Updated definitions from 2.4.26 port
- *  30-Aug-2004 BJD  Added CTRL3 and CTRL4 definitions
 */
 
 #ifndef __ASM_ARCH_BASTCPLD_H
