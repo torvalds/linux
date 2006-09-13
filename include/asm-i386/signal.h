@@ -2,7 +2,6 @@
 #define _ASMi386_SIGNAL_H
 
 #include <linux/types.h>
-#include <linux/linkage.h>
 #include <linux/time.h>
 #include <linux/compiler.h>
 
@@ -10,6 +9,9 @@
 struct siginfo;
 
 #ifdef __KERNEL__
+
+#include <linux/linkage.h>
+
 /* Most things should be clean enough to redefine this at will, if care
    is taken to make libc match.  */
 
