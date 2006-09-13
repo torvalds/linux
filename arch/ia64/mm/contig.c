@@ -41,10 +41,11 @@ show_mem (void)
 	int i, total = 0, reserved = 0;
 	int shared = 0, cached = 0;
 
-	printk("Mem-info:\n");
+	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
 
-	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+	printk(KERN_INFO "Free swap:       %6ldkB\n",
+	       nr_swap_pages<<(PAGE_SHIFT-10));
 	i = max_mapnr;
 	for (i = 0; i < max_mapnr; i++) {
 		if (!pfn_valid(i)) {
@@ -63,12 +64,12 @@ show_mem (void)
 		else if (page_count(mem_map + i))
 			shared += page_count(mem_map + i) - 1;
 	}
-	printk("%d pages of RAM\n", total);
-	printk("%d reserved pages\n", reserved);
-	printk("%d pages shared\n", shared);
-	printk("%d pages swap cached\n", cached);
-	printk("%ld pages in page table cache\n",
-		pgtable_quicklist_total_size());
+	printk(KERN_INFO "%d pages of RAM\n", total);
+	printk(KERN_INFO "%d reserved pages\n", reserved);
+	printk(KERN_INFO "%d pages shared\n", shared);
+	printk(KERN_INFO "%d pages swap cached\n", cached);
+	printk(KERN_INFO "%ld pages in page table cache\n",
+	       pgtable_quicklist_total_size());
 }
 
 /* physical address where the bootmem map is located */
