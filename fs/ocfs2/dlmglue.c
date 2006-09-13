@@ -117,13 +117,34 @@ static int ocfs2_unblock_osb_lock(struct ocfs2_lock_res *lockres,
 static void ocfs2_dentry_post_unlock(struct ocfs2_super *osb,
 				     struct ocfs2_lock_res *lockres);
 
+/*
+ * OCFS2 Lock Resource Operations
+ *
+ * These fine tune the behavior of the generic dlmglue locking infrastructure.
+ */
 struct ocfs2_lock_res_ops {
 	void (*ast)(void *);
 	void (*bast)(void *, int);
 	void (*unlock_ast)(void *, enum dlm_status);
 	int  (*unblock)(struct ocfs2_lock_res *, struct ocfs2_unblock_ctl *);
 	void (*post_unlock)(struct ocfs2_super *, struct ocfs2_lock_res *);
+
+	/*
+	 * LOCK_TYPE_* flags which describe the specific requirements
+	 * of a lock type. Descriptions of each individual flag follow.
+	 */
+	int flags;
 };
+
+/*
+ * Some locks want to "refresh" potentially stale data when a
+ * meaningful (PRMODE or EXMODE) lock level is first obtained. If this
+ * flag is set, the OCFS2_LOCK_NEEDS_REFRESH flag will be set on the
+ * individual lockres l_flags member from the ast function. It is
+ * expected that the locking wrapper will clear the
+ * OCFS2_LOCK_NEEDS_REFRESH flag when done.
+ */
+#define LOCK_TYPE_REQUIRES_REFRESH 0x1
 
 typedef int (ocfs2_convert_worker_t)(struct ocfs2_lock_res *, int);
 static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
@@ -136,6 +157,7 @@ static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
 	.bast		= ocfs2_inode_bast_func,
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_inode_lock,
+	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
@@ -143,6 +165,7 @@ static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
 	.bast		= ocfs2_inode_bast_func,
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_meta,
+	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_data_lops = {
@@ -150,6 +173,7 @@ static struct ocfs2_lock_res_ops ocfs2_inode_data_lops = {
 	.bast		= ocfs2_inode_bast_func,
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_data,
+	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_super_lops = {
@@ -157,6 +181,7 @@ static struct ocfs2_lock_res_ops ocfs2_super_lops = {
 	.bast		= ocfs2_super_bast_func,
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_osb_lock,
+	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
@@ -164,6 +189,7 @@ static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
 	.bast		= ocfs2_rename_bast_func,
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_osb_lock,
+	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
@@ -172,6 +198,7 @@ static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_dentry_lock,
 	.post_unlock	= ocfs2_dentry_post_unlock,
+	.flags		= 0,
 };
 
 static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
@@ -569,7 +596,8 @@ static inline void ocfs2_generic_handle_convert_action(struct ocfs2_lock_res *lo
 	 * information is already up to data. Convert from NL to
 	 * *anything* however should mark ourselves as needing an
 	 * update */
-	if (lockres->l_level == LKM_NLMODE)
+	if (lockres->l_level == LKM_NLMODE &&
+	    lockres->l_ops->flags & LOCK_TYPE_REQUIRES_REFRESH)
 		lockres_or_flags(lockres, OCFS2_LOCK_NEEDS_REFRESH);
 
 	lockres->l_level = lockres->l_requested;
@@ -586,7 +614,8 @@ static inline void ocfs2_generic_handle_attach_action(struct ocfs2_lock_res *loc
 	BUG_ON(lockres->l_flags & OCFS2_LOCK_ATTACHED);
 
 	if (lockres->l_requested > LKM_NLMODE &&
-	    !(lockres->l_flags & OCFS2_LOCK_LOCAL))
+	    !(lockres->l_flags & OCFS2_LOCK_LOCAL) &&
+	    lockres->l_ops->flags & LOCK_TYPE_REQUIRES_REFRESH)
 		lockres_or_flags(lockres, OCFS2_LOCK_NEEDS_REFRESH);
 
 	lockres->l_level = lockres->l_requested;
@@ -644,10 +673,6 @@ static void ocfs2_inode_ast_func(void *opaque)
 
 		BUG();
 	}
-
-	/* data and rw locking ignores refresh flag for now. */
-	if (lockres->l_type != OCFS2_LOCK_TYPE_META)
-		lockres_clear_flags(lockres, OCFS2_LOCK_NEEDS_REFRESH);
 
 	/* set it to something invalid so if we get called again we
 	 * can catch it. */
@@ -730,8 +755,7 @@ static void ocfs2_inode_bast_func(void *opaque, int level)
 	mlog_exit_void();
 }
 
-static void ocfs2_generic_ast_func(struct ocfs2_lock_res *lockres,
-				   int ignore_refresh)
+static void ocfs2_generic_ast_func(struct ocfs2_lock_res *lockres)
 {
 	struct dlm_lockstatus *lksb = &lockres->l_lksb;
 	unsigned long flags;
@@ -759,9 +783,6 @@ static void ocfs2_generic_ast_func(struct ocfs2_lock_res *lockres,
 		BUG();
 	}
 
-	if (ignore_refresh)
-		lockres_clear_flags(lockres, OCFS2_LOCK_NEEDS_REFRESH);
-
 	/* set it to something invalid so if we get called again we
 	 * can catch it. */
 	lockres->l_action = OCFS2_AST_INVALID;
@@ -778,7 +799,7 @@ static void ocfs2_super_ast_func(void *opaque)
 	mlog(0, "Superblock AST fired\n");
 
 	BUG_ON(!ocfs2_is_super_lock(lockres));
-	ocfs2_generic_ast_func(lockres, 0);
+	ocfs2_generic_ast_func(lockres);
 
 	mlog_exit_void();
 }
@@ -809,7 +830,7 @@ static void ocfs2_rename_ast_func(void *opaque)
 
 	BUG_ON(!ocfs2_is_rename_lock(lockres));
 
-	ocfs2_generic_ast_func(lockres, 1);
+	ocfs2_generic_ast_func(lockres);
 
 	mlog_exit_void();
 }
@@ -838,7 +859,7 @@ static void ocfs2_dentry_ast_func(void *opaque)
 
 	BUG_ON(!lockres);
 
-	ocfs2_generic_ast_func(lockres, 1);
+	ocfs2_generic_ast_func(lockres);
 }
 
 static void ocfs2_dentry_bast_func(void *opaque, int level)
