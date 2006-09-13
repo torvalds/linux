@@ -559,7 +559,7 @@ static struct ata_port_info piix_port_info[] = {
 	/* ich7m_sata_ahci: 10 */
 	{
 		.sht		= &piix_sht,
-		.host_flags	= ATA_FLAG_SATA |
+		.flags		= ATA_FLAG_SATA |
 				  PIIX_FLAG_CHECKINTR | PIIX_FLAG_SCR |
 				  PIIX_FLAG_AHCI,
 		.pio_mask	= 0x1f,	/* pio0-4 */
