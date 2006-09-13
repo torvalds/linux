@@ -1360,6 +1360,8 @@ static int __init vivi_init(void)
 	dev->vidq.timeout.data     = (unsigned long)dev;
 	init_timer(&dev->vidq.timeout);
 
+	vivi.current_norm         = tvnorms[0].id;
+
 	ret = video_register_device(&vivi, VFL_TYPE_GRABBER, video_nr);
 	printk(KERN_INFO "Video Technology Magazine Virtual Video Capture Board (Load status: %d)\n", ret);
 	return ret;
