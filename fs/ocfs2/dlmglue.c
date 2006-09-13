@@ -67,14 +67,6 @@ struct ocfs2_mask_waiter {
 	unsigned long		mw_goal;
 };
 
-static void ocfs2_inode_bast_func(void *opaque,
-				  int level);
-static void ocfs2_dentry_bast_func(void *opaque,
-				  int level);
-static void ocfs2_super_bast_func(void *opaque,
-				  int level);
-static void ocfs2_rename_bast_func(void *opaque,
-				   int level);
 static struct ocfs2_super *ocfs2_get_dentry_osb(struct ocfs2_lock_res *lockres);
 static struct ocfs2_super *ocfs2_get_inode_osb(struct ocfs2_lock_res *lockres);
 
@@ -123,7 +115,6 @@ struct ocfs2_lock_res_ops {
 	 * this callback if ->l_priv is not an ocfs2_super pointer
 	 */
 	struct ocfs2_super * (*get_osb)(struct ocfs2_lock_res *);
-	void (*bast)(void *, int);
 	int  (*unblock)(struct ocfs2_lock_res *, struct ocfs2_unblock_ctl *);
 	void (*post_unlock)(struct ocfs2_super *, struct ocfs2_lock_res *);
 
@@ -152,40 +143,34 @@ static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
 
 static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
-	.bast		= ocfs2_inode_bast_func,
 	.unblock	= ocfs2_unblock_inode_lock,
 	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
-	.bast		= ocfs2_inode_bast_func,
 	.unblock	= ocfs2_unblock_meta,
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_data_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
-	.bast		= ocfs2_inode_bast_func,
 	.unblock	= ocfs2_unblock_data,
 	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_super_lops = {
-	.bast		= ocfs2_super_bast_func,
 	.unblock	= ocfs2_unblock_osb_lock,
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
-	.bast		= ocfs2_rename_bast_func,
 	.unblock	= ocfs2_unblock_osb_lock,
 	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
 	.get_osb	= ocfs2_get_dentry_osb,
-	.bast		= ocfs2_dentry_bast_func,
 	.unblock	= ocfs2_unblock_dentry_lock,
 	.post_unlock	= ocfs2_dentry_post_unlock,
 	.flags		= 0,
@@ -196,24 +181,6 @@ static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
 	return lockres->l_type == OCFS2_LOCK_TYPE_META ||
 		lockres->l_type == OCFS2_LOCK_TYPE_DATA ||
 		lockres->l_type == OCFS2_LOCK_TYPE_RW;
-}
-
-static inline int ocfs2_is_super_lock(struct ocfs2_lock_res *lockres)
-{
-	return lockres->l_type == OCFS2_LOCK_TYPE_SUPER;
-}
-
-static inline int ocfs2_is_rename_lock(struct ocfs2_lock_res *lockres)
-{
-	return lockres->l_type == OCFS2_LOCK_TYPE_RENAME;
-}
-
-static inline struct ocfs2_super *ocfs2_lock_res_super(struct ocfs2_lock_res *lockres)
-{
-	BUG_ON(!ocfs2_is_super_lock(lockres)
-	       && !ocfs2_is_rename_lock(lockres));
-
-	return (struct ocfs2_super *) lockres->l_priv;
 }
 
 static inline struct inode *ocfs2_lock_res_inode(struct ocfs2_lock_res *lockres)
@@ -663,16 +630,18 @@ static int ocfs2_generic_handle_bast(struct ocfs2_lock_res *lockres,
 	return needs_downconvert;
 }
 
-static void ocfs2_generic_bast_func(struct ocfs2_super *osb,
-				    struct ocfs2_lock_res *lockres,
-				    int level)
+static void ocfs2_blocking_ast(void *opaque, int level)
 {
+	struct ocfs2_lock_res *lockres = opaque;
+	struct ocfs2_super *osb = ocfs2_get_lockres_osb(lockres);
 	int needs_downconvert;
 	unsigned long flags;
 
-	mlog_entry_void();
-
 	BUG_ON(level <= LKM_NLMODE);
+
+	mlog(0, "BAST fired for lockres %s, blocking %d, level %d type %s\n",
+	     lockres->l_name, level, lockres->l_level,
+	     ocfs2_lock_type_string(lockres->l_type));
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
 	needs_downconvert = ocfs2_generic_handle_bast(lockres, level);
@@ -683,30 +652,6 @@ static void ocfs2_generic_bast_func(struct ocfs2_super *osb,
 	wake_up(&lockres->l_event);
 
 	ocfs2_kick_vote_thread(osb);
-
-	mlog_exit_void();
-}
-
-static void ocfs2_inode_bast_func(void *opaque, int level)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-	struct inode *inode;
-	struct ocfs2_super *osb;
-
-	mlog_entry_void();
-
-	BUG_ON(!ocfs2_is_inode_lock(lockres));
-
-	inode = ocfs2_lock_res_inode(lockres);
-	osb = OCFS2_SB(inode->i_sb);
-
-	mlog(0, "BAST fired for inode %llu, blocking %d, level %d type %s\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno, level,
-	     lockres->l_level, ocfs2_lock_type_string(lockres->l_type));
-
-	ocfs2_generic_bast_func(osb, lockres, level);
-
-	mlog_exit_void();
 }
 
 static void ocfs2_locking_ast(void *opaque)
@@ -749,52 +694,6 @@ static void ocfs2_locking_ast(void *opaque)
 
 	wake_up(&lockres->l_event);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
-}
-
-static void ocfs2_super_bast_func(void *opaque,
-				  int level)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-	struct ocfs2_super *osb;
-
-	mlog_entry_void();
-	mlog(0, "Superblock BAST fired\n");
-
-	BUG_ON(!ocfs2_is_super_lock(lockres));
-       	osb = ocfs2_lock_res_super(lockres);
-	ocfs2_generic_bast_func(osb, lockres, level);
-
-	mlog_exit_void();
-}
-
-static void ocfs2_rename_bast_func(void *opaque,
-				   int level)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-	struct ocfs2_super *osb;
-
-	mlog_entry_void();
-
-	mlog(0, "Rename BAST fired\n");
-
-	BUG_ON(!ocfs2_is_rename_lock(lockres));
-
-	osb = ocfs2_lock_res_super(lockres);
-	ocfs2_generic_bast_func(osb, lockres, level);
-
-	mlog_exit_void();
-}
-
-static void ocfs2_dentry_bast_func(void *opaque, int level)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-	struct ocfs2_dentry_lock *dl = lockres->l_priv;
-	struct ocfs2_super *osb = OCFS2_SB(dl->dl_inode->i_sb);
-
-	mlog(0, "Dentry bast: level: %d, name: %s\n", level,
-	     lockres->l_name);
-
-	ocfs2_generic_bast_func(osb, lockres, level);
 }
 
 static inline void ocfs2_recover_from_dlm_error(struct ocfs2_lock_res *lockres,
@@ -853,7 +752,7 @@ static int ocfs2_lock_create(struct ocfs2_super *osb,
 			 OCFS2_LOCK_ID_MAX_LEN - 1,
 			 ocfs2_locking_ast,
 			 lockres,
-			 lockres->l_ops->bast);
+			 ocfs2_blocking_ast);
 	if (status != DLM_NORMAL) {
 		ocfs2_log_dlm_error("dlmlock", status, lockres);
 		ret = -EINVAL;
@@ -1043,7 +942,7 @@ again:
 				 OCFS2_LOCK_ID_MAX_LEN - 1,
 				 ocfs2_locking_ast,
 				 lockres,
-				 lockres->l_ops->bast);
+				 ocfs2_blocking_ast);
 		if (status != DLM_NORMAL) {
 			if ((lkm_flags & LKM_NOQUEUE) &&
 			    (status == DLM_NOTQUEUED))
@@ -2524,7 +2423,7 @@ static int ocfs2_downconvert_lock(struct ocfs2_super *osb,
 			 OCFS2_LOCK_ID_MAX_LEN - 1,
 			 ocfs2_locking_ast,
 			 lockres,
-			 lockres->l_ops->bast);
+			 ocfs2_blocking_ast);
 	if (status != DLM_NORMAL) {
 		ocfs2_log_dlm_error("dlmlock", status, lockres);
 		ret = -EINVAL;
@@ -3040,7 +2939,7 @@ static int ocfs2_unblock_osb_lock(struct ocfs2_lock_res *lockres,
 
 	mlog(0, "Unblock lockres %s\n", lockres->l_name);
 
-	osb = ocfs2_lock_res_super(lockres);
+	osb = ocfs2_get_lockres_osb(lockres);
 
 	status = ocfs2_generic_unblock_lock(osb,
 					    lockres,
