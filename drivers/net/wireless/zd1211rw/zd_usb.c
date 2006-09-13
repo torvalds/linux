@@ -24,6 +24,7 @@
 #include <linux/errno.h>
 #include <linux/skbuff.h>
 #include <linux/usb.h>
+#include <linux/workqueue.h>
 #include <net/ieee80211.h>
 
 #include "zd_def.h"
@@ -1112,11 +1113,19 @@ static struct usb_driver driver = {
 	.disconnect	= disconnect,
 };
 
+struct workqueue_struct *zd_workqueue;
+
 static int __init usb_init(void)
 {
 	int r;
 
 	pr_debug("usb_init()\n");
+
+	zd_workqueue = create_singlethread_workqueue(driver.name);
+	if (zd_workqueue == NULL) {
+		printk(KERN_ERR "%s: couldn't create workqueue\n", driver.name);
+		return -ENOMEM;
+	}
 
 	r = usb_register(&driver);
 	if (r) {
@@ -1132,6 +1141,7 @@ static void __exit usb_exit(void)
 {
 	pr_debug("usb_exit()\n");
 	usb_deregister(&driver);
+	destroy_workqueue(zd_workqueue);
 }
 
 module_init(usb_init);
