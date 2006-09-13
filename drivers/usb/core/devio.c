@@ -122,7 +122,7 @@ static loff_t usbdev_lseek(struct file *file, loff_t offset, int orig)
 
 static ssize_t usbdev_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	struct dev_state *ps = (struct dev_state *)file->private_data;
+	struct dev_state *ps = file->private_data;
 	struct usb_device *dev = ps->dev;
 	ssize_t ret = 0;
 	unsigned len;
@@ -305,7 +305,7 @@ static void snoop_urb(struct urb *urb, void __user *userurb)
 
 static void async_completed(struct urb *urb, struct pt_regs *regs)
 {
-        struct async *as = (struct async *)urb->context;
+        struct async *as = urb->context;
         struct dev_state *ps = as->ps;
 	struct siginfo sinfo;
 
@@ -591,7 +591,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 
 static int usbdev_release(struct inode *inode, struct file *file)
 {
-	struct dev_state *ps = (struct dev_state *)file->private_data;
+	struct dev_state *ps = file->private_data;
 	struct usb_device *dev = ps->dev;
 	unsigned int ifnum;
 
@@ -1423,7 +1423,7 @@ static int proc_ioctl_compat(struct dev_state *ps, compat_uptr_t arg)
  */
 static int usbdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct dev_state *ps = (struct dev_state *)file->private_data;
+	struct dev_state *ps = file->private_data;
 	struct usb_device *dev = ps->dev;
 	void __user *p = (void __user *)arg;
 	int ret = -ENOTTY;
@@ -1566,8 +1566,8 @@ static int usbdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 /* No kernel lock - fine */
 static unsigned int usbdev_poll(struct file *file, struct poll_table_struct *wait)
 {
-	struct dev_state *ps = (struct dev_state *)file->private_data;
-        unsigned int mask = 0;
+	struct dev_state *ps = file->private_data;
+	unsigned int mask = 0;
 
 	poll_wait(file, &ps->wait, wait);
 	if (file->f_mode & FMODE_WRITE && !list_empty(&ps->async_completed))

@@ -593,7 +593,7 @@ static ssize_t usb_device_read(struct file *file, char __user *buf, size_t nbyte
 /* Kernel lock for "lastev" protection */
 static unsigned int usb_device_poll(struct file *file, struct poll_table_struct *wait)
 {
-	struct usb_device_status *st = (struct usb_device_status *)file->private_data;
+	struct usb_device_status *st = file->private_data;
 	unsigned int mask = 0;
 
 	lock_kernel();
@@ -603,7 +603,7 @@ static unsigned int usb_device_poll(struct file *file, struct poll_table_struct 
 			unlock_kernel();
 			return POLLIN;
 		}
-		
+
 		/* we may have dropped BKL - need to check for having lost the race */
 		if (file->private_data) {
 			kfree(st);

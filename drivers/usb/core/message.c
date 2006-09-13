@@ -248,7 +248,7 @@ static void sg_clean (struct usb_sg_request *io)
 
 static void sg_complete (struct urb *urb, struct pt_regs *regs)
 {
-	struct usb_sg_request	*io = (struct usb_sg_request *) urb->context;
+	struct usb_sg_request	*io = urb->context;
 
 	spin_lock (&io->lock);
 

@@ -293,7 +293,7 @@ void usb_kick_khubd(struct usb_device *hdev)
 /* completion function, fires on port status changes and various faults */
 static void hub_irq(struct urb *urb, struct pt_regs *regs)
 {
-	struct usb_hub *hub = (struct usb_hub *)urb->context;
+	struct usb_hub *hub = urb->context;
 	int status;
 	int i;
 	unsigned long bits;
@@ -311,7 +311,7 @@ static void hub_irq(struct urb *urb, struct pt_regs *regs)
 			goto resubmit;
 		hub->error = urb->status;
 		/* FALL THROUGH */
-	
+
 	/* let khubd handle things */
 	case 0:			/* we got data:  port status changed */
 		bits = 0;
