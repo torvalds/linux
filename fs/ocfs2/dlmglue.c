@@ -96,9 +96,6 @@ struct ocfs2_unblock_ctl {
 	enum ocfs2_unblock_action unblock_action;
 };
 
-/* so far, all locks have gotten along with the same unlock ast */
-static void ocfs2_unlock_ast_func(void *opaque,
-				  enum dlm_status status);
 static int ocfs2_unblock_meta(struct ocfs2_lock_res *lockres,
 			      struct ocfs2_unblock_ctl *ctl);
 static int ocfs2_unblock_data(struct ocfs2_lock_res *lockres,
@@ -120,7 +117,6 @@ static void ocfs2_dentry_post_unlock(struct ocfs2_super *osb,
  */
 struct ocfs2_lock_res_ops {
 	void (*bast)(void *, int);
-	void (*unlock_ast)(void *, enum dlm_status);
 	int  (*unblock)(struct ocfs2_lock_res *, struct ocfs2_unblock_ctl *);
 	void (*post_unlock)(struct ocfs2_super *, struct ocfs2_lock_res *);
 
@@ -149,42 +145,36 @@ static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
 
 static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
 	.bast		= ocfs2_inode_bast_func,
-	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_inode_lock,
 	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
 	.bast		= ocfs2_inode_bast_func,
-	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_meta,
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_data_lops = {
 	.bast		= ocfs2_inode_bast_func,
-	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_data,
 	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_super_lops = {
 	.bast		= ocfs2_super_bast_func,
-	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_osb_lock,
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
 	.bast		= ocfs2_rename_bast_func,
-	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_osb_lock,
 	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
 	.bast		= ocfs2_dentry_bast_func,
-	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_dentry_lock,
 	.post_unlock	= ocfs2_dentry_post_unlock,
 	.flags		= 0,
@@ -2221,7 +2211,7 @@ void ocfs2_dlm_shutdown(struct ocfs2_super *osb)
 	mlog_exit_void();
 }
 
-static void ocfs2_unlock_ast_func(void *opaque, enum dlm_status status)
+static void ocfs2_unlock_ast(void *opaque, enum dlm_status status)
 {
 	struct ocfs2_lock_res *lockres = opaque;
 	unsigned long flags;
@@ -2345,7 +2335,7 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 	mlog(0, "lock %s\n", lockres->l_name);
 
 	status = dlmunlock(osb->dlm, &lockres->l_lksb, LKM_VALBLK,
-			   lockres->l_ops->unlock_ast, lockres);
+			   ocfs2_unlock_ast, lockres);
 	if (status != DLM_NORMAL) {
 		ocfs2_log_dlm_error("dlmunlock", status, lockres);
 		mlog(ML_ERROR, "lockres flags: %lu\n", lockres->l_flags);
@@ -2560,7 +2550,7 @@ static int ocfs2_cancel_convert(struct ocfs2_super *osb,
 	status = dlmunlock(osb->dlm,
 			   &lockres->l_lksb,
 			   LKM_CANCEL,
-			   lockres->l_ops->unlock_ast,
+			   ocfs2_unlock_ast,
 			   lockres);
 	if (status != DLM_NORMAL) {
 		ocfs2_log_dlm_error("dlmunlock", status, lockres);
