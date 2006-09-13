@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/sort.h>
 #include <linux/jhash.h>
-#include <linux/kref.h>
 #include <linux/kallsyms.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/list.h>
@@ -179,23 +178,7 @@ static void glock_free(struct gfs2_glock *gl)
 
 void gfs2_glock_hold(struct gfs2_glock *gl)
 {
-	kref_get(&gl->gl_ref);
-}
-
-/* All work is done after the return from kref_put() so we
-   can release the write_lock before the free. */
-
-static void kill_glock(struct kref *kref)
-{
-	struct gfs2_glock *gl = container_of(kref, struct gfs2_glock, gl_ref);
-	struct gfs2_sbd *sdp = gl->gl_sbd;
-
-	gfs2_assert(sdp, gl->gl_state == LM_ST_UNLOCKED);
-	gfs2_assert(sdp, list_empty(&gl->gl_reclaim));
-	gfs2_assert(sdp, list_empty(&gl->gl_holders));
-	gfs2_assert(sdp, list_empty(&gl->gl_waiters1));
-	gfs2_assert(sdp, list_empty(&gl->gl_waiters2));
-	gfs2_assert(sdp, list_empty(&gl->gl_waiters3));
+	atomic_inc(&gl->gl_ref);
 }
 
 /**
@@ -207,12 +190,19 @@ static void kill_glock(struct kref *kref)
 int gfs2_glock_put(struct gfs2_glock *gl)
 {
 	int rv = 0;
+	struct gfs2_sbd *sdp = gl->gl_sbd;
 
 	write_lock(gl_lock_addr(gl->gl_hash));
-	if (kref_put(&gl->gl_ref, kill_glock)) {
+	if (atomic_dec_and_test(&gl->gl_ref)) {
 		hlist_del(&gl->gl_list);
 		write_unlock(gl_lock_addr(gl->gl_hash));
 		BUG_ON(spin_is_locked(&gl->gl_spin));
+		gfs2_assert(sdp, gl->gl_state == LM_ST_UNLOCKED);
+		gfs2_assert(sdp, list_empty(&gl->gl_reclaim));
+		gfs2_assert(sdp, list_empty(&gl->gl_holders));
+		gfs2_assert(sdp, list_empty(&gl->gl_waiters1));
+		gfs2_assert(sdp, list_empty(&gl->gl_waiters2));
+		gfs2_assert(sdp, list_empty(&gl->gl_waiters3));
 		glock_free(gl);
 		rv = 1;
 		goto out;
@@ -267,7 +257,7 @@ static struct gfs2_glock *search_bucket(unsigned int hash,
 		if (gl->gl_sbd != sdp)
 			continue;
 
-		kref_get(&gl->gl_ref);
+		atomic_inc(&gl->gl_ref);
 
 		return gl;
 	}
@@ -333,7 +323,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 
 	gl->gl_flags = 0;
 	gl->gl_name = name;
-	kref_init(&gl->gl_ref);
+	atomic_set(&gl->gl_ref, 1);
 	gl->gl_state = LM_ST_UNLOCKED;
 	gl->gl_hash = hash;
 	gl->gl_owner = NULL;
@@ -2124,7 +2114,7 @@ static int dump_glock(struct gfs2_glock *gl)
 			printk(" %u", x);
 	}
 	printk(" \n");
-	printk(KERN_INFO "  gl_ref = %d\n", atomic_read(&gl->gl_ref.refcount));
+	printk(KERN_INFO "  gl_ref = %d\n", atomic_read(&gl->gl_ref));
 	printk(KERN_INFO "  gl_state = %u\n", gl->gl_state);
 	printk(KERN_INFO "  gl_owner = %s\n", gl->gl_owner->comm);
 	print_symbol(KERN_INFO "  gl_ip = %s\n", gl->gl_ip);

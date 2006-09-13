@@ -164,7 +164,7 @@ struct gfs2_glock {
 	struct hlist_node gl_list;
 	unsigned long gl_flags;		/* GLF_... */
 	struct lm_lockname gl_name;
-	struct kref gl_ref;
+	atomic_t gl_ref;
 
 	spinlock_t gl_spin;
 
