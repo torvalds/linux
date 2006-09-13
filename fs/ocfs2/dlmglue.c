@@ -67,16 +67,12 @@ struct ocfs2_mask_waiter {
 	unsigned long		mw_goal;
 };
 
-static void ocfs2_inode_ast_func(void *opaque);
 static void ocfs2_inode_bast_func(void *opaque,
 				  int level);
-static void ocfs2_dentry_ast_func(void *opaque);
 static void ocfs2_dentry_bast_func(void *opaque,
 				  int level);
-static void ocfs2_super_ast_func(void *opaque);
 static void ocfs2_super_bast_func(void *opaque,
 				  int level);
-static void ocfs2_rename_ast_func(void *opaque);
 static void ocfs2_rename_bast_func(void *opaque,
 				   int level);
 
@@ -123,7 +119,6 @@ static void ocfs2_dentry_post_unlock(struct ocfs2_super *osb,
  * These fine tune the behavior of the generic dlmglue locking infrastructure.
  */
 struct ocfs2_lock_res_ops {
-	void (*ast)(void *);
 	void (*bast)(void *, int);
 	void (*unlock_ast)(void *, enum dlm_status);
 	int  (*unblock)(struct ocfs2_lock_res *, struct ocfs2_unblock_ctl *);
@@ -153,7 +148,6 @@ static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
 				      ocfs2_convert_worker_t *worker);
 
 static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
-	.ast		= ocfs2_inode_ast_func,
 	.bast		= ocfs2_inode_bast_func,
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_inode_lock,
@@ -161,7 +155,6 @@ static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
-	.ast		= ocfs2_inode_ast_func,
 	.bast		= ocfs2_inode_bast_func,
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_meta,
@@ -169,7 +162,6 @@ static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_data_lops = {
-	.ast		= ocfs2_inode_ast_func,
 	.bast		= ocfs2_inode_bast_func,
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_data,
@@ -177,7 +169,6 @@ static struct ocfs2_lock_res_ops ocfs2_inode_data_lops = {
 };
 
 static struct ocfs2_lock_res_ops ocfs2_super_lops = {
-	.ast		= ocfs2_super_ast_func,
 	.bast		= ocfs2_super_bast_func,
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_osb_lock,
@@ -185,7 +176,6 @@ static struct ocfs2_lock_res_ops ocfs2_super_lops = {
 };
 
 static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
-	.ast		= ocfs2_rename_ast_func,
 	.bast		= ocfs2_rename_bast_func,
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_osb_lock,
@@ -193,7 +183,6 @@ static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
 };
 
 static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
-	.ast		= ocfs2_dentry_ast_func,
 	.bast		= ocfs2_dentry_bast_func,
 	.unlock_ast	= ocfs2_unlock_ast_func,
 	.unblock	= ocfs2_unblock_dentry_lock,
@@ -625,64 +614,6 @@ static inline void ocfs2_generic_handle_attach_action(struct ocfs2_lock_res *loc
 	mlog_exit_void();
 }
 
-static void ocfs2_inode_ast_func(void *opaque)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-	struct inode *inode;
-	struct dlm_lockstatus *lksb;
-	unsigned long flags;
-
-	mlog_entry_void();
-
-	inode = ocfs2_lock_res_inode(lockres);
-
-	mlog(0, "AST fired for inode %llu, l_action = %u, type = %s\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno, lockres->l_action,
-	     ocfs2_lock_type_string(lockres->l_type));
-
-	BUG_ON(!ocfs2_is_inode_lock(lockres));
-
-	spin_lock_irqsave(&lockres->l_lock, flags);
-
-	lksb = &(lockres->l_lksb);
-	if (lksb->status != DLM_NORMAL) {
-		mlog(ML_ERROR, "ocfs2_inode_ast_func: lksb status value of %u "
-		     "on inode %llu\n", lksb->status,
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		mlog_exit_void();
-		return;
-	}
-
-	switch(lockres->l_action) {
-	case OCFS2_AST_ATTACH:
-		ocfs2_generic_handle_attach_action(lockres);
-		lockres_clear_flags(lockres, OCFS2_LOCK_LOCAL);
-		break;
-	case OCFS2_AST_CONVERT:
-		ocfs2_generic_handle_convert_action(lockres);
-		break;
-	case OCFS2_AST_DOWNCONVERT:
-		ocfs2_generic_handle_downconvert_action(lockres);
-		break;
-	default:
-		mlog(ML_ERROR, "lockres %s: ast fired with invalid action: %u "
-		     "lockres flags = 0x%lx, unlock action: %u\n",
-		     lockres->l_name, lockres->l_action, lockres->l_flags,
-		     lockres->l_unlock_action);
-
-		BUG();
-	}
-
-	/* set it to something invalid so if we get called again we
-	 * can catch it. */
-	lockres->l_action = OCFS2_AST_INVALID;
-	spin_unlock_irqrestore(&lockres->l_lock, flags);
-	wake_up(&lockres->l_event);
-
-	mlog_exit_void();
-}
-
 static int ocfs2_generic_handle_bast(struct ocfs2_lock_res *lockres,
 				     int level)
 {
@@ -755,8 +686,9 @@ static void ocfs2_inode_bast_func(void *opaque, int level)
 	mlog_exit_void();
 }
 
-static void ocfs2_generic_ast_func(struct ocfs2_lock_res *lockres)
+static void ocfs2_locking_ast(void *opaque)
 {
+	struct ocfs2_lock_res *lockres = opaque;
 	struct dlm_lockstatus *lksb = &lockres->l_lksb;
 	unsigned long flags;
 
@@ -772,6 +704,7 @@ static void ocfs2_generic_ast_func(struct ocfs2_lock_res *lockres)
 	switch(lockres->l_action) {
 	case OCFS2_AST_ATTACH:
 		ocfs2_generic_handle_attach_action(lockres);
+		lockres_clear_flags(lockres, OCFS2_LOCK_LOCAL);
 		break;
 	case OCFS2_AST_CONVERT:
 		ocfs2_generic_handle_convert_action(lockres);
@@ -780,6 +713,10 @@ static void ocfs2_generic_ast_func(struct ocfs2_lock_res *lockres)
 		ocfs2_generic_handle_downconvert_action(lockres);
 		break;
 	default:
+		mlog(ML_ERROR, "lockres %s: ast fired with invalid action: %u "
+		     "lockres flags = 0x%lx, unlock action: %u\n",
+		     lockres->l_name, lockres->l_action, lockres->l_flags,
+		     lockres->l_unlock_action);
 		BUG();
 	}
 
@@ -789,19 +726,6 @@ static void ocfs2_generic_ast_func(struct ocfs2_lock_res *lockres)
 
 	wake_up(&lockres->l_event);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
-}
-
-static void ocfs2_super_ast_func(void *opaque)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-
-	mlog_entry_void();
-	mlog(0, "Superblock AST fired\n");
-
-	BUG_ON(!ocfs2_is_super_lock(lockres));
-	ocfs2_generic_ast_func(lockres);
-
-	mlog_exit_void();
 }
 
 static void ocfs2_super_bast_func(void *opaque,
@@ -816,21 +740,6 @@ static void ocfs2_super_bast_func(void *opaque,
 	BUG_ON(!ocfs2_is_super_lock(lockres));
        	osb = ocfs2_lock_res_super(lockres);
 	ocfs2_generic_bast_func(osb, lockres, level);
-
-	mlog_exit_void();
-}
-
-static void ocfs2_rename_ast_func(void *opaque)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-
-	mlog_entry_void();
-
-	mlog(0, "Rename AST fired\n");
-
-	BUG_ON(!ocfs2_is_rename_lock(lockres));
-
-	ocfs2_generic_ast_func(lockres);
 
 	mlog_exit_void();
 }
@@ -851,15 +760,6 @@ static void ocfs2_rename_bast_func(void *opaque,
 	ocfs2_generic_bast_func(osb, lockres, level);
 
 	mlog_exit_void();
-}
-
-static void ocfs2_dentry_ast_func(void *opaque)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-
-	BUG_ON(!lockres);
-
-	ocfs2_generic_ast_func(lockres);
 }
 
 static void ocfs2_dentry_bast_func(void *opaque, int level)
@@ -928,7 +828,7 @@ static int ocfs2_lock_create(struct ocfs2_super *osb,
 			 dlm_flags,
 			 lockres->l_name,
 			 OCFS2_LOCK_ID_MAX_LEN - 1,
-			 lockres->l_ops->ast,
+			 ocfs2_locking_ast,
 			 lockres,
 			 lockres->l_ops->bast);
 	if (status != DLM_NORMAL) {
@@ -1118,7 +1018,7 @@ again:
 				 lkm_flags|LKM_CONVERT|LKM_VALBLK,
 				 lockres->l_name,
 				 OCFS2_LOCK_ID_MAX_LEN - 1,
-				 lockres->l_ops->ast,
+				 ocfs2_locking_ast,
 				 lockres,
 				 lockres->l_ops->bast);
 		if (status != DLM_NORMAL) {
@@ -2599,7 +2499,7 @@ static int ocfs2_downconvert_lock(struct ocfs2_super *osb,
 			 dlm_flags,
 			 lockres->l_name,
 			 OCFS2_LOCK_ID_MAX_LEN - 1,
-			 lockres->l_ops->ast,
+			 ocfs2_locking_ast,
 			 lockres,
 			 lockres->l_ops->bast);
 	if (status != DLM_NORMAL) {
