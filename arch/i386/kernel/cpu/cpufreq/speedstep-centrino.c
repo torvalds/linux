@@ -393,7 +393,7 @@ static int __init sw_any_bug_found(struct dmi_system_id *d)
 }
 
 
-static struct dmi_system_id __initdata sw_any_bug_dmi_table[] = {
+static struct dmi_system_id sw_any_bug_dmi_table[] = {
 	{
 		.callback = sw_any_bug_found,
 		.ident = "Supermicro Server X6DLP",
