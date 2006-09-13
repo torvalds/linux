@@ -86,7 +86,7 @@
 #include "zoran_device.h"
 #include "zoran_card.h"
 
-#ifdef HAVE_V4L2
+#ifdef CONFIG_VIDEO_V4L2
 	/* we declare some card type definitions here, they mean
 	 * the same as the v4l1 ZORAN_VID_TYPE above, except it's v4l2 */
 #define ZORAN_V4L2_VID_FLAGS ( \
@@ -103,7 +103,7 @@ const struct zoran_format zoran_formats[] = {
 	{
 		.name = "15-bit RGB",
 		.palette = VIDEO_PALETTE_RGB555,
-#ifdef HAVE_V4L2
+#ifdef CONFIG_VIDEO_V4L2
 #ifdef __LITTLE_ENDIAN
 		.fourcc = V4L2_PIX_FMT_RGB555,
 #else
@@ -117,7 +117,7 @@ const struct zoran_format zoran_formats[] = {
 	}, {
 		.name = "16-bit RGB",
 		.palette = VIDEO_PALETTE_RGB565,
-#ifdef HAVE_V4L2
+#ifdef CONFIG_VIDEO_V4L2
 #ifdef __LITTLE_ENDIAN
 		.fourcc = V4L2_PIX_FMT_RGB565,
 #else
@@ -131,7 +131,7 @@ const struct zoran_format zoran_formats[] = {
 	}, {
 		.name = "24-bit RGB",
 		.palette = VIDEO_PALETTE_RGB24,
-#ifdef HAVE_V4L2
+#ifdef CONFIG_VIDEO_V4L2
 #ifdef __LITTLE_ENDIAN
 		.fourcc = V4L2_PIX_FMT_BGR24,
 #else
@@ -145,7 +145,7 @@ const struct zoran_format zoran_formats[] = {
 	}, {
 		.name = "32-bit RGB",
 		.palette = VIDEO_PALETTE_RGB32,
-#ifdef HAVE_V4L2
+#ifdef CONFIG_VIDEO_V4L2
 #ifdef __LITTLE_ENDIAN
 		.fourcc = V4L2_PIX_FMT_BGR32,
 #else
@@ -159,7 +159,7 @@ const struct zoran_format zoran_formats[] = {
 	}, {
 		.name = "4:2:2, packed, YUYV",
 		.palette = VIDEO_PALETTE_YUV422,
-#ifdef HAVE_V4L2
+#ifdef CONFIG_VIDEO_V4L2
 		.fourcc = V4L2_PIX_FMT_YUYV,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 #endif
@@ -169,7 +169,7 @@ const struct zoran_format zoran_formats[] = {
 	}, {
 		.name = "Hardware-encoded Motion-JPEG",
 		.palette = -1,
-#ifdef HAVE_V4L2
+#ifdef CONFIG_VIDEO_V4L2
 		.fourcc = V4L2_PIX_FMT_MJPEG,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 #endif
@@ -210,7 +210,7 @@ static int lock_norm = 0;	/* 1=Don't change TV standard (norm) */
 module_param(lock_norm, int, 0);
 MODULE_PARM_DESC(lock_norm, "Users can't change norm");
 
-#ifdef HAVE_V4L2
+#ifdef CONFIG_VIDEO_V4L2
 	/* small helper function for calculating buffersizes for v4l2
 	 * we calculate the nearest higher power-of-two, which
 	 * will be the recommended buffersize */
@@ -1761,7 +1761,7 @@ setup_overlay (struct file *file,
 	return wait_grab_pending(zr);
 }
 
-#ifdef HAVE_V4L2
+#ifdef CONFIG_VIDEO_V4L2
 	/* get the status of a buffer in the clients buffer queue */
 static int
 zoran_v4l2_buffer_status (struct file        *file,
@@ -2676,7 +2676,7 @@ zoran_do_ioctl (struct inode *inode,
 	}
 		break;
 
-#ifdef HAVE_V4L2
+#ifdef CONFIG_VIDEO_V4L2
 
 		/* The new video4linux2 capture interface - much nicer than video4linux1, since
 		 * it allows for integrating the JPEG capturing calls inside standard v4l2
@@ -4689,7 +4689,7 @@ static struct file_operations zoran_fops = {
 struct video_device zoran_template __devinitdata = {
 	.name = ZORAN_NAME,
 	.type = ZORAN_VID_TYPE,
-#ifdef HAVE_V4L2
+#ifdef CONFIG_VIDEO_V4L2
 	.type2 = ZORAN_V4L2_VID_FLAGS,
 #endif
 	.hardware = ZORAN_HARDWARE,

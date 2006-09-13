@@ -26,7 +26,6 @@ LDFLAGS			+= -EB  -mshelf32_linux
 endif
 
 # No requirements for endianess support from AFLAGS, 'as' always run through gcc
-AFLAGS		+= -m5 -isa=sh64 -traditional
 CFLAGS		+= $(cpu-y)
 
 LDFLAGS_vmlinux	+= --defsym phys_stext=_stext-$(CONFIG_CACHED_MEMORY_OFFSET) \

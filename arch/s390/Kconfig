@@ -118,6 +118,10 @@ config SYSVIPC_COMPAT
 	depends on COMPAT && SYSVIPC
 	default y
 
+config AUDIT_ARCH
+	bool
+	default y
+
 comment "Code generation options"
 
 choice
