@@ -126,22 +126,30 @@ static inline void dma_sync_sg(struct device *dev, struct scatterlist *sg,
 static inline void dma_sync_single_for_cpu(struct device *dev,
 					   dma_addr_t dma_handle, size_t size,
 					   enum dma_data_direction dir)
-	__attribute__ ((alias("dma_sync_single")));
+{
+	dma_sync_single(dev, dma_handle, size, dir);
+}
 
 static inline void dma_sync_single_for_device(struct device *dev,
 					   dma_addr_t dma_handle, size_t size,
 					   enum dma_data_direction dir)
-	__attribute__ ((alias("dma_sync_single")));
+{
+	dma_sync_single(dev, dma_handle, size, dir);
+}
 
 static inline void dma_sync_sg_for_cpu(struct device *dev,
 				       struct scatterlist *sg, int nelems,
 				       enum dma_data_direction dir)
-	__attribute__ ((alias("dma_sync_sg")));
+{
+	dma_sync_sg(dev, sg, nelems, dir);
+}
 
 static inline void dma_sync_sg_for_device(struct device *dev,
 				       struct scatterlist *sg, int nelems,
 				       enum dma_data_direction dir)
-	__attribute__ ((alias("dma_sync_sg")));
+{
+	dma_sync_sg(dev, sg, nelems, dir);
+}
 
 static inline int dma_get_cache_alignment(void)
 {

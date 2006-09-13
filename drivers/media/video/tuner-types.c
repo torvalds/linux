@@ -926,11 +926,17 @@ static struct tuner_params tuner_lg_tdvs_h06xf_params[] = {
 
 /* ------------ TUNER_YMEC_TVF66T5_B_DFF - Philips PAL ------------ */
 
+static struct tuner_range tuner_ymec_tvf66t5_b_dff_pal_ranges[] = {
+	{ 16 * 160.25 /*MHz*/, 0x8e, 0x01, },
+	{ 16 * 464.25 /*MHz*/, 0x8e, 0x02, },
+	{ 16 * 999.99        , 0x8e, 0x08, },
+};
+
 static struct tuner_params tuner_ymec_tvf66t5_b_dff_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_PAL,
-		.ranges = tuner_tena_9533_di_pal_ranges,
-		.count  = ARRAY_SIZE(tuner_tena_9533_di_pal_ranges),
+		.ranges = tuner_ymec_tvf66t5_b_dff_pal_ranges,
+		.count  = ARRAY_SIZE(tuner_ymec_tvf66t5_b_dff_pal_ranges),
 	},
 };
 
