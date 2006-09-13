@@ -2934,7 +2934,37 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE1,
 		}},
 	},
-
+	[SAA7134_BOARD_PROTEUS_2309] = {
+		.name           = "Proteus Pro 2309",
+		.audio_clock    = 0x00187de7,
+		.tuner_type	= TUNER_PHILIPS_FM1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = LINE2,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+		},{
+			.name = name_comp2,
+			.vmux = 3,
+			.amux = LINE2,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+		}},
+		.mute = {
+			.name = name_mute,
+			.amux = LINE1,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3526,6 +3556,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x0502,                /* Cardbus version */
 		.driver_data  = SAA7134_BOARD_FLYDVBT_DUO_CARDBUS,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x0919, /* Philips Proteus PRO 2309 */
+		.subdevice    = 0x2003,
+		.driver_data  = SAA7134_BOARD_PROTEUS_2309,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3628,6 +3664,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_SEDNA_PC_TV_CARDBUS:
 	case SAA7134_BOARD_FLYDVBT_LR301:
 	case SAA7134_BOARD_FLYDVBTDUO:
+	case SAA7134_BOARD_PROTEUS_2309:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:

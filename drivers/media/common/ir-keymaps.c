@@ -32,6 +32,37 @@ IR_KEYTAB_TYPE ir_codes_empty[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_empty);
 
+/* Michal Majchrowicz <mmajchrowicz@gmail.com> */
+IR_KEYTAB_TYPE ir_codes_proteus_2309[IR_KEYTAB_SIZE] = {
+	/* numeric */
+	[ 0x00 ] = KEY_0,
+	[ 0x01 ] = KEY_1,
+	[ 0x02 ] = KEY_2,
+	[ 0x03 ] = KEY_3,
+	[ 0x04 ] = KEY_4,
+	[ 0x05 ] = KEY_5,
+	[ 0x06 ] = KEY_6,
+	[ 0x07 ] = KEY_7,
+	[ 0x08 ] = KEY_8,
+	[ 0x09 ] = KEY_9,
+
+	[ 0x5c ] = KEY_POWER,     /* power       */
+	[ 0x20 ] = KEY_F,         /* full screen */
+	[ 0x0f ] = KEY_BACKSPACE, /* recall      */
+	[ 0x1b ] = KEY_ENTER,     /* mute        */
+	[ 0x41 ] = KEY_RECORD,    /* record      */
+	[ 0x43 ] = KEY_STOP,      /* stop        */
+	[ 0x16 ] = KEY_S,
+	[ 0x1a ] = KEY_Q,         /* off         */
+	[ 0x2e ] = KEY_RED,
+	[ 0x1f ] = KEY_DOWN,      /* channel -   */
+	[ 0x1c ] = KEY_UP,        /* channel +   */
+	[ 0x10 ] = KEY_LEFT,      /* volume -    */
+	[ 0x1e ] = KEY_RIGHT,     /* volume +    */
+	[ 0x14 ] = KEY_F1,
+};
+
+EXPORT_SYMBOL_GPL(ir_codes_proteus_2309);
 /* Matt Jesson <dvb@jesson.eclipse.co.uk */
 IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE] = {
 	[ 0x28 ] = KEY_0,         //'0' / 'enter'

@@ -228,6 +228,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keyup   = 0x400000;
 		polling      = 50; // ms
 		break;
+	case SAA7134_BOARD_PROTEUS_2309:
+		ir_codes     = ir_codes_proteus_2309;
+		mask_keycode = 0x00007F;
+		mask_keyup   = 0x000080;
+		polling      = 50; // ms
+		break;
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
 		ir_codes     = ir_codes_videomate_tv_pvr;
