@@ -75,6 +75,10 @@ config DMA_IS_NORMAL
 	depends on IA64_SGI_SN2
 	default y
 
+config AUDIT_ARCH
+	bool
+	default y
+
 choice
 	prompt "System type"
 	default IA64_GENERIC
