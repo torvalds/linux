@@ -1029,7 +1029,7 @@ static u32 veth_get_link(struct net_device *dev)
 	return 1;
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = veth_get_drvinfo,
 	.get_settings = veth_get_settings,
 	.get_link = veth_get_link,

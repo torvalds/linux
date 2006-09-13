@@ -648,7 +648,7 @@ static void at91ether_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo
 	strlcpy(info->bus_info, dev->class_dev.dev->bus_id, sizeof(info->bus_info));
 }
 
-static struct ethtool_ops at91ether_ethtool_ops = {
+static const struct ethtool_ops at91ether_ethtool_ops = {
 	.get_settings	= at91ether_get_settings,
 	.set_settings	= at91ether_set_settings,
 	.get_drvinfo	= at91ether_get_drvinfo,

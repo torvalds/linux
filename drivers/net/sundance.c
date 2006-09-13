@@ -431,7 +431,7 @@ static int __set_mac_addr(struct net_device *dev);
 static struct net_device_stats *get_stats(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int  netdev_close(struct net_device *dev);
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops;
 
 static void sundance_reset(struct net_device *dev, unsigned long reset_cmd)
 {
@@ -1569,7 +1569,7 @@ static void set_msglevel(struct net_device *dev, u32 val)
 	np->msg_enable = val;
 }
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.begin = check_if_running,
 	.get_drvinfo = get_drvinfo,
 	.get_settings = get_settings,

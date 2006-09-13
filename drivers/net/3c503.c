@@ -79,7 +79,7 @@ static void el2_block_input(struct net_device *dev, int count, struct sk_buff *s
 			   int ring_offset);
 static void el2_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 			 int ring_page);
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 
 
 /* This routine probes for a memory-mapped 3c503 board by looking for
@@ -666,7 +666,7 @@ static void netdev_get_drvinfo(struct net_device *dev,
 	sprintf(info->bus_info, "ISA 0x%lx", dev->base_addr);
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 };
 

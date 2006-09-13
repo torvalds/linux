@@ -691,7 +691,7 @@ static int skge_phys_id(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static struct ethtool_ops skge_ethtool_ops = {
+static const struct ethtool_ops skge_ethtool_ops = {
 	.get_settings	= skge_get_settings,
 	.set_settings	= skge_set_settings,
 	.get_drvinfo	= skge_get_drvinfo,

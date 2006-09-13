@@ -3908,7 +3908,7 @@ static void prism2_get_drvinfo(struct net_device *dev,
 		 local->sta_fw_ver & 0xff);
 }
 
-struct ethtool_ops prism2_ethtool_ops = {
+const struct ethtool_ops prism2_ethtool_ops = {
 	.get_drvinfo = prism2_get_drvinfo
 };
 

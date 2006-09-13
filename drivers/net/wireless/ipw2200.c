@@ -10461,7 +10461,7 @@ static int ipw_ethtool_set_eeprom(struct net_device *dev,
 	return 0;
 }
 
-static struct ethtool_ops ipw_ethtool_ops = {
+static const struct ethtool_ops ipw_ethtool_ops = {
 	.get_link = ipw_ethtool_get_link,
 	.get_drvinfo = ipw_ethtool_get_drvinfo,
 	.get_eeprom_len = ipw_ethtool_get_eeprom_len,

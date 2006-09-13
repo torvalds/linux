@@ -1318,7 +1318,7 @@ static u32 sparc_lance_get_link(struct net_device *dev)
 	return 1;
 }
 
-static struct ethtool_ops sparc_lance_ethtool_ops = {
+static const struct ethtool_ops sparc_lance_ethtool_ops = {
 	.get_drvinfo		= sparc_lance_get_drvinfo,
 	.get_link		= sparc_lance_get_link,
 };

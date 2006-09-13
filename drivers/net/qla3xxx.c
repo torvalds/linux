@@ -1588,7 +1588,7 @@ static void ql_set_msglevel(struct net_device *ndev, u32 value)
 	qdev->msg_enable = value;
 }
 
-static struct ethtool_ops ql3xxx_ethtool_ops = {
+static const struct ethtool_ops ql3xxx_ethtool_ops = {
 	.get_settings = ql_get_settings,
 	.get_drvinfo = ql_get_drvinfo,
 	.get_perm_addr = ethtool_op_get_perm_addr,

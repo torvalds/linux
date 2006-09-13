@@ -1124,7 +1124,7 @@ static void rtl8169_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 }
 
 
-static struct ethtool_ops rtl8169_ethtool_ops = {
+static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_drvinfo		= rtl8169_get_drvinfo,
 	.get_regs_len		= rtl8169_get_regs_len,
 	.get_link		= ethtool_op_get_link,

@@ -103,7 +103,7 @@ static void fjn_reset(struct net_device *dev);
 static struct net_device_stats *fjn_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static void fjn_tx_timeout(struct net_device *dev);
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 
 /*
     card type
@@ -1092,7 +1092,7 @@ static void netdev_set_msglevel(struct net_device *dev, u32 level)
 }
 #endif /* PCMCIA_DEBUG */
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 #ifdef PCMCIA_DEBUG
 	.get_msglevel		= netdev_get_msglevel,

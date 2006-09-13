@@ -115,7 +115,7 @@ static inline void ioc3_stop(struct ioc3_private *ip);
 static void ioc3_init(struct net_device *dev);
 
 static const char ioc3_str[] = "IOC3 Ethernet";
-static struct ethtool_ops ioc3_ethtool_ops;
+static const struct ethtool_ops ioc3_ethtool_ops;
 
 /* We use this to acquire receive skb's that we can DMA directly into. */
 
@@ -1580,7 +1580,7 @@ static u32 ioc3_get_link(struct net_device *dev)
 	return rc;
 }
 
-static struct ethtool_ops ioc3_ethtool_ops = {
+static const struct ethtool_ops ioc3_ethtool_ops = {
 	.get_drvinfo		= ioc3_get_drvinfo,
 	.get_settings		= ioc3_get_settings,
 	.set_settings		= ioc3_set_settings,

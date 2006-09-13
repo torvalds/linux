@@ -1464,7 +1464,7 @@ static void wl3501_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 	strlcpy(info->driver, wl3501_dev_info, sizeof(info->driver));
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = wl3501_get_drvinfo
 };
 

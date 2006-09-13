@@ -299,7 +299,7 @@ static void mdio_sync(kio_addr_t addr);
 static int mdio_read(struct net_device *dev, int phy_id, int loc);
 static void mdio_write(struct net_device *dev, int phy_id, int loc, int value);
 static int smc_link_ok(struct net_device *dev);
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops;
 
 /*======================================================================
 
@@ -2207,7 +2207,7 @@ static int smc_nway_reset(struct net_device *dev)
 		return -EOPNOTSUPP;
 }
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.begin = check_if_running,
 	.get_drvinfo = smc_get_drvinfo,
 	.get_settings = smc_get_settings,

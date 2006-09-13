@@ -1499,7 +1499,7 @@ static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	spin_unlock_irqrestore(&lp->lock, flags);
 }
 
-static struct ethtool_ops pcnet32_ethtool_ops = {
+static const struct ethtool_ops pcnet32_ethtool_ops = {
 	.get_settings		= pcnet32_get_settings,
 	.set_settings		= pcnet32_set_settings,
 	.get_drvinfo		= pcnet32_get_drvinfo,

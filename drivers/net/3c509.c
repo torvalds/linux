@@ -200,7 +200,7 @@ static void set_multicast_list(struct net_device *dev);
 static void el3_tx_timeout (struct net_device *dev);
 static void el3_down(struct net_device *dev);
 static void el3_up(struct net_device *dev);
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops;
 #ifdef EL3_SUSPEND
 static int el3_suspend(struct device *, pm_message_t);
 static int el3_resume(struct device *);
@@ -1349,7 +1349,7 @@ static void el3_set_msglevel(struct net_device *dev, u32 v)
 	el3_debug = v;
 }
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = el3_get_drvinfo,
 	.get_settings = el3_get_settings,
 	.set_settings = el3_set_settings,

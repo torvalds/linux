@@ -356,7 +356,7 @@ static void yellowfin_error(struct net_device *dev, int intr_status);
 static int yellowfin_close(struct net_device *dev);
 static struct net_device_stats *yellowfin_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops;
 
 
 static int __devinit yellowfin_init_one(struct pci_dev *pdev,
@@ -1352,7 +1352,7 @@ static void yellowfin_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo
 	strcpy(info->bus_info, pci_name(np->pci_dev));
 }
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = yellowfin_get_drvinfo
 };
 

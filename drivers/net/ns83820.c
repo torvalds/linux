@@ -1273,7 +1273,7 @@ static u32 ns83820_get_link(struct net_device *ndev)
 	return cfg & CFG_LNKSTS ? 1 : 0;
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = ns83820_get_drvinfo,
 	.get_link = ns83820_get_link
 };

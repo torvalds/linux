@@ -1645,7 +1645,7 @@ static int amd8111e_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol_
 	return 0;
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = amd8111e_get_drvinfo,
 	.get_regs_len = amd8111e_get_regs_len,
 	.get_regs = amd8111e_get_regs,

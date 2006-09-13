@@ -908,7 +908,7 @@ static void fs_set_msglevel(struct net_device *dev, u32 value)
 	fep->msg_enable = value;
 }
 
-static struct ethtool_ops fs_ethtool_ops = {
+static const struct ethtool_ops fs_ethtool_ops = {
 	.get_drvinfo = fs_get_drvinfo,
 	.get_regs_len = fs_get_regs_len,
 	.get_settings = fs_get_settings,

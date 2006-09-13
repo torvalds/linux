@@ -1670,7 +1670,7 @@ static void de_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	spin_unlock_irq(&de->lock);
 }
 
-static struct ethtool_ops de_ethtool_ops = {
+static const struct ethtool_ops de_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_tx_csum		= ethtool_op_get_tx_csum,
 	.get_sg			= ethtool_op_get_sg,

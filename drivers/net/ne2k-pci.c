@@ -175,7 +175,7 @@ static void ne2k_pci_block_input(struct net_device *dev, int count,
 			  struct sk_buff *skb, int ring_offset);
 static void ne2k_pci_block_output(struct net_device *dev, const int count,
 		const unsigned char *buf, const int start_page);
-static struct ethtool_ops ne2k_pci_ethtool_ops;
+static const struct ethtool_ops ne2k_pci_ethtool_ops;
 
 
 
@@ -635,7 +635,7 @@ static void ne2k_pci_get_drvinfo(struct net_device *dev,
 	strcpy(info->bus_info, pci_name(pci_dev));
 }
 
-static struct ethtool_ops ne2k_pci_ethtool_ops = {
+static const struct ethtool_ops ne2k_pci_ethtool_ops = {
 	.get_drvinfo		= ne2k_pci_get_drvinfo,
 	.get_tx_csum		= ethtool_op_get_tx_csum,
 	.get_sg			= ethtool_op_get_sg,

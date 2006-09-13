@@ -3962,7 +3962,7 @@ static void nv_get_strings(struct net_device *dev, u32 stringset, u8 *buffer)
 	}
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = nv_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_wol = nv_get_wol,

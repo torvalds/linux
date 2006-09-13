@@ -563,8 +563,8 @@ static void hamachi_error(struct net_device *dev, int intr_status);
 static int hamachi_close(struct net_device *dev);
 static struct net_device_stats *hamachi_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
-static struct ethtool_ops ethtool_ops;
-static struct ethtool_ops ethtool_ops_no_mii;
+static const struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops_no_mii;
 
 static int __devinit hamachi_init_one (struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
@@ -1919,7 +1919,7 @@ static u32 hamachi_get_link(struct net_device *dev)
 	return mii_link_ok(&np->mii_if);
 }
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.begin = check_if_running,
 	.get_drvinfo = hamachi_get_drvinfo,
 	.get_settings = hamachi_get_settings,
@@ -1928,7 +1928,7 @@ static struct ethtool_ops ethtool_ops = {
 	.get_link = hamachi_get_link,
 };
 
-static struct ethtool_ops ethtool_ops_no_mii = {
+static const struct ethtool_ops ethtool_ops_no_mii = {
 	.begin = check_if_running,
 	.get_drvinfo = hamachi_get_drvinfo,
 };

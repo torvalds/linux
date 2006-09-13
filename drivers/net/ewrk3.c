@@ -305,8 +305,8 @@ static int ewrk3_close(struct net_device *dev);
 static struct net_device_stats *ewrk3_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static int ewrk3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static struct ethtool_ops ethtool_ops_203;
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops_203;
+static const struct ethtool_ops ethtool_ops;
 
 /*
    ** Private functions
@@ -1666,14 +1666,14 @@ static int ewrk3_phys_id(struct net_device *dev, u32 data)
 	return signal_pending(current) ? -ERESTARTSYS : 0;
 }
 
-static struct ethtool_ops ethtool_ops_203 = {
+static const struct ethtool_ops ethtool_ops_203 = {
 	.get_drvinfo = ewrk3_get_drvinfo,
 	.get_settings = ewrk3_get_settings,
 	.set_settings = ewrk3_set_settings,
 	.phys_id = ewrk3_phys_id,
 };
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = ewrk3_get_drvinfo,
 	.get_settings = ewrk3_get_settings,
 	.set_settings = ewrk3_set_settings,

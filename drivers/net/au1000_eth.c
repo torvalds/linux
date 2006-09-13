@@ -608,7 +608,7 @@ au1000_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	info->regdump_len = 0;
 }
 
-static struct ethtool_ops au1000_ethtool_ops = {
+static const struct ethtool_ops au1000_ethtool_ops = {
 	.get_settings = au1000_get_settings,
 	.set_settings = au1000_set_settings,
 	.get_drvinfo = au1000_get_drvinfo,

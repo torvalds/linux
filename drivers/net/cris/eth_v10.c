@@ -434,7 +434,7 @@ static void e100_reset_transceiver(struct net_device* net);
 static void e100_clear_network_leds(unsigned long dummy);
 static void e100_set_network_leds(int active);
 
-static struct ethtool_ops e100_ethtool_ops;
+static const struct ethtool_ops e100_ethtool_ops;
 
 static void broadcom_check_speed(struct net_device* dev);
 static void broadcom_check_duplex(struct net_device* dev);
@@ -1552,7 +1552,7 @@ static int e100_nway_reset(struct net_device *dev)
 	return 0;
 }
 
-static struct ethtool_ops e100_ethtool_ops = {
+static const struct ethtool_ops e100_ethtool_ops = {
 	.get_settings	= e100_get_settings,
 	.set_settings	= e100_set_settings,
 	.get_drvinfo	= e100_get_drvinfo,

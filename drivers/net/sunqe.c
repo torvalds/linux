@@ -718,7 +718,7 @@ static u32 qe_get_link(struct net_device *dev)
 	return (phyconfig & MREGS_PHYCONFIG_LSTAT);
 }
 
-static struct ethtool_ops qe_ethtool_ops = {
+static const struct ethtool_ops qe_ethtool_ops = {
 	.get_drvinfo		= qe_get_drvinfo,
 	.get_link		= qe_get_link,
 };

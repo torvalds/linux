@@ -431,7 +431,7 @@ static struct net_device_stats *mace_get_stats(struct net_device *dev);
 static int mace_rx(struct net_device *dev, unsigned char RxCnt);
 static void restore_multicast_list(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 
 
 static void nmclan_detach(struct pcmcia_device *p_dev);
@@ -907,7 +907,7 @@ static void netdev_set_msglevel(struct net_device *dev, u32 level)
 }
 #endif /* PCMCIA_DEBUG */
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 #ifdef PCMCIA_DEBUG
 	.get_msglevel		= netdev_get_msglevel,

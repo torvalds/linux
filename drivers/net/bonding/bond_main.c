@@ -4130,7 +4130,7 @@ static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 	snprintf(drvinfo->fw_version, 32, "%d", BOND_ABI_VERSION);
 }
 
-static struct ethtool_ops bond_ethtool_ops = {
+static const struct ethtool_ops bond_ethtool_ops = {
 	.get_tx_csum		= ethtool_op_get_tx_csum,
 	.get_tso		= ethtool_op_get_tso,
 	.get_ufo		= ethtool_op_get_ufo,

@@ -1241,7 +1241,7 @@ typhoon_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 	ering->tx_pending = TXLO_ENTRIES - 1;
 }
 
-static struct ethtool_ops typhoon_ethtool_ops = {
+static const struct ethtool_ops typhoon_ethtool_ops = {
 	.get_settings		= typhoon_get_settings,
 	.set_settings		= typhoon_set_settings,
 	.get_drvinfo		= typhoon_get_drvinfo,

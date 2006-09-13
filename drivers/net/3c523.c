@@ -189,7 +189,7 @@ static void elmc_timeout(struct net_device *dev);
 #ifdef ELMC_MULTICAST
 static void set_multicast_list(struct net_device *dev);
 #endif
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 
 /* helper-functions */
 static int init586(struct net_device *dev);
@@ -1259,7 +1259,7 @@ static void netdev_get_drvinfo(struct net_device *dev,
 	sprintf(info->bus_info, "MCA 0x%lx", dev->base_addr);
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 };
 

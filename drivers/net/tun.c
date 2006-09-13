@@ -69,7 +69,7 @@ static int debug;
 /* Network device part of the driver */
 
 static LIST_HEAD(tun_dev_list);
-static struct ethtool_ops tun_ethtool_ops;
+static const struct ethtool_ops tun_ethtool_ops;
 
 /* Net device open. */
 static int tun_net_open(struct net_device *dev)
@@ -856,7 +856,7 @@ static int tun_set_rx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static struct ethtool_ops tun_ethtool_ops = {
+static const struct ethtool_ops tun_ethtool_ops = {
 	.get_settings	= tun_get_settings,
 	.get_drvinfo	= tun_get_drvinfo,
 	.get_msglevel	= tun_get_msglevel,

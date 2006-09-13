@@ -86,7 +86,7 @@ static int msglevel = MSG_LEVEL_INFO;
 
 
 static int velocity_mii_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-static struct ethtool_ops velocity_ethtool_ops;
+static const struct ethtool_ops velocity_ethtool_ops;
 
 /*
     Define module options
@@ -2971,7 +2971,7 @@ static void velocity_set_msglevel(struct net_device *dev, u32 value)
 	 msglevel = value;
 }
 
-static struct ethtool_ops velocity_ethtool_ops = {
+static const struct ethtool_ops velocity_ethtool_ops = {
 	.get_settings	=	velocity_get_settings,
 	.set_settings	=	velocity_set_settings,
 	.get_drvinfo	=	velocity_get_drvinfo,

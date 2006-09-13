@@ -142,7 +142,7 @@ spider_net_ethtool_get_ringparam(struct net_device *netdev,
 	ering->rx_pending = card->rx_desc;
 }
 
-struct ethtool_ops spider_net_ethtool_ops = {
+const struct ethtool_ops spider_net_ethtool_ops = {
 	.get_settings		= spider_net_ethtool_get_settings,
 	.get_drvinfo		= spider_net_ethtool_get_drvinfo,
 	.get_wol		= spider_net_ethtool_get_wol,

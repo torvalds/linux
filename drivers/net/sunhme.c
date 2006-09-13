@@ -2512,7 +2512,7 @@ static u32 hme_get_link(struct net_device *dev)
 	return (hp->sw_bmsr & BMSR_LSTATUS);
 }
 
-static struct ethtool_ops hme_ethtool_ops = {
+static const struct ethtool_ops hme_ethtool_ops = {
 	.get_settings		= hme_get_settings,
 	.set_settings		= hme_set_settings,
 	.get_drvinfo		= hme_get_drvinfo,

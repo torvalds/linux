@@ -4812,7 +4812,7 @@ static void cas_get_ethtool_stats(struct net_device *dev,
 	BUG_ON(i != CAS_NUM_STAT_KEYS);
 }
 
-static struct ethtool_ops cas_ethtool_ops = {
+static const struct ethtool_ops cas_ethtool_ops = {
 	.get_drvinfo		= cas_get_drvinfo,
 	.get_settings		= cas_get_settings,
 	.set_settings		= cas_set_settings,

@@ -1034,20 +1034,20 @@ static void fec_set_msglevel(struct net_device *dev, __u32 value)
 	fep->msg_enable = value;
 }
 
-static struct ethtool_ops fec_ethtool_ops = {
-	.get_drvinfo = fec_get_drvinfo,
-	.get_regs_len = fec_get_regs_len,
-	.get_settings = fec_get_settings,
-	.set_settings = fec_set_settings,
-	.nway_reset = fec_nway_reset,
-	.get_link = ethtool_op_get_link,
-	.get_msglevel = fec_get_msglevel,
-	.set_msglevel = fec_set_msglevel,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = ethtool_op_set_tx_csum,	/* local! */
-	.get_sg = ethtool_op_get_sg,
-	.set_sg = ethtool_op_set_sg,
-	.get_regs = fec_get_regs,
+static const struct ethtool_ops fec_ethtool_ops = {
+	.get_drvinfo	= fec_get_drvinfo,
+	.get_regs_len	= fec_get_regs_len,
+	.get_settings	= fec_get_settings,
+	.set_settings	= fec_set_settings,
+	.nway_reset	= fec_nway_reset,
+	.get_link	= ethtool_op_get_link,
+	.get_msglevel	= fec_get_msglevel,
+	.set_msglevel	= fec_set_msglevel,
+	.get_tx_csum	= ethtool_op_get_tx_csum,
+	.set_tx_csum	= ethtool_op_set_tx_csum,	/* local! */
+	.get_sg		= ethtool_op_get_sg,
+	.set_sg		= ethtool_op_set_sg,
+	.get_regs	= fec_get_regs,
 };
 
 static int fec_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

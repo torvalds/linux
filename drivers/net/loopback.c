@@ -190,7 +190,7 @@ static u32 loopback_get_link(struct net_device *dev)
 	return 1;
 }
 
-static struct ethtool_ops loopback_ethtool_ops = {
+static const struct ethtool_ops loopback_ethtool_ops = {
 	.get_link		= loopback_get_link,
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= ethtool_op_set_tso,

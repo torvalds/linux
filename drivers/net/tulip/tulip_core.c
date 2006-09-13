@@ -837,7 +837,7 @@ static void tulip_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *in
 	strcpy(info->bus_info, pci_name(np->pdev));
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = tulip_get_drvinfo
 };
 

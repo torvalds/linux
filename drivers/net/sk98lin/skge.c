@@ -248,7 +248,7 @@ static void	DumpLong(char*, int);
 
 /* global variables *********************************************************/
 static SK_BOOL DoPrintInterfaceChange = SK_TRUE;
-extern  struct ethtool_ops SkGeEthtoolOps;
+extern const struct ethtool_ops SkGeEthtoolOps;
 
 /* local variables **********************************************************/
 static uintptr_t TxQueueAddr[SK_MAX_MACS][2] = {{0x680, 0x600},{0x780, 0x700}};

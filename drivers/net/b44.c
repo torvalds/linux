@@ -2012,7 +2012,7 @@ static int b44_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
-static struct ethtool_ops b44_ethtool_ops = {
+static const struct ethtool_ops b44_ethtool_ops = {
 	.get_drvinfo		= b44_get_drvinfo,
 	.get_settings		= b44_get_settings,
 	.set_settings		= b44_set_settings,

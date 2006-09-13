@@ -581,7 +581,7 @@ static int setRxCsum(struct net_device *dev, u32 data)
 	return 0;
 }
 
-struct ethtool_ops SkGeEthtoolOps = {
+const struct ethtool_ops SkGeEthtoolOps = {
 	.get_settings		= getSettings,
 	.set_settings		= setSettings,
 	.get_drvinfo		= getDriverInfo,

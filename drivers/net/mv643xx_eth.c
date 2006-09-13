@@ -74,7 +74,7 @@ static int ethernet_phy_detect(unsigned int eth_port_num);
 static int mv643xx_mdio_read(struct net_device *dev, int phy_id, int location);
 static void mv643xx_mdio_write(struct net_device *dev, int phy_id, int location, int val);
 static int mv643xx_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-static struct ethtool_ops mv643xx_ethtool_ops;
+static const struct ethtool_ops mv643xx_ethtool_ops;
 
 static char mv643xx_driver_name[] = "mv643xx_eth";
 static char mv643xx_driver_version[] = "1.0";
@@ -2766,7 +2766,7 @@ static int mv643xx_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr, int c
 	return generic_mii_ioctl(&mp->mii, if_mii(ifr), cmd, NULL);
 }
 
-static struct ethtool_ops mv643xx_ethtool_ops = {
+static const struct ethtool_ops mv643xx_ethtool_ops = {
 	.get_settings           = mv643xx_get_settings,
 	.set_settings           = mv643xx_set_settings,
 	.get_drvinfo            = mv643xx_get_drvinfo,

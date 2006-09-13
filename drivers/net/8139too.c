@@ -639,7 +639,7 @@ static void __set_rx_mode (struct net_device *dev);
 static void rtl8139_hw_start (struct net_device *dev);
 static void rtl8139_thread (void *_data);
 static void rtl8139_tx_timeout_task(void *_data);
-static struct ethtool_ops rtl8139_ethtool_ops;
+static const struct ethtool_ops rtl8139_ethtool_ops;
 
 /* write MMIO register, with flush */
 /* Flush avoids rtl8139 bug w/ posted MMIO writes */
@@ -2446,7 +2446,7 @@ static void rtl8139_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	memcpy(data, ethtool_stats_keys, sizeof(ethtool_stats_keys));
 }
 
-static struct ethtool_ops rtl8139_ethtool_ops = {
+static const struct ethtool_ops rtl8139_ethtool_ops = {
 	.get_drvinfo		= rtl8139_get_drvinfo,
 	.get_settings		= rtl8139_get_settings,
 	.set_settings		= rtl8139_set_settings,

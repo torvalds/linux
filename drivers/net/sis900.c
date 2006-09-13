@@ -232,7 +232,7 @@ static void sis900_set_capability( struct net_device *net_dev ,struct mii_phy *p
 static u16 sis900_reset_phy(struct net_device *net_dev, int phy_addr);
 static void sis900_auto_negotiate(struct net_device *net_dev, int phy_addr);
 static void sis900_set_mode (long ioaddr, int speed, int duplex);
-static struct ethtool_ops sis900_ethtool_ops;
+static const struct ethtool_ops sis900_ethtool_ops;
 
 /**
  *	sis900_get_mac_addr - Get MAC address for stand alone SiS900 model
@@ -2099,7 +2099,7 @@ static void sis900_get_wol(struct net_device *net_dev, struct ethtool_wolinfo *w
 	wol->supported = (WAKE_PHY | WAKE_MAGIC);
 }
 
-static struct ethtool_ops sis900_ethtool_ops = {
+static const struct ethtool_ops sis900_ethtool_ops = {
 	.get_drvinfo 	= sis900_get_drvinfo,
 	.get_msglevel	= sis900_get_msglevel,
 	.set_msglevel	= sis900_set_msglevel,

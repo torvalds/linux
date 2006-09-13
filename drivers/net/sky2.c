@@ -3033,7 +3033,7 @@ static void sky2_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		      regs->len - B3_RI_WTO_R1);
 }
 
-static struct ethtool_ops sky2_ethtool_ops = {
+static const struct ethtool_ops sky2_ethtool_ops = {
 	.get_settings = sky2_get_settings,
 	.set_settings = sky2_set_settings,
 	.get_drvinfo = sky2_get_drvinfo,

@@ -5429,7 +5429,7 @@ bnx2_phys_id(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static struct ethtool_ops bnx2_ethtool_ops = {
+static const struct ethtool_ops bnx2_ethtool_ops = {
 	.get_settings		= bnx2_get_settings,
 	.set_settings		= bnx2_set_settings,
 	.get_drvinfo		= bnx2_get_drvinfo,

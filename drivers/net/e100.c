@@ -2477,7 +2477,7 @@ static void e100_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	}
 }
 
-static struct ethtool_ops e100_ethtool_ops = {
+static const struct ethtool_ops e100_ethtool_ops = {
 	.get_settings		= e100_get_settings,
 	.set_settings		= e100_set_settings,
 	.get_drvinfo		= e100_get_drvinfo,

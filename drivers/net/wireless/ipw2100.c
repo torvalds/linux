@@ -5911,7 +5911,7 @@ static u32 ipw2100_ethtool_get_link(struct net_device *dev)
 	return (priv->status & STATUS_ASSOCIATED) ? 1 : 0;
 }
 
-static struct ethtool_ops ipw2100_ethtool_ops = {
+static const struct ethtool_ops ipw2100_ethtool_ops = {
 	.get_link = ipw2100_ethtool_get_link,
 	.get_drvinfo = ipw_ethtool_get_drvinfo,
 };

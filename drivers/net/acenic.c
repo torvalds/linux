@@ -451,7 +451,7 @@ static int ace_get_settings(struct net_device *, struct ethtool_cmd *);
 static int ace_set_settings(struct net_device *, struct ethtool_cmd *);
 static void ace_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
 
-static struct ethtool_ops ace_ethtool_ops = {
+static const struct ethtool_ops ace_ethtool_ops = {
 	.get_settings = ace_get_settings,
 	.set_settings = ace_set_settings,
 	.get_drvinfo = ace_get_drvinfo,

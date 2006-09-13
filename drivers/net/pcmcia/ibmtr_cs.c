@@ -126,7 +126,7 @@ static void netdev_get_drvinfo(struct net_device *dev,
 	strcpy(info->driver, "ibmtr_cs");
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 };
 

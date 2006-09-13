@@ -729,7 +729,7 @@ static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 #endif
 static void vortex_tx_timeout(struct net_device *dev);
 static void acpi_set_WOL(struct net_device *dev);
-static struct ethtool_ops vortex_ethtool_ops;
+static const struct ethtool_ops vortex_ethtool_ops;
 static void set_8021q_mode(struct net_device *dev, int enable);
 
 /* This driver uses 'options' to pass the media type, full-duplex flag, etc. */
@@ -2873,7 +2873,7 @@ static void vortex_get_drvinfo(struct net_device *dev,
 	}
 }
 
-static struct ethtool_ops vortex_ethtool_ops = {
+static const struct ethtool_ops vortex_ethtool_ops = {
 	.get_drvinfo		= vortex_get_drvinfo,
 	.get_strings            = vortex_get_strings,
 	.get_msglevel           = vortex_get_msglevel,

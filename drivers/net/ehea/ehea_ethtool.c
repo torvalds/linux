@@ -270,7 +270,7 @@ static void ehea_get_ethtool_stats(struct net_device *dev,
 	kfree(cb6);
 }
 
-struct ethtool_ops ehea_ethtool_ops = {
+const struct ethtool_ops ehea_ethtool_ops = {
 	.get_settings = ehea_get_settings,
 	.get_drvinfo = ehea_get_drvinfo,
 	.get_msglevel = ehea_get_msglevel,

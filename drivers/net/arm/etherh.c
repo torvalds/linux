@@ -626,7 +626,7 @@ static int etherh_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return 0;
 }
 
-static struct ethtool_ops etherh_ethtool_ops = {
+static const struct ethtool_ops etherh_ethtool_ops = {
 	.get_settings	= etherh_get_settings,
 	.set_settings	= etherh_set_settings,
 	.get_drvinfo	= etherh_get_drvinfo,

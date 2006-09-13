@@ -1747,7 +1747,7 @@ static void sis190_set_msglevel(struct net_device *dev, u32 value)
 	tp->msg_enable = value;
 }
 
-static struct ethtool_ops sis190_ethtool_ops = {
+static const struct ethtool_ops sis190_ethtool_ops = {
 	.get_settings	= sis190_get_settings,
 	.set_settings	= sis190_set_settings,
 	.get_drvinfo	= sis190_get_drvinfo,

@@ -494,7 +494,7 @@ static struct net_device_stats *speedo_get_stats(struct net_device *dev);
 static int speedo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void set_rx_mode(struct net_device *dev);
 static void speedo_show_state(struct net_device *dev);
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops;
 
 
 
@@ -2015,7 +2015,7 @@ static void speedo_set_msglevel(struct net_device *dev, u32 v)
 	sp->msg_enable = v;
 }
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = speedo_get_drvinfo,
 	.get_settings = speedo_get_settings,
 	.set_settings = speedo_set_settings,

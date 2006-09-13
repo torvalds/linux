@@ -29,7 +29,7 @@
 extern int spider_net_stop(struct net_device *netdev);
 extern int spider_net_open(struct net_device *netdev);
 
-extern struct ethtool_ops spider_net_ethtool_ops;
+extern const struct ethtool_ops spider_net_ethtool_ops;
 
 extern char spider_net_driver_name[];
 

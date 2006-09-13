@@ -1546,7 +1546,7 @@ static void cp_get_ethtool_stats (struct net_device *dev,
 	pci_free_consistent(cp->pdev, sizeof(*nic_stats), nic_stats, dma);
 }
 
-static struct ethtool_ops cp_ethtool_ops = {
+static const struct ethtool_ops cp_ethtool_ops = {
 	.get_drvinfo		= cp_get_drvinfo,
 	.get_regs_len		= cp_get_regs_len,
 	.get_stats_count	= cp_get_stats_count,

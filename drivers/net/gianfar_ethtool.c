@@ -567,7 +567,7 @@ static void gfar_set_msglevel(struct net_device *dev, uint32_t data)
 }
 
 
-struct ethtool_ops gfar_ethtool_ops = {
+const struct ethtool_ops gfar_ethtool_ops = {
 	.get_settings = gfar_gsettings,
 	.set_settings = gfar_ssettings,
 	.get_drvinfo = gfar_gdrvinfo,
