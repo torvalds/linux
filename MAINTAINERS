@@ -2810,6 +2810,14 @@ M:	hadi@cyberus.ca
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+TCP LOW PRIORITY MODULE
+P:	Wong Hoi Sing, Edison
+M:	hswong3i@gmail.com
+P:	Hung Hing Lun, Mike
+M:	hlhung3i@gmail.com
+W:	http://tcp-lp-mod.sourceforge.net/
+S:	Maintained
+
 TI OMAP RANDOM NUMBER GENERATOR SUPPORT
 P:	Deepak Saxena
 M:	dsaxena@plexity.net
