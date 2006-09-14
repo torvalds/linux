@@ -793,10 +793,17 @@ out:
 int nfs4_recover_expired_lease(struct nfs_server *server)
 {
 	struct nfs_client *clp = server->nfs_client;
+	int ret;
 
-	if (test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
+	for (;;) {
+		ret = nfs4_wait_clnt_recover(server->client, clp);
+		if (ret != 0)
+			return ret;
+		if (!test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
+			break;
 		nfs4_schedule_state_recovery(clp);
-	return nfs4_wait_clnt_recover(server->client, clp);
+	}
+	return 0;
 }
 
 /*
