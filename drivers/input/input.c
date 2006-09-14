@@ -313,7 +313,8 @@ static void input_link_handle(struct input_handle *handle)
 		if (i != NBITS(max)) \
 			continue;
 
-static struct input_device_id *input_match_device(struct input_device_id *id, struct input_dev *dev)
+static const struct input_device_id *input_match_device(const struct input_device_id *id,
+							struct input_dev *dev)
 {
 	int i;
 
@@ -935,7 +936,7 @@ int input_register_device(struct input_dev *dev)
 	static atomic_t input_no = ATOMIC_INIT(0);
 	struct input_handle *handle;
 	struct input_handler *handler;
-	struct input_device_id *id;
+	const struct input_device_id *id;
 	const char *path;
 	int error;
 
@@ -1050,7 +1051,7 @@ void input_register_handler(struct input_handler *handler)
 {
 	struct input_dev *dev;
 	struct input_handle *handle;
-	struct input_device_id *id;
+	const struct input_device_id *id;
 
 	if (!handler)
 		return;

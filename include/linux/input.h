@@ -1059,16 +1059,16 @@ struct input_handler {
 	void *private;
 
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
-	struct input_handle* (*connect)(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id);
+	struct input_handle* (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);
 	void (*disconnect)(struct input_handle *handle);
 	void (*start)(struct input_handle *handle);
 
 	const struct file_operations *fops;
 	int minor;
-	char *name;
+	const char *name;
 
-	struct input_device_id *id_table;
-	struct input_device_id *blacklist;
+	const struct input_device_id *id_table;
+	const struct input_device_id *blacklist;
 
 	struct list_head	h_list;
 	struct list_head	node;
@@ -1079,7 +1079,7 @@ struct input_handle {
 	void *private;
 
 	int open;
-	char *name;
+	const char *name;
 
 	struct input_dev *dev;
 	struct input_handler *handler;

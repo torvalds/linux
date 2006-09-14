@@ -98,7 +98,7 @@ static void power_event(struct input_handle *handle, unsigned int type,
 
 static struct input_handle *power_connect(struct input_handler *handler,
 					  struct input_dev *dev,
-					  struct input_device_id *id)
+					  const struct input_device_id *id)
 {
 	struct input_handle *handle;
 
@@ -120,7 +120,7 @@ static void power_disconnect(struct input_handle *handle)
 	kfree(handle);
 }
 
-static struct input_device_id power_ids[] = {
+static const struct input_device_id power_ids[] = {
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT,
 		.evbit = { BIT(EV_KEY) },

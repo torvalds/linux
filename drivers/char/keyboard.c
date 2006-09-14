@@ -1285,7 +1285,7 @@ static void kbd_event(struct input_handle *handle, unsigned int event_type,
  */
 static struct input_handle *kbd_connect(struct input_handler *handler,
 					struct input_dev *dev,
-					struct input_device_id *id)
+					const struct input_device_id *id)
 {
 	struct input_handle *handle;
 	int i;
@@ -1334,7 +1334,7 @@ static void kbd_start(struct input_handle *handle)
 	tasklet_enable(&keyboard_tasklet);
 }
 
-static struct input_device_id kbd_ids[] = {
+static const struct input_device_id kbd_ids[] = {
 	{
                 .flags = INPUT_DEVICE_ID_MATCH_EVBIT,
                 .evbit = { BIT(EV_KEY) },

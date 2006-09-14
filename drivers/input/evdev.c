@@ -601,7 +601,7 @@ static long evdev_ioctl_compat(struct file *file, unsigned int cmd, unsigned lon
 }
 #endif
 
-static struct file_operations evdev_fops = {
+static const struct file_operations evdev_fops = {
 	.owner =	THIS_MODULE,
 	.read =		evdev_read,
 	.write =	evdev_write,
@@ -616,7 +616,8 @@ static struct file_operations evdev_fops = {
 	.flush =	evdev_flush
 };
 
-static struct input_handle *evdev_connect(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id)
+static struct input_handle *evdev_connect(struct input_handler *handler, struct input_dev *dev,
+					  const struct input_device_id *id)
 {
 	struct evdev *evdev;
 	struct class_device *cdev;
@@ -675,7 +676,7 @@ static void evdev_disconnect(struct input_handle *handle)
 		evdev_free(evdev);
 }
 
-static struct input_device_id evdev_ids[] = {
+static const struct input_device_id evdev_ids[] = {
 	{ .driver_info = 1 },	/* Matches all devices */
 	{ },			/* Terminating zero entry */
 };
