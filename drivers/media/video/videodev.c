@@ -1283,9 +1283,29 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_PARM:
 	{
 		struct v4l2_streamparm *p=arg;
-		if (!vfd->vidioc_g_parm)
-			break;
-		ret=vfd->vidioc_g_parm(file, fh, p);
+		if (vfd->vidioc_g_parm) {
+			ret=vfd->vidioc_g_parm(file, fh, p);
+		} else {
+			struct v4l2_standard s;
+
+			if (!vfd->tvnormsize) {
+				printk (KERN_WARNING "%s: no TV norms defined!\n",
+							vfd->name);
+				break;
+			}
+
+			if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+				return -EINVAL;
+
+			v4l2_video_std_construct(&s, vfd->tvnorms[vfd->current_norm].id,
+						 vfd->tvnorms[vfd->current_norm].name);
+
+			memset(p,0,sizeof(*p));
+
+			p->parm.capture.timeperframe = s.frameperiod;
+			ret=0;
+		}
+
 		dbgarg (cmd, "type=%d\n", p->type);
 		break;
 	}
