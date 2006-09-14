@@ -131,6 +131,17 @@ struct ocfs2_lock_res_ops {
 	int (*check_downconvert)(struct ocfs2_lock_res *, int);
 
 	/*
+	 * Allows a lock type to populate the lock value block. This
+	 * is called on downconvert, and when we drop a lock.
+	 *
+	 * Locks that want to use this should set LOCK_TYPE_USES_LVB
+	 * in the flags field.
+	 *
+	 * Called with the lockres spinlock held.
+	 */
+	void (*set_lvb)(struct ocfs2_lock_res *);
+
+	/*
 	 * LOCK_TYPE_* flags which describe the specific requirements
 	 * of a lock type. Descriptions of each individual flag follow.
 	 */
@@ -148,7 +159,8 @@ struct ocfs2_lock_res_ops {
 #define LOCK_TYPE_REQUIRES_REFRESH 0x1
 
 /*
- * Indicate that a lock type makes use of the lock value block.
+ * Indicate that a lock type makes use of the lock value block. The
+ * ->set_lvb lock type callback must be defined.
  */
 #define LOCK_TYPE_USES_LVB		0x2
 
@@ -2629,6 +2641,7 @@ static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
 	int blocking;
 	int new_level;
 	int ret = 0;
+	int set_lvb = 0;
 
 	mlog_entry_void();
 
@@ -2703,9 +2716,23 @@ recheck:
 downconvert:
 	ctl->requeue = 0;
 
+	if (lockres->l_ops->flags & LOCK_TYPE_USES_LVB) {
+		if (lockres->l_level == LKM_EXMODE)
+			set_lvb = 1;
+
+		/*
+		 * We only set the lvb if the lock has been fully
+		 * refreshed - otherwise we risk setting stale
+		 * data. Otherwise, there's no need to actually clear
+		 * out the lvb here as it's value is still valid.
+		 */
+		if (set_lvb && !(lockres->l_flags & OCFS2_LOCK_NEEDS_REFRESH))
+			lockres->l_ops->set_lvb(lockres);
+	}
+
 	ocfs2_prepare_downconvert(lockres, new_level);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
-	ret = ocfs2_downconvert_lock(osb, lockres, new_level, 0);
+	ret = ocfs2_downconvert_lock(osb, lockres, new_level, set_lvb);
 leave:
 	mlog_exit(ret);
 	return ret;
