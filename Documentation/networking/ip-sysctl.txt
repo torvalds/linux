@@ -102,9 +102,15 @@ inet_peer_gc_maxtime - INTEGER
 TCP variables: 
 
 tcp_abc - INTEGER
-	Controls Appropriate Byte Count defined in RFC3465. If set to
-	0 then does congestion avoid once per ack. 1 is conservative
-	value, and 2 is more agressive.
+	Controls Appropriate Byte Count (ABC) defined in RFC3465.
+	ABC is a way of increasing congestion window (cwnd) more slowly
+	in response to partial acknowledgments.
+	Possible values are:
+		0 increase cwnd once per acknowledgment (no ABC)
+		1 increase cwnd once per acknowledgment of full sized segment
+		2 allow increase cwnd by two if acknowledgment is
+		  of two segments to compensate for delayed acknowledgments.
+	Default: 0 (off)
 
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
