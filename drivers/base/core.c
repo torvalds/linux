@@ -513,11 +513,13 @@ int device_add(struct device *dev)
 		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
 			sysfs_create_link(&dev->class->subsys.kset.kobj,
 					  &dev->kobj, dev->bus_id);
+#ifdef CONFIG_SYSFS_DEPRECATED
 		if (parent) {
 			sysfs_create_link(&dev->kobj, &dev->parent->kobj, "device");
 			class_name = make_class_name(dev->class->name, &dev->kobj);
 			sysfs_create_link(&dev->parent->kobj, &dev->kobj, class_name);
 		}
+#endif
 	}
 
 	if ((error = device_add_attrs(dev)))
@@ -639,7 +641,6 @@ void put_device(struct device * dev)
 void device_del(struct device * dev)
 {
 	struct device * parent = dev->parent;
-	char *class_name = NULL;
 	struct class_interface *class_intf;
 
 	if (parent)
@@ -655,12 +656,16 @@ void device_del(struct device * dev)
 		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
 			sysfs_remove_link(&dev->class->subsys.kset.kobj,
 					  dev->bus_id);
-		class_name = make_class_name(dev->class->name, &dev->kobj);
+#ifdef CONFIG_SYSFS_DEPRECATED
 		if (parent) {
-			sysfs_remove_link(&dev->kobj, "device");
+			char *class_name = make_class_name(dev->class->name,
+							   &dev->kobj);
 			sysfs_remove_link(&dev->parent->kobj, class_name);
+			kfree(class_name);
+			sysfs_remove_link(&dev->kobj, "device");
 		}
-		kfree(class_name);
+#endif
+
 		down(&dev->class->sem);
 		/* notify any interfaces that the device is now gone */
 		list_for_each_entry(class_intf, &dev->class->interfaces, node)
@@ -869,8 +874,10 @@ int device_rename(struct device *dev, char *new_name)
 
 	pr_debug("DEVICE: renaming '%s' to '%s'\n", dev->bus_id, new_name);
 
+#ifdef CONFIG_SYSFS_DEPRECATED
 	if ((dev->class) && (dev->parent))
 		old_class_name = make_class_name(dev->class->name, &dev->kobj);
+#endif
 
 	if (dev->class) {
 		old_symlink_name = kmalloc(BUS_ID_SIZE, GFP_KERNEL);
@@ -885,6 +892,7 @@ int device_rename(struct device *dev, char *new_name)
 
 	error = kobject_rename(&dev->kobj, new_name);
 
+#ifdef CONFIG_SYSFS_DEPRECATED
 	if (old_class_name) {
 		new_class_name = make_class_name(dev->class->name, &dev->kobj);
 		if (new_class_name) {
@@ -893,6 +901,8 @@ int device_rename(struct device *dev, char *new_name)
 			sysfs_remove_link(&dev->parent->kobj, old_class_name);
 		}
 	}
+#endif
+
 	if (dev->class) {
 		sysfs_remove_link(&dev->class->subsys.kset.kobj,
 				  old_symlink_name);
