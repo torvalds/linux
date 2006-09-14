@@ -35,6 +35,7 @@ EXPORT_SYMBOL(ps2_schedule_command);
 EXPORT_SYMBOL(ps2_handle_ack);
 EXPORT_SYMBOL(ps2_handle_response);
 EXPORT_SYMBOL(ps2_cmd_aborted);
+EXPORT_SYMBOL(ps2_is_keyboard_id);
 
 /* Work structure to schedule execution of a command */
 struct ps2work {
@@ -102,9 +103,9 @@ void ps2_drain(struct ps2dev *ps2dev, int maxbytes, int timeout)
  * known keyboard IDs.
  */
 
-static inline int ps2_is_keyboard_id(char id_byte)
+int ps2_is_keyboard_id(char id_byte)
 {
-	static char keyboard_ids[] = {
+	const static char keyboard_ids[] = {
 		0xab,	/* Regular keyboards		*/
 		0xac,	/* NCD Sun keyboard		*/
 		0x2b,	/* Trust keyboard, translated	*/
@@ -138,6 +139,19 @@ static int ps2_adjust_timeout(struct ps2dev *ps2dev, int command, int timeout)
 			break;
 
 		case PS2_CMD_GETID:
+			/*
+			 * Microsoft Natural Elite keyboard responds to
+			 * the GET ID command as it were a mouse, with
+			 * a single byte. Fail the command so atkbd will
+			 * use alternative probe to detect it.
+			 */
+			if (ps2dev->cmdbuf[1] == 0xaa) {
+				serio_pause_rx(ps2dev->serio);
+				ps2dev->flags = 0;
+				serio_continue_rx(ps2dev->serio);
+				timeout = 0;
+			}
+
 			/*
 			 * If device behind the port is not a keyboard there
 			 * won't be 2nd byte of ID response.
