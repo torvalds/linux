@@ -781,7 +781,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	}
 
 	if (tclass < 0) {
-		tclass = np->cork.tclass;
+		tclass = np->tclass;
 		if (tclass < 0)
 			tclass = 0;
 	}
