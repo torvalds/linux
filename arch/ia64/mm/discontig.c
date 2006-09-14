@@ -551,12 +551,12 @@ void show_mem(void)
 	show_free_areas();
 	printk(KERN_INFO "Free swap:       %6ldkB\n",
 	       nr_swap_pages<<(PAGE_SHIFT-10));
+	printk(KERN_INFO "Node memory in pages:\n");
 	for_each_online_pgdat(pgdat) {
 		unsigned long present;
 		unsigned long flags;
 		int shared = 0, cached = 0, reserved = 0;
 
-		printk(KERN_INFO "Node ID: %d\n", pgdat->node_id);
 		pgdat_resize_lock(pgdat, &flags);
 		present = pgdat->node_present_pages;
 		for(i = 0; i < pgdat->node_spanned_pages; i++) {
@@ -580,10 +580,9 @@ void show_mem(void)
 		total_reserved += reserved;
 		total_cached += cached;
 		total_shared += shared;
-		printk(KERN_INFO "\t%ld pages of RAM\n", present);
-		printk(KERN_INFO "\t%d reserved pages\n", reserved);
-		printk(KERN_INFO "\t%d pages shared\n", shared);
-		printk(KERN_INFO "\t%d pages swap cached\n", cached);
+		printk(KERN_INFO "Node %4d:  RAM: %11ld, rsvd: %8d, "
+		       "shrd: %10d, swpd: %10d\n", pgdat->node_id,
+		       present, reserved, shared, cached);
 	}
 	printk(KERN_INFO "%ld pages of RAM\n", total_present);
 	printk(KERN_INFO "%d reserved pages\n", total_reserved);
