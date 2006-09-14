@@ -89,7 +89,7 @@ static DEFINE_MUTEX(g5_switch_mutex);
 
 #ifdef CONFIG_PMAC_SMU
 
-static u32 *g5_pmode_data;
+static const u32 *g5_pmode_data;
 static int g5_pmode_max;
 
 static struct smu_sdbp_fvt *g5_fvt_table;	/* table of op. points */
