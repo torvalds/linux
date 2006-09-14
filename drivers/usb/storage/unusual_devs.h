@@ -631,6 +631,13 @@ UNUSUAL_DEV(  0x0595, 0x4343, 0x0000, 0x2210,
 		"Digital Camera EX-20 DSC",
 		US_SC_8070, US_PR_DEVICE, NULL, 0 ),
 
+/* Reported by <Hendryk.Pfeiffer@gmx.de> */
+UNUSUAL_DEV(  0x059f, 0x0643, 0x0000, 0x0000,
+		"LaCie",
+		"DVD+-RW",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_GO_SLOW ),
+
 /* Submitted by Joel Bourquard <numlock@freesurf.ch>
  * Some versions of this device need the SubClass and Protocol overrides
  * while others don't.
