@@ -949,6 +949,7 @@ struct cpu_spec	cpu_specs[] = {
 			PPC_FEATURE_HAS_MMU | PPC_FEATURE_HAS_4xxMAC,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
+		.platform		= "ppc405",
 	},
 	{	/* 405EP */
 		.pvr_mask		= 0xffff0000,
