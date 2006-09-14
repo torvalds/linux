@@ -2640,22 +2640,22 @@ recheck:
 	/* if we're blocking an exclusive and we have *any* holders,
 	 * then requeue. */
 	if ((lockres->l_blocking == LKM_EXMODE)
-	    && (lockres->l_ex_holders || lockres->l_ro_holders)) {
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		ctl->requeue = 1;
-		ret = 0;
-		goto leave;
-	}
+	    && (lockres->l_ex_holders || lockres->l_ro_holders))
+		goto leave_requeue;
 
 	/* If it's a PR we're blocking, then only
 	 * requeue if we've got any EX holders */
 	if (lockres->l_blocking == LKM_PRMODE &&
-	    lockres->l_ex_holders) {
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		ctl->requeue = 1;
-		ret = 0;
-		goto leave;
-	}
+	    lockres->l_ex_holders)
+		goto leave_requeue;
+
+	/*
+	 * Can we get a lock in this state if the holder counts are
+	 * zero? The meta data unblock code used to check this.
+	 */
+	if ((lockres->l_ops->flags & LOCK_TYPE_REQUIRES_REFRESH)
+	    && (lockres->l_flags & OCFS2_LOCK_REFRESHING))
+		goto leave_requeue;
 
 	/* If we get here, then we know that there are no more
 	 * incompatible holders (and anyone asking for an incompatible
@@ -2692,6 +2692,13 @@ downconvert:
 leave:
 	mlog_exit(ret);
 	return ret;
+
+leave_requeue:
+	spin_unlock_irqrestore(&lockres->l_lock, flags);
+	ctl->requeue = 1;
+
+	mlog_exit(0);
+	return 0;
 }
 
 static int ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
