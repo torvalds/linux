@@ -978,9 +978,6 @@ struct input_dev {
 	unsigned int users;
 
 	struct class_device cdev;
-	struct device *dev;	/* will be removed soon */
-
-	int dynalloc;	/* temporarily */
 
 	struct list_head	h_list;
 	struct list_head	node;
@@ -1092,12 +1089,6 @@ struct input_handle {
 #define to_handler(n) container_of(n,struct input_handler,node);
 #define to_handle(n) container_of(n,struct input_handle,d_node)
 #define to_handle_h(n) container_of(n,struct input_handle,h_node)
-
-static inline void init_input_dev(struct input_dev *dev)
-{
-	INIT_LIST_HEAD(&dev->h_list);
-	INIT_LIST_HEAD(&dev->node);
-}
 
 struct input_dev *input_allocate_device(void);
 void input_free_device(struct input_dev *dev);

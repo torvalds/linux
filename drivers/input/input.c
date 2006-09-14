@@ -906,7 +906,6 @@ struct input_dev *input_allocate_device(void)
 
 	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
 	if (dev) {
-		dev->dynalloc = 1;
 		dev->cdev.class = &input_class;
 		class_device_initialize(&dev->cdev);
 		mutex_init(&dev->mutex);
@@ -942,13 +941,6 @@ int input_register_device(struct input_dev *dev)
 	const char *path;
 	int error;
 
-	if (!dev->dynalloc) {
-		printk(KERN_WARNING "input: device %s is statically allocated, will not register\n"
-			"Please convert to input_allocate_device() or contact dtor_core@ameritech.net\n",
-			dev->name ? dev->name : "<Unknown>");
-		return -EINVAL;
-	}
-
 	set_bit(EV_SYN, dev->evbit);
 
 	/*
@@ -964,10 +956,8 @@ int input_register_device(struct input_dev *dev)
 		dev->rep[REP_PERIOD] = 33;
 	}
 
-	INIT_LIST_HEAD(&dev->h_list);
 	list_add_tail(&dev->node, &input_dev_list);
 
-	dev->cdev.class = &input_class;
 	snprintf(dev->cdev.class_id, sizeof(dev->cdev.class_id),
 		 "input%ld", (unsigned long) atomic_inc_return(&input_no) - 1);
 
