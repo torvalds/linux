@@ -189,20 +189,25 @@ struct ehea_eqtemm {
 	u64 eqx_it;
 };
 
+/*
+ * These access functions will be changed when the dissuccsion about
+ * the new access methods for POWER has settled.
+ */
+
 static inline u64 epa_load(struct h_epa epa, u32 offset)
 {
-	return readq((void __iomem *)(epa.addr + offset));
+	return __raw_readq((void __iomem *)(epa.addr + offset));
 }
 
 static inline void epa_store(struct h_epa epa, u32 offset, u64 value)
 {
-	writeq(value, (void __iomem *)(epa.addr + offset));
+	__raw_writeq(value, (void __iomem *)(epa.addr + offset));
 	epa_load(epa, offset);	/* synchronize explicitly to eHEA */
 }
 
 static inline void epa_store_acc(struct h_epa epa, u32 offset, u64 value)
 {
-	writeq(value, (void __iomem *)(epa.addr + offset));
+	__raw_writeq(value, (void __iomem *)(epa.addr + offset));
 }
 
 #define epa_store_eq(epa, offset, value)\
