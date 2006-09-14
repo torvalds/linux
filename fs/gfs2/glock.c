@@ -1892,7 +1892,6 @@ static int examine_bucket(glock_examiner examiner, struct gfs2_sbd *sdp,
 	/* Can't use hlist_for_each_entry - don't want prefetch here */
 	if (hlist_empty(head))
 		goto out;
-	has_entries = 1;
 	gl = list_entry(head->first, struct gfs2_glock, gl_list);
 	while(1) {
 		if (gl->gl_sbd == sdp) {
@@ -1902,6 +1901,7 @@ static int examine_bucket(glock_examiner examiner, struct gfs2_sbd *sdp,
 				gfs2_glock_put(prev);
 			prev = gl;
 			examiner(gl);
+			has_entries = 1;
 			read_lock(gl_lock_addr(hash));
 		}
 		if (gl->gl_list.next == NULL)
