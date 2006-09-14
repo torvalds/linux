@@ -119,6 +119,18 @@ struct ocfs2_lock_res_ops {
 	void (*post_unlock)(struct ocfs2_super *, struct ocfs2_lock_res *);
 
 	/*
+	 * Allow a lock type to add checks to determine whether it is
+	 * safe to downconvert a lock. Return 0 to re-queue the
+	 * downconvert at a later time, nonzero to continue.
+	 *
+	 * For most locks, the default checks that there are no
+	 * incompatible holders are sufficient.
+	 *
+	 * Called with the lockres spinlock held.
+	 */
+	int (*check_downconvert)(struct ocfs2_lock_res *, int);
+
+	/*
 	 * LOCK_TYPE_* flags which describe the specific requirements
 	 * of a lock type. Descriptions of each individual flag follow.
 	 */
@@ -2657,6 +2669,12 @@ recheck:
 	    && (lockres->l_flags & OCFS2_LOCK_REFRESHING))
 		goto leave_requeue;
 
+	new_level = ocfs2_highest_compat_lock_level(lockres->l_blocking);
+
+	if (lockres->l_ops->check_downconvert
+	    && !lockres->l_ops->check_downconvert(lockres, new_level))
+		goto leave_requeue;
+
 	/* If we get here, then we know that there are no more
 	 * incompatible holders (and anyone asking for an incompatible
 	 * lock is blocked). We can now downconvert the lock */
@@ -2684,7 +2702,6 @@ recheck:
 
 downconvert:
 	ctl->requeue = 0;
-	new_level = ocfs2_highest_compat_lock_level(lockres->l_blocking);
 
 	ocfs2_prepare_downconvert(lockres, new_level);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
