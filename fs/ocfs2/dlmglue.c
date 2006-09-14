@@ -107,6 +107,14 @@ static void ocfs2_dentry_post_unlock(struct ocfs2_super *osb,
  * OCFS2 Lock Resource Operations
  *
  * These fine tune the behavior of the generic dlmglue locking infrastructure.
+ *
+ * The most basic of lock types can point ->l_priv to their respective
+ * struct ocfs2_super and allow the default actions to manage things.
+ *
+ * Right now, each lock type also needs to implement an init function,
+ * and trivial lock/unlock wrappers. ocfs2_simple_drop_lockres()
+ * should be called when the lock is no longer needed (i.e., object
+ * destruction time).
  */
 struct ocfs2_lock_res_ops {
 	/*
@@ -115,6 +123,15 @@ struct ocfs2_lock_res_ops {
 	 */
 	struct ocfs2_super * (*get_osb)(struct ocfs2_lock_res *);
 
+	/*
+	 * Optionally called in the downconvert (or "vote") thread
+	 * after a successful downconvert. The lockres will not be
+	 * referenced after this callback is called, so it is safe to
+	 * free memory, etc.
+	 *
+	 * The exact semantics of when this is called are controlled
+	 * by ->downconvert_worker()
+	 */
 	void (*post_unlock)(struct ocfs2_super *, struct ocfs2_lock_res *);
 
 	/*
@@ -2230,16 +2247,8 @@ complete_unlock:
 	mlog_exit_void();
 }
 
-typedef void (ocfs2_pre_drop_cb_t)(struct ocfs2_lock_res *, void *);
-
-struct drop_lock_cb {
-	ocfs2_pre_drop_cb_t	*drop_func;
-	void			*drop_data;
-};
-
 static int ocfs2_drop_lock(struct ocfs2_super *osb,
-			   struct ocfs2_lock_res *lockres,
-			   struct drop_lock_cb *dcb)
+			   struct ocfs2_lock_res *lockres)
 {
 	enum dlm_status status;
 	unsigned long flags;
@@ -2274,8 +2283,12 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 		spin_lock_irqsave(&lockres->l_lock, flags);
 	}
 
-	if (dcb)
-		dcb->drop_func(lockres, dcb->drop_data);
+	if (lockres->l_ops->flags & LOCK_TYPE_USES_LVB) {
+		if (lockres->l_flags & OCFS2_LOCK_ATTACHED &&
+		    lockres->l_level == LKM_EXMODE &&
+		    !(lockres->l_flags & OCFS2_LOCK_NEEDS_REFRESH))
+			lockres->l_ops->set_lvb(lockres);
+	}
 
 	if (lockres->l_flags & OCFS2_LOCK_BUSY)
 		mlog(ML_ERROR, "destroying busy lock: \"%s\"\n",
@@ -2355,7 +2368,7 @@ void ocfs2_simple_drop_lockres(struct ocfs2_super *osb,
 	int ret;
 
 	ocfs2_mark_lockres_freeing(lockres);
-	ret = ocfs2_drop_lock(osb, lockres, NULL);
+	ret = ocfs2_drop_lock(osb, lockres);
 	if (ret)
 		mlog_errno(ret);
 }
@@ -2366,22 +2379,9 @@ static void ocfs2_drop_osb_locks(struct ocfs2_super *osb)
 	ocfs2_simple_drop_lockres(osb, &osb->osb_rename_lockres);
 }
 
-static void ocfs2_meta_pre_drop(struct ocfs2_lock_res *lockres, void *data)
-{
-	struct inode *inode = data;
-
-	/* the metadata lock requires a bit more work as we have an
-	 * LVB to worry about. */
-	if (lockres->l_flags & OCFS2_LOCK_ATTACHED &&
-	    lockres->l_level == LKM_EXMODE &&
-	    !(lockres->l_flags & OCFS2_LOCK_NEEDS_REFRESH))
-		__ocfs2_stuff_meta_lvb(inode);
-}
-
 int ocfs2_drop_inode_locks(struct inode *inode)
 {
 	int status, err;
-	struct drop_lock_cb meta_dcb = { ocfs2_meta_pre_drop, inode, };
 
 	mlog_entry_void();
 
@@ -2389,24 +2389,21 @@ int ocfs2_drop_inode_locks(struct inode *inode)
 	 * ocfs2_clear_inode has done it for us. */
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
-			      &OCFS2_I(inode)->ip_data_lockres,
-			      NULL);
+			      &OCFS2_I(inode)->ip_data_lockres);
 	if (err < 0)
 		mlog_errno(err);
 
 	status = err;
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
-			      &OCFS2_I(inode)->ip_meta_lockres,
-			      &meta_dcb);
+			      &OCFS2_I(inode)->ip_meta_lockres);
 	if (err < 0)
 		mlog_errno(err);
 	if (err < 0 && !status)
 		status = err;
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
-			      &OCFS2_I(inode)->ip_rw_lockres,
-			      NULL);
+			      &OCFS2_I(inode)->ip_rw_lockres);
 	if (err < 0)
 		mlog_errno(err);
 	if (err < 0 && !status)
