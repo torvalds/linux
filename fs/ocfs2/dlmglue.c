@@ -73,7 +73,7 @@ static struct ocfs2_super *ocfs2_get_inode_osb(struct ocfs2_lock_res *lockres);
 /*
  * Return value from ->downconvert_worker functions.
  *
- * These control the precise actions of ocfs2_generic_unblock_lock()
+ * These control the precise actions of ocfs2_unblock_lock()
  * and ocfs2_process_blocked_lock()
  *
  */
@@ -90,30 +90,18 @@ struct ocfs2_unblock_ctl {
 	enum ocfs2_unblock_action unblock_action;
 };
 
-static int ocfs2_unblock_meta(struct ocfs2_lock_res *lockres,
-			      struct ocfs2_unblock_ctl *ctl);
 static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
 					int new_level);
 static void ocfs2_set_meta_lvb(struct ocfs2_lock_res *lockres);
 
-static int ocfs2_unblock_data(struct ocfs2_lock_res *lockres,
-			      struct ocfs2_unblock_ctl *ctl);
 static int ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
 				     int blocking);
 
-static int ocfs2_unblock_inode_lock(struct ocfs2_lock_res *lockres,
-				    struct ocfs2_unblock_ctl *ctl);
-
-static int ocfs2_unblock_dentry_lock(struct ocfs2_lock_res *lockres,
-				     struct ocfs2_unblock_ctl *ctl);
 static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
 				       int blocking);
 
 static void ocfs2_dentry_post_unlock(struct ocfs2_super *osb,
 				     struct ocfs2_lock_res *lockres);
-
-static int ocfs2_unblock_osb_lock(struct ocfs2_lock_res *lockres,
-				  struct ocfs2_unblock_ctl *ctl);
 
 /*
  * OCFS2 Lock Resource Operations
@@ -126,7 +114,7 @@ struct ocfs2_lock_res_ops {
 	 * this callback if ->l_priv is not an ocfs2_super pointer
 	 */
 	struct ocfs2_super * (*get_osb)(struct ocfs2_lock_res *);
-	int  (*unblock)(struct ocfs2_lock_res *, struct ocfs2_unblock_ctl *);
+
 	void (*post_unlock)(struct ocfs2_super *, struct ocfs2_lock_res *);
 
 	/*
@@ -186,19 +174,13 @@ struct ocfs2_lock_res_ops {
  */
 #define LOCK_TYPE_USES_LVB		0x2
 
-static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
-				      struct ocfs2_lock_res *lockres,
-				      struct ocfs2_unblock_ctl *ctl);
-
 static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
-	.unblock	= ocfs2_unblock_inode_lock,
 	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
-	.unblock	= ocfs2_unblock_meta,
 	.check_downconvert = ocfs2_check_meta_downconvert,
 	.set_lvb	= ocfs2_set_meta_lvb,
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
@@ -206,24 +188,20 @@ static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
 
 static struct ocfs2_lock_res_ops ocfs2_inode_data_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
-	.unblock	= ocfs2_unblock_data,
 	.downconvert_worker = ocfs2_data_convert_worker,
 	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_super_lops = {
-	.unblock	= ocfs2_unblock_osb_lock,
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
-	.unblock	= ocfs2_unblock_osb_lock,
 	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
 	.get_osb	= ocfs2_get_dentry_osb,
-	.unblock	= ocfs2_unblock_dentry_lock,
 	.post_unlock	= ocfs2_dentry_post_unlock,
 	.downconvert_worker = ocfs2_dentry_convert_worker,
 	.flags		= 0,
@@ -2553,9 +2531,9 @@ static int ocfs2_cancel_convert(struct ocfs2_super *osb,
 	return ret;
 }
 
-static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
-				      struct ocfs2_lock_res *lockres,
-				      struct ocfs2_unblock_ctl *ctl)
+static int ocfs2_unblock_lock(struct ocfs2_super *osb,
+			      struct ocfs2_lock_res *lockres,
+			      struct ocfs2_unblock_ctl *ctl)
 {
 	unsigned long flags;
 	int blocking;
@@ -2694,53 +2672,6 @@ static int ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
 	return UNBLOCK_CONTINUE;
 }
 
-int ocfs2_unblock_data(struct ocfs2_lock_res *lockres,
-		       struct ocfs2_unblock_ctl *ctl)
-{
-	int status;
-	struct inode *inode;
-	struct ocfs2_super *osb;
-
-	mlog_entry_void();
-
-	inode = ocfs2_lock_res_inode(lockres);
-	osb = OCFS2_SB(inode->i_sb);
-
-	mlog(0, "unblock inode %llu\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-
-	status = ocfs2_generic_unblock_lock(osb, lockres, ctl);
-	if (status < 0)
-		mlog_errno(status);
-
-	mlog(0, "inode %llu, requeue = %d\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno, ctl->requeue);
-
-	mlog_exit(status);
-	return status;
-}
-
-static int ocfs2_unblock_inode_lock(struct ocfs2_lock_res *lockres,
-				    struct ocfs2_unblock_ctl *ctl)
-{
-	int status;
-	struct inode *inode;
-
-	mlog_entry_void();
-
-	mlog(0, "Unblock lockres %s\n", lockres->l_name);
-
-	inode  = ocfs2_lock_res_inode(lockres);
-
-	status = ocfs2_generic_unblock_lock(OCFS2_SB(inode->i_sb),
-					    lockres, ctl);
-	if (status < 0)
-		mlog_errno(status);
-
-	mlog_exit(status);
-	return status;
-}
-
 static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
 					int new_level)
 {
@@ -2762,31 +2693,6 @@ static void ocfs2_set_meta_lvb(struct ocfs2_lock_res *lockres)
 	struct inode *inode = ocfs2_lock_res_inode(lockres);
 
 	__ocfs2_stuff_meta_lvb(inode);
-}
-
-static int ocfs2_unblock_meta(struct ocfs2_lock_res *lockres,
-			      struct ocfs2_unblock_ctl *ctl)
-{
-	int status;
-	struct inode *inode;
-
-	mlog_entry_void();
-
-       	inode = ocfs2_lock_res_inode(lockres);
-
-	mlog(0, "unblock inode %llu\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-
-	status = ocfs2_generic_unblock_lock(OCFS2_SB(inode->i_sb),
-					    lockres, ctl);
-	if (status < 0)
-		mlog_errno(status);
-
-	mlog(0, "inode %llu, requeue = %d\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno, ctl->requeue);
-
-	mlog_exit(status);
-	return status;
 }
 
 /*
@@ -2911,51 +2817,6 @@ static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
 	return UNBLOCK_CONTINUE_POST;
 }
 
-static int ocfs2_unblock_dentry_lock(struct ocfs2_lock_res *lockres,
-				     struct ocfs2_unblock_ctl *ctl)
-{
-	int ret;
-	struct ocfs2_dentry_lock *dl = ocfs2_lock_res_dl(lockres);
-	struct ocfs2_super *osb = OCFS2_SB(dl->dl_inode->i_sb);
-
-	mlog(0, "unblock dentry lock: %llu\n",
-	     (unsigned long long)OCFS2_I(dl->dl_inode)->ip_blkno);
-
-	ret = ocfs2_generic_unblock_lock(osb,
-					 lockres,
-					 ctl);
-	if (ret < 0)
-		mlog_errno(ret);
-
-	mlog(0, "requeue = %d, post = %d\n", ctl->requeue, ctl->unblock_action);
-
-	return ret;
-}
-
-/* Generic unblock function for any lockres whose private data is an
- * ocfs2_super pointer. */
-static int ocfs2_unblock_osb_lock(struct ocfs2_lock_res *lockres,
-				  struct ocfs2_unblock_ctl *ctl)
-{
-	int status;
-	struct ocfs2_super *osb;
-
-	mlog_entry_void();
-
-	mlog(0, "Unblock lockres %s\n", lockres->l_name);
-
-	osb = ocfs2_get_lockres_osb(lockres);
-
-	status = ocfs2_generic_unblock_lock(osb,
-					    lockres,
-					    ctl);
-	if (status < 0)
-		mlog_errno(status);
-
-	mlog_exit(status);
-	return status;
-}
-
 void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
 				struct ocfs2_lock_res *lockres)
 {
@@ -2971,7 +2832,6 @@ void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
 
 	BUG_ON(!lockres);
 	BUG_ON(!lockres->l_ops);
-	BUG_ON(!lockres->l_ops->unblock);
 
 	mlog(0, "lockres %s blocked.\n", lockres->l_name);
 
@@ -2985,7 +2845,7 @@ void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
 		goto unqueue;
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
-	status = lockres->l_ops->unblock(lockres, &ctl);
+	status = ocfs2_unblock_lock(osb, lockres, &ctl);
 	if (status < 0)
 		mlog_errno(status);
 
