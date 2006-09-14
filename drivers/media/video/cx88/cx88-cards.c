@@ -1280,6 +1280,29 @@ struct cx88_board cx88_boards[] = {
 		       .gpio3  = 0x02000000,
 	       }},
        },
+	[CX88_BOARD_HAUPPAUGE_HVR1300] = {
+		.name		= "Hauppauge WinTV-HVR1300 DVB-T/Hybrid MPEG Encoder",
+		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.radio_type	= UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.input		= {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0	= 0xe780,
+		},{
+			.type	= CX88_VMUX_COMPOSITE1,
+			.vmux	= 1,
+			.gpio0	= 0xe780,
+		},{
+			.type	= CX88_VMUX_SVIDEO,
+			.vmux	= 2,
+			.gpio0	= 0xe780,
+		}},
+		/* fixme: Add radio support */
+		.dvb		= 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1542,6 +1565,18 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0xc180,
 		.subdevice = 0xc980,
 		.card      = CX88_BOARD_TE_DTV_250_OEM_SWANN,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9600,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR1300,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9601,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR1300,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9602,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR1300,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
@@ -1597,6 +1632,11 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	case 92000: /* Nova-SE2 (OEM, No Video or IR) */
 	case 94009: /* WinTV-HVR1100 (Video and IR Retail) */
 	case 94501: /* WinTV-HVR1100 (Video and IR OEM) */
+	case 96009: /* WinTV-HVR1300 (PAL Video, MPEG Video and IR RX) */
+	case 96019: /* WinTV-HVR1300 (PAL Video, MPEG Video and IR RX/TX) */
+	case 96559: /* WinTV-HVR1300 (PAL Video, MPEG Video no IR) */
+	case 96569: /* WinTV-HVR1300 () */
+	case 96659: /* WinTV-HVR1300 () */
 	case 98559: /* WinTV-HVR1100LP (Video no IR, Retail - Low Profile) */
 		/* known */
 		break;
@@ -1723,6 +1763,22 @@ void cx88_card_list(struct cx88_core *core, struct pci_dev *pci)
 		       core->name, i, cx88_boards[i].name);
 }
 
+void cx88_card_setup_pre_i2c(struct cx88_core *core)
+{
+	switch (core->board) {
+	case CX88_BOARD_HAUPPAUGE_HVR1300:
+		/* Bring the 702 demod up before i2c scanning/attach or devices are hidden */
+		/* We leave here with the 702 on the bus */
+		cx_write(MO_GP0_IO, 0x0000e780);
+		udelay(1000);
+		cx_clear(MO_GP0_IO, 0x00000080);
+		udelay(50);
+		cx_set(MO_GP0_IO, 0x00000080); /* 702 out of reset */
+		udelay(1000);
+		break;
+	}
+}
+
 void cx88_card_setup(struct cx88_core *core)
 {
 	static u8 eeprom[256];
@@ -1752,6 +1808,7 @@ void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
 	case CX88_BOARD_HAUPPAUGE_HVR1100LP:
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
+	case CX88_BOARD_HAUPPAUGE_HVR1300:
 		if (0 == core->i2c_rc)
 			hauppauge_eeprom(core,eeprom);
 		break;
