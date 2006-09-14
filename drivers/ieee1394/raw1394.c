@@ -1774,6 +1774,7 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 	addr->notification_options |= addr->client_transactions;
 	addr->recvb = req->req.recvb;
 	addr->rec_length = (u16) ((req->req.misc >> 16) & 0xFFFF);
+
 	spin_lock_irqsave(&host_info_lock, flags);
 	hi = find_host_info(fi->host);
 	same_host = 0;
@@ -1799,9 +1800,9 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 	}
 	if (same_host) {
 		/* addressrange occupied by same host */
+		spin_unlock_irqrestore(&host_info_lock, flags);
 		vfree(addr->addr_space_buffer);
 		kfree(addr);
-		spin_unlock_irqrestore(&host_info_lock, flags);
 		return (-EALREADY);
 	}
 	/* another host with valid address-entry containing same addressrange */
@@ -1829,6 +1830,8 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 			}
 		}
 	}
+	spin_unlock_irqrestore(&host_info_lock, flags);
+
 	if (another_host) {
 		DBGMSG("another hosts entry is valid -> SUCCESS");
 		if (copy_to_user(int2ptr(req->req.recvb),
@@ -1837,11 +1840,11 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 			       " address-range-entry is invalid -> EFAULT !!!\n");
 			vfree(addr->addr_space_buffer);
 			kfree(addr);
-			spin_unlock_irqrestore(&host_info_lock, flags);
 			return (-EFAULT);
 		}
 		free_pending_request(req);	/* immediate success or fail */
 		/* INSERT ENTRY */
+		spin_lock_irqsave(&host_info_lock, flags);
 		list_add_tail(&addr->addr_list, &fi->addr_list);
 		spin_unlock_irqrestore(&host_info_lock, flags);
 		return sizeof(struct raw1394_request);
@@ -1852,15 +1855,15 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 				    req->req.address + req->req.length);
 	if (retval) {
 		/* INSERT ENTRY */
+		spin_lock_irqsave(&host_info_lock, flags);
 		list_add_tail(&addr->addr_list, &fi->addr_list);
+		spin_unlock_irqrestore(&host_info_lock, flags);
 	} else {
 		DBGMSG("arm_register failed errno: %d \n", retval);
 		vfree(addr->addr_space_buffer);
 		kfree(addr);
-		spin_unlock_irqrestore(&host_info_lock, flags);
 		return (-EALREADY);
 	}
-	spin_unlock_irqrestore(&host_info_lock, flags);
 	free_pending_request(req);	/* immediate success or fail */
 	return sizeof(struct raw1394_request);
 }
@@ -1926,10 +1929,10 @@ static int arm_unregister(struct file_info *fi, struct pending_request *req)
 	if (another_host) {
 		DBGMSG("delete entry from list -> success");
 		list_del(&addr->addr_list);
+		spin_unlock_irqrestore(&host_info_lock, flags);
 		vfree(addr->addr_space_buffer);
 		kfree(addr);
 		free_pending_request(req);	/* immediate success or fail */
-		spin_unlock_irqrestore(&host_info_lock, flags);
 		return sizeof(struct raw1394_request);
 	}
 	retval =
@@ -1971,23 +1974,19 @@ static int arm_get_buf(struct file_info *fi, struct pending_request *req)
 		    (arm_addr->end > req->req.address)) {
 			if (req->req.address + req->req.length <= arm_addr->end) {
 				offset = req->req.address - arm_addr->start;
+				spin_unlock_irqrestore(&host_info_lock, flags);
 
 				DBGMSG
 				    ("arm_get_buf copy_to_user( %08X, %p, %u )",
 				     (u32) req->req.recvb,
 				     arm_addr->addr_space_buffer + offset,
 				     (u32) req->req.length);
-
 				if (copy_to_user
 				    (int2ptr(req->req.recvb),
 				     arm_addr->addr_space_buffer + offset,
-				     req->req.length)) {
-					spin_unlock_irqrestore(&host_info_lock,
-							       flags);
+				     req->req.length))
 					return (-EFAULT);
-				}
 
-				spin_unlock_irqrestore(&host_info_lock, flags);
 				/* We have to free the request, because we
 				 * queue no response, and therefore nobody
 				 * will free it. */
@@ -2027,24 +2026,23 @@ static int arm_set_buf(struct file_info *fi, struct pending_request *req)
 		    (arm_addr->end > req->req.address)) {
 			if (req->req.address + req->req.length <= arm_addr->end) {
 				offset = req->req.address - arm_addr->start;
+				spin_unlock_irqrestore(&host_info_lock, flags);
 
 				DBGMSG
 				    ("arm_set_buf copy_from_user( %p, %08X, %u )",
 				     arm_addr->addr_space_buffer + offset,
 				     (u32) req->req.sendb,
 				     (u32) req->req.length);
-
 				if (copy_from_user
 				    (arm_addr->addr_space_buffer + offset,
 				     int2ptr(req->req.sendb),
-				     req->req.length)) {
-					spin_unlock_irqrestore(&host_info_lock,
-							       flags);
+				     req->req.length))
 					return (-EFAULT);
-				}
 
-				spin_unlock_irqrestore(&host_info_lock, flags);
-				free_pending_request(req);	/* we have to free the request, because we queue no response, and therefore nobody will free it */
+				/* We have to free the request, because we
+				 * queue no response, and therefore nobody
+				 * will free it. */
+				free_pending_request(req);
 				return sizeof(struct raw1394_request);
 			} else {
 				DBGMSG("arm_set_buf request exceeded mapping");
