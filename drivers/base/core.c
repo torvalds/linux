@@ -154,20 +154,24 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 			       "MINOR=%u", MINOR(dev->devt));
 	}
 
+#ifdef CONFIG_SYSFS_DEPRECATED
 	/* add bus name (same as SUBSYSTEM, deprecated) */
 	if (dev->bus)
 		add_uevent_var(envp, num_envp, &i,
 			       buffer, buffer_size, &length,
 			       "PHYSDEVBUS=%s", dev->bus->name);
+#endif
 
 	/* add driver name (PHYSDEV* values are deprecated)*/
 	if (dev->driver) {
 		add_uevent_var(envp, num_envp, &i,
 			       buffer, buffer_size, &length,
 			       "DRIVER=%s", dev->driver->name);
+#ifdef CONFIG_SYSFS_DEPRECATED
 		add_uevent_var(envp, num_envp, &i,
 			       buffer, buffer_size, &length,
 			       "PHYSDEVDRIVER=%s", dev->driver->name);
+#endif
 	}
 
 	/* terminate, set to next free slot, shrink available space */
