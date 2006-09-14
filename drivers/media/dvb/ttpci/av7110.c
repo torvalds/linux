@@ -1701,9 +1701,13 @@ static int alps_tdlb7_tuner_set_params(struct dvb_frontend* fe, struct dvb_front
 
 static int alps_tdlb7_request_firmware(struct dvb_frontend* fe, const struct firmware **fw, char* name)
 {
+#if defined(CONFIG_DVB_SP8870) || defined(CONFIG_DVB_SP8870_MODULE)
 	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
 
 	return request_firmware(fw, name, &av7110->dev->pci->dev);
+#else
+	return -EINVAL;
+#endif
 }
 
 static struct sp8870_config alps_tdlb7_config = {
