@@ -738,7 +738,12 @@ static int psaux_registered;
 
 static int __init mousedev_init(void)
 {
-	input_register_handler(&mousedev_handler);
+	struct class_device *cdev;
+	int error;
+
+	error = input_register_handler(&mousedev_handler);
+	if (error)
+		return error;
 
 	memset(&mousedev_mix, 0, sizeof(struct mousedev));
 	INIT_LIST_HEAD(&mousedev_mix.list);
@@ -747,12 +752,20 @@ static int __init mousedev_init(void)
 	mousedev_mix.exist = 1;
 	mousedev_mix.minor = MOUSEDEV_MIX;
 
-	class_device_create(&input_class, NULL,
+	cdev = class_device_create(&input_class, NULL,
 			MKDEV(INPUT_MAJOR, MOUSEDEV_MINOR_BASE + MOUSEDEV_MIX), NULL, "mice");
+	if (IS_ERR(cdev)) {
+		input_unregister_handler(&mousedev_handler);
+		return PTR_ERR(cdev);
+	}
 
 #ifdef CONFIG_INPUT_MOUSEDEV_PSAUX
-	if (!(psaux_registered = !misc_register(&psaux_mouse)))
-		printk(KERN_WARNING "mice: could not misc_register the device\n");
+	error = misc_register(&psaux_mouse);
+	if (error)
+		printk(KERN_WARNING "mice: could not register psaux device, "
+			"error: %d\n", error);
+	else
+		psaux_registered = 1;
 #endif
 
 	printk(KERN_INFO "mice: PS/2 mouse device common for all mice\n");

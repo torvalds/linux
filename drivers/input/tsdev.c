@@ -479,9 +479,7 @@ static struct input_handler tsdev_handler = {
 
 static int __init tsdev_init(void)
 {
-	input_register_handler(&tsdev_handler);
-	printk(KERN_INFO "ts: Compaq touchscreen protocol output\n");
-	return 0;
+	return input_register_handler(&tsdev_handler);
 }
 
 static void __exit tsdev_exit(void)

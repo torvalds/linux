@@ -1362,6 +1362,7 @@ static struct input_handler kbd_handler = {
 int __init kbd_init(void)
 {
 	int i;
+	int error;
 
         for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		kbd_table[i].ledflagstate = KBD_DEFLEDS;
@@ -1373,7 +1374,9 @@ int __init kbd_init(void)
 		kbd_table[i].kbdmode = VC_XLATE;
 	}
 
-	input_register_handler(&kbd_handler);
+	error = input_register_handler(&kbd_handler);
+	if (error)
+		return error;
 
 	tasklet_enable(&keyboard_tasklet);
 	tasklet_schedule(&keyboard_tasklet);

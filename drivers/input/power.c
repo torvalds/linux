@@ -150,8 +150,7 @@ static struct input_handler power_handler = {
 
 static int __init power_init(void)
 {
-	input_register_handler(&power_handler);
-	return 0;
+	return input_register_handler(&power_handler);
 }
 
 static void __exit power_exit(void)

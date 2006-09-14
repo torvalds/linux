@@ -606,8 +606,7 @@ static struct input_handler joydev_handler = {
 
 static int __init joydev_init(void)
 {
-	input_register_handler(&joydev_handler);
-	return 0;
+	return input_register_handler(&joydev_handler);
 }
 
 static void __exit joydev_exit(void)

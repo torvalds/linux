@@ -91,8 +91,7 @@ static struct input_handler evbug_handler = {
 
 static int __init evbug_init(void)
 {
-	input_register_handler(&evbug_handler);
-	return 0;
+	return input_register_handler(&evbug_handler);
 }
 
 static void __exit evbug_exit(void)

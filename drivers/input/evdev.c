@@ -695,8 +695,7 @@ static struct input_handler evdev_handler = {
 
 static int __init evdev_init(void)
 {
-	input_register_handler(&evdev_handler);
-	return 0;
+	return input_register_handler(&evdev_handler);
 }
 
 static void __exit evdev_exit(void)

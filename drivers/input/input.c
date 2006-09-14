@@ -1037,19 +1037,20 @@ void input_unregister_device(struct input_dev *dev)
 }
 EXPORT_SYMBOL(input_unregister_device);
 
-void input_register_handler(struct input_handler *handler)
+int input_register_handler(struct input_handler *handler)
 {
 	struct input_dev *dev;
 	struct input_handle *handle;
 	const struct input_device_id *id;
 
-	if (!handler)
-		return;
-
 	INIT_LIST_HEAD(&handler->h_list);
 
-	if (handler->fops != NULL)
+	if (handler->fops != NULL) {
+		if (input_table[handler->minor >> 5])
+			return -EBUSY;
+
 		input_table[handler->minor >> 5] = handler;
+	}
 
 	list_add_tail(&handler->node, &input_handler_list);
 
@@ -1063,6 +1064,7 @@ void input_register_handler(struct input_handler *handler)
 				}
 
 	input_wakeup_procfs_readers();
+	return 0;
 }
 EXPORT_SYMBOL(input_register_handler);
 
