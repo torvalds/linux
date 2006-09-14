@@ -46,6 +46,7 @@
  */
 static int ports[IP_VS_APP_MAX_PORTS] = {21, 0};
 module_param_array(ports, int, NULL, 0);
+MODULE_PARM_DESC(ports, "Ports to monitor for FTP control commands");
 
 /*
  *	Debug level
