@@ -124,7 +124,7 @@ int get_UCSname(struct component_name * uniName, struct dentry *dentry)
 	    kmalloc((length + 1) * sizeof(wchar_t), GFP_NOFS);
 
 	if (uniName->name == NULL)
-		return -ENOSPC;
+		return -ENOMEM;
 
 	uniName->namlen = jfs_strtoUCS(uniName->name, dentry->d_name.name,
 				       length, nls_tab);

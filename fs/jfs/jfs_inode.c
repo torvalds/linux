@@ -61,7 +61,7 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	inode = new_inode(sb);
 	if (!inode) {
 		jfs_warn("ialloc: new_inode returned NULL!");
-		return inode;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	jfs_inode = JFS_IP(inode);
@@ -69,9 +69,10 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	rc = diAlloc(parent, S_ISDIR(mode), inode);
 	if (rc) {
 		jfs_warn("ialloc: diAlloc returned %d!", rc);
-		make_bad_inode(inode);
+		if (rc == -EIO)
+			make_bad_inode(inode);
 		iput(inode);
-		return NULL;
+		return ERR_PTR(rc);
 	}
 
 	inode->i_uid = current->fsuid;
@@ -97,7 +98,7 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 		inode->i_flags |= S_NOQUOTA;
 		inode->i_nlink = 0;
 		iput(inode);
-		return NULL;
+		return ERR_PTR(-EDQUOT);
 	}
 
 	inode->i_mode = mode;

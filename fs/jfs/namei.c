@@ -97,8 +97,8 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 	 * begin the transaction before we search the directory.
 	 */
 	ip = ialloc(dip, mode);
-	if (ip == NULL) {
-		rc = -ENOSPC;
+	if (IS_ERR(ip)) {
+		rc = PTR_ERR(ip);
 		goto out2;
 	}
 
@@ -231,8 +231,8 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	 * begin the transaction before we search the directory.
 	 */
 	ip = ialloc(dip, S_IFDIR | mode);
-	if (ip == NULL) {
-		rc = -ENOSPC;
+	if (IS_ERR(ip)) {
+		rc = PTR_ERR(ip);
 		goto out2;
 	}
 
@@ -906,8 +906,8 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	 * (iAlloc() returns new, locked inode)
 	 */
 	ip = ialloc(dip, S_IFLNK | 0777);
-	if (ip == NULL) {
-		rc = -ENOSPC;
+	if (IS_ERR(ip)) {
+		rc = PTR_ERR(ip);
 		goto out2;
 	}
 
@@ -978,7 +978,6 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 		xlen = xsize >> JFS_SBI(sb)->l2bsize;
 		if ((rc = xtInsert(tid, ip, 0, 0, xlen, &xaddr, 0))) {
 			txAbort(tid, 0);
-			rc = -ENOSPC;
 			goto out3;
 		}
 		extent = xaddr;
@@ -1350,8 +1349,8 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 		goto out;
 
 	ip = ialloc(dir, mode);
-	if (ip == NULL) {
-		rc = -ENOSPC;
+	if (IS_ERR(ip)) {
+		rc = PTR_ERR(ip);
 		goto out1;
 	}
 	jfs_ip = JFS_IP(ip);

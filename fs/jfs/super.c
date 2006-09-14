@@ -422,7 +422,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sbi = kzalloc(sizeof (struct jfs_sb_info), GFP_KERNEL);
 	if (!sbi)
-		return -ENOSPC;
+		return -ENOMEM;
 	sb->s_fs_info = sbi;
 	sbi->sb = sb;
 	sbi->uid = sbi->gid = sbi->umask = -1;
