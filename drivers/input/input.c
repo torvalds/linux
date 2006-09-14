@@ -912,6 +912,8 @@ struct input_dev *input_allocate_device(void)
 		mutex_init(&dev->mutex);
 		INIT_LIST_HEAD(&dev->h_list);
 		INIT_LIST_HEAD(&dev->node);
+
+		__module_get(THIS_MODULE);
 	}
 
 	return dev;
@@ -984,8 +986,6 @@ int input_register_device(struct input_dev *dev)
 	error = sysfs_create_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
 	if (error)
 		goto fail3;
-
-	__module_get(THIS_MODULE);
 
 	path = kobject_get_path(&dev->cdev.kobj, GFP_KERNEL);
 	printk(KERN_INFO "input: %s as %s\n",
