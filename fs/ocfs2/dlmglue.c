@@ -268,9 +268,6 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 				  struct buffer_head **bh);
 static void ocfs2_drop_osb_locks(struct ocfs2_super *osb);
 static inline int ocfs2_highest_compat_lock_level(int level);
-static inline int ocfs2_can_downconvert_meta_lock(struct inode *inode,
-						  struct ocfs2_lock_res *lockres,
-						  int new_level);
 
 static void ocfs2_build_lock_name(enum ocfs2_lock_type type,
 				  u64 blkno,
@@ -2534,106 +2531,6 @@ static int ocfs2_cancel_convert(struct ocfs2_super *osb,
 
 	mlog(0, "lock %s return from dlmunlock\n", lockres->l_name);
 
-	mlog_exit(ret);
-	return ret;
-}
-
-static inline int ocfs2_can_downconvert_meta_lock(struct inode *inode,
-						  struct ocfs2_lock_res *lockres,
-						  int new_level)
-{
-	int ret;
-
-	mlog_entry_void();
-
-	BUG_ON(new_level != LKM_NLMODE && new_level != LKM_PRMODE);
-
-	if (lockres->l_flags & OCFS2_LOCK_REFRESHING) {
-		ret = 0;
-		mlog(0, "lockres %s currently being refreshed -- backing "
-		     "off!\n", lockres->l_name);
-	} else if (new_level == LKM_PRMODE)
-		ret = !lockres->l_ex_holders &&
-			ocfs2_inode_fully_checkpointed(inode);
-	else /* Must be NLMODE we're converting to. */
-		ret = !lockres->l_ro_holders && !lockres->l_ex_holders &&
-			ocfs2_inode_fully_checkpointed(inode);
-
-	mlog_exit(ret);
-	return ret;
-}
-
-static int ocfs2_do_unblock_meta(struct inode *inode,
-				 int *requeue)
-{
-	int new_level;
-	int set_lvb = 0;
-	int ret = 0;
-	struct ocfs2_lock_res *lockres = &OCFS2_I(inode)->ip_meta_lockres;
-	unsigned long flags;
-
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-
-	mlog_entry_void();
-
-	spin_lock_irqsave(&lockres->l_lock, flags);
-
-	BUG_ON(!(lockres->l_flags & OCFS2_LOCK_BLOCKED));
-
-	mlog(0, "l_level=%d, l_blocking=%d\n", lockres->l_level,
-	     lockres->l_blocking);
-
-	BUG_ON(lockres->l_level != LKM_EXMODE &&
-	       lockres->l_level != LKM_PRMODE);
-
-	if (lockres->l_flags & OCFS2_LOCK_BUSY) {
-		*requeue = 1;
-		ret = ocfs2_prepare_cancel_convert(osb, lockres);
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		if (ret) {
-			ret = ocfs2_cancel_convert(osb, lockres);
-			if (ret < 0)
-				mlog_errno(ret);
-		}
-		goto leave;
-	}
-
-	new_level = ocfs2_highest_compat_lock_level(lockres->l_blocking);
-
-	mlog(0, "l_level=%d, l_blocking=%d, new_level=%d\n",
-	     lockres->l_level, lockres->l_blocking, new_level);
-
-	if (ocfs2_can_downconvert_meta_lock(inode, lockres, new_level)) {
-		if (lockres->l_level == LKM_EXMODE)
-			set_lvb = 1;
-
-		/* If the lock hasn't been refreshed yet (rare), then
-		 * our memory inode values are old and we skip
-		 * stuffing the lvb. There's no need to actually clear
-		 * out the lvb here as it's value is still valid. */
-		if (!(lockres->l_flags & OCFS2_LOCK_NEEDS_REFRESH)) {
-			if (set_lvb)
-				__ocfs2_stuff_meta_lvb(inode);
-		} else
-			mlog(0, "lockres %s: downconverting stale lock!\n",
-			     lockres->l_name);
-
-		mlog(0, "calling ocfs2_downconvert_lock with l_level=%d, "
-		     "l_blocking=%d, new_level=%d\n",
-		     lockres->l_level, lockres->l_blocking, new_level);
-
-		ocfs2_prepare_downconvert(lockres, new_level);
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		ret = ocfs2_downconvert_lock(osb, lockres, new_level, set_lvb);
-		goto leave;
-	}
-	if (!ocfs2_inode_fully_checkpointed(inode))
-		ocfs2_start_checkpoint(osb);
-
-	*requeue = 1;
-	spin_unlock_irqrestore(&lockres->l_lock, flags);
-	ret = 0;
-leave:
 	mlog_exit(ret);
 	return ret;
 }
