@@ -92,6 +92,10 @@ struct ocfs2_unblock_ctl {
 
 static int ocfs2_unblock_meta(struct ocfs2_lock_res *lockres,
 			      struct ocfs2_unblock_ctl *ctl);
+static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
+					int new_level);
+static void ocfs2_set_meta_lvb(struct ocfs2_lock_res *lockres);
+
 static int ocfs2_unblock_data(struct ocfs2_lock_res *lockres,
 			      struct ocfs2_unblock_ctl *ctl);
 static int ocfs2_unblock_inode_lock(struct ocfs2_lock_res *lockres,
@@ -179,6 +183,8 @@ static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
 static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
 	.unblock	= ocfs2_unblock_meta,
+	.check_downconvert = ocfs2_check_meta_downconvert,
+	.set_lvb	= ocfs2_set_meta_lvb,
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
 };
 
@@ -2822,6 +2828,29 @@ static int ocfs2_unblock_inode_lock(struct ocfs2_lock_res *lockres,
 	return status;
 }
 
+static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
+					int new_level)
+{
+	struct inode *inode = ocfs2_lock_res_inode(lockres);
+	int checkpointed = ocfs2_inode_fully_checkpointed(inode);
+
+	BUG_ON(new_level != LKM_NLMODE && new_level != LKM_PRMODE);
+	BUG_ON(lockres->l_level != LKM_EXMODE && !checkpointed);
+
+	if (checkpointed)
+		return 1;
+
+	ocfs2_start_checkpoint(OCFS2_SB(inode->i_sb));
+	return 0;
+}
+
+static void ocfs2_set_meta_lvb(struct ocfs2_lock_res *lockres)
+{
+	struct inode *inode = ocfs2_lock_res_inode(lockres);
+
+	__ocfs2_stuff_meta_lvb(inode);
+}
+
 static int ocfs2_unblock_meta(struct ocfs2_lock_res *lockres,
 			      struct ocfs2_unblock_ctl *ctl)
 {
@@ -2835,7 +2864,8 @@ static int ocfs2_unblock_meta(struct ocfs2_lock_res *lockres,
 	mlog(0, "unblock inode %llu\n",
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
-	status = ocfs2_do_unblock_meta(inode, &ctl->requeue);
+	status = ocfs2_generic_unblock_lock(OCFS2_SB(inode->i_sb),
+					    lockres, ctl, NULL);
 	if (status < 0)
 		mlog_errno(status);
 
