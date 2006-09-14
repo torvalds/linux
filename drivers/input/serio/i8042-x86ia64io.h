@@ -160,6 +160,13 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		},
 	},
 	{
+		.ident = "Toshiba Equium A110",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "EQUIUM A110"),
+		},
+	},
+	{
 		.ident = "Alienware Sentia",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ALIENWARE"),
