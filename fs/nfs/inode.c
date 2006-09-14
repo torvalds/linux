@@ -717,13 +717,11 @@ void nfs_end_data_update(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 
-	if (!nfs_have_delegation(inode, FMODE_READ)) {
-		/* Directories and symlinks: invalidate page cache */
-		if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)) {
-			spin_lock(&inode->i_lock);
-			nfsi->cache_validity |= NFS_INO_INVALID_DATA;
-			spin_unlock(&inode->i_lock);
-		}
+	/* Directories: invalidate page cache */
+	if (S_ISDIR(inode->i_mode)) {
+		spin_lock(&inode->i_lock);
+		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
+		spin_unlock(&inode->i_lock);
 	}
 	nfsi->cache_change_attribute = jiffies;
 	atomic_dec(&nfsi->data_updates);
