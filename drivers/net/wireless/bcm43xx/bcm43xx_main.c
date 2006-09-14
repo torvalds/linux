@@ -3170,8 +3170,7 @@ static void bcm43xx_periodic_work_handler(void *d)
 		 * be preemtible.
 		 */
 		mutex_lock(&bcm->mutex);
-		netif_stop_queue(bcm->net_dev);
-		synchronize_net();
+		netif_tx_disable(bcm->net_dev);
 		spin_lock_irqsave(&bcm->irq_lock, flags);
 		bcm43xx_mac_suspend(bcm);
 		if (bcm43xx_using_pio(bcm))
