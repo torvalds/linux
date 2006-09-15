@@ -141,3 +141,18 @@ static int __init s3c2410_dma_init(void)
 }
 
 arch_initcall(s3c2410_dma_init);
+
+/* S3C2442 DMA contains the same selection table as the S3C2410 */
+
+static struct sysdev_driver s3c2442_dma_driver = {
+	.add	= s3c2410_dma_add,
+};
+
+static int __init s3c2442_dma_init(void)
+{
+	return sysdev_driver_register(&s3c2442_sysclass, &s3c2442_dma_driver);
+}
+
+arch_initcall(s3c2442_dma_init);
+
+
