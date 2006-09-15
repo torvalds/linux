@@ -369,33 +369,35 @@ w83697hf_check_wdt(void)
 	return -EIO;
 }
 
+static int w83697hf_ioports[] = { 0x2e, 0x4e, 0x00 };
+
 static int __init
 wdt_init(void)
 {
-	int ret, autodetect;
+	int ret, i, found = 0;
 
 	spin_lock_init(&io_lock);
 
 	printk (KERN_INFO PFX "WDT driver for W83697HF/HG initializing\n");
 
-	autodetect = wdt_io == 0;
-	if (autodetect)
-		wdt_io = 0x2e;
-
-	if (!w83697hf_check_wdt())
-		goto found;
-
-	if (autodetect) {
-		wdt_io = 0x4e;
+	if (wdt_io == 0) {
+		/* we will autodetect the W83697HF/HG watchdog */
+		for (i = 0; ((!found) && (w83697hf_ioports[i] != 0)); i++) {
+			wdt_io = w83697hf_ioports[i];
+			if (!w83697hf_check_wdt())
+				found++;
+		}
+	} else {
 		if (!w83697hf_check_wdt())
-			goto found;
+			found++;
 	}
 
-	printk (KERN_ERR PFX "No W83697HF/HG could be found\n");
-	ret = -EIO;
-	goto out;
+	if (!found) {
+		printk (KERN_ERR PFX "No W83697HF/HG could be found\n");
+		ret = -EIO;
+		goto out;
+	}
 
-found:
 	w83697hf_init();
 	wdt_disable();	/* Disable watchdog until first use */
 
