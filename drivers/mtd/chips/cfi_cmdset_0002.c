@@ -175,7 +175,7 @@ static void fixup_convert_atmel_pri(struct mtd_info *mtd, void *param)
 	struct cfi_pri_atmel atmel_pri;
 
 	memcpy(&atmel_pri, extp, sizeof(atmel_pri));
-	memset(extp + 5, 0, sizeof(*extp) - 5);
+	memset((char *)extp + 5, 0, sizeof(*extp) - 5);
 
 	if (atmel_pri.Features & 0x02)
 		extp->EraseSuspend = 2;
