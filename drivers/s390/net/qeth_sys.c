@@ -1110,12 +1110,12 @@ qeth_parse_ipatoe(const char* buf, enum qeth_prot_versions proto,
 {
 	const char *start, *end;
 	char *tmp;
-	char buffer[49] = {0, };
+	char buffer[40] = {0, };
 
 	start = buf;
 	/* get address string */
 	end = strchr(start, '/');
-	if (!end || (end-start >= 49)){
+	if (!end || (end - start >= 40)){
 		PRINT_WARN("Invalid format for ipato_addx/delx. "
 			   "Use <ip addr>/<mask bits>\n");
 		return -EINVAL;
@@ -1127,7 +1127,12 @@ qeth_parse_ipatoe(const char* buf, enum qeth_prot_versions proto,
 	}
 	start = end + 1;
 	*mask_bits = simple_strtoul(start, &tmp, 10);
-
+	if (!strlen(start) ||
+	    (tmp == start) ||
+	    (*mask_bits > ((proto == QETH_PROT_IPV4) ? 32 : 128))) {
+		PRINT_WARN("Invalid mask bits for ipato_addx/delx !\n");
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -1698,11 +1703,16 @@ qeth_create_device_attributes(struct device *dev)
 		sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
 		sysfs_remove_group(&dev->kobj, &qeth_device_ipato_group);
 		sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);
-	}
-	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_blkt_group)))
 		return ret;
-
-	return ret;
+	}
+	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_blkt_group))){
+		sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
+		sysfs_remove_group(&dev->kobj, &qeth_device_ipato_group);
+		sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);
+		sysfs_remove_group(&dev->kobj, &qeth_device_rxip_group);
+		return ret;
+	}
+	return 0;
 }
 
 void

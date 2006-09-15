@@ -1096,10 +1096,11 @@ qeth_string_to_ipaddr4(const char *buf, __u8 *addr)
 {
 	int count = 0, rc = 0;
 	int in[4];
+	char c;
 
-	rc = sscanf(buf, "%d.%d.%d.%d%n",
-		    &in[0], &in[1], &in[2], &in[3], &count);
-	if (rc != 4  || count<=0)
+	rc = sscanf(buf, "%u.%u.%u.%u%c",
+		    &in[0], &in[1], &in[2], &in[3], &c);
+	if (rc != 4 && (rc != 5 || c != '\n'))
 		return -EINVAL;
 	for (count = 0; count < 4; count++) {
 		if (in[count] > 255)
@@ -1123,24 +1124,28 @@ qeth_ipaddr6_to_string(const __u8 *addr, char *buf)
 static inline int
 qeth_string_to_ipaddr6(const char *buf, __u8 *addr)
 {
-	char *end, *start;
+	const char *end, *end_tmp, *start;
 	__u16 *in;
         char num[5];
         int num2, cnt, out, found, save_cnt;
         unsigned short in_tmp[8] = {0, };
 
 	cnt = out = found = save_cnt = num2 = 0;
-        end = start = (char *) buf;
+        end = start = buf;
 	in = (__u16 *) addr;
 	memset(in, 0, 16);
-        while (end) {
-                end = strchr(end,':');
+        while (*end) {
+                end = strchr(start,':');
                 if (end == NULL) {
-                        end = (char *)buf + (strlen(buf));
-                        out = 1;
+                        end = buf + strlen(buf);
+			if ((end_tmp = strchr(start, '\n')) != NULL)
+				end = end_tmp;
+			out = 1;
                 }
                 if ((end - start)) {
                         memset(num, 0, 5);
+			if ((end - start) > 4)
+				return -EINVAL;
                         memcpy(num, start, end - start);
 			if (!qeth_isxdigit(num))
 				return -EINVAL;
@@ -1158,6 +1163,8 @@ qeth_string_to_ipaddr6(const char *buf, __u8 *addr)
 		}
 		start = ++end;
         }
+	if (cnt + save_cnt > 8)
+		return -EINVAL;
         cnt = 7;
 	while (save_cnt)
                 in[cnt--] = in_tmp[--save_cnt];
