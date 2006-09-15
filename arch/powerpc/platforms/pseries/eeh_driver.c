@@ -77,8 +77,12 @@ static int irq_in_use(unsigned int irq)
 }
 
 /* ------------------------------------------------------- */
-/** eeh_report_error - report an EEH error to each device,
- *  collect up and merge the device responses.
+/**
+ * eeh_report_error - report pci error to each device driver
+ * 
+ * Report an EEH error to each device driver, collect up and 
+ * merge the device driver responses. Cumulative response 
+ * passed back in "userdata".
  */
 
 static void eeh_report_error(struct pci_dev *dev, void *userdata)
@@ -108,8 +112,8 @@ static void eeh_report_error(struct pci_dev *dev, void *userdata)
 	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 }
 
-/** eeh_report_reset -- tell this device that the pci slot
- *  has been reset.
+/**
+ * eeh_report_reset - tell device that slot has been reset
  */
 
 static void eeh_report_reset(struct pci_dev *dev, void *userdata)
@@ -132,6 +136,10 @@ static void eeh_report_reset(struct pci_dev *dev, void *userdata)
 	driver->err_handler->slot_reset(dev);
 }
 
+/**
+ * eeh_report_resume - tell device to resume normal operations
+ */
+
 static void eeh_report_resume(struct pci_dev *dev, void *userdata)
 {
 	struct pci_driver *driver = dev->driver;
@@ -147,6 +155,13 @@ static void eeh_report_resume(struct pci_dev *dev, void *userdata)
 
 	driver->err_handler->resume(dev);
 }
+
+/**
+ * eeh_report_failure - tell device driver that device is dead.
+ *
+ * This informs the device driver that the device is permanently
+ * dead, and that no further recovery attempts will be made on it.
+ */
 
 static void eeh_report_failure(struct pci_dev *dev, void *userdata)
 {
@@ -190,11 +205,11 @@ static void eeh_report_failure(struct pci_dev *dev, void *userdata)
 
 /**
  * eeh_reset_device() -- perform actual reset of a pci slot
- * Args: bus: pointer to the pci bus structure corresponding
+ * @bus: pointer to the pci bus structure corresponding
  *            to the isolated slot. A non-null value will
  *            cause all devices under the bus to be removed
  *            and then re-added.
- *     pe_dn: pointer to a "Partionable Endpoint" device node.
+ * @pe_dn: pointer to a "Partionable Endpoint" device node.
  *            This is the top-level structure on which pci
  *            bus resets can be performed.
  */

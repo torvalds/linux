@@ -449,7 +449,11 @@ EXPORT_SYMBOL(eeh_check_failure);
 /* ------------------------------------------------------------- */
 /* The code below deals with error recovery */
 
-/** Return negative value if a permanent error, else return
+/**
+ * eeh_slot_availability - returns error status of slot
+ * @pdn pci device node
+ *
+ * Return negative value if a permanent error, else return
  * a number of milliseconds to wait until the PCI slot is
  * ready to be used.
  */
@@ -477,8 +481,10 @@ eeh_slot_availability(struct pci_dn *pdn)
 	return -1;
 }
 
-/** rtas_pci_slot_reset raises/lowers the pci #RST line
- *  state: 1/0 to raise/lower the #RST
+/**
+ * rtas_pci_slot_reset - raises/lowers the pci #RST line
+ * @pdn pci device node
+ * @state: 1/0 to raise/lower the #RST
  *
  * Clear the EEH-frozen condition on a slot.  This routine
  * asserts the PCI #RST line if the 'state' argument is '1',
@@ -518,8 +524,9 @@ rtas_pci_slot_reset(struct pci_dn *pdn, int state)
 	}
 }
 
-/** rtas_set_slot_reset -- assert the pci #RST line for 1/4 second
- *  dn -- device node to be reset.
+/**
+ * rtas_set_slot_reset -- assert the pci #RST line for 1/4 second
+ * @pdn: pci device node to be reset.
  *
  *  Return 0 if success, else a non-zero value.
  */
@@ -582,6 +589,8 @@ rtas_set_slot_reset(struct pci_dn *pdn)
 
 /**
  * __restore_bars - Restore the Base Address Registers
+ * @pdn: pci device node
+ *
  * Loads the PCI configuration space base address registers,
  * the expansion ROM base address, the latency timer, and etc.
  * from the saved values in the device node.
