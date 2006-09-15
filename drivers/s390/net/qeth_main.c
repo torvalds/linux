@@ -7344,6 +7344,8 @@ qeth_setrouting_v6(struct qeth_card *card)
 	QETH_DBF_TEXT(trace,3,"setrtg6");
 #ifdef CONFIG_QETH_IPV6
 
+	if (!qeth_is_supported(card, IPA_IPV6))
+		return 0;
 	qeth_correct_routing_type(card, &card->options.route6.type,
 				  QETH_PROT_IPV6);
 
@@ -8544,34 +8546,44 @@ qeth_ipv6_uninit(void)
 static void
 qeth_sysfs_unregister(void)
 {
+	s390_root_dev_unregister(qeth_root_dev);
 	qeth_remove_driver_attributes();
 	ccw_driver_unregister(&qeth_ccw_driver);
 	ccwgroup_driver_unregister(&qeth_ccwgroup_driver);
-	s390_root_dev_unregister(qeth_root_dev);
 }
+
 /**
  * register qeth at sysfs
  */
 static int
 qeth_sysfs_register(void)
 {
-	int rc=0;
+	int rc;
 
 	rc = ccwgroup_driver_register(&qeth_ccwgroup_driver);
 	if (rc)
-		return rc;
+		goto out;
+
 	rc = ccw_driver_register(&qeth_ccw_driver);
 	if (rc)
-	 	return rc;
+		goto out_ccw_driver;
+
 	rc = qeth_create_driver_attributes();
 	if (rc)
-		return rc;
+		goto out_qeth_attr;
+
 	qeth_root_dev = s390_root_dev_register("qeth");
-	if (IS_ERR(qeth_root_dev)) {
-		rc = PTR_ERR(qeth_root_dev);
-		return rc;
-	}
-	return 0;
+	rc = IS_ERR(qeth_root_dev) ? PTR_ERR(qeth_root_dev) : 0;
+	if (!rc)
+		goto out;
+
+	qeth_remove_driver_attributes();
+out_qeth_attr:
+	ccw_driver_unregister(&qeth_ccw_driver);
+out_ccw_driver:
+	ccwgroup_driver_unregister(&qeth_ccwgroup_driver);
+out:
+	return rc;
 }
 
 /***
@@ -8580,7 +8592,7 @@ qeth_sysfs_register(void)
 static int __init
 qeth_init(void)
 {
-	int rc=0;
+	int rc;
 
 	PRINT_INFO("loading %s\n", version);
 
@@ -8589,20 +8601,26 @@ qeth_init(void)
 	spin_lock_init(&qeth_notify_lock);
 	rwlock_init(&qeth_card_list.rwlock);
 
-	if (qeth_register_dbf_views())
+	rc = qeth_register_dbf_views();
+	if (rc)
 		goto out_err;
-	if (qeth_sysfs_register())
-		goto out_sysfs;
+
+	rc = qeth_sysfs_register();
+	if (rc)
+		goto out_dbf;
 
 #ifdef CONFIG_QETH_IPV6
-	if (qeth_ipv6_init()) {
-		PRINT_ERR("Out of memory during ipv6 init.\n");
+	rc = qeth_ipv6_init();
+	if (rc) {
+		PRINT_ERR("Out of memory during ipv6 init code = %d\n", rc);
 		goto out_sysfs;
 	}
 #endif /* QETH_IPV6 */
-	if (qeth_register_notifiers())
+	rc = qeth_register_notifiers();
+	if (rc)
 		goto out_ipv6;
-	if (qeth_create_procfs_entries())
+	rc = qeth_create_procfs_entries();
+	if (rc)
 		goto out_notifiers;
 
 	return rc;
@@ -8612,12 +8630,13 @@ out_notifiers:
 out_ipv6:
 #ifdef CONFIG_QETH_IPV6
 	qeth_ipv6_uninit();
-#endif /* QETH_IPV6 */
 out_sysfs:
+#endif /* QETH_IPV6 */
 	qeth_sysfs_unregister();
+out_dbf:
 	qeth_unregister_dbf_views();
 out_err:
-	PRINT_ERR("Initialization failed");
+	PRINT_ERR("Initialization failed with code %d\n", rc);
 	return rc;
 }
 
