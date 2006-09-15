@@ -662,7 +662,7 @@ static int __init BusLogic_InitializeMultiMasterProbeInfo(struct BusLogic_HostAd
 	   particular standard ISA I/O Address need not be probed.
 	 */
 	PrimaryProbeInfo->IO_Address = 0;
-	while ((PCI_Device = pci_find_device(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER, PCI_Device)) != NULL) {
+	while ((PCI_Device = pci_get_device(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER, PCI_Device)) != NULL) {
 		struct BusLogic_HostAdapter *HostAdapter = PrototypeHostAdapter;
 		struct BusLogic_PCIHostAdapterInformation PCIHostAdapterInformation;
 		enum BusLogic_ISACompatibleIOPort ModifyIOAddressRequest;
@@ -762,7 +762,7 @@ static int __init BusLogic_InitializeMultiMasterProbeInfo(struct BusLogic_HostAd
 			PrimaryProbeInfo->Bus = Bus;
 			PrimaryProbeInfo->Device = Device;
 			PrimaryProbeInfo->IRQ_Channel = IRQ_Channel;
-			PrimaryProbeInfo->PCI_Device = PCI_Device;
+			PrimaryProbeInfo->PCI_Device = pci_dev_get(PCI_Device);
 			PCIMultiMasterCount++;
 		} else if (BusLogic_ProbeInfoCount < BusLogic_MaxHostAdapters) {
 			struct BusLogic_ProbeInfo *ProbeInfo = &BusLogic_ProbeInfoList[BusLogic_ProbeInfoCount++];
@@ -773,7 +773,7 @@ static int __init BusLogic_InitializeMultiMasterProbeInfo(struct BusLogic_HostAd
 			ProbeInfo->Bus = Bus;
 			ProbeInfo->Device = Device;
 			ProbeInfo->IRQ_Channel = IRQ_Channel;
-			ProbeInfo->PCI_Device = PCI_Device;
+			ProbeInfo->PCI_Device = pci_dev_get(PCI_Device);
 			NonPrimaryPCIMultiMasterCount++;
 			PCIMultiMasterCount++;
 		} else
@@ -823,7 +823,7 @@ static int __init BusLogic_InitializeMultiMasterProbeInfo(struct BusLogic_HostAd
 	   noting the PCI bus location and assigned IRQ Channel.
 	 */
 	PCI_Device = NULL;
-	while ((PCI_Device = pci_find_device(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER_NC, PCI_Device)) != NULL) {
+	while ((PCI_Device = pci_get_device(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER_NC, PCI_Device)) != NULL) {
 		unsigned char Bus;
 		unsigned char Device;
 		unsigned int IRQ_Channel;
@@ -850,7 +850,7 @@ static int __init BusLogic_InitializeMultiMasterProbeInfo(struct BusLogic_HostAd
 				ProbeInfo->Bus = Bus;
 				ProbeInfo->Device = Device;
 				ProbeInfo->IRQ_Channel = IRQ_Channel;
-				ProbeInfo->PCI_Device = PCI_Device;
+				ProbeInfo->PCI_Device = pci_dev_get(PCI_Device);
 				break;
 			}
 		}
@@ -874,7 +874,7 @@ static int __init BusLogic_InitializeFlashPointProbeInfo(struct BusLogic_HostAda
 	/*
 	   Interrogate PCI Configuration Space for any FlashPoint Host Adapters.
 	 */
-	while ((PCI_Device = pci_find_device(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_FLASHPOINT, PCI_Device)) != NULL) {
+	while ((PCI_Device = pci_get_device(PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_FLASHPOINT, PCI_Device)) != NULL) {
 		unsigned char Bus;
 		unsigned char Device;
 		unsigned int IRQ_Channel;
@@ -923,7 +923,7 @@ static int __init BusLogic_InitializeFlashPointProbeInfo(struct BusLogic_HostAda
 			ProbeInfo->Bus = Bus;
 			ProbeInfo->Device = Device;
 			ProbeInfo->IRQ_Channel = IRQ_Channel;
-			ProbeInfo->PCI_Device = PCI_Device;
+			ProbeInfo->PCI_Device = pci_dev_get(PCI_Device);
 			FlashPointCount++;
 		} else
 			BusLogic_Warning("BusLogic: Too many Host Adapters " "detected\n", NULL);
@@ -1890,6 +1890,7 @@ static void BusLogic_ReleaseResources(struct BusLogic_HostAdapter *HostAdapter)
 	 */
 	if (HostAdapter->MailboxSpace)
 		pci_free_consistent(HostAdapter->PCI_Device, HostAdapter->MailboxSize, HostAdapter->MailboxSpace, HostAdapter->MailboxSpaceHandle);
+	pci_dev_put(HostAdapter->PCI_Device);
 	HostAdapter->MailboxSpace = NULL;
 	HostAdapter->MailboxSpaceHandle = 0;
 	HostAdapter->MailboxSize = 0;
