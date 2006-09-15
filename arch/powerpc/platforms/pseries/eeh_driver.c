@@ -100,14 +100,38 @@ static void eeh_report_error(struct pci_dev *dev, void *userdata)
 		PCI_DN(dn)->eeh_mode |= EEH_MODE_IRQ_DISABLED;
 		disable_irq_nosync(dev->irq);
 	}
-	if (!driver->err_handler)
-		return;
-	if (!driver->err_handler->error_detected)
+	if (!driver->err_handler ||
+	    !driver->err_handler->error_detected)
 		return;
 
 	rc = driver->err_handler->error_detected (dev, pci_channel_io_frozen);
 	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
-	if (*res == PCI_ERS_RESULT_NEED_RESET) return;
+	if (*res == PCI_ERS_RESULT_DISCONNECT &&
+	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
+}
+
+/**
+ * eeh_report_mmio_enabled - tell drivers that MMIO has been enabled
+ *
+ * Report an EEH error to each device driver, collect up and
+ * merge the device driver responses. Cumulative response
+ * passed back in "userdata".
+ */
+
+static void eeh_report_mmio_enabled(struct pci_dev *dev, void *userdata)
+{
+	enum pci_ers_result rc, *res = userdata;
+	struct pci_driver *driver = dev->driver;
+
+	// dev->error_state = pci_channel_mmio_enabled;
+
+	if (!driver ||
+	    !driver->err_handler ||
+	    !driver->err_handler->mmio_enabled)
+		return;
+
+	rc = driver->err_handler->mmio_enabled (dev);
+	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
 	if (*res == PCI_ERS_RESULT_DISCONNECT &&
 	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 }
@@ -118,6 +142,7 @@ static void eeh_report_error(struct pci_dev *dev, void *userdata)
 
 static void eeh_report_reset(struct pci_dev *dev, void *userdata)
 {
+	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver = dev->driver;
 	struct device_node *dn = pci_device_to_OF_node(dev);
 
@@ -128,12 +153,14 @@ static void eeh_report_reset(struct pci_dev *dev, void *userdata)
 		PCI_DN(dn)->eeh_mode &= ~EEH_MODE_IRQ_DISABLED;
 		enable_irq(dev->irq);
 	}
-	if (!driver->err_handler)
-		return;
-	if (!driver->err_handler->slot_reset)
+	if (!driver->err_handler ||
+	    !driver->err_handler->slot_reset)
 		return;
 
-	driver->err_handler->slot_reset(dev);
+	rc = driver->err_handler->slot_reset(dev);
+	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
+	if (*res == PCI_ERS_RESULT_DISCONNECT &&
+	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 }
 
 /**
@@ -362,22 +389,42 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 			goto hard_fail;
 	}
 
+	/* If all devices reported they can proceed, then re-enable MMIO */
+	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
+		rc = rtas_pci_enable(frozen_pdn, EEH_THAW_MMIO);
+
+		if (rc) {
+			result = PCI_ERS_RESULT_NEED_RESET;
+		} else {
+			result = PCI_ERS_RESULT_NONE;
+			pci_walk_bus(frozen_bus, eeh_report_mmio_enabled, &result);
+		}
+	}
+
+	/* If all devices reported they can proceed, then re-enable DMA */
+	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
+		rc = rtas_pci_enable(frozen_pdn, EEH_THAW_DMA);
+
+		if (rc)
+			result = PCI_ERS_RESULT_NEED_RESET;
+	}
+
+	/* If any device has a hard failure, then shut off everything. */
+	if (result == PCI_ERS_RESULT_DISCONNECT)
+		goto hard_fail;
+
 	/* If any device called out for a reset, then reset the slot */
 	if (result == PCI_ERS_RESULT_NEED_RESET) {
 		rc = eeh_reset_device(frozen_pdn, NULL);
 		if (rc)
 			goto hard_fail;
-		pci_walk_bus(frozen_bus, eeh_report_reset, NULL);
+		result = PCI_ERS_RESULT_NONE;
+		pci_walk_bus(frozen_bus, eeh_report_reset, &result);
 	}
 
-	/* If all devices reported they can proceed, the re-enable PIO */
-	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
-		/* XXX Not supported; we brute-force reset the device */
-		rc = eeh_reset_device(frozen_pdn, NULL);
-		if (rc)
-			goto hard_fail;
-		pci_walk_bus(frozen_bus, eeh_report_reset, NULL);
-	}
+	/* All devices should claim they have recovered by now. */
+	if (result != PCI_ERS_RESULT_RECOVERED)
+		goto hard_fail;
 
 	/* Tell all device drivers that they can resume operations */
 	pci_walk_bus(frozen_bus, eeh_report_resume, NULL);
