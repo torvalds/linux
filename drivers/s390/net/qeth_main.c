@@ -3179,13 +3179,14 @@ qeth_alloc_qdio_buffers(struct qeth_card *card)
 
 	QETH_DBF_TEXT(setup, 2, "allcqdbf");
 
-	if (card->qdio.state == QETH_QDIO_ALLOCATED)
+	if (atomic_cmpxchg(&card->qdio.state, QETH_QDIO_UNINITIALIZED,
+		QETH_QDIO_ALLOCATED) != QETH_QDIO_UNINITIALIZED)
 		return 0;
 
 	card->qdio.in_q = kmalloc(sizeof(struct qeth_qdio_q),
 				  GFP_KERNEL|GFP_DMA);
 	if (!card->qdio.in_q)
-		return - ENOMEM;
+		goto out_nomem;
 	QETH_DBF_TEXT(setup, 2, "inq");
 	QETH_DBF_HEX(setup, 2, &card->qdio.in_q, sizeof(void *));
 	memset(card->qdio.in_q, 0, sizeof(struct qeth_qdio_q));
@@ -3194,27 +3195,19 @@ qeth_alloc_qdio_buffers(struct qeth_card *card)
 		card->qdio.in_q->bufs[i].buffer =
 			&card->qdio.in_q->qdio_bufs[i];
 	/* inbound buffer pool */
-	if (qeth_alloc_buffer_pool(card)){
-		kfree(card->qdio.in_q);
-		return -ENOMEM;
-	}
+	if (qeth_alloc_buffer_pool(card))
+		goto out_freeinq;
 	/* outbound */
 	card->qdio.out_qs =
 		kmalloc(card->qdio.no_out_queues *
 			sizeof(struct qeth_qdio_out_q *), GFP_KERNEL);
-	if (!card->qdio.out_qs){
-		qeth_free_buffer_pool(card);
-		return -ENOMEM;
-	}
-	for (i = 0; i < card->qdio.no_out_queues; ++i){
+	if (!card->qdio.out_qs)
+		goto out_freepool;
+	for (i = 0; i < card->qdio.no_out_queues; ++i) {
 		card->qdio.out_qs[i] = kmalloc(sizeof(struct qeth_qdio_out_q),
 					       GFP_KERNEL|GFP_DMA);
-		if (!card->qdio.out_qs[i]){
-			while (i > 0)
-				kfree(card->qdio.out_qs[--i]);
-			kfree(card->qdio.out_qs);
-			return -ENOMEM;
-		}
+		if (!card->qdio.out_qs[i])
+			goto out_freeoutq;
 		QETH_DBF_TEXT_(setup, 2, "outq %i", i);
 		QETH_DBF_HEX(setup, 2, &card->qdio.out_qs[i], sizeof(void *));
 		memset(card->qdio.out_qs[i], 0, sizeof(struct qeth_qdio_out_q));
@@ -3231,8 +3224,19 @@ qeth_alloc_qdio_buffers(struct qeth_card *card)
 			INIT_LIST_HEAD(&card->qdio.out_qs[i]->bufs[j].ctx_list);
 		}
 	}
-	card->qdio.state = QETH_QDIO_ALLOCATED;
 	return 0;
+
+out_freeoutq:
+	while (i > 0)
+		kfree(card->qdio.out_qs[--i]);
+	kfree(card->qdio.out_qs);
+out_freepool:
+	qeth_free_buffer_pool(card);
+out_freeinq:
+	kfree(card->qdio.in_q);
+out_nomem:
+	atomic_set(&card->qdio.state, QETH_QDIO_UNINITIALIZED);
+	return -ENOMEM;
 }
 
 static void
@@ -3241,7 +3245,8 @@ qeth_free_qdio_buffers(struct qeth_card *card)
 	int i, j;
 
 	QETH_DBF_TEXT(trace, 2, "freeqdbf");
-	if (card->qdio.state == QETH_QDIO_UNINITIALIZED)
+	if (atomic_swap(&card->qdio.state, QETH_QDIO_UNINITIALIZED) ==
+		QETH_QDIO_UNINITIALIZED)
 		return;
 	kfree(card->qdio.in_q);
 	/* inbound buffer pool */
@@ -3254,7 +3259,6 @@ qeth_free_qdio_buffers(struct qeth_card *card)
 		kfree(card->qdio.out_qs[i]);
 	}
 	kfree(card->qdio.out_qs);
-	card->qdio.state = QETH_QDIO_UNINITIALIZED;
 }
 
 static void
@@ -3276,7 +3280,7 @@ static void
 qeth_init_qdio_info(struct qeth_card *card)
 {
 	QETH_DBF_TEXT(setup, 4, "intqdinf");
-	card->qdio.state = QETH_QDIO_UNINITIALIZED;
+	atomic_set(&card->qdio.state, QETH_QDIO_UNINITIALIZED);
 	/* inbound */
 	card->qdio.in_buf_size = QETH_IN_BUF_SIZE_DEFAULT;
 	card->qdio.init_pool.buf_count = QETH_IN_BUF_COUNT_DEFAULT;
@@ -3339,7 +3343,7 @@ qeth_qdio_establish(struct qeth_card *card)
 	struct qdio_buffer **in_sbal_ptrs;
 	struct qdio_buffer **out_sbal_ptrs;
 	int i, j, k;
-	int rc;
+	int rc = 0;
 
 	QETH_DBF_TEXT(setup, 2, "qdioest");
 
@@ -3398,8 +3402,10 @@ qeth_qdio_establish(struct qeth_card *card)
 	init_data.input_sbal_addr_array  = (void **) in_sbal_ptrs;
 	init_data.output_sbal_addr_array = (void **) out_sbal_ptrs;
 
-	if (!(rc = qdio_initialize(&init_data)))
-		card->qdio.state = QETH_QDIO_ESTABLISHED;
+	if (atomic_cmpxchg(&card->qdio.state, QETH_QDIO_ALLOCATED,
+		QETH_QDIO_ESTABLISHED) == QETH_QDIO_ALLOCATED)
+		if ((rc = qdio_initialize(&init_data)))
+			atomic_set(&card->qdio.state, QETH_QDIO_ALLOCATED);
 
 	kfree(out_sbal_ptrs);
 	kfree(in_sbal_ptrs);
@@ -3515,13 +3521,20 @@ qeth_qdio_clear_card(struct qeth_card *card, int use_halt)
 	int rc = 0;
 
 	QETH_DBF_TEXT(trace,3,"qdioclr");
-	if (card->qdio.state == QETH_QDIO_ESTABLISHED){
+	switch (atomic_cmpxchg(&card->qdio.state, QETH_QDIO_ESTABLISHED,
+		QETH_QDIO_CLEANING)) {
+	case QETH_QDIO_ESTABLISHED:
 		if ((rc = qdio_cleanup(CARD_DDEV(card),
-			     (card->info.type == QETH_CARD_TYPE_IQD) ?
-			     QDIO_FLAG_CLEANUP_USING_HALT :
-			     QDIO_FLAG_CLEANUP_USING_CLEAR)))
+				(card->info.type == QETH_CARD_TYPE_IQD) ?
+				QDIO_FLAG_CLEANUP_USING_HALT :
+				QDIO_FLAG_CLEANUP_USING_CLEAR)))
 			QETH_DBF_TEXT_(trace, 3, "1err%d", rc);
-		card->qdio.state = QETH_QDIO_ALLOCATED;
+		atomic_set(&card->qdio.state, QETH_QDIO_ALLOCATED);
+		break;
+	case QETH_QDIO_CLEANING:
+		return rc;
+	default:
+		break;
 	}
 	if ((rc = qeth_clear_halt_card(card, use_halt)))
 		QETH_DBF_TEXT_(trace, 3, "2err%d", rc);

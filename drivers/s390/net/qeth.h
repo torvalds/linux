@@ -463,6 +463,7 @@ enum qeth_qdio_info_states {
 	QETH_QDIO_UNINITIALIZED,
 	QETH_QDIO_ALLOCATED,
 	QETH_QDIO_ESTABLISHED,
+	QETH_QDIO_CLEANING
 };
 
 struct qeth_buffer_pool_entry {
@@ -537,7 +538,7 @@ struct qeth_qdio_out_q {
 } __attribute__ ((aligned(256)));
 
 struct qeth_qdio_info {
-	volatile enum qeth_qdio_info_states state;
+	atomic_t state;
 	/* input */
 	struct qeth_qdio_q *in_q;
 	struct qeth_qdio_buffer_pool in_buf_pool;
