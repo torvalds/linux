@@ -1260,8 +1260,8 @@ config SCSI_SEAGATE
 	  These are 8-bit SCSI controllers; the ST-01 is also supported by
 	  this driver.  It is explained in section 3.9 of the SCSI-HOWTO,
 	  available from <http://www.tldp.org/docs.html#howto>.  If it
-	  doesn't work out of the box, you may have to change some settings in
-	  <file:drivers/scsi/seagate.h>.
+	  doesn't work out of the box, you may have to change some macros at
+	  compiletime, which are described in <file:drivers/scsi/seagate.c>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called seagate.

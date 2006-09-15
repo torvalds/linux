@@ -106,7 +106,6 @@
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_host.h>
-#include "seagate.h"
 
 #include <scsi/scsi_ioctl.h>
 
@@ -322,6 +321,7 @@ static Signature __initdata signatures[] = {
 static int hostno = -1;
 static void seagate_reconnect_intr (int, void *, struct pt_regs *);
 static irqreturn_t do_seagate_reconnect_intr (int, void *, struct pt_regs *);
+static int seagate_st0x_bus_reset(struct scsi_cmnd *);
 
 #ifdef FAST
 static int fast = 1;
@@ -585,8 +585,8 @@ static int linked_connected = 0;
 static unsigned char linked_target, linked_lun;
 #endif
 
-static void (*done_fn) (Scsi_Cmnd *) = NULL;
-static Scsi_Cmnd *SCint = NULL;
+static void (*done_fn) (struct scsi_cmnd *) = NULL;
+static struct scsi_cmnd *SCint = NULL;
 
 /*
  * These control whether or not disconnect / reconnect will be attempted,
@@ -633,7 +633,7 @@ static irqreturn_t do_seagate_reconnect_intr(int irq, void *dev_id,
 static void seagate_reconnect_intr (int irq, void *dev_id, struct pt_regs *regs)
 {
 	int temp;
-	Scsi_Cmnd *SCtmp;
+	struct scsi_cmnd *SCtmp;
 
 	DPRINTK (PHASE_RESELECT, "scsi%d : seagate_reconnect_intr() called\n", hostno);
 
@@ -675,10 +675,11 @@ static void seagate_reconnect_intr (int irq, void *dev_id, struct pt_regs *regs)
 
 static int recursion_depth = 0;
 
-static int seagate_st0x_queue_command (Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
+static int seagate_st0x_queue_command(struct scsi_cmnd * SCpnt,
+				      void (*done) (struct scsi_cmnd *))
 {
 	int result, reconnect;
-	Scsi_Cmnd *SCtmp;
+	struct scsi_cmnd *SCtmp;
 
 	DANY ("seagate: que_command");
 	done_fn = done;
@@ -1609,7 +1610,7 @@ connect_loop:
 	return retcode (st0x_aborted);
 }				/* end of internal_command */
 
-static int seagate_st0x_abort (Scsi_Cmnd * SCpnt)
+static int seagate_st0x_abort(struct scsi_cmnd * SCpnt)
 {
 	st0x_aborted = DID_ABORT;
 	return SUCCESS;
@@ -1624,7 +1625,7 @@ static int seagate_st0x_abort (Scsi_Cmnd * SCpnt)
  * May be called with SCpnt = NULL
  */
 
-static int seagate_st0x_bus_reset(Scsi_Cmnd * SCpnt)
+static int seagate_st0x_bus_reset(struct scsi_cmnd * SCpnt)
 {
 	/* No timeouts - this command is going to fail because it was reset. */
 	DANY ("scsi%d: Reseting bus... ", hostno);
