@@ -176,7 +176,6 @@ extern struct ccwgroup_driver qeth_ccwgroup_driver;
 /**
  * card stuff
  */
-#ifdef CONFIG_QETH_PERF_STATS
 struct qeth_perf_stats {
 	unsigned int bufs_rec;
 	unsigned int bufs_sent;
@@ -211,8 +210,10 @@ struct qeth_perf_stats {
 	unsigned int large_send_cnt;
 	unsigned int sg_skbs_sent;
 	unsigned int sg_frags_sent;
+	/* initial values when measuring starts */
+	unsigned long initial_rx_packets;
+	unsigned long initial_tx_packets;
 };
-#endif /* CONFIG_QETH_PERF_STATS */
 
 /* Routing stuff */
 struct qeth_routing_info {
@@ -767,6 +768,7 @@ struct qeth_card_options {
 	int fake_ll;
 	int layer2;
 	enum qeth_large_send_types large_send;
+	int performance_stats;
 };
 
 /*
@@ -819,9 +821,7 @@ struct qeth_card {
 	struct list_head cmd_waiter_list;
 	/* QDIO buffer handling */
 	struct qeth_qdio_info qdio;
-#ifdef CONFIG_QETH_PERF_STATS
 	struct qeth_perf_stats perf_stats;
-#endif /* CONFIG_QETH_PERF_STATS */
 	int use_hard_stop;
 	int (*orig_hard_header)(struct sk_buff *,struct net_device *,
 				unsigned short,void *,void *,unsigned);
@@ -1049,13 +1049,11 @@ qeth_get_arphdr_type(int cardtype, int linktype)
 	}
 }
 
-#ifdef CONFIG_QETH_PERF_STATS
 static inline int
 qeth_get_micros(void)
 {
 	return (int) (get_clock() >> 12);
 }
-#endif
 
 static inline int
 qeth_get_qdio_q_format(struct qeth_card *card)

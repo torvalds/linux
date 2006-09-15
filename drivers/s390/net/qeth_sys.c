@@ -743,6 +743,47 @@ static DEVICE_ATTR(layer2, 0644, qeth_dev_layer2_show,
 		   qeth_dev_layer2_store);
 
 static ssize_t
+qeth_dev_performance_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct qeth_card *card = dev->driver_data;
+
+	if (!card)
+		return -EINVAL;
+
+	return sprintf(buf, "%i\n", card->options.performance_stats ? 1:0);
+}
+
+static ssize_t
+qeth_dev_performance_stats_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct qeth_card *card = dev->driver_data;
+	char *tmp;
+	int i;
+
+	if (!card)
+		return -EINVAL;
+
+	i = simple_strtoul(buf, &tmp, 16);
+	if ((i == 0) || (i == 1)) {
+		if (i == card->options.performance_stats)
+			return count;
+		card->options.performance_stats = i;
+		if (i == 0)
+			memset(&card->perf_stats, 0,
+				sizeof(struct qeth_perf_stats));
+		card->perf_stats.initial_rx_packets = card->stats.rx_packets;
+		card->perf_stats.initial_tx_packets = card->stats.tx_packets;
+	} else {
+		PRINT_WARN("performance_stats: write 0 or 1 to this file!\n");
+		return -EINVAL;
+	}
+	return count;
+}
+
+static DEVICE_ATTR(performance_stats, 0644, qeth_dev_performance_stats_show,
+		   qeth_dev_performance_stats_store);
+
+static ssize_t
 qeth_dev_large_send_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct qeth_card *card = dev->driver_data;
@@ -928,6 +969,7 @@ static struct device_attribute * qeth_device_attrs[] = {
 	&dev_attr_canonical_macaddr,
 	&dev_attr_layer2,
 	&dev_attr_large_send,
+	&dev_attr_performance_stats,
 	NULL,
 };
 
