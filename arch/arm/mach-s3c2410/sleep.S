@@ -41,15 +41,25 @@
 
 	.text
 
-	/* s3c2410_cpu_suspend
+	/* s3c2410_cpu_save
 	 *
-	 * put the cpu into sleep mode
+	 * save enough of the CPU state to allow us to re-start
+	 * pm.c code. as we store items like the sp/lr, we will
+	 * end up returning from this function when the cpu resumes
+	 * so the return value is set to mark this.
+	 *
+	 * This arangement means we avoid having to flush the cache
+	 * from this code.
 	 *
 	 * entry:
-	 *	r0 = sleep save block
+	 *	r0 = pointer to save block
+	 *
+	 * exit:
+	 *	r0 = 0 => we stored everything
+	 *	     1 => resumed from sleep
 	*/
 
-ENTRY(s3c2410_cpu_suspend)
+ENTRY(s3c2410_cpu_save)
 	stmfd	sp!, { r4 - r12, lr }
 
 	@@ store co-processor registers
@@ -62,13 +72,15 @@ ENTRY(s3c2410_cpu_suspend)
 
 	stmia	r0, { r4 - r13 }
 
-	@@ flush the caches to ensure everything is back out to
-	@@ SDRAM before the core powers down
+	mov	r0, #0
+	ldmfd	sp, { r4 - r12, pc }
 
-#ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
-	bl	arm920_flush_kern_cache_all
-#endif
+	/* s3c2410_cpu_suspend
+	 *
+	 * put the cpu into sleep mode
+	*/
 
+ENTRY(s3c2410_cpu_suspend)
 	@@ prepare cpu to sleep
 
 	ldr	r4, =S3C2410_REFRESH
@@ -100,6 +112,7 @@ s3c2410_do_sleep:
 	@@ turned on, this restores the last bits from the
 	@@ stack
 resume_with_mmu:
+	mov	r0, #1
 	ldmfd	sp!, { r4 - r12, pc }
 
 	.ltorg

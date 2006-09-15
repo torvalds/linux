@@ -35,6 +35,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 
+#include <asm/cacheflush.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 
@@ -51,14 +52,6 @@
 /* for external use */
 
 unsigned long s3c_pm_flags;
-
-/* cache functions from arch/arm/mm/proc-arm920.S */
-
-#ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
-extern void arm920_flush_kern_cache_all(void);
-#else
-static void arm920_flush_kern_cache_all(void) { }
-#endif
 
 #define PFX "s3c24xx-pm: "
 
@@ -567,7 +560,7 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	/* flush cache back to ram */
 
-	arm920_flush_kern_cache_all();
+	flush_cache_all();
 
 	s3c2410_pm_check_store();
 
@@ -575,7 +568,14 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	__raw_writel(0x00, S3C2410_CLKCON);  /* turn off clocks over sleep */
 
-	s3c2410_cpu_suspend(regs_save);
+	/* s3c2410_cpu_save will also act as our return point from when
+	 * we resume as it saves its own register state, so use the return
+	 * code to differentiate return from save and return from sleep */
+
+	if (s3c2410_cpu_save(regs_save) == 0) {
+		flush_cache_all();
+		s3c2410_cpu_suspend();
+	}
 
 	/* restore the cpu state */
 
