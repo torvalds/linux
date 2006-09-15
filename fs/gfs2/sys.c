@@ -555,6 +555,7 @@ fail_lockstruct:
 fail_reg:
 	kobject_unregister(&sdp->sd_kobj);
 fail:
+	fs_err(sdp, "error %d adding sysfs files", error);
 	return error;
 }
 
