@@ -22,6 +22,7 @@ obj-$(CONFIG_CPU_S3C2400)	+= s3c2400-gpio.o
 
 obj-$(CONFIG_CPU_S3C2410)	+= s3c2410.o
 obj-$(CONFIG_CPU_S3C2410)	+= s3c2410-gpio.o
+obj-dma-$(CONFIG_CPU_S3C2410)	+= s3c2410-dma.o
 
 # Power Management support
 
