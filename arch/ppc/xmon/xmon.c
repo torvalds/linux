@@ -806,7 +806,7 @@ backtrace(struct pt_regs *excp)
 	for (; sp != 0; sp = stack[0]) {
 		if (mread(sp, stack, sizeof(stack)) != sizeof(stack))
 			break;
-		printf("[%.8lx] ", stack);
+		printf("[%.8lx] ", stack[0]);
 		xmon_print_symbol(stack[1], " ", "\n");
 		if (stack[1] == (unsigned) &ret_from_except
 		    || stack[1] == (unsigned) &ret_from_except_full
