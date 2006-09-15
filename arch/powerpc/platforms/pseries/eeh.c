@@ -482,6 +482,35 @@ eeh_slot_availability(struct pci_dn *pdn)
 }
 
 /**
+ * rtas_pci_enable - enable MMIO or DMA transfers for this slot
+ * @pdn pci device node
+ */
+
+int
+rtas_pci_enable(struct pci_dn *pdn, int function)
+{
+	int config_addr;
+	int rc;
+
+	/* Use PE configuration address, if present */
+	config_addr = pdn->eeh_config_addr;
+	if (pdn->eeh_pe_config_addr)
+		config_addr = pdn->eeh_pe_config_addr;
+
+	rc = rtas_call(ibm_set_eeh_option, 4, 1, NULL,
+	               config_addr,
+	               BUID_HI(pdn->phb->buid),
+	               BUID_LO(pdn->phb->buid),
+		            function);
+
+	if (rc)
+		printk(KERN_WARNING "EEH: Cannot enable function %d, err=%d dn=%s\n",
+		        function, rc, pdn->node->full_name);
+
+	return rc;
+}
+
+/**
  * rtas_pci_slot_reset - raises/lowers the pci #RST line
  * @pdn pci device node
  * @state: 1/0 to raise/lower the #RST
