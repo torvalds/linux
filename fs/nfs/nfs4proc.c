@@ -970,7 +970,7 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, int flags, st
 	status = -ENOMEM;
 	opendata = nfs4_opendata_alloc(dentry, sp, flags, sattr);
 	if (opendata == NULL)
-		goto err_put_state_owner;
+		goto err_release_rwsem;
 
 	status = _nfs4_proc_open(opendata);
 	if (status != 0)
@@ -989,11 +989,11 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, int flags, st
 	return 0;
 err_opendata_free:
 	nfs4_opendata_free(opendata);
+err_release_rwsem:
+	up_read(&clp->cl_sem);
 err_put_state_owner:
 	nfs4_put_state_owner(sp);
 out_err:
-	/* Note: clp->cl_sem must be released before nfs4_put_open_state()! */
-	up_read(&clp->cl_sem);
 	*res = NULL;
 	return status;
 }
