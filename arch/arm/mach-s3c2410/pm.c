@@ -1,9 +1,9 @@
 /* linux/arch/arm/mach-s3c2410/pm.c
  *
- * Copyright (c) 2004 Simtec Electronics
+ * Copyright (c) 2004,2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C2410 Power Manager (Suspend-To-RAM) support
+ * S3C24XX Power Manager (Suspend-To-RAM) support
  *
  * See Documentation/arm/Samsung-S3C24XX/Suspend.txt for more information
  *
@@ -24,9 +24,6 @@
  * Parts based on arch/arm/mach-pxa/pm.c
  *
  * Thanks to Dimitry Andric for debugging
- *
- * Modifications:
- *     10-Mar-2005 LCVR  Changed S3C2410_VA_UART to S3C24XX_VA_UART
 */
 
 #include <linux/init.h>
@@ -90,19 +87,6 @@ static struct sleep_save core_save[] = {
 	SAVE_ITEM(S3C2410_UPLLCON),
 	SAVE_ITEM(S3C2410_CLKSLOW),
 	SAVE_ITEM(S3C2410_REFRESH),
-};
-
-/* this lot should be really saved by the IRQ code */
-static struct sleep_save irq_save[] = {
-	SAVE_ITEM(S3C2410_EXTINT0),
-	SAVE_ITEM(S3C2410_EXTINT1),
-	SAVE_ITEM(S3C2410_EXTINT2),
-	SAVE_ITEM(S3C2410_EINFLT0),
-	SAVE_ITEM(S3C2410_EINFLT1),
-	SAVE_ITEM(S3C2410_EINFLT2),
-	SAVE_ITEM(S3C2410_EINFLT3),
-	SAVE_ITEM(S3C2410_EINTMASK),
-	SAVE_ITEM(S3C2410_INTMSK)
 };
 
 static struct sleep_save gpio_save[] = {
@@ -564,7 +548,6 @@ static int s3c2410_pm_enter(suspend_state_t state)
 	/* save all necessary core registers not covered by the drivers */
 
 	s3c2410_pm_do_save(gpio_save, ARRAY_SIZE(gpio_save));
-	s3c2410_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
 	s3c2410_pm_do_save(core_save, ARRAY_SIZE(core_save));
 	s3c2410_pm_do_save(uart_save, ARRAY_SIZE(uart_save));
 
@@ -608,7 +591,6 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	s3c2410_pm_do_restore_core(core_save, ARRAY_SIZE(core_save));
 	s3c2410_pm_do_restore(gpio_save, ARRAY_SIZE(gpio_save));
-	s3c2410_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
 	s3c2410_pm_do_restore(uart_save, ARRAY_SIZE(uart_save));
 
 	s3c2410_pm_debug_init();

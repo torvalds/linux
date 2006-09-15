@@ -586,6 +586,59 @@ s3c_irq_demux_extint(unsigned int irq,
 	}
 }
 
+#ifdef CONFIG_PM
+
+static struct sleep_save irq_save[] = {
+	SAVE_ITEM(S3C2410_INTMSK),
+	SAVE_ITEM(S3C2410_INTSUBMSK),
+};
+
+/* the extint values move between the s3c2410/s3c2440 and the s3c2412
+ * so we use an array to hold them, and to calculate the address of
+ * the register at run-time
+*/
+
+static unsigned long save_extint[3];
+static unsigned long save_eintflt[4];
+static unsigned long save_eintmask;
+
+int s3c24xx_irq_suspend(struct sys_device *dev, pm_message_t state)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(save_extint); i++)
+		save_extint[i] = __raw_readl(S3C24XX_EXTINT0 + (i*4));
+
+	for (i = 0; i < ARRAY_SIZE(save_eintflt); i++)
+		save_eintflt[i] = __raw_readl(S3C24XX_EINFLT0 + (i*4));
+
+	s3c2410_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
+	save_eintmask = __raw_readl(S3C24XX_EINTMASK);
+
+	return 0;
+}
+
+int s3c24xx_irq_resume(struct sys_device *dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(save_extint); i++)
+		__raw_writel(save_extint[i], S3C24XX_EXTINT0 + (i*4));
+
+	for (i = 0; i < ARRAY_SIZE(save_eintflt); i++)
+		__raw_writel(save_eintflt[i], S3C24XX_EINFLT0 + (i*4));
+
+	s3c2410_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
+	__raw_writel(save_eintmask, S3C24XX_EINTMASK);
+
+	return 0;
+}
+
+#else
+#define s3c24xx_irq_suspend NULL
+#define s3c24xx_irq_resume  NULL
+#endif
+
 /* s3c24xx_init_irq
  *
  * Initialise S3C2410 IRQ system
