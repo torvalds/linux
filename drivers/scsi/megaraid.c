@@ -3656,8 +3656,9 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 			 * Send the request sense data also, irrespective of
 			 * whether the user has asked for it or not.
 			 */
-			copy_to_user(upthru->reqsensearea,
-					pthru->reqsensearea, 14);
+			if (copy_to_user(upthru->reqsensearea,
+					pthru->reqsensearea, 14))
+				rval = -EFAULT;
 
 freemem_and_return:
 			if( pthru->dataxferlen ) {
