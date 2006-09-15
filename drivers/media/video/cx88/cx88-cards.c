@@ -1577,6 +1577,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x9602,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR1300,
+	},{
+		.subvendor = 0x107d,
+		.subdevice = 0x6632,
+		.card      = CX88_BOARD_LEADTEK_PVR2000,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
