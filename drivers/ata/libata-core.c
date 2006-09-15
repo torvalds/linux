@@ -5269,11 +5269,19 @@ void ata_port_init(struct ata_port *ap, struct ata_host *host,
 	ap->host = host;
 	ap->dev = ent->dev;
 	ap->port_no = port_no;
-	ap->pio_mask = ent->pio_mask;
-	ap->mwdma_mask = ent->mwdma_mask;
-	ap->udma_mask = ent->udma_mask;
-	ap->flags |= ent->port_flags;
-	ap->ops = ent->port_ops;
+	if (port_no == 1 && ent->pinfo2) {
+		ap->pio_mask = ent->pinfo2->pio_mask;
+		ap->mwdma_mask = ent->pinfo2->mwdma_mask;
+		ap->udma_mask = ent->pinfo2->udma_mask;
+		ap->flags |= ent->pinfo2->flags;
+		ap->ops = ent->pinfo2->port_ops;
+	} else {
+		ap->pio_mask = ent->pio_mask;
+		ap->mwdma_mask = ent->mwdma_mask;
+		ap->udma_mask = ent->udma_mask;
+		ap->flags |= ent->port_flags;
+		ap->ops = ent->port_ops;
+	}
 	ap->hw_sata_spd_limit = UINT_MAX;
 	ap->active_tag = ATA_TAG_POISON;
 	ap->last_ctl = 0xFF;

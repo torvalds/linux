@@ -858,6 +858,7 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 			probe_ent->port[p].bmdma_addr = bmdma;
 		}
 		ata_std_ports(&probe_ent->port[p]);
+		probe_ent->pinfo2 = port[1];
 		p++;
 	}
 
@@ -907,6 +908,7 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 		}
 		ata_std_ports(&probe_ent->port[1]);
+		probe_ent->pinfo2 = port[1];
 	} else
 		probe_ent->dummy_port_mask |= ATA_PORT_SECONDARY;
 

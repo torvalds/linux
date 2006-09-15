@@ -361,6 +361,14 @@ struct ata_probe_ent {
 	unsigned long		_host_flags;
 	void __iomem		*mmio_base;
 	void			*private_data;
+
+	/* port_info for the secondary port.  Together with irq2, it's
+	 * used to implement non-uniform secondary port.  Currently,
+	 * the only user is ata_piix combined mode.  This workaround
+	 * will be removed together with ata_probe_ent when init model
+	 * is updated.
+	 */
+	const struct ata_port_info *pinfo2;
 };
 
 struct ata_host {
