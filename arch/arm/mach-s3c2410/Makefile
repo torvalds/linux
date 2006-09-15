@@ -9,6 +9,8 @@ obj-y			:= cpu.o irq.o time.o gpio.o clock.o devs.o
 obj-m			:=
 obj-n			:=
 obj-			:=
+obj-dma-y		:=
+obj-dma-n		:=
 
 # DMA
 obj-$(CONFIG_S3C2410_DMA)	+= dma.o
@@ -56,6 +58,10 @@ obj-$(CONFIG_CPU_S3C2442)	+= s3c2442-clock.o
 # bast extras
 
 obj-$(CONFIG_BAST_PC104_IRQ)	+= bast-irq.o
+
+# merge in dma objects
+
+obj-y				+= $(obj-dma-y)
 
 # machine specific support
 

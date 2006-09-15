@@ -23,6 +23,36 @@
 #define MAX_DMA_ADDRESS		0x40000000
 #define MAX_DMA_TRANSFER_SIZE   0x100000 /* Data Unit is half word  */
 
+/* We use `virtual` dma channels to hide the fact we have only a limited
+ * number of DMA channels, and not of all of them (dependant on the device)
+ * can be attached to any DMA source. We therefore let the DMA core handle
+ * the allocation of hardware channels to clients.
+*/
+
+enum dma_ch {
+	DMACH_XD0,
+	DMACH_XD1,
+	DMACH_SDI,
+	DMACH_SPI0,
+	DMACH_SPI1,
+	DMACH_UART0,
+	DMACH_UART1,
+	DMACH_UART2,
+	DMACH_TIMER,
+	DMACH_I2S_IN,
+	DMACH_I2S_OUT,
+	DMACH_PCM_IN,
+	DMACH_PCM_OUT,
+	DMACH_MIC_IN,
+	DMACH_USB_EP1,
+	DMACH_USB_EP2,
+	DMACH_USB_EP3,
+	DMACH_USB_EP4,
+	DMACH_MAX,		/* the end entry */
+};
+
+#define DMACH_LOW_LEVEL	(1<<28)	/* use this to specifiy hardware ch no */
+
 /* we have 4 dma channels */
 #define S3C2410_DMA_CHANNELS        (4)
 
@@ -149,6 +179,8 @@ struct s3c2410_dma_stats {
 	unsigned long		timeout_failed;
 };
 
+struct s3c2410_dma_map;
+
 /* struct s3c2410_dma_chan
  *
  * full state information for each DMA channel
@@ -173,6 +205,8 @@ struct s3c2410_dma_chan {
 	unsigned long		 dev_addr;
 	unsigned long		 load_timeout;
 	unsigned int		 flags;		/* channel flags */
+
+	struct s3c24xx_dma_map	*map;		/* channel hw maps */
 
 	/* channel's hardware position and configuration */
 	void __iomem		*regs;		/* channels registers */
