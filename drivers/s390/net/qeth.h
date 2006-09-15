@@ -859,23 +859,18 @@ qeth_get_ipa_adp_type(enum qeth_link_types link_type)
 	}
 }
 
-static inline int
-qeth_realloc_headroom(struct qeth_card *card, struct sk_buff **skb, int size)
+static inline struct sk_buff *
+qeth_realloc_headroom(struct qeth_card *card, struct sk_buff *skb, int size)
 {
-	struct sk_buff *new_skb = NULL;
+	struct sk_buff *new_skb = skb;
 
-	if (skb_headroom(*skb) < size){
-		new_skb = skb_realloc_headroom(*skb, size);
-		if (!new_skb) {
-                        PRINT_ERR("qeth_prepare_skb: could "
-                                  "not realloc headroom for qeth_hdr "
-                                  "on interface %s", QETH_CARD_IFNAME(card));
-                        return -ENOMEM;
-                }
-		kfree_skb(*skb);
-                *skb = new_skb;
-	}
-	return 0;
+	if (skb_headroom(skb) >= size)
+		return skb;
+	new_skb = skb_realloc_headroom(skb, size);
+	if (!new_skb) 
+		PRINT_ERR("Could not realloc headroom for qeth_hdr "
+			  "on interface %s", QETH_CARD_IFNAME(card));
+	return new_skb;
 }
 
 static inline struct sk_buff *
@@ -885,16 +880,15 @@ qeth_pskb_unshare(struct sk_buff *skb, int pri)
         if (!skb_cloned(skb))
                 return skb;
         nskb = skb_copy(skb, pri);
-        kfree_skb(skb); /* free our shared copy */
         return nskb;
 }
 
 static inline void *
-qeth_push_skb(struct qeth_card *card, struct sk_buff **skb, int size)
+qeth_push_skb(struct qeth_card *card, struct sk_buff *skb, int size)
 {
         void *hdr;
 
-	hdr = (void *) skb_push(*skb, size);
+	hdr = (void *) skb_push(skb, size);
         /*
          * sanity check, the Linux memory allocation scheme should
          * never present us cases like this one (the qdio header size plus
@@ -903,8 +897,7 @@ qeth_push_skb(struct qeth_card *card, struct sk_buff **skb, int size)
         if ((((unsigned long) hdr) & (~(PAGE_SIZE - 1))) !=
             (((unsigned long) hdr + size +
               QETH_IP_HEADER_SIZE) & (~(PAGE_SIZE - 1)))) {
-                PRINT_ERR("qeth_prepare_skb: misaligned "
-                          "packet on interface %s. Discarded.",
+                PRINT_ERR("Misaligned packet on interface %s. Discarded.",
                           QETH_CARD_IFNAME(card));
                 return NULL;
         }
