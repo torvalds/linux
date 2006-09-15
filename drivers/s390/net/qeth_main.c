@@ -1708,6 +1708,7 @@ qeth_check_ipa_data(struct qeth_card *card, struct qeth_cmd_buffer *iob)
 					   "IP address reset.\n",
 					   QETH_CARD_IFNAME(card),
 					   card->info.chpid);
+				netif_carrier_on(card->dev);
 				qeth_schedule_recovery(card);
 				return NULL;
 			case IPA_CMD_MODCCID:
@@ -2464,24 +2465,6 @@ qeth_rebuild_skb_fake_ll(struct qeth_card *card, struct sk_buff *skb,
 		qeth_rebuild_skb_fake_ll_eth(card, skb, hdr);
 }
 
-static inline void
-qeth_rebuild_skb_vlan(struct qeth_card *card, struct sk_buff *skb,
-		      struct qeth_hdr *hdr)
-{
-#ifdef CONFIG_QETH_VLAN
-	u16 *vlan_tag;
-
-	if (hdr->hdr.l3.ext_flags &
-	    (QETH_HDR_EXT_VLAN_FRAME | QETH_HDR_EXT_INCLUDE_VLAN_TAG)) {
-		vlan_tag = (u16 *) skb_push(skb, VLAN_HLEN);
-		*vlan_tag = (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_VLAN_FRAME)?
-			hdr->hdr.l3.vlan_id : *((u16 *)&hdr->hdr.l3.dest_addr[12]);
-		*(vlan_tag + 1) = skb->protocol;
-		skb->protocol = __constant_htons(ETH_P_8021Q);
-	}
-#endif /* CONFIG_QETH_VLAN */
-}
-
 static inline __u16
 qeth_layer2_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 			struct qeth_hdr *hdr)
@@ -2510,15 +2493,16 @@ qeth_layer2_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 	return vlan_id;
 }
 
-static inline void
+static inline __u16
 qeth_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 		 struct qeth_hdr *hdr)
 {
+	unsigned short vlan_id = 0;
 #ifdef CONFIG_QETH_IPV6
 	if (hdr->hdr.l3.flags & QETH_HDR_PASSTHRU) {
 		skb->pkt_type = PACKET_HOST;
 		skb->protocol = qeth_type_trans(skb, card->dev);
-		return;
+		return 0;
 	}
 #endif /* CONFIG_QETH_IPV6 */
 	skb->protocol = htons((hdr->hdr.l3.flags & QETH_HDR_IPV6)? ETH_P_IPV6 :
@@ -2540,7 +2524,13 @@ qeth_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 	default:
 		skb->pkt_type = PACKET_HOST;
 	}
-	qeth_rebuild_skb_vlan(card, skb, hdr);
+
+	if (hdr->hdr.l3.ext_flags &
+	    (QETH_HDR_EXT_VLAN_FRAME | QETH_HDR_EXT_INCLUDE_VLAN_TAG)) {
+		vlan_id = (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_VLAN_FRAME)?
+			hdr->hdr.l3.vlan_id : *((u16 *)&hdr->hdr.l3.dest_addr[12]);
+	}
+
 	if (card->options.fake_ll)
 		qeth_rebuild_skb_fake_ll(card, skb, hdr);
 	else
@@ -2556,6 +2546,7 @@ qeth_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 		else
 			skb->ip_summed = SW_CHECKSUMMING;
 	}
+	return vlan_id;
 }
 
 static inline void
@@ -2568,6 +2559,7 @@ qeth_process_inbound_buffer(struct qeth_card *card,
 	int offset;
 	int rxrc;
 	__u16 vlan_tag = 0;
+	__u16 *vlan_addr;
 
 	/* get first element of current buffer */
 	element = (struct qdio_buffer_element *)&buf->buffer->element[0];
@@ -2581,7 +2573,7 @@ qeth_process_inbound_buffer(struct qeth_card *card,
 		if (hdr->hdr.l2.id == QETH_HEADER_TYPE_LAYER2)
 			vlan_tag = qeth_layer2_rebuild_skb(card, skb, hdr);
 		else if (hdr->hdr.l3.id == QETH_HEADER_TYPE_LAYER3)
-			qeth_rebuild_skb(card, skb, hdr);
+			vlan_tag = qeth_rebuild_skb(card, skb, hdr);
 		else { /*in case of OSN*/
 			skb_push(skb, sizeof(struct qeth_hdr));
 			memcpy(skb->data, hdr, sizeof(struct qeth_hdr));
@@ -2591,14 +2583,19 @@ qeth_process_inbound_buffer(struct qeth_card *card,
 			dev_kfree_skb_any(skb);
 			continue;
 		}
-#ifdef CONFIG_QETH_VLAN
-		if (vlan_tag)
-			vlan_hwaccel_rx(skb, card->vlangrp, vlan_tag);
-		else
-#endif
 		if (card->info.type == QETH_CARD_TYPE_OSN)
 			rxrc = card->osn_info.data_cb(skb);
 		else
+#ifdef CONFIG_QETH_VLAN
+		if (vlan_tag)
+			if (card->vlangrp)
+				vlan_hwaccel_rx(skb, card->vlangrp, vlan_tag);
+			else {
+				dev_kfree_skb_any(skb);
+				continue;
+			}
+		else
+#endif
 			rxrc = netif_rx(skb);
 		card->dev->last_rx = jiffies;
 		card->stats.rx_packets++;
