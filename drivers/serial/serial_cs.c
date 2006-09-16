@@ -81,8 +81,8 @@ module_param(buggy_uart, int, 0444);
 /* Table of multi-port card ID's */
 
 struct serial_quirk {
-	u_short manfid;
-	u_short prodid;
+	unsigned int manfid;
+	unsigned int prodid;
 	int multi;		/* 1 = multifunction, > 1 = # ports */
 };
 
@@ -645,9 +645,12 @@ static int serial_config(struct pcmcia_device * link)
 	if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
 		info->manfid = parse->manfid.manf;
 		info->prodid = parse->manfid.card;
+
 		for (i = 0; i < ARRAY_SIZE(quirks); i++)
-			if ((info->manfid == quirks[i].manfid) &&
-			    (info->prodid == quirks[i].prodid)) {
+			if ((quirks[i].manfid == ~0 ||
+			     quirks[i].manfid == info->manfid) &&
+			    (quirks[i].prodid == ~0 ||
+			     quirks[i].prodid == info->prodid)) {
 				info->quirk = &quirks[i];
 				break;
 			}
