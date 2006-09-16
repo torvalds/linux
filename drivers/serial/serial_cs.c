@@ -84,6 +84,7 @@ struct serial_quirk {
 	unsigned int manfid;
 	unsigned int prodid;
 	int multi;		/* 1 = multifunction, > 1 = # ports */
+	void (*wakeup)(struct pcmcia_device *);
 	int (*post)(struct pcmcia_device *);
 };
 
@@ -130,6 +131,39 @@ static int quirk_post_ibm(struct pcmcia_device *link)
 	return -ENODEV;
 }
 
+static void quirk_wakeup_oxsemi(struct pcmcia_device *link)
+{
+	struct serial_info *info = link->priv;
+
+	outb(12, info->c950ctrl + 1);
+}
+
+/* request_region? oxsemi branch does no request_region too... */
+/*
+ * This sequence is needed to properly initialize MC45 attached to OXCF950.
+ * I tried decreasing these msleep()s, but it worked properly (survived
+ * 1000 stop/start operations) with these timeouts (or bigger).
+ */
+static void quirk_wakeup_possio_gcc(struct pcmcia_device *link)
+{
+	struct serial_info *info = link->priv;
+	unsigned int ctrl = info->c950ctrl;
+
+	outb(0xA, ctrl + 1);
+	msleep(100);
+	outb(0xE, ctrl + 1);
+	msleep(300);
+	outb(0xC, ctrl + 1);
+	msleep(100);
+	outb(0xE, ctrl + 1);
+	msleep(200);
+	outb(0xF, ctrl + 1);
+	msleep(100);
+	outb(0xE, ctrl + 1);
+	msleep(100);
+	outb(0xC, ctrl + 1);
+}
+
 static const struct serial_quirk quirks[] = {
 	{
 		.manfid	= MANFID_IBM,
@@ -137,9 +171,27 @@ static const struct serial_quirk quirks[] = {
 		.multi	= -1,
 		.post	= quirk_post_ibm,
 	}, {
+		.manfid	= MANFID_INTEL,
+		.prodid	= PRODID_INTEL_DUAL_RS232,
+		.multi	= 2,
+	}, {
+		.manfid	= MANFID_NATINST,
+		.prodid	= PRODID_NATINST_QUAD_RS232,
+		.multi	= 4,
+	}, {
 		.manfid	= MANFID_OMEGA,
 		.prodid	= PRODID_OMEGA_QSP_100,
 		.multi	= 4,
+	}, {
+		.manfid	= MANFID_OXSEMI,
+		.prodid	= ~0,
+		.multi	= -1,
+		.wakeup	= quirk_wakeup_oxsemi,
+	}, {
+		.manfid	= MANFID_POSSIO,
+		.prodid	= PRODID_POSSIO_GCC,
+		.multi	= -1,
+		.wakeup	= quirk_wakeup_possio_gcc,
 	}, {
 		.manfid	= MANFID_QUATECH,
 		.prodid	= PRODID_QUATECH_DUAL_RS232,
@@ -156,47 +208,12 @@ static const struct serial_quirk quirks[] = {
 		.manfid	= MANFID_SOCKET,
 		.prodid	= PRODID_SOCKET_DUAL_RS232,
 		.multi	= 2,
-	}, {
-		.manfid	= MANFID_INTEL,
-		.prodid	= PRODID_INTEL_DUAL_RS232,
-		.multi	= 2,
-	}, {
-		.manfid	= MANFID_NATINST,
-		.prodid	= PRODID_NATINST_QUAD_RS232,
-		.multi	= 4,
 	}
 };
 
 
 static int serial_config(struct pcmcia_device * link);
 
-
-static void wakeup_card(struct serial_info *info)
-{
-	int ctrl = info->c950ctrl;
-
-	if (info->manfid == MANFID_OXSEMI) {
-		outb(12, ctrl + 1);
-	} else if (info->manfid == MANFID_POSSIO && info->prodid == PRODID_POSSIO_GCC) {
-		/* request_region? oxsemi branch does no request_region too... */
-		/* This sequence is needed to properly initialize MC45 attached to OXCF950.
-		 * I tried decreasing these msleep()s, but it worked properly (survived
-		 * 1000 stop/start operations) with these timeouts (or bigger). */
-		outb(0xA, ctrl + 1);
-		msleep(100);
-		outb(0xE, ctrl + 1);
-		msleep(300);
-		outb(0xC, ctrl + 1);
-		msleep(100);
-		outb(0xE, ctrl + 1);
-		msleep(200);
-		outb(0xF, ctrl + 1);
-		msleep(100);
-		outb(0xE, ctrl + 1);
-		msleep(100);
-		outb(0xC, ctrl + 1);
-	}
-}
 
 /*======================================================================
 
@@ -243,7 +260,9 @@ static int serial_resume(struct pcmcia_device *link)
 
 		for (i = 0; i < info->ndev; i++)
 			serial8250_resume_port(info->line[i]);
-		wakeup_card(info);
+
+		if (info->quirk && info->quirk->wakeup)
+			info->quirk->wakeup(link);
 	}
 
 	return 0;
@@ -602,7 +621,14 @@ static int multi_config(struct pcmcia_device * link)
 					link->irq.AssignedIRQ);
 		}
 		info->c950ctrl = base2;
-		wakeup_card(info);
+
+		/*
+		 * FIXME: We really should wake up the port prior to
+		 * handing it over to the serial layer.
+		 */
+		if (info->quirk && info->quirk->wakeup)
+			info->quirk->wakeup(link);
+
 		rc = 0;
 		goto free_cfg_mem;
 	}
