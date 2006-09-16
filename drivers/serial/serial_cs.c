@@ -84,6 +84,7 @@ struct serial_quirk {
 	unsigned int manfid;
 	unsigned int prodid;
 	int multi;		/* 1 = multifunction, > 1 = # ports */
+	void (*config)(struct pcmcia_device *);
 	void (*wakeup)(struct pcmcia_device *);
 	int (*post)(struct pcmcia_device *);
 };
@@ -164,6 +165,19 @@ static void quirk_wakeup_possio_gcc(struct pcmcia_device *link)
 	outb(0xC, ctrl + 1);
 }
 
+/*
+ * Socket Dual IO: this enables irq's for second port
+ */
+static void quirk_config_socket(struct pcmcia_device *link)
+{
+	struct serial_info *info = link->priv;
+
+	if (info->multi) {
+		link->conf.Present |= PRESENT_EXT_STATUS;
+		link->conf.ExtStatus = ESR_REQ_ATTN_ENA;
+	}
+}
+
 static const struct serial_quirk quirks[] = {
 	{
 		.manfid	= MANFID_IBM,
@@ -208,6 +222,12 @@ static const struct serial_quirk quirks[] = {
 		.manfid	= MANFID_SOCKET,
 		.prodid	= PRODID_SOCKET_DUAL_RS232,
 		.multi	= 2,
+		.config	= quirk_config_socket,
+	}, {
+		.manfid	= MANFID_SOCKET,
+		.prodid	= ~0,
+		.multi	= -1,
+		.config	= quirk_config_socket,
 	}
 };
 
@@ -504,6 +524,13 @@ next_entry:
 	}
 	if (info->multi && (info->manfid == MANFID_3COM))
 		link->conf.ConfigIndex &= ~(0x08);
+
+	/*
+	 * Apply any configuration quirks.
+	 */
+	if (info->quirk && info->quirk->config)
+		info->quirk->config(link);
+
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != CS_SUCCESS) {
 		cs_error(link, RequestConfiguration, i);
@@ -592,11 +619,13 @@ static int multi_config(struct pcmcia_device * link)
 		cs_error(link, RequestIRQ, i);
 		link->irq.AssignedIRQ = 0;
 	}
-	/* Socket Dual IO: this enables irq's for second port */
-	if (info->multi && (info->manfid == MANFID_SOCKET)) {
-		link->conf.Present |= PRESENT_EXT_STATUS;
-		link->conf.ExtStatus = ESR_REQ_ATTN_ENA;
-	}
+
+	/*
+	 * Apply any configuration quirks.
+	 */
+	if (info->quirk && info->quirk->config)
+		info->quirk->config(link);
+
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != CS_SUCCESS) {
 		cs_error(link, RequestConfiguration, i);
