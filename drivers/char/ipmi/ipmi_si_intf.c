@@ -402,10 +402,10 @@ static void handle_flags(struct smi_info *smi_info)
 			smi_info->curr_msg->data,
 			smi_info->curr_msg->data_size);
 		smi_info->si_state = SI_GETTING_EVENTS;
-	} else if (smi_info->msg_flags & OEM_DATA_AVAIL) {
-		if (smi_info->oem_data_avail_handler)
-			if (smi_info->oem_data_avail_handler(smi_info))
-				goto retry;
+	} else if (smi_info->msg_flags & OEM_DATA_AVAIL &&
+	           smi_info->oem_data_avail_handler) {
+		if (smi_info->oem_data_avail_handler(smi_info))
+			goto retry;
 	} else {
 		smi_info->si_state = SI_NORMAL;
 	}
