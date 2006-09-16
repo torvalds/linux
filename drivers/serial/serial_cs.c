@@ -95,7 +95,6 @@ static const struct multi_id multi_id[] = {
 	{ MANFID_INTEL,   PRODID_INTEL_DUAL_RS232,      2 },
 	{ MANFID_NATINST, PRODID_NATINST_QUAD_RS232,    4 }
 };
-#define MULTI_COUNT (sizeof(multi_id)/sizeof(struct multi_id))
 
 struct serial_info {
 	struct pcmcia_device	*p_dev;
@@ -622,13 +621,13 @@ static int serial_config(struct pcmcia_device * link)
 	tuple->DesiredTuple = CISTPL_MANFID;
 	if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
 		info->manfid = parse->manfid.manf;
-		info->prodid = le16_to_cpu(buf[1]);
-		for (i = 0; i < MULTI_COUNT; i++)
+		info->prodid = parse->manfid.card;
+		for (i = 0; i < ARRAY_SIZE(multi_id); i++)
 			if ((info->manfid == multi_id[i].manfid) &&
-			    (parse->manfid.card == multi_id[i].prodid))
+			    (info->prodid == multi_id[i].prodid)) {
+				info->multi = multi_id[i].multi;
 				break;
-		if (i < MULTI_COUNT)
-			info->multi = multi_id[i].multi;
+			}
 	}
 
 	/* Another check for dual-serial cards: look for either serial or
