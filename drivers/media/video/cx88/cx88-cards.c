@@ -1348,7 +1348,7 @@ struct cx88_subid cx88_subids[] = {
 		.card      = CX88_BOARD_LEADTEK_PVR2000,
 	},{
 		.subvendor = 0x107d,
-		.subdevice = 0x663C,
+		.subdevice = 0x663c,
 		.card      = CX88_BOARD_LEADTEK_PVR2000,
 	},{
 		.subvendor = 0x1461,
