@@ -132,6 +132,18 @@ static int quirk_post_ibm(struct pcmcia_device *link)
 	return -ENODEV;
 }
 
+/*
+ * Nokia cards are not really multiport cards.  Shouldn't this
+ * be handled by setting the quirk entry .multi = 0 | 1 ?
+ */
+static void quirk_config_nokia(struct pcmcia_device *link)
+{
+	struct serial_info *info = link->priv;
+
+	if (info->multi > 1)
+		info->multi = 1;
+}
+
 static void quirk_wakeup_oxsemi(struct pcmcia_device *link)
 {
 	struct serial_info *info = link->priv;
@@ -192,6 +204,11 @@ static const struct serial_quirk quirks[] = {
 		.manfid	= MANFID_NATINST,
 		.prodid	= PRODID_NATINST_QUAD_RS232,
 		.multi	= 4,
+	}, {
+		.manfid	= MANFID_NOKIA,
+		.prodid	= ~0,
+		.multi	= -1,
+		.config	= quirk_config_nokia,
 	}, {
 		.manfid	= MANFID_OMEGA,
 		.prodid	= PRODID_OMEGA_QSP_100,
@@ -663,11 +680,6 @@ static int multi_config(struct pcmcia_device * link)
 	}
 
 	setup_serial(link, info, link->io.BasePort1, link->irq.AssignedIRQ);
-	/* The Nokia cards are not really multiport cards */
-	if (info->manfid == MANFID_NOKIA) {
-		rc = 0;
-		goto free_cfg_mem;
-	}
 	for (i = 0; i < info->multi - 1; i++)
 		setup_serial(link, info, base2 + (8 * i),
 				link->irq.AssignedIRQ);
