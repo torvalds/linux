@@ -80,20 +80,42 @@ module_param(buggy_uart, int, 0444);
 
 /* Table of multi-port card ID's */
 
-struct multi_id {
+struct serial_quirk {
 	u_short manfid;
 	u_short prodid;
 	int multi;		/* 1 = multifunction, > 1 = # ports */
 };
 
-static const struct multi_id multi_id[] = {
-	{ MANFID_OMEGA,   PRODID_OMEGA_QSP_100,         4 },
-	{ MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232,    2 },
-	{ MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232_D1, 2 },
-	{ MANFID_QUATECH, PRODID_QUATECH_QUAD_RS232,    4 },
-	{ MANFID_SOCKET,  PRODID_SOCKET_DUAL_RS232,     2 },
-	{ MANFID_INTEL,   PRODID_INTEL_DUAL_RS232,      2 },
-	{ MANFID_NATINST, PRODID_NATINST_QUAD_RS232,    4 }
+static const struct serial_quirk quirks[] = {
+	{
+		.manfid	= MANFID_OMEGA,
+		.prodid	= PRODID_OMEGA_QSP_100,
+		.multi	= 4,
+	}, {
+		.manfid	= MANFID_QUATECH,
+		.prodid	= PRODID_QUATECH_DUAL_RS232,
+		.multi	= 2,
+	}, {
+		.manfid	= MANFID_QUATECH,
+		.prodid	= PRODID_QUATECH_DUAL_RS232_D1,
+		.multi	= 2,
+	}, {
+		.manfid	= MANFID_QUATECH,
+		.prodid	= PRODID_QUATECH_QUAD_RS232,
+		.multi	= 4,
+	}, {
+		.manfid	= MANFID_SOCKET,
+		.prodid	= PRODID_SOCKET_DUAL_RS232,
+		.multi	= 2,
+	}, {
+		.manfid	= MANFID_INTEL,
+		.prodid	= PRODID_INTEL_DUAL_RS232,
+		.multi	= 2,
+	}, {
+		.manfid	= MANFID_NATINST,
+		.prodid	= PRODID_NATINST_QUAD_RS232,
+		.multi	= 4,
+	}
 };
 
 struct serial_info {
@@ -106,6 +128,7 @@ struct serial_info {
 	int			c950ctrl;
 	dev_node_t		node[4];
 	int			line[4];
+	const struct serial_quirk *quirk;
 };
 
 struct serial_cfg_mem {
@@ -622,10 +645,10 @@ static int serial_config(struct pcmcia_device * link)
 	if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
 		info->manfid = parse->manfid.manf;
 		info->prodid = parse->manfid.card;
-		for (i = 0; i < ARRAY_SIZE(multi_id); i++)
-			if ((info->manfid == multi_id[i].manfid) &&
-			    (info->prodid == multi_id[i].prodid)) {
-				info->multi = multi_id[i].multi;
+		for (i = 0; i < ARRAY_SIZE(quirks); i++)
+			if ((info->manfid == quirks[i].manfid) &&
+			    (info->prodid == quirks[i].prodid)) {
+				info->quirk = &quirks[i];
 				break;
 			}
 	}
@@ -646,6 +669,12 @@ static int serial_config(struct pcmcia_device * link)
 				info->multi = 2;
 		}
 	}
+
+	/*
+	 * Apply any multi-port quirk.
+	 */
+	if (info->quirk && info->quirk->multi != -1)
+		info->multi = info->quirk->multi;
 
 	if (info->multi > 1)
 		multi_config(link);
