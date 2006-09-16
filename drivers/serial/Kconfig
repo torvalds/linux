@@ -556,10 +556,11 @@ config SERIAL_MUX
 	default y
 	---help---
 	  Saying Y here will enable the hardware MUX serial driver for
-	  the Nova and K class systems.  The hardware MUX is not 8250/16550 
-	  compatible therefore the /dev/ttyB0 device is shared between the 
-	  Serial MUX and the PDC software console.  The following steps 
-	  need to be completed to use the Serial MUX:
+	  the Nova, K class systems and D class with a 'remote control card'.
+	  The hardware MUX is not 8250/16550 compatible therefore the
+	  /dev/ttyB0 device is shared between the Serial MUX and the PDC
+	  software console. The following steps need to be completed to use
+	  the Serial MUX:
 
 	    1. create the device entry (mknod /dev/ttyB0 c 11 0)
 	    2. Edit the /etc/inittab to start a getty listening on /dev/ttyB0
