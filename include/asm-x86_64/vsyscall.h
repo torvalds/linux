@@ -1,8 +1,6 @@
 #ifndef _ASM_X86_64_VSYSCALL_H_
 #define _ASM_X86_64_VSYSCALL_H_
 
-#include <linux/seqlock.h>
-
 enum vsyscall_num {
 	__NR_vgettimeofday,
 	__NR_vtime,
@@ -14,6 +12,7 @@ enum vsyscall_num {
 #define VSYSCALL_ADDR(vsyscall_nr) (VSYSCALL_START+VSYSCALL_SIZE*(vsyscall_nr))
 
 #ifdef __KERNEL__
+#include <linux/seqlock.h>
 
 #define __section_vxtime __attribute__ ((unused, __section__ (".vxtime"), aligned(16)))
 #define __section_wall_jiffies __attribute__ ((unused, __section__ (".wall_jiffies"), aligned(16)))
