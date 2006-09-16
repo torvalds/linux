@@ -85,6 +85,7 @@ struct serial_quirk {
 	unsigned int prodid;
 	int multi;		/* 1 = multifunction, > 1 = # ports */
 	void (*config)(struct pcmcia_device *);
+	void (*setup)(struct pcmcia_device *, struct uart_port *);
 	void (*wakeup)(struct pcmcia_device *);
 	int (*post)(struct pcmcia_device *);
 };
@@ -107,6 +108,16 @@ struct serial_cfg_mem {
 	cisparse_t parse;
 	u_char buf[256];
 };
+
+/*
+ * vers_1 5.0, "Brain Boxes", "2-Port RS232 card", "r6"
+ * manfid 0x0160, 0x0104
+ * This card appears to have a 14.7456MHz clock.
+ */
+static void quirk_setup_brainboxes_0104(struct pcmcia_device *link, struct uart_port *port)
+{
+	port->uartclk = 14745600;
+}
 
 static int quirk_post_ibm(struct pcmcia_device *link)
 {
@@ -192,6 +203,11 @@ static void quirk_config_socket(struct pcmcia_device *link)
 
 static const struct serial_quirk quirks[] = {
 	{
+		.manfid	= 0x0160,
+		.prodid	= 0x0104,
+		.multi	= -1,
+		.setup	= quirk_setup_brainboxes_0104,
+	}, {
 		.manfid	= MANFID_IBM,
 		.prodid	= ~0,
 		.multi	= -1,
@@ -386,6 +402,10 @@ static int setup_serial(struct pcmcia_device *handle, struct serial_info * info,
 	port.dev = &handle_to_dev(handle);
 	if (buggy_uart)
 		port.flags |= UPF_BUGGY_UART;
+
+	if (info->quirk && info->quirk->setup)
+		info->quirk->setup(handle, &port);
+
 	line = serial8250_register_port(&port);
 	if (line < 0) {
 		printk(KERN_NOTICE "serial_cs: serial8250_register_port() at "
