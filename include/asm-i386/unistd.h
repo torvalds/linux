@@ -324,6 +324,8 @@
 #define __NR_vmsplice		316
 #define __NR_move_pages		317
 
+#ifdef __KERNEL__
+
 #define NR_syscalls 318
 
 /*
@@ -422,8 +424,6 @@ __asm__ volatile ("push %%ebp ; push %%ebx ; movl 4(%2),%%ebp ; " \
 	: "memory"); \
 __syscall_return(type,__res); \
 }
-
-#ifdef __KERNEL__
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
