@@ -84,10 +84,59 @@ struct serial_quirk {
 	unsigned int manfid;
 	unsigned int prodid;
 	int multi;		/* 1 = multifunction, > 1 = # ports */
+	int (*post)(struct pcmcia_device *);
 };
+
+struct serial_info {
+	struct pcmcia_device	*p_dev;
+	int			ndev;
+	int			multi;
+	int			slave;
+	int			manfid;
+	int			prodid;
+	int			c950ctrl;
+	dev_node_t		node[4];
+	int			line[4];
+	const struct serial_quirk *quirk;
+};
+
+struct serial_cfg_mem {
+	tuple_t tuple;
+	cisparse_t parse;
+	u_char buf[256];
+};
+
+static int quirk_post_ibm(struct pcmcia_device *link)
+{
+	conf_reg_t reg = { 0, CS_READ, 0x800, 0 };
+	int last_ret, last_fn;
+
+	last_ret = pcmcia_access_configuration_register(link, &reg);
+	if (last_ret) {
+		last_fn = AccessConfigurationRegister;
+		goto cs_failed;
+	}
+	reg.Action = CS_WRITE;
+	reg.Value = reg.Value | 1;
+	last_ret = pcmcia_access_configuration_register(link, &reg);
+	if (last_ret) {
+		last_fn = AccessConfigurationRegister;
+		goto cs_failed;
+	}
+	return 0;
+
+ cs_failed:
+	cs_error(link, last_fn, last_ret);
+	return -ENODEV;
+}
 
 static const struct serial_quirk quirks[] = {
 	{
+		.manfid	= MANFID_IBM,
+		.prodid	= ~0,
+		.multi	= -1,
+		.post	= quirk_post_ibm,
+	}, {
 		.manfid	= MANFID_OMEGA,
 		.prodid	= PRODID_OMEGA_QSP_100,
 		.multi	= 4,
@@ -116,25 +165,6 @@ static const struct serial_quirk quirks[] = {
 		.prodid	= PRODID_NATINST_QUAD_RS232,
 		.multi	= 4,
 	}
-};
-
-struct serial_info {
-	struct pcmcia_device	*p_dev;
-	int			ndev;
-	int			multi;
-	int			slave;
-	int			manfid;
-	int			prodid;
-	int			c950ctrl;
-	dev_node_t		node[4];
-	int			line[4];
-	const struct serial_quirk *quirk;
-};
-
-struct serial_cfg_mem {
-	tuple_t tuple;
-	cisparse_t parse;
-	u_char buf[256];
 };
 
 
@@ -687,21 +717,13 @@ static int serial_config(struct pcmcia_device * link)
 	if (info->ndev == 0)
 		goto failed;
 
-	if (info->manfid == MANFID_IBM) {
-		conf_reg_t reg = { 0, CS_READ, 0x800, 0 };
-		last_ret = pcmcia_access_configuration_register(link, &reg);
-		if (last_ret) {
-			last_fn = AccessConfigurationRegister;
-			goto cs_failed;
-		}
-		reg.Action = CS_WRITE;
-		reg.Value = reg.Value | 1;
-		last_ret = pcmcia_access_configuration_register(link, &reg);
-		if (last_ret) {
-			last_fn = AccessConfigurationRegister;
-			goto cs_failed;
-		}
-	}
+	/*
+	 * Apply any post-init quirk.  FIXME: This should really happen
+	 * before we register the port, since it might already be in use.
+	 */
+	if (info->quirk && info->quirk->post)
+		if (info->quirk->post(link))
+			goto failed;
 
 	link->dev_node = &info->node[0];
 	kfree(cfg_mem);
