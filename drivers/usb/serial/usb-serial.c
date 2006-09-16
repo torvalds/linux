@@ -712,7 +712,9 @@ int usb_serial_probe(struct usb_interface *interface,
 	if (((le16_to_cpu(dev->descriptor.idVendor) == PL2303_VENDOR_ID) &&
 	     (le16_to_cpu(dev->descriptor.idProduct) == PL2303_PRODUCT_ID)) ||
 	    ((le16_to_cpu(dev->descriptor.idVendor) == ATEN_VENDOR_ID) &&
-	     (le16_to_cpu(dev->descriptor.idProduct) == ATEN_PRODUCT_ID))) {
+	     (le16_to_cpu(dev->descriptor.idProduct) == ATEN_PRODUCT_ID)) ||
+	    ((le16_to_cpu(dev->descriptor.idVendor) == ALCOR_VENDOR_ID) &&
+	     (le16_to_cpu(dev->descriptor.idProduct) == ALCOR_PRODUCT_ID))) {
 		if (interface != dev->actconfig->interface[0]) {
 			/* check out the endpoints of the other interface*/
 			iface_desc = dev->actconfig->interface[0]->cur_altsetting;
