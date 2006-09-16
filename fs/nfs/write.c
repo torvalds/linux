@@ -79,8 +79,7 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context*,
 					    unsigned int, unsigned int);
 static int nfs_wait_on_write_congestion(struct address_space *, int);
 static int nfs_wait_on_requests(struct inode *, unsigned long, unsigned int);
-static int nfs_flush_inode(struct inode *inode, unsigned long idx_start,
-			   unsigned int npages, int how);
+static int nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how);
 static const struct rpc_call_ops nfs_write_partial_ops;
 static const struct rpc_call_ops nfs_write_full_ops;
 static const struct rpc_call_ops nfs_commit_ops;
@@ -352,7 +351,7 @@ do_it:
 	if (!IS_SYNC(inode) && inode_referenced) {
 		err = nfs_writepage_async(ctx, inode, page, 0, offset);
 		if (!wbc->for_writepages)
-			nfs_flush_inode(inode, 0, 0, wb_priority(wbc));
+			nfs_flush_mapping(page->mapping, wbc, wb_priority(wbc));
 	} else {
 		err = nfs_writepage_sync(ctx, inode, page, 0,
 						offset, priority);
@@ -391,11 +390,10 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 			return 0;
 		nfs_wait_on_write_congestion(mapping, 0);
 	}
-	err = nfs_flush_inode(inode, 0, 0, wb_priority(wbc));
+	err = nfs_flush_mapping(mapping, wbc, wb_priority(wbc));
 	if (err < 0)
 		goto out;
 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, err);
-	wbc->nr_to_write -= err;
 	if (!wbc->nonblocking && wbc->sync_mode == WB_SYNC_ALL) {
 		err = nfs_wait_on_requests(inode, 0, 0);
 		if (err < 0)
@@ -1469,20 +1467,22 @@ static inline int nfs_commit_list(struct inode *inode, struct list_head *head, i
 }
 #endif
 
-static int nfs_flush_inode(struct inode *inode, unsigned long idx_start,
-			   unsigned int npages, int how)
+static int nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_inode *nfsi = NFS_I(mapping->host);
 	LIST_HEAD(head);
+	pgoff_t index = wbc->range_start >> PAGE_CACHE_SHIFT;
+	unsigned long npages = 1 + (wbc->range_end >> PAGE_CACHE_SHIFT) - index;
 	int res;
 
 	spin_lock(&nfsi->req_lock);
-	res = nfs_scan_dirty(inode, &head, idx_start, npages);
+	res = nfs_scan_dirty(mapping->host, &head, index, npages);
 	spin_unlock(&nfsi->req_lock);
 	if (res) {
-		int error = nfs_flush_list(inode, &head, res, how);
+		int error = nfs_flush_list(mapping->host, &head, res, how);
 		if (error < 0)
 			return error;
+		wbc->nr_to_write -= res;
 	}
 	return res;
 }
