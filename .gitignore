@@ -13,6 +13,7 @@
 *.so
 *.mod.c
 *.i
+*.lst
 
 #
 # Top-level generic files
