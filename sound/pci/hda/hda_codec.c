@@ -51,8 +51,10 @@ struct hda_vendor_id {
 /* codec vendor labels */
 static struct hda_vendor_id hda_vendor_ids[] = {
 	{ 0x10ec, "Realtek" },
+	{ 0x1057, "Motorola" },
 	{ 0x11d4, "Analog Devices" },
 	{ 0x13f6, "C-Media" },
+	{ 0x14f1, "Conexant" },
 	{ 0x434d, "C-Media" },
 	{ 0x8384, "SigmaTel" },
 	{} /* terminator */
