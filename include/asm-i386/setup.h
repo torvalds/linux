@@ -6,6 +6,7 @@
 #ifndef _i386_SETUP_H
 #define _i386_SETUP_H
 
+#ifdef __KERNEL__
 #include <linux/pfn.h>
 
 /*
@@ -13,6 +14,7 @@
  */
 #define MAXMEM_PFN	PFN_DOWN(MAXMEM)
 #define MAX_NONPAE_PFN	(1 << 20)
+#endif
 
 #define PARAM_SIZE 4096
 #define COMMAND_LINE_SIZE 256

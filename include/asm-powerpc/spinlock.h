@@ -36,6 +36,19 @@
 #define LOCK_TOKEN	1
 #endif
 
+#if defined(CONFIG_PPC64) && defined(CONFIG_SMP)
+#define CLEAR_IO_SYNC	(get_paca()->io_sync = 0)
+#define SYNC_IO		do {						\
+				if (unlikely(get_paca()->io_sync)) {	\
+					mb();				\
+					get_paca()->io_sync = 0;	\
+				}					\
+			} while (0)
+#else
+#define CLEAR_IO_SYNC
+#define SYNC_IO
+#endif
+
 /*
  * This returns the old value in the lock, so we succeeded
  * in getting the lock if the return value is 0.
@@ -61,6 +74,7 @@ static __inline__ unsigned long __spin_trylock(raw_spinlock_t *lock)
 
 static int __inline__ __raw_spin_trylock(raw_spinlock_t *lock)
 {
+	CLEAR_IO_SYNC;
 	return __spin_trylock(lock) == 0;
 }
 
@@ -91,6 +105,7 @@ extern void __rw_yield(raw_rwlock_t *lock);
 
 static void __inline__ __raw_spin_lock(raw_spinlock_t *lock)
 {
+	CLEAR_IO_SYNC;
 	while (1) {
 		if (likely(__spin_trylock(lock) == 0))
 			break;
@@ -107,6 +122,7 @@ static void __inline__ __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long
 {
 	unsigned long flags_dis;
 
+	CLEAR_IO_SYNC;
 	while (1) {
 		if (likely(__spin_trylock(lock) == 0))
 			break;
@@ -124,6 +140,7 @@ static void __inline__ __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long
 
 static __inline__ void __raw_spin_unlock(raw_spinlock_t *lock)
 {
+	SYNC_IO;
 	__asm__ __volatile__("# __raw_spin_unlock\n\t"
 				LWSYNC_ON_SMP: : :"memory");
 	lock->slock = 0;

@@ -56,6 +56,8 @@
 
 
 #include <asm/fpu.h>
+
+#ifdef __KERNEL__
 #ifndef ASM_OFFSETS_C
 #include <asm/asm-offsets.h>
 #endif
@@ -79,10 +81,9 @@
 
 #define KERNEL_STACK_SIZE		IA64_STK_OFFSET
 
-#ifndef __ASSEMBLY__
+#endif /* __KERNEL__ */
 
-#include <asm/current.h>
-#include <asm/page.h>
+#ifndef __ASSEMBLY__
 
 /*
  * This struct defines the way the registers are saved on system
@@ -228,6 +229,9 @@ struct switch_stack {
 };
 
 #ifdef __KERNEL__
+
+#include <asm/current.h>
+#include <asm/page.h>
 
 #define __ARCH_SYS_PTRACE	1
 

@@ -799,13 +799,6 @@ static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 	spin_unlock_irqrestore(target->scsi_host->host_lock, flags);
 }
 
-static void srp_reconnect_work(void *target_ptr)
-{
-	struct srp_target_port *target = target_ptr;
-
-	srp_reconnect_target(target);
-}
-
 static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 {
 	struct srp_iu *iu;
@@ -858,7 +851,6 @@ static void srp_completion(struct ib_cq *cq, void *target_ptr)
 {
 	struct srp_target_port *target = target_ptr;
 	struct ib_wc wc;
-	unsigned long flags;
 
 	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 	while (ib_poll_cq(cq, 1, &wc) > 0) {
@@ -866,10 +858,6 @@ static void srp_completion(struct ib_cq *cq, void *target_ptr)
 			printk(KERN_ERR PFX "failed %s status %d\n",
 			       wc.wr_id & SRP_OP_RECV ? "receive" : "send",
 			       wc.status);
-			spin_lock_irqsave(target->scsi_host->host_lock, flags);
-			if (target->state == SRP_TARGET_LIVE)
-				schedule_work(&target->work);
-			spin_unlock_irqrestore(target->scsi_host->host_lock, flags);
 			break;
 		}
 
@@ -1704,8 +1692,6 @@ static ssize_t srp_create_target(struct class_device *class_dev,
 	target->io_class   = SRP_REV16A_IB_IO_CLASS;
 	target->scsi_host  = target_host;
 	target->srp_host   = host;
-
-	INIT_WORK(&target->work, srp_reconnect_work, target);
 
 	INIT_LIST_HEAD(&target->free_reqs);
 	INIT_LIST_HEAD(&target->req_queue);

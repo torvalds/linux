@@ -1,5 +1,5 @@
 include include/asm-generic/Kbuild.asm
 
-unifdef-y += console.h fpu.h sysinfo.h
+unifdef-y += console.h fpu.h sysinfo.h compiler.h
 
 header-y += gentrap.h regdef.h pal.h reg.h
