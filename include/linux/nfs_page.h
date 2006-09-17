@@ -60,8 +60,9 @@ extern	void nfs_clear_request(struct nfs_page *req);
 extern	void nfs_release_request(struct nfs_page *req);
 
 
-extern  int nfs_scan_lock_dirty(struct nfs_inode *nfsi, struct list_head *dst,
-				unsigned long idx_start, unsigned int npages);
+extern	long nfs_scan_dirty(struct address_space *mapping,
+				struct writeback_control *wbc,
+				struct list_head *dst);
 extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head, struct list_head *dst,
 			  unsigned long idx_start, unsigned int npages);
 extern	int nfs_coalesce_requests(struct list_head *, struct list_head *,

@@ -432,7 +432,7 @@ extern void nfs_writedata_release(void *);
  * Try to write back everything synchronously (but check the
  * return value!)
  */
-extern int  nfs_sync_inode_wait(struct inode *, unsigned long, unsigned int, int);
+extern long nfs_sync_inode_wait(struct inode *, unsigned long, unsigned int, int);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 extern int  nfs_commit_inode(struct inode *, int);
 extern struct nfs_write_data *nfs_commit_alloc(void);

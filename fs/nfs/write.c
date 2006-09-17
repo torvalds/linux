@@ -79,7 +79,7 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context*,
 					    unsigned int, unsigned int);
 static int nfs_wait_on_write_congestion(struct address_space *, int);
 static int nfs_wait_on_requests(struct inode *, unsigned long, unsigned int);
-static int nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how);
+static long nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how);
 static const struct rpc_call_ops nfs_write_partial_ops;
 static const struct rpc_call_ops nfs_write_full_ops;
 static const struct rpc_call_ops nfs_commit_ops;
@@ -400,10 +400,8 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 			goto out;
 	}
 	err = nfs_commit_inode(inode, wb_priority(wbc));
-	if (err > 0) {
-		wbc->nr_to_write -= err;
+	if (err > 0)
 		err = 0;
-	}
 out:
 	clear_bit(BDI_write_congested, &bdi->state);
 	wake_up_all(&nfs_write_congestion);
@@ -605,31 +603,6 @@ static void nfs_cancel_commit_list(struct list_head *head)
 		nfs_inode_remove_request(req);
 		nfs_unlock_request(req);
 	}
-}
-
-/*
- * nfs_scan_dirty - Scan an inode for dirty requests
- * @inode: NFS inode to scan
- * @dst: destination list
- * @idx_start: lower bound of page->index to scan.
- * @npages: idx_start + npages sets the upper bound to scan.
- *
- * Moves requests from the inode's dirty page list.
- * The requests are *not* checked to ensure that they form a contiguous set.
- */
-static int
-nfs_scan_dirty(struct inode *inode, struct list_head *dst, unsigned long idx_start, unsigned int npages)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-	int res = 0;
-
-	if (nfsi->ndirty != 0) {
-		res = nfs_scan_lock_dirty(nfsi, dst, idx_start, npages);
-		nfsi->ndirty -= res;
-		if ((nfsi->ndirty == 0) != list_empty(&nfsi->dirty))
-			printk(KERN_ERR "NFS: desynchronized value of nfs_i.ndirty.\n");
-	}
-	return res;
 }
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
@@ -1467,22 +1440,19 @@ static inline int nfs_commit_list(struct inode *inode, struct list_head *head, i
 }
 #endif
 
-static int nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how)
+static long nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how)
 {
 	struct nfs_inode *nfsi = NFS_I(mapping->host);
 	LIST_HEAD(head);
-	pgoff_t index = wbc->range_start >> PAGE_CACHE_SHIFT;
-	unsigned long npages = 1 + (wbc->range_end >> PAGE_CACHE_SHIFT) - index;
-	int res;
+	long res;
 
 	spin_lock(&nfsi->req_lock);
-	res = nfs_scan_dirty(mapping->host, &head, index, npages);
+	res = nfs_scan_dirty(mapping, wbc, &head);
 	spin_unlock(&nfsi->req_lock);
 	if (res) {
 		int error = nfs_flush_list(mapping->host, &head, res, how);
 		if (error < 0)
 			return error;
-		wbc->nr_to_write -= res;
 	}
 	return res;
 }
@@ -1506,13 +1476,21 @@ int nfs_commit_inode(struct inode *inode, int how)
 }
 #endif
 
-int nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
+long nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
 		unsigned int npages, int how)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
+	struct address_space *mapping = inode->i_mapping;
+	struct writeback_control wbc = {
+		.bdi = mapping->backing_dev_info,
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = LONG_MAX,
+		.range_start = ((loff_t)idx_start) << PAGE_CACHE_SHIFT,
+		.range_end = ((loff_t)(idx_start + npages - 1)) << PAGE_CACHE_SHIFT,
+	};
 	LIST_HEAD(head);
 	int nocommit = how & FLUSH_NOCOMMIT;
-	int pages, ret;
+	long pages, ret;
 
 	how &= ~FLUSH_NOCOMMIT;
 	spin_lock(&nfsi->req_lock);
@@ -1520,7 +1498,7 @@ int nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
 		ret = nfs_wait_on_requests_locked(inode, idx_start, npages);
 		if (ret != 0)
 			continue;
-		pages = nfs_scan_dirty(inode, &head, idx_start, npages);
+		pages = nfs_scan_dirty(mapping, &wbc, &head);
 		if (pages != 0) {
 			spin_unlock(&nfsi->req_lock);
 			if (how & FLUSH_INVALIDATE) {
