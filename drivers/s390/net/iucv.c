@@ -335,8 +335,8 @@ do { \
 
 #else
 
-#define iucv_debug(lvl, fmt, args...)
-#define iucv_dumpit(title, buf, len)
+#define iucv_debug(lvl, fmt, args...)	do { } while (0)
+#define iucv_dumpit(title, buf, len)	do { } while (0)
 
 #endif
 

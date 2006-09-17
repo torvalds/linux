@@ -1714,6 +1714,9 @@ add_channel(struct ccw_device *cdev, enum channel_types type)
 		kfree(ch);
 		return 0;
 	}
+
+	spin_lock_init(&ch->collect_lock);
+
 	fsm_settimer(ch->fsm, &ch->timer);
 	skb_queue_head_init(&ch->io_queue);
 	skb_queue_head_init(&ch->collect_queue);

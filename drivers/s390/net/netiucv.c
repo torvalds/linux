@@ -112,7 +112,12 @@ struct iucv_connection {
 /**
  * Linked list of all connection structs.
  */
-static struct iucv_connection *iucv_connections;
+struct iucv_connection_struct {
+	struct iucv_connection *iucv_connections;
+	rwlock_t iucv_rwlock;
+};
+
+static struct iucv_connection_struct iucv_conns;
 
 /**
  * Representation of event-data for the
@@ -1368,8 +1373,10 @@ user_write (struct device *dev, struct device_attribute *attr, const char *buf, 
 	struct net_device *ndev = priv->conn->netdev;
 	char    *p;
 	char    *tmp;
-	char 	username[10];
+	char 	username[9];
 	int 	i;
+	struct iucv_connection **clist = &iucv_conns.iucv_connections;
+	unsigned long flags;
 
 	IUCV_DBF_TEXT(trace, 3, __FUNCTION__);
 	if (count>9) {
@@ -1382,7 +1389,7 @@ user_write (struct device *dev, struct device_attribute *attr, const char *buf, 
 	tmp = strsep((char **) &buf, "\n");
 	for (i=0, p=tmp; i<8 && *p; i++, p++) {
 		if (isalnum(*p) || (*p == '$'))
-			username[i]= *p;
+			username[i]= toupper(*p);
 		else if (*p == '\n') {
 			/* trailing lf, grr */
 			break;
@@ -1395,11 +1402,11 @@ user_write (struct device *dev, struct device_attribute *attr, const char *buf, 
 			return -EINVAL;
 		}
 	}
-	while (i<9)
+	while (i<8)
 		username[i++] = ' ';
-	username[9] = '\0';
+	username[8] = '\0';
 
-	if (memcmp(username, priv->conn->userid, 8)) {
+	if (memcmp(username, priv->conn->userid, 9)) {
 		/* username changed */
 		if (ndev->flags & (IFF_UP | IFF_RUNNING)) {
 			PRINT_WARN(
@@ -1410,6 +1417,19 @@ user_write (struct device *dev, struct device_attribute *attr, const char *buf, 
 			return -EBUSY;
 		}
 	}
+	read_lock_irqsave(&iucv_conns.iucv_rwlock, flags);
+	while (*clist) {
+                if (!strncmp(username, (*clist)->userid, 9) ||
+		    ((*clist)->netdev != ndev))
+                        break;
+                clist = &((*clist)->next);
+        }
+	read_unlock_irqrestore(&iucv_conns.iucv_rwlock, flags);
+        if (*clist) {
+                PRINT_WARN("netiucv: Connection to %s already exists\n",
+                        username);
+                return -EEXIST;
+        }
 	memcpy(priv->conn->userid, username, 9);
 
 	return count;
@@ -1781,13 +1801,15 @@ netiucv_unregister_device(struct device *dev)
 static struct iucv_connection *
 netiucv_new_connection(struct net_device *dev, char *username)
 {
-	struct iucv_connection **clist = &iucv_connections;
+	unsigned long flags;
+	struct iucv_connection **clist = &iucv_conns.iucv_connections;
 	struct iucv_connection *conn =
 		kzalloc(sizeof(struct iucv_connection), GFP_KERNEL);
 
 	if (conn) {
 		skb_queue_head_init(&conn->collect_queue);
 		skb_queue_head_init(&conn->commit_queue);
+		spin_lock_init(&conn->collect_lock);
 		conn->max_buffsize = NETIUCV_BUFSIZE_DEFAULT;
 		conn->netdev = dev;
 
@@ -1822,8 +1844,10 @@ netiucv_new_connection(struct net_device *dev, char *username)
 			fsm_newstate(conn->fsm, CONN_STATE_STOPPED);
 		}
 
+		write_lock_irqsave(&iucv_conns.iucv_rwlock, flags);
 		conn->next = *clist;
 		*clist = conn;
+		write_unlock_irqrestore(&iucv_conns.iucv_rwlock, flags);
 	}
 	return conn;
 }
@@ -1835,14 +1859,17 @@ netiucv_new_connection(struct net_device *dev, char *username)
 static void
 netiucv_remove_connection(struct iucv_connection *conn)
 {
-	struct iucv_connection **clist = &iucv_connections;
+	struct iucv_connection **clist = &iucv_conns.iucv_connections;
+	unsigned long flags;
 
 	IUCV_DBF_TEXT(trace, 3, __FUNCTION__);
 	if (conn == NULL)
 		return;
+	write_lock_irqsave(&iucv_conns.iucv_rwlock, flags);
 	while (*clist) {
 		if (*clist == conn) {
 			*clist = conn->next;
+			write_unlock_irqrestore(&iucv_conns.iucv_rwlock, flags);
 			if (conn->handle) {
 				iucv_unregister_program(conn->handle);
 				conn->handle = NULL;
@@ -1855,6 +1882,7 @@ netiucv_remove_connection(struct iucv_connection *conn)
 		}
 		clist = &((*clist)->next);
 	}
+	write_unlock_irqrestore(&iucv_conns.iucv_rwlock, flags);
 }
 
 /**
@@ -1947,9 +1975,11 @@ static ssize_t
 conn_write(struct device_driver *drv, const char *buf, size_t count)
 {
 	char *p;
-	char username[10];
+	char username[9];
 	int i, ret;
 	struct net_device *dev;
+	struct iucv_connection **clist = &iucv_conns.iucv_connections;
+	unsigned long flags;
 
 	IUCV_DBF_TEXT(trace, 3, __FUNCTION__);
 	if (count>9) {
@@ -1960,7 +1990,7 @@ conn_write(struct device_driver *drv, const char *buf, size_t count)
 
 	for (i=0, p=(char *)buf; i<8 && *p; i++, p++) {
 		if (isalnum(*p) || (*p == '$'))
-			username[i]= *p;
+			username[i]= toupper(*p);
 		else if (*p == '\n') {
 			/* trailing lf, grr */
 			break;
@@ -1971,9 +2001,22 @@ conn_write(struct device_driver *drv, const char *buf, size_t count)
 			return -EINVAL;
 		}
 	}
-	while (i<9)
+	while (i<8)
 		username[i++] = ' ';
-	username[9] = '\0';
+	username[8] = '\0';
+
+	read_lock_irqsave(&iucv_conns.iucv_rwlock, flags);
+	while (*clist) {
+		if (!strncmp(username, (*clist)->userid, 9))
+			break;
+		clist = &((*clist)->next);
+	}
+	read_unlock_irqrestore(&iucv_conns.iucv_rwlock, flags);
+	if (*clist) {
+		PRINT_WARN("netiucv: Connection to %s already exists\n",
+			username);
+		return -EEXIST;
+	}
 	dev = netiucv_init_netdevice(username);
 	if (!dev) {
 		PRINT_WARN(
@@ -2015,7 +2058,8 @@ DRIVER_ATTR(connection, 0200, NULL, conn_write);
 static ssize_t
 remove_write (struct device_driver *drv, const char *buf, size_t count)
 {
-	struct iucv_connection **clist = &iucv_connections;
+	struct iucv_connection **clist = &iucv_conns.iucv_connections;
+	unsigned long flags;
         struct net_device *ndev;
         struct netiucv_priv *priv;
         struct device *dev;
@@ -2026,7 +2070,7 @@ remove_write (struct device_driver *drv, const char *buf, size_t count)
         IUCV_DBF_TEXT(trace, 3, __FUNCTION__);
 
         if (count >= IFNAMSIZ)
-                count = IFNAMSIZ-1;
+                count = IFNAMSIZ - 1;;
 
         for (i=0, p=(char *)buf; i<count && *p; i++, p++) {
                 if ((*p == '\n') || (*p == ' ')) {
@@ -2038,6 +2082,7 @@ remove_write (struct device_driver *drv, const char *buf, size_t count)
         }
         name[i] = '\0';
 
+	read_lock_irqsave(&iucv_conns.iucv_rwlock, flags);
         while (*clist) {
                 ndev = (*clist)->netdev;
                 priv = (struct netiucv_priv*)ndev->priv;
@@ -2047,6 +2092,7 @@ remove_write (struct device_driver *drv, const char *buf, size_t count)
                         clist = &((*clist)->next);
                         continue;
                 }
+		read_unlock_irqrestore(&iucv_conns.iucv_rwlock, flags);
                 if (ndev->flags & (IFF_UP | IFF_RUNNING)) {
                         PRINT_WARN(
                                 "netiucv: net device %s active with peer %s\n",
@@ -2060,6 +2106,7 @@ remove_write (struct device_driver *drv, const char *buf, size_t count)
                 netiucv_unregister_device(dev);
                 return count;
         }
+	read_unlock_irqrestore(&iucv_conns.iucv_rwlock, flags);
         PRINT_WARN("netiucv: net device %s unknown\n", name);
 	IUCV_DBF_TEXT(data, 2, "remove_write: unknown device\n");
         return -EINVAL;
@@ -2077,8 +2124,8 @@ static void __exit
 netiucv_exit(void)
 {
 	IUCV_DBF_TEXT(trace, 3, __FUNCTION__);
-	while (iucv_connections) {
-		struct net_device *ndev = iucv_connections->netdev;
+	while (iucv_conns.iucv_connections) {
+		struct net_device *ndev = iucv_conns.iucv_connections->netdev;
 		struct netiucv_priv *priv = (struct netiucv_priv*)ndev->priv;
 		struct device *dev = priv->dev;
 
@@ -2120,6 +2167,7 @@ netiucv_init(void)
 	if (!ret) {
 		ret = driver_create_file(&netiucv_driver, &driver_attr_remove);
 		netiucv_banner();
+		rwlock_init(&iucv_conns.iucv_rwlock);
 	} else {
 		PRINT_ERR("NETIUCV: failed to add driver attribute.\n");
 		IUCV_DBF_TEXT_(setup, 2, "ret %d from driver_create_file\n", ret);

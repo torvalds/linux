@@ -743,6 +743,47 @@ static DEVICE_ATTR(layer2, 0644, qeth_dev_layer2_show,
 		   qeth_dev_layer2_store);
 
 static ssize_t
+qeth_dev_performance_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct qeth_card *card = dev->driver_data;
+
+	if (!card)
+		return -EINVAL;
+
+	return sprintf(buf, "%i\n", card->options.performance_stats ? 1:0);
+}
+
+static ssize_t
+qeth_dev_performance_stats_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct qeth_card *card = dev->driver_data;
+	char *tmp;
+	int i;
+
+	if (!card)
+		return -EINVAL;
+
+	i = simple_strtoul(buf, &tmp, 16);
+	if ((i == 0) || (i == 1)) {
+		if (i == card->options.performance_stats)
+			return count;
+		card->options.performance_stats = i;
+		if (i == 0)
+			memset(&card->perf_stats, 0,
+				sizeof(struct qeth_perf_stats));
+		card->perf_stats.initial_rx_packets = card->stats.rx_packets;
+		card->perf_stats.initial_tx_packets = card->stats.tx_packets;
+	} else {
+		PRINT_WARN("performance_stats: write 0 or 1 to this file!\n");
+		return -EINVAL;
+	}
+	return count;
+}
+
+static DEVICE_ATTR(performance_stats, 0644, qeth_dev_performance_stats_show,
+		   qeth_dev_performance_stats_store);
+
+static ssize_t
 qeth_dev_large_send_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct qeth_card *card = dev->driver_data;
@@ -928,6 +969,7 @@ static struct device_attribute * qeth_device_attrs[] = {
 	&dev_attr_canonical_macaddr,
 	&dev_attr_layer2,
 	&dev_attr_large_send,
+	&dev_attr_performance_stats,
 	NULL,
 };
 
@@ -1110,12 +1152,12 @@ qeth_parse_ipatoe(const char* buf, enum qeth_prot_versions proto,
 {
 	const char *start, *end;
 	char *tmp;
-	char buffer[49] = {0, };
+	char buffer[40] = {0, };
 
 	start = buf;
 	/* get address string */
 	end = strchr(start, '/');
-	if (!end || (end-start >= 49)){
+	if (!end || (end - start >= 40)){
 		PRINT_WARN("Invalid format for ipato_addx/delx. "
 			   "Use <ip addr>/<mask bits>\n");
 		return -EINVAL;
@@ -1127,7 +1169,12 @@ qeth_parse_ipatoe(const char* buf, enum qeth_prot_versions proto,
 	}
 	start = end + 1;
 	*mask_bits = simple_strtoul(start, &tmp, 10);
-
+	if (!strlen(start) ||
+	    (tmp == start) ||
+	    (*mask_bits > ((proto == QETH_PROT_IPV4) ? 32 : 128))) {
+		PRINT_WARN("Invalid mask bits for ipato_addx/delx !\n");
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -1698,11 +1745,16 @@ qeth_create_device_attributes(struct device *dev)
 		sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
 		sysfs_remove_group(&dev->kobj, &qeth_device_ipato_group);
 		sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);
-	}
-	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_blkt_group)))
 		return ret;
-
-	return ret;
+	}
+	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_blkt_group))){
+		sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
+		sysfs_remove_group(&dev->kobj, &qeth_device_ipato_group);
+		sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);
+		sysfs_remove_group(&dev->kobj, &qeth_device_rxip_group);
+		return ret;
+	}
+	return 0;
 }
 
 void
