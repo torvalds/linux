@@ -1724,6 +1724,14 @@ upcase_failed:
 	return FALSE;
 }
 
+/*
+ * The lcn and mft bitmap inodes are NTFS-internal inodes with
+ * their own special locking rules:
+ */
+static struct lock_class_key
+	lcnbmp_runlist_lock_key, lcnbmp_mrec_lock_key,
+	mftbmp_runlist_lock_key, mftbmp_mrec_lock_key;
+
 /**
  * load_system_files - open the system files using normal functions
  * @vol:	ntfs super block describing device whose system files to load
@@ -1780,6 +1788,10 @@ static BOOL load_system_files(ntfs_volume *vol)
 		ntfs_error(sb, "Failed to load $MFT/$BITMAP attribute.");
 		goto iput_mirr_err_out;
 	}
+	lockdep_set_class(&NTFS_I(vol->mftbmp_ino)->runlist.lock,
+			   &mftbmp_runlist_lock_key);
+	lockdep_set_class(&NTFS_I(vol->mftbmp_ino)->mrec_lock,
+			   &mftbmp_mrec_lock_key);
 	/* Read upcase table and setup @vol->upcase and @vol->upcase_len. */
 	if (!load_and_init_upcase(vol))
 		goto iput_mftbmp_err_out;
@@ -1802,6 +1814,11 @@ static BOOL load_system_files(ntfs_volume *vol)
 			iput(vol->lcnbmp_ino);
 		goto bitmap_failed;
 	}
+	lockdep_set_class(&NTFS_I(vol->lcnbmp_ino)->runlist.lock,
+			   &lcnbmp_runlist_lock_key);
+	lockdep_set_class(&NTFS_I(vol->lcnbmp_ino)->mrec_lock,
+			   &lcnbmp_mrec_lock_key);
+
 	NInoSetSparseDisabled(NTFS_I(vol->lcnbmp_ino));
 	if ((vol->nr_clusters + 7) >> 3 > i_size_read(vol->lcnbmp_ino)) {
 		iput(vol->lcnbmp_ino);
@@ -2743,6 +2760,17 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	struct inode *tmp_ino;
 	int blocksize, result;
 
+	/*
+	 * We do a pretty difficult piece of bootstrap by reading the
+	 * MFT (and other metadata) from disk into memory. We'll only
+	 * release this metadata during umount, so the locking patterns
+	 * observed during bootstrap do not count. So turn off the
+	 * observation of locking patterns (strictly for this context
+	 * only) while mounting NTFS. [The validator is still active
+	 * otherwise, even for this context: it will for example record
+	 * lock class registrations.]
+	 */
+	lockdep_off();
 	ntfs_debug("Entering.");
 #ifndef NTFS_RW
 	sb->s_flags |= MS_RDONLY;
@@ -2754,6 +2782,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		if (!silent)
 			ntfs_error(sb, "Allocation of NTFS volume structure "
 					"failed. Aborting mount...");
+		lockdep_on();
 		return -ENOMEM;
 	}
 	/* Initialize ntfs_volume structure. */
@@ -2940,6 +2969,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		mutex_unlock(&ntfs_lock);
 		sb->s_export_op = &ntfs_export_ops;
 		lock_kernel();
+		lockdep_on();
 		return 0;
 	}
 	ntfs_error(sb, "Failed to allocate root directory.");
@@ -3059,6 +3089,7 @@ err_out_now:
 	sb->s_fs_info = NULL;
 	kfree(vol);
 	ntfs_debug("Failed, returning -EINVAL.");
+	lockdep_on();
 	return -EINVAL;
 }
 

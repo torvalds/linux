@@ -484,7 +484,7 @@ reserve_regions(struct IsdnCard *card, struct IsdnCardState *cs)
 	return 1;
 }
 
-static int __init
+static int __devinit
 setup_gazelisa(struct IsdnCard *card, struct IsdnCardState *cs)
 {
 	printk(KERN_INFO "Gazel: ISA PnP card automatic recognition\n");
@@ -532,9 +532,9 @@ setup_gazelisa(struct IsdnCard *card, struct IsdnCardState *cs)
 	return (0);
 }
 
-static struct pci_dev *dev_tel __initdata = NULL;
+static struct pci_dev *dev_tel __devinitdata = NULL;
 
-static int __init
+static int __devinit
 setup_gazelpci(struct IsdnCardState *cs)
 {
 	u_int pci_ioaddr0 = 0, pci_ioaddr1 = 0;
@@ -621,7 +621,7 @@ setup_gazelpci(struct IsdnCardState *cs)
 	return (0);
 }
 
-int __init
+int __devinit
 setup_gazel(struct IsdnCard *card)
 {
 	struct IsdnCardState *cs = card->cs;

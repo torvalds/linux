@@ -13,6 +13,7 @@
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/cacheops.h>
+#include <asm/irqflags.h>
 #include <asm/regdef.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
@@ -128,6 +129,7 @@ handle_vcei:
 NESTED(handle_int, PT_SIZE, sp)
 	SAVE_ALL
 	CLI
+	TRACE_IRQS_OFF
 
 	PTR_LA	ra, ret_from_irq
 	move	a0, sp
@@ -216,6 +218,7 @@ NESTED(except_vec_vi_handler, 0, sp)
 	_ehb
 #endif /* CONFIG_MIPS_MT_SMTC */
 	CLI
+	TRACE_IRQS_OFF
 	move	a0, sp
 	jalr	v0
 	j	ret_from_irq
@@ -288,11 +291,13 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.endm
 
 	.macro	__build_clear_sti
+	TRACE_IRQS_ON
 	STI
 	.endm
 
 	.macro	__build_clear_cli
 	CLI
+	TRACE_IRQS_OFF
 	.endm
 
 	.macro	__build_clear_fpe
@@ -300,6 +305,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	li	a2, ~(0x3f << 12)
 	and	a2, a1
 	ctc1	a2, fcr31
+	TRACE_IRQS_ON
 	STI
 	.endm
 
@@ -365,7 +371,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER mdmx mdmx sti silent		/* #22 */
 	BUILD_HANDLER watch watch sti verbose		/* #23 */
 	BUILD_HANDLER mcheck mcheck cli verbose		/* #24 */
-	BUILD_HANDLER mt mt sti verbose			/* #25 */
+	BUILD_HANDLER mt mt sti silent			/* #25 */
 	BUILD_HANDLER dsp dsp sti silent		/* #26 */
 	BUILD_HANDLER reserved reserved sti verbose	/* others */
 

@@ -159,7 +159,7 @@ char * getname(const char __user * filename)
 #ifdef CONFIG_AUDITSYSCALL
 void putname(const char *name)
 {
-	if (unlikely(current->audit_context))
+	if (unlikely(!audit_dummy_context()))
 		audit_putname(name);
 	else
 		__putname(name);
@@ -227,10 +227,10 @@ int generic_permission(struct inode *inode, int mask,
 
 int permission(struct inode *inode, int mask, struct nameidata *nd)
 {
+	umode_t mode = inode->i_mode;
 	int retval, submask;
 
 	if (mask & MAY_WRITE) {
-		umode_t mode = inode->i_mode;
 
 		/*
 		 * Nobody gets write access to a read-only fs.
@@ -246,6 +246,13 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 			return -EACCES;
 	}
 
+
+	/*
+	 * MAY_EXEC on regular files requires special handling: We override
+	 * filesystem execute permissions if the mode bits aren't set.
+	 */
+	if ((mask & MAY_EXEC) && S_ISREG(mode) && !(mode & S_IXUGO))
+		return -EACCES;
 
 	/* Ordinary permission routines do not understand MAY_APPEND. */
 	submask = mask & ~MAY_APPEND;
@@ -1125,7 +1132,7 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 	retval = link_path_walk(name, nd);
 out:
 	if (likely(retval == 0)) {
-		if (unlikely(current->audit_context && nd && nd->dentry &&
+		if (unlikely(!audit_dummy_context() && nd && nd->dentry &&
 				nd->dentry->d_inode))
 		audit_inode(name, nd->dentry->d_inode);
 	}
@@ -1357,7 +1364,7 @@ static int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 		return -ENOENT;
 
 	BUG_ON(victim->d_parent->d_inode != dir);
-	audit_inode_child(victim->d_name.name, victim->d_inode, dir->i_ino);
+	audit_inode_child(victim->d_name.name, victim->d_inode, dir);
 
 	error = permission(dir,MAY_WRITE | MAY_EXEC, NULL);
 	if (error)
@@ -1423,7 +1430,7 @@ struct dentry *lock_rename(struct dentry *p1, struct dentry *p2)
 	struct dentry *p;
 
 	if (p1 == p2) {
-		mutex_lock(&p1->d_inode->i_mutex);
+		mutex_lock_nested(&p1->d_inode->i_mutex, I_MUTEX_PARENT);
 		return NULL;
 	}
 
@@ -1431,22 +1438,22 @@ struct dentry *lock_rename(struct dentry *p1, struct dentry *p2)
 
 	for (p = p1; p->d_parent != p; p = p->d_parent) {
 		if (p->d_parent == p2) {
-			mutex_lock(&p2->d_inode->i_mutex);
-			mutex_lock(&p1->d_inode->i_mutex);
+			mutex_lock_nested(&p2->d_inode->i_mutex, I_MUTEX_PARENT);
+			mutex_lock_nested(&p1->d_inode->i_mutex, I_MUTEX_CHILD);
 			return p;
 		}
 	}
 
 	for (p = p2; p->d_parent != p; p = p->d_parent) {
 		if (p->d_parent == p1) {
-			mutex_lock(&p1->d_inode->i_mutex);
-			mutex_lock(&p2->d_inode->i_mutex);
+			mutex_lock_nested(&p1->d_inode->i_mutex, I_MUTEX_PARENT);
+			mutex_lock_nested(&p2->d_inode->i_mutex, I_MUTEX_CHILD);
 			return p;
 		}
 	}
 
-	mutex_lock(&p1->d_inode->i_mutex);
-	mutex_lock(&p2->d_inode->i_mutex);
+	mutex_lock_nested(&p1->d_inode->i_mutex, I_MUTEX_PARENT);
+	mutex_lock_nested(&p2->d_inode->i_mutex, I_MUTEX_CHILD);
 	return NULL;
 }
 
@@ -1659,6 +1666,7 @@ do_last:
 	 * It already exists.
 	 */
 	mutex_unlock(&dir->d_inode->i_mutex);
+	audit_inode_update(path.dentry->d_inode);
 
 	error = -EEXIST;
 	if (flag & O_EXCL)
@@ -1669,6 +1677,7 @@ do_last:
 		if (flag & O_NOFOLLOW)
 			goto exit_dput;
 	}
+
 	error = -ENOENT;
 	if (!path.dentry->d_inode)
 		goto exit_dput;
@@ -1712,8 +1721,14 @@ do_link:
 	if (error)
 		goto exit_dput;
 	error = __do_follow_link(&path, nd);
-	if (error)
+	if (error) {
+		/* Does someone understand code flow here? Or it is only
+		 * me so stupid? Anathema to whoever designed this non-sense
+		 * with "intent.open".
+		 */
+		release_open_intent(nd);
 		return error;
+	}
 	nd->flags &= ~LOOKUP_PARENT;
 	if (nd->last_type == LAST_BIND)
 		goto ok;
@@ -1751,7 +1766,7 @@ struct dentry *lookup_create(struct nameidata *nd, int is_dir)
 {
 	struct dentry *dentry = ERR_PTR(-EEXIST);
 
-	mutex_lock(&nd->dentry->d_inode->i_mutex);
+	mutex_lock_nested(&nd->dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	/*
 	 * Yucky last component or no last component at all?
 	 * (foo/., foo/.., /////)
@@ -1759,6 +1774,8 @@ struct dentry *lookup_create(struct nameidata *nd, int is_dir)
 	if (nd->last_type != LAST_NORM)
 		goto fail;
 	nd->flags &= ~LOOKUP_PARENT;
+	nd->flags |= LOOKUP_CREATE;
+	nd->intent.open.flags = O_EXCL;
 
 	/*
 	 * Do the final lookup.
@@ -2008,7 +2025,7 @@ static long do_rmdir(int dfd, const char __user *pathname)
 			error = -EBUSY;
 			goto exit1;
 	}
-	mutex_lock(&nd.dentry->d_inode->i_mutex);
+	mutex_lock_nested(&nd.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
@@ -2082,7 +2099,7 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 	error = -EISDIR;
 	if (nd.last_type != LAST_NORM)
 		goto exit1;
-	mutex_lock(&nd.dentry->d_inode->i_mutex);
+	mutex_lock_nested(&nd.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {

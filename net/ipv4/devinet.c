@@ -93,10 +93,9 @@ static void devinet_sysctl_unregister(struct ipv4_devconf *p);
 
 static struct in_ifaddr *inet_alloc_ifa(void)
 {
-	struct in_ifaddr *ifa = kmalloc(sizeof(*ifa), GFP_KERNEL);
+	struct in_ifaddr *ifa = kzalloc(sizeof(*ifa), GFP_KERNEL);
 
 	if (ifa) {
-		memset(ifa, 0, sizeof(*ifa));
 		INIT_RCU_HEAD(&ifa->rcu_head);
 	}
 
@@ -140,10 +139,9 @@ struct in_device *inetdev_init(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	in_dev = kmalloc(sizeof(*in_dev), GFP_KERNEL);
+	in_dev = kzalloc(sizeof(*in_dev), GFP_KERNEL);
 	if (!in_dev)
 		goto out;
-	memset(in_dev, 0, sizeof(*in_dev));
 	INIT_RCU_HEAD(&in_dev->rcu_head);
 	memcpy(&in_dev->cnf, &ipv4_devconf_dflt, sizeof(in_dev->cnf));
 	in_dev->cnf.sysctl = NULL;

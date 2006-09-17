@@ -67,6 +67,8 @@ static int ignore = 0;
 static int ignore_dga = 0;
 static int ignore_csr = 0;
 static int ignore_sniffer = 0;
+static int disable_scofix = 0;
+static int force_scofix = 0;
 static int reset = 0;
 
 #ifdef CONFIG_BT_HCIUSB_SCO
@@ -107,8 +109,11 @@ static struct usb_device_id blacklist_ids[] = {
 	{ USB_DEVICE(0x0a5c, 0x2033), .driver_info = HCI_IGNORE },
 
 	/* Broadcom BCM2035 */
-	{ USB_DEVICE(0x0a5c, 0x200a), .driver_info = HCI_RESET | HCI_BROKEN_ISOC },
+	{ USB_DEVICE(0x0a5c, 0x200a), .driver_info = HCI_RESET | HCI_WRONG_SCO_MTU },
 	{ USB_DEVICE(0x0a5c, 0x2009), .driver_info = HCI_BCM92035 },
+
+	/* IBM/Lenovo ThinkPad with Broadcom chip */
+	{ USB_DEVICE(0x0a5c, 0x201e), .driver_info = HCI_WRONG_SCO_MTU },
 
 	/* Microsoft Wireless Transceiver for Bluetooth 2.0 */
 	{ USB_DEVICE(0x045e, 0x009c), .driver_info = HCI_RESET },
@@ -119,8 +124,13 @@ static struct usb_device_id blacklist_ids[] = {
 	/* ISSC Bluetooth Adapter v3.1 */
 	{ USB_DEVICE(0x1131, 0x1001), .driver_info = HCI_RESET },
 
-	/* RTX Telecom based adapter with buggy SCO support */
+	/* RTX Telecom based adapters with buggy SCO support */
 	{ USB_DEVICE(0x0400, 0x0807), .driver_info = HCI_BROKEN_ISOC },
+	{ USB_DEVICE(0x0400, 0x080a), .driver_info = HCI_BROKEN_ISOC },
+
+	/* Belkin F8T012 and F8T013 devices */
+	{ USB_DEVICE(0x050d, 0x0012), .driver_info = HCI_WRONG_SCO_MTU },
+	{ USB_DEVICE(0x050d, 0x0013), .driver_info = HCI_WRONG_SCO_MTU },
 
 	/* Digianswer devices */
 	{ USB_DEVICE(0x08fd, 0x0001), .driver_info = HCI_DIGIANSWER },
@@ -128,6 +138,9 @@ static struct usb_device_id blacklist_ids[] = {
 
 	/* CSR BlueCore Bluetooth Sniffer */
 	{ USB_DEVICE(0x0a12, 0x0002), .driver_info = HCI_SNIFFER },
+
+	/* Frontline ComProbe Bluetooth Sniffer */
+	{ USB_DEVICE(0x16d3, 0x0002), .driver_info = HCI_SNIFFER },
 
 	{ }	/* Terminating entry */
 };
@@ -984,6 +997,11 @@ static int hci_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (reset || id->driver_info & HCI_RESET)
 		set_bit(HCI_QUIRK_RESET_ON_INIT, &hdev->quirks);
 
+	if (force_scofix || id->driver_info & HCI_WRONG_SCO_MTU) {
+		if (!disable_scofix)
+			set_bit(HCI_QUIRK_FIXUP_BUFFER_SIZE, &hdev->quirks);
+	}
+
 	if (id->driver_info & HCI_SNIFFER) {
 		if (le16_to_cpu(udev->descriptor.bcdDevice) > 0x997)
 			set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
@@ -1042,10 +1060,81 @@ static void hci_usb_disconnect(struct usb_interface *intf)
 	hci_free_dev(hdev);
 }
 
+static int hci_usb_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct hci_usb *husb = usb_get_intfdata(intf);
+	struct list_head killed;
+	unsigned long flags;
+	int i;
+
+	if (!husb || intf == husb->isoc_iface)
+		return 0;
+
+	hci_suspend_dev(husb->hdev);
+
+	INIT_LIST_HEAD(&killed);
+
+	for (i = 0; i < 4; i++) {
+		struct _urb_queue *q = &husb->pending_q[i];
+		struct _urb *_urb, *_tmp;
+
+		while ((_urb = _urb_dequeue(q))) {
+			/* reset queue since _urb_dequeue sets it to NULL */
+			_urb->queue = q;
+			usb_kill_urb(&_urb->urb);
+			list_add(&_urb->list, &killed);
+		}
+
+		spin_lock_irqsave(&q->lock, flags);
+
+		list_for_each_entry_safe(_urb, _tmp, &killed, list) {
+			list_move_tail(&_urb->list, &q->head);
+		}
+
+		spin_unlock_irqrestore(&q->lock, flags);
+	}
+
+	return 0;
+}
+
+static int hci_usb_resume(struct usb_interface *intf)
+{
+	struct hci_usb *husb = usb_get_intfdata(intf);
+	unsigned long flags;
+	int i, err = 0;
+
+	if (!husb || intf == husb->isoc_iface)
+		return 0;
+	
+	for (i = 0; i < 4; i++) {
+		struct _urb_queue *q = &husb->pending_q[i];
+		struct _urb *_urb;
+
+		spin_lock_irqsave(&q->lock, flags);
+
+		list_for_each_entry(_urb, &q->head, list) {
+			err = usb_submit_urb(&_urb->urb, GFP_ATOMIC);
+			if (err)
+				break;
+		}
+
+		spin_unlock_irqrestore(&q->lock, flags);
+
+		if (err)
+			return -EIO;
+	}
+
+	hci_resume_dev(husb->hdev);
+
+	return 0;
+}
+
 static struct usb_driver hci_usb_driver = {
 	.name		= "hci_usb",
 	.probe		= hci_usb_probe,
 	.disconnect	= hci_usb_disconnect,
+	.suspend	= hci_usb_suspend,
+	.resume		= hci_usb_resume,
 	.id_table	= bluetooth_ids,
 };
 
@@ -1080,6 +1169,12 @@ MODULE_PARM_DESC(ignore_csr, "Ignore devices with id 0a12:0001");
 
 module_param(ignore_sniffer, bool, 0644);
 MODULE_PARM_DESC(ignore_sniffer, "Ignore devices with id 0a12:0002");
+
+module_param(disable_scofix, bool, 0644);
+MODULE_PARM_DESC(disable_scofix, "Disable fixup of wrong SCO buffer size");
+
+module_param(force_scofix, bool, 0644);
+MODULE_PARM_DESC(force_scofix, "Force fixup of wrong SCO buffers size");
 
 module_param(reset, bool, 0644);
 MODULE_PARM_DESC(reset, "Send HCI reset command on initialization");

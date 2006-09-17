@@ -6,8 +6,7 @@ menu "PCI Hotplug Support"
 
 config HOTPLUG_PCI
 	tristate "Support for PCI Hotplug (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
-	select HOTPLUG
+	depends on PCI && EXPERIMENTAL && HOTPLUG
 	---help---
 	  Say Y here if you have a motherboard with a PCI Hotplug controller.
 	  This allows you to add and remove PCI cards while the machine is
@@ -77,7 +76,7 @@ config HOTPLUG_PCI_IBM
 
 config HOTPLUG_PCI_ACPI
 	tristate "ACPI PCI Hotplug driver"
-	depends on ACPI && HOTPLUG_PCI
+	depends on (!ACPI_DOCK && ACPI && HOTPLUG_PCI) || (ACPI_DOCK && HOTPLUG_PCI)
 	help
 	  Say Y here if you have a system that supports PCI Hotplug using
 	  ACPI.
@@ -153,13 +152,6 @@ config HOTPLUG_PCI_SHPC_POLL_EVENT_MODE
 	  events for early platform testing.
 
 	  When in doubt, say N.
-
-config HOTPLUG_PCI_SHPC_PHPRM_LEGACY
-	bool "For AMD SHPC only: Use $HRT for resource/configuration"
-	depends on HOTPLUG_PCI_SHPC && !ACPI 
-	help
-	  Say Y here for AMD SHPC. You have to select this option if you are 
-	  using this driver on platform with AMD SHPC.
 
 config HOTPLUG_PCI_RPA
 	tristate "RPA PCI Hotplug driver"

@@ -35,6 +35,7 @@
 #define HCI_SNIFFER		0x10
 #define HCI_BCM92035		0x20
 #define HCI_BROKEN_ISOC		0x40
+#define HCI_WRONG_SCO_MTU	0x80
 
 #define HCI_MAX_IFACE_NUM	3
 

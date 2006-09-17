@@ -571,6 +571,7 @@ typedef struct ide_drive_s {
 	u8	waiting_for_dma;	/* dma currently in progress */
 	u8	unmask;			/* okay to unmask other irqs */
 	u8	bswap;			/* byte swap data */
+	u8	noflush;		/* don't attempt flushes */
 	u8	dsc_overlap;		/* DSC overlap */
 	u8	nice1;			/* give potential excess bandwidth */
 
@@ -1359,7 +1360,7 @@ extern struct semaphore ide_cfg_sem;
  * ide_drive_t->hwif: constant, no locking
  */
 
-#define local_irq_set(flags)	do { local_save_flags((flags)); local_irq_enable(); } while (0)
+#define local_irq_set(flags)	do { local_save_flags((flags)); local_irq_enable_in_hardirq(); } while (0)
 
 extern struct bus_type ide_bus_type;
 

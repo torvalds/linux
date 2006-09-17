@@ -4887,13 +4887,12 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot enable PCI device, "
-		       "aborting.\n");
+		dev_err(&pdev->dev, "Cannot enable PCI device, aborting.\n");
 		return err;
 	}
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX "Cannot find proper PCI device "
+		dev_err(&pdev->dev, "Cannot find proper PCI device "
 		       "base address, aborting.\n");
 		err = -ENODEV;
 		goto err_out_disable_pdev;
@@ -4901,7 +4900,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 
 	dev = alloc_etherdev(sizeof(*cp));
 	if (!dev) {
-		printk(KERN_ERR PFX "Etherdev alloc failed, aborting.\n");
+		dev_err(&pdev->dev, "Etherdev alloc failed, aborting.\n");
 		err = -ENOMEM;
 		goto err_out_disable_pdev;
 	}
@@ -4910,8 +4909,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 
 	err = pci_request_regions(pdev, dev->name);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot obtain PCI resources, "
-		       "aborting.\n");
+		dev_err(&pdev->dev, "Cannot obtain PCI resources, aborting.\n");
 		goto err_out_free_netdev;
 	}
 	pci_set_master(pdev);
@@ -4941,7 +4939,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 		if (pci_write_config_byte(pdev, 
 					  PCI_CACHE_LINE_SIZE, 
 					  cas_cacheline_size)) {
-			printk(KERN_ERR PFX "Could not set PCI cache "
+			dev_err(&pdev->dev, "Could not set PCI cache "
 			       "line size\n");
 			goto err_write_cacheline;
 		}
@@ -4955,7 +4953,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 		err = pci_set_consistent_dma_mask(pdev,
 						  DMA_64BIT_MASK);
 		if (err < 0) {
-			printk(KERN_ERR PFX "Unable to obtain 64-bit DMA "
+			dev_err(&pdev->dev, "Unable to obtain 64-bit DMA "
 			       "for consistent allocations\n");
 			goto err_out_free_res;
 		}
@@ -4963,7 +4961,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	} else {
 		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (err) {
-			printk(KERN_ERR PFX "No usable DMA configuration, "
+			dev_err(&pdev->dev, "No usable DMA configuration, "
 			       "aborting.\n");
 			goto err_out_free_res;
 		}
@@ -5023,8 +5021,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	/* give us access to cassini registers */
 	cp->regs = pci_iomap(pdev, 0, casreg_len);
 	if (cp->regs == 0UL) {
-		printk(KERN_ERR PFX "Cannot map device registers, "
-		       "aborting.\n");
+		dev_err(&pdev->dev, "Cannot map device registers, aborting.\n");
 		goto err_out_free_res;
 	}
 	cp->casreg_len = casreg_len;
@@ -5040,8 +5037,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 		pci_alloc_consistent(pdev, sizeof(struct cas_init_block),
 				     &cp->block_dvma);
 	if (!cp->init_block) {
-		printk(KERN_ERR PFX "Cannot allocate init block, "
-		       "aborting.\n");
+		dev_err(&pdev->dev, "Cannot allocate init block, aborting.\n");
 		goto err_out_iounmap;
 	}
 
@@ -5085,8 +5081,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 		dev->features |= NETIF_F_HIGHDMA;
 
 	if (register_netdev(dev)) {
-		printk(KERN_ERR PFX "Cannot register net device, "
-		       "aborting.\n");
+		dev_err(&pdev->dev, "Cannot register net device, aborting.\n");
 		goto err_out_free_consistent;
 	}
 

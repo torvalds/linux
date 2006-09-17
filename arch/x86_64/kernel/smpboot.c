@@ -771,7 +771,7 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 	unsigned long start_rip;
 	struct create_idle c_idle = {
 		.cpu = cpu,
-		.done = COMPLETION_INITIALIZER(c_idle.done),
+		.done = COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
 	};
 	DECLARE_WORK(work, do_fork_idle, &c_idle);
 

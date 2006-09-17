@@ -321,12 +321,12 @@ static void smc_reset(struct net_device *dev)
 	DBG(2, "%s: %s\n", dev->name, __FUNCTION__);
 
 	/* Disable all interrupts, block TX tasklet */
-	spin_lock(&lp->lock);
+	spin_lock_irq(&lp->lock);
 	SMC_SELECT_BANK(2);
 	SMC_SET_INT_MASK(0);
 	pending_skb = lp->pending_tx_skb;
 	lp->pending_tx_skb = NULL;
-	spin_unlock(&lp->lock);
+	spin_unlock_irq(&lp->lock);
 
 	/* free any pending tx skb */
 	if (pending_skb) {
@@ -448,12 +448,12 @@ static void smc_shutdown(struct net_device *dev)
 	DBG(2, "%s: %s\n", CARDNAME, __FUNCTION__);
 
 	/* no more interrupts for me */
-	spin_lock(&lp->lock);
+	spin_lock_irq(&lp->lock);
 	SMC_SELECT_BANK(2);
 	SMC_SET_INT_MASK(0);
 	pending_skb = lp->pending_tx_skb;
 	lp->pending_tx_skb = NULL;
-	spin_unlock(&lp->lock);
+	spin_unlock_irq(&lp->lock);
 	if (pending_skb)
 		dev_kfree_skb(pending_skb);
 

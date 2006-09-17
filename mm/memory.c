@@ -47,6 +47,7 @@
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
 #include <linux/module.h>
+#include <linux/delayacct.h>
 #include <linux/init.h>
 
 #include <asm/pgalloc.h>
@@ -503,7 +504,7 @@ again:
 		return -ENOMEM;
 	src_pte = pte_offset_map_nested(src_pmd, addr);
 	src_ptl = pte_lockptr(src_mm, src_pmd);
-	spin_lock(src_ptl);
+	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
 
 	do {
 		/*
@@ -1549,9 +1550,9 @@ gotten:
 		flush_cache_page(vma, address, pte_pfn(orig_pte));
 		entry = mk_pte(new_page, vma->vm_page_prot);
 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+		lazy_mmu_prot_update(entry);
 		ptep_establish(vma, address, page_table, entry);
 		update_mmu_cache(vma, address, entry);
-		lazy_mmu_prot_update(entry);
 		lru_cache_add_active(new_page);
 		page_add_new_anon_rmap(new_page, vma, address);
 
@@ -1853,7 +1854,7 @@ int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
 
 	return 0;
 }
-EXPORT_SYMBOL(vmtruncate_range);
+EXPORT_UNUSED_SYMBOL(vmtruncate_range);  /*  June 2006  */
 
 /* 
  * Primitive swap readahead code. We simply read an aligned block of
@@ -1934,6 +1935,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		migration_entry_wait(mm, pmd, address);
 		goto out;
 	}
+	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
 	page = lookup_swap_cache(entry);
 	if (!page) {
  		swapin_readahead(entry, address, vma);
@@ -1946,6 +1948,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
 			if (likely(pte_same(*page_table, orig_pte)))
 				ret = VM_FAULT_OOM;
+			delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
 			goto unlock;
 		}
 
@@ -1955,6 +1958,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		grab_swap_token();
 	}
 
+	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
 	mark_page_accessed(page);
 	lock_page(page);
 

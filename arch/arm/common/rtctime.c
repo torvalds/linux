@@ -68,6 +68,7 @@ void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now, struct rtc
 		rtc_time_to_tm(next_time, next);
 	}
 }
+EXPORT_SYMBOL(rtc_next_alarm_time);
 
 static inline int rtc_arm_read_time(struct rtc_ops *ops, struct rtc_time *tm)
 {

@@ -158,22 +158,29 @@ config BSD_PROCESS_ACCT_V3
 	  for processing it. A preliminary version of these tools is available
 	  at <http://www.physik3.uni-rostock.de/tim/kernel/utils/acct/>.
 
-config SYSCTL
-	bool "Sysctl support" if EMBEDDED
-	default y
-	---help---
-	  The sysctl interface provides a means of dynamically changing
-	  certain kernel parameters and variables on the fly without requiring
-	  a recompile of the kernel or reboot of the system.  The primary
-	  interface consists of a system call, but if you say Y to "/proc
-	  file system support", a tree of modifiable sysctl entries will be
-	  generated beneath the /proc/sys directory. They are explained in the
-	  files in <file:Documentation/sysctl/>.  Note that enabling this
-	  option will enlarge the kernel by at least 8 KB.
+config TASKSTATS
+	bool "Export task/process statistics through netlink (EXPERIMENTAL)"
+	depends on NET
+	default n
+	help
+	  Export selected statistics for tasks/processes through the
+	  generic netlink interface. Unlike BSD process accounting, the
+	  statistics are available during the lifetime of tasks/processes as
+	  responses to commands. Like BSD accounting, they are sent to user
+	  space on task exit.
 
-	  As it is generally a good thing, you should say Y here unless
-	  building a kernel for install/rescue disks or your system is very
-	  limited in memory.
+	  Say N if unsure.
+
+config TASK_DELAY_ACCT
+	bool "Enable per-task delay accounting (EXPERIMENTAL)"
+	depends on TASKSTATS
+	help
+	  Collect information on time spent by a task waiting for system
+	  resources like cpu, synchronous block I/O completion and swapping
+	  in pages. Such statistics can help in setting a task's priorities
+	  relative to other tasks for cpu, io, rss limits etc.
+
+	  Say N if unsure.
 
 config AUDIT
 	bool "Auditing support"
@@ -237,13 +244,6 @@ config RELAY
 
 source "usr/Kconfig"
 
-config UID16
-	bool "Enable 16-bit UID system calls" if EMBEDDED
-	depends on ARM || CRIS || FRV || H8300 || X86_32 || M68K || (S390 && !64BIT) || SUPERH || SPARC32 || (SPARC64 && SPARC32_COMPAT) || UML || (X86_64 && IA32_EMULATION)
-	default y
-	help
-	  This enables the legacy 16-bit UID syscall wrappers.
-
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size (Look out for broken compilers!)"
 	default y
@@ -264,6 +264,30 @@ menuconfig EMBEDDED
           to be disabled or tweaked. This is for specialized
           environments which can tolerate a "non-standard" kernel.
           Only use this if you really know what you are doing.
+
+config UID16
+	bool "Enable 16-bit UID system calls" if EMBEDDED
+	depends on ARM || CRIS || FRV || H8300 || X86_32 || M68K || (S390 && !64BIT) || SUPERH || SPARC32 || (SPARC64 && SPARC32_COMPAT) || UML || (X86_64 && IA32_EMULATION)
+	default y
+	help
+	  This enables the legacy 16-bit UID syscall wrappers.
+
+config SYSCTL
+	bool "Sysctl support" if EMBEDDED
+	default y
+	---help---
+	  The sysctl interface provides a means of dynamically changing
+	  certain kernel parameters and variables on the fly without requiring
+	  a recompile of the kernel or reboot of the system.  The primary
+	  interface consists of a system call, but if you say Y to "/proc
+	  file system support", a tree of modifiable sysctl entries will be
+	  generated beneath the /proc/sys directory. They are explained in the
+	  files in <file:Documentation/sysctl/>.  Note that enabling this
+	  option will enlarge the kernel by at least 8 KB.
+
+	  As it is generally a good thing, you should say Y here unless
+	  building a kernel for install/rescue disks or your system is very
+	  limited in memory.
 
 config KALLSYMS
 	 bool "Load all symbols for debugging/kksymoops" if EMBEDDED
@@ -339,10 +363,6 @@ config BASE_FULL
 	  kernel data structures. This saves memory on small machines,
 	  but may reduce performance.
 
-config RT_MUTEXES
-	boolean
-	select PLIST
-
 config FUTEX
 	bool "Enable futex support" if EMBEDDED
 	default y
@@ -389,6 +409,10 @@ config VM_EVENT_COUNTERS
 	  /proc/vmstat will only show page counts.
 
 endmenu		# General setup
+
+config RT_MUTEXES
+	boolean
+	select PLIST
 
 config TINY_SHMEM
 	default !SHMEM

@@ -18,6 +18,9 @@ gianfar_driver-objs := gianfar.o \
 		gianfar_mii.o \
 		gianfar_sysfs.o
 
+obj-$(CONFIG_UCC_GETH) += ucc_geth_driver.o
+ucc_geth_driver-objs := ucc_geth.o ucc_geth_phy.o
+
 #
 # link order important here
 #

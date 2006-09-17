@@ -1,7 +1,7 @@
 #! /usr/bin/perl
 #
-# checkversion find uses of LINUX_VERSION_CODE, KERNEL_VERSION, or
-# UTS_RELEASE without including <linux/version.h>, or cases of
+# checkversion find uses of LINUX_VERSION_CODE or KERNEL_VERSION
+# without including <linux/version.h>, or cases of
 # including <linux/version.h> that don't need it.
 # Copyright (C) 2003, Randy Dunlap <rdunlap@xenotime.net>
 
@@ -41,8 +41,7 @@ foreach $file (@ARGV)
 	}
 
 	# Look for uses: LINUX_VERSION_CODE, KERNEL_VERSION, UTS_RELEASE
-	if (($_ =~ /LINUX_VERSION_CODE/) || ($_ =~ /\WKERNEL_VERSION/) ||
-		($_ =~ /UTS_RELEASE/)) {
+	if (($_ =~ /LINUX_VERSION_CODE/) || ($_ =~ /\WKERNEL_VERSION/)) {
 	    $fUseVersion = 1;
 	    last LINE if $iLinuxVersion;
 	}

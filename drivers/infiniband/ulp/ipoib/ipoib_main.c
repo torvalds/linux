@@ -404,6 +404,8 @@ static void path_rec_completion(int status,
 		list_for_each_entry(neigh, &path->neigh_list, list) {
 			kref_get(&path->ah->ref);
 			neigh->ah = path->ah;
+			memcpy(&neigh->dgid.raw, &path->pathrec.dgid.raw,
+			       sizeof(union ib_gid));
 
 			while ((skb = __skb_dequeue(&neigh->queue)))
 				__skb_queue_tail(&skqueue, skb);
@@ -510,6 +512,8 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 	if (path->ah) {
 		kref_get(&path->ah->ref);
 		neigh->ah = path->ah;
+		memcpy(&neigh->dgid.raw, &path->pathrec.dgid.raw,
+		       sizeof(union ib_gid));
 
 		ipoib_send(dev, skb, path->ah,
 			   be32_to_cpup((__be32 *) skb->dst->neighbour->ha));
@@ -633,6 +637,25 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		neigh = *to_ipoib_neigh(skb->dst->neighbour);
 
 		if (likely(neigh->ah)) {
+			if (unlikely(memcmp(&neigh->dgid.raw,
+					    skb->dst->neighbour->ha + 4,
+					    sizeof(union ib_gid)))) {
+				spin_lock(&priv->lock);
+				/*
+				 * It's safe to call ipoib_put_ah() inside
+				 * priv->lock here, because we know that
+				 * path->ah will always hold one more reference,
+				 * so ipoib_put_ah() will never do more than
+				 * decrement the ref count.
+				 */
+				ipoib_put_ah(neigh->ah);
+				list_del(&neigh->list);
+				ipoib_neigh_free(neigh);
+				spin_unlock(&priv->lock);
+				ipoib_path_lookup(skb, dev);
+				goto out;
+			}
+
 			ipoib_send(dev, skb, neigh->ah,
 				   be32_to_cpup((__be32 *) skb->dst->neighbour->ha));
 			goto out;

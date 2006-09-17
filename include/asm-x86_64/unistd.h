@@ -821,8 +821,6 @@ asmlinkage long sys_fork(struct pt_regs regs);
 asmlinkage long sys_vfork(struct pt_regs regs);
 asmlinkage long sys_pipe(int *fildes);
 
-#endif /* __KERNEL_SYSCALLS__ */
-
 #ifndef __ASSEMBLY__
 
 #include <linux/linkage.h>
@@ -838,9 +836,9 @@ asmlinkage long sys_rt_sigaction(int sig,
 				struct sigaction __user *oact,
 				size_t sigsetsize);
 
-#endif	/* __ASSEMBLY__ */
+#endif  /* __ASSEMBLY__ */
 
-#endif /* __NO_STUBS */
+#endif /* __KERNEL_SYSCALLS__ */
 
 /*
  * "Conditional" syscalls
@@ -850,5 +848,8 @@ asmlinkage long sys_rt_sigaction(int sig,
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 
+#endif /* __NO_STUBS */
+
 #endif /* __KERNEL__ */
-#endif
+
+#endif /* _ASM_X86_64_UNISTD_H_ */

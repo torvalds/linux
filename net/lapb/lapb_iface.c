@@ -115,13 +115,11 @@ static struct lapb_cb *lapb_devtostruct(struct net_device *dev)
  */
 static struct lapb_cb *lapb_create_cb(void)
 {
-	struct lapb_cb *lapb = kmalloc(sizeof(*lapb), GFP_ATOMIC);
+	struct lapb_cb *lapb = kzalloc(sizeof(*lapb), GFP_ATOMIC);
 
 
 	if (!lapb)
 		goto out;
-
-	memset(lapb, 0x00, sizeof(*lapb));
 
 	skb_queue_head_init(&lapb->write_queue);
 	skb_queue_head_init(&lapb->ack_queue);
@@ -240,11 +238,13 @@ int lapb_setparms(struct net_device *dev, struct lapb_parms_struct *parms)
 		goto out_put;
 
 	if (lapb->state == LAPB_STATE_0) {
-		if (((parms->mode & LAPB_EXTENDED) &&
-		     (parms->window < 1 || parms->window > 127)) ||
-		    (parms->window < 1 || parms->window > 7))
-			goto out_put;
-
+		if (parms->mode & LAPB_EXTENDED) {
+			if (parms->window < 1 || parms->window > 127)
+				goto out_put;
+		} else {
+			if (parms->window < 1 || parms->window > 7)
+				goto out_put;
+		}
 		lapb->mode    = parms->mode;
 		lapb->window  = parms->window;
 	}

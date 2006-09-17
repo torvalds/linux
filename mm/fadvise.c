@@ -23,18 +23,6 @@
 /*
  * POSIX_FADV_WILLNEED could set PG_Referenced, and POSIX_FADV_NOREUSE could
  * deactivate the pages and clear PG_Referenced.
- *
- * LINUX_FADV_ASYNC_WRITE: start async writeout of any dirty pages between file
- * offsets `offset' and `offset+len' inclusive.  Any pages which are currently
- * under writeout are skipped, whether or not they are dirty.
- *
- * LINUX_FADV_WRITE_WAIT: wait upon writeout of any dirty pages between file
- * offsets `offset' and `offset+len'.
- *
- * By combining these two operations the application may do several things:
- *
- * LINUX_FADV_ASYNC_WRITE: push some or all of the dirty pages at the disk.
- *
  */
 asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 {
@@ -85,7 +73,6 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 		file->f_ra.ra_pages = bdi->ra_pages * 2;
 		break;
 	case POSIX_FADV_WILLNEED:
-	case POSIX_FADV_NOREUSE:
 		if (!mapping->a_ops->readpage) {
 			ret = -EINVAL;
 			break;
@@ -105,6 +92,8 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 				max_sane_readahead(nrpages));
 		if (ret > 0)
 			ret = 0;
+		break;
+	case POSIX_FADV_NOREUSE:
 		break;
 	case POSIX_FADV_DONTNEED:
 		if (!bdi_write_congested(mapping->backing_dev_info))

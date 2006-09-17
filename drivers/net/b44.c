@@ -2120,13 +2120,14 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot enable PCI device, "
+		dev_err(&pdev->dev, "Cannot enable PCI device, "
 		       "aborting.\n");
 		return err;
 	}
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX "Cannot find proper PCI device "
+		dev_err(&pdev->dev,
+			"Cannot find proper PCI device "
 		       "base address, aborting.\n");
 		err = -ENODEV;
 		goto err_out_disable_pdev;
@@ -2134,8 +2135,8 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 
 	err = pci_request_regions(pdev, DRV_MODULE_NAME);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot obtain PCI resources, "
-		       "aborting.\n");
+		dev_err(&pdev->dev,
+			"Cannot obtain PCI resources, aborting.\n");
 		goto err_out_disable_pdev;
 	}
 
@@ -2143,15 +2144,13 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 
 	err = pci_set_dma_mask(pdev, (u64) B44_DMA_MASK);
 	if (err) {
-		printk(KERN_ERR PFX "No usable DMA configuration, "
-		       "aborting.\n");
+		dev_err(&pdev->dev, "No usable DMA configuration, aborting.\n");
 		goto err_out_free_res;
 	}
 
 	err = pci_set_consistent_dma_mask(pdev, (u64) B44_DMA_MASK);
 	if (err) {
-		printk(KERN_ERR PFX "No usable DMA configuration, "
-		       "aborting.\n");
+		dev_err(&pdev->dev, "No usable DMA configuration, aborting.\n");
 		goto err_out_free_res;
 	}
 
@@ -2160,7 +2159,7 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 
 	dev = alloc_etherdev(sizeof(*bp));
 	if (!dev) {
-		printk(KERN_ERR PFX "Etherdev alloc failed, aborting.\n");
+		dev_err(&pdev->dev, "Etherdev alloc failed, aborting.\n");
 		err = -ENOMEM;
 		goto err_out_free_res;
 	}
@@ -2181,8 +2180,7 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 
 	bp->regs = ioremap(b44reg_base, b44reg_len);
 	if (bp->regs == 0UL) {
-		printk(KERN_ERR PFX "Cannot map device registers, "
-		       "aborting.\n");
+		dev_err(&pdev->dev, "Cannot map device registers, aborting.\n");
 		err = -ENOMEM;
 		goto err_out_free_dev;
 	}
@@ -2212,8 +2210,8 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 
 	err = b44_get_invariants(bp);
 	if (err) {
-		printk(KERN_ERR PFX "Problem fetching invariants of chip, "
-		       "aborting.\n");
+		dev_err(&pdev->dev,
+			"Problem fetching invariants of chip, aborting.\n");
 		goto err_out_iounmap;
 	}
 
@@ -2233,8 +2231,7 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 
 	err = register_netdev(dev);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot register net device, "
-		       "aborting.\n");
+		dev_err(&pdev->dev, "Cannot register net device, aborting.\n");
 		goto err_out_iounmap;
 	}
 

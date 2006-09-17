@@ -264,51 +264,57 @@ spu_irq_class_2(int irq, void *data, struct pt_regs *regs)
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static int
-spu_request_irqs(struct spu *spu)
+static int spu_request_irqs(struct spu *spu)
 {
-	int ret;
-	int irq_base;
+	int ret = 0;
 
-	irq_base = IIC_NODE_STRIDE * spu->node + IIC_SPE_OFFSET;
+	if (spu->irqs[0] != NO_IRQ) {
+		snprintf(spu->irq_c0, sizeof (spu->irq_c0), "spe%02d.0",
+			 spu->number);
+		ret = request_irq(spu->irqs[0], spu_irq_class_0,
+				  IRQF_DISABLED,
+				  spu->irq_c0, spu);
+		if (ret)
+			goto bail0;
+	}
+	if (spu->irqs[1] != NO_IRQ) {
+		snprintf(spu->irq_c1, sizeof (spu->irq_c1), "spe%02d.1",
+			 spu->number);
+		ret = request_irq(spu->irqs[1], spu_irq_class_1,
+				  IRQF_DISABLED,
+				  spu->irq_c1, spu);
+		if (ret)
+			goto bail1;
+	}
+	if (spu->irqs[2] != NO_IRQ) {
+		snprintf(spu->irq_c2, sizeof (spu->irq_c2), "spe%02d.2",
+			 spu->number);
+		ret = request_irq(spu->irqs[2], spu_irq_class_2,
+				  IRQF_DISABLED,
+				  spu->irq_c2, spu);
+		if (ret)
+			goto bail2;
+	}
+	return 0;
 
-	snprintf(spu->irq_c0, sizeof (spu->irq_c0), "spe%02d.0", spu->number);
-	ret = request_irq(irq_base + spu->isrc,
-		 spu_irq_class_0, IRQF_DISABLED, spu->irq_c0, spu);
-	if (ret)
-		goto out;
-
-	snprintf(spu->irq_c1, sizeof (spu->irq_c1), "spe%02d.1", spu->number);
-	ret = request_irq(irq_base + IIC_CLASS_STRIDE + spu->isrc,
-		 spu_irq_class_1, IRQF_DISABLED, spu->irq_c1, spu);
-	if (ret)
-		goto out1;
-
-	snprintf(spu->irq_c2, sizeof (spu->irq_c2), "spe%02d.2", spu->number);
-	ret = request_irq(irq_base + 2*IIC_CLASS_STRIDE + spu->isrc,
-		 spu_irq_class_2, IRQF_DISABLED, spu->irq_c2, spu);
-	if (ret)
-		goto out2;
-	goto out;
-
-out2:
-	free_irq(irq_base + IIC_CLASS_STRIDE + spu->isrc, spu);
-out1:
-	free_irq(irq_base + spu->isrc, spu);
-out:
+bail2:
+	if (spu->irqs[1] != NO_IRQ)
+		free_irq(spu->irqs[1], spu);
+bail1:
+	if (spu->irqs[0] != NO_IRQ)
+		free_irq(spu->irqs[0], spu);
+bail0:
 	return ret;
 }
 
-static void
-spu_free_irqs(struct spu *spu)
+static void spu_free_irqs(struct spu *spu)
 {
-	int irq_base;
-
-	irq_base = IIC_NODE_STRIDE * spu->node + IIC_SPE_OFFSET;
-
-	free_irq(irq_base + spu->isrc, spu);
-	free_irq(irq_base + IIC_CLASS_STRIDE + spu->isrc, spu);
-	free_irq(irq_base + 2*IIC_CLASS_STRIDE + spu->isrc, spu);
+	if (spu->irqs[0] != NO_IRQ)
+		free_irq(spu->irqs[0], spu);
+	if (spu->irqs[1] != NO_IRQ)
+		free_irq(spu->irqs[1], spu);
+	if (spu->irqs[2] != NO_IRQ)
+		free_irq(spu->irqs[2], spu);
 }
 
 static LIST_HEAD(spu_list);
@@ -559,17 +565,38 @@ static void spu_unmap(struct spu *spu)
 	iounmap((u8 __iomem *)spu->local_store);
 }
 
+/* This function shall be abstracted for HV platforms */
+static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
+{
+	struct irq_host *host;
+	unsigned int isrc;
+	u32 *tmp;
+
+	host = iic_get_irq_host(spu->node);
+	if (host == NULL)
+		return -ENODEV;
+
+	/* Get the interrupt source from the device-tree */
+	tmp = (u32 *)get_property(np, "isrc", NULL);
+	if (!tmp)
+		return -ENODEV;
+	spu->isrc = isrc = tmp[0];
+
+	/* Now map interrupts of all 3 classes */
+	spu->irqs[0] = irq_create_mapping(host, 0x00 | isrc);
+	spu->irqs[1] = irq_create_mapping(host, 0x10 | isrc);
+	spu->irqs[2] = irq_create_mapping(host, 0x20 | isrc);
+
+	/* Right now, we only fail if class 2 failed */
+	return spu->irqs[2] == NO_IRQ ? -EINVAL : 0;
+}
+
 static int __init spu_map_device(struct spu *spu, struct device_node *node)
 {
 	char *prop;
 	int ret;
 
 	ret = -ENODEV;
-	prop = get_property(node, "isrc", NULL);
-	if (!prop)
-		goto out;
-	spu->isrc = *(unsigned int *)prop;
-
 	spu->name = get_property(node, "name", NULL);
 	if (!spu->name)
 		goto out;
@@ -636,7 +663,8 @@ static int spu_create_sysdev(struct spu *spu)
 		return ret;
 	}
 
-	sysdev_create_file(&spu->sysdev, &attr_isrc);
+	if (spu->isrc != 0)
+		sysdev_create_file(&spu->sysdev, &attr_isrc);
 	sysfs_add_device_to_node(&spu->sysdev, spu->nid);
 
 	return 0;
@@ -668,6 +696,9 @@ static int __init create_spu(struct device_node *spe)
 	spu->nid = of_node_to_nid(spe);
 	if (spu->nid == -1)
 		spu->nid = 0;
+	ret = spu_map_interrupts(spu, spe);
+	if (ret)
+		goto out_unmap;
 	spin_lock_init(&spu->register_lock);
 	spu_mfc_sdr_set(spu, mfspr(SPRN_SDR1));
 	spu_mfc_sr1_set(spu, 0x33);

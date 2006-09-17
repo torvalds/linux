@@ -242,12 +242,12 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	}
 	rc = request_irq(mp->tx_dma_intr, mace_txdma_intr, 0, "MACE-txdma", dev);
 	if (rc) {
-		printk(KERN_ERR "MACE: can't get irq %d\n", mace->intrs[1].line);
+		printk(KERN_ERR "MACE: can't get irq %d\n", mp->tx_dma_intr);
 		goto err_free_irq;
 	}
 	rc = request_irq(mp->rx_dma_intr, mace_rxdma_intr, 0, "MACE-rxdma", dev);
 	if (rc) {
-		printk(KERN_ERR "MACE: can't get irq %d\n", mace->intrs[2].line);
+		printk(KERN_ERR "MACE: can't get irq %d\n", mp->rx_dma_intr);
 		goto err_free_tx_irq;
 	}
 

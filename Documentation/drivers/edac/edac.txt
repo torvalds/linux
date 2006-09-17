@@ -35,15 +35,14 @@ the vendor should tie the parity status bits to 0 if they do not intend
 to generate parity.  Some vendors do not do this, and thus the parity bit
 can "float" giving false positives.
 
-The PCI Parity EDAC device has the ability to "skip" known flaky
-cards during the parity scan. These are set by the parity "blacklist"
-interface in the sysfs for PCI Parity. (See the PCI section in the sysfs
-section below.) There is also a parity "whitelist" which is used as
-an explicit list of devices to scan, while the blacklist is a list
-of devices to skip.
+[There are patches in the kernel queue which will allow for storage of
+quirks of PCI devices reporting false parity positives. The 2.6.18
+kernel should have those patches included. When that becomes available,
+then EDAC will be patched to utilize that information to "skip" such
+devices.]
 
-EDAC will have future error detectors that will be added or integrated
-into EDAC in the following list:
+EDAC will have future error detectors that will be integrated with
+EDAC or added to it, in the following list:
 
 	MCE	Machine Check Exception
 	MCA	Machine Check Architecture
@@ -93,22 +92,24 @@ EDAC lives in the /sys/devices/system/edac directory. Within this directory
 there currently reside 2 'edac' components:
 
 	mc	memory controller(s) system
-	pci	PCI status system
+	pci	PCI control and status system
 
 
 ============================================================================
 Memory Controller (mc) Model
 
 First a background on the memory controller's model abstracted in EDAC.
-Each mc device controls a set of DIMM memory modules. These modules are
+Each 'mc' device controls a set of DIMM memory modules. These modules are
 laid out in a Chip-Select Row (csrowX) and Channel table (chX). There can
-be multiple csrows and two channels.
+be multiple csrows and multiple channels.
 
 Memory controllers allow for several csrows, with 8 csrows being a typical value.
 Yet, the actual number of csrows depends on the electrical "loading"
 of a given motherboard, memory controller and DIMM characteristics.
 
 Dual channels allows for 128 bit data transfers to the CPU from memory.
+Some newer chipsets allow for more than 2 channels, like Fully Buffered DIMMs
+(FB-DIMMs). The following example will assume 2 channels:
 
 
 		Channel 0	Channel 1
@@ -234,21 +235,13 @@ Polling period control file:
 	The time period, in milliseconds, for polling for error information.
 	Too small a value wastes resources.  Too large a value might delay
 	necessary handling of errors and might loose valuable information for
-	locating the error.  1000 milliseconds (once each second) is about
-	right for most uses.
+	locating the error.  1000 milliseconds (once each second) is the current
+	default. Systems which require all the bandwidth they can get, may
+	increase this.
 
 	LOAD TIME: module/kernel parameter: poll_msec=[0|1]
 
 	RUN TIME: echo "1000" >/sys/devices/system/edac/mc/poll_msec
-
-
-Module Version read-only attribute file:
-
-	'mc_version'
-
-	The EDAC CORE module's version and compile date are shown here to
-	indicate what EDAC is running.
-
 
 
 ============================================================================
@@ -284,51 +277,12 @@ Seconds since last counter reset control file:
 
 
 
-DIMM capability attribute file:
-
-	'edac_capability'
-
-	The EDAC (Error Detection and Correction) capabilities/modes of
-	the memory controller hardware.
-
-
-DIMM Current Capability attribute file:
-
-	'edac_current_capability'
-
-	The EDAC capabilities available with the hardware
-	configuration.  This may not be the same as "EDAC capability"
-	if the correct memory is not used.  If a memory controller is
-	capable of EDAC, but DIMMs without check bits are in use, then
-	Parity, SECDED, S4ECD4ED capabilities will not be available
-	even though the memory controller might be capable of those
-	modes with the proper memory loaded.
-
-
-Memory Type supported on this controller attribute file:
-
-	'supported_mem_type'
-
-	This attribute file displays the memory type, usually
-	buffered and unbuffered DIMMs.
-
-
 Memory Controller name attribute file:
 
 	'mc_name'
 
 	This attribute file displays the type of memory controller
 	that is being utilized.
-
-
-Memory Controller Module name attribute file:
-
-	'module_name'
-
-	This attribute file displays the memory controller module name,
-	version and date built.  The name of the memory controller
-	hardware - some drivers work with multiple controllers and
-	this field shows which hardware is present.
 
 
 Total memory managed by this memory controller attribute file:
@@ -432,6 +386,9 @@ Memory Type attribute file:
 
 	This attribute file will display what type of memory is currently
 	on this csrow. Normally, either buffered or unbuffered memory.
+	Examples:
+		Registered-DDR
+		Unbuffered-DDR
 
 
 EDAC Mode of operation attribute file:
@@ -446,8 +403,13 @@ Device type attribute file:
 
 	'dev_type'
 
-	This attribute file will display what type of DIMM device is
-	being utilized. Example:  x4
+	This attribute file will display what type of DRAM device is
+	being utilized on this DIMM.
+	Examples:
+		x1
+		x2
+		x4
+		x8
 
 
 Channel 0 CE Count attribute file:
@@ -522,10 +484,10 @@ SYSTEM LOGGING
 If logging for UEs and CEs are enabled then system logs will have
 error notices indicating errors that have been detected:
 
-MC0: CE page 0x283, offset 0xce0, grain 8, syndrome 0x6ec3, row 0,
+EDAC MC0: CE page 0x283, offset 0xce0, grain 8, syndrome 0x6ec3, row 0,
 channel 1 "DIMM_B1": amd76x_edac
 
-MC0: CE page 0x1e5, offset 0xfb0, grain 8, syndrome 0xb741, row 0,
+EDAC MC0: CE page 0x1e5, offset 0xfb0, grain 8, syndrome 0xb741, row 0,
 channel 1 "DIMM_B1": amd76x_edac
 
 
@@ -610,64 +572,4 @@ Parity Count:
 
 
 
-PCI Device Whitelist:
-
-	'pci_parity_whitelist'
-
-	This control file allows for an explicit list of PCI devices to be
-	scanned for parity errors. Only devices found on this list will
-	be examined.  The list is a line of hexadecimal VENDOR and DEVICE
-	ID tuples:
-
-	1022:7450,1434:16a6
-
-	One or more can be inserted, separated by a comma.
-
-	To write the above list doing the following as one command line:
-
-	echo "1022:7450,1434:16a6"
-		> /sys/devices/system/edac/pci/pci_parity_whitelist
-
-
-
-	To display what the whitelist is, simply 'cat' the same file.
-
-
-PCI Device Blacklist:
-
-	'pci_parity_blacklist'
-
-	This control file allows for a list of PCI devices to be
-	skipped for scanning.
-	The list is a line of hexadecimal VENDOR and DEVICE ID tuples:
-
-	1022:7450,1434:16a6
-
-	One or more can be inserted, separated by a comma.
-
-	To write the above list doing the following as one command line:
-
-	echo "1022:7450,1434:16a6"
-		> /sys/devices/system/edac/pci/pci_parity_blacklist
-
-
-	To display what the whitelist currently contains,
-	simply 'cat' the same file.
-
 =======================================================================
-
-PCI Vendor and Devices IDs can be obtained with the lspci command. Using
-the -n option lspci will display the vendor and device IDs. The system
-administrator will have to determine which devices should be scanned or
-skipped.
-
-
-
-The two lists (white and black) are prioritized. blacklist is the lower
-priority and will NOT be utilized when a whitelist has been set.
-Turn OFF a whitelist by an empty echo command:
-
-	echo > /sys/devices/system/edac/pci/pci_parity_whitelist
-
-and any previous blacklist will be utilized.
-

@@ -83,7 +83,7 @@ extern char sb1250_duart_present[];
 #endif
 #endif
 
-static struct hw_interrupt_type bcm1480_irq_type = {
+static struct irq_chip bcm1480_irq_type = {
 	.typename = "BCM1480-IMR",
 	.startup = startup_bcm1480_irq,
 	.shutdown = shutdown_bcm1480_irq,
@@ -140,7 +140,7 @@ static void bcm1480_set_affinity(unsigned int irq, cpumask_t mask)
 {
 	int i = 0, old_cpu, cpu, int_on, k;
 	u64 cur_ints;
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 	unsigned int irq_dirty;
 
@@ -278,7 +278,7 @@ void __init init_bcm1480_irqs(void)
 			irq_desc[i].chip = &bcm1480_irq_type;
 			bcm1480_irq_owner[i] = 0;
 		} else {
-			irq_desc[i].chip = &no_irq_type;
+			irq_desc[i].chip = &no_irq_chip;
 		}
 	}
 }
@@ -301,7 +301,7 @@ static struct irqaction bcm1480_dummy_action = {
 
 int bcm1480_steal_irq(int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 	int retval = 0;
 
@@ -502,22 +502,23 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 #ifdef CONFIG_SIBYTE_BCM1480_PROF
 	if (pending & CAUSEF_IP7)	/* Cpu performance counter interrupt */
 		sbprof_cpu_intr(exception_epc(regs));
+	else
 #endif
 
 	if (pending & CAUSEF_IP4)
 		bcm1480_timer_interrupt(regs);
 
 #ifdef CONFIG_SMP
-	if (pending & CAUSEF_IP3)
+	else if (pending & CAUSEF_IP3)
 		bcm1480_mailbox_interrupt(regs);
 #endif
 
 #ifdef CONFIG_KGDB
-	if (pending & CAUSEF_IP6)
+	else if (pending & CAUSEF_IP6)
 		bcm1480_kgdb_interrupt(regs);		/* KGDB (uart 1) */
 #endif
 
-	if (pending & CAUSEF_IP2) {
+	else if (pending & CAUSEF_IP2) {
 		unsigned long long mask_h, mask_l;
 		unsigned long base;
 
@@ -533,7 +534,7 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 		mask_l = __raw_readq(
 			IOADDR(base + R_BCM1480_IMR_INTERRUPT_STATUS_BASE_L));
 
-		if (!mask_h) {
+		if (mask_h) {
 			if (mask_h ^ 1)
 				do_IRQ(63 - dclz(mask_h), regs);
 			else

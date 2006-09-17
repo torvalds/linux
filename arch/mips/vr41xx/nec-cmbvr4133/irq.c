@@ -62,7 +62,7 @@ static void end_i8259_irq(unsigned int irq)
 		enable_8259A_irq(irq - I8259_IRQ_BASE);
 }
 
-static struct hw_interrupt_type i8259_irq_type = {
+static struct irq_chip i8259_irq_type = {
 	.typename       = "XT-PIC",
 	.startup        = startup_i8259_irq,
 	.shutdown       = shutdown_i8259_irq,

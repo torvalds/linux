@@ -41,6 +41,7 @@
 #define MPIC_GREG_IPI_VECTOR_PRI_1	0x000b0
 #define MPIC_GREG_IPI_VECTOR_PRI_2	0x000c0
 #define MPIC_GREG_IPI_VECTOR_PRI_3	0x000d0
+#define MPIC_GREG_IPI_STRIDE		0x10
 #define MPIC_GREG_SPURIOUS		0x000e0
 #define MPIC_GREG_TIMER_FREQ		0x000f0
 
@@ -68,6 +69,7 @@
 #define MPIC_CPU_IPI_DISPATCH_1		0x00050
 #define MPIC_CPU_IPI_DISPATCH_2		0x00060
 #define MPIC_CPU_IPI_DISPATCH_3		0x00070
+#define MPIC_CPU_IPI_DISPATCH_STRIDE	0x00010
 #define MPIC_CPU_CURRENT_TASK_PRI	0x00080
 #define 	MPIC_CPU_TASKPRI_MASK			0x0000000f
 #define MPIC_CPU_WHOAMI			0x00090
@@ -114,8 +116,102 @@
 #define MPIC_VEC_TIMER_1	248
 #define MPIC_VEC_TIMER_0	247
 
-/* Type definition of the cascade handler */
-typedef int (*mpic_cascade_t)(struct pt_regs *regs, void *data);
+/*
+ * Tsi108 implementation of MPIC has many differences from the original one
+ */
+
+/*
+ * Global registers
+ */
+
+#define TSI108_GREG_BASE		0x00000
+#define TSI108_GREG_FEATURE_0		0x00000
+#define TSI108_GREG_GLOBAL_CONF_0	0x00004
+#define TSI108_GREG_VENDOR_ID		0x0000c
+#define TSI108_GREG_IPI_VECTOR_PRI_0	0x00204		/* Doorbell 0 */
+#define TSI108_GREG_IPI_STRIDE		0x0c
+#define TSI108_GREG_SPURIOUS		0x00010
+#define TSI108_GREG_TIMER_FREQ		0x00014
+
+/*
+ * Timer registers
+ */
+#define TSI108_TIMER_BASE		0x0030
+#define TSI108_TIMER_STRIDE		0x10
+#define TSI108_TIMER_CURRENT_CNT	0x00000
+#define TSI108_TIMER_BASE_CNT		0x00004
+#define TSI108_TIMER_VECTOR_PRI		0x00008
+#define TSI108_TIMER_DESTINATION	0x0000c
+
+/*
+ * Per-Processor registers
+ */
+#define TSI108_CPU_BASE			0x00300
+#define TSI108_CPU_STRIDE		0x00040
+#define TSI108_CPU_IPI_DISPATCH_0	0x00200
+#define TSI108_CPU_IPI_DISPATCH_STRIDE	0x00000
+#define TSI108_CPU_CURRENT_TASK_PRI	0x00000
+#define TSI108_CPU_WHOAMI		0xffffffff
+#define TSI108_CPU_INTACK		0x00004
+#define TSI108_CPU_EOI			0x00008
+
+/*
+ * Per-source registers
+ */
+#define TSI108_IRQ_BASE			0x00100
+#define TSI108_IRQ_STRIDE		0x00008
+#define TSI108_IRQ_VECTOR_PRI		0x00000
+#define TSI108_VECPRI_VECTOR_MASK	0x000000ff
+#define TSI108_VECPRI_POLARITY_POSITIVE	0x01000000
+#define TSI108_VECPRI_POLARITY_NEGATIVE	0x00000000
+#define TSI108_VECPRI_SENSE_LEVEL	0x02000000
+#define TSI108_VECPRI_SENSE_EDGE	0x00000000
+#define TSI108_VECPRI_POLARITY_MASK	0x01000000
+#define TSI108_VECPRI_SENSE_MASK	0x02000000
+#define TSI108_IRQ_DESTINATION		0x00004
+
+/* weird mpic register indices and mask bits in the HW info array */
+enum {
+	MPIC_IDX_GREG_BASE = 0,
+	MPIC_IDX_GREG_FEATURE_0,
+	MPIC_IDX_GREG_GLOBAL_CONF_0,
+	MPIC_IDX_GREG_VENDOR_ID,
+	MPIC_IDX_GREG_IPI_VECTOR_PRI_0,
+	MPIC_IDX_GREG_IPI_STRIDE,
+	MPIC_IDX_GREG_SPURIOUS,
+	MPIC_IDX_GREG_TIMER_FREQ,
+
+	MPIC_IDX_TIMER_BASE,
+	MPIC_IDX_TIMER_STRIDE,
+	MPIC_IDX_TIMER_CURRENT_CNT,
+	MPIC_IDX_TIMER_BASE_CNT,
+	MPIC_IDX_TIMER_VECTOR_PRI,
+	MPIC_IDX_TIMER_DESTINATION,
+
+	MPIC_IDX_CPU_BASE,
+	MPIC_IDX_CPU_STRIDE,
+	MPIC_IDX_CPU_IPI_DISPATCH_0,
+	MPIC_IDX_CPU_IPI_DISPATCH_STRIDE,
+	MPIC_IDX_CPU_CURRENT_TASK_PRI,
+	MPIC_IDX_CPU_WHOAMI,
+	MPIC_IDX_CPU_INTACK,
+	MPIC_IDX_CPU_EOI,
+
+	MPIC_IDX_IRQ_BASE,
+	MPIC_IDX_IRQ_STRIDE,
+	MPIC_IDX_IRQ_VECTOR_PRI,
+
+	MPIC_IDX_VECPRI_VECTOR_MASK,
+	MPIC_IDX_VECPRI_POLARITY_POSITIVE,
+	MPIC_IDX_VECPRI_POLARITY_NEGATIVE,
+	MPIC_IDX_VECPRI_SENSE_LEVEL,
+	MPIC_IDX_VECPRI_SENSE_EDGE,
+	MPIC_IDX_VECPRI_POLARITY_MASK,
+	MPIC_IDX_VECPRI_SENSE_MASK,
+	MPIC_IDX_IRQ_DESTINATION,
+	MPIC_IDX_END
+};
+
 
 #ifdef CONFIG_MPIC_BROKEN_U3
 /* Fixup table entry */
@@ -132,10 +228,19 @@ struct mpic_irq_fixup
 /* The instance data of a given MPIC */
 struct mpic
 {
+	/* The device node of the interrupt controller */
+	struct device_node	*of_node;
+
+	/* The remapper for this MPIC */
+	struct irq_host		*irqhost;
+
 	/* The "linux" controller struct */
-	hw_irq_controller	hc_irq;
+	struct irq_chip		hc_irq;
+#ifdef CONFIG_MPIC_BROKEN_U3
+	struct irq_chip		hc_ht_irq;
+#endif
 #ifdef CONFIG_SMP
-	hw_irq_controller	hc_ipi;
+	struct irq_chip		hc_ipi;
 #endif
 	const char		*name;
 	/* Flags */
@@ -144,20 +249,12 @@ struct mpic
 	unsigned int		isu_size;
 	unsigned int		isu_shift;
 	unsigned int		isu_mask;
-	/* Offset of irq vector numbers */
-	unsigned int		irq_offset;	
 	unsigned int		irq_count;
-	/* Offset of ipi vector numbers */
-	unsigned int		ipi_offset;
 	/* Number of sources */
 	unsigned int		num_sources;
 	/* Number of CPUs */
 	unsigned int		num_cpus;
-	/* cascade handler */
-	mpic_cascade_t		cascade;
-	void			*cascade_data;
-	unsigned int		cascade_vec;
-	/* senses array */
+	/* default senses array */
 	unsigned char		*senses;
 	unsigned int		senses_count;
 
@@ -173,15 +270,29 @@ struct mpic
 	volatile u32 __iomem	*cpuregs[MPIC_MAX_CPUS];
 	volatile u32 __iomem	*isus[MPIC_MAX_ISU];
 
+#ifdef CONFIG_MPIC_WEIRD
+	/* Pointer to HW info array */
+	u32			*hw_set;
+#endif
+
 	/* link */
 	struct mpic		*next;
 };
+
+/*
+ * MPIC flags (passed to mpic_alloc)
+ *
+ * The top 4 bits contain an MPIC bhw id that is used to index the
+ * register offsets and some masks when CONFIG_MPIC_WEIRD is set.
+ * Note setting any ID (leaving those bits to 0) means standard MPIC
+ */
 
 /* This is the primary controller, only that one has IPIs and
  * has afinity control. A non-primary MPIC always uses CPU0
  * registers only
  */
 #define MPIC_PRIMARY			0x00000001
+
 /* Set this for a big-endian MPIC */
 #define MPIC_BIG_ENDIAN			0x00000002
 /* Broken U3 MPIC */
@@ -190,6 +301,18 @@ struct mpic
 #define MPIC_BROKEN_IPI			0x00000008
 /* MPIC wants a reset */
 #define MPIC_WANTS_RESET		0x00000010
+/* Spurious vector requires EOI */
+#define MPIC_SPV_EOI			0x00000020
+/* No passthrough disable */
+#define MPIC_NO_PTHROU_DIS		0x00000040
+
+/* MPIC HW modification ID */
+#define MPIC_REGSET_MASK		0xf0000000
+#define MPIC_REGSET(val)		(((val) & 0xf ) << 28)
+#define MPIC_GET_REGSET(flags)		(((flags) >> 28) & 0xf)
+
+#define	MPIC_REGSET_STANDARD		MPIC_REGSET(0)	/* Original MPIC */
+#define	MPIC_REGSET_TSI108		MPIC_REGSET(1)	/* Tsi108/109 PIC */
 
 /* Allocate the controller structure and setup the linux irq descs
  * for the range if interrupts passed in. No HW initialization is
@@ -213,14 +336,11 @@ struct mpic
  * The values in the array start at the first source of the MPIC,
  * that is senses[0] correspond to linux irq "irq_offset".
  */
-extern struct mpic *mpic_alloc(unsigned long phys_addr,
+extern struct mpic *mpic_alloc(struct device_node *node,
+			       unsigned long phys_addr,
 			       unsigned int flags,
 			       unsigned int isu_size,
-			       unsigned int irq_offset,
 			       unsigned int irq_count,
-			       unsigned int ipi_offset,
-			       unsigned char *senses,
-			       unsigned int senses_num,
 			       const char *name);
 
 /* Assign ISUs, to call before mpic_init()
@@ -232,21 +352,26 @@ extern struct mpic *mpic_alloc(unsigned long phys_addr,
 extern void mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 			    unsigned long phys_addr);
 
+/* Set default sense codes
+ *
+ * @mpic:	controller
+ * @senses:	array of sense codes
+ * @count:	size of above array
+ *
+ * Optionally provide an array (indexed on hardware interrupt numbers
+ * for this MPIC) of default sense codes for the chip. Those are linux
+ * sense codes IRQ_TYPE_*
+ *
+ * The driver gets ownership of the pointer, don't dispose of it or
+ * anything like that. __init only.
+ */
+extern void mpic_set_default_senses(struct mpic *mpic, u8 *senses, int count);
+
+
 /* Initialize the controller. After this has been called, none of the above
  * should be called again for this mpic
  */
 extern void mpic_init(struct mpic *mpic);
-
-/* Setup a cascade. Currently, only one cascade is supported this
- * way, though you can always do a normal request_irq() and add
- * other cascades this way. You should call this _after_ having
- * added all the ISUs
- *
- * @irq_no:	"linux" irq number of the cascade (that is offset'ed vector)
- * @handler:	cascade handler function
- */
-extern void mpic_setup_cascade(unsigned int irq_no, mpic_cascade_t hanlder,
-			       void *data);
 
 /*
  * All of the following functions must only be used after the
@@ -284,18 +409,15 @@ extern void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask);
 void smp_mpic_message_pass(int target, int msg);
 
 /* Fetch interrupt from a given mpic */
-extern int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs);
+extern unsigned int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs);
 /* This one gets to the primary mpic */
-extern int mpic_get_irq(struct pt_regs *regs);
+extern unsigned int mpic_get_irq(struct pt_regs *regs);
 
 /* Set the EPIC clock ratio */
 void mpic_set_clk_ratio(struct mpic *mpic, u32 clock_ratio);
 
 /* Enable/Disable EPIC serial interrupt mode */
 void mpic_set_serial_int(struct mpic *mpic, int enable);
-
-/* global mpic for pSeries */
-extern struct mpic *pSeries_mpic;
 
 #endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_MPIC_H */

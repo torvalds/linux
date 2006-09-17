@@ -104,6 +104,7 @@
 #include <net/icmp.h>
 #include <net/xfrm.h>
 #include <net/ip_mp_alg.h>
+#include <net/netevent.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
@@ -205,21 +206,27 @@ __u8 ip_tos2prio[16] = {
 struct rt_hash_bucket {
 	struct rtable	*chain;
 };
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK) || \
+	defined(CONFIG_PROVE_LOCKING)
 /*
  * Instead of using one spinlock for each rt_hash_bucket, we use a table of spinlocks
  * The size of this table is a power of two and depends on the number of CPUS.
+ * (on lockdep we have a quite big spinlock_t, so keep the size down there)
  */
-#if NR_CPUS >= 32
-#define RT_HASH_LOCK_SZ	4096
-#elif NR_CPUS >= 16
-#define RT_HASH_LOCK_SZ	2048
-#elif NR_CPUS >= 8
-#define RT_HASH_LOCK_SZ	1024
-#elif NR_CPUS >= 4
-#define RT_HASH_LOCK_SZ	512
+#ifdef CONFIG_LOCKDEP
+# define RT_HASH_LOCK_SZ	256
 #else
-#define RT_HASH_LOCK_SZ	256
+# if NR_CPUS >= 32
+#  define RT_HASH_LOCK_SZ	4096
+# elif NR_CPUS >= 16
+#  define RT_HASH_LOCK_SZ	2048
+# elif NR_CPUS >= 8
+#  define RT_HASH_LOCK_SZ	1024
+# elif NR_CPUS >= 4
+#  define RT_HASH_LOCK_SZ	512
+# else
+#  define RT_HASH_LOCK_SZ	256
+# endif
 #endif
 
 static spinlock_t	*rt_hash_locks;
@@ -1119,6 +1126,7 @@ void ip_rt_redirect(u32 old_gw, u32 daddr, u32 new_gw,
 	struct rtable *rth, **rthp;
 	u32  skeys[2] = { saddr, 0 };
 	int  ikeys[2] = { dev->ifindex, 0 };
+	struct netevent_redirect netevent;
 
 	if (!in_dev)
 		return;
@@ -1210,6 +1218,11 @@ void ip_rt_redirect(u32 old_gw, u32 daddr, u32 new_gw,
 					rt_drop(rt);
 					goto do_next;
 				}
+				
+				netevent.old = &rth->u.dst;
+				netevent.new = &rt->u.dst;
+				call_netevent_notifiers(NETEVENT_REDIRECT, 
+						        &netevent);
 
 				rt_del(hash, rth);
 				if (!rt_intern_hash(hash, rt, &rt))
@@ -1446,6 +1459,7 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 		}
 		dst->metrics[RTAX_MTU-1] = mtu;
 		dst_set_expires(dst, ip_rt_mtu_expires);
+		call_netevent_notifiers(NETEVENT_PMTU_UPDATE, dst);
 	}
 }
 
@@ -3143,7 +3157,7 @@ int __init ip_rt_init(void)
 					rhash_entries,
 					(num_physpages >= 128 * 1024) ?
 					15 : 17,
-					HASH_HIGHMEM,
+					0,
 					&rt_hash_log,
 					&rt_hash_mask,
 					0);

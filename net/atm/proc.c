@@ -507,7 +507,7 @@ err_out:
 	goto out;
 }
 
-void __exit atm_proc_exit(void)
+void atm_proc_exit(void)
 {
 	atm_proc_dirs_remove();
 }

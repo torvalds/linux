@@ -67,10 +67,6 @@ static struct packet_type vlan_packet_type = {
 	.func = vlan_skb_recv, /* VLAN receive method */
 };
 
-/* Bits of netdev state that are propagated from real device to virtual */
-#define VLAN_LINK_STATE_MASK \
-	((1<<__LINK_STATE_PRESENT)|(1<<__LINK_STATE_NOCARRIER)|(1<<__LINK_STATE_DORMANT))
-
 /* End of global variables definitions. */
 
 /*
@@ -364,6 +360,14 @@ static void vlan_transfer_operstate(const struct net_device *dev, struct net_dev
 	}
 }
 
+/*
+ * vlan network devices have devices nesting below it, and are a special
+ * "super class" of normal network devices; split their locks off into a
+ * separate class since they always nest.
+ */
+static struct lock_class_key vlan_netdev_xmit_lock_key;
+
+
 /*  Attach a VLAN device to a mac address (ie Ethernet Card).
  *  Returns the device that was created, or NULL if there was
  *  an error of some kind.
@@ -460,6 +464,7 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 		    
 	new_dev = alloc_netdev(sizeof(struct vlan_dev_info), name,
 			       vlan_setup);
+
 	if (new_dev == NULL)
 		goto out_unlock;
 
@@ -470,7 +475,9 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 	new_dev->flags = real_dev->flags;
 	new_dev->flags &= ~IFF_UP;
 
-	new_dev->state = real_dev->state & ~(1<<__LINK_STATE_START);
+	new_dev->state = (real_dev->state & ((1<<__LINK_STATE_NOCARRIER) |
+					     (1<<__LINK_STATE_DORMANT))) |
+			 (1<<__LINK_STATE_PRESENT); 
 
 	/* need 4 bytes for extra VLAN header info,
 	 * hope the underlying device can handle it.
@@ -518,6 +525,8 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 	if (register_netdevice(new_dev))
 		goto out_free_newdev;
 
+	lockdep_set_class(&new_dev->_xmit_lock, &vlan_netdev_xmit_lock_key);
+
 	new_dev->iflink = real_dev->ifindex;
 	vlan_transfer_operstate(real_dev, new_dev);
 	linkwatch_fire_event(new_dev); /* _MUST_ call rfc2863_policy() */
@@ -531,12 +540,11 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 	 * so it cannot "appear" on us.
 	 */
 	if (!grp) { /* need to add a new group */
-		grp = kmalloc(sizeof(struct vlan_group), GFP_KERNEL);
+		grp = kzalloc(sizeof(struct vlan_group), GFP_KERNEL);
 		if (!grp)
 			goto out_free_unregister;
 					
 		/* printk(KERN_ALERT "VLAN REGISTER:  Allocated new group.\n"); */
-		memset(grp, 0, sizeof(struct vlan_group));
 		grp->real_dev_ifindex = real_dev->ifindex;
 
 		hlist_add_head_rcu(&grp->hlist, 

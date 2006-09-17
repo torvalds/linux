@@ -1537,7 +1537,7 @@ static int __init sparc_lance_init(void)
 {
 	if ((idprom->id_machtype == (SM_SUN4|SM_4_330)) ||
 	    (idprom->id_machtype == (SM_SUN4|SM_4_470))) {
-		memset(&sun4_sdev, 0, sizeof(sdev));
+		memset(&sun4_sdev, 0, sizeof(struct sbus_dev));
 		sun4_sdev.reg_addrs[0].phys_addr = sun4_eth_physaddr;
 		sun4_sdev.irqs[0] = 6;
 		return sparc_lance_probe_one(&sun4_sdev, NULL, NULL);
@@ -1547,16 +1547,16 @@ static int __init sparc_lance_init(void)
 
 static int __exit sunlance_sun4_remove(void)
 {
-	struct lance_private *lp = dev_get_drvdata(&sun4_sdev->dev);
+	struct lance_private *lp = dev_get_drvdata(&sun4_sdev.ofdev.dev);
 	struct net_device *net_dev = lp->dev;
 
 	unregister_netdevice(net_dev);
 
-	lance_free_hwresources(root_lance_dev);
+	lance_free_hwresources(lp);
 
 	free_netdev(net_dev);
 
-	dev_set_drvdata(&sun4_sdev->dev, NULL);
+	dev_set_drvdata(&sun4_sdev.ofdev.dev, NULL);
 
 	return 0;
 }
@@ -1566,20 +1566,21 @@ static int __exit sunlance_sun4_remove(void)
 static int __devinit sunlance_sbus_probe(struct of_device *dev, const struct of_device_id *match)
 {
 	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
-	struct device_node *dp = dev->node;
 	int err;
 
-	if (!strcmp(dp->name, "le")) {
+	if (sdev->parent) {
+		struct of_device *parent = &sdev->parent->ofdev;
+
+		if (!strcmp(parent->node->name, "ledma")) {
+			struct sbus_dma *ledma = find_ledma(to_sbus_device(&parent->dev));
+
+			err = sparc_lance_probe_one(sdev, ledma, NULL);
+		} else if (!strcmp(parent->node->name, "lebuffer")) {
+			err = sparc_lance_probe_one(sdev, NULL, to_sbus_device(&parent->dev));
+		} else
+			err = sparc_lance_probe_one(sdev, NULL, NULL);
+	} else
 		err = sparc_lance_probe_one(sdev, NULL, NULL);
-	} else if (!strcmp(dp->name, "ledma")) {
-		struct sbus_dma *ledma = find_ledma(sdev);
-
-		err = sparc_lance_probe_one(sdev->child, ledma, NULL);
-	} else {
-		BUG_ON(strcmp(dp->name, "lebuffer"));
-
-		err = sparc_lance_probe_one(sdev->child, NULL, sdev);
-	}
 
 	return err;
 }
@@ -1603,12 +1604,6 @@ static int __devexit sunlance_sbus_remove(struct of_device *dev)
 static struct of_device_id sunlance_sbus_match[] = {
 	{
 		.name = "le",
-	},
-	{
-		.name = "ledma",
-	},
-	{
-		.name = "lebuffer",
 	},
 	{},
 };

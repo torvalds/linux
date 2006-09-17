@@ -347,7 +347,7 @@ scdrv_poll(struct file *file, struct poll_table_struct *wait)
 	return mask;
 }
 
-static struct file_operations scdrv_fops = {
+static const struct file_operations scdrv_fops = {
 	.owner =	THIS_MODULE,
 	.read =		scdrv_read,
 	.write =	scdrv_write,
@@ -374,7 +374,12 @@ scdrv_init(void)
 	struct sysctl_data_s *scd;
 	void *salbuf;
 	dev_t first_dev, dev;
-	nasid_t event_nasid = ia64_sn_get_console_nasid();
+	nasid_t event_nasid;
+
+	if (!ia64_platform_is("sn2"))
+		return -ENODEV;
+
+	event_nasid = ia64_sn_get_console_nasid();
 
 	if (alloc_chrdev_region(&first_dev, 0, num_cnodes,
 				SYSCTL_BASENAME) < 0) {

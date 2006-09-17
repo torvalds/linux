@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 
 #ifdef CONFIG_MTD
 #include <linux/mtd/partitions.h>
@@ -44,7 +44,6 @@
 
 extern void mips_reboot_setup(void);
 extern void mips_time_init(void);
-extern void mips_timer_setup(struct irqaction *irq);
 extern unsigned long mips_rtc_get_time(void);
 
 #ifdef CONFIG_KGDB
@@ -223,6 +222,5 @@ void __init plat_mem_setup(void)
 	mips_reboot_setup();
 
 	board_time_init = mips_time_init;
-	board_timer_setup = mips_timer_setup;
 	rtc_mips_get_time = mips_rtc_get_time;
 }

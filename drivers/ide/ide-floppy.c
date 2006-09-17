@@ -838,7 +838,7 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 			"transferred\n", pc->actually_transferred);
 		clear_bit(PC_DMA_IN_PROGRESS, &pc->flags);
 
-		local_irq_enable();
+		local_irq_enable_in_hardirq();
 
 		if (status.b.check || test_bit(PC_DMA_ERROR, &pc->flags)) {
 			/* Error detected */

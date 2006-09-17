@@ -40,8 +40,8 @@ struct ssp_dev {
 };
 
 int ssp_write_word(struct ssp_dev *dev, u32 data);
-int ssp_read_word(struct ssp_dev *dev);
-void ssp_flush(struct ssp_dev *dev);
+int ssp_read_word(struct ssp_dev *dev, u32 *data);
+int ssp_flush(struct ssp_dev *dev);
 void ssp_enable(struct ssp_dev *dev);
 void ssp_disable(struct ssp_dev *dev);
 void ssp_save_state(struct ssp_dev *dev, struct ssp_state *ssp);

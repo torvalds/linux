@@ -187,7 +187,7 @@ switch_hrtimer_base(struct hrtimer *timer, struct hrtimer_base *base)
 {
 	struct hrtimer_base *new_base;
 
-	new_base = &__get_cpu_var(hrtimer_bases[base->index]);
+	new_base = &__get_cpu_var(hrtimer_bases)[base->index];
 
 	if (base != new_base) {
 		/*
@@ -669,7 +669,7 @@ static int hrtimer_wakeup(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-void hrtimer_init_sleeper(struct hrtimer_sleeper *sl, task_t *task)
+void hrtimer_init_sleeper(struct hrtimer_sleeper *sl, struct task_struct *task)
 {
 	sl->timer.function = hrtimer_wakeup;
 	sl->task = task;
@@ -782,8 +782,10 @@ static void __devinit init_hrtimers_cpu(int cpu)
 	struct hrtimer_base *base = per_cpu(hrtimer_bases, cpu);
 	int i;
 
-	for (i = 0; i < MAX_HRTIMER_BASES; i++, base++)
+	for (i = 0; i < MAX_HRTIMER_BASES; i++, base++) {
 		spin_lock_init(&base->lock);
+		lockdep_set_class(&base->lock, &base->lock_key);
+	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -833,7 +835,7 @@ static void migrate_hrtimers(int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static int __devinit hrtimer_cpu_notify(struct notifier_block *self,
+static int __cpuinit hrtimer_cpu_notify(struct notifier_block *self,
 					unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
@@ -857,7 +859,7 @@ static int __devinit hrtimer_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __devinitdata hrtimers_nb = {
+static struct notifier_block __cpuinitdata hrtimers_nb = {
 	.notifier_call = hrtimer_cpu_notify,
 };
 

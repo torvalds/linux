@@ -5,7 +5,7 @@
  *
  *  An implementation of the DCCP protocol
  *  Copyright (c) 2005 Arnaldo Carvalho de Melo <acme@conectiva.com.br>
- *  Copyright (c) 2005 Ian McDonald <iam4@cs.waikato.ac.nz>
+ *  Copyright (c) 2005-6 Ian McDonald <ian.mcdonald@jandi.co.nz>
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License version 2 as
@@ -79,6 +79,14 @@ static inline int between48(const u64 seq1, const u64 seq2, const u64 seq3)
 static inline u64 max48(const u64 seq1, const u64 seq2)
 {
 	return after48(seq1, seq2) ? seq1 : seq2;
+}
+
+/* is seq1 next seqno after seq2 */
+static inline int follows48(const u64 seq1, const u64 seq2)
+{
+	int diff = (seq1 & 0xFFFF) - (seq2 & 0xFFFF);
+
+	return diff==1;
 }
 
 enum {

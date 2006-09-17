@@ -249,18 +249,6 @@ static int irqdma_allocated;
 #include <linux/cdrom.h>	/* for the compatibility eject ioctl */
 #include <linux/completion.h>
 
-/*
- * Interrupt freeing also means /proc VFS work - dont do it
- * from interrupt context. We push this work into keventd:
- */
-static void fd_free_irq_fn(void *data)
-{
-	fd_free_irq();
-}
-
-static DECLARE_WORK(fd_free_irq_work, fd_free_irq_fn, NULL);
-
-
 static struct request *current_req;
 static struct request_queue *floppy_queue;
 static void do_fd_request(request_queue_t * q);
@@ -826,15 +814,6 @@ static int set_dor(int fdc, char mask, char data)
 			UDRS->select_date = jiffies;
 		}
 	}
-	/*
-	 *      We should propagate failures to grab the resources back
-	 *      nicely from here. Actually we ought to rewrite the fd
-	 *      driver some day too.
-	 */
-	if (newdor & FLOPPY_MOTOR_MASK)
-		floppy_grab_irq_and_dma();
-	if (olddor & FLOPPY_MOTOR_MASK)
-		floppy_release_irq_and_dma();
 	return olddor;
 }
 
@@ -892,8 +871,6 @@ static int _lock_fdc(int drive, int interruptible, int line)
 		       line);
 		return -1;
 	}
-	if (floppy_grab_irq_and_dma() == -1)
-		return -EBUSY;
 
 	if (test_and_set_bit(0, &fdc_busy)) {
 		DECLARE_WAITQUEUE(wait, current);
@@ -915,6 +892,8 @@ static int _lock_fdc(int drive, int interruptible, int line)
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&fdc_wait, &wait);
+
+		flush_scheduled_work();
 	}
 	command_status = FD_COMMAND_NONE;
 
@@ -948,7 +927,6 @@ static inline void unlock_fdc(void)
 	if (elv_next_request(floppy_queue))
 		do_fd_request(floppy_queue);
 	spin_unlock_irqrestore(&floppy_lock, flags);
-	floppy_release_irq_and_dma();
 	wake_up(&fdc_wait);
 }
 
@@ -3694,8 +3672,8 @@ static int floppy_release(struct inode *inode, struct file *filp)
 	}
 	if (!UDRS->fd_ref)
 		opened_bdev[drive] = NULL;
-	floppy_release_irq_and_dma();
 	mutex_unlock(&open_lock);
+
 	return 0;
 }
 
@@ -3724,9 +3702,6 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	}
 
 	if (UDRS->fd_ref == -1 || (UDRS->fd_ref && (filp->f_flags & O_EXCL)))
-		goto out2;
-
-	if (floppy_grab_irq_and_dma())
 		goto out2;
 
 	if (filp->f_flags & O_EXCL)
@@ -3805,7 +3780,6 @@ out:
 		UDRS->fd_ref--;
 	if (!UDRS->fd_ref)
 		opened_bdev[drive] = NULL;
-	floppy_release_irq_and_dma();
 out2:
 	mutex_unlock(&open_lock);
 	return res;
@@ -3822,14 +3796,9 @@ static int check_floppy_change(struct gendisk *disk)
 		return 1;
 
 	if (time_after(jiffies, UDRS->last_checked + UDP->checkfreq)) {
-		if (floppy_grab_irq_and_dma()) {
-			return 1;
-		}
-
 		lock_fdc(drive, 0);
 		poll_drive(0, 0);
 		process_fd_request();
-		floppy_release_irq_and_dma();
 	}
 
 	if (UTESTF(FD_DISK_CHANGED) ||
@@ -4208,6 +4177,11 @@ static int __init floppy_init(void)
 	int i, unit, drive;
 	int err, dr;
 
+#if defined(CONFIG_PPC_MERGE)
+	if (check_legacy_ioport(FDC1))
+		return -ENODEV;
+#endif
+
 	raw_cmd = NULL;
 
 	for (dr = 0; dr < N_DRIVE; dr++) {
@@ -4265,13 +4239,6 @@ static int __init floppy_init(void)
 	}
 
 	use_virtual_dma = can_use_virtual_dma & 1;
-#if defined(CONFIG_PPC_MERGE)
-	if (check_legacy_ioport(FDC1)) {
-		del_timer(&fd_timeout);
-		err = -ENODEV;
-		goto out_unreg_region;
-	}
-#endif
 	fdc_state[0].address = FDC1;
 	if (fdc_state[0].address == -1) {
 		del_timer(&fd_timeout);
@@ -4346,7 +4313,6 @@ static int __init floppy_init(void)
 	fdc = 0;
 	del_timer(&fd_timeout);
 	current_drive = 0;
-	floppy_release_irq_and_dma();
 	initialising = 0;
 	if (have_no_fdc) {
 		DPRINT("no floppy controllers found\n");
@@ -4504,7 +4470,7 @@ static void floppy_release_irq_and_dma(void)
 	if (irqdma_allocated) {
 		fd_disable_dma();
 		fd_free_dma();
-		schedule_work(&fd_free_irq_work);
+		fd_free_irq();
 		irqdma_allocated = 0;
 	}
 	set_dor(0, ~0, 8);
@@ -4599,8 +4565,6 @@ void cleanup_module(void)
 
 	/* eject disk, if any */
 	fd_eject(0);
-
-	flush_scheduled_work();		/* fd_free_irq() might be pending */
 
 	wait_for_completion(&device_release);
 }

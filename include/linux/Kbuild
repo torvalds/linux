@@ -1,0 +1,63 @@
+header-y := byteorder/ dvb/ hdlc/ isdn/ nfsd/ raid/ sunrpc/ tc_act/	\
+	netfilter/ netfilter_arp/ netfilter_bridge/ netfilter_ipv4/	\
+	netfilter_ipv6/
+
+header-y += affs_fs.h affs_hardblocks.h aio_abi.h a.out.h arcfb.h	\
+	atmapi.h atmbr2684.h atmclip.h atm_eni.h atm_he.h		\
+	atm_idt77105.h atmioc.h atmlec.h atmmpc.h atm_nicstar.h		\
+	atmppp.h atmsap.h atmsvc.h atm_zatm.h auto_fs4.h auxvec.h	\
+	awe_voice.h ax25.h b1lli.h baycom.h bfs_fs.h blkpg.h		\
+	bpqether.h cdk.h chio.h coda_psdev.h coff.h comstats.h		\
+	consolemap.h cycx_cfm.h dm-ioctl.h dn.h dqblk_v1.h		\
+	dqblk_v2.h dqblk_xfs.h efs_fs_sb.h elf-fdpic.h elf.h elf-em.h	\
+	fadvise.h fd.h fdreg.h ftape-header-segment.h ftape-vendors.h	\
+	fuse.h futex.h genetlink.h gen_stats.h gigaset_dev.h hdsmart.h	\
+	hpfs_fs.h hysdn_if.h i2c-dev.h i8k.h icmp.h			\
+	if_arcnet.h if_arp.h if_bonding.h if_cablemodem.h if_fc.h	\
+	if_fddi.h if.h if_hippi.h if_infiniband.h if_packet.h		\
+	if_plip.h if_ppp.h if_slip.h if_strip.h if_tunnel.h in6.h	\
+	in_route.h ioctl.h ip.h ipmi_msgdefs.h ip_mp_alg.h ipsec.h	\
+	ipx.h irda.h isdn_divertif.h iso_fs.h ite_gpio.h ixjuser.h	\
+	jffs2.h keyctl.h limits.h major.h matroxfb.h meye.h minix_fs.h	\
+	mmtimer.h mqueue.h mtio.h ncp_no.h netfilter_arp.h netrom.h	\
+	nfs2.h nfs4_mount.h nfs_mount.h openprom_fs.h param.h		\
+	pci_ids.h pci_regs.h personality.h pfkeyv2.h pg.h pkt_cls.h	\
+	pkt_sched.h posix_types.h ppdev.h prctl.h ps2esdi.h qic117.h	\
+	qnxtypes.h quotaio_v1.h quotaio_v2.h radeonfb.h raw.h		\
+	resource.h rose.h sctp.h smbno.h snmp.h sockios.h som.h		\
+	sound.h stddef.h synclink.h telephony.h termios.h ticable.h	\
+	times.h tiocl.h tipc.h toshiba.h ultrasound.h un.h utime.h	\
+	utsname.h video_decoder.h video_encoder.h videotext.h vt.h	\
+	wavefront.h wireless.h xattr.h x25.h zorro_ids.h
+
+unifdef-y += acct.h adb.h adfs_fs.h agpgart.h apm_bios.h atalk.h	\
+	atmarp.h atmdev.h atm.h atm_tcp.h audit.h auto_fs.h binfmts.h	\
+	capability.h capi.h cciss_ioctl.h cdrom.h cm4000_cs.h		\
+	cn_proc.h coda.h connector.h cramfs_fs.h cuda.h cyclades.h	\
+	dccp.h dirent.h divert.h elfcore.h errno.h errqueue.h		\
+	ethtool.h eventpoll.h ext2_fs.h ext3_fs.h fb.h fcntl.h		\
+	filter.h flat.h fs.h ftape.h gameport.h generic_serial.h	\
+	genhd.h hayesesp.h hdlcdrv.h hdlc.h hdreg.h hiddev.h hpet.h	\
+	i2c.h i2o-dev.h icmpv6.h if_bridge.h if_ec.h			\
+	if_eql.h if_ether.h if_frad.h if_ltalk.h if_pppox.h		\
+	if_shaper.h if_tr.h if_tun.h if_vlan.h if_wanpipe.h igmp.h	\
+	inet_diag.h in.h inotify.h input.h ipc.h ipmi.h ipv6.h		\
+	ipv6_route.h isdn.h isdnif.h isdn_ppp.h isicom.h jbd.h		\
+	joystick.h kdev_t.h kd.h kernelcapi.h kernel.h keyboard.h	\
+	llc.h loop.h lp.h mempolicy.h mii.h mman.h mroute.h msdos_fs.h	\
+	msg.h nbd.h ncp_fs.h ncp.h ncp_mount.h netdevice.h		\
+	netfilter_bridge.h netfilter_decnet.h netfilter.h		\
+	netfilter_ipv4.h netfilter_ipv6.h netfilter_logging.h net.h	\
+	netlink.h nfs3.h nfs4.h nfsacl.h nfs_fs.h nfs.h nfs_idmap.h	\
+	n_r3964.h nubus.h nvram.h parport.h patchkey.h pci.h pktcdvd.h	\
+	pmu.h poll.h ppp_defs.h ppp-comp.h ptrace.h qnx4_fs.h quota.h	\
+	random.h reboot.h reiserfs_fs.h reiserfs_xattr.h romfs_fs.h	\
+	route.h rtc.h rtnetlink.h scc.h sched.h sdla.h			\
+	selinux_netlink.h sem.h serial_core.h serial.h serio.h shm.h	\
+	signal.h smb_fs.h smb.h smb_mount.h socket.h sonet.h sonypi.h	\
+	soundcard.h stat.h sysctl.h tcp.h time.h timex.h tty.h types.h	\
+	udf_fs_i.h udp.h uinput.h uio.h unistd.h usb_ch9.h		\
+	usbdevice_fs.h user.h videodev2.h videodev.h wait.h		\
+	wanrouter.h watchdog.h xfrm.h zftape.h
+
+objhdr-y := version.h

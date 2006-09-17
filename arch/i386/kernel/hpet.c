@@ -35,7 +35,7 @@ static int __init init_hpet_clocksource(void)
 	void __iomem* hpet_base;
 	u64 tmp;
 
-	if (!hpet_address)
+	if (!is_hpet_enabled())
 		return -ENODEV;
 
 	/* calculate the hpet address: */

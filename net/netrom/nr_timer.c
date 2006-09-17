@@ -138,8 +138,8 @@ static void nr_heartbeat_expiry(unsigned long param)
 		if (sock_flag(sk, SOCK_DESTROY) ||
 		    (sk->sk_state == TCP_LISTEN && sock_flag(sk, SOCK_DEAD))) {
 			sock_hold(sk);
-			nr_destroy_socket(sk);
 			bh_unlock_sock(sk);
+			nr_destroy_socket(sk);
 			sock_put(sk);
 			return;
 		}

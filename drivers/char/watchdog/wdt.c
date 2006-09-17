@@ -494,7 +494,7 @@ static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
  */
 
 
-static struct file_operations wdt_fops = {
+static const struct file_operations wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= wdt_write,
@@ -510,7 +510,7 @@ static struct miscdevice wdt_miscdev = {
 };
 
 #ifdef CONFIG_WDT_501
-static struct file_operations wdt_temp_fops = {
+static const struct file_operations wdt_temp_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= wdt_temp_read,

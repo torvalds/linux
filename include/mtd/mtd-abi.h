@@ -133,7 +133,7 @@ struct nand_ecclayout {
 };
 
 /**
- * struct mtd_ecc_stats - error correction status
+ * struct mtd_ecc_stats - error correction stats
  *
  * @corrected:	number of corrected bits
  * @failed:	number of uncorrectable errors

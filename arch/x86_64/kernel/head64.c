@@ -85,6 +85,11 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	clear_bss();
 
 	/*
+	 * This must be called really, really early:
+	 */
+	lockdep_init();
+
+	/*
 	 * switch to init_level4_pgt from boot_level4_pgt
 	 */
 	memcpy(init_level4_pgt, boot_level4_pgt, PTRS_PER_PGD*sizeof(pgd_t));

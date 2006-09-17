@@ -598,7 +598,7 @@ static ssize_t lcd_read(struct file *file, char *buf,
  *	The various file operations we support.
  */
 
-static struct file_operations lcd_fops = {
+static const struct file_operations lcd_fops = {
 	.read = lcd_read,
 	.ioctl = lcd_ioctl,
 	.open = lcd_open,

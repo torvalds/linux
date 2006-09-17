@@ -31,6 +31,7 @@
 #include <linux/atmdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/poison.h>
 
 #include <asm/atomic.h>
 #include <asm/io.h>
@@ -1995,7 +1996,7 @@ static int __devinit ucode_init (loader_block * lb, amb_dev * dev) {
     }
     i += 1;
   }
-  if (*pointer == 0xdeadbeef) {
+  if (*pointer == ATM_POISON) {
     return loader_start (lb, dev, ucode_start);
   } else {
     // cast needed as there is no %? for pointer differnces

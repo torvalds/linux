@@ -194,7 +194,7 @@ static int scx200_wdt_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-static struct file_operations scx200_wdt_fops = {
+static const struct file_operations scx200_wdt_fops = {
 	.owner	 = THIS_MODULE,
 	.llseek	 = no_llseek,
 	.write   = scx200_wdt_write,

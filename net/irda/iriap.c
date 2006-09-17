@@ -345,7 +345,7 @@ static void iriap_disconnect_request(struct iriap_cb *self)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IAS_MAGIC, return;);
 
-	tx_skb = dev_alloc_skb(64);
+	tx_skb = alloc_skb(64, GFP_ATOMIC);
 	if (tx_skb == NULL) {
 		IRDA_DEBUG(0, "%s(), Could not allocate an sk_buff of length %d\n", 
 			__FUNCTION__, 64);
@@ -396,7 +396,7 @@ int iriap_getvaluebyclass_request(struct iriap_cb *self,
 	attr_len = strlen(attr);	/* Up to IAS_MAX_ATTRIBNAME = 60 */
 
 	skb_len = self->max_header_size+2+name_len+1+attr_len+4;
-	tx_skb = dev_alloc_skb(skb_len);
+	tx_skb = alloc_skb(skb_len, GFP_ATOMIC);
 	if (!tx_skb)
 		return -ENOMEM;
 
@@ -562,7 +562,8 @@ static void iriap_getvaluebyclass_response(struct iriap_cb *self,
 	 *  value. We add 32 bytes because of the 6 bytes for the frame and
 	 *  max 5 bytes for the value coding.
 	 */
-	tx_skb = dev_alloc_skb(value->len + self->max_header_size + 32);
+	tx_skb = alloc_skb(value->len + self->max_header_size + 32,
+			   GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 
@@ -700,7 +701,7 @@ void iriap_send_ack(struct iriap_cb *self)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IAS_MAGIC, return;);
 
-	tx_skb = dev_alloc_skb(64);
+	tx_skb = alloc_skb(64, GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 

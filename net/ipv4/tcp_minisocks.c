@@ -40,7 +40,7 @@ int sysctl_tcp_abort_on_overflow;
 struct inet_timewait_death_row tcp_death_row = {
 	.sysctl_max_tw_buckets = NR_FILE * 2,
 	.period		= TCP_TIMEWAIT_LEN / INET_TWDR_TWKILL_SLOTS,
-	.death_lock	= SPIN_LOCK_UNLOCKED,
+	.death_lock	= __SPIN_LOCK_UNLOCKED(tcp_death_row.death_lock),
 	.hashinfo	= &tcp_hashinfo,
 	.tw_timer	= TIMER_INITIALIZER(inet_twdr_hangman, 0,
 					    (unsigned long)&tcp_death_row),
@@ -589,8 +589,10 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 		/* RFC793: "second check the RST bit" and
 		 *	   "fourth, check the SYN bit"
 		 */
-		if (flg & (TCP_FLAG_RST|TCP_FLAG_SYN))
+		if (flg & (TCP_FLAG_RST|TCP_FLAG_SYN)) {
+			TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
 			goto embryonic_reset;
+		}
 
 		/* ACK sequence verified above, just make sure ACK is
 		 * set.  If ACK not set, just silently drop the packet.

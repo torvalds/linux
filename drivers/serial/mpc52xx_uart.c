@@ -726,8 +726,7 @@ mpc52xx_uart_probe(struct platform_device *dev)
 
 	spin_lock_init(&port->lock);
 	port->uartclk	= __res.bi_ipbfreq / 2; /* Look at CTLR doc */
-	port->fifosize	= 255; /* Should be 512 ! But it can't be */
-	                       /* stored in a unsigned char       */
+	port->fifosize	= 512;
 	port->iotype	= UPIO_MEM;
 	port->flags	= UPF_BOOT_AUTOCONF |
 			  ( uart_console(port) ? 0 : UPF_IOREMAP );

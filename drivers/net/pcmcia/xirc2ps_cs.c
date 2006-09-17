@@ -345,6 +345,7 @@ typedef struct local_info_t {
     void __iomem *dingo_ccr; /* only used for CEM56 cards */
     unsigned last_ptr_value; /* last packets transmitted value */
     const char *manf_str;
+    struct work_struct tx_timeout_task;
 } local_info_t;
 
 /****************
@@ -352,6 +353,7 @@ typedef struct local_info_t {
  */
 static int do_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void do_tx_timeout(struct net_device *dev);
+static void xirc2ps_tx_timeout_task(void *data);
 static struct net_device_stats *do_get_stats(struct net_device *dev);
 static void set_addresses(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
@@ -589,6 +591,7 @@ xirc2ps_probe(struct pcmcia_device *link)
 #ifdef HAVE_TX_TIMEOUT
     dev->tx_timeout = do_tx_timeout;
     dev->watchdog_timeo = TX_TIMEOUT;
+    INIT_WORK(&local->tx_timeout_task, xirc2ps_tx_timeout_task, dev);
 #endif
 
     return xirc2ps_config(link);
@@ -1341,15 +1344,22 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 /*====================================================================*/
 
 static void
-do_tx_timeout(struct net_device *dev)
+xirc2ps_tx_timeout_task(void *data)
 {
-    local_info_t *lp = netdev_priv(dev);
-    printk(KERN_NOTICE "%s: transmit timed out\n", dev->name);
-    lp->stats.tx_errors++;
+    struct net_device *dev = data;
     /* reset the card */
     do_reset(dev,1);
     dev->trans_start = jiffies;
     netif_wake_queue(dev);
+}
+
+static void
+do_tx_timeout(struct net_device *dev)
+{
+    local_info_t *lp = netdev_priv(dev);
+    lp->stats.tx_errors++;
+    printk(KERN_NOTICE "%s: transmit timed out\n", dev->name);
+    schedule_work(&lp->tx_timeout_task);
 }
 
 static int

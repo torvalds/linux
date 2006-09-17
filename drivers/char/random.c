@@ -416,7 +416,7 @@ static struct entropy_store input_pool = {
 	.poolinfo = &poolinfo_table[0],
 	.name = "input",
 	.limit = 1,
-	.lock = SPIN_LOCK_UNLOCKED,
+	.lock = __SPIN_LOCK_UNLOCKED(&input_pool.lock),
 	.pool = input_pool_data
 };
 
@@ -425,7 +425,7 @@ static struct entropy_store blocking_pool = {
 	.name = "blocking",
 	.limit = 1,
 	.pull = &input_pool,
-	.lock = SPIN_LOCK_UNLOCKED,
+	.lock = __SPIN_LOCK_UNLOCKED(&blocking_pool.lock),
 	.pool = blocking_pool_data
 };
 
@@ -433,7 +433,7 @@ static struct entropy_store nonblocking_pool = {
 	.poolinfo = &poolinfo_table[1],
 	.name = "nonblocking",
 	.pull = &input_pool,
-	.lock = SPIN_LOCK_UNLOCKED,
+	.lock = __SPIN_LOCK_UNLOCKED(&nonblocking_pool.lock),
 	.pool = nonblocking_pool_data
 };
 

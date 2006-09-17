@@ -926,11 +926,17 @@ static struct tuner_params tuner_lg_tdvs_h06xf_params[] = {
 
 /* ------------ TUNER_YMEC_TVF66T5_B_DFF - Philips PAL ------------ */
 
+static struct tuner_range tuner_ymec_tvf66t5_b_dff_pal_ranges[] = {
+	{ 16 * 160.25 /*MHz*/, 0x8e, 0x01, },
+	{ 16 * 464.25 /*MHz*/, 0x8e, 0x02, },
+	{ 16 * 999.99        , 0x8e, 0x08, },
+};
+
 static struct tuner_params tuner_ymec_tvf66t5_b_dff_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_PAL,
-		.ranges = tuner_tena_9533_di_pal_ranges,
-		.count  = ARRAY_SIZE(tuner_tena_9533_di_pal_ranges),
+		.ranges = tuner_ymec_tvf66t5_b_dff_pal_ranges,
+		.count  = ARRAY_SIZE(tuner_ymec_tvf66t5_b_dff_pal_ranges),
 	},
 };
 
@@ -1027,10 +1033,11 @@ static struct tuner_params tuner_tnf_5335mf_params[] = {
 /* 70-79 */
 /* ------------ TUNER_SAMSUNG_TCPN_2121P30A - Samsung NTSC ------------ */
 
+/* '+ 4' turns on the Low Noise Amplifier */
 static struct tuner_range tuner_samsung_tcpn_2121p30a_ntsc_ranges[] = {
-	{ 16 * 130.00 /*MHz*/, 0xce, 0x01, },
-	{ 16 * 364.50 /*MHz*/, 0xce, 0x02, },
-	{ 16 * 999.99        , 0xce, 0x08, },
+	{ 16 * 130.00 /*MHz*/, 0xce, 0x01 + 4, },
+	{ 16 * 364.50 /*MHz*/, 0xce, 0x02 + 4, },
+	{ 16 * 999.99        , 0xce, 0x08 + 4, },
 };
 
 static struct tuner_params tuner_samsung_tcpn_2121p30a_params[] = {
@@ -1060,10 +1067,11 @@ static struct tuner_params tuner_thomson_fe6600_params[] = {
 
 /* ------------ TUNER_SAMSUNG_TCPG_6121P30A - Samsung PAL ------------ */
 
+/* '+ 4' turns on the Low Noise Amplifier */
 static struct tuner_range tuner_samsung_tcpg_6121p30a_pal_ranges[] = {
-	{ 16 * 146.25 /*MHz*/, 0xce, 0x01, },
-	{ 16 * 428.50 /*MHz*/, 0xce, 0x02, },
-	{ 16 * 999.99        , 0xce, 0x08, },
+	{ 16 * 146.25 /*MHz*/, 0xce, 0x01 + 4, },
+	{ 16 * 428.50 /*MHz*/, 0xce, 0x02 + 4, },
+	{ 16 * 999.99        , 0xce, 0x08 + 4, },
 };
 
 static struct tuner_params tuner_samsung_tcpg_6121p30a_params[] = {

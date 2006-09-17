@@ -63,7 +63,7 @@ static int mmtimer_mmap(struct file *file, struct vm_area_struct *vma);
  */
 static unsigned long mmtimer_femtoperiod = 0;
 
-static struct file_operations mmtimer_fops = {
+static const struct file_operations mmtimer_fops = {
 	.owner =	THIS_MODULE,
 	.mmap =		mmtimer_mmap,
 	.ioctl =	mmtimer_ioctl,

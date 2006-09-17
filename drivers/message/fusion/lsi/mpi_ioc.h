@@ -6,7 +6,7 @@
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  August 11, 2000
  *
- *    mpi_ioc.h Version:  01.05.10
+ *    mpi_ioc.h Version:  01.05.11
  *
  *  Version History
  *  ---------------
@@ -87,6 +87,17 @@
  *                      Added new ReasonCode value for SAS Device Status Change
  *                      event.
  *                      Added new family code for FC949E.
+ *  03-27-06  01.05.11  Added MPI_IOCFACTS_CAPABILITY_TLR.
+ *                      Added additional Reason Codes and more event data fields
+ *                      to EVENT_DATA_SAS_DEVICE_STATUS_CHANGE.
+ *                      Added EVENT_DATA_SAS_BROADCAST_PRIMITIVE structure and
+ *                      new event.
+ *                      Added MPI_EVENT_SAS_SMP_ERROR and event data structure.
+ *                      Added MPI_EVENT_SAS_INIT_DEVICE_STATUS_CHANGE and event
+ *                      data structure.
+ *                      Added MPI_EVENT_SAS_INIT_TABLE_OVERFLOW and event
+ *                      data structure.
+ *                      Added MPI_EXT_IMAGE_TYPE_INITIALIZATION.
  *  --------------------------------------------------------------------------
  */
 
@@ -272,6 +283,7 @@ typedef struct _MSG_IOC_FACTS_REPLY
 #define MPI_IOCFACTS_CAPABILITY_MULTICAST               (0x00000100)
 #define MPI_IOCFACTS_CAPABILITY_SCSIIO32                (0x00000200)
 #define MPI_IOCFACTS_CAPABILITY_NO_SCSIIO16             (0x00000400)
+#define MPI_IOCFACTS_CAPABILITY_TLR                     (0x00000800)
 
 
 /*****************************************************************************
@@ -448,30 +460,34 @@ typedef struct _MSG_EVENT_ACK_REPLY
 
 /* Event */
 
-#define MPI_EVENT_NONE                      (0x00000000)
-#define MPI_EVENT_LOG_DATA                  (0x00000001)
-#define MPI_EVENT_STATE_CHANGE              (0x00000002)
-#define MPI_EVENT_UNIT_ATTENTION            (0x00000003)
-#define MPI_EVENT_IOC_BUS_RESET             (0x00000004)
-#define MPI_EVENT_EXT_BUS_RESET             (0x00000005)
-#define MPI_EVENT_RESCAN                    (0x00000006)
-#define MPI_EVENT_LINK_STATUS_CHANGE        (0x00000007)
-#define MPI_EVENT_LOOP_STATE_CHANGE         (0x00000008)
-#define MPI_EVENT_LOGOUT                    (0x00000009)
-#define MPI_EVENT_EVENT_CHANGE              (0x0000000A)
-#define MPI_EVENT_INTEGRATED_RAID           (0x0000000B)
-#define MPI_EVENT_SCSI_DEVICE_STATUS_CHANGE (0x0000000C)
-#define MPI_EVENT_ON_BUS_TIMER_EXPIRED      (0x0000000D)
-#define MPI_EVENT_QUEUE_FULL                (0x0000000E)
-#define MPI_EVENT_SAS_DEVICE_STATUS_CHANGE  (0x0000000F)
-#define MPI_EVENT_SAS_SES                   (0x00000010)
-#define MPI_EVENT_PERSISTENT_TABLE_FULL     (0x00000011)
-#define MPI_EVENT_SAS_PHY_LINK_STATUS       (0x00000012)
-#define MPI_EVENT_SAS_DISCOVERY_ERROR       (0x00000013)
-#define MPI_EVENT_IR_RESYNC_UPDATE          (0x00000014)
-#define MPI_EVENT_IR2                       (0x00000015)
-#define MPI_EVENT_SAS_DISCOVERY             (0x00000016)
-#define MPI_EVENT_LOG_ENTRY_ADDED           (0x00000021)
+#define MPI_EVENT_NONE                          (0x00000000)
+#define MPI_EVENT_LOG_DATA                      (0x00000001)
+#define MPI_EVENT_STATE_CHANGE                  (0x00000002)
+#define MPI_EVENT_UNIT_ATTENTION                (0x00000003)
+#define MPI_EVENT_IOC_BUS_RESET                 (0x00000004)
+#define MPI_EVENT_EXT_BUS_RESET                 (0x00000005)
+#define MPI_EVENT_RESCAN                        (0x00000006)
+#define MPI_EVENT_LINK_STATUS_CHANGE            (0x00000007)
+#define MPI_EVENT_LOOP_STATE_CHANGE             (0x00000008)
+#define MPI_EVENT_LOGOUT                        (0x00000009)
+#define MPI_EVENT_EVENT_CHANGE                  (0x0000000A)
+#define MPI_EVENT_INTEGRATED_RAID               (0x0000000B)
+#define MPI_EVENT_SCSI_DEVICE_STATUS_CHANGE     (0x0000000C)
+#define MPI_EVENT_ON_BUS_TIMER_EXPIRED          (0x0000000D)
+#define MPI_EVENT_QUEUE_FULL                    (0x0000000E)
+#define MPI_EVENT_SAS_DEVICE_STATUS_CHANGE      (0x0000000F)
+#define MPI_EVENT_SAS_SES                       (0x00000010)
+#define MPI_EVENT_PERSISTENT_TABLE_FULL         (0x00000011)
+#define MPI_EVENT_SAS_PHY_LINK_STATUS           (0x00000012)
+#define MPI_EVENT_SAS_DISCOVERY_ERROR           (0x00000013)
+#define MPI_EVENT_IR_RESYNC_UPDATE              (0x00000014)
+#define MPI_EVENT_IR2                           (0x00000015)
+#define MPI_EVENT_SAS_DISCOVERY                 (0x00000016)
+#define MPI_EVENT_SAS_BROADCAST_PRIMITIVE       (0x00000017)
+#define MPI_EVENT_SAS_INIT_DEVICE_STATUS_CHANGE (0x00000018)
+#define MPI_EVENT_SAS_INIT_TABLE_OVERFLOW       (0x00000019)
+#define MPI_EVENT_SAS_SMP_ERROR                 (0x0000001A)
+#define MPI_EVENT_LOG_ENTRY_ADDED               (0x00000021)
 
 /* AckRequired field values */
 
@@ -558,18 +574,25 @@ typedef struct _EVENT_DATA_SAS_DEVICE_STATUS_CHANGE
     U8                      PhyNum;                     /* 0Eh */
     U8                      Reserved1;                  /* 0Fh */
     U64                     SASAddress;                 /* 10h */
+    U8                      LUN[8];                     /* 18h */
+    U16                     TaskTag;                    /* 20h */
+    U16                     Reserved2;                  /* 22h */
 } EVENT_DATA_SAS_DEVICE_STATUS_CHANGE,
   MPI_POINTER PTR_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE,
   MpiEventDataSasDeviceStatusChange_t,
   MPI_POINTER pMpiEventDataSasDeviceStatusChange_t;
 
 /* MPI SAS Device Status Change Event data ReasonCode values */
-#define MPI_EVENT_SAS_DEV_STAT_RC_ADDED                 (0x03)
-#define MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING        (0x04)
-#define MPI_EVENT_SAS_DEV_STAT_RC_SMART_DATA            (0x05)
-#define MPI_EVENT_SAS_DEV_STAT_RC_NO_PERSIST_ADDED      (0x06)
-#define MPI_EVENT_SAS_DEV_STAT_RC_UNSUPPORTED           (0x07)
-#define MPI_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET (0x08)
+#define MPI_EVENT_SAS_DEV_STAT_RC_ADDED                     (0x03)
+#define MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING            (0x04)
+#define MPI_EVENT_SAS_DEV_STAT_RC_SMART_DATA                (0x05)
+#define MPI_EVENT_SAS_DEV_STAT_RC_NO_PERSIST_ADDED          (0x06)
+#define MPI_EVENT_SAS_DEV_STAT_RC_UNSUPPORTED               (0x07)
+#define MPI_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET     (0x08)
+#define MPI_EVENT_SAS_DEV_STAT_RC_TASK_ABORT_INTERNAL       (0x09)
+#define MPI_EVENT_SAS_DEV_STAT_RC_ABORT_TASK_SET_INTERNAL   (0x0A)
+#define MPI_EVENT_SAS_DEV_STAT_RC_CLEAR_TASK_SET_INTERNAL   (0x0B)
+#define MPI_EVENT_SAS_DEV_STAT_RC_QUERY_TASK_INTERNAL       (0x0C)
 
 
 /* SCSI Event data for Queue Full event */
@@ -742,6 +765,27 @@ typedef struct _EVENT_DATA_SAS_SES
 } EVENT_DATA_SAS_SES, MPI_POINTER PTR_EVENT_DATA_SAS_SES,
   MpiEventDataSasSes_t, MPI_POINTER pMpiEventDataSasSes_t;
 
+/* SAS Broadcast Primitive Event data */
+
+typedef struct _EVENT_DATA_SAS_BROADCAST_PRIMITIVE
+{
+    U8                      PhyNum;                     /* 00h */
+    U8                      Port;                       /* 01h */
+    U8                      PortWidth;                  /* 02h */
+    U8                      Primitive;                  /* 04h */
+} EVENT_DATA_SAS_BROADCAST_PRIMITIVE,
+  MPI_POINTER PTR_EVENT_DATA_SAS_BROADCAST_PRIMITIVE,
+  MpiEventDataSasBroadcastPrimitive_t,
+  MPI_POINTER pMpiEventDataSasBroadcastPrimitive_t;
+
+#define MPI_EVENT_PRIMITIVE_CHANGE              (0x01)
+#define MPI_EVENT_PRIMITIVE_EXPANDER            (0x03)
+#define MPI_EVENT_PRIMITIVE_RESERVED2           (0x04)
+#define MPI_EVENT_PRIMITIVE_RESERVED3           (0x05)
+#define MPI_EVENT_PRIMITIVE_RESERVED4           (0x06)
+#define MPI_EVENT_PRIMITIVE_CHANGE0_RESERVED    (0x07)
+#define MPI_EVENT_PRIMITIVE_CHANGE1_RESERVED    (0x08)
+
 /* SAS Phy Link Status Event data */
 
 typedef struct _EVENT_DATA_SAS_PHY_LINK_STATUS
@@ -803,6 +847,53 @@ typedef struct _EVENT_DATA_DISCOVERY_ERROR
 #define MPI_EVENT_DSCVRY_ERR_DS_TABLE_TO_TABLE              (0x00000400)
 #define MPI_EVENT_DSCVRY_ERR_DS_MULTPL_PATHS                (0x00000800)
 #define MPI_EVENT_DSCVRY_ERR_DS_MAX_SATA_TARGETS            (0x00001000)
+
+/* SAS SMP Error Event data */
+
+typedef struct _EVENT_DATA_SAS_SMP_ERROR
+{
+    U8                      Status;                     /* 00h */
+    U8                      Port;                       /* 01h */
+    U8                      SMPFunctionResult;          /* 02h */
+    U8                      Reserved1;                  /* 03h */
+    U64                     SASAddress;                 /* 04h */
+} EVENT_DATA_SAS_SMP_ERROR, MPI_POINTER PTR_EVENT_DATA_SAS_SMP_ERROR,
+  MpiEventDataSasSmpError_t, MPI_POINTER pMpiEventDataSasSmpError_t;
+
+/* defines for the Status field of the SAS SMP Error event */
+#define MPI_EVENT_SAS_SMP_FUNCTION_RESULT_VALID         (0x00)
+#define MPI_EVENT_SAS_SMP_CRC_ERROR                     (0x01)
+#define MPI_EVENT_SAS_SMP_TIMEOUT                       (0x02)
+#define MPI_EVENT_SAS_SMP_NO_DESTINATION                (0x03)
+#define MPI_EVENT_SAS_SMP_BAD_DESTINATION               (0x04)
+
+/* SAS Initiator Device Status Change Event data */
+
+typedef struct _EVENT_DATA_SAS_INIT_DEV_STATUS_CHANGE
+{
+    U8                      ReasonCode;                 /* 00h */
+    U8                      Port;                       /* 01h */
+    U16                     DevHandle;                  /* 02h */
+    U64                     SASAddress;                 /* 04h */
+} EVENT_DATA_SAS_INIT_DEV_STATUS_CHANGE,
+  MPI_POINTER PTR_EVENT_DATA_SAS_INIT_DEV_STATUS_CHANGE,
+  MpiEventDataSasInitDevStatusChange_t,
+  MPI_POINTER pMpiEventDataSasInitDevStatusChange_t;
+
+/* defines for the ReasonCode field of the SAS Initiator Device Status Change event */
+#define MPI_EVENT_SAS_INIT_RC_ADDED                 (0x01)
+
+/* SAS Initiator Device Table Overflow Event data */
+
+typedef struct _EVENT_DATA_SAS_INIT_TABLE_OVERFLOW
+{
+    U8                      MaxInit;                    /* 00h */
+    U8                      CurrentInit;                /* 01h */
+    U16                     Reserved1;                  /* 02h */
+} EVENT_DATA_SAS_INIT_TABLE_OVERFLOW,
+  MPI_POINTER PTR_EVENT_DATA_SAS_INIT_TABLE_OVERFLOW,
+  MpiEventDataSasInitTableOverflow_t,
+  MPI_POINTER pMpiEventDataSasInitTableOverflow_t;
 
 
 /*****************************************************************************
@@ -1013,5 +1104,6 @@ typedef struct _MPI_EXT_IMAGE_HEADER
 #define MPI_EXT_IMAGE_TYPE_FW                   (0x01)
 #define MPI_EXT_IMAGE_TYPE_NVDATA               (0x03)
 #define MPI_EXT_IMAGE_TYPE_BOOTLOADER           (0x04)
+#define MPI_EXT_IMAGE_TYPE_INITIALIZATION       (0x05)
 
 #endif

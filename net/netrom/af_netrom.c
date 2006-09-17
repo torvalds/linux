@@ -66,6 +66,14 @@ static DEFINE_SPINLOCK(nr_list_lock);
 static const struct proto_ops nr_proto_ops;
 
 /*
+ * NETROM network devices are virtual network devices encapsulating NETROM
+ * frames into AX.25 which will be sent through an AX.25 device, so form a
+ * special "super class" of normal net devices; split their locks off into a
+ * separate class since they always nest.
+ */
+static struct lock_class_key nr_netdev_xmit_lock_key;
+
+/*
  *	Socket removal during an interrupt is now safe.
  */
 static void nr_remove_socket(struct sock *sk)
@@ -800,7 +808,7 @@ static int nr_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	/* Now attach up the new socket */
 	kfree_skb(skb);
-	sk->sk_ack_backlog--;
+	sk_acceptq_removed(sk);
 	newsock->sk = newsk;
 
 out:
@@ -985,19 +993,19 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	nr_make->vr        = 0;
 	nr_make->vl        = 0;
 	nr_make->state     = NR_STATE_3;
-	sk->sk_ack_backlog++;
-
-	nr_insert_socket(make);
-
+	sk_acceptq_added(sk);
 	skb_queue_head(&sk->sk_receive_queue, skb);
-
-	nr_start_heartbeat(make);
-	nr_start_idletimer(make);
 
 	if (!sock_flag(sk, SOCK_DEAD))
 		sk->sk_data_ready(sk, skb->len);
 
 	bh_unlock_sock(sk);
+
+	nr_insert_socket(make);
+
+	nr_start_heartbeat(make);
+	nr_start_idletimer(make);
+
 	return 1;
 }
 
@@ -1382,13 +1390,11 @@ static int __init nr_proto_init(void)
 		return -1;
 	}
 
-	dev_nr = kmalloc(nr_ndevs * sizeof(struct net_device *), GFP_KERNEL);
+	dev_nr = kzalloc(nr_ndevs * sizeof(struct net_device *), GFP_KERNEL);
 	if (dev_nr == NULL) {
 		printk(KERN_ERR "NET/ROM: nr_proto_init - unable to allocate device array\n");
 		return -1;
 	}
-
-	memset(dev_nr, 0x00, nr_ndevs * sizeof(struct net_device *));
 
 	for (i = 0; i < nr_ndevs; i++) {
 		char name[IFNAMSIZ];
@@ -1407,6 +1413,7 @@ static int __init nr_proto_init(void)
 			free_netdev(dev);
 			goto fail;
 		}
+		lockdep_set_class(&dev->_xmit_lock, &nr_netdev_xmit_lock_key);
 		dev_nr[i] = dev;
 	}
 

@@ -51,12 +51,14 @@ _GLOBAL(call_do_softirq)
 	mtlr	r0
 	blr
 
-_GLOBAL(call___do_IRQ)
+_GLOBAL(call_handle_irq)
+	ld	r8,0(r7)
 	mflr	r0
 	std	r0,16(r1)
-	stdu	r1,THREAD_SIZE-112(r5)
-	mr	r1,r5
-	bl	.__do_IRQ
+	mtctr	r8
+	stdu	r1,THREAD_SIZE-112(r6)
+	mr	r1,r6
+	bctrl
 	ld	r1,0(r1)
 	ld	r0,16(r1)
 	mtlr	r0
@@ -685,7 +687,7 @@ _GLOBAL(kexec_sequence)
 	/* clear out hardware hash page table and tlb */
 	ld	r5,0(r27)		/* deref function descriptor */
 	mtctr	r5
-	bctrl				/* ppc_md.hash_clear_all(void); */
+	bctrl				/* ppc_md.hpte_clear_all(void); */
 
 /*
  *   kexec image calling is:

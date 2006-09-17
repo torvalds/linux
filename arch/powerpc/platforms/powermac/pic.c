@@ -65,39 +65,36 @@ static u32 level_mask[4];
 
 static DEFINE_SPINLOCK(pmac_pic_lock);
 
-#define GATWICK_IRQ_POOL_SIZE        10
-static struct interrupt_info gatwick_int_pool[GATWICK_IRQ_POOL_SIZE];
-
 #define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
 static unsigned long ppc_lost_interrupts[NR_MASK_WORDS];
+static unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
+static int pmac_irq_cascade = -1;
+static struct irq_host *pmac_pic_host;
 
-/*
- * Mark an irq as "lost".  This is only used on the pmac
- * since it can lose interrupts (see pmac_set_irq_mask).
- * -- Cort
- */
-void __set_lost(unsigned long irq_nr, int nokick)
+static void __pmac_retrigger(unsigned int irq_nr)
 {
-	if (!test_and_set_bit(irq_nr, ppc_lost_interrupts)) {
+	if (irq_nr >= max_real_irqs && pmac_irq_cascade > 0) {
+		__set_bit(irq_nr, ppc_lost_interrupts);
+		irq_nr = pmac_irq_cascade;
+		mb();
+	}
+	if (!__test_and_set_bit(irq_nr, ppc_lost_interrupts)) {
 		atomic_inc(&ppc_n_lost_interrupts);
-		if (!nokick)
-			set_dec(1);
+		set_dec(1);
 	}
 }
 
-static void pmac_mask_and_ack_irq(unsigned int irq_nr)
+static void pmac_mask_and_ack_irq(unsigned int virq)
 {
-        unsigned long bit = 1UL << (irq_nr & 0x1f);
-        int i = irq_nr >> 5;
+	unsigned int src = irq_map[virq].hwirq;
+        unsigned long bit = 1UL << (src & 0x1f);
+        int i = src >> 5;
         unsigned long flags;
 
-        if ((unsigned)irq_nr >= max_irqs)
-                return;
-
-        clear_bit(irq_nr, ppc_cached_irq_mask);
-        if (test_and_clear_bit(irq_nr, ppc_lost_interrupts))
-                atomic_dec(&ppc_n_lost_interrupts);
 	spin_lock_irqsave(&pmac_pic_lock, flags);
+        __clear_bit(src, ppc_cached_irq_mask);
+        if (__test_and_clear_bit(src, ppc_lost_interrupts))
+                atomic_dec(&ppc_n_lost_interrupts);
         out_le32(&pmac_irq_hw[i]->enable, ppc_cached_irq_mask[i]);
         out_le32(&pmac_irq_hw[i]->ack, bit);
         do {
@@ -109,16 +106,29 @@ static void pmac_mask_and_ack_irq(unsigned int irq_nr)
 	spin_unlock_irqrestore(&pmac_pic_lock, flags);
 }
 
-static void pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
+static void pmac_ack_irq(unsigned int virq)
+{
+	unsigned int src = irq_map[virq].hwirq;
+        unsigned long bit = 1UL << (src & 0x1f);
+        int i = src >> 5;
+        unsigned long flags;
+
+  	spin_lock_irqsave(&pmac_pic_lock, flags);
+	if (__test_and_clear_bit(src, ppc_lost_interrupts))
+                atomic_dec(&ppc_n_lost_interrupts);
+        out_le32(&pmac_irq_hw[i]->ack, bit);
+        (void)in_le32(&pmac_irq_hw[i]->ack);
+	spin_unlock_irqrestore(&pmac_pic_lock, flags);
+}
+
+static void __pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
 {
         unsigned long bit = 1UL << (irq_nr & 0x1f);
         int i = irq_nr >> 5;
-        unsigned long flags;
 
         if ((unsigned)irq_nr >= max_irqs)
                 return;
 
-	spin_lock_irqsave(&pmac_pic_lock, flags);
         /* enable unmasked interrupts */
         out_le32(&pmac_irq_hw[i]->enable, ppc_cached_irq_mask[i]);
 
@@ -135,71 +145,78 @@ static void pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
          * the bit in the flag register or request another interrupt.
          */
         if (bit & ppc_cached_irq_mask[i] & in_le32(&pmac_irq_hw[i]->level))
-		__set_lost((ulong)irq_nr, nokicklost);
-	spin_unlock_irqrestore(&pmac_pic_lock, flags);
+		__pmac_retrigger(irq_nr);
 }
 
 /* When an irq gets requested for the first client, if it's an
  * edge interrupt, we clear any previous one on the controller
  */
-static unsigned int pmac_startup_irq(unsigned int irq_nr)
+static unsigned int pmac_startup_irq(unsigned int virq)
 {
-        unsigned long bit = 1UL << (irq_nr & 0x1f);
-        int i = irq_nr >> 5;
+	unsigned long flags;
+	unsigned int src = irq_map[virq].hwirq;
+        unsigned long bit = 1UL << (src & 0x1f);
+        int i = src >> 5;
 
-	if ((irq_desc[irq_nr].status & IRQ_LEVEL) == 0)
+  	spin_lock_irqsave(&pmac_pic_lock, flags);
+	if ((irq_desc[virq].status & IRQ_LEVEL) == 0)
 		out_le32(&pmac_irq_hw[i]->ack, bit);
-        set_bit(irq_nr, ppc_cached_irq_mask);
-        pmac_set_irq_mask(irq_nr, 0);
+        __set_bit(src, ppc_cached_irq_mask);
+        __pmac_set_irq_mask(src, 0);
+  	spin_unlock_irqrestore(&pmac_pic_lock, flags);
 
 	return 0;
 }
 
-static void pmac_mask_irq(unsigned int irq_nr)
+static void pmac_mask_irq(unsigned int virq)
 {
-        clear_bit(irq_nr, ppc_cached_irq_mask);
-        pmac_set_irq_mask(irq_nr, 0);
-        mb();
+	unsigned long flags;
+	unsigned int src = irq_map[virq].hwirq;
+
+  	spin_lock_irqsave(&pmac_pic_lock, flags);
+        __clear_bit(src, ppc_cached_irq_mask);
+        __pmac_set_irq_mask(src, 1);
+  	spin_unlock_irqrestore(&pmac_pic_lock, flags);
 }
 
-static void pmac_unmask_irq(unsigned int irq_nr)
+static void pmac_unmask_irq(unsigned int virq)
 {
-        set_bit(irq_nr, ppc_cached_irq_mask);
-        pmac_set_irq_mask(irq_nr, 0);
+	unsigned long flags;
+	unsigned int src = irq_map[virq].hwirq;
+
+	spin_lock_irqsave(&pmac_pic_lock, flags);
+	__set_bit(src, ppc_cached_irq_mask);
+        __pmac_set_irq_mask(src, 0);
+  	spin_unlock_irqrestore(&pmac_pic_lock, flags);
 }
 
-static void pmac_end_irq(unsigned int irq_nr)
+static int pmac_retrigger(unsigned int virq)
 {
-	if (!(irq_desc[irq_nr].status & (IRQ_DISABLED|IRQ_INPROGRESS))
-	    && irq_desc[irq_nr].action) {
-        	set_bit(irq_nr, ppc_cached_irq_mask);
-	        pmac_set_irq_mask(irq_nr, 1);
-	}
+	unsigned long flags;
+
+  	spin_lock_irqsave(&pmac_pic_lock, flags);
+	__pmac_retrigger(irq_map[virq].hwirq);
+  	spin_unlock_irqrestore(&pmac_pic_lock, flags);
+	return 1;
 }
 
-
-struct hw_interrupt_type pmac_pic = {
+static struct irq_chip pmac_pic = {
 	.typename	= " PMAC-PIC ",
 	.startup	= pmac_startup_irq,
-	.enable		= pmac_unmask_irq,
-	.disable	= pmac_mask_irq,
-	.ack		= pmac_mask_and_ack_irq,
-	.end		= pmac_end_irq,
-};
-
-struct hw_interrupt_type gatwick_pic = {
-	.typename	= " GATWICK  ",
-	.startup	= pmac_startup_irq,
-	.enable		= pmac_unmask_irq,
-	.disable	= pmac_mask_irq,
-	.ack		= pmac_mask_and_ack_irq,
-	.end		= pmac_end_irq,
+	.mask		= pmac_mask_irq,
+	.ack		= pmac_ack_irq,
+	.mask_ack	= pmac_mask_and_ack_irq,
+	.unmask		= pmac_unmask_irq,
+	.retrigger	= pmac_retrigger,
 };
 
 static irqreturn_t gatwick_action(int cpl, void *dev_id, struct pt_regs *regs)
 {
+	unsigned long flags;
 	int irq, bits;
+	int rc = IRQ_NONE;
 
+  	spin_lock_irqsave(&pmac_pic_lock, flags);
 	for (irq = max_irqs; (irq -= 32) >= max_real_irqs; ) {
 		int i = irq >> 5;
 		bits = in_le32(&pmac_irq_hw[i]->event) | ppc_lost_interrupts[i];
@@ -209,17 +226,20 @@ static irqreturn_t gatwick_action(int cpl, void *dev_id, struct pt_regs *regs)
 		if (bits == 0)
 			continue;
 		irq += __ilog2(bits);
+		spin_unlock_irqrestore(&pmac_pic_lock, flags);
 		__do_IRQ(irq, regs);
-		return IRQ_HANDLED;
+		spin_lock_irqsave(&pmac_pic_lock, flags);
+		rc = IRQ_HANDLED;
 	}
-	printk("gatwick irq not from gatwick pic\n");
-	return IRQ_NONE;
+  	spin_unlock_irqrestore(&pmac_pic_lock, flags);
+	return rc;
 }
 
-static int pmac_get_irq(struct pt_regs *regs)
+static unsigned int pmac_pic_get_irq(struct pt_regs *regs)
 {
 	int irq;
 	unsigned long bits = 0;
+	unsigned long flags;
 
 #ifdef CONFIG_SMP
 	void psurge_smp_message_recv(struct pt_regs *);
@@ -227,9 +247,10 @@ static int pmac_get_irq(struct pt_regs *regs)
        	/* IPI's are a hack on the powersurge -- Cort */
        	if ( smp_processor_id() != 0 ) {
 		psurge_smp_message_recv(regs);
-		return -2;	/* ignore, already handled */
+		return NO_IRQ_IGNORE;	/* ignore, already handled */
         }
 #endif /* CONFIG_SMP */
+  	spin_lock_irqsave(&pmac_pic_lock, flags);
 	for (irq = max_real_irqs; (irq -= 32) >= 0; ) {
 		int i = irq >> 5;
 		bits = in_le32(&pmac_irq_hw[i]->event) | ppc_lost_interrupts[i];
@@ -241,133 +262,10 @@ static int pmac_get_irq(struct pt_regs *regs)
 		irq += __ilog2(bits);
 		break;
 	}
-
-	return irq;
-}
-
-/* This routine will fix some missing interrupt values in the device tree
- * on the gatwick mac-io controller used by some PowerBooks
- *
- * Walking of OF nodes could use a bit more fixing up here, but it's not
- * very important as this is all boot time code on static portions of the
- * device-tree.
- *
- * However, the modifications done to "intrs" will have to be removed and
- * replaced with proper updates of the "interrupts" properties or
- * AAPL,interrupts, yet to be decided, once the dynamic parsing is there.
- */
-static void __init pmac_fix_gatwick_interrupts(struct device_node *gw,
-					       int irq_base)
-{
-	struct device_node *node;
-	int count;
-
-	memset(gatwick_int_pool, 0, sizeof(gatwick_int_pool));
-	count = 0;
-	for (node = NULL; (node = of_get_next_child(gw, node)) != NULL;) {
-		/* Fix SCC */
-		if ((strcasecmp(node->name, "escc") == 0) && node->child) {
-			if (node->child->n_intrs < 3) {
-				node->child->intrs = &gatwick_int_pool[count];
-				count += 3;
-			}
-			node->child->n_intrs = 3;
-			node->child->intrs[0].line = 15+irq_base;
-			node->child->intrs[1].line =  4+irq_base;
-			node->child->intrs[2].line =  5+irq_base;
-			printk(KERN_INFO "irq: fixed SCC on gatwick"
-			       " (%d,%d,%d)\n",
-			       node->child->intrs[0].line,
-			       node->child->intrs[1].line,
-			       node->child->intrs[2].line);
-		}
-		/* Fix media-bay & left SWIM */
-		if (strcasecmp(node->name, "media-bay") == 0) {
-			struct device_node* ya_node;
-
-			if (node->n_intrs == 0)
-				node->intrs = &gatwick_int_pool[count++];
-			node->n_intrs = 1;
-			node->intrs[0].line = 29+irq_base;
-			printk(KERN_INFO "irq: fixed media-bay on gatwick"
-			       " (%d)\n", node->intrs[0].line);
-
-			ya_node = node->child;
-			while(ya_node) {
-				if (strcasecmp(ya_node->name, "floppy") == 0) {
-					if (ya_node->n_intrs < 2) {
-						ya_node->intrs = &gatwick_int_pool[count];
-						count += 2;
-					}
-					ya_node->n_intrs = 2;
-					ya_node->intrs[0].line = 19+irq_base;
-					ya_node->intrs[1].line =  1+irq_base;
-					printk(KERN_INFO "irq: fixed floppy on second controller (%d,%d)\n",
-						ya_node->intrs[0].line, ya_node->intrs[1].line);
-				}
-				if (strcasecmp(ya_node->name, "ata4") == 0) {
-					if (ya_node->n_intrs < 2) {
-						ya_node->intrs = &gatwick_int_pool[count];
-						count += 2;
-					}
-					ya_node->n_intrs = 2;
-					ya_node->intrs[0].line = 14+irq_base;
-					ya_node->intrs[1].line =  3+irq_base;
-					printk(KERN_INFO "irq: fixed ide on second controller (%d,%d)\n",
-						ya_node->intrs[0].line, ya_node->intrs[1].line);
-				}
-				ya_node = ya_node->sibling;
-			}
-		}
-	}
-	if (count > 10) {
-		printk("WARNING !! Gatwick interrupt pool overflow\n");
-		printk("  GATWICK_IRQ_POOL_SIZE = %d\n", GATWICK_IRQ_POOL_SIZE);
-		printk("              requested = %d\n", count);
-	}
-}
-
-/*
- * The PowerBook 3400/2400/3500 can have a combo ethernet/modem
- * card which includes an ohare chip that acts as a second interrupt
- * controller.  If we find this second ohare, set it up and fix the
- * interrupt value in the device tree for the ethernet chip.
- */
-static void __init enable_second_ohare(struct device_node *np)
-{
-	unsigned char bus, devfn;
-	unsigned short cmd;
-	struct device_node *ether;
-
-	/* This code doesn't strictly belong here, it could be part of
-	 * either the PCI initialisation or the feature code. It's kept
-	 * here for historical reasons.
-	 */
-	if (pci_device_from_OF_node(np, &bus, &devfn) == 0) {
-		struct pci_controller* hose =
-			pci_find_hose_for_OF_device(np);
-		if (!hose) {
-			printk(KERN_ERR "Can't find PCI hose for OHare2 !\n");
-			return;
-		}
-		early_read_config_word(hose, bus, devfn, PCI_COMMAND, &cmd);
-		cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
-		cmd &= ~PCI_COMMAND_IO;
-		early_write_config_word(hose, bus, devfn, PCI_COMMAND, cmd);
-	}
-
-	/* Fix interrupt for the modem/ethernet combo controller. The number
-	 * in the device tree (27) is bogus (correct for the ethernet-only
-	 * board but not the combo ethernet/modem board).
-	 * The real interrupt is 28 on the second controller -> 28+32 = 60.
-	 */
-	ether = of_find_node_by_name(NULL, "pci1011,14");
-	if (ether && ether->n_intrs > 0) {
-		ether->intrs[0].line = 60;
-		printk(KERN_INFO "irq: Fixed ethernet IRQ to %d\n",
-		       ether->intrs[0].line);
-	}
-	of_node_put(ether);
+  	spin_unlock_irqrestore(&pmac_pic_lock, flags);
+	if (unlikely(irq < 0))
+		return NO_IRQ;
+	return irq_linear_revmap(pmac_pic_host, irq);
 }
 
 #ifdef CONFIG_XMON
@@ -386,17 +284,61 @@ static struct irqaction gatwick_cascade_action = {
 	.name		= "cascade",
 };
 
+static int pmac_pic_host_match(struct irq_host *h, struct device_node *node)
+{
+	/* We match all, we don't always have a node anyway */
+	return 1;
+}
+
+static int pmac_pic_host_map(struct irq_host *h, unsigned int virq,
+			     irq_hw_number_t hw)
+{
+	struct irq_desc *desc = get_irq_desc(virq);
+	int level;
+
+	if (hw >= max_irqs)
+		return -EINVAL;
+
+	/* Mark level interrupts, set delayed disable for edge ones and set
+	 * handlers
+	 */
+	level = !!(level_mask[hw >> 5] & (1UL << (hw & 0x1f)));
+	if (level)
+		desc->status |= IRQ_LEVEL;
+	else
+		desc->status |= IRQ_DELAYED_DISABLE;
+	set_irq_chip_and_handler(virq, &pmac_pic, level ?
+				 handle_level_irq : handle_edge_irq);
+	return 0;
+}
+
+static int pmac_pic_host_xlate(struct irq_host *h, struct device_node *ct,
+			       u32 *intspec, unsigned int intsize,
+			       irq_hw_number_t *out_hwirq,
+			       unsigned int *out_flags)
+
+{
+	*out_flags = IRQ_TYPE_NONE;
+	*out_hwirq = *intspec;
+	return 0;
+}
+
+static struct irq_host_ops pmac_pic_host_ops = {
+	.match = pmac_pic_host_match,
+	.map = pmac_pic_host_map,
+	.xlate = pmac_pic_host_xlate,
+};
+
 static void __init pmac_pic_probe_oldstyle(void)
 {
         int i;
-	int irq_cascade = -1;
         struct device_node *master = NULL;
 	struct device_node *slave = NULL;
 	u8 __iomem *addr;
 	struct resource r;
 
 	/* Set our get_irq function */
-	ppc_md.get_irq = pmac_get_irq;
+	ppc_md.get_irq = pmac_pic_get_irq;
 
 	/*
 	 * Find the interrupt controller type & node
@@ -414,7 +356,6 @@ static void __init pmac_pic_probe_oldstyle(void)
 		if (slave) {
 			max_irqs = 64;
 			level_mask[1] = OHARE_LEVEL_MASK;
-			enable_second_ohare(slave);
 		}
 	} else if ((master = of_find_node_by_name(NULL, "mac-io")) != NULL) {
 		max_irqs = max_real_irqs = 64;
@@ -438,14 +379,18 @@ static void __init pmac_pic_probe_oldstyle(void)
 			max_irqs = 128;
 			level_mask[2] = HEATHROW_LEVEL_MASK;
 			level_mask[3] = 0;
-			pmac_fix_gatwick_interrupts(slave, max_real_irqs);
 		}
 	}
 	BUG_ON(master == NULL);
 
-	/* Set the handler for the main PIC */
-	for ( i = 0; i < max_real_irqs ; i++ )
-		irq_desc[i].chip = &pmac_pic;
+	/*
+	 * Allocate an irq host
+	 */
+	pmac_pic_host = irq_alloc_host(IRQ_HOST_MAP_LINEAR, max_irqs,
+				       &pmac_pic_host_ops,
+				       max_irqs);
+	BUG_ON(pmac_pic_host == NULL);
+	irq_set_default_host(pmac_pic_host);
 
 	/* Get addresses of first controller if we have a node for it */
 	BUG_ON(of_address_to_resource(master, 0, &r));
@@ -472,39 +417,38 @@ static void __init pmac_pic_probe_oldstyle(void)
 			pmac_irq_hw[i++] =
 				(volatile struct pmac_irq_hw __iomem *)
 				(addr + 0x10);
-		irq_cascade = slave->intrs[0].line;
+		pmac_irq_cascade = irq_of_parse_and_map(slave, 0);
 
 		printk(KERN_INFO "irq: Found slave Apple PIC %s for %d irqs"
 		       " cascade: %d\n", slave->full_name,
-		       max_irqs - max_real_irqs, irq_cascade);
+		       max_irqs - max_real_irqs, pmac_irq_cascade);
 	}
 	of_node_put(slave);
 
-	/* disable all interrupts in all controllers */
+	/* Disable all interrupts in all controllers */
 	for (i = 0; i * 32 < max_irqs; ++i)
 		out_le32(&pmac_irq_hw[i]->enable, 0);
 
-	/* mark level interrupts */
-	for (i = 0; i < max_irqs; i++)
-		if (level_mask[i >> 5] & (1UL << (i & 0x1f)))
-			irq_desc[i].status = IRQ_LEVEL;
+	/* Hookup cascade irq */
+	if (slave && pmac_irq_cascade != NO_IRQ)
+		setup_irq(pmac_irq_cascade, &gatwick_cascade_action);
 
-	/* Setup handlers for secondary controller and hook cascade irq*/
-	if (slave) {
-		for ( i = max_real_irqs ; i < max_irqs ; i++ )
-			irq_desc[i].chip = &gatwick_pic;
-		setup_irq(irq_cascade, &gatwick_cascade_action);
-	}
 	printk(KERN_INFO "irq: System has %d possible interrupts\n", max_irqs);
 #ifdef CONFIG_XMON
-	setup_irq(20, &xmon_action);
+	setup_irq(irq_create_mapping(NULL, 20), &xmon_action);
 #endif
 }
 #endif /* CONFIG_PPC32 */
 
-static int pmac_u3_cascade(struct pt_regs *regs, void *data)
+static void pmac_u3_cascade(unsigned int irq, struct irq_desc *desc,
+			    struct pt_regs *regs)
 {
-	return mpic_get_one_irq((struct mpic *)data, regs);
+	struct mpic *mpic = desc->handler_data;
+
+	unsigned int cascade_irq = mpic_get_one_irq(mpic, regs);
+	if (cascade_irq != NO_IRQ)
+		generic_handle_irq(cascade_irq, regs);
+	desc->chip->eoi(irq);
 }
 
 static void __init pmac_pic_setup_mpic_nmi(struct mpic *mpic)
@@ -514,21 +458,20 @@ static void __init pmac_pic_setup_mpic_nmi(struct mpic *mpic)
 	int nmi_irq;
 
 	pswitch = of_find_node_by_name(NULL, "programmer-switch");
-	if (pswitch && pswitch->n_intrs) {
-		nmi_irq = pswitch->intrs[0].line;
-		mpic_irq_set_priority(nmi_irq, 9);
-		setup_irq(nmi_irq, &xmon_action);
+	if (pswitch) {
+		nmi_irq = irq_of_parse_and_map(pswitch, 0);
+		if (nmi_irq != NO_IRQ) {
+			mpic_irq_set_priority(nmi_irq, 9);
+			setup_irq(nmi_irq, &xmon_action);
+		}
+		of_node_put(pswitch);
 	}
-	of_node_put(pswitch);
 #endif	/* defined(CONFIG_XMON) && defined(CONFIG_PPC32) */
 }
 
 static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 						int master)
 {
-	unsigned char senses[128];
-	int offset = master ? 0 : 128;
-	int count = master ? 128 : 124;
 	const char *name = master ? " MPIC 1   " : " MPIC 2   ";
 	struct resource r;
 	struct mpic *mpic;
@@ -541,8 +484,6 @@ static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 
 	pmac_call_feature(PMAC_FTR_ENABLE_MPIC, np, 0, 0);
 
-	prom_get_irq_senses(senses, offset, offset + count);
-
 	flags |= MPIC_WANTS_RESET;
 	if (get_property(np, "big-endian", NULL))
 		flags |= MPIC_BIG_ENDIAN;
@@ -553,8 +494,7 @@ static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 	if (master && (flags & MPIC_BIG_ENDIAN))
 		flags |= MPIC_BROKEN_U3;
 
-	mpic = mpic_alloc(r.start, flags, 0, offset, count, master ? 252 : 0,
-			  senses, count, name);
+	mpic = mpic_alloc(np, r.start, flags, 0, 0, name);
 	if (mpic == NULL)
 		return NULL;
 
@@ -567,6 +507,7 @@ static int __init pmac_pic_probe_mpic(void)
 {
 	struct mpic *mpic1, *mpic2;
 	struct device_node *np, *master = NULL, *slave = NULL;
+	unsigned int cascade;
 
 	/* We can have up to 2 MPICs cascaded */
 	for (np = NULL; (np = of_find_node_by_type(np, "open-pic"))
@@ -603,8 +544,15 @@ static int __init pmac_pic_probe_mpic(void)
 	of_node_put(master);
 
 	/* No slave, let's go out */
-	if (slave == NULL || slave->n_intrs < 1)
+	if (slave == NULL)
 		return 0;
+
+	/* Get/Map slave interrupt */
+	cascade = irq_of_parse_and_map(slave, 0);
+	if (cascade == NO_IRQ) {
+		printk(KERN_ERR "Failed to map cascade IRQ\n");
+		return 0;
+	}
 
 	mpic2 = pmac_setup_one_mpic(slave, 0);
 	if (mpic2 == NULL) {
@@ -612,7 +560,8 @@ static int __init pmac_pic_probe_mpic(void)
 		of_node_put(slave);
 		return 0;
 	}
-	mpic_setup_cascade(slave->intrs[0].line, pmac_u3_cascade, mpic2);
+	set_irq_data(cascade, mpic2);
+	set_irq_chained_handler(cascade, pmac_u3_cascade);
 
 	of_node_put(slave);
 	return 0;
@@ -621,6 +570,20 @@ static int __init pmac_pic_probe_mpic(void)
 
 void __init pmac_pic_init(void)
 {
+	unsigned int flags = 0;
+
+	/* We configure the OF parsing based on our oldworld vs. newworld
+	 * platform type and wether we were booted by BootX.
+	 */
+#ifdef CONFIG_PPC32
+	if (!pmac_newworld)
+		flags |= OF_IMAP_OLDWORLD_MAC;
+	if (get_property(of_chosen, "linux,bootx", NULL) != NULL)
+		flags |= OF_IMAP_NO_PHANDLE;
+#endif /* CONFIG_PPC_32 */
+
+	of_irq_map_init(flags);
+
 	/* We first try to detect Apple's new Core99 chipset, since mac-io
 	 * is quite different on those machines and contains an IBM MPIC2.
 	 */
@@ -643,6 +606,7 @@ unsigned long sleep_save_mask[2];
 
 /* This used to be passed by the PMU driver but that link got
  * broken with the new driver model. We use this tweak for now...
+ * We really want to do things differently though...
  */
 static int pmacpic_find_viaint(void)
 {
@@ -656,7 +620,7 @@ static int pmacpic_find_viaint(void)
 	np = of_find_node_by_name(NULL, "via-pmu");
 	if (np == NULL)
 		goto not_found;
-	viaint = np->intrs[0].line;
+	viaint = irq_of_parse_and_map(np, 0);;
 #endif /* CONFIG_ADB_PMU */
 
 not_found:

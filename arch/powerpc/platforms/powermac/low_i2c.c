@@ -522,10 +522,11 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 		host->speed = KW_I2C_MODE_25KHZ;
 		break;
 	}	
-	if (np->n_intrs > 0)
-		host->irq = np->intrs[0].line;
-	else
-		host->irq = NO_IRQ;
+	host->irq = irq_of_parse_and_map(np, 0);
+	if (host->irq == NO_IRQ)
+		printk(KERN_WARNING
+		       "low_i2c: Failed to map interrupt for %s\n",
+		       np->full_name);
 
 	host->base = ioremap((*addrp), 0x1000);
 	if (host->base == NULL) {

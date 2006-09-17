@@ -231,7 +231,7 @@ alloc_string(struct list_head *free_list, unsigned long len)
 		INIT_LIST_HEAD(&cs->update);
 		return cs;
 	}
-	return 0;
+	return NULL;
 }
 
 static inline unsigned long

@@ -453,11 +453,13 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 	if (firmware->size != BLACKBIRD_FIRM_IMAGE_SIZE) {
 		dprintk(0, "ERROR: Firmware size mismatch (have %zd, expected %d)\n",
 			firmware->size, BLACKBIRD_FIRM_IMAGE_SIZE);
+		release_firmware(firmware);
 		return -1;
 	}
 
 	if (0 != memcmp(firmware->data, magic, 8)) {
 		dprintk(0, "ERROR: Firmware magic mismatch, wrong file?\n");
+		release_firmware(firmware);
 		return -1;
 	}
 
@@ -478,6 +480,7 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 	}
 	if (checksum) {
 		dprintk(0, "ERROR: Firmware load failed (checksum mismatch).\n");
+		release_firmware(firmware);
 		return -1;
 	}
 	release_firmware(firmware);

@@ -5,16 +5,6 @@
  * 'tty.h' defines some structures used by tty_io.c and some defines.
  */
 
-/*
- * These constants are also useful for user-level apps (e.g., VC
- * resizing).
- */
-#define MIN_NR_CONSOLES 1       /* must be at least 1 */
-#define MAX_NR_CONSOLES	63	/* serial lines start at 64 */
-#define MAX_NR_USER_CONSOLES 63	/* must be root to allocate above this */
-		/* Note: the ioctl VT_GETSTATE does not work for
-		   consoles 16 and higher (since it returns a short) */
-
 #ifdef __KERNEL__
 #include <linux/fs.h>
 #include <linux/major.h>
@@ -22,7 +12,6 @@
 #include <linux/workqueue.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_ldisc.h>
-#include <linux/screen_info.h>
 #include <linux/mutex.h>
 
 #include <asm/system.h>
@@ -70,6 +59,7 @@ struct tty_bufhead {
 	struct tty_buffer *head;	/* Queue head */
 	struct tty_buffer *tail;	/* Active buffer */
 	struct tty_buffer *free;	/* Free queue head */
+	int memory_used;		/* Buffer space used excluding free queue */
 };
 /*
  * The pty uses char_buf and flag_buf as a contiguous buffer
@@ -270,7 +260,6 @@ struct tty_struct {
 extern void tty_write_flush(struct tty_struct *);
 
 extern struct termios tty_std_termios;
-extern int fg_console, last_console, want_console;
 
 extern int kmsg_redirect;
 

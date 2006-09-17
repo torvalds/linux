@@ -124,7 +124,7 @@ extern void __devinit calibrate_delay (void);
 extern void start_ap (void);
 extern unsigned long ia64_iobase;
 
-task_t *task_for_booting_cpu;
+struct task_struct *task_for_booting_cpu;
 
 /*
  * State for each CPU

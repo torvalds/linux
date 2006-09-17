@@ -292,7 +292,7 @@ static void rw_intr(struct scsi_cmnd * SCpnt)
 	 * how many actual sectors finished, and how many sectors we need
 	 * to say have failed.
 	 */
-	scsi_io_completion(SCpnt, good_bytes, block_sectors << 9);
+	scsi_io_completion(SCpnt, good_bytes);
 }
 
 static int sr_init_command(struct scsi_cmnd * SCpnt)
@@ -360,7 +360,7 @@ static int sr_init_command(struct scsi_cmnd * SCpnt)
 				"mismatch count %d, bytes %d\n",
 				size, SCpnt->request_bufflen);
 			if (SCpnt->request_bufflen > size)
-				SCpnt->request_bufflen = SCpnt->bufflen = size;
+				SCpnt->request_bufflen = size;
 		}
 	}
 
@@ -387,8 +387,7 @@ static int sr_init_command(struct scsi_cmnd * SCpnt)
 
 	if (this_count > 0xffff) {
 		this_count = 0xffff;
-		SCpnt->request_bufflen = SCpnt->bufflen =
-				this_count * s_size;
+		SCpnt->request_bufflen = this_count * s_size;
 	}
 
 	SCpnt->cmnd[2] = (unsigned char) (block >> 24) & 0xff;

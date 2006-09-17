@@ -320,7 +320,8 @@ void __init lmb_enforce_memory_limit(unsigned long memory_limit)
 		break;
 	}
 
-	lmb.rmo_size = lmb.memory.region[0].size;
+	if (lmb.memory.region[0].size < lmb.rmo_size)
+		lmb.rmo_size = lmb.memory.region[0].size;
 
 	/* And truncate any reserves above the limit also. */
 	for (i = 0; i < lmb.reserved.cnt; i++) {

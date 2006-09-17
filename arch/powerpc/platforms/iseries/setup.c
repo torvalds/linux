@@ -294,8 +294,6 @@ static void __init iSeries_init_early(void)
 {
 	DBG(" -> iSeries_init_early()\n");
 
-	ppc64_interrupt_controller = IC_ISERIES;
-
 #if defined(CONFIG_BLK_DEV_INITRD)
 	/*
 	 * If the init RAM disk has been configured and there is
@@ -658,12 +656,6 @@ static int __init iseries_probe(void)
 
 	powerpc_firmware_features |= FW_FEATURE_ISERIES;
 	powerpc_firmware_features |= FW_FEATURE_LPAR;
-
-	/*
-	 * The Hypervisor only allows us up to 256 interrupt
-	 * sources (the irq number is passed in a u8).
-	 */
-	virt_irq_max = 255;
 
 	hpte_init_iSeries();
 

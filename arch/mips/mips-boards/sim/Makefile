@@ -15,6 +15,5 @@
 # 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
 #
 
-obj-y := sim_setup.o sim_mem.o sim_time.o sim_printf.o sim_int.o sim_irq.o \
-	sim_cmdline.o
+obj-y := sim_setup.o sim_mem.o sim_time.o sim_printf.o sim_int.o sim_cmdline.o
 obj-$(CONFIG_SMP) += sim_smp.o

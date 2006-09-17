@@ -303,6 +303,16 @@ void alternatives_smp_switch(int smp)
 	struct smp_alt_module *mod;
 	unsigned long flags;
 
+#ifdef CONFIG_LOCKDEP
+	/*
+	 * A not yet fixed binutils section handling bug prevents
+	 * alternatives-replacement from working reliably, so turn
+	 * it off:
+	 */
+	printk("lockdep: not fixing up alternatives.\n");
+	return;
+#endif
+
 	if (no_replacement || smp_alt_once)
 		return;
 	BUG_ON(!smp && (num_online_cpus() > 1));

@@ -110,7 +110,7 @@ static ctl_table raid_table[] = {
 		.procname	= "speed_limit_min",
 		.data		= &sysctl_speed_limit_min,
 		.maxlen		= sizeof(int),
-		.mode		= 0644,
+		.mode		= S_IRUGO|S_IWUSR,
 		.proc_handler	= &proc_dointvec,
 	},
 	{
@@ -118,7 +118,7 @@ static ctl_table raid_table[] = {
 		.procname	= "speed_limit_max",
 		.data		= &sysctl_speed_limit_max,
 		.maxlen		= sizeof(int),
-		.mode		= 0644,
+		.mode		= S_IRUGO|S_IWUSR,
 		.proc_handler	= &proc_dointvec,
 	},
 	{ .ctl_name = 0 }
@@ -129,7 +129,7 @@ static ctl_table raid_dir_table[] = {
 		.ctl_name	= DEV_RAID,
 		.procname	= "raid",
 		.maxlen		= 0,
-		.mode		= 0555,
+		.mode		= S_IRUGO|S_IXUGO,
 		.child		= raid_table,
 	},
 	{ .ctl_name = 0 }
@@ -1062,6 +1062,11 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	if (rdev->sb_size & bmask)
 		rdev-> sb_size = (rdev->sb_size | bmask)+1;
 
+	if (sb->level == cpu_to_le32(LEVEL_MULTIPATH))
+		rdev->desc_nr = -1;
+	else
+		rdev->desc_nr = le32_to_cpu(sb->dev_number);
+
 	if (refdev == 0)
 		ret = 1;
 	else {
@@ -1171,7 +1176,6 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 	}
 	if (mddev->level != LEVEL_MULTIPATH) {
 		int role;
-		rdev->desc_nr = le32_to_cpu(sb->dev_number);
 		role = le16_to_cpu(sb->dev_roles[rdev->desc_nr]);
 		switch(role) {
 		case 0xffff: /* spare */
@@ -1404,7 +1408,7 @@ static int lock_rdev(mdk_rdev_t *rdev, dev_t dev)
 	struct block_device *bdev;
 	char b[BDEVNAME_SIZE];
 
-	bdev = open_by_devnum(dev, FMODE_READ|FMODE_WRITE);
+	bdev = open_partition_by_devnum(dev, FMODE_READ|FMODE_WRITE);
 	if (IS_ERR(bdev)) {
 		printk(KERN_ERR "md: could not open %s.\n",
 			__bdevname(dev, b));
@@ -1414,7 +1418,7 @@ static int lock_rdev(mdk_rdev_t *rdev, dev_t dev)
 	if (err) {
 		printk(KERN_ERR "md: could not bd_claim %s.\n",
 			bdevname(bdev, b));
-		blkdev_put(bdev);
+		blkdev_put_partition(bdev);
 		return err;
 	}
 	rdev->bdev = bdev;
@@ -1428,7 +1432,7 @@ static void unlock_rdev(mdk_rdev_t *rdev)
 	if (!bdev)
 		MD_BUG();
 	bd_release(bdev);
-	blkdev_put(bdev);
+	blkdev_put_partition(bdev);
 }
 
 void md_autodetect_dev(dev_t dev);
@@ -1593,6 +1597,19 @@ void md_update_sb(mddev_t * mddev)
 
 repeat:
 	spin_lock_irq(&mddev->write_lock);
+
+	if (mddev->degraded && mddev->sb_dirty == 3)
+		/* If the array is degraded, then skipping spares is both
+		 * dangerous and fairly pointless.
+		 * Dangerous because a device that was removed from the array
+		 * might have a event_count that still looks up-to-date,
+		 * so it can be re-added without a resync.
+		 * Pointless because if there are any spares to skip,
+		 * then a recovery will happen and soon that array won't
+		 * be degraded any more and the spare can go back to sleep then.
+		 */
+		mddev->sb_dirty = 1;
+
 	sync_req = mddev->in_sync;
 	mddev->utime = get_seconds();
 	if (mddev->sb_dirty == 3)
@@ -1779,8 +1796,8 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	}
 	return err ? err : len;
 }
-static struct rdev_sysfs_entry
-rdev_state = __ATTR(state, 0644, state_show, state_store);
+static struct rdev_sysfs_entry rdev_state =
+__ATTR(state, S_IRUGO|S_IWUSR, state_show, state_store);
 
 static ssize_t
 super_show(mdk_rdev_t *rdev, char *page)
@@ -1811,7 +1828,7 @@ errors_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	return -EINVAL;
 }
 static struct rdev_sysfs_entry rdev_errors =
-__ATTR(errors, 0644, errors_show, errors_store);
+__ATTR(errors, S_IRUGO|S_IWUSR, errors_show, errors_store);
 
 static ssize_t
 slot_show(mdk_rdev_t *rdev, char *page)
@@ -1845,7 +1862,7 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 
 
 static struct rdev_sysfs_entry rdev_slot =
-__ATTR(slot, 0644, slot_show, slot_store);
+__ATTR(slot, S_IRUGO|S_IWUSR, slot_show, slot_store);
 
 static ssize_t
 offset_show(mdk_rdev_t *rdev, char *page)
@@ -1867,7 +1884,7 @@ offset_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 }
 
 static struct rdev_sysfs_entry rdev_offset =
-__ATTR(offset, 0644, offset_show, offset_store);
+__ATTR(offset, S_IRUGO|S_IWUSR, offset_show, offset_store);
 
 static ssize_t
 rdev_size_show(mdk_rdev_t *rdev, char *page)
@@ -1891,7 +1908,7 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 }
 
 static struct rdev_sysfs_entry rdev_size =
-__ATTR(size, 0644, rdev_size_show, rdev_size_store);
+__ATTR(size, S_IRUGO|S_IWUSR, rdev_size_show, rdev_size_store);
 
 static struct attribute *rdev_default_attrs[] = {
 	&rdev_state.attr,
@@ -1922,6 +1939,8 @@ rdev_attr_store(struct kobject *kobj, struct attribute *attr,
 
 	if (!entry->store)
 		return -EIO;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
 	return entry->store(rdev, page, length);
 }
 
@@ -2128,7 +2147,7 @@ safe_delay_store(mddev_t *mddev, const char *cbuf, size_t len)
 	return len;
 }
 static struct md_sysfs_entry md_safe_delay =
-__ATTR(safe_mode_delay, 0644,safe_delay_show, safe_delay_store);
+__ATTR(safe_mode_delay, S_IRUGO|S_IWUSR,safe_delay_show, safe_delay_store);
 
 static ssize_t
 level_show(mddev_t *mddev, char *page)
@@ -2163,7 +2182,7 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 }
 
 static struct md_sysfs_entry md_level =
-__ATTR(level, 0644, level_show, level_store);
+__ATTR(level, S_IRUGO|S_IWUSR, level_show, level_store);
 
 
 static ssize_t
@@ -2188,7 +2207,7 @@ layout_store(mddev_t *mddev, const char *buf, size_t len)
 	return len;
 }
 static struct md_sysfs_entry md_layout =
-__ATTR(layout, 0655, layout_show, layout_store);
+__ATTR(layout, S_IRUGO|S_IWUSR, layout_show, layout_store);
 
 
 static ssize_t
@@ -2219,7 +2238,7 @@ raid_disks_store(mddev_t *mddev, const char *buf, size_t len)
 	return rv ? rv : len;
 }
 static struct md_sysfs_entry md_raid_disks =
-__ATTR(raid_disks, 0644, raid_disks_show, raid_disks_store);
+__ATTR(raid_disks, S_IRUGO|S_IWUSR, raid_disks_show, raid_disks_store);
 
 static ssize_t
 chunk_size_show(mddev_t *mddev, char *page)
@@ -2243,7 +2262,7 @@ chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
 	return len;
 }
 static struct md_sysfs_entry md_chunk_size =
-__ATTR(chunk_size, 0644, chunk_size_show, chunk_size_store);
+__ATTR(chunk_size, S_IRUGO|S_IWUSR, chunk_size_show, chunk_size_store);
 
 static ssize_t
 resync_start_show(mddev_t *mddev, char *page)
@@ -2267,7 +2286,7 @@ resync_start_store(mddev_t *mddev, const char *buf, size_t len)
 	return len;
 }
 static struct md_sysfs_entry md_resync_start =
-__ATTR(resync_start, 0644, resync_start_show, resync_start_store);
+__ATTR(resync_start, S_IRUGO|S_IWUSR, resync_start_show, resync_start_store);
 
 /*
  * The array state can be:
@@ -2437,7 +2456,8 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 	else
 		return len;
 }
-static struct md_sysfs_entry md_array_state = __ATTR(array_state, 0644, array_state_show, array_state_store);
+static struct md_sysfs_entry md_array_state =
+__ATTR(array_state, S_IRUGO|S_IWUSR, array_state_show, array_state_store);
 
 static ssize_t
 null_show(mddev_t *mddev, char *page)
@@ -2497,7 +2517,7 @@ new_dev_store(mddev_t *mddev, const char *buf, size_t len)
 }
 
 static struct md_sysfs_entry md_new_device =
-__ATTR(new_dev, 0200, null_show, new_dev_store);
+__ATTR(new_dev, S_IWUSR, null_show, new_dev_store);
 
 static ssize_t
 size_show(mddev_t *mddev, char *page)
@@ -2535,7 +2555,7 @@ size_store(mddev_t *mddev, const char *buf, size_t len)
 }
 
 static struct md_sysfs_entry md_size =
-__ATTR(component_size, 0644, size_show, size_store);
+__ATTR(component_size, S_IRUGO|S_IWUSR, size_show, size_store);
 
 
 /* Metdata version.
@@ -2583,7 +2603,7 @@ metadata_store(mddev_t *mddev, const char *buf, size_t len)
 }
 
 static struct md_sysfs_entry md_metadata =
-__ATTR(metadata_version, 0644, metadata_show, metadata_store);
+__ATTR(metadata_version, S_IRUGO|S_IWUSR, metadata_show, metadata_store);
 
 static ssize_t
 action_show(mddev_t *mddev, char *page)
@@ -2651,12 +2671,11 @@ mismatch_cnt_show(mddev_t *mddev, char *page)
 		       (unsigned long long) mddev->resync_mismatches);
 }
 
-static struct md_sysfs_entry
-md_scan_mode = __ATTR(sync_action, S_IRUGO|S_IWUSR, action_show, action_store);
+static struct md_sysfs_entry md_scan_mode =
+__ATTR(sync_action, S_IRUGO|S_IWUSR, action_show, action_store);
 
 
-static struct md_sysfs_entry
-md_mismatches = __ATTR_RO(mismatch_cnt);
+static struct md_sysfs_entry md_mismatches = __ATTR_RO(mismatch_cnt);
 
 static ssize_t
 sync_min_show(mddev_t *mddev, char *page)
@@ -2715,15 +2734,14 @@ static ssize_t
 sync_speed_show(mddev_t *mddev, char *page)
 {
 	unsigned long resync, dt, db;
-	resync = (mddev->curr_resync - atomic_read(&mddev->recovery_active));
+	resync = (mddev->curr_mark_cnt - atomic_read(&mddev->recovery_active));
 	dt = ((jiffies - mddev->resync_mark) / HZ);
 	if (!dt) dt++;
 	db = resync - (mddev->resync_mark_cnt);
 	return sprintf(page, "%ld\n", db/dt/2); /* K/sec */
 }
 
-static struct md_sysfs_entry
-md_sync_speed = __ATTR_RO(sync_speed);
+static struct md_sysfs_entry md_sync_speed = __ATTR_RO(sync_speed);
 
 static ssize_t
 sync_completed_show(mddev_t *mddev, char *page)
@@ -2739,8 +2757,7 @@ sync_completed_show(mddev_t *mddev, char *page)
 	return sprintf(page, "%lu / %lu\n", resync, max_blocks);
 }
 
-static struct md_sysfs_entry
-md_sync_completed = __ATTR_RO(sync_completed);
+static struct md_sysfs_entry md_sync_completed = __ATTR_RO(sync_completed);
 
 static ssize_t
 suspend_lo_show(mddev_t *mddev, char *page)
@@ -2857,6 +2874,8 @@ md_attr_store(struct kobject *kobj, struct attribute *attr,
 
 	if (!entry->store)
 		return -EIO;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
 	rv = mddev_lock(mddev);
 	if (!rv) {
 		rv = entry->store(mddev, page, length);
@@ -3091,7 +3110,6 @@ static int do_md_run(mddev_t * mddev)
 		}
 	
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-	md_wakeup_thread(mddev->thread);
 	
 	if (mddev->sb_dirty)
 		md_update_sb(mddev);
@@ -3112,7 +3130,7 @@ static int do_md_run(mddev_t * mddev)
 	 * start recovery here.  If we leave it to md_check_recovery,
 	 * it will remove the drives and not do the right thing
 	 */
-	if (mddev->degraded) {
+	if (mddev->degraded && !mddev->sync_thread) {
 		struct list_head *rtmp;
 		int spares = 0;
 		ITERATE_RDEV(mddev,rdev,rtmp)
@@ -3133,10 +3151,11 @@ static int do_md_run(mddev_t * mddev)
 				       mdname(mddev));
 				/* leave the spares where they are, it shouldn't hurt */
 				mddev->recovery = 0;
-			} else
-				md_wakeup_thread(mddev->sync_thread);
+			}
 		}
 	}
+	md_wakeup_thread(mddev->thread);
+	md_wakeup_thread(mddev->sync_thread); /* possibly kick off a reshape */
 
 	mddev->changed = 1;
 	md_new_event(mddev);
@@ -4586,6 +4605,8 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 		__builtin_return_address(0),__builtin_return_address(1),
 		__builtin_return_address(2),__builtin_return_address(3));
 */
+	if (!mddev->pers)
+		return;
 	if (!mddev->pers->error_handler)
 		return;
 	mddev->pers->error_handler(mddev,rdev);
@@ -4683,12 +4704,13 @@ static void status_resync(struct seq_file *seq, mddev_t * mddev)
 	 */
 	dt = ((jiffies - mddev->resync_mark) / HZ);
 	if (!dt) dt++;
-	db = resync - (mddev->resync_mark_cnt/2);
-	rt = (dt * ((unsigned long)(max_blocks-resync) / (db/100+1)))/100;
+	db = (mddev->curr_mark_cnt - atomic_read(&mddev->recovery_active))
+		- mddev->resync_mark_cnt;
+	rt = (dt * ((unsigned long)(max_blocks-resync) / (db/2/100+1)))/100;
 
 	seq_printf(seq, " finish=%lu.%lumin", rt / 60, (rt % 60)/6);
 
-	seq_printf(seq, " speed=%ldK/sec", db/dt);
+	seq_printf(seq, " speed=%ldK/sec", db/2/dt);
 }
 
 static void *md_seq_start(struct seq_file *seq, loff_t *pos)
@@ -5199,6 +5221,7 @@ void md_do_sync(mddev_t *mddev)
 
 		j += sectors;
 		if (j>1) mddev->curr_resync = j;
+		mddev->curr_mark_cnt = io_sectors;
 		if (last_check == 0)
 			/* this is the earliers that rebuilt will be
 			 * visible in /proc/mdstat
@@ -5645,8 +5668,8 @@ static int set_ro(const char *val, struct kernel_param *kp)
 	return -EINVAL;
 }
 
-module_param_call(start_ro, set_ro, get_ro, NULL, 0600);
-module_param(start_dirty_degraded, int, 0644);
+module_param_call(start_ro, set_ro, get_ro, NULL, S_IRUSR|S_IWUSR);
+module_param(start_dirty_degraded, int, S_IRUGO|S_IWUSR);
 
 
 EXPORT_SYMBOL(register_md_personality);

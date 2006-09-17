@@ -36,7 +36,6 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
-#include <linux/kthread.h>
 #include <acpi/acpi.h>
 #include <asm/io.h>
 #include <acpi/acpi_bus.h>
@@ -135,23 +134,6 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 	printk("%s", buffer);
 #endif
 }
-
-
-extern int acpi_in_resume;
-void *acpi_os_allocate(acpi_size size)
-{
-	if (acpi_in_resume)
-		return kmalloc(size, GFP_ATOMIC);
-	else
-		return kmalloc(size, GFP_KERNEL);
-}
-
-void acpi_os_free(void *ptr)
-{
-	kfree(ptr);
-}
-
-EXPORT_SYMBOL(acpi_os_free);
 
 acpi_status acpi_os_get_root_pointer(u32 flags, struct acpi_pointer *addr)
 {
@@ -600,16 +582,6 @@ static void acpi_os_execute_deferred(void *context)
 	return;
 }
 
-static int acpi_os_execute_thread(void *context)
-{
-	struct acpi_os_dpc *dpc = (struct acpi_os_dpc *)context;
-	if (dpc) {
-		dpc->function(dpc->context);
-		kfree(dpc);
-	}
-	do_exit(0);
-}
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_os_execute
@@ -631,10 +603,16 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
 	struct work_struct *task;
-	struct task_struct *p;
+
+	ACPI_FUNCTION_TRACE("os_queue_for_execution");
+
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "Scheduling function [%p(%p)] for deferred execution.\n",
+			  function, context));
 
 	if (!function)
-		return AE_BAD_PARAMETER;
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+
 	/*
 	 * Allocate/initialize DPC structure.  Note that this memory will be
 	 * freed by the callee.  The kernel handles the tq_struct list  in a
@@ -645,34 +623,27 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	 * We can save time and code by allocating the DPC and tq_structs
 	 * from the same memory.
 	 */
-	if (type == OSL_NOTIFY_HANDLER) {
-		dpc = kmalloc(sizeof(struct acpi_os_dpc), GFP_KERNEL);
-	} else {
-		dpc = kmalloc(sizeof(struct acpi_os_dpc) +
-				sizeof(struct work_struct), GFP_ATOMIC);
-	}
+
+	dpc =
+	    kmalloc(sizeof(struct acpi_os_dpc) + sizeof(struct work_struct),
+		    GFP_ATOMIC);
 	if (!dpc)
-		return AE_NO_MEMORY;
+		return_ACPI_STATUS(AE_NO_MEMORY);
+
 	dpc->function = function;
 	dpc->context = context;
 
-	if (type == OSL_NOTIFY_HANDLER) {
-		p = kthread_create(acpi_os_execute_thread, dpc, "kacpid_notify");
-		if (!IS_ERR(p)) {
-			wake_up_process(p);
-		} else {
-			status = AE_NO_MEMORY;
-			kfree(dpc);
-		}
-	} else {
-		task = (void *)(dpc + 1);
-		INIT_WORK(task, acpi_os_execute_deferred, (void *)dpc);
-		if (!queue_work(kacpid_wq, task)) {
-			status = AE_ERROR;
-			kfree(dpc);
-		}
+	task = (void *)(dpc + 1);
+	INIT_WORK(task, acpi_os_execute_deferred, (void *)dpc);
+
+	if (!queue_work(kacpid_wq, task)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Call to queue_work() failed.\n"));
+		kfree(dpc);
+		status = AE_ERROR;
 	}
-	return status;
+
+	return_ACPI_STATUS(status);
 }
 
 EXPORT_SYMBOL(acpi_os_execute);
@@ -742,7 +713,7 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Deleting semaphore[%p].\n", handle));
 
-	acpi_os_free(sem);
+	kfree(sem);
 	sem = NULL;
 
 	return AE_OK;
@@ -774,6 +745,16 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Waiting for semaphore[%p|%d|%d]\n",
 			  handle, units, timeout));
+
+	/*
+	 * This can be called during resume with interrupts off.
+	 * Like boot-time, we should be single threaded and will
+	 * always get the lock if we try -- timeout or not.
+	 * If this doesn't succeed, then we will oops courtesy of
+	 * might_sleep() in down().
+	 */
+	if (!down_trylock(sem))
+		return AE_OK;
 
 	switch (timeout) {
 		/*
@@ -1120,26 +1101,6 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
 {
 	kmem_cache_free(cache, object);
 	return (AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_os_acquire_object
- *
- * PARAMETERS:  Cache           - Handle to cache object
- *              ReturnObject    - Where the object is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Return a zero-filled object.
- *
- ******************************************************************************/
-
-void *acpi_os_acquire_object(acpi_cache_t * cache)
-{
-	void *object = kmem_cache_zalloc(cache, GFP_KERNEL);
-	WARN_ON(!object);
-	return object;
 }
 
 /******************************************************************************

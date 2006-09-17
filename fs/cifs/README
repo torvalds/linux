@@ -408,7 +408,7 @@ A partial list of the supported mount options follows:
   user_xattr    Allow getting and setting user xattrs as OS/2 EAs (extended
 		attributes) to the server (default) e.g. via setfattr 
 		and getfattr utilities. 
-  nouser_xattr  Do not allow getfattr/setfattr to get/set xattrs 
+  nouser_xattr  Do not allow getfattr/setfattr to get/set/list xattrs 
   mapchars      Translate six of the seven reserved characters (not backslash)
 			*?<>|:
 		to the remap range (above 0xF000), which also

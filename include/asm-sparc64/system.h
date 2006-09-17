@@ -123,8 +123,6 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 #define read_barrier_depends()		do { } while(0)
 #define set_mb(__var, __value) \
 	do { __var = __value; membar_storeload_storestore(); } while(0)
-#define set_wmb(__var, __value) \
-	do { __var = __value; wmb(); } while(0)
 
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()

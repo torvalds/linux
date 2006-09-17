@@ -67,6 +67,14 @@ static struct proto_ops rose_proto_ops;
 ax25_address rose_callsign;
 
 /*
+ * ROSE network devices are virtual network devices encapsulating ROSE
+ * frames into AX.25 which will be sent through an AX.25 device, so form a
+ * special "super class" of normal net devices; split their locks off into a
+ * separate class since they always nest.
+ */
+static struct lock_class_key rose_netdev_xmit_lock_key;
+
+/*
  *	Convert a ROSE address into text.
  */
 const char *rose2asc(const rose_address *addr)
@@ -752,7 +760,7 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 
 		rose_insert_socket(sk);		/* Finish the bind */
 	}
-
+rose_try_next_neigh:
 	rose->dest_addr   = addr->srose_addr;
 	rose->dest_call   = addr->srose_call;
 	rose->rand        = ((long)rose & 0xFFFF) + rose->lci;
@@ -810,6 +818,11 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 	}
 
 	if (sk->sk_state != TCP_ESTABLISHED) {
+	/* Try next neighbour */
+		rose->neighbour = rose_get_neigh(&addr->srose_addr, &cause, &diagnostic);
+		if (rose->neighbour)
+			goto rose_try_next_neigh;
+	/* No more neighbour */
 		sock->state = SS_UNCONNECTED;
 		return sock_error(sk);	/* Always set at this point */
 	}
@@ -1485,14 +1498,13 @@ static int __init rose_proto_init(void)
 
 	rose_callsign = null_ax25_address;
 
-	dev_rose = kmalloc(rose_ndevs * sizeof(struct net_device *), GFP_KERNEL);
+	dev_rose = kzalloc(rose_ndevs * sizeof(struct net_device *), GFP_KERNEL);
 	if (dev_rose == NULL) {
 		printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate device structure\n");
 		rc = -ENOMEM;
 		goto out_proto_unregister;
 	}
 
-	memset(dev_rose, 0x00, rose_ndevs * sizeof(struct net_device*));
 	for (i = 0; i < rose_ndevs; i++) {
 		struct net_device *dev;
 		char name[IFNAMSIZ];
@@ -1511,6 +1523,7 @@ static int __init rose_proto_init(void)
 			free_netdev(dev);
 			goto fail;
 		}
+		lockdep_set_class(&dev->_xmit_lock, &rose_netdev_xmit_lock_key);
 		dev_rose[i] = dev;
 	}
 

@@ -57,6 +57,7 @@ EXPORT_SYMBOL(scsi_bios_ptable);
 int scsicam_bios_param(struct block_device *bdev, sector_t capacity, int *ip)
 {
 	unsigned char *p;
+	u64 capacity64 = capacity;	/* Suppress gcc warning */
 	int ret;
 
 	p = scsi_bios_ptable(bdev);
@@ -68,7 +69,7 @@ int scsicam_bios_param(struct block_device *bdev, sector_t capacity, int *ip)
 			       (unsigned int *)ip + 0, (unsigned int *)ip + 1);
 	kfree(p);
 
-	if (ret == -1) {
+	if (ret == -1 && capacity64 < (1ULL << 32)) {
 		/* pick some standard mapping with at most 1024 cylinders,
 		   and at most 62 sectors per track - this works up to
 		   7905 MB */

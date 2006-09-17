@@ -83,7 +83,6 @@ struct acpi_pci_link_irq {
 struct acpi_pci_link {
 	struct list_head node;
 	struct acpi_device *device;
-	acpi_handle handle;
 	struct acpi_pci_link_irq irq;
 	int refcnt;
 };
@@ -175,7 +174,7 @@ static int acpi_pci_link_get_possible(struct acpi_pci_link *link)
 	if (!link)
 		return -EINVAL;
 
-	status = acpi_walk_resources(link->handle, METHOD_NAME__PRS,
+	status = acpi_walk_resources(link->device->handle, METHOD_NAME__PRS,
 				     acpi_pci_link_check_possible, link);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRS"));
@@ -249,8 +248,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 	acpi_status status = AE_OK;
 	int irq = 0;
 
-
-	if (!link || !link->handle)
+	if (!link)
 		return -EINVAL;
 
 	link->irq.active = 0;
@@ -274,7 +272,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 	 * Query and parse _CRS to get the current IRQ assignment. 
 	 */
 
-	status = acpi_walk_resources(link->handle, METHOD_NAME__CRS,
+	status = acpi_walk_resources(link->device->handle, METHOD_NAME__CRS,
 				     acpi_pci_link_check_current, &irq);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _CRS"));
@@ -360,7 +358,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 	resource->end.type = ACPI_RESOURCE_TYPE_END_TAG;
 
 	/* Attempt to set the resource */
-	status = acpi_set_current_resources(link->handle, &buffer);
+	status = acpi_set_current_resources(link->device->handle, &buffer);
 
 	/* check for total failure */
 	if (ACPI_FAILURE(status)) {
@@ -699,7 +697,7 @@ int acpi_pci_link_free_irq(acpi_handle handle)
 			  acpi_device_bid(link->device)));
 
 	if (link->refcnt == 0) {
-		acpi_ut_evaluate_object(link->handle, "_DIS", 0, NULL);
+		acpi_ut_evaluate_object(link->device->handle, "_DIS", 0, NULL);
 	}
 	mutex_unlock(&acpi_link_lock);
 	return (link->irq.active);
@@ -726,7 +724,6 @@ static int acpi_pci_link_add(struct acpi_device *device)
 	memset(link, 0, sizeof(struct acpi_pci_link));
 
 	link->device = device;
-	link->handle = device->handle;
 	strcpy(acpi_device_name(device), ACPI_PCI_LINK_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PCI_LINK_CLASS);
 	acpi_driver_data(device) = link;
@@ -765,7 +762,7 @@ static int acpi_pci_link_add(struct acpi_device *device)
 
       end:
 	/* disable all links -- to be activated on use */
-	acpi_ut_evaluate_object(link->handle, "_DIS", 0, NULL);
+	acpi_ut_evaluate_object(device->handle, "_DIS", 0, NULL);
 	mutex_unlock(&acpi_link_lock);
 
 	if (result)
@@ -783,11 +780,6 @@ static int acpi_pci_link_resume(struct acpi_pci_link *link)
 		return 0;
 }
 
-/*
- * FIXME: this is a workaround to avoid nasty warning.  It will be removed
- * after every device calls pci_disable_device in .resume.
- */
-int acpi_in_resume;
 static int irqrouter_resume(struct sys_device *dev)
 {
 	struct list_head *node = NULL;
@@ -797,7 +789,6 @@ static int irqrouter_resume(struct sys_device *dev)
 	/* Make sure SCI is enabled again (Apple firmware bug?) */
 	acpi_set_register(ACPI_BITREG_SCI_ENABLE, 1, ACPI_MTX_DO_NOT_LOCK);
 
-	acpi_in_resume = 1;
 	list_for_each(node, &acpi_link.entries) {
 		link = list_entry(node, struct acpi_pci_link, node);
 		if (!link) {
@@ -806,7 +797,6 @@ static int irqrouter_resume(struct sys_device *dev)
 		}
 		acpi_pci_link_resume(link);
 	}
-	acpi_in_resume = 0;
 	return 0;
 }
 

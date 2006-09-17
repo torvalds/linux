@@ -436,7 +436,7 @@ unsigned long iov_shorten(struct iovec *iov, unsigned long nr_segs, size_t to)
 	return seg;
 }
 
-EXPORT_SYMBOL(iov_shorten);
+EXPORT_UNUSED_SYMBOL(iov_shorten);  /*  June 2006  */
 
 /* A write operation does a read from user space and vice versa */
 #define vrfy_dir(type) ((type) == READ ? VERIFY_WRITE : VERIFY_READ)

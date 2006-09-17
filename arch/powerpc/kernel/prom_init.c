@@ -557,7 +557,9 @@ unsigned long prom_memparse(const char *ptr, const char **retptr)
 static void __init early_cmdline_parse(void)
 {
 	struct prom_t *_prom = &RELOC(prom);
+#ifdef CONFIG_PPC64
 	const char *opt;
+#endif
 	char *p;
 	int l = 0;
 
@@ -644,13 +646,13 @@ static unsigned char ibm_architecture_vec[] = {
 	5 - 1,				/* 5 option vectors */
 
 	/* option vector 1: processor architectures supported */
-	3 - 1,				/* length */
+	3 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
 	OV1_PPC_2_00 | OV1_PPC_2_01 | OV1_PPC_2_02 | OV1_PPC_2_03 |
 	OV1_PPC_2_04 | OV1_PPC_2_05,
 
 	/* option vector 2: Open Firmware options supported */
-	34 - 1,				/* length */
+	34 - 2,				/* length */
 	OV2_REAL_MODE,
 	0, 0,
 	W(0xffffffff),			/* real_base */
@@ -664,16 +666,16 @@ static unsigned char ibm_architecture_vec[] = {
 	48,				/* max log_2(hash table size) */
 
 	/* option vector 3: processor options supported */
-	3 - 1,				/* length */
+	3 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
 	OV3_FP | OV3_VMX,
 
 	/* option vector 4: IBM PAPR implementation */
-	2 - 1,				/* length */
+	2 - 2,				/* length */
 	0,				/* don't halt */
 
 	/* option vector 5: PAPR/OF options */
-	3 - 1,				/* length */
+	3 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
 	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES,
 };
@@ -1990,12 +1992,22 @@ static void __init flatten_device_tree(void)
 static void __init fixup_device_tree_maple(void)
 {
 	phandle isa;
+	u32 rloc = 0x01002000; /* IO space; PCI device = 4 */
 	u32 isa_ranges[6];
+	char *name;
 
-	isa = call_prom("finddevice", 1, 1, ADDR("/ht@0/isa@4"));
+	name = "/ht@0/isa@4";
+	isa = call_prom("finddevice", 1, 1, ADDR(name));
+	if (!PHANDLE_VALID(isa)) {
+		name = "/ht@0/isa@6";
+		isa = call_prom("finddevice", 1, 1, ADDR(name));
+		rloc = 0x01003000; /* IO space; PCI device = 6 */
+	}
 	if (!PHANDLE_VALID(isa))
 		return;
 
+	if (prom_getproplen(isa, "ranges") != 12)
+		return;
 	if (prom_getprop(isa, "ranges", isa_ranges, sizeof(isa_ranges))
 		== PROM_ERROR)
 		return;
@@ -2005,19 +2017,52 @@ static void __init fixup_device_tree_maple(void)
 		isa_ranges[2] != 0x00010000)
 		return;
 
-	prom_printf("fixing up bogus ISA range on Maple...\n");
+	prom_printf("Fixing up bogus ISA range on Maple/Apache...\n");
 
 	isa_ranges[0] = 0x1;
 	isa_ranges[1] = 0x0;
-	isa_ranges[2] = 0x01002000; /* IO space; PCI device = 4 */
+	isa_ranges[2] = rloc;
 	isa_ranges[3] = 0x0;
 	isa_ranges[4] = 0x0;
 	isa_ranges[5] = 0x00010000;
-	prom_setprop(isa, "/ht@0/isa@4", "ranges",
+	prom_setprop(isa, name, "ranges",
 			isa_ranges, sizeof(isa_ranges));
 }
 #else
 #define fixup_device_tree_maple()
+#endif
+
+#ifdef CONFIG_PPC_CHRP
+/* Pegasos lacks the "ranges" property in the isa node */
+static void __init fixup_device_tree_chrp(void)
+{
+	phandle isa;
+	u32 isa_ranges[6];
+	char *name;
+	int rc;
+
+	name = "/pci@80000000/isa@c";
+	isa = call_prom("finddevice", 1, 1, ADDR(name));
+	if (!PHANDLE_VALID(isa))
+		return;
+
+	rc = prom_getproplen(isa, "ranges");
+	if (rc != 0 && rc != PROM_ERROR)
+		return;
+
+	prom_printf("Fixing up missing ISA range on Pegasos...\n");
+
+	isa_ranges[0] = 0x1;
+	isa_ranges[1] = 0x0;
+	isa_ranges[2] = 0x01006000;
+	isa_ranges[3] = 0x0;
+	isa_ranges[4] = 0x0;
+	isa_ranges[5] = 0x00010000;
+	prom_setprop(isa, name, "ranges",
+			isa_ranges, sizeof(isa_ranges));
+}
+#else
+#define fixup_device_tree_chrp()
 #endif
 
 #if defined(CONFIG_PPC64) && defined(CONFIG_PPC_PMAC)
@@ -2067,6 +2112,7 @@ static void __init fixup_device_tree_pmac(void)
 static void __init fixup_device_tree(void)
 {
 	fixup_device_tree_maple();
+	fixup_device_tree_chrp();
 	fixup_device_tree_pmac();
 }
 

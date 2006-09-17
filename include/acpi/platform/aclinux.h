@@ -59,6 +59,7 @@
 #include <asm/acpi.h>
 #include <linux/slab.h>
 #include <linux/spinlock_types.h>
+#include <asm/current.h>
 
 /* Host-dependent types and defines */
 
@@ -100,8 +101,30 @@
 
 #define acpi_cpu_flags unsigned long
 
-#define acpi_thread_id u32
+#define acpi_thread_id struct task_struct *
 
-static inline acpi_thread_id acpi_os_get_thread_id(void) { return 0; }
+static inline acpi_thread_id acpi_os_get_thread_id(void) { return current; }
+
+/*
+ * The irqs_disabled() check is for resume from RAM.
+ * Interrupts are off during resume, just like they are for boot.
+ * However, boot has  (system_state != SYSTEM_RUNNING)
+ * to quiet __might_sleep() in kmalloc() and resume does not.
+ */
+#include <acpi/actypes.h>
+static inline void *acpi_os_allocate(acpi_size size) {
+	return kmalloc(size, irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL);
+}
+static inline void *acpi_os_allocate_zeroed(acpi_size size) {
+	return kzalloc(size, irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL);
+}
+
+static inline void *acpi_os_acquire_object(acpi_cache_t * cache) {
+        return kmem_cache_zalloc(cache, irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL);
+}
+
+#define ACPI_ALLOCATE(a)	acpi_os_allocate(a)
+#define ACPI_ALLOCATE_ZEROED(a)	acpi_os_allocate_zeroed(a)
+#define ACPI_FREE(a)		kfree(a)
 
 #endif				/* __ACLINUX_H__ */

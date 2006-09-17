@@ -1141,6 +1141,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 		put_device(dev);
 		clear_bit(chip->dev_num, dev_mask);
 		kfree(chip);
+		kfree(devname);
 		return NULL;
 	}
 

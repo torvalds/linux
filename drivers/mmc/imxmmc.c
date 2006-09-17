@@ -91,6 +91,8 @@ struct imxmci_host {
 	int			dma_allocated;
 
 	unsigned char		actual_bus_width;
+
+	int			prev_cmd_code;
 };
 
 #define IMXMCI_PEND_IRQ_b	0
@@ -248,16 +250,14 @@ static void imxmci_setup_data(struct imxmci_host *host, struct mmc_data *data)
 	 * partial FIFO fills and reads. The length has to be rounded up to burst size multiple.
 	 * This is required for SCR read at least.
 	 */
-	if (datasz < 64) {
+	if (datasz < 512) {
 		host->dma_size = datasz;
 		if (data->flags & MMC_DATA_READ) {
 			host->dma_dir = DMA_FROM_DEVICE;
 
 			/* Hack to enable read SCR */
-			if(datasz < 16) {
-				MMC_NOB = 1;
-				MMC_BLK_LEN = 16;
-			}
+			MMC_NOB = 1;
+			MMC_BLK_LEN = 512;
 		} else {
 			host->dma_dir = DMA_TO_DEVICE;
 		}
@@ -409,6 +409,9 @@ static void imxmci_finish_request(struct imxmci_host *host, struct mmc_request *
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
+	if(req && req->cmd)
+		host->prev_cmd_code = req->cmd->opcode;
+
 	host->req = NULL;
 	host->cmd = NULL;
 	host->data = NULL;
@@ -553,7 +556,6 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 {
 	int i;
 	int burst_len;
-	int flush_len;
 	int trans_done = 0;
 	unsigned int stat = *pstat;
 
@@ -566,44 +568,43 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 	dev_dbg(mmc_dev(host->mmc), "imxmci_cpu_driven_data running STATUS = 0x%x\n",
 		stat);
 
+	udelay(20);	/* required for clocks < 8MHz*/
+
 	if(host->dma_dir == DMA_FROM_DEVICE) {
 		imxmci_busy_wait_for_status(host, &stat,
 				STATUS_APPL_BUFF_FF | STATUS_DATA_TRANS_DONE,
-				20, "imxmci_cpu_driven_data read");
+				50, "imxmci_cpu_driven_data read");
 
 		while((stat & (STATUS_APPL_BUFF_FF |  STATUS_DATA_TRANS_DONE)) &&
-		      (host->data_cnt < host->dma_size)) {
-			if(burst_len >= host->dma_size - host->data_cnt) {
-				flush_len = burst_len;
-				burst_len = host->dma_size - host->data_cnt;
-				flush_len -= burst_len;
-				host->data_cnt = host->dma_size;
-				trans_done = 1;
-			} else {
-				flush_len = 0;
-				host->data_cnt += burst_len;
-			}
+		      (host->data_cnt < 512)) {
+
+			udelay(20);	/* required for clocks < 8MHz*/
 
 			for(i = burst_len; i>=2 ; i-=2) {
-				*(host->data_ptr++) = MMC_BUFFER_ACCESS;
-				udelay(20);	/* required for clocks < 8MHz*/
+				u16 data;
+				data = MMC_BUFFER_ACCESS;
+				udelay(10);	/* required for clocks < 8MHz*/
+				if(host->data_cnt+2 <= host->dma_size) {
+					*(host->data_ptr++) = data;
+				} else {
+					if(host->data_cnt < host->dma_size)
+						*(u8*)(host->data_ptr) = data;
+				}
+				host->data_cnt += 2;
 			}
-
-			if(i == 1)
-				*(u8*)(host->data_ptr) = MMC_BUFFER_ACCESS;
 
 			stat = MMC_STATUS;
 
-			/* Flush extra bytes from FIFO */
-			while(flush_len && !(stat & STATUS_DATA_TRANS_DONE)){
-				i = MMC_BUFFER_ACCESS;
-				stat = MMC_STATUS;
-				stat &= ~STATUS_CRC_READ_ERR; /* Stupid but required there */
-			}
-
-			dev_dbg(mmc_dev(host->mmc), "imxmci_cpu_driven_data read burst %d STATUS = 0x%x\n",
-				burst_len, stat);
+			dev_dbg(mmc_dev(host->mmc), "imxmci_cpu_driven_data read %d burst %d STATUS = 0x%x\n",
+				host->data_cnt, burst_len, stat);
 		}
+
+		if((stat & STATUS_DATA_TRANS_DONE) && (host->data_cnt >= 512))
+			trans_done = 1;
+
+		if(host->dma_size & 0x1ff)
+			stat &= ~STATUS_CRC_READ_ERR;
+
 	} else {
 		imxmci_busy_wait_for_status(host, &stat,
 				STATUS_APPL_BUFF_FE,
@@ -692,8 +693,8 @@ static void imxmci_tasklet_fnc(unsigned long data)
 		       what, stat, MMC_INT_MASK);
 		dev_err(mmc_dev(host->mmc), "CMD_DAT_CONT = 0x%04x, MMC_BLK_LEN = 0x%04x, MMC_NOB = 0x%04x, DMA_CCR = 0x%08x\n",
 		       MMC_CMD_DAT_CONT, MMC_BLK_LEN, MMC_NOB, CCR(host->dma));
-		dev_err(mmc_dev(host->mmc), "CMD%d, bus %d-bit, dma_size = 0x%x\n",
-		       host->cmd?host->cmd->opcode:0, 1<<host->actual_bus_width, host->dma_size);
+		dev_err(mmc_dev(host->mmc), "CMD%d, prevCMD%d, bus %d-bit, dma_size = 0x%x\n",
+		       host->cmd?host->cmd->opcode:0, host->prev_cmd_code, 1<<host->actual_bus_width, host->dma_size);
 	}
 
 	if(!host->present || timeout)

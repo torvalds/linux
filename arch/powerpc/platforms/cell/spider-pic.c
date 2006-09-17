@@ -22,6 +22,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/ioport.h>
 
 #include <asm/pgtable.h>
 #include <asm/prom.h>
@@ -56,184 +57,323 @@ enum {
 	REISWAITEN	= 0x508, /* Reissue Wait Control*/
 };
 
-static void __iomem *spider_pics[4];
+#define SPIDER_CHIP_COUNT	4
+#define SPIDER_SRC_COUNT	64
+#define SPIDER_IRQ_INVALID	63
 
-static void __iomem *spider_get_pic(int irq)
+struct spider_pic {
+	struct irq_host		*host;
+	struct device_node	*of_node;
+	void __iomem		*regs;
+	unsigned int		node_id;
+};
+static struct spider_pic spider_pics[SPIDER_CHIP_COUNT];
+
+static struct spider_pic *spider_virq_to_pic(unsigned int virq)
 {
-	int node = irq / IIC_NODE_STRIDE;
-	irq %= IIC_NODE_STRIDE;
-
-	if (irq >= IIC_EXT_OFFSET &&
-	    irq < IIC_EXT_OFFSET + IIC_NUM_EXT &&
-	    spider_pics)
-		return spider_pics[node];
-	return NULL;
+	return irq_map[virq].host->host_data;
 }
 
-static int spider_get_nr(unsigned int irq)
+static void __iomem *spider_get_irq_config(struct spider_pic *pic,
+					   unsigned int src)
 {
-	return (irq % IIC_NODE_STRIDE) - IIC_EXT_OFFSET;
+	return pic->regs + TIR_CFGA + 8 * src;
 }
 
-static void __iomem *spider_get_irq_config(int irq)
+static void spider_unmask_irq(unsigned int virq)
 {
-	void __iomem *pic;
-	pic = spider_get_pic(irq);
-	return pic + TIR_CFGA + 8 * spider_get_nr(irq);
+	struct spider_pic *pic = spider_virq_to_pic(virq);
+	void __iomem *cfg = spider_get_irq_config(pic, irq_map[virq].hwirq);
+
+	out_be32(cfg, in_be32(cfg) | 0x30000000u);
 }
 
-static void spider_enable_irq(unsigned int irq)
+static void spider_mask_irq(unsigned int virq)
 {
-	int nodeid = (irq / IIC_NODE_STRIDE) * 0x10;
-	void __iomem *cfg = spider_get_irq_config(irq);
-	irq = spider_get_nr(irq);
-
-	out_be32(cfg, (in_be32(cfg) & ~0xf0)| 0x3107000eu | nodeid);
-	out_be32(cfg + 4, in_be32(cfg + 4) | 0x00020000u | irq);
-}
-
-static void spider_disable_irq(unsigned int irq)
-{
-	void __iomem *cfg = spider_get_irq_config(irq);
-	irq = spider_get_nr(irq);
+	struct spider_pic *pic = spider_virq_to_pic(virq);
+	void __iomem *cfg = spider_get_irq_config(pic, irq_map[virq].hwirq);
 
 	out_be32(cfg, in_be32(cfg) & ~0x30000000u);
 }
 
-static unsigned int spider_startup_irq(unsigned int irq)
+static void spider_ack_irq(unsigned int virq)
 {
-	spider_enable_irq(irq);
+	struct spider_pic *pic = spider_virq_to_pic(virq);
+	unsigned int src = irq_map[virq].hwirq;
+
+	/* Reset edge detection logic if necessary
+	 */
+	if (get_irq_desc(virq)->status & IRQ_LEVEL)
+		return;
+
+	/* Only interrupts 47 to 50 can be set to edge */
+	if (src < 47 || src > 50)
+		return;
+
+	/* Perform the clear of the edge logic */
+	out_be32(pic->regs + TIR_EDC, 0x100 | (src & 0xf));
+}
+
+static int spider_set_irq_type(unsigned int virq, unsigned int type)
+{
+	unsigned int sense = type & IRQ_TYPE_SENSE_MASK;
+	struct spider_pic *pic = spider_virq_to_pic(virq);
+	unsigned int hw = irq_map[virq].hwirq;
+	void __iomem *cfg = spider_get_irq_config(pic, hw);
+	struct irq_desc *desc = get_irq_desc(virq);
+	u32 old_mask;
+	u32 ic;
+
+	/* Note that only level high is supported for most interrupts */
+	if (sense != IRQ_TYPE_NONE && sense != IRQ_TYPE_LEVEL_HIGH &&
+	    (hw < 47 || hw > 50))
+		return -EINVAL;
+
+	/* Decode sense type */
+	switch(sense) {
+	case IRQ_TYPE_EDGE_RISING:
+		ic = 0x3;
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		ic = 0x2;
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		ic = 0x0;
+		break;
+	case IRQ_TYPE_LEVEL_HIGH:
+	case IRQ_TYPE_NONE:
+		ic = 0x1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Update irq_desc */
+	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
+	desc->status |= type & IRQ_TYPE_SENSE_MASK;
+	if (type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
+		desc->status |= IRQ_LEVEL;
+
+	/* Configure the source. One gross hack that was there before and
+	 * that I've kept around is the priority to the BE which I set to
+	 * be the same as the interrupt source number. I don't know wether
+	 * that's supposed to make any kind of sense however, we'll have to
+	 * decide that, but for now, I'm not changing the behaviour.
+	 */
+	old_mask = in_be32(cfg) & 0x30000000u;
+	out_be32(cfg, old_mask | (ic << 24) | (0x7 << 16) |
+		 (pic->node_id << 4) | 0xe);
+	out_be32(cfg + 4, (0x2 << 16) | (hw & 0xff));
+
 	return 0;
 }
 
-static void spider_shutdown_irq(unsigned int irq)
-{
-	spider_disable_irq(irq);
-}
-
-static void spider_end_irq(unsigned int irq)
-{
-	spider_enable_irq(irq);
-}
-
-static void spider_ack_irq(unsigned int irq)
-{
-	spider_disable_irq(irq);
-	iic_local_enable();
-}
-
-static struct hw_interrupt_type spider_pic = {
+static struct irq_chip spider_pic = {
 	.typename = " SPIDER   ",
-	.startup = spider_startup_irq,
-	.shutdown = spider_shutdown_irq,
-	.enable = spider_enable_irq,
-	.disable = spider_disable_irq,
+	.unmask = spider_unmask_irq,
+	.mask = spider_mask_irq,
 	.ack = spider_ack_irq,
-	.end = spider_end_irq,
+	.set_type = spider_set_irq_type,
 };
 
-int spider_get_irq(int node)
+static int spider_host_match(struct irq_host *h, struct device_node *node)
 {
-	unsigned long cs;
-	void __iomem *regs = spider_pics[node];
+	struct spider_pic *pic = h->host_data;
+	return node == pic->of_node;
+}
 
-	cs = in_be32(regs + TIR_CS) >> 24;
+static int spider_host_map(struct irq_host *h, unsigned int virq,
+			irq_hw_number_t hw)
+{
+	set_irq_chip_and_handler(virq, &spider_pic, handle_level_irq);
 
-	if (cs == 63)
-		return -1;
+	/* Set default irq type */
+	set_irq_type(virq, IRQ_TYPE_NONE);
+
+	return 0;
+}
+
+static int spider_host_xlate(struct irq_host *h, struct device_node *ct,
+			   u32 *intspec, unsigned int intsize,
+			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
+
+{
+	/* Spider interrupts have 2 cells, first is the interrupt source,
+	 * second, well, I don't know for sure yet ... We mask the top bits
+	 * because old device-trees encode a node number in there
+	 */
+	*out_hwirq = intspec[0] & 0x3f;
+	*out_flags = IRQ_TYPE_LEVEL_HIGH;
+	return 0;
+}
+
+static struct irq_host_ops spider_host_ops = {
+	.match = spider_host_match,
+	.map = spider_host_map,
+	.xlate = spider_host_xlate,
+};
+
+static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc,
+			       struct pt_regs *regs)
+{
+	struct spider_pic *pic = desc->handler_data;
+	unsigned int cs, virq;
+
+	cs = in_be32(pic->regs + TIR_CS) >> 24;
+	if (cs == SPIDER_IRQ_INVALID)
+		virq = NO_IRQ;
 	else
-		return cs;
+		virq = irq_linear_revmap(pic->host, cs);
+	if (virq != NO_IRQ)
+		generic_handle_irq(virq, regs);
+	desc->chip->eoi(irq);
 }
 
-/* hardcoded part to be compatible with older firmware */
-
-void spider_init_IRQ_hardcoded(void)
+/* For hooking up the cascace we have a problem. Our device-tree is
+ * crap and we don't know on which BE iic interrupt we are hooked on at
+ * least not the "standard" way. We can reconstitute it based on two
+ * informations though: which BE node we are connected to and wether
+ * we are connected to IOIF0 or IOIF1. Right now, we really only care
+ * about the IBM cell blade and we know that its firmware gives us an
+ * interrupt-map property which is pretty strange.
+ */
+static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 {
-	int node;
-	long spiderpic;
-	long pics[] = { 0x24000008000, 0x34000008000 };
-	int n;
+	unsigned int virq;
+	u32 *imap, *tmp;
+	int imaplen, intsize, unit;
+	struct device_node *iic;
+	struct irq_host *iic_host;
 
-	pr_debug("%s(%d): Using hardcoded defaults\n", __FUNCTION__, __LINE__);
-
-	for (node = 0; node < num_present_cpus()/2; node++) {
-		spiderpic = pics[node];
-		printk(KERN_DEBUG "SPIDER addr: %lx\n", spiderpic);
-		spider_pics[node] = ioremap(spiderpic, 0x800);
-		for (n = 0; n < IIC_NUM_EXT; n++) {
-			int irq = n + IIC_EXT_OFFSET + node * IIC_NODE_STRIDE;
-			get_irq_desc(irq)->chip = &spider_pic;
-		}
-
- 		/* do not mask any interrupts because of level */
- 		out_be32(spider_pics[node] + TIR_MSK, 0x0);
-
- 		/* disable edge detection clear */
- 		/* out_be32(spider_pics[node] + TIR_EDC, 0x0); */
-
- 		/* enable interrupt packets to be output */
- 		out_be32(spider_pics[node] + TIR_PIEN,
-			in_be32(spider_pics[node] + TIR_PIEN) | 0x1);
-
- 		/* Enable the interrupt detection enable bit. Do this last! */
- 		out_be32(spider_pics[node] + TIR_DEN,
-			in_be32(spider_pics[node] + TIR_DEN) | 0x1);
+#if 0 /* Enable that when we have a way to retreive the node as well */
+	/* First, we check wether we have a real "interrupts" in the device
+	 * tree in case the device-tree is ever fixed
+	 */
+	struct of_irq oirq;
+	if (of_irq_map_one(pic->of_node, 0, &oirq) == 0) {
+		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
+					     oirq.size);
+		goto bail;
 	}
+#endif
+
+	/* Now do the horrible hacks */
+	tmp = (u32 *)get_property(pic->of_node, "#interrupt-cells", NULL);
+	if (tmp == NULL)
+		return NO_IRQ;
+	intsize = *tmp;
+	imap = (u32 *)get_property(pic->of_node, "interrupt-map", &imaplen);
+	if (imap == NULL || imaplen < (intsize + 1))
+		return NO_IRQ;
+	iic = of_find_node_by_phandle(imap[intsize]);
+	if (iic == NULL)
+		return NO_IRQ;
+	imap += intsize + 1;
+	tmp = (u32 *)get_property(iic, "#interrupt-cells", NULL);
+	if (tmp == NULL)
+		return NO_IRQ;
+	intsize = *tmp;
+	/* Assume unit is last entry of interrupt specifier */
+	unit = imap[intsize - 1];
+	/* Ok, we have a unit, now let's try to get the node */
+	tmp = (u32 *)get_property(iic, "ibm,interrupt-server-ranges", NULL);
+	if (tmp == NULL) {
+		of_node_put(iic);
+		return NO_IRQ;
+	}
+	/* ugly as hell but works for now */
+	pic->node_id = (*tmp) >> 1;
+	of_node_put(iic);
+
+	/* Ok, now let's get cracking. You may ask me why I just didn't match
+	 * the iic host from the iic OF node, but that way I'm still compatible
+	 * with really really old old firmwares for which we don't have a node
+	 */
+	iic_host = iic_get_irq_host(pic->node_id);
+	if (iic_host == NULL)
+		return NO_IRQ;
+	/* Manufacture an IIC interrupt number of class 2 */
+	virq = irq_create_mapping(iic_host, 0x20 | unit);
+	if (virq == NO_IRQ)
+		printk(KERN_ERR "spider_pic: failed to map cascade !");
+	return virq;
 }
 
-void spider_init_IRQ(void)
+
+static void __init spider_init_one(struct device_node *of_node, int chip,
+				   unsigned long addr)
 {
-	long spider_reg;
+	struct spider_pic *pic = &spider_pics[chip];
+	int i, virq;
+
+	/* Map registers */
+	pic->regs = ioremap(addr, 0x1000);
+	if (pic->regs == NULL)
+		panic("spider_pic: can't map registers !");
+
+	/* Allocate a host */
+	pic->host = irq_alloc_host(IRQ_HOST_MAP_LINEAR, SPIDER_SRC_COUNT,
+				   &spider_host_ops, SPIDER_IRQ_INVALID);
+	if (pic->host == NULL)
+		panic("spider_pic: can't allocate irq host !");
+	pic->host->host_data = pic;
+
+	/* Fill out other bits */
+	pic->of_node = of_node_get(of_node);
+
+	/* Go through all sources and disable them */
+	for (i = 0; i < SPIDER_SRC_COUNT; i++) {
+		void __iomem *cfg = pic->regs + TIR_CFGA + 8 * i;
+		out_be32(cfg, in_be32(cfg) & ~0x30000000u);
+	}
+
+	/* do not mask any interrupts because of level */
+	out_be32(pic->regs + TIR_MSK, 0x0);
+
+	/* enable interrupt packets to be output */
+	out_be32(pic->regs + TIR_PIEN, in_be32(pic->regs + TIR_PIEN) | 0x1);
+
+	/* Hook up the cascade interrupt to the iic and nodeid */
+	virq = spider_find_cascade_and_node(pic);
+	if (virq == NO_IRQ)
+		return;
+	set_irq_data(virq, pic);
+	set_irq_chained_handler(virq, spider_irq_cascade);
+
+	printk(KERN_INFO "spider_pic: node %d, addr: 0x%lx %s\n",
+	       pic->node_id, addr, of_node->full_name);
+
+	/* Enable the interrupt detection enable bit. Do this last! */
+	out_be32(pic->regs + TIR_DEN, in_be32(pic->regs + TIR_DEN) | 0x1);
+}
+
+void __init spider_init_IRQ(void)
+{
+	struct resource r;
 	struct device_node *dn;
-	char *compatible;
-	int n, node = 0;
+	int chip = 0;
 
-	for (dn = NULL; (dn = of_find_node_by_name(dn, "interrupt-controller"));) {
-		compatible = (char *)get_property(dn, "compatible", NULL);
-
-		if (!compatible)
-			continue;
-
-		if (strstr(compatible, "CBEA,platform-spider-pic"))
-			spider_reg = *(long *)get_property(dn,"reg", NULL);
-		else if (strstr(compatible, "sti,platform-spider-pic")) {
-			spider_init_IRQ_hardcoded();
-			return;
+	/* XXX node numbers are totally bogus. We _hope_ we get the device
+	 * nodes in the right order here but that's definitely not guaranteed,
+	 * we need to get the node from the device tree instead.
+	 * There is currently no proper property for it (but our whole
+	 * device-tree is bogus anyway) so all we can do is pray or maybe test
+	 * the address and deduce the node-id
+	 */
+	for (dn = NULL;
+	     (dn = of_find_node_by_name(dn, "interrupt-controller"));) {
+		if (device_is_compatible(dn, "CBEA,platform-spider-pic")) {
+			if (of_address_to_resource(dn, 0, &r)) {
+				printk(KERN_WARNING "spider-pic: Failed\n");
+				continue;
+			}
+		} else if (device_is_compatible(dn, "sti,platform-spider-pic")
+			   && (chip < 2)) {
+			static long hard_coded_pics[] =
+				{ 0x24000008000, 0x34000008000 };
+			r.start = hard_coded_pics[chip];
 		} else
 			continue;
-
-		if (!spider_reg)
-			printk("interrupt controller does not have reg property !\n");
-
-		n = prom_n_addr_cells(dn);
-
-		if ( n != 2)
-			printk("reg property with invalid number of elements \n");
-
-		spider_pics[node] = ioremap(spider_reg, 0x800);
-
-		printk("SPIDER addr: %lx with %i addr_cells mapped to %p\n",
-		       spider_reg, n, spider_pics[node]);
-
-		for (n = 0; n < IIC_NUM_EXT; n++) {
-			int irq = n + IIC_EXT_OFFSET + node * IIC_NODE_STRIDE;
-			get_irq_desc(irq)->chip = &spider_pic;
-		}
-
-		/* do not mask any interrupts because of level */
-		out_be32(spider_pics[node] + TIR_MSK, 0x0);
-
-		/* disable edge detection clear */
-		/* out_be32(spider_pics[node] + TIR_EDC, 0x0); */
-
-		/* enable interrupt packets to be output */
-		out_be32(spider_pics[node] + TIR_PIEN,
-			in_be32(spider_pics[node] + TIR_PIEN) | 0x1);
-
-		/* Enable the interrupt detection enable bit. Do this last! */
-		out_be32(spider_pics[node] + TIR_DEN,
-			in_be32(spider_pics[node] + TIR_DEN) | 0x1);
-
-		node++;
+		spider_init_one(dn, chip++, r.start);
 	}
 }

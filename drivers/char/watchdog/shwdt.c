@@ -344,7 +344,7 @@ static int sh_wdt_notify_sys(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct file_operations sh_wdt_fops = {
+static const struct file_operations sh_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= sh_wdt_write,

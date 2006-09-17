@@ -111,6 +111,16 @@ repeat:
 			break;
 		case CRW_RSC_CPATH:
 			pr_debug("source is channel path %02X\n", crw[0].rsid);
+			/*
+			 * Check for solicited machine checks. These are
+			 * created by reset channel path and need not be
+			 * reported to the common I/O layer.
+			 */
+			if (crw[chain].slct) {
+				DBG(KERN_INFO"solicited machine check for "
+				    "channel path %02X\n", crw[0].rsid);
+				break;
+			}
 			switch (crw[0].erc) {
 			case CRW_ERC_IPARM: /* Path has come. */
 				ret = chp_process_crw(crw[0].rsid, 1);
@@ -378,6 +388,8 @@ s390_do_machine_check(struct pt_regs *regs)
 	struct mcck_struct *mcck;
 	int umode;
 
+	lockdep_off();
+
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
 	mcck = &__get_cpu_var(cpu_mcck);
 	umode = user_mode(regs);
@@ -482,6 +494,7 @@ s390_do_machine_check(struct pt_regs *regs)
 		mcck->warning = 1;
 		set_thread_flag(TIF_MCCK_PENDING);
 	}
+	lockdep_on();
 }
 
 /*

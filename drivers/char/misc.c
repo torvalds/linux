@@ -113,7 +113,7 @@ static int misc_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &misc_seq_ops);
 }
 
-static struct file_operations misc_proc_fops = {
+static const struct file_operations misc_proc_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = misc_seq_open,
 	.read    = seq_read,
@@ -176,7 +176,7 @@ fail:
  */
 static struct class *misc_class;
 
-static struct file_operations misc_fops = {
+static const struct file_operations misc_fops = {
 	.owner		= THIS_MODULE,
 	.open		= misc_open,
 };

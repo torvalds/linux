@@ -12,6 +12,9 @@
 *.ko
 *.so
 *.mod.c
+*.i
+*.lst
+*.symtypes
 
 #
 # Top-level generic files
@@ -30,6 +33,11 @@ include/config
 include/linux/autoconf.h
 include/linux/compile.h
 include/linux/version.h
+include/linux/utsrelease.h
 
 # stgit generated dirs
 patches-*
+
+# quilt's files
+patches
+series

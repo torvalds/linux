@@ -166,10 +166,10 @@ acpi_status acpi_ut_delete_caches(void)
 
 	/* Free memory lists */
 
-	acpi_os_free(acpi_gbl_global_list);
+	ACPI_FREE(acpi_gbl_global_list);
 	acpi_gbl_global_list = NULL;
 
-	acpi_os_free(acpi_gbl_ns_node_list);
+	ACPI_FREE(acpi_gbl_ns_node_list);
 	acpi_gbl_ns_node_list = NULL;
 #endif
 
@@ -285,6 +285,7 @@ acpi_ut_initialize_buffer(struct acpi_buffer * buffer,
 	return (status);
 }
 
+#ifdef NOT_USED_BY_LINUX
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_allocate
@@ -360,3 +361,4 @@ void *acpi_ut_allocate_zeroed(acpi_size size,
 
 	return (allocation);
 }
+#endif

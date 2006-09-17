@@ -90,7 +90,7 @@ static void crash_save_self(struct pt_regs *regs)
 	crash_save_this_cpu(regs, cpu);
 }
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && defined(CONFIG_X86_LOCAL_APIC)
 static atomic_t waiting_for_crash_ipi;
 
 static int crash_nmi_callback(struct pt_regs *regs, int cpu)

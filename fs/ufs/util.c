@@ -251,12 +251,12 @@ struct page *ufs_get_locked_page(struct address_space *mapping,
 {
 	struct page *page;
 
-try_again:
 	page = find_lock_page(mapping, index);
 	if (!page) {
 		page = read_cache_page(mapping, index,
 				       (filler_t*)mapping->a_ops->readpage,
 				       NULL);
+
 		if (IS_ERR(page)) {
 			printk(KERN_ERR "ufs_change_blocknr: "
 			       "read_cache_page error: ino %lu, index: %lu\n",
@@ -265,6 +265,14 @@ try_again:
 		}
 
 		lock_page(page);
+
+		if (unlikely(page->mapping == NULL)) {
+			/* Truncate got there first */
+			unlock_page(page);
+			page_cache_release(page);
+			page = NULL;
+			goto out;
+		}
 
 		if (!PageUptodate(page) || PageError(page)) {
 			unlock_page(page);
@@ -275,14 +283,7 @@ try_again:
 			       mapping->host->i_ino, index);
 
 			page = ERR_PTR(-EIO);
-			goto out;
 		}
-	}
-
-	if (unlikely(!page->mapping || !page_has_buffers(page))) {
-		unlock_page(page);
-		page_cache_release(page);
-		goto try_again;/*we really need these buffers*/
 	}
 out:
 	return page;

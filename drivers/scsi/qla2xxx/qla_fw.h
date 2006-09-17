@@ -141,7 +141,7 @@ struct nvram_24xx {
 	 * BIT 2  = Enable Memory Map BIOS
 	 * BIT 3  = Enable Selectable Boot
 	 * BIT 4  = Disable RISC code load
-	 * BIT 5  =
+	 * BIT 5  = Disable Serdes
 	 * BIT 6  =
 	 * BIT 7  =
 	 *
@@ -278,7 +278,7 @@ struct init_cb_24xx {
 	uint16_t response_q_length;
 	uint16_t request_q_length;
 
-	uint16_t link_down_timeout;		/* Milliseconds. */
+	uint16_t link_down_on_nos;		/* Milliseconds. */
 
 	uint16_t prio_request_q_length;
 

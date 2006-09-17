@@ -139,7 +139,7 @@ static int __cpuinit topology_sysfs_init(void)
 				(void *)(long)i);
 	}
 
-	register_cpu_notifier(&topology_cpu_notifier);
+	register_hotcpu_notifier(&topology_cpu_notifier);
 
 	return 0;
 }

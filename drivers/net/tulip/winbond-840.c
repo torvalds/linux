@@ -138,7 +138,7 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <asm/irq.h>
 
 /* These identify the driver base version and may not be removed. */
-static char version[] __devinitdata =
+static char version[] =
 KERN_INFO DRV_NAME ".c:v" DRV_VERSION " (2.4 port) " DRV_RELDATE "  Donald Becker <becker@scyld.com>\n"
 KERN_INFO "  http://www.scyld.com/network/drivers.html\n";
 
@@ -224,24 +224,21 @@ static const struct pci_device_id w840_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, w840_pci_tbl);
 
+enum {
+	netdev_res_size		= 128,	/* size of PCI BAR resource */
+};
+
 struct pci_id_info {
         const char *name;
-        struct match_info {
-                int     pci, pci_mask, subsystem, subsystem_mask;
-                int revision, revision_mask;                            /* Only 8 bits. */
-        } id;
-        int io_size;                            /* Needed for I/O region check or ioremap(). */
-        int drv_flags;                          /* Driver use, intended as capability flags. */
+        int drv_flags;		/* Driver use, intended as capability flags. */
 };
-static struct pci_id_info pci_id_tbl[] = {
-	{"Winbond W89c840",			/* Sometime a Level-One switch card. */
-	 { 0x08401050, 0xffffffff, 0x81530000, 0xffff0000 },
-	   128, CanHaveMII | HasBrokenTx | FDXOnNoMII},
-	{"Winbond W89c840", { 0x08401050, 0xffffffff, },
-	   128, CanHaveMII | HasBrokenTx},
-	{"Compex RL100-ATX", { 0x201111F6, 0xffffffff,},
-	   128, CanHaveMII | HasBrokenTx},
-	{NULL,},					/* 0 terminated list. */
+
+static const struct pci_id_info pci_id_tbl[] __devinitdata = {
+	{ 				/* Sometime a Level-One switch card. */
+	  "Winbond W89c840",	CanHaveMII | HasBrokenTx | FDXOnNoMII},
+	{ "Winbond W89c840",	CanHaveMII | HasBrokenTx},
+	{ "Compex RL100-ATX",	CanHaveMII | HasBrokenTx},
+	{ }	/* terminate list. */
 };
 
 /* This driver was written to use PCI memory space, however some x86 systems
@@ -399,7 +396,7 @@ static int __devinit w840_probe1 (struct pci_dev *pdev,
 #ifdef USE_IO_OPS
 	bar = 0;
 #endif
-	ioaddr = pci_iomap(pdev, bar, pci_id_tbl[chip_idx].io_size);
+	ioaddr = pci_iomap(pdev, bar, netdev_res_size);
 	if (!ioaddr)
 		goto err_out_free_res;
 

@@ -99,7 +99,6 @@ static inline void disable_coprocessor(int i)
 #endif
 
 #define set_mb(var, value)	do { var = value; mb(); } while (0)
-#define set_wmb(var, value)	do { var = value; wmb(); } while (0)
 
 #if !defined (__ASSEMBLY__)
 

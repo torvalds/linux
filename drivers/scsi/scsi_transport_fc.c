@@ -368,7 +368,7 @@ static DECLARE_TRANSPORT_CLASS(fc_rport_class,
  *   should insulate the loss of a remote port.
  *   The maximum will be capped by the value of SCSI_DEVICE_BLOCK_MAX_TIMEOUT.
  */
-static unsigned int fc_dev_loss_tmo = SCSI_DEVICE_BLOCK_MAX_TIMEOUT;
+static unsigned int fc_dev_loss_tmo = 60;		/* seconds */
 
 module_param_named(dev_loss_tmo, fc_dev_loss_tmo, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(dev_loss_tmo,
@@ -1284,7 +1284,9 @@ EXPORT_SYMBOL(fc_release_transport);
  * @work:	Work to queue for execution.
  *
  * Return value:
- * 	0 on success / != 0 for error
+ * 	1 - work queued for execution
+ *	0 - work is already queued
+ *	-EINVAL - work queue doesn't exist
  **/
 static int
 fc_queue_work(struct Scsi_Host *shost, struct work_struct *work)
@@ -1434,8 +1436,6 @@ fc_starget_delete(void *data)
 	struct Scsi_Host *shost = rport_to_shost(rport);
 	unsigned long flags;
 
-	scsi_target_unblock(&rport->dev);
-
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (rport->flags & FC_RPORT_DEVLOSS_PENDING) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
@@ -1476,7 +1476,8 @@ fc_rport_final_delete(void *data)
 	transport_remove_device(dev);
 	device_del(dev);
 	transport_destroy_device(dev);
-	put_device(&shost->shost_gendev);
+	put_device(&shost->shost_gendev);	/* for fc_host->rport list */
+	put_device(dev);			/* for self-reference */
 }
 
 
@@ -1537,13 +1538,13 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 	else
 		rport->scsi_target_id = -1;
 	list_add_tail(&rport->peers, &fc_host->rports);
-	get_device(&shost->shost_gendev);
+	get_device(&shost->shost_gendev);	/* for fc_host->rport list */
 
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	dev = &rport->dev;
-	device_initialize(dev);
-	dev->parent = get_device(&shost->shost_gendev);
+	device_initialize(dev);			/* takes self reference */
+	dev->parent = get_device(&shost->shost_gendev); /* parent reference */
 	dev->release = fc_rport_dev_release;
 	sprintf(dev->bus_id, "rport-%d:%d-%d",
 		shost->host_no, channel, rport->number);
@@ -1567,10 +1568,9 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 
 delete_rport:
 	transport_destroy_device(dev);
-	put_device(dev->parent);
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_del(&rport->peers);
-	put_device(&shost->shost_gendev);
+	put_device(&shost->shost_gendev);	/* for fc_host->rport list */
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	put_device(dev->parent);
 	kfree(rport);
@@ -1707,6 +1707,8 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 
 				spin_unlock_irqrestore(shost->host_lock, flags);
 
+				scsi_target_unblock(&rport->dev);
+
 				return rport;
 			}
 		}
@@ -1762,9 +1764,10 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 				/* initiate a scan of the target */
 				rport->flags |= FC_RPORT_SCAN_PENDING;
 				scsi_queue_work(shost, &rport->scan_work);
-			}
-
-			spin_unlock_irqrestore(shost->host_lock, flags);
+				spin_unlock_irqrestore(shost->host_lock, flags);
+				scsi_target_unblock(&rport->dev);
+			} else
+				spin_unlock_irqrestore(shost->host_lock, flags);
 
 			return rport;
 		}
@@ -1938,6 +1941,7 @@ fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
 		rport->flags |= FC_RPORT_SCAN_PENDING;
 		scsi_queue_work(shost, &rport->scan_work);
 		spin_unlock_irqrestore(shost->host_lock, flags);
+		scsi_target_unblock(&rport->dev);
 	}
 }
 EXPORT_SYMBOL(fc_remote_port_rolechg);
@@ -1970,8 +1974,9 @@ fc_timeout_deleted_rport(void  *data)
 		dev_printk(KERN_ERR, &rport->dev,
 			"blocked FC remote port time out: no longer"
 			" a FCP target, removing starget\n");
-		fc_queue_work(shost, &rport->stgt_delete_work);
 		spin_unlock_irqrestore(shost->host_lock, flags);
+		scsi_target_unblock(&rport->dev);
+		fc_queue_work(shost, &rport->stgt_delete_work);
 		return;
 	}
 
@@ -2035,16 +2040,14 @@ fc_timeout_deleted_rport(void  *data)
 	 * went away and didn't come back - we'll remove
 	 * all attached scsi devices.
 	 */
-	fc_queue_work(shost, &rport->stgt_delete_work);
-
 	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	scsi_target_unblock(&rport->dev);
+	fc_queue_work(shost, &rport->stgt_delete_work);
 }
 
 /**
  * fc_scsi_scan_rport - called to perform a scsi scan on a remote port.
- *
- * Will unblock the target (in case it went away and has now come back),
- * then invoke a scan.
  *
  * @data:	remote port to be scanned.
  **/
@@ -2057,7 +2060,6 @@ fc_scsi_scan_rport(void *data)
 
 	if ((rport->port_state == FC_PORTSTATE_ONLINE) &&
 	    (rport->roles & FC_RPORT_ROLE_FCP_TARGET)) {
-		scsi_target_unblock(&rport->dev);
 		scsi_scan_target(&rport->dev, rport->channel,
 			rport->scsi_target_id, SCAN_WILD_CARD, 1);
 	}

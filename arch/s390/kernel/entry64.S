@@ -58,6 +58,19 @@ _TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK | _TIF_NEED_RESCHED | \
 
 #define BASED(name) name-system_call(%r13)
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	.macro	TRACE_IRQS_ON
+	 brasl	%r14,trace_hardirqs_on
+	.endm
+
+	.macro	TRACE_IRQS_OFF
+	 brasl	%r14,trace_hardirqs_off
+	.endm
+#else
+#define TRACE_IRQS_ON
+#define TRACE_IRQS_OFF
+#endif
+
 	.macro  STORE_TIMER lc_offset
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	stpt	\lc_offset
@@ -354,6 +367,7 @@ ret_from_fork:
 	jo	0f
 	stg	%r15,SP_R15(%r15)	# store stack pointer for new kthread
 0:	brasl   %r14,schedule_tail
+	TRACE_IRQS_ON
         stosm   24(%r15),0x03     # reenable interrupts
 	j	sysc_return
 
@@ -535,6 +549,7 @@ pgm_no_vtime3:
 	mvc	__THREAD_per+__PER_address(8,%r1),__LC_PER_ADDRESS
 	mvc	__THREAD_per+__PER_access_id(1,%r1),__LC_PER_ACCESS_ID
 	oi	__TI_flags+7(%r9),_TIF_SINGLE_STEP # set TIF_SINGLE_STEP
+	TRACE_IRQS_ON
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	j	sysc_do_svc
 
@@ -557,8 +572,10 @@ io_int_handler:
 io_no_vtime:
 #endif
 	lg	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
+	TRACE_IRQS_OFF
         la      %r2,SP_PTREGS(%r15)    # address of register-save area
 	brasl   %r14,do_IRQ            # call standard irq handler
+	TRACE_IRQS_ON
 
 io_return:
         tm      SP_PSW+1(%r15),0x01    # returning to user ?
@@ -665,9 +682,11 @@ ext_int_handler:
 ext_no_vtime:
 #endif
 	lg	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
+	TRACE_IRQS_OFF
 	la	%r2,SP_PTREGS(%r15)    # address of register-save area
 	llgh	%r3,__LC_EXT_INT_CODE  # get interruption code
 	brasl   %r14,do_extint
+	TRACE_IRQS_ON
 	j	io_return
 
 __critical_end:
@@ -743,7 +762,9 @@ mcck_no_vtime:
 	stosm	__SF_EMPTY(%r15),0x04	# turn dat on
 	tm	__TI_flags+7(%r9),_TIF_MCCK_PENDING
 	jno	mcck_return
+	TRACE_IRQS_OFF
 	brasl	%r14,s390_handle_mcck
+	TRACE_IRQS_ON
 mcck_return:
 	mvc	__LC_RETURN_MCCK_PSW(16),SP_PSW(%r15) # move return PSW
 	ni	__LC_RETURN_MCCK_PSW+1,0xfd # clear wait state bit

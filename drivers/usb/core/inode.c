@@ -200,7 +200,7 @@ static void update_sb(struct super_block *sb)
 	if (!root)
 		return;
 
-	mutex_lock(&root->d_inode->i_mutex);
+	mutex_lock_nested(&root->d_inode->i_mutex, I_MUTEX_PARENT);
 
 	list_for_each_entry(bus, &root->d_subdirs, d_u.d_child) {
 		if (bus->d_inode) {
@@ -527,7 +527,7 @@ static void fs_remove_file (struct dentry *dentry)
 	if (!parent || !parent->d_inode)
 		return;
 
-	mutex_lock(&parent->d_inode->i_mutex);
+	mutex_lock_nested(&parent->d_inode->i_mutex, I_MUTEX_PARENT);
 	if (usbfs_positive(dentry)) {
 		if (dentry->d_inode) {
 			if (S_ISDIR(dentry->d_inode->i_mode))
@@ -695,7 +695,7 @@ static void usbfs_remove_device(struct usb_device *dev)
 		wake_up_all(&ds->wait);
 		list_del_init(&ds->list);
 		if (ds->discsignr) {
-			sinfo.si_signo = SIGPIPE;
+			sinfo.si_signo = ds->discsignr;
 			sinfo.si_errno = EPIPE;
 			sinfo.si_code = SI_ASYNCIO;
 			sinfo.si_addr = ds->disccontext;

@@ -1473,7 +1473,7 @@ extern "C" {
 #define GM_TXCR_FORCE_JAM	(1<<15)	/* Bit 15:	Force Jam / Flow-Control */
 #define GM_TXCR_CRC_DIS		(1<<14)	/* Bit 14:	Disable insertion of CRC */
 #define GM_TXCR_PAD_DIS		(1<<13)	/* Bit 13:	Disable padding of packets */
-#define GM_TXCR_COL_THR_MSK	(1<<10)	/* Bit 12..10:	Collision Threshold */
+#define GM_TXCR_COL_THR_MSK	(7<<10)	/* Bit 12..10:	Collision Threshold */
 
 #define TX_COL_THR(x)		(SHIFT10(x) & GM_TXCR_COL_THR_MSK)
 

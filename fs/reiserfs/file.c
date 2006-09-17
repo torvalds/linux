@@ -48,8 +48,8 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
-	reiserfs_write_lock(inode->i_sb);
 	mutex_lock(&inode->i_mutex);
+	reiserfs_write_lock(inode->i_sb);
 	/* freeing preallocation only involves relogging blocks that
 	 * are already in the current transaction.  preallocation gets
 	 * freed at the end of each transaction, so it is impossible for
@@ -860,8 +860,12 @@ static int reiserfs_submit_file_region_for_write(struct reiserfs_transaction_han
 			// this sets the proper flags for O_SYNC to trigger a commit
 			mark_inode_dirty(inode);
 			reiserfs_write_unlock(inode->i_sb);
-		} else
+		} else {
+			reiserfs_write_lock(inode->i_sb);
+			reiserfs_update_inode_transaction(inode);
 			mark_inode_dirty(inode);
+			reiserfs_write_unlock(inode->i_sb);
+		}
 
 		sd_update = 1;
 	}

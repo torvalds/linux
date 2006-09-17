@@ -33,7 +33,7 @@ struct test_thread_data {
 };
 
 static struct test_thread_data thread_data[MAX_RT_TEST_THREADS];
-static task_t *threads[MAX_RT_TEST_THREADS];
+static struct task_struct *threads[MAX_RT_TEST_THREADS];
 static struct rt_mutex mutexes[MAX_RT_TEST_MUTEXES];
 
 enum test_opcodes {
@@ -275,6 +275,7 @@ static int test_func(void *data)
 
 		/* Wait for the next command to be executed */
 		schedule();
+		try_to_freeze();
 
 		if (signal_pending(current))
 			flush_signals(current);
@@ -361,8 +362,8 @@ static ssize_t sysfs_test_command(struct sys_device *dev, const char *buf,
 static ssize_t sysfs_test_status(struct sys_device *dev, char *buf)
 {
 	struct test_thread_data *td;
+	struct task_struct *tsk;
 	char *curr = buf;
-	task_t *tsk;
 	int i;
 
 	td = container_of(dev, struct test_thread_data, sysdev);

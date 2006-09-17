@@ -7,6 +7,8 @@
  *  Copyright (C) 2005-2006 Timesys Corp., Thomas Gleixner <tglx@timesys.com>
  *  Copyright (C) 2005 Kihon Technologies Inc., Steven Rostedt
  *  Copyright (C) 2006 Esben Nielsen
+ *
+ *  See Documentation/rt-mutex-design.txt for details.
  */
 #include <linux/spinlock.h>
 #include <linux/module.h>
@@ -157,12 +159,11 @@ int max_lock_depth = 1024;
  * Decreases task's usage by one - may thus free the task.
  * Returns 0 or -EDEADLK.
  */
-static int rt_mutex_adjust_prio_chain(task_t *task,
+static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 				      int deadlock_detect,
 				      struct rt_mutex *orig_lock,
 				      struct rt_mutex_waiter *orig_waiter,
-				      struct task_struct *top_task
-				      __IP_DECL__)
+				      struct task_struct *top_task)
 {
 	struct rt_mutex *lock;
 	struct rt_mutex_waiter *waiter, *top_waiter = orig_waiter;
@@ -283,6 +284,7 @@ static int rt_mutex_adjust_prio_chain(task_t *task,
 	spin_unlock_irqrestore(&task->pi_lock, flags);
  out_put_task:
 	put_task_struct(task);
+
 	return ret;
 }
 
@@ -357,7 +359,7 @@ static inline int try_to_steal_lock(struct rt_mutex *lock)
  *
  * Must be called with lock->wait_lock held.
  */
-static int try_to_take_rt_mutex(struct rt_mutex *lock __IP_DECL__)
+static int try_to_take_rt_mutex(struct rt_mutex *lock)
 {
 	/*
 	 * We have to be careful here if the atomic speedups are
@@ -384,7 +386,7 @@ static int try_to_take_rt_mutex(struct rt_mutex *lock __IP_DECL__)
 		return 0;
 
 	/* We got the lock. */
-	debug_rt_mutex_lock(lock __IP__);
+	debug_rt_mutex_lock(lock);
 
 	rt_mutex_set_owner(lock, current, 0);
 
@@ -402,13 +404,12 @@ static int try_to_take_rt_mutex(struct rt_mutex *lock __IP_DECL__)
  */
 static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 				   struct rt_mutex_waiter *waiter,
-				   int detect_deadlock
-				   __IP_DECL__)
+				   int detect_deadlock)
 {
+	struct task_struct *owner = rt_mutex_owner(lock);
 	struct rt_mutex_waiter *top_waiter = waiter;
-	task_t *owner = rt_mutex_owner(lock);
-	int boost = 0, res;
 	unsigned long flags;
+	int boost = 0, res;
 
 	spin_lock_irqsave(&current->pi_lock, flags);
 	__rt_mutex_adjust_prio(current);
@@ -454,7 +455,7 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 	spin_unlock(&lock->wait_lock);
 
 	res = rt_mutex_adjust_prio_chain(owner, detect_deadlock, lock, waiter,
-					 current __IP__);
+					 current);
 
 	spin_lock(&lock->wait_lock);
 
@@ -526,12 +527,12 @@ static void wakeup_next_waiter(struct rt_mutex *lock)
  * Must be called with lock->wait_lock held
  */
 static void remove_waiter(struct rt_mutex *lock,
-			  struct rt_mutex_waiter *waiter  __IP_DECL__)
+			  struct rt_mutex_waiter *waiter)
 {
 	int first = (waiter == rt_mutex_top_waiter(lock));
-	int boost = 0;
-	task_t *owner = rt_mutex_owner(lock);
+	struct task_struct *owner = rt_mutex_owner(lock);
 	unsigned long flags;
+	int boost = 0;
 
 	spin_lock_irqsave(&current->pi_lock, flags);
 	plist_del(&waiter->list_entry, &lock->wait_list);
@@ -568,7 +569,7 @@ static void remove_waiter(struct rt_mutex *lock,
 
 	spin_unlock(&lock->wait_lock);
 
-	rt_mutex_adjust_prio_chain(owner, 0, lock, NULL, current __IP__);
+	rt_mutex_adjust_prio_chain(owner, 0, lock, NULL, current);
 
 	spin_lock(&lock->wait_lock);
 }
@@ -595,7 +596,7 @@ void rt_mutex_adjust_pi(struct task_struct *task)
 	get_task_struct(task);
 	spin_unlock_irqrestore(&task->pi_lock, flags);
 
-	rt_mutex_adjust_prio_chain(task, 0, NULL, NULL, task __RET_IP__);
+	rt_mutex_adjust_prio_chain(task, 0, NULL, NULL, task);
 }
 
 /*
@@ -604,7 +605,7 @@ void rt_mutex_adjust_pi(struct task_struct *task)
 static int __sched
 rt_mutex_slowlock(struct rt_mutex *lock, int state,
 		  struct hrtimer_sleeper *timeout,
-		  int detect_deadlock __IP_DECL__)
+		  int detect_deadlock)
 {
 	struct rt_mutex_waiter waiter;
 	int ret = 0;
@@ -615,7 +616,7 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
 	spin_lock(&lock->wait_lock);
 
 	/* Try to acquire the lock again: */
-	if (try_to_take_rt_mutex(lock __IP__)) {
+	if (try_to_take_rt_mutex(lock)) {
 		spin_unlock(&lock->wait_lock);
 		return 0;
 	}
@@ -629,7 +630,7 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
 
 	for (;;) {
 		/* Try to acquire the lock: */
-		if (try_to_take_rt_mutex(lock __IP__))
+		if (try_to_take_rt_mutex(lock))
 			break;
 
 		/*
@@ -653,7 +654,7 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
 		 */
 		if (!waiter.task) {
 			ret = task_blocks_on_rt_mutex(lock, &waiter,
-						      detect_deadlock __IP__);
+						      detect_deadlock);
 			/*
 			 * If we got woken up by the owner then start loop
 			 * all over without going into schedule to try
@@ -680,7 +681,7 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
 	set_current_state(TASK_RUNNING);
 
 	if (unlikely(waiter.task))
-		remove_waiter(lock, &waiter __IP__);
+		remove_waiter(lock, &waiter);
 
 	/*
 	 * try_to_take_rt_mutex() sets the waiter bit
@@ -711,7 +712,7 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
  * Slow path try-lock function:
  */
 static inline int
-rt_mutex_slowtrylock(struct rt_mutex *lock __IP_DECL__)
+rt_mutex_slowtrylock(struct rt_mutex *lock)
 {
 	int ret = 0;
 
@@ -719,7 +720,7 @@ rt_mutex_slowtrylock(struct rt_mutex *lock __IP_DECL__)
 
 	if (likely(rt_mutex_owner(lock) != current)) {
 
-		ret = try_to_take_rt_mutex(lock __IP__);
+		ret = try_to_take_rt_mutex(lock);
 		/*
 		 * try_to_take_rt_mutex() sets the lock waiters
 		 * bit unconditionally. Clean this up.
@@ -769,13 +770,13 @@ rt_mutex_fastlock(struct rt_mutex *lock, int state,
 		  int detect_deadlock,
 		  int (*slowfn)(struct rt_mutex *lock, int state,
 				struct hrtimer_sleeper *timeout,
-				int detect_deadlock __IP_DECL__))
+				int detect_deadlock))
 {
 	if (!detect_deadlock && likely(rt_mutex_cmpxchg(lock, NULL, current))) {
 		rt_mutex_deadlock_account_lock(lock, current);
 		return 0;
 	} else
-		return slowfn(lock, state, NULL, detect_deadlock __RET_IP__);
+		return slowfn(lock, state, NULL, detect_deadlock);
 }
 
 static inline int
@@ -783,24 +784,24 @@ rt_mutex_timed_fastlock(struct rt_mutex *lock, int state,
 			struct hrtimer_sleeper *timeout, int detect_deadlock,
 			int (*slowfn)(struct rt_mutex *lock, int state,
 				      struct hrtimer_sleeper *timeout,
-				      int detect_deadlock __IP_DECL__))
+				      int detect_deadlock))
 {
 	if (!detect_deadlock && likely(rt_mutex_cmpxchg(lock, NULL, current))) {
 		rt_mutex_deadlock_account_lock(lock, current);
 		return 0;
 	} else
-		return slowfn(lock, state, timeout, detect_deadlock __RET_IP__);
+		return slowfn(lock, state, timeout, detect_deadlock);
 }
 
 static inline int
 rt_mutex_fasttrylock(struct rt_mutex *lock,
-		     int (*slowfn)(struct rt_mutex *lock __IP_DECL__))
+		     int (*slowfn)(struct rt_mutex *lock))
 {
 	if (likely(rt_mutex_cmpxchg(lock, NULL, current))) {
 		rt_mutex_deadlock_account_lock(lock, current);
 		return 1;
 	}
-	return slowfn(lock __RET_IP__);
+	return slowfn(lock);
 }
 
 static inline void
@@ -948,7 +949,7 @@ void rt_mutex_init_proxy_locked(struct rt_mutex *lock,
 				struct task_struct *proxy_owner)
 {
 	__rt_mutex_init(lock, NULL);
-	debug_rt_mutex_proxy_lock(lock, proxy_owner __RET_IP__);
+	debug_rt_mutex_proxy_lock(lock, proxy_owner);
 	rt_mutex_set_owner(lock, proxy_owner, 0);
 	rt_mutex_deadlock_account_lock(lock, proxy_owner);
 }

@@ -147,12 +147,13 @@ static struct sysrq_key_op sysrq_mountro_op = {
 	.enable_mask	= SYSRQ_ENABLE_REMOUNT,
 };
 
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_LOCKDEP
 static void sysrq_handle_showlocks(int key, struct pt_regs *pt_regs,
 				struct tty_struct *tty)
 {
-	mutex_debug_show_all_locks();
+	debug_show_all_locks();
 }
+
 static struct sysrq_key_op sysrq_showlocks_op = {
 	.handler	= sysrq_handle_showlocks,
 	.help_msg	= "show-all-locks(D)",

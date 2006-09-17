@@ -128,25 +128,20 @@ do {								\
 
 #define __get_user_nocheck(x,ptr,size)				\
 ({								\
-	long __gu_addr = (long)(ptr);				\
-	long __gu_err;						\
-	__typeof(*(ptr)) __gu_val;				\
-	__asm__ ("":"=r" (__gu_val));				\
-	__asm__ ("":"=r" (__gu_err));				\
-	__get_user_size((void *)&__gu_val, __gu_addr, (size), __gu_err); \
-	(x) = (__typeof__(*(ptr))) __gu_val;			\
+	long __gu_err, __gu_val;				\
+	__get_user_size((void *)&__gu_val, (long)(ptr),		\
+			(size), __gu_err);			\
+	(x) = (__typeof__(*(ptr)))__gu_val;			\
 	__gu_err;						\
 })
 
 #define __get_user_check(x,ptr,size)				\
 ({								\
 	long __gu_addr = (long)(ptr);				\
-	long __gu_err = -EFAULT;				\
-	__typeof(*(ptr)) __gu_val;				\
-	__asm__ ("":"=r" (__gu_val));				\
-	__asm__ ("":"=r" (__gu_err));				\
+	long __gu_err = -EFAULT, __gu_val;			\
 	if (__access_ok(__gu_addr, (size)))			\
-		__get_user_size((void *)&__gu_val, __gu_addr, (size), __gu_err); \
+		__get_user_size((void *)&__gu_val, __gu_addr,	\
+				(size), __gu_err);		\
 	(x) = (__typeof__(*(ptr))) __gu_val;			\
 	__gu_err;						\
 })

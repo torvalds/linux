@@ -68,7 +68,7 @@ struct task_struct;
 	wait_queue_t name = __WAITQUEUE_INITIALIZER(name, tsk)
 
 #define __WAIT_QUEUE_HEAD_INITIALIZER(name) {				\
-	.lock		= SPIN_LOCK_UNLOCKED,				\
+	.lock		= __SPIN_LOCK_UNLOCKED(name.lock),		\
 	.task_list	= { &(name).task_list, &(name).task_list } }
 
 #define DECLARE_WAIT_QUEUE_HEAD(name) \
@@ -77,11 +77,7 @@ struct task_struct;
 #define __WAIT_BIT_KEY_INITIALIZER(word, bit)				\
 	{ .flags = word, .bit_nr = bit, }
 
-static inline void init_waitqueue_head(wait_queue_head_t *q)
-{
-	spin_lock_init(&q->lock);
-	INIT_LIST_HEAD(&q->task_list);
-}
+extern void init_waitqueue_head(wait_queue_head_t *q);
 
 static inline void init_waitqueue_entry(wait_queue_t *q, struct task_struct *p)
 {

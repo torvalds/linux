@@ -21,6 +21,7 @@
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -40,20 +41,6 @@
 #define LPFC_RESET_WAIT  2
 #define LPFC_ABORT_WAIT  2
 
-
-static inline void
-lpfc_block_requests(struct lpfc_hba * phba)
-{
-	down(&phba->hba_can_block);
-	scsi_block_requests(phba->host);
-}
-
-static inline void
-lpfc_unblock_requests(struct lpfc_hba * phba)
-{
-	scsi_unblock_requests(phba->host);
-	up(&phba->hba_can_block);
-}
 
 /*
  * This routine allocates a scsi buffer, which contains all the necessary
@@ -167,22 +154,6 @@ static void
 lpfc_release_scsi_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * psb)
 {
 	unsigned long iflag = 0;
-	/*
-	 * There are only two special cases to consider.  (1) the scsi command
-	 * requested scatter-gather usage or (2) the scsi command allocated
-	 * a request buffer, but did not request use_sg.  There is a third
-	 * case, but it does not require resource deallocation.
-	 */
-	if ((psb->seg_cnt > 0) && (psb->pCmd->use_sg)) {
-		dma_unmap_sg(&phba->pcidev->dev, psb->pCmd->request_buffer,
-				psb->seg_cnt, psb->pCmd->sc_data_direction);
-	} else {
-		 if ((psb->nonsg_phys) && (psb->pCmd->request_bufflen)) {
-			dma_unmap_single(&phba->pcidev->dev, psb->nonsg_phys,
-						psb->pCmd->request_bufflen,
-						psb->pCmd->sc_data_direction);
-		 }
-	}
 
 	spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
 	psb->pCmd = NULL;
@@ -293,6 +264,27 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd)
 	iocb_cmd->ulpLe = 1;
 	fcp_cmnd->fcpDl = be32_to_cpu(scsi_cmnd->request_bufflen);
 	return 0;
+}
+
+static void
+lpfc_scsi_unprep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * psb)
+{
+	/*
+	 * There are only two special cases to consider.  (1) the scsi command
+	 * requested scatter-gather usage or (2) the scsi command allocated
+	 * a request buffer, but did not request use_sg.  There is a third
+	 * case, but it does not require resource deallocation.
+	 */
+	if ((psb->seg_cnt > 0) && (psb->pCmd->use_sg)) {
+		dma_unmap_sg(&phba->pcidev->dev, psb->pCmd->request_buffer,
+				psb->seg_cnt, psb->pCmd->sc_data_direction);
+	} else {
+		 if ((psb->nonsg_phys) && (psb->pCmd->request_bufflen)) {
+			dma_unmap_single(&phba->pcidev->dev, psb->nonsg_phys,
+						psb->pCmd->request_bufflen,
+						psb->pCmd->sc_data_direction);
+		 }
+	}
 }
 
 static void
@@ -468,6 +460,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	cmd->scsi_done(cmd);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
+		lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 		return;
 	}
@@ -525,6 +518,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		}
 	}
 
+	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }
 
@@ -623,6 +617,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd,
 static int
 lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_hba *phba,
 			     struct lpfc_scsi_buf *lpfc_cmd,
+			     unsigned int lun,
 			     uint8_t task_mgmt_cmd)
 {
 	struct lpfc_sli *psli;
@@ -641,8 +636,7 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_hba *phba,
 	piocb = &piocbq->iocb;
 
 	fcp_cmnd = lpfc_cmd->fcp_cmnd;
-	int_to_scsilun(lpfc_cmd->pCmd->device->lun,
-			&lpfc_cmd->fcp_cmnd->fcp_lun);
+	int_to_scsilun(lun, &lpfc_cmd->fcp_cmnd->fcp_lun);
 	fcp_cmnd->fcpCntl2 = task_mgmt_cmd;
 
 	piocb->ulpCommand = CMD_FCP_ICMND64_CR;
@@ -669,14 +663,16 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_hba *phba,
 
 static int
 lpfc_scsi_tgt_reset(struct lpfc_scsi_buf * lpfc_cmd, struct lpfc_hba * phba,
-		    unsigned  tgt_id, struct lpfc_rport_data *rdata)
+		    unsigned  tgt_id, unsigned int lun,
+		    struct lpfc_rport_data *rdata)
 {
 	struct lpfc_iocbq *iocbq;
 	struct lpfc_iocbq *iocbqrsp;
 	int ret;
 
 	lpfc_cmd->rdata = rdata;
-	ret = lpfc_scsi_prep_task_mgmt_cmd(phba, lpfc_cmd, FCP_TARGET_RESET);
+	ret = lpfc_scsi_prep_task_mgmt_cmd(phba, lpfc_cmd, lun,
+					   FCP_TARGET_RESET);
 	if (!ret)
 		return FAILED;
 
@@ -836,6 +832,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	return 0;
 
  out_host_busy_free_buf:
+	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
  out_host_busy:
 	return SCSI_MLQUEUE_HOST_BUSY;
@@ -845,6 +842,21 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	return 0;
 }
 
+static void
+lpfc_block_error_handler(struct scsi_cmnd *cmnd)
+{
+	struct Scsi_Host *shost = cmnd->device->host;
+	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
+
+	spin_lock_irq(shost->host_lock);
+	while (rport->port_state == FC_PORTSTATE_BLOCKED) {
+		spin_unlock_irq(shost->host_lock);
+		msleep(1000);
+		spin_lock_irq(shost->host_lock);
+	}
+	spin_unlock_irq(shost->host_lock);
+	return;
+}
 
 static int
 lpfc_abort_handler(struct scsi_cmnd *cmnd)
@@ -859,7 +871,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	unsigned int loop_count = 0;
 	int ret = SUCCESS;
 
-	lpfc_block_requests(phba);
+	lpfc_block_error_handler(cmnd);
 	spin_lock_irq(shost->host_lock);
 
 	lpfc_cmd = (struct lpfc_scsi_buf *)cmnd->host_scribble;
@@ -945,7 +957,6 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 			cmnd->device->lun, cmnd->serial_number);
 
 	spin_unlock_irq(shost->host_lock);
-	lpfc_unblock_requests(phba);
 
 	return ret;
 }
@@ -963,7 +974,7 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	int ret = FAILED;
 	int cnt, loopcnt;
 
-	lpfc_block_requests(phba);
+	lpfc_block_error_handler(cmnd);
 	spin_lock_irq(shost->host_lock);
 	/*
 	 * If target is not in a MAPPED state, delay the reset until
@@ -986,12 +997,12 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	if (lpfc_cmd == NULL)
 		goto out;
 
-	lpfc_cmd->pCmd = cmnd;
 	lpfc_cmd->timeout = 60;
 	lpfc_cmd->scsi_hba = phba;
 	lpfc_cmd->rdata = rdata;
 
-	ret = lpfc_scsi_prep_task_mgmt_cmd(phba, lpfc_cmd, FCP_LUN_RESET);
+	ret = lpfc_scsi_prep_task_mgmt_cmd(phba, lpfc_cmd, cmnd->device->lun,
+					   FCP_LUN_RESET);
 	if (!ret)
 		goto out_free_scsi_buf;
 
@@ -1018,7 +1029,6 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	cmd_status = iocbqrsp->iocb.ulpStatus;
 
 	lpfc_sli_release_iocbq(phba, iocbqrsp);
-	lpfc_release_scsi_buf(phba, lpfc_cmd);
 
 	/*
 	 * All outstanding txcmplq I/Os should have been aborted by the device.
@@ -1057,6 +1067,8 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	}
 
 out_free_scsi_buf:
+	lpfc_release_scsi_buf(phba, lpfc_cmd);
+
 	lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
 			"%d:0713 SCSI layer issued LUN reset (%d, %d) "
 			"Data: x%x x%x x%x\n",
@@ -1065,7 +1077,6 @@ out_free_scsi_buf:
 
 out:
 	spin_unlock_irq(shost->host_lock);
-	lpfc_unblock_requests(phba);
 	return ret;
 }
 
@@ -1080,7 +1091,7 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 	int cnt, loopcnt;
 	struct lpfc_scsi_buf * lpfc_cmd;
 
-	lpfc_block_requests(phba);
+	lpfc_block_error_handler(cmnd);
 	spin_lock_irq(shost->host_lock);
 
 	lpfc_cmd = lpfc_get_scsi_buf(phba);
@@ -1089,7 +1100,6 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 
 	/* The lpfc_cmd storage is reused.  Set all loop invariants. */
 	lpfc_cmd->timeout = 60;
-	lpfc_cmd->pCmd = cmnd;
 	lpfc_cmd->scsi_hba = phba;
 
 	/*
@@ -1097,7 +1107,7 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 	 * targets known to the driver.  Should any target reset
 	 * fail, this routine returns failure to the midlayer.
 	 */
-	for (i = 0; i < MAX_FCP_TARGET; i++) {
+	for (i = 0; i < LPFC_MAX_TARGET; i++) {
 		/* Search the mapped list for this target ID */
 		match = 0;
 		list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
@@ -1109,11 +1119,11 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 		if (!match)
 			continue;
 
-		ret = lpfc_scsi_tgt_reset(lpfc_cmd, phba,
-					  i, ndlp->rport->dd_data);
+		ret = lpfc_scsi_tgt_reset(lpfc_cmd, phba, i, cmnd->device->lun,
+					  ndlp->rport->dd_data);
 		if (ret != SUCCESS) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-				"%d:0713 Bus Reset on target %d failed\n",
+				"%d:0700 Bus Reset on target %d failed\n",
 				phba->brd_no, i);
 			err_count++;
 		}
@@ -1163,7 +1173,6 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 			phba->brd_no, ret);
 out:
 	spin_unlock_irq(shost->host_lock);
-	lpfc_unblock_requests(phba);
 	return ret;
 }
 

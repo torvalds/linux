@@ -21,7 +21,7 @@
 static int exec_tramp(void *sig_stack)
 {
 	init_new_thread_stack(sig_stack, NULL);
-	init_new_thread_signals(1);
+	init_new_thread_signals();
 	os_stop_process(os_getpid());
 	return(0);
 }

@@ -255,7 +255,7 @@ static int tanbac_tb0219_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations tb0219_fops = {
+static const struct file_operations tb0219_fops = {
 	.owner		= THIS_MODULE,
 	.read		= tanbac_tb0219_read,
 	.write		= tanbac_tb0219_write,

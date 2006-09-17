@@ -1,5 +1,5 @@
 /*
- * Copytight (C) 1999, 2000, 05 Ralf Baechle (ralf@linux-mips.org)
+ * Copytight (C) 1999, 2000, 05, 06 Ralf Baechle (ralf@linux-mips.org)
  * Copytight (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/bcd.h>
@@ -181,8 +181,9 @@ static __init unsigned long get_m48t35_time(void)
         return mktime(year, month, date, hour, min, sec);
 }
 
-static void startup_rt_irq(unsigned int irq)
+static unsigned int startup_rt_irq(unsigned int irq)
 {
+	return 0;
 }
 
 static void shutdown_rt_irq(unsigned int irq)
@@ -205,7 +206,7 @@ static void end_rt_irq(unsigned int irq)
 {
 }
 
-static struct hw_interrupt_type rt_irq_type = {
+static struct irq_chip rt_irq_type = {
 	.typename	= "SN HUB RT timer",
 	.startup	= startup_rt_irq,
 	.shutdown	= shutdown_rt_irq,
@@ -224,17 +225,17 @@ static struct irqaction rt_irqaction = {
 
 extern int allocate_irqno(void);
 
-static void ip27_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	int irqno  = allocate_irqno();
 
 	if (irqno < 0)
 		panic("Can't allocate interrupt number for timer interrupt");
 
-	irq_desc[irqno].status = IRQ_DISABLED;
-	irq_desc[irqno].action = NULL;
-	irq_desc[irqno].depth = 1;
-	irq_desc[irqno].handler = &rt_irq_type;
+	irq_desc[irqno].status	= IRQ_DISABLED;
+	irq_desc[irqno].action	= NULL;
+	irq_desc[irqno].depth	= 1;
+	irq_desc[irqno].chip	= &rt_irq_type;
 
 	/* over-write the handler, we use our own way */
 	irq->handler = no_action;
@@ -243,6 +244,10 @@ static void ip27_timer_setup(struct irqaction *irq)
 	irq_desc[irqno].status |= IRQ_PER_CPU;
 
 	rt_timer_irq = irqno;
+	/*
+	 * Only needed to get /proc/interrupt to display timer irq stats
+	 */
+	setup_irq(irqno, &rt_irqaction);
 }
 
 void __init ip27_time_init(void)
@@ -251,8 +256,6 @@ void __init ip27_time_init(void)
 	xtime.tv_nsec = 0;
 
 	do_gettimeoffset = ip27_do_gettimeoffset;
-
-	board_timer_setup = ip27_timer_setup;
 }
 
 void __init cpu_time_init(void)

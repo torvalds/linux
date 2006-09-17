@@ -578,7 +578,7 @@ static inline void local_r4k_flush_icache_page(void *args)
 	 * secondary cache will result in any entries in the primary caches
 	 * also getting invalidated which hopefully is a bit more economical.
 	 */
-	if (cpu_has_subset_pcaches) {
+	if (cpu_has_inclusive_pcaches) {
 		unsigned long addr = (unsigned long) page_address(page);
 
 		r4k_blast_scache_page(addr);
@@ -634,7 +634,7 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
-	if (cpu_has_subset_pcaches) {
+	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size)
 			r4k_blast_scache();
 		else
@@ -662,7 +662,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
-	if (cpu_has_subset_pcaches) {
+	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size)
 			r4k_blast_scache();
 		else
@@ -862,15 +862,18 @@ static void __init probe_pcache(void)
 		break;
 
 	case CPU_VR4133:
-		write_c0_config(config & ~CONF_EB);
+		write_c0_config(config & ~VR41_CONF_P4K);
 	case CPU_VR4131:
 		/* Workaround for cache instruction bug of VR4131 */
 		if (c->processor_id == 0x0c80U || c->processor_id == 0x0c81U ||
 		    c->processor_id == 0x0c82U) {
-			config &= ~0x00000030U;
-			config |= 0x00410000U;
+			config |= 0x00400000U;
+			if (c->processor_id == 0x0c80U)
+				config |= VR41_CONF_BP;
 			write_c0_config(config);
-		}
+		} else
+			c->options |= MIPS_CPU_CACHE_CDEX_P;
+
 		icache_size = 1 << (10 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
 		c->icache.ways = 2;
@@ -880,8 +883,6 @@ static void __init probe_pcache(void)
 		c->dcache.linesz = 16 << ((config & CONF_DB) >> 4);
 		c->dcache.ways = 2;
 		c->dcache.waybit = __ffs(dcache_size/2);
-
-		c->options |= MIPS_CPU_CACHE_CDEX_P;
 		break;
 
 	case CPU_VR41XX:
@@ -1192,7 +1193,7 @@ static void __init setup_scache(void)
 	printk("Unified secondary cache %ldkB %s, linesize %d bytes.\n",
 	       scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
 
-	c->options |= MIPS_CPU_SUBSET_CACHES;
+	c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 }
 
 void au1x00_fixup_config_od(void)

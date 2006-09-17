@@ -338,7 +338,7 @@ static struct attribute *inf_attrs[] = {
 
 static struct attribute_group inf_attr_grp = {.attrs = inf_attrs };
 
-static struct file_operations inf_ops = {
+static const struct file_operations inf_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.open = tpm_open,

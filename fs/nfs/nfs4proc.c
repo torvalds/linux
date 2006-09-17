@@ -2668,7 +2668,7 @@ out:
 	nfs4_set_cached_acl(inode, acl);
 }
 
-static inline ssize_t nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t buflen)
+static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t buflen)
 {
 	struct page *pages[NFS4ACL_MAXPAGES];
 	struct nfs_getaclargs args = {
@@ -2721,6 +2721,19 @@ out_free:
 	return ret;
 }
 
+static ssize_t nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t buflen)
+{
+	struct nfs4_exception exception = { };
+	ssize_t ret;
+	do {
+		ret = __nfs4_get_acl_uncached(inode, buf, buflen);
+		if (ret >= 0)
+			break;
+		ret = nfs4_handle_exception(NFS_SERVER(inode), ret, &exception);
+	} while (exception.retry);
+	return ret;
+}
+
 static ssize_t nfs4_proc_get_acl(struct inode *inode, void *buf, size_t buflen)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
@@ -2737,7 +2750,7 @@ static ssize_t nfs4_proc_get_acl(struct inode *inode, void *buf, size_t buflen)
 	return nfs4_get_acl_uncached(inode, buf, buflen);
 }
 
-static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen)
+static int __nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct page *pages[NFS4ACL_MAXPAGES];
@@ -2761,6 +2774,18 @@ static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen
 	if (ret == 0)
 		nfs4_write_cached_acl(inode, buf, buflen);
 	return ret;
+}
+
+static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen)
+{
+	struct nfs4_exception exception = { };
+	int err;
+	do {
+		err = nfs4_handle_exception(NFS_SERVER(inode),
+				__nfs4_proc_set_acl(inode, buf, buflen),
+				&exception);
+	} while (exception.retry);
+	return err;
 }
 
 static int
@@ -3144,9 +3169,6 @@ static int do_vfs_lock(struct file *file, struct file_lock *fl)
 		default:
 			BUG();
 	}
-	if (res < 0)
-		printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n",
-				__FUNCTION__);
 	return res;
 }
 
@@ -3258,8 +3280,6 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	/* Unlock _before_ we do the RPC call */
-	do_vfs_lock(fl->fl_file, fl);
 	return rpc_run_task(NFS_CLIENT(lsp->ls_state->inode), RPC_TASK_ASYNC, &nfs4_locku_ops, data);
 }
 
@@ -3270,30 +3290,28 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	struct rpc_task *task;
 	int status = 0;
 
+	status = nfs4_set_lock_state(state, request);
+	/* Unlock _before_ we do the RPC call */
+	request->fl_flags |= FL_EXISTS;
+	if (do_vfs_lock(request->fl_file, request) == -ENOENT)
+		goto out;
+	if (status != 0)
+		goto out;
 	/* Is this a delegated lock? */
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
-		goto out_unlock;
-	/* Is this open_owner holding any locks on the server? */
-	if (test_bit(LK_STATE_IN_USE, &state->flags) == 0)
-		goto out_unlock;
-
-	status = nfs4_set_lock_state(state, request);
-	if (status != 0)
-		goto out_unlock;
+		goto out;
 	lsp = request->fl_u.nfs4_fl.owner;
-	status = -ENOMEM;
 	seqid = nfs_alloc_seqid(&lsp->ls_seqid);
+	status = -ENOMEM;
 	if (seqid == NULL)
-		goto out_unlock;
+		goto out;
 	task = nfs4_do_unlck(request, request->fl_file->private_data, lsp, seqid);
 	status = PTR_ERR(task);
 	if (IS_ERR(task))
-		goto out_unlock;
+		goto out;
 	status = nfs4_wait_for_completion_rpc_task(task);
 	rpc_release_task(task);
-	return status;
-out_unlock:
-	do_vfs_lock(request->fl_file, request);
+out:
 	return status;
 }
 
@@ -3461,10 +3479,10 @@ static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request
 	struct nfs4_exception exception = { };
 	int err;
 
-	/* Cache the lock if possible... */
-	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
-		return 0;
 	do {
+		/* Cache the lock if possible... */
+		if (test_bit(NFS_DELEGATED_STATE, &state->flags) != 0)
+			return 0;
 		err = _nfs4_do_setlk(state, F_SETLK, request, 1);
 		if (err != -NFS4ERR_DELAY)
 			break;
@@ -3483,6 +3501,8 @@ static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request
 	if (err != 0)
 		return err;
 	do {
+		if (test_bit(NFS_DELEGATED_STATE, &state->flags) != 0)
+			return 0;
 		err = _nfs4_do_setlk(state, F_SETLK, request, 0);
 		if (err != -NFS4ERR_DELAY)
 			break;
@@ -3494,29 +3514,42 @@ static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request
 static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
 	struct nfs4_client *clp = state->owner->so_client;
+	unsigned char fl_flags = request->fl_flags;
 	int status;
 
 	/* Is this a delegated open? */
-	if (NFS_I(state->inode)->delegation_state != 0) {
-		/* Yes: cache locks! */
-		status = do_vfs_lock(request->fl_file, request);
-		/* ...but avoid races with delegation recall... */
-		if (status < 0 || test_bit(NFS_DELEGATED_STATE, &state->flags))
-			return status;
-	}
-	down_read(&clp->cl_sem);
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
 		goto out;
+	request->fl_flags |= FL_ACCESS;
+	status = do_vfs_lock(request->fl_file, request);
+	if (status < 0)
+		goto out;
+	down_read(&clp->cl_sem);
+	if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
+		struct nfs_inode *nfsi = NFS_I(state->inode);
+		/* Yes: cache locks! */
+		down_read(&nfsi->rwsem);
+		/* ...but avoid races with delegation recall... */
+		if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
+			request->fl_flags = fl_flags & ~FL_SLEEP;
+			status = do_vfs_lock(request->fl_file, request);
+			up_read(&nfsi->rwsem);
+			goto out_unlock;
+		}
+		up_read(&nfsi->rwsem);
+	}
 	status = _nfs4_do_setlk(state, cmd, request, 0);
 	if (status != 0)
-		goto out;
+		goto out_unlock;
 	/* Note: we always want to sleep here! */
-	request->fl_flags |= FL_SLEEP;
+	request->fl_flags = fl_flags | FL_SLEEP;
 	if (do_vfs_lock(request->fl_file, request) < 0)
 		printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n", __FUNCTION__);
-out:
+out_unlock:
 	up_read(&clp->cl_sem);
+out:
+	request->fl_flags = fl_flags;
 	return status;
 }
 

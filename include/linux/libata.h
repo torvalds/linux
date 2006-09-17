@@ -131,6 +131,7 @@ enum {
 	ATA_DFLAG_CFG_MASK	= (1 << 8) - 1,
 
 	ATA_DFLAG_PIO		= (1 << 8), /* device currently in PIO mode */
+	ATA_DFLAG_SUSPENDED	= (1 << 9), /* device suspended */
 	ATA_DFLAG_INIT_MASK	= (1 << 16) - 1,
 
 	ATA_DFLAG_DETACH	= (1 << 16),
@@ -160,22 +161,28 @@ enum {
 	ATA_FLAG_HRST_TO_RESUME	= (1 << 11), /* hardreset to resume phy */
 	ATA_FLAG_SKIP_D2H_BSY	= (1 << 12), /* can't wait for the first D2H
 					      * Register FIS clearing BSY */
-
 	ATA_FLAG_DEBUGMSG	= (1 << 13),
-	ATA_FLAG_FLUSH_PORT_TASK = (1 << 14), /* flush port task */
 
-	ATA_FLAG_EH_PENDING	= (1 << 15), /* EH pending */
-	ATA_FLAG_EH_IN_PROGRESS	= (1 << 16), /* EH in progress */
-	ATA_FLAG_FROZEN		= (1 << 17), /* port is frozen */
-	ATA_FLAG_RECOVERED	= (1 << 18), /* recovery action performed */
-	ATA_FLAG_LOADING	= (1 << 19), /* boot/loading probe */
-	ATA_FLAG_UNLOADING	= (1 << 20), /* module is unloading */
-	ATA_FLAG_SCSI_HOTPLUG	= (1 << 21), /* SCSI hotplug scheduled */
+	/* The following flag belongs to ap->pflags but is kept in
+	 * ap->flags because it's referenced in many LLDs and will be
+	 * removed in not-too-distant future.
+	 */
+	ATA_FLAG_DISABLED	= (1 << 23), /* port is disabled, ignore it */
 
-	ATA_FLAG_DISABLED	= (1 << 22), /* port is disabled, ignore it */
-	ATA_FLAG_SUSPENDED	= (1 << 23), /* port is suspended (power) */
+	/* bits 24:31 of ap->flags are reserved for LLD specific flags */
 
-	/* bits 24:31 of ap->flags are reserved for LLDD specific flags */
+	/* struct ata_port pflags */
+	ATA_PFLAG_EH_PENDING	= (1 << 0), /* EH pending */
+	ATA_PFLAG_EH_IN_PROGRESS = (1 << 1), /* EH in progress */
+	ATA_PFLAG_FROZEN	= (1 << 2), /* port is frozen */
+	ATA_PFLAG_RECOVERED	= (1 << 3), /* recovery action performed */
+	ATA_PFLAG_LOADING	= (1 << 4), /* boot/loading probe */
+	ATA_PFLAG_UNLOADING	= (1 << 5), /* module is unloading */
+	ATA_PFLAG_SCSI_HOTPLUG	= (1 << 6), /* SCSI hotplug scheduled */
+
+	ATA_PFLAG_FLUSH_PORT_TASK = (1 << 16), /* flush port task */
+	ATA_PFLAG_SUSPENDED	= (1 << 17), /* port is suspended (power) */
+	ATA_PFLAG_PM_PENDING	= (1 << 18), /* PM operation pending */
 
 	/* struct ata_queued_cmd flags */
 	ATA_QCFLAG_ACTIVE	= (1 << 0), /* cmd not yet ack'd to scsi lyer */
@@ -248,14 +255,23 @@ enum {
 	ATA_EH_REVALIDATE	= (1 << 0),
 	ATA_EH_SOFTRESET	= (1 << 1),
 	ATA_EH_HARDRESET	= (1 << 2),
+	ATA_EH_SUSPEND		= (1 << 3),
+	ATA_EH_RESUME		= (1 << 4),
+	ATA_EH_PM_FREEZE	= (1 << 5),
 
 	ATA_EH_RESET_MASK	= ATA_EH_SOFTRESET | ATA_EH_HARDRESET,
-	ATA_EH_PERDEV_MASK	= ATA_EH_REVALIDATE,
+	ATA_EH_PERDEV_MASK	= ATA_EH_REVALIDATE | ATA_EH_SUSPEND |
+				  ATA_EH_RESUME | ATA_EH_PM_FREEZE,
 
 	/* ata_eh_info->flags */
 	ATA_EHI_HOTPLUGGED	= (1 << 0),  /* could have been hotplugged */
+	ATA_EHI_RESUME_LINK	= (1 << 1),  /* resume link (reset modifier) */
+	ATA_EHI_NO_AUTOPSY	= (1 << 2),  /* no autopsy */
+	ATA_EHI_QUIET		= (1 << 3),  /* be quiet */
 
 	ATA_EHI_DID_RESET	= (1 << 16), /* already reset this port */
+
+	ATA_EHI_RESET_MODIFIER_MASK = ATA_EHI_RESUME_LINK,
 
 	/* max repeat if error condition is still set after ->error_handler */
 	ATA_EH_MAX_REPEAT	= 5,
@@ -486,6 +502,7 @@ struct ata_port {
 	const struct ata_port_operations *ops;
 	spinlock_t		*lock;
 	unsigned long		flags;	/* ATA_FLAG_xxx */
+	unsigned int		pflags; /* ATA_PFLAG_xxx */
 	unsigned int		id;	/* unique id req'd by scsi midlyr */
 	unsigned int		port_no; /* unique port #; from zero */
 	unsigned int		hard_port_no;	/* hardware port #; from zero */
@@ -534,6 +551,9 @@ struct ata_port {
 	u32			msg_enable;
 	struct list_head	eh_done_q;
 	wait_queue_head_t	eh_wait_q;
+
+	pm_message_t		pm_mesg;
+	int			*pm_result;
 
 	void			*private_data;
 
@@ -589,6 +609,9 @@ struct ata_port_operations {
 	void (*scr_write) (struct ata_port *ap, unsigned int sc_reg,
 			   u32 val);
 
+	int (*port_suspend) (struct ata_port *ap, pm_message_t mesg);
+	int (*port_resume) (struct ata_port *ap);
+
 	int (*port_start) (struct ata_port *ap);
 	void (*port_stop) (struct ata_port *ap);
 
@@ -622,9 +645,18 @@ struct ata_timing {
 
 #define FIT(v,vmin,vmax)	max_t(short,min_t(short,v,vmax),vmin)
 
-extern const unsigned long sata_deb_timing_boot[];
-extern const unsigned long sata_deb_timing_eh[];
-extern const unsigned long sata_deb_timing_before_fsrst[];
+extern const unsigned long sata_deb_timing_normal[];
+extern const unsigned long sata_deb_timing_hotplug[];
+extern const unsigned long sata_deb_timing_long[];
+
+static inline const unsigned long *
+sata_ehc_deb_timing(struct ata_eh_context *ehc)
+{
+	if (ehc->i.flags & ATA_EHI_HOTPLUGGED)
+		return sata_deb_timing_hotplug;
+	else
+		return sata_deb_timing_normal;
+}
 
 extern void ata_port_probe(struct ata_port *);
 extern void __sata_phy_reset(struct ata_port *ap);
@@ -644,6 +676,8 @@ extern void ata_std_ports(struct ata_ioports *ioaddr);
 extern int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 			     unsigned int n_ports);
 extern void ata_pci_remove_one (struct pci_dev *pdev);
+extern void ata_pci_device_do_suspend(struct pci_dev *pdev, pm_message_t state);
+extern void ata_pci_device_do_resume(struct pci_dev *pdev);
 extern int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t state);
 extern int ata_pci_device_resume(struct pci_dev *pdev);
 extern int ata_pci_clear_simplex(struct pci_dev *pdev);
@@ -664,8 +698,9 @@ extern int ata_port_online(struct ata_port *ap);
 extern int ata_port_offline(struct ata_port *ap);
 extern int ata_scsi_device_resume(struct scsi_device *);
 extern int ata_scsi_device_suspend(struct scsi_device *, pm_message_t state);
-extern int ata_device_resume(struct ata_device *);
-extern int ata_device_suspend(struct ata_device *, pm_message_t state);
+extern int ata_host_set_suspend(struct ata_host_set *host_set,
+				pm_message_t mesg);
+extern void ata_host_set_resume(struct ata_host_set *host_set);
 extern int ata_ratelimit(void);
 extern unsigned int ata_busy_sleep(struct ata_port *ap,
 				   unsigned long timeout_pat,
@@ -825,17 +860,22 @@ extern void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	(ehi)->desc_len = 0; \
 } while (0)
 
-static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
+static inline void __ata_ehi_hotplugged(struct ata_eh_info *ehi)
 {
 	if (ehi->flags & ATA_EHI_HOTPLUGGED)
 		return;
 
-	ehi->flags |= ATA_EHI_HOTPLUGGED;
+	ehi->flags |= ATA_EHI_HOTPLUGGED | ATA_EHI_RESUME_LINK;
 	ehi->hotplug_timestamp = jiffies;
 
-	ehi->err_mask |= AC_ERR_ATA_BUS;
 	ehi->action |= ATA_EH_SOFTRESET;
 	ehi->probe_mask |= (1 << ATA_MAX_DEVICES) - 1;
+}
+
+static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
+{
+	__ata_ehi_hotplugged(ehi);
+	ehi->err_mask |= AC_ERR_ATA_BUS;
 }
 
 /*
@@ -919,6 +959,11 @@ static inline unsigned int ata_dev_disabled(const struct ata_device *dev)
 static inline unsigned int ata_dev_absent(const struct ata_device *dev)
 {
 	return ata_class_absent(dev->class);
+}
+
+static inline unsigned int ata_dev_ready(const struct ata_device *dev)
+{
+	return ata_dev_enabled(dev) && !(dev->flags & ATA_DFLAG_SUSPENDED);
 }
 
 /*

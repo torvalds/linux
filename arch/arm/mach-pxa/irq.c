@@ -39,7 +39,8 @@ static void pxa_unmask_low_irq(unsigned int irq)
 	ICMR |= (1 << (irq + PXA_IRQ_SKIP));
 }
 
-static struct irqchip pxa_internal_chip_low = {
+static struct irq_chip pxa_internal_chip_low = {
+	.name		= "SC",
 	.ack		= pxa_mask_low_irq,
 	.mask		= pxa_mask_low_irq,
 	.unmask		= pxa_unmask_low_irq,
@@ -61,7 +62,8 @@ static void pxa_unmask_high_irq(unsigned int irq)
 	ICMR2 |= (1 << (irq - 32 + PXA_IRQ_SKIP));
 }
 
-static struct irqchip pxa_internal_chip_high = {
+static struct irq_chip pxa_internal_chip_high = {
+	.name		= "SC-hi",
 	.ack		= pxa_mask_high_irq,
 	.mask		= pxa_mask_high_irq,
 	.unmask		= pxa_unmask_high_irq,
@@ -129,7 +131,8 @@ static void pxa_ack_low_gpio(unsigned int irq)
 	GEDR0 = (1 << (irq - IRQ_GPIO0));
 }
 
-static struct irqchip pxa_low_gpio_chip = {
+static struct irq_chip pxa_low_gpio_chip = {
+	.name		= "GPIO-l",
 	.ack		= pxa_ack_low_gpio,
 	.mask		= pxa_mask_low_irq,
 	.unmask		= pxa_unmask_low_irq,
@@ -237,7 +240,8 @@ static void pxa_unmask_muxed_gpio(unsigned int irq)
 	GFER(gpio) = GPIO_IRQ_falling_edge[idx] & GPIO_IRQ_mask[idx];
 }
 
-static struct irqchip pxa_muxed_gpio_chip = {
+static struct irq_chip pxa_muxed_gpio_chip = {
+	.name		= "GPIO",
 	.ack		= pxa_ack_muxed_gpio,
 	.mask		= pxa_mask_muxed_gpio,
 	.unmask		= pxa_unmask_muxed_gpio,

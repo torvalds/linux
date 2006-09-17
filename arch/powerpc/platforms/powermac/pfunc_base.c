@@ -24,19 +24,18 @@ static irqreturn_t macio_gpio_irq(int irq, void *data, struct pt_regs *regs)
 
 static int macio_do_gpio_irq_enable(struct pmf_function *func)
 {
-	if (func->node->n_intrs < 1)
+	unsigned int irq = irq_of_parse_and_map(func->node, 0);
+	if (irq == NO_IRQ)
 		return -EINVAL;
-
-	return request_irq(func->node->intrs[0].line, macio_gpio_irq, 0,
-			   func->node->name, func);
+	return request_irq(irq, macio_gpio_irq, 0, func->node->name, func);
 }
 
 static int macio_do_gpio_irq_disable(struct pmf_function *func)
 {
-	if (func->node->n_intrs < 1)
+	unsigned int irq = irq_of_parse_and_map(func->node, 0);
+	if (irq == NO_IRQ)
 		return -EINVAL;
-
-	free_irq(func->node->intrs[0].line, func);
+	free_irq(irq, func);
 	return 0;
 }
 
@@ -257,7 +256,7 @@ static struct pmf_handlers macio_mmio_handlers = {
 	.write_reg32		= macio_do_write_reg32,
 	.read_reg32		= macio_do_read_reg32,
 	.write_reg8		= macio_do_write_reg8,
-	.read_reg32		= macio_do_read_reg8,
+	.read_reg8		= macio_do_read_reg8,
 	.read_reg32_msrx	= macio_do_read_reg32_msrx,
 	.read_reg8_msrx		= macio_do_read_reg8_msrx,
 	.write_reg32_slm	= macio_do_write_reg32_slm,

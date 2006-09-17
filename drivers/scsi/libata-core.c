@@ -61,9 +61,9 @@
 #include "libata.h"
 
 /* debounce timing parameters in msecs { interval, duration, timeout } */
-const unsigned long sata_deb_timing_boot[]		= {   5,  100, 2000 };
-const unsigned long sata_deb_timing_eh[]		= {  25,  500, 2000 };
-const unsigned long sata_deb_timing_before_fsrst[]	= { 100, 2000, 5000 };
+const unsigned long sata_deb_timing_normal[]		= {   5,  100, 2000 };
+const unsigned long sata_deb_timing_hotplug[]		= {  25,  500, 2000 };
+const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 
 static unsigned int ata_dev_init_params(struct ata_device *dev,
 					u16 heads, u16 sectors);
@@ -907,7 +907,7 @@ void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *), void *data,
 {
 	int rc;
 
-	if (ap->flags & ATA_FLAG_FLUSH_PORT_TASK)
+	if (ap->pflags & ATA_PFLAG_FLUSH_PORT_TASK)
 		return;
 
 	PREPARE_WORK(&ap->port_task, fn, data);
@@ -938,7 +938,7 @@ void ata_port_flush_task(struct ata_port *ap)
 	DPRINTK("ENTER\n");
 
 	spin_lock_irqsave(ap->lock, flags);
-	ap->flags |= ATA_FLAG_FLUSH_PORT_TASK;
+	ap->pflags |= ATA_PFLAG_FLUSH_PORT_TASK;
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	DPRINTK("flush #1\n");
@@ -957,7 +957,7 @@ void ata_port_flush_task(struct ata_port *ap)
 	}
 
 	spin_lock_irqsave(ap->lock, flags);
-	ap->flags &= ~ATA_FLAG_FLUSH_PORT_TASK;
+	ap->pflags &= ~ATA_PFLAG_FLUSH_PORT_TASK;
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	if (ata_msg_ctl(ap))
@@ -1001,7 +1001,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	struct ata_queued_cmd *qc;
 	unsigned int tag, preempted_tag;
 	u32 preempted_sactive, preempted_qc_active;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned long flags;
 	unsigned int err_mask;
 	int rc;
@@ -1009,7 +1009,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	spin_lock_irqsave(ap->lock, flags);
 
 	/* no internal command while frozen */
-	if (ap->flags & ATA_FLAG_FROZEN) {
+	if (ap->pflags & ATA_PFLAG_FROZEN) {
 		spin_unlock_irqrestore(ap->lock, flags);
 		return AC_ERR_SYSTEM;
 	}
@@ -1256,10 +1256,15 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	swap_buf_le16(id, ATA_ID_WORDS);
 
 	/* sanity check */
-	if ((class == ATA_DEV_ATA) != (ata_id_is_ata(id) | ata_id_is_cfa(id))) {
-		rc = -EINVAL;
-		reason = "device reports illegal type";
-		goto err_out;
+	rc = -EINVAL;
+	reason = "device reports illegal type";
+
+	if (class == ATA_DEV_ATA) {
+		if (!ata_id_is_ata(id) && !ata_id_is_cfa(id))
+			goto err_out;
+	} else {
+		if (ata_id_is_ata(id))
+			goto err_out;
 	}
 
 	if (post_reset && class == ATA_DEV_ATA) {
@@ -1325,6 +1330,19 @@ static void ata_dev_config_ncq(struct ata_device *dev,
 		snprintf(desc, desc_sz, "NCQ (depth %d/%d)", hdepth, ddepth);
 }
 
+static void ata_set_port_max_cmd_len(struct ata_port *ap)
+{
+	int i;
+
+	if (ap->host) {
+		ap->host->max_cmd_len = 0;
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			ap->host->max_cmd_len = max_t(unsigned int,
+						      ap->host->max_cmd_len,
+						      ap->device[i].cdb_len);
+	}
+}
+
 /**
  *	ata_dev_configure - Configure the specified ATA/ATAPI device
  *	@dev: Target device to configure
@@ -1344,7 +1362,7 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 	struct ata_port *ap = dev->ap;
 	const u16 *id = dev->id;
 	unsigned int xfer_mask;
-	int i, rc;
+	int rc;
 
 	if (!ata_dev_enabled(dev) && ata_msg_info(ap)) {
 		ata_dev_printk(dev, KERN_INFO,
@@ -1404,7 +1422,7 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 			ata_dev_config_ncq(dev, ncq_desc, sizeof(ncq_desc));
 
 			/* print device info to dmesg */
-			if (ata_msg_info(ap))
+			if (ata_msg_drv(ap) && print_info)
 				ata_dev_printk(dev, KERN_INFO, "ATA-%d, "
 					"max %s, %Lu sectors: %s %s\n",
 					ata_id_major_version(id),
@@ -1427,7 +1445,7 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 			}
 
 			/* print device info to dmesg */
-			if (ata_msg_info(ap))
+			if (ata_msg_drv(ap) && print_info)
 				ata_dev_printk(dev, KERN_INFO, "ATA-%d, "
 					"max %s, %Lu sectors: CHS %u/%u/%u\n",
 					ata_id_major_version(id),
@@ -1439,7 +1457,7 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 
 		if (dev->id[59] & 0x100) {
 			dev->multi_count = dev->id[59] & 0xff;
-			if (ata_msg_info(ap))
+			if (ata_msg_drv(ap) && print_info)
 				ata_dev_printk(dev, KERN_INFO,
 					"ata%u: dev %u multi count %u\n",
 					ap->id, dev->devno, dev->multi_count);
@@ -1468,21 +1486,17 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 		}
 
 		/* print device info to dmesg */
-		if (ata_msg_info(ap))
+		if (ata_msg_drv(ap) && print_info)
 			ata_dev_printk(dev, KERN_INFO, "ATAPI, max %s%s\n",
 				       ata_mode_string(xfer_mask),
 				       cdb_intr_string);
 	}
 
-	ap->host->max_cmd_len = 0;
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		ap->host->max_cmd_len = max_t(unsigned int,
-					      ap->host->max_cmd_len,
-					      ap->device[i].cdb_len);
+	ata_set_port_max_cmd_len(ap);
 
 	/* limit bridge transfers to udma5, 200 sectors */
 	if (ata_dev_knobble(dev)) {
-		if (ata_msg_info(ap))
+		if (ata_msg_drv(ap) && print_info)
 			ata_dev_printk(dev, KERN_INFO,
 				       "applying bridge limits\n");
 		dev->udma_mask &= ATA_UDMA5;
@@ -2137,7 +2151,7 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 		 * return error code and failing device on failure.
 		 */
 		for (i = 0; i < ATA_MAX_DEVICES; i++) {
-			if (ata_dev_enabled(&ap->device[i])) {
+			if (ata_dev_ready(&ap->device[i])) {
 				ap->ops->set_mode(ap);
 				break;
 			}
@@ -2203,7 +2217,8 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		dev = &ap->device[i];
 
-		if (!ata_dev_enabled(dev))
+		/* don't udpate suspended devices' xfer mode */
+		if (!ata_dev_ready(dev))
 			continue;
 
 		rc = ata_dev_set_mode(dev);
@@ -2579,7 +2594,7 @@ static void ata_wait_spinup(struct ata_port *ap)
 
 	/* first, debounce phy if SATA */
 	if (ap->cbl == ATA_CBL_SATA) {
-		rc = sata_phy_debounce(ap, sata_deb_timing_eh);
+		rc = sata_phy_debounce(ap, sata_deb_timing_hotplug);
 
 		/* if debounced successfully and offline, no need to wait */
 		if ((rc == 0 || rc == -EOPNOTSUPP) && ata_port_offline(ap))
@@ -2615,16 +2630,17 @@ static void ata_wait_spinup(struct ata_port *ap)
 int ata_std_prereset(struct ata_port *ap)
 {
 	struct ata_eh_context *ehc = &ap->eh_context;
-	const unsigned long *timing;
+	const unsigned long *timing = sata_ehc_deb_timing(ehc);
 	int rc;
 
-	/* hotplug? */
-	if (ehc->i.flags & ATA_EHI_HOTPLUGGED) {
-		if (ap->flags & ATA_FLAG_HRST_TO_RESUME)
-			ehc->i.action |= ATA_EH_HARDRESET;
-		if (ap->flags & ATA_FLAG_SKIP_D2H_BSY)
-			ata_wait_spinup(ap);
-	}
+	/* handle link resume & hotplug spinup */
+	if ((ehc->i.flags & ATA_EHI_RESUME_LINK) &&
+	    (ap->flags & ATA_FLAG_HRST_TO_RESUME))
+		ehc->i.action |= ATA_EH_HARDRESET;
+
+	if ((ehc->i.flags & ATA_EHI_HOTPLUGGED) &&
+	    (ap->flags & ATA_FLAG_SKIP_D2H_BSY))
+		ata_wait_spinup(ap);
 
 	/* if we're about to do hardreset, nothing more to do */
 	if (ehc->i.action & ATA_EH_HARDRESET)
@@ -2632,11 +2648,6 @@ int ata_std_prereset(struct ata_port *ap)
 
 	/* if SATA, resume phy */
 	if (ap->cbl == ATA_CBL_SATA) {
-		if (ap->flags & ATA_FLAG_LOADING)
-			timing = sata_deb_timing_boot;
-		else
-			timing = sata_deb_timing_eh;
-
 		rc = sata_phy_resume(ap, timing);
 		if (rc && rc != -EOPNOTSUPP) {
 			/* phy resume failed */
@@ -2724,6 +2735,8 @@ int ata_std_softreset(struct ata_port *ap, unsigned int *classes)
  */
 int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 {
+	struct ata_eh_context *ehc = &ap->eh_context;
+	const unsigned long *timing = sata_ehc_deb_timing(ehc);
 	u32 scontrol;
 	int rc;
 
@@ -2738,7 +2751,7 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 		if ((rc = sata_scr_read(ap, SCR_CONTROL, &scontrol)))
 			return rc;
 
-		scontrol = (scontrol & 0x0f0) | 0x302;
+		scontrol = (scontrol & 0x0f0) | 0x304;
 
 		if ((rc = sata_scr_write(ap, SCR_CONTROL, scontrol)))
 			return rc;
@@ -2761,7 +2774,7 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 	msleep(1);
 
 	/* bring phy back */
-	sata_phy_resume(ap, sata_deb_timing_eh);
+	sata_phy_resume(ap, timing);
 
 	/* TODO: phy layer with polling, timeouts, etc. */
 	if (ata_port_offline(ap)) {
@@ -4285,7 +4298,7 @@ static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
 	unsigned int i;
 
 	/* no command while frozen */
-	if (unlikely(ap->flags & ATA_FLAG_FROZEN))
+	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN))
 		return NULL;
 
 	/* the last tag is reserved for internal command. */
@@ -4407,7 +4420,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	 * taken care of.
 	 */
 	if (ap->ops->error_handler) {
-		WARN_ON(ap->flags & ATA_FLAG_FROZEN);
+		WARN_ON(ap->pflags & ATA_PFLAG_FROZEN);
 
 		if (unlikely(qc->err_mask))
 			qc->flags |= ATA_QCFLAG_FAILED;
@@ -5001,86 +5014,120 @@ int ata_flush_cache(struct ata_device *dev)
 	return 0;
 }
 
-static int ata_standby_drive(struct ata_device *dev)
+static int ata_host_set_request_pm(struct ata_host_set *host_set,
+				   pm_message_t mesg, unsigned int action,
+				   unsigned int ehi_flags, int wait)
 {
-	unsigned int err_mask;
+	unsigned long flags;
+	int i, rc;
 
-	err_mask = ata_do_simple_cmd(dev, ATA_CMD_STANDBYNOW1);
-	if (err_mask) {
-		ata_dev_printk(dev, KERN_ERR, "failed to standby drive "
-			       "(err_mask=0x%x)\n", err_mask);
-		return -EIO;
-	}
+	for (i = 0; i < host_set->n_ports; i++) {
+		struct ata_port *ap = host_set->ports[i];
 
-	return 0;
-}
+		/* Previous resume operation might still be in
+		 * progress.  Wait for PM_PENDING to clear.
+		 */
+		if (ap->pflags & ATA_PFLAG_PM_PENDING) {
+			ata_port_wait_eh(ap);
+			WARN_ON(ap->pflags & ATA_PFLAG_PM_PENDING);
+		}
 
-static int ata_start_drive(struct ata_device *dev)
-{
-	unsigned int err_mask;
+		/* request PM ops to EH */
+		spin_lock_irqsave(ap->lock, flags);
 
-	err_mask = ata_do_simple_cmd(dev, ATA_CMD_IDLEIMMEDIATE);
-	if (err_mask) {
-		ata_dev_printk(dev, KERN_ERR, "failed to start drive "
-			       "(err_mask=0x%x)\n", err_mask);
-		return -EIO;
+		ap->pm_mesg = mesg;
+		if (wait) {
+			rc = 0;
+			ap->pm_result = &rc;
+		}
+
+		ap->pflags |= ATA_PFLAG_PM_PENDING;
+		ap->eh_info.action |= action;
+		ap->eh_info.flags |= ehi_flags;
+
+		ata_port_schedule_eh(ap);
+
+		spin_unlock_irqrestore(ap->lock, flags);
+
+		/* wait and check result */
+		if (wait) {
+			ata_port_wait_eh(ap);
+			WARN_ON(ap->pflags & ATA_PFLAG_PM_PENDING);
+			if (rc)
+				return rc;
+		}
 	}
 
 	return 0;
 }
 
 /**
- *	ata_device_resume - wakeup a previously suspended devices
- *	@dev: the device to resume
+ *	ata_host_set_suspend - suspend host_set
+ *	@host_set: host_set to suspend
+ *	@mesg: PM message
  *
- *	Kick the drive back into action, by sending it an idle immediate
- *	command and making sure its transfer mode matches between drive
- *	and host.
+ *	Suspend @host_set.  Actual operation is performed by EH.  This
+ *	function requests EH to perform PM operations and waits for EH
+ *	to finish.
  *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno on failure.
  */
-int ata_device_resume(struct ata_device *dev)
+int ata_host_set_suspend(struct ata_host_set *host_set, pm_message_t mesg)
 {
-	struct ata_port *ap = dev->ap;
+	int i, j, rc;
 
-	if (ap->flags & ATA_FLAG_SUSPENDED) {
-		struct ata_device *failed_dev;
+	rc = ata_host_set_request_pm(host_set, mesg, 0, ATA_EHI_QUIET, 1);
+	if (rc)
+		goto fail;
 
-		ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
-		ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 200000);
+	/* EH is quiescent now.  Fail if we have any ready device.
+	 * This happens if hotplug occurs between completion of device
+	 * suspension and here.
+	 */
+	for (i = 0; i < host_set->n_ports; i++) {
+		struct ata_port *ap = host_set->ports[i];
 
-		ap->flags &= ~ATA_FLAG_SUSPENDED;
-		while (ata_set_mode(ap, &failed_dev))
-			ata_dev_disable(failed_dev);
+		for (j = 0; j < ATA_MAX_DEVICES; j++) {
+			struct ata_device *dev = &ap->device[j];
+
+			if (ata_dev_ready(dev)) {
+				ata_port_printk(ap, KERN_WARNING,
+						"suspend failed, device %d "
+						"still active\n", dev->devno);
+				rc = -EBUSY;
+				goto fail;
+			}
+		}
 	}
-	if (!ata_dev_enabled(dev))
-		return 0;
-	if (dev->class == ATA_DEV_ATA)
-		ata_start_drive(dev);
 
+	host_set->dev->power.power_state = mesg;
 	return 0;
+
+ fail:
+	ata_host_set_resume(host_set);
+	return rc;
 }
 
 /**
- *	ata_device_suspend - prepare a device for suspend
- *	@dev: the device to suspend
- *	@state: target power management state
+ *	ata_host_set_resume - resume host_set
+ *	@host_set: host_set to resume
  *
- *	Flush the cache on the drive, if appropriate, then issue a
- *	standbynow command.
+ *	Resume @host_set.  Actual operation is performed by EH.  This
+ *	function requests EH to perform PM operations and returns.
+ *	Note that all resume operations are performed parallely.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
  */
-int ata_device_suspend(struct ata_device *dev, pm_message_t state)
+void ata_host_set_resume(struct ata_host_set *host_set)
 {
-	struct ata_port *ap = dev->ap;
-
-	if (!ata_dev_enabled(dev))
-		return 0;
-	if (dev->class == ATA_DEV_ATA)
-		ata_flush_cache(dev);
-
-	if (state.event != PM_EVENT_FREEZE)
-		ata_standby_drive(dev);
-	ap->flags |= ATA_FLAG_SUSPENDED;
-	return 0;
+	ata_host_set_request_pm(host_set, PMSG_ON, ATA_EH_SOFTRESET,
+				ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET, 0);
+	host_set->dev->power.power_state = PMSG_ON;
 }
 
 /**
@@ -5141,28 +5188,6 @@ void ata_host_stop (struct ata_host_set *host_set)
 {
 	if (host_set->mmio_base)
 		iounmap(host_set->mmio_base);
-}
-
-
-/**
- *	ata_host_remove - Unregister SCSI host structure with upper layers
- *	@ap: Port to unregister
- *	@do_unregister: 1 if we fully unregister, 0 to just stop the port
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-
-static void ata_host_remove(struct ata_port *ap, unsigned int do_unregister)
-{
-	struct Scsi_Host *sh = ap->host;
-
-	DPRINTK("ENTER\n");
-
-	if (do_unregister)
-		scsi_remove_host(sh);
-
-	ap->ops->port_stop(ap);
 }
 
 /**
@@ -5440,6 +5465,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		}
 
 		if (ap->ops->error_handler) {
+			struct ata_eh_info *ehi = &ap->eh_info;
 			unsigned long flags;
 
 			ata_port_probe(ap);
@@ -5447,10 +5473,11 @@ int ata_device_add(const struct ata_probe_ent *ent)
 			/* kick EH for boot probing */
 			spin_lock_irqsave(ap->lock, flags);
 
-			ap->eh_info.probe_mask = (1 << ATA_MAX_DEVICES) - 1;
-			ap->eh_info.action |= ATA_EH_SOFTRESET;
+			ehi->probe_mask = (1 << ATA_MAX_DEVICES) - 1;
+			ehi->action |= ATA_EH_SOFTRESET;
+			ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
 
-			ap->flags |= ATA_FLAG_LOADING;
+			ap->pflags |= ATA_PFLAG_LOADING;
 			ata_port_schedule_eh(ap);
 
 			spin_unlock_irqrestore(ap->lock, flags);
@@ -5488,8 +5515,11 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 err_out:
 	for (i = 0; i < count; i++) {
-		ata_host_remove(host_set->ports[i], 1);
-		scsi_host_put(host_set->ports[i]->host);
+		struct ata_port *ap = host_set->ports[i];
+		if (ap) {
+			ap->ops->port_stop(ap);
+			scsi_host_put(ap->host);
+		}
 	}
 err_free_ret:
 	kfree(host_set);
@@ -5514,11 +5544,11 @@ void ata_port_detach(struct ata_port *ap)
 	int i;
 
 	if (!ap->ops->error_handler)
-		return;
+		goto skip_eh;
 
 	/* tell EH we're leaving & flush EH */
 	spin_lock_irqsave(ap->lock, flags);
-	ap->flags |= ATA_FLAG_UNLOADING;
+	ap->pflags |= ATA_PFLAG_UNLOADING;
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	ata_port_wait_eh(ap);
@@ -5550,6 +5580,7 @@ void ata_port_detach(struct ata_port *ap)
 	cancel_delayed_work(&ap->hotplug_task);
 	flush_workqueue(ata_aux_wq);
 
+ skip_eh:
 	/* remove the associated SCSI host */
 	scsi_remove_host(ap->host);
 }
@@ -5618,7 +5649,7 @@ int ata_scsi_release(struct Scsi_Host *host)
 	DPRINTK("ENTER\n");
 
 	ap->ops->port_disable(ap);
-	ata_host_remove(ap, 0);
+	ap->ops->port_stop(ap);
 
 	DPRINTK("EXIT\n");
 	return 1;
@@ -5723,20 +5754,55 @@ int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits)
 	return (tmp == bits->val) ? 1 : 0;
 }
 
-int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t state)
+void ata_pci_device_do_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-	return 0;
+
+	if (state.event == PM_EVENT_SUSPEND) {
+		pci_disable_device(pdev);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
 }
 
-int ata_pci_device_resume(struct pci_dev *pdev)
+void ata_pci_device_do_resume(struct pci_dev *pdev)
 {
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	pci_enable_device(pdev);
 	pci_set_master(pdev);
+}
+
+int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct ata_host_set *host_set = dev_get_drvdata(&pdev->dev);
+	int rc = 0;
+
+	rc = ata_host_set_suspend(host_set, state);
+	if (rc)
+		return rc;
+
+	if (host_set->next) {
+		rc = ata_host_set_suspend(host_set->next, state);
+		if (rc) {
+			ata_host_set_resume(host_set);
+			return rc;
+		}
+	}
+
+	ata_pci_device_do_suspend(pdev, state);
+
+	return 0;
+}
+
+int ata_pci_device_resume(struct pci_dev *pdev)
+{
+	struct ata_host_set *host_set = dev_get_drvdata(&pdev->dev);
+
+	ata_pci_device_do_resume(pdev);
+	ata_host_set_resume(host_set);
+	if (host_set->next)
+		ata_host_set_resume(host_set->next);
+
 	return 0;
 }
 #endif /* CONFIG_PCI */
@@ -5842,9 +5908,9 @@ u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
  * Do not depend on ABI/API stability.
  */
 
-EXPORT_SYMBOL_GPL(sata_deb_timing_boot);
-EXPORT_SYMBOL_GPL(sata_deb_timing_eh);
-EXPORT_SYMBOL_GPL(sata_deb_timing_before_fsrst);
+EXPORT_SYMBOL_GPL(sata_deb_timing_normal);
+EXPORT_SYMBOL_GPL(sata_deb_timing_hotplug);
+EXPORT_SYMBOL_GPL(sata_deb_timing_long);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
 EXPORT_SYMBOL_GPL(ata_device_add);
@@ -5916,6 +5982,8 @@ EXPORT_SYMBOL_GPL(sata_scr_write);
 EXPORT_SYMBOL_GPL(sata_scr_write_flush);
 EXPORT_SYMBOL_GPL(ata_port_online);
 EXPORT_SYMBOL_GPL(ata_port_offline);
+EXPORT_SYMBOL_GPL(ata_host_set_suspend);
+EXPORT_SYMBOL_GPL(ata_host_set_resume);
 EXPORT_SYMBOL_GPL(ata_id_string);
 EXPORT_SYMBOL_GPL(ata_id_c_string);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
@@ -5930,14 +5998,14 @@ EXPORT_SYMBOL_GPL(ata_pci_host_stop);
 EXPORT_SYMBOL_GPL(ata_pci_init_native_mode);
 EXPORT_SYMBOL_GPL(ata_pci_init_one);
 EXPORT_SYMBOL_GPL(ata_pci_remove_one);
+EXPORT_SYMBOL_GPL(ata_pci_device_do_suspend);
+EXPORT_SYMBOL_GPL(ata_pci_device_do_resume);
 EXPORT_SYMBOL_GPL(ata_pci_device_suspend);
 EXPORT_SYMBOL_GPL(ata_pci_device_resume);
 EXPORT_SYMBOL_GPL(ata_pci_default_filter);
 EXPORT_SYMBOL_GPL(ata_pci_clear_simplex);
 #endif /* CONFIG_PCI */
 
-EXPORT_SYMBOL_GPL(ata_device_suspend);
-EXPORT_SYMBOL_GPL(ata_device_resume);
 EXPORT_SYMBOL_GPL(ata_scsi_device_suspend);
 EXPORT_SYMBOL_GPL(ata_scsi_device_resume);
 

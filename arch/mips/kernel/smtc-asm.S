@@ -96,6 +96,7 @@ FEXPORT(__smtc_ipi_vector)
 	/* Save all will redundantly recompute the SP, but use it for now */
 	SAVE_ALL
 	CLI
+	TRACE_IRQS_OFF
 	move	a0,sp
 	/* Function to be invoked passed stack pad slot 5 */
 	lw	t0,PT_PADSLOT5(sp)

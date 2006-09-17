@@ -59,27 +59,6 @@ static inline int task_nice_ioprio(struct task_struct *task)
 /*
  * For inheritance, return the highest of the two given priorities
  */
-static inline int ioprio_best(unsigned short aprio, unsigned short bprio)
-{
-	unsigned short aclass = IOPRIO_PRIO_CLASS(aprio);
-	unsigned short bclass = IOPRIO_PRIO_CLASS(bprio);
-
-	if (!ioprio_valid(aprio))
-		return bprio;
-	if (!ioprio_valid(bprio))
-		return aprio;
-
-	if (aclass == IOPRIO_CLASS_NONE)
-		aclass = IOPRIO_CLASS_BE;
-	if (bclass == IOPRIO_CLASS_NONE)
-		bclass = IOPRIO_CLASS_BE;
-
-	if (aclass == bclass)
-		return min(aprio, bprio);
-	if (aclass > bclass)
-		return bprio;
-	else
-		return aprio;
-}
+extern int ioprio_best(unsigned short aprio, unsigned short bprio);
 
 #endif

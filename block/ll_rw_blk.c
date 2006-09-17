@@ -2516,7 +2516,7 @@ EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
 int blk_execute_rq(request_queue_t *q, struct gendisk *bd_disk,
 		   struct request *rq, int at_head)
 {
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	int err = 0;
 
@@ -3491,8 +3491,8 @@ EXPORT_SYMBOL(end_request);
 
 void blk_rq_bio_prep(request_queue_t *q, struct request *rq, struct bio *bio)
 {
-	/* first three bits are identical in rq->flags and bio->bi_rw */
-	rq->flags |= (bio->bi_rw & 7);
+	/* first two bits are identical in rq->flags and bio->bi_rw */
+	rq->flags |= (bio->bi_rw & 3);
 
 	rq->nr_phys_segments = bio_phys_segments(q, bio);
 	rq->nr_hw_segments = bio_hw_segments(q, bio);
@@ -3628,6 +3628,8 @@ struct io_context *current_io_context(gfp_t gfp_flags)
 		ret->nr_batch_requests = 0; /* because this is 0 */
 		ret->aic = NULL;
 		ret->cic_root.rb_node = NULL;
+		/* make sure set_task_ioprio() sees the settings above */
+		smp_wmb();
 		tsk->io_context = ret;
 	}
 

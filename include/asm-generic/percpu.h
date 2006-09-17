@@ -7,6 +7,8 @@
 
 extern unsigned long __per_cpu_offset[NR_CPUS];
 
+#define per_cpu_offset(x) (__per_cpu_offset[x])
+
 /* Separate out the type, so (int[3], foo) works. */
 #define DEFINE_PER_CPU(type, name) \
     __attribute__((__section__(".data.percpu"))) __typeof__(type) per_cpu__##name

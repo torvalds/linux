@@ -21,13 +21,13 @@
 #include <linux/mm.h>
 #include <linux/list.h>
 #include <linux/syscalls.h>
+#include <linux/irq.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/byteorder.h>
-#include <asm/irq.h>
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
 
@@ -398,12 +398,8 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	} else {
 		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;
 		dev->rom_base_reg = PCI_ROM_ADDRESS;
+		/* Maybe do a default OF mapping here */
 		dev->irq = NO_IRQ;
-		if (node->n_intrs > 0) {
-			dev->irq = node->intrs[0].line;
-			pci_write_config_byte(dev, PCI_INTERRUPT_LINE,
-					      dev->irq);
-		}
 	}
 
 	pci_parse_of_addrs(node, dev);
@@ -1288,23 +1284,55 @@ EXPORT_SYMBOL(pcibios_fixup_bus);
  */
 int pci_read_irq_line(struct pci_dev *pci_dev)
 {
-	u8 intpin;
-	struct device_node *node;
+	struct of_irq oirq;
+	unsigned int virq;
 
-    	pci_read_config_byte(pci_dev, PCI_INTERRUPT_PIN, &intpin);
-	if (intpin == 0)
-		return 0;
+	DBG("Try to map irq for %s...\n", pci_name(pci_dev));
 
-	node = pci_device_to_OF_node(pci_dev);
-	if (node == NULL)
+#ifdef DEBUG
+	memset(&oirq, 0xff, sizeof(oirq));
+#endif
+	/* Try to get a mapping from the device-tree */
+	if (of_irq_map_pci(pci_dev, &oirq)) {
+		u8 line, pin;
+
+		/* If that fails, lets fallback to what is in the config
+		 * space and map that through the default controller. We
+		 * also set the type to level low since that's what PCI
+		 * interrupts are. If your platform does differently, then
+		 * either provide a proper interrupt tree or don't use this
+		 * function.
+		 */
+		if (pci_read_config_byte(pci_dev, PCI_INTERRUPT_PIN, &pin))
+			return -1;
+		if (pin == 0)
+			return -1;
+		if (pci_read_config_byte(pci_dev, PCI_INTERRUPT_LINE, &line) ||
+		    line == 0xff) {
+			return -1;
+		}
+		DBG(" -> no map ! Using irq line %d from PCI config\n", line);
+
+		virq = irq_create_mapping(NULL, line);
+		if (virq != NO_IRQ)
+			set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
+	} else {
+		DBG(" -> got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
+		    oirq.size, oirq.specifier[0], oirq.specifier[1],
+		    oirq.controller->full_name);
+
+		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
+					     oirq.size);
+	}
+	if(virq == NO_IRQ) {
+		DBG(" -> failed to map !\n");
 		return -1;
+	}
 
-	if (node->n_intrs == 0)
-		return -1;
+	DBG(" -> mapped to linux irq %d\n", virq);
 
-	pci_dev->irq = node->intrs[0].line;
-
-	pci_write_config_byte(pci_dev, PCI_INTERRUPT_LINE, pci_dev->irq);
+	pci_dev->irq = virq;
+	pci_write_config_byte(pci_dev, PCI_INTERRUPT_LINE, virq);
 
 	return 0;
 }

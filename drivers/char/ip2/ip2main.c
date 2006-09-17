@@ -233,7 +233,7 @@ static void  *DevTableMem[IP2_MAX_BOARDS];
 /* This is the driver descriptor for the ip2ipl device, which is used to
  * download the loadware to the boards.
  */
-static struct file_operations ip2_ipl = {
+static const struct file_operations ip2_ipl = {
 	.owner		= THIS_MODULE,
 	.read		= ip2_ipl_read,
 	.write		= ip2_ipl_write,
@@ -3186,3 +3186,10 @@ ip2trace (unsigned short pn, unsigned char cat, unsigned char label, unsigned lo
 
 
 MODULE_LICENSE("GPL");
+
+static struct pci_device_id ip2main_pci_tbl[] __devinitdata = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTONE, PCI_DEVICE_ID_COMPUTONE_IP2EX) },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(pci, ip2main_pci_tbl);

@@ -925,7 +925,7 @@ int ext3_get_blocks_handle(handle_t *handle, struct inode *inode,
 	set_buffer_new(bh_result);
 got_it:
 	map_bh(bh_result, inode->i_sb, le32_to_cpu(chain[depth-1].key));
-	if (blocks_to_boundary == 0)
+	if (count > blocks_to_boundary)
 		set_buffer_boundary(bh_result);
 	err = count;
 	/* Clean up and exit */
@@ -1009,11 +1009,14 @@ struct buffer_head *ext3_getblk(handle_t *handle, struct inode *inode,
 	buffer_trace_init(&dummy.b_history);
 	err = ext3_get_blocks_handle(handle, inode, block, 1,
 					&dummy, create, 1);
-	if (err == 1) {
+	/*
+	 * ext3_get_blocks_handle() returns number of blocks
+	 * mapped. 0 in case of a HOLE.
+	 */
+	if (err > 0) {
+		if (err > 1)
+			WARN_ON(1);
 		err = 0;
-	} else if (err >= 0) {
-		WARN_ON(1);
-		err = -EIO;
 	}
 	*errp = err;
 	if (!err && buffer_mapped(&dummy)) {
@@ -1158,7 +1161,7 @@ retry:
 		ret = PTR_ERR(handle);
 		goto out;
 	}
-	if (test_opt(inode->i_sb, NOBH))
+	if (test_opt(inode->i_sb, NOBH) && ext3_should_writeback_data(inode))
 		ret = nobh_prepare_write(page, from, to, ext3_get_block);
 	else
 		ret = block_prepare_write(page, from, to, ext3_get_block);
@@ -1244,7 +1247,7 @@ static int ext3_writeback_commit_write(struct file *file, struct page *page,
 	if (new_i_size > EXT3_I(inode)->i_disksize)
 		EXT3_I(inode)->i_disksize = new_i_size;
 
-	if (test_opt(inode->i_sb, NOBH))
+	if (test_opt(inode->i_sb, NOBH) && ext3_should_writeback_data(inode))
 		ret = nobh_commit_write(file, page, from, to);
 	else
 		ret = generic_commit_write(file, page, from, to);
@@ -1494,7 +1497,7 @@ static int ext3_writeback_writepage(struct page *page,
 		goto out_fail;
 	}
 
-	if (test_opt(inode->i_sb, NOBH))
+	if (test_opt(inode->i_sb, NOBH) && ext3_should_writeback_data(inode))
 		ret = nobh_writepage(page, ext3_get_block, wbc);
 	else
 		ret = block_write_full_page(page, ext3_get_block, wbc);
@@ -2402,14 +2405,15 @@ static ext3_fsblk_t ext3_get_inode_block(struct super_block *sb,
 	struct buffer_head *bh;
 	struct ext3_group_desc * gdp;
 
-
-	if ((ino != EXT3_ROOT_INO && ino != EXT3_JOURNAL_INO &&
-		ino != EXT3_RESIZE_INO && ino < EXT3_FIRST_INO(sb)) ||
-		ino > le32_to_cpu(EXT3_SB(sb)->s_es->s_inodes_count)) {
-		ext3_error(sb, "ext3_get_inode_block",
-			    "bad inode number: %lu", ino);
+	if (!ext3_valid_inum(sb, ino)) {
+		/*
+		 * This error is already checked for in namei.c unless we are
+		 * looking at an NFS filehandle, in which case no error
+		 * report is needed
+		 */
 		return 0;
 	}
+
 	block_group = (ino - 1) / EXT3_INODES_PER_GROUP(sb);
 	if (block_group >= EXT3_SB(sb)->s_groups_count) {
 		ext3_error(sb,"ext3_get_inode_block","group >= groups count");

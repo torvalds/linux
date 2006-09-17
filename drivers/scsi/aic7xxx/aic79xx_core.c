@@ -1090,7 +1090,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 
 			/* Notify XPT */
 			ahd_send_async(ahd, devinfo.channel, devinfo.target,
-				       CAM_LUN_WILDCARD, AC_SENT_BDR, NULL);
+				       CAM_LUN_WILDCARD, AC_SENT_BDR);
 
 			/*
 			 * Allow the sequencer to continue with
@@ -3062,7 +3062,7 @@ ahd_set_syncrate(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 		tinfo->curr.ppr_options = ppr_options;
 
 		ahd_send_async(ahd, devinfo->channel, devinfo->target,
-			       CAM_LUN_WILDCARD, AC_TRANSFER_NEG, NULL);
+			       CAM_LUN_WILDCARD, AC_TRANSFER_NEG);
 		if (bootverbose) {
 			if (offset != 0) {
 				int options;
@@ -3184,7 +3184,7 @@ ahd_set_width(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 
 		tinfo->curr.width = width;
 		ahd_send_async(ahd, devinfo->channel, devinfo->target,
-			       CAM_LUN_WILDCARD, AC_TRANSFER_NEG, NULL);
+			       CAM_LUN_WILDCARD, AC_TRANSFER_NEG);
 		if (bootverbose) {
 			printf("%s: target %d using %dbit transfers\n",
 			       ahd_name(ahd), devinfo->target,
@@ -3211,12 +3211,14 @@ ahd_set_width(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
  * Update the current state of tagged queuing for a given target.
  */
 void
-ahd_set_tags(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
-	     ahd_queue_alg alg)
+ahd_set_tags(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
+	     struct ahd_devinfo *devinfo, ahd_queue_alg alg)
 {
-	ahd_platform_set_tags(ahd, devinfo, alg);
+	struct scsi_device *sdev = cmd->device;
+
+	ahd_platform_set_tags(ahd, sdev, devinfo, alg);
 	ahd_send_async(ahd, devinfo->channel, devinfo->target,
-		       devinfo->lun, AC_TRANSFER_NEG, &alg);
+		       devinfo->lun, AC_TRANSFER_NEG);
 }
 
 static void
@@ -4746,7 +4748,7 @@ ahd_handle_msg_reject(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 			printf("(%s:%c:%d:%d): refuses tagged commands.  "
 			       "Performing non-tagged I/O\n", ahd_name(ahd),
 			       devinfo->channel, devinfo->target, devinfo->lun);
-			ahd_set_tags(ahd, devinfo, AHD_QUEUE_NONE);
+			ahd_set_tags(ahd, scb->io_ctx, devinfo, AHD_QUEUE_NONE);
 			mask = ~0x23;
 		} else {
 			printf("(%s:%c:%d:%d): refuses %s tagged commands.  "
@@ -4754,7 +4756,7 @@ ahd_handle_msg_reject(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 			       ahd_name(ahd), devinfo->channel, devinfo->target,
 			       devinfo->lun, tag_type == MSG_ORDERED_TASK
 			       ? "ordered" : "head of queue");
-			ahd_set_tags(ahd, devinfo, AHD_QUEUE_BASIC);
+			ahd_set_tags(ahd, scb->io_ctx, devinfo, AHD_QUEUE_BASIC);
 			mask = ~0x03;
 		}
 
@@ -5098,7 +5100,7 @@ ahd_handle_devreset(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 	
 	if (status != CAM_SEL_TIMEOUT)
 		ahd_send_async(ahd, devinfo->channel, devinfo->target,
-			       CAM_LUN_WILDCARD, AC_SENT_BDR, NULL);
+			       CAM_LUN_WILDCARD, AC_SENT_BDR);
 
 	if (message != NULL && bootverbose)
 		printf("%s: %s on %c:%d. %d SCBs aborted\n", ahd_name(ahd),
@@ -7287,7 +7289,7 @@ ahd_reset_cmds_pending(struct ahd_softc *ahd)
 	ahd->flags &= ~AHD_UPDATE_PEND_CMDS;
 }
 
-void
+static void
 ahd_done_with_status(struct ahd_softc *ahd, struct scb *scb, uint32_t status)
 {
 	cam_status ostat;
@@ -7952,7 +7954,7 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 #endif
 	/* Notify the XPT that a bus reset occurred */
 	ahd_send_async(ahd, devinfo.channel, CAM_TARGET_WILDCARD,
-		       CAM_LUN_WILDCARD, AC_BUS_RESET, NULL);
+		       CAM_LUN_WILDCARD, AC_BUS_RESET);
 
 	/*
 	 * Revert to async/narrow transfers until we renegotiate.

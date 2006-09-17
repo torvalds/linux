@@ -470,7 +470,8 @@ static void ecard_irq_mask(unsigned int irqnr)
 	}
 }
 
-static struct irqchip ecard_chip = {
+static struct irq_chip ecard_chip = {
+	.name	= "ECARD",
 	.ack	= ecard_irq_mask,
 	.mask	= ecard_irq_mask,
 	.unmask = ecard_irq_unmask,
@@ -883,7 +884,7 @@ static ssize_t ecard_show_resources(struct device *dev, struct device_attribute 
 	int i;
 
 	for (i = 0; i < ECARD_NUM_RESOURCES; i++)
-		str += sprintf(str, "%08lx %08lx %08lx\n",
+		str += sprintf(str, "%08x %08x %08lx\n",
 				ec->resource[i].start,
 				ec->resource[i].end,
 				ec->resource[i].flags);

@@ -351,6 +351,7 @@ static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 	[STAC_REF] =	ref922x_pin_configs,
 	[STAC_D945GTP3] = d945gtp3_pin_configs,
 	[STAC_D945GTP5] = d945gtp5_pin_configs,
+	[STAC_MACMINI] = d945gtp5_pin_configs,
 	[STAC_D965_2112] = d965_2112_pin_configs,
 };
 

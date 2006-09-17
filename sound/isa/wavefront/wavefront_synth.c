@@ -1738,7 +1738,7 @@ snd_wavefront_internal_interrupt (snd_wavefront_card_t *card)
 7 Unused
 */
 
-static int __init
+static int __devinit
 snd_wavefront_interrupt_bits (int irq)
 
 {
@@ -1766,7 +1766,7 @@ snd_wavefront_interrupt_bits (int irq)
 	return bits;
 }
 
-static void __init
+static void __devinit
 wavefront_should_cause_interrupt (snd_wavefront_t *dev, 
 				  int val, int port, int timeout)
 
@@ -1787,7 +1787,7 @@ wavefront_should_cause_interrupt (snd_wavefront_t *dev,
 	}
 }
 
-static int __init
+static int __devinit
 wavefront_reset_to_cleanliness (snd_wavefront_t *dev)
 
 {
@@ -1946,7 +1946,7 @@ wavefront_reset_to_cleanliness (snd_wavefront_t *dev)
 #include <asm/uaccess.h>
 
 
-static int __init
+static int __devinit
 wavefront_download_firmware (snd_wavefront_t *dev, char *path)
 
 {
@@ -2047,7 +2047,7 @@ wavefront_download_firmware (snd_wavefront_t *dev, char *path)
 }
 
 
-static int __init
+static int __devinit
 wavefront_do_reset (snd_wavefront_t *dev)
 
 {
@@ -2136,7 +2136,7 @@ wavefront_do_reset (snd_wavefront_t *dev)
 	return 1;
 }
 
-int __init
+int __devinit
 snd_wavefront_start (snd_wavefront_t *dev)
 
 {
@@ -2178,7 +2178,7 @@ snd_wavefront_start (snd_wavefront_t *dev)
 	return (0);
 }
 
-int __init
+int __devinit
 snd_wavefront_detect (snd_wavefront_card_t *card)
 
 {

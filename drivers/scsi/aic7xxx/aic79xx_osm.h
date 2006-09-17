@@ -93,7 +93,6 @@
 #endif
 
 /********************************** Misc Macros *******************************/
-#define	roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
 #define	powerof2(x)	((((x)-1)&(x))==0)
 
 /************************* Forward Declarations *******************************/
@@ -262,7 +261,6 @@ typedef enum {
 	AHD_DEV_PERIODIC_OTAG	 = 0x40, /* Send OTAG to prevent starvation */
 } ahd_linux_dev_flags;
 
-struct ahd_linux_target;
 struct ahd_linux_device {
 	TAILQ_ENTRY(ahd_linux_device) links;
 
@@ -340,12 +338,6 @@ struct ahd_linux_device {
 	 */
 	u_int			commands_since_idle_or_otag;
 #define AHD_OTAG_THRESH	500
-};
-
-struct ahd_linux_target {
-	struct scsi_device	 *sdev[AHD_NUM_LUNS];
-	struct ahd_transinfo	  last_tinfo;
-	struct ahd_softc	 *ahd;
 };
 
 /********************* Definitions Required by the Core ***********************/
@@ -864,7 +856,7 @@ ahd_freeze_scb(struct scb *scb)
         }
 }
 
-void	ahd_platform_set_tags(struct ahd_softc *ahd,
+void	ahd_platform_set_tags(struct ahd_softc *ahd, struct scsi_device *sdev,
 			      struct ahd_devinfo *devinfo, ahd_queue_alg);
 int	ahd_platform_abort_scbs(struct ahd_softc *ahd, int target,
 				char channel, int lun, u_int tag,
@@ -873,7 +865,7 @@ irqreturn_t
 	ahd_linux_isr(int irq, void *dev_id, struct pt_regs * regs);
 void	ahd_done(struct ahd_softc*, struct scb*);
 void	ahd_send_async(struct ahd_softc *, char channel,
-		       u_int target, u_int lun, ac_code, void *);
+		       u_int target, u_int lun, ac_code);
 void	ahd_print_path(struct ahd_softc *, struct scb *);
 
 #ifdef CONFIG_PCI

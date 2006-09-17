@@ -250,15 +250,17 @@ tcf_action_dump(struct sk_buff *skb, struct tc_action *act, int bind, int ref)
 		RTA_PUT(skb, a->order, 0, NULL);
 		err = tcf_action_dump_1(skb, a, bind, ref);
 		if (err < 0)
-			goto rtattr_failure;
+			goto errout;
 		r->rta_len = skb->tail - (u8*)r;
 	}
 
 	return 0;
 
 rtattr_failure:
+	err = -EINVAL;
+errout:
 	skb_trim(skb, b - skb->data);
-	return -err;
+	return err;
 }
 
 struct tc_action *tcf_action_init_1(struct rtattr *rta, struct rtattr *est,
@@ -305,14 +307,14 @@ struct tc_action *tcf_action_init_1(struct rtattr *rta, struct rtattr *est,
 			goto err_mod;
 		}
 #endif
+		*err = -ENOENT;
 		goto err_out;
 	}
 
 	*err = -ENOMEM;
-	a = kmalloc(sizeof(*a), GFP_KERNEL);
+	a = kzalloc(sizeof(*a), GFP_KERNEL);
 	if (a == NULL)
 		goto err_mod;
-	memset(a, 0, sizeof(*a));
 
 	/* backward compatibility for policer */
 	if (name == NULL)
@@ -489,10 +491,9 @@ tcf_action_get_1(struct rtattr *rta, struct nlmsghdr *n, u32 pid, int *err)
 	index = *(int *)RTA_DATA(tb[TCA_ACT_INDEX - 1]);
 
 	*err = -ENOMEM;
-	a = kmalloc(sizeof(struct tc_action), GFP_KERNEL);
+	a = kzalloc(sizeof(struct tc_action), GFP_KERNEL);
 	if (a == NULL)
 		return NULL;
-	memset(a, 0, sizeof(struct tc_action));
 
 	*err = -EINVAL;
 	a->ops = tc_lookup_action(tb[TCA_ACT_KIND - 1]);
@@ -528,12 +529,11 @@ static struct tc_action *create_a(int i)
 {
 	struct tc_action *act;
 
-	act = kmalloc(sizeof(*act), GFP_KERNEL);
+	act = kzalloc(sizeof(*act), GFP_KERNEL);
 	if (act == NULL) {
 		printk("create_a: failed to alloc!\n");
 		return NULL;
 	}
-	memset(act, 0, sizeof(*act));
 	act->order = i;
 	return act;
 }
@@ -599,8 +599,8 @@ static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
 	return err;
 
 rtattr_failure:
-	module_put(a->ops->owner);
 nlmsg_failure:
+	module_put(a->ops->owner);
 err_out:
 	kfree_skb(skb);
 	kfree(a);
@@ -776,7 +776,7 @@ replay:
 	return ret;
 }
 
-static char *
+static struct rtattr *
 find_dump_kind(struct nlmsghdr *n)
 {
 	struct rtattr *tb1, *tb2[TCA_ACT_MAX+1];
@@ -804,7 +804,7 @@ find_dump_kind(struct nlmsghdr *n)
 		return NULL;
 	kind = tb2[TCA_ACT_KIND-1];
 
-	return (char *) RTA_DATA(kind);
+	return kind;
 }
 
 static int
@@ -817,16 +817,15 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	struct tc_action a;
 	int ret = 0;
 	struct tcamsg *t = (struct tcamsg *) NLMSG_DATA(cb->nlh);
-	char *kind = find_dump_kind(cb->nlh);
+	struct rtattr *kind = find_dump_kind(cb->nlh);
 
 	if (kind == NULL) {
 		printk("tc_dump_action: action bad kind\n");
 		return 0;
 	}
 
-	a_o = tc_lookup_action_n(kind);
+	a_o = tc_lookup_action(kind);
 	if (a_o == NULL) {
-		printk("failed to find %s\n", kind);
 		return 0;
 	}
 
@@ -834,7 +833,7 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	a.ops = a_o;
 
 	if (a_o->walk == NULL) {
-		printk("tc_dump_action: %s !capable of dumping table\n", kind);
+		printk("tc_dump_action: %s !capable of dumping table\n", a_o->kind);
 		goto rtattr_failure;
 	}
 
@@ -882,8 +881,6 @@ static int __init tc_action_init(void)
 		link_p[RTM_GETACTION-RTM_BASE].dumpit = tc_dump_action;
 	}
 
-	printk("TC classifier action (bugs to netdev@vger.kernel.org cc "
-	       "hadi@cyberus.ca)\n");
 	return 0;
 }
 

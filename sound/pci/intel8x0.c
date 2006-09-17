@@ -413,7 +413,7 @@ struct intel8x0 {
 	u32 int_sta_mask;		/* interrupt status mask */
 };
 
-static struct pci_device_id snd_intel8x0_ids[] __devinitdata = {
+static struct pci_device_id snd_intel8x0_ids[] = {
 	{ 0x8086, 0x2415, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_INTEL },	/* 82801AA */
 	{ 0x8086, 0x2425, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_INTEL },	/* 82901AB */
 	{ 0x8086, 0x2445, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_INTEL },	/* 82801BA */
@@ -1953,6 +1953,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.subvendor = 0x10f1,
 		.subdevice = 0x2885,
 		.name = "AMD64 Mobo",	/* ALC650 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x10f1,
+		.subdevice = 0x2895,
+		.name = "Tyan Thunder K8WE",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{

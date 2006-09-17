@@ -10,26 +10,11 @@
 	410 Severn Ave., Suite 210
 	Annapolis MD 21403
 
-	-----------------------------------------------------------
-
-	Linux kernel-specific changes:
-
-	LK1.0 (Ion Badulescu)
-	- Major cleanup
-	- Use 2.4 PCI API
-	- Support ethtool
-	- Rewrite perfect filter/hash code
-	- Use interrupts for media changes
-
-	LK1.1 (Ion Badulescu)
-	- Disallow negotiation of unsupported full-duplex modes
 */
 
 #define DRV_NAME	"xircom_tulip_cb"
-#define DRV_VERSION	"0.91+LK1.1"
-#define DRV_RELDATE	"October 11, 2001"
-
-#define CARDBUS 1
+#define DRV_VERSION	"0.92"
+#define DRV_RELDATE	"June 27, 2006"
 
 /* A few user-configurable values. */
 
@@ -306,10 +291,10 @@ struct xircom_private {
 	struct xircom_tx_desc tx_ring[TX_RING_SIZE];
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
 	struct sk_buff* tx_skbuff[TX_RING_SIZE];
-#ifdef CARDBUS
+
 	/* The X3201-3 requires 4-byte aligned tx bufs */
 	struct sk_buff* tx_aligned_skbuff[TX_RING_SIZE];
-#endif
+
 	/* The addresses of receive-in-place skbuffs. */
 	struct sk_buff* rx_skbuff[RX_RING_SIZE];
 	u16 setup_frame[PKT_SETUP_SZ / sizeof(u16)];	/* Pseudo-Tx frame to init address table. */
@@ -908,10 +893,8 @@ static void xircom_init_ring(struct net_device *dev)
 		tp->tx_skbuff[i] = NULL;
 		tp->tx_ring[i].status = 0;
 		tp->tx_ring[i].buffer2 = virt_to_bus(&tp->tx_ring[i+1]);
-#ifdef CARDBUS
 		if (tp->chip_id == X3201_3)
 			tp->tx_aligned_skbuff[i] = dev_alloc_skb(PKT_BUF_SZ);
-#endif /* CARDBUS */
 	}
 	tp->tx_ring[i-1].buffer2 = virt_to_bus(&tp->tx_ring[0]);
 }
@@ -931,12 +914,10 @@ xircom_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	entry = tp->cur_tx % TX_RING_SIZE;
 
 	tp->tx_skbuff[entry] = skb;
-#ifdef CARDBUS
 	if (tp->chip_id == X3201_3) {
 		memcpy(tp->tx_aligned_skbuff[entry]->data,skb->data,skb->len);
 		tp->tx_ring[entry].buffer1 = virt_to_bus(tp->tx_aligned_skbuff[entry]->data);
 	} else
-#endif
 		tp->tx_ring[entry].buffer1 = virt_to_bus(skb->data);
 
 	if (tp->cur_tx - tp->dirty_tx < TX_RING_SIZE/2) {/* Typical path */

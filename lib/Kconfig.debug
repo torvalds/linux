@@ -48,7 +48,7 @@ config DEBUG_KERNEL
 config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)" if DEBUG_KERNEL
 	range 12 21
-	default 17 if S390
+	default 17 if S390 || LOCKDEP
 	default 16 if X86_NUMAQ || IA64
 	default 15 if SMP
 	default 14
@@ -107,21 +107,13 @@ config DEBUG_SLAB_LEAK
 
 config DEBUG_PREEMPT
 	bool "Debug preemptible kernel"
-	depends on DEBUG_KERNEL && PREEMPT
+	depends on DEBUG_KERNEL && PREEMPT && TRACE_IRQFLAGS_SUPPORT
 	default y
 	help
 	  If you say Y here then the kernel will use a debug variant of the
 	  commonly used smp_processor_id() function and will print warnings
 	  if kernel code uses it in a preemption-unsafe way. Also, the kernel
 	  will detect preemption count underflows.
-
-config DEBUG_MUTEXES
-	bool "Mutex debugging, deadlock detection"
-	default n
-	depends on DEBUG_KERNEL
-	help
-	 This allows mutex semantics violations and mutex related deadlocks
-	 (lockups) to be detected and reported automatically.
 
 config DEBUG_RT_MUTEXES
 	bool "RT Mutex debugging, deadlock detection"
@@ -142,7 +134,7 @@ config RT_MUTEX_TESTER
 	  This option enables a rt-mutex tester.
 
 config DEBUG_SPINLOCK
-	bool "Spinlock debugging"
+	bool "Spinlock and rw-lock debugging: basic checks"
 	depends on DEBUG_KERNEL
 	help
 	  Say Y here and build SMP to catch missing spinlock initialization
@@ -150,12 +142,123 @@ config DEBUG_SPINLOCK
 	  best used in conjunction with the NMI watchdog so that spinlock
 	  deadlocks are also debuggable.
 
+config DEBUG_MUTEXES
+	bool "Mutex debugging: basic checks"
+	depends on DEBUG_KERNEL
+	help
+	 This feature allows mutex semantics violations to be detected and
+	 reported.
+
+config DEBUG_RWSEMS
+	bool "RW-sem debugging: basic checks"
+	depends on DEBUG_KERNEL
+	help
+	 This feature allows read-write semaphore semantics violations to
+	 be detected and reported.
+
+config DEBUG_LOCK_ALLOC
+	bool "Lock debugging: detect incorrect freeing of live locks"
+	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
+	select DEBUG_SPINLOCK
+	select DEBUG_MUTEXES
+	select DEBUG_RWSEMS
+	select LOCKDEP
+	help
+	 This feature will check whether any held lock (spinlock, rwlock,
+	 mutex or rwsem) is incorrectly freed by the kernel, via any of the
+	 memory-freeing routines (kfree(), kmem_cache_free(), free_pages(),
+	 vfree(), etc.), whether a live lock is incorrectly reinitialized via
+	 spin_lock_init()/mutex_init()/etc., or whether there is any lock
+	 held during task exit.
+
+config PROVE_LOCKING
+	bool "Lock debugging: prove locking correctness"
+	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
+	select LOCKDEP
+	select DEBUG_SPINLOCK
+	select DEBUG_MUTEXES
+	select DEBUG_RWSEMS
+	select DEBUG_LOCK_ALLOC
+	default n
+	help
+	 This feature enables the kernel to prove that all locking
+	 that occurs in the kernel runtime is mathematically
+	 correct: that under no circumstance could an arbitrary (and
+	 not yet triggered) combination of observed locking
+	 sequences (on an arbitrary number of CPUs, running an
+	 arbitrary number of tasks and interrupt contexts) cause a
+	 deadlock.
+
+	 In short, this feature enables the kernel to report locking
+	 related deadlocks before they actually occur.
+
+	 The proof does not depend on how hard and complex a
+	 deadlock scenario would be to trigger: how many
+	 participant CPUs, tasks and irq-contexts would be needed
+	 for it to trigger. The proof also does not depend on
+	 timing: if a race and a resulting deadlock is possible
+	 theoretically (no matter how unlikely the race scenario
+	 is), it will be proven so and will immediately be
+	 reported by the kernel (once the event is observed that
+	 makes the deadlock theoretically possible).
+
+	 If a deadlock is impossible (i.e. the locking rules, as
+	 observed by the kernel, are mathematically correct), the
+	 kernel reports nothing.
+
+	 NOTE: this feature can also be enabled for rwlocks, mutexes
+	 and rwsems - in which case all dependencies between these
+	 different locking variants are observed and mapped too, and
+	 the proof of observed correctness is also maintained for an
+	 arbitrary combination of these separate locking variants.
+
+	 For more details, see Documentation/lockdep-design.txt.
+
+config LOCKDEP
+	bool
+	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
+	select STACKTRACE
+	select FRAME_POINTER
+	select KALLSYMS
+	select KALLSYMS_ALL
+
+config DEBUG_LOCKDEP
+	bool "Lock dependency engine debugging"
+	depends on DEBUG_KERNEL && LOCKDEP
+	help
+	  If you say Y here, the lock dependency engine will do
+	  additional runtime checks to debug itself, at the price
+	  of more runtime overhead.
+
+config TRACE_IRQFLAGS
+	depends on DEBUG_KERNEL
+	bool
+	default y
+	depends on TRACE_IRQFLAGS_SUPPORT
+	depends on PROVE_LOCKING
+
 config DEBUG_SPINLOCK_SLEEP
-	bool "Sleep-inside-spinlock checking"
+	bool "Spinlock debugging: sleep-inside-spinlock checking"
 	depends on DEBUG_KERNEL
 	help
 	  If you say Y here, various routines which may sleep will become very
 	  noisy if they are called with a spinlock held.
+
+config DEBUG_LOCKING_API_SELFTESTS
+	bool "Locking API boot-time self-tests"
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here if you want the kernel to run a short self-test during
+	  bootup. The self-test checks whether common types of locking bugs
+	  are detected by debugging mechanisms or not. (if you disable
+	  lock debugging then those bugs wont be detected of course.)
+	  The following locking APIs are covered: spinlocks, rwlocks,
+	  mutexes and rwsems.
+
+config STACKTRACE
+	bool
+	depends on DEBUG_KERNEL
+	depends on STACKTRACE_SUPPORT
 
 config DEBUG_KOBJECT
 	bool "kobject debugging"
@@ -212,7 +315,7 @@ config DEBUG_VM
 
 config FRAME_POINTER
 	bool "Compile the kernel with frame pointers"
-	depends on DEBUG_KERNEL && (X86 || CRIS || M68K || M68KNOMMU || FRV || UML)
+	depends on DEBUG_KERNEL && (X86 || CRIS || M68K || M68KNOMMU || FRV || UML || S390)
 	default y if DEBUG_INFO && UML
 	help
 	  If you say Y here the resulting kernel image will be slightly larger

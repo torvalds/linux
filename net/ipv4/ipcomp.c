@@ -70,7 +70,8 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 	if (err)
 		goto out;
 		
-	skb_put(skb, dlen - plen);
+	skb->truesize += dlen - plen;
+	__skb_put(skb, dlen - plen);
 	memcpy(skb->data, scratch, dlen);
 out:	
 	put_cpu();
@@ -409,11 +410,10 @@ static int ipcomp_init_state(struct xfrm_state *x)
 		goto out;
 
 	err = -ENOMEM;
-	ipcd = kmalloc(sizeof(*ipcd), GFP_KERNEL);
+	ipcd = kzalloc(sizeof(*ipcd), GFP_KERNEL);
 	if (!ipcd)
 		goto out;
 
-	memset(ipcd, 0, sizeof(*ipcd));
 	x->props.header_len = 0;
 	if (x->props.mode)
 		x->props.header_len += sizeof(struct iphdr);

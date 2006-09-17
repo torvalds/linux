@@ -32,7 +32,7 @@ ioremap (unsigned long offset, unsigned long size)
 	 */
 	attr = kern_mem_attribute(offset, size);
 	if (attr & EFI_MEMORY_WB)
-		return phys_to_virt(offset);
+		return (void __iomem *) phys_to_virt(offset);
 	else if (attr & EFI_MEMORY_UC)
 		return __ioremap(offset, size);
 
@@ -43,7 +43,7 @@ ioremap (unsigned long offset, unsigned long size)
 	gran_base = GRANULEROUNDDOWN(offset);
 	gran_size = GRANULEROUNDUP(offset + size) - gran_base;
 	if (efi_mem_attribute(gran_base, gran_size) & EFI_MEMORY_WB)
-		return phys_to_virt(offset);
+		return (void __iomem *) phys_to_virt(offset);
 
 	return __ioremap(offset, size);
 }
@@ -53,7 +53,7 @@ void __iomem *
 ioremap_nocache (unsigned long offset, unsigned long size)
 {
 	if (kern_mem_attribute(offset, size) & EFI_MEMORY_WB)
-		return 0;
+		return NULL;
 
 	return __ioremap(offset, size);
 }

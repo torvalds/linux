@@ -8,16 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Modifications:
- *     24-Aug-2004 BJD  Start of generic S3C24XX support
- *     18-Oct-2004 BJD  Moved board struct into this file
- *     04-Jan-2005 BJD  New uart initialisation
- *     10-Jan-2005 BJD  Moved generic init here, specific to cpu headers
- *     14-Jan-2005 BJD  Added s3c24xx_init_clocks() call
- *     10-Mar-2005 LCVR Changed S3C2410_{VA,SZ} to S3C24XX_{VA,SZ} & IODESC_ENT
- *     14-Mar-2005 BJD  Updated for __iomem
- *     15-Jan-2006 LCVR Updated S3C2410_PA_##x to new S3C24XX_PA_##x macro
 */
 
 /* todo - fix when rmk changes iodescs to use `void __iomem *` */

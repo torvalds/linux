@@ -77,10 +77,6 @@ MODULE_DESCRIPTION(my_NAME);
 MODULE_LICENSE("GPL");
 
 /* Command line args */
-static int mpt_pq_filter = 0;
-module_param(mpt_pq_filter, int, 0);
-MODULE_PARM_DESC(mpt_pq_filter, " Enable peripheral qualifier filter: enable=1  (default=0)");
-
 #define MPTFC_DEV_LOSS_TMO (60)
 static int mptfc_dev_loss_tmo = MPTFC_DEV_LOSS_TMO;	/* reasonable default */
 module_param(mptfc_dev_loss_tmo, int, 0);
@@ -132,21 +128,21 @@ static struct scsi_host_template mptfc_driver_template = {
  */
 
 static struct pci_device_id mptfc_pci_table[] = {
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC909,
+	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVICEID_FC909,
 		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC919,
+	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVICEID_FC919,
 		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC929,
+	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVICEID_FC929,
 		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC919X,
+	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVICEID_FC919X,
 		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC929X,
+	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVICEID_FC929X,
 		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC939X,
+	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVICEID_FC939X,
 		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC949X,
+	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVICEID_FC949X,
 		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC949ES,
+	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVICEID_FC949E,
 		PCI_ANY_ID, PCI_ANY_ID },
 	{0}	/* Terminating entry */
 };
@@ -513,8 +509,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 
 	if (vtarget->num_luns == 0) {
 		vtarget->ioc_id = hd->ioc->id;
-		vtarget->tflags = MPT_TARGET_FLAGS_Q_YES |
-		    		  MPT_TARGET_FLAGS_VALID_INQUIRY;
+		vtarget->tflags = MPT_TARGET_FLAGS_Q_YES;
 		hd->Targets[sdev->id] = vtarget;
 	}
 
@@ -674,7 +669,10 @@ mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 			 * if still doing discovery,
 			 * hang loose a while until finished
 			 */
-			if (pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN) {
+			if ((pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN) ||
+			    (pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_ONLINE &&
+			     (pp0dest->Flags & MPI_FCPORTPAGE0_FLAGS_ATTACH_TYPE_MASK)
+			      == MPI_FCPORTPAGE0_FLAGS_ATTACH_NO_INIT)) {
 				if (count-- > 0) {
 					msleep(100);
 					goto try_again;
@@ -900,59 +898,45 @@ mptfc_rescan_devices(void *arg)
 {
 	MPT_ADAPTER		*ioc = (MPT_ADAPTER *)arg;
 	int			ii;
-	int			work_to_do;
 	u64			pn;
-	unsigned long		flags;
 	struct mptfc_rport_info *ri;
 
-	do {
-		/* start by tagging all ports as missing */
-		list_for_each_entry(ri, &ioc->fc_rports, list) {
-			if (ri->flags & MPT_RPORT_INFO_FLAGS_REGISTERED) {
-				ri->flags |= MPT_RPORT_INFO_FLAGS_MISSING;
-			}
+	/* start by tagging all ports as missing */
+	list_for_each_entry(ri, &ioc->fc_rports, list) {
+		if (ri->flags & MPT_RPORT_INFO_FLAGS_REGISTERED) {
+			ri->flags |= MPT_RPORT_INFO_FLAGS_MISSING;
 		}
+	}
 
-		/*
-		 * now rescan devices known to adapter,
-		 * will reregister existing rports
-		 */
-		for (ii=0; ii < ioc->facts.NumberOfPorts; ii++) {
-			(void) mptfc_GetFcPortPage0(ioc, ii);
-			mptfc_init_host_attr(ioc,ii);	/* refresh */
-			mptfc_GetFcDevPage0(ioc,ii,mptfc_register_dev);
+	/*
+	 * now rescan devices known to adapter,
+	 * will reregister existing rports
+	 */
+	for (ii=0; ii < ioc->facts.NumberOfPorts; ii++) {
+		(void) mptfc_GetFcPortPage0(ioc, ii);
+		mptfc_init_host_attr(ioc, ii);	/* refresh */
+		mptfc_GetFcDevPage0(ioc, ii, mptfc_register_dev);
+	}
+
+	/* delete devices still missing */
+	list_for_each_entry(ri, &ioc->fc_rports, list) {
+		/* if newly missing, delete it */
+		if (ri->flags & MPT_RPORT_INFO_FLAGS_MISSING) {
+
+			ri->flags &= ~(MPT_RPORT_INFO_FLAGS_REGISTERED|
+				       MPT_RPORT_INFO_FLAGS_MISSING);
+			fc_remote_port_delete(ri->rport);	/* won't sleep */
+			ri->rport = NULL;
+
+			pn = (u64)ri->pg0.WWPN.High << 32 |
+			     (u64)ri->pg0.WWPN.Low;
+			dfcprintk ((MYIOC_s_INFO_FMT
+				"mptfc_rescan.%d: %llx deleted\n",
+				ioc->name,
+				ioc->sh->host_no,
+				(unsigned long long)pn));
 		}
-
-		/* delete devices still missing */
-		list_for_each_entry(ri, &ioc->fc_rports, list) {
-			/* if newly missing, delete it */
-			if (ri->flags & MPT_RPORT_INFO_FLAGS_MISSING) {
-
-				ri->flags &= ~(MPT_RPORT_INFO_FLAGS_REGISTERED|
-					       MPT_RPORT_INFO_FLAGS_MISSING);
-				fc_remote_port_delete(ri->rport);	/* won't sleep */
-				ri->rport = NULL;
-
-				pn = (u64)ri->pg0.WWPN.High << 32 |
-				     (u64)ri->pg0.WWPN.Low;
-				dfcprintk ((MYIOC_s_INFO_FMT
-					"mptfc_rescan.%d: %llx deleted\n",
-					ioc->name,
-					ioc->sh->host_no,
-					(unsigned long long)pn));
-			}
-		}
-
-		/*
-		 * allow multiple passes as target state
-		 * might have changed during scan
-		 */
-		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
-		if (ioc->fc_rescan_work_count > 2) 	/* only need one more */
-			ioc->fc_rescan_work_count = 2;
-		work_to_do = --ioc->fc_rescan_work_count;
-		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
-	} while (work_to_do);
+	}
 }
 
 static int
@@ -1129,13 +1113,6 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hd->timer.data = (unsigned long) hd;
 	hd->timer.function = mptscsih_timer_expired;
 
-	hd->mpt_pq_filter = mpt_pq_filter;
-
-	ddvprintk((MYIOC_s_INFO_FMT
-		"mpt_pq_filter %x\n",
-		ioc->name, 
-		mpt_pq_filter));
-
 	init_waitqueue_head(&hd->scandv_waitq);
 	hd->scandv_wait_done = 0;
 	hd->last_queue_full = 0;
@@ -1171,7 +1148,6 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 *	by doing it via the workqueue, some locking is eliminated
 	 */
 
-	ioc->fc_rescan_work_count = 1;
 	queue_work(ioc->fc_rescan_work_q, &ioc->fc_rescan_work);
 	flush_workqueue(ioc->fc_rescan_work_q);
 
@@ -1214,10 +1190,8 @@ mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	case MPI_EVENT_RESCAN:
 		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
 		if (ioc->fc_rescan_work_q) {
-			if (ioc->fc_rescan_work_count++ == 0) {
-				queue_work(ioc->fc_rescan_work_q,
-					   &ioc->fc_rescan_work);
-			}
+			queue_work(ioc->fc_rescan_work_q,
+				   &ioc->fc_rescan_work);
 		}
 		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
 		break;
@@ -1260,10 +1234,8 @@ mptfc_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 		mptfc_SetFcPortPage1_defaults(ioc);
 		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
 		if (ioc->fc_rescan_work_q) {
-			if (ioc->fc_rescan_work_count++ == 0) {
-				queue_work(ioc->fc_rescan_work_q,
-					   &ioc->fc_rescan_work);
-			}
+			queue_work(ioc->fc_rescan_work_q,
+				   &ioc->fc_rescan_work);
 		}
 		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
 	}

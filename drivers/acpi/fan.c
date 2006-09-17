@@ -64,7 +64,7 @@ static struct acpi_driver acpi_fan_driver = {
 };
 
 struct acpi_fan {
-	acpi_handle handle;
+	struct acpi_device * device;
 };
 
 /* --------------------------------------------------------------------------
@@ -80,7 +80,7 @@ static int acpi_fan_read_state(struct seq_file *seq, void *offset)
 
 
 	if (fan) {
-		if (acpi_bus_get_power(fan->handle, &state))
+		if (acpi_bus_get_power(fan->device->handle, &state))
 			seq_printf(seq, "status:                  ERROR\n");
 		else
 			seq_printf(seq, "status:                  %s\n",
@@ -112,7 +112,7 @@ acpi_fan_write_state(struct file *file, const char __user * buffer,
 
 	state_string[count] = '\0';
 
-	result = acpi_bus_set_power(fan->handle,
+	result = acpi_bus_set_power(fan->device->handle,
 				    simple_strtoul(state_string, NULL, 0));
 	if (result)
 		return result;
@@ -120,7 +120,7 @@ acpi_fan_write_state(struct file *file, const char __user * buffer,
 	return count;
 }
 
-static struct file_operations acpi_fan_state_ops = {
+static const struct file_operations acpi_fan_state_ops = {
 	.open = acpi_fan_state_open_fs,
 	.read = seq_read,
 	.write = acpi_fan_write_state,
@@ -191,12 +191,12 @@ static int acpi_fan_add(struct acpi_device *device)
 		return -ENOMEM;
 	memset(fan, 0, sizeof(struct acpi_fan));
 
-	fan->handle = device->handle;
+	fan->device = device;
 	strcpy(acpi_device_name(device), "Fan");
 	strcpy(acpi_device_class(device), ACPI_FAN_CLASS);
 	acpi_driver_data(device) = fan;
 
-	result = acpi_bus_get_power(fan->handle, &state);
+	result = acpi_bus_get_power(device->handle, &state);
 	if (result) {
 		printk(KERN_ERR PREFIX "Reading power state\n");
 		goto end;

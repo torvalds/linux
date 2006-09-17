@@ -47,6 +47,7 @@ void pvr2_stream_set_callback(struct pvr2_stream *,
 			      void *data);
 
 /* Query / set the nominal buffer count */
+int pvr2_stream_get_buffer_count(struct pvr2_stream *);
 int pvr2_stream_set_buffer_count(struct pvr2_stream *,unsigned int);
 
 /* Get a pointer to a buffer that is either idle, ready, or is specified
@@ -57,6 +58,7 @@ struct pvr2_buffer *pvr2_stream_get_buffer(struct pvr2_stream *sp,int id);
 
 /* Find out how many buffers are idle or ready */
 int pvr2_stream_get_ready_count(struct pvr2_stream *);
+
 
 /* Kill all pending buffers and throw away any ready buffers as well */
 void pvr2_stream_kill(struct pvr2_stream *);

@@ -116,7 +116,7 @@ static u8 tpm_atml_status(struct tpm_chip *chip)
 	return ioread8(chip->vendor.iobase + 1);
 }
 
-static struct file_operations atmel_ops = {
+static const struct file_operations atmel_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.open = tpm_open,

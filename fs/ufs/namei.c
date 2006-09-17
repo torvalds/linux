@@ -129,7 +129,7 @@ static int ufs_symlink (struct inode * dir, struct dentry * dentry,
 	struct inode * inode;
 
 	if (l > sb->s_blocksize)
-		goto out;
+		goto out_notlocked;
 
 	lock_kernel();
 	inode = ufs_new_inode(dir, S_IFLNK | S_IRWXUGO);
@@ -155,6 +155,7 @@ static int ufs_symlink (struct inode * dir, struct dentry * dentry,
 	err = ufs_add_nondir(dentry, inode);
 out:
 	unlock_kernel();
+out_notlocked:
 	return err;
 
 out_fail:

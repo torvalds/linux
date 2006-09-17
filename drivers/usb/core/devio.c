@@ -517,19 +517,19 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype, unsig
 
 static struct usb_device *usbdev_lookup_minor(int minor)
 {
-	struct device *device;
-	struct usb_device *udev = NULL;
+	struct class_device *class_dev;
+	struct usb_device *dev = NULL;
 
 	down(&usb_device_class->sem);
-	list_for_each_entry(device, &usb_device_class->devices, node) {
-		if (device->devt == MKDEV(USB_DEVICE_MAJOR, minor)) {
-			udev = device->platform_data;
+	list_for_each_entry(class_dev, &usb_device_class->children, node) {
+		if (class_dev->devt == MKDEV(USB_DEVICE_MAJOR, minor)) {
+			dev = class_dev->class_data;
 			break;
 		}
 	}
 	up(&usb_device_class->sem);
 
-	return udev;
+	return dev;
 };
 
 /*
@@ -1580,16 +1580,16 @@ static void usbdev_add(struct usb_device *dev)
 {
 	int minor = ((dev->bus->busnum-1) * 128) + (dev->devnum-1);
 
-	dev->usbfs_dev = device_create(usb_device_class, &dev->dev,
-				MKDEV(USB_DEVICE_MAJOR, minor),
+	dev->class_dev = class_device_create(usb_device_class, NULL,
+				MKDEV(USB_DEVICE_MAJOR, minor), &dev->dev,
 				"usbdev%d.%d", dev->bus->busnum, dev->devnum);
 
-	dev->usbfs_dev->platform_data = dev;
+	dev->class_dev->class_data = dev;
 }
 
 static void usbdev_remove(struct usb_device *dev)
 {
-	device_unregister(dev->usbfs_dev);
+	class_device_unregister(dev->class_dev);
 }
 
 static int usbdev_notify(struct notifier_block *self, unsigned long action,

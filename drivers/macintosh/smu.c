@@ -75,9 +75,11 @@ struct smu_device {
 	struct of_device	*of_dev;
 	int			doorbell;	/* doorbell gpio */
 	u32 __iomem		*db_buf;	/* doorbell buffer */
-	int			db_irq;
+	struct device_node	*db_node;
+	unsigned int		db_irq;
 	int			msg;
-	int			msg_irq;
+	struct device_node	*msg_node;
+	unsigned int		msg_irq;
 	struct smu_cmd_buf	*cmd_buf;	/* command buffer virtual */
 	u32			cmd_buf_abs;	/* command buffer absolute */
 	struct list_head	cmd_list;
@@ -93,6 +95,7 @@ struct smu_device {
  */
 static struct smu_device	*smu;
 static DEFINE_MUTEX(smu_part_access);
+static int smu_irq_inited;
 
 static void smu_i2c_retry(unsigned long data);
 
@@ -256,6 +259,10 @@ int smu_queue_cmd(struct smu_cmd *cmd)
 	if (smu->cmd_cur == NULL)
 		smu_start_cmd();
 	spin_unlock_irqrestore(&smu->lock, flags);
+
+	/* Workaround for early calls when irq isn't available */
+	if (!smu_irq_inited || smu->db_irq == NO_IRQ)
+		smu_spinwait_cmd(cmd);
 
 	return 0;
 }
@@ -478,14 +485,15 @@ int __init smu_init (void)
 	smu->cmd_buf_abs = (u32)smu_cmdbuf_abs;
 	smu->cmd_buf = (struct smu_cmd_buf *)abs_to_virt(smu_cmdbuf_abs);
 
-	np = of_find_node_by_name(NULL, "smu-doorbell");
-	if (np == NULL) {
+	smu->db_node = of_find_node_by_name(NULL, "smu-doorbell");
+	if (smu->db_node == NULL) {
 		printk(KERN_ERR "SMU: Can't find doorbell GPIO !\n");
 		goto fail;
 	}
-	data = (u32 *)get_property(np, "reg", NULL);
+	data = (u32 *)get_property(smu->db_node, "reg", NULL);
 	if (data == NULL) {
-		of_node_put(np);
+		of_node_put(smu->db_node);
+		smu->db_node = NULL;
 		printk(KERN_ERR "SMU: Can't find doorbell GPIO address !\n");
 		goto fail;
 	}
@@ -497,27 +505,21 @@ int __init smu_init (void)
 	smu->doorbell = *data;
 	if (smu->doorbell < 0x50)
 		smu->doorbell += 0x50;
-	if (np->n_intrs > 0)
-		smu->db_irq = np->intrs[0].line;
-
-	of_node_put(np);
 
 	/* Now look for the smu-interrupt GPIO */
 	do {
-		np = of_find_node_by_name(NULL, "smu-interrupt");
-		if (np == NULL)
+		smu->msg_node = of_find_node_by_name(NULL, "smu-interrupt");
+		if (smu->msg_node == NULL)
 			break;
-		data = (u32 *)get_property(np, "reg", NULL);
+		data = (u32 *)get_property(smu->msg_node, "reg", NULL);
 		if (data == NULL) {
-			of_node_put(np);
+			of_node_put(smu->msg_node);
+			smu->msg_node = NULL;
 			break;
 		}
 		smu->msg = *data;
 		if (smu->msg < 0x50)
 			smu->msg += 0x50;
-		if (np->n_intrs > 0)
-			smu->msg_irq = np->intrs[0].line;
-		of_node_put(np);
 	} while(0);
 
 	/* Doorbell buffer is currently hard-coded, I didn't find a proper
@@ -549,6 +551,19 @@ static int smu_late_init(void)
 	smu->i2c_timer.function = smu_i2c_retry;
 	smu->i2c_timer.data = (unsigned long)smu;
 
+	if (smu->db_node) {
+		smu->db_irq = irq_of_parse_and_map(smu->db_node, 0);
+		if (smu->db_irq == NO_IRQ)
+			printk(KERN_ERR "smu: failed to map irq for node %s\n",
+			       smu->db_node->full_name);
+	}
+	if (smu->msg_node) {
+		smu->msg_irq = irq_of_parse_and_map(smu->msg_node, 0);
+		if (smu->msg_irq == NO_IRQ)
+			printk(KERN_ERR "smu: failed to map irq for node %s\n",
+			       smu->msg_node->full_name);
+	}
+
 	/*
 	 * Try to request the interrupts
 	 */
@@ -573,6 +588,7 @@ static int smu_late_init(void)
 		}
 	}
 
+	smu_irq_inited = 1;
 	return 0;
 }
 /* This has to be before arch_initcall as the low i2c stuff relies on the
@@ -744,6 +760,11 @@ static void smu_i2c_low_completion(struct smu_cmd *scmd, void *misc)
 	if (fail && --cmd->retries > 0) {
 		DPRINTK("SMU: i2c failure, starting timer...\n");
 		BUG_ON(cmd != smu->cmd_i2c_cur);
+		if (!smu_irq_inited) {
+			mdelay(5);
+			smu_i2c_retry(0);
+			return;
+		}
 		mod_timer(&smu->i2c_timer, jiffies + msecs_to_jiffies(5));
 		return;
 	}

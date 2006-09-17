@@ -719,6 +719,7 @@ struct msix_info_st {
 /* Data structure to represent a LRO session */
 typedef struct lro {
 	struct sk_buff	*parent;
+	struct sk_buff  *last_frag;
 	u8		*l2h;
 	struct iphdr	*iph;
 	struct tcphdr	*tcph;
@@ -829,8 +830,7 @@ struct s2io_nic {
 #define MSIX_FLG                0xA5
 	struct msix_entry *entries;
 	struct s2io_msix_entry *s2io_entries;
-	char desc1[35];
-	char desc2[35];
+	char desc[MAX_REQUESTED_MSI_X][25];
 
 	int avail_msix_vectors; /* No. of MSI-X vectors granted by system */
 
@@ -1002,7 +1002,7 @@ static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
 static struct ethtool_ops netdev_ethtool_ops;
 static void s2io_set_link(unsigned long data);
 static int s2io_set_swapper(nic_t * sp);
-static void s2io_card_down(nic_t *nic, int flag);
+static void s2io_card_down(nic_t *nic);
 static int s2io_card_up(nic_t *nic);
 static int get_xena_rev_id(struct pci_dev *pdev);
 static void restore_xmsi_data(nic_t *nic);
@@ -1012,4 +1012,13 @@ static void clear_lro_session(lro_t *lro);
 static void queue_rx_frame(struct sk_buff *skb);
 static void update_L3L4_header(nic_t *sp, lro_t *lro);
 static void lro_append_pkt(nic_t *sp, lro_t *lro, struct sk_buff *skb, u32 tcp_len);
+
+#define s2io_tcp_mss(skb) skb_shinfo(skb)->gso_size
+#define s2io_udp_mss(skb) skb_shinfo(skb)->gso_size
+#define s2io_offload_type(skb) skb_shinfo(skb)->gso_type
+
+#define S2IO_PARM_INT(X, def_val) \
+	static unsigned int X = def_val;\
+		module_param(X , uint, 0);
+
 #endif				/* _S2IO_H */

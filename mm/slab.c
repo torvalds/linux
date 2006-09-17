@@ -674,6 +674,37 @@ static struct kmem_cache cache_cache = {
 #endif
 };
 
+#ifdef CONFIG_LOCKDEP
+
+/*
+ * Slab sometimes uses the kmalloc slabs to store the slab headers
+ * for other slabs "off slab".
+ * The locking for this is tricky in that it nests within the locks
+ * of all other slabs in a few places; to deal with this special
+ * locking we put on-slab caches into a separate lock-class.
+ */
+static struct lock_class_key on_slab_key;
+
+static inline void init_lock_keys(struct cache_sizes *s)
+{
+	int q;
+
+	for (q = 0; q < MAX_NUMNODES; q++) {
+		if (!s->cs_cachep->nodelists[q] || OFF_SLAB(s->cs_cachep))
+			continue;
+		lockdep_set_class(&s->cs_cachep->nodelists[q]->list_lock,
+				  &on_slab_key);
+	}
+}
+
+#else
+static inline void init_lock_keys(struct cache_sizes *s)
+{
+}
+#endif
+
+
+
 /* Guard access to the cache-chain. */
 static DEFINE_MUTEX(cache_chain_mutex);
 static struct list_head cache_chain;
@@ -1075,7 +1106,7 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 
 #endif
 
-static int __devinit cpuup_callback(struct notifier_block *nfb,
+static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 				    unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
@@ -1272,6 +1303,11 @@ static void init_list(struct kmem_cache *cachep, struct kmem_list3 *list,
 
 	local_irq_disable();
 	memcpy(ptr, list, sizeof(struct kmem_list3));
+	/*
+	 * Do not assume that spinlocks can be initialized via memcpy:
+	 */
+	spin_lock_init(&ptr->list_lock);
+
 	MAKE_ALL_LISTS(cachep, ptr, nodeid);
 	cachep->nodelists[nodeid] = ptr;
 	local_irq_enable();
@@ -1386,6 +1422,7 @@ void __init kmem_cache_init(void)
 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
 					NULL, NULL);
 		}
+		init_lock_keys(sizes);
 
 		sizes->cs_dmacachep = kmem_cache_create(names->name_dma,
 					sizes->cs_size,
@@ -1398,7 +1435,7 @@ void __init kmem_cache_init(void)
 	}
 	/* 4) Replace the bootstrap head arrays */
 	{
-		void *ptr;
+		struct array_cache *ptr;
 
 		ptr = kmalloc(sizeof(struct arraycache_init), GFP_KERNEL);
 
@@ -1406,6 +1443,11 @@ void __init kmem_cache_init(void)
 		BUG_ON(cpu_cache_get(&cache_cache) != &initarray_cache.cache);
 		memcpy(ptr, cpu_cache_get(&cache_cache),
 		       sizeof(struct arraycache_init));
+		/*
+		 * Do not assume that spinlocks can be initialized via memcpy:
+		 */
+		spin_lock_init(&ptr->lock);
+
 		cache_cache.array[smp_processor_id()] = ptr;
 		local_irq_enable();
 
@@ -1416,6 +1458,11 @@ void __init kmem_cache_init(void)
 		       != &initarray_generic.cache);
 		memcpy(ptr, cpu_cache_get(malloc_sizes[INDEX_AC].cs_cachep),
 		       sizeof(struct arraycache_init));
+		/*
+		 * Do not assume that spinlocks can be initialized via memcpy:
+		 */
+		spin_lock_init(&ptr->lock);
+
 		malloc_sizes[INDEX_AC].cs_cachep->array[smp_processor_id()] =
 		    ptr;
 		local_irq_enable();
@@ -3177,7 +3224,7 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 EXPORT_SYMBOL(kmem_cache_alloc);
 
 /**
- * kmem_cache_alloc - Allocate an object. The memory is set to zero.
+ * kmem_cache_zalloc - Allocate an object. The memory is set to zero.
  * @cache: The cache to allocate from.
  * @flags: See kmalloc().
  *

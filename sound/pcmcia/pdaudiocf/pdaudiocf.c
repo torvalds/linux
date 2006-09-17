@@ -241,11 +241,12 @@ static int pdacf_config(struct pcmcia_device *link)
 	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, parse));
 	link->conf.ConfigBase = parse->config.base;
 	link->conf.ConfigIndex = 0x5;
-	kfree(parse);
 
 	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
 	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
 	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+
+	kfree(parse);
 
 	if (snd_pdacf_assign_resources(pdacf, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
 		goto failed;
@@ -254,6 +255,7 @@ static int pdacf_config(struct pcmcia_device *link)
 	return 0;
 
 cs_failed:
+	kfree(parse);
 	cs_error(link, last_fn, last_ret);
 failed:
 	pcmcia_disable_device(link);

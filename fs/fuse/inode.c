@@ -51,7 +51,7 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 		return NULL;
 
 	fi = get_fuse_inode(inode);
-	fi->i_time = jiffies - 1;
+	fi->i_time = 0;
 	fi->nodeid = 0;
 	fi->nlookup = 0;
 	fi->forget_req = fuse_request_alloc();

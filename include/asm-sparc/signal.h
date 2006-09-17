@@ -168,7 +168,7 @@ struct sigstack {
  * statically allocated data.. which is NOT GOOD.
  *
  */
-#define SA_STATIC_ALLOC		0x80
+#define SA_STATIC_ALLOC		0x8000
 #endif
 
 #include <asm-generic/signal.h>

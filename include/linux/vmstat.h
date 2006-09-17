@@ -41,23 +41,23 @@ DECLARE_PER_CPU(struct vm_event_state, vm_event_states);
 
 static inline void __count_vm_event(enum vm_event_item item)
 {
-	__get_cpu_var(vm_event_states.event[item])++;
+	__get_cpu_var(vm_event_states).event[item]++;
 }
 
 static inline void count_vm_event(enum vm_event_item item)
 {
-	get_cpu_var(vm_event_states.event[item])++;
+	get_cpu_var(vm_event_states).event[item]++;
 	put_cpu();
 }
 
 static inline void __count_vm_events(enum vm_event_item item, long delta)
 {
-	__get_cpu_var(vm_event_states.event[item]) += delta;
+	__get_cpu_var(vm_event_states).event[item] += delta;
 }
 
 static inline void count_vm_events(enum vm_event_item item, long delta)
 {
-	get_cpu_var(vm_event_states.event[item])++;
+	get_cpu_var(vm_event_states).event[item] += delta;
 	put_cpu();
 }
 
@@ -186,11 +186,16 @@ static inline void __mod_zone_page_state(struct zone *zone,
 	zone_page_state_add(delta, zone, item);
 }
 
+static inline void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
+{
+	atomic_long_inc(&zone->vm_stat[item]);
+	atomic_long_inc(&vm_stat[item]);
+}
+
 static inline void __inc_zone_page_state(struct page *page,
 			enum zone_stat_item item)
 {
-	atomic_long_inc(&page_zone(page)->vm_stat[item]);
-	atomic_long_inc(&vm_stat[item]);
+	__inc_zone_state(page_zone(page), item);
 }
 
 static inline void __dec_zone_page_state(struct page *page,

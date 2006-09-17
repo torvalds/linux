@@ -4,6 +4,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/acpi.h>
 
 #include <acpi/acpi_drivers.h>
@@ -113,6 +114,8 @@ static struct kset acpi_namespace_kset = {
 static void acpi_device_register(struct acpi_device *device,
 				 struct acpi_device *parent)
 {
+	int err;
+
 	/*
 	 * Linkage
 	 * -------
@@ -138,7 +141,10 @@ static void acpi_device_register(struct acpi_device *device,
 		device->kobj.parent = &parent->kobj;
 	device->kobj.ktype = &ktype_acpi_ns;
 	device->kobj.kset = &acpi_namespace_kset;
-	kobject_register(&device->kobj);
+	err = kobject_register(&device->kobj);
+	if (err < 0)
+		printk(KERN_WARNING "%s: kobject_register error: %d\n",
+			__FUNCTION__, err);
 	create_sysfs_device_files(device);
 }
 
@@ -319,7 +325,7 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 		goto end;
 	}
 
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	device->wakeup.flags.valid = 1;
 	/* Power button, Lid switch always enable wakeup */
@@ -854,7 +860,7 @@ static void acpi_device_set_id(struct acpi_device *device,
 			printk(KERN_ERR "Memory allocation error\n");
 	}
 
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 }
 
 static int acpi_device_set_context(struct acpi_device *device, int type)
@@ -1450,7 +1456,9 @@ static int __init acpi_scan_init(void)
 	if (acpi_disabled)
 		return 0;
 
-	kset_register(&acpi_namespace_kset);
+	result = kset_register(&acpi_namespace_kset);
+	if (result < 0)
+		printk(KERN_ERR PREFIX "kset_register error: %d\n", result);
 
 	result = bus_register(&acpi_bus_type);
 	if (result) {

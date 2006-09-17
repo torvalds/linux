@@ -690,9 +690,7 @@ static const struct inotify_operations audit_inotify_ops = {
 /* Initialize audit support at boot time. */
 static int __init audit_init(void)
 {
-#ifdef CONFIG_AUDITSYSCALL
 	int i;
-#endif
 
 	printk(KERN_INFO "audit: initializing netlink socket (%s)\n",
 	       audit_default ? "enabled" : "disabled");
@@ -717,10 +715,10 @@ static int __init audit_init(void)
 	audit_ih = inotify_init(&audit_inotify_ops);
 	if (IS_ERR(audit_ih))
 		audit_panic("cannot initialize inotify handle");
+#endif
 
 	for (i = 0; i < AUDIT_INODE_BUCKETS; i++)
 		INIT_LIST_HEAD(&audit_inode_hash[i]);
-#endif
 
 	return 0;
 }
@@ -1030,6 +1028,9 @@ void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf,
 	struct sk_buff *skb;
 	static const unsigned char *hex = "0123456789ABCDEF";
 
+	if (!ab)
+		return;
+
 	BUG_ON(!ab->skb);
 	skb = ab->skb;
 	avail = skb_tailroom(skb);
@@ -1061,6 +1062,9 @@ static void audit_log_n_string(struct audit_buffer *ab, size_t slen,
 	int avail, new_len;
 	unsigned char *ptr;
 	struct sk_buff *skb;
+
+	if (!ab)
+		return;
 
 	BUG_ON(!ab->skb);
 	skb = ab->skb;

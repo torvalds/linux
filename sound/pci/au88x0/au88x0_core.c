@@ -2690,7 +2690,7 @@ static int __devinit vortex_core_init(vortex_t * vortex)
 #ifndef CHIP_AU8820
 	vortex_eq_init(vortex);
 	vortex_spdif_init(vortex, 48000, 1);
-	vortex_Vort3D(vortex, 1);
+	vortex_Vort3D_enable(vortex);
 #endif
 #ifndef CHIP_AU8810
 	vortex_wt_init(vortex);
@@ -2718,7 +2718,7 @@ static int vortex_core_shutdown(vortex_t * vortex)
 	printk(KERN_INFO "Vortex: shutdown...");
 #ifndef CHIP_AU8820
 	vortex_eq_free(vortex);
-	vortex_Vort3D(vortex, 0);
+	vortex_Vort3D_disable(vortex);
 #endif
 	//vortex_disable_timer_int(vortex);
 	vortex_disable_int(vortex);

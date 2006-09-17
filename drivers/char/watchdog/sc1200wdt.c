@@ -292,7 +292,7 @@ static struct notifier_block sc1200wdt_notifier =
 	.notifier_call =	sc1200wdt_notify_sys,
 };
 
-static struct file_operations sc1200wdt_fops =
+static const struct file_operations sc1200wdt_fops =
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,

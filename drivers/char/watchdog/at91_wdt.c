@@ -183,7 +183,7 @@ static ssize_t at91_wdt_write(struct file *file, const char *data, size_t len, l
 
 /* ......................................................................... */
 
-static struct file_operations at91wdt_fops = {
+static const struct file_operations at91wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.ioctl		= at91_wdt_ioctl,

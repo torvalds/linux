@@ -16,7 +16,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/compiler.h> /* need __user */
-#ifdef CONFIG_VIDEO_V4L1
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 #include <linux/videodev.h>
 #else
 #include <linux/videodev2.h>
@@ -194,7 +194,7 @@ struct video_device
 
 
 	int (*vidioc_overlay) (struct file *file, void *fh, unsigned int i);
-#ifdef HAVE_V4L1
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 			/* buffer type is struct vidio_mbuf * */
 	int (*vidiocgmbuf)  (struct file *file, void *fh, struct video_mbuf *p);
 #endif
@@ -335,17 +335,20 @@ extern int video_usercopy(struct inode *inode, struct file *file,
 				      unsigned int cmd, void *arg));
 
 
-#ifdef HAVE_V4L1
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 #include <linux/mm.h>
 
 extern struct video_device* video_devdata(struct file*);
 
 #define to_video_device(cd) container_of(cd, struct video_device, class_dev)
-static inline void
+static inline int
 video_device_create_file(struct video_device *vfd,
 			 struct class_device_attribute *attr)
 {
-	class_device_create_file(&vfd->class_dev, attr);
+	int ret = class_device_create_file(&vfd->class_dev, attr);
+	if (ret < 0)
+		printk(KERN_WARNING "%s error: %d\n", __FUNCTION__, ret);
+	return ret;
 }
 static inline void
 video_device_remove_file(struct video_device *vfd,
@@ -353,6 +356,8 @@ video_device_remove_file(struct video_device *vfd,
 {
 	class_device_remove_file(&vfd->class_dev, attr);
 }
+
+#endif /* CONFIG_VIDEO_V4L1_COMPAT */
 
 #ifdef OBSOLETE_OWNER /* to be removed soon */
 /* helper functions to access driver private data. */
@@ -369,6 +374,5 @@ static inline void video_set_drvdata(struct video_device *dev, void *data)
 
 extern int video_exclusive_open(struct inode *inode, struct file *file);
 extern int video_exclusive_release(struct inode *inode, struct file *file);
-#endif /* HAVE_V4L1 */
 
 #endif /* _V4L2_DEV_H */

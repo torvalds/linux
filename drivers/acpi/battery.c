@@ -59,6 +59,9 @@ ACPI_MODULE_NAME("acpi_battery")
 MODULE_DESCRIPTION(ACPI_BATTERY_DRIVER_NAME);
 MODULE_LICENSE("GPL");
 
+extern struct proc_dir_entry *acpi_lock_battery_dir(void);
+extern void *acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
+
 static int acpi_battery_add(struct acpi_device *device);
 static int acpi_battery_remove(struct acpi_device *device, int type);
 
@@ -108,7 +111,7 @@ struct acpi_battery_trips {
 };
 
 struct acpi_battery {
-	acpi_handle handle;
+	struct acpi_device * device;
 	struct acpi_battery_flags flags;
 	struct acpi_battery_trips trips;
 	unsigned long alarm;
@@ -138,7 +141,7 @@ acpi_battery_get_info(struct acpi_battery *battery,
 
 	/* Evalute _BIF */
 
-	status = acpi_evaluate_object(battery->handle, "_BIF", NULL, &buffer);
+	status = acpi_evaluate_object(battery->device->handle, "_BIF", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BIF"));
 		return -ENODEV;
@@ -171,7 +174,7 @@ acpi_battery_get_info(struct acpi_battery *battery,
 	}
 
       end:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	if (!result)
 		(*bif) = (struct acpi_battery_info *)data.pointer;
@@ -198,7 +201,7 @@ acpi_battery_get_status(struct acpi_battery *battery,
 
 	/* Evalute _BST */
 
-	status = acpi_evaluate_object(battery->handle, "_BST", NULL, &buffer);
+	status = acpi_evaluate_object(battery->device->handle, "_BST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BST"));
 		return -ENODEV;
@@ -231,7 +234,7 @@ acpi_battery_get_status(struct acpi_battery *battery,
 	}
 
       end:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	if (!result)
 		(*bst) = (struct acpi_battery_status *)data.pointer;
@@ -255,7 +258,7 @@ acpi_battery_set_alarm(struct acpi_battery *battery, unsigned long alarm)
 
 	arg0.integer.value = alarm;
 
-	status = acpi_evaluate_object(battery->handle, "_BTP", &arg_list, NULL);
+	status = acpi_evaluate_object(battery->device->handle, "_BTP", &arg_list, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -278,9 +281,7 @@ static int acpi_battery_check(struct acpi_battery *battery)
 	if (!battery)
 		return -EINVAL;
 
-	result = acpi_bus_get_device(battery->handle, &device);
-	if (result)
-		return result;
+	device = battery->device;
 
 	result = acpi_bus_get_status(device);
 	if (result)
@@ -305,7 +306,7 @@ static int acpi_battery_check(struct acpi_battery *battery)
 
 		/* See if alarms are supported, and if so, set default */
 
-		status = acpi_get_handle(battery->handle, "_BTP", &handle);
+		status = acpi_get_handle(battery->device->handle, "_BTP", &handle);
 		if (ACPI_SUCCESS(status)) {
 			battery->flags.alarm = 1;
 			acpi_battery_set_alarm(battery, battery->trips.warning);
@@ -556,7 +557,7 @@ static int acpi_battery_alarm_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_battery_read_alarm, PDE(inode)->data);
 }
 
-static struct file_operations acpi_battery_info_ops = {
+static const struct file_operations acpi_battery_info_ops = {
 	.open = acpi_battery_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -564,7 +565,7 @@ static struct file_operations acpi_battery_info_ops = {
 	.owner = THIS_MODULE,
 };
 
-static struct file_operations acpi_battery_state_ops = {
+static const struct file_operations acpi_battery_state_ops = {
 	.open = acpi_battery_state_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -572,7 +573,7 @@ static struct file_operations acpi_battery_state_ops = {
 	.owner = THIS_MODULE,
 };
 
-static struct file_operations acpi_battery_alarm_ops = {
+static const struct file_operations acpi_battery_alarm_ops = {
 	.open = acpi_battery_alarm_open_fs,
 	.read = seq_read,
 	.write = acpi_battery_write_alarm,
@@ -662,12 +663,13 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 	if (!battery)
 		return;
 
-	if (acpi_bus_get_device(handle, &device))
-		return;
+	device = battery->device;
 
 	switch (event) {
 	case ACPI_BATTERY_NOTIFY_STATUS:
 	case ACPI_BATTERY_NOTIFY_INFO:
+	case ACPI_NOTIFY_BUS_CHECK:
+	case ACPI_NOTIFY_DEVICE_CHECK:
 		acpi_battery_check(battery);
 		acpi_bus_generate_event(device, event, battery->flags.present);
 		break;
@@ -695,7 +697,7 @@ static int acpi_battery_add(struct acpi_device *device)
 		return -ENOMEM;
 	memset(battery, 0, sizeof(struct acpi_battery));
 
-	battery->handle = device->handle;
+	battery->device = device;
 	strcpy(acpi_device_name(device), ACPI_BATTERY_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
 	acpi_driver_data(device) = battery;
@@ -708,8 +710,8 @@ static int acpi_battery_add(struct acpi_device *device)
 	if (result)
 		goto end;
 
-	status = acpi_install_notify_handler(battery->handle,
-					     ACPI_DEVICE_NOTIFY,
+	status = acpi_install_notify_handler(device->handle,
+					     ACPI_ALL_NOTIFY,
 					     acpi_battery_notify, battery);
 	if (ACPI_FAILURE(status)) {
 		result = -ENODEV;
@@ -740,8 +742,8 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 
 	battery = (struct acpi_battery *)acpi_driver_data(device);
 
-	status = acpi_remove_notify_handler(battery->handle,
-					    ACPI_DEVICE_NOTIFY,
+	status = acpi_remove_notify_handler(device->handle,
+					    ACPI_ALL_NOTIFY,
 					    acpi_battery_notify);
 
 	acpi_battery_remove_fs(device);
@@ -753,17 +755,18 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 
 static int __init acpi_battery_init(void)
 {
-	int result = 0;
+	int result;
 
+	if (acpi_disabled)
+		return -ENODEV;
 
-	acpi_battery_dir = proc_mkdir(ACPI_BATTERY_CLASS, acpi_root_dir);
+	acpi_battery_dir = acpi_lock_battery_dir();
 	if (!acpi_battery_dir)
 		return -ENODEV;
-	acpi_battery_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&acpi_battery_driver);
 	if (result < 0) {
-		remove_proc_entry(ACPI_BATTERY_CLASS, acpi_root_dir);
+		acpi_unlock_battery_dir(acpi_battery_dir);
 		return -ENODEV;
 	}
 
@@ -775,7 +778,7 @@ static void __exit acpi_battery_exit(void)
 
 	acpi_bus_unregister_driver(&acpi_battery_driver);
 
-	remove_proc_entry(ACPI_BATTERY_CLASS, acpi_root_dir);
+	acpi_unlock_battery_dir(acpi_battery_dir);
 
 	return;
 }

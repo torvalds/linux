@@ -105,7 +105,7 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 
 /*
  * Add a connection to the control filesystem (if it exists).  Caller
- * must host fuse_mutex
+ * must hold fuse_mutex
  */
 int fuse_ctl_add_conn(struct fuse_conn *fc)
 {
@@ -139,7 +139,7 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
 
 /*
  * Remove a connection from the control filesystem (if it exists).
- * Caller must host fuse_mutex
+ * Caller must hold fuse_mutex
  */
 void fuse_ctl_remove_conn(struct fuse_conn *fc)
 {

@@ -8,38 +8,71 @@
 
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/debug_locks.h>
 #include <linux/delay.h>
+#include <linux/module.h>
+
+void __spin_lock_init(spinlock_t *lock, const char *name,
+		      struct lock_class_key *key)
+{
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	/*
+	 * Make sure we are not reinitializing a held lock:
+	 */
+	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
+	lockdep_init_map(&lock->dep_map, name, key);
+#endif
+	lock->raw_lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+	lock->magic = SPINLOCK_MAGIC;
+	lock->owner = SPINLOCK_OWNER_INIT;
+	lock->owner_cpu = -1;
+}
+
+EXPORT_SYMBOL(__spin_lock_init);
+
+void __rwlock_init(rwlock_t *lock, const char *name,
+		   struct lock_class_key *key)
+{
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	/*
+	 * Make sure we are not reinitializing a held lock:
+	 */
+	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
+	lockdep_init_map(&lock->dep_map, name, key);
+#endif
+	lock->raw_lock = (raw_rwlock_t) __RAW_RW_LOCK_UNLOCKED;
+	lock->magic = RWLOCK_MAGIC;
+	lock->owner = SPINLOCK_OWNER_INIT;
+	lock->owner_cpu = -1;
+}
+
+EXPORT_SYMBOL(__rwlock_init);
 
 static void spin_bug(spinlock_t *lock, const char *msg)
 {
-	static long print_once = 1;
 	struct task_struct *owner = NULL;
 
-	if (xchg(&print_once, 0)) {
-		if (lock->owner && lock->owner != SPINLOCK_OWNER_INIT)
-			owner = lock->owner;
-		printk(KERN_EMERG "BUG: spinlock %s on CPU#%d, %s/%d\n",
-			msg, raw_smp_processor_id(),
-			current->comm, current->pid);
-		printk(KERN_EMERG " lock: %p, .magic: %08x, .owner: %s/%d, "
-				".owner_cpu: %d\n",
-			lock, lock->magic,
-			owner ? owner->comm : "<none>",
-			owner ? owner->pid : -1,
-			lock->owner_cpu);
-		dump_stack();
-#ifdef CONFIG_SMP
-		/*
-		 * We cannot continue on SMP:
-		 */
-//		panic("bad locking");
-#endif
-	}
+	if (!debug_locks_off())
+		return;
+
+	if (lock->owner && lock->owner != SPINLOCK_OWNER_INIT)
+		owner = lock->owner;
+	printk(KERN_EMERG "BUG: spinlock %s on CPU#%d, %s/%d\n",
+		msg, raw_smp_processor_id(),
+		current->comm, current->pid);
+	printk(KERN_EMERG " lock: %p, .magic: %08x, .owner: %s/%d, "
+			".owner_cpu: %d\n",
+		lock, lock->magic,
+		owner ? owner->comm : "<none>",
+		owner ? owner->pid : -1,
+		lock->owner_cpu);
+	dump_stack();
 }
 
 #define SPIN_BUG_ON(cond, lock, msg) if (unlikely(cond)) spin_bug(lock, msg)
 
-static inline void debug_spin_lock_before(spinlock_t *lock)
+static inline void
+debug_spin_lock_before(spinlock_t *lock)
 {
 	SPIN_BUG_ON(lock->magic != SPINLOCK_MAGIC, lock, "bad magic");
 	SPIN_BUG_ON(lock->owner == current, lock, "recursion");
@@ -118,24 +151,18 @@ void _raw_spin_unlock(spinlock_t *lock)
 
 static void rwlock_bug(rwlock_t *lock, const char *msg)
 {
-	static long print_once = 1;
+	if (!debug_locks_off())
+		return;
 
-	if (xchg(&print_once, 0)) {
-		printk(KERN_EMERG "BUG: rwlock %s on CPU#%d, %s/%d, %p\n",
-			msg, raw_smp_processor_id(), current->comm,
-			current->pid, lock);
-		dump_stack();
-#ifdef CONFIG_SMP
-		/*
-		 * We cannot continue on SMP:
-		 */
-		panic("bad locking");
-#endif
-	}
+	printk(KERN_EMERG "BUG: rwlock %s on CPU#%d, %s/%d, %p\n",
+		msg, raw_smp_processor_id(), current->comm,
+		current->pid, lock);
+	dump_stack();
 }
 
 #define RWLOCK_BUG_ON(cond, lock, msg) if (unlikely(cond)) rwlock_bug(lock, msg)
 
+#if 0		/* __write_lock_debug() can lock up - maybe this can too? */
 static void __read_lock_debug(rwlock_t *lock)
 {
 	int print_once = 1;
@@ -158,12 +185,12 @@ static void __read_lock_debug(rwlock_t *lock)
 		}
 	}
 }
+#endif
 
 void _raw_read_lock(rwlock_t *lock)
 {
 	RWLOCK_BUG_ON(lock->magic != RWLOCK_MAGIC, lock, "bad magic");
-	if (unlikely(!__raw_read_trylock(&lock->raw_lock)))
-		__read_lock_debug(lock);
+	__raw_read_lock(&lock->raw_lock);
 }
 
 int _raw_read_trylock(rwlock_t *lock)
@@ -209,6 +236,7 @@ static inline void debug_write_unlock(rwlock_t *lock)
 	lock->owner_cpu = -1;
 }
 
+#if 0		/* This can cause lockups */
 static void __write_lock_debug(rwlock_t *lock)
 {
 	int print_once = 1;
@@ -231,12 +259,12 @@ static void __write_lock_debug(rwlock_t *lock)
 		}
 	}
 }
+#endif
 
 void _raw_write_lock(rwlock_t *lock)
 {
 	debug_write_lock_before(lock);
-	if (unlikely(!__raw_write_trylock(&lock->raw_lock)))
-		__write_lock_debug(lock);
+	__raw_write_lock(&lock->raw_lock);
 	debug_write_lock_after(lock);
 }
 

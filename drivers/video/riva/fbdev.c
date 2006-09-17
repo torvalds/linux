@@ -34,7 +34,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
@@ -278,9 +277,11 @@ static const struct riva_regs reg_template = {
  */
 #define MIN_LEVEL 0x158
 #define MAX_LEVEL 0x534
+#define LEVEL_STEP ((MAX_LEVEL - MIN_LEVEL) / FB_BACKLIGHT_MAX)
 
 static struct backlight_properties riva_bl_data;
 
+/* Call with fb_info->bl_mutex held */
 static int riva_bl_get_level_brightness(struct riva_par *par,
 		int level)
 {
@@ -288,9 +289,7 @@ static int riva_bl_get_level_brightness(struct riva_par *par,
 	int nlevel;
 
 	/* Get and convert the value */
-	mutex_lock(&info->bl_mutex);
-	nlevel = info->bl_curve[level] * FB_BACKLIGHT_MAX / MAX_LEVEL;
-	mutex_unlock(&info->bl_mutex);
+	nlevel = MIN_LEVEL + info->bl_curve[level] * LEVEL_STEP;
 
 	if (nlevel < 0)
 		nlevel = 0;
@@ -302,7 +301,8 @@ static int riva_bl_get_level_brightness(struct riva_par *par,
 	return nlevel;
 }
 
-static int riva_bl_update_status(struct backlight_device *bd)
+/* Call with fb_info->bl_mutex held */
+static int __riva_bl_update_status(struct backlight_device *bd)
 {
 	struct riva_par *par = class_get_devdata(&bd->class_dev);
 	U032 tmp_pcrt, tmp_pmc;
@@ -327,6 +327,19 @@ static int riva_bl_update_status(struct backlight_device *bd)
 	return 0;
 }
 
+static int riva_bl_update_status(struct backlight_device *bd)
+{
+	struct riva_par *par = class_get_devdata(&bd->class_dev);
+	struct fb_info *info = pci_get_drvdata(par->pdev);
+	int ret;
+
+	mutex_lock(&info->bl_mutex);
+	ret = __riva_bl_update_status(bd);
+	mutex_unlock(&info->bl_mutex);
+
+	return ret;
+}
+
 static int riva_bl_get_brightness(struct backlight_device *bd)
 {
 	return bd->props->brightness;
@@ -338,6 +351,20 @@ static struct backlight_properties riva_bl_data = {
 	.update_status	= riva_bl_update_status,
 	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
 };
+
+static void riva_bl_set_power(struct fb_info *info, int power)
+{
+	mutex_lock(&info->bl_mutex);
+
+	if (info->bl_dev) {
+		down(&info->bl_dev->sem);
+		info->bl_dev->props->power = power;
+		__riva_bl_update_status(info->bl_dev);
+		up(&info->bl_dev->sem);
+	}
+
+	mutex_unlock(&info->bl_mutex);
+}
 
 static void riva_bl_init(struct riva_par *par)
 {
@@ -359,7 +386,7 @@ static void riva_bl_init(struct riva_par *par)
 	bd = backlight_device_register(name, par, &riva_bl_data);
 	if (IS_ERR(bd)) {
 		info->bl_dev = NULL;
-		printk("riva: Backlight registration failed\n");
+		printk(KERN_WARNING "riva: Backlight registration failed\n");
 		goto error;
 	}
 
@@ -370,11 +397,11 @@ static void riva_bl_init(struct riva_par *par)
 		0x534 * FB_BACKLIGHT_MAX / MAX_LEVEL);
 	mutex_unlock(&info->bl_mutex);
 
-	up(&bd->sem);
+	down(&bd->sem);
 	bd->props->brightness = riva_bl_data.max_brightness;
 	bd->props->power = FB_BLANK_UNBLANK;
 	bd->props->update_status(bd);
-	down(&bd->sem);
+	up(&bd->sem);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	mutex_lock(&pmac_backlight_mutex);
@@ -419,6 +446,7 @@ static void riva_bl_exit(struct riva_par *par)
 #else
 static inline void riva_bl_init(struct riva_par *par) {}
 static inline void riva_bl_exit(struct riva_par *par) {}
+static inline void riva_bl_set_power(struct fb_info *info, int power) {}
 #endif /* CONFIG_FB_RIVA_BACKLIGHT */
 
 /* ------------------------------------------------------------------------- *
@@ -1337,16 +1365,7 @@ static int rivafb_blank(int blank, struct fb_info *info)
 	SEQout(par, 0x01, tmp);
 	CRTCout(par, 0x1a, vesa);
 
-#ifdef CONFIG_FB_RIVA_BACKLIGHT
-	mutex_lock(&info->bl_mutex);
-	if (info->bl_dev) {
-		down(&info->bl_dev->sem);
-		info->bl_dev->props->power = blank;
-		info->bl_dev->props->update_status(info->bl_dev);
-		up(&info->bl_dev->sem);
-	}
-	mutex_unlock(&info->bl_mutex);
-#endif
+	riva_bl_set_power(info, blank);
 
 	NVTRACE_LEAVE();
 
@@ -2117,6 +2136,9 @@ static int __devinit rivafb_probe(struct pci_dev *pd,
 
 	fb_destroy_modedb(info->monspecs.modedb);
 	info->monspecs.modedb = NULL;
+
+	pci_set_drvdata(pd, info);
+	riva_bl_init(info->par);
 	ret = register_framebuffer(info);
 	if (ret < 0) {
 		printk(KERN_ERR PFX
@@ -2124,16 +2146,12 @@ static int __devinit rivafb_probe(struct pci_dev *pd,
 		goto err_iounmap_screen_base;
 	}
 
-	pci_set_drvdata(pd, info);
-
 	printk(KERN_INFO PFX
 		"PCI nVidia %s framebuffer ver %s (%dMB @ 0x%lX)\n",
 		info->fix.id,
 		RIVAFB_VERSION,
 		info->fix.smem_len / (1024 * 1024),
 		info->fix.smem_start);
-
-	riva_bl_init(info->par);
 
 	NVTRACE_LEAVE();
 	return 0;

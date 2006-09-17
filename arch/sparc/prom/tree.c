@@ -205,24 +205,6 @@ int prom_searchsiblings(int node_start, char *nodename)
 	return 0;
 }
 
-/* Gets name in the form prom v2+ uses it (name@x,yyyyy or name (if no reg)) */
-int prom_getname (int node, char *buffer, int len)
-{
-	int i;
-	struct linux_prom_registers reg[PROMREG_MAX];
-	
-	i = prom_getproperty (node, "name", buffer, len);
-	if (i <= 0) return -1;
-	buffer [i] = 0;
-	len -= i;
-	i = prom_getproperty (node, "reg", (char *)reg, sizeof (reg));
-	if (i <= 0) return 0;
-	if (len < 11) return -1;
-	buffer = strchr (buffer, 0);
-	sprintf (buffer, "@%x,%x", reg[0].which_io, (uint)reg[0].phys_addr);
-	return 0;
-}
-
 /* Interal version of nextprop that does not alter return values. */
 char * __prom_nextprop(int node, char * oprop)
 {

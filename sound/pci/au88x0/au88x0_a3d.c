@@ -593,24 +593,23 @@ static int Vort3DRend_Initialize(vortex_t * v, unsigned short mode)
 static int vortex_a3d_register_controls(vortex_t * vortex);
 static void vortex_a3d_unregister_controls(vortex_t * vortex);
 /* A3D base support init/shudown */
-static void vortex_Vort3D(vortex_t * v, int en)
+static void __devinit vortex_Vort3D_enable(vortex_t * v)
 {
 	int i;
-	if (en) {
-		Vort3DRend_Initialize(v, XT_HEADPHONE);
-		for (i = 0; i < NR_A3D; i++) {
-			vortex_A3dSourceHw_Initialize(v, i % 4, i >> 2);
-			a3dsrc_ZeroStateA3D(&(v->a3d[0]));
-		}
-	} else {
-		vortex_XtalkHw_Disable(v);
+
+	Vort3DRend_Initialize(v, XT_HEADPHONE);
+	for (i = 0; i < NR_A3D; i++) {
+		vortex_A3dSourceHw_Initialize(v, i % 4, i >> 2);
+		a3dsrc_ZeroStateA3D(&(v->a3d[0]));
 	}
 	/* Register ALSA controls */
-	if (en) {
-		vortex_a3d_register_controls(v);
-	} else {
-		vortex_a3d_unregister_controls(v);
-	}
+	vortex_a3d_register_controls(v);
+}
+
+static void vortex_Vort3D_disable(vortex_t * v)
+{
+	vortex_XtalkHw_Disable(v);
+	vortex_a3d_unregister_controls(v);
 }
 
 /* Make A3D subsystem connections. */
@@ -855,7 +854,7 @@ static struct snd_kcontrol_new vortex_a3d_kcontrol __devinitdata = {
 };
 
 /* Control (un)registration. */
-static int vortex_a3d_register_controls(vortex_t * vortex)
+static int __devinit vortex_a3d_register_controls(vortex_t * vortex)
 {
 	struct snd_kcontrol *kcontrol;
 	int err, i;

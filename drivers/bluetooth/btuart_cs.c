@@ -502,6 +502,7 @@ static int btuart_open(btuart_info_t *info)
 
 	hdev->type = HCI_PCCARD;
 	hdev->driver_data = info;
+	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
 	hdev->open     = btuart_hci_open;
 	hdev->close    = btuart_hci_close;

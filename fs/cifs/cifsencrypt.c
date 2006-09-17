@@ -277,7 +277,8 @@ void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key)
 		return;
 
 	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
-	strncpy(password_with_pad, ses->password, CIFS_ENCPWD_SIZE);
+	if(ses->password)
+		strncpy(password_with_pad, ses->password, CIFS_ENCPWD_SIZE);
 
 	if((ses->server->secMode & SECMODE_PW_ENCRYPT) == 0)
 		if(extended_security & CIFSSEC_MAY_PLNTXT) {

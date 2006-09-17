@@ -33,6 +33,7 @@ extern const char linux_banner[];
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+#define roundup(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
 
 #define	KERN_EMERG	"<0>"	/* system is unusable			*/
 #define	KERN_ALERT	"<1>"	/* action must be taken immediately	*/
@@ -209,6 +210,7 @@ extern enum system_states {
 extern void dump_stack(void);
 
 #ifdef DEBUG
+/* If you are writing a driver, please use dev_dbg instead */
 #define pr_debug(fmt,arg...) \
 	printk(KERN_DEBUG fmt,##arg)
 #else

@@ -80,6 +80,7 @@ struct hrtimer_sleeper {
  * @get_softirq_time:	function to retrieve the current time from the softirq
  * @curr_timer:		the timer which is executing a callback right now
  * @softirq_time:	the time when running the hrtimer queue in the softirq
+ * @lock_key:		the lock_class_key for use with lockdep
  */
 struct hrtimer_base {
 	clockid_t		index;
@@ -91,6 +92,7 @@ struct hrtimer_base {
 	ktime_t			(*get_softirq_time)(void);
 	struct hrtimer		*curr_timer;
 	ktime_t			softirq_time;
+	struct lock_class_key lock_key;
 };
 
 /*

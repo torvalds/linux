@@ -7,6 +7,14 @@ config MMU
 	bool
 	default y
 
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 
@@ -110,12 +118,9 @@ config SYSVIPC_COMPAT
 	depends on COMPAT && SYSVIPC
 	default y
 
-config BINFMT_ELF32
-	tristate "Kernel support for 31 bit ELF binaries"
-	depends on COMPAT
-	help
-	  This allows you to run 32-bit Linux/ELF binaries on your zSeries
-	  in 64 bit mode. Everybody wants this; say Y.
+config AUDIT_ARCH
+	bool
+	default y
 
 comment "Code generation options"
 

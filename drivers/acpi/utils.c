@@ -262,7 +262,7 @@ acpi_evaluate_integer(acpi_handle handle,
 	if (!data)
 		return AE_BAD_PARAMETER;
 
-	element = kmalloc(sizeof(union acpi_object), GFP_KERNEL);
+	element = kmalloc(sizeof(union acpi_object), irqs_disabled() ? GFP_ATOMIC: GFP_KERNEL);
 	if (!element)
 		return AE_NO_MEMORY;
 
@@ -332,7 +332,7 @@ acpi_evaluate_string(acpi_handle handle,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Return value [%s]\n", *data));
 
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	return AE_OK;
 }
@@ -418,7 +418,7 @@ acpi_evaluate_reference(acpi_handle handle,
 		//kfree(list->handles);
 	}
 
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	return status;
 }

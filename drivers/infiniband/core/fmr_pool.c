@@ -426,7 +426,7 @@ EXPORT_SYMBOL(ib_flush_fmr_pool);
 struct ib_pool_fmr *ib_fmr_pool_map_phys(struct ib_fmr_pool *pool_handle,
 					 u64                *page_list,
 					 int                 list_len,
-					 u64                *io_virtual_address)
+					 u64                 io_virtual_address)
 {
 	struct ib_fmr_pool *pool = pool_handle;
 	struct ib_pool_fmr *fmr;
@@ -440,7 +440,7 @@ struct ib_pool_fmr *ib_fmr_pool_map_phys(struct ib_fmr_pool *pool_handle,
 	fmr = ib_fmr_cache_lookup(pool,
 				  page_list,
 				  list_len,
-				  *io_virtual_address);
+				  io_virtual_address);
 	if (fmr) {
 		/* found in cache */
 		++fmr->ref_count;
@@ -464,7 +464,7 @@ struct ib_pool_fmr *ib_fmr_pool_map_phys(struct ib_fmr_pool *pool_handle,
 	spin_unlock_irqrestore(&pool->pool_lock, flags);
 
 	result = ib_map_phys_fmr(fmr->fmr, page_list, list_len,
-				 *io_virtual_address);
+				 io_virtual_address);
 
 	if (result) {
 		spin_lock_irqsave(&pool->pool_lock, flags);
@@ -481,7 +481,7 @@ struct ib_pool_fmr *ib_fmr_pool_map_phys(struct ib_fmr_pool *pool_handle,
 	fmr->ref_count = 1;
 
 	if (pool->cache_bucket) {
-		fmr->io_virtual_address = *io_virtual_address;
+		fmr->io_virtual_address = io_virtual_address;
 		fmr->page_list_len      = list_len;
 		memcpy(fmr->page_list, page_list, list_len * sizeof(*page_list));
 

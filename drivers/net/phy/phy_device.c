@@ -45,6 +45,35 @@ static struct phy_driver genphy_driver;
 extern int mdio_bus_init(void);
 extern void mdio_bus_exit(void);
 
+struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
+{
+	struct phy_device *dev;
+	/* We allocate the device, and initialize the
+	 * default values */
+	dev = kcalloc(1, sizeof(*dev), GFP_KERNEL);
+
+	if (NULL == dev)
+		return (struct phy_device*) PTR_ERR((void*)-ENOMEM);
+
+	dev->speed = 0;
+	dev->duplex = -1;
+	dev->pause = dev->asym_pause = 0;
+	dev->link = 1;
+
+	dev->autoneg = AUTONEG_ENABLE;
+
+	dev->addr = addr;
+	dev->phy_id = phy_id;
+	dev->bus = bus;
+
+	dev->state = PHY_DOWN;
+
+	spin_lock_init(&dev->lock);
+
+	return dev;
+}
+EXPORT_SYMBOL(phy_device_create);
+
 /* get_phy_device
  *
  * description: Reads the ID registers of the PHY at addr on the
@@ -78,27 +107,7 @@ struct phy_device * get_phy_device(struct mii_bus *bus, int addr)
 	if (0xffffffff == phy_id)
 		return NULL;
 
-	/* Otherwise, we allocate the device, and initialize the
-	 * default values */
-	dev = kcalloc(1, sizeof(*dev), GFP_KERNEL);
-
-	if (NULL == dev)
-		return ERR_PTR(-ENOMEM);
-
-	dev->speed = 0;
-	dev->duplex = -1;
-	dev->pause = dev->asym_pause = 0;
-	dev->link = 1;
-
-	dev->autoneg = AUTONEG_ENABLE;
-
-	dev->addr = addr;
-	dev->phy_id = phy_id;
-	dev->bus = bus;
-
-	dev->state = PHY_DOWN;
-
-	spin_lock_init(&dev->lock);
+	dev = phy_device_create(bus, addr, phy_id);
 
 	return dev;
 }

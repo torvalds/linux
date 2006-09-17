@@ -65,7 +65,7 @@ need_resched:
 #endif
 
 FEXPORT(ret_from_fork)
-	jal	schedule_tail		# a0 = task_t *prev
+	jal	schedule_tail		# a0 = struct task_struct *prev
 
 FEXPORT(syscall_exit)
 	local_irq_disable		# make sure need_resched and
@@ -113,6 +113,21 @@ FEXPORT(restore_all)			# restore full frame
 	RESTORE_AT
 	RESTORE_STATIC
 FEXPORT(restore_partial)		# restore partial frame
+#ifdef CONFIG_TRACE_IRQFLAGS
+	SAVE_STATIC
+	SAVE_AT
+	SAVE_TEMP
+	LONG_L	v0, PT_STATUS(sp)
+	and	v0, 1
+	beqz	v0, 1f
+	jal	trace_hardirqs_on
+	b	2f
+1:	jal	trace_hardirqs_off
+2:
+	RESTORE_TEMP
+	RESTORE_AT
+	RESTORE_STATIC
+#endif
 	RESTORE_SOME
 	RESTORE_SP_AND_RET
 	.set	at

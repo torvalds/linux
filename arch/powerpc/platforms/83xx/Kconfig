@@ -16,12 +16,21 @@ config MPC834x_SYS
 	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
 	  responsiblilty.
 
+config MPC834x_ITX
+	bool "Freescale MPC834x ITX"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC 834x ITX evaluation board.
+
+	  Be aware that PCI initialization is the bootloader's
+	  responsiblilty.
+
 endchoice
 
 config MPC834x
 	bool
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
-	default y if MPC834x_SYS
+	default y if MPC834x_SYS || MPC834x_ITX
 
 endmenu

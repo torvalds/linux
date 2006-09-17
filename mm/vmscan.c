@@ -1503,10 +1503,6 @@ module_init(kswapd_init)
  *
  * If non-zero call zone_reclaim when the number of free pages falls below
  * the watermarks.
- *
- * In the future we may add flags to the mode. However, the page allocator
- * should only have to check that zone_reclaim_mode != 0 before calling
- * zone_reclaim().
  */
 int zone_reclaim_mode __read_mostly;
 
@@ -1522,6 +1518,12 @@ int zone_reclaim_mode __read_mostly;
  * a zone.
  */
 #define ZONE_RECLAIM_PRIORITY 4
+
+/*
+ * Percentage of pages in a zone that must be unmapped for zone_reclaim to
+ * occur.
+ */
+int sysctl_min_unmapped_ratio = 1;
 
 /*
  * Try to free up some pages from this zone through reclaim.
@@ -1590,18 +1592,17 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	int node_id;
 
 	/*
-	 * Do not reclaim if there are not enough reclaimable pages in this
-	 * zone that would satify this allocations.
+	 * Zone reclaim reclaims unmapped file backed pages.
 	 *
-	 * All unmapped pagecache pages are reclaimable.
-	 *
-	 * Both counters may be temporarily off a bit so we use
-	 * SWAP_CLUSTER_MAX as the boundary. It may also be good to
-	 * leave a few frequently used unmapped pagecache pages around.
+	 * A small portion of unmapped file backed pages is needed for
+	 * file I/O otherwise pages read by file I/O will be immediately
+	 * thrown out if the zone is overallocated. So we do not reclaim
+	 * if less than a specified percentage of the zone is used by
+	 * unmapped file backed pages.
 	 */
 	if (zone_page_state(zone, NR_FILE_PAGES) -
-		zone_page_state(zone, NR_FILE_MAPPED) < SWAP_CLUSTER_MAX)
-			return 0;
+	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_ratio)
+		return 0;
 
 	/*
 	 * Avoid concurrent zone reclaims, do not reclaim in a zone that does

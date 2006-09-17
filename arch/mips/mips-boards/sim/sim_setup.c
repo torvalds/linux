@@ -37,7 +37,6 @@
 
 
 extern void sim_time_init(void);
-extern void sim_timer_setup(struct irqaction *irq);
 static void __init serial_init(void);
 unsigned int _isbonito = 0;
 
@@ -56,7 +55,6 @@ void __init plat_mem_setup(void)
 	serial_init();
 
 	board_time_init = sim_time_init;
-	board_timer_setup = sim_timer_setup;
 	prom_printf("Linux started...\n");
 
 #ifdef CONFIG_MT_SMP

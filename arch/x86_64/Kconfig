@@ -24,6 +24,14 @@ config X86
 	bool
 	default y
 
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
 config SEMAPHORE_SLEEPERS
 	bool
 	default y
@@ -74,6 +82,10 @@ config ARCH_MAY_HAVE_PC_FDC
 	default y
 
 config DMI
+	bool
+	default y
+
+config AUDIT_ARCH
 	bool
 	default y
 

@@ -43,6 +43,7 @@ typedef u64 cputime64_t;
 
 #define cputime64_zero			((cputime64_t)0)
 #define cputime64_add(__a, __b)		((__a) + (__b))
+#define cputime64_sub(__a, __b)		((__a) - (__b))
 #define cputime_to_cputime64(__ct)	(__ct)
 
 #ifdef __KERNEL__
@@ -61,6 +62,23 @@ static inline cputime_t jiffies_to_cputime(const unsigned long jif)
 {
 	cputime_t ct;
 	unsigned long sec;
+
+	/* have to be a little careful about overflow */
+	ct = jif % HZ;
+	sec = jif / HZ;
+	if (ct) {
+		ct *= tb_ticks_per_sec;
+		do_div(ct, HZ);
+	}
+	if (sec)
+		ct += (cputime_t) sec * tb_ticks_per_sec;
+	return ct;
+}
+
+static inline cputime64_t jiffies64_to_cputime64(const u64 jif)
+{
+	cputime_t ct;
+	u64 sec;
 
 	/* have to be a little careful about overflow */
 	ct = jif % HZ;

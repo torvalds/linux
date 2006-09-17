@@ -367,6 +367,12 @@ static void ntfs_destroy_extent_inode(ntfs_inode *ni)
 	kmem_cache_free(ntfs_inode_cache, ni);
 }
 
+/*
+ * The attribute runlist lock has separate locking rules from the
+ * normal runlist lock, so split the two lock-classes:
+ */
+static struct lock_class_key attr_list_rl_lock_class;
+
 /**
  * __ntfs_init_inode - initialize ntfs specific part of an inode
  * @sb:		super block of mounted volume
@@ -394,6 +400,8 @@ void __ntfs_init_inode(struct super_block *sb, ntfs_inode *ni)
 	ni->attr_list_size = 0;
 	ni->attr_list = NULL;
 	ntfs_init_runlist(&ni->attr_list_rl);
+	lockdep_set_class(&ni->attr_list_rl.lock,
+				&attr_list_rl_lock_class);
 	ni->itype.index.bmp_ino = NULL;
 	ni->itype.index.block_size = 0;
 	ni->itype.index.vcn_size = 0;
@@ -405,6 +413,13 @@ void __ntfs_init_inode(struct super_block *sb, ntfs_inode *ni)
 	ni->ext.base_ntfs_ino = NULL;
 }
 
+/*
+ * Extent inodes get MFT-mapped in a nested way, while the base inode
+ * is still mapped. Teach this nesting to the lock validator by creating
+ * a separate class for nested inode's mrec_lock's:
+ */
+static struct lock_class_key extent_inode_mrec_lock_key;
+
 inline ntfs_inode *ntfs_new_extent_inode(struct super_block *sb,
 		unsigned long mft_no)
 {
@@ -413,6 +428,7 @@ inline ntfs_inode *ntfs_new_extent_inode(struct super_block *sb,
 	ntfs_debug("Entering.");
 	if (likely(ni != NULL)) {
 		__ntfs_init_inode(sb, ni);
+		lockdep_set_class(&ni->mrec_lock, &extent_inode_mrec_lock_key);
 		ni->mft_no = mft_no;
 		ni->type = AT_UNUSED;
 		ni->name = NULL;
@@ -1722,6 +1738,15 @@ err_out:
 	return err;
 }
 
+/*
+ * The MFT inode has special locking, so teach the lock validator
+ * about this by splitting off the locking rules of the MFT from
+ * the locking rules of other inodes. The MFT inode can never be
+ * accessed from the VFS side (or even internally), only by the
+ * map_mft functions.
+ */
+static struct lock_class_key mft_ni_runlist_lock_key, mft_ni_mrec_lock_key;
+
 /**
  * ntfs_read_inode_mount - special read_inode for mount time use only
  * @vi:		inode to read
@@ -2148,6 +2173,14 @@ int ntfs_read_inode_mount(struct inode *vi)
 	ntfs_attr_put_search_ctx(ctx);
 	ntfs_debug("Done.");
 	ntfs_free(m);
+
+	/*
+	 * Split the locking rules of the MFT inode from the
+	 * locking rules of other inodes:
+	 */
+	lockdep_set_class(&ni->runlist.lock, &mft_ni_runlist_lock_key);
+	lockdep_set_class(&ni->mrec_lock, &mft_ni_mrec_lock_key);
+
 	return 0;
 
 em_put_err_out:

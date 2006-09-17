@@ -357,7 +357,7 @@ int conf_read(const char *name)
 		for (e = prop->expr; e; e = e->left.expr)
 			if (e->right.sym->visible != no)
 				flags &= e->right.sym->flags;
-		sym->flags |= flags & SYMBOL_DEF_USER;
+		sym->flags &= flags | ~SYMBOL_DEF_USER;
 	}
 
 	sym_change_count += conf_warnings || conf_unsaved;

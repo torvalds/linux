@@ -184,11 +184,11 @@ extern unsigned long weighted_cpuload(const int cpu);
 extern rwlock_t tasklist_lock;
 extern spinlock_t mmlist_lock;
 
-typedef struct task_struct task_t;
+struct task_struct;
 
 extern void sched_init(void);
 extern void sched_init_smp(void);
-extern void init_idle(task_t *idle, int cpu);
+extern void init_idle(struct task_struct *idle, int cpu);
 
 extern cpumask_t nohz_cpu_mask;
 
@@ -383,7 +383,7 @@ struct signal_struct {
 	wait_queue_head_t	wait_chldexit;	/* for wait4() */
 
 	/* current thread group signal load-balancing target: */
-	task_t			*curr_target;
+	struct task_struct	*curr_target;
 
 	/* shared signal handling: */
 	struct sigpending	shared_pending;
@@ -463,6 +463,10 @@ struct signal_struct {
 #ifdef CONFIG_BSD_PROCESS_ACCT
 	struct pacct_struct pacct;	/* per-process accounting information */
 #endif
+#ifdef CONFIG_TASKSTATS
+	spinlock_t stats_lock;
+	struct taskstats *stats;
+#endif
 };
 
 /* Context switch must be unlocked if interrupts are to be enabled */
@@ -534,11 +538,10 @@ extern struct user_struct *find_user(uid_t);
 extern struct user_struct root_user;
 #define INIT_USER (&root_user)
 
-typedef struct prio_array prio_array_t;
 struct backing_dev_info;
 struct reclaim_state;
 
-#ifdef CONFIG_SCHEDSTATS
+#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 struct sched_info {
 	/* cumulative counters */
 	unsigned long	cpu_time,	/* time spent on the cpu */
@@ -549,9 +552,53 @@ struct sched_info {
 	unsigned long	last_arrival,	/* when we last ran on a cpu */
 			last_queued;	/* when we were last queued to run */
 };
+#endif /* defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT) */
 
+#ifdef CONFIG_SCHEDSTATS
 extern struct file_operations proc_schedstat_operations;
+#endif /* CONFIG_SCHEDSTATS */
+
+#ifdef CONFIG_TASK_DELAY_ACCT
+struct task_delay_info {
+	spinlock_t	lock;
+	unsigned int	flags;	/* Private per-task flags */
+
+	/* For each stat XXX, add following, aligned appropriately
+	 *
+	 * struct timespec XXX_start, XXX_end;
+	 * u64 XXX_delay;
+	 * u32 XXX_count;
+	 *
+	 * Atomicity of updates to XXX_delay, XXX_count protected by
+	 * single lock above (split into XXX_lock if contention is an issue).
+	 */
+
+	/*
+	 * XXX_count is incremented on every XXX operation, the delay
+	 * associated with the operation is added to XXX_delay.
+	 * XXX_delay contains the accumulated delay time in nanoseconds.
+	 */
+	struct timespec blkio_start, blkio_end;	/* Shared by blkio, swapin */
+	u64 blkio_delay;	/* wait for sync block io completion */
+	u64 swapin_delay;	/* wait for swapin block io completion */
+	u32 blkio_count;	/* total count of the number of sync block */
+				/* io operations performed */
+	u32 swapin_count;	/* total count of the number of swapin block */
+				/* io operations performed */
+};
+#endif	/* CONFIG_TASK_DELAY_ACCT */
+
+static inline int sched_info_on(void)
+{
+#ifdef CONFIG_SCHEDSTATS
+	return 1;
+#elif defined(CONFIG_TASK_DELAY_ACCT)
+	extern int delayacct_on;
+	return delayacct_on;
+#else
+	return 0;
 #endif
+}
 
 enum idle_type
 {
@@ -699,7 +746,7 @@ extern int groups_search(struct group_info *group_info, gid_t grp);
     ((gi)->blocks[(i)/NGROUPS_PER_BLOCK][(i)%NGROUPS_PER_BLOCK])
 
 #ifdef ARCH_HAS_PREFETCH_SWITCH_STACK
-extern void prefetch_stack(struct task_struct*);
+extern void prefetch_stack(struct task_struct *t);
 #else
 static inline void prefetch_stack(struct task_struct *t) { }
 #endif
@@ -714,6 +761,8 @@ enum sleep_type {
 	SLEEP_INTERACTIVE,
 	SLEEP_INTERRUPTED,
 };
+
+struct prio_array;
 
 struct task_struct {
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
@@ -732,7 +781,7 @@ struct task_struct {
 	int load_weight;	/* for niceness load balancing purposes */
 	int prio, static_prio, normal_prio;
 	struct list_head run_list;
-	prio_array_t *array;
+	struct prio_array *array;
 
 	unsigned short ioprio;
 	unsigned int btrace_seq;
@@ -746,7 +795,7 @@ struct task_struct {
 	cpumask_t cpus_allowed;
 	unsigned int time_slice, first_time_slice;
 
-#ifdef CONFIG_SCHEDSTATS
+#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 	struct sched_info sched_info;
 #endif
 
@@ -865,15 +914,33 @@ struct task_struct {
 	struct plist_head pi_waiters;
 	/* Deadlock detection and priority inheritance handling */
 	struct rt_mutex_waiter *pi_blocked_on;
-# ifdef CONFIG_DEBUG_RT_MUTEXES
-	spinlock_t held_list_lock;
-	struct list_head held_list_head;
-# endif
 #endif
 
 #ifdef CONFIG_DEBUG_MUTEXES
 	/* mutex deadlock detection */
 	struct mutex_waiter *blocked_on;
+#endif
+#ifdef CONFIG_TRACE_IRQFLAGS
+	unsigned int irq_events;
+	int hardirqs_enabled;
+	unsigned long hardirq_enable_ip;
+	unsigned int hardirq_enable_event;
+	unsigned long hardirq_disable_ip;
+	unsigned int hardirq_disable_event;
+	int softirqs_enabled;
+	unsigned long softirq_disable_ip;
+	unsigned int softirq_disable_event;
+	unsigned long softirq_enable_ip;
+	unsigned int softirq_enable_event;
+	int hardirq_context;
+	int softirq_context;
+#endif
+#ifdef CONFIG_LOCKDEP
+# define MAX_LOCK_DEPTH 30UL
+	u64 curr_chain_key;
+	int lockdep_depth;
+	struct held_lock held_locks[MAX_LOCK_DEPTH];
+	unsigned int lockdep_recursion;
 #endif
 
 /* journalling filesystem info */
@@ -926,6 +993,9 @@ struct task_struct {
 	 * cache last used pipe for splice
 	 */
 	struct pipe_inode_info *splice_pipe;
+#ifdef	CONFIG_TASK_DELAY_ACCT
+	struct task_delay_info *delays;
+#endif
 };
 
 static inline pid_t process_group(struct task_struct *tsk)
@@ -1013,9 +1083,9 @@ static inline void put_task_struct(struct task_struct *t)
 #define used_math() tsk_used_math(current)
 
 #ifdef CONFIG_SMP
-extern int set_cpus_allowed(task_t *p, cpumask_t new_mask);
+extern int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask);
 #else
-static inline int set_cpus_allowed(task_t *p, cpumask_t new_mask)
+static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
 {
 	if (!cpu_isset(0, new_mask))
 		return -EINVAL;
@@ -1024,7 +1094,8 @@ static inline int set_cpus_allowed(task_t *p, cpumask_t new_mask)
 #endif
 
 extern unsigned long long sched_clock(void);
-extern unsigned long long current_sched_time(const task_t *current_task);
+extern unsigned long long
+current_sched_time(const struct task_struct *current_task);
 
 /* sched_exec is called by processes performing an exec */
 #ifdef CONFIG_SMP
@@ -1042,27 +1113,27 @@ static inline void idle_task_exit(void) {}
 extern void sched_idle_next(void);
 
 #ifdef CONFIG_RT_MUTEXES
-extern int rt_mutex_getprio(task_t *p);
-extern void rt_mutex_setprio(task_t *p, int prio);
-extern void rt_mutex_adjust_pi(task_t *p);
+extern int rt_mutex_getprio(struct task_struct *p);
+extern void rt_mutex_setprio(struct task_struct *p, int prio);
+extern void rt_mutex_adjust_pi(struct task_struct *p);
 #else
-static inline int rt_mutex_getprio(task_t *p)
+static inline int rt_mutex_getprio(struct task_struct *p)
 {
 	return p->normal_prio;
 }
 # define rt_mutex_adjust_pi(p)		do { } while (0)
 #endif
 
-extern void set_user_nice(task_t *p, long nice);
-extern int task_prio(const task_t *p);
-extern int task_nice(const task_t *p);
-extern int can_nice(const task_t *p, const int nice);
-extern int task_curr(const task_t *p);
+extern void set_user_nice(struct task_struct *p, long nice);
+extern int task_prio(const struct task_struct *p);
+extern int task_nice(const struct task_struct *p);
+extern int can_nice(const struct task_struct *p, const int nice);
+extern int task_curr(const struct task_struct *p);
 extern int idle_cpu(int cpu);
 extern int sched_setscheduler(struct task_struct *, int, struct sched_param *);
-extern task_t *idle_task(int cpu);
-extern task_t *curr_task(int cpu);
-extern void set_curr_task(int cpu, task_t *p);
+extern struct task_struct *idle_task(int cpu);
+extern struct task_struct *curr_task(int cpu);
+extern void set_curr_task(int cpu, struct task_struct *p);
 
 void yield(void);
 
@@ -1119,8 +1190,8 @@ extern void FASTCALL(wake_up_new_task(struct task_struct * tsk,
 #else
  static inline void kick_process(struct task_struct *tsk) { }
 #endif
-extern void FASTCALL(sched_fork(task_t * p, int clone_flags));
-extern void FASTCALL(sched_exit(task_t * p));
+extern void FASTCALL(sched_fork(struct task_struct * p, int clone_flags));
+extern void FASTCALL(sched_exit(struct task_struct * p));
 
 extern int in_group_p(gid_t);
 extern int in_egroup_p(gid_t);
@@ -1225,17 +1296,17 @@ extern NORET_TYPE void do_group_exit(int);
 extern void daemonize(const char *, ...);
 extern int allow_signal(int);
 extern int disallow_signal(int);
-extern task_t *child_reaper;
+extern struct task_struct *child_reaper;
 
 extern int do_execve(char *, char __user * __user *, char __user * __user *, struct pt_regs *);
 extern long do_fork(unsigned long, unsigned long, struct pt_regs *, unsigned long, int __user *, int __user *);
-task_t *fork_idle(int);
+struct task_struct *fork_idle(int);
 
 extern void set_task_comm(struct task_struct *tsk, char *from);
 extern void get_task_comm(char *to, struct task_struct *tsk);
 
 #ifdef CONFIG_SMP
-extern void wait_task_inactive(task_t * p);
+extern void wait_task_inactive(struct task_struct * p);
 #else
 #define wait_task_inactive(p)	do { } while (0)
 #endif
@@ -1261,13 +1332,13 @@ extern void wait_task_inactive(task_t * p);
 /* de_thread depends on thread_group_leader not being a pid based check */
 #define thread_group_leader(p)	(p == p->group_leader)
 
-static inline task_t *next_thread(const task_t *p)
+static inline struct task_struct *next_thread(const struct task_struct *p)
 {
 	return list_entry(rcu_dereference(p->thread_group.next),
-				task_t, thread_group);
+			  struct task_struct, thread_group);
 }
 
-static inline int thread_group_empty(task_t *p)
+static inline int thread_group_empty(struct task_struct *p)
 {
 	return list_empty(&p->thread_group);
 }
@@ -1483,6 +1554,14 @@ static inline int freezing(struct task_struct *p)
 static inline void freeze(struct task_struct *p)
 {
 	p->flags |= PF_FREEZE;
+}
+
+/*
+ * Sometimes we may need to cancel the previous 'freeze' request
+ */
+static inline void do_not_freeze(struct task_struct *p)
+{
+	p->flags &= ~PF_FREEZE;
 }
 
 /*

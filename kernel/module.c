@@ -1121,6 +1121,9 @@ static void free_module(struct module *mod)
 	if (mod->percpu)
 		percpu_modfree(mod->percpu);
 
+	/* Free lock-classes: */
+	lockdep_free_key_range(mod->module_core, mod->core_size);
+
 	/* Finally, free the core (containing the module structure) */
 	module_free(mod, mod->module_core);
 }
@@ -2016,10 +2019,8 @@ const char *module_address_lookup(unsigned long addr,
 	return NULL;
 }
 
-struct module *module_get_kallsym(unsigned int symnum,
-				  unsigned long *value,
-				  char *type,
-				  char namebuf[128])
+struct module *module_get_kallsym(unsigned int symnum, unsigned long *value,
+				char *type, char *name, size_t namelen)
 {
 	struct module *mod;
 
@@ -2028,9 +2029,8 @@ struct module *module_get_kallsym(unsigned int symnum,
 		if (symnum < mod->num_symtab) {
 			*value = mod->symtab[symnum].st_value;
 			*type = mod->symtab[symnum].st_info;
-			strncpy(namebuf,
-				mod->strtab + mod->symtab[symnum].st_name,
-				127);
+			strlcpy(name, mod->strtab + mod->symtab[symnum].st_name,
+				namelen);
 			mutex_unlock(&module_mutex);
 			return mod;
 		}
@@ -2158,6 +2158,29 @@ const struct exception_table_entry *search_module_extables(unsigned long addr)
            we cannot unload the module, hence no refcnt needed. */
 	return e;
 }
+
+/*
+ * Is this a valid module address?
+ */
+int is_module_address(unsigned long addr)
+{
+	unsigned long flags;
+	struct module *mod;
+
+	spin_lock_irqsave(&modlist_lock, flags);
+
+	list_for_each_entry(mod, &modules, list) {
+		if (within(addr, mod->module_core, mod->core_size)) {
+			spin_unlock_irqrestore(&modlist_lock, flags);
+			return 1;
+		}
+	}
+
+	spin_unlock_irqrestore(&modlist_lock, flags);
+
+	return 0;
+}
+
 
 /* Is this a valid kernel address?  We don't grab the lock: we are oopsing. */
 struct module *__module_text_address(unsigned long addr)

@@ -1,0 +1,2 @@
+header-y := asound_fm.h hdsp.h hdspm.h sfnt_info.h sscape_ioctl.h
+unifdef-y := asequencer.h asound.h emu10k1.h sb16_csp.h 

@@ -158,7 +158,7 @@ static int cs5535_gpio_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static struct file_operations cs5535_gpio_fops = {
+static const struct file_operations cs5535_gpio_fops = {
 	.owner	= THIS_MODULE,
 	.write	= cs5535_gpio_write,
 	.read	= cs5535_gpio_read,

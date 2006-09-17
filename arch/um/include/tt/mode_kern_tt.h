@@ -30,8 +30,7 @@ extern void flush_tlb_mm_tt(struct mm_struct *mm);
 extern void force_flush_all_tt(void);
 extern long execute_syscall_tt(void *r);
 extern void before_mem_tt(unsigned long brk_start);
-extern unsigned long set_task_sizes_tt(int arg, unsigned long *host_size_out,
-				       unsigned long *task_size_out);
+extern unsigned long set_task_sizes_tt(unsigned long *task_size_out);
 extern int start_uml_tt(void);
 extern int external_pid_tt(struct task_struct *task);
 extern int thread_pid_tt(struct task_struct *task);

@@ -68,7 +68,6 @@
 #ifdef NETIF_F_TSO
 #include <net/checksum.h>
 #endif
-#include <linux/workqueue.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
@@ -111,6 +110,9 @@ struct e1000_adapter;
 #define E1000_MIN_RXD                       80
 #define E1000_MAX_82544_RXD               4096
 
+/* this is the size past which hardware will drop packets when setting LPE=0 */
+#define MAXIMUM_ETHERNET_VLAN_SIZE 1522
+
 /* Supported Rx Buffer Sizes */
 #define E1000_RXBUFFER_128   128    /* Used for packet split */
 #define E1000_RXBUFFER_256   256    /* Used for packet split */
@@ -143,6 +145,7 @@ struct e1000_adapter;
 
 #define AUTO_ALL_MODES            0
 #define E1000_EEPROM_82544_APM    0x0004
+#define E1000_EEPROM_ICH8_APME    0x0004
 #define E1000_EEPROM_APME         0x0400
 
 #ifndef E1000_MASTER_SLAVE
@@ -254,7 +257,6 @@ struct e1000_adapter {
 	spinlock_t tx_queue_lock;
 #endif
 	atomic_t irq_sem;
-	struct work_struct watchdog_task;
 	struct work_struct reset_task;
 	uint8_t fc_autoneg;
 
@@ -339,8 +341,14 @@ struct e1000_adapter {
 #ifdef NETIF_F_TSO
 	boolean_t tso_force;
 #endif
+	boolean_t smart_power_down;	/* phy smart power down */
+	unsigned long flags;
 };
 
+enum e1000_state_t {
+	__E1000_DRIVER_TESTING,
+	__E1000_RESETTING,
+};
 
 /*  e1000_main.c  */
 extern char e1000_driver_name[];
@@ -348,6 +356,7 @@ extern char e1000_driver_version[];
 int e1000_up(struct e1000_adapter *adapter);
 void e1000_down(struct e1000_adapter *adapter);
 void e1000_reset(struct e1000_adapter *adapter);
+void e1000_reinit_locked(struct e1000_adapter *adapter);
 int e1000_setup_all_tx_resources(struct e1000_adapter *adapter);
 void e1000_free_all_tx_resources(struct e1000_adapter *adapter);
 int e1000_setup_all_rx_resources(struct e1000_adapter *adapter);

@@ -6,12 +6,16 @@
  * GPL v2, can be found in COPYING.
  */
 
-#include <asm/io.h>
+#include <linux/kernel.h>
 #include <linux/delay.h>
+
+#include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/macio.h>
 #include <asm/pmac_feature.h>
 #include <asm/pmac_pfunc.h>
+#include <asm/keylargo.h>
+
 #include "i2sbus.h"
 
 int i2sbus_control_init(struct macio_dev* dev, struct i2sbus_control **c)
@@ -22,26 +26,12 @@ int i2sbus_control_init(struct macio_dev* dev, struct i2sbus_control **c)
 
 	INIT_LIST_HEAD(&(*c)->list);
 
-	if (of_address_to_resource(dev->ofdev.node, 0, &(*c)->rsrc))
-		goto err;
-	/* we really should be using feature calls instead of mapping
-	 * these registers. It's safe for now since no one else is
-	 * touching them... */
-	(*c)->controlregs = ioremap((*c)->rsrc.start,
-				    sizeof(struct i2s_control_regs));
-	if (!(*c)->controlregs)
-		goto err;
-
+	(*c)->macio = dev->bus->chip;
 	return 0;
- err:
-	kfree(*c);
-	*c = NULL;
-	return -ENODEV;
 }
 
 void i2sbus_control_destroy(struct i2sbus_control *c)
 {
-	iounmap(c->controlregs);
 	kfree(c);
 }
 
@@ -93,19 +83,22 @@ int i2sbus_control_enable(struct i2sbus_control *c,
 			  struct i2sbus_dev *i2sdev)
 {
 	struct pmf_args args = { .count = 0 };
-	int cc;
+	struct macio_chip *macio = c->macio;
 
 	if (i2sdev->enable)
 		return pmf_call_one(i2sdev->enable, &args);
 
+	if (macio == NULL || macio->base == NULL)
+		return -ENODEV;
+
 	switch (i2sdev->bus_number) {
 	case 0:
-		cc = in_le32(&c->controlregs->cell_control);
-		out_le32(&c->controlregs->cell_control, cc | CTRL_CLOCK_INTF_0_ENABLE);
+		/* these need to be locked or done through
+		 * newly created feature calls! */
+		MACIO_BIS(KEYLARGO_FCR1, KL1_I2S0_ENABLE);
 		break;
 	case 1:
-		cc = in_le32(&c->controlregs->cell_control);
-		out_le32(&c->controlregs->cell_control, cc | CTRL_CLOCK_INTF_1_ENABLE);
+		MACIO_BIS(KEYLARGO_FCR1, KL1_I2S1_ENABLE);
 		break;
 	default:
 		return -ENODEV;
@@ -118,7 +111,7 @@ int i2sbus_control_cell(struct i2sbus_control *c,
 			int enable)
 {
 	struct pmf_args args = { .count = 0 };
-	int cc;
+	struct macio_chip *macio = c->macio;
 
 	switch (enable) {
 	case 0:
@@ -133,18 +126,22 @@ int i2sbus_control_cell(struct i2sbus_control *c,
 		printk(KERN_ERR "i2sbus: INVALID CELL ENABLE VALUE\n");
 		return -ENODEV;
 	}
+
+	if (macio == NULL || macio->base == NULL)
+		return -ENODEV;
+
 	switch (i2sdev->bus_number) {
 	case 0:
-		cc = in_le32(&c->controlregs->cell_control);
-		cc &= ~CTRL_CLOCK_CELL_0_ENABLE;
-		cc |= enable * CTRL_CLOCK_CELL_0_ENABLE;
-		out_le32(&c->controlregs->cell_control, cc);
+		if (enable)
+			MACIO_BIS(KEYLARGO_FCR1, KL1_I2S0_CELL_ENABLE);
+		else
+			MACIO_BIC(KEYLARGO_FCR1, KL1_I2S0_CELL_ENABLE);
 		break;
 	case 1:
-		cc = in_le32(&c->controlregs->cell_control);
-		cc &= ~CTRL_CLOCK_CELL_1_ENABLE;
-		cc |= enable * CTRL_CLOCK_CELL_1_ENABLE;
-		out_le32(&c->controlregs->cell_control, cc);
+		if (enable)
+			MACIO_BIS(KEYLARGO_FCR1, KL1_I2S1_CELL_ENABLE);
+		else
+			MACIO_BIC(KEYLARGO_FCR1, KL1_I2S1_CELL_ENABLE);
 		break;
 	default:
 		return -ENODEV;
@@ -157,7 +154,7 @@ int i2sbus_control_clock(struct i2sbus_control *c,
 			 int enable)
 {
 	struct pmf_args args = { .count = 0 };
-	int cc;
+	struct macio_chip *macio = c->macio;
 
 	switch (enable) {
 	case 0:
@@ -172,18 +169,22 @@ int i2sbus_control_clock(struct i2sbus_control *c,
 		printk(KERN_ERR "i2sbus: INVALID CLOCK ENABLE VALUE\n");
 		return -ENODEV;
 	}
+
+	if (macio == NULL || macio->base == NULL)
+		return -ENODEV;
+
 	switch (i2sdev->bus_number) {
 	case 0:
-		cc = in_le32(&c->controlregs->cell_control);
-		cc &= ~CTRL_CLOCK_CLOCK_0_ENABLE;
-		cc |= enable * CTRL_CLOCK_CLOCK_0_ENABLE;
-		out_le32(&c->controlregs->cell_control, cc);
+		if (enable)
+			MACIO_BIS(KEYLARGO_FCR1, KL1_I2S0_CLK_ENABLE_BIT);
+		else
+			MACIO_BIC(KEYLARGO_FCR1, KL1_I2S0_CLK_ENABLE_BIT);
 		break;
 	case 1:
-		cc = in_le32(&c->controlregs->cell_control);
-		cc &= ~CTRL_CLOCK_CLOCK_1_ENABLE;
-		cc |= enable * CTRL_CLOCK_CLOCK_1_ENABLE;
-		out_le32(&c->controlregs->cell_control, cc);
+		if (enable)
+			MACIO_BIS(KEYLARGO_FCR1, KL1_I2S1_CLK_ENABLE_BIT);
+		else
+			MACIO_BIC(KEYLARGO_FCR1, KL1_I2S1_CLK_ENABLE_BIT);
 		break;
 	default:
 		return -ENODEV;

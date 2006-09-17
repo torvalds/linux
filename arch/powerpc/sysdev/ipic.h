@@ -15,7 +15,18 @@
 
 #include <asm/ipic.h>
 
-#define MPC83xx_IPIC_SIZE	(0x00100)
+#define NR_IPIC_INTS 128
+
+/* External IRQS */
+#define IPIC_IRQ_EXT0 48
+#define IPIC_IRQ_EXT1 17
+#define IPIC_IRQ_EXT7 23
+
+/* Default Priority Registers */
+#define IPIC_SIPRR_A_DEFAULT 0x05309770
+#define IPIC_SIPRR_D_DEFAULT 0x05309770
+#define IPIC_SMPRR_A_DEFAULT 0x05309770
+#define IPIC_SMPRR_B_DEFAULT 0x05309770
 
 /* System Global Interrupt Configuration Register */
 #define	SICFR_IPSA	0x00010000
@@ -31,7 +42,15 @@
 
 struct ipic {
 	volatile u32 __iomem	*regs;
-	unsigned int		irq_offset;
+
+	/* The remapper for this IPIC */
+	struct irq_host		*irqhost;
+
+	/* The "linux" controller struct */
+	struct irq_chip		hc_irq;
+
+	/* The device node of the interrupt controller */
+	struct device_node	*of_node;
 };
 
 struct ipic_info {

@@ -1,8 +1,10 @@
 /*
  * Derived from include/asm-powerpc/iommu.h
  *
- * Copyright (C) 2006 Jon Mason <jdmason@us.ibm.com>, IBM Corporation
- * Copyright (C) 2006 Muli Ben-Yehuda <muli@il.ibm.com>, IBM Corporation
+ * Copyright (C) IBM Corporation, 2006
+ *
+ * Author: Jon Mason <jdmason@us.ibm.com>
+ * Author: Muli Ben-Yehuda <muli@il.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,10 +59,5 @@ extern void detect_calgary(void);
 static inline int calgary_iommu_init(void) { return 1; }
 static inline void detect_calgary(void) { return; }
 #endif
-
-static inline unsigned int bus_to_phb(unsigned char busno)
-{
-	return ((busno % 15 == 0) ? 0 : busno / 2 + 1);
-}
 
 #endif /* _ASM_X86_64_CALGARY_H */

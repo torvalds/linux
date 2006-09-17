@@ -58,6 +58,21 @@ STACK_SIZE  = 1 << STACK_SHIFT
 
 #define BASED(name) name-system_call(%r13)
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	.macro	TRACE_IRQS_ON
+	l	%r1,BASED(.Ltrace_irq_on)
+	basr	%r14,%r1
+	.endm
+
+	.macro	TRACE_IRQS_OFF
+	l	%r1,BASED(.Ltrace_irq_off)
+	basr	%r14,%r1
+	.endm
+#else
+#define TRACE_IRQS_ON
+#define TRACE_IRQS_OFF
+#endif
+
 /*
  * Register usage in interrupt handlers:
  *    R9  - pointer to current task structure
@@ -361,6 +376,7 @@ ret_from_fork:
 	st	%r15,SP_R15(%r15)	# store stack pointer for new kthread
 0:	l       %r1,BASED(.Lschedtail)
 	basr    %r14,%r1
+	TRACE_IRQS_ON
         stosm   __SF_EMPTY(%r15),0x03     # reenable interrupts
 	b	BASED(sysc_return)
 
@@ -516,6 +532,7 @@ pgm_no_vtime3:
 	mvc	__THREAD_per+__PER_address(4,%r1),__LC_PER_ADDRESS
 	mvc	__THREAD_per+__PER_access_id(1,%r1),__LC_PER_ACCESS_ID
 	oi	__TI_flags+3(%r9),_TIF_SINGLE_STEP # set TIF_SINGLE_STEP
+	TRACE_IRQS_ON
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	b	BASED(sysc_do_svc)
 
@@ -539,9 +556,11 @@ io_int_handler:
 io_no_vtime:
 #endif
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
+	TRACE_IRQS_OFF
         l       %r1,BASED(.Ldo_IRQ)        # load address of do_IRQ
         la      %r2,SP_PTREGS(%r15) # address of register-save area
         basr    %r14,%r1          # branch to standard irq handler
+	TRACE_IRQS_ON
 
 io_return:
         tm      SP_PSW+1(%r15),0x01    # returning to user ?
@@ -651,10 +670,12 @@ ext_int_handler:
 ext_no_vtime:
 #endif
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
+	TRACE_IRQS_OFF
 	la	%r2,SP_PTREGS(%r15)    # address of register-save area
 	lh	%r3,__LC_EXT_INT_CODE  # get interruption code
 	l	%r1,BASED(.Ldo_extint)
 	basr	%r14,%r1
+	TRACE_IRQS_ON
 	b	BASED(io_return)
 
 __critical_end:
@@ -731,8 +752,10 @@ mcck_no_vtime:
 	stosm	__SF_EMPTY(%r15),0x04	# turn dat on
 	tm	__TI_flags+3(%r9),_TIF_MCCK_PENDING
 	bno	BASED(mcck_return)
+	TRACE_IRQS_OFF
 	l	%r1,BASED(.Ls390_handle_mcck)
 	basr	%r14,%r1		# call machine check handler
+	TRACE_IRQS_ON
 mcck_return:
 	mvc	__LC_RETURN_MCCK_PSW(8),SP_PSW(%r15) # move return PSW
 	ni	__LC_RETURN_MCCK_PSW+1,0xfd # clear wait state bit
@@ -1012,7 +1035,11 @@ cleanup_io_leave_insn:
 .Lvfork:       .long  sys_vfork
 .Lschedtail:   .long  schedule_tail
 .Lsysc_table:  .long  sys_call_table
-
+#ifdef CONFIG_TRACE_IRQFLAGS
+.Ltrace_irq_on:.long  trace_hardirqs_on
+.Ltrace_irq_off:
+	       .long  trace_hardirqs_off
+#endif
 .Lcritical_start:
                .long  __critical_start + 0x80000000
 .Lcritical_end:

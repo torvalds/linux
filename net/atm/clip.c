@@ -23,6 +23,7 @@
 #include <linux/if.h> /* for IFF_UP */
 #include <linux/inetdevice.h>
 #include <linux/bitops.h>
+#include <linux/poison.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/rcupdate.h>
@@ -266,7 +267,7 @@ static void clip_neigh_destroy(struct neighbour *neigh)
 	DPRINTK("clip_neigh_destroy (neigh %p)\n", neigh);
 	if (NEIGH2ENTRY(neigh)->vccs)
 		printk(KERN_CRIT "clip_neigh_destroy: vccs != NULL !!!\n");
-	NEIGH2ENTRY(neigh)->vccs = (void *) 0xdeadbeef;
+	NEIGH2ENTRY(neigh)->vccs = (void *) NEIGHBOR_DEAD;
 }
 
 static void clip_neigh_solicit(struct neighbour *neigh, struct sk_buff *skb)
@@ -928,12 +929,11 @@ static int arp_seq_open(struct inode *inode, struct file *file)
 	struct seq_file *seq;
 	int rc = -EAGAIN;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state) {
 		rc = -ENOMEM;
 		goto out_kfree;
 	}
-	memset(state, 0, sizeof(*state));
 	state->ns.neigh_sub_iter = clip_seq_sub_iter;
 
 	rc = seq_open(file, &arp_seq_ops);
@@ -961,7 +961,6 @@ static struct file_operations arp_seq_fops = {
 
 static int __init atm_clip_init(void)
 {
-	struct proc_dir_entry *p;
 	neigh_table_init_no_netlink(&clip_tbl);
 
 	clip_tbl_hook = &clip_tbl;
@@ -971,9 +970,15 @@ static int __init atm_clip_init(void)
 
 	setup_timer(&idle_timer, idle_timer_check, 0);
 
-	p = create_proc_entry("arp", S_IRUGO, atm_proc_root);
-	if (p)
-		p->proc_fops = &arp_seq_fops;
+#ifdef CONFIG_PROC_FS
+	{
+		struct proc_dir_entry *p;
+
+		p = create_proc_entry("arp", S_IRUGO, atm_proc_root);
+		if (p)
+			p->proc_fops = &arp_seq_fops;
+	}
+#endif
 
 	return 0;
 }

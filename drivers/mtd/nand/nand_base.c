@@ -155,7 +155,7 @@ static u16 nand_read_word(struct mtd_info *mtd)
 /**
  * nand_select_chip - [DEFAULT] control CE line
  * @mtd:	MTD device structure
- * @chip:	chipnumber to select, -1 for deselect
+ * @chipnr:	chipnumber to select, -1 for deselect
  *
  * Default select function for 1 chip devices.
  */
@@ -542,7 +542,6 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
  * Send command to NAND device. This is the version for the new large page
  * devices We dont have the separate regions as we have in the small page
  * devices.  We must emulate NAND_CMD_READOOB to keep the code compatible.
- *
  */
 static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 			    int column, int page_addr)
@@ -656,7 +655,7 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 
 /**
  * nand_get_device - [GENERIC] Get chip for selected access
- * @this:	the nand chip descriptor
+ * @chip:	the nand chip descriptor
  * @mtd:	MTD device structure
  * @new_state:	the state which is requested
  *
@@ -696,13 +695,12 @@ nand_get_device(struct nand_chip *chip, struct mtd_info *mtd, int new_state)
 /**
  * nand_wait - [DEFAULT]  wait until the command is done
  * @mtd:	MTD device structure
- * @this:	NAND chip structure
+ * @chip:	NAND chip structure
  *
  * Wait for command done. This applies to erase and program only
  * Erase can take up to 400ms and program up to 20ms according to
  * general NAND and SmartMedia specs
- *
-*/
+ */
 static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 {
 
@@ -896,6 +894,7 @@ static int nand_read_page_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 /**
  * nand_transfer_oob - [Internal] Transfer oob to client buffer
  * @chip:	nand chip structure
+ * @oob:	oob destination address
  * @ops:	oob ops structure
  */
 static uint8_t *nand_transfer_oob(struct nand_chip *chip, uint8_t *oob,
@@ -946,6 +945,7 @@ static uint8_t *nand_transfer_oob(struct nand_chip *chip, uint8_t *oob,
  *
  * @mtd:	MTD device structure
  * @from:	offset to read from
+ * @ops:	oob ops structure
  *
  * Internal function. Called with chip held.
  */
@@ -1093,9 +1093,10 @@ static int nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	ret = nand_do_read_ops(mtd, from, &chip->ops);
 
+	*retlen = chip->ops.retlen;
+
 	nand_release_device(mtd);
 
-	*retlen = chip->ops.retlen;
 	return ret;
 }
 
@@ -1203,7 +1204,7 @@ static int nand_write_oob_syndrome(struct mtd_info *mtd,
 		pos = steps * (eccsize + chunk);
 		steps = 0;
 	} else
-		pos = eccsize + chunk;
+		pos = eccsize;
 
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, pos, page);
 	for (i = 0; i < steps; i++) {
@@ -1566,7 +1567,7 @@ static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob,
 				bytes = min_t(size_t, len, free->length);
 				boffs = free->offset;
 			}
-			memcpy(chip->oob_poi + woffs, oob, bytes);
+			memcpy(chip->oob_poi + boffs, oob, bytes);
 			oob += bytes;
 		}
 		return oob;
@@ -1691,9 +1692,10 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	ret = nand_do_write_ops(mtd, to, &chip->ops);
 
+	*retlen = chip->ops.retlen;
+
 	nand_release_device(mtd);
 
-	*retlen = chip->ops.retlen;
 	return ret;
 }
 
@@ -1760,7 +1762,7 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 /**
  * nand_write_oob - [MTD Interface] NAND write data and/or out-of-band
  * @mtd:	MTD device structure
- * @from:	offset to read from
+ * @to:		offset to write to
  * @ops:	oob operation description structure
  */
 static int nand_write_oob(struct mtd_info *mtd, loff_t to,
@@ -2055,7 +2057,7 @@ static void nand_sync(struct mtd_info *mtd)
 /**
  * nand_block_isbad - [MTD Interface] Check if block at offset is bad
  * @mtd:	MTD device structure
- * @ofs:	offset relative to mtd start
+ * @offs:	offset relative to mtd start
  */
 static int nand_block_isbad(struct mtd_info *mtd, loff_t offs)
 {

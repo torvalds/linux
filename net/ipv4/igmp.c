@@ -1028,10 +1028,9 @@ static void igmpv3_add_delrec(struct in_device *in_dev, struct ip_mc_list *im)
 	 * for deleted items allows change reports to use common code with
 	 * non-deleted or query-response MCA's.
 	 */
-	pmc = kmalloc(sizeof(*pmc), GFP_KERNEL);
+	pmc = kzalloc(sizeof(*pmc), GFP_KERNEL);
 	if (!pmc)
 		return;
-	memset(pmc, 0, sizeof(*pmc));
 	spin_lock_bh(&im->lock);
 	pmc->interface = im->interface;
 	in_dev_hold(in_dev);
@@ -1529,10 +1528,9 @@ static int ip_mc_add1_src(struct ip_mc_list *pmc, int sfmode,
 		psf_prev = psf;
 	}
 	if (!psf) {
-		psf = kmalloc(sizeof(*psf), GFP_ATOMIC);
+		psf = kzalloc(sizeof(*psf), GFP_ATOMIC);
 		if (!psf)
 			return -ENOBUFS;
-		memset(psf, 0, sizeof(*psf));
 		psf->sf_inaddr = *psfsrc;
 		if (psf_prev) {
 			psf_prev->sf_next = psf;
@@ -1795,29 +1793,35 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 	struct in_device *in_dev;
 	u32 group = imr->imr_multiaddr.s_addr;
 	u32 ifindex;
+	int ret = -EADDRNOTAVAIL;
 
 	rtnl_lock();
 	in_dev = ip_mc_find_dev(imr);
-	if (!in_dev) {
-		rtnl_unlock();
-		return -ENODEV;
-	}
 	ifindex = imr->imr_ifindex;
 	for (imlp = &inet->mc_list; (iml = *imlp) != NULL; imlp = &iml->next) {
-		if (iml->multi.imr_multiaddr.s_addr == group &&
-		    iml->multi.imr_ifindex == ifindex) {
-			(void) ip_mc_leave_src(sk, iml, in_dev);
+		if (iml->multi.imr_multiaddr.s_addr != group)
+			continue;
+		if (ifindex) {
+			if (iml->multi.imr_ifindex != ifindex)
+				continue;
+		} else if (imr->imr_address.s_addr && imr->imr_address.s_addr !=
+				iml->multi.imr_address.s_addr)
+			continue;
 
-			*imlp = iml->next;
+		(void) ip_mc_leave_src(sk, iml, in_dev);
 
+		*imlp = iml->next;
+
+		if (in_dev)
 			ip_mc_dec_group(in_dev, group);
-			rtnl_unlock();
-			sock_kfree_s(sk, iml, sizeof(*iml));
-			return 0;
-		}
+		rtnl_unlock();
+		sock_kfree_s(sk, iml, sizeof(*iml));
+		return 0;
 	}
+	if (!in_dev)
+		ret = -ENODEV;
 	rtnl_unlock();
-	return -EADDRNOTAVAIL;
+	return ret;
 }
 
 int ip_mc_source(int add, int omode, struct sock *sk, struct
@@ -2201,13 +2205,13 @@ void ip_mc_drop_socket(struct sock *sk)
 		struct in_device *in_dev;
 		inet->mc_list = iml->next;
 
-		if ((in_dev = inetdev_by_index(iml->multi.imr_ifindex)) != NULL) {
-			(void) ip_mc_leave_src(sk, iml, in_dev);
+		in_dev = inetdev_by_index(iml->multi.imr_ifindex);
+		(void) ip_mc_leave_src(sk, iml, in_dev);
+		if (in_dev != NULL) {
 			ip_mc_dec_group(in_dev, iml->multi.imr_multiaddr.s_addr);
 			in_dev_put(in_dev);
 		}
 		sock_kfree_s(sk, iml, sizeof(*iml));
-
 	}
 	rtnl_unlock();
 }
@@ -2380,7 +2384,7 @@ static int igmp_mc_seq_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int rc = -ENOMEM;
-	struct igmp_mc_iter_state *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct igmp_mc_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
 
 	if (!s)
 		goto out;
@@ -2390,7 +2394,6 @@ static int igmp_mc_seq_open(struct inode *inode, struct file *file)
 
 	seq = file->private_data;
 	seq->private = s;
-	memset(s, 0, sizeof(*s));
 out:
 	return rc;
 out_kfree:
@@ -2555,7 +2558,7 @@ static int igmp_mcf_seq_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int rc = -ENOMEM;
-	struct igmp_mcf_iter_state *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct igmp_mcf_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
 
 	if (!s)
 		goto out;
@@ -2565,7 +2568,6 @@ static int igmp_mcf_seq_open(struct inode *inode, struct file *file)
 
 	seq = file->private_data;
 	seq->private = s;
-	memset(s, 0, sizeof(*s));
 out:
 	return rc;
 out_kfree:

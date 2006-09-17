@@ -85,7 +85,7 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 		goto err_out;
 
 	err = br_fill_ifinfo(skb, port, current->pid, 0, event, 0);
-	if (err)
+	if (err < 0)
 		goto err_kfree;
 
 	NETLINK_CB(skb).dst_group = RTNLGRP_LINK;
@@ -117,12 +117,13 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 			continue;
 
 		if (idx < s_idx)
-			continue;
+			goto cont;
 
 		err = br_fill_ifinfo(skb, p, NETLINK_CB(cb->skb).pid,
 				     cb->nlh->nlmsg_seq, RTM_NEWLINK, NLM_F_MULTI);
 		if (err <= 0)
 			break;
+cont:
 		++idx;
 	}
 	read_unlock(&dev_base_lock);

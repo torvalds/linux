@@ -548,6 +548,26 @@ asmlinkage long sparc64_personality(unsigned long personality)
 	return ret;
 }
 
+int sparc64_mmap_check(unsigned long addr, unsigned long len,
+		unsigned long flags)
+{
+	if (test_thread_flag(TIF_32BIT)) {
+		if (len >= STACK_TOP32)
+			return -EINVAL;
+
+		if ((flags & MAP_FIXED) && addr > STACK_TOP32 - len)
+			return -EINVAL;
+	} else {
+		if (len >= VA_EXCLUDE_START)
+			return -EINVAL;
+
+		if ((flags & MAP_FIXED) && invalid_64bit_range(addr, len))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* Linux version of mmap */
 asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags, unsigned long fd,
@@ -563,27 +583,11 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 	}
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 	len = PAGE_ALIGN(len);
-	retval = -EINVAL;
-
-	if (test_thread_flag(TIF_32BIT)) {
-		if (len >= STACK_TOP32)
-			goto out_putf;
-
-		if ((flags & MAP_FIXED) && addr > STACK_TOP32 - len)
-			goto out_putf;
-	} else {
-		if (len >= VA_EXCLUDE_START)
-			goto out_putf;
-
-		if ((flags & MAP_FIXED) && invalid_64bit_range(addr, len))
-			goto out_putf;
-	}
 
 	down_write(&current->mm->mmap_sem);
 	retval = do_mmap(file, addr, len, prot, flags, off);
 	up_write(&current->mm->mmap_sem);
 
-out_putf:
 	if (file)
 		fput(file);
 out:
@@ -701,21 +705,21 @@ extern void check_pending(int signum);
 
 asmlinkage long sys_getdomainname(char __user *name, int len)
 {
-        int nlen;
-	int err = -EFAULT;
+        int nlen, err;
+
+	if (len < 0 || len > __NEW_UTS_LEN)
+		return -EINVAL;
 
  	down_read(&uts_sem);
  	
 	nlen = strlen(system_utsname.domainname) + 1;
-
         if (nlen < len)
                 len = nlen;
-	if (len > __NEW_UTS_LEN)
-		goto done;
-	if (copy_to_user(name, system_utsname.domainname, len))
-		goto done;
-	err = 0;
-done:
+
+	err = -EFAULT;
+	if (!copy_to_user(name, system_utsname.domainname, len))
+		err = 0;
+
 	up_read(&uts_sem);
 	return err;
 }

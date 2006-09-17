@@ -515,7 +515,7 @@ xfs_mount(
 	if (error)
 		goto error2;
 
-	if ((mp->m_flags & XFS_MOUNT_BARRIER) && !(vfsp->vfs_flag & VFS_RDONLY))
+	if (mp->m_flags & XFS_MOUNT_BARRIER)
 		xfs_mountfs_check_barriers(mp);
 
 	error = XFS_IOINIT(vfsp, args, flags);
@@ -811,7 +811,8 @@ xfs_statvfs(
 	statp->f_bsize = sbp->sb_blocksize;
 	lsize = sbp->sb_logstart ? sbp->sb_logblocks : 0;
 	statp->f_blocks = sbp->sb_dblocks - lsize;
-	statp->f_bfree = statp->f_bavail = sbp->sb_fdblocks;
+	statp->f_bfree = statp->f_bavail =
+				sbp->sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
 	fakeinos = statp->f_bfree << sbp->sb_inopblog;
 #if XFS_BIG_INUMS
 	fakeinos += mp->m_inoadd;

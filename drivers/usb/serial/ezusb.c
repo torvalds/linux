@@ -15,7 +15,7 @@
 #include <linux/tty.h>
 #include <linux/module.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 
 /* EZ-USB Control and Status Register.  Bit 0 controls 8051 reset */
 #define CPUCS_REG    0x7F92

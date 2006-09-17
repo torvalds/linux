@@ -70,7 +70,7 @@ static struct acpi_driver acpi_power_driver = {
 };
 
 struct acpi_power_resource {
-	acpi_handle handle;
+	struct acpi_device * device;
 	acpi_bus_id name;
 	u32 system_level;
 	u32 order;
@@ -80,7 +80,7 @@ struct acpi_power_resource {
 
 static struct list_head acpi_power_resource_list;
 
-static struct file_operations acpi_power_fops = {
+static const struct file_operations acpi_power_fops = {
 	.open = acpi_power_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -124,7 +124,7 @@ static int acpi_power_get_state(struct acpi_power_resource *resource)
 	if (!resource)
 		return -EINVAL;
 
-	status = acpi_evaluate_integer(resource->handle, "_STA", NULL, &sta);
+	status = acpi_evaluate_integer(resource->device->handle, "_STA", NULL, &sta);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -192,7 +192,7 @@ static int acpi_power_on(acpi_handle handle)
 		return 0;
 	}
 
-	status = acpi_evaluate_object(resource->handle, "_ON", NULL, NULL);
+	status = acpi_evaluate_object(resource->device->handle, "_ON", NULL, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -203,10 +203,8 @@ static int acpi_power_on(acpi_handle handle)
 		return -ENOEXEC;
 
 	/* Update the power resource's _device_ power state */
-	result = acpi_bus_get_device(resource->handle, &device);
-	if (result)
-		return result;
-	device->power.state = ACPI_STATE_D0;
+	device = resource->device;
+	resource->device->power.state = ACPI_STATE_D0;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] turned on\n",
 			  resource->name));
@@ -242,7 +240,7 @@ static int acpi_power_off_device(acpi_handle handle)
 		return 0;
 	}
 
-	status = acpi_evaluate_object(resource->handle, "_OFF", NULL, NULL);
+	status = acpi_evaluate_object(resource->device->handle, "_OFF", NULL, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -253,9 +251,7 @@ static int acpi_power_off_device(acpi_handle handle)
 		return -ENOEXEC;
 
 	/* Update the power resource's _device_ power state */
-	result = acpi_bus_get_device(resource->handle, &device);
-	if (result)
-		return result;
+	device = resource->device;
 	device->power.state = ACPI_STATE_D3;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] turned off\n",
@@ -544,14 +540,14 @@ static int acpi_power_add(struct acpi_device *device)
 		return -ENOMEM;
 	memset(resource, 0, sizeof(struct acpi_power_resource));
 
-	resource->handle = device->handle;
+	resource->device = device;
 	strcpy(resource->name, device->pnp.bus_id);
 	strcpy(acpi_device_name(device), ACPI_POWER_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_POWER_CLASS);
 	acpi_driver_data(device) = resource;
 
 	/* Evalute the object to get the system level and resource order. */
-	status = acpi_evaluate_object(resource->handle, NULL, NULL, &buffer);
+	status = acpi_evaluate_object(device->handle, NULL, NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		result = -ENODEV;
 		goto end;

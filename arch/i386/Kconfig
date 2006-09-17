@@ -18,6 +18,14 @@ config GENERIC_TIME
 	bool
 	default y
 
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
 config SEMAPHORE_SLEEPERS
 	bool
 	default y
@@ -134,6 +142,7 @@ config X86_SUMMIT
 	  In particular, it is needed for the x440.
 
 	  If you don't have one of these computers, you should say N here.
+	  If you want to build a NUMA kernel, you must select ACPI.
 
 config X86_BIGSMP
 	bool "Support for other sub-arch SMP systems with more than 8 CPUs"
@@ -161,6 +170,7 @@ config X86_GENERICARCH
        help
           This option compiles in the Summit, bigsmp, ES7000, default subarchitectures.
 	  It is intended for a generic binary kernel.
+	  If you want a NUMA kernel, select ACPI.   We need SRAT for NUMA.
 
 config X86_ES7000
 	bool "Support for Unisys ES7000 IA32 series"
@@ -534,7 +544,7 @@ config X86_PAE
 # Common NUMA Features
 config NUMA
 	bool "Numa Memory Allocation and Scheduler Support"
-	depends on SMP && HIGHMEM64G && (X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI))
+	depends on SMP && HIGHMEM64G && (X86_NUMAQ || (X86_SUMMIT || X86_GENERICARCH) && ACPI)
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT)
 
@@ -664,7 +674,7 @@ config MTRR
 	  See <file:Documentation/mtrr.txt> for more information.
 
 config EFI
-	bool "Boot from EFI support (EXPERIMENTAL)"
+	bool "Boot from EFI support"
 	depends on ACPI
 	default n
 	---help---

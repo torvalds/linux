@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
+#include <linux/security.h>
 
 #include <asm/cpu.h>
 #include <asm/processor.h>
@@ -47,7 +48,7 @@ unsigned long mt_fpemul_threshold = 0;
  * used in sys_sched_set/getaffinity() in kernel/sched.c, so
  * cloned here.
  */
-static inline task_t *find_process_by_pid(pid_t pid)
+static inline struct task_struct *find_process_by_pid(pid_t pid)
 {
 	return pid ? find_task_by_pid(pid) : current;
 }
@@ -62,7 +63,7 @@ asmlinkage long mipsmt_sys_sched_setaffinity(pid_t pid, unsigned int len,
 	cpumask_t new_mask;
 	cpumask_t effective_mask;
 	int retval;
-	task_t *p;
+	struct task_struct *p;
 
 	if (len < sizeof(new_mask))
 		return -EINVAL;
@@ -127,7 +128,7 @@ asmlinkage long mipsmt_sys_sched_getaffinity(pid_t pid, unsigned int len,
 	unsigned int real_len;
 	cpumask_t mask;
 	int retval;
-	task_t *p;
+	struct task_struct *p;
 
 	real_len = sizeof(mask);
 	if (len < real_len)

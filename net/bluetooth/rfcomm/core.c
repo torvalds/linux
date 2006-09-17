@@ -52,8 +52,10 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "1.7"
+#define VERSION "1.8"
 
+static int disable_cfc = 0;
+static int channel_mtu = -1;
 static unsigned int l2cap_mtu = RFCOMM_MAX_L2CAP_MTU;
 
 static struct task_struct *rfcomm_thread;
@@ -272,10 +274,10 @@ static void rfcomm_dlc_clear_state(struct rfcomm_dlc *d)
 
 struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio)
 {
-	struct rfcomm_dlc *d = kmalloc(sizeof(*d), prio);
+	struct rfcomm_dlc *d = kzalloc(sizeof(*d), prio);
+
 	if (!d)
 		return NULL;
-	memset(d, 0, sizeof(*d));
 
 	init_timer(&d->timer);
 	d->timer.function = rfcomm_dlc_timeout;
@@ -288,6 +290,7 @@ struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio)
 	rfcomm_dlc_clear_state(d);
 	
 	BT_DBG("%p", d);
+
 	return d;
 }
 
@@ -521,10 +524,10 @@ int rfcomm_dlc_get_modem_status(struct rfcomm_dlc *d, u8 *v24_sig)
 /* ---- RFCOMM sessions ---- */
 static struct rfcomm_session *rfcomm_session_add(struct socket *sock, int state)
 {
-	struct rfcomm_session *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct rfcomm_session *s = kzalloc(sizeof(*s), GFP_KERNEL);
+
 	if (!s)
 		return NULL;
-	memset(s, 0, sizeof(*s));
 
 	BT_DBG("session %p sock %p", s, sock);
 
@@ -533,7 +536,7 @@ static struct rfcomm_session *rfcomm_session_add(struct socket *sock, int state)
 	s->sock  = sock;
 
 	s->mtu = RFCOMM_DEFAULT_MTU;
-	s->cfc = RFCOMM_CFC_UNKNOWN;
+	s->cfc = disable_cfc ? RFCOMM_CFC_DISABLED : RFCOMM_CFC_UNKNOWN;
 
 	/* Do not increment module usage count for listening sessions.
 	 * Otherwise we won't be able to unload the module. */
@@ -810,7 +813,10 @@ static int rfcomm_send_pn(struct rfcomm_session *s, int cr, struct rfcomm_dlc *d
 		pn->credits   = 0;
 	}
 
-	pn->mtu = htobs(d->mtu);
+	if (cr && channel_mtu >= 0)
+		pn->mtu = htobs(channel_mtu);
+	else
+		pn->mtu = htobs(d->mtu);
 
 	*ptr = __fcs(buf); ptr++;
 
@@ -1149,6 +1155,8 @@ static inline int rfcomm_check_link_mode(struct rfcomm_dlc *d)
 
 static void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 {
+	struct sock *sk = d->session->sock->sk;
+
 	BT_DBG("dlc %p", d);
 
 	rfcomm_send_ua(d->session, d->dlci);
@@ -1157,6 +1165,9 @@ static void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 	d->state = BT_CONNECTED;
 	d->state_change(d, 0);
 	rfcomm_dlc_unlock(d);
+
+	if (d->link_mode & RFCOMM_LM_MASTER)
+		hci_conn_switch_role(l2cap_pi(sk)->conn->hcon, 0x00);
 
 	rfcomm_send_msc(d->session, 1, d->dlci, d->v24_sig);
 }
@@ -1222,17 +1233,24 @@ static int rfcomm_apply_pn(struct rfcomm_dlc *d, int cr, struct rfcomm_pn *pn)
 	BT_DBG("dlc %p state %ld dlci %d mtu %d fc 0x%x credits %d", 
 			d, d->state, d->dlci, pn->mtu, pn->flow_ctrl, pn->credits);
 
-	if (pn->flow_ctrl == 0xf0 || pn->flow_ctrl == 0xe0) {
-		d->cfc = s->cfc = RFCOMM_CFC_ENABLED;
+	if ((pn->flow_ctrl == 0xf0 && s->cfc != RFCOMM_CFC_DISABLED) ||
+						pn->flow_ctrl == 0xe0) {
+		d->cfc = RFCOMM_CFC_ENABLED;
 		d->tx_credits = pn->credits;
 	} else {
-		d->cfc = s->cfc = RFCOMM_CFC_DISABLED;
+		d->cfc = RFCOMM_CFC_DISABLED;
 		set_bit(RFCOMM_TX_THROTTLED, &d->flags);
 	}
 
+	if (s->cfc == RFCOMM_CFC_UNKNOWN)
+		s->cfc = d->cfc;
+
 	d->priority = pn->priority;
 
-	d->mtu = s->mtu = btohs(pn->mtu);
+	d->mtu = btohs(pn->mtu);
+
+	if (cr && d->mtu > s->mtu)
+		d->mtu = s->mtu;
 
 	return 0;
 }
@@ -1759,6 +1777,11 @@ static inline void rfcomm_accept_connection(struct rfcomm_session *s)
 	s = rfcomm_session_add(nsock, BT_OPEN);
 	if (s) {
 		rfcomm_session_hold(s);
+
+		/* We should adjust MTU on incoming sessions.
+		 * L2CAP MTU minus UIH header and FCS. */
+		s->mtu = min(l2cap_pi(nsock->sk)->omtu, l2cap_pi(nsock->sk)->imtu) - 5;
+
 		rfcomm_schedule(RFCOMM_SCHED_RX);
 	} else
 		sock_release(nsock);
@@ -2035,7 +2058,7 @@ static int __init rfcomm_init(void)
 
 	kernel_thread(rfcomm_run, NULL, CLONE_KERNEL);
 
-	class_create_file(&bt_class, &class_attr_rfcomm_dlc);
+	class_create_file(bt_class, &class_attr_rfcomm_dlc);
 
 	rfcomm_init_sockets();
 
@@ -2050,7 +2073,7 @@ static int __init rfcomm_init(void)
 
 static void __exit rfcomm_exit(void)
 {
-	class_remove_file(&bt_class, &class_attr_rfcomm_dlc);
+	class_remove_file(bt_class, &class_attr_rfcomm_dlc);
 
 	hci_unregister_cb(&rfcomm_cb);
 
@@ -2072,6 +2095,12 @@ static void __exit rfcomm_exit(void)
 
 module_init(rfcomm_init);
 module_exit(rfcomm_exit);
+
+module_param(disable_cfc, bool, 0644);
+MODULE_PARM_DESC(disable_cfc, "Disable credit based flow control");
+
+module_param(channel_mtu, int, 0644);
+MODULE_PARM_DESC(channel_mtu, "Default MTU for the RFCOMM channel");
 
 module_param(l2cap_mtu, uint, 0644);
 MODULE_PARM_DESC(l2cap_mtu, "Default MTU for the L2CAP connection");

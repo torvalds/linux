@@ -90,6 +90,14 @@ static int alloc_hostnum_cb(struct hpsb_host *host, void *__data)
 	return 0;
 }
 
+/*
+ * The pending_packet_queue is special in that it's processed
+ * from hardirq context too (such as hpsb_bus_reset()). Hence
+ * split the lock class from the usual networking skb-head
+ * lock class by using a separate key for it:
+ */
+static struct lock_class_key pending_packet_queue_key;
+
 static DEFINE_MUTEX(host_num_alloc);
 
 /**
@@ -128,6 +136,8 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	h->driver = drv;
 
 	skb_queue_head_init(&h->pending_packet_queue);
+	lockdep_set_class(&h->pending_packet_queue.lock,
+			   &pending_packet_queue_key);
 	INIT_LIST_HEAD(&h->addr_space);
 
 	for (i = 2; i < 16; i++)

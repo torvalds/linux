@@ -1097,6 +1097,40 @@ int inet_sk_rebuild_header(struct sock *sk)
 
 EXPORT_SYMBOL(inet_sk_rebuild_header);
 
+static int inet_gso_send_check(struct sk_buff *skb)
+{
+	struct iphdr *iph;
+	struct net_protocol *ops;
+	int proto;
+	int ihl;
+	int err = -EINVAL;
+
+	if (unlikely(!pskb_may_pull(skb, sizeof(*iph))))
+		goto out;
+
+	iph = skb->nh.iph;
+	ihl = iph->ihl * 4;
+	if (ihl < sizeof(*iph))
+		goto out;
+
+	if (unlikely(!pskb_may_pull(skb, ihl)))
+		goto out;
+
+	skb->h.raw = __skb_pull(skb, ihl);
+	iph = skb->nh.iph;
+	proto = iph->protocol & (MAX_INET_PROTOS - 1);
+	err = -EPROTONOSUPPORT;
+
+	rcu_read_lock();
+	ops = rcu_dereference(inet_protos[proto]);
+	if (likely(ops && ops->gso_send_check))
+		err = ops->gso_send_check(skb);
+	rcu_read_unlock();
+
+out:
+	return err;
+}
+
 static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
@@ -1106,7 +1140,15 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 	int ihl;
 	int id;
 
-	if (!pskb_may_pull(skb, sizeof(*iph)))
+	if (unlikely(skb_shinfo(skb)->gso_type &
+		     ~(SKB_GSO_TCPV4 |
+		       SKB_GSO_UDP |
+		       SKB_GSO_DODGY |
+		       SKB_GSO_TCP_ECN |
+		       0)))
+		goto out;
+
+	if (unlikely(!pskb_may_pull(skb, sizeof(*iph))))
 		goto out;
 
 	iph = skb->nh.iph;
@@ -1114,7 +1156,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 	if (ihl < sizeof(*iph))
 		goto out;
 
-	if (!pskb_may_pull(skb, ihl))
+	if (unlikely(!pskb_may_pull(skb, ihl)))
 		goto out;
 
 	skb->h.raw = __skb_pull(skb, ihl);
@@ -1125,7 +1167,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 
 	rcu_read_lock();
 	ops = rcu_dereference(inet_protos[proto]);
-	if (ops && ops->gso_segment)
+	if (likely(ops && ops->gso_segment))
 		segs = ops->gso_segment(skb, features);
 	rcu_read_unlock();
 
@@ -1154,6 +1196,7 @@ static struct net_protocol igmp_protocol = {
 static struct net_protocol tcp_protocol = {
 	.handler =	tcp_v4_rcv,
 	.err_handler =	tcp_v4_err,
+	.gso_send_check = tcp_v4_gso_send_check,
 	.gso_segment =	tcp_tso_segment,
 	.no_policy =	1,
 };
@@ -1200,6 +1243,7 @@ static int ipv4_proc_init(void);
 static struct packet_type ip_packet_type = {
 	.type = __constant_htons(ETH_P_IP),
 	.func = ip_rcv,
+	.gso_send_check = inet_gso_send_check,
 	.gso_segment = inet_gso_segment,
 };
 

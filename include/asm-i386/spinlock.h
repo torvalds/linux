@@ -22,7 +22,7 @@
 
 #define __raw_spin_lock_string \
 	"\n1:\t" \
-	"lock ; decb %0\n\t" \
+	LOCK_PREFIX " ; decb %0\n\t" \
 	"jns 3f\n" \
 	"2:\t" \
 	"rep;nop\n\t" \
@@ -31,9 +31,14 @@
 	"jmp 1b\n" \
 	"3:\n\t"
 
+/*
+ * NOTE: there's an irqs-on section here, which normally would have to be
+ * irq-traced, but on CONFIG_TRACE_IRQFLAGS we never use
+ * __raw_spin_lock_string_flags().
+ */
 #define __raw_spin_lock_string_flags \
 	"\n1:\t" \
-	"lock ; decb %0\n\t" \
+	LOCK_PREFIX " ; decb %0\n\t" \
 	"jns 5f\n" \
 	"2:\t" \
 	"testl $0x200, %1\n\t" \
@@ -52,31 +57,29 @@
 	"jmp 4b\n" \
 	"5:\n\t"
 
-#define __raw_spin_lock_string_up \
-	"\n\tdecb %0"
-
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
-	alternative_smp(
-		__raw_spin_lock_string,
-		__raw_spin_lock_string_up,
-		"=m" (lock->slock) : : "memory");
+	asm(__raw_spin_lock_string : "+m" (lock->slock) : : "memory");
 }
 
+/*
+ * It is easier for the lock validator if interrupts are not re-enabled
+ * in the middle of a lock-acquire. This is a performance feature anyway
+ * so we turn it off:
+ */
+#ifndef CONFIG_PROVE_LOCKING
 static inline void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
 {
-	alternative_smp(
-		__raw_spin_lock_string_flags,
-		__raw_spin_lock_string_up,
-		"=m" (lock->slock) : "r" (flags) : "memory");
+	asm(__raw_spin_lock_string_flags : "+m" (lock->slock) : "r" (flags) : "memory");
 }
+#endif
 
 static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	char oldval;
 	__asm__ __volatile__(
 		"xchgb %b0,%1"
-		:"=q" (oldval), "=m" (lock->slock)
+		:"=q" (oldval), "+m" (lock->slock)
 		:"0" (0) : "memory");
 	return oldval > 0;
 }
@@ -92,7 +95,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 
 #define __raw_spin_unlock_string \
 	"movb $1,%0" \
-		:"=m" (lock->slock) : : "memory"
+		:"+m" (lock->slock) : : "memory"
 
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
@@ -106,7 +109,7 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 
 #define __raw_spin_unlock_string \
 	"xchgb %b0, %1" \
-		:"=q" (oldval), "=m" (lock->slock) \
+		:"=q" (oldval), "+m" (lock->slock) \
 		:"0" (oldval) : "memory"
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
@@ -187,13 +190,13 @@ static inline int __raw_write_trylock(raw_rwlock_t *lock)
 
 static inline void __raw_read_unlock(raw_rwlock_t *rw)
 {
-	asm volatile(LOCK_PREFIX "incl %0" :"=m" (rw->lock) : : "memory");
+	asm volatile(LOCK_PREFIX "incl %0" :"+m" (rw->lock) : : "memory");
 }
 
 static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
 	asm volatile(LOCK_PREFIX "addl $" RW_LOCK_BIAS_STR ", %0"
-				 : "=m" (rw->lock) : : "memory");
+				 : "+m" (rw->lock) : : "memory");
 }
 
 #endif /* __ASM_SPINLOCK_H */

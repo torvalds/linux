@@ -396,10 +396,9 @@ static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 	h1 = to_hash(nhandle);
 	if ((b = head->table[h1]) == NULL) {
 		err = -ENOBUFS;
-		b = kmalloc(sizeof(struct route4_bucket), GFP_KERNEL);
+		b = kzalloc(sizeof(struct route4_bucket), GFP_KERNEL);
 		if (b == NULL)
 			goto errout;
-		memset(b, 0, sizeof(*b));
 
 		tcf_tree_lock(tp);
 		head->table[h1] = b;
@@ -475,20 +474,18 @@ static int route4_change(struct tcf_proto *tp, unsigned long base,
 
 	err = -ENOBUFS;
 	if (head == NULL) {
-		head = kmalloc(sizeof(struct route4_head), GFP_KERNEL);
+		head = kzalloc(sizeof(struct route4_head), GFP_KERNEL);
 		if (head == NULL)
 			goto errout;
-		memset(head, 0, sizeof(struct route4_head));
 
 		tcf_tree_lock(tp);
 		tp->root = head;
 		tcf_tree_unlock(tp);
 	}
 
-	f = kmalloc(sizeof(struct route4_filter), GFP_KERNEL);
+	f = kzalloc(sizeof(struct route4_filter), GFP_KERNEL);
 	if (f == NULL)
 		goto errout;
-	memset(f, 0, sizeof(*f));
 
 	err = route4_set_parms(tp, base, f, handle, head, tb,
 		tca[TCA_RATE-1], 1);

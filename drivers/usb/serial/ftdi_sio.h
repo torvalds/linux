@@ -32,9 +32,18 @@
 #define FTDI_NF_RIC_PID	0x0001	/* Product Id */
 
 
+/* www.canusb.com Lawicel CANUSB device */
+#define FTDI_CANUSB_PID 0xFFA8 /* Product Id */
+
+/* AlphaMicro Components AMC-232USB01 device */
+#define FTDI_AMC232_PID 0xFF00 /* Product Id */
+
 /* ACT Solutions HomePro ZWave interface (http://www.act-solutions.com/HomePro.htm) */
 #define FTDI_ACTZWAVE_PID	0xF2D0
 
+
+/* www.starting-point-systems.com µChameleon device */
+#define FTDI_MICRO_CHAMELEON_PID	0xCAA0	/* Product Id */
 
 /* www.irtrans.de device */
 #define FTDI_IRTRANS_PID 0xFC60 /* Product Id */
@@ -178,6 +187,10 @@
 /* USB-UIRT - An infrared receiver and transmitter using the 8U232AM chip */
 /* http://home.earthlink.net/~jrhees/USBUIRT/index.htm */
 #define FTDI_USB_UIRT_PID	0xF850	/* Product Id */
+
+/* TNC-X USB-to-packet-radio adapter, versions prior to 3.0 (DLP module) */
+
+#define FTDI_TNC_X_PID		0xEBE0
 
 /*
  * ELV USB devices submitted by Christian Abt of ELV (www.elv.de).
@@ -441,6 +454,23 @@
  * PID 0xE050 submitted by Aaron Prose.
  */
 #define FTDI_YEI_SERVOCENTER31_PID	0xE050	/* YEI ServoCenter3.1 USB */
+
+/*
+ * ThorLabs USB motor drivers
+ */
+#define FTDI_THORLABS_PID		0xfaf0 /* ThorLabs USB motor drivers */
+
+/*
+ * Testo products (http://www.testo.com/)
+ * Submitted by Colin Leroy
+ */
+#define TESTO_VID			0x128D
+#define TESTO_USB_INTERFACE_PID		0x0001
+
+/*
+ * Gamma Scout (http://gamma-scout.com/). Submitted by rsc@runtux.com.
+ */
+#define FTDI_GAMMA_SCOUT_PID		0xD678	/* Gamma Scout online */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */

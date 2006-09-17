@@ -788,12 +788,15 @@ static int __devinit clock_probe(struct of_device *op, const struct of_device_id
 	if (!regs)
 		return -ENOMEM;
 
+#ifdef CONFIG_PCI
 	if (!strcmp(model, "ds1287") ||
 	    !strcmp(model, "m5819") ||
 	    !strcmp(model, "m5819p") ||
 	    !strcmp(model, "m5823")) {
 		ds1287_regs = (unsigned long) regs;
-	} else if (model[5] == '0' && model[6] == '2') {
+	} else
+#endif
+	if (model[5] == '0' && model[6] == '2') {
 		mstk48t02_regs = regs;
 	} else if(model[5] == '0' && model[6] == '8') {
 		mstk48t08_regs = regs;
@@ -925,8 +928,6 @@ static void sparc64_start_timers(void)
 	__asm__ __volatile__("wrpr	%0, 0x0, %%pstate"
 			     : /* no outputs */
 			     : "r" (pstate));
-
-	local_irq_enable();
 }
 
 struct freq_table {

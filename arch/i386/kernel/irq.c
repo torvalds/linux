@@ -82,10 +82,6 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 	}
 #endif
 
-	if (!irq_desc[irq].handle_irq) {
-		__do_IRQ(irq, regs);
-		goto out_exit;
-	}
 #ifdef CONFIG_4KSTACKS
 
 	curctx = (union irq_ctx *) current_thread_info();
@@ -125,7 +121,6 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 #endif
 		__do_IRQ(irq, regs);
 
-out_exit:
 	irq_exit();
 
 	return 1;
@@ -166,7 +161,7 @@ void irq_ctx_init(int cpu)
 	irqctx->tinfo.task              = NULL;
 	irqctx->tinfo.exec_domain       = NULL;
 	irqctx->tinfo.cpu               = cpu;
-	irqctx->tinfo.preempt_count     = SOFTIRQ_OFFSET;
+	irqctx->tinfo.preempt_count     = 0;
 	irqctx->tinfo.addr_limit        = MAKE_MM_SEG(0);
 
 	softirq_ctx[cpu] = irqctx;
@@ -211,6 +206,10 @@ asmlinkage void do_softirq(void)
 			: "0"(isp)
 			: "memory", "cc", "edx", "ecx", "eax"
 		);
+		/*
+		 * Shouldnt happen, we returned above if in_interrupt():
+	 	 */
+		WARN_ON_ONCE(softirq_count());
 	}
 
 	local_irq_restore(flags);

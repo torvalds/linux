@@ -8,16 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Changelog:
- *  21-May-2003 BJD  Created file
- *  06-Jun-2003 BJD  Added CPU frequency settings
- *  03-Sep-2003 BJD  Linux v2.6 support
- *  12-Mar-2004 BJD  Fixed include protection, fixed type of clock vars
- *  14-Sep-2004 BJD  Added misccr and getpin to gpio
- *  01-Oct-2004 BJD  Added the new gpio functions
- *  16-Oct-2004 BJD  Removed the clock variables
- *  15-Jan-2006 LCVR Added s3c2400_gpio_getirq()
 */
 
 #ifndef __ASM_ARCH_HARDWARE_H

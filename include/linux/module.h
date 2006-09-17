@@ -358,13 +358,12 @@ static inline int module_is_live(struct module *mod)
 /* Is this address in a module? (second is with no locks, for oops) */
 struct module *module_text_address(unsigned long addr);
 struct module *__module_text_address(unsigned long addr);
+int is_module_address(unsigned long addr);
 
 /* Returns module and fills in value, defined and namebuf, or NULL if
    symnum out of range. */
-struct module *module_get_kallsym(unsigned int symnum,
-				  unsigned long *value,
-				  char *type,
-				  char namebuf[128]);
+struct module *module_get_kallsym(unsigned int symnum, unsigned long *value,
+				char *type, char *name, size_t namelen);
 
 /* Look for this name: can be of form module:name. */
 unsigned long module_kallsyms_lookup_name(const char *name);
@@ -496,6 +495,11 @@ static inline struct module *__module_text_address(unsigned long addr)
 	return NULL;
 }
 
+static inline int is_module_address(unsigned long addr)
+{
+	return 0;
+}
+
 /* Get/put a kernel symbol (calls should be symmetric) */
 #define symbol_get(x) ({ extern typeof(x) x __attribute__((weak)); &(x); })
 #define symbol_put(x) do { } while(0)
@@ -529,8 +533,8 @@ static inline const char *module_address_lookup(unsigned long addr,
 
 static inline struct module *module_get_kallsym(unsigned int symnum,
 						unsigned long *value,
-						char *type,
-						char namebuf[128])
+						char *type, char *name,
+						size_t namelen)
 {
 	return NULL;
 }

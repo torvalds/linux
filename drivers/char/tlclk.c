@@ -247,7 +247,7 @@ static ssize_t tlclk_write(struct file *filp, const char __user *buf, size_t cou
 	return 0;
 }
 
-static struct file_operations tlclk_fops = {
+static const struct file_operations tlclk_fops = {
 	.read = tlclk_read,
 	.write = tlclk_write,
 	.open = tlclk_open,

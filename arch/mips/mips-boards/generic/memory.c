@@ -47,42 +47,44 @@ static char *mtypes[3] = {
 };
 #endif
 
+/* determined physical memory size, not overridden by command line args  */
+unsigned long physical_memsize = 0L;
+
 struct prom_pmemblock * __init prom_getmdesc(void)
 {
 	char *memsize_str;
 	unsigned int memsize;
 	char cmdline[CL_SIZE], *ptr;
 
-	/* Check the command line first for a memsize directive */
+	/* otherwise look in the environment */
+	memsize_str = prom_getenv("memsize");
+	if (!memsize_str) {
+		prom_printf("memsize not set in boot prom, set to default (32Mb)\n");
+		physical_memsize = 0x02000000;
+	} else {
+#ifdef DEBUG
+		prom_printf("prom_memsize = %s\n", memsize_str);
+#endif
+		physical_memsize = simple_strtol(memsize_str, NULL, 0);
+	}
+
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	/* SOC-it swaps, or perhaps doesn't swap, when DMA'ing the last
+	   word of physical memory */
+	physical_memsize -= PAGE_SIZE;
+#endif
+
+	/* Check the command line for a memsize directive that overrides
+	   the physical/default amount */
 	strcpy(cmdline, arcs_cmdline);
 	ptr = strstr(cmdline, "memsize=");
 	if (ptr && (ptr != cmdline) && (*(ptr - 1) != ' '))
 		ptr = strstr(ptr, " memsize=");
 
-	if (ptr) {
+	if (ptr)
 		memsize = memparse(ptr + 8, &ptr);
-	}
-	else {
-		/* otherwise look in the environment */
-		memsize_str = prom_getenv("memsize");
-		if (!memsize_str) {
-			prom_printf("memsize not set in boot prom, set to default (32Mb)\n");
-			memsize = 0x02000000;
-		} else {
-#ifdef DEBUG
-			prom_printf("prom_memsize = %s\n", memsize_str);
-#endif
-			memsize = simple_strtol(memsize_str, NULL, 0);
-		}
-	}
-
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	/*
-	 * SOC-it swaps, or perhaps doesn't swap, when DMA'ing the last
-	 * word of physical memory
-	 */
-	memsize -= PAGE_SIZE;
-#endif
+	else
+		memsize = physical_memsize;
 
 	memset(mdesc, 0, sizeof(mdesc));
 

@@ -642,18 +642,16 @@ static int wanrouter_device_new_if(struct wan_device *wandev,
 
 	if (cnf->config_id == WANCONFIG_MPPP) {
 #ifdef CONFIG_WANPIPE_MULTPPP
-		pppdev = kmalloc(sizeof(struct ppp_device), GFP_KERNEL);
+		pppdev = kzalloc(sizeof(struct ppp_device), GFP_KERNEL);
 		err = -ENOBUFS;
 		if (pppdev == NULL)
 			goto out;
-		memset(pppdev, 0, sizeof(struct ppp_device));
-		pppdev->dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+		pppdev->dev = kzalloc(sizeof(struct net_device), GFP_KERNEL);
 		if (pppdev->dev == NULL) {
 			kfree(pppdev);
 			err = -ENOBUFS;
 			goto out;
 		}
-		memset(pppdev->dev, 0, sizeof(struct net_device));
 		err = wandev->new_if(wandev, (struct net_device *)pppdev, cnf);
 		dev = pppdev->dev;
 #else
@@ -663,11 +661,10 @@ static int wanrouter_device_new_if(struct wan_device *wandev,
 		goto out;
 #endif
 	} else {
-		dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+		dev = kzalloc(sizeof(struct net_device), GFP_KERNEL);
 		err = -ENOBUFS;
 		if (dev == NULL)
 			goto out;
-		memset(dev, 0, sizeof(struct net_device));
 		err = wandev->new_if(wandev, dev, cnf);
 	}
 

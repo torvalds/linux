@@ -280,75 +280,128 @@ static void macio_release_dev(struct device *dev)
 static int macio_resource_quirks(struct device_node *np, struct resource *res,
 				 int index)
 {
-	if (res->flags & IORESOURCE_MEM) {
-		/* Grand Central has too large resource 0 on some machines */
-		if (index == 0 && !strcmp(np->name, "gc"))
-			res->end = res->start + 0x1ffff;
+	/* Only quirks for memory resources for now */
+	if ((res->flags & IORESOURCE_MEM) == 0)
+		return 0;
 
-		/* Airport has bogus resource 2 */
-		if (index >= 2 && !strcmp(np->name, "radio"))
-			return 1;
+	/* Grand Central has too large resource 0 on some machines */
+	if (index == 0 && !strcmp(np->name, "gc"))
+		res->end = res->start + 0x1ffff;
+
+	/* Airport has bogus resource 2 */
+	if (index >= 2 && !strcmp(np->name, "radio"))
+		return 1;
 
 #ifndef CONFIG_PPC64
-		/* DBDMAs may have bogus sizes */
-		if ((res->start & 0x0001f000) == 0x00008000)
-			res->end = res->start + 0xff;
+	/* DBDMAs may have bogus sizes */
+	if ((res->start & 0x0001f000) == 0x00008000)
+		res->end = res->start + 0xff;
 #endif /* CONFIG_PPC64 */
 
-		/* ESCC parent eats child resources. We could have added a
-		 * level of hierarchy, but I don't really feel the need
-		 * for it
-		 */
-		if (!strcmp(np->name, "escc"))
-			return 1;
+	/* ESCC parent eats child resources. We could have added a
+	 * level of hierarchy, but I don't really feel the need
+	 * for it
+	 */
+	if (!strcmp(np->name, "escc"))
+		return 1;
 
-		/* ESCC has bogus resources >= 3 */
-		if (index >= 3 && !(strcmp(np->name, "ch-a") &&
-				    strcmp(np->name, "ch-b")))
-			return 1;
+	/* ESCC has bogus resources >= 3 */
+	if (index >= 3 && !(strcmp(np->name, "ch-a") &&
+			    strcmp(np->name, "ch-b")))
+		return 1;
 
-		/* Media bay has too many resources, keep only first one */
-		if (index > 0 && !strcmp(np->name, "media-bay"))
-			return 1;
+	/* Media bay has too many resources, keep only first one */
+	if (index > 0 && !strcmp(np->name, "media-bay"))
+		return 1;
 
-		/* Some older IDE resources have bogus sizes */
-		if (!(strcmp(np->name, "IDE") && strcmp(np->name, "ATA") &&
-		      strcmp(np->type, "ide") && strcmp(np->type, "ata"))) {
-			if (index == 0 && (res->end - res->start) > 0xfff)
-				res->end = res->start + 0xfff;
-			if (index == 1 && (res->end - res->start) > 0xff)
-				res->end = res->start + 0xff;
-		}
+	/* Some older IDE resources have bogus sizes */
+	if (!(strcmp(np->name, "IDE") && strcmp(np->name, "ATA") &&
+	      strcmp(np->type, "ide") && strcmp(np->type, "ata"))) {
+		if (index == 0 && (res->end - res->start) > 0xfff)
+			res->end = res->start + 0xfff;
+		if (index == 1 && (res->end - res->start) > 0xff)
+			res->end = res->start + 0xff;
 	}
 	return 0;
 }
 
+static void macio_create_fixup_irq(struct macio_dev *dev, int index,
+				   unsigned int line)
+{
+	unsigned int irq;
+
+	irq = irq_create_mapping(NULL, line);
+	if (irq != NO_IRQ) {
+		dev->interrupt[index].start = irq;
+		dev->interrupt[index].flags = IORESOURCE_IRQ;
+		dev->interrupt[index].name = dev->ofdev.dev.bus_id;
+	}
+	if (dev->n_interrupts <= index)
+		dev->n_interrupts = index + 1;
+}
+
+static void macio_add_missing_resources(struct macio_dev *dev)
+{
+	struct device_node *np = dev->ofdev.node;
+	unsigned int irq_base;
+
+	/* Gatwick has some missing interrupts on child nodes */
+	if (dev->bus->chip->type != macio_gatwick)
+		return;
+
+	/* irq_base is always 64 on gatwick. I have no cleaner way to get
+	 * that value from here at this point
+	 */
+	irq_base = 64;
+
+	/* Fix SCC */
+	if (strcmp(np->name, "ch-a") == 0) {
+		macio_create_fixup_irq(dev, 0, 15 + irq_base);
+		macio_create_fixup_irq(dev, 1,  4 + irq_base);
+		macio_create_fixup_irq(dev, 2,  5 + irq_base);
+		printk(KERN_INFO "macio: fixed SCC irqs on gatwick\n");
+	}
+
+	/* Fix media-bay */
+	if (strcmp(np->name, "media-bay") == 0) {
+		macio_create_fixup_irq(dev, 0, 29 + irq_base);
+		printk(KERN_INFO "macio: fixed media-bay irq on gatwick\n");
+	}
+
+	/* Fix left media bay childs */
+	if (dev->media_bay != NULL && strcmp(np->name, "floppy") == 0) {
+		macio_create_fixup_irq(dev, 0, 19 + irq_base);
+		macio_create_fixup_irq(dev, 1,  1 + irq_base);
+		printk(KERN_INFO "macio: fixed left floppy irqs\n");
+	}
+	if (dev->media_bay != NULL && strcasecmp(np->name, "ata4") == 0) {
+		macio_create_fixup_irq(dev, 0, 14 + irq_base);
+		macio_create_fixup_irq(dev, 0,  3 + irq_base);
+		printk(KERN_INFO "macio: fixed left ide irqs\n");
+	}
+}
 
 static void macio_setup_interrupts(struct macio_dev *dev)
 {
 	struct device_node *np = dev->ofdev.node;
-	int i,j;
+	unsigned int irq;
+	int i = 0, j = 0;
 
-	/* For now, we use pre-parsed entries in the device-tree for
-	 * interrupt routing and addresses, but we should change that
-	 * to dynamically parsed entries and so get rid of most of the
-	 * clutter in struct device_node
-	 */
-	for (i = j = 0; i < np->n_intrs; i++) {
+	for (;;) {
 		struct resource *res = &dev->interrupt[j];
 
 		if (j >= MACIO_DEV_COUNT_IRQS)
 			break;
-		res->start = np->intrs[i].line;
-		res->flags = IORESOURCE_IO;
-		if (np->intrs[j].sense)
-			res->flags |= IORESOURCE_IRQ_LOWLEVEL;
-		else
-			res->flags |= IORESOURCE_IRQ_HIGHEDGE;
+		irq = irq_of_parse_and_map(np, i++);
+		if (irq == NO_IRQ)
+			break;
+		res->start = irq;
+		res->flags = IORESOURCE_IRQ;
 		res->name = dev->ofdev.dev.bus_id;
-		if (macio_resource_quirks(np, res, i))
+		if (macio_resource_quirks(np, res, i - 1)) {
 			memset(res, 0, sizeof(struct resource));
-		else
+			continue;
+		} else
 			j++;
 	}
 	dev->n_interrupts = j;
@@ -445,6 +498,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	/* Setup interrupts & resources */
 	macio_setup_interrupts(dev);
 	macio_setup_resources(dev, parent_res);
+	macio_add_missing_resources(dev);
 
 	/* Register with core */
 	if (of_device_register(&dev->ofdev) != 0) {

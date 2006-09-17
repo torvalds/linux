@@ -24,7 +24,7 @@ static inline struct qeth_hdr_tso *
 qeth_tso_prepare_skb(struct qeth_card *card, struct sk_buff **skb)
 {
 	QETH_DBF_TEXT(trace, 5, "tsoprsk");
-	return qeth_push_skb(card, skb, sizeof(struct qeth_hdr_tso));
+	return qeth_push_skb(card, *skb, sizeof(struct qeth_hdr_tso));
 }
 
 /**

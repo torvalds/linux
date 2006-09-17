@@ -237,11 +237,6 @@ static int __init sharpsl_nand_init(void)
 		}
 	}
 
-	if (machine_is_husky() || machine_is_borzoi() || machine_is_akita()) {
-		/* Need to use small eraseblock size for backward compatibility */
-		sharpsl_mtd->flags |= MTD_NO_VIRTBLOCKS;
-	}
-
 	add_mtd_partitions(sharpsl_mtd, sharpsl_partition_info, nr_partitions);
 
 	/* Return happy */
@@ -255,8 +250,6 @@ module_init(sharpsl_nand_init);
  */
 static void __exit sharpsl_nand_cleanup(void)
 {
-	struct nand_chip *this = (struct nand_chip *)&sharpsl_mtd[1];
-
 	/* Release resources, unregister device */
 	nand_release(sharpsl_mtd);
 

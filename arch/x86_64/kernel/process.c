@@ -296,7 +296,7 @@ void __show_regs(struct pt_regs * regs)
 		system_utsname.version);
 	printk("RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->rip);
 	printk_address(regs->rip); 
-	printk("\nRSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss, regs->rsp,
+	printk("RSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss, regs->rsp,
 		regs->eflags);
 	printk("RAX: %016lx RBX: %016lx RCX: %016lx\n",
 	       regs->rax, regs->rbx, regs->rcx);

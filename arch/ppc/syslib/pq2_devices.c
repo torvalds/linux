@@ -369,6 +369,11 @@ struct platform_device ppc_sys_platform_devices[] = {
 			},
 		},
 	},
+	[MPC82xx_MDIO_BB] = {
+		.name = "fsl-bb-mdio",
+		.id = 0,
+		.num_resources = 0,
+	},
 };
 
 static int __init mach_mpc82xx_fixup(struct platform_device *pdev)

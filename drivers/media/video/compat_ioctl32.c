@@ -21,7 +21,7 @@
 
 #ifdef CONFIG_COMPAT
 
-
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 struct video_tuner32 {
 	compat_int_t tuner;
 	char name[32];
@@ -107,6 +107,7 @@ struct video_window32 {
 	compat_caddr_t clips;
 	compat_int_t clipcount;
 };
+#endif
 
 static int native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -124,6 +125,7 @@ static int native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 /* You get back everything except the clips... */
 static int put_video_window32(struct video_window *kp, struct video_window32 __user *up)
 {
@@ -138,6 +140,7 @@ static int put_video_window32(struct video_window *kp, struct video_window32 __u
 			return -EFAULT;
 	return 0;
 }
+#endif
 
 struct v4l2_clip32
 {
@@ -490,6 +493,24 @@ static inline int put_v4l2_input(struct v4l2_input *kp, struct v4l2_input __user
 	return 0;
 }
 
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+struct video_code32
+{
+	char		loadwhat[16];	/* name or tag of file being passed */
+	compat_int_t	datasize;
+	unsigned char	*data;
+};
+
+static inline int microcode32(struct video_code *kp, struct video_code32 __user *up)
+{
+	if(!access_ok(VERIFY_READ, up, sizeof(struct video_code32)) ||
+		copy_from_user(kp->loadwhat, up->loadwhat, sizeof (up->loadwhat)) ||
+		get_user(kp->datasize, &up->datasize) ||
+		copy_from_user(kp->data, up->data, up->datasize))
+			return -EFAULT;
+	return 0;
+}
+
 #define VIDIOCGTUNER32		_IOWR('v',4, struct video_tuner32)
 #define VIDIOCSTUNER32		_IOW('v',5, struct video_tuner32)
 #define VIDIOCGWIN32		_IOR('v',9, struct video_window32)
@@ -498,6 +519,9 @@ static inline int put_v4l2_input(struct v4l2_input *kp, struct v4l2_input __user
 #define VIDIOCSFBUF32		_IOW('v',12, struct video_buffer32)
 #define VIDIOCGFREQ32		_IOR('v',14, u32)
 #define VIDIOCSFREQ32		_IOW('v',15, u32)
+#define VIDIOCSMICROCODE32	_IOW('v',27, struct video_code32)
+
+#endif
 
 /* VIDIOC_ENUMINPUT32 is VIDIOC_ENUMINPUT minus 4 bytes of padding alignement */
 #define VIDIOC_ENUMINPUT32	VIDIOC_ENUMINPUT - _IOC(0, 0, 0, 4)
@@ -519,6 +543,7 @@ static inline int put_v4l2_input(struct v4l2_input *kp, struct v4l2_input __user
 #define VIDIOC_S_INPUT32	_IOWR ('V', 39, compat_int_t)
 #define VIDIOC_TRY_FMT32      	_IOWR ('V', 64, struct v4l2_format32)
 
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 enum {
 	MaxClips = (~0U-sizeof(struct video_window))/sizeof(struct video_clip)
 };
@@ -583,13 +608,17 @@ static int do_set_window(struct file *file, unsigned int cmd, unsigned long arg)
 
 	return native_ioctl(file, VIDIOCSWIN, (unsigned long)vw);
 }
+#endif
 
 static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	union {
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 		struct video_tuner vt;
 		struct video_buffer vb;
 		struct video_window vw;
+		struct video_code vc;
+#endif
 		struct v4l2_format v2f;
 		struct v4l2_buffer v2b;
 		struct v4l2_framebuffer v2fb;
@@ -605,6 +634,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 
 	/* First, convert the command. */
 	switch(cmd) {
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case VIDIOCGTUNER32: cmd = VIDIOCGTUNER; break;
 	case VIDIOCSTUNER32: cmd = VIDIOCSTUNER; break;
 	case VIDIOCGWIN32: cmd = VIDIOCGWIN; break;
@@ -612,6 +642,8 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	case VIDIOCSFBUF32: cmd = VIDIOCSFBUF; break;
 	case VIDIOCGFREQ32: cmd = VIDIOCGFREQ; break;
 	case VIDIOCSFREQ32: cmd = VIDIOCSFREQ; break;
+	case VIDIOCSMICROCODE32: cmd = VIDIOCSMICROCODE; break;
+#endif
 	case VIDIOC_G_FMT32: cmd = VIDIOC_G_FMT; break;
 	case VIDIOC_S_FMT32: cmd = VIDIOC_S_FMT; break;
 	case VIDIOC_QUERYBUF32: cmd = VIDIOC_QUERYBUF; break;
@@ -631,6 +663,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	};
 
 	switch(cmd) {
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case VIDIOCSTUNER:
 	case VIDIOCGTUNER:
 		err = get_video_tuner32(&karg.vt, up);
@@ -644,6 +677,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		break;
 
 	case VIDIOCSFREQ:
+#endif
 	case VIDIOC_S_INPUT:
 	case VIDIOC_OVERLAY:
 	case VIDIOC_STREAMON:
@@ -697,14 +731,21 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		compatible_arg = 0;
 		break;
 
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case VIDIOCGWIN:
 	case VIDIOCGFBUF:
 	case VIDIOCGFREQ:
+#endif
 	case VIDIOC_G_FBUF:
 	case VIDIOC_G_INPUT:
 		compatible_arg = 0;
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+	case VIDIOCSMICROCODE:
+		err = microcode32(&karg.vc, up);
+		compatible_arg = 0;
+		break;
+#endif
 	};
-
 	if(err)
 		goto out;
 
@@ -719,6 +760,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	}
 	if(err == 0) {
 		switch(cmd) {
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 		case VIDIOCGTUNER:
 			err = put_video_tuner32(&karg.vt, up);
 			break;
@@ -730,7 +772,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		case VIDIOCGFBUF:
 			err = put_video_buffer32(&karg.vb, up);
 			break;
-
+#endif
 		case VIDIOC_G_FBUF:
 			err = put_v4l2_framebuffer32(&karg.v2fb, up);
 			break;
@@ -768,7 +810,9 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 			err = put_v4l2_input32(&karg.v2i, up);
 			break;
 
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 		case VIDIOCGFREQ:
+#endif
 		case VIDIOC_G_INPUT:
 			err = put_user(((u32)karg.vx), (u32 __user *)up);
 			break;
@@ -786,6 +830,7 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 		return ret;
 
 	switch (cmd) {
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case VIDIOCSWIN32:
 		ret = do_set_window(file, cmd, arg);
 		break;
@@ -796,6 +841,7 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOCSFBUF32:
 	case VIDIOCGFREQ32:
 	case VIDIOCSFREQ32:
+#endif
 	case VIDIOC_QUERYCAP:
 	case VIDIOC_ENUM_FMT:
 	case VIDIOC_G_FMT32:
@@ -827,6 +873,7 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = do_video_ioctl(file, cmd, arg);
 		break;
 
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	/* Little v, the video4linux ioctls (conflict?) */
 	case VIDIOCGCAP:
 	case VIDIOCGCHAN:
@@ -855,6 +902,7 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case _IOR('v' , BASE_VIDIOCPRIVATE+7, int):
 		ret = native_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 		break;
+#endif
 	default:
 		v4l_print_ioctl("compat_ioctl32", cmd);
 	}

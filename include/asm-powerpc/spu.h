@@ -117,6 +117,7 @@ struct spu {
 	struct list_head sched_list;
 	int number;
 	int nid;
+	unsigned int irqs[3];
 	u32 isrc;
 	u32 node;
 	u64 flags;

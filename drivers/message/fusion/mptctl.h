@@ -354,9 +354,6 @@ struct mpt_ioctl_command32 {
 
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	HP Specific IOCTL Defines and Structures
- */
 
 #define CPQFCTS_IOC_MAGIC 'Z'
 #define HP_IOC_MAGIC 'Z'
@@ -364,8 +361,6 @@ struct mpt_ioctl_command32 {
 #define HP_GETHOSTINFO1		_IOR(HP_IOC_MAGIC, 20, hp_host_info_rev0_t)
 #define HP_GETTARGETINFO	_IOR(HP_IOC_MAGIC, 21, hp_target_info_t)
 
-/* All HP IOCTLs must include this header
- */
 typedef struct _hp_header {
 	unsigned int iocnum;
 	unsigned int host;

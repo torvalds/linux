@@ -41,6 +41,7 @@
 #include <asm/mach/serial_at91.h>
 #include <asm/arch/board.h>
 #include <asm/arch/system.h>
+#include <asm/arch/gpio.h>
 
 #if defined(CONFIG_SERIAL_AT91_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -140,9 +141,9 @@ static void at91_set_mctrl(struct uart_port *port, u_int mctrl)
 		 */
 		if (port->mapbase == AT91_BASE_US0) {
 			if (mctrl & TIOCM_RTS)
-				at91_sys_write(AT91_PIOA + PIO_CODR, AT91_PA21_RTS0);
+				at91_set_gpio_value(AT91_PIN_PA21, 0);
 			else
-				at91_sys_write(AT91_PIOA + PIO_SODR, AT91_PA21_RTS0);
+				at91_set_gpio_value(AT91_PIN_PA21, 1);
 		}
 	}
 

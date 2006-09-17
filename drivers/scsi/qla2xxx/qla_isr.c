@@ -395,10 +395,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		set_bit(REGISTER_FC4_NEEDED, &ha->dpc_flags);
 
 		ha->flags.management_server_logged_in = 0;
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_LIP_OCCURRED, NULL);
-
 		break;
 
 	case MBA_LOOP_UP:		/* Loop Up Event */
@@ -418,9 +414,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		    link_speed);
 
 		ha->flags.management_server_logged_in = 0;
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_LOOP_UP, NULL);
 		break;
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
@@ -439,9 +432,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		ha->link_data_rate = LDR_UNKNOWN;
 		if (ql2xfdmienable)
 			set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_LOOP_DOWN, NULL);
 		break;
 
 	case MBA_LIP_RESET:		/* LIP reset occurred */
@@ -460,10 +450,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 		ha->operating_mode = LOOP;
 		ha->flags.management_server_logged_in = 0;
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_LIP_RESET, NULL);
-
 		break;
 
 	case MBA_POINT_TO_POINT:	/* Point-to-Point */
@@ -545,9 +531,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 		set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 		set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_PORT_UPDATE, NULL);
 		break;
 
 	case MBA_RSCN_UPDATE:		/* State Change Registration */
@@ -584,9 +567,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 		set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 		set_bit(RSCN_UPDATE, &ha->dpc_flags);
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_RSCN_UPDATE, &mb[0]);
 		break;
 
 	/* case MBA_RIO_RESPONSE: */
@@ -606,6 +586,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 	case MBA_DISCARD_RND_FRAME:
 		DEBUG2(printk("scsi(%ld): Discard RND Frame -- %04x %04x "
 		    "%04x.\n", ha->host_no, mb[1], mb[2], mb[3]));
+		break;
+
+	case MBA_TRACE_NOTIFICATION:
+		DEBUG2(printk("scsi(%ld): Trace Notification -- %04x %04x.\n",
+		ha->host_no, mb[1], mb[2]));
 		break;
 	}
 }
@@ -1452,8 +1437,8 @@ qla24xx_ms_entry(scsi_qla_host_t *ha, struct ct_entry_24xx *pkt)
 	DEBUG3(printk("%s(%ld): pkt=%p pkthandle=%d.\n",
 	    __func__, ha->host_no, pkt, pkt->handle));
 
-	DEBUG9(printk("%s: ct pkt dump:\n", __func__);)
-	DEBUG9(qla2x00_dump_buffer((void *)pkt, sizeof(struct ct_entry_24xx));)
+	DEBUG9(printk("%s: ct pkt dump:\n", __func__));
+	DEBUG9(qla2x00_dump_buffer((void *)pkt, sizeof(struct ct_entry_24xx)));
 
 	/* Validate handle. */
  	if (pkt->handle < MAX_OUTSTANDING_COMMANDS)

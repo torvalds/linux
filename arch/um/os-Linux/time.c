@@ -17,11 +17,6 @@
 #include "kern_constants.h"
 #include "os.h"
 
-/* XXX This really needs to be declared and initialized in a kernel file since
- * it's in <linux/time.h>
- */
-extern struct timespec wall_to_monotonic;
-
 static void set_interval(int timer_type)
 {
 	int usec = 1000000/hz();
@@ -71,6 +66,7 @@ void switch_timers(int to_real)
 		       errno);
 }
 
+#ifdef UML_CONFIG_MODE_TT
 void uml_idle_timer(void)
 {
 	if(signal(SIGVTALRM, SIG_IGN) == SIG_ERR)
@@ -80,14 +76,7 @@ void uml_idle_timer(void)
 		    SA_RESTART, SIGUSR1, SIGIO, SIGWINCH, SIGVTALRM, -1);
 	set_interval(ITIMER_REAL);
 }
-
-void time_init(void)
-{
-	if(signal(SIGVTALRM, boot_timer_handler) == SIG_ERR)
-		panic("Couldn't set SIGVTALRM handler");
-	set_interval(ITIMER_VIRTUAL);
-	time_init_kern();
-}
+#endif
 
 unsigned long long os_nsecs(void)
 {
@@ -106,15 +95,7 @@ void idle_sleep(int secs)
 	nanosleep(&ts, NULL);
 }
 
-/* XXX This partly duplicates init_irq_signals */
-
 void user_time_init(void)
 {
-	set_handler(SIGVTALRM, (__sighandler_t) alarm_handler,
-		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH,
-		    SIGALRM, SIGUSR2, -1);
-	set_handler(SIGALRM, (__sighandler_t) alarm_handler,
-		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH,
-		    SIGVTALRM, SIGUSR2, -1);
 	set_interval(ITIMER_VIRTUAL);
 }

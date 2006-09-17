@@ -582,10 +582,9 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 			bacmp(&bt_sk(ctrl_sock->sk)->dst, &bt_sk(intr_sock->sk)->dst))
 		return -ENOTUNIQ;
 
-	session = kmalloc(sizeof(struct hidp_session), GFP_KERNEL);
+	session = kzalloc(sizeof(struct hidp_session), GFP_KERNEL);
 	if (!session)
 		return -ENOMEM;
-	memset(session, 0, sizeof(struct hidp_session));
 
 	session->input = input_allocate_device();
 	if (!session->input) {

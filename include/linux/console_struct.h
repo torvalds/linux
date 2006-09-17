@@ -9,6 +9,7 @@
  * to achieve effects such as fast scrolling by changing the origin.
  */
 
+#include <linux/wait.h>
 #include <linux/vt.h>
 
 struct vt_struct;

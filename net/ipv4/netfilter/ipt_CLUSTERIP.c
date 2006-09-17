@@ -172,11 +172,10 @@ clusterip_config_init(struct ipt_clusterip_tgt_info *i, u_int32_t ip,
 	struct clusterip_config *c;
 	char buffer[16];
 
-	c = kmalloc(sizeof(*c), GFP_ATOMIC);
+	c = kzalloc(sizeof(*c), GFP_ATOMIC);
 	if (!c)
 		return NULL;
 
-	memset(c, 0, sizeof(*c));
 	c->dev = dev;
 	c->clusterip = ip;
 	memcpy(&c->clustermac, &i->clustermac, ETH_ALEN);

@@ -372,14 +372,19 @@ static struct ops_list * create_driver(char *id)
 {
 	struct ops_list *ops;
 
-	ops = kmalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 	if (ops == NULL)
 		return ops;
-	memset(ops, 0, sizeof(*ops));
 
 	/* set up driver entry */
 	strlcpy(ops->id, id, sizeof(ops->id));
 	mutex_init(&ops->reg_mutex);
+	/*
+	 * The ->reg_mutex locking rules are per-driver, so we create
+	 * separate per-driver lock classes:
+	 */
+	lockdep_set_class(&ops->reg_mutex, (struct lock_class_key *)id);
+
 	ops->driver = DRIVER_EMPTY;
 	INIT_LIST_HEAD(&ops->dev_list);
 	/* lock this instance */

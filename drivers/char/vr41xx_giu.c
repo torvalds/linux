@@ -33,6 +33,7 @@
 #include <asm/cpu.h>
 #include <asm/io.h>
 #include <asm/vr41xx/giu.h>
+#include <asm/vr41xx/irq.h>
 #include <asm/vr41xx/vr41xx.h>
 
 MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
@@ -605,7 +606,7 @@ static int gpio_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations gpio_fops = {
+static const struct file_operations gpio_fops = {
 	.owner		= THIS_MODULE,
 	.read		= gpio_read,
 	.write		= gpio_write,

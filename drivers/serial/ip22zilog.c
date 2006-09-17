@@ -1143,9 +1143,8 @@ static void __init ip22zilog_prepare(void)
 		up[(chip * 2) + 1].port.fifosize = 1;
 		up[(chip * 2) + 1].port.ops = &ip22zilog_pops;
 		up[(chip * 2) + 1].port.type = PORT_IP22ZILOG;
-		up[(chip * 2) + 1].port.flags |= IP22ZILOG_FLAG_IS_CHANNEL_A;
 		up[(chip * 2) + 1].port.line = (chip * 2) + 1;
-		up[(chip * 2) + 1].flags = 0;
+		up[(chip * 2) + 1].flags |= IP22ZILOG_FLAG_IS_CHANNEL_A;
 	}
 }
 

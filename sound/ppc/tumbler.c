@@ -1121,7 +1121,7 @@ static long tumbler_find_device(const char *device, const char *platform,
 	DBG("(I) GPIO device %s found, offset: %x, active state: %d !\n",
 	    device, gp->addr, gp->active_state);
 
-	return (node->n_intrs > 0) ? node->intrs[0].line : 0;
+	return irq_of_parse_and_map(node, 0);
 }
 
 /* reset audio */
@@ -1264,16 +1264,16 @@ static int __init tumbler_init(struct snd_pmac *chip)
 				    &mix->line_mute, 1);
 	irq = tumbler_find_device("headphone-detect",
 				  NULL, &mix->hp_detect, 0);
-	if (irq < 0)
+	if (irq <= NO_IRQ)
 		irq = tumbler_find_device("headphone-detect",
 					  NULL, &mix->hp_detect, 1);
-	if (irq < 0)
+	if (irq <= NO_IRQ)
 		irq = tumbler_find_device("keywest-gpio15",
 					  NULL, &mix->hp_detect, 1);
 	mix->headphone_irq = irq;
  	irq = tumbler_find_device("line-output-detect",
 				  NULL, &mix->line_detect, 0);
- 	if (irq < 0)
+ 	if (irq <= NO_IRQ)
 		irq = tumbler_find_device("line-output-detect",
 					  NULL, &mix->line_detect, 1);
 	mix->lineout_irq = irq;
@@ -1316,10 +1316,9 @@ int __init snd_pmac_tumbler_init(struct snd_pmac *chip)
 		request_module("i2c-powermac");
 #endif /* CONFIG_KMOD */	
 
-	mix = kmalloc(sizeof(*mix), GFP_KERNEL);
+	mix = kzalloc(sizeof(*mix), GFP_KERNEL);
 	if (! mix)
 		return -ENOMEM;
-	memset(mix, 0, sizeof(*mix));
 	mix->headphone_irq = -1;
 
 	chip->mixer_data = mix;

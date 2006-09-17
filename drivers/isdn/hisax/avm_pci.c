@@ -639,7 +639,7 @@ clear_pending_hdlc_ints(struct IsdnCardState *cs)
 }
 #endif  /*  0  */
 
-static void __init
+static void
 inithdlc(struct IsdnCardState *cs)
 {
 	cs->bcs[0].BC_SetStack = setstack_hdlc;
@@ -727,13 +727,13 @@ AVM_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 }
 
 #ifdef CONFIG_PCI
-static struct pci_dev *dev_avm __initdata = NULL;
+static struct pci_dev *dev_avm __devinitdata = NULL;
 #endif
 #ifdef __ISAPNP__
-static struct pnp_card *pnp_avm_c __initdata = NULL;
+static struct pnp_card *pnp_avm_c __devinitdata = NULL;
 #endif
 
-int __init
+int __devinit
 setup_avm_pcipnp(struct IsdnCard *card)
 {
 	u_int val, ver;

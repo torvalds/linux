@@ -1,57 +1,63 @@
 Linux Kernel patch sumbittal checklist
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Here are some basic things that developers should do if they
-want to see their kernel patch submittals accepted quicker.
+Here are some basic things that developers should do if they want to see their
+kernel patch submissions accepted more quickly.
 
-These are all above and beyond the documentation that is provided
-in Documentation/SubmittingPatches and elsewhere about submitting
-Linux kernel patches.
-
-
-
-- Builds cleanly with applicable or modified CONFIG options =y, =m, and =n.
-  No gcc warnings/errors, no linker warnings/errors.
-
-- Passes allnoconfig, allmodconfig
-
-- Builds on multiple CPU arch-es by using local cross-compile tools
-  or something like PLM at OSDL.
-
-- ppc64 is a good architecture for cross-compilation checking because it
-  tends to use `unsigned long' for 64-bit quantities.
-
-- Matches kernel coding style(!)
-
-- Any new or modified CONFIG options don't muck up the config menu.
-
-- All new Kconfig options have help text.
-
-- Has been carefully reviewed with respect to relevant Kconfig
-  combinations.  This is very hard to get right with testing --
-  brainpower pays off here.
-
-- Check cleanly with sparse.
-
-- Use 'make checkstack' and 'make namespacecheck' and fix any
-  problems that they find.  Note:  checkstack does not point out
-  problems explicitly, but any one function that uses more than
-  512 bytes on the stack is a candidate for change.
-
-- Include kernel-doc to document global kernel APIs.  (Not required
-  for static functions, but OK there also.)  Use 'make htmldocs'
-  or 'make mandocs' to check the kernel-doc and fix any issues.
-
-- Has been tested with CONFIG_PREEMPT, CONFIG_DEBUG_PREEMPT,
-  CONFIG_DEBUG_SLAB, CONFIG_DEBUG_PAGEALLOC, CONFIG_DEBUG_MUTEXES,
-  CONFIG_DEBUG_SPINLOCK, CONFIG_DEBUG_SPINLOCK_SLEEP all simultaneously
-  enabled.
-
-- Has been build- and runtime tested with and without CONFIG_SMP and
-  CONFIG_PREEMPT.
-
-- If the patch affects IO/Disk, etc: has been tested with and without
-  CONFIG_LBD.
+These are all above and beyond the documentation that is provided in
+Documentation/SubmittingPatches and elsewhere regarding submitting Linux
+kernel patches.
 
 
-2006-APR-27
+
+1: Builds cleanly with applicable or modified CONFIG options =y, =m, and
+   =n.  No gcc warnings/errors, no linker warnings/errors.
+
+2: Passes allnoconfig, allmodconfig
+
+3: Builds on multiple CPU architectures by using local cross-compile tools
+   or something like PLM at OSDL.
+
+4: ppc64 is a good architecture for cross-compilation checking because it
+   tends to use `unsigned long' for 64-bit quantities.
+
+5: Matches kernel coding style(!)
+
+6: Any new or modified CONFIG options don't muck up the config menu.
+
+7: All new Kconfig options have help text.
+
+8: Has been carefully reviewed with respect to relevant Kconfig
+   combinations.  This is very hard to get right with testing -- brainpower
+   pays off here.
+
+9: Check cleanly with sparse.
+
+10: Use 'make checkstack' and 'make namespacecheck' and fix any problems
+    that they find.  Note: checkstack does not point out problems explicitly,
+    but any one function that uses more than 512 bytes on the stack is a
+    candidate for change.
+
+11: Include kernel-doc to document global kernel APIs.  (Not required for
+    static functions, but OK there also.) Use 'make htmldocs' or 'make
+    mandocs' to check the kernel-doc and fix any issues.
+
+12: Has been tested with CONFIG_PREEMPT, CONFIG_DEBUG_PREEMPT,
+    CONFIG_DEBUG_SLAB, CONFIG_DEBUG_PAGEALLOC, CONFIG_DEBUG_MUTEXES,
+    CONFIG_DEBUG_SPINLOCK, CONFIG_DEBUG_SPINLOCK_SLEEP all simultaneously
+    enabled.
+
+13: Has been build- and runtime tested with and without CONFIG_SMP and
+    CONFIG_PREEMPT.
+
+14: If the patch affects IO/Disk, etc: has been tested with and without
+    CONFIG_LBD.
+
+15: All codepaths have been exercised with all lockdep features enabled.
+
+16: All new /proc entries are documented under Documentation/
+
+17: All new kernel boot parameters are documented in
+    Documentation/kernel-parameters.txt.
+
+18: All new module parameters are documented with MODULE_PARM_DESC()

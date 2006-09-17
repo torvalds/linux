@@ -339,6 +339,17 @@ static void dm9000_timeout(struct net_device *dev)
 	spin_unlock_irqrestore(&db->lock,flags);
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/*
+ *Used by netconsole
+ */
+static void dm9000_poll_controller(struct net_device *dev)
+{
+	disable_irq(dev->irq);
+	dm9000_interrupt(dev->irq,dev,NULL);
+	enable_irq(dev->irq);
+}
+#endif
 
 /* dm9000_release_board
  *
@@ -366,8 +377,8 @@ dm9000_release_board(struct platform_device *pdev, struct board_info *db)
 		kfree(db->data_req);
 	}
 
-	if (db->addr_res != NULL) {
-		release_resource(db->addr_res);
+	if (db->addr_req != NULL) {
+		release_resource(db->addr_req);
 		kfree(db->addr_req);
 	}
 }
@@ -538,6 +549,9 @@ dm9000_probe(struct platform_device *pdev)
 	ndev->stop		 = &dm9000_stop;
 	ndev->get_stats		 = &dm9000_get_stats;
 	ndev->set_multicast_list = &dm9000_hash_table;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	ndev->poll_controller	 = &dm9000_poll_controller;
+#endif
 
 #ifdef DM9000_PROGRAM_EEPROM
 	program_eeprom(db);

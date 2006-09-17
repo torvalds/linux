@@ -12,7 +12,7 @@
  */
 
 #define switch_to(prev, next, last) do {				\
- task_t *__last;							\
+ struct task_struct *__last;						\
  register unsigned long *__ts1 __asm__ ("r1") = &prev->thread.sp;	\
  register unsigned long *__ts2 __asm__ ("r2") = &prev->thread.pc;	\
  register unsigned long *__ts4 __asm__ ("r4") = (unsigned long *)prev;	\
@@ -101,7 +101,6 @@ extern void __xchg_called_with_bad_pointer(void);
 #endif
 
 #define set_mb(var, value) do { xchg(&var, value); } while (0)
-#define set_wmb(var, value) do { var = value; wmb(); } while (0)
 
 /* Interrupt Control */
 static __inline__ void local_irq_enable(void)

@@ -65,8 +65,7 @@ static const u_char nand_ecc_precalc_table[] = {
 };
 
 /**
- * nand_calculate_ecc - [NAND Interface] Calculate 3 byte ECC code
- *			for 256 byte block
+ * nand_calculate_ecc - [NAND Interface] Calculate 3-byte ECC for 256-byte block
  * @mtd:	MTD block structure
  * @dat:	raw data
  * @ecc_code:	buffer for ECC

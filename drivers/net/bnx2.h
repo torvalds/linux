@@ -3890,10 +3890,6 @@ struct bnx2 {
 	u32		tx_prod_bseq __attribute__((aligned(L1_CACHE_BYTES)));
 	u16		tx_prod;
 
-	struct tx_bd	*tx_desc_ring;
-	struct sw_bd	*tx_buf_ring;
-	int		tx_ring_size;
-
 	u16		tx_cons __attribute__((aligned(L1_CACHE_BYTES)));
 	u16		hw_tx_cons;
 
@@ -3916,9 +3912,11 @@ struct bnx2 {
 	struct sw_bd		*rx_buf_ring;
 	struct rx_bd		*rx_desc_ring[MAX_RX_RINGS];
 
-	/* Only used to synchronize netif_stop_queue/wake_queue when tx */
-	/* ring is full */
-	spinlock_t		tx_lock;
+	/* TX constants */
+	struct tx_bd	*tx_desc_ring;
+	struct sw_bd	*tx_buf_ring;
+	int		tx_ring_size;
+	u32		tx_wake_thresh;
 
 	/* End of fields used in the performance code paths. */
 

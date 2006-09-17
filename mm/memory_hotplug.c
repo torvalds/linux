@@ -52,6 +52,9 @@ static int __add_section(struct zone *zone, unsigned long phys_start_pfn)
 	int nr_pages = PAGES_PER_SECTION;
 	int ret;
 
+	if (pfn_valid(phys_start_pfn))
+		return -EEXIST;
+
 	ret = sparse_add_one_section(zone, phys_start_pfn, nr_pages);
 
 	if (ret < 0)
@@ -76,15 +79,22 @@ int __add_pages(struct zone *zone, unsigned long phys_start_pfn,
 {
 	unsigned long i;
 	int err = 0;
+	int start_sec, end_sec;
+	/* during initialize mem_map, align hot-added range to section */
+	start_sec = pfn_to_section_nr(phys_start_pfn);
+	end_sec = pfn_to_section_nr(phys_start_pfn + nr_pages - 1);
 
-	for (i = 0; i < nr_pages; i += PAGES_PER_SECTION) {
-		err = __add_section(zone, phys_start_pfn + i);
+	for (i = start_sec; i <= end_sec; i++) {
+		err = __add_section(zone, i << PFN_SECTION_SHIFT);
 
-		/* We want to keep adding the rest of the
-		 * sections if the first ones already exist
+		/*
+		 * EEXIST is finally dealed with by ioresource collision
+		 * check. see add_memory() => register_memory_resource()
+		 * Warning will be printed if there is collision.
 		 */
 		if (err && (err != -EEXIST))
 			break;
+		err = 0;
 	}
 
 	return err;
@@ -156,7 +166,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	res.flags = IORESOURCE_MEM; /* we just need system ram */
 	section_end = res.end;
 
-	while (find_next_system_ram(&res) >= 0) {
+	while ((res.start < res.end) && (find_next_system_ram(&res) >= 0)) {
 		start_pfn = (unsigned long)(res.start >> PAGE_SHIFT);
 		nr_pages = (unsigned long)
                            ((res.end + 1 - res.start) >> PAGE_SHIFT);
@@ -213,10 +223,9 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
 }
 
 /* add this memory to iomem resource */
-static void register_memory_resource(u64 start, u64 size)
+static struct resource *register_memory_resource(u64 start, u64 size)
 {
 	struct resource *res;
-
 	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	BUG_ON(!res);
 
@@ -228,7 +237,18 @@ static void register_memory_resource(u64 start, u64 size)
 		printk("System RAM resource %llx - %llx cannot be added\n",
 		(unsigned long long)res->start, (unsigned long long)res->end);
 		kfree(res);
+		res = NULL;
 	}
+	return res;
+}
+
+static void release_memory_resource(struct resource *res)
+{
+	if (!res)
+		return;
+	release_resource(res);
+	kfree(res);
+	return;
 }
 
 
@@ -237,7 +257,12 @@ int add_memory(int nid, u64 start, u64 size)
 {
 	pg_data_t *pgdat = NULL;
 	int new_pgdat = 0;
+	struct resource *res;
 	int ret;
+
+	res = register_memory_resource(start, size);
+	if (!res)
+		return -EEXIST;
 
 	if (!node_online(nid)) {
 		pgdat = hotadd_new_pgdat(nid, start);
@@ -268,14 +293,13 @@ int add_memory(int nid, u64 start, u64 size)
 		BUG_ON(ret);
 	}
 
-	/* register this memory as resource */
-	register_memory_resource(start, size);
-
 	return ret;
 error:
 	/* rollback pgdat allocation and others */
 	if (new_pgdat)
 		rollback_node_hotadd(nid, pgdat);
+	if (res)
+		release_memory_resource(res);
 
 	return ret;
 }

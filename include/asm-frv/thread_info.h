@@ -19,6 +19,8 @@
 #include <asm/processor.h>
 #endif
 
+#define THREAD_SIZE		8192
+
 /*
  * low level task data that entry.S needs immediate access to
  * - this struct should fit entirely inside of one cache line
@@ -46,15 +48,7 @@ struct thread_info {
 
 #else /* !__ASSEMBLY__ */
 
-/* offsets into the thread_info struct for assembly code access */
-#define TI_TASK			0x00000000
-#define TI_EXEC_DOMAIN		0x00000004
-#define TI_FLAGS		0x00000008
-#define TI_STATUS		0x0000000C
-#define TI_CPU			0x00000010
-#define TI_PRE_COUNT		0x00000014
-#define TI_ADDR_LIMIT		0x00000018
-#define TI_RESTART_BLOCK	0x0000001C
+#include <asm/asm-offsets.h>
 
 #endif
 
@@ -83,12 +77,6 @@ struct thread_info {
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
 
-#ifdef CONFIG_SMALL_TASKS
-#define THREAD_SIZE		4096
-#else
-#define THREAD_SIZE		8192
-#endif
-
 /* how to get the thread information struct from C */
 register struct thread_info *__current_thread_info asm("gr15");
 
@@ -111,11 +99,7 @@ register struct thread_info *__current_thread_info asm("gr15");
 
 #define free_thread_info(info)	kfree(info)
 
-#else /* !__ASSEMBLY__ */
-
-#define THREAD_SIZE	8192
-
-#endif
+#endif /* __ASSEMBLY__ */
 
 /*
  * thread information flags

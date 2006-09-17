@@ -846,6 +846,7 @@ static sctp_disposition_t sctp_sf_heartbeat(const struct sctp_endpoint *ep,
 	hbinfo.param_hdr.length = htons(sizeof(sctp_sender_hb_info_t));
 	hbinfo.daddr = transport->ipaddr;
 	hbinfo.sent_at = jiffies;
+	hbinfo.hb_nonce = transport->hb_nonce;
 
 	/* Send a heartbeat to our peer.  */
 	paylen = sizeof(sctp_sender_hb_info_t);
@@ -1047,6 +1048,10 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 		}
 		return SCTP_DISPOSITION_DISCARD;
 	}
+
+	/* Validate the 64-bit random nonce. */
+	if (hbinfo->hb_nonce != link->hb_nonce)
+		return SCTP_DISPOSITION_DISCARD;
 
 	max_interval = link->hbinterval + link->rto;
 
@@ -4026,18 +4031,12 @@ sctp_disposition_t sctp_sf_do_9_1_prm_abort(
 	 * from its upper layer, but retransmits data to the far end
 	 * if necessary to fill gaps.
 	 */
-	struct msghdr *msg = arg;
-	struct sctp_chunk *abort;
+	struct sctp_chunk *abort = arg;
 	sctp_disposition_t retval;
 
 	retval = SCTP_DISPOSITION_CONSUME;
 
-	/* Generate ABORT chunk to send the peer.  */
-	abort = sctp_make_abort_user(asoc, NULL, msg);
-	if (!abort)
-		retval = SCTP_DISPOSITION_NOMEM;
-	else
-		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
+	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
 
 	/* Even if we can't send the ABORT due to low memory delete the
 	 * TCB.  This is a departure from our typical NOMEM handling.
@@ -4161,8 +4160,7 @@ sctp_disposition_t sctp_sf_cookie_wait_prm_abort(
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
-	struct msghdr *msg = arg;
-	struct sctp_chunk *abort;
+	struct sctp_chunk *abort = arg;
 	sctp_disposition_t retval;
 
 	/* Stop T1-init timer */
@@ -4170,12 +4168,7 @@ sctp_disposition_t sctp_sf_cookie_wait_prm_abort(
 			SCTP_TO(SCTP_EVENT_TIMEOUT_T1_INIT));
 	retval = SCTP_DISPOSITION_CONSUME;
 
-	/* Generate ABORT chunk to send the peer */
-	abort = sctp_make_abort_user(asoc, NULL, msg);
-	if (!abort)
-		retval = SCTP_DISPOSITION_NOMEM;
-	else
-		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
+	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_CLOSED));
@@ -5278,7 +5271,6 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	datalen -= sizeof(sctp_data_chunk_t);
 
 	deliver = SCTP_CMD_CHUNK_ULP;
-	chunk->data_accepted = 1;
 
 	/* Think about partial delivery. */
 	if ((datalen >= asoc->rwnd) && (!asoc->ulpq.pd_mode)) {
@@ -5356,6 +5348,8 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 */
 	if (SCTP_CMD_CHUNK_ULP == deliver)
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_TSN, SCTP_U32(tsn));
+
+	chunk->data_accepted = 1;
 
 	/* Note: Some chunks may get overcounted (if we drop) or overcounted
 	 * if we renege and the chunk arrives again.

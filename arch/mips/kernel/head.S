@@ -5,7 +5,7 @@
  *
  * Copyright (C) 1994, 1995 Waldorf Electronics
  * Written by Ralf Baechle and Andreas Busse
- * Copyright (C) 1994, 95, 96, 97, 98, 99, 2003 Ralf Baechle
+ * Copyright (C) 1994 - 99, 2003, 06 Ralf Baechle
  * Copyright (C) 1996 Paul M. Antoine
  * Modified for DECStation and hence R3000 support by Paul M. Antoine
  * Further modifications by David S. Miller and Harald Koerfgen
@@ -18,6 +18,7 @@
 
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
+#include <asm/irqflags.h>
 #include <asm/regdef.h>
 #include <asm/page.h>
 #include <asm/mipsregs.h>

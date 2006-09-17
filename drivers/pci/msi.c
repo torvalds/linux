@@ -47,13 +47,13 @@ msi_register(struct msi_ops *ops)
 
 static void msi_cache_ctor(void *p, kmem_cache_t *cache, unsigned long flags)
 {
-	memset(p, 0, NR_IRQS * sizeof(struct msi_desc));
+	memset(p, 0, sizeof(struct msi_desc));
 }
 
 static int msi_cache_init(void)
 {
 	msi_cachep = kmem_cache_create("msi_cache",
-			NR_IRQS * sizeof(struct msi_desc),
+			sizeof(struct msi_desc),
 		       	0, SLAB_HWCACHE_ALIGN, msi_cache_ctor, NULL);
 	if (!msi_cachep)
 		return -ENOMEM;

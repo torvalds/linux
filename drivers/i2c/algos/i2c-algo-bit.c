@@ -372,7 +372,6 @@ static inline int readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 
 	while (count > 0) {
 		inval = i2c_inb(i2c_adap);
-/*printk("%#02x ",inval); if ( ! (count % 16) ) printk("\n"); */
 		if (inval>=0) {
 			*temp = inval;
 			rdcount++;
@@ -544,8 +543,7 @@ int i2c_bit_add_bus(struct i2c_adapter *adap)
 	adap->timeout = 100;	/* default values, should	*/
 	adap->retries = 3;	/* be replaced by defines	*/
 
-	i2c_add_adapter(adap);
-	return 0;
+	return i2c_add_adapter(adap);
 }
 
 

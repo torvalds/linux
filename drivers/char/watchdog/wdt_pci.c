@@ -543,7 +543,7 @@ static int wdtpci_notify_sys(struct notifier_block *this, unsigned long code,
  */
 
 
-static struct file_operations wdtpci_fops = {
+static const struct file_operations wdtpci_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= wdtpci_write,
@@ -559,7 +559,7 @@ static struct miscdevice wdtpci_miscdev = {
 };
 
 #ifdef CONFIG_WDT_501_PCI
-static struct file_operations wdtpci_temp_fops = {
+static const struct file_operations wdtpci_temp_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= wdtpci_temp_read,

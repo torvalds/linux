@@ -217,7 +217,7 @@ static void ioat_dma_free_chan_resources(struct dma_chan *chan)
 
 /**
  * do_ioat_dma_memcpy - actual function that initiates a IOAT DMA transaction
- * @chan: IOAT DMA channel handle
+ * @ioat_chan: IOAT DMA channel handle
  * @dest: DMA destination address
  * @src: DMA source address
  * @len: transaction length in bytes
@@ -383,7 +383,7 @@ static dma_cookie_t ioat_dma_memcpy_buf_to_pg(struct dma_chan *chan,
  * @dest_off: offset into that page
  * @src_pg: pointer to the page to copy from
  * @src_off: offset into that page
- * @len: transaction length in bytes. This is guaranteed to not make a copy
+ * @len: transaction length in bytes. This is guaranteed not to make a copy
  *	 across a page boundary.
  */
 
@@ -407,7 +407,7 @@ static dma_cookie_t ioat_dma_memcpy_pg_to_pg(struct dma_chan *chan,
 }
 
 /**
- * ioat_dma_memcpy_issue_pending - push potentially unrecognoized appended descriptors to hw
+ * ioat_dma_memcpy_issue_pending - push potentially unrecognized appended descriptors to hw
  * @chan: DMA channel handle
  */
 
@@ -510,6 +510,8 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *chan)
  * ioat_dma_is_complete - poll the status of a IOAT DMA transaction
  * @chan: IOAT DMA channel handle
  * @cookie: DMA transaction identifier
+ * @done: if not %NULL, updated with last completed transaction
+ * @used: if not %NULL, updated with last used transaction
  */
 
 static enum dma_status ioat_dma_is_complete(struct dma_chan *chan,
@@ -826,7 +828,7 @@ static int __init ioat_init_module(void)
 	/* if forced, worst case is that rmmod hangs */
 	__unsafe(THIS_MODULE);
 
-	pci_module_init(&ioat_pci_drv);
+	return pci_register_driver(&ioat_pci_drv);
 }
 
 module_init(ioat_init_module);

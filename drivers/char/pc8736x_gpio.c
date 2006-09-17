@@ -3,18 +3,18 @@
    National Semiconductor PC8736x GPIO driver.  Allows a user space
    process to play with the GPIO pins.
 
-   Copyright (c) 2005 Jim Cromie <jim.cromie@gmail.com>
+   Copyright (c) 2005,2006 Jim Cromie <jim.cromie@gmail.com>
 
    adapted from linux/drivers/char/scx200_gpio.c
    Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>,
 */
 
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/cdev.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/mutex.h>
@@ -25,7 +25,7 @@
 #define DEVNAME "pc8736x_gpio"
 
 MODULE_AUTHOR("Jim Cromie <jim.cromie@gmail.com>");
-MODULE_DESCRIPTION("NatSemi PC-8736x GPIO Pin Driver");
+MODULE_DESCRIPTION("NatSemi/Winbond PC-8736x GPIO Pin Driver");
 MODULE_LICENSE("GPL");
 
 static int major;		/* default to dynamic major */
@@ -38,14 +38,14 @@ static u8 pc8736x_gpio_shadow[4];
 
 #define SIO_BASE1       0x2E	/* 1st command-reg to check */
 #define SIO_BASE2       0x4E	/* alt command-reg to check */
-#define SIO_BASE_OFFSET 0x20
 
 #define SIO_SID		0x20	/* SuperI/O ID Register */
 #define SIO_SID_VALUE	0xe9	/* Expected value in SuperI/O ID Register */
 
 #define SIO_CF1		0x21	/* chip config, bit0 is chip enable */
 
-#define PC8736X_GPIO_SIZE	16
+#define PC8736X_GPIO_RANGE	16 /* ioaddr range */
+#define PC8736X_GPIO_CT		32 /* minors matching 4 8 bit ports */
 
 #define SIO_UNIT_SEL	0x7	/* unit select reg */
 #define SIO_UNIT_ACT	0x30	/* unit enable */
@@ -212,14 +212,12 @@ static void pc8736x_gpio_change(unsigned index)
 	pc8736x_gpio_set(index, !pc8736x_gpio_current(index));
 }
 
-static struct nsc_gpio_ops pc8736x_access = {
+static struct nsc_gpio_ops pc8736x_gpio_ops = {
 	.owner		= THIS_MODULE,
 	.gpio_config	= pc8736x_gpio_configure,
 	.gpio_dump	= nsc_gpio_dump,
 	.gpio_get	= pc8736x_gpio_get,
 	.gpio_set	= pc8736x_gpio_set,
-	.gpio_set_high	= pc8736x_gpio_set_high,
-	.gpio_set_low	= pc8736x_gpio_set_low,
 	.gpio_change	= pc8736x_gpio_change,
 	.gpio_current	= pc8736x_gpio_current
 };
@@ -227,16 +225,16 @@ static struct nsc_gpio_ops pc8736x_access = {
 static int pc8736x_gpio_open(struct inode *inode, struct file *file)
 {
 	unsigned m = iminor(inode);
-	file->private_data = &pc8736x_access;
+	file->private_data = &pc8736x_gpio_ops;
 
 	dev_dbg(&pdev->dev, "open %d\n", m);
 
-	if (m > 63)
+	if (m >= PC8736X_GPIO_CT)
 		return -EINVAL;
 	return nonseekable_open(inode, file);
 }
 
-static struct file_operations pc8736x_gpio_fops = {
+static const struct file_operations pc8736x_gpio_fileops = {
 	.owner	= THIS_MODULE,
 	.open	= pc8736x_gpio_open,
 	.write	= nsc_gpio_write,
@@ -255,9 +253,12 @@ static void __init pc8736x_init_shadow(void)
 
 }
 
+static struct cdev pc8736x_gpio_cdev;
+
 static int __init pc8736x_gpio_init(void)
 {
-	int rc = 0;
+	int rc;
+	dev_t devid;
 
 	pdev = platform_device_alloc(DEVNAME, 0);
 	if (!pdev)
@@ -275,7 +276,7 @@ static int __init pc8736x_gpio_init(void)
 		dev_err(&pdev->dev, "no device found\n");
 		goto undo_platform_dev_add;
 	}
-	pc8736x_access.dev = &pdev->dev;
+	pc8736x_gpio_ops.dev = &pdev->dev;
 
 	/* Verify that chip and it's GPIO unit are both enabled.
 	   My BIOS does this, so I take minimum action here
@@ -297,7 +298,7 @@ static int __init pc8736x_gpio_init(void)
 	pc8736x_gpio_base = (superio_inb(SIO_BASE_HADDR) << 8
 			     | superio_inb(SIO_BASE_LADDR));
 
-	if (!request_region(pc8736x_gpio_base, 16, DEVNAME)) {
+	if (!request_region(pc8736x_gpio_base, PC8736X_GPIO_RANGE, DEVNAME)) {
 		rc = -ENODEV;
 		dev_err(&pdev->dev, "GPIO ioport %x busy\n",
 			pc8736x_gpio_base);
@@ -305,10 +306,17 @@ static int __init pc8736x_gpio_init(void)
 	}
 	dev_info(&pdev->dev, "GPIO ioport %x reserved\n", pc8736x_gpio_base);
 
-	rc = register_chrdev(major, DEVNAME, &pc8736x_gpio_fops);
+	if (major) {
+		devid = MKDEV(major, 0);
+		rc = register_chrdev_region(devid, PC8736X_GPIO_CT, DEVNAME);
+	} else {
+		rc = alloc_chrdev_region(&devid, 0, PC8736X_GPIO_CT, DEVNAME);
+		major = MAJOR(devid);
+	}
+
 	if (rc < 0) {
 		dev_err(&pdev->dev, "register-chrdev failed: %d\n", rc);
-		goto undo_platform_dev_add;
+		goto undo_request_region;
 	}
 	if (!major) {
 		major = rc;
@@ -316,8 +324,15 @@ static int __init pc8736x_gpio_init(void)
 	}
 
 	pc8736x_init_shadow();
+
+	/* ignore minor errs, and succeed */
+	cdev_init(&pc8736x_gpio_cdev, &pc8736x_gpio_fileops);
+	cdev_add(&pc8736x_gpio_cdev, devid, PC8736X_GPIO_CT);
+
 	return 0;
 
+undo_request_region:
+	release_region(pc8736x_gpio_base, PC8736X_GPIO_RANGE);
 undo_platform_dev_add:
 	platform_device_del(pdev);
 undo_platform_dev_alloc:
@@ -328,14 +343,15 @@ undo_platform_dev_alloc:
 
 static void __exit pc8736x_gpio_cleanup(void)
 {
-	dev_dbg(&pdev->dev, " cleanup\n");
+	dev_dbg(&pdev->dev, "cleanup\n");
 
-	release_region(pc8736x_gpio_base, 16);
+	cdev_del(&pc8736x_gpio_cdev);
+	unregister_chrdev_region(MKDEV(major,0), PC8736X_GPIO_CT);
+	release_region(pc8736x_gpio_base, PC8736X_GPIO_RANGE);
 
-	unregister_chrdev(major, DEVNAME);
+	platform_device_del(pdev);
+	platform_device_put(pdev);
 }
-
-EXPORT_SYMBOL(pc8736x_access);
 
 module_init(pc8736x_gpio_init);
 module_exit(pc8736x_gpio_cleanup);

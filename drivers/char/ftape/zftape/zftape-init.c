@@ -86,7 +86,7 @@ static ssize_t zft_read (struct file *fp, char __user *buff,
 static ssize_t zft_write(struct file *fp, const char __user *buff,
 			 size_t req_len, loff_t *ppos);
 
-static struct file_operations zft_cdev =
+static const struct file_operations zft_cdev =
 {
 	.owner		= THIS_MODULE,
 	.read		= zft_read,

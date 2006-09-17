@@ -21,7 +21,7 @@
 #include <linux/root_dev.h>
 #include <linux/seq_file.h>
 #include <linux/timex.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/cpu.h>
 #include <linux/nodemask.h>
 #include <linux/pfn.h>

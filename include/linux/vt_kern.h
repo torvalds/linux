@@ -26,6 +26,7 @@
 
 extern void kd_mksound(unsigned int hz, unsigned int ticks);
 extern int kbd_rate(struct kbd_repeat *rep);
+extern int fg_console, last_console, want_console;
 
 /* console.c */
 

@@ -442,7 +442,7 @@ static int __init init(void)
 		sip[i].tuple.src.u.udp.port = htons(ports[i]);
 		sip[i].mask.src.u.udp.port = 0xFFFF;
 		sip[i].mask.dst.protonum = 0xFF;
-		sip[i].max_expected = 1;
+		sip[i].max_expected = 2;
 		sip[i].timeout = 3 * 60; /* 3 minutes */
 		sip[i].me = THIS_MODULE;
 		sip[i].help = sip_help;

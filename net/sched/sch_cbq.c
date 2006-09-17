@@ -1926,10 +1926,9 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct rtattr **t
 	}
 
 	err = -ENOBUFS;
-	cl = kmalloc(sizeof(*cl), GFP_KERNEL);
+	cl = kzalloc(sizeof(*cl), GFP_KERNEL);
 	if (cl == NULL)
 		goto failure;
-	memset(cl, 0, sizeof(*cl));
 	cl->R_tab = rtab;
 	rtab = NULL;
 	cl->refcnt = 1;

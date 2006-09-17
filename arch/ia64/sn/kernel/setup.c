@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/kdev_t.h>
 #include <linux/string.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/console.h>
 #include <linux/timex.h>
 #include <linux/sched.h>
@@ -565,7 +565,7 @@ static void __init sn_init_pdas(char **cmdline_p)
  * Also sets up a few fields in the nodepda.  Also known as
  * platform_cpu_init() by the ia64 machvec code.
  */
-void __init sn_cpu_init(void)
+void __cpuinit sn_cpu_init(void)
 {
 	int cpuid;
 	int cpuphyid;

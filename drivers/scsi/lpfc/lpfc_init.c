@@ -71,6 +71,7 @@ lpfc_config_port_prep(struct lpfc_hba * phba)
 	uint16_t offset = 0;
 	static char licensed[56] =
 		    "key unlock for use with gnu public licensed code only\0";
+	static int init_key = 1;
 
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
@@ -82,10 +83,13 @@ lpfc_config_port_prep(struct lpfc_hba * phba)
 	phba->hba_state = LPFC_INIT_MBX_CMDS;
 
 	if (lpfc_is_LC_HBA(phba->pcidev->device)) {
-		uint32_t *ptext = (uint32_t *) licensed;
+		if (init_key) {
+			uint32_t *ptext = (uint32_t *) licensed;
 
-		for (i = 0; i < 56; i += sizeof (uint32_t), ptext++)
-			*ptext = cpu_to_be32(*ptext);
+			for (i = 0; i < 56; i += sizeof (uint32_t), ptext++)
+				*ptext = cpu_to_be32(*ptext);
+			init_key = 0;
+		}
 
 		lpfc_read_nv(phba, pmb);
 		memset((char*)mb->un.varRDnvp.rsvd3, 0,
@@ -405,19 +409,26 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 	}
 	/* MBOX buffer will be freed in mbox compl */
 
-	i = 0;
+	return (0);
+}
+
+static int
+lpfc_discovery_wait(struct lpfc_hba *phba)
+{
+	int i = 0;
+
 	while ((phba->hba_state != LPFC_HBA_READY) ||
 	       (phba->num_disc_nodes) || (phba->fc_prli_sent) ||
 	       ((phba->fc_map_cnt == 0) && (i<2)) ||
-	       (psli->sli_flag & LPFC_SLI_MBOX_ACTIVE)) {
+	       (phba->sli.sli_flag & LPFC_SLI_MBOX_ACTIVE)) {
 		/* Check every second for 30 retries. */
 		i++;
 		if (i > 30) {
-			break;
+			return -ETIMEDOUT;
 		}
 		if ((i >= 15) && (phba->hba_state <= LPFC_LINK_DOWN)) {
 			/* The link is down.  Set linkdown timeout */
-			break;
+			return -ETIMEDOUT;
 		}
 
 		/* Delay for 1 second to give discovery time to complete. */
@@ -425,12 +436,7 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 
 	}
 
-	/* Since num_disc_nodes keys off of PLOGI, delay a bit to let
-	 * any potential PRLIs to flush thru the SLI sub-system.
-	 */
-	msleep(50);
-
-	return (0);
+	return 0;
 }
 
 /************************************************************************/
@@ -939,12 +945,12 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 					"10-port ", "PCIe"};
 			break;
 		default:
-			m = (typeof(m)){ 0 };
+			m = (typeof(m)){ NULL };
 			break;
 		}
 		break;
 	default:
-		m = (typeof(m)){ 0 };
+		m = (typeof(m)){ NULL };
 		break;
 	}
 
@@ -1339,7 +1345,8 @@ lpfc_offline(struct lpfc_hba * phba)
 	struct lpfc_sli_ring *pring;
 	struct lpfc_sli *psli;
 	unsigned long iflag;
-	int i = 0;
+	int i;
+	int cnt = 0;
 
 	if (!phba)
 		return 0;
@@ -1348,20 +1355,31 @@ lpfc_offline(struct lpfc_hba * phba)
 		return 0;
 
 	psli = &phba->sli;
-	pring = &psli->ring[psli->fcp_ring];
 
 	lpfc_linkdown(phba);
+	lpfc_sli_flush_mbox_queue(phba);
 
-	/* The linkdown event takes 30 seconds to timeout. */
-	while (pring->txcmplq_cnt) {
-		mdelay(10);
-		if (i++ > 3000)
-			break;
+	for (i = 0; i < psli->num_rings; i++) {
+		pring = &psli->ring[i];
+		/* The linkdown event takes 30 seconds to timeout. */
+		while (pring->txcmplq_cnt) {
+			mdelay(10);
+			if (cnt++ > 3000) {
+				lpfc_printf_log(phba,
+					KERN_WARNING, LOG_INIT,
+					"%d:0466 Outstanding IO when "
+					"bringing Adapter offline\n",
+					phba->brd_no);
+				break;
+			}
+		}
 	}
+
 
 	/* stop all timers associated with this hba */
 	lpfc_stop_timer(phba);
 	phba->work_hba_events = 0;
+	phba->work_ha = 0;
 
 	lpfc_printf_log(phba,
 		       KERN_WARNING,
@@ -1451,7 +1469,6 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_put_host;
 
 	host->unique_id = phba->brd_no;
-	init_MUTEX(&phba->hba_can_block);
 	INIT_LIST_HEAD(&phba->ctrspbuflist);
 	INIT_LIST_HEAD(&phba->rnidrspbuflist);
 	INIT_LIST_HEAD(&phba->freebufList);
@@ -1600,7 +1617,11 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_free_iocbq;
 	}
 
-	/* We can rely on a queue depth attribute only after SLI HBA setup */
+	/*
+	 * Set initial can_queue value since 0 is no longer supported and
+	 * scsi_add_host will fail. This will be adjusted later based on the
+	 * max xri value determined in hba setup.
+	 */
 	host->can_queue = phba->cfg_hba_queue_depth - 10;
 
 	/* Tell the midlayer we support 16 byte commands */
@@ -1639,6 +1660,14 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		error = -ENODEV;
 		goto out_free_irq;
 	}
+
+	/*
+	 * hba setup may have changed the hba_queue_depth so we need to adjust
+	 * the value of can_queue.
+	 */
+	host->can_queue = phba->cfg_hba_queue_depth - 10;
+
+	lpfc_discovery_wait(phba);
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
 		spin_lock_irq(phba->host->host_lock);

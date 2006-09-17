@@ -170,7 +170,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
  */
 void dump_stack(void)
 {
-	show_stack(0, 0);
+	show_stack(NULL, NULL);
 }
 
 EXPORT_SYMBOL(dump_stack);
@@ -331,9 +331,9 @@ static void inline do_trap(long interruption_code, int signr, char *str,
         }
 }
 
-static inline void *get_check_address(struct pt_regs *regs)
+static inline void __user *get_check_address(struct pt_regs *regs)
 {
-	return (void *)((regs->psw.addr-S390_lowcore.pgm_ilc) & PSW_ADDR_INSN);
+	return (void __user *)((regs->psw.addr-S390_lowcore.pgm_ilc) & PSW_ADDR_INSN);
 }
 
 void do_single_step(struct pt_regs *regs)
@@ -360,7 +360,7 @@ asmlinkage void name(struct pt_regs * regs, long interruption_code) \
         info.si_signo = signr; \
         info.si_errno = 0; \
         info.si_code = sicode; \
-        info.si_addr = (void *)siaddr; \
+	info.si_addr = siaddr; \
         do_trap(interruption_code, signr, str, regs, &info); \
 }
 
@@ -392,7 +392,7 @@ DO_ERROR_INFO(SIGILL,  "translation exception", translation_exception,
 	      ILL_ILLOPN, get_check_address(regs))
 
 static inline void
-do_fp_trap(struct pt_regs *regs, void *location,
+do_fp_trap(struct pt_regs *regs, void __user *location,
            int fpc, long interruption_code)
 {
 	siginfo_t si;
@@ -424,10 +424,10 @@ asmlinkage void illegal_op(struct pt_regs * regs, long interruption_code)
 {
 	siginfo_t info;
         __u8 opcode[6];
-	__u16 *location;
+	__u16 __user *location;
 	int signal = 0;
 
-	location = (__u16 *) get_check_address(regs);
+	location = get_check_address(regs);
 
 	/*
 	 * We got all needed information from the lowcore and can
@@ -559,10 +559,10 @@ DO_ERROR_INFO(SIGILL, "specification exception", specification_exception,
 
 asmlinkage void data_exception(struct pt_regs * regs, long interruption_code)
 {
-	__u16 *location;
+	__u16 __user *location;
 	int signal = 0;
 
-	location = (__u16 *) get_check_address(regs);
+	location = get_check_address(regs);
 
 	/*
 	 * We got all needed information from the lowcore and can

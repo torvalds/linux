@@ -34,6 +34,7 @@
 #define ISCSI_SESSION_ATTRS 11
 #define ISCSI_CONN_ATTRS 11
 #define ISCSI_HOST_ATTRS 0
+#define ISCSI_TRANSPORT_VERSION "1.1-646"
 
 struct iscsi_internal {
 	int daemon_pid;
@@ -228,14 +229,11 @@ static struct iscsi_cls_conn *iscsi_conn_lookup(uint32_t sid, uint32_t cid)
 static void iscsi_session_release(struct device *dev)
 {
 	struct iscsi_cls_session *session = iscsi_dev_to_session(dev);
-	struct iscsi_transport *transport = session->transport;
 	struct Scsi_Host *shost;
 
 	shost = iscsi_session_to_shost(session);
 	scsi_host_put(shost);
-	kfree(session->targetname);
 	kfree(session);
-	module_put(transport->owner);
 }
 
 static int iscsi_is_session_dev(const struct device *dev)
@@ -251,10 +249,9 @@ static int iscsi_user_scan(struct Scsi_Host *shost, uint channel,
 
 	mutex_lock(&ihost->mutex);
 	list_for_each_entry(session, &ihost->sessions, host_list) {
-		if ((channel == SCAN_WILD_CARD ||
-		     channel == session->channel) &&
+		if ((channel == SCAN_WILD_CARD || channel == 0) &&
 		    (id == SCAN_WILD_CARD || id == session->target_id))
-			scsi_scan_target(&session->dev, session->channel,
+			scsi_scan_target(&session->dev, 0,
 					 session->target_id, lun, 1);
 	}
 	mutex_unlock(&ihost->mutex);
@@ -291,6 +288,65 @@ void iscsi_block_session(struct iscsi_cls_session *session)
 }
 EXPORT_SYMBOL_GPL(iscsi_block_session);
 
+struct iscsi_cls_session *
+iscsi_alloc_session(struct Scsi_Host *shost,
+		    struct iscsi_transport *transport)
+{
+	struct iscsi_cls_session *session;
+
+	session = kzalloc(sizeof(*session) + transport->sessiondata_size,
+			  GFP_KERNEL);
+	if (!session)
+		return NULL;
+
+	session->transport = transport;
+	session->recovery_tmo = 120;
+	INIT_WORK(&session->recovery_work, session_recovery_timedout, session);
+	INIT_LIST_HEAD(&session->host_list);
+	INIT_LIST_HEAD(&session->sess_list);
+
+	/* this is released in the dev's release function */
+	scsi_host_get(shost);
+	session->dev.parent = &shost->shost_gendev;
+	session->dev.release = iscsi_session_release;
+	device_initialize(&session->dev);
+	if (transport->sessiondata_size)
+		session->dd_data = &session[1];
+	return session;
+}
+EXPORT_SYMBOL_GPL(iscsi_alloc_session);
+
+int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
+{
+	struct Scsi_Host *shost = iscsi_session_to_shost(session);
+	struct iscsi_host *ihost;
+	int err;
+
+	ihost = shost->shost_data;
+	session->sid = iscsi_session_nr++;
+	session->target_id = target_id;
+
+	snprintf(session->dev.bus_id, BUS_ID_SIZE, "session%u",
+		 session->sid);
+	err = device_add(&session->dev);
+	if (err) {
+		dev_printk(KERN_ERR, &session->dev, "iscsi: could not "
+			   "register session's dev\n");
+		goto release_host;
+	}
+	transport_register_device(&session->dev);
+
+	mutex_lock(&ihost->mutex);
+	list_add(&session->host_list, &ihost->sessions);
+	mutex_unlock(&ihost->mutex);
+	return 0;
+
+release_host:
+	scsi_host_put(shost);
+	return err;
+}
+EXPORT_SYMBOL_GPL(iscsi_add_session);
+
 /**
  * iscsi_create_session - create iscsi class session
  * @shost: scsi host
@@ -300,71 +356,24 @@ EXPORT_SYMBOL_GPL(iscsi_block_session);
  **/
 struct iscsi_cls_session *
 iscsi_create_session(struct Scsi_Host *shost,
-		     struct iscsi_transport *transport, int channel)
+		     struct iscsi_transport *transport,
+		     unsigned int target_id)
 {
-	struct iscsi_host *ihost;
 	struct iscsi_cls_session *session;
-	int err;
 
-	if (!try_module_get(transport->owner))
+	session = iscsi_alloc_session(shost, transport);
+	if (!session)
 		return NULL;
 
-	session = kzalloc(sizeof(*session) + transport->sessiondata_size,
-			  GFP_KERNEL);
-	if (!session)
-		goto module_put;
-	session->transport = transport;
-	session->recovery_tmo = 120;
-	INIT_WORK(&session->recovery_work, session_recovery_timedout, session);
-	INIT_LIST_HEAD(&session->host_list);
-	INIT_LIST_HEAD(&session->sess_list);
-
-	if (transport->sessiondata_size)
-		session->dd_data = &session[1];
-
-	/* this is released in the dev's release function */
-	scsi_host_get(shost);
-	ihost = shost->shost_data;
-
-	session->sid = iscsi_session_nr++;
-	session->channel = channel;
-	session->target_id = ihost->next_target_id++;
-
-	snprintf(session->dev.bus_id, BUS_ID_SIZE, "session%u",
-		 session->sid);
-	session->dev.parent = &shost->shost_gendev;
-	session->dev.release = iscsi_session_release;
-	err = device_register(&session->dev);
-	if (err) {
-		dev_printk(KERN_ERR, &session->dev, "iscsi: could not "
-			   "register session's dev\n");
-		goto free_session;
+	if (iscsi_add_session(session, target_id)) {
+		iscsi_free_session(session);
+		return NULL;
 	}
-	transport_register_device(&session->dev);
-
-	mutex_lock(&ihost->mutex);
-	list_add(&session->host_list, &ihost->sessions);
-	mutex_unlock(&ihost->mutex);
-
 	return session;
-
-free_session:
-	kfree(session);
-module_put:
-	module_put(transport->owner);
-	return NULL;
 }
-
 EXPORT_SYMBOL_GPL(iscsi_create_session);
 
-/**
- * iscsi_destroy_session - destroy iscsi session
- * @session: iscsi_session
- *
- * Can be called by a LLD or iscsi_transport. There must not be
- * any running connections.
- **/
-int iscsi_destroy_session(struct iscsi_cls_session *session)
+void iscsi_remove_session(struct iscsi_cls_session *session)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
 	struct iscsi_host *ihost = shost->shost_data;
@@ -376,19 +385,88 @@ int iscsi_destroy_session(struct iscsi_cls_session *session)
 	list_del(&session->host_list);
 	mutex_unlock(&ihost->mutex);
 
+	scsi_remove_target(&session->dev);
+
 	transport_unregister_device(&session->dev);
-	device_unregister(&session->dev);
-	return 0;
+	device_del(&session->dev);
+}
+EXPORT_SYMBOL_GPL(iscsi_remove_session);
+
+void iscsi_free_session(struct iscsi_cls_session *session)
+{
+	put_device(&session->dev);
 }
 
+EXPORT_SYMBOL_GPL(iscsi_free_session);
+
+/**
+ * iscsi_destroy_session - destroy iscsi session
+ * @session: iscsi_session
+ *
+ * Can be called by a LLD or iscsi_transport. There must not be
+ * any running connections.
+ **/
+int iscsi_destroy_session(struct iscsi_cls_session *session)
+{
+	iscsi_remove_session(session);
+	iscsi_free_session(session);
+	return 0;
+}
 EXPORT_SYMBOL_GPL(iscsi_destroy_session);
+
+static void mempool_zone_destroy(struct mempool_zone *zp)
+{
+	mempool_destroy(zp->pool);
+	kfree(zp);
+}
+
+static void*
+mempool_zone_alloc_skb(gfp_t gfp_mask, void *pool_data)
+{
+	struct mempool_zone *zone = pool_data;
+
+	return alloc_skb(zone->size, gfp_mask);
+}
+
+static void
+mempool_zone_free_skb(void *element, void *pool_data)
+{
+	kfree_skb(element);
+}
+
+static struct mempool_zone *
+mempool_zone_init(unsigned max, unsigned size, unsigned hiwat)
+{
+	struct mempool_zone *zp;
+
+	zp = kzalloc(sizeof(*zp), GFP_KERNEL);
+	if (!zp)
+		return NULL;
+
+	zp->size = size;
+	zp->hiwat = hiwat;
+	INIT_LIST_HEAD(&zp->freequeue);
+	spin_lock_init(&zp->freelock);
+	atomic_set(&zp->allocated, 0);
+
+	zp->pool = mempool_create(max, mempool_zone_alloc_skb,
+				  mempool_zone_free_skb, zp);
+	if (!zp->pool) {
+		kfree(zp);
+		return NULL;
+	}
+
+	return zp;
+}
 
 static void iscsi_conn_release(struct device *dev)
 {
 	struct iscsi_cls_conn *conn = iscsi_dev_to_conn(dev);
 	struct device *parent = conn->dev.parent;
 
-	kfree(conn->persistent_address);
+	mempool_zone_destroy(conn->z_pdu);
+	mempool_zone_destroy(conn->z_error);
+
 	kfree(conn);
 	put_device(parent);
 }
@@ -396,6 +474,31 @@ static void iscsi_conn_release(struct device *dev)
 static int iscsi_is_conn_dev(const struct device *dev)
 {
 	return dev->release == iscsi_conn_release;
+}
+
+static int iscsi_create_event_pools(struct iscsi_cls_conn *conn)
+{
+	conn->z_pdu = mempool_zone_init(Z_MAX_PDU,
+			NLMSG_SPACE(sizeof(struct iscsi_uevent) +
+				    sizeof(struct iscsi_hdr) +
+				    DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH),
+			Z_HIWAT_PDU);
+	if (!conn->z_pdu) {
+		dev_printk(KERN_ERR, &conn->dev, "iscsi: can not allocate "
+			   "pdu zone for new conn\n");
+		return -ENOMEM;
+	}
+
+	conn->z_error = mempool_zone_init(Z_MAX_ERROR,
+			NLMSG_SPACE(sizeof(struct iscsi_uevent)),
+			Z_HIWAT_ERROR);
+	if (!conn->z_error) {
+		dev_printk(KERN_ERR, &conn->dev, "iscsi: can not allocate "
+			   "error zone for new conn\n");
+		mempool_zone_destroy(conn->z_pdu);
+		return -ENOMEM;
+	}
+	return 0;
 }
 
 /**
@@ -430,9 +533,12 @@ iscsi_create_conn(struct iscsi_cls_session *session, uint32_t cid)
 	conn->transport = transport;
 	conn->cid = cid;
 
+	if (iscsi_create_event_pools(conn))
+		goto free_conn;
+
 	/* this is released in the dev's release function */
 	if (!get_device(&session->dev))
-		goto free_conn;
+		goto free_conn_pools;
 
 	snprintf(conn->dev.bus_id, BUS_ID_SIZE, "connection%d:%u",
 		 session->sid, cid);
@@ -449,6 +555,8 @@ iscsi_create_conn(struct iscsi_cls_session *session, uint32_t cid)
 
 release_parent_ref:
 	put_device(&session->dev);
+free_conn_pools:
+
 free_conn:
 	kfree(conn);
 	return NULL;
@@ -496,20 +604,6 @@ static inline struct list_head *skb_to_lh(struct sk_buff *skb)
 	return (struct list_head *)&skb->cb;
 }
 
-static void*
-mempool_zone_alloc_skb(gfp_t gfp_mask, void *pool_data)
-{
-	struct mempool_zone *zone = pool_data;
-
-	return alloc_skb(zone->size, gfp_mask);
-}
-
-static void
-mempool_zone_free_skb(void *element, void *pool_data)
-{
-	kfree_skb(element);
-}
-
 static void
 mempool_zone_complete(struct mempool_zone *zone)
 {
@@ -529,37 +623,6 @@ mempool_zone_complete(struct mempool_zone *zone)
 	spin_unlock_irqrestore(&zone->freelock, flags);
 }
 
-static struct mempool_zone *
-mempool_zone_init(unsigned max, unsigned size, unsigned hiwat)
-{
-	struct mempool_zone *zp;
-
-	zp = kzalloc(sizeof(*zp), GFP_KERNEL);
-	if (!zp)
-		return NULL;
-
-	zp->size = size;
-	zp->hiwat = hiwat;
-	INIT_LIST_HEAD(&zp->freequeue);
-	spin_lock_init(&zp->freelock);
-	atomic_set(&zp->allocated, 0);
-
-	zp->pool = mempool_create(max, mempool_zone_alloc_skb,
-				  mempool_zone_free_skb, zp);
-	if (!zp->pool) {
-		kfree(zp);
-		return NULL;
-	}
-
-	return zp;
-}
-
-static void mempool_zone_destroy(struct mempool_zone *zp)
-{
-	mempool_destroy(zp->pool);
-	kfree(zp);
-}
-
 static struct sk_buff*
 mempool_zone_get_skb(struct mempool_zone *zone)
 {
@@ -569,6 +632,27 @@ mempool_zone_get_skb(struct mempool_zone *zone)
 	if (skb)
 		atomic_inc(&zone->allocated);
 	return skb;
+}
+
+static int
+iscsi_broadcast_skb(struct mempool_zone *zone, struct sk_buff *skb, gfp_t gfp)
+{
+	unsigned long flags;
+	int rc;
+
+	skb_get(skb);
+	rc = netlink_broadcast(nls, skb, 0, 1, gfp);
+	if (rc < 0) {
+		mempool_free(skb, zone->pool);
+		printk(KERN_ERR "iscsi: can not broadcast skb (%d)\n", rc);
+		return rc;
+	}
+
+	spin_lock_irqsave(&zone->freelock, flags);
+	INIT_LIST_HEAD(skb_to_lh(skb));
+	list_add(skb_to_lh(skb), &zone->freequeue);
+	spin_unlock_irqrestore(&zone->freelock, flags);
+	return 0;
 }
 
 static int
@@ -666,7 +750,7 @@ void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error)
 	ev->r.connerror.cid = conn->cid;
 	ev->r.connerror.sid = iscsi_conn_get_sid(conn);
 
-	iscsi_unicast_skb(conn->z_error, skb, priv->daemon_pid);
+	iscsi_broadcast_skb(conn->z_error, skb, GFP_ATOMIC);
 
 	dev_printk(KERN_INFO, &conn->dev, "iscsi: detected conn error (%d)\n",
 		   error);
@@ -767,6 +851,131 @@ iscsi_if_get_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 	return err;
 }
 
+/**
+ * iscsi_if_destroy_session_done - send session destr. completion event
+ * @conn: last connection for session
+ *
+ * This is called by HW iscsi LLDs to notify userpsace that its HW has
+ * removed a session.
+ **/
+int iscsi_if_destroy_session_done(struct iscsi_cls_conn *conn)
+{
+	struct iscsi_internal *priv;
+	struct iscsi_cls_session *session;
+	struct Scsi_Host *shost;
+	struct iscsi_uevent *ev;
+	struct sk_buff  *skb;
+	struct nlmsghdr *nlh;
+	unsigned long flags;
+	int rc, len = NLMSG_SPACE(sizeof(*ev));
+
+	priv = iscsi_if_transport_lookup(conn->transport);
+	if (!priv)
+		return -EINVAL;
+
+	session = iscsi_dev_to_session(conn->dev.parent);
+	shost = iscsi_session_to_shost(session);
+
+	mempool_zone_complete(conn->z_pdu);
+
+	skb = mempool_zone_get_skb(conn->z_pdu);
+	if (!skb) {
+		dev_printk(KERN_ERR, &conn->dev, "Cannot notify userspace of "
+			  "session creation event\n");
+		return -ENOMEM;
+	}
+
+	nlh = __nlmsg_put(skb, priv->daemon_pid, 0, 0, (len - sizeof(*nlh)), 0);
+	ev = NLMSG_DATA(nlh);
+	ev->transport_handle = iscsi_handle(conn->transport);
+	ev->type = ISCSI_KEVENT_DESTROY_SESSION;
+	ev->r.d_session.host_no = shost->host_no;
+	ev->r.d_session.sid = session->sid;
+
+	/*
+	 * this will occur if the daemon is not up, so we just warn
+	 * the user and when the daemon is restarted it will handle it
+	 */
+	rc = iscsi_broadcast_skb(conn->z_pdu, skb, GFP_KERNEL);
+	if (rc < 0)
+		dev_printk(KERN_ERR, &conn->dev, "Cannot notify userspace of "
+			  "session destruction event. Check iscsi daemon\n");
+
+	spin_lock_irqsave(&sesslock, flags);
+	list_del(&session->sess_list);
+	spin_unlock_irqrestore(&sesslock, flags);
+
+	spin_lock_irqsave(&connlock, flags);
+	conn->active = 0;
+	list_del(&conn->conn_list);
+	spin_unlock_irqrestore(&connlock, flags);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(iscsi_if_destroy_session_done);
+
+/**
+ * iscsi_if_create_session_done - send session creation completion event
+ * @conn: leading connection for session
+ *
+ * This is called by HW iscsi LLDs to notify userpsace that its HW has
+ * created a session or a existing session is back in the logged in state.
+ **/
+int iscsi_if_create_session_done(struct iscsi_cls_conn *conn)
+{
+	struct iscsi_internal *priv;
+	struct iscsi_cls_session *session;
+	struct Scsi_Host *shost;
+	struct iscsi_uevent *ev;
+	struct sk_buff  *skb;
+	struct nlmsghdr *nlh;
+	unsigned long flags;
+	int rc, len = NLMSG_SPACE(sizeof(*ev));
+
+	priv = iscsi_if_transport_lookup(conn->transport);
+	if (!priv)
+		return -EINVAL;
+
+	session = iscsi_dev_to_session(conn->dev.parent);
+	shost = iscsi_session_to_shost(session);
+
+	mempool_zone_complete(conn->z_pdu);
+
+	skb = mempool_zone_get_skb(conn->z_pdu);
+	if (!skb) {
+		dev_printk(KERN_ERR, &conn->dev, "Cannot notify userspace of "
+			  "session creation event\n");
+		return -ENOMEM;
+	}
+
+	nlh = __nlmsg_put(skb, priv->daemon_pid, 0, 0, (len - sizeof(*nlh)), 0);
+	ev = NLMSG_DATA(nlh);
+	ev->transport_handle = iscsi_handle(conn->transport);
+	ev->type = ISCSI_UEVENT_CREATE_SESSION;
+	ev->r.c_session_ret.host_no = shost->host_no;
+	ev->r.c_session_ret.sid = session->sid;
+
+	/*
+	 * this will occur if the daemon is not up, so we just warn
+	 * the user and when the daemon is restarted it will handle it
+	 */
+	rc = iscsi_broadcast_skb(conn->z_pdu, skb, GFP_KERNEL);
+	if (rc < 0)
+		dev_printk(KERN_ERR, &conn->dev, "Cannot notify userspace of "
+			  "session creation event. Check iscsi daemon\n");
+
+	spin_lock_irqsave(&sesslock, flags);
+	list_add(&session->sess_list, &sesslist);
+	spin_unlock_irqrestore(&sesslock, flags);
+
+	spin_lock_irqsave(&connlock, flags);
+	list_add(&conn->conn_list, &connlist);
+	conn->active = 1;
+	spin_unlock_irqrestore(&connlock, flags);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(iscsi_if_create_session_done);
+
 static int
 iscsi_if_create_session(struct iscsi_internal *priv, struct iscsi_uevent *ev)
 {
@@ -812,26 +1021,6 @@ iscsi_if_create_conn(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 		return -ENOMEM;
 	}
 
-	conn->z_pdu = mempool_zone_init(Z_MAX_PDU,
-			NLMSG_SPACE(sizeof(struct iscsi_uevent) +
-				    sizeof(struct iscsi_hdr) +
-				    DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH),
-			Z_HIWAT_PDU);
-	if (!conn->z_pdu) {
-		dev_printk(KERN_ERR, &conn->dev, "iscsi: can not allocate "
-			   "pdu zone for new conn\n");
-		goto destroy_conn;
-	}
-
-	conn->z_error = mempool_zone_init(Z_MAX_ERROR,
-			NLMSG_SPACE(sizeof(struct iscsi_uevent)),
-			Z_HIWAT_ERROR);
-	if (!conn->z_error) {
-		dev_printk(KERN_ERR, &conn->dev, "iscsi: can not allocate "
-			   "error zone for new conn\n");
-		goto free_pdu_pool;
-	}
-
 	ev->r.c_conn_ret.sid = session->sid;
 	ev->r.c_conn_ret.cid = conn->cid;
 
@@ -841,13 +1030,6 @@ iscsi_if_create_conn(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 	spin_unlock_irqrestore(&connlock, flags);
 
 	return 0;
-
-free_pdu_pool:
-	mempool_zone_destroy(conn->z_pdu);
-destroy_conn:
-	if (transport->destroy_conn)
-		transport->destroy_conn(conn->dd_data);
-	return -ENOMEM;
 }
 
 static int
@@ -855,7 +1037,6 @@ iscsi_if_destroy_conn(struct iscsi_transport *transport, struct iscsi_uevent *ev
 {
 	unsigned long flags;
 	struct iscsi_cls_conn *conn;
-	struct mempool_zone *z_error, *z_pdu;
 
 	conn = iscsi_conn_lookup(ev->u.d_conn.sid, ev->u.d_conn.cid);
 	if (!conn)
@@ -865,25 +1046,9 @@ iscsi_if_destroy_conn(struct iscsi_transport *transport, struct iscsi_uevent *ev
 	list_del(&conn->conn_list);
 	spin_unlock_irqrestore(&connlock, flags);
 
-	z_pdu = conn->z_pdu;
-	z_error = conn->z_error;
-
 	if (transport->destroy_conn)
 		transport->destroy_conn(conn);
-
-	mempool_zone_destroy(z_pdu);
-	mempool_zone_destroy(z_error);
-
 	return 0;
-}
-
-static void
-iscsi_copy_param(struct iscsi_uevent *ev, uint32_t *value, char *data)
-{
-	if (ev->u.set_param.len != sizeof(uint32_t))
-		BUG();
-	memcpy(value, data, min_t(uint32_t, sizeof(uint32_t),
-		ev->u.set_param.len));
 }
 
 static int
@@ -892,8 +1057,7 @@ iscsi_set_param(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 	char *data = (char*)ev + sizeof(*ev);
 	struct iscsi_cls_conn *conn;
 	struct iscsi_cls_session *session;
-	int err = 0;
-	uint32_t value = 0;
+	int err = 0, value = 0;
 
 	session = iscsi_session_lookup(ev->u.set_param.sid);
 	conn = iscsi_conn_lookup(ev->u.set_param.sid, ev->u.set_param.cid);
@@ -902,42 +1066,13 @@ iscsi_set_param(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 
 	switch (ev->u.set_param.param) {
 	case ISCSI_PARAM_SESS_RECOVERY_TMO:
-		iscsi_copy_param(ev, &value, data);
+		sscanf(data, "%d", &value);
 		if (value != 0)
 			session->recovery_tmo = value;
 		break;
-	case ISCSI_PARAM_TARGET_NAME:
-		/* this should not change between logins */
-		if (session->targetname)
-			return 0;
-
-		session->targetname = kstrdup(data, GFP_KERNEL);
-		if (!session->targetname)
-			return -ENOMEM;
-		break;
-	case ISCSI_PARAM_TPGT:
-		iscsi_copy_param(ev, &value, data);
-		session->tpgt = value;
-		break;
-	case ISCSI_PARAM_PERSISTENT_PORT:
-		iscsi_copy_param(ev, &value, data);
-		conn->persistent_port = value;
-		break;
-	case ISCSI_PARAM_PERSISTENT_ADDRESS:
-		/*
-		 * this is the address returned in discovery so it should
-		 * not change between logins.
-		 */
-		if (conn->persistent_address)
-			return 0;
-
-		conn->persistent_address = kstrdup(data, GFP_KERNEL);
-		if (!conn->persistent_address)
-			return -ENOMEM;
-		break;
 	default:
-		iscsi_copy_param(ev, &value, data);
-		err = transport->set_param(conn, ev->u.set_param.param, value);
+		err = transport->set_param(conn, ev->u.set_param.param,
+					   data, ev->u.set_param.len);
 	}
 
 	return err;
@@ -975,6 +1110,21 @@ iscsi_if_transport_ep(struct iscsi_transport *transport,
 		break;
 	}
 	return rc;
+}
+
+static int
+iscsi_tgt_dscvr(struct iscsi_transport *transport,
+		struct iscsi_uevent *ev)
+{
+	struct sockaddr *dst_addr;
+
+	if (!transport->tgt_dscvr)
+		return -EINVAL;
+
+	dst_addr = (struct sockaddr *)((char*)ev + sizeof(*ev));
+	return transport->tgt_dscvr(ev->u.tgt_dscvr.type,
+				    ev->u.tgt_dscvr.host_no,
+				    ev->u.tgt_dscvr.enable, dst_addr);
 }
 
 static int
@@ -1065,6 +1215,9 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT:
 		err = iscsi_if_transport_ep(transport, ev, nlh->nlmsg_type);
 		break;
+	case ISCSI_UEVENT_TGT_DSCVR:
+		err = iscsi_tgt_dscvr(transport, ev);
+		break;
 	default:
 		err = -EINVAL;
 		break;
@@ -1147,49 +1300,31 @@ struct class_device_attribute class_device_attr_##_prefix##_##_name =	\
 /*
  * iSCSI connection attrs
  */
-#define iscsi_conn_int_attr_show(param, format)				\
+#define iscsi_conn_attr_show(param)					\
 static ssize_t								\
-show_conn_int_param_##param(struct class_device *cdev, char *buf)	\
-{									\
-	uint32_t value = 0;						\
-	struct iscsi_cls_conn *conn = iscsi_cdev_to_conn(cdev);		\
-	struct iscsi_transport *t = conn->transport;			\
-									\
-	t->get_conn_param(conn, param, &value);				\
-	return snprintf(buf, 20, format"\n", value);			\
-}
-
-#define iscsi_conn_int_attr(field, param, format)			\
-	iscsi_conn_int_attr_show(param, format)				\
-static ISCSI_CLASS_ATTR(conn, field, S_IRUGO, show_conn_int_param_##param, \
-			NULL);
-
-iscsi_conn_int_attr(max_recv_dlength, ISCSI_PARAM_MAX_RECV_DLENGTH, "%u");
-iscsi_conn_int_attr(max_xmit_dlength, ISCSI_PARAM_MAX_XMIT_DLENGTH, "%u");
-iscsi_conn_int_attr(header_digest, ISCSI_PARAM_HDRDGST_EN, "%d");
-iscsi_conn_int_attr(data_digest, ISCSI_PARAM_DATADGST_EN, "%d");
-iscsi_conn_int_attr(ifmarker, ISCSI_PARAM_IFMARKER_EN, "%d");
-iscsi_conn_int_attr(ofmarker, ISCSI_PARAM_OFMARKER_EN, "%d");
-iscsi_conn_int_attr(persistent_port, ISCSI_PARAM_PERSISTENT_PORT, "%d");
-iscsi_conn_int_attr(port, ISCSI_PARAM_CONN_PORT, "%d");
-iscsi_conn_int_attr(exp_statsn, ISCSI_PARAM_EXP_STATSN, "%u");
-
-#define iscsi_conn_str_attr_show(param)					\
-static ssize_t								\
-show_conn_str_param_##param(struct class_device *cdev, char *buf)	\
+show_conn_param_##param(struct class_device *cdev, char *buf)		\
 {									\
 	struct iscsi_cls_conn *conn = iscsi_cdev_to_conn(cdev);		\
 	struct iscsi_transport *t = conn->transport;			\
-	return t->get_conn_str_param(conn, param, buf);			\
+	return t->get_conn_param(conn, param, buf);			\
 }
 
-#define iscsi_conn_str_attr(field, param)				\
-	iscsi_conn_str_attr_show(param)					\
-static ISCSI_CLASS_ATTR(conn, field, S_IRUGO, show_conn_str_param_##param, \
+#define iscsi_conn_attr(field, param)					\
+	iscsi_conn_attr_show(param)					\
+static ISCSI_CLASS_ATTR(conn, field, S_IRUGO, show_conn_param_##param,	\
 			NULL);
 
-iscsi_conn_str_attr(persistent_address, ISCSI_PARAM_PERSISTENT_ADDRESS);
-iscsi_conn_str_attr(address, ISCSI_PARAM_CONN_ADDRESS);
+iscsi_conn_attr(max_recv_dlength, ISCSI_PARAM_MAX_RECV_DLENGTH);
+iscsi_conn_attr(max_xmit_dlength, ISCSI_PARAM_MAX_XMIT_DLENGTH);
+iscsi_conn_attr(header_digest, ISCSI_PARAM_HDRDGST_EN);
+iscsi_conn_attr(data_digest, ISCSI_PARAM_DATADGST_EN);
+iscsi_conn_attr(ifmarker, ISCSI_PARAM_IFMARKER_EN);
+iscsi_conn_attr(ofmarker, ISCSI_PARAM_OFMARKER_EN);
+iscsi_conn_attr(persistent_port, ISCSI_PARAM_PERSISTENT_PORT);
+iscsi_conn_attr(port, ISCSI_PARAM_CONN_PORT);
+iscsi_conn_attr(exp_statsn, ISCSI_PARAM_EXP_STATSN);
+iscsi_conn_attr(persistent_address, ISCSI_PARAM_PERSISTENT_ADDRESS);
+iscsi_conn_attr(address, ISCSI_PARAM_CONN_ADDRESS);
 
 #define iscsi_cdev_to_session(_cdev) \
 	iscsi_dev_to_session(_cdev->dev)
@@ -1197,61 +1332,36 @@ iscsi_conn_str_attr(address, ISCSI_PARAM_CONN_ADDRESS);
 /*
  * iSCSI session attrs
  */
-#define iscsi_session_int_attr_show(param, format)			\
+#define iscsi_session_attr_show(param)					\
 static ssize_t								\
-show_session_int_param_##param(struct class_device *cdev, char *buf)	\
-{									\
-	uint32_t value = 0;						\
-	struct iscsi_cls_session *session = iscsi_cdev_to_session(cdev);	\
-	struct iscsi_transport *t = session->transport;			\
-									\
-	t->get_session_param(session, param, &value);			\
-	return snprintf(buf, 20, format"\n", value);			\
-}
-
-#define iscsi_session_int_attr(field, param, format)			\
-	iscsi_session_int_attr_show(param, format)			\
-static ISCSI_CLASS_ATTR(sess, field, S_IRUGO, show_session_int_param_##param, \
-			NULL);
-
-iscsi_session_int_attr(initial_r2t, ISCSI_PARAM_INITIAL_R2T_EN, "%d");
-iscsi_session_int_attr(max_outstanding_r2t, ISCSI_PARAM_MAX_R2T, "%hu");
-iscsi_session_int_attr(immediate_data, ISCSI_PARAM_IMM_DATA_EN, "%d");
-iscsi_session_int_attr(first_burst_len, ISCSI_PARAM_FIRST_BURST, "%u");
-iscsi_session_int_attr(max_burst_len, ISCSI_PARAM_MAX_BURST, "%u");
-iscsi_session_int_attr(data_pdu_in_order, ISCSI_PARAM_PDU_INORDER_EN, "%d");
-iscsi_session_int_attr(data_seq_in_order, ISCSI_PARAM_DATASEQ_INORDER_EN, "%d");
-iscsi_session_int_attr(erl, ISCSI_PARAM_ERL, "%d");
-iscsi_session_int_attr(tpgt, ISCSI_PARAM_TPGT, "%d");
-
-#define iscsi_session_str_attr_show(param)				\
-static ssize_t								\
-show_session_str_param_##param(struct class_device *cdev, char *buf)	\
+show_session_param_##param(struct class_device *cdev, char *buf)	\
 {									\
 	struct iscsi_cls_session *session = iscsi_cdev_to_session(cdev); \
 	struct iscsi_transport *t = session->transport;			\
-	return t->get_session_str_param(session, param, buf);		\
+	return t->get_session_param(session, param, buf);		\
 }
 
-#define iscsi_session_str_attr(field, param)				\
-	iscsi_session_str_attr_show(param)				\
-static ISCSI_CLASS_ATTR(sess, field, S_IRUGO, show_session_str_param_##param, \
+#define iscsi_session_attr(field, param)				\
+	iscsi_session_attr_show(param)					\
+static ISCSI_CLASS_ATTR(sess, field, S_IRUGO, show_session_param_##param, \
 			NULL);
 
-iscsi_session_str_attr(targetname, ISCSI_PARAM_TARGET_NAME);
+iscsi_session_attr(targetname, ISCSI_PARAM_TARGET_NAME);
+iscsi_session_attr(initial_r2t, ISCSI_PARAM_INITIAL_R2T_EN);
+iscsi_session_attr(max_outstanding_r2t, ISCSI_PARAM_MAX_R2T);
+iscsi_session_attr(immediate_data, ISCSI_PARAM_IMM_DATA_EN);
+iscsi_session_attr(first_burst_len, ISCSI_PARAM_FIRST_BURST);
+iscsi_session_attr(max_burst_len, ISCSI_PARAM_MAX_BURST);
+iscsi_session_attr(data_pdu_in_order, ISCSI_PARAM_PDU_INORDER_EN);
+iscsi_session_attr(data_seq_in_order, ISCSI_PARAM_DATASEQ_INORDER_EN);
+iscsi_session_attr(erl, ISCSI_PARAM_ERL);
+iscsi_session_attr(tpgt, ISCSI_PARAM_TPGT);
 
-/*
- * Private session and conn attrs. userspace uses several iscsi values
- * to identify each session between reboots. Some of these values may not
- * be present in the iscsi_transport/LLD driver becuase userspace handles
- * login (and failback for login redirect) so for these type of drivers
- * the class manages the attrs and values for the iscsi_transport/LLD
- */
 #define iscsi_priv_session_attr_show(field, format)			\
 static ssize_t								\
-show_priv_session_##field(struct class_device *cdev, char *buf)	\
+show_priv_session_##field(struct class_device *cdev, char *buf)		\
 {									\
-	struct iscsi_cls_session *session = iscsi_cdev_to_session(cdev); \
+	struct iscsi_cls_session *session = iscsi_cdev_to_session(cdev);\
 	return sprintf(buf, format"\n", session->field);		\
 }
 
@@ -1259,24 +1369,7 @@ show_priv_session_##field(struct class_device *cdev, char *buf)	\
 	iscsi_priv_session_attr_show(field, format)			\
 static ISCSI_CLASS_ATTR(priv_sess, field, S_IRUGO, show_priv_session_##field, \
 			NULL)
-iscsi_priv_session_attr(targetname, "%s");
-iscsi_priv_session_attr(tpgt, "%d");
 iscsi_priv_session_attr(recovery_tmo, "%d");
-
-#define iscsi_priv_conn_attr_show(field, format)			\
-static ssize_t								\
-show_priv_conn_##field(struct class_device *cdev, char *buf)		\
-{									\
-	struct iscsi_cls_conn *conn = iscsi_cdev_to_conn(cdev);		\
-	return sprintf(buf, format"\n", conn->field);			\
-}
-
-#define iscsi_priv_conn_attr(field, format)				\
-	iscsi_priv_conn_attr_show(field, format)			\
-static ISCSI_CLASS_ATTR(priv_conn, field, S_IRUGO, show_priv_conn_##field, \
-			NULL)
-iscsi_priv_conn_attr(persistent_address, "%s");
-iscsi_priv_conn_attr(persistent_port, "%d");
 
 #define SETUP_PRIV_SESSION_RD_ATTR(field)				\
 do {									\
@@ -1284,18 +1377,13 @@ do {									\
 	count++;							\
 } while (0)
 
+
 #define SETUP_SESSION_RD_ATTR(field, param_flag)			\
 do {									\
 	if (tt->param_mask & param_flag) {				\
 		priv->session_attrs[count] = &class_device_attr_sess_##field; \
 		count++;						\
 	}								\
-} while (0)
-
-#define SETUP_PRIV_CONN_RD_ATTR(field)					\
-do {									\
-	priv->conn_attrs[count] = &class_device_attr_priv_conn_##field; \
-	count++;							\
 } while (0)
 
 #define SETUP_CONN_RD_ATTR(field, param_flag)				\
@@ -1388,6 +1476,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	if (!priv)
 		return NULL;
 	INIT_LIST_HEAD(&priv->list);
+	priv->daemon_pid = -1;
 	priv->iscsi_transport = tt;
 	priv->t.user_scan = iscsi_user_scan;
 
@@ -1424,16 +1513,8 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	SETUP_CONN_RD_ATTR(address, ISCSI_CONN_ADDRESS);
 	SETUP_CONN_RD_ATTR(port, ISCSI_CONN_PORT);
 	SETUP_CONN_RD_ATTR(exp_statsn, ISCSI_EXP_STATSN);
-
-	if (tt->param_mask & ISCSI_PERSISTENT_ADDRESS)
-		SETUP_CONN_RD_ATTR(persistent_address, ISCSI_PERSISTENT_ADDRESS);
-	else
-		SETUP_PRIV_CONN_RD_ATTR(persistent_address);
-
-	if (tt->param_mask & ISCSI_PERSISTENT_PORT)
-		SETUP_CONN_RD_ATTR(persistent_port, ISCSI_PERSISTENT_PORT);
-	else
-		SETUP_PRIV_CONN_RD_ATTR(persistent_port);
+	SETUP_CONN_RD_ATTR(persistent_address, ISCSI_PERSISTENT_ADDRESS);
+	SETUP_CONN_RD_ATTR(persistent_port, ISCSI_PERSISTENT_PORT);
 
 	BUG_ON(count > ISCSI_CONN_ATTRS);
 	priv->conn_attrs[count] = NULL;
@@ -1453,17 +1534,9 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	SETUP_SESSION_RD_ATTR(data_pdu_in_order, ISCSI_PDU_INORDER_EN);
 	SETUP_SESSION_RD_ATTR(data_seq_in_order, ISCSI_DATASEQ_INORDER_EN);
 	SETUP_SESSION_RD_ATTR(erl, ISCSI_ERL);
+	SETUP_SESSION_RD_ATTR(targetname, ISCSI_TARGET_NAME);
+	SETUP_SESSION_RD_ATTR(tpgt, ISCSI_TPGT);
 	SETUP_PRIV_SESSION_RD_ATTR(recovery_tmo);
-
-	if (tt->param_mask & ISCSI_TARGET_NAME)
-		SETUP_SESSION_RD_ATTR(targetname, ISCSI_TARGET_NAME);
-	else
-		SETUP_PRIV_SESSION_RD_ATTR(targetname);
-
-	if (tt->param_mask & ISCSI_TPGT)
-		SETUP_SESSION_RD_ATTR(tpgt, ISCSI_TPGT);
-	else
-		SETUP_PRIV_SESSION_RD_ATTR(tpgt);
 
 	BUG_ON(count > ISCSI_SESSION_ATTRS);
 	priv->session_attrs[count] = NULL;
@@ -1541,6 +1614,9 @@ static __init int iscsi_transport_init(void)
 {
 	int err;
 
+	printk(KERN_INFO "Loading iSCSI transport class v%s.",
+		ISCSI_TRANSPORT_VERSION);
+
 	err = class_register(&iscsi_transport_class);
 	if (err)
 		return err;
@@ -1606,3 +1682,4 @@ MODULE_AUTHOR("Mike Christie <michaelc@cs.wisc.edu>, "
 	      "Alex Aizman <itn780@yahoo.com>");
 MODULE_DESCRIPTION("iSCSI Transport Interface");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(ISCSI_TRANSPORT_VERSION);

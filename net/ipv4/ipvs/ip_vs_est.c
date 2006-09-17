@@ -123,11 +123,10 @@ int ip_vs_new_estimator(struct ip_vs_stats *stats)
 {
 	struct ip_vs_estimator *est;
 
-	est = kmalloc(sizeof(*est), GFP_KERNEL);
+	est = kzalloc(sizeof(*est), GFP_KERNEL);
 	if (est == NULL)
 		return -ENOMEM;
 
-	memset(est, 0, sizeof(*est));
 	est->stats = stats;
 	est->last_conns = stats->conns;
 	est->cps = stats->cps<<10;

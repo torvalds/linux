@@ -48,7 +48,7 @@ struct ep_device;
  * @urb_list: urbs queued to this endpoint; maintained by usbcore
  * @hcpriv: for use by HCD; typically holds hardware dma queue head (QH)
  *	with one or more transfer descriptors (TDs) per urb
- * @kobj: kobject for sysfs info
+ * @ep_dev: ep_device for sysfs info
  * @extra: descriptors following this endpoint in the configuration
  * @extralen: how many bytes of "extra" are valid
  *
@@ -103,8 +103,7 @@ enum usb_interface_condition {
  * @condition: binding state of the interface: not bound, binding
  *	(in probe()), bound to a driver, or unbinding (in disconnect())
  * @dev: driver model's view of this device
- * @usb_dev: if an interface is bound to the USB major, this will point
- *	to the sysfs representation for that device.
+ * @class_dev: driver model's class view of this device.
  *
  * USB device drivers attach to interfaces on a physical device.  Each
  * interface encapsulates a single high level function, such as feeding
@@ -144,7 +143,7 @@ struct usb_interface {
 					 * bound to */
 	enum usb_interface_condition condition;		/* state of binding */
 	struct device dev;		/* interface specific device info */
-	struct device *usb_dev;		/* pointer to the usb class's device, if any */
+	struct class_device *class_dev;
 };
 #define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
 #define	interface_to_usbdev(intf) \
@@ -361,7 +360,7 @@ struct usb_device {
 	char *serial;			/* iSerialNumber string, if present */
 
 	struct list_head filelist;
-	struct device *usbfs_dev;
+	struct class_device *class_dev;
 	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the device */
 
 	/*

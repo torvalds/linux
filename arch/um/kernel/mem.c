@@ -24,8 +24,6 @@
 #include "init.h"
 #include "kern_constants.h"
 
-extern char __binary_start;
-
 /* Changed during early boot */
 unsigned long *empty_zero_page = NULL;
 unsigned long *empty_bad_page = NULL;
@@ -65,8 +63,6 @@ static void setup_highmem(unsigned long highmem_start,
 
 void mem_init(void)
 {
-	unsigned long start;
-
 	max_low_pfn = (high_physmem - uml_physmem) >> PAGE_SHIFT;
 
         /* clear the zero-page */
@@ -80,13 +76,6 @@ void mem_init(void)
 	initial_thread_cb(map_cb, NULL);
 	free_bootmem(__pa(brk_end), uml_reserved - brk_end);
 	uml_reserved = brk_end;
-
-	/* Fill in any hole at the start of the binary */
-	start = (unsigned long) &__binary_start & PAGE_MASK;
-	if(uml_physmem != start){
-		map_memory(uml_physmem, __pa(uml_physmem), start - uml_physmem,
-			   1, 1, 0);
-	}
 
 	/* this will put all low memory onto the freelists */
 	totalram_pages = free_all_bootmem();

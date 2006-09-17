@@ -65,7 +65,7 @@ the following functions or values:
 	1. (optional) set up RTC routines
 	2. (optional) calibrate and set the mips_counter_frequency
 
-  b) board_timer_setup - a function pointer.  Invoked at the end of time_init()
+  b) plat_timer_setup - a function pointer.  Invoked at the end of time_init()
 	1. (optional) over-ride any decisions made in time_init()
 	2. set up the irqaction for timer interrupt.
 	3. enable the timer interrupt
@@ -116,19 +116,17 @@ Step 2:  the machine setup() function
 
   If you supply board_time_init(), set the function poointer.
 
-  Set the function pointer board_timer_setup() (mandatory)
 
-
-Step 3: implement rtc routines, board_time_init() and board_timer_setup()
+Step 3: implement rtc routines, board_time_init() and plat_timer_setup()
   if needed.
 
-  board_time_init() - 
+  board_time_init() -
   	a) (optional) set up RTC routines, 
         b) (optional) calibrate and set the mips_counter_frequency
  	    (only needed if you intended to use fixed_rate_gettimeoffset
  	     or use cpu counter as timer interrupt source)
 
-  board_timer_setup() - 
+  plat_timer_setup() -
  	a) (optional) over-write any choices made above by time_init().
  	b) machine specific code should setup the timer irqaction.
  	c) enable the timer interrupt

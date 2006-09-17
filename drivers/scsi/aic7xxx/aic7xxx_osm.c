@@ -353,7 +353,6 @@ MODULE_PARM_DESC(aic7xxx,
 "				periodically to prevent tag starvation.\n"
 "				This may be required by some older disk\n"
 "				drives or RAID arrays.\n"
-"	reverse_scan		Sort PCI devices highest Bus/Slot to lowest\n"
 "	tag_info:<tag_str>	Set per-target tag depth\n"
 "	global_tag_depth:<int>	Global tag depth for every target\n"
 "				on every bus\n"

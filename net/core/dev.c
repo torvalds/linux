@@ -116,6 +116,7 @@
 #include <linux/audit.h>
 #include <linux/dmaengine.h>
 #include <linux/err.h>
+#include <linux/ctype.h>
 
 /*
  *	The list of packet types we will receive (as opposed to discard)
@@ -632,14 +633,22 @@ struct net_device * dev_get_by_flags(unsigned short if_flags, unsigned short mas
  *	@name: name string
  *
  *	Network device names need to be valid file names to
- *	to allow sysfs to work
+ *	to allow sysfs to work.  We also disallow any kind of
+ *	whitespace.
  */
 int dev_valid_name(const char *name)
 {
-	return !(*name == '\0' 
-		 || !strcmp(name, ".")
-		 || !strcmp(name, "..")
-		 || strchr(name, '/'));
+	if (*name == '\0')
+		return 0;
+	if (!strcmp(name, ".") || !strcmp(name, ".."))
+		return 0;
+
+	while (*name) {
+		if (*name == '/' || isspace(*name))
+			return 0;
+		name++;
+	}
+	return 1;
 }
 
 /**
@@ -1162,9 +1171,12 @@ int skb_checksum_help(struct sk_buff *skb, int inward)
 	unsigned int csum;
 	int ret = 0, offset = skb->h.raw - skb->data;
 
-	if (inward) {
-		skb->ip_summed = CHECKSUM_NONE;
-		goto out;
+	if (inward)
+		goto out_set_summed;
+
+	if (unlikely(skb_shinfo(skb)->gso_size)) {
+		/* Let GSO fix up the checksum. */
+		goto out_set_summed;
 	}
 
 	if (skb_cloned(skb)) {
@@ -1181,6 +1193,8 @@ int skb_checksum_help(struct sk_buff *skb, int inward)
 	BUG_ON(skb->csum + 2 > offset);
 
 	*(u16*)(skb->h.raw + skb->csum) = csum_fold(csum);
+
+out_set_summed:
 	skb->ip_summed = CHECKSUM_NONE;
 out:	
 	return ret;
@@ -1201,17 +1215,30 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
 	struct packet_type *ptype;
 	int type = skb->protocol;
+	int err;
 
 	BUG_ON(skb_shinfo(skb)->frag_list);
-	BUG_ON(skb->ip_summed != CHECKSUM_HW);
 
 	skb->mac.raw = skb->data;
 	skb->mac_len = skb->nh.raw - skb->data;
 	__skb_pull(skb, skb->mac_len);
 
+	if (unlikely(skb->ip_summed != CHECKSUM_HW)) {
+		if (skb_header_cloned(skb) &&
+		    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
+			return ERR_PTR(err);
+	}
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, &ptype_base[ntohs(type) & 15], list) {
 		if (ptype->type == type && !ptype->dev && ptype->gso_segment) {
+			if (unlikely(skb->ip_summed != CHECKSUM_HW)) {
+				err = ptype->gso_send_check(skb);
+				segs = ERR_PTR(err);
+				if (err || skb_gso_ok(skb, features))
+					break;
+				__skb_push(skb, skb->data - skb->nh.raw);
+			}
 			segs = ptype->gso_segment(skb, features);
 			break;
 		}
@@ -1601,26 +1628,10 @@ static inline struct net_device *skb_bond(struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 
 	if (dev->master) {
-		/*
-		 * On bonding slaves other than the currently active
-		 * slave, suppress duplicates except for 802.3ad
-		 * ETH_P_SLOW and alb non-mcast/bcast.
-		 */
-		if (dev->priv_flags & IFF_SLAVE_INACTIVE) {
-			if (dev->master->priv_flags & IFF_MASTER_ALB) {
-				if (skb->pkt_type != PACKET_BROADCAST &&
-				    skb->pkt_type != PACKET_MULTICAST)
-					goto keep;
-			}
-
-			if (dev->master->priv_flags & IFF_MASTER_8023AD &&
-			    skb->protocol == __constant_htons(ETH_P_SLOW))
-				goto keep;
-		
+		if (skb_bond_should_drop(skb)) {
 			kfree_skb(skb);
 			return NULL;
 		}
-keep:
 		skb->dev = dev->master;
 	}
 
@@ -1727,7 +1738,7 @@ static int ing_filter(struct sk_buff *skb)
 	if (dev->qdisc_ingress) {
 		__u32 ttl = (__u32) G_TC_RTTL(skb->tc_verd);
 		if (MAX_RED_LOOP < ttl++) {
-			printk("Redir loop detected Dropping packet (%s->%s)\n",
+			printk(KERN_WARNING "Redir loop detected Dropping packet (%s->%s)\n",
 				skb->input_dev->name, skb->dev->name);
 			return TC_ACT_SHOT;
 		}
@@ -2922,7 +2933,7 @@ int register_netdevice(struct net_device *dev)
 	/* Fix illegal SG+CSUM combinations. */
 	if ((dev->features & NETIF_F_SG) &&
 	    !(dev->features & NETIF_F_ALL_CSUM)) {
-		printk("%s: Dropping NETIF_F_SG since no checksum feature.\n",
+		printk(KERN_NOTICE "%s: Dropping NETIF_F_SG since no checksum feature.\n",
 		       dev->name);
 		dev->features &= ~NETIF_F_SG;
 	}
@@ -2930,7 +2941,7 @@ int register_netdevice(struct net_device *dev)
 	/* TSO requires that SG is present as well. */
 	if ((dev->features & NETIF_F_TSO) &&
 	    !(dev->features & NETIF_F_SG)) {
-		printk("%s: Dropping NETIF_F_TSO since no SG feature.\n",
+		printk(KERN_NOTICE "%s: Dropping NETIF_F_TSO since no SG feature.\n",
 		       dev->name);
 		dev->features &= ~NETIF_F_TSO;
 	}
@@ -3401,12 +3412,9 @@ static void net_dma_rebalance(void)
 	unsigned int cpu, i, n;
 	struct dma_chan *chan;
 
-	lock_cpu_hotplug();
-
 	if (net_dma_count == 0) {
 		for_each_online_cpu(cpu)
-			rcu_assign_pointer(per_cpu(softnet_data.net_dma, cpu), NULL);
-		unlock_cpu_hotplug();
+			rcu_assign_pointer(per_cpu(softnet_data, cpu).net_dma, NULL);
 		return;
 	}
 
@@ -3419,15 +3427,13 @@ static void net_dma_rebalance(void)
 		   + (i < (num_online_cpus() % net_dma_count) ? 1 : 0));
 
 		while(n) {
-			per_cpu(softnet_data.net_dma, cpu) = chan;
+			per_cpu(softnet_data, cpu).net_dma = chan;
 			cpu = next_cpu(cpu, cpu_online_map);
 			n--;
 		}
 		i++;
 	}
 	rcu_read_unlock();
-
-	unlock_cpu_hotplug();
 }
 
 /**

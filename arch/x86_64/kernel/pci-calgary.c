@@ -1,9 +1,11 @@
 /*
  * Derived from arch/powerpc/kernel/iommu.c
  *
- * Copyright (C) 2006 Jon Mason <jdmason@us.ibm.com>, IBM Corporation
- * Copyright (C) 2006 Muli Ben-Yehuda <muli@il.ibm.com>, IBM Corporation
+ * Copyright (C) IBM Corporation, 2006
  *
+ * Author: Jon Mason <jdmason@us.ibm.com>
+ * Author: Muli Ben-Yehuda <muli@il.ibm.com>
+
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -83,7 +85,8 @@
 #define CSR_AGENT_MASK		0xffe0ffff
 
 #define MAX_NUM_OF_PHBS		8 /* how many PHBs in total? */
-#define MAX_PHB_BUS_NUM		(MAX_NUM_OF_PHBS * 2) /* max dev->bus->number */
+#define MAX_NUM_CHASSIS		8 /* max number of chassis */
+#define MAX_PHB_BUS_NUM		(MAX_NUM_OF_PHBS * MAX_NUM_CHASSIS * 2) /* max dev->bus->number */
 #define PHBS_PER_CALGARY	4
 
 /* register offsets in Calgary's internal register space */
@@ -108,7 +111,8 @@ static const unsigned long phb_offsets[] = {
 	0xB000 /* PHB3 */
 };
 
-void* tce_table_kva[MAX_NUM_OF_PHBS * MAX_NUMNODES];
+static char bus_to_phb[MAX_PHB_BUS_NUM];
+void* tce_table_kva[MAX_PHB_BUS_NUM];
 unsigned int specified_table_size = TCE_TABLE_SIZE_UNSPECIFIED;
 static int translate_empty_slots __read_mostly = 0;
 static int calgary_detected __read_mostly = 0;
@@ -117,7 +121,7 @@ static int calgary_detected __read_mostly = 0;
  * the bitmap of PHBs the user requested that we disable
  * translation on.
  */
-static DECLARE_BITMAP(translation_disabled, MAX_NUMNODES * MAX_PHB_BUS_NUM);
+static DECLARE_BITMAP(translation_disabled, MAX_PHB_BUS_NUM);
 
 static void tce_cache_blast(struct iommu_table *tbl);
 
@@ -450,7 +454,7 @@ static struct dma_mapping_ops calgary_dma_ops = {
 
 static inline int busno_to_phbid(unsigned char num)
 {
-	return bus_to_phb(num) % PHBS_PER_CALGARY;
+	return bus_to_phb[num];
 }
 
 static inline unsigned long split_queue_offset(unsigned char num)
@@ -810,7 +814,7 @@ static int __init calgary_init(void)
 	int i, ret = -ENODEV;
 	struct pci_dev *dev = NULL;
 
-	for (i = 0; i <= num_online_nodes() * MAX_NUM_OF_PHBS; i++) {
+	for (i = 0; i < MAX_PHB_BUS_NUM; i++) {
 		dev = pci_get_device(PCI_VENDOR_ID_IBM,
 				     PCI_DEVICE_ID_IBM_CALGARY,
 				     dev);
@@ -820,7 +824,7 @@ static int __init calgary_init(void)
 			calgary_init_one_nontraslated(dev);
 			continue;
 		}
-		if (!tce_table_kva[i] && !translate_empty_slots) {
+		if (!tce_table_kva[dev->bus->number] && !translate_empty_slots) {
 			pci_dev_put(dev);
 			continue;
 		}
@@ -840,7 +844,7 @@ error:
 			pci_dev_put(dev);
 			continue;
 		}
-		if (!tce_table_kva[i] && !translate_empty_slots)
+		if (!tce_table_kva[dev->bus->number] && !translate_empty_slots)
 			continue;
 		calgary_disable_translation(dev);
 		calgary_free_tar(dev);
@@ -874,9 +878,10 @@ static inline int __init determine_tce_table_size(u64 ram)
 void __init detect_calgary(void)
 {
 	u32 val;
-	int bus, table_idx;
+	int bus;
 	void *tbl;
-	int detected = 0;
+	int calgary_found = 0;
+	int phb = -1;
 
 	/*
 	 * if the user specified iommu=off or iommu=soft or we found
@@ -887,38 +892,46 @@ void __init detect_calgary(void)
 
 	specified_table_size = determine_tce_table_size(end_pfn * PAGE_SIZE);
 
-	for (bus = 0, table_idx = 0;
-	     bus <= num_online_nodes() * MAX_PHB_BUS_NUM;
-	     bus++) {
-		BUG_ON(bus > MAX_NUMNODES * MAX_PHB_BUS_NUM);
+	for (bus = 0; bus < MAX_PHB_BUS_NUM; bus++) {
+		int dev;
+
+		tce_table_kva[bus] = NULL;
+		bus_to_phb[bus] = -1;
+
 		if (read_pci_config(bus, 0, 0, 0) != PCI_VENDOR_DEVICE_ID_CALGARY)
 			continue;
+
+		/*
+		 * There are 4 PHBs per Calgary chip.  Set phb to which phb (0-3)
+		 * it is connected to releative to the clagary chip.
+		 */
+		phb = (phb + 1) % PHBS_PER_CALGARY;
+
 		if (test_bit(bus, translation_disabled)) {
 			printk(KERN_INFO "Calgary: translation is disabled for "
 			       "PHB 0x%x\n", bus);
 			/* skip this phb, don't allocate a tbl for it */
-			tce_table_kva[table_idx] = NULL;
-			table_idx++;
 			continue;
 		}
 		/*
-		 * scan the first slot of the PCI bus to see if there
-		 * are any devices present
+		 * Scan the slots of the PCI bus to see if there is a device present.
+		 * The parent bus will be the zero-ith device, so start at 1.
 		 */
-		val = read_pci_config(bus, 1, 0, 0);
-		if (val != 0xffffffff || translate_empty_slots) {
-			tbl = alloc_tce_table();
-			if (!tbl)
-				goto cleanup;
-			detected = 1;
-		} else
-			tbl = NULL;
-
-		tce_table_kva[table_idx] = tbl;
-		table_idx++;
+		for (dev = 1; dev < 8; dev++) {
+			val = read_pci_config(bus, dev, 0, 0);
+			if (val != 0xffffffff || translate_empty_slots) {
+				tbl = alloc_tce_table();
+				if (!tbl)
+					goto cleanup;
+				tce_table_kva[bus] = tbl;
+				bus_to_phb[bus] = phb;
+				calgary_found = 1;
+				break;
+			}
+		}
 	}
 
-	if (detected) {
+	if (calgary_found) {
 		iommu_detected = 1;
 		calgary_detected = 1;
 		printk(KERN_INFO "PCI-DMA: Calgary IOMMU detected. "
@@ -927,9 +940,9 @@ void __init detect_calgary(void)
 	return;
 
 cleanup:
-	for (--table_idx; table_idx >= 0; --table_idx)
-		if (tce_table_kva[table_idx])
-			free_tce_table(tce_table_kva[table_idx]);
+	for (--bus; bus >= 0; --bus)
+		if (tce_table_kva[bus])
+			free_tce_table(tce_table_kva[bus]);
 }
 
 int __init calgary_iommu_init(void)
@@ -1000,7 +1013,7 @@ static int __init calgary_parse_options(char *p)
 			if (p == endp)
 				break;
 
-			if (bridge <= (num_online_nodes() * MAX_PHB_BUS_NUM)) {
+			if (bridge < MAX_PHB_BUS_NUM) {
 				printk(KERN_INFO "Calgary: disabling "
 				       "translation for PHB 0x%x\n", bridge);
 				set_bit(bridge, translation_disabled);

@@ -2353,7 +2353,7 @@ static int __init smsc_superio_lpc(unsigned short cfg_base)
 #ifdef CONFIG_PCI
 #define PCIID_VENDOR_INTEL 0x8086
 #define PCIID_VENDOR_ALI 0x10b9
-static struct smsc_ircc_subsystem_configuration subsystem_configurations[] __devinitdata = {
+static struct smsc_ircc_subsystem_configuration subsystem_configurations[] __initdata = {
 	{
 		.vendor = PCIID_VENDOR_INTEL, /* Intel 82801DBM LPC bridge */
 		.device = 0x24cc,

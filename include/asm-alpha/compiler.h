@@ -90,6 +90,7 @@
   __asm__("stw %1,%0" : "=m"(mem) : "r"(val))
 #endif
 
+#ifdef __KERNEL__
 /* Some idiots over in <linux/compiler.h> thought inline should imply
    always_inline.  This breaks stuff.  We'll include this file whenever
    we run into such problems.  */
@@ -100,5 +101,7 @@
 #undef __inline
 #undef __always_inline
 #define __always_inline		inline __attribute__((always_inline))
+
+#endif /* __KERNEL__ */
 
 #endif /* __ALPHA_COMPILER_H */

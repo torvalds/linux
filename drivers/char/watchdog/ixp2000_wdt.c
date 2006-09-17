@@ -168,7 +168,7 @@ ixp2000_wdt_release(struct inode *inode, struct file *file)
 }
 
 
-static struct file_operations ixp2000_wdt_fops =
+static const struct file_operations ixp2000_wdt_fops =
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
