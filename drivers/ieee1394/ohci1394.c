@@ -3546,15 +3546,19 @@ static int ohci1394_pci_resume (struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_enable_device(pdev);
-
-	return 0;
+	return pci_enable_device(pdev);
 }
 
 static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 {
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	int err;
+
+	err = pci_save_state(pdev);
+	if (err)
+		goto out;
+	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (err)
+		goto out;
 
 /* PowerMac suspend code comes last */
 #ifdef CONFIG_PPC_PMAC
@@ -3567,7 +3571,8 @@ static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
 	}
 #endif /* CONFIG_PPC_PMAC */
-	return 0;
+out:
+	return err;
 }
 #endif /* CONFIG_PM */
 
