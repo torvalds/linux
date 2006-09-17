@@ -3532,6 +3532,7 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM
 static int ohci1394_pci_resume (struct pci_dev *pdev)
 {
+/* PowerMac resume code comes first */
 #ifdef CONFIG_PPC_PMAC
 	if (machine_is(powermac)) {
 		struct device_node *of_node;
@@ -3543,17 +3544,19 @@ static int ohci1394_pci_resume (struct pci_dev *pdev)
 	}
 #endif /* CONFIG_PPC_PMAC */
 
+	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	pci_enable_device(pdev);
 
 	return 0;
 }
 
-
 static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	pci_save_state(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
+/* PowerMac suspend code comes last */
 #ifdef CONFIG_PPC_PMAC
 	if (machine_is(powermac)) {
 		struct device_node *of_node;
@@ -3563,11 +3566,10 @@ static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 		if (of_node)
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
 	}
-#endif
-
+#endif /* CONFIG_PPC_PMAC */
 	return 0;
 }
-#endif
+#endif /* CONFIG_PM */
 
 #define PCI_CLASS_FIREWIRE_OHCI     ((PCI_CLASS_SERIAL_FIREWIRE << 8) | 0x10)
 
