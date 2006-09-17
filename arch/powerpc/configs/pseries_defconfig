@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.18-rc3
-# Tue Aug  8 09:14:48 2006
+# Linux kernel version: 2.6.18-rc6
+# Sun Sep 10 10:45:12 2006
 #
 CONFIG_PPC64=y
 CONFIG_64BIT=y
@@ -128,7 +128,6 @@ CONFIG_PPC_PSERIES=y
 # CONFIG_UDBG_RTAS_CONSOLE is not set
 CONFIG_XICS=y
 # CONFIG_U3_DART is not set
-CONFIG_MPIC=y
 CONFIG_PPC_RTAS=y
 CONFIG_RTAS_ERROR_LOGGING=y
 CONFIG_RTAS_PROC=y
@@ -140,6 +139,7 @@ CONFIG_IBMEBUS=y
 # CONFIG_PPC_970_NAP is not set
 # CONFIG_CPU_FREQ is not set
 # CONFIG_WANT_EARLY_SERIAL is not set
+CONFIG_MPIC=y
 
 #
 # Kernel options
@@ -196,6 +196,7 @@ CONFIG_ISA_DMA_API=y
 # Bus options
 #
 CONFIG_GENERIC_ISA_DMA=y
+# CONFIG_MPIC_WEIRD is not set
 CONFIG_PPC_I8259=y
 # CONFIG_PPC_INDIRECT_PCI is not set
 CONFIG_PCI=y
@@ -790,7 +791,6 @@ CONFIG_SERIAL_JSM=m
 CONFIG_UNIX98_PTYS=y
 CONFIG_LEGACY_PTYS=y
 CONFIG_LEGACY_PTY_COUNT=256
-# CONFIG_BRIQ_PANEL is not set
 # CONFIG_PRINTER is not set
 # CONFIG_PPDEV is not set
 # CONFIG_TIPAR is not set

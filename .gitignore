@@ -12,6 +12,9 @@
 *.ko
 *.so
 *.mod.c
+*.i
+*.lst
+*.symtypes
 
 #
 # Top-level generic files

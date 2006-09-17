@@ -326,6 +326,7 @@ ipoib_mcast_sendonly_join_complete(int status,
 
 		/* Clear the busy flag so we try again */
 		clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
+		mcast->query = NULL;
 	}
 
 	complete(&mcast->done);

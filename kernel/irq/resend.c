@@ -63,8 +63,7 @@ void check_irq_resend(struct irq_desc *desc, unsigned int irq)
 	desc->chip->enable(irq);
 
 	if ((status & (IRQ_PENDING | IRQ_REPLAY)) == IRQ_PENDING) {
-		desc->status &= ~IRQ_PENDING;
-		desc->status = status | IRQ_REPLAY;
+		desc->status = (status & ~IRQ_PENDING) | IRQ_REPLAY;
 
 		if (!desc->chip || !desc->chip->retrigger ||
 					!desc->chip->retrigger(irq)) {
