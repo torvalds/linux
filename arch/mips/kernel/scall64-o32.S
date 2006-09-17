@@ -498,7 +498,7 @@ sys_call_table:
 	PTR	sys_mknodat			/* 4290 */
 	PTR	sys_fchownat
 	PTR	compat_sys_futimesat
-	PTR	compat_sys_newfstatat
+	PTR	sys_newfstatat
 	PTR	sys_unlinkat
 	PTR	sys_renameat			/* 4295 */
 	PTR	sys_linkat
