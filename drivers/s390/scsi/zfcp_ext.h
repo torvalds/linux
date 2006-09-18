@@ -55,7 +55,6 @@ extern void   zfcp_unit_dequeue(struct zfcp_unit *);
 
 /******************************* S/390 IO ************************************/
 extern int  zfcp_ccw_register(void);
-extern void zfcp_ccw_unregister(void);
 
 extern void zfcp_qdio_zero_sbals(struct qdio_buffer **, int, int);
 extern int  zfcp_qdio_allocate(struct zfcp_adapter *);
