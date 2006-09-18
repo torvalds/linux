@@ -1254,8 +1254,7 @@ int usb_new_device(struct usb_device *udev)
 					USB_DT_OTG, (void **) &desc) == 0) {
 			if (desc->bmAttributes & USB_OTG_HNP) {
 				unsigned		port1 = udev->portnum;
-				struct usb_device	*root = udev->parent;
-				
+
 				dev_info(&udev->dev,
 					"Dual-Role OTG device on %sHNP port\n",
 					(port1 == bus->otg_port)
