@@ -311,22 +311,6 @@
 /* SSP serial port unit 0x00001600 - 0x0000167F */
 
 /* I2C bus interface unit 0x00001680 - 0x000016FF */
-/* for I2C bit defs see drivers/i2c/i2c-iop3xx.h */
-
-#define IOP331_ICR0       (volatile u32 *)IOP331_REG_ADDR(0x00001680)
-#define IOP331_ISR0       (volatile u32 *)IOP331_REG_ADDR(0x00001684)
-#define IOP331_ISAR0      (volatile u32 *)IOP331_REG_ADDR(0x00001688)
-#define IOP331_IDBR0      (volatile u32 *)IOP331_REG_ADDR(0x0000168C)
-/* Reserved 0x00001690 */
-#define IOP331_IBMR0      (volatile u32 *)IOP331_REG_ADDR(0x00001694)
-/* Reserved 0x00001698 */
-/* Reserved 0x0000169C */
-#define IOP331_ICR1       (volatile u32 *)IOP331_REG_ADDR(0x000016A0)
-#define IOP331_ISR1       (volatile u32 *)IOP331_REG_ADDR(0x000016A4)
-#define IOP331_ISAR1      (volatile u32 *)IOP331_REG_ADDR(0x000016A8)
-#define IOP331_IDBR1      (volatile u32 *)IOP331_REG_ADDR(0x000016AC)
-#define IOP331_IBMR1      (volatile u32 *)IOP331_REG_ADDR(0x000016B4)
-/* Reserved 0x000016B8 through 0x000016FF */
 
 /* 0x00001700 through 0x0000172C  UART 0 */
 

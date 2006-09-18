@@ -14,6 +14,7 @@
 
 #include <linux/delay.h>
 #include <asm/hardware.h>
+#include <asm/hardware/iop3xx.h>
 
 /*
  * Shared variables
@@ -39,23 +40,23 @@ void ep80219_power_off(void)
      */
 
 	/* Send the Address byte w/ the start condition */
-	*IOP321_IDBR1 = 0x60;
-	*IOP321_ICR1 = 0xE9;
+	*IOP3XX_IDBR1 = 0x60;
+	*IOP3XX_ICR1 = 0xE9;
     mdelay(1);
 
 	/* Send the START_MSG byte w/ no start or stop condition */
-	*IOP321_IDBR1 = 0x0F;
-	*IOP321_ICR1 = 0xE8;
+	*IOP3XX_IDBR1 = 0x0F;
+	*IOP3XX_ICR1 = 0xE8;
     mdelay(1);
 
 	/* Send the SHUTDOWN_COMPLETE Message ID byte w/ no start or stop condition */
-	*IOP321_IDBR1 = 0x03;
-	*IOP321_ICR1 = 0xE8;
+	*IOP3XX_IDBR1 = 0x03;
+	*IOP3XX_ICR1 = 0xE8;
     mdelay(1);
 
 	/* Send an ignored byte w/ stop condition */
-	*IOP321_IDBR1 = 0x00;
-	*IOP321_ICR1 = 0xEA;
+	*IOP3XX_IDBR1 = 0x00;
+	*IOP3XX_ICR1 = 0xEA;
 
 	while (1) ;
 }

@@ -314,20 +314,6 @@
 
 /* SSP serial port unit 0x00001600 - 0x0000167F */
 /* I2C bus interface unit 0x00001680 - 0x000016FF */
-#define IOP321_ICR0       (volatile u32 *)IOP321_REG_ADDR(0x00001680)
-#define IOP321_ISR0       (volatile u32 *)IOP321_REG_ADDR(0x00001684)
-#define IOP321_ISAR0      (volatile u32 *)IOP321_REG_ADDR(0x00001688)
-#define IOP321_IDBR0      (volatile u32 *)IOP321_REG_ADDR(0x0000168C)
-/* Reserved 0x00001690 */
-#define IOP321_IBMR0      (volatile u32 *)IOP321_REG_ADDR(0x00001694)
-/* Reserved 0x00001698 */
-/* Reserved 0x0000169C */
-#define IOP321_ICR1       (volatile u32 *)IOP321_REG_ADDR(0x000016A0)
-#define IOP321_ISR1       (volatile u32 *)IOP321_REG_ADDR(0x000016A4)
-#define IOP321_ISAR1      (volatile u32 *)IOP321_REG_ADDR(0x000016A8)
-#define IOP321_IDBR1      (volatile u32 *)IOP321_REG_ADDR(0x000016AC)
-#define IOP321_IBMR1      (volatile u32 *)IOP321_REG_ADDR(0x000016B4)
-/* Reserved 0x000016B8 through 0x000016FC */
 
 /* for I2C bit defs see drivers/i2c/i2c-iop3xx.h */
 

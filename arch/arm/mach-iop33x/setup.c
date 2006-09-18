@@ -100,51 +100,9 @@ static struct platform_device iop33x_uart1 = {
        .resource = iop33x_uart1_resources,
 };
 
-static struct resource iop33x_i2c_0_resources[] = {
-	[0] = {
-		.start = 0xfffff680,
-		.end = 0xfffff698,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_IOP331_I2C_0,
-		.end = IRQ_IOP331_I2C_0,
-		.flags = IORESOURCE_IRQ
-	}
-};
-
-static struct resource iop33x_i2c_1_resources[] = {
-	[0] = {
-		.start = 0xfffff6a0,
-		.end = 0xfffff6b8,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_IOP331_I2C_1,
-		.end = IRQ_IOP331_I2C_1,
-		.flags = IORESOURCE_IRQ
-	}
-};
-
-static struct platform_device iop33x_i2c_0_controller = {
-	.name = "IOP3xx-I2C",
-	.id = 0,
-	.num_resources = 2,
-	.resource = iop33x_i2c_0_resources
-};
-
-static struct platform_device iop33x_i2c_1_controller = {
-	.name = "IOP3xx-I2C",
-	.id = 1,
-	.num_resources = 2,
-	.resource = iop33x_i2c_1_resources
-};
-
 static struct platform_device *iop33x_devices[] __initdata = {
 	&iop33x_uart0,
 	&iop33x_uart1,
-	&iop33x_i2c_0_controller,
-	&iop33x_i2c_1_controller
 };
 
 void __init iop33x_init(void)
@@ -154,6 +112,8 @@ void __init iop33x_init(void)
 		platform_add_devices(iop33x_devices,
 				ARRAY_SIZE(iop33x_devices));
 	}
+	platform_device_register(&iop3xx_i2c0_device);
+	platform_device_register(&iop3xx_i2c1_device);
 }
 
 #ifdef CONFIG_ARCH_IOP33X

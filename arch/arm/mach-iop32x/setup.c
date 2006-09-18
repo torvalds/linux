@@ -29,6 +29,7 @@
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/hardware/iop3xx.h>
 
 #define IOP321_UART_XTAL 1843200
 
@@ -57,58 +58,10 @@ static struct uart_port iop321_serial_ports[] = {
 	}
 };
 
-static struct resource iop32x_i2c_0_resources[] = {
-	[0] = {
-		.start = 0xfffff680,
-		.end = 0xfffff698,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_IOP321_I2C_0,
-		.end = IRQ_IOP321_I2C_0,
-		.flags = IORESOURCE_IRQ
-	}
-};
-
-static struct resource iop32x_i2c_1_resources[] = {
-	[0] = {
-		.start = 0xfffff6a0,
-		.end = 0xfffff6b8,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_IOP321_I2C_1,
-		.end = IRQ_IOP321_I2C_1,
-		.flags = IORESOURCE_IRQ
-	}
-};
-
-static struct platform_device iop32x_i2c_0_controller = {
-	.name = "IOP3xx-I2C",
-	.id = 0,
-	.num_resources = 2,
-	.resource = iop32x_i2c_0_resources
-};
-
-static struct platform_device iop32x_i2c_1_controller = {
-	.name = "IOP3xx-I2C",
-	.id = 1,
-	.num_resources = 2,
-	.resource = iop32x_i2c_1_resources
-};
-
-static struct platform_device *iop32x_devices[] __initdata = {
-	&iop32x_i2c_0_controller,
-	&iop32x_i2c_1_controller
-};
-
 void __init iop32x_init(void)
 {
-	if(iop_is_321())
-	{
-		platform_add_devices(iop32x_devices,
-				ARRAY_SIZE(iop32x_devices));
-	}
+	platform_device_register(&iop3xx_i2c0_device);
+	platform_device_register(&iop3xx_i2c1_device);
 	early_serial_setup(&iop321_serial_ports[0]);
 }
 
