@@ -22,6 +22,11 @@
 #define PCIBIOS_MIN_IO		0x00000000
 #define PCIBIOS_MIN_MEM		0x00000000
 
+#ifndef __ASSEMBLY__
+extern struct platform_device iop33x_uart0_device;
+extern struct platform_device iop33x_uart1_device;
+#endif
+
 
 /*
  * Generic chipset bits

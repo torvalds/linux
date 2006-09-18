@@ -150,18 +150,6 @@
 #define IOP321_IINTSRC    (volatile u32 *)IOP321_REG_ADDR(0x000007D8)
 #define IOP321_FINTSRC    (volatile u32 *)IOP321_REG_ADDR(0x000007DC)
 
-/* Timers */
-#ifdef CONFIG_ARCH_IQ80321
-#define	IOP321_TICK_RATE	200000000	/* 200 MHz clock */
-#elif defined(CONFIG_ARCH_IQ31244)
-#define IOP321_TICK_RATE	198000000	/* 33.000 MHz crystal */
-#endif
-
-#ifdef CONFIG_ARCH_EP80219
-#undef IOP321_TICK_RATE
-#define IOP321_TICK_RATE 200000000 /* 33.333333 Mhz crystal */
-#endif
-
 /* Application accelerator unit 0x00000800 - 0x000008FF */
 #define IOP321_AAU_ACR     (volatile u32 *)IOP321_REG_ADDR(0x00000800)
 #define IOP321_AAU_ASR     (volatile u32 *)IOP321_REG_ADDR(0x00000804)

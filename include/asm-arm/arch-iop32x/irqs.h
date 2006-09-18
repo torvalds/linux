@@ -47,42 +47,4 @@
 #define NR_IRQS			32
 
 
-/*
- * Interrupts available on the IQ80321 board
- */
-
-/*
- * On board devices
- */
-#define	IRQ_IQ80321_I82544	IRQ_IOP321_XINT0
-#define IRQ_IQ80321_UART	IRQ_IOP321_XINT1
-
-/*
- * PCI interrupts
- */
-#define	IRQ_IQ80321_INTA	IRQ_IOP321_XINT0
-#define	IRQ_IQ80321_INTB	IRQ_IOP321_XINT1
-#define	IRQ_IQ80321_INTC	IRQ_IOP321_XINT2
-#define	IRQ_IQ80321_INTD	IRQ_IOP321_XINT3
-
-/*
- * Interrupts on the IQ31244 board
- */
-
-/*
- * On board devices
- */
-#define IRQ_IQ31244_UART	IRQ_IOP321_XINT1
-#define	IRQ_IQ31244_I82546	IRQ_IOP321_XINT0
-#define IRQ_IQ31244_SATA	IRQ_IOP321_XINT2
-#define	IRQ_IQ31244_PCIX_SLOT	IRQ_IOP321_XINT3
-
-/*
- * PCI interrupts
- */
-#define	IRQ_IQ31244_INTA	IRQ_IOP321_XINT0
-#define	IRQ_IQ31244_INTB	IRQ_IOP321_XINT1
-#define	IRQ_IQ31244_INTC	IRQ_IOP321_XINT2
-#define	IRQ_IQ31244_INTD	IRQ_IOP321_XINT3
-
 #endif // _IRQ_H_

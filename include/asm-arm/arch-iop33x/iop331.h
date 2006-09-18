@@ -136,16 +136,6 @@
 #define IOP331_FINTVEC    (volatile u32 *)IOP331_REG_ADDR(0x000007CC)
 
 
-/* Timers */
-#if defined(CONFIG_ARCH_IOP33X)
-#define	IOP331_TICK_RATE	266000000	/* 266 MHz IB clock */
-#endif
-
-#if defined(CONFIG_IOP331_STEPD) || defined(CONFIG_ARCH_IQ80333)
-#undef IOP331_TICK_RATE
-#define IOP331_TICK_RATE	333000000	/* 333 Mhz IB clock */
-#endif
-
 /* Application accelerator unit 0x00000800 - 0x000008FF */
 #define IOP331_AAU_ACR     (volatile u32 *)IOP331_REG_ADDR(0x00000800)
 #define IOP331_AAU_ASR     (volatile u32 *)IOP331_REG_ADDR(0x00000804)

@@ -16,12 +16,6 @@ config MACH_IQ80332
 	  Say Y here if you want to run your kernel on the Intel IQ80332
 	  evaluation kit for the IOP332 chipset.
 
-config IOP331_STEPD
-	bool "Chip stepping D of the IOP80331 processor or IOP80333"
-	help
-	  Say Y here if you have StepD of the IOP80331 or IOP8033
-	  based platforms.
-
 endmenu
 
 endif
