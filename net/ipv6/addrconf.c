@@ -2908,23 +2908,13 @@ inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	return inet6_addr_del(ifm->ifa_index, pfx, ifm->ifa_prefixlen);
 }
 
-static int
-inet6_addr_modify(int ifindex, struct in6_addr *pfx,
-		  __u32 prefered_lft, __u32 valid_lft)
+static int inet6_addr_modify(struct inet6_ifaddr *ifp, u32 prefered_lft,
+			     u32 valid_lft)
 {
-	struct inet6_ifaddr *ifp = NULL;
-	struct net_device *dev;
 	int ifa_flags = 0;
-
-	if ((dev = __dev_get_by_index(ifindex)) == NULL)
-		return -ENODEV;
 
 	if (!valid_lft || (prefered_lft > valid_lft))
 		return -EINVAL;
-
-	ifp = ipv6_get_ifaddr(pfx, dev, 1);
-	if (ifp == NULL)
-		return -ENOENT;
 
 	if (valid_lft == INFINITY_LIFE_TIME)
 		ifa_flags = IFA_F_PERMANENT;
@@ -2947,7 +2937,6 @@ inet6_addr_modify(int ifindex, struct in6_addr *pfx,
 	spin_unlock_bh(&ifp->lock);
 	if (!(ifp->flags&IFA_F_TENTATIVE))
 		ipv6_ifa_notify(0, ifp);
-	in6_ifa_put(ifp);
 
 	addrconf_verify(0);
 
@@ -2960,6 +2949,8 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct ifaddrmsg *ifm;
 	struct nlattr *tb[IFA_MAX+1];
 	struct in6_addr *pfx;
+	struct inet6_ifaddr *ifa;
+	struct net_device *dev;
 	u32 valid_lft, preferred_lft;
 	int err;
 
@@ -2983,15 +2974,29 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		valid_lft = INFINITY_LIFE_TIME;
 	}
 
-	if (nlh->nlmsg_flags & NLM_F_REPLACE) {
-		err = inet6_addr_modify(ifm->ifa_index, pfx,
-					preferred_lft, valid_lft);
-		if (err == 0 || !(nlh->nlmsg_flags & NLM_F_CREATE))
-			return err;
+	dev =  __dev_get_by_index(ifm->ifa_index);
+	if (dev == NULL)
+		return -ENODEV;
+
+	ifa = ipv6_get_ifaddr(pfx, dev, 1);
+	if (ifa == NULL) {
+		/*
+		 * It would be best to check for !NLM_F_CREATE here but
+		 * userspace alreay relies on not having to provide this.
+		 */
+		return inet6_addr_add(ifm->ifa_index, pfx, ifm->ifa_prefixlen,
+				      preferred_lft, valid_lft);
 	}
 
-	return inet6_addr_add(ifm->ifa_index, pfx, ifm->ifa_prefixlen,
-			      preferred_lft, valid_lft);
+	if (nlh->nlmsg_flags & NLM_F_EXCL ||
+	    !(nlh->nlmsg_flags & NLM_F_REPLACE))
+		err = -EEXIST;
+	else
+		err = inet6_addr_modify(ifa, preferred_lft, valid_lft);
+
+	in6_ifa_put(ifa);
+
+	return err;
 }
 
 static void put_ifaddrmsg(struct nlmsghdr *nlh, u8 prefixlen, u8 flags,
