@@ -83,8 +83,8 @@ enum {
 };
 
 enum ib_sa_selector {
-	IB_SA_GTE  = 0,
-	IB_SA_LTE  = 1,
+	IB_SA_GT   = 0,
+	IB_SA_LT   = 1,
 	IB_SA_EQ   = 2,
 	/*
 	 * The meaning of "best" depends on the attribute: for
