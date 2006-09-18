@@ -12,23 +12,11 @@
 		.macro  disable_fiq
 		.endm
 
-		/*
-		 * Note: only deal with normal interrupts, not FIQ
-		 */
 		.macro  get_irqnr_and_base, irqnr, irqstat, base, tmp
-		mov     \irqnr, #0
-		ldr	\base, =IOP3XX_REG_ADDR(0x7A0)
-		ldr	\irqstat, [\base]		@ Read IINTSRC0
-		cmp     \irqstat, #0
-		bne     1002f
-		ldr	\irqstat, [\base, #4]		@ Read IINTSRC1
+		ldr	\base, =IOP3XX_REG_ADDR(0x07C8)
+		ldr	\irqstat, [\base]		@ Read IINTVEC
 		cmp	\irqstat, #0
-		beq	1001f
-		clz	\irqnr, \irqstat
-		rsbs    \irqnr,\irqnr,#31   @ recommend by RMK
-		add	\irqnr,\irqnr,#IRQ_IOP331_XINT8
-		b	1001f
-1002:		clz     \irqnr, \irqstat
-		rsbs    \irqnr,\irqnr,#31   @ recommend by RMK
-1001:
+		ldreq	\irqstat, [\base]		@ erratum 63 workaround
+		adds	\irqnr, \irqstat, #1
+		movne	\irqnr, \irqstat, lsr #2
 		.endm

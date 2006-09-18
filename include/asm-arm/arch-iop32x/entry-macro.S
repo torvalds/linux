@@ -16,13 +16,9 @@
 		 * Note: only deal with normal interrupts, not FIQ
 		 */
 		.macro  get_irqnr_and_base, irqnr, irqstat, base, tmp
-		mov     \irqnr, #0
 		ldr	\base, =IOP3XX_REG_ADDR(0x07D8)
 		ldr	\irqstat, [\base]		@ Read IINTSRC
-		cmp     \irqstat, #0
-		beq     1001f
-		clz     \irqnr, \irqstat
-		mov     \base, #31
-		subs    \irqnr,\base,\irqnr
-1001:
+		cmp	\irqstat, #0
+		clzne	\irqnr, \irqstat
+		rsbne	\irqnr, \irqnr, #31
 		.endm

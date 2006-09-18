@@ -57,6 +57,20 @@ static inline void intstr_write1(u32 val)
 	iop3xx_cp6_disable();
 }
 
+static inline void intbase_write(u32 val)
+{
+	iop3xx_cp6_enable();
+	asm volatile("mcr p6, 0, %0, c12, c0, 0" : : "r" (val));
+	iop3xx_cp6_disable();
+}
+
+static inline void intsize_write(u32 val)
+{
+	iop3xx_cp6_enable();
+	asm volatile("mcr p6, 0, %0, c13, c0, 0" : : "r" (val));
+	iop3xx_cp6_disable();
+}
+
 static void
 iop331_irq_mask1 (unsigned int irq)
 {
@@ -107,6 +121,8 @@ void __init iop331_init_irq(void)
     	intctl_write1(0);
 	intstr_write0(0);		// treat all as IRQ
     	intstr_write1(0);
+	intbase_write(0);
+	intsize_write(1);
 	if(machine_is_iq80331()) 	// all interrupts are inputs to chip
 		*IOP3XX_PCIIRSR = 0x0f;
 
