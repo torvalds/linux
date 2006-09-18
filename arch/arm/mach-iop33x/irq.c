@@ -60,28 +60,28 @@ static inline void intstr_write1(u32 val)
 static void
 iop331_irq_mask1 (unsigned int irq)
 {
-        iop331_mask0 &= ~(1 << (irq - IOP331_IRQ_OFS));
+        iop331_mask0 &= ~(1 << irq);
         intctl_write0(iop331_mask0);
 }
 
 static void
 iop331_irq_mask2 (unsigned int irq)
 {
-        iop331_mask1 &= ~(1 << (irq - IOP331_IRQ_OFS - 32));
+        iop331_mask1 &= ~(1 << (irq - 32));
         intctl_write1(iop331_mask1);
 }
 
 static void
 iop331_irq_unmask1(unsigned int irq)
 {
-        iop331_mask0 |= (1 << (irq - IOP331_IRQ_OFS));
+        iop331_mask0 |= (1 << irq);
         intctl_write0(iop331_mask0);
 }
 
 static void
 iop331_irq_unmask2(unsigned int irq)
 {
-        iop331_mask1 |= (1 << (irq - IOP331_IRQ_OFS - 32));
+        iop331_mask1 |= (1 << (irq - 32));
         intctl_write1(iop331_mask1);
 }
 
@@ -110,7 +110,7 @@ void __init iop331_init_irq(void)
 	if(machine_is_iq80331()) 	// all interrupts are inputs to chip
 		*IOP3XX_PCIIRSR = 0x0f;
 
-	for(i = IOP331_IRQ_OFS; i < NR_IRQS; i++)
+	for(i = 0; i < NR_IRQS; i++)
 	{
 		set_irq_chip(i, (i < 32) ? &iop331_irqchip1 : &iop331_irqchip2);
 		set_irq_handler(i, do_level_IRQ);

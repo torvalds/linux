@@ -24,6 +24,5 @@
 		clz     \irqnr, \irqstat
 		mov     \base, #31
 		subs    \irqnr,\base,\irqnr
-		add     \irqnr,\irqnr,#IRQ_IOP321_DMA0_EOT
 1001:
 		.endm

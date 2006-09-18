@@ -43,7 +43,7 @@ static void
 iop321_irq_mask (unsigned int irq)
 {
 
-	iop321_mask &= ~(1 << (irq - IOP321_IRQ_OFS));
+	iop321_mask &= ~(1 << irq);
 
 	intctl_write(iop321_mask);
 }
@@ -51,7 +51,7 @@ iop321_irq_mask (unsigned int irq)
 static void
 iop321_irq_unmask (unsigned int irq)
 {
-	iop321_mask |= (1 << (irq - IOP321_IRQ_OFS));
+	iop321_mask |= (1 << irq);
 
 	intctl_write(iop321_mask);
 }
@@ -73,7 +73,7 @@ void __init iop321_init_irq(void)
 	   machine_is_iq31244()) 	// all interrupts are inputs to chip
 		*IOP3XX_PCIIRSR = 0x0f;
 
-	for(i = IOP321_IRQ_OFS; i < NR_IRQS; i++)
+	for(i = 0; i < NR_IRQS; i++)
 	{
 		set_irq_chip(i, &ext_chip);
 		set_irq_handler(i, do_level_IRQ);

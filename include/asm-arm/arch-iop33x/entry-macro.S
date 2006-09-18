@@ -30,6 +30,5 @@
 		b	1001f
 1002:		clz     \irqnr, \irqstat
 		rsbs    \irqnr,\irqnr,#31   @ recommend by RMK
-		add     \irqnr,\irqnr,#IRQ_IOP331_DMA0_EOT
 1001:
 		.endm
