@@ -17,10 +17,11 @@
 		 */
 		.macro  get_irqnr_and_base, irqnr, irqstat, base, tmp
 		mov     \irqnr, #0
-		mrc     p6, 0, \irqstat, c4, c0, 0      @ Read IINTSRC0
+		ldr	\base, =IOP3XX_REG_ADDR(0x7A0)
+		ldr	\irqstat, [\base]		@ Read IINTSRC0
 		cmp     \irqstat, #0
 		bne     1002f
-		mrc     p6, 0, \irqstat, c5, c0, 0      @ Read IINTSRC1
+		ldr	\irqstat, [\base, #4]		@ Read IINTSRC1
 		cmp	\irqstat, #0
 		beq	1001f
 		clz	\irqnr, \irqstat

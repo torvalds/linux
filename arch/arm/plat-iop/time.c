@@ -51,7 +51,9 @@ iop3xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	write_seqlock(&xtime_lock);
 
+	iop3xx_cp6_enable();
 	asm volatile("mcr p6, 0, %0, c6, c1, 0" : : "r" (1));
+	iop3xx_cp6_disable();
 
 	while ((signed long)(next_jiffy_time - *IOP3XX_TU_TCR1)
 							>= ticks_per_jiffy) {
@@ -85,10 +87,12 @@ void __init iop3xx_init_time(unsigned long tick_rate)
 	 * We use timer 0 for our timer interrupt, and timer 1 as
 	 * monotonic counter for tracking missed jiffies.
 	 */
+	iop3xx_cp6_enable();
 	asm volatile("mcr p6, 0, %0, c4, c1, 0" : : "r" (ticks_per_jiffy - 1));
 	asm volatile("mcr p6, 0, %0, c0, c1, 0" : : "r" (timer_ctl));
 	asm volatile("mcr p6, 0, %0, c5, c1, 0" : : "r" (0xffffffff));
 	asm volatile("mcr p6, 0, %0, c1, c1, 0" : : "r" (timer_ctl));
+	iop3xx_cp6_disable();
 
 	setup_irq(IRQ_IOP3XX_TIMER0, &iop3xx_timer_irq);
 }

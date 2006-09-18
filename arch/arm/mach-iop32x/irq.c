@@ -27,12 +27,16 @@ static u32 iop321_mask /* = 0 */;
 
 static inline void intctl_write(u32 val)
 {
+	iop3xx_cp6_enable();
 	asm volatile("mcr p6,0,%0,c0,c0,0"::"r" (val));
+	iop3xx_cp6_disable();
 }
 
 static inline void intstr_write(u32 val)
 {
+	iop3xx_cp6_enable();
 	asm volatile("mcr p6,0,%0,c4,c0,0"::"r" (val));
+	iop3xx_cp6_disable();
 }
 
 static void
@@ -61,24 +65,7 @@ struct irq_chip ext_chip = {
 
 void __init iop321_init_irq(void)
 {
-	unsigned int i, tmp;
-
-	/* Enable access to coprocessor 6 for dealing with IRQs.
-	 * From RMK:
-	 * Basically, the Intel documentation here is poor.  It appears that
-	 * you need to set the bit to be able to access the coprocessor from
-	 * SVC mode.  Whether that allows access from user space or not is
-	 * unclear.
-	 */
-	asm volatile (
-		"mrc p15, 0, %0, c15, c1, 0\n\t"
-		"orr %0, %0, %1\n\t"
-		"mcr p15, 0, %0, c15, c1, 0\n\t"
-		/* The action is delayed, so we have to do this: */
-		"mrc p15, 0, %0, c15, c1, 0\n\t"
-		"mov %0, %0\n\t"
-		"sub pc, pc, #4"
-		: "=r" (tmp) : "i" (1 << 6) );
+	unsigned int i;
 
 	intctl_write(0);		// disable all interrupts
 	intstr_write(0);		// treat all as IRQ
