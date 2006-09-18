@@ -16,6 +16,22 @@
 #define __IOP3XX_H
 
 /*
+ * IOP3XX GPIO handling
+ */
+#define GPIO_IN			0
+#define GPIO_OUT		1
+#define GPIO_LOW		0
+#define GPIO_HIGH		1
+#define IOP3XX_GPIO_LINE(x)	(x)
+
+#ifndef __ASSEMBLY__
+extern void gpio_line_config(int line, int direction);
+extern int  gpio_line_get(int line);
+extern void gpio_line_set(int line, int value);
+#endif
+
+
+/*
  * IOP3XX processor registers
  */
 #define IOP3XX_PERIPHERAL_PHYS_BASE	0xffffe000
@@ -80,6 +96,11 @@
 #define IOP3XX_PCIXCMD		(volatile u16 *)IOP3XX_REG_ADDR(0x01e2)
 #define IOP3XX_PCIXSR		(volatile u32 *)IOP3XX_REG_ADDR(0x01e4)
 #define IOP3XX_PCIIRSR		(volatile u32 *)IOP3XX_REG_ADDR(0x01ec)
+
+/* General Purpose I/O  */
+#define IOP3XX_GPOE		(volatile u32 *)IOP3XX_GPIO_REG(0x0004)
+#define IOP3XX_GPID		(volatile u32 *)IOP3XX_GPIO_REG(0x0008)
+#define IOP3XX_GPOD		(volatile u32 *)IOP3XX_GPIO_REG(0x000c)
 
 /* Timers  */
 #define IOP3XX_TU_TMR0		(volatile u32 *)IOP3XX_TIMER_REG(0x0000)
