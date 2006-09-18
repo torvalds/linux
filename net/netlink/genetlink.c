@@ -387,7 +387,10 @@ static void genl_rcv(struct sock *sk, int len)
 static int ctrl_fill_info(struct genl_family *family, u32 pid, u32 seq,
 			  u32 flags, struct sk_buff *skb, u8 cmd)
 {
+	struct nlattr *nla_ops;
+	struct genl_ops *ops;
 	void *hdr;
+	int idx = 1;
 
 	hdr = genlmsg_put(skb, pid, seq, GENL_ID_CTRL, 0, flags, cmd,
 			  family->version);
@@ -396,6 +399,37 @@ static int ctrl_fill_info(struct genl_family *family, u32 pid, u32 seq,
 
 	NLA_PUT_STRING(skb, CTRL_ATTR_FAMILY_NAME, family->name);
 	NLA_PUT_U16(skb, CTRL_ATTR_FAMILY_ID, family->id);
+	NLA_PUT_U32(skb, CTRL_ATTR_VERSION, family->version);
+	NLA_PUT_U32(skb, CTRL_ATTR_HDRSIZE, family->hdrsize);
+	NLA_PUT_U32(skb, CTRL_ATTR_MAXATTR, family->maxattr);
+
+	nla_ops = nla_nest_start(skb, CTRL_ATTR_OPS);
+	if (nla_ops == NULL)
+		goto nla_put_failure;
+
+	list_for_each_entry(ops, &family->ops_list, ops_list) {
+		struct nlattr *nest;
+
+		nest = nla_nest_start(skb, idx++);
+		if (nest == NULL)
+			goto nla_put_failure;
+
+		NLA_PUT_U32(skb, CTRL_ATTR_OP_ID, ops->cmd);
+		NLA_PUT_U32(skb, CTRL_ATTR_OP_FLAGS, ops->flags);
+
+		if (ops->policy)
+			NLA_PUT_FLAG(skb, CTRL_ATTR_OP_POLICY);
+
+		if (ops->doit)
+			NLA_PUT_FLAG(skb, CTRL_ATTR_OP_DOIT);
+
+		if (ops->dumpit)
+			NLA_PUT_FLAG(skb, CTRL_ATTR_OP_DUMPIT);
+
+		nla_nest_end(skb, nest);
+	}
+
+	nla_nest_end(skb, nla_ops);
 
 	return genlmsg_end(skb, hdr);
 
@@ -410,6 +444,9 @@ static int ctrl_dumpfamily(struct sk_buff *skb, struct netlink_callback *cb)
 	struct genl_family *rt;
 	int chains_to_skip = cb->args[0];
 	int fams_to_skip = cb->args[1];
+
+	if (chains_to_skip != 0)
+		genl_lock();
 
 	for (i = 0; i < GENL_FAM_TAB_SIZE; i++) {
 		if (i < chains_to_skip)
@@ -428,6 +465,9 @@ static int ctrl_dumpfamily(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 
 errout:
+	if (chains_to_skip != 0)
+		genl_unlock();
+
 	cb->args[0] = i;
 	cb->args[1] = n;
 

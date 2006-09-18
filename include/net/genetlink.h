@@ -27,8 +27,6 @@ struct genl_family
 	struct list_head	family_list;	/* private */
 };
 
-#define GENL_ADMIN_PERM		0x01
-
 /**
  * struct genl_info - receiving information
  * @snd_seq: sending sequence number
