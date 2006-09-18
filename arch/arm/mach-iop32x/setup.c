@@ -32,23 +32,6 @@
 
 #define IOP321_UART_XTAL 1843200
 
-/*
- * Standard IO mapping for all IOP321 based systems
- */
-static struct map_desc iop321_std_desc[] __initdata = {
-	 {	/* mem mapped registers */
-		.virtual	= IOP321_VIRT_MEM_BASE,
-		.pfn		= __phys_to_pfn(IOP321_PHYS_MEM_BASE),
-		.length		= 0x00002000,
-		.type		= MT_DEVICE
-	 }, {	/* PCI IO space */
-		.virtual	= IOP321_PCI_LOWER_IO_VA,
-		.pfn		= __phys_to_pfn(IOP321_PCI_LOWER_IO_PA),
-		.length		= IOP321_PCI_IO_WINDOW_SIZE,
-		.type		= MT_DEVICE
-	 }
-};
-
 #ifdef CONFIG_ARCH_IQ80321
 #define UARTBASE IQ80321_UART
 #define IRQ_UART IRQ_IQ80321_UART
@@ -126,11 +109,6 @@ void __init iop32x_init(void)
 		platform_add_devices(iop32x_devices,
 				ARRAY_SIZE(iop32x_devices));
 	}
-}
-
-void __init iop321_map_io(void)
-{
-	iotable_init(iop321_std_desc, ARRAY_SIZE(iop321_std_desc));
 	early_serial_setup(&iop321_serial_ports[0]);
 }
 

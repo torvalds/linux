@@ -333,7 +333,6 @@
 
 
 #ifndef __ASSEMBLY__
-extern void iop321_map_io(void);
 extern void iop321_init_irq(void);
 extern void iop321_time_init(void);
 #endif

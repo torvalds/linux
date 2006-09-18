@@ -205,6 +205,7 @@ config ARCH_IMX
 config ARCH_IOP32X
 	bool "IOP32x-based"
 	depends on MMU
+	select PLAT_IOP
 	select PCI
 	help
 	  Support for Intel's 80219 and IOP32X (XScale) family of
@@ -213,6 +214,7 @@ config ARCH_IOP32X
 config ARCH_IOP33X
 	bool "IOP33x-based"
 	depends on MMU
+	select PLAT_IOP
 	select PCI
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
@@ -360,6 +362,9 @@ source "arch/arm/mach-netx/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
+	bool
+
+config PLAT_IOP
 	bool
 
 source arch/arm/mm/Kconfig

@@ -28,25 +28,9 @@
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/hardware/iop3xx.h>
 
 #define IOP331_UART_XTAL 33334000
-
-/*
- * Standard IO mapping for all IOP331 based systems
- */
-static struct map_desc iop331_std_desc[] __initdata = {
-	{	/* mem mapped registers */
-		.virtual	= IOP331_VIRT_MEM_BASE,
-		.pfn		= __phys_to_pfn(IOP331_PHYS_MEM_BASE),
-		.length		= 0x00002000,
-		.type		= MT_DEVICE
-	}, {	/* PCI IO space */
-		.virtual	= IOP331_PCI_LOWER_IO_VA,
-		.pfn		= __phys_to_pfn(IOP331_PCI_LOWER_IO_PA),
-		.length		= IOP331_PCI_IO_WINDOW_SIZE,
-		.type		= MT_DEVICE
-	}
-};
 
 static struct resource iop33x_uart0_resources[] = {
 	[0] = {
@@ -172,22 +156,9 @@ void __init iop33x_init(void)
 	}
 }
 
-void __init iop331_map_io(void)
-{
-	iotable_init(iop331_std_desc, ARRAY_SIZE(iop331_std_desc));
-}
-
 #ifdef CONFIG_ARCH_IOP33X
 extern void iop331_init_irq(void);
 extern struct sys_timer iop331_timer;
-#endif
-
-#ifdef CONFIG_ARCH_IQ80331
-extern void iq80331_map_io(void);
-#endif
-
-#ifdef CONFIG_MACH_IQ80332
-extern void iq80332_map_io(void);
 #endif
 
 #if defined(CONFIG_ARCH_IQ80331)
@@ -195,7 +166,7 @@ MACHINE_START(IQ80331, "Intel IQ80331")
 	/* Maintainer: Intel Corp. */
 	.phys_io	= 0xfefff000,
 	.io_pg_offst	= ((0xfffff000) >> 18) & 0xfffc, // virtual, physical
-	.map_io		= iq80331_map_io,
+	.map_io		= iop3xx_map_io,
 	.init_irq	= iop331_init_irq,
 	.timer		= &iop331_timer,
 	.boot_params	= 0x0100,
@@ -207,7 +178,7 @@ MACHINE_START(IQ80332, "Intel IQ80332")
 	/* Maintainer: Intel Corp. */
 	.phys_io	= 0xfefff000,
 	.io_pg_offst	= ((0xfffff000) >> 18) & 0xfffc, // virtual, physical
-	.map_io		= iq80332_map_io,
+	.map_io		= iop3xx_map_io,
 	.init_irq	= iop331_init_irq,
 	.timer		= &iop331_timer,
 	.boot_params	= 0x0100,

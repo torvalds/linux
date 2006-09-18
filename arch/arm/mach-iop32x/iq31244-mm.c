@@ -21,6 +21,7 @@
 #include <asm/page.h>
 
 #include <asm/mach/map.h>
+#include <asm/hardware/iop3xx.h>
 
 
 /*
@@ -39,7 +40,7 @@ static struct map_desc iq31244_io_desc[] __initdata = {
 
 void __init iq31244_map_io(void)
 {
-	iop321_map_io();
+	iop3xx_map_io();
 
 	iotable_init(iq31244_io_desc, ARRAY_SIZE(iq31244_io_desc));
 }

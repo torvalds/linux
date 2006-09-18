@@ -350,7 +350,6 @@
 
 
 #ifndef __ASSEMBLY__
-extern void iop331_map_io(void);
 extern void iop331_init_irq(void);
 extern void iop331_time_init(void);
 #endif
