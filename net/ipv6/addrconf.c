@@ -1886,9 +1886,6 @@ static int inet6_addr_add(int ifindex, struct in6_addr *pfx, int plen,
 	if ((dev = __dev_get_by_index(ifindex)) == NULL)
 		return -ENODEV;
 	
-	if (!(dev->flags&IFF_UP))
-		return -ENETDOWN;
-
 	if ((idev = addrconf_add_dev(dev)) == NULL)
 		return -ENOBUFS;
 
@@ -2921,9 +2918,6 @@ inet6_addr_modify(int ifindex, struct in6_addr *pfx,
 
 	if ((dev = __dev_get_by_index(ifindex)) == NULL)
 		return -ENODEV;
-
-	if (!(dev->flags&IFF_UP))
-		return -ENETDOWN;
 
 	if (!valid_lft || (prefered_lft > valid_lft))
 		return -EINVAL;
