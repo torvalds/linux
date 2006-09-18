@@ -24,27 +24,6 @@
 #endif
 
 /*
- * IOP331 I/O and Mem space regions for PCI autoconfiguration
- */
-#define IOP331_PCI_IO_WINDOW_SIZE   0x00010000
-#define IOP331_PCI_LOWER_IO_PA      0x90000000
-#define IOP331_PCI_LOWER_IO_VA      0xfe000000
-#define IOP331_PCI_LOWER_IO_BA      (*IOP331_OIOWTVR)
-#define IOP331_PCI_UPPER_IO_PA      (IOP331_PCI_LOWER_IO_PA + IOP331_PCI_IO_WINDOW_SIZE - 1)
-#define IOP331_PCI_UPPER_IO_VA      (IOP331_PCI_LOWER_IO_VA + IOP331_PCI_IO_WINDOW_SIZE - 1)
-#define IOP331_PCI_UPPER_IO_BA      (IOP331_PCI_LOWER_IO_BA + IOP331_PCI_IO_WINDOW_SIZE - 1)
-#define IOP331_PCI_IO_OFFSET        (IOP331_PCI_LOWER_IO_VA - IOP331_PCI_LOWER_IO_BA)
-
-/* this can be 128M if OMWTVR1 is set */
-#define IOP331_PCI_MEM_WINDOW_SIZE	0x04000000 /* 64M outbound window */
-/* #define IOP331_PCI_MEM_WINDOW_SIZE  (~*IOP331_IALR1 + 1) */
-#define IOP331_PCI_LOWER_MEM_PA     0x80000000
-#define IOP331_PCI_LOWER_MEM_BA     (*IOP331_OMWTVR0)
-#define IOP331_PCI_UPPER_MEM_PA     (IOP331_PCI_LOWER_MEM_PA + IOP331_PCI_MEM_WINDOW_SIZE - 1)
-#define IOP331_PCI_UPPER_MEM_BA     (IOP331_PCI_LOWER_MEM_BA + IOP331_PCI_MEM_WINDOW_SIZE - 1)
-#define IOP331_PCI_MEM_OFFSET       (IOP331_PCI_LOWER_MEM_PA - IOP331_PCI_LOWER_MEM_BA)
-
-/*
  * IOP331 chipset registers
  */
 #define IOP331_VIRT_MEM_BASE  0xfeffe000  /* chip virtual mem address*/
@@ -54,79 +33,6 @@
 /* Reserved 0x00000000 through 0x000000FF */
 
 /* Address Translation Unit 0x00000100 through 0x000001FF */
-#define IOP331_ATUVID     (volatile u16 *)IOP331_REG_ADDR(0x00000100)
-#define IOP331_ATUDID     (volatile u16 *)IOP331_REG_ADDR(0x00000102)
-#define IOP331_ATUCMD     (volatile u16 *)IOP331_REG_ADDR(0x00000104)
-#define IOP331_ATUSR      (volatile u16 *)IOP331_REG_ADDR(0x00000106)
-#define IOP331_ATURID     (volatile u8  *)IOP331_REG_ADDR(0x00000108)
-#define IOP331_ATUCCR     (volatile u32 *)IOP331_REG_ADDR(0x00000109)
-#define IOP331_ATUCLSR    (volatile u8  *)IOP331_REG_ADDR(0x0000010C)
-#define IOP331_ATULT      (volatile u8  *)IOP331_REG_ADDR(0x0000010D)
-#define IOP331_ATUHTR     (volatile u8  *)IOP331_REG_ADDR(0x0000010E)
-#define IOP331_ATUBIST    (volatile u8  *)IOP331_REG_ADDR(0x0000010F)
-#define IOP331_IABAR0     (volatile u32 *)IOP331_REG_ADDR(0x00000110)
-#define IOP331_IAUBAR0    (volatile u32 *)IOP331_REG_ADDR(0x00000114)
-#define IOP331_IABAR1     (volatile u32 *)IOP331_REG_ADDR(0x00000118)
-#define IOP331_IAUBAR1    (volatile u32 *)IOP331_REG_ADDR(0x0000011C)
-#define IOP331_IABAR2     (volatile u32 *)IOP331_REG_ADDR(0x00000120)
-#define IOP331_IAUBAR2    (volatile u32 *)IOP331_REG_ADDR(0x00000124)
-#define IOP331_ASVIR      (volatile u16 *)IOP331_REG_ADDR(0x0000012C)
-#define IOP331_ASIR       (volatile u16 *)IOP331_REG_ADDR(0x0000012E)
-#define IOP331_ERBAR      (volatile u32 *)IOP331_REG_ADDR(0x00000130)
-#define IOP331_ATU_CAPPTR (volatile u32 *)IOP331_REG_ADDR(0x00000134)
-/* Reserved 0x00000138 through 0x0000013B */
-#define IOP331_ATUILR     (volatile u8  *)IOP331_REG_ADDR(0x0000013C)
-#define IOP331_ATUIPR     (volatile u8  *)IOP331_REG_ADDR(0x0000013D)
-#define IOP331_ATUMGNT    (volatile u8  *)IOP331_REG_ADDR(0x0000013E)
-#define IOP331_ATUMLAT    (volatile u8  *)IOP331_REG_ADDR(0x0000013F)
-#define IOP331_IALR0      (volatile u32 *)IOP331_REG_ADDR(0x00000140)
-#define IOP331_IATVR0     (volatile u32 *)IOP331_REG_ADDR(0x00000144)
-#define IOP331_ERLR       (volatile u32 *)IOP331_REG_ADDR(0x00000148)
-#define IOP331_ERTVR      (volatile u32 *)IOP331_REG_ADDR(0x0000014C)
-#define IOP331_IALR1      (volatile u32 *)IOP331_REG_ADDR(0x00000150)
-#define IOP331_IALR2      (volatile u32 *)IOP331_REG_ADDR(0x00000154)
-#define IOP331_IATVR2     (volatile u32 *)IOP331_REG_ADDR(0x00000158)
-#define IOP331_OIOWTVR    (volatile u32 *)IOP331_REG_ADDR(0x0000015C)
-#define IOP331_OMWTVR0    (volatile u32 *)IOP331_REG_ADDR(0x00000160)
-#define IOP331_OUMWTVR0   (volatile u32 *)IOP331_REG_ADDR(0x00000164)
-#define IOP331_OMWTVR1    (volatile u32 *)IOP331_REG_ADDR(0x00000168)
-#define IOP331_OUMWTVR1   (volatile u32 *)IOP331_REG_ADDR(0x0000016C)
-/* Reserved 0x00000170 through 0x00000177*/
-#define IOP331_OUDWTVR    (volatile u32 *)IOP331_REG_ADDR(0x00000178)
-/* Reserved 0x0000017C through 0x0000017F*/
-#define IOP331_ATUCR      (volatile u32 *)IOP331_REG_ADDR(0x00000180)
-#define IOP331_PCSR       (volatile u32 *)IOP331_REG_ADDR(0x00000184)
-#define IOP331_ATUISR     (volatile u32 *)IOP331_REG_ADDR(0x00000188)
-#define IOP331_ATUIMR     (volatile u32 *)IOP331_REG_ADDR(0x0000018C)
-#define IOP331_IABAR3     (volatile u32 *)IOP331_REG_ADDR(0x00000190)
-#define IOP331_IAUBAR3    (volatile u32 *)IOP331_REG_ADDR(0x00000194)
-#define IOP331_IALR3      (volatile u32 *)IOP331_REG_ADDR(0x00000198)
-#define IOP331_IATVR3     (volatile u32 *)IOP331_REG_ADDR(0x0000019C)
-/* Reserved 0x000001A0 through 0x000001A3*/
-#define IOP331_OCCAR      (volatile u32 *)IOP331_REG_ADDR(0x000001A4)
-/* Reserved 0x000001A8 through 0x000001AB*/
-#define IOP331_OCCDR      (volatile u32 *)IOP331_REG_ADDR(0x000001AC)
-/* Reserved 0x000001B0 through 0x000001BB*/
-#define IOP331_VPDCAPID   (volatile u8 *)IOP331_REG_ADDR(0x000001B8)
-#define IOP331_VPDNXTP    (volatile u8 *)IOP331_REG_ADDR(0x000001B9)
-#define IOP331_VPDAR	  (volatile u16 *)IOP331_REG_ADDR(0x000001BA)
-#define IOP331_VPDDR      (volatile u32 *)IOP331_REG_ADDR(0x000001BC)
-#define IOP331_PMCAPID    (volatile u8 *)IOP331_REG_ADDR(0x000001C0)
-#define IOP331_PMNEXT     (volatile u8 *)IOP331_REG_ADDR(0x000001C1)
-#define IOP331_APMCR      (volatile u16 *)IOP331_REG_ADDR(0x000001C2)
-#define IOP331_APMCSR     (volatile u16 *)IOP331_REG_ADDR(0x000001C4)
-/* Reserved 0x000001C6 through 0x000001CF */
-#define IOP331_MSICAPID   (volatile u8 *)IOP331_REG_ADDR(0x000001D0)
-#define IOP331_MSINXTP	  (volatile u8 *)IOP331_REG_ADDR(0x000001D1)
-#define IOP331_MSIMCR     (volatile u16 *)IOP331_REG_ADDR(0x000001D2)
-#define IOP331_MSIMAR     (volatile u32 *)IOP331_REG_ADDR(0x000001D4)
-#define IOP331_MSIMUAR	  (volatile u32 *)IOP331_REG_ADDR(0x000001D8)
-#define IOP331_MSIMDR	  (volatile u32 *)IOP331_REG_ADDR(0x000001DC)
-#define IOP331_PCIXCAPID  (volatile u8 *)IOP331_REG_ADDR(0x000001E0)
-#define IOP331_PCIXNEXT   (volatile u8 *)IOP331_REG_ADDR(0x000001E1)
-#define IOP331_PCIXCMD    (volatile u16 *)IOP331_REG_ADDR(0x000001E2)
-#define IOP331_PCIXSR     (volatile u32 *)IOP331_REG_ADDR(0x000001E4)
-#define IOP331_PCIIRSR    (volatile u32 *)IOP331_REG_ADDR(0x000001EC)
 
 /* Messaging Unit 0x00000300 through 0x000003FF */
 
@@ -331,6 +237,8 @@
 #define IOP331_GPOD       (volatile u32 *)IOP331_REG_ADDR(0x00001788)
 
 /* Reserved 0x0000178c through 0x000019ff */
+
+#include <asm/hardware/iop3xx.h>
 
 
 #ifndef __ASSEMBLY__

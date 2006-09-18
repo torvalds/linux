@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y			:= common.o setup.o irq.o pci.o time.o
+obj-y			:= setup.o irq.o time.o
 obj-m			:=
 obj-n			:=
 obj-			:=

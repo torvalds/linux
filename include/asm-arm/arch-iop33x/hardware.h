@@ -19,25 +19,9 @@
  */
 
 #define pcibios_assign_all_busses() 1
+#define PCIBIOS_MIN_IO		0x00000000
+#define PCIBIOS_MIN_MEM		0x00000000
 
-
-/*
- * The min PCI I/O and MEM space are dependent on what specific
- * chipset/platform we are running on, so instead of hardcoding with
- * #ifdefs, we just fill these in the platform level PCI init code.
- */
-#ifndef __ASSEMBLY__
-extern unsigned long iop3xx_pcibios_min_io;
-extern unsigned long iop3xx_pcibios_min_mem;
-
-extern unsigned int processor_id;
-#endif
-
-/*
- * We just set these to zero since they are really bogus anyways
- */
-#define PCIBIOS_MIN_IO      (iop3xx_pcibios_min_io)
-#define PCIBIOS_MIN_MEM     (iop3xx_pcibios_min_mem)
 
 /*
  * Generic chipset bits

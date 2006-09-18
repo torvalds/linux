@@ -16,7 +16,7 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode)
 {
-    *IOP331_PCSR = 0x30;
+    *IOP3XX_PCSR = 0x30;
 
 	if ( 1 && mode == 's') {
 		/* Jump into ROM at address 0 */

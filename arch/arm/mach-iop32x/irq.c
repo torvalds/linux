@@ -84,7 +84,7 @@ void __init iop321_init_irq(void)
 	intstr_write(0);		// treat all as IRQ
 	if(machine_is_iq80321() ||
 	   machine_is_iq31244()) 	// all interrupts are inputs to chip
-		*IOP321_PCIIRSR = 0x0f;
+		*IOP3XX_PCIIRSR = 0x0f;
 
 	for(i = IOP321_IRQ_OFS; i < NR_IRQS; i++)
 	{

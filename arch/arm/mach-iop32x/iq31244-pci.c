@@ -67,51 +67,12 @@ iq31244_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
 	return PCI_IRQ_TABLE_LOOKUP(0, 7);
 }
 
-static int iq31244_setup(int nr, struct pci_sys_data *sys)
-{
-	struct resource *res;
-
-	if(nr != 0)
-		return 0;
-
-	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
-	if (!res)
-		panic("PCI: unable to alloc resources");
-
-	res[0].start = IOP321_PCI_LOWER_IO_VA;
-	res[0].end   = IOP321_PCI_UPPER_IO_VA;
-	res[0].name  = "IQ31244 PCI I/O Space";
-	res[0].flags = IORESOURCE_IO;
-
-	res[1].start = IOP321_PCI_LOWER_MEM_PA;
-	res[1].end   = IOP321_PCI_UPPER_MEM_PA;
-	res[1].name  = "IQ31244 PCI Memory Space";
-	res[1].flags = IORESOURCE_MEM;
-
-	request_resource(&ioport_resource, &res[0]);
-	request_resource(&iomem_resource, &res[1]);
-
-	sys->mem_offset = IOP321_PCI_MEM_OFFSET;
-	sys->io_offset  = IOP321_PCI_IO_OFFSET;
-
-	sys->resource[0] = &res[0];
-	sys->resource[1] = &res[1];
-	sys->resource[2] = NULL;
-
-	return 1;
-}
-
-static void iq31244_preinit(void)
-{
-	iop321_init();
-}
-
 static struct hw_pci iq31244_pci __initdata = {
 	.swizzle	= pci_std_swizzle,
 	.nr_controllers = 1,
-	.setup		= iq31244_setup,
-	.scan		= iop321_scan_bus,
-	.preinit	= iq31244_preinit,
+	.setup		= iop3xx_pci_setup,
+	.scan		= iop3xx_pci_scan_bus,
+	.preinit	= iop3xx_pci_preinit,
 	.map_irq	= iq31244_map_irq
 };
 

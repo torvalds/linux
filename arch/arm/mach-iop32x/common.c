@@ -16,12 +16,6 @@
 #include <asm/hardware.h>
 #include <asm/hardware/iop3xx.h>
 
-/*
- * Shared variables
- */
-unsigned long iop3xx_pcibios_min_io = 0;
-unsigned long iop3xx_pcibios_min_mem = 0;
-
 #ifdef CONFIG_ARCH_EP80219
 #include <linux/kernel.h>
 /*
