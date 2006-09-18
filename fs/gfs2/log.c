@@ -204,17 +204,15 @@ void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 
 static u64 log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 {
-	int new = 0;
-	u64 dbn;
 	int error;
-	int bdy;
+	struct buffer_head bh_map;
 
-	error = gfs2_block_map(sdp->sd_jdesc->jd_inode, lbn, &new, &dbn, &bdy);
-	if (error || !dbn)
-		printk(KERN_INFO "error=%d, dbn=%llu lbn=%u", error, (unsigned long long)dbn, lbn);
-	gfs2_assert_withdraw(sdp, !error && dbn);
+	error = gfs2_block_map(sdp->sd_jdesc->jd_inode, lbn, 0, &bh_map, 1);
+	if (error || !bh_map.b_blocknr)
+		printk(KERN_INFO "error=%d, dbn=%llu lbn=%u", error, bh_map.b_blocknr, lbn);
+	gfs2_assert_withdraw(sdp, !error && bh_map.b_blocknr);
 
-	return dbn;
+	return bh_map.b_blocknr;
 }
 
 /**

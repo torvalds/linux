@@ -369,25 +369,23 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 	unsigned int lblock;
-	int new = 0;
-	u64 dblock;
 	struct gfs2_log_header *lh;
 	u32 hash;
 	struct buffer_head *bh;
 	int error;
-	int boundary;
+	struct buffer_head bh_map;
 
 	lblock = head->lh_blkno;
 	gfs2_replay_incr_blk(sdp, &lblock);
-	error = gfs2_block_map(&ip->i_inode, lblock, &new, &dblock, &boundary);
+	error = gfs2_block_map(&ip->i_inode, lblock, 0, &bh_map, 1);
 	if (error)
 		return error;
-	if (!dblock) {
+	if (!bh_map.b_blocknr) {
 		gfs2_consist_inode(ip);
 		return -EIO;
 	}
 
-	bh = sb_getblk(sdp->sd_vfs, dblock);
+	bh = sb_getblk(sdp->sd_vfs, bh_map.b_blocknr);
 	lock_buffer(bh);
 	memset(bh->b_data, 0, bh->b_size);
 	set_buffer_uptodate(bh);

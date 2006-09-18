@@ -65,29 +65,11 @@ static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 int gfs2_get_block(struct inode *inode, sector_t lblock,
 	           struct buffer_head *bh_result, int create)
 {
-	int new = create;
-	u64 dblock;
-	int error;
-	int boundary;
-
-	error = gfs2_block_map(inode, lblock, &new, &dblock, &boundary);
-	if (error)
-		return error;
-
-	if (!dblock)
-		return 0;
-
-	map_bh(bh_result, inode->i_sb, dblock);
-	if (new)
-		set_buffer_new(bh_result);
-	if (boundary)
-		set_buffer_boundary(bh_result);
-
-	return 0;
+	return gfs2_block_map(inode, lblock, create, bh_result, 32);
 }
 
 /**
- * get_block_noalloc - Fills in a buffer head with details about a block
+ * gfs2_get_block_noalloc - Fills in a buffer head with details about a block
  * @inode: The inode
  * @lblock: The block number to look up
  * @bh_result: The buffer head to return the result in
@@ -96,47 +78,25 @@ int gfs2_get_block(struct inode *inode, sector_t lblock,
  * Returns: errno
  */
 
-static int get_block_noalloc(struct inode *inode, sector_t lblock,
-			     struct buffer_head *bh_result, int create)
+static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
+				  struct buffer_head *bh_result, int create)
 {
-	int new = 0;
-	u64 dblock;
 	int error;
-	int boundary;
 
-	error = gfs2_block_map(inode, lblock, &new, &dblock, &boundary);
+	error = gfs2_block_map(inode, lblock, 0, bh_result, 1);
 	if (error)
 		return error;
-
-	if (dblock)
-		map_bh(bh_result, inode->i_sb, dblock);
-	else if (gfs2_assert_withdraw(GFS2_SB(inode), !create))
-		error = -EIO;
-	if (boundary)
-		set_buffer_boundary(bh_result);
-
-	return error;
-}
-
-static int get_block_direct(struct inode *inode, sector_t lblock,
-			    struct buffer_head *bh_result, int create)
-{
-	int new = 0;
-	u64 dblock;
-	int error, boundary;
-
-	error = gfs2_block_map(inode, lblock, &new, &dblock, &boundary);
-	if (error)
-		return error;
-
-	if (dblock) {
-		map_bh(bh_result, inode->i_sb, dblock);
-		if (boundary)
-			set_buffer_boundary(bh_result);
-	}
-
+	if (bh_result->b_blocknr == 0)
+		return -EIO;
 	return 0;
 }
+
+static int gfs2_get_block_direct(struct inode *inode, sector_t lblock,
+				 struct buffer_head *bh_result, int create)
+{
+	return gfs2_block_map(inode, lblock, 0, bh_result, 512);
+}
+
 /**
  * gfs2_writepage - Write complete page
  * @page: Page to write
@@ -184,7 +144,7 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize-1);
 		done_trans = 1;
 	}
-	error = block_write_full_page(page, get_block_noalloc, wbc);
+	error = block_write_full_page(page, gfs2_get_block_noalloc, wbc);
 	if (done_trans)
 		gfs2_trans_end(sdp);
 	gfs2_meta_cache_flush(ip);
@@ -680,7 +640,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	rv = blockdev_direct_IO_own_locking(rw, iocb, inode,
 					    inode->i_sb->s_bdev,
 					    iov, offset, nr_segs,
-					    get_block_direct, NULL);
+					    gfs2_get_block_direct, NULL);
 out:
 	gfs2_glock_dq_m(1, &gh);
 	gfs2_holder_uninit(&gh);

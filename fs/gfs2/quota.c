@@ -248,11 +248,9 @@ static int bh_get(struct gfs2_quota_data *qd)
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_qc_inode);
 	unsigned int block, offset;
-	u64 dblock;
-	int new = 0;
 	struct buffer_head *bh;
 	int error;
-	int boundary;
+	struct buffer_head bh_map;
 
 	mutex_lock(&sdp->sd_quota_mutex);
 
@@ -264,10 +262,10 @@ static int bh_get(struct gfs2_quota_data *qd)
 	block = qd->qd_slot / sdp->sd_qc_per_block;
 	offset = qd->qd_slot % sdp->sd_qc_per_block;;
 
-	error = gfs2_block_map(&ip->i_inode, block, &new, &dblock, &boundary);
+	error = gfs2_block_map(&ip->i_inode, block, 0, &bh_map, 1);
 	if (error)
 		goto fail;
-	error = gfs2_meta_read(ip->i_gl, dblock, DIO_START | DIO_WAIT, &bh);
+	error = gfs2_meta_read(ip->i_gl, bh_map.b_blocknr, DIO_START | DIO_WAIT, &bh);
 	if (error)
 		goto fail;
 	error = -EIO;
