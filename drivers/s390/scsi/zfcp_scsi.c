@@ -39,11 +39,10 @@ static struct zfcp_unit *zfcp_unit_lookup(struct zfcp_adapter *, int,
 
 static struct device_attribute *zfcp_sysfs_sdev_attrs[];
 
-struct scsi_transport_template *zfcp_transport_template;
-
 struct zfcp_data zfcp_data = {
 	.scsi_host_template = {
 		.name			= ZFCP_NAME,
+		.module			= THIS_MODULE,
 		.proc_name		= "zfcp",
 		.slave_alloc		= zfcp_scsi_slave_alloc,
 		.slave_configure	= zfcp_scsi_slave_configure,
@@ -607,7 +606,7 @@ zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 	adapter->scsi_host->max_channel = 0;
 	adapter->scsi_host->unique_id = unique_id++;	/* FIXME */
 	adapter->scsi_host->max_cmd_len = ZFCP_MAX_SCSI_CMND_LENGTH;
-	adapter->scsi_host->transportt = zfcp_transport_template;
+	adapter->scsi_host->transportt = zfcp_data.scsi_transport_template;
 
 	/*
 	 * save a pointer to our own adapter data structure within

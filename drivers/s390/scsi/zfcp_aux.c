@@ -299,11 +299,45 @@ zfcp_init_device_configure(void)
 	return;
 }
 
+static int calc_alignment(int size)
+{
+	int align = 1;
+
+	if (!size)
+		return 0;
+
+	while ((size - align) > 0)
+		align <<= 1;
+
+	return align;
+}
+
 static int __init
 zfcp_module_init(void)
 {
+	int retval = -ENOMEM;
+	int size, align;
 
-	int retval = 0;
+	size = sizeof(struct zfcp_fsf_req_qtcb);
+	align = calc_alignment(size);
+	zfcp_data.fsf_req_qtcb_cache =
+		kmem_cache_create("zfcp_fsf", size, align, 0, NULL, NULL);
+	if (!zfcp_data.fsf_req_qtcb_cache)
+		goto out;
+
+	size = sizeof(struct fsf_status_read_buffer);
+	align = calc_alignment(size);
+	zfcp_data.sr_buffer_cache =
+		kmem_cache_create("zfcp_sr", size, align, 0, NULL, NULL);
+	if (!zfcp_data.sr_buffer_cache)
+		goto out_sr_cache;
+
+	size = sizeof(struct zfcp_gid_pn_data);
+	align = calc_alignment(size);
+	zfcp_data.gid_pn_cache =
+		kmem_cache_create("zfcp_gid", size, align, 0, NULL, NULL);
+	if (!zfcp_data.gid_pn_cache)
+		goto out_gid_cache;
 
 	atomic_set(&zfcp_data.loglevel, loglevel);
 
@@ -313,15 +347,16 @@ zfcp_module_init(void)
 	/* initialize adapters to be removed list head */
 	INIT_LIST_HEAD(&zfcp_data.adapter_remove_lh);
 
-	zfcp_transport_template = fc_attach_transport(&zfcp_transport_functions);
-	if (!zfcp_transport_template)
-		return -ENODEV;
+	zfcp_data.scsi_transport_template =
+		fc_attach_transport(&zfcp_transport_functions);
+	if (!zfcp_data.scsi_transport_template)
+		goto out_transport;
 
 	retval = misc_register(&zfcp_cfdc_misc);
 	if (retval != 0) {
 		ZFCP_LOG_INFO("registration of misc device "
 			      "zfcp_cfdc failed\n");
-		goto out;
+		goto out_misc;
 	}
 
 	ZFCP_LOG_TRACE("major/minor for zfcp_cfdc: %d/%d\n",
@@ -332,9 +367,6 @@ zfcp_module_init(void)
 
 	/* initialise configuration rw lock */
 	rwlock_init(&zfcp_data.config_lock);
-
-	/* save address of data structure managing the driver module */
-	zfcp_data.scsi_host_template.module = THIS_MODULE;
 
 	/* setup dynamic I/O */
 	retval = zfcp_ccw_register();
@@ -350,6 +382,14 @@ zfcp_module_init(void)
 
  out_ccw_register:
 	misc_deregister(&zfcp_cfdc_misc);
+ out_misc:
+	fc_release_transport(zfcp_data.scsi_transport_template);
+ out_transport:
+	kmem_cache_destroy(zfcp_data.gid_pn_cache);
+ out_gid_cache:
+	kmem_cache_destroy(zfcp_data.sr_buffer_cache);
+ out_sr_cache:
+	kmem_cache_destroy(zfcp_data.fsf_req_qtcb_cache);
  out:
 	return retval;
 }
@@ -935,20 +975,20 @@ static int
 zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 {
 	adapter->pool.fsf_req_erp =
-		mempool_create_kmalloc_pool(ZFCP_POOL_FSF_REQ_ERP_NR,
-				sizeof(struct zfcp_fsf_req_pool_element));
+		mempool_create_slab_pool(ZFCP_POOL_FSF_REQ_ERP_NR,
+					 zfcp_data.fsf_req_qtcb_cache);
 	if (!adapter->pool.fsf_req_erp)
 		return -ENOMEM;
 
 	adapter->pool.fsf_req_scsi =
-		mempool_create_kmalloc_pool(ZFCP_POOL_FSF_REQ_SCSI_NR,
-				sizeof(struct zfcp_fsf_req_pool_element));
+		mempool_create_slab_pool(ZFCP_POOL_FSF_REQ_SCSI_NR,
+					 zfcp_data.fsf_req_qtcb_cache);
 	if (!adapter->pool.fsf_req_scsi)
 		return -ENOMEM;
 
 	adapter->pool.fsf_req_abort =
-		mempool_create_kmalloc_pool(ZFCP_POOL_FSF_REQ_ABORT_NR,
-				sizeof(struct zfcp_fsf_req_pool_element));
+		mempool_create_slab_pool(ZFCP_POOL_FSF_REQ_ABORT_NR,
+					 zfcp_data.fsf_req_qtcb_cache);
 	if (!adapter->pool.fsf_req_abort)
 		return -ENOMEM;
 
@@ -959,14 +999,14 @@ zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 		return -ENOMEM;
 
 	adapter->pool.data_status_read =
-		mempool_create_kmalloc_pool(ZFCP_POOL_STATUS_READ_NR,
-					sizeof(struct fsf_status_read_buffer));
+		mempool_create_slab_pool(ZFCP_POOL_STATUS_READ_NR,
+					 zfcp_data.sr_buffer_cache);
 	if (!adapter->pool.data_status_read)
 		return -ENOMEM;
 
 	adapter->pool.data_gid_pn =
-		mempool_create_kmalloc_pool(ZFCP_POOL_DATA_GID_PN_NR,
-					    sizeof(struct zfcp_gid_pn_data));
+		mempool_create_slab_pool(ZFCP_POOL_DATA_GID_PN_NR,
+					 zfcp_data.gid_pn_cache);
 	if (!adapter->pool.data_gid_pn)
 		return -ENOMEM;
 

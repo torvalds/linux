@@ -100,14 +100,19 @@ zfcp_fsf_req_alloc(mempool_t *pool, int req_flags)
 	if (req_flags & ZFCP_REQ_NO_QTCB)
 		size = sizeof(struct zfcp_fsf_req);
 	else
-		size = sizeof(struct zfcp_fsf_req_pool_element);
+		size = sizeof(struct zfcp_fsf_req_qtcb);
 
-	if (likely(pool != NULL))
+	if (likely(pool))
 		ptr = mempool_alloc(pool, GFP_ATOMIC);
-	else
-		ptr = kmalloc(size, GFP_ATOMIC);
+	else {
+		if (req_flags & ZFCP_REQ_NO_QTCB)
+			ptr = kmalloc(size, GFP_ATOMIC);
+		else
+			ptr = kmem_cache_alloc(zfcp_data.fsf_req_qtcb_cache,
+					       SLAB_ATOMIC);
+	}
 
-	if (unlikely(NULL == ptr))
+	if (unlikely(!ptr))
 		goto out;
 
 	memset(ptr, 0, size);
@@ -115,9 +120,8 @@ zfcp_fsf_req_alloc(mempool_t *pool, int req_flags)
 	if (req_flags & ZFCP_REQ_NO_QTCB) {
 		fsf_req = (struct zfcp_fsf_req *) ptr;
 	} else {
-		fsf_req = &((struct zfcp_fsf_req_pool_element *) ptr)->fsf_req;
-		fsf_req->qtcb =
-			&((struct zfcp_fsf_req_pool_element *) ptr)->qtcb;
+		fsf_req = &((struct zfcp_fsf_req_qtcb *) ptr)->fsf_req;
+		fsf_req->qtcb =	&((struct zfcp_fsf_req_qtcb *) ptr)->qtcb;
 	}
 
 	fsf_req->pool = pool;
@@ -139,10 +143,17 @@ zfcp_fsf_req_alloc(mempool_t *pool, int req_flags)
 void
 zfcp_fsf_req_free(struct zfcp_fsf_req *fsf_req)
 {
-	if (likely(fsf_req->pool != NULL))
+	if (likely(fsf_req->pool)) {
 		mempool_free(fsf_req, fsf_req->pool);
-	else
-		kfree(fsf_req);
+		return;
+	}
+
+	if (fsf_req->qtcb) {
+		kmem_cache_free(zfcp_data.fsf_req_qtcb_cache, fsf_req);
+		return;
+	}
+
+	kfree(fsf_req);
 }
 
 /**

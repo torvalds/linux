@@ -19,7 +19,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
  */ 
 
-
 #ifndef ZFCP_DEF_H
 #define ZFCP_DEF_H
 
@@ -32,6 +31,10 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
+#include <linux/mempool.h>
+#include <linux/syscalls.h>
+#include <linux/ioctl.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_cmnd.h>
@@ -39,14 +42,11 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
-#include "zfcp_fsf.h"
 #include <asm/ccwdev.h>
 #include <asm/qdio.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
-#include <linux/mempool.h>
-#include <linux/syscalls.h>
-#include <linux/ioctl.h>
+#include "zfcp_fsf.h"
 
 
 /********************* GENERAL DEFINES *********************************/
@@ -1016,6 +1016,7 @@ typedef void zfcp_fsf_req_handler_t(struct zfcp_fsf_req*);
 /* driver data */
 struct zfcp_data {
 	struct scsi_host_template scsi_host_template;
+	struct scsi_transport_template *scsi_transport_template;
         atomic_t                status;             /* Module status flags */
 	struct list_head	adapter_list_head;  /* head of adapter list */
 	struct list_head	adapter_remove_lh;  /* head of adapters to be
@@ -1031,6 +1032,9 @@ struct zfcp_data {
 	wwn_t                   init_wwpn;
 	fcp_lun_t               init_fcp_lun;
 	char 			*driver_version;
+	kmem_cache_t		*fsf_req_qtcb_cache;
+	kmem_cache_t		*sr_buffer_cache;
+	kmem_cache_t		*gid_pn_cache;
 };
 
 /**
@@ -1051,7 +1055,7 @@ struct zfcp_sg_list {
 #define ZFCP_POOL_DATA_GID_PN_NR	1
 
 /* struct used by memory pools for fsf_requests */
-struct zfcp_fsf_req_pool_element {
+struct zfcp_fsf_req_qtcb {
 	struct zfcp_fsf_req fsf_req;
 	struct fsf_qtcb qtcb;
 };
