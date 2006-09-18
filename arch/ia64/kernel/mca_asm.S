@@ -1062,6 +1062,10 @@ ia64_set_kernel_registers:
 	mov cr.itir=r18
 	mov cr.ifa=r13
 	mov r20=IA64_TR_CURRENT_STACK
+
+	movl r17=FPSR_DEFAULT
+	;;
+	mov.m ar.fpsr=r17			// set ar.fpsr to kernel default value
 	;;
 	itr.d dtr[r20]=r21
 	;;
