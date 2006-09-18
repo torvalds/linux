@@ -202,12 +202,20 @@ config ARCH_IMX
 	help
 	  Support for Motorola's i.MX family of processors (MX1, MXL).
 
-config ARCH_IOP3XX
-	bool "IOP3xx-based"
+config ARCH_IOP32X
+	bool "IOP32x-based"
 	depends on MMU
 	select PCI
 	help
-	  Support for Intel's IOP3XX (XScale) family of processors.
+	  Support for Intel's 80219 and IOP32X (XScale) family of
+	  processors.
+
+config ARCH_IOP33X
+	bool "IOP33x-based"
+	depends on MMU
+	select PCI
+	help
+	  Support for Intel's IOP33X (XScale) family of processors.
 
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
@@ -312,7 +320,9 @@ source "arch/arm/mach-footbridge/Kconfig"
 
 source "arch/arm/mach-integrator/Kconfig"
 
-source "arch/arm/mach-iop3xx/Kconfig"
+source "arch/arm/mach-iop32x/Kconfig"
+
+source "arch/arm/mach-iop33x/Kconfig"
 
 source "arch/arm/mach-ixp4xx/Kconfig"
 
@@ -848,7 +858,7 @@ source "drivers/block/Kconfig"
 
 source "drivers/acorn/block/Kconfig"
 
-if PCMCIA || ARCH_CLPS7500 || ARCH_IOP3XX || ARCH_IXP4XX \
+if PCMCIA || ARCH_CLPS7500 || ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX \
 	|| ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC \
 	|| ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE \
 	|| ARCH_IXP23XX

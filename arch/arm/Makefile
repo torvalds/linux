@@ -101,7 +101,8 @@ endif
  machine-$(CONFIG_ARCH_INTEGRATOR) := integrator
  textofs-$(CONFIG_ARCH_CLPS711X)   := 0x00028000
  machine-$(CONFIG_ARCH_CLPS711X)   := clps711x
- machine-$(CONFIG_ARCH_IOP3XX)	   := iop3xx
+ machine-$(CONFIG_ARCH_IOP32X)	   := iop32x
+ machine-$(CONFIG_ARCH_IOP33X)	   := iop33x
  machine-$(CONFIG_ARCH_IXP4XX)	   := ixp4xx
  machine-$(CONFIG_ARCH_IXP2000)    := ixp2000
  machine-$(CONFIG_ARCH_IXP23XX)    := ixp23xx
