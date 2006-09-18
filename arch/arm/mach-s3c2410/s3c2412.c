@@ -56,6 +56,13 @@
 
 #ifndef CONFIG_CPU_S3C2412_ONLY
 void __iomem *s3c24xx_va_gpio2 = S3C24XX_VA_GPIO;
+
+static inline void s3c2412_init_gpio2(void)
+{
+	s3c24xx_va_gpio2 = S3C24XX_VA_GPIO + 0x10;
+}
+#else
+#define s3c2412_init_gpio2() do { } while(0)
 #endif
 
 /* Initial IO mappings */
@@ -110,7 +117,7 @@ void __init s3c2412_map_io(struct map_desc *mach_desc, int mach_size)
 {
 	/* move base of IO */
 
-	s3c24xx_va_gpio2 = S3C24XX_VA_GPIO + 0x10;
+	s3c2412_init_gpio2();
 
 	/* set our idle function */
 
