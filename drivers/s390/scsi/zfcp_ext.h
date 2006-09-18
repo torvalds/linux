@@ -87,8 +87,8 @@ extern int  zfcp_fsf_exchange_port_data(struct zfcp_erp_action *,
 					struct fsf_qtcb_bottom_port *);
 extern int  zfcp_fsf_control_file(struct zfcp_adapter *, struct zfcp_fsf_req **,
 				  u32, u32, struct zfcp_sg_list *);
-extern void zfcp_fsf_request_timeout_handler(unsigned long);
-extern void zfcp_fsf_scsi_er_timeout_handler(unsigned long);
+extern void zfcp_fsf_start_timer(struct zfcp_fsf_req *, unsigned long);
+extern void zfcp_erp_start_timer(struct zfcp_fsf_req *);
 extern int  zfcp_fsf_req_dismiss_all(struct zfcp_adapter *);
 extern int  zfcp_fsf_status_read(struct zfcp_adapter *, int);
 extern int zfcp_fsf_req_create(struct zfcp_adapter *, u32, int, mempool_t *,
@@ -98,8 +98,7 @@ extern int zfcp_fsf_send_ct(struct zfcp_send_ct *, mempool_t *,
 extern int zfcp_fsf_send_els(struct zfcp_send_els *);
 extern int  zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *,
 					   struct zfcp_unit *,
-					   struct scsi_cmnd *,
-					   struct timer_list*, int);
+					   struct scsi_cmnd *, int, int);
 extern int  zfcp_fsf_req_complete(struct zfcp_fsf_req *);
 extern void zfcp_fsf_incoming_els(struct zfcp_fsf_req *);
 extern void zfcp_fsf_req_free(struct zfcp_fsf_req *);
@@ -123,13 +122,11 @@ extern char *zfcp_get_fcp_rsp_info_ptr(struct fcp_rsp_iu *);
 extern void set_host_byte(u32 *, char);
 extern void set_driver_byte(u32 *, char);
 extern char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *);
-extern void zfcp_fsf_start_scsi_er_timer(struct zfcp_adapter *);
 extern fcp_dl_t zfcp_get_fcp_dl(struct fcp_cmnd_iu *);
 
 extern int zfcp_scsi_command_async(struct zfcp_adapter *,struct zfcp_unit *,
-				   struct scsi_cmnd *, struct timer_list *);
-extern int zfcp_scsi_command_sync(struct zfcp_unit *, struct scsi_cmnd *,
-				  struct timer_list *);
+				   struct scsi_cmnd *, int);
+extern int zfcp_scsi_command_sync(struct zfcp_unit *, struct scsi_cmnd *, int);
 extern struct fc_function_template zfcp_transport_functions;
 
 /******************************** ERP ****************************************/

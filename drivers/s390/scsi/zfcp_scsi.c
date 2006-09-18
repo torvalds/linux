@@ -231,7 +231,7 @@ zfcp_scsi_command_fail(struct scsi_cmnd *scpnt, int result)
  */
 int
 zfcp_scsi_command_async(struct zfcp_adapter *adapter, struct zfcp_unit *unit,
-			struct scsi_cmnd *scpnt, struct timer_list *timer)
+			struct scsi_cmnd *scpnt, int use_timer)
 {
 	int tmp;
 	int retval;
@@ -267,7 +267,7 @@ zfcp_scsi_command_async(struct zfcp_adapter *adapter, struct zfcp_unit *unit,
 		goto out;
 	}
 
-	tmp = zfcp_fsf_send_fcp_command_task(adapter, unit, scpnt, timer,
+	tmp = zfcp_fsf_send_fcp_command_task(adapter, unit, scpnt, use_timer,
 					     ZFCP_REQ_AUTO_CLEANUP);
 
 	if (unlikely(tmp < 0)) {
@@ -291,21 +291,22 @@ zfcp_scsi_command_sync_handler(struct scsi_cmnd *scpnt)
  * zfcp_scsi_command_sync - send a SCSI command and wait for completion
  * @unit: unit where command is sent to
  * @scpnt: scsi command to be sent
- * @timer: timer to be started if request is successfully initiated
+ * @use_timer: indicates whether timer should be setup or not
  * Return: 0
  *
  * Errors are indicated in scpnt->result
  */
 int
 zfcp_scsi_command_sync(struct zfcp_unit *unit, struct scsi_cmnd *scpnt,
-		       struct timer_list *timer)
+		       int use_timer)
 {
 	int ret;
 	DECLARE_COMPLETION(wait);
 
 	scpnt->SCp.ptr = (void *) &wait;  /* silent re-use */
 	scpnt->scsi_done = zfcp_scsi_command_sync_handler;
-	ret = zfcp_scsi_command_async(unit->port->adapter, unit, scpnt, timer);
+	ret = zfcp_scsi_command_async(unit->port->adapter, unit, scpnt,
+				      use_timer);
 	if (ret == 0)
 		wait_for_completion(&wait);
 
@@ -341,7 +342,7 @@ zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 	adapter = (struct zfcp_adapter *) scpnt->device->host->hostdata[0];
 	unit = (struct zfcp_unit *) scpnt->device->hostdata;
 
-	return zfcp_scsi_command_async(adapter, unit, scpnt, NULL);
+	return zfcp_scsi_command_async(adapter, unit, scpnt, 0);
 }
 
 static struct zfcp_unit *
@@ -538,8 +539,6 @@ zfcp_task_management_function(struct zfcp_unit *unit, u8 tm_flags,
 
 /**
  * zfcp_scsi_eh_host_reset_handler - handler for host and bus reset
- *
- * If ERP is already running it will be stopped.
  */
 int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 {
@@ -636,16 +635,6 @@ zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_REGISTERED, &adapter->status);
 
 	return;
-}
-
-
-void
-zfcp_fsf_start_scsi_er_timer(struct zfcp_adapter *adapter)
-{
-	adapter->scsi_er_timer.function = zfcp_fsf_scsi_er_timeout_handler;
-	adapter->scsi_er_timer.data = (unsigned long) adapter;
-	adapter->scsi_er_timer.expires = jiffies + ZFCP_SCSI_ER_TIMEOUT;
-	add_timer(&adapter->scsi_er_timer);
 }
 
 /*

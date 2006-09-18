@@ -1135,9 +1135,6 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	/* initialize lock of associated request queue */
 	rwlock_init(&adapter->request_queue.queue_lock);
 
-	/* intitialise SCSI ER timer */
-	init_timer(&adapter->scsi_er_timer);
-
 	/* mark adapter unusable as long as sysfs registration is not complete */
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
 
@@ -1653,7 +1650,6 @@ zfcp_ns_gid_pn_request(struct zfcp_erp_action *erp_action)
 	gid_pn->ct.handler = zfcp_ns_gid_pn_handler;
 	gid_pn->ct.handler_data = (unsigned long) gid_pn;
         gid_pn->ct.timeout = ZFCP_NS_GID_PN_TIMEOUT;
-        gid_pn->ct.timer = &erp_action->timer;
 	gid_pn->port = erp_action->port;
 
 	ret = zfcp_fsf_send_ct(&gid_pn->ct, adapter->pool.fsf_req_erp,
