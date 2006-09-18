@@ -25,7 +25,7 @@
 #include <net/netfilter/nf_conntrack_protocol.h>
 #include <net/netfilter/nf_conntrack_core.h>
 
-unsigned long nf_ct_icmp_timeout = 30*HZ;
+unsigned long nf_ct_icmp_timeout __read_mostly = 30*HZ;
 
 #if 0
 #define DEBUGP printk

@@ -77,12 +77,12 @@ LIST_HEAD(nf_conntrack_expect_list);
 struct nf_conntrack_protocol **nf_ct_protos[PF_MAX];
 struct nf_conntrack_l3proto *nf_ct_l3protos[PF_MAX];
 static LIST_HEAD(helpers);
-unsigned int nf_conntrack_htable_size = 0;
-int nf_conntrack_max;
+unsigned int nf_conntrack_htable_size __read_mostly = 0;
+int nf_conntrack_max __read_mostly;
 struct list_head *nf_conntrack_hash;
 static kmem_cache_t *nf_conntrack_expect_cachep;
 struct nf_conn nf_conntrack_untracked;
-unsigned int nf_ct_log_invalid;
+unsigned int nf_ct_log_invalid __read_mostly;
 static LIST_HEAD(unconfirmed);
 static int nf_conntrack_vmalloc;
 

@@ -428,7 +428,7 @@ static struct file_operations ct_cpu_seq_fops = {
 
 /* Sysctl support */
 
-int nf_conntrack_checksum = 1;
+int nf_conntrack_checksum __read_mostly = 1;
 
 #ifdef CONFIG_SYSCTL
 

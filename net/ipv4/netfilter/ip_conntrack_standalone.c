@@ -534,7 +534,7 @@ static struct nf_hook_ops ip_conntrack_ops[] = {
 
 /* Sysctl support */
 
-int ip_conntrack_checksum = 1;
+int ip_conntrack_checksum __read_mostly = 1;
 
 #ifdef CONFIG_SYSCTL
 
@@ -563,7 +563,7 @@ extern unsigned int ip_ct_udp_timeout_stream;
 /* From ip_conntrack_proto_icmp.c */
 extern unsigned int ip_ct_icmp_timeout;
 
-/* From ip_conntrack_proto_icmp.c */
+/* From ip_conntrack_proto_generic.c */
 extern unsigned int ip_ct_generic_timeout;
 
 /* Log invalid packets of a given protocol */

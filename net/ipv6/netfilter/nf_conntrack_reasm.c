@@ -54,9 +54,9 @@
 #define NF_CT_FRAG6_LOW_THRESH 196608  /* == 192*1024 */
 #define NF_CT_FRAG6_TIMEOUT IPV6_FRAG_TIMEOUT
 
-unsigned int nf_ct_frag6_high_thresh = 256*1024;
-unsigned int nf_ct_frag6_low_thresh = 192*1024;
-unsigned long nf_ct_frag6_timeout = IPV6_FRAG_TIMEOUT;
+unsigned int nf_ct_frag6_high_thresh __read_mostly = 256*1024;
+unsigned int nf_ct_frag6_low_thresh __read_mostly = 192*1024;
+unsigned long nf_ct_frag6_timeout __read_mostly = IPV6_FRAG_TIMEOUT;
 
 struct nf_ct_frag6_skb_cb
 {

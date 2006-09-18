@@ -57,19 +57,19 @@ static DEFINE_RWLOCK(tcp_lock);
 /* "Be conservative in what you do, 
     be liberal in what you accept from others." 
     If it's non-zero, we mark only out of window RST segments as INVALID. */
-int nf_ct_tcp_be_liberal = 0;
+int nf_ct_tcp_be_liberal __read_mostly = 0;
 
 /* When connection is picked up from the middle, how many packets are required
    to pass in each direction when we assume we are in sync - if any side uses
    window scaling, we lost the game. 
    If it is set to zero, we disable picking up already established 
    connections. */
-int nf_ct_tcp_loose = 3;
+int nf_ct_tcp_loose __read_mostly = 3;
 
 /* Max number of the retransmitted packets without receiving an (acceptable) 
    ACK from the destination. If this number is reached, a shorter timer 
    will be started. */
-int nf_ct_tcp_max_retrans = 3;
+int nf_ct_tcp_max_retrans __read_mostly = 3;
 
   /* FIXME: Examine ipfilter's timeouts and conntrack transitions more
      closely.  They're more complex. --RR */
@@ -92,19 +92,19 @@ static const char *tcp_conntrack_names[] = {
 #define HOURS * 60 MINS
 #define DAYS * 24 HOURS
 
-unsigned int nf_ct_tcp_timeout_syn_sent =      2 MINS;
-unsigned int nf_ct_tcp_timeout_syn_recv =     60 SECS;
-unsigned int nf_ct_tcp_timeout_established =   5 DAYS;
-unsigned int nf_ct_tcp_timeout_fin_wait =      2 MINS;
-unsigned int nf_ct_tcp_timeout_close_wait =   60 SECS;
-unsigned int nf_ct_tcp_timeout_last_ack =     30 SECS;
-unsigned int nf_ct_tcp_timeout_time_wait =     2 MINS;
-unsigned int nf_ct_tcp_timeout_close =        10 SECS;
+unsigned int nf_ct_tcp_timeout_syn_sent __read_mostly =      2 MINS;
+unsigned int nf_ct_tcp_timeout_syn_recv __read_mostly =     60 SECS;
+unsigned int nf_ct_tcp_timeout_established __read_mostly =   5 DAYS;
+unsigned int nf_ct_tcp_timeout_fin_wait __read_mostly =      2 MINS;
+unsigned int nf_ct_tcp_timeout_close_wait __read_mostly =   60 SECS;
+unsigned int nf_ct_tcp_timeout_last_ack __read_mostly =     30 SECS;
+unsigned int nf_ct_tcp_timeout_time_wait __read_mostly =     2 MINS;
+unsigned int nf_ct_tcp_timeout_close __read_mostly =        10 SECS;
 
 /* RFC1122 says the R2 limit should be at least 100 seconds.
    Linux uses 15 packets as limit, which corresponds 
    to ~13-30min depending on RTO. */
-unsigned int nf_ct_tcp_timeout_max_retrans =     5 MINS;
+unsigned int nf_ct_tcp_timeout_max_retrans __read_mostly =   5 MINS;
  
 static unsigned int * tcp_timeouts[]
 = { NULL,                              /* TCP_CONNTRACK_NONE */
