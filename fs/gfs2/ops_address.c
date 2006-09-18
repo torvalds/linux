@@ -247,8 +247,7 @@ skip_lock:
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = -EIO;
 
-	if (gf && !test_bit(GFF_EXLOCK, &gf->f_flags) &&
-	    file != &gfs2_internal_file_sentinel) {
+	if (do_unlock) {
 		gfs2_glock_dq_m(1, &gh);
 		gfs2_holder_uninit(&gh);
 	}
