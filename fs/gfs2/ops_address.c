@@ -218,14 +218,16 @@ static int gfs2_readpage(struct file *file, struct page *page)
 {
 	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
 	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
+	struct gfs2_file *gf = NULL;
 	struct gfs2_holder gh;
 	int error;
 	int do_unlock = 0;
 
 	if (likely(file != &gfs2_internal_file_sentinel)) {
 		if (file) {
-			struct gfs2_file *gf = file->private_data;
+			gf = file->private_data;
 			if (test_bit(GFF_EXLOCK, &gf->f_flags))
+				/* gfs2_sharewrite_nopage has grabbed the ip->i_gl already */
 				goto skip_lock;
 		}
 		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|GL_AOP, &gh);
@@ -245,7 +247,8 @@ skip_lock:
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = -EIO;
 
-	if (file != &gfs2_internal_file_sentinel) {
+	if (gf && !test_bit(GFF_EXLOCK, &gf->f_flags) &&
+	    file != &gfs2_internal_file_sentinel) {
 		gfs2_glock_dq_m(1, &gh);
 		gfs2_holder_uninit(&gh);
 	}
