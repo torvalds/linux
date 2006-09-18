@@ -61,7 +61,7 @@
 #include <net/inet_ecn.h>
 
 /* Global data structures. */
-struct sctp_globals sctp_globals;
+struct sctp_globals sctp_globals __read_mostly;
 struct proc_dir_entry	*proc_net_sctp;
 DEFINE_SNMP_STAT(struct sctp_mib, sctp_statistics) __read_mostly;
 
