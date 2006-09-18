@@ -401,7 +401,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	if (hlimit < 0)
 		hlimit = ipv6_get_hoplimit(dst->dev);
 
-	tclass = np->cork.tclass;
+	tclass = np->tclass;
 	if (tclass < 0)
 		tclass = 0;
 
@@ -497,7 +497,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	if (hlimit < 0)
 		hlimit = ipv6_get_hoplimit(dst->dev);
 
-	tclass = np->cork.tclass;
+	tclass = np->tclass;
 	if (tclass < 0)
 		tclass = 0;
 

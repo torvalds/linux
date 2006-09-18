@@ -89,7 +89,7 @@ int sysctl_tcp_frto;
 int sysctl_tcp_nometrics_save;
 
 int sysctl_tcp_moderate_rcvbuf = 1;
-int sysctl_tcp_abc = 1;
+int sysctl_tcp_abc;
 
 #define FLAG_DATA		0x01 /* Incoming frame contained data.		*/
 #define FLAG_WIN_UPDATE		0x02 /* Incoming ACK was a window update.	*/

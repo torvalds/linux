@@ -362,7 +362,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_TCLASS:
-		if (val < 0 || val > 0xff)
+		if (val < -1 || val > 0xff)
 			goto e_inval;
 		np->tclass = val;
 		retv = 0;
@@ -947,6 +947,8 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_TCLASS:
 		val = np->tclass;
+		if (val < 0)
+			val = 0;
 		break;
 
 	case IPV6_RECVTCLASS:

@@ -696,7 +696,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 			}
 
 			tc = *(int *)CMSG_DATA(cmsg);
-			if (tc < 0 || tc > 0xff)
+			if (tc < -1 || tc > 0xff)
 				goto exit_f;
 
 			err = 0;
