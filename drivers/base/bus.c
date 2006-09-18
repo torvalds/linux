@@ -696,22 +696,6 @@ static void klist_devices_put(struct klist_node *n)
 	put_device(dev);
 }
 
-static void klist_drivers_get(struct klist_node *n)
-{
-	struct device_driver *drv = container_of(n, struct device_driver,
-						 knode_bus);
-
-	get_driver(drv);
-}
-
-static void klist_drivers_put(struct klist_node *n)
-{
-	struct device_driver *drv = container_of(n, struct device_driver,
-						 knode_bus);
-
-	put_driver(drv);
-}
-
 /**
  *	bus_register - register a bus with the system.
  *	@bus:	bus.
@@ -747,7 +731,7 @@ int bus_register(struct bus_type * bus)
 		goto bus_drivers_fail;
 
 	klist_init(&bus->klist_devices, klist_devices_get, klist_devices_put);
-	klist_init(&bus->klist_drivers, klist_drivers_get, klist_drivers_put);
+	klist_init(&bus->klist_drivers, NULL, NULL);
 	bus_add_attrs(bus);
 
 	pr_debug("bus type '%s' registered\n", bus->name);
