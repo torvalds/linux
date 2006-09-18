@@ -189,6 +189,10 @@ struct zfcp_fsf_req *zfcp_reqlist_ismember(struct zfcp_adapter *adapter,
 	struct zfcp_fsf_req *request, *tmp;
 	unsigned int i;
 
+	/* 0 is reserved as an invalid req_id */
+	if (req_id == 0)
+		return NULL;
+
 	i = req_id % REQUEST_LIST_SIZE;
 
 	list_for_each_entry_safe(request, tmp, &adapter->req_list[i], list)

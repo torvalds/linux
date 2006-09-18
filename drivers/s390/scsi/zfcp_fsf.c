@@ -3527,7 +3527,7 @@ zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 	fsf_req->unit = unit;
 
 	/* associate FSF request with SCSI request (for look up on abort) */
-	scsi_cmnd->host_scribble = (char *) fsf_req;
+	scsi_cmnd->host_scribble = (unsigned char *) fsf_req->req_id;
 
 	/* associate SCSI command with FSF request */
 	fsf_req->data = (unsigned long) scsi_cmnd;
@@ -4667,7 +4667,6 @@ zfcp_fsf_req_create(struct zfcp_adapter *adapter, u32 fsf_cmd, int req_flags,
 {
 	volatile struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *fsf_req = NULL;
-	unsigned long flags;
 	int ret = 0;
 	struct zfcp_qdio_queue *req_queue = &adapter->request_queue;
 
@@ -4684,10 +4683,10 @@ zfcp_fsf_req_create(struct zfcp_adapter *adapter, u32 fsf_cmd, int req_flags,
 	fsf_req->fsf_command = fsf_cmd;
 	INIT_LIST_HEAD(&fsf_req->list);
 	
-	/* unique request id */
-	spin_lock_irqsave(&adapter->req_list_lock, flags);
+	/* this is serialized (we are holding req_queue-lock of adapter */
+	if (adapter->req_no == 0)
+		adapter->req_no++;
 	fsf_req->req_id = adapter->req_no++;
-	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
 
         zfcp_fsf_req_qtcb_init(fsf_req);
 

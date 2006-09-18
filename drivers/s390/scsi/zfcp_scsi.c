@@ -378,16 +378,15 @@ zfcp_unit_lookup(struct zfcp_adapter *adapter, int channel, unsigned int id,
  * will handle late commands.  (Usually, the normal completion of late
  * commands is ignored with respect to the running abort operation.)
  */
-int
-zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
+int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 {
  	struct Scsi_Host *scsi_host;
  	struct zfcp_adapter *adapter;
 	struct zfcp_unit *unit;
-	int retval = SUCCESS;
-	struct zfcp_fsf_req *new_fsf_req = NULL;
-	struct zfcp_fsf_req *old_fsf_req;
+	struct zfcp_fsf_req *fsf_req;
 	unsigned long flags;
+	unsigned long old_req_id;
+	int retval = SUCCESS;
 
 	scsi_host = scpnt->device->host;
 	adapter = (struct zfcp_adapter *) scsi_host->hostdata[0];
@@ -399,55 +398,47 @@ zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	/* avoid race condition between late normal completion and abort */
 	write_lock_irqsave(&adapter->abort_lock, flags);
 
-	/*
-	 * Check whether command has just completed and can not be aborted.
-	 * Even if the command has just been completed late, we can access
-	 * scpnt since the SCSI stack does not release it at least until
-	 * this routine returns. (scpnt is parameter passed to this routine
-	 * and must not disappear during abort even on late completion.)
-	 */
-	old_fsf_req = (struct zfcp_fsf_req *) scpnt->host_scribble;
-	if (!old_fsf_req) {
+	/* Check whether corresponding fsf_req is still pending */
+	spin_lock(&adapter->req_list_lock);
+	fsf_req = zfcp_reqlist_ismember(adapter, (unsigned long)
+					scpnt->host_scribble);
+	spin_unlock(&adapter->req_list_lock);
+	if (!fsf_req) {
 		write_unlock_irqrestore(&adapter->abort_lock, flags);
-		zfcp_scsi_dbf_event_abort("lte1", adapter, scpnt, NULL, NULL);
+		zfcp_scsi_dbf_event_abort("lte1", adapter, scpnt, NULL, 0);
 		retval = SUCCESS;
 		goto out;
 	}
-	old_fsf_req->data = 0;
-	old_fsf_req->status |= ZFCP_STATUS_FSFREQ_ABORTING;
+	fsf_req->data = 0;
+	fsf_req->status |= ZFCP_STATUS_FSFREQ_ABORTING;
+	old_req_id = fsf_req->req_id;
 
-	/* don't access old_fsf_req after releasing the abort_lock */
+	/* don't access old fsf_req after releasing the abort_lock */
 	write_unlock_irqrestore(&adapter->abort_lock, flags);
-	/* call FSF routine which does the abort */
-	new_fsf_req = zfcp_fsf_abort_fcp_command((unsigned long) old_fsf_req,
-						 adapter, unit, 0);
-	if (!new_fsf_req) {
+
+	fsf_req = zfcp_fsf_abort_fcp_command(old_req_id, adapter, unit, 0);
+	if (!fsf_req) {
 		ZFCP_LOG_INFO("error: initiation of Abort FCP Cmnd failed\n");
 		zfcp_scsi_dbf_event_abort("nres", adapter, scpnt, NULL,
-					  old_fsf_req);
+					  old_req_id);
 		retval = FAILED;
 		goto out;
 	}
 
-	/* wait for completion of abort */
-	__wait_event(new_fsf_req->completion_wq,
-		     new_fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
+	__wait_event(fsf_req->completion_wq,
+		     fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
 
-	/* status should be valid since signals were not permitted */
-	if (new_fsf_req->status & ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED) {
-		zfcp_scsi_dbf_event_abort("okay", adapter, scpnt, new_fsf_req,
-					  NULL);
+	if (fsf_req->status & ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED) {
+		zfcp_scsi_dbf_event_abort("okay", adapter, scpnt, fsf_req, 0);
 		retval = SUCCESS;
-	} else if (new_fsf_req->status & ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED) {
-		zfcp_scsi_dbf_event_abort("lte2", adapter, scpnt, new_fsf_req,
-					  NULL);
+	} else if (fsf_req->status & ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED) {
+		zfcp_scsi_dbf_event_abort("lte2", adapter, scpnt, fsf_req, 0);
 		retval = SUCCESS;
 	} else {
-		zfcp_scsi_dbf_event_abort("fail", adapter, scpnt, new_fsf_req,
-					  NULL);
+		zfcp_scsi_dbf_event_abort("fail", adapter, scpnt, fsf_req, 0);
 		retval = FAILED;
 	}
-	zfcp_fsf_req_free(new_fsf_req);
+	zfcp_fsf_req_free(fsf_req);
  out:
 	return retval;
 }
