@@ -53,10 +53,10 @@
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table_header *brnf_sysctl_header;
-static int brnf_call_iptables = 1;
-static int brnf_call_ip6tables = 1;
-static int brnf_call_arptables = 1;
-static int brnf_filter_vlan_tagged = 1;
+static int brnf_call_iptables __read_mostly = 1;
+static int brnf_call_ip6tables __read_mostly = 1;
+static int brnf_call_arptables __read_mostly = 1;
+static int brnf_filter_vlan_tagged __read_mostly = 1;
 #else
 #define brnf_filter_vlan_tagged 1
 #endif
