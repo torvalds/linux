@@ -2894,22 +2894,17 @@ static struct nla_policy ifa_ipv6_policy[IFA_MAX+1] __read_mostly = {
 static int
 inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
-	struct rtattr **rta = arg;
-	struct ifaddrmsg *ifm = NLMSG_DATA(nlh);
+	struct ifaddrmsg *ifm;
+	struct nlattr *tb[IFA_MAX+1];
 	struct in6_addr *pfx;
+	int err;
 
-	pfx = NULL;
-	if (rta[IFA_ADDRESS-1]) {
-		if (RTA_PAYLOAD(rta[IFA_ADDRESS-1]) < sizeof(*pfx))
-			return -EINVAL;
-		pfx = RTA_DATA(rta[IFA_ADDRESS-1]);
-	}
-	if (rta[IFA_LOCAL-1]) {
-		if (RTA_PAYLOAD(rta[IFA_LOCAL-1]) < sizeof(*pfx) ||
-		    (pfx && memcmp(pfx, RTA_DATA(rta[IFA_LOCAL-1]), sizeof(*pfx))))
-			return -EINVAL;
-		pfx = RTA_DATA(rta[IFA_LOCAL-1]);
-	}
+	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv6_policy);
+	if (err < 0)
+		return err;
+
+	ifm = nlmsg_data(nlh);
+	pfx = extract_addr(tb[IFA_ADDRESS], tb[IFA_LOCAL]);
 	if (pfx == NULL)
 		return -EINVAL;
 
