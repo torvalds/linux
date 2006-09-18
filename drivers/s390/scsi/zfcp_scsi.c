@@ -544,7 +544,6 @@ int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 {
 	struct zfcp_unit *unit;
 	struct zfcp_adapter *adapter;
-	unsigned long flags;
 
 	unit = (struct zfcp_unit*) scpnt->device->hostdata;
 	adapter = unit->port->adapter;
@@ -552,22 +551,8 @@ int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 	ZFCP_LOG_NORMAL("host/bus reset because of problems with "
 			"unit 0x%016Lx\n", unit->fcp_lun);
 
-	write_lock_irqsave(&adapter->erp_lock, flags);
-	if (atomic_test_mask(ZFCP_STATUS_ADAPTER_ERP_PENDING,
-			     &adapter->status)) {
-		zfcp_erp_modify_adapter_status(adapter,
-		       ZFCP_STATUS_COMMON_UNBLOCKED|ZFCP_STATUS_COMMON_OPEN,
-		       ZFCP_CLEAR);
-		zfcp_erp_action_dismiss_adapter(adapter);
-		write_unlock_irqrestore(&adapter->erp_lock, flags);
-		zfcp_fsf_req_dismiss_all(adapter);
-		adapter->fsf_req_seq_no = 0;
-		zfcp_erp_adapter_reopen(adapter, 0);
-	} else {
-		write_unlock_irqrestore(&adapter->erp_lock, flags);
-		zfcp_erp_adapter_reopen(adapter, 0);
-		zfcp_erp_wait(adapter);
-	}
+	zfcp_erp_adapter_reopen(adapter, 0);
+	zfcp_erp_wait(adapter);
 
 	return SUCCESS;
 }

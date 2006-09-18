@@ -134,7 +134,6 @@ extern void zfcp_erp_modify_adapter_status(struct zfcp_adapter *, u32, int);
 extern int  zfcp_erp_adapter_reopen(struct zfcp_adapter *, int);
 extern int  zfcp_erp_adapter_shutdown(struct zfcp_adapter *, int);
 extern void zfcp_erp_adapter_failed(struct zfcp_adapter *);
-extern void zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *);
 
 extern void zfcp_erp_modify_port_status(struct zfcp_port *, u32, int);
 extern int  zfcp_erp_port_reopen(struct zfcp_port *, int);

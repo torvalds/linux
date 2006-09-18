@@ -91,6 +91,7 @@ static int zfcp_erp_unit_strategy_clearstati(struct zfcp_unit *);
 static int zfcp_erp_unit_strategy_close(struct zfcp_erp_action *);
 static int zfcp_erp_unit_strategy_open(struct zfcp_erp_action *);
 
+static void zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *);
 static void zfcp_erp_action_dismiss_port(struct zfcp_port *);
 static void zfcp_erp_action_dismiss_unit(struct zfcp_unit *);
 static void zfcp_erp_action_dismiss(struct zfcp_erp_action *);
@@ -3157,7 +3158,7 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 }
 
 
-void zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *adapter)
+static void zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *adapter)
 {
 	struct zfcp_port *port;
 
