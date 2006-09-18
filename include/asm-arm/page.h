@@ -193,8 +193,8 @@ extern pmd_t *top_pmd;
 #define ARCH_SLAB_MINALIGN 8
 #endif
 
-#endif /* __KERNEL__ */
-
 #include <asm-generic/page.h>
+
+#endif /* __KERNEL__ */
 
 #endif
