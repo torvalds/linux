@@ -128,6 +128,8 @@ extern int sctp_copy_local_addr_list(struct sctp_bind_addr *,
 				     int flags);
 extern struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
 extern int sctp_register_pf(struct sctp_pf *, sa_family_t);
+int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
+                        void *ptr);
 
 /*
  * sctp/socket.c
@@ -176,6 +178,17 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 				 struct sctp_transport *t);
 void sctp_backlog_migrate(struct sctp_association *assoc,
 			  struct sock *oldsk, struct sock *newsk);
+
+/*
+ * sctp/proc.c
+ */
+int sctp_snmp_proc_init(void);
+void sctp_snmp_proc_exit(void);
+int sctp_eps_proc_init(void);
+void sctp_eps_proc_exit(void);
+int sctp_assocs_proc_init(void);
+void sctp_assocs_proc_exit(void);
+
 
 /*
  *  Section:  Macros, externs, and inlines

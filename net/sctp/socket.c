@@ -2081,13 +2081,13 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
  *                     SPP_SACKDELAY_ENABLE, setting both will have undefined
  *                     results.
  */
-int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
-				struct sctp_transport   *trans,
-				struct sctp_association *asoc,
-				struct sctp_sock        *sp,
-				int                      hb_change,
-				int                      pmtud_change,
-				int                      sackdelay_change)
+static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
+				       struct sctp_transport   *trans,
+				       struct sctp_association *asoc,
+				       struct sctp_sock        *sp,
+				       int                      hb_change,
+				       int                      pmtud_change,
+				       int                      sackdelay_change)
 {
 	int error;
 

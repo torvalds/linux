@@ -82,13 +82,6 @@ static struct sctp_af *sctp_af_v6_specific;
 kmem_cache_t *sctp_chunk_cachep __read_mostly;
 kmem_cache_t *sctp_bucket_cachep __read_mostly;
 
-extern int sctp_snmp_proc_init(void);
-extern int sctp_snmp_proc_exit(void);
-extern int sctp_eps_proc_init(void);
-extern int sctp_eps_proc_exit(void);
-extern int sctp_assocs_proc_init(void);
-extern int sctp_assocs_proc_exit(void);
-
 /* Return the address of the control sock. */
 struct sock *sctp_get_ctl_sock(void)
 {

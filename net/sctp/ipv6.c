@@ -78,7 +78,6 @@
 
 #include <asm/uaccess.h>
 
-extern int sctp_inetaddr_event(struct notifier_block *, unsigned long, void *);
 static struct notifier_block sctp_inet6addr_notifier = {
 	.notifier_call = sctp_inetaddr_event,
 };
