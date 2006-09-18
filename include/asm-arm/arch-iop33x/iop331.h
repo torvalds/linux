@@ -137,27 +137,6 @@
 
 
 /* Timers */
-
-#define IOP331_TU_TMR0		(volatile u32 *)IOP331_REG_ADDR(0x000007D0)
-#define IOP331_TU_TMR1		(volatile u32 *)IOP331_REG_ADDR(0x000007D4)
-
-#define IOP331_TMR_TC		0x01
-#define	IOP331_TMR_EN		0x02
-#define IOP331_TMR_RELOAD	0x04
-#define	IOP331_TMR_PRIVILEGED	0x09
-
-#define	IOP331_TMR_RATIO_1_1	0x00
-#define	IOP331_TMR_RATIO_4_1	0x10
-#define	IOP331_TMR_RATIO_8_1	0x20
-#define	IOP331_TMR_RATIO_16_1	0x30
-
-#define IOP331_TU_TCR0    (volatile u32 *)IOP331_REG_ADDR(0x000007D8)
-#define IOP331_TU_TCR1    (volatile u32 *)IOP331_REG_ADDR(0x000007DC)
-#define IOP331_TU_TRR0    (volatile u32 *)IOP331_REG_ADDR(0x000007E0)
-#define IOP331_TU_TRR1    (volatile u32 *)IOP331_REG_ADDR(0x000007E4)
-#define IOP331_TU_TISR    (volatile u32 *)IOP331_REG_ADDR(0x000007E8)
-#define IOP331_TU_WDTCR   (volatile u32 *)IOP331_REG_ADDR(0x000007EC)
-
 #if defined(CONFIG_ARCH_IOP33X)
 #define	IOP331_TICK_RATE	266000000	/* 266 MHz IB clock */
 #endif

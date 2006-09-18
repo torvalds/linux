@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y			:= setup.o irq.o time.o
+obj-y			:= setup.o irq.o
 obj-m			:=
 obj-n			:=
 obj-			:=

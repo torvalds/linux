@@ -151,10 +151,6 @@
 #define IOP321_FINTSRC    (volatile u32 *)IOP321_REG_ADDR(0x000007DC)
 
 /* Timers */
-
-#define IOP321_TU_TMR0		(volatile u32 *)IOP321_REG_ADDR(0x000007E0)
-#define IOP321_TU_TMR1		(volatile u32 *)IOP321_REG_ADDR(0x000007E4)
-
 #ifdef CONFIG_ARCH_IQ80321
 #define	IOP321_TICK_RATE	200000000	/* 200 MHz clock */
 #elif defined(CONFIG_ARCH_IQ31244)
@@ -165,23 +161,6 @@
 #undef IOP321_TICK_RATE
 #define IOP321_TICK_RATE 200000000 /* 33.333333 Mhz crystal */
 #endif
-
-#define IOP321_TMR_TC		0x01
-#define	IOP321_TMR_EN		0x02
-#define IOP321_TMR_RELOAD	0x04
-#define	IOP321_TMR_PRIVILEGED	0x09
-
-#define	IOP321_TMR_RATIO_1_1	0x00
-#define	IOP321_TMR_RATIO_4_1	0x10
-#define	IOP321_TMR_RATIO_8_1	0x20
-#define	IOP321_TMR_RATIO_16_1	0x30
-
-#define IOP321_TU_TCR0    (volatile u32 *)IOP321_REG_ADDR(0x000007E8)
-#define IOP321_TU_TCR1    (volatile u32 *)IOP321_REG_ADDR(0x000007EC)
-#define IOP321_TU_TRR0    (volatile u32 *)IOP321_REG_ADDR(0x000007F0)
-#define IOP321_TU_TRR1    (volatile u32 *)IOP321_REG_ADDR(0x000007F4)
-#define IOP321_TU_TISR    (volatile u32 *)IOP321_REG_ADDR(0x000007F8)
-#define IOP321_TU_WDTCR   (volatile u32 *)IOP321_REG_ADDR(0x000007FC)
 
 /* Application accelerator unit 0x00000800 - 0x000008FF */
 #define IOP321_AAU_ACR     (volatile u32 *)IOP321_REG_ADDR(0x00000800)

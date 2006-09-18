@@ -29,6 +29,7 @@
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/time.h>
 #include <asm/hardware/iop3xx.h>
 
 #define IOP321_UART_XTAL 1843200
@@ -67,15 +68,21 @@ void __init iop32x_init(void)
 
 #ifdef CONFIG_ARCH_IQ80321
 extern void iq80321_map_io(void);
-extern struct sys_timer iop321_timer;
-extern void iop321_init_time(void);
 #endif
 
 #ifdef CONFIG_ARCH_IQ31244
 extern void iq31244_map_io(void);
-extern struct sys_timer iop321_timer;
-extern void iop321_init_time(void);
 #endif
+
+static void __init iop3xx_timer_init(void)
+{
+	iop3xx_init_time(IOP321_TICK_RATE);
+}
+
+struct sys_timer iop321_timer = {
+	.init		= iop3xx_timer_init,
+	.offset		= iop3xx_gettimeoffset,
+};
 
 #if defined(CONFIG_ARCH_IQ80321)
 MACHINE_START(IQ80321, "Intel IQ80321")

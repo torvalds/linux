@@ -5,4 +5,4 @@
  */
 #include <asm/hardware.h>
 
-#define CLOCK_TICK_RATE IOP321_TICK_RATE
+#define CLOCK_TICK_RATE		(100 * HZ)
