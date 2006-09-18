@@ -392,6 +392,7 @@ out:
  *	bus_attach_device - add device to bus
  *	@dev:	device tried to attach to a driver
  *
+ *	- Add device to bus's list of devices.
  *	- Try to attach to driver.
  */
 int bus_attach_device(struct device * dev)
@@ -400,11 +401,13 @@ int bus_attach_device(struct device * dev)
 	int ret = 0;
 
 	if (bus) {
+		dev->is_registered = 1;
 		ret = device_attach(dev);
 		if (ret >= 0) {
 			klist_add_tail(&dev->knode_bus, &bus->klist_devices);
 			ret = 0;
-		}
+		} else
+			dev->is_registered = 0;
 	}
 	return ret;
 }
@@ -425,7 +428,8 @@ void bus_remove_device(struct device * dev)
 		sysfs_remove_link(&dev->kobj, "bus");
 		sysfs_remove_link(&dev->bus->devices.kobj, dev->bus_id);
 		device_remove_attrs(dev->bus, dev);
-		klist_remove(&dev->knode_bus);
+		dev->is_registered = 0;
+		klist_del(&dev->knode_bus);
 		pr_debug("bus %s: remove device %s\n", dev->bus->name, dev->bus_id);
 		device_release_driver(dev);
 		put_bus(dev->bus);

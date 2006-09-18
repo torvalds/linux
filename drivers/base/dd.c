@@ -162,6 +162,8 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 	struct task_struct *probe_task;
 	int ret = 0;
 
+	if (!device_is_registered(dev))
+		return -ENODEV;
 	if (drv->bus->match && !drv->bus->match(dev, drv))
 		goto done;
 

@@ -329,6 +329,7 @@ struct device {
 
 	struct kobject kobj;
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
+	unsigned		is_registered:1;
 	struct device_attribute uevent_attr;
 	struct device_attribute *devt_attr;
 
@@ -381,7 +382,7 @@ dev_set_drvdata (struct device *dev, void *data)
 
 static inline int device_is_registered(struct device *dev)
 {
-	return klist_node_attached(&dev->knode_bus);
+	return dev->is_registered;
 }
 
 /*
