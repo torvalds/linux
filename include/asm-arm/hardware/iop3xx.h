@@ -132,6 +132,34 @@ unsigned long iop3xx_gettimeoffset(void);
 
 extern struct platform_device iop3xx_i2c0_device;
 extern struct platform_device iop3xx_i2c1_device;
+
+extern inline void iop3xx_cp6_enable(void)
+{
+	u32 temp;
+
+	asm volatile (
+		"mrc	p15, 0, %0, c15, c1, 0\n\t"
+		"orr	%0, %0, #(1 << 6)\n\t"
+		"mcr	p15, 0, %0, c15, c1, 0\n\t"
+		"mrc	p15, 0, %0, c15, c1, 0\n\t"
+		"mov	%0, %0\n\t"
+		"sub	pc, pc, #4\n\t"
+		: "=r" (temp) );
+}
+
+extern inline void iop3xx_cp6_disable(void)
+{
+	u32 temp;
+
+	asm volatile (
+		"mrc	p15, 0, %0, c15, c1, 0\n\t"
+		"bic	%0, %0, #(1 << 6)\n\t"
+		"mcr	p15, 0, %0, c15, c1, 0\n\t"
+		"mrc	p15, 0, %0, c15, c1, 0\n\t"
+		"mov	%0, %0\n\t"
+		"sub	pc, pc, #4\n\t"
+		: "=r" (temp) );
+}
 #endif
 
 
