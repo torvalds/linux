@@ -3000,6 +3000,21 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 			      preferred_lft, valid_lft);
 }
 
+static int put_cacheinfo(struct sk_buff *skb, unsigned long cstamp,
+			 unsigned long tstamp, u32 preferred, u32 valid)
+{
+	struct ifa_cacheinfo ci;
+
+	ci.cstamp = (u32)(TIME_DELTA(cstamp, INITIAL_JIFFIES) / HZ * 100
+			+ TIME_DELTA(cstamp, INITIAL_JIFFIES) % HZ * 100 / HZ);
+	ci.tstamp = (u32)(TIME_DELTA(tstamp, INITIAL_JIFFIES) / HZ * 100
+			+ TIME_DELTA(tstamp, INITIAL_JIFFIES) % HZ * 100 / HZ);
+	ci.ifa_prefered = preferred;
+	ci.ifa_valid = valid;
+
+	return nla_put(skb, IFA_CACHEINFO, sizeof(ci), &ci);
+}
+
 /* Maximum length of ifa_cacheinfo attributes */
 #define INET6_IFADDR_RTA_SPACE \
 		RTA_SPACE(16) /* IFA_ADDRESS */ + \
@@ -3010,8 +3025,8 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr  *nlh;
-	struct ifa_cacheinfo ci;
 	unsigned char	 *b = skb->tail;
+	u32 preferred, valid;
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*ifm), flags);
 	ifm = NLMSG_DATA(nlh);
@@ -3028,23 +3043,22 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 	ifm->ifa_index = ifa->idev->dev->ifindex;
 	RTA_PUT(skb, IFA_ADDRESS, 16, &ifa->addr);
 	if (!(ifa->flags&IFA_F_PERMANENT)) {
-		ci.ifa_prefered = ifa->prefered_lft;
-		ci.ifa_valid = ifa->valid_lft;
-		if (ci.ifa_prefered != INFINITY_LIFE_TIME) {
+		preferred = ifa->prefered_lft;
+		valid = ifa->valid_lft;
+		if (preferred != INFINITY_LIFE_TIME) {
 			long tval = (jiffies - ifa->tstamp)/HZ;
-			ci.ifa_prefered -= tval;
-			if (ci.ifa_valid != INFINITY_LIFE_TIME)
-				ci.ifa_valid -= tval;
+			preferred -= tval;
+			if (valid != INFINITY_LIFE_TIME)
+				valid -= tval;
 		}
 	} else {
-		ci.ifa_prefered = INFINITY_LIFE_TIME;
-		ci.ifa_valid = INFINITY_LIFE_TIME;
+		preferred = INFINITY_LIFE_TIME;
+		valid = INFINITY_LIFE_TIME;
 	}
-	ci.cstamp = (__u32)(TIME_DELTA(ifa->cstamp, INITIAL_JIFFIES) / HZ * 100
-		    + TIME_DELTA(ifa->cstamp, INITIAL_JIFFIES) % HZ * 100 / HZ);
-	ci.tstamp = (__u32)(TIME_DELTA(ifa->tstamp, INITIAL_JIFFIES) / HZ * 100
-		    + TIME_DELTA(ifa->tstamp, INITIAL_JIFFIES) % HZ * 100 / HZ);
-	RTA_PUT(skb, IFA_CACHEINFO, sizeof(ci), &ci);
+
+	if (put_cacheinfo(skb, ifa->cstamp, ifa->tstamp, preferred, valid) < 0)
+		goto rtattr_failure;
+
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
 
@@ -3059,7 +3073,6 @@ static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr  *nlh;
-	struct ifa_cacheinfo ci;
 	unsigned char	 *b = skb->tail;
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*ifm), flags);
@@ -3072,15 +3085,11 @@ static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
 		ifm->ifa_scope = RT_SCOPE_SITE;
 	ifm->ifa_index = ifmca->idev->dev->ifindex;
 	RTA_PUT(skb, IFA_MULTICAST, 16, &ifmca->mca_addr);
-	ci.cstamp = (__u32)(TIME_DELTA(ifmca->mca_cstamp, INITIAL_JIFFIES) / HZ
-		    * 100 + TIME_DELTA(ifmca->mca_cstamp, INITIAL_JIFFIES) % HZ
-		    * 100 / HZ);
-	ci.tstamp = (__u32)(TIME_DELTA(ifmca->mca_tstamp, INITIAL_JIFFIES) / HZ
-		    * 100 + TIME_DELTA(ifmca->mca_tstamp, INITIAL_JIFFIES) % HZ
-		    * 100 / HZ);
-	ci.ifa_prefered = INFINITY_LIFE_TIME;
-	ci.ifa_valid = INFINITY_LIFE_TIME;
-	RTA_PUT(skb, IFA_CACHEINFO, sizeof(ci), &ci);
+
+	if (put_cacheinfo(skb, ifmca->mca_cstamp, ifmca->mca_tstamp,
+			  INFINITY_LIFE_TIME, INFINITY_LIFE_TIME) < 0)
+		goto rtattr_failure;
+
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
 
@@ -3095,7 +3104,6 @@ static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr  *nlh;
-	struct ifa_cacheinfo ci;
 	unsigned char	 *b = skb->tail;
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*ifm), flags);
@@ -3108,15 +3116,11 @@ static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
 		ifm->ifa_scope = RT_SCOPE_SITE;
 	ifm->ifa_index = ifaca->aca_idev->dev->ifindex;
 	RTA_PUT(skb, IFA_ANYCAST, 16, &ifaca->aca_addr);
-	ci.cstamp = (__u32)(TIME_DELTA(ifaca->aca_cstamp, INITIAL_JIFFIES) / HZ
-		    * 100 + TIME_DELTA(ifaca->aca_cstamp, INITIAL_JIFFIES) % HZ
-		    * 100 / HZ);
-	ci.tstamp = (__u32)(TIME_DELTA(ifaca->aca_tstamp, INITIAL_JIFFIES) / HZ
-		    * 100 + TIME_DELTA(ifaca->aca_tstamp, INITIAL_JIFFIES) % HZ
-		    * 100 / HZ);
-	ci.ifa_prefered = INFINITY_LIFE_TIME;
-	ci.ifa_valid = INFINITY_LIFE_TIME;
-	RTA_PUT(skb, IFA_CACHEINFO, sizeof(ci), &ci);
+
+	if (put_cacheinfo(skb, ifaca->aca_cstamp, ifaca->aca_tstamp,
+			  INFINITY_LIFE_TIME, INFINITY_LIFE_TIME) < 0)
+		goto rtattr_failure;
+
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
 
