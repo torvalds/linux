@@ -61,19 +61,19 @@ iq80331_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 	if (slot == 1 && pin == 1) {
 		/* PCI-X Slot INTA */
-		irq = IRQ_IOP331_XINT1;
+		irq = IRQ_IOP33X_XINT1;
 	} else if (slot == 1 && pin == 2) {
 		/* PCI-X Slot INTB */
-		irq = IRQ_IOP331_XINT2;
+		irq = IRQ_IOP33X_XINT2;
 	} else if (slot == 1 && pin == 3) {
 		/* PCI-X Slot INTC */
-		irq = IRQ_IOP331_XINT3;
+		irq = IRQ_IOP33X_XINT3;
 	} else if (slot == 1 && pin == 4) {
 		/* PCI-X Slot INTD */
-		irq = IRQ_IOP331_XINT0;
+		irq = IRQ_IOP33X_XINT0;
 	} else if (slot == 2) {
 		/* GigE */
-		irq = IRQ_IOP331_XINT2;
+		irq = IRQ_IOP33X_XINT2;
 	} else {
 		printk(KERN_ERR "iq80331_pci_map_irq() called for unknown "
 			"device PCI:%d:%d:%d\n", dev->bus->number,
@@ -142,7 +142,7 @@ MACHINE_START(IQ80331, "Intel IQ80331")
 	.io_pg_offst	= ((0xfffff000) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.map_io		= iop3xx_map_io,
-	.init_irq	= iop331_init_irq,
+	.init_irq	= iop33x_init_irq,
 	.timer		= &iq80331_timer,
 	.init_machine	= iq80331_init_machine,
 MACHINE_END

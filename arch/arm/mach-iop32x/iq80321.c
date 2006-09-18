@@ -78,19 +78,19 @@ iq80321_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 	if ((slot == 2 || slot == 6) && pin == 1) {
 		/* PCI-X Slot INTA */
-		irq = IRQ_IOP321_XINT2;
+		irq = IRQ_IOP32X_XINT2;
 	} else if ((slot == 2 || slot == 6) && pin == 2) {
 		/* PCI-X Slot INTA */
-		irq = IRQ_IOP321_XINT3;
+		irq = IRQ_IOP32X_XINT3;
 	} else if ((slot == 2 || slot == 6) && pin == 3) {
 		/* PCI-X Slot INTA */
-		irq = IRQ_IOP321_XINT0;
+		irq = IRQ_IOP32X_XINT0;
 	} else if ((slot == 2 || slot == 6) && pin == 4) {
 		/* PCI-X Slot INTA */
-		irq = IRQ_IOP321_XINT1;
+		irq = IRQ_IOP32X_XINT1;
 	} else if (slot == 4 || slot == 8) {
 		/* Gig-E */
-		irq = IRQ_IOP321_XINT0;
+		irq = IRQ_IOP32X_XINT0;
 	} else {
 		printk(KERN_ERR "iq80321_pci_map_irq() called for unknown "
 			"device PCI:%d:%d:%d\n", dev->bus->number,
@@ -148,7 +148,7 @@ static struct plat_serial8250_port iq80321_serial_port[] = {
 	{
 		.mapbase	= IQ80321_UART,
 		.membase	= (char *)IQ80321_UART,
-		.irq		= IRQ_IOP321_XINT1,
+		.irq		= IRQ_IOP32X_XINT1,
 		.flags		= UPF_SKIP_TEST,
 		.iotype		= UPIO_MEM,
 		.regshift	= 0,
@@ -187,7 +187,7 @@ MACHINE_START(IQ80321, "Intel IQ80321")
 	.io_pg_offst	= ((IQ80321_UART) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= iq80321_map_io,
-	.init_irq	= iop321_init_irq,
+	.init_irq	= iop32x_init_irq,
 	.timer		= &iq80321_timer,
 	.init_machine	= iq80321_init_machine,
 MACHINE_END

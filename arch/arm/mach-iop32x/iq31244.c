@@ -98,16 +98,16 @@ ep80219_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 	if (slot == 0) {
 		/* CFlash */
-		irq = IRQ_IOP321_XINT1;
+		irq = IRQ_IOP32X_XINT1;
 	} else if (slot == 1) {
 		/* 82551 Pro 100 */
-		irq = IRQ_IOP321_XINT0;
+		irq = IRQ_IOP32X_XINT0;
 	} else if (slot == 2) {
 		/* PCI-X Slot */
-		irq = IRQ_IOP321_XINT3;
+		irq = IRQ_IOP32X_XINT3;
 	} else if (slot == 3) {
 		/* SATA */
-		irq = IRQ_IOP321_XINT2;
+		irq = IRQ_IOP32X_XINT2;
 	} else {
 		printk(KERN_ERR "ep80219_pci_map_irq() called for unknown "
 			"device PCI:%d:%d:%d\n", dev->bus->number,
@@ -134,18 +134,18 @@ iq31244_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 	if (slot == 0) {
 		/* CFlash */
-		irq = IRQ_IOP321_XINT1;
+		irq = IRQ_IOP32X_XINT1;
 	} else if (slot == 1) {
 		/* SATA */
-		irq = IRQ_IOP321_XINT2;
+		irq = IRQ_IOP32X_XINT2;
 	} else if (slot == 2) {
 		/* PCI-X Slot */
-		irq = IRQ_IOP321_XINT3;
+		irq = IRQ_IOP32X_XINT3;
 	} else if (slot == 3) {
 		/* 82546 GigE */
-		irq = IRQ_IOP321_XINT0;
+		irq = IRQ_IOP32X_XINT0;
 	} else {
-		printk(KERN_ERR "iq31244_pci_map_irq() called for unknown "
+		printk(KERN_ERR "iq31244_pci_map_irq called for unknown "
 			"device PCI:%d:%d:%d\n", dev->bus->number,
 			PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 		irq = -1;
@@ -206,7 +206,7 @@ static struct plat_serial8250_port iq31244_serial_port[] = {
 	{
 		.mapbase	= IQ31244_UART,
 		.membase	= (char *)IQ31244_UART,
-		.irq		= IRQ_IOP321_XINT1,
+		.irq		= IRQ_IOP32X_XINT1,
 		.flags		= UPF_SKIP_TEST,
 		.iotype		= UPIO_MEM,
 		.regshift	= 0,
@@ -287,7 +287,7 @@ MACHINE_START(IQ31244, "Intel IQ31244")
 	.io_pg_offst	= ((IQ31244_UART) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= iq31244_map_io,
-	.init_irq	= iop321_init_irq,
+	.init_irq	= iop32x_init_irq,
 	.timer		= &iq31244_timer,
 	.init_machine	= iq31244_init_machine,
 MACHINE_END

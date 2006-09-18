@@ -1,6 +1,7 @@
 /*
- *  linux/include/asm-arm/arch-iop32x/uncompress.h
+ * include/asm-arm/arch-iop32x/uncompress.h
  */
+
 #include <asm/types.h>
 #include <asm/mach-types.h>
 #include <linux/serial_reg.h>
@@ -8,13 +9,13 @@
 
 static volatile u8 *uart_base;
 
-#define TX_DONE (UART_LSR_TEMT|UART_LSR_THRE)
+#define TX_DONE		(UART_LSR_TEMT | UART_LSR_THRE)
 
 static inline void putc(char c)
 {
 	while ((uart_base[UART_LSR] & TX_DONE) != TX_DONE)
 		barrier();
-	*uart_base = c;
+	uart_base[UART_TX] = c;
 }
 
 static inline void flush(void)

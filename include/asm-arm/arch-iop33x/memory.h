@@ -1,9 +1,9 @@
 /*
- * linux/include/asm-arm/arch-iop33x/memory.h
+ * include/asm-arm/arch-iop33x/memory.h
  */
 
-#ifndef __ASM_ARCH_MEMORY_H
-#define __ASM_ARCH_MEMORY_H
+#ifndef __MEMORY_H
+#define __MEMORY_H
 
 #include <asm/hardware.h>
 

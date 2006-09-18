@@ -37,10 +37,10 @@
 #define XSCALE_PMU_IRQ  IRQ_XS80200_PMU
 #endif
 #ifdef CONFIG_ARCH_IOP32X
-#define XSCALE_PMU_IRQ  IRQ_IOP321_CORE_PMU
+#define XSCALE_PMU_IRQ  IRQ_IOP32X_CORE_PMU
 #endif
 #ifdef CONFIG_ARCH_IOP33X
-#define XSCALE_PMU_IRQ  IRQ_IOP331_CORE_PMU
+#define XSCALE_PMU_IRQ  IRQ_IOP33X_CORE_PMU
 #endif
 #ifdef CONFIG_ARCH_PXA
 #define XSCALE_PMU_IRQ  IRQ_PMU
@@ -88,7 +88,7 @@ static struct pmu_counter results[MAX_COUNTERS];
 /*
  * There are two versions of the PMU in current XScale processors
  * with differing register layouts and number of performance counters.
- * e.g. IOP321 is xsc1 whilst IOP331 is xsc2.
+ * e.g. IOP32x is xsc1 whilst IOP33x is xsc2.
  * We detect which register layout to use in xscale_detect_pmu()
  */
 enum { PMU_XSC1, PMU_XSC2 };
