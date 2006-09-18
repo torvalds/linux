@@ -42,12 +42,6 @@
 		add	\rb, \rb, #0x00010000	@ Ser1
 #endif
 		.endm
-#elif defined(CONFIG_ARCH_IOP33X)
-		.macro loadsp, rb
-                mov   	\rb, #0xff000000
-                orr     \rb, \rb, #0x00ff0000
-                orr     \rb, \rb, #0x0000f700   @ location of the UART
-		.endm
 #elif defined(CONFIG_ARCH_S3C2410)
 		.macro loadsp, rb
 		mov	\rb, #0x50000000
