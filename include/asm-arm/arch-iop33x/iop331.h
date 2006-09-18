@@ -238,6 +238,12 @@
 
 /* Reserved 0x0000178c through 0x000019ff */
 
+/*
+ * Peripherals that are shared between the iop32x and iop33x but
+ * located at different addresses.
+ */
+#define IOP3XX_TIMER_REG(reg)  (IOP3XX_PERIPHERAL_VIRT_BASE + 0x07d0 + (reg))
+
 #include <asm/hardware/iop3xx.h>
 
 

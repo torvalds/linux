@@ -81,6 +81,24 @@
 #define IOP3XX_PCIXSR		(volatile u32 *)IOP3XX_REG_ADDR(0x01e4)
 #define IOP3XX_PCIIRSR		(volatile u32 *)IOP3XX_REG_ADDR(0x01ec)
 
+/* Timers  */
+#define IOP3XX_TU_TMR0		(volatile u32 *)IOP3XX_TIMER_REG(0x0000)
+#define IOP3XX_TU_TMR1		(volatile u32 *)IOP3XX_TIMER_REG(0x0004)
+#define IOP3XX_TU_TCR0		(volatile u32 *)IOP3XX_TIMER_REG(0x0008)
+#define IOP3XX_TU_TCR1		(volatile u32 *)IOP3XX_TIMER_REG(0x000c)
+#define IOP3XX_TU_TRR0		(volatile u32 *)IOP3XX_TIMER_REG(0x0010)
+#define IOP3XX_TU_TRR1		(volatile u32 *)IOP3XX_TIMER_REG(0x0014)
+#define IOP3XX_TU_TISR		(volatile u32 *)IOP3XX_TIMER_REG(0x0018)
+#define IOP3XX_TU_WDTCR		(volatile u32 *)IOP3XX_TIMER_REG(0x001c)
+#define IOP3XX_TMR_TC		0x01
+#define IOP3XX_TMR_EN		0x02
+#define IOP3XX_TMR_RELOAD	0x04
+#define IOP3XX_TMR_PRIVILEGED	0x09
+#define IOP3XX_TMR_RATIO_1_1	0x00
+#define IOP3XX_TMR_RATIO_4_1	0x10
+#define IOP3XX_TMR_RATIO_8_1	0x20
+#define IOP3XX_TMR_RATIO_16_1	0x30
+
 /* I2C bus interface unit  */
 #define IOP3XX_ICR0		(volatile u32 *)IOP3XX_REG_ADDR(0x1680)
 #define IOP3XX_ISR0		(volatile u32 *)IOP3XX_REG_ADDR(0x1684)
@@ -109,6 +127,8 @@
 
 #ifndef __ASSEMBLY__
 void iop3xx_map_io(void);
+void iop3xx_init_time(unsigned long);
+unsigned long iop3xx_gettimeoffset(void);
 
 extern struct platform_device iop3xx_i2c0_device;
 extern struct platform_device iop3xx_i2c1_device;

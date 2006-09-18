@@ -233,6 +233,12 @@
 
 /* for I2C bit defs see drivers/i2c/i2c-iop3xx.h */
 
+/*
+ * Peripherals that are shared between the iop32x and iop33x but
+ * located at different addresses.
+ */
+#define IOP3XX_TIMER_REG(reg)  (IOP3XX_PERIPHERAL_VIRT_BASE + 0x07e0 + (reg))
+
 #include <asm/hardware/iop3xx.h>
 
 
