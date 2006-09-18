@@ -10,9 +10,9 @@ obj-m			:=
 obj-n			:=
 obj-			:=
 
-obj-$(CONFIG_ARCH_IOP321)  += iop321-setup.o iop321-irq.o iop321-pci.o iop321-time.o
+obj-$(CONFIG_ARCH_IOP32X)  += iop321-setup.o iop321-irq.o iop321-pci.o iop321-time.o
 
-obj-$(CONFIG_ARCH_IOP331)  += iop331-setup.o iop331-irq.o iop331-pci.o iop331-time.o
+obj-$(CONFIG_ARCH_IOP33X)  += iop331-setup.o iop331-irq.o iop331-pci.o iop331-time.o
 
 obj-$(CONFIG_ARCH_IQ80321) += iq80321-mm.o iq80321-pci.o
 

@@ -177,7 +177,7 @@ void __init iop331_map_io(void)
 	iotable_init(iop331_std_desc, ARRAY_SIZE(iop331_std_desc));
 }
 
-#ifdef CONFIG_ARCH_IOP331
+#ifdef CONFIG_ARCH_IOP33X
 extern void iop331_init_irq(void);
 extern struct sys_timer iop331_timer;
 #endif

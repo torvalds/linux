@@ -15,7 +15,7 @@
 		mov	\rx, #0xfe000000	@ physical
 #if defined(CONFIG_ARCH_IQ80321) || defined(CONFIG_ARCH_IQ31244)
 		orr	\rx, \rx, #0x00800000	@ location of the UART
-#elif defined(CONFIG_ARCH_IOP331)
+#elif defined(CONFIG_ARCH_IOP33X)
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
 		moveq	\rx, #0x000fe000	@ Physical Base

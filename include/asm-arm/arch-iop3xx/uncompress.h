@@ -6,9 +6,9 @@
 #include <linux/serial_reg.h>
 #include <asm/hardware.h>
 
-#ifdef CONFIG_ARCH_IOP321
+#ifdef CONFIG_ARCH_IOP32X
 #define UTYPE unsigned char *
-#elif defined(CONFIG_ARCH_IOP331)
+#elif defined(CONFIG_ARCH_IOP33X)
 #define UTYPE u32 *
 #else
 #error "Missing IOP3xx arch type def"

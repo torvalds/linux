@@ -12,10 +12,10 @@
 /*
  * Chipset-specific bits
  */
-#ifdef CONFIG_ARCH_IOP321
+#ifdef CONFIG_ARCH_IOP32X
 #include "iop321-irqs.h"
 #endif
 
-#ifdef CONFIG_ARCH_IOP331
+#ifdef CONFIG_ARCH_IOP33X
 #include "iop331-irqs.h"
 #endif

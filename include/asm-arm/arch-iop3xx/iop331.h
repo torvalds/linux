@@ -20,7 +20,7 @@
  * IOP3xx variants but behave slightly differently on each.
  */
 #ifndef __ASSEMBLY__
-#ifdef	CONFIG_ARCH_IOP331
+#ifdef	CONFIG_ARCH_IOP33X
 /*#define	iop_is_331()	((processor_id & 0xffffffb0) == 0x69054090) */
 #define	iop_is_331()	((processor_id & 0xffffff30) == 0x69054010)
 #else
@@ -257,7 +257,7 @@
 #define IOP331_TU_TISR    (volatile u32 *)IOP331_REG_ADDR(0x000007E8)
 #define IOP331_TU_WDTCR   (volatile u32 *)IOP331_REG_ADDR(0x000007EC)
 
-#if defined(CONFIG_ARCH_IOP331)
+#if defined(CONFIG_ARCH_IOP33X)
 #define	IOP331_TICK_RATE	266000000	/* 266 MHz IB clock */
 #endif
 

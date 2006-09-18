@@ -21,7 +21,7 @@
  * IOP3xx variants but behave slightly differently on each.
  */
 #ifndef __ASSEMBLY__
-#ifdef	CONFIG_ARCH_IOP321
+#ifdef	CONFIG_ARCH_IOP32X
 #define iop_is_321() (((processor_id & 0xfffff5e0) == 0x69052420))
 #else
 #define	iop_is_321()	0

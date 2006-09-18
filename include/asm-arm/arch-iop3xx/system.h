@@ -16,11 +16,11 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode)
 {
-#ifdef CONFIG_ARCH_IOP321
+#ifdef CONFIG_ARCH_IOP32X
     *IOP321_PCSR = 0x30;
 #endif
 
-#ifdef CONFIG_ARCH_IOP331
+#ifdef CONFIG_ARCH_IOP33X
     *IOP331_PCSR = 0x30;
 #endif
 

@@ -9,7 +9,7 @@
  */
 #include <asm/arch/irqs.h>
 
-#if defined(CONFIG_ARCH_IOP321)
+#if defined(CONFIG_ARCH_IOP32X)
 		.macro  disable_fiq
 		.endm
 
@@ -28,7 +28,7 @@
 1001:
 		.endm
 
-#elif defined(CONFIG_ARCH_IOP331)
+#elif defined(CONFIG_ARCH_IOP33X)
 		.macro  disable_fiq
 		.endm
 

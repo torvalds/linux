@@ -82,9 +82,9 @@ iop3xx_i2c_enable(struct i2c_algo_iop3xx_data *iop3xx_adap)
 
 	/* 
 	 * Every time unit enable is asserted, GPOD needs to be cleared
-	 * on IOP321 to avoid data corruption on the bus.
+	 * on IOP32X to avoid data corruption on the bus.
 	 */
-#ifdef CONFIG_ARCH_IOP321
+#ifdef CONFIG_ARCH_IOP32X
 #define IOP321_GPOD_I2C0    0x00c0  /* clear these bits to enable ch0 */
 #define IOP321_GPOD_I2C1    0x0030  /* clear these bits to enable ch1 */
 
