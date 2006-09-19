@@ -80,7 +80,6 @@ int dvb_usb_download_firmware(struct usb_device *udev, struct dvb_usb_device_pro
 	int ret;
 	const struct firmware *fw = NULL;
 
-
 	if ((ret = request_firmware(&fw, props->firmware, &udev->dev)) != 0) {
 		err("did not find the firmware file. (%s) "
 			"Please see linux/Documentation/dvb/ for more details on firmware-problems. (%d)",

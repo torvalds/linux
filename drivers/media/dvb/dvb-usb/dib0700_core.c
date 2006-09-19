@@ -138,8 +138,6 @@ int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device_proper
 		buf[0], USB_TYPE_VENDOR | USB_DIR_OUT, 0, 0, buf, 3, USB_CTRL_GET_TIMEOUT) != 3;
 
 	deb_info("cold: %d\n", *cold);
-
-	*cold = 0;
 	return 0;
 }
 
@@ -171,11 +169,11 @@ int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw
 	u8 buf[260];
 
 	while ((ret = dvb_usb_get_hexline(fw, &hx, &pos)) > 0) {
-		deb_fwdata("writing to address 0x%04x (buffer: 0x%02x %02x)\n",hx.addr, hx.len, hx.chk);
+		deb_fwdata("writing to address 0x%08x (buffer: 0x%02x %02x)\n",hx.addr, hx.len, hx.chk);
 
 		buf[0] = hx.len;
-		buf[1] = hx.addr >> 8;
-		buf[2] = hx.addr & 0xff;
+		buf[1] = (hx.addr >> 8) & 0xff;
+		buf[2] =  hx.addr       & 0xff;
 		buf[3] = hx.type;
 		memcpy(&buf[4],hx.data,hx.len);
 		buf[4+hx.len] = hx.chk;

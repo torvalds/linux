@@ -228,7 +228,7 @@ int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_device_proper
 	if (cold) {
 		info("found a '%s' in cold state, will try to load a firmware",desc->name);
 		ret = dvb_usb_download_firmware(udev,props);
-		if (!props->no_reconnect)
+		if (!props->no_reconnect || ret != 0)
 			return ret;
 	}
 
