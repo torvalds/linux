@@ -37,5 +37,6 @@ dvb-usb-cxusb-objs = cxusb.o
 obj-$(CONFIG_DVB_USB_CXUSB) += dvb-usb-cxusb.o
 
 dvb-usb-dib0700-objs = dib0700_core.o dib0700_devices.o
+obj-$(CONFIG_DVB_USB_DIB0700) += dvb-usb-dib0700.o
 
 EXTRA_CFLAGS = -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/

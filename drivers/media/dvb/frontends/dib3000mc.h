@@ -37,16 +37,16 @@ struct dib3000mc_config {
 #define DEFAULT_DIB3000P_I2C_ADDRESS  24
 
 #if defined(CONFIG_DVB_DIB3000MC) || defined(CONFIG_DVB_DIB3000MC_MODULE)
-extern int dib3000mc_attach(struct i2c_adapter *i2c_adap, int no_of_demods, u8 default_addr,
-    u8 do_i2c_enum, struct dib3000mc_config cfg[], struct dvb_frontend *demod[]);
+extern struct dvb_frontend * dib3000mc_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib3000mc_config *cfg);
 #else
-static inline struct dvb_frontend* dib3000mc_attach(const struct dib3000_config* config,
-					     struct i2c_adapter* i2c, struct dib_fe_xfer_ops *xfer_ops)
+static inline struct dvb_frontend * dib3000mc_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib3000mc_config *cfg)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
 	return NULL;
 }
 #endif // CONFIG_DVB_DIB3000MC
+
+extern int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib3000mc_config cfg[]);
 
 extern struct i2c_adapter * dib3000mc_get_tuner_i2c_master(struct dvb_frontend *demod, int gating);
 

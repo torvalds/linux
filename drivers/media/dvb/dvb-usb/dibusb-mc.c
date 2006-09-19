@@ -49,7 +49,6 @@ static struct dvb_usb_device_properties dibusb_mc_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-dibusb-6.0.0.8.fw",
 
-
 	.num_adapters = 1,
 	.adapter = {
 		{

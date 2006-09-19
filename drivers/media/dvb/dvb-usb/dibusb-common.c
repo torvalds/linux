@@ -230,8 +230,8 @@ static struct dib3000mc_config mod3000p_dib3000p_config = {
 
 int dibusb_dib3000mc_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	if (dib3000mc_attach(&adap->dev->i2c_adap, 1, DEFAULT_DIB3000P_I2C_ADDRESS, 0, &mod3000p_dib3000p_config, &adap->fe) == 0 ||
-		dib3000mc_attach(&adap->dev->i2c_adap, 1, DEFAULT_DIB3000MC_I2C_ADDRESS, 0, &mod3000p_dib3000p_config, &adap->fe) == 0) {
+	if ((adap->fe = dvb_attach(dib3000mc_attach, &adap->dev->i2c_adap, DEFAULT_DIB3000P_I2C_ADDRESS,  &mod3000p_dib3000p_config)) == NULL ||
+		(adap->fe = dvb_attach(dib3000mc_attach, &adap->dev->i2c_adap, DEFAULT_DIB3000MC_I2C_ADDRESS, &mod3000p_dib3000p_config)) == NULL) {
 		if (adap->priv != NULL) {
 			struct dibusb_state *st = adap->priv;
 			st->ops.pid_parse = dib3000mc_pid_parse;
@@ -247,10 +247,9 @@ static struct mt2060_config stk3000p_mt2060_config = {
 	0x60
 };
 
-int dibusb_dib3000mc_tuner_attach (struct dvb_usb_adapter *adap)
+int dibusb_dib3000mc_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct dibusb_state *st = adap->priv;
-	int ret;
 	u8 a,b;
 	u16 if1 = 1220;
 	struct i2c_adapter *tun_i2c;
@@ -287,9 +286,9 @@ int dibusb_dib3000mc_tuner_attach (struct dvb_usb_adapter *adap)
 	}
 
 	tun_i2c = dib3000mc_get_tuner_i2c_master(adap->fe, 1);
-	if ((ret = mt2060_attach(adap->fe, tun_i2c, &stk3000p_mt2060_config, if1)) != 0) {
+	if (dvb_attach(mt2060_attach, adap->fe, tun_i2c, &stk3000p_mt2060_config, if1) != NULL) {
 		/* not found - use panasonic pll parameters */
-		if (dvb_pll_attach(adap->fe, 0x60, tun_i2c, &dvb_pll_env57h1xd5) == NULL)
+		if (dvb_attach(dvb_pll_attach, adap->fe, 0x60, tun_i2c, &dvb_pll_env57h1xd5) == NULL)
 			return -ENOMEM;
 	} else {
 		st->mt2060_present = 1;

@@ -24,9 +24,6 @@ static struct usb_cypress_controller cypress[] = {
 	{ .id = CYPRESS_FX2,     .name = "Cypress FX2",     .cpu_cs_register = 0xe600 },
 };
 
-static int dvb_usb_get_hexline(const struct firmware *fw, struct hexline *hx,
-			       int *pos);
-
 /*
  * load a firmware packet to the device
  */
@@ -115,7 +112,7 @@ int dvb_usb_download_firmware(struct usb_device *udev, struct dvb_usb_device_pro
 	return ret;
 }
 
-static int dvb_usb_get_hexline(const struct firmware *fw, struct hexline *hx,
+int dvb_usb_get_hexline(const struct firmware *fw, struct hexline *hx,
 			       int *pos)
 {
 	u8 *b = (u8 *) &fw->data[*pos];
@@ -146,3 +143,4 @@ static int dvb_usb_get_hexline(const struct firmware *fw, struct hexline *hx,
 
 	return *pos;
 }
+EXPORT_SYMBOL(dvb_usb_get_hexline);

@@ -247,6 +247,9 @@ static void mt2060_calibrate(struct mt2060_priv *priv)
 	if (mt2060_writeregs(priv,mt2060_config2,sizeof(mt2060_config2)))
 		return;
 
+	/* initialize the clock output */
+	mt2060_writereg(priv, REG_VGAG, (priv->cfg->clock_out << 6) | 0x30);
+
 	do {
 		b |= (1 << 6); // FM1SS;
 		mt2060_writereg(priv, REG_LO2C1,b);
@@ -294,13 +297,13 @@ static int mt2060_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 static int mt2060_init(struct dvb_frontend *fe)
 {
 	struct mt2060_priv *priv = fe->tuner_priv;
-	return mt2060_writereg(priv, REG_VGAG,0x33);
+	return mt2060_writereg(priv, REG_VGAG, (priv->cfg->clock_out << 6) | 0x33);
 }
 
 static int mt2060_sleep(struct dvb_frontend *fe)
 {
 	struct mt2060_priv *priv = fe->tuner_priv;
-	return mt2060_writereg(priv, REG_VGAG,0x30);
+	return mt2060_writereg(priv, REG_VGAG, (priv->cfg->clock_out << 6) | 0x30);
 }
 
 static int mt2060_release(struct dvb_frontend *fe)

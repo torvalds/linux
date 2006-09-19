@@ -90,8 +90,8 @@ struct dvb_usb_adapter;
 struct usb_data_stream;
 
 /**
- * Properties of USB streaming - TODO this structure does not belong here actually
- * describes the kind of USB transfer used for MPEG2-TS-streaming.
+ * Properties of USB streaming - TODO this structure should be somewhere else
+ * describes the kind of USB transfer used for data-streaming.
  *  (BULK or ISOC)
  */
 struct usb_data_stream_properties {
@@ -193,10 +193,10 @@ struct dvb_usb_device_properties {
 #define CYPRESS_AN2135  1
 #define CYPRESS_AN2235  2
 #define CYPRESS_FX2     3
-	int usb_ctrl;
+	int        usb_ctrl;
+	int        (*download_firmware) (struct usb_device *, const struct firmware *);
 	const char firmware[FIRMWARE_NAME_MAX];
-	int (*download_firmware) (struct usb_device *, const struct firmware *);
-	int no_reconnect;
+	int        no_reconnect;
 
 	int size_of_priv;
 
@@ -212,7 +212,7 @@ struct dvb_usb_device_properties {
 #define REMOTE_NO_KEY_PRESSED      0x00
 #define REMOTE_KEY_PRESSED         0x01
 #define REMOTE_KEY_REPEAT          0x02
-	struct dvb_usb_rc_key *rc_key_map;
+	struct dvb_usb_rc_key  *rc_key_map;
 	int rc_key_map_size;
 	int (*rc_query) (struct dvb_usb_device *, u32 *, int *);
 	int rc_interval;
@@ -234,13 +234,11 @@ struct dvb_usb_device_properties {
  *
  * @urbs_initialized: number of URBs initialized.
  * @urbs_submitted: number of URBs submitted.
- *
- * TODO put this in the correct place.
  */
 #define MAX_NO_URBS_FOR_DATA_STREAM 10
 struct usb_data_stream {
-	struct usb_device *udev;
-	struct usb_data_stream_properties props;
+	struct usb_device                 *udev;
+	struct usb_data_stream_properties  props;
 
 #define USB_STATE_INIT    0x00
 #define USB_STATE_URB_BUF 0x01
@@ -248,12 +246,11 @@ struct usb_data_stream {
 
 	void (*complete) (struct usb_data_stream *, u8 *, size_t);
 
-	struct urb *urb_list[MAX_NO_URBS_FOR_DATA_STREAM];
-
-	int buf_num;
-	unsigned long buf_size;
-	u8 *buf_list[MAX_NO_URBS_FOR_DATA_STREAM];
-	dma_addr_t dma_addr[MAX_NO_URBS_FOR_DATA_STREAM];
+	struct urb    *urb_list[MAX_NO_URBS_FOR_DATA_STREAM];
+	int            buf_num;
+	unsigned long  buf_size;
+	u8            *buf_list[MAX_NO_URBS_FOR_DATA_STREAM];
+	dma_addr_t     dma_addr[MAX_NO_URBS_FOR_DATA_STREAM];
 
 	int urbs_initialized;
 	int urbs_submitted;
@@ -271,8 +268,8 @@ struct usb_data_stream {
  * @pll_addr: I2C address of the tuner for programming
  * @pll_init: array containing the initialization buffer
  * @pll_desc: pointer to the appropriate struct dvb_pll_desc
- *
  * @tuner_pass_ctrl: called to (de)activate tuner passthru of the demod or the board
+ *
  * @dvb_adap: device's dvb_adapter.
  * @dmxdev: device's dmxdev.
  * @demux: device's software demuxer.
@@ -280,8 +277,10 @@ struct usb_data_stream {
  * @dvb_frontend: device's frontend.
  * @max_feed_count: how many feeds can be handled simultaneously by this
  *  device
+ *
+ * @fe_init:  rerouted frontend-init (wakeup) function.
  * @fe_sleep: rerouted frontend-sleep function.
- * @fe_init: rerouted frontend-init (wakeup) function.
+ *
  * @stream: the usb data stream.
  */
 struct dvb_usb_adapter {
@@ -292,7 +291,7 @@ struct dvb_usb_adapter {
 #define DVB_USB_ADAP_STATE_DVB  0x001
 	int state;
 
-	int id;
+	u8  id;
 
 	int feedcount;
 	int pid_filtering;
@@ -311,8 +310,8 @@ struct dvb_usb_adapter {
 	struct dvb_frontend *fe;
 	int                  max_feed_count;
 
-	int (*fe_sleep) (struct dvb_frontend *);
 	int (*fe_init)  (struct dvb_frontend *);
+	int (*fe_sleep) (struct dvb_frontend *);
 
 	struct usb_data_stream stream;
 
@@ -400,5 +399,7 @@ struct hexline {
 	u8 chk;
 };
 extern int usb_cypress_load_firmware(struct usb_device *udev, const struct firmware *fw, int type);
+extern int dvb_usb_get_hexline(const struct firmware *fw, struct hexline *hx, int *pos);
+
 
 #endif
