@@ -312,10 +312,10 @@ static int dib3000mc_init(struct dvb_frontend *demod)
 		dib3000mc_write_word(state, 175,  0x0000);
 		dib3000mc_write_word(state, 1032, 0x012C);
 	}
-	dib3000mc_write_word(state, 1033, 0);
+	dib3000mc_write_word(state, 1033, 0x0000);
 
 	// P_clk_cfg
-	dib3000mc_write_word(state, 1037, 12592);
+	dib3000mc_write_word(state, 1037, 0x3130);
 
 	// other configurations
 
@@ -412,10 +412,9 @@ static int dib3000mc_sleep(struct dvb_frontend *demod)
 {
 	struct dib3000mc_state *state = demod->demodulator_priv;
 
-	dib3000mc_write_word(state, 1037, dib3000mc_read_word(state, 1037) | 0x0003);
 	dib3000mc_write_word(state, 1031, 0xFFFF);
 	dib3000mc_write_word(state, 1032, 0xFFFF);
-	dib3000mc_write_word(state, 1033, 0xFFF4);   // ****  Bin2
+	dib3000mc_write_word(state, 1033, 0xFFF0);
 
     return 0;
 }
@@ -827,6 +826,8 @@ struct dvb_frontend * dib3000mc_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr
 		goto error;
 
 	dibx000_init_i2c_master(&st->i2c_master, DIB3000MC, st->i2c_adap, st->i2c_addr);
+
+	dib3000mc_write_word(st, 1037, 0x3130);
 
 	return demod;
 

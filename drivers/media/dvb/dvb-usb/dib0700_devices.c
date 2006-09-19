@@ -17,7 +17,7 @@
 static struct mt2060_config bristol_mt2060_config[2] = {
 	{
 		.i2c_address = 0x60,
-		.clock_out   = 1,
+		.clock_out   = 3,
 	}, {
 		.i2c_address = 0x61,
 	}

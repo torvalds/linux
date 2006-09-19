@@ -103,8 +103,10 @@ static int dib0700_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg *msg,int num
 			buf[1] |= 1;
 
 			/* special thing in the current firmware: when length is zero the read-failed */
-			if ((len = dib0700_ctrl_rd(d, buf, msg[i].len + 2, msg[i+1].buf, msg[i+1].len)) <= 0)
+			if ((len = dib0700_ctrl_rd(d, buf, msg[i].len + 2, msg[i+1].buf, msg[i+1].len)) <= 0) {
+				deb_info("I2C read failed on address %x\n", msg[i].addr);
 				break;
+			}
 
 			msg[i+1].len = len;
 
