@@ -568,8 +568,7 @@ static u32 fixup_pmc551(struct pci_dev *dev)
 		size >> 10 : size >> 20,
 		(size < 1024) ? 'B' : (size < 1048576) ? 'K' : 'M', size,
 		((dcmd & (0x1 << 3)) == 0) ? "non-" : "",
-		(unsigned long long)((dev->resource[0].start) &
-				    PCI_BASE_ADDRESS_MEM_MASK));
+		(unsigned long long)pci_resource_start(dev, 0));
 
 	/*
 	 * Check to see the state of the memory
@@ -705,7 +704,7 @@ static int __init init_pmc551(void)
 		}
 
 		printk(KERN_NOTICE "pmc551: Found PCI V370PDC at 0x%llx\n",
-			(unsigned long long)PCI_Device->resource[0].start);
+			(unsigned long long)pci_resource_start(PCI_Device, 0));
 
 		/*
 		 * The PMC551 device acts VERY weird if you don't init it
@@ -762,9 +761,7 @@ static int __init init_pmc551(void)
 				"size %dM\n", asize >> 20);
 			priv->asize = asize;
 		}
-		priv->start = ioremap(((PCI_Device->resource[0].start)
-					& PCI_BASE_ADDRESS_MEM_MASK),
-				      priv->asize);
+		priv->start = pci_iomap(PCI_Device, 0, priv->asize);
 
 		if (!priv->start) {
 			printk(KERN_NOTICE "pmc551: Unable to map IO space\n");
@@ -805,7 +802,7 @@ static int __init init_pmc551(void)
 		if (add_mtd_device(mtd)) {
 			printk(KERN_NOTICE "pmc551: Failed to register new "
 				"device\n");
-			iounmap(priv->start);
+			pci_iounmap(PCI_Device, priv->start);
 			kfree(mtd->priv);
 			kfree(mtd);
 			break;
@@ -856,7 +853,7 @@ static void __exit cleanup_pmc551(void)
 		if (priv->start) {
 			printk(KERN_DEBUG "pmc551: unmapping %dM starting at "
 				"0x%p\n", priv->asize >> 20, priv->start);
-			iounmap(priv->start);
+			pci_iounmap(priv->dev, priv->start);
 		}
 		pci_dev_put(priv->dev);
 
