@@ -339,20 +339,6 @@ void insl(unsigned port, void *buf, int nl)
 	idma_pci9_read((u8 *)buf, (u8 *)addr, nl*sizeof(u32), sizeof(u32), 0);
 }
 
-void insw_ns(unsigned port, void *buf, int ns)
-{
-	u8 *addr = (u8 *)(port + _IO_BASE);
-
-	idma_pci9_read((u8 *)buf, (u8 *)addr, ns*sizeof(u16), sizeof(u16), 0);
-}
-
-void insl_ns(unsigned port, void *buf, int nl)
-{
-	u8 *addr = (u8 *)(port + _IO_BASE);
-
-	idma_pci9_read((u8 *)buf, (u8 *)addr, nl*sizeof(u32), sizeof(u32), 0);
-}
-
 void *memcpy_fromio(void *dest, unsigned long src, size_t count)
 {
 	unsigned long pa = iopa((unsigned long) src);
@@ -373,8 +359,6 @@ EXPORT_SYMBOL(inl);
 EXPORT_SYMBOL(insb);
 EXPORT_SYMBOL(insw);
 EXPORT_SYMBOL(insl);
-EXPORT_SYMBOL(insw_ns);
-EXPORT_SYMBOL(insl_ns);
 EXPORT_SYMBOL(memcpy_fromio);
 
 #endif	/* ifdef CONFIG_8260_PCI9 */

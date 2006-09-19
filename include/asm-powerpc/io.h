@@ -76,8 +76,7 @@ extern unsigned long pci_io_base;
 #define insb(port, buf, ns)	_insb((u8 __iomem *)((port)+pci_io_base), (buf), (ns))
 #define insw(port, buf, ns)	_insw_ns((u8 __iomem *)((port)+pci_io_base), (buf), (ns))
 #define insl(port, buf, nl)	_insl_ns((u8 __iomem *)((port)+pci_io_base), (buf), (nl))
-#define insw_ns(port, buf, ns)	_insw_ns((u16 __iomem *)((port)+pci_io_base), (buf), (ns))
-#define insl_ns(port, buf, nl)	_insl_ns((u32 __iomem *)((port)+pci_io_base), (buf), (nl))
+
 #else
 
 static inline unsigned char __raw_readb(const volatile void __iomem *addr)
@@ -138,8 +137,6 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 #define insb(port, buf, ns)	eeh_insb((port), (buf), (ns))
 #define insw(port, buf, ns)	eeh_insw_ns((port), (buf), (ns))
 #define insl(port, buf, nl)	eeh_insl_ns((port), (buf), (nl))
-#define insw_ns(port, buf, ns)	eeh_insw_ns((port), (buf), (ns))
-#define insl_ns(port, buf, nl)	eeh_insl_ns((port), (buf), (nl))
 
 #endif
 
@@ -179,14 +176,6 @@ static inline void mmiowb(void)
 #define outw_p(val, port)       (udelay(1), outw((val), (port)))
 #define inl_p(port)             inl(port)
 #define outl_p(val, port)       (udelay(1), outl((val), (port)))
-
-/*
- * The *_ns versions below don't do byte-swapping.
- * Neither do the standard versions now, these are just here
- * for older code.
- */
-#define outsw_ns(port, buf, ns)	_outsw_ns((u16 __iomem *)((port)+pci_io_base), (buf), (ns))
-#define outsl_ns(port, buf, nl)	_outsl_ns((u32 __iomem *)((port)+pci_io_base), (buf), (nl))
 
 
 #define IO_SPACE_LIMIT ~(0UL)

@@ -30,8 +30,6 @@
 #undef inb
 #undef inw
 #undef inl
-#undef insw_ns
-#undef insl_ns
 #undef memcpy_fromio
 
 extern int readb(volatile unsigned char *addr);
@@ -43,8 +41,6 @@ extern void insl(unsigned port, void *buf, int nl);
 extern int inb(unsigned port);
 extern int inw(unsigned port);
 extern unsigned inl(unsigned port);
-extern void insw_ns(unsigned port, void *buf, int ns);
-extern void insl_ns(unsigned port, void *buf, int nl);
 extern void *memcpy_fromio(void *dest, unsigned long src, size_t count);
 
 #endif /* !__CONFIG_8260_PCI9_DEFS */

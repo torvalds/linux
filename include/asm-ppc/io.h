@@ -338,16 +338,6 @@ extern void _outsw_ns(volatile u16 __iomem *port, const void *buf, int ns);
 extern void _insl_ns(volatile u32 __iomem *port, void *buf, int nl);
 extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, int nl);
 
-/*
- * The *_ns versions below don't do byte-swapping.
- * Neither do the standard versions now, these are just here
- * for older code.
- */
-#define insw_ns(port, buf, ns)	_insw_ns((port)+___IO_BASE, (buf), (ns))
-#define outsw_ns(port, buf, ns)	_outsw_ns((port)+___IO_BASE, (buf), (ns))
-#define insl_ns(port, buf, nl)	_insl_ns((port)+___IO_BASE, (buf), (nl))
-#define outsl_ns(port, buf, nl)	_outsl_ns((port)+___IO_BASE, (buf), (nl))
-
 
 #define IO_SPACE_LIMIT ~0
 
