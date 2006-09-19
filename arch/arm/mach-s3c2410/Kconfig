@@ -133,6 +133,12 @@ config S3C2410_CLOCK
 	help
 	  Clock code for the S3C2410, and similar processors
 
+config S3C2410_PM
+	bool
+	depends on CONFIG_PM
+	help
+	  Power Management code common to S3C2410 and better
+
 config CPU_S3C2410_DMA
 	bool
 	depends on S3C2410_DMA && (CPU_S3C2410 || CPU_S3C2442)
@@ -144,6 +150,7 @@ config CPU_S3C2410
 	bool
 	depends on ARCH_S3C2410
 	select S3C2410_CLOCK
+	select S3C2410_PM
 	help
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
 	  of Samsung Mobile CPUs.
@@ -172,6 +179,7 @@ config CPU_S3C2440
 	bool
 	depends on ARCH_S3C2410
 	select S3C2410_CLOCK
+	select S3C2410_PM
 	select CPU_S3C244X
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
@@ -180,6 +188,7 @@ config CPU_S3C2442
 	bool
 	depends on ARCH_S3C2420
 	select S3C2410_CLOCK
+	select S3C2410_PM
 	select CPU_S3C244X
 	help
 	  Support for S3C2442 Samsung Mobile CPU based systems.

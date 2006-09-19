@@ -142,7 +142,7 @@ static struct sleep_save uart_save[] = {
 
 extern void printascii(const char *);
 
-static void pm_dbg(const char *fmt, ...)
+void pm_dbg(const char *fmt, ...)
 {
 	va_list va;
 	char buff[256];
@@ -486,6 +486,9 @@ static void s3c2410_pm_configure_extint(void)
 	}
 }
 
+void (*pm_cpu_prep)(void);
+void (*pm_cpu_sleep)(void);
+
 #define any_allowed(mask, allow) (((mask) & (allow)) != (allow))
 
 /* s3c2410_pm_enter
@@ -496,13 +499,17 @@ static void s3c2410_pm_configure_extint(void)
 static int s3c2410_pm_enter(suspend_state_t state)
 {
 	unsigned long regs_save[16];
-	unsigned long tmp;
 
 	/* ensure the debug is initialised (if enabled) */
 
 	s3c2410_pm_debug_init();
 
 	DBG("s3c2410_pm_enter(%d)\n", state);
+
+	if (pm_cpu_prep == NULL || pm_cpu_sleep == NULL) {
+		printk(KERN_ERR PFX "error: no cpu sleep functions set\n");
+		return -EINVAL;
+	}
 
 	if (state != PM_SUSPEND_MEM) {
 		printk(KERN_ERR PFX "error: only PM_SUSPEND_MEM supported\n");
@@ -531,13 +538,6 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	DBG("s3c2410_sleep_save_phys=0x%08lx\n", s3c2410_sleep_save_phys);
 
-	/* ensure at least GESTATUS3 has the resume address */
-
-	__raw_writel(virt_to_phys(s3c2410_cpu_resume), S3C2410_GSTATUS3);
-
-	DBG("GSTATUS3 0x%08x\n", __raw_readl(S3C2410_GSTATUS3));
-	DBG("GSTATUS4 0x%08x\n", __raw_readl(S3C2410_GSTATUS4));
-
 	/* save all necessary core registers not covered by the drivers */
 
 	s3c2410_pm_do_save(gpio_save, ARRAY_SIZE(gpio_save));
@@ -558,6 +558,10 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	__raw_writel(__raw_readl(S3C2410_EINTPEND), S3C2410_EINTPEND);
 
+	/* call cpu specific preperation */
+
+	pm_cpu_prep();
+
 	/* flush cache back to ram */
 
 	flush_cache_all();
@@ -574,18 +578,12 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	if (s3c2410_cpu_save(regs_save) == 0) {
 		flush_cache_all();
-		s3c2410_cpu_suspend();
+		pm_cpu_sleep();
 	}
 
 	/* restore the cpu state */
 
 	cpu_init();
-
-	/* unset the return-from-sleep flag, to ensure reset */
-
-	tmp = __raw_readl(S3C2410_GSTATUS2);
-	tmp &= S3C2410_GSTATUS2_OFFRESET;
-	__raw_writel(tmp, S3C2410_GSTATUS2);
 
 	/* restore the system state */
 

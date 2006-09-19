@@ -34,6 +34,11 @@ extern unsigned long s3c_irqwake_eintmask;
 extern unsigned long s3c_irqwake_intallow;
 extern unsigned long s3c_irqwake_eintallow;
 
+/* per-cpu sleep functions */
+
+extern void (*pm_cpu_prep)(void);
+extern void (*pm_cpu_sleep)(void);
+
 /* Flags for PM Control */
 
 extern unsigned long s3c_pm_flags;
