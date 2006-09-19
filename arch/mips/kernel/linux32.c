@@ -1296,9 +1296,3 @@ _sys32_clone(nabi_no_regargs struct pt_regs regs)
 	return do_fork(clone_flags, newsp, &regs, 0,
 	               parent_tidptr, child_tidptr);
 }
-
-extern asmlinkage void sys_set_thread_area(u32 addr);
-asmlinkage void sys32_set_thread_area(u32 addr)
-{
-	sys_set_thread_area(AA(addr));
-}
