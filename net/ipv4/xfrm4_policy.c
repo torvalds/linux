@@ -21,6 +21,25 @@ static int xfrm4_dst_lookup(struct xfrm_dst **dst, struct flowi *fl)
 	return __ip_route_output_key((struct rtable**)dst, fl);
 }
 
+static int xfrm4_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
+{
+	struct rtable *rt;
+	struct flowi fl_tunnel = {
+		.nl_u = {
+			.ip4_u = {
+				.daddr = daddr->a4,
+			},
+		},
+	};
+
+	if (!xfrm4_dst_lookup((struct xfrm_dst **)&rt, &fl_tunnel)) {
+		saddr->a4 = rt->rt_src;
+		dst_release(&rt->u.dst);
+		return 0;
+	}
+	return -EHOSTUNREACH;
+}
+
 static struct dst_entry *
 __xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 {
@@ -298,6 +317,7 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.family = 		AF_INET,
 	.dst_ops =		&xfrm4_dst_ops,
 	.dst_lookup =		xfrm4_dst_lookup,
+	.get_saddr =		xfrm4_get_saddr,
 	.find_bundle = 		__xfrm4_find_bundle,
 	.bundle_create =	__xfrm4_bundle_create,
 	.decode_session =	_decode_session4,

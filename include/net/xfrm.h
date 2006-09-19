@@ -222,6 +222,7 @@ struct xfrm_policy_afinfo {
 	struct dst_ops		*dst_ops;
 	void			(*garbage_collect)(void);
 	int			(*dst_lookup)(struct xfrm_dst **dst, struct flowi *fl);
+	int			(*get_saddr)(xfrm_address_t *saddr, xfrm_address_t *daddr);
 	struct dst_entry	*(*find_bundle)(struct flowi *fl, struct xfrm_policy *policy);
 	int			(*bundle_create)(struct xfrm_policy *policy, 
 						 struct xfrm_state **xfrm, 
@@ -628,6 +629,18 @@ secpath_reset(struct sk_buff *skb)
 	secpath_put(skb->sp);
 	skb->sp = NULL;
 #endif
+}
+
+static inline int
+xfrm_addr_any(xfrm_address_t *addr, unsigned short family)
+{
+	switch (family) {
+	case AF_INET:
+		return addr->a4 == 0;
+	case AF_INET6:
+		return ipv6_addr_any((struct in6_addr *)&addr->a6);
+	}
+	return 0;
 }
 
 static inline int

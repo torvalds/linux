@@ -34,6 +34,26 @@ static int xfrm6_dst_lookup(struct xfrm_dst **dst, struct flowi *fl)
 	return err;
 }
 
+static int xfrm6_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
+{
+	struct rt6_info *rt;
+	struct flowi fl_tunnel = {
+		.nl_u = {
+			.ip6_u = {
+				.daddr = *(struct in6_addr *)&daddr->a6,
+			},
+		},
+	};
+
+	if (!xfrm6_dst_lookup((struct xfrm_dst **)&rt, &fl_tunnel)) {
+		ipv6_get_saddr(&rt->u.dst, (struct in6_addr *)&daddr->a6,
+			       (struct in6_addr *)&saddr->a6);
+		dst_release(&rt->u.dst);
+		return 0;
+	}
+	return -EHOSTUNREACH;
+}
+
 static struct dst_entry *
 __xfrm6_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 {
@@ -362,6 +382,7 @@ static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.family =		AF_INET6,
 	.dst_ops =		&xfrm6_dst_ops,
 	.dst_lookup =		xfrm6_dst_lookup,
+	.get_saddr = 		xfrm6_get_saddr,
 	.find_bundle =		__xfrm6_find_bundle,
 	.bundle_create =	__xfrm6_bundle_create,
 	.decode_session =	_decode_session6,
