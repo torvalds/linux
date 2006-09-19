@@ -353,11 +353,13 @@ static void dccp_ackvec_throw_record(struct dccp_ackvec *av,
 {
 	struct dccp_ackvec_record *next;
 
-	av->dccpav_buf_tail = avr->dccpavr_ack_ptr - 1;
-	if (av->dccpav_buf_tail == 0)
-		av->dccpav_buf_tail = DCCP_MAX_ACKVEC_LEN - 1;
-
-	av->dccpav_vec_len -= avr->dccpavr_sent_len;
+	/* sort out vector length */
+	if (av->dccpav_buf_head <= avr->dccpavr_ack_ptr)
+		av->dccpav_vec_len = avr->dccpavr_ack_ptr - av->dccpav_buf_head;
+	else
+		av->dccpav_vec_len = DCCP_MAX_ACKVEC_LEN - 1
+				     - av->dccpav_buf_head
+				     + avr->dccpavr_ack_ptr;
 
 	/* free records */
 	list_for_each_entry_safe_from(avr, next, &av->dccpav_records,
