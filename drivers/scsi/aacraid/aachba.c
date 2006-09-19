@@ -1803,7 +1803,7 @@ static int query_disk(struct aac_dev *dev, void __user *arg)
 
 	fsa_dev_ptr = dev->fsa_dev;
 	if (!fsa_dev_ptr)
-		return -ENODEV;
+		return -EBUSY;
 	if (copy_from_user(&qd, arg, sizeof (struct aac_query_disk)))
 		return -EFAULT;
 	if (qd.cnum == -1)
@@ -1842,6 +1842,8 @@ static int force_delete_disk(struct aac_dev *dev, void __user *arg)
 	struct fsa_dev_info *fsa_dev_ptr;
 
 	fsa_dev_ptr = dev->fsa_dev;
+	if (!fsa_dev_ptr)
+		return -EBUSY;
 
 	if (copy_from_user(&dd, arg, sizeof (struct aac_delete_disk)))
 		return -EFAULT;
@@ -1866,9 +1868,7 @@ static int delete_disk(struct aac_dev *dev, void __user *arg)
 
 	fsa_dev_ptr = dev->fsa_dev;
 	if (!fsa_dev_ptr)
-		return -ENODEV;
-	if (!fsa_dev_ptr)
-		return -ENODEV;
+		return -EBUSY;
 
 	if (copy_from_user(&dd, arg, sizeof (struct aac_delete_disk)))
 		return -EFAULT;

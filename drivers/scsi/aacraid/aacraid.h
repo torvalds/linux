@@ -1525,7 +1525,6 @@ struct aac_get_name {
 	__le32		count;	/* sizeof(((struct aac_get_name_resp *)NULL)->data) */
 };
 
-#define CT_OK        218
 struct aac_get_name_resp {
 	__le32		dummy0;
 	__le32		dummy1;

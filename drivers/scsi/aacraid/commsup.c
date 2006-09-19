@@ -467,7 +467,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	dprintk((KERN_DEBUG "  fib being sent=%p\n",fibptr));
 
 	if (!dev->queues)
-		return -ENODEV;
+		return -EBUSY;
 	q = &dev->queues->queue[AdapNormCmdQueue];
 
 	if(wait)
