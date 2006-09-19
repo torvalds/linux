@@ -12,7 +12,6 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <linux/dmi.h>
 #include <asm/e820.h>
 #include "pci.h"
 
@@ -188,31 +187,9 @@ static __init void unreachable_devices(void)
 	}
 }
 
-static int disable_mcfg(struct dmi_system_id *d)
-{
-	printk("PCI: %s detected. Disabling MCFG.\n", d->ident);
-	pci_probe &= ~PCI_PROBE_MMCONF;
-	return 0;
-}
-
-static struct dmi_system_id __initdata dmi_bad_mcfg[] = {
-	/* Has broken MCFG table that makes the system hang when used */
-        {
-         .callback = disable_mcfg,
-         .ident = "Intel D3C5105 SDV",
-         .matches = {
-                     DMI_MATCH(DMI_BIOS_VENDOR, "Intel"),
-                     DMI_MATCH(DMI_BOARD_NAME, "D26928"),
-                     },
-         },
-         {}
-};
-
 void __init pci_mmcfg_init(void)
 {
-	dmi_check_system(dmi_bad_mcfg);
-
-	if ((pci_probe & (PCI_PROBE_MMCONF_FORCE|PCI_PROBE_MMCONF)) == 0)
+	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return;
 
 	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
@@ -220,6 +197,15 @@ void __init pci_mmcfg_init(void)
 	    (pci_mmcfg_config == NULL) ||
 	    (pci_mmcfg_config[0].base_address == 0))
 		return;
+
+	if (!e820_all_mapped(pci_mmcfg_config[0].base_address,
+			pci_mmcfg_config[0].base_address + MMCONFIG_APER_MIN,
+			E820_RESERVED)) {
+		printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %x is not E820-reserved\n",
+				pci_mmcfg_config[0].base_address);
+		printk(KERN_ERR "PCI: Not using MMCONFIG.\n");
+		return;
+	}
 
 	printk(KERN_INFO "PCI: Using MMCONFIG\n");
 	raw_pci_ops = &pci_mmcfg;
