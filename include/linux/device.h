@@ -309,6 +309,10 @@ struct device_attribute dev_attr_##_name = __ATTR(_name,_mode,_show,_store)
 
 extern int device_create_file(struct device *device, struct device_attribute * entry);
 extern void device_remove_file(struct device * dev, struct device_attribute * attr);
+extern int __must_check device_create_bin_file(struct device *dev,
+					       struct bin_attribute *attr);
+extern void device_remove_bin_file(struct device *dev,
+				   struct bin_attribute *attr);
 struct device {
 	struct klist		klist_children;
 	struct klist_node	knode_parent;		/* node in sibling list */

@@ -319,6 +319,32 @@ void device_remove_file(struct device * dev, struct device_attribute * attr)
 	}
 }
 
+/**
+ * device_create_bin_file - create sysfs binary attribute file for device.
+ * @dev: device.
+ * @attr: device binary attribute descriptor.
+ */
+int device_create_bin_file(struct device *dev, struct bin_attribute *attr)
+{
+	int error = -EINVAL;
+	if (dev)
+		error = sysfs_create_bin_file(&dev->kobj, attr);
+	return error;
+}
+EXPORT_SYMBOL_GPL(device_create_bin_file);
+
+/**
+ * device_remove_bin_file - remove sysfs binary attribute file
+ * @dev: device.
+ * @attr: device binary attribute descriptor.
+ */
+void device_remove_bin_file(struct device *dev, struct bin_attribute *attr)
+{
+	if (dev)
+		sysfs_remove_bin_file(&dev->kobj, attr);
+}
+EXPORT_SYMBOL_GPL(device_remove_bin_file);
+
 static void klist_children_get(struct klist_node *n)
 {
 	struct device *dev = container_of(n, struct device, knode_parent);
