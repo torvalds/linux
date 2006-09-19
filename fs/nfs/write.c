@@ -590,8 +590,8 @@ static void nfs_cancel_commit_list(struct list_head *head)
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_inode_remove_request(req);
-		nfs_clear_page_writeback(req);
 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+		nfs_clear_page_writeback(req);
 	}
 }
 
@@ -1386,8 +1386,8 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_mark_request_commit(req);
-		nfs_clear_page_writeback(req);
 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+		nfs_clear_page_writeback(req);
 	}
 	return -ENOMEM;
 }
