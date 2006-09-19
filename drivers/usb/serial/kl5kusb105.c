@@ -55,7 +55,7 @@
 #include <linux/module.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 #include "kl5kusb105.h"
 
 static int debug;

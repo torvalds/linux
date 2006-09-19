@@ -2019,10 +2019,8 @@ const char *module_address_lookup(unsigned long addr,
 	return NULL;
 }
 
-struct module *module_get_kallsym(unsigned int symnum,
-				  unsigned long *value,
-				  char *type,
-				  char namebuf[128])
+struct module *module_get_kallsym(unsigned int symnum, unsigned long *value,
+				char *type, char *name, size_t namelen)
 {
 	struct module *mod;
 
@@ -2031,9 +2029,8 @@ struct module *module_get_kallsym(unsigned int symnum,
 		if (symnum < mod->num_symtab) {
 			*value = mod->symtab[symnum].st_value;
 			*type = mod->symtab[symnum].st_info;
-			strncpy(namebuf,
-				mod->strtab + mod->symtab[symnum].st_name,
-				127);
+			strlcpy(name, mod->strtab + mod->symtab[symnum].st_name,
+				namelen);
 			mutex_unlock(&module_mutex);
 			return mod;
 		}

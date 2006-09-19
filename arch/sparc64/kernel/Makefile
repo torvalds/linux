@@ -25,6 +25,9 @@ obj-$(CONFIG_MODULES) += module.o
 obj-$(CONFIG_US3_FREQ) += us3_cpufreq.o
 obj-$(CONFIG_US2E_FREQ) += us2e_cpufreq.o
 obj-$(CONFIG_KPROBES) += kprobes.o
+obj-$(CONFIG_AUDIT) += audit.o
+obj-$(CONFIG_AUDIT)$(CONFIG_SPARC32_COMPAT) += compat_audit.o
+obj-y += $(obj-yy)
 
 ifdef CONFIG_SUNOS_EMUL
   obj-y += sys_sunos32.o sunos_ioctl32.o

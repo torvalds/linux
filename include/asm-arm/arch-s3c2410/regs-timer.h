@@ -8,13 +8,6 @@
  * published by the Free Software Foundation.
  *
  * S3C2410 Timer configuration
- *
- *  Changelog:
- *    05-06-2003     BJD     Created file
- *    26-06-2003     BJD     Added more timer definitions to mux / control
- *    12-03-2004     BJD     Updated include protection
- *    10-02-2005     BJD     Added S3C2410_TCFG1_MUX4_SHIFT (Guillaume Gourat)
- *    10-03-2005     LCVR    Changed S3C2410_VA to S3C24XX_VA
 */
 
 

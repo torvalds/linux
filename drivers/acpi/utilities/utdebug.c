@@ -47,7 +47,7 @@
 ACPI_MODULE_NAME("utdebug")
 
 #ifdef ACPI_DEBUG_OUTPUT
-static u32 acpi_gbl_prev_thread_id = 0xFFFFFFFF;
+static acpi_thread_id acpi_gbl_prev_thread_id;
 static char *acpi_gbl_fn_entry_str = "----Entry";
 static char *acpi_gbl_fn_exit_str = "----Exit-";
 
@@ -181,7 +181,7 @@ acpi_ut_debug_print(u32 requested_debug_level,
 		if (ACPI_LV_THREADS & acpi_dbg_level) {
 			acpi_os_printf
 			    ("\n**** Context Switch from TID %X to TID %X ****\n\n",
-			     acpi_gbl_prev_thread_id, thread_id);
+			     (u32) acpi_gbl_prev_thread_id, (u32) thread_id);
 		}
 
 		acpi_gbl_prev_thread_id = thread_id;

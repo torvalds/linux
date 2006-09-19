@@ -119,7 +119,7 @@ static int bcm43xx_wx_set_channelfreq(struct net_device *net_dev,
 		channel = bcm43xx_freq_to_channel(bcm, data->freq.m);
 		freq = data->freq.m;
 	}
-	if (!bcm43xx_is_valid_channel(bcm, channel))
+	if (!ieee80211_is_valid_channel(bcm->ieee, channel))
 		goto out_unlock;
 	if (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED) {
 		//ieee80211softmac_disassoc(softmac, $REASON);

@@ -22,6 +22,7 @@
 #include <asm/cache.h>
 #include <asm/registers.h>
 #include <linux/threads.h>
+#include <linux/compiler.h>
 
 /*
  * Default implementation of macro that returns current
@@ -279,7 +280,7 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_EIP(tsk)  ((tsk)->thread.pc)
 #define KSTK_ESP(tsk)  ((tsk)->thread.sp)
 
-#define cpu_relax()	do { } while (0)
+#define cpu_relax()	barrier()
 
 #endif	/* __ASSEMBLY__ */
 #endif /* __ASM_SH64_PROCESSOR_H */

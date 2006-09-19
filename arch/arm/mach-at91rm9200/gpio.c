@@ -327,7 +327,8 @@ static int gpio_irq_type(unsigned pin, unsigned type)
 	return (type == IRQT_BOTHEDGE) ? 0 : -EINVAL;
 }
 
-static struct irqchip gpio_irqchip = {
+static struct irq_chip gpio_irqchip = {
+	.name		= "GPIO",
 	.mask		= gpio_irq_mask,
 	.unmask		= gpio_irq_unmask,
 	.set_type	= gpio_irq_type,

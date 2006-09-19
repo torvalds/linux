@@ -34,8 +34,6 @@
 
 #include "orinoco.h"
 
-static unsigned char *primsym;
-static unsigned char *secsym;
 static const char primary_fw_name[] = "symbol_sp24t_prim_fw";
 static const char secondary_fw_name[] = "symbol_sp24t_sec_fw";
 
@@ -244,7 +242,7 @@ spectrum_reset(struct pcmcia_device *link, int idle)
 	u_int save_cor;
 
 	/* Doing it if hardware is gone is guaranteed crash */
-	if (pcmcia_dev_present(link))
+	if (!pcmcia_dev_present(link))
 		return -ENODEV;
 
 	/* Save original COR value */
@@ -440,7 +438,7 @@ spectrum_load_blocks(hermes_t *hw, const struct dblock *first_block)
  */
 static int
 spectrum_dl_image(hermes_t *hw, struct pcmcia_device *link,
-		  const unsigned char *image)
+		  const unsigned char *image, int secondary)
 {
 	int ret;
 	const unsigned char *ptr;
@@ -455,7 +453,7 @@ spectrum_dl_image(hermes_t *hw, struct pcmcia_device *link,
 	first_block = (const struct dblock *) ptr;
 
 	/* Read the PDA */
-	if (image != primsym) {
+	if (secondary) {
 		ret = spectrum_read_pda(hw, pda, sizeof(pda));
 		if (ret)
 			return ret;
@@ -472,7 +470,7 @@ spectrum_dl_image(hermes_t *hw, struct pcmcia_device *link,
 		return ret;
 
 	/* Write the PDA to the adapter */
-	if (image != primsym) {
+	if (secondary) {
 		ret = spectrum_apply_pda(hw, first_block, pda);
 		if (ret)
 			return ret;
@@ -487,7 +485,7 @@ spectrum_dl_image(hermes_t *hw, struct pcmcia_device *link,
 	ret = hermes_init(hw);
 
 	/* hermes_reset() should return 0 with the secondary firmware */
-	if (image != primsym && ret != 0)
+	if (secondary && ret != 0)
 		return -ENODEV;
 
 	/* And this should work with any firmware */
@@ -509,33 +507,30 @@ spectrum_dl_firmware(hermes_t *hw, struct pcmcia_device *link)
 	const struct firmware *fw_entry;
 
 	if (request_firmware(&fw_entry, primary_fw_name,
-			     &handle_to_dev(link)) == 0) {
-		primsym = fw_entry->data;
-	} else {
+			     &handle_to_dev(link)) != 0) {
 		printk(KERN_ERR PFX "Cannot find firmware: %s\n",
 		       primary_fw_name);
 		return -ENOENT;
 	}
 
-	if (request_firmware(&fw_entry, secondary_fw_name,
-			     &handle_to_dev(link)) == 0) {
-		secsym = fw_entry->data;
-	} else {
-		printk(KERN_ERR PFX "Cannot find firmware: %s\n",
-		       secondary_fw_name);
-		return -ENOENT;
-	}
-
 	/* Load primary firmware */
-	ret = spectrum_dl_image(hw, link, primsym);
+	ret = spectrum_dl_image(hw, link, fw_entry->data, 0);
+	release_firmware(fw_entry);
 	if (ret) {
 		printk(KERN_ERR PFX "Primary firmware download failed\n");
 		return ret;
 	}
 
-	/* Load secondary firmware */
-	ret = spectrum_dl_image(hw, link, secsym);
+	if (request_firmware(&fw_entry, secondary_fw_name,
+			     &handle_to_dev(link)) != 0) {
+		printk(KERN_ERR PFX "Cannot find firmware: %s\n",
+		       secondary_fw_name);
+		return -ENOENT;
+	}
 
+	/* Load secondary firmware */
+	ret = spectrum_dl_image(hw, link, fw_entry->data, 1);
+	release_firmware(fw_entry);
 	if (ret) {
 		printk(KERN_ERR PFX "Secondary firmware download failed\n");
 	}

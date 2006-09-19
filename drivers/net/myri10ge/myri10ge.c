@@ -177,6 +177,7 @@ struct myri10ge_priv {
 	struct work_struct watchdog_work;
 	struct timer_list watchdog_timer;
 	int watchdog_tx_done;
+	int watchdog_tx_req;
 	int watchdog_resets;
 	int tx_linearized;
 	int pause;
@@ -188,7 +189,6 @@ struct myri10ge_priv {
 	int vendor_specific_offset;
 	u32 devctl;
 	u16 msi_flags;
-	u32 pm_state[16];
 	u32 read_dma;
 	u32 write_dma;
 	u32 read_write_dma;
@@ -449,6 +449,7 @@ static int myri10ge_load_hotplug_firmware(struct myri10ge_priv *mgp, u32 * size)
 	struct mcp_gen_header *hdr;
 	size_t hdr_offset;
 	int status;
+	unsigned i;
 
 	if ((status = request_firmware(&fw, mgp->fw_name, dev)) < 0) {
 		dev_err(dev, "Unable to load %s firmware image via hotplug\n",
@@ -480,18 +481,12 @@ static int myri10ge_load_hotplug_firmware(struct myri10ge_priv *mgp, u32 * size)
 		goto abort_with_fw;
 
 	crc = crc32(~0, fw->data, fw->size);
-	if (mgp->tx.boundary == 2048) {
-		/* Avoid PCI burst on chipset with unaligned completions. */
-		int i;
-		__iomem u32 *ptr = (__iomem u32 *) (mgp->sram +
-						    MYRI10GE_FW_OFFSET);
-		for (i = 0; i < fw->size / 4; i++) {
-			__raw_writel(((u32 *) fw->data)[i], ptr + i);
-			wmb();
-		}
-	} else {
-		myri10ge_pio_copy(mgp->sram + MYRI10GE_FW_OFFSET, fw->data,
-				  fw->size);
+	for (i = 0; i < fw->size; i += 256) {
+		myri10ge_pio_copy(mgp->sram + MYRI10GE_FW_OFFSET + i,
+				  fw->data + i,
+				  min(256U, (unsigned)(fw->size - i)));
+		mb();
+		readb(mgp->sram);
 	}
 	/* corruption checking is good for parity recovery and buggy chipset */
 	memcpy_fromio(fw->data, mgp->sram + MYRI10GE_FW_OFFSET, fw->size);
@@ -621,7 +616,7 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 		return -ENXIO;
 	}
 	dev_info(&mgp->pdev->dev, "handoff confirmed\n");
-	myri10ge_dummy_rdma(mgp, mgp->tx.boundary != 4096);
+	myri10ge_dummy_rdma(mgp, 1);
 
 	return 0;
 }
@@ -1289,6 +1284,7 @@ static const char myri10ge_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"tx_aborted_errors", "tx_carrier_errors", "tx_fifo_errors",
 	"tx_heartbeat_errors", "tx_window_errors",
 	/* device-specific stats */
+	"tx_boundary", "WC", "irq", "MSI",
 	"read_dma_bw_MBs", "write_dma_bw_MBs", "read_write_dma_bw_MBs",
 	"serial_number", "tx_pkt_start", "tx_pkt_done",
 	"tx_req", "tx_done", "rx_small_cnt", "rx_big_cnt",
@@ -1327,6 +1323,10 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	for (i = 0; i < MYRI10GE_NET_STATS_LEN; i++)
 		data[i] = ((unsigned long *)&mgp->stats)[i];
 
+	data[i++] = (unsigned int)mgp->tx.boundary;
+	data[i++] = (unsigned int)(mgp->mtrr >= 0);
+	data[i++] = (unsigned int)mgp->pdev->irq;
+	data[i++] = (unsigned int)mgp->msi_enabled;
 	data[i++] = (unsigned int)mgp->read_dma;
 	data[i++] = (unsigned int)mgp->write_dma;
 	data[i++] = (unsigned int)mgp->read_write_dma;
@@ -2112,7 +2112,7 @@ abort_linearize:
 		}
 		idx = (idx + 1) & tx->mask;
 	} while (idx != last_idx);
-	if (skb_shinfo(skb)->gso_size) {
+	if (skb_is_gso(skb)) {
 		printk(KERN_ERR
 		       "myri10ge: %s: TSO but wanted to linearize?!?!?\n",
 		       mgp->dev->name);
@@ -2196,8 +2196,6 @@ static int myri10ge_change_mtu(struct net_device *dev, int new_mtu)
  * Only do it if the bridge is a root port since we don't want to disturb
  * any other device, except if forced with myri10ge_ecrc_enable > 1.
  */
-
-#define PCI_DEVICE_ID_NVIDIA_NFORCE_CK804_PCIE	0x005d
 
 static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 {
@@ -2410,18 +2408,24 @@ static int myri10ge_resume(struct pci_dev *pdev)
 		return -EIO;
 	}
 	myri10ge_restore_state(mgp);
-	pci_enable_device(pdev);
+
+	status = pci_enable_device(pdev);
+	if (status < 0) {
+		dev_err(&pdev->dev, "failed to enable device\n");
+		return -EIO;
+	}
+
 	pci_set_master(pdev);
 
 	status = request_irq(pdev->irq, myri10ge_intr, IRQF_SHARED,
 			     netdev->name, mgp);
 	if (status != 0) {
 		dev_err(&pdev->dev, "failed to allocate IRQ\n");
-		goto abort_with_msi;
+		goto abort_with_enabled;
 	}
 
 	myri10ge_reset(mgp);
-	myri10ge_dummy_rdma(mgp, mgp->tx.boundary != 4096);
+	myri10ge_dummy_rdma(mgp, 1);
 
 	/* Save configuration space to be restored if the
 	 * nic resets due to a parity error */
@@ -2436,7 +2440,8 @@ static int myri10ge_resume(struct pci_dev *pdev)
 
 	return 0;
 
-abort_with_msi:
+abort_with_enabled:
+	pci_disable_device(pdev);
 	return -EIO;
 
 }
@@ -2538,7 +2543,8 @@ static void myri10ge_watchdog_timer(unsigned long arg)
 
 	mgp = (struct myri10ge_priv *)arg;
 	if (mgp->tx.req != mgp->tx.done &&
-	    mgp->tx.done == mgp->watchdog_tx_done)
+	    mgp->tx.done == mgp->watchdog_tx_done &&
+	    mgp->watchdog_tx_req != mgp->watchdog_tx_done)
 		/* nic seems like it might be stuck.. */
 		schedule_work(&mgp->watchdog_work);
 	else
@@ -2547,6 +2553,7 @@ static void myri10ge_watchdog_timer(unsigned long arg)
 			  jiffies + myri10ge_watchdog_timeout * HZ);
 
 	mgp->watchdog_tx_done = mgp->tx.done;
+	mgp->watchdog_tx_req = mgp->tx.req;
 }
 
 static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -2737,11 +2744,10 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "register_netdev failed: %d\n", status);
 		goto abort_with_irq;
 	}
-
-	printk(KERN_INFO "myri10ge: %s: %s IRQ %d, tx bndry %d, fw %s, WC %s\n",
-	       netdev->name, (mgp->msi_enabled ? "MSI" : "xPIC"),
-	       pdev->irq, mgp->tx.boundary, mgp->fw_name,
-	       (mgp->mtrr >= 0 ? "Enabled" : "Disabled"));
+	dev_info(dev, "%s IRQ %d, tx bndry %d, fw %s, WC %s\n",
+		 (mgp->msi_enabled ? "MSI" : "xPIC"),
+		 pdev->irq, mgp->tx.boundary, mgp->fw_name,
+		 (mgp->mtrr >= 0 ? "Enabled" : "Disabled"));
 
 	return 0;
 

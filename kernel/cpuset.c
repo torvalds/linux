@@ -762,6 +762,8 @@ static int validate_change(const struct cpuset *cur, const struct cpuset *trial)
  *
  * Call with manage_mutex held.  May nest a call to the
  * lock_cpu_hotplug()/unlock_cpu_hotplug() pair.
+ * Must not be called holding callback_mutex, because we must
+ * not call lock_cpu_hotplug() while holding callback_mutex.
  */
 
 static void update_cpu_domains(struct cpuset *cur)
@@ -781,7 +783,7 @@ static void update_cpu_domains(struct cpuset *cur)
 		if (is_cpu_exclusive(c))
 			cpus_andnot(pspan, pspan, c->cpus_allowed);
 	}
-	if (is_removed(cur) || !is_cpu_exclusive(cur)) {
+	if (!is_cpu_exclusive(cur)) {
 		cpus_or(pspan, pspan, cur->cpus_allowed);
 		if (cpus_equal(pspan, cur->cpus_allowed))
 			return;
@@ -813,6 +815,10 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 {
 	struct cpuset trialcs;
 	int retval, cpus_unchanged;
+
+	/* top_cpuset.cpus_allowed tracks cpu_online_map; it's read-only */
+	if (cs == &top_cpuset)
+		return -EACCES;
 
 	trialcs = *cs;
 	retval = cpulist_parse(buf, trialcs.cpus_allowed);
@@ -1917,6 +1923,17 @@ static int cpuset_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	return cpuset_create(c_parent, dentry->d_name.name, mode | S_IFDIR);
 }
 
+/*
+ * Locking note on the strange update_flag() call below:
+ *
+ * If the cpuset being removed is marked cpu_exclusive, then simulate
+ * turning cpu_exclusive off, which will call update_cpu_domains().
+ * The lock_cpu_hotplug() call in update_cpu_domains() must not be
+ * made while holding callback_mutex.  Elsewhere the kernel nests
+ * callback_mutex inside lock_cpu_hotplug() calls.  So the reverse
+ * nesting would risk an ABBA deadlock.
+ */
+
 static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 {
 	struct cpuset *cs = dentry->d_fsdata;
@@ -1936,11 +1953,16 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 		mutex_unlock(&manage_mutex);
 		return -EBUSY;
 	}
+	if (is_cpu_exclusive(cs)) {
+		int retval = update_flag(CS_CPU_EXCLUSIVE, cs, "0");
+		if (retval < 0) {
+			mutex_unlock(&manage_mutex);
+			return retval;
+		}
+	}
 	parent = cs->parent;
 	mutex_lock(&callback_mutex);
 	set_bit(CS_REMOVED, &cs->flags);
-	if (is_cpu_exclusive(cs))
-		update_cpu_domains(cs);
 	list_del(&cs->sibling);	/* delete my sibling from parent->children */
 	spin_lock(&cs->dentry->d_lock);
 	d = dget(cs->dentry);
@@ -2015,6 +2037,33 @@ out:
 	return err;
 }
 
+/*
+ * The top_cpuset tracks what CPUs and Memory Nodes are online,
+ * period.  This is necessary in order to make cpusets transparent
+ * (of no affect) on systems that are actively using CPU hotplug
+ * but making no active use of cpusets.
+ *
+ * This handles CPU hotplug (cpuhp) events.  If someday Memory
+ * Nodes can be hotplugged (dynamically changing node_online_map)
+ * then we should handle that too, perhaps in a similar way.
+ */
+
+#ifdef CONFIG_HOTPLUG_CPU
+static int cpuset_handle_cpuhp(struct notifier_block *nb,
+				unsigned long phase, void *cpu)
+{
+	mutex_lock(&manage_mutex);
+	mutex_lock(&callback_mutex);
+
+	top_cpuset.cpus_allowed = cpu_online_map;
+
+	mutex_unlock(&callback_mutex);
+	mutex_unlock(&manage_mutex);
+
+	return 0;
+}
+#endif
+
 /**
  * cpuset_init_smp - initialize cpus_allowed
  *
@@ -2025,6 +2074,8 @@ void __init cpuset_init_smp(void)
 {
 	top_cpuset.cpus_allowed = cpu_online_map;
 	top_cpuset.mems_allowed = node_online_map;
+
+	hotcpu_notifier(cpuset_handle_cpuhp, 0);
 }
 
 /**
@@ -2369,7 +2420,7 @@ EXPORT_SYMBOL_GPL(cpuset_mem_spread_node);
 int cpuset_excl_nodes_overlap(const struct task_struct *p)
 {
 	const struct cpuset *cs1, *cs2;	/* my and p's cpuset ancestors */
-	int overlap = 0;		/* do cpusets overlap? */
+	int overlap = 1;		/* do cpusets overlap? */
 
 	task_lock(current);
 	if (current->flags & PF_EXITING) {

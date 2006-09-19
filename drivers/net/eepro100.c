@@ -555,12 +555,12 @@ static int __devinit eepro100_init_one (struct pci_dev *pdev,
 
 	if (!request_region(pci_resource_start(pdev, 1),
 			pci_resource_len(pdev, 1), "eepro100")) {
-		printk (KERN_ERR "eepro100: cannot reserve I/O ports\n");
+		dev_err(&pdev->dev, "eepro100: cannot reserve I/O ports\n");
 		goto err_out_none;
 	}
 	if (!request_mem_region(pci_resource_start(pdev, 0),
 			pci_resource_len(pdev, 0), "eepro100")) {
-		printk (KERN_ERR "eepro100: cannot reserve MMIO region\n");
+		dev_err(&pdev->dev, "eepro100: cannot reserve MMIO region\n");
 		goto err_out_free_pio_region;
 	}
 
@@ -573,7 +573,7 @@ static int __devinit eepro100_init_one (struct pci_dev *pdev,
 
 	ioaddr = pci_iomap(pdev, pci_bar, 0);
 	if (!ioaddr) {
-		printk (KERN_ERR "eepro100: cannot remap IO\n");
+		dev_err(&pdev->dev, "eepro100: cannot remap IO\n");
 		goto err_out_free_mmio_region;
 	}
 

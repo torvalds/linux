@@ -22,7 +22,7 @@
 #ifndef __TANBAC_TB0287_H
 #define __TANBAC_TB0287_H
 
-#include <asm/vr41xx/vr41xx.h>
+#include <asm/vr41xx/irq.h>
 
 /*
  * General-Purpose I/O Pin Number

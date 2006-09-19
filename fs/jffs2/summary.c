@@ -252,6 +252,11 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 	union jffs2_node_union *node;
 	struct jffs2_eraseblock *jeb;
 
+	if (c->summary->sum_size == JFFS2_SUMMARY_NOSUM_SIZE) {
+		dbg_summary("Summary is disabled for this jeb! Skipping summary info!\n");
+		return 0;
+	}
+
 	node = invecs[0].iov_base;
 	jeb = &c->blocks[ofs / c->sector_size];
 	ofs -= jeb->offset;

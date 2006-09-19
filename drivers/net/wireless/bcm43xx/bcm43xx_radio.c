@@ -1594,11 +1594,11 @@ int bcm43xx_radio_selectchannel(struct bcm43xx_private *bcm,
 	u16 r8, tmp;
 	u16 freq;
 
+	if (!ieee80211_is_valid_channel(bcm->ieee, channel))
+		return -EINVAL;
 	if ((radio->manufact == 0x17F) &&
 	    (radio->version == 0x2060) &&
 	    (radio->revision == 1)) {
-		if (channel > 200)
-			return -EINVAL;
 		freq = channel2freq_a(channel);
 
 		r8 = bcm43xx_radio_read16(bcm, 0x0008);
@@ -1651,9 +1651,6 @@ int bcm43xx_radio_selectchannel(struct bcm43xx_private *bcm,
 		TODO();	//TODO:	TSSI2dbm workaround
 		bcm43xx_phy_xmitpower(bcm);//FIXME correct?
 	} else {
-		if ((channel < 1) || (channel > 14))
-			return -EINVAL;
-
 		if (synthetic_pu_workaround)
 			bcm43xx_synth_pu_workaround(bcm, channel);
 

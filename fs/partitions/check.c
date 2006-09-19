@@ -339,6 +339,7 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len)
 	p->start_sect = start;
 	p->nr_sects = len;
 	p->partno = part;
+	p->policy = disk->policy;
 
 	if (isdigit(disk->kobj.name[strlen(disk->kobj.name)-1]))
 		snprintf(p->kobj.name,KOBJ_NAME_LEN,"%sp%d",disk->kobj.name,part);

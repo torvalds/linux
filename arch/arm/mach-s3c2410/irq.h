@@ -97,3 +97,13 @@ s3c_irqsub_ack(unsigned int irqno, unsigned int parentmask, unsigned int group)
 		__raw_writel(parentmask, S3C2410_INTPND);
 	}
 }
+
+/* exported for use in arch/arm/mach-s3c2410 */
+
+#ifdef CONFIG_PM
+extern int s3c_irq_wake(unsigned int irqno, unsigned int state);
+#else
+#define s3c_irq_wake NULL
+#endif
+
+extern int s3c_irqext_type(unsigned int irq, unsigned int type);

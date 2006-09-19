@@ -136,7 +136,7 @@ void __init init_IRQ(void)
 		irq_desc[i].status  = IRQ_DISABLED;
 		irq_desc[i].action  = NULL;
 		irq_desc[i].depth   = 1;
-		irq_desc[i].chip = &no_irq_type;
+		irq_desc[i].chip = &no_irq_chip;
 		spin_lock_init(&irq_desc[i].lock);
 #ifdef CONFIG_MIPS_MT_SMTC
 		irq_hwmask[i] = 0;

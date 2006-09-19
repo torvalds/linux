@@ -100,7 +100,7 @@ ccw_uevent (struct device *dev, char **envp, int num_envp,
 	if ((buffer_size - length <= 0) || (i >= num_envp))
 		return -ENOMEM;
 
-	envp[i] = 0;
+	envp[i] = NULL;
 
 	return 0;
 }
@@ -280,7 +280,7 @@ ccw_device_remove_disconnected(struct ccw_device *cdev)
 	 * 'throw away device'.
 	 */
 	sch = to_subchannel(cdev->dev.parent);
-	device_unregister(&sch->dev);
+	css_sch_device_unregister(sch);
 	/* Reset intparm to zeroes. */
 	sch->schib.pmcw.intparm = 0;
 	cio_modify(sch);
@@ -556,12 +556,11 @@ get_disc_ccwdev_by_devno(unsigned int devno, unsigned int ssid,
 			 struct ccw_device *sibling)
 {
 	struct device *dev;
-	struct match_data data = {
-		.devno   = devno,
-		.ssid    = ssid,
-		.sibling = sibling,
-	};
+	struct match_data data;
 
+	data.devno = devno;
+	data.ssid = ssid;
+	data.sibling = sibling;
 	dev = bus_find_device(&ccw_bus_type, NULL, &data, match_devno);
 
 	return dev ? to_ccwdev(dev) : NULL;
@@ -625,7 +624,7 @@ ccw_device_do_unreg_rereg(void *data)
 					other_sch->schib.pmcw.intparm = 0;
 					cio_modify(other_sch);
 				}
-				device_unregister(&other_sch->dev);
+				css_sch_device_unregister(other_sch);
 			}
 		}
 		/* Update ssd info here. */
@@ -709,7 +708,7 @@ ccw_device_call_sch_unregister(void *data)
 	struct subchannel *sch;
 
 	sch = to_subchannel(cdev->dev.parent);
-	device_unregister(&sch->dev);
+	css_sch_device_unregister(sch);
 	/* Reset intparm to zeroes. */
 	sch->schib.pmcw.intparm = 0;
 	cio_modify(sch);
@@ -835,10 +834,8 @@ io_subchannel_probe (struct subchannel *sch)
 		return -ENOMEM;
 	}
 	atomic_set(&cdev->private->onoff, 0);
-	cdev->dev = (struct device) {
-		.parent = &sch->dev,
-		.release = ccw_device_release,
-	};
+	cdev->dev.parent = &sch->dev;
+	cdev->dev.release = ccw_device_release;
 	INIT_LIST_HEAD(&cdev->private->kick_work.entry);
 	/* Do first half of device_register. */
 	device_initialize(&cdev->dev);
@@ -977,9 +974,7 @@ ccw_device_console_enable (struct ccw_device *cdev, struct subchannel *sch)
 	int rc;
 
 	/* Initialize the ccw_device structure. */
-	cdev->dev = (struct device) {
-		.parent = &sch->dev,
-	};
+	cdev->dev.parent= &sch->dev;
 	rc = io_subchannel_recog(cdev, sch);
 	if (rc)
 		return rc;
@@ -1057,7 +1052,7 @@ get_ccwdev_by_busid(struct ccw_driver *cdrv, const char *bus_id)
 				 __ccwdev_check_busid);
 	put_driver(drv);
 
-	return dev ? to_ccwdev(dev) : 0;
+	return dev ? to_ccwdev(dev) : NULL;
 }
 
 /************************** device driver handling ************************/
@@ -1082,7 +1077,7 @@ ccw_device_probe (struct device *dev)
 	ret = cdrv->probe ? cdrv->probe(cdev) : -ENODEV;
 
 	if (ret) {
-		cdev->drv = 0;
+		cdev->drv = NULL;
 		return ret;
 	}
 
@@ -1113,7 +1108,7 @@ ccw_device_remove (struct device *dev)
 				 ret, cdev->dev.bus_id);
 	}
 	ccw_device_set_timeout(cdev, 0);
-	cdev->drv = 0;
+	cdev->drv = NULL;
 	return 0;
 }
 

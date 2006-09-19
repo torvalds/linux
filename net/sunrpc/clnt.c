@@ -125,10 +125,9 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 		goto out_err;
 
 	err = -ENOMEM;
-	clnt = kmalloc(sizeof(*clnt), GFP_KERNEL);
+	clnt = kzalloc(sizeof(*clnt), GFP_KERNEL);
 	if (!clnt)
 		goto out_err;
-	memset(clnt, 0, sizeof(*clnt));
 	atomic_set(&clnt->cl_users, 0);
 	atomic_set(&clnt->cl_count, 1);
 	clnt->cl_parent = clnt;
@@ -184,8 +183,7 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 
 out_no_auth:
 	if (!IS_ERR(clnt->cl_dentry)) {
-		rpc_rmdir(clnt->cl_pathname);
-		dput(clnt->cl_dentry);
+		rpc_rmdir(clnt->cl_dentry);
 		rpc_put_mount();
 	}
 out_no_path:
@@ -252,10 +250,8 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new->cl_autobind = 0;
 	new->cl_oneshot = 0;
 	new->cl_dead = 0;
-	if (!IS_ERR(new->cl_dentry)) {
+	if (!IS_ERR(new->cl_dentry))
 		dget(new->cl_dentry);
-		rpc_get_mount();
-	}
 	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);
@@ -318,11 +314,15 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 		clnt->cl_auth = NULL;
 	}
 	if (clnt->cl_parent != clnt) {
+		if (!IS_ERR(clnt->cl_dentry))
+			dput(clnt->cl_dentry);
 		rpc_destroy_client(clnt->cl_parent);
 		goto out_free;
 	}
-	if (clnt->cl_pathname[0])
-		rpc_rmdir(clnt->cl_pathname);
+	if (!IS_ERR(clnt->cl_dentry)) {
+		rpc_rmdir(clnt->cl_dentry);
+		rpc_put_mount();
+	}
 	if (clnt->cl_xprt) {
 		xprt_destroy(clnt->cl_xprt);
 		clnt->cl_xprt = NULL;
@@ -332,10 +332,6 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 out_free:
 	rpc_free_iostats(clnt->cl_metrics);
 	clnt->cl_metrics = NULL;
-	if (!IS_ERR(clnt->cl_dentry)) {
-		dput(clnt->cl_dentry);
-		rpc_put_mount();
-	}
 	kfree(clnt);
 	return 0;
 }
@@ -922,26 +918,43 @@ call_transmit(struct rpc_task *task)
 	task->tk_status = xprt_prepare_transmit(task);
 	if (task->tk_status != 0)
 		return;
+	task->tk_action = call_transmit_status;
 	/* Encode here so that rpcsec_gss can use correct sequence number. */
 	if (rpc_task_need_encode(task)) {
-		task->tk_rqstp->rq_bytes_sent = 0;
+		BUG_ON(task->tk_rqstp->rq_bytes_sent != 0);
 		call_encode(task);
 		/* Did the encode result in an error condition? */
 		if (task->tk_status != 0)
-			goto out_nosend;
+			return;
 	}
-	task->tk_action = call_transmit_status;
 	xprt_transmit(task);
 	if (task->tk_status < 0)
 		return;
-	if (!task->tk_msg.rpc_proc->p_decode) {
-		task->tk_action = rpc_exit_task;
-		rpc_wake_up_task(task);
-	}
-	return;
-out_nosend:
-	/* release socket write lock before attempting to handle error */
-	xprt_abort_transmit(task);
+	/*
+	 * On success, ensure that we call xprt_end_transmit() before sleeping
+	 * in order to allow access to the socket to other RPC requests.
+	 */
+	call_transmit_status(task);
+	if (task->tk_msg.rpc_proc->p_decode != NULL)
+		return;
+	task->tk_action = rpc_exit_task;
+	rpc_wake_up_task(task);
+}
+
+/*
+ * 5a.	Handle cleanup after a transmission
+ */
+static void
+call_transmit_status(struct rpc_task *task)
+{
+	task->tk_action = call_status;
+	/*
+	 * Special case: if we've been waiting on the socket's write_space()
+	 * callback, then don't call xprt_end_transmit().
+	 */
+	if (task->tk_status == -EAGAIN)
+		return;
+	xprt_end_transmit(task);
 	rpc_task_force_reencode(task);
 }
 
@@ -993,18 +1006,7 @@ call_status(struct rpc_task *task)
 }
 
 /*
- * 6a.	Handle transmission errors.
- */
-static void
-call_transmit_status(struct rpc_task *task)
-{
-	if (task->tk_status != -EAGAIN)
-		rpc_task_force_reencode(task);
-	call_status(task);
-}
-
-/*
- * 6b.	Handle RPC timeout
+ * 6a.	Handle RPC timeout
  * 	We do not release the request slot, so we keep using the
  *	same XID for all retransmits.
  */
@@ -1179,6 +1181,17 @@ call_verify(struct rpc_task *task)
 	u32	*p = iov->iov_base, n;
 	int error = -EACCES;
 
+	if ((task->tk_rqstp->rq_rcv_buf.len & 3) != 0) {
+		/* RFC-1014 says that the representation of XDR data must be a
+		 * multiple of four bytes
+		 * - if it isn't pointer subtraction in the NFS client may give
+		 *   undefined results
+		 */
+		printk(KERN_WARNING
+		       "call_verify: XDR representation not a multiple of"
+		       " 4 bytes: 0x%x\n", task->tk_rqstp->rq_rcv_buf.len);
+		goto out_eio;
+	}
 	if ((len -= 3) < 0)
 		goto out_overflow;
 	p += 1;	/* skip XID */

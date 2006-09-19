@@ -1093,9 +1093,10 @@ static int nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	ret = nand_do_read_ops(mtd, from, &chip->ops);
 
+	*retlen = chip->ops.retlen;
+
 	nand_release_device(mtd);
 
-	*retlen = chip->ops.retlen;
 	return ret;
 }
 
@@ -1203,7 +1204,7 @@ static int nand_write_oob_syndrome(struct mtd_info *mtd,
 		pos = steps * (eccsize + chunk);
 		steps = 0;
 	} else
-		pos = eccsize + chunk;
+		pos = eccsize;
 
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, pos, page);
 	for (i = 0; i < steps; i++) {
@@ -1566,7 +1567,7 @@ static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob,
 				bytes = min_t(size_t, len, free->length);
 				boffs = free->offset;
 			}
-			memcpy(chip->oob_poi + woffs, oob, bytes);
+			memcpy(chip->oob_poi + boffs, oob, bytes);
 			oob += bytes;
 		}
 		return oob;
@@ -1691,9 +1692,10 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	ret = nand_do_write_ops(mtd, to, &chip->ops);
 
+	*retlen = chip->ops.retlen;
+
 	nand_release_device(mtd);
 
-	*retlen = chip->ops.retlen;
 	return ret;
 }
 

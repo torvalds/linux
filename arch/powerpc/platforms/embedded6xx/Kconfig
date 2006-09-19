@@ -80,6 +80,7 @@ config MPC7448HPC2
 	select DEFAULT_UIMAGE
 	select PPC_UDBG_16550
 	select MPIC
+	select MPIC_WEIRD
 	help
 	  Select MPC7448HPC2 if configuring for Freescale MPC7448HPC2 (Taiga)
 	  platform

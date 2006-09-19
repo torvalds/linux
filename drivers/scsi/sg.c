@@ -18,8 +18,8 @@
  *
  */
 
-static int sg_version_num = 30533;	/* 2 digits for each component */
-#define SG_VERSION_STR "3.5.33"
+static int sg_version_num = 30534;	/* 2 digits for each component */
+#define SG_VERSION_STR "3.5.34"
 
 /*
  *  D. P. Gilbert (dgilbert@interlog.com, dougg@triode.net.au), notes:
@@ -60,7 +60,7 @@ static int sg_version_num = 30533;	/* 2 digits for each component */
 
 #ifdef CONFIG_SCSI_PROC_FS
 #include <linux/proc_fs.h>
-static char *sg_version_date = "20050908";
+static char *sg_version_date = "20060818";
 
 static int sg_proc_init(void);
 static void sg_proc_cleanup(void);
@@ -1164,7 +1164,7 @@ sg_vma_nopage(struct vm_area_struct *vma, unsigned long addr, int *type)
 		len = vma->vm_end - sa;
 		len = (len < sg->length) ? len : sg->length;
 		if (offset < len) {
-			page = sg->page;
+			page = virt_to_page(page_address(sg->page) + offset);
 			get_page(page);	/* increment page count */
 			break;
 		}

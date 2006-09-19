@@ -134,18 +134,6 @@ config SEALEVEL_4021
 	  The driver will be compiled as a module: the
 	  module will be called sealevel.
 
-config SYNCLINK_SYNCPPP
-	tristate "SyncLink HDLC/SYNCPPP support"
-	depends on WAN
-	help
-	  Enables HDLC/SYNCPPP support for the SyncLink WAN driver.
-
-	  Normally the SyncLink WAN driver works with the main PPP driver
-	  <file:drivers/net/ppp_generic.c> and pppd program.
-	  HDLC/SYNCPPP support allows use of the Cisco HDLC/PPP driver
-	  <file:drivers/net/wan/syncppp.c>. The SyncLink WAN driver (in
-	  character devices) must also be enabled.
-
 # Generic HDLC
 config HDLC
 	tristate "Generic HDLC layer"

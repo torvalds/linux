@@ -884,6 +884,61 @@ void bd_set_size(struct block_device *bdev, loff_t size)
 }
 EXPORT_SYMBOL(bd_set_size);
 
+static int __blkdev_put(struct block_device *bdev, unsigned int subclass)
+{
+	int ret = 0;
+	struct inode *bd_inode = bdev->bd_inode;
+	struct gendisk *disk = bdev->bd_disk;
+
+	mutex_lock_nested(&bdev->bd_mutex, subclass);
+	lock_kernel();
+	if (!--bdev->bd_openers) {
+		sync_blockdev(bdev);
+		kill_bdev(bdev);
+	}
+	if (bdev->bd_contains == bdev) {
+		if (disk->fops->release)
+			ret = disk->fops->release(bd_inode, NULL);
+	} else {
+		mutex_lock_nested(&bdev->bd_contains->bd_mutex,
+				  subclass + 1);
+		bdev->bd_contains->bd_part_count--;
+		mutex_unlock(&bdev->bd_contains->bd_mutex);
+	}
+	if (!bdev->bd_openers) {
+		struct module *owner = disk->fops->owner;
+
+		put_disk(disk);
+		module_put(owner);
+
+		if (bdev->bd_contains != bdev) {
+			kobject_put(&bdev->bd_part->kobj);
+			bdev->bd_part = NULL;
+		}
+		bdev->bd_disk = NULL;
+		bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
+		if (bdev != bdev->bd_contains)
+			__blkdev_put(bdev->bd_contains, subclass + 1);
+		bdev->bd_contains = NULL;
+	}
+	unlock_kernel();
+	mutex_unlock(&bdev->bd_mutex);
+	bdput(bdev);
+	return ret;
+}
+
+int blkdev_put(struct block_device *bdev)
+{
+	return __blkdev_put(bdev, BD_MUTEX_NORMAL);
+}
+EXPORT_SYMBOL(blkdev_put);
+
+int blkdev_put_partition(struct block_device *bdev)
+{
+	return __blkdev_put(bdev, BD_MUTEX_PARTITION);
+}
+EXPORT_SYMBOL(blkdev_put_partition);
+
 static int
 blkdev_get_whole(struct block_device *bdev, mode_t mode, unsigned flags);
 
@@ -980,7 +1035,7 @@ out_first:
 	bdev->bd_disk = NULL;
 	bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
 	if (bdev != bdev->bd_contains)
-		blkdev_put(bdev->bd_contains);
+		__blkdev_put(bdev->bd_contains, BD_MUTEX_WHOLE);
 	bdev->bd_contains = NULL;
 	put_disk(disk);
 	module_put(owner);
@@ -1078,63 +1133,6 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	blkdev_put(bdev);
 	return res;
 }
-
-static int __blkdev_put(struct block_device *bdev, unsigned int subclass)
-{
-	int ret = 0;
-	struct inode *bd_inode = bdev->bd_inode;
-	struct gendisk *disk = bdev->bd_disk;
-
-	mutex_lock_nested(&bdev->bd_mutex, subclass);
-	lock_kernel();
-	if (!--bdev->bd_openers) {
-		sync_blockdev(bdev);
-		kill_bdev(bdev);
-	}
-	if (bdev->bd_contains == bdev) {
-		if (disk->fops->release)
-			ret = disk->fops->release(bd_inode, NULL);
-	} else {
-		mutex_lock_nested(&bdev->bd_contains->bd_mutex,
-				  subclass + 1);
-		bdev->bd_contains->bd_part_count--;
-		mutex_unlock(&bdev->bd_contains->bd_mutex);
-	}
-	if (!bdev->bd_openers) {
-		struct module *owner = disk->fops->owner;
-
-		put_disk(disk);
-		module_put(owner);
-
-		if (bdev->bd_contains != bdev) {
-			kobject_put(&bdev->bd_part->kobj);
-			bdev->bd_part = NULL;
-		}
-		bdev->bd_disk = NULL;
-		bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
-		if (bdev != bdev->bd_contains)
-			__blkdev_put(bdev->bd_contains, subclass + 1);
-		bdev->bd_contains = NULL;
-	}
-	unlock_kernel();
-	mutex_unlock(&bdev->bd_mutex);
-	bdput(bdev);
-	return ret;
-}
-
-int blkdev_put(struct block_device *bdev)
-{
-	return __blkdev_put(bdev, BD_MUTEX_NORMAL);
-}
-
-EXPORT_SYMBOL(blkdev_put);
-
-int blkdev_put_partition(struct block_device *bdev)
-{
-	return __blkdev_put(bdev, BD_MUTEX_PARTITION);
-}
-
-EXPORT_SYMBOL(blkdev_put_partition);
 
 static int blkdev_close(struct inode * inode, struct file * filp)
 {

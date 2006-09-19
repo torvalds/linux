@@ -330,6 +330,8 @@ EXPORT_SYMBOL(end_iomem);
 
 #define MIN_VMALLOC (32 * 1024 * 1024)
 
+extern char __binary_start;
+
 int linux_main(int argc, char **argv)
 {
 	unsigned long avail, diff;
@@ -374,8 +376,9 @@ int linux_main(int argc, char **argv)
 
 	printf("UML running in %s mode\n", mode);
 
-	uml_start = CHOOSE_MODE_PROC(set_task_sizes_tt, set_task_sizes_skas, 0,
-				     &host_task_size, &task_size);
+	uml_start = (unsigned long) &__binary_start;
+	host_task_size = CHOOSE_MODE_PROC(set_task_sizes_tt,
+					  set_task_sizes_skas, &task_size);
 
 	/*
  	 * Setting up handlers to 'sig_info' struct
@@ -395,7 +398,7 @@ int linux_main(int argc, char **argv)
 		physmem_size += UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
 	}
 
-	uml_physmem = uml_start;
+	uml_physmem = uml_start & PAGE_MASK;
 
 	/* Reserve up to 4M after the current brk */
 	uml_reserved = ROUND_4M(brk_start) + (1 << 22);

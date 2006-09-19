@@ -102,9 +102,15 @@ inet_peer_gc_maxtime - INTEGER
 TCP variables: 
 
 tcp_abc - INTEGER
-	Controls Appropriate Byte Count defined in RFC3465. If set to
-	0 then does congestion avoid once per ack. 1 is conservative
-	value, and 2 is more agressive.
+	Controls Appropriate Byte Count (ABC) defined in RFC3465.
+	ABC is a way of increasing congestion window (cwnd) more slowly
+	in response to partial acknowledgments.
+	Possible values are:
+		0 increase cwnd once per acknowledgment (no ABC)
+		1 increase cwnd once per acknowledgment of full sized segment
+		2 allow increase cwnd by two if acknowledgment is
+		  of two segments to compensate for delayed acknowledgments.
+	Default: 0 (off)
 
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
@@ -294,15 +300,15 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 	Default: 87380*2 bytes.
 
 tcp_mem - vector of 3 INTEGERs: min, pressure, max
-	low: below this number of pages TCP is not bothered about its
+	min: below this number of pages TCP is not bothered about its
 	memory appetite.
 
 	pressure: when amount of memory allocated by TCP exceeds this number
 	of pages, TCP moderates its memory consumption and enters memory
 	pressure mode, which is exited when memory consumption falls
-	under "low".
+	under "min".
 
-	high: number of pages allowed for queueing by all TCP sockets.
+	max: number of pages allowed for queueing by all TCP sockets.
 
 	Defaults are calculated at boot time from amount of available
 	memory.

@@ -74,6 +74,9 @@ static void ulog_send(unsigned int nlgroup)
 	if (timer_pending(&ub->timer))
 		del_timer(&ub->timer);
 
+	if (!ub->skb)
+		return;
+
 	/* last nlmsg needs NLMSG_DONE */
 	if (ub->qlen > 1)
 		ub->lastnlh->nlmsg_type = NLMSG_DONE;

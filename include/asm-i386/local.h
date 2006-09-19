@@ -17,32 +17,30 @@ static __inline__ void local_inc(local_t *v)
 {
 	__asm__ __volatile__(
 		"incl %0"
-		:"=m" (v->counter)
-		:"m" (v->counter));
+		:"+m" (v->counter));
 }
 
 static __inline__ void local_dec(local_t *v)
 {
 	__asm__ __volatile__(
 		"decl %0"
-		:"=m" (v->counter)
-		:"m" (v->counter));
+		:"+m" (v->counter));
 }
 
 static __inline__ void local_add(long i, local_t *v)
 {
 	__asm__ __volatile__(
 		"addl %1,%0"
-		:"=m" (v->counter)
-		:"ir" (i), "m" (v->counter));
+		:"+m" (v->counter)
+		:"ir" (i));
 }
 
 static __inline__ void local_sub(long i, local_t *v)
 {
 	__asm__ __volatile__(
 		"subl %1,%0"
-		:"=m" (v->counter)
-		:"ir" (i), "m" (v->counter));
+		:"+m" (v->counter)
+		:"ir" (i));
 }
 
 /* On x86, these are no better than the atomic variants. */

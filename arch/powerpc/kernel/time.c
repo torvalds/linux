@@ -125,15 +125,8 @@ static long timezone_offset;
 unsigned long ppc_proc_freq;
 unsigned long ppc_tb_freq;
 
-u64 tb_last_jiffy __cacheline_aligned_in_smp;
-unsigned long tb_last_stamp;
-
-/*
- * Note that on ppc32 this only stores the bottom 32 bits of
- * the timebase value, but that's enough to tell when a jiffy
- * has passed.
- */
-DEFINE_PER_CPU(unsigned long, last_jiffy);
+static u64 tb_last_jiffy __cacheline_aligned_in_smp;
+static DEFINE_PER_CPU(u64, last_jiffy);
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 /*
@@ -417,7 +410,7 @@ static __inline__ void timer_check_rtc(void)
 /*
  * This version of gettimeofday has microsecond resolution.
  */
-static inline void __do_gettimeofday(struct timeval *tv, u64 tb_val)
+static inline void __do_gettimeofday(struct timeval *tv)
 {
 	unsigned long sec, usec;
 	u64 tb_ticks, xsec;
@@ -431,7 +424,12 @@ static inline void __do_gettimeofday(struct timeval *tv, u64 tb_val)
 	 * without a divide (and in fact, without a multiply)
 	 */
 	temp_varp = do_gtod.varp;
-	tb_ticks = tb_val - temp_varp->tb_orig_stamp;
+
+	/* Sampling the time base must be done after loading
+	 * do_gtod.varp in order to avoid racing with update_gtod.
+	 */
+	data_barrier(temp_varp);
+	tb_ticks = get_tb() - temp_varp->tb_orig_stamp;
 	temp_tb_to_xs = temp_varp->tb_to_xs;
 	temp_stamp_xsec = temp_varp->stamp_xsec;
 	xsec = temp_stamp_xsec + mulhdu(tb_ticks, temp_tb_to_xs);
@@ -453,7 +451,7 @@ void do_gettimeofday(struct timeval *tv)
 		do {
 			seq = read_seqbegin_irqsave(&xtime_lock, flags);
 			sec = xtime.tv_sec;
-			nsec = xtime.tv_nsec + tb_ticks_since(tb_last_stamp);
+			nsec = xtime.tv_nsec + tb_ticks_since(tb_last_jiffy);
 		} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 		usec = nsec / 1000;
 		while (usec >= 1000000) {
@@ -464,7 +462,7 @@ void do_gettimeofday(struct timeval *tv)
 		tv->tv_usec = usec;
 		return;
 	}
-	__do_gettimeofday(tv, get_tb());
+	__do_gettimeofday(tv);
 }
 
 EXPORT_SYMBOL(do_gettimeofday);
@@ -650,6 +648,7 @@ void timer_interrupt(struct pt_regs * regs)
 	int next_dec;
 	int cpu = smp_processor_id();
 	unsigned long ticks;
+	u64 tb_next_jiffy;
 
 #ifdef CONFIG_PPC32
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)
@@ -691,11 +690,13 @@ void timer_interrupt(struct pt_regs * regs)
 			continue;
 
 		write_seqlock(&xtime_lock);
-		tb_last_jiffy += tb_ticks_per_jiffy;
-		tb_last_stamp = per_cpu(last_jiffy, cpu);
-		do_timer(regs);
-		timer_recalc_offset(tb_last_jiffy);
-		timer_check_rtc();
+		tb_next_jiffy = tb_last_jiffy + tb_ticks_per_jiffy;
+		if (per_cpu(last_jiffy, cpu) >= tb_next_jiffy) {
+			tb_last_jiffy = tb_next_jiffy;
+			do_timer(regs);
+			timer_recalc_offset(tb_last_jiffy);
+			timer_check_rtc();
+		}
 		write_sequnlock(&xtime_lock);
 	}
 	
@@ -740,7 +741,7 @@ void __init smp_space_timers(unsigned int max_cpus)
 	int i;
 	unsigned long half = tb_ticks_per_jiffy / 2;
 	unsigned long offset = tb_ticks_per_jiffy / max_cpus;
-	unsigned long previous_tb = per_cpu(last_jiffy, boot_cpuid);
+	u64 previous_tb = per_cpu(last_jiffy, boot_cpuid);
 
 	/* make sure tb > per_cpu(last_jiffy, cpu) for all cpus always */
 	previous_tb -= tb_ticks_per_jiffy;
@@ -821,7 +822,7 @@ int do_settimeofday(struct timespec *tv)
 	 * and therefore the (jiffies - wall_jiffies) computation
 	 * has been removed.
 	 */
-	tb_delta = tb_ticks_since(tb_last_stamp);
+	tb_delta = tb_ticks_since(tb_last_jiffy);
 	tb_delta = mulhdu(tb_delta, do_gtod.varp->tb_to_xs); /* in xsec */
 	new_nsec -= SCALE_XSEC(tb_delta, 1000000000);
 
@@ -941,8 +942,7 @@ void __init time_init(void)
 	if (__USE_RTC()) {
 		/* 601 processor: dec counts down by 128 every 128ns */
 		ppc_tb_freq = 1000000000;
-		tb_last_stamp = get_rtcl();
-		tb_last_jiffy = tb_last_stamp;
+		tb_last_jiffy = get_rtcl();
 	} else {
 		/* Normal PowerPC with timebase register */
 		ppc_md.calibrate_decr();
@@ -950,7 +950,7 @@ void __init time_init(void)
 		       ppc_tb_freq / 1000000, ppc_tb_freq % 1000000);
 		printk(KERN_DEBUG "time_init: processor frequency   = %lu.%.6lu MHz\n",
 		       ppc_proc_freq / 1000000, ppc_proc_freq % 1000000);
-		tb_last_stamp = tb_last_jiffy = get_tb();
+		tb_last_jiffy = get_tb();
 	}
 
 	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
@@ -1027,7 +1027,7 @@ void __init time_init(void)
 	do_gtod.varp = &do_gtod.vars[0];
 	do_gtod.var_idx = 0;
 	do_gtod.varp->tb_orig_stamp = tb_last_jiffy;
-	__get_cpu_var(last_jiffy) = tb_last_stamp;
+	__get_cpu_var(last_jiffy) = tb_last_jiffy;
 	do_gtod.varp->stamp_xsec = (u64) xtime.tv_sec * XSEC_PER_SEC;
 	do_gtod.tb_ticks_per_sec = tb_ticks_per_sec;
 	do_gtod.varp->tb_to_xs = tb_to_xs;

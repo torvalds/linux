@@ -1070,7 +1070,7 @@ static int acpi_processor_power_open_fs(struct inode *inode, struct file *file)
 			   PDE(inode)->data);
 }
 
-static struct file_operations acpi_processor_power_fops = {
+static const struct file_operations acpi_processor_power_fops = {
 	.open = acpi_processor_power_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,

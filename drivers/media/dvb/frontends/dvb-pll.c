@@ -194,11 +194,11 @@ struct dvb_pll_desc dvb_pll_tda665x = {
 		{  253834000, 36249333, 166667, 0xca, 0x62 /* 011 0 0 0  10 */ },
 		{  383834000, 36249333, 166667, 0xca, 0xa2 /* 101 0 0 0  10 */ },
 		{  443834000, 36249333, 166667, 0xca, 0xc2 /* 110 0 0 0  10 */ },
-		{  444000000, 36249333, 166667, 0xca, 0xc3 /* 110 0 0 0  11 */ },
-		{  583834000, 36249333, 166667, 0xca, 0x63 /* 011 0 0 0  11 */ },
-		{  793834000, 36249333, 166667, 0xca, 0xa3 /* 101 0 0 0  11 */ },
-		{  444834000, 36249333, 166667, 0xca, 0xc3 /* 110 0 0 0  11 */ },
-		{  861000000, 36249333, 166667, 0xca, 0xe3 /* 111 0 0 0  11 */ },
+		{  444000000, 36249333, 166667, 0xca, 0xc4 /* 110 0 0 1  00 */ },
+		{  583834000, 36249333, 166667, 0xca, 0x64 /* 011 0 0 1  00 */ },
+		{  793834000, 36249333, 166667, 0xca, 0xa4 /* 101 0 0 1  00 */ },
+		{  444834000, 36249333, 166667, 0xca, 0xc4 /* 110 0 0 1  00 */ },
+		{  861000000, 36249333, 166667, 0xca, 0xe4 /* 111 0 0 1  00 */ },
 	}
 };
 EXPORT_SYMBOL(dvb_pll_tda665x);
@@ -613,7 +613,21 @@ static struct dvb_tuner_ops dvb_pll_tuner_ops = {
 
 int dvb_pll_attach(struct dvb_frontend *fe, int pll_addr, struct i2c_adapter *i2c, struct dvb_pll_desc *desc)
 {
+	u8 b1 [] = { 0 };
+	struct i2c_msg msg = { .addr = pll_addr, .flags = I2C_M_RD, .buf = b1, .len = 1 };
 	struct dvb_pll_priv *priv = NULL;
+	int ret;
+
+	if (i2c != NULL) {
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+
+		ret = i2c_transfer (i2c, &msg, 1);
+		if (ret != 1)
+			return -1;
+		if (fe->ops.i2c_gate_ctrl)
+			     fe->ops.i2c_gate_ctrl(fe, 0);
+	}
 
 	priv = kzalloc(sizeof(struct dvb_pll_priv), GFP_KERNEL);
 	if (priv == NULL)

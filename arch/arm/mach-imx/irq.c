@@ -204,13 +204,15 @@ imx_gpiod_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
 	imx_gpio_handler(mask, irq, desc, regs);
 }
 
-static struct irqchip imx_internal_chip = {
+static struct irq_chip imx_internal_chip = {
+	.name = "MPU",
 	.ack = imx_mask_irq,
 	.mask = imx_mask_irq,
 	.unmask = imx_unmask_irq,
 };
 
-static struct irqchip imx_gpio_chip = {
+static struct irq_chip imx_gpio_chip = {
+	.name = "GPIO",
 	.ack = imx_gpio_ack_irq,
 	.mask = imx_gpio_mask_irq,
 	.unmask = imx_gpio_unmask_irq,

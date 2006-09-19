@@ -59,6 +59,9 @@
 #define AES_EXTENDED_KEY_SIZE	64	/* in uint32_t units */
 #define AES_EXTENDED_KEY_SIZE_B	(AES_EXTENDED_KEY_SIZE * sizeof(uint32_t))
 
+/* Whenever making any changes to the following
+ * structure *make sure* you keep E, d_data
+ * and cword aligned on 16 Bytes boundaries!!! */
 struct aes_ctx {
 	struct {
 		struct cword encrypt;
@@ -66,8 +69,10 @@ struct aes_ctx {
 	} cword;
 	u32 *D;
 	int key_length;
-	u32 E[AES_EXTENDED_KEY_SIZE];
-	u32 d_data[AES_EXTENDED_KEY_SIZE];
+	u32 E[AES_EXTENDED_KEY_SIZE]
+		__attribute__ ((__aligned__(PADLOCK_ALIGNMENT)));
+	u32 d_data[AES_EXTENDED_KEY_SIZE]
+		__attribute__ ((__aligned__(PADLOCK_ALIGNMENT)));
 };
 
 /* ====== Key management routines ====== */

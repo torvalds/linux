@@ -218,6 +218,14 @@ struct platform_device ppc_sys_platform_devices[] = {
 			},
 		},
 	},
+
+        [MPC8xx_MDIO_FEC] = {
+                .name = "fsl-cpm-fec-mdio",
+                .id = 0,
+                .num_resources = 0,
+
+        },
+
 };
 
 static int __init mach_mpc8xx_fixup(struct platform_device *pdev)

@@ -285,6 +285,7 @@ acpi_ut_initialize_buffer(struct acpi_buffer * buffer,
 	return (status);
 }
 
+#ifdef NOT_USED_BY_LINUX
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_allocate
@@ -360,3 +361,4 @@ void *acpi_ut_allocate_zeroed(acpi_size size,
 
 	return (allocation);
 }
+#endif

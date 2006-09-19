@@ -85,7 +85,7 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 		goto err_out;
 
 	err = br_fill_ifinfo(skb, port, current->pid, 0, event, 0);
-	if (err)
+	if (err < 0)
 		goto err_kfree;
 
 	NETLINK_CB(skb).dst_group = RTNLGRP_LINK;

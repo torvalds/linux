@@ -1269,12 +1269,12 @@ ext3_fsblk_t ext3_new_blocks(handle_t *handle, struct inode *inode,
 		goal = le32_to_cpu(es->s_first_data_block);
 	group_no = (goal - le32_to_cpu(es->s_first_data_block)) /
 			EXT3_BLOCKS_PER_GROUP(sb);
+	goal_group = group_no;
+retry_alloc:
 	gdp = ext3_get_group_desc(sb, group_no, &gdp_bh);
 	if (!gdp)
 		goto io_error;
 
-	goal_group = group_no;
-retry:
 	free_blocks = le16_to_cpu(gdp->bg_free_blocks_count);
 	/*
 	 * if there is not enough free blocks to make a new resevation
@@ -1349,7 +1349,7 @@ retry:
 	if (my_rsv) {
 		my_rsv = NULL;
 		group_no = goal_group;
-		goto retry;
+		goto retry_alloc;
 	}
 	/* No space left on the device */
 	*errp = -ENOSPC;

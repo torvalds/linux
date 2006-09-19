@@ -132,6 +132,7 @@ static int __init dummy_init_module(void)
 	for (i = 0; i < numdummies && !err; i++)
 		err = dummy_init_one(i); 
 	if (err) { 
+		i--;
 		while (--i >= 0)
 			dummy_free_one(i);
 	}

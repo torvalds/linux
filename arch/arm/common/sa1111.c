@@ -272,7 +272,8 @@ static int sa1111_wake_lowirq(unsigned int irq, unsigned int on)
 	return 0;
 }
 
-static struct irqchip sa1111_low_chip = {
+static struct irq_chip sa1111_low_chip = {
+	.name		= "SA1111-l",
 	.ack		= sa1111_ack_irq,
 	.mask		= sa1111_mask_lowirq,
 	.unmask		= sa1111_unmask_lowirq,
@@ -368,7 +369,8 @@ static int sa1111_wake_highirq(unsigned int irq, unsigned int on)
 	return 0;
 }
 
-static struct irqchip sa1111_high_chip = {
+static struct irq_chip sa1111_high_chip = {
+	.name		= "SA1111-h",
 	.ack		= sa1111_ack_irq,
 	.mask		= sa1111_mask_highirq,
 	.unmask		= sa1111_unmask_highirq,
@@ -616,7 +618,7 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 {
 	struct sa1111 *sachip;
 	unsigned long id;
-	unsigned int has_devs, val;
+	unsigned int has_devs;
 	int i, ret = -ENODEV;
 
 	sachip = kzalloc(sizeof(struct sa1111), GFP_KERNEL);
@@ -667,6 +669,9 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	sa1111_wake(sachip);
 
 #ifdef CONFIG_ARCH_SA1100
+	{
+	unsigned int val;
+
 	/*
 	 * The SDRAM configuration of the SA1110 and the SA1111 must
 	 * match.  This is very important to ensure that SA1111 accesses
@@ -690,6 +695,7 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	 * Enable the SA1110 memory bus request and grant signals.
 	 */
 	sa1110_mb_enable();
+	}
 #endif
 
 	/*

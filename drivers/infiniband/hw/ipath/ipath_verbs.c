@@ -191,10 +191,6 @@ void ipath_skip_sge(struct ipath_sge_state *ss, u32 length)
 {
 	struct ipath_sge *sge = &ss->sge;
 
-	while (length > sge->sge_length) {
-		length -= sge->sge_length;
-		ss->sge = *ss->sg_list++;
-	}
 	while (length) {
 		u32 len = sge->length;
 
@@ -627,6 +623,7 @@ static int ipath_query_device(struct ib_device *ibdev,
 	props->device_cap_flags = IB_DEVICE_BAD_PKEY_CNTR |
 		IB_DEVICE_BAD_QKEY_CNTR | IB_DEVICE_SHUTDOWN_PORT |
 		IB_DEVICE_SYS_IMAGE_GUID;
+	props->page_size_cap = PAGE_SIZE;
 	props->vendor_id = ipath_layer_get_vendorid(dev->dd);
 	props->vendor_part_id = ipath_layer_get_deviceid(dev->dd);
 	props->hw_ver = ipath_layer_get_pcirev(dev->dd);

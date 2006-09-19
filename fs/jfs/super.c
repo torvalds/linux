@@ -26,6 +26,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kthread.h>
 #include <linux/posix_acl.h>
+#include <linux/buffer_head.h>
 #include <asm/uaccess.h>
 #include <linux/seq_file.h>
 
@@ -298,7 +299,7 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 			break;
 		}
 
-#if defined(CONFIG_QUOTA)
+#ifdef CONFIG_QUOTA
 		case Opt_quota:
 		case Opt_usrquota:
 			*flag |= JFS_USRQUOTA;
@@ -597,7 +598,7 @@ static int jfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (sbi->flag & JFS_NOINTEGRITY)
 		seq_puts(seq, ",nointegrity");
 
-#if defined(CONFIG_QUOTA)
+#ifdef CONFIG_QUOTA
 	if (sbi->flag & JFS_USRQUOTA)
 		seq_puts(seq, ",usrquota");
 
@@ -607,6 +608,113 @@ static int jfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 
 	return 0;
 }
+
+#ifdef CONFIG_QUOTA
+
+/* Read data from quotafile - avoid pagecache and such because we cannot afford
+ * acquiring the locks... As quota files are never truncated and quota code
+ * itself serializes the operations (and noone else should touch the files)
+ * we don't have to be afraid of races */
+static ssize_t jfs_quota_read(struct super_block *sb, int type, char *data,
+			      size_t len, loff_t off)
+{
+	struct inode *inode = sb_dqopt(sb)->files[type];
+	sector_t blk = off >> sb->s_blocksize_bits;
+	int err = 0;
+	int offset = off & (sb->s_blocksize - 1);
+	int tocopy;
+	size_t toread;
+	struct buffer_head tmp_bh;
+	struct buffer_head *bh;
+	loff_t i_size = i_size_read(inode);
+
+	if (off > i_size)
+		return 0;
+	if (off+len > i_size)
+		len = i_size-off;
+	toread = len;
+	while (toread > 0) {
+		tocopy = sb->s_blocksize - offset < toread ?
+				sb->s_blocksize - offset : toread;
+
+		tmp_bh.b_state = 0;
+		tmp_bh.b_size = 1 << inode->i_blkbits;
+		err = jfs_get_block(inode, blk, &tmp_bh, 0);
+		if (err)
+			return err;
+		if (!buffer_mapped(&tmp_bh))	/* A hole? */
+			memset(data, 0, tocopy);
+		else {
+			bh = sb_bread(sb, tmp_bh.b_blocknr);
+			if (!bh)
+				return -EIO;
+			memcpy(data, bh->b_data+offset, tocopy);
+			brelse(bh);
+		}
+		offset = 0;
+		toread -= tocopy;
+		data += tocopy;
+		blk++;
+	}
+	return len;
+}
+
+/* Write to quotafile */
+static ssize_t jfs_quota_write(struct super_block *sb, int type,
+			       const char *data, size_t len, loff_t off)
+{
+	struct inode *inode = sb_dqopt(sb)->files[type];
+	sector_t blk = off >> sb->s_blocksize_bits;
+	int err = 0;
+	int offset = off & (sb->s_blocksize - 1);
+	int tocopy;
+	size_t towrite = len;
+	struct buffer_head tmp_bh;
+	struct buffer_head *bh;
+
+	mutex_lock(&inode->i_mutex);
+	while (towrite > 0) {
+		tocopy = sb->s_blocksize - offset < towrite ?
+				sb->s_blocksize - offset : towrite;
+
+		tmp_bh.b_state = 0;
+		tmp_bh.b_size = 1 << inode->i_blkbits;
+		err = jfs_get_block(inode, blk, &tmp_bh, 1);
+		if (err)
+			goto out;
+		if (offset || tocopy != sb->s_blocksize)
+			bh = sb_bread(sb, tmp_bh.b_blocknr);
+		else
+			bh = sb_getblk(sb, tmp_bh.b_blocknr);
+		if (!bh) {
+			err = -EIO;
+			goto out;
+		}
+		lock_buffer(bh);
+		memcpy(bh->b_data+offset, data, tocopy);
+		flush_dcache_page(bh->b_page);
+		set_buffer_uptodate(bh);
+		mark_buffer_dirty(bh);
+		unlock_buffer(bh);
+		brelse(bh);
+		offset = 0;
+		towrite -= tocopy;
+		data += tocopy;
+		blk++;
+	}
+out:
+	if (len == towrite)
+		return err;
+	if (inode->i_size < off+len-towrite)
+		i_size_write(inode, off+len-towrite);
+	inode->i_version++;
+	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	mark_inode_dirty(inode);
+	mutex_unlock(&inode->i_mutex);
+	return len - towrite;
+}
+
+#endif
 
 static struct super_operations jfs_super_operations = {
 	.alloc_inode	= jfs_alloc_inode,
@@ -621,7 +729,11 @@ static struct super_operations jfs_super_operations = {
 	.unlockfs       = jfs_unlockfs,
 	.statfs		= jfs_statfs,
 	.remount_fs	= jfs_remount,
-	.show_options	= jfs_show_options
+	.show_options	= jfs_show_options,
+#ifdef CONFIG_QUOTA
+	.quota_read	= jfs_quota_read,
+	.quota_write	= jfs_quota_write,
+#endif
 };
 
 static struct export_operations jfs_export_operations = {

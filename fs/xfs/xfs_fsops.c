@@ -462,7 +462,7 @@ xfs_fs_counts(
 
 	xfs_icsb_sync_counters_lazy(mp);
 	s = XFS_SB_LOCK(mp);
-	cnt->freedata = mp->m_sb.sb_fdblocks;
+	cnt->freedata = mp->m_sb.sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
 	cnt->freertx = mp->m_sb.sb_frextents;
 	cnt->freeino = mp->m_sb.sb_ifree;
 	cnt->allocino = mp->m_sb.sb_icount;
@@ -519,15 +519,19 @@ xfs_reserve_blocks(
 		}
 		mp->m_resblks = request;
 	} else {
+		__int64_t	free;
+
+		free =  mp->m_sb.sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
 		delta = request - mp->m_resblks;
-		lcounter = mp->m_sb.sb_fdblocks - delta;
+		lcounter = free - delta;
 		if (lcounter < 0) {
 			/* We can't satisfy the request, just get what we can */
-			mp->m_resblks += mp->m_sb.sb_fdblocks;
-			mp->m_resblks_avail += mp->m_sb.sb_fdblocks;
-			mp->m_sb.sb_fdblocks = 0;
+			mp->m_resblks += free;
+			mp->m_resblks_avail += free;
+			mp->m_sb.sb_fdblocks = XFS_ALLOC_SET_ASIDE(mp);
 		} else {
-			mp->m_sb.sb_fdblocks = lcounter;
+			mp->m_sb.sb_fdblocks =
+				lcounter + XFS_ALLOC_SET_ASIDE(mp);
 			mp->m_resblks = request;
 			mp->m_resblks_avail += delta;
 		}

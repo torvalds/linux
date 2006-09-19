@@ -120,7 +120,7 @@ struct lock_class {
  */
 struct lockdep_map {
 	struct lock_class_key		*key;
-	struct lock_class		*class[MAX_LOCKDEP_SUBCLASSES];
+	struct lock_class		*class_cache;
 	const char			*name;
 };
 

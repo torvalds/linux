@@ -3,13 +3,8 @@
  *
  * TCP Low Priority is a distributed algorithm whose goal is to utilize only
  *   the excess network bandwidth as compared to the ``fair share`` of
- *   bandwidth as targeted by TCP. Available from:
- *     http://www.ece.rice.edu/~akuzma/Doc/akuzma/TCP-LP.pdf
+ *   bandwidth as targeted by TCP.
  *
- * Original Author:
- *   Aleksandar Kuzmanovic <akuzma@northwestern.edu>
- *
- * See http://www-ece.rice.edu/networks/TCP-LP/ for their implementation.
  * As of 2.6.13, Linux supports pluggable congestion control algorithms.
  * Due to the limitation of the API, we take the following changes from
  * the original TCP-LP implementation:
@@ -24,11 +19,20 @@
  *   o OWD is handled in relative format, where local time stamp will in
  *     tcp_time_stamp format.
  *
- * Port from 2.4.19 to 2.6.16 as module by:
- *   Wong Hoi Sing Edison <hswong3i@gmail.com>
- *   Hung Hing Lun <hlhung3i@gmail.com>
+ * Original Author:
+ *   Aleksandar Kuzmanovic <akuzma@northwestern.edu>
+ * Available from:
+ *   http://www.ece.rice.edu/~akuzma/Doc/akuzma/TCP-LP.pdf
+ * Original implementation for 2.4.19:
+ *   http://www-ece.rice.edu/networks/TCP-LP/
  *
- * Version: $Id: tcp_lp.c,v 1.22 2006-05-02 18:18:19 hswong3i Exp $
+ * 2.6.x module Authors:
+ *   Wong Hoi Sing, Edison <hswong3i@gmail.com>
+ *   Hung Hing Lun, Mike <hlhung3i@gmail.com>
+ * SourceForge project page:
+ *   http://tcp-lp-mod.sourceforge.net/
+ *
+ * Version: $Id: tcp_lp.c,v 1.24 2006/09/05 20:22:53 hswong3i Exp $
  */
 
 #include <linux/config.h>
@@ -153,16 +157,19 @@ static u32 tcp_lp_remote_hz_estimator(struct sock *sk)
 	if (m < 0)
 		m = -m;
 
-	if (rhz != 0) {
+	if (rhz > 0) {
 		m -= rhz >> 6;	/* m is now error in remote HZ est */
 		rhz += m;	/* 63/64 old + 1/64 new */
 	} else
 		rhz = m << 6;
 
-	/* record time for successful remote HZ calc */
-	lp->flag |= LP_VALID_RHZ;
-
  out:
+	/* record time for successful remote HZ calc */
+	if (rhz > 0)
+		lp->flag |= LP_VALID_RHZ;
+	else
+		lp->flag &= ~LP_VALID_RHZ;
+
 	/* record reference time stamp */
 	lp->remote_ref_time = tp->rx_opt.rcv_tsval;
 	lp->local_ref_time = tp->rx_opt.rcv_tsecr;
@@ -333,6 +340,6 @@ static void __exit tcp_lp_unregister(void)
 module_init(tcp_lp_register);
 module_exit(tcp_lp_unregister);
 
-MODULE_AUTHOR("Wong Hoi Sing Edison, Hung Hing Lun");
+MODULE_AUTHOR("Wong Hoi Sing Edison, Hung Hing Lun Mike");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("TCP Low Priority");

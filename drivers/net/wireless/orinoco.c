@@ -2875,7 +2875,7 @@ static int orinoco_ioctl_setiwencode(struct net_device *dev,
 	if (orinoco_lock(priv, &flags) != 0)
 		return -EBUSY;
 
-	if (erq->pointer) {
+	if (erq->length > 0) {
 		if ((index < 0) || (index >= ORINOCO_MAX_KEYS))
 			index = priv->tx_key;
 
@@ -2918,7 +2918,7 @@ static int orinoco_ioctl_setiwencode(struct net_device *dev,
 	if (erq->flags & IW_ENCODE_RESTRICTED)
 		restricted = 1;
 
-	if (erq->pointer) {
+	if (erq->pointer && erq->length > 0) {
 		priv->keys[index].len = cpu_to_le16(xlen);
 		memset(priv->keys[index].data, 0,
 		       sizeof(priv->keys[index].data));

@@ -417,12 +417,11 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 	struct tipc_msg *msg;
 	char *if_name;
 
-	l_ptr = (struct link *)kmalloc(sizeof(*l_ptr), GFP_ATOMIC);
+	l_ptr = kzalloc(sizeof(*l_ptr), GFP_ATOMIC);
 	if (!l_ptr) {
 		warn("Link creation failed, no memory\n");
 		return NULL;
 	}
-	memset(l_ptr, 0, sizeof(*l_ptr));
 
 	l_ptr->addr = peer;
 	if_name = strchr(b_ptr->publ.name, ':') + 1;

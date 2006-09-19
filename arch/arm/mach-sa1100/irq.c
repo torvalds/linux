@@ -95,7 +95,8 @@ static int sa1100_low_gpio_wake(unsigned int irq, unsigned int on)
 	return 0;
 }
 
-static struct irqchip sa1100_low_gpio_chip = {
+static struct irq_chip sa1100_low_gpio_chip = {
+	.name		= "GPIO-l",
 	.ack		= sa1100_low_gpio_ack,
 	.mask		= sa1100_low_gpio_mask,
 	.unmask		= sa1100_low_gpio_unmask,
@@ -178,7 +179,8 @@ static int sa1100_high_gpio_wake(unsigned int irq, unsigned int on)
 	return 0;
 }
 
-static struct irqchip sa1100_high_gpio_chip = {
+static struct irq_chip sa1100_high_gpio_chip = {
+	.name		= "GPIO-h",
 	.ack		= sa1100_high_gpio_ack,
 	.mask		= sa1100_high_gpio_mask,
 	.unmask		= sa1100_high_gpio_unmask,
@@ -215,7 +217,8 @@ static int sa1100_set_wake(unsigned int irq, unsigned int on)
 	return -EINVAL;
 }
 
-static struct irqchip sa1100_normal_chip = {
+static struct irq_chip sa1100_normal_chip = {
+	.name		= "SC",
 	.ack		= sa1100_mask_irq,
 	.mask		= sa1100_mask_irq,
 	.unmask		= sa1100_unmask_irq,

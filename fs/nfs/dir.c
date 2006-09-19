@@ -690,7 +690,9 @@ int nfs_lookup_verify_inode(struct inode *inode, struct nameidata *nd)
 			goto out_force;
 		/* This is an open(2) */
 		if (nfs_lookup_check_intent(nd, LOOKUP_OPEN) != 0 &&
-				!(server->flags & NFS_MOUNT_NOCTO))
+				!(server->flags & NFS_MOUNT_NOCTO) &&
+				(S_ISREG(inode->i_mode) ||
+				 S_ISDIR(inode->i_mode)))
 			goto out_force;
 	}
 	return nfs_revalidate_inode(server, inode);

@@ -238,9 +238,7 @@ void __netdev_watchdog_up(struct net_device *dev)
 
 static void dev_watchdog_up(struct net_device *dev)
 {
-	netif_tx_lock_bh(dev);
 	__netdev_watchdog_up(dev);
-	netif_tx_unlock_bh(dev);
 }
 
 static void dev_watchdog_down(struct net_device *dev)
@@ -432,10 +430,9 @@ struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops)
 	size = QDISC_ALIGN(sizeof(*sch));
 	size += ops->priv_size + (QDISC_ALIGNTO - 1);
 
-	p = kmalloc(size, GFP_KERNEL);
+	p = kzalloc(size, GFP_KERNEL);
 	if (!p)
 		goto errout;
-	memset(p, 0, size);
 	sch = (struct Qdisc *) QDISC_ALIGN((unsigned long) p);
 	sch->padded = (char *) sch - (char *) p;
 

@@ -197,6 +197,21 @@ int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
 	size_t off;
 	int ret;
 
+	/*
+	 * We use RKEY == zero for physical addresses
+	 * (see ipath_get_dma_mr).
+	 */
+	if (rkey == 0) {
+		sge->mr = NULL;
+		sge->vaddr = phys_to_virt(vaddr);
+		sge->length = len;
+		sge->sge_length = len;
+		ss->sg_list = NULL;
+		ss->num_sge = 1;
+		ret = 1;
+		goto bail;
+	}
+
 	mr = rkt->table[(rkey >> (32 - ib_ipath_lkey_table_size))];
 	if (unlikely(mr == NULL || mr->lkey != rkey)) {
 		ret = 0;

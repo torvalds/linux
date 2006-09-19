@@ -193,7 +193,7 @@ static int vmwdt_ioctl(struct inode *i, struct file *f,
 		return 0;
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-		return put_user(0, (int *)arg);
+		return put_user(0, (int __user *)arg);
 	case WDIOC_GETTEMP:
 		return -EINVAL;
 	case WDIOC_SETOPTIONS:

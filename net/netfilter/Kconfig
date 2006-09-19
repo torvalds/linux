@@ -386,8 +386,8 @@ config NETFILTER_XT_MATCH_REALM
 	  <file:Documentation/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_SCTP
-	tristate  '"sctp" protocol match support'
-	depends on NETFILTER_XTABLES
+	tristate  '"sctp" protocol match support (EXPERIMENTAL)'
+	depends on NETFILTER_XTABLES && EXPERIMENTAL
 	help
 	  With this option enabled, you will be able to use the 
 	  `sctp' match in order to match on SCTP source/destination ports

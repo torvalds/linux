@@ -887,13 +887,13 @@ Diva_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return(0);
 }
 
-static struct pci_dev *dev_diva __initdata = NULL;
-static struct pci_dev *dev_diva_u __initdata = NULL;
-static struct pci_dev *dev_diva201 __initdata = NULL;
-static struct pci_dev *dev_diva202 __initdata = NULL;
+static struct pci_dev *dev_diva __devinitdata = NULL;
+static struct pci_dev *dev_diva_u __devinitdata = NULL;
+static struct pci_dev *dev_diva201 __devinitdata = NULL;
+static struct pci_dev *dev_diva202 __devinitdata = NULL;
 
 #ifdef __ISAPNP__
-static struct isapnp_device_id diva_ids[] __initdata = {
+static struct isapnp_device_id diva_ids[] __devinitdata = {
 	{ ISAPNP_VENDOR('G', 'D', 'I'), ISAPNP_FUNCTION(0x51),
 	  ISAPNP_VENDOR('G', 'D', 'I'), ISAPNP_FUNCTION(0x51), 
 	  (unsigned long) "Diva picola" },
@@ -915,12 +915,12 @@ static struct isapnp_device_id diva_ids[] __initdata = {
 	{ 0, }
 };
 
-static struct isapnp_device_id *ipid __initdata = &diva_ids[0];
+static struct isapnp_device_id *ipid __devinitdata = &diva_ids[0];
 static struct pnp_card *pnp_c __devinitdata = NULL;
 #endif
 
 
-int __init
+int __devinit
 setup_diva(struct IsdnCard *card)
 {
 	int bytecnt = 8;

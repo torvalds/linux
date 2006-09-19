@@ -2203,8 +2203,8 @@ static int frontend_init(struct av7110 *av7110)
 				av7110->fe->ops.tuner_ops.set_params = nexusca_stv0297_tuner_set_params;
 
 				/* set TDA9819 into DVB mode */
-				saa7146_setgpio(av7110->dev, 1, SAA7146_GPIO_OUTLO); // TDA9198 pin9(STD)
-				saa7146_setgpio(av7110->dev, 3, SAA7146_GPIO_OUTLO); // TDA9198 pin30(VIF)
+				saa7146_setgpio(av7110->dev, 1, SAA7146_GPIO_OUTLO); // TDA9819 pin9(STD)
+				saa7146_setgpio(av7110->dev, 3, SAA7146_GPIO_OUTLO); // TDA9819 pin30(VIF)
 
 				/* tuner on this needs a slower i2c bus speed */
 				av7110->dev->i2c_bitrate = SAA7146_I2C_BUS_BIT_RATE_240;

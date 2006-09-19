@@ -31,6 +31,8 @@
 #define VELOCITY_FULL_DRV_NAM  "VIA Networking Velocity Family Gigabit Ethernet Adapter Driver"
 #define VELOCITY_VERSION       "1.13"
 
+#define VELOCITY_IO_SIZE	256
+
 #define PKT_BUF_SZ          1540
 
 #define MAX_UNITS           8
@@ -1191,7 +1193,6 @@ enum chip_type {
 struct velocity_info_tbl {
 	enum chip_type chip_id;
 	char *name;
-	int io_size;
 	int txqueue;
 	u32 flags;
 };
@@ -1751,7 +1752,6 @@ struct velocity_info {
 	struct mac_regs __iomem * mac_regs;
 	unsigned long memaddr;
 	unsigned long ioaddr;
-	u32 io_size;
 
 	u8 rev_id;
 

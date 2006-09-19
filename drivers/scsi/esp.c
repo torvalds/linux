@@ -1146,7 +1146,7 @@ static struct sbus_dev sun4_esp_dev;
 static int __init esp_sun4_probe(struct scsi_host_template *tpnt)
 {
 	if (sun4_esp_physaddr) {
-		memset(&sun4_esp_dev, 0, sizeof(esp_dev));
+		memset(&sun4_esp_dev, 0, sizeof(sun4_esp_dev));
 		sun4_esp_dev.reg_addrs[0].phys_addr = sun4_esp_physaddr;
 		sun4_esp_dev.irqs[0] = 4;
 		sun4_esp_dev.resource[0].start = sun4_esp_physaddr;
@@ -1162,6 +1162,7 @@ static int __init esp_sun4_probe(struct scsi_host_template *tpnt)
 
 static int __devexit esp_sun4_remove(void)
 {
+	struct of_device *dev = &sun4_esp_dev.ofdev;
 	struct esp *esp = dev_get_drvdata(&dev->dev);
 
 	return esp_remove_common(esp);
@@ -1397,7 +1398,7 @@ static void esp_get_dmabufs(struct esp *esp, struct scsi_cmnd *sp)
 			sp->SCp.ptr = NULL;
 		}
 	} else {
-		sp->SCp.buffer = (struct scatterlist *) sp->buffer;
+		sp->SCp.buffer = (struct scatterlist *) sp->request_buffer;
 		sp->SCp.buffers_residual = sbus_map_sg(esp->sdev,
 						       sp->SCp.buffer,
 						       sp->use_sg,
@@ -1410,7 +1411,7 @@ static void esp_get_dmabufs(struct esp *esp, struct scsi_cmnd *sp)
 static void esp_release_dmabufs(struct esp *esp, struct scsi_cmnd *sp)
 {
 	if (sp->use_sg) {
-		sbus_unmap_sg(esp->sdev, sp->buffer, sp->use_sg,
+		sbus_unmap_sg(esp->sdev, sp->request_buffer, sp->use_sg,
 			      sp->sc_data_direction);
 	} else if (sp->request_bufflen) {
 		sbus_unmap_single(esp->sdev,
@@ -2754,18 +2755,15 @@ static int esp_do_data_finale(struct esp *esp)
  */
 static int esp_should_clear_sync(struct scsi_cmnd *sp)
 {
-	u8 cmd1 = sp->cmnd[0];
-	u8 cmd2 = sp->data_cmnd[0];
+	u8 cmd = sp->cmnd[0];
 
 	/* These cases are for spinning up a disk and
 	 * waiting for that spinup to complete.
 	 */
-	if (cmd1 == START_STOP ||
-	    cmd2 == START_STOP)
+	if (cmd == START_STOP)
 		return 0;
 
-	if (cmd1 == TEST_UNIT_READY ||
-	    cmd2 == TEST_UNIT_READY)
+	if (cmd == TEST_UNIT_READY)
 		return 0;
 
 	/* One more special case for SCSI tape drives,
@@ -2773,8 +2771,7 @@ static int esp_should_clear_sync(struct scsi_cmnd *sp)
 	 * completion of a rewind or tape load operation.
 	 */
 	if (sp->device->type == TYPE_TAPE) {
-		if (cmd1 == MODE_SENSE ||
-		    cmd2 == MODE_SENSE)
+		if (cmd == MODE_SENSE)
 			return 0;
 	}
 

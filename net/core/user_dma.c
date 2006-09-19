@@ -29,6 +29,7 @@
 #include <linux/socket.h>
 #include <linux/rtnetlink.h> /* for BUG_TRAP */
 #include <net/tcp.h>
+#include <net/netdma.h>
 
 #define NET_DMA_DEFAULT_COPYBREAK 4096
 

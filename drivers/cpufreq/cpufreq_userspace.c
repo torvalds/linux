@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/cpufreq.h>
+#include <linux/cpu.h>
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/sysfs.h>
@@ -70,6 +71,7 @@ static int cpufreq_set(unsigned int freq, struct cpufreq_policy *policy)
 
 	dprintk("cpufreq_set for cpu %u, freq %u kHz\n", policy->cpu, freq);
 
+	lock_cpu_hotplug();
 	mutex_lock(&userspace_mutex);
 	if (!cpu_is_managed[policy->cpu])
 		goto err;
@@ -92,6 +94,7 @@ static int cpufreq_set(unsigned int freq, struct cpufreq_policy *policy)
 
  err:
 	mutex_unlock(&userspace_mutex);
+	unlock_cpu_hotplug();
 	return ret;
 }
 

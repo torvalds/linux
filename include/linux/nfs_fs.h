@@ -9,6 +9,36 @@
 #ifndef _LINUX_NFS_FS_H
 #define _LINUX_NFS_FS_H
 
+/*
+ * Enable debugging support for nfs client.
+ * Requires RPC_DEBUG.
+ */
+#ifdef RPC_DEBUG
+# define NFS_DEBUG
+#endif
+
+/* Default timeout values */
+#define NFS_MAX_UDP_TIMEOUT	(60*HZ)
+#define NFS_MAX_TCP_TIMEOUT	(600*HZ)
+
+/*
+ * superblock magic number for NFS
+ */
+#define NFS_SUPER_MAGIC			0x6969
+
+/*
+ * When flushing a cluster of dirty pages, there can be different
+ * strategies:
+ */
+#define FLUSH_SYNC		1	/* file being synced, or contention */
+#define FLUSH_STABLE		4	/* commit to stable storage */
+#define FLUSH_LOWPRI		8	/* low priority background flush */
+#define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
+#define FLUSH_NOCOMMIT		32	/* Don't send the NFSv3/v4 COMMIT */
+#define FLUSH_INVALIDATE	64	/* Invalidate the page cache */
+
+#ifdef __KERNEL__
+
 #include <linux/in.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
@@ -31,39 +61,9 @@
 #include <linux/mempool.h>
 
 /*
- * Enable debugging support for nfs client.
- * Requires RPC_DEBUG.
- */
-#ifdef RPC_DEBUG
-# define NFS_DEBUG
-#endif
-
-/* Default timeout values */
-#define NFS_MAX_UDP_TIMEOUT	(60*HZ)
-#define NFS_MAX_TCP_TIMEOUT	(600*HZ)
-
-/*
- * superblock magic number for NFS
- */
-#define NFS_SUPER_MAGIC			0x6969
-
-/*
  * These are the default flags for swap requests
  */
 #define NFS_RPC_SWAPFLAGS		(RPC_TASK_SWAPPER|RPC_TASK_ROOTCREDS)
-
-/*
- * When flushing a cluster of dirty pages, there can be different
- * strategies:
- */
-#define FLUSH_SYNC		1	/* file being synced, or contention */
-#define FLUSH_STABLE		4	/* commit to stable storage */
-#define FLUSH_LOWPRI		8	/* low priority background flush */
-#define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
-#define FLUSH_NOCOMMIT		32	/* Don't send the NFSv3/v4 COMMIT */
-#define FLUSH_INVALIDATE	64	/* Invalidate the page cache */
-
-#ifdef __KERNEL__
 
 /*
  * NFSv3/v4 Access mode cache entry
@@ -427,7 +427,7 @@ extern int nfs_writeback_done(struct rpc_task *, struct nfs_write_data *);
 extern void nfs_writedata_release(void *);
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-struct nfs_write_data *nfs_commit_alloc(unsigned int pagecount);
+struct nfs_write_data *nfs_commit_alloc(void);
 void nfs_commit_free(struct nfs_write_data *p);
 #endif
 
@@ -476,10 +476,9 @@ static inline int nfs_wb_page(struct inode *inode, struct page* page)
 }
 
 /*
- * Allocate and free nfs_write_data structures
+ * Allocate nfs_write_data structures
  */
-extern struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount);
-extern void nfs_writedata_free(struct nfs_write_data *p);
+extern struct nfs_write_data *nfs_writedata_alloc(size_t len);
 
 /*
  * linux/fs/nfs/read.c
@@ -491,10 +490,9 @@ extern int  nfs_readpage_result(struct rpc_task *, struct nfs_read_data *);
 extern void nfs_readdata_release(void *data);
 
 /*
- * Allocate and free nfs_read_data structures
+ * Allocate nfs_read_data structures
  */
-extern struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount);
-extern void nfs_readdata_free(struct nfs_read_data *p);
+extern struct nfs_read_data *nfs_readdata_alloc(size_t len);
 
 /*
  * linux/fs/nfs3proc.c

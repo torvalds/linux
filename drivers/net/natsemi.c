@@ -20,119 +20,8 @@
 
 	Support information and updates available at
 	http://www.scyld.com/network/netsemi.html
+	[link no longer provides useful info -jgarzik]
 
-
-	Linux kernel modifications:
-
-	Version 1.0.1:
-		- Spinlock fixes
-		- Bug fixes and better intr performance (Tjeerd)
-	Version 1.0.2:
-		- Now reads correct MAC address from eeprom
-	Version 1.0.3:
-		- Eliminate redundant priv->tx_full flag
-		- Call netif_start_queue from dev->tx_timeout
-		- wmb() in start_tx() to flush data
-		- Update Tx locking
-		- Clean up PCI enable (davej)
-	Version 1.0.4:
-		- Merge Donald Becker's natsemi.c version 1.07
-	Version 1.0.5:
-		- { fill me in }
-	Version 1.0.6:
-		* ethtool support (jgarzik)
-		* Proper initialization of the card (which sometimes
-		fails to occur and leaves the card in a non-functional
-		state). (uzi)
-
-		* Some documented register settings to optimize some
-		of the 100Mbit autodetection circuitry in rev C cards. (uzi)
-
-		* Polling of the PHY intr for stuff like link state
-		change and auto- negotiation to finally work properly. (uzi)
-
-		* One-liner removal of a duplicate declaration of
-		netdev_error(). (uzi)
-
-	Version 1.0.7: (Manfred Spraul)
-		* pci dma
-		* SMP locking update
-		* full reset added into tx_timeout
-		* correct multicast hash generation (both big and little endian)
-			[copied from a natsemi driver version
-			 from Myrio Corporation, Greg Smith]
-		* suspend/resume
-
-	version 1.0.8 (Tim Hockin <thockin@sun.com>)
-		* ETHTOOL_* support
-		* Wake on lan support (Erik Gilling)
-		* MXDMA fixes for serverworks
-		* EEPROM reload
-
-	version 1.0.9 (Manfred Spraul)
-		* Main change: fix lack of synchronize
-		netif_close/netif_suspend against a last interrupt
-		or packet.
-		* do not enable superflous interrupts (e.g. the
-		drivers relies on TxDone - TxIntr not needed)
-		* wait that the hardware has really stopped in close
-		and suspend.
-		* workaround for the (at least) gcc-2.95.1 compiler
-		problem. Also simplifies the code a bit.
-		* disable_irq() in tx_timeout - needed to protect
-		against rx interrupts.
-		* stop the nic before switching into silent rx mode
-		for wol (required according to docu).
-
-	version 1.0.10:
-		* use long for ee_addr (various)
-		* print pointers properly (DaveM)
-		* include asm/irq.h (?)
-
-	version 1.0.11:
-		* check and reset if PHY errors appear (Adrian Sun)
-		* WoL cleanup (Tim Hockin)
-		* Magic number cleanup (Tim Hockin)
-		* Don't reload EEPROM on every reset (Tim Hockin)
-		* Save and restore EEPROM state across reset (Tim Hockin)
-		* MDIO Cleanup (Tim Hockin)
-		* Reformat register offsets/bits (jgarzik)
-
-	version 1.0.12:
-		* ETHTOOL_* further support (Tim Hockin)
-
-	version 1.0.13:
-		* ETHTOOL_[G]EEPROM support (Tim Hockin)
-
-	version 1.0.13:
-		* crc cleanup (Matt Domsch <Matt_Domsch@dell.com>)
-
-	version 1.0.14:
-		* Cleanup some messages and autoneg in ethtool (Tim Hockin)
-
-	version 1.0.15:
-		* Get rid of cable_magic flag
-		* use new (National provided) solution for cable magic issue
-
-	version 1.0.16:
-		* call netdev_rx() for RxErrors (Manfred Spraul)
-		* formatting and cleanups
-		* change options and full_duplex arrays to be zero
-		  initialized
-		* enable only the WoL and PHY interrupts in wol mode
-
-	version 1.0.17:
-		* only do cable_magic on 83815 and early 83816 (Tim Hockin)
-		* create a function for rx refill (Manfred Spraul)
-		* combine drain_ring and init_ring (Manfred Spraul)
-		* oom handling (Manfred Spraul)
-		* hands_off instead of playing with netif_device_{de,a}ttach
-		  (Manfred Spraul)
-		* be sure to write the MAC back to the chip (Manfred Spraul)
-		* lengthen EEPROM timeout, and always warn about timeouts
-		  (Manfred Spraul)
-		* comments update (Manfred)
-		* do the right thing on a phy-reset (Manfred and Tim)
 
 	TODO:
 	* big endian support with CFG:BEM instead of cpu_to_le32
@@ -165,8 +54,8 @@
 #include <asm/uaccess.h>
 
 #define DRV_NAME	"natsemi"
-#define DRV_VERSION	"1.07+LK1.0.17"
-#define DRV_RELDATE	"Sep 27, 2002"
+#define DRV_VERSION	"2.0"
+#define DRV_RELDATE	"June 27, 2006"
 
 #define RX_OFFSET	2
 

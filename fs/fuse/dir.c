@@ -14,6 +14,33 @@
 #include <linux/sched.h>
 #include <linux/namei.h>
 
+#if BITS_PER_LONG >= 64
+static inline void fuse_dentry_settime(struct dentry *entry, u64 time)
+{
+	entry->d_time = time;
+}
+
+static inline u64 fuse_dentry_time(struct dentry *entry)
+{
+	return entry->d_time;
+}
+#else
+/*
+ * On 32 bit archs store the high 32 bits of time in d_fsdata
+ */
+static void fuse_dentry_settime(struct dentry *entry, u64 time)
+{
+	entry->d_time = time;
+	entry->d_fsdata = (void *) (unsigned long) (time >> 32);
+}
+
+static u64 fuse_dentry_time(struct dentry *entry)
+{
+	return (u64) entry->d_time +
+		((u64) (unsigned long) entry->d_fsdata << 32);
+}
+#endif
+
 /*
  * FUSE caches dentries and attributes with separate timeout.  The
  * time in jiffies until the dentry/attributes are valid is stored in
@@ -23,10 +50,13 @@
 /*
  * Calculate the time in jiffies until a dentry/attributes are valid
  */
-static unsigned long time_to_jiffies(unsigned long sec, unsigned long nsec)
+static u64 time_to_jiffies(unsigned long sec, unsigned long nsec)
 {
-	struct timespec ts = {sec, nsec};
-	return jiffies + timespec_to_jiffies(&ts);
+	if (sec || nsec) {
+		struct timespec ts = {sec, nsec};
+		return get_jiffies_64() + timespec_to_jiffies(&ts);
+	} else
+		return 0;
 }
 
 /*
@@ -35,7 +65,8 @@ static unsigned long time_to_jiffies(unsigned long sec, unsigned long nsec)
  */
 static void fuse_change_timeout(struct dentry *entry, struct fuse_entry_out *o)
 {
-	entry->d_time = time_to_jiffies(o->entry_valid, o->entry_valid_nsec);
+	fuse_dentry_settime(entry,
+		time_to_jiffies(o->entry_valid, o->entry_valid_nsec));
 	if (entry->d_inode)
 		get_fuse_inode(entry->d_inode)->i_time =
 			time_to_jiffies(o->attr_valid, o->attr_valid_nsec);
@@ -47,7 +78,7 @@ static void fuse_change_timeout(struct dentry *entry, struct fuse_entry_out *o)
  */
 void fuse_invalidate_attr(struct inode *inode)
 {
-	get_fuse_inode(inode)->i_time = jiffies - 1;
+	get_fuse_inode(inode)->i_time = 0;
 }
 
 /*
@@ -60,7 +91,7 @@ void fuse_invalidate_attr(struct inode *inode)
  */
 static void fuse_invalidate_entry_cache(struct dentry *entry)
 {
-	entry->d_time = jiffies - 1;
+	fuse_dentry_settime(entry, 0);
 }
 
 /*
@@ -102,7 +133,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 
 	if (inode && is_bad_inode(inode))
 		return 0;
-	else if (time_after(jiffies, entry->d_time)) {
+	else if (fuse_dentry_time(entry) < get_jiffies_64()) {
 		int err;
 		struct fuse_entry_out outarg;
 		struct fuse_conn *fc;
@@ -666,7 +697,7 @@ static int fuse_revalidate(struct dentry *entry)
 	if (!fuse_allow_task(fc, current))
 		return -EACCES;
 	if (get_node_id(inode) != FUSE_ROOT_ID &&
-	    time_before_eq(jiffies, fi->i_time))
+	    fi->i_time >= get_jiffies_64())
 		return 0;
 
 	return fuse_do_getattr(inode);

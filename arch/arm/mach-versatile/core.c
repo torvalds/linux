@@ -35,6 +35,7 @@
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/icst307.h>
 #include <asm/hardware/vic.h>
+#include <asm/mach-types.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
@@ -68,7 +69,8 @@ static void sic_unmask_irq(unsigned int irq)
 	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_SET);
 }
 
-static struct irqchip sic_chip = {
+static struct irq_chip sic_chip = {
+	.name	= "SIC",
 	.ack	= sic_mask_irq,
 	.mask	= sic_mask_irq,
 	.unmask	= sic_unmask_irq,
@@ -283,7 +285,7 @@ static struct flash_platform_data versatile_flash_data = {
 
 static struct resource versatile_flash_resource = {
 	.start			= VERSATILE_FLASH_BASE,
-	.end			= VERSATILE_FLASH_BASE + VERSATILE_FLASH_SIZE,
+	.end			= VERSATILE_FLASH_BASE + VERSATILE_FLASH_SIZE - 1,
 	.flags			= IORESOURCE_MEM,
 };
 
@@ -352,11 +354,7 @@ static const struct icst307_params versatile_oscvco_params = {
 static void versatile_oscvco_set(struct clk *clk, struct icst307_vco vco)
 {
 	void __iomem *sys_lock = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_LOCK_OFFSET;
-#if defined(CONFIG_ARCH_VERSATILE_PB)
-	void __iomem *sys_osc = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_OSC4_OFFSET;
-#elif defined(CONFIG_MACH_VERSATILE_AB)
-	void __iomem *sys_osc = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_OSC1_OFFSET;
-#endif
+	void __iomem *sys_osc = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_OSCCLCD_OFFSET;
 	u32 val;
 
 	val = readl(sys_osc) & ~0x7ffff;
@@ -529,7 +527,7 @@ static void versatile_clcd_disable(struct clcd_fb *fb)
 	/*
 	 * If the LCD is Sanyo 2x5 in on the IB2 board, turn the back-light off
 	 */
-	if (fb->panel == &sanyo_2_5_in) {
+	if (machine_is_versatile_ab() && fb->panel == &sanyo_2_5_in) {
 		void __iomem *versatile_ib2_ctrl = __io_address(VERSATILE_IB2_CTRL);
 		unsigned long ctrl;
 
@@ -578,7 +576,7 @@ static void versatile_clcd_enable(struct clcd_fb *fb)
 	/*
 	 * If the LCD is Sanyo 2x5 in on the IB2 board, turn the back-light on
 	 */
-	if (fb->panel == &sanyo_2_5_in) {
+	if (machine_is_versatile_ab() && fb->panel == &sanyo_2_5_in) {
 		void __iomem *versatile_ib2_ctrl = __io_address(VERSATILE_IB2_CTRL);
 		unsigned long ctrl;
 

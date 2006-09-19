@@ -65,7 +65,7 @@ ACPI_MODULE_NAME("utmisc")
 u8 acpi_ut_is_aml_table(struct acpi_table_header *table)
 {
 
-	/* Ignore tables that contain AML */
+	/* These are the only tables that contain executable AML */
 
 	if (ACPI_COMPARE_NAME(table->signature, DSDT_SIG) ||
 	    ACPI_COMPARE_NAME(table->signature, PSDT_SIG) ||
@@ -419,10 +419,15 @@ void acpi_ut_set_integer_width(u8 revision)
 {
 
 	if (revision <= 1) {
+
+		/* 32-bit case */
+
 		acpi_gbl_integer_bit_width = 32;
 		acpi_gbl_integer_nybble_width = 8;
 		acpi_gbl_integer_byte_width = 4;
 	} else {
+		/* 64-bit case (ACPI 2.0+) */
+
 		acpi_gbl_integer_bit_width = 64;
 		acpi_gbl_integer_nybble_width = 16;
 		acpi_gbl_integer_byte_width = 8;
@@ -502,6 +507,7 @@ acpi_ut_display_init_pathname(u8 type,
  * FUNCTION:    acpi_ut_valid_acpi_char
  *
  * PARAMETERS:  Char            - The character to be examined
+ *              Position        - Byte position (0-3)
  *
  * RETURN:      TRUE if the character is valid, FALSE otherwise
  *
@@ -609,7 +615,9 @@ acpi_name acpi_ut_repair_name(acpi_name name)
  *
  * RETURN:      Status and Converted value
  *
- * DESCRIPTION: Convert a string into an unsigned value.
+ * DESCRIPTION: Convert a string into an unsigned value. Performs either a
+ *              32-bit or 64-bit conversion, depending on the current mode
+ *              of the interpreter.
  *              NOTE: Does not support Octal strings, not needed.
  *
  ******************************************************************************/
@@ -627,7 +635,7 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 	u8 sign_of0x = 0;
 	u8 term = 0;
 
-	ACPI_FUNCTION_TRACE(ut_stroul64);
+	ACPI_FUNCTION_TRACE_STR(ut_stroul64, string);
 
 	switch (base) {
 	case ACPI_ANY_BASE:
@@ -675,11 +683,13 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 		}
 	}
 
+	/*
+	 * Perform a 32-bit or 64-bit conversion, depending upon the current
+	 * execution mode of the interpreter
+	 */
 	dividend = (mode32) ? ACPI_UINT32_MAX : ACPI_UINT64_MAX;
 
-	/* At least one character in the string here */
-
-	/* Main loop: convert the string to a 64-bit integer */
+	/* Main loop: convert the string to a 32- or 64-bit integer */
 
 	while (*string) {
 		if (ACPI_IS_DIGIT(*string)) {
@@ -753,6 +763,9 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 	/* All done, normal exit */
 
       all_done:
+
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Converted value: %8.8X%8.8X\n",
+			  ACPI_FORMAT_UINT64(return_value)));
 
 	*ret_integer = return_value;
 	return_ACPI_STATUS(AE_OK);

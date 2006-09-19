@@ -4,4 +4,4 @@ header-y += break.h fpu.h fpswa.h gcc_intrin.h ia64regs.h		\
 	 intel_intrin.h intrinsics.h perfmon_default_smpl.h	\
 	 ptrace_offsets.h rse.h setup.h ucontext.h
 
-unifdef-y += perfmon.h
+unifdef-y += perfmon.h ustack.h

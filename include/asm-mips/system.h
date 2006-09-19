@@ -13,13 +13,13 @@
 #define _ASM_SYSTEM_H
 
 #include <linux/types.h>
+#include <linux/irqflags.h>
 
 #include <asm/addrspace.h>
 #include <asm/cpu-features.h>
 #include <asm/dsp.h>
 #include <asm/ptrace.h>
 #include <asm/war.h>
-#include <asm/interrupt.h>
 
 /*
  * read_barrier_depends - Flush all pending reads that subsequents reads
@@ -142,9 +142,6 @@
 
 #define set_mb(var, value) \
 do { var = value; mb(); } while (0)
-
-#define set_wmb(var, value) \
-do { var = value; wmb(); } while (0)
 
 /*
  * switch_to(n) should switch tasks to task nr n, first

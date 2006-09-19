@@ -39,7 +39,6 @@ extern ctxd_t *srmmu_ctx_table_phys;
 
 extern void calibrate_delay(void);
 
-extern volatile int smp_processors_ready;
 extern volatile unsigned long cpu_callin_map[NR_CPUS];
 extern unsigned char boot_cpu_id;
 
@@ -217,7 +216,6 @@ void __init smp4m_smp_done(void)
 	}
 
 	/* Ok, they are spinning and ready to go. */
-	smp_processors_ready = 1;
 }
 
 /* At each hardware IRQ, we get this called to forward IRQ reception

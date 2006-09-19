@@ -35,7 +35,7 @@
 #include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/threads.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/dmi.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>

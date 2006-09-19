@@ -148,11 +148,10 @@ static int tcindex_init(struct tcf_proto *tp)
 	struct tcindex_data *p;
 
 	DPRINTK("tcindex_init(tp %p)\n",tp);
-	p = kmalloc(sizeof(struct tcindex_data),GFP_KERNEL);
+	p = kzalloc(sizeof(struct tcindex_data),GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
-	memset(p, 0, sizeof(*p));
 	p->mask = 0xffff;
 	p->hash = DEFAULT_HASH_SIZE;
 	p->fall_through = 1;
@@ -296,16 +295,14 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 	err = -ENOMEM;
 	if (!cp.perfect && !cp.h) {
 		if (valid_perfect_hash(&cp)) {
-			cp.perfect = kmalloc(cp.hash * sizeof(*r), GFP_KERNEL);
+			cp.perfect = kcalloc(cp.hash, sizeof(*r), GFP_KERNEL);
 			if (!cp.perfect)
 				goto errout;
-			memset(cp.perfect, 0, cp.hash * sizeof(*r));
 			balloc = 1;
 		} else {
-			cp.h = kmalloc(cp.hash * sizeof(f), GFP_KERNEL);
+			cp.h = kcalloc(cp.hash, sizeof(f), GFP_KERNEL);
 			if (!cp.h)
 				goto errout;
-			memset(cp.h, 0, cp.hash * sizeof(f));
 			balloc = 2;
 		}
 	}
@@ -316,10 +313,9 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 		r = tcindex_lookup(&cp, handle) ? : &new_filter_result;
 
 	if (r == &new_filter_result) {
-		f = kmalloc(sizeof(*f), GFP_KERNEL);
+		f = kzalloc(sizeof(*f), GFP_KERNEL);
 		if (!f)
 			goto errout_alloc;
-		memset(f, 0, sizeof(*f));
  	}
 
 	if (tb[TCA_TCINDEX_CLASSID-1]) {

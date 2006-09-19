@@ -8,17 +8,12 @@
  * published by the Free Software Foundation.
  *
  * S3C2410 Internal RTC register definition
- *
- *  Changelog:
- *    19-06-2003     BJD     Created file
- *    12-03-2004     BJD     Updated include protection
- *    15-01-2005     LCVR    Changed S3C2410_VA to S3C24XX_VA (s3c2400 support)
 */
 
 #ifndef __ASM_ARCH_REGS_RTC_H
 #define __ASM_ARCH_REGS_RTC_H __FILE__
 
-#define S3C2410_RTCREG(x) ((x) + S3C24XX_VA_RTC)
+#define S3C2410_RTCREG(x) (x)
 
 #define S3C2410_RTCCON	      S3C2410_RTCREG(0x40)
 #define S3C2410_RTCCON_RTCEN  (1<<0)

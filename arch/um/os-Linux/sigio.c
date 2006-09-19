@@ -43,13 +43,13 @@ struct pollfds {
 /* Protected by sigio_lock().  Used by the sigio thread, but the UML thread
  * synchronizes with it.
  */
-struct pollfds current_poll = {
+static struct pollfds current_poll = {
 	.poll  		= NULL,
 	.size 		= 0,
 	.used 		= 0
 };
 
-struct pollfds next_poll = {
+static struct pollfds next_poll = {
 	.poll  		= NULL,
 	.size 		= 0,
 	.used 		= 0
@@ -156,7 +156,7 @@ static void update_thread(void)
 	set_signals(flags);
 }
 
-int add_sigio_fd(int fd, int read)
+static int add_sigio_fd(int fd, int read)
 {
 	int err = 0, i, n, events;
 
@@ -191,6 +191,13 @@ int ignore_sigio_fd(int fd)
 	struct pollfd *p;
 	int err = 0, i, n = 0;
 
+	/* This is called from exitcalls elsewhere in UML - if
+	 * sigio_cleanup has already run, then update_thread will hang
+	 * or fail because the thread is no longer running.
+	 */
+	if(write_sigio_pid == -1)
+		return -EIO;
+
 	sigio_lock();
 	for(i = 0; i < current_poll.used; i++){
 		if(current_poll.poll[i].fd == fd) break;
@@ -215,7 +222,7 @@ int ignore_sigio_fd(int fd)
 	update_thread();
  out:
 	sigio_unlock();
-	return(err);
+	return err;
 }
 
 static struct pollfd *setup_initial_poll(int fd)
@@ -233,7 +240,7 @@ static struct pollfd *setup_initial_poll(int fd)
 	return p;
 }
 
-void write_sigio_workaround(void)
+static void write_sigio_workaround(void)
 {
 	unsigned long stack;
 	struct pollfd *p;
@@ -314,10 +321,24 @@ out_close1:
 	close(l_write_sigio_fds[1]);
 }
 
-void sigio_cleanup(void)
+void maybe_sigio_broken(int fd, int read)
+{
+	if(!isatty(fd))
+		return;
+
+	if((read || pty_output_sigio) && (!read || pty_close_sigio))
+		return;
+
+	write_sigio_workaround();
+	add_sigio_fd(fd, read);
+}
+
+static void sigio_cleanup(void)
 {
 	if(write_sigio_pid != -1){
 		os_kill_process(write_sigio_pid, 1);
 		write_sigio_pid = -1;
 	}
 }
+
+__uml_exitcall(sigio_cleanup);

@@ -52,7 +52,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
@@ -456,6 +455,10 @@ static void do_wait_for_fifo(u16 entries, struct aty128fb_par *par);
 static void wait_for_fifo(u16 entries, struct aty128fb_par *par);
 static void wait_for_idle(struct aty128fb_par *par);
 static u32 depth_to_dst(u32 depth);
+
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
+static void aty128_bl_set_power(struct fb_info *info, int power);
+#endif
 
 #define BIOS_IN8(v)  	(readb(bios + (v)))
 #define BIOS_IN16(v) 	(readb(bios + (v)) | \
@@ -1258,25 +1261,11 @@ static void aty128_set_lcd_enable(struct aty128fb_par *par, int on)
 		reg &= ~LVDS_DISPLAY_DIS;
 		aty_st_le32(LVDS_GEN_CNTL, reg);
 #ifdef CONFIG_FB_ATY128_BACKLIGHT
-		mutex_lock(&info->bl_mutex);
-		if (info->bl_dev) {
-			down(&info->bl_dev->sem);
-			info->bl_dev->props->update_status(info->bl_dev);
-			up(&info->bl_dev->sem);
-		}
-		mutex_unlock(&info->bl_mutex);
+		aty128_bl_set_power(info, FB_BLANK_UNBLANK);
 #endif	
 	} else {
 #ifdef CONFIG_FB_ATY128_BACKLIGHT
-		mutex_lock(&info->bl_mutex);
-		if (info->bl_dev) {
-			down(&info->bl_dev->sem);
-			info->bl_dev->props->brightness = 0;
-			info->bl_dev->props->power = FB_BLANK_POWERDOWN;
-			info->bl_dev->props->update_status(info->bl_dev);
-			up(&info->bl_dev->sem);
-		}
-		mutex_unlock(&info->bl_mutex);
+		aty128_bl_set_power(info, FB_BLANK_POWERDOWN);
 #endif	
 		reg = aty_ld_le32(LVDS_GEN_CNTL);
 		reg |= LVDS_DISPLAY_DIS;
@@ -1703,6 +1692,7 @@ static int __devinit aty128fb_setup(char *options)
 
 static struct backlight_properties aty128_bl_data;
 
+/* Call with fb_info->bl_mutex held */
 static int aty128_bl_get_level_brightness(struct aty128fb_par *par,
 		int level)
 {
@@ -1710,10 +1700,8 @@ static int aty128_bl_get_level_brightness(struct aty128fb_par *par,
 	int atylevel;
 
 	/* Get and convert the value */
-	mutex_lock(&info->bl_mutex);
 	atylevel = MAX_LEVEL -
 		(info->bl_curve[level] * FB_BACKLIGHT_MAX / MAX_LEVEL);
-	mutex_unlock(&info->bl_mutex);
 
 	if (atylevel < 0)
 		atylevel = 0;
@@ -1731,7 +1719,8 @@ static int aty128_bl_get_level_brightness(struct aty128fb_par *par,
 /* That one prevents proper CRT output with LCD off */
 #undef BACKLIGHT_DAC_OFF
 
-static int aty128_bl_update_status(struct backlight_device *bd)
+/* Call with fb_info->bl_mutex held */
+static int __aty128_bl_update_status(struct backlight_device *bd)
 {
 	struct aty128fb_par *par = class_get_devdata(&bd->class_dev);
 	unsigned int reg = aty_ld_le32(LVDS_GEN_CNTL);
@@ -1784,6 +1773,19 @@ static int aty128_bl_update_status(struct backlight_device *bd)
 	return 0;
 }
 
+static int aty128_bl_update_status(struct backlight_device *bd)
+{
+	struct aty128fb_par *par = class_get_devdata(&bd->class_dev);
+	struct fb_info *info = pci_get_drvdata(par->pdev);
+	int ret;
+
+	mutex_lock(&info->bl_mutex);
+	ret = __aty128_bl_update_status(bd);
+	mutex_unlock(&info->bl_mutex);
+
+	return ret;
+}
+
 static int aty128_bl_get_brightness(struct backlight_device *bd)
 {
 	return bd->props->brightness;
@@ -1795,6 +1797,20 @@ static struct backlight_properties aty128_bl_data = {
 	.update_status	= aty128_bl_update_status,
 	.max_brightness	= (FB_BACKLIGHT_LEVELS - 1),
 };
+
+static void aty128_bl_set_power(struct fb_info *info, int power)
+{
+	mutex_lock(&info->bl_mutex);
+
+	if (info->bl_dev) {
+		down(&info->bl_dev->sem);
+		info->bl_dev->props->power = power;
+		__aty128_bl_update_status(info->bl_dev);
+		up(&info->bl_dev->sem);
+	}
+
+	mutex_unlock(&info->bl_mutex);
+}
 
 static void aty128_bl_init(struct aty128fb_par *par)
 {
@@ -1816,7 +1832,7 @@ static void aty128_bl_init(struct aty128fb_par *par)
 	bd = backlight_device_register(name, par, &aty128_bl_data);
 	if (IS_ERR(bd)) {
 		info->bl_dev = NULL;
-		printk("aty128: Backlight registration failed\n");
+		printk(KERN_WARNING "aty128: Backlight registration failed\n");
 		goto error;
 	}
 
@@ -1827,11 +1843,11 @@ static void aty128_bl_init(struct aty128fb_par *par)
 		219 * FB_BACKLIGHT_MAX / MAX_LEVEL);
 	mutex_unlock(&info->bl_mutex);
 
-	up(&bd->sem);
+	down(&bd->sem);
 	bd->props->brightness = aty128_bl_data.max_brightness;
 	bd->props->power = FB_BLANK_UNBLANK;
 	bd->props->update_status(bd);
-	down(&bd->sem);
+	up(&bd->sem);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	mutex_lock(&pmac_backlight_mutex);
@@ -1900,9 +1916,6 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 	char video_card[DEVICE_NAME_SIZE];
 	u8 chip_rev;
 	u32 dac;
-
-	if (!par->vram_size)	/* may have already been probed */
-		par->vram_size = aty_ld_le32(CONFIG_MEMSIZE) & 0x03FFFFFF;
 
 	/* Get the chip revision */
 	chip_rev = (aty_ld_le32(CONFIG_CNTL) >> 16) & 0x1F;
@@ -2016,9 +2029,6 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 
 	aty128_init_engine(par);
 
-	if (register_framebuffer(info) < 0)
-		return 0;
-
 	par->pm_reg = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	par->pdev = pdev;
 	par->asleep = 0;
@@ -2027,6 +2037,9 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 #ifdef CONFIG_FB_ATY128_BACKLIGHT
 	aty128_bl_init(par);
 #endif
+
+	if (register_framebuffer(info) < 0)
+		return 0;
 
 	printk(KERN_INFO "fb%d: %s frame buffer device on %s\n",
 	       info->node, info->fix.id, video_card);
@@ -2077,7 +2090,6 @@ static int __devinit aty128_probe(struct pci_dev *pdev, const struct pci_device_
 	par = info->par;
 
 	info->pseudo_palette = par->pseudo_palette;
-	info->fix = aty128fb_fix;
 
 	/* Virtualize mmio region */
 	info->fix.mmio_start = reg_addr;
@@ -2198,12 +2210,8 @@ static int aty128fb_blank(int blank, struct fb_info *fb)
 		return 0;
 
 #ifdef CONFIG_FB_ATY128_BACKLIGHT
-	if (machine_is(powermac) && blank) {
-		down(&fb->bl_dev->sem);
-		fb->bl_dev->props->power = FB_BLANK_POWERDOWN;
-		fb->bl_dev->props->update_status(fb->bl_dev);
-		up(&fb->bl_dev->sem);
-	}
+	if (machine_is(powermac) && blank)
+		aty128_bl_set_power(fb, FB_BLANK_POWERDOWN);
 #endif
 
 	if (blank & FB_BLANK_VSYNC_SUSPEND)
@@ -2219,14 +2227,12 @@ static int aty128fb_blank(int blank, struct fb_info *fb)
 		aty128_set_crt_enable(par, par->crt_on && !blank);
 		aty128_set_lcd_enable(par, par->lcd_on && !blank);
 	}
+
 #ifdef CONFIG_FB_ATY128_BACKLIGHT
-	if (machine_is(powermac) && !blank) {
-		down(&fb->bl_dev->sem);
-		fb->bl_dev->props->power = FB_BLANK_UNBLANK;
-		fb->bl_dev->props->update_status(fb->bl_dev);
-		up(&fb->bl_dev->sem);
-	}
+	if (machine_is(powermac) && !blank)
+		aty128_bl_set_power(fb, FB_BLANK_UNBLANK);
 #endif
+
 	return 0;
 }
 

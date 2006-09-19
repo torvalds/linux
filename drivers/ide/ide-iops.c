@@ -23,6 +23,7 @@
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/bitops.h>
+#include <linux/nmi.h>
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
@@ -1243,6 +1244,7 @@ int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
 		if (stat == 0xff)
 			return -ENODEV;
 		touch_softlockup_watchdog();
+		touch_nmi_watchdog();
 	}
 	return -EBUSY;
 }

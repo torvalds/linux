@@ -10,7 +10,6 @@
  * Copyright (C) 1996, 1997, 2004 by Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2006, Wind River System Inc.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
@@ -27,7 +26,7 @@
 
 #define WRPPMC_CPU_CLK_FREQ 40000000 /* 40MHZ */
 
-void __init wrppmc_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* Install ISR for timer interrupt */
 	setup_irq(WRPPMC_MIPS_TIMER_IRQ, irq);

@@ -238,8 +238,6 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 	/* Check for single path devices. */
 	if (sch->schib.pmcw.pim == 0x80)
 		goto out_unreg;
-	if (sch->vpm == mask)
-		goto out_unreg;
 
 	if ((sch->schib.scsw.actl & SCSW_ACTL_DEVACT) &&
 	    (sch->schib.scsw.actl & SCSW_ACTL_SCHACT) &&
@@ -258,6 +256,8 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 	/* trigger path verification. */
 	if (sch->driver && sch->driver->verify)
 		sch->driver->verify(&sch->dev);
+	else if (sch->vpm == mask)
+		goto out_unreg;
 out_unlock:
 	spin_unlock_irq(&sch->lock);
 	return 0;
@@ -1391,10 +1391,8 @@ new_channel_path(int chpid)
 	/* fill in status, etc. */
 	chp->id = chpid;
 	chp->state = 1;
-	chp->dev = (struct device) {
-		.parent  = &css[0]->device,
-		.release = chp_release,
-	};
+	chp->dev.parent = &css[0]->device;
+	chp->dev.release = chp_release;
 	snprintf(chp->dev.bus_id, BUS_ID_SIZE, "chp0.%x", chpid);
 
 	/* Obtain channel path description and fill it in. */
@@ -1464,6 +1462,40 @@ chsc_get_chp_desc(struct subchannel *sch, int chp_no)
 	return desc;
 }
 
+static int reset_channel_path(struct channel_path *chp)
+{
+	int cc;
+
+	cc = rchp(chp->id);
+	switch (cc) {
+	case 0:
+		return 0;
+	case 2:
+		return -EBUSY;
+	default:
+		return -ENODEV;
+	}
+}
+
+static void reset_channel_paths_css(struct channel_subsystem *css)
+{
+	int i;
+
+	for (i = 0; i <= __MAX_CHPID; i++) {
+		if (css->chps[i])
+			reset_channel_path(css->chps[i]);
+	}
+}
+
+void cio_reset_channel_paths(void)
+{
+	int i;
+
+	for (i = 0; i <= __MAX_CSSID; i++) {
+		if (css[i] && css[i]->valid)
+			reset_channel_paths_css(css[i]);
+	}
+}
 
 static int __init
 chsc_alloc_sei_area(void)

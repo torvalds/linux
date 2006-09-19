@@ -10,9 +10,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Modifications:
- *     10-Mar-2005 LCVR  Changed S3C2410_VA to S3C24XX_VA
 */
 
 #include <asm/arch/map.h>

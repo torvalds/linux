@@ -181,13 +181,18 @@ static void __init bootx_add_chosen_props(unsigned long base,
 }
 
 static void __init bootx_add_display_props(unsigned long base,
-					   unsigned long *mem_end)
+					   unsigned long *mem_end,
+					   int has_real_node)
 {
 	boot_infos_t *bi = bootx_info;
 	u32 tmp;
 
-	bootx_dt_add_prop("linux,boot-display", NULL, 0, mem_end);
-	bootx_dt_add_prop("linux,opened", NULL, 0, mem_end);
+	if (has_real_node) {
+		bootx_dt_add_prop("linux,boot-display", NULL, 0, mem_end);
+		bootx_dt_add_prop("linux,opened", NULL, 0, mem_end);
+	} else
+		bootx_dt_add_prop("linux,bootx-noscreen", NULL, 0, mem_end);
+
 	tmp = bi->dispDeviceDepth;
 	bootx_dt_add_prop("linux,bootx-depth", &tmp, 4, mem_end);
 	tmp = bi->dispDeviceRect[2] - bi->dispDeviceRect[0];
@@ -241,11 +246,6 @@ static void __init bootx_scan_dt_build_strings(unsigned long base,
 		DBG(" detected display ! adding properties names !\n");
 		bootx_dt_add_string("linux,boot-display", mem_end);
 		bootx_dt_add_string("linux,opened", mem_end);
-		bootx_dt_add_string("linux,bootx-depth", mem_end);
-		bootx_dt_add_string("linux,bootx-width", mem_end);
-		bootx_dt_add_string("linux,bootx-height", mem_end);
-		bootx_dt_add_string("linux,bootx-linebytes", mem_end);
-		bootx_dt_add_string("linux,bootx-addr", mem_end);
 		strncpy(bootx_disp_path, namep, 255);
 	}
 
@@ -329,10 +329,13 @@ static void __init bootx_scan_dt_build_struct(unsigned long base,
 		ppp = &pp->next;
 	}
 
-	if (node == bootx_node_chosen)
+	if (node == bootx_node_chosen) {
 		bootx_add_chosen_props(base, mem_end);
-	if (node == bootx_info->dispDeviceRegEntryOffset)
-		bootx_add_display_props(base, mem_end);
+		if (bootx_info->dispDeviceRegEntryOffset == 0)
+			bootx_add_display_props(base, mem_end, 0);
+	}
+	else if (node == bootx_info->dispDeviceRegEntryOffset)
+		bootx_add_display_props(base, mem_end, 1);
 
 	/* do all our children */
 	cpp = &np->child;
@@ -374,6 +377,14 @@ static unsigned long __init bootx_flatten_dt(unsigned long start)
 	mem_end += 4;
 	bootx_dt_strend = mem_end;
 	bootx_scan_dt_build_strings(base, 4, &mem_end);
+	/* Add some strings */
+	bootx_dt_add_string("linux,bootx-noscreen", &mem_end);
+	bootx_dt_add_string("linux,bootx-depth", &mem_end);
+	bootx_dt_add_string("linux,bootx-width", &mem_end);
+	bootx_dt_add_string("linux,bootx-height", &mem_end);
+	bootx_dt_add_string("linux,bootx-linebytes", &mem_end);
+	bootx_dt_add_string("linux,bootx-addr", &mem_end);
+	/* Wrap up strings */
 	hdr->off_dt_strings = bootx_dt_strbase - mem_start;
 	hdr->dt_strings_size = bootx_dt_strend - bootx_dt_strbase;
 
@@ -400,8 +411,15 @@ static unsigned long __init bootx_flatten_dt(unsigned long start)
 	DBG("End of boot params: %x\n", mem_end);
 	rsvmap[0] = mem_start;
 	rsvmap[1] = mem_end;
-	rsvmap[2] = 0;
-	rsvmap[3] = 0;
+	if (bootx_info->ramDisk) {
+		rsvmap[2] = ((unsigned long)bootx_info) + bootx_info->ramDisk;
+		rsvmap[3] = rsvmap[2] + bootx_info->ramDiskSize;
+		rsvmap[4] = 0;
+		rsvmap[5] = 0;
+	} else {
+		rsvmap[2] = 0;
+		rsvmap[3] = 0;
+	}
 
 	return (unsigned long)hdr;
 }
@@ -471,6 +489,7 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 	if (bi->dispDeviceDepth == 16)
 		bi->dispDeviceDepth = 15;
 
+
 #ifdef CONFIG_BOOTX_TEXT
 	ptr = (unsigned long)bi->logicalDisplayBase;
 	ptr += bi->dispDeviceRect[1] * bi->dispDeviceRowBytes;
@@ -508,6 +527,7 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 #ifdef CONFIG_BOOTX_TEXT
 	btext_welcome(bi);
 #endif
+
 	/* New BootX enters kernel with MMU off, i/os are not allowed
 	 * here. This hack will have been done by the boostrap anyway.
 	 */
@@ -530,12 +550,12 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 	 */
 	if (bi->version < 5) {
 		space = bi->deviceTreeOffset + bi->deviceTreeSize;
-		if (bi->ramDisk)
+		if (bi->ramDisk >= space)
 			space = bi->ramDisk + bi->ramDiskSize;
 	} else
 		space = bi->totalParamsSize;
 
-	bootx_printf("Total space used by parameters & ramdisk: %x \n", space);
+	bootx_printf("Total space used by parameters & ramdisk: 0x%x \n", space);
 
 	/* New BootX will have flushed all TLBs and enters kernel with
 	 * MMU switched OFF, so this should not be useful anymore.

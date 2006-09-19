@@ -659,7 +659,7 @@ struct nfs4_rename_res {
 struct nfs4_setclientid {
 	const nfs4_verifier *		sc_verifier;      /* request */
 	unsigned int			sc_name_len;
-	char				sc_name[32];	  /* request */
+	char				sc_name[48];	  /* request */
 	u32				sc_prog;          /* request */
 	unsigned int			sc_netid_len;
 	char				sc_netid[4];	  /* request */
@@ -729,6 +729,7 @@ struct nfs_read_data {
 	struct list_head	pages;	/* Coalesced read requests */
 	struct nfs_page		*req;	/* multi ops per nfs_page */
 	struct page		**pagevec;
+	unsigned int		npages;	/* Max length of pagevec */
 	struct nfs_readargs args;
 	struct nfs_readres  res;
 #ifdef CONFIG_NFS_V4
@@ -747,6 +748,7 @@ struct nfs_write_data {
 	struct list_head	pages;		/* Coalesced requests we wish to flush */
 	struct nfs_page		*req;		/* multi ops per nfs_page */
 	struct page		**pagevec;
+	unsigned int		npages;		/* Max length of pagevec */
 	struct nfs_writeargs	args;		/* argument struct */
 	struct nfs_writeres	res;		/* result struct */
 #ifdef CONFIG_NFS_V4

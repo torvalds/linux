@@ -18,7 +18,12 @@
 #include "umid.h"
 
 static struct mconsole_command commands[] = {
-	{ "version", mconsole_version, MCONSOLE_INTR },
+	/* With uts namespaces, uts information becomes process-specific, so
+	 * we need a process context.  If we try handling this in interrupt
+	 * context, we may hit an exiting process without a valid uts
+	 * namespace.
+	 */
+	{ "version", mconsole_version, MCONSOLE_PROC },
 	{ "halt", mconsole_halt, MCONSOLE_PROC },
 	{ "reboot", mconsole_reboot, MCONSOLE_PROC },
 	{ "config", mconsole_config, MCONSOLE_PROC },

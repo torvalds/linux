@@ -169,18 +169,20 @@ static void ufs_clear_frag(struct inode *inode, struct buffer_head *bh)
 
 static struct buffer_head *
 ufs_clear_frags(struct inode *inode, sector_t beg,
-		unsigned int n)
+		unsigned int n, sector_t want)
 {
-	struct buffer_head *res, *bh;
+	struct buffer_head *res = NULL, *bh;
 	sector_t end = beg + n;
 
-	res = sb_getblk(inode->i_sb, beg);
-	ufs_clear_frag(inode, res);
-	for (++beg; beg < end; ++beg) {
+	for (; beg < end; ++beg) {
 		bh = sb_getblk(inode->i_sb, beg);
 		ufs_clear_frag(inode, bh);
-		brelse(bh);
+		if (want != beg)
+			brelse(bh);
+		else
+			res = bh;
 	}
+	BUG_ON(!res);
 	return res;
 }
 
@@ -265,7 +267,9 @@ repeat:
 			lastfrag = ufsi->i_lastfrag;
 			
 		}
-		goal = fs32_to_cpu(sb, ufsi->i_u1.i_data[lastblock]) + uspi->s_fpb;
+		tmp = fs32_to_cpu(sb, ufsi->i_u1.i_data[lastblock]);
+		if (tmp)
+			goal = tmp + uspi->s_fpb;
 		tmp = ufs_new_fragments (inode, p, fragment - blockoff, 
 					 goal, required + blockoff,
 					 err, locked_page);
@@ -277,13 +281,15 @@ repeat:
 		tmp = ufs_new_fragments(inode, p, fragment - (blockoff - lastblockoff),
 					fs32_to_cpu(sb, *p), required +  (blockoff - lastblockoff),
 					err, locked_page);
-	}
+	} else /* (lastblock > block) */ {
 	/*
 	 * We will allocate new block before last allocated block
 	 */
-	else /* (lastblock > block) */ {
-		if (lastblock && (tmp = fs32_to_cpu(sb, ufsi->i_u1.i_data[lastblock-1])))
-			goal = tmp + uspi->s_fpb;
+		if (block) {
+			tmp = fs32_to_cpu(sb, ufsi->i_u1.i_data[block-1]);
+			if (tmp)
+				goal = tmp + uspi->s_fpb;
+		}
 		tmp = ufs_new_fragments(inode, p, fragment - blockoff,
 					goal, uspi->s_fpb, err, locked_page);
 	}
@@ -296,7 +302,7 @@ repeat:
 	}
 
 	if (!phys) {
-		result = ufs_clear_frags(inode, tmp + blockoff, required);
+		result = ufs_clear_frags(inode, tmp, required, tmp + blockoff);
 	} else {
 		*phys = tmp + blockoff;
 		result = NULL;
@@ -383,7 +389,7 @@ repeat:
 		}
 	}
 
-	if (block && (tmp = fs32_to_cpu(sb, ((__fs32*)bh->b_data)[block-1]) + uspi->s_fpb))
+	if (block && (tmp = fs32_to_cpu(sb, ((__fs32*)bh->b_data)[block-1])))
 		goal = tmp + uspi->s_fpb;
 	else
 		goal = bh->b_blocknr + uspi->s_fpb;
@@ -397,7 +403,8 @@ repeat:
 
 
 	if (!phys) {
-		result = ufs_clear_frags(inode, tmp + blockoff, uspi->s_fpb);
+		result = ufs_clear_frags(inode, tmp, uspi->s_fpb,
+					 tmp + blockoff);
 	} else {
 		*phys = tmp + blockoff;
 		*new = 1;

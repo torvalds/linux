@@ -152,7 +152,6 @@ ccwgroup_create(struct device *root,
 	struct ccwgroup_device *gdev;
 	int i;
 	int rc;
-	int del_drvdata;
 
 	if (argc > 256) /* disallow dumb users */
 		return -EINVAL;
@@ -163,7 +162,6 @@ ccwgroup_create(struct device *root,
 
 	atomic_set(&gdev->onoff, 0);
 
-	del_drvdata = 0;
 	for (i = 0; i < argc; i++) {
 		gdev->cdev[i] = get_ccwdev_by_busid(cdrv, argv[i]);
 
@@ -180,18 +178,14 @@ ccwgroup_create(struct device *root,
 			rc = -EINVAL;
 			goto free_dev;
 		}
-	}
-	for (i = 0; i < argc; i++)
 		gdev->cdev[i]->dev.driver_data = gdev;
-	del_drvdata = 1;
+	}
 
 	gdev->creator_id = creator_id;
 	gdev->count = argc;
-	gdev->dev = (struct device ) {
-		.bus = &ccwgroup_bus_type,
-		.parent = root,
-		.release = ccwgroup_release,
-	};
+	gdev->dev.bus = &ccwgroup_bus_type;
+	gdev->dev.parent = root;
+	gdev->dev.release = ccwgroup_release;
 
 	snprintf (gdev->dev.bus_id, BUS_ID_SIZE, "%s",
 			gdev->cdev[0]->dev.bus_id);
@@ -226,9 +220,9 @@ error:
 free_dev:
 	for (i = 0; i < argc; i++)
 		if (gdev->cdev[i]) {
-			put_device(&gdev->cdev[i]->dev);
-			if (del_drvdata)
+			if (gdev->cdev[i]->dev.driver_data == gdev)
 				gdev->cdev[i]->dev.driver_data = NULL;
+			put_device(&gdev->cdev[i]->dev);
 		}
 	kfree(gdev);
 	return rc;
@@ -319,7 +313,7 @@ ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const 
 	if (!try_module_get(gdrv->owner))
 		return -EINVAL;
 
-	value = simple_strtoul(buf, 0, 0);
+	value = simple_strtoul(buf, NULL, 0);
 	ret = count;
 	if (value == 1)
 		ccwgroup_set_online(gdev);
@@ -395,10 +389,8 @@ int
 ccwgroup_driver_register (struct ccwgroup_driver *cdriver)
 {
 	/* register our new driver with the core */
-	cdriver->driver = (struct device_driver) {
-		.bus = &ccwgroup_bus_type,
-		.name = cdriver->name,
-	};
+	cdriver->driver.bus = &ccwgroup_bus_type;
+	cdriver->driver.name = cdriver->name;
 
 	return driver_register(&cdriver->driver);
 }

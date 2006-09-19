@@ -157,6 +157,12 @@ enum nfs_opnum4 {
 	OP_ILLEGAL = 10044,
 };
 
+/*Defining first and last NFS4 operations implemented.
+Needs to be updated if more operations are defined in future.*/
+
+#define FIRST_NFS4_OP	OP_ACCESS
+#define LAST_NFS4_OP 	OP_RELEASE_LOCKOWNER
+
 enum nfsstat4 {
 	NFS4_OK = 0,
 	NFS4ERR_PERM = 1,

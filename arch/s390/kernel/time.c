@@ -379,7 +379,7 @@ void __init time_init(void)
                                 -xtime.tv_sec, -xtime.tv_nsec);
 
 	/* request the clock comparator external interrupt */
-        if (register_early_external_interrupt(0x1004, 0,
+	if (register_early_external_interrupt(0x1004, NULL,
 					      &ext_int_info_cc) != 0)
                 panic("Couldn't request external interrupt 0x1004");
 

@@ -68,10 +68,10 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 		return 0;
 
 	write_lock_irq(&mapping->tree_lock);
-	if (PageDirty(page)) {
-		write_unlock_irq(&mapping->tree_lock);
-		return 0;
-	}
+	if (PageDirty(page))
+		goto failed;
+	if (page_count(page) != 2)	/* caller's ref + pagecache ref */
+		goto failed;
 
 	BUG_ON(PagePrivate(page));
 	__remove_from_page_cache(page);
@@ -79,6 +79,9 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 	ClearPageUptodate(page);
 	page_cache_release(page);	/* pagecache ref */
 	return 1;
+failed:
+	write_unlock_irq(&mapping->tree_lock);
+	return 0;
 }
 
 /**

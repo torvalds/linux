@@ -1961,8 +1961,7 @@ comreset_retry:
 	timeout = jiffies + msecs_to_jiffies(200);
 	do {
 		sata_scr_read(ap, SCR_STATUS, &sstatus);
-		sstatus &= 0x3;
-		if ((sstatus == 3) || (sstatus == 0))
+		if (((sstatus & 0x3) == 3) || ((sstatus & 0x3) == 0))
 			break;
 
 		__msleep(1, can_sleep);

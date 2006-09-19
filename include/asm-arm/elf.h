@@ -8,7 +8,9 @@
 
 #include <asm/ptrace.h>
 #include <asm/user.h>
+#ifdef __KERNEL
 #include <asm/procinfo.h>
+#endif
 
 typedef unsigned long elf_greg_t;
 typedef unsigned long elf_freg_t[3];

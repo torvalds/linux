@@ -158,7 +158,7 @@ config DEBUG_RWSEMS
 
 config DEBUG_LOCK_ALLOC
 	bool "Lock debugging: detect incorrect freeing of live locks"
-	depends on TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
+	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
 	select DEBUG_RWSEMS
@@ -173,7 +173,7 @@ config DEBUG_LOCK_ALLOC
 
 config PROVE_LOCKING
 	bool "Lock debugging: prove locking correctness"
-	depends on TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
+	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select LOCKDEP
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
@@ -216,7 +216,7 @@ config PROVE_LOCKING
 
 config LOCKDEP
 	bool
-	depends on TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
+	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select STACKTRACE
 	select FRAME_POINTER
 	select KALLSYMS
@@ -224,13 +224,14 @@ config LOCKDEP
 
 config DEBUG_LOCKDEP
 	bool "Lock dependency engine debugging"
-	depends on LOCKDEP
+	depends on DEBUG_KERNEL && LOCKDEP
 	help
 	  If you say Y here, the lock dependency engine will do
 	  additional runtime checks to debug itself, at the price
 	  of more runtime overhead.
 
 config TRACE_IRQFLAGS
+	depends on DEBUG_KERNEL
 	bool
 	default y
 	depends on TRACE_IRQFLAGS_SUPPORT
@@ -256,6 +257,7 @@ config DEBUG_LOCKING_API_SELFTESTS
 
 config STACKTRACE
 	bool
+	depends on DEBUG_KERNEL
 	depends on STACKTRACE_SUPPORT
 
 config DEBUG_KOBJECT

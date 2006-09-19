@@ -445,6 +445,7 @@ typedef struct sctp_sender_hb_info {
 	struct sctp_paramhdr param_hdr;
 	union sctp_addr daddr;
 	unsigned long sent_at;
+	__u64 hb_nonce;
 } __attribute__((packed)) sctp_sender_hb_info_t;
 
 /*
@@ -730,13 +731,10 @@ void sctp_init_addrs(struct sctp_chunk *, union sctp_addr *,
 const union sctp_addr *sctp_source(const struct sctp_chunk *chunk);
 
 /* This is a structure for holding either an IPv6 or an IPv4 address.  */
-/* sin_family -- AF_INET or AF_INET6
- * sin_port -- ordinary port number
- * sin_addr -- cast to either (struct in_addr) or (struct in6_addr)
- */
 struct sctp_sockaddr_entry {
 	struct list_head list;
 	union sctp_addr a;
+	__u8 use_as_src;
 };
 
 typedef struct sctp_chunk *(sctp_packet_phandler_t)(struct sctp_association *);
@@ -984,6 +982,9 @@ struct sctp_transport {
 		 */
 		char cacc_saw_newack;
 	} cacc;
+
+	/* 64-bit random number sent with heartbeat. */
+	__u64 hb_nonce;
 };
 
 struct sctp_transport *sctp_transport_new(const union sctp_addr *,
@@ -1138,7 +1139,7 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 			sctp_scope_t scope, gfp_t gfp,
 			int flags);
 int sctp_add_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
-		       gfp_t gfp);
+		       __u8 use_as_src, gfp_t gfp);
 int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *);
 int sctp_bind_addr_match(struct sctp_bind_addr *, const union sctp_addr *,
 			 struct sctp_sock *);

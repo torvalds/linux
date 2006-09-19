@@ -322,7 +322,8 @@ EXPORT_SYMBOL(do_softirq);
 
 static LIST_HEAD(irq_hosts);
 static spinlock_t irq_big_lock = SPIN_LOCK_UNLOCKED;
-
+static DEFINE_PER_CPU(unsigned int, irq_radix_reader);
+static unsigned int irq_radix_writer;
 struct irq_map_entry irq_map[NR_IRQS];
 static unsigned int irq_virq_count = NR_IRQS;
 static struct irq_host *irq_default_host;
@@ -391,15 +392,14 @@ struct irq_host *irq_alloc_host(unsigned int revmap_type,
 			irq_map[i].host = host;
 			smp_wmb();
 
-			/* Clear some flags */
-			get_irq_desc(i)->status
-				&= ~(IRQ_NOREQUEST | IRQ_LEVEL);
+			/* Clear norequest flags */
+			get_irq_desc(i)->status &= ~IRQ_NOREQUEST;
 
 			/* Legacy flags are left to default at this point,
 			 * one can then use irq_create_mapping() to
 			 * explicitely change them
 			 */
-			ops->map(host, i, i, 0);
+			ops->map(host, i, i);
 		}
 		break;
 	case IRQ_HOST_MAP_LINEAR:
@@ -456,14 +456,64 @@ void irq_set_virq_count(unsigned int count)
 		irq_virq_count = count;
 }
 
+/* radix tree not lockless safe ! we use a brlock-type mecanism
+ * for now, until we can use a lockless radix tree
+ */
+static void irq_radix_wrlock(unsigned long *flags)
+{
+	unsigned int cpu, ok;
+
+	spin_lock_irqsave(&irq_big_lock, *flags);
+	irq_radix_writer = 1;
+	smp_mb();
+	do {
+		barrier();
+		ok = 1;
+		for_each_possible_cpu(cpu) {
+			if (per_cpu(irq_radix_reader, cpu)) {
+				ok = 0;
+				break;
+			}
+		}
+		if (!ok)
+			cpu_relax();
+	} while(!ok);
+}
+
+static void irq_radix_wrunlock(unsigned long flags)
+{
+	smp_wmb();
+	irq_radix_writer = 0;
+	spin_unlock_irqrestore(&irq_big_lock, flags);
+}
+
+static void irq_radix_rdlock(unsigned long *flags)
+{
+	local_irq_save(*flags);
+	__get_cpu_var(irq_radix_reader) = 1;
+	smp_mb();
+	if (likely(irq_radix_writer == 0))
+		return;
+	__get_cpu_var(irq_radix_reader) = 0;
+	smp_wmb();
+	spin_lock(&irq_big_lock);
+	__get_cpu_var(irq_radix_reader) = 1;
+	spin_unlock(&irq_big_lock);
+}
+
+static void irq_radix_rdunlock(unsigned long flags)
+{
+	__get_cpu_var(irq_radix_reader) = 0;
+	local_irq_restore(flags);
+}
+
+
 unsigned int irq_create_mapping(struct irq_host *host,
-				irq_hw_number_t hwirq,
-				unsigned int flags)
+				irq_hw_number_t hwirq)
 {
 	unsigned int virq, hint;
 
-	pr_debug("irq: irq_create_mapping(0x%p, 0x%lx, 0x%x)\n",
-		 host, hwirq, flags);
+	pr_debug("irq: irq_create_mapping(0x%p, 0x%lx)\n", host, hwirq);
 
 	/* Look for default host if nececssary */
 	if (host == NULL)
@@ -482,7 +532,6 @@ unsigned int irq_create_mapping(struct irq_host *host,
 	virq = irq_find_mapping(host, hwirq);
 	if (virq != IRQ_NONE) {
 		pr_debug("irq: -> existing mapping on virq %d\n", virq);
-		host->ops->map(host, virq, hwirq, flags);
 		return virq;
 	}
 
@@ -504,18 +553,18 @@ unsigned int irq_create_mapping(struct irq_host *host,
 	}
 	pr_debug("irq: -> obtained virq %d\n", virq);
 
-	/* Clear some flags */
-	get_irq_desc(virq)->status &= ~(IRQ_NOREQUEST | IRQ_LEVEL);
+	/* Clear IRQ_NOREQUEST flag */
+	get_irq_desc(virq)->status &= ~IRQ_NOREQUEST;
 
 	/* map it */
-	if (host->ops->map(host, virq, hwirq, flags)) {
+	smp_wmb();
+	irq_map[virq].hwirq = hwirq;
+	smp_mb();
+	if (host->ops->map(host, virq, hwirq)) {
 		pr_debug("irq: -> mapping failed, freeing\n");
 		irq_free_virt(virq, 1);
 		return NO_IRQ;
 	}
-	smp_wmb();
-	irq_map[virq].hwirq = hwirq;
-	smp_mb();
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_mapping);
@@ -525,25 +574,38 @@ extern unsigned int irq_create_of_mapping(struct device_node *controller,
 {
 	struct irq_host *host;
 	irq_hw_number_t hwirq;
-	unsigned int flags = IRQ_TYPE_NONE;
+	unsigned int type = IRQ_TYPE_NONE;
+	unsigned int virq;
 
 	if (controller == NULL)
 		host = irq_default_host;
 	else
 		host = irq_find_host(controller);
-	if (host == NULL)
+	if (host == NULL) {
+		printk(KERN_WARNING "irq: no irq host found for %s !\n",
+		       controller->full_name);
 		return NO_IRQ;
+	}
 
 	/* If host has no translation, then we assume interrupt line */
 	if (host->ops->xlate == NULL)
 		hwirq = intspec[0];
 	else {
 		if (host->ops->xlate(host, controller, intspec, intsize,
-				     &hwirq, &flags))
+				     &hwirq, &type))
 			return NO_IRQ;
 	}
 
-	return irq_create_mapping(host, hwirq, flags);
+	/* Create mapping */
+	virq = irq_create_mapping(host, hwirq);
+	if (virq == NO_IRQ)
+		return virq;
+
+	/* Set type if specified and different than the current one */
+	if (type != IRQ_TYPE_NONE &&
+	    type != (get_irq_desc(virq)->status & IRQF_TRIGGER_MASK))
+		set_irq_type(virq, type);
+	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_of_mapping);
 
@@ -595,13 +657,9 @@ void irq_dispose_mapping(unsigned int virq)
 		/* Check if radix tree allocated yet */
 		if (host->revmap_data.tree.gfp_mask == 0)
 			break;
-		/* XXX radix tree not safe ! remove lock whem it becomes safe
-		 * and use some RCU sync to make sure everything is ok before we
-		 * can re-use that map entry
-		 */
-		spin_lock_irqsave(&irq_big_lock, flags);
+		irq_radix_wrlock(&flags);
 		radix_tree_delete(&host->revmap_data.tree, hwirq);
-		spin_unlock_irqrestore(&irq_big_lock, flags);
+		irq_radix_wrunlock(flags);
 		break;
 	}
 
@@ -668,25 +726,24 @@ unsigned int irq_radix_revmap(struct irq_host *host,
 	if (tree->gfp_mask == 0)
 		return irq_find_mapping(host, hwirq);
 
-	/* XXX Current radix trees are NOT SMP safe !!! Remove that lock
-	 * when that is fixed (when Nick's patch gets in
-	 */
-	spin_lock_irqsave(&irq_big_lock, flags);
-
 	/* Now try to resolve */
+	irq_radix_rdlock(&flags);
 	ptr = radix_tree_lookup(tree, hwirq);
+	irq_radix_rdunlock(flags);
+
 	/* Found it, return */
 	if (ptr) {
 		virq = ptr - irq_map;
-		goto bail;
+		return virq;
 	}
 
 	/* If not there, try to insert it */
 	virq = irq_find_mapping(host, hwirq);
-	if (virq != NO_IRQ)
-		radix_tree_insert(tree, virq, &irq_map[virq]);
- bail:
-	spin_unlock_irqrestore(&irq_big_lock, flags);
+	if (virq != NO_IRQ) {
+		irq_radix_wrlock(&flags);
+		radix_tree_insert(tree, hwirq, &irq_map[virq]);
+		irq_radix_wrunlock(flags);
+	}
 	return virq;
 }
 
@@ -797,12 +854,12 @@ static int irq_late_init(void)
 	struct irq_host *h;
 	unsigned long flags;
 
-	spin_lock_irqsave(&irq_big_lock, flags);
+	irq_radix_wrlock(&flags);
 	list_for_each_entry(h, &irq_hosts, link) {
 		if (h->revmap_type == IRQ_HOST_MAP_TREE)
 			INIT_RADIX_TREE(&h->revmap_data.tree, GFP_ATOMIC);
 	}
-	spin_unlock_irqrestore(&irq_big_lock, flags);
+	irq_radix_wrunlock(flags);
 
 	return 0;
 }

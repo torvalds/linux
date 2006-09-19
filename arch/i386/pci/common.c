@@ -17,10 +17,6 @@
 
 #include "pci.h"
 
-#ifdef CONFIG_PCI_BIOS
-extern  void pcibios_sort(void);
-#endif
-
 unsigned int pci_probe = PCI_PROBE_BIOS | PCI_PROBE_CONF1 | PCI_PROBE_CONF2 |
 				PCI_PROBE_MMCONF;
 
@@ -239,6 +235,11 @@ char * __devinit  pcibios_setup(char *str)
 #ifdef CONFIG_PCI_MMCONFIG
 	else if (!strcmp(str, "nommconf")) {
 		pci_probe &= ~PCI_PROBE_MMCONF;
+		return NULL;
+	}
+	/* override DMI blacklist */
+	else if (!strcmp(str, "mmconf")) {
+		pci_probe |= PCI_PROBE_MMCONF_FORCE;
 		return NULL;
 	}
 #endif

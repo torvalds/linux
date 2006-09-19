@@ -8,7 +8,7 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 
 #include <asm/hardware/dec21285.h>
 #include <asm/io.h>

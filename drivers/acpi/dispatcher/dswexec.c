@@ -313,10 +313,10 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 	case AML_CLASS_EXECUTE:
 	case AML_CLASS_CREATE:
 		/*
-		 * Most operators with arguments.
+		 * Most operators with arguments (except create_xxx_field operators)
 		 * Start a new result/operand state
 		 */
-		if (walk_state->opcode != AML_CREATE_FIELD_OP) {
+		if (walk_state->op_info->object_type != ACPI_TYPE_BUFFER_FIELD) {
 			status = acpi_ds_result_stack_push(walk_state);
 		}
 		break;

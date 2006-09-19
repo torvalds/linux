@@ -48,7 +48,6 @@ static inline void unregister_cpu_notifier(struct notifier_block *nb)
 {
 }
 #endif
-extern int current_in_cpu_hotplug(void);
 
 int cpu_up(unsigned int cpu);
 
@@ -61,10 +60,6 @@ static inline int register_cpu_notifier(struct notifier_block *nb)
 static inline void unregister_cpu_notifier(struct notifier_block *nb)
 {
 }
-static inline int current_in_cpu_hotplug(void)
-{
-	return 0;
-}
 
 #endif /* CONFIG_SMP */
 extern struct sysdev_class cpu_sysdev_class;
@@ -73,7 +68,6 @@ extern struct sysdev_class cpu_sysdev_class;
 /* Stop CPUs going up and down. */
 extern void lock_cpu_hotplug(void);
 extern void unlock_cpu_hotplug(void);
-extern int lock_cpu_hotplug_interruptible(void);
 #define hotcpu_notifier(fn, pri) {				\
 	static struct notifier_block fn##_nb =			\
 		{ .notifier_call = fn, .priority = pri };	\

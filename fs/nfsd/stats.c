@@ -72,6 +72,16 @@ static int nfsd_proc_show(struct seq_file *seq, void *v)
 	/* show my rpc info */
 	svc_seq_show(seq, &nfsd_svcstats);
 
+#ifdef CONFIG_NFSD_V4
+	/* Show count for individual nfsv4 operations */
+	/* Writing operation numbers 0 1 2 also for maintaining uniformity */
+	seq_printf(seq,"proc4ops %u", LAST_NFS4_OP + 1);
+	for (i = 0; i <= LAST_NFS4_OP; i++)
+		seq_printf(seq, " %u", nfsdstats.nfs4_opcount[i]);
+
+	seq_putc(seq, '\n');
+#endif
+
 	return 0;
 }
 

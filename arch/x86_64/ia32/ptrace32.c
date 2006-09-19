@@ -202,17 +202,24 @@ static long ptrace32_siginfo(unsigned request, u32 pid, u32 addr, u32 data)
 {
 	int ret;
 	compat_siginfo_t *si32 = (compat_siginfo_t *)compat_ptr(data);
+	siginfo_t ssi; 
 	siginfo_t *si = compat_alloc_user_space(sizeof(siginfo_t));
 	if (request == PTRACE_SETSIGINFO) {
-		ret = copy_siginfo_from_user32(si, si32);
+		memset(&ssi, 0, sizeof(siginfo_t));
+		ret = copy_siginfo_from_user32(&ssi, si32);
 		if (ret)
 			return ret;
+		if (copy_to_user(si, &ssi, sizeof(siginfo_t)))
+			return -EFAULT;
 	}
 	ret = sys_ptrace(request, pid, addr, (unsigned long)si);
 	if (ret)
 		return ret;
-	if (request == PTRACE_GETSIGINFO)
-		ret = copy_siginfo_to_user32(si32, si);
+	if (request == PTRACE_GETSIGINFO) {
+		if (copy_from_user(&ssi, si, sizeof(siginfo_t)))
+			return -EFAULT;
+		ret = copy_siginfo_to_user32(si32, &ssi);
+	}
 	return ret;
 }
 

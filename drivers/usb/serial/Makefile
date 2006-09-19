@@ -12,7 +12,6 @@ usbserial-obj-$(CONFIG_USB_EZUSB)		+= ezusb.o
 usbserial-objs	:= usb-serial.o generic.o bus.o $(usbserial-obj-y)
 
 obj-$(CONFIG_USB_SERIAL_AIRPRIME)		+= airprime.o
-obj-$(CONFIG_USB_SERIAL_ANYDATA)		+= anydata.o
 obj-$(CONFIG_USB_SERIAL_ARK3116)		+= ark3116.o
 obj-$(CONFIG_USB_SERIAL_BELKIN)			+= belkin_sa.o
 obj-$(CONFIG_USB_SERIAL_CP2101)			+= cp2101.o
@@ -39,6 +38,7 @@ obj-$(CONFIG_USB_SERIAL_OMNINET)		+= omninet.o
 obj-$(CONFIG_USB_SERIAL_OPTION)			+= option.o
 obj-$(CONFIG_USB_SERIAL_PL2303)			+= pl2303.o
 obj-$(CONFIG_USB_SERIAL_SAFE)			+= safe_serial.o
+obj-$(CONFIG_USB_SERIAL_SIERRAWIRELESS)		+= sierra.o
 obj-$(CONFIG_USB_SERIAL_TI)			+= ti_usb_3410_5052.o
 obj-$(CONFIG_USB_SERIAL_VISOR)			+= visor.o
 obj-$(CONFIG_USB_SERIAL_WHITEHEAT)		+= whiteheat.o

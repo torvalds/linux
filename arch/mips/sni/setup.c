@@ -18,7 +18,7 @@
 #include <linux/pci.h>
 #include <linux/console.h>
 #include <linux/fb.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 
 #ifdef CONFIG_ARC
 #include <asm/arc/types.h>
@@ -41,7 +41,7 @@ extern void sni_machine_restart(char *command);
 extern void sni_machine_halt(void);
 extern void sni_machine_power_off(void);
 
-static void __init sni_rm200_pci_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* set the clock to 100 Hz */
 	outb_p(0x34,0x43);		/* binary, mode 2, LSB/MSB, ch 0 */
@@ -270,7 +270,6 @@ void __init plat_mem_setup(void)
 #endif
 
 	sni_resource_init();
-	board_timer_setup = sni_rm200_pci_timer_setup;
 
 	_machine_restart = sni_machine_restart;
 	_machine_halt = sni_machine_halt;

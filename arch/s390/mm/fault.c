@@ -144,7 +144,7 @@ static void do_sigsegv(struct pt_regs *regs, unsigned long error_code,
 #endif
 	si.si_signo = SIGSEGV;
 	si.si_code = si_code;
-	si.si_addr = (void *) address;
+	si.si_addr = (void __user *) address;
 	force_sig_info(SIGSEGV, &si, current);
 }
 

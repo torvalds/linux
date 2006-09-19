@@ -121,7 +121,7 @@ void ll_uart_irq(struct pt_regs *regs)
 
 #define shutdown_uart_irq	disable_uart_irq
 
-struct hw_interrupt_type uart_irq_type = {
+struct irq_chip uart_irq_type = {
 	.typename = "UART/FPGA",
 	.startup = startup_uart_irq,
 	.shutdown = shutdown_uart_irq,

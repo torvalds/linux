@@ -43,13 +43,15 @@ static mempool_t *nfs_rdata_mempool;
 
 #define MIN_POOL_READ	(32)
 
-struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
+struct nfs_read_data *nfs_readdata_alloc(size_t len)
 {
+	unsigned int pagecount = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, SLAB_NOFS);
 
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
+		p->npages = pagecount;
 		if (pagecount <= ARRAY_SIZE(p->page_array))
 			p->pagevec = p->page_array;
 		else {
@@ -63,7 +65,7 @@ struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
 	return p;
 }
 
-void nfs_readdata_free(struct nfs_read_data *p)
+static void nfs_readdata_free(struct nfs_read_data *p)
 {
 	if (p && (p->pagevec != &p->page_array[0]))
 		kfree(p->pagevec);
@@ -116,10 +118,17 @@ static void nfs_readpage_truncate_uninitialised_page(struct nfs_read_data *data)
 	pages = &data->args.pages[base >> PAGE_CACHE_SHIFT];
 	base &= ~PAGE_CACHE_MASK;
 	pglen = PAGE_CACHE_SIZE - base;
-	if (pglen < remainder)
+	for (;;) {
+		if (remainder <= pglen) {
+			memclear_highpage_flush(*pages, base, remainder);
+			break;
+		}
 		memclear_highpage_flush(*pages, base, pglen);
-	else
-		memclear_highpage_flush(*pages, base, remainder);
+		pages++;
+		remainder -= pglen;
+		pglen = PAGE_CACHE_SIZE;
+		base = 0;
+	}
 }
 
 /*
@@ -133,7 +142,7 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 	int		result;
 	struct nfs_read_data *rdata;
 
-	rdata = nfs_readdata_alloc(1);
+	rdata = nfs_readdata_alloc(count);
 	if (!rdata)
 		return -ENOMEM;
 
@@ -329,25 +338,25 @@ static int nfs_pagein_multi(struct list_head *head, struct inode *inode)
 	struct nfs_page *req = nfs_list_entry(head->next);
 	struct page *page = req->wb_page;
 	struct nfs_read_data *data;
-	unsigned int rsize = NFS_SERVER(inode)->rsize;
-	unsigned int nbytes, offset;
+	size_t rsize = NFS_SERVER(inode)->rsize, nbytes;
+	unsigned int offset;
 	int requests = 0;
 	LIST_HEAD(list);
 
 	nfs_list_remove_request(req);
 
 	nbytes = req->wb_bytes;
-	for(;;) {
-		data = nfs_readdata_alloc(1);
+	do {
+		size_t len = min(nbytes,rsize);
+
+		data = nfs_readdata_alloc(len);
 		if (!data)
 			goto out_bad;
 		INIT_LIST_HEAD(&data->pages);
 		list_add(&data->pages, &list);
 		requests++;
-		if (nbytes <= rsize)
-			break;
-		nbytes -= rsize;
-	}
+		nbytes -= len;
+	} while(nbytes != 0);
 	atomic_set(&req->wb_complete, requests);
 
 	ClearPageError(page);
@@ -395,7 +404,7 @@ static int nfs_pagein_one(struct list_head *head, struct inode *inode)
 	if (NFS_SERVER(inode)->rsize < PAGE_CACHE_SIZE)
 		return nfs_pagein_multi(head, inode);
 
-	data = nfs_readdata_alloc(NFS_SERVER(inode)->rpages);
+	data = nfs_readdata_alloc(NFS_SERVER(inode)->rsize);
 	if (!data)
 		goto out_bad;
 
@@ -476,6 +485,8 @@ static void nfs_readpage_set_pages_uptodate(struct nfs_read_data *data)
 	unsigned int base = data->args.pgbase;
 	struct page **pages;
 
+	if (data->res.eof)
+		count = data->args.count;
 	if (unlikely(count == 0))
 		return;
 	pages = &data->args.pages[base >> PAGE_CACHE_SHIFT];
@@ -483,11 +494,7 @@ static void nfs_readpage_set_pages_uptodate(struct nfs_read_data *data)
 	count += base;
 	for (;count >= PAGE_CACHE_SIZE; count -= PAGE_CACHE_SIZE, pages++)
 		SetPageUptodate(*pages);
-	/*
-	 * Was this an eof or a short read? If the latter, don't mark the page
-	 * as uptodate yet.
-	 */
-	if (count > 0 && (data->res.eof || data->args.count == data->res.count))
+	if (count != 0)
 		SetPageUptodate(*pages);
 }
 
@@ -501,6 +508,8 @@ static void nfs_readpage_set_pages_error(struct nfs_read_data *data)
 	base &= ~PAGE_CACHE_MASK;
 	count += base;
 	for (;count >= PAGE_CACHE_SIZE; count -= PAGE_CACHE_SIZE, pages++)
+		SetPageError(*pages);
+	if (count != 0)
 		SetPageError(*pages);
 }
 

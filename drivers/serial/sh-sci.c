@@ -1579,7 +1579,7 @@ static int __init serial_console_setup(struct console *co, char *options)
 	h8300_sci_enable(port, sci_enable);
 #endif
 #elif defined(CONFIG_SUPERH64)
-	port->uartclk = current_cpu_info.module_clock * 16;
+	port->uartclk = current_cpu_data.module_clock * 16;
 #else
 	{
 		struct clk *clk = clk_get("module_clk");
@@ -1720,7 +1720,7 @@ static int __init sci_init(void)
 #if defined(__H8300H__) || defined(__H8300S__)
 			sciport->port.uartclk = CONFIG_CPU_CLOCK;
 #elif defined(CONFIG_SUPERH64)
-			sciport->port.uartclk = current_cpu_info.module_clock * 16;
+			sciport->port.uartclk = current_cpu_data.module_clock * 16;
 #else
 			struct clk *clk = clk_get("module_clk");
 			sciport->port.uartclk = clk_get_rate(clk) * 16;

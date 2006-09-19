@@ -8,10 +8,6 @@
  * published by the Free Software Foundation.
  *
  * S3C2410 NAND register definitions
- *
- *  Changelog:
- *    18-Aug-2004    BJD     Copied file from 2.4 and updated
- *    01-May-2005    BJD     Added definitions for s3c2440 controller
 */
 
 #ifndef __ASM_ARM_REGS_NAND

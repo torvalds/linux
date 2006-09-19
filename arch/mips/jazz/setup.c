@@ -37,7 +37,7 @@ extern void jazz_machine_restart(char *command);
 extern void jazz_machine_halt(void);
 extern void jazz_machine_power_off(void);
 
-static void __init jazz_time_init(struct irqaction *irq)
+void __init plat_time_init(struct irqaction *irq)
 {
 	/* set the clock to 100 Hz */
 	r4030_write_reg32(JAZZ_TIMER_INTERVAL, 9);
@@ -75,7 +75,6 @@ void __init plat_mem_setup(void)
 	for (i = 0; i < ARRAY_SIZE(jazz_io_resources); i++)
 		request_resource(&ioport_resource, jazz_io_resources + i);
 
-        board_timer_setup = jazz_time_init;
 	/* The RTC is outside the port address space */
 
 	_machine_restart = jazz_machine_restart;

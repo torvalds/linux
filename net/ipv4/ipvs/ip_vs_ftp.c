@@ -46,14 +46,7 @@
  */
 static int ports[IP_VS_APP_MAX_PORTS] = {21, 0};
 module_param_array(ports, int, NULL, 0);
-
-/*
- *	Debug level
- */
-#ifdef CONFIG_IP_VS_DEBUG
-static int debug=0;
-module_param(debug, int, 0);
-#endif
+MODULE_PARM_DESC(ports, "Ports to monitor for FTP control commands");
 
 
 /*	Dummy variable */
@@ -177,7 +170,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 					   &start, &end) != 1)
 			return 1;
 
-		IP_VS_DBG(1-debug, "PASV response (%u.%u.%u.%u:%d) -> "
+		IP_VS_DBG(7, "PASV response (%u.%u.%u.%u:%d) -> "
 			  "%u.%u.%u.%u:%d detected\n",
 			  NIPQUAD(from), ntohs(port), NIPQUAD(cp->caddr), 0);
 
@@ -280,7 +273,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	while (data <= data_limit - 6) {
 		if (strnicmp(data, "PASV\r\n", 6) == 0) {
 			/* Passive mode on */
-			IP_VS_DBG(1-debug, "got PASV at %zd of %zd\n",
+			IP_VS_DBG(7, "got PASV at %zd of %zd\n",
 				  data - data_start,
 				  data_limit - data_start);
 			cp->app_data = &ip_vs_ftp_pasv;
@@ -302,7 +295,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 				   &start, &end) != 1)
 		return 1;
 
-	IP_VS_DBG(1-debug, "PORT %u.%u.%u.%u:%d detected\n",
+	IP_VS_DBG(7, "PORT %u.%u.%u.%u:%d detected\n",
 		  NIPQUAD(to), ntohs(port));
 
 	/* Passive mode off */
@@ -311,7 +304,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	/*
 	 * Now update or create a connection entry for it
 	 */
-	IP_VS_DBG(1-debug, "protocol %s %u.%u.%u.%u:%d %u.%u.%u.%u:%d\n",
+	IP_VS_DBG(7, "protocol %s %u.%u.%u.%u:%d %u.%u.%u.%u:%d\n",
 		  ip_vs_proto_name(iph->protocol),
 		  NIPQUAD(to), ntohs(port), NIPQUAD(cp->vaddr), 0);
 
@@ -372,11 +365,17 @@ static int __init ip_vs_ftp_init(void)
 	for (i=0; i<IP_VS_APP_MAX_PORTS; i++) {
 		if (!ports[i])
 			continue;
+		if (ports[i] < 0 || ports[i] > 0xffff) {
+			IP_VS_WARNING("ip_vs_ftp: Ignoring invalid "
+				      "configuration port[%d] = %d\n",
+				      i, ports[i]);
+			continue;
+		}
 		ret = register_ip_vs_app_inc(app, app->protocol, ports[i]);
 		if (ret)
 			break;
-		IP_VS_DBG(1-debug, "%s: loaded support on port[%d] = %d\n",
-			  app->name, i, ports[i]);
+		IP_VS_INFO("%s: loaded support on port[%d] = %d\n",
+		 	   app->name, i, ports[i]);
 	}
 
 	if (ret)

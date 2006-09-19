@@ -1602,7 +1602,7 @@ static void __devexit snd_ca0106_remove(struct pci_dev *pci)
 }
 
 // PCI IDs
-static struct pci_device_id snd_ca0106_ids[] __devinitdata = {
+static struct pci_device_id snd_ca0106_ids[] = {
 	{ 0x1102, 0x0007, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },	/* Audigy LS or Live 24bit */
 	{ 0, }
 };

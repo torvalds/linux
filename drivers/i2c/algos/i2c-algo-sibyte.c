@@ -173,9 +173,7 @@ int i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
 		printk("\n");
 	}
 
-	i2c_add_adapter(i2c_adap);
-
-	return 0;
+	return i2c_add_adapter(i2c_adap);
 }
 
 

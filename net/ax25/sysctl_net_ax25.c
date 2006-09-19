@@ -203,12 +203,10 @@ void ax25_register_sysctl(void)
 	for (ax25_table_size = sizeof(ctl_table), ax25_dev = ax25_dev_list; ax25_dev != NULL; ax25_dev = ax25_dev->next)
 		ax25_table_size += sizeof(ctl_table);
 
-	if ((ax25_table = kmalloc(ax25_table_size, GFP_ATOMIC)) == NULL) {
+	if ((ax25_table = kzalloc(ax25_table_size, GFP_ATOMIC)) == NULL) {
 		spin_unlock_bh(&ax25_dev_lock);
 		return;
 	}
-
-	memset(ax25_table, 0x00, ax25_table_size);
 
 	for (n = 0, ax25_dev = ax25_dev_list; ax25_dev != NULL; ax25_dev = ax25_dev->next) {
 		ctl_table *child = kmalloc(sizeof(ax25_param_table), GFP_ATOMIC);

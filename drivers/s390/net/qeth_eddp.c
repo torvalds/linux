@@ -179,9 +179,8 @@ out_check:
 			flush_cnt++;
 		}
 	} else {
-#ifdef CONFIG_QETH_PERF_STATS
-		queue->card->perf_stats.skbs_sent_pack++;
-#endif
+		if (queue->card->options.performance_stats)
+			queue->card->perf_stats.skbs_sent_pack++;
 		QETH_DBF_TEXT(trace, 6, "fillbfpa");
 		if (buf->next_element_to_fill >=
 				QETH_MAX_BUFFER_ELEMENTS(queue->card)) {

@@ -68,13 +68,11 @@ ssize_t nsc_gpio_write(struct file *file, const char __user *data,
 			amp->gpio_config(m, ~1, 0);
 			break;
 		case 'T':
-			dev_dbg(dev, "GPIO%d output is push pull\n",
-			       m);
+			dev_dbg(dev, "GPIO%d output is push pull\n", m);
 			amp->gpio_config(m, ~2, 2);
 			break;
 		case 't':
-			dev_dbg(dev, "GPIO%d output is open drain\n",
-			       m);
+			dev_dbg(dev, "GPIO%d output is open drain\n", m);
 			amp->gpio_config(m, ~2, 0);
 			break;
 		case 'P':

@@ -291,5 +291,12 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
  */
 #define xlate_dev_kmem_ptr(p)	p
 
+/*
+ * Register ISA memory and port locations for glibc iopl/inb/outb
+ * emulation.
+ */
+extern void register_isa_ports(unsigned int mmio, unsigned int io,
+			       unsigned int io_shift);
+
 #endif	/* __KERNEL__ */
 #endif	/* __ASM_ARM_IO_H */

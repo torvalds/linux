@@ -48,14 +48,14 @@
 #include <linux/completion.h>
 
 #define CCISS_DRIVER_VERSION(maj,min,submin) ((maj<<16)|(min<<8)|(submin))
-#define DRIVER_NAME "HP CISS Driver (v 2.6.10)"
-#define DRIVER_VERSION CCISS_DRIVER_VERSION(2,6,10)
+#define DRIVER_NAME "HP CISS Driver (v 3.6.10)"
+#define DRIVER_VERSION CCISS_DRIVER_VERSION(3,6,10)
 
 /* Embedded module documentation macros - see modules.h */
 MODULE_AUTHOR("Hewlett-Packard Company");
-MODULE_DESCRIPTION("Driver for HP Controller SA5xxx SA6xxx version 2.6.10");
+MODULE_DESCRIPTION("Driver for HP Controller SA5xxx SA6xxx version 3.6.10");
 MODULE_SUPPORTED_DEVICE("HP SA5i SA5i+ SA532 SA5300 SA5312 SA641 SA642 SA6400"
-			" SA6i P600 P800 P400 P400i E200 E200i");
+			" SA6i P600 P800 P400 P400i E200 E200i E500");
 MODULE_LICENSE("GPL");
 
 #include "cciss_cmd.h"
@@ -82,6 +82,7 @@ static const struct pci_device_id cciss_pci_device_id[] = {
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSD,     0x103C, 0x3213},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSD,     0x103C, 0x3214},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSD,     0x103C, 0x3215},
+	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSC,     0x103C, 0x3233},
 	{0,}
 };
 
@@ -110,6 +111,7 @@ static struct board_type products[] = {
 	{0x3213103C, "Smart Array E200i", &SA5_access},
 	{0x3214103C, "Smart Array E200i", &SA5_access},
 	{0x3215103C, "Smart Array E200i", &SA5_access},
+	{0x3233103C, "Smart Array E500", &SA5_access},
 };
 
 /* How long to wait (in milliseconds) for board to go into simple mode */
@@ -1233,6 +1235,50 @@ static inline void complete_buffers(struct bio *bio, int status)
 	}
 }
 
+static void cciss_check_queues(ctlr_info_t *h)
+{
+	int start_queue = h->next_to_run;
+	int i;
+
+	/* check to see if we have maxed out the number of commands that can
+	 * be placed on the queue.  If so then exit.  We do this check here
+	 * in case the interrupt we serviced was from an ioctl and did not
+	 * free any new commands.
+	 */
+	if ((find_first_zero_bit(h->cmd_pool_bits, NR_CMDS)) == NR_CMDS)
+		return;
+
+	/* We have room on the queue for more commands.  Now we need to queue
+	 * them up.  We will also keep track of the next queue to run so
+	 * that every queue gets a chance to be started first.
+	 */
+	for (i = 0; i < h->highest_lun + 1; i++) {
+		int curr_queue = (start_queue + i) % (h->highest_lun + 1);
+		/* make sure the disk has been added and the drive is real
+		 * because this can be called from the middle of init_one.
+		 */
+		if (!(h->drv[curr_queue].queue) || !(h->drv[curr_queue].heads))
+			continue;
+		blk_start_queue(h->gendisk[curr_queue]->queue);
+
+		/* check to see if we have maxed out the number of commands
+		 * that can be placed on the queue.
+		 */
+		if ((find_first_zero_bit(h->cmd_pool_bits, NR_CMDS)) == NR_CMDS) {
+			if (curr_queue == start_queue) {
+				h->next_to_run =
+				    (start_queue + 1) % (h->highest_lun + 1);
+				break;
+			} else {
+				h->next_to_run = curr_queue;
+				break;
+			}
+		} else {
+			curr_queue = (curr_queue + 1) % (h->highest_lun + 1);
+		}
+	}
+}
+
 static void cciss_softirq_done(struct request *rq)
 {
 	CommandList_struct *cmd = rq->completion_data;
@@ -1264,6 +1310,7 @@ static void cciss_softirq_done(struct request *rq)
 	spin_lock_irqsave(&h->lock, flags);
 	end_that_request_last(rq, rq->errors);
 	cmd_free(h, cmd, 1);
+	cciss_check_queues(h);
 	spin_unlock_irqrestore(&h->lock, flags);
 }
 
@@ -2528,8 +2575,6 @@ static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs)
 	CommandList_struct *c;
 	unsigned long flags;
 	__u32 a, a1, a2;
-	int j;
-	int start_queue = h->next_to_run;
 
 	if (interrupt_not_for_us(h))
 		return IRQ_NONE;
@@ -2588,45 +2633,6 @@ static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs)
 		}
 	}
 
-	/* check to see if we have maxed out the number of commands that can
-	 * be placed on the queue.  If so then exit.  We do this check here
-	 * in case the interrupt we serviced was from an ioctl and did not
-	 * free any new commands.
-	 */
-	if ((find_first_zero_bit(h->cmd_pool_bits, NR_CMDS)) == NR_CMDS)
-		goto cleanup;
-
-	/* We have room on the queue for more commands.  Now we need to queue
-	 * them up.  We will also keep track of the next queue to run so
-	 * that every queue gets a chance to be started first.
-	 */
-	for (j = 0; j < h->highest_lun + 1; j++) {
-		int curr_queue = (start_queue + j) % (h->highest_lun + 1);
-		/* make sure the disk has been added and the drive is real
-		 * because this can be called from the middle of init_one.
-		 */
-		if (!(h->drv[curr_queue].queue) || !(h->drv[curr_queue].heads))
-			continue;
-		blk_start_queue(h->gendisk[curr_queue]->queue);
-
-		/* check to see if we have maxed out the number of commands
-		 * that can be placed on the queue.
-		 */
-		if ((find_first_zero_bit(h->cmd_pool_bits, NR_CMDS)) == NR_CMDS) {
-			if (curr_queue == start_queue) {
-				h->next_to_run =
-				    (start_queue + 1) % (h->highest_lun + 1);
-				goto cleanup;
-			} else {
-				h->next_to_run = curr_queue;
-				goto cleanup;
-			}
-		} else {
-			curr_queue = (curr_queue + 1) % (h->highest_lun + 1);
-		}
-	}
-
-      cleanup:
 	spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
 	return IRQ_HANDLED;
 }

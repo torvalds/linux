@@ -673,7 +673,7 @@ static void dz_reset(struct dz_port *dport)
 }
 
 #ifdef CONFIG_SERIAL_DZ_CONSOLE
-static void dz_console_putchar(struct uart_port *port, int ch)
+static void dz_console_putchar(struct uart_port *uport, int ch)
 {
 	struct dz_port *dport = (struct dz_port *)uport;
 	unsigned long flags;

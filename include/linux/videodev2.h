@@ -22,8 +22,6 @@
 #endif
 #include <linux/types.h>
 
-#define HAVE_V4L2 1
-
 /*
  * Common stuff for both V4L1 and V4L2
  * Moved from videodev.h
@@ -716,7 +714,7 @@ struct v4l2_ext_control
 		__s64 value64;
 		void *reserved;
 	};
-};
+} __attribute__ ((packed));
 
 struct v4l2_ext_controls
 {

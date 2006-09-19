@@ -438,7 +438,6 @@ void tcp_v4_err(struct sk_buff *skb, u32 info)
 			       It can f.e. if SYNs crossed.
 			     */
 		if (!sock_owned_by_user(sk)) {
-			TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
 			sk->sk_err = err;
 
 			sk->sk_error_report(sk);
@@ -494,6 +493,24 @@ void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 						      th->doff << 2,
 						      skb->csum));
 	}
+}
+
+int tcp_v4_gso_send_check(struct sk_buff *skb)
+{
+	struct iphdr *iph;
+	struct tcphdr *th;
+
+	if (!pskb_may_pull(skb, sizeof(*th)))
+		return -EINVAL;
+
+	iph = skb->nh.iph;
+	th = skb->h.th;
+
+	th->check = 0;
+	th->check = ~tcp_v4_check(th, skb->len, iph->saddr, iph->daddr, 0);
+	skb->csum = offsetof(struct tcphdr, check);
+	skb->ip_summed = CHECKSUM_HW;
+	return 0;
 }
 
 /*
@@ -856,7 +873,6 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 drop_and_free:
 	reqsk_free(req);
 drop:
-	TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
 	return 0;
 }
 
@@ -1622,10 +1638,9 @@ static int tcp_seq_open(struct inode *inode, struct file *file)
 	if (unlikely(afinfo == NULL))
 		return -EINVAL;
 
-	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
-	memset(s, 0, sizeof(*s));
 	s->family		= afinfo->family;
 	s->seq_ops.start	= tcp_seq_start;
 	s->seq_ops.next		= tcp_seq_next;

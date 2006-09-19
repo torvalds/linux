@@ -391,8 +391,8 @@ static MGSL_PARAMS default_params = {
 #define DESC_LIST_SIZE 4096
 
 #define MASK_PARITY  BIT1
-#define MASK_FRAMING BIT2
-#define MASK_BREAK   BIT3
+#define MASK_FRAMING BIT0
+#define MASK_BREAK   BIT14
 #define MASK_OVERRUN BIT4
 
 #define GSR   0x00 /* global status */
@@ -1497,8 +1497,10 @@ static int hdlcdev_open(struct net_device *dev)
 	spin_lock_irqsave(&info->lock, flags);
 	get_signals(info);
 	spin_unlock_irqrestore(&info->lock, flags);
-	hdlc_set_carrier(info->signals & SerialSignal_DCD, dev);
-
+	if (info->signals & SerialSignal_DCD)
+		netif_carrier_on(dev);
+	else
+		netif_carrier_off(dev);
 	return 0;
 }
 
@@ -1798,17 +1800,17 @@ static void rx_async(struct slgt_info *info)
 
 			stat = 0;
 
-			if ((status = *(p+1) & (BIT9 + BIT8))) {
-				if (status & BIT9)
+			if ((status = *(p+1) & (BIT1 + BIT0))) {
+				if (status & BIT1)
 					icount->parity++;
-				else if (status & BIT8)
+				else if (status & BIT0)
 					icount->frame++;
 				/* discard char if tty control flags say so */
 				if (status & info->ignore_status_mask)
 					continue;
-				if (status & BIT9)
+				if (status & BIT1)
 					stat = TTY_PARITY;
-				else if (status & BIT8)
+				else if (status & BIT0)
 					stat = TTY_FRAME;
 			}
 			if (tty) {
@@ -1997,8 +1999,12 @@ static void dcd_change(struct slgt_info *info)
 		info->input_signal_events.dcd_down++;
 	}
 #ifdef CONFIG_HDLC
-	if (info->netcount)
-		hdlc_set_carrier(info->signals & SerialSignal_DCD, info->netdev);
+	if (info->netcount) {
+		if (info->signals & SerialSignal_DCD)
+			netif_carrier_on(info->netdev);
+		else
+			netif_carrier_off(info->netdev);
+	}
 #endif
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);

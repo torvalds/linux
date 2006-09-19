@@ -699,7 +699,6 @@ static int __init gt96100_probe1(struct pci_dev *pci, int port_num)
 	memset(gp, 0, sizeof(*gp)); // clear it
 
 	gp->port_num = port_num;
-	gp->io_size = GT96100_ETH_IO_SIZE;
 	gp->port_offset = port_num * GT96100_ETH_IO_SIZE;
 	gp->phy_addr = phy_addr;
 	gp->chip_rev = chip_rev;
@@ -1531,7 +1530,7 @@ static void gt96100_cleanup_module(void)
 				+ sizeof(gt96100_td_t) * TX_RING_SIZE,
 				gp->rx_ring);
 			free_netdev(gtif->dev);
-			release_region(gtif->iobase, gp->io_size);
+			release_region(gtif->iobase, GT96100_ETH_IO_SIZE);
 		}
 	}
 }

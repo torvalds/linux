@@ -51,7 +51,7 @@ char *nfs_path(const char *base, const struct dentry *dentry,
 		namelen = dentry->d_name.len;
 		buflen -= namelen + 1;
 		if (buflen < 0)
-			goto Elong;
+			goto Elong_unlock;
 		end -= namelen;
 		memcpy(end, dentry->d_name.name, namelen);
 		*--end = '/';
@@ -68,6 +68,8 @@ char *nfs_path(const char *base, const struct dentry *dentry,
 	end -= namelen;
 	memcpy(end, base, namelen);
 	return end;
+Elong_unlock:
+	spin_unlock(&dcache_lock);
 Elong:
 	return ERR_PTR(-ENAMETOOLONG);
 }

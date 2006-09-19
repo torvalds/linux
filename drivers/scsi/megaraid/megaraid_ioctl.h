@@ -132,6 +132,10 @@ typedef struct uioc {
 /* Driver Data: */
 	void __user *		user_data;
 	uint32_t		user_data_len;
+
+	/* 64bit alignment */
+	uint32_t                pad_for_64bit_align;
+
 	mraid_passthru_t	__user *user_pthru;
 
 	mraid_passthru_t	*pthru32;

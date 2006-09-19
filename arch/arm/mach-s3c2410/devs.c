@@ -1,22 +1,14 @@
 /* linux/arch/arm/mach-s3c2410/devs.c
  *
  * Copyright (c) 2004 Simtec Electronics
- * Ben Dooks <ben@simtec.co.uk>
+ *	Ben Dooks <ben@simtec.co.uk>
  *
- * Base S3C2410 platform device definitions
+ * Base S3C24XX platform device definitions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Modifications:
- *     15-Jan-2006 LCVR Using S3C24XX_PA_##x macro for common S3C24XX devices
- *     10-Mar-2005 LCVR Changed S3C2410_{VA,SZ} to S3C24XX_{VA,SZ}
- *     10-Feb-2005 BJD  Added camera from guillaume.gourat@nexvision.tv
- *     29-Aug-2004 BJD  Added timers 0 through 3
- *     29-Aug-2004 BJD  Changed index of devices we only have one of to -1
- *     21-Aug-2004 BJD  Added IRQ_TICK to RTC resources
- *     18-Aug-2004 BJD  Created initial version
 */
 
 #include <linux/kernel.h>

@@ -204,11 +204,10 @@ static struct fn_zone *
 fn_new_zone(struct fn_hash *table, int z)
 {
 	int i;
-	struct fn_zone *fz = kmalloc(sizeof(struct fn_zone), GFP_KERNEL);
+	struct fn_zone *fz = kzalloc(sizeof(struct fn_zone), GFP_KERNEL);
 	if (!fz)
 		return NULL;
 
-	memset(fz, 0, sizeof(struct fn_zone));
 	if (z) {
 		fz->fz_divisor = 16;
 	} else {
@@ -1046,7 +1045,7 @@ static int fib_seq_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int rc = -ENOMEM;
-	struct fib_iter_state *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct fib_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
        
 	if (!s)
 		goto out;
@@ -1057,7 +1056,6 @@ static int fib_seq_open(struct inode *inode, struct file *file)
 
 	seq	     = file->private_data;
 	seq->private = s;
-	memset(s, 0, sizeof(*s));
 out:
 	return rc;
 out_kfree:

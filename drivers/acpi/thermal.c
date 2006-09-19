@@ -176,21 +176,21 @@ struct acpi_thermal {
 	struct timer_list timer;
 };
 
-static struct file_operations acpi_thermal_state_fops = {
+static const struct file_operations acpi_thermal_state_fops = {
 	.open = acpi_thermal_state_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations acpi_thermal_temp_fops = {
+static const struct file_operations acpi_thermal_temp_fops = {
 	.open = acpi_thermal_temp_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations acpi_thermal_trip_fops = {
+static const struct file_operations acpi_thermal_trip_fops = {
 	.open = acpi_thermal_trip_open_fs,
 	.read = seq_read,
 	.write = acpi_thermal_write_trip_points,
@@ -198,7 +198,7 @@ static struct file_operations acpi_thermal_trip_fops = {
 	.release = single_release,
 };
 
-static struct file_operations acpi_thermal_cooling_fops = {
+static const struct file_operations acpi_thermal_cooling_fops = {
 	.open = acpi_thermal_cooling_open_fs,
 	.read = seq_read,
 	.write = acpi_thermal_write_cooling_mode,
@@ -206,7 +206,7 @@ static struct file_operations acpi_thermal_cooling_fops = {
 	.release = single_release,
 };
 
-static struct file_operations acpi_thermal_polling_fops = {
+static const struct file_operations acpi_thermal_polling_fops = {
 	.open = acpi_thermal_polling_open_fs,
 	.read = seq_read,
 	.write = acpi_thermal_write_polling,
@@ -1359,13 +1359,28 @@ static int acpi_thermal_remove(struct acpi_device *device, int type)
 static int acpi_thermal_resume(struct acpi_device *device, int state)
 {
 	struct acpi_thermal *tz = NULL;
+	int i;
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
 	tz = (struct acpi_thermal *)acpi_driver_data(device);
 
-	acpi_thermal_check(tz);
+	acpi_thermal_get_temperature(tz);
+
+	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
+		if (tz->trips.active[i].flags.valid) {
+ 			tz->temperature = tz->trips.active[i].temperature;
+			tz->trips.active[i].flags.enabled = 0;
+
+			acpi_thermal_active(tz);
+
+			tz->state.active |= tz->trips.active[i].flags.enabled;
+			tz->state.active_index = i;
+		}
+	}
+
+ 	acpi_thermal_check(tz);
 
 	return AE_OK;
 }

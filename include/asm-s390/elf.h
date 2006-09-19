@@ -93,19 +93,6 @@
 #define R_390_NUM	61
 
 /*
- * ELF register definitions..
- */
-
-#include <linux/sched.h>	/* for task_struct */
-#include <asm/ptrace.h>
-#include <asm/user.h>
-#include <asm/system.h>		/* for save_access_regs */
-
-
-typedef s390_fp_regs elf_fpregset_t;
-typedef s390_regs elf_gregset_t;
-
-/*
  * These are used to set parameters in the core dumps.
  */
 #ifndef __s390x__
@@ -115,6 +102,20 @@ typedef s390_regs elf_gregset_t;
 #endif /* __s390x__ */
 #define ELF_DATA	ELFDATA2MSB
 #define ELF_ARCH	EM_S390
+
+/*
+ * ELF register definitions..
+ */
+
+#include <asm/ptrace.h>
+#include <asm/user.h>
+
+typedef s390_fp_regs elf_fpregset_t;
+typedef s390_regs elf_gregset_t;
+
+#ifdef __KERNEL__
+#include <linux/sched.h>	/* for task_struct */
+#include <asm/system.h>		/* for save_access_regs */
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -198,7 +199,6 @@ static inline int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
 
 #define ELF_PLATFORM (NULL)
 
-#ifdef __KERNEL__
 #ifndef __s390x__
 #define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)
 #else /* __s390x__ */

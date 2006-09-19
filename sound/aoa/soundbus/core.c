@@ -194,16 +194,6 @@ static struct bus_type soundbus_bus_type = {
 	.dev_attrs	= soundbus_dev_attrs,
 };
 
-static int __init soundbus_init(void)
-{
-	return bus_register(&soundbus_bus_type);
-}
-
-static void __exit soundbus_exit(void)
-{
-	bus_unregister(&soundbus_bus_type);
-}
-
 int soundbus_add_one(struct soundbus_dev *dev)
 {
 	static int devcount;
@@ -246,5 +236,15 @@ void soundbus_unregister_driver(struct soundbus_driver *drv)
 }
 EXPORT_SYMBOL_GPL(soundbus_unregister_driver);
 
-module_init(soundbus_init);
+static int __init soundbus_init(void)
+{
+	return bus_register(&soundbus_bus_type);
+}
+
+static void __exit soundbus_exit(void)
+{
+	bus_unregister(&soundbus_bus_type);
+}
+
+subsys_initcall(soundbus_init);
 module_exit(soundbus_exit);

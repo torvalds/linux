@@ -1011,6 +1011,8 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		   return -EPERM;
 		vt_dont_switch = 0;
 		return 0;
+	case VT_GETHIFONTMASK:
+		return put_user(vc->vc_hi_font_mask, (unsigned short __user *)arg);
 	default:
 		return -ENOIOCTLCMD;
 	}

@@ -256,7 +256,7 @@ acpi_tb_init_table_descriptor(acpi_table_type table_type,
 
 	status = acpi_ut_allocate_owner_id(&table_desc->owner_id);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		goto error_exit1;
 	}
 
 	/* Install the table into the global data structure */
@@ -274,8 +274,8 @@ acpi_tb_init_table_descriptor(acpi_table_type table_type,
 		 * at this location, so return an error.
 		 */
 		if (list_head->next) {
-			ACPI_FREE(table_desc);
-			return_ACPI_STATUS(AE_ALREADY_EXISTS);
+			status = AE_ALREADY_EXISTS;
+			goto error_exit2;
 		}
 
 		table_desc->next = list_head->next;
@@ -335,6 +335,17 @@ acpi_tb_init_table_descriptor(acpi_table_type table_type,
 	table_info->owner_id = table_desc->owner_id;
 	table_info->installed_desc = table_desc;
 	return_ACPI_STATUS(AE_OK);
+
+	/* Error exit with cleanup */
+
+      error_exit2:
+
+	acpi_ut_release_owner_id(&table_desc->owner_id);
+
+      error_exit1:
+
+	ACPI_FREE(table_desc);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
@@ -524,6 +535,10 @@ struct acpi_table_desc *acpi_tb_uninstall_table(struct acpi_table_desc
 	/* Free the memory allocated for the table itself */
 
 	acpi_tb_delete_single_table(table_desc);
+
+	/* Free the owner ID associated with this table */
+
+	acpi_ut_release_owner_id(&table_desc->owner_id);
 
 	/* Free the table descriptor */
 

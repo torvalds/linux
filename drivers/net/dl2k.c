@@ -9,49 +9,10 @@
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
 */
-/*
-    Rev		Date		Description
-    ==========================================================================
-    0.01	2001/05/03	Created DL2000-based linux driver
-    0.02	2001/05/21	Added VLAN and hardware checksum support.
-    1.00	2001/06/26	Added jumbo frame support.
-    1.01	2001/08/21	Added two parameters, rx_coalesce and rx_timeout.
-    1.02	2001/10/08	Supported fiber media.
-    				Added flow control parameters.
-    1.03	2001/10/12	Changed the default media to 1000mbps_fd for 
-    				the fiber devices.
-    1.04	2001/11/08	Fixed Tx stopped when tx very busy.
-    1.05	2001/11/22	Fixed Tx stopped when unidirectional tx busy.
-    1.06	2001/12/13	Fixed disconnect bug at 10Mbps mode.
-    				Fixed tx_full flag incorrect.
-				Added tx_coalesce paramter.
-    1.07	2002/01/03	Fixed miscount of RX frame error.
-    1.08	2002/01/17	Fixed the multicast bug.
-    1.09	2002/03/07	Move rx-poll-now to re-fill loop.	
-    				Added rio_timer() to watch rx buffers. 
-    1.10	2002/04/16	Fixed miscount of carrier error.
-    1.11	2002/05/23	Added ISR schedule scheme
-    				Fixed miscount of rx frame error for DGE-550SX.
-    				Fixed VLAN bug.
-    1.12	2002/06/13	Lock tx_coalesce=1 on 10/100Mbps mode.
-    1.13	2002/08/13	1. Fix disconnection (many tx:carrier/rx:frame
-    				   errs) with some mainboards.
-    				2. Use definition "DRV_NAME" "DRV_VERSION" 
-				   "DRV_RELDATE" for flexibility.	
-    1.14	2002/08/14	Support ethtool.	
-    1.15	2002/08/27	Changed the default media to Auto-Negotiation
-				for the fiber devices.    
-    1.16	2002/09/04      More power down time for fiber devices auto-
-    				negotiation.
-				Fix disconnect bug after ifup and ifdown.
-    1.17	2002/10/03	Fix RMON statistics overflow. 
-			     	Always use I/O mapping to access eeprom, 
-				avoid system freezing with some chipsets.
 
-*/
 #define DRV_NAME	"D-Link DL2000-based linux driver"
-#define DRV_VERSION	"v1.17b"
-#define DRV_RELDATE	"2006/03/10"
+#define DRV_VERSION	"v1.18"
+#define DRV_RELDATE	"2006/06/27"
 #include "dl2k.h"
 #include <linux/dma-mapping.h>
 

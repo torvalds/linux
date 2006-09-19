@@ -35,11 +35,15 @@
 #include <asm/mach/irq.h>
 
 #include <asm/hardware.h>
+#include <asm/proc-fns.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
+#include <asm/arch/idle.h>
+
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-serial.h>
+#include <asm/arch/regs-power.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-gpioj.h>
 #include <asm/arch/regs-dsc.h>
@@ -75,6 +79,27 @@ void __init s3c2412_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	s3c_device_nand.name = "s3c2412-nand";
 }
 
+/* s3c2412_idle
+ *
+ * use the standard idle call by ensuring the idle mode
+ * in power config, then issuing the idle co-processor
+ * instruction
+*/
+
+static void s3c2412_idle(void)
+{
+	unsigned long tmp;
+
+	/* ensure our idle mode is to go to idle */
+
+	tmp = __raw_readl(S3C2412_PWRCFG);
+	tmp &= ~S3C2412_PWRCFG_STANDBYWFI_MASK;
+	tmp |= S3C2412_PWRCFG_STANDBYWFI_IDLE;
+	__raw_writel(tmp, S3C2412_PWRCFG);
+
+	cpu_do_idle();
+}
+
 /* s3c2412_map_io
  *
  * register the standard cpu IO areas, and any passed in from the
@@ -86,6 +111,10 @@ void __init s3c2412_map_io(struct map_desc *mach_desc, int mach_size)
 	/* move base of IO */
 
 	s3c24xx_va_gpio2 = S3C24XX_VA_GPIO + 0x10;
+
+	/* set our idle function */
+
+	s3c24xx_idle = s3c2412_idle;
 
 	/* register our io-tables */
 

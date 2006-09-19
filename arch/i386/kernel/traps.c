@@ -92,7 +92,11 @@ asmlinkage void spurious_interrupt_bug(void);
 asmlinkage void machine_check(void);
 
 static int kstack_depth_to_print = 24;
+#ifdef CONFIG_STACK_UNWIND
 static int call_trace = 1;
+#else
+#define call_trace (-1)
+#endif
 ATOMIC_NOTIFIER_HEAD(i386die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
@@ -100,13 +104,13 @@ int register_die_notifier(struct notifier_block *nb)
 	vmalloc_sync_all();
 	return atomic_notifier_chain_register(&i386die_chain, nb);
 }
-EXPORT_SYMBOL(register_die_notifier);
+EXPORT_SYMBOL(register_die_notifier); /* used modular by kdb */
 
 int unregister_die_notifier(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_unregister(&i386die_chain, nb);
 }
-EXPORT_SYMBOL(unregister_die_notifier);
+EXPORT_SYMBOL(unregister_die_notifier); /* used modular by kdb */
 
 static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 {
@@ -188,10 +192,20 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 				unw_ret = show_trace_unwind(&info, log_lvl);
 		}
 		if (unw_ret > 0) {
-			if (call_trace > 0)
+			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
+				print_symbol("DWARF2 unwinder stuck at %s\n",
+					     UNW_PC(&info));
+				if (UNW_SP(&info) >= PAGE_OFFSET) {
+					printk("Leftover inexact backtrace:\n");
+					stack = (void *)UNW_SP(&info);
+				} else
+					printk("Full inexact backtrace again:\n");
+			} else if (call_trace >= 1)
 				return;
-			printk("%sLegacy call trace:\n", log_lvl);
-		}
+			else
+				printk("Full inexact backtrace again:\n");
+		} else
+			printk("Inexact backtrace:\n");
 	}
 
 	if (task == current) {
@@ -324,35 +338,35 @@ void show_registers(struct pt_regs *regs)
 
 static void handle_BUG(struct pt_regs *regs)
 {
+	unsigned long eip = regs->eip;
 	unsigned short ud2;
-	unsigned short line;
-	char *file;
-	char c;
-	unsigned long eip;
-
-	eip = regs->eip;
 
 	if (eip < PAGE_OFFSET)
-		goto no_bug;
+		return;
 	if (__get_user(ud2, (unsigned short __user *)eip))
-		goto no_bug;
+		return;
 	if (ud2 != 0x0b0f)
-		goto no_bug;
-	if (__get_user(line, (unsigned short __user *)(eip + 2)))
-		goto bug;
-	if (__get_user(file, (char * __user *)(eip + 4)) ||
-		(unsigned long)file < PAGE_OFFSET || __get_user(c, file))
-		file = "<bad filename>";
+		return;
 
 	printk(KERN_EMERG "------------[ cut here ]------------\n");
-	printk(KERN_EMERG "kernel BUG at %s:%d!\n", file, line);
 
-no_bug:
-	return;
+#ifdef CONFIG_DEBUG_BUGVERBOSE
+	do {
+		unsigned short line;
+		char *file;
+		char c;
 
-	/* Here we know it was a BUG but file-n-line is unavailable */
-bug:
-	printk(KERN_EMERG "Kernel BUG\n");
+		if (__get_user(line, (unsigned short __user *)(eip + 2)))
+			break;
+		if (__get_user(file, (char * __user *)(eip + 4)) ||
+		    (unsigned long)file < PAGE_OFFSET || __get_user(c, file))
+			file = "<bad filename>";
+
+		printk(KERN_EMERG "kernel BUG at %s:%d!\n", file, line);
+		return;
+	} while (0);
+#endif
+	printk(KERN_EMERG "Kernel BUG at [verbose debug info unavailable]\n");
 }
 
 /* This is gone through when something in the kernel
@@ -442,11 +456,9 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 
-	if (panic_on_oops) {
-		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
-		ssleep(5);
+	if (panic_on_oops)
 		panic("Fatal exception");
-	}
+
 	oops_exit();
 	do_exit(SIGSEGV);
 }
@@ -1232,14 +1244,18 @@ static int __init kstack_setup(char *s)
 }
 __setup("kstack=", kstack_setup);
 
+#ifdef CONFIG_STACK_UNWIND
 static int __init call_trace_setup(char *s)
 {
 	if (strcmp(s, "old") == 0)
 		call_trace = -1;
 	else if (strcmp(s, "both") == 0)
 		call_trace = 0;
-	else if (strcmp(s, "new") == 0)
+	else if (strcmp(s, "newfallback") == 0)
 		call_trace = 1;
+	else if (strcmp(s, "new") == 2)
+		call_trace = 2;
 	return 1;
 }
 __setup("call_trace=", call_trace_setup);
+#endif

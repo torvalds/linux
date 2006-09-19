@@ -236,7 +236,7 @@ fs3270_irq(struct fs3270 *fp, struct raw3270_request *rq, struct irb *irb)
  * Process reads from fullscreen 3270.
  */
 static ssize_t
-fs3270_read(struct file *filp, char *data, size_t count, loff_t *off)
+fs3270_read(struct file *filp, char __user *data, size_t count, loff_t *off)
 {
 	struct fs3270 *fp;
 	struct raw3270_request *rq;
@@ -281,7 +281,7 @@ fs3270_read(struct file *filp, char *data, size_t count, loff_t *off)
  * Process writes to fullscreen 3270.
  */
 static ssize_t
-fs3270_write(struct file *filp, const char *data, size_t count, loff_t *off)
+fs3270_write(struct file *filp, const char __user *data, size_t count, loff_t *off)
 {
 	struct fs3270 *fp;
 	struct raw3270_request *rq;
@@ -338,10 +338,10 @@ fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		fp->write_command = arg;
 		break;
 	case TUBGETI:
-		rc = put_user(fp->read_command, (char *) arg);
+		rc = put_user(fp->read_command, (char __user *) arg);
 		break;
 	case TUBGETO:
-		rc = put_user(fp->write_command,(char *) arg);
+		rc = put_user(fp->write_command,(char __user *) arg);
 		break;
 	case TUBGETMOD:
 		iocb.model = fp->view.model;
@@ -350,7 +350,7 @@ fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		iocb.pf_cnt = 24;
 		iocb.re_cnt = 20;
 		iocb.map = 0;
-		if (copy_to_user((char *) arg, &iocb,
+		if (copy_to_user((char __user *) arg, &iocb,
 				 sizeof(struct raw3270_iocb)))
 			rc = -EFAULT;
 		break;
@@ -479,7 +479,7 @@ fs3270_close(struct inode *inode, struct file *filp)
 	struct fs3270 *fp;
 
 	fp = filp->private_data;
-	filp->private_data = 0;
+	filp->private_data = NULL;
 	if (fp) {
 		fp->fs_pid = 0;
 		raw3270_reset(&fp->view);

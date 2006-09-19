@@ -189,6 +189,7 @@ void __cpuinit cpu_init (void)
 {
 	int cpu = stack_smp_processor_id();
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
+	struct orig_ist *orig_ist = &per_cpu(orig_ist, cpu);
 	unsigned long v; 
 	char *estacks = NULL; 
 	struct task_struct *me;
@@ -256,7 +257,7 @@ void __cpuinit cpu_init (void)
 			estacks += EXCEPTION_STKSZ;
 			break;
 		}
-		t->ist[v] = (unsigned long)estacks;
+		orig_ist->ist[v] = t->ist[v] = (unsigned long)estacks;
 	}
 
 	t->io_bitmap_base = offsetof(struct tss_struct, io_bitmap);

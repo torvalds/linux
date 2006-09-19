@@ -485,13 +485,6 @@ static int im_explorer_detect(struct psmouse *psmouse, int set_properties)
 	param[0] =  40;
 	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
 
-	param[0] = 200;
-	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
-	param[0] = 200;
-	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
-	param[0] =  60;
-	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
-
 	if (set_properties) {
 		set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 		set_bit(REL_WHEEL, psmouse->dev->relbit);

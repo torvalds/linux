@@ -682,6 +682,7 @@ config BLK_DEV_SVWKS
 config BLK_DEV_SGIIOC4
 	tristate "Silicon Graphics IOC4 chipset ATA/ATAPI support"
 	depends on (IA64_SGI_SN2 || IA64_GENERIC) && SGI_IOC4
+	select IDEPCI_SHARE_IRQ
 	help
 	  This driver adds PIO & MultiMode DMA-2 support for the SGI IOC4
 	  chipset, which has one channel and can support two devices.
@@ -772,20 +773,6 @@ config BLK_DEV_IDEDMA_PMAC
 	  Power Macintoshes and PowerBooks to use DMA (direct memory access)
 	  to transfer data to and from memory.  Saying Y is safe and improves
 	  performance.
-
-config BLK_DEV_IDE_PMAC_BLINK
-	bool "Blink laptop LED on drive activity (DEPRECATED)"
-	depends on BLK_DEV_IDE_PMAC && ADB_PMU
-	select ADB_PMU_LED
-	select LEDS_TRIGGERS
-	select LEDS_TRIGGER_IDE_DISK
-	help
-	  This option enables the use of the sleep LED as a hard drive
-	  activity LED.
-	  This option is deprecated, it only selects ADB_PMU_LED and
-	  LEDS_TRIGGER_IDE_DISK and changes the code in the new led class
-	  device to default to the ide-disk trigger (which should be set
-	  from userspace via sysfs).
 
 config BLK_DEV_IDE_SWARM
 	tristate "IDE for Sibyte evaluation boards"

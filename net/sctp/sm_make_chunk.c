@@ -806,38 +806,26 @@ no_mem:
 
 /* Helper to create ABORT with a SCTP_ERROR_USER_ABORT error.  */
 struct sctp_chunk *sctp_make_abort_user(const struct sctp_association *asoc,
-				   const struct sctp_chunk *chunk,
-				   const struct msghdr *msg)
+					const struct msghdr *msg,
+					size_t paylen)
 {
 	struct sctp_chunk *retval;
-	void *payload = NULL, *payoff;
-	size_t paylen = 0;
-	struct iovec *iov = NULL;
-	int iovlen = 0;
+	void *payload = NULL;
+	int err;
 
-	if (msg) {
-		iov = msg->msg_iov;
-		iovlen = msg->msg_iovlen;
-		paylen = get_user_iov_size(iov, iovlen);
-	}
-
-	retval = sctp_make_abort(asoc, chunk, sizeof(sctp_errhdr_t) + paylen);
+	retval = sctp_make_abort(asoc, NULL, sizeof(sctp_errhdr_t) + paylen);
 	if (!retval)
 		goto err_chunk;
 
 	if (paylen) {
 		/* Put the msg_iov together into payload.  */
-		payload = kmalloc(paylen, GFP_ATOMIC);
+		payload = kmalloc(paylen, GFP_KERNEL);
 		if (!payload)
 			goto err_payload;
-		payoff = payload;
 
-		for (; iovlen > 0; --iovlen) {
-			if (copy_from_user(payoff, iov->iov_base,iov->iov_len))
-				goto err_copy;
-			payoff += iov->iov_len;
-			iov++;
-		}
+		err = memcpy_fromiovec(payload, msg->msg_iov, paylen);
+		if (err < 0)
+			goto err_copy;
 	}
 
 	sctp_init_cause(retval, SCTP_ERROR_USER_ABORT, payload, paylen);
@@ -1493,7 +1481,7 @@ no_hmac:
 
 	/* Also, add the destination address. */
 	if (list_empty(&retval->base.bind_addr.address_list)) {
-		sctp_add_bind_addr(&retval->base.bind_addr, &chunk->dest,
+		sctp_add_bind_addr(&retval->base.bind_addr, &chunk->dest, 1,
 				   GFP_ATOMIC);
 	}
 
@@ -2017,7 +2005,7 @@ static int sctp_process_param(struct sctp_association *asoc,
 		af->from_addr_param(&addr, param.addr, asoc->peer.port, 0);
 		scope = sctp_scope(peer_addr);
 		if (sctp_in_scope(&addr, scope))
-			if (!sctp_assoc_add_peer(asoc, &addr, gfp, SCTP_ACTIVE))
+			if (!sctp_assoc_add_peer(asoc, &addr, gfp, SCTP_UNCONFIRMED))
 				return 0;
 		break;
 
@@ -2418,7 +2406,7 @@ static __u16 sctp_process_asconf_param(struct sctp_association *asoc,
 	 	 * Due to Resource Shortage'.
 	 	 */
 
-		peer = sctp_assoc_add_peer(asoc, &addr, GFP_ATOMIC, SCTP_ACTIVE);
+		peer = sctp_assoc_add_peer(asoc, &addr, GFP_ATOMIC, SCTP_UNCONFIRMED);
 		if (!peer)
 			return SCTP_ERROR_RSRC_LOW;
 
@@ -2565,6 +2553,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 	union sctp_addr_param *addr_param;
 	struct list_head *pos;
 	struct sctp_transport *transport;
+	struct sctp_sockaddr_entry *saddr;
 	int retval = 0;
 
 	addr_param = (union sctp_addr_param *)
@@ -2578,7 +2567,11 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 	case SCTP_PARAM_ADD_IP:
 		sctp_local_bh_disable();
 		sctp_write_lock(&asoc->base.addr_lock);
-		retval = sctp_add_bind_addr(bp, &addr, GFP_ATOMIC);
+		list_for_each(pos, &bp->address_list) {
+			saddr = list_entry(pos, struct sctp_sockaddr_entry, list);
+			if (sctp_cmp_addr_exact(&saddr->a, &addr))
+				saddr->use_as_src = 1;
+		}
 		sctp_write_unlock(&asoc->base.addr_lock);
 		sctp_local_bh_enable();
 		break;
@@ -2591,6 +2584,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 		list_for_each(pos, &asoc->peer.transport_addr_list) {
 			transport = list_entry(pos, struct sctp_transport,
 						 transports);
+			dst_release(transport->dst);
 			sctp_transport_route(transport, NULL,
 					     sctp_sk(asoc->base.sk));
 		}

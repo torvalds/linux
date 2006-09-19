@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 
+#include <asm/asm-offsets.h>
 #include <asm/setup.h>
 #include <asm/fpu.h>
 #include <asm/system.h>
@@ -279,20 +280,20 @@ static const char *regnames[] = {
 
 void show_regs(struct pt_regs *regs)
 {
-	uint32_t *reg;
+	unsigned long *reg;
 	int loop;
 
 	printk("\n");
 
-	printk("Frame: @%08x [%s]\n",
-	       (uint32_t) regs,
+	printk("Frame: @%08lx [%s]\n",
+	       (unsigned long) regs,
 	       regs->psr & PSR_S ? "kernel" : "user");
 
-	reg = (uint32_t *) regs;
-	for (loop = 0; loop < REG__END; loop++) {
-		printk("%s %08x", regnames[loop + 0], reg[loop + 0]);
+	reg = (unsigned long *) regs;
+	for (loop = 0; loop < NR_PT_REGS; loop++) {
+		printk("%s %08lx", regnames[loop + 0], reg[loop + 0]);
 
-		if (loop == REG__END - 1 || loop % 5 == 4)
+		if (loop == NR_PT_REGS - 1 || loop % 5 == 4)
 			printk("\n");
 		else
 			printk(" | ");
@@ -328,7 +329,7 @@ void die_if_kernel(const char *str, ...)
  */
 static void show_backtrace_regs(struct pt_regs *frame)
 {
-	uint32_t *reg;
+	unsigned long *reg;
 	int loop;
 
 	/* print the registers for this frame */
@@ -336,11 +337,11 @@ static void show_backtrace_regs(struct pt_regs *frame)
 	       frame->psr & PSR_S ? "Kernel Mode" : "User Mode",
 	       frame);
 
-	reg = (uint32_t *) frame;
-	for (loop = 0; loop < REG__END; loop++) {
-		printk("%s %08x", regnames[loop + 0], reg[loop + 0]);
+	reg = (unsigned long *) frame;
+	for (loop = 0; loop < NR_PT_REGS; loop++) {
+		printk("%s %08lx", regnames[loop + 0], reg[loop + 0]);
 
-		if (loop == REG__END - 1 || loop % 5 == 4)
+		if (loop == NR_PT_REGS - 1 || loop % 5 == 4)
 			printk("\n");
 		else
 			printk(" | ");

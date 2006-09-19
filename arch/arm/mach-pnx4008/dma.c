@@ -23,7 +23,6 @@
 #include <linux/clk.h>
 
 #include <asm/system.h>
-#include <asm/irq.h>
 #include <asm/hardware.h>
 #include <asm/dma.h>
 #include <asm/dma-mapping.h>

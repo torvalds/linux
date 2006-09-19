@@ -2129,15 +2129,14 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 
 static struct backlight_properties aty_bl_data;
 
+/* Call with fb_info->bl_mutex held */
 static int aty_bl_get_level_brightness(struct atyfb_par *par, int level)
 {
 	struct fb_info *info = pci_get_drvdata(par->pdev);
 	int atylevel;
 
 	/* Get and convert the value */
-	mutex_lock(&info->bl_mutex);
 	atylevel = info->bl_curve[level] * FB_BACKLIGHT_MAX / MAX_LEVEL;
-	mutex_unlock(&info->bl_mutex);
 
 	if (atylevel < 0)
 		atylevel = 0;
@@ -2147,7 +2146,8 @@ static int aty_bl_get_level_brightness(struct atyfb_par *par, int level)
 	return atylevel;
 }
 
-static int aty_bl_update_status(struct backlight_device *bd)
+/* Call with fb_info->bl_mutex held */
+static int __aty_bl_update_status(struct backlight_device *bd)
 {
 	struct atyfb_par *par = class_get_devdata(&bd->class_dev);
 	unsigned int reg = aty_ld_lcd(LCD_MISC_CNTL, par);
@@ -2172,6 +2172,19 @@ static int aty_bl_update_status(struct backlight_device *bd)
 	return 0;
 }
 
+static int aty_bl_update_status(struct backlight_device *bd)
+{
+	struct atyfb_par *par = class_get_devdata(&bd->class_dev);
+	struct fb_info *info = pci_get_drvdata(par->pdev);
+	int ret;
+
+	mutex_lock(&info->bl_mutex);
+	ret = __aty_bl_update_status(bd);
+	mutex_unlock(&info->bl_mutex);
+
+	return ret;
+}
+
 static int aty_bl_get_brightness(struct backlight_device *bd)
 {
 	return bd->props->brightness;
@@ -2183,6 +2196,20 @@ static struct backlight_properties aty_bl_data = {
 	.update_status	= aty_bl_update_status,
 	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
 };
+
+static void aty_bl_set_power(struct fb_info *info, int power)
+{
+	mutex_lock(&info->bl_mutex);
+
+	if (info->bl_dev) {
+		down(&info->bl_dev->sem);
+		info->bl_dev->props->power = power;
+		__aty_bl_update_status(info->bl_dev);
+		up(&info->bl_dev->sem);
+	}
+
+	mutex_unlock(&info->bl_mutex);
+}
 
 static void aty_bl_init(struct atyfb_par *par)
 {
@@ -2200,7 +2227,7 @@ static void aty_bl_init(struct atyfb_par *par)
 	bd = backlight_device_register(name, par, &aty_bl_data);
 	if (IS_ERR(bd)) {
 		info->bl_dev = NULL;
-		printk("aty: Backlight registration failed\n");
+		printk(KERN_WARNING "aty: Backlight registration failed\n");
 		goto error;
 	}
 
@@ -2211,11 +2238,11 @@ static void aty_bl_init(struct atyfb_par *par)
 		0xFF * FB_BACKLIGHT_MAX / MAX_LEVEL);
 	mutex_unlock(&info->bl_mutex);
 
-	up(&bd->sem);
+	down(&bd->sem);
 	bd->props->brightness = aty_bl_data.max_brightness;
 	bd->props->power = FB_BLANK_UNBLANK;
 	bd->props->update_status(bd);
-	down(&bd->sem);
+	up(&bd->sem);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	mutex_lock(&pmac_backlight_mutex);
@@ -2789,17 +2816,9 @@ static int atyfb_blank(int blank, struct fb_info *info)
 	if (par->lock_blank || par->asleep)
 		return 0;
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-	if (machine_is(powermac) && blank > FB_BLANK_NORMAL) {
-		mutex_lock(&info->bl_mutex);
-		if (info->bl_dev) {
-			down(&info->bl_dev->sem);
-			info->bl_dev->props->power = FB_BLANK_POWERDOWN;
-			info->bl_dev->props->update_status(info->bl_dev);
-			up(&info->bl_dev->sem);
-		}
-		mutex_unlock(&info->bl_mutex);
-	}
+#ifdef CONFIG_FB_ATY_BACKLIGHT
+	if (machine_is(powermac) && blank > FB_BLANK_NORMAL)
+		aty_bl_set_power(info, FB_BLANK_POWERDOWN);
 #elif defined(CONFIG_FB_ATY_GENERIC_LCD)
 	if (par->lcd_table && blank > FB_BLANK_NORMAL &&
 	    (aty_ld_lcd(LCD_GEN_CNTL, par) & LCD_ON)) {
@@ -2829,17 +2848,9 @@ static int atyfb_blank(int blank, struct fb_info *info)
 	}
 	aty_st_le32(CRTC_GEN_CNTL, gen_cntl, par);
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-	if (machine_is(powermac) && blank <= FB_BLANK_NORMAL) {
-		mutex_lock(&info->bl_mutex);
-		if (info->bl_dev) {
-			down(&info->bl_dev->sem);
-			info->bl_dev->props->power = FB_BLANK_UNBLANK;
-			info->bl_dev->props->update_status(info->bl_dev);
-			up(&info->bl_dev->sem);
-		}
-		mutex_unlock(&info->bl_mutex);
-	}
+#ifdef CONFIG_FB_ATY_BACKLIGHT
+	if (machine_is(powermac) && blank <= FB_BLANK_NORMAL)
+		aty_bl_set_power(info, FB_BLANK_UNBLANK);
 #elif defined(CONFIG_FB_ATY_GENERIC_LCD)
 	if (par->lcd_table && blank <= FB_BLANK_NORMAL &&
 	    (aty_ld_lcd(LCD_GEN_CNTL, par) & LCD_ON)) {
