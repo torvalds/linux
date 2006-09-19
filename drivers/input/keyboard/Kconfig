@@ -121,6 +121,17 @@ config KEYBOARD_NEWTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called newtonkbd.
 
+config KEYBOARD_STOWAWAY
+	tristate "Stowaway keyboard"
+	select SERIO
+	help
+	  Say Y here if you have a Stowaway keyboard on a serial port.
+	  Stowaway compatible keyboards like Dicota Input-PDA keyboard
+	  are also supported by this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stowaway.
+
 config KEYBOARD_CORGI
 	tristate "Corgi keyboard"
 	depends on PXA_SHARPSL
