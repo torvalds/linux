@@ -104,10 +104,6 @@ EXPORT_SYMBOL(__ide_mm_outsl);
 
 EXPORT_SYMBOL(_insb);
 EXPORT_SYMBOL(_outsb);
-EXPORT_SYMBOL(_insw);
-EXPORT_SYMBOL(_outsw);
-EXPORT_SYMBOL(_insl);
-EXPORT_SYMBOL(_outsl);
 EXPORT_SYMBOL(_insw_ns);
 EXPORT_SYMBOL(_outsw_ns);
 EXPORT_SYMBOL(_insl_ns);

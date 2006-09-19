@@ -86,58 +86,6 @@ _GLOBAL(_outsb)
 	sync
 	blr
 
-_GLOBAL(_insw)
-	sync
-	cmpwi	0,r5,0
-	mtctr	r5
-	subi	r4,r4,2
-	blelr-
-00:	lhbrx	r5,0,r3
-	eieio
-	sthu	r5,2(r4)
-	bdnz	00b
-	twi	0,r5,0
-	isync
-	blr
-
-_GLOBAL(_outsw)
-	cmpwi	0,r5,0
-	mtctr	r5
-	subi	r4,r4,2
-	blelr-
-	sync
-00:	lhzu	r5,2(r4)
-	sthbrx	r5,0,r3
-	bdnz	00b
-	sync
-	blr
-
-_GLOBAL(_insl)
-	sync
-	cmpwi	0,r5,0
-	mtctr	r5
-	subi	r4,r4,4
-	blelr-
-00:	lwbrx	r5,0,r3
-	eieio
-	stwu	r5,4(r4)
-	bdnz	00b
-	twi	0,r5,0
-	isync
-	blr
-
-_GLOBAL(_outsl)
-	cmpwi	0,r5,0
-	mtctr	r5
-	subi	r4,r4,4
-	blelr-
-	sync
-00:	lwzu	r5,4(r4)
-	stwbrx	r5,0,r3
-	bdnz	00b
-	sync
-	blr
-
 #ifdef CONFIG_PPC32
 _GLOBAL(__ide_mm_insw)
 #endif
