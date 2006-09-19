@@ -678,9 +678,12 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	int seqcount = ccid2_seq_len;
 	int i;
 
-	/* XXX init variables with proper values */
 	hctx->ccid2hctx_cwnd	  = 1;
-	hctx->ccid2hctx_ssthresh  = 10;
+	/* Initialize ssthresh to infinity.  This means that we will exit the
+	 * initial slow-start after the first packet loss.  This is what we
+	 * want.
+	 */
+	hctx->ccid2hctx_ssthresh  = ~0;
 	hctx->ccid2hctx_numdupack = 3;
 
 	/* XXX init ~ to window size... */

@@ -50,7 +50,7 @@ struct ccid2_hc_tx_sock {
 	int			ccid2hctx_cwnd;
 	int			ccid2hctx_ssacks;
 	int			ccid2hctx_acks;
-	int			ccid2hctx_ssthresh;
+	unsigned int		ccid2hctx_ssthresh;
 	int			ccid2hctx_pipe;
 	int			ccid2hctx_numdupack;
 	struct ccid2_seq	*ccid2hctx_seqbuf;
