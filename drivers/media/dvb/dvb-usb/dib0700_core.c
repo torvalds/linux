@@ -26,7 +26,7 @@ static int dib0700_ctrl_wr(struct dvb_usb_device *d, u8 *tx, u8 txlen)
 		USB_CTRL_GET_TIMEOUT);
 
 	if (status != txlen)
-		err("ep 0 write error (status = %d, len: %d)",status,txlen);
+		deb_data("ep 0 write error (status = %d, len: %d)\n",status,txlen);
 
 	return status < 0 ? status : 0;
 }
@@ -65,7 +65,7 @@ static int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u
 			USB_CTRL_GET_TIMEOUT);
 
 	if (status < 0)
-		err("ep 0 read error (status = %d)",status);
+		deb_info("ep 0 read error (status = %d)\n",status);
 
 	deb_data("<<< ");
 	debug_dump(rx,rxlen,deb_data);
@@ -130,6 +130,19 @@ struct i2c_algorithm dib0700_i2c_algo = {
 	.functionality = dib0700_i2c_func,
 };
 
+int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
+			struct dvb_usb_device_description **desc, int *cold)
+{
+	u8 buf[3] = { REQUEST_SET_GPIO, 4, (GPIO_IN << 7) | (0 << 6) }; // GPIO4 is save - used for I2C
+	*cold = usb_control_msg(udev, usb_sndctrlpipe(udev,0),
+		buf[0], USB_TYPE_VENDOR | USB_DIR_OUT, 0, 0, buf, 3, USB_CTRL_GET_TIMEOUT) != 3;
+
+	deb_info("cold: %d\n", *cold);
+
+	*cold = 0;
+	return 0;
+}
+
 static int dib0700_jumpram(struct usb_device *udev, u32 address)
 {
 	int ret, actlen;
@@ -182,8 +195,10 @@ int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw
 
 	if (ret == 0) {
 		/* start the firmware */
-		if ((ret = dib0700_jumpram(udev,0x70000000)) == 0)
+		if ((ret = dib0700_jumpram(udev, 0x70000000)) == 0) {
 			info("firmware started successfully.");
+			msleep(100);
+		}
 	} else
 		ret = -EIO;
 

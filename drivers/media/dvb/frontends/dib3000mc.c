@@ -830,6 +830,7 @@ struct dvb_frontend * dib3000mc_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr
 
 	st->cfg = cfg;
 	st->i2c_adap = i2c_adap;
+	st->i2c_addr = i2c_addr;
 
 	demod                   = &st->demod;
 	demod->demodulator_priv = st;

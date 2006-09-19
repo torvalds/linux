@@ -332,14 +332,14 @@ static const struct dvb_tuner_ops mt2060_tuner_ops = {
 };
 
 /* This functions tries to identify a MT2060 tuner by reading the PART/REV register. This is hasty. */
-int mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct mt2060_config *cfg, u16 if1)
+struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct mt2060_config *cfg, u16 if1)
 {
 	struct mt2060_priv *priv = NULL;
 	u8 id = 0;
 
 	priv = kzalloc(sizeof(struct mt2060_priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return NULL;
 
 	priv->cfg      = cfg;
 	priv->i2c      = i2c;
@@ -347,12 +347,12 @@ int mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct mt206
 
 	if (mt2060_readreg(priv,REG_PART_REV,&id) != 0) {
 		kfree(priv);
-		return -ENODEV;
+		return NULL;
 	}
 
 	if (id != PART_REV) {
 		kfree(priv);
-		return -ENODEV;
+		return NULL;
 	}
 	printk(KERN_INFO "MT2060: successfully identified (IF1 = %d)\n", if1);
 	memcpy(&fe->ops.tuner_ops, &mt2060_tuner_ops, sizeof(struct dvb_tuner_ops));
@@ -361,7 +361,7 @@ int mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct mt206
 
 	mt2060_calibrate(priv);
 
-	return 0;
+	return fe;
 }
 EXPORT_SYMBOL(mt2060_attach);
 

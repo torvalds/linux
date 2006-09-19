@@ -32,13 +32,15 @@ extern int dvb_usb_dib0700_debug;
 
 struct dib0700_state {
 	u8 channel_state;
-	u8 mt2060_if1[2];
+	u16 mt2060_if1[2];
 };
 
 extern int dib0700_set_gpio(struct dvb_usb_device *, enum dib07x0_gpios gpio, u8 gpio_dir, u8 gpio_val);
 extern int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw);
 extern int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff);
 extern struct i2c_algorithm dib0700_i2c_algo;
+extern int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
+			struct dvb_usb_device_description **desc, int *cold);
 
 extern int dib0700_device_count;
 extern struct dvb_usb_device_properties dib0700_devices[];

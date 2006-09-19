@@ -25,24 +25,24 @@ static struct mt2060_config bristol_mt2060_config[2] = {
 
 static struct dibx000_agc_config bristol_dib3000p_mt2060_agc_config = {
 	.band_caps = BAND_VHF | BAND_UHF,
-	.setup     = (0 << 15) | (0 << 14) | (1 << 13) | (1 << 12) | (29 << 0),
+	.setup     = (0 << 15) | (0 << 14) | (0 << 13) | (0 << 12) | (29 << 0),
 
-	.agc1_max = 48497,
-	.agc1_min = 23593,
-	.agc2_max = 46531,
-	.agc2_min = 24904,
+	.agc1_max = 42598,
+	.agc1_min = 17694,
+	.agc2_max = 45875,
+	.agc2_min = 0,
 
-	.agc1_pt1 = 0x65,
-	.agc1_pt2 = 0x69,
+	.agc1_pt1 = 0,
+	.agc1_pt2 = 59,
 
-	.agc1_slope1 = 0x51,
-	.agc1_slope2 = 0x27,
+	.agc1_slope1 = 0,
+	.agc1_slope2 = 69,
 
 	.agc2_pt1 = 0,
-	.agc2_pt2 = 0x33,
+	.agc2_pt2 = 59,
 
-	.agc2_slope1 = 0x35,
-	.agc2_slope2 = 0x37,
+	.agc2_slope1 = 111,
+	.agc2_slope2 = 28,
 };
 
 static struct dib3000mc_config bristol_dib3000mc_config[2] = {
@@ -60,25 +60,31 @@ static struct dib3000mc_config bristol_dib3000mc_config[2] = {
 
 static int bristol_frontend_attach(struct dvb_usb_adapter *adap)
 {
+	struct dib0700_state *st = adap->dev->priv;
 	if (adap->id == 0) {
 		dib0700_set_gpio(adap->dev, GPIO6,  GPIO_OUT, 0); msleep(10);
 		dib0700_set_gpio(adap->dev, GPIO6,  GPIO_OUT, 1); msleep(10);
 		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0); msleep(10);
 		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1); msleep(10);
 
+		dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1); msleep(10); // LNA
+
 		if (dib3000mc_i2c_enumeration(&adap->dev->i2c_adap, 2, DEFAULT_DIB3000P_I2C_ADDRESS, bristol_dib3000mc_config) != 0) {
 			dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 0); msleep(10);
 			return -ENODEV;
 		}
 	}
-	return (adap->fe = dvb_attach(dib3000mc_attach, &adap->dev->i2c_adap, 10 + adap->id, &bristol_dib3000mc_config[adap->id])) == NULL ? -ENODEV : 0;
+	st->mt2060_if1[adap->id] = 1220;
+	return (adap->fe = dvb_attach(dib3000mc_attach, &adap->dev->i2c_adap,
+		(10 + adap->id) << 1, &bristol_dib3000mc_config[adap->id])) == NULL ? -ENODEV : 0;
 }
 
 static int bristol_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct dib0700_state *st = adap->dev->priv;
 	struct i2c_adapter *tun_i2c = dib3000mc_get_tuner_i2c_master(adap->fe, 1);
-	return mt2060_attach(adap->fe, tun_i2c, &bristol_mt2060_config[adap->id], st->mt2060_if1[adap->id]);
+	return dvb_attach(mt2060_attach,adap->fe, tun_i2c, &bristol_mt2060_config[adap->id],
+		st->mt2060_if1[adap->id]) == NULL ? -ENODEV : 0;
 }
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
@@ -119,8 +125,10 @@ MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
 	.usb_ctrl          = DEVICE_SPECIFIC, \
 	.firmware          = "dvb-usb-dib0700-01.fw", \
 	.download_firmware = dib0700_download_firmware, \
+	.no_reconnect      = 1, \
 	.size_of_priv      = sizeof(struct dib0700_state), \
-	.i2c_algo          = &dib0700_i2c_algo
+	.i2c_algo          = &dib0700_i2c_algo, \
+	.identify_state    = dib0700_identify_state
 
 #define DIB0700_DEFAULT_STREAMING_CONFIG(ep) \
 	.streaming_ctrl   = dib0700_streaming_ctrl, \
