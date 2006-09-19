@@ -879,11 +879,7 @@ el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	outw(skb->len, ioaddr + TX_FIFO);
 	outw(0x00, ioaddr + TX_FIFO);
 	/* ... and the packet rounded to a doubleword. */
-#ifdef  __powerpc__
-	outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
-#else
 	outsl(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
-#endif
 
 	dev->trans_start = jiffies;
 	if (inw(ioaddr + TX_FREE) > 1536)
@@ -1103,13 +1099,8 @@ el3_rx(struct net_device *dev)
 				skb_reserve(skb, 2);     /* Align IP on 16 byte */
 
 				/* 'skb->data' points to the start of sk_buff data area. */
-#ifdef  __powerpc__
-				insl_ns(ioaddr+RX_FIFO, skb_put(skb,pkt_len),
-							   (pkt_len + 3) >> 2);
-#else
 				insl(ioaddr + RX_FIFO, skb_put(skb,pkt_len),
 					 (pkt_len + 3) >> 2);
-#endif
 
 				outw(RxDiscard, ioaddr + EL3_CMD); /* Pop top Rx packet. */
 				skb->protocol = eth_type_trans(skb,dev);
