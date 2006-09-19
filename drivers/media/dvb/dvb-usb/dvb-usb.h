@@ -133,6 +133,7 @@ struct dvb_usb_adapter_properties {
 #define DVB_USB_ADAP_HAS_PID_FILTER               0x01
 #define DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF 0x02
 #define DVB_USB_ADAP_NEED_PID_FILTERING           0x04
+#define DVB_USB_ADAP_RECEIVES_204_BYTE_TS         0x08
 	int caps;
 	int pid_filter_count;
 
