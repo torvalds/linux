@@ -582,8 +582,8 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			 * run length
 			 */
 			while (between48(seqp->ccid2s_seq,ackno_end_rl,ackno)) {
-				const u8 state = (*vector &
-						  DCCP_ACKVEC_STATE_MASK) >> 6;
+				const u8 state = *vector &
+						 DCCP_ACKVEC_STATE_MASK;
 
 				/* new packet received or marked */
 				if (state != DCCP_ACKVEC_STATE_NOT_RECEIVED &&

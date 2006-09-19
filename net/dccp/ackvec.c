@@ -436,8 +436,7 @@ static void dccp_ackvec_check_rcv_ackvector(struct dccp_ackvec *av,
 		break;
 found:
 		if (between48(avr->dccpavr_ack_seqno, ackno_end_rl, ackno)) {
-			const u8 state = (*vector &
-					  DCCP_ACKVEC_STATE_MASK) >> 6;
+			const u8 state = *vector & DCCP_ACKVEC_STATE_MASK;
 			if (state != DCCP_ACKVEC_STATE_NOT_RECEIVED) {
 #ifdef CONFIG_IP_DCCP_DEBUG
 				struct dccp_sock *dp = dccp_sk(sk);
