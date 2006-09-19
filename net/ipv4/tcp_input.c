@@ -156,6 +156,8 @@ static void tcp_measure_rcv_mss(struct sock *sk,
 				return;
 			}
 		}
+		if (icsk->icsk_ack.pending & ICSK_ACK_PUSHED)
+			icsk->icsk_ack.pending |= ICSK_ACK_PUSHED2;
 		icsk->icsk_ack.pending |= ICSK_ACK_PUSHED;
 	}
 }

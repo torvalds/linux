@@ -955,8 +955,11 @@ void tcp_cleanup_rbuf(struct sock *sk, int copied)
 		     * receive buffer and there was a small segment
 		     * in queue.
 		     */
-		    (copied > 0 && (icsk->icsk_ack.pending & ICSK_ACK_PUSHED) &&
-		     !icsk->icsk_ack.pingpong && !atomic_read(&sk->sk_rmem_alloc)))
+		    (copied > 0 &&
+		     ((icsk->icsk_ack.pending & ICSK_ACK_PUSHED2) ||
+		      ((icsk->icsk_ack.pending & ICSK_ACK_PUSHED) &&
+		       !icsk->icsk_ack.pingpong)) &&
+		      !atomic_read(&sk->sk_rmem_alloc)))
 			time_to_ack = 1;
 	}
 
