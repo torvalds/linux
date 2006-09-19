@@ -867,13 +867,6 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	 *	Map in the registers from the adapter.
 	 */
 	aac->base_size = AAC_MIN_FOOTPRINT_SIZE;
-	if ((aac->regs.sa = ioremap(
-	  (unsigned long)aac->scsi_host_ptr->base, AAC_MIN_FOOTPRINT_SIZE))
-	  == NULL) {	
-		printk(KERN_WARNING "%s: unable to map adapter.\n",
-		  AAC_DRIVERNAME);
-		goto out_free_fibs;
-	}
 	if ((*aac_drivers[index].init)(aac))
 		goto out_unmap;
 
@@ -972,8 +965,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	aac_fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
 	kfree(aac->queues);
-	iounmap(aac->regs.sa);
- out_free_fibs:
+	aac_adapter_ioremap(aac, 0);
 	kfree(aac->fibs);
 	kfree(aac->fsa_dev);
  out_free_host:
@@ -1008,7 +1000,7 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 	kfree(aac->queues);
 
 	free_irq(pdev->irq, aac);
-	iounmap(aac->regs.sa);
+	aac_adapter_ioremap(aac, 0);
 	
 	kfree(aac->fibs);
 	kfree(aac->fsa_dev);

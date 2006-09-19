@@ -79,7 +79,7 @@ static irqreturn_t aac_rx_intr(int irq, void *dev_id, struct pt_regs *regs)
 		{
 			bellbits = rx_readl(dev, OutboundDoorbellReg);
 			if (bellbits & DoorBellPrintfReady) {
-				aac_printf(dev, rx_readl (dev, IndexRegs.Mailbox[5]));
+				aac_printf(dev, readl (&dev->IndexRegs->Mailbox[5]));
 				rx_writel(dev, MUnit.ODR,DoorBellPrintfReady);
 				rx_writel(dev, InboundDoorbellReg,DoorBellPrintfDone);
 			}
@@ -134,14 +134,14 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command,
 	/*
 	 *	Write the command into Mailbox 0
 	 */
-	rx_writel(dev, InboundMailbox0, command);
+	writel(command, &dev->IndexRegs->Mailbox[0]);
 	/*
 	 *	Write the parameters into Mailboxes 1 - 6
 	 */
-	rx_writel(dev, InboundMailbox1, p1);
-	rx_writel(dev, InboundMailbox2, p2);
-	rx_writel(dev, InboundMailbox3, p3);
-	rx_writel(dev, InboundMailbox4, p4);
+	writel(p1, &dev->IndexRegs->Mailbox[1]);
+	writel(p2, &dev->IndexRegs->Mailbox[2]);
+	writel(p3, &dev->IndexRegs->Mailbox[3]);
+	writel(p4, &dev->IndexRegs->Mailbox[4]);
 	/*
 	 *	Clear the synch command doorbell to start on a clean slate.
 	 */
@@ -199,15 +199,15 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command,
 	 *	Pull the synch status from Mailbox 0.
 	 */
 	if (status)
-		*status = rx_readl(dev, IndexRegs.Mailbox[0]);
+		*status = readl(&dev->IndexRegs->Mailbox[0]);
 	if (r1)
-		*r1 = rx_readl(dev, IndexRegs.Mailbox[1]);
+		*r1 = readl(&dev->IndexRegs->Mailbox[1]);
 	if (r2)
-		*r2 = rx_readl(dev, IndexRegs.Mailbox[2]);
+		*r2 = readl(&dev->IndexRegs->Mailbox[2]);
 	if (r3)
-		*r3 = rx_readl(dev, IndexRegs.Mailbox[3]);
+		*r3 = readl(&dev->IndexRegs->Mailbox[3]);
 	if (r4)
-		*r4 = rx_readl(dev, IndexRegs.Mailbox[4]);
+		*r4 = readl(&dev->IndexRegs->Mailbox[4]);
 	/*
 	 *	Clear the synch command doorbell.
 	 */
@@ -261,8 +261,6 @@ static void aac_rx_notify_adapter(struct aac_dev *dev, u32 event)
 		rx_writel(dev, MUnit.IDR,INBOUNDDOORBELL_3);
 		break;
 	case HostShutdown:
-//		rx_sync_cmd(dev, HOST_CRASHING, 0, 0, 0, 0, 0, 0,
-//		  NULL, NULL, NULL, NULL, NULL);
 		break;
 	case FastIo:
 		rx_writel(dev, MUnit.IDR,INBOUNDDOORBELL_6);
@@ -283,7 +281,7 @@ static void aac_rx_notify_adapter(struct aac_dev *dev, u32 event)
  *	Start up processing on an i960 based AAC adapter
  */
 
-static void aac_rx_start_adapter(struct aac_dev *dev)
+void aac_rx_start_adapter(struct aac_dev *dev)
 {
 	struct aac_init *init;
 
@@ -381,7 +379,7 @@ static int aac_rx_send(struct fib * fib)
 	dprintk((KERN_DEBUG "Index = 0x%x\n", Index));
 	if (Index == 0xFFFFFFFFL)
 		return Index;
-	device += Index;
+	device = dev->base + Index;
 	dprintk((KERN_DEBUG "entry = %x %x %u\n", (u32)(addr & 0xffffffff),
 	  (u32)(addr >> 32), (u32)le16_to_cpu(fib->hw_fib->header.Size)));
 	writel((u32)(addr & 0xffffffff), device);
@@ -391,6 +389,24 @@ static int aac_rx_send(struct fib * fib)
 	writel(le16_to_cpu(fib->hw_fib->header.Size), device);
 	rx_writel(dev, MUnit.InboundQueue, Index);
 	dprintk((KERN_DEBUG "aac_rx_send - return 0\n"));
+	return 0;
+}
+
+/**
+ *	aac_rx_ioremap
+ *	@size: mapping resize request
+ *
+ */
+static int aac_rx_ioremap(struct aac_dev * dev, u32 size)
+{
+	if (!size) {
+		iounmap(dev->regs.rx);
+		return 0;
+	}
+	dev->base = dev->regs.rx = ioremap(dev->scsi_host_ptr->base, size);
+	if (dev->base == NULL)
+		return -1;
+	dev->IndexRegs = &dev->regs.rx->IndexRegs;
 	return 0;
 }
 
@@ -422,7 +438,7 @@ static int aac_rx_restart_adapter(struct aac_dev *dev)
  *	to the comm region.
  */
 
-int aac_rx_init(struct aac_dev *dev)
+int _aac_rx_init(struct aac_dev *dev)
 {
 	unsigned long start;
 	unsigned long status;
@@ -432,23 +448,30 @@ int aac_rx_init(struct aac_dev *dev)
 	instance = dev->id;
 	name     = dev->name;
 
+	if (aac_adapter_ioremap(dev, dev->base_size)) {
+		printk(KERN_WARNING "%s: unable to map adapter.\n", name);
+		goto error_iounmap;
+	}
+
 	/*
 	 *	Check to see if the board panic'd while booting.
 	 */
-	if (rx_readl(dev, MUnit.OMRx[0]) & KERNEL_PANIC)
+	status = rx_readl(dev, MUnit.OMRx[0]);
+	if (status & KERNEL_PANIC)
 		if (aac_rx_restart_adapter(dev))
 			goto error_iounmap;
 	/*
 	 *	Check to see if the board failed any self tests.
 	 */
-	if (rx_readl(dev, MUnit.OMRx[0]) & SELF_TEST_FAILED) {
+	status = rx_readl(dev, MUnit.OMRx[0]);
+	if (status & SELF_TEST_FAILED) {
 		printk(KERN_ERR "%s%d: adapter self-test failed.\n", dev->name, instance);
 		goto error_iounmap;
 	}
 	/*
 	 *	Check to see if the monitor panic'd while booting.
 	 */
-	if (rx_readl(dev, MUnit.OMRx[0]) & MONITOR_PANIC) {
+	if (status & MONITOR_PANIC) {
 		printk(KERN_ERR "%s%d: adapter monitor panic.\n", dev->name, instance);
 		goto error_iounmap;
 	}
@@ -456,12 +479,10 @@ int aac_rx_init(struct aac_dev *dev)
 	/*
 	 *	Wait for the adapter to be up and running. Wait up to 3 minutes
 	 */
-	while ((!(rx_readl(dev, IndexRegs.Mailbox[7]) & KERNEL_UP_AND_RUNNING))
-		|| (!(rx_readl(dev, MUnit.OMRx[0]) & KERNEL_UP_AND_RUNNING)))
+	while (!((status = rx_readl(dev, MUnit.OMRx[0])) & KERNEL_UP_AND_RUNNING))
 	{
 		if(time_after(jiffies, start+startup_timeout*HZ))
 		{
-			status = rx_readl(dev, IndexRegs.Mailbox[7]);
 			printk(KERN_ERR "%s%d: adapter kernel failed to start, init status = %lx.\n", 
 					dev->name, instance, status);
 			goto error_iounmap;
@@ -496,11 +517,6 @@ int aac_rx_init(struct aac_dev *dev)
 	if (dev->new_comm_interface)
 		rx_writeb(dev, MUnit.OIMR, dev->OIMR = 0xf7);
 
-	/*
-	 *	Tell the adapter that all is configured, and it can start
-	 *	accepting requests
-	 */
-	aac_rx_start_adapter(dev);
 	return 0;
 
 error_irq:
@@ -510,4 +526,24 @@ error_irq:
 error_iounmap:
 
 	return -1;
+}
+
+int aac_rx_init(struct aac_dev *dev)
+{
+	int retval;
+
+	/*
+	 *	Fill in the function dispatch table.
+	 */
+	dev->a_ops.adapter_ioremap = aac_rx_ioremap;
+
+	retval = _aac_rx_init(dev);
+	if (!retval) {
+		/*
+		 *	Tell the adapter that all is configured, and it can
+		 * start accepting requests
+		 */
+		aac_rx_start_adapter(dev);
+	}
+	return retval;
 }

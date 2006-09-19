@@ -494,6 +494,7 @@ struct adapter_ops
 	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
 	int  (*adapter_check_health)(struct aac_dev *dev);
 	int  (*adapter_send)(struct fib * fib);
+	int  (*adapter_ioremap)(struct aac_dev * dev, u32 size);
 };
 
 /*
@@ -681,14 +682,6 @@ struct rx_mu_registers {
 struct rx_inbound {
 	__le32	Mailbox[8];
 };
-
-#define	InboundMailbox0		IndexRegs.Mailbox[0]
-#define	InboundMailbox1		IndexRegs.Mailbox[1]
-#define	InboundMailbox2		IndexRegs.Mailbox[2]
-#define	InboundMailbox3		IndexRegs.Mailbox[3]
-#define	InboundMailbox4		IndexRegs.Mailbox[4]
-#define	InboundMailbox5		IndexRegs.Mailbox[5]
-#define	InboundMailbox6		IndexRegs.Mailbox[6]
 
 #define	INBOUNDDOORBELL_0	0x00000001
 #define INBOUNDDOORBELL_1	0x00000002
@@ -1010,6 +1003,8 @@ struct aac_dev
 		struct rx_registers __iomem *rx;
 		struct rkt_registers __iomem *rkt;
 	} regs;
+	volatile void __iomem *base;
+	volatile struct rx_inbound __iomem *IndexRegs;
 	u32			OIMR; /* Mask Register Cache */
 	/*
 	 *	AIF thread states
@@ -1049,6 +1044,9 @@ struct aac_dev
 
 #define aac_adapter_send(fib) \
 	((fib)->dev)->a_ops.adapter_send(fib)
+
+#define aac_adapter_ioremap(dev, size) \
+	(dev)->a_ops.adapter_ioremap(dev, size)
 
 #define FIB_CONTEXT_FLAG_TIMED_OUT		(0x00000001)
 
