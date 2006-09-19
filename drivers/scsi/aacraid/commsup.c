@@ -1033,13 +1033,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 	if (device) {
 		switch (device_config_needed) {
 		case DELETE:
-			scsi_remove_device(device);
-			break;
 		case CHANGE:
-			if (!dev->fsa_dev[container].valid) {
-				scsi_remove_device(device);
-				break;
-			}
 			scsi_rescan_device(&device->sdev_gendev);
 
 		default:
