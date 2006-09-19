@@ -1071,10 +1071,15 @@ int usb_resume_both(struct usb_device *udev)
 					PM_EVENT_ON)
 				status = -EHOSTUNREACH;
 		}
-		if (status == 0 && udev->state == USB_STATE_SUSPENDED)
+		if (status == 0)
 			status = resume_device(udev);
 		if (parent)
 			mutex_unlock(&parent->pm_mutex);
+	} else {
+
+		/* Needed only for setting udev->dev.power.power_state.event
+		 * and for possible debugging message. */
+		status = resume_device(udev);
 	}
 
 	/* Now the parent won't suspend until we are finished */
