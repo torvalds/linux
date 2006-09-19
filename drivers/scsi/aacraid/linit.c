@@ -82,6 +82,8 @@ static LIST_HEAD(aac_devices);
 static int aac_cfg_major = -1;
 char aac_driver_version[] = AAC_DRIVER_FULL_VERSION;
 
+extern int expose_physicals;
+
 /*
  * Because of the way Linux names scsi devices, the order in this table has
  * become important.  Check for on-board Raid first, add-in cards second.
@@ -394,6 +396,7 @@ static int aac_slave_configure(struct scsi_device *sdev)
 		sdev->skip_ms_page_3f = 1;
 	}
 	if ((sdev->type == TYPE_DISK) &&
+			!expose_physicals &&
 			(sdev_channel(sdev) != CONTAINER_CHANNEL)) {
 		struct aac_dev *aac = (struct aac_dev *)sdev->host->hostdata;
 		if (!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))
@@ -928,7 +931,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	 * all containers are on the virtual channel 0 (CONTAINER_CHANNEL)
 	 * physical channels are address by their actual physical number+1
 	 */
-	if (aac->nondasd_support == 1)
+	if ((aac->nondasd_support == 1) || expose_physicals)
 		shost->max_channel = aac->maximum_num_channels;
 	else
 		shost->max_channel = 0;

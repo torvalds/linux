@@ -169,6 +169,10 @@ MODULE_PARM_DESC(numacb, "Request a limit to the number of adapter control block
 int acbsize = -1;
 module_param(acbsize, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(acbsize, "Request a specific adapter control block (FIB) size. Valid values are 512, 2048, 4096 and 8192. Default is to use suggestion from Firmware.");
+
+int expose_physicals = 0;
+module_param(expose_physicals, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(expose_physicals, "Expose physical components of the arrays. 0=off, 1=on");
 /**
  *	aac_get_config_status	-	check the adapter configuration
  *	@common: adapter to query
@@ -1535,7 +1539,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 				return 0;
 			}
 		} else {  /* check for physical non-dasd devices */
-			if(dev->nondasd_support == 1){
+			if ((dev->nondasd_support == 1) || expose_physicals) {
 				if (dev->in_reset)
 					return -1;
 				return aac_send_srb_fib(scsicmd);
