@@ -199,6 +199,17 @@ static void ccid2_change_cwnd(struct ccid2_hc_tx_sock *hctx, int val)
 	hctx->ccid2hctx_cwnd = val;
 }
 
+static void ccid2_change_srtt(struct ccid2_hc_tx_sock *hctx, long val)
+{
+	ccid2_pr_debug("change SRTT to %ld\n", val);
+	hctx->ccid2hctx_srtt = val;
+}
+
+static void ccid2_change_pipe(struct ccid2_hc_tx_sock *hctx, long val)
+{
+	hctx->ccid2hctx_pipe = val;
+}
+
 static void ccid2_start_rto_timer(struct sock *sk);
 
 static void ccid2_hc_tx_rto_expire(unsigned long data)
@@ -228,7 +239,7 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	ccid2_start_rto_timer(sk);
 
 	/* adjust pipe, cwnd etc */
-	hctx->ccid2hctx_pipe = 0;
+	ccid2_change_pipe(hctx, 0);
 	hctx->ccid2hctx_ssthresh = hctx->ccid2hctx_cwnd >> 1;
 	if (hctx->ccid2hctx_ssthresh < 2)
 		hctx->ccid2hctx_ssthresh = 2;
@@ -274,7 +285,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, int len)
 
 	BUG_ON(!hctx->ccid2hctx_sendwait);
 	hctx->ccid2hctx_sendwait = 0;
-	hctx->ccid2hctx_pipe++;
+	ccid2_change_pipe(hctx, hctx->ccid2hctx_pipe + 1);
 	BUG_ON(hctx->ccid2hctx_pipe < 0);
 
 	/* There is an issue.  What if another packet is sent between
@@ -470,11 +481,13 @@ static inline void ccid2_new_ack(struct sock *sk,
 		if (hctx->ccid2hctx_srtt == -1) {
 			ccid2_pr_debug("R: %lu Time=%lu seq=%llu\n",
 			       	       r, jiffies, seqp->ccid2s_seq);
-			hctx->ccid2hctx_srtt = r;
+			ccid2_change_srtt(hctx, r);
 			hctx->ccid2hctx_rttvar = r >> 1;
 		} else {
 			/* RTTVAR */
 			long tmp = hctx->ccid2hctx_srtt - r;
+			long srtt;
+
 			if (tmp < 0)
 				tmp *= -1;
 
@@ -484,10 +497,12 @@ static inline void ccid2_new_ack(struct sock *sk,
 			hctx->ccid2hctx_rttvar += tmp;
 
 			/* SRTT */
-			hctx->ccid2hctx_srtt *= 7;
-			hctx->ccid2hctx_srtt >>= 3;
+			srtt = hctx->ccid2hctx_srtt;
+			srtt *= 7;
+			srtt >>= 3;
 			tmp = r >> 3;
-			hctx->ccid2hctx_srtt += tmp;
+			srtt += tmp;
+			ccid2_change_srtt(hctx, srtt);
 		}
 		s = hctx->ccid2hctx_rttvar << 2;
 		/* clock granularity is 1 when based on jiffies */
@@ -523,7 +538,7 @@ static void ccid2_hc_tx_dec_pipe(struct sock *sk)
 {
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 
-	hctx->ccid2hctx_pipe--;
+	ccid2_change_pipe(hctx, hctx->ccid2hctx_pipe-1);
 	BUG_ON(hctx->ccid2hctx_pipe < 0);
 
 	if (hctx->ccid2hctx_pipe == 0)
@@ -749,7 +764,7 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 
 	hctx->ccid2hctx_sent	 = 0;
 	hctx->ccid2hctx_rto	 = 3 * HZ;
-	hctx->ccid2hctx_srtt	 = -1;
+	ccid2_change_srtt(hctx, -1);
 	hctx->ccid2hctx_rttvar	 = -1;
 	hctx->ccid2hctx_lastrtt  = 0;
 	hctx->ccid2hctx_rpdupack = -1;
