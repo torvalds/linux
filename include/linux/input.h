@@ -645,6 +645,7 @@ struct input_absinfo {
 #define BUS_USB			0x03
 #define BUS_HIL			0x04
 #define BUS_BLUETOOTH		0x05
+#define BUS_VIRTUAL		0x06
 
 #define BUS_ISA			0x10
 #define BUS_I8042		0x11
