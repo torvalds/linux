@@ -43,27 +43,6 @@
 #include "util.h"
 #include "eaops.h"
 
-/* "bad" is for NFS support */
-struct filldir_bad_entry {
-	char *fbe_name;
-	unsigned int fbe_length;
-	u64 fbe_offset;
-	struct gfs2_inum fbe_inum;
-	unsigned int fbe_type;
-};
-
-struct filldir_bad {
-	struct gfs2_sbd *fdb_sbd;
-
-	struct filldir_bad_entry *fdb_entry;
-	unsigned int fdb_entry_num;
-	unsigned int fdb_entry_off;
-
-	char *fdb_name;
-	unsigned int fdb_name_size;
-	unsigned int fdb_name_off;
-};
-
 /* For regular, non-NFS */
 struct filldir_reg {
 	struct gfs2_sbd *fdr_sbd;
@@ -149,7 +128,7 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int origin)
 }
 
 /**
- * filldir_reg_func - Report a directory entry to the caller of gfs2_dir_read()
+ * filldir_func - Report a directory entry to the caller of gfs2_dir_read()
  * @opaque: opaque data used by the function
  * @name: the name of the directory entry
  * @length: the length of the name
@@ -160,9 +139,9 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int origin)
  * Returns: 0 on success, 1 if buffer full
  */
 
-static int filldir_reg_func(void *opaque, const char *name, unsigned int length,
-			    u64 offset, struct gfs2_inum *inum,
-			    unsigned int type)
+static int filldir_func(void *opaque, const char *name, unsigned int length,
+			u64 offset, struct gfs2_inum *inum,
+			unsigned int type)
 {
 	struct filldir_reg *fdr = (struct filldir_reg *)opaque;
 	struct gfs2_sbd *sdp = fdr->fdr_sbd;
@@ -174,11 +153,9 @@ static int filldir_reg_func(void *opaque, const char *name, unsigned int length,
 		return 1;
 
 	if (fdr->fdr_prefetch && !(length == 1 && *name == '.')) {
-		gfs2_glock_prefetch_num(sdp,
-				       inum->no_addr, &gfs2_inode_glops,
+		gfs2_glock_prefetch_num(sdp, inum->no_addr, &gfs2_inode_glops,
 				       LM_ST_SHARED, LM_FLAG_TRY | LM_FLAG_ANY);
-		gfs2_glock_prefetch_num(sdp,
-				       inum->no_addr, &gfs2_iopen_glops,
+		gfs2_glock_prefetch_num(sdp, inum->no_addr, &gfs2_iopen_glops,
 				       LM_ST_SHARED, LM_FLAG_TRY);
 	}
 
@@ -186,7 +163,7 @@ static int filldir_reg_func(void *opaque, const char *name, unsigned int length,
 }
 
 /**
- * readdir_reg - Read directory entries from a directory
+ * gfs2_readdir - Read directory entries from a directory
  * @file: The directory to read from
  * @dirent: Buffer for dirents
  * @filldir: Function used to do the copying
@@ -194,7 +171,7 @@ static int filldir_reg_func(void *opaque, const char *name, unsigned int length,
  * Returns: errno
  */
 
-static int readdir_reg(struct file *file, void *dirent, filldir_t filldir)
+static int gfs2_readdir(struct file *file, void *dirent, filldir_t filldir)
 {
 	struct inode *dir = file->f_mapping->host;
 	struct gfs2_inode *dip = GFS2_I(dir);
@@ -215,7 +192,7 @@ static int readdir_reg(struct file *file, void *dirent, filldir_t filldir)
 		return error;
 	}
 
-	error = gfs2_dir_read(dir, &offset, &fdr, filldir_reg_func);
+	error = gfs2_dir_read(dir, &offset, &fdr, filldir_func);
 
 	gfs2_glock_dq_uninit(&d_gh);
 
@@ -224,152 +201,6 @@ static int readdir_reg(struct file *file, void *dirent, filldir_t filldir)
 	return error;
 }
 
-/**
- * filldir_bad_func - Report a directory entry to the caller of gfs2_dir_read()
- * @opaque: opaque data used by the function
- * @name: the name of the directory entry
- * @length: the length of the name
- * @offset: the entry's offset in the directory
- * @inum: the inode number the entry points to
- * @type: the type of inode the entry points to
- *
- * For supporting NFS.
- *
- * Returns: 0 on success, 1 if buffer full
- */
-
-static int filldir_bad_func(void *opaque, const char *name, unsigned int length,
-			    u64 offset, struct gfs2_inum *inum,
-			    unsigned int type)
-{
-	struct filldir_bad *fdb = (struct filldir_bad *)opaque;
-	struct gfs2_sbd *sdp = fdb->fdb_sbd;
-	struct filldir_bad_entry *fbe;
-
-	if (fdb->fdb_entry_off == fdb->fdb_entry_num ||
-	    fdb->fdb_name_off + length > fdb->fdb_name_size)
-		return 1;
-
-	fbe = &fdb->fdb_entry[fdb->fdb_entry_off];
-	fbe->fbe_name = fdb->fdb_name + fdb->fdb_name_off;
-	memcpy(fbe->fbe_name, name, length);
-	fbe->fbe_length = length;
-	fbe->fbe_offset = offset;
-	fbe->fbe_inum = *inum;
-	fbe->fbe_type = type;
-
-	fdb->fdb_entry_off++;
-	fdb->fdb_name_off += length;
-
-	if (!(length == 1 && *name == '.')) {
-		gfs2_glock_prefetch_num(sdp,
-				       inum->no_addr, &gfs2_inode_glops,
-				       LM_ST_SHARED, LM_FLAG_TRY | LM_FLAG_ANY);
-		gfs2_glock_prefetch_num(sdp,
-				       inum->no_addr, &gfs2_iopen_glops,
-				       LM_ST_SHARED, LM_FLAG_TRY);
-	}
-
-	return 0;
-}
-
-/**
- * readdir_bad - Read directory entries from a directory
- * @file: The directory to read from
- * @dirent: Buffer for dirents
- * @filldir: Function used to do the copying
- *
- * For supporting NFS.
- *
- * Returns: errno
- */
-
-static int readdir_bad(struct file *file, void *dirent, filldir_t filldir)
-{
-	struct inode *dir = file->f_mapping->host;
-	struct gfs2_inode *dip = GFS2_I(dir);
-	struct gfs2_sbd *sdp = GFS2_SB(dir);
-	struct filldir_reg fdr;
-	unsigned int entries, size;
-	struct filldir_bad *fdb;
-	struct gfs2_holder d_gh;
-	u64 offset = file->f_pos;
-	unsigned int x;
-	struct filldir_bad_entry *fbe;
-	int error;
-
-	entries = gfs2_tune_get(sdp, gt_entries_per_readdir);
-	size = sizeof(struct filldir_bad) +
-	    entries * (sizeof(struct filldir_bad_entry) + GFS2_FAST_NAME_SIZE);
-
-	fdb = kzalloc(size, GFP_KERNEL);
-	if (!fdb)
-		return -ENOMEM;
-
-	fdb->fdb_sbd = sdp;
-	fdb->fdb_entry = (struct filldir_bad_entry *)(fdb + 1);
-	fdb->fdb_entry_num = entries;
-	fdb->fdb_name = ((char *)fdb) + sizeof(struct filldir_bad) +
-		entries * sizeof(struct filldir_bad_entry);
-	fdb->fdb_name_size = entries * GFS2_FAST_NAME_SIZE;
-
-	gfs2_holder_init(dip->i_gl, LM_ST_SHARED, GL_ATIME, &d_gh);
-	error = gfs2_glock_nq_atime(&d_gh);
-	if (error) {
-		gfs2_holder_uninit(&d_gh);
-		goto out;
-	}
-
-	error = gfs2_dir_read(dir, &offset, fdb, filldir_bad_func);
-
-	gfs2_glock_dq_uninit(&d_gh);
-
-	fdr.fdr_sbd = sdp;
-	fdr.fdr_prefetch = 0;
-	fdr.fdr_filldir = filldir;
-	fdr.fdr_opaque = dirent;
-
-	for (x = 0; x < fdb->fdb_entry_off; x++) {
-		fbe = &fdb->fdb_entry[x];
-
-		error = filldir_reg_func(&fdr,
-					 fbe->fbe_name, fbe->fbe_length,
-					 fbe->fbe_offset,
-					 &fbe->fbe_inum, fbe->fbe_type);
-		if (error) {
-			file->f_pos = fbe->fbe_offset;
-			error = 0;
-			goto out;
-		}
-	}
-
-	file->f_pos = offset;
-
-out:
-	kfree(fdb);
-	return error;
-}
-
-/**
- * gfs2_readdir - Read directory entries from a directory
- * @file: The directory to read from
- * @dirent: Buffer for dirents
- * @filldir: Function used to do the copying
- *
- * Returns: errno
- */
-
-static int gfs2_readdir(struct file *file, void *dirent, filldir_t filldir)
-{
-	int error;
-
-	if (strcmp(current->comm, "nfsd") != 0)
-		error = readdir_reg(file, dirent, filldir);
-	else
-		error = readdir_bad(file, dirent, filldir);
-
-	return error;
-}
 
 static const u32 iflags_to_gfs2[32] = {
 	[iflag_Sync] = GFS2_DIF_SYNC,
