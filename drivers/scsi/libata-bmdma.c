@@ -1016,11 +1016,14 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 			res.start = 0x1f0;
 			res.end = 0x1f0 + 8 - 1;
 			conflict = ____request_resource(&ioport_resource, &res);
+			while (conflict->child)
+				conflict = ____request_resource(conflict, &res);
 			if (!strcmp(conflict->name, "libata"))
 				legacy_mode |= (1 << 0);
 			else {
 				disable_dev_on_err = 0;
-				printk(KERN_WARNING "ata: 0x1f0 IDE port busy\n");
+				printk(KERN_WARNING "ata: 0x1f0 IDE port busy\n" \
+						    "ata: conflict with %s\n", conflict->name);
 			}
 		} else
 			legacy_mode |= (1 << 0);
@@ -1030,11 +1033,14 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 			res.start = 0x170;
 			res.end = 0x170 + 8 - 1;
 			conflict = ____request_resource(&ioport_resource, &res);
+			while (conflict->child)
+				conflict = ____request_resource(conflict, &res);
 			if (!strcmp(conflict->name, "libata"))
 				legacy_mode |= (1 << 1);
 			else {
 				disable_dev_on_err = 0;
-				printk(KERN_WARNING "ata: 0x170 IDE port busy\n");
+				printk(KERN_WARNING "ata: 0x170 IDE port busy\n" \
+						    "ata: conflict with %s\n", conflict->name);
 			}
 		} else
 			legacy_mode |= (1 << 1);
