@@ -1841,7 +1841,7 @@ int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid)
 	u32 len;
 	int rc = 0;
 
-	if (!ss_initialized) {
+	if (!ss_initialized || !selinux_mls_enabled) {
 		*new_sid = sid;
 		goto out;
 	}
