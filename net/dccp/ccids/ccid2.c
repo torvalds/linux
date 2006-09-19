@@ -27,7 +27,6 @@
  *
  * BUGS:
  * - sequence number wrapping
- * - jiffies wrapping
  */
 
 #include "../ccid.h"
@@ -71,7 +70,8 @@ static void ccid2_hc_tx_check_sanity(const struct ccid2_hc_tx_sock *hctx)
 
 			/* packets are sent sequentially */
 			BUG_ON(seqp->ccid2s_seq <= prev->ccid2s_seq);
-			BUG_ON(seqp->ccid2s_sent < prev->ccid2s_sent);
+			BUG_ON(time_before(seqp->ccid2s_sent,
+					   prev->ccid2s_sent));
 			BUG_ON(len > ccid2_seq_len);
 
 			seqp = prev;
@@ -418,8 +418,8 @@ static inline void ccid2_new_ack(struct sock *sk,
 
 	/* update RTO */
 	if (hctx->ccid2hctx_srtt == -1 ||
-	    (jiffies - hctx->ccid2hctx_lastrtt) >= hctx->ccid2hctx_srtt) {
-		unsigned long r = jiffies - seqp->ccid2s_sent;
+	    time_after(jiffies, hctx->ccid2hctx_lastrtt + hctx->ccid2hctx_srtt)) {
+		unsigned long r = (long)jiffies - (long)seqp->ccid2s_sent;
 		int s;
 
 		/* first measurement */
