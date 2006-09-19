@@ -13,7 +13,6 @@
  */
 
 #include <linux/types.h>
-#include <asm/processor.h>
 
 /* Avoid too many header ordering problems.  */
 struct siginfo;
