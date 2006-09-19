@@ -86,9 +86,6 @@ _GLOBAL(_outsb)
 	sync
 	blr
 
-#ifdef CONFIG_PPC32
-_GLOBAL(__ide_mm_insw)
-#endif
 _GLOBAL(_insw_ns)
 	sync
 	cmpwi	0,r5,0
@@ -103,9 +100,6 @@ _GLOBAL(_insw_ns)
 	isync
 	blr
 
-#ifdef CONFIG_PPC32
-_GLOBAL(__ide_mm_outsw)
-#endif
 _GLOBAL(_outsw_ns)
 	cmpwi	0,r5,0
 	mtctr	r5
@@ -118,9 +112,6 @@ _GLOBAL(_outsw_ns)
 	sync
 	blr
 
-#ifdef CONFIG_PPC32
-_GLOBAL(__ide_mm_insl)
-#endif
 _GLOBAL(_insl_ns)
 	sync
 	cmpwi	0,r5,0
@@ -135,9 +126,6 @@ _GLOBAL(_insl_ns)
 	isync
 	blr
 
-#ifdef CONFIG_PPC32
-_GLOBAL(__ide_mm_outsl)
-#endif
 _GLOBAL(_outsl_ns)
 	cmpwi	0,r5,0
 	mtctr	r5

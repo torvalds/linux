@@ -28,12 +28,6 @@ extern int check_legacy_ioport(unsigned long base_port);
 
 #include <asm-generic/iomap.h>
 
-#define __ide_mm_insw(p, a, c) _insw_ns((volatile u16 __iomem *)(p), (a), (c))
-#define __ide_mm_insl(p, a, c) _insl_ns((volatile u32 __iomem *)(p), (a), (c))
-#define __ide_mm_outsw(p, a, c) _outsw_ns((volatile u16 __iomem *)(p), (a), (c))
-#define __ide_mm_outsl(p, a, c) _outsl_ns((volatile u32 __iomem *)(p), (a), (c))
-
-
 #define SIO_CONFIG_RA	0x398
 #define SIO_CONFIG_RD	0x399
 

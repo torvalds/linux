@@ -95,13 +95,6 @@ EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(copy_4K_page);
 #endif
 
-#ifndef  __powerpc64__
-EXPORT_SYMBOL(__ide_mm_insl);
-EXPORT_SYMBOL(__ide_mm_outsw);
-EXPORT_SYMBOL(__ide_mm_insw);
-EXPORT_SYMBOL(__ide_mm_outsl);
-#endif
-
 EXPORT_SYMBOL(_insb);
 EXPORT_SYMBOL(_outsb);
 EXPORT_SYMBOL(_insw_ns);

@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <asm/mpc8xx.h>
 #endif
+#include <asm/io.h>
 
 #ifndef MAX_HWIFS
 #ifdef __powerpc64__
@@ -21,15 +22,14 @@
 #endif
 #endif
 
+#define __ide_mm_insw(p, a, c)	_insw_ns((volatile u16 __iomem *)(p), (a), (c))
+#define __ide_mm_insl(p, a, c)	_insl_ns((volatile u32 __iomem *)(p), (a), (c))
+#define __ide_mm_outsw(p, a, c)	_outsw_ns((volatile u16 __iomem *)(p), (a), (c))
+#define __ide_mm_outsl(p, a, c)	_outsl_ns((volatile u32 __iomem *)(p), (a), (c))
+
 #ifndef  __powerpc64__
 #include <linux/hdreg.h>
 #include <linux/ioport.h>
-#include <asm/io.h>
-
-extern void __ide_mm_insw(void __iomem *port, void *addr, u32 count);
-extern void __ide_mm_outsw(void __iomem *port, void *addr, u32 count);
-extern void __ide_mm_insl(void __iomem *port, void *addr, u32 count);
-extern void __ide_mm_outsl(void __iomem *port, void *addr, u32 count);
 
 struct ide_machdep_calls {
         int         (*default_irq)(unsigned long base);
