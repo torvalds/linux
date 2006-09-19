@@ -30,6 +30,14 @@ config IP_DCCP_CCID2
 
 	  If in doubt, say M.
 
+config IP_DCCP_CCID2_DEBUG
+	  bool "CCID2 debug"
+	  depends on IP_DCCP_CCID2
+	  ---help---
+	    Enable CCID2 debug messages.
+
+	    If in doubt, say N.
+
 config IP_DCCP_CCID3
 	tristate "CCID3 (TCP-Friendly) (EXPERIMENTAL)"
 	depends on IP_DCCP
