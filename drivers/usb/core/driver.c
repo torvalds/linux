@@ -24,6 +24,7 @@
 
 #include <linux/device.h>
 #include <linux/usb.h>
+#include <linux/workqueue.h>
 #include "hcd.h"
 #include "usb.h"
 
@@ -1131,7 +1132,7 @@ void usb_autosuspend_device(struct usb_device *udev, int dec_usage_cnt)
 	mutex_lock_nested(&udev->pm_mutex, udev->level);
 	udev->pm_usage_cnt -= dec_usage_cnt;
 	if (udev->pm_usage_cnt <= 0)
-		schedule_delayed_work(&udev->autosuspend,
+		queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
 				USB_AUTOSUSPEND_DELAY);
 	mutex_unlock(&udev->pm_mutex);
 	// dev_dbg(&udev->dev, "%s: cnt %d\n",
@@ -1215,10 +1216,10 @@ void usb_autopm_put_interface(struct usb_interface *intf)
 	struct usb_device	*udev = interface_to_usbdev(intf);
 
 	mutex_lock_nested(&udev->pm_mutex, udev->level);
-	if (intf->condition != USB_INTERFACE_UNBOUND) {
-		if (--intf->pm_usage_cnt <= 0)
-			schedule_delayed_work(&udev->autosuspend,
-					USB_AUTOSUSPEND_DELAY);
+	if (intf->condition != USB_INTERFACE_UNBOUND &&
+			--intf->pm_usage_cnt <= 0) {
+		queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
+				USB_AUTOSUSPEND_DELAY);
 	}
 	mutex_unlock(&udev->pm_mutex);
 	// dev_dbg(&intf->dev, "%s: cnt %d\n",

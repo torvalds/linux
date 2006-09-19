@@ -33,6 +33,7 @@
 #include <linux/smp_lock.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
+#include <linux/workqueue.h>
 
 #include <asm/io.h>
 #include <asm/scatterlist.h>
@@ -46,6 +47,8 @@
 const char *usbcore_name = "usbcore";
 
 static int nousb;	/* Disable USB when built into kernel image */
+
+struct workqueue_struct *ksuspend_usb_wq;	/* For autosuspend */
 
 
 /**
@@ -170,9 +173,9 @@ static void usb_release_dev(struct device *dev)
 
 	udev = to_usb_device(dev);
 
-#ifdef	CONFIG_PM
+#ifdef	CONFIG_USB_SUSPEND
 	cancel_delayed_work(&udev->autosuspend);
-	flush_scheduled_work();
+	flush_workqueue(ksuspend_usb_wq);
 #endif
 	usb_destroy_configuration(udev);
 	usb_put_hcd(bus_to_hcd(udev->bus));
@@ -184,6 +187,28 @@ static void usb_release_dev(struct device *dev)
 
 #ifdef	CONFIG_PM
 
+static int ksuspend_usb_init(void)
+{
+	ksuspend_usb_wq = create_singlethread_workqueue("ksuspend_usbd");
+	if (!ksuspend_usb_wq)
+		return -ENOMEM;
+	return 0;
+}
+
+static void ksuspend_usb_cleanup(void)
+{
+	destroy_workqueue(ksuspend_usb_wq);
+}
+
+#else
+
+#define ksuspend_usb_init()	0
+#define ksuspend_usb_cleanup()	do {} while (0)
+
+#endif
+
+#ifdef	CONFIG_USB_SUSPEND
+
 /* usb_autosuspend_work - callback routine to autosuspend a USB device */
 static void usb_autosuspend_work(void *_udev)
 {
@@ -194,6 +219,11 @@ static void usb_autosuspend_work(void *_udev)
 	usb_suspend_both(udev, PMSG_SUSPEND);
 	mutex_unlock(&udev->pm_mutex);
 }
+
+#else
+
+static void usb_autosuspend_work(void *_udev)
+{}
 
 #endif
 
@@ -976,9 +1006,12 @@ static int __init usb_init(void)
 		return 0;
 	}
 
+	retval = ksuspend_usb_init();
+	if (retval)
+		goto out;
 	retval = bus_register(&usb_bus_type);
 	if (retval) 
-		goto out;
+		goto bus_register_failed;
 	retval = usb_host_init();
 	if (retval)
 		goto host_init_failed;
@@ -1014,6 +1047,8 @@ major_init_failed:
 	usb_host_cleanup();
 host_init_failed:
 	bus_unregister(&usb_bus_type);
+bus_register_failed:
+	ksuspend_usb_cleanup();
 out:
 	return retval;
 }
@@ -1035,6 +1070,7 @@ static void __exit usb_exit(void)
 	usb_hub_cleanup();
 	usb_host_cleanup();
 	bus_unregister(&usb_bus_type);
+	ksuspend_usb_cleanup();
 }
 
 subsys_initcall(usb_init);

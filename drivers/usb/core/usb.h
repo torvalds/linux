@@ -62,6 +62,7 @@ extern int usb_autoresume_device(struct usb_device *udev, int inc_busy_cnt);
 
 #endif
 
+extern struct workqueue_struct *ksuspend_usb_wq;
 extern struct bus_type usb_bus_type;
 extern struct usb_device_driver usb_generic_driver;
 
