@@ -557,6 +557,8 @@ static int s3c2410_pm_enter(suspend_state_t state)
 	/* ack any outstanding external interrupts before we go to sleep */
 
 	__raw_writel(__raw_readl(S3C2410_EINTPEND), S3C2410_EINTPEND);
+	__raw_writel(__raw_readl(S3C2410_INTPND), S3C2410_INTPND);
+	__raw_writel(__raw_readl(S3C2410_SRCPND), S3C2410_SRCPND);
 
 	/* call cpu specific preperation */
 
