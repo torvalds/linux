@@ -14,8 +14,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/smp_lock.h>
-
-#include "../../lm_interface.h"
+#include <linux/lm_interface.h>
 
 struct nolock_lockspace {
 	unsigned int nl_lvb_size;

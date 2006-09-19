@@ -45,9 +45,9 @@ unifdef-y += acct.h adb.h adfs_fs.h agpgart.h apm_bios.h atalk.h	\
 	inet_diag.h in.h inotify.h input.h ipc.h ipmi.h ipv6.h		\
 	ipv6_route.h isdn.h isdnif.h isdn_ppp.h isicom.h jbd.h		\
 	joystick.h kdev_t.h kd.h kernelcapi.h kernel.h keyboard.h	\
-	llc.h loop.h lp.h mempolicy.h mii.h mman.h mroute.h msdos_fs.h	\
-	msg.h nbd.h ncp_fs.h ncp.h ncp_mount.h netdevice.h		\
-	netfilter_bridge.h netfilter_decnet.h netfilter.h		\
+	llc.h lm_interface.h loop.h lp.h mempolicy.h mii.h mman.h	\
+	mroute.h msdos_fs.h msg.h nbd.h ncp_fs.h ncp.h ncp_mount.h	\
+	netdevice.h netfilter_bridge.h netfilter_decnet.h netfilter.h	\
 	netfilter_ipv4.h netfilter_ipv6.h netfilter_logging.h net.h	\
 	netlink.h nfs3.h nfs4.h nfsacl.h nfs_fs.h nfs.h nfs_idmap.h	\
 	n_r3964.h nubus.h nvram.h parport.h patchkey.h pci.h pktcdvd.h	\

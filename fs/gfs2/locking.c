@@ -16,8 +16,7 @@
 #include <linux/kmod.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
-
-#include "lm_interface.h"
+#include <linux/lm_interface.h>
 
 struct lmh_wrapper {
 	struct list_head lw_list;

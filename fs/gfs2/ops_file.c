@@ -22,10 +22,10 @@
 #include <linux/ext2_fs.h>
 #include <linux/crc32.h>
 #include <linux/iflags.h>
+#include <linux/lm_interface.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"
-#include "lm_interface.h"
 #include "incore.h"
 #include "bmap.h"
 #include "dir.h"

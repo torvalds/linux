@@ -61,9 +61,9 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
 #include <linux/vmalloc.h>
+#include <linux/lm_interface.h>
 
 #include "gfs2.h"
-#include "lm_interface.h"
 #include "incore.h"
 #include "dir.h"
 #include "glock.h"

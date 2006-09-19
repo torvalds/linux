@@ -15,9 +15,9 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/lm_interface.h>
 
 #include "gfs2.h"
-#include "lm_interface.h"
 #include "incore.h"
 #include "daemon.h"
 #include "glock.h"

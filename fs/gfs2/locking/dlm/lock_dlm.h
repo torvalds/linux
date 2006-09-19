@@ -26,7 +26,7 @@
 #include <net/sock.h>
 
 #include <linux/dlm.h>
-#include "../../lm_interface.h"
+#include <linux/lm_interface.h>
 
 /*
  * Internally, we prefix things with gdlm_ and GDLM_ (for gfs-dlm) since a

@@ -15,10 +15,10 @@
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/lm_interface.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"
-#include "lm_interface.h"
 #include "incore.h"
 #include "lm.h"
 #include "sys.h"
