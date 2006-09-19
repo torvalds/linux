@@ -508,7 +508,7 @@ static int gfs2_block_pointers(struct inode *inode, u64 lblock, int create,
 			boundary = lookup_block(ip, bh, end_of_metadata, mp, 0, &new, &eblock);
 			if (eblock != ++dblock)
 				break;
-			bh_map->b_size += inode->i_blksize;
+			bh_map->b_size += (1 << inode->i_blkbits);
 			if (boundary)
 				set_buffer_boundary(bh_map);
 		}
