@@ -806,7 +806,7 @@ static void auerbuf_releasebuf( pauerbuf_t bp)
 0		Initial, OK
 -EINPROGRESS	during submission until end
 -ENOENT		if urb is unlinked
--ETIMEDOUT	Transfer timed out, NAK
+-ETIME		Device did not respond
 -ENOMEM		Memory Overflow
 -ENODEV		Specified USB-device or bus doesn't exist
 -ENXIO		URB already queued
@@ -832,7 +832,7 @@ static int auerswald_status_retry (int status)
 {
 	switch (status) {
 	case 0:
-	case -ETIMEDOUT:
+	case -ETIME:
 	case -EOVERFLOW:
 	case -EAGAIN:
 	case -EPIPE:

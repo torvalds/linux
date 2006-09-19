@@ -233,7 +233,7 @@ static const int cc_to_error[16] = {
 	/* Bit Stuff  */ -EPROTO,
 	/* Data Togg  */ -EILSEQ,
 	/* Stall      */ -EPIPE,
-	/* DevNotResp */ -ETIMEDOUT,
+	/* DevNotResp */ -ETIME,
 	/* PIDCheck   */ -EPROTO,
 	/* UnExpPID   */ -EPROTO,
 	/* DataOver   */ -EOVERFLOW,

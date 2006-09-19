@@ -1023,7 +1023,8 @@ static void hid_irq_in(struct urb *urb, struct pt_regs *regs)
 			return;
 		case -EILSEQ:		/* protocol error or unplug */
 		case -EPROTO:		/* protocol error or unplug */
-		case -ETIMEDOUT:	/* NAK */
+		case -ETIME:		/* protocol error or unplug */
+		case -ETIMEDOUT:	/* Should never happen, but... */
 			clear_bit(HID_IN_RUNNING, &hid->iofl);
 			hid_io_error(hid);
 			return;

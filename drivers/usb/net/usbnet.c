@@ -425,9 +425,9 @@ static void rx_complete (struct urb *urb, struct pt_regs *regs)
 	    // we get controller i/o faults during khubd disconnect() delays.
 	    // throttle down resubmits, to avoid log floods; just temporarily,
 	    // so we still recover when the fault isn't a khubd delay.
-	    case -EPROTO:		// ehci
-	    case -ETIMEDOUT:		// ohci
-	    case -EILSEQ:		// uhci
+	    case -EPROTO:
+	    case -ETIME:
+	    case -EILSEQ:
 		dev->stats.rx_errors++;
 		if (!timer_pending (&dev->delay)) {
 			mod_timer (&dev->delay, jiffies + THROTTLE_JIFFIES);
@@ -821,9 +821,9 @@ static void tx_complete (struct urb *urb, struct pt_regs *regs)
 
 		// like rx, tx gets controller i/o faults during khubd delays
 		// and so it uses the same throttling mechanism.
-		case -EPROTO:		// ehci
-		case -ETIMEDOUT:	// ohci
-		case -EILSEQ:		// uhci
+		case -EPROTO:
+		case -ETIME:
+		case -EILSEQ:
 			if (!timer_pending (&dev->delay)) {
 				mod_timer (&dev->delay,
 					jiffies + THROTTLE_JIFFIES);

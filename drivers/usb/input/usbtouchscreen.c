@@ -508,7 +508,7 @@ static void usbtouch_irq(struct urb *urb, struct pt_regs *regs)
 	case 0:
 		/* success */
 		break;
-	case -ETIMEDOUT:
+	case -ETIME:
 		/* this urb is timing out */
 		dbg("%s - urb timed out - was the device unplugged?",
 		    __FUNCTION__);
