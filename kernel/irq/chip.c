@@ -252,7 +252,7 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs)
 	mask_ack_irq(desc, irq);
 
 	if (unlikely(desc->status & IRQ_INPROGRESS))
-		goto out;
+		goto out_unlock;
 	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
 	kstat_cpu(cpu).irqs[irq]++;
 
@@ -263,7 +263,7 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs)
 	action = desc->action;
 	if (unlikely(!action || (desc->status & IRQ_DISABLED))) {
 		desc->status |= IRQ_PENDING;
-		goto out;
+		goto out_unlock;
 	}
 
 	desc->status |= IRQ_INPROGRESS;
@@ -276,9 +276,9 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs)
 
 	spin_lock(&desc->lock);
 	desc->status &= ~IRQ_INPROGRESS;
-out:
 	if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
 		desc->chip->unmask(irq);
+out_unlock:
 	spin_unlock(&desc->lock);
 }
 
