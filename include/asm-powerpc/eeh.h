@@ -205,6 +205,7 @@ static inline void eeh_memset_io(volatile void __iomem *addr, int c,
 	lc |= lc << 8;
 	lc |= lc << 16;
 
+	__asm__ __volatile__ ("sync" : : : "memory");
 	while(n && !EEH_CHECK_ALIGN(p, 4)) {
 		*((volatile u8 *)p) = c;
 		p++;
@@ -229,6 +230,7 @@ static inline void eeh_memcpy_fromio(void *dest, const volatile void __iomem *sr
 	void *destsave = dest;
 	unsigned long nsave = n;
 
+	__asm__ __volatile__ ("sync" : : : "memory");
 	while(n && (!EEH_CHECK_ALIGN(vsrc, 4) || !EEH_CHECK_ALIGN(dest, 4))) {
 		*((u8 *)dest) = *((volatile u8 *)vsrc);
 		__asm__ __volatile__ ("eieio" : : : "memory");
@@ -266,6 +268,7 @@ static inline void eeh_memcpy_toio(volatile void __iomem *dest, const void *src,
 {
 	void *vdest = (void __force *) dest;
 
+	__asm__ __volatile__ ("sync" : : : "memory");
 	while(n && (!EEH_CHECK_ALIGN(vdest, 4) || !EEH_CHECK_ALIGN(src, 4))) {
 		*((volatile u8 *)vdest) = *((u8 *)src);
 		src++;

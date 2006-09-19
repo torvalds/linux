@@ -7,7 +7,7 @@
 /* How many bytes to reserve at zero for kdump. The reserve limit should
  * be greater or equal to the trampoline's end address.
  * Reserve to the end of the FWNMI area, see head_64.S */
-#define KDUMP_RESERVE_LIMIT	0x8000
+#define KDUMP_RESERVE_LIMIT	0x10000 /* 64K */
 
 #ifdef CONFIG_CRASH_DUMP
 

@@ -9,6 +9,36 @@
 #ifndef _LINUX_NFS_FS_H
 #define _LINUX_NFS_FS_H
 
+/*
+ * Enable debugging support for nfs client.
+ * Requires RPC_DEBUG.
+ */
+#ifdef RPC_DEBUG
+# define NFS_DEBUG
+#endif
+
+/* Default timeout values */
+#define NFS_MAX_UDP_TIMEOUT	(60*HZ)
+#define NFS_MAX_TCP_TIMEOUT	(600*HZ)
+
+/*
+ * superblock magic number for NFS
+ */
+#define NFS_SUPER_MAGIC			0x6969
+
+/*
+ * When flushing a cluster of dirty pages, there can be different
+ * strategies:
+ */
+#define FLUSH_SYNC		1	/* file being synced, or contention */
+#define FLUSH_STABLE		4	/* commit to stable storage */
+#define FLUSH_LOWPRI		8	/* low priority background flush */
+#define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
+#define FLUSH_NOCOMMIT		32	/* Don't send the NFSv3/v4 COMMIT */
+#define FLUSH_INVALIDATE	64	/* Invalidate the page cache */
+
+#ifdef __KERNEL__
+
 #include <linux/in.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
@@ -31,39 +61,9 @@
 #include <linux/mempool.h>
 
 /*
- * Enable debugging support for nfs client.
- * Requires RPC_DEBUG.
- */
-#ifdef RPC_DEBUG
-# define NFS_DEBUG
-#endif
-
-/* Default timeout values */
-#define NFS_MAX_UDP_TIMEOUT	(60*HZ)
-#define NFS_MAX_TCP_TIMEOUT	(600*HZ)
-
-/*
- * superblock magic number for NFS
- */
-#define NFS_SUPER_MAGIC			0x6969
-
-/*
  * These are the default flags for swap requests
  */
 #define NFS_RPC_SWAPFLAGS		(RPC_TASK_SWAPPER|RPC_TASK_ROOTCREDS)
-
-/*
- * When flushing a cluster of dirty pages, there can be different
- * strategies:
- */
-#define FLUSH_SYNC		1	/* file being synced, or contention */
-#define FLUSH_STABLE		4	/* commit to stable storage */
-#define FLUSH_LOWPRI		8	/* low priority background flush */
-#define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
-#define FLUSH_NOCOMMIT		32	/* Don't send the NFSv3/v4 COMMIT */
-#define FLUSH_INVALIDATE	64	/* Invalidate the page cache */
-
-#ifdef __KERNEL__
 
 /*
  * NFSv3/v4 Access mode cache entry

@@ -644,7 +644,7 @@ __80219_proc_info:
 	.type	__8032x_proc_info,#object
 __8032x_proc_info:
 	.long	0x69052420
-	.long	0xffffffe0
+	.long	0xfffff7e0
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \

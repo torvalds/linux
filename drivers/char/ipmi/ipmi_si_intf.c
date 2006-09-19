@@ -402,10 +402,10 @@ static void handle_flags(struct smi_info *smi_info)
 			smi_info->curr_msg->data,
 			smi_info->curr_msg->data_size);
 		smi_info->si_state = SI_GETTING_EVENTS;
-	} else if (smi_info->msg_flags & OEM_DATA_AVAIL) {
-		if (smi_info->oem_data_avail_handler)
-			if (smi_info->oem_data_avail_handler(smi_info))
-				goto retry;
+	} else if (smi_info->msg_flags & OEM_DATA_AVAIL &&
+	           smi_info->oem_data_avail_handler) {
+		if (smi_info->oem_data_avail_handler(smi_info))
+			goto retry;
 	} else {
 		smi_info->si_state = SI_NORMAL;
 	}
@@ -2481,6 +2481,7 @@ static __devinit int init_ipmi_si(void)
 #ifdef CONFIG_PCI
 		pci_unregister_driver(&ipmi_pci_driver);
 #endif
+		driver_unregister(&ipmi_driver);
 		printk("ipmi_si: Unable to find any System Interface(s)\n");
 		return -ENODEV;
 	} else {

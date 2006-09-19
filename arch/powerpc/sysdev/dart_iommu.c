@@ -139,6 +139,7 @@ wait_more:
 
 static void dart_flush(struct iommu_table *tbl)
 {
+	mb();
 	if (dart_dirty) {
 		dart_tlb_invalidate_all();
 		dart_dirty = 0;
@@ -172,9 +173,13 @@ static void dart_build(struct iommu_table *tbl, long index,
 		uaddr += DART_PAGE_SIZE;
 	}
 
+	/* make sure all updates have reached memory */
+	mb();
+	in_be32((unsigned __iomem *)dp);
+	mb();
+
 	if (dart_is_u4) {
 		rpn = index;
-		mb(); /* make sure all updates have reached memory */
 		while (npages--)
 			dart_tlb_invalidate_one(rpn++);
 	} else {

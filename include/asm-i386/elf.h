@@ -7,10 +7,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/user.h>
-#include <asm/processor.h>
-#include <asm/system.h>		/* for savesegment */
 #include <asm/auxvec.h>
-#include <asm/desc.h>
 
 #include <linux/utsname.h>
 
@@ -47,6 +44,12 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 #define ELF_CLASS	ELFCLASS32
 #define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_386
+
+#ifdef __KERNEL__
+
+#include <asm/processor.h>
+#include <asm/system.h>		/* for savesegment */
+#include <asm/desc.h>
 
 /* SVR4/i386 ABI (pages 3-31, 3-32) says that when the program starts %edx
    contains a pointer to a function which might be registered using `atexit'.
@@ -111,7 +114,6 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 
 #define ELF_PLATFORM  (system_utsname.machine)
 
-#ifdef __KERNEL__
 #define SET_PERSONALITY(ex, ibcs2) do { } while (0)
 
 /*
