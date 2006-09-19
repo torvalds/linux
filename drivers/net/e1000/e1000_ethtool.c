@@ -908,7 +908,7 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 
 	/* Disable all the interrupts */
 	E1000_WRITE_REG(&adapter->hw, IMC, 0xFFFFFFFF);
-	msec_delay(10);
+	msleep(10);
 
 	/* Test each interrupt */
 	for (; i < 10; i++) {
@@ -928,7 +928,7 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 			adapter->test_icr = 0;
 			E1000_WRITE_REG(&adapter->hw, IMC, mask);
 			E1000_WRITE_REG(&adapter->hw, ICS, mask);
-			msec_delay(10);
+			msleep(10);
 
 			if (adapter->test_icr & mask) {
 				*data = 3;
@@ -945,7 +945,7 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 		adapter->test_icr = 0;
 		E1000_WRITE_REG(&adapter->hw, IMS, mask);
 		E1000_WRITE_REG(&adapter->hw, ICS, mask);
-		msec_delay(10);
+		msleep(10);
 
 		if (!(adapter->test_icr & mask)) {
 			*data = 4;
@@ -962,7 +962,7 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 			adapter->test_icr = 0;
 			E1000_WRITE_REG(&adapter->hw, IMC, ~mask & 0x00007FFF);
 			E1000_WRITE_REG(&adapter->hw, ICS, ~mask & 0x00007FFF);
-			msec_delay(10);
+			msleep(10);
 
 			if (adapter->test_icr) {
 				*data = 5;
@@ -973,7 +973,7 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 
 	/* Disable all the interrupts */
 	E1000_WRITE_REG(&adapter->hw, IMC, 0xFFFFFFFF);
-	msec_delay(10);
+	msleep(10);
 
 	/* Unhook test interrupt handler */
 	free_irq(irq, netdev);
@@ -1395,7 +1395,7 @@ e1000_setup_loopback_test(struct e1000_adapter *adapter)
 #define E1000_SERDES_LB_ON 0x410
 			e1000_set_phy_loopback(adapter);
 			E1000_WRITE_REG(hw, SCTL, E1000_SERDES_LB_ON);
-			msec_delay(10);
+			msleep(10);
 			return 0;
 			break;
 		default:
@@ -1428,7 +1428,7 @@ e1000_loopback_cleanup(struct e1000_adapter *adapter)
 		    hw->media_type == e1000_media_type_internal_serdes) {
 #define E1000_SERDES_LB_OFF 0x400
 			E1000_WRITE_REG(hw, SCTL, E1000_SERDES_LB_OFF);
-			msec_delay(10);
+			msleep(10);
 			break;
 		}
 		/* Fall Through */
@@ -1508,7 +1508,7 @@ e1000_run_loopback_test(struct e1000_adapter *adapter)
 			if (unlikely(++k == txdr->count)) k = 0;
 		}
 		E1000_WRITE_REG(&adapter->hw, TDT, k);
-		msec_delay(200);
+		msleep(200);
 		time = jiffies; /* set the start time for the receive */
 		good_cnt = 0;
 		do { /* receive the sent packets */
@@ -1579,14 +1579,14 @@ e1000_link_test(struct e1000_adapter *adapter, uint64_t *data)
 			e1000_check_for_link(&adapter->hw);
 			if (adapter->hw.serdes_link_down == FALSE)
 				return *data;
-			msec_delay(20);
+			msleep(20);
 		} while (i++ < 3750);
 
 		*data = 1;
 	} else {
 		e1000_check_for_link(&adapter->hw);
 		if (adapter->hw.autoneg)  /* if auto_neg is set wait for it */
-			msec_delay(4000);
+			msleep(4000);
 
 		if (!(E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_LU)) {
 			*data = 1;

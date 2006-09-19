@@ -40,18 +40,6 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
-#ifndef msec_delay
-#define msec_delay(x)	do { if(in_interrupt()) { \
-				/* Don't mdelay in interrupt context! */ \
-	                	BUG(); \
-			} else { \
-				msleep(x); \
-			} } while(0)
-#endif
-
-#define PCI_COMMAND_REGISTER   PCI_COMMAND
-#define CMD_MEM_WRT_INVALIDATE PCI_COMMAND_INVALIDATE
-
 typedef enum {
 #undef FALSE
 	FALSE = 0,

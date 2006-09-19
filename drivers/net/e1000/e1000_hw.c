@@ -223,7 +223,7 @@ e1000_phy_init_script(struct e1000_hw *hw)
     DEBUGFUNC("e1000_phy_init_script");
 
     if (hw->phy_init_script) {
-        msec_delay(20);
+        msleep(20);
 
         /* Save off the current value of register 0x2F5B to be restored at
          * the end of this routine. */
@@ -232,11 +232,11 @@ e1000_phy_init_script(struct e1000_hw *hw)
         /* Disabled the PHY transmitter */
         e1000_write_phy_reg(hw, 0x2F5B, 0x0003);
 
-        msec_delay(20);
+        msleep(20);
 
         e1000_write_phy_reg(hw,0x0000,0x0140);
 
-        msec_delay(5);
+        msleep(5);
 
         switch (hw->mac_type) {
         case e1000_82541:
@@ -270,7 +270,7 @@ e1000_phy_init_script(struct e1000_hw *hw)
 
         e1000_write_phy_reg(hw, 0x0000, 0x3300);
 
-        msec_delay(20);
+        msleep(20);
 
         /* Now enable the transmitter */
         e1000_write_phy_reg(hw, 0x2F5B, phy_saved_data);
@@ -551,14 +551,14 @@ e1000_reset_hw(struct e1000_hw *hw)
     /* Delay to allow any outstanding PCI transactions to complete before
      * resetting the device
      */
-    msec_delay(10);
+    msleep(10);
 
     ctrl = E1000_READ_REG(hw, CTRL);
 
     /* Must reset the PHY before resetting the MAC */
     if ((hw->mac_type == e1000_82541) || (hw->mac_type == e1000_82547)) {
         E1000_WRITE_REG(hw, CTRL, (ctrl | E1000_CTRL_PHY_RST));
-        msec_delay(5);
+        msleep(5);
     }
 
     /* Must acquire the MDIO ownership before MAC reset.
@@ -578,7 +578,7 @@ e1000_reset_hw(struct e1000_hw *hw)
             else
                 extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 
-            msec_delay(2);
+            msleep(2);
             timeout--;
         } while (timeout);
     }
@@ -626,7 +626,7 @@ e1000_reset_hw(struct e1000_hw *hw)
 
             e1000_get_software_flag(hw);
             E1000_WRITE_REG(hw, CTRL, (ctrl | E1000_CTRL_RST));
-            msec_delay(5);
+            msleep(5);
             break;
         default:
             E1000_WRITE_REG(hw, CTRL, (ctrl | E1000_CTRL_RST));
@@ -649,14 +649,14 @@ e1000_reset_hw(struct e1000_hw *hw)
             E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
             E1000_WRITE_FLUSH(hw);
             /* Wait for EEPROM reload */
-            msec_delay(2);
+            msleep(2);
             break;
         case e1000_82541:
         case e1000_82541_rev_2:
         case e1000_82547:
         case e1000_82547_rev_2:
             /* Wait for EEPROM reload */
-            msec_delay(20);
+            msleep(20);
             break;
         case e1000_82573:
             if (e1000_is_onboard_nvm_eeprom(hw) == FALSE) {
@@ -678,7 +678,7 @@ e1000_reset_hw(struct e1000_hw *hw)
             break;
         default:
             /* Wait for EEPROM reload (it happens automatically) */
-            msec_delay(5);
+            msleep(5);
             break;
     }
 
@@ -708,7 +708,7 @@ e1000_reset_hw(struct e1000_hw *hw)
 
     /* If MWI was previously enabled, reenable it. */
     if (hw->mac_type == e1000_82542_rev2_0) {
-        if (hw->pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
+        if (hw->pci_cmd_word & PCI_COMMAND_INVALIDATE)
             e1000_pci_set_mwi(hw);
     }
 
@@ -784,7 +784,7 @@ e1000_init_hw(struct e1000_hw *hw)
         e1000_pci_clear_mwi(hw);
         E1000_WRITE_REG(hw, RCTL, E1000_RCTL_RST);
         E1000_WRITE_FLUSH(hw);
-        msec_delay(5);
+        msleep(5);
     }
 
     /* Setup the receive address. This involves initializing all of the Receive
@@ -796,8 +796,8 @@ e1000_init_hw(struct e1000_hw *hw)
     if (hw->mac_type == e1000_82542_rev2_0) {
         E1000_WRITE_REG(hw, RCTL, 0);
         E1000_WRITE_FLUSH(hw);
-        msec_delay(1);
-        if (hw->pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
+        msleep(1);
+        if (hw->pci_cmd_word & PCI_COMMAND_INVALIDATE)
             e1000_pci_set_mwi(hw);
     }
 
@@ -851,7 +851,7 @@ e1000_init_hw(struct e1000_hw *hw)
 
     /* More time needed for PHY to initialize */
     if (hw->mac_type == e1000_ich8lan)
-        msec_delay(15);
+        msleep(15);
 
     /* Call a subroutine to configure the link and setup flow control. */
     ret_val = e1000_setup_link(hw);
@@ -1231,7 +1231,7 @@ e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
     E1000_WRITE_FLUSH(hw);
 
     hw->txcw = txcw;
-    msec_delay(1);
+    msleep(1);
 
     /* If we have a signal (the cable is plugged in) then poll for a "Link-Up"
      * indication in the Device Status Register.  Time-out if a link isn't
@@ -1243,7 +1243,7 @@ e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
        (E1000_READ_REG(hw, CTRL) & E1000_CTRL_SWDPIN1) == signal) {
         DEBUGOUT("Looking for Link\n");
         for (i = 0; i < (LINK_UP_TIMEOUT / 10); i++) {
-            msec_delay(10);
+            msleep(10);
             status = E1000_READ_REG(hw, STATUS);
             if (status & E1000_STATUS_LU) break;
         }
@@ -1355,7 +1355,7 @@ e1000_copper_link_igp_setup(struct e1000_hw *hw)
     }
 
     /* Wait 15ms for MAC to configure PHY from eeprom settings */
-    msec_delay(15);
+    msleep(15);
     if (hw->mac_type != e1000_ich8lan) {
     /* Configure activity LED after PHY reset */
     led_ctrl = E1000_READ_REG(hw, LEDCTL);
@@ -2334,7 +2334,7 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
                 return ret_val;
 
             if (mii_status_reg & MII_SR_LINK_STATUS) break;
-            msec_delay(100);
+            msleep(100);
         }
         if ((i == 0) &&
            ((hw->phy_type == e1000_phy_m88) ||
@@ -2349,7 +2349,7 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
         /* This loop will early-out if the link condition has been met.  */
         for (i = PHY_FORCE_TIME; i > 0; i--) {
             if (mii_status_reg & MII_SR_LINK_STATUS) break;
-            msec_delay(100);
+            msleep(100);
             /* Read the MII Status Register and wait for Auto-Neg Complete bit
              * to be set.
              */
@@ -3132,7 +3132,7 @@ e1000_wait_autoneg(struct e1000_hw *hw)
         if (phy_data & MII_SR_AUTONEG_COMPLETE) {
             return E1000_SUCCESS;
         }
-        msec_delay(100);
+        msleep(100);
     }
     return E1000_SUCCESS;
 }
@@ -3306,7 +3306,7 @@ e1000_swfw_sync_acquire(struct e1000_hw *hw, uint16_t mask)
             /* firmware currently using resource (fwmask) */
             /* or other software thread currently using resource (swmask) */
             e1000_put_hw_eeprom_semaphore(hw);
-            msec_delay_irq(5);
+            mdelay(5);
             timeout--;
     }
 
@@ -3725,7 +3725,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
         E1000_WRITE_FLUSH(hw);
 
         if (hw->mac_type < e1000_82571)
-            msec_delay(10);
+            msleep(10);
         else
             udelay(100);
 
@@ -3733,7 +3733,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
         E1000_WRITE_FLUSH(hw);
 
         if (hw->mac_type >= e1000_82571)
-            msec_delay_irq(10);
+            mdelay(10);
         e1000_swfw_sync_release(hw, swfw);
     } else {
         /* Read the Extended Device Control Register, assert the PHY_RESET_DIR
@@ -3744,7 +3744,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
         ctrl_ext &= ~E1000_CTRL_EXT_SDP4_DATA;
         E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
         E1000_WRITE_FLUSH(hw);
-        msec_delay(10);
+        msleep(10);
         ctrl_ext |= E1000_CTRL_EXT_SDP4_DATA;
         E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
         E1000_WRITE_FLUSH(hw);
@@ -3917,7 +3917,7 @@ e1000_kumeran_lock_loss_workaround(struct e1000_hw *hw)
 
             /* Issue PHY reset */
             e1000_phy_hw_reset(hw);
-            msec_delay_irq(5);
+            mdelay(5);
         }
         /* Disable GigE link negotiation */
         reg = E1000_READ_REG(hw, PHY_CTRL);
@@ -5179,7 +5179,7 @@ e1000_update_eeprom_checksum(struct e1000_hw *hw)
         ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
         ctrl_ext |= E1000_CTRL_EXT_EE_RST;
         E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
-        msec_delay(10);
+        msleep(10);
     }
     return E1000_SUCCESS;
 }
@@ -5230,7 +5230,7 @@ e1000_write_eeprom(struct e1000_hw *hw,
         status = e1000_write_eeprom_microwire(hw, offset, words, data);
     } else {
         status = e1000_write_eeprom_spi(hw, offset, words, data);
-        msec_delay(10);
+        msleep(10);
     }
 
     /* Done with writing */
@@ -7058,7 +7058,7 @@ e1000_config_dsp_after_link_change(struct e1000_hw *hw,
             if (ret_val)
                 return ret_val;
 
-            msec_delay_irq(20);
+            mdelay(20);
 
             ret_val = e1000_write_phy_reg(hw, 0x0000,
                                           IGP01E1000_IEEE_FORCE_GIGA);
@@ -7082,7 +7082,7 @@ e1000_config_dsp_after_link_change(struct e1000_hw *hw,
             if (ret_val)
                 return ret_val;
 
-            msec_delay_irq(20);
+            mdelay(20);
 
             /* Now enable the transmitter */
             ret_val = e1000_write_phy_reg(hw, 0x2F5B, phy_saved_data);
@@ -7107,7 +7107,7 @@ e1000_config_dsp_after_link_change(struct e1000_hw *hw,
             if (ret_val)
                 return ret_val;
 
-            msec_delay_irq(20);
+            mdelay(20);
 
             ret_val = e1000_write_phy_reg(hw, 0x0000,
                                           IGP01E1000_IEEE_FORCE_GIGA);
@@ -7123,7 +7123,7 @@ e1000_config_dsp_after_link_change(struct e1000_hw *hw,
             if (ret_val)
                 return ret_val;
 
-            msec_delay_irq(20);
+            mdelay(20);
 
             /* Now enable the transmitter */
             ret_val = e1000_write_phy_reg(hw, 0x2F5B, phy_saved_data);
@@ -7519,7 +7519,7 @@ e1000_mng_enable_host_if(struct e1000_hw * hw)
         hicr = E1000_READ_REG(hw, HICR);
         if (!(hicr & E1000_HICR_C))
             break;
-        msec_delay_irq(1);
+        mdelay(1);
     }
 
     if (i == E1000_MNG_DHCP_COMMAND_TIMEOUT) {
@@ -7842,26 +7842,26 @@ e1000_polarity_reversal_workaround(struct e1000_hw *hw)
             return ret_val;
 
         if ((mii_status_reg & ~MII_SR_LINK_STATUS) == 0) break;
-        msec_delay_irq(100);
+        mdelay(100);
     }
 
     /* Recommended delay time after link has been lost */
-    msec_delay_irq(1000);
+    mdelay(1000);
 
     /* Now we will re-enable th transmitter on the PHY */
 
     ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_PAGE_SELECT, 0x0019);
     if (ret_val)
         return ret_val;
-    msec_delay_irq(50);
+    mdelay(50);
     ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_GEN_CONTROL, 0xFFF0);
     if (ret_val)
         return ret_val;
-    msec_delay_irq(50);
+    mdelay(50);
     ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_GEN_CONTROL, 0xFF00);
     if (ret_val)
         return ret_val;
-    msec_delay_irq(50);
+    mdelay(50);
     ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_GEN_CONTROL, 0x0000);
     if (ret_val)
         return ret_val;
@@ -7885,7 +7885,7 @@ e1000_polarity_reversal_workaround(struct e1000_hw *hw)
             return ret_val;
 
         if (mii_status_reg & MII_SR_LINK_STATUS) break;
-        msec_delay_irq(100);
+        mdelay(100);
     }
     return E1000_SUCCESS;
 }
@@ -7998,7 +7998,7 @@ e1000_get_auto_rd_done(struct e1000_hw *hw)
 
     switch (hw->mac_type) {
     default:
-        msec_delay(5);
+        msleep(5);
         break;
     case e1000_82571:
     case e1000_82572:
@@ -8008,7 +8008,7 @@ e1000_get_auto_rd_done(struct e1000_hw *hw)
         while (timeout) {
             if (E1000_READ_REG(hw, EECD) & E1000_EECD_AUTO_RD)
                 break;
-            else msec_delay(1);
+            else msleep(1);
             timeout--;
         }
 
@@ -8023,7 +8023,7 @@ e1000_get_auto_rd_done(struct e1000_hw *hw)
      * Need to wait for PHY configuration completion before accessing NVM
      * and PHY. */
     if (hw->mac_type == e1000_82573)
-        msec_delay(25);
+        msleep(25);
 
     return E1000_SUCCESS;
 }
@@ -8047,7 +8047,7 @@ e1000_get_phy_cfg_done(struct e1000_hw *hw)
 
     switch (hw->mac_type) {
     default:
-        msec_delay_irq(10);
+        mdelay(10);
         break;
     case e1000_80003es2lan:
         /* Separate *_CFG_DONE_* bit for each port */
@@ -8060,7 +8060,7 @@ e1000_get_phy_cfg_done(struct e1000_hw *hw)
             if (E1000_READ_REG(hw, EEMNGCTL) & cfg_mask)
                 break;
             else
-                msec_delay(1);
+                msleep(1);
             timeout--;
         }
 
@@ -8180,7 +8180,7 @@ e1000_get_software_semaphore(struct e1000_hw *hw)
         /* If SMBI bit cleared, it is now set and we hold the semaphore */
         if (!(swsm & E1000_SWSM_SMBI))
             break;
-        msec_delay_irq(1);
+        mdelay(1);
         timeout--;
     }
 
@@ -8339,7 +8339,7 @@ e1000_get_software_flag(struct e1000_hw *hw)
             extcnf_ctrl = E1000_READ_REG(hw, EXTCNF_CTRL);
             if (extcnf_ctrl & E1000_EXTCNF_CTRL_SWFLAG)
                 break;
-            msec_delay_irq(1);
+            mdelay(1);
             timeout--;
         }
 

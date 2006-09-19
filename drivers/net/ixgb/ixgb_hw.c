@@ -83,7 +83,7 @@ static uint32_t ixgb_mac_reset(struct ixgb_hw *hw)
 #endif
 
 	/* Delay a few ms just to allow the reset to complete */
-	msec_delay(IXGB_DELAY_AFTER_RESET);
+	msleep(IXGB_DELAY_AFTER_RESET);
 	ctrl_reg = IXGB_READ_REG(hw, CTRL0);
 #ifdef DBG
 	/* Make sure the self-clearing global reset bit did self clear */
@@ -133,7 +133,7 @@ ixgb_adapter_stop(struct ixgb_hw *hw)
 	 */
 	IXGB_WRITE_REG(hw, RCTL, IXGB_READ_REG(hw, RCTL) & ~IXGB_RCTL_RXEN);
 	IXGB_WRITE_REG(hw, TCTL, IXGB_READ_REG(hw, TCTL) & ~IXGB_TCTL_TXEN);
-	msec_delay(IXGB_DELAY_BEFORE_RESET);
+	msleep(IXGB_DELAY_BEFORE_RESET);
 
 	/* Issue a global reset to the MAC.  This will reset the chip's
 	 * transmit, receive, DMA, and link units.  It will not effect
@@ -300,7 +300,7 @@ ixgb_init_hw(struct ixgb_hw *hw)
 #endif
 
 	/* Delay a few ms just to allow the reset to complete */
-	msec_delay(IXGB_DELAY_AFTER_EE_RESET);
+	msleep(IXGB_DELAY_AFTER_EE_RESET);
 
 	if (ixgb_get_eeprom_data(hw) == FALSE) {
 		return(FALSE);
