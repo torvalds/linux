@@ -88,7 +88,7 @@ static int dtt200u_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 static int dtt200u_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	adap->fe = dtt200u_fe_attach(adap);
+	adap->fe = dtt200u_fe_attach(adap->dev);
 	return 0;
 }
 
