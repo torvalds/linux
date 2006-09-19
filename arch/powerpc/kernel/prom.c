@@ -757,24 +757,9 @@ static int __init early_init_dt_scan_root(unsigned long node,
 static unsigned long __init dt_mem_next_cell(int s, cell_t **cellp)
 {
 	cell_t *p = *cellp;
-	unsigned long r;
 
-	/* Ignore more than 2 cells */
-	while (s > sizeof(unsigned long) / 4) {
-		p++;
-		s--;
-	}
-	r = *p++;
-#ifdef CONFIG_PPC64
-	if (s > 1) {
-		r <<= 32;
-		r |= *(p++);
-		s--;
-	}
-#endif
-
-	*cellp = p;
-	return r;
+	*cellp = p + s;
+	return of_read_ulong(p, s);
 }
 
 

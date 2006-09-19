@@ -304,18 +304,21 @@ struct seq_operations cpuinfo_op = {
 void __init check_for_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
-	const unsigned long *prop;
+	const unsigned int *prop;
+	int len;
 
 	DBG(" -> check_for_initrd()\n");
 
 	if (of_chosen) {
-		prop = get_property(of_chosen, "linux,initrd-start", NULL);
+		prop = get_property(of_chosen, "linux,initrd-start", &len);
 		if (prop != NULL) {
-			initrd_start = (unsigned long)__va(*prop);
+			initrd_start = (unsigned long)
+				__va(of_read_ulong(prop, len / 4));
 			prop = get_property(of_chosen,
-					"linux,initrd-end", NULL);
+					"linux,initrd-end", &len);
 			if (prop != NULL) {
-				initrd_end = (unsigned long)__va(*prop);
+				initrd_end = (unsigned long)
+					__va(of_read_ulong(prop, len / 4));
 				initrd_below_start_ok = 1;
 			} else
 				initrd_start = 0;
