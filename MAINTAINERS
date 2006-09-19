@@ -416,7 +416,7 @@ S:	Supported
 ATM
 P:	Chas Williams
 M:	chas@cmf.nrl.navy.mil
-L:	linux-atm-general@lists.sourceforge.net
+L:	linux-atm-general@lists.sourceforge.net (subscribers-only)
 W:	http://linux-atm.sourceforge.net
 S:	Maintained
 
@@ -2826,6 +2826,14 @@ TC CLASSIFIER
 P:	Jamal Hadi Salim
 M:	hadi@cyberus.ca
 L:	netdev@vger.kernel.org
+S:	Maintained
+
+TCP LOW PRIORITY MODULE
+P:	Wong Hoi Sing, Edison
+M:	hswong3i@gmail.com
+P:	Hung Hing Lun, Mike
+M:	hlhung3i@gmail.com
+W:	http://tcp-lp-mod.sourceforge.net/
 S:	Maintained
 
 TI OMAP RANDOM NUMBER GENERATOR SUPPORT

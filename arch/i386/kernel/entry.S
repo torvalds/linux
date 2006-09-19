@@ -209,6 +209,10 @@ ENTRY(ret_from_fork)
 	GET_THREAD_INFO(%ebp)
 	popl %eax
 	CFI_ADJUST_CFA_OFFSET -4
+	pushl $0x0202			# Reset kernel eflags
+	CFI_ADJUST_CFA_OFFSET 4
+	popfl
+	CFI_ADJUST_CFA_OFFSET -4
 	jmp syscall_exit
 	CFI_ENDPROC
 

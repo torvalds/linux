@@ -1432,6 +1432,9 @@ int neigh_table_clear(struct neigh_table *tbl)
 	kfree(tbl->phash_buckets);
 	tbl->phash_buckets = NULL;
 
+	free_percpu(tbl->stats);
+	tbl->stats = NULL;
+
 	return 0;
 }
 
