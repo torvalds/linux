@@ -25,7 +25,7 @@ static struct mt2060_config bristol_mt2060_config[2] = {
 
 static struct dibx000_agc_config bristol_dib3000p_mt2060_agc_config = {
 	.band_caps = BAND_VHF | BAND_UHF,
-	.setup     = (0 << 15) | (0 << 14) | (0 << 13) | (0 << 12) | (29 << 0),
+	.setup     = (1 << 8) | (5 << 5) | (0 << 4) | (0 << 3) | (0 << 2) | (2 << 0),
 
 	.agc1_max = 42598,
 	.agc1_min = 17694,

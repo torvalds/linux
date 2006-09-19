@@ -37,6 +37,8 @@ struct dib3000mc_state {
 
 	struct dibx000_i2c_master i2c_master;
 
+	u32 timf;
+
 	fe_bandwidth_t current_bandwidth;
 
 	u16 dev_id;
@@ -92,50 +94,31 @@ static int dib3000mc_identify(struct dib3000mc_state *state)
 
 static int dib3000mc_set_timing(struct dib3000mc_state *state, s16 nfft, u8 bw, u8 update_offset)
 {
-/*
-	u32 timf_msb, timf_lsb, i;
-	int tim_sgn ;
-	LUInt comp1, comp2, comp ;
-//	u32 tim_offset ;
-	comp = 27700 * BW_INDEX_TO_KHZ(bw) / 1000;
-	timf_msb = (comp >> 16) & 0x00FF;
-	timf_lsb =  comp        & 0xFFFF;
+	u32 timf;
 
-	// Update the timing offset ;
+	if (state->timf == 0) {
+		timf = 1384402; // default value for 8MHz
+		if (update_offset)
+			msleep(200); // first time we do an update
+	} else
+		timf = state->timf;
+
+	timf *= (BW_INDEX_TO_KHZ(bw) / 1000);
+
 	if (update_offset) {
-		if (state->timing_offset_comp_done == 0) {
-			usleep(200000);
-			state->timing_offset_comp_done = 1;
-		}
-		tim_offset = dib3000mc_read_word(state, 416);
-		if ((tim_offset & 0x2000) == 0x2000)
-			tim_offset |= 0xC000; // PB: This only works if tim_offset is s16 - weird
+		s16 tim_offs = dib3000mc_read_word(state, 416);
+
+		if (tim_offs &  0x2000)
+			tim_offs -= 0x4000;
 
 		if (nfft == 0)
-			tim_offset = tim_offset << 2; // PB: Do not store the offset for different things in one variable
-		state->timing_offset += tim_offset;
+			tim_offs *= 4;
+
+		timf += tim_offs;
+		state->timf = timf / (BW_INDEX_TO_KHZ(bw) / 1000);
 	}
-	tim_offset = state->timing_offset;
 
-	if (tim_offset < 0) {
-		tim_sgn = 1;
-		tim_offset = -tim_offset;
-	} else
-		tim_sgn = 0;
-
-	comp1 = tim_offset * timf_lsb;
-	comp2 = tim_offset * timf_msb;
-	comp  = ((comp1 >> 16) + comp2) >> 7;
-
-	if (tim_sgn == 0)
-		comp = timf_msb * (1<<16) + timf_lsb + comp;
-	else
-		comp = timf_msb * (1<<16) + timf_lsb - comp;
-
-	timf_msb = (comp>>16)&0xFF ;
-	timf_lsb = comp&0xFFFF;
-*/
-	u32 timf = 1384402 * (BW_INDEX_TO_KHZ(bw) / 1000);
+	dprintk("timf: %d\n", timf);
 
 	dib3000mc_write_word(state, 23, timf >> 16);
 	dib3000mc_write_word(state, 24, timf & 0xffff);
@@ -143,15 +126,18 @@ static int dib3000mc_set_timing(struct dib3000mc_state *state, s16 nfft, u8 bw, 
 	return 0;
 }
 
-static int dib3000mc_setup_pwm3_state(struct dib3000mc_state *state)
+static int dib3000mc_setup_pwm_state(struct dib3000mc_state *state)
 {
+	u16 reg_51, reg_52 = state->cfg->agc->setup & 0xfefb;
     if (state->cfg->pwm3_inversion) {
-		dib3000mc_write_word(state, 51, (2 << 14) | (0 << 10) | (7 << 6) | (2 << 2) | (2 << 0));
-		dib3000mc_write_word(state, 52, (0 << 8) | (5 << 5) | (1 << 4) | (1 << 3) | (1 << 2) | (2 << 0));
+		reg_51 =  (2 << 14) | (0 << 10) | (7 << 6) | (2 << 2) | (2 << 0);
+		reg_52 |= (1 << 2);
 	} else {
-		dib3000mc_write_word(state, 51, (2 << 14) | (4 << 10) | (7 << 6) | (2 << 2) | (2 << 0));
-		dib3000mc_write_word(state, 52, (1 << 8) | (5 << 5) | (1 << 4) | (1 << 3) | (0 << 2) | (2 << 0));
+		reg_51 = (2 << 14) | (4 << 10) | (7 << 6) | (2 << 2) | (2 << 0);
+		reg_52 |= (1 << 8);
 	}
+	dib3000mc_write_word(state, 51, reg_51);
+	dib3000mc_write_word(state, 52, reg_52);
 
     if (state->cfg->use_pwm3)
 		dib3000mc_write_word(state, 245, (1 << 3) | (1 << 0));
@@ -350,7 +336,7 @@ static int dib3000mc_init(struct dvb_frontend *demod)
 	dib3000mc_write_word(state, 50, 0x8000);
 
 	// agc setup misc
-	dib3000mc_setup_pwm3_state(state);
+	dib3000mc_setup_pwm_state(state);
 
 	// P_agc_counter_lock
 	dib3000mc_write_word(state, 53, 0x87);
@@ -539,6 +525,7 @@ static int dib3000mc_autosearch_start(struct dvb_frontend *demod, struct dibx000
 
 	reg = dib3000mc_read_word(state, 0);
 	dib3000mc_write_word(state, 0, reg | (1 << 8));
+	dib3000mc_read_word(state, 511);
 	dib3000mc_write_word(state, 0, reg);
 
 	return 0;
@@ -578,8 +565,8 @@ static int dib3000mc_tune(struct dvb_frontend *demod, struct dibx000_ofdm_channe
 		dib3000mc_write_word(state, 33, 6);
 	}
 
-	// if (lock)
-	//	dib3000mc_set_timing(state, ch->nfft, ch->Bw, 1);
+	if (dib3000mc_read_word(state, 509) & 0x80)
+		dib3000mc_set_timing(state, ch->nfft, ch->Bw, 1);
 
 	return 0;
 }
