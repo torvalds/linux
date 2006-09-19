@@ -122,7 +122,7 @@ static int ccid2_hc_tx_send_packet(struct sock *sk,
 		}
 	}
 
-	return 100; /* XXX */
+	return 1; /* XXX CCID should dequeue when ready instead of polling */
 }
 
 static void ccid2_change_l_ack_ratio(struct sock *sk, int val)
