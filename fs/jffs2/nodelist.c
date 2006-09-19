@@ -21,6 +21,9 @@
 #include <linux/pagemap.h>
 #include "nodelist.h"
 
+static void jffs2_obsolete_node_frag(struct jffs2_sb_info *c,
+				     struct jffs2_node_frag *this);
+
 void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new, struct jffs2_full_dirent **list)
 {
 	struct jffs2_full_dirent **prev = list;
@@ -87,7 +90,8 @@ void jffs2_truncate_fragtree(struct jffs2_sb_info *c, struct rb_root *list, uint
 	}
 }
 
-void jffs2_obsolete_node_frag(struct jffs2_sb_info *c, struct jffs2_node_frag *this)
+static void jffs2_obsolete_node_frag(struct jffs2_sb_info *c,
+				     struct jffs2_node_frag *this)
 {
 	if (this->node) {
 		this->node->frags--;

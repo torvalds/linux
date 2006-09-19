@@ -13,13 +13,13 @@ config MTD_COMPLEX_MAPPINGS
 
 config MTD_PHYSMAP
 	tristate "CFI Flash device in physical memory map"
-	depends on MTD_CFI
+	depends on MTD_CFI || MTD_JEDECPROBE || MTD_ROM
 	help
-	  This provides a 'mapping' driver which allows the CFI probe and
-	  command set driver code to communicate with flash chips which
-	  are mapped physically into the CPU's memory. You will need to
-	  configure the physical address and size of the flash chips on
-	  your particular board as well as the bus width, either statically
+	  This provides a 'mapping' driver which allows the NOR Flash and
+	  ROM driver code to communicate with chips which are mapped
+	  physically into the CPU's memory. You will need to configure
+	  the physical address and size of the flash chips on your
+	  particular board as well as the bus width, either statically
 	  with config options or at run-time.
 
 config MTD_PHYSMAP_START

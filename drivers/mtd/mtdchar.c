@@ -62,15 +62,12 @@ static loff_t mtd_lseek (struct file *file, loff_t offset, int orig)
 	struct mtd_info *mtd = mfi->mtd;
 
 	switch (orig) {
-	case 0:
-		/* SEEK_SET */
+	case SEEK_SET:
 		break;
-	case 1:
-		/* SEEK_CUR */
+	case SEEK_CUR:
 		offset += file->f_pos;
 		break;
-	case 2:
-		/* SEEK_END */
+	case SEEK_END:
 		offset += mtd->size;
 		break;
 	default:

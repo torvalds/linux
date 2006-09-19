@@ -111,6 +111,7 @@
 #define MX29LV040C	0x004F
 #define MX29LV160T	0x22C4
 #define MX29LV160B	0x2249
+#define MX29F040	0x00A4
 #define MX29F016	0x00AD
 #define MX29F002T	0x00B0
 #define MX29F004T	0x0045
@@ -1171,6 +1172,19 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x10000,31)
 		}
 	}, {
+		.mfr_id		= MANUFACTURER_MACRONIX,
+		.dev_id		= MX29F040,
+		.name		= "Macronix MX29F040",
+		.uaddr		= {
+			[0] = MTD_UADDR_0x0555_0x02AA /* x8 */
+		},
+		.DevSize	= SIZE_512KiB,
+		.CmdSet		= P_ID_AMD_STD,
+		.NumEraseRegions= 1,
+		.regions	= {
+			ERASEINFO(0x10000,8),
+		}
+        }, {
 		.mfr_id		= MANUFACTURER_MACRONIX,
 		.dev_id		= MX29F016,
 		.name		= "Macronix MX29F016",
