@@ -1244,6 +1244,7 @@ config SCSI_QLOGICPTI
 	  module will be called qlogicpti.
 
 source "drivers/scsi/qla2xxx/Kconfig"
+source "drivers/scsi/qla4xxx/Kconfig"
 
 config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
