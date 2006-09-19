@@ -143,12 +143,12 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 #define readl_relaxed(addr) readl(addr)
 #define readq_relaxed(addr) readq(addr)
 
-extern void _insb(volatile u8 __iomem *port, void *buf, int ns);
-extern void _outsb(volatile u8 __iomem *port, const void *buf, int ns);
-extern void _insw_ns(volatile u16 __iomem *port, void *buf, int ns);
-extern void _outsw_ns(volatile u16 __iomem *port, const void *buf, int ns);
-extern void _insl_ns(volatile u32 __iomem *port, void *buf, int nl);
-extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, int nl);
+extern void _insb(volatile u8 __iomem *port, void *buf, long count);
+extern void _outsb(volatile u8 __iomem *port, const void *buf, long count);
+extern void _insw_ns(volatile u16 __iomem *port, void *buf, long count);
+extern void _outsw_ns(volatile u16 __iomem *port, const void *buf, long count);
+extern void _insl_ns(volatile u32 __iomem *port, void *buf, long count);
+extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, long count);
 
 static inline void mmiowb(void)
 {

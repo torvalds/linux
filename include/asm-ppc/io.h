@@ -327,12 +327,12 @@ __do_out_asm(outl, "stwbrx")
 #define inl_p(port)		inl((port))
 #define outl_p(val, port)	outl((val), (port))
 
-extern void _insb(volatile u8 __iomem *port, void *buf, int ns);
-extern void _outsb(volatile u8 __iomem *port, const void *buf, int ns);
-extern void _insw_ns(volatile u16 __iomem *port, void *buf, int ns);
-extern void _outsw_ns(volatile u16 __iomem *port, const void *buf, int ns);
-extern void _insl_ns(volatile u32 __iomem *port, void *buf, int nl);
-extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, int nl);
+extern void _insb(volatile u8 __iomem *port, void *buf, long count);
+extern void _outsb(volatile u8 __iomem *port, const void *buf, long count);
+extern void _insw_ns(volatile u16 __iomem *port, void *buf, long count);
+extern void _outsw_ns(volatile u16 __iomem *port, const void *buf, long count);
+extern void _insl_ns(volatile u32 __iomem *port, void *buf, long count);
+extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, long count);
 
 
 #define IO_SPACE_LIMIT ~0

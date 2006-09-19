@@ -95,13 +95,6 @@ EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(copy_4K_page);
 #endif
 
-EXPORT_SYMBOL(_insb);
-EXPORT_SYMBOL(_outsb);
-EXPORT_SYMBOL(_insw_ns);
-EXPORT_SYMBOL(_outsw_ns);
-EXPORT_SYMBOL(_insl_ns);
-EXPORT_SYMBOL(_outsl_ns);
-
 #if defined(CONFIG_PPC32) && (defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE))
 EXPORT_SYMBOL(ppc_ide_md);
 #endif
