@@ -1,10 +1,41 @@
 include include/asm-generic/Kbuild.asm
 
-unifdef-y += a.out.h asm-compat.h bootx.h byteorder.h cputable.h elf.h	\
-	nvram.h param.h posix_types.h ptrace.h seccomp.h signal.h	\
-	termios.h types.h unistd.h
+header-y += auxvec.h
+header-y += ioctls.h
+header-y += mman.h
+header-y += sembuf.h
+header-y += siginfo.h
+header-y += stat.h
+header-y += errno.h
+header-y += ipcbuf.h
+header-y += msgbuf.h
+header-y += shmbuf.h
+header-y += socket.h
+header-y += termbits.h
+header-y += fcntl.h
+header-y += ipc.h
+header-y += poll.h
+header-y += shmparam.h
+header-y += sockios.h
+header-y += ucontext.h
+header-y += ioctl.h
+header-y += linkage.h
+header-y += resource.h
+header-y += sigcontext.h
+header-y += statfs.h
 
-header-y += auxvec.h ioctls.h mman.h sembuf.h siginfo.h stat.h errno.h	\
-	ipcbuf.h msgbuf.h shmbuf.h socket.h termbits.h fcntl.h ipc.h	\
-	poll.h shmparam.h sockios.h ucontext.h ioctl.h linkage.h	\
-	resource.h sigcontext.h statfs.h
+unifdef-y += a.out.h
+unifdef-y += asm-compat.h
+unifdef-y += bootx.h
+unifdef-y += byteorder.h
+unifdef-y += cputable.h
+unifdef-y += elf.h
+unifdef-y += nvram.h
+unifdef-y += param.h
+unifdef-y += posix_types.h
+unifdef-y += ptrace.h
+unifdef-y += seccomp.h
+unifdef-y += signal.h
+unifdef-y += termios.h
+unifdef-y += types.h
+unifdef-y += unistd.h

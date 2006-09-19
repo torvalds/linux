@@ -1,8 +1,34 @@
-unifdef-y += a.out.h auxvec.h byteorder.h errno.h fcntl.h ioctl.h	\
-	ioctls.h ipcbuf.h mman.h msgbuf.h param.h poll.h		\
-	posix_types.h ptrace.h resource.h sembuf.h shmbuf.h shmparam.h	\
-	sigcontext.h siginfo.h signal.h socket.h sockios.h stat.h	\
-	statfs.h termbits.h termios.h types.h unistd.h user.h
+unifdef-y += a.out.h
+unifdef-y += auxvec.h
+unifdef-y += byteorder.h
+unifdef-y += errno.h
+unifdef-y += fcntl.h
+unifdef-y += ioctl.h
+unifdef-y += ioctls.h
+unifdef-y += ipcbuf.h
+unifdef-y += mman.h
+unifdef-y += msgbuf.h
+unifdef-y += param.h
+unifdef-y += poll.h
+unifdef-y += posix_types.h
+unifdef-y += ptrace.h
+unifdef-y += resource.h
+unifdef-y += sembuf.h
+unifdef-y += shmbuf.h
+unifdef-y += sigcontext.h
+unifdef-y += siginfo.h
+unifdef-y += signal.h
+unifdef-y += socket.h
+unifdef-y += sockios.h
+unifdef-y += stat.h
+unifdef-y += statfs.h
+unifdef-y += termbits.h
+unifdef-y += termios.h
+unifdef-y += types.h
+unifdef-y += unistd.h
+unifdef-y += user.h
 
 # These probably shouldn't be exported
-unifdef-y += elf.h page.h
+unifdef-y += shmparam.h
+unifdef-y += elf.h
+unifdef-y += page.h

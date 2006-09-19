@@ -1,2 +1,9 @@
-header-y += ca.h frontend.h net.h osd.h version.h
-unifdef-y := audio.h dmx.h video.h
+header-y += ca.h
+header-y += frontend.h
+header-y += net.h
+header-y += osd.h
+header-y += version.h
+
+unifdef-y += audio.h
+unifdef-y += dmx.h
+unifdef-y += video.h

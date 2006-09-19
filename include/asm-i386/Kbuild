@@ -1,5 +1,10 @@
 include include/asm-generic/Kbuild.asm
 
-header-y += boot.h debugreg.h ldt.h ucontext.h
+header-y += boot.h
+header-y += debugreg.h
+header-y += ldt.h
+header-y += ucontext.h
 
-unifdef-y += mtrr.h setup.h vm86.h
+unifdef-y += mtrr.h
+unifdef-y += setup.h
+unifdef-y += vm86.h

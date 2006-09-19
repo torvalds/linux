@@ -1,2 +1,7 @@
-unifdef-y += generic.h swabb.h swab.h
-header-y += big_endian.h little_endian.h pdp_endian.h
+header-y += big_endian.h
+header-y += little_endian.h
+header-y += pdp_endian.h
+
+unifdef-y += generic.h
+unifdef-y += swabb.h
+unifdef-y += swab.h

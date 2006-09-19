@@ -1,11 +1,38 @@
-header-y := nf_conntrack_sctp.h nf_conntrack_tuple_common.h		\
-	    nfnetlink_conntrack.h nfnetlink_log.h nfnetlink_queue.h	\
-	    xt_CLASSIFY.h xt_comment.h xt_connbytes.h xt_connmark.h	\
-	    xt_CONNMARK.h xt_conntrack.h xt_dccp.h xt_esp.h		\
-	    xt_helper.h xt_length.h xt_limit.h xt_mac.h xt_mark.h	\
-	    xt_MARK.h xt_multiport.h xt_NFQUEUE.h xt_pkttype.h		\
-	    xt_policy.h xt_realm.h xt_sctp.h xt_state.h xt_string.h	\
-	    xt_tcpmss.h xt_tcpudp.h xt_SECMARK.h xt_CONNSECMARK.h
+header-y += nf_conntrack_sctp.h
+header-y += nf_conntrack_tuple_common.h
+header-y += nfnetlink_conntrack.h
+header-y += nfnetlink_log.h
+header-y += nfnetlink_queue.h
+header-y += xt_CLASSIFY.h
+header-y += xt_comment.h
+header-y += xt_connbytes.h
+header-y += xt_connmark.h
+header-y += xt_CONNMARK.h
+header-y += xt_conntrack.h
+header-y += xt_dccp.h
+header-y += xt_esp.h
+header-y += xt_helper.h
+header-y += xt_length.h
+header-y += xt_limit.h
+header-y += xt_mac.h
+header-y += xt_mark.h
+header-y += xt_MARK.h
+header-y += xt_multiport.h
+header-y += xt_NFQUEUE.h
+header-y += xt_pkttype.h
+header-y += xt_policy.h
+header-y += xt_realm.h
+header-y += xt_sctp.h
+header-y += xt_state.h
+header-y += xt_string.h
+header-y += xt_tcpmss.h
+header-y += xt_tcpudp.h
+header-y += xt_SECMARK.h
+header-y += xt_CONNSECMARK.h
 
-unifdef-y := nf_conntrack_common.h nf_conntrack_ftp.h		\
-	nf_conntrack_tcp.h nfnetlink.h x_tables.h xt_physdev.h
+unifdef-y += nf_conntrack_common.h
+unifdef-y += nf_conntrack_ftp.h
+unifdef-y += nf_conntrack_tcp.h
+unifdef-y += nfnetlink.h
+unifdef-y += x_tables.h
+unifdef-y += xt_physdev.h

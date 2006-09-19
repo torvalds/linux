@@ -1,63 +1,343 @@
-header-y := byteorder/ dvb/ hdlc/ isdn/ nfsd/ raid/ sunrpc/ tc_act/	\
-	netfilter/ netfilter_arp/ netfilter_bridge/ netfilter_ipv4/	\
-	netfilter_ipv6/
+header-y += byteorder/
+header-y += dvb/
+header-y += hdlc/
+header-y += isdn/
+header-y += nfsd/
+header-y += raid/
+header-y += sunrpc/
+header-y += tc_act/
+header-y += netfilter/
+header-y += netfilter_arp/
+header-y += netfilter_bridge/
+header-y += netfilter_ipv4/
+header-y += netfilter_ipv6/
 
-header-y += affs_fs.h affs_hardblocks.h aio_abi.h a.out.h arcfb.h	\
-	atmapi.h atmbr2684.h atmclip.h atm_eni.h atm_he.h		\
-	atm_idt77105.h atmioc.h atmlec.h atmmpc.h atm_nicstar.h		\
-	atmppp.h atmsap.h atmsvc.h atm_zatm.h auto_fs4.h auxvec.h	\
-	awe_voice.h ax25.h b1lli.h baycom.h bfs_fs.h blkpg.h		\
-	bpqether.h cdk.h chio.h coda_psdev.h coff.h comstats.h		\
-	consolemap.h cycx_cfm.h dm-ioctl.h dn.h dqblk_v1.h		\
-	dqblk_v2.h dqblk_xfs.h efs_fs_sb.h elf-fdpic.h elf.h elf-em.h	\
-	fadvise.h fd.h fdreg.h ftape-header-segment.h ftape-vendors.h	\
-	fuse.h futex.h genetlink.h gen_stats.h gigaset_dev.h hdsmart.h	\
-	hpfs_fs.h hysdn_if.h i2c-dev.h i8k.h icmp.h			\
-	if_arcnet.h if_arp.h if_bonding.h if_cablemodem.h if_fc.h	\
-	if_fddi.h if.h if_hippi.h if_infiniband.h if_packet.h		\
-	if_plip.h if_ppp.h if_slip.h if_strip.h if_tunnel.h in6.h	\
-	in_route.h ioctl.h ip.h ipmi_msgdefs.h ip_mp_alg.h ipsec.h	\
-	ipx.h irda.h isdn_divertif.h iso_fs.h ite_gpio.h ixjuser.h	\
-	jffs2.h keyctl.h limits.h major.h matroxfb.h meye.h minix_fs.h	\
-	mmtimer.h mqueue.h mtio.h ncp_no.h netfilter_arp.h netrom.h	\
-	nfs2.h nfs4_mount.h nfs_mount.h openprom_fs.h param.h		\
-	pci_ids.h pci_regs.h personality.h pfkeyv2.h pg.h pkt_cls.h	\
-	pkt_sched.h posix_types.h ppdev.h prctl.h ps2esdi.h qic117.h	\
-	qnxtypes.h quotaio_v1.h quotaio_v2.h radeonfb.h raw.h		\
-	resource.h rose.h sctp.h smbno.h snmp.h sockios.h som.h		\
-	sound.h stddef.h synclink.h telephony.h termios.h ticable.h	\
-	times.h tiocl.h tipc.h toshiba.h ultrasound.h un.h utime.h	\
-	utsname.h video_decoder.h video_encoder.h videotext.h vt.h	\
-	wavefront.h wireless.h xattr.h x25.h zorro_ids.h
+header-y += affs_fs.h
+header-y += affs_hardblocks.h
+header-y += aio_abi.h
+header-y += a.out.h
+header-y += arcfb.h
+header-y += atmapi.h
+header-y += atmbr2684.h
+header-y += atmclip.h
+header-y += atm_eni.h
+header-y += atm_he.h
+header-y += atm_idt77105.h
+header-y += atmioc.h
+header-y += atmlec.h
+header-y += atmmpc.h
+header-y += atm_nicstar.h
+header-y += atmppp.h
+header-y += atmsap.h
+header-y += atmsvc.h
+header-y += atm_zatm.h
+header-y += auto_fs4.h
+header-y += auxvec.h
+header-y += awe_voice.h
+header-y += ax25.h
+header-y += b1lli.h
+header-y += baycom.h
+header-y += bfs_fs.h
+header-y += blkpg.h
+header-y += bpqether.h
+header-y += cdk.h
+header-y += chio.h
+header-y += coda_psdev.h
+header-y += coff.h
+header-y += comstats.h
+header-y += consolemap.h
+header-y += cycx_cfm.h
+header-y += dm-ioctl.h
+header-y += dn.h
+header-y += dqblk_v1.h
+header-y += dqblk_v2.h
+header-y += dqblk_xfs.h
+header-y += efs_fs_sb.h
+header-y += elf-fdpic.h
+header-y += elf.h
+header-y += elf-em.h
+header-y += fadvise.h
+header-y += fd.h
+header-y += fdreg.h
+header-y += ftape-header-segment.h
+header-y += ftape-vendors.h
+header-y += fuse.h
+header-y += futex.h
+header-y += genetlink.h
+header-y += gen_stats.h
+header-y += gigaset_dev.h
+header-y += hdsmart.h
+header-y += hpfs_fs.h
+header-y += hysdn_if.h
+header-y += i2c-dev.h
+header-y += i8k.h
+header-y += icmp.h
+header-y += if_arcnet.h
+header-y += if_arp.h
+header-y += if_bonding.h
+header-y += if_cablemodem.h
+header-y += if_fc.h
+header-y += if_fddi.h
+header-y += if.h
+header-y += if_hippi.h
+header-y += if_infiniband.h
+header-y += if_packet.h
+header-y += if_plip.h
+header-y += if_ppp.h
+header-y += if_slip.h
+header-y += if_strip.h
+header-y += if_tunnel.h
+header-y += in6.h
+header-y += in_route.h
+header-y += ioctl.h
+header-y += ip.h
+header-y += ipmi_msgdefs.h
+header-y += ip_mp_alg.h
+header-y += ipsec.h
+header-y += ipx.h
+header-y += irda.h
+header-y += isdn_divertif.h
+header-y += iso_fs.h
+header-y += ite_gpio.h
+header-y += ixjuser.h
+header-y += jffs2.h
+header-y += keyctl.h
+header-y += limits.h
+header-y += major.h
+header-y += matroxfb.h
+header-y += meye.h
+header-y += minix_fs.h
+header-y += mmtimer.h
+header-y += mqueue.h
+header-y += mtio.h
+header-y += ncp_no.h
+header-y += netfilter_arp.h
+header-y += netrom.h
+header-y += nfs2.h
+header-y += nfs4_mount.h
+header-y += nfs_mount.h
+header-y += openprom_fs.h
+header-y += param.h
+header-y += pci_ids.h
+header-y += pci_regs.h
+header-y += personality.h
+header-y += pfkeyv2.h
+header-y += pg.h
+header-y += pkt_cls.h
+header-y += pkt_sched.h
+header-y += posix_types.h
+header-y += ppdev.h
+header-y += prctl.h
+header-y += ps2esdi.h
+header-y += qic117.h
+header-y += qnxtypes.h
+header-y += quotaio_v1.h
+header-y += quotaio_v2.h
+header-y += radeonfb.h
+header-y += raw.h
+header-y += resource.h
+header-y += rose.h
+header-y += sctp.h
+header-y += smbno.h
+header-y += snmp.h
+header-y += sockios.h
+header-y += som.h
+header-y += sound.h
+header-y += stddef.h
+header-y += synclink.h
+header-y += telephony.h
+header-y += termios.h
+header-y += ticable.h
+header-y += times.h
+header-y += tiocl.h
+header-y += tipc.h
+header-y += toshiba.h
+header-y += ultrasound.h
+header-y += un.h
+header-y += utime.h
+header-y += utsname.h
+header-y += video_decoder.h
+header-y += video_encoder.h
+header-y += videotext.h
+header-y += vt.h
+header-y += wavefront.h
+header-y += wireless.h
+header-y += xattr.h
+header-y += x25.h
+header-y += zorro_ids.h
 
-unifdef-y += acct.h adb.h adfs_fs.h agpgart.h apm_bios.h atalk.h	\
-	atmarp.h atmdev.h atm.h atm_tcp.h audit.h auto_fs.h binfmts.h	\
-	capability.h capi.h cciss_ioctl.h cdrom.h cm4000_cs.h		\
-	cn_proc.h coda.h connector.h cramfs_fs.h cuda.h cyclades.h	\
-	dccp.h dirent.h divert.h elfcore.h errno.h errqueue.h		\
-	ethtool.h eventpoll.h ext2_fs.h ext3_fs.h fb.h fcntl.h		\
-	filter.h flat.h fs.h ftape.h gameport.h generic_serial.h	\
-	genhd.h hayesesp.h hdlcdrv.h hdlc.h hdreg.h hiddev.h hpet.h	\
-	i2c.h i2o-dev.h icmpv6.h if_bridge.h if_ec.h			\
-	if_eql.h if_ether.h if_frad.h if_ltalk.h if_pppox.h		\
-	if_shaper.h if_tr.h if_tun.h if_vlan.h if_wanpipe.h igmp.h	\
-	inet_diag.h in.h inotify.h input.h ipc.h ipmi.h ipv6.h		\
-	ipv6_route.h isdn.h isdnif.h isdn_ppp.h isicom.h jbd.h		\
-	joystick.h kdev_t.h kd.h kernelcapi.h kernel.h keyboard.h	\
-	llc.h loop.h lp.h mempolicy.h mii.h mman.h mroute.h msdos_fs.h	\
-	msg.h nbd.h ncp_fs.h ncp.h ncp_mount.h netdevice.h		\
-	netfilter_bridge.h netfilter_decnet.h netfilter.h		\
-	netfilter_ipv4.h netfilter_ipv6.h netfilter_logging.h net.h	\
-	netlink.h nfs3.h nfs4.h nfsacl.h nfs_fs.h nfs.h nfs_idmap.h	\
-	n_r3964.h nubus.h nvram.h parport.h patchkey.h pci.h pktcdvd.h	\
-	pmu.h poll.h ppp_defs.h ppp-comp.h ptrace.h qnx4_fs.h quota.h	\
-	random.h reboot.h reiserfs_fs.h reiserfs_xattr.h romfs_fs.h	\
-	route.h rtc.h rtnetlink.h scc.h sched.h sdla.h			\
-	selinux_netlink.h sem.h serial_core.h serial.h serio.h shm.h	\
-	signal.h smb_fs.h smb.h smb_mount.h socket.h sonet.h sonypi.h	\
-	soundcard.h stat.h sysctl.h tcp.h time.h timex.h tty.h types.h	\
-	udf_fs_i.h udp.h uinput.h uio.h unistd.h usb_ch9.h		\
-	usbdevice_fs.h user.h videodev2.h videodev.h wait.h		\
-	wanrouter.h watchdog.h xfrm.h zftape.h
+unifdef-y += acct.h
+unifdef-y += adb.h
+unifdef-y += adfs_fs.h
+unifdef-y += agpgart.h
+unifdef-y += apm_bios.h
+unifdef-y += atalk.h
+unifdef-y += atmarp.h
+unifdef-y += atmdev.h
+unifdef-y += atm.h
+unifdef-y += atm_tcp.h
+unifdef-y += audit.h
+unifdef-y += auto_fs.h
+unifdef-y += binfmts.h
+unifdef-y += capability.h
+unifdef-y += capi.h
+unifdef-y += cciss_ioctl.h
+unifdef-y += cdrom.h
+unifdef-y += cm4000_cs.h
+unifdef-y += cn_proc.h
+unifdef-y += coda.h
+unifdef-y += connector.h
+unifdef-y += cramfs_fs.h
+unifdef-y += cuda.h
+unifdef-y += cyclades.h
+unifdef-y += dccp.h
+unifdef-y += dirent.h
+unifdef-y += divert.h
+unifdef-y += elfcore.h
+unifdef-y += errno.h
+unifdef-y += errqueue.h
+unifdef-y += ethtool.h
+unifdef-y += eventpoll.h
+unifdef-y += ext2_fs.h
+unifdef-y += ext3_fs.h
+unifdef-y += fb.h
+unifdef-y += fcntl.h
+unifdef-y += filter.h
+unifdef-y += flat.h
+unifdef-y += fs.h
+unifdef-y += ftape.h
+unifdef-y += gameport.h
+unifdef-y += generic_serial.h
+unifdef-y += genhd.h
+unifdef-y += hayesesp.h
+unifdef-y += hdlcdrv.h
+unifdef-y += hdlc.h
+unifdef-y += hdreg.h
+unifdef-y += hiddev.h
+unifdef-y += hpet.h
+unifdef-y += i2c.h
+unifdef-y += i2o-dev.h
+unifdef-y += icmpv6.h
+unifdef-y += if_bridge.h
+unifdef-y += if_ec.h
+unifdef-y += if_eql.h
+unifdef-y += if_ether.h
+unifdef-y += if_frad.h
+unifdef-y += if_ltalk.h
+unifdef-y += if_pppox.h
+unifdef-y += if_shaper.h
+unifdef-y += if_tr.h
+unifdef-y += if_tun.h
+unifdef-y += if_vlan.h
+unifdef-y += if_wanpipe.h
+unifdef-y += igmp.h
+unifdef-y += inet_diag.h
+unifdef-y += in.h
+unifdef-y += inotify.h
+unifdef-y += input.h
+unifdef-y += ipc.h
+unifdef-y += ipmi.h
+unifdef-y += ipv6.h
+unifdef-y += ipv6_route.h
+unifdef-y += isdn.h
+unifdef-y += isdnif.h
+unifdef-y += isdn_ppp.h
+unifdef-y += isicom.h
+unifdef-y += jbd.h
+unifdef-y += joystick.h
+unifdef-y += kdev_t.h
+unifdef-y += kd.h
+unifdef-y += kernelcapi.h
+unifdef-y += kernel.h
+unifdef-y += keyboard.h
+unifdef-y += llc.h
+unifdef-y += loop.h
+unifdef-y += lp.h
+unifdef-y += mempolicy.h
+unifdef-y += mii.h
+unifdef-y += mman.h
+unifdef-y += mroute.h
+unifdef-y += msdos_fs.h
+unifdef-y += msg.h
+unifdef-y += nbd.h
+unifdef-y += ncp_fs.h
+unifdef-y += ncp.h
+unifdef-y += ncp_mount.h
+unifdef-y += netdevice.h
+unifdef-y += netfilter_bridge.h
+unifdef-y += netfilter_decnet.h
+unifdef-y += netfilter.h
+unifdef-y += netfilter_ipv4.h
+unifdef-y += netfilter_ipv6.h
+unifdef-y += netfilter_logging.h
+unifdef-y += net.h
+unifdef-y += netlink.h
+unifdef-y += nfs3.h
+unifdef-y += nfs4.h
+unifdef-y += nfsacl.h
+unifdef-y += nfs_fs.h
+unifdef-y += nfs.h
+unifdef-y += nfs_idmap.h
+unifdef-y += n_r3964.h
+unifdef-y += nubus.h
+unifdef-y += nvram.h
+unifdef-y += parport.h
+unifdef-y += patchkey.h
+unifdef-y += pci.h
+unifdef-y += pktcdvd.h
+unifdef-y += pmu.h
+unifdef-y += poll.h
+unifdef-y += ppp_defs.h
+unifdef-y += ppp-comp.h
+unifdef-y += ptrace.h
+unifdef-y += qnx4_fs.h
+unifdef-y += quota.h
+unifdef-y += random.h
+unifdef-y += reboot.h
+unifdef-y += reiserfs_fs.h
+unifdef-y += reiserfs_xattr.h
+unifdef-y += romfs_fs.h
+unifdef-y += route.h
+unifdef-y += rtc.h
+unifdef-y += rtnetlink.h
+unifdef-y += scc.h
+unifdef-y += sched.h
+unifdef-y += sdla.h
+unifdef-y += selinux_netlink.h
+unifdef-y += sem.h
+unifdef-y += serial_core.h
+unifdef-y += serial.h
+unifdef-y += serio.h
+unifdef-y += shm.h
+unifdef-y += signal.h
+unifdef-y += smb_fs.h
+unifdef-y += smb.h
+unifdef-y += smb_mount.h
+unifdef-y += socket.h
+unifdef-y += sonet.h
+unifdef-y += sonypi.h
+unifdef-y += soundcard.h
+unifdef-y += stat.h
+unifdef-y += sysctl.h
+unifdef-y += tcp.h
+unifdef-y += time.h
+unifdef-y += timex.h
+unifdef-y += tty.h
+unifdef-y += types.h
+unifdef-y += udf_fs_i.h
+unifdef-y += udp.h
+unifdef-y += uinput.h
+unifdef-y += uio.h
+unifdef-y += unistd.h
+unifdef-y += usb_ch9.h
+unifdef-y += usbdevice_fs.h
+unifdef-y += user.h
+unifdef-y += videodev2.h
+unifdef-y += videodev.h
+unifdef-y += wait.h
+unifdef-y += wanrouter.h
+unifdef-y += watchdog.h
+unifdef-y += xfrm.h
+unifdef-y += zftape.h
 
-objhdr-y := version.h
+objhdr-y += version.h
