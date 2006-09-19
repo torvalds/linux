@@ -62,8 +62,9 @@ void gfs2_ail1_start(struct gfs2_sbd *sdp, int flags)
 {
 	struct list_head *head = &sdp->sd_ail1_list;
 	u64 sync_gen;
-	struct list_head *first, *tmp;
-	struct gfs2_ail *first_ai, *ai;
+	struct list_head *first;
+	struct gfs2_ail *first_ai, *ai, *tmp;
+	int done = 0;
 
 	gfs2_log_lock(sdp);
 	if (list_empty(head)) {
@@ -75,27 +76,25 @@ void gfs2_ail1_start(struct gfs2_sbd *sdp, int flags)
 	first = head->prev;
 	first_ai = list_entry(first, struct gfs2_ail, ai_list);
 	first_ai->ai_sync_gen = sync_gen;
-	gfs2_ail1_start_one(sdp, first_ai);
+	gfs2_ail1_start_one(sdp, first_ai); /* This may drop log lock */
 
 	if (flags & DIO_ALL)
 		first = NULL;
 
-	for (;;) {
+	while(!done) {
 		if (first && (head->prev != first ||
 			      gfs2_ail1_empty_one(sdp, first_ai, 0)))
 			break;
 
-		for (tmp = head->prev; tmp != head; tmp = tmp->prev) {
-			ai = list_entry(tmp, struct gfs2_ail, ai_list);
+		done = 1;
+		list_for_each_entry_safe_reverse(ai, tmp, head, ai_list) {
 			if (ai->ai_sync_gen >= sync_gen)
 				continue;
 			ai->ai_sync_gen = sync_gen;
-			gfs2_ail1_start_one(sdp, ai);
+			gfs2_ail1_start_one(sdp, ai); /* This may drop log lock */
+			done = 0;
 			break;
 		}
-
-		if (tmp == head)
-			break;
 	}
 
 	gfs2_log_unlock(sdp);
