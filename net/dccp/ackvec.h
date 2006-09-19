@@ -54,9 +54,7 @@ struct dccp_ackvec {
 	struct list_head dccpav_records;
 	struct timeval	dccpav_time;
 	u8		dccpav_buf_head;
-	u8		dccpav_buf_tail;
 	u8		dccpav_ack_ptr;
-	u8		dccpav_sent_len;
 	u8		dccpav_vec_len;
 	u8		dccpav_buf_nonce;
 	u8		dccpav_ack_nonce;
@@ -107,7 +105,7 @@ extern int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb);
 
 static inline int dccp_ackvec_pending(const struct dccp_ackvec *av)
 {
-	return av->dccpav_sent_len != av->dccpav_vec_len;
+	return av->dccpav_vec_len;
 }
 #else /* CONFIG_IP_DCCP_ACKVEC */
 static inline int dccp_ackvec_init(void)

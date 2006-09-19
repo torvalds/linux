@@ -142,14 +142,13 @@ struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
 	struct dccp_ackvec *av = kmem_cache_alloc(dccp_ackvec_slab, priority);
 
 	if (av != NULL) {
-		av->dccpav_buf_head	=
-			av->dccpav_buf_tail = DCCP_MAX_ACKVEC_LEN - 1;
+		av->dccpav_buf_head	= DCCP_MAX_ACKVEC_LEN - 1;
 		av->dccpav_buf_ackno	= DCCP_MAX_SEQNO + 1;
 		av->dccpav_buf_nonce = av->dccpav_buf_nonce = 0;
 		av->dccpav_ack_ptr	= 0;
 		av->dccpav_time.tv_sec	= 0;
 		av->dccpav_time.tv_usec	= 0;
-		av->dccpav_sent_len	= av->dccpav_vec_len = 0;
+		av->dccpav_vec_len	= 0;
 		INIT_LIST_HEAD(&av->dccpav_records);
 	}
 
