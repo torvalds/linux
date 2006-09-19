@@ -10,7 +10,7 @@
 #include <stddef.h>
 #include "string.h"
 #include "stdio.h"
-#include "prom.h"
+#include "ops.h"
 
 size_t strnlen(const char * s, size_t count)
 {
@@ -320,6 +320,6 @@ printf(const char *fmt, ...)
 	va_start(args, fmt);
 	n = vsprintf(sprint_buf, fmt, args);
 	va_end(args);
-	write(stdout, sprint_buf, n);
+	console_ops.write(sprint_buf, n);
 	return n;
 }

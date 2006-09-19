@@ -14,16 +14,11 @@
 #include "page.h"
 #include "string.h"
 #include "stdio.h"
-#include "prom.h"
 #include "zlib.h"
+#include "ops.h"
+#include "flatdevtree.h"
 
 extern void flush_cache(void *, unsigned long);
-
-
-/* Value picked to match that used by yaboot */
-#define PROG_START	0x01400000	/* only used on 64-bit systems */
-#define RAM_END		(512<<20)	/* Fixme: use OF */
-#define	ONE_MB		0x100000
 
 extern char _start[];
 extern char __bss_start[];
@@ -32,14 +27,6 @@ extern char _vmlinux_start[];
 extern char _vmlinux_end[];
 extern char _initrd_start[];
 extern char _initrd_end[];
-
-/* A buffer that may be edited by tools operating on a zImage binary so as to
- * edit the command line passed to vmlinux (by setting /chosen/bootargs).
- * The buffer is put in it's own section so that tools may locate it easier.
- */
-static char builtin_cmdline[512]
-	__attribute__((section("__builtin_cmdline")));
-
 
 struct addr_range {
 	unsigned long addr;
@@ -51,20 +38,15 @@ static struct addr_range vmlinuz;
 static struct addr_range initrd;
 
 static unsigned long elfoffset;
+static int is_64bit;
 
-static char scratch[46912];	/* scratch space for gunzip, from zlib_inflate_workspacesize() */
+/* scratch space for gunzip; 46912 is from zlib_inflate_workspacesize() */
+static char scratch[46912];
 static char elfheader[256];
 
-
-typedef void (*kernel_entry_t)( unsigned long,
-                                unsigned long,
-                                void *,
-				void *);
-
+typedef void (*kernel_entry_t)(unsigned long, unsigned long, void *);
 
 #undef DEBUG
-
-static unsigned long claim_base;
 
 #define HEAD_CRC	2
 #define EXTRA_FIELD	4
@@ -123,24 +105,6 @@ static void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
 	zlib_inflateEnd(&s);
 }
 
-static unsigned long try_claim(unsigned long size)
-{
-	unsigned long addr = 0;
-
-	for(; claim_base < RAM_END; claim_base += ONE_MB) {
-#ifdef DEBUG
-		printf("    trying: 0x%08lx\n\r", claim_base);
-#endif
-		addr = (unsigned long)claim(claim_base, size, 0);
-		if ((void *)addr != (void *)-1)
-			break;
-	}
-	if (addr == 0)
-		return 0;
-	claim_base = PAGE_ALIGN(claim_base + size);
-	return addr;
-}
-
 static int is_elf64(void *hdr)
 {
 	Elf64_Ehdr *elf64 = hdr;
@@ -169,16 +133,7 @@ static int is_elf64(void *hdr)
 	vmlinux.size = (unsigned long)elf64ph->p_filesz + elfoffset;
 	vmlinux.memsize = (unsigned long)elf64ph->p_memsz + elfoffset;
 
-#if defined(PROG_START)
-	/*
-	 * Maintain a "magic" minimum address. This keeps some older
-	 * firmware platforms running.
-	 */
-
-	if (claim_base < PROG_START)
-		claim_base = PROG_START;
-#endif
-
+	is_64bit = 1;
 	return 1;
 }
 
@@ -212,47 +167,9 @@ static int is_elf32(void *hdr)
 	return 1;
 }
 
-void export_cmdline(void* chosen_handle)
-{
-        int len;
-        char cmdline[2] = { 0, 0 };
-
-	if (builtin_cmdline[0] == 0)
-		return;
-
-        len = getprop(chosen_handle, "bootargs", cmdline, sizeof(cmdline));
-        if (len > 0 && cmdline[0] != 0)
-		return;
-
-	setprop(chosen_handle, "bootargs", builtin_cmdline,
-		strlen(builtin_cmdline) + 1);
-}
-
-
-void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
+static void prep_kernel(unsigned long *a1, unsigned long *a2)
 {
 	int len;
-	kernel_entry_t kernel_entry;
-
-	memset(__bss_start, 0, _end - __bss_start);
-
-	prom = (int (*)(void *)) promptr;
-	chosen_handle = finddevice("/chosen");
-	if (chosen_handle == (void *) -1)
-		exit();
-	if (getprop(chosen_handle, "stdout", &stdout, sizeof(stdout)) != 4)
-		exit();
-
-	printf("\n\rzImage starting: loaded at 0x%p (sp: 0x%p)\n\r", _start, sp);
-
-	/*
-	 * The first available claim_base must be above the end of the
-	 * the loaded kernel wrapper file (_start to _end includes the
-	 * initrd image if it is present) and rounded up to a nice
-	 * 1 MB boundary for good measure.
-	 */
-
-	claim_base = _ALIGN_UP((unsigned long)_end, ONE_MB);
 
 	vmlinuz.addr = (unsigned long)_vmlinux_start;
 	vmlinuz.size = (unsigned long)(_vmlinux_end - _vmlinux_start);
@@ -263,43 +180,51 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 		gunzip(elfheader, sizeof(elfheader),
 				(unsigned char *)vmlinuz.addr, &len);
 	} else
-		memcpy(elfheader, (const void *)vmlinuz.addr, sizeof(elfheader));
+		memcpy(elfheader, (const void *)vmlinuz.addr,
+		       sizeof(elfheader));
 
 	if (!is_elf64(elfheader) && !is_elf32(elfheader)) {
 		printf("Error: not a valid PPC32 or PPC64 ELF file!\n\r");
 		exit();
 	}
+	if (platform_ops.image_hdr)
+		platform_ops.image_hdr(elfheader);
 
-	/* We need to claim the memsize plus the file offset since gzip
+	/* We need to alloc the memsize plus the file offset since gzip
 	 * will expand the header (file offset), then the kernel, then
 	 * possible rubbish we don't care about. But the kernel bss must
 	 * be claimed (it will be zero'd by the kernel itself)
 	 */
 	printf("Allocating 0x%lx bytes for kernel ...\n\r", vmlinux.memsize);
-	vmlinux.addr = try_claim(vmlinux.memsize);
+	vmlinux.addr = (unsigned long)malloc(vmlinux.memsize);
 	if (vmlinux.addr == 0) {
 		printf("Can't allocate memory for kernel image !\n\r");
 		exit();
 	}
 
 	/*
-	 * Now we try to claim memory for the initrd (and copy it there)
+	 * Now we try to alloc memory for the initrd (and copy it there)
 	 */
 	initrd.size = (unsigned long)(_initrd_end - _initrd_start);
 	initrd.memsize = initrd.size;
 	if ( initrd.size > 0 ) {
-		printf("Allocating 0x%lx bytes for initrd ...\n\r", initrd.size);
-		initrd.addr = try_claim(initrd.size);
+		printf("Allocating 0x%lx bytes for initrd ...\n\r",
+		       initrd.size);
+		initrd.addr = (unsigned long)malloc((u32)initrd.size);
 		if (initrd.addr == 0) {
-			printf("Can't allocate memory for initial ramdisk !\n\r");
+			printf("Can't allocate memory for initial "
+					"ramdisk !\n\r");
 			exit();
 		}
-		a1 = initrd.addr;
-		a2 = initrd.size;
-		printf("initial ramdisk moving 0x%lx <- 0x%lx (0x%lx bytes)\n\r",
-		       initrd.addr, (unsigned long)_initrd_start, initrd.size);
-		memmove((void *)initrd.addr, (void *)_initrd_start, initrd.size);
-		printf("initrd head: 0x%lx\n\r", *((unsigned long *)initrd.addr));
+		*a1 = initrd.addr;
+		*a2 = initrd.size;
+		printf("initial ramdisk moving 0x%lx <- 0x%lx "
+			"(0x%lx bytes)\n\r", initrd.addr,
+			(unsigned long)_initrd_start, initrd.size);
+		memmove((void *)initrd.addr, (void *)_initrd_start,
+			initrd.size);
+		printf("initrd head: 0x%lx\n\r",
+				*((unsigned long *)initrd.addr));
 	}
 
 	/* Eventually gunzip the kernel */
@@ -311,10 +236,9 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 			(unsigned char *)vmlinuz.addr, &len);
 		printf("done 0x%lx bytes\n\r", len);
 	} else {
-		memmove((void *)vmlinux.addr,(void *)vmlinuz.addr,vmlinuz.size);
+		memmove((void *)vmlinux.addr,(void *)vmlinuz.addr,
+			vmlinuz.size);
 	}
-
-	export_cmdline(chosen_handle);
 
 	/* Skip over the ELF header */
 #ifdef DEBUG
@@ -324,23 +248,107 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 	vmlinux.addr += elfoffset;
 
 	flush_cache((void *)vmlinux.addr, vmlinux.size);
-
-	kernel_entry = (kernel_entry_t)vmlinux.addr;
-#ifdef DEBUG
-	printf( "kernel:\n\r"
-		"        entry addr = 0x%lx\n\r"
-		"        a1         = 0x%lx,\n\r"
-		"        a2         = 0x%lx,\n\r"
-		"        prom       = 0x%lx,\n\r"
-		"        bi_recs    = 0x%lx,\n\r",
-		(unsigned long)kernel_entry, a1, a2,
-		(unsigned long)prom, NULL);
-#endif
-
-	kernel_entry(a1, a2, prom, NULL);
-
-	printf("Error: Linux kernel returned to zImage bootloader!\n\r");
-
-	exit();
 }
 
+void __attribute__ ((weak)) ft_init(void *dt_blob)
+{
+}
+
+/* A buffer that may be edited by tools operating on a zImage binary so as to
+ * edit the command line passed to vmlinux (by setting /chosen/bootargs).
+ * The buffer is put in it's own section so that tools may locate it easier.
+ */
+static char builtin_cmdline[COMMAND_LINE_SIZE]
+	__attribute__((__section__("__builtin_cmdline")));
+
+static void get_cmdline(char *buf, int size)
+{
+	void *devp;
+	int len = strlen(builtin_cmdline);
+
+	buf[0] = '\0';
+
+	if (len > 0) { /* builtin_cmdline overrides dt's /chosen/bootargs */
+		len = min(len, size-1);
+		strncpy(buf, builtin_cmdline, len);
+		buf[len] = '\0';
+	}
+	else if ((devp = finddevice("/chosen")))
+		getprop(devp, "bootargs", buf, size);
+}
+
+static void set_cmdline(char *buf)
+{
+	void *devp;
+
+	if ((devp = finddevice("/chosen")))
+		setprop(devp, "bootargs", buf, strlen(buf) + 1);
+}
+
+/* Section where ft can be tacked on after zImage is built */
+union blobspace {
+	struct boot_param_header hdr;
+	char space[8*1024];
+} dt_blob __attribute__((__section__("__builtin_ft")));
+
+struct platform_ops platform_ops;
+struct dt_ops dt_ops;
+struct console_ops console_ops;
+
+void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
+{
+	int have_dt = 0;
+	kernel_entry_t kentry;
+	char cmdline[COMMAND_LINE_SIZE];
+
+	memset(__bss_start, 0, _end - __bss_start);
+	memset(&platform_ops, 0, sizeof(platform_ops));
+	memset(&dt_ops, 0, sizeof(dt_ops));
+	memset(&console_ops, 0, sizeof(console_ops));
+
+	/* Override the dt_ops and device tree if there was an flat dev
+	 * tree attached to the zImage.
+	 */
+	if (dt_blob.hdr.magic == OF_DT_HEADER) {
+		have_dt = 1;
+		ft_init(&dt_blob);
+	}
+
+	if (platform_init(promptr))
+		exit();
+	if (console_ops.open && (console_ops.open() < 0))
+		exit();
+	if (platform_ops.fixups)
+		platform_ops.fixups();
+
+	printf("\n\rzImage starting: loaded at 0x%p (sp: 0x%p)\n\r",
+	       _start, sp);
+
+	prep_kernel(&a1, &a2);
+
+	/* If cmdline came from zimage wrapper or if we can edit the one
+	 * in the dt, print it out and edit it, if possible.
+	 */
+	if ((strlen(builtin_cmdline) > 0) || console_ops.edit_cmdline) {
+		get_cmdline(cmdline, COMMAND_LINE_SIZE);
+		printf("\n\rLinux/PowerPC load: %s", cmdline);
+		if (console_ops.edit_cmdline)
+			console_ops.edit_cmdline(cmdline, COMMAND_LINE_SIZE);
+		printf("\n\r");
+		set_cmdline(cmdline);
+	}
+
+	if (console_ops.close)
+		console_ops.close();
+
+	kentry = (kernel_entry_t) vmlinux.addr;
+	if (have_dt)
+		kentry(dt_ops.ft_addr(), 0, NULL);
+	else
+		/* XXX initrd addr/size should be passed in properties */
+		kentry(a1, a2, promptr);
+
+	/* console closed so printf below may not work */
+	printf("Error: Linux kernel returned to zImage boot wrapper!\n\r");
+	exit();
+}
