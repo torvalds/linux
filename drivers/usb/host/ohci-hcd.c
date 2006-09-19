@@ -795,7 +795,9 @@ static void ohci_stop (struct usb_hcd *hcd)
 
 	ohci_usb_reset (ohci);
 	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
-	
+	free_irq(hcd->irq, hcd);
+	hcd->irq = -1;
+
 	remove_debug_files (ohci);
 	ohci_mem_cleanup (ohci);
 	if (ohci->hcca) {
