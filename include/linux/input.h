@@ -349,6 +349,9 @@ struct input_absinfo {
 
 #define KEY_BATTERY		236
 
+#define KEY_BLUETOOTH		237
+#define KEY_WLAN		238
+
 #define KEY_UNKNOWN		240
 
 #define BTN_MISC		0x100
