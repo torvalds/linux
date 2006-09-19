@@ -1505,10 +1505,10 @@ int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 				formats |= SNDRV_PCM_FMTBIT_S32_LE;
 				if (val & AC_SUPPCM_BITS_32)
 					bps = 32;
-				else if (val & AC_SUPPCM_BITS_20)
-					bps = 20;
 				else if (val & AC_SUPPCM_BITS_24)
 					bps = 24;
+				else if (val & AC_SUPPCM_BITS_20)
+					bps = 20;
 			}
 		}
 		else if (streams == AC_SUPFMT_FLOAT32) { /* should be exclusive */
