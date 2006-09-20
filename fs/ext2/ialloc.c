@@ -637,7 +637,6 @@ fail:
 	return ERR_PTR(err);
 }
 
-/* Superblock must be locked */
 unsigned long ext2_count_free_inodes (struct super_block * sb)
 {
 	struct ext2_group_desc *desc;

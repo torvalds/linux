@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 18
-EXTRAVERSION = -rc7
-NAME=Crazed Snow-Weasel
+EXTRAVERSION =
+NAME=Avast! A bilge rat!
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -1082,6 +1082,7 @@ help:
 	@echo  'Static analysers'
 	@echo  '  checkstack      - Generate a list of stack hogs'
 	@echo  '  namespacecheck  - Name space analysis on compiled kernel'
+	@echo  '  headers_check   - Sanity check on exported headers'
 	@echo  ''
 	@echo  'Kernel packaging:'
 	@$(MAKE) $(build)=$(package-dir) help

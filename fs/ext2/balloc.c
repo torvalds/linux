@@ -539,7 +539,6 @@ unsigned long ext2_count_free (struct buffer_head * map, unsigned int numchars)
 
 #endif  /*  EXT2FS_DEBUG  */
 
-/* Superblock must be locked */
 unsigned long ext2_count_free_blocks (struct super_block * sb)
 {
 	struct ext2_group_desc * desc;

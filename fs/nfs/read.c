@@ -204,9 +204,11 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
 	spin_unlock(&inode->i_lock);
 
-	nfs_readpage_truncate_uninitialised_page(rdata);
-	if (rdata->res.eof || rdata->res.count == rdata->args.count)
+	if (rdata->res.eof || rdata->res.count == rdata->args.count) {
 		SetPageUptodate(page);
+		if (rdata->res.eof && count != 0)
+			memclear_highpage_flush(page, rdata->args.pgbase, count);
+	}
 	result = 0;
 
 io_error:
