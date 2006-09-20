@@ -122,16 +122,16 @@ ipt_limit_checkentry(const char *tablename,
 		return 0;
 	}
 
-	/* User avg in seconds * XT_LIMIT_SCALE: convert to jiffies *
-	   128. */
-	r->prev = jiffies;
-	r->credit = user2credits(r->avg * r->burst);	 /* Credits full. */
-	r->credit_cap = user2credits(r->avg * r->burst); /* Credits full. */
-	r->cost = user2credits(r->avg);
-
 	/* For SMP, we only want to use one set of counters. */
 	r->master = r;
-
+	if (r->cost == 0) {
+		/* User avg in seconds * XT_LIMIT_SCALE: convert to jiffies *
+		   128. */
+		r->prev = jiffies;
+		r->credit = user2credits(r->avg * r->burst);	 /* Credits full. */
+		r->credit_cap = user2credits(r->avg * r->burst); /* Credits full. */
+		r->cost = user2credits(r->avg);
+	}
 	return 1;
 }
 
