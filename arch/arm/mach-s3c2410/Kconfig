@@ -126,6 +126,12 @@ config MACH_NEXCODER_2440
 	help
  	  Say Y here if you are using the Nex Vision NEXCODER 2440 Light Board
 
+config MACH_VSTMS
+	bool "VMSTMS"
+	select CPU_S3C2412
+	help
+	  Say Y here if you are using an VSTMS board
+
 endmenu
 
 config S3C2410_CLOCK
