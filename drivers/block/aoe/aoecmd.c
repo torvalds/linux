@@ -166,6 +166,7 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 		d->inprocess = NULL;
 	} else if (buf->bv_resid == 0) {
 		buf->bv++;
+		WARN_ON(buf->bv->bv_len == 0);
 		buf->bv_resid = buf->bv->bv_len;
 		buf->bufaddr = page_address(buf->bv->bv_page) + buf->bv->bv_offset;
 	}

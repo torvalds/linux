@@ -142,7 +142,8 @@ aoeblk_make_request(request_queue_t *q, struct bio *bio)
 	buf->bio = bio;
 	buf->resid = bio->bi_size;
 	buf->sector = bio->bi_sector;
-	buf->bv = buf->bio->bi_io_vec;
+	buf->bv = &bio->bi_io_vec[bio->bi_idx];
+	WARN_ON(buf->bv->bv_len == 0);
 	buf->bv_resid = buf->bv->bv_len;
 	buf->bufaddr = page_address(buf->bv->bv_page) + buf->bv->bv_offset;
 
