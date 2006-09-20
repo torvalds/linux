@@ -220,7 +220,6 @@ static void pptp_destroy_siblings(struct ip_conntrack *ct)
 /* expect GRE connections (PNS->PAC and PAC->PNS direction) */
 static inline int
 exp_gre(struct ip_conntrack *master,
-	u_int32_t seq,
 	__be16 callid,
 	__be16 peer_callid)
 {
@@ -336,7 +335,6 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 	struct ip_ct_pptp_master *info = &ct->help.ct_pptp_info;
 	u_int16_t msg;
 	__be16 *cid, *pcid;
-	u_int32_t seq;
 
 	ctlh = skb_header_pointer(*pskb, nexthdr_off, sizeof(_ctlh), &_ctlh);
 	if (!ctlh) {
@@ -432,12 +430,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 
 		info->cstate = PPTP_CALL_OUT_CONF;
 
-		seq = ntohl(tcph->seq) + sizeof(struct pptp_pkt_hdr)
-				       + sizeof(struct PptpControlHeader)
-				       + ((void *)pcid - (void *)pptpReq);
-
-		if (exp_gre(ct, seq, *cid, *pcid) != 0)
-			printk("ip_conntrack_pptp: error during exp_gre\n");
+		exp_gre(ct, *cid, *pcid);
 		break;
 
 	case PPTP_IN_CALL_REQUEST:
@@ -488,13 +481,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		info->cstate = PPTP_CALL_IN_CONF;
 
 		/* we expect a GRE connection from PAC to PNS */
-		seq = ntohl(tcph->seq) + sizeof(struct pptp_pkt_hdr)
-				       + sizeof(struct PptpControlHeader)
-				       + ((void *)pcid - (void *)pptpReq);
-
-		if (exp_gre(ct, seq, *cid, *pcid) != 0)
-			printk("ip_conntrack_pptp: error during exp_gre\n");
-
+		exp_gre(ct, *cid, *pcid);
 		break;
 
 	case PPTP_CALL_DISCONNECT_NOTIFY:
