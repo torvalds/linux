@@ -83,6 +83,17 @@ aoehdr_atainit(struct aoedev *d, struct aoe_hdr *h)
 	return host_tag;
 }
 
+static inline void
+put_lba(struct aoe_atahdr *ah, sector_t lba)
+{
+	ah->lba0 = lba;
+	ah->lba1 = lba >>= 8;
+	ah->lba2 = lba >>= 8;
+	ah->lba3 = lba >>= 8;
+	ah->lba4 = lba >>= 8;
+	ah->lba5 = lba >>= 8;
+}
+
 static void
 aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 {
@@ -101,8 +112,8 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 
 	sector = buf->sector;
 	bcnt = buf->bv_resid;
-	if (bcnt > MAXATADATA)
-		bcnt = MAXATADATA;
+	if (bcnt > d->maxbcnt)
+		bcnt = d->maxbcnt;
 
 	/* initialize the headers & frame */
 	skb = f->skb;
@@ -114,17 +125,14 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 	f->waited = 0;
 	f->buf = buf;
 	f->bufaddr = buf->bufaddr;
+	f->bcnt = bcnt;
+	f->lba = sector;
 
 	/* set up ata header */
 	ah->scnt = bcnt >> 9;
-	ah->lba0 = sector;
-	ah->lba1 = sector >>= 8;
-	ah->lba2 = sector >>= 8;
-	ah->lba3 = sector >>= 8;
+	put_lba(ah, sector);
 	if (d->flags & DEVFL_EXT) {
 		ah->aflags |= AOEAFL_EXT;
-		ah->lba4 = sector >>= 8;
-		ah->lba5 = sector >>= 8;
 	} else {
 		extbit = 0;
 		ah->lba3 &= 0x0f;
@@ -251,6 +259,7 @@ rexmit(struct aoedev *d, struct frame *f)
 {
 	struct sk_buff *skb;
 	struct aoe_hdr *h;
+	struct aoe_atahdr *ah;
 	char buf[128];
 	u32 n;
 
@@ -264,10 +273,26 @@ rexmit(struct aoedev *d, struct frame *f)
 
 	skb = f->skb;
 	h = (struct aoe_hdr *) skb->mac.raw;
+	ah = (struct aoe_atahdr *) (h+1);
 	f->tag = n;
 	h->tag = cpu_to_be32(n);
 	memcpy(h->dst, d->addr, sizeof h->dst);
 	memcpy(h->src, d->ifp->dev_addr, sizeof h->src);
+
+	n = DEFAULTBCNT / 512;
+	if (ah->scnt > n) {
+		ah->scnt = n;
+		if (ah->aflags & AOEAFL_WRITE)
+			skb_fill_page_desc(skb, 0, virt_to_page(f->bufaddr),
+				offset_in_page(f->bufaddr), DEFAULTBCNT);
+		if (++d->lostjumbo > (d->nframes << 1))
+		if (d->maxbcnt != DEFAULTBCNT) {
+			printk(KERN_INFO "aoe: rexmit: too many lost jumbo.  "
+				"dropping back to 1KB frames.\n");
+			d->maxbcnt = DEFAULTBCNT;
+			d->flags |= DEVFL_MAXBCNT;
+		}
+	}
 
 	skb->dev = d->ifp;
 	skb_get(skb);
@@ -506,10 +531,10 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 		if (buf)
 			buf->flags |= BUFFL_FAIL;
 	} else {
+		n = ahout->scnt << 9;
 		switch (ahout->cmdstat) {
 		case WIN_READ:
 		case WIN_READ_EXT:
-			n = ahout->scnt << 9;
 			if (skb->len - sizeof *hin - sizeof *ahin < n) {
 				printk(KERN_CRIT "aoe: aoecmd_ata_rsp: runt "
 					"ata data size in read.  skb->len=%d\n",
@@ -521,6 +546,22 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 			memcpy(f->bufaddr, ahin+1, n);
 		case WIN_WRITE:
 		case WIN_WRITE_EXT:
+			if (f->bcnt -= n) {
+				f->bufaddr += n;
+				put_lba(ahout, f->lba += ahout->scnt);
+				n = f->bcnt > DEFAULTBCNT ? DEFAULTBCNT : f->bcnt;
+				ahout->scnt = n >> 9;
+				if (ahout->aflags & AOEAFL_WRITE)
+					skb_fill_page_desc(f->skb, 0, virt_to_page(f->bufaddr),
+						offset_in_page(f->bufaddr), n);
+				skb_get(f->skb);
+				f->skb->next = NULL;
+				spin_unlock_irqrestore(&d->lock, flags);
+				aoenet_xmit(f->skb);
+				return;
+			}
+			if (n > DEFAULTBCNT)
+				d->lostjumbo = 0;
 			break;
 		case WIN_IDENTIFY:
 			if (skb->len - sizeof *hin - sizeof *ahin < 512) {
@@ -628,9 +669,9 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	struct aoe_hdr *h;
 	struct aoe_cfghdr *ch;
 	ulong flags, sysminor, aoemajor;
-	u16 bufcnt;
 	struct sk_buff *sl;
 	enum { MAXFRAMES = 16 };
+	u16 n;
 
 	h = (struct aoe_hdr *) skb->mac.raw;
 	ch = (struct aoe_cfghdr *) (h+1);
@@ -654,11 +695,11 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 		return;
 	}
 
-	bufcnt = be16_to_cpu(ch->bufcnt);
-	if (bufcnt > MAXFRAMES)	/* keep it reasonable */
-		bufcnt = MAXFRAMES;
+	n = be16_to_cpu(ch->bufcnt);
+	if (n > MAXFRAMES)	/* keep it reasonable */
+		n = MAXFRAMES;
 
-	d = aoedev_by_sysminor_m(sysminor, bufcnt);
+	d = aoedev_by_sysminor_m(sysminor, n);
 	if (d == NULL) {
 		printk(KERN_INFO "aoe: aoecmd_cfg_rsp: device sysminor_m failure\n");
 		return;
@@ -669,6 +710,14 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	/* permit device to migrate mac and network interface */
 	d->ifp = skb->dev;
 	memcpy(d->addr, h->src, sizeof d->addr);
+	if (!(d->flags & DEVFL_MAXBCNT)) {
+		n = d->ifp->mtu;
+		n -= sizeof (struct aoe_hdr) + sizeof (struct aoe_atahdr);
+		n /= 512;
+		if (n > ch->scnt)
+			n = ch->scnt;
+		d->maxbcnt = n ? n * 512 : DEFAULTBCNT;
+	}
 
 	/* don't change users' perspective */
 	if (d->nopen && !(d->flags & DEVFL_PAUSE)) {

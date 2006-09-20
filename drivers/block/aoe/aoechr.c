@@ -89,6 +89,7 @@ revalidate(const char __user *str, size_t size)
 		return -EINVAL;
 
 	spin_lock_irqsave(&d->lock, flags);
+	d->flags &= ~DEVFL_MAXBCNT;
 	d->flags |= DEVFL_PAUSE;
 	spin_unlock_irqrestore(&d->lock, flags);
 	aoecmd_cfg(major, minor);
