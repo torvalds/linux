@@ -827,7 +827,7 @@ restart_go:
  */
 stack_overflow:
 	lg	%r15,__LC_PANIC_STACK	# change to panic stack
-	aghi	%r1,-SP_SIZE
+	aghi	%r15,-SP_SIZE
 	mvc	SP_PSW(16,%r15),0(%r12)	# move user PSW to stack
 	stmg	%r0,%r11,SP_R0(%r15)	# store gprs %r0-%r11 to kernel stack
 	la	%r1,__LC_SAVE_AREA
@@ -835,7 +835,7 @@ stack_overflow:
 	je	0f
 	chi	%r12,__LC_PGM_OLD_PSW
 	je	0f
-	la	%r1,__LC_SAVE_AREA+16
+	la	%r1,__LC_SAVE_AREA+32
 0:	mvc	SP_R12(32,%r15),0(%r1)  # move %r12-%r15 to stack
         xc      __SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15) # clear back chain
         la      %r2,SP_PTREGS(%r15)	# load pt_regs
