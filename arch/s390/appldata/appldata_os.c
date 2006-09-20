@@ -16,6 +16,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>
+#include <asm/appldata.h>
 #include <asm/smp.h>
 
 #include "appldata.h"
