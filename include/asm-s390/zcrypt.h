@@ -1,7 +1,7 @@
 /*
  *  include/asm-s390/zcrypt.h
  *
- *  zcrypt 2.0.0 (user-visible header)
+ *  zcrypt 2.1.0 (user-visible header)
  *
  *  Copyright (C)  2001, 2006 IBM Corporation
  *  Author(s): Robert Burroughs
@@ -78,6 +78,83 @@ struct ica_rsa_modexpo_crt {
 	char __user *	nq_prime;
 	char __user *	u_mult_inv;
 };
+
+/**
+ * CPRBX
+ *	  Note that all shorts and ints are big-endian.
+ *	  All pointer fields are 16 bytes long, and mean nothing.
+ *
+ *	  A request CPRB is followed by a request_parameter_block.
+ *
+ *	  The request (or reply) parameter block is organized thus:
+ *	    function code
+ *	    VUD block
+ *	    key block
+ */
+struct ica_CPRBX {
+	unsigned short	cprb_len;	/* CPRB length	      220	 */
+	unsigned char	cprb_ver_id;	/* CPRB version id.   0x02	 */
+	unsigned char	pad_000[3];	/* Alignment pad bytes		 */
+	unsigned char	func_id[2];	/* function id	      0x5432	 */
+	unsigned char	cprb_flags[4];	/* Flags			 */
+	unsigned int	req_parml;	/* request parameter buffer len	 */
+	unsigned int	req_datal;	/* request data buffer		 */
+	unsigned int	rpl_msgbl;	/* reply  message block length	 */
+	unsigned int	rpld_parml;	/* replied parameter block len	 */
+	unsigned int	rpl_datal;	/* reply data block len		 */
+	unsigned int	rpld_datal;	/* replied data block len	 */
+	unsigned int	req_extbl;	/* request extension block len	 */
+	unsigned char	pad_001[4];	/* reserved			 */
+	unsigned int	rpld_extbl;	/* replied extension block len	 */
+	unsigned char	padx000[16 - sizeof (char *)];
+	unsigned char *	req_parmb;	/* request parm block 'address'	 */
+	unsigned char	padx001[16 - sizeof (char *)];
+	unsigned char *	req_datab;	/* request data block 'address'	 */
+	unsigned char	padx002[16 - sizeof (char *)];
+	unsigned char *	rpl_parmb;	/* reply parm block 'address'	 */
+	unsigned char	padx003[16 - sizeof (char *)];
+	unsigned char *	rpl_datab;	/* reply data block 'address'	 */
+	unsigned char	padx004[16 - sizeof (char *)];
+	unsigned char *	req_extb;	/* request extension block 'addr'*/
+	unsigned char	padx005[16 - sizeof (char *)];
+	unsigned char *	rpl_extb;	/* reply extension block 'addres'*/
+	unsigned short	ccp_rtcode;	/* server return code		 */
+	unsigned short	ccp_rscode;	/* server reason code		 */
+	unsigned int	mac_data_len;	/* Mac Data Length		 */
+	unsigned char	logon_id[8];	/* Logon Identifier		 */
+	unsigned char	mac_value[8];	/* Mac Value			 */
+	unsigned char	mac_content_flgs;/* Mac content flag byte	 */
+	unsigned char	pad_002;	/* Alignment			 */
+	unsigned short	domain;		/* Domain			 */
+	unsigned char	usage_domain[4];/* Usage domain			 */
+	unsigned char	cntrl_domain[4];/* Control domain		 */
+	unsigned char	S390enf_mask[4];/* S/390 enforcement mask	 */
+	unsigned char	pad_004[36];	/* reserved			 */
+};
+
+/**
+ * xcRB
+ */
+struct ica_xcRB {
+	unsigned short	agent_ID;
+	unsigned int	user_defined;
+	unsigned short	request_ID;
+	unsigned int	request_control_blk_length;
+	unsigned char	padding1[16 - sizeof (char *)];
+	char __user *	request_control_blk_addr;
+	unsigned int	request_data_length;
+	char		padding2[16 - sizeof (char *)];
+	char __user *	request_data_address;
+	unsigned int	reply_control_blk_length;
+	char		padding3[16 - sizeof (char *)];
+	char __user *	reply_control_blk_addr;
+	unsigned int	reply_data_length;
+	char		padding4[16 - sizeof (char *)];
+	char __user *	reply_data_addr;
+	unsigned short	priority_window;
+	unsigned int	status;
+} __attribute__((packed));
+#define AUTOSELECT ((unsigned int)0xFFFFFFFF)
 
 #define ZCRYPT_IOCTL_MAGIC 'z'
 
@@ -187,6 +264,7 @@ struct ica_rsa_modexpo_crt {
  */
 #define ICARSAMODEXPO	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x05, 0)
 #define ICARSACRT	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x06, 0)
+#define ZSECSENDCPRB	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x81, 0)
 
 /* New status calls */
 #define Z90STAT_TOTALCOUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x40, int)

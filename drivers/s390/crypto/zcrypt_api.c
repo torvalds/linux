@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/s390/crypto/zcrypt_api.c
  *
- *  zcrypt 2.0.0
+ *  zcrypt 2.1.0
  *
  *  Copyright (C)  2001, 2006 IBM Corporation
  *  Author(s): Robert Burroughs
@@ -392,6 +392,41 @@ static long zcrypt_rsa_crt(struct ica_rsa_modexpo_crt *crt)
 	return -ENODEV;
 }
 
+static long zcrypt_send_cprb(struct ica_xcRB *xcRB)
+{
+	struct zcrypt_device *zdev;
+	int rc;
+
+	spin_lock_bh(&zcrypt_device_lock);
+	list_for_each_entry(zdev, &zcrypt_device_list, list) {
+		if (!zdev->online || !zdev->ops->send_cprb ||
+		    (xcRB->user_defined != AUTOSELECT &&
+			AP_QID_DEVICE(zdev->ap_dev->qid) != xcRB->user_defined)
+		    )
+			continue;
+		zcrypt_device_get(zdev);
+		get_device(&zdev->ap_dev->device);
+		zdev->request_count++;
+		__zcrypt_decrease_preference(zdev);
+		spin_unlock_bh(&zcrypt_device_lock);
+		if (try_module_get(zdev->ap_dev->drv->driver.owner)) {
+			rc = zdev->ops->send_cprb(zdev, xcRB);
+			module_put(zdev->ap_dev->drv->driver.owner);
+		}
+		else
+			rc = -EAGAIN;
+		spin_lock_bh(&zcrypt_device_lock);
+		zdev->request_count--;
+		__zcrypt_increase_preference(zdev);
+		put_device(&zdev->ap_dev->device);
+		zcrypt_device_put(zdev);
+		spin_unlock_bh(&zcrypt_device_lock);
+		return rc;
+	}
+	spin_unlock_bh(&zcrypt_device_lock);
+	return -ENODEV;
+}
+
 static void zcrypt_status_mask(char status[AP_DEVICES])
 {
 	struct zcrypt_device *zdev;
@@ -534,6 +569,18 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		if (rc)
 			return rc;
 		return put_user(crt.outputdatalength, &ucrt->outputdatalength);
+	}
+	case ZSECSENDCPRB: {
+		struct ica_xcRB __user *uxcRB = (void __user *) arg;
+		struct ica_xcRB xcRB;
+		if (copy_from_user(&xcRB, uxcRB, sizeof(xcRB)))
+			return -EFAULT;
+		do {
+			rc = zcrypt_send_cprb(&xcRB);
+		} while (rc == -EAGAIN);
+		if (copy_to_user(uxcRB, &xcRB, sizeof(xcRB)))
+			return -EFAULT;
+		return rc;
 	}
 	case Z90STAT_STATUS_MASK: {
 		char status[AP_DEVICES];
@@ -683,6 +730,67 @@ static long trans_modexpo_crt32(struct file *filp, unsigned int cmd,
 	return rc;
 }
 
+struct compat_ica_xcRB {
+	unsigned short	agent_ID;
+	unsigned int	user_defined;
+	unsigned short	request_ID;
+	unsigned int	request_control_blk_length;
+	unsigned char	padding1[16 - sizeof (compat_uptr_t)];
+	compat_uptr_t	request_control_blk_addr;
+	unsigned int	request_data_length;
+	char		padding2[16 - sizeof (compat_uptr_t)];
+	compat_uptr_t	request_data_address;
+	unsigned int	reply_control_blk_length;
+	char		padding3[16 - sizeof (compat_uptr_t)];
+	compat_uptr_t	reply_control_blk_addr;
+	unsigned int	reply_data_length;
+	char		padding4[16 - sizeof (compat_uptr_t)];
+	compat_uptr_t	reply_data_addr;
+	unsigned short	priority_window;
+	unsigned int	status;
+} __attribute__((packed));
+
+static long trans_xcRB32(struct file *filp, unsigned int cmd,
+			 unsigned long arg)
+{
+	struct compat_ica_xcRB __user *uxcRB32 = compat_ptr(arg);
+	struct compat_ica_xcRB xcRB32;
+	struct ica_xcRB xcRB64;
+	long rc;
+
+	if (copy_from_user(&xcRB32, uxcRB32, sizeof(xcRB32)))
+		return -EFAULT;
+	xcRB64.agent_ID = xcRB32.agent_ID;
+	xcRB64.user_defined = xcRB32.user_defined;
+	xcRB64.request_ID = xcRB32.request_ID;
+	xcRB64.request_control_blk_length =
+		xcRB32.request_control_blk_length;
+	xcRB64.request_control_blk_addr =
+		compat_ptr(xcRB32.request_control_blk_addr);
+	xcRB64.request_data_length =
+		xcRB32.request_data_length;
+	xcRB64.request_data_address =
+		compat_ptr(xcRB32.request_data_address);
+	xcRB64.reply_control_blk_length =
+		xcRB32.reply_control_blk_length;
+	xcRB64.reply_control_blk_addr =
+		compat_ptr(xcRB32.reply_control_blk_addr);
+	xcRB64.reply_data_length = xcRB32.reply_data_length;
+	xcRB64.reply_data_addr =
+		compat_ptr(xcRB32.reply_data_addr);
+	xcRB64.priority_window = xcRB32.priority_window;
+	xcRB64.status = xcRB32.status;
+	do {
+		rc = zcrypt_send_cprb(&xcRB64);
+	} while (rc == -EAGAIN);
+	xcRB32.reply_control_blk_length = xcRB64.reply_control_blk_length;
+	xcRB32.reply_data_length = xcRB64.reply_data_length;
+	xcRB32.status = xcRB64.status;
+	if (copy_to_user(uxcRB32, &xcRB32, sizeof(xcRB32)))
+			return -EFAULT;
+	return rc;
+}
+
 long zcrypt_compat_ioctl(struct file *filp, unsigned int cmd,
 			 unsigned long arg)
 {
@@ -690,6 +798,8 @@ long zcrypt_compat_ioctl(struct file *filp, unsigned int cmd,
 		return trans_modexpo32(filp, cmd, arg);
 	if (cmd == ICARSACRT)
 		return trans_modexpo_crt32(filp, cmd, arg);
+	if (cmd == ZSECSENDCPRB)
+		return trans_xcRB32(filp, cmd, arg);
 	return zcrypt_unlocked_ioctl(filp, cmd, arg);
 }
 #endif

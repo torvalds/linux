@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/s390/crypto/zcrypt_cca_key.h
  *
- *  zcrypt 2.0.0
+ *  zcrypt 2.1.0
  *
  *  Copyright (C)  2001, 2006 IBM Corporation
  *  Author(s): Robert Burroughs

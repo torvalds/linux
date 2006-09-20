@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/s390/crypto/zcrypt_api.h
  *
- *  zcrypt 2.0.0
+ *  zcrypt 2.1.0
  *
  *  Copyright (C)  2001, 2006 IBM Corporation
  *  Author(s): Robert Burroughs
@@ -106,6 +106,7 @@ struct zcrypt_ops {
 	long (*rsa_modexpo)(struct zcrypt_device *, struct ica_rsa_modexpo *);
 	long (*rsa_modexpo_crt)(struct zcrypt_device *,
 				struct ica_rsa_modexpo_crt *);
+	long (*send_cprb)(struct zcrypt_device *, struct ica_xcRB *);
 };
 
 struct zcrypt_device {
