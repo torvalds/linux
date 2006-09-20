@@ -28,3 +28,4 @@ obj-$(CONFIG_S390_TAPE) += tape.o tape_class.o
 obj-$(CONFIG_S390_TAPE_34XX) += tape_34xx.o
 obj-$(CONFIG_S390_TAPE_3590) += tape_3590.o
 obj-$(CONFIG_MONREADER) += monreader.o
+obj-$(CONFIG_MONWRITER) += monwriter.o

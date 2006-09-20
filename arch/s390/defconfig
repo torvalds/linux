@@ -428,6 +428,7 @@ CONFIG_S390_TAPE_34XX=m
 # CONFIG_VMLOGRDR is not set
 # CONFIG_VMCP is not set
 # CONFIG_MONREADER is not set
+CONFIG_MONWRITER=m
 
 #
 # Cryptographic devices

@@ -213,6 +213,12 @@ config MONREADER
 	help
 	  Character device driver for reading z/VM monitor service records
 
+config MONWRITER
+	tristate "API for writing z/VM monitor service records"
+	default "m"
+	help
+	  Character device driver for writing z/VM monitor service records
+
 endmenu
 
 menu "Cryptographic devices"
