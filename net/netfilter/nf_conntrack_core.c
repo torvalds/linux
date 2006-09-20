@@ -848,11 +848,15 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 		nf_conntrack_hash_rnd_initted = 1;
 	}
 
+	/* We don't want any race condition at early drop stage */
+	atomic_inc(&nf_conntrack_count);
+
 	if (nf_conntrack_max
-	    && atomic_read(&nf_conntrack_count) >= nf_conntrack_max) {
+	    && atomic_read(&nf_conntrack_count) > nf_conntrack_max) {
 		unsigned int hash = hash_conntrack(orig);
 		/* Try dropping from this hash chain. */
 		if (!early_drop(&nf_conntrack_hash[hash])) {
+			atomic_dec(&nf_conntrack_count);
 			if (net_ratelimit())
 				printk(KERN_WARNING
 				       "nf_conntrack: table full, dropping"
@@ -903,10 +907,12 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 	init_timer(&conntrack->timeout);
 	conntrack->timeout.data = (unsigned long)conntrack;
 	conntrack->timeout.function = death_by_timeout;
+	read_unlock_bh(&nf_ct_cache_lock);
 
-	atomic_inc(&nf_conntrack_count);
+	return conntrack;
 out:
 	read_unlock_bh(&nf_ct_cache_lock);
+	atomic_dec(&nf_conntrack_count);
 	return conntrack;
 }
 

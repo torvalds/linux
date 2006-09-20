@@ -622,11 +622,15 @@ struct ip_conntrack *ip_conntrack_alloc(struct ip_conntrack_tuple *orig,
 		ip_conntrack_hash_rnd_initted = 1;
 	}
 
+	/* We don't want any race condition at early drop stage */
+	atomic_inc(&ip_conntrack_count);
+
 	if (ip_conntrack_max
-	    && atomic_read(&ip_conntrack_count) >= ip_conntrack_max) {
+	    && atomic_read(&ip_conntrack_count) > ip_conntrack_max) {
 		unsigned int hash = hash_conntrack(orig);
 		/* Try dropping from this hash chain. */
 		if (!early_drop(&ip_conntrack_hash[hash])) {
+			atomic_dec(&ip_conntrack_count);
 			if (net_ratelimit())
 				printk(KERN_WARNING
 				       "ip_conntrack: table full, dropping"
@@ -638,6 +642,7 @@ struct ip_conntrack *ip_conntrack_alloc(struct ip_conntrack_tuple *orig,
 	conntrack = kmem_cache_alloc(ip_conntrack_cachep, GFP_ATOMIC);
 	if (!conntrack) {
 		DEBUGP("Can't allocate conntrack.\n");
+		atomic_dec(&ip_conntrack_count);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -650,8 +655,6 @@ struct ip_conntrack *ip_conntrack_alloc(struct ip_conntrack_tuple *orig,
 	init_timer(&conntrack->timeout);
 	conntrack->timeout.data = (unsigned long)conntrack;
 	conntrack->timeout.function = death_by_timeout;
-
-	atomic_inc(&ip_conntrack_count);
 
 	return conntrack;
 }
