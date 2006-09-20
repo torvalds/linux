@@ -19,14 +19,10 @@
 #include <net/route.h>
 #include <linux/bitops.h>
 
-#define ASSERT_READ_LOCK(x)
-#define ASSERT_WRITE_LOCK(x)
-
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ip_nat.h>
 #include <linux/netfilter_ipv4/ip_nat_core.h>
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
-#include <linux/netfilter_ipv4/listhelp.h>
 
 #if 0
 #define DEBUGP printk

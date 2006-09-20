@@ -37,7 +37,6 @@ static DEFINE_RWLOCK(ip_ct_gre_lock);
 #define ASSERT_READ_LOCK(x)
 #define ASSERT_WRITE_LOCK(x)
 
-#include <linux/netfilter_ipv4/listhelp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
 #include <linux/netfilter_ipv4/ip_conntrack_core.h>
@@ -82,10 +81,12 @@ static __be16 gre_keymap_lookup(struct ip_conntrack_tuple *t)
 	__be16 key = 0;
 
 	read_lock_bh(&ip_ct_gre_lock);
-	km = LIST_FIND(&gre_keymap_list, gre_key_cmpfn,
-			struct ip_ct_gre_keymap *, t);
-	if (km)
-		key = km->tuple.src.u.gre.key;
+	list_for_each_entry(km, &gre_keymap_list, list) {
+		if (gre_key_cmpfn(km, t)) {
+			key = km->tuple.src.u.gre.key;
+			break;
+		}
+	}
 	read_unlock_bh(&ip_ct_gre_lock);
 	
 	DEBUGP("lookup src key 0x%x up key for ", key);
@@ -99,7 +100,7 @@ int
 ip_ct_gre_keymap_add(struct ip_conntrack *ct,
 		     struct ip_conntrack_tuple *t, int reply)
 {
-	struct ip_ct_gre_keymap **exist_km, *km, *old;
+	struct ip_ct_gre_keymap **exist_km, *km;
 
 	if (!ct->helper || strcmp(ct->helper->name, "pptp")) {
 		DEBUGP("refusing to add GRE keymap to non-pptp session\n");
@@ -113,13 +114,10 @@ ip_ct_gre_keymap_add(struct ip_conntrack *ct,
 
 	if (*exist_km) {
 		/* check whether it's a retransmission */
-		old = LIST_FIND(&gre_keymap_list, gre_key_cmpfn,
-				struct ip_ct_gre_keymap *, t);
-		if (old == *exist_km) {
-			DEBUGP("retransmission\n");
-			return 0;
+		list_for_each_entry(km, &gre_keymap_list, list) {
+			if (gre_key_cmpfn(km, t) && km == *exist_km)
+				return 0;
 		}
-
 		DEBUGP("trying to override keymap_%s for ct %p\n", 
 			reply? "reply":"orig", ct);
 		return -EEXIST;
@@ -136,7 +134,7 @@ ip_ct_gre_keymap_add(struct ip_conntrack *ct,
 	DUMP_TUPLE_GRE(&km->tuple);
 
 	write_lock_bh(&ip_ct_gre_lock);
-	list_append(&gre_keymap_list, km);
+	list_add_tail(&km->list, &gre_keymap_list);
 	write_unlock_bh(&ip_ct_gre_lock);
 
 	return 0;

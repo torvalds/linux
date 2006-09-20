@@ -37,7 +37,6 @@
 #include <net/netfilter/nf_conntrack_protocol.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_helper.h>
-#include <linux/netfilter_ipv4/listhelp.h>
 
 #if 0
 #define DEBUGP printk

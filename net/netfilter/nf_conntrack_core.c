@@ -57,7 +57,6 @@
 #include <net/netfilter/nf_conntrack_protocol.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_core.h>
-#include <linux/netfilter_ipv4/listhelp.h>
 
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
@@ -539,15 +538,10 @@ void nf_ct_remove_expectations(struct nf_conn *ct)
 static void
 clean_from_lists(struct nf_conn *ct)
 {
-	unsigned int ho, hr;
-	
 	DEBUGP("clean_from_lists(%p)\n", ct);
 	ASSERT_WRITE_LOCK(&nf_conntrack_lock);
-
-	ho = hash_conntrack(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
-	hr = hash_conntrack(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-	LIST_DELETE(&nf_conntrack_hash[ho], &ct->tuplehash[IP_CT_DIR_ORIGINAL]);
-	LIST_DELETE(&nf_conntrack_hash[hr], &ct->tuplehash[IP_CT_DIR_REPLY]);
+	list_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
+	list_del(&ct->tuplehash[IP_CT_DIR_REPLY].list);
 
 	/* Destroy all pending expectations */
 	nf_ct_remove_expectations(ct);
@@ -617,16 +611,6 @@ static void death_by_timeout(unsigned long ul_conntrack)
 	nf_ct_put(ct);
 }
 
-static inline int
-conntrack_tuple_cmp(const struct nf_conntrack_tuple_hash *i,
-		    const struct nf_conntrack_tuple *tuple,
-		    const struct nf_conn *ignored_conntrack)
-{
-	ASSERT_READ_LOCK(&nf_conntrack_lock);
-	return nf_ct_tuplehash_to_ctrack(i) != ignored_conntrack
-		&& nf_ct_tuple_equal(tuple, &i->tuple);
-}
-
 struct nf_conntrack_tuple_hash *
 __nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
 		    const struct nf_conn *ignored_conntrack)
@@ -636,7 +620,8 @@ __nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
 
 	ASSERT_READ_LOCK(&nf_conntrack_lock);
 	list_for_each_entry(h, &nf_conntrack_hash[hash], list) {
-		if (conntrack_tuple_cmp(h, tuple, ignored_conntrack)) {
+		if (nf_ct_tuplehash_to_ctrack(h) != ignored_conntrack &&
+		    nf_ct_tuple_equal(tuple, &h->tuple)) {
 			NF_CT_STAT_INC(found);
 			return h;
 		}
@@ -667,10 +652,10 @@ static void __nf_conntrack_hash_insert(struct nf_conn *ct,
 				       unsigned int repl_hash) 
 {
 	ct->id = ++nf_conntrack_next_id;
-	list_prepend(&nf_conntrack_hash[hash],
-		     &ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
-	list_prepend(&nf_conntrack_hash[repl_hash],
-		     &ct->tuplehash[IP_CT_DIR_REPLY].list);
+	list_add(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list,
+		 &nf_conntrack_hash[hash]);
+	list_add(&ct->tuplehash[IP_CT_DIR_REPLY].list,
+		 &nf_conntrack_hash[repl_hash]);
 }
 
 void nf_conntrack_hash_insert(struct nf_conn *ct)
@@ -690,7 +675,9 @@ int
 __nf_conntrack_confirm(struct sk_buff **pskb)
 {
 	unsigned int hash, repl_hash;
+	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
+	struct nf_conn_help *help;
 	enum ip_conntrack_info ctinfo;
 
 	ct = nf_ct_get(*pskb, &ctinfo);
@@ -720,41 +707,41 @@ __nf_conntrack_confirm(struct sk_buff **pskb)
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
 	   not in the hash.  If there is, we lost race. */
-	if (!LIST_FIND(&nf_conntrack_hash[hash],
-		       conntrack_tuple_cmp,
-		       struct nf_conntrack_tuple_hash *,
-		       &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple, NULL)
-	    && !LIST_FIND(&nf_conntrack_hash[repl_hash],
-			  conntrack_tuple_cmp,
-			  struct nf_conntrack_tuple_hash *,
-			  &ct->tuplehash[IP_CT_DIR_REPLY].tuple, NULL)) {
-		struct nf_conn_help *help;
-		/* Remove from unconfirmed list */
-		list_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
+	list_for_each_entry(h, &nf_conntrack_hash[hash], list)
+		if (nf_ct_tuple_equal(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+				      &h->tuple))
+			goto out;
+	list_for_each_entry(h, &nf_conntrack_hash[repl_hash], list)
+		if (nf_ct_tuple_equal(&ct->tuplehash[IP_CT_DIR_REPLY].tuple,
+				      &h->tuple))
+			goto out;
 
-		__nf_conntrack_hash_insert(ct, hash, repl_hash);
-		/* Timer relative to confirmation time, not original
-		   setting time, otherwise we'd get timer wrap in
-		   weird delay cases. */
-		ct->timeout.expires += jiffies;
-		add_timer(&ct->timeout);
-		atomic_inc(&ct->ct_general.use);
-		set_bit(IPS_CONFIRMED_BIT, &ct->status);
-		NF_CT_STAT_INC(insert);
-		write_unlock_bh(&nf_conntrack_lock);
-		help = nfct_help(ct);
-		if (help && help->helper)
-			nf_conntrack_event_cache(IPCT_HELPER, *pskb);
+	/* Remove from unconfirmed list */
+	list_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
+
+	__nf_conntrack_hash_insert(ct, hash, repl_hash);
+	/* Timer relative to confirmation time, not original
+	   setting time, otherwise we'd get timer wrap in
+	   weird delay cases. */
+	ct->timeout.expires += jiffies;
+	add_timer(&ct->timeout);
+	atomic_inc(&ct->ct_general.use);
+	set_bit(IPS_CONFIRMED_BIT, &ct->status);
+	NF_CT_STAT_INC(insert);
+	write_unlock_bh(&nf_conntrack_lock);
+	help = nfct_help(ct);
+	if (help && help->helper)
+		nf_conntrack_event_cache(IPCT_HELPER, *pskb);
 #ifdef CONFIG_NF_NAT_NEEDED
-		if (test_bit(IPS_SRC_NAT_DONE_BIT, &ct->status) ||
-		    test_bit(IPS_DST_NAT_DONE_BIT, &ct->status))
-			nf_conntrack_event_cache(IPCT_NATINFO, *pskb);
+	if (test_bit(IPS_SRC_NAT_DONE_BIT, &ct->status) ||
+	    test_bit(IPS_DST_NAT_DONE_BIT, &ct->status))
+		nf_conntrack_event_cache(IPCT_NATINFO, *pskb);
 #endif
-		nf_conntrack_event_cache(master_ct(ct) ?
-					 IPCT_RELATED : IPCT_NEW, *pskb);
-		return NF_ACCEPT;
-	}
+	nf_conntrack_event_cache(master_ct(ct) ?
+				 IPCT_RELATED : IPCT_NEW, *pskb);
+	return NF_ACCEPT;
 
+out:
 	NF_CT_STAT_INC(insert_failed);
 	write_unlock_bh(&nf_conntrack_lock);
 	return NF_DROP;
@@ -777,24 +764,21 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 
 /* There's a small race here where we may free a just-assured
    connection.  Too bad: we're in trouble anyway. */
-static inline int unreplied(const struct nf_conntrack_tuple_hash *i)
-{
-	return !(test_bit(IPS_ASSURED_BIT,
-			  &nf_ct_tuplehash_to_ctrack(i)->status));
-}
-
 static int early_drop(struct list_head *chain)
 {
 	/* Traverse backwards: gives us oldest, which is roughly LRU */
 	struct nf_conntrack_tuple_hash *h;
-	struct nf_conn *ct = NULL;
+	struct nf_conn *ct = NULL, *tmp;
 	int dropped = 0;
 
 	read_lock_bh(&nf_conntrack_lock);
-	h = LIST_FIND_B(chain, unreplied, struct nf_conntrack_tuple_hash *);
-	if (h) {
-		ct = nf_ct_tuplehash_to_ctrack(h);
-		atomic_inc(&ct->ct_general.use);
+	list_for_each_entry_reverse(h, chain, list) {
+		tmp = nf_ct_tuplehash_to_ctrack(h);
+		if (!test_bit(IPS_ASSURED_BIT, &tmp->status)) {
+			ct = tmp;
+			atomic_inc(&ct->ct_general.use);
+			break;
+		}
 	}
 	read_unlock_bh(&nf_conntrack_lock);
 
@@ -810,18 +794,16 @@ static int early_drop(struct list_head *chain)
 	return dropped;
 }
 
-static inline int helper_cmp(const struct nf_conntrack_helper *i,
-			     const struct nf_conntrack_tuple *rtuple)
-{
-	return nf_ct_tuple_mask_cmp(rtuple, &i->tuple, &i->mask);
-}
-
 static struct nf_conntrack_helper *
 __nf_ct_helper_find(const struct nf_conntrack_tuple *tuple)
 {
-	return LIST_FIND(&helpers, helper_cmp,
-			 struct nf_conntrack_helper *,
-			 tuple);
+	struct nf_conntrack_helper *h;
+
+	list_for_each_entry(h, &helpers, list) {
+		if (nf_ct_tuple_mask_cmp(tuple, &h->tuple, &h->mask))
+			return h;
+	}
+	return NULL;
 }
 
 struct nf_conntrack_helper *
@@ -1323,7 +1305,7 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 		return ret;
 	}
 	write_lock_bh(&nf_conntrack_lock);
-	list_prepend(&helpers, me);
+	list_add(&me->list, &helpers);
 	write_unlock_bh(&nf_conntrack_lock);
 
 	return 0;
@@ -1342,8 +1324,8 @@ __nf_conntrack_helper_find_byname(const char *name)
 	return NULL;
 }
 
-static inline int unhelp(struct nf_conntrack_tuple_hash *i,
-			 const struct nf_conntrack_helper *me)
+static inline void unhelp(struct nf_conntrack_tuple_hash *i,
+			  const struct nf_conntrack_helper *me)
 {
 	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(i);
 	struct nf_conn_help *help = nfct_help(ct);
@@ -1352,17 +1334,17 @@ static inline int unhelp(struct nf_conntrack_tuple_hash *i,
 		nf_conntrack_event(IPCT_HELPER, ct);
 		help->helper = NULL;
 	}
-	return 0;
 }
 
 void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 {
 	unsigned int i;
+	struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_expect *exp, *tmp;
 
 	/* Need write lock here, to delete helper. */
 	write_lock_bh(&nf_conntrack_lock);
-	LIST_DELETE(&helpers, me);
+	list_del(&me->list);
 
 	/* Get rid of expectations */
 	list_for_each_entry_safe(exp, tmp, &nf_conntrack_expect_list, list) {
@@ -1374,10 +1356,12 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 	}
 
 	/* Get rid of expecteds, set helpers to NULL. */
-	LIST_FIND_W(&unconfirmed, unhelp, struct nf_conntrack_tuple_hash*, me);
-	for (i = 0; i < nf_conntrack_htable_size; i++)
-		LIST_FIND_W(&nf_conntrack_hash[i], unhelp,
-			    struct nf_conntrack_tuple_hash *, me);
+	list_for_each_entry(h, &unconfirmed, list)
+		unhelp(h, me);
+	for (i = 0; i < nf_conntrack_htable_size; i++) {
+		list_for_each_entry(h, &nf_conntrack_hash[i], list)
+			unhelp(h, me);
+	}
 	write_unlock_bh(&nf_conntrack_lock);
 
 	/* Someone could be still looking at the helper in a bh. */
@@ -1510,37 +1494,40 @@ do_iter(const struct nf_conntrack_tuple_hash *i,
 }
 
 /* Bring out ya dead! */
-static struct nf_conntrack_tuple_hash *
+static struct nf_conn *
 get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 		void *data, unsigned int *bucket)
 {
-	struct nf_conntrack_tuple_hash *h = NULL;
+	struct nf_conntrack_tuple_hash *h;
+	struct nf_conn *ct;
 
 	write_lock_bh(&nf_conntrack_lock);
 	for (; *bucket < nf_conntrack_htable_size; (*bucket)++) {
-		h = LIST_FIND_W(&nf_conntrack_hash[*bucket], do_iter,
-				struct nf_conntrack_tuple_hash *, iter, data);
-		if (h)
-			break;
+		list_for_each_entry(h, &nf_conntrack_hash[*bucket], list) {
+			ct = nf_ct_tuplehash_to_ctrack(h);
+			if (iter(ct, data))
+				goto found;
+		}
  	}
-	if (!h)
-		h = LIST_FIND_W(&unconfirmed, do_iter,
-				struct nf_conntrack_tuple_hash *, iter, data);
-	if (h)
-		atomic_inc(&nf_ct_tuplehash_to_ctrack(h)->ct_general.use);
+	list_for_each_entry(h, &unconfirmed, list) {
+		ct = nf_ct_tuplehash_to_ctrack(h);
+		if (iter(ct, data))
+			goto found;
+	}
+	return NULL;
+found:
+	atomic_inc(&nf_ct_tuplehash_to_ctrack(h)->ct_general.use);
 	write_unlock_bh(&nf_conntrack_lock);
-
-	return h;
+	return ct;
 }
 
 void
 nf_ct_iterate_cleanup(int (*iter)(struct nf_conn *i, void *data), void *data)
 {
-	struct nf_conntrack_tuple_hash *h;
+	struct nf_conn *ct;
 	unsigned int bucket = 0;
 
-	while ((h = get_next_corpse(iter, data, &bucket)) != NULL) {
-		struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
+	while ((ct = get_next_corpse(iter, data, &bucket)) != NULL) {
 		/* Time to push up daises... */
 		if (del_timer(&ct->timeout))
 			death_by_timeout((unsigned long)ct);

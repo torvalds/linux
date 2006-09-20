@@ -47,7 +47,6 @@
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
 #include <linux/netfilter_ipv4/ip_conntrack_core.h>
-#include <linux/netfilter_ipv4/listhelp.h>
 
 #define IP_CONNTRACK_VERSION	"2.4"
 
@@ -294,15 +293,10 @@ void ip_ct_remove_expectations(struct ip_conntrack *ct)
 static void
 clean_from_lists(struct ip_conntrack *ct)
 {
-	unsigned int ho, hr;
-	
 	DEBUGP("clean_from_lists(%p)\n", ct);
 	ASSERT_WRITE_LOCK(&ip_conntrack_lock);
-
-	ho = hash_conntrack(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
-	hr = hash_conntrack(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-	LIST_DELETE(&ip_conntrack_hash[ho], &ct->tuplehash[IP_CT_DIR_ORIGINAL]);
-	LIST_DELETE(&ip_conntrack_hash[hr], &ct->tuplehash[IP_CT_DIR_REPLY]);
+	list_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
+	list_del(&ct->tuplehash[IP_CT_DIR_REPLY].list);
 
 	/* Destroy all pending expectations */
 	ip_ct_remove_expectations(ct);
@@ -367,16 +361,6 @@ static void death_by_timeout(unsigned long ul_conntrack)
 	ip_conntrack_put(ct);
 }
 
-static inline int
-conntrack_tuple_cmp(const struct ip_conntrack_tuple_hash *i,
-		    const struct ip_conntrack_tuple *tuple,
-		    const struct ip_conntrack *ignored_conntrack)
-{
-	ASSERT_READ_LOCK(&ip_conntrack_lock);
-	return tuplehash_to_ctrack(i) != ignored_conntrack
-		&& ip_ct_tuple_equal(tuple, &i->tuple);
-}
-
 struct ip_conntrack_tuple_hash *
 __ip_conntrack_find(const struct ip_conntrack_tuple *tuple,
 		    const struct ip_conntrack *ignored_conntrack)
@@ -386,7 +370,8 @@ __ip_conntrack_find(const struct ip_conntrack_tuple *tuple,
 
 	ASSERT_READ_LOCK(&ip_conntrack_lock);
 	list_for_each_entry(h, &ip_conntrack_hash[hash], list) {
-		if (conntrack_tuple_cmp(h, tuple, ignored_conntrack)) {
+		if (tuplehash_to_ctrack(h) != ignored_conntrack &&
+		    ip_ct_tuple_equal(tuple, &h->tuple)) {
 			CONNTRACK_STAT_INC(found);
 			return h;
 		}
@@ -417,10 +402,10 @@ static void __ip_conntrack_hash_insert(struct ip_conntrack *ct,
 					unsigned int repl_hash) 
 {
 	ct->id = ++ip_conntrack_next_id;
-	list_prepend(&ip_conntrack_hash[hash],
-		     &ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
-	list_prepend(&ip_conntrack_hash[repl_hash],
-		     &ct->tuplehash[IP_CT_DIR_REPLY].list);
+	list_add(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list,
+		 &ip_conntrack_hash[hash]);
+	list_add(&ct->tuplehash[IP_CT_DIR_REPLY].list,
+		 &ip_conntrack_hash[repl_hash]);
 }
 
 void ip_conntrack_hash_insert(struct ip_conntrack *ct)
@@ -440,6 +425,7 @@ int
 __ip_conntrack_confirm(struct sk_buff **pskb)
 {
 	unsigned int hash, repl_hash;
+	struct ip_conntrack_tuple_hash *h;
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
 
@@ -470,43 +456,43 @@ __ip_conntrack_confirm(struct sk_buff **pskb)
 	/* See if there's one in the list already, including reverse:
            NAT could have grabbed it without realizing, since we're
            not in the hash.  If there is, we lost race. */
-	if (!LIST_FIND(&ip_conntrack_hash[hash],
-		       conntrack_tuple_cmp,
-		       struct ip_conntrack_tuple_hash *,
-		       &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple, NULL)
-	    && !LIST_FIND(&ip_conntrack_hash[repl_hash],
-			  conntrack_tuple_cmp,
-			  struct ip_conntrack_tuple_hash *,
-			  &ct->tuplehash[IP_CT_DIR_REPLY].tuple, NULL)) {
-		/* Remove from unconfirmed list */
-		list_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
+	list_for_each_entry(h, &ip_conntrack_hash[hash], list)
+		if (ip_ct_tuple_equal(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+				      &h->tuple))
+			goto out;
+	list_for_each_entry(h, &ip_conntrack_hash[repl_hash], list)
+		if (ip_ct_tuple_equal(&ct->tuplehash[IP_CT_DIR_REPLY].tuple,
+				      &h->tuple))
+			goto out;
 
-		__ip_conntrack_hash_insert(ct, hash, repl_hash);
-		/* Timer relative to confirmation time, not original
-		   setting time, otherwise we'd get timer wrap in
-		   weird delay cases. */
-		ct->timeout.expires += jiffies;
-		add_timer(&ct->timeout);
-		atomic_inc(&ct->ct_general.use);
-		set_bit(IPS_CONFIRMED_BIT, &ct->status);
-		CONNTRACK_STAT_INC(insert);
-		write_unlock_bh(&ip_conntrack_lock);
-		if (ct->helper)
-			ip_conntrack_event_cache(IPCT_HELPER, *pskb);
+	/* Remove from unconfirmed list */
+	list_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
+
+	__ip_conntrack_hash_insert(ct, hash, repl_hash);
+	/* Timer relative to confirmation time, not original
+	   setting time, otherwise we'd get timer wrap in
+	   weird delay cases. */
+	ct->timeout.expires += jiffies;
+	add_timer(&ct->timeout);
+	atomic_inc(&ct->ct_general.use);
+	set_bit(IPS_CONFIRMED_BIT, &ct->status);
+	CONNTRACK_STAT_INC(insert);
+	write_unlock_bh(&ip_conntrack_lock);
+	if (ct->helper)
+		ip_conntrack_event_cache(IPCT_HELPER, *pskb);
 #ifdef CONFIG_IP_NF_NAT_NEEDED
-		if (test_bit(IPS_SRC_NAT_DONE_BIT, &ct->status) ||
-		    test_bit(IPS_DST_NAT_DONE_BIT, &ct->status))
-			ip_conntrack_event_cache(IPCT_NATINFO, *pskb);
+	if (test_bit(IPS_SRC_NAT_DONE_BIT, &ct->status) ||
+	    test_bit(IPS_DST_NAT_DONE_BIT, &ct->status))
+		ip_conntrack_event_cache(IPCT_NATINFO, *pskb);
 #endif
-		ip_conntrack_event_cache(master_ct(ct) ?
-					 IPCT_RELATED : IPCT_NEW, *pskb);
+	ip_conntrack_event_cache(master_ct(ct) ?
+				 IPCT_RELATED : IPCT_NEW, *pskb);
 
-		return NF_ACCEPT;
-	}
+	return NF_ACCEPT;
 
+out:
 	CONNTRACK_STAT_INC(insert_failed);
 	write_unlock_bh(&ip_conntrack_lock);
-
 	return NF_DROP;
 }
 
@@ -527,23 +513,21 @@ ip_conntrack_tuple_taken(const struct ip_conntrack_tuple *tuple,
 
 /* There's a small race here where we may free a just-assured
    connection.  Too bad: we're in trouble anyway. */
-static inline int unreplied(const struct ip_conntrack_tuple_hash *i)
-{
-	return !(test_bit(IPS_ASSURED_BIT, &tuplehash_to_ctrack(i)->status));
-}
-
 static int early_drop(struct list_head *chain)
 {
 	/* Traverse backwards: gives us oldest, which is roughly LRU */
 	struct ip_conntrack_tuple_hash *h;
-	struct ip_conntrack *ct = NULL;
+	struct ip_conntrack *ct = NULL, *tmp;
 	int dropped = 0;
 
 	read_lock_bh(&ip_conntrack_lock);
-	h = LIST_FIND_B(chain, unreplied, struct ip_conntrack_tuple_hash *);
-	if (h) {
-		ct = tuplehash_to_ctrack(h);
-		atomic_inc(&ct->ct_general.use);
+	list_for_each_entry_reverse(h, chain, list) {
+		tmp = tuplehash_to_ctrack(h);
+		if (!test_bit(IPS_ASSURED_BIT, &tmp->status)) {
+			ct = tmp;
+			atomic_inc(&ct->ct_general.use);
+			break;
+		}
 	}
 	read_unlock_bh(&ip_conntrack_lock);
 
@@ -559,18 +543,16 @@ static int early_drop(struct list_head *chain)
 	return dropped;
 }
 
-static inline int helper_cmp(const struct ip_conntrack_helper *i,
-			     const struct ip_conntrack_tuple *rtuple)
-{
-	return ip_ct_tuple_mask_cmp(rtuple, &i->tuple, &i->mask);
-}
-
 static struct ip_conntrack_helper *
 __ip_conntrack_helper_find( const struct ip_conntrack_tuple *tuple)
 {
-	return LIST_FIND(&helpers, helper_cmp,
-			 struct ip_conntrack_helper *,
-			 tuple);
+	struct ip_conntrack_helper *h;
+
+	list_for_each_entry(h, &helpers, list) {
+		if (ip_ct_tuple_mask_cmp(tuple, &h->tuple, &h->mask))
+			return h;
+	}
+	return NULL;
 }
 
 struct ip_conntrack_helper *
@@ -1062,7 +1044,7 @@ int ip_conntrack_helper_register(struct ip_conntrack_helper *me)
 {
 	BUG_ON(me->timeout == 0);
 	write_lock_bh(&ip_conntrack_lock);
-	list_prepend(&helpers, me);
+	list_add(&me->list, &helpers);
 	write_unlock_bh(&ip_conntrack_lock);
 
 	return 0;
@@ -1081,24 +1063,24 @@ __ip_conntrack_helper_find_byname(const char *name)
 	return NULL;
 }
 
-static inline int unhelp(struct ip_conntrack_tuple_hash *i,
-			 const struct ip_conntrack_helper *me)
+static inline void unhelp(struct ip_conntrack_tuple_hash *i,
+			  const struct ip_conntrack_helper *me)
 {
 	if (tuplehash_to_ctrack(i)->helper == me) {
  		ip_conntrack_event(IPCT_HELPER, tuplehash_to_ctrack(i));
 		tuplehash_to_ctrack(i)->helper = NULL;
 	}
-	return 0;
 }
 
 void ip_conntrack_helper_unregister(struct ip_conntrack_helper *me)
 {
 	unsigned int i;
+	struct ip_conntrack_tuple_hash *h;
 	struct ip_conntrack_expect *exp, *tmp;
 
 	/* Need write lock here, to delete helper. */
 	write_lock_bh(&ip_conntrack_lock);
-	LIST_DELETE(&helpers, me);
+	list_del(&me->list);
 
 	/* Get rid of expectations */
 	list_for_each_entry_safe(exp, tmp, &ip_conntrack_expect_list, list) {
@@ -1108,10 +1090,12 @@ void ip_conntrack_helper_unregister(struct ip_conntrack_helper *me)
 		}
 	}
 	/* Get rid of expecteds, set helpers to NULL. */
-	LIST_FIND_W(&unconfirmed, unhelp, struct ip_conntrack_tuple_hash*, me);
-	for (i = 0; i < ip_conntrack_htable_size; i++)
-		LIST_FIND_W(&ip_conntrack_hash[i], unhelp,
-			    struct ip_conntrack_tuple_hash *, me);
+	list_for_each_entry(h, &unconfirmed, list)
+		unhelp(h, me);
+	for (i = 0; i < ip_conntrack_htable_size; i++) {
+		list_for_each_entry(h, &ip_conntrack_hash[i], list)
+			unhelp(h, me);
+	}
 	write_unlock_bh(&ip_conntrack_lock);
 
 	/* Someone could be still looking at the helper in a bh. */
@@ -1237,46 +1221,43 @@ static void ip_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb)
 	nf_conntrack_get(nskb->nfct);
 }
 
-static inline int
-do_iter(const struct ip_conntrack_tuple_hash *i,
-	int (*iter)(struct ip_conntrack *i, void *data),
-	void *data)
-{
-	return iter(tuplehash_to_ctrack(i), data);
-}
-
 /* Bring out ya dead! */
-static struct ip_conntrack_tuple_hash *
+static struct ip_conntrack *
 get_next_corpse(int (*iter)(struct ip_conntrack *i, void *data),
 		void *data, unsigned int *bucket)
 {
-	struct ip_conntrack_tuple_hash *h = NULL;
+	struct ip_conntrack_tuple_hash *h;
+	struct ip_conntrack *ct;
 
 	write_lock_bh(&ip_conntrack_lock);
 	for (; *bucket < ip_conntrack_htable_size; (*bucket)++) {
-		h = LIST_FIND_W(&ip_conntrack_hash[*bucket], do_iter,
-				struct ip_conntrack_tuple_hash *, iter, data);
-		if (h)
-			break;
+		list_for_each_entry(h, &ip_conntrack_hash[*bucket], list) {
+			ct = tuplehash_to_ctrack(h);
+			if (iter(ct, data))
+				goto found;
+		}
 	}
-	if (!h)
-		h = LIST_FIND_W(&unconfirmed, do_iter,
-				struct ip_conntrack_tuple_hash *, iter, data);
-	if (h)
-		atomic_inc(&tuplehash_to_ctrack(h)->ct_general.use);
+	list_for_each_entry(h, &unconfirmed, list) {
+		ct = tuplehash_to_ctrack(h);
+		if (iter(ct, data))
+			goto found;
+	}
 	write_unlock_bh(&ip_conntrack_lock);
+	return NULL;
 
-	return h;
+found:
+	atomic_inc(&ct->ct_general.use);
+	write_unlock_bh(&ip_conntrack_lock);
+	return ct;
 }
 
 void
 ip_ct_iterate_cleanup(int (*iter)(struct ip_conntrack *i, void *), void *data)
 {
-	struct ip_conntrack_tuple_hash *h;
+	struct ip_conntrack *ct;
 	unsigned int bucket = 0;
 
-	while ((h = get_next_corpse(iter, data, &bucket)) != NULL) {
-		struct ip_conntrack *ct = tuplehash_to_ctrack(h);
+	while ((ct = get_next_corpse(iter, data, &bucket)) != NULL) {
 		/* Time to push up daises... */
 		if (del_timer(&ct->timeout))
 			death_by_timeout((unsigned long)ct);

@@ -70,9 +70,6 @@ do {								\
 #define IP_NF_ASSERT(x)
 #endif
 
-
-#include <linux/netfilter_ipv4/listhelp.h>
-
 #if 0
 /* All the better to debug you with... */
 #define static

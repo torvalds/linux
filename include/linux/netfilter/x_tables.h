@@ -138,10 +138,6 @@ struct xt_counters_info
 
 #include <linux/netdevice.h>
 
-#define ASSERT_READ_LOCK(x)
-#define ASSERT_WRITE_LOCK(x)
-#include <linux/netfilter_ipv4/listhelp.h>
-
 #ifdef CONFIG_COMPAT
 #define COMPAT_TO_USER		1
 #define COMPAT_FROM_USER	-1

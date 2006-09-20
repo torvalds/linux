@@ -56,8 +56,6 @@ do {								\
 #define ARP_NF_ASSERT(x)
 #endif
 
-#include <linux/netfilter_ipv4/listhelp.h>
-
 static inline int arp_devaddr_compare(const struct arpt_devaddr_info *ap,
 				      char *hdr_addr, int len)
 {
