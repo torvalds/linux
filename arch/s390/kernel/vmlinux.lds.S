@@ -118,7 +118,7 @@ SECTIONS
 
   /* Sections to be discarded */
   /DISCARD/ : {
-	*(.exitcall.exit)
+	*(.exit.text) *(.exit.data) *(.exitcall.exit)
 	}
 
   /* Stabs debugging sections.  */

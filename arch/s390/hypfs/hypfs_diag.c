@@ -535,7 +535,7 @@ __init int hypfs_diag_init(void)
 	return rc;
 }
 
-__exit void hypfs_diag_exit(void)
+void hypfs_diag_exit(void)
 {
 	diag224_delete_name_table();
 	diag204_free_buffer();

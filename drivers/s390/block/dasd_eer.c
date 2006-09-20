@@ -678,7 +678,7 @@ int __init dasd_eer_init(void)
 	return 0;
 }
 
-void __exit dasd_eer_exit(void)
+void dasd_eer_exit(void)
 {
 	WARN_ON(misc_deregister(&dasd_eer_dev) != 0);
 }
