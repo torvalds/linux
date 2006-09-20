@@ -893,7 +893,7 @@ dasd_handle_killed_request(struct ccw_device *cdev, unsigned long intparm)
 
 	device = (struct dasd_device *) cqr->device;
 	if (device == NULL ||
-	    device != dasd_device_from_cdev(cdev) ||
+	    device != dasd_device_from_cdev_locked(cdev) ||
 	    strncmp(device->discipline->ebcname, (char *) &cqr->magic, 4)) {
 		MESSAGE(KERN_DEBUG, "invalid device in request: bus_id %s",
 			cdev->dev.bus_id);
@@ -970,7 +970,7 @@ dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	/* first of all check for state change pending interrupt */
 	mask = DEV_STAT_ATTENTION | DEV_STAT_DEV_END | DEV_STAT_UNIT_EXCEP;
 	if ((irb->scsw.dstat & mask) == mask) {
-		device = dasd_device_from_cdev(cdev);
+		device = dasd_device_from_cdev_locked(cdev);
 		if (!IS_ERR(device)) {
 			dasd_handle_state_change_pending(device);
 			dasd_put_device(device);
