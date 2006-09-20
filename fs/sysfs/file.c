@@ -488,7 +488,7 @@ int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 			d_drop(victim);
 		
 		/**
-		 * Drop the reference acquired from sysfs_get_dentry() above.
+		 * Drop the reference acquired from lookup_one_len() above.
 		 */
 		dput(victim);
 	}
