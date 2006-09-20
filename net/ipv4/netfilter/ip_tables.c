@@ -942,73 +942,28 @@ static short compat_calc_jump(u_int16_t offset)
 	return delta;
 }
 
-struct compat_ipt_standard_target
+static void compat_standard_from_user(void *dst, void *src)
 {
-	struct compat_xt_entry_target target;
-	compat_int_t verdict;
-};
+	int v = *(compat_int_t *)src;
 
-struct compat_ipt_standard
+	if (v > 0)
+		v += compat_calc_jump(v);
+	memcpy(dst, &v, sizeof(v));
+}
+
+static int compat_standard_to_user(void __user *dst, void *src)
 {
-	struct compat_ipt_entry entry;
-	struct compat_ipt_standard_target target;
-};
+	compat_int_t cv = *(int *)src;
 
-#define IPT_ST_LEN		XT_ALIGN(sizeof(struct ipt_standard_target))
-#define IPT_ST_COMPAT_LEN	COMPAT_XT_ALIGN(sizeof(struct compat_ipt_standard_target))
-#define IPT_ST_OFFSET		(IPT_ST_LEN - IPT_ST_COMPAT_LEN)
-
-static int compat_ipt_standard_fn(void *target,
-		void **dstptr, int *size, int convert)
-{
-	struct compat_ipt_standard_target compat_st, *pcompat_st;
-	struct ipt_standard_target st, *pst;
-	int ret;
-
-	ret = 0;
-	switch (convert) {
-		case COMPAT_TO_USER:
-			pst = target;
-			memcpy(&compat_st.target, &pst->target,
-				sizeof(compat_st.target));
-			compat_st.verdict = pst->verdict;
-			if (compat_st.verdict > 0)
-				compat_st.verdict -=
-					compat_calc_jump(compat_st.verdict);
-			compat_st.target.u.user.target_size = IPT_ST_COMPAT_LEN;
-			if (copy_to_user(*dstptr, &compat_st, IPT_ST_COMPAT_LEN))
-				ret = -EFAULT;
-			*size -= IPT_ST_OFFSET;
-			*dstptr += IPT_ST_COMPAT_LEN;
-			break;
-		case COMPAT_FROM_USER:
-			pcompat_st = target;
-			memcpy(&st.target, &pcompat_st->target, IPT_ST_COMPAT_LEN);
-			st.verdict = pcompat_st->verdict;
-			if (st.verdict > 0)
-				st.verdict += compat_calc_jump(st.verdict);
-			st.target.u.user.target_size = IPT_ST_LEN;
-			memcpy(*dstptr, &st, IPT_ST_LEN);
-			*size += IPT_ST_OFFSET;
-			*dstptr += IPT_ST_LEN;
-			break;
-		case COMPAT_CALC_SIZE:
-			*size += IPT_ST_OFFSET;
-			break;
-		default:
-			ret = -ENOPROTOOPT;
-			break;
-	}
-	return ret;
+	if (cv > 0)
+		cv -= compat_calc_jump(cv);
+	return copy_to_user(dst, &cv, sizeof(cv)) ? -EFAULT : 0;
 }
 
 static inline int
 compat_calc_match(struct ipt_entry_match *m, int * size)
 {
-	if (m->u.kernel.match->compat)
-		m->u.kernel.match->compat(m, NULL, size, COMPAT_CALC_SIZE);
-	else
-		xt_compat_match(m, NULL, size, COMPAT_CALC_SIZE);
+	*size += xt_compat_match_offset(m->u.kernel.match);
 	return 0;
 }
 
@@ -1023,10 +978,7 @@ static int compat_calc_entry(struct ipt_entry *e, struct xt_table_info *info,
 	entry_offset = (void *)e - base;
 	IPT_MATCH_ITERATE(e, compat_calc_match, &off);
 	t = ipt_get_target(e);
-	if (t->u.kernel.target->compat)
-		t->u.kernel.target->compat(t, NULL, &off, COMPAT_CALC_SIZE);
-	else
-		xt_compat_target(t, NULL, &off, COMPAT_CALC_SIZE);
+	off += xt_compat_target_offset(t->u.kernel.target);
 	newinfo->size -= off;
 	ret = compat_add_offset(entry_offset, off);
 	if (ret)
@@ -1412,17 +1364,13 @@ struct compat_ipt_replace {
 };
 
 static inline int compat_copy_match_to_user(struct ipt_entry_match *m,
-		void __user **dstptr, compat_uint_t *size)
+		void * __user *dstptr, compat_uint_t *size)
 {
-	if (m->u.kernel.match->compat)
-		return m->u.kernel.match->compat(m, dstptr, size,
-				COMPAT_TO_USER);
-	else
-		return xt_compat_match(m, dstptr, size, COMPAT_TO_USER);
+	return xt_compat_match_to_user(m, dstptr, size);
 }
 
 static int compat_copy_entry_to_user(struct ipt_entry *e,
-		void __user **dstptr, compat_uint_t *size)
+		void * __user *dstptr, compat_uint_t *size)
 {
 	struct ipt_entry_target __user *t;
 	struct compat_ipt_entry __user *ce;
@@ -1442,11 +1390,7 @@ static int compat_copy_entry_to_user(struct ipt_entry *e,
 	if (ret)
 		goto out;
 	t = ipt_get_target(e);
-	if (t->u.kernel.target->compat)
-		ret = t->u.kernel.target->compat(t, dstptr, size,
-				COMPAT_TO_USER);
-	else
-		ret = xt_compat_target(t, dstptr, size, COMPAT_TO_USER);
+	ret = xt_compat_target_to_user(t, dstptr, size);
 	if (ret)
 		goto out;
 	ret = -EFAULT;
@@ -1478,11 +1422,7 @@ compat_check_calc_match(struct ipt_entry_match *m,
 		return match ? PTR_ERR(match) : -ENOENT;
 	}
 	m->u.kernel.match = match;
-
-	if (m->u.kernel.match->compat)
-		m->u.kernel.match->compat(m, NULL, size, COMPAT_CALC_SIZE);
-	else
-		xt_compat_match(m, NULL, size, COMPAT_CALC_SIZE);
+	*size += xt_compat_match_offset(match);
 
 	(*i)++;
 	return 0;
@@ -1543,10 +1483,7 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 	}
 	t->u.kernel.target = target;
 
-	if (t->u.kernel.target->compat)
-		t->u.kernel.target->compat(t, NULL, &off, COMPAT_CALC_SIZE);
-	else
-		xt_compat_target(t, NULL, &off, COMPAT_CALC_SIZE);
+	off += xt_compat_target_offset(target);
 	*size += off;
 	ret = compat_add_offset(entry_offset, off);
 	if (ret)
@@ -1584,10 +1521,7 @@ static inline int compat_copy_match_from_user(struct ipt_entry_match *m,
 
 	dm = (struct ipt_entry_match *)*dstptr;
 	match = m->u.kernel.match;
-	if (match->compat)
-		match->compat(m, dstptr, size, COMPAT_FROM_USER);
-	else
-		xt_compat_match(m, dstptr, size, COMPAT_FROM_USER);
+	xt_compat_match_from_user(m, dstptr, size);
 
 	ret = xt_check_match(match, AF_INET, dm->u.match_size - sizeof(*dm),
 			     name, hookmask, ip->proto,
@@ -1635,10 +1569,7 @@ static int compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 	de->target_offset = e->target_offset - (origsize - *size);
 	t = ipt_get_target(e);
 	target = t->u.kernel.target;
-	if (target->compat)
-		target->compat(t, dstptr, size, COMPAT_FROM_USER);
-	else
-		xt_compat_target(t, dstptr, size, COMPAT_FROM_USER);
+	xt_compat_target_from_user(t, dstptr, size);
 
 	de->next_offset = e->next_offset - (origsize - *size);
 	for (h = 0; h < NF_IP_NUMHOOKS; h++) {
@@ -2205,7 +2136,9 @@ static struct ipt_target ipt_standard_target = {
 	.targetsize	= sizeof(int),
 	.family		= AF_INET,
 #ifdef CONFIG_COMPAT
-	.compat		= &compat_ipt_standard_fn,
+	.compatsize	= sizeof(compat_int_t),
+	.compat_from_user = compat_standard_from_user,
+	.compat_to_user	= compat_standard_to_user,
 #endif
 };
 

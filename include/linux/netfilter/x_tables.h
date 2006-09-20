@@ -138,12 +138,6 @@ struct xt_counters_info
 
 #include <linux/netdevice.h>
 
-#ifdef CONFIG_COMPAT
-#define COMPAT_TO_USER		1
-#define COMPAT_FROM_USER	-1
-#define COMPAT_CALC_SIZE	0
-#endif
-
 struct xt_match
 {
 	struct list_head list;
@@ -176,7 +170,8 @@ struct xt_match
 	void (*destroy)(const struct xt_match *match, void *matchinfo);
 
 	/* Called when userspace align differs from kernel space one */
-	int (*compat)(void *match, void **dstptr, int *size, int convert);
+	void (*compat_from_user)(void *dst, void *src);
+	int (*compat_to_user)(void __user *dst, void *src);
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
@@ -186,6 +181,7 @@ struct xt_match
 
 	char *table;
 	unsigned int matchsize;
+	unsigned int compatsize;
 	unsigned int hooks;
 	unsigned short proto;
 
@@ -224,13 +220,15 @@ struct xt_target
 	void (*destroy)(const struct xt_target *target, void *targinfo);
 
 	/* Called when userspace align differs from kernel space one */
-	int (*compat)(void *target, void **dstptr, int *size, int convert);
+	void (*compat_from_user)(void *dst, void *src);
+	int (*compat_to_user)(void __user *dst, void *src);
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 
 	char *table;
 	unsigned int targetsize;
+	unsigned int compatsize;
 	unsigned int hooks;
 	unsigned short proto;
 
@@ -387,9 +385,18 @@ struct compat_xt_counters_info
 
 extern void xt_compat_lock(int af);
 extern void xt_compat_unlock(int af);
-extern int xt_compat_match(void *match, void **dstptr, int *size, int convert);
-extern int xt_compat_target(void *target, void **dstptr, int *size,
-		int convert);
+
+extern int xt_compat_match_offset(struct xt_match *match);
+extern void xt_compat_match_from_user(struct xt_entry_match *m,
+				      void **dstptr, int *size);
+extern int xt_compat_match_to_user(struct xt_entry_match *m,
+				   void * __user *dstptr, int *size);
+
+extern int xt_compat_target_offset(struct xt_target *target);
+extern void xt_compat_target_from_user(struct xt_entry_target *t,
+				       void **dstptr, int *size);
+extern int xt_compat_target_to_user(struct xt_entry_target *t,
+				    void * __user *dstptr, int *size);
 
 #endif /* CONFIG_COMPAT */
 #endif /* __KERNEL__ */
