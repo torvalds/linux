@@ -65,7 +65,7 @@ static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 int gfs2_get_block(struct inode *inode, sector_t lblock,
 	           struct buffer_head *bh_result, int create)
 {
-	return gfs2_block_map(inode, lblock, create, bh_result, 32);
+	return gfs2_block_map(inode, lblock, create, bh_result, 4);
 }
 
 /**
@@ -94,7 +94,7 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 static int gfs2_get_block_direct(struct inode *inode, sector_t lblock,
 				 struct buffer_head *bh_result, int create)
 {
-	return gfs2_block_map(inode, lblock, 0, bh_result, 512);
+	return gfs2_block_map(inode, lblock, 0, bh_result, 32);
 }
 
 /**

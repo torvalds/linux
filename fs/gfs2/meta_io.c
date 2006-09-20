@@ -120,8 +120,7 @@ void gfs2_ail1_start_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 					gfs2_io_error_bh(sdp, bh);
 					gfs2_log_lock(sdp);
 				}
-				list_move(&bd->bd_ail_st_list,
-					  &ai->ai_ail2_list);
+				list_move(&bd->bd_ail_st_list, &ai->ai_ail2_list);
 				continue;
 			}
 
@@ -410,9 +409,6 @@ int gfs2_meta_reread(struct gfs2_sbd *sdp, struct buffer_head *bh, int flags)
 {
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		return -EIO;
-
-	if (flags & DIO_FORCE)
-		clear_buffer_uptodate(bh);
 
 	if ((flags & DIO_START) && !buffer_uptodate(bh))
 		ll_rw_block(READ, 1, &bh);

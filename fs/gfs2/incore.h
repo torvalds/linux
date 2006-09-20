@@ -12,9 +12,6 @@
 
 #include <linux/fs.h>
 
-#define DIO_FORCE	0x00000001
-#define DIO_CLEAN	0x00000002
-#define DIO_DIRTY	0x00000004
 #define DIO_START	0x00000008
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
