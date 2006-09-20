@@ -461,8 +461,15 @@ calc_rttavg(struct aoedev *d, int rtt)
 	register long n;
 
 	n = rtt;
-	if (n < MINTIMER)
-		n = MINTIMER;
+	if (n < 0) {
+		n = -rtt;
+		if (n < MINTIMER)
+			n = MINTIMER;
+		else if (n > MAXTIMER)
+			n = MAXTIMER;
+		d->mintimer += (n - d->mintimer) >> 1;
+	} else if (n < d->mintimer)
+		n = d->mintimer;
 	else if (n > MAXTIMER)
 		n = MAXTIMER;
 
@@ -498,8 +505,10 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 
 	spin_lock_irqsave(&d->lock, flags);
 
-	f = getframe(d, be32_to_cpu(hin->tag));
+	n = be32_to_cpu(hin->tag);
+	f = getframe(d, n);
 	if (f == NULL) {
+		calc_rttavg(d, -tsince(n));
 		spin_unlock_irqrestore(&d->lock, flags);
 		snprintf(ebuf, sizeof ebuf,
 			"%15s e%d.%d    tag=%08x@%08lx\n",
@@ -724,6 +733,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 		return;
 	}
 	d->flags |= DEVFL_PAUSE;	/* force pause */
+	d->mintimer = MINTIMER;
 	d->fw_ver = be16_to_cpu(ch->fwver);
 
 	/* check for already outstanding ataid */
