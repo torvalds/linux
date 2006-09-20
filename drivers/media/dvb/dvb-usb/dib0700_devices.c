@@ -11,6 +11,11 @@
 #include "dib3000mc.h"
 #include "mt2060.h"
 
+static int force_lna_activation;
+module_param(force_lna_activation, int, 0644);
+MODULE_PARM_DESC(force_lna_activation, "force the activation of Low-Noise-Amplifyer(s) (LNA), "
+		"if applicable for the device (default: 0=automatic/off).");
+
 /* Hauppauge Nova-T 500
  *  has a LNA on GPIO0 which is enabled by setting 1 */
 static struct mt2060_config bristol_mt2060_config[2] = {
@@ -66,7 +71,10 @@ static int bristol_frontend_attach(struct dvb_usb_adapter *adap)
 		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0); msleep(10);
 		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1); msleep(10);
 
-		dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1); msleep(10); // LNA
+		if (force_lna_activation)
+			dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
+		else
+			dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 0);
 
 		if (dib3000mc_i2c_enumeration(&adap->dev->i2c_adap, 2, DEFAULT_DIB3000P_I2C_ADDRESS, bristol_dib3000mc_config) != 0) {
 			dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 0); msleep(10);
