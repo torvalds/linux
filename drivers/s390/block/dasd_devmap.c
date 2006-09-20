@@ -258,8 +258,12 @@ dasd_parse_keyword( char *parsestring ) {
                 return residual_str;
         }
 	if (strncmp("nopav", parsestring, length) == 0) {
-		dasd_nopav = 1;
-		MESSAGE(KERN_INFO, "%s", "disable PAV mode");
+		if (MACHINE_IS_VM)
+			MESSAGE(KERN_INFO, "%s", "'nopav' not supported on VM");
+		else {
+			dasd_nopav = 1;
+			MESSAGE(KERN_INFO, "%s", "disable PAV mode");
+		}
 		return residual_str;
 	}
 	if (strncmp("fixedbuffers", parsestring, length) == 0) {
