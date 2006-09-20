@@ -14,7 +14,6 @@
 
 static kmem_cache_t *buf_pool_cache;
 
-/* add attributes for our block devices in sysfs */
 static ssize_t aoedisk_show_state(struct gendisk * disk, char *page)
 {
 	struct aoedev *d = disk->private_data;
