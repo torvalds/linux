@@ -31,8 +31,10 @@ static inline unsigned int
 optlen(const u_int8_t *opt, unsigned int offset)
 {
 	/* Beware zero-length options: make finite progress */
-	if (opt[offset] <= TCPOPT_NOP || opt[offset+1] == 0) return 1;
-	else return opt[offset+1];
+	if (opt[offset] <= TCPOPT_NOP || opt[offset+1] == 0)
+		return 1;
+	else
+		return opt[offset+1];
 }
 
 static unsigned int
@@ -55,7 +57,6 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 
 	iph = (*pskb)->nh.iph;
 	tcplen = (*pskb)->len - iph->ihl*4;
-
 	tcph = (void *)iph + iph->ihl*4;
 
 	/* Since it passed flags test in tcp match, we know it is is
@@ -71,37 +72,39 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 		return NF_DROP;
 	}
 
-	if(tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU) {
-		if(!(*pskb)->dst) {
+	if (tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU) {
+		if (!(*pskb)->dst) {
 			if (net_ratelimit())
-				printk(KERN_ERR
-			       		"ipt_tcpmss_target: no dst?! can't determine path-MTU\n");
+				printk(KERN_ERR "ipt_tcpmss_target: "
+				       "no dst?! can't determine path-MTU\n");
 			return NF_DROP; /* or IPT_CONTINUE ?? */
 		}
 
-		if(dst_mtu((*pskb)->dst) <= (sizeof(struct iphdr) + sizeof(struct tcphdr))) {
+		if (dst_mtu((*pskb)->dst) <= sizeof(struct iphdr) +
+					     sizeof(struct tcphdr)) {
 			if (net_ratelimit())
-				printk(KERN_ERR
-		       			"ipt_tcpmss_target: unknown or invalid path-MTU (%d)\n", dst_mtu((*pskb)->dst));
+				printk(KERN_ERR "ipt_tcpmss_target: "
+				       "unknown or invalid path-MTU (%d)\n",
+				       dst_mtu((*pskb)->dst));
 			return NF_DROP; /* or IPT_CONTINUE ?? */
 		}
 
-		newmss = dst_mtu((*pskb)->dst) - sizeof(struct iphdr) - sizeof(struct tcphdr);
+		newmss = dst_mtu((*pskb)->dst) - sizeof(struct iphdr) -
+						 sizeof(struct tcphdr);
 	} else
 		newmss = tcpmssinfo->mss;
 
  	opt = (u_int8_t *)tcph;
-	for (i = sizeof(struct tcphdr); i < tcph->doff*4; i += optlen(opt, i)){
-		if ((opt[i] == TCPOPT_MSS) &&
-		    ((tcph->doff*4 - i) >= TCPOLEN_MSS) &&
-		    (opt[i+1] == TCPOLEN_MSS)) {
+	for (i = sizeof(struct tcphdr); i < tcph->doff*4; i += optlen(opt, i)) {
+		if (opt[i] == TCPOPT_MSS && tcph->doff*4 - i >= TCPOLEN_MSS &&
+		    opt[i+1] == TCPOLEN_MSS) {
 			u_int16_t oldmss;
 
 			oldmss = (opt[i+2] << 8) | opt[i+3];
 
-			if((tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU) &&
-				(oldmss <= newmss))
-					return IPT_CONTINUE;
+			if (tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU &&
+			    oldmss <= newmss)
+				return IPT_CONTINUE;
 
 			opt[i+2] = (newmss & 0xff00) >> 8;
 			opt[i+3] = (newmss & 0x00ff);
@@ -113,7 +116,7 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 
 			DEBUGP(KERN_INFO "ipt_tcpmss_target: %u.%u.%u.%u:%hu"
 			       "->%u.%u.%u.%u:%hu changed TCP MSS option"
-			       " (from %u to %u)\n", 
+			       " (from %u to %u)\n",
 			       NIPQUAD((*pskb)->nh.iph->saddr),
 			       ntohs(tcph->source),
 			       NIPQUAD((*pskb)->nh.iph->daddr),
@@ -193,9 +196,9 @@ static inline int find_syn_match(const struct ipt_entry_match *m)
 {
 	const struct ipt_tcp *tcpinfo = (const struct ipt_tcp *)m->data;
 
-	if (strcmp(m->u.kernel.match->name, "tcp") == 0
-	    && (tcpinfo->flg_cmp & TH_SYN)
-	    && !(tcpinfo->invflags & IPT_TCP_INV_FLAGS))
+	if (strcmp(m->u.kernel.match->name, "tcp") == 0 &&
+	    tcpinfo->flg_cmp & TH_SYN &&
+	    !(tcpinfo->invflags & IPT_TCP_INV_FLAGS))
 		return 1;
 
 	return 0;
@@ -212,11 +215,12 @@ ipt_tcpmss_checkentry(const char *tablename,
 	const struct ipt_tcpmss_info *tcpmssinfo = targinfo;
 	const struct ipt_entry *e = e_void;
 
-	if((tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU) && 
-			((hook_mask & ~((1 << NF_IP_FORWARD)
-			   	| (1 << NF_IP_LOCAL_OUT)
-			   	| (1 << NF_IP_POST_ROUTING))) != 0)) {
-		printk("TCPMSS: path-MTU clamping only supported in FORWARD, OUTPUT and POSTROUTING hooks\n");
+	if (tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU &&
+	    (hook_mask & ~((1 << NF_IP_FORWARD) |
+			   (1 << NF_IP_LOCAL_OUT) |
+			   (1 << NF_IP_POST_ROUTING))) != 0) {
+		printk("TCPMSS: path-MTU clamping only supported in "
+		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return 0;
 	}
 
