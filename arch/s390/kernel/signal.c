@@ -457,6 +457,7 @@ void do_signal(struct pt_regs *regs)
 		case -ERESTART_RESTARTBLOCK:
 			regs->gprs[2] = -EINTR;
 		}
+		regs->trap = -1;	/* Don't deal with this again. */
 	}
 
 	/* Get signal to deliver.  When running under ptrace, at this point
