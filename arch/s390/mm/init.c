@@ -108,16 +108,23 @@ void __init paging_init(void)
         unsigned long pgdir_k = (__pa(swapper_pg_dir) & PAGE_MASK) | _KERNSEG_TABLE;
         static const int ssm_mask = 0x04000000L;
 	unsigned long ro_start_pfn, ro_end_pfn;
+	unsigned long zones_size[MAX_NR_ZONES];
 
 	ro_start_pfn = PFN_DOWN((unsigned long)&__start_rodata);
 	ro_end_pfn = PFN_UP((unsigned long)&__end_rodata);
+
+	memset(zones_size, 0, sizeof(zones_size));
+	zones_size[ZONE_DMA] = max_low_pfn;
+	free_area_init_node(0, &contig_page_data, zones_size,
+			    __pa(PAGE_OFFSET) >> PAGE_SHIFT,
+			    zholes_size);
 
 	/* unmap whole virtual address space */
 	
         pg_dir = swapper_pg_dir;
 
-	for (i=0;i<KERNEL_PGD_PTRS;i++) 
-	        pmd_clear((pmd_t*)pg_dir++);
+	for (i = 0; i < PTRS_PER_PGD; i++)
+		pmd_clear((pmd_t *) pg_dir++);
 		
 	/*
 	 * map whole physical memory to virtual memory (identity mapping) 
@@ -131,10 +138,7 @@ void __init paging_init(void)
                  */
 		pg_table = (pte_t *) alloc_bootmem_pages(PAGE_SIZE);
 
-                pg_dir->pgd0 =  (_PAGE_TABLE | __pa(pg_table));
-                pg_dir->pgd1 =  (_PAGE_TABLE | (__pa(pg_table)+1024));
-                pg_dir->pgd2 =  (_PAGE_TABLE | (__pa(pg_table)+2048));
-                pg_dir->pgd3 =  (_PAGE_TABLE | (__pa(pg_table)+3072));
+		pmd_populate_kernel(&init_mm, (pmd_t *) pg_dir, pg_table);
                 pg_dir++;
 
                 for (tmp = 0 ; tmp < PTRS_PER_PTE ; tmp++,pg_table++) {
@@ -143,8 +147,8 @@ void __init paging_init(void)
 			else
 				pte = pfn_pte(pfn, PAGE_KERNEL);
                         if (pfn >= max_low_pfn)
-                                pte_clear(&init_mm, 0, &pte);
-                        set_pte(pg_table, pte);
+				pte_val(pte) = _PAGE_TYPE_EMPTY;
+			set_pte(pg_table, pte);
                         pfn++;
                 }
         }
@@ -159,16 +163,6 @@ void __init paging_init(void)
 			     : : "m" (pgdir_k), "m" (ssm_mask));
 
         local_flush_tlb();
-
-	{
-		unsigned long zones_size[MAX_NR_ZONES];
-
-		memset(zones_size, 0, sizeof(zones_size));
-		zones_size[ZONE_DMA] = max_low_pfn;
-		free_area_init_node(0, &contig_page_data, zones_size,
-				    __pa(PAGE_OFFSET) >> PAGE_SHIFT,
-				    zholes_size);
-	}
         return;
 }
 
@@ -236,10 +230,8 @@ void __init paging_init(void)
 					pte = pfn_pte(pfn, __pgprot(_PAGE_RO));
 				else
 					pte = pfn_pte(pfn, PAGE_KERNEL);
-                                if (pfn >= max_low_pfn) {
-                                        pte_clear(&init_mm, 0, &pte); 
-                                        continue;
-                                }
+				if (pfn >= max_low_pfn)
+					pte_val(pte) = _PAGE_TYPE_EMPTY;
                                 set_pte(pt_dir, pte);
                                 pfn++;
                         }

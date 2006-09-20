@@ -89,19 +89,6 @@ extern char empty_zero_page[PAGE_SIZE];
 # define PTRS_PER_PGD    2048
 #endif /* __s390x__ */
 
-/*
- * pgd entries used up by user/kernel:
- */
-#ifndef __s390x__
-# define USER_PTRS_PER_PGD  512
-# define USER_PGD_PTRS      512
-# define KERNEL_PGD_PTRS    512
-#else /* __s390x__ */
-# define USER_PTRS_PER_PGD  2048
-# define USER_PGD_PTRS      2048
-# define KERNEL_PGD_PTRS    2048
-#endif /* __s390x__ */
-
 #define FIRST_USER_ADDRESS  0
 
 #define pte_ERROR(e) \
@@ -216,12 +203,14 @@ extern char empty_zero_page[PAGE_SIZE];
 #define _PAGE_RO        0x200          /* HW read-only                     */
 #define _PAGE_INVALID   0x400          /* HW invalid                       */
 
-/* Mask and four different kinds of invalid pages. */
-#define _PAGE_INVALID_MASK	0x601
-#define _PAGE_INVALID_EMPTY	0x400
-#define _PAGE_INVALID_NONE	0x401
-#define _PAGE_INVALID_SWAP	0x600
-#define _PAGE_INVALID_FILE	0x601
+/* Mask and six different types of pages. */
+#define _PAGE_TYPE_MASK		0x601
+#define _PAGE_TYPE_EMPTY	0x400
+#define _PAGE_TYPE_NONE		0x401
+#define _PAGE_TYPE_SWAP		0x600
+#define _PAGE_TYPE_FILE		0x601
+#define _PAGE_TYPE_RO		0x200
+#define _PAGE_TYPE_RW		0x000
 
 #ifndef __s390x__
 
@@ -280,15 +269,14 @@ extern char empty_zero_page[PAGE_SIZE];
 #endif /* __s390x__ */
 
 /*
- * No mapping available
+ * Page protection definitions.
  */
-#define PAGE_NONE_SHARED  __pgprot(_PAGE_INVALID_NONE)
-#define PAGE_NONE_PRIVATE __pgprot(_PAGE_INVALID_NONE)
-#define PAGE_RO_SHARED	  __pgprot(_PAGE_RO)
-#define PAGE_RO_PRIVATE	  __pgprot(_PAGE_RO)
-#define PAGE_COPY	  __pgprot(_PAGE_RO)
-#define PAGE_SHARED	  __pgprot(0)
-#define PAGE_KERNEL	  __pgprot(0)
+#define PAGE_NONE	__pgprot(_PAGE_TYPE_NONE)
+#define PAGE_RO		__pgprot(_PAGE_TYPE_RO)
+#define PAGE_RW		__pgprot(_PAGE_TYPE_RW)
+
+#define PAGE_KERNEL	PAGE_RW
+#define PAGE_COPY	PAGE_RO
 
 /*
  * The S390 can't do page protection for execute, and considers that the
@@ -296,23 +284,23 @@ extern char empty_zero_page[PAGE_SIZE];
  * the closest we can get..
  */
          /*xwr*/
-#define __P000  PAGE_NONE_PRIVATE
-#define __P001  PAGE_RO_PRIVATE
-#define __P010  PAGE_COPY
-#define __P011  PAGE_COPY
-#define __P100  PAGE_RO_PRIVATE
-#define __P101  PAGE_RO_PRIVATE
-#define __P110  PAGE_COPY
-#define __P111  PAGE_COPY
+#define __P000	PAGE_NONE
+#define __P001	PAGE_RO
+#define __P010	PAGE_RO
+#define __P011	PAGE_RO
+#define __P100	PAGE_RO
+#define __P101	PAGE_RO
+#define __P110	PAGE_RO
+#define __P111	PAGE_RO
 
-#define __S000  PAGE_NONE_SHARED
-#define __S001  PAGE_RO_SHARED
-#define __S010  PAGE_SHARED
-#define __S011  PAGE_SHARED
-#define __S100  PAGE_RO_SHARED
-#define __S101  PAGE_RO_SHARED
-#define __S110  PAGE_SHARED
-#define __S111  PAGE_SHARED
+#define __S000	PAGE_NONE
+#define __S001	PAGE_RO
+#define __S010	PAGE_RW
+#define __S011	PAGE_RW
+#define __S100	PAGE_RO
+#define __S101	PAGE_RO
+#define __S110	PAGE_RW
+#define __S111	PAGE_RW
 
 /*
  * Certain architectures need to do special things when PTEs
@@ -377,18 +365,18 @@ static inline int pmd_bad(pmd_t pmd)
 
 static inline int pte_none(pte_t pte)
 {
-	return (pte_val(pte) & _PAGE_INVALID_MASK) == _PAGE_INVALID_EMPTY;
+	return (pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_EMPTY;
 }
 
 static inline int pte_present(pte_t pte)
 {
 	return !(pte_val(pte) & _PAGE_INVALID) ||
-		(pte_val(pte) & _PAGE_INVALID_MASK) == _PAGE_INVALID_NONE;
+		(pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_NONE;
 }
 
 static inline int pte_file(pte_t pte)
 {
-	return (pte_val(pte) & _PAGE_INVALID_MASK) == _PAGE_INVALID_FILE;
+	return (pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_FILE;
 }
 
 #define pte_same(a,b)	(pte_val(a) == pte_val(b))
@@ -461,7 +449,7 @@ static inline void pmd_clear(pmd_t * pmdp)
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	pte_val(*ptep) = _PAGE_INVALID_EMPTY;
+	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
 }
 
 /*
@@ -477,7 +465,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	/* Do not clobber _PAGE_INVALID_NONE pages!  */
+	/* Do not clobber _PAGE_TYPE_NONE pages!  */
 	if (!(pte_val(pte) & _PAGE_INVALID))
 		pte_val(pte) |= _PAGE_RO;
 	return pte;
@@ -556,26 +544,30 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	return pte;
 }
 
+static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
+{
+	if (!(pte_val(*ptep) & _PAGE_INVALID)) {
+#ifndef __s390x__
+		/* S390 has 1mb segments, we are emulating 4MB segments */
+		pte_t *pto = (pte_t *) (((unsigned long) ptep) & 0x7ffffc00);
+#else
+		/* ipte in zarch mode can do the math */
+		pte_t *pto = ptep;
+#endif
+		asm volatile ("ipte %2,%3"
+			      : "=m" (*ptep) : "m" (*ptep),
+				"a" (pto), "a" (address) );
+	}
+	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
+}
+
 static inline pte_t
 ptep_clear_flush(struct vm_area_struct *vma,
 		 unsigned long address, pte_t *ptep)
 {
 	pte_t pte = *ptep;
-#ifndef __s390x__
-	if (!(pte_val(pte) & _PAGE_INVALID)) {
-		/* S390 has 1mb segments, we are emulating 4MB segments */
-		pte_t *pto = (pte_t *) (((unsigned long) ptep) & 0x7ffffc00);
-		__asm__ __volatile__ ("ipte %2,%3"
-				      : "=m" (*ptep) : "m" (*ptep),
-				        "a" (pto), "a" (address) );
-	}
-#else /* __s390x__ */
-	if (!(pte_val(pte) & _PAGE_INVALID)) 
-		__asm__ __volatile__ ("ipte %2,%3"
-				      : "=m" (*ptep) : "m" (*ptep),
-				        "a" (ptep), "a" (address) );
-#endif /* __s390x__ */
-	pte_val(*ptep) = _PAGE_INVALID_EMPTY;
+
+	__ptep_ipte(address, ptep);
 	return pte;
 }
 
@@ -755,7 +747,7 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 {
 	pte_t pte;
 	offset &= __SWP_OFFSET_MASK;
-	pte_val(pte) = _PAGE_INVALID_SWAP | ((type & 0x1f) << 2) |
+	pte_val(pte) = _PAGE_TYPE_SWAP | ((type & 0x1f) << 2) |
 		((offset & 1UL) << 7) | ((offset & ~1UL) << 11);
 	return pte;
 }
@@ -778,7 +770,7 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 
 #define pgoff_to_pte(__off) \
 	((pte_t) { ((((__off) & 0x7f) << 1) + (((__off) >> 7) << 12)) \
-		   | _PAGE_INVALID_FILE })
+		   | _PAGE_TYPE_FILE })
 
 #endif /* !__ASSEMBLY__ */
 

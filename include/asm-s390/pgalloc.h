@@ -22,6 +22,16 @@
 extern void diag10(unsigned long addr);
 
 /*
+ * Page allocation orders.
+ */
+#ifndef __s390x__
+# define PGD_ALLOC_ORDER	1
+#else /* __s390x__ */
+# define PMD_ALLOC_ORDER	2
+# define PGD_ALLOC_ORDER	2
+#endif /* __s390x__ */
+
+/*
  * Allocate and free page tables. The xxx_kernel() versions are
  * used to allocate a kernel page table - this turns on ASN bits
  * if any.
@@ -29,30 +39,23 @@ extern void diag10(unsigned long addr);
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	pgd_t *pgd;
+	pgd_t *pgd = (pgd_t *) __get_free_pages(GFP_KERNEL, PGD_ALLOC_ORDER);
 	int i;
 
+	if (!pgd)
+		return NULL;
+	for (i = 0; i < PTRS_PER_PGD; i++)
 #ifndef __s390x__
-	pgd = (pgd_t *) __get_free_pages(GFP_KERNEL,1);
-        if (pgd != NULL)
-		for (i = 0; i < USER_PTRS_PER_PGD; i++)
-			pmd_clear(pmd_offset(pgd + i, i*PGDIR_SIZE));
-#else /* __s390x__ */
-	pgd = (pgd_t *) __get_free_pages(GFP_KERNEL,2);
-        if (pgd != NULL)
-		for (i = 0; i < PTRS_PER_PGD; i++)
-			pgd_clear(pgd + i);
-#endif /* __s390x__ */
+		pmd_clear(pmd_offset(pgd + i, i*PGDIR_SIZE));
+#else
+		pgd_clear(pgd + i);
+#endif
 	return pgd;
 }
 
 static inline void pgd_free(pgd_t *pgd)
 {
-#ifndef __s390x__
-        free_pages((unsigned long) pgd, 1);
-#else /* __s390x__ */
-        free_pages((unsigned long) pgd, 2);
-#endif /* __s390x__ */
+	free_pages((unsigned long) pgd, PGD_ALLOC_ORDER);
 }
 
 #ifndef __s390x__
@@ -68,20 +71,19 @@ static inline void pgd_free(pgd_t *pgd)
 #else /* __s390x__ */
 static inline pmd_t * pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 {
-	pmd_t *pmd;
-        int i;
+	pmd_t *pmd = (pmd_t *) __get_free_pages(GFP_KERNEL, PMD_ALLOC_ORDER);
+	int i;
 
-	pmd = (pmd_t *) __get_free_pages(GFP_KERNEL, 2);
-	if (pmd != NULL) {
-		for (i=0; i < PTRS_PER_PMD; i++)
-			pmd_clear(pmd+i);
-	}
+	if (!pmd)
+		return NULL;
+	for (i=0; i < PTRS_PER_PMD; i++)
+		pmd_clear(pmd + i);
 	return pmd;
 }
 
 static inline void pmd_free (pmd_t *pmd)
 {
-	free_pages((unsigned long) pmd, 2);
+	free_pages((unsigned long) pmd, PMD_ALLOC_ORDER);
 }
 
 #define __pmd_free_tlb(tlb,pmd)			\
@@ -123,15 +125,14 @@ pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *page)
 static inline pte_t *
 pte_alloc_one_kernel(struct mm_struct *mm, unsigned long vmaddr)
 {
-	pte_t *pte;
-        int i;
+	pte_t *pte = (pte_t *) __get_free_page(GFP_KERNEL|__GFP_REPEAT);
+	int i;
 
-	pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
-	if (pte != NULL) {
-		for (i=0; i < PTRS_PER_PTE; i++) {
-			pte_clear(mm, vmaddr, pte+i);
-			vmaddr += PAGE_SIZE;
-		}
+	if (!pte)
+		return NULL;
+	for (i=0; i < PTRS_PER_PTE; i++) {
+		pte_clear(mm, vmaddr, pte + i);
+		vmaddr += PAGE_SIZE;
 	}
 	return pte;
 }
