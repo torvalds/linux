@@ -159,7 +159,7 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 	buf->nframesout += 1;
 	buf->bufaddr += bcnt;
 	buf->bv_resid -= bcnt;
-/* dprintk("bv_resid=%ld\n", buf->bv_resid); */
+/* printk(KERN_DEBUG "aoe: bv_resid=%ld\n", buf->bv_resid); */
 	buf->resid -= bcnt;
 	buf->sector += bcnt >> 9;
 	if (buf->resid == 0) {
@@ -203,7 +203,7 @@ aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff **tail)
 
 		skb = new_skb(sizeof *h + sizeof *ch);
 		if (skb == NULL) {
-			iprintk("skb alloc failure\n");
+			printk(KERN_INFO "aoe: skb alloc failure\n");
 			continue;
 		}
 		skb->dev = ifp;
@@ -276,7 +276,7 @@ loop:
 			return;
 		buf = container_of(d->bufq.next, struct buf, bufs);
 		list_del(d->bufq.next);
-/*dprintk("bi_size=%ld\n", buf->bio->bi_size); */
+/*printk(KERN_DEBUG "aoe: bi_size=%ld\n", buf->bio->bi_size); */
 		d->inprocess = buf;
 	}
 	aoecmd_ata_rw(d, f);
@@ -319,7 +319,7 @@ rexmit(struct aoedev *d, struct frame *f)
 		}
 		if (++d->lostjumbo > (d->nframes << 1))
 		if (d->maxbcnt != DEFAULTBCNT) {
-			iprintk("e%ld.%ld: too many lost jumbo on %s - using 1KB frames.\n",
+			printk(KERN_INFO "aoe: e%ld.%ld: too many lost jumbo on %s - using 1KB frames.\n",
 				d->aoemajor, d->aoeminor, d->ifp->name);
 			d->maxbcnt = DEFAULTBCNT;
 			d->flags |= DEVFL_MAXBCNT;
@@ -472,7 +472,7 @@ ataid_complete(struct aoedev *d, unsigned char *id)
 	}
 
 	if (d->ssize != ssize)
-		iprintk("%012llx e%lu.%lu v%04x has %llu sectors\n",
+		printk(KERN_INFO "aoe: %012llx e%lu.%lu v%04x has %llu sectors\n",
 			(unsigned long long)mac_addr(d->addr),
 			d->aoemajor, d->aoeminor,
 			d->fw_ver, (long long)ssize);
@@ -483,7 +483,7 @@ ataid_complete(struct aoedev *d, unsigned char *id)
 		d->flags |= DEVFL_NEWSIZE;
 	} else {
 		if (d->flags & DEVFL_GDALLOC) {
-			eprintk("can't schedule work for e%lu.%lu, %s\n",
+			printk(KERN_ERR "aoe: can't schedule work for e%lu.%lu, %s\n",
 			       d->aoemajor, d->aoeminor,
 			       "it's already on!  This shouldn't happen.\n");
 			return;
@@ -569,7 +569,8 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	if (ahout->cmdstat == WIN_IDENTIFY)
 		d->flags &= ~DEVFL_PAUSE;
 	if (ahin->cmdstat & 0xa9) {	/* these bits cleared on success */
-		eprintk("ata error cmd=%2.2Xh stat=%2.2Xh from e%ld.%ld\n",
+		printk(KERN_ERR
+			"aoe: ata error cmd=%2.2Xh stat=%2.2Xh from e%ld.%ld\n",
 			ahout->cmdstat, ahin->cmdstat,
 			d->aoemajor, d->aoeminor);
 		if (buf)
@@ -580,7 +581,8 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 		case WIN_READ:
 		case WIN_READ_EXT:
 			if (skb->len - sizeof *hin - sizeof *ahin < n) {
-				eprintk("runt data size in read.  skb->len=%d\n",
+				printk(KERN_ERR
+					"aoe: runt data size in read.  skb->len=%d\n",
 					skb->len);
 				/* fail frame f?  just returning will rexmit. */
 				spin_unlock_irqrestore(&d->lock, flags);
@@ -618,7 +620,8 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 			break;
 		case WIN_IDENTIFY:
 			if (skb->len - sizeof *hin - sizeof *ahin < 512) {
-				iprintk("runt data size in ataid.  skb->len=%d\n",
+				printk(KERN_INFO
+					"aoe: runt data size in ataid.  skb->len=%d\n",
 					skb->len);
 				spin_unlock_irqrestore(&d->lock, flags);
 				return;
@@ -626,7 +629,8 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 			ataid_complete(d, (char *) (ahin+1));
 			break;
 		default:
-			iprintk("unrecognized ata command %2.2Xh for %d.%d\n",
+			printk(KERN_INFO
+				"aoe: unrecognized ata command %2.2Xh for %d.%d\n",
 				ahout->cmdstat,
 				be16_to_cpu(hin->major),
 				hin->minor);
@@ -686,7 +690,7 @@ aoecmd_ata_id(struct aoedev *d)
 
 	f = freeframe(d);
 	if (f == NULL) {
-		eprintk("can't get a frame. This shouldn't happen.\n");
+		printk(KERN_ERR "aoe: can't get a frame. This shouldn't happen.\n");
 		return NULL;
 	}
 
@@ -732,14 +736,14 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	 */
 	aoemajor = be16_to_cpu(h->major);
 	if (aoemajor == 0xfff) {
-		eprintk("Warning: shelf address is all ones.  "
+		printk(KERN_ERR "aoe: Warning: shelf address is all ones.  "
 			"Check shelf dip switches.\n");
 		return;
 	}
 
 	sysminor = SYSMINOR(aoemajor, h->minor);
 	if (sysminor * AOE_PARTITIONS + AOE_PARTITIONS > MINORMASK) {
-		iprintk("e%ld.%d: minor number too large\n",
+		printk(KERN_INFO "aoe: e%ld.%d: minor number too large\n",
 			aoemajor, (int) h->minor);
 		return;
 	}
@@ -750,7 +754,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 
 	d = aoedev_by_sysminor_m(sysminor, n);
 	if (d == NULL) {
-		iprintk("device sysminor_m failure\n");
+		printk(KERN_INFO "aoe: device sysminor_m failure\n");
 		return;
 	}
 
@@ -767,7 +771,8 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 			n = ch->scnt;
 		n = n ? n * 512 : DEFAULTBCNT;
 		if (n != d->maxbcnt) {
-			iprintk("e%ld.%ld: setting %d byte data frames on %s\n",
+			printk(KERN_INFO
+				"aoe: e%ld.%ld: setting %d byte data frames on %s\n",
 				d->aoemajor, d->aoeminor, n, d->ifp->name);
 			d->maxbcnt = n;
 		}

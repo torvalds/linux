@@ -131,7 +131,7 @@ aoeblk_make_request(request_queue_t *q, struct bio *bio)
 	d = bio->bi_bdev->bd_disk->private_data;
 	buf = mempool_alloc(d->bufpool, GFP_NOIO);
 	if (buf == NULL) {
-		iprintk("buf allocation failure\n");
+		printk(KERN_INFO "aoe: buf allocation failure\n");
 		bio_endio(bio, bio->bi_size, -ENOMEM);
 		return 0;
 	}
@@ -149,7 +149,8 @@ aoeblk_make_request(request_queue_t *q, struct bio *bio)
 	spin_lock_irqsave(&d->lock, flags);
 
 	if ((d->flags & DEVFL_UP) == 0) {
-		iprintk("device %ld.%ld is not up\n", d->aoemajor, d->aoeminor);
+		printk(KERN_INFO "aoe: device %ld.%ld is not up\n",
+			d->aoemajor, d->aoeminor);
 		spin_unlock_irqrestore(&d->lock, flags);
 		mempool_free(buf, d->bufpool);
 		bio_endio(bio, bio->bi_size, -ENXIO);
@@ -174,7 +175,7 @@ aoeblk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	struct aoedev *d = bdev->bd_disk->private_data;
 
 	if ((d->flags & DEVFL_UP) == 0) {
-		eprintk("disk not up\n");
+		printk(KERN_ERR "aoe: disk not up\n");
 		return -ENODEV;
 	}
 
@@ -201,7 +202,7 @@ aoeblk_gdalloc(void *vp)
 
 	gd = alloc_disk(AOE_PARTITIONS);
 	if (gd == NULL) {
-		eprintk("cannot allocate disk structure for %ld.%ld\n",
+		printk(KERN_ERR "aoe: cannot allocate disk structure for %ld.%ld\n",
 			d->aoemajor, d->aoeminor);
 		spin_lock_irqsave(&d->lock, flags);
 		d->flags &= ~DEVFL_GDALLOC;
@@ -211,7 +212,7 @@ aoeblk_gdalloc(void *vp)
 
 	d->bufpool = mempool_create_slab_pool(MIN_BUFS, buf_pool_cache);
 	if (d->bufpool == NULL) {
-		eprintk("cannot allocate bufpool for %ld.%ld\n",
+		printk(KERN_ERR "aoe: cannot allocate bufpool for %ld.%ld\n",
 			d->aoemajor, d->aoeminor);
 		put_disk(gd);
 		spin_lock_irqsave(&d->lock, flags);

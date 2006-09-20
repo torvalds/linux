@@ -74,7 +74,7 @@ set_aoe_iflist(const char __user *user_str, size_t size)
 		return -EINVAL;
 
 	if (copy_from_user(aoe_iflist, user_str, size)) {
-		iprintk("copy from user failed\n");
+		printk(KERN_INFO "aoe: copy from user failed\n");
 		return -EFAULT;
 	}
 	aoe_iflist[size] = 0x00;
@@ -132,7 +132,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 		if (n > NECODES)
 			n = 0;
 		if (net_ratelimit())
-			eprintk("error packet from %d.%d; ecode=%d '%s'\n",
+			printk(KERN_ERR "aoe: error packet from %d.%d; ecode=%d '%s'\n",
 			       be16_to_cpu(h->major), h->minor, 
 			       h->err, aoe_errlist[n]);
 		goto exit;
@@ -146,7 +146,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 		aoecmd_cfg_rsp(skb);
 		break;
 	default:
-		iprintk("unknown cmd %d\n", h->cmd);
+		printk(KERN_INFO "aoe: unknown cmd %d\n", h->cmd);
 	}
 exit:
 	dev_kfree_skb(skb);

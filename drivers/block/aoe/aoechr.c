@@ -55,7 +55,8 @@ static int
 interfaces(const char __user *str, size_t size)
 {
 	if (set_aoe_iflist(str, size)) {
-		eprintk("could not set interface list: too many interfaces\n");
+		printk(KERN_ERR
+			"aoe: could not set interface list: too many interfaces\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -78,7 +79,7 @@ revalidate(const char __user *str, size_t size)
 	/* should be e%d.%d format */
 	n = sscanf(buf, "e%d.%d", &major, &minor);
 	if (n != 2) {
-		eprintk("invalid device specification\n");
+		printk(KERN_ERR "aoe: invalid device specification\n");
 		return -EINVAL;
 	}
 	d = aoedev_by_aoeaddr(major, minor);
@@ -113,7 +114,7 @@ bail:		spin_unlock_irqrestore(&emsgs_lock, flags);
 
 	mp = kmalloc(n, GFP_ATOMIC);
 	if (mp == NULL) {
-		eprintk("allocation failure, len=%ld\n", n);
+		printk(KERN_ERR "aoe: allocation failure, len=%ld\n", n);
 		goto bail;
 	}
 
@@ -138,7 +139,7 @@ aoechr_write(struct file *filp, const char __user *buf, size_t cnt, loff_t *offp
 
 	switch ((unsigned long) filp->private_data) {
 	default:
-		iprintk("can't write to that file.\n");
+		printk(KERN_INFO "aoe: can't write to that file.\n");
 		break;
 	case MINOR_DISCOVER:
 		ret = discover();
@@ -247,7 +248,7 @@ aoechr_init(void)
 
 	n = register_chrdev(AOE_MAJOR, "aoechr", &aoe_fops);
 	if (n < 0) { 
-		eprintk("can't register char device\n");
+		printk(KERN_ERR "aoe: can't register char device\n");
 		return n;
 	}
 	sema_init(&emsgs_sema, 0);
