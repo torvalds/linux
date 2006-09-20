@@ -475,7 +475,7 @@ void
 aoecmd_ata_rsp(struct sk_buff *skb)
 {
 	struct aoedev *d;
-	struct aoe_hdr *hin;
+	struct aoe_hdr *hin, *hout;
 	struct aoe_atahdr *ahin, *ahout;
 	struct frame *f;
 	struct buf *buf;
@@ -515,7 +515,8 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	calc_rttavg(d, tsince(f->tag));
 
 	ahin = (struct aoe_atahdr *) (hin+1);
-	ahout = (struct aoe_atahdr *) (f->skb->mac.raw + sizeof(struct aoe_hdr));
+	hout = (struct aoe_hdr *) f->skb->mac.raw;
+	ahout = (struct aoe_atahdr *) (hout+1);
 	buf = f->buf;
 
 	if (ahout->cmdstat == WIN_IDENTIFY)
@@ -552,6 +553,9 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 					skb_fill_page_desc(f->skb, 0,
 						virt_to_page(f->bufaddr),
 						offset_in_page(f->bufaddr), n);
+				f->tag = newtag(d);
+				hout->tag = cpu_to_be32(f->tag);
+				skb->dev = d->ifp;
 				skb_get(f->skb);
 				f->skb->next = NULL;
 				spin_unlock_irqrestore(&d->lock, flags);
