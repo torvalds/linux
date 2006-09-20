@@ -67,7 +67,7 @@ gre_unique_tuple(struct ip_conntrack_tuple *tuple,
 		 const struct ip_conntrack *conntrack)
 {
 	static u_int16_t key;
-	u_int16_t *keyptr;
+	__be16 *keyptr;
 	unsigned int min, i, range_size;
 
 	if (maniptype == IP_NAT_MANIP_SRC)

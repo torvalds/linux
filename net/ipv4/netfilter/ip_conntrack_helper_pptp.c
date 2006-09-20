@@ -201,8 +201,8 @@ static void pptp_destroy_siblings(struct ip_conntrack *ct)
 	/* try original (pns->pac) tuple */
 	memcpy(&t, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple, sizeof(t));
 	t.dst.protonum = IPPROTO_GRE;
-	t.src.u.gre.key = htons(ct->help.ct_pptp_info.pns_call_id);
-	t.dst.u.gre.key = htons(ct->help.ct_pptp_info.pac_call_id);
+	t.src.u.gre.key = ct->help.ct_pptp_info.pns_call_id;
+	t.dst.u.gre.key = ct->help.ct_pptp_info.pac_call_id;
 
 	if (!destroy_sibling_or_exp(&t))
 		DEBUGP("failed to timeout original pns->pac ct/exp\n");
@@ -210,8 +210,8 @@ static void pptp_destroy_siblings(struct ip_conntrack *ct)
 	/* try reply (pac->pns) tuple */
 	memcpy(&t, &ct->tuplehash[IP_CT_DIR_REPLY].tuple, sizeof(t));
 	t.dst.protonum = IPPROTO_GRE;
-	t.src.u.gre.key = htons(ct->help.ct_pptp_info.pac_call_id);
-	t.dst.u.gre.key = htons(ct->help.ct_pptp_info.pns_call_id);
+	t.src.u.gre.key = ct->help.ct_pptp_info.pac_call_id;
+	t.dst.u.gre.key = ct->help.ct_pptp_info.pns_call_id;
 
 	if (!destroy_sibling_or_exp(&t))
 		DEBUGP("failed to timeout reply pac->pns ct/exp\n");
@@ -419,9 +419,9 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		cid = &pptpReq->ocack.callID;
 		pcid = &pptpReq->ocack.peersCallID;
 
-		info->pac_call_id = ntohs(*cid);
+		info->pac_call_id = *cid;
 
-		if (htons(info->pns_call_id) != *pcid) {
+		if (info->pns_call_id != *pcid) {
 			DEBUGP("%s for unknown callid %u\n",
 				pptp_msg_name[msg], ntohs(*pcid));
 			break;
@@ -454,7 +454,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		pcid = &pptpReq->icack.peersCallID;
 		DEBUGP("%s, PCID=%X\n", pptp_msg_name[msg], ntohs(*pcid));
 		info->cstate = PPTP_CALL_IN_REQ;
-		info->pac_call_id = ntohs(*pcid);
+		info->pac_call_id = *pcid;
 		break;
 
 	case PPTP_IN_CALL_CONNECT:
@@ -478,7 +478,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		pcid = &pptpReq->iccon.peersCallID;
 		cid = &info->pac_call_id;
 
-		if (info->pns_call_id != ntohs(*pcid)) {
+		if (info->pns_call_id != *pcid) {
 			DEBUGP("%s for unknown CallID %u\n",
 				pptp_msg_name[msg], ntohs(*pcid));
 			break;
@@ -595,7 +595,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		/* track PNS call id */
 		cid = &pptpReq->ocreq.callID;
 		DEBUGP("%s, CID=%X\n", pptp_msg_name[msg], ntohs(*cid));
-		info->pns_call_id = ntohs(*cid);
+		info->pns_call_id = *cid;
 		break;
 	case PPTP_IN_CALL_REPLY:
 		if (reqlen < sizeof(_pptpReq.icack)) {
@@ -615,7 +615,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 			break;
 		}
 		pcid = &pptpReq->icack.peersCallID;
-		if (info->pac_call_id != ntohs(*pcid)) {
+		if (info->pac_call_id != *pcid) {
 			DEBUGP("%s for unknown call %u\n",
 				pptp_msg_name[msg], ntohs(*pcid));
 			break;
@@ -623,7 +623,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		DEBUGP("%s, CID=%X\n", pptp_msg_name[msg], ntohs(*pcid));
 		/* part two of the three-way handshake */
 		info->cstate = PPTP_CALL_IN_REP;
-		info->pns_call_id = ntohs(pptpReq->icack.callID);
+		info->pns_call_id = pptpReq->icack.callID;
 		break;
 
 	case PPTP_CALL_CLEAR_REQUEST:

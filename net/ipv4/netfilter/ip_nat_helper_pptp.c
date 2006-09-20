@@ -85,19 +85,17 @@ static void pptp_nat_expected(struct ip_conntrack *ct,
 		DEBUGP("we are PNS->PAC\n");
 		/* therefore, build tuple for PAC->PNS */
 		t.src.ip = master->tuplehash[IP_CT_DIR_REPLY].tuple.src.ip;
-		t.src.u.gre.key = htons(master->help.ct_pptp_info.pac_call_id);
+		t.src.u.gre.key = master->help.ct_pptp_info.pac_call_id;
 		t.dst.ip = master->tuplehash[IP_CT_DIR_REPLY].tuple.dst.ip;
-		t.dst.u.gre.key = htons(master->help.ct_pptp_info.pns_call_id);
+		t.dst.u.gre.key = master->help.ct_pptp_info.pns_call_id;
 		t.dst.protonum = IPPROTO_GRE;
 	} else {
 		DEBUGP("we are PAC->PNS\n");
 		/* build tuple for PNS->PAC */
 		t.src.ip = master->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip;
-		t.src.u.gre.key =
-			htons(master->nat.help.nat_pptp_info.pns_call_id);
+		t.src.u.gre.key = master->nat.help.nat_pptp_info.pns_call_id;
 		t.dst.ip = master->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.ip;
-		t.dst.u.gre.key =
-			htons(master->nat.help.nat_pptp_info.pac_call_id);
+		t.dst.u.gre.key = master->nat.help.nat_pptp_info.pac_call_id;
 		t.dst.protonum = IPPROTO_GRE;
 	}
 
@@ -149,10 +147,11 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 {
 	struct ip_ct_pptp_master *ct_pptp_info = &ct->help.ct_pptp_info;
 	struct ip_nat_pptp *nat_pptp_info = &ct->nat.help.nat_pptp_info;
-	u_int16_t msg, new_callid;
+	u_int16_t msg;
+	__be16 new_callid;
 	unsigned int cid_off;
 
-	new_callid = htons(ct_pptp_info->pns_call_id);
+	new_callid = ct_pptp_info->pns_call_id;
 
 	switch (msg = ntohs(ctlh->messageType)) {
 	case PPTP_OUT_CALL_REQUEST:
@@ -170,7 +169,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		new_callid = ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u.tcp.port;
 
 		/* save new call ID in ct info */
-		ct_pptp_info->pns_call_id = ntohs(new_callid);
+		ct_pptp_info->pns_call_id = new_callid;
 		break;
 	case PPTP_IN_CALL_REPLY:
 		cid_off = offsetof(union pptp_ctrl_union, icreq.callID);
@@ -235,14 +234,14 @@ pptp_exp_gre(struct ip_conntrack_expect *expect_orig,
 
 	/* alter expectation for PNS->PAC direction */
 	invert_tuplepr(&inv_t, &expect_orig->tuple);
-	expect_orig->saved_proto.gre.key = htons(ct_pptp_info->pns_call_id);
-	expect_orig->tuple.src.u.gre.key = htons(nat_pptp_info->pns_call_id);
-	expect_orig->tuple.dst.u.gre.key = htons(ct_pptp_info->pac_call_id);
+	expect_orig->saved_proto.gre.key = ct_pptp_info->pns_call_id;
+	expect_orig->tuple.src.u.gre.key = nat_pptp_info->pns_call_id;
+	expect_orig->tuple.dst.u.gre.key = ct_pptp_info->pac_call_id;
 	expect_orig->dir = IP_CT_DIR_ORIGINAL;
 	inv_t.src.ip = reply_t->src.ip;
 	inv_t.dst.ip = reply_t->dst.ip;
-	inv_t.src.u.gre.key = htons(nat_pptp_info->pac_call_id);
-	inv_t.dst.u.gre.key = htons(ct_pptp_info->pns_call_id);
+	inv_t.src.u.gre.key = nat_pptp_info->pac_call_id;
+	inv_t.dst.u.gre.key = ct_pptp_info->pns_call_id;
 
 	if (!ip_conntrack_expect_related(expect_orig)) {
 		DEBUGP("successfully registered expect\n");
@@ -253,14 +252,14 @@ pptp_exp_gre(struct ip_conntrack_expect *expect_orig,
 
 	/* alter expectation for PAC->PNS direction */
 	invert_tuplepr(&inv_t, &expect_reply->tuple);
-	expect_reply->saved_proto.gre.key = htons(nat_pptp_info->pns_call_id);
-	expect_reply->tuple.src.u.gre.key = htons(nat_pptp_info->pac_call_id);
-	expect_reply->tuple.dst.u.gre.key = htons(ct_pptp_info->pns_call_id);
+	expect_reply->saved_proto.gre.key = nat_pptp_info->pns_call_id;
+	expect_reply->tuple.src.u.gre.key = nat_pptp_info->pac_call_id;
+	expect_reply->tuple.dst.u.gre.key = ct_pptp_info->pns_call_id;
 	expect_reply->dir = IP_CT_DIR_REPLY;
 	inv_t.src.ip = orig_t->src.ip;
 	inv_t.dst.ip = orig_t->dst.ip;
-	inv_t.src.u.gre.key = htons(nat_pptp_info->pns_call_id);
-	inv_t.dst.u.gre.key = htons(ct_pptp_info->pac_call_id);
+	inv_t.src.u.gre.key = nat_pptp_info->pns_call_id;
+	inv_t.dst.u.gre.key = ct_pptp_info->pac_call_id;
 
 	if (!ip_conntrack_expect_related(expect_reply)) {
 		DEBUGP("successfully registered expect\n");
@@ -297,10 +296,11 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		 union pptp_ctrl_union *pptpReq)
 {
 	struct ip_nat_pptp *nat_pptp_info = &ct->nat.help.nat_pptp_info;
-	u_int16_t msg, new_cid = 0, new_pcid;
+	u_int16_t msg, new_cid = 0;
+	__be16 new_pcid;
 	unsigned int pcid_off, cid_off = 0;
 
-	new_pcid = htons(nat_pptp_info->pns_call_id);
+	new_pcid = nat_pptp_info->pns_call_id;
 
 	switch (msg = ntohs(ctlh->messageType)) {
 	case PPTP_OUT_CALL_REPLY:
