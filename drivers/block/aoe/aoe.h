@@ -84,6 +84,7 @@ enum {
 	DEVFL_PAUSE = (1<<5),
 	DEVFL_NEWSIZE = (1<<6),	/* need to update dev size in block layer */
 	DEVFL_MAXBCNT = (1<<7), /* d->maxbcnt is not changeable */
+	DEVFL_KICKME = (1<<8),
 
 	BUFFL_FAIL = 1,
 };

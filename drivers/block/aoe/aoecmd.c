@@ -120,7 +120,7 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 	h = (struct aoe_hdr *) skb->mac.raw;
 	ah = (struct aoe_atahdr *) (h+1);
 	skb->len = sizeof *h + sizeof *ah;
-	memset(h, 0, skb->len);
+	memset(h, 0, ETH_ZLEN);
 	f->tag = aoehdr_atainit(d, h);
 	f->waited = 0;
 	f->buf = buf;
@@ -143,8 +143,9 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 		skb_fill_page_desc(skb, 0, virt_to_page(f->bufaddr),
 			offset_in_page(f->bufaddr), bcnt);
 		ah->aflags |= AOEAFL_WRITE;
+		skb->len += bcnt;
+		skb->data_len = bcnt;
 	} else {
-		skb_shinfo(skb)->nr_frags = 0;
 		skb->len = ETH_ZLEN;
 		writebit = 0;
 	}
@@ -167,8 +168,9 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 	}
 
 	skb->dev = d->ifp;
-	skb_get(skb);
-	skb->next = NULL;
+	skb = skb_clone(skb, GFP_ATOMIC);
+	if (skb == NULL)
+		return;
 	if (d->sendq_hd)
 		d->sendq_tl->next = skb;
 	else
@@ -224,6 +226,29 @@ aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff **tail)
 	return sl;
 }
 
+static struct frame *
+freeframe(struct aoedev *d)
+{
+	struct frame *f, *e;
+	int n = 0;
+
+	f = d->frames;
+	e = f + d->nframes;
+	for (; f<e; f++) {
+		if (f->tag != FREETAG)
+			continue;
+		if (atomic_read(&skb_shinfo(f->skb)->dataref) == 1) {
+			skb_shinfo(f->skb)->nr_frags = f->skb->data_len = 0;
+			return f;
+		}
+		n++;
+	}
+	if (n == d->nframes)	/* wait for network layer */
+		d->flags |= DEVFL_KICKME;
+
+	return NULL;
+}
+
 /* enters with d->lock held */
 void
 aoecmd_work(struct aoedev *d)
@@ -239,7 +264,7 @@ aoecmd_work(struct aoedev *d)
 	}
 
 loop:
-	f = getframe(d, FREETAG);
+	f = freeframe(d);
 	if (f == NULL)
 		return;
 	if (d->inprocess == NULL) {
@@ -282,20 +307,25 @@ rexmit(struct aoedev *d, struct frame *f)
 	n = DEFAULTBCNT / 512;
 	if (ah->scnt > n) {
 		ah->scnt = n;
-		if (ah->aflags & AOEAFL_WRITE)
+		if (ah->aflags & AOEAFL_WRITE) {
 			skb_fill_page_desc(skb, 0, virt_to_page(f->bufaddr),
 				offset_in_page(f->bufaddr), DEFAULTBCNT);
+			skb->len = sizeof *h + sizeof *ah + DEFAULTBCNT;
+			skb->data_len = DEFAULTBCNT;
+		}
 		if (++d->lostjumbo > (d->nframes << 1))
 		if (d->maxbcnt != DEFAULTBCNT) {
-			iprintk("too many lost jumbo - using 1KB frames.\n");
+			iprintk("e%ld.%ld: too many lost jumbo on %s - using 1KB frames.\n",
+				d->aoemajor, d->aoeminor, d->ifp->name);
 			d->maxbcnt = DEFAULTBCNT;
 			d->flags |= DEVFL_MAXBCNT;
 		}
 	}
 
 	skb->dev = d->ifp;
-	skb_get(skb);
-	skb->next = NULL;
+	skb = skb_clone(skb, GFP_ATOMIC);
+	if (skb == NULL)
+		return;
 	if (d->sendq_hd)
 		d->sendq_tl->next = skb;
 	else
@@ -349,6 +379,10 @@ rexmit_timer(ulong vp)
 			}
 			rexmit(d, f);
 		}
+	}
+	if (d->flags & DEVFL_KICKME) {
+		d->flags &= ~DEVFL_KICKME;
+		aoecmd_work(d);
 	}
 
 	sl = d->sendq_hd;
@@ -552,23 +586,27 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 		case WIN_WRITE:
 		case WIN_WRITE_EXT:
 			if (f->bcnt -= n) {
+				skb = f->skb;
 				f->bufaddr += n;
 				put_lba(ahout, f->lba += ahout->scnt);
 				n = f->bcnt;
 				if (n > DEFAULTBCNT)
 					n = DEFAULTBCNT;
 				ahout->scnt = n >> 9;
-				if (ahout->aflags & AOEAFL_WRITE)
-					skb_fill_page_desc(f->skb, 0,
+				if (ahout->aflags & AOEAFL_WRITE) {
+					skb_fill_page_desc(skb, 0,
 						virt_to_page(f->bufaddr),
 						offset_in_page(f->bufaddr), n);
+					skb->len = sizeof *hout + sizeof *ahout + n;
+					skb->data_len = n;
+				}
 				f->tag = newtag(d);
 				hout->tag = cpu_to_be32(f->tag);
 				skb->dev = d->ifp;
-				skb_get(f->skb);
-				f->skb->next = NULL;
+				skb = skb_clone(skb, GFP_ATOMIC);
 				spin_unlock_irqrestore(&d->lock, flags);
-				aoenet_xmit(f->skb);
+				if (skb)
+					aoenet_xmit(skb);
 				return;
 			}
 			if (n > DEFAULTBCNT)
@@ -642,7 +680,7 @@ aoecmd_ata_id(struct aoedev *d)
 	struct frame *f;
 	struct sk_buff *skb;
 
-	f = getframe(d, FREETAG);
+	f = freeframe(d);
 	if (f == NULL) {
 		eprintk("can't get a frame. This shouldn't happen.\n");
 		return NULL;
@@ -652,8 +690,8 @@ aoecmd_ata_id(struct aoedev *d)
 	skb = f->skb;
 	h = (struct aoe_hdr *) skb->mac.raw;
 	ah = (struct aoe_atahdr *) (h+1);
-	skb->len = sizeof *h + sizeof *ah;
-	memset(h, 0, skb->len);
+	skb->len = ETH_ZLEN;
+	memset(h, 0, ETH_ZLEN);
 	f->tag = aoehdr_atainit(d, h);
 	f->waited = 0;
 
@@ -663,12 +701,11 @@ aoecmd_ata_id(struct aoedev *d)
 	ah->lba3 = 0xa0;
 
 	skb->dev = d->ifp;
-	skb_get(skb);
 
 	d->rttavg = MAXTIMER;
 	d->timer.function = rexmit_timer;
 
-	return skb;
+	return skb_clone(skb, GFP_ATOMIC);
 }
  
 void
@@ -724,7 +761,12 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 		n /= 512;
 		if (n > ch->scnt)
 			n = ch->scnt;
-		d->maxbcnt = n ? n * 512 : DEFAULTBCNT;
+		n = n ? n * 512 : DEFAULTBCNT;
+		if (n != d->maxbcnt) {
+			iprintk("e%ld.%ld: setting %d byte data frames on %s\n",
+				d->aoemajor, d->aoeminor, n, d->ifp->name);
+			d->maxbcnt = n;
+		}
 	}
 
 	/* don't change users' perspective */

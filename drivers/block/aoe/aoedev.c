@@ -121,6 +121,7 @@ aoedev_downdev(struct aoedev *d)
 			mempool_free(buf, d->bufpool);
 			bio_endio(bio, bio->bi_size, -EIO);
 		}
+		skb_shinfo(f->skb)->nr_frags = f->skb->data_len = 0;
 	}
 	d->inprocess = NULL;
 
