@@ -26,7 +26,6 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 {
 	struct ipv6hdr *ip6h;
 	const struct ip6t_HL_info *info = targinfo;
-	u_int16_t diffs[2];
 	int new_hl;
 
 	if (!skb_make_writable(pskb, (*pskb)->len))
@@ -53,11 +52,8 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 			break;
 	}
 
-	if (new_hl != ip6h->hop_limit) {
-		diffs[0] = htons(((unsigned)ip6h->hop_limit) << 8) ^ 0xFFFF;
+	if (new_hl != ip6h->hop_limit)
 		ip6h->hop_limit = new_hl;
-		diffs[1] = htons(((unsigned)ip6h->hop_limit) << 8);
-	}
 
 	return IP6T_CONTINUE;
 }
