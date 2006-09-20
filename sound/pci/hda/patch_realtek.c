@@ -2753,7 +2753,7 @@ static void alc880_auto_init_extra_out(struct hda_codec *codec)
 	pin = spec->autocfg.speaker_pins[0];
 	if (pin) /* connect to front */
 		alc880_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
-	pin = spec->autocfg.hp_pin;
+	pin = spec->autocfg.hp_pins[0];
 	if (pin) /* connect to front */
 		alc880_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
 }
@@ -2794,7 +2794,7 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 	    (err = alc880_auto_create_extra_out(spec,
 						spec->autocfg.speaker_pins[0],
 						"Speaker")) < 0 ||
-	    (err = alc880_auto_create_extra_out(spec, spec->autocfg.hp_pin,
+	    (err = alc880_auto_create_extra_out(spec, spec->autocfg.hp_pins[0],
 						"Headphone")) < 0 ||
 	    (err = alc880_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
 		return err;
@@ -3736,7 +3736,7 @@ static int alc260_auto_create_multi_out_ctls(struct alc_spec *spec,
 			return err;
 	}
 
-	nid = cfg->hp_pin;
+	nid = cfg->hp_pins[0];
 	if (nid) {
 		err = alc260_add_playback_controls(spec, nid, "Headphone");
 		if (err < 0)
@@ -3806,7 +3806,7 @@ static void alc260_auto_init_multi_out(struct hda_codec *codec)
 	if (nid)
 		alc260_auto_set_output_and_unmute(codec, nid, PIN_OUT, 0);
 
-	nid = spec->autocfg.hp_pin;
+	nid = spec->autocfg.hp_pins[0];
 	if (nid)
 		alc260_auto_set_output_and_unmute(codec, nid, PIN_OUT, 0);
 }	
@@ -4526,7 +4526,7 @@ static void alc882_auto_init_hp_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t pin;
 
-	pin = spec->autocfg.hp_pin;
+	pin = spec->autocfg.hp_pins[0];
 	if (pin) /* connect to front */
 		alc882_auto_set_output_and_unmute(codec, pin, PIN_HP, 0); /* use dac 0 */
 }
@@ -5207,7 +5207,7 @@ static void alc883_auto_init_hp_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t pin;
 
-	pin = spec->autocfg.hp_pin;
+	pin = spec->autocfg.hp_pins[0];
 	if (pin) /* connect to front */
 		/* use dac 0 */
 		alc883_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
@@ -5630,7 +5630,7 @@ static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec, const struct
 				return err;
 		}
 	}
-	nid = cfg->hp_pin;
+	nid = cfg->hp_pins[0];
 	if (nid) {
 		/* spec->multiout.hp_nid = 2; */
 		if (nid == 0x16) {
@@ -6630,7 +6630,7 @@ static void alc861_auto_init_hp_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t pin;
 
-	pin = spec->autocfg.hp_pin;
+	pin = spec->autocfg.hp_pins[0];
 	if (pin) /* connect to front */
 		alc861_auto_set_output_and_unmute(codec, pin, PIN_HP, spec->multiout.dac_nids[0]);
 }
@@ -6665,7 +6665,7 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 
 	if ((err = alc861_auto_fill_dac_nids(spec, &spec->autocfg)) < 0 ||
 	    (err = alc861_auto_create_multi_out_ctls(spec, &spec->autocfg)) < 0 ||
-	    (err = alc861_auto_create_hp_ctls(spec, spec->autocfg.hp_pin)) < 0 ||
+	    (err = alc861_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0])) < 0 ||
 	    (err = alc861_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
 		return err;
 

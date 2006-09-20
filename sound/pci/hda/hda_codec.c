@@ -2012,7 +2012,7 @@ static int is_in_nid_list(hda_nid_t nid, hda_nid_t *list)
  * in the order of front, rear, CLFE, side, ...
  *
  * If more extra outputs (speaker and headphone) are found, the pins are
- * assisnged to hp_pin and speaker_pins[], respectively.  If no line-out jack
+ * assisnged to hp_pins[] and speaker_pins[], respectively.  If no line-out jack
  * is detected, one of speaker of HP pins is assigned as the primary
  * output, i.e. to line_out_pins[0].  So, line_outs is always positive
  * if any analog output exists.
@@ -2074,7 +2074,10 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *c
 			cfg->speaker_outs++;
 			break;
 		case AC_JACK_HP_OUT:
-			cfg->hp_pin = nid;
+			if (cfg->hp_outs >= ARRAY_SIZE(cfg->hp_pins))
+				continue;
+			cfg->hp_pins[cfg->hp_outs] = nid;
+			cfg->hp_outs++;
 			break;
 		case AC_JACK_MIC_IN:
 			if (loc == AC_JACK_LOC_FRONT)
@@ -2147,8 +2150,10 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *c
 		   cfg->speaker_outs, cfg->speaker_pins[0],
 		   cfg->speaker_pins[1], cfg->speaker_pins[2],
 		   cfg->speaker_pins[3], cfg->speaker_pins[4]);
-	snd_printd("   hp=0x%x, dig_out=0x%x, din_in=0x%x\n",
-		   cfg->hp_pin, cfg->dig_out_pin, cfg->dig_in_pin);
+	snd_printd("   hp_outs=%d (0x%x/0x%x/0x%x/0x%x/0x%x)\n",
+		   cfg->hp_outs, cfg->hp_pins[0],
+		   cfg->hp_pins[1], cfg->hp_pins[2],
+		   cfg->hp_pins[3], cfg->hp_pins[4]);
 	snd_printd("   inputs: mic=0x%x, fmic=0x%x, line=0x%x, fline=0x%x,"
 		   " cd=0x%x, aux=0x%x\n",
 		   cfg->input_pins[AUTO_PIN_MIC],
@@ -2169,10 +2174,12 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *c
 			       sizeof(cfg->speaker_pins));
 			cfg->speaker_outs = 0;
 			memset(cfg->speaker_pins, 0, sizeof(cfg->speaker_pins));
-		} else if (cfg->hp_pin) {
-			cfg->line_outs = 1;
-			cfg->line_out_pins[0] = cfg->hp_pin;
-			cfg->hp_pin = 0;
+		} else if (cfg->hp_outs) {
+			cfg->line_outs = cfg->hp_outs;
+			memcpy(cfg->line_out_pins, cfg->hp_pins,
+			       sizeof(cfg->hp_pins));
+			cfg->hp_outs = 0;
+			memset(cfg->hp_pins, 0, sizeof(cfg->hp_pins));
 		}
 	}
 
