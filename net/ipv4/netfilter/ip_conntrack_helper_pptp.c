@@ -355,10 +355,10 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		if (info->sstate != PPTP_SESSION_CONFIRMED)
 			goto invalid;
 
-		pcid = pptpReq->icack.peersCallID;
-		DEBUGP("%s, PCID=%X\n", pptp_msg_name[msg], ntohs(pcid));
+		cid = pptpReq->icreq.callID;
+		DEBUGP("%s, CID=%X\n", pptp_msg_name[msg], ntohs(cid));
 		info->cstate = PPTP_CALL_IN_REQ;
-		info->pac_call_id = pcid;
+		info->pac_call_id = cid;
 		break;
 
 	case PPTP_IN_CALL_CONNECT:
@@ -458,15 +458,17 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		    info->cstate != PPTP_CALL_IN_REP)
 			goto invalid;
 
+		cid = pptpReq->icack.callID;
 		pcid = pptpReq->icack.peersCallID;
 		if (info->pac_call_id != pcid)
 			goto invalid;
-		DEBUGP("%s, CID=%X\n", pptp_msg_name[msg], ntohs(pcid));
+		DEBUGP("%s, CID=%X PCID=%X\n", pptp_msg_name[msg],
+		       ntohs(cid), ntohs(pcid));
 
 		if (pptpReq->icack.resultCode == PPTP_INCALL_ACCEPT) {
 			/* part two of the three-way handshake */
 			info->cstate = PPTP_CALL_IN_REP;
-			info->pns_call_id = pcid;
+			info->pns_call_id = cid;
 		} else
 			info->cstate = PPTP_CALL_NONE;
 		break;

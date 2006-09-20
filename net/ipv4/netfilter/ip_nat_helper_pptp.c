@@ -172,7 +172,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		ct_pptp_info->pns_call_id = new_callid;
 		break;
 	case PPTP_IN_CALL_REPLY:
-		cid_off = offsetof(union pptp_ctrl_union, icreq.callID);
+		cid_off = offsetof(union pptp_ctrl_union, icack.callID);
 		break;
 	case PPTP_CALL_CLEAR_REQUEST:
 		cid_off = offsetof(union pptp_ctrl_union, clrreq.callID);
