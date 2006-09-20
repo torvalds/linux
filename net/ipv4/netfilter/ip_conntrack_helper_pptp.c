@@ -569,7 +569,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 	case PPTP_OUT_CALL_REQUEST:
 		if (reqlen < sizeof(_pptpReq.ocreq)) {
 			DEBUGP("%s: short packet\n", pptp_msg_name[msg]);
-			/* FIXME: break; */
+			break;
 		}
 
 		/* client initiating connection to server */

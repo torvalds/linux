@@ -107,8 +107,7 @@ struct PptpControlHeader {
 
 struct PptpStartSessionRequest {
 	__be16	protocolVersion;
-	__u8	reserved1;
-	__u8	reserved2;
+	__u16	reserved1;
 	__be32	framingCapability;
 	__be32	bearerCapability;
 	__be16	maxChannels;
@@ -143,6 +142,8 @@ struct PptpStartSessionReply {
 
 struct PptpStopSessionRequest {
 	__u8	reason;
+	__u8	reserved1;
+	__u16	reserved2;
 };
 
 /* PptpStopSessionResultCode */
@@ -152,6 +153,7 @@ struct PptpStopSessionRequest {
 struct PptpStopSessionReply {
 	__u8	resultCode;
 	__u8	generalErrorCode;
+	__u16	reserved1;
 };
 
 struct PptpEchoRequest {
@@ -188,9 +190,8 @@ struct PptpOutCallRequest {
 	__be32	framingType;
 	__be16	packetWindow;
 	__be16	packetProcDelay;
-	__u16	reserved1;
 	__be16	phoneNumberLength;
-	__u16	reserved2;
+	__u16	reserved1;
 	__u8	phoneNumber[64];
 	__u8	subAddress[64];
 };
