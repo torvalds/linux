@@ -15,7 +15,6 @@ enum {
 	MINOR_INTERFACES,
 	MINOR_REVALIDATE,
 	MSGSZ = 2048,
-	NARGS = 10,
 	NMSG = 100,		/* message backlog to retain */
 };
 
