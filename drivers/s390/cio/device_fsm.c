@@ -267,6 +267,7 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 			notify = 1;
 		}
 		/* fill out sense information */
+		memset(&cdev->id, 0, sizeof(cdev->id));
 		cdev->id.cu_type   = cdev->private->senseid.cu_type;
 		cdev->id.cu_model  = cdev->private->senseid.cu_model;
 		cdev->id.dev_type  = cdev->private->senseid.dev_type;
