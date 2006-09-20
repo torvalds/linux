@@ -19,9 +19,6 @@
 
 #include "s390mach.h"
 
-#define DBG printk
-// #define DBG(args,...) do {} while (0);
-
 static struct semaphore m_sem;
 
 extern int css_process_crw(int, int);
@@ -83,11 +80,11 @@ repeat:
 		ccode = stcrw(&crw[chain]);
 		if (ccode != 0)
 			break;
-		DBG(KERN_DEBUG "crw_info : CRW reports slct=%d, oflw=%d, "
-		    "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
-		    crw[chain].slct, crw[chain].oflw, crw[chain].chn,
-		    crw[chain].rsc, crw[chain].anc, crw[chain].erc,
-		    crw[chain].rsid);
+		printk(KERN_DEBUG "crw_info : CRW reports slct=%d, oflw=%d, "
+		       "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
+		       crw[chain].slct, crw[chain].oflw, crw[chain].chn,
+		       crw[chain].rsc, crw[chain].anc, crw[chain].erc,
+		       crw[chain].rsid);
 		/* Check for overflows. */
 		if (crw[chain].oflw) {
 			pr_debug("%s: crw overflow detected!\n", __FUNCTION__);
@@ -117,8 +114,8 @@ repeat:
 			 * reported to the common I/O layer.
 			 */
 			if (crw[chain].slct) {
-				DBG(KERN_INFO"solicited machine check for "
-				    "channel path %02X\n", crw[0].rsid);
+				pr_debug("solicited machine check for "
+					 "channel path %02X\n", crw[0].rsid);
 				break;
 			}
 			switch (crw[0].erc) {
