@@ -15,7 +15,10 @@
 #define TIMERTICK (HZ / 10)
 #define MINTIMER (2 * TIMERTICK)
 #define MAXTIMER (HZ << 1)
-#define MAXWAIT (60 * 3)	/* After MAXWAIT seconds, give up and fail dev */
+
+static int aoe_deadsecs = 60 * 3;
+module_param(aoe_deadsecs, int, 0644);
+MODULE_PARM_DESC(aoe_deadsecs, "After aoe_deadsecs seconds, give up and fail dev.");
 
 struct sk_buff *
 new_skb(ulong len)
@@ -373,7 +376,7 @@ rexmit_timer(ulong vp)
 		if (f->tag != FREETAG && tsince(f->tag) >= timeout) {
 			n = f->waited += timeout;
 			n /= HZ;
-			if (n > MAXWAIT) { /* waited too long.  device failure. */
+			if (n > aoe_deadsecs) { /* waited too long for response */
 				aoedev_downdev(d);
 				break;
 			}
