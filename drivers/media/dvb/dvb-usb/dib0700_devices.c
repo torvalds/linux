@@ -95,9 +95,11 @@ static int bristol_tuner_attach(struct dvb_usb_adapter *adap)
 }
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
+/*
 static struct mt2060_config stk7000p_mt2060_config = {
 	0x60
 };
+*/
 
 static int stk7700p_frontend_attach(struct dvb_usb_adapter *adap)
 {

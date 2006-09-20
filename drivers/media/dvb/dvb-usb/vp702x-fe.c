@@ -204,8 +204,8 @@ static int vp702x_fe_get_frontend(struct dvb_frontend* fe,
 static int vp702x_fe_send_diseqc_msg (struct dvb_frontend* fe,
 				    struct dvb_diseqc_master_cmd *m)
 {
-	struct vp702x_fe_state *st = fe->demodulator_priv;
-	u8 cmd[8],ibuf[10];
+	//struct vp702x_fe_state *st = fe->demodulator_priv;
+	u8 cmd[8];//,ibuf[10];
 	memset(cmd,0,8);
 
 	deb_fe("%s\n",__FUNCTION__);
