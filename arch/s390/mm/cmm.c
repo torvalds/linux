@@ -53,22 +53,6 @@ static void cmm_timer_fn(unsigned long);
 static void cmm_set_timer(void);
 
 static long
-cmm_strtoul(const char *cp, char **endp)
-{
-	unsigned int base = 10;
-
-	if (*cp == '0') {
-		base = 8;
-		cp++;
-		if ((*cp == 'x' || *cp == 'X') && isxdigit(cp[1])) {
-			base = 16;
-			cp++;
-		}
-	}
-	return simple_strtoul(cp, endp, base);
-}
-
-static long
 cmm_alloc_pages(long pages, long *counter, struct cmm_page_array **list)
 {
 	struct cmm_page_array *pa;
@@ -276,7 +260,7 @@ cmm_pages_handler(ctl_table *ctl, int write, struct file *filp,
 			return -EFAULT;
 		buf[sizeof(buf) - 1] = '\0';
 		cmm_skip_blanks(buf, &p);
-		pages = cmm_strtoul(p, &p);
+		pages = simple_strtoul(p, &p, 0);
 		if (ctl == &cmm_table[0])
 			cmm_set_pages(pages);
 		else
@@ -317,9 +301,9 @@ cmm_timeout_handler(ctl_table *ctl, int write, struct file *filp,
 			return -EFAULT;
 		buf[sizeof(buf) - 1] = '\0';
 		cmm_skip_blanks(buf, &p);
-		pages = cmm_strtoul(p, &p);
+		pages = simple_strtoul(p, &p, 0);
 		cmm_skip_blanks(p, &p);
-		seconds = cmm_strtoul(p, &p);
+		seconds = simple_strtoul(p, &p, 0);
 		cmm_set_timeout(pages, seconds);
 	} else {
 		len = sprintf(buf, "%ld %ld\n",
@@ -382,24 +366,24 @@ cmm_smsg_target(char *from, char *msg)
 	if (strncmp(msg, "SHRINK", 6) == 0) {
 		if (!cmm_skip_blanks(msg + 6, &msg))
 			return;
-		pages = cmm_strtoul(msg, &msg);
+		pages = simple_strtoul(msg, &msg, 0);
 		cmm_skip_blanks(msg, &msg);
 		if (*msg == '\0')
 			cmm_set_pages(pages);
 	} else if (strncmp(msg, "RELEASE", 7) == 0) {
 		if (!cmm_skip_blanks(msg + 7, &msg))
 			return;
-		pages = cmm_strtoul(msg, &msg);
+		pages = simple_strtoul(msg, &msg, 0);
 		cmm_skip_blanks(msg, &msg);
 		if (*msg == '\0')
 			cmm_add_timed_pages(pages);
 	} else if (strncmp(msg, "REUSE", 5) == 0) {
 		if (!cmm_skip_blanks(msg + 5, &msg))
 			return;
-		pages = cmm_strtoul(msg, &msg);
+		pages = simple_strtoul(msg, &msg, 0);
 		if (!cmm_skip_blanks(msg, &msg))
 			return;
-		seconds = cmm_strtoul(msg, &msg);
+		seconds = simple_strtoul(msg, &msg, 0);
 		cmm_skip_blanks(msg, &msg);
 		if (*msg == '\0')
 			cmm_set_timeout(pages, seconds);
