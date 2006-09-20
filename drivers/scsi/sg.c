@@ -60,7 +60,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 
 #ifdef CONFIG_SCSI_PROC_FS
 #include <linux/proc_fs.h>
-static char *sg_version_date = "20060818";
+static char *sg_version_date = "20060920";
 
 static int sg_proc_init(void);
 static void sg_proc_cleanup(void);
@@ -93,6 +93,9 @@ int sg_big_buff = SG_DEF_RESERVED_SIZE;
    the kernel (i.e. it is not a module).] */
 static int def_reserved_size = -1;	/* picks up init parameter */
 static int sg_allow_dio = SG_ALLOW_DIO_DEF;
+
+static int scatter_elem_sz = SG_SCATTER_SZ;
+static int scatter_elem_sz_prev = SG_SCATTER_SZ;
 
 #define SG_SECTOR_SZ 512
 #define SG_SECTOR_MSK (SG_SECTOR_SZ - 1)
@@ -1537,11 +1540,9 @@ sg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
 		msleep(10);	/* dirty detach so delay device destruction */
 }
 
-/* Set 'perm' (4th argument) to 0 to disable module_param's definition
- * of sysfs parameters (which module_param doesn't yet support).
- * Sysfs parameters defined explicitly below.
- */
-module_param_named(def_reserved_size, def_reserved_size, int, S_IRUGO);
+module_param_named(scatter_elem_sz, scatter_elem_sz, int, S_IRUGO | S_IWUSR);
+module_param_named(def_reserved_size, def_reserved_size, int,
+		   S_IRUGO | S_IWUSR);
 module_param_named(allow_dio, sg_allow_dio, int, S_IRUGO | S_IWUSR);
 
 MODULE_AUTHOR("Douglas Gilbert");
@@ -1550,6 +1551,8 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(SG_VERSION_STR);
 MODULE_ALIAS_CHARDEV_MAJOR(SCSI_GENERIC_MAJOR);
 
+MODULE_PARM_DESC(scatter_elem_sz, "scatter gather element "
+                "size (default: max(SG_SCATTER_SZ, PAGE_SIZE))");
 MODULE_PARM_DESC(def_reserved_size, "size of buffer reserved for each fd");
 MODULE_PARM_DESC(allow_dio, "allow direct I/O (default: 0 (disallow))");
 
@@ -1558,8 +1561,14 @@ init_sg(void)
 {
 	int rc;
 
+	if (scatter_elem_sz < PAGE_SIZE) {
+		scatter_elem_sz = PAGE_SIZE;
+		scatter_elem_sz_prev = scatter_elem_sz;
+	}
 	if (def_reserved_size >= 0)
 		sg_big_buff = def_reserved_size;
+	else
+		def_reserved_size = sg_big_buff;
 
 	rc = register_chrdev_region(MKDEV(SCSI_GENERIC_MAJOR, 0), 
 				    SG_MAX_DEVS, "sg");
@@ -1842,15 +1851,30 @@ sg_build_indirect(Sg_scatter_hold * schp, Sg_fd * sfp, int buff_size)
 	if (mx_sc_elems < 0)
 		return mx_sc_elems;	/* most likely -ENOMEM */
 
+	num = scatter_elem_sz;
+	if (unlikely(num != scatter_elem_sz_prev)) {
+		if (num < PAGE_SIZE) {
+			scatter_elem_sz = PAGE_SIZE;
+			scatter_elem_sz_prev = PAGE_SIZE;
+		} else
+			scatter_elem_sz_prev = num;
+	}
 	for (k = 0, sg = schp->buffer, rem_sz = blk_size;
 	     (rem_sz > 0) && (k < mx_sc_elems);
 	     ++k, rem_sz -= ret_sz, ++sg) {
 		
-		num = (rem_sz > SG_SCATTER_SZ) ? SG_SCATTER_SZ : rem_sz;
+		num = (rem_sz > scatter_elem_sz_prev) ?
+		      scatter_elem_sz_prev : rem_sz;
 		p = sg_page_malloc(num, sfp->low_dma, &ret_sz);
 		if (!p)
 			return -ENOMEM;
 
+		if (num == scatter_elem_sz_prev) {
+			if (unlikely(ret_sz > scatter_elem_sz_prev)) {
+				scatter_elem_sz = ret_sz;
+				scatter_elem_sz_prev = ret_sz;
+			}
+		}
 		sg->page = p;
 		sg->length = ret_sz;
 
@@ -2341,6 +2365,9 @@ sg_add_sfp(Sg_device * sdp, int dev)
 	}
 	write_unlock_irqrestore(&sg_dev_arr_lock, iflags);
 	SCSI_LOG_TIMEOUT(3, printk("sg_add_sfp: sfp=0x%p\n", sfp));
+	if (unlikely(sg_big_buff != def_reserved_size))
+		sg_big_buff = def_reserved_size;
+
 	sg_build_reserve(sfp, sg_big_buff);
 	SCSI_LOG_TIMEOUT(3, printk("sg_add_sfp:   bufflen=%d, k_use_sg=%d\n",
 			   sfp->reserve.bufflen, sfp->reserve.k_use_sg));
@@ -2437,16 +2464,16 @@ sg_res_in_use(Sg_fd * sfp)
 	return srp ? 1 : 0;
 }
 
-/* If retSzp==NULL want exact size or fail */
+/* The size fetched (value output via retSzp) set when non-NULL return */
 static struct page *
 sg_page_malloc(int rqSz, int lowDma, int *retSzp)
 {
 	struct page *resp = NULL;
 	gfp_t page_mask;
 	int order, a_size;
-	int resSz = rqSz;
+	int resSz;
 
-	if (rqSz <= 0)
+	if ((rqSz <= 0) || (NULL == retSzp))
 		return resp;
 
 	if (lowDma)
@@ -2456,8 +2483,9 @@ sg_page_malloc(int rqSz, int lowDma, int *retSzp)
 
 	for (order = 0, a_size = PAGE_SIZE; a_size < rqSz;
 	     order++, a_size <<= 1) ;
+	resSz = a_size;		/* rounded up if necessary */
 	resp = alloc_pages(page_mask, order);
-	while ((!resp) && order && retSzp) {
+	while ((!resp) && order) {
 		--order;
 		a_size >>= 1;	/* divide by 2, until PAGE_SIZE */
 		resp =  alloc_pages(page_mask, order);	/* try half */
@@ -2466,8 +2494,7 @@ sg_page_malloc(int rqSz, int lowDma, int *retSzp)
 	if (resp) {
 		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
 			memset(page_address(resp), 0, resSz);
-		if (retSzp)
-			*retSzp = resSz;
+		*retSzp = resSz;
 	}
 	return resp;
 }
