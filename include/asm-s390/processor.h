@@ -339,4 +339,21 @@ int unregister_idle_notifier(struct notifier_block *nb);
 
 #endif
 
+/*
+ * Helper macro for exception table entries
+ */
+#ifndef __s390x__
+#define EX_TABLE(_fault,_target)			\
+	".section __ex_table,\"a\"\n"			\
+	"	.align 4\n"				\
+	"	.long  " #_fault "," #_target "\n"	\
+	".previous\n"
+#else
+#define EX_TABLE(_fault,_target)			\
+	".section __ex_table,\"a\"\n"			\
+	"	.align 8\n"				\
+	"	.quad  " #_fault "," #_target "\n"	\
+	".previous\n"
+#endif
+
 #endif                                 /* __ASM_S390_PROCESSOR_H           */
