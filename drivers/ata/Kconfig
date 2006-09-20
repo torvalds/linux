@@ -288,15 +288,6 @@ config PATA_ISAPNP
 
 	  If unsure, say N.
 
-config PATA_IT8172
-	tristate "IT8172 PATA support (Very Experimental)"
-	depends on PCI && EXPERIMENTAL
-	help
-	  This option enables support for the ITE 8172 PATA controller
-	  via the new ATA layer.
-
-	  If unsure, say N.
-
 config PATA_IT821X
 	tristate "IT821x PATA support (Experimental)"
 	depends on PCI && EXPERIMENTAL
