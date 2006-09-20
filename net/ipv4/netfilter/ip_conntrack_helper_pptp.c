@@ -291,6 +291,22 @@ out_unexpect_orig:
 	goto out_put_both;
 }
 
+static const unsigned int pptp_msg_size[] = {
+	[PPTP_START_SESSION_REQUEST]  = sizeof(struct PptpStartSessionRequest),
+	[PPTP_START_SESSION_REPLY]    = sizeof(struct PptpStartSessionReply),
+	[PPTP_STOP_SESSION_REQUEST]   = sizeof(struct PptpStopSessionRequest),
+	[PPTP_STOP_SESSION_REPLY]     = sizeof(struct PptpStopSessionReply),
+	[PPTP_OUT_CALL_REQUEST]       = sizeof(struct PptpOutCallRequest),
+	[PPTP_OUT_CALL_REPLY]	      = sizeof(struct PptpOutCallReply),
+	[PPTP_IN_CALL_REQUEST]	      = sizeof(struct PptpInCallRequest),
+	[PPTP_IN_CALL_REPLY]	      = sizeof(struct PptpInCallReply),
+	[PPTP_IN_CALL_CONNECT]	      = sizeof(struct PptpInCallConnected),
+	[PPTP_CALL_CLEAR_REQUEST]     = sizeof(struct PptpClearCallRequest),
+	[PPTP_CALL_DISCONNECT_NOTIFY] = sizeof(struct PptpCallDisconnectNotify),
+	[PPTP_WAN_ERROR_NOTIFY]	      = sizeof(struct PptpWanErrorNotify),
+	[PPTP_SET_LINK_INFO]	      = sizeof(struct PptpSetLinkInfo),
+};
+
 static inline int
 pptp_inbound_pkt(struct sk_buff **pskb,
 		 struct tcphdr *tcph,
@@ -326,13 +342,11 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 	msg = ntohs(ctlh->messageType);
 	DEBUGP("inbound control message %s\n", pptp_msg_name[msg]);
 
+	if (msg > 0 && msg <= PPTP_MSG_MAX && reqlen < pptp_msg_size[msg])
+		return NF_ACCEPT;
+
 	switch (msg) {
 	case PPTP_START_SESSION_REPLY:
-		if (reqlen < sizeof(_pptpReq.srep)) {
-			DEBUGP("%s: short packet\n", pptp_msg_name[msg]);
-			break;
-		}
-
 		/* server confirms new control session */
 		if (info->sstate < PPTP_SESSION_REQUESTED) {
 			DEBUGP("%s without START_SESS_REQUEST\n",
@@ -346,11 +360,6 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		break;
 
 	case PPTP_STOP_SESSION_REPLY:
-		if (reqlen < sizeof(_pptpReq.strep)) {
-			DEBUGP("%s: short packet\n", pptp_msg_name[msg]);
-			break;
-		}
-
 		/* server confirms end of control session */
 		if (info->sstate > PPTP_SESSION_STOPREQ) {
 			DEBUGP("%s without STOP_SESS_REQUEST\n",
@@ -364,11 +373,6 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		break;
 
 	case PPTP_OUT_CALL_REPLY:
-		if (reqlen < sizeof(_pptpReq.ocack)) {
-			DEBUGP("%s: short packet\n", pptp_msg_name[msg]);
-			break;
-		}
-
 		/* server accepted call, we now expect GRE frames */
 		if (info->sstate != PPTP_SESSION_CONFIRMED) {
 			DEBUGP("%s but no session\n", pptp_msg_name[msg]);
@@ -404,11 +408,6 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		break;
 
 	case PPTP_IN_CALL_REQUEST:
-		if (reqlen < sizeof(_pptpReq.icack)) {
-			DEBUGP("%s: short packet\n", pptp_msg_name[msg]);
-			break;
-		}
-
 		/* server tells us about incoming call request */
 		if (info->sstate != PPTP_SESSION_CONFIRMED) {
 			DEBUGP("%s but no session\n", pptp_msg_name[msg]);
@@ -421,11 +420,6 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		break;
 
 	case PPTP_IN_CALL_CONNECT:
-		if (reqlen < sizeof(_pptpReq.iccon)) {
-			DEBUGP("%s: short packet\n", pptp_msg_name[msg]);
-			break;
-		}
-
 		/* server tells us about incoming call established */
 		if (info->sstate != PPTP_SESSION_CONFIRMED) {
 			DEBUGP("%s but no session\n", pptp_msg_name[msg]);
@@ -455,11 +449,6 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		break;
 
 	case PPTP_CALL_DISCONNECT_NOTIFY:
-		if (reqlen < sizeof(_pptpReq.disc)) {
-			DEBUGP("%s: short packet\n", pptp_msg_name[msg]);
-			break;
-		}
-
 		/* server confirms disconnect */
 		cid = pptpReq->disc.callID;
 		DEBUGP("%s, CID=%X\n", pptp_msg_name[msg], ntohs(cid));
@@ -470,8 +459,6 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		break;
 
 	case PPTP_WAN_ERROR_NOTIFY:
-		break;
-
 	case PPTP_ECHO_REQUEST:
 	case PPTP_ECHO_REPLY:
 		/* I don't have to explain these ;) */
@@ -522,6 +509,9 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 	msg = ntohs(ctlh->messageType);
 	DEBUGP("outbound control message %s\n", pptp_msg_name[msg]);
 
+	if (msg > 0 && msg <= PPTP_MSG_MAX && reqlen < pptp_msg_size[msg])
+		return NF_ACCEPT;
+
 	switch (msg) {
 	case PPTP_START_SESSION_REQUEST:
 		/* client requests for new control session */
@@ -537,11 +527,6 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		break;
 
 	case PPTP_OUT_CALL_REQUEST:
-		if (reqlen < sizeof(_pptpReq.ocreq)) {
-			DEBUGP("%s: short packet\n", pptp_msg_name[msg]);
-			break;
-		}
-
 		/* client initiating connection to server */
 		if (info->sstate != PPTP_SESSION_CONFIRMED) {
 			DEBUGP("%s but no session\n",
@@ -555,11 +540,6 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		info->pns_call_id = cid;
 		break;
 	case PPTP_IN_CALL_REPLY:
-		if (reqlen < sizeof(_pptpReq.icack)) {
-			DEBUGP("%s: short packet\n", pptp_msg_name[msg]);
-			break;
-		}
-
 		/* client answers incoming call */
 		if (info->cstate != PPTP_CALL_IN_REQ
 		    && info->cstate != PPTP_CALL_IN_REP) {
@@ -595,7 +575,6 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		info->cstate = PPTP_CALL_CLEAR_REQ;
 		break;
 	case PPTP_SET_LINK_INFO:
-		break;
 	case PPTP_ECHO_REQUEST:
 	case PPTP_ECHO_REPLY:
 		/* I don't have to explain these ;) */
