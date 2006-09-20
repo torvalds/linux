@@ -543,7 +543,7 @@ do { \
 } while (0)
 	
 #if ZFCP_LOG_LEVEL_LIMIT < ZFCP_LOG_LEVEL_NORMAL
-# define ZFCP_LOG_NORMAL(fmt, args...)
+# define ZFCP_LOG_NORMAL(fmt, args...)	do { } while (0)
 #else
 # define ZFCP_LOG_NORMAL(fmt, args...) \
 do { \
@@ -553,7 +553,7 @@ do { \
 #endif
 
 #if ZFCP_LOG_LEVEL_LIMIT < ZFCP_LOG_LEVEL_INFO
-# define ZFCP_LOG_INFO(fmt, args...)
+# define ZFCP_LOG_INFO(fmt, args...)	do { } while (0)
 #else
 # define ZFCP_LOG_INFO(fmt, args...) \
 do { \
@@ -563,14 +563,14 @@ do { \
 #endif
 
 #if ZFCP_LOG_LEVEL_LIMIT < ZFCP_LOG_LEVEL_DEBUG
-# define ZFCP_LOG_DEBUG(fmt, args...)
+# define ZFCP_LOG_DEBUG(fmt, args...)	do { } while (0)
 #else
 # define ZFCP_LOG_DEBUG(fmt, args...) \
 	ZFCP_LOG(ZFCP_LOG_LEVEL_DEBUG, fmt , ##args)
 #endif
 
 #if ZFCP_LOG_LEVEL_LIMIT < ZFCP_LOG_LEVEL_TRACE
-# define ZFCP_LOG_TRACE(fmt, args...)
+# define ZFCP_LOG_TRACE(fmt, args...)	do { } while (0)
 #else
 # define ZFCP_LOG_TRACE(fmt, args...) \
 	ZFCP_LOG(ZFCP_LOG_LEVEL_TRACE, fmt , ##args)

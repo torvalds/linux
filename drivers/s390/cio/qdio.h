@@ -191,49 +191,49 @@ enum qdio_irq_states {
 #if QDIO_VERBOSE_LEVEL>8
 #define QDIO_PRINT_STUPID(x...) printk( KERN_DEBUG QDIO_PRINTK_HEADER x)
 #else
-#define QDIO_PRINT_STUPID(x...)
+#define QDIO_PRINT_STUPID(x...) do { } while (0)
 #endif
 
 #if QDIO_VERBOSE_LEVEL>7
 #define QDIO_PRINT_ALL(x...) printk( QDIO_PRINTK_HEADER x)
 #else
-#define QDIO_PRINT_ALL(x...)
+#define QDIO_PRINT_ALL(x...) do { } while (0)
 #endif
 
 #if QDIO_VERBOSE_LEVEL>6
 #define QDIO_PRINT_INFO(x...) printk( QDIO_PRINTK_HEADER x)
 #else
-#define QDIO_PRINT_INFO(x...)
+#define QDIO_PRINT_INFO(x...) do { } while (0)
 #endif
 
 #if QDIO_VERBOSE_LEVEL>5
 #define QDIO_PRINT_WARN(x...) printk( QDIO_PRINTK_HEADER x)
 #else
-#define QDIO_PRINT_WARN(x...)
+#define QDIO_PRINT_WARN(x...) do { } while (0)
 #endif
 
 #if QDIO_VERBOSE_LEVEL>4
 #define QDIO_PRINT_ERR(x...) printk( QDIO_PRINTK_HEADER x)
 #else
-#define QDIO_PRINT_ERR(x...)
+#define QDIO_PRINT_ERR(x...) do { } while (0)
 #endif
 
 #if QDIO_VERBOSE_LEVEL>3
 #define QDIO_PRINT_CRIT(x...) printk( QDIO_PRINTK_HEADER x)
 #else
-#define QDIO_PRINT_CRIT(x...)
+#define QDIO_PRINT_CRIT(x...) do { } while (0)
 #endif
 
 #if QDIO_VERBOSE_LEVEL>2
 #define QDIO_PRINT_ALERT(x...) printk( QDIO_PRINTK_HEADER x)
 #else
-#define QDIO_PRINT_ALERT(x...)
+#define QDIO_PRINT_ALERT(x...) do { } while (0)
 #endif
 
 #if QDIO_VERBOSE_LEVEL>1
 #define QDIO_PRINT_EMERG(x...) printk( QDIO_PRINTK_HEADER x)
 #else
-#define QDIO_PRINT_EMERG(x...)
+#define QDIO_PRINT_EMERG(x...) do { } while (0)
 #endif
 
 #define HEXDUMP16(importance,header,ptr) \

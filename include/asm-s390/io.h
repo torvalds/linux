@@ -116,7 +116,7 @@ extern void iounmap(void *addr);
 #define outb(x,addr) ((void) writeb(x,addr))
 #define outb_p(x,addr) outb(x,addr)
 
-#define mmiowb()
+#define mmiowb()	do { } while (0)
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
