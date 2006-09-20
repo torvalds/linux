@@ -436,6 +436,11 @@ restart:
 				cb->args[1] = (unsigned long)ct;
 				goto out;
 			}
+#ifdef CONFIG_NF_CT_ACCT
+			if (NFNL_MSG_TYPE(cb->nlh->nlmsg_type) ==
+						IPCTNL_MSG_CT_GET_CTRZERO)
+				memset(&ct->counters, 0, sizeof(ct->counters));
+#endif
 		}
 		if (cb->args[1]) {
 			cb->args[1] = 0;
@@ -450,46 +455,6 @@ out:
 	DEBUGP("leaving, last bucket=%lu id=%u\n", cb->args[0], *id);
 	return skb->len;
 }
-
-#ifdef CONFIG_IP_NF_CT_ACCT
-static int
-ctnetlink_dump_table_w(struct sk_buff *skb, struct netlink_callback *cb)
-{
-	struct ip_conntrack *ct = NULL;
-	struct ip_conntrack_tuple_hash *h;
-	struct list_head *i;
-	u_int32_t *id = (u_int32_t *) &cb->args[1];
-
-	DEBUGP("entered %s, last bucket=%u id=%u\n", __FUNCTION__, 
-			cb->args[0], *id);
-
-	write_lock_bh(&ip_conntrack_lock);
-	for (; cb->args[0] < ip_conntrack_htable_size; cb->args[0]++, *id = 0) {
-		list_for_each_prev(i, &ip_conntrack_hash[cb->args[0]]) {
-			h = (struct ip_conntrack_tuple_hash *) i;
-			if (DIRECTION(h) != IP_CT_DIR_ORIGINAL)
-				continue;
-			ct = tuplehash_to_ctrack(h);
-			if (ct->id <= *id)
-				continue;
-			if (ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
-		                        	cb->nlh->nlmsg_seq,
-						IPCTNL_MSG_CT_NEW,
-						1, ct) < 0)
-				goto out;
-			*id = ct->id;
-
-			memset(&ct->counters, 0, sizeof(ct->counters));
-		}
-	}
-out:	
-	write_unlock_bh(&ip_conntrack_lock);
-
-	DEBUGP("leaving, last bucket=%lu id=%u\n", cb->args[0], *id);
-
-	return skb->len;
-}
-#endif
 
 static const size_t cta_min_ip[CTA_IP_MAX] = {
 	[CTA_IP_V4_SRC-1]	= sizeof(u_int32_t),
@@ -775,22 +740,14 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		if (msg->nfgen_family != AF_INET)
 			return -EAFNOSUPPORT;
 
-		if (NFNL_MSG_TYPE(nlh->nlmsg_type) ==
-					IPCTNL_MSG_CT_GET_CTRZERO) {
-#ifdef CONFIG_IP_NF_CT_ACCT
-			if ((*errp = netlink_dump_start(ctnl, skb, nlh,
-						ctnetlink_dump_table_w,
-						ctnetlink_done)) != 0)
-				return -EINVAL;
-#else
+#ifndef CONFIG_IP_NF_CT_ACCT
+		if (NFNL_MSG_TYPE(nlh->nlmsg_type) == IPCTNL_MSG_CT_GET_CTRZERO)
 			return -ENOTSUPP;
 #endif
-		} else {
-			if ((*errp = netlink_dump_start(ctnl, skb, nlh,
-		      		                        ctnetlink_dump_table,
-		                                	ctnetlink_done)) != 0)
+		if ((*errp = netlink_dump_start(ctnl, skb, nlh,
+	      		                        ctnetlink_dump_table,
+	                                	ctnetlink_done)) != 0)
 			return -EINVAL;
-		}
 
 		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
 		if (rlen > skb->len)
