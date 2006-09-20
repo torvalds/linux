@@ -505,6 +505,8 @@ pgm_no_vtime2:
 	mvc	__THREAD_per+__PER_address(4,%r1),__LC_PER_ADDRESS
 	mvc	__THREAD_per+__PER_access_id(1,%r1),__LC_PER_ACCESS_ID
 	oi	__TI_flags+3(%r9),_TIF_SINGLE_STEP # set TIF_SINGLE_STEP
+	tm	SP_PSW+1(%r15),0x01	# kernel per event ?
+	bz	BASED(kernel_per)
 	l	%r3,__LC_PGM_ILC	 # load program interruption code
 	la	%r8,0x7f
 	nr	%r8,%r3                  # clear per-event-bit and ilc
@@ -535,6 +537,16 @@ pgm_no_vtime3:
 	TRACE_IRQS_ON
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	b	BASED(sysc_do_svc)
+
+#
+# per was called from kernel, must be kprobes
+#
+kernel_per:
+	mvi	SP_TRAP+1(%r15),0x28	# set trap indication to pgm check
+	la	%r2,SP_PTREGS(%r15)	# address of register-save area
+	l	%r1,BASED(.Lhandle_per)	# load adr. of per handler
+	la	%r14,BASED(sysc_leave)	# load adr. of system return
+	br	%r1			# branch to do_single_step
 
 /*
  * IO interrupt handler routine
