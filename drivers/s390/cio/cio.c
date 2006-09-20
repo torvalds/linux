@@ -841,14 +841,26 @@ __clear_subchannel_easy(struct subchannel_id schid)
 	return -EBUSY;
 }
 
-extern void do_reipl(unsigned long devno);
-static int
-__shutdown_subchannel_easy(struct subchannel_id schid, void *data)
+struct sch_match_id {
+	struct subchannel_id schid;
+	struct ccw_dev_id devid;
+	int rc;
+};
+
+static int __shutdown_subchannel_easy_and_match(struct subchannel_id schid,
+	void *data)
 {
 	struct schib schib;
+	struct sch_match_id *match_id = data;
 
 	if (stsch_err(schid, &schib))
 		return -ENXIO;
+	if (match_id && schib.pmcw.dnv &&
+		(schib.pmcw.dev == match_id->devid.devno) &&
+		(schid.ssid == match_id->devid.ssid)) {
+		match_id->schid = schid;
+		match_id->rc = 0;
+	}
 	if (!schib.pmcw.ena)
 		return 0;
 	switch(__disable_subchannel_easy(schid, &schib)) {
@@ -864,18 +876,36 @@ __shutdown_subchannel_easy(struct subchannel_id schid, void *data)
 	return 0;
 }
 
-void
-clear_all_subchannels(void)
+static int clear_all_subchannels_and_match(struct ccw_dev_id *devid,
+	struct subchannel_id *schid)
 {
+	struct sch_match_id match_id;
+
+	match_id.devid = *devid;
+	match_id.rc = -ENODEV;
 	local_irq_disable();
-	for_each_subchannel(__shutdown_subchannel_easy, NULL);
+	for_each_subchannel(__shutdown_subchannel_easy_and_match, &match_id);
+	if (match_id.rc == 0)
+		*schid = match_id.schid;
+	return match_id.rc;
 }
 
-/* Make sure all subchannels are quiet before we re-ipl an lpar. */
-void
-reipl(unsigned long devno)
+
+void clear_all_subchannels(void)
 {
-	clear_all_subchannels();
+	local_irq_disable();
+	for_each_subchannel(__shutdown_subchannel_easy_and_match, NULL);
+}
+
+extern void do_reipl_asm(__u32 schid);
+
+/* Make sure all subchannels are quiet before we re-ipl an lpar. */
+void reipl_ccw_dev(struct ccw_dev_id *devid)
+{
+	struct subchannel_id schid;
+
+	if (clear_all_subchannels_and_match(devid, &schid))
+		panic("IPL Device not found\n");
 	cio_reset_channel_paths();
-	do_reipl(devno);
+	do_reipl_asm(*((__u32*)&schid));
 }

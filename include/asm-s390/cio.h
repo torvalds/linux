@@ -270,6 +270,11 @@ struct diag210 {
 	__u32 vrdccrft : 8;    /* real device feature (output) */
 } __attribute__ ((packed,aligned(4)));
 
+struct ccw_dev_id {
+	u8 ssid;
+	u16 devno;
+};
+
 extern int diag210(struct diag210 *addr);
 
 extern void wait_cons_dev(void);
@@ -279,6 +284,8 @@ extern void clear_all_subchannels(void);
 extern void cio_reset_channel_paths(void);
 
 extern void css_schedule_reprobe(void);
+
+extern void reipl_ccw_dev(struct ccw_dev_id *id);
 
 #endif
 

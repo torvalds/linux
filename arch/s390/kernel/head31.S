@@ -38,6 +38,7 @@ startup:basr	%r13,0			# get base
 startup_continue:
 	basr	%r13,0			# get base
 .LPG1:	GET_IPL_DEVICE
+	mvi	__LC_AR_MODE_ID,0	# set ESA flag (mode 0)
 	lctl	%c0,%c15,.Lctl-.LPG1(%r13) # load control registers
 	l	%r12,.Lparmaddr-.LPG1(%r13) # pointer to parameter area
 					# move IPL device to lowcore
@@ -274,6 +275,8 @@ startup_continue:
 .Lparmaddr: .long PARMAREA
 .Lsccbaddr: .long .Lsccb
 	.org	0x12000
+.globl s390_readinfo_sccb
+s390_readinfo_sccb:
 .Lsccb:
 	.hword	0x1000			# length, one page
 	.byte	0x00,0x00,0x00

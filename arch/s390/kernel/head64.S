@@ -41,6 +41,7 @@ startup_continue:
         srl   %r13,1
 	GET_IPL_DEVICE
         lhi   %r1,1                      # mode 1 = esame
+	mvi   __LC_AR_MODE_ID,1		 # set esame flag
         slr   %r0,%r0                    # set cpuid to zero
         sigp  %r1,%r0,0x12               # switch to esame mode
 	sam64				 # switch to 64 bit mode
@@ -269,6 +270,8 @@ startup_continue:
 	.quad	PARMAREA
 
 	.org	0x12000
+.globl s390_readinfo_sccb
+s390_readinfo_sccb:
 .Lsccb:
 	.hword 0x1000			# length, one page
 	.byte 0x00,0x00,0x00

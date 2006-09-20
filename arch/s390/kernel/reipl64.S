@@ -8,13 +8,30 @@
  */
 
 #include <asm/lowcore.h>
-		.globl	do_reipl
-do_reipl:	basr	%r13,0
-.Lpg0:		lpswe   .Lnewpsw-.Lpg0(%r13)
+		.globl	do_reipl_asm
+do_reipl_asm:	basr	%r13,0
+
+		# do store status of all registers
+
+.Lpg0:		stg	%r1,.Lregsave-.Lpg0(%r13)
+		lghi	%r1,0x1000
+		stmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-0x1000(%r1)
+		lg	%r0,.Lregsave-.Lpg0(%r13)
+		stg	%r0,__LC_GPREGS_SAVE_AREA-0x1000+8(%r1)
+		stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-0x1000(%r1)
+		stam	%a0,%a15,__LC_AREGS_SAVE_AREA-0x1000(%r1)
+		stpx	__LC_PREFIX_SAVE_AREA-0x1000(%r1)
+		stfpc	__LC_FP_CREG_SAVE_AREA-0x1000(%r1)
+		stckc	.Lclkcmp-.Lpg0(%r13)
+		mvc	__LC_CLOCK_COMP_SAVE_AREA-0x1000(8,%r1),.Lclkcmp-.Lpg0(%r13)
+		stpt	__LC_CPU_TIMER_SAVE_AREA-0x1000(%r1)
+		stg	%r13, __LC_PSW_SAVE_AREA-0x1000+8(%r1)
+
+		lpswe	.Lnewpsw-.Lpg0(%r13)
 .Lpg1:		lctlg	%c6,%c6,.Lall-.Lpg0(%r13)
-                stctg   %c0,%c0,.Lctlsave-.Lpg0(%r13)
-                ni      .Lctlsave+4-.Lpg0(%r13),0xef
-                lctlg   %c0,%c0,.Lctlsave-.Lpg0(%r13)
+		stctg	%c0,%c0,.Lregsave-.Lpg0(%r13)
+		ni	.Lregsave+4-.Lpg0(%r13),0xef
+		lctlg	%c0,%c0,.Lregsave-.Lpg0(%r13)
                 lgr     %r1,%r2
         	mvc     __LC_PGM_NEW_PSW(16),.Lpcnew-.Lpg0(%r13)
                 stsch   .Lschib-.Lpg0(%r13)                                    
@@ -50,8 +67,9 @@ do_reipl:	basr	%r13,0
 		st     %r14,.Ldispsw+12-.Lpg0(%r13)
 		lpswe	.Ldispsw-.Lpg0(%r13)
                 .align 	8
+.Lclkcmp:	.quad	0x0000000000000000
 .Lall:		.quad	0x00000000ff000000
-.Lctlsave:      .quad   0x0000000000000000
+.Lregsave:	.quad	0x0000000000000000
 .Lnull:		.long   0x0000000000000000
                 .align 	16
 /*
@@ -91,6 +109,4 @@ do_reipl:	basr	%r13,0
 		.long	0x00000000,0x00000000
 		.long	0x00000000,0x00000000
 		.long	0x00000000,0x00000000
-	
-
 	

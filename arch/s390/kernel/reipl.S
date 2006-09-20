@@ -8,13 +8,30 @@
 
 #include <asm/lowcore.h>
 
-		.globl	do_reipl
-do_reipl:	basr	%r13,0
+		.globl	do_reipl_asm
+do_reipl_asm:	basr	%r13,0
 .Lpg0:		lpsw	.Lnewpsw-.Lpg0(%r13)
-.Lpg1:		lctl	%c6,%c6,.Lall-.Lpg0(%r13)
-                stctl   %c0,%c0,.Lctlsave-.Lpg0(%r13)
-                ni      .Lctlsave-.Lpg0(%r13),0xef
-                lctl    %c0,%c0,.Lctlsave-.Lpg0(%r13)
+
+		# switch off lowcore protection
+
+.Lpg1:		stctl	%c0,%c0,.Lctlsave1-.Lpg0(%r13)
+		stctl	%c0,%c0,.Lctlsave2-.Lpg0(%r13)
+		ni	.Lctlsave1-.Lpg0(%r13),0xef
+		lctl	%c0,%c0,.Lctlsave1-.Lpg0(%r13)
+
+		# do store status of all registers
+
+		stm	%r0,%r15,__LC_GPREGS_SAVE_AREA
+		stctl	%c0,%c15,__LC_CREGS_SAVE_AREA
+		mvc	__LC_CREGS_SAVE_AREA(4),.Lctlsave2-.Lpg0(%r13)
+		stam	%a0,%a15,__LC_AREGS_SAVE_AREA
+		stpx	__LC_PREFIX_SAVE_AREA
+		stckc	.Lclkcmp-.Lpg0(%r13)
+		mvc	__LC_CLOCK_COMP_SAVE_AREA(8),.Lclkcmp-.Lpg0(%r13)
+		stpt	__LC_CPU_TIMER_SAVE_AREA
+		st	%r13, __LC_PSW_SAVE_AREA+4
+
+		lctl	%c6,%c6,.Lall-.Lpg0(%r13)
                 lr      %r1,%r2
         	mvc     __LC_PGM_NEW_PSW(8),.Lpcnew-.Lpg0(%r13)
                 stsch   .Lschib-.Lpg0(%r13)                                    
@@ -46,9 +63,11 @@ do_reipl:	basr	%r13,0
 .Ldisab:	st      %r14,.Ldispsw+4-.Lpg0(%r13)
 		lpsw	.Ldispsw-.Lpg0(%r13)
                 .align 	8
+.Lclkcmp:	.quad	0x0000000000000000
 .Lall:		.long	0xff000000
 .Lnull:		.long   0x00000000
-.Lctlsave:      .long   0x00000000
+.Lctlsave1:	.long	0x00000000
+.Lctlsave2:	.long	0x00000000
                 .align 	8
 .Lnewpsw:	.long   0x00080000,0x80000000+.Lpg1
 .Lpcnew:  	.long   0x00080000,0x80000000+.Lecs
