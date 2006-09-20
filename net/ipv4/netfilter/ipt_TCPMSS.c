@@ -21,12 +21,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
 MODULE_DESCRIPTION("iptables TCP MSS modification module");
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 static inline unsigned int
 optlen(const u_int8_t *opt, unsigned int offset)
 {
@@ -106,16 +100,7 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 							   htons(oldmss)^0xFFFF,
 							   htons(newmss),
 							   tcph->check, 0);
-
-			DEBUGP(KERN_INFO "ipt_tcpmss_target: %u.%u.%u.%u:%hu"
-			       "->%u.%u.%u.%u:%hu changed TCP MSS option"
-			       " (from %u to %u)\n",
-			       NIPQUAD((*pskb)->nh.iph->saddr),
-			       ntohs(tcph->source),
-			       NIPQUAD((*pskb)->nh.iph->daddr),
-			       ntohs(tcph->dest),
-			       oldmss, newmss);
-			goto retmodified;
+			return IPT_CONTINUE;
 		}
 	}
 
@@ -127,13 +112,8 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 
 		newskb = skb_copy_expand(*pskb, skb_headroom(*pskb),
 					 TCPOLEN_MSS, GFP_ATOMIC);
-		if (!newskb) {
-			if (net_ratelimit())
-				printk(KERN_ERR "ipt_tcpmss_target:"
-				       " unable to allocate larger skb\n");
+		if (!newskb)
 			return NF_DROP;
-		}
-
 		kfree_skb(*pskb);
 		*pskb = newskb;
 		iph = (*pskb)->nh.iph;
@@ -149,8 +129,6 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 					   htons(tcplen) ^ 0xFFFF,
 				           htons(tcplen + TCPOLEN_MSS),
 					   tcph->check, 1);
-	tcplen += TCPOLEN_MSS;
-
 	opt[0] = TCPOPT_MSS;
 	opt[1] = TCPOLEN_MSS;
 	opt[2] = (newmss & 0xff00) >> 8;
@@ -170,16 +148,6 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	iph->check = nf_csum_update(iph->tot_len ^ 0xFFFF,
 				    newtotlen, iph->check);
 	iph->tot_len = newtotlen;
-
-	DEBUGP(KERN_INFO "ipt_tcpmss_target: %u.%u.%u.%u:%hu"
-	       "->%u.%u.%u.%u:%hu added TCP MSS option (%u)\n",
-	       NIPQUAD((*pskb)->nh.iph->saddr),
-	       ntohs(tcph->source),
-	       NIPQUAD((*pskb)->nh.iph->daddr),
-	       ntohs(tcph->dest),
-	       newmss);
-
- retmodified:
 	return IPT_CONTINUE;
 }
 
