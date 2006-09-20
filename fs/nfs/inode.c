@@ -840,6 +840,12 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
  *
  * After an operation that has changed the inode metadata, mark the
  * attribute cache as being invalid, then try to update it.
+ *
+ * NB: if the server didn't return any post op attributes, this
+ * function will force the retrieval of attributes before the next
+ * NFS request.  Thus it should be used only for operations that
+ * are expected to change one or more attributes, to avoid
+ * unnecessary NFS requests and trips through nfs_update_inode().
  */
 int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {

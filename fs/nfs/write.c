@@ -1253,7 +1253,13 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 	dprintk("NFS: %4d nfs_writeback_done (status %d)\n",
 		task->tk_pid, task->tk_status);
 
-	/* Call the NFS version-specific code */
+	/*
+	 * ->write_done will attempt to use post-op attributes to detect
+	 * conflicting writes by other clients.  A strict interpretation
+	 * of close-to-open would allow us to continue caching even if
+	 * another writer had changed the file, but some applications
+	 * depend on tighter cache coherency when writing.
+	 */
 	status = NFS_PROTO(data->inode)->write_done(task, data);
 	if (status != 0)
 		return status;
