@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 18
-EXTRAVERSION = -rc7
-NAME=Crazed Snow-Weasel
+EXTRAVERSION =
+NAME=Avast! A bilge rat!
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
