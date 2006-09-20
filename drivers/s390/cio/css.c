@@ -182,136 +182,141 @@ get_subchannel_by_schid(struct subchannel_id schid)
 	return dev ? to_subchannel(dev) : NULL;
 }
 
-
-static inline int
-css_get_subchannel_status(struct subchannel *sch, struct subchannel_id schid)
+static inline int css_get_subchannel_status(struct subchannel *sch)
 {
 	struct schib schib;
-	int cc;
 
-	cc = stsch(schid, &schib);
-	if (cc)
+	if (stsch(sch->schid, &schib) || !schib.pmcw.dnv)
 		return CIO_GONE;
-	if (!schib.pmcw.dnv)
-		return CIO_GONE;
-	if (sch && sch->schib.pmcw.dnv &&
-	    (schib.pmcw.dev != sch->schib.pmcw.dev))
+	if (sch->schib.pmcw.dnv && (schib.pmcw.dev != sch->schib.pmcw.dev))
 		return CIO_REVALIDATE;
-	if (sch && !sch->lpm)
+	if (!sch->lpm)
 		return CIO_NO_PATH;
 	return CIO_OPER;
 }
-	
-static int
-css_evaluate_subchannel(struct subchannel_id schid, int slow)
+
+static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 {
 	int event, ret, disc;
-	struct subchannel *sch;
 	unsigned long flags;
+	enum { NONE, UNREGISTER, UNREGISTER_PROBE, REPROBE } action;
 
-	sch = get_subchannel_by_schid(schid);
-	disc = sch ? device_is_disconnected(sch) : 0;
+	spin_lock_irqsave(&sch->lock, flags);
+	disc = device_is_disconnected(sch);
 	if (disc && slow) {
-		if (sch)
-			put_device(&sch->dev);
-		return 0; /* Already processed. */
+		/* Disconnected devices are evaluated directly only.*/
+		spin_unlock_irqrestore(&sch->lock, flags);
+		return 0;
 	}
-	/*
-	 * We've got a machine check, so running I/O won't get an interrupt.
-	 * Kill any pending timers.
-	 */
-	if (sch)
-		device_kill_pending_timer(sch);
+	/* No interrupt after machine check - kill pending timers. */
+	device_kill_pending_timer(sch);
 	if (!disc && !slow) {
-		if (sch)
-			put_device(&sch->dev);
-		return -EAGAIN; /* Will be done on the slow path. */
+		/* Non-disconnected devices are evaluated on the slow path. */
+		spin_unlock_irqrestore(&sch->lock, flags);
+		return -EAGAIN;
 	}
-	event = css_get_subchannel_status(sch, schid);
+	event = css_get_subchannel_status(sch);
 	CIO_MSG_EVENT(4, "Evaluating schid 0.%x.%04x, event %d, %s, %s path.\n",
-		      schid.ssid, schid.sch_no, event,
-		      sch?(disc?"disconnected":"normal"):"unknown",
-		      slow?"slow":"fast");
+		      sch->schid.ssid, sch->schid.sch_no, event,
+		      disc ? "disconnected" : "normal",
+		      slow ? "slow" : "fast");
+	/* Analyze subchannel status. */
+	action = NONE;
 	switch (event) {
 	case CIO_NO_PATH:
+		if (disc) {
+			/* Check if paths have become available. */
+			action = REPROBE;
+			break;
+		}
+		/* fall through */
 	case CIO_GONE:
-		if (!sch) {
-			/* Never used this subchannel. Ignore. */
-			ret = 0;
-			break;
-		}
-		if (disc && (event == CIO_NO_PATH)) {
-			/*
-			 * Uargh, hack again. Because we don't get a machine
-			 * check on configure on, our path bookkeeping can
-			 * be out of date here (it's fine while we only do
-			 * logical varying or get chsc machine checks). We
-			 * need to force reprobing or we might miss devices
-			 * coming operational again. It won't do harm in real
-			 * no path situations.
-			 */
-			spin_lock_irqsave(&sch->lock, flags);
-			device_trigger_reprobe(sch);
-			spin_unlock_irqrestore(&sch->lock, flags);
-			ret = 0;
-			break;
-		}
-		if (sch->driver && sch->driver->notify &&
-		    sch->driver->notify(&sch->dev, event)) {
-			cio_disable_subchannel(sch);
-			device_set_disconnected(sch);
-			ret = 0;
-			break;
-		}
-		/*
-		 * Unregister subchannel.
-		 * The device will be killed automatically.
-		 */
+		/* Prevent unwanted effects when opening lock. */
 		cio_disable_subchannel(sch);
+		device_set_disconnected(sch);
+		/* Ask driver what to do with device. */
+		action = UNREGISTER;
+		if (sch->driver && sch->driver->notify) {
+			spin_unlock_irqrestore(&sch->lock, flags);
+			ret = sch->driver->notify(&sch->dev, event);
+			spin_lock_irqsave(&sch->lock, flags);
+			if (ret)
+				action = NONE;
+		}
+		break;
+	case CIO_REVALIDATE:
+		/* Device will be removed, so no notify necessary. */
+		if (disc)
+			/* Reprobe because immediate unregister might block. */
+			action = REPROBE;
+		else
+			action = UNREGISTER_PROBE;
+		break;
+	case CIO_OPER:
+		if (disc)
+			/* Get device operational again. */
+			action = REPROBE;
+		break;
+	}
+	/* Perform action. */
+	ret = 0;
+	switch (action) {
+	case UNREGISTER:
+	case UNREGISTER_PROBE:
+		/* Unregister device (will use subchannel lock). */
+		spin_unlock_irqrestore(&sch->lock, flags);
 		css_sch_device_unregister(sch);
+		spin_lock_irqsave(&sch->lock, flags);
+
 		/* Reset intparm to zeroes. */
 		sch->schib.pmcw.intparm = 0;
 		cio_modify(sch);
-		put_device(&sch->dev);
-		ret = 0;
+
+		/* Probe if necessary. */
+		if (action == UNREGISTER_PROBE)
+			ret = css_probe_device(sch->schid);
 		break;
-	case CIO_REVALIDATE:
-		/* 
-		 * Revalidation machine check. Sick.
-		 * We don't notify the driver since we have to throw the device
-		 * away in any case.
-		 */
-		if (!disc) {
-			css_sch_device_unregister(sch);
-			/* Reset intparm to zeroes. */
-			sch->schib.pmcw.intparm = 0;
-			cio_modify(sch);
-			put_device(&sch->dev);
-			ret = css_probe_device(schid);
-		} else {
-			/*
-			 * We can't immediately deregister the disconnected
-			 * device since it might block.
-			 */
-			spin_lock_irqsave(&sch->lock, flags);
-			device_trigger_reprobe(sch);
-			spin_unlock_irqrestore(&sch->lock, flags);
-			ret = 0;
-		}
-		break;
-	case CIO_OPER:
-		if (disc) {
-			spin_lock_irqsave(&sch->lock, flags);
-			/* Get device operational again. */
-			device_trigger_reprobe(sch);
-			spin_unlock_irqrestore(&sch->lock, flags);
-		}
-		ret = sch ? 0 : css_probe_device(schid);
+	case REPROBE:
+		device_trigger_reprobe(sch);
 		break;
 	default:
-		BUG();
-		ret = 0;
+		break;
 	}
+	spin_unlock_irqrestore(&sch->lock, flags);
+
+	return ret;
+}
+
+static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
+{
+	struct schib schib;
+
+	if (!slow) {
+		/* Will be done on the slow path. */
+		return -EAGAIN;
+	}
+	if (stsch(schid, &schib) || !schib.pmcw.dnv) {
+		/* Unusable - ignore. */
+		return 0;
+	}
+	CIO_MSG_EVENT(4, "Evaluating schid 0.%x.%04x, event %d, unknown, "
+			 "slow path.\n", schid.ssid, schid.sch_no, CIO_OPER);
+
+	return css_probe_device(schid);
+}
+
+static int css_evaluate_subchannel(struct subchannel_id schid, int slow)
+{
+	struct subchannel *sch;
+	int ret;
+
+	sch = get_subchannel_by_schid(schid);
+	if (sch) {
+		ret = css_evaluate_known_subchannel(sch, slow);
+		put_device(&sch->dev);
+	} else
+		ret = css_evaluate_new_subchannel(schid, slow);
+
 	return ret;
 }
 
