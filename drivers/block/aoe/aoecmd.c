@@ -17,15 +17,14 @@
 #define MAXTIMER (HZ << 1)
 #define MAXWAIT (60 * 3)	/* After MAXWAIT seconds, give up and fail dev */
 
-static struct sk_buff *
-new_skb(struct net_device *if_dev, ulong len)
+struct sk_buff *
+new_skb(ulong len)
 {
 	struct sk_buff *skb;
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (skb) {
 		skb->nh.raw = skb->mac.raw = skb->data;
-		skb->dev = if_dev;
 		skb->protocol = __constant_htons(ETH_P_AOE);
 		skb->priority = 0;
 		skb_put(skb, len);
@@ -37,29 +36,6 @@ new_skb(struct net_device *if_dev, ulong len)
 		 */
 		skb->ip_summed = CHECKSUM_NONE;
 	}
-	return skb;
-}
-
-static struct sk_buff *
-skb_prepare(struct aoedev *d, struct frame *f)
-{
-	struct sk_buff *skb;
-	char *p;
-
-	skb = new_skb(d->ifp, f->ndata + f->writedatalen);
-	if (!skb) {
-		printk(KERN_INFO "aoe: skb_prepare: failure to allocate skb\n");
-		return NULL;
-	}
-
-	p = skb->mac.raw;
-	memcpy(p, f->data, f->ndata);
-
-	if (f->writedatalen) {
-		p += sizeof(struct aoe_hdr) + sizeof(struct aoe_atahdr);
-		memcpy(p, f->bufaddr, f->writedatalen);
-	}
-
 	return skb;
 }
 
@@ -129,10 +105,11 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 		bcnt = MAXATADATA;
 
 	/* initialize the headers & frame */
-	h = (struct aoe_hdr *) f->data;
+	skb = f->skb;
+	h = (struct aoe_hdr *) skb->mac.raw;
 	ah = (struct aoe_atahdr *) (h+1);
-	f->ndata = sizeof *h + sizeof *ah;
-	memset(h, 0, f->ndata);
+	skb->len = sizeof *h + sizeof *ah;
+	memset(h, 0, skb->len);
 	f->tag = aoehdr_atainit(d, h);
 	f->waited = 0;
 	f->buf = buf;
@@ -155,11 +132,13 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 	}
 
 	if (bio_data_dir(buf->bio) == WRITE) {
+		skb_fill_page_desc(skb, 0, virt_to_page(f->bufaddr),
+			offset_in_page(f->bufaddr), bcnt);
 		ah->aflags |= AOEAFL_WRITE;
-		f->writedatalen = bcnt;
 	} else {
+		skb_shinfo(skb)->nr_frags = 0;
+		skb->len = ETH_ZLEN;
 		writebit = 0;
-		f->writedatalen = 0;
 	}
 
 	ah->cmdstat = WIN_READ | writebit | extbit;
@@ -179,15 +158,14 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 		buf->bufaddr = page_address(buf->bv->bv_page) + buf->bv->bv_offset;
 	}
 
-	skb = skb_prepare(d, f);
-	if (skb) {
-		skb->next = NULL;
-		if (d->sendq_hd)
-			d->sendq_tl->next = skb;
-		else
-			d->sendq_hd = skb;
-		d->sendq_tl = skb;
-	}
+	skb->dev = d->ifp;
+	skb_get(skb);
+	skb->next = NULL;
+	if (d->sendq_hd)
+		d->sendq_tl->next = skb;
+	else
+		d->sendq_hd = skb;
+	d->sendq_tl = skb;
 }
 
 /* some callers cannot sleep, and they can call this function,
@@ -209,11 +187,12 @@ aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff **tail)
 		if (!is_aoe_netif(ifp))
 			continue;
 
-		skb = new_skb(ifp, sizeof *h + sizeof *ch);
+		skb = new_skb(sizeof *h + sizeof *ch);
 		if (skb == NULL) {
 			printk(KERN_INFO "aoe: aoecmd_cfg: skb alloc failure\n");
 			continue;
 		}
+		skb->dev = ifp;
 		if (sl_tail == NULL)
 			sl_tail = skb;
 		h = (struct aoe_hdr *) skb->mac.raw;
@@ -283,21 +262,21 @@ rexmit(struct aoedev *d, struct frame *f)
 		d->aoemajor, d->aoeminor, f->tag, jiffies, n);
 	aoechr_error(buf);
 
-	h = (struct aoe_hdr *) f->data;
+	skb = f->skb;
+	h = (struct aoe_hdr *) skb->mac.raw;
 	f->tag = n;
 	h->tag = cpu_to_be32(n);
 	memcpy(h->dst, d->addr, sizeof h->dst);
 	memcpy(h->src, d->ifp->dev_addr, sizeof h->src);
 
-	skb = skb_prepare(d, f);
-	if (skb) {
-		skb->next = NULL;
-		if (d->sendq_hd)
-			d->sendq_tl->next = skb;
-		else
-			d->sendq_hd = skb;
-		d->sendq_tl = skb;
-	}
+	skb->dev = d->ifp;
+	skb_get(skb);
+	skb->next = NULL;
+	if (d->sendq_hd)
+		d->sendq_tl->next = skb;
+	else
+		d->sendq_hd = skb;
+	d->sendq_tl = skb;
 }
 
 static int
@@ -514,7 +493,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	calc_rttavg(d, tsince(f->tag));
 
 	ahin = (struct aoe_atahdr *) (hin+1);
-	ahout = (struct aoe_atahdr *) (f->data + sizeof(struct aoe_hdr));
+	ahout = (struct aoe_atahdr *) (f->skb->mac.raw + sizeof(struct aoe_hdr));
 	buf = f->buf;
 
 	if (ahout->cmdstat == WIN_IDENTIFY)
@@ -620,20 +599,21 @@ aoecmd_ata_id(struct aoedev *d)
 	}
 
 	/* initialize the headers & frame */
-	h = (struct aoe_hdr *) f->data;
+	skb = f->skb;
+	h = (struct aoe_hdr *) skb->mac.raw;
 	ah = (struct aoe_atahdr *) (h+1);
-	f->ndata = sizeof *h + sizeof *ah;
-	memset(h, 0, f->ndata);
+	skb->len = sizeof *h + sizeof *ah;
+	memset(h, 0, skb->len);
 	f->tag = aoehdr_atainit(d, h);
 	f->waited = 0;
-	f->writedatalen = 0;
 
 	/* set up ata header */
 	ah->scnt = 1;
 	ah->cmdstat = WIN_IDENTIFY;
 	ah->lba3 = 0xa0;
 
-	skb = skb_prepare(d, f);
+	skb->dev = d->ifp;
+	skb_get(skb);
 
 	d->rttavg = MAXTIMER;
 	d->timer.function = rexmit_timer;

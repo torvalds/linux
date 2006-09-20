@@ -107,11 +107,7 @@ struct frame {
 	ulong waited;
 	struct buf *buf;
 	char *bufaddr;
-	int writedatalen;
-	int ndata;
-
-	/* largest possible */
-	unsigned char data[sizeof(struct aoe_hdr) + sizeof(struct aoe_atahdr)];
+	struct sk_buff *skb;
 };
 
 struct aoedev {
@@ -157,6 +153,7 @@ void aoecmd_cfg(ushort aoemajor, unsigned char aoeminor);
 void aoecmd_ata_rsp(struct sk_buff *);
 void aoecmd_cfg_rsp(struct sk_buff *);
 void aoecmd_sleepwork(void *vp);
+struct sk_buff *new_skb(ulong);
 
 int aoedev_init(void);
 void aoedev_exit(void);

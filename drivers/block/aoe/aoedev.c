@@ -63,22 +63,32 @@ aoedev_newdev(ulong nframes)
 	struct frame *f, *e;
 
 	d = kzalloc(sizeof *d, GFP_ATOMIC);
-	if (d == NULL)
-		return NULL;
 	f = kcalloc(nframes, sizeof *f, GFP_ATOMIC);
-	if (f == NULL) {
-		kfree(d);
+ 	switch (!d || !f) {
+ 	case 0:
+ 		d->nframes = nframes;
+ 		d->frames = f;
+ 		e = f + nframes;
+ 		for (; f<e; f++) {
+ 			f->tag = FREETAG;
+ 			f->skb = new_skb(ETH_ZLEN);
+ 			if (!f->skb)
+ 				break;
+ 		}
+ 		if (f == e)
+ 			break;
+ 		while (f > d->frames) {
+ 			f--;
+ 			dev_kfree_skb(f->skb);
+ 		}
+ 	default:
+ 		if (f)
+ 			kfree(f);
+ 		if (d)
+ 			kfree(d);
 		return NULL;
 	}
-
 	INIT_WORK(&d->work, aoecmd_sleepwork, d);
-
-	d->nframes = nframes;
-	d->frames = f;
-	e = f + nframes;
-	for (; f<e; f++)
-		f->tag = FREETAG;
-
 	spin_lock_init(&d->lock);
 	init_timer(&d->timer);
 	d->timer.data = (ulong) d;
@@ -160,10 +170,18 @@ aoedev_by_sysminor_m(ulong sysminor, ulong bufcnt)
 static void
 aoedev_freedev(struct aoedev *d)
 {
+	struct frame *f, *e;
+
 	if (d->gd) {
 		aoedisk_rm_sysfs(d);
 		del_gendisk(d->gd);
 		put_disk(d->gd);
+	}
+	f = d->frames;
+	e = f + d->nframes;
+	for (; f<e; f++) {
+		skb_shinfo(f->skb)->nr_frags = 0;
+		dev_kfree_skb(f->skb);
 	}
 	kfree(d->frames);
 	if (d->bufpool)
