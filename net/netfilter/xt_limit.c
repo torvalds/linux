@@ -135,6 +135,50 @@ ipt_limit_checkentry(const char *tablename,
 	return 1;
 }
 
+#ifdef CONFIG_COMPAT
+struct compat_xt_rateinfo {
+	u_int32_t avg;
+	u_int32_t burst;
+
+	compat_ulong_t prev;
+	u_int32_t credit;
+	u_int32_t credit_cap, cost;
+
+	u_int32_t master;
+};
+
+/* To keep the full "prev" timestamp, the upper 32 bits are stored in the
+ * master pointer, which does not need to be preserved. */
+static void compat_from_user(void *dst, void *src)
+{
+	struct compat_xt_rateinfo *cm = src;
+	struct xt_rateinfo m = {
+		.avg		= cm->avg,
+		.burst		= cm->burst,
+		.prev		= cm->prev | (unsigned long)cm->master << 32,
+		.credit		= cm->credit,
+		.credit_cap	= cm->credit_cap,
+		.cost		= cm->cost,
+	};
+	memcpy(dst, &m, sizeof(m));
+}
+
+static int compat_to_user(void __user *dst, void *src)
+{
+	struct xt_rateinfo *m = src;
+	struct compat_xt_rateinfo cm = {
+		.avg		= m->avg,
+		.burst		= m->burst,
+		.prev		= m->prev,
+		.credit		= m->credit,
+		.credit_cap	= m->credit_cap,
+		.cost		= m->cost,
+		.master		= m->prev >> 32,
+	};
+	return copy_to_user(dst, &cm, sizeof(cm)) ? -EFAULT : 0;
+}
+#endif /* CONFIG_COMPAT */
+
 static struct xt_match xt_limit_match[] = {
 	{
 		.name		= "limit",
@@ -142,6 +186,11 @@ static struct xt_match xt_limit_match[] = {
 		.checkentry	= ipt_limit_checkentry,
 		.match		= ipt_limit_match,
 		.matchsize	= sizeof(struct xt_rateinfo),
+#ifdef CONFIG_COMPAT
+		.compatsize	= sizeof(struct compat_xt_rateinfo),
+		.compat_from_user = compat_from_user,
+		.compat_to_user	= compat_to_user,
+#endif
 		.me		= THIS_MODULE,
 	},
 	{
