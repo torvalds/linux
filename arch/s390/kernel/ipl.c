@@ -189,9 +189,9 @@ static enum ipl_type ipl_get_type(void)
 {
 	struct ipl_parameter_block *ipl = IPL_PARMBLOCK_START;
 
-	if (!IPL_DEVNO_VALID)
+	if (!(ipl_flags & IPL_DEVNO_VALID))
 		return IPL_TYPE_UNKNOWN;
-	if (!IPL_PARMBLOCK_VALID)
+	if (!(ipl_flags & IPL_PARMBLOCK_VALID))
 		return IPL_TYPE_CCW;
 	if (ipl->hdr.version > IPL_MAX_SUPPORTED_VERSION)
 		return IPL_TYPE_UNKNOWN;

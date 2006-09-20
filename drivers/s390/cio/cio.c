@@ -16,11 +16,10 @@
 #include <linux/device.h>
 #include <linux/kernel_stat.h>
 #include <linux/interrupt.h>
-
 #include <asm/cio.h>
 #include <asm/delay.h>
 #include <asm/irq.h>
-
+#include <asm/setup.h>
 #include "airq.h"
 #include "cio.h"
 #include "css.h"
@@ -908,4 +907,39 @@ void reipl_ccw_dev(struct ccw_dev_id *devid)
 		panic("IPL Device not found\n");
 	cio_reset_channel_paths();
 	do_reipl_asm(*((__u32*)&schid));
+}
+
+extern struct schib ipl_schib;
+
+/*
+ * ipl_save_parameters gets called very early. It is not allowed to access
+ * anything in the bss section at all. The bss section is not cleared yet,
+ * but may contain some ipl parameters written by the firmware.
+ * These parameters (if present) are copied to 0x2000.
+ * To avoid corruption of the ipl parameters, all variables used by this
+ * function must reside on the stack or in the data section.
+ */
+void ipl_save_parameters(void)
+{
+	struct subchannel_id schid;
+	unsigned int *ipl_ptr;
+	void *src, *dst;
+
+	schid = *(struct subchannel_id *)__LC_SUBCHANNEL_ID;
+	if (!schid.one)
+		return;
+	if (stsch(schid, &ipl_schib))
+		return;
+	if (!ipl_schib.pmcw.dnv)
+		return;
+	ipl_devno = ipl_schib.pmcw.dev;
+	ipl_flags |= IPL_DEVNO_VALID;
+	if (!ipl_schib.pmcw.qf)
+		return;
+	ipl_flags |= IPL_PARMBLOCK_VALID;
+	ipl_ptr = (unsigned int *)__LC_IPL_PARMBLOCK_PTR;
+	src = (void *)(unsigned long)*ipl_ptr;
+	dst = (void *)IPL_PARMBLOCK_ORIGIN;
+	memmove(dst, src, PAGE_SIZE);
+	*ipl_ptr = IPL_PARMBLOCK_ORIGIN;
 }

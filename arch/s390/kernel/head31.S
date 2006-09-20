@@ -37,13 +37,23 @@ startup:basr	%r13,0			# get base
 
 startup_continue:
 	basr	%r13,0			# get base
-.LPG1:	GET_IPL_DEVICE
-	mvi	__LC_AR_MODE_ID,0	# set ESA flag (mode 0)
+.LPG1:	mvi	__LC_AR_MODE_ID,0	# set ESA flag (mode 0)
 	lctl	%c0,%c15,.Lctl-.LPG1(%r13) # load control registers
 	l	%r12,.Lparmaddr-.LPG1(%r13) # pointer to parameter area
 					# move IPL device to lowcore
 	mvc	__LC_IPLDEV(4),IPL_DEVICE-PARMAREA(%r12)
+#
+# Setup stack
+#
+	l	%r15,.Linittu-.LPG1(%r13)
+	mvc	__LC_CURRENT(4),__TI_task(%r15)
+	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union+THREAD_SIZE
+	st	%r15,__LC_KERNEL_STACK	# set end of kernel stack
+	ahi	%r15,-96
+	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
 
+	l	%r14,.Lipl_save_parameters-.LPG1(%r13)
+	basr	%r14,%r14
 #
 # clear bss memory
 #
@@ -115,6 +125,10 @@ startup_continue:
 	b	.Lfchunk-.LPG1(%r13)
 
 	.align 4
+.Lipl_save_parameters:
+	.long	ipl_save_parameters
+.Linittu:
+	.long	init_thread_union
 .Lpmask:
 	.byte	0
 .align 8
@@ -274,6 +288,20 @@ startup_continue:
 .Lbss_end:  .long _end
 .Lparmaddr: .long PARMAREA
 .Lsccbaddr: .long .Lsccb
+
+	.globl ipl_schib
+ipl_schib:
+	.rept 13
+	.long 0
+	.endr
+
+	.globl ipl_flags
+ipl_flags:
+	.long 0
+	.globl ipl_devno
+ipl_devno:
+	.word 0
+
 	.org	0x12000
 .globl s390_readinfo_sccb
 s390_readinfo_sccb:
@@ -305,16 +333,6 @@ s390_readinfo_sccb:
 	.globl	_stext
 _stext:	basr	%r13,0			# get base
 .LPG3:
-#
-# Setup stack
-#
-	l	%r15,.Linittu-.LPG3(%r13)
-	mvc	__LC_CURRENT(4),__TI_task(%r15)
-	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union+THREAD_SIZE
-	st	%r15,__LC_KERNEL_STACK	# set end of kernel stack
-	ahi	%r15,-96
-	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
-
 # check control registers
 	stctl	%c0,%c15,0(%r15)
 	oi	2(%r15),0x40		# enable sigp emergency signal
@@ -333,6 +351,5 @@ _stext:	basr	%r13,0			# get base
 #
 	.align	8
 .Ldw:	.long	0x000a0000,0x00000000
-.Linittu:.long	init_thread_union
 .Lstart:.long	start_kernel
 .Laregs:.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

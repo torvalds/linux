@@ -481,65 +481,6 @@ start:
 	.byte 0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7 
 	.byte 0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff
 
-.macro GET_IPL_DEVICE
-.Lget_ipl_device:
-	l     %r1,0xb8			# get sid
-	sll   %r1,15			# test if subchannel is enabled
-	srl   %r1,31
-	ltr   %r1,%r1
-	bz    2f-.LPG1(%r13)		# subchannel disabled
-	l     %r1,0xb8
-	la    %r5,.Lipl_schib-.LPG1(%r13)
-	stsch 0(%r5)		        # get schib of subchannel
-	bnz   2f-.LPG1(%r13)		# schib not available
-	tm    5(%r5),0x01		# devno valid?
-	bno   2f-.LPG1(%r13)
-	la    %r6,ipl_parameter_flags-.LPG1(%r13)
-	oi    3(%r6),0x01		# set flag
-	la    %r2,ipl_devno-.LPG1(%r13)
-	mvc   0(2,%r2),6(%r5)		# store devno
-	tm    4(%r5),0x80		# qdio capable device?
-	bno   2f-.LPG1(%r13)
-	oi    3(%r6),0x02		# set flag
-
-	# copy ipl parameters
-
-	lhi   %r0,4096
-	l     %r2,20(%r0)		# get address of parameter list
-	lhi   %r3,IPL_PARMBLOCK_ORIGIN
-	st    %r3,20(%r0)
-	lhi   %r4,1
-	cr    %r2,%r3			# start parameters < destination ?
-	jl    0f
-	lhi   %r1,1			# copy direction is upwards
-	j     1f
-0:	lhi   %r1,-1			# copy direction is downwards
-	ar    %r2,%r0
-	ar    %r3,%r0
-	ar    %r2,%r1
-	ar    %r3,%r1
-1:	mvc   0(1,%r3),0(%r2)		# finally copy ipl parameters
-	ar    %r3,%r1
-	ar    %r2,%r1
-	sr    %r0,%r4
-	jne   1b
-	b     2f-.LPG1(%r13)
-
-	.align 4
-.Lipl_schib:
-	.rept 13
-	.long 0
-	.endr
-
-	.globl ipl_parameter_flags
-ipl_parameter_flags:
-	.long 0
-	.globl ipl_devno
-ipl_devno:
-	.word 0
-2:
-.endm
-
 #ifdef CONFIG_64BIT
 #include "head64.S"
 #else

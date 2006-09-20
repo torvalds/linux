@@ -35,6 +35,7 @@
 #define __LC_IO_NEW_PSW                 0x01f0
 #endif /* !__s390x__ */
 
+#define __LC_IPL_PARMBLOCK_PTR		0x014
 #define __LC_EXT_PARAMS                 0x080
 #define __LC_CPU_ADDRESS                0x084
 #define __LC_EXT_INT_CODE               0x086

@@ -125,13 +125,15 @@ struct ipl_parameter_block {
 /*
  * IPL validity flags and parameters as detected in head.S
  */
-extern u32 ipl_parameter_flags;
+extern u32 ipl_flags;
 extern u16 ipl_devno;
 
 void do_reipl(void);
 
-#define IPL_DEVNO_VALID		(ipl_parameter_flags & 1)
-#define IPL_PARMBLOCK_VALID	(ipl_parameter_flags & 2)
+enum {
+	IPL_DEVNO_VALID	= 1,
+	IPL_PARMBLOCK_VALID = 2,
+};
 
 #define IPL_PARMBLOCK_START	((struct ipl_parameter_block *) \
 				 IPL_PARMBLOCK_ORIGIN)

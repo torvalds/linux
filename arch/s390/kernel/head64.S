@@ -39,7 +39,6 @@ startup_continue:
 	basr  %r13,0			 # get base
 .LPG1:  sll   %r13,1                     # remove high order bit
         srl   %r13,1
-	GET_IPL_DEVICE
         lhi   %r1,1                      # mode 1 = esame
 	mvi   __LC_AR_MODE_ID,1		 # set esame flag
         slr   %r0,%r0                    # set cpuid to zero
@@ -49,7 +48,18 @@ startup_continue:
 	lg    %r12,.Lparmaddr-.LPG1(%r13)# pointer to parameter area
 					 # move IPL device to lowcore
         mvc   __LC_IPLDEV(4),IPL_DEVICE+4-PARMAREA(%r12)
+#
+# Setup stack
+#
+	larl  %r15,init_thread_union
+	lg    %r14,__TI_task(%r15)	# cache current in lowcore
+	stg   %r14,__LC_CURRENT
+	aghi  %r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union + THREAD_SIZE
+	stg   %r15,__LC_KERNEL_STACK	# set end of kernel stack
+	aghi  %r15,-160
+	xc    __SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
 
+	brasl %r14,ipl_save_parameters
 #
 # clear bss memory
 #
@@ -269,6 +279,19 @@ startup_continue:
 .Lparmaddr:
 	.quad	PARMAREA
 
+	.globl ipl_schib
+ipl_schib:
+	.rept 13
+	.long 0
+	.endr
+
+	.globl ipl_flags
+ipl_flags:
+	.long 0
+	.globl ipl_devno
+ipl_devno:
+	.word 0
+
 	.org	0x12000
 .globl s390_readinfo_sccb
 s390_readinfo_sccb:
@@ -300,24 +323,12 @@ s390_readinfo_sccb:
         .globl _stext
 _stext:	basr  %r13,0                    # get base
 .LPG3:
-#
-# Setup stack
-#
-	larl  %r15,init_thread_union
-	lg    %r14,__TI_task(%r15)      # cache current in lowcore
-	stg   %r14,__LC_CURRENT
-        aghi  %r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union + THREAD_SIZE
-        stg   %r15,__LC_KERNEL_STACK    # set end of kernel stack
-        aghi  %r15,-160
-        xc    __SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
-
 # check control registers
         stctg  %c0,%c15,0(%r15)
 	oi     6(%r15),0x40             # enable sigp emergency signal
 	oi     4(%r15),0x10             # switch on low address proctection
         lctlg  %c0,%c15,0(%r15)
 
-#
         lam    0,15,.Laregs-.LPG3(%r13) # load access regs needed by uaccess
         brasl  %r14,start_kernel        # go to C code
 #
@@ -325,7 +336,7 @@ _stext:	basr  %r13,0                    # get base
 #
         basr  %r13,0
 	lpswe .Ldw-.(%r13)           # load disabled wait psw
-#
+
             .align 8
 .Ldw:       .quad  0x0002000180000000,0x0000000000000000
 .Laregs:    .long  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
