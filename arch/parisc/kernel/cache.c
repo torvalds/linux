@@ -35,15 +35,12 @@ int icache_stride __read_mostly;
 EXPORT_SYMBOL(dcache_stride);
 
 
-#if defined(CONFIG_SMP)
 /* On some machines (e.g. ones with the Merced bus), there can be
  * only a single PxTLB broadcast at a time; this must be guaranteed
  * by software.  We put a spinlock around all TLB flushes  to
  * ensure this.
  */
 DEFINE_SPINLOCK(pa_tlb_lock);
-EXPORT_SYMBOL(pa_tlb_lock);
-#endif
 
 struct pdc_cache_info cache_info __read_mostly;
 #ifndef CONFIG_PA20
