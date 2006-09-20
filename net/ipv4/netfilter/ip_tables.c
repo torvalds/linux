@@ -1994,6 +1994,8 @@ compat_get_entries(struct compat_ipt_get_entries __user *uptr, int *len)
 	return ret;
 }
 
+static int do_ipt_get_ctl(struct sock *, int, void __user *, int *);
+
 static int
 compat_do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 {
@@ -2007,8 +2009,7 @@ compat_do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		ret = compat_get_entries(user, len);
 		break;
 	default:
-		duprintf("compat_do_ipt_get_ctl: unknown request %i\n", cmd);
-		ret = -EINVAL;
+		ret = do_ipt_get_ctl(sk, cmd, user, len);
 	}
 	return ret;
 }
