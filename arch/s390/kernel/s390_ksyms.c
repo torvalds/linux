@@ -25,12 +25,6 @@ EXPORT_SYMBOL(_oi_bitmap);
 EXPORT_SYMBOL(_ni_bitmap);
 EXPORT_SYMBOL(_zb_findmap);
 EXPORT_SYMBOL(_sb_findmap);
-EXPORT_SYMBOL(__copy_from_user_asm);
-EXPORT_SYMBOL(__copy_to_user_asm);
-EXPORT_SYMBOL(__copy_in_user_asm);
-EXPORT_SYMBOL(__clear_user_asm);
-EXPORT_SYMBOL(__strncpy_from_user_asm);
-EXPORT_SYMBOL(__strnlen_user_asm);
 EXPORT_SYMBOL(diag10);
 
 /*

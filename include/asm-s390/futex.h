@@ -7,75 +7,21 @@
 #include <asm/errno.h>
 #include <asm/uaccess.h>
 
-#ifndef __s390x__
-#define __futex_atomic_fixup \
-		     ".section __ex_table,\"a\"\n"			\
-		     "   .align 4\n"					\
-		     "   .long  0b,4b,2b,4b,3b,4b\n"			\
-		     ".previous"
-#else /* __s390x__ */
-#define __futex_atomic_fixup \
-		     ".section __ex_table,\"a\"\n"			\
-		     "   .align 8\n"					\
-		     "   .quad  0b,4b,2b,4b,3b,4b\n"			\
-		     ".previous"
-#endif /* __s390x__ */
-
-#define __futex_atomic_op(insn, ret, oldval, newval, uaddr, oparg)	\
-	asm volatile("   sacf 256\n"					\
-		     "0: l   %1,0(%6)\n"				\
-		     "1: " insn						\
-		     "2: cs  %1,%2,0(%6)\n"				\
-		     "3: jl  1b\n"					\
-		     "   lhi %0,0\n"					\
-		     "4: sacf 0\n"					\
-		     __futex_atomic_fixup				\
-		     : "=d" (ret), "=&d" (oldval), "=&d" (newval),	\
-		       "=m" (*uaddr)					\
-		     : "0" (-EFAULT), "d" (oparg), "a" (uaddr),		\
-		       "m" (*uaddr) : "cc" );
-
 static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 {
 	int op = (encoded_op >> 28) & 7;
 	int cmp = (encoded_op >> 24) & 15;
 	int oparg = (encoded_op << 8) >> 20;
 	int cmparg = (encoded_op << 20) >> 20;
-	int oldval = 0, newval, ret;
+	int oldval, ret;
+
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
 
 	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
-	inc_preempt_count();
-
-	switch (op) {
-	case FUTEX_OP_SET:
-		__futex_atomic_op("lr %2,%5\n",
-				  ret, oldval, newval, uaddr, oparg);
-		break;
-	case FUTEX_OP_ADD:
-		__futex_atomic_op("lr %2,%1\nar %2,%5\n",
-				  ret, oldval, newval, uaddr, oparg);
-		break;
-	case FUTEX_OP_OR:
-		__futex_atomic_op("lr %2,%1\nor %2,%5\n",
-				  ret, oldval, newval, uaddr, oparg);
-		break;
-	case FUTEX_OP_ANDN:
-		__futex_atomic_op("lr %2,%1\nnr %2,%5\n",
-				  ret, oldval, newval, uaddr, oparg);
-		break;
-	case FUTEX_OP_XOR:
-		__futex_atomic_op("lr %2,%1\nxr %2,%5\n",
-				  ret, oldval, newval, uaddr, oparg);
-		break;
-	default:
-		ret = -ENOSYS;
-	}
-
-	dec_preempt_count();
+	ret = uaccess.futex_atomic_op(op, uaddr, oparg, &oldval);
 
 	if (!ret) {
 		switch (cmp) {
@@ -91,32 +37,13 @@ static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 	return ret;
 }
 
-static inline int
-futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
+static inline int futex_atomic_cmpxchg_inatomic(int __user *uaddr,
+						int oldval, int newval)
 {
-	int ret;
-
 	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
-	asm volatile("   sacf 256\n"
-		     "   cs   %1,%4,0(%5)\n"
-		     "0: lr   %0,%1\n"
-		     "1: sacf 0\n"
-#ifndef __s390x__
-		     ".section __ex_table,\"a\"\n"
-		     "   .align 4\n"
-		     "   .long  0b,1b\n"
-		     ".previous"
-#else /* __s390x__ */
-		     ".section __ex_table,\"a\"\n"
-		     "   .align 8\n"
-		     "   .quad  0b,1b\n"
-		     ".previous"
-#endif /* __s390x__ */
-		     : "=d" (ret), "+d" (oldval), "=m" (*uaddr)
-		     : "0" (-EFAULT), "d" (newval), "a" (uaddr), "m" (*uaddr)
-		     : "cc", "memory" );
-	return oldval;
+
+	return uaccess.futex_atomic_cmpxchg(uaddr, oldval, newval);
 }
 
 #endif /* __KERNEL__ */

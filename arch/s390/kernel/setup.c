@@ -51,6 +51,12 @@
 #include <asm/sections.h>
 
 /*
+ * User copy operations.
+ */
+struct uaccess_ops uaccess;
+EXPORT_SYMBOL_GPL(uaccess);
+
+/*
  * Machine setup..
  */
 unsigned int console_mode = 0;
@@ -641,6 +647,7 @@ setup_arch(char **cmdline_p)
 
 	memory_end = memory_size;
 
+	memcpy(&uaccess, &uaccess_std, sizeof(uaccess));
 	parse_early_param();
 
 #ifndef CONFIG_64BIT
