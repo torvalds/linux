@@ -1129,7 +1129,7 @@ out:
 
 #ifdef QDIO_USE_PROCESSING_STATE
 	if (last_position>=0)
-		set_slsb(q, &last_position, SLSB_P_INPUT_NOT_INIT, &count);
+		set_slsb(q, &last_position, SLSB_P_INPUT_PROCESSING, &count);
 #endif /* QDIO_USE_PROCESSING_STATE */
 
 	QDIO_DBF_HEX4(0,trace,&q->first_to_check,sizeof(int));
