@@ -194,6 +194,7 @@ static void pptp_destroy_siblings(struct ip_conntrack *ct)
 {
 	struct ip_conntrack_tuple t;
 
+	ip_ct_gre_keymap_destroy(ct);
 	/* Since ct->sibling_list has literally rusted away in 2.6.11,
 	 * we now need another way to find out about our sibling
 	 * contrack and expects... -HW */
