@@ -22,7 +22,7 @@ This document describes the Linux kernel Makefiles.
 	=== 4 Host Program support
 	   --- 4.1 Simple Host Program
 	   --- 4.2 Composite Host Programs
-	   --- 4.3 Defining shared libraries  
+	   --- 4.3 Defining shared libraries
 	   --- 4.4 Using C++ for host programs
 	   --- 4.5 Controlling compiler options for host programs
 	   --- 4.6 When host programs are actually built
@@ -69,7 +69,7 @@ architecture-specific information to the top Makefile.
 
 Each subdirectory has a kbuild Makefile which carries out the commands
 passed down from above. The kbuild Makefile uses information from the
-.config file to construct various file lists used by kbuild to build 
+.config file to construct various file lists used by kbuild to build
 any built-in or modular targets.
 
 scripts/Makefile.* contains all the definitions/rules etc. that
@@ -203,9 +203,9 @@ more details, with real examples.
 	Example:
 		#fs/ext2/Makefile
 	        obj-$(CONFIG_EXT2_FS)        += ext2.o
-	 	ext2-y                       := balloc.o bitmap.o
+		ext2-y                       := balloc.o bitmap.o
 	        ext2-$(CONFIG_EXT2_FS_XATTR) += xattr.o
-	
+
 	In this example, xattr.o is only part of the composite object
 	ext2.o if $(CONFIG_EXT2_FS_XATTR) evaluates to 'y'.
 
@@ -244,7 +244,7 @@ more details, with real examples.
 	For kbuild to actually recognize that there is a lib.a being built,
 	the directory shall be listed in libs-y.
 	See also "6.3 List directories to visit when descending".
- 
+
 	Use of lib-y is normally restricted to lib/ and arch/*/lib.
 
 --- 3.6 Descending down in directories
@@ -408,7 +408,7 @@ more details, with real examples.
 	if first argument is not supported.
 
     ld-option
-    	ld-option is used to check if $(CC) when used to link object files
+	ld-option is used to check if $(CC) when used to link object files
 	supports the given option.  An optional second option may be
 	specified if first option are not supported.
 
@@ -435,7 +435,7 @@ more details, with real examples.
 	cflags-y will be assigned no value if first option is not supported.
 
    cc-option-yn
-   	cc-option-yn is used to check if gcc supports a given option
+	cc-option-yn is used to check if gcc supports a given option
 	and return 'y' if supported, otherwise 'n'.
 
 	Example:
@@ -443,7 +443,7 @@ more details, with real examples.
 		biarch := $(call cc-option-yn, -m32)
 		aflags-$(biarch) += -a32
 		cflags-$(biarch) += -m32
-	
+
 	In the above example, $(biarch) is set to y if $(CC) supports the -m32
 	option. When $(biarch) equals 'y', the expanded variables $(aflags-y)
 	and $(cflags-y) will be assigned the values -a32 and -m32,
@@ -457,13 +457,13 @@ more details, with real examples.
 		cc-option-align = -malign
 	gcc >= 3.00
 		cc-option-align = -falign
-	
+
 	Example:
 		CFLAGS += $(cc-option-align)-functions=4
 
 	In the above example, the option -falign-functions=4 is used for
 	gcc >= 3.00. For gcc < 3.00, -malign-functions=4 is used.
-	
+
     cc-version
 	cc-version returns a numerical version of the $(CC) compiler version.
 	The format is <major><minor> where both are two digits. So for example
@@ -491,7 +491,7 @@ more details, with real examples.
 
 	In this example, EXTRA_CFLAGS will be assigned the value -O1 if the
 	$(CC) version is less than 4.2.
-	cc-ifversion takes all the shell operators: 
+	cc-ifversion takes all the shell operators:
 	-eq, -ne, -lt, -le, -gt, and -ge
 	The third parameter may be a text as in this example, but it may also
 	be an expanded variable or a macro.
@@ -507,7 +507,7 @@ The first step is to tell kbuild that a host program exists. This is
 done utilising the variable hostprogs-y.
 
 The second step is to add an explicit dependency to the executable.
-This can be done in two ways. Either add the dependency in a rule, 
+This can be done in two ways. Either add the dependency in a rule,
 or utilise the variable $(always).
 Both possibilities are described in the following.
 
@@ -524,7 +524,7 @@ Both possibilities are described in the following.
 	Kbuild assumes in the above example that bin2hex is made from a single
 	c-source file named bin2hex.c located in the same directory as
 	the Makefile.
-  
+
 --- 4.2 Composite Host Programs
 
 	Host programs can be made up based on composite objects.
@@ -535,7 +535,7 @@ Both possibilities are described in the following.
 
 	Example:
 		#scripts/lxdialog/Makefile
-		hostprogs-y   := lxdialog  
+		hostprogs-y   := lxdialog
 		lxdialog-objs := checklist.o lxdialog.o
 
 	Objects with extension .o are compiled from the corresponding .c
@@ -544,8 +544,8 @@ Both possibilities are described in the following.
 	Finally, the two .o files are linked to the executable, lxdialog.
 	Note: The syntax <executable>-y is not permitted for host-programs.
 
---- 4.3 Defining shared libraries  
-  
+--- 4.3 Defining shared libraries
+
 	Objects with extension .so are considered shared libraries, and
 	will be compiled as position independent objects.
 	Kbuild provides support for shared libraries, but the usage
@@ -558,7 +558,7 @@ Both possibilities are described in the following.
 		hostprogs-y     := conf
 		conf-objs       := conf.o libkconfig.so
 		libkconfig-objs := expr.o type.o
-  
+
 	Shared libraries always require a corresponding -objs line, and
 	in the example above the shared library libkconfig is composed by
 	the two objects expr.o and type.o.
@@ -579,7 +579,7 @@ Both possibilities are described in the following.
 
 	In the example above the executable is composed of the C++ file
 	qconf.cc - identified by $(qconf-cxxobjs).
-	
+
 	If qconf is composed by a mixture of .c and .cc files, then an
 	additional line can be used to identify this.
 
@@ -588,7 +588,7 @@ Both possibilities are described in the following.
 		hostprogs-y   := qconf
 		qconf-cxxobjs := qconf.o
 		qconf-objs    := check.o
-	
+
 --- 4.5 Controlling compiler options for host programs
 
 	When compiling host programs, it is possible to set specific flags.
@@ -600,23 +600,23 @@ Both possibilities are described in the following.
 	Example:
 		#scripts/lxdialog/Makefile
 		HOST_EXTRACFLAGS += -I/usr/include/ncurses
-  
+
 	To set specific flags for a single file the following construction
 	is used:
 
 	Example:
 		#arch/ppc64/boot/Makefile
 		HOSTCFLAGS_piggyback.o := -DKERNELBASE=$(KERNELBASE)
-  
+
 	It is also possible to specify additional options to the linker.
-  
+
 	Example:
 		#scripts/kconfig/Makefile
 		HOSTLOADLIBES_qconf := -L$(QTDIR)/lib
 
 	When linking qconf, it will be passed the extra option
 	"-L$(QTDIR)/lib".
- 
+
 --- 4.6 When host programs are actually built
 
 	Kbuild will only build host-programs when they are referenced
@@ -631,7 +631,7 @@ Both possibilities are described in the following.
 		$(obj)/devlist.h: $(src)/pci.ids $(obj)/gen-devlist
 			( cd $(obj); ./gen-devlist ) < $<
 
-	The target $(obj)/devlist.h will not be built before 
+	The target $(obj)/devlist.h will not be built before
 	$(obj)/gen-devlist is updated. Note that references to
 	the host programs in special rules must be prefixed with $(obj).
 
@@ -650,7 +650,7 @@ Both possibilities are described in the following.
 
 --- 4.7 Using hostprogs-$(CONFIG_FOO)
 
-	A typcal pattern in a Kbuild file looks like this:
+	A typical pattern in a Kbuild file looks like this:
 
 	Example:
 		#scripts/Makefile
@@ -682,7 +682,8 @@ When executing "make clean", the two files "devlist.h classlist.h" will
 be deleted. Kbuild will assume files to be in same relative directory as the
 Makefile except if an absolute path is specified (path starting with '/').
 
-To delete a directory hirachy use:
+To delete a directory hierarchy use:
+
 	Example:
 		#scripts/package/Makefile
 		clean-dirs := $(objtree)/debian/
@@ -740,7 +741,7 @@ When kbuild executes, the following steps are followed (roughly):
 5) Recursively descend down in all directories listed in
    init-* core* drivers-* net-* libs-* and build all targets.
    - The values of the above variables are expanded in arch/$(ARCH)/Makefile.
-6) All object files are then linked and the resulting file vmlinux is 
+6) All object files are then linked and the resulting file vmlinux is
    located at the root of the obj tree.
    The very first objects linked are listed in head-y, assigned by
    arch/$(ARCH)/Makefile.
@@ -762,7 +763,7 @@ When kbuild executes, the following steps are followed (roughly):
 		LDFLAGS         := -m elf_s390
 	Note: EXTRA_LDFLAGS and LDFLAGS_$@ can be used to further customise
 	the flags used. See chapter 7.
-	
+
     LDFLAGS_MODULE	Options for $(LD) when linking modules
 
 	LDFLAGS_MODULE is used to set specific flags for $(LD) when
@@ -845,7 +846,7 @@ When kbuild executes, the following steps are followed (roughly):
 	$(CFLAGS_MODULE) contains extra C compiler flags used to compile code
 	for loadable kernel modules.
 
- 
+
 --- 6.2 Add prerequisites to archprepare:
 
 	The archprepare: rule is used to list prerequisites that need to be
@@ -869,7 +870,7 @@ When kbuild executes, the following steps are followed (roughly):
 	corresponding arch-specific section for modules; the module-building
 	machinery is all architecture-independent.
 
-	
+
     head-y, init-y, core-y, libs-y, drivers-y, net-y
 
 	$(head-y) lists objects to be linked first in vmlinux.
@@ -926,7 +927,7 @@ When kbuild executes, the following steps are followed (roughly):
 		#arch/i386/Makefile
 		define archhelp
 		  echo  '* bzImage      - Image (arch/$(ARCH)/boot/bzImage)'
-		endef
+		endif
 
 	When make is executed without arguments, the first goal encountered
 	will be built. In the top level Makefile the first goal present
@@ -938,7 +939,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 	Example:
 		#arch/i386/Makefile
-		all: bzImage 
+		all: bzImage
 
 	When "make" is executed without arguments, bzImage will be built.
 
@@ -961,7 +962,7 @@ When kbuild executes, the following steps are followed (roughly):
 	In this example, extra-y is used to list object files that
 	shall be built, but shall not be linked as part of built-in.o.
 
-	
+
 --- 6.6 Commands useful for building a boot image
 
 	Kbuild provides a few macros that are useful when building a
@@ -995,7 +996,7 @@ When kbuild executes, the following steps are followed (roughly):
 
     ld
 	Link target. Often, LDFLAGS_$@ is used to set specific options to ld.
-	
+
     objcopy
 	Copy binary. Uses OBJCOPYFLAGS usually specified in
 	arch/$(ARCH)/Makefile.
@@ -1053,7 +1054,7 @@ When kbuild executes, the following steps are followed (roughly):
 	BUILD    arch/i386/boot/bzImage
 
 	will be displayed with "make KBUILD_VERBOSE=0".
-	
+
 
 --- 6.8 Preprocessing linker scripts
 
@@ -1062,19 +1063,19 @@ When kbuild executes, the following steps are followed (roughly):
 	The script is a preprocessed variant of the file vmlinux.lds.S
 	located in the same directory.
 	kbuild knows .lds files and includes a rule *lds.S -> *lds.
-	
+
 	Example:
 		#arch/i386/kernel/Makefile
 		always := vmlinux.lds
-	
+
 		#Makefile
 		export CPPFLAGS_vmlinux.lds += -P -C -U$(ARCH)
-		
-	The assigment to $(always) is used to tell kbuild to build the
+
+	The assignment to $(always) is used to tell kbuild to build the
 	target vmlinux.lds.
 	The assignment to $(CPPFLAGS_vmlinux.lds) tells kbuild to use the
 	specified options when building the target vmlinux.lds.
-	
+
 	When building the *.lds target, kbuild uses the variables:
 	CPPFLAGS	: Set in top-level Makefile
 	EXTRA_CPPFLAGS	: May be set in the kbuild makefile
@@ -1179,4 +1180,6 @@ Language QA by Jan Engelhardt <jengelh@gmx.de>
 - Describe how kbuild supports shipped files with _shipped.
 - Generating offset header files.
 - Add more variables to section 7?
+
+
 
