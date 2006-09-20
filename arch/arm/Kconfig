@@ -652,11 +652,12 @@ config ZBOOT_ROM_BSS
 	hex "Compressed ROM boot loader BSS address"
 	default "0"
 	help
-	  The base address of 64KiB of read/write memory in the target
-	  for the ROM-able zImage, which must be available while the
-	  decompressor is running.  Platforms which normally make use of
-	  ROM-able zImage formats normally set this to a suitable
-	  value in their defconfig file.
+	  The base address of an area of read/write memory in the target
+	  for the ROM-able zImage which must be available while the
+	  decompressor is running. It must be large enough to hold the
+	  entire decompressed kernel plus an additional 128 KiB.
+	  Platforms which normally make use of ROM-able zImage formats
+	  normally set this to a suitable value in their defconfig file.
 
 	  If ZBOOT_ROM is not enabled, this has no effect.
 
