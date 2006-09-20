@@ -20,11 +20,21 @@
 #ifdef DEBUG
 
 #if defined(CONFIG_DEBUG_ICEDCC)
+
+#ifdef CONFIG_CPU_V6
+		.macro	loadsp, rb
+		.endm
+		.macro	writeb, ch, rb
+		mcr	p14, 0, \ch, c0, c5, 0
+		.endm
+#else
 		.macro	loadsp, rb
 		.endm
 		.macro	writeb, ch, rb
 		mcr	p14, 0, \ch, c0, c1, 0
 		.endm
+#endif
+
 #else
 
 #include <asm/arch/debug-macro.S>
