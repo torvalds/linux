@@ -296,16 +296,15 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		 union pptp_ctrl_union *pptpReq)
 {
 	struct ip_nat_pptp *nat_pptp_info = &ct->nat.help.nat_pptp_info;
-	u_int16_t msg, new_cid = 0;
+	u_int16_t msg;
 	__be16 new_pcid;
-	unsigned int pcid_off, cid_off = 0;
+	unsigned int pcid_off;
 
 	new_pcid = nat_pptp_info->pns_call_id;
 
 	switch (msg = ntohs(ctlh->messageType)) {
 	case PPTP_OUT_CALL_REPLY:
 		pcid_off = offsetof(union pptp_ctrl_union, ocack.peersCallID);
-		cid_off = offsetof(union pptp_ctrl_union, ocack.callID);
 		break;
 	case PPTP_IN_CALL_CONNECT:
 		pcid_off = offsetof(union pptp_ctrl_union, iccon.peersCallID);
@@ -351,17 +350,6 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 				     sizeof(new_pcid), (char *)&new_pcid,
 				     sizeof(new_pcid)) == 0)
 		return NF_DROP;
-
-	if (new_cid) {
-		DEBUGP("altering call id from 0x%04x to 0x%04x\n",
-			ntohs(REQ_CID(pptpReq, cid_off)), ntohs(new_cid));
-		if (ip_nat_mangle_tcp_packet(pskb, ct, ctinfo,
-		                             cid_off + sizeof(struct pptp_pkt_hdr) +
-					     sizeof(struct PptpControlHeader),
-					     sizeof(new_cid), (char *)&new_cid,
-					     sizeof(new_cid)) == 0)
-			return NF_DROP;
-	}
 	return NF_ACCEPT;
 }
 
