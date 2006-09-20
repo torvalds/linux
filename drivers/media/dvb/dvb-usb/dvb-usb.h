@@ -325,6 +325,8 @@ struct dvb_usb_adapter {
  * @desc: pointer to the device's struct dvb_usb_device_description.
  * @state: initialization and runtime state of the device.
  *
+ * @powered: indicated whether the device is power or not.
+ *  Powered is in/decremented for each call to modify the state.
  * @udev: pointer to the device's struct usb_device.
  *
  * @usb_mutex: semaphore of USB control messages (reading needs two messages)
