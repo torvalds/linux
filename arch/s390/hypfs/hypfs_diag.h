@@ -1,5 +1,5 @@
 /*
- *  fs/hypfs/hypfs_diag.h
+ *  arch/s390/hypfs_diag.h
  *    Hypervisor filesystem for Linux on s390.
  *
  *    Copyright (C) IBM Corp. 2006

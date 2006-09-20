@@ -1,8 +1,9 @@
 /*
  * hypervisor.c - /sys/hypervisor subsystem.
  *
- * This file is released under the GPLv2
+ * Copyright (C) IBM Corp. 2006
  *
+ * This file is released under the GPLv2
  */
 
 #include <linux/kobject.h>
