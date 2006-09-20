@@ -52,9 +52,9 @@
 #endif
 
 /*
- * Both Galileo boards have the same UART mappings.
+ * Galileo EV64120 evaluation board
  */
-#if defined (CONFIG_MIPS_EV96100) || defined (CONFIG_MIPS_EV64120)
+#ifdef CONFIG_MIPS_EV64120
 #include <asm/galileo-boards/ev96100.h>
 #include <asm/galileo-boards/ev96100int.h>
 #define EV96100_SERIAL_PORT_DEFNS                                  \

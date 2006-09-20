@@ -203,26 +203,6 @@ config MIPS_EV64120
 	  <http://www.marvell.com/>.  Say Y here if you wish to build a
 	  kernel for this platform.
 
-config MIPS_EV96100
-	bool "Galileo EV96100 Evaluation board (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select MIPS_GT96100
-	select RM7000_CPU_SCACHE
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_R5000
-	select SYS_HAS_CPU_RM7000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	help
-	  This is an evaluation board based on the Galileo GT-96100 LAN/WAN
-	  communications controllers containing a MIPS R5000 compatible core
-	  running at 83MHz. Their website is <http://www.marvell.com/>. Say Y
-	  here if you wish to build a kernel for this platform.
-
 config MIPS_IVR
 	bool "Globespan IVR board"
 	select DMA_NONCOHERENT
@@ -1068,10 +1048,6 @@ config AU1X00_USB_DEVICE
 	bool
 	depends on MIPS_PB1500 || MIPS_PB1100 || MIPS_PB1000
 	default n
-
-config MIPS_GT96100
-	bool
-	select MIPS_GT64120
 
 config IT8172_CIR
 	bool

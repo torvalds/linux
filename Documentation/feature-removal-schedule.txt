@@ -217,14 +217,6 @@ Who:	Nick Piggin <npiggin@suse.de>
 
 ---------------------------
 
-What:	Support for the MIPS EV96100 evaluation board
-When:	September 2006
-Why:	Does no longer build since at least November 15, 2003, apparently
-	no userbase left.
-Who:	Ralf Baechle <ralf@linux-mips.org>
-
----------------------------
-
 What:	Support for the Momentum / PMC-Sierra Jaguar ATX evaluation board
 When:	September 2006
 Why:	Does no longer build since quite some time, and was never popular,

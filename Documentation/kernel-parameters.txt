@@ -573,8 +573,6 @@ running once the system is up.
 	gscd=		[HW,CD]
 			Format: <io>
 
-	gt96100eth=	[NET] MIPS GT96100 Advanced Communication Controller
-
 	gus=		[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma16>
 
