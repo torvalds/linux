@@ -100,6 +100,7 @@ struct uaccess_ops {
 
 extern struct uaccess_ops uaccess;
 extern struct uaccess_ops uaccess_std;
+extern struct uaccess_ops uaccess_mvcos;
 
 static inline int __put_user_fn(size_t size, void __user *ptr, void *x)
 {

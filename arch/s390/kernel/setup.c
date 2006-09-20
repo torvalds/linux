@@ -647,7 +647,11 @@ setup_arch(char **cmdline_p)
 
 	memory_end = memory_size;
 
-	memcpy(&uaccess, &uaccess_std, sizeof(uaccess));
+	if (MACHINE_HAS_MVCOS)
+		memcpy(&uaccess, &uaccess_mvcos, sizeof(uaccess));
+	else
+		memcpy(&uaccess, &uaccess_std, sizeof(uaccess));
+
 	parse_early_param();
 
 #ifndef CONFIG_64BIT

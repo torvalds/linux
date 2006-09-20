@@ -250,6 +250,19 @@ startup_continue:
 	oi	7(%r12),0x80		# set IDTE flag
 0:
 
+#
+# find out if we have the MVCOS instruction
+#
+	la	%r1,0f-.LPG1(%r13)	# set program check address
+	stg	%r1,__LC_PGM_NEW_PSW+8
+	.short	0xc800			# mvcos 0(%r0),0(%r0),%r0
+	.short	0x0000
+	.short	0x0000
+0:	tm	0x8f,0x13		# special-operation exception?
+	bno	1f-.LPG1(%r13)		# if yes, MVCOS is present
+	oi	6(%r12),2		# set MVCOS flag
+1:
+
         lpswe .Lentry-.LPG1(13)         # jump to _stext in primary-space,
                                         # virtual and never return ...
         .align 16
