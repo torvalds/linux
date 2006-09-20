@@ -45,7 +45,7 @@ match(const struct sk_buff *skb,
 
 	ct = ip_conntrack_get((struct sk_buff *)skb, &ctinfo);
 
-#define FWINV(bool,invflg) ((bool) ^ !!(sinfo->invflags & invflg))
+#define FWINV(bool, invflg) ((bool) ^ !!(sinfo->invflags & invflg))
 
 	if (ct == &ip_conntrack_untracked)
 		statebit = XT_CONNTRACK_STATE_UNTRACKED;
@@ -54,63 +54,72 @@ match(const struct sk_buff *skb,
  	else
  		statebit = XT_CONNTRACK_STATE_INVALID;
  
-	if(sinfo->flags & XT_CONNTRACK_STATE) {
+	if (sinfo->flags & XT_CONNTRACK_STATE) {
 		if (ct) {
-			if(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip !=
-			    ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.ip)
+			if (test_bit(IPS_SRC_NAT_BIT, &ct->status))
 				statebit |= XT_CONNTRACK_STATE_SNAT;
-
-			if(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.ip !=
-			    ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.ip)
+			if (test_bit(IPS_DST_NAT_BIT, &ct->status))
 				statebit |= XT_CONNTRACK_STATE_DNAT;
 		}
-
-		if (FWINV((statebit & sinfo->statemask) == 0, XT_CONNTRACK_STATE))
+		if (FWINV((statebit & sinfo->statemask) == 0,
+			  XT_CONNTRACK_STATE))
 			return 0;
 	}
 
-	if(sinfo->flags & XT_CONNTRACK_PROTO) {
-		if (!ct || FWINV(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum != sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum, XT_CONNTRACK_PROTO))
-                	return 0;
+	if (ct == NULL) {
+		if (sinfo->flags & ~XT_CONNTRACK_STATE)
+			return 0;
+		return 1;
 	}
 
-	if(sinfo->flags & XT_CONNTRACK_ORIGSRC) {
-		if (!ct || FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip&sinfo->sipmsk[IP_CT_DIR_ORIGINAL].s_addr) != sinfo->tuple[IP_CT_DIR_ORIGINAL].src.ip, XT_CONNTRACK_ORIGSRC))
+	if (sinfo->flags & XT_CONNTRACK_PROTO &&
+	    FWINV(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum !=
+		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum,
+		  XT_CONNTRACK_PROTO))
+                return 0;
+
+	if (sinfo->flags & XT_CONNTRACK_ORIGSRC &&
+	    FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip &
+		   sinfo->sipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
+		  sinfo->tuple[IP_CT_DIR_ORIGINAL].src.ip,
+		  XT_CONNTRACK_ORIGSRC))
+		return 0;
+
+	if (sinfo->flags & XT_CONNTRACK_ORIGDST &&
+	    FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.ip &
+		   sinfo->dipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
+		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.ip,
+		  XT_CONNTRACK_ORIGDST))
+		return 0;
+
+	if (sinfo->flags & XT_CONNTRACK_REPLSRC &&
+	    FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.ip &
+		   sinfo->sipmsk[IP_CT_DIR_REPLY].s_addr) !=
+		  sinfo->tuple[IP_CT_DIR_REPLY].src.ip,
+		  XT_CONNTRACK_REPLSRC))
+		return 0;
+
+	if (sinfo->flags & XT_CONNTRACK_REPLDST &&
+	    FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.ip &
+		   sinfo->dipmsk[IP_CT_DIR_REPLY].s_addr) !=
+		  sinfo->tuple[IP_CT_DIR_REPLY].dst.ip,
+		  XT_CONNTRACK_REPLDST))
+		return 0;
+
+	if (sinfo->flags & XT_CONNTRACK_STATUS &&
+	    FWINV((ct->status & sinfo->statusmask) == 0,
+		  XT_CONNTRACK_STATUS))
+		return 0;
+
+	if (sinfo->flags & XT_CONNTRACK_EXPIRES) {
+		unsigned long expires = timer_pending(&ct->timeout) ?
+					(ct->timeout.expires - jiffies)/HZ : 0;
+
+		if (FWINV(!(expires >= sinfo->expires_min &&
+			    expires <= sinfo->expires_max),
+			  XT_CONNTRACK_EXPIRES))
 			return 0;
 	}
-
-	if(sinfo->flags & XT_CONNTRACK_ORIGDST) {
-		if (!ct || FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.ip&sinfo->dipmsk[IP_CT_DIR_ORIGINAL].s_addr) != sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.ip, XT_CONNTRACK_ORIGDST))
-			return 0;
-	}
-
-	if(sinfo->flags & XT_CONNTRACK_REPLSRC) {
-		if (!ct || FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.ip&sinfo->sipmsk[IP_CT_DIR_REPLY].s_addr) != sinfo->tuple[IP_CT_DIR_REPLY].src.ip, XT_CONNTRACK_REPLSRC))
-			return 0;
-	}
-
-	if(sinfo->flags & XT_CONNTRACK_REPLDST) {
-		if (!ct || FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.ip&sinfo->dipmsk[IP_CT_DIR_REPLY].s_addr) != sinfo->tuple[IP_CT_DIR_REPLY].dst.ip, XT_CONNTRACK_REPLDST))
-			return 0;
-	}
-
-	if(sinfo->flags & XT_CONNTRACK_STATUS) {
-		if (!ct || FWINV((ct->status & sinfo->statusmask) == 0, XT_CONNTRACK_STATUS))
-			return 0;
-	}
-
-	if(sinfo->flags & XT_CONNTRACK_EXPIRES) {
-		unsigned long expires;
-
-		if(!ct)
-			return 0;
-
-		expires = timer_pending(&ct->timeout) ? (ct->timeout.expires - jiffies)/HZ : 0;
-
-		if (FWINV(!(expires >= sinfo->expires_min && expires <= sinfo->expires_max), XT_CONNTRACK_EXPIRES))
-			return 0;
-	}
-
 	return 1;
 }
 
@@ -141,63 +150,72 @@ match(const struct sk_buff *skb,
  	else
  		statebit = XT_CONNTRACK_STATE_INVALID;
  
-	if(sinfo->flags & XT_CONNTRACK_STATE) {
+	if (sinfo->flags & XT_CONNTRACK_STATE) {
 		if (ct) {
-			if(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip !=
-			    ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3.ip)
+			if (test_bit(IPS_SRC_NAT_BIT, &ct->status))
 				statebit |= XT_CONNTRACK_STATE_SNAT;
-
-			if(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.ip !=
-			    ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3.ip)
+			if (test_bit(IPS_DST_NAT_BIT, &ct->status))
 				statebit |= XT_CONNTRACK_STATE_DNAT;
 		}
-
-		if (FWINV((statebit & sinfo->statemask) == 0, XT_CONNTRACK_STATE))
+		if (FWINV((statebit & sinfo->statemask) == 0,
+			  XT_CONNTRACK_STATE))
 			return 0;
 	}
 
-	if(sinfo->flags & XT_CONNTRACK_PROTO) {
-		if (!ct || FWINV(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum != sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum, XT_CONNTRACK_PROTO))
-                	return 0;
+	if (ct == NULL) {
+		if (sinfo->flags & ~XT_CONNTRACK_STATE)
+			return 0;
+		return 1;
 	}
 
-	if(sinfo->flags & XT_CONNTRACK_ORIGSRC) {
-		if (!ct || FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip&sinfo->sipmsk[IP_CT_DIR_ORIGINAL].s_addr) != sinfo->tuple[IP_CT_DIR_ORIGINAL].src.ip, XT_CONNTRACK_ORIGSRC))
-			return 0;
-	}
+	if (sinfo->flags & XT_CONNTRACK_PROTO &&
+	    FWINV(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum !=
+	    	  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum,
+		  XT_CONNTRACK_PROTO))
+                return 0;
 
-	if(sinfo->flags & XT_CONNTRACK_ORIGDST) {
-		if (!ct || FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.ip&sinfo->dipmsk[IP_CT_DIR_ORIGINAL].s_addr) != sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.ip, XT_CONNTRACK_ORIGDST))
-			return 0;
-	}
+	if (sinfo->flags & XT_CONNTRACK_ORIGSRC &&
+	    FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip &
+	    	   sinfo->sipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
+		  sinfo->tuple[IP_CT_DIR_ORIGINAL].src.ip,
+		  XT_CONNTRACK_ORIGSRC))
+		return 0;
 
-	if(sinfo->flags & XT_CONNTRACK_REPLSRC) {
-		if (!ct || FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3.ip&sinfo->sipmsk[IP_CT_DIR_REPLY].s_addr) != sinfo->tuple[IP_CT_DIR_REPLY].src.ip, XT_CONNTRACK_REPLSRC))
-			return 0;
-	}
+	if (sinfo->flags & XT_CONNTRACK_ORIGDST &&
+	    FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.ip &
+	    	   sinfo->dipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
+		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.ip,
+		  XT_CONNTRACK_ORIGDST))
+		return 0;
 
-	if(sinfo->flags & XT_CONNTRACK_REPLDST) {
-		if (!ct || FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3.ip&sinfo->dipmsk[IP_CT_DIR_REPLY].s_addr) != sinfo->tuple[IP_CT_DIR_REPLY].dst.ip, XT_CONNTRACK_REPLDST))
-			return 0;
-	}
+	if (sinfo->flags & XT_CONNTRACK_REPLSRC &&
+	    FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3.ip &
+	    	   sinfo->sipmsk[IP_CT_DIR_REPLY].s_addr) !=
+		  sinfo->tuple[IP_CT_DIR_REPLY].src.ip,
+		  XT_CONNTRACK_REPLSRC))
+		return 0;
 
-	if(sinfo->flags & XT_CONNTRACK_STATUS) {
-		if (!ct || FWINV((ct->status & sinfo->statusmask) == 0, XT_CONNTRACK_STATUS))
-			return 0;
-	}
+	if (sinfo->flags & XT_CONNTRACK_REPLDST &&
+	    FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3.ip &
+	    	   sinfo->dipmsk[IP_CT_DIR_REPLY].s_addr) !=
+		  sinfo->tuple[IP_CT_DIR_REPLY].dst.ip,
+		  XT_CONNTRACK_REPLDST))
+		return 0;
+
+	if (sinfo->flags & XT_CONNTRACK_STATUS &&
+	    FWINV((ct->status & sinfo->statusmask) == 0,
+	    	  XT_CONNTRACK_STATUS))
+		return 0;
 
 	if(sinfo->flags & XT_CONNTRACK_EXPIRES) {
-		unsigned long expires;
+		unsigned long expires = timer_pending(&ct->timeout) ?
+					(ct->timeout.expires - jiffies)/HZ : 0;
 
-		if(!ct)
-			return 0;
-
-		expires = timer_pending(&ct->timeout) ? (ct->timeout.expires - jiffies)/HZ : 0;
-
-		if (FWINV(!(expires >= sinfo->expires_min && expires <= sinfo->expires_max), XT_CONNTRACK_EXPIRES))
+		if (FWINV(!(expires >= sinfo->expires_min &&
+			    expires <= sinfo->expires_max),
+			  XT_CONNTRACK_EXPIRES))
 			return 0;
 	}
-
 	return 1;
 }
 
@@ -220,8 +238,7 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static void
-destroy(const struct xt_match *match, void *matchinfo)
+static void destroy(const struct xt_match *match, void *matchinfo)
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	nf_ct_l3proto_module_put(match->family);
