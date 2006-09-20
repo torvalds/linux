@@ -20,11 +20,8 @@ aoedev_isbusy(struct aoedev *d)
 	f = d->frames;
 	e = f + d->nframes;
 	do {
-		if (f->tag != FREETAG) {
-			printk(KERN_DEBUG "aoe: %ld.%ld isbusy\n",
-				d->aoemajor, d->aoeminor);
+		if (f->tag != FREETAG)
 			return 1;
-		}
 	} while (++f < e);
 
 	return 0;
