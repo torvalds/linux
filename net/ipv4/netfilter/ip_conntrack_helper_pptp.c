@@ -291,59 +291,20 @@ out_unexpect_orig:
 	goto out_put_both;
 }
 
-static const unsigned int pptp_msg_size[] = {
-	[PPTP_START_SESSION_REQUEST]  = sizeof(struct PptpStartSessionRequest),
-	[PPTP_START_SESSION_REPLY]    = sizeof(struct PptpStartSessionReply),
-	[PPTP_STOP_SESSION_REQUEST]   = sizeof(struct PptpStopSessionRequest),
-	[PPTP_STOP_SESSION_REPLY]     = sizeof(struct PptpStopSessionReply),
-	[PPTP_OUT_CALL_REQUEST]       = sizeof(struct PptpOutCallRequest),
-	[PPTP_OUT_CALL_REPLY]	      = sizeof(struct PptpOutCallReply),
-	[PPTP_IN_CALL_REQUEST]	      = sizeof(struct PptpInCallRequest),
-	[PPTP_IN_CALL_REPLY]	      = sizeof(struct PptpInCallReply),
-	[PPTP_IN_CALL_CONNECT]	      = sizeof(struct PptpInCallConnected),
-	[PPTP_CALL_CLEAR_REQUEST]     = sizeof(struct PptpClearCallRequest),
-	[PPTP_CALL_DISCONNECT_NOTIFY] = sizeof(struct PptpCallDisconnectNotify),
-	[PPTP_WAN_ERROR_NOTIFY]	      = sizeof(struct PptpWanErrorNotify),
-	[PPTP_SET_LINK_INFO]	      = sizeof(struct PptpSetLinkInfo),
-};
-
 static inline int
 pptp_inbound_pkt(struct sk_buff **pskb,
-		 struct tcphdr *tcph,
-		 unsigned int nexthdr_off,
-		 unsigned int datalen,
+		 struct PptpControlHeader *ctlh,
+		 union pptp_ctrl_union *pptpReq,
+		 unsigned int reqlen,
 		 struct ip_conntrack *ct,
 		 enum ip_conntrack_info ctinfo)
 {
-	struct PptpControlHeader _ctlh, *ctlh;
-	unsigned int reqlen;
-	union pptp_ctrl_union _pptpReq, *pptpReq;
 	struct ip_ct_pptp_master *info = &ct->help.ct_pptp_info;
 	u_int16_t msg;
 	__be16 cid, pcid;
 
-	ctlh = skb_header_pointer(*pskb, nexthdr_off, sizeof(_ctlh), &_ctlh);
-	if (!ctlh) {
-		DEBUGP("error during skb_header_pointer\n");
-		return NF_ACCEPT;
-	}
-	nexthdr_off += sizeof(_ctlh);
-	datalen -= sizeof(_ctlh);
-
-	reqlen = datalen;
-	if (reqlen > sizeof(*pptpReq))
-		reqlen = sizeof(*pptpReq);
-	pptpReq = skb_header_pointer(*pskb, nexthdr_off, reqlen, &_pptpReq);
-	if (!pptpReq) {
-		DEBUGP("error during skb_header_pointer\n");
-		return NF_ACCEPT;
-	}
-
 	msg = ntohs(ctlh->messageType);
 	DEBUGP("inbound control message %s\n", pptp_msg_name[msg]);
-
-	if (msg > 0 && msg <= PPTP_MSG_MAX && reqlen < pptp_msg_size[msg])
-		return NF_ACCEPT;
 
 	switch (msg) {
 	case PPTP_START_SESSION_REPLY:
@@ -480,37 +441,18 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 
 static inline int
 pptp_outbound_pkt(struct sk_buff **pskb,
-		  struct tcphdr *tcph,
-		  unsigned int nexthdr_off,
-		  unsigned int datalen,
+		  struct PptpControlHeader *ctlh,
+		  union pptp_ctrl_union *pptpReq,
+		  unsigned int reqlen,
 		  struct ip_conntrack *ct,
 		  enum ip_conntrack_info ctinfo)
 {
-	struct PptpControlHeader _ctlh, *ctlh;
-	unsigned int reqlen;
-	union pptp_ctrl_union _pptpReq, *pptpReq;
 	struct ip_ct_pptp_master *info = &ct->help.ct_pptp_info;
 	u_int16_t msg;
 	__be16 cid, pcid;
 
-	ctlh = skb_header_pointer(*pskb, nexthdr_off, sizeof(_ctlh), &_ctlh);
-	if (!ctlh)
-		return NF_ACCEPT;
-	nexthdr_off += sizeof(_ctlh);
-	datalen -= sizeof(_ctlh);
-
-	reqlen = datalen;
-	if (reqlen > sizeof(*pptpReq))
-		reqlen = sizeof(*pptpReq);
-	pptpReq = skb_header_pointer(*pskb, nexthdr_off, reqlen, &_pptpReq);
-	if (!pptpReq)
-		return NF_ACCEPT;
-
 	msg = ntohs(ctlh->messageType);
 	DEBUGP("outbound control message %s\n", pptp_msg_name[msg]);
-
-	if (msg > 0 && msg <= PPTP_MSG_MAX && reqlen < pptp_msg_size[msg])
-		return NF_ACCEPT;
 
 	switch (msg) {
 	case PPTP_START_SESSION_REQUEST:
@@ -593,6 +535,21 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 	return NF_ACCEPT;
 }
 
+static const unsigned int pptp_msg_size[] = {
+	[PPTP_START_SESSION_REQUEST]  = sizeof(struct PptpStartSessionRequest),
+	[PPTP_START_SESSION_REPLY]    = sizeof(struct PptpStartSessionReply),
+	[PPTP_STOP_SESSION_REQUEST]   = sizeof(struct PptpStopSessionRequest),
+	[PPTP_STOP_SESSION_REPLY]     = sizeof(struct PptpStopSessionReply),
+	[PPTP_OUT_CALL_REQUEST]       = sizeof(struct PptpOutCallRequest),
+	[PPTP_OUT_CALL_REPLY]	      = sizeof(struct PptpOutCallReply),
+	[PPTP_IN_CALL_REQUEST]	      = sizeof(struct PptpInCallRequest),
+	[PPTP_IN_CALL_REPLY]	      = sizeof(struct PptpInCallReply),
+	[PPTP_IN_CALL_CONNECT]	      = sizeof(struct PptpInCallConnected),
+	[PPTP_CALL_CLEAR_REQUEST]     = sizeof(struct PptpClearCallRequest),
+	[PPTP_CALL_DISCONNECT_NOTIFY] = sizeof(struct PptpCallDisconnectNotify),
+	[PPTP_WAN_ERROR_NOTIFY]	      = sizeof(struct PptpWanErrorNotify),
+	[PPTP_SET_LINK_INFO]	      = sizeof(struct PptpSetLinkInfo),
+};
 
 /* track caller id inside control connection, call expect_related */
 static int
@@ -600,16 +557,17 @@ conntrack_pptp_help(struct sk_buff **pskb,
 		    struct ip_conntrack *ct, enum ip_conntrack_info ctinfo)
 
 {
-	struct pptp_pkt_hdr _pptph, *pptph;
-	struct tcphdr _tcph, *tcph;
-	u_int32_t tcplen = (*pskb)->len - (*pskb)->nh.iph->ihl * 4;
-	u_int32_t datalen;
 	int dir = CTINFO2DIR(ctinfo);
 	struct ip_ct_pptp_master *info = &ct->help.ct_pptp_info;
-	unsigned int nexthdr_off;
-
+	struct tcphdr _tcph, *tcph;
+	struct pptp_pkt_hdr _pptph, *pptph;
+	struct PptpControlHeader _ctlh, *ctlh;
+	union pptp_ctrl_union _pptpReq, *pptpReq;
+	unsigned int tcplen = (*pskb)->len - (*pskb)->nh.iph->ihl * 4;
+	unsigned int datalen, reqlen, nexthdr_off;
 	int oldsstate, oldcstate;
 	int ret;
+	u_int16_t msg;
 
 	/* don't do any tracking before tcp handshake complete */
 	if (ctinfo != IP_CT_ESTABLISHED
@@ -648,6 +606,23 @@ conntrack_pptp_help(struct sk_buff **pskb,
 		return NF_ACCEPT;
 	}
 
+	ctlh = skb_header_pointer(*pskb, nexthdr_off, sizeof(_ctlh), &_ctlh);
+	if (!ctlh)
+		return NF_ACCEPT;
+	nexthdr_off += sizeof(_ctlh);
+	datalen -= sizeof(_ctlh);
+
+	reqlen = datalen;
+	msg = ntohs(ctlh->messageType);
+	if (msg > 0 && msg <= PPTP_MSG_MAX && reqlen < pptp_msg_size[msg])
+		return NF_ACCEPT;
+	if (reqlen > sizeof(*pptpReq))
+		reqlen = sizeof(*pptpReq);
+
+	pptpReq = skb_header_pointer(*pskb, nexthdr_off, reqlen, &_pptpReq);
+	if (!pptpReq)
+		return NF_ACCEPT;
+
 	oldsstate = info->sstate;
 	oldcstate = info->cstate;
 
@@ -657,11 +632,11 @@ conntrack_pptp_help(struct sk_buff **pskb,
 	 * established from PNS->PAC.  However, RFC makes no guarantee */
 	if (dir == IP_CT_DIR_ORIGINAL)
 		/* client -> server (PNS -> PAC) */
-		ret = pptp_outbound_pkt(pskb, tcph, nexthdr_off, datalen, ct,
+		ret = pptp_outbound_pkt(pskb, ctlh, pptpReq, reqlen, ct,
 					ctinfo);
 	else
 		/* server -> client (PAC -> PNS) */
-		ret = pptp_inbound_pkt(pskb, tcph, nexthdr_off, datalen, ct,
+		ret = pptp_inbound_pkt(pskb, ctlh, pptpReq, reqlen, ct,
 				       ctinfo);
 	DEBUGP("sstate: %d->%d, cstate: %d->%d\n",
 		oldsstate, info->sstate, oldcstate, info->cstate);
