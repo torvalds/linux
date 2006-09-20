@@ -73,13 +73,6 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	}
 
 	if (tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU) {
-		if (!(*pskb)->dst) {
-			if (net_ratelimit())
-				printk(KERN_ERR "ipt_tcpmss_target: "
-				       "no dst?! can't determine path-MTU\n");
-			return NF_DROP; /* or IPT_CONTINUE ?? */
-		}
-
 		if (dst_mtu((*pskb)->dst) <= sizeof(struct iphdr) +
 					     sizeof(struct tcphdr)) {
 			if (net_ratelimit())
