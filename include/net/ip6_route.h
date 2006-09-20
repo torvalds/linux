@@ -57,8 +57,6 @@ extern void			ip6_route_input(struct sk_buff *skb);
 extern struct dst_entry *	ip6_route_output(struct sock *sk,
 						 struct flowi *fl);
 
-extern int			ip6_route_me_harder(struct sk_buff *skb);
-
 extern void			ip6_route_init(void);
 extern void			ip6_route_cleanup(void);
 
