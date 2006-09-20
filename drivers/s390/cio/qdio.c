@@ -115,7 +115,7 @@ qdio_min(int a,int b)
 static inline __u64 
 qdio_get_micros(void)
 {
-        return (get_clock() >> 10); /* time>>12 is microseconds */
+	return (get_clock() >> 12); /* time>>12 is microseconds */
 }
 
 /* 
