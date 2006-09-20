@@ -211,80 +211,28 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 	return NF_ACCEPT;
 }
 
-static int
+static void
 pptp_exp_gre(struct ip_conntrack_expect *expect_orig,
 	     struct ip_conntrack_expect *expect_reply)
 {
-	struct ip_ct_pptp_master *ct_pptp_info =
-				&expect_orig->master->help.ct_pptp_info;
-	struct ip_nat_pptp *nat_pptp_info =
-				&expect_orig->master->nat.help.nat_pptp_info;
-
 	struct ip_conntrack *ct = expect_orig->master;
-
-	struct ip_conntrack_tuple inv_t;
-	struct ip_conntrack_tuple *orig_t, *reply_t;
+	struct ip_ct_pptp_master *ct_pptp_info = &ct->help.ct_pptp_info;
+	struct ip_nat_pptp *nat_pptp_info = &ct->nat.help.nat_pptp_info;
 
 	/* save original PAC call ID in nat_info */
 	nat_pptp_info->pac_call_id = ct_pptp_info->pac_call_id;
 
-	/* alter expectation */
-	orig_t = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-	reply_t = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-
 	/* alter expectation for PNS->PAC direction */
-	invert_tuplepr(&inv_t, &expect_orig->tuple);
 	expect_orig->saved_proto.gre.key = ct_pptp_info->pns_call_id;
 	expect_orig->tuple.src.u.gre.key = nat_pptp_info->pns_call_id;
 	expect_orig->tuple.dst.u.gre.key = ct_pptp_info->pac_call_id;
 	expect_orig->dir = IP_CT_DIR_ORIGINAL;
-	inv_t.src.ip = reply_t->src.ip;
-	inv_t.dst.ip = reply_t->dst.ip;
-	inv_t.src.u.gre.key = nat_pptp_info->pac_call_id;
-	inv_t.dst.u.gre.key = ct_pptp_info->pns_call_id;
-
-	if (!ip_conntrack_expect_related(expect_orig)) {
-		DEBUGP("successfully registered expect\n");
-	} else {
-		DEBUGP("can't expect_related(expect_orig)\n");
-		return 1;
-	}
 
 	/* alter expectation for PAC->PNS direction */
-	invert_tuplepr(&inv_t, &expect_reply->tuple);
 	expect_reply->saved_proto.gre.key = nat_pptp_info->pns_call_id;
 	expect_reply->tuple.src.u.gre.key = nat_pptp_info->pac_call_id;
 	expect_reply->tuple.dst.u.gre.key = ct_pptp_info->pns_call_id;
 	expect_reply->dir = IP_CT_DIR_REPLY;
-	inv_t.src.ip = orig_t->src.ip;
-	inv_t.dst.ip = orig_t->dst.ip;
-	inv_t.src.u.gre.key = nat_pptp_info->pns_call_id;
-	inv_t.dst.u.gre.key = ct_pptp_info->pac_call_id;
-
-	if (!ip_conntrack_expect_related(expect_reply)) {
-		DEBUGP("successfully registered expect\n");
-	} else {
-		DEBUGP("can't expect_related(expect_reply)\n");
-		ip_conntrack_unexpect_related(expect_orig);
-		return 1;
-	}
-
-	if (ip_ct_gre_keymap_add(ct, &expect_reply->tuple, 0) < 0) {
-		DEBUGP("can't register original keymap\n");
-		ip_conntrack_unexpect_related(expect_orig);
-		ip_conntrack_unexpect_related(expect_reply);
-		return 1;
-	}
-
-	if (ip_ct_gre_keymap_add(ct, &inv_t, 1) < 0) {
-		DEBUGP("can't register reply keymap\n");
-		ip_conntrack_unexpect_related(expect_orig);
-		ip_conntrack_unexpect_related(expect_reply);
-		ip_ct_gre_keymap_destroy(ct);
-		return 1;
-	}
-
-	return 0;
 }
 
 /* inbound packets == from PAC to PNS */

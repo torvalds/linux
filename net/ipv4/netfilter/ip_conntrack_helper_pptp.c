@@ -80,7 +80,7 @@ int
 			  struct PptpControlHeader *ctlh,
 			  union pptp_ctrl_union *pptpReq);
 
-int
+void
 (*ip_nat_pptp_hook_exp_gre)(struct ip_conntrack_expect *expect_orig,
 			    struct ip_conntrack_expect *expect_reply);
 
@@ -219,93 +219,63 @@ static void pptp_destroy_siblings(struct ip_conntrack *ct)
 
 /* expect GRE connections (PNS->PAC and PAC->PNS direction) */
 static inline int
-exp_gre(struct ip_conntrack *master,
+exp_gre(struct ip_conntrack *ct,
 	__be16 callid,
 	__be16 peer_callid)
 {
-	struct ip_conntrack_tuple inv_tuple;
-	struct ip_conntrack_tuple exp_tuples[] = {
-		/* tuple in original direction, PNS->PAC */
-		{ .src = { .ip = master->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip,
-			   .u = { .gre = { .key = peer_callid } }
-			 },
-		  .dst = { .ip = master->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.ip,
-			   .u = { .gre = { .key = callid } },
-			   .protonum = IPPROTO_GRE
-			 },
-		 },
-		/* tuple in reply direction, PAC->PNS */
-		{ .src = { .ip = master->tuplehash[IP_CT_DIR_REPLY].tuple.src.ip,
-			   .u = { .gre = { .key = callid } }
-			 },
-		  .dst = { .ip = master->tuplehash[IP_CT_DIR_REPLY].tuple.dst.ip,
-			   .u = { .gre = { .key = peer_callid } },
-			   .protonum = IPPROTO_GRE
-			 },
-		 }
-	};
 	struct ip_conntrack_expect *exp_orig, *exp_reply;
 	int ret = 1;
 
-	exp_orig = ip_conntrack_expect_alloc(master);
+	exp_orig = ip_conntrack_expect_alloc(ct);
 	if (exp_orig == NULL)
 		goto out;
 
-	exp_reply = ip_conntrack_expect_alloc(master);
+	exp_reply = ip_conntrack_expect_alloc(ct);
 	if (exp_reply == NULL)
 		goto out_put_orig;
 
-	memcpy(&exp_orig->tuple, &exp_tuples[0], sizeof(exp_orig->tuple));
+	/* original direction, PNS->PAC */
+	exp_orig->tuple.src.ip = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip;
+	exp_orig->tuple.src.u.gre.key = peer_callid;
+	exp_orig->tuple.dst.ip = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.ip;
+	exp_orig->tuple.dst.u.gre.key = callid;
+	exp_orig->tuple.dst.protonum = IPPROTO_GRE;
 
 	exp_orig->mask.src.ip = 0xffffffff;
 	exp_orig->mask.src.u.all = 0;
-	exp_orig->mask.dst.u.all = 0;
 	exp_orig->mask.dst.u.gre.key = htons(0xffff);
 	exp_orig->mask.dst.ip = 0xffffffff;
 	exp_orig->mask.dst.protonum = 0xff;
 
-	exp_orig->master = master;
+	exp_orig->master = ct;
 	exp_orig->expectfn = pptp_expectfn;
 	exp_orig->flags = 0;
 
 	/* both expectations are identical apart from tuple */
 	memcpy(exp_reply, exp_orig, sizeof(*exp_reply));
-	memcpy(&exp_reply->tuple, &exp_tuples[1], sizeof(exp_reply->tuple));
+
+	/* reply direction, PAC->PNS */
+	exp_reply->tuple.src.ip = ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.ip;
+	exp_reply->tuple.src.u.gre.key = callid;
+	exp_reply->tuple.dst.ip = ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.ip;
+	exp_reply->tuple.dst.u.gre.key = peer_callid;
+	exp_reply->tuple.dst.protonum = IPPROTO_GRE;
 
 	if (ip_nat_pptp_hook_exp_gre)
-		ret = ip_nat_pptp_hook_exp_gre(exp_orig, exp_reply);
-	else {
+		ip_nat_pptp_hook_exp_gre(exp_orig, exp_reply);
+	if (ip_conntrack_expect_related(exp_orig) != 0)
+		goto out_put_both;
+	if (ip_conntrack_expect_related(exp_reply) != 0)
+		goto out_unexpect_orig;
 
-		DEBUGP("calling expect_related PNS->PAC");
-		DUMP_TUPLE(&exp_orig->tuple);
-
-		if (ip_conntrack_expect_related(exp_orig) != 0) {
-			DEBUGP("cannot expect_related()\n");
-			goto out_put_both;
-		}
-
-		DEBUGP("calling expect_related PAC->PNS");
-		DUMP_TUPLE(&exp_reply->tuple);
-
-		if (ip_conntrack_expect_related(exp_reply) != 0) {
-			DEBUGP("cannot expect_related()\n");
-			goto out_unexpect_orig;
-		}
-
-		/* Add GRE keymap entries */
-		if (ip_ct_gre_keymap_add(master, &exp_reply->tuple, 0) != 0) {
-			DEBUGP("cannot keymap_add() exp\n");
-			goto out_unexpect_both;
-		}
-
-		invert_tuplepr(&inv_tuple, &exp_reply->tuple);
-		if (ip_ct_gre_keymap_add(master, &inv_tuple, 1) != 0) {
-			ip_ct_gre_keymap_destroy(master);
-			DEBUGP("cannot keymap_add() exp_inv\n");
-			goto out_unexpect_both;
-		}
-		ret = 0;
+	/* Add GRE keymap entries */
+	if (ip_ct_gre_keymap_add(ct, &exp_orig->tuple, 0) != 0)
+		goto out_unexpect_both;
+	if (ip_ct_gre_keymap_add(ct, &exp_reply->tuple, 1) != 0) {
+		ip_ct_gre_keymap_destroy(ct);
+		goto out_unexpect_both;
 	}
+	ret = 0;
 
 out_put_both:
 	ip_conntrack_expect_put(exp_reply);

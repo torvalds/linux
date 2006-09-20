@@ -315,7 +315,7 @@ extern int
 			  struct PptpControlHeader *ctlh,
 			  union pptp_ctrl_union *pptpReq);
 
-extern int
+extern void
 (*ip_nat_pptp_hook_exp_gre)(struct ip_conntrack_expect *exp_orig,
 			    struct ip_conntrack_expect *exp_reply);
 
