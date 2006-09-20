@@ -569,10 +569,7 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	sch->opm = 0xff;
 	if (!cio_is_console(sch->schid))
 		chsc_validate_chpids(sch);
-	sch->lpm = sch->schib.pmcw.pim &
-		sch->schib.pmcw.pam &
-		sch->schib.pmcw.pom &
-		sch->opm;
+	sch->lpm = sch->schib.pmcw.pam & sch->opm;
 
 	CIO_DEBUG(KERN_INFO, 0,
 		  "Detected device %04x on subchannel 0.%x.%04X"

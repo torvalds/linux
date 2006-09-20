@@ -256,7 +256,7 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 	/* trigger path verification. */
 	if (sch->driver && sch->driver->verify)
 		sch->driver->verify(&sch->dev);
-	else if (sch->vpm == mask)
+	else if (sch->lpm == mask)
 		goto out_unreg;
 out_unlock:
 	spin_unlock_irq(&sch->lock);

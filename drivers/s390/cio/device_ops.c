@@ -256,7 +256,7 @@ ccw_device_get_path_mask(struct ccw_device *cdev)
 	if (!sch)
 		return 0;
 	else
-		return sch->vpm;
+		return sch->lpm;
 }
 
 static void
