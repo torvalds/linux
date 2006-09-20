@@ -84,13 +84,11 @@ aoe_init(void)
 		goto net_fail;
 	ret = register_blkdev(AOE_MAJOR, DEVICE_NAME);
 	if (ret < 0) {
-		printk(KERN_ERR "aoe: aoeblk_init: can't register major\n");
+		eprintk("can't register major\n");
 		goto blkreg_fail;
 	}
 
-	printk(KERN_INFO
-	       "aoe: aoe_init: AoE v%s initialised.\n",
-	       VERSION);
+	iprintk("AoE v%s initialised.\n", VERSION);
 	discover_timer(TINIT);
 	return 0;
 
@@ -103,7 +101,7 @@ aoe_init(void)
  chr_fail:
 	aoedev_exit();
 	
-	printk(KERN_INFO "aoe: aoe_init: initialisation failure.\n");
+	iprintk("initialisation failure.\n");
 	return ret;
 }
 

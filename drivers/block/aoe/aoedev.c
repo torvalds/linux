@@ -155,7 +155,7 @@ aoedev_by_sysminor_m(ulong sysminor, ulong bufcnt)
 		d = aoedev_newdev(bufcnt);
 	 	if (d == NULL) {
 			spin_unlock_irqrestore(&devlist_lock, flags);
-			printk(KERN_INFO "aoe: aoedev_set: aoedev_newdev failure.\n");
+			iprintk("aoedev_newdev failure.\n");
 			return NULL;
 		}
 		d->sysminor = sysminor;

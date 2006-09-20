@@ -10,6 +10,11 @@
 #define AOE_PARTITIONS (16)
 #endif
 
+#define xprintk(L, fmt, arg...) printk(L "aoe: " "%s: " fmt, __func__, ## arg)
+#define iprintk(fmt, arg...) xprintk(KERN_INFO, fmt, ## arg)
+#define eprintk(fmt, arg...) xprintk(KERN_ERR, fmt, ## arg)
+#define dprintk(fmt, arg...) xprintk(KERN_DEBUG, fmt, ## arg)
+
 #define SYSMINOR(aoemajor, aoeminor) ((aoemajor) * NPERSHELF + (aoeminor))
 #define AOEMAJOR(sysminor) ((sysminor) / NPERSHELF)
 #define AOEMINOR(sysminor) ((sysminor) % NPERSHELF)
