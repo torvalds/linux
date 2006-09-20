@@ -83,6 +83,7 @@ void __init s3c2412_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 
 	/* rename devices that are s3c2412/s3c2413 specific */
 	s3c_device_sdi.name  = "s3c2412-sdi";
+	s3c_device_lcd.name  = "s3c2412-lcd";
 	s3c_device_nand.name = "s3c2412-nand";
 }
 
