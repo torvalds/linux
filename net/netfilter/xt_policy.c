@@ -171,7 +171,6 @@ static struct xt_match xt_policy_match[] = {
 		.checkentry 	= checkentry,
 		.match		= match,
 		.matchsize	= sizeof(struct xt_policy_info),
-		.family		= AF_INET,
 		.me		= THIS_MODULE,
 	},
 	{
@@ -180,7 +179,6 @@ static struct xt_match xt_policy_match[] = {
 		.checkentry	= checkentry,
 		.match		= match,
 		.matchsize	= sizeof(struct xt_policy_info),
-		.family		= AF_INET6,
 		.me		= THIS_MODULE,
 	},
 };
