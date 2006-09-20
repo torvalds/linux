@@ -32,7 +32,7 @@
  *     2005-06-10 - Version 3.0
  *       - kernel >= 2.6.11 version,
  *	   funded by Oxcoda NetBox Blue (http://www.netboxblue.com/)
- * 
+ *
  */
 
 #include <linux/module.h>
@@ -93,10 +93,10 @@ static void pptp_nat_expected(struct ip_conntrack *ct,
 		DEBUGP("we are PAC->PNS\n");
 		/* build tuple for PNS->PAC */
 		t.src.ip = master->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip;
-		t.src.u.gre.key = 
+		t.src.u.gre.key =
 			htons(master->nat.help.nat_pptp_info.pns_call_id);
 		t.dst.ip = master->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.ip;
-		t.dst.u.gre.key = 
+		t.dst.u.gre.key =
 			htons(master->nat.help.nat_pptp_info.pac_call_id);
 		t.dst.protonum = IPPROTO_GRE;
 	}
@@ -153,47 +153,47 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 	unsigned int cid_off;
 
 	new_callid = htons(ct_pptp_info->pns_call_id);
-	
+
 	switch (msg = ntohs(ctlh->messageType)) {
-		case PPTP_OUT_CALL_REQUEST:
-			cid_off = offsetof(union pptp_ctrl_union, ocreq.callID);
-			/* FIXME: ideally we would want to reserve a call ID
-			 * here.  current netfilter NAT core is not able to do
-			 * this :( For now we use TCP source port. This breaks
-			 * multiple calls within one control session */
+	case PPTP_OUT_CALL_REQUEST:
+		cid_off = offsetof(union pptp_ctrl_union, ocreq.callID);
+		/* FIXME: ideally we would want to reserve a call ID
+		 * here.  current netfilter NAT core is not able to do
+		 * this :( For now we use TCP source port. This breaks
+		 * multiple calls within one control session */
 
-			/* save original call ID in nat_info */
-			nat_pptp_info->pns_call_id = ct_pptp_info->pns_call_id;
+		/* save original call ID in nat_info */
+		nat_pptp_info->pns_call_id = ct_pptp_info->pns_call_id;
 
-			/* don't use tcph->source since we are at a DSTmanip
-			 * hook (e.g. PREROUTING) and pkt is not mangled yet */
-			new_callid = ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u.tcp.port;
+		/* don't use tcph->source since we are at a DSTmanip
+		 * hook (e.g. PREROUTING) and pkt is not mangled yet */
+		new_callid = ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u.tcp.port;
 
-			/* save new call ID in ct info */
-			ct_pptp_info->pns_call_id = ntohs(new_callid);
-			break;
-		case PPTP_IN_CALL_REPLY:
-			cid_off = offsetof(union pptp_ctrl_union, icreq.callID);
-			break;
-		case PPTP_CALL_CLEAR_REQUEST:
-			cid_off = offsetof(union pptp_ctrl_union, clrreq.callID);
-			break;
-		default:
-			DEBUGP("unknown outbound packet 0x%04x:%s\n", msg,
-			      (msg <= PPTP_MSG_MAX)? 
-			      pptp_msg_name[msg]:pptp_msg_name[0]);
-			/* fall through */
+		/* save new call ID in ct info */
+		ct_pptp_info->pns_call_id = ntohs(new_callid);
+		break;
+	case PPTP_IN_CALL_REPLY:
+		cid_off = offsetof(union pptp_ctrl_union, icreq.callID);
+		break;
+	case PPTP_CALL_CLEAR_REQUEST:
+		cid_off = offsetof(union pptp_ctrl_union, clrreq.callID);
+		break;
+	default:
+		DEBUGP("unknown outbound packet 0x%04x:%s\n", msg,
+		      (msg <= PPTP_MSG_MAX)?
+		      pptp_msg_name[msg]:pptp_msg_name[0]);
+		/* fall through */
 
-		case PPTP_SET_LINK_INFO:
-			/* only need to NAT in case PAC is behind NAT box */
-		case PPTP_START_SESSION_REQUEST:
-		case PPTP_START_SESSION_REPLY:
-		case PPTP_STOP_SESSION_REQUEST:
-		case PPTP_STOP_SESSION_REPLY:
-		case PPTP_ECHO_REQUEST:
-		case PPTP_ECHO_REPLY:
-			/* no need to alter packet */
-			return NF_ACCEPT;
+	case PPTP_SET_LINK_INFO:
+		/* only need to NAT in case PAC is behind NAT box */
+	case PPTP_START_SESSION_REQUEST:
+	case PPTP_START_SESSION_REPLY:
+	case PPTP_STOP_SESSION_REQUEST:
+	case PPTP_STOP_SESSION_REPLY:
+	case PPTP_ECHO_REQUEST:
+	case PPTP_ECHO_REPLY:
+		/* no need to alter packet */
+		return NF_ACCEPT;
 	}
 
 	/* only OUT_CALL_REQUEST, IN_CALL_REPLY, CALL_CLEAR_REQUEST pass
@@ -216,9 +216,9 @@ static int
 pptp_exp_gre(struct ip_conntrack_expect *expect_orig,
 	     struct ip_conntrack_expect *expect_reply)
 {
-	struct ip_ct_pptp_master *ct_pptp_info = 
+	struct ip_ct_pptp_master *ct_pptp_info =
 				&expect_orig->master->help.ct_pptp_info;
-	struct ip_nat_pptp *nat_pptp_info = 
+	struct ip_nat_pptp *nat_pptp_info =
 				&expect_orig->master->nat.help.nat_pptp_info;
 
 	struct ip_conntrack *ct = expect_orig->master;
@@ -324,7 +324,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		break;
 
 	default:
-		DEBUGP("unknown inbound packet %s\n", (msg <= PPTP_MSG_MAX)? 
+		DEBUGP("unknown inbound packet %s\n", (msg <= PPTP_MSG_MAX)?
 			pptp_msg_name[msg]:pptp_msg_name[0]);
 		/* fall through */
 

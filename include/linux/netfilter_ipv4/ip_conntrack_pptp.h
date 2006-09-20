@@ -285,19 +285,19 @@ struct PptpSetLinkInfo {
 };
 
 union pptp_ctrl_union {
-		struct PptpStartSessionRequest	sreq;
-		struct PptpStartSessionReply	srep;
-		struct PptpStopSessionRequest	streq;
-		struct PptpStopSessionReply	strep;
-                struct PptpOutCallRequest       ocreq;
-                struct PptpOutCallReply         ocack;
-                struct PptpInCallRequest        icreq;
-                struct PptpInCallReply          icack;
-                struct PptpInCallConnected      iccon;
-		struct PptpClearCallRequest	clrreq;
-                struct PptpCallDisconnectNotify disc;
-                struct PptpWanErrorNotify       wanerr;
-                struct PptpSetLinkInfo          setlink;
+	struct PptpStartSessionRequest	sreq;
+	struct PptpStartSessionReply	srep;
+	struct PptpStopSessionRequest	streq;
+	struct PptpStopSessionReply	strep;
+	struct PptpOutCallRequest	ocreq;
+	struct PptpOutCallReply		ocack;
+	struct PptpInCallRequest	icreq;
+	struct PptpInCallReply		icack;
+	struct PptpInCallConnected	iccon;
+	struct PptpClearCallRequest	clrreq;
+	struct PptpCallDisconnectNotify disc;
+	struct PptpWanErrorNotify	wanerr;
+	struct PptpSetLinkInfo		setlink;
 };
 
 extern int

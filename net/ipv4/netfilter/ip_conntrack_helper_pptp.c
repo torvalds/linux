@@ -20,11 +20,11 @@
  * 	 - We can only support one single call within each session
  *
  * TODO:
- *	 - testing of incoming PPTP calls 
+ *	 - testing of incoming PPTP calls
  *
- * Changes: 
+ * Changes:
  * 	2002-02-05 - Version 1.3
- * 	  - Call ip_conntrack_unexpect_related() from 
+ * 	  - Call ip_conntrack_unexpect_related() from
  * 	    pptp_destroy_siblings() to destroy expectations in case
  * 	    CALL_DISCONNECT_NOTIFY or tcp fin packet was seen
  * 	    (Philip Craig <philipc@snapgear.com>)
@@ -141,7 +141,7 @@ static void pptp_expectfn(struct ip_conntrack *ct,
 		invert_tuplepr(&inv_t, &exp->tuple);
 		DEBUGP("trying to unexpect other dir: ");
 		DUMP_TUPLE(&inv_t);
-	
+
 		exp_other = ip_conntrack_expect_find(&inv_t);
 		if (exp_other) {
 			/* delete other expectation.  */
@@ -194,7 +194,7 @@ static void pptp_destroy_siblings(struct ip_conntrack *ct)
 {
 	struct ip_conntrack_tuple t;
 
-	/* Since ct->sibling_list has literally rusted away in 2.6.11, 
+	/* Since ct->sibling_list has literally rusted away in 2.6.11,
 	 * we now need another way to find out about our sibling
 	 * contrack and expects... -HW */
 
@@ -264,7 +264,7 @@ exp_gre(struct ip_conntrack *master,
 	exp_orig->mask.dst.u.gre.key = htons(0xffff);
 	exp_orig->mask.dst.ip = 0xffffffff;
 	exp_orig->mask.dst.protonum = 0xff;
-		
+
 	exp_orig->master = master;
 	exp_orig->expectfn = pptp_expectfn;
 	exp_orig->flags = 0;
@@ -322,7 +322,7 @@ out_unexpect_orig:
 	goto out_put_both;
 }
 
-static inline int 
+static inline int
 pptp_inbound_pkt(struct sk_buff **pskb,
 		 struct tcphdr *tcph,
 		 unsigned int nexthdr_off,
@@ -336,7 +336,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 	struct ip_ct_pptp_master *info = &ct->help.ct_pptp_info;
 	u_int16_t msg;
 	__be16 *cid, *pcid;
-	u_int32_t seq;	
+	u_int32_t seq;
 
 	ctlh = skb_header_pointer(*pskb, nexthdr_off, sizeof(_ctlh), &_ctlh);
 	if (!ctlh) {
@@ -373,7 +373,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		}
 		if (pptpReq->srep.resultCode == PPTP_START_OK)
 			info->sstate = PPTP_SESSION_CONFIRMED;
-		else 
+		else
 			info->sstate = PPTP_SESSION_ERROR;
 		break;
 
@@ -420,22 +420,22 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		pcid = &pptpReq->ocack.peersCallID;
 
 		info->pac_call_id = ntohs(*cid);
-		
+
 		if (htons(info->pns_call_id) != *pcid) {
 			DEBUGP("%s for unknown callid %u\n",
 				pptp_msg_name[msg], ntohs(*pcid));
 			break;
 		}
 
-		DEBUGP("%s, CID=%X, PCID=%X\n", pptp_msg_name[msg], 
+		DEBUGP("%s, CID=%X, PCID=%X\n", pptp_msg_name[msg],
 			ntohs(*cid), ntohs(*pcid));
-		
+
 		info->cstate = PPTP_CALL_OUT_CONF;
 
 		seq = ntohl(tcph->seq) + sizeof(struct pptp_pkt_hdr)
 				       + sizeof(struct PptpControlHeader)
 				       + ((void *)pcid - (void *)pptpReq);
-			
+
 		if (exp_gre(ct, seq, *cid, *pcid) != 0)
 			printk("ip_conntrack_pptp: error during exp_gre\n");
 		break;
@@ -479,7 +479,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		cid = &info->pac_call_id;
 
 		if (info->pns_call_id != ntohs(*pcid)) {
-			DEBUGP("%s for unknown CallID %u\n", 
+			DEBUGP("%s for unknown CallID %u\n",
 				pptp_msg_name[msg], ntohs(*pcid));
 			break;
 		}
@@ -491,7 +491,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		seq = ntohl(tcph->seq) + sizeof(struct pptp_pkt_hdr)
 				       + sizeof(struct PptpControlHeader)
 				       + ((void *)pcid - (void *)pptpReq);
-			
+
 		if (exp_gre(ct, seq, *cid, *pcid) != 0)
 			printk("ip_conntrack_pptp: error during exp_gre\n");
 
@@ -554,7 +554,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		return NF_ACCEPT;
 	nexthdr_off += sizeof(_ctlh);
 	datalen -= sizeof(_ctlh);
-	
+
 	reqlen = datalen;
 	if (reqlen > sizeof(*pptpReq))
 		reqlen = sizeof(*pptpReq);
@@ -606,7 +606,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		/* client answers incoming call */
 		if (info->cstate != PPTP_CALL_IN_REQ
 		    && info->cstate != PPTP_CALL_IN_REP) {
-			DEBUGP("%s without incall_req\n", 
+			DEBUGP("%s without incall_req\n",
 				pptp_msg_name[msg]);
 			break;
 		}
@@ -616,7 +616,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		}
 		pcid = &pptpReq->icack.peersCallID;
 		if (info->pac_call_id != ntohs(*pcid)) {
-			DEBUGP("%s for unknown call %u\n", 
+			DEBUGP("%s for unknown call %u\n",
 				pptp_msg_name[msg], ntohs(*pcid));
 			break;
 		}
@@ -644,12 +644,12 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 		/* I don't have to explain these ;) */
 		break;
 	default:
-		DEBUGP("invalid %s (TY=%d)\n", (msg <= PPTP_MSG_MAX)? 
+		DEBUGP("invalid %s (TY=%d)\n", (msg <= PPTP_MSG_MAX)?
 			pptp_msg_name[msg]:pptp_msg_name[0], msg);
 		/* unknown: no need to create GRE masq table entry */
 		break;
 	}
-	
+
 	if (ip_nat_pptp_hook_outbound)
 		return ip_nat_pptp_hook_outbound(pskb, ct, ctinfo, ctlh,
 						 pptpReq);
@@ -659,7 +659,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 
 
 /* track caller id inside control connection, call expect_related */
-static int 
+static int
 conntrack_pptp_help(struct sk_buff **pskb,
 		    struct ip_conntrack *ct, enum ip_conntrack_info ctinfo)
 
@@ -676,12 +676,12 @@ conntrack_pptp_help(struct sk_buff **pskb,
 	int ret;
 
 	/* don't do any tracking before tcp handshake complete */
-	if (ctinfo != IP_CT_ESTABLISHED 
+	if (ctinfo != IP_CT_ESTABLISHED
 	    && ctinfo != IP_CT_ESTABLISHED+IP_CT_IS_REPLY) {
 		DEBUGP("ctinfo = %u, skipping\n", ctinfo);
 		return NF_ACCEPT;
 	}
-	
+
 	nexthdr_off = (*pskb)->nh.iph->ihl*4;
 	tcph = skb_header_pointer(*pskb, nexthdr_off, sizeof(_tcph), &_tcph);
 	BUG_ON(!tcph);
@@ -735,28 +735,28 @@ conntrack_pptp_help(struct sk_buff **pskb,
 }
 
 /* control protocol helper */
-static struct ip_conntrack_helper pptp = { 
+static struct ip_conntrack_helper pptp = {
 	.list = { NULL, NULL },
-	.name = "pptp", 
+	.name = "pptp",
 	.me = THIS_MODULE,
 	.max_expected = 2,
 	.timeout = 5 * 60,
-	.tuple = { .src = { .ip = 0, 
-		 	    .u = { .tcp = { .port =  
-				    __constant_htons(PPTP_CONTROL_PORT) } } 
-			  }, 
-		   .dst = { .ip = 0, 
+	.tuple = { .src = { .ip = 0,
+		 	    .u = { .tcp = { .port =
+				    __constant_htons(PPTP_CONTROL_PORT) } }
+			  },
+		   .dst = { .ip = 0,
 			    .u = { .all = 0 },
 			    .protonum = IPPROTO_TCP
-			  } 
+			  }
 		 },
-	.mask = { .src = { .ip = 0, 
-			   .u = { .tcp = { .port = __constant_htons(0xffff) } } 
-			 }, 
-		  .dst = { .ip = 0, 
+	.mask = { .src = { .ip = 0,
+			   .u = { .tcp = { .port = __constant_htons(0xffff) } }
+			 },
+		  .dst = { .ip = 0,
 			   .u = { .all = 0 },
-			   .protonum = 0xff 
-		 	 } 
+			   .protonum = 0xff
+		 	 }
 		},
 	.help = conntrack_pptp_help
 };
@@ -768,7 +768,7 @@ extern int __init ip_ct_proto_gre_init(void);
 static int __init ip_conntrack_helper_pptp_init(void)
 {
 	int retcode;
- 
+
 	retcode = ip_ct_proto_gre_init();
 	if (retcode < 0)
 		return retcode;

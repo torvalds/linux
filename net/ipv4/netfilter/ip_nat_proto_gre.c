@@ -6,10 +6,10 @@
  * GRE is a generic encapsulation protocol, which is generally not very
  * suited for NAT, as it has no protocol-specific part as port numbers.
  *
- * It has an optional key field, which may help us distinguishing two 
+ * It has an optional key field, which may help us distinguishing two
  * connections between the same two hosts.
  *
- * GRE is defined in RFC 1701 and RFC 1702, as well as RFC 2784 
+ * GRE is defined in RFC 1701 and RFC 1702, as well as RFC 2784
  *
  * PPTP is built on top of a modified version of GRE, and has a mandatory
  * field called "CallID", which serves us for the same purpose as the key
@@ -60,7 +60,7 @@ gre_in_range(const struct ip_conntrack_tuple *tuple,
 }
 
 /* generate unique tuple ... */
-static int 
+static int
 gre_unique_tuple(struct ip_conntrack_tuple *tuple,
 		 const struct ip_nat_range *range,
 		 enum ip_nat_manip_type maniptype,
@@ -84,7 +84,7 @@ gre_unique_tuple(struct ip_conntrack_tuple *tuple,
 		range_size = ntohs(range->max.gre.key) - min + 1;
 	}
 
-	DEBUGP("min = %u, range_size = %u\n", min, range_size); 
+	DEBUGP("min = %u, range_size = %u\n", min, range_size);
 
 	for (i = 0; i < range_size; i++, key++) {
 		*keyptr = htons(min + key % range_size);
@@ -117,7 +117,7 @@ gre_manip_pkt(struct sk_buff **pskb,
 	greh = (void *)(*pskb)->data + hdroff;
 	pgreh = (struct gre_hdr_pptp *) greh;
 
-	/* we only have destination manip of a packet, since 'source key' 
+	/* we only have destination manip of a packet, since 'source key'
 	 * is not present in the packet itself */
 	if (maniptype == IP_NAT_MANIP_DST) {
 		/* key manipulation is always dest */
@@ -129,7 +129,7 @@ gre_manip_pkt(struct sk_buff **pskb,
 			}
 			if (greh->csum) {
 				/* FIXME: Never tested this code... */
-				*(gre_csum(greh)) = 
+				*(gre_csum(greh)) =
 					nf_proto_csum_update(*pskb,
 							~*(gre_key(greh)),
 							tuple->dst.u.gre.key,
@@ -138,7 +138,7 @@ gre_manip_pkt(struct sk_buff **pskb,
 			*(gre_key(greh)) = tuple->dst.u.gre.key;
 			break;
 		case GRE_VERSION_PPTP:
-			DEBUGP("call_id -> 0x%04x\n", 
+			DEBUGP("call_id -> 0x%04x\n",
 				ntohs(tuple->dst.u.gre.key));
 			pgreh->call_id = tuple->dst.u.gre.key;
 			break;
@@ -152,8 +152,8 @@ gre_manip_pkt(struct sk_buff **pskb,
 }
 
 /* nat helper struct */
-static struct ip_nat_protocol gre = { 
-	.name		= "GRE", 
+static struct ip_nat_protocol gre = {
+	.name		= "GRE",
 	.protonum	= IPPROTO_GRE,
 	.manip_pkt	= gre_manip_pkt,
 	.in_range	= gre_in_range,
@@ -164,7 +164,7 @@ static struct ip_nat_protocol gre = {
 	.nfattr_to_range	= ip_nat_port_nfattr_to_range,
 #endif
 };
-				  
+
 int __init ip_nat_proto_gre_init(void)
 {
 	return ip_nat_protocol_register(&gre);
