@@ -453,7 +453,7 @@ static int __init xpram_init(void)
 		PRINT_WARN("No expanded memory available\n");
 		return -ENODEV;
 	}
-	xpram_pages = xpram_highest_page_index();
+	xpram_pages = xpram_highest_page_index() + 1;
 	PRINT_INFO("  %u pages expanded memory found (%lu KB).\n",
 		   xpram_pages, (unsigned long) xpram_pages*4);
 	rc = xpram_setup_sizes(xpram_pages);
