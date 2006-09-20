@@ -407,21 +407,42 @@ static struct pxaficp_platform_data spitz_ficp_platform_data = {
 /*
  * Spitz PXA Framebuffer
  */
-static struct pxafb_mach_info spitz_pxafb_info __initdata = {
-        .pixclock       = 19231,
-        .xres           = 480,
-        .yres           = 640,
-        .bpp            = 16,
-        .hsync_len      = 40,
-        .left_margin    = 46,
-        .right_margin   = 125,
-        .vsync_len      = 3,
-        .upper_margin   = 1,
-        .lower_margin   = 0,
-        .sync           = 0,
-        .lccr0          = LCCR0_Color | LCCR0_Sngl | LCCR0_Act | LCCR0_LDDALT | LCCR0_OUC | LCCR0_CMDIM | LCCR0_RDSTM,
-        .lccr3          = LCCR3_PixRsEdg | LCCR3_OutEnH,
-        .pxafb_lcd_power = spitz_lcd_power,
+
+static struct pxafb_mode_info spitz_pxafb_modes[] = {
+{
+	.pixclock       = 19231,
+	.xres           = 480,
+	.yres           = 640,
+	.bpp            = 16,
+	.hsync_len      = 40,
+	.left_margin    = 46,
+	.right_margin   = 125,
+	.vsync_len      = 3,
+	.upper_margin   = 1,
+	.lower_margin   = 0,
+	.sync           = 0,
+},{
+	.pixclock       = 134617,
+	.xres           = 240,
+	.yres           = 320,
+	.bpp            = 16,
+	.hsync_len      = 20,
+	.left_margin    = 20,
+	.right_margin   = 46,
+	.vsync_len      = 2,
+	.upper_margin   = 1,
+	.lower_margin   = 0,
+	.sync           = 0,
+},
+};
+
+static struct pxafb_mach_info spitz_pxafb_info = {
+	.modes          = &spitz_pxafb_modes[0],
+	.num_modes      = 2,
+	.fixed_modes    = 1,
+	.lccr0          = LCCR0_Color | LCCR0_Sngl | LCCR0_Act | LCCR0_LDDALT | LCCR0_OUC | LCCR0_CMDIM | LCCR0_RDSTM,
+	.lccr3          = LCCR3_PixRsEdg | LCCR3_OutEnH,
+	.pxafb_lcd_power = spitz_lcd_power,
 };
 
 
