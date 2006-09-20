@@ -553,15 +553,6 @@ conntrack_pptp_help(struct sk_buff **pskb,
 	nexthdr_off += tcph->doff * 4;
  	datalen = tcplen - tcph->doff * 4;
 
-	if (tcph->fin || tcph->rst) {
-		DEBUGP("RST/FIN received, timeouting GRE\n");
-		/* can't do this after real newnat */
-		info->cstate = PPTP_CALL_NONE;
-
-		/* untrack this call id, unexpect GRE packets */
-		pptp_destroy_siblings(ct);
-	}
-
 	pptph = skb_header_pointer(*pskb, nexthdr_off, sizeof(_pptph), &_pptph);
 	if (!pptph) {
 		DEBUGP("no full PPTP header, can't track\n");
@@ -640,7 +631,8 @@ static struct ip_conntrack_helper pptp = {
 			   .protonum = 0xff
 		 	 }
 		},
-	.help = conntrack_pptp_help
+	.help = conntrack_pptp_help,
+	.destroy = pptp_destroy_siblings,
 };
 
 extern void ip_ct_proto_gre_fini(void);

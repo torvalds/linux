@@ -307,6 +307,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 {
 	struct ip_conntrack *ct = (struct ip_conntrack *)nfct;
 	struct ip_conntrack_protocol *proto;
+	struct ip_conntrack_helper *helper;
 
 	DEBUGP("destroy_conntrack(%p)\n", ct);
 	IP_NF_ASSERT(atomic_read(&nfct->use) == 0);
@@ -314,6 +315,10 @@ destroy_conntrack(struct nf_conntrack *nfct)
 
 	ip_conntrack_event(IPCT_DESTROY, ct);
 	set_bit(IPS_DYING_BIT, &ct->status);
+
+	helper = ct->helper;
+	if (helper && helper->destroy)
+		helper->destroy(ct);
 
 	/* To make sure we don't get any weird locking issues here:
 	 * destroy_conntrack() MUST NOT be called with a write lock
