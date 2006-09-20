@@ -56,15 +56,15 @@ struct ipq_queue_entry {
 
 typedef int (*ipq_cmpfn)(struct ipq_queue_entry *, unsigned long);
 
-static unsigned char copy_mode = IPQ_COPY_NONE;
+static unsigned char copy_mode __read_mostly = IPQ_COPY_NONE;
 static unsigned int queue_maxlen __read_mostly = IPQ_QMAX_DEFAULT;
 static DEFINE_RWLOCK(queue_lock);
-static int peer_pid;
-static unsigned int copy_range;
+static int peer_pid __read_mostly;
+static unsigned int copy_range __read_mostly;
 static unsigned int queue_total;
 static unsigned int queue_dropped = 0;
 static unsigned int queue_user_dropped = 0;
-static struct sock *ipqnl;
+static struct sock *ipqnl __read_mostly;
 static LIST_HEAD(queue_list);
 static DEFINE_MUTEX(ipqnl_mutex);
 

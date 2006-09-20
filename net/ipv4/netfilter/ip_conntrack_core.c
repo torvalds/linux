@@ -63,17 +63,17 @@ atomic_t ip_conntrack_count = ATOMIC_INIT(0);
 
 void (*ip_conntrack_destroyed)(struct ip_conntrack *conntrack) = NULL;
 LIST_HEAD(ip_conntrack_expect_list);
-struct ip_conntrack_protocol *ip_ct_protos[MAX_IP_CT_PROTO];
+struct ip_conntrack_protocol *ip_ct_protos[MAX_IP_CT_PROTO] __read_mostly;
 static LIST_HEAD(helpers);
 unsigned int ip_conntrack_htable_size __read_mostly = 0;
 int ip_conntrack_max __read_mostly;
-struct list_head *ip_conntrack_hash;
+struct list_head *ip_conntrack_hash __read_mostly;
 static kmem_cache_t *ip_conntrack_cachep __read_mostly;
 static kmem_cache_t *ip_conntrack_expect_cachep __read_mostly;
 struct ip_conntrack ip_conntrack_untracked;
 unsigned int ip_ct_log_invalid __read_mostly;
 static LIST_HEAD(unconfirmed);
-static int ip_conntrack_vmalloc;
+static int ip_conntrack_vmalloc __read_mostly;
 
 static unsigned int ip_conntrack_next_id;
 static unsigned int ip_conntrack_expect_next_id;
