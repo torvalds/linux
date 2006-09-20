@@ -217,13 +217,4 @@ endmenu
 
 menu "Cryptographic devices"
 
-config Z90CRYPT
-	tristate "Support for PCI-attached cryptographic adapters"
-        default "m"
-        help
-	  Select this option if you want to use a PCI-attached cryptographic
-	  adapter like the PCI Cryptographic Accelerator (PCICA) or the PCI
-	  Cryptographic Coprocessor (PCICC).  This option is also available
-	  as a module called z90crypt.ko.
-
 endmenu
