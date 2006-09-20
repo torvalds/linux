@@ -272,7 +272,7 @@ iplstart:
 # load parameter file from ipl device
 #
 .Lagain1:
- 	l     %r2,INITRD_START+ARCH_OFFSET-PARMAREA(%r12) # ramdisk loc. is temp
+	l     %r2,.Linitrd		       # ramdisk loc. is temp
         bas   %r14,.Lloader                    # load parameter file
         ltr   %r2,%r2                          # got anything ?
         bz    .Lnopf
@@ -280,7 +280,7 @@ iplstart:
 	bnh   .Lnotrunc
 	la    %r2,895
 .Lnotrunc:
-	l     %r4,INITRD_START+ARCH_OFFSET-PARMAREA(%r12)
+	l     %r4,.Linitrd
 	clc   0(3,%r4),.L_hdr		       # if it is HDRx
 	bz    .Lagain1			       # skip dataset header
 	clc   0(3,%r4),.L_eof		       # if it is EOFx
@@ -323,14 +323,15 @@ iplstart:
 # load ramdisk from ipl device
 #	
 .Lagain2:
- 	l     %r2,INITRD_START+ARCH_OFFSET-PARMAREA(%r12) # addr of ramdisk
+	l     %r2,.Linitrd		       # addr of ramdisk
+	st    %r2,INITRD_START+ARCH_OFFSET-PARMAREA(%r12)
         bas   %r14,.Lloader                    # load ramdisk
  	st    %r2,INITRD_SIZE+ARCH_OFFSET-PARMAREA(%r12) # store size of ramdisk
         ltr   %r2,%r2
         bnz   .Lrdcont
         st    %r2,INITRD_START+ARCH_OFFSET-PARMAREA(%r12) # no ramdisk found
 .Lrdcont:
-	l     %r2,INITRD_START+ARCH_OFFSET-PARMAREA(%r12)
+	l     %r2,.Linitrd
 
 	clc   0(3,%r2),.L_hdr		       # skip HDRx and EOFx 
 	bz    .Lagain2
@@ -379,6 +380,7 @@ iplstart:
         l     %r1,.Lstartup
         br    %r1
 
+.Linitrd:.long _end + 0x400000		       # default address of initrd
 .Lparm:	.long  PARMAREA
 .Lstartup: .long startup
 .Lcvtab:.long  _ebcasc                         # ebcdic to ascii table

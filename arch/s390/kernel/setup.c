@@ -37,6 +37,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/device.h>
 #include <linux/notifier.h>
+#include <linux/pfn.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -501,12 +502,46 @@ setup_memory(void)
 	 * partially used pages are not usable - thus
 	 * we are rounding upwards:
 	 */
-	start_pfn = (__pa(&_end) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	end_pfn = max_pfn = memory_end >> PAGE_SHIFT;
+	start_pfn = PFN_UP(__pa(&_end));
+	end_pfn = max_pfn = PFN_DOWN(memory_end);
 
 	/* Initialize storage key for kernel pages */
 	for (init_pfn = 0 ; init_pfn < start_pfn; init_pfn++)
 		page_set_storage_key(init_pfn << PAGE_SHIFT, PAGE_DEFAULT_KEY);
+
+#ifdef CONFIG_BLK_DEV_INITRD
+	/*
+	 * Move the initrd in case the bitmap of the bootmem allocater
+	 * would overwrite it.
+	 */
+
+	if (INITRD_START && INITRD_SIZE) {
+		unsigned long bmap_size;
+		unsigned long start;
+
+		bmap_size = bootmem_bootmap_pages(end_pfn - start_pfn + 1);
+		bmap_size = PFN_PHYS(bmap_size);
+
+		if (PFN_PHYS(start_pfn) + bmap_size > INITRD_START) {
+			start = PFN_PHYS(start_pfn) + bmap_size + PAGE_SIZE;
+
+			if (start + INITRD_SIZE > memory_end) {
+				printk("initrd extends beyond end of memory "
+				       "(0x%08lx > 0x%08lx)\n"
+				       "disabling initrd\n",
+				       start + INITRD_SIZE, memory_end);
+				INITRD_START = INITRD_SIZE = 0;
+			} else {
+				printk("Moving initrd (0x%08lx -> 0x%08lx, "
+				       "size: %ld)\n",
+				       INITRD_START, start, INITRD_SIZE);
+				memmove((void *) start, (void *) INITRD_START,
+					INITRD_SIZE);
+				INITRD_START = start;
+			}
+		}
+	}
+#endif
 
 	/*
 	 * Initialize the boot-time allocator (with low memory only):
@@ -559,7 +594,7 @@ setup_memory(void)
 	reserve_bootmem(start_pfn << PAGE_SHIFT, bootmap_size);
 
 #ifdef CONFIG_BLK_DEV_INITRD
-	if (INITRD_START) {
+	if (INITRD_START && INITRD_SIZE) {
 		if (INITRD_START + INITRD_SIZE <= memory_end) {
 			reserve_bootmem(INITRD_START, INITRD_SIZE);
 			initrd_start = INITRD_START;

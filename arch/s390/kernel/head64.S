@@ -26,8 +26,8 @@ startup:basr  %r13,0			 # get base
 #
 	.org   PARMAREA
 	.quad  0			# IPL_DEVICE
-	.quad  RAMDISK_ORIGIN		# INITRD_START
-	.quad  RAMDISK_SIZE		# INITRD_SIZE
+	.quad  0			# INITRD_START
+	.quad  0			# INITRD_SIZE
 
 	.org   COMMAND_LINE
 	.byte  "root=/dev/ram0 ro"
