@@ -61,13 +61,13 @@ static long long snd_gf1_mem_proc_llseek(struct snd_info_entry *entry,
 	struct gus_proc_private *priv = entry->private_data;
 
 	switch (orig) {
-	case 0:	/* SEEK_SET */
+	case SEEK_SET:
 		file->f_pos = offset;
 		break;
-	case 1:	/* SEEK_CUR */
+	case SEEK_CUR:
 		file->f_pos += offset;
 		break;
-	case 2: /* SEEK_END, offset is negative */
+	case SEEK_END: /* offset is negative */
 		file->f_pos = priv->size + offset;
 		break;
 	default:
