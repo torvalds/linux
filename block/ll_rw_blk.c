@@ -1171,11 +1171,16 @@ int blk_queue_start_tag(request_queue_t *q, struct request *rq)
 		BUG();
 	}
 
-	tag = find_first_zero_bit(bqt->tag_map, bqt->max_depth);
-	if (tag >= bqt->max_depth)
-		return 1;
+	/*
+	 * Protect against shared tag maps, as we may not have exclusive
+	 * access to the tag map.
+	 */
+	do {
+		tag = find_first_zero_bit(bqt->tag_map, bqt->max_depth);
+		if (tag >= bqt->max_depth)
+			return 1;
 
-	__set_bit(tag, bqt->tag_map);
+	} while (test_and_set_bit(tag, bqt->tag_map));
 
 	rq->cmd_flags |= REQ_QUEUED;
 	rq->tag = tag;
