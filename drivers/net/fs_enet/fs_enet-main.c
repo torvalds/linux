@@ -971,7 +971,7 @@ static struct net_device *fs_init_instance(struct device *dev,
 	dev_set_drvdata(dev, ndev);
 	fep->fpi = fpi;
 	if (fpi->init_ioports)
-		fpi->init_ioports();
+		fpi->init_ioports((struct fs_platform_info *)fpi);
 
 #ifdef CONFIG_FS_ENET_HAS_FEC
 	if (fs_get_fec_index(fpi->fs_no) >= 0)

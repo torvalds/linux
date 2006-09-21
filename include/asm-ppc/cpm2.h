@@ -1196,5 +1196,58 @@ typedef struct im_idma {
 #define FCC2_MEM_OFFSET FCC_MEM_OFFSET(1)
 #define FCC3_MEM_OFFSET FCC_MEM_OFFSET(2)
 
+/* Clocks and GRG's */
+
+enum cpm_clk_dir {
+	CPM_CLK_RX,
+	CPM_CLK_TX,
+	CPM_CLK_RTX
+};
+
+enum cpm_clk_target {
+	CPM_CLK_SCC1,
+	CPM_CLK_SCC2,
+	CPM_CLK_SCC3,
+	CPM_CLK_SCC4,
+	CPM_CLK_FCC1,
+	CPM_CLK_FCC2,
+	CPM_CLK_FCC3
+};
+
+enum cpm_clk {
+	CPM_CLK_NONE = 0,
+	CPM_BRG1,	/* Baud Rate Generator  1 */
+	CPM_BRG2,	/* Baud Rate Generator  2 */
+	CPM_BRG3,	/* Baud Rate Generator  3 */
+	CPM_BRG4,	/* Baud Rate Generator  4 */
+	CPM_BRG5,	/* Baud Rate Generator  5 */
+	CPM_BRG6,	/* Baud Rate Generator  6 */
+	CPM_BRG7,	/* Baud Rate Generator  7 */
+	CPM_BRG8,	/* Baud Rate Generator  8 */
+	CPM_CLK1,	/* Clock  1 */
+	CPM_CLK2,	/* Clock  2 */
+	CPM_CLK3,	/* Clock  3 */
+	CPM_CLK4,	/* Clock  4 */
+	CPM_CLK5,	/* Clock  5 */
+	CPM_CLK6,	/* Clock  6 */
+	CPM_CLK7,	/* Clock  7 */
+	CPM_CLK8,	/* Clock  8 */
+	CPM_CLK9,	/* Clock  9 */
+	CPM_CLK10,	/* Clock 10 */
+	CPM_CLK11,	/* Clock 11 */
+	CPM_CLK12,	/* Clock 12 */
+	CPM_CLK13,	/* Clock 13 */
+	CPM_CLK14,	/* Clock 14 */
+	CPM_CLK15,	/* Clock 15 */
+	CPM_CLK16,	/* Clock 16 */
+	CPM_CLK17,	/* Clock 17 */
+	CPM_CLK18,	/* Clock 18 */
+	CPM_CLK19,	/* Clock 19 */
+	CPM_CLK20,	/* Clock 20 */
+	CPM_CLK_DUMMY
+};
+
+extern int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode);
+
 #endif /* __CPM2__ */
 #endif /* __KERNEL__ */

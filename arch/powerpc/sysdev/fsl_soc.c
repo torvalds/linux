@@ -36,6 +36,7 @@
 #include <mm/mmu_decl.h>
 #include <asm/cpm2.h>
 
+extern void init_fcc_ioports(struct fs_platform_info*);
 static phys_addr_t immrbase = -1;
 
 phys_addr_t get_immrbase(void)
@@ -630,6 +631,9 @@ static int __init fs_enet_of_init(void)
                         goto unreg;
                 }
 
+		fs_enet_data.clk_rx = *((u32 *) get_property(np, "rx-clock", NULL));
+		fs_enet_data.clk_tx = *((u32 *) get_property(np, "tx-clock", NULL));
+
 		if (strstr(model, "FCC")) {
 			int fcc_index = fs_get_fcc_index(*id);
 
@@ -646,6 +650,7 @@ static int __init fs_enet_of_init(void)
 			snprintf((char*)&bus_id[(*id)], BUS_ID_SIZE, "%x:%02x",
 							(u32)res.start, fs_enet_data.phy_addr);
 			fs_enet_data.bus_id = (char*)&bus_id[(*id)];
+			fs_enet_data.init_ioports = init_fcc_ioports;
 		}
 
 		of_node_put(phy);
@@ -717,6 +722,8 @@ static int __init cpm_uart_of_init(void)
 		cpm_uart_data.tx_buf_size = 32;
 		cpm_uart_data.rx_num_fifo = 4;
 		cpm_uart_data.rx_buf_size = 32;
+		cpm_uart_data.clk_rx = *((u32 *) get_property(np, "rx-clock", NULL));
+		cpm_uart_data.clk_tx = *((u32 *) get_property(np, "tx-clock", NULL));
 
 		ret =
 		    platform_device_add_data(cpm_uart_dev, &cpm_uart_data,

@@ -87,18 +87,20 @@ struct fs_mii_bb_platform_info {
 };
 
 struct fs_platform_info {
-	
-	void(*init_ioports)(void);
+
+	void(*init_ioports)(struct fs_platform_info *);
 	/* device specific information */
 	int fs_no;		/* controller index            */
 
 	u32 cp_page;		/* CPM page */
 	u32 cp_block;		/* CPM sblock */
-	
+
 	u32 clk_trx;		/* some stuff for pins & mux configuration*/
+	u32 clk_rx;
+	u32 clk_tx;
 	u32 clk_route;
 	u32 clk_mask;
-	
+
 	u32 mem_offset;
 	u32 dpram_offset;
 	u32 fcc_regs_c;

@@ -1180,7 +1180,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 		pdata = pdev->dev.platform_data;
 		if (pdata)
 			if (pdata->init_ioports)
-    	                	pdata->init_ioports();
+    	                	pdata->init_ioports(pdata);
 
 		cpm_uart_drv_get_platform_data(pdev, 1);
 	}
@@ -1269,7 +1269,7 @@ static int cpm_uart_drv_probe(struct device *dev)
 		return ret;
 
 	if (pdata->init_ioports)
-                pdata->init_ioports();
+                pdata->init_ioports(pdata);
 
 	ret = uart_add_one_port(&cpm_reg, &cpm_uart_ports[pdata->fs_no].port);
 

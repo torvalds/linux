@@ -33,6 +33,7 @@
 #include "mpc85xx.h"
 
 #ifdef CONFIG_CPM2
+#include <linux/fs_enet_pd.h>
 #include <asm/cpm2.h>
 #include <sysdev/cpm2_pic.h>
 #include <asm/fs_pd.h>
@@ -146,70 +147,81 @@ void __init mpc85xx_ads_pic_init(void)
  * Setup the architecture
  */
 #ifdef CONFIG_CPM2
-static void init_fcc_ioports(void)
+void init_fcc_ioports(struct fs_platform_info *fpi)
 {
-	struct immap *immap;
-	struct io_port *io;
+	struct io_port *io = cpm2_map(im_ioport);
+	int fcc_no = fs_get_fcc_index(fpi->fs_no);
+	int target;
 	u32 tempval;
 
-	immap = cpm2_immr;
+	switch(fcc_no) {
+	case 1:
+		tempval = in_be32(&io->iop_pdirb);
+		tempval &= ~PB2_DIRB0;
+		tempval |= PB2_DIRB1;
+		out_be32(&io->iop_pdirb, tempval);
 
-	io = &immap->im_ioport;
-	/* FCC2/3 are on the ports B/C. */
-	tempval = in_be32(&io->iop_pdirb);
-	tempval &= ~PB2_DIRB0;
-	tempval |= PB2_DIRB1;
-	out_be32(&io->iop_pdirb, tempval);
+		tempval = in_be32(&io->iop_psorb);
+		tempval &= ~PB2_PSORB0;
+		tempval |= PB2_PSORB1;
+		out_be32(&io->iop_psorb, tempval);
 
-	tempval = in_be32(&io->iop_psorb);
-	tempval &= ~PB2_PSORB0;
-	tempval |= PB2_PSORB1;
-	out_be32(&io->iop_psorb, tempval);
+		tempval = in_be32(&io->iop_pparb);
+		tempval |= (PB2_DIRB0 | PB2_DIRB1);
+		out_be32(&io->iop_pparb, tempval);
 
-	tempval = in_be32(&io->iop_pparb);
-	tempval |= (PB2_DIRB0 | PB2_DIRB1);
-	out_be32(&io->iop_pparb, tempval);
+		target = CPM_CLK_FCC2;
+		break;
+	case 2:
+		tempval = in_be32(&io->iop_pdirb);
+		tempval &= ~PB3_DIRB0;
+		tempval |= PB3_DIRB1;
+		out_be32(&io->iop_pdirb, tempval);
 
-	tempval = in_be32(&io->iop_pdirb);
-	tempval &= ~PB3_DIRB0;
-	tempval |= PB3_DIRB1;
-	out_be32(&io->iop_pdirb, tempval);
+		tempval = in_be32(&io->iop_psorb);
+		tempval &= ~PB3_PSORB0;
+		tempval |= PB3_PSORB1;
+		out_be32(&io->iop_psorb, tempval);
 
-	tempval = in_be32(&io->iop_psorb);
-	tempval &= ~PB3_PSORB0;
-	tempval |= PB3_PSORB1;
-	out_be32(&io->iop_psorb, tempval);
+		tempval = in_be32(&io->iop_pparb);
+		tempval |= (PB3_DIRB0 | PB3_DIRB1);
+		out_be32(&io->iop_pparb, tempval);
 
-	tempval = in_be32(&io->iop_pparb);
-	tempval |= (PB3_DIRB0 | PB3_DIRB1);
-	out_be32(&io->iop_pparb, tempval);
+		tempval = in_be32(&io->iop_pdirc);
+		tempval |= PC3_DIRC1;
+		out_be32(&io->iop_pdirc, tempval);
 
-	tempval = in_be32(&io->iop_pdirc);
-	tempval |= PC3_DIRC1;
-	out_be32(&io->iop_pdirc, tempval);
+		tempval = in_be32(&io->iop_pparc);
+		tempval |= PC3_DIRC1;
+		out_be32(&io->iop_pparc, tempval);
 
-	tempval = in_be32(&io->iop_pparc);
-	tempval |= PC3_DIRC1;
-	out_be32(&io->iop_pparc, tempval);
+		target = CPM_CLK_FCC3;
+		break;
+	default:
+		printk(KERN_ERR "init_fcc_ioports: invalid FCC number\n");
+		return;
+	}
 
 	/* Port C has clocks......  */
 	tempval = in_be32(&io->iop_psorc);
-	tempval &= ~(CLK_TRX);
+	tempval &= ~(PC_CLK(fpi->clk_rx - 8) | PC_CLK(fpi->clk_tx - 8));
 	out_be32(&io->iop_psorc, tempval);
 
 	tempval = in_be32(&io->iop_pdirc);
-	tempval &= ~(CLK_TRX);
+	tempval &= ~(PC_CLK(fpi->clk_rx - 8) | PC_CLK(fpi->clk_tx - 8));
 	out_be32(&io->iop_pdirc, tempval);
 	tempval = in_be32(&io->iop_pparc);
-	tempval |= (CLK_TRX);
+	tempval |= (PC_CLK(fpi->clk_rx - 8) | PC_CLK(fpi->clk_tx - 8));
 	out_be32(&io->iop_pparc, tempval);
 
+	cpm2_unmap(io);
+
 	/* Configure Serial Interface clock routing.
-	 * First,  clear all FCC bits to zero,
+	 * First,  clear FCC bits to zero,
 	 * then set the ones we want.
 	 */
-	immap->im_cpmux.cmx_fcr &= ~(CPMUX_CLK_MASK);
-	immap->im_cpmux.cmx_fcr |= CPMUX_CLK_ROUTE;
+	cpm2_clk_setup(target, fpi->clk_rx, CPM_CLK_RX);
+	cpm2_clk_setup(target, fpi->clk_tx, CPM_CLK_TX);
 }
 #endif
 
@@ -237,7 +249,6 @@ static void __init mpc85xx_ads_setup_arch(void)
 
 #ifdef CONFIG_CPM2
 	cpm2_reset();
-	init_fcc_ioports();
 #endif
 
 #ifdef CONFIG_PCI

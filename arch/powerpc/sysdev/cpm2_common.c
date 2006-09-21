@@ -130,6 +130,96 @@ cpm2_fastbrg(uint brg, uint rate, int div16)
 	cpm2_unmap(bp);
 }
 
+int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
+{
+	int ret = 0;
+	int shift;
+	int i, bits = 0;
+	cpmux_t *im_cpmux;
+	u32 *reg;
+	u32 mask = 7;
+	u8 clk_map [24][3] = {
+		{CPM_CLK_FCC1, CPM_BRG5, 0},
+		{CPM_CLK_FCC1, CPM_BRG6, 1},
+		{CPM_CLK_FCC1, CPM_BRG7, 2},
+		{CPM_CLK_FCC1, CPM_BRG8, 3},
+		{CPM_CLK_FCC1, CPM_CLK9, 4},
+		{CPM_CLK_FCC1, CPM_CLK10, 5},
+		{CPM_CLK_FCC1, CPM_CLK11, 6},
+		{CPM_CLK_FCC1, CPM_CLK12, 7},
+		{CPM_CLK_FCC2, CPM_BRG5, 0},
+		{CPM_CLK_FCC2, CPM_BRG6, 1},
+		{CPM_CLK_FCC2, CPM_BRG7, 2},
+		{CPM_CLK_FCC2, CPM_BRG8, 3},
+		{CPM_CLK_FCC2, CPM_CLK13, 4},
+		{CPM_CLK_FCC2, CPM_CLK14, 5},
+		{CPM_CLK_FCC2, CPM_CLK15, 6},
+		{CPM_CLK_FCC2, CPM_CLK16, 7},
+		{CPM_CLK_FCC3, CPM_BRG5, 0},
+		{CPM_CLK_FCC3, CPM_BRG6, 1},
+		{CPM_CLK_FCC3, CPM_BRG7, 2},
+		{CPM_CLK_FCC3, CPM_BRG8, 3},
+		{CPM_CLK_FCC3, CPM_CLK13, 4},
+		{CPM_CLK_FCC3, CPM_CLK14, 5},
+		{CPM_CLK_FCC3, CPM_CLK15, 6},
+		{CPM_CLK_FCC3, CPM_CLK16, 7}
+		};
+
+	im_cpmux = cpm2_map(im_cpmux);
+
+	switch (target) {
+	case CPM_CLK_SCC1:
+		reg = &im_cpmux->cmx_scr;
+		shift = 24;
+	case CPM_CLK_SCC2:
+		reg = &im_cpmux->cmx_scr;
+		shift = 16;
+		break;
+	case CPM_CLK_SCC3:
+		reg = &im_cpmux->cmx_scr;
+		shift = 8;
+		break;
+	case CPM_CLK_SCC4:
+		reg = &im_cpmux->cmx_scr;
+		shift = 0;
+		break;
+	case CPM_CLK_FCC1:
+		reg = &im_cpmux->cmx_fcr;
+		shift = 24;
+		break;
+	case CPM_CLK_FCC2:
+		reg = &im_cpmux->cmx_fcr;
+		shift = 16;
+		break;
+	case CPM_CLK_FCC3:
+		reg = &im_cpmux->cmx_fcr;
+		shift = 8;
+		break;
+	default:
+		printk(KERN_ERR "cpm2_clock_setup: invalid clock target\n");
+		return -EINVAL;
+	}
+
+	if (mode == CPM_CLK_RX)
+		shift +=3;
+
+	for (i=0; i<24; i++) {
+		if (clk_map[i][0] == target && clk_map[i][1] == clock) {
+			bits = clk_map[i][2];
+			break;
+		}
+	}
+	if (i == sizeof(clk_map)/3)
+	    ret = -EINVAL;
+
+	bits <<= shift;
+	mask <<= shift;
+	out_be32(reg, (in_be32(reg) & ~mask) | bits);
+
+	cpm2_unmap(im_cpmux);
+	return ret;
+}
+
 /*
  * dpalloc / dpfree bits.
  */
