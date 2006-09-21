@@ -17,6 +17,10 @@ config ARM
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
 
+config GENERIC_TIME
+	bool
+	default n
+
 config MMU
 	bool
 	default y
