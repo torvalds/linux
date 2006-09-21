@@ -9,3 +9,4 @@ obj-			:=
 
 obj-$(CONFIG_ARCH_IQ80321) += iq80321.o
 obj-$(CONFIG_ARCH_IQ31244) += iq31244.o
+obj-$(CONFIG_MACH_N2100) += n2100.o

@@ -17,6 +17,12 @@ config ARCH_IQ31244
 	  evaluation kit for the Intel 80219 processor (a IOP321 variant)
 	  or the IQ31244 evaluation kit for the IOP321 processor.
 
+config MACH_N2100
+	bool "Enable support for the Thecus n2100"
+	help
+	  Say Y here if you want to run your kernel on the Thecus n2100
+	  NAS appliance.
+
 endmenu
 
 endif
