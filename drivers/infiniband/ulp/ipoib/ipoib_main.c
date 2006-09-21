@@ -40,7 +40,6 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
 #include <linux/kernel.h>
 
 #include <linux/if_arp.h>	/* For ARPHRD_xxx */
