@@ -1269,9 +1269,9 @@ static void radeon_cp_dispatch_swap(drm_device_t * dev)
 
 		DRM_DEBUG("dispatch swap %d,%d-%d,%d\n", x, y, w, h);
 
-		BEGIN_RING(7);
+		BEGIN_RING(9);
 
-		OUT_RING(CP_PACKET3(RADEON_CNTL_BITBLT_MULTI, 5));
+		OUT_RING(CP_PACKET0(RADEON_DP_GUI_MASTER_CNTL, 0));
 		OUT_RING(RADEON_GMC_SRC_PITCH_OFFSET_CNTL |
 			 RADEON_GMC_DST_PITCH_OFFSET_CNTL |
 			 RADEON_GMC_BRUSH_NONE |
@@ -1283,6 +1283,7 @@ static void radeon_cp_dispatch_swap(drm_device_t * dev)
 
 		/* Make this work even if front & back are flipped:
 		 */
+		OUT_RING(CP_PACKET0(RADEON_SRC_PITCH_OFFSET, 1));
 		if (dev_priv->current_page == 0) {
 			OUT_RING(dev_priv->back_pitch_offset);
 			OUT_RING(dev_priv->front_pitch_offset);
@@ -1291,6 +1292,7 @@ static void radeon_cp_dispatch_swap(drm_device_t * dev)
 			OUT_RING(dev_priv->back_pitch_offset);
 		}
 
+		OUT_RING(CP_PACKET0(RADEON_SRC_X_Y, 2));
 		OUT_RING((x << 16) | y);
 		OUT_RING((x << 16) | y);
 		OUT_RING((w << 16) | h);

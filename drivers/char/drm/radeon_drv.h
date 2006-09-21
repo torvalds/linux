@@ -425,6 +425,8 @@ extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
 #define RADEON_RB3D_COLOROFFSET		0x1c40
 #define RADEON_RB3D_COLORPITCH		0x1c48
 
+#define	RADEON_SRC_X_Y			0x1590
+
 #define RADEON_DP_GUI_MASTER_CNTL	0x146c
 #	define RADEON_GMC_SRC_PITCH_OFFSET_CNTL	(1 << 0)
 #	define RADEON_GMC_DST_PITCH_OFFSET_CNTL	(1 << 1)
@@ -442,6 +444,7 @@ extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
 #	define RADEON_ROP3_S			0x00cc0000
 #	define RADEON_ROP3_P			0x00f00000
 #define RADEON_DP_WRITE_MASK		0x16cc
+#define RADEON_SRC_PITCH_OFFSET		0x1428
 #define RADEON_DST_PITCH_OFFSET		0x142c
 #define RADEON_DST_PITCH_OFFSET_C	0x1c80
 #	define RADEON_DST_TILE_LINEAR		(0 << 30)
