@@ -36,7 +36,6 @@
 
 #define NUM_CONTROL_ALLOC	32
 #define STAC_HP_EVENT		0x37
-#define STAC_UNSOL_ENABLE 	(AC_USRSP_EN | STAC_HP_EVENT)
 
 #define STAC_REF		0
 #define STAC_D945GTP3		1
@@ -1164,23 +1163,28 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 	int i, j, k;
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		int index = -1;
-		if (cfg->input_pins[i]) {
-			imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
+		int index;
 
-			for (j=0; j<spec->num_muxes; j++) {
-				int num_cons = snd_hda_get_connections(codec, spec->mux_nids[j], con_lst, HDA_MAX_NUM_INPUTS);
-				for (k=0; k<num_cons; k++)
-					if (con_lst[k] == cfg->input_pins[i]) {
-						index = k;
-					 	break;
-					}
-				if (index >= 0)
-					break;
-			}
-			imux->items[imux->num_items].index = index;
-			imux->num_items++;
+		if (!cfg->input_pins[i])
+			continue;
+		index = -1;
+		for (j = 0; j < spec->num_muxes; j++) {
+			int num_cons;
+			num_cons = snd_hda_get_connections(codec,
+							   spec->mux_nids[j],
+							   con_lst,
+							   HDA_MAX_NUM_INPUTS);
+			for (k = 0; k < num_cons; k++)
+				if (con_lst[k] == cfg->input_pins[i]) {
+					index = k;
+					goto found;
+				}
 		}
+		continue;
+	found:
+		imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
+		imux->items[imux->num_items].index = index;
+		imux->num_items++;
 	}
 
 	if (imux->num_items == 1) {
@@ -1405,6 +1409,15 @@ static void stac922x_gpio_mute(struct hda_codec *codec, int pin, int muted)
 			    AC_VERB_SET_GPIO_DATA, gpiostate);
 }
 
+static void enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
+			      unsigned int event)
+{
+	if (get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP)
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_UNSOLICITED_ENABLE,
+				    (AC_USRSP_EN | event));
+}
+
 static int stac92xx_init(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -1417,13 +1430,13 @@ static int stac92xx_init(struct hda_codec *codec)
 	if (spec->hp_detect) {
 		/* Enable unsolicited responses on the HP widget */
 		for (i = 0; i < cfg->hp_outs; i++)
-			if (get_wcaps(codec, cfg->hp_pins[i]) & AC_WCAP_UNSOL_CAP)
-				snd_hda_codec_write(codec, cfg->hp_pins[i], 0,
-						    AC_VERB_SET_UNSOLICITED_ENABLE,
-						    STAC_UNSOL_ENABLE);
+			enable_pin_detect(codec, cfg->hp_pins[i],
+					  STAC_HP_EVENT);
 		/* fake event to set up pins */
 		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
-		/* enable the headphones by default.  If/when unsol_event detection works, this will be ignored */
+		/* enable the headphones by default.
+		 * If/when unsol_event detection works, this will be ignored
+		 */
 		stac92xx_auto_init_hp_out(codec);
 	} else {
 		stac92xx_auto_init_multi_out(codec);
@@ -1478,6 +1491,8 @@ static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
 {
 	unsigned int pin_ctl = snd_hda_codec_read(codec, nid,
 			0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0x00);
+	if (flag == AC_PINCTL_OUT_EN && (pin_ctl & AC_PINCTL_IN_EN))
+		return;
 	snd_hda_codec_write(codec, nid, 0,
 			AC_VERB_SET_PIN_WIDGET_CONTROL,
 			pin_ctl | flag);
@@ -1493,21 +1508,27 @@ static void stac92xx_reset_pinctl(struct hda_codec *codec, hda_nid_t nid,
 			pin_ctl & ~flag);
 }
 
-static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
+static int get_pin_presence(struct hda_codec *codec, hda_nid_t nid)
+{
+	if (!nid)
+		return 0;
+	if (snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_PIN_SENSE, 0x00)
+	    & (1 << 31))
+		return 1;
+	return 0;
+}
+
+static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i, presence;
 
-	if ((res >> 26) != STAC_HP_EVENT)
-		return;
-
 	presence = 0;
 	for (i = 0; i < cfg->hp_outs; i++) {
-		int p = snd_hda_codec_read(codec, cfg->hp_pins[i], 0,
-					   AC_VERB_GET_PIN_SENSE, 0x00);
-		if (p & (1 << 31))
-			presence++;
+		presence = get_pin_presence(codec, cfg->hp_pins[i]);
+		if (presence)
+			break;
 	}
 
 	if (presence) {
@@ -1534,6 +1555,15 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 					      AC_PINCTL_OUT_EN);
 	}
 } 
+
+static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	switch (res >> 26) {
+	case STAC_HP_EVENT:
+		stac92xx_hp_detect(codec, res);
+		break;
+	}
+}
 
 #ifdef CONFIG_PM
 static int stac92xx_resume(struct hda_codec *codec)

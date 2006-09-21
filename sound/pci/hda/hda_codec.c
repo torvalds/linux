@@ -2079,12 +2079,21 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *c
 			cfg->hp_pins[cfg->hp_outs] = nid;
 			cfg->hp_outs++;
 			break;
-		case AC_JACK_MIC_IN:
-			if (loc == AC_JACK_LOC_FRONT)
-				cfg->input_pins[AUTO_PIN_FRONT_MIC] = nid;
-			else
-				cfg->input_pins[AUTO_PIN_MIC] = nid;
+		case AC_JACK_MIC_IN: {
+			int preferred, alt;
+			if (loc == AC_JACK_LOC_FRONT) {
+				preferred = AUTO_PIN_FRONT_MIC;
+				alt = AUTO_PIN_MIC;
+			} else {
+				preferred = AUTO_PIN_MIC;
+				alt = AUTO_PIN_FRONT_MIC;
+			}
+			if (!cfg->input_pins[preferred])
+				cfg->input_pins[preferred] = nid;
+			else if (!cfg->input_pins[alt])
+				cfg->input_pins[alt] = nid;
 			break;
+		}
 		case AC_JACK_LINE_IN:
 			if (loc == AC_JACK_LOC_FRONT)
 				cfg->input_pins[AUTO_PIN_FRONT_LINE] = nid;
