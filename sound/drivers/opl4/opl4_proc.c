@@ -105,13 +105,13 @@ static long long snd_opl4_mem_proc_llseek(struct snd_info_entry *entry, void *fi
 					  struct file *file, long long offset, int orig)
 {
 	switch (orig) {
-	case 0: /* SEEK_SET */
+	case SEEK_SET:
 		file->f_pos = offset;
 		break;
-	case 1: /* SEEK_CUR */
+	case SEEK_CUR:
 		file->f_pos += offset;
 		break;
-	case 2: /* SEEK_END, offset is negative */
+	case SEEK_END: /* offset is negative */
 		file->f_pos = entry->size + offset;
 		break;
 	default:
