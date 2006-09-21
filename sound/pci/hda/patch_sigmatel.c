@@ -1432,12 +1432,9 @@ static int stac92xx_init(struct hda_codec *codec)
 		for (i = 0; i < cfg->hp_outs; i++)
 			enable_pin_detect(codec, cfg->hp_pins[i],
 					  STAC_HP_EVENT);
+		stac92xx_auto_init_hp_out(codec);
 		/* fake event to set up pins */
 		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
-		/* enable the headphones by default.
-		 * If/when unsol_event detection works, this will be ignored
-		 */
-		stac92xx_auto_init_hp_out(codec);
 	} else {
 		stac92xx_auto_init_multi_out(codec);
 		stac92xx_auto_init_hp_out(codec);
@@ -1539,9 +1536,6 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 		for (i = 0; i < cfg->speaker_outs; i++)
 			stac92xx_reset_pinctl(codec, cfg->speaker_pins[i],
 						AC_PINCTL_OUT_EN);
-		for (i = 0; i < cfg->hp_outs; i++)
-			stac92xx_set_pinctl(codec, cfg->hp_pins[i],
-					    AC_PINCTL_OUT_EN);
 	} else {
 		/* enable lineouts, disable hp */
 		for (i = 0; i < cfg->line_outs; i++)
@@ -1550,9 +1544,6 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 		for (i = 0; i < cfg->speaker_outs; i++)
 			stac92xx_set_pinctl(codec, cfg->speaker_pins[i],
 						AC_PINCTL_OUT_EN);
-		for (i = 0; i < cfg->hp_outs; i++)
-			stac92xx_reset_pinctl(codec, cfg->hp_pins[i],
-					      AC_PINCTL_OUT_EN);
 	}
 } 
 
