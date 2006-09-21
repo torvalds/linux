@@ -213,6 +213,9 @@ static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
+	if (offset > 0xff)
+		return PCIBIOS_BAD_REGISTER_NUMBER;
+
 	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -244,6 +247,9 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (offset > 0xff)
+		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
