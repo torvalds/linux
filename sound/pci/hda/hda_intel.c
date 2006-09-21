@@ -520,38 +520,36 @@ static void azx_update_rirb(struct azx *chip)
 static unsigned int azx_rirb_get_response(struct hda_codec *codec)
 {
 	struct azx *chip = codec->bus->private_data;
-	int timeout = 50;
+	unsigned long timeout;
 
-	for (;;) {
+ again:
+	timeout = jiffies + msecs_to_jiffies(1000);
+	do {
 		if (chip->polling_mode) {
 			spin_lock_irq(&chip->reg_lock);
 			azx_update_rirb(chip);
 			spin_unlock_irq(&chip->reg_lock);
 		}
 		if (! chip->rirb.cmds)
-			break;
-		if (! --timeout) {
-			if (! chip->polling_mode) {
-				snd_printk(KERN_WARNING "hda_intel: "
-					   "azx_get_response timeout, "
-					   "switching to polling mode...\n");
-				chip->polling_mode = 1;
-				timeout = 50;
-				continue;
-			}
-			snd_printk(KERN_ERR
-				   "hda_intel: azx_get_response timeout, "
-				   "switching to single_cmd mode...\n");
-			chip->rirb.rp = azx_readb(chip, RIRBWP);
-			chip->rirb.cmds = 0;
-			/* switch to single_cmd mode */
-			chip->single_cmd = 1;
-			azx_free_cmd_io(chip);
-			return -1;
-		}
-		msleep(1);
+			return chip->rirb.res; /* the last value */
+		schedule_timeout_interruptible(1);
+	} while (time_after_eq(timeout, jiffies));
+
+	if (!chip->polling_mode) {
+		snd_printk(KERN_WARNING "hda_intel: azx_get_response timeout, "
+			   "switching to polling mode...\n");
+		chip->polling_mode = 1;
+		goto again;
 	}
-	return chip->rirb.res; /* the last value */
+
+	snd_printk(KERN_ERR "hda_intel: azx_get_response timeout, "
+		   "switching to single_cmd mode...\n");
+	chip->rirb.rp = azx_readb(chip, RIRBWP);
+	chip->rirb.cmds = 0;
+	/* switch to single_cmd mode */
+	chip->single_cmd = 1;
+	azx_free_cmd_io(chip);
+	return -1;
 }
 
 /*
