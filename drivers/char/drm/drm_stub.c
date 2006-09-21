@@ -65,6 +65,8 @@ static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
 	mutex_init(&dev->ctxlist_mutex);
 
 	dev->pdev = pdev;
+	dev->pci_device = pdev->device;
+	dev->pci_vendor = pdev->vendor;
 
 #ifdef __alpha__
 	dev->hose = pdev->sysdata;

@@ -723,6 +723,8 @@ typedef struct drm_device {
 	drm_agp_head_t *agp;	/**< AGP data */
 
 	struct pci_dev *pdev;		/**< PCI device structure */
+	int pci_vendor;			/**< PCI vendor id */
+	int pci_device;			/**< PCI device id */
 #ifdef __alpha__
 	struct pci_controller *hose;
 #endif
