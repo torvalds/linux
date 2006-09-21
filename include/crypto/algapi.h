@@ -83,6 +83,8 @@ struct blkcipher_walk {
 
 extern const struct crypto_type crypto_blkcipher_type;
 
+void crypto_mod_put(struct crypto_alg *alg);
+
 int crypto_register_template(struct crypto_template *tmpl);
 void crypto_unregister_template(struct crypto_template *tmpl);
 struct crypto_template *crypto_lookup_template(const char *name);

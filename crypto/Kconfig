@@ -123,6 +123,23 @@ config CRYPTO_TGR192
 	  See also:
 	  <http://www.cs.technion.ac.il/~biham/Reports/Tiger/>.
 
+config CRYPTO_ECB
+	tristate "ECB support"
+	select CRYPTO_BLKCIPHER
+	default m
+	help
+	  ECB: Electronic CodeBook mode
+	  This is the simplest block cipher algorithm.  It simply encrypts
+	  the input block by block.
+
+config CRYPTO_CBC
+	tristate "CBC support"
+	select CRYPTO_BLKCIPHER
+	default m
+	help
+	  CBC: Cipher Block Chaining mode
+	  This block cipher algorithm is required for IPSec.
+
 config CRYPTO_DES
 	tristate "DES and Triple DES EDE cipher algorithms"
 	select CRYPTO_ALGAPI
