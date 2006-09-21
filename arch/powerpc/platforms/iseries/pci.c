@@ -34,6 +34,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/iommu.h>
 #include <asm/abs_addr.h>
+#include <asm/firmware.h>
 
 #include <asm/iseries/hv_call_xm.h>
 #include <asm/iseries/mf.h>
@@ -270,46 +271,6 @@ void pcibios_fixup_resources(struct pci_dev *pdev)
 }
 
 /*
- * I/0 Memory copy MUST use mmio commands on iSeries
- * To do; For performance, include the hv call directly
- */
-void iSeries_memset_io(volatile void __iomem *dest, char c, size_t Count)
-{
-	u8 ByteValue = c;
-	long NumberOfBytes = Count;
-
-	while (NumberOfBytes > 0) {
-		iSeries_Write_Byte(ByteValue, dest++);
-		-- NumberOfBytes;
-	}
-}
-EXPORT_SYMBOL(iSeries_memset_io);
-
-void iSeries_memcpy_toio(volatile void __iomem *dest, void *source, size_t count)
-{
-	char *src = source;
-	long NumberOfBytes = count;
-
-	while (NumberOfBytes > 0) {
-		iSeries_Write_Byte(*src++, dest++);
-		-- NumberOfBytes;
-	}
-}
-EXPORT_SYMBOL(iSeries_memcpy_toio);
-
-void iSeries_memcpy_fromio(void *dest, const volatile void __iomem *src, size_t count)
-{
-	char *dst = dest;
-	long NumberOfBytes = count;
-
-	while (NumberOfBytes > 0) {
-		*dst++ = iSeries_Read_Byte(src++);
-		-- NumberOfBytes;
-	}
-}
-EXPORT_SYMBOL(iSeries_memcpy_fromio);
-
-/*
  * Look down the chain to find the matching Device Device
  */
 static struct device_node *find_Device_Node(int bus, int devfn)
@@ -491,7 +452,7 @@ static inline struct device_node *xlate_iomm_address(
  * iSeries_Read_Word = Read Word  (16 bit)
  * iSeries_Read_Long = Read Long  (32 bit)
  */
-u8 iSeries_Read_Byte(const volatile void __iomem *IoAddress)
+static u8 iSeries_Read_Byte(const volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
@@ -518,9 +479,8 @@ u8 iSeries_Read_Byte(const volatile void __iomem *IoAddress)
 
 	return (u8)ret.value;
 }
-EXPORT_SYMBOL(iSeries_Read_Byte);
 
-u16 iSeries_Read_Word(const volatile void __iomem *IoAddress)
+static u16 iSeries_Read_Word(const volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
@@ -548,9 +508,8 @@ u16 iSeries_Read_Word(const volatile void __iomem *IoAddress)
 
 	return swab16((u16)ret.value);
 }
-EXPORT_SYMBOL(iSeries_Read_Word);
 
-u32 iSeries_Read_Long(const volatile void __iomem *IoAddress)
+static u32 iSeries_Read_Long(const volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
@@ -578,7 +537,6 @@ u32 iSeries_Read_Long(const volatile void __iomem *IoAddress)
 
 	return swab32((u32)ret.value);
 }
-EXPORT_SYMBOL(iSeries_Read_Long);
 
 /*
  * Write MM I/O Instructions for the iSeries
@@ -587,7 +545,7 @@ EXPORT_SYMBOL(iSeries_Read_Long);
  * iSeries_Write_Word = Write Word(16 bit)
  * iSeries_Write_Long = Write Long(32 bit)
  */
-void iSeries_Write_Byte(u8 data, volatile void __iomem *IoAddress)
+static void iSeries_Write_Byte(u8 data, volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
@@ -612,9 +570,8 @@ void iSeries_Write_Byte(u8 data, volatile void __iomem *IoAddress)
 		rc = HvCall4(HvCallPciBarStore8, dsa, BarOffset, data, 0);
 	} while (CheckReturnCode("WWB", DevNode, &retry, rc) != 0);
 }
-EXPORT_SYMBOL(iSeries_Write_Byte);
 
-void iSeries_Write_Word(u16 data, volatile void __iomem *IoAddress)
+static void iSeries_Write_Word(u16 data, volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
@@ -639,9 +596,8 @@ void iSeries_Write_Word(u16 data, volatile void __iomem *IoAddress)
 		rc = HvCall4(HvCallPciBarStore16, dsa, BarOffset, swab16(data), 0);
 	} while (CheckReturnCode("WWW", DevNode, &retry, rc) != 0);
 }
-EXPORT_SYMBOL(iSeries_Write_Word);
 
-void iSeries_Write_Long(u32 data, volatile void __iomem *IoAddress)
+static void iSeries_Write_Long(u32 data, volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
@@ -666,4 +622,224 @@ void iSeries_Write_Long(u32 data, volatile void __iomem *IoAddress)
 		rc = HvCall4(HvCallPciBarStore32, dsa, BarOffset, swab32(data), 0);
 	} while (CheckReturnCode("WWL", DevNode, &retry, rc) != 0);
 }
-EXPORT_SYMBOL(iSeries_Write_Long);
+
+extern unsigned char __raw_readb(const volatile void __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	return *(volatile unsigned char __force *)addr;
+}
+EXPORT_SYMBOL(__raw_readb);
+
+extern unsigned short __raw_readw(const volatile void __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	return *(volatile unsigned short __force *)addr;
+}
+EXPORT_SYMBOL(__raw_readw);
+
+extern unsigned int __raw_readl(const volatile void __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	return *(volatile unsigned int __force *)addr;
+}
+EXPORT_SYMBOL(__raw_readl);
+
+extern unsigned long __raw_readq(const volatile void __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	return *(volatile unsigned long __force *)addr;
+}
+EXPORT_SYMBOL(__raw_readq);
+
+extern void __raw_writeb(unsigned char v, volatile void __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	*(volatile unsigned char __force *)addr = v;
+}
+EXPORT_SYMBOL(__raw_writeb);
+
+extern void __raw_writew(unsigned short v, volatile void __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	*(volatile unsigned short __force *)addr = v;
+}
+EXPORT_SYMBOL(__raw_writew);
+
+extern void __raw_writel(unsigned int v, volatile void __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	*(volatile unsigned int __force *)addr = v;
+}
+EXPORT_SYMBOL(__raw_writel);
+
+extern void __raw_writeq(unsigned long v, volatile void __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	*(volatile unsigned long __force *)addr = v;
+}
+EXPORT_SYMBOL(__raw_writeq);
+
+int in_8(const volatile unsigned char __iomem *addr)
+{
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return iSeries_Read_Byte(addr);
+	return __in_8(addr);
+}
+EXPORT_SYMBOL(in_8);
+
+void out_8(volatile unsigned char __iomem *addr, int val)
+{
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		iSeries_Write_Byte(val, addr);
+	else
+		__out_8(addr, val);
+}
+EXPORT_SYMBOL(out_8);
+
+int in_le16(const volatile unsigned short __iomem *addr)
+{
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return iSeries_Read_Word(addr);
+	return __in_le16(addr);
+}
+EXPORT_SYMBOL(in_le16);
+
+int in_be16(const volatile unsigned short __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	return __in_be16(addr);
+}
+EXPORT_SYMBOL(in_be16);
+
+void out_le16(volatile unsigned short __iomem *addr, int val)
+{
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		iSeries_Write_Word(val, addr);
+	else
+		__out_le16(addr, val);
+}
+EXPORT_SYMBOL(out_le16);
+
+void out_be16(volatile unsigned short __iomem *addr, int val)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	__out_be16(addr, val);
+}
+EXPORT_SYMBOL(out_be16);
+
+unsigned in_le32(const volatile unsigned __iomem *addr)
+{
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return iSeries_Read_Long(addr);
+	return __in_le32(addr);
+}
+EXPORT_SYMBOL(in_le32);
+
+unsigned in_be32(const volatile unsigned __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	return __in_be32(addr);
+}
+EXPORT_SYMBOL(in_be32);
+
+void out_le32(volatile unsigned __iomem *addr, int val)
+{
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		iSeries_Write_Long(val, addr);
+	else
+		__out_le32(addr, val);
+}
+EXPORT_SYMBOL(out_le32);
+
+void out_be32(volatile unsigned __iomem *addr, int val)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	__out_be32(addr, val);
+}
+EXPORT_SYMBOL(out_be32);
+
+unsigned long in_le64(const volatile unsigned long __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	return __in_le64(addr);
+}
+EXPORT_SYMBOL(in_le64);
+
+unsigned long in_be64(const volatile unsigned long __iomem *addr)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	return __in_be64(addr);
+}
+EXPORT_SYMBOL(in_be64);
+
+void out_le64(volatile unsigned long __iomem *addr, unsigned long val)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	__out_le64(addr, val);
+}
+EXPORT_SYMBOL(out_le64);
+
+void out_be64(volatile unsigned long __iomem *addr, unsigned long val)
+{
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
+	__out_be64(addr, val);
+}
+EXPORT_SYMBOL(out_be64);
+
+void memset_io(volatile void __iomem *addr, int c, unsigned long n)
+{
+	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+		volatile char __iomem *d = addr;
+
+		while (n-- > 0) {
+			iSeries_Write_Byte(c, d++);
+		}
+	} else
+		eeh_memset_io(addr, c, n);
+}
+EXPORT_SYMBOL(memset_io);
+
+void memcpy_fromio(void *dest, const volatile void __iomem *src,
+                                 unsigned long n)
+{
+	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+		char *d = dest;
+		const volatile char __iomem *s = src;
+
+		while (n-- > 0) {
+			*d++ = iSeries_Read_Byte(s++);
+		}
+	} else
+		eeh_memcpy_fromio(dest, src, n);
+}
+EXPORT_SYMBOL(memcpy_fromio);
+
+void memcpy_toio(volatile void __iomem *dest, const void *src, unsigned long n)
+{
+	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+		const char *s = src;
+		volatile char __iomem *d = dest;
+
+		while (n-- > 0) {
+			iSeries_Write_Byte(*s++, d++);
+		}
+	} else
+		eeh_memcpy_toio(dest, src, n);
+}
+EXPORT_SYMBOL(memcpy_toio);

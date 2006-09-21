@@ -22,11 +22,15 @@
 #include <linux/module.h>
 
 #include <asm/io.h>
+#include <asm/firmware.h>
+#include <asm/bug.h>
 
 void _insb(volatile u8 __iomem *port, void *buf, long count)
 {
 	u8 *tbuf = buf;
 	u8 tmp;
+
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
 
 	if (unlikely(count <= 0))
 		return;
@@ -44,6 +48,8 @@ void _outsb(volatile u8 __iomem *port, const void *buf, long count)
 {
 	const u8 *tbuf = buf;
 
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
 	if (unlikely(count <= 0))
 		return;
 	asm volatile("sync");
@@ -58,6 +64,8 @@ void _insw_ns(volatile u16 __iomem *port, void *buf, long count)
 {
 	u16 *tbuf = buf;
 	u16 tmp;
+
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
 
 	if (unlikely(count <= 0))
 		return;
@@ -75,6 +83,8 @@ void _outsw_ns(volatile u16 __iomem *port, const void *buf, long count)
 {
 	const u16 *tbuf = buf;
 
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
+
 	if (unlikely(count <= 0))
 		return;
 	asm volatile("sync");
@@ -89,6 +99,8 @@ void _insl_ns(volatile u32 __iomem *port, void *buf, long count)
 {
 	u32 *tbuf = buf;
 	u32 tmp;
+
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
 
 	if (unlikely(count <= 0))
 		return;
@@ -105,6 +117,8 @@ EXPORT_SYMBOL(_insl_ns);
 void _outsl_ns(volatile u32 __iomem *port, const void *buf, long count)
 {
 	const u32 *tbuf = buf;
+
+	BUG_ON(firmware_has_feature(FW_FEATURE_ISERIES));
 
 	if (unlikely(count <= 0))
 		return;

@@ -20,9 +20,6 @@ extern int check_legacy_ioport(unsigned long base_port);
 #include <asm/page.h>
 #include <asm/byteorder.h>
 #include <asm/paca.h>
-#ifdef CONFIG_PPC_ISERIES 
-#include <asm/iseries/iseries_io.h>
-#endif  
 #include <asm/synch.h>
 #include <asm/delay.h>
 
@@ -37,41 +34,53 @@ extern unsigned long isa_io_base;
 extern unsigned long pci_io_base;
 
 #ifdef CONFIG_PPC_ISERIES
-/* __raw_* accessors aren't supported on iSeries */
-#define __raw_readb(addr)	{ BUG(); 0; }
-#define __raw_readw(addr)       { BUG(); 0; }
-#define __raw_readl(addr)       { BUG(); 0; }
-#define __raw_readq(addr)       { BUG(); 0; }
-#define __raw_writeb(v, addr)   { BUG(); 0; }
-#define __raw_writew(v, addr)   { BUG(); 0; }
-#define __raw_writel(v, addr)   { BUG(); 0; }
-#define __raw_writeq(v, addr)   { BUG(); 0; }
-#define readb(addr)		iSeries_Read_Byte(addr)
-#define readw(addr)		iSeries_Read_Word(addr)
-#define readl(addr)		iSeries_Read_Long(addr)
-#define writeb(data, addr)	iSeries_Write_Byte((data),(addr))
-#define writew(data, addr)	iSeries_Write_Word((data),(addr))
-#define writel(data, addr)	iSeries_Write_Long((data),(addr))
-#define memset_io(a,b,c)	iSeries_memset_io((a),(b),(c))
-#define memcpy_fromio(a,b,c)	iSeries_memcpy_fromio((a), (b), (c))
-#define memcpy_toio(a,b,c)	iSeries_memcpy_toio((a), (b), (c))
 
-#define inb(addr)		readb(((void __iomem *)(long)(addr)))
-#define inw(addr)		readw(((void __iomem *)(long)(addr)))
-#define inl(addr)		readl(((void __iomem *)(long)(addr)))
-#define outb(data,addr)		writeb(data,((void __iomem *)(long)(addr)))
-#define outw(data,addr)		writew(data,((void __iomem *)(long)(addr)))
-#define outl(data,addr)		writel(data,((void __iomem *)(long)(addr)))
-/*
- * The *_ns versions below don't do byte-swapping.
- * Neither do the standard versions now, these are just here
- * for older code.
- */
-#define insb(port, buf, ns)	_insb((u8 __iomem *)((port)+pci_io_base), (buf), (ns))
-#define insw(port, buf, ns)	_insw_ns((u16 __iomem *)((port)+pci_io_base), (buf), (ns))
-#define insl(port, buf, nl)	_insl_ns((u32 __iomem *)((port)+pci_io_base), (buf), (nl))
+extern int in_8(const volatile unsigned char __iomem *addr);
+extern void out_8(volatile unsigned char __iomem *addr, int val);
+extern int in_le16(const volatile unsigned short __iomem *addr);
+extern int in_be16(const volatile unsigned short __iomem *addr);
+extern void out_le16(volatile unsigned short __iomem *addr, int val);
+extern void out_be16(volatile unsigned short __iomem *addr, int val);
+extern unsigned in_le32(const volatile unsigned __iomem *addr);
+extern unsigned in_be32(const volatile unsigned __iomem *addr);
+extern void out_le32(volatile unsigned __iomem *addr, int val);
+extern void out_be32(volatile unsigned __iomem *addr, int val);
+extern unsigned long in_le64(const volatile unsigned long __iomem *addr);
+extern unsigned long in_be64(const volatile unsigned long __iomem *addr);
+extern void out_le64(volatile unsigned long __iomem *addr, unsigned long val);
+extern void out_be64(volatile unsigned long __iomem *addr, unsigned long val);
 
-#else
+extern unsigned char __raw_readb(const volatile void __iomem *addr);
+extern unsigned short __raw_readw(const volatile void __iomem *addr);
+extern unsigned int __raw_readl(const volatile void __iomem *addr);
+extern unsigned long __raw_readq(const volatile void __iomem *addr);
+extern void __raw_writeb(unsigned char v, volatile void __iomem *addr);
+extern void __raw_writew(unsigned short v, volatile void __iomem *addr);
+extern void __raw_writel(unsigned int v, volatile void __iomem *addr);
+extern void __raw_writeq(unsigned long v, volatile void __iomem *addr);
+
+extern void memset_io(volatile void __iomem *addr, int c, unsigned long n);
+extern void memcpy_fromio(void *dest, const volatile void __iomem *src,
+                                 unsigned long n);
+extern void memcpy_toio(volatile void __iomem *dest, const void *src,
+                                 unsigned long n);
+
+#else /* CONFIG_PPC_ISERIES */
+
+#define in_8(addr)		__in_8((addr))
+#define out_8(addr, val)	__out_8((addr), (val))
+#define in_le16(addr)		__in_le16((addr))
+#define in_be16(addr)		__in_be16((addr))
+#define out_le16(addr, val)	__out_le16((addr), (val))
+#define out_be16(addr, val)	__out_be16((addr), (val))
+#define in_le32(addr)		__in_le32((addr))
+#define in_be32(addr)		__in_be32((addr))
+#define out_le32(addr, val)	__out_le32((addr), (val))
+#define out_be32(addr, val)	__out_be32((addr), (val))
+#define in_le64(addr)		__in_le64((addr))
+#define in_be64(addr)		__in_be64((addr))
+#define out_le64(addr, val)	__out_le64((addr), (val))
+#define out_be64(addr, val)	__out_be64((addr), (val))
 
 static inline unsigned char __raw_readb(const volatile void __iomem *addr)
 {
@@ -105,23 +114,11 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 {
 	*(volatile unsigned long __force *)addr = v;
 }
-#define readb(addr)		eeh_readb(addr)
-#define readw(addr)		eeh_readw(addr)
-#define readl(addr)		eeh_readl(addr)
-#define readq(addr)		eeh_readq(addr)
-#define writeb(data, addr)	eeh_writeb((data), (addr))
-#define writew(data, addr)	eeh_writew((data), (addr))
-#define writel(data, addr)	eeh_writel((data), (addr))
-#define writeq(data, addr)	eeh_writeq((data), (addr))
 #define memset_io(a,b,c)	eeh_memset_io((a),(b),(c))
 #define memcpy_fromio(a,b,c)	eeh_memcpy_fromio((a),(b),(c))
 #define memcpy_toio(a,b,c)	eeh_memcpy_toio((a),(b),(c))
-#define inb(port)		eeh_inb((unsigned long)port)
-#define outb(val, port)		eeh_outb(val, (unsigned long)port)
-#define inw(port)		eeh_inw((unsigned long)port)
-#define outw(val, port)		eeh_outw(val, (unsigned long)port)
-#define inl(port)		eeh_inl((unsigned long)port)
-#define outl(val, port)		eeh_outl(val, (unsigned long)port)
+
+#endif /* CONFIG_PPC_ISERIES */
 
 /*
  * The insw/outsw/insl/outsl macros don't do byte-swapping.
@@ -132,11 +129,24 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 #define insw(port, buf, ns)	eeh_insw_ns((port), (buf), (ns))
 #define insl(port, buf, nl)	eeh_insl_ns((port), (buf), (nl))
 
-#endif
-
 #define outsb(port, buf, ns)  _outsb((u8 __iomem *)((port)+pci_io_base), (buf), (ns))
 #define outsw(port, buf, ns)  _outsw_ns((u16 __iomem *)((port)+pci_io_base), (buf), (ns))
 #define outsl(port, buf, nl)  _outsl_ns((u32 __iomem *)((port)+pci_io_base), (buf), (nl))
+
+#define readb(addr)		eeh_readb(addr)
+#define readw(addr)		eeh_readw(addr)
+#define readl(addr)		eeh_readl(addr)
+#define readq(addr)		eeh_readq(addr)
+#define writeb(data, addr)	eeh_writeb((data), (addr))
+#define writew(data, addr)	eeh_writew((data), (addr))
+#define writel(data, addr)	eeh_writel((data), (addr))
+#define writeq(data, addr)	eeh_writeq((data), (addr))
+#define inb(port)		eeh_inb((unsigned long)port)
+#define outb(val, port)		eeh_outb(val, (unsigned long)port)
+#define inw(port)		eeh_inw((unsigned long)port)
+#define outw(val, port)		eeh_outw(val, (unsigned long)port)
+#define inl(port)		eeh_inl((unsigned long)port)
+#define outl(val, port)		eeh_outl(val, (unsigned long)port)
 
 #define readb_relaxed(addr) readb(addr)
 #define readw_relaxed(addr) readw(addr)
@@ -258,7 +268,7 @@ static inline void iosync(void)
  * and should not be used directly by device drivers.  Use inb/readb
  * instead.
  */
-static inline int in_8(const volatile unsigned char __iomem *addr)
+static inline int __in_8(const volatile unsigned char __iomem *addr)
 {
 	int ret;
 
@@ -267,14 +277,14 @@ static inline int in_8(const volatile unsigned char __iomem *addr)
 	return ret;
 }
 
-static inline void out_8(volatile unsigned char __iomem *addr, int val)
+static inline void __out_8(volatile unsigned char __iomem *addr, int val)
 {
 	__asm__ __volatile__("sync; stb%U0%X0 %1,%0"
 			     : "=m" (*addr) : "r" (val));
 	get_paca()->io_sync = 1;
 }
 
-static inline int in_le16(const volatile unsigned short __iomem *addr)
+static inline int __in_le16(const volatile unsigned short __iomem *addr)
 {
 	int ret;
 
@@ -283,7 +293,7 @@ static inline int in_le16(const volatile unsigned short __iomem *addr)
 	return ret;
 }
 
-static inline int in_be16(const volatile unsigned short __iomem *addr)
+static inline int __in_be16(const volatile unsigned short __iomem *addr)
 {
 	int ret;
 
@@ -292,21 +302,21 @@ static inline int in_be16(const volatile unsigned short __iomem *addr)
 	return ret;
 }
 
-static inline void out_le16(volatile unsigned short __iomem *addr, int val)
+static inline void __out_le16(volatile unsigned short __iomem *addr, int val)
 {
 	__asm__ __volatile__("sync; sthbrx %1,0,%2"
 			     : "=m" (*addr) : "r" (val), "r" (addr));
 	get_paca()->io_sync = 1;
 }
 
-static inline void out_be16(volatile unsigned short __iomem *addr, int val)
+static inline void __out_be16(volatile unsigned short __iomem *addr, int val)
 {
 	__asm__ __volatile__("sync; sth%U0%X0 %1,%0"
 			     : "=m" (*addr) : "r" (val));
 	get_paca()->io_sync = 1;
 }
 
-static inline unsigned in_le32(const volatile unsigned __iomem *addr)
+static inline unsigned __in_le32(const volatile unsigned __iomem *addr)
 {
 	unsigned ret;
 
@@ -315,7 +325,7 @@ static inline unsigned in_le32(const volatile unsigned __iomem *addr)
 	return ret;
 }
 
-static inline unsigned in_be32(const volatile unsigned __iomem *addr)
+static inline unsigned __in_be32(const volatile unsigned __iomem *addr)
 {
 	unsigned ret;
 
@@ -324,21 +334,21 @@ static inline unsigned in_be32(const volatile unsigned __iomem *addr)
 	return ret;
 }
 
-static inline void out_le32(volatile unsigned __iomem *addr, int val)
+static inline void __out_le32(volatile unsigned __iomem *addr, int val)
 {
 	__asm__ __volatile__("sync; stwbrx %1,0,%2" : "=m" (*addr)
 			     : "r" (val), "r" (addr));
 	get_paca()->io_sync = 1;
 }
 
-static inline void out_be32(volatile unsigned __iomem *addr, int val)
+static inline void __out_be32(volatile unsigned __iomem *addr, int val)
 {
 	__asm__ __volatile__("sync; stw%U0%X0 %1,%0"
 			     : "=m" (*addr) : "r" (val));
 	get_paca()->io_sync = 1;
 }
 
-static inline unsigned long in_le64(const volatile unsigned long __iomem *addr)
+static inline unsigned long __in_le64(const volatile unsigned long __iomem *addr)
 {
 	unsigned long tmp, ret;
 
@@ -358,7 +368,7 @@ static inline unsigned long in_le64(const volatile unsigned long __iomem *addr)
 	return ret;
 }
 
-static inline unsigned long in_be64(const volatile unsigned long __iomem *addr)
+static inline unsigned long __in_be64(const volatile unsigned long __iomem *addr)
 {
 	unsigned long ret;
 
@@ -367,7 +377,7 @@ static inline unsigned long in_be64(const volatile unsigned long __iomem *addr)
 	return ret;
 }
 
-static inline void out_le64(volatile unsigned long __iomem *addr, unsigned long val)
+static inline void __out_le64(volatile unsigned long __iomem *addr, unsigned long val)
 {
 	unsigned long tmp;
 
@@ -385,15 +395,13 @@ static inline void out_le64(volatile unsigned long __iomem *addr, unsigned long 
 	get_paca()->io_sync = 1;
 }
 
-static inline void out_be64(volatile unsigned long __iomem *addr, unsigned long val)
+static inline void __out_be64(volatile unsigned long __iomem *addr, unsigned long val)
 {
 	__asm__ __volatile__("sync; std%U0%X0 %1,%0" : "=m" (*addr) : "r" (val));
 	get_paca()->io_sync = 1;
 }
 
-#ifndef CONFIG_PPC_ISERIES 
 #include <asm/eeh.h>
-#endif
 
 /**
  *	check_signature		-	find BIOS signatures
@@ -409,7 +417,6 @@ static inline int check_signature(const volatile void __iomem * io_addr,
 	const unsigned char *signature, int length)
 {
 	int retval = 0;
-#ifndef CONFIG_PPC_ISERIES 
 	do {
 		if (readb(io_addr) != *signature)
 			goto out;
@@ -419,7 +426,6 @@ static inline int check_signature(const volatile void __iomem * io_addr,
 	} while (length);
 	retval = 1;
 out:
-#endif
 	return retval;
 }
 
