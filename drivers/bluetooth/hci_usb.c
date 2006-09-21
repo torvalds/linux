@@ -96,6 +96,9 @@ static struct usb_device_id bluetooth_ids[] = {
 	/* Ericsson with non-standard id */
 	{ USB_DEVICE(0x0bdb, 0x1002) },
 
+	/* Canyon CN-BTU1 with HID interfaces */
+	{ USB_DEVICE(0x0c10, 0x0000), .driver_info = HCI_RESET },
+
 	{ }	/* Terminating entry */
 };
 
