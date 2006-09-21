@@ -355,3 +355,14 @@ u32 vfp_estimate_sqrt_significand(u32 exponent, u32 significand);
  * we check for an error.
  */
 #define VFP_EXCEPTION_ERROR	((u32)-1 & ~VFP_NAN_FLAG)
+
+/*
+ * A flag to tell vfp instruction type
+ */
+#define OP_SCALAR	(1 << 0)
+#define OP_SD		(1 << 1)
+
+struct op {
+	u32 (* const fn)(int dd, int dn, int dm, u32 fpscr);
+	u32 flags;
+};
