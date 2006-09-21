@@ -747,7 +747,7 @@ static __inline__ int drm_core_check_feature(struct drm_device *dev,
 #ifdef __alpha__
 #define drm_get_pci_domain(dev) dev->hose->bus->number
 #else
-#define drm_get_pci_domain(dev) pci_domain_nr(dev->pdev->bus)
+#define drm_get_pci_domain(dev) 0
 #endif
 
 #if __OS_HAS_AGP
