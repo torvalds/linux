@@ -282,17 +282,17 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 #error SMP is not supported on this platform
 #endif
 	case 1:
-		local_irq_save(flags);
+		raw_local_irq_save(flags);
 		ret = *(volatile unsigned char *)ptr;
 		*(volatile unsigned char *)ptr = x;
-		local_irq_restore(flags);
+		raw_local_irq_restore(flags);
 		break;
 
 	case 4:
-		local_irq_save(flags);
+		raw_local_irq_save(flags);
 		ret = *(volatile unsigned long *)ptr;
 		*(volatile unsigned long *)ptr = x;
-		local_irq_restore(flags);
+		raw_local_irq_restore(flags);
 		break;
 #else
 	case 1:
