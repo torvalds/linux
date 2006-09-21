@@ -81,16 +81,20 @@ static void __init fixup_bus_range(struct device_node *bridge)
 }
 
 
-#define U3_AGP_CFA0(devfn, off)	\
-	((1 << (unsigned long)PCI_SLOT(dev_fn)) \
-	| (((unsigned long)PCI_FUNC(dev_fn)) << 8) \
-	| (((unsigned long)(off)) & 0xFCUL))
+static unsigned long u3_agp_cfa0(u8 devfn, u8 off)
+{
+	return (1 << (unsigned long)PCI_SLOT(devfn)) |
+		((unsigned long)PCI_FUNC(devfn) << 8) |
+		((unsigned long)off & 0xFCUL);
+}
 
-#define U3_AGP_CFA1(bus, devfn, off)	\
-	((((unsigned long)(bus)) << 16) \
-	|(((unsigned long)(devfn)) << 8) \
-	|(((unsigned long)(off)) & 0xFCUL) \
-	|1UL)
+static unsigned long u3_agp_cfa1(u8 bus, u8 devfn, u8 off)
+{
+	return ((unsigned long)bus << 16) |
+		((unsigned long)devfn << 8) |
+		((unsigned long)off & 0xFCUL) |
+		1UL;
+}
 
 static unsigned long u3_agp_cfg_access(struct pci_controller* hose,
 				       u8 bus, u8 dev_fn, u8 offset)
@@ -100,9 +104,9 @@ static unsigned long u3_agp_cfg_access(struct pci_controller* hose,
 	if (bus == hose->first_busno) {
 		if (dev_fn < (11 << 3))
 			return 0;
-		caddr = U3_AGP_CFA0(dev_fn, offset);
+		caddr = u3_agp_cfa0(dev_fn, offset);
 	} else
-		caddr = U3_AGP_CFA1(bus, dev_fn, offset);
+		caddr = u3_agp_cfa1(bus, dev_fn, offset);
 
 	/* Uninorth will return garbage if we don't read back the value ! */
 	do {
@@ -184,13 +188,15 @@ static struct pci_ops u3_agp_pci_ops =
 	u3_agp_write_config
 };
 
+static unsigned long u3_ht_cfa0(u8 devfn, u8 off)
+{
+	return (devfn << 8) | off;
+}
 
-#define U3_HT_CFA0(devfn, off)		\
-		((((unsigned long)devfn) << 8) | offset)
-#define U3_HT_CFA1(bus, devfn, off)	\
-		(U3_HT_CFA0(devfn, off) \
-		+ (((unsigned long)bus) << 16) \
-		+ 0x01000000UL)
+static unsigned long u3_ht_cfa1(u8 bus, u8 devfn, u8 off)
+{
+	return u3_ht_cfa0(devfn, off) + (bus << 16) + 0x01000000UL;
+}
 
 static unsigned long u3_ht_cfg_access(struct pci_controller* hose,
 				      u8 bus, u8 devfn, u8 offset)
@@ -198,9 +204,9 @@ static unsigned long u3_ht_cfg_access(struct pci_controller* hose,
 	if (bus == hose->first_busno) {
 		if (PCI_SLOT(devfn) == 0)
 			return 0;
-		return ((unsigned long)hose->cfg_data) + U3_HT_CFA0(devfn, offset);
+		return ((unsigned long)hose->cfg_data) + u3_ht_cfa0(devfn, offset);
 	} else
-		return ((unsigned long)hose->cfg_data) + U3_HT_CFA1(bus, devfn, offset);
+		return ((unsigned long)hose->cfg_data) + u3_ht_cfa1(bus, devfn, offset);
 }
 
 static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
