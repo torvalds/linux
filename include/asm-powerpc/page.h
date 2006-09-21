@@ -55,12 +55,6 @@
 #define PAGE_OFFSET     ASM_CONST(CONFIG_KERNEL_START)
 #define KERNELBASE      (PAGE_OFFSET + PHYSICAL_START)
 
-#ifdef CONFIG_DISCONTIGMEM
-#define page_to_pfn(page)	discontigmem_page_to_pfn(page)
-#define pfn_to_page(pfn)	discontigmem_pfn_to_page(pfn)
-#define pfn_valid(pfn)		discontigmem_pfn_valid(pfn)
-#endif
-
 #ifdef CONFIG_FLATMEM
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
 #endif
