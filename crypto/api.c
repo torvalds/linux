@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/kmod.h>
+#include <linux/module.h>
 #include <linux/param.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -170,6 +171,7 @@ static struct crypto_alg *crypto_alg_mod_lookup(const char *name)
 {
 	struct crypto_alg *alg;
 	struct crypto_alg *larval;
+	int ok;
 
 	alg = try_then_request_module(crypto_alg_lookup(name), name);
 	if (alg)
@@ -179,7 +181,13 @@ static struct crypto_alg *crypto_alg_mod_lookup(const char *name)
 	if (!larval || !crypto_is_larval(larval))
 		return larval;
 
-	if (crypto_notify(CRYPTO_MSG_ALG_REQUEST, larval) == NOTIFY_STOP)
+	ok = crypto_notify(CRYPTO_MSG_ALG_REQUEST, larval);
+	if (ok == NOTIFY_DONE) {
+		request_module("cryptomgr");
+		ok = crypto_notify(CRYPTO_MSG_ALG_REQUEST, larval);
+	}
+
+	if (ok == NOTIFY_STOP)
 		alg = crypto_larval_wait(larval);
 	else {
 		crypto_mod_put(larval);

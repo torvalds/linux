@@ -16,6 +16,14 @@ config CRYPTO_ALGAPI
 	help
 	  This option provides the API for cryptographic algorithms.
 
+config CRYPTO_MANAGER
+	tristate "Cryptographic algorithm manager"
+	select CRYPTO_ALGAPI
+	default m
+	help
+	  Create default cryptographic template instantiations such as
+	  cbc(aes).
+
 config CRYPTO_HMAC
 	bool "HMAC support"
 	help

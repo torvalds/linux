@@ -260,6 +260,15 @@ struct crypto_tfm {
 	void *__crt_ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
+enum {
+	CRYPTOA_UNSPEC,
+	CRYPTOA_ALG,
+};
+
+struct crypto_attr_alg {
+	char name[CRYPTO_MAX_ALG_NAME];
+};
+
 /* 
  * Transform user interface.
  */
