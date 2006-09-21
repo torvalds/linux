@@ -6,8 +6,6 @@
 #ifndef __ARCH_CRIS_POSIX_TYPES_H
 #define __ARCH_CRIS_POSIX_TYPES_H
 
-#include <asm/bitops.h>
-
 /*
  * This file is generally used by user-level software, so you need to
  * be a little careful about namespace pollution etc.  Also, we cannot
@@ -53,9 +51,8 @@ typedef struct {
 #endif /* !defined(__KERNEL__) && !defined(__USE_ALL) */
 } __kernel_fsid_t;
 
-/* should this ifdef be here ?  */
-
-#if defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2)
+#ifdef __KERNEL__
+#include <asm/bitops.h>
 
 #undef	__FD_SET
 #define __FD_SET(fd,fdsetp) set_bit(fd, (void *)(fdsetp))
@@ -69,6 +66,6 @@ typedef struct {
 #undef	__FD_ZERO
 #define __FD_ZERO(fdsetp) memset((void *)(fdsetp), 0, __FDSET_LONGS << 2)
 
-#endif /* defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2) */
+#endif /* __KERNEL__ */
 
 #endif /* __ARCH_CRIS_POSIX_TYPES_H */
