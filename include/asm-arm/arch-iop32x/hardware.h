@@ -35,6 +35,7 @@ void iop32x_init_irq(void);
 /*
  * Board specific bits
  */
+#include "glantank.h"
 #include "iq80321.h"
 #include "iq31244.h"
 #include "n2100.h"

@@ -62,7 +62,8 @@ void __init iop32x_init_irq(void)
 
 	intctl_write(0);
 	intstr_write(0);
-	if (machine_is_iq80321() ||
+	if (machine_is_glantank() ||
+	    machine_is_iq80321() ||
 	    machine_is_iq31244() ||
 	    machine_is_n2100())
 		*IOP3XX_PCIIRSR = 0x0f;

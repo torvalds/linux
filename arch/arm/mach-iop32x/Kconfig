@@ -4,6 +4,13 @@ menu "IOP32x Implementation Options"
 
 comment "IOP32x Platform Types"
 
+config MACH_GLANTANK
+	bool "Enable support for the IO-Data GLAN Tank"
+	help
+	  Say Y here if you want to run your kernel on the GLAN Tank
+	  NAS appliance or machines from IO-Data's HDL-Gxxx, HDL-GWxxx
+	  and HDL-GZxxx series.
+
 config ARCH_IQ80321
 	bool "Enable support for IQ80321"
 	help
