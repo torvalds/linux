@@ -1,2 +1,10 @@
-header-y := asound_fm.h hdsp.h hdspm.h sfnt_info.h sscape_ioctl.h
-unifdef-y := asequencer.h asound.h emu10k1.h sb16_csp.h 
+header-y += asound_fm.h
+header-y += hdsp.h
+header-y += hdspm.h
+header-y += sfnt_info.h
+header-y += sscape_ioctl.h
+
+unifdef-y += asequencer.h
+unifdef-y += asound.h
+unifdef-y += emu10k1.h
+unifdef-y += sb16_csp.h
