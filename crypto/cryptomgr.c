@@ -31,6 +31,8 @@ struct cryptomgr_param {
 	} alg;
 
 	struct {
+		u32 type;
+		u32 mask;
 		char name[CRYPTO_MAX_ALG_NAME];
 	} larval;
 
@@ -62,7 +64,8 @@ out:
 	return;
 
 err:
-	crypto_larval_error(param->larval.name);
+	crypto_larval_error(param->larval.name, param->larval.type,
+			    param->larval.mask);
 	goto out;
 }
 
@@ -101,6 +104,8 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	param->alg.data.name[len] = 0;
 
 	memcpy(param->larval.name, larval->alg.cra_name, CRYPTO_MAX_ALG_NAME);
+	param->larval.type = larval->alg.cra_flags;
+	param->larval.mask = larval->mask;
 
 	INIT_WORK(&param->work, cryptomgr_probe, param);
 	schedule_work(&param->work);

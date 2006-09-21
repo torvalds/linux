@@ -43,6 +43,7 @@ struct crypto_larval {
 	struct crypto_alg alg;
 	struct crypto_alg *adult;
 	struct completion completion;
+	u32 mask;
 };
 
 extern struct list_head crypto_alg_list;
@@ -124,7 +125,8 @@ static inline unsigned int crypto_compress_ctxsize(struct crypto_alg *alg,
 
 struct crypto_alg *crypto_mod_get(struct crypto_alg *alg);
 void crypto_mod_put(struct crypto_alg *alg);
-struct crypto_alg *__crypto_alg_lookup(const char *name);
+struct crypto_alg *__crypto_alg_lookup(const char *name, u32 type, u32 mask);
+struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask);
 
 int crypto_init_digest_flags(struct crypto_tfm *tfm, u32 flags);
 int crypto_init_cipher_flags(struct crypto_tfm *tfm, u32 flags);
@@ -138,7 +140,7 @@ void crypto_exit_digest_ops(struct crypto_tfm *tfm);
 void crypto_exit_cipher_ops(struct crypto_tfm *tfm);
 void crypto_exit_compress_ops(struct crypto_tfm *tfm);
 
-void crypto_larval_error(const char *name);
+void crypto_larval_error(const char *name, u32 type, u32 mask);
 
 int crypto_register_instance(struct crypto_template *tmpl,
 			     struct crypto_instance *inst);

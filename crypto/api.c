@@ -57,13 +57,20 @@ void crypto_mod_put(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_mod_put);
 
-struct crypto_alg *__crypto_alg_lookup(const char *name)
+struct crypto_alg *__crypto_alg_lookup(const char *name, u32 type, u32 mask)
 {
 	struct crypto_alg *q, *alg = NULL;
 	int best = -2;
 
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
 		int exact, fuzzy;
+
+		if ((q->cra_flags ^ type) & mask)
+			continue;
+
+		if (crypto_is_larval(q) &&
+		    ((struct crypto_larval *)q)->mask != mask)
+			continue;
 
 		exact = !strcmp(q->cra_driver_name, name);
 		fuzzy = !strcmp(q->cra_name, name);
@@ -96,7 +103,8 @@ static void crypto_larval_destroy(struct crypto_alg *alg)
 	kfree(larval);
 }
 
-static struct crypto_alg *crypto_larval_alloc(const char *name)
+static struct crypto_alg *crypto_larval_alloc(const char *name, u32 type,
+					      u32 mask)
 {
 	struct crypto_alg *alg;
 	struct crypto_larval *larval;
@@ -105,7 +113,8 @@ static struct crypto_alg *crypto_larval_alloc(const char *name)
 	if (!larval)
 		return NULL;
 
-	larval->alg.cra_flags = CRYPTO_ALG_LARVAL;
+	larval->mask = mask;
+	larval->alg.cra_flags = CRYPTO_ALG_LARVAL | type;
 	larval->alg.cra_priority = -1;
 	larval->alg.cra_destroy = crypto_larval_destroy;
 
@@ -114,7 +123,7 @@ static struct crypto_alg *crypto_larval_alloc(const char *name)
 	init_completion(&larval->completion);
 
 	down_write(&crypto_alg_sem);
-	alg = __crypto_alg_lookup(name);
+	alg = __crypto_alg_lookup(name, type, mask);
 	if (!alg) {
 		alg = &larval->alg;
 		list_add(&alg->cra_list, &crypto_alg_list);
@@ -151,7 +160,8 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 	return alg;
 }
 
-static struct crypto_alg *crypto_alg_lookup(const char *name)
+static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
+					    u32 mask)
 {
 	struct crypto_alg *alg;
 
@@ -159,25 +169,27 @@ static struct crypto_alg *crypto_alg_lookup(const char *name)
 		return NULL;
 
 	down_read(&crypto_alg_sem);
-	alg = __crypto_alg_lookup(name);
+	alg = __crypto_alg_lookup(name, type, mask);
 	up_read(&crypto_alg_sem);
 
 	return alg;
 }
 
-/* A far more intelligent version of this is planned.  For now, just
- * try an exact match on the name of the algorithm. */
-static struct crypto_alg *crypto_alg_mod_lookup(const char *name)
+struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 {
 	struct crypto_alg *alg;
 	struct crypto_alg *larval;
 	int ok;
 
-	alg = try_then_request_module(crypto_alg_lookup(name), name);
+	mask &= ~CRYPTO_ALG_LARVAL;
+	type &= mask;
+
+	alg = try_then_request_module(crypto_alg_lookup(name, type, mask),
+				      name);
 	if (alg)
 		return crypto_is_larval(alg) ? crypto_larval_wait(alg) : alg;
 
-	larval = crypto_larval_alloc(name);
+	larval = crypto_larval_alloc(name, type, mask);
 	if (!larval || !crypto_is_larval(larval))
 		return larval;
 
@@ -196,6 +208,7 @@ static struct crypto_alg *crypto_alg_mod_lookup(const char *name)
 	crypto_larval_kill(larval);
 	return alg;
 }
+EXPORT_SYMBOL_GPL(crypto_alg_mod_lookup);
 
 static int crypto_init_flags(struct crypto_tfm *tfm, u32 flags)
 {
@@ -291,7 +304,7 @@ struct crypto_tfm *crypto_alloc_tfm(const char *name, u32 flags)
 	struct crypto_alg *alg;
 	unsigned int tfm_size;
 
-	alg = crypto_alg_mod_lookup(name);
+	alg = crypto_alg_mod_lookup(name, 0, 0);
 	if (alg == NULL)
 		goto out;
 
@@ -346,7 +359,7 @@ void crypto_free_tfm(struct crypto_tfm *tfm)
 int crypto_alg_available(const char *name, u32 flags)
 {
 	int ret = 0;
-	struct crypto_alg *alg = crypto_alg_mod_lookup(name);
+	struct crypto_alg *alg = crypto_alg_mod_lookup(name, 0, 0);
 	
 	if (alg) {
 		crypto_mod_put(alg);

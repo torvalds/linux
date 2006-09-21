@@ -21,12 +21,12 @@
 
 static LIST_HEAD(crypto_template_list);
 
-void crypto_larval_error(const char *name)
+void crypto_larval_error(const char *name, u32 type, u32 mask)
 {
 	struct crypto_alg *alg;
 
 	down_read(&crypto_alg_sem);
-	alg = __crypto_alg_lookup(name);
+	alg = __crypto_alg_lookup(name, type, mask);
 	up_read(&crypto_alg_sem);
 
 	if (alg) {
@@ -87,6 +87,8 @@ static int __crypto_register_alg(struct crypto_alg *alg)
 		     !strcmp(alg->cra_driver_name, q->cra_name))) {
 			struct crypto_larval *larval = (void *)q;
 
+			if ((q->cra_flags ^ alg->cra_flags) & larval->mask)
+				continue;
 			if (!crypto_mod_get(alg))
 				continue;
 			larval->adult = alg;
