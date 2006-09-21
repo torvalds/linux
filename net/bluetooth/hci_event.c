@@ -62,6 +62,7 @@ static void hci_cc_link_ctl(struct hci_dev *hdev, __u16 ocf, struct sk_buff *skb
 
 	switch (ocf) {
 	case OCF_INQUIRY_CANCEL:
+	case OCF_EXIT_PERIODIC_INQ:
 		status = *((__u8 *) skb->data);
 
 		if (status) {

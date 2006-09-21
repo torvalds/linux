@@ -340,6 +340,8 @@ struct hci_cp_inquiry {
 
 #define OCF_INQUIRY_CANCEL	0x0002
 
+#define OCF_EXIT_PERIODIC_INQ	0x0004
+
 #define OCF_LINK_KEY_REPLY	0x000B
 struct hci_cp_link_key_reply {
 	bdaddr_t bdaddr;
