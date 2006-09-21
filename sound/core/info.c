@@ -175,15 +175,15 @@ static loff_t snd_info_entry_llseek(struct file *file, loff_t offset, int orig)
 	switch (entry->content) {
 	case SNDRV_INFO_CONTENT_TEXT:
 		switch (orig) {
-		case 0:	/* SEEK_SET */
+		case SEEK_SET:
 			file->f_pos = offset;
 			ret = file->f_pos;
 			goto out;
-		case 1:	/* SEEK_CUR */
+		case SEEK_CUR:
 			file->f_pos += offset;
 			ret = file->f_pos;
 			goto out;
-		case 2:	/* SEEK_END */
+		case SEEK_END:
 		default:
 			ret = -EINVAL;
 			goto out;
