@@ -46,6 +46,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
+#include <asm/fs_pd.h>
 
 #if defined(CONFIG_SERIAL_CPM_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -1044,11 +1045,11 @@ int cpm_uart_drv_get_platform_data(struct platform_device *pdev, int is_con)
 
 	if (!(r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs")))
 		return -EINVAL;
-	mem = r->start;
+	mem = (u32)ioremap(r->start, r->end - r->start + 1);
 
 	if (!(r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pram")))
 		return -EINVAL;
-	pram = r->start;
+	pram = (u32)ioremap(r->start, r->end - r->start + 1);
 
 	if(idx > fsid_smc2_uart) {
 		pinfo->sccp = (scc_t *)mem;
@@ -1189,11 +1190,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	if (options) {
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	} else {
-		bd_t *bd = (bd_t *) __res;
-
-		if (bd->bi_baudrate)
-			baud = bd->bi_baudrate;
-		else
+		if ((baud = uart_baudrate()) == -1)
 			baud = 9600;
 	}
 
