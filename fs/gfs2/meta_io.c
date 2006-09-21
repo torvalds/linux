@@ -273,19 +273,16 @@ void gfs2_meta_inval(struct gfs2_glock *gl)
 /**
  * gfs2_meta_sync - Sync all buffers associated with a glock
  * @gl: The glock
- * @flags: DIO_START | DIO_WAIT
  *
  */
 
-void gfs2_meta_sync(struct gfs2_glock *gl, int flags)
+void gfs2_meta_sync(struct gfs2_glock *gl)
 {
 	struct address_space *mapping = gl->gl_aspace->i_mapping;
-	int error = 0;
+	int error;
 
-	if (flags & DIO_START)
-		filemap_fdatawrite(mapping);
-	if (!error && (flags & DIO_WAIT))
-		error = filemap_fdatawait(mapping);
+	filemap_fdatawrite(mapping);
+	error = filemap_fdatawait(mapping);
 
 	if (error)
 		gfs2_io_error(gl->gl_sbd);
@@ -377,7 +374,7 @@ struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
  * gfs2_meta_read - Read a block from disk
  * @gl: The glock covering the block
  * @blkno: The block number
- * @flags: flags to gfs2_dreread()
+ * @flags: flags
  * @bhp: the place where the buffer is returned (NULL on failure)
  *
  * Returns: errno
@@ -386,45 +383,43 @@ struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
 int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		   struct buffer_head **bhp)
 {
-	int error;
-
 	*bhp = getbuf(gl->gl_sbd, gl->gl_aspace, blkno, CREATE);
-	error = gfs2_meta_reread(gl->gl_sbd, *bhp, flags);
-	if (error)
-		brelse(*bhp);
+	if (!buffer_uptodate(*bhp))
+		ll_rw_block(READ, 1, bhp);
+	if (flags & DIO_WAIT) {
+		int error = gfs2_meta_wait(gl->gl_sbd, *bhp);
+		if (error) {
+			brelse(*bhp);
+			return error;
+		}
+	}
 
-	return error;
+	return 0;
 }
 
 /**
- * gfs2_meta_reread - Reread a block from disk
+ * gfs2_meta_wait - Reread a block from disk
  * @sdp: the filesystem
- * @bh: The block to read
- * @flags: Flags that control the read
+ * @bh: The block to wait for
  *
  * Returns: errno
  */
 
-int gfs2_meta_reread(struct gfs2_sbd *sdp, struct buffer_head *bh, int flags)
+int gfs2_meta_wait(struct gfs2_sbd *sdp, struct buffer_head *bh)
 {
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		return -EIO;
 
-	if ((flags & DIO_START) && !buffer_uptodate(bh))
-		ll_rw_block(READ, 1, &bh);
+	wait_on_buffer(bh);
 
-	if (flags & DIO_WAIT) {
-		wait_on_buffer(bh);
-
-		if (!buffer_uptodate(bh)) {
-			struct gfs2_trans *tr = current->journal_info;
-			if (tr && tr->tr_touched)
-				gfs2_io_error_bh(sdp, bh);
-			return -EIO;
-		}
-		if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-			return -EIO;
+	if (!buffer_uptodate(bh)) {
+		struct gfs2_trans *tr = current->journal_info;
+		if (tr && tr->tr_touched)
+			gfs2_io_error_bh(sdp, bh);
+		return -EIO;
 	}
+	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		return -EIO;
 
 	return 0;
 }
@@ -635,67 +630,57 @@ void gfs2_meta_cache_flush(struct gfs2_inode *ip)
 int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 			      int new, struct buffer_head **bhp)
 {
-	struct buffer_head *bh, **bh_slot = ip->i_cache + height;
-	int error;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_glock *gl = ip->i_gl;
+	struct buffer_head *bh = NULL, **bh_slot = ip->i_cache + height;
+	int in_cache = 0;
 
 	spin_lock(&ip->i_spin);
-	bh = *bh_slot;
-	if (bh) {
-		if (bh->b_blocknr == num)
-			get_bh(bh);
-		else
-			bh = NULL;
+	if (*bh_slot && (*bh_slot)->b_blocknr == num) {
+		bh = *bh_slot;
+		get_bh(bh);
+		in_cache = 1;
 	}
 	spin_unlock(&ip->i_spin);
 
-	if (bh) {
-		if (new)
-			meta_prep_new(bh);
-		else {
-			error = gfs2_meta_reread(GFS2_SB(&ip->i_inode), bh,
-						 DIO_START | DIO_WAIT);
-			if (error) {
-				brelse(bh);
-				return error;
-			}
-		}
-	} else {
-		if (new)
-			bh = gfs2_meta_new(ip->i_gl, num);
-		else {
-			error = gfs2_meta_read(ip->i_gl, num,
-					       DIO_START | DIO_WAIT, &bh);
-			if (error)
-				return error;
-		}
+	if (!bh)
+		bh = getbuf(gl->gl_sbd, gl->gl_aspace, num, CREATE);
 
-		spin_lock(&ip->i_spin);
-		if (*bh_slot != bh) {
-			brelse(*bh_slot);
-			*bh_slot = bh;
-			get_bh(bh);
-		}
-		spin_unlock(&ip->i_spin);
-	}
+	if (!bh)
+		return -ENOBUFS;
 
 	if (new) {
-		if (gfs2_assert_warn(GFS2_SB(&ip->i_inode), height)) {
-			brelse(bh);
-			return -EIO;
-		}
+		if (gfs2_assert_warn(sdp, height))
+			goto err;
+		meta_prep_new(bh);
 		gfs2_trans_add_bh(ip->i_gl, bh, 1);
 		gfs2_metatype_set(bh, GFS2_METATYPE_IN, GFS2_FORMAT_IN);
 		gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
+	} else {
+		u32 mtype = height ? GFS2_METATYPE_IN : GFS2_METATYPE_DI;
+		if (!buffer_uptodate(bh)) {
+			ll_rw_block(READ, 1, &bh);
+			if (gfs2_meta_wait(sdp, bh))
+				goto err;
+		}
+		if (gfs2_metatype_check(sdp, bh, mtype))
+			goto err;
+	}
 
-	} else if (gfs2_metatype_check(GFS2_SB(&ip->i_inode), bh,
-			     (height) ? GFS2_METATYPE_IN : GFS2_METATYPE_DI)) {
-		brelse(bh);
-		return -EIO;
+	if (!in_cache) {
+		spin_lock(&ip->i_spin);
+		if (*bh_slot)
+			brelse(*bh_slot);
+		*bh_slot = bh;
+		get_bh(bh);
+		spin_unlock(&ip->i_spin);
 	}
 
 	*bhp = bh;
-
 	return 0;
+err:
+	brelse(bh);
+	return -EIO;
 }
 
 /**
@@ -704,19 +689,21 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
  * @dblock: the starting disk block
  * @extlen: the number of blocks in the extent
  *
+ * returns: the first buffer in the extent
  */
 
-void gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
+struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct inode *aspace = gl->gl_aspace;
 	struct buffer_head *first_bh, *bh;
 	u32 max_ra = gfs2_tune_get(sdp, gt_max_readahead) >>
 			  sdp->sd_sb.sb_bsize_shift;
-	int error;
 
-	if (!extlen || !max_ra)
-		return;
+	BUG_ON(!extlen);
+
+	if (max_ra < 1)
+		max_ra = 1;
 	if (extlen > max_ra)
 		extlen = max_ra;
 
@@ -724,11 +711,8 @@ void gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 
 	if (buffer_uptodate(first_bh))
 		goto out;
-	if (!buffer_locked(first_bh)) {
-		error = gfs2_meta_reread(sdp, first_bh, DIO_START);
-		if (error)
-			goto out;
-	}
+	if (!buffer_locked(first_bh))
+		ll_rw_block(READ, 1, &first_bh);
 
 	dblock++;
 	extlen--;
@@ -736,23 +720,18 @@ void gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 	while (extlen) {
 		bh = getbuf(sdp, aspace, dblock, CREATE);
 
-		if (!buffer_uptodate(bh) && !buffer_locked(bh)) {
-			error = gfs2_meta_reread(sdp, bh, DIO_START);
-			brelse(bh);
-			if (error)
-				goto out;
-		} else
-			brelse(bh);
-
+		if (!buffer_uptodate(bh) && !buffer_locked(bh))
+			ll_rw_block(READA, 1, &bh);
+		brelse(bh);
 		dblock++;
 		extlen--;
-
-		if (buffer_uptodate(first_bh))
-			break;
+		if (!buffer_locked(first_bh) && buffer_uptodate(first_bh))
+			goto out;
 	}
 
+	wait_on_buffer(first_bh);
 out:
-	brelse(first_bh);
+	return first_bh;
 }
 
 /**

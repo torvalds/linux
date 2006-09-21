@@ -77,32 +77,24 @@ static void gfs2_page_inval(struct gfs2_glock *gl)
 }
 
 /**
- * gfs2_page_sync - Sync the data pages (not metadata) associated with a glock
+ * gfs2_page_wait - Wait for writeback of data
  * @gl: the glock
- * @flags: DIO_START | DIO_WAIT
  *
  * Syncs data (not metadata) for a regular file.
  * No-op for all other types.
  */
 
-static void gfs2_page_sync(struct gfs2_glock *gl, int flags)
+static void gfs2_page_wait(struct gfs2_glock *gl)
 {
-	struct gfs2_inode *ip;
-	struct inode *inode;
-	struct address_space *mapping;
-	int error = 0;
+	struct gfs2_inode *ip = gl->gl_object;
+	struct inode *inode = &ip->i_inode;
+	struct address_space *mapping = inode->i_mapping;
+	int error;
 
-	ip = gl->gl_object;
-	inode = &ip->i_inode;
-	if (!ip || !S_ISREG(ip->i_di.di_mode))
+	if (!S_ISREG(ip->i_di.di_mode))
 		return;
 
-	mapping = inode->i_mapping;
-
-	if (flags & DIO_START)
-		filemap_fdatawrite(mapping);
-	if (!error && (flags & DIO_WAIT))
-		error = filemap_fdatawait(mapping);
+	error = filemap_fdatawait(mapping);
 
 	/* Put back any errors cleared by filemap_fdatawait()
 	   so they can be caught by someone who can pass them
@@ -113,6 +105,18 @@ static void gfs2_page_sync(struct gfs2_glock *gl, int flags)
 	else if (error)
 		set_bit(AS_EIO, &mapping->flags);
 
+}
+
+static void gfs2_page_writeback(struct gfs2_glock *gl)
+{
+	struct gfs2_inode *ip = gl->gl_object;
+	struct inode *inode = &ip->i_inode;
+	struct address_space *mapping = inode->i_mapping;
+
+	if (!S_ISREG(ip->i_di.di_mode))
+		return;
+
+	filemap_fdatawrite(mapping);
 }
 
 /**
@@ -132,7 +136,7 @@ static void meta_go_sync(struct gfs2_glock *gl, int flags)
 
 	if (test_and_clear_bit(GLF_DIRTY, &gl->gl_flags)) {
 		gfs2_log_flush(gl->gl_sbd, gl);
-		gfs2_meta_sync(gl, flags | DIO_START | DIO_WAIT);
+		gfs2_meta_sync(gl);
 		if (flags & DIO_RELEASE)
 			gfs2_ail_empty_gl(gl);
 	}
@@ -185,8 +189,7 @@ static void inode_go_xmote_bh(struct gfs2_glock *gl)
 
 	if (gl->gl_state != LM_ST_UNLOCKED &&
 	    (!gh || !(gh->gh_flags & GL_SKIP))) {
-		error = gfs2_meta_read(gl, gl->gl_name.ln_number, DIO_START,
-				       &bh);
+		error = gfs2_meta_read(gl, gl->gl_name.ln_number, 0, &bh);
 		if (!error)
 			brelse(bh);
 	}
@@ -221,16 +224,18 @@ static void inode_go_sync(struct gfs2_glock *gl, int flags)
 
 	if (test_bit(GLF_DIRTY, &gl->gl_flags)) {
 		if (meta && data) {
-			gfs2_page_sync(gl, flags | DIO_START);
+			gfs2_page_writeback(gl);
 			gfs2_log_flush(gl->gl_sbd, gl);
-			gfs2_meta_sync(gl, flags | DIO_START | DIO_WAIT);
-			gfs2_page_sync(gl, flags | DIO_WAIT);
+			gfs2_meta_sync(gl);
+			gfs2_page_wait(gl);
 			clear_bit(GLF_DIRTY, &gl->gl_flags);
 		} else if (meta) {
 			gfs2_log_flush(gl->gl_sbd, gl);
-			gfs2_meta_sync(gl, flags | DIO_START | DIO_WAIT);
-		} else if (data)
-			gfs2_page_sync(gl, flags | DIO_START | DIO_WAIT);
+			gfs2_meta_sync(gl);
+		} else if (data) {
+			gfs2_page_writeback(gl);
+			gfs2_page_wait(gl);
+		}
 		if (flags & DIO_RELEASE)
 			gfs2_ail_empty_gl(gl);
 	}

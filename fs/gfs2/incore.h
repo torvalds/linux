@@ -12,7 +12,6 @@
 
 #include <linux/fs.h>
 
-#define DIO_START	0x00000008
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
 #define DIO_DATA	0x00000040

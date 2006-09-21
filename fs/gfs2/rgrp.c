@@ -575,15 +575,14 @@ int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 
 	for (x = 0; x < length; x++) {
 		bi = rgd->rd_bits + x;
-		error = gfs2_meta_read(gl, rgd->rd_ri.ri_addr + x, DIO_START,
-				       &bi->bi_bh);
+		error = gfs2_meta_read(gl, rgd->rd_ri.ri_addr + x, 0, &bi->bi_bh);
 		if (error)
 			goto fail;
 	}
 
 	for (y = length; y--;) {
 		bi = rgd->rd_bits + y;
-		error = gfs2_meta_reread(sdp, bi->bi_bh, DIO_WAIT);
+		error = gfs2_meta_wait(sdp, bi->bi_bh);
 		if (error)
 			goto fail;
 		if (gfs2_metatype_check(sdp, bi->bi_bh, y ? GFS2_METATYPE_RB :

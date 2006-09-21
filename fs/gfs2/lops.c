@@ -248,13 +248,13 @@ static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 
 	if (error) {
-		gfs2_meta_sync(ip->i_gl, DIO_START | DIO_WAIT);
+		gfs2_meta_sync(ip->i_gl);
 		return;
 	}
 	if (pass != 1)
 		return;
 
-	gfs2_meta_sync(ip->i_gl, DIO_START | DIO_WAIT);
+	gfs2_meta_sync(ip->i_gl);
 
 	fs_info(sdp, "jid=%u: Replayed %u of %u blocks\n",
 	        jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);
@@ -726,15 +726,14 @@ static void databuf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 
 	if (error) {
-		gfs2_meta_sync(ip->i_gl,
-			       DIO_START | DIO_WAIT);
+		gfs2_meta_sync(ip->i_gl);
 		return;
 	}
 	if (pass != 1)
 		return;
 
 	/* data sync? */
-	gfs2_meta_sync(ip->i_gl, DIO_START | DIO_WAIT);
+	gfs2_meta_sync(ip->i_gl);
 
 	fs_info(sdp, "jid=%u: Replayed %u of %u data blocks\n",
 		jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);

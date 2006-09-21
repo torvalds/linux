@@ -448,6 +448,8 @@ static int gfs2_block_pointers(struct inode *inode, u64 lblock, int create,
 	u64 dblock = 0;
 	int boundary;
 
+	BUG_ON(maxlen == 0);
+
 	if (gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
 		return 0;
 
@@ -561,7 +563,7 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 	BUG_ON(!new);
 
 	bmap_lock(inode, create);
-	ret = gfs2_block_pointers(inode, lblock, create, &bh, &mp, *extlen);
+	ret = gfs2_block_pointers(inode, lblock, create, &bh, &mp, 32);
 	bmap_unlock(inode, create);
 	*extlen = bh.b_size >> inode->i_blkbits;
 	*dblock = bh.b_blocknr;

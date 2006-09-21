@@ -106,7 +106,7 @@ static int gfs2_dir_get_existing_buffer(struct gfs2_inode *ip, u64 block,
 	struct buffer_head *bh;
 	int error;
 
-	error = gfs2_meta_read(ip->i_gl, block, DIO_START | DIO_WAIT, &bh);
+	error = gfs2_meta_read(ip->i_gl, block, DIO_WAIT, &bh);
 	if (error)
 		return error;
 	if (gfs2_metatype_check(GFS2_SB(&ip->i_inode), bh, GFS2_METATYPE_JD)) {
@@ -246,7 +246,7 @@ fail:
 }
 
 static int gfs2_dir_read_stuffed(struct gfs2_inode *ip, char *buf,
-				 unsigned int offset, unsigned int size)
+				 u64 offset, unsigned int size)
 {
 	struct buffer_head *dibh;
 	int error;
@@ -271,8 +271,8 @@ static int gfs2_dir_read_stuffed(struct gfs2_inode *ip, char *buf,
  *
  * Returns: The amount of data actually copied or the error
  */
-static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf,
-			      u64 offset, unsigned int size)
+static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf, u64 offset,
+			      unsigned int size, unsigned ra)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	u64 lblock, dblock;
@@ -291,8 +291,7 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf,
 		return 0;
 
 	if (gfs2_is_stuffed(ip))
-		return gfs2_dir_read_stuffed(ip, buf, (unsigned int)offset,
-					     size);
+		return gfs2_dir_read_stuffed(ip, buf, offset, size);
 
 	if (gfs2_assert_warn(sdp, gfs2_is_jdata(ip)))
 		return -EINVAL;
@@ -313,34 +312,31 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf,
 			new = 0;
 			error = gfs2_extent_map(&ip->i_inode, lblock, &new,
 						&dblock, &extlen);
+			if (error || !dblock)
+				goto fail;
+			BUG_ON(extlen < 1);
+			if (!ra)
+				extlen = 1;
+			bh = gfs2_meta_ra(ip->i_gl, dblock, extlen);
+		}
+		if (!bh) {
+			error = gfs2_meta_read(ip->i_gl, dblock, DIO_WAIT, &bh);
 			if (error)
 				goto fail;
 		}
-
-		if (extlen > 1)
-			gfs2_meta_ra(ip->i_gl, dblock, extlen);
-
-		if (dblock) {
-			if (new)
-				error = gfs2_dir_get_new_buffer(ip, dblock, &bh);
-			else
-				error = gfs2_dir_get_existing_buffer(ip, dblock, &bh);
-			if (error)
-				goto fail;
-			dblock++;
-			extlen--;
-		} else
-			bh = NULL;
-
+		error = gfs2_metatype_check(sdp, bh, GFS2_METATYPE_JD);
+		if (error) {
+			brelse(bh);
+			goto fail;
+		}
+		dblock++;
+		extlen--;
 		memcpy(buf, bh->b_data + o, amount);
 		brelse(bh);
-		if (error)
-			goto fail;
-
+		bh = NULL;
 		buf += amount;
 		copied += amount;
 		lblock++;
-
 		o = sizeof(struct gfs2_meta_header);
 	}
 
@@ -701,7 +697,7 @@ static int get_leaf(struct gfs2_inode *dip, u64 leaf_no,
 {
 	int error;
 
-	error = gfs2_meta_read(dip->i_gl, leaf_no, DIO_START | DIO_WAIT, bhp);
+	error = gfs2_meta_read(dip->i_gl, leaf_no, DIO_WAIT, bhp);
 	if (!error && gfs2_metatype_check(GFS2_SB(&dip->i_inode), *bhp, GFS2_METATYPE_LF)) {
 		/* printk(KERN_INFO "block num=%llu\n", leaf_no); */
 		error = -EIO;
@@ -727,7 +723,7 @@ static int get_leaf_nr(struct gfs2_inode *dip, u32 index,
 
 	error = gfs2_dir_read_data(dip, (char *)&leaf_no,
 				    index * sizeof(u64),
-				    sizeof(u64));
+				    sizeof(u64), 0);
 	if (error != sizeof(u64))
 		return (error < 0) ? error : -EIO;
 
@@ -1095,7 +1091,7 @@ static int dir_double_exhash(struct gfs2_inode *dip)
 	for (block = dip->i_di.di_size >> sdp->sd_hash_bsize_shift; block--;) {
 		error = gfs2_dir_read_data(dip, (char *)buf,
 					    block * sdp->sd_hash_bsize,
-					    sdp->sd_hash_bsize);
+					    sdp->sd_hash_bsize, 1);
 		if (error != sdp->sd_hash_bsize) {
 			if (error >= 0)
 				error = -EIO;
@@ -1375,7 +1371,7 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 		if (ht_offset_cur != ht_offset) {
 			error = gfs2_dir_read_data(dip, (char *)lp,
 						ht_offset * sizeof(u64),
-						sdp->sd_hash_bsize);
+						sdp->sd_hash_bsize, 1);
 			if (error != sdp->sd_hash_bsize) {
 				if (error >= 0)
 					error = -EIO;
@@ -1745,7 +1741,7 @@ static int foreach_leaf(struct gfs2_inode *dip, leaf_call_t lc, void *data)
 		if (ht_offset_cur != ht_offset) {
 			error = gfs2_dir_read_data(dip, (char *)lp,
 						ht_offset * sizeof(u64),
-						sdp->sd_hash_bsize);
+						sdp->sd_hash_bsize, 1);
 			if (error != sdp->sd_hash_bsize) {
 				if (error >= 0)
 					error = -EIO;

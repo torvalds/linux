@@ -265,7 +265,7 @@ static int bh_get(struct gfs2_quota_data *qd)
 	error = gfs2_block_map(&ip->i_inode, block, 0, &bh_map, 1);
 	if (error)
 		goto fail;
-	error = gfs2_meta_read(ip->i_gl, bh_map.b_blocknr, DIO_START | DIO_WAIT, &bh);
+	error = gfs2_meta_read(ip->i_gl, bh_map.b_blocknr, DIO_WAIT, &bh);
 	if (error)
 		goto fail;
 	error = -EIO;
@@ -1059,8 +1059,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 	u32 extlen = 0;
 	int error;
 
-	if (!ip->i_di.di_size ||
-	    ip->i_di.di_size > (64 << 20) ||
+	if (!ip->i_di.di_size || ip->i_di.di_size > (64 << 20) ||
 	    ip->i_di.di_size & (sdp->sd_sb.sb_bsize - 1)) {
 		gfs2_consist_inode(ip);
 		return -EIO;		
@@ -1091,19 +1090,16 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 			if (error)
 				goto fail;
 		}
-		gfs2_meta_ra(ip->i_gl,  dblock, extlen);
-		error = gfs2_meta_read(ip->i_gl, dblock, DIO_START | DIO_WAIT,
-				       &bh);
-		if (error)
-			goto fail;
 		error = -EIO;
+		bh = gfs2_meta_ra(ip->i_gl, dblock, extlen);
+		if (!bh)
+			goto fail;
 		if (gfs2_metatype_check(sdp, bh, GFS2_METATYPE_QC)) {
 			brelse(bh);
 			goto fail;
 		}
 
-		for (y = 0;
-		     y < sdp->sd_qc_per_block && slot < sdp->sd_quota_slots;
+		for (y = 0; y < sdp->sd_qc_per_block && slot < sdp->sd_quota_slots;
 		     y++, slot++) {
 			struct gfs2_quota_change qc;
 			struct gfs2_quota_data *qd;

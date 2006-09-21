@@ -115,7 +115,7 @@ static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 	u64 *eablk, *end;
 	int error;
 
-	error = gfs2_meta_read(ip->i_gl, ip->i_di.di_eattr, DIO_START | DIO_WAIT, &bh);
+	error = gfs2_meta_read(ip->i_gl, ip->i_di.di_eattr, DIO_WAIT, &bh);
 	if (error)
 		return error;
 
@@ -139,7 +139,7 @@ static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 			break;
 		bn = be64_to_cpu(*eablk);
 
-		error = gfs2_meta_read(ip->i_gl, bn, DIO_START | DIO_WAIT, &eabh);
+		error = gfs2_meta_read(ip->i_gl, bn, DIO_WAIT, &eabh);
 		if (error)
 			break;
 		error = ea_foreach_i(ip, eabh, ea_call, data);
@@ -453,8 +453,8 @@ static int ea_get_unstuffed(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 		return -ENOMEM;
 
 	for (x = 0; x < nptrs; x++) {
-		error = gfs2_meta_read(ip->i_gl, be64_to_cpu(*dataptrs),
-				       DIO_START, bh + x);
+		error = gfs2_meta_read(ip->i_gl, be64_to_cpu(*dataptrs), 0,
+				       bh + x);
 		if (error) {
 			while (x--)
 				brelse(bh[x]);
@@ -464,7 +464,7 @@ static int ea_get_unstuffed(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 	}
 
 	for (x = 0; x < nptrs; x++) {
-		error = gfs2_meta_reread(sdp, bh[x], DIO_WAIT);
+		error = gfs2_meta_wait(sdp, bh[x]);
 		if (error) {
 			for (; x < nptrs; x++)
 				brelse(bh[x]);
@@ -938,8 +938,8 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (ip->i_di.di_flags & GFS2_DIF_EA_INDIRECT) {
 		u64 *end;
 
-		error = gfs2_meta_read(ip->i_gl, ip->i_di.di_eattr,
-				       DIO_START | DIO_WAIT, &indbh);
+		error = gfs2_meta_read(ip->i_gl, ip->i_di.di_eattr, DIO_WAIT,
+				       &indbh);
 		if (error)
 			return error;
 
@@ -1215,8 +1215,8 @@ static int ea_acl_chmod_unstuffed(struct gfs2_inode *ip,
 		goto out;
 
 	for (x = 0; x < nptrs; x++) {
-		error = gfs2_meta_read(ip->i_gl, be64_to_cpu(*dataptrs),
-				       DIO_START, bh + x);
+		error = gfs2_meta_read(ip->i_gl, be64_to_cpu(*dataptrs), 0,
+				       bh + x);
 		if (error) {
 			while (x--)
 				brelse(bh[x]);
@@ -1226,7 +1226,7 @@ static int ea_acl_chmod_unstuffed(struct gfs2_inode *ip,
 	}
 
 	for (x = 0; x < nptrs; x++) {
-		error = gfs2_meta_reread(sdp, bh[x], DIO_WAIT);
+		error = gfs2_meta_wait(sdp, bh[x]);
 		if (error) {
 			for (; x < nptrs; x++)
 				brelse(bh[x]);
@@ -1310,8 +1310,7 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 
 	memset(&rlist, 0, sizeof(struct gfs2_rgrp_list));
 
-	error = gfs2_meta_read(ip->i_gl, ip->i_di.di_eattr,
-			       DIO_START | DIO_WAIT, &indbh);
+	error = gfs2_meta_read(ip->i_gl, ip->i_di.di_eattr, DIO_WAIT, &indbh);
 	if (error)
 		return error;
 
