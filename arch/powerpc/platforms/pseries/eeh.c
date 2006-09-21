@@ -478,7 +478,7 @@ eeh_slot_availability(struct pci_dn *pdn)
 
 	printk (KERN_ERR "EEH: Slot unavailable: rc=%d, rets=%d %d %d\n",
 		rc, rets[0], rets[1], rets[2]);
-	return -1;
+	return -2;
 }
 
 /**
@@ -546,11 +546,10 @@ rtas_pci_slot_reset(struct pci_dn *pdn, int state)
 	               BUID_HI(pdn->phb->buid),
 	               BUID_LO(pdn->phb->buid),
 	               state);
-	if (rc) {
-		printk (KERN_WARNING "EEH: Unable to reset the failed slot, (%d) #RST=%d dn=%s\n", 
+	if (rc)
+		printk (KERN_WARNING "EEH: Unable to reset the failed slot,"
+		        " (%d) #RST=%d dn=%s\n",
 		        rc, state, pdn->node->full_name);
-		return;
-	}
 }
 
 /**
@@ -560,11 +559,8 @@ rtas_pci_slot_reset(struct pci_dn *pdn, int state)
  *  Return 0 if success, else a non-zero value.
  */
 
-int
-rtas_set_slot_reset(struct pci_dn *pdn)
+static void __rtas_set_slot_reset(struct pci_dn *pdn)
 {
-	int i, rc;
-
 	rtas_pci_slot_reset (pdn, 1);
 
 	/* The PCI bus requires that the reset be held high for at least
@@ -585,17 +581,33 @@ rtas_set_slot_reset(struct pci_dn *pdn)
 	 * up traffic. */
 #define PCI_BUS_SETTLE_TIME_MSEC 1800
 	msleep (PCI_BUS_SETTLE_TIME_MSEC);
+}
+
+int rtas_set_slot_reset(struct pci_dn *pdn)
+{
+	int i, rc;
+
+	__rtas_set_slot_reset(pdn);
 
 	/* Now double check with the firmware to make sure the device is
 	 * ready to be used; if not, wait for recovery. */
 	for (i=0; i<10; i++) {
 		rc = eeh_slot_availability (pdn);
-		if (rc < 0)
-			printk (KERN_ERR "EEH: failed (%d) to reset slot %s\n", rc, pdn->node->full_name);
 		if (rc == 0)
 			return 0;
-		if (rc < 0)
+
+		if (rc == -2) {
+			printk (KERN_ERR "EEH: failed (%d) to reset slot %s\n",
+			        i, pdn->node->full_name);
+			__rtas_set_slot_reset(pdn);
+			continue;
+		}
+
+		if (rc < 0) {
+			printk (KERN_ERR "EEH: unrecoverable slot failure %s\n",
+			        pdn->node->full_name);
 			return -1;
+		}
 
 		msleep (rc+100);
 	}
