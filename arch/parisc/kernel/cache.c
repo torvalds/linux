@@ -372,8 +372,7 @@ void parisc_setup_cache_timing(void)
 extern void purge_kernel_dcache_page(unsigned long);
 extern void clear_user_page_asm(void *page, unsigned long vaddr);
 
-void
-clear_user_page(void *page, unsigned long vaddr, struct page *pg)
+void clear_user_page(void *page, unsigned long vaddr, struct page *pg)
 {
 	purge_kernel_dcache_page((unsigned long)page);
 	purge_tlb_start();
@@ -381,6 +380,7 @@ clear_user_page(void *page, unsigned long vaddr, struct page *pg)
 	purge_tlb_end();
 	clear_user_page_asm(page, vaddr);
 }
+EXPORT_SYMBOL(clear_user_page);
 
 void flush_kernel_dcache_page_addr(void *addr)
 {
