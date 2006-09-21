@@ -77,14 +77,16 @@ static int drm_map_handle(drm_device_t *dev, drm_hash_item_t *hash,
 #error Unsupported long size. Neither 64 nor 32 bits.
 #endif
 
-	if (use_hashed_handle) {
-		return drm_ht_just_insert_please(&dev->map_hash, hash,
-						 user_token, 32 - PAGE_SHIFT - 3,
-						 PAGE_SHIFT, DRM_MAP_HASH_OFFSET);
-	} else {
+	if (!use_hashed_handle) {
+		int ret;
 		hash->key = user_token;
-		return drm_ht_insert_item(&dev->map_hash, hash);
+		ret = drm_ht_insert_item(&dev->map_hash, hash);
+		if (ret != -EINVAL)
+			return ret;
 	}
+	return drm_ht_just_insert_please(&dev->map_hash, hash,
+					 user_token, 32 - PAGE_SHIFT - 3,
+					 PAGE_SHIFT, DRM_MAP_HASH_OFFSET);
 }
 
 /**
