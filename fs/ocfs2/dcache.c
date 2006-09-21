@@ -183,9 +183,6 @@ DEFINE_SPINLOCK(dentry_attach_lock);
  * The dir cluster lock (held at either PR or EX mode) protects us
  * from unlink and rename on other nodes.
  *
- * The 'create' flag tells us whether we're doing this as a result of
- * a file creation.
- *
  * A dput() can happen asynchronously due to pruning, so we cover
  * attaching and detaching the dentry lock with a
  * dentry_attach_lock.
@@ -199,16 +196,15 @@ DEFINE_SPINLOCK(dentry_attach_lock);
  */
 int ocfs2_dentry_attach_lock(struct dentry *dentry,
 			     struct inode *inode,
-			     u64 parent_blkno,
-			     int create)
+			     u64 parent_blkno)
 {
 	int ret;
 	struct dentry *alias;
 	struct ocfs2_dentry_lock *dl = dentry->d_fsdata;
 
-	mlog(0, "Attach \"%.*s\", parent %llu, create %d, fsdata: %p\n",
+	mlog(0, "Attach \"%.*s\", parent %llu, fsdata: %p\n",
 	     dentry->d_name.len, dentry->d_name.name,
-	     (unsigned long long)parent_blkno, create, dl);
+	     (unsigned long long)parent_blkno, dl);
 
 	/*
 	 * Negative dentry. We ignore these for now.
@@ -242,10 +238,9 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 		 * since we have it pinned, so our reference is safe.
 		 */
 		dl = alias->d_fsdata;
-		mlog_bug_on_msg(!dl, "parent %llu, ino %llu, create %d\n",
+		mlog_bug_on_msg(!dl, "parent %llu, ino %llu\n",
 				(unsigned long long)parent_blkno,
-				(unsigned long long)OCFS2_I(inode)->ip_blkno,
-				create);
+				(unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 		mlog_bug_on_msg(dl->dl_parent_blkno != parent_blkno,
 				" \"%.*s\": old parent: %llu, new: %llu\n",
@@ -284,31 +279,16 @@ out_attach:
 	spin_unlock(&dentry_attach_lock);
 
 	/*
-	 * Creation of a new file means that nobody can possibly have
-	 * this name in the system, which means that acquiry of those
-	 * locks can easily be optimized.
-	 */
-	if (create) {
-		ret = ocfs2_create_new_lock(OCFS2_SB(inode->i_sb),
-					    &dl->dl_lockres, 0);
-		if (ret)
-			mlog_errno(ret);
-		goto out;
-	}
-
-	/*
 	 * This actually gets us our PRMODE level lock. From now on,
 	 * we'll have a notification if one of these names is
 	 * destroyed on another node.
 	 */
 	ret = ocfs2_dentry_lock(dentry, 0);
-	if (ret) {
+	if (!ret)
+		ocfs2_dentry_unlock(dentry, 0);
+	else
 		mlog_errno(ret);
-		goto out;
-	}
-	ocfs2_dentry_unlock(dentry, 0);
 
-out:
 	dput(alias);
 
 	return ret;
@@ -419,8 +399,7 @@ void ocfs2_dentry_move(struct dentry *dentry, struct dentry *target,
 	ocfs2_dentry_lock_put(osb, dentry->d_fsdata);
 
 	dentry->d_fsdata = NULL;
-	ret = ocfs2_dentry_attach_lock(dentry, inode,
-				       OCFS2_I(new_dir)->ip_blkno, 0);
+	ret = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(new_dir)->ip_blkno);
 	if (ret)
 		mlog_errno(ret);
 

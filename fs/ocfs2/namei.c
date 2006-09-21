@@ -217,7 +217,7 @@ bail_add:
 			dentry = ret;
 
 		status = ocfs2_dentry_attach_lock(dentry, inode,
-						  OCFS2_I(dir)->ip_blkno, 0);
+						  OCFS2_I(dir)->ip_blkno);
 		if (status) {
 			mlog_errno(status);
 			ret = ERR_PTR(status);
@@ -441,7 +441,7 @@ static int ocfs2_mknod(struct inode *dir,
 	}
 
 	status = ocfs2_dentry_attach_lock(dentry, inode,
-					  OCFS2_I(dir)->ip_blkno, 1);
+					  OCFS2_I(dir)->ip_blkno);
 	if (status) {
 		mlog_errno(status);
 		goto leave;
@@ -754,8 +754,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto bail;
 	}
 
-	err = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno,
-				       0);
+	err = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
 	if (err) {
 		mlog_errno(err);
 		goto bail;
@@ -1716,8 +1715,7 @@ static int ocfs2_symlink(struct inode *dir,
 		goto bail;
 	}
 
-	status = ocfs2_dentry_attach_lock(dentry, inode,
-					  OCFS2_I(dir)->ip_blkno, 1);
+	status = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
 	if (status) {
 		mlog_errno(status);
 		goto bail;

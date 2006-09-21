@@ -42,7 +42,7 @@ struct ocfs2_dentry_lock {
 };
 
 int ocfs2_dentry_attach_lock(struct dentry *dentry, struct inode *inode,
-			     u64 parent_blkno, int create);
+			     u64 parent_blkno);
 
 void ocfs2_dentry_lock_put(struct ocfs2_super *osb,
 			   struct ocfs2_dentry_lock *dl);
