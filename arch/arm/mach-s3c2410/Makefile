@@ -71,6 +71,7 @@ obj-y				+= $(obj-dma-y)
 
 # machine specific support
 
+obj-$(CONFIG_MACH_AML_M5900)	+= mach-amlm5900.o
 obj-$(CONFIG_MACH_ANUBIS)	+= mach-anubis.o
 obj-$(CONFIG_MACH_OSIRIS)	+= mach-osiris.o
 obj-$(CONFIG_ARCH_BAST)		+= mach-bast.o usb-simtec.o

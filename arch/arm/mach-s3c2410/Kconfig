@@ -2,6 +2,13 @@ if ARCH_S3C2410
 
 menu "S3C24XX Implementations"
 
+config MACH_AML_M5900
+	bool "AML M5900 Series"
+	select CPU_S3C2410
+	help
+	   Say Y here if you are using the American Microsystems M5900 Series
+           <http://www.amltd.com>
+
 config MACH_ANUBIS
 	bool "Simtec Electronics ANUBIS"
 	select CPU_S3C2440
