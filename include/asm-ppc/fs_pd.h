@@ -29,4 +29,8 @@ static inline int uart_clock(void)
 	return (((bd_t *) __res)->bi_intfreq);
 }
 
+#define cpm2_map(member)	(&cpm2_immr->member)
+#define cpm2_map_size(member, size)	(&cpm2_immr->member)
+#define cpm2_unmap(addr)        do {} while(0)
+
 #endif

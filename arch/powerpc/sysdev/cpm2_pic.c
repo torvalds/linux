@@ -78,7 +78,7 @@ static void cpm2_mask_irq(unsigned int irq_nr)
 	bit = irq_to_siubit[irq_nr];
 	word = irq_to_siureg[irq_nr];
 
-	simr = &(cpm2_immr->im_intctl.ic_simrh);
+	simr = &(cpm2_intctl->ic_simrh);
 	ppc_cached_irq_mask[word] &= ~(1 << bit);
 	simr[word] = ppc_cached_irq_mask[word];
 }
@@ -93,7 +93,7 @@ static void cpm2_unmask_irq(unsigned int irq_nr)
 	bit = irq_to_siubit[irq_nr];
 	word = irq_to_siureg[irq_nr];
 
-	simr = &(cpm2_immr->im_intctl.ic_simrh);
+	simr = &(cpm2_intctl->ic_simrh);
 	ppc_cached_irq_mask[word] |= 1 << bit;
 	simr[word] = ppc_cached_irq_mask[word];
 }
@@ -108,8 +108,8 @@ static void cpm2_mask_and_ack(unsigned int irq_nr)
 	bit = irq_to_siubit[irq_nr];
 	word = irq_to_siureg[irq_nr];
 
-	simr = &(cpm2_immr->im_intctl.ic_simrh);
-	sipnr = &(cpm2_immr->im_intctl.ic_sipnrh);
+	simr = &(cpm2_intctl->ic_simrh);
+	sipnr = &(cpm2_intctl->ic_sipnrh);
 	ppc_cached_irq_mask[word] &= ~(1 << bit);
 	simr[word] = ppc_cached_irq_mask[word];
 	sipnr[word] = 1 << bit;
@@ -127,7 +127,7 @@ static void cpm2_end_irq(unsigned int irq_nr)
 		bit = irq_to_siubit[irq_nr];
 		word = irq_to_siureg[irq_nr];
 
-		simr = &(cpm2_immr->im_intctl.ic_simrh);
+		simr = &(cpm2_intctl->ic_simrh);
 		ppc_cached_irq_mask[word] |= 1 << bit;
 		simr[word] = ppc_cached_irq_mask[word];
 		/*
@@ -152,10 +152,10 @@ int cpm2_get_irq(struct pt_regs *regs)
 	int irq;
 	unsigned long bits;
 
-	/* For CPM2, read the SIVEC register and shift the bits down
-	 * to get the irq number.*/
-	bits = cpm2_immr->im_intctl.ic_sivec;
-	irq = bits >> 26;
+       /* For CPM2, read the SIVEC register and shift the bits down
+         * to get the irq number.         */
+        bits = cpm2_intctl->ic_sivec;
+        irq = bits >> 26;
 
 	if (irq == 0)
 		return(-1);
@@ -223,26 +223,26 @@ void cpm2_pic_init(struct device_node *node)
 
 	/* Mask out everything */
 
-	cpm2_immr->im_intctl.ic_simrh = 0x00000000;
-	cpm2_immr->im_intctl.ic_simrl = 0x00000000;
+	cpm2_intctl->ic_simrh = 0x00000000;
+	cpm2_intctl->ic_simrl = 0x00000000;
 
 	wmb();
 
 	/* Ack everything */
-	cpm2_immr->im_intctl.ic_sipnrh = 0xffffffff;
-	cpm2_immr->im_intctl.ic_sipnrl = 0xffffffff;
+	cpm2_intctl->ic_sipnrh = 0xffffffff;
+	cpm2_intctl->ic_sipnrl = 0xffffffff;
 	wmb();
 
 	/* Dummy read of the vector */
-	i = cpm2_immr->im_intctl.ic_sivec;
+	i = cpm2_intctl->ic_sivec;
 	rmb();
 
 	/* Initialize the default interrupt mapping priorities,
 	 * in case the boot rom changed something on us.
 	 */
-	cpm2_immr->im_intctl.ic_sicr = 0;
-	cpm2_immr->im_intctl.ic_scprrh = 0x05309770;
-	cpm2_immr->im_intctl.ic_scprrl = 0x05309770;
+	cpm2_intctl->ic_sicr = 0;
+	cpm2_intctl->ic_scprrh = 0x05309770;
+	cpm2_intctl->ic_scprrl = 0x05309770;
 
 	/* create a legacy host */
 	if (node)

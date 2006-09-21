@@ -633,7 +633,7 @@ static int __init fs_enet_of_init(void)
 		if (strstr(model, "FCC")) {
 			int fcc_index = fs_get_fcc_index(*id);
 
-			fs_enet_data.dpram_offset = (u32)cpm2_immr->im_dprambase;
+			fs_enet_data.dpram_offset = (u32)cpm_dpram_addr(0);
 			fs_enet_data.rx_ring = 32;
 			fs_enet_data.tx_ring = 32;
 			fs_enet_data.rx_copybreak = 240;

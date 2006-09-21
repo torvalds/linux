@@ -51,6 +51,7 @@ cpm_cpm2_t	*cpmp;		/* Pointer to comm processor space */
  * the communication processor devices.
  */
 cpm2_map_t *cpm2_immr;
+intctl_cpm2_t *cpm2_intctl;
 
 #define CPM_MAP_SIZE	(0x40000)	/* 256k - the PQ3 reserve this amount
 					   of space for CPM as it is larger
@@ -60,6 +61,7 @@ void
 cpm2_reset(void)
 {
 	cpm2_immr = (cpm2_map_t *)ioremap(CPM_MAP_ADDR, CPM_MAP_SIZE);
+	cpm2_intctl = cpm2_map(im_intctl);
 
 	/* Reclaim the DP memory for our use.
 	 */
@@ -94,13 +96,15 @@ cpm_setbrg(uint brg, uint rate)
 	/* This is good enough to get SMCs running.....
 	*/
 	if (brg < 4) {
-		bp = (uint *)&cpm2_immr->im_brgc1;
+		bp = cpm2_map_size(im_brgc1, 16);
 	} else {
-		bp = (uint *)&cpm2_immr->im_brgc5;
+		bp = cpm2_map_size(im_brgc5, 16);
 		brg -= 4;
 	}
 	bp += brg;
 	*bp = ((BRG_UART_CLK / rate) << 1) | CPM_BRG_EN;
+
+	cpm2_unmap(bp);
 }
 
 /* This function is used to set high speed synchronous baud rate
@@ -112,16 +116,18 @@ cpm2_fastbrg(uint brg, uint rate, int div16)
 	volatile uint	*bp;
 
 	if (brg < 4) {
-		bp = (uint *)&cpm2_immr->im_brgc1;
+		bp = cpm2_map_size(im_brgc1, 16);
 	}
 	else {
-		bp = (uint *)&cpm2_immr->im_brgc5;
+		bp = cpm2_map_size(im_brgc5, 16);
 		brg -= 4;
 	}
 	bp += brg;
 	*bp = ((BRG_INT_CLK / rate) << 1) | CPM_BRG_EN;
 	if (div16)
 		*bp |= CPM_BRG_DIV16;
+
+	cpm2_unmap(bp);
 }
 
 /*
@@ -132,10 +138,13 @@ static spinlock_t cpm_dpmem_lock;
  * until the memory subsystem goes up... */
 static rh_block_t cpm_boot_dpmem_rh_block[16];
 static rh_info_t cpm_dpmem_info;
+static u8* im_dprambase;
 
 static void cpm2_dpinit(void)
 {
 	spin_lock_init(&cpm_dpmem_lock);
+
+	im_dprambase = ioremap(CPM_MAP_ADDR, CPM_DATAONLY_BASE + CPM_DATAONLY_SIZE);
 
 	/* initialize the info header */
 	rh_init(&cpm_dpmem_info, 1,
@@ -205,6 +214,6 @@ EXPORT_SYMBOL(cpm_dpdump);
 
 void *cpm_dpram_addr(uint offset)
 {
-	return (void *)&cpm2_immr->im_dprambase[offset];
+	return (void *)(im_dprambase + offset);
 }
 EXPORT_SYMBOL(cpm_dpram_addr);

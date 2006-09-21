@@ -177,6 +177,10 @@ typedef struct cpm_buf_desc {
 #define PROFF_I2C_BASE		((uint)0x8afc)
 #define PROFF_IDMA4_BASE	((uint)0x8afe)
 
+#define PROFF_SCC_SIZE		((uint)0x100)
+#define PROFF_FCC_SIZE		((uint)0x100)
+#define PROFF_SMC_SIZE		((uint)64)
+
 /* The SMCs are relocated to any of the first eight DPRAM pages.
  * We will fix these at the first locations of DPRAM, until we
  * get some microcode patches :-).
