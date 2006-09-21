@@ -92,15 +92,6 @@ config QETH_VLAN
 	  If CONFIG_QETH is switched on, this option will include IEEE
 	  802.1q VLAN support in the qeth device driver.
 
-config QETH_PERF_STATS
-	bool "Performance statistics in /proc"
-	depends on QETH
-	help
-	  When switched on, this option will add a file in the proc-fs
-	  (/proc/qeth_perf_stats) containing performance statistics. It
-	  may slightly impact performance, so this is only recommended for
-	  internal tuning of the device driver.
-
 config CCWGROUP
  	tristate
 	default (LCS || CTC || QETH)

@@ -63,6 +63,10 @@ Offset	Type		Description
 				2 for bootsect-loader
 				3 for SYSLINUX
 				4 for ETHERBOOT
+				5 for ELILO
+				7 for GRuB
+				8 for U-BOOT
+				9 for Xen
 				V = version
 0x211	char		loadflags:
 			bit0 = 1: kernel is loaded high (bzImage)

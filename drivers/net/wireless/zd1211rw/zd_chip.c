@@ -1430,7 +1430,41 @@ static int ofdm_qual_db(u8 status_quality, u8 rate, unsigned int size)
 			break;
 	}
 
+	switch (rate) {
+	case ZD_OFDM_RATE_6M:
+	case ZD_OFDM_RATE_9M:
+		i += 3;
+		break;
+	case ZD_OFDM_RATE_12M:
+	case ZD_OFDM_RATE_18M:
+		i += 5;
+		break;
+	case ZD_OFDM_RATE_24M:
+	case ZD_OFDM_RATE_36M:
+		i += 9;
+		break;
+	case ZD_OFDM_RATE_48M:
+	case ZD_OFDM_RATE_54M:
+		i += 15;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return i;
+}
+
+static int ofdm_qual_percent(u8 status_quality, u8 rate, unsigned int size)
+{
+	int r;
+
+	r = ofdm_qual_db(status_quality, rate, size);
+	ZD_ASSERT(r >= 0);
+	if (r < 0)
+		r = 0;
+
+	r = (r * 100)/29;
+	return r <= 100 ? r : 100;
 }
 
 static unsigned int log10times100(unsigned int x)
@@ -1476,31 +1510,28 @@ static int cck_snr_db(u8 status_quality)
 	return r;
 }
 
-static int rx_qual_db(const void *rx_frame, unsigned int size,
-	              const struct rx_status *status)
+static int cck_qual_percent(u8 status_quality)
 {
-	return (status->frame_status&ZD_RX_OFDM) ?
-		ofdm_qual_db(status->signal_quality_ofdm,
-			     zd_ofdm_plcp_header_rate(rx_frame),
-			     size) :
-		cck_snr_db(status->signal_quality_cck);
+	int r;
+
+	r = cck_snr_db(status_quality);
+	r = (100*r)/17;
+	return r <= 100 ? r : 100;
 }
 
 u8 zd_rx_qual_percent(const void *rx_frame, unsigned int size,
 	              const struct rx_status *status)
 {
-	int r = rx_qual_db(rx_frame, size, status);
-	if (r < 0)
-		r = 0;
-	r = (r * 100) / 14;
-	if (r > 100)
-		r = 100;
-	return r;
+	return (status->frame_status&ZD_RX_OFDM) ?
+		ofdm_qual_percent(status->signal_quality_ofdm,
+			          zd_ofdm_plcp_header_rate(rx_frame),
+			          size) :
+		cck_qual_percent(status->signal_quality_cck);
 }
 
 u8 zd_rx_strength_percent(u8 rssi)
 {
-	int r = (rssi*100) / 30;
+	int r = (rssi*100) / 41;
 	if (r > 100)
 		r = 100;
 	return (u8) r;

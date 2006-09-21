@@ -10,7 +10,6 @@
 #define DEBUG_H
 
 #include <linux/fs.h>
-#include <linux/string.h>
 
 /* Note:
  * struct __debug_entry must be defined outside of #ifdef __KERNEL__ 
@@ -35,6 +34,7 @@ struct __debug_entry{
 #define __DEBUG_FEATURE_VERSION      2  /* version of debug feature */
 
 #ifdef __KERNEL__
+#include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 #include <linux/time.h>

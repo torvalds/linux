@@ -93,14 +93,14 @@ STUBDEF=__ASM_STUB_`echo $@ | tr a-z. A-Z_`;				\
 echo "\#ifndef $$STUBDEF" ;						\
 echo "\#define $$STUBDEF" ;						\
 echo "\# if $(ARCHDEF)" ;						\
-if [ -r $(srctree)/include/$(archasm)/$@ ]; then			\
+if [ -r $(INSTALL_HDR_PATH)/include/$(archasm)/$@ ]; then		\
 	echo "\#  include <$(archasm)/$@>" ;				\
 else									\
 	echo "\#  error $(archasm)/$@ does not exist in"		\
 			"the $(ARCH) architecture" ;			\
 fi ;									\
 echo "\# elif $(ALTARCHDEF)" ;						\
-if [ -r $(srctree)/include/$(altarchasm)/$@ ]; then			\
+if [ -r $(INSTALL_HDR_PATH)/include/$(altarchasm)/$@ ]; then		\
 	echo "\#  include <$(altarchasm)/$@>" ;				\
 else									\
 	echo "\#  error $(altarchasm)/$@ does not exist in"		\
@@ -149,7 +149,9 @@ endif
 hdrinst := -rR -f $(srctree)/scripts/Makefile.headersinst obj
 
 .PHONY: altarch-dir
-altarch-dir:
+# All the files in the normal arch dir must be created first, since we test
+# for their existence.
+altarch-dir: $(subdir-y) $(header-y) $(unifdef-y) $(objhdr-y)
 	$(Q)$(MAKE) $(hdrinst)=include/asm-$(ALTARCH) dst=include/asm-$(ALTARCH)
 	$(Q)$(MAKE) $(hdrinst)=include/asm dst=include/asm
 

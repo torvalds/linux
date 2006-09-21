@@ -1256,10 +1256,15 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	swap_buf_le16(id, ATA_ID_WORDS);
 
 	/* sanity check */
-	if ((class == ATA_DEV_ATA) != (ata_id_is_ata(id) | ata_id_is_cfa(id))) {
-		rc = -EINVAL;
-		reason = "device reports illegal type";
-		goto err_out;
+	rc = -EINVAL;
+	reason = "device reports illegal type";
+
+	if (class == ATA_DEV_ATA) {
+		if (!ata_id_is_ata(id) && !ata_id_is_cfa(id))
+			goto err_out;
+	} else {
+		if (ata_id_is_ata(id))
+			goto err_out;
 	}
 
 	if (post_reset && class == ATA_DEV_ATA) {

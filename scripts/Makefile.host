@@ -30,7 +30,7 @@
 # libkconfig.so as the executable conf.
 # Note: Shared libraries consisting of C++ files are not supported
 
-__hostprogs := $(sort $(hostprogs-y)$(hostprogs-m))
+__hostprogs := $(sort $(hostprogs-y) $(hostprogs-m))
 
 # hostprogs-y := tools/build may have been specified. Retreive directory
 host-objdirs := $(foreach f,$(__hostprogs), $(if $(dir $(f)),$(dir $(f))))

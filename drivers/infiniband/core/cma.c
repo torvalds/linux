@@ -49,7 +49,7 @@ MODULE_DESCRIPTION("Generic RDMA CM Agent");
 MODULE_LICENSE("Dual BSD/GPL");
 
 #define CMA_CM_RESPONSE_TIMEOUT 20
-#define CMA_MAX_CM_RETRIES 3
+#define CMA_MAX_CM_RETRIES 15
 
 static void cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device);

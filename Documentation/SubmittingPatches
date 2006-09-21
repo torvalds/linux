@@ -308,6 +308,8 @@ then you just add a line saying
 
 	Signed-off-by: Random J Developer <random@developer.example.org>
 
+using your real name (sorry, no pseudonyms or anonymous contributions.)
+
 Some people also put extra tags at the end.  They'll just be ignored for
 now, but you can do this to mark internal company procedures or just
 point out some special detail about the sign-off. 

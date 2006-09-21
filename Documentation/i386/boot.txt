@@ -181,6 +181,7 @@ filled out, however:
 	5  ELILO
 	7  GRuB
 	8  U-BOOT
+	9  Xen
 
 	Please contact <hpa@zytor.com> if you need a bootloader ID
 	value assigned.

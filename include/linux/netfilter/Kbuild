@@ -5,7 +5,7 @@ header-y := nf_conntrack_sctp.h nf_conntrack_tuple_common.h		\
 	    xt_helper.h xt_length.h xt_limit.h xt_mac.h xt_mark.h	\
 	    xt_MARK.h xt_multiport.h xt_NFQUEUE.h xt_pkttype.h		\
 	    xt_policy.h xt_realm.h xt_sctp.h xt_state.h xt_string.h	\
-	    xt_tcpmss.h xt_tcpudp.h
+	    xt_tcpmss.h xt_tcpudp.h xt_SECMARK.h xt_CONNSECMARK.h
 
 unifdef-y := nf_conntrack_common.h nf_conntrack_ftp.h		\
 	nf_conntrack_tcp.h nfnetlink.h x_tables.h xt_physdev.h

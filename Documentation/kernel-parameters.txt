@@ -697,6 +697,12 @@ running once the system is up.
 	ips=		[HW,SCSI] Adaptec / IBM ServeRAID controller
 			See header of drivers/scsi/ips.c.
 
+	ports=		[IP_VS_FTP] IPVS ftp helper module
+			Default is 21.
+			Up to 8 (IP_VS_APP_MAX_PORTS) ports
+			may be specified.
+			Format: <port>,<port>....
+
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
 			for it. Intended to get systems with badly broken
@@ -1183,8 +1189,6 @@ running once the system is up.
 				Mechanism 2.
 		nommconf	[IA-32,X86_64] Disable use of MMCONFIG for PCI
 				Configuration
-		mmconf		[IA-32,X86_64] Force MMCONFIG. This is useful
-				to override the builtin blacklist.
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of MSI interrupts system-wide.

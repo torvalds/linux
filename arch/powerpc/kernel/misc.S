@@ -17,15 +17,6 @@
 
 	.text
 
-#ifdef CONFIG_PPC64
-#define IN_SYNC		twi	0,r5,0; isync
-#define EIEIO_32
-#define SYNC_64		sync
-#else /* CONFIG_PPC32 */
-#define IN_SYNC
-#define EIEIO_32	eieio
-#define SYNC_64
-#endif
 /*
  * Returns (address we are running at) - (address we were linked at)
  * for use before the text and data are mapped to KERNELBASE.
@@ -70,6 +61,7 @@ _GLOBAL(add_reloc_offset)
  * The *_ns versions don't do byte-swapping.
  */
 _GLOBAL(_insb)
+	sync
 	cmpwi	0,r5,0
 	mtctr	r5
 	subi	r4,r4,1
@@ -78,7 +70,8 @@ _GLOBAL(_insb)
 	eieio
 	stbu	r5,1(r4)
 	bdnz	00b
-	IN_SYNC
+	twi	0,r5,0
+	isync
 	blr
 
 _GLOBAL(_outsb)
@@ -86,14 +79,15 @@ _GLOBAL(_outsb)
 	mtctr	r5
 	subi	r4,r4,1
 	blelr-
+	sync
 00:	lbzu	r5,1(r4)
 	stb	r5,0(r3)
-	EIEIO_32
 	bdnz	00b
-	SYNC_64
+	sync
 	blr
 
 _GLOBAL(_insw)
+	sync
 	cmpwi	0,r5,0
 	mtctr	r5
 	subi	r4,r4,2
@@ -102,7 +96,8 @@ _GLOBAL(_insw)
 	eieio
 	sthu	r5,2(r4)
 	bdnz	00b
-	IN_SYNC
+	twi	0,r5,0
+	isync
 	blr
 
 _GLOBAL(_outsw)
@@ -110,14 +105,15 @@ _GLOBAL(_outsw)
 	mtctr	r5
 	subi	r4,r4,2
 	blelr-
+	sync
 00:	lhzu	r5,2(r4)
-	EIEIO_32
 	sthbrx	r5,0,r3
 	bdnz	00b
-	SYNC_64
+	sync
 	blr
 
 _GLOBAL(_insl)
+	sync
 	cmpwi	0,r5,0
 	mtctr	r5
 	subi	r4,r4,4
@@ -126,7 +122,8 @@ _GLOBAL(_insl)
 	eieio
 	stwu	r5,4(r4)
 	bdnz	00b
-	IN_SYNC
+	twi	0,r5,0
+	isync
 	blr
 
 _GLOBAL(_outsl)
@@ -134,17 +131,18 @@ _GLOBAL(_outsl)
 	mtctr	r5
 	subi	r4,r4,4
 	blelr-
+	sync
 00:	lwzu	r5,4(r4)
 	stwbrx	r5,0,r3
-	EIEIO_32
 	bdnz	00b
-	SYNC_64
+	sync
 	blr
 
 #ifdef CONFIG_PPC32
 _GLOBAL(__ide_mm_insw)
 #endif
 _GLOBAL(_insw_ns)
+	sync
 	cmpwi	0,r5,0
 	mtctr	r5
 	subi	r4,r4,2
@@ -153,7 +151,8 @@ _GLOBAL(_insw_ns)
 	eieio
 	sthu	r5,2(r4)
 	bdnz	00b
-	IN_SYNC
+	twi	0,r5,0
+	isync
 	blr
 
 #ifdef CONFIG_PPC32
@@ -164,17 +163,18 @@ _GLOBAL(_outsw_ns)
 	mtctr	r5
 	subi	r4,r4,2
 	blelr-
+	sync
 00:	lhzu	r5,2(r4)
 	sth	r5,0(r3)
-	EIEIO_32
 	bdnz	00b
-	SYNC_64
+	sync
 	blr
 
 #ifdef CONFIG_PPC32
 _GLOBAL(__ide_mm_insl)
 #endif
 _GLOBAL(_insl_ns)
+	sync
 	cmpwi	0,r5,0
 	mtctr	r5
 	subi	r4,r4,4
@@ -183,7 +183,8 @@ _GLOBAL(_insl_ns)
 	eieio
 	stwu	r5,4(r4)
 	bdnz	00b
-	IN_SYNC
+	twi	0,r5,0
+	isync
 	blr
 
 #ifdef CONFIG_PPC32
@@ -194,10 +195,10 @@ _GLOBAL(_outsl_ns)
 	mtctr	r5
 	subi	r4,r4,4
 	blelr-
+	sync
 00:	lwzu	r5,4(r4)
 	stw	r5,0(r3)
-	EIEIO_32
 	bdnz	00b
-	SYNC_64
+	sync
 	blr
 

@@ -1204,7 +1204,7 @@ static int nand_write_oob_syndrome(struct mtd_info *mtd,
 		pos = steps * (eccsize + chunk);
 		steps = 0;
 	} else
-		pos = eccsize + chunk;
+		pos = eccsize;
 
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, pos, page);
 	for (i = 0; i < steps; i++) {
@@ -1567,7 +1567,7 @@ static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob,
 				bytes = min_t(size_t, len, free->length);
 				boffs = free->offset;
 			}
-			memcpy(chip->oob_poi + woffs, oob, bytes);
+			memcpy(chip->oob_poi + boffs, oob, bytes);
 			oob += bytes;
 		}
 		return oob;
@@ -2224,7 +2224,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	}
 
 	/* Try to identify manufacturer */
-	for (maf_idx = 0; nand_manuf_ids[maf_idx].id != 0x0; maf_id++) {
+	for (maf_idx = 0; nand_manuf_ids[maf_idx].id != 0x0; maf_idx++) {
 		if (nand_manuf_ids[maf_idx].id == *maf_id)
 			break;
 	}

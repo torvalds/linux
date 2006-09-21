@@ -1621,7 +1621,7 @@ static struct s3c24xx_uart_info s3c2412_uart_inf = {
 static int s3c2412_serial_probe(struct platform_device *dev)
 {
 	dbg("s3c2440_serial_probe: dev=%p\n", dev);
-	return s3c24xx_serial_probe(dev, &s3c2440_uart_inf);
+	return s3c24xx_serial_probe(dev, &s3c2412_uart_inf);
 }
 
 static struct platform_driver s3c2412_serial_drv = {

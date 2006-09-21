@@ -173,7 +173,6 @@ static struct file_operations qeth_procfile_fops = {
 #define QETH_PERF_PROCFILE_NAME "qeth_perf"
 static struct proc_dir_entry *qeth_perf_procfile;
 
-#ifdef CONFIG_QETH_PERF_STATS
 static int
 qeth_perf_procfile_seq_show(struct seq_file *s, void *it)
 {
@@ -192,14 +191,21 @@ qeth_perf_procfile_seq_show(struct seq_file *s, void *it)
 			CARD_DDEV_ID(card),
 			QETH_CARD_IFNAME(card)
 		  );
+	if (!card->options.performance_stats)
+		seq_printf(s, "Performance statistics are deactivated.\n");
 	seq_printf(s, "  Skb's/buffers received                 : %lu/%u\n"
 		      "  Skb's/buffers sent                     : %lu/%u\n\n",
-		        card->stats.rx_packets, card->perf_stats.bufs_rec,
-		        card->stats.tx_packets, card->perf_stats.bufs_sent
+		        card->stats.rx_packets -
+				card->perf_stats.initial_rx_packets,
+			card->perf_stats.bufs_rec,
+		        card->stats.tx_packets -
+				card->perf_stats.initial_tx_packets,
+			card->perf_stats.bufs_sent
 		  );
 	seq_printf(s, "  Skb's/buffers sent without packing     : %lu/%u\n"
 		      "  Skb's/buffers sent with packing        : %u/%u\n\n",
-		   card->stats.tx_packets - card->perf_stats.skbs_sent_pack,
+		   card->stats.tx_packets - card->perf_stats.initial_tx_packets
+					  - card->perf_stats.skbs_sent_pack,
 		   card->perf_stats.bufs_sent - card->perf_stats.bufs_sent_pack,
 		   card->perf_stats.skbs_sent_pack,
 		   card->perf_stats.bufs_sent_pack
@@ -275,11 +281,6 @@ static struct file_operations qeth_perf_procfile_fops = {
 	.release = seq_release,
 };
 
-#define qeth_perf_procfile_created qeth_perf_procfile
-#else
-#define qeth_perf_procfile_created 1
-#endif /* CONFIG_QETH_PERF_STATS */
-
 int __init
 qeth_create_procfs_entries(void)
 {
@@ -288,15 +289,13 @@ qeth_create_procfs_entries(void)
 	if (qeth_procfile)
 		qeth_procfile->proc_fops = &qeth_procfile_fops;
 
-#ifdef CONFIG_QETH_PERF_STATS
 	qeth_perf_procfile = create_proc_entry(QETH_PERF_PROCFILE_NAME,
 					   S_IFREG | 0444, NULL);
 	if (qeth_perf_procfile)
 		qeth_perf_procfile->proc_fops = &qeth_perf_procfile_fops;
-#endif /* CONFIG_QETH_PERF_STATS */
 
 	if (qeth_procfile &&
-	    qeth_perf_procfile_created)
+	    qeth_perf_procfile)
 		return 0;
 	else
 		return -ENOMEM;

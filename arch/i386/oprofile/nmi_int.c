@@ -337,6 +337,8 @@ static int __init ppro_init(char ** cpu_type)
 
 	if (cpu_model == 14)
 		*cpu_type = "i386/core";
+	else if (cpu_model == 15)
+		*cpu_type = "i386/core_2";
 	else if (cpu_model > 0xd)
 		return 0;
 	else if (cpu_model == 9) {

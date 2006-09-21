@@ -470,19 +470,21 @@ asmlinkage int sys_getdomainname(char __user *name, int len)
 {
  	int nlen, err;
  	
-	if (len < 0 || len > __NEW_UTS_LEN)
+	if (len < 0)
 		return -EINVAL;
 
  	down_read(&uts_sem);
  	
 	nlen = strlen(system_utsname.domainname) + 1;
-	if (nlen < len)
-		len = nlen;
+	err = -EINVAL;
+	if (nlen > len)
+		goto out;
 
 	err = -EFAULT;
-	if (!copy_to_user(name, system_utsname.domainname, len))
+	if (!copy_to_user(name, system_utsname.domainname, nlen))
 		err = 0;
 
+out:
 	up_read(&uts_sem);
 	return err;
 }

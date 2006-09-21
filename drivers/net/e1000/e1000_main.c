@@ -1433,8 +1433,8 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 		E1000_WRITE_REG(hw, TDBAL, (tdba & 0x00000000ffffffffULL));
 		E1000_WRITE_REG(hw, TDT, 0);
 		E1000_WRITE_REG(hw, TDH, 0);
-		adapter->tx_ring[0].tdh = E1000_TDH;
-		adapter->tx_ring[0].tdt = E1000_TDT;
+		adapter->tx_ring[0].tdh = ((hw->mac_type >= e1000_82543) ? E1000_TDH : E1000_82542_TDH);
+		adapter->tx_ring[0].tdt = ((hw->mac_type >= e1000_82543) ? E1000_TDT : E1000_82542_TDT);
 		break;
 	}
 
@@ -1840,8 +1840,8 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 		E1000_WRITE_REG(hw, RDBAL, (rdba & 0x00000000ffffffffULL));
 		E1000_WRITE_REG(hw, RDT, 0);
 		E1000_WRITE_REG(hw, RDH, 0);
-		adapter->rx_ring[0].rdh = E1000_RDH;
-		adapter->rx_ring[0].rdt = E1000_RDT;
+		adapter->rx_ring[0].rdh = ((hw->mac_type >= e1000_82543) ? E1000_RDH : E1000_82542_RDH);
+		adapter->rx_ring[0].rdt = ((hw->mac_type >= e1000_82543) ? E1000_RDT : E1000_82542_RDT);
 		break;
 	}
 

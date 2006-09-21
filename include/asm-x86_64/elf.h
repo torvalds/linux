@@ -7,8 +7,6 @@
 
 #include <asm/ptrace.h>
 #include <asm/user.h>
-#include <asm/processor.h>
-#include <asm/compat.h>
 
 /* x86-64 relocation types */
 #define R_X86_64_NONE		0	/* No reloc */
@@ -39,17 +37,22 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef struct user_i387_struct elf_fpregset_t;
 
 /*
- * This is used to ensure we don't load something for the wrong architecture.
- */
-#define elf_check_arch(x) \
-	((x)->e_machine == EM_X86_64)
-
-/*
  * These are used to set parameters in the core dumps.
  */
 #define ELF_CLASS	ELFCLASS64
 #define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_X86_64
+
+#ifdef __KERNEL__
+#include <asm/processor.h>
+#include <asm/compat.h>
+
+/*
+ * This is used to ensure we don't load something for the wrong architecture.
+ */
+#define elf_check_arch(x) \
+	((x)->e_machine == EM_X86_64)
+
 
 /* SVR4/i386 ABI (pages 3-31, 3-32) says that when the program starts %edx
    contains a pointer to a function which might be registered using `atexit'.
@@ -141,7 +144,6 @@ typedef struct user_i387_struct elf_fpregset_t;
 /* I'm not sure if we can use '-' here */
 #define ELF_PLATFORM  ("x86_64")
 
-#ifdef __KERNEL__
 extern void set_personality_64bit(void);
 #define SET_PERSONALITY(ex, ibcs2) set_personality_64bit()
 /*

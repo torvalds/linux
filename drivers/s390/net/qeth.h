@@ -176,7 +176,6 @@ extern struct ccwgroup_driver qeth_ccwgroup_driver;
 /**
  * card stuff
  */
-#ifdef CONFIG_QETH_PERF_STATS
 struct qeth_perf_stats {
 	unsigned int bufs_rec;
 	unsigned int bufs_sent;
@@ -211,8 +210,10 @@ struct qeth_perf_stats {
 	unsigned int large_send_cnt;
 	unsigned int sg_skbs_sent;
 	unsigned int sg_frags_sent;
+	/* initial values when measuring starts */
+	unsigned long initial_rx_packets;
+	unsigned long initial_tx_packets;
 };
-#endif /* CONFIG_QETH_PERF_STATS */
 
 /* Routing stuff */
 struct qeth_routing_info {
@@ -462,6 +463,7 @@ enum qeth_qdio_info_states {
 	QETH_QDIO_UNINITIALIZED,
 	QETH_QDIO_ALLOCATED,
 	QETH_QDIO_ESTABLISHED,
+	QETH_QDIO_CLEANING
 };
 
 struct qeth_buffer_pool_entry {
@@ -536,7 +538,7 @@ struct qeth_qdio_out_q {
 } __attribute__ ((aligned(256)));
 
 struct qeth_qdio_info {
-	volatile enum qeth_qdio_info_states state;
+	atomic_t state;
 	/* input */
 	struct qeth_qdio_q *in_q;
 	struct qeth_qdio_buffer_pool in_buf_pool;
@@ -767,6 +769,7 @@ struct qeth_card_options {
 	int fake_ll;
 	int layer2;
 	enum qeth_large_send_types large_send;
+	int performance_stats;
 };
 
 /*
@@ -819,9 +822,7 @@ struct qeth_card {
 	struct list_head cmd_waiter_list;
 	/* QDIO buffer handling */
 	struct qeth_qdio_info qdio;
-#ifdef CONFIG_QETH_PERF_STATS
 	struct qeth_perf_stats perf_stats;
-#endif /* CONFIG_QETH_PERF_STATS */
 	int use_hard_stop;
 	int (*orig_hard_header)(struct sk_buff *,struct net_device *,
 				unsigned short,void *,void *,unsigned);
@@ -859,23 +860,18 @@ qeth_get_ipa_adp_type(enum qeth_link_types link_type)
 	}
 }
 
-static inline int
-qeth_realloc_headroom(struct qeth_card *card, struct sk_buff **skb, int size)
+static inline struct sk_buff *
+qeth_realloc_headroom(struct qeth_card *card, struct sk_buff *skb, int size)
 {
-	struct sk_buff *new_skb = NULL;
+	struct sk_buff *new_skb = skb;
 
-	if (skb_headroom(*skb) < size){
-		new_skb = skb_realloc_headroom(*skb, size);
-		if (!new_skb) {
-                        PRINT_ERR("qeth_prepare_skb: could "
-                                  "not realloc headroom for qeth_hdr "
-                                  "on interface %s", QETH_CARD_IFNAME(card));
-                        return -ENOMEM;
-                }
-		kfree_skb(*skb);
-                *skb = new_skb;
-	}
-	return 0;
+	if (skb_headroom(skb) >= size)
+		return skb;
+	new_skb = skb_realloc_headroom(skb, size);
+	if (!new_skb) 
+		PRINT_ERR("Could not realloc headroom for qeth_hdr "
+			  "on interface %s", QETH_CARD_IFNAME(card));
+	return new_skb;
 }
 
 static inline struct sk_buff *
@@ -885,16 +881,15 @@ qeth_pskb_unshare(struct sk_buff *skb, int pri)
         if (!skb_cloned(skb))
                 return skb;
         nskb = skb_copy(skb, pri);
-        kfree_skb(skb); /* free our shared copy */
         return nskb;
 }
 
 static inline void *
-qeth_push_skb(struct qeth_card *card, struct sk_buff **skb, int size)
+qeth_push_skb(struct qeth_card *card, struct sk_buff *skb, int size)
 {
         void *hdr;
 
-	hdr = (void *) skb_push(*skb, size);
+	hdr = (void *) skb_push(skb, size);
         /*
          * sanity check, the Linux memory allocation scheme should
          * never present us cases like this one (the qdio header size plus
@@ -903,8 +898,7 @@ qeth_push_skb(struct qeth_card *card, struct sk_buff **skb, int size)
         if ((((unsigned long) hdr) & (~(PAGE_SIZE - 1))) !=
             (((unsigned long) hdr + size +
               QETH_IP_HEADER_SIZE) & (~(PAGE_SIZE - 1)))) {
-                PRINT_ERR("qeth_prepare_skb: misaligned "
-                          "packet on interface %s. Discarded.",
+                PRINT_ERR("Misaligned packet on interface %s. Discarded.",
                           QETH_CARD_IFNAME(card));
                 return NULL;
         }
@@ -1056,13 +1050,11 @@ qeth_get_arphdr_type(int cardtype, int linktype)
 	}
 }
 
-#ifdef CONFIG_QETH_PERF_STATS
 static inline int
 qeth_get_micros(void)
 {
 	return (int) (get_clock() >> 12);
 }
-#endif
 
 static inline int
 qeth_get_qdio_q_format(struct qeth_card *card)
@@ -1096,10 +1088,11 @@ qeth_string_to_ipaddr4(const char *buf, __u8 *addr)
 {
 	int count = 0, rc = 0;
 	int in[4];
+	char c;
 
-	rc = sscanf(buf, "%d.%d.%d.%d%n",
-		    &in[0], &in[1], &in[2], &in[3], &count);
-	if (rc != 4  || count<=0)
+	rc = sscanf(buf, "%u.%u.%u.%u%c",
+		    &in[0], &in[1], &in[2], &in[3], &c);
+	if (rc != 4 && (rc != 5 || c != '\n'))
 		return -EINVAL;
 	for (count = 0; count < 4; count++) {
 		if (in[count] > 255)
@@ -1123,24 +1116,28 @@ qeth_ipaddr6_to_string(const __u8 *addr, char *buf)
 static inline int
 qeth_string_to_ipaddr6(const char *buf, __u8 *addr)
 {
-	char *end, *start;
+	const char *end, *end_tmp, *start;
 	__u16 *in;
         char num[5];
         int num2, cnt, out, found, save_cnt;
         unsigned short in_tmp[8] = {0, };
 
 	cnt = out = found = save_cnt = num2 = 0;
-        end = start = (char *) buf;
+        end = start = buf;
 	in = (__u16 *) addr;
 	memset(in, 0, 16);
-        while (end) {
-                end = strchr(end,':');
+        while (*end) {
+                end = strchr(start,':');
                 if (end == NULL) {
-                        end = (char *)buf + (strlen(buf));
-                        out = 1;
+                        end = buf + strlen(buf);
+			if ((end_tmp = strchr(start, '\n')) != NULL)
+				end = end_tmp;
+			out = 1;
                 }
                 if ((end - start)) {
                         memset(num, 0, 5);
+			if ((end - start) > 4)
+				return -EINVAL;
                         memcpy(num, start, end - start);
 			if (!qeth_isxdigit(num))
 				return -EINVAL;
@@ -1158,6 +1155,8 @@ qeth_string_to_ipaddr6(const char *buf, __u8 *addr)
 		}
 		start = ++end;
         }
+	if (cnt + save_cnt > 8)
+		return -EINVAL;
         cnt = 7;
 	while (save_cnt)
                 in[cnt--] = in_tmp[--save_cnt];

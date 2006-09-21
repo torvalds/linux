@@ -121,7 +121,7 @@ void br_send_tcn_bpdu(struct net_bridge_port *p)
 	buf[1] = 0;
 	buf[2] = 0;
 	buf[3] = BPDU_TYPE_TCN;
-	br_send_bpdu(p, buf, 7);
+	br_send_bpdu(p, buf, 4);
 }
 
 /*

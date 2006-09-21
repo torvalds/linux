@@ -626,8 +626,6 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 		if ((int)snaplen < 0)
 			snaplen = 0;
 	}
-	if (snaplen > skb->len-skb->data_len)
-		snaplen = skb->len-skb->data_len;
 
 	spin_lock(&sk->sk_receive_queue.lock);
 	h = (struct tpacket_hdr *)packet_lookup_frame(po, po->head);
@@ -644,7 +642,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 		status &= ~TP_STATUS_LOSING;
 	spin_unlock(&sk->sk_receive_queue.lock);
 
-	memcpy((u8*)h + macoff, skb->data, snaplen);
+	skb_copy_bits(skb, 0, (u8*)h + macoff, snaplen);
 
 	h->tp_len = skb->len;
 	h->tp_snaplen = snaplen;

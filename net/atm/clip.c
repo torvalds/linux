@@ -500,9 +500,11 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 		} else {
 			unsigned int len = skb->len;
 
+			skb_get(skb);
 			clip_push(vcc, skb);
 			PRIV(skb->dev)->stats.rx_packets--;
 			PRIV(skb->dev)->stats.rx_bytes -= len;
+			kfree_skb(skb);
 		}
 	return 0;
 }

@@ -668,6 +668,7 @@ int khvcd(void *unused)
 	do {
 		poll_mask = 0;
 		hvc_kicked = 0;
+		try_to_freeze();
 		wmb();
 		if (cpus_empty(cpus_in_xmon)) {
 			spin_lock(&hvc_structs_lock);
