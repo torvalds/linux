@@ -42,6 +42,8 @@
 #define CPM_CR_IDMA4_SBLOCK	(0x17)
 #define CPM_CR_MCC1_SBLOCK	(0x1c)
 
+#define CPM_CR_FCC_SBLOCK(x)	(x + 0x10)
+
 #define CPM_CR_SCC1_PAGE	(0x00)
 #define CPM_CR_SCC2_PAGE	(0x01)
 #define CPM_CR_SCC3_PAGE	(0x02)
@@ -61,6 +63,8 @@
 #define CPM_CR_IDMA4_PAGE	(0x0a)
 #define CPM_CR_MCC1_PAGE	(0x07)
 #define CPM_CR_MCC2_PAGE	(0x08)
+
+#define CPM_CR_FCC_PAGE(x)	(x + 0x04)
 
 /* Some opcodes (there are more...later)
 */
@@ -1186,7 +1190,7 @@ typedef struct im_idma {
 #define FCC_MEM_OFFSET(x) (CPM_FCC_SPECIAL_BASE + (x*128))
 #define FCC1_MEM_OFFSET FCC_MEM_OFFSET(0)
 #define FCC2_MEM_OFFSET FCC_MEM_OFFSET(1)
-#define FCC2_MEM_OFFSET FCC_MEM_OFFSET(2)
+#define FCC3_MEM_OFFSET FCC_MEM_OFFSET(2)
 
 #endif /* __CPM2__ */
 #endif /* __KERNEL__ */
