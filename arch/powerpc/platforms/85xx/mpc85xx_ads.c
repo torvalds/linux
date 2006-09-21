@@ -32,6 +32,12 @@
 #include <sysdev/fsl_soc.h>
 #include "mpc85xx.h"
 
+#ifdef CONFIG_CPM2
+#include <asm/cpm2.h>
+#include <sysdev/cpm2_pic.h>
+#include <asm/fs_pd.h>
+#endif
+
 #ifndef CONFIG_PCI
 unsigned long isa_io_base = 0;
 unsigned long isa_mem_base = 0;
@@ -57,12 +63,29 @@ mpc85xx_pcibios_fixup(void)
 }
 #endif /* CONFIG_PCI */
 
+#ifdef CONFIG_CPM2
+
+static void cpm2_cascade(unsigned int irq, struct irq_desc *desc,
+			 struct pt_regs *regs)
+{
+	int cascade_irq;
+
+	while ((cascade_irq = cpm2_get_irq(regs)) >= 0) {
+		generic_handle_irq(cascade_irq, regs);
+	}
+	desc->chip->eoi(irq);
+}
+
+#endif /* CONFIG_CPM2 */
 
 void __init mpc85xx_ads_pic_init(void)
 {
 	struct mpic *mpic;
 	struct resource r;
 	struct device_node *np = NULL;
+#ifdef CONFIG_CPM2
+	int irq;
+#endif
 
 	np = of_find_node_by_type(np, "open-pic");
 
@@ -104,11 +127,92 @@ void __init mpc85xx_ads_pic_init(void)
 	mpic_assign_isu(mpic, 14, r.start + 0x10100);
 
 	mpic_init(mpic);
+
+#ifdef CONFIG_CPM2
+	/* Setup CPM2 PIC */
+	np = of_find_node_by_type(NULL, "cpm-pic");
+	if (np == NULL) {
+		printk(KERN_ERR "PIC init: can not find cpm-pic node\n");
+                return;
+	}
+	irq = irq_of_parse_and_map(np, 0);
+
+	cpm2_pic_init(np);
+	set_irq_chained_handler(irq, cpm2_cascade);
+#endif
 }
 
 /*
  * Setup the architecture
  */
+#ifdef CONFIG_CPM2
+static void init_fcc_ioports(void)
+{
+	struct immap *immap;
+	struct io_port *io;
+	u32 tempval;
+
+	immap = cpm2_immr;
+
+	io = &immap->im_ioport;
+	/* FCC2/3 are on the ports B/C. */
+	tempval = in_be32(&io->iop_pdirb);
+	tempval &= ~PB2_DIRB0;
+	tempval |= PB2_DIRB1;
+	out_be32(&io->iop_pdirb, tempval);
+
+	tempval = in_be32(&io->iop_psorb);
+	tempval &= ~PB2_PSORB0;
+	tempval |= PB2_PSORB1;
+	out_be32(&io->iop_psorb, tempval);
+
+	tempval = in_be32(&io->iop_pparb);
+	tempval |= (PB2_DIRB0 | PB2_DIRB1);
+	out_be32(&io->iop_pparb, tempval);
+
+	tempval = in_be32(&io->iop_pdirb);
+	tempval &= ~PB3_DIRB0;
+	tempval |= PB3_DIRB1;
+	out_be32(&io->iop_pdirb, tempval);
+
+	tempval = in_be32(&io->iop_psorb);
+	tempval &= ~PB3_PSORB0;
+	tempval |= PB3_PSORB1;
+	out_be32(&io->iop_psorb, tempval);
+
+	tempval = in_be32(&io->iop_pparb);
+	tempval |= (PB3_DIRB0 | PB3_DIRB1);
+	out_be32(&io->iop_pparb, tempval);
+
+	tempval = in_be32(&io->iop_pdirc);
+	tempval |= PC3_DIRC1;
+	out_be32(&io->iop_pdirc, tempval);
+
+	tempval = in_be32(&io->iop_pparc);
+	tempval |= PC3_DIRC1;
+	out_be32(&io->iop_pparc, tempval);
+
+	/* Port C has clocks......  */
+	tempval = in_be32(&io->iop_psorc);
+	tempval &= ~(CLK_TRX);
+	out_be32(&io->iop_psorc, tempval);
+
+	tempval = in_be32(&io->iop_pdirc);
+	tempval &= ~(CLK_TRX);
+	out_be32(&io->iop_pdirc, tempval);
+	tempval = in_be32(&io->iop_pparc);
+	tempval |= (CLK_TRX);
+	out_be32(&io->iop_pparc, tempval);
+
+	/* Configure Serial Interface clock routing.
+	 * First,  clear all FCC bits to zero,
+	 * then set the ones we want.
+	 */
+	immap->im_cpmux.cmx_fcr &= ~(CPMUX_CLK_MASK);
+	immap->im_cpmux.cmx_fcr |= CPMUX_CLK_ROUTE;
+}
+#endif
+
 static void __init mpc85xx_ads_setup_arch(void)
 {
 	struct device_node *cpu;
@@ -130,6 +234,11 @@ static void __init mpc85xx_ads_setup_arch(void)
 			loops_per_jiffy = 50000000 / HZ;
 		of_node_put(cpu);
 	}
+
+#ifdef CONFIG_CPM2
+	cpm2_reset();
+	init_fcc_ioports();
+#endif
 
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
