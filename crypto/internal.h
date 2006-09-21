@@ -142,11 +142,20 @@ void crypto_exit_compress_ops(struct crypto_tfm *tfm);
 
 void crypto_larval_error(const char *name, u32 type, u32 mask);
 
+void crypto_shoot_alg(struct crypto_alg *alg);
+struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 flags);
+
 int crypto_register_instance(struct crypto_template *tmpl,
 			     struct crypto_instance *inst);
 
 int crypto_register_notifier(struct notifier_block *nb);
 int crypto_unregister_notifier(struct notifier_block *nb);
+
+static inline void crypto_alg_put(struct crypto_alg *alg)
+{
+	if (atomic_dec_and_test(&alg->cra_refcnt) && alg->cra_destroy)
+		alg->cra_destroy(alg);
+}
 
 static inline int crypto_tmpl_get(struct crypto_template *tmpl)
 {
@@ -161,6 +170,16 @@ static inline void crypto_tmpl_put(struct crypto_template *tmpl)
 static inline int crypto_is_larval(struct crypto_alg *alg)
 {
 	return alg->cra_flags & CRYPTO_ALG_LARVAL;
+}
+
+static inline int crypto_is_dead(struct crypto_alg *alg)
+{
+	return alg->cra_flags & CRYPTO_ALG_DEAD;
+}
+
+static inline int crypto_is_moribund(struct crypto_alg *alg)
+{
+	return alg->cra_flags & (CRYPTO_ALG_DEAD | CRYPTO_ALG_DYING);
 }
 
 static inline int crypto_notify(unsigned long val, void *v)

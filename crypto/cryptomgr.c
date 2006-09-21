@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/rtnetlink.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>
 
@@ -44,20 +45,24 @@ static void cryptomgr_probe(void *data)
 	struct cryptomgr_param *param = data;
 	struct crypto_template *tmpl;
 	struct crypto_instance *inst;
+	int err;
 
 	tmpl = crypto_lookup_template(param->template);
 	if (!tmpl)
 		goto err;
 
-	inst = tmpl->alloc(&param->alg, sizeof(param->alg));
-	if (IS_ERR(inst))
-		goto err;
-	else if ((err = crypto_register_instance(tmpl, inst))) {
-		tmpl->free(inst);
-		goto err;
-	}
+	do {
+		inst = tmpl->alloc(&param->alg, sizeof(param->alg));
+		if (IS_ERR(inst))
+			err = PTR_ERR(inst);
+		else if ((err = crypto_register_instance(tmpl, inst)))
+			tmpl->free(inst);
+	} while (err == -EAGAIN && !signal_pending(current));
 
 	crypto_tmpl_put(tmpl);
+
+	if (err)
+		goto err;
 
 out:
 	kfree(param);

@@ -15,11 +15,13 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/param.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include "internal.h"
@@ -36,12 +38,6 @@ static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
 {
 	atomic_inc(&alg->cra_refcnt);
 	return alg;
-}
-
-static inline void crypto_alg_put(struct crypto_alg *alg)
-{
-	if (atomic_dec_and_test(&alg->cra_refcnt) && alg->cra_destroy)
-		alg->cra_destroy(alg);
 }
 
 struct crypto_alg *crypto_mod_get(struct crypto_alg *alg)
@@ -64,6 +60,9 @@ struct crypto_alg *__crypto_alg_lookup(const char *name, u32 type, u32 mask)
 
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
 		int exact, fuzzy;
+
+		if (crypto_is_moribund(q))
+			continue;
 
 		if ((q->cra_flags ^ type) & mask)
 			continue;
@@ -111,7 +110,7 @@ static struct crypto_alg *crypto_larval_alloc(const char *name, u32 type,
 
 	larval = kzalloc(sizeof(*larval), GFP_KERNEL);
 	if (!larval)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	larval->mask = mask;
 	larval->alg.cra_flags = CRYPTO_ALG_LARVAL | type;
@@ -153,8 +152,11 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 
 	wait_for_completion_interruptible_timeout(&larval->completion, 60 * HZ);
 	alg = larval->adult;
-	if (alg && !crypto_mod_get(alg))
-		alg = NULL;
+	if (alg) {
+		if (!crypto_mod_get(alg))
+			alg = ERR_PTR(-EAGAIN);
+	} else
+		alg = ERR_PTR(-ENOENT);
 	crypto_mod_put(&larval->alg);
 
 	return alg;
@@ -164,9 +166,6 @@ static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
 					    u32 mask)
 {
 	struct crypto_alg *alg;
-
-	if (!name)
-		return NULL;
 
 	down_read(&crypto_alg_sem);
 	alg = __crypto_alg_lookup(name, type, mask);
@@ -181,7 +180,10 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 	struct crypto_alg *larval;
 	int ok;
 
-	mask &= ~CRYPTO_ALG_LARVAL;
+	if (!name)
+		return ERR_PTR(-ENOENT);
+
+	mask &= ~(CRYPTO_ALG_LARVAL | CRYPTO_ALG_DEAD);
 	type &= mask;
 
 	alg = try_then_request_module(crypto_alg_lookup(name, type, mask),
@@ -190,7 +192,7 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 		return crypto_is_larval(alg) ? crypto_larval_wait(alg) : alg;
 
 	larval = crypto_larval_alloc(name, type, mask);
-	if (!larval || !crypto_is_larval(larval))
+	if (IS_ERR(larval) || !crypto_is_larval(larval))
 		return larval;
 
 	ok = crypto_notify(CRYPTO_MSG_ALG_REQUEST, larval);
@@ -203,7 +205,7 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 		alg = crypto_larval_wait(larval);
 	else {
 		crypto_mod_put(larval);
-		alg = NULL;
+		alg = ERR_PTR(-ENOENT);
 	}
 	crypto_larval_kill(larval);
 	return alg;
@@ -298,31 +300,40 @@ static unsigned int crypto_ctxsize(struct crypto_alg *alg, int flags)
 	return len + (alg->cra_alignmask & ~(crypto_tfm_ctx_alignment() - 1));
 }
 
-struct crypto_tfm *crypto_alloc_tfm(const char *name, u32 flags)
+void crypto_shoot_alg(struct crypto_alg *alg)
+{
+	down_write(&crypto_alg_sem);
+	alg->cra_flags |= CRYPTO_ALG_DYING;
+	up_write(&crypto_alg_sem);
+}
+EXPORT_SYMBOL_GPL(crypto_shoot_alg);
+
+struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 flags)
 {
 	struct crypto_tfm *tfm = NULL;
-	struct crypto_alg *alg;
 	unsigned int tfm_size;
-
-	alg = crypto_alg_mod_lookup(name, 0, 0);
-	if (alg == NULL)
-		goto out;
+	int err = -ENOMEM;
 
 	tfm_size = sizeof(*tfm) + crypto_ctxsize(alg, flags);
 	tfm = kzalloc(tfm_size, GFP_KERNEL);
 	if (tfm == NULL)
-		goto out_put;
+		goto out;
 
 	tfm->__crt_alg = alg;
-	
-	if (crypto_init_flags(tfm, flags))
+
+	err = crypto_init_flags(tfm, flags);
+	if (err)
 		goto out_free_tfm;
 		
-	if (crypto_init_ops(tfm))
+	err = crypto_init_ops(tfm);
+	if (err)
 		goto out_free_tfm;
 
-	if (alg->cra_init && alg->cra_init(tfm))
+	if (alg->cra_init && (err = alg->cra_init(tfm))) {
+		if (err == -EAGAIN)
+			crypto_shoot_alg(alg);
 		goto cra_init_failed;
+	}
 
 	goto out;
 
@@ -330,10 +341,34 @@ cra_init_failed:
 	crypto_exit_ops(tfm);
 out_free_tfm:
 	kfree(tfm);
-	tfm = NULL;
-out_put:
-	crypto_mod_put(alg);
+	tfm = ERR_PTR(err);
 out:
+	return tfm;
+}
+EXPORT_SYMBOL_GPL(__crypto_alloc_tfm);
+
+struct crypto_tfm *crypto_alloc_tfm(const char *name, u32 flags)
+{
+	struct crypto_tfm *tfm = NULL;
+	int err;
+
+	do {
+		struct crypto_alg *alg;
+
+		alg = crypto_alg_mod_lookup(name, 0, 0);
+		err = PTR_ERR(alg);
+		if (IS_ERR(alg))
+			continue;
+
+		tfm = __crypto_alloc_tfm(alg, flags);
+		err = 0;
+		if (IS_ERR(tfm)) {
+			crypto_mod_put(alg);
+			err = PTR_ERR(tfm);
+			tfm = NULL;
+		}
+	} while (err == -EAGAIN && !signal_pending(current));
+
 	return tfm;
 }
 
@@ -361,7 +396,7 @@ int crypto_alg_available(const char *name, u32 flags)
 	int ret = 0;
 	struct crypto_alg *alg = crypto_alg_mod_lookup(name, 0, 0);
 	
-	if (alg) {
+	if (!IS_ERR(alg)) {
 		crypto_mod_put(alg);
 		ret = 1;
 	}

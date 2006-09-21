@@ -35,6 +35,8 @@
 #define CRYPTO_ALG_TYPE_COMPRESS	0x00000004
 
 #define CRYPTO_ALG_LARVAL		0x00000010
+#define CRYPTO_ALG_DEAD			0x00000020
+#define CRYPTO_ALG_DYING		0x00000040
 
 /*
  * Transform masks and values (for crt_flags).
@@ -145,6 +147,8 @@ struct compress_alg {
 
 struct crypto_alg {
 	struct list_head cra_list;
+	struct list_head cra_users;
+
 	u32 cra_flags;
 	unsigned int cra_blocksize;
 	unsigned int cra_ctxsize;

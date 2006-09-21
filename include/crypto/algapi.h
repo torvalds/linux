@@ -36,9 +36,20 @@ struct crypto_template {
 	char name[CRYPTO_MAX_ALG_NAME];
 };
 
+struct crypto_spawn {
+	struct list_head list;
+	struct crypto_alg *alg;
+	struct crypto_instance *inst;
+};
+
 int crypto_register_template(struct crypto_template *tmpl);
 void crypto_unregister_template(struct crypto_template *tmpl);
 struct crypto_template *crypto_lookup_template(const char *name);
+
+int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
+		      struct crypto_instance *inst);
+void crypto_drop_spawn(struct crypto_spawn *spawn);
+struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn);
 
 static inline void *crypto_instance_ctx(struct crypto_instance *inst)
 {
