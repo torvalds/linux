@@ -442,16 +442,16 @@ init_rx_bufs(struct net_device *dev, int num) {
 		if (rbd) {
 			rbd->pad = 0;
 			rbd->count = 0;
-			rbd->skb = dev_alloc_skb(RX_SKB_SIZE);
+			rbd->skb = dev_alloc_skb(RX_SKBSIZE);
 			if (!rbd->skb) {
 				printk("dev_alloc_skb failed");
 			}
 			rbd->next = rfd->rbd;
 			if (i) {
 				rfd->rbd->prev = rbd;
-				rbd->size = RX_SKB_SIZE;
+				rbd->size = RX_SKBSIZE;
 			} else {
-				rbd->size = (RX_SKB_SIZE | RBD_EL);
+				rbd->size = (RX_SKBSIZE | RBD_EL);
 				lp->rbd_tail = rbd;
 			}
 
