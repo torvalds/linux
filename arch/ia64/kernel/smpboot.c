@@ -879,3 +879,27 @@ identify_siblings(struct cpuinfo_ia64 *c)
 	c->core_id = info.log1_cid;
 	c->thread_id = info.log1_tid;
 }
+
+/*
+ * returns non zero, if multi-threading is enabled
+ * on at least one physical package. Due to hotplug cpu
+ * and (maxcpus=), all threads may not necessarily be enabled
+ * even though the processor supports multi-threading.
+ */
+int is_multithreading_enabled(void)
+{
+	int i, j;
+
+	for_each_present_cpu(i) {
+		for_each_present_cpu(j) {
+			if (j == i)
+				continue;
+			if ((cpu_data(j)->socket_id == cpu_data(i)->socket_id)) {
+				if (cpu_data(j)->core_id == cpu_data(i)->core_id)
+					return 1;
+			}
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(is_multithreading_enabled);
