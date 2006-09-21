@@ -622,6 +622,7 @@ static int __init fs_enet_of_init(void)
 
 		id = get_property(np, "device-id", NULL);
 		fs_enet_data.fs_no = *id;
+		strcpy(fs_enet_data.fs_type, model);
 
 		mdio = of_get_parent(phy);
                 ret = of_address_to_resource(mdio, 0, &res);
@@ -635,7 +636,7 @@ static int __init fs_enet_of_init(void)
 		fs_enet_data.clk_tx = *((u32 *) get_property(np, "tx-clock", NULL));
 
 		if (strstr(model, "FCC")) {
-			int fcc_index = fs_get_fcc_index(*id);
+			int fcc_index = *id - 1;
 
 			fs_enet_data.dpram_offset = (u32)cpm_dpram_addr(0);
 			fs_enet_data.rx_ring = 32;
@@ -688,6 +689,7 @@ static int __init cpm_uart_of_init(void)
 		struct resource r[3];
 		struct fs_uart_platform_info cpm_uart_data;
 		const int *id;
+		const char *model;
 
 		memset(r, 0, sizeof(r));
 		memset(&cpm_uart_data, 0, sizeof(cpm_uart_data));
@@ -716,6 +718,10 @@ static int __init cpm_uart_of_init(void)
 
 		id = get_property(np, "device-id", NULL);
 		cpm_uart_data.fs_no = *id;
+
+		model = (char*)get_property(np, "model", NULL);
+		strcpy(cpm_uart_data.fs_type, model);
+
 		cpm_uart_data.uart_clk = ppc_proc_freq;
 
 		cpm_uart_data.tx_num_fifo = 4;

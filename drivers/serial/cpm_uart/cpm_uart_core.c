@@ -1023,15 +1023,17 @@ int cpm_uart_drv_get_platform_data(struct platform_device *pdev, int is_con)
 {
 	struct resource *r;
 	struct fs_uart_platform_info *pdata = pdev->dev.platform_data;
-	int idx = pdata->fs_no;	/* It is UART_SMCx or UART_SCCx index */
+	int idx;	/* It is UART_SMCx or UART_SCCx index */
 	struct uart_cpm_port *pinfo;
 	int line;
 	u32 mem, pram;
 
+        idx = pdata->fs_no = fs_uart_get_id(pdata);
+
 	line = cpm_uart_id2nr(idx);
 	if(line < 0) {
 		printk(KERN_ERR"%s(): port %d is not registered", __FUNCTION__, idx);
-		return -1;
+		return -EINVAL;
 	}
 
 	pinfo = (struct uart_cpm_port *) &cpm_uart_ports[idx];
@@ -1263,10 +1265,11 @@ static int cpm_uart_drv_probe(struct device *dev)
 	}
 
 	pdata = pdev->dev.platform_data;
-	pr_debug("cpm_uart_drv_probe: Adding CPM UART %d\n", cpm_uart_id2nr(pdata->fs_no));
 
 	if ((ret = cpm_uart_drv_get_platform_data(pdev, 0)))
 		return ret;
+
+	pr_debug("cpm_uart_drv_probe: Adding CPM UART %d\n", cpm_uart_id2nr(pdata->fs_no));
 
 	if (pdata->init_ioports)
                 pdata->init_ioports(pdata);

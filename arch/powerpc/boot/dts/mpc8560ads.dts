@@ -244,7 +244,7 @@
 				device_type = "serial";
 				compatible = "cpm_uart";
 				model = "SCC";
-				device-id = <2>;
+				device-id = <1>;
 				reg = <91a00 20 88000 100>;
 				clock-setup = <00ffffff 0>;
 				rx-clock = <1>;
@@ -258,7 +258,7 @@
 				device_type = "serial";
 				compatible = "cpm_uart";
 				model = "SCC";
-				device-id = <3>;
+				device-id = <2>;
 				reg = <91a20 20 88100 100>;
 				clock-setup = <ff00ffff 90000>;
 				rx-clock = <2>;
@@ -272,7 +272,7 @@
 				device_type = "network";
 				compatible = "fs_enet";
 				model = "FCC";
-				device-id = <3>;
+				device-id = <2>;
 				reg = <91320 20 88500 100 913a0 30>;
 				mac-address = [ 00 00 0C 00 02 FD ];
 				clock-setup = <ff00ffff 250000>;
@@ -287,7 +287,7 @@
 				device_type = "network";
 				compatible = "fs_enet";
 				model = "FCC";
-				device-id = <4>;
+				device-id = <3>;
 				reg = <91340 20 88600 100 913d0 30>;
 				mac-address = [ 00 00 0C 00 03 FD ];
 				clock-setup = <ffff00ff 3700>;

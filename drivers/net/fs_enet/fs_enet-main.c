@@ -944,12 +944,13 @@ extern int fs_mii_connect(struct net_device *dev);
 extern void fs_mii_disconnect(struct net_device *dev);
 
 static struct net_device *fs_init_instance(struct device *dev,
-		const struct fs_platform_info *fpi)
+		struct fs_platform_info *fpi)
 {
 	struct net_device *ndev = NULL;
 	struct fs_enet_private *fep = NULL;
 	int privsize, i, r, err = 0, registered = 0;
 
+	fpi->fs_no = fs_get_id(fpi);
 	/* guard */
 	if ((unsigned int)fpi->fs_no >= FS_MAX_INDEX)
 		return ERR_PTR(-EINVAL);
