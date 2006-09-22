@@ -496,7 +496,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
         msg->icmph.icmp6_unused = 0;
         msg->icmph.icmp6_router    = router;
         msg->icmph.icmp6_solicited = solicited;
-        msg->icmph.icmp6_override  = !!override;
+        msg->icmph.icmp6_override  = override;
 
         /* Set the target address. */
 	ipv6_addr_copy(&msg->target, solicited_addr);
@@ -847,10 +847,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 			goto out;
 	}
 
-	if (pneigh)
-		is_router = pneigh->flags & NTF_ROUTER;
-	else
-		is_router = idev->cnf.forwarding;
+	is_router = !!(pneigh ? pneigh->flags & NTF_ROUTER : idev->cnf.forwarding);
 
 	if (dad) {
 		struct in6_addr maddr;
