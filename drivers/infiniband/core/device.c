@@ -385,7 +385,7 @@ void *ib_get_client_data(struct ib_device *device, struct ib_client *client)
 EXPORT_SYMBOL(ib_get_client_data);
 
 /**
- * ib_set_client_data - Get IB client context
+ * ib_set_client_data - Set IB client context
  * @device:Device to set context for
  * @client:Client to set context for
  * @data:Context to set
