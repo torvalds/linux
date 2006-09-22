@@ -1359,10 +1359,9 @@ ES1938_DOUBLE("Master Playback Switch", 0, 0x60, 0x62, 6, 6, 1, 1),
 },
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+	.access = (SNDRV_CTL_ELEM_ACCESS_READ |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 	.name = "Hardware Master Playback Switch",
-	.access = SNDRV_CTL_ELEM_ACCESS_READ,
 	.info = snd_es1938_info_hw_switch,
 	.get = snd_es1938_get_hw_switch,
 	.tlv = { .p = db_scale_master },
