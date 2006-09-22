@@ -60,7 +60,7 @@ static int smt_snooze_cmdline;
 static int __init smt_setup(void)
 {
 	struct device_node *options;
-	unsigned int *val;
+	const unsigned int *val;
 	unsigned int cpu;
 
 	if (!cpu_has_feature(CPU_FTR_SMT))
@@ -70,8 +70,7 @@ static int __init smt_setup(void)
 	if (!options)
 		return -ENODEV;
 
-	val = (unsigned int *)get_property(options, "ibm,smt-snooze-delay",
-					   NULL);
+	val = get_property(options, "ibm,smt-snooze-delay", NULL);
 	if (!smt_snooze_cmdline && val) {
 		for_each_possible_cpu(cpu)
 			per_cpu(smt_snooze_delay, cpu) = *val;
@@ -231,7 +230,7 @@ static void register_cpu_online(unsigned int cpu)
 	if (cur_cpu_spec->num_pmcs >= 8)
 		sysdev_create_file(s, &attr_pmc8);
 
-	if (cpu_has_feature(CPU_FTR_SMT))
+	if (cpu_has_feature(CPU_FTR_PURR))
 		sysdev_create_file(s, &attr_purr);
 }
 
@@ -273,7 +272,7 @@ static void unregister_cpu_online(unsigned int cpu)
 	if (cur_cpu_spec->num_pmcs >= 8)
 		sysdev_remove_file(s, &attr_pmc8);
 
-	if (cpu_has_feature(CPU_FTR_SMT))
+	if (cpu_has_feature(CPU_FTR_PURR))
 		sysdev_remove_file(s, &attr_purr);
 }
 #endif /* CONFIG_HOTPLUG_CPU */

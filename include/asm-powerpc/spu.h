@@ -106,7 +106,7 @@ struct spu_context;
 struct spu_runqueue;
 
 struct spu {
-	char *name;
+	const char *name;
 	unsigned long local_store_phys;
 	u8 *local_store;
 	unsigned long problem_phys;

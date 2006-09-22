@@ -517,7 +517,7 @@ struct smu_sdbp_cpupiddata {
  * This returns the pointer to an SMU "sdb" partition data or NULL
  * if not found. The data format is described below
  */
-extern struct smu_sdbp_header *smu_get_sdb_partition(int id,
+extern const struct smu_sdbp_header *smu_get_sdb_partition(int id,
 					unsigned int *size);
 
 /* Get "sdb" partition data from an SMU satellite */

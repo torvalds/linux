@@ -113,7 +113,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	struct device_node *mace = macio_get_of_node(mdev);
 	struct net_device *dev;
 	struct mace_data *mp;
-	unsigned char *addr;
+	const unsigned char *addr;
 	int j, rev, rc = -EBUSY;
 
 	if (macio_resource_count(mdev) != 3 || macio_irq_count(mdev) != 3) {

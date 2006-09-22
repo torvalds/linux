@@ -146,6 +146,7 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 		psize = mmu_huge_psize;
 #else
 		BUG();
+		psize = pte_pagesize_index(pte); /* shutup gcc */
 #endif
 	} else
 		psize = pte_pagesize_index(pte);

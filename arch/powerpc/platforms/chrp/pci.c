@@ -214,11 +214,11 @@ void __init
 chrp_find_bridges(void)
 {
 	struct device_node *dev;
-	int *bus_range;
+	const int *bus_range;
 	int len, index = -1;
 	struct pci_controller *hose;
-	unsigned int *dma;
-	char *model, *machine;
+	const unsigned int *dma;
+	const char *model, *machine;
 	int is_longtrail = 0, is_mot = 0, is_pegasos = 0;
 	struct device_node *root = find_path_device("/");
 	struct resource r;
@@ -246,7 +246,7 @@ chrp_find_bridges(void)
 			       dev->full_name);
 			continue;
 		}
-		bus_range = (int *) get_property(dev, "bus-range", &len);
+		bus_range = get_property(dev, "bus-range", &len);
 		if (bus_range == NULL || len < 2 * sizeof(int)) {
 			printk(KERN_WARNING "Can't get bus-range for %s\n",
 				dev->full_name);
@@ -257,7 +257,7 @@ chrp_find_bridges(void)
 		else
 			printk(KERN_INFO "PCI buses %d..%d",
 			       bus_range[0], bus_range[1]);
-		printk(" controlled by %s", dev->type);
+		printk(" controlled by %s", dev->full_name);
 		if (!is_longtrail)
 			printk(" at %llx", (unsigned long long)r.start);
 		printk("\n");
@@ -289,6 +289,19 @@ chrp_find_bridges(void)
 			setup_indirect_pci(hose, 0xfec00cf8, 0xfee00cfc);
 		} else if (is_pegasos == 2) {
 			setup_peg2(hose, dev);
+		} else if (!strncmp(model, "IBM,CPC710", 10)) {
+			setup_indirect_pci(hose,
+					   r.start + 0x000f8000,
+					   r.start + 0x000f8010);
+			if (index == 0) {
+				dma = get_property(dev, "system-dma-base",&len);
+				if (dma && len >= sizeof(*dma)) {
+					dma = (unsigned int *)
+						(((unsigned long)dma) +
+						len - sizeof(*dma));
+						pci_dram_offset = *dma;
+				}
+			}
 		} else {
 			printk("No methods for %s (model %s), using RTAS\n",
 			       dev->full_name, model);
@@ -299,15 +312,35 @@ chrp_find_bridges(void)
 
 		/* check the first bridge for a property that we can
 		   use to set pci_dram_offset */
-		dma = (unsigned int *)
-			get_property(dev, "ibm,dma-ranges", &len);
+		dma = get_property(dev, "ibm,dma-ranges", &len);
 		if (index == 0 && dma != NULL && len >= 6 * sizeof(*dma)) {
 			pci_dram_offset = dma[2] - dma[3];
 			printk("pci_dram_offset = %lx\n", pci_dram_offset);
 		}
 	}
-
-	/* Do not fixup interrupts from OF tree on pegasos */
-	if (is_pegasos)
-		ppc_md.pcibios_fixup = NULL;
 }
+
+/* SL82C105 IDE Control/Status Register */
+#define SL82C105_IDECSR                0x40
+
+/* Fixup for Winbond ATA quirk, required for briq */
+void chrp_pci_fixup_winbond_ata(struct pci_dev *sl82c105)
+{
+	u8 progif;
+
+	/* If non-briq machines need that fixup too, please speak up */
+	if (!machine_is(chrp) || _chrp_type != _CHRP_briq)
+		return;
+
+	if ((sl82c105->class & 5) != 5) {
+		printk("W83C553: Switching SL82C105 IDE to PCI native mode\n");
+		/* Enable SL82C105 PCI native IDE mode */
+		pci_read_config_byte(sl82c105, PCI_CLASS_PROG, &progif);
+		pci_write_config_byte(sl82c105, PCI_CLASS_PROG, progif | 0x05);
+		sl82c105->class |= 0x05;
+		/* Disable SL82C105 second port */
+		pci_write_config_word(sl82c105, SL82C105_IDECSR, 0x0003);
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105,
+		chrp_pci_fixup_winbond_ata);

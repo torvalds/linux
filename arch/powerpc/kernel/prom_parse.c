@@ -27,7 +27,7 @@
 
 /* Debug utility */
 #ifdef DEBUG
-static void of_dump_addr(const char *s, u32 *addr, int na)
+static void of_dump_addr(const char *s, const u32 *addr, int na)
 {
 	printk("%s", s);
 	while(na--)
@@ -35,7 +35,7 @@ static void of_dump_addr(const char *s, u32 *addr, int na)
 	printk("\n");
 }
 #else
-static void of_dump_addr(const char *s, u32 *addr, int na) { }
+static void of_dump_addr(const char *s, const u32 *addr, int na) { }
 #endif
 
 
@@ -46,9 +46,10 @@ struct of_bus {
 	int		(*match)(struct device_node *parent);
 	void		(*count_cells)(struct device_node *child,
 				       int *addrc, int *sizec);
-	u64		(*map)(u32 *addr, u32 *range, int na, int ns, int pna);
+	u64		(*map)(u32 *addr, const u32 *range,
+				int na, int ns, int pna);
 	int		(*translate)(u32 *addr, u64 offset, int na);
-	unsigned int	(*get_flags)(u32 *addr);
+	unsigned int	(*get_flags)(const u32 *addr);
 };
 
 
@@ -65,7 +66,8 @@ static void of_bus_default_count_cells(struct device_node *dev,
 		*sizec = prom_n_size_cells(dev);
 }
 
-static u64 of_bus_default_map(u32 *addr, u32 *range, int na, int ns, int pna)
+static u64 of_bus_default_map(u32 *addr, const u32 *range,
+		int na, int ns, int pna)
 {
 	u64 cp, s, da;
 
@@ -93,7 +95,7 @@ static int of_bus_default_translate(u32 *addr, u64 offset, int na)
 	return 0;
 }
 
-static unsigned int of_bus_default_get_flags(u32 *addr)
+static unsigned int of_bus_default_get_flags(const u32 *addr)
 {
 	return IORESOURCE_MEM;
 }
@@ -118,7 +120,7 @@ static void of_bus_pci_count_cells(struct device_node *np,
 		*sizec = 2;
 }
 
-static u64 of_bus_pci_map(u32 *addr, u32 *range, int na, int ns, int pna)
+static u64 of_bus_pci_map(u32 *addr, const u32 *range, int na, int ns, int pna)
 {
 	u64 cp, s, da;
 
@@ -143,7 +145,7 @@ static int of_bus_pci_translate(u32 *addr, u64 offset, int na)
 	return of_bus_default_translate(addr + 1, offset, na - 1);
 }
 
-static unsigned int of_bus_pci_get_flags(u32 *addr)
+static unsigned int of_bus_pci_get_flags(const u32 *addr)
 {
 	unsigned int flags = 0;
 	u32 w = addr[0];
@@ -178,7 +180,7 @@ static void of_bus_isa_count_cells(struct device_node *child,
 		*sizec = 1;
 }
 
-static u64 of_bus_isa_map(u32 *addr, u32 *range, int na, int ns, int pna)
+static u64 of_bus_isa_map(u32 *addr, const u32 *range, int na, int ns, int pna)
 {
 	u64 cp, s, da;
 
@@ -203,7 +205,7 @@ static int of_bus_isa_translate(u32 *addr, u64 offset, int na)
 	return of_bus_default_translate(addr + 1, offset, na - 1);
 }
 
-static unsigned int of_bus_isa_get_flags(u32 *addr)
+static unsigned int of_bus_isa_get_flags(const u32 *addr)
 {
 	unsigned int flags = 0;
 	u32 w = addr[0];
@@ -268,7 +270,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 			    struct of_bus *pbus, u32 *addr,
 			    int na, int ns, int pna)
 {
-	u32 *ranges;
+	const u32 *ranges;
 	unsigned int rlen;
 	int rone;
 	u64 offset = OF_BAD_ADDR;
@@ -285,7 +287,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 	 * to translate addresses that aren't supposed to be translated in
 	 * the first place. --BenH.
 	 */
-	ranges = (u32 *)get_property(parent, "ranges", &rlen);
+	ranges = get_property(parent, "ranges", &rlen);
 	if (ranges == NULL || rlen == 0) {
 		offset = of_read_number(addr, na);
 		memset(addr, 0, pna * 4);
@@ -328,7 +330,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
  * that can be mapped to a cpu physical address). This is not really specified
  * that way, but this is traditionally the way IBM at least do things
  */
-u64 of_translate_address(struct device_node *dev, u32 *in_addr)
+u64 of_translate_address(struct device_node *dev, const u32 *in_addr)
 {
 	struct device_node *parent = NULL;
 	struct of_bus *bus, *pbus;
@@ -405,10 +407,10 @@ u64 of_translate_address(struct device_node *dev, u32 *in_addr)
 }
 EXPORT_SYMBOL(of_translate_address);
 
-u32 *of_get_address(struct device_node *dev, int index, u64 *size,
+const u32 *of_get_address(struct device_node *dev, int index, u64 *size,
 		    unsigned int *flags)
 {
-	u32 *prop;
+	const u32 *prop;
 	unsigned int psize;
 	struct device_node *parent;
 	struct of_bus *bus;
@@ -425,7 +427,7 @@ u32 *of_get_address(struct device_node *dev, int index, u64 *size,
 		return NULL;
 
 	/* Get "reg" or "assigned-addresses" property */
-	prop = (u32 *)get_property(dev, bus->addresses, &psize);
+	prop = get_property(dev, bus->addresses, &psize);
 	if (prop == NULL)
 		return NULL;
 	psize /= 4;
@@ -443,10 +445,10 @@ u32 *of_get_address(struct device_node *dev, int index, u64 *size,
 }
 EXPORT_SYMBOL(of_get_address);
 
-u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
+const u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 			unsigned int *flags)
 {
-	u32 *prop;
+	const u32 *prop;
 	unsigned int psize;
 	struct device_node *parent;
 	struct of_bus *bus;
@@ -467,7 +469,7 @@ u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 		return NULL;
 
 	/* Get "reg" or "assigned-addresses" property */
-	prop = (u32 *)get_property(dev, bus->addresses, &psize);
+	prop = get_property(dev, bus->addresses, &psize);
 	if (prop == NULL)
 		return NULL;
 	psize /= 4;
@@ -485,7 +487,7 @@ u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 }
 EXPORT_SYMBOL(of_get_pci_address);
 
-static int __of_address_to_resource(struct device_node *dev, u32 *addrp,
+static int __of_address_to_resource(struct device_node *dev, const u32 *addrp,
 				    u64 size, unsigned int flags,
 				    struct resource *r)
 {
@@ -516,7 +518,7 @@ static int __of_address_to_resource(struct device_node *dev, u32 *addrp,
 int of_address_to_resource(struct device_node *dev, int index,
 			   struct resource *r)
 {
-	u32		*addrp;
+	const u32	*addrp;
 	u64		size;
 	unsigned int	flags;
 
@@ -530,7 +532,7 @@ EXPORT_SYMBOL_GPL(of_address_to_resource);
 int of_pci_address_to_resource(struct device_node *dev, int bar,
 			       struct resource *r)
 {
-	u32		*addrp;
+	const u32	*addrp;
 	u64		size;
 	unsigned int	flags;
 
@@ -541,13 +543,14 @@ int of_pci_address_to_resource(struct device_node *dev, int bar,
 }
 EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
 
-void of_parse_dma_window(struct device_node *dn, unsigned char *dma_window_prop,
+void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
 		unsigned long *busno, unsigned long *phys, unsigned long *size)
 {
-	u32 *dma_window, cells;
-	unsigned char *prop;
+	const u32 *dma_window;
+	u32 cells;
+	const unsigned char *prop;
 
-	dma_window = (u32 *)dma_window_prop;
+	dma_window = dma_window_prop;
 
 	/* busno is always one cell */
 	*busno = *(dma_window++);
@@ -576,13 +579,13 @@ static struct device_node *of_irq_dflt_pic;
 static struct device_node *of_irq_find_parent(struct device_node *child)
 {
 	struct device_node *p;
-	phandle *parp;
+	const phandle *parp;
 
 	if (!of_node_get(child))
 		return NULL;
 
 	do {
-		parp = (phandle *)get_property(child, "interrupt-parent", NULL);
+		parp = get_property(child, "interrupt-parent", NULL);
 		if (parp == NULL)
 			p = of_get_parent(child);
 		else {
@@ -639,11 +642,11 @@ void of_irq_map_init(unsigned int flags)
 
 }
 
-int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 ointsize,
-		   u32 *addr, struct of_irq *out_irq)
+int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
+		const u32 *addr, struct of_irq *out_irq)
 {
 	struct device_node *ipar, *tnode, *old = NULL, *newpar = NULL;
-	u32 *tmp, *imap, *imask;
+	const u32 *tmp, *imap, *imask;
 	u32 intsize = 1, addrsize, newintsize = 0, newaddrsize = 0;
 	int imaplen, match, i;
 
@@ -657,7 +660,7 @@ int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 ointsize,
 	 * is none, we are nice and just walk up the tree
 	 */
 	do {
-		tmp = (u32 *)get_property(ipar, "#interrupt-cells", NULL);
+		tmp = get_property(ipar, "#interrupt-cells", NULL);
 		if (tmp != NULL) {
 			intsize = *tmp;
 			break;
@@ -681,7 +684,7 @@ int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 ointsize,
 	 */
 	old = of_node_get(ipar);
 	do {
-		tmp = (u32 *)get_property(old, "#address-cells", NULL);
+		tmp = get_property(old, "#address-cells", NULL);
 		tnode = of_get_parent(old);
 		of_node_put(old);
 		old = tnode;
@@ -708,7 +711,7 @@ int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 ointsize,
 		}
 
 		/* Now look for an interrupt-map */
-		imap = (u32 *)get_property(ipar, "interrupt-map", &imaplen);
+		imap = get_property(ipar, "interrupt-map", &imaplen);
 		/* No interrupt map, check for an interrupt parent */
 		if (imap == NULL) {
 			DBG(" -> no map, getting parent\n");
@@ -718,7 +721,7 @@ int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 ointsize,
 		imaplen /= sizeof(u32);
 
 		/* Look for a mask */
-		imask = (u32 *)get_property(ipar, "interrupt-map-mask", NULL);
+		imask = get_property(ipar, "interrupt-map-mask", NULL);
 
 		/* If we were passed no "reg" property and we attempt to parse
 		 * an interrupt-map, then #address-cells must be 0.
@@ -765,14 +768,14 @@ int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 ointsize,
 			/* Get #interrupt-cells and #address-cells of new
 			 * parent
 			 */
-			tmp = (u32 *)get_property(newpar, "#interrupt-cells",
+			tmp = get_property(newpar, "#interrupt-cells",
 						  NULL);
 			if (tmp == NULL) {
 				DBG(" -> parent lacks #interrupt-cells !\n");
 				goto fail;
 			}
 			newintsize = *tmp;
-			tmp = (u32 *)get_property(newpar, "#address-cells",
+			tmp = get_property(newpar, "#address-cells",
 						  NULL);
 			newaddrsize = (tmp == NULL) ? 0 : *tmp;
 
@@ -818,14 +821,14 @@ EXPORT_SYMBOL_GPL(of_irq_map_raw);
 static int of_irq_map_oldworld(struct device_node *device, int index,
 			       struct of_irq *out_irq)
 {
-	u32 *ints;
+	const u32 *ints;
 	int intlen;
 
 	/*
 	 * Old machines just have a list of interrupt numbers
 	 * and no interrupt-controller nodes.
 	 */
-	ints = (u32 *) get_property(device, "AAPL,interrupts", &intlen);
+	ints = get_property(device, "AAPL,interrupts", &intlen);
 	if (ints == NULL)
 		return -EINVAL;
 	intlen /= sizeof(u32);
@@ -850,7 +853,8 @@ static int of_irq_map_oldworld(struct device_node *device, int index,
 int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq)
 {
 	struct device_node *p;
-	u32 *intspec, *tmp, intsize, intlen, *addr;
+	const u32 *intspec, *tmp, *addr;
+	u32 intsize, intlen;
 	int res;
 
 	DBG("of_irq_map_one: dev=%s, index=%d\n", device->full_name, index);
@@ -860,13 +864,13 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 		return of_irq_map_oldworld(device, index, out_irq);
 
 	/* Get the interrupts property */
-	intspec = (u32 *)get_property(device, "interrupts", &intlen);
+	intspec = get_property(device, "interrupts", &intlen);
 	if (intspec == NULL)
 		return -EINVAL;
 	intlen /= sizeof(u32);
 
 	/* Get the reg property (if any) */
-	addr = (u32 *)get_property(device, "reg", NULL);
+	addr = get_property(device, "reg", NULL);
 
 	/* Look for the interrupt parent. */
 	p = of_irq_find_parent(device);
@@ -874,7 +878,7 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 		return -EINVAL;
 
 	/* Get size of interrupt specifier */
-	tmp = (u32 *)get_property(p, "#interrupt-cells", NULL);
+	tmp = get_property(p, "#interrupt-cells", NULL);
 	if (tmp == NULL) {
 		of_node_put(p);
 		return -EINVAL;

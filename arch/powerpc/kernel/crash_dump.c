@@ -80,7 +80,7 @@ static int __init parse_savemaxmem(char *p)
 }
 __setup("savemaxmem=", parse_savemaxmem);
 
-/*
+/**
  * copy_oldmem_page - copy one page from "oldmem"
  * @pfn: page frame number to be copied
  * @buf: target memory address for the copy; this can be in kernel address

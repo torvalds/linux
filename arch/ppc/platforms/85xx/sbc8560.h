@@ -14,6 +14,7 @@
 #define __MACH_SBC8560_H__
  
 #include <platforms/85xx/sbc85xx.h>
+#include <asm/irq.h>
 
 #define CPM_MAP_ADDR    (CCSRBAR + MPC85xx_CPM_OFFSET)
  

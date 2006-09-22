@@ -16,26 +16,11 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 
-_GLOBAL(__970_cpu_preinit)
-	/*
-	 * Do nothing if not running in HV mode
-	 */
+_GLOBAL(__cpu_preinit_ppc970)
+	/* Do nothing if not running in HV mode */
 	mfmsr	r0
 	rldicl.	r0,r0,4,63
 	beqlr
-
-	/*
-	 * Deal only with PPC970 and PPC970FX.
-	 */
-	mfspr	r0,SPRN_PVR
-	srwi	r0,r0,16
-	cmpwi	r0,0x39
-	beq	1f
-	cmpwi	r0,0x3c
-	beq	1f
-	cmpwi	r0,0x44
-	bnelr
-1:
 
 	/* Make sure HID4:rm_ci is off before MMU is turned off, that large
 	 * pages are enabled with HID4:61 and clear HID5:DCBZ_size and
@@ -72,23 +57,6 @@ _GLOBAL(__970_cpu_preinit)
 	isync
 	blr
 
-_GLOBAL(__setup_cpu_ppc970)
-	mfspr	r0,SPRN_HID0
-	li	r11,5			/* clear DOZE and SLEEP */
-	rldimi	r0,r11,52,8		/* set NAP and DPM */
-	li	r11,0
-	rldimi	r0,r11,32,31		/* clear EN_ATTN */
-	mtspr	SPRN_HID0,r0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	sync
-	isync
-	blr
-
 /* Definitions for the table use to save CPU states */
 #define CS_HID0		0
 #define CS_HID1		8
@@ -103,33 +71,30 @@ cpu_state_storage:
 	.balign	L1_CACHE_BYTES,0
 	.text
 
-/* Called in normal context to backup CPU 0 state. This
- * does not include cache settings. This function is also
- * called for machine sleep. This does not include the MMU
- * setup, BATs, etc... but rather the "special" registers
- * like HID0, HID1, HID4, etc...
- */
-_GLOBAL(__save_cpu_setup)
-	/* Some CR fields are volatile, we back it up all */
-	mfcr	r7
 
-	/* Get storage ptr */
-	LOAD_REG_IMMEDIATE(r5,cpu_state_storage)
-
-	/* We only deal with 970 for now */
-	mfspr	r0,SPRN_PVR
-	srwi	r0,r0,16
-	cmpwi	r0,0x39
-	beq	1f
-	cmpwi	r0,0x3c
-	beq	1f
-	cmpwi	r0,0x44
-	bne	2f
-
-1:	/* skip if not running in HV mode */
+_GLOBAL(__setup_cpu_ppc970)
+	/* Do nothing if not running in HV mode */
 	mfmsr	r0
 	rldicl.	r0,r0,4,63
-	beq	2f
+	beqlr
+
+	mfspr	r0,SPRN_HID0
+	li	r11,5			/* clear DOZE and SLEEP */
+	rldimi	r0,r11,52,8		/* set NAP and DPM */
+	li	r11,0
+	rldimi	r0,r11,32,31		/* clear EN_ATTN */
+	mtspr	SPRN_HID0,r0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	sync
+	isync
+
+	/* Save away cpu state */
+	LOAD_REG_IMMEDIATE(r5,cpu_state_storage)
 
 	/* Save HID0,1,4 and 5 */
 	mfspr	r3,SPRN_HID0
@@ -141,35 +106,19 @@ _GLOBAL(__save_cpu_setup)
 	mfspr	r3,SPRN_HID5
 	std	r3,CS_HID5(r5)
 
-2:
-	mtcr	r7
 	blr
 
 /* Called with no MMU context (typically MSR:IR/DR off) to
  * restore CPU state as backed up by the previous
  * function. This does not include cache setting
  */
-_GLOBAL(__restore_cpu_setup)
-	/* Get storage ptr (FIXME when using anton reloc as we
-	 * are running with translation disabled here
-	 */
-	LOAD_REG_IMMEDIATE(r5,cpu_state_storage)
-
-	/* We only deal with 970 for now */
-	mfspr	r0,SPRN_PVR
-	srwi	r0,r0,16
-	cmpwi	r0,0x39
-	beq	1f
-	cmpwi	r0,0x3c
-	beq	1f
-	cmpwi	r0,0x44
-	bnelr
-
-1:	/* skip if not running in HV mode */
+_GLOBAL(__restore_cpu_ppc970)
+	/* Do nothing if not running in HV mode */
 	mfmsr	r0
 	rldicl.	r0,r0,4,63
 	beqlr
 
+	LOAD_REG_IMMEDIATE(r5,cpu_state_storage)
 	/* Before accessing memory, we make sure rm_ci is clear */
 	li	r0,0
 	mfspr	r3,SPRN_HID4

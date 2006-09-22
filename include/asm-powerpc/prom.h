@@ -72,8 +72,8 @@ struct property {
 };
 
 struct device_node {
-	char	*name;
-	char	*type;
+	const char *name;
+	const char *type;
 	phandle	node;
 	phandle linux_phandle;
 	char	*full_name;
@@ -160,7 +160,7 @@ extern void unflatten_device_tree(void);
 extern void early_init_devtree(void *);
 extern int device_is_compatible(struct device_node *device, const char *);
 extern int machine_is_compatible(const char *compat);
-extern void *get_property(struct device_node *node, const char *name,
+extern const void *get_property(struct device_node *node, const char *name,
 		int *lenp);
 extern void print_properties(struct device_node *node);
 extern int prom_n_addr_cells(struct device_node* np);
@@ -197,8 +197,8 @@ extern int release_OF_resource(struct device_node* node, int index);
  */
 
 
-/* Helper to read a big number */
-static inline u64 of_read_number(u32 *cell, int size)
+/* Helper to read a big number; size is in cells (not bytes) */
+static inline u64 of_read_number(const u32 *cell, int size)
 {
 	u64 r = 0;
 	while (size--)
@@ -206,18 +206,28 @@ static inline u64 of_read_number(u32 *cell, int size)
 	return r;
 }
 
+/* Like of_read_number, but we want an unsigned long result */
+#ifdef CONFIG_PPC32
+static inline unsigned long of_read_ulong(const u32 *cell, int size)
+{
+	return cell[size-1];
+}
+#else
+#define of_read_ulong(cell, size)	of_read_number(cell, size)
+#endif
+
 /* Translate an OF address block into a CPU physical address
  */
 #define OF_BAD_ADDR	((u64)-1)
-extern u64 of_translate_address(struct device_node *np, u32 *addr);
+extern u64 of_translate_address(struct device_node *np, const u32 *addr);
 
 /* Extract an address from a device, returns the region size and
  * the address space flags too. The PCI version uses a BAR number
  * instead of an absolute index
  */
-extern u32 *of_get_address(struct device_node *dev, int index,
+extern const u32 *of_get_address(struct device_node *dev, int index,
 			   u64 *size, unsigned int *flags);
-extern u32 *of_get_pci_address(struct device_node *dev, int bar_no,
+extern const u32 *of_get_pci_address(struct device_node *dev, int bar_no,
 			       u64 *size, unsigned int *flags);
 
 /* Get an address as a resource. Note that if your address is
@@ -234,7 +244,7 @@ extern int of_pci_address_to_resource(struct device_node *dev, int bar,
 /* Parse the ibm,dma-window property of an OF node into the busno, phys and
  * size parameters.
  */
-void of_parse_dma_window(struct device_node *dn, unsigned char *dma_window_prop,
+void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
 		unsigned long *busno, unsigned long *phys, unsigned long *size);
 
 extern void kdump_move_device_tree(void);
@@ -259,7 +269,7 @@ struct of_irq {
 	u32 specifier[OF_MAX_IRQ_SPEC];	/* Specifier copy */
 };
 
-/***
+/**
  * of_irq_map_init - Initialize the irq remapper
  * @flags:	flags defining workarounds to enable
  *
@@ -272,7 +282,7 @@ struct of_irq {
 
 extern void of_irq_map_init(unsigned int flags);
 
-/***
+/**
  * of_irq_map_raw - Low level interrupt tree parsing
  * @parent:	the device interrupt parent
  * @intspec:	interrupt specifier ("interrupts" property of the device)
@@ -289,12 +299,12 @@ extern void of_irq_map_init(unsigned int flags);
  *
  */
 
-extern int of_irq_map_raw(struct device_node *parent, u32 *intspec,
-			  u32 ointsize, u32 *addr,
+extern int of_irq_map_raw(struct device_node *parent, const u32 *intspec,
+			  u32 ointsize, const u32 *addr,
 			  struct of_irq *out_irq);
 
 
-/***
+/**
  * of_irq_map_one - Resolve an interrupt for a device
  * @device:	the device whose interrupt is to be resolved
  * @index:     	index of the interrupt to resolve
@@ -307,7 +317,7 @@ extern int of_irq_map_raw(struct device_node *parent, u32 *intspec,
 extern int of_irq_map_one(struct device_node *device, int index,
 			  struct of_irq *out_irq);
 
-/***
+/**
  * of_irq_map_pci - Resolve the interrupt for a PCI device
  * @pdev:	the device whose interrupt is to be resolved
  * @out_irq:	structure of_irq filled by this function

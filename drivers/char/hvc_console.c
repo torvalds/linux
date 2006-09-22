@@ -80,7 +80,8 @@ struct hvc_struct {
 	struct tty_struct *tty;
 	unsigned int count;
 	int do_wakeup;
-	char outbuf[N_OUTBUF] __ALIGNED__;
+	char *outbuf;
+	int outbuf_size;
 	int n_outbuf;
 	uint32_t vtermno;
 	struct hv_ops *ops;
@@ -319,10 +320,8 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	struct kobject *kobjp;
 
 	/* Auto increments kobject reference if found. */
-	if (!(hp = hvc_get_by_index(tty->index))) {
-		printk(KERN_WARNING "hvc_console: tty open failed, no vty associated with tty.\n");
+	if (!(hp = hvc_get_by_index(tty->index)))
 		return -ENODEV;
-	}
 
 	spin_lock_irqsave(&hp->lock, flags);
 	/* Check and then increment for fast path open. */
@@ -505,7 +504,7 @@ static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count
 	if (hp->n_outbuf > 0)
 		hvc_push(hp);
 
-	while (count > 0 && (rsize = N_OUTBUF - hp->n_outbuf) > 0) {
+	while (count > 0 && (rsize = hp->outbuf_size - hp->n_outbuf) > 0) {
 		if (rsize > count)
 			rsize = count;
 		memcpy(hp->outbuf + hp->n_outbuf, buf, rsize);
@@ -538,7 +537,7 @@ static int hvc_write_room(struct tty_struct *tty)
 	if (!hp)
 		return -1;
 
-	return N_OUTBUF - hp->n_outbuf;
+	return hp->outbuf_size - hp->n_outbuf;
 }
 
 static int hvc_chars_in_buffer(struct tty_struct *tty)
@@ -729,12 +728,13 @@ static struct kobj_type hvc_kobj_type = {
 };
 
 struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq,
-					struct hv_ops *ops)
+					struct hv_ops *ops, int outbuf_size)
 {
 	struct hvc_struct *hp;
 	int i;
 
-	hp = kmalloc(sizeof(*hp), GFP_KERNEL);
+	hp = kmalloc(ALIGN(sizeof(*hp), sizeof(long)) + outbuf_size,
+			GFP_KERNEL);
 	if (!hp)
 		return ERR_PTR(-ENOMEM);
 
@@ -743,6 +743,8 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq,
 	hp->vtermno = vtermno;
 	hp->irq = irq;
 	hp->ops = ops;
+	hp->outbuf_size = outbuf_size;
+	hp->outbuf = &((char *)hp)[ALIGN(sizeof(*hp), sizeof(long))];
 
 	kobject_init(&hp->kobj);
 	hp->kobj.ktype = &hvc_kobj_type;

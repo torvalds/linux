@@ -413,11 +413,11 @@ static int  __devinit radeon_find_mem_vbios(struct radeonfb_info *rinfo)
 static int __devinit radeon_read_xtal_OF (struct radeonfb_info *rinfo)
 {
 	struct device_node *dp = rinfo->of_node;
-	u32 *val;
+	const u32 *val;
 
 	if (dp == NULL)
 		return -ENODEV;
-	val = (u32 *) get_property(dp, "ATY,RefCLK", NULL);
+	val = get_property(dp, "ATY,RefCLK", NULL);
 	if (!val || !*val) {
 		printk(KERN_WARNING "radeonfb: No ATY,RefCLK property !\n");
 		return -EINVAL;
@@ -425,11 +425,11 @@ static int __devinit radeon_read_xtal_OF (struct radeonfb_info *rinfo)
 
 	rinfo->pll.ref_clk = (*val) / 10;
 
-	val = (u32 *) get_property(dp, "ATY,SCLK", NULL);
+	val = get_property(dp, "ATY,SCLK", NULL);
 	if (val && *val)
 		rinfo->pll.sclk = (*val) / 10;
 
-	val = (u32 *) get_property(dp, "ATY,MCLK", NULL);
+	val = get_property(dp, "ATY,MCLK", NULL);
 	if (val && *val)
 		rinfo->pll.mclk = (*val) / 10;
 

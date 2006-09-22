@@ -280,7 +280,7 @@ static char *pbook_type[] = {
 int __init find_via_pmu(void)
 {
 	u64 taddr;
-	u32 *reg;
+	const u32 *reg;
 
 	if (via != 0)
 		return 1;
@@ -288,7 +288,7 @@ int __init find_via_pmu(void)
 	if (vias == NULL)
 		return 0;
 
-	reg = (u32 *)get_property(vias, "reg", NULL);
+	reg = get_property(vias, "reg", NULL);
 	if (reg == NULL) {
 		printk(KERN_ERR "via-pmu: No \"reg\" property !\n");
 		goto fail;
@@ -330,7 +330,7 @@ int __init find_via_pmu(void)
 		
 		gpiop = of_find_node_by_name(NULL, "gpio");
 		if (gpiop) {
-			reg = (u32 *)get_property(gpiop, "reg", NULL);
+			reg = get_property(gpiop, "reg", NULL);
 			if (reg)
 				gaddr = of_translate_address(gpiop, reg);
 			if (gaddr != OF_BAD_ADDR)
@@ -479,9 +479,9 @@ static int __init via_pmu_dev_init(void)
 		pmu_batteries[1].flags |= PMU_BATT_TYPE_SMART;
 	} else {
 		struct device_node* prim = find_devices("power-mgt");
-		u32 *prim_info = NULL;
+		const u32 *prim_info = NULL;
 		if (prim)
-			prim_info = (u32 *)get_property(prim, "prim-info", NULL);
+			prim_info = get_property(prim, "prim-info", NULL);
 		if (prim_info) {
 			/* Other stuffs here yet unknown */
 			pmu_battery_count = (prim_info[6] >> 16) & 0xff;
