@@ -345,6 +345,16 @@ static int ip6_forward_proxy_check(struct sk_buff *skb)
 		}
 	}
 
+	/*
+	 * The proxying router can't forward traffic sent to a link-local
+	 * address, so signal the sender and discard the packet. This
+	 * behavior is clarified by the MIPv6 specification.
+	 */
+	if (ipv6_addr_type(&hdr->daddr) & IPV6_ADDR_LINKLOCAL) {
+		dst_link_failure(skb);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -403,8 +413,13 @@ int ip6_forward(struct sk_buff *skb)
 	}
 
 	if (pneigh_lookup(&nd_tbl, &hdr->daddr, skb->dev, 0)) {
-		if (ip6_forward_proxy_check(skb))
+		int proxied = ip6_forward_proxy_check(skb);
+		if (proxied > 0)
 			return ip6_input(skb);
+		else if (proxied < 0) {
+			IP6_INC_STATS(IPSTATS_MIB_INDISCARDS);
+			goto drop;
+		}
 	}
 
 	if (!xfrm6_route_forward(skb)) {
