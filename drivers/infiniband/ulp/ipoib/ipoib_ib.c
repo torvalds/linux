@@ -631,8 +631,10 @@ void ipoib_ib_dev_flush(void *_dev)
 	 * The device could have been brought down between the start and when
 	 * we get here, don't bring it back up if it's not configured up
 	 */
-	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
+	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags)) {
 		ipoib_ib_dev_up(dev);
+		ipoib_mcast_restart_task(dev);
+	}
 
 	mutex_lock(&priv->vlan_mutex);
 
