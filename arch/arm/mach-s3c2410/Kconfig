@@ -176,6 +176,13 @@ config CPU_S3C2412_ONLY
 		   !CPU_S3C2440 && !CPU_S3C2442 && CPU_S3C2412
 	default y if CPU_S3C2412
 
+config S3C2412_PM
+	bool
+	default y if PM
+	depends on CPU_S3C2412
+	help
+	  Internal config node to apply S3C2412 power management
+
 config CPU_S3C2412
 	bool
 	depends on ARCH_S3C2410

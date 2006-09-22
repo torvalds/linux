@@ -38,6 +38,8 @@ obj-$(CONFIG_CPU_S3C2412)	+= s3c2412-irq.o
 obj-$(CONFIG_CPU_S3C2412)	+= s3c2412-clock.o
 obj-dma-$(CONFIG_CPU_S3C2412)	+= s3c2412-dma.o
 
+obj-$(CONFIG_S3C2412_PM)	+= s3c2412-pm.o
+
 #
 # S3C244X support
 

@@ -158,48 +158,8 @@ void __init s3c2412_init_clocks(int xtal)
  * as a driver which may support both 2410 and 2440 may try and use it.
 */
 
-#ifdef CONFIG_PM
-static struct sleep_save s3c2412_sleep[] = {
-	SAVE_ITEM(S3C2412_DSC0),
-	SAVE_ITEM(S3C2412_DSC1),
-	SAVE_ITEM(S3C2413_GPJDAT),
-	SAVE_ITEM(S3C2413_GPJCON),
-	SAVE_ITEM(S3C2413_GPJUP),
-
-	/* save the sleep configuration anyway, just in case these
-	 * get damaged during wakeup */
-
-	SAVE_ITEM(S3C2412_GPBSLPCON),
-	SAVE_ITEM(S3C2412_GPCSLPCON),
-	SAVE_ITEM(S3C2412_GPDSLPCON),
-	SAVE_ITEM(S3C2412_GPESLPCON),
-	SAVE_ITEM(S3C2412_GPFSLPCON),
-	SAVE_ITEM(S3C2412_GPGSLPCON),
-	SAVE_ITEM(S3C2412_GPHSLPCON),
-	SAVE_ITEM(S3C2413_GPJSLPCON),
-};
-
-static int s3c2412_suspend(struct sys_device *dev, pm_message_t state)
-{
-	s3c2410_pm_do_save(s3c2412_sleep, ARRAY_SIZE(s3c2412_sleep));
-	return 0;
-}
-
-static int s3c2412_resume(struct sys_device *dev)
-{
-	s3c2410_pm_do_restore(s3c2412_sleep, ARRAY_SIZE(s3c2412_sleep));
-	return 0;
-}
-
-#else
-#define s3c2412_suspend NULL
-#define s3c2412_resume  NULL
-#endif
-
 struct sysdev_class s3c2412_sysclass = {
 	set_kset_name("s3c2412-core"),
-	.suspend	= s3c2412_suspend,
-	.resume		= s3c2412_resume
 };
 
 static int __init s3c2412_core_init(void)
