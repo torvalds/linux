@@ -325,8 +325,8 @@ config FS_POSIX_ACL
 source "fs/xfs/Kconfig"
 
 config OCFS2_FS
-	tristate "OCFS2 file system support (EXPERIMENTAL)"
-	depends on NET && SYSFS && EXPERIMENTAL
+	tristate "OCFS2 file system support"
+	depends on NET && SYSFS
 	select CONFIGFS_FS
 	select JBD
 	select CRC32

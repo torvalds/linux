@@ -206,7 +206,10 @@ static int ocfs2_buffer_cached(struct ocfs2_inode_info *oi,
 }
 
 /* Warning: even if it returns true, this does *not* guarantee that
- * the block is stored in our inode metadata cache. */
+ * the block is stored in our inode metadata cache. 
+ * 
+ * This can be called under lock_buffer()
+ */
 int ocfs2_buffer_uptodate(struct inode *inode,
 			  struct buffer_head *bh)
 {
@@ -224,6 +227,16 @@ int ocfs2_buffer_uptodate(struct inode *inode,
 	/* Ok, locally the buffer is marked as up to date, now search
 	 * our cache to see if we can trust that. */
 	return ocfs2_buffer_cached(OCFS2_I(inode), bh);
+}
+
+/* 
+ * Determine whether a buffer is currently out on a read-ahead request.
+ * ip_io_sem should be held to serialize submitters with the logic here.
+ */
+int ocfs2_buffer_read_ahead(struct inode *inode,
+			    struct buffer_head *bh)
+{
+	return buffer_locked(bh) && ocfs2_buffer_cached(OCFS2_I(inode), bh);
 }
 
 /* Requires ip_lock */
@@ -403,7 +416,11 @@ out_free:
  *
  * Note that this function may actually fail to insert the block if
  * memory cannot be allocated. This is not fatal however (but may
- * result in a performance penalty) */
+ * result in a performance penalty)
+ *
+ * Readahead buffers can be passed in here before the I/O request is
+ * completed.
+ */
 void ocfs2_set_buffer_uptodate(struct inode *inode,
 			       struct buffer_head *bh)
 {
