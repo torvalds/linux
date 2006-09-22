@@ -175,6 +175,7 @@ struct ipv6_devconf ipv6_devconf __read_mostly = {
 	.accept_ra_rt_info_max_plen = 0,
 #endif
 #endif
+	.proxy_ndp		= 0,
 };
 
 static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
@@ -205,6 +206,7 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
 	.accept_ra_rt_info_max_plen = 0,
 #endif
 #endif
+	.proxy_ndp		= 0,
 };
 
 /* IPv6 Wildcard Address and Loopback Address defined by RFC2553 */
@@ -3337,6 +3339,7 @@ static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_ACCEPT_RA_RT_INFO_MAX_PLEN] = cnf->accept_ra_rt_info_max_plen;
 #endif
 #endif
+	array[DEVCONF_PROXY_NDP] = cnf->proxy_ndp;
 }
 
 /* Maximum length of ifinfomsg attributes */
@@ -3859,6 +3862,14 @@ static struct addrconf_sysctl_table
 		},
 #endif
 #endif
+		{
+			.ctl_name	=	NET_IPV6_PROXY_NDP,
+			.procname	=	"proxy_ndp",
+			.data		=	&ipv6_devconf.proxy_ndp,
+			.maxlen		=	sizeof(int),
+			.mode		=	0644,
+			.proc_handler	=	&proc_dointvec,
+		},
 		{
 			.ctl_name	=	0,	/* sentinel */
 		}

@@ -765,6 +765,9 @@ conf/all/forwarding - BOOLEAN
 
 	This referred to as global forwarding.
 
+proxy_ndp - BOOLEAN
+	Do proxy ndp.
+
 conf/interface/*:
 	Change special settings per interface.
 

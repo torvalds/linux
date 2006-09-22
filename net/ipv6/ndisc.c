@@ -824,6 +824,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 
 		if (ipv6_chk_acast_addr(dev, &msg->target) ||
 		    (idev->cnf.forwarding && 
+		     (ipv6_devconf.proxy_ndp || idev->cnf.proxy_ndp) &&
 		     (pneigh = pneigh_lookup(&nd_tbl,
 					     &msg->target, dev, 0)) != NULL)) {
 			if (!(NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED) &&
@@ -966,8 +967,13 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		 * has already sent a NA to us.
 		 */
 		if (lladdr && !memcmp(lladdr, dev->dev_addr, dev->addr_len) &&
-		    pneigh_lookup(&nd_tbl, &msg->target, dev, 0))
+		    ipv6_devconf.forwarding && ipv6_devconf.proxy_ndp &&
+		    pneigh_lookup(&nd_tbl, &msg->target, dev, 0)) {
+			/* XXX: idev->cnf.prixy_ndp */
+			WARN_ON(skb->dst != NULL &&
+				((struct rt6_info *)skb->dst)->rt6i_idev);
 			goto out;
+		}
 
 		neigh_update(neigh, lladdr,
 			     msg->icmph.icmp6_solicited ? NUD_REACHABLE : NUD_STALE,

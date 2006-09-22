@@ -176,6 +176,7 @@ struct ipv6_devconf {
 	__s32		accept_ra_rt_info_max_plen;
 #endif
 #endif
+	__s32		proxy_ndp;
 	void		*sysctl;
 };
 
@@ -203,6 +204,7 @@ enum {
 	DEVCONF_ACCEPT_RA_RTR_PREF,
 	DEVCONF_RTR_PROBE_INTERVAL,
 	DEVCONF_ACCEPT_RA_RT_INFO_MAX_PLEN,
+	DEVCONF_PROXY_NDP,
 	DEVCONF_MAX
 };
 
