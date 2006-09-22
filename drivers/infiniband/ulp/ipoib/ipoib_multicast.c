@@ -472,15 +472,25 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 
 	if (create) {
 		comp_mask |=
-			IB_SA_MCMEMBER_REC_QKEY		|
-			IB_SA_MCMEMBER_REC_SL		|
-			IB_SA_MCMEMBER_REC_FLOW_LABEL	|
-			IB_SA_MCMEMBER_REC_TRAFFIC_CLASS;
+			IB_SA_MCMEMBER_REC_QKEY			|
+			IB_SA_MCMEMBER_REC_MTU_SELECTOR		|
+			IB_SA_MCMEMBER_REC_MTU			|
+			IB_SA_MCMEMBER_REC_TRAFFIC_CLASS	|
+			IB_SA_MCMEMBER_REC_RATE_SELECTOR	|
+			IB_SA_MCMEMBER_REC_RATE			|
+			IB_SA_MCMEMBER_REC_SL			|
+			IB_SA_MCMEMBER_REC_FLOW_LABEL		|
+			IB_SA_MCMEMBER_REC_HOP_LIMIT;
 
 		rec.qkey	  = priv->broadcast->mcmember.qkey;
+		rec.mtu_selector  = IB_SA_EQ;
+		rec.mtu		  = priv->broadcast->mcmember.mtu;
+		rec.traffic_class = priv->broadcast->mcmember.traffic_class;
+		rec.rate_selector = IB_SA_EQ;
+		rec.rate	  = priv->broadcast->mcmember.rate;
 		rec.sl		  = priv->broadcast->mcmember.sl;
 		rec.flow_label	  = priv->broadcast->mcmember.flow_label;
-		rec.traffic_class = priv->broadcast->mcmember.traffic_class;
+		rec.hop_limit	  = priv->broadcast->mcmember.hop_limit;
 	}
 
 	init_completion(&mcast->done);
