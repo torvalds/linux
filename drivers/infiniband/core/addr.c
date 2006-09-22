@@ -327,10 +327,10 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 }
 EXPORT_SYMBOL(rdma_addr_cancel);
 
-static int netevent_callback(struct notifier_block *self, unsigned long event, 
+static int netevent_callback(struct notifier_block *self, unsigned long event,
 	void *ctx)
 {
-	if (event == NETEVENT_NEIGH_UPDATE) {  
+	if (event == NETEVENT_NEIGH_UPDATE) {
 		struct neighbour *neigh = ctx;
 
 		if (neigh->dev->type == ARPHRD_INFINIBAND &&

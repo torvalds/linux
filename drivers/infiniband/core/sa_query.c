@@ -887,7 +887,7 @@ static void send_handler(struct ib_mad_agent *agent,
 	idr_remove(&query_idr, query->id);
 	spin_unlock_irqrestore(&idr_lock, flags);
 
-        ib_free_send_mad(mad_send_wc->send_buf);
+	ib_free_send_mad(mad_send_wc->send_buf);
 	kref_put(&query->sm_ah->ref, free_sm_ah);
 	query->release(query);
 }

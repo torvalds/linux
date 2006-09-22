@@ -68,7 +68,7 @@ struct port_table_attribute {
 	int			index;
 };
 
-static inline int ibdev_is_alive(const struct ib_device *dev) 
+static inline int ibdev_is_alive(const struct ib_device *dev)
 {
 	return dev->reg_state == IB_DEV_REGISTERED;
 }

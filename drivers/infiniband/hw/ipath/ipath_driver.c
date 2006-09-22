@@ -2126,9 +2126,9 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv)
 		dd->ipath_rx_pol_inv = new_pol_inv;
 		val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_xgxsconfig);
 		val &= ~(INFINIPATH_XGXS_RX_POL_MASK <<
-                         INFINIPATH_XGXS_RX_POL_SHIFT);
-                val |= ((u64)dd->ipath_rx_pol_inv) <<
-                        INFINIPATH_XGXS_RX_POL_SHIFT;
+			 INFINIPATH_XGXS_RX_POL_SHIFT);
+		val |= ((u64)dd->ipath_rx_pol_inv) <<
+			INFINIPATH_XGXS_RX_POL_SHIFT;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_xgxsconfig, val);
 	}
 	return 0;

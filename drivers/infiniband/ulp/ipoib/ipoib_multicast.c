@@ -795,7 +795,7 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 	}
 
 	if (priv->broadcast) {
- 		rb_erase(&priv->broadcast->rb_node, &priv->multicast_tree);
+		rb_erase(&priv->broadcast->rb_node, &priv->multicast_tree);
 		list_add_tail(&priv->broadcast->list, &remove_list);
 		priv->broadcast = NULL;
 	}

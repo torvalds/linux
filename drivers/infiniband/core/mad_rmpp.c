@@ -391,7 +391,7 @@ static inline int window_size(struct ib_mad_agent_private *agent)
 static struct ib_mad_recv_buf * find_seg_location(struct list_head *rmpp_list,
 						  int seg_num)
 {
-        struct ib_mad_recv_buf *seg_buf;
+	struct ib_mad_recv_buf *seg_buf;
 	int cur_seg_num;
 
 	list_for_each_entry_reverse(seg_buf, rmpp_list, list) {

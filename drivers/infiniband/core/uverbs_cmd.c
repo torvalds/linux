@@ -1676,7 +1676,6 @@ ssize_t ib_uverbs_post_recv(struct ib_uverbs_file *file,
 				break;
 		}
 
-
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp))
 		ret = -EFAULT;
@@ -1725,7 +1724,6 @@ ssize_t ib_uverbs_post_srq_recv(struct ib_uverbs_file *file,
 			if (next == bad_wr)
 				break;
 		}
-
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp))

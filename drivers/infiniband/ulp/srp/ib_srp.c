@@ -330,7 +330,7 @@ static int srp_send_req(struct srp_target_port *target)
 	req->priv.req_buf_fmt 	= cpu_to_be16(SRP_BUF_FORMAT_DIRECT |
 					      SRP_BUF_FORMAT_INDIRECT);
 	/*
-	 * In the published SRP specification (draft rev. 16a), the 
+	 * In the published SRP specification (draft rev. 16a), the
 	 * port identifier format is 8 bytes of ID extension followed
 	 * by 8 bytes of GUID.  Older drafts put the two halves in the
 	 * opposite order, so that the GUID comes first.

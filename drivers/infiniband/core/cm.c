@@ -179,7 +179,7 @@ static int cm_alloc_msg(struct cm_id_private *cm_id_priv,
 	if (IS_ERR(ah))
 		return PTR_ERR(ah);
 
-	m = ib_create_send_mad(mad_agent, cm_id_priv->id.remote_cm_qpn, 
+	m = ib_create_send_mad(mad_agent, cm_id_priv->id.remote_cm_qpn,
 			       cm_id_priv->av.pkey_index,
 			       0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
 			       GFP_ATOMIC);

@@ -613,7 +613,7 @@ static void cma_destroy_listen(struct rdma_id_private *id_priv)
 	if (id_priv->cma_dev) {
 		switch (id_priv->id.device->node_type) {
 		case IB_NODE_CA:
-	 		if (id_priv->cm_id.ib && !IS_ERR(id_priv->cm_id.ib))
+			if (id_priv->cm_id.ib && !IS_ERR(id_priv->cm_id.ib))
 				ib_destroy_cm_id(id_priv->cm_id.ib);
 			break;
 		default:
@@ -692,13 +692,13 @@ void rdma_destroy_id(struct rdma_cm_id *id)
 	if (id_priv->cma_dev) {
 		switch (id->device->node_type) {
 		case IB_NODE_CA:
-	 		if (id_priv->cm_id.ib && !IS_ERR(id_priv->cm_id.ib))
+			if (id_priv->cm_id.ib && !IS_ERR(id_priv->cm_id.ib))
 				ib_destroy_cm_id(id_priv->cm_id.ib);
 			break;
 		default:
 			break;
 		}
-	  	mutex_lock(&lock);
+		mutex_lock(&lock);
 		cma_detach_from_dev(id_priv);
 		mutex_unlock(&lock);
 	}
@@ -1492,7 +1492,7 @@ static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
 	hlist_for_each_entry(cur_id, node, &bind_list->owners, node) {
 		if (cma_any_addr(&cur_id->id.route.addr.src_addr))
 			return -EADDRNOTAVAIL;
-		
+
 		cur_sin = (struct sockaddr_in *) &cur_id->id.route.addr.src_addr;
 		if (sin->sin_addr.s_addr == cur_sin->sin_addr.s_addr)
 			return -EADDRINUSE;
