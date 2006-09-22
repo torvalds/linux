@@ -25,10 +25,12 @@
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/hardirq.h>
+#include <linux/kprobes.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
+#include <asm/kdebug.h>
 
 #ifndef CONFIG_64BIT
 #define __FAIL_ADDR_MASK 0x7ffff000
@@ -47,6 +49,38 @@ extern int sysctl_userprocess_debug;
 #endif
 
 extern void die(const char *,struct pt_regs *,long);
+
+#ifdef CONFIG_KPROBES
+ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
+int register_page_fault_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&notify_page_fault_chain, nb);
+}
+
+int unregister_page_fault_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&notify_page_fault_chain, nb);
+}
+
+static inline int notify_page_fault(enum die_val val, const char *str,
+			struct pt_regs *regs, long err, int trap, int sig)
+{
+	struct die_args args = {
+		.regs = regs,
+		.str = str,
+		.err = err,
+		.trapnr = trap,
+		.signr = sig
+	};
+	return atomic_notifier_call_chain(&notify_page_fault_chain, val, &args);
+}
+#else
+static inline int notify_page_fault(enum die_val val, const char *str,
+			struct pt_regs *regs, long err, int trap, int sig)
+{
+	return NOTIFY_DONE;
+}
+#endif
 
 extern spinlock_t timerlist_lock;
 
@@ -159,7 +193,7 @@ static void do_sigsegv(struct pt_regs *regs, unsigned long error_code,
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)
  */
-static inline void
+static inline void __kprobes
 do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
 {
         struct task_struct *tsk;
@@ -173,6 +207,10 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
         tsk = current;
         mm = tsk->mm;
 	
+	if (notify_page_fault(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
+					SIGSEGV) == NOTIFY_STOP)
+		return;
+
 	/* 
          * Check for low-address protection.  This needs to be treated
 	 * as a special case because the translation exception code 

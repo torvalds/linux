@@ -96,6 +96,12 @@ ccw_device_start_key(struct ccw_device *cdev, struct ccw1 *cpa,
 	ret = cio_set_options (sch, flags);
 	if (ret)
 		return ret;
+	/* Adjust requested path mask to excluded varied off paths. */
+	if (lpm) {
+		lpm &= sch->opm;
+		if (lpm == 0)
+			return -EACCES;
+	}
 	ret = cio_start_key (sch, cpa, lpm, key);
 	if (ret == 0)
 		cdev->private->intparm = intparm;
@@ -250,7 +256,7 @@ ccw_device_get_path_mask(struct ccw_device *cdev)
 	if (!sch)
 		return 0;
 	else
-		return sch->vpm;
+		return sch->lpm;
 }
 
 static void
@@ -304,7 +310,7 @@ __ccw_device_retry_loop(struct ccw_device *cdev, struct ccw1 *ccw, long magic, _
 	sch = to_subchannel(cdev->dev.parent);
 	do {
 		ret = cio_start (sch, ccw, lpm);
-		if ((ret == -EBUSY) || (ret == -EACCES)) {
+		if (ret == -EBUSY) {
 			/* Try again later. */
 			spin_unlock_irq(&sch->lock);
 			msleep(10);
@@ -432,6 +438,13 @@ read_conf_data_lpm (struct ccw_device *cdev, void **buffer, int *length, __u8 lp
 	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_RCD);
 	if (!ciw || ciw->cmd == 0)
 		return -EOPNOTSUPP;
+
+	/* Adjust requested path mask to excluded varied off paths. */
+	if (lpm) {
+		lpm &= sch->opm;
+		if (lpm == 0)
+			return -EACCES;
+	}
 
 	rcd_ccw = kzalloc(sizeof(struct ccw1), GFP_KERNEL | GFP_DMA);
 	if (!rcd_ccw)

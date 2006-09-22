@@ -35,6 +35,7 @@
 #define __LC_IO_NEW_PSW                 0x01f0
 #endif /* !__s390x__ */
 
+#define __LC_IPL_PARMBLOCK_PTR		0x014
 #define __LC_EXT_PARAMS                 0x080
 #define __LC_CPU_ADDRESS                0x084
 #define __LC_EXT_INT_CODE               0x086
@@ -47,6 +48,7 @@
 #define __LC_PER_ATMID			0x096
 #define __LC_PER_ADDRESS		0x098
 #define __LC_PER_ACCESS_ID		0x0A1
+#define __LC_AR_MODE_ID			0x0A3
 
 #define __LC_SUBCHANNEL_ID              0x0B8
 #define __LC_SUBCHANNEL_NR              0x0BA
@@ -106,18 +108,28 @@
 #define __LC_INT_CLOCK			0xDE8
 #endif /* __s390x__ */
 
-#define __LC_PANIC_MAGIC                0xE00
 
+#define __LC_PANIC_MAGIC		0xE00
 #ifndef __s390x__
 #define __LC_PFAULT_INTPARM             0x080
 #define __LC_CPU_TIMER_SAVE_AREA        0x0D8
+#define __LC_CLOCK_COMP_SAVE_AREA	0x0E0
+#define __LC_PSW_SAVE_AREA		0x100
+#define __LC_PREFIX_SAVE_AREA		0x108
 #define __LC_AREGS_SAVE_AREA            0x120
+#define __LC_FPREGS_SAVE_AREA		0x160
 #define __LC_GPREGS_SAVE_AREA           0x180
 #define __LC_CREGS_SAVE_AREA            0x1C0
 #else /* __s390x__ */
 #define __LC_PFAULT_INTPARM             0x11B8
+#define __LC_FPREGS_SAVE_AREA		0x1200
 #define __LC_GPREGS_SAVE_AREA           0x1280
+#define __LC_PSW_SAVE_AREA		0x1300
+#define __LC_PREFIX_SAVE_AREA		0x1318
+#define __LC_FP_CREG_SAVE_AREA		0x131C
+#define __LC_TODREG_SAVE_AREA		0x1324
 #define __LC_CPU_TIMER_SAVE_AREA        0x1328
+#define __LC_CLOCK_COMP_SAVE_AREA	0x1331
 #define __LC_AREGS_SAVE_AREA            0x1340
 #define __LC_CREGS_SAVE_AREA            0x1380
 #endif /* __s390x__ */
