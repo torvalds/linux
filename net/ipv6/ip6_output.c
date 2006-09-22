@@ -308,6 +308,46 @@ static int ip6_call_ra_chain(struct sk_buff *skb, int sel)
 	return 0;
 }
 
+static int ip6_forward_proxy_check(struct sk_buff *skb)
+{
+	struct ipv6hdr *hdr = skb->nh.ipv6h;
+	u8 nexthdr = hdr->nexthdr;
+	int offset;
+
+	if (ipv6_ext_hdr(nexthdr)) {
+		offset = ipv6_skip_exthdr(skb, sizeof(*hdr), &nexthdr);
+		if (offset < 0)
+			return 0;
+	} else
+		offset = sizeof(struct ipv6hdr);
+
+	if (nexthdr == IPPROTO_ICMPV6) {
+		struct icmp6hdr *icmp6;
+
+		if (!pskb_may_pull(skb, skb->nh.raw + offset + 1 - skb->data))
+			return 0;
+
+		icmp6 = (struct icmp6hdr *)(skb->nh.raw + offset);
+
+		switch (icmp6->icmp6_type) {
+		case NDISC_ROUTER_SOLICITATION:
+		case NDISC_ROUTER_ADVERTISEMENT:
+		case NDISC_NEIGHBOUR_SOLICITATION:
+		case NDISC_NEIGHBOUR_ADVERTISEMENT:
+		case NDISC_REDIRECT:
+			/* For reaction involving unicast neighbor discovery
+			 * message destined to the proxied address, pass it to
+			 * input function.
+			 */
+			return 1;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static inline int ip6_forward_finish(struct sk_buff *skb)
 {
 	return dst_output(skb);
@@ -360,6 +400,11 @@ int ip6_forward(struct sk_buff *skb)
 
 		kfree_skb(skb);
 		return -ETIMEDOUT;
+	}
+
+	if (pneigh_lookup(&nd_tbl, &hdr->daddr, skb->dev, 0)) {
+		if (ip6_forward_proxy_check(skb))
+			return ip6_input(skb);
 	}
 
 	if (!xfrm6_route_forward(skb)) {
