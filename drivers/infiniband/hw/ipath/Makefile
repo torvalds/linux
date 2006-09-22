@@ -25,6 +25,7 @@ ib_ipath-y := \
 	ipath_cq.o \
 	ipath_keys.o \
 	ipath_mad.o \
+	ipath_mmap.o \
 	ipath_mr.o \
 	ipath_qp.o \
 	ipath_rc.o \

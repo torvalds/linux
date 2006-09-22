@@ -35,7 +35,7 @@
 #include <linux/vmalloc.h>
 
 #include "ipath_verbs.h"
-#include "ipath_common.h"
+#include "ipath_kernel.h"
 
 #define BITS_PER_PAGE		(PAGE_SIZE*BITS_PER_BYTE)
 #define BITS_PER_PAGE_MASK	(BITS_PER_PAGE-1)
@@ -43,19 +43,6 @@
 				 (off))
 #define find_next_offset(map, off) find_next_zero_bit((map)->page, \
 						      BITS_PER_PAGE, off)
-
-#define TRANS_INVALID	0
-#define TRANS_ANY2RST	1
-#define TRANS_RST2INIT	2
-#define TRANS_INIT2INIT	3
-#define TRANS_INIT2RTR	4
-#define TRANS_RTR2RTS	5
-#define TRANS_RTS2RTS	6
-#define TRANS_SQERR2RTS	7
-#define TRANS_ANY2ERR	8
-#define TRANS_RTS2SQD	9  /* XXX Wait for expected ACKs & signal event */
-#define TRANS_SQD2SQD	10 /* error if not drained & parameter change */
-#define TRANS_SQD2RTS	11 /* error if not drained */
 
 /*
  * Convert the AETH credit code into the number of credits.
@@ -355,8 +342,10 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->s_last = 0;
 	qp->s_ssn = 1;
 	qp->s_lsn = 0;
-	qp->r_rq.head = 0;
-	qp->r_rq.tail = 0;
+	if (qp->r_rq.wq) {
+		qp->r_rq.wq->head = 0;
+		qp->r_rq.wq->tail = 0;
+	}
 	qp->r_reuse_sge = 0;
 }
 
@@ -410,15 +399,32 @@ void ipath_error_qp(struct ipath_qp *qp)
 	qp->s_hdrwords = 0;
 	qp->s_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
 
-	wc.opcode = IB_WC_RECV;
-	spin_lock(&qp->r_rq.lock);
-	while (qp->r_rq.tail != qp->r_rq.head) {
-		wc.wr_id = get_rwqe_ptr(&qp->r_rq, qp->r_rq.tail)->wr_id;
-		if (++qp->r_rq.tail >= qp->r_rq.size)
-			qp->r_rq.tail = 0;
-		ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
+	if (qp->r_rq.wq) {
+		struct ipath_rwq *wq;
+		u32 head;
+		u32 tail;
+
+		spin_lock(&qp->r_rq.lock);
+
+		/* sanity check pointers before trusting them */
+		wq = qp->r_rq.wq;
+		head = wq->head;
+		if (head >= qp->r_rq.size)
+			head = 0;
+		tail = wq->tail;
+		if (tail >= qp->r_rq.size)
+			tail = 0;
+		wc.opcode = IB_WC_RECV;
+		while (tail != head) {
+			wc.wr_id = get_rwqe_ptr(&qp->r_rq, tail)->wr_id;
+			if (++tail >= qp->r_rq.size)
+				tail = 0;
+			ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
+		}
+		wq->tail = tail;
+
+		spin_unlock(&qp->r_rq.lock);
 	}
-	spin_unlock(&qp->r_rq.lock);
 }
 
 /**
@@ -544,7 +550,7 @@ int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->dest_qp_num = qp->remote_qpn;
 	attr->qp_access_flags = qp->qp_access_flags;
 	attr->cap.max_send_wr = qp->s_size - 1;
-	attr->cap.max_recv_wr = qp->r_rq.size - 1;
+	attr->cap.max_recv_wr = qp->ibqp.srq ? 0 : qp->r_rq.size - 1;
 	attr->cap.max_send_sge = qp->s_max_sge;
 	attr->cap.max_recv_sge = qp->r_rq.max_sge;
 	attr->cap.max_inline_data = 0;
@@ -597,13 +603,23 @@ __be32 ipath_compute_aeth(struct ipath_qp *qp)
 	} else {
 		u32 min, max, x;
 		u32 credits;
+		struct ipath_rwq *wq = qp->r_rq.wq;
+		u32 head;
+		u32 tail;
 
+		/* sanity check pointers before trusting them */
+		head = wq->head;
+		if (head >= qp->r_rq.size)
+			head = 0;
+		tail = wq->tail;
+		if (tail >= qp->r_rq.size)
+			tail = 0;
 		/*
 		 * Compute the number of credits available (RWQEs).
 		 * XXX Not holding the r_rq.lock here so there is a small
 		 * chance that the pair of reads are not atomic.
 		 */
-		credits = qp->r_rq.head - qp->r_rq.tail;
+		credits = head - tail;
 		if ((int)credits < 0)
 			credits += qp->r_rq.size;
 		/*
@@ -680,27 +696,37 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	case IB_QPT_UD:
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
-		qp = kmalloc(sizeof(*qp), GFP_KERNEL);
+		sz = sizeof(*qp);
+		if (init_attr->srq) {
+			struct ipath_srq *srq = to_isrq(init_attr->srq);
+
+			sz += sizeof(*qp->r_sg_list) *
+				srq->rq.max_sge;
+		} else
+			sz += sizeof(*qp->r_sg_list) *
+				init_attr->cap.max_recv_sge;
+		qp = kmalloc(sz, GFP_KERNEL);
 		if (!qp) {
-			vfree(swq);
 			ret = ERR_PTR(-ENOMEM);
-			goto bail;
+			goto bail_swq;
 		}
 		if (init_attr->srq) {
+			sz = 0;
 			qp->r_rq.size = 0;
 			qp->r_rq.max_sge = 0;
 			qp->r_rq.wq = NULL;
+			init_attr->cap.max_recv_wr = 0;
+			init_attr->cap.max_recv_sge = 0;
 		} else {
 			qp->r_rq.size = init_attr->cap.max_recv_wr + 1;
 			qp->r_rq.max_sge = init_attr->cap.max_recv_sge;
-			sz = (sizeof(struct ipath_sge) * qp->r_rq.max_sge) +
+			sz = (sizeof(struct ib_sge) * qp->r_rq.max_sge) +
 				sizeof(struct ipath_rwqe);
-			qp->r_rq.wq = vmalloc(qp->r_rq.size * sz);
+			qp->r_rq.wq = vmalloc_user(sizeof(struct ipath_rwq) +
+					      qp->r_rq.size * sz);
 			if (!qp->r_rq.wq) {
-				kfree(qp);
-				vfree(swq);
 				ret = ERR_PTR(-ENOMEM);
-				goto bail;
+				goto bail_qp;
 			}
 		}
 
@@ -726,12 +752,10 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		err = ipath_alloc_qpn(&dev->qp_table, qp,
 				      init_attr->qp_type);
 		if (err) {
-			vfree(swq);
-			vfree(qp->r_rq.wq);
-			kfree(qp);
 			ret = ERR_PTR(err);
-			goto bail;
+			goto bail_rwq;
 		}
+		qp->ip = NULL;
 		ipath_reset_qp(qp);
 
 		/* Tell the core driver that the kernel SMA is present. */
@@ -748,8 +772,51 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 
 	init_attr->cap.max_inline_data = 0;
 
-	ret = &qp->ibqp;
+	/*
+	 * Return the address of the RWQ as the offset to mmap.
+	 * See ipath_mmap() for details.
+	 */
+	if (udata && udata->outlen >= sizeof(__u64)) {
+		struct ipath_mmap_info *ip;
+		__u64 offset = (__u64) qp->r_rq.wq;
+		int err;
 
+		err = ib_copy_to_udata(udata, &offset, sizeof(offset));
+		if (err) {
+			ret = ERR_PTR(err);
+			goto bail_rwq;
+		}
+
+		if (qp->r_rq.wq) {
+			/* Allocate info for ipath_mmap(). */
+			ip = kmalloc(sizeof(*ip), GFP_KERNEL);
+			if (!ip) {
+				ret = ERR_PTR(-ENOMEM);
+				goto bail_rwq;
+			}
+			qp->ip = ip;
+			ip->context = ibpd->uobject->context;
+			ip->obj = qp->r_rq.wq;
+			kref_init(&ip->ref);
+			ip->mmap_cnt = 0;
+			ip->size = PAGE_ALIGN(sizeof(struct ipath_rwq) +
+					      qp->r_rq.size * sz);
+			spin_lock_irq(&dev->pending_lock);
+			ip->next = dev->pending_mmaps;
+			dev->pending_mmaps = ip;
+			spin_unlock_irq(&dev->pending_lock);
+		}
+	}
+
+	ret = &qp->ibqp;
+	goto bail;
+
+bail_rwq:
+	vfree(qp->r_rq.wq);
+bail_qp:
+	kfree(qp);
+bail_swq:
+	vfree(swq);
 bail:
 	return ret;
 }
@@ -773,11 +840,9 @@ int ipath_destroy_qp(struct ib_qp *ibqp)
 	if (qp->ibqp.qp_type == IB_QPT_SMI)
 		ipath_layer_set_verbs_flags(dev->dd, 0);
 
-	spin_lock_irqsave(&qp->r_rq.lock, flags);
-	spin_lock(&qp->s_lock);
+	spin_lock_irqsave(&qp->s_lock, flags);
 	qp->state = IB_QPS_ERR;
-	spin_unlock(&qp->s_lock);
-	spin_unlock_irqrestore(&qp->r_rq.lock, flags);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 
 	/* Stop the sending tasklet. */
 	tasklet_kill(&qp->s_task);
@@ -798,8 +863,11 @@ int ipath_destroy_qp(struct ib_qp *ibqp)
 	if (atomic_read(&qp->refcount) != 0)
 		ipath_free_qp(&dev->qp_table, qp);
 
+	if (qp->ip)
+		kref_put(&qp->ip->ref, ipath_release_mmap_info);
+	else
+		vfree(qp->r_rq.wq);
 	vfree(qp->s_wq);
-	vfree(qp->r_rq.wq);
 	kfree(qp);
 	return 0;
 }

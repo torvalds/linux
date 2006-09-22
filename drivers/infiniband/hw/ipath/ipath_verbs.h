@@ -38,6 +38,7 @@
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/kref.h>
 #include <rdma/ib_pack.h>
 
 #include "ipath_layer.h"
@@ -50,7 +51,7 @@
  * Increment this value if any changes that break userspace ABI
  * compatibility are made.
  */
-#define IPATH_UVERBS_ABI_VERSION       1
+#define IPATH_UVERBS_ABI_VERSION       2
 
 /*
  * Define an ib_cq_notify value that is not valid so we know when CQ
@@ -178,58 +179,41 @@ struct ipath_ah {
 };
 
 /*
- * Quick description of our CQ/QP locking scheme:
- *
- * We have one global lock that protects dev->cq/qp_table.  Each
- * struct ipath_cq/qp also has its own lock.  An individual qp lock
- * may be taken inside of an individual cq lock.  Both cqs attached to
- * a qp may be locked, with the send cq locked first.  No other
- * nesting should be done.
- *
- * Each struct ipath_cq/qp also has an atomic_t ref count.  The
- * pointer from the cq/qp_table to the struct counts as one reference.
- * This reference also is good for access through the consumer API, so
- * modifying the CQ/QP etc doesn't need to take another reference.
- * Access because of a completion being polled does need a reference.
- *
- * Finally, each struct ipath_cq/qp has a wait_queue_head_t for the
- * destroy function to sleep on.
- *
- * This means that access from the consumer API requires nothing but
- * taking the struct's lock.
- *
- * Access because of a completion event should go as follows:
- * - lock cq/qp_table and look up struct
- * - increment ref count in struct
- * - drop cq/qp_table lock
- * - lock struct, do your thing, and unlock struct
- * - decrement ref count; if zero, wake up waiters
- *
- * To destroy a CQ/QP, we can do the following:
- * - lock cq/qp_table, remove pointer, unlock cq/qp_table lock
- * - decrement ref count
- * - wait_event until ref count is zero
- *
- * It is the consumer's responsibilty to make sure that no QP
- * operations (WQE posting or state modification) are pending when the
- * QP is destroyed.  Also, the consumer must make sure that calls to
- * qp_modify are serialized.
- *
- * Possible optimizations (wait for profile data to see if/where we
- * have locks bouncing between CPUs):
- * - split cq/qp table lock into n separate (cache-aligned) locks,
- *   indexed (say) by the page in the table
+ * This structure is used by ipath_mmap() to validate an offset
+ * when an mmap() request is made.  The vm_area_struct then uses
+ * this as its vm_private_data.
  */
+struct ipath_mmap_info {
+	struct ipath_mmap_info *next;
+	struct ib_ucontext *context;
+	void *obj;
+	struct kref ref;
+	unsigned size;
+	unsigned mmap_cnt;
+};
 
+/*
+ * This structure is used to contain the head pointer, tail pointer,
+ * and completion queue entries as a single memory allocation so
+ * it can be mmap'ed into user space.
+ */
+struct ipath_cq_wc {
+	u32 head;		/* index of next entry to fill */
+	u32 tail;		/* index of next ib_poll_cq() entry */
+	struct ib_wc queue[1];	/* this is actually size ibcq.cqe + 1 */
+};
+
+/*
+ * The completion queue structure.
+ */
 struct ipath_cq {
 	struct ib_cq ibcq;
 	struct tasklet_struct comptask;
 	spinlock_t lock;
 	u8 notify;
 	u8 triggered;
-	u32 head;		/* new records added to the head */
-	u32 tail;		/* poll_cq() reads from here. */
-	struct ib_wc *queue;	/* this is actually ibcq.cqe + 1 */
+	struct ipath_cq_wc *queue;
+	struct ipath_mmap_info *ip;
 };
 
 /*
@@ -248,28 +232,40 @@ struct ipath_swqe {
 
 /*
  * Receive work request queue entry.
- * The size of the sg_list is determined when the QP is created and stored
- * in qp->r_max_sge.
+ * The size of the sg_list is determined when the QP (or SRQ) is created
+ * and stored in qp->r_rq.max_sge (or srq->rq.max_sge).
  */
 struct ipath_rwqe {
 	u64 wr_id;
-	u32 length;		/* total length of data in sg_list */
 	u8 num_sge;
-	struct ipath_sge sg_list[0];
+	struct ib_sge sg_list[0];
+};
+
+/*
+ * This structure is used to contain the head pointer, tail pointer,
+ * and receive work queue entries as a single memory allocation so
+ * it can be mmap'ed into user space.
+ * Note that the wq array elements are variable size so you can't
+ * just index into the array to get the N'th element;
+ * use get_rwqe_ptr() instead.
+ */
+struct ipath_rwq {
+	u32 head;		/* new work requests posted to the head */
+	u32 tail;		/* receives pull requests from here. */
+	struct ipath_rwqe wq[0];
 };
 
 struct ipath_rq {
+	struct ipath_rwq *wq;
 	spinlock_t lock;
-	u32 head;		/* new work requests posted to the head */
-	u32 tail;		/* receives pull requests from here. */
 	u32 size;		/* size of RWQE array */
 	u8 max_sge;
-	struct ipath_rwqe *wq;	/* RWQE array */
 };
 
 struct ipath_srq {
 	struct ib_srq ibsrq;
 	struct ipath_rq rq;
+	struct ipath_mmap_info *ip;
 	/* send signal when number of RWQEs < limit */
 	u32 limit;
 };
@@ -293,6 +289,7 @@ struct ipath_qp {
 	atomic_t refcount;
 	wait_queue_head_t wait;
 	struct tasklet_struct s_task;
+	struct ipath_mmap_info *ip;
 	struct ipath_sge_state *s_cur_sge;
 	struct ipath_sge_state s_sge;	/* current send request data */
 	/* current RDMA read send data */
@@ -345,7 +342,8 @@ struct ipath_qp {
 	u32 s_ssn;		/* SSN of tail entry */
 	u32 s_lsn;		/* limit sequence number (credit) */
 	struct ipath_swqe *s_wq;	/* send work queue */
-	struct ipath_rq r_rq;	/* receive work queue */
+	struct ipath_rq r_rq;		/* receive work queue */
+	struct ipath_sge r_sg_list[0];	/* verified SGEs */
 };
 
 /*
@@ -369,15 +367,15 @@ static inline struct ipath_swqe *get_swqe_ptr(struct ipath_qp *qp,
 
 /*
  * Since struct ipath_rwqe is not a fixed size, we can't simply index into
- * struct ipath_rq.wq.  This function does the array index computation.
+ * struct ipath_rwq.wq.  This function does the array index computation.
  */
 static inline struct ipath_rwqe *get_rwqe_ptr(struct ipath_rq *rq,
 					      unsigned n)
 {
 	return (struct ipath_rwqe *)
-		((char *) rq->wq +
+		((char *) rq->wq->wq +
 		 (sizeof(struct ipath_rwqe) +
-		  rq->max_sge * sizeof(struct ipath_sge)) * n);
+		  rq->max_sge * sizeof(struct ib_sge)) * n);
 }
 
 /*
@@ -417,6 +415,7 @@ struct ipath_ibdev {
 	struct ib_device ibdev;
 	struct list_head dev_list;
 	struct ipath_devdata *dd;
+	struct ipath_mmap_info *pending_mmaps;
 	int ib_unit;		/* This is the device number */
 	u16 sm_lid;		/* in host order */
 	u8 sm_sl;
@@ -680,6 +679,10 @@ int ipath_map_phys_fmr(struct ib_fmr *ibfmr, u64 * page_list,
 int ipath_unmap_fmr(struct list_head *fmr_list);
 
 int ipath_dealloc_fmr(struct ib_fmr *ibfmr);
+
+void ipath_release_mmap_info(struct kref *ref);
+
+int ipath_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev);
 

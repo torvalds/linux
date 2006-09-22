@@ -32,7 +32,7 @@
  */
 
 #include "ipath_verbs.h"
-#include "ipath_common.h"
+#include "ipath_kernel.h"
 
 /*
  * Convert the AETH RNR timeout code into the number of milliseconds.
@@ -106,6 +106,54 @@ void ipath_insert_rnr_queue(struct ipath_qp *qp)
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 }
 
+static int init_sge(struct ipath_qp *qp, struct ipath_rwqe *wqe)
+{
+	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
+	int user = to_ipd(qp->ibqp.pd)->user;
+	int i, j, ret;
+	struct ib_wc wc;
+
+	qp->r_len = 0;
+	for (i = j = 0; i < wqe->num_sge; i++) {
+		if (wqe->sg_list[i].length == 0)
+			continue;
+		/* Check LKEY */
+		if ((user && wqe->sg_list[i].lkey == 0) ||
+		    !ipath_lkey_ok(&dev->lk_table,
+				   &qp->r_sg_list[j], &wqe->sg_list[i],
+				   IB_ACCESS_LOCAL_WRITE))
+			goto bad_lkey;
+		qp->r_len += wqe->sg_list[i].length;
+		j++;
+	}
+	qp->r_sge.sge = qp->r_sg_list[0];
+	qp->r_sge.sg_list = qp->r_sg_list + 1;
+	qp->r_sge.num_sge = j;
+	ret = 1;
+	goto bail;
+
+bad_lkey:
+	wc.wr_id = wqe->wr_id;
+	wc.status = IB_WC_LOC_PROT_ERR;
+	wc.opcode = IB_WC_RECV;
+	wc.vendor_err = 0;
+	wc.byte_len = 0;
+	wc.imm_data = 0;
+	wc.qp_num = qp->ibqp.qp_num;
+	wc.src_qp = 0;
+	wc.wc_flags = 0;
+	wc.pkey_index = 0;
+	wc.slid = 0;
+	wc.sl = 0;
+	wc.dlid_path_bits = 0;
+	wc.port_num = 0;
+	/* Signal solicited completion event. */
+	ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
+	ret = 0;
+bail:
+	return ret;
+}
+
 /**
  * ipath_get_rwqe - copy the next RWQE into the QP's RWQE
  * @qp: the QP
@@ -119,71 +167,71 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 {
 	unsigned long flags;
 	struct ipath_rq *rq;
+	struct ipath_rwq *wq;
 	struct ipath_srq *srq;
 	struct ipath_rwqe *wqe;
-	int ret = 1;
+	void (*handler)(struct ib_event *, void *);
+	u32 tail;
+	int ret;
 
-	if (!qp->ibqp.srq) {
+	if (qp->ibqp.srq) {
+		srq = to_isrq(qp->ibqp.srq);
+		handler = srq->ibsrq.event_handler;
+		rq = &srq->rq;
+	} else {
+		srq = NULL;
+		handler = NULL;
 		rq = &qp->r_rq;
-		spin_lock_irqsave(&rq->lock, flags);
-
-		if (unlikely(rq->tail == rq->head)) {
-			ret = 0;
-			goto done;
-		}
-		wqe = get_rwqe_ptr(rq, rq->tail);
-		qp->r_wr_id = wqe->wr_id;
-		if (!wr_id_only) {
-			qp->r_sge.sge = wqe->sg_list[0];
-			qp->r_sge.sg_list = wqe->sg_list + 1;
-			qp->r_sge.num_sge = wqe->num_sge;
-			qp->r_len = wqe->length;
-		}
-		if (++rq->tail >= rq->size)
-			rq->tail = 0;
-		goto done;
 	}
 
-	srq = to_isrq(qp->ibqp.srq);
-	rq = &srq->rq;
 	spin_lock_irqsave(&rq->lock, flags);
-
-	if (unlikely(rq->tail == rq->head)) {
-		ret = 0;
-		goto done;
-	}
-	wqe = get_rwqe_ptr(rq, rq->tail);
+	wq = rq->wq;
+	tail = wq->tail;
+	/* Validate tail before using it since it is user writable. */
+	if (tail >= rq->size)
+		tail = 0;
+	do {
+		if (unlikely(tail == wq->head)) {
+			spin_unlock_irqrestore(&rq->lock, flags);
+			ret = 0;
+			goto bail;
+		}
+		wqe = get_rwqe_ptr(rq, tail);
+		if (++tail >= rq->size)
+			tail = 0;
+	} while (!wr_id_only && !init_sge(qp, wqe));
 	qp->r_wr_id = wqe->wr_id;
-	if (!wr_id_only) {
-		qp->r_sge.sge = wqe->sg_list[0];
-		qp->r_sge.sg_list = wqe->sg_list + 1;
-		qp->r_sge.num_sge = wqe->num_sge;
-		qp->r_len = wqe->length;
-	}
-	if (++rq->tail >= rq->size)
-		rq->tail = 0;
-	if (srq->ibsrq.event_handler) {
-		struct ib_event ev;
+	wq->tail = tail;
+
+	ret = 1;
+	if (handler) {
 		u32 n;
 
-		if (rq->head < rq->tail)
-			n = rq->size + rq->head - rq->tail;
+		/*
+		 * validate head pointer value and compute
+		 * the number of remaining WQEs.
+		 */
+		n = wq->head;
+		if (n >= rq->size)
+			n = 0;
+		if (n < tail)
+			n += rq->size - tail;
 		else
-			n = rq->head - rq->tail;
+			n -= tail;
 		if (n < srq->limit) {
+			struct ib_event ev;
+
 			srq->limit = 0;
 			spin_unlock_irqrestore(&rq->lock, flags);
 			ev.device = qp->ibqp.device;
 			ev.element.srq = qp->ibqp.srq;
 			ev.event = IB_EVENT_SRQ_LIMIT_REACHED;
-			srq->ibsrq.event_handler(&ev,
-						 srq->ibsrq.srq_context);
+			handler(&ev, srq->ibsrq.srq_context);
 			goto bail;
 		}
 	}
-
-done:
 	spin_unlock_irqrestore(&rq->lock, flags);
+
 bail:
 	return ret;
 }

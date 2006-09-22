@@ -277,11 +277,12 @@ static int ipath_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			      struct ib_recv_wr **bad_wr)
 {
 	struct ipath_qp *qp = to_iqp(ibqp);
+	struct ipath_rwq *wq = qp->r_rq.wq;
 	unsigned long flags;
 	int ret;
 
 	/* Check that state is OK to post receive. */
-	if (!(ib_ipath_state_ops[qp->state] & IPATH_POST_RECV_OK)) {
+	if (!(ib_ipath_state_ops[qp->state] & IPATH_POST_RECV_OK) || !wq) {
 		*bad_wr = wr;
 		ret = -EINVAL;
 		goto bail;
@@ -290,59 +291,31 @@ static int ipath_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	for (; wr; wr = wr->next) {
 		struct ipath_rwqe *wqe;
 		u32 next;
-		int i, j;
+		int i;
 
-		if (wr->num_sge > qp->r_rq.max_sge) {
+		if ((unsigned) wr->num_sge > qp->r_rq.max_sge) {
 			*bad_wr = wr;
 			ret = -ENOMEM;
 			goto bail;
 		}
 
 		spin_lock_irqsave(&qp->r_rq.lock, flags);
-		next = qp->r_rq.head + 1;
+		next = wq->head + 1;
 		if (next >= qp->r_rq.size)
 			next = 0;
-		if (next == qp->r_rq.tail) {
+		if (next == wq->tail) {
 			spin_unlock_irqrestore(&qp->r_rq.lock, flags);
 			*bad_wr = wr;
 			ret = -ENOMEM;
 			goto bail;
 		}
 
-		wqe = get_rwqe_ptr(&qp->r_rq, qp->r_rq.head);
+		wqe = get_rwqe_ptr(&qp->r_rq, wq->head);
 		wqe->wr_id = wr->wr_id;
-		wqe->sg_list[0].mr = NULL;
-		wqe->sg_list[0].vaddr = NULL;
-		wqe->sg_list[0].length = 0;
-		wqe->sg_list[0].sge_length = 0;
-		wqe->length = 0;
-		for (i = 0, j = 0; i < wr->num_sge; i++) {
-			/* Check LKEY */
-			if (to_ipd(qp->ibqp.pd)->user &&
-			    wr->sg_list[i].lkey == 0) {
-				spin_unlock_irqrestore(&qp->r_rq.lock,
-						       flags);
-				*bad_wr = wr;
-				ret = -EINVAL;
-				goto bail;
-			}
-			if (wr->sg_list[i].length == 0)
-				continue;
-			if (!ipath_lkey_ok(
-				    &to_idev(qp->ibqp.device)->lk_table,
-				    &wqe->sg_list[j], &wr->sg_list[i],
-				    IB_ACCESS_LOCAL_WRITE)) {
-				spin_unlock_irqrestore(&qp->r_rq.lock,
-						       flags);
-				*bad_wr = wr;
-				ret = -EINVAL;
-				goto bail;
-			}
-			wqe->length += wr->sg_list[i].length;
-			j++;
-		}
-		wqe->num_sge = j;
-		qp->r_rq.head = next;
+		wqe->num_sge = wr->num_sge;
+		for (i = 0; i < wr->num_sge; i++)
+			wqe->sg_list[i] = wr->sg_list[i];
+		wq->head = next;
 		spin_unlock_irqrestore(&qp->r_rq.lock, flags);
 	}
 	ret = 0;
@@ -1137,6 +1110,7 @@ static void *ipath_register_ib_device(int unit, struct ipath_devdata *dd)
 	dev->attach_mcast = ipath_multicast_attach;
 	dev->detach_mcast = ipath_multicast_detach;
 	dev->process_mad = ipath_process_mad;
+	dev->mmap = ipath_mmap;
 
 	snprintf(dev->node_desc, sizeof(dev->node_desc),
 		 IPATH_IDSTR " %s kernel_SMA", system_utsname.nodename);
