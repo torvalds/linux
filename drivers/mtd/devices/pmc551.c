@@ -674,7 +674,7 @@ static int __init init_pmc551(void)
          */
         for( count = 0; count < MAX_MTD_DEVICES; count++ ) {
 
-                if ((PCI_Device = pci_find_device(PCI_VENDOR_ID_V3_SEMI,
+                if ((PCI_Device = pci_get_device(PCI_VENDOR_ID_V3_SEMI,
                                                   PCI_DEVICE_ID_V3_SEMI_V370PDC,
 						  PCI_Device ) ) == NULL) {
                         break;
@@ -783,6 +783,10 @@ static int __init init_pmc551(void)
                         kfree(mtd);
                         break;
                 }
+
+                /* Keep a reference as the add_mtd_device worked */
+                pci_dev_get(PCI_Device);
+
                 printk(KERN_NOTICE "Registered pmc551 memory device.\n");
                 printk(KERN_NOTICE "Mapped %dM of memory from 0x%p to 0x%p\n",
                        priv->asize>>20,
@@ -796,6 +800,10 @@ static int __init init_pmc551(void)
 		pmc551list = mtd;
 		found++;
         }
+
+        /* Exited early, reference left over */
+        if (PCI_Device)
+        	pci_dev_put(PCI_Device);
 
         if( !pmc551list ) {
                 printk(KERN_NOTICE "pmc551: not detected\n");
@@ -824,6 +832,7 @@ static void __exit cleanup_pmc551(void)
 				priv->asize>>20, priv->start);
 			iounmap (priv->start);
 		}
+		pci_dev_put(priv->dev);
 
 		kfree (mtd->priv);
 		del_mtd_device (mtd);

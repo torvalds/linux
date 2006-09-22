@@ -61,6 +61,7 @@ static void ichxrom_cleanup(struct ichxrom_window *window)
 	/* Disable writes through the rom window */
 	pci_read_config_word(window->pdev, BIOS_CNTL, &word);
 	pci_write_config_word(window->pdev, BIOS_CNTL, word & ~1);
+	pci_dev_put(window->pdev);
 
 	/* Free all of the mtd devices */
 	list_for_each_entry_safe(map, scratch, &window->maps, list) {
@@ -355,7 +356,7 @@ static int __init init_ichxrom(void)
 
 	pdev = NULL;
 	for (id = ichxrom_pci_tbl; id->vendor; id++) {
-		pdev = pci_find_device(id->vendor, id->device, NULL);
+		pdev = pci_get_device(id->vendor, id->device, NULL);
 		if (pdev) {
 			break;
 		}
