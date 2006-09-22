@@ -113,17 +113,4 @@ config SND_MPU401
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-mpu401.
 
-config SND_AC97_POWER_SAVE
-	bool "AC97 Power-Saving Mode"
-	depends on SND_AC97_CODEC && EXPERIMENTAL
-	default n
-	help
-	  Say Y here to enable the aggressive power-saving support of
-	  AC97 codecs.  In this mode, the power-mode is dynamically
-	  controlled at each open/close.
-
-	  The mode is activated by passing power_save=1 option to
-	  snd-ac97-codec driver.  You can toggle it dynamically over
-	  sysfs, too.
-
 endmenu
