@@ -1397,8 +1397,8 @@ static struct in_device * ip_mc_find_dev(struct ip_mreqn *imr)
 /*
  *	Join a socket to a group
  */
-int sysctl_igmp_max_memberships = IP_MAX_MEMBERSHIPS;
-int sysctl_igmp_max_msf = IP_MAX_MSF;
+int sysctl_igmp_max_memberships __read_mostly = IP_MAX_MEMBERSHIPS;
+int sysctl_igmp_max_msf __read_mostly = IP_MAX_MSF;
 
 
 static int ip_mc_del1_src(struct ip_mc_list *pmc, int sfmode,

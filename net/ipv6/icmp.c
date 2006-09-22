@@ -151,7 +151,7 @@ static int is_ineligible(struct sk_buff *skb)
 	return 0;
 }
 
-static int sysctl_icmpv6_time = 1*HZ; 
+static int sysctl_icmpv6_time __read_mostly = 1*HZ;
 
 /* 
  * Check the ICMP output rate limit 

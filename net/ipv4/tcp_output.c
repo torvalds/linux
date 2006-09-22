@@ -43,24 +43,24 @@
 #include <linux/smp_lock.h>
 
 /* People can turn this off for buggy TCP's found in printers etc. */
-int sysctl_tcp_retrans_collapse = 1;
+int sysctl_tcp_retrans_collapse __read_mostly = 1;
 
 /* People can turn this on to  work with those rare, broken TCPs that
  * interpret the window field as a signed quantity.
  */
-int sysctl_tcp_workaround_signed_windows = 0;
+int sysctl_tcp_workaround_signed_windows __read_mostly = 0;
 
 /* This limits the percentage of the congestion window which we
  * will allow a single TSO frame to consume.  Building TSO frames
  * which are too large can cause TCP streams to be bursty.
  */
-int sysctl_tcp_tso_win_divisor = 3;
+int sysctl_tcp_tso_win_divisor __read_mostly = 3;
 
-int sysctl_tcp_mtu_probing = 0;
-int sysctl_tcp_base_mss = 512;
+int sysctl_tcp_mtu_probing __read_mostly = 0;
+int sysctl_tcp_base_mss __read_mostly = 512;
 
 /* By default, RFC2861 behavior.  */
-int sysctl_tcp_slow_start_after_idle = 1;
+int sysctl_tcp_slow_start_after_idle __read_mostly = 1;
 
 static void update_send_head(struct sock *sk, struct tcp_sock *tp,
 			     struct sk_buff *skb)

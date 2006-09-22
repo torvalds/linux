@@ -83,7 +83,7 @@
 #include <linux/netlink.h>
 #include <linux/tcp.h>
 
-int sysctl_ip_default_ttl = IPDEFTTL;
+int sysctl_ip_default_ttl __read_mostly = IPDEFTTL;
 
 /* Generate a checksum for an outgoing IP datagram. */
 __inline__ void ip_send_check(struct iphdr *iph)

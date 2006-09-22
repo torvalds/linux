@@ -146,7 +146,7 @@ static int ipv6_chk_same_addr(const struct in6_addr *addr, struct net_device *de
 
 static ATOMIC_NOTIFIER_HEAD(inet6addr_chain);
 
-struct ipv6_devconf ipv6_devconf = {
+struct ipv6_devconf ipv6_devconf __read_mostly = {
 	.forwarding		= 0,
 	.hop_limit		= IPV6_DEFAULT_HOPLIMIT,
 	.mtu6			= IPV6_MIN_MTU,
@@ -177,7 +177,7 @@ struct ipv6_devconf ipv6_devconf = {
 #endif
 };
 
-static struct ipv6_devconf ipv6_devconf_dflt = {
+static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
 	.forwarding		= 0,
 	.hop_limit		= IPV6_DEFAULT_HOPLIMIT,
 	.mtu6			= IPV6_MIN_MTU,
@@ -3665,7 +3665,7 @@ static struct addrconf_sysctl_table
 	ctl_table addrconf_conf_dir[2];
 	ctl_table addrconf_proto_dir[2];
 	ctl_table addrconf_root_dir[2];
-} addrconf_sysctl = {
+} addrconf_sysctl __read_mostly = {
 	.sysctl_header = NULL,
 	.addrconf_vars = {
         	{

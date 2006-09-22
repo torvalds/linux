@@ -268,7 +268,7 @@
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 
-int sysctl_tcp_fin_timeout = TCP_FIN_TIMEOUT;
+int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
 
 DEFINE_SNMP_STAT(struct tcp_mib, tcp_statistics) __read_mostly;
 

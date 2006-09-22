@@ -67,7 +67,7 @@ MODULE_AUTHOR("Cast of dozens");
 MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
 MODULE_LICENSE("GPL");
 
-int sysctl_ipv6_bindv6only;
+int sysctl_ipv6_bindv6only __read_mostly;
 
 /* The inetsw table contains everything that inet_create needs to
  * build a new socket.

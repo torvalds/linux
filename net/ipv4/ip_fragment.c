@@ -54,15 +54,15 @@
  * even the most extreme cases without allowing an attacker to measurably
  * harm machine performance.
  */
-int sysctl_ipfrag_high_thresh = 256*1024;
-int sysctl_ipfrag_low_thresh = 192*1024;
+int sysctl_ipfrag_high_thresh __read_mostly = 256*1024;
+int sysctl_ipfrag_low_thresh __read_mostly = 192*1024;
 
-int sysctl_ipfrag_max_dist = 64;
+int sysctl_ipfrag_max_dist __read_mostly = 64;
 
 /* Important NOTE! Fragment queue must be destroyed before MSL expires.
  * RFC791 is wrong proposing to prolongate timer each fragment arrival by TTL.
  */
-int sysctl_ipfrag_time = IP_FRAG_TIME;
+int sysctl_ipfrag_time __read_mostly = IP_FRAG_TIME;
 
 struct ipfrag_skb_cb
 {
@@ -130,7 +130,7 @@ static unsigned int ipqhashfn(u16 id, u32 saddr, u32 daddr, u8 prot)
 }
 
 static struct timer_list ipfrag_secret_timer;
-int sysctl_ipfrag_secret_interval = 10 * 60 * HZ;
+int sysctl_ipfrag_secret_interval __read_mostly = 10 * 60 * HZ;
 
 static void ipfrag_secret_rebuild(unsigned long dummy)
 {

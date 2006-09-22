@@ -2451,7 +2451,7 @@ static struct neigh_sysctl_table {
 	ctl_table		neigh_neigh_dir[2];
 	ctl_table		neigh_proto_dir[2];
 	ctl_table		neigh_root_dir[2];
-} neigh_sysctl_template = {
+} neigh_sysctl_template __read_mostly = {
 	.neigh_vars = {
 		{
 			.ctl_name	= NET_NEIGH_MCAST_SOLICIT,

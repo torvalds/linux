@@ -72,24 +72,24 @@
 #include <asm/unaligned.h>
 #include <net/netdma.h>
 
-int sysctl_tcp_timestamps = 1;
-int sysctl_tcp_window_scaling = 1;
-int sysctl_tcp_sack = 1;
-int sysctl_tcp_fack = 1;
-int sysctl_tcp_reordering = TCP_FASTRETRANS_THRESH;
-int sysctl_tcp_ecn;
-int sysctl_tcp_dsack = 1;
-int sysctl_tcp_app_win = 31;
-int sysctl_tcp_adv_win_scale = 2;
+int sysctl_tcp_timestamps __read_mostly = 1;
+int sysctl_tcp_window_scaling __read_mostly = 1;
+int sysctl_tcp_sack __read_mostly = 1;
+int sysctl_tcp_fack __read_mostly = 1;
+int sysctl_tcp_reordering __read_mostly = TCP_FASTRETRANS_THRESH;
+int sysctl_tcp_ecn __read_mostly;
+int sysctl_tcp_dsack __read_mostly = 1;
+int sysctl_tcp_app_win __read_mostly = 31;
+int sysctl_tcp_adv_win_scale __read_mostly = 2;
 
-int sysctl_tcp_stdurg;
-int sysctl_tcp_rfc1337;
-int sysctl_tcp_max_orphans = NR_FILE;
-int sysctl_tcp_frto;
-int sysctl_tcp_nometrics_save;
+int sysctl_tcp_stdurg __read_mostly;
+int sysctl_tcp_rfc1337 __read_mostly;
+int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
+int sysctl_tcp_frto __read_mostly;
+int sysctl_tcp_nometrics_save __read_mostly;
 
-int sysctl_tcp_moderate_rcvbuf = 1;
-int sysctl_tcp_abc;
+int sysctl_tcp_moderate_rcvbuf __read_mostly = 1;
+int sysctl_tcp_abc __read_mostly;
 
 #define FLAG_DATA		0x01 /* Incoming frame contained data.		*/
 #define FLAG_WIN_UPDATE		0x02 /* Incoming ACK was a window update.	*/

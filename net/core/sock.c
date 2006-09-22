@@ -187,13 +187,13 @@ static struct lock_class_key af_callback_keys[AF_MAX];
 #define SK_RMEM_MAX		(_SK_MEM_OVERHEAD * _SK_MEM_PACKETS)
 
 /* Run time adjustable parameters. */
-__u32 sysctl_wmem_max = SK_WMEM_MAX;
-__u32 sysctl_rmem_max = SK_RMEM_MAX;
-__u32 sysctl_wmem_default = SK_WMEM_MAX;
-__u32 sysctl_rmem_default = SK_RMEM_MAX;
+__u32 sysctl_wmem_max __read_mostly = SK_WMEM_MAX;
+__u32 sysctl_rmem_max __read_mostly = SK_RMEM_MAX;
+__u32 sysctl_wmem_default __read_mostly = SK_WMEM_MAX;
+__u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
 
 /* Maximal space eaten by iovec or ancilliary data plus some space */
-int sysctl_optmem_max = sizeof(unsigned long)*(2*UIO_MAXIOV + 512);
+int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
 
 static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
 {

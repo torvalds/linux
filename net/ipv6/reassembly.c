@@ -53,10 +53,10 @@
 #include <net/ndisc.h>
 #include <net/addrconf.h>
 
-int sysctl_ip6frag_high_thresh = 256*1024;
-int sysctl_ip6frag_low_thresh = 192*1024;
+int sysctl_ip6frag_high_thresh __read_mostly = 256*1024;
+int sysctl_ip6frag_low_thresh __read_mostly = 192*1024;
 
-int sysctl_ip6frag_time = IPV6_FRAG_TIMEOUT;
+int sysctl_ip6frag_time __read_mostly = IPV6_FRAG_TIMEOUT;
 
 struct ip6frag_skb_cb
 {
@@ -152,7 +152,7 @@ static unsigned int ip6qhashfn(u32 id, struct in6_addr *saddr,
 }
 
 static struct timer_list ip6_frag_secret_timer;
-int sysctl_ip6frag_secret_interval = 10 * 60 * HZ;
+int sysctl_ip6frag_secret_interval __read_mostly = 10 * 60 * HZ;
 
 static void ip6_frag_secret_rebuild(unsigned long dummy)
 {

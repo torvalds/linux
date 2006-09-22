@@ -78,8 +78,8 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
-int sysctl_tcp_tw_reuse;
-int sysctl_tcp_low_latency;
+int sysctl_tcp_tw_reuse __read_mostly;
+int sysctl_tcp_low_latency __read_mostly;
 
 /* Check TCP sequence numbers in ICMP packets. */
 #define ICMP_MIN_LENGTH 8

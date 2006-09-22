@@ -171,7 +171,7 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 
 #define IPV6_MLD_MAX_MSF	64
 
-int sysctl_mld_max_msf = IPV6_MLD_MAX_MSF;
+int sysctl_mld_max_msf __read_mostly = IPV6_MLD_MAX_MSF;
 
 /*
  *	socket join on multicast group

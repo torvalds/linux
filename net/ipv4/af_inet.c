@@ -391,7 +391,7 @@ int inet_release(struct socket *sock)
 }
 
 /* It is off by default, see below. */
-int sysctl_ip_nonlocal_bind;
+int sysctl_ip_nonlocal_bind __read_mostly;
 
 int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
@@ -987,7 +987,7 @@ void inet_unregister_protosw(struct inet_protosw *p)
  *      Shall we try to damage output packets if routing dev changes?
  */
 
-int sysctl_ip_dynaddr;
+int sysctl_ip_dynaddr __read_mostly;
 
 static int inet_sk_reselect_saddr(struct sock *sk)
 {

@@ -187,11 +187,11 @@ struct icmp_err icmp_err_convert[] = {
 };
 
 /* Control parameters for ECHO replies. */
-int sysctl_icmp_echo_ignore_all;
-int sysctl_icmp_echo_ignore_broadcasts = 1;
+int sysctl_icmp_echo_ignore_all __read_mostly;
+int sysctl_icmp_echo_ignore_broadcasts __read_mostly = 1;
 
 /* Control parameter - ignore bogus broadcast responses? */
-int sysctl_icmp_ignore_bogus_error_responses = 1;
+int sysctl_icmp_ignore_bogus_error_responses __read_mostly = 1;
 
 /*
  * 	Configurable global rate limit.
@@ -205,9 +205,9 @@ int sysctl_icmp_ignore_bogus_error_responses = 1;
  *	time exceeded (11), parameter problem (12)
  */
 
-int sysctl_icmp_ratelimit = 1 * HZ;
-int sysctl_icmp_ratemask = 0x1818;
-int sysctl_icmp_errors_use_inbound_ifaddr;
+int sysctl_icmp_ratelimit __read_mostly = 1 * HZ;
+int sysctl_icmp_ratemask __read_mostly = 0x1818;
+int sysctl_icmp_errors_use_inbound_ifaddr __read_mostly;
 
 /*
  *	ICMP control array. This specifies what to do with each ICMP.
