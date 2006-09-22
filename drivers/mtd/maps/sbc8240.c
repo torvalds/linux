@@ -156,7 +156,7 @@ int __init init_sbc8240_mtd (void)
 	};
 
 	int devicesfound = 0;
-	int i;
+	int i,j;
 
 	for (i = 0; i < NUM_FLASH_BANKS; i++) {
 		printk (KERN_NOTICE MSG_PREFIX
@@ -166,6 +166,10 @@ int __init init_sbc8240_mtd (void)
 			(unsigned long) ioremap (pt[i].addr, pt[i].size);
 		if (!sbc8240_map[i].map_priv_1) {
 			printk (MSG_PREFIX "failed to ioremap\n");
+			for (j = 0; j < i; j++) {
+				iounmap((void *) sbc8240_map[j].map_priv_1);
+				sbc8240_map[j].map_priv_1 = 0;
+			}
 			return -EIO;
 		}
 		simple_map_init(&sbc8240_mtd[i]);
@@ -175,6 +179,11 @@ int __init init_sbc8240_mtd (void)
 		if (sbc8240_mtd[i]) {
 			sbc8240_mtd[i]->module = THIS_MODULE;
 			devicesfound++;
+		} else {
+			if (sbc8240_map[i].map_priv_1) {
+				iounmap((void *) sbc8240_map[i].map_priv_1);
+				sbc8240_map[i].map_priv_1 = 0;
+			}
 		}
 	}
 

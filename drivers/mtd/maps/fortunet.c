@@ -218,8 +218,11 @@ int __init init_fortunet(void)
 				map_regions[ix].map_info.size);
 			if(!map_regions[ix].map_info.virt)
 			{
+				int j = 0;
 				printk(MTD_FORTUNET_PK "%s flash failed to ioremap!\n",
 					map_regions[ix].map_info.name);
+				for (j = 0 ; j < ix; j++)
+					iounmap(map_regions[j].map_info.virt);
 				return -ENXIO;
 			}
 			simple_map_init(&map_regions[ix].map_info);

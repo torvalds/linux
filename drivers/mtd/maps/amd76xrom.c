@@ -57,6 +57,7 @@ static void amd76xrom_cleanup(struct amd76xrom_window *window)
 		/* Disable writes through the rom window */
 		pci_read_config_byte(window->pdev, 0x40, &byte);
 		pci_write_config_byte(window->pdev, 0x40, byte & ~1);
+		pci_dev_put(window->pdev);
 	}
 
 	/* Free all of the mtd devices */
@@ -91,7 +92,7 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 	struct amd76xrom_map_info *map = NULL;
 	unsigned long map_top;
 
-	/* Remember the pci dev I find the window in */
+	/* Remember the pci dev I find the window in - already have a ref */
 	window->pdev = pdev;
 
 	/* Assume the rom window is properly setup, and find it's size */
@@ -302,7 +303,7 @@ static int __init init_amd76xrom(void)
 	struct pci_device_id *id;
 	pdev = NULL;
 	for(id = amd76xrom_pci_tbl; id->vendor; id++) {
-		pdev = pci_find_device(id->vendor, id->device, NULL);
+		pdev = pci_get_device(id->vendor, id->device, NULL);
 		if (pdev) {
 			break;
 		}

@@ -171,7 +171,14 @@ int __init init_cstm_mips_ixx(void)
 		cstm_mips_ixx_map[i].phys = cstm_mips_ixx_board_desc[i].window_addr;
 		cstm_mips_ixx_map[i].virt = ioremap(cstm_mips_ixx_board_desc[i].window_addr, cstm_mips_ixx_board_desc[i].window_size);
 		if (!cstm_mips_ixx_map[i].virt) {
+			int j = 0;
 			printk(KERN_WARNING "Failed to ioremap\n");
+			for (j = 0; j < i; j++) {
+				if (cstm_mips_ixx_map[j].virt) {
+					iounmap((void *)cstm_mips_ixx_map[j].virt);
+					cstm_mips_ixx_map[j].virt = 0;
+				}
+			}
 			return -EIO;
 	        }
 		cstm_mips_ixx_map[i].name = cstm_mips_ixx_board_desc[i].name;
@@ -204,8 +211,15 @@ int __init init_cstm_mips_ixx(void)
 	                cstm_mips_ixx_map[i].map_priv_2 = (unsigned long)mymtd;
 		        add_mtd_partitions(mymtd, parts, cstm_mips_ixx_board_desc[i].num_partitions);
 		}
-		else
-	           return -ENXIO;
+		else {
+			for (i = 0; i < PHYSMAP_NUMBER; i++) {
+				if (cstm_mips_ixx_map[i].virt) {
+					iounmap((void *)cstm_mips_ixx_map[i].virt);
+					cstm_mips_ixx_map[i].virt = 0;
+				}
+			}
+			return -ENXIO;
+		}
 	}
 	return 0;
 }

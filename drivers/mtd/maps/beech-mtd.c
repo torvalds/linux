@@ -72,6 +72,8 @@ static struct mtd_partition beech_partitions[2] = {
 static int __init
 init_beech_mtd(void)
 {
+	int err = 0;
+
 	printk("%s: 0x%08x at 0x%08x\n", NAME, SIZE, PADDR);
 
 	beech_mtd_map.virt = ioremap(PADDR, SIZE);
@@ -86,12 +88,20 @@ init_beech_mtd(void)
 	printk("%s: probing %d-bit flash bus\n", NAME, BUSWIDTH * 8);
 	beech_mtd = do_map_probe("cfi_probe", &beech_mtd_map);
 
-	if (!beech_mtd)
+	if (!beech_mtd) {
+		iounmap((void *) beech_mtd_map.virt);
 		return -ENXIO;
+	}
 
 	beech_mtd->owner = THIS_MODULE;
 
-	return add_mtd_partitions(beech_mtd, beech_partitions, 2);
+	err = add_mtd_partitions(beech_mtd, beech_partitions, 2);
+	if (err) {
+		printk("%s: add_mtd_partitions failed\n", NAME);
+		iounmap((void *) beech_mtd_map.virt);
+	}
+
+	return err;
 }
 
 static void __exit

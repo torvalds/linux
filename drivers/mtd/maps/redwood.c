@@ -126,6 +126,8 @@ static struct mtd_info *redwood_mtd;
 
 int __init init_redwood_flash(void)
 {
+	int err = 0;
+
 	printk(KERN_NOTICE "redwood: flash mapping: %x at %x\n",
 			WINDOW_SIZE, WINDOW_ADDR);
 
@@ -141,11 +143,18 @@ int __init init_redwood_flash(void)
 
 	if (redwood_mtd) {
 		redwood_mtd->owner = THIS_MODULE;
-		return add_mtd_partitions(redwood_mtd,
+		err = add_mtd_partitions(redwood_mtd,
 				redwood_flash_partitions,
 				NUM_REDWOOD_FLASH_PARTITIONS);
+		if (err) {
+			printk("init_redwood_flash: add_mtd_partitions failed\n");
+			iounmap(redwood_flash_map.virt);
+		}
+		return err;
+
 	}
 
+	iounmap(redwood_flash_map.virt);
 	return -ENXIO;
 }
 

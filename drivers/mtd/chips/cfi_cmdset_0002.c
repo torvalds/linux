@@ -212,6 +212,7 @@ static void fixup_use_atmel_lock(struct mtd_info *mtd, void *param)
 {
 	mtd->lock = cfi_atmel_lock;
 	mtd->unlock = cfi_atmel_unlock;
+	mtd->flags |= MTD_STUPID_LOCK;
 }
 
 static struct cfi_fixup cfi_fixup_table[] = {
