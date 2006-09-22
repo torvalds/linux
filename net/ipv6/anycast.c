@@ -56,7 +56,7 @@ ip6_onlink(struct in6_addr *addr, struct net_device *dev)
 	int	onlink;
 
 	onlink = 0;
-	read_lock(&addrconf_lock);
+	rcu_read_lock();
 	idev = __in6_dev_get(dev);
 	if (idev) {
 		read_lock_bh(&idev->lock);
@@ -68,7 +68,7 @@ ip6_onlink(struct in6_addr *addr, struct net_device *dev)
 		}
 		read_unlock_bh(&idev->lock);
 	}
-	read_unlock(&addrconf_lock);
+	rcu_read_unlock();
 	return onlink;
 }
 

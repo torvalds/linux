@@ -1786,7 +1786,7 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 			 * use ipv6_get_lladdr if/when it's get exported
 			 */
 
-			read_lock(&addrconf_lock);
+			rcu_read_lock();
 			if ((idev = __in6_dev_get(pkt_dev->odev)) != NULL) {
 				struct inet6_ifaddr *ifp;
 
@@ -1805,7 +1805,7 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 				}
 				read_unlock_bh(&idev->lock);
 			}
-			read_unlock(&addrconf_lock);
+			rcu_read_unlock();
 			if (err)
 				printk("pktgen: ERROR: IPv6 link address not availble.\n");
 		}
