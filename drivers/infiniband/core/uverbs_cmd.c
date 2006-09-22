@@ -894,7 +894,6 @@ ssize_t ib_uverbs_poll_cq(struct ib_uverbs_file *file,
 {
 	struct ib_uverbs_poll_cq       cmd;
 	struct ib_uverbs_poll_cq_resp *resp;
-	struct ib_uobject	      *uobj;
 	struct ib_cq                  *cq;
 	struct ib_wc                  *wc;
 	int                            ret = 0;
@@ -915,16 +914,15 @@ ssize_t ib_uverbs_poll_cq(struct ib_uverbs_file *file,
 		goto out_wc;
 	}
 
-	uobj = idr_read_uobj(&ib_uverbs_cq_idr, cmd.cq_handle, file->ucontext);
-	if (!uobj) {
+	cq = idr_read_cq(cmd.cq_handle, file->ucontext);
+	if (!cq) {
 		ret = -EINVAL;
 		goto out;
 	}
-	cq = uobj->object;
 
 	resp->count = ib_poll_cq(cq, cmd.ne, wc);
 
-	put_uobj_read(uobj);
+	put_cq_read(cq);
 
 	for (i = 0; i < resp->count; i++) {
 		resp->wc[i].wr_id 	   = wc[i].wr_id;
@@ -959,21 +957,19 @@ ssize_t ib_uverbs_req_notify_cq(struct ib_uverbs_file *file,
 				int out_len)
 {
 	struct ib_uverbs_req_notify_cq cmd;
-	struct ib_uobject	      *uobj;
 	struct ib_cq                  *cq;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	uobj = idr_read_uobj(&ib_uverbs_cq_idr, cmd.cq_handle, file->ucontext);
-	if (!uobj)
+	cq = idr_read_cq(cmd.cq_handle, file->ucontext);
+	if (!cq)
 		return -EINVAL;
-	cq = uobj->object;
 
 	ib_req_notify_cq(cq, cmd.solicited_only ?
 			 IB_CQ_SOLICITED : IB_CQ_NEXT_COMP);
 
-	put_uobj_read(uobj);
+	put_cq_read(cq);
 
 	return in_len;
 }
