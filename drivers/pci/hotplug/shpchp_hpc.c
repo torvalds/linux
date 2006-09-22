@@ -302,16 +302,43 @@ static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int sec)
 	add_timer(&php_ctlr->int_poll_timer);
 }
 
+/*
+ * Returns 1 if SHPC finishes executing a command within 1 sec,
+ * otherwise returns 0.
+ */
+static inline int shpc_poll_ctrl_busy(struct controller *ctrl)
+{
+	int i;
+	u16 cmd_status = shpc_readw(ctrl, CMD_STATUS);
+
+	if (!(cmd_status & 0x1))
+		return 1;
+
+	/* Check every 0.1 sec for a total of 1 sec */
+	for (i = 0; i < 10; i++) {
+		msleep(100);
+		cmd_status = shpc_readw(ctrl, CMD_STATUS);
+		if (!(cmd_status & 0x1))
+			return 1;
+	}
+
+	return 0;
+}
+
 static inline int shpc_wait_cmd(struct controller *ctrl)
 {
 	int retval = 0;
-	unsigned int timeout_msec = shpchp_poll_mode ? 2000 : 1000;
-	unsigned long timeout = msecs_to_jiffies(timeout_msec);
-	int rc = wait_event_interruptible_timeout(ctrl->queue,
-						  !ctrl->cmd_busy, timeout);
+	unsigned long timeout = msecs_to_jiffies(1000);
+	int rc;
+
+	if (shpchp_poll_mode)
+		rc = shpc_poll_ctrl_busy(ctrl);
+	else
+		rc = wait_event_interruptible_timeout(ctrl->queue,
+						!ctrl->cmd_busy, timeout);
 	if (!rc) {
 		retval = -EIO;
-		err("Command not completed in %d msec\n", timeout_msec);
+		err("Command not completed in 1000 msec\n");
 	} else if (rc < 0) {
 		retval = -EINTR;
 		info("Command was interrupted by a signal\n");
@@ -327,26 +354,15 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 	u16 cmd_status;
 	int retval = 0;
 	u16 temp_word;
-	int i;
 
 	DBG_ENTER_ROUTINE 
 
 	mutex_lock(&slot->ctrl->cmd_lock);
 
-	for (i = 0; i < 10; i++) {
-		cmd_status = shpc_readw(ctrl, CMD_STATUS);
-		
-		if (!(cmd_status & 0x1))
-			break;
-		/*  Check every 0.1 sec for a total of 1 sec*/
-		msleep(100);
-	}
-
-	cmd_status = shpc_readw(ctrl, CMD_STATUS);
-	
-	if (cmd_status & 0x1) { 
+	if (!shpc_poll_ctrl_busy(ctrl)) {
 		/* After 1 sec and and the controller is still busy */
-		err("%s : Controller is still busy after 1 sec.\n", __FUNCTION__);
+		err("%s : Controller is still busy after 1 sec.\n",
+		    __FUNCTION__);
 		retval = -EBUSY;
 		goto out;
 	}
