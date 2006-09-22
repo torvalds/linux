@@ -404,6 +404,7 @@ struct dccp_service_list {
 };
 
 #define DCCP_SERVICE_INVALID_VALUE htonl((__u32)-1)
+#define DCCP_SERVICE_CODE_IS_ABSENT 		 0
 
 static inline int dccp_list_has_service(const struct dccp_service_list *sl,
 					const __be32 service)
@@ -482,11 +483,6 @@ static inline struct dccp_sock *dccp_sk(const struct sock *sk)
 static inline struct dccp_minisock *dccp_msk(const struct sock *sk)
 {
 	return (struct dccp_minisock *)&dccp_sk(sk)->dccps_minisock;
-}
-
-static inline int dccp_service_not_initialized(const struct sock *sk)
-{
-	return dccp_sk(sk)->dccps_service == DCCP_SERVICE_INVALID_VALUE;
 }
 
 static inline const char *dccp_role(const struct sock *sk)
