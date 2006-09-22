@@ -845,11 +845,10 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 	 * entries and reinitialize the QP.
 	 */
 	if (new_state == IB_QPS_RESET && !qp->ibqp.uobject) {
-		mthca_cq_clean(dev, to_mcq(qp->ibqp.send_cq), qp->qpn,
+		mthca_cq_clean(dev, to_mcq(qp->ibqp.recv_cq), qp->qpn,
 			       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 		if (qp->ibqp.send_cq != qp->ibqp.recv_cq)
-			mthca_cq_clean(dev, to_mcq(qp->ibqp.recv_cq), qp->qpn,
-				       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
+			mthca_cq_clean(dev, to_mcq(qp->ibqp.send_cq), qp->qpn, NULL);
 
 		mthca_wq_reset(&qp->sq);
 		qp->sq.last = get_send_wqe(qp, qp->sq.max - 1);
