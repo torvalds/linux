@@ -92,6 +92,7 @@ struct php_ctlr_state_s {
 struct controller {
 	struct controller *next;
 	struct mutex crit_sect;		/* critical section mutex */
+	struct mutex ctrl_lock;		/* controller lock */
 	struct php_ctlr_state_s *hpc_ctlr_handle; /* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
