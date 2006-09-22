@@ -9,6 +9,7 @@
 #include <linux/skbuff.h>
 #include <linux/socket.h>
 #include <linux/pfkeyv2.h>
+#include <linux/ipsec.h>
 #include <linux/in6.h>
 #include <linux/mutex.h>
 
@@ -833,6 +834,11 @@ xfrm_state_addr_check(struct xfrm_state *x,
 static inline int xfrm_state_kern(struct xfrm_state *x)
 {
 	return atomic_read(&x->tunnel_users);
+}
+
+static inline int xfrm_id_proto_match(u8 proto, u8 userproto)
+{
+	return (userproto == IPSEC_PROTO_ANY || proto == userproto);
 }
 
 /*

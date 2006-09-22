@@ -294,7 +294,7 @@ void xfrm_state_flush(u8 proto)
 restart:
 		list_for_each_entry(x, xfrm_state_bydst+i, bydst) {
 			if (!xfrm_state_kern(x) &&
-			    (proto == IPSEC_PROTO_ANY || x->id.proto == proto)) {
+			    xfrm_id_proto_match(x->id.proto, proto)) {
 				xfrm_state_hold(x);
 				spin_unlock_bh(&xfrm_state_lock);
 
@@ -772,7 +772,7 @@ int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*),
 	spin_lock_bh(&xfrm_state_lock);
 	for (i = 0; i < XFRM_DST_HSIZE; i++) {
 		list_for_each_entry(x, xfrm_state_bydst+i, bydst) {
-			if (proto == IPSEC_PROTO_ANY || x->id.proto == proto)
+			if (xfrm_id_proto_match(x->id.proto, proto))
 				count++;
 		}
 	}
@@ -783,7 +783,7 @@ int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*),
 
 	for (i = 0; i < XFRM_DST_HSIZE; i++) {
 		list_for_each_entry(x, xfrm_state_bydst+i, bydst) {
-			if (proto != IPSEC_PROTO_ANY && x->id.proto != proto)
+			if (!xfrm_id_proto_match(x->id.proto, proto))
 				continue;
 			err = func(x, --count, data);
 			if (err)
