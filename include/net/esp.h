@@ -15,13 +15,14 @@ struct esp_data
 	struct {
 		u8			*key;		/* Key */
 		int			key_len;	/* Key length */
-		u8			*ivec;		/* ivec buffer */
+		int			padlen;		/* 0..255 */
 		/* ivlen is offset from enc_data, where encrypted data start.
 		 * It is logically different of crypto_tfm_alg_ivsize(tfm).
 		 * We assume that it is either zero (no ivec), or
 		 * >= crypto_tfm_alg_ivsize(tfm). */
 		int			ivlen;
-		int			padlen;		/* 0..255 */
+		int			ivinitted;
+		u8			*ivec;		/* ivec buffer */
 		struct crypto_blkcipher	*tfm;		/* crypto handle */
 	} conf;
 

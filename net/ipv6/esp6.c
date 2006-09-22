@@ -99,8 +99,13 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	esph->seq_no = htonl(++x->replay.oseq);
 	xfrm_aevent_doreplay(x);
 
-	if (esp->conf.ivlen)
+	if (esp->conf.ivlen) {
+		if (unlikely(!esp->conf.ivinitted)) {
+			get_random_bytes(esp->conf.ivec, esp->conf.ivlen);
+			esp->conf.ivinitted = 1;
+		}
 		crypto_blkcipher_set_iv(tfm, esp->conf.ivec, esp->conf.ivlen);
+	}
 
 	do {
 		struct scatterlist *sg = &esp->sgbuf[0];
@@ -353,7 +358,7 @@ static int esp6_init_state(struct xfrm_state *x)
 		esp->conf.ivec = kmalloc(esp->conf.ivlen, GFP_KERNEL);
 		if (unlikely(esp->conf.ivec == NULL))
 			goto error;
-		get_random_bytes(esp->conf.ivec, esp->conf.ivlen);
+		esp->conf.ivinitted = 0;
 	}
 	if (crypto_blkcipher_setkey(tfm, esp->conf.key, esp->conf.key_len))
 		goto error;
