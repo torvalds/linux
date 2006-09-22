@@ -136,6 +136,13 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define USER_PTRS_PER_PGD	((TASK_SIZE/PGDIR_SIZE) - FIRST_USER_PGD_NR)
 
 /*
+ * section address mask and size definitions.
+ */
+#define SECTION_SHIFT		20
+#define SECTION_SIZE		(1UL << SECTION_SHIFT)
+#define SECTION_MASK		(~(SECTION_SIZE-1))
+
+/*
  * ARMv6 supersection address mask and size definitions.
  */
 #define SUPERSECTION_SHIFT	24

@@ -434,9 +434,9 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 	 * It is always first in the modulearea.
 	 */
 #ifdef CONFIG_XIP_KERNEL
-	map.pfn = __phys_to_pfn(CONFIG_XIP_PHYS_ADDR & PGDIR_MASK);
+	map.pfn = __phys_to_pfn(CONFIG_XIP_PHYS_ADDR & SECTION_MASK);
 	map.virtual = MODULE_START;
-	map.length = ((unsigned long)&_etext - map.virtual + ~PGDIR_MASK) & PGDIR_MASK;
+	map.length = ((unsigned long)&_etext - map.virtual + ~SECTION_MASK) & SECTION_MASK;
 	map.type = MT_ROM;
 	create_mapping(&map);
 #endif
