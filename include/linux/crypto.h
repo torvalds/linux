@@ -17,20 +17,36 @@
 #ifndef _LINUX_CRYPTO_H
 #define _LINUX_CRYPTO_H
 
+#include <asm/atomic.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/types.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/string.h>
-#include <asm/page.h>
+#include <linux/uaccess.h>
 
 /*
  * Algorithm masks and types.
  */
-#define CRYPTO_ALG_TYPE_MASK		0x000000ff
+#define CRYPTO_ALG_TYPE_MASK		0x0000000f
 #define CRYPTO_ALG_TYPE_CIPHER		0x00000001
 #define CRYPTO_ALG_TYPE_DIGEST		0x00000002
-#define CRYPTO_ALG_TYPE_COMPRESS	0x00000004
+#define CRYPTO_ALG_TYPE_HASH		0x00000003
+#define CRYPTO_ALG_TYPE_BLKCIPHER	0x00000004
+#define CRYPTO_ALG_TYPE_COMPRESS	0x00000005
+
+#define CRYPTO_ALG_TYPE_HASH_MASK	0x0000000e
+
+#define CRYPTO_ALG_LARVAL		0x00000010
+#define CRYPTO_ALG_DEAD			0x00000020
+#define CRYPTO_ALG_DYING		0x00000040
+#define CRYPTO_ALG_ASYNC		0x00000080
+
+/*
+ * Set this bit if and only if the algorithm requires another algorithm of
+ * the same type to handle corner cases.
+ */
+#define CRYPTO_ALG_NEED_FALLBACK	0x00000100
 
 /*
  * Transform masks and values (for crt_flags).
@@ -61,8 +77,37 @@
 #define CRYPTO_DIR_ENCRYPT		1
 #define CRYPTO_DIR_DECRYPT		0
 
+/*
+ * The macro CRYPTO_MINALIGN_ATTR (along with the void * type in the actual
+ * declaration) is used to ensure that the crypto_tfm context structure is
+ * aligned correctly for the given architecture so that there are no alignment
+ * faults for C data types.  In particular, this is required on platforms such
+ * as arm where pointers are 32-bit aligned but there are data types such as
+ * u64 which require 64-bit alignment.
+ */
+#if defined(ARCH_KMALLOC_MINALIGN)
+#define CRYPTO_MINALIGN ARCH_KMALLOC_MINALIGN
+#elif defined(ARCH_SLAB_MINALIGN)
+#define CRYPTO_MINALIGN ARCH_SLAB_MINALIGN
+#endif
+
+#ifdef CRYPTO_MINALIGN
+#define CRYPTO_MINALIGN_ATTR __attribute__ ((__aligned__(CRYPTO_MINALIGN)))
+#else
+#define CRYPTO_MINALIGN_ATTR
+#endif
+
 struct scatterlist;
+struct crypto_blkcipher;
+struct crypto_hash;
 struct crypto_tfm;
+struct crypto_type;
+
+struct blkcipher_desc {
+	struct crypto_blkcipher *tfm;
+	void *info;
+	u32 flags;
+};
 
 struct cipher_desc {
 	struct crypto_tfm *tfm;
@@ -72,30 +117,50 @@ struct cipher_desc {
 	void *info;
 };
 
+struct hash_desc {
+	struct crypto_hash *tfm;
+	u32 flags;
+};
+
 /*
  * Algorithms: modular crypto algorithm implementations, managed
  * via crypto_register_alg() and crypto_unregister_alg().
  */
+struct blkcipher_alg {
+	int (*setkey)(struct crypto_tfm *tfm, const u8 *key,
+	              unsigned int keylen);
+	int (*encrypt)(struct blkcipher_desc *desc,
+		       struct scatterlist *dst, struct scatterlist *src,
+		       unsigned int nbytes);
+	int (*decrypt)(struct blkcipher_desc *desc,
+		       struct scatterlist *dst, struct scatterlist *src,
+		       unsigned int nbytes);
+
+	unsigned int min_keysize;
+	unsigned int max_keysize;
+	unsigned int ivsize;
+};
+
 struct cipher_alg {
 	unsigned int cia_min_keysize;
 	unsigned int cia_max_keysize;
 	int (*cia_setkey)(struct crypto_tfm *tfm, const u8 *key,
-	                  unsigned int keylen, u32 *flags);
+	                  unsigned int keylen);
 	void (*cia_encrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 	void (*cia_decrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 
 	unsigned int (*cia_encrypt_ecb)(const struct cipher_desc *desc,
 					u8 *dst, const u8 *src,
-					unsigned int nbytes);
+					unsigned int nbytes) __deprecated;
 	unsigned int (*cia_decrypt_ecb)(const struct cipher_desc *desc,
 					u8 *dst, const u8 *src,
-					unsigned int nbytes);
+					unsigned int nbytes) __deprecated;
 	unsigned int (*cia_encrypt_cbc)(const struct cipher_desc *desc,
 					u8 *dst, const u8 *src,
-					unsigned int nbytes);
+					unsigned int nbytes) __deprecated;
 	unsigned int (*cia_decrypt_cbc)(const struct cipher_desc *desc,
 					u8 *dst, const u8 *src,
-					unsigned int nbytes);
+					unsigned int nbytes) __deprecated;
 };
 
 struct digest_alg {
@@ -105,7 +170,20 @@ struct digest_alg {
 			   unsigned int len);
 	void (*dia_final)(struct crypto_tfm *tfm, u8 *out);
 	int (*dia_setkey)(struct crypto_tfm *tfm, const u8 *key,
-	                  unsigned int keylen, u32 *flags);
+	                  unsigned int keylen);
+};
+
+struct hash_alg {
+	int (*init)(struct hash_desc *desc);
+	int (*update)(struct hash_desc *desc, struct scatterlist *sg,
+		      unsigned int nbytes);
+	int (*final)(struct hash_desc *desc, u8 *out);
+	int (*digest)(struct hash_desc *desc, struct scatterlist *sg,
+		      unsigned int nbytes, u8 *out);
+	int (*setkey)(struct crypto_hash *tfm, const u8 *key,
+		      unsigned int keylen);
+
+	unsigned int digestsize;
 };
 
 struct compress_alg {
@@ -115,30 +193,40 @@ struct compress_alg {
 			      unsigned int slen, u8 *dst, unsigned int *dlen);
 };
 
+#define cra_blkcipher	cra_u.blkcipher
 #define cra_cipher	cra_u.cipher
 #define cra_digest	cra_u.digest
+#define cra_hash	cra_u.hash
 #define cra_compress	cra_u.compress
 
 struct crypto_alg {
 	struct list_head cra_list;
+	struct list_head cra_users;
+
 	u32 cra_flags;
 	unsigned int cra_blocksize;
 	unsigned int cra_ctxsize;
 	unsigned int cra_alignmask;
 
 	int cra_priority;
+	atomic_t cra_refcnt;
 
 	char cra_name[CRYPTO_MAX_ALG_NAME];
 	char cra_driver_name[CRYPTO_MAX_ALG_NAME];
 
+	const struct crypto_type *cra_type;
+
 	union {
+		struct blkcipher_alg blkcipher;
 		struct cipher_alg cipher;
 		struct digest_alg digest;
+		struct hash_alg hash;
 		struct compress_alg compress;
 	} cra_u;
 
 	int (*cra_init)(struct crypto_tfm *tfm);
 	void (*cra_exit)(struct crypto_tfm *tfm);
+	void (*cra_destroy)(struct crypto_alg *alg);
 	
 	struct module *cra_module;
 };
@@ -153,9 +241,18 @@ int crypto_unregister_alg(struct crypto_alg *alg);
  * Algorithm query interface.
  */
 #ifdef CONFIG_CRYPTO
-int crypto_alg_available(const char *name, u32 flags);
+int crypto_alg_available(const char *name, u32 flags)
+	__deprecated_for_modules;
+int crypto_has_alg(const char *name, u32 type, u32 mask);
 #else
+static int crypto_alg_available(const char *name, u32 flags);
+	__deprecated_for_modules;
 static inline int crypto_alg_available(const char *name, u32 flags)
+{
+	return 0;
+}
+
+static inline int crypto_has_alg(const char *name, u32 type, u32 mask)
 {
 	return 0;
 }
@@ -163,9 +260,19 @@ static inline int crypto_alg_available(const char *name, u32 flags)
 
 /*
  * Transforms: user-instantiated objects which encapsulate algorithms
- * and core processing logic.  Managed via crypto_alloc_tfm() and
- * crypto_free_tfm(), as well as the various helpers below.
+ * and core processing logic.  Managed via crypto_alloc_*() and
+ * crypto_free_*(), as well as the various helpers below.
  */
+
+struct blkcipher_tfm {
+	void *iv;
+	int (*setkey)(struct crypto_tfm *tfm, const u8 *key,
+		      unsigned int keylen);
+	int (*encrypt)(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes);
+	int (*decrypt)(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes);
+};
 
 struct cipher_tfm {
 	void *cit_iv;
@@ -190,20 +297,20 @@ struct cipher_tfm {
 			   struct scatterlist *src,
 			   unsigned int nbytes, u8 *iv);
 	void (*cit_xor_block)(u8 *dst, const u8 *src);
+	void (*cit_encrypt_one)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
+	void (*cit_decrypt_one)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 };
 
-struct digest_tfm {
-	void (*dit_init)(struct crypto_tfm *tfm);
-	void (*dit_update)(struct crypto_tfm *tfm,
-	                   struct scatterlist *sg, unsigned int nsg);
-	void (*dit_final)(struct crypto_tfm *tfm, u8 *out);
-	void (*dit_digest)(struct crypto_tfm *tfm, struct scatterlist *sg,
-	                   unsigned int nsg, u8 *out);
-	int (*dit_setkey)(struct crypto_tfm *tfm,
-	                  const u8 *key, unsigned int keylen);
-#ifdef CONFIG_CRYPTO_HMAC
-	void *dit_hmac_block;
-#endif
+struct hash_tfm {
+	int (*init)(struct hash_desc *desc);
+	int (*update)(struct hash_desc *desc,
+		      struct scatterlist *sg, unsigned int nsg);
+	int (*final)(struct hash_desc *desc, u8 *out);
+	int (*digest)(struct hash_desc *desc, struct scatterlist *sg,
+		      unsigned int nsg, u8 *out);
+	int (*setkey)(struct crypto_hash *tfm, const u8 *key,
+		      unsigned int keylen);
+	unsigned int digestsize;
 };
 
 struct compress_tfm {
@@ -215,8 +322,9 @@ struct compress_tfm {
 	                      u8 *dst, unsigned int *dlen);
 };
 
+#define crt_blkcipher	crt_u.blkcipher
 #define crt_cipher	crt_u.cipher
-#define crt_digest	crt_u.digest
+#define crt_hash	crt_u.hash
 #define crt_compress	crt_u.compress
 
 struct crypto_tfm {
@@ -224,30 +332,43 @@ struct crypto_tfm {
 	u32 crt_flags;
 	
 	union {
+		struct blkcipher_tfm blkcipher;
 		struct cipher_tfm cipher;
-		struct digest_tfm digest;
+		struct hash_tfm hash;
 		struct compress_tfm compress;
 	} crt_u;
 	
 	struct crypto_alg *__crt_alg;
 
-	char __crt_ctx[] __attribute__ ((__aligned__));
+	void *__crt_ctx[] CRYPTO_MINALIGN_ATTR;
+};
+
+#define crypto_cipher crypto_tfm
+#define crypto_comp crypto_tfm
+
+struct crypto_blkcipher {
+	struct crypto_tfm base;
+};
+
+struct crypto_hash {
+	struct crypto_tfm base;
+};
+
+enum {
+	CRYPTOA_UNSPEC,
+	CRYPTOA_ALG,
+};
+
+struct crypto_attr_alg {
+	char name[CRYPTO_MAX_ALG_NAME];
 };
 
 /* 
  * Transform user interface.
  */
  
-/*
- * crypto_alloc_tfm() will first attempt to locate an already loaded algorithm.
- * If that fails and the kernel supports dynamically loadable modules, it
- * will then attempt to load a module of the same name or alias.  A refcount
- * is grabbed on the algorithm which is then associated with the new transform.
- *
- * crypto_free_tfm() frees up the transform and any associated resources,
- * then drops the refcount on the associated algorithm.
- */
 struct crypto_tfm *crypto_alloc_tfm(const char *alg_name, u32 tfm_flags);
+struct crypto_tfm *crypto_alloc_base(const char *alg_name, u32 type, u32 mask);
 void crypto_free_tfm(struct crypto_tfm *tfm);
 
 /*
@@ -256,6 +377,16 @@ void crypto_free_tfm(struct crypto_tfm *tfm);
 static inline const char *crypto_tfm_alg_name(struct crypto_tfm *tfm)
 {
 	return tfm->__crt_alg->cra_name;
+}
+
+static inline const char *crypto_tfm_alg_driver_name(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_driver_name;
+}
+
+static inline int crypto_tfm_alg_priority(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_priority;
 }
 
 static inline const char *crypto_tfm_alg_modname(struct crypto_tfm *tfm)
@@ -268,18 +399,23 @@ static inline u32 crypto_tfm_alg_type(struct crypto_tfm *tfm)
 	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_TYPE_MASK;
 }
 
+static unsigned int crypto_tfm_alg_min_keysize(struct crypto_tfm *tfm)
+	__deprecated;
 static inline unsigned int crypto_tfm_alg_min_keysize(struct crypto_tfm *tfm)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
 	return tfm->__crt_alg->cra_cipher.cia_min_keysize;
 }
 
+static unsigned int crypto_tfm_alg_max_keysize(struct crypto_tfm *tfm)
+	__deprecated;
 static inline unsigned int crypto_tfm_alg_max_keysize(struct crypto_tfm *tfm)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
 	return tfm->__crt_alg->cra_cipher.cia_max_keysize;
 }
 
+static unsigned int crypto_tfm_alg_ivsize(struct crypto_tfm *tfm) __deprecated;
 static inline unsigned int crypto_tfm_alg_ivsize(struct crypto_tfm *tfm)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
@@ -302,6 +438,21 @@ static inline unsigned int crypto_tfm_alg_alignmask(struct crypto_tfm *tfm)
 	return tfm->__crt_alg->cra_alignmask;
 }
 
+static inline u32 crypto_tfm_get_flags(struct crypto_tfm *tfm)
+{
+	return tfm->crt_flags;
+}
+
+static inline void crypto_tfm_set_flags(struct crypto_tfm *tfm, u32 flags)
+{
+	tfm->crt_flags |= flags;
+}
+
+static inline void crypto_tfm_clear_flags(struct crypto_tfm *tfm, u32 flags)
+{
+	tfm->crt_flags &= ~flags;
+}
+
 static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm)
 {
 	return tfm->__crt_ctx;
@@ -316,50 +467,374 @@ static inline unsigned int crypto_tfm_ctx_alignment(void)
 /*
  * API wrappers.
  */
-static inline void crypto_digest_init(struct crypto_tfm *tfm)
+static inline struct crypto_blkcipher *__crypto_blkcipher_cast(
+	struct crypto_tfm *tfm)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
-	tfm->crt_digest.dit_init(tfm);
+	return (struct crypto_blkcipher *)tfm;
 }
 
-static inline void crypto_digest_update(struct crypto_tfm *tfm,
-                                        struct scatterlist *sg,
-                                        unsigned int nsg)
+static inline struct crypto_blkcipher *crypto_blkcipher_cast(
+	struct crypto_tfm *tfm)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
-	tfm->crt_digest.dit_update(tfm, sg, nsg);
+	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_BLKCIPHER);
+	return __crypto_blkcipher_cast(tfm);
 }
 
-static inline void crypto_digest_final(struct crypto_tfm *tfm, u8 *out)
+static inline struct crypto_blkcipher *crypto_alloc_blkcipher(
+	const char *alg_name, u32 type, u32 mask)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
-	tfm->crt_digest.dit_final(tfm, out);
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return __crypto_blkcipher_cast(crypto_alloc_base(alg_name, type, mask));
 }
 
-static inline void crypto_digest_digest(struct crypto_tfm *tfm,
-                                        struct scatterlist *sg,
-                                        unsigned int nsg, u8 *out)
+static inline struct crypto_tfm *crypto_blkcipher_tfm(
+	struct crypto_blkcipher *tfm)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
-	tfm->crt_digest.dit_digest(tfm, sg, nsg, out);
+	return &tfm->base;
 }
 
+static inline void crypto_free_blkcipher(struct crypto_blkcipher *tfm)
+{
+	crypto_free_tfm(crypto_blkcipher_tfm(tfm));
+}
+
+static inline int crypto_has_blkcipher(const char *alg_name, u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return crypto_has_alg(alg_name, type, mask);
+}
+
+static inline const char *crypto_blkcipher_name(struct crypto_blkcipher *tfm)
+{
+	return crypto_tfm_alg_name(crypto_blkcipher_tfm(tfm));
+}
+
+static inline struct blkcipher_tfm *crypto_blkcipher_crt(
+	struct crypto_blkcipher *tfm)
+{
+	return &crypto_blkcipher_tfm(tfm)->crt_blkcipher;
+}
+
+static inline struct blkcipher_alg *crypto_blkcipher_alg(
+	struct crypto_blkcipher *tfm)
+{
+	return &crypto_blkcipher_tfm(tfm)->__crt_alg->cra_blkcipher;
+}
+
+static inline unsigned int crypto_blkcipher_ivsize(struct crypto_blkcipher *tfm)
+{
+	return crypto_blkcipher_alg(tfm)->ivsize;
+}
+
+static inline unsigned int crypto_blkcipher_blocksize(
+	struct crypto_blkcipher *tfm)
+{
+	return crypto_tfm_alg_blocksize(crypto_blkcipher_tfm(tfm));
+}
+
+static inline unsigned int crypto_blkcipher_alignmask(
+	struct crypto_blkcipher *tfm)
+{
+	return crypto_tfm_alg_alignmask(crypto_blkcipher_tfm(tfm));
+}
+
+static inline u32 crypto_blkcipher_get_flags(struct crypto_blkcipher *tfm)
+{
+	return crypto_tfm_get_flags(crypto_blkcipher_tfm(tfm));
+}
+
+static inline void crypto_blkcipher_set_flags(struct crypto_blkcipher *tfm,
+					      u32 flags)
+{
+	crypto_tfm_set_flags(crypto_blkcipher_tfm(tfm), flags);
+}
+
+static inline void crypto_blkcipher_clear_flags(struct crypto_blkcipher *tfm,
+						u32 flags)
+{
+	crypto_tfm_clear_flags(crypto_blkcipher_tfm(tfm), flags);
+}
+
+static inline int crypto_blkcipher_setkey(struct crypto_blkcipher *tfm,
+					  const u8 *key, unsigned int keylen)
+{
+	return crypto_blkcipher_crt(tfm)->setkey(crypto_blkcipher_tfm(tfm),
+						 key, keylen);
+}
+
+static inline int crypto_blkcipher_encrypt(struct blkcipher_desc *desc,
+					   struct scatterlist *dst,
+					   struct scatterlist *src,
+					   unsigned int nbytes)
+{
+	desc->info = crypto_blkcipher_crt(desc->tfm)->iv;
+	return crypto_blkcipher_crt(desc->tfm)->encrypt(desc, dst, src, nbytes);
+}
+
+static inline int crypto_blkcipher_encrypt_iv(struct blkcipher_desc *desc,
+					      struct scatterlist *dst,
+					      struct scatterlist *src,
+					      unsigned int nbytes)
+{
+	return crypto_blkcipher_crt(desc->tfm)->encrypt(desc, dst, src, nbytes);
+}
+
+static inline int crypto_blkcipher_decrypt(struct blkcipher_desc *desc,
+					   struct scatterlist *dst,
+					   struct scatterlist *src,
+					   unsigned int nbytes)
+{
+	desc->info = crypto_blkcipher_crt(desc->tfm)->iv;
+	return crypto_blkcipher_crt(desc->tfm)->decrypt(desc, dst, src, nbytes);
+}
+
+static inline int crypto_blkcipher_decrypt_iv(struct blkcipher_desc *desc,
+					      struct scatterlist *dst,
+					      struct scatterlist *src,
+					      unsigned int nbytes)
+{
+	return crypto_blkcipher_crt(desc->tfm)->decrypt(desc, dst, src, nbytes);
+}
+
+static inline void crypto_blkcipher_set_iv(struct crypto_blkcipher *tfm,
+					   const u8 *src, unsigned int len)
+{
+	memcpy(crypto_blkcipher_crt(tfm)->iv, src, len);
+}
+
+static inline void crypto_blkcipher_get_iv(struct crypto_blkcipher *tfm,
+					   u8 *dst, unsigned int len)
+{
+	memcpy(dst, crypto_blkcipher_crt(tfm)->iv, len);
+}
+
+static inline struct crypto_cipher *__crypto_cipher_cast(struct crypto_tfm *tfm)
+{
+	return (struct crypto_cipher *)tfm;
+}
+
+static inline struct crypto_cipher *crypto_cipher_cast(struct crypto_tfm *tfm)
+{
+	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
+	return __crypto_cipher_cast(tfm);
+}
+
+static inline struct crypto_cipher *crypto_alloc_cipher(const char *alg_name,
+							u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_CIPHER;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return __crypto_cipher_cast(crypto_alloc_base(alg_name, type, mask));
+}
+
+static inline struct crypto_tfm *crypto_cipher_tfm(struct crypto_cipher *tfm)
+{
+	return tfm;
+}
+
+static inline void crypto_free_cipher(struct crypto_cipher *tfm)
+{
+	crypto_free_tfm(crypto_cipher_tfm(tfm));
+}
+
+static inline int crypto_has_cipher(const char *alg_name, u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_CIPHER;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return crypto_has_alg(alg_name, type, mask);
+}
+
+static inline struct cipher_tfm *crypto_cipher_crt(struct crypto_cipher *tfm)
+{
+	return &crypto_cipher_tfm(tfm)->crt_cipher;
+}
+
+static inline unsigned int crypto_cipher_blocksize(struct crypto_cipher *tfm)
+{
+	return crypto_tfm_alg_blocksize(crypto_cipher_tfm(tfm));
+}
+
+static inline unsigned int crypto_cipher_alignmask(struct crypto_cipher *tfm)
+{
+	return crypto_tfm_alg_alignmask(crypto_cipher_tfm(tfm));
+}
+
+static inline u32 crypto_cipher_get_flags(struct crypto_cipher *tfm)
+{
+	return crypto_tfm_get_flags(crypto_cipher_tfm(tfm));
+}
+
+static inline void crypto_cipher_set_flags(struct crypto_cipher *tfm,
+					   u32 flags)
+{
+	crypto_tfm_set_flags(crypto_cipher_tfm(tfm), flags);
+}
+
+static inline void crypto_cipher_clear_flags(struct crypto_cipher *tfm,
+					     u32 flags)
+{
+	crypto_tfm_clear_flags(crypto_cipher_tfm(tfm), flags);
+}
+
+static inline int crypto_cipher_setkey(struct crypto_cipher *tfm,
+                                       const u8 *key, unsigned int keylen)
+{
+	return crypto_cipher_crt(tfm)->cit_setkey(crypto_cipher_tfm(tfm),
+						  key, keylen);
+}
+
+static inline void crypto_cipher_encrypt_one(struct crypto_cipher *tfm,
+					     u8 *dst, const u8 *src)
+{
+	crypto_cipher_crt(tfm)->cit_encrypt_one(crypto_cipher_tfm(tfm),
+						dst, src);
+}
+
+static inline void crypto_cipher_decrypt_one(struct crypto_cipher *tfm,
+					     u8 *dst, const u8 *src)
+{
+	crypto_cipher_crt(tfm)->cit_decrypt_one(crypto_cipher_tfm(tfm),
+						dst, src);
+}
+
+void crypto_digest_init(struct crypto_tfm *tfm) __deprecated_for_modules;
+void crypto_digest_update(struct crypto_tfm *tfm,
+			  struct scatterlist *sg, unsigned int nsg)
+	__deprecated_for_modules;
+void crypto_digest_final(struct crypto_tfm *tfm, u8 *out)
+	__deprecated_for_modules;
+void crypto_digest_digest(struct crypto_tfm *tfm,
+			  struct scatterlist *sg, unsigned int nsg, u8 *out)
+	__deprecated_for_modules;
+
+static inline struct crypto_hash *__crypto_hash_cast(struct crypto_tfm *tfm)
+{
+	return (struct crypto_hash *)tfm;
+}
+
+static inline struct crypto_hash *crypto_hash_cast(struct crypto_tfm *tfm)
+{
+	BUG_ON((crypto_tfm_alg_type(tfm) ^ CRYPTO_ALG_TYPE_HASH) &
+	       CRYPTO_ALG_TYPE_HASH_MASK);
+	return __crypto_hash_cast(tfm);
+}
+
+static int crypto_digest_setkey(struct crypto_tfm *tfm, const u8 *key,
+				unsigned int keylen) __deprecated;
 static inline int crypto_digest_setkey(struct crypto_tfm *tfm,
                                        const u8 *key, unsigned int keylen)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
-	if (tfm->crt_digest.dit_setkey == NULL)
-		return -ENOSYS;
-	return tfm->crt_digest.dit_setkey(tfm, key, keylen);
+	return tfm->crt_hash.setkey(crypto_hash_cast(tfm), key, keylen);
 }
 
-static inline int crypto_cipher_setkey(struct crypto_tfm *tfm,
-                                       const u8 *key, unsigned int keylen)
+static inline struct crypto_hash *crypto_alloc_hash(const char *alg_name,
+						    u32 type, u32 mask)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
-	return tfm->crt_cipher.cit_setkey(tfm, key, keylen);
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_HASH;
+	mask |= CRYPTO_ALG_TYPE_HASH_MASK;
+
+	return __crypto_hash_cast(crypto_alloc_base(alg_name, type, mask));
 }
 
+static inline struct crypto_tfm *crypto_hash_tfm(struct crypto_hash *tfm)
+{
+	return &tfm->base;
+}
+
+static inline void crypto_free_hash(struct crypto_hash *tfm)
+{
+	crypto_free_tfm(crypto_hash_tfm(tfm));
+}
+
+static inline int crypto_has_hash(const char *alg_name, u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_HASH;
+	mask |= CRYPTO_ALG_TYPE_HASH_MASK;
+
+	return crypto_has_alg(alg_name, type, mask);
+}
+
+static inline struct hash_tfm *crypto_hash_crt(struct crypto_hash *tfm)
+{
+	return &crypto_hash_tfm(tfm)->crt_hash;
+}
+
+static inline unsigned int crypto_hash_blocksize(struct crypto_hash *tfm)
+{
+	return crypto_tfm_alg_blocksize(crypto_hash_tfm(tfm));
+}
+
+static inline unsigned int crypto_hash_alignmask(struct crypto_hash *tfm)
+{
+	return crypto_tfm_alg_alignmask(crypto_hash_tfm(tfm));
+}
+
+static inline unsigned int crypto_hash_digestsize(struct crypto_hash *tfm)
+{
+	return crypto_hash_crt(tfm)->digestsize;
+}
+
+static inline u32 crypto_hash_get_flags(struct crypto_hash *tfm)
+{
+	return crypto_tfm_get_flags(crypto_hash_tfm(tfm));
+}
+
+static inline void crypto_hash_set_flags(struct crypto_hash *tfm, u32 flags)
+{
+	crypto_tfm_set_flags(crypto_hash_tfm(tfm), flags);
+}
+
+static inline void crypto_hash_clear_flags(struct crypto_hash *tfm, u32 flags)
+{
+	crypto_tfm_clear_flags(crypto_hash_tfm(tfm), flags);
+}
+
+static inline int crypto_hash_init(struct hash_desc *desc)
+{
+	return crypto_hash_crt(desc->tfm)->init(desc);
+}
+
+static inline int crypto_hash_update(struct hash_desc *desc,
+				     struct scatterlist *sg,
+				     unsigned int nbytes)
+{
+	return crypto_hash_crt(desc->tfm)->update(desc, sg, nbytes);
+}
+
+static inline int crypto_hash_final(struct hash_desc *desc, u8 *out)
+{
+	return crypto_hash_crt(desc->tfm)->final(desc, out);
+}
+
+static inline int crypto_hash_digest(struct hash_desc *desc,
+				     struct scatterlist *sg,
+				     unsigned int nbytes, u8 *out)
+{
+	return crypto_hash_crt(desc->tfm)->digest(desc, sg, nbytes, out);
+}
+
+static inline int crypto_hash_setkey(struct crypto_hash *hash,
+				     const u8 *key, unsigned int keylen)
+{
+	return crypto_hash_crt(hash)->setkey(hash, key, keylen);
+}
+
+static int crypto_cipher_encrypt(struct crypto_tfm *tfm,
+				 struct scatterlist *dst,
+				 struct scatterlist *src,
+				 unsigned int nbytes) __deprecated;
 static inline int crypto_cipher_encrypt(struct crypto_tfm *tfm,
                                         struct scatterlist *dst,
                                         struct scatterlist *src,
@@ -369,16 +844,23 @@ static inline int crypto_cipher_encrypt(struct crypto_tfm *tfm,
 	return tfm->crt_cipher.cit_encrypt(tfm, dst, src, nbytes);
 }                                        
 
+static int crypto_cipher_encrypt_iv(struct crypto_tfm *tfm,
+				    struct scatterlist *dst,
+				    struct scatterlist *src,
+				    unsigned int nbytes, u8 *iv) __deprecated;
 static inline int crypto_cipher_encrypt_iv(struct crypto_tfm *tfm,
                                            struct scatterlist *dst,
                                            struct scatterlist *src,
                                            unsigned int nbytes, u8 *iv)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
-	BUG_ON(tfm->crt_cipher.cit_mode == CRYPTO_TFM_MODE_ECB);
 	return tfm->crt_cipher.cit_encrypt_iv(tfm, dst, src, nbytes, iv);
 }                                        
 
+static int crypto_cipher_decrypt(struct crypto_tfm *tfm,
+				 struct scatterlist *dst,
+				 struct scatterlist *src,
+				 unsigned int nbytes) __deprecated;
 static inline int crypto_cipher_decrypt(struct crypto_tfm *tfm,
                                         struct scatterlist *dst,
                                         struct scatterlist *src,
@@ -388,16 +870,21 @@ static inline int crypto_cipher_decrypt(struct crypto_tfm *tfm,
 	return tfm->crt_cipher.cit_decrypt(tfm, dst, src, nbytes);
 }
 
+static int crypto_cipher_decrypt_iv(struct crypto_tfm *tfm,
+				    struct scatterlist *dst,
+				    struct scatterlist *src,
+				    unsigned int nbytes, u8 *iv) __deprecated;
 static inline int crypto_cipher_decrypt_iv(struct crypto_tfm *tfm,
                                            struct scatterlist *dst,
                                            struct scatterlist *src,
                                            unsigned int nbytes, u8 *iv)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
-	BUG_ON(tfm->crt_cipher.cit_mode == CRYPTO_TFM_MODE_ECB);
 	return tfm->crt_cipher.cit_decrypt_iv(tfm, dst, src, nbytes, iv);
 }
 
+static void crypto_cipher_set_iv(struct crypto_tfm *tfm,
+				 const u8 *src, unsigned int len) __deprecated;
 static inline void crypto_cipher_set_iv(struct crypto_tfm *tfm,
                                         const u8 *src, unsigned int len)
 {
@@ -405,6 +892,8 @@ static inline void crypto_cipher_set_iv(struct crypto_tfm *tfm,
 	memcpy(tfm->crt_cipher.cit_iv, src, len);
 }
 
+static void crypto_cipher_get_iv(struct crypto_tfm *tfm,
+				 u8 *dst, unsigned int len) __deprecated;
 static inline void crypto_cipher_get_iv(struct crypto_tfm *tfm,
                                         u8 *dst, unsigned int len)
 {
@@ -412,34 +901,70 @@ static inline void crypto_cipher_get_iv(struct crypto_tfm *tfm,
 	memcpy(dst, tfm->crt_cipher.cit_iv, len);
 }
 
-static inline int crypto_comp_compress(struct crypto_tfm *tfm,
+static inline struct crypto_comp *__crypto_comp_cast(struct crypto_tfm *tfm)
+{
+	return (struct crypto_comp *)tfm;
+}
+
+static inline struct crypto_comp *crypto_comp_cast(struct crypto_tfm *tfm)
+{
+	BUG_ON((crypto_tfm_alg_type(tfm) ^ CRYPTO_ALG_TYPE_COMPRESS) &
+	       CRYPTO_ALG_TYPE_MASK);
+	return __crypto_comp_cast(tfm);
+}
+
+static inline struct crypto_comp *crypto_alloc_comp(const char *alg_name,
+						    u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_COMPRESS;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return __crypto_comp_cast(crypto_alloc_base(alg_name, type, mask));
+}
+
+static inline struct crypto_tfm *crypto_comp_tfm(struct crypto_comp *tfm)
+{
+	return tfm;
+}
+
+static inline void crypto_free_comp(struct crypto_comp *tfm)
+{
+	crypto_free_tfm(crypto_comp_tfm(tfm));
+}
+
+static inline int crypto_has_comp(const char *alg_name, u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_COMPRESS;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+
+	return crypto_has_alg(alg_name, type, mask);
+}
+
+static inline const char *crypto_comp_name(struct crypto_comp *tfm)
+{
+	return crypto_tfm_alg_name(crypto_comp_tfm(tfm));
+}
+
+static inline struct compress_tfm *crypto_comp_crt(struct crypto_comp *tfm)
+{
+	return &crypto_comp_tfm(tfm)->crt_compress;
+}
+
+static inline int crypto_comp_compress(struct crypto_comp *tfm,
                                        const u8 *src, unsigned int slen,
                                        u8 *dst, unsigned int *dlen)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_COMPRESS);
-	return tfm->crt_compress.cot_compress(tfm, src, slen, dst, dlen);
+	return crypto_comp_crt(tfm)->cot_compress(tfm, src, slen, dst, dlen);
 }
 
-static inline int crypto_comp_decompress(struct crypto_tfm *tfm,
+static inline int crypto_comp_decompress(struct crypto_comp *tfm,
                                          const u8 *src, unsigned int slen,
                                          u8 *dst, unsigned int *dlen)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_COMPRESS);
-	return tfm->crt_compress.cot_decompress(tfm, src, slen, dst, dlen);
+	return crypto_comp_crt(tfm)->cot_decompress(tfm, src, slen, dst, dlen);
 }
-
-/*
- * HMAC support.
- */
-#ifdef CONFIG_CRYPTO_HMAC
-void crypto_hmac_init(struct crypto_tfm *tfm, u8 *key, unsigned int *keylen);
-void crypto_hmac_update(struct crypto_tfm *tfm,
-                        struct scatterlist *sg, unsigned int nsg);
-void crypto_hmac_final(struct crypto_tfm *tfm, u8 *key,
-                       unsigned int *keylen, u8 *out);
-void crypto_hmac(struct crypto_tfm *tfm, u8 *key, unsigned int *keylen,
-                 struct scatterlist *sg, unsigned int nsg, u8 *out);
-#endif	/* CONFIG_CRYPTO_HMAC */
 
 #endif	/* _LINUX_CRYPTO_H */
 

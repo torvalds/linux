@@ -784,9 +784,10 @@ static void dkey(u32 *pe, const u8 *k)
 }
 
 static int des_setkey(struct crypto_tfm *tfm, const u8 *key,
-		      unsigned int keylen, u32 *flags)
+		      unsigned int keylen)
 {
 	struct des_ctx *dctx = crypto_tfm_ctx(tfm);
+	u32 *flags = &tfm->crt_flags;
 	u32 tmp[DES_EXPKEY_WORDS];
 	int ret;
 
@@ -864,11 +865,12 @@ static void des_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
  *
  */
 static int des3_ede_setkey(struct crypto_tfm *tfm, const u8 *key,
-			   unsigned int keylen, u32 *flags)
+			   unsigned int keylen)
 {
 	const u32 *K = (const u32 *)key;
 	struct des3_ede_ctx *dctx = crypto_tfm_ctx(tfm);
 	u32 *expkey = dctx->expkey;
+	u32 *flags = &tfm->crt_flags;
 
 	if (unlikely(!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
 		     !((K[2] ^ K[4]) | (K[3] ^ K[5]))))

@@ -46,8 +46,8 @@ struct krb5_ctx {
 	unsigned char		seed[16];
 	int			signalg;
 	int			sealalg;
-	struct crypto_tfm	*enc;
-	struct crypto_tfm	*seq;
+	struct crypto_blkcipher	*enc;
+	struct crypto_blkcipher	*seq;
 	s32			endtime;
 	u32			seq_send;
 	struct xdr_netobj	mech_used;
@@ -136,26 +136,27 @@ gss_unwrap_kerberos(struct gss_ctx *ctx_id, int offset,
 
 
 u32
-krb5_encrypt(struct crypto_tfm * key,
+krb5_encrypt(struct crypto_blkcipher *key,
 	     void *iv, void *in, void *out, int length);
 
 u32
-krb5_decrypt(struct crypto_tfm * key,
+krb5_decrypt(struct crypto_blkcipher *key,
 	     void *iv, void *in, void *out, int length); 
 
 int
-gss_encrypt_xdr_buf(struct crypto_tfm *tfm, struct xdr_buf *outbuf, int offset,
-		struct page **pages);
+gss_encrypt_xdr_buf(struct crypto_blkcipher *tfm, struct xdr_buf *outbuf,
+		    int offset, struct page **pages);
 
 int
-gss_decrypt_xdr_buf(struct crypto_tfm *tfm, struct xdr_buf *inbuf, int offset);
+gss_decrypt_xdr_buf(struct crypto_blkcipher *tfm, struct xdr_buf *inbuf,
+		    int offset);
 
 s32
-krb5_make_seq_num(struct crypto_tfm * key,
+krb5_make_seq_num(struct crypto_blkcipher *key,
 		int direction,
 		s32 seqnum, unsigned char *cksum, unsigned char *buf);
 
 s32
-krb5_get_seq_num(struct crypto_tfm * key,
+krb5_get_seq_num(struct crypto_blkcipher *key,
 	       unsigned char *cksum,
 	       unsigned char *buf, int *direction, s32 * seqnum);

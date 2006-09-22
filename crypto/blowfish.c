@@ -399,8 +399,7 @@ static void bf_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 /* 
  * Calculates the blowfish S and P boxes for encryption and decryption.
  */
-static int bf_setkey(struct crypto_tfm *tfm, const u8 *key,
-		     unsigned int keylen, u32 *flags)
+static int bf_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 {
 	struct bf_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 *P = ctx->p;

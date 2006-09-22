@@ -312,9 +312,9 @@ enum { SCTP_MAX_GABS = 16 };
 				 */
 
 #if defined (CONFIG_SCTP_HMAC_MD5)
-#define SCTP_COOKIE_HMAC_ALG "md5"
+#define SCTP_COOKIE_HMAC_ALG "hmac(md5)"
 #elif defined (CONFIG_SCTP_HMAC_SHA1)
-#define SCTP_COOKIE_HMAC_ALG "sha1"
+#define SCTP_COOKIE_HMAC_ALG "hmac(sha1)"
 #else
 #define SCTP_COOKIE_HMAC_ALG NULL
 #endif

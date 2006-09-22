@@ -4898,7 +4898,7 @@ SCTP_STATIC int sctp_stream_listen(struct sock *sk, int backlog)
 int sctp_inet_listen(struct socket *sock, int backlog)
 {
 	struct sock *sk = sock->sk;
-	struct crypto_tfm *tfm=NULL;
+	struct crypto_hash *tfm = NULL;
 	int err = -EINVAL;
 
 	if (unlikely(backlog < 0))
@@ -4911,7 +4911,7 @@ int sctp_inet_listen(struct socket *sock, int backlog)
 
 	/* Allocate HMAC for generating cookie. */
 	if (sctp_hmac_alg) {
-		tfm = sctp_crypto_alloc_tfm(sctp_hmac_alg, 0);
+		tfm = crypto_alloc_hash(sctp_hmac_alg, 0, CRYPTO_ALG_ASYNC);
 		if (!tfm) {
 			err = -ENOSYS;
 			goto out;
@@ -4937,7 +4937,7 @@ out:
 	sctp_release_sock(sk);
 	return err;
 cleanup:
-	sctp_crypto_free_tfm(tfm);
+	crypto_free_hash(tfm);
 	goto out;
 }
 

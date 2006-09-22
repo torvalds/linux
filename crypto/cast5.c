@@ -769,8 +769,7 @@ static void key_schedule(u32 * x, u32 * z, u32 * k)
 }
 
 
-static int cast5_setkey(struct crypto_tfm *tfm, const u8 *key,
-			unsigned key_len, u32 *flags)
+static int cast5_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned key_len)
 {
 	struct cast5_ctx *c = crypto_tfm_ctx(tfm);
 	int i;
@@ -778,11 +777,6 @@ static int cast5_setkey(struct crypto_tfm *tfm, const u8 *key,
 	u32 z[4];
 	u32 k[16];
 	__be32 p_key[4];
-	
-	if (key_len < 5 || key_len > 16) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
 
 	c->rr = key_len <= 10 ? 1 : 0;
 

@@ -379,12 +379,13 @@ static void gen_tabs(void)
 }
 
 static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-		       unsigned int key_len, u32 *flags)
+		       unsigned int key_len)
 {
 	int i;
 	u32 ss[8];
 	struct aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *key = (const __le32 *)in_key;
+	u32 *flags = &tfm->crt_flags;
 
 	/* encryption schedule */
 	
