@@ -555,6 +555,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.queuecommand           = iscsi_queuecommand,
 	.can_queue		= ISCSI_XMIT_CMDS_MAX - 1,
 	.sg_tablesize           = ISCSI_ISER_SG_TABLESIZE,
+	.max_sectors		= 1024,
 	.cmd_per_lun            = ISCSI_MAX_CMD_PER_LUN,
 	.eh_abort_handler       = iscsi_eh_abort,
 	.eh_host_reset_handler	= iscsi_eh_host_reset,

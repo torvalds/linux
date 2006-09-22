@@ -42,20 +42,28 @@
  * @entry: work completion entry to add
  * @sig: true if @entry is a solicitated entry
  *
- * This may be called with one of the qp->s_lock or qp->r_rq.lock held.
+ * This may be called with qp->s_lock held.
  */
 void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int solicited)
 {
+	struct ipath_cq_wc *wc = cq->queue;
 	unsigned long flags;
+	u32 head;
 	u32 next;
 
 	spin_lock_irqsave(&cq->lock, flags);
 
-	if (cq->head == cq->ibcq.cqe)
+	/*
+	 * Note that the head pointer might be writable by user processes.
+	 * Take care to verify it is a sane value.
+	 */
+	head = wc->head;
+	if (head >= (unsigned) cq->ibcq.cqe) {
+		head = cq->ibcq.cqe;
 		next = 0;
-	else
-		next = cq->head + 1;
-	if (unlikely(next == cq->tail)) {
+	} else
+		next = head + 1;
+	if (unlikely(next == wc->tail)) {
 		spin_unlock_irqrestore(&cq->lock, flags);
 		if (cq->ibcq.event_handler) {
 			struct ib_event ev;
@@ -67,8 +75,8 @@ void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int solicited)
 		}
 		return;
 	}
-	cq->queue[cq->head] = *entry;
-	cq->head = next;
+	wc->queue[head] = *entry;
+	wc->head = next;
 
 	if (cq->notify == IB_CQ_NEXT_COMP ||
 	    (cq->notify == IB_CQ_SOLICITED && solicited)) {
@@ -101,19 +109,20 @@ void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int solicited)
 int ipath_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 {
 	struct ipath_cq *cq = to_icq(ibcq);
+	struct ipath_cq_wc *wc = cq->queue;
 	unsigned long flags;
 	int npolled;
 
 	spin_lock_irqsave(&cq->lock, flags);
 
 	for (npolled = 0; npolled < num_entries; ++npolled, ++entry) {
-		if (cq->tail == cq->head)
+		if (wc->tail == wc->head)
 			break;
-		*entry = cq->queue[cq->tail];
-		if (cq->tail == cq->ibcq.cqe)
-			cq->tail = 0;
+		*entry = wc->queue[wc->tail];
+		if (wc->tail >= cq->ibcq.cqe)
+			wc->tail = 0;
 		else
-			cq->tail++;
+			wc->tail++;
 	}
 
 	spin_unlock_irqrestore(&cq->lock, flags);
@@ -160,38 +169,74 @@ struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries,
 {
 	struct ipath_ibdev *dev = to_idev(ibdev);
 	struct ipath_cq *cq;
-	struct ib_wc *wc;
+	struct ipath_cq_wc *wc;
 	struct ib_cq *ret;
 
-	if (entries > ib_ipath_max_cqes) {
+	if (entries < 1 || entries > ib_ipath_max_cqes) {
 		ret = ERR_PTR(-EINVAL);
-		goto bail;
+		goto done;
 	}
 
 	if (dev->n_cqs_allocated == ib_ipath_max_cqs) {
 		ret = ERR_PTR(-ENOMEM);
-		goto bail;
+		goto done;
 	}
 
-	/*
-	 * Need to use vmalloc() if we want to support large #s of
-	 * entries.
-	 */
+	/* Allocate the completion queue structure. */
 	cq = kmalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq) {
 		ret = ERR_PTR(-ENOMEM);
-		goto bail;
+		goto done;
 	}
 
 	/*
-	 * Need to use vmalloc() if we want to support large #s of entries.
+	 * Allocate the completion queue entries and head/tail pointers.
+	 * This is allocated separately so that it can be resized and
+	 * also mapped into user space.
+	 * We need to use vmalloc() in order to support mmap and large
+	 * numbers of entries.
 	 */
-	wc = vmalloc(sizeof(*wc) * (entries + 1));
+	wc = vmalloc_user(sizeof(*wc) + sizeof(struct ib_wc) * entries);
 	if (!wc) {
-		kfree(cq);
 		ret = ERR_PTR(-ENOMEM);
-		goto bail;
+		goto bail_cq;
 	}
+
+	/*
+	 * Return the address of the WC as the offset to mmap.
+	 * See ipath_mmap() for details.
+	 */
+	if (udata && udata->outlen >= sizeof(__u64)) {
+		struct ipath_mmap_info *ip;
+		__u64 offset = (__u64) wc;
+		int err;
+
+		err = ib_copy_to_udata(udata, &offset, sizeof(offset));
+		if (err) {
+			ret = ERR_PTR(err);
+			goto bail_wc;
+		}
+
+		/* Allocate info for ipath_mmap(). */
+		ip = kmalloc(sizeof(*ip), GFP_KERNEL);
+		if (!ip) {
+			ret = ERR_PTR(-ENOMEM);
+			goto bail_wc;
+		}
+		cq->ip = ip;
+		ip->context = context;
+		ip->obj = wc;
+		kref_init(&ip->ref);
+		ip->mmap_cnt = 0;
+		ip->size = PAGE_ALIGN(sizeof(*wc) +
+				      sizeof(struct ib_wc) * entries);
+		spin_lock_irq(&dev->pending_lock);
+		ip->next = dev->pending_mmaps;
+		dev->pending_mmaps = ip;
+		spin_unlock_irq(&dev->pending_lock);
+	} else
+		cq->ip = NULL;
+
 	/*
 	 * ib_create_cq() will initialize cq->ibcq except for cq->ibcq.cqe.
 	 * The number of entries should be >= the number requested or return
@@ -202,15 +247,22 @@ struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries,
 	cq->triggered = 0;
 	spin_lock_init(&cq->lock);
 	tasklet_init(&cq->comptask, send_complete, (unsigned long)cq);
-	cq->head = 0;
-	cq->tail = 0;
+	wc->head = 0;
+	wc->tail = 0;
 	cq->queue = wc;
 
 	ret = &cq->ibcq;
 
 	dev->n_cqs_allocated++;
+	goto done;
 
-bail:
+bail_wc:
+	vfree(wc);
+
+bail_cq:
+	kfree(cq);
+
+done:
 	return ret;
 }
 
@@ -229,7 +281,10 @@ int ipath_destroy_cq(struct ib_cq *ibcq)
 
 	tasklet_kill(&cq->comptask);
 	dev->n_cqs_allocated--;
-	vfree(cq->queue);
+	if (cq->ip)
+		kref_put(&cq->ip->ref, ipath_release_mmap_info);
+	else
+		vfree(cq->queue);
 	kfree(cq);
 
 	return 0;
@@ -253,7 +308,7 @@ int ipath_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 	spin_lock_irqsave(&cq->lock, flags);
 	/*
 	 * Don't change IB_CQ_NEXT_COMP to IB_CQ_SOLICITED but allow
-	 * any other transitions.
+	 * any other transitions (see C11-31 and C11-32 in ch. 11.4.2.2).
 	 */
 	if (cq->notify != IB_CQ_NEXT_COMP)
 		cq->notify = notify;
@@ -264,45 +319,85 @@ int ipath_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 {
 	struct ipath_cq *cq = to_icq(ibcq);
-	struct ib_wc *wc, *old_wc;
-	u32 n;
+	struct ipath_cq_wc *old_wc = cq->queue;
+	struct ipath_cq_wc *wc;
+	u32 head, tail, n;
 	int ret;
+
+	if (cqe < 1 || cqe > ib_ipath_max_cqes) {
+		ret = -EINVAL;
+		goto bail;
+	}
 
 	/*
 	 * Need to use vmalloc() if we want to support large #s of entries.
 	 */
-	wc = vmalloc(sizeof(*wc) * (cqe + 1));
+	wc = vmalloc_user(sizeof(*wc) + sizeof(struct ib_wc) * cqe);
 	if (!wc) {
 		ret = -ENOMEM;
 		goto bail;
 	}
 
+	/*
+	 * Return the address of the WC as the offset to mmap.
+	 * See ipath_mmap() for details.
+	 */
+	if (udata && udata->outlen >= sizeof(__u64)) {
+		__u64 offset = (__u64) wc;
+
+		ret = ib_copy_to_udata(udata, &offset, sizeof(offset));
+		if (ret)
+			goto bail;
+	}
+
 	spin_lock_irq(&cq->lock);
-	if (cq->head < cq->tail)
-		n = cq->ibcq.cqe + 1 + cq->head - cq->tail;
+	/*
+	 * Make sure head and tail are sane since they
+	 * might be user writable.
+	 */
+	head = old_wc->head;
+	if (head > (u32) cq->ibcq.cqe)
+		head = (u32) cq->ibcq.cqe;
+	tail = old_wc->tail;
+	if (tail > (u32) cq->ibcq.cqe)
+		tail = (u32) cq->ibcq.cqe;
+	if (head < tail)
+		n = cq->ibcq.cqe + 1 + head - tail;
 	else
-		n = cq->head - cq->tail;
+		n = head - tail;
 	if (unlikely((u32)cqe < n)) {
 		spin_unlock_irq(&cq->lock);
 		vfree(wc);
 		ret = -EOVERFLOW;
 		goto bail;
 	}
-	for (n = 0; cq->tail != cq->head; n++) {
-		wc[n] = cq->queue[cq->tail];
-		if (cq->tail == cq->ibcq.cqe)
-			cq->tail = 0;
+	for (n = 0; tail != head; n++) {
+		wc->queue[n] = old_wc->queue[tail];
+		if (tail == (u32) cq->ibcq.cqe)
+			tail = 0;
 		else
-			cq->tail++;
+			tail++;
 	}
 	cq->ibcq.cqe = cqe;
-	cq->head = n;
-	cq->tail = 0;
-	old_wc = cq->queue;
+	wc->head = n;
+	wc->tail = 0;
 	cq->queue = wc;
 	spin_unlock_irq(&cq->lock);
 
 	vfree(old_wc);
+
+	if (cq->ip) {
+		struct ipath_ibdev *dev = to_idev(ibcq->device);
+		struct ipath_mmap_info *ip = cq->ip;
+
+		ip->obj = wc;
+		ip->size = PAGE_ALIGN(sizeof(*wc) +
+				      sizeof(struct ib_wc) * cqe);
+		spin_lock_irq(&dev->pending_lock);
+		ip->next = dev->pending_mmaps;
+		dev->pending_mmaps = ip;
+		spin_unlock_irq(&dev->pending_lock);
+	}
 
 	ret = 0;
 

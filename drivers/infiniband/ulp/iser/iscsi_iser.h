@@ -82,8 +82,12 @@
 		       __func__ , ## arg);		\
 	} while (0)
 
+#define SHIFT_4K	12
+#define SIZE_4K	(1UL << SHIFT_4K)
+#define MASK_4K	(~(SIZE_4K-1))
+
 					/* support upto 512KB in one RDMA */
-#define ISCSI_ISER_SG_TABLESIZE         (0x80000 >> PAGE_SHIFT)
+#define ISCSI_ISER_SG_TABLESIZE         (0x80000 >> SHIFT_4K)
 #define ISCSI_ISER_MAX_LUN		256
 #define ISCSI_ISER_MAX_CMD_LEN		16
 
@@ -171,6 +175,7 @@ struct iser_mem_reg {
 	u64  va;
 	u64  len;
 	void *mem_h;
+	int  is_fmr;
 };
 
 struct iser_regd_buf {

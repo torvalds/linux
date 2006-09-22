@@ -68,7 +68,7 @@ struct port_table_attribute {
 	int			index;
 };
 
-static inline int ibdev_is_alive(const struct ib_device *dev) 
+static inline int ibdev_is_alive(const struct ib_device *dev)
 {
 	return dev->reg_state == IB_DEV_REGISTERED;
 }
@@ -589,10 +589,11 @@ static ssize_t show_node_type(struct class_device *cdev, char *buf)
 		return -ENODEV;
 
 	switch (dev->node_type) {
-	case IB_NODE_CA:     return sprintf(buf, "%d: CA\n", dev->node_type);
-	case IB_NODE_SWITCH: return sprintf(buf, "%d: switch\n", dev->node_type);
-	case IB_NODE_ROUTER: return sprintf(buf, "%d: router\n", dev->node_type);
-	default:             return sprintf(buf, "%d: <unknown>\n", dev->node_type);
+	case RDMA_NODE_IB_CA:	  return sprintf(buf, "%d: CA\n", dev->node_type);
+	case RDMA_NODE_RNIC:	  return sprintf(buf, "%d: RNIC\n", dev->node_type);
+	case RDMA_NODE_IB_SWITCH: return sprintf(buf, "%d: switch\n", dev->node_type);
+	case RDMA_NODE_IB_ROUTER: return sprintf(buf, "%d: router\n", dev->node_type);
+	default:		  return sprintf(buf, "%d: <unknown>\n", dev->node_type);
 	}
 }
 
@@ -708,7 +709,7 @@ int ib_device_register_sysfs(struct ib_device *device)
 	if (ret)
 		goto err_put;
 
-	if (device->node_type == IB_NODE_SWITCH) {
+	if (device->node_type == RDMA_NODE_IB_SWITCH) {
 		ret = add_port(device, 0);
 		if (ret)
 			goto err_put;

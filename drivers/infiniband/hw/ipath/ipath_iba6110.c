@@ -33,7 +33,7 @@
 
 /*
  * This file contains all of the code that is specific to the InfiniPath
- * HT-400 chip.
+ * HT chip.
  */
 
 #include <linux/pci.h>
@@ -43,7 +43,7 @@
 #include "ipath_registers.h"
 
 /*
- * This lists the InfiniPath HT400 registers, in the actual chip layout.
+ * This lists the InfiniPath registers, in the actual chip layout.
  * This structure should never be directly accessed.
  *
  * The names are in InterCap form because they're taken straight from
@@ -461,8 +461,9 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			 * times.
 			 */
 			if (dd->ipath_flags & IPATH_INITTED) {
-				ipath_dev_err(dd, "Fatal Error (freeze "
-					      "mode), no longer usable\n");
+				ipath_dev_err(dd, "Fatal Hardware Error (freeze "
+					      "mode), no longer usable, SN %.16s\n",
+						  dd->ipath_serial);
 				isfatal = 1;
 			}
 			*dd->ipath_statusp &= ~IPATH_STATUS_IB_READY;
@@ -537,7 +538,7 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 	if (hwerrs & INFINIPATH_HWE_HTCMISCERR7)
 		strlcat(msg, "[HT core Misc7]", msgl);
 	if (hwerrs & INFINIPATH_HWE_MEMBISTFAILED) {
-		strlcat(msg, "[Memory BIST test failed, HT-400 unusable]",
+		strlcat(msg, "[Memory BIST test failed, InfiniPath hardware unusable]",
 			msgl);
 		/* ignore from now on, so disable until driver reloaded */
 		dd->ipath_hwerrmask &= ~INFINIPATH_HWE_MEMBISTFAILED;
@@ -553,7 +554,7 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 
 	if (hwerrs & _IPATH_PLL_FAIL) {
 		snprintf(bitsmsg, sizeof bitsmsg,
-			 "[PLL failed (%llx), HT-400 unusable]",
+			 "[PLL failed (%llx), InfiniPath hardware unusable]",
 			 (unsigned long long) (hwerrs & _IPATH_PLL_FAIL));
 		strlcat(msg, bitsmsg, msgl);
 		/* ignore from now on, so disable until driver reloaded */
@@ -610,18 +611,18 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 		break;
 	case 5:
 		/*
-		 * HT-460 original production board; two production levels, with
+		 * original production board; two production levels, with
 		 * different serial number ranges.   See ipath_ht_early_init() for
 		 * case where we enable IPATH_GPIO_INTR for later serial # range.
 		 */
-		n = "InfiniPath_HT-460";
+		n = "InfiniPath_QHT7040";
 		break;
 	case 6:
 		n = "OEM_Board_3";
 		break;
 	case 7:
-		/* HT-460 small form factor production board */
-		n = "InfiniPath_HT-465";
+		/* small form factor production board */
+		n = "InfiniPath_QHT7140";
 		break;
 	case 8:
 		n = "LS/X-1";
@@ -633,7 +634,7 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 		n = "OEM_Board_2";
 		break;
 	case 11:
-		n = "InfiniPath_HT-470";
+		n = "InfiniPath_HT-470"; /* obsoleted */
 		break;
 	case 12:
 		n = "OEM_Board_4";
@@ -641,7 +642,7 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 	default:		/* don't know, just print the number */
 		ipath_dev_err(dd, "Don't yet know about board "
 			      "with ID %u\n", boardrev);
-		snprintf(name, namelen, "Unknown_InfiniPath_HT-4xx_%u",
+		snprintf(name, namelen, "Unknown_InfiniPath_QHT7xxx_%u",
 			 boardrev);
 		break;
 	}
@@ -650,11 +651,10 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 
 	if (dd->ipath_majrev != 3 || (dd->ipath_minrev < 2 || dd->ipath_minrev > 3)) {
 		/*
-		 * This version of the driver only supports the HT-400
-		 * Rev 3.2
+		 * This version of the driver only supports Rev 3.2 and 3.3
 		 */
 		ipath_dev_err(dd,
-			      "Unsupported HT-400 revision %u.%u!\n",
+			      "Unsupported InfiniPath hardware revision %u.%u!\n",
 			      dd->ipath_majrev, dd->ipath_minrev);
 		ret = 1;
 		goto bail;
@@ -738,7 +738,7 @@ static void ipath_check_htlink(struct ipath_devdata *dd)
 
 static int ipath_setup_ht_reset(struct ipath_devdata *dd)
 {
-	ipath_dbg("No reset possible for HT-400\n");
+	ipath_dbg("No reset possible for this InfiniPath hardware\n");
 	return 0;
 }
 
@@ -925,7 +925,7 @@ static int set_int_handler(struct ipath_devdata *dd, struct pci_dev *pdev,
 
 	/*
 	 * kernels with CONFIG_PCI_MSI set the vector in the irq field of
-	 * struct pci_device, so we use that to program the HT-400 internal
+	 * struct pci_device, so we use that to program the internal
 	 * interrupt register (not config space) with that value. The BIOS
 	 * must still have done the basic MSI setup.
 	 */
@@ -1013,7 +1013,7 @@ bail:
  * @dd: the infinipath device
  *
  * Called during driver unload.
- * This is currently a nop for the HT-400, not for all chips
+ * This is currently a nop for the HT chip, not for all chips
  */
 static void ipath_setup_ht_cleanup(struct ipath_devdata *dd)
 {
@@ -1290,6 +1290,15 @@ static int ipath_ht_bringup_serdes(struct ipath_devdata *dd)
 		val &= ~INFINIPATH_XGXS_RESET;
 		change = 1;
 	}
+	if (((val >> INFINIPATH_XGXS_RX_POL_SHIFT) &
+	     INFINIPATH_XGXS_RX_POL_MASK) != dd->ipath_rx_pol_inv ) {
+		/* need to compensate for Tx inversion in partner */
+		val &= ~(INFINIPATH_XGXS_RX_POL_MASK <<
+		         INFINIPATH_XGXS_RX_POL_SHIFT);
+		val |= dd->ipath_rx_pol_inv <<
+			INFINIPATH_XGXS_RX_POL_SHIFT;
+		change = 1;
+	}
 	if (change)
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_xgxsconfig, val);
 
@@ -1470,7 +1479,7 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 	dd->ipath_rcvhdrsize = IPATH_DFLT_RCVHDRSIZE;
 
 	/*
-	 * For HT-400, we allocate a somewhat overly large eager buffer,
+	 * For HT, we allocate a somewhat overly large eager buffer,
 	 * such that we can guarantee that we can receive the largest
 	 * packet that we can send out.  To truly support a 4KB MTU,
 	 * we need to bump this to a large value.  To date, other than
@@ -1531,7 +1540,7 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 	if(dd->ipath_boardrev == 5 && dd->ipath_serial[0] == '1' &&
 		dd->ipath_serial[1] == '2' && dd->ipath_serial[2] == '8') {
 		/*
-		 * Later production HT-460 has same changes as HT-465, so
+		 * Later production QHT7040 has same changes as QHT7140, so
 		 * can use GPIO interrupts.  They have serial #'s starting
 		 * with 128, rather than 112.
 		 */
@@ -1560,13 +1569,13 @@ static int ipath_ht_get_base_info(struct ipath_portdata *pd, void *kbase)
 }
 
 /**
- * ipath_init_ht400_funcs - set up the chip-specific function pointers
+ * ipath_init_iba6110_funcs - set up the chip-specific function pointers
  * @dd: the infinipath device
  *
  * This is global, and is called directly at init to set up the
  * chip-specific function pointers for later use.
  */
-void ipath_init_ht400_funcs(struct ipath_devdata *dd)
+void ipath_init_iba6110_funcs(struct ipath_devdata *dd)
 {
 	dd->ipath_f_intrsetup = ipath_ht_intconfig;
 	dd->ipath_f_bus = ipath_setup_ht_config;

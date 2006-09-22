@@ -32,7 +32,7 @@
  */
 /*
  * This file contains all of the code that is specific to the
- * InfiniPath PE-800 chip.
+ * InfiniPath PCIe chip.
  */
 
 #include <linux/interrupt.h>
@@ -45,9 +45,9 @@
 
 /*
  * This file contains all the chip-specific register information and
- * access functions for the QLogic InfiniPath PE800, the PCI-Express chip.
+ * access functions for the QLogic InfiniPath PCI-Express chip.
  *
- * This lists the InfiniPath PE800 registers, in the actual chip layout.
+ * This lists the InfiniPath registers, in the actual chip layout.
  * This structure should never be directly accessed.
  */
 struct _infinipath_do_not_use_kernel_regs {
@@ -213,7 +213,6 @@ static const struct ipath_kregs ipath_pe_kregs = {
 	.kr_rcvhdraddr = IPATH_KREG_OFFSET(RcvHdrAddr0),
 	.kr_rcvhdrtailaddr = IPATH_KREG_OFFSET(RcvHdrTailAddr0),
 
-	/* This group is pe-800-specific; and used only in this file */
 	/* The rcvpktled register controls one of the debug port signals, so
 	 * a packet activity LED can be connected to it. */
 	.kr_rcvpktledcnt = IPATH_KREG_OFFSET(RcvPktLEDCnt),
@@ -364,8 +363,9 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			 * and we get here multiple times
 			 */
 			if (dd->ipath_flags & IPATH_INITTED) {
-				ipath_dev_err(dd, "Fatal Error (freeze "
-					      "mode), no longer usable\n");
+				ipath_dev_err(dd, "Fatal Hardware Error (freeze "
+					      "mode), no longer usable, SN %.16s\n",
+						  dd->ipath_serial);
 				isfatal = 1;
 			}
 			/*
@@ -388,7 +388,7 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 	*msg = '\0';
 
 	if (hwerrs & INFINIPATH_HWE_MEMBISTFAILED) {
-		strlcat(msg, "[Memory BIST test failed, PE-800 unusable]",
+		strlcat(msg, "[Memory BIST test failed, InfiniPath hardware unusable]",
 			msgl);
 		/* ignore from now on, so disable until driver reloaded */
 		*dd->ipath_statusp |= IPATH_STATUS_HWERROR;
@@ -433,7 +433,7 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 
 	if (hwerrs & _IPATH_PLL_FAIL) {
 		snprintf(bitsmsg, sizeof bitsmsg,
-			 "[PLL failed (%llx), PE-800 unusable]",
+			 "[PLL failed (%llx), InfiniPath hardware unusable]",
 			 (unsigned long long) hwerrs & _IPATH_PLL_FAIL);
 		strlcat(msg, bitsmsg, msgl);
 		/* ignore from now on, so disable until driver reloaded */
@@ -511,22 +511,25 @@ static int ipath_pe_boardname(struct ipath_devdata *dd, char *name,
 		n = "InfiniPath_Emulation";
 		break;
 	case 1:
-		n = "InfiniPath_PE-800-Bringup";
+		n = "InfiniPath_QLE7140-Bringup";
 		break;
 	case 2:
-		n = "InfiniPath_PE-880";
+		n = "InfiniPath_QLE7140";
 		break;
 	case 3:
-		n = "InfiniPath_PE-850";
+		n = "InfiniPath_QMI7140";
 		break;
 	case 4:
-		n = "InfiniPath_PE-860";
+		n = "InfiniPath_QEM7140";
+		break;
+	case 5:
+		n = "InfiniPath_QMH7140";
 		break;
 	default:
 		ipath_dev_err(dd,
 			      "Don't yet know about board with ID %u\n",
 			      boardrev);
-		snprintf(name, namelen, "Unknown_InfiniPath_PE-8xx_%u",
+		snprintf(name, namelen, "Unknown_InfiniPath_PCIe_%u",
 			 boardrev);
 		break;
 	}
@@ -534,7 +537,7 @@ static int ipath_pe_boardname(struct ipath_devdata *dd, char *name,
 		snprintf(name, namelen, "%s", n);
 
 	if (dd->ipath_majrev != 4 || !dd->ipath_minrev || dd->ipath_minrev>2) {
-		ipath_dev_err(dd, "Unsupported PE-800 revision %u.%u!\n",
+		ipath_dev_err(dd, "Unsupported InfiniPath hardware revision %u.%u!\n",
 			      dd->ipath_majrev, dd->ipath_minrev);
 		ret = 1;
 	} else
@@ -651,6 +654,15 @@ static int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
 		val &= ~INFINIPATH_XGXS_RESET;
 		change = 1;
 	}
+	if (((val >> INFINIPATH_XGXS_RX_POL_SHIFT) &
+	     INFINIPATH_XGXS_RX_POL_MASK) != dd->ipath_rx_pol_inv ) {
+		/* need to compensate for Tx inversion in partner */
+		val &= ~(INFINIPATH_XGXS_RX_POL_MASK <<
+		         INFINIPATH_XGXS_RX_POL_SHIFT);
+		val |= dd->ipath_rx_pol_inv <<
+			INFINIPATH_XGXS_RX_POL_SHIFT;
+		change = 1;
+	}
 	if (change)
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_xgxsconfig, val);
 
@@ -705,7 +717,7 @@ static void ipath_pe_quiet_serdes(struct ipath_devdata *dd)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_serdesconfig0, val);
 }
 
-/* this is not yet needed on the PE800, so just return 0. */
+/* this is not yet needed on this chip, so just return 0. */
 static int ipath_pe_intconfig(struct ipath_devdata *dd)
 {
 	return 0;
@@ -759,8 +771,8 @@ static void ipath_setup_pe_setextled(struct ipath_devdata *dd, u64 lst,
  *
  * This is called during driver unload.
  * We do the pci_disable_msi here, not in generic code, because it
- * isn't used for the HT-400. If we do end up needing pci_enable_msi
- * at some point in the future for HT-400, we'll move the call back
+ * isn't used for the HT chips. If we do end up needing pci_enable_msi
+ * at some point in the future for HT, we'll move the call back
  * into the main init_one code.
  */
 static void ipath_setup_pe_cleanup(struct ipath_devdata *dd)
@@ -780,10 +792,10 @@ static void ipath_setup_pe_cleanup(struct ipath_devdata *dd)
  * late in 2.6.16).
  * All that can be done is to edit the kernel source to remove the quirk
  * check until that is fixed.
- * We do not need to call enable_msi() for our HyperTransport chip (HT-400),
- * even those it uses MSI, and we want to avoid the quirk warning, so
- * So we call enable_msi only for the PE-800.  If we do end up needing
- * pci_enable_msi at some point in the future for HT-400, we'll move the
+ * We do not need to call enable_msi() for our HyperTransport chip,
+ * even though it uses MSI, and we want to avoid the quirk warning, so
+ * So we call enable_msi only for PCIe.  If we do end up needing
+ * pci_enable_msi at some point in the future for HT, we'll move the
  * call back into the main init_one code.
  * We save the msi lo and hi values, so we can restore them after
  * chip reset (the kernel PCI infrastructure doesn't yet handle that
@@ -971,8 +983,7 @@ static int ipath_setup_pe_reset(struct ipath_devdata *dd)
 	int ret;
 
 	/* Use ERROR so it shows up in logs, etc. */
-	ipath_dev_err(dd, "Resetting PE-800 unit %u\n",
-		      dd->ipath_unit);
+	ipath_dev_err(dd, "Resetting InfiniPath unit %u\n", dd->ipath_unit);
 	/* keep chip from being accessed in a few places */
 	dd->ipath_flags &= ~(IPATH_INITTED|IPATH_PRESENT);
 	val = dd->ipath_control | INFINIPATH_C_RESET;
@@ -1078,7 +1089,7 @@ static void ipath_pe_put_tid(struct ipath_devdata *dd, u64 __iomem *tidptr,
  * @port: the port
  *
  * clear all TID entries for a port, expected and eager.
- * Used from ipath_close().  On PE800, TIDs are only 32 bits,
+ * Used from ipath_close().  On this chip, TIDs are only 32 bits,
  * not 64, but they are still on 64 bit boundaries, so tidbase
  * is declared as u64 * for the pointer math, even though we write 32 bits
  */
@@ -1148,9 +1159,9 @@ static int ipath_pe_early_init(struct ipath_devdata *dd)
 	dd->ipath_flags |= IPATH_4BYTE_TID;
 
 	/*
-	 * For openib, we need to be able to handle an IB header of 96 bytes
-	 * or 24 dwords.  HT-400 has arbitrary sized receive buffers, so we
-	 * made them the same size as the PIO buffers.  The PE-800 does not
+	 * For openfabrics, we need to be able to handle an IB header of
+	 * 24 dwords.  HT chip has arbitrary sized receive buffers, so we
+	 * made them the same size as the PIO buffers.  This chip does not
 	 * handle arbitrary size buffers, so we need the header large enough
 	 * to handle largest IB header, but still have room for a 2KB MTU
 	 * standard IB packet.
@@ -1158,11 +1169,10 @@ static int ipath_pe_early_init(struct ipath_devdata *dd)
 	dd->ipath_rcvhdrentsize = 24;
 	dd->ipath_rcvhdrsize = IPATH_DFLT_RCVHDRSIZE;
 
-	/* For HT-400, we allocate a somewhat overly large eager buffer,
-	 * such that we can guarantee that we can receive the largest packet
-	 * that we can send out.  To truly support a 4KB MTU, we need to
-	 * bump this to a larger value.  We'll do this when I get around to
-	 * testing 4KB sends on the PE-800, which I have not yet done.
+	/*
+	 * To truly support a 4KB MTU (for usermode), we need to
+	 * bump this to a larger value.  For now, we use them for
+	 * the kernel only.
 	 */
 	dd->ipath_rcvegrbufsize = 2048;
 	/*
@@ -1175,9 +1185,9 @@ static int ipath_pe_early_init(struct ipath_devdata *dd)
 	dd->ipath_init_ibmaxlen = dd->ipath_ibmaxlen;
 
 	/*
-	 * For PE-800, we can request a receive interrupt for 1 or
+	 * We can request a receive interrupt for 1 or
 	 * more packets from current offset.  For now, we set this
-	 * up for a single packet, to match the HT-400 behavior.
+	 * up for a single packet.
 	 */
 	dd->ipath_rhdrhead_intr_off = 1ULL<<32;
 
@@ -1216,13 +1226,13 @@ static int ipath_pe_get_base_info(struct ipath_portdata *pd, void *kbase)
 }
 
 /**
- * ipath_init_pe800_funcs - set up the chip-specific function pointers
+ * ipath_init_iba6120_funcs - set up the chip-specific function pointers
  * @dd: the infinipath device
  *
  * This is global, and is called directly at init to set up the
  * chip-specific function pointers for later use.
  */
-void ipath_init_pe800_funcs(struct ipath_devdata *dd)
+void ipath_init_iba6120_funcs(struct ipath_devdata *dd)
 {
 	dd->ipath_f_intrsetup = ipath_pe_intconfig;
 	dd->ipath_f_bus = ipath_setup_pe_config;
