@@ -433,14 +433,16 @@ int device_add(struct device *dev)
 	if (dev->driver)
 		dev->uevent_attr.attr.owner = dev->driver->owner;
 	dev->uevent_attr.store = store_uevent;
-	device_create_file(dev, &dev->uevent_attr);
+	error = device_create_file(dev, &dev->uevent_attr);
+	if (error)
+		goto attrError;
 
 	if (MAJOR(dev->devt)) {
 		struct device_attribute *attr;
 		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 		if (!attr) {
 			error = -ENOMEM;
-			goto PMError;
+			goto ueventattrError;
 		}
 		attr->attr.name = "dev";
 		attr->attr.mode = S_IRUGO;
@@ -450,7 +452,7 @@ int device_add(struct device *dev)
 		error = device_create_file(dev, attr);
 		if (error) {
 			kfree(attr);
-			goto attrError;
+			goto ueventattrError;
 		}
 
 		dev->devt_attr = attr;
@@ -507,6 +509,8 @@ int device_add(struct device *dev)
 		device_remove_file(dev, dev->devt_attr);
 		kfree(dev->devt_attr);
 	}
+ ueventattrError:
+	device_remove_file(dev, &dev->uevent_attr);
  attrError:
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
