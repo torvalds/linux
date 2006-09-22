@@ -879,11 +879,10 @@ ssize_t ib_uverbs_resize_cq(struct ib_uverbs_file *file,
 	if (ret)
 		goto out;
 
-	memset(&resp, 0, sizeof resp);
 	resp.cqe = cq->cqe;
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
-			 &resp, sizeof resp))
+			 &resp, sizeof resp.cqe))
 		ret = -EFAULT;
 
 out:
