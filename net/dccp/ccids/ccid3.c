@@ -1240,7 +1240,7 @@ static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 }
 
 static struct ccid_operations ccid3 = {
-	.ccid_id		   = 3,
+	.ccid_id		   = DCCPC_CCID3,
 	.ccid_name		   = "ccid3",
 	.ccid_owner		   = THIS_MODULE,
 	.ccid_hc_tx_obj_size	   = sizeof(struct ccid3_hc_tx_sock),
