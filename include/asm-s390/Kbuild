@@ -1,4 +1,12 @@
 include include/asm-generic/Kbuild.asm
 
-unifdef-y += cmb.h debug.h
-header-y += dasd.h monwriter.h qeth.h tape390.h ucontext.h vtoc.h z90crypt.h
+header-y += dasd.h
+header-y += monwriter.h
+header-y += qeth.h
+header-y += tape390.h
+header-y += ucontext.h
+header-y += vtoc.h
+header-y += z90crypt.h
+
+unifdef-y += cmb.h
+unifdef-y += debug.h

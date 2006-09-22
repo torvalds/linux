@@ -1,2 +1,4 @@
 header-y += scsi.h
-unifdef-y := scsi_ioctl.h sg.h
+
+unifdef-y += scsi_ioctl.h
+unifdef-y += sg.h
