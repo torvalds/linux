@@ -1,0 +1,16 @@
+config INFINIBAND_EHCA
+	tristate "eHCA support"
+	depends on IBMEBUS && INFINIBAND
+	---help---
+	This driver supports the IBM pSeries eHCA InfiniBand adapter.
+
+	To compile the driver as a module, choose M here. The module
+	will be called ib_ehca.
+
+config INFINIBAND_EHCA_SCALING
+	bool "Scaling support (EXPERIMENTAL)"
+	depends on IBMEBUS && INFINIBAND_EHCA && HOTPLUG_CPU && EXPERIMENTAL
+	---help---
+	eHCA scaling support schedules the CQ callbacks to different CPUs.
+
+	To enable this feature choose Y here.

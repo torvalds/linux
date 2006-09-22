@@ -991,6 +991,14 @@ EFS FILESYSTEM
 W:	http://aeschi.ch.eu.org/efs/
 S:	Orphan
 
+EHCA (IBM GX bus InfiniBand adapter) DRIVER:
+P:	Hoang-Nam Nguyen
+M:	hnguyen@de.ibm.com
+P:	Christoph Raisch
+M:	raisch@de.ibm.com
+L:	openib-general@openib.org
+S:	Supported
+
 EMU10K1 SOUND DRIVER
 P:	James Courtier-Dutton
 M:	James@superbug.demon.co.uk
