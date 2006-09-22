@@ -30,8 +30,8 @@ detailed description):
 	- ACPI sounds
 	- temperature sensors
 	- Experimental: embedded controller register dump
-	- Experimental: LCD brightness control
-	- Experimental: volume control
+	- LCD brightness control
+	- Volume control
 	- Experimental: fan speed, fan enable/disable
 
 A compatibility table by model and feature is maintained on the web
@@ -523,13 +523,8 @@ registers contain the current battery capacity, etc. If you experiment
 with this, do send me your results (including some complete dumps with
 a description of the conditions when they were taken.)
 
-EXPERIMENTAL: LCD brightness control -- /proc/acpi/ibm/brightness
------------------------------------------------------------------
-
-This feature is marked EXPERIMENTAL because the implementation
-directly accesses hardware registers and may not work as expected. USE
-WITH CAUTION! To use this feature, you need to supply the
-experimental=1 parameter when loading the module.
+LCD brightness control -- /proc/acpi/ibm/brightness
+---------------------------------------------------
 
 This feature allows software control of the LCD brightness on ThinkPad
 models which don't have a hardware brightness slider. The available
@@ -542,13 +537,8 @@ commands are:
 The <level> number range is 0 to 7, although not all of them may be
 distinct. The current brightness level is shown in the file.
 
-EXPERIMENTAL: Volume control -- /proc/acpi/ibm/volume
------------------------------------------------------
-
-This feature is marked EXPERIMENTAL because the implementation
-directly accesses hardware registers and may not work as expected. USE
-WITH CAUTION! To use this feature, you need to supply the
-experimental=1 parameter when loading the module.
+Volume control -- /proc/acpi/ibm/volume
+---------------------------------------
 
 This feature allows volume control on ThinkPad models which don't have
 a hardware volume knob. The available commands are:
