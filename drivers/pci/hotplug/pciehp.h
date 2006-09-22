@@ -166,10 +166,10 @@ struct controller {
  * error Messages
  */
 #define msg_initialization_err	"Initialization failure, error=%d\n"
-#define msg_button_on		"PCI slot #%d - powering on due to button press.\n"
-#define msg_button_off		"PCI slot #%d - powering off due to button press.\n"
-#define msg_button_cancel	"PCI slot #%d - action canceled due to button press.\n"
-#define msg_button_ignore	"PCI slot #%d - button press ignored.  (action in progress...)\n"
+#define msg_button_on		"PCI slot #%s - powering on due to button press.\n"
+#define msg_button_off		"PCI slot #%s - powering off due to button press.\n"
+#define msg_button_cancel	"PCI slot #%s - action canceled due to button press.\n"
+#define msg_button_ignore	"PCI slot #%s - button press ignored.  (action in progress...)\n"
 
 /* controller functions */
 extern int	pciehp_event_start_thread	(void);
