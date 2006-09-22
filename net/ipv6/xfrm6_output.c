@@ -47,7 +47,7 @@ static int xfrm6_output_one(struct sk_buff *skb)
 			goto error_nolock;
 	}
 
-	if (x->props.mode) {
+	if (x->props.mode == XFRM_MODE_TUNNEL) {
 		err = xfrm6_tunnel_check_size(skb);
 		if (err)
 			goto error_nolock;
@@ -80,7 +80,7 @@ static int xfrm6_output_one(struct sk_buff *skb)
 		}
 		dst = skb->dst;
 		x = dst->xfrm;
-	} while (x && !x->props.mode);
+	} while (x && (x->props.mode != XFRM_MODE_TUNNEL));
 
 	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
 	err = 0;

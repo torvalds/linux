@@ -1765,7 +1765,7 @@ parse_ipsecrequest(struct xfrm_policy *xp, struct sadb_x_ipsecrequest *rq)
 	}
 
 	/* addresses present only in tunnel mode */
-	if (t->mode) {
+	if (t->mode == XFRM_MODE_TUNNEL) {
 		switch (xp->family) {
 		case AF_INET:
 			sin = (void*)(rq+1);
@@ -1997,7 +1997,7 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 		int req_size;
 
 		req_size = sizeof(struct sadb_x_ipsecrequest);
-		if (t->mode)
+		if (t->mode == XFRM_MODE_TUNNEL)
 			req_size += 2*socklen;
 		else
 			size -= 2*socklen;
@@ -2013,7 +2013,7 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 		if (t->optional)
 			rq->sadb_x_ipsecrequest_level = IPSEC_LEVEL_USE;
 		rq->sadb_x_ipsecrequest_reqid = t->reqid;
-		if (t->mode) {
+		if (t->mode == XFRM_MODE_TUNNEL) {
 			switch (xp->family) {
 			case AF_INET:
 				sin = (void*)(rq+1);

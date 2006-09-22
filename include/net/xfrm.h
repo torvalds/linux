@@ -298,7 +298,7 @@ struct xfrm_tmpl
 
 	__u32			reqid;
 
-/* Mode: transport/tunnel */
+/* Mode: transport, tunnel etc. */
 	__u8			mode;
 
 /* Sharing mode: unique, this session only, this user only etc. */

@@ -42,7 +42,7 @@ __xfrm4_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	x->props.saddr = tmpl->saddr;
 	if (x->props.saddr.a4 == 0)
 		x->props.saddr.a4 = saddr->a4;
-	if (tmpl->mode && x->props.saddr.a4 == 0) {
+	if (tmpl->mode == XFRM_MODE_TUNNEL && x->props.saddr.a4 == 0) {
 		struct rtable *rt;
 	        struct flowi fl_tunnel = {
         	        .nl_u = {

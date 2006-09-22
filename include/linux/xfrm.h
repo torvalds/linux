@@ -120,7 +120,9 @@ enum
 
 #define XFRM_MODE_TRANSPORT 0
 #define XFRM_MODE_TUNNEL 1
-#define XFRM_MODE_MAX 2
+#define XFRM_MODE_ROUTEOPTIMIZATION 2
+#define XFRM_MODE_IN_TRIGGER 3
+#define XFRM_MODE_MAX 4
 
 /* Netlink configuration messages.  */
 enum {
@@ -247,7 +249,7 @@ struct xfrm_usersa_info {
 	__u32				seq;
 	__u32				reqid;
 	__u16				family;
-	__u8				mode; /* 0=transport,1=tunnel */
+	__u8				mode;		/* XFRM_MODE_xxx */
 	__u8				replay_window;
 	__u8				flags;
 #define XFRM_STATE_NOECN	1

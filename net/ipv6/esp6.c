@@ -237,7 +237,7 @@ static u32 esp6_get_max_size(struct xfrm_state *x, int mtu)
 	struct esp_data *esp = x->data;
 	u32 blksize = ALIGN(crypto_blkcipher_blocksize(esp->conf.tfm), 4);
 
-	if (x->props.mode) {
+	if (x->props.mode == XFRM_MODE_TUNNEL) {
 		mtu = ALIGN(mtu + 2, blksize);
 	} else {
 		/* The worst case. */
@@ -358,7 +358,7 @@ static int esp6_init_state(struct xfrm_state *x)
 	if (crypto_blkcipher_setkey(tfm, esp->conf.key, esp->conf.key_len))
 		goto error;
 	x->props.header_len = sizeof(struct ipv6_esp_hdr) + esp->conf.ivlen;
-	if (x->props.mode)
+	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct ipv6hdr);
 	x->data = esp;
 	return 0;

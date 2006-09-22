@@ -779,7 +779,7 @@ xfrm_tmpl_resolve(struct xfrm_policy *policy, struct flowi *fl,
 		xfrm_address_t *local  = saddr;
 		struct xfrm_tmpl *tmpl = &policy->xfrm_vec[i];
 
-		if (tmpl->mode) {
+		if (tmpl->mode == XFRM_MODE_TUNNEL) {
 			remote = &tmpl->id.daddr;
 			local = &tmpl->saddr;
 		}
@@ -1005,7 +1005,8 @@ xfrm_state_ok(struct xfrm_tmpl *tmpl, struct xfrm_state *x,
 		(x->props.reqid == tmpl->reqid || !tmpl->reqid) &&
 		x->props.mode == tmpl->mode &&
 		(tmpl->aalgos & (1<<x->props.aalgo)) &&
-		!(x->props.mode && xfrm_state_addr_cmp(tmpl, x, family));
+		!(x->props.mode != XFRM_MODE_TRANSPORT &&
+		  xfrm_state_addr_cmp(tmpl, x, family));
 }
 
 static inline int
@@ -1015,14 +1016,14 @@ xfrm_policy_ok(struct xfrm_tmpl *tmpl, struct sec_path *sp, int start,
 	int idx = start;
 
 	if (tmpl->optional) {
-		if (!tmpl->mode)
+		if (tmpl->mode == XFRM_MODE_TRANSPORT)
 			return start;
 	} else
 		start = -1;
 	for (; idx < sp->len; idx++) {
 		if (xfrm_state_ok(tmpl, sp->xvec[idx], family))
 			return ++idx;
-		if (sp->xvec[idx]->props.mode)
+		if (sp->xvec[idx]->props.mode != XFRM_MODE_TRANSPORT)
 			break;
 	}
 	return start;
@@ -1047,7 +1048,7 @@ EXPORT_SYMBOL(xfrm_decode_session);
 static inline int secpath_has_tunnel(struct sec_path *sp, int k)
 {
 	for (; k < sp->len; k++) {
-		if (sp->xvec[k]->props.mode)
+		if (sp->xvec[k]->props.mode != XFRM_MODE_TRANSPORT)
 			return 1;
 	}
 

@@ -72,7 +72,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
 		if (x->mode->input(x, skb))
 			goto drop;
 
-		if (x->props.mode) { /* XXX */
+		if (x->props.mode == XFRM_MODE_TUNNEL) { /* XXX */
 			decaps = 1;
 			break;
 		}

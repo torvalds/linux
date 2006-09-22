@@ -212,7 +212,7 @@ static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 	memcpy(t->id.daddr.a6, x->id.daddr.a6, sizeof(struct in6_addr));
 	memcpy(&t->sel, &x->sel, sizeof(t->sel));
 	t->props.family = AF_INET6;
-	t->props.mode = 1;
+	t->props.mode = XFRM_MODE_TUNNEL;
 	memcpy(t->props.saddr.a6, x->props.saddr.a6, sizeof(struct in6_addr));
 
 	if (xfrm_init_state(t))
@@ -417,7 +417,7 @@ static int ipcomp6_init_state(struct xfrm_state *x)
 		goto out;
 
 	x->props.header_len = 0;
-	if (x->props.mode)
+	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct ipv6hdr);
 	
 	mutex_lock(&ipcomp6_resource_mutex);
@@ -429,7 +429,7 @@ static int ipcomp6_init_state(struct xfrm_state *x)
 		goto error;
 	mutex_unlock(&ipcomp6_resource_mutex);
 
-	if (x->props.mode) {
+	if (x->props.mode == XFRM_MODE_TUNNEL) {
 		err = ipcomp6_tunnel_attach(x);
 		if (err)
 			goto error_tunnel;
