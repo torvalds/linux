@@ -1038,9 +1038,27 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 					continue;
 			}
 
-			/* Rule 4: Prefer home address -- not implemented yet */
+			/* Rule 4: Prefer home address */
+#ifdef CONFIG_IPV6_MIP6
+			if (hiscore.rule < 4) {
+				if (ifa_result->flags & IFA_F_HOMEADDRESS)
+					hiscore.attrs |= IPV6_SADDR_SCORE_HOA;
+				hiscore.rule++;
+			}
+			if (ifa->flags & IFA_F_HOMEADDRESS) {
+				score.attrs |= IPV6_SADDR_SCORE_HOA;
+				if (!(ifa_result->flags & IFA_F_HOMEADDRESS)) {
+					score.rule = 4;
+					goto record_it;
+				}
+			} else {
+				if (hiscore.attrs & IPV6_SADDR_SCORE_HOA)
+					continue;
+			}
+#else
 			if (hiscore.rule < 4)
 				hiscore.rule++;
+#endif
 
 			/* Rule 5: Prefer outgoing interface */
 			if (hiscore.rule < 5) {
@@ -2759,6 +2777,26 @@ void if6_proc_exit(void)
 }
 #endif	/* CONFIG_PROC_FS */
 
+#ifdef CONFIG_IPV6_MIP6
+/* Check if address is a home address configured on any interface. */
+int ipv6_chk_home_addr(struct in6_addr *addr)
+{
+	int ret = 0;
+	struct inet6_ifaddr * ifp;
+	u8 hash = ipv6_addr_hash(addr);
+	read_lock_bh(&addrconf_hash_lock);
+	for (ifp = inet6_addr_lst[hash]; ifp; ifp = ifp->lst_next) {
+		if (ipv6_addr_cmp(&ifp->addr, addr) == 0 &&
+		    (ifp->flags & IFA_F_HOMEADDRESS)) {
+			ret = 1;
+			break;
+		}
+	}
+	read_unlock_bh(&addrconf_hash_lock);
+	return ret;
+}
+#endif
+
 /*
  *	Periodic address status verification
  */
@@ -2930,7 +2968,7 @@ static int inet6_addr_modify(struct inet6_ifaddr *ifp, u8 ifa_flags,
 		prefered_lft = 0x7FFFFFFF/HZ;
 
 	spin_lock_bh(&ifp->lock);
-	ifp->flags = (ifp->flags & ~(IFA_F_DEPRECATED | IFA_F_PERMANENT | IFA_F_NODAD)) | ifa_flags;
+	ifp->flags = (ifp->flags & ~(IFA_F_DEPRECATED | IFA_F_PERMANENT | IFA_F_NODAD | IFA_F_HOMEADDRESS)) | ifa_flags;
 	ifp->tstamp = jiffies;
 	ifp->valid_lft = valid_lft;
 	ifp->prefered_lft = prefered_lft;
@@ -2981,7 +3019,7 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		return -ENODEV;
 
 	/* We ignore other flags so far. */
-	ifa_flags = ifm->ifa_flags & IFA_F_NODAD;
+	ifa_flags = ifm->ifa_flags & (IFA_F_NODAD | IFA_F_HOMEADDRESS);
 
 	ifa = ipv6_get_ifaddr(pfx, dev, 1);
 	if (ifa == NULL) {
