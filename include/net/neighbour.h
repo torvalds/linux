@@ -126,6 +126,7 @@ struct pneigh_entry
 {
 	struct pneigh_entry	*next;
 	struct net_device		*dev;
+	u8			flags;
 	u8			key[0];
 };
 

@@ -1544,9 +1544,14 @@ int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		lladdr = tb[NDA_LLADDR] ? nla_data(tb[NDA_LLADDR]) : NULL;
 
 		if (ndm->ndm_flags & NTF_PROXY) {
-			err = 0;
-			if (pneigh_lookup(tbl, dst, dev, 1) == NULL)
-				err = -ENOBUFS;
+			struct pneigh_entry *pn;
+
+			err = -ENOBUFS;
+			pn = pneigh_lookup(tbl, dst, dev, 1);
+			if (pn) {
+				pn->flags = ndm->ndm_flags;
+				err = 0;
+			}
 			goto out_dev_put;
 		}
 

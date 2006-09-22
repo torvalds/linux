@@ -736,8 +736,10 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 	struct inet6_ifaddr *ifp;
 	struct inet6_dev *idev = NULL;
 	struct neighbour *neigh;
+	struct pneigh_entry *pneigh = NULL;
 	int dad = ipv6_addr_any(saddr);
 	int inc;
+	int is_router;
 
 	if (ipv6_addr_is_multicast(&msg->target)) {
 		ND_PRINTK2(KERN_WARNING 
@@ -822,7 +824,8 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 
 		if (ipv6_chk_acast_addr(dev, &msg->target) ||
 		    (idev->cnf.forwarding && 
-		     pneigh_lookup(&nd_tbl, &msg->target, dev, 0))) {
+		     (pneigh = pneigh_lookup(&nd_tbl,
+					     &msg->target, dev, 0)) != NULL)) {
 			if (!(NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED) &&
 			    skb->pkt_type != PACKET_HOST &&
 			    inc != 0 &&
@@ -843,12 +846,17 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 			goto out;
 	}
 
+	if (pneigh)
+		is_router = pneigh->flags & NTF_ROUTER;
+	else
+		is_router = idev->cnf.forwarding;
+
 	if (dad) {
 		struct in6_addr maddr;
 
 		ipv6_addr_all_nodes(&maddr);
 		ndisc_send_na(dev, NULL, &maddr, &msg->target,
-			      idev->cnf.forwarding, 0, (ifp != NULL), 1);
+			      is_router, 0, (ifp != NULL), 1);
 		goto out;
 	}
 
@@ -869,7 +877,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 			     NEIGH_UPDATE_F_OVERRIDE);
 	if (neigh || !dev->hard_header) {
 		ndisc_send_na(dev, neigh, saddr, &msg->target,
-			      idev->cnf.forwarding, 
+			      is_router,
 			      1, (ifp != NULL && inc), inc);
 		if (neigh)
 			neigh_release(neigh);
