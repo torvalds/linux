@@ -68,7 +68,7 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 static int vid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 }; /* Vendor ID for this card */
 static int pid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 }; /* Product ID for this card */
-static int nrpacks = 4;		/* max. number of packets per urb */
+static int nrpacks = 8;		/* max. number of packets per urb */
 static int async_unlink = 1;
 static int device_setup[SNDRV_CARDS]; /* device parameter for this card*/
 
@@ -100,7 +100,7 @@ MODULE_PARM_DESC(device_setup, "Specific device setup (if needed).");
  *
  */
 
-#define MAX_PACKS	10
+#define MAX_PACKS	20
 #define MAX_PACKS_HS	(MAX_PACKS * 8)	/* in high speed mode */
 #define MAX_URBS	8
 #define SYNC_URBS	4	/* always four urbs for sync */
