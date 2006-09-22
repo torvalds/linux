@@ -9,7 +9,6 @@
  * 	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>

@@ -72,7 +72,6 @@
 
 /***************************** INCLUDES *****************************/
 
-#include <linux/config.h>		/* Not needed ??? */
 #include <linux/module.h>
 #include <linux/types.h>		/* off_t */
 #include <linux/netdevice.h>		/* struct ifreq, dev_get_by_name() */
