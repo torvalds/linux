@@ -620,7 +620,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ipoib_neigh *neigh;
 	unsigned long flags;
 
-	if (!spin_trylock_irqsave(&priv->tx_lock, flags))
+	if (unlikely(!spin_trylock_irqsave(&priv->tx_lock, flags)))
 		return NETDEV_TX_LOCKED;
 
 	/*
@@ -633,7 +633,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	if (skb->dst && skb->dst->neighbour) {
+	if (likely(skb->dst && skb->dst->neighbour)) {
 		if (unlikely(!*to_ipoib_neigh(skb->dst->neighbour))) {
 			ipoib_path_lookup(skb, dev);
 			goto out;

@@ -332,7 +332,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	struct ipoib_tx_buf *tx_req;
 	dma_addr_t addr;
 
-	if (skb->len > dev->mtu + INFINIBAND_ALEN) {
+	if (unlikely(skb->len > dev->mtu + INFINIBAND_ALEN)) {
 		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
 			   skb->len, dev->mtu + INFINIBAND_ALEN);
 		++priv->stats.tx_dropped;
