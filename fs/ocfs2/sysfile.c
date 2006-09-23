@@ -115,7 +115,7 @@ static struct inode * _ocfs2_get_system_file_inode(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	inode = ocfs2_iget(osb, blkno);
+	inode = ocfs2_iget(osb, blkno, OCFS2_FI_FLAG_SYSFILE);
 	if (IS_ERR(inode)) {
 		mlog_errno(PTR_ERR(inode));
 		inode = NULL;

@@ -58,7 +58,7 @@ static struct dentry *ocfs2_get_dentry(struct super_block *sb, void *vobjp)
 		return ERR_PTR(-ESTALE);
 	}
 
-	inode = ocfs2_iget(OCFS2_SB(sb), handle->ih_blkno);
+	inode = ocfs2_iget(OCFS2_SB(sb), handle->ih_blkno, 0);
 
 	if (IS_ERR(inode)) {
 		mlog_errno(PTR_ERR(inode));
@@ -115,7 +115,7 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 		goto bail_unlock;
 	}
 
-	inode = ocfs2_iget(OCFS2_SB(dir->i_sb), blkno);
+	inode = ocfs2_iget(OCFS2_SB(dir->i_sb), blkno, 0);
 	if (IS_ERR(inode)) {
 		mlog(ML_ERROR, "Unable to create inode %llu\n",
 		     (unsigned long long)blkno);

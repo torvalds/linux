@@ -54,8 +54,6 @@
 
 #include "buffer_head_io.h"
 
-#define OCFS2_FI_FLAG_NOWAIT	0x1
-#define OCFS2_FI_FLAG_DELETE	0x2
 struct ocfs2_find_inode_args
 {
 	u64		fi_blkno;
@@ -109,7 +107,7 @@ struct inode *ocfs2_ilookup_for_vote(struct ocfs2_super *osb,
 	return ilookup5(osb->sb, args.fi_ino, ocfs2_find_actor, &args);
 }
 
-struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno)
+struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, int flags)
 {
 	struct inode *inode = NULL;
 	struct super_block *sb = osb->sb;
@@ -127,7 +125,7 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno)
 	}
 
 	args.fi_blkno = blkno;
-	args.fi_flags = 0;
+	args.fi_flags = flags;
 	args.fi_ino = ino_from_blkno(sb, blkno);
 
 	inode = iget5_locked(sb, args.fi_ino, ocfs2_find_actor,
@@ -297,14 +295,10 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	OCFS2_I(inode)->ip_orphaned_slot = OCFS2_INVALID_SLOT;
 	OCFS2_I(inode)->ip_attr = le32_to_cpu(fe->i_attr);
 
-	if (create_ino)
-		inode->i_ino = ino_from_blkno(inode->i_sb,
-			       le64_to_cpu(fe->i_blkno));
-
-	mlog(0, "blkno = %llu, ino = %lu, create_ino = %s\n",
-	     (unsigned long long)fe->i_blkno, inode->i_ino, create_ino ? "true" : "false");
-
 	inode->i_nlink = le16_to_cpu(fe->i_links_count);
+
+	if (fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL))
+		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_SYSTEM_FILE;
 
 	if (fe->i_flags & cpu_to_le32(OCFS2_LOCAL_ALLOC_FL)) {
 		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_BITMAP;
@@ -343,12 +337,28 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		    break;
 	}
 
+	if (create_ino) {
+		inode->i_ino = ino_from_blkno(inode->i_sb,
+			       le64_to_cpu(fe->i_blkno));
+
+		/*
+		 * If we ever want to create system files from kernel,
+		 * the generation argument to
+		 * ocfs2_inode_lock_res_init() will have to change.
+		 */
+		BUG_ON(fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL));
+
+		ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_meta_lockres,
+					  OCFS2_LOCK_TYPE_META, 0, inode);
+	}
+
 	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_rw_lockres,
-				  OCFS2_LOCK_TYPE_RW, inode);
-	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_meta_lockres,
-				  OCFS2_LOCK_TYPE_META, inode);
+				  OCFS2_LOCK_TYPE_RW, inode->i_generation,
+				  inode);
+
 	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_data_lockres,
-				  OCFS2_LOCK_TYPE_DATA, inode);
+				  OCFS2_LOCK_TYPE_DATA, inode->i_generation,
+				  inode);
 
 	ocfs2_set_inode_flags(inode);
 	inode->i_flags |= S_NOATIME;
@@ -366,15 +376,15 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	struct ocfs2_super *osb;
 	struct ocfs2_dinode *fe;
 	struct buffer_head *bh = NULL;
-	int status;
-	int sysfile = 0;
+	int status, can_lock;
+	u32 generation = 0;
 
 	mlog_entry("(0x%p, 0x%p)\n", inode, args);
 
 	status = -EINVAL;
 	if (inode == NULL || inode->i_sb == NULL) {
 		mlog(ML_ERROR, "bad inode\n");
-		goto bail;
+		return status;
 	}
 	sb = inode->i_sb;
 	osb = OCFS2_SB(sb);
@@ -382,50 +392,110 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	if (!args) {
 		mlog(ML_ERROR, "bad inode args\n");
 		make_bad_inode(inode);
-		goto bail;
+		return status;
 	}
 
-	/* Read the FE off disk. This is safe because the kernel only
-	 * does one read_inode2 for a new inode, and if it doesn't
-	 * exist yet then nobody can be working on it! */
-	status = ocfs2_read_block(osb, args->fi_blkno, &bh, 0, NULL);
+	/*
+	 * To improve performance of cold-cache inode stats, we take
+	 * the cluster lock here if possible.
+	 *
+	 * Generally, OCFS2 never trusts the contents of an inode
+	 * unless it's holding a cluster lock, so taking it here isn't
+	 * a correctness issue as much as it is a performance
+	 * improvement.
+	 *
+	 * There are three times when taking the lock is not a good idea:
+	 *
+	 * 1) During startup, before we have initialized the DLM.
+	 *
+	 * 2) If we are reading certain system files which never get
+	 *    cluster locks (local alloc, truncate log).
+	 *
+	 * 3) If the process doing the iget() is responsible for
+	 *    orphan dir recovery. We're holding the orphan dir lock and
+	 *    can get into a deadlock with another process on another
+	 *    node in ->delete_inode().
+	 *
+	 * #1 and #2 can be simply solved by never taking the lock
+	 * here for system files (which are the only type we read
+	 * during mount). It's a heavier approach, but our main
+	 * concern is user-accesible files anyway.
+	 *
+	 * #3 works itself out because we'll eventually take the
+	 * cluster lock before trusting anything anyway.
+	 */
+	can_lock = !(args->fi_flags & OCFS2_FI_FLAG_SYSFILE)
+		&& !(args->fi_flags & OCFS2_FI_FLAG_NOLOCK);
+
+	/*
+	 * To maintain backwards compatibility with older versions of
+	 * ocfs2-tools, we still store the generation value for system
+	 * files. The only ones that actually matter to userspace are
+	 * the journals, but it's easier and inexpensive to just flag
+	 * all system files similarly.
+	 */
+	if (args->fi_flags & OCFS2_FI_FLAG_SYSFILE)
+		generation = osb->fs_generation;
+
+	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_meta_lockres,
+				  OCFS2_LOCK_TYPE_META,
+				  generation, inode);
+
+	if (can_lock) {
+		status = ocfs2_meta_lock(inode, NULL, NULL, 0);
+		if (status) {
+			make_bad_inode(inode);
+			mlog_errno(status);
+			return status;
+		}
+	}
+
+	status = ocfs2_read_block(osb, args->fi_blkno, &bh, 0,
+				  can_lock ? inode : NULL);
 	if (status < 0) {
 		mlog_errno(status);
-		make_bad_inode(inode);
 		goto bail;
 	}
 
+	status = -EINVAL;
 	fe = (struct ocfs2_dinode *) bh->b_data;
 	if (!OCFS2_IS_VALID_DINODE(fe)) {
 		mlog(ML_ERROR, "Invalid dinode #%llu: signature = %.*s\n",
 		     (unsigned long long)fe->i_blkno, 7, fe->i_signature);
-		make_bad_inode(inode);
 		goto bail;
 	}
 
-	if (fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL))
-		sysfile = 1;
+	/*
+	 * This is a code bug. Right now the caller needs to
+	 * understand whether it is asking for a system file inode or
+	 * not so the proper lock names can be built.
+	 */
+	mlog_bug_on_msg(!!(fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL)) !=
+			!!(args->fi_flags & OCFS2_FI_FLAG_SYSFILE),
+			"Inode %llu: system file state is ambigous\n",
+			(unsigned long long)args->fi_blkno);
 
 	if (S_ISCHR(le16_to_cpu(fe->i_mode)) ||
 	    S_ISBLK(le16_to_cpu(fe->i_mode)))
     		inode->i_rdev = huge_decode_dev(le64_to_cpu(fe->id1.dev1.i_rdev));
 
-	status = -EINVAL;
 	if (ocfs2_populate_inode(inode, fe, 0) < 0) {
 		mlog(ML_ERROR, "populate failed! i_blkno=%llu, i_ino=%lu\n",
 		     (unsigned long long)fe->i_blkno, inode->i_ino);
-		make_bad_inode(inode);
 		goto bail;
 	}
 
 	BUG_ON(args->fi_blkno != le64_to_cpu(fe->i_blkno));
 
-	if (sysfile)
-	       OCFS2_I(inode)->ip_flags |= OCFS2_INODE_SYSTEM_FILE;
-
 	status = 0;
 
 bail:
+	if (can_lock)
+		ocfs2_meta_unlock(inode, 0);
+
+	if (status < 0)
+		make_bad_inode(inode);
+
 	if (args && bh)
 		brelse(bh);
 
@@ -898,9 +968,15 @@ void ocfs2_delete_inode(struct inode *inode)
 		goto bail_unlock_inode;
 	}
 
-	/* Mark the inode as successfully deleted. This is important
-	 * for ocfs2_clear_inode as it will check this flag and skip
-	 * any checkpointing work */
+	/*
+	 * Mark the inode as successfully deleted.
+	 *
+	 * This is important for ocfs2_clear_inode() as it will check
+	 * this flag and skip any checkpointing work
+	 *
+	 * ocfs2_stuff_meta_lvb() also uses this flag to invalidate
+	 * the LVB for other nodes.
+	 */
 	OCFS2_I(inode)->ip_flags |= OCFS2_INODE_DELETED;
 
 bail_unlock_inode:

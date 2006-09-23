@@ -122,7 +122,13 @@ struct buffer_head *ocfs2_bread(struct inode *inode, int block,
 void ocfs2_clear_inode(struct inode *inode);
 void ocfs2_delete_inode(struct inode *inode);
 void ocfs2_drop_inode(struct inode *inode);
-struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff);
+
+/* Flags for ocfs2_iget() */
+#define OCFS2_FI_FLAG_NOWAIT	0x1
+#define OCFS2_FI_FLAG_DELETE	0x2
+#define OCFS2_FI_FLAG_SYSFILE	0x4
+#define OCFS2_FI_FLAG_NOLOCK	0x8
+struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff, int flags);
 struct inode *ocfs2_ilookup_for_vote(struct ocfs2_super *osb,
 				     u64 blkno,
 				     int delete_vote);

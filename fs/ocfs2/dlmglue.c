@@ -320,6 +320,7 @@ void ocfs2_lock_res_init_once(struct ocfs2_lock_res *res)
 
 void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			       enum ocfs2_lock_type type,
+			       unsigned int generation,
 			       struct inode *inode)
 {
 	struct ocfs2_lock_res_ops *ops;
@@ -341,7 +342,7 @@ void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 	};
 
 	ocfs2_build_lock_name(type, OCFS2_I(inode)->ip_blkno,
-			      inode->i_generation, res->l_name);
+			      generation, res->l_name);
 	ocfs2_lock_res_init_common(OCFS2_SB(inode->i_sb), res, type, ops, inode);
 }
 
@@ -1173,17 +1174,19 @@ static void ocfs2_cluster_unlock(struct ocfs2_super *osb,
 
 int ocfs2_create_new_lock(struct ocfs2_super *osb,
 			  struct ocfs2_lock_res *lockres,
-			  int ex)
+			  int ex,
+			  int local)
 {
 	int level =  ex ? LKM_EXMODE : LKM_PRMODE;
 	unsigned long flags;
+	int lkm_flags = local ? LKM_LOCAL : 0;
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
 	BUG_ON(lockres->l_flags & OCFS2_LOCK_ATTACHED);
 	lockres_or_flags(lockres, OCFS2_LOCK_LOCAL);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
-	return ocfs2_lock_create(osb, lockres, level, LKM_LOCAL);
+	return ocfs2_lock_create(osb, lockres, level, lkm_flags);
 }
 
 /* Grants us an EX lock on the data and metadata resources, skipping
@@ -1212,19 +1215,23 @@ int ocfs2_create_new_inode_locks(struct inode *inode)
 	 * on a resource which has an invalid one -- we'll set it
 	 * valid when we release the EX. */
 
-	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_rw_lockres, 1);
+	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_rw_lockres, 1, 1);
 	if (ret) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_meta_lockres, 1);
+	/*
+	 * We don't want to use LKM_LOCAL on a meta data lock as they
+	 * don't use a generation in their lock names.
+	 */
+	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_meta_lockres, 1, 0);
 	if (ret) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_data_lockres, 1);
+	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_data_lockres, 1, 1);
 	if (ret) {
 		mlog_errno(ret);
 		goto bail;
@@ -1413,6 +1420,16 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 
 	lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
 
+	/*
+	 * Invalidate the LVB of a deleted inode - this way other
+	 * nodes are forced to go to disk and discover the new inode
+	 * status.
+	 */
+	if (oi->ip_flags & OCFS2_INODE_DELETED) {
+		lvb->lvb_version = 0;
+		goto out;
+	}
+
 	lvb->lvb_version   = OCFS2_LVB_VERSION;
 	lvb->lvb_isize	   = cpu_to_be64(i_size_read(inode));
 	lvb->lvb_iclusters = cpu_to_be32(oi->ip_clusters);
@@ -1429,6 +1446,7 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 	lvb->lvb_iattr    = cpu_to_be32(oi->ip_attr);
 	lvb->lvb_igeneration = cpu_to_be32(inode->i_generation);
 
+out:
 	mlog_meta_lvb(0, lockres);
 
 	mlog_exit_void();
@@ -1726,6 +1744,18 @@ int ocfs2_meta_lock_full(struct inode *inode,
 	if (!(arg_flags & OCFS2_META_LOCK_RECOVERY))
 		wait_event(osb->recovery_event,
 			   ocfs2_node_map_is_empty(osb, &osb->recovery_map));
+
+	/*
+	 * We only see this flag if we're being called from
+	 * ocfs2_read_locked_inode(). It means we're locking an inode
+	 * which hasn't been populated yet, so clear the refresh flag
+	 * and let the caller handle it.
+	 */
+	if (inode->i_state & I_NEW) {
+		status = 0;
+		ocfs2_complete_lock_res_refresh(lockres, 0);
+		goto bail;
+	}
 
 	/* This is fun. The caller may want a bh back, or it may
 	 * not. ocfs2_meta_lock_update definitely wants one in, but

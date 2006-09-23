@@ -32,9 +32,9 @@
 #define OCFS2_LVB_VERSION 4
 
 struct ocfs2_meta_lvb {
-	__be16       lvb_reserved0;
-	__u8         lvb_reserved1;
 	__u8         lvb_version;
+	__u8         lvb_reserved0;
+	__be16       lvb_reserved1;
 	__be32       lvb_iclusters;
 	__be32       lvb_iuid;
 	__be32       lvb_igid;
@@ -62,13 +62,14 @@ void ocfs2_dlm_shutdown(struct ocfs2_super *osb);
 void ocfs2_lock_res_init_once(struct ocfs2_lock_res *res);
 void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			       enum ocfs2_lock_type type,
+			       unsigned int generation,
 			       struct inode *inode);
 void ocfs2_dentry_lock_res_init(struct ocfs2_dentry_lock *dl,
 				u64 parent, struct inode *inode);
 void ocfs2_lock_res_free(struct ocfs2_lock_res *res);
 int ocfs2_create_new_inode_locks(struct inode *inode);
 int ocfs2_create_new_lock(struct ocfs2_super *osb,
-			  struct ocfs2_lock_res *lockres, int ex);
+			  struct ocfs2_lock_res *lockres, int ex, int local);
 int ocfs2_drop_inode_locks(struct inode *inode);
 int ocfs2_data_lock_full(struct inode *inode,
 			 int write,
