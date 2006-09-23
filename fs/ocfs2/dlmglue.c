@@ -1330,6 +1330,7 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 		cpu_to_be64(ocfs2_pack_timespec(&inode->i_ctime));
 	lvb->lvb_imtime_packed =
 		cpu_to_be64(ocfs2_pack_timespec(&inode->i_mtime));
+	lvb->lvb_iattr    = cpu_to_be32(oi->ip_attr);
 
 	mlog_meta_lvb(0, lockres);
 
@@ -1359,6 +1360,9 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	spin_lock(&oi->ip_lock);
 	oi->ip_clusters = be32_to_cpu(lvb->lvb_iclusters);
 	i_size_write(inode, be64_to_cpu(lvb->lvb_isize));
+
+	oi->ip_attr = be32_to_cpu(lvb->lvb_iattr);
+	ocfs2_set_inode_flags(inode);
 
 	/* fast-symlinks are a special case */
 	if (S_ISLNK(inode->i_mode) && !oi->ip_clusters)
@@ -2899,8 +2903,9 @@ void ocfs2_dump_meta_lvb_info(u64 level,
 	     be32_to_cpu(lvb->lvb_iuid), be32_to_cpu(lvb->lvb_igid),
 	     be16_to_cpu(lvb->lvb_imode));
 	mlog(level, "nlink %u, atime_packed 0x%llx, ctime_packed 0x%llx, "
-	     "mtime_packed 0x%llx\n", be16_to_cpu(lvb->lvb_inlink),
+	     "mtime_packed 0x%llx iattr 0x%x\n", be16_to_cpu(lvb->lvb_inlink),
 	     (long long)be64_to_cpu(lvb->lvb_iatime_packed),
 	     (long long)be64_to_cpu(lvb->lvb_ictime_packed),
-	     (long long)be64_to_cpu(lvb->lvb_imtime_packed));
+	     (long long)be64_to_cpu(lvb->lvb_imtime_packed),
+	     be32_to_cpu(lvb->lvb_iattr));
 }

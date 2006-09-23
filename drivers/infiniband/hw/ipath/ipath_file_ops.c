@@ -39,7 +39,6 @@
 #include <asm/pgtable.h>
 
 #include "ipath_kernel.h"
-#include "ipath_layer.h"
 #include "ipath_common.h"
 
 static int ipath_open(struct inode *, struct file *);
@@ -985,15 +984,17 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	 * write combining behavior we want on the PIO buffers!
 	 */
 
-	if (vma->vm_flags & VM_READ) {
-		dev_info(&dd->pcidev->dev,
-			 "Can't map piobufs as readable (flags=%lx)\n",
-			 vma->vm_flags);
-		ret = -EPERM;
-		goto bail;
-	}
+#if defined(__powerpc__)
+	/* There isn't a generic way to specify writethrough mappings */
+	pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
+	pgprot_val(vma->vm_page_prot) |= _PAGE_WRITETHRU;
+	pgprot_val(vma->vm_page_prot) &= ~_PAGE_GUARDED;
+#endif
 
-	/* don't allow them to later change to readable with mprotect */
+	/*
+	 * don't allow them to later change to readable with mprotect (for when
+	 * not initially mapped readable, as is normally the case)
+	 */
 	vma->vm_flags &= ~VM_MAYREAD;
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
 
@@ -1109,7 +1110,7 @@ static int ipath_mmap(struct file *fp, struct vm_area_struct *vma)
 		ret = mmap_rcvegrbufs(vma, pd);
 	else if (pgaddr == (u64) pd->port_rcvhdrq_phys) {
 		/*
-		 * The rcvhdrq itself; readonly except on HT-400 (so have
+		 * The rcvhdrq itself; readonly except on HT (so have
 		 * to allow writable mapping), multiple pages, contiguous
 		 * from an i/o perspective.
 		 */
@@ -1149,6 +1150,7 @@ static unsigned int ipath_poll(struct file *fp,
 	struct ipath_portdata *pd;
 	u32 head, tail;
 	int bit;
+	unsigned pollflag = 0;
 	struct ipath_devdata *dd;
 
 	pd = port_fp(fp);
@@ -1185,9 +1187,12 @@ static unsigned int ipath_poll(struct file *fp,
 			clear_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag);
 			pd->port_rcvwait_to++;
 		}
+		else
+			pollflag = POLLIN | POLLRDNORM;
 	}
 	else {
 		/* it's already happened; don't do wait_event overhead */
+		pollflag = POLLIN | POLLRDNORM;
 		pd->port_rcvnowait++;
 	}
 
@@ -1195,7 +1200,7 @@ static unsigned int ipath_poll(struct file *fp,
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
 
-	return 0;
+	return pollflag;
 }
 
 static int try_alloc_port(struct ipath_devdata *dd, int port,
@@ -1297,14 +1302,14 @@ static int find_best_unit(struct file *fp)
 	 * This code is present to allow a knowledgeable person to
 	 * specify the layout of processes to processors before opening
 	 * this driver, and then we'll assign the process to the "closest"
-	 * HT-400 to that processor (we assume reasonable connectivity,
+	 * InfiniPath chip to that processor (we assume reasonable connectivity,
 	 * for now).  This code assumes that if affinity has been set
 	 * before this point, that at most one cpu is set; for now this
 	 * is reasonable.  I check for both cpus_empty() and cpus_full(),
 	 * in case some kernel variant sets none of the bits when no
 	 * affinity is set.  2.6.11 and 12 kernels have all present
 	 * cpus set.  Some day we'll have to fix it up further to handle
-	 * a cpu subset.  This algorithm fails for two HT-400's connected
+	 * a cpu subset.  This algorithm fails for two HT chips connected
 	 * in tunnel fashion.  Eventually this needs real topology
 	 * information.  There may be some issues with dual core numbering
 	 * as well.  This needs more work prior to release.
@@ -1815,7 +1820,7 @@ int ipath_user_add(struct ipath_devdata *dd)
 		if (ret < 0) {
 			ipath_dev_err(dd, "Could not create wildcard "
 				      "minor: error %d\n", -ret);
-			goto bail_sma;
+			goto bail_user;
 		}
 
 		atomic_set(&user_setup, 1);
@@ -1831,7 +1836,7 @@ int ipath_user_add(struct ipath_devdata *dd)
 
 	goto bail;
 
-bail_sma:
+bail_user:
 	user_cleanup();
 bail:
 	return ret;

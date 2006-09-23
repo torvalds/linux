@@ -90,7 +90,7 @@ static enum ib_rate tavor_rate_to_ib(u8 mthca_rate, u8 port_rate)
 	case MTHCA_RATE_TAVOR_1X:     return IB_RATE_2_5_GBPS;
 	case MTHCA_RATE_TAVOR_1X_DDR: return IB_RATE_5_GBPS;
 	case MTHCA_RATE_TAVOR_4X:     return IB_RATE_10_GBPS;
-	default:		      return port_rate;
+	default:		      return mult_to_ib_rate(port_rate);
 	}
 }
 

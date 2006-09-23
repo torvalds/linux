@@ -358,7 +358,7 @@ void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq)
 }
 
 int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
-		     enum ib_srq_attr_mask attr_mask)
+		     enum ib_srq_attr_mask attr_mask, struct ib_udata *udata)
 {
 	struct mthca_dev *dev = to_mdev(ibsrq->device);
 	struct mthca_srq *srq = to_msrq(ibsrq);

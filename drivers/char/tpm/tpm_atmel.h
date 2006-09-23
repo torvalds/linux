@@ -37,7 +37,7 @@ static void __iomem * atmel_get_base_addr(unsigned long *base, int *region_size)
 {
 	struct device_node *dn;
 	unsigned long address, size;
-	unsigned int *reg;
+	const unsigned int *reg;
 	int reglen;
 	int naddrc;
 	int nsizec;
@@ -52,7 +52,7 @@ static void __iomem * atmel_get_base_addr(unsigned long *base, int *region_size)
 		return NULL;
 	}
 
-	reg = (unsigned int *) get_property(dn, "reg", &reglen);
+	reg = get_property(dn, "reg", &reglen);
 	naddrc = prom_n_addr_cells(dn);
 	nsizec = prom_n_size_cells(dn);
 

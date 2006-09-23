@@ -35,7 +35,6 @@
 #include <linux/pci.h>
 
 #include "ipath_kernel.h"
-#include "ipath_layer.h"
 #include "ipath_common.h"
 
 /**
@@ -76,7 +75,7 @@ bail:
 static ssize_t show_version(struct device_driver *dev, char *buf)
 {
 	/* The string printed here is already newline-terminated. */
-	return scnprintf(buf, PAGE_SIZE, "%s", ipath_core_version);
+	return scnprintf(buf, PAGE_SIZE, "%s", ib_ipath_version);
 }
 
 static ssize_t show_num_units(struct device_driver *dev, char *buf)
@@ -108,8 +107,8 @@ static const char *ipath_status_str[] = {
 	"Initted",
 	"Disabled",
 	"Admin_Disabled",
-	"OIB_SMA",
-	"SMA",
+	"", /* This used to be the old "OIB_SMA" status. */
+	"", /* This used to be the old "SMA" status. */
 	"Present",
 	"IB_link_up",
 	"IB_configured",
@@ -227,7 +226,6 @@ static ssize_t store_mlid(struct device *dev,
 	unit = dd->ipath_unit;
 
 	dd->ipath_mlid = mlid;
-	ipath_layer_intr(dd, IPATH_LAYER_INT_BCAST);
 
 	goto bail;
 invalid:
@@ -467,7 +465,7 @@ static ssize_t store_link_state(struct device *dev,
 	if (ret < 0)
 		goto invalid;
 
-	r = ipath_layer_set_linkstate(dd, state);
+	r = ipath_set_linkstate(dd, state);
 	if (r < 0) {
 		ret = r;
 		goto bail;
@@ -502,7 +500,7 @@ static ssize_t store_mtu(struct device *dev,
 	if (ret < 0)
 		goto invalid;
 
-	r = ipath_layer_set_mtu(dd, mtu);
+	r = ipath_set_mtu(dd, mtu);
 	if (r < 0)
 		ret = r;
 
@@ -563,6 +561,33 @@ bail:
 	return ret;
 }
 
+static ssize_t store_rx_pol_inv(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf,
+			  size_t count)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+	int ret, r;
+	u16 val;
+
+	ret = ipath_parse_ushort(buf, &val);
+	if (ret < 0)
+		goto invalid;
+
+	r = ipath_set_rx_pol_inv(dd, val);
+	if (r < 0) {
+		ret = r;
+		goto bail;
+	}
+
+	goto bail;
+invalid:
+	ipath_dev_err(dd, "attempt to set invalid Rx Polarity invert\n");
+bail:
+	return ret;
+}
+
+
 static DRIVER_ATTR(num_units, S_IRUGO, show_num_units, NULL);
 static DRIVER_ATTR(version, S_IRUGO, show_version, NULL);
 
@@ -589,6 +614,7 @@ static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
 static DEVICE_ATTR(status_str, S_IRUGO, show_status_str, NULL);
 static DEVICE_ATTR(boardversion, S_IRUGO, show_boardversion, NULL);
 static DEVICE_ATTR(unit, S_IRUGO, show_unit, NULL);
+static DEVICE_ATTR(rx_pol_inv, S_IWUSR, NULL, store_rx_pol_inv);
 
 static struct attribute *dev_attributes[] = {
 	&dev_attr_guid.attr,
@@ -603,6 +629,7 @@ static struct attribute *dev_attributes[] = {
 	&dev_attr_boardversion.attr,
 	&dev_attr_unit.attr,
 	&dev_attr_enabled.attr,
+	&dev_attr_rx_pol_inv.attr,
 	NULL
 };
 

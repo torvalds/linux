@@ -271,33 +271,6 @@ void ipath_get_faststats(unsigned long opaque)
 		}
 	}
 
-	if (dd->ipath_nosma_bufs) {
-		dd->ipath_nosma_secs += 5;
-		if (dd->ipath_nosma_secs >= 30) {
-			ipath_cdbg(SMA, "No SMA bufs avail %u seconds; "
-				   "cancelling pending sends\n",
-				   dd->ipath_nosma_secs);
-			/*
-			 * issue an abort as well, in case we have a packet
-			 * stuck in launch fifo.  This could corrupt an
-			 * outgoing user packet in the worst case,
-			 * but this is a pretty catastrophic, anyway.
-			 */
-			ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-					 INFINIPATH_S_ABORT);
-			ipath_disarm_piobufs(dd, dd->ipath_lastport_piobuf,
-					     dd->ipath_piobcnt2k +
-					     dd->ipath_piobcnt4k -
-					     dd->ipath_lastport_piobuf);
-			/* start again, if necessary */
-			dd->ipath_nosma_secs = 0;
-		} else
-			ipath_cdbg(SMA, "No SMA bufs avail %u tries, "
-				   "after %u seconds\n",
-				   dd->ipath_nosma_bufs,
-				   dd->ipath_nosma_secs);
-	}
-
 done:
 	mod_timer(&dd->ipath_stats_timer, jiffies + HZ * 5);
 }

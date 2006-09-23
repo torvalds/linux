@@ -32,7 +32,7 @@
 
 struct ipcomp_tfms {
 	struct list_head list;
-	struct crypto_tfm **tfms;
+	struct crypto_comp **tfms;
 	int users;
 };
 
@@ -46,7 +46,7 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 	int err, plen, dlen;
 	struct ipcomp_data *ipcd = x->data;
 	u8 *start, *scratch;
-	struct crypto_tfm *tfm;
+	struct crypto_comp *tfm;
 	int cpu;
 	
 	plen = skb->len;
@@ -107,7 +107,7 @@ static int ipcomp_compress(struct xfrm_state *x, struct sk_buff *skb)
 	struct iphdr *iph = skb->nh.iph;
 	struct ipcomp_data *ipcd = x->data;
 	u8 *start, *scratch;
-	struct crypto_tfm *tfm;
+	struct crypto_comp *tfm;
 	int cpu;
 	
 	ihlen = iph->ihl * 4;
@@ -302,7 +302,7 @@ static void **ipcomp_alloc_scratches(void)
 	return scratches;
 }
 
-static void ipcomp_free_tfms(struct crypto_tfm **tfms)
+static void ipcomp_free_tfms(struct crypto_comp **tfms)
 {
 	struct ipcomp_tfms *pos;
 	int cpu;
@@ -324,28 +324,28 @@ static void ipcomp_free_tfms(struct crypto_tfm **tfms)
 		return;
 
 	for_each_possible_cpu(cpu) {
-		struct crypto_tfm *tfm = *per_cpu_ptr(tfms, cpu);
-		crypto_free_tfm(tfm);
+		struct crypto_comp *tfm = *per_cpu_ptr(tfms, cpu);
+		crypto_free_comp(tfm);
 	}
 	free_percpu(tfms);
 }
 
-static struct crypto_tfm **ipcomp_alloc_tfms(const char *alg_name)
+static struct crypto_comp **ipcomp_alloc_tfms(const char *alg_name)
 {
 	struct ipcomp_tfms *pos;
-	struct crypto_tfm **tfms;
+	struct crypto_comp **tfms;
 	int cpu;
 
 	/* This can be any valid CPU ID so we don't need locking. */
 	cpu = raw_smp_processor_id();
 
 	list_for_each_entry(pos, &ipcomp_tfms_list, list) {
-		struct crypto_tfm *tfm;
+		struct crypto_comp *tfm;
 
 		tfms = pos->tfms;
 		tfm = *per_cpu_ptr(tfms, cpu);
 
-		if (!strcmp(crypto_tfm_alg_name(tfm), alg_name)) {
+		if (!strcmp(crypto_comp_name(tfm), alg_name)) {
 			pos->users++;
 			return tfms;
 		}
@@ -359,12 +359,13 @@ static struct crypto_tfm **ipcomp_alloc_tfms(const char *alg_name)
 	INIT_LIST_HEAD(&pos->list);
 	list_add(&pos->list, &ipcomp_tfms_list);
 
-	pos->tfms = tfms = alloc_percpu(struct crypto_tfm *);
+	pos->tfms = tfms = alloc_percpu(struct crypto_comp *);
 	if (!tfms)
 		goto error;
 
 	for_each_possible_cpu(cpu) {
-		struct crypto_tfm *tfm = crypto_alloc_tfm(alg_name, 0);
+		struct crypto_comp *tfm = crypto_alloc_comp(alg_name, 0,
+							    CRYPTO_ALG_ASYNC);
 		if (!tfm)
 			goto error;
 		*per_cpu_ptr(tfms, cpu) = tfm;

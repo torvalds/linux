@@ -46,16 +46,10 @@ struct xtea_ctx {
 };
 
 static int tea_setkey(struct crypto_tfm *tfm, const u8 *in_key,
-		      unsigned int key_len, u32 *flags)
+		      unsigned int key_len)
 {
 	struct tea_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *key = (const __le32 *)in_key;
-	
-	if (key_len != 16)
-	{
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
 
 	ctx->KEY[0] = le32_to_cpu(key[0]);
 	ctx->KEY[1] = le32_to_cpu(key[1]);
@@ -125,16 +119,10 @@ static void tea_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 }
 
 static int xtea_setkey(struct crypto_tfm *tfm, const u8 *in_key,
-		       unsigned int key_len, u32 *flags)
+		       unsigned int key_len)
 {
 	struct xtea_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *key = (const __le32 *)in_key;
-	
-	if (key_len != 16)
-	{
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
 
 	ctx->KEY[0] = le32_to_cpu(key[0]);
 	ctx->KEY[1] = le32_to_cpu(key[1]);

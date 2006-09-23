@@ -95,7 +95,7 @@ void mpc7448_hpc2_fixup_irq(struct pci_dev *dev)
 {
 	struct pci_controller *hose;
 	struct device_node *node;
-	unsigned int *interrupt;
+	const unsigned int *interrupt;
 	int busnr;
 	int len;
 	u8 slot;
@@ -112,7 +112,7 @@ void mpc7448_hpc2_fixup_irq(struct pci_dev *dev)
 	if (!node)
 		printk(KERN_ERR "No pci node found\n");
 
-	interrupt = (unsigned int *) get_property(node, "interrupt-map", &len);
+	interrupt = get_property(node, "interrupt-map", &len);
 	slot = find_slot_by_devfn(interrupt, dev->devfn);
 	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
 	if (pin == 0 || pin > 4)
@@ -141,9 +141,9 @@ static void __init mpc7448_hpc2_setup_arch(void)
 
 	cpu = of_find_node_by_type(NULL, "cpu");
 	if (cpu != 0) {
-		unsigned int *fp;
+		const unsigned int *fp;
 
-		fp = (int *)get_property(cpu, "clock-frequency", NULL);
+		fp = get_property(cpu, "clock-frequency", NULL);
 		if (fp != 0)
 			loops_per_jiffy = *fp / HZ;
 		else

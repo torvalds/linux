@@ -52,6 +52,7 @@
 #include <linux/radix-tree.h>
 #include <linux/mutex.h>
 #include <linux/bootmem.h>
+#include <linux/pci.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -875,12 +876,14 @@ int pci_enable_msi(struct pci_dev * pdev)
 	else
 		return -1;
 }
+EXPORT_SYMBOL(pci_enable_msi);
 
 void pci_disable_msi(struct pci_dev * pdev)
 {
 	if (ppc_md.disable_msi)
 		ppc_md.disable_msi(pdev);
 }
+EXPORT_SYMBOL(pci_disable_msi);
 
 void pci_scan_msi_device(struct pci_dev *dev) {}
 int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec) {return -1;}
@@ -888,6 +891,8 @@ void pci_disable_msix(struct pci_dev *dev) {}
 void msi_remove_pci_irq_vectors(struct pci_dev *dev) {}
 void disable_msi_mode(struct pci_dev *dev, int pos, int type) {}
 void pci_no_msi(void) {}
+EXPORT_SYMBOL(pci_enable_msix);
+EXPORT_SYMBOL(pci_disable_msix);
 
 #endif
 

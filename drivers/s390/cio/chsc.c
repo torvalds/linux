@@ -256,7 +256,7 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 	/* trigger path verification. */
 	if (sch->driver && sch->driver->verify)
 		sch->driver->verify(&sch->dev);
-	else if (sch->vpm == mask)
+	else if (sch->lpm == mask)
 		goto out_unreg;
 out_unlock:
 	spin_unlock_irq(&sch->lock);
@@ -378,6 +378,7 @@ __s390_process_res_acc(struct subchannel_id schid, void *data)
 
 	if (chp_mask == 0) {
 		spin_unlock_irq(&sch->lock);
+		put_device(&sch->dev);
 		return 0;
 	}
 	old_lpm = sch->lpm;
@@ -392,7 +393,7 @@ __s390_process_res_acc(struct subchannel_id schid, void *data)
 
 	spin_unlock_irq(&sch->lock);
 	put_device(&sch->dev);
-	return (res_data->fla_mask == 0xffff) ? -ENODEV : 0;
+	return 0;
 }
 
 

@@ -382,14 +382,15 @@ static inline void W(u32 *key, unsigned int i) {
 }
 
 static int cast6_setkey(struct crypto_tfm *tfm, const u8 *in_key,
-			unsigned key_len, u32 *flags)
+			unsigned key_len)
 {
 	int i;
 	u32 key[8];
 	__be32 p_key[8]; /* padded key */
 	struct cast6_ctx *c = crypto_tfm_ctx(tfm);
+	u32 *flags = &tfm->crt_flags;
 
-	if (key_len < 16 || key_len > 32 || key_len % 4 != 0) {
+	if (key_len % 4 != 0) {
 		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	}	

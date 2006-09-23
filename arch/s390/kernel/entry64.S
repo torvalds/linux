@@ -518,6 +518,8 @@ pgm_no_vtime2:
 #endif
 	lg	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	lg	%r1,__TI_task(%r9)
+	tm	SP_PSW+1(%r15),0x01	# kernel per event ?
+	jz	kernel_per
 	mvc	__THREAD_per+__PER_atmid(2,%r1),__LC_PER_ATMID
 	mvc	__THREAD_per+__PER_address(8,%r1),__LC_PER_ADDRESS
 	mvc	__THREAD_per+__PER_access_id(1,%r1),__LC_PER_ACCESS_ID
@@ -552,6 +554,16 @@ pgm_no_vtime3:
 	TRACE_IRQS_ON
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	j	sysc_do_svc
+
+#
+# per was called from kernel, must be kprobes
+#
+kernel_per:
+	lhi	%r0,__LC_PGM_OLD_PSW
+	sth	%r0,SP_TRAP(%r15)	# set trap indication to pgm check
+	la	%r2,SP_PTREGS(%r15)	# address of register-save area
+	larl	%r14,sysc_leave		# load adr. of system ret, no work
+	jg	do_single_step		# branch to do_single_step
 
 /*
  * IO interrupt handler routine
@@ -815,7 +827,7 @@ restart_go:
  */
 stack_overflow:
 	lg	%r15,__LC_PANIC_STACK	# change to panic stack
-	aghi	%r1,-SP_SIZE
+	aghi	%r15,-SP_SIZE
 	mvc	SP_PSW(16,%r15),0(%r12)	# move user PSW to stack
 	stmg	%r0,%r11,SP_R0(%r15)	# store gprs %r0-%r11 to kernel stack
 	la	%r1,__LC_SAVE_AREA
@@ -823,7 +835,7 @@ stack_overflow:
 	je	0f
 	chi	%r12,__LC_PGM_OLD_PSW
 	je	0f
-	la	%r1,__LC_SAVE_AREA+16
+	la	%r1,__LC_SAVE_AREA+32
 0:	mvc	SP_R12(32,%r15),0(%r1)  # move %r12-%r15 to stack
         xc      __SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15) # clear back chain
         la      %r2,SP_PTREGS(%r15)	# load pt_regs

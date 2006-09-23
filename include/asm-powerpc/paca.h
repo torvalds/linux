@@ -23,6 +23,7 @@
 register struct paca_struct *local_paca asm("r13");
 #define get_paca()	local_paca
 #define get_lppaca()	(get_paca()->lppaca_ptr)
+#define get_slb_shadow()	(get_paca()->slb_shadow_ptr)
 
 struct task_struct;
 
@@ -99,6 +100,8 @@ struct paca_struct {
 	u64 user_time;			/* accumulated usermode TB ticks */
 	u64 system_time;		/* accumulated system TB ticks */
 	u64 startpurr;			/* PURR/TB value snapshot */
+
+	struct slb_shadow *slb_shadow_ptr;
 };
 
 extern struct paca_struct paca[];

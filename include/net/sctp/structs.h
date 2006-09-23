@@ -87,6 +87,7 @@ struct sctp_bind_addr;
 struct sctp_ulpq;
 struct sctp_ep_common;
 struct sctp_ssnmap;
+struct crypto_hash;
 
 
 #include <net/sctp/tsnmap.h>
@@ -264,7 +265,7 @@ struct sctp_sock {
 	struct sctp_pf *pf;
 
 	/* Access to HMAC transform. */
-	struct crypto_tfm *hmac;
+	struct crypto_hash *hmac;
 
 	/* What is our base endpointer? */
 	struct sctp_endpoint *ep;

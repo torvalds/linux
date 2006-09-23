@@ -81,9 +81,17 @@ config SMDK2440_CPU2442
 	depends on ARCH_S3C2440
 	select CPU_S3C2442
 
+config MACH_S3C2413
+	bool
+	help
+	  Internal node for S3C2413 verison of SMDK2413, so that
+	  machine_is_s3c2413() will work when MACH_SMDK2413 is
+	  selected
+
 config MACH_SMDK2413
 	bool "SMDK2413"
 	select CPU_S3C2412
+	select MACH_S3C2413
 	select MACH_SMDK
 	help
 	  Say Y here if you are using an SMDK2413

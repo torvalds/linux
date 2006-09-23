@@ -26,6 +26,7 @@
  *	Zhenyu Wang
  */
 
+#include <linux/err.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/inet.h>
@@ -107,8 +108,11 @@ iscsi_hdr_digest(struct iscsi_conn *conn, struct iscsi_buf *buf,
 		 u8* crc)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
+	struct hash_desc desc;
 
-	crypto_digest_digest(tcp_conn->tx_tfm, &buf->sg, 1, crc);
+	desc.tfm = tcp_conn->tx_tfm;
+	desc.flags = 0;
+	crypto_hash_digest(&desc, &buf->sg, buf->sg.length, crc);
 	buf->sg.length += sizeof(uint32_t);
 }
 
@@ -452,11 +456,14 @@ iscsi_tcp_hdr_recv(struct iscsi_conn *conn)
 	}
 
 	if (conn->hdrdgst_en) {
+		struct hash_desc desc;
 		struct scatterlist sg;
 
 		sg_init_one(&sg, (u8 *)hdr,
 			    sizeof(struct iscsi_hdr) + ahslen);
-		crypto_digest_digest(tcp_conn->rx_tfm, &sg, 1, (u8 *)&cdgst);
+		desc.tfm = tcp_conn->rx_tfm;
+		desc.flags = 0;
+		crypto_hash_digest(&desc, &sg, sg.length, (u8 *)&cdgst);
 		rdgst = *(uint32_t*)((char*)hdr + sizeof(struct iscsi_hdr) +
 				     ahslen);
 		if (cdgst != rdgst) {
@@ -673,7 +680,7 @@ partial_sg_digest_update(struct iscsi_tcp_conn *tcp_conn,
 	memcpy(&temp, sg, sizeof(struct scatterlist));
 	temp.offset = offset;
 	temp.length = length;
-	crypto_digest_update(tcp_conn->data_rx_tfm, &temp, 1);
+	crypto_hash_update(&tcp_conn->data_rx_hash, &temp, length);
 }
 
 static void
@@ -682,7 +689,7 @@ iscsi_recv_digest_update(struct iscsi_tcp_conn *tcp_conn, char* buf, int len)
 	struct scatterlist tmp;
 
 	sg_init_one(&tmp, buf, len);
-	crypto_digest_update(tcp_conn->data_rx_tfm, &tmp, 1);
+	crypto_hash_update(&tcp_conn->data_rx_hash, &tmp, len);
 }
 
 static int iscsi_scsi_data_in(struct iscsi_conn *conn)
@@ -736,9 +743,9 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 		if (!rc) {
 			if (conn->datadgst_en) {
 				if (!offset)
-					crypto_digest_update(
-							tcp_conn->data_rx_tfm,
-							&sg[i], 1);
+					crypto_hash_update(
+							&tcp_conn->data_rx_hash,
+							&sg[i], sg[i].length);
 				else
 					partial_sg_digest_update(tcp_conn,
 							&sg[i],
@@ -877,8 +884,7 @@ more:
 		rc = iscsi_tcp_hdr_recv(conn);
 		if (!rc && tcp_conn->in.datalen) {
 			if (conn->datadgst_en) {
-				BUG_ON(!tcp_conn->data_rx_tfm);
-				crypto_digest_init(tcp_conn->data_rx_tfm);
+				crypto_hash_init(&tcp_conn->data_rx_hash);
 			}
 			tcp_conn->in_progress = IN_PROGRESS_DATA_RECV;
 		} else if (rc) {
@@ -931,11 +937,11 @@ more:
 					  tcp_conn->in.padding);
 				memset(pad, 0, tcp_conn->in.padding);
 				sg_init_one(&sg, pad, tcp_conn->in.padding);
-				crypto_digest_update(tcp_conn->data_rx_tfm,
-						     &sg, 1);
+				crypto_hash_update(&tcp_conn->data_rx_hash,
+						   &sg, sg.length);
 			}
-			crypto_digest_final(tcp_conn->data_rx_tfm,
-					    (u8 *) & tcp_conn->in.datadgst);
+			crypto_hash_final(&tcp_conn->data_rx_hash,
+					  (u8 *)&tcp_conn->in.datadgst);
 			debug_tcp("rx digest 0x%x\n", tcp_conn->in.datadgst);
 			tcp_conn->in_progress = IN_PROGRESS_DDIGEST_RECV;
 		} else
@@ -1181,8 +1187,7 @@ iscsi_data_digest_init(struct iscsi_tcp_conn *tcp_conn,
 {
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 
-	BUG_ON(!tcp_conn->data_tx_tfm);
-	crypto_digest_init(tcp_conn->data_tx_tfm);
+	crypto_hash_init(&tcp_conn->data_tx_hash);
 	tcp_ctask->digest_count = 4;
 }
 
@@ -1196,7 +1201,7 @@ iscsi_digest_final_send(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	int sent = 0;
 
 	if (final)
-		crypto_digest_final(tcp_conn->data_tx_tfm, (u8*)digest);
+		crypto_hash_final(&tcp_conn->data_tx_hash, (u8 *)digest);
 
 	iscsi_buf_init_iov(buf, (char*)digest, 4);
 	rc = iscsi_sendpage(conn, buf, &tcp_ctask->digest_count, &sent);
@@ -1491,16 +1496,17 @@ handle_xmstate_imm_data(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		if (rc) {
 			tcp_ctask->xmstate |= XMSTATE_IMM_DATA;
 			if (conn->datadgst_en) {
-				crypto_digest_final(tcp_conn->data_tx_tfm,
-						(u8*)&tcp_ctask->immdigest);
+				crypto_hash_final(&tcp_conn->data_tx_hash,
+						  (u8 *)&tcp_ctask->immdigest);
 				debug_tcp("tx imm sendpage fail 0x%x\n",
 					  tcp_ctask->datadigest);
 			}
 			return rc;
 		}
 		if (conn->datadgst_en)
-			crypto_digest_update(tcp_conn->data_tx_tfm,
-					     &tcp_ctask->sendbuf.sg, 1);
+			crypto_hash_update(&tcp_conn->data_tx_hash,
+					   &tcp_ctask->sendbuf.sg,
+					   tcp_ctask->sendbuf.sg.length);
 
 		if (!ctask->imm_count)
 			break;
@@ -1577,8 +1583,8 @@ handle_xmstate_uns_data(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 			tcp_ctask->xmstate |= XMSTATE_UNS_DATA;
 			/* will continue with this ctask later.. */
 			if (conn->datadgst_en) {
-				crypto_digest_final(tcp_conn->data_tx_tfm,
-						(u8 *)&dtask->digest);
+				crypto_hash_final(&tcp_conn->data_tx_hash,
+						  (u8 *)&dtask->digest);
 				debug_tcp("tx uns data fail 0x%x\n",
 					  dtask->digest);
 			}
@@ -1593,8 +1599,9 @@ handle_xmstate_uns_data(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		 * so pass it
 		 */
 		if (conn->datadgst_en && tcp_ctask->sent - start > 0)
-			crypto_digest_update(tcp_conn->data_tx_tfm,
-					     &tcp_ctask->sendbuf.sg, 1);
+			crypto_hash_update(&tcp_conn->data_tx_hash,
+					   &tcp_ctask->sendbuf.sg,
+					   tcp_ctask->sendbuf.sg.length);
 
 		if (!ctask->data_count)
 			break;
@@ -1668,7 +1675,7 @@ solicit_again:
 		tcp_ctask->xmstate |= XMSTATE_SOL_DATA;
 		/* will continue with this ctask later.. */
 		if (conn->datadgst_en) {
-			crypto_digest_final(tcp_conn->data_tx_tfm,
+			crypto_hash_final(&tcp_conn->data_tx_hash,
 					  (u8 *)&dtask->digest);
 			debug_tcp("r2t data send fail 0x%x\n", dtask->digest);
 		}
@@ -1677,8 +1684,8 @@ solicit_again:
 
 	BUG_ON(r2t->data_count < 0);
 	if (conn->datadgst_en)
-		crypto_digest_update(tcp_conn->data_tx_tfm, &r2t->sendbuf.sg,
-				     1);
+		crypto_hash_update(&tcp_conn->data_tx_hash, &r2t->sendbuf.sg,
+				   r2t->sendbuf.sg.length);
 
 	if (r2t->data_count) {
 		BUG_ON(ctask->sc->use_sg == 0);
@@ -1766,8 +1773,9 @@ handle_xmstate_w_pad(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	}
 
 	if (conn->datadgst_en) {
-		crypto_digest_update(tcp_conn->data_tx_tfm,
-				     &tcp_ctask->sendbuf.sg, 1);
+		crypto_hash_update(&tcp_conn->data_tx_hash,
+				   &tcp_ctask->sendbuf.sg,
+				   tcp_ctask->sendbuf.sg.length);
 		/* imm data? */
 		if (!dtask) {
 			rc = iscsi_digest_final_send(conn, ctask,
@@ -1963,13 +1971,13 @@ iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
 	/* now free tcp_conn */
 	if (digest) {
 		if (tcp_conn->tx_tfm)
-			crypto_free_tfm(tcp_conn->tx_tfm);
+			crypto_free_hash(tcp_conn->tx_tfm);
 		if (tcp_conn->rx_tfm)
-			crypto_free_tfm(tcp_conn->rx_tfm);
-		if (tcp_conn->data_tx_tfm)
-			crypto_free_tfm(tcp_conn->data_tx_tfm);
-		if (tcp_conn->data_rx_tfm)
-			crypto_free_tfm(tcp_conn->data_rx_tfm);
+			crypto_free_hash(tcp_conn->rx_tfm);
+		if (tcp_conn->data_tx_hash.tfm)
+			crypto_free_hash(tcp_conn->data_tx_hash.tfm);
+		if (tcp_conn->data_rx_hash.tfm)
+			crypto_free_hash(tcp_conn->data_rx_hash.tfm);
 	}
 
 	kfree(tcp_conn);
@@ -2130,44 +2138,48 @@ iscsi_conn_set_param(struct iscsi_cls_conn *cls_conn, enum iscsi_param param,
 		if (conn->hdrdgst_en) {
 			tcp_conn->hdr_size += sizeof(__u32);
 			if (!tcp_conn->tx_tfm)
-				tcp_conn->tx_tfm = crypto_alloc_tfm("crc32c",
-								    0);
-			if (!tcp_conn->tx_tfm)
-				return -ENOMEM;
+				tcp_conn->tx_tfm =
+					crypto_alloc_hash("crc32c", 0,
+							  CRYPTO_ALG_ASYNC);
+			if (IS_ERR(tcp_conn->tx_tfm))
+				return PTR_ERR(tcp_conn->tx_tfm);
 			if (!tcp_conn->rx_tfm)
-				tcp_conn->rx_tfm = crypto_alloc_tfm("crc32c",
-								    0);
-			if (!tcp_conn->rx_tfm) {
-				crypto_free_tfm(tcp_conn->tx_tfm);
-				return -ENOMEM;
+				tcp_conn->rx_tfm =
+					crypto_alloc_hash("crc32c", 0,
+							  CRYPTO_ALG_ASYNC);
+			if (IS_ERR(tcp_conn->rx_tfm)) {
+				crypto_free_hash(tcp_conn->tx_tfm);
+				return PTR_ERR(tcp_conn->rx_tfm);
 			}
 		} else {
 			if (tcp_conn->tx_tfm)
-				crypto_free_tfm(tcp_conn->tx_tfm);
+				crypto_free_hash(tcp_conn->tx_tfm);
 			if (tcp_conn->rx_tfm)
-				crypto_free_tfm(tcp_conn->rx_tfm);
+				crypto_free_hash(tcp_conn->rx_tfm);
 		}
 		break;
 	case ISCSI_PARAM_DATADGST_EN:
 		iscsi_set_param(cls_conn, param, buf, buflen);
 		if (conn->datadgst_en) {
-			if (!tcp_conn->data_tx_tfm)
-				tcp_conn->data_tx_tfm =
-				    crypto_alloc_tfm("crc32c", 0);
-			if (!tcp_conn->data_tx_tfm)
-				return -ENOMEM;
-			if (!tcp_conn->data_rx_tfm)
-				tcp_conn->data_rx_tfm =
-				    crypto_alloc_tfm("crc32c", 0);
-			if (!tcp_conn->data_rx_tfm) {
-				crypto_free_tfm(tcp_conn->data_tx_tfm);
-				return -ENOMEM;
+			if (!tcp_conn->data_tx_hash.tfm)
+				tcp_conn->data_tx_hash.tfm =
+				    crypto_alloc_hash("crc32c", 0,
+						      CRYPTO_ALG_ASYNC);
+			if (IS_ERR(tcp_conn->data_tx_hash.tfm))
+				return PTR_ERR(tcp_conn->data_tx_hash.tfm);
+			if (!tcp_conn->data_rx_hash.tfm)
+				tcp_conn->data_rx_hash.tfm =
+				    crypto_alloc_hash("crc32c", 0,
+						      CRYPTO_ALG_ASYNC);
+			if (IS_ERR(tcp_conn->data_rx_hash.tfm)) {
+				crypto_free_hash(tcp_conn->data_tx_hash.tfm);
+				return PTR_ERR(tcp_conn->data_rx_hash.tfm);
 			}
 		} else {
-			if (tcp_conn->data_tx_tfm)
-				crypto_free_tfm(tcp_conn->data_tx_tfm);
-			if (tcp_conn->data_rx_tfm)
-				crypto_free_tfm(tcp_conn->data_rx_tfm);
+			if (tcp_conn->data_tx_hash.tfm)
+				crypto_free_hash(tcp_conn->data_tx_hash.tfm);
+			if (tcp_conn->data_rx_hash.tfm)
+				crypto_free_hash(tcp_conn->data_rx_hash.tfm);
 		}
 		tcp_conn->sendpage = conn->datadgst_en ?
 			sock_no_sendpage : tcp_conn->sock->ops->sendpage;

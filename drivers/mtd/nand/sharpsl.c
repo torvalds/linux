@@ -78,7 +78,7 @@ static struct mtd_partition sharpsl_nand_default_partition_info[] = {
 /*
  *	hardware specific access to control-lines
  *	ctrl:
- *	NAND_CNE: bit 0 -> bit 0 & 4
+ *	NAND_CNE: bit 0 -> ! bit 0 & 4
  *	NAND_CLE: bit 1 -> bit 1
  *	NAND_ALE: bit 2 -> bit 2
  *
@@ -92,7 +92,10 @@ static void sharpsl_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 		unsigned char bits = ctrl & 0x07;
 
 		bits |= (ctrl & 0x01) << 4;
-		writeb((readb(FLASHCTL) & 0x17) | bits, FLASHCTL);
+
+		bits ^= 0x11;
+
+		writeb((readb(FLASHCTL) & ~0x17) | bits, FLASHCTL);
 	}
 
 	if (cmd != NAND_CMD_NONE)

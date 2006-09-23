@@ -43,6 +43,7 @@
  *                    deprecated in 2.6
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
@@ -64,12 +65,13 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("ppp-compress-" __stringify(CI_MPPE));
 MODULE_VERSION("1.0.2");
 
-static void
+static unsigned int
 setup_sg(struct scatterlist *sg, const void *address, unsigned int length)
 {
 	sg[0].page = virt_to_page(address);
 	sg[0].offset = offset_in_page(address);
 	sg[0].length = length;
+	return length;
 }
 
 #define SHA1_PAD_SIZE 40
@@ -95,8 +97,8 @@ static inline void sha_pad_init(struct sha_pad *shapad)
  * State for an MPPE (de)compressor.
  */
 struct ppp_mppe_state {
-	struct crypto_tfm *arc4;
-	struct crypto_tfm *sha1;
+	struct crypto_blkcipher *arc4;
+	struct crypto_hash *sha1;
 	unsigned char *sha1_digest;
 	unsigned char master_key[MPPE_MAX_KEY_LEN];
 	unsigned char session_key[MPPE_MAX_KEY_LEN];
@@ -136,14 +138,21 @@ struct ppp_mppe_state {
  */
 static void get_new_key_from_sha(struct ppp_mppe_state * state, unsigned char *InterimKey)
 {
+	struct hash_desc desc;
 	struct scatterlist sg[4];
+	unsigned int nbytes;
 
-	setup_sg(&sg[0], state->master_key, state->keylen);
-	setup_sg(&sg[1], sha_pad->sha_pad1, sizeof(sha_pad->sha_pad1));
-	setup_sg(&sg[2], state->session_key, state->keylen);
-	setup_sg(&sg[3], sha_pad->sha_pad2, sizeof(sha_pad->sha_pad2));
+	nbytes = setup_sg(&sg[0], state->master_key, state->keylen);
+	nbytes += setup_sg(&sg[1], sha_pad->sha_pad1,
+			   sizeof(sha_pad->sha_pad1));
+	nbytes += setup_sg(&sg[2], state->session_key, state->keylen);
+	nbytes += setup_sg(&sg[3], sha_pad->sha_pad2,
+			   sizeof(sha_pad->sha_pad2));
 
-	crypto_digest_digest (state->sha1, sg, 4, state->sha1_digest);
+	desc.tfm = state->sha1;
+	desc.flags = 0;
+
+	crypto_hash_digest(&desc, sg, nbytes, state->sha1_digest);
 
 	memcpy(InterimKey, state->sha1_digest, state->keylen);
 }
@@ -156,14 +165,15 @@ static void mppe_rekey(struct ppp_mppe_state * state, int initial_key)
 {
 	unsigned char InterimKey[MPPE_MAX_KEY_LEN];
 	struct scatterlist sg_in[1], sg_out[1];
+	struct blkcipher_desc desc = { .tfm = state->arc4 };
 
 	get_new_key_from_sha(state, InterimKey);
 	if (!initial_key) {
-		crypto_cipher_setkey(state->arc4, InterimKey, state->keylen);
+		crypto_blkcipher_setkey(state->arc4, InterimKey, state->keylen);
 		setup_sg(sg_in, InterimKey, state->keylen);
 		setup_sg(sg_out, state->session_key, state->keylen);
-		if (crypto_cipher_encrypt(state->arc4, sg_out, sg_in,
-				      state->keylen) != 0) {
+		if (crypto_blkcipher_encrypt(&desc, sg_out, sg_in,
+					     state->keylen) != 0) {
     		    printk(KERN_WARNING "mppe_rekey: cipher_encrypt failed\n");
 		}
 	} else {
@@ -175,7 +185,7 @@ static void mppe_rekey(struct ppp_mppe_state * state, int initial_key)
 		state->session_key[1] = 0x26;
 		state->session_key[2] = 0x9e;
 	}
-	crypto_cipher_setkey(state->arc4, state->session_key, state->keylen);
+	crypto_blkcipher_setkey(state->arc4, state->session_key, state->keylen);
 }
 
 /*
@@ -196,15 +206,19 @@ static void *mppe_alloc(unsigned char *options, int optlen)
 
 	memset(state, 0, sizeof(*state));
 
-	state->arc4 = crypto_alloc_tfm("arc4", 0);
-	if (!state->arc4)
+	state->arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(state->arc4)) {
+		state->arc4 = NULL;
 		goto out_free;
+	}
 
-	state->sha1 = crypto_alloc_tfm("sha1", 0);
-	if (!state->sha1)
+	state->sha1 = crypto_alloc_hash("sha1", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(state->sha1)) {
+		state->sha1 = NULL;
 		goto out_free;
+	}
 
-	digestsize = crypto_tfm_alg_digestsize(state->sha1);
+	digestsize = crypto_hash_digestsize(state->sha1);
 	if (digestsize < MPPE_MAX_KEY_LEN)
 		goto out_free;
 
@@ -229,9 +243,9 @@ static void *mppe_alloc(unsigned char *options, int optlen)
 	    if (state->sha1_digest)
 		kfree(state->sha1_digest);
 	    if (state->sha1)
-		crypto_free_tfm(state->sha1);
+		crypto_free_hash(state->sha1);
 	    if (state->arc4)
-		crypto_free_tfm(state->arc4);
+		crypto_free_blkcipher(state->arc4);
 	    kfree(state);
 	out:
 	return NULL;
@@ -247,9 +261,9 @@ static void mppe_free(void *arg)
 	    if (state->sha1_digest)
 		kfree(state->sha1_digest);
 	    if (state->sha1)
-		crypto_free_tfm(state->sha1);
+		crypto_free_hash(state->sha1);
 	    if (state->arc4)
-		crypto_free_tfm(state->arc4);
+		crypto_free_blkcipher(state->arc4);
 	    kfree(state);
 	}
 }
@@ -356,6 +370,7 @@ mppe_compress(void *arg, unsigned char *ibuf, unsigned char *obuf,
 	      int isize, int osize)
 {
 	struct ppp_mppe_state *state = (struct ppp_mppe_state *) arg;
+	struct blkcipher_desc desc = { .tfm = state->arc4 };
 	int proto;
 	struct scatterlist sg_in[1], sg_out[1];
 
@@ -413,7 +428,7 @@ mppe_compress(void *arg, unsigned char *ibuf, unsigned char *obuf,
 	/* Encrypt packet */
 	setup_sg(sg_in, ibuf, isize);
 	setup_sg(sg_out, obuf, osize);
-	if (crypto_cipher_encrypt(state->arc4, sg_out, sg_in, isize) != 0) {
+	if (crypto_blkcipher_encrypt(&desc, sg_out, sg_in, isize) != 0) {
 		printk(KERN_DEBUG "crypto_cypher_encrypt failed\n");
 		return -1;
 	}
@@ -462,6 +477,7 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 		int osize)
 {
 	struct ppp_mppe_state *state = (struct ppp_mppe_state *) arg;
+	struct blkcipher_desc desc = { .tfm = state->arc4 };
 	unsigned ccount;
 	int flushed = MPPE_BITS(ibuf) & MPPE_BIT_FLUSHED;
 	int sanity = 0;
@@ -599,7 +615,7 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 	 */
 	setup_sg(sg_in, ibuf, 1);
 	setup_sg(sg_out, obuf, 1);
-	if (crypto_cipher_decrypt(state->arc4, sg_out, sg_in, 1) != 0) {
+	if (crypto_blkcipher_decrypt(&desc, sg_out, sg_in, 1) != 0) {
 		printk(KERN_DEBUG "crypto_cypher_decrypt failed\n");
 		return DECOMP_ERROR;
 	}
@@ -619,7 +635,7 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 	/* And finally, decrypt the rest of the packet. */
 	setup_sg(sg_in, ibuf + 1, isize - 1);
 	setup_sg(sg_out, obuf + 1, osize - 1);
-	if (crypto_cipher_decrypt(state->arc4, sg_out, sg_in, isize - 1) != 0) {
+	if (crypto_blkcipher_decrypt(&desc, sg_out, sg_in, isize - 1)) {
 		printk(KERN_DEBUG "crypto_cypher_decrypt failed\n");
 		return DECOMP_ERROR;
 	}
@@ -694,8 +710,8 @@ static struct compressor ppp_mppe = {
 static int __init ppp_mppe_init(void)
 {
 	int answer;
-	if (!(crypto_alg_available("arc4", 0) &&
-	      crypto_alg_available("sha1", 0)))
+	if (!(crypto_has_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC) &&
+	      crypto_has_hash("sha1", 0, CRYPTO_ALG_ASYNC)))
 		return -ENODEV;
 
 	sha_pad = kmalloc(sizeof(struct sha_pad), GFP_KERNEL);

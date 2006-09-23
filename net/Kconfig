@@ -177,7 +177,7 @@ source "net/lapb/Kconfig"
 
 config NET_DIVERT
 	bool "Frame Diverter (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && BROKEN
 	---help---
 	  The Frame Diverter allows you to divert packets from the
 	  network, that are not aimed at the interface receiving it (in

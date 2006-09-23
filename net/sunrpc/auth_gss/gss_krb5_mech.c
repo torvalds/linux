@@ -34,6 +34,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -78,10 +79,10 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *res)
 }
 
 static inline const void *
-get_key(const void *p, const void *end, struct crypto_tfm **res)
+get_key(const void *p, const void *end, struct crypto_blkcipher **res)
 {
 	struct xdr_netobj	key;
-	int			alg, alg_mode;
+	int			alg;
 	char			*alg_name;
 
 	p = simple_get_bytes(p, end, &alg, sizeof(alg));
@@ -93,18 +94,19 @@ get_key(const void *p, const void *end, struct crypto_tfm **res)
 
 	switch (alg) {
 		case ENCTYPE_DES_CBC_RAW:
-			alg_name = "des";
-			alg_mode = CRYPTO_TFM_MODE_CBC;
+			alg_name = "cbc(des)";
 			break;
 		default:
 			printk("gss_kerberos_mech: unsupported algorithm %d\n", alg);
 			goto out_err_free_key;
 	}
-	if (!(*res = crypto_alloc_tfm(alg_name, alg_mode))) {
+	*res = crypto_alloc_blkcipher(alg_name, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(*res)) {
 		printk("gss_kerberos_mech: unable to initialize crypto algorithm %s\n", alg_name);
+		*res = NULL;
 		goto out_err_free_key;
 	}
-	if (crypto_cipher_setkey(*res, key.data, key.len)) {
+	if (crypto_blkcipher_setkey(*res, key.data, key.len)) {
 		printk("gss_kerberos_mech: error setting key for crypto algorithm %s\n", alg_name);
 		goto out_err_free_tfm;
 	}
@@ -113,7 +115,7 @@ get_key(const void *p, const void *end, struct crypto_tfm **res)
 	return p;
 
 out_err_free_tfm:
-	crypto_free_tfm(*res);
+	crypto_free_blkcipher(*res);
 out_err_free_key:
 	kfree(key.data);
 	p = ERR_PTR(-EINVAL);
@@ -172,9 +174,9 @@ gss_import_sec_context_kerberos(const void *p,
 	return 0;
 
 out_err_free_key2:
-	crypto_free_tfm(ctx->seq);
+	crypto_free_blkcipher(ctx->seq);
 out_err_free_key1:
-	crypto_free_tfm(ctx->enc);
+	crypto_free_blkcipher(ctx->enc);
 out_err_free_mech:
 	kfree(ctx->mech_used.data);
 out_err_free_ctx:
@@ -187,8 +189,8 @@ static void
 gss_delete_sec_context_kerberos(void *internal_ctx) {
 	struct krb5_ctx *kctx = internal_ctx;
 
-	crypto_free_tfm(kctx->seq);
-	crypto_free_tfm(kctx->enc);
+	crypto_free_blkcipher(kctx->seq);
+	crypto_free_blkcipher(kctx->enc);
 	kfree(kctx->mech_used.data);
 	kfree(kctx);
 }

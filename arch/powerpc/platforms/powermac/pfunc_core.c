@@ -813,14 +813,15 @@ struct pmf_function *__pmf_find_function(struct device_node *target,
 	struct pmf_device *dev;
 	struct pmf_function *func, *result = NULL;
 	char fname[64];
-	u32 *prop, ph;
+	const u32 *prop;
+	u32 ph;
 
 	/*
 	 * Look for a "platform-*" function reference. If we can't find
 	 * one, then we fallback to a direct call attempt
 	 */
 	snprintf(fname, 63, "platform-%s", name);
-	prop = (u32 *)get_property(target, fname, NULL);
+	prop = get_property(target, fname, NULL);
 	if (prop == NULL)
 		goto find_it;
 	ph = *prop;

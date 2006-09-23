@@ -40,7 +40,6 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
 #include <linux/kernel.h>
 
 #include <linux/if_arp.h>	/* For ARPHRD_xxx */
@@ -81,6 +80,8 @@ static const u8 ipv4_bcast_addr[] = {
 };
 
 struct workqueue_struct *ipoib_workqueue;
+
+struct ib_sa_client ipoib_sa_client;
 
 static void ipoib_add_one(struct ib_device *device);
 static void ipoib_remove_one(struct ib_device *device);
@@ -336,7 +337,8 @@ void ipoib_flush_paths(struct net_device *dev)
 	struct ipoib_path *path, *tp;
 	LIST_HEAD(remove_list);
 
-	spin_lock_irq(&priv->lock);
+	spin_lock_irq(&priv->tx_lock);
+	spin_lock(&priv->lock);
 
 	list_splice(&priv->path_list, &remove_list);
 	INIT_LIST_HEAD(&priv->path_list);
@@ -347,12 +349,15 @@ void ipoib_flush_paths(struct net_device *dev)
 	list_for_each_entry_safe(path, tp, &remove_list, list) {
 		if (path->query)
 			ib_sa_cancel_query(path->query_id, path->query);
-		spin_unlock_irq(&priv->lock);
+		spin_unlock(&priv->lock);
+		spin_unlock_irq(&priv->tx_lock);
 		wait_for_completion(&path->done);
 		path_free(dev, path);
-		spin_lock_irq(&priv->lock);
+		spin_lock_irq(&priv->tx_lock);
+		spin_lock(&priv->lock);
 	}
-	spin_unlock_irq(&priv->lock);
+	spin_unlock(&priv->lock);
+	spin_unlock_irq(&priv->tx_lock);
 }
 
 static void path_rec_completion(int status,
@@ -459,7 +464,7 @@ static int path_rec_start(struct net_device *dev,
 	init_completion(&path->done);
 
 	path->query_id =
-		ib_sa_path_rec_get(priv->ca, priv->port,
+		ib_sa_path_rec_get(&ipoib_sa_client, priv->ca, priv->port,
 				   &path->pathrec,
 				   IB_SA_PATH_REC_DGID		|
 				   IB_SA_PATH_REC_SGID		|
@@ -615,7 +620,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ipoib_neigh *neigh;
 	unsigned long flags;
 
-	if (!spin_trylock_irqsave(&priv->tx_lock, flags))
+	if (unlikely(!spin_trylock_irqsave(&priv->tx_lock, flags)))
 		return NETDEV_TX_LOCKED;
 
 	/*
@@ -628,7 +633,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	if (skb->dst && skb->dst->neighbour) {
+	if (likely(skb->dst && skb->dst->neighbour)) {
 		if (unlikely(!*to_ipoib_neigh(skb->dst->neighbour))) {
 			ipoib_path_lookup(skb, dev);
 			goto out;
@@ -1107,13 +1112,16 @@ static void ipoib_add_one(struct ib_device *device)
 	struct ipoib_dev_priv *priv;
 	int s, e, p;
 
+	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
+		return;
+
 	dev_list = kmalloc(sizeof *dev_list, GFP_KERNEL);
 	if (!dev_list)
 		return;
 
 	INIT_LIST_HEAD(dev_list);
 
-	if (device->node_type == IB_NODE_SWITCH) {
+	if (device->node_type == RDMA_NODE_IB_SWITCH) {
 		s = 0;
 		e = 0;
 	} else {
@@ -1136,6 +1144,9 @@ static void ipoib_remove_one(struct ib_device *device)
 {
 	struct ipoib_dev_priv *priv, *tmp;
 	struct list_head *dev_list;
+
+	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
+		return;
 
 	dev_list = ib_get_client_data(device, &ipoib_client);
 
@@ -1181,13 +1192,16 @@ static int __init ipoib_init_module(void)
 		goto err_fs;
 	}
 
+	ib_sa_register_client(&ipoib_sa_client);
+
 	ret = ib_register_client(&ipoib_client);
 	if (ret)
-		goto err_wq;
+		goto err_sa;
 
 	return 0;
 
-err_wq:
+err_sa:
+	ib_sa_unregister_client(&ipoib_sa_client);
 	destroy_workqueue(ipoib_workqueue);
 
 err_fs:
@@ -1199,6 +1213,7 @@ err_fs:
 static void __exit ipoib_cleanup_module(void)
 {
 	ib_unregister_client(&ipoib_client);
+	ib_sa_unregister_client(&ipoib_sa_client);
 	ipoib_unregister_debugfs();
 	destroy_workqueue(ipoib_workqueue);
 }

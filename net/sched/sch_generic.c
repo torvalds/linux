@@ -238,9 +238,7 @@ void __netdev_watchdog_up(struct net_device *dev)
 
 static void dev_watchdog_up(struct net_device *dev)
 {
-	netif_tx_lock_bh(dev);
 	__netdev_watchdog_up(dev);
-	netif_tx_unlock_bh(dev);
 }
 
 static void dev_watchdog_down(struct net_device *dev)

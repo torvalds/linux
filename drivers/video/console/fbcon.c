@@ -3197,11 +3197,11 @@ static void fbcon_exit(void)
 		return;
 
 #ifdef CONFIG_ATARI
-	free_irq(IRQ_AUTO_4, fbcon_vbl_handler);
+	free_irq(IRQ_AUTO_4, fb_vbl_handler);
 #endif
 #ifdef CONFIG_MAC
 	if (MACH_IS_MAC && vbl_detected)
-		free_irq(IRQ_MAC_VBL, fbcon_vbl_handler);
+		free_irq(IRQ_MAC_VBL, fb_vbl_handler);
 #endif
 
 	kfree((void *)softback_buf);

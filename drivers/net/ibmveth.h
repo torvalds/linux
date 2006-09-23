@@ -41,16 +41,6 @@
 #define IbmVethMcastRemoveFilter     0x2UL
 #define IbmVethMcastClearFilterTable 0x3UL
 
-/* hcall numbers */
-#define H_VIO_SIGNAL             0x104
-#define H_REGISTER_LOGICAL_LAN   0x114
-#define H_FREE_LOGICAL_LAN       0x118
-#define H_ADD_LOGICAL_LAN_BUFFER 0x11C
-#define H_SEND_LOGICAL_LAN       0x120
-#define H_MULTICAST_CTRL         0x130
-#define H_CHANGE_LOGICAL_LAN_MAC 0x14C
-#define H_FREE_LOGICAL_LAN_BUFFER 0x1D4
-
 /* hcall macros */
 #define h_register_logical_lan(ua, buflst, rxq, fltlst, mac) \
   plpar_hcall_norets(H_REGISTER_LOGICAL_LAN, ua, buflst, rxq, fltlst, mac)
@@ -61,8 +51,21 @@
 #define h_add_logical_lan_buffer(ua, buf) \
   plpar_hcall_norets(H_ADD_LOGICAL_LAN_BUFFER, ua, buf)
 
-#define h_send_logical_lan(ua, buf1, buf2, buf3, buf4, buf5, buf6, correlator) \
-  plpar_hcall_8arg_2ret(H_SEND_LOGICAL_LAN, ua, buf1, buf2, buf3, buf4, buf5, buf6, correlator, &correlator)
+static inline long h_send_logical_lan(unsigned long unit_address,
+		unsigned long desc1, unsigned long desc2, unsigned long desc3,
+		unsigned long desc4, unsigned long desc5, unsigned long desc6,
+		unsigned long corellator_in, unsigned long *corellator_out)
+{
+	long rc;
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE];
+
+	rc = plpar_hcall9(H_SEND_LOGICAL_LAN, retbuf, unit_address, desc1,
+			desc2, desc3, desc4, desc5, desc6, corellator_in);
+
+	*corellator_out = retbuf[0];
+
+	return rc;
+}
 
 #define h_multicast_ctrl(ua, cmd, mac) \
   plpar_hcall_norets(H_MULTICAST_CTRL, ua, cmd, mac)

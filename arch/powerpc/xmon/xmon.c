@@ -137,9 +137,13 @@ static void bootcmds(void);
 static void proccall(void);
 void dump_segments(void);
 static void symbol_lookup(void);
+static void xmon_show_stack(unsigned long sp, unsigned long lr,
+			    unsigned long pc);
 static void xmon_print_symbol(unsigned long address, const char *mid,
 			      const char *after);
 static const char *getvecname(unsigned long vec);
+
+int xmon_no_auto_backtrace;
 
 extern int print_insn_powerpc(unsigned long, unsigned long, int);
 
@@ -736,6 +740,12 @@ cmds(struct pt_regs *excp)
 
 	last_cmd = NULL;
 	xmon_regs = excp;
+
+	if (!xmon_no_auto_backtrace) {
+		xmon_no_auto_backtrace = 1;
+		xmon_show_stack(excp->gpr[1], excp->link, excp->nip);
+	}
+
 	for(;;) {
 #ifdef CONFIG_SMP
 		printf("%x:", smp_processor_id());

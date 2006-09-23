@@ -1281,18 +1281,18 @@ static inline int check_leaf(struct trie *t, struct leaf *l,
 			     struct fib_result *res)
 {
 	int err, i;
-	t_key mask;
+	__be32 mask;
 	struct leaf_info *li;
 	struct hlist_head *hhead = &l->list;
 	struct hlist_node *node;
 
 	hlist_for_each_entry_rcu(li, node, hhead, hlist) {
 		i = li->plen;
-		mask = ntohl(inet_make_mask(i));
-		if (l->key != (key & mask))
+		mask = inet_make_mask(i);
+		if (l->key != (key & ntohl(mask)))
 			continue;
 
-		if ((err = fib_semantic_match(&li->falh, flp, res, l->key, mask, i)) <= 0) {
+		if ((err = fib_semantic_match(&li->falh, flp, res, htonl(l->key), mask, i)) <= 0) {
 			*plen = i;
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			t->stats.semantic_match_passed++;

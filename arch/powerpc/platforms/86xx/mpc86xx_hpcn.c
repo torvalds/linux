@@ -347,9 +347,9 @@ mpc86xx_hpcn_setup_arch(void)
 
 	np = of_find_node_by_type(NULL, "cpu");
 	if (np != 0) {
-		unsigned int *fp;
+		const unsigned int *fp;
 
-		fp = (int *)get_property(np, "clock-frequency", NULL);
+		fp = get_property(np, "clock-frequency", NULL);
 		if (fp != 0)
 			loops_per_jiffy = *fp / HZ;
 		else

@@ -44,7 +44,7 @@
  * past 0.99 at all due to some boolean logic error. */
 #define AGPGART_VERSION_MAJOR 0
 #define AGPGART_VERSION_MINOR 101
-static struct agp_version agp_current_version =
+static const struct agp_version agp_current_version =
 {
 	.major = AGPGART_VERSION_MAJOR,
 	.minor = AGPGART_VERSION_MINOR,

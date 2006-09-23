@@ -34,6 +34,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -83,10 +84,11 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *res)
 }
 
 static inline const void *
-get_key(const void *p, const void *end, struct crypto_tfm **res, int *resalg)
+get_key(const void *p, const void *end, struct crypto_blkcipher **res,
+	int *resalg)
 {
 	struct xdr_netobj	key = { 0 };
-	int			alg_mode,setkey = 0;
+	int			setkey = 0;
 	char			*alg_name;
 
 	p = simple_get_bytes(p, end, resalg, sizeof(*resalg));
@@ -98,14 +100,12 @@ get_key(const void *p, const void *end, struct crypto_tfm **res, int *resalg)
 
 	switch (*resalg) {
 		case NID_des_cbc:
-			alg_name = "des";
-			alg_mode = CRYPTO_TFM_MODE_CBC;
+			alg_name = "cbc(des)";
 			setkey = 1;
 			break;
 		case NID_cast5_cbc:
 			/* XXXX here in name only, not used */
-			alg_name = "cast5";
-			alg_mode = CRYPTO_TFM_MODE_CBC;
+			alg_name = "cbc(cast5)";
 			setkey = 0; /* XXX will need to set to 1 */
 			break;
 		case NID_md5:
@@ -113,19 +113,20 @@ get_key(const void *p, const void *end, struct crypto_tfm **res, int *resalg)
 				dprintk("RPC: SPKM3 get_key: NID_md5 zero Key length\n");
 			}
 			alg_name = "md5";
-			alg_mode = 0;
 			setkey = 0;
 			break;
 		default:
 			dprintk("gss_spkm3_mech: unsupported algorithm %d\n", *resalg);
 			goto out_err_free_key;
 	}
-	if (!(*res = crypto_alloc_tfm(alg_name, alg_mode))) {
+	*res = crypto_alloc_blkcipher(alg_name, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(*res)) {
 		printk("gss_spkm3_mech: unable to initialize crypto algorthm %s\n", alg_name);
+		*res = NULL;
 		goto out_err_free_key;
 	}
 	if (setkey) {
-		if (crypto_cipher_setkey(*res, key.data, key.len)) {
+		if (crypto_blkcipher_setkey(*res, key.data, key.len)) {
 			printk("gss_spkm3_mech: error setting key for crypto algorthm %s\n", alg_name);
 			goto out_err_free_tfm;
 		}
@@ -136,7 +137,7 @@ get_key(const void *p, const void *end, struct crypto_tfm **res, int *resalg)
 	return p;
 
 out_err_free_tfm:
-	crypto_free_tfm(*res);
+	crypto_free_blkcipher(*res);
 out_err_free_key:
 	if(key.len > 0)
 		kfree(key.data);
@@ -204,9 +205,9 @@ gss_import_sec_context_spkm3(const void *p, size_t len,
 	return 0;
 
 out_err_free_key2:
-	crypto_free_tfm(ctx->derived_integ_key);
+	crypto_free_blkcipher(ctx->derived_integ_key);
 out_err_free_key1:
-	crypto_free_tfm(ctx->derived_conf_key);
+	crypto_free_blkcipher(ctx->derived_conf_key);
 out_err_free_s_key:
 	kfree(ctx->share_key.data);
 out_err_free_mech:
@@ -223,8 +224,8 @@ static void
 gss_delete_sec_context_spkm3(void *internal_ctx) {
 	struct spkm3_ctx *sctx = internal_ctx;
 
-	crypto_free_tfm(sctx->derived_integ_key);
-	crypto_free_tfm(sctx->derived_conf_key);
+	crypto_free_blkcipher(sctx->derived_integ_key);
+	crypto_free_blkcipher(sctx->derived_conf_key);
 	kfree(sctx->share_key.data);
 	kfree(sctx->mech_used.data);
 	kfree(sctx);

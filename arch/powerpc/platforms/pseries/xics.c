@@ -34,6 +34,7 @@
 #include <asm/i8259.h>
 
 #include "xics.h"
+#include "plpar_wrappers.h"
 
 #define XICS_IPI		2
 #define XICS_IRQ_SPURIOUS	0
@@ -109,27 +110,6 @@ static inline void direct_qirr_info(int n_cpu, u8 value)
 
 /* LPAR low level accessors */
 
-
-static inline long plpar_eoi(unsigned long xirr)
-{
-	return plpar_hcall_norets(H_EOI, xirr);
-}
-
-static inline long plpar_cppr(unsigned long cppr)
-{
-	return plpar_hcall_norets(H_CPPR, cppr);
-}
-
-static inline long plpar_ipi(unsigned long servernum, unsigned long mfrr)
-{
-	return plpar_hcall_norets(H_IPI, servernum, mfrr);
-}
-
-static inline long plpar_xirr(unsigned long *xirr_ret)
-{
-	unsigned long dummy;
-	return plpar_hcall(H_XIRR, 0, 0, 0, 0, xirr_ret, &dummy, &dummy);
-}
 
 static inline unsigned int lpar_xirr_info_get(int n_cpu)
 {
@@ -590,14 +570,14 @@ static void __init xics_init_one_node(struct device_node *np,
 				      unsigned int *indx)
 {
 	unsigned int ilen;
-	u32 *ireg;
+	const u32 *ireg;
 
 	/* This code does the theorically broken assumption that the interrupt
 	 * server numbers are the same as the hard CPU numbers.
 	 * This happens to be the case so far but we are playing with fire...
 	 * should be fixed one of these days. -BenH.
 	 */
-	ireg = (u32 *)get_property(np, "ibm,interrupt-server-ranges", NULL);
+	ireg = get_property(np, "ibm,interrupt-server-ranges", NULL);
 
 	/* Do that ever happen ? we'll know soon enough... but even good'old
 	 * f80 does have that property ..
@@ -609,7 +589,7 @@ static void __init xics_init_one_node(struct device_node *np,
 		 */
 		*indx = *ireg;
 	}
-	ireg = (u32 *)get_property(np, "reg", &ilen);
+	ireg = get_property(np, "reg", &ilen);
 	if (!ireg)
 		panic("xics_init_IRQ: can't find interrupt reg property");
 
@@ -635,7 +615,7 @@ static void __init xics_setup_8259_cascade(void)
 {
 	struct device_node *np, *old, *found = NULL;
 	int cascade, naddr;
-	u32 *addrp;
+	const u32 *addrp;
 	unsigned long intack = 0;
 
 	for_each_node_by_type(np, "interrupt-controller")
@@ -661,7 +641,7 @@ static void __init xics_setup_8259_cascade(void)
 			break;
 		if (strcmp(np->name, "pci") != 0)
 			continue;
-		addrp = (u32 *)get_property(np, "8259-interrupt-acknowledge", NULL);
+		addrp = get_property(np, "8259-interrupt-acknowledge", NULL);
 		if (addrp == NULL)
 			continue;
 		naddr = prom_n_addr_cells(np);
@@ -680,7 +660,8 @@ void __init xics_init_IRQ(void)
 {
 	int i;
 	struct device_node *np;
-	u32 *ireg, ilen, indx = 0;
+	u32 ilen, indx = 0;
+	const u32 *ireg;
 	int found = 0;
 
 	ppc64_boot_msg(0x20, "XICS Init");
@@ -705,18 +686,17 @@ void __init xics_init_IRQ(void)
 	for (np = of_find_node_by_type(NULL, "cpu");
 	     np;
 	     np = of_find_node_by_type(np, "cpu")) {
-		ireg = (u32 *)get_property(np, "reg", &ilen);
+		ireg = get_property(np, "reg", &ilen);
 		if (ireg && ireg[0] == get_hard_smp_processor_id(boot_cpuid)) {
-			ireg = (u32 *)get_property(np,
-						  "ibm,ppc-interrupt-gserver#s",
-						   &ilen);
+			ireg = get_property(np,
+					"ibm,ppc-interrupt-gserver#s", &ilen);
 			i = ilen / sizeof(int);
 			if (ireg && i > 0) {
 				default_server = ireg[0];
 				/* take last element */
 				default_distrib_server = ireg[i-1];
 			}
-			ireg = (u32 *)get_property(np,
+			ireg = get_property(np,
 					"ibm,interrupt-server#-size", NULL);
 			if (ireg)
 				interrupt_server_size = *ireg;
