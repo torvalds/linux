@@ -4303,11 +4303,11 @@ static struct net_device_stats *s2io_get_stats(struct net_device *dev)
 	sp->stats.tx_errors =
 		le32_to_cpu(mac_control->stats_info->tmac_any_err_frms);
 	sp->stats.rx_errors =
-		le32_to_cpu(mac_control->stats_info->rmac_drop_frms);
+		le64_to_cpu(mac_control->stats_info->rmac_drop_frms);
 	sp->stats.multicast =
 		le32_to_cpu(mac_control->stats_info->rmac_vld_mcst_frms);
 	sp->stats.rx_length_errors =
-		le32_to_cpu(mac_control->stats_info->rmac_long_frms);
+		le64_to_cpu(mac_control->stats_info->rmac_long_frms);
 
 	return (&sp->stats);
 }
