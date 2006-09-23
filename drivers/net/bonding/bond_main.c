@@ -1513,29 +1513,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	switch (bond->params.mode) {
 	case BOND_MODE_ACTIVEBACKUP:
-		/* if we're in active-backup mode, we need one and
-		 * only one active interface. The backup interfaces
-		 * will have their SLAVE_INACTIVE flag set because we
-		 * need them to be drop all packets. Thus, since we
-		 * guarantee that curr_active_slave always point to
-		 * the last usable interface, we just have to verify
-		 * this interface's flag.
-		 */
-		if (((!bond->curr_active_slave) ||
-		     (bond->curr_active_slave->dev->priv_flags & IFF_SLAVE_INACTIVE)) &&
-		    (new_slave->link != BOND_LINK_DOWN)) {
-			/* first slave or no active slave yet, and this link
-			   is OK, so make this interface the active one */
-			bond_change_active_slave(bond, new_slave);
-			printk(KERN_INFO DRV_NAME
-			       ": %s: first active interface up!\n",
-			       bond->dev->name);
-			netif_carrier_on(bond->dev);
-
-		} else {
-			dprintk("This is just a backup slave\n");
-			bond_set_slave_inactive_flags(new_slave);
-		}
+		bond_set_slave_inactive_flags(new_slave);
+		bond_select_active_slave(bond);
 		break;
 	case BOND_MODE_8023AD:
 		/* in 802.3ad mode, the internal mechanism
