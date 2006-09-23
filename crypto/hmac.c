@@ -98,7 +98,7 @@ static int hmac_init(struct hash_desc *pdesc)
 	sg_set_buf(&tmp, ipad, bs);
 
 	return unlikely(crypto_hash_init(&desc)) ?:
-	       crypto_hash_update(&desc, &tmp, 1);
+	       crypto_hash_update(&desc, &tmp, bs);
 }
 
 static int hmac_update(struct hash_desc *pdesc,
