@@ -109,6 +109,16 @@ config DVB_USB_CXUSB
 	  Medion MD95700 hybrid USB2.0 device.
 	  DViCO FusionHDTV (Bluebird) USB2.0 devices
 
+config DVB_USB_MEGASKY
+	tristate "MSI Mega Sky 580 DVB-T USB2.0 support"
+	depends on DVB_USB
+	select DVB_MT352
+	help
+	  Say Y here to support the MSI Mega Sky 580 USB2.0 DVB-T receiver.
+	  Currently, only devices with a product id of
+	  "DTV USB MINI" (in cold state) are supported.
+	  Firmware required.
+
 config DVB_USB_DIGITV
 	tristate "Nebula Electronics uDigiTV DVB-T USB2.0 support"
 	depends on DVB_USB

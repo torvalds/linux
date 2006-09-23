@@ -30,6 +30,9 @@ obj-$(CONFIG_DVB_USB_NOVA_T_USB2) += dvb-usb-dibusb-common.o dvb-usb-nova-t-usb2
 dvb-usb-umt-010-objs = umt-010.o
 obj-$(CONFIG_DVB_USB_UMT_010) += dvb-usb-dibusb-common.o dvb-usb-umt-010.o
 
+dvb-usb-megasky-objs = megasky.o
+obj-$(CONFIG_DVB_USB_MEGASKY) += dvb-usb-megasky.o
+
 dvb-usb-digitv-objs = digitv.o
 obj-$(CONFIG_DVB_USB_DIGITV) += dvb-usb-digitv.o
 
