@@ -50,7 +50,7 @@ static void *prism2_wep_init(int keyidx)
 	if (IS_ERR(priv->tx_tfm)) {
 		printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
 		       "crypto API arc4\n");
-		priv->tfm = NULL;
+		priv->tx_tfm = NULL;
 		goto fail;
 	}
 
@@ -58,6 +58,7 @@ static void *prism2_wep_init(int keyidx)
 	if (IS_ERR(priv->rx_tfm)) {
 		printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
 		       "crypto API arc4\n");
+		priv->rx_tfm = NULL;
 		goto fail;
 	}
 	/* start WEP IV from a random value */

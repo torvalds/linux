@@ -93,7 +93,7 @@ static void *ieee80211_tkip_init(int key_idx)
 	if (IS_ERR(priv->tx_tfm_arc4)) {
 		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
 		       "crypto API arc4\n");
-		priv->tfm_arc4 = NULL;
+		priv->tx_tfm_arc4 = NULL;
 		goto fail;
 	}
 
@@ -102,6 +102,7 @@ static void *ieee80211_tkip_init(int key_idx)
 	if (IS_ERR(priv->tx_tfm_michael)) {
 		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
 		       "crypto API michael_mic\n");
+		priv->tx_tfm_michael = NULL;
 		goto fail;
 	}
 
@@ -110,6 +111,7 @@ static void *ieee80211_tkip_init(int key_idx)
 	if (IS_ERR(priv->rx_tfm_arc4)) {
 		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
 		       "crypto API arc4\n");
+		priv->rx_tfm_arc4 = NULL;
 		goto fail;
 	}
 
@@ -118,7 +120,7 @@ static void *ieee80211_tkip_init(int key_idx)
 	if (IS_ERR(priv->rx_tfm_michael)) {
 		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
 		       "crypto API michael_mic\n");
-		priv->tfm_michael = NULL;
+		priv->rx_tfm_michael = NULL;
 		goto fail;
 	}
 
@@ -390,6 +392,19 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	sg.offset = offset_in_page(pos);
 	sg.length = len + 4;
 	return crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
+}
+
+/*
+ * deal with seq counter wrapping correctly.
+ * refer to timer_after() for jiffies wrapping handling
+ */
+static inline int tkip_replay_check(u32 iv32_n, u16 iv16_n,
+				    u32 iv32_o, u16 iv16_o)
+{
+	if ((s32)iv32_n - (s32)iv32_o < 0 ||
+	    (iv32_n == iv32_o && iv16_n <= iv16_o))
+		return 1;
+	return 0;
 }
 
 static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
