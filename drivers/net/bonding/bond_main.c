@@ -3430,7 +3430,6 @@ static int bond_close(struct net_device *bond_dev)
 
 	write_lock_bh(&bond->lock);
 
-	bond_mc_list_destroy(bond);
 
 	/* signal timers not to re-arm */
 	bond->kill_timers = 1;
@@ -3461,8 +3460,6 @@ static int bond_close(struct net_device *bond_dev)
 		break;
 	}
 
-	/* Release the bonded slaves */
-	bond_release_all(bond_dev);
 
 	if ((bond->params.mode == BOND_MODE_TLB) ||
 	    (bond->params.mode == BOND_MODE_ALB)) {
@@ -4248,6 +4245,9 @@ static void bond_free_all(void)
 	list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list) {
 		struct net_device *bond_dev = bond->dev;
 
+		bond_mc_list_destroy(bond);
+		/* Release the bonded slaves */
+		bond_release_all(bond_dev);
 		unregister_netdevice(bond_dev);
 		bond_deinit(bond_dev);
 	}
