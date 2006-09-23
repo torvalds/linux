@@ -508,7 +508,7 @@ static ssize_t cifs_file_aio_write(struct kiocb *iocb, const char __user *buf,
 static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 {
 	/* origin == SEEK_END => we must revalidate the cached file length */
-	if (origin == 2) {
+	if (origin == SEEK_END) {
 		int retval = cifs_revalidate(file->f_dentry);
 		if (retval < 0)
 			return (loff_t)retval;
