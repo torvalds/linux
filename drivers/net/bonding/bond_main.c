@@ -2951,7 +2951,7 @@ static void bond_info_show_slave(struct seq_file *seq, const struct slave *slave
 	seq_printf(seq, "\nSlave Interface: %s\n", slave->dev->name);
 	seq_printf(seq, "MII Status: %s\n",
 		   (slave->link == BOND_LINK_UP) ?  "up" : "down");
-	seq_printf(seq, "Link Failure Count: %d\n",
+	seq_printf(seq, "Link Failure Count: %u\n",
 		   slave->link_failure_count);
 
 	seq_printf(seq,
