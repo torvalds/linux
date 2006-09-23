@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Voltaire, Inc. All rights reserved. 
+ * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -1032,7 +1032,10 @@ static void ib_umad_add_one(struct ib_device *device)
 	struct ib_umad_device *umad_dev;
 	int s, e, i;
 
-	if (device->node_type == IB_NODE_SWITCH)
+	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
+		return;
+
+	if (device->node_type == RDMA_NODE_IB_SWITCH)
 		s = e = 0;
 	else {
 		s = 1;

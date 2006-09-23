@@ -44,6 +44,7 @@
 #include "file.h"
 #include "sysfile.h"
 #include "inode.h"
+#include "ioctl.h"
 #include "journal.h"
 #include "mmap.h"
 #include "suballoc.h"
@@ -1227,10 +1228,12 @@ const struct file_operations ocfs2_fops = {
 	.open		= ocfs2_file_open,
 	.aio_read	= ocfs2_file_aio_read,
 	.aio_write	= ocfs2_file_aio_write,
+	.ioctl		= ocfs2_ioctl,
 };
 
 const struct file_operations ocfs2_dops = {
 	.read		= generic_read_dir,
 	.readdir	= ocfs2_readdir,
 	.fsync		= ocfs2_sync_file,
+	.ioctl		= ocfs2_ioctl,
 };

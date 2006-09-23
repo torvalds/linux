@@ -26,8 +26,8 @@ startup:basr  %r13,0			 # get base
 #
 	.org   PARMAREA
 	.quad  0			# IPL_DEVICE
-	.quad  RAMDISK_ORIGIN		# INITRD_START
-	.quad  RAMDISK_SIZE		# INITRD_SIZE
+	.quad  0			# INITRD_START
+	.quad  0			# INITRD_SIZE
 
 	.org   COMMAND_LINE
 	.byte  "root=/dev/ram0 ro"
@@ -39,8 +39,8 @@ startup_continue:
 	basr  %r13,0			 # get base
 .LPG1:  sll   %r13,1                     # remove high order bit
         srl   %r13,1
-	GET_IPL_DEVICE
         lhi   %r1,1                      # mode 1 = esame
+	mvi   __LC_AR_MODE_ID,1		 # set esame flag
         slr   %r0,%r0                    # set cpuid to zero
         sigp  %r1,%r0,0x12               # switch to esame mode
 	sam64				 # switch to 64 bit mode
@@ -48,7 +48,18 @@ startup_continue:
 	lg    %r12,.Lparmaddr-.LPG1(%r13)# pointer to parameter area
 					 # move IPL device to lowcore
         mvc   __LC_IPLDEV(4),IPL_DEVICE+4-PARMAREA(%r12)
+#
+# Setup stack
+#
+	larl  %r15,init_thread_union
+	lg    %r14,__TI_task(%r15)	# cache current in lowcore
+	stg   %r14,__LC_CURRENT
+	aghi  %r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union + THREAD_SIZE
+	stg   %r15,__LC_KERNEL_STACK	# set end of kernel stack
+	aghi  %r15,-160
+	xc    __SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
 
+	brasl %r14,ipl_save_parameters
 #
 # clear bss memory
 #
@@ -239,6 +250,19 @@ startup_continue:
 	oi	7(%r12),0x80		# set IDTE flag
 0:
 
+#
+# find out if we have the MVCOS instruction
+#
+	la	%r1,0f-.LPG1(%r13)	# set program check address
+	stg	%r1,__LC_PGM_NEW_PSW+8
+	.short	0xc800			# mvcos 0(%r0),0(%r0),%r0
+	.short	0x0000
+	.short	0x0000
+0:	tm	0x8f,0x13		# special-operation exception?
+	bno	1f-.LPG1(%r13)		# if yes, MVCOS is present
+	oi	6(%r12),2		# set MVCOS flag
+1:
+
         lpswe .Lentry-.LPG1(13)         # jump to _stext in primary-space,
                                         # virtual and never return ...
         .align 16
@@ -268,7 +292,22 @@ startup_continue:
 .Lparmaddr:
 	.quad	PARMAREA
 
+	.globl ipl_schib
+ipl_schib:
+	.rept 13
+	.long 0
+	.endr
+
+	.globl ipl_flags
+ipl_flags:
+	.long 0
+	.globl ipl_devno
+ipl_devno:
+	.word 0
+
 	.org	0x12000
+.globl s390_readinfo_sccb
+s390_readinfo_sccb:
 .Lsccb:
 	.hword 0x1000			# length, one page
 	.byte 0x00,0x00,0x00
@@ -297,24 +336,12 @@ startup_continue:
         .globl _stext
 _stext:	basr  %r13,0                    # get base
 .LPG3:
-#
-# Setup stack
-#
-	larl  %r15,init_thread_union
-	lg    %r14,__TI_task(%r15)      # cache current in lowcore
-	stg   %r14,__LC_CURRENT
-        aghi  %r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union + THREAD_SIZE
-        stg   %r15,__LC_KERNEL_STACK    # set end of kernel stack
-        aghi  %r15,-160
-        xc    __SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
-
 # check control registers
         stctg  %c0,%c15,0(%r15)
 	oi     6(%r15),0x40             # enable sigp emergency signal
 	oi     4(%r15),0x10             # switch on low address proctection
         lctlg  %c0,%c15,0(%r15)
 
-#
         lam    0,15,.Laregs-.LPG3(%r13) # load access regs needed by uaccess
         brasl  %r14,start_kernel        # go to C code
 #
@@ -322,7 +349,7 @@ _stext:	basr  %r13,0                    # get base
 #
         basr  %r13,0
 	lpswe .Ldw-.(%r13)           # load disabled wait psw
-#
+
             .align 8
 .Ldw:       .quad  0x0002000180000000,0x0000000000000000
 .Laregs:    .long  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

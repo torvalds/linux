@@ -96,6 +96,8 @@ static struct mtd_partition arctic_partitions[PARTITIONS] = {
 static int __init
 init_arctic_mtd(void)
 {
+	int err = 0;
+
 	printk("%s: 0x%08x at 0x%08x\n", NAME, SIZE, PADDR);
 
 	arctic_mtd_map.virt = ioremap(PADDR, SIZE);
@@ -109,12 +111,20 @@ init_arctic_mtd(void)
 	printk("%s: probing %d-bit flash bus\n", NAME, BUSWIDTH * 8);
 	arctic_mtd = do_map_probe("cfi_probe", &arctic_mtd_map);
 
-	if (!arctic_mtd)
+	if (!arctic_mtd) {
+		iounmap((void *) arctic_mtd_map.virt);
 		return -ENXIO;
+	}
 
 	arctic_mtd->owner = THIS_MODULE;
 
-	return add_mtd_partitions(arctic_mtd, arctic_partitions, PARTITIONS);
+	err = add_mtd_partitions(arctic_mtd, arctic_partitions, PARTITIONS);
+	if (err) {
+		printk("%s: add_mtd_partitions failed\n", NAME);
+		iounmap((void *) arctic_mtd_map.virt);
+	}
+
+	return err;
 }
 
 static void __exit

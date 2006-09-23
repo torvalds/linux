@@ -19,6 +19,7 @@
 
 ======================================================================*/
 
+#include <linux/err.h>
 #include <linux/init.h>
 
 #include <linux/kernel.h>
@@ -1203,7 +1204,7 @@ struct airo_info {
 	struct iw_spy_data	spy_data;
 	struct iw_public_data	wireless_data;
 	/* MIC stuff */
-	struct crypto_tfm	*tfm;
+	struct crypto_cipher	*tfm;
 	mic_module		mod[2];
 	mic_statistics		micstats;
 	HostRxDesc rxfids[MPI_MAX_FIDS]; // rx/tx/config MPI350 descriptors
@@ -1271,7 +1272,8 @@ static int flashrestart(struct airo_info *ai,struct net_device *dev);
 
 static int RxSeqValid (struct airo_info *ai,miccntx *context,int mcast,u32 micSeq);
 static void MoveWindow(miccntx *context, u32 micSeq);
-static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct crypto_tfm *);
+static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen,
+			   struct crypto_cipher *tfm);
 static void emmh32_init(emmh32_context *context);
 static void emmh32_update(emmh32_context *context, u8 *pOctets, int len);
 static void emmh32_final(emmh32_context *context, u8 digest[4]);
@@ -1339,10 +1341,11 @@ static int micsetup(struct airo_info *ai) {
 	int i;
 
 	if (ai->tfm == NULL)
-	        ai->tfm = crypto_alloc_tfm("aes", CRYPTO_TFM_REQ_MAY_SLEEP);
+	        ai->tfm = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
 
-        if (ai->tfm == NULL) {
+        if (IS_ERR(ai->tfm)) {
                 airo_print_err(ai->dev->name, "failed to load transform for AES");
+                ai->tfm = NULL;
                 return ERROR;
         }
 
@@ -1608,7 +1611,8 @@ static void MoveWindow(miccntx *context, u32 micSeq)
 static unsigned char aes_counter[16];
 
 /* expand the key to fill the MMH coefficient array */
-static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct crypto_tfm *tfm)
+static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen,
+			   struct crypto_cipher *tfm)
 {
   /* take the keying material, expand if necessary, truncate at 16-bytes */
   /* run through AES counter mode to generate context->coeff[] */
@@ -1616,7 +1620,6 @@ static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct
 	int i,j;
 	u32 counter;
 	u8 *cipher, plain[16];
-	struct scatterlist sg[1];
 
 	crypto_cipher_setkey(tfm, pkey, 16);
 	counter = 0;
@@ -1627,9 +1630,8 @@ static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct
 		aes_counter[12] = (u8)(counter >> 24);
 		counter++;
 		memcpy (plain, aes_counter, 16);
-		sg_set_buf(sg, plain, 16);
-		crypto_cipher_encrypt(tfm, sg, sg, 16);
-		cipher = kmap(sg->page) + sg->offset;
+		crypto_cipher_encrypt_one(tfm, plain, plain);
+		cipher = plain;
 		for (j=0; (j<16) && (i< (sizeof(context->coeff)/sizeof(context->coeff[0]))); ) {
 			context->coeff[i++] = ntohl(*(u32 *)&cipher[j]);
 			j += 4;
@@ -2431,7 +2433,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 				ai->shared, ai->shared_dma);
 		}
         }
-	crypto_free_tfm(ai->tfm);
+	crypto_free_cipher(ai->tfm);
 	del_airo_dev( dev );
 	free_netdev( dev );
 }

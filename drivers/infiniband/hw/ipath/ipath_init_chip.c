@@ -53,8 +53,8 @@ module_param_named(cfgports, ipath_cfgports, ushort, S_IRUGO);
 MODULE_PARM_DESC(cfgports, "Set max number of ports to use");
 
 /*
- * Number of buffers reserved for driver (layered drivers and SMA
- * send).  Reserved at end of buffer list.   Initialized based on
+ * Number of buffers reserved for driver (verbs and layered drivers.)
+ * Reserved at end of buffer list.   Initialized based on
  * number of PIO buffers if not set via module interface.
  * The problem with this is that it's global, but we'll use different
  * numbers for different chip types.  So the default value is not
@@ -80,7 +80,7 @@ MODULE_PARM_DESC(kpiobufs, "Set number of PIO buffers for driver");
  *
  * Allocate the eager TID buffers and program them into infinipath.
  * We use the network layer alloc_skb() allocator to allocate the
- * memory, and either use the buffers as is for things like SMA
+ * memory, and either use the buffers as is for things like verbs
  * packets, or pass the buffers up to the ipath layered driver and
  * thence the network layer, replacing them as we do so (see
  * ipath_rcv_layer()).
@@ -240,7 +240,11 @@ static int init_chip_first(struct ipath_devdata *dd,
 			  "only supports %u\n", ipath_cfgports,
 			  dd->ipath_portcnt);
 	}
-	dd->ipath_pd = kzalloc(sizeof(*dd->ipath_pd) * dd->ipath_cfgports,
+	/*
+	 * Allocate full portcnt array, rather than just cfgports, because
+	 * cleanup iterates across all possible ports.
+	 */
+	dd->ipath_pd = kzalloc(sizeof(*dd->ipath_pd) * dd->ipath_portcnt,
 			       GFP_KERNEL);
 
 	if (!dd->ipath_pd) {
@@ -446,9 +450,9 @@ static void enable_chip(struct ipath_devdata *dd,
 	u32 val;
 	int i;
 
-	if (!reinit) {
-		init_waitqueue_head(&ipath_sma_state_wait);
-	}
+	if (!reinit)
+		init_waitqueue_head(&ipath_state_wait);
+
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
 
@@ -687,7 +691,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	dd->ipath_pioavregs = ALIGN(val, sizeof(u64) * BITS_PER_BYTE / 2)
 		/ (sizeof(u64) * BITS_PER_BYTE / 2);
 	if (ipath_kpiobufs == 0) {
-		/* not set by user, or set explictly to default  */
+		/* not set by user (this is default) */
 		if ((dd->ipath_piobcnt2k + dd->ipath_piobcnt4k) > 128)
 			kpiobufs = 32;
 		else
@@ -946,6 +950,7 @@ static int ipath_set_kpiobufs(const char *str, struct kernel_param *kp)
 			dd->ipath_piobcnt2k + dd->ipath_piobcnt4k - val;
 	}
 
+	ipath_kpiobufs = val;
 	ret = 0;
 bail:
 	spin_unlock_irqrestore(&ipath_devs_lock, flags);

@@ -263,6 +263,14 @@ config RFD_FTL
 
 		http://www.gensw.com/pages/prod/bios/rfd.htm
 
+config SSFDC
+	bool "NAND SSFDC (SmartMedia) read only translation layer"
+	depends on MTD
+	default n
+	help
+	  This enables read only access to SmartMedia formatted NAND
+	  flash. You can mount it with FAT file system.
+
 source "drivers/mtd/chips/Kconfig"
 
 source "drivers/mtd/maps/Kconfig"

@@ -69,6 +69,17 @@ struct pci_dev *pci_get_device_by_addr(unsigned long addr);
 void eeh_slot_error_detail (struct pci_dn *pdn, int severity);
 
 /**
+ * rtas_pci_enableo - enable IO transfers for this slot
+ * @pdn:       pci device node
+ * @function:  either EEH_THAW_MMIO or EEH_THAW_DMA 
+ *
+ * Enable I/O transfers to this slot 
+ */
+#define EEH_THAW_MMIO 2
+#define EEH_THAW_DMA  3
+int rtas_pci_enable(struct pci_dn *pdn, int function);
+
+/**
  * rtas_set_slot_reset -- unfreeze a frozen slot
  *
  * Clear the EEH-frozen condition on a slot.  This routine

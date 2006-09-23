@@ -349,30 +349,30 @@ static void __init s3triofb_of_init(struct device_node *dp)
     s3trio_name[sizeof(s3trio_name)-1] = '\0';
     strcpy(fb_fix.id, s3trio_name);
 
-    if((pp = (int *)get_property(dp, "vendor-id", &len)) != NULL
+    if((pp = get_property(dp, "vendor-id", &len)) != NULL
 	&& *pp!=PCI_VENDOR_ID_S3) {
 	printk("%s: can't find S3 Trio board\n", dp->full_name);
 	return;
     }
 
-    if((pp = (int *)get_property(dp, "device-id", &len)) != NULL
+    if((pp = get_property(dp, "device-id", &len)) != NULL
 	&& *pp!=PCI_DEVICE_ID_S3_TRIO) {
 	printk("%s: can't find S3 Trio board\n", dp->full_name);
 	return;
     }
 
-    if ((pp = (int *)get_property(dp, "depth", &len)) != NULL
+    if ((pp = get_property(dp, "depth", &len)) != NULL
 	&& len == sizeof(int) && *pp != 8) {
 	printk("%s: can't use depth = %d\n", dp->full_name, *pp);
 	return;
     }
-    if ((pp = (int *)get_property(dp, "width", &len)) != NULL
+    if ((pp = get_property(dp, "width", &len)) != NULL
 	&& len == sizeof(int))
 	fb_var.xres = fb_var.xres_virtual = *pp;
-    if ((pp = (int *)get_property(dp, "height", &len)) != NULL
+    if ((pp = get_property(dp, "height", &len)) != NULL
 	&& len == sizeof(int))
 	fb_var.yres = fb_var.yres_virtual = *pp;
-    if ((pp = (int *)get_property(dp, "linebytes", &len)) != NULL
+    if ((pp = get_property(dp, "linebytes", &len)) != NULL
 	&& len == sizeof(int))
 	fb_fix.line_length = *pp;
     else

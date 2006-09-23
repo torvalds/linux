@@ -27,7 +27,7 @@
 #ifndef DLMGLUE_H
 #define DLMGLUE_H
 
-#define OCFS2_LVB_VERSION 2
+#define OCFS2_LVB_VERSION 3
 
 struct ocfs2_meta_lvb {
 	__be32       lvb_version;
@@ -40,7 +40,8 @@ struct ocfs2_meta_lvb {
 	__be64       lvb_isize;
 	__be16       lvb_imode;
 	__be16       lvb_inlink;
-	__be32       lvb_reserved[3];
+	__be32       lvb_iattr;
+	__be32       lvb_reserved[2];
 };
 
 /* ocfs2_meta_lock_full() and ocfs2_data_lock_full() 'arg_flags' flags */

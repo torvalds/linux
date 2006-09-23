@@ -409,30 +409,30 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 	unsigned int flags, rsize, addr_prop = 0;
 	unsigned long max_size = 0;
 	u64 rstart, address = OF_BAD_ADDR;
-	u32 *pp, *addrp, *up;
+	const u32 *pp, *addrp, *up;
 	u64 asize;
 
-	pp = (u32 *)get_property(dp, "linux,bootx-depth", &len);
+	pp = get_property(dp, "linux,bootx-depth", &len);
 	if (pp == NULL)
-		pp = (u32 *)get_property(dp, "depth", &len);
+		pp = get_property(dp, "depth", &len);
 	if (pp && len == sizeof(u32))
 		depth = *pp;
 
-	pp = (u32 *)get_property(dp, "linux,bootx-width", &len);
+	pp = get_property(dp, "linux,bootx-width", &len);
 	if (pp == NULL)
-		pp = (u32 *)get_property(dp, "width", &len);
+		pp = get_property(dp, "width", &len);
 	if (pp && len == sizeof(u32))
 		width = *pp;
 
-	pp = (u32 *)get_property(dp, "linux,bootx-height", &len);
+	pp = get_property(dp, "linux,bootx-height", &len);
 	if (pp == NULL)
-		pp = (u32 *)get_property(dp, "height", &len);
+		pp = get_property(dp, "height", &len);
 	if (pp && len == sizeof(u32))
 		height = *pp;
 
-	pp = (u32 *)get_property(dp, "linux,bootx-linebytes", &len);
+	pp = get_property(dp, "linux,bootx-linebytes", &len);
 	if (pp == NULL)
-		pp = (u32 *)get_property(dp, "linebytes", &len);
+		pp = get_property(dp, "linebytes", &len);
 	if (pp && len == sizeof(u32))
 		pitch = *pp;
 	else
@@ -450,9 +450,9 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 	 * ranges and pick one that is both big enough and if possible encloses
 	 * the "address" property. If none match, we pick the biggest
 	 */
-	up = (u32 *)get_property(dp, "linux,bootx-addr", &len);
+	up = get_property(dp, "linux,bootx-addr", &len);
 	if (up == NULL)
-		up = (u32 *)get_property(dp, "address", &len);
+		up = get_property(dp, "address", &len);
 	if (up && len == sizeof(u32))
 		addr_prop = *up;
 

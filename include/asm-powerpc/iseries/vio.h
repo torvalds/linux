@@ -122,6 +122,34 @@ enum viorc {
 	viorc_openRejected = 0x0301
 };
 
+/*
+ * The structure of the events that flow between us and OS/400 for chario
+ * events.  You can't mess with this unless the OS/400 side changes too.
+ */
+struct viocharlpevent {
+	struct HvLpEvent event;
+	u32 reserved;
+	u16 version;
+	u16 subtype_result_code;
+	u8 virtual_device;
+	u8 len;
+	u8 data[VIOCHAR_MAX_DATA];
+};
+
+#define VIOCHAR_WINDOW		10
+
+enum viocharsubtype {
+	viocharopen = 0x0001,
+	viocharclose = 0x0002,
+	viochardata = 0x0003,
+	viocharack = 0x0004,
+	viocharconfig = 0x0005
+};
+
+enum viochar_rc {
+	viochar_rc_ebusy = 1
+};
+
 struct device;
 
 extern struct device *iSeries_vio_dev;

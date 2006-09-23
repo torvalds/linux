@@ -124,11 +124,11 @@ int eeh_send_failure_event (struct device_node *dn,
 {
 	unsigned long flags;
 	struct eeh_event *event;
-	char *location;
+	const char *location;
 
 	if (!mem_init_done) {
 		printk(KERN_ERR "EEH: event during early boot not handled\n");
-		location = (char *) get_property(dn, "ibm,loc-code", NULL);
+		location = get_property(dn, "ibm,loc-code", NULL);
 		printk(KERN_ERR "EEH: device node = %s\n", dn->full_name);
 		printk(KERN_ERR "EEH: PCI location = %s\n", location);
 		return 1;

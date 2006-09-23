@@ -1274,11 +1274,10 @@ static int __init hvsi_console_init(void)
 			vty != NULL;
 			vty = of_find_compatible_node(vty, "serial", "hvterm-protocol")) {
 		struct hvsi_struct *hp;
-		uint32_t *vtermno;
-		uint32_t *irq;
+		const uint32_t *vtermno, *irq;
 
-		vtermno = (uint32_t *)get_property(vty, "reg", NULL);
-		irq = (uint32_t *)get_property(vty, "interrupts", NULL);
+		vtermno = get_property(vty, "reg", NULL);
+		irq = get_property(vty, "interrupts", NULL);
 		if (!vtermno || !irq)
 			continue;
 

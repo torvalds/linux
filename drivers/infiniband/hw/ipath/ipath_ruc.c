@@ -32,7 +32,7 @@
  */
 
 #include "ipath_verbs.h"
-#include "ipath_common.h"
+#include "ipath_kernel.h"
 
 /*
  * Convert the AETH RNR timeout code into the number of milliseconds.
@@ -106,6 +106,54 @@ void ipath_insert_rnr_queue(struct ipath_qp *qp)
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 }
 
+static int init_sge(struct ipath_qp *qp, struct ipath_rwqe *wqe)
+{
+	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
+	int user = to_ipd(qp->ibqp.pd)->user;
+	int i, j, ret;
+	struct ib_wc wc;
+
+	qp->r_len = 0;
+	for (i = j = 0; i < wqe->num_sge; i++) {
+		if (wqe->sg_list[i].length == 0)
+			continue;
+		/* Check LKEY */
+		if ((user && wqe->sg_list[i].lkey == 0) ||
+		    !ipath_lkey_ok(&dev->lk_table,
+				   &qp->r_sg_list[j], &wqe->sg_list[i],
+				   IB_ACCESS_LOCAL_WRITE))
+			goto bad_lkey;
+		qp->r_len += wqe->sg_list[i].length;
+		j++;
+	}
+	qp->r_sge.sge = qp->r_sg_list[0];
+	qp->r_sge.sg_list = qp->r_sg_list + 1;
+	qp->r_sge.num_sge = j;
+	ret = 1;
+	goto bail;
+
+bad_lkey:
+	wc.wr_id = wqe->wr_id;
+	wc.status = IB_WC_LOC_PROT_ERR;
+	wc.opcode = IB_WC_RECV;
+	wc.vendor_err = 0;
+	wc.byte_len = 0;
+	wc.imm_data = 0;
+	wc.qp_num = qp->ibqp.qp_num;
+	wc.src_qp = 0;
+	wc.wc_flags = 0;
+	wc.pkey_index = 0;
+	wc.slid = 0;
+	wc.sl = 0;
+	wc.dlid_path_bits = 0;
+	wc.port_num = 0;
+	/* Signal solicited completion event. */
+	ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
+	ret = 0;
+bail:
+	return ret;
+}
+
 /**
  * ipath_get_rwqe - copy the next RWQE into the QP's RWQE
  * @qp: the QP
@@ -119,71 +167,71 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 {
 	unsigned long flags;
 	struct ipath_rq *rq;
+	struct ipath_rwq *wq;
 	struct ipath_srq *srq;
 	struct ipath_rwqe *wqe;
-	int ret = 1;
+	void (*handler)(struct ib_event *, void *);
+	u32 tail;
+	int ret;
 
-	if (!qp->ibqp.srq) {
+	if (qp->ibqp.srq) {
+		srq = to_isrq(qp->ibqp.srq);
+		handler = srq->ibsrq.event_handler;
+		rq = &srq->rq;
+	} else {
+		srq = NULL;
+		handler = NULL;
 		rq = &qp->r_rq;
-		spin_lock_irqsave(&rq->lock, flags);
-
-		if (unlikely(rq->tail == rq->head)) {
-			ret = 0;
-			goto done;
-		}
-		wqe = get_rwqe_ptr(rq, rq->tail);
-		qp->r_wr_id = wqe->wr_id;
-		if (!wr_id_only) {
-			qp->r_sge.sge = wqe->sg_list[0];
-			qp->r_sge.sg_list = wqe->sg_list + 1;
-			qp->r_sge.num_sge = wqe->num_sge;
-			qp->r_len = wqe->length;
-		}
-		if (++rq->tail >= rq->size)
-			rq->tail = 0;
-		goto done;
 	}
 
-	srq = to_isrq(qp->ibqp.srq);
-	rq = &srq->rq;
 	spin_lock_irqsave(&rq->lock, flags);
-
-	if (unlikely(rq->tail == rq->head)) {
-		ret = 0;
-		goto done;
-	}
-	wqe = get_rwqe_ptr(rq, rq->tail);
+	wq = rq->wq;
+	tail = wq->tail;
+	/* Validate tail before using it since it is user writable. */
+	if (tail >= rq->size)
+		tail = 0;
+	do {
+		if (unlikely(tail == wq->head)) {
+			spin_unlock_irqrestore(&rq->lock, flags);
+			ret = 0;
+			goto bail;
+		}
+		wqe = get_rwqe_ptr(rq, tail);
+		if (++tail >= rq->size)
+			tail = 0;
+	} while (!wr_id_only && !init_sge(qp, wqe));
 	qp->r_wr_id = wqe->wr_id;
-	if (!wr_id_only) {
-		qp->r_sge.sge = wqe->sg_list[0];
-		qp->r_sge.sg_list = wqe->sg_list + 1;
-		qp->r_sge.num_sge = wqe->num_sge;
-		qp->r_len = wqe->length;
-	}
-	if (++rq->tail >= rq->size)
-		rq->tail = 0;
-	if (srq->ibsrq.event_handler) {
-		struct ib_event ev;
+	wq->tail = tail;
+
+	ret = 1;
+	if (handler) {
 		u32 n;
 
-		if (rq->head < rq->tail)
-			n = rq->size + rq->head - rq->tail;
+		/*
+		 * validate head pointer value and compute
+		 * the number of remaining WQEs.
+		 */
+		n = wq->head;
+		if (n >= rq->size)
+			n = 0;
+		if (n < tail)
+			n += rq->size - tail;
 		else
-			n = rq->head - rq->tail;
+			n -= tail;
 		if (n < srq->limit) {
+			struct ib_event ev;
+
 			srq->limit = 0;
 			spin_unlock_irqrestore(&rq->lock, flags);
 			ev.device = qp->ibqp.device;
 			ev.element.srq = qp->ibqp.srq;
 			ev.event = IB_EVENT_SRQ_LIMIT_REACHED;
-			srq->ibsrq.event_handler(&ev,
-						 srq->ibsrq.srq_context);
+			handler(&ev, srq->ibsrq.srq_context);
 			goto bail;
 		}
 	}
-
-done:
 	spin_unlock_irqrestore(&rq->lock, flags);
+
 bail:
 	return ret;
 }
@@ -422,6 +470,15 @@ done:
 		wake_up(&qp->wait);
 }
 
+static int want_buffer(struct ipath_devdata *dd)
+{
+	set_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+			 dd->ipath_sendctrl);
+
+	return 0;
+}
+
 /**
  * ipath_no_bufs_available - tell the layer driver we need buffers
  * @qp: the QP that caused the problem
@@ -438,7 +495,7 @@ void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev)
 		list_add_tail(&qp->piowait, &dev->piowait);
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 	/*
-	 * Note that as soon as ipath_layer_want_buffer() is called and
+	 * Note that as soon as want_buffer() is called and
 	 * possibly before it returns, ipath_ib_piobufavail()
 	 * could be called.  If we are still in the tasklet function,
 	 * tasklet_hi_schedule() will not call us until the next time
@@ -448,7 +505,7 @@ void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev)
 	 */
 	clear_bit(IPATH_S_BUSY, &qp->s_flags);
 	tasklet_unlock(&qp->s_task);
-	ipath_layer_want_buffer(dev->dd);
+	want_buffer(dev->dd);
 	dev->n_piowait++;
 }
 
@@ -563,7 +620,7 @@ u32 ipath_make_grh(struct ipath_ibdev *dev, struct ib_grh *hdr,
 	hdr->hop_limit = grh->hop_limit;
 	/* The SGID is 32-bit aligned. */
 	hdr->sgid.global.subnet_prefix = dev->gid_prefix;
-	hdr->sgid.global.interface_id = ipath_layer_get_guid(dev->dd);
+	hdr->sgid.global.interface_id = dev->dd->ipath_guid;
 	hdr->dgid = grh->dgid;
 
 	/* GRH header size in 32-bit words. */
@@ -595,8 +652,7 @@ void ipath_do_ruc_send(unsigned long data)
 	if (test_and_set_bit(IPATH_S_BUSY, &qp->s_flags))
 		goto bail;
 
-	if (unlikely(qp->remote_ah_attr.dlid ==
-		     ipath_layer_get_lid(dev->dd))) {
+	if (unlikely(qp->remote_ah_attr.dlid == dev->dd->ipath_lid)) {
 		ipath_ruc_loopback(qp);
 		goto clear;
 	}
@@ -663,8 +719,8 @@ again:
 	qp->s_hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
 	qp->s_hdr.lrh[2] = cpu_to_be16(qp->s_hdrwords + nwords +
 				       SIZE_OF_CRC);
-	qp->s_hdr.lrh[3] = cpu_to_be16(ipath_layer_get_lid(dev->dd));
-	bth0 |= ipath_layer_get_pkey(dev->dd, qp->s_pkey_index);
+	qp->s_hdr.lrh[3] = cpu_to_be16(dev->dd->ipath_lid);
+	bth0 |= ipath_get_pkey(dev->dd, qp->s_pkey_index);
 	bth0 |= extra_bytes << 20;
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);

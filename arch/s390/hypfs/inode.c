@@ -1,5 +1,5 @@
 /*
- *  fs/hypfs/inode.c
+ *  arch/s390/hypfs/inode.c
  *    Hypervisor filesystem for Linux on s390.
  *
  *    Copyright (C) IBM Corp. 2006
@@ -312,10 +312,12 @@ static void hypfs_kill_super(struct super_block *sb)
 {
 	struct hypfs_sb_info *sb_info = sb->s_fs_info;
 
-	hypfs_delete_tree(sb->s_root);
-	hypfs_remove(sb_info->update_file);
-	kfree(sb->s_fs_info);
-	sb->s_fs_info = NULL;
+	if (sb->s_root) {
+		hypfs_delete_tree(sb->s_root);
+		hypfs_remove(sb_info->update_file);
+		kfree(sb->s_fs_info);
+		sb->s_fs_info = NULL;
+	}
 	kill_litter_super(sb);
 }
 

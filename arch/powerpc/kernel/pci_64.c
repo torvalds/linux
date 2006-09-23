@@ -185,34 +185,6 @@ static void __devinit pci_setup_pci_controller(struct pci_controller *hose)
 	spin_unlock(&hose_spinlock);
 }
 
-static void add_linux_pci_domain(struct device_node *dev,
-				 struct pci_controller *phb)
-{
-	struct property *of_prop;
-	unsigned int size;
-
-	of_prop = (struct property *)
-		get_property(dev, "linux,pci-domain", &size);
-	if (of_prop != NULL)
-		return;
-	WARN_ON(of_prop && size < sizeof(int));
-	if (of_prop && size < sizeof(int))
-		of_prop = NULL;
-	size = sizeof(struct property) + sizeof(int);
-	if (of_prop == NULL) {
-		if (mem_init_done)
-			of_prop = kmalloc(size, GFP_KERNEL);
-		else
-			of_prop = alloc_bootmem(size);
-	}
-	memset(of_prop, 0, sizeof(struct property));
-	of_prop->name = "linux,pci-domain";
-	of_prop->length = sizeof(int);
-	of_prop->value = (unsigned char *)&of_prop[1];
-	*((int *)of_prop->value) = phb->global_number;
-	prom_add_property(dev, of_prop);
-}
-
 struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *phb;
@@ -226,22 +198,13 @@ struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 	pci_setup_pci_controller(phb);
 	phb->arch_data = dev;
 	phb->is_dynamic = mem_init_done;
-	if (dev) {
+	if (dev)
 		PHB_SET_NODE(phb, of_node_to_nid(dev));
-		add_linux_pci_domain(dev, phb);
-	}
 	return phb;
 }
 
 void pcibios_free_controller(struct pci_controller *phb)
 {
-	if (phb->arch_data) {
-		struct device_node *np = phb->arch_data;
-		int *domain = (int *)get_property(np,
-						  "linux,pci-domain", NULL);
-		if (domain)
-			*domain = -1;
-	}
 	if (phb->is_dynamic)
 		kfree(phb);
 }
@@ -283,10 +246,10 @@ static void __init pcibios_claim_of_setup(void)
 #ifdef CONFIG_PPC_MULTIPLATFORM
 static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
 {
-	u32 *prop;
+	const u32 *prop;
 	int len;
 
-	prop = (u32 *) get_property(np, name, &len);
+	prop = get_property(np, name, &len);
 	if (prop && len >= 4)
 		return *prop;
 	return def;
@@ -315,10 +278,11 @@ static void pci_parse_of_addrs(struct device_node *node, struct pci_dev *dev)
 	u64 base, size;
 	unsigned int flags;
 	struct resource *res;
-	u32 *addrs, i;
+	const u32 *addrs;
+	u32 i;
 	int proplen;
 
-	addrs = (u32 *) get_property(node, "assigned-addresses", &proplen);
+	addrs = get_property(node, "assigned-addresses", &proplen);
 	if (!addrs)
 		return;
 	DBG("    parse addresses (%d bytes) @ %p\n", proplen, addrs);
@@ -418,7 +382,7 @@ void __devinit of_scan_bus(struct device_node *node,
 				  struct pci_bus *bus)
 {
 	struct device_node *child = NULL;
-	u32 *reg;
+	const u32 *reg;
 	int reglen, devfn;
 	struct pci_dev *dev;
 
@@ -426,7 +390,7 @@ void __devinit of_scan_bus(struct device_node *node,
 
 	while ((child = of_get_next_child(node, child)) != NULL) {
 		DBG("  * %s\n", child->full_name);
-		reg = (u32 *) get_property(child, "reg", &reglen);
+		reg = get_property(child, "reg", &reglen);
 		if (reg == NULL || reglen < 20)
 			continue;
 		devfn = (reg[0] >> 8) & 0xff;
@@ -450,7 +414,7 @@ void __devinit of_scan_pci_bridge(struct device_node *node,
 			 	struct pci_dev *dev)
 {
 	struct pci_bus *bus;
-	u32 *busrange, *ranges;
+	const u32 *busrange, *ranges;
 	int len, i, mode;
 	struct resource *res;
 	unsigned int flags;
@@ -459,13 +423,13 @@ void __devinit of_scan_pci_bridge(struct device_node *node,
 	DBG("of_scan_pci_bridge(%s)\n", node->full_name);
 
 	/* parse bus-range property */
-	busrange = (u32 *) get_property(node, "bus-range", &len);
+	busrange = get_property(node, "bus-range", &len);
 	if (busrange == NULL || len != 8) {
 		printk(KERN_DEBUG "Can't get bus-range for PCI-PCI bridge %s\n",
 		       node->full_name);
 		return;
 	}
-	ranges = (u32 *) get_property(node, "ranges", &len);
+	ranges = get_property(node, "ranges", &len);
 	if (ranges == NULL) {
 		printk(KERN_DEBUG "Can't get ranges for PCI-PCI bridge %s\n",
 		       node->full_name);
@@ -929,13 +893,13 @@ static void __devinit pci_process_ISA_OF_ranges(struct device_node *isa_node,
 		unsigned int size;
 	};
 
-	struct isa_range *range;
+	const struct isa_range *range;
 	unsigned long pci_addr;
 	unsigned int isa_addr;
 	unsigned int size;
 	int rlen = 0;
 
-	range = (struct isa_range *) get_property(isa_node, "ranges", &rlen);
+	range = get_property(isa_node, "ranges", &rlen);
 	if (range == NULL || (rlen < sizeof(struct isa_range))) {
 		printk(KERN_ERR "no ISA ranges or unexpected isa range size,"
 		       "mapping 64k\n");
@@ -976,7 +940,8 @@ static void __devinit pci_process_ISA_OF_ranges(struct device_node *isa_node,
 void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 					    struct device_node *dev, int prim)
 {
-	unsigned int *ranges, pci_space;
+	const unsigned int *ranges;
+	unsigned int pci_space;
 	unsigned long size;
 	int rlen = 0;
 	int memno = 0;
@@ -994,7 +959,7 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	 *			(size depending on dev->n_addr_cells)
 	 *   cells 4+5 or 5+6:	the size of the range
 	 */
-	ranges = (unsigned int *) get_property(dev, "ranges", &rlen);
+	ranges = get_property(dev, "ranges", &rlen);
 	if (ranges == NULL)
 		return;
 	hose->io_base_phys = 0;

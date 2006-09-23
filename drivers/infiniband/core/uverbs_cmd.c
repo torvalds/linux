@@ -155,7 +155,7 @@ static struct ib_uobject *__idr_get_uobj(struct idr *idr, int id,
 }
 
 static struct ib_uobject *idr_read_uobj(struct idr *idr, int id,
-					struct ib_ucontext *context)
+					struct ib_ucontext *context, int nested)
 {
 	struct ib_uobject *uobj;
 
@@ -163,7 +163,10 @@ static struct ib_uobject *idr_read_uobj(struct idr *idr, int id,
 	if (!uobj)
 		return NULL;
 
-	down_read(&uobj->mutex);
+	if (nested)
+		down_read_nested(&uobj->mutex, SINGLE_DEPTH_NESTING);
+	else
+		down_read(&uobj->mutex);
 	if (!uobj->live) {
 		put_uobj_read(uobj);
 		return NULL;
@@ -190,17 +193,18 @@ static struct ib_uobject *idr_write_uobj(struct idr *idr, int id,
 	return uobj;
 }
 
-static void *idr_read_obj(struct idr *idr, int id, struct ib_ucontext *context)
+static void *idr_read_obj(struct idr *idr, int id, struct ib_ucontext *context,
+			  int nested)
 {
 	struct ib_uobject *uobj;
 
-	uobj = idr_read_uobj(idr, id, context);
+	uobj = idr_read_uobj(idr, id, context, nested);
 	return uobj ? uobj->object : NULL;
 }
 
 static struct ib_pd *idr_read_pd(int pd_handle, struct ib_ucontext *context)
 {
-	return idr_read_obj(&ib_uverbs_pd_idr, pd_handle, context);
+	return idr_read_obj(&ib_uverbs_pd_idr, pd_handle, context, 0);
 }
 
 static void put_pd_read(struct ib_pd *pd)
@@ -208,9 +212,9 @@ static void put_pd_read(struct ib_pd *pd)
 	put_uobj_read(pd->uobject);
 }
 
-static struct ib_cq *idr_read_cq(int cq_handle, struct ib_ucontext *context)
+static struct ib_cq *idr_read_cq(int cq_handle, struct ib_ucontext *context, int nested)
 {
-	return idr_read_obj(&ib_uverbs_cq_idr, cq_handle, context);
+	return idr_read_obj(&ib_uverbs_cq_idr, cq_handle, context, nested);
 }
 
 static void put_cq_read(struct ib_cq *cq)
@@ -220,7 +224,7 @@ static void put_cq_read(struct ib_cq *cq)
 
 static struct ib_ah *idr_read_ah(int ah_handle, struct ib_ucontext *context)
 {
-	return idr_read_obj(&ib_uverbs_ah_idr, ah_handle, context);
+	return idr_read_obj(&ib_uverbs_ah_idr, ah_handle, context, 0);
 }
 
 static void put_ah_read(struct ib_ah *ah)
@@ -230,7 +234,7 @@ static void put_ah_read(struct ib_ah *ah)
 
 static struct ib_qp *idr_read_qp(int qp_handle, struct ib_ucontext *context)
 {
-	return idr_read_obj(&ib_uverbs_qp_idr, qp_handle, context);
+	return idr_read_obj(&ib_uverbs_qp_idr, qp_handle, context, 0);
 }
 
 static void put_qp_read(struct ib_qp *qp)
@@ -240,7 +244,7 @@ static void put_qp_read(struct ib_qp *qp)
 
 static struct ib_srq *idr_read_srq(int srq_handle, struct ib_ucontext *context)
 {
-	return idr_read_obj(&ib_uverbs_srq_idr, srq_handle, context);
+	return idr_read_obj(&ib_uverbs_srq_idr, srq_handle, context, 0);
 }
 
 static void put_srq_read(struct ib_srq *srq)
@@ -837,7 +841,6 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 err_copy:
 	idr_remove_uobj(&ib_uverbs_cq_idr, &obj->uobject);
 
-
 err_free:
 	ib_destroy_cq(cq);
 
@@ -867,7 +870,7 @@ ssize_t ib_uverbs_resize_cq(struct ib_uverbs_file *file,
 		   (unsigned long) cmd.response + sizeof resp,
 		   in_len - sizeof cmd, out_len - sizeof resp);
 
-	cq = idr_read_cq(cmd.cq_handle, file->ucontext);
+	cq = idr_read_cq(cmd.cq_handle, file->ucontext, 0);
 	if (!cq)
 		return -EINVAL;
 
@@ -875,11 +878,10 @@ ssize_t ib_uverbs_resize_cq(struct ib_uverbs_file *file,
 	if (ret)
 		goto out;
 
-	memset(&resp, 0, sizeof resp);
 	resp.cqe = cq->cqe;
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
-			 &resp, sizeof resp))
+			 &resp, sizeof resp.cqe))
 		ret = -EFAULT;
 
 out:
@@ -894,7 +896,6 @@ ssize_t ib_uverbs_poll_cq(struct ib_uverbs_file *file,
 {
 	struct ib_uverbs_poll_cq       cmd;
 	struct ib_uverbs_poll_cq_resp *resp;
-	struct ib_uobject	      *uobj;
 	struct ib_cq                  *cq;
 	struct ib_wc                  *wc;
 	int                            ret = 0;
@@ -915,16 +916,15 @@ ssize_t ib_uverbs_poll_cq(struct ib_uverbs_file *file,
 		goto out_wc;
 	}
 
-	uobj = idr_read_uobj(&ib_uverbs_cq_idr, cmd.cq_handle, file->ucontext);
-	if (!uobj) {
+	cq = idr_read_cq(cmd.cq_handle, file->ucontext, 0);
+	if (!cq) {
 		ret = -EINVAL;
 		goto out;
 	}
-	cq = uobj->object;
 
 	resp->count = ib_poll_cq(cq, cmd.ne, wc);
 
-	put_uobj_read(uobj);
+	put_cq_read(cq);
 
 	for (i = 0; i < resp->count; i++) {
 		resp->wc[i].wr_id 	   = wc[i].wr_id;
@@ -959,21 +959,19 @@ ssize_t ib_uverbs_req_notify_cq(struct ib_uverbs_file *file,
 				int out_len)
 {
 	struct ib_uverbs_req_notify_cq cmd;
-	struct ib_uobject	      *uobj;
 	struct ib_cq                  *cq;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	uobj = idr_read_uobj(&ib_uverbs_cq_idr, cmd.cq_handle, file->ucontext);
-	if (!uobj)
+	cq = idr_read_cq(cmd.cq_handle, file->ucontext, 0);
+	if (!cq)
 		return -EINVAL;
-	cq = uobj->object;
 
 	ib_req_notify_cq(cq, cmd.solicited_only ?
 			 IB_CQ_SOLICITED : IB_CQ_NEXT_COMP);
 
-	put_uobj_read(uobj);
+	put_cq_read(cq);
 
 	return in_len;
 }
@@ -1064,9 +1062,9 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 
 	srq = cmd.is_srq ? idr_read_srq(cmd.srq_handle, file->ucontext) : NULL;
 	pd  = idr_read_pd(cmd.pd_handle, file->ucontext);
-	scq = idr_read_cq(cmd.send_cq_handle, file->ucontext);
+	scq = idr_read_cq(cmd.send_cq_handle, file->ucontext, 0);
 	rcq = cmd.recv_cq_handle == cmd.send_cq_handle ?
-		scq : idr_read_cq(cmd.recv_cq_handle, file->ucontext);
+		scq : idr_read_cq(cmd.recv_cq_handle, file->ucontext, 1);
 
 	if (!pd || !scq || !rcq || (cmd.is_srq && !srq)) {
 		ret = -EINVAL;
@@ -1274,12 +1272,16 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 			    int out_len)
 {
 	struct ib_uverbs_modify_qp cmd;
+	struct ib_udata            udata;
 	struct ib_qp              *qp;
 	struct ib_qp_attr         *attr;
 	int                        ret;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
+
+	INIT_UDATA(&udata, buf + sizeof cmd, NULL, in_len - sizeof cmd,
+		   out_len);
 
 	attr = kmalloc(sizeof *attr, GFP_KERNEL);
 	if (!attr)
@@ -1337,7 +1339,7 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 	attr->alt_ah_attr.ah_flags 	    = cmd.alt_dest.is_global ? IB_AH_GRH : 0;
 	attr->alt_ah_attr.port_num 	    = cmd.alt_dest.port_num;
 
-	ret = ib_modify_qp(qp, attr, cmd.attr_mask);
+	ret = qp->device->modify_qp(qp, attr, cmd.attr_mask, &udata);
 
 	put_qp_read(qp);
 
@@ -1674,7 +1676,6 @@ ssize_t ib_uverbs_post_recv(struct ib_uverbs_file *file,
 				break;
 		}
 
-
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp))
 		ret = -EFAULT;
@@ -1723,7 +1724,6 @@ ssize_t ib_uverbs_post_srq_recv(struct ib_uverbs_file *file,
 			if (next == bad_wr)
 				break;
 		}
-
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp))
@@ -2055,12 +2055,16 @@ ssize_t ib_uverbs_modify_srq(struct ib_uverbs_file *file,
 			     int out_len)
 {
 	struct ib_uverbs_modify_srq cmd;
+	struct ib_udata             udata;
 	struct ib_srq              *srq;
 	struct ib_srq_attr          attr;
 	int                         ret;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
+
+	INIT_UDATA(&udata, buf + sizeof cmd, NULL, in_len - sizeof cmd,
+		   out_len);
 
 	srq = idr_read_srq(cmd.srq_handle, file->ucontext);
 	if (!srq)
@@ -2069,7 +2073,7 @@ ssize_t ib_uverbs_modify_srq(struct ib_uverbs_file *file,
 	attr.max_wr    = cmd.max_wr;
 	attr.srq_limit = cmd.srq_limit;
 
-	ret = ib_modify_srq(srq, &attr, cmd.attr_mask);
+	ret = srq->device->modify_srq(srq, &attr, cmd.attr_mask, &udata);
 
 	put_srq_read(srq);
 

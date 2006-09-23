@@ -41,7 +41,7 @@ phys_addr_t get_immrbase(void)
 	soc = of_find_node_by_type(NULL, "soc");
 	if (soc) {
 		unsigned int size;
-		void *prop = get_property(soc, "reg", &size);
+		const void *prop = get_property(soc, "reg", &size);
 		immrbase = of_translate_address(soc, prop);
 		of_node_put(soc);
 	};
@@ -85,7 +85,7 @@ static int __init gfar_mdio_of_init(void)
 			mdio_data.irq[k] = -1;
 
 		while ((child = of_get_next_child(np, child)) != NULL) {
-			u32 *id = get_property(child, "reg", NULL);
+			const u32 *id = get_property(child, "reg", NULL);
 			mdio_data.irq[*id] = irq_of_parse_and_map(child, 0);
 		}
 
@@ -124,10 +124,10 @@ static int __init gfar_of_init(void)
 		struct resource r[4];
 		struct device_node *phy, *mdio;
 		struct gianfar_platform_data gfar_data;
-		unsigned int *id;
-		char *model;
-		void *mac_addr;
-		phandle *ph;
+		const unsigned int *id;
+		const char *model;
+		const void *mac_addr;
+		const phandle *ph;
 		int n_res = 1;
 
 		memset(r, 0, sizeof(r));
@@ -193,7 +193,7 @@ static int __init gfar_of_init(void)
 			    FSL_GIANFAR_DEV_HAS_VLAN |
 			    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH;
 
-		ph = (phandle *) get_property(np, "phy-handle", NULL);
+		ph = get_property(np, "phy-handle", NULL);
 		phy = of_find_node_by_phandle(*ph);
 
 		if (phy == NULL) {
@@ -203,7 +203,7 @@ static int __init gfar_of_init(void)
 
 		mdio = of_get_parent(phy);
 
-		id = (u32 *) get_property(phy, "reg", NULL);
+		id = get_property(phy, "reg", NULL);
 		ret = of_address_to_resource(mdio, 0, &res);
 		if (ret) {
 			of_node_put(phy);
@@ -247,7 +247,7 @@ static int __init fsl_i2c_of_init(void)
 	     i++) {
 		struct resource r[2];
 		struct fsl_i2c_platform_data i2c_data;
-		unsigned char *flags = NULL;
+		const unsigned char *flags = NULL;
 
 		memset(&r, 0, sizeof(r));
 		memset(&i2c_data, 0, sizeof(i2c_data));
@@ -298,7 +298,7 @@ static int __init mpc83xx_wdt_init(void)
 	struct resource r;
 	struct device_node *soc, *np;
 	struct platform_device *dev;
-	unsigned int *freq;
+	const unsigned int *freq;
 	int ret;
 
 	np = of_find_compatible_node(NULL, "watchdog", "mpc83xx_wdt");
@@ -315,7 +315,7 @@ static int __init mpc83xx_wdt_init(void)
 		goto nosoc;
 	}
 
-	freq = (unsigned int *)get_property(soc, "bus-frequency", NULL);
+	freq = get_property(soc, "bus-frequency", NULL);
 	if (!freq) {
 		ret = -ENODEV;
 		goto err;
@@ -355,7 +355,7 @@ nodev:
 arch_initcall(mpc83xx_wdt_init);
 #endif
 
-static enum fsl_usb2_phy_modes determine_usb_phy(char * phy_type)
+static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 {
 	if (!phy_type)
 		return FSL_USB2_PHY_NONE;
@@ -383,7 +383,7 @@ static int __init fsl_usb_of_init(void)
 	     i++) {
 		struct resource r[2];
 		struct fsl_usb2_platform_data usb_data;
-		unsigned char *prop = NULL;
+		const unsigned char *prop = NULL;
 
 		memset(&r, 0, sizeof(r));
 		memset(&usb_data, 0, sizeof(usb_data));
@@ -431,7 +431,7 @@ static int __init fsl_usb_of_init(void)
 	     i++) {
 		struct resource r[2];
 		struct fsl_usb2_platform_data usb_data;
-		unsigned char *prop = NULL;
+		const unsigned char *prop = NULL;
 
 		memset(&r, 0, sizeof(r));
 		memset(&usb_data, 0, sizeof(usb_data));

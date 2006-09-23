@@ -123,13 +123,14 @@ static ssize_t pSeries_nvram_get_size(void)
 int __init pSeries_nvram_init(void)
 {
 	struct device_node *nvram;
-	unsigned int *nbytes_p, proplen;
+	const unsigned int *nbytes_p;
+	unsigned int proplen;
 
 	nvram = of_find_node_by_type(NULL, "nvram");
 	if (nvram == NULL)
 		return -ENODEV;
 
-	nbytes_p = (unsigned int *)get_property(nvram, "#bytes", &proplen);
+	nbytes_p = get_property(nvram, "#bytes", &proplen);
 	if (nbytes_p == NULL || proplen != sizeof(unsigned int))
 		return -EIO;
 

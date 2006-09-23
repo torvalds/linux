@@ -48,13 +48,11 @@
 #define DBG_LOW(fmt...) do { } while(0)
 #endif
 
-/* in pSeries_hvCall.S */
+/* in hvCall.S */
 EXPORT_SYMBOL(plpar_hcall);
-EXPORT_SYMBOL(plpar_hcall_4out);
+EXPORT_SYMBOL(plpar_hcall9);
 EXPORT_SYMBOL(plpar_hcall_norets);
-EXPORT_SYMBOL(plpar_hcall_8arg_2ret);
-EXPORT_SYMBOL(plpar_hcall_7arg_7ret);
-EXPORT_SYMBOL(plpar_hcall_9arg_9ret);
+
 extern void pSeries_find_serial_port(void);
 
 
@@ -204,20 +202,20 @@ void __init udbg_init_debug_lpar(void)
 void __init find_udbg_vterm(void)
 {
 	struct device_node *stdout_node;
-	u32 *termno;
-	char *name;
+	const u32 *termno;
+	const char *name;
 	int add_console;
 
 	/* find the boot console from /chosen/stdout */
 	if (!of_chosen)
 		return;
-	name = (char *)get_property(of_chosen, "linux,stdout-path", NULL);
+	name = get_property(of_chosen, "linux,stdout-path", NULL);
 	if (name == NULL)
 		return;
 	stdout_node = of_find_node_by_path(name);
 	if (!stdout_node)
 		return;
-	name = (char *)get_property(stdout_node, "name", NULL);
+	name = get_property(stdout_node, "name", NULL);
 	if (!name) {
 		printk(KERN_WARNING "stdout node missing 'name' property!\n");
 		goto out;
@@ -228,7 +226,7 @@ void __init find_udbg_vterm(void)
 	/* Check if it's a virtual terminal */
 	if (strncmp(name, "vty", 3) != 0)
 		goto out;
-	termno = (u32 *)get_property(stdout_node, "reg", NULL);
+	termno = get_property(stdout_node, "reg", NULL);
 	if (termno == NULL)
 		goto out;
 	vtermno = termno[0];
@@ -254,18 +252,34 @@ out:
 void vpa_init(int cpu)
 {
 	int hwcpu = get_hard_smp_processor_id(cpu);
-	unsigned long vpa = __pa(&lppaca[cpu]);
+	unsigned long addr;
 	long ret;
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		lppaca[cpu].vmxregs_in_use = 1;
 
-	ret = register_vpa(hwcpu, vpa);
+	addr = __pa(&lppaca[cpu]);
+	ret = register_vpa(hwcpu, addr);
 
-	if (ret)
+	if (ret) {
 		printk(KERN_ERR "WARNING: vpa_init: VPA registration for "
 				"cpu %d (hw %d) of area %lx returns %ld\n",
-				cpu, hwcpu, vpa, ret);
+				cpu, hwcpu, addr, ret);
+		return;
+	}
+	/*
+	 * PAPR says this feature is SLB-Buffer but firmware never
+	 * reports that.  All SPLPAR support SLB shadow buffer.
+	 */
+	addr = __pa(&slb_shadow[cpu]);
+	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
+		ret = register_slb_shadow(hwcpu, addr);
+		if (ret)
+			printk(KERN_ERR
+			       "WARNING: vpa_init: SLB shadow buffer "
+			       "registration for cpu %d (hw %d) of area %lx "
+			       "returns %ld\n", cpu, hwcpu, addr, ret);
+	}
 }
 
 long pSeries_lpar_hpte_insert(unsigned long hpte_group,
@@ -277,7 +291,6 @@ long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	unsigned long flags;
 	unsigned long slot;
 	unsigned long hpte_v, hpte_r;
-	unsigned long dummy0, dummy1;
 
 	if (!(vflags & HPTE_V_BOLTED))
 		DBG_LOW("hpte_insert(group=%lx, va=%016lx, pa=%016lx, "
@@ -302,8 +315,7 @@ long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	if (rflags & (_PAGE_GUARDED|_PAGE_NO_CACHE))
 		hpte_r &= ~_PAGE_COHERENT;
 
-	lpar_rc = plpar_hcall(H_ENTER, flags, hpte_group, hpte_v,
-			      hpte_r, &slot, &dummy0, &dummy1);
+	lpar_rc = plpar_pte_enter(flags, hpte_group, hpte_v, hpte_r, &slot);
 	if (unlikely(lpar_rc == H_PTEG_FULL)) {
 		if (!(vflags & HPTE_V_BOLTED))
 			DBG_LOW(" full\n");

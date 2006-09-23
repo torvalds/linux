@@ -40,9 +40,10 @@
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #include <asm/lppaca.h>
-#include <asm/iseries/hv_lp_event.h>
 #include <asm/cache.h>
 #include <asm/compat.h>
+#include <asm/mmu.h>
+#include <asm/hvcall.h>
 #endif
 
 #define DEFINE(sym, val) \
@@ -136,11 +137,18 @@ int main(void)
 	DEFINE(PACA_STARTPURR, offsetof(struct paca_struct, startpurr));
 	DEFINE(PACA_USER_TIME, offsetof(struct paca_struct, user_time));
 	DEFINE(PACA_SYSTEM_TIME, offsetof(struct paca_struct, system_time));
+	DEFINE(PACA_SLBSHADOWPTR, offsetof(struct paca_struct, slb_shadow_ptr));
+	DEFINE(PACA_DATA_OFFSET, offsetof(struct paca_struct, data_offset));
 
+	DEFINE(SLBSHADOW_STACKVSID,
+	       offsetof(struct slb_shadow, save_area[SLB_NUM_BOLTED - 1].vsid));
+	DEFINE(SLBSHADOW_STACKESID,
+	       offsetof(struct slb_shadow, save_area[SLB_NUM_BOLTED - 1].esid));
 	DEFINE(LPPACASRR0, offsetof(struct lppaca, saved_srr0));
 	DEFINE(LPPACASRR1, offsetof(struct lppaca, saved_srr1));
 	DEFINE(LPPACAANYINT, offsetof(struct lppaca, int_dword.any_int));
 	DEFINE(LPPACADECRINT, offsetof(struct lppaca, int_dword.fields.decr_int));
+	DEFINE(SLBSHADOW_SAVEAREA, offsetof(struct slb_shadow, save_area));
 #endif /* CONFIG_PPC64 */
 
 	/* RTAS */
@@ -159,6 +167,12 @@ int main(void)
 	/* Create extra stack space for SRR0 and SRR1 when calling prom/rtas. */
 	DEFINE(PROM_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs) + 16);
 	DEFINE(RTAS_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs) + 16);
+
+	/* hcall statistics */
+	DEFINE(HCALL_STAT_SIZE, sizeof(struct hcall_stats));
+	DEFINE(HCALL_STAT_CALLS, offsetof(struct hcall_stats, num_calls));
+	DEFINE(HCALL_STAT_TB, offsetof(struct hcall_stats, tb_total));
+	DEFINE(HCALL_STAT_PURR, offsetof(struct hcall_stats, purr_total));
 #endif /* CONFIG_PPC64 */
 	DEFINE(GPR0, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[0]));
 	DEFINE(GPR1, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[1]));
@@ -240,6 +254,7 @@ int main(void)
 	DEFINE(CPU_SPEC_PVR_VALUE, offsetof(struct cpu_spec, pvr_value));
 	DEFINE(CPU_SPEC_FEATURES, offsetof(struct cpu_spec, cpu_features));
 	DEFINE(CPU_SPEC_SETUP, offsetof(struct cpu_spec, cpu_setup));
+	DEFINE(CPU_SPEC_RESTORE, offsetof(struct cpu_spec, cpu_restore));
 
 #ifndef CONFIG_PPC64
 	DEFINE(pbe_address, offsetof(struct pbe, address));

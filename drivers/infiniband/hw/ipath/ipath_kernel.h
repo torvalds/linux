@@ -132,12 +132,6 @@ struct _ipath_layer {
 	void *l_arg;
 };
 
-/* Verbs layer interface */
-struct _verbs_layer {
-	void *l_arg;
-	struct timer_list l_timer;
-};
-
 struct ipath_devdata {
 	struct list_head ipath_list;
 
@@ -198,7 +192,8 @@ struct ipath_devdata {
 	void (*ipath_f_setextled)(struct ipath_devdata *, u64, u64);
 	/* fill out chip-specific fields */
 	int (*ipath_f_get_base_info)(struct ipath_portdata *, void *);
-	struct _verbs_layer verbs_layer;
+	struct ipath_ibdev *verbs_dev;
+	struct timer_list verbs_timer;
 	/* total dwords sent (summed from counter) */
 	u64 ipath_sword;
 	/* total dwords rcvd (summed from counter) */
@@ -241,7 +236,7 @@ struct ipath_devdata {
 	u64 ipath_tidtemplate;
 	/* value to write to free TIDs */
 	u64 ipath_tidinvalid;
-	/* PE-800 rcv interrupt setup */
+	/* IBA6120 rcv interrupt setup */
 	u64 ipath_rhdrhead_intr_off;
 
 	/* size of memory at ipath_kregbase */
@@ -250,8 +245,8 @@ struct ipath_devdata {
 	u32 ipath_pioavregs;
 	/* IPATH_POLL, etc. */
 	u32 ipath_flags;
-	/* ipath_flags sma is waiting for */
-	u32 ipath_sma_state_wanted;
+	/* ipath_flags driver is waiting for */
+	u32 ipath_state_wanted;
 	/* last buffer for user use, first buf for kernel use is this
 	 * index. */
 	u32 ipath_lastport_piobuf;
@@ -311,10 +306,6 @@ struct ipath_devdata {
 	u32 ipath_pcibar0;
 	/* so we can rewrite it after a chip reset */
 	u32 ipath_pcibar1;
-	/* sequential tries for SMA send and no bufs */
-	u32 ipath_nosma_bufs;
-	/* duration (seconds) ipath_nosma_bufs set */
-	u32 ipath_nosma_secs;
 
 	/* HT/PCI Vendor ID (here for NodeInfo) */
 	u16 ipath_vendorid;
@@ -512,6 +503,8 @@ struct ipath_devdata {
 	u8 ipath_pci_cacheline;
 	/* LID mask control */
 	u8 ipath_lmc;
+	/* Rx Polarity inversion (compensate for ~tx on partner) */
+	u8 ipath_rx_pol_inv;
 
 	/* local link integrity counter */
 	u32 ipath_lli_counter;
@@ -522,18 +515,6 @@ struct ipath_devdata {
 extern struct list_head ipath_dev_list;
 extern spinlock_t ipath_devs_lock;
 extern struct ipath_devdata *ipath_lookup(int unit);
-
-extern u16 ipath_layer_rcv_opcode;
-extern int __ipath_layer_intr(struct ipath_devdata *, u32);
-extern int ipath_layer_intr(struct ipath_devdata *, u32);
-extern int __ipath_layer_rcv(struct ipath_devdata *, void *,
-			     struct sk_buff *);
-extern int __ipath_layer_rcv_lid(struct ipath_devdata *, void *);
-extern int __ipath_verbs_piobufavail(struct ipath_devdata *);
-extern int __ipath_verbs_rcv(struct ipath_devdata *, void *, void *, u32);
-
-void ipath_layer_add(struct ipath_devdata *);
-void ipath_layer_remove(struct ipath_devdata *);
 
 int ipath_init_chip(struct ipath_devdata *, int);
 int ipath_enable_wc(struct ipath_devdata *dd);
@@ -549,9 +530,8 @@ void ipath_cdev_cleanup(struct cdev **cdevp,
 
 int ipath_diag_add(struct ipath_devdata *);
 void ipath_diag_remove(struct ipath_devdata *);
-void ipath_diag_bringup_link(struct ipath_devdata *);
 
-extern wait_queue_head_t ipath_sma_state_wait;
+extern wait_queue_head_t ipath_state_wait;
 
 int ipath_user_add(struct ipath_devdata *dd);
 void ipath_user_remove(struct ipath_devdata *dd);
@@ -582,12 +562,14 @@ void ipath_free_pddata(struct ipath_devdata *, struct ipath_portdata *);
 
 int ipath_parse_ushort(const char *str, unsigned short *valp);
 
-int ipath_wait_linkstate(struct ipath_devdata *, u32, int);
-void ipath_set_ib_lstate(struct ipath_devdata *, int);
 void ipath_kreceive(struct ipath_devdata *);
 int ipath_setrcvhdrsize(struct ipath_devdata *, unsigned);
 int ipath_reset_device(int);
 void ipath_get_faststats(unsigned long);
+int ipath_set_linkstate(struct ipath_devdata *, u8);
+int ipath_set_mtu(struct ipath_devdata *, u16);
+int ipath_set_lid(struct ipath_devdata *, u32, u8);
+int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 
 /* for use in system calls, where we want to know device type, etc. */
 #define port_fp(fp) ((struct ipath_portdata *) (fp)->private_data)
@@ -642,10 +624,8 @@ void ipath_free_data(struct ipath_portdata *dd);
 int ipath_waitfor_mdio_cmdready(struct ipath_devdata *);
 int ipath_waitfor_complete(struct ipath_devdata *, ipath_kreg, u64, u64 *);
 u32 __iomem *ipath_getpiobuf(struct ipath_devdata *, u32 *);
-/* init PE-800-specific func */
-void ipath_init_pe800_funcs(struct ipath_devdata *);
-/* init HT-400-specific func */
-void ipath_init_ht400_funcs(struct ipath_devdata *);
+void ipath_init_iba6120_funcs(struct ipath_devdata *);
+void ipath_init_iba6110_funcs(struct ipath_devdata *);
 void ipath_get_eeprom_info(struct ipath_devdata *);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
 
@@ -801,7 +781,7 @@ static inline u32 ipath_read_creg32(const struct ipath_devdata *dd,
 
 struct device_driver;
 
-extern const char ipath_core_version[];
+extern const char ib_ipath_version[];
 
 int ipath_driver_create_group(struct device_driver *);
 void ipath_driver_remove_group(struct device_driver *);
@@ -809,6 +789,9 @@ void ipath_driver_remove_group(struct device_driver *);
 int ipath_device_create_group(struct device *, struct ipath_devdata *);
 void ipath_device_remove_group(struct device *, struct ipath_devdata *);
 int ipath_expose_reset(struct device *);
+
+int ipath_diagpkt_add(void);
+void ipath_diagpkt_remove(void);
 
 int ipath_init_ipathfs(void);
 void ipath_exit_ipathfs(void);
@@ -831,10 +814,10 @@ const char *ipath_get_unit_name(int unit);
 
 extern struct mutex ipath_mutex;
 
-#define IPATH_DRV_NAME		"ipath_core"
+#define IPATH_DRV_NAME		"ib_ipath"
 #define IPATH_MAJOR		233
 #define IPATH_USER_MINOR_BASE	0
-#define IPATH_SMA_MINOR		128
+#define IPATH_DIAGPKT_MINOR	127
 #define IPATH_DIAG_MINOR_BASE	129
 #define IPATH_NMINORS		255
 

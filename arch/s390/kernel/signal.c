@@ -114,29 +114,26 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 {
 	unsigned long old_mask = regs->psw.mask;
-	int err;
-  
+	_sigregs user_sregs;
+
 	save_access_regs(current->thread.acrs);
 
 	/* Copy a 'clean' PSW mask to the user to avoid leaking
 	   information about whether PER is currently on.  */
 	regs->psw.mask = PSW_MASK_MERGE(PSW_USER_BITS, regs->psw.mask);
-	err = __copy_to_user(&sregs->regs.psw, &regs->psw,
-			     sizeof(sregs->regs.psw)+sizeof(sregs->regs.gprs));
+	memcpy(&user_sregs.regs.psw, &regs->psw, sizeof(sregs->regs.psw) +
+	       sizeof(sregs->regs.gprs));
 	regs->psw.mask = old_mask;
-	if (err != 0)
-		return err;
-	err = __copy_to_user(&sregs->regs.acrs, current->thread.acrs,
-			     sizeof(sregs->regs.acrs));
-	if (err != 0)
-		return err;
+	memcpy(&user_sregs.regs.acrs, current->thread.acrs,
+	       sizeof(sregs->regs.acrs));
 	/* 
 	 * We have to store the fp registers to current->thread.fp_regs
 	 * to merge them with the emulated registers.
 	 */
 	save_fp_regs(&current->thread.fp_regs);
-	return __copy_to_user(&sregs->fpregs, &current->thread.fp_regs,
-			      sizeof(s390_fp_regs));
+	memcpy(&user_sregs.fpregs, &current->thread.fp_regs,
+	       sizeof(s390_fp_regs));
+	return __copy_to_user(sregs, &user_sregs, sizeof(_sigregs));
 }
 
 /* Returns positive number on error */
@@ -144,27 +141,25 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 {
 	unsigned long old_mask = regs->psw.mask;
 	int err;
+	_sigregs user_sregs;
 
 	/* Alwys make any pending restarted system call return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
-	err = __copy_from_user(&regs->psw, &sregs->regs.psw,
-			       sizeof(sregs->regs.psw)+sizeof(sregs->regs.gprs));
+	err = __copy_from_user(&user_sregs, sregs, sizeof(_sigregs));
 	regs->psw.mask = PSW_MASK_MERGE(old_mask, regs->psw.mask);
 	regs->psw.addr |= PSW_ADDR_AMODE;
 	if (err)
 		return err;
-	err = __copy_from_user(&current->thread.acrs, &sregs->regs.acrs,
-			       sizeof(sregs->regs.acrs));
-	if (err)
-		return err;
+	memcpy(&regs->psw, &user_sregs.regs.psw, sizeof(sregs->regs.psw) +
+	       sizeof(sregs->regs.gprs));
+	memcpy(&current->thread.acrs, &user_sregs.regs.acrs,
+	       sizeof(sregs->regs.acrs));
 	restore_access_regs(current->thread.acrs);
 
-	err = __copy_from_user(&current->thread.fp_regs, &sregs->fpregs,
-			       sizeof(s390_fp_regs));
+	memcpy(&current->thread.fp_regs, &user_sregs.fpregs,
+	       sizeof(s390_fp_regs));
 	current->thread.fp_regs.fpc &= FPC_VALID_MASK;
-	if (err)
-		return err;
 
 	restore_fp_regs(&current->thread.fp_regs);
 	regs->trap = -1;	/* disable syscall checks */
@@ -457,6 +452,7 @@ void do_signal(struct pt_regs *regs)
 		case -ERESTART_RESTARTBLOCK:
 			regs->gprs[2] = -EINTR;
 		}
+		regs->trap = -1;	/* Don't deal with this again. */
 	}
 
 	/* Get signal to deliver.  When running under ptrace, at this point

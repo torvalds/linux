@@ -300,14 +300,14 @@ do {						\
 #define DBSR_IC		0x80000000	/* Instruction Completion */
 #define DBSR_BT		0x40000000	/* Branch taken */
 #define DBSR_TIE	0x10000000	/* Trap Instruction debug Event */
-#define DBSR_IAC1	0x00800000	/* Instruction Address Compare 1 Event */
-#define DBSR_IAC2	0x00400000	/* Instruction Address Compare 2 Event */
-#define DBSR_IAC3	0x00200000	/* Instruction Address Compare 3 Event */
-#define DBSR_IAC4	0x00100000	/* Instruction Address Compare 4 Event */
-#define DBSR_DAC1R	0x00080000	/* Data Address Compare 1 Read Event */
-#define DBSR_DAC1W	0x00040000	/* Data Address Compare 1 Write Event */
-#define DBSR_DAC2R	0x00020000	/* Data Address Compare 2 Read Event */
-#define DBSR_DAC2W	0x00010000	/* Data Address Compare 2 Write Event */
+#define DBSR_IAC1	0x04000000	/* Instruction Address Compare 1 Event */
+#define DBSR_IAC2	0x02000000	/* Instruction Address Compare 2 Event */
+#define DBSR_IAC3	0x00080000	/* Instruction Address Compare 3 Event */
+#define DBSR_IAC4	0x00040000	/* Instruction Address Compare 4 Event */
+#define DBSR_DAC1R	0x01000000	/* Data Address Compare 1 Read Event */
+#define DBSR_DAC1W	0x00800000	/* Data Address Compare 1 Write Event */
+#define DBSR_DAC2R	0x00400000	/* Data Address Compare 2 Read Event */
+#define DBSR_DAC2W	0x00200000	/* Data Address Compare 2 Write Event */
 #endif
 
 /* Bit definitions related to the ESR. */
