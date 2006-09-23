@@ -87,7 +87,7 @@ static int briq_panel_release(struct inode *ino, struct file *filep)
 	return 0;
 }
 
-static ssize_t briq_panel_read(struct file *file, char *buf, size_t count,
+static ssize_t briq_panel_read(struct file *file, char __user *buf, size_t count,
 			 loff_t *ppos)
 {
 	unsigned short c;
@@ -135,7 +135,7 @@ static void scroll_vfd( void )
 	vfd_cursor = 20;
 }
 
-static ssize_t briq_panel_write(struct file *file, const char *buf, size_t len,
+static ssize_t briq_panel_write(struct file *file, const char __user *buf, size_t len,
 			  loff_t *ppos)
 {
 	size_t indx = len;
@@ -150,19 +150,22 @@ static ssize_t briq_panel_write(struct file *file, const char *buf, size_t len,
 		return -EBUSY;
 
 	for (;;) {
+		char c;
 		if (!indx)
 			break;
+		if (get_user(c, buf))
+			return -EFAULT;
 		if (esc) {
-			set_led(*buf);
+			set_led(c);
 			esc = 0;
-		} else if (*buf == 27) {
+		} else if (c == 27) {
 			esc = 1;
-		} else if (*buf == 12) {
+		} else if (c == 12) {
 			/* do a form feed */
 			for (i=0; i<40; i++)
 				vfd[i] = ' ';
 			vfd_cursor = 0;
-		} else if (*buf == 10) {
+		} else if (c == 10) {
 			if (vfd_cursor < 20)
 				vfd_cursor = 20;
 			else if (vfd_cursor < 40)
@@ -175,7 +178,7 @@ static ssize_t briq_panel_write(struct file *file, const char *buf, size_t len,
 			/* just a character */
 			if (vfd_cursor > 39)
 				scroll_vfd();
-			vfd[vfd_cursor++] = *buf;
+			vfd[vfd_cursor++] = c;
 		}
 		indx--;
 		buf++;
