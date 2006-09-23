@@ -234,7 +234,7 @@ static void spu_hw_runcntl_stop(struct spu_context *ctx)
 
 static int spu_hw_set_mfc_query(struct spu_context * ctx, u32 mask, u32 mode)
 {
-	struct spu_problem *prob = ctx->spu->problem;
+	struct spu_problem __iomem *prob = ctx->spu->problem;
 	int ret;
 
 	spin_lock_irq(&ctx->spu->register_lock);
@@ -263,7 +263,7 @@ static int spu_hw_send_mfc_command(struct spu_context *ctx,
 					struct mfc_dma_command *cmd)
 {
 	u32 status;
-	struct spu_problem *prob = ctx->spu->problem;
+	struct spu_problem __iomem *prob = ctx->spu->problem;
 
 	spin_lock_irq(&ctx->spu->register_lock);
 	out_be32(&prob->mfc_lsa_W, cmd->lsa);
