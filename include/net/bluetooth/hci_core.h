@@ -72,6 +72,9 @@ struct hci_dev {
 	__u8		type;
 	bdaddr_t	bdaddr;
 	__u8		features[8];
+	__u8		hci_ver;
+	__u16		hci_rev;
+	__u16		manufacturer;
 	__u16		voice_setting;
 
 	__u16		pkt_type;

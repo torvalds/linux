@@ -49,6 +49,24 @@ static ssize_t show_address(struct device *dev, struct device_attribute *attr, c
 	return sprintf(buf, "%s\n", batostr(&bdaddr));
 }
 
+static ssize_t show_manufacturer(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hci_dev *hdev = dev_get_drvdata(dev);
+	return sprintf(buf, "%d\n", hdev->manufacturer);
+}
+
+static ssize_t show_hci_version(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hci_dev *hdev = dev_get_drvdata(dev);
+	return sprintf(buf, "%d\n", hdev->hci_ver);
+}
+
+static ssize_t show_hci_revision(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hci_dev *hdev = dev_get_drvdata(dev);
+	return sprintf(buf, "%d\n", hdev->hci_rev);
+}
+
 static ssize_t show_inquiry_cache(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
@@ -153,6 +171,9 @@ static ssize_t store_sniff_min_interval(struct device *dev, struct device_attrib
 
 static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
 static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
+static DEVICE_ATTR(manufacturer, S_IRUGO, show_manufacturer, NULL);
+static DEVICE_ATTR(hci_version, S_IRUGO, show_hci_version, NULL);
+static DEVICE_ATTR(hci_revision, S_IRUGO, show_hci_revision, NULL);
 static DEVICE_ATTR(inquiry_cache, S_IRUGO, show_inquiry_cache, NULL);
 
 static DEVICE_ATTR(idle_timeout, S_IRUGO | S_IWUSR,
@@ -165,6 +186,9 @@ static DEVICE_ATTR(sniff_min_interval, S_IRUGO | S_IWUSR,
 static struct device_attribute *bt_attrs[] = {
 	&dev_attr_type,
 	&dev_attr_address,
+	&dev_attr_manufacturer,
+	&dev_attr_hci_version,
+	&dev_attr_hci_revision,
 	&dev_attr_inquiry_cache,
 	&dev_attr_idle_timeout,
 	&dev_attr_sniff_max_interval,
