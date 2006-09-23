@@ -202,7 +202,7 @@ static struct miscdevice briq_panel_miscdev = {
 static int __init briq_panel_init(void)
 {
 	struct device_node *root = find_path_device("/");
-	char *machine;
+	const char *machine;
 	int i;
 
 	machine = get_property(root, "model", NULL);

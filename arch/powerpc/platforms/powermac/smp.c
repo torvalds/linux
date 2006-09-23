@@ -702,7 +702,7 @@ static void __init smp_core99_setup(int ncpus)
 	/* GPIO based HW sync on ppc32 Core99 */
 	if (pmac_tb_freeze == NULL && !machine_is_compatible("MacRISC4")) {
 		struct device_node *cpu;
-		u32 *tbprop = NULL;
+		const u32 *tbprop = NULL;
 
 		core99_tb_gpio = KL_GPIO_TB_ENABLE;	/* default value */
 		cpu = of_find_node_by_type(NULL, "cpu");

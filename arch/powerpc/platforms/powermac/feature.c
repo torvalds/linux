@@ -1058,8 +1058,8 @@ core99_reset_cpu(struct device_node *node, long param, long value)
 	if (np == NULL)
 		return -ENODEV;
 	for (np = np->child; np != NULL; np = np->sibling) {
-		u32 *num = get_property(np, "reg", NULL);
-		u32 *rst = get_property(np, "soft-reset", NULL);
+		const u32 *num = get_property(np, "reg", NULL);
+		const u32 *rst = get_property(np, "soft-reset", NULL);
 		if (num == NULL || rst == NULL)
 			continue;
 		if (param == *num) {
