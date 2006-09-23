@@ -178,10 +178,10 @@ static struct i2c_algorithm m9206_i2c_algo = {
 };
 
 /* Callbacks for DVB USB */
-static int megasky_identify_state (struct usb_device *udev,
-				   struct dvb_usb_device_properties *props,
-				   struct dvb_usb_device_description **desc,
-				   int *cold)
+static int megasky_identify_state(struct usb_device *udev,
+				  struct dvb_usb_device_properties *props,
+				  struct dvb_usb_device_description **desc,
+				  int *cold)
 {
 	struct usb_host_interface *alt;
 
@@ -448,7 +448,7 @@ static int megasky_frontend_attach(struct dvb_usb_adapter *adap)
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties megasky_properties;
 
-static int megasky_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int m920x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct dvb_usb_device *d;
 	struct usb_host_interface *alt;
@@ -665,7 +665,7 @@ static struct dvb_usb_device_properties megasky_properties = {
 
 static struct usb_driver m920x_driver = {
 	.name		= "dvb_usb_m920x",
-	.probe		= megasky_probe,
+	.probe		= m920x_probe,
 	.disconnect	= dvb_usb_device_exit,
 	.id_table	= m920x_table,
 };
