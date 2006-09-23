@@ -415,6 +415,15 @@ struct spider_net_options {
 					  NETIF_MSG_HW | \
 					  NETIF_MSG_WOL )
 
+struct spider_net_extra_stats {
+	unsigned long rx_desc_error;
+	unsigned long tx_timeouts;
+	unsigned long alloc_rx_skb_error;
+	unsigned long rx_iommu_map_error;
+	unsigned long tx_iommu_map_error;
+	unsigned long rx_desc_unk_state;
+};
+
 struct spider_net_card {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
@@ -439,9 +448,9 @@ struct spider_net_card {
 
 	/* for ethtool */
 	int msg_enable;
-
 	int rx_desc;
 	int tx_desc;
+	struct spider_net_extra_stats spider_stats;
 
 	struct spider_net_descr descr[0];
 };
