@@ -85,6 +85,7 @@
 #define     AD_LINK_SPEED_BITMASK_10MBPS      0x2
 #define     AD_LINK_SPEED_BITMASK_100MBPS     0x4
 #define     AD_LINK_SPEED_BITMASK_1000MBPS    0x8
+#define     AD_LINK_SPEED_BITMASK_10000MBPS   0x10
 //endalloun
 
 // compare MAC addresses
@@ -330,7 +331,8 @@ static inline void __release_rx_machine_lock(struct port *port)
  *     0,
  *     %AD_LINK_SPEED_BITMASK_10MBPS,
  *     %AD_LINK_SPEED_BITMASK_100MBPS,
- *     %AD_LINK_SPEED_BITMASK_1000MBPS
+ *     %AD_LINK_SPEED_BITMASK_1000MBPS,
+ *     %AD_LINK_SPEED_BITMASK_10000MBPS
  */
 static u16 __get_link_speed(struct port *port)
 {
@@ -355,6 +357,10 @@ static u16 __get_link_speed(struct port *port)
 
 		case SPEED_1000:
 			speed = AD_LINK_SPEED_BITMASK_1000MBPS;
+			break;
+
+		case SPEED_10000:
+			speed = AD_LINK_SPEED_BITMASK_10000MBPS;
 			break;
 
 		default:
@@ -774,6 +780,9 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 			break;
 		case AD_LINK_SPEED_BITMASK_1000MBPS:
 			bandwidth = aggregator->num_of_ports * 1000;
+			break;
+		case AD_LINK_SPEED_BITMASK_10000MBPS:
+			bandwidth = aggregator->num_of_ports * 10000;
 			break;
 		default:
 			bandwidth=0; // to silent the compilor ....
