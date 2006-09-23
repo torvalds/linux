@@ -1,5 +1,5 @@
 menu "Apple Onboard Audio driver"
-	depends on SND!=n && PPC
+	depends on SND!=n && PPC_PMAC
 
 config SND_AOA
 	tristate "Apple Onboard Audio driver"
