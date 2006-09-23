@@ -61,7 +61,7 @@
 void
 nfs4_renew_state(void *data)
 {
-	struct nfs4_client *clp = (struct nfs4_client *)data;
+	struct nfs_client *clp = (struct nfs_client *)data;
 	struct rpc_cred *cred;
 	long lease, timeout;
 	unsigned long last, now;
@@ -108,7 +108,7 @@ out:
 
 /* Must be called with clp->cl_sem locked for writes */
 void
-nfs4_schedule_state_renewal(struct nfs4_client *clp)
+nfs4_schedule_state_renewal(struct nfs_client *clp)
 {
 	long timeout;
 
@@ -121,32 +121,20 @@ nfs4_schedule_state_renewal(struct nfs4_client *clp)
 			__FUNCTION__, (timeout + HZ - 1) / HZ);
 	cancel_delayed_work(&clp->cl_renewd);
 	schedule_delayed_work(&clp->cl_renewd, timeout);
+	set_bit(NFS_CS_RENEWD, &clp->cl_res_state);
 	spin_unlock(&clp->cl_lock);
 }
 
 void
 nfs4_renewd_prepare_shutdown(struct nfs_server *server)
 {
-	struct nfs4_client *clp = server->nfs4_state;
-
-	if (!clp)
-		return;
 	flush_scheduled_work();
-	down_write(&clp->cl_sem);
-	if (!list_empty(&server->nfs4_siblings))
-		list_del_init(&server->nfs4_siblings);
-	up_write(&clp->cl_sem);
 }
 
-/* Must be called with clp->cl_sem locked for writes */
 void
-nfs4_kill_renewd(struct nfs4_client *clp)
+nfs4_kill_renewd(struct nfs_client *clp)
 {
 	down_read(&clp->cl_sem);
-	if (!list_empty(&clp->cl_superblocks)) {
-		up_read(&clp->cl_sem);
-		return;
-	}
 	cancel_delayed_work(&clp->cl_renewd);
 	up_read(&clp->cl_sem);
 	flush_scheduled_work();

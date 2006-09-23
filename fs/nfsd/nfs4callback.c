@@ -375,16 +375,28 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 {
 	struct sockaddr_in	addr;
 	struct nfs4_callback    *cb = &clp->cl_callback;
-	struct rpc_timeout	timeparms;
-	struct rpc_xprt *	xprt;
+	struct rpc_timeout	timeparms = {
+		.to_initval	= (NFSD_LEASE_TIME/4) * HZ,
+		.to_retries	= 5,
+		.to_maxval	= (NFSD_LEASE_TIME/2) * HZ,
+		.to_exponential	= 1,
+	};
 	struct rpc_program *	program = &cb->cb_program;
-	struct rpc_stat *	stat = &cb->cb_stat;
-	struct rpc_clnt *	clnt;
+	struct rpc_create_args args = {
+		.protocol	= IPPROTO_TCP,
+		.address	= (struct sockaddr *)&addr,
+		.addrsize	= sizeof(addr),
+		.timeout	= &timeparms,
+		.servername	= clp->cl_name.data,
+		.program	= program,
+		.version	= nfs_cb_version[1]->number,
+		.authflavor	= RPC_AUTH_UNIX,	/* XXX: need AUTH_GSS... */
+		.flags		= (RPC_CLNT_CREATE_NOPING),
+	};
 	struct rpc_message msg = {
 		.rpc_proc       = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL],
 		.rpc_argp       = clp,
 	};
-	char                    hostname[32];
 	int status;
 
 	if (atomic_read(&cb->cb_set))
@@ -396,51 +408,27 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	addr.sin_port = htons(cb->cb_port);
 	addr.sin_addr.s_addr = htonl(cb->cb_addr);
 
-	/* Initialize timeout */
-	timeparms.to_initval = (NFSD_LEASE_TIME/4) * HZ;
-	timeparms.to_retries = 0;
-	timeparms.to_maxval = (NFSD_LEASE_TIME/2) * HZ;
-	timeparms.to_exponential = 1;
-
-	/* Create RPC transport */
-	xprt = xprt_create_proto(IPPROTO_TCP, &addr, &timeparms);
-	if (IS_ERR(xprt)) {
-		dprintk("NFSD: couldn't create callback transport!\n");
-		goto out_err;
-	}
-
 	/* Initialize rpc_program */
 	program->name = "nfs4_cb";
 	program->number = cb->cb_prog;
 	program->nrvers = ARRAY_SIZE(nfs_cb_version);
 	program->version = nfs_cb_version;
-	program->stats = stat;
+	program->stats = &cb->cb_stat;
 
 	/* Initialize rpc_stat */
-	memset(stat, 0, sizeof(struct rpc_stat));
-	stat->program = program;
+	memset(program->stats, 0, sizeof(cb->cb_stat));
+	program->stats->program = program;
 
-	/* Create RPC client
- 	 *
-	 * XXX AUTH_UNIX only - need AUTH_GSS....
-	 */
-	sprintf(hostname, "%u.%u.%u.%u", NIPQUAD(addr.sin_addr.s_addr));
-	clnt = rpc_new_client(xprt, hostname, program, 1, RPC_AUTH_UNIX);
-	if (IS_ERR(clnt)) {
+	/* Create RPC client */
+	cb->cb_client = rpc_create(&args);
+	if (!cb->cb_client) {
 		dprintk("NFSD: couldn't create callback client\n");
 		goto out_err;
 	}
-	clnt->cl_intr = 0;
-	clnt->cl_softrtry = 1;
 
 	/* Kick rpciod, put the call on the wire. */
-
-	if (rpciod_up() != 0) {
-		dprintk("nfsd: couldn't start rpciod for callbacks!\n");
+	if (rpciod_up() != 0)
 		goto out_clnt;
-	}
-
-	cb->cb_client = clnt;
 
 	/* the task holds a reference to the nfs4_client struct */
 	atomic_inc(&clp->cl_count);
@@ -448,7 +436,7 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	msg.rpc_cred = nfsd4_lookupcred(clp,0);
 	if (IS_ERR(msg.rpc_cred))
 		goto out_rpciod;
-	status = rpc_call_async(clnt, &msg, RPC_TASK_ASYNC, &nfs4_cb_null_ops, NULL);
+	status = rpc_call_async(cb->cb_client, &msg, RPC_TASK_ASYNC, &nfs4_cb_null_ops, NULL);
 	put_rpccred(msg.rpc_cred);
 
 	if (status != 0) {
@@ -462,7 +450,7 @@ out_rpciod:
 	rpciod_down();
 	cb->cb_client = NULL;
 out_clnt:
-	rpc_shutdown_client(clnt);
+	rpc_shutdown_client(cb->cb_client);
 out_err:
 	dprintk("NFSD: warning: no callback path to client %.*s\n",
 		(int)clp->cl_name.len, clp->cl_name.data);
