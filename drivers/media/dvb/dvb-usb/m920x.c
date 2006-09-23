@@ -8,7 +8,7 @@
  *
  * see Documentation/dvb/README.dvb-usb for more information
  */
-#include "megasky.h"
+#include "m920x.h"
 
 #include "mt352.h"
 #include "mt352_priv.h"
