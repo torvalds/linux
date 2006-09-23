@@ -31,7 +31,7 @@ dvb-usb-umt-010-objs = umt-010.o
 obj-$(CONFIG_DVB_USB_UMT_010) += dvb-usb-dibusb-common.o dvb-usb-umt-010.o
 
 dvb-usb-m920x-objs = m920x.o
-obj-$(CONFIG_DVB_USB_MEGASKY) += dvb-usb-m920x.o
+obj-$(CONFIG_DVB_USB_M920X) += dvb-usb-m920x.o
 
 dvb-usb-digitv-objs = digitv.o
 obj-$(CONFIG_DVB_USB_DIGITV) += dvb-usb-digitv.o

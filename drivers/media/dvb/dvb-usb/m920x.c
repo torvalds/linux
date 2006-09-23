@@ -8,14 +8,15 @@
  *
  * see Documentation/dvb/README.dvb-usb for more information
  */
+
 #include "m920x.h"
 
 #include "mt352.h"
 #include "mt352_priv.h"
 
 /* debug */
-int dvb_usb_megasky_debug;
-module_param_named(debug,dvb_usb_megasky_debug, int, 0644);
+int dvb_usb_m920x_debug;
+module_param_named(debug,dvb_usb_m920x_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
 static struct dvb_usb_rc_key megasky_rc_keys [] = {
@@ -194,25 +195,25 @@ static int megasky_mt352_demod_init(struct dvb_frontend *fe)
 {
 	int i;
 	static u8 buf1[] = {
-	CONFIG, 0x3d,
-	CLOCK_CTL, 0x30,
-	RESET, 0x80,
-	ADC_CTL_1, 0x40,
-	AGC_TARGET, 0x1c,
-	AGC_CTL, 0x20,
-	0x69, 0x00,
-	0x6a, 0xff,
-	0x6b, 0xff,
-	0x6c, 0x40,
-	0x6d, 0xff,
-	0x6e, 0x00,
-	0x6f, 0x40,
-	0x70, 0x40,
-	0x93, 0x1a,
-	0xb5, 0x7a,
-	ACQ_CTL, 0x50,
-	INPUT_FREQ_1, 0x31,
-	INPUT_FREQ_0, 0x05,
+		CONFIG, 0x3d,
+		CLOCK_CTL, 0x30,
+		RESET, 0x80,
+		ADC_CTL_1, 0x40,
+		AGC_TARGET, 0x1c,
+		AGC_CTL, 0x20,
+		0x69, 0x00,
+		0x6a, 0xff,
+		0x6b, 0xff,
+		0x6c, 0x40,
+		0x6d, 0xff,
+		0x6e, 0x00,
+		0x6f, 0x40,
+		0x70, 0x40,
+		0x93, 0x1a,
+		0xb5, 0x7a,
+		ACQ_CTL, 0x50,
+		INPUT_FREQ_1, 0x31,
+		INPUT_FREQ_0, 0x05,
 	};
 
 	for (i = 0; i < ARRAY_SIZE(buf1); i += 2)
@@ -224,7 +225,6 @@ static int megasky_mt352_demod_init(struct dvb_frontend *fe)
 }
 
 struct mt352_state;
-
 
 #define W 0
 #define R 1
@@ -479,11 +479,11 @@ static int megasky_probe(struct usb_interface *intf, const struct usb_device_id 
 	return ret;
 }
 
-static struct usb_device_id megasky_table [] = {
+static struct usb_device_id m920x_table [] = {
 		{ USB_DEVICE(USB_VID_MSI, USB_PID_MSI_MEGASKY580) },
 		{ }		/* Terminating entry */
 };
-MODULE_DEVICE_TABLE (usb, megasky_table);
+MODULE_DEVICE_TABLE (usb, m920x_table);
 
 static int set_filter(struct dvb_usb_device *d, int type, int idx, int pid)
 {
@@ -651,26 +651,26 @@ static struct dvb_usb_properties megasky_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{   "MSI Mega Sky 580 DVB-T USB2.0",
-			{ &megasky_table[0], NULL },
+			{ &m920x_table[0], NULL },
 			{ NULL },
 		},
 		{ NULL },
 	}
 };
 
-static struct usb_driver megasky_driver = {
-	.name		= "dvb_usb_megasky",
+static struct usb_driver m920x_driver = {
+	.name		= "dvb_usb_m920x",
 	.probe		= megasky_probe,
 	.disconnect	= dvb_usb_device_exit,
-	.id_table	= megasky_table,
+	.id_table	= m920x_table,
 };
 
 /* module stuff */
-static int __init megasky_module_init(void)
+static int __init m920x_module_init(void)
 {
 	int ret;
 
-	if ((ret = usb_register(&megasky_driver))) {
+	if ((ret = usb_register(&m920x_driver))) {
 		err("usb_register failed. Error number %d", ret);
 		return ret;
 	}
@@ -678,16 +678,16 @@ static int __init megasky_module_init(void)
 	return 0;
 }
 
-static void __exit megasky_module_exit(void)
+static void __exit m920x_module_exit(void)
 {
 	/* deregister this driver from the USB subsystem */
-	usb_deregister(&megasky_driver);
+	usb_deregister(&m920x_driver);
 }
 
-module_init (megasky_module_init);
-module_exit (megasky_module_exit);
+module_init (m920x_module_init);
+module_exit (m920x_module_exit);
 
 MODULE_AUTHOR("Aapo Tahkola <aet@rasterburn.org>");
-MODULE_DESCRIPTION("Driver for MSI Mega Sky 580 DVB-T USB2.0");
+MODULE_DESCRIPTION("Driver MSI Mega Sky 580 DVB-T USB2.0 / Uli m920x");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
