@@ -1826,7 +1826,7 @@ static int __devinit riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 {
 	struct riva_par *par = info->par;
 	struct device_node *dp;
-	unsigned char *pedid = NULL;
+	const unsigned char *pedid = NULL;
 	const unsigned char *disptype = NULL;
 	static char *propnames[] = {
 		"DFP,EDID", "LCD,EDID", "EDID", "EDID1", "EDID,B", "EDID,A", NULL };
