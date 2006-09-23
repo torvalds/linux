@@ -438,12 +438,6 @@ config MIPS_JAZZ_SONIC
 	  This is the driver for the onboard card of MIPS Magnum 4000,
 	  Acer PICA, Olivetti M700-10 and a few other identical OEM systems.
 
-config MIPS_GT96100ETH
-	bool "MIPS GT96100 Ethernet support"
-	depends on NET_ETHERNET && MIPS_GT96100
-	help
-	  Say Y here to support the Ethernet subsystem on your GT96100 card.
-
 config MIPS_AU1X00_ENET
 	bool "MIPS AU1000 Ethernet support"
 	depends on NET_ETHERNET && SOC_AU1X00
