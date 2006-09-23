@@ -1,3 +1,7 @@
+Version 1.46
+------------
+Support deep tree mounts.  Better support OS/2, Win9x (DOS) time stamps.
+
 Version 1.45
 ------------
 Do not time out lockw calls when using posix extensions. Do not
@@ -6,7 +10,8 @@ on requests on other threads.  Improve POSIX locking emulation,
 (lock cancel now works, and unlock of merged range works even
 to Windows servers now).  Fix oops on mount to lanman servers
 (win9x, os/2 etc.) when null password.  Do not send listxattr
-(SMB to query all EAs) if nouser_xattr specified.
+(SMB to query all EAs) if nouser_xattr specified.  Fix SE Linux
+problem (instantiate inodes/dentries in right order for readdir).
 
 Version 1.44
 ------------

@@ -40,5 +40,7 @@ struct cifs_sb_info {
 	mode_t	mnt_file_mode;
 	mode_t	mnt_dir_mode;
 	int     mnt_cifs_flags;
+	int	prepathlen;
+	char *  prepath;
 };
 #endif				/* _CIFS_FS_SB_H */
