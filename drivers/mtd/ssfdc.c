@@ -10,7 +10,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -29,7 +28,7 @@ struct ssfdcr_record {
 	int cis_block;			/* block n. containing CIS/IDI */
 	int erase_size;			/* phys_block_size */
 	unsigned short *logic_block_map; /* all zones (max 8192 phys blocks on
-					    the 128MB) */
+					    the 128MiB) */
 	int map_len;			/* n. phys_blocks on the card */
 };
 
@@ -43,11 +42,11 @@ struct ssfdcr_record {
 #define MAX_LOGIC_BLK_PER_ZONE	1000
 #define MAX_PHYS_BLK_PER_ZONE	1024
 
-#define KB(x)	( (x) * 1024L )
-#define MB(x)	( KB(x) * 1024L )
+#define KiB(x)	( (x) * 1024L )
+#define MiB(x)	( KiB(x) * 1024L )
 
 /** CHS Table
-		1MB	2MB	4MB	8MB	16MB	32MB	64MB	128MB
+		1MiB	2MiB	4MiB	8MiB	16MiB	32MiB	64MiB	128MiB
 NCylinder	125	125	250	250	500	500	500	500
 NHead		4	4	4	4	4	8	8	16
 NSector		4	8	8	16	16	16	32	32
@@ -64,14 +63,14 @@ typedef struct {
 
 /* Must be ordered by size */
 static const chs_entry_t chs_table[] = {
-	{ MB(  1), 125,  4,  4 },
-	{ MB(  2), 125,  4,  8 },
-	{ MB(  4), 250,  4,  8 },
-	{ MB(  8), 250,  4, 16 },
-	{ MB( 16), 500,  4, 16 },
-	{ MB( 32), 500,  8, 16 },
-	{ MB( 64), 500,  8, 32 },
-	{ MB(128), 500, 16, 32 },
+	{ MiB(  1), 125,  4,  4 },
+	{ MiB(  2), 125,  4,  8 },
+	{ MiB(  4), 250,  4,  8 },
+	{ MiB(  8), 250,  4, 16 },
+	{ MiB( 16), 500,  4, 16 },
+	{ MiB( 32), 500,  8, 16 },
+	{ MiB( 64), 500,  8, 32 },
+	{ MiB(128), 500, 16, 32 },
 	{ 0 },
 };
 
@@ -109,14 +108,19 @@ static int get_valid_cis_sector(struct mtd_info *mtd)
 	int ret, k, cis_sector;
 	size_t retlen;
 	loff_t offset;
-	uint8_t sect_buf[SECTOR_SIZE];
+	uint8_t *sect_buf;
+
+	cis_sector = -1;
+
+	sect_buf = kmalloc(SECTOR_SIZE, GFP_KERNEL);
+	if (!sect_buf)
+		goto out;
 
 	/*
 	 * Look for CIS/IDI sector on the first GOOD block (give up after 4 bad
 	 * blocks). If the first good block doesn't contain CIS number the flash
 	 * is not SSFDC formatted
 	 */
-	cis_sector = -1;
 	for (k = 0, offset = 0; k < 4; k++, offset += mtd->erasesize) {
 		if (!mtd->block_isbad(mtd, offset)) {
 			ret = mtd->read(mtd, offset, SECTOR_SIZE, &retlen,
@@ -140,6 +144,8 @@ static int get_valid_cis_sector(struct mtd_info *mtd)
 		}
 	}
 
+	kfree(sect_buf);
+ out:
 	return cis_sector;
 }
 
