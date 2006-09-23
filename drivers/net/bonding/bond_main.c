@@ -1211,10 +1211,14 @@ static int bond_compute_features(struct bonding *bond)
 	unsigned long features = BOND_INTERSECT_FEATURES;
 	struct slave *slave;
 	struct net_device *bond_dev = bond->dev;
+	unsigned short max_hard_header_len = ETH_HLEN;
 	int i;
 
-	bond_for_each_slave(bond, slave, i)
+	bond_for_each_slave(bond, slave, i) {
 		features &= (slave->dev->features & BOND_INTERSECT_FEATURES);
+		if (slave->dev->hard_header_len > max_hard_header_len)
+			max_hard_header_len = slave->dev->hard_header_len;
+	}
 
 	if ((features & NETIF_F_SG) && 
 	    !(features & NETIF_F_ALL_CSUM))
@@ -1232,6 +1236,7 @@ static int bond_compute_features(struct bonding *bond)
 
 	features |= (bond_dev->features & ~BOND_INTERSECT_FEATURES);
 	bond_dev->features = features;
+	bond_dev->hard_header_len = max_hard_header_len;
 
 	return 0;
 }
