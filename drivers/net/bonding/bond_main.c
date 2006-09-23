@@ -1371,6 +1371,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	new_slave->dev = slave_dev;
+	slave_dev->priv_flags |= IFF_BONDING;
 
 	if ((bond->params.mode == BOND_MODE_TLB) ||
 	    (bond->params.mode == BOND_MODE_ALB)) {
@@ -1784,7 +1785,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	dev_set_mac_address(slave_dev, &addr);
 
 	slave_dev->priv_flags &= ~(IFF_MASTER_8023AD | IFF_MASTER_ALB |
-				   IFF_SLAVE_INACTIVE);
+				   IFF_SLAVE_INACTIVE | IFF_BONDING);
 
 	kfree(slave);
 
@@ -3216,6 +3217,9 @@ static int bond_netdev_event(struct notifier_block *this, unsigned long event, v
 		(event_dev ? event_dev->name : "None"),
 		event);
 
+	if (!(event_dev->priv_flags & IFF_BONDING))
+		return NOTIFY_DONE;
+
 	if (event_dev->flags & IFF_MASTER) {
 		dprintk("IFF_MASTER\n");
 		return bond_master_netdev_event(event, event_dev);
@@ -4185,6 +4189,7 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 	/* Initialize the device options */
 	bond_dev->tx_queue_len = 0;
 	bond_dev->flags |= IFF_MASTER|IFF_MULTICAST;
+	bond_dev->priv_flags |= IFF_BONDING;
 
 	/* At first, we block adding VLANs. That's the only way to
 	 * prevent problems that occur when adding VLANs over an
