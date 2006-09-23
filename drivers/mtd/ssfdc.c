@@ -127,11 +127,11 @@ static int get_valid_cis_sector(struct mtd_info *mtd)
 				sect_buf);
 
 			/* CIS pattern match on the sector buffer */
-			if ( ret < 0 || retlen != SECTOR_SIZE ) {
+			if (ret < 0 || retlen != SECTOR_SIZE) {
 				printk(KERN_WARNING
 					"SSFDC_RO:can't read CIS/IDI sector\n");
-			} else if ( !memcmp(sect_buf, cis_numbers,
-					sizeof(cis_numbers)) ) {
+			} else if (!memcmp(sect_buf, cis_numbers,
+					sizeof(cis_numbers))) {
 				/* Found */
 				cis_sector = (int)(offset >> SECTOR_SHIFT);
 			} else {
@@ -233,7 +233,7 @@ static int get_logical_address(uint8_t *oob_buf)
 		}
 	}
 
-	if ( !ok )
+	if (!ok)
 		block_address = -2;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "SSFDC_RO: get_logical_address() %d\n",
@@ -251,8 +251,8 @@ static int build_logical_block_map(struct ssfdcr_record *ssfdc)
 	struct mtd_info *mtd = ssfdc->mbd.mtd;
 
 	DEBUG(MTD_DEBUG_LEVEL1, "SSFDC_RO: build_block_map() nblks=%d (%luK)\n",
-		ssfdc->map_len, (unsigned long)ssfdc->map_len *
-		ssfdc->erase_size / 1024 );
+	      ssfdc->map_len,
+	      (unsigned long)ssfdc->map_len * ssfdc->erase_size / 1024);
 
 	/* Scan every physical block, skip CIS block */
 	for (phys_block = ssfdc->cis_block + 1; phys_block < ssfdc->map_len;
@@ -329,21 +329,21 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	/* Set geometry */
 	ssfdc->heads = 16;
 	ssfdc->sectors = 32;
-	get_chs( mtd->size, NULL, &ssfdc->heads, &ssfdc->sectors);
+	get_chs(mtd->size, NULL, &ssfdc->heads, &ssfdc->sectors);
 	ssfdc->cylinders = (unsigned short)((mtd->size >> SECTOR_SHIFT) /
 			((long)ssfdc->sectors * (long)ssfdc->heads));
 
 	DEBUG(MTD_DEBUG_LEVEL1, "SSFDC_RO: using C:%d H:%d S:%d == %ld sects\n",
 		ssfdc->cylinders, ssfdc->heads , ssfdc->sectors,
 		(long)ssfdc->cylinders * (long)ssfdc->heads *
-		(long)ssfdc->sectors );
+		(long)ssfdc->sectors);
 
 	ssfdc->mbd.size = (long)ssfdc->heads * (long)ssfdc->cylinders *
 				(long)ssfdc->sectors;
 
 	/* Allocate logical block map */
-	ssfdc->logic_block_map = kmalloc( sizeof(ssfdc->logic_block_map[0]) *
-						ssfdc->map_len, GFP_KERNEL);
+	ssfdc->logic_block_map = kmalloc(sizeof(ssfdc->logic_block_map[0]) *
+					 ssfdc->map_len, GFP_KERNEL);
 	if (!ssfdc->logic_block_map) {
 		printk(KERN_WARNING
 			"SSFDC_RO: out of memory for data structures\n");
@@ -414,7 +414,7 @@ static int ssfdcr_readsect(struct mtd_blktrans_dev *dev,
 			"SSFDC_RO: ssfdcr_readsect() phys_sect_no=%lu\n",
 			sect_no);
 
-		if (read_physical_sector( ssfdc->mbd.mtd, buf, sect_no ) < 0)
+		if (read_physical_sector(ssfdc->mbd.mtd, buf, sect_no) < 0)
 			return -EIO;
 	} else {
 		memset(buf, 0xff, SECTOR_SIZE);
