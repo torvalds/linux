@@ -1093,7 +1093,7 @@ static ssize_t bonding_store_active_slave(struct class_device *cd, const char *b
 			     strlen(slave->dev->name)) == 0) {
         			old_active = bond->curr_active_slave;
         			new_active = slave;
-        			if (new_active && (new_active == old_active)) {
+        			if (new_active == old_active) {
 					/* do nothing */
 					printk(KERN_INFO DRV_NAME
 				       	       ": %s: %s is already the current active slave.\n",
