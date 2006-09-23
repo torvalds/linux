@@ -25,9 +25,8 @@
  * its absence, that of the top IP header.  The value of skb->data will always
  * point to the top IP header.
  */
-static int xfrm6_transport_output(struct sk_buff *skb)
+static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct xfrm_state *x = skb->dst->xfrm;
 	struct ipv6hdr *iph;
 	u8 *prevhdr;
 	int hdr_len;
@@ -35,7 +34,7 @@ static int xfrm6_transport_output(struct sk_buff *skb)
 	skb_push(skb, x->props.header_len);
 	iph = skb->nh.ipv6h;
 
-	hdr_len = ip6_find_1stfragopt(skb, &prevhdr);
+	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
 	skb->nh.raw = prevhdr - x->props.header_len;
 	skb->h.raw = skb->data + hdr_len;
 	memmove(skb->data, iph, hdr_len);

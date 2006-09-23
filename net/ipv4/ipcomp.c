@@ -176,7 +176,7 @@ static int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 
 out_ok:
-	if (x->props.mode)
+	if (x->props.mode == XFRM_MODE_TUNNEL)
 		ip_send_check(iph);
 	return 0;
 }
@@ -216,7 +216,7 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 	t->id.daddr.a4 = x->id.daddr.a4;
 	memcpy(&t->sel, &x->sel, sizeof(t->sel));
 	t->props.family = AF_INET;
-	t->props.mode = 1;
+	t->props.mode = XFRM_MODE_TUNNEL;
 	t->props.saddr.a4 = x->props.saddr.a4;
 	t->props.flags = x->props.flags;
 
@@ -416,7 +416,7 @@ static int ipcomp_init_state(struct xfrm_state *x)
 		goto out;
 
 	x->props.header_len = 0;
-	if (x->props.mode)
+	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct iphdr);
 
 	mutex_lock(&ipcomp_resource_mutex);
@@ -428,7 +428,7 @@ static int ipcomp_init_state(struct xfrm_state *x)
 		goto error;
 	mutex_unlock(&ipcomp_resource_mutex);
 
-	if (x->props.mode) {
+	if (x->props.mode == XFRM_MODE_TUNNEL) {
 		err = ipcomp_tunnel_attach(x);
 		if (err)
 			goto error_tunnel;

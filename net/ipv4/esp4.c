@@ -95,8 +95,13 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	esph->seq_no = htonl(++x->replay.oseq);
 	xfrm_aevent_doreplay(x);
 
-	if (esp->conf.ivlen)
+	if (esp->conf.ivlen) {
+		if (unlikely(!esp->conf.ivinitted)) {
+			get_random_bytes(esp->conf.ivec, esp->conf.ivlen);
+			esp->conf.ivinitted = 1;
+		}
 		crypto_blkcipher_set_iv(tfm, esp->conf.ivec, esp->conf.ivlen);
+	}
 
 	do {
 		struct scatterlist *sg = &esp->sgbuf[0];
@@ -248,7 +253,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 		 *    as per draft-ietf-ipsec-udp-encaps-06,
 		 *    section 3.1.2
 		 */
-		if (!x->props.mode)
+		if (x->props.mode == XFRM_MODE_TRANSPORT)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
@@ -267,7 +272,7 @@ static u32 esp4_get_max_size(struct xfrm_state *x, int mtu)
 	struct esp_data *esp = x->data;
 	u32 blksize = ALIGN(crypto_blkcipher_blocksize(esp->conf.tfm), 4);
 
-	if (x->props.mode) {
+	if (x->props.mode == XFRM_MODE_TUNNEL) {
 		mtu = ALIGN(mtu + 2, blksize);
 	} else {
 		/* The worst case. */
@@ -378,12 +383,12 @@ static int esp_init_state(struct xfrm_state *x)
 		esp->conf.ivec = kmalloc(esp->conf.ivlen, GFP_KERNEL);
 		if (unlikely(esp->conf.ivec == NULL))
 			goto error;
-		get_random_bytes(esp->conf.ivec, esp->conf.ivlen);
+		esp->conf.ivinitted = 0;
 	}
 	if (crypto_blkcipher_setkey(tfm, esp->conf.key, esp->conf.key_len))
 		goto error;
 	x->props.header_len = sizeof(struct ip_esp_hdr) + esp->conf.ivlen;
-	if (x->props.mode)
+	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct iphdr);
 	if (x->encap) {
 		struct xfrm_encap_tmpl *encap = x->encap;

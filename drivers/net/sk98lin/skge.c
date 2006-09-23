@@ -1559,7 +1559,7 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 	pTxd->VDataHigh = (SK_U32) (PhysAddr >> 32);
 	pTxd->pMBuf     = pMessage;
 
-	if (pMessage->ip_summed == CHECKSUM_HW) {
+	if (pMessage->ip_summed == CHECKSUM_PARTIAL) {
 		u16 hdrlen = pMessage->h.raw - pMessage->data;
 		u16 offset = hdrlen + pMessage->csum;
 
@@ -1678,7 +1678,7 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 	/* 
 	** Does the HW need to evaluate checksum for TCP or UDP packets? 
 	*/
-	if (pMessage->ip_summed == CHECKSUM_HW) {
+	if (pMessage->ip_summed == CHECKSUM_PARTIAL) {
 		u16 hdrlen = pMessage->h.raw - pMessage->data;
 		u16 offset = hdrlen + pMessage->csum;
 
@@ -2158,7 +2158,7 @@ rx_start:
 
 #ifdef USE_SK_RX_CHECKSUM
 		pMsg->csum = pRxd->TcpSums & 0xffff;
-		pMsg->ip_summed = CHECKSUM_HW;
+		pMsg->ip_summed = CHECKSUM_COMPLETE;
 #else
 		pMsg->ip_summed = CHECKSUM_NONE;
 #endif

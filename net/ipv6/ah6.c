@@ -74,6 +74,66 @@ bad:
 	return 0;
 }
 
+#ifdef CONFIG_IPV6_MIP6
+/**
+ *	ipv6_rearrange_destopt - rearrange IPv6 destination options header
+ *	@iph: IPv6 header
+ *	@destopt: destionation options header
+ */
+static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *destopt)
+{
+	u8 *opt = (u8 *)destopt;
+	int len = ipv6_optlen(destopt);
+	int off = 0;
+	int optlen = 0;
+
+	off += 2;
+	len -= 2;
+
+	while (len > 0) {
+
+		switch (opt[off]) {
+
+		case IPV6_TLV_PAD0:
+			optlen = 1;
+			break;
+		default:
+			if (len < 2)
+				goto bad;
+			optlen = opt[off+1]+2;
+			if (len < optlen)
+				goto bad;
+
+			/* Rearrange the source address in @iph and the
+			 * addresses in home address option for final source.
+			 * See 11.3.2 of RFC 3775 for details.
+			 */
+			if (opt[off] == IPV6_TLV_HAO) {
+				struct in6_addr final_addr;
+				struct ipv6_destopt_hao *hao;
+
+				hao = (struct ipv6_destopt_hao *)&opt[off];
+				if (hao->length != sizeof(hao->addr)) {
+					if (net_ratelimit())
+						printk(KERN_WARNING "destopt hao: invalid header length: %u\n", hao->length);
+					goto bad;
+				}
+				ipv6_addr_copy(&final_addr, &hao->addr);
+				ipv6_addr_copy(&hao->addr, &iph->saddr);
+				ipv6_addr_copy(&iph->saddr, &final_addr);
+			}
+			break;
+		}
+
+		off += optlen;
+		len -= optlen;
+	}
+	/* Note: ok if len == 0 */
+bad:
+	return;
+}
+#endif
+
 /**
  *	ipv6_rearrange_rthdr - rearrange IPv6 routing header
  *	@iph: IPv6 header
@@ -113,7 +173,7 @@ static void ipv6_rearrange_rthdr(struct ipv6hdr *iph, struct ipv6_rt_hdr *rthdr)
 	ipv6_addr_copy(&iph->daddr, &final_addr);
 }
 
-static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len)
+static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len, int dir)
 {
 	union {
 		struct ipv6hdr *iph;
@@ -128,8 +188,12 @@ static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len)
 
 	while (exthdr.raw < end) {
 		switch (nexthdr) {
-		case NEXTHDR_HOP:
 		case NEXTHDR_DEST:
+#ifdef CONFIG_IPV6_MIP6
+			if (dir == XFRM_POLICY_OUT)
+				ipv6_rearrange_destopt(iph, exthdr.opth);
+#endif
+		case NEXTHDR_HOP:
 			if (!zero_out_mutable_opts(exthdr.opth)) {
 				LIMIT_NETDEBUG(
 					KERN_WARNING "overrun %sopts\n",
@@ -164,6 +228,9 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	u8 nexthdr;
 	char tmp_base[8];
 	struct {
+#ifdef CONFIG_IPV6_MIP6
+		struct in6_addr saddr;
+#endif
 		struct in6_addr daddr;
 		char hdrs[0];
 	} *tmp_ext;
@@ -188,10 +255,15 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 			err = -ENOMEM;
 			goto error;
 		}
+#ifdef CONFIG_IPV6_MIP6
+		memcpy(tmp_ext, &top_iph->saddr, extlen);
+#else
 		memcpy(tmp_ext, &top_iph->daddr, extlen);
+#endif
 		err = ipv6_clear_mutable_options(top_iph,
 						 extlen - sizeof(*tmp_ext) +
-						 sizeof(*top_iph));
+						 sizeof(*top_iph),
+						 XFRM_POLICY_OUT);
 		if (err)
 			goto error_free_iph;
 	}
@@ -222,7 +294,11 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	memcpy(top_iph, tmp_base, sizeof(tmp_base));
 	if (tmp_ext) {
+#ifdef CONFIG_IPV6_MIP6
+		memcpy(&top_iph->saddr, tmp_ext, extlen);
+#else
 		memcpy(&top_iph->daddr, tmp_ext, extlen);
+#endif
 error_free_iph:
 		kfree(tmp_ext);
 	}
@@ -282,7 +358,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (!tmp_hdr)
 		goto out;
 	memcpy(tmp_hdr, skb->nh.raw, hdr_len);
-	if (ipv6_clear_mutable_options(skb->nh.ipv6h, hdr_len))
+	if (ipv6_clear_mutable_options(skb->nh.ipv6h, hdr_len, XFRM_POLICY_IN))
 		goto free_out;
 	skb->nh.ipv6h->priority    = 0;
 	skb->nh.ipv6h->flow_lbl[0] = 0;
@@ -398,7 +474,7 @@ static int ah6_init_state(struct xfrm_state *x)
 		goto error;
 	
 	x->props.header_len = XFRM_ALIGN8(sizeof(struct ipv6_auth_hdr) + ahp->icv_trunc_len);
-	if (x->props.mode)
+	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct ipv6hdr);
 	x->data = ahp;
 
@@ -435,7 +511,8 @@ static struct xfrm_type ah6_type =
 	.init_state	= ah6_init_state,
 	.destructor	= ah6_destroy,
 	.input		= ah6_input,
-	.output		= ah6_output
+	.output		= ah6_output,
+	.hdr_offset	= xfrm6_find_1stfragopt,
 };
 
 static struct inet6_protocol ah6_protocol = {

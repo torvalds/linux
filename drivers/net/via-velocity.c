@@ -2002,7 +2002,7 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	 *	Handle hardware checksum
 	 */
 	if ((vptr->flags & VELOCITY_FLAGS_TX_CSUM)
-				 && (skb->ip_summed == CHECKSUM_HW)) {
+				 && (skb->ip_summed == CHECKSUM_PARTIAL)) {
 		struct iphdr *ip = skb->nh.iph;
 		if (ip->protocol == IPPROTO_TCP)
 			td_ptr->tdesc1.TCR |= TCR0_TCPCK;

@@ -279,7 +279,7 @@ static void via_ircc_clean(void)
 
 	IRDA_DEBUG(3, "%s()\n", __FUNCTION__);
 
-	for (i=0; i < 4; i++) {
+	for (i=0; i < ARRAY_SIZE(dev_self); i++) {
 		if (dev_self[i])
 			via_ircc_close(dev_self[i]);
 	}
@@ -326,6 +326,9 @@ static __devinit int via_ircc_open(int i, chipio_t * info, unsigned int id)
 	int err;
 
 	IRDA_DEBUG(3, "%s()\n", __FUNCTION__);
+
+	if (i >= ARRAY_SIZE(dev_self))
+		return -ENOMEM;
 
 	/* Allocate new instance of the driver */
 	dev = alloc_irdadev(sizeof(struct via_ircc_cb));

@@ -1036,7 +1036,7 @@ static inline u16 emac_tx_csum(struct ocp_enet_private *dev,
 			       struct sk_buff *skb)
 {
 #if defined(CONFIG_IBM_EMAC_TAH)
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		++dev->stats.tx_packets_csum;
 		return EMAC_TX_CTRL_TAH_CSUM;
 	}

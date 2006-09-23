@@ -31,7 +31,7 @@ static u8 mode;
 static unsigned int target(struct sk_buff **pskb, const struct net_device *in,
 			   const struct net_device *out, unsigned int hooknum,
 			   const struct xt_target *target,
-			   const void *targinfo, void *userinfo)
+			   const void *targinfo)
 {
 	u32 secmark = 0;
 	const struct xt_secmark_target_info *info = targinfo;
@@ -85,7 +85,7 @@ static int checkentry_selinux(struct xt_secmark_target_info *info)
 
 static int checkentry(const char *tablename, const void *entry,
 		      const struct xt_target *target, void *targinfo,
-		      unsigned int targinfosize, unsigned int hook_mask)
+		      unsigned int hook_mask)
 {
 	struct xt_secmark_target_info *info = targinfo;
 
@@ -111,47 +111,36 @@ static int checkentry(const char *tablename, const void *entry,
 	return 1;
 }
 
-static struct xt_target ipt_secmark_reg = {
-	.name		= "SECMARK",
-	.target		= target,
-	.targetsize	= sizeof(struct xt_secmark_target_info),
-	.table		= "mangle",
-	.checkentry	= checkentry,
-	.me		= THIS_MODULE,
-	.family		= AF_INET,
-	.revision	= 0,
-};
-
-static struct xt_target ip6t_secmark_reg = {
-	.name		= "SECMARK",
-	.target		= target,
-	.targetsize	= sizeof(struct xt_secmark_target_info),
-	.table		= "mangle",
-	.checkentry	= checkentry,
-	.me		= THIS_MODULE,
-	.family		= AF_INET6,
-	.revision	= 0,
+static struct xt_target xt_secmark_target[] = {
+	{
+		.name		= "SECMARK",
+		.family		= AF_INET,
+		.checkentry	= checkentry,
+		.target		= target,
+		.targetsize	= sizeof(struct xt_secmark_target_info),
+		.table		= "mangle",
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "SECMARK",
+		.family		= AF_INET6,
+		.checkentry	= checkentry,
+		.target		= target,
+		.targetsize	= sizeof(struct xt_secmark_target_info),
+		.table		= "mangle",
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init xt_secmark_init(void)
 {
-	int err;
-
-	err = xt_register_target(&ipt_secmark_reg);
-	if (err)
-		return err;
-
-	err = xt_register_target(&ip6t_secmark_reg);
-	if (err)
-		xt_unregister_target(&ipt_secmark_reg);
-
-	return err;
+	return xt_register_targets(xt_secmark_target,
+				   ARRAY_SIZE(xt_secmark_target));
 }
 
 static void __exit xt_secmark_fini(void)
 {
-	xt_unregister_target(&ip6t_secmark_reg);
-	xt_unregister_target(&ipt_secmark_reg);
+	xt_unregister_targets(xt_secmark_target, ARRAY_SIZE(xt_secmark_target));
 }
 
 module_init(xt_secmark_init);

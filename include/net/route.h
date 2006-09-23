@@ -32,6 +32,7 @@
 #include <linux/route.h>
 #include <linux/ip.h>
 #include <linux/cache.h>
+#include <linux/security.h>
 
 #ifndef __KERNEL__
 #warning This file is not supposed to be used outside of kernel.
@@ -166,6 +167,7 @@ static inline int ip_route_connect(struct rtable **rp, u32 dst,
 		ip_rt_put(*rp);
 		*rp = NULL;
 	}
+	security_sk_classify_flow(sk, &fl);
 	return ip_route_output_flow(rp, &fl, sk, 0);
 }
 
@@ -182,6 +184,7 @@ static inline int ip_route_newports(struct rtable **rp, u8 protocol,
 		fl.proto = protocol;
 		ip_rt_put(*rp);
 		*rp = NULL;
+		security_sk_classify_flow(sk, &fl);
 		return ip_route_output_flow(rp, &fl, sk, 0);
 	}
 	return 0;

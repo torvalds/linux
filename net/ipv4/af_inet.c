@@ -67,7 +67,6 @@
  *		2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -392,7 +391,7 @@ int inet_release(struct socket *sock)
 }
 
 /* It is off by default, see below. */
-int sysctl_ip_nonlocal_bind;
+int sysctl_ip_nonlocal_bind __read_mostly;
 
 int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
@@ -988,7 +987,7 @@ void inet_unregister_protosw(struct inet_protosw *p)
  *      Shall we try to damage output packets if routing dev changes?
  */
 
-int sysctl_ip_dynaddr;
+int sysctl_ip_dynaddr __read_mostly;
 
 static int inet_sk_reselect_saddr(struct sock *sk)
 {
@@ -1074,6 +1073,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 		},
 	};
 						
+	security_sk_classify_flow(sk, &fl);
 	err = ip_route_output_flow(&rt, &fl, sk, 0);
 }
 	if (!err)
@@ -1254,10 +1254,7 @@ static int __init inet_init(void)
 	struct list_head *r;
 	int rc = -EINVAL;
 
-	if (sizeof(struct inet_skb_parm) > sizeof(dummy_skb->cb)) {
-		printk(KERN_CRIT "%s: panic\n", __FUNCTION__);
-		goto out;
-	}
+	BUILD_BUG_ON(sizeof(struct inet_skb_parm) > sizeof(dummy_skb->cb));
 
 	rc = proto_register(&tcp_prot, 1);
 	if (rc)

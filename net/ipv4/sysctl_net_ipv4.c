@@ -17,6 +17,7 @@
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/tcp.h>
+#include <net/cipso_ipv4.h>
 
 /* From af_inet.c */
 extern int sysctl_ip_nonlocal_bind;
@@ -697,6 +698,40 @@ ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
+#ifdef CONFIG_NETLABEL
+	{
+		.ctl_name	= NET_CIPSOV4_CACHE_ENABLE,
+		.procname	= "cipso_cache_enable",
+		.data		= &cipso_v4_cache_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_CIPSOV4_CACHE_BUCKET_SIZE,
+		.procname	= "cipso_cache_bucket_size",
+		.data		= &cipso_v4_cache_bucketsize,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_CIPSOV4_RBM_OPTFMT,
+		.procname	= "cipso_rbm_optfmt",
+		.data		= &cipso_v4_rbm_optfmt,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_CIPSOV4_RBM_STRICTVALID,
+		.procname	= "cipso_rbm_strictvalid",
+		.data		= &cipso_v4_rbm_strictvalid,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif /* CONFIG_NETLABEL */
 	{ .ctl_name = 0 }
 };
 

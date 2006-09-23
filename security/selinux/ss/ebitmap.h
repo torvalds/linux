@@ -69,6 +69,12 @@ static inline int ebitmap_node_get_bit(struct ebitmap_node * n,
 
 int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2);
 int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src);
+int ebitmap_export(const struct ebitmap *src,
+		   unsigned char **dst,
+		   size_t *dst_len);
+int ebitmap_import(const unsigned char *src,
+		   size_t src_len,
+		   struct ebitmap *dst);
 int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2);
 int ebitmap_get_bit(struct ebitmap *e, unsigned long bit);
 int ebitmap_set_bit(struct ebitmap *e, unsigned long bit, int value);

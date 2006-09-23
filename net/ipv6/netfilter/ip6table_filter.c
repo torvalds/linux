@@ -108,7 +108,7 @@ ip6t_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ip6t_do_table(pskb, hook, in, out, &packet_filter, NULL);
+	return ip6t_do_table(pskb, hook, in, out, &packet_filter);
 }
 
 static unsigned int
@@ -128,7 +128,7 @@ ip6t_local_out_hook(unsigned int hook,
 	}
 #endif
 
-	return ip6t_do_table(pskb, hook, in, out, &packet_filter, NULL);
+	return ip6t_do_table(pskb, hook, in, out, &packet_filter);
 }
 
 static struct nf_hook_ops ip6t_ops[] = {

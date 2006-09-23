@@ -1387,7 +1387,7 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * MAC header which should not be summed and the TCP/UDP pseudo headers
 	 * manually.
 	 */
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		int proto = ntohs(skb->nh.iph->protocol);
 		unsigned int csoff;
 		struct iphdr *ih = skb->nh.iph;

@@ -23,7 +23,7 @@ extern unsigned int nf_iterate(struct list_head *head,
 				int hook_thresh);
 
 /* nf_queue.c */
-extern int nf_queue(struct sk_buff **skb, 
+extern int nf_queue(struct sk_buff *skb,
 		    struct list_head *elem, 
 		    int pf, unsigned int hook,
 		    struct net_device *indev,

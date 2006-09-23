@@ -174,7 +174,6 @@ static inline int xs_sendpages(struct socket *sock, struct sockaddr *addr, int a
 	struct page **ppage = xdr->pages;
 	unsigned int len, pglen = xdr->page_len;
 	int err, ret = 0;
-	ssize_t (*sendpage)(struct socket *, struct page *, int, size_t, int);
 
 	if (unlikely(!sock))
 		return -ENOTCONN;
@@ -207,7 +206,6 @@ static inline int xs_sendpages(struct socket *sock, struct sockaddr *addr, int a
 		base &= ~PAGE_CACHE_MASK;
 	}
 
-	sendpage = sock->ops->sendpage ? : sock_no_sendpage;
 	do {
 		int flags = XS_SENDMSG_FLAGS;
 
@@ -220,10 +218,7 @@ static inline int xs_sendpages(struct socket *sock, struct sockaddr *addr, int a
 		if (pglen != len || xdr->tail[0].iov_len != 0)
 			flags |= MSG_MORE;
 
-		/* Hmm... We might be dealing with highmem pages */
-		if (PageHighMem(*ppage))
-			sendpage = sock_no_sendpage;
-		err = sendpage(sock, *ppage, base, len, flags);
+		err = kernel_sendpage(sock, *ppage, base, len, flags);
 		if (ret == 0)
 			ret = err;
 		else if (err > 0)
@@ -986,7 +981,7 @@ static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
 
 	do {
 		myaddr.sin_port = htons(port);
-		err = sock->ops->bind(sock, (struct sockaddr *) &myaddr,
+		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
 						sizeof(myaddr));
 		if (err == 0) {
 			xprt->port = port;
@@ -1081,7 +1076,7 @@ static void xs_tcp_reuse_connection(struct rpc_xprt *xprt)
 	 */
 	memset(&any, 0, sizeof(any));
 	any.sa_family = AF_UNSPEC;
-	result = sock->ops->connect(sock, &any, sizeof(any), 0);
+	result = kernel_connect(sock, &any, sizeof(any), 0);
 	if (result)
 		dprintk("RPC:      AF_UNSPEC connect return code %d\n",
 				result);
@@ -1151,7 +1146,7 @@ static void xs_tcp_connect_worker(void *args)
 	/* Tell the socket layer to start connecting... */
 	xprt->stat.connect_count++;
 	xprt->stat.connect_start = jiffies;
-	status = sock->ops->connect(sock, (struct sockaddr *) &xprt->addr,
+	status = kernel_connect(sock, (struct sockaddr *) &xprt->addr,
 			sizeof(xprt->addr), O_NONBLOCK);
 	dprintk("RPC: %p  connect status %d connected %d sock state %d\n",
 			xprt, -status, xprt_connected(xprt), sock->sk->sk_state);

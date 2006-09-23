@@ -161,7 +161,7 @@ udp_snat_handler(struct sk_buff **pskb,
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(udph, cp->daddr, cp->vaddr,
 				     cp->dport, cp->vport);
-		if ((*pskb)->ip_summed == CHECKSUM_HW)
+		if ((*pskb)->ip_summed == CHECKSUM_COMPLETE)
 			(*pskb)->ip_summed = CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -216,7 +216,7 @@ udp_dnat_handler(struct sk_buff **pskb,
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(udph, cp->vaddr, cp->daddr,
 				     cp->vport, cp->dport);
-		if ((*pskb)->ip_summed == CHECKSUM_HW)
+		if ((*pskb)->ip_summed == CHECKSUM_COMPLETE)
 			(*pskb)->ip_summed = CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -250,7 +250,7 @@ udp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 		case CHECKSUM_NONE:
 			skb->csum = skb_checksum(skb, udphoff,
 						 skb->len - udphoff, 0);
-		case CHECKSUM_HW:
+		case CHECKSUM_COMPLETE:
 			if (csum_tcpudp_magic(skb->nh.iph->saddr,
 					      skb->nh.iph->daddr,
 					      skb->len - udphoff,
@@ -262,7 +262,7 @@ udp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 			}
 			break;
 		default:
-			/* CHECKSUM_UNNECESSARY */
+			/* No need to checksum. */
 			break;
 		}
 	}

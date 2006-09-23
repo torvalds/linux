@@ -335,7 +335,7 @@ static struct nf_hook_ops ipv6_conntrack_ops[] = {
 /* From nf_conntrack_proto_icmpv6.c */
 extern unsigned int nf_ct_icmpv6_timeout;
 
-/* From nf_conntrack_frag6.c */
+/* From nf_conntrack_reasm.c */
 extern unsigned int nf_ct_frag6_timeout;
 extern unsigned int nf_ct_frag6_low_thresh;
 extern unsigned int nf_ct_frag6_high_thresh;

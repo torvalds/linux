@@ -53,10 +53,10 @@
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table_header *brnf_sysctl_header;
-static int brnf_call_iptables = 1;
-static int brnf_call_ip6tables = 1;
-static int brnf_call_arptables = 1;
-static int brnf_filter_vlan_tagged = 1;
+static int brnf_call_iptables __read_mostly = 1;
+static int brnf_call_ip6tables __read_mostly = 1;
+static int brnf_call_arptables __read_mostly = 1;
+static int brnf_filter_vlan_tagged __read_mostly = 1;
 #else
 #define brnf_filter_vlan_tagged 1
 #endif
@@ -127,12 +127,35 @@ static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)
 
 static inline void nf_bridge_save_header(struct sk_buff *skb)
 {
-        int header_size = 16;
+        int header_size = ETH_HLEN;
 
 	if (skb->protocol == htons(ETH_P_8021Q))
-		header_size = 18;
+		header_size += VLAN_HLEN;
 
 	memcpy(skb->nf_bridge->data, skb->data - header_size, header_size);
+}
+
+/*
+ * When forwarding bridge frames, we save a copy of the original
+ * header before processing.
+ */
+int nf_bridge_copy_header(struct sk_buff *skb)
+{
+	int err;
+        int header_size = ETH_HLEN;
+
+	if (skb->protocol == htons(ETH_P_8021Q))
+		header_size += VLAN_HLEN;
+
+	err = skb_cow(skb, header_size);
+	if (err)
+		return err;
+
+	memcpy(skb->data - header_size, skb->nf_bridge->data, header_size);
+
+	if (skb->protocol == htons(ETH_P_8021Q))
+		__skb_push(skb, VLAN_HLEN);
+	return 0;
 }
 
 /* PF_BRIDGE/PRE_ROUTING *********************************************/
@@ -695,16 +718,6 @@ static unsigned int br_nf_local_out(unsigned int hook, struct sk_buff **pskb,
 	else
 		pf = PF_INET6;
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	/* Sometimes we get packets with NULL ->dst here (for example,
-	 * running a dhcp client daemon triggers this). This should now
-	 * be fixed, but let's keep the check around. */
-	if (skb->dst == NULL) {
-		printk(KERN_CRIT "br_netfilter: skb->dst == NULL.");
-		return NF_ACCEPT;
-	}
-#endif
-
 	nf_bridge = skb->nf_bridge;
 	nf_bridge->physoutdev = skb->dev;
 	realindev = nf_bridge->physindev;
@@ -786,7 +799,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 	 * keep the check just to be sure... */
 	if (skb->mac.raw < skb->head || skb->mac.raw + ETH_HLEN > skb->data) {
 		printk(KERN_CRIT "br_netfilter: Argh!! br_nf_post_routing: "
-		       "bad mac.raw pointer.");
+		       "bad mac.raw pointer.\n");
 		goto print_error;
 	}
 #endif
@@ -804,7 +817,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 
 #ifdef CONFIG_NETFILTER_DEBUG
 	if (skb->dst == NULL) {
-		printk(KERN_CRIT "br_netfilter: skb->dst == NULL.");
+		printk(KERN_INFO "br_netfilter post_routing: skb->dst == NULL\n");
 		goto print_error;
 	}
 #endif
@@ -841,6 +854,7 @@ print_error:
 	}
 	printk(" head:%p, raw:%p, data:%p\n", skb->head, skb->mac.raw,
 	       skb->data);
+	dump_stack();
 	return NF_ACCEPT;
 #endif
 }

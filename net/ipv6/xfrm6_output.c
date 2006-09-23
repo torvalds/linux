@@ -17,6 +17,12 @@
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
+int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
+			  u8 **prevhdr)
+{
+	return ip6_find_1stfragopt(skb, prevhdr);
+}
+
 static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 {
 	int mtu, ret = 0;
@@ -41,13 +47,13 @@ static int xfrm6_output_one(struct sk_buff *skb)
 	struct xfrm_state *x = dst->xfrm;
 	int err;
 	
-	if (skb->ip_summed == CHECKSUM_HW) {
-		err = skb_checksum_help(skb, 0);
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		err = skb_checksum_help(skb);
 		if (err)
 			goto error_nolock;
 	}
 
-	if (x->props.mode) {
+	if (x->props.mode == XFRM_MODE_TUNNEL) {
 		err = xfrm6_tunnel_check_size(skb);
 		if (err)
 			goto error_nolock;
@@ -59,7 +65,7 @@ static int xfrm6_output_one(struct sk_buff *skb)
 		if (err)
 			goto error;
 
-		err = x->mode->output(skb);
+		err = x->mode->output(x, skb);
 		if (err)
 			goto error;
 
@@ -69,6 +75,8 @@ static int xfrm6_output_one(struct sk_buff *skb)
 
 		x->curlft.bytes += skb->len;
 		x->curlft.packets++;
+		if (x->props.mode == XFRM_MODE_ROUTEOPTIMIZATION)
+			x->lastused = (u64)xtime.tv_sec;
 
 		spin_unlock_bh(&x->lock);
 
@@ -80,7 +88,7 @@ static int xfrm6_output_one(struct sk_buff *skb)
 		}
 		dst = skb->dst;
 		x = dst->xfrm;
-	} while (x && !x->props.mode);
+	} while (x && (x->props.mode != XFRM_MODE_TUNNEL));
 
 	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
 	err = 0;

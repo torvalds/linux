@@ -20,7 +20,6 @@ static u16 nla_attr_minlen[NLA_TYPE_MAX+1] __read_mostly = {
 	[NLA_U16]	= sizeof(u16),
 	[NLA_U32]	= sizeof(u32),
 	[NLA_U64]	= sizeof(u64),
-	[NLA_STRING]	= 1,
 	[NLA_NESTED]	= NLA_HDRLEN,
 };
 
@@ -28,7 +27,7 @@ static int validate_nla(struct nlattr *nla, int maxtype,
 			struct nla_policy *policy)
 {
 	struct nla_policy *pt;
-	int minlen = 0;
+	int minlen = 0, attrlen = nla_len(nla);
 
 	if (nla->nla_type <= 0 || nla->nla_type > maxtype)
 		return 0;
@@ -37,16 +36,46 @@ static int validate_nla(struct nlattr *nla, int maxtype,
 
 	BUG_ON(pt->type > NLA_TYPE_MAX);
 
-	if (pt->minlen)
-		minlen = pt->minlen;
-	else if (pt->type != NLA_UNSPEC)
-		minlen = nla_attr_minlen[pt->type];
+	switch (pt->type) {
+	case NLA_FLAG:
+		if (attrlen > 0)
+			return -ERANGE;
+		break;
 
-	if (pt->type == NLA_FLAG && nla_len(nla) > 0)
-		return -ERANGE;
+	case NLA_NUL_STRING:
+		if (pt->len)
+			minlen = min_t(int, attrlen, pt->len + 1);
+		else
+			minlen = attrlen;
 
-	if (nla_len(nla) < minlen)
-		return -ERANGE;
+		if (!minlen || memchr(nla_data(nla), '\0', minlen) == NULL)
+			return -EINVAL;
+		/* fall through */
+
+	case NLA_STRING:
+		if (attrlen < 1)
+			return -ERANGE;
+
+		if (pt->len) {
+			char *buf = nla_data(nla);
+
+			if (buf[attrlen - 1] == '\0')
+				attrlen--;
+
+			if (attrlen > pt->len)
+				return -ERANGE;
+		}
+		break;
+
+	default:
+		if (pt->len)
+			minlen = pt->len;
+		else if (pt->type != NLA_UNSPEC)
+			minlen = nla_attr_minlen[pt->type];
+
+		if (attrlen < minlen)
+			return -ERANGE;
+	}
 
 	return 0;
 }
@@ -255,6 +284,26 @@ struct nlattr *__nla_reserve(struct sk_buff *skb, int attrtype, int attrlen)
 }
 
 /**
+ * __nla_reserve_nohdr - reserve room for attribute without header
+ * @skb: socket buffer to reserve room on
+ * @attrlen: length of attribute payload
+ *
+ * Reserves room for attribute payload without a header.
+ *
+ * The caller is responsible to ensure that the skb provides enough
+ * tailroom for the payload.
+ */
+void *__nla_reserve_nohdr(struct sk_buff *skb, int attrlen)
+{
+	void *start;
+
+	start = skb_put(skb, NLA_ALIGN(attrlen));
+	memset(start, 0, NLA_ALIGN(attrlen));
+
+	return start;
+}
+
+/**
  * nla_reserve - reserve room for attribute on the skb
  * @skb: socket buffer to reserve room on
  * @attrtype: attribute type
@@ -272,6 +321,24 @@ struct nlattr *nla_reserve(struct sk_buff *skb, int attrtype, int attrlen)
 		return NULL;
 
 	return __nla_reserve(skb, attrtype, attrlen);
+}
+
+/**
+ * nla_reserve - reserve room for attribute without header
+ * @skb: socket buffer to reserve room on
+ * @len: length of attribute payload
+ *
+ * Reserves room for attribute payload without a header.
+ *
+ * Returns NULL if the tailroom of the skb is insufficient to store
+ * the attribute payload.
+ */
+void *nla_reserve_nohdr(struct sk_buff *skb, int attrlen)
+{
+	if (unlikely(skb_tailroom(skb) < NLA_ALIGN(attrlen)))
+		return NULL;
+
+	return __nla_reserve_nohdr(skb, attrlen);
 }
 
 /**
@@ -293,6 +360,22 @@ void __nla_put(struct sk_buff *skb, int attrtype, int attrlen,
 	memcpy(nla_data(nla), data, attrlen);
 }
 
+/**
+ * __nla_put_nohdr - Add a netlink attribute without header
+ * @skb: socket buffer to add attribute to
+ * @attrlen: length of attribute payload
+ * @data: head of attribute payload
+ *
+ * The caller is responsible to ensure that the skb provides enough
+ * tailroom for the attribute payload.
+ */
+void __nla_put_nohdr(struct sk_buff *skb, int attrlen, const void *data)
+{
+	void *start;
+
+	start = __nla_reserve_nohdr(skb, attrlen);
+	memcpy(start, data, attrlen);
+}
 
 /**
  * nla_put - Add a netlink attribute to a socket buffer
@@ -313,15 +396,36 @@ int nla_put(struct sk_buff *skb, int attrtype, int attrlen, const void *data)
 	return 0;
 }
 
+/**
+ * nla_put_nohdr - Add a netlink attribute without header
+ * @skb: socket buffer to add attribute to
+ * @attrlen: length of attribute payload
+ * @data: head of attribute payload
+ *
+ * Returns -1 if the tailroom of the skb is insufficient to store
+ * the attribute payload.
+ */
+int nla_put_nohdr(struct sk_buff *skb, int attrlen, const void *data)
+{
+	if (unlikely(skb_tailroom(skb) < NLA_ALIGN(attrlen)))
+		return -1;
+
+	__nla_put_nohdr(skb, attrlen, data);
+	return 0;
+}
 
 EXPORT_SYMBOL(nla_validate);
 EXPORT_SYMBOL(nla_parse);
 EXPORT_SYMBOL(nla_find);
 EXPORT_SYMBOL(nla_strlcpy);
 EXPORT_SYMBOL(__nla_reserve);
+EXPORT_SYMBOL(__nla_reserve_nohdr);
 EXPORT_SYMBOL(nla_reserve);
+EXPORT_SYMBOL(nla_reserve_nohdr);
 EXPORT_SYMBOL(__nla_put);
+EXPORT_SYMBOL(__nla_put_nohdr);
 EXPORT_SYMBOL(nla_put);
+EXPORT_SYMBOL(nla_put_nohdr);
 EXPORT_SYMBOL(nla_memcpy);
 EXPORT_SYMBOL(nla_memcmp);
 EXPORT_SYMBOL(nla_strcmp);

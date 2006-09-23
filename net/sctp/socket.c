@@ -2081,13 +2081,13 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
  *                     SPP_SACKDELAY_ENABLE, setting both will have undefined
  *                     results.
  */
-int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
-				struct sctp_transport   *trans,
-				struct sctp_association *asoc,
-				struct sctp_sock        *sp,
-				int                      hb_change,
-				int                      pmtud_change,
-				int                      sackdelay_change)
+static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
+				       struct sctp_transport   *trans,
+				       struct sctp_association *asoc,
+				       struct sctp_sock        *sp,
+				       int                      hb_change,
+				       int                      pmtud_change,
+				       int                      sackdelay_change)
 {
 	int error;
 
@@ -2970,7 +2970,7 @@ SCTP_STATIC struct sock *sctp_accept(struct sock *sk, int flags, int *err)
 		goto out;
 	}
 
-	timeo = sock_rcvtimeo(sk, sk->sk_socket->file->f_flags & O_NONBLOCK);
+	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
 
 	error = sctp_wait_for_accept(sk, timeo);
 	if (error)
@@ -3045,14 +3045,14 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->initmsg.sinit_num_ostreams   = sctp_max_outstreams;
 	sp->initmsg.sinit_max_instreams  = sctp_max_instreams;
 	sp->initmsg.sinit_max_attempts   = sctp_max_retrans_init;
-	sp->initmsg.sinit_max_init_timeo = jiffies_to_msecs(sctp_rto_max);
+	sp->initmsg.sinit_max_init_timeo = sctp_rto_max;
 
 	/* Initialize default RTO related parameters.  These parameters can
 	 * be modified for with the SCTP_RTOINFO socket option.
 	 */
-	sp->rtoinfo.srto_initial = jiffies_to_msecs(sctp_rto_initial);
-	sp->rtoinfo.srto_max     = jiffies_to_msecs(sctp_rto_max);
-	sp->rtoinfo.srto_min     = jiffies_to_msecs(sctp_rto_min);
+	sp->rtoinfo.srto_initial = sctp_rto_initial;
+	sp->rtoinfo.srto_max     = sctp_rto_max;
+	sp->rtoinfo.srto_min     = sctp_rto_min;
 
 	/* Initialize default association related parameters. These parameters
 	 * can be modified with the SCTP_ASSOCINFO socket option.
@@ -3061,8 +3061,7 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->assocparams.sasoc_number_peer_destinations = 0;
 	sp->assocparams.sasoc_peer_rwnd = 0;
 	sp->assocparams.sasoc_local_rwnd = 0;
-	sp->assocparams.sasoc_cookie_life = 
-		jiffies_to_msecs(sctp_valid_cookie_life);
+	sp->assocparams.sasoc_cookie_life = sctp_valid_cookie_life;
 
 	/* Initialize default event subscriptions. By default, all the
 	 * options are off. 
@@ -3072,10 +3071,10 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	/* Default Peer Address Parameters.  These defaults can
 	 * be modified via SCTP_PEER_ADDR_PARAMS
 	 */
-	sp->hbinterval  = jiffies_to_msecs(sctp_hb_interval);
+	sp->hbinterval  = sctp_hb_interval;
 	sp->pathmaxrxt  = sctp_max_retrans_path;
 	sp->pathmtu     = 0; // allow default discovery
-	sp->sackdelay   = jiffies_to_msecs(sctp_sack_timeout);
+	sp->sackdelay   = sctp_sack_timeout;
 	sp->param_flags = SPP_HB_ENABLE |
 	                  SPP_PMTUD_ENABLE |
 	                  SPP_SACKDELAY_ENABLE;
@@ -5619,6 +5618,8 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	/* Copy the bind_addr list from the original endpoint to the new
 	 * endpoint so that we can handle restarts properly
 	 */
+	if (PF_INET6 == assoc->base.sk->sk_family)
+		flags = SCTP_ADDR6_ALLOWED;
 	if (assoc->peer.ipv4_address)
 		flags |= SCTP_ADDR4_PEERSUPP;
 	if (assoc->peer.ipv6_address)

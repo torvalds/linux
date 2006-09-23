@@ -114,7 +114,7 @@ extern void *__init alloc_large_system_hash(const char *tablename,
 #else
 #define HASHDIST_DEFAULT 0
 #endif
-extern int __initdata hashdist;		/* Distribute hashes across NUMA nodes? */
+extern int hashdist;		/* Distribute hashes across NUMA nodes? */
 
 
 #endif /* _LINUX_BOOTMEM_H */

@@ -155,40 +155,9 @@ enum
 	UDP_MIB_NOPORTS,			/* NoPorts */
 	UDP_MIB_INERRORS,			/* InErrors */
 	UDP_MIB_OUTDATAGRAMS,			/* OutDatagrams */
+	UDP_MIB_RCVBUFERRORS,			/* RcvbufErrors */
+	UDP_MIB_SNDBUFERRORS,			/* SndbufErrors */
 	__UDP_MIB_MAX
-};
-
-/* sctp mib definitions */
-/*
- * draft-ietf-sigtran-sctp-mib-07.txt
- */
-enum
-{
-	SCTP_MIB_NUM = 0,
-	SCTP_MIB_CURRESTAB,			/* CurrEstab */
-	SCTP_MIB_ACTIVEESTABS,			/* ActiveEstabs */
-	SCTP_MIB_PASSIVEESTABS,			/* PassiveEstabs */
-	SCTP_MIB_ABORTEDS,			/* Aborteds */
-	SCTP_MIB_SHUTDOWNS,			/* Shutdowns */
-	SCTP_MIB_OUTOFBLUES,			/* OutOfBlues */
-	SCTP_MIB_CHECKSUMERRORS,		/* ChecksumErrors */
-	SCTP_MIB_OUTCTRLCHUNKS,			/* OutCtrlChunks */
-	SCTP_MIB_OUTORDERCHUNKS,		/* OutOrderChunks */
-	SCTP_MIB_OUTUNORDERCHUNKS,		/* OutUnorderChunks */
-	SCTP_MIB_INCTRLCHUNKS,			/* InCtrlChunks */
-	SCTP_MIB_INORDERCHUNKS,			/* InOrderChunks */
-	SCTP_MIB_INUNORDERCHUNKS,		/* InUnorderChunks */
-	SCTP_MIB_FRAGUSRMSGS,			/* FragUsrMsgs */
-	SCTP_MIB_REASMUSRMSGS,			/* ReasmUsrMsgs */
-	SCTP_MIB_OUTSCTPPACKS,			/* OutSCTPPacks */
-	SCTP_MIB_INSCTPPACKS,			/* InSCTPPacks */
-	SCTP_MIB_RTOALGORITHM,			/* RtoAlgorithm */
-	SCTP_MIB_RTOMIN,			/* RtoMin */
-	SCTP_MIB_RTOMAX,			/* RtoMax */
-	SCTP_MIB_RTOINITIAL,			/* RtoInitial */
-	SCTP_MIB_VALCOOKIELIFE,			/* ValCookieLife */
-	SCTP_MIB_MAXINITRETR,			/* MaxInitRetr */
-	__SCTP_MIB_MAX
 };
 
 /* linux mib definitions */

@@ -24,6 +24,7 @@
 #include <net/ip.h>
 #include <net/icmp.h>
 #include <net/route.h>
+#include <net/cipso_ipv4.h>
 
 /* 
  * Write options to IP header, record destination address to
@@ -193,6 +194,13 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 			dopt->optlen += doffset+3;
 			dopt->is_strictroute = sopt->is_strictroute;
 		}
+	}
+	if (sopt->cipso) {
+		optlen  = sptr[sopt->cipso+1];
+		dopt->cipso = dopt->optlen+sizeof(struct iphdr);
+		memcpy(dptr, sptr+sopt->cipso, optlen);
+		dptr += optlen;
+		dopt->optlen += optlen;
 	}
 	while (dopt->optlen & 3) {
 		*dptr++ = IPOPT_END;
@@ -434,6 +442,17 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 			if (optptr[2] == 0 && optptr[3] == 0)
 				opt->router_alert = optptr - iph;
 			break;
+		      case IPOPT_CIPSO:
+		        if (opt->cipso) {
+				pp_ptr = optptr;
+				goto error;
+			}
+			opt->cipso = optptr - iph;
+		        if (cipso_v4_validate(&optptr)) {
+				pp_ptr = optptr;
+				goto error;
+			}
+			break;
 		      case IPOPT_SEC:
 		      case IPOPT_SID:
 		      default:
@@ -506,7 +525,6 @@ static int ip_options_get_finish(struct ip_options **optp,
 		opt->__data[optlen++] = IPOPT_END;
 	opt->optlen = optlen;
 	opt->is_data = 1;
-	opt->is_setbyuser = 1;
 	if (optlen && ip_options_compile(opt, NULL)) {
 		kfree(opt);
 		return -EINVAL;

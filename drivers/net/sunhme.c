@@ -1207,7 +1207,7 @@ static void happy_meal_transceiver_check(struct happy_meal *hp, void __iomem *tr
  * flags, thus:
  *
  * 	skb->csum = rxd->rx_flags & 0xffff;
- * 	skb->ip_summed = CHECKSUM_HW;
+ * 	skb->ip_summed = CHECKSUM_COMPLETE;
  *
  * before sending off the skb to the protocols, and we are good as gold.
  */
@@ -2074,7 +2074,7 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 
 		/* This card is _fucking_ hot... */
 		skb->csum = ntohs(csum ^ 0xffff);
-		skb->ip_summed = CHECKSUM_HW;
+		skb->ip_summed = CHECKSUM_COMPLETE;
 
 		RXD(("len=%d csum=%4x]", len, csum));
 		skb->protocol = eth_type_trans(skb, dev);
@@ -2268,7 +2268,7 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
  	u32 tx_flags;
 
 	tx_flags = TXFLAG_OWN;
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		u32 csum_start_off, csum_stuff_off;
 
 		csum_start_off = (u32) (skb->h.raw - skb->data);

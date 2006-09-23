@@ -35,6 +35,9 @@ struct ccid2_seq {
 	struct ccid2_seq	*ccid2s_next;
 };
 
+#define CCID2_SEQBUF_LEN 256
+#define CCID2_SEQBUF_MAX 128
+
 /** struct ccid2_hc_tx_sock - CCID2 TX half connection
  *
  * @ccid2hctx_ssacks - ACKs recv in slow start
@@ -50,10 +53,11 @@ struct ccid2_hc_tx_sock {
 	int			ccid2hctx_cwnd;
 	int			ccid2hctx_ssacks;
 	int			ccid2hctx_acks;
-	int			ccid2hctx_ssthresh;
+	unsigned int		ccid2hctx_ssthresh;
 	int			ccid2hctx_pipe;
 	int			ccid2hctx_numdupack;
-	struct ccid2_seq	*ccid2hctx_seqbuf;
+	struct ccid2_seq	*ccid2hctx_seqbuf[CCID2_SEQBUF_MAX];
+	int			ccid2hctx_seqbufc;
 	struct ccid2_seq	*ccid2hctx_seqh;
 	struct ccid2_seq	*ccid2hctx_seqt;
 	long			ccid2hctx_rto;
@@ -67,6 +71,7 @@ struct ccid2_hc_tx_sock {
 	u64			ccid2hctx_rpseq;
 	int			ccid2hctx_rpdupack;
 	int			ccid2hctx_sendwait;
+	unsigned long		ccid2hctx_last_cong;
 };
 
 struct ccid2_hc_rx_sock {

@@ -74,13 +74,13 @@ EXPORT_SYMBOL_GPL(nf_unregister_queue_handlers);
  * Any packet that leaves via this function must come back 
  * through nf_reinject().
  */
-int nf_queue(struct sk_buff **skb, 
-	     struct list_head *elem, 
-	     int pf, unsigned int hook,
-	     struct net_device *indev,
-	     struct net_device *outdev,
-	     int (*okfn)(struct sk_buff *),
-	     unsigned int queuenum)
+static int __nf_queue(struct sk_buff *skb,
+		      struct list_head *elem,
+		      int pf, unsigned int hook,
+		      struct net_device *indev,
+		      struct net_device *outdev,
+		      int (*okfn)(struct sk_buff *),
+		      unsigned int queuenum)
 {
 	int status;
 	struct nf_info *info;
@@ -94,14 +94,14 @@ int nf_queue(struct sk_buff **skb,
 	read_lock(&queue_handler_lock);
 	if (!queue_handler[pf]) {
 		read_unlock(&queue_handler_lock);
-		kfree_skb(*skb);
+		kfree_skb(skb);
 		return 1;
 	}
 
 	afinfo = nf_get_afinfo(pf);
 	if (!afinfo) {
 		read_unlock(&queue_handler_lock);
-		kfree_skb(*skb);
+		kfree_skb(skb);
 		return 1;
 	}
 
@@ -109,9 +109,9 @@ int nf_queue(struct sk_buff **skb,
 	if (!info) {
 		if (net_ratelimit())
 			printk(KERN_ERR "OOM queueing packet %p\n",
-			       *skb);
+			       skb);
 		read_unlock(&queue_handler_lock);
-		kfree_skb(*skb);
+		kfree_skb(skb);
 		return 1;
 	}
 
@@ -130,15 +130,15 @@ int nf_queue(struct sk_buff **skb,
 	if (outdev) dev_hold(outdev);
 
 #ifdef CONFIG_BRIDGE_NETFILTER
-	if ((*skb)->nf_bridge) {
-		physindev = (*skb)->nf_bridge->physindev;
+	if (skb->nf_bridge) {
+		physindev = skb->nf_bridge->physindev;
 		if (physindev) dev_hold(physindev);
-		physoutdev = (*skb)->nf_bridge->physoutdev;
+		physoutdev = skb->nf_bridge->physoutdev;
 		if (physoutdev) dev_hold(physoutdev);
 	}
 #endif
-	afinfo->saveroute(*skb, info);
-	status = queue_handler[pf]->outfn(*skb, info, queuenum,
+	afinfo->saveroute(skb, info);
+	status = queue_handler[pf]->outfn(skb, info, queuenum,
 					  queue_handler[pf]->data);
 
 	read_unlock(&queue_handler_lock);
@@ -153,11 +153,51 @@ int nf_queue(struct sk_buff **skb,
 #endif
 		module_put(info->elem->owner);
 		kfree(info);
-		kfree_skb(*skb);
+		kfree_skb(skb);
 
 		return 1;
 	}
 
+	return 1;
+}
+
+int nf_queue(struct sk_buff *skb,
+	     struct list_head *elem,
+	     int pf, unsigned int hook,
+	     struct net_device *indev,
+	     struct net_device *outdev,
+	     int (*okfn)(struct sk_buff *),
+	     unsigned int queuenum)
+{
+	struct sk_buff *segs;
+
+	if (!skb_is_gso(skb))
+		return __nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
+				  queuenum);
+
+	switch (pf) {
+	case AF_INET:
+		skb->protocol = htons(ETH_P_IP);
+		break;
+	case AF_INET6:
+		skb->protocol = htons(ETH_P_IPV6);
+		break;
+	}
+
+	segs = skb_gso_segment(skb, 0);
+	kfree_skb(skb);
+	if (unlikely(IS_ERR(segs)))
+		return 1;
+
+	do {
+		struct sk_buff *nskb = segs->next;
+
+		segs->next = NULL;
+		if (!__nf_queue(segs, elem, pf, hook, indev, outdev, okfn,
+				queuenum))
+			kfree_skb(segs);
+		segs = nskb;
+	} while (segs);
 	return 1;
 }
 
@@ -224,9 +264,9 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 	case NF_STOLEN:
 		break;
 	case NF_QUEUE:
-		if (!nf_queue(&skb, elem, info->pf, info->hook, 
-			      info->indev, info->outdev, info->okfn,
-			      verdict >> NF_VERDICT_BITS))
+		if (!__nf_queue(skb, elem, info->pf, info->hook,
+				info->indev, info->outdev, info->okfn,
+				verdict >> NF_VERDICT_BITS))
 			goto next_hook;
 		break;
 	default:

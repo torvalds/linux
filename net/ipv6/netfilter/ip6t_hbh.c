@@ -19,15 +19,10 @@
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/netfilter_ipv6/ip6t_opts.h>
 
-#define HOPBYHOP	1
-
 MODULE_LICENSE("GPL");
-#if HOPBYHOP
-MODULE_DESCRIPTION("IPv6 HbH match");
-#else
-MODULE_DESCRIPTION("IPv6 DST match");
-#endif
+MODULE_DESCRIPTION("IPv6 opts match");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
+MODULE_ALIAS("ip6t_dst");
 
 #if 0
 #define DEBUGP printk
@@ -71,11 +66,7 @@ match(const struct sk_buff *skb,
 	u8 _optlen, *lp = NULL;
 	unsigned int optlen;
 
-#if HOPBYHOP
-	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_HOP, NULL) < 0)
-#else
-	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_DEST, NULL) < 0)
-#endif
+	if (ipv6_find_hdr(skb, &ptr, match->data, NULL) < 0)
 		return 0;
 
 	oh = skb_header_pointer(skb, ptr, sizeof(_optsh), &_optsh);
@@ -182,7 +173,6 @@ checkentry(const char *tablename,
 	   const void *entry,
 	   const struct xt_match *match,
 	   void *matchinfo,
-	   unsigned int matchinfosize,
 	   unsigned int hook_mask)
 {
 	const struct ip6t_opts *optsinfo = matchinfo;
@@ -194,26 +184,35 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ip6t_match opts_match = {
-#if HOPBYHOP
-	.name		= "hbh",
-#else
-	.name		= "dst",
-#endif
-	.match		= match,
-	.matchsize	= sizeof(struct ip6t_opts),
-	.checkentry	= checkentry,
-	.me		= THIS_MODULE,
+static struct xt_match opts_match[] = {
+	{
+		.name		= "hbh",
+		.family		= AF_INET6,
+		.match		= match,
+		.matchsize	= sizeof(struct ip6t_opts),
+		.checkentry	= checkentry,
+		.me		= THIS_MODULE,
+		.data		= NEXTHDR_HOP,
+	},
+	{
+		.name		= "dst",
+		.family		= AF_INET6,
+		.match		= match,
+		.matchsize	= sizeof(struct ip6t_opts),
+		.checkentry	= checkentry,
+		.me		= THIS_MODULE,
+		.data		= NEXTHDR_DEST,
+	},
 };
 
 static int __init ip6t_hbh_init(void)
 {
-	return ip6t_register_match(&opts_match);
+	return xt_register_matches(opts_match, ARRAY_SIZE(opts_match));
 }
 
 static void __exit ip6t_hbh_fini(void)
 {
-	ip6t_unregister_match(&opts_match);
+	xt_unregister_matches(opts_match, ARRAY_SIZE(opts_match));
 }
 
 module_init(ip6t_hbh_init);

@@ -128,6 +128,8 @@ extern int sctp_copy_local_addr_list(struct sctp_bind_addr *,
 				     int flags);
 extern struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
 extern int sctp_register_pf(struct sctp_pf *, sa_family_t);
+int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
+                        void *ptr);
 
 /*
  * sctp/socket.c
@@ -178,6 +180,17 @@ void sctp_backlog_migrate(struct sctp_association *assoc,
 			  struct sock *oldsk, struct sock *newsk);
 
 /*
+ * sctp/proc.c
+ */
+int sctp_snmp_proc_init(void);
+void sctp_snmp_proc_exit(void);
+int sctp_eps_proc_init(void);
+void sctp_eps_proc_exit(void);
+int sctp_assocs_proc_init(void);
+void sctp_assocs_proc_exit(void);
+
+
+/*
  *  Section:  Macros, externs, and inlines
  */
 
@@ -215,6 +228,50 @@ DECLARE_SNMP_STAT(struct sctp_mib, sctp_statistics);
 #define SCTP_DEC_STATS(field)      SNMP_DEC_STATS(sctp_statistics, field)
 
 #endif /* !TEST_FRAME */
+
+/* sctp mib definitions */
+enum
+{
+	SCTP_MIB_NUM = 0,
+	SCTP_MIB_CURRESTAB,			/* CurrEstab */
+	SCTP_MIB_ACTIVEESTABS,			/* ActiveEstabs */
+	SCTP_MIB_PASSIVEESTABS,			/* PassiveEstabs */
+	SCTP_MIB_ABORTEDS,			/* Aborteds */
+	SCTP_MIB_SHUTDOWNS,			/* Shutdowns */
+	SCTP_MIB_OUTOFBLUES,			/* OutOfBlues */
+	SCTP_MIB_CHECKSUMERRORS,		/* ChecksumErrors */
+	SCTP_MIB_OUTCTRLCHUNKS,			/* OutCtrlChunks */
+	SCTP_MIB_OUTORDERCHUNKS,		/* OutOrderChunks */
+	SCTP_MIB_OUTUNORDERCHUNKS,		/* OutUnorderChunks */
+	SCTP_MIB_INCTRLCHUNKS,			/* InCtrlChunks */
+	SCTP_MIB_INORDERCHUNKS,			/* InOrderChunks */
+	SCTP_MIB_INUNORDERCHUNKS,		/* InUnorderChunks */
+	SCTP_MIB_FRAGUSRMSGS,			/* FragUsrMsgs */
+	SCTP_MIB_REASMUSRMSGS,			/* ReasmUsrMsgs */
+	SCTP_MIB_OUTSCTPPACKS,			/* OutSCTPPacks */
+	SCTP_MIB_INSCTPPACKS,			/* InSCTPPacks */
+	SCTP_MIB_T1_INIT_EXPIREDS,
+	SCTP_MIB_T1_COOKIE_EXPIREDS,
+	SCTP_MIB_T2_SHUTDOWN_EXPIREDS,
+	SCTP_MIB_T3_RTX_EXPIREDS,
+	SCTP_MIB_T4_RTO_EXPIREDS,
+	SCTP_MIB_T5_SHUTDOWN_GUARD_EXPIREDS,
+	SCTP_MIB_DELAY_SACK_EXPIREDS,
+	SCTP_MIB_AUTOCLOSE_EXPIREDS,
+	SCTP_MIB_T3_RETRANSMITS,
+	SCTP_MIB_PMTUD_RETRANSMITS,
+	SCTP_MIB_FAST_RETRANSMITS,
+	SCTP_MIB_IN_PKT_SOFTIRQ,
+	SCTP_MIB_IN_PKT_BACKLOG,
+	SCTP_MIB_IN_PKT_DISCARDS,
+	SCTP_MIB_IN_DATA_CHUNK_DISCARDS,
+	__SCTP_MIB_MAX
+};
+
+#define SCTP_MIB_MAX    __SCTP_MIB_MAX
+struct sctp_mib {
+        unsigned long   mibs[SCTP_MIB_MAX];
+} __SNMP_MIB_ALIGN__;
 
 
 /* Print debugging messages.  */
