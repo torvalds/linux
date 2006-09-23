@@ -1029,6 +1029,7 @@ struct aac_dev
 	  init->InitStructRevision==cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4)
 	u8			raw_io_64;
 	u8			printf_enabled;
+	u8			in_reset;
 };
 
 #define aac_adapter_interrupt(dev) \
@@ -1670,6 +1671,7 @@ extern struct aac_common aac_config;
 #define RCV_TEMP_READINGS		0x00000025
 #define GET_COMM_PREFERRED_SETTINGS	0x00000026
 #define IOP_RESET			0x00001000
+#define IOP_RESET_ALWAYS		0x00001001
 #define RE_INIT_ADAPTER			0x000000ee
 
 /*
@@ -1788,7 +1790,7 @@ void aac_consumer_free(struct aac_dev * dev, struct aac_queue * q, u32 qnum);
 int aac_fib_complete(struct fib * context);
 #define fib_data(fibctx) ((void *)(fibctx)->hw_fib->data)
 struct aac_dev *aac_init_adapter(struct aac_dev *dev);
-int aac_get_config_status(struct aac_dev *dev);
+int aac_get_config_status(struct aac_dev *dev, int commit_flag);
 int aac_get_containers(struct aac_dev *dev);
 int aac_scsi_cmd(struct scsi_cmnd *cmd);
 int aac_dev_ioctl(struct aac_dev *dev, int cmd, void __user *arg);
@@ -1799,6 +1801,7 @@ int aac_sa_init(struct aac_dev *dev);
 unsigned int aac_response_normal(struct aac_queue * q);
 unsigned int aac_command_normal(struct aac_queue * q);
 unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index);
+int aac_check_health(struct aac_dev * dev);
 int aac_command_thread(void *data);
 int aac_close_fib_context(struct aac_dev * dev, struct aac_fib_context *fibctx);
 int aac_fib_adapter_complete(struct fib * fibptr, unsigned short size);

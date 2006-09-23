@@ -26,7 +26,6 @@
  *	Zhenyu Wang
  */
 
-#include <linux/err.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/inet.h>
@@ -108,12 +107,9 @@ iscsi_hdr_digest(struct iscsi_conn *conn, struct iscsi_buf *buf,
 		 u8* crc)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-	struct hash_desc desc;
 
-	desc.tfm = tcp_conn->tx_tfm;
-	desc.flags = 0;
-	crypto_hash_digest(&desc, &buf->sg, buf->sg.length, crc);
-	buf->sg.length += sizeof(uint32_t);
+	crypto_hash_digest(&tcp_conn->tx_hash, &buf->sg, buf->sg.length, crc);
+	buf->sg.length = tcp_conn->hdr_size;
 }
 
 static inline int
@@ -285,7 +281,6 @@ iscsi_solicit_data_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 {
 	struct iscsi_data *hdr;
 	struct scsi_cmnd *sc = ctask->sc;
-	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 
 	hdr = &r2t->dtask.hdr;
 	memset(hdr, 0, sizeof(struct iscsi_data));
@@ -340,10 +335,12 @@ iscsi_solicit_data_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 			sg_count += sg->length;
 		}
 		BUG_ON(r2t->sg == NULL);
-	} else
-		iscsi_buf_init_iov(&tcp_ctask->sendbuf,
+	} else {
+		iscsi_buf_init_iov(&r2t->sendbuf,
 			    (char*)sc->request_buffer + r2t->data_offset,
 			    r2t->data_count);
+		r2t->sg = NULL;
+	}
 }
 
 /**
@@ -362,8 +359,11 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	int r2tsn = be32_to_cpu(rhdr->r2tsn);
 	int rc;
 
-	if (tcp_conn->in.datalen)
+	if (tcp_conn->in.datalen) {
+		printk(KERN_ERR "iscsi_tcp: invalid R2t with datalen %d\n",
+		       tcp_conn->in.datalen);
 		return ISCSI_ERR_DATALEN;
+	}
 
 	if (tcp_ctask->exp_r2tsn && tcp_ctask->exp_r2tsn != r2tsn)
 		return ISCSI_ERR_R2TSN;
@@ -389,15 +389,23 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 
 	r2t->exp_statsn = rhdr->statsn;
 	r2t->data_length = be32_to_cpu(rhdr->data_length);
-	if (r2t->data_length == 0 ||
-	    r2t->data_length > session->max_burst) {
+	if (r2t->data_length == 0) {
+		printk(KERN_ERR "iscsi_tcp: invalid R2T with zero data len\n");
 		spin_unlock(&session->lock);
 		return ISCSI_ERR_DATALEN;
 	}
 
+	if (r2t->data_length > session->max_burst)
+		debug_scsi("invalid R2T with data len %u and max burst %u."
+			   "Attempting to execute request.\n",
+			    r2t->data_length, session->max_burst);
+
 	r2t->data_offset = be32_to_cpu(rhdr->data_offset);
 	if (r2t->data_offset + r2t->data_length > ctask->total_length) {
 		spin_unlock(&session->lock);
+		printk(KERN_ERR "iscsi_tcp: invalid R2T with data len %u at "
+		       "offset %u and total length %d\n", r2t->data_length,
+		       r2t->data_offset, ctask->total_length);
 		return ISCSI_ERR_DATALEN;
 	}
 
@@ -456,14 +464,12 @@ iscsi_tcp_hdr_recv(struct iscsi_conn *conn)
 	}
 
 	if (conn->hdrdgst_en) {
-		struct hash_desc desc;
 		struct scatterlist sg;
 
 		sg_init_one(&sg, (u8 *)hdr,
 			    sizeof(struct iscsi_hdr) + ahslen);
-		desc.tfm = tcp_conn->rx_tfm;
-		desc.flags = 0;
-		crypto_hash_digest(&desc, &sg, sg.length, (u8 *)&cdgst);
+		crypto_hash_digest(&tcp_conn->rx_hash, &sg, sg.length,
+				   (u8 *)&cdgst);
 		rdgst = *(uint32_t*)((char*)hdr + sizeof(struct iscsi_hdr) +
 				     ahslen);
 		if (cdgst != rdgst) {
@@ -499,7 +505,6 @@ iscsi_tcp_hdr_recv(struct iscsi_conn *conn)
 			goto copy_hdr;
 
 		spin_lock(&session->lock);
-		iscsi_tcp_cleanup_ctask(conn, tcp_conn->in.ctask);
 		rc = __iscsi_complete_pdu(conn, hdr, NULL, 0);
 		spin_unlock(&session->lock);
 		break;
@@ -644,10 +649,9 @@ iscsi_ctask_copy(struct iscsi_tcp_conn *tcp_conn, struct iscsi_cmd_task *ctask,
  *	byte counters.
  **/
 static inline int
-iscsi_tcp_copy(struct iscsi_conn *conn)
+iscsi_tcp_copy(struct iscsi_conn *conn, int buf_size)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-	int buf_size = tcp_conn->in.datalen;
 	int buf_left = buf_size - tcp_conn->data_copied;
 	int size = min(tcp_conn->in.copy, buf_left);
 	int rc;
@@ -672,15 +676,15 @@ iscsi_tcp_copy(struct iscsi_conn *conn)
 }
 
 static inline void
-partial_sg_digest_update(struct iscsi_tcp_conn *tcp_conn,
-			 struct scatterlist *sg, int offset, int length)
+partial_sg_digest_update(struct hash_desc *desc, struct scatterlist *sg,
+			 int offset, int length)
 {
 	struct scatterlist temp;
 
 	memcpy(&temp, sg, sizeof(struct scatterlist));
 	temp.offset = offset;
 	temp.length = length;
-	crypto_hash_update(&tcp_conn->data_rx_hash, &temp, length);
+	crypto_hash_update(desc, &temp, length);
 }
 
 static void
@@ -689,7 +693,7 @@ iscsi_recv_digest_update(struct iscsi_tcp_conn *tcp_conn, char* buf, int len)
 	struct scatterlist tmp;
 
 	sg_init_one(&tmp, buf, len);
-	crypto_hash_update(&tcp_conn->data_rx_hash, &tmp, len);
+	crypto_hash_update(&tcp_conn->rx_hash, &tmp, len);
 }
 
 static int iscsi_scsi_data_in(struct iscsi_conn *conn)
@@ -744,10 +748,11 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 			if (conn->datadgst_en) {
 				if (!offset)
 					crypto_hash_update(
-							&tcp_conn->data_rx_hash,
-							&sg[i], sg[i].length);
+							&tcp_conn->rx_hash,
+							&sg[i], 1);
 				else
-					partial_sg_digest_update(tcp_conn,
+					partial_sg_digest_update(
+							&tcp_conn->rx_hash,
 							&sg[i],
 							sg[i].offset + offset,
 							sg[i].length - offset);
@@ -761,8 +766,10 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 				/*
 				 * data-in is complete, but buffer not...
 				 */
-				partial_sg_digest_update(tcp_conn, &sg[i],
-						sg[i].offset, sg[i].length-rc);
+				partial_sg_digest_update(&tcp_conn->rx_hash,
+							 &sg[i],
+							 sg[i].offset,
+							 sg[i].length-rc);
 			rc = 0;
 			break;
 		}
@@ -779,7 +786,6 @@ done:
 			   (long)sc, sc->result, ctask->itt,
 			   tcp_conn->in.hdr->flags);
 		spin_lock(&conn->session->lock);
-		iscsi_tcp_cleanup_ctask(conn, ctask);
 		__iscsi_complete_pdu(conn, tcp_conn->in.hdr, NULL, 0);
 		spin_unlock(&conn->session->lock);
 	}
@@ -799,9 +805,6 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		rc = iscsi_scsi_data_in(conn);
 		break;
 	case ISCSI_OP_SCSI_CMD_RSP:
-		spin_lock(&conn->session->lock);
-		iscsi_tcp_cleanup_ctask(conn, tcp_conn->in.ctask);
-		spin_unlock(&conn->session->lock);
 	case ISCSI_OP_TEXT_RSP:
 	case ISCSI_OP_LOGIN_RSP:
 	case ISCSI_OP_ASYNC_EVENT:
@@ -810,7 +813,7 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		 * Collect data segment to the connection's data
 		 * placeholder
 		 */
-		if (iscsi_tcp_copy(conn)) {
+		if (iscsi_tcp_copy(conn, tcp_conn->in.datalen)) {
 			rc = -EAGAIN;
 			goto exit;
 		}
@@ -883,9 +886,8 @@ more:
 		 */
 		rc = iscsi_tcp_hdr_recv(conn);
 		if (!rc && tcp_conn->in.datalen) {
-			if (conn->datadgst_en) {
-				crypto_hash_init(&tcp_conn->data_rx_hash);
-			}
+			if (conn->datadgst_en)
+				crypto_hash_init(&tcp_conn->rx_hash);
 			tcp_conn->in_progress = IN_PROGRESS_DATA_RECV;
 		} else if (rc) {
 			iscsi_conn_failure(conn, rc);
@@ -898,10 +900,15 @@ more:
 
 		debug_tcp("extra data_recv offset %d copy %d\n",
 			  tcp_conn->in.offset, tcp_conn->in.copy);
-		skb_copy_bits(tcp_conn->in.skb, tcp_conn->in.offset,
-				&recv_digest, 4);
-		tcp_conn->in.offset += 4;
-		tcp_conn->in.copy -= 4;
+		rc = iscsi_tcp_copy(conn, sizeof(uint32_t));
+		if (rc) {
+			if (rc == -EAGAIN)
+				goto again;
+			iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+			return 0;
+		}
+
+		memcpy(&recv_digest, conn->data, sizeof(uint32_t));
 		if (recv_digest != tcp_conn->in.datadgst) {
 			debug_tcp("iscsi_tcp: data digest error!"
 				  "0x%x != 0x%x\n", recv_digest,
@@ -937,13 +944,14 @@ more:
 					  tcp_conn->in.padding);
 				memset(pad, 0, tcp_conn->in.padding);
 				sg_init_one(&sg, pad, tcp_conn->in.padding);
-				crypto_hash_update(&tcp_conn->data_rx_hash,
+				crypto_hash_update(&tcp_conn->rx_hash,
 						   &sg, sg.length);
 			}
-			crypto_hash_final(&tcp_conn->data_rx_hash,
-					  (u8 *)&tcp_conn->in.datadgst);
+			crypto_hash_final(&tcp_conn->rx_hash,
+					  (u8 *) &tcp_conn->in.datadgst);
 			debug_tcp("rx digest 0x%x\n", tcp_conn->in.datadgst);
 			tcp_conn->in_progress = IN_PROGRESS_DDIGEST_RECV;
+			tcp_conn->data_copied = 0;
 		} else
 			tcp_conn->in_progress = IN_PROGRESS_WAIT_HEADER;
 	}
@@ -1183,34 +1191,10 @@ iscsi_sendpage(struct iscsi_conn *conn, struct iscsi_buf *buf,
 
 static inline void
 iscsi_data_digest_init(struct iscsi_tcp_conn *tcp_conn,
-		      struct iscsi_cmd_task *ctask)
+		      struct iscsi_tcp_cmd_task *tcp_ctask)
 {
-	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
-
-	crypto_hash_init(&tcp_conn->data_tx_hash);
+	crypto_hash_init(&tcp_conn->tx_hash);
 	tcp_ctask->digest_count = 4;
-}
-
-static int
-iscsi_digest_final_send(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
-			struct iscsi_buf *buf, uint32_t *digest, int final)
-{
-	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
-	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-	int rc = 0;
-	int sent = 0;
-
-	if (final)
-		crypto_hash_final(&tcp_conn->data_tx_hash, (u8 *)digest);
-
-	iscsi_buf_init_iov(buf, (char*)digest, 4);
-	rc = iscsi_sendpage(conn, buf, &tcp_ctask->digest_count, &sent);
-	if (rc) {
-		tcp_ctask->datadigest = *digest;
-		tcp_ctask->xmstate |= XMSTATE_DATA_DIGEST;
-	} else
-		tcp_ctask->digest_count = 4;
-	return rc;
 }
 
 /**
@@ -1230,7 +1214,6 @@ static void
 iscsi_solicit_data_cont(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 			struct iscsi_r2t_info *r2t, int left)
 {
-	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 	struct iscsi_data *hdr;
 	struct scsi_cmnd *sc = ctask->sc;
 	int new_offset;
@@ -1259,27 +1242,30 @@ iscsi_solicit_data_cont(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	iscsi_buf_init_iov(&r2t->headbuf, (char*)hdr,
 			   sizeof(struct iscsi_hdr));
 
-	if (sc->use_sg && !iscsi_buf_left(&r2t->sendbuf)) {
-		BUG_ON(tcp_ctask->bad_sg == r2t->sg);
+	if (iscsi_buf_left(&r2t->sendbuf))
+		return;
+
+	if (sc->use_sg) {
 		iscsi_buf_init_sg(&r2t->sendbuf, r2t->sg);
 		r2t->sg += 1;
-	} else
-		iscsi_buf_init_iov(&tcp_ctask->sendbuf,
+	} else {
+		iscsi_buf_init_iov(&r2t->sendbuf,
 			    (char*)sc->request_buffer + new_offset,
 			    r2t->data_count);
+		r2t->sg = NULL;
+	}
 }
 
-static void
-iscsi_unsolicit_data_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
+static void iscsi_set_padding(struct iscsi_tcp_cmd_task *tcp_ctask,
+			      unsigned long len)
 {
-	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
-	struct iscsi_data_task *dtask;
+	tcp_ctask->pad_count = len & (ISCSI_PAD_LEN - 1);
+	if (!tcp_ctask->pad_count)
+		return;
 
-	dtask = tcp_ctask->dtask = &tcp_ctask->unsol_dtask;
-	iscsi_prep_unsolicit_data_pdu(ctask, &dtask->hdr,
-				      tcp_ctask->r2t_data_count);
-	iscsi_buf_init_iov(&tcp_ctask->headbuf, (char*)&dtask->hdr,
-			   sizeof(struct iscsi_hdr));
+	tcp_ctask->pad_count = ISCSI_PAD_LEN - tcp_ctask->pad_count;
+	debug_scsi("write padding %d bytes\n", tcp_ctask->pad_count);
+	tcp_ctask->xmstate |= XMSTATE_W_PAD;
 }
 
 /**
@@ -1307,38 +1293,20 @@ iscsi_tcp_cmd_init(struct iscsi_cmd_task *ctask)
 		if (sc->use_sg) {
 			struct scatterlist *sg = sc->request_buffer;
 
-			iscsi_buf_init_sg(&tcp_ctask->sendbuf,
-					  &sg[tcp_ctask->sg_count++]);
-			tcp_ctask->sg = sg;
+			iscsi_buf_init_sg(&tcp_ctask->sendbuf, sg);
+			tcp_ctask->sg = sg + 1;
 			tcp_ctask->bad_sg = sg + sc->use_sg;
-		} else
+		} else {
 			iscsi_buf_init_iov(&tcp_ctask->sendbuf,
 					   sc->request_buffer,
 					   sc->request_bufflen);
-
-		if (ctask->imm_count)
-			tcp_ctask->xmstate |= XMSTATE_IMM_DATA;
-
-		tcp_ctask->pad_count = ctask->total_length & (ISCSI_PAD_LEN-1);
-		if (tcp_ctask->pad_count) {
-			tcp_ctask->pad_count = ISCSI_PAD_LEN -
-							tcp_ctask->pad_count;
-			debug_scsi("write padding %d bytes\n",
-				   tcp_ctask->pad_count);
-			tcp_ctask->xmstate |= XMSTATE_W_PAD;
+			tcp_ctask->sg = NULL;
+			tcp_ctask->bad_sg = NULL;
 		}
-
-		if (ctask->unsol_count)
-			tcp_ctask->xmstate |= XMSTATE_UNS_HDR |
-						XMSTATE_UNS_INIT;
-		tcp_ctask->r2t_data_count = ctask->total_length -
-				    ctask->imm_count -
-				    ctask->unsol_count;
-
-		debug_scsi("cmd [itt 0x%x total %d imm %d imm_data %d "
-			   "r2t_data %d]\n",
+		debug_scsi("cmd [itt 0x%x total %d imm_data %d "
+			   "unsol count %d, unsol offset %d]\n",
 			   ctask->itt, ctask->total_length, ctask->imm_count,
-			   ctask->unsol_count, tcp_ctask->r2t_data_count);
+			   ctask->unsol_count, ctask->unsol_offset);
 	} else
 		tcp_ctask->xmstate = XMSTATE_R_HDR;
 
@@ -1420,8 +1388,8 @@ iscsi_tcp_mtask_xmit(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask)
 }
 
 static inline int
-handle_xmstate_r_hdr(struct iscsi_conn *conn,
-		     struct iscsi_tcp_cmd_task *tcp_ctask)
+iscsi_send_read_hdr(struct iscsi_conn *conn,
+		    struct iscsi_tcp_cmd_task *tcp_ctask)
 {
 	int rc;
 
@@ -1439,7 +1407,7 @@ handle_xmstate_r_hdr(struct iscsi_conn *conn,
 }
 
 static inline int
-handle_xmstate_w_hdr(struct iscsi_conn *conn,
+iscsi_send_write_hdr(struct iscsi_conn *conn,
 		     struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
@@ -1450,86 +1418,126 @@ handle_xmstate_w_hdr(struct iscsi_conn *conn,
 		iscsi_hdr_digest(conn, &tcp_ctask->headbuf,
 				 (u8*)tcp_ctask->hdrext);
 	rc = iscsi_sendhdr(conn, &tcp_ctask->headbuf, ctask->imm_count);
-	if (rc)
-		tcp_ctask->xmstate |= XMSTATE_W_HDR;
-	return rc;
-}
-
-static inline int
-handle_xmstate_data_digest(struct iscsi_conn *conn,
-			   struct iscsi_cmd_task *ctask)
-{
-	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
-	int rc;
-
-	tcp_ctask->xmstate &= ~XMSTATE_DATA_DIGEST;
-	debug_tcp("resent data digest 0x%x\n", tcp_ctask->datadigest);
-	rc = iscsi_digest_final_send(conn, ctask, &tcp_ctask->immbuf,
-				    &tcp_ctask->datadigest, 0);
 	if (rc) {
-		tcp_ctask->xmstate |= XMSTATE_DATA_DIGEST;
-		debug_tcp("resent data digest 0x%x fail!\n",
-			  tcp_ctask->datadigest);
+		tcp_ctask->xmstate |= XMSTATE_W_HDR;
+		return rc;
 	}
 
-	return rc;
-}
+	if (ctask->imm_count) {
+		tcp_ctask->xmstate |= XMSTATE_IMM_DATA;
+		iscsi_set_padding(tcp_ctask, ctask->imm_count);
 
-static inline int
-handle_xmstate_imm_data(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
-{
-	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
-	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-	int rc;
-
-	BUG_ON(!ctask->imm_count);
-	tcp_ctask->xmstate &= ~XMSTATE_IMM_DATA;
-
-	if (conn->datadgst_en) {
-		iscsi_data_digest_init(tcp_conn, ctask);
-		tcp_ctask->immdigest = 0;
-	}
-
-	for (;;) {
-		rc = iscsi_sendpage(conn, &tcp_ctask->sendbuf,
-				   &ctask->imm_count, &tcp_ctask->sent);
-		if (rc) {
-			tcp_ctask->xmstate |= XMSTATE_IMM_DATA;
-			if (conn->datadgst_en) {
-				crypto_hash_final(&tcp_conn->data_tx_hash,
-						  (u8 *)&tcp_ctask->immdigest);
-				debug_tcp("tx imm sendpage fail 0x%x\n",
-					  tcp_ctask->datadigest);
-			}
-			return rc;
+		if (ctask->conn->datadgst_en) {
+			iscsi_data_digest_init(ctask->conn->dd_data, tcp_ctask);
+			tcp_ctask->immdigest = 0;
 		}
-		if (conn->datadgst_en)
-			crypto_hash_update(&tcp_conn->data_tx_hash,
-					   &tcp_ctask->sendbuf.sg,
-					   tcp_ctask->sendbuf.sg.length);
-
-		if (!ctask->imm_count)
-			break;
-		iscsi_buf_init_sg(&tcp_ctask->sendbuf,
-				  &tcp_ctask->sg[tcp_ctask->sg_count++]);
 	}
 
-	if (conn->datadgst_en && !(tcp_ctask->xmstate & XMSTATE_W_PAD)) {
-		rc = iscsi_digest_final_send(conn, ctask, &tcp_ctask->immbuf,
-				            &tcp_ctask->immdigest, 1);
-		if (rc) {
-			debug_tcp("sending imm digest 0x%x fail!\n",
-				  tcp_ctask->immdigest);
-			return rc;
-		}
-		debug_tcp("sending imm digest 0x%x\n", tcp_ctask->immdigest);
-	}
-
+	if (ctask->unsol_count)
+		tcp_ctask->xmstate |= XMSTATE_UNS_HDR | XMSTATE_UNS_INIT;
 	return 0;
 }
 
-static inline int
-handle_xmstate_uns_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
+static int
+iscsi_send_padding(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
+{
+	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
+	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
+	int sent = 0, rc;
+
+	if (tcp_ctask->xmstate & XMSTATE_W_PAD) {
+		iscsi_buf_init_iov(&tcp_ctask->sendbuf, (char*)&tcp_ctask->pad,
+				   tcp_ctask->pad_count);
+		if (conn->datadgst_en)
+			crypto_hash_update(&tcp_conn->tx_hash,
+					   &tcp_ctask->sendbuf.sg,
+					   tcp_ctask->sendbuf.sg.length);
+	} else if (!(tcp_ctask->xmstate & XMSTATE_W_RESEND_PAD))
+		return 0;
+
+	tcp_ctask->xmstate &= ~XMSTATE_W_PAD;
+	tcp_ctask->xmstate &= ~XMSTATE_W_RESEND_PAD;
+	debug_scsi("sending %d pad bytes for itt 0x%x\n",
+		   tcp_ctask->pad_count, ctask->itt);
+	rc = iscsi_sendpage(conn, &tcp_ctask->sendbuf, &tcp_ctask->pad_count,
+			   &sent);
+	if (rc) {
+		debug_scsi("padding send failed %d\n", rc);
+		tcp_ctask->xmstate |= XMSTATE_W_RESEND_PAD;
+	}
+	return rc;
+}
+
+static int
+iscsi_send_digest(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
+			struct iscsi_buf *buf, uint32_t *digest)
+{
+	struct iscsi_tcp_cmd_task *tcp_ctask;
+	struct iscsi_tcp_conn *tcp_conn;
+	int rc, sent = 0;
+
+	if (!conn->datadgst_en)
+		return 0;
+
+	tcp_ctask = ctask->dd_data;
+	tcp_conn = conn->dd_data;
+
+	if (!(tcp_ctask->xmstate & XMSTATE_W_RESEND_DATA_DIGEST)) {
+		crypto_hash_final(&tcp_conn->tx_hash, (u8*)digest);
+		iscsi_buf_init_iov(buf, (char*)digest, 4);
+	}
+	tcp_ctask->xmstate &= ~XMSTATE_W_RESEND_DATA_DIGEST;
+
+	rc = iscsi_sendpage(conn, buf, &tcp_ctask->digest_count, &sent);
+	if (!rc)
+		debug_scsi("sent digest 0x%x for itt 0x%x\n", *digest,
+			  ctask->itt);
+	else {
+		debug_scsi("sending digest 0x%x failed for itt 0x%x!\n",
+			  *digest, ctask->itt);
+		tcp_ctask->xmstate |= XMSTATE_W_RESEND_DATA_DIGEST;
+	}
+	return rc;
+}
+
+static int
+iscsi_send_data(struct iscsi_cmd_task *ctask, struct iscsi_buf *sendbuf,
+		struct scatterlist **sg, int *sent, int *count,
+		struct iscsi_buf *digestbuf, uint32_t *digest)
+{
+	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
+	struct iscsi_conn *conn = ctask->conn;
+	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
+	int rc, buf_sent, offset;
+
+	while (*count) {
+		buf_sent = 0;
+		offset = sendbuf->sent;
+
+		rc = iscsi_sendpage(conn, sendbuf, count, &buf_sent);
+		*sent = *sent + buf_sent;
+		if (buf_sent && conn->datadgst_en)
+			partial_sg_digest_update(&tcp_conn->tx_hash,
+				&sendbuf->sg, sendbuf->sg.offset + offset,
+				buf_sent);
+		if (!iscsi_buf_left(sendbuf) && *sg != tcp_ctask->bad_sg) {
+			iscsi_buf_init_sg(sendbuf, *sg);
+			*sg = *sg + 1;
+		}
+
+		if (rc)
+			return rc;
+	}
+
+	rc = iscsi_send_padding(conn, ctask);
+	if (rc)
+		return rc;
+
+	return iscsi_send_digest(conn, ctask, digestbuf, digest);
+}
+
+static int
+iscsi_send_unsol_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 	struct iscsi_data_task *dtask;
@@ -1537,12 +1545,17 @@ handle_xmstate_uns_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 
 	tcp_ctask->xmstate |= XMSTATE_UNS_DATA;
 	if (tcp_ctask->xmstate & XMSTATE_UNS_INIT) {
-		iscsi_unsolicit_data_init(conn, ctask);
-		dtask = tcp_ctask->dtask;
+		dtask = &tcp_ctask->unsol_dtask;
+
+		iscsi_prep_unsolicit_data_pdu(ctask, &dtask->hdr);
+		iscsi_buf_init_iov(&tcp_ctask->headbuf, (char*)&dtask->hdr,
+				   sizeof(struct iscsi_hdr));
 		if (conn->hdrdgst_en)
 			iscsi_hdr_digest(conn, &tcp_ctask->headbuf,
 					(u8*)dtask->hdrext);
+
 		tcp_ctask->xmstate &= ~XMSTATE_UNS_INIT;
+		iscsi_set_padding(tcp_ctask, ctask->data_count);
 	}
 
 	rc = iscsi_sendhdr(conn, &tcp_ctask->headbuf, ctask->data_count);
@@ -1552,256 +1565,138 @@ handle_xmstate_uns_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		return rc;
 	}
 
+	if (conn->datadgst_en) {
+		dtask = &tcp_ctask->unsol_dtask;
+		iscsi_data_digest_init(ctask->conn->dd_data, tcp_ctask);
+		dtask->digest = 0;
+	}
+
 	debug_scsi("uns dout [itt 0x%x dlen %d sent %d]\n",
 		   ctask->itt, ctask->unsol_count, tcp_ctask->sent);
 	return 0;
 }
 
-static inline int
-handle_xmstate_uns_data(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
+static int
+iscsi_send_unsol_pdu(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
-	struct iscsi_data_task *dtask = tcp_ctask->dtask;
-	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	int rc;
 
-	BUG_ON(!ctask->data_count);
-	tcp_ctask->xmstate &= ~XMSTATE_UNS_DATA;
-
-	if (conn->datadgst_en) {
-		iscsi_data_digest_init(tcp_conn, ctask);
-		dtask->digest = 0;
+	if (tcp_ctask->xmstate & XMSTATE_UNS_HDR) {
+		BUG_ON(!ctask->unsol_count);
+		tcp_ctask->xmstate &= ~XMSTATE_UNS_HDR;
+send_hdr:
+		rc = iscsi_send_unsol_hdr(conn, ctask);
+		if (rc)
+			return rc;
 	}
 
-	for (;;) {
+	if (tcp_ctask->xmstate & XMSTATE_UNS_DATA) {
+		struct iscsi_data_task *dtask = &tcp_ctask->unsol_dtask;
 		int start = tcp_ctask->sent;
 
-		rc = iscsi_sendpage(conn, &tcp_ctask->sendbuf,
-				   &ctask->data_count, &tcp_ctask->sent);
-		if (rc) {
-			ctask->unsol_count -= tcp_ctask->sent - start;
-			tcp_ctask->xmstate |= XMSTATE_UNS_DATA;
-			/* will continue with this ctask later.. */
-			if (conn->datadgst_en) {
-				crypto_hash_final(&tcp_conn->data_tx_hash,
-						  (u8 *)&dtask->digest);
-				debug_tcp("tx uns data fail 0x%x\n",
-					  dtask->digest);
-			}
-			return rc;
-		}
-
-		BUG_ON(tcp_ctask->sent > ctask->total_length);
+		rc = iscsi_send_data(ctask, &tcp_ctask->sendbuf, &tcp_ctask->sg,
+				     &tcp_ctask->sent, &ctask->data_count,
+				     &dtask->digestbuf, &dtask->digest);
 		ctask->unsol_count -= tcp_ctask->sent - start;
-
-		/*
-		 * XXX:we may run here with un-initial sendbuf.
-		 * so pass it
-		 */
-		if (conn->datadgst_en && tcp_ctask->sent - start > 0)
-			crypto_hash_update(&tcp_conn->data_tx_hash,
-					   &tcp_ctask->sendbuf.sg,
-					   tcp_ctask->sendbuf.sg.length);
-
-		if (!ctask->data_count)
-			break;
-		iscsi_buf_init_sg(&tcp_ctask->sendbuf,
-				  &tcp_ctask->sg[tcp_ctask->sg_count++]);
-	}
-	BUG_ON(ctask->unsol_count < 0);
-
-	/*
-	 * Done with the Data-Out. Next, check if we need
-	 * to send another unsolicited Data-Out.
-	 */
-	if (ctask->unsol_count) {
-		if (conn->datadgst_en) {
-			rc = iscsi_digest_final_send(conn, ctask,
-						    &dtask->digestbuf,
-						    &dtask->digest, 1);
-			if (rc) {
-				debug_tcp("send uns digest 0x%x fail\n",
-					  dtask->digest);
-				return rc;
-			}
-			debug_tcp("sending uns digest 0x%x, more uns\n",
-				  dtask->digest);
-		}
-		tcp_ctask->xmstate |= XMSTATE_UNS_INIT;
-		return 1;
-	}
-
-	if (conn->datadgst_en && !(tcp_ctask->xmstate & XMSTATE_W_PAD)) {
-		rc = iscsi_digest_final_send(conn, ctask,
-					    &dtask->digestbuf,
-					    &dtask->digest, 1);
-		if (rc) {
-			debug_tcp("send last uns digest 0x%x fail\n",
-				   dtask->digest);
+		if (rc)
 			return rc;
+		tcp_ctask->xmstate &= ~XMSTATE_UNS_DATA;
+		/*
+		 * Done with the Data-Out. Next, check if we need
+		 * to send another unsolicited Data-Out.
+		 */
+		if (ctask->unsol_count) {
+			debug_scsi("sending more uns\n");
+			tcp_ctask->xmstate |= XMSTATE_UNS_INIT;
+			goto send_hdr;
 		}
-		debug_tcp("sending uns digest 0x%x\n",dtask->digest);
 	}
-
 	return 0;
 }
 
-static inline int
-handle_xmstate_sol_data(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
+static int iscsi_send_sol_pdu(struct iscsi_conn *conn,
+			      struct iscsi_cmd_task *ctask)
 {
-	struct iscsi_session *session = conn->session;
-	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
-	struct iscsi_r2t_info *r2t = tcp_ctask->r2t;
-	struct iscsi_data_task *dtask = &r2t->dtask;
+	struct iscsi_session *session = conn->session;
+	struct iscsi_r2t_info *r2t;
+	struct iscsi_data_task *dtask;
 	int left, rc;
 
-	tcp_ctask->xmstate &= ~XMSTATE_SOL_DATA;
-	tcp_ctask->dtask = dtask;
-
-	if (conn->datadgst_en) {
-		iscsi_data_digest_init(tcp_conn, ctask);
-		dtask->digest = 0;
-	}
-solicit_again:
-	/*
-	 * send Data-Out within this R2T sequence.
-	 */
-	if (!r2t->data_count)
-		goto data_out_done;
-
-	rc = iscsi_sendpage(conn, &r2t->sendbuf, &r2t->data_count, &r2t->sent);
-	if (rc) {
-		tcp_ctask->xmstate |= XMSTATE_SOL_DATA;
-		/* will continue with this ctask later.. */
-		if (conn->datadgst_en) {
-			crypto_hash_final(&tcp_conn->data_tx_hash,
-					  (u8 *)&dtask->digest);
-			debug_tcp("r2t data send fail 0x%x\n", dtask->digest);
-		}
-		return rc;
-	}
-
-	BUG_ON(r2t->data_count < 0);
-	if (conn->datadgst_en)
-		crypto_hash_update(&tcp_conn->data_tx_hash, &r2t->sendbuf.sg,
-				   r2t->sendbuf.sg.length);
-
-	if (r2t->data_count) {
-		BUG_ON(ctask->sc->use_sg == 0);
-		if (!iscsi_buf_left(&r2t->sendbuf)) {
-			BUG_ON(tcp_ctask->bad_sg == r2t->sg);
-			iscsi_buf_init_sg(&r2t->sendbuf, r2t->sg);
-			r2t->sg += 1;
-		}
-		goto solicit_again;
-	}
-
-data_out_done:
-	/*
-	 * Done with this Data-Out. Next, check if we have
-	 * to send another Data-Out for this R2T.
-	 */
-	BUG_ON(r2t->data_length - r2t->sent < 0);
-	left = r2t->data_length - r2t->sent;
-	if (left) {
-		if (conn->datadgst_en) {
-			rc = iscsi_digest_final_send(conn, ctask,
-						    &dtask->digestbuf,
-						    &dtask->digest, 1);
-			if (rc) {
-				debug_tcp("send r2t data digest 0x%x"
-					  "fail\n", dtask->digest);
-				return rc;
-			}
-			debug_tcp("r2t data send digest 0x%x\n",
-				  dtask->digest);
-		}
-		iscsi_solicit_data_cont(conn, ctask, r2t, left);
-		tcp_ctask->xmstate |= XMSTATE_SOL_DATA;
+	if (tcp_ctask->xmstate & XMSTATE_SOL_HDR) {
 		tcp_ctask->xmstate &= ~XMSTATE_SOL_HDR;
-		return 1;
-	}
+		tcp_ctask->xmstate |= XMSTATE_SOL_DATA;
+		if (!tcp_ctask->r2t)
+			__kfifo_get(tcp_ctask->r2tqueue, (void*)&tcp_ctask->r2t,
+				    sizeof(void*));
+send_hdr:
+		r2t = tcp_ctask->r2t;
+		dtask = &r2t->dtask;
 
-	/*
-	 * Done with this R2T. Check if there are more
-	 * outstanding R2Ts ready to be processed.
-	 */
-	BUG_ON(tcp_ctask->r2t_data_count - r2t->data_length < 0);
-	if (conn->datadgst_en) {
-		rc = iscsi_digest_final_send(conn, ctask, &dtask->digestbuf,
-					    &dtask->digest, 1);
+		if (conn->hdrdgst_en)
+			iscsi_hdr_digest(conn, &r2t->headbuf,
+					(u8*)dtask->hdrext);
+		rc = iscsi_sendhdr(conn, &r2t->headbuf, r2t->data_count);
 		if (rc) {
-			debug_tcp("send last r2t data digest 0x%x"
-				  "fail\n", dtask->digest);
+			tcp_ctask->xmstate &= ~XMSTATE_SOL_DATA;
+			tcp_ctask->xmstate |= XMSTATE_SOL_HDR;
 			return rc;
 		}
-		debug_tcp("r2t done dout digest 0x%x\n", dtask->digest);
-	}
 
-	tcp_ctask->r2t_data_count -= r2t->data_length;
-	tcp_ctask->r2t = NULL;
-	spin_lock_bh(&session->lock);
-	__kfifo_put(tcp_ctask->r2tpool.queue, (void*)&r2t, sizeof(void*));
-	spin_unlock_bh(&session->lock);
-	if (__kfifo_get(tcp_ctask->r2tqueue, (void*)&r2t, sizeof(void*))) {
-		tcp_ctask->r2t = r2t;
-		tcp_ctask->xmstate |= XMSTATE_SOL_DATA;
-		tcp_ctask->xmstate &= ~XMSTATE_SOL_HDR;
-		return 1;
-	}
-
-	return 0;
-}
-
-static inline int
-handle_xmstate_w_pad(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
-{
-	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
-	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-	struct iscsi_data_task *dtask = tcp_ctask->dtask;
-	int sent = 0, rc;
-
-	tcp_ctask->xmstate &= ~XMSTATE_W_PAD;
-	iscsi_buf_init_iov(&tcp_ctask->sendbuf, (char*)&tcp_ctask->pad,
-			    tcp_ctask->pad_count);
-	rc = iscsi_sendpage(conn, &tcp_ctask->sendbuf, &tcp_ctask->pad_count,
-			   &sent);
-	if (rc) {
-		tcp_ctask->xmstate |= XMSTATE_W_PAD;
-		return rc;
-	}
-
-	if (conn->datadgst_en) {
-		crypto_hash_update(&tcp_conn->data_tx_hash,
-				   &tcp_ctask->sendbuf.sg,
-				   tcp_ctask->sendbuf.sg.length);
-		/* imm data? */
-		if (!dtask) {
-			rc = iscsi_digest_final_send(conn, ctask,
-						    &tcp_ctask->immbuf,
-						    &tcp_ctask->immdigest, 1);
-			if (rc) {
-				debug_tcp("send padding digest 0x%x"
-					  "fail!\n", tcp_ctask->immdigest);
-				return rc;
-			}
-			debug_tcp("done with padding, digest 0x%x\n",
-				  tcp_ctask->datadigest);
-		} else {
-			rc = iscsi_digest_final_send(conn, ctask,
-						    &dtask->digestbuf,
-						    &dtask->digest, 1);
-			if (rc) {
-				debug_tcp("send padding digest 0x%x"
-				          "fail\n", dtask->digest);
-				return rc;
-			}
-			debug_tcp("done with padding, digest 0x%x\n",
-				  dtask->digest);
+		if (conn->datadgst_en) {
+			iscsi_data_digest_init(conn->dd_data, tcp_ctask);
+			dtask->digest = 0;
 		}
+
+		iscsi_set_padding(tcp_ctask, r2t->data_count);
+		debug_scsi("sol dout [dsn %d itt 0x%x dlen %d sent %d]\n",
+			r2t->solicit_datasn - 1, ctask->itt, r2t->data_count,
+			r2t->sent);
 	}
 
+	if (tcp_ctask->xmstate & XMSTATE_SOL_DATA) {
+		r2t = tcp_ctask->r2t;
+		dtask = &r2t->dtask;
+
+		rc = iscsi_send_data(ctask, &r2t->sendbuf, &r2t->sg,
+				     &r2t->sent, &r2t->data_count,
+				     &dtask->digestbuf, &dtask->digest);
+		if (rc)
+			return rc;
+		tcp_ctask->xmstate &= ~XMSTATE_SOL_DATA;
+
+		/*
+		 * Done with this Data-Out. Next, check if we have
+		 * to send another Data-Out for this R2T.
+		 */
+		BUG_ON(r2t->data_length - r2t->sent < 0);
+		left = r2t->data_length - r2t->sent;
+		if (left) {
+			iscsi_solicit_data_cont(conn, ctask, r2t, left);
+			tcp_ctask->xmstate |= XMSTATE_SOL_DATA;
+			tcp_ctask->xmstate &= ~XMSTATE_SOL_HDR;
+			goto send_hdr;
+		}
+
+		/*
+		 * Done with this R2T. Check if there are more
+		 * outstanding R2Ts ready to be processed.
+		 */
+		spin_lock_bh(&session->lock);
+		tcp_ctask->r2t = NULL;
+		__kfifo_put(tcp_ctask->r2tpool.queue, (void*)&r2t,
+			    sizeof(void*));
+		if (__kfifo_get(tcp_ctask->r2tqueue, (void*)&r2t,
+				sizeof(void*))) {
+			tcp_ctask->r2t = r2t;
+			tcp_ctask->xmstate |= XMSTATE_SOL_DATA;
+			tcp_ctask->xmstate &= ~XMSTATE_SOL_HDR;
+			spin_unlock_bh(&session->lock);
+			goto send_hdr;
+		}
+		spin_unlock_bh(&session->lock);
+	}
 	return 0;
 }
 
@@ -1821,85 +1716,30 @@ iscsi_tcp_ctask_xmit(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		return rc;
 
 	if (tcp_ctask->xmstate & XMSTATE_R_HDR)
-		return handle_xmstate_r_hdr(conn, tcp_ctask);
+		return iscsi_send_read_hdr(conn, tcp_ctask);
 
 	if (tcp_ctask->xmstate & XMSTATE_W_HDR) {
-		rc = handle_xmstate_w_hdr(conn, ctask);
-		if (rc)
-			return rc;
-	}
-
-	/* XXX: for data digest xmit recover */
-	if (tcp_ctask->xmstate & XMSTATE_DATA_DIGEST) {
-		rc = handle_xmstate_data_digest(conn, ctask);
+		rc = iscsi_send_write_hdr(conn, ctask);
 		if (rc)
 			return rc;
 	}
 
 	if (tcp_ctask->xmstate & XMSTATE_IMM_DATA) {
-		rc = handle_xmstate_imm_data(conn, ctask);
+		rc = iscsi_send_data(ctask, &tcp_ctask->sendbuf, &tcp_ctask->sg,
+				     &tcp_ctask->sent, &ctask->imm_count,
+				     &tcp_ctask->immbuf, &tcp_ctask->immdigest);
 		if (rc)
 			return rc;
+		tcp_ctask->xmstate &= ~XMSTATE_IMM_DATA;
 	}
 
-	if (tcp_ctask->xmstate & XMSTATE_UNS_HDR) {
-		BUG_ON(!ctask->unsol_count);
-		tcp_ctask->xmstate &= ~XMSTATE_UNS_HDR;
-unsolicit_head_again:
-		rc = handle_xmstate_uns_hdr(conn, ctask);
-		if (rc)
-			return rc;
-	}
+	rc = iscsi_send_unsol_pdu(conn, ctask);
+	if (rc)
+		return rc;
 
-	if (tcp_ctask->xmstate & XMSTATE_UNS_DATA) {
-		rc = handle_xmstate_uns_data(conn, ctask);
-		if (rc == 1)
-			goto unsolicit_head_again;
-		else if (rc)
-			return rc;
-		goto done;
-	}
-
-	if (tcp_ctask->xmstate & XMSTATE_SOL_HDR) {
-		struct iscsi_r2t_info *r2t;
-
-		tcp_ctask->xmstate &= ~XMSTATE_SOL_HDR;
-		tcp_ctask->xmstate |= XMSTATE_SOL_DATA;
-		if (!tcp_ctask->r2t)
-			__kfifo_get(tcp_ctask->r2tqueue, (void*)&tcp_ctask->r2t,
-				    sizeof(void*));
-solicit_head_again:
-		r2t = tcp_ctask->r2t;
-		if (conn->hdrdgst_en)
-			iscsi_hdr_digest(conn, &r2t->headbuf,
-					(u8*)r2t->dtask.hdrext);
-		rc = iscsi_sendhdr(conn, &r2t->headbuf, r2t->data_count);
-		if (rc) {
-			tcp_ctask->xmstate &= ~XMSTATE_SOL_DATA;
-			tcp_ctask->xmstate |= XMSTATE_SOL_HDR;
-			return rc;
-		}
-
-		debug_scsi("sol dout [dsn %d itt 0x%x dlen %d sent %d]\n",
-			r2t->solicit_datasn - 1, ctask->itt, r2t->data_count,
-			r2t->sent);
-	}
-
-	if (tcp_ctask->xmstate & XMSTATE_SOL_DATA) {
-		rc = handle_xmstate_sol_data(conn, ctask);
-		if (rc == 1)
-			goto solicit_head_again;
-		if (rc)
-			return rc;
-	}
-
-done:
-	/*
-	 * Last thing to check is whether we need to send write
-	 * padding. Note that we check for xmstate equality, not just the bit.
-	 */
-	if (tcp_ctask->xmstate == XMSTATE_W_PAD)
-		rc = handle_xmstate_w_pad(conn, ctask);
+	rc = iscsi_send_sol_pdu(conn, ctask);
+	if (rc)
+		return rc;
 
 	return rc;
 }
@@ -1931,8 +1771,24 @@ iscsi_tcp_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	/* initial operational parameters */
 	tcp_conn->hdr_size = sizeof(struct iscsi_hdr);
 
+	tcp_conn->tx_hash.tfm = crypto_alloc_hash("crc32c", 0,
+						  CRYPTO_ALG_ASYNC);
+	tcp_conn->tx_hash.flags = 0;
+	if (!tcp_conn->tx_hash.tfm)
+		goto free_tcp_conn;
+
+	tcp_conn->rx_hash.tfm = crypto_alloc_hash("crc32c", 0,
+						  CRYPTO_ALG_ASYNC);
+	tcp_conn->rx_hash.flags = 0;
+	if (!tcp_conn->rx_hash.tfm)
+		goto free_tx_tfm;
+
 	return cls_conn;
 
+free_tx_tfm:
+	crypto_free_hash(tcp_conn->tx_hash.tfm);
+free_tcp_conn:
+	kfree(tcp_conn);
 tcp_conn_alloc_fail:
 	iscsi_conn_teardown(cls_conn);
 	return NULL;
@@ -1970,14 +1826,10 @@ iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
 
 	/* now free tcp_conn */
 	if (digest) {
-		if (tcp_conn->tx_tfm)
-			crypto_free_hash(tcp_conn->tx_tfm);
-		if (tcp_conn->rx_tfm)
-			crypto_free_hash(tcp_conn->rx_tfm);
-		if (tcp_conn->data_tx_hash.tfm)
-			crypto_free_hash(tcp_conn->data_tx_hash.tfm);
-		if (tcp_conn->data_rx_hash.tfm)
-			crypto_free_hash(tcp_conn->data_rx_hash.tfm);
+		if (tcp_conn->tx_hash.tfm)
+			crypto_free_hash(tcp_conn->tx_hash.tfm);
+		if (tcp_conn->rx_hash.tfm)
+			crypto_free_hash(tcp_conn->rx_hash.tfm);
 	}
 
 	kfree(tcp_conn);
@@ -1987,9 +1839,11 @@ static void
 iscsi_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
+	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 
 	iscsi_conn_stop(cls_conn, flag);
 	iscsi_tcp_release_conn(conn);
+	tcp_conn->hdr_size = sizeof(struct iscsi_hdr);
 }
 
 static int
@@ -2135,52 +1989,11 @@ iscsi_conn_set_param(struct iscsi_cls_conn *cls_conn, enum iscsi_param param,
 	case ISCSI_PARAM_HDRDGST_EN:
 		iscsi_set_param(cls_conn, param, buf, buflen);
 		tcp_conn->hdr_size = sizeof(struct iscsi_hdr);
-		if (conn->hdrdgst_en) {
+		if (conn->hdrdgst_en)
 			tcp_conn->hdr_size += sizeof(__u32);
-			if (!tcp_conn->tx_tfm)
-				tcp_conn->tx_tfm =
-					crypto_alloc_hash("crc32c", 0,
-							  CRYPTO_ALG_ASYNC);
-			if (IS_ERR(tcp_conn->tx_tfm))
-				return PTR_ERR(tcp_conn->tx_tfm);
-			if (!tcp_conn->rx_tfm)
-				tcp_conn->rx_tfm =
-					crypto_alloc_hash("crc32c", 0,
-							  CRYPTO_ALG_ASYNC);
-			if (IS_ERR(tcp_conn->rx_tfm)) {
-				crypto_free_hash(tcp_conn->tx_tfm);
-				return PTR_ERR(tcp_conn->rx_tfm);
-			}
-		} else {
-			if (tcp_conn->tx_tfm)
-				crypto_free_hash(tcp_conn->tx_tfm);
-			if (tcp_conn->rx_tfm)
-				crypto_free_hash(tcp_conn->rx_tfm);
-		}
 		break;
 	case ISCSI_PARAM_DATADGST_EN:
 		iscsi_set_param(cls_conn, param, buf, buflen);
-		if (conn->datadgst_en) {
-			if (!tcp_conn->data_tx_hash.tfm)
-				tcp_conn->data_tx_hash.tfm =
-				    crypto_alloc_hash("crc32c", 0,
-						      CRYPTO_ALG_ASYNC);
-			if (IS_ERR(tcp_conn->data_tx_hash.tfm))
-				return PTR_ERR(tcp_conn->data_tx_hash.tfm);
-			if (!tcp_conn->data_rx_hash.tfm)
-				tcp_conn->data_rx_hash.tfm =
-				    crypto_alloc_hash("crc32c", 0,
-						      CRYPTO_ALG_ASYNC);
-			if (IS_ERR(tcp_conn->data_rx_hash.tfm)) {
-				crypto_free_hash(tcp_conn->data_tx_hash.tfm);
-				return PTR_ERR(tcp_conn->data_rx_hash.tfm);
-			}
-		} else {
-			if (tcp_conn->data_tx_hash.tfm)
-				crypto_free_hash(tcp_conn->data_tx_hash.tfm);
-			if (tcp_conn->data_rx_hash.tfm)
-				crypto_free_hash(tcp_conn->data_rx_hash.tfm);
-		}
 		tcp_conn->sendpage = conn->datadgst_en ?
 			sock_no_sendpage : tcp_conn->sock->ops->sendpage;
 		break;

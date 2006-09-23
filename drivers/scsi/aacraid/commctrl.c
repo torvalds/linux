@@ -38,7 +38,7 @@
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
-#include <linux/delay.h>
+#include <linux/delay.h> /* ssleep prototype */
 #include <linux/kthread.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
@@ -140,7 +140,8 @@ cleanup:
 		fibptr->hw_fib_pa = hw_fib_pa;
 		fibptr->hw_fib = hw_fib;
 	}
-	aac_fib_free(fibptr);
+	if (retval != -EINTR)
+		aac_fib_free(fibptr);
 	return retval;
 }
 
@@ -297,7 +298,7 @@ return_fib:
 		spin_unlock_irqrestore(&dev->fib_lock, flags);
 		/* If someone killed the AIF aacraid thread, restart it */
 		status = !dev->aif_thread;
-		if (status && dev->queues && dev->fsa_dev) {
+		if (status && !dev->in_reset && dev->queues && dev->fsa_dev) {
 			/* Be paranoid, be very paranoid! */
 			kthread_stop(dev->thread);
 			ssleep(1);
@@ -621,7 +622,13 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 		actual_fibsize = sizeof (struct aac_srb) + (((user_srbcmd->sg.count & 0xff) - 1) * sizeof (struct sgentry));
 		if(actual_fibsize != fibsize){ // User made a mistake - should not continue
-			dprintk((KERN_DEBUG"aacraid: Bad Size specified in Raw SRB command\n"));
+			dprintk((KERN_DEBUG"aacraid: Bad Size specified in "
+			  "Raw SRB command calculated fibsize=%d "
+			  "user_srbcmd->sg.count=%d aac_srb=%d sgentry=%d "
+			  "issued fibsize=%d\n",
+			  actual_fibsize, user_srbcmd->sg.count,
+			  sizeof(struct aac_srb), sizeof(struct sgentry),
+			  fibsize));
 			rcode = -EINVAL;
 			goto cleanup;
 		}
@@ -663,6 +670,10 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		psg->count = cpu_to_le32(sg_indx+1);
 		status = aac_fib_send(ScsiPortCommand, srbfib, actual_fibsize, FsaNormal, 1, 1, NULL, NULL);
 	}
+	if (status == -EINTR) {
+		rcode = -EINTR;
+		goto cleanup;
+	}
 
 	if (status != 0){
 		dprintk((KERN_DEBUG"aacraid: Could not send raw srb fib to hba\n")); 
@@ -696,8 +707,10 @@ cleanup:
 	for(i=0; i <= sg_indx; i++){
 		kfree(sg_list[i]);
 	}
-	aac_fib_complete(srbfib);
-	aac_fib_free(srbfib);
+	if (rcode != -EINTR) {
+		aac_fib_complete(srbfib);
+		aac_fib_free(srbfib);
+	}
 
 	return rcode;
 }

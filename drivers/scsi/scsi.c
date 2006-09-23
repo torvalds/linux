@@ -96,24 +96,40 @@ unsigned int scsi_logging_level;
 EXPORT_SYMBOL(scsi_logging_level);
 #endif
 
-const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE] = {
-	"Direct-Access    ",
-	"Sequential-Access",
+static const char *const scsi_device_types[] = {
+	"Direct access    ",
+	"Sequential access",
 	"Printer          ",
 	"Processor        ",
 	"WORM             ",
-	"CD-ROM           ",
+	"CD/DVD           ",
 	"Scanner          ",
-	"Optical Device   ",
-	"Medium Changer   ",
+	"Optical memory   ",
+	"Media changer    ",
 	"Communications   ",
-	"Unknown          ",
-	"Unknown          ",
+	"ASC IT8          ",
+	"ASC IT8          ",
 	"RAID             ",
 	"Enclosure        ",
-	"Direct-Access-RBC",
+	"Direct access RBC",
+	"Optical card     ",
+	"Bridge controller",
+	"Object storage   ",
+	"Automation/Drive ",
 };
-EXPORT_SYMBOL(scsi_device_types);
+
+const char * scsi_device_type(unsigned type)
+{
+	if (type == 0x1e)
+		return "Well-known LUN   ";
+	if (type == 0x1f)
+		return "No Device        ";
+	if (type > ARRAY_SIZE(scsi_device_types))
+		return "Unknown          ";
+	return scsi_device_types[type];
+}
+
+EXPORT_SYMBOL(scsi_device_type);
 
 struct scsi_host_cmd_pool {
 	kmem_cache_t	*slab;
@@ -835,14 +851,14 @@ EXPORT_SYMBOL(scsi_track_queue_full);
  */
 int scsi_device_get(struct scsi_device *sdev)
 {
-	if (sdev->sdev_state == SDEV_DEL || sdev->sdev_state == SDEV_CANCEL)
+	if (sdev->sdev_state == SDEV_DEL)
 		return -ENXIO;
 	if (!get_device(&sdev->sdev_gendev))
 		return -ENXIO;
-	if (!try_module_get(sdev->host->hostt->module)) {
-		put_device(&sdev->sdev_gendev);
-		return -ENXIO;
-	}
+	/* We can fail this if we're doing SCSI operations
+	 * from module exit (like cache flush) */
+	try_module_get(sdev->host->hostt->module);
+
 	return 0;
 }
 EXPORT_SYMBOL(scsi_device_get);
@@ -857,7 +873,14 @@ EXPORT_SYMBOL(scsi_device_get);
  */
 void scsi_device_put(struct scsi_device *sdev)
 {
-	module_put(sdev->host->hostt->module);
+	struct module *module = sdev->host->hostt->module;
+
+#ifdef CONFIG_MODULE_UNLOAD
+	/* The module refcount will be zero if scsi_device_get()
+	 * was called from a module removal routine */
+	if (module && module_refcount(module) != 0)
+		module_put(module);
+#endif
 	put_device(&sdev->sdev_gendev);
 }
 EXPORT_SYMBOL(scsi_device_put);
@@ -1099,6 +1122,8 @@ static int __init init_scsi(void)
 	for_each_possible_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(scsi_done_q, i));
 
+	scsi_netlink_init();
+
 	printk(KERN_NOTICE "SCSI subsystem initialized\n");
 	return 0;
 
@@ -1119,6 +1144,7 @@ cleanup_queue:
 
 static void __exit exit_scsi(void)
 {
+	scsi_netlink_exit();
 	scsi_sysfs_unregister();
 	scsi_exit_sysctl();
 	scsi_exit_hosts();

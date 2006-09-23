@@ -178,9 +178,7 @@ static int proc_print_scsidevice(struct device *dev, void *data)
 
 	seq_printf(s, "\n");
 
-	seq_printf(s, "  Type:   %s ",
-		     sdev->type < MAX_SCSI_DEVICE_CODE ?
-	       scsi_device_types[(int) sdev->type] : "Unknown          ");
+	seq_printf(s, "  Type:   %s ", scsi_device_type(sdev->type));
 	seq_printf(s, "               ANSI"
 		     " SCSI revision: %02x", (sdev->scsi_level - 1) ?
 		     sdev->scsi_level - 1 : 1);
