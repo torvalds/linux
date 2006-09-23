@@ -92,13 +92,17 @@ static int hmac_init(struct hash_desc *pdesc)
 	struct hmac_ctx *ctx = align_ptr(ipad + bs * 2 + ds, sizeof(void *));
 	struct hash_desc desc;
 	struct scatterlist tmp;
+	int err;
 
 	desc.tfm = ctx->child;
 	desc.flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
 	sg_set_buf(&tmp, ipad, bs);
 
-	return unlikely(crypto_hash_init(&desc)) ?:
-	       crypto_hash_update(&desc, &tmp, bs);
+	err = crypto_hash_init(&desc);
+	if (unlikely(err))
+		return err;
+
+	return crypto_hash_update(&desc, &tmp, bs);
 }
 
 static int hmac_update(struct hash_desc *pdesc,
@@ -123,13 +127,17 @@ static int hmac_final(struct hash_desc *pdesc, u8 *out)
 	struct hmac_ctx *ctx = align_ptr(digest + ds, sizeof(void *));
 	struct hash_desc desc;
 	struct scatterlist tmp;
+	int err;
 
 	desc.tfm = ctx->child;
 	desc.flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
 	sg_set_buf(&tmp, opad, bs + ds);
 
-	return unlikely(crypto_hash_final(&desc, digest)) ?:
-	       crypto_hash_digest(&desc, &tmp, bs + ds, out);
+	err = crypto_hash_final(&desc, digest);
+	if (unlikely(err))
+		return err;
+
+	return crypto_hash_digest(&desc, &tmp, bs + ds, out);
 }
 
 static int hmac_digest(struct hash_desc *pdesc, struct scatterlist *sg,
@@ -145,6 +153,7 @@ static int hmac_digest(struct hash_desc *pdesc, struct scatterlist *sg,
 	struct hash_desc desc;
 	struct scatterlist sg1[2];
 	struct scatterlist sg2[1];
+	int err;
 
 	desc.tfm = ctx->child;
 	desc.flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
@@ -154,8 +163,11 @@ static int hmac_digest(struct hash_desc *pdesc, struct scatterlist *sg,
 	sg1[1].length = 0;
 	sg_set_buf(sg2, opad, bs + ds);
 
-	return unlikely(crypto_hash_digest(&desc, sg1, nbytes + bs, digest)) ?:
-	       crypto_hash_digest(&desc, sg2, bs + ds, out);
+	err = crypto_hash_digest(&desc, sg1, nbytes + bs, digest);
+	if (unlikely(err))
+		return err;
+
+	return crypto_hash_digest(&desc, sg2, bs + ds, out);
 }
 
 static int hmac_init_tfm(struct crypto_tfm *tfm)
