@@ -320,8 +320,8 @@ static unsigned int serial_in(struct uart_8250_port *up, int offset)
 
 	case UPIO_TSI:
 		if (offset == UART_IIR) {
-			tmp = readl((u32 *)(up->port.membase + UART_RX));
-			return (cpu_to_le32(tmp) >> 8) & 0xff;
+			tmp = readl(up->port.membase + (UART_IIR & ~3));
+			return (tmp >> 16) & 0xff; /* UART_IIR % 4 == 2 */
 		} else
 			return readb(up->port.membase + offset);
 
