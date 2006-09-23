@@ -43,6 +43,7 @@
 
 #include <linux/io.h>
 #include <linux/pci.h>
+#include <linux/vmalloc.h>
 #include <asm/uaccess.h>
 
 #include "ipath_kernel.h"
