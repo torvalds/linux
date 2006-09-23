@@ -1016,7 +1016,8 @@ static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 }
 
 /* On bonding slaves other than the currently active slave, suppress
- * duplicates except for 802.3ad ETH_P_SLOW and alb non-mcast/bcast.
+ * duplicates except for 802.3ad ETH_P_SLOW, alb non-mcast/bcast, and
+ * ARP on active-backup slaves with arp_validate enabled.
  */
 static inline int skb_bond_should_drop(struct sk_buff *skb)
 {
@@ -1025,6 +1026,10 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 
 	if (master &&
 	    (dev->priv_flags & IFF_SLAVE_INACTIVE)) {
+		if ((dev->priv_flags & IFF_SLAVE_NEEDARP) &&
+		    skb->protocol == __constant_htons(ETH_P_ARP))
+			return 0;
+
 		if (master->priv_flags & IFF_MASTER_ALB) {
 			if (skb->pkt_type != PACKET_BROADCAST &&
 			    skb->pkt_type != PACKET_MULTICAST)
