@@ -16,6 +16,26 @@ Thanks to Joseph Chan and Fiona Gatt from VIA for providing documentation and
 technical support.
 
 
+Module Parameters
+-----------------
+
+* uch_config: int	Override the BIOS default universal channel (UCH)
+			configuration for channels 1-5.
+			Legal values are in the range of 0-31. Bit 0 maps to
+			UCH1, bit 1 maps to UCH2 and so on. Setting a bit to 1
+			enables the thermal input of that particular UCH and
+			setting a bit to 0 enables the voltage input.
+
+* int_mode: int		Override the BIOS default temperature interrupt mode.
+			The only possible value is 0 which forces interrupt
+			mode 0. In this mode, any pending interrupt is cleared
+			when the status register is read but is regenerated as
+			long as the temperature stays above the hysteresis
+			limit.
+
+Be aware that overriding BIOS defaults might cause some unwanted side effects!
+
+
 Description
 -----------
 
@@ -88,9 +108,7 @@ has a high limit which triggers an alarm if crossed. There is an associated
 hysteresis value with each temperature below which the temperature has to drop
 before the alarm is cleared (this is only true for interrupt mode 0). The
 interrupt mode can be forced to 0 in case the BIOS doesn't do it
-automatically. For that, the parameter int_mode=0 needs to be supplied when
-loading the driver module. Be aware that overriding BIOS defaults might cause
-some unwanted side effects!
+automatically. See the 'Module Parameters' section for details.
 
 All temperature channels except temp2 are external. Temp2 is the VT1211
 internal thermal diode and the driver does all the scaling for temp2 and
