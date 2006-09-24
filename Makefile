@@ -1086,9 +1086,10 @@ boards := $(notdir $(boards))
 
 help:
 	@echo  'Cleaning targets:'
-	@echo  '  clean		  - remove most generated files but keep the config'
+	@echo  '  clean		  - remove most generated files but keep the config and'
+	@echo  '                    enough build support to build external modules'
 	@echo  '  mrproper	  - remove all generated files + config + various backup files'
-	@echo  '  distclean	  - mrproper + patch files'
+	@echo  '  distclean	  - mrproper + remove editor backup and patch files'
 	@echo  ''
 	@echo  'Configuration targets:'
 	@$(MAKE) -f $(srctree)/scripts/kconfig/Makefile help
