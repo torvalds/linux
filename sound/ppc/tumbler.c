@@ -190,7 +190,7 @@ static int check_audio_gpio(struct pmac_gpio *gp)
 
 	ret = do_gpio_read(gp);
 
-	return (ret & 0xd) == (gp->active_val & 0xd);
+	return (ret & 0x1) == (gp->active_val & 0x1);
 }
 
 static int read_audio_gpio(struct pmac_gpio *gp)
@@ -198,7 +198,8 @@ static int read_audio_gpio(struct pmac_gpio *gp)
 	int ret;
 	if (! gp->addr)
 		return 0;
-	ret = ((do_gpio_read(gp) & 0x02) !=0);
+	ret = do_gpio_read(gp);
+	ret = (ret & 0x02) !=0;
 	return ret == gp->active_state;
 }
 

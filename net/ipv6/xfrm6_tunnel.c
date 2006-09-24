@@ -307,7 +307,7 @@ static int xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 static int xfrm6_tunnel_init_state(struct xfrm_state *x)
 {
-	if (!x->props.mode)
+	if (x->props.mode != XFRM_MODE_TUNNEL)
 		return -EINVAL;
 
 	if (x->encap)

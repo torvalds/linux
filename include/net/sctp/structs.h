@@ -128,9 +128,9 @@ extern struct sctp_globals {
 	 * RTO.Alpha		    - 1/8  (3 when converted to right shifts.)
 	 * RTO.Beta		    - 1/4  (2 when converted to right shifts.)
 	 */
-	unsigned long rto_initial;
-	unsigned long rto_min;
-	unsigned long rto_max;
+	unsigned int rto_initial;
+	unsigned int rto_min;
+	unsigned int rto_max;
 
 	/* Note: rto_alpha and rto_beta are really defined as inverse
 	 * powers of two to facilitate integer operations.
@@ -145,13 +145,13 @@ extern struct sctp_globals {
 	int cookie_preserve_enable;
 
 	/* Valid.Cookie.Life	    - 60  seconds  */
-	unsigned long valid_cookie_life;
+	unsigned int valid_cookie_life;
 
 	/* Delayed SACK timeout  200ms default*/
-	unsigned long sack_timeout;
+	unsigned int sack_timeout;
 
 	/* HB.interval		    - 30 seconds  */
-	unsigned long hb_interval;
+	unsigned int hb_interval;
 
 	/* Association.Max.Retrans  - 10 attempts
 	 * Path.Max.Retrans	    - 5	 attempts (per destination address)

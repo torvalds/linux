@@ -90,6 +90,7 @@ static inline struct rtable *route_reverse(struct sk_buff *skb,
 	fl.proto = IPPROTO_TCP;
 	fl.fl_ip_sport = tcph->dest;
 	fl.fl_ip_dport = tcph->source;
+	security_skb_classify_flow(skb, &fl);
 
 	xfrm_lookup((struct dst_entry **)&rt, &fl, NULL, 0);
 
@@ -184,6 +185,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	tcph->urg_ptr = 0;
 
 	/* Adjust TCP checksum */
+	nskb->ip_summed = CHECKSUM_NONE;
 	tcph->check = 0;
 	tcph->check = tcp_v4_check(tcph, sizeof(struct tcphdr),
 				   nskb->nh.iph->saddr,
@@ -226,8 +228,7 @@ static unsigned int reject(struct sk_buff **pskb,
 			   const struct net_device *out,
 			   unsigned int hooknum,
 			   const struct xt_target *target,
-			   const void *targinfo,
-			   void *userinfo)
+			   const void *targinfo)
 {
 	const struct ipt_reject_info *reject = targinfo;
 
@@ -275,7 +276,6 @@ static int check(const char *tablename,
 		 const void *e_void,
 		 const struct xt_target *target,
 		 void *targinfo,
-		 unsigned int targinfosize,
 		 unsigned int hook_mask)
 {
  	const struct ipt_reject_info *rejinfo = targinfo;

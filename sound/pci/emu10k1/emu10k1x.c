@@ -1626,12 +1626,7 @@ static struct pci_driver driver = {
 // initialization of the module
 static int __init alsa_card_emu10k1x_init(void)
 {
-	int err;
-
-	if ((err = pci_register_driver(&driver)) > 0)
-		return err;
-
-	return 0;
+	return pci_register_driver(&driver);
 }
 
 // clean up the module

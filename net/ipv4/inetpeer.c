@@ -126,11 +126,8 @@ void __init inet_initpeers(void)
 
 	peer_cachep = kmem_cache_create("inet_peer_cache",
 			sizeof(struct inet_peer),
-			0, SLAB_HWCACHE_ALIGN,
+			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 			NULL, NULL);
-
-	if (!peer_cachep)
-		panic("cannot create inet_peer_cache");
 
 	/* All the timers, started at system startup tend
 	   to synchronize. Perturb it a bit.

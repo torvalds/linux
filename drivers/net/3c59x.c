@@ -2077,7 +2077,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	vp->tx_ring[entry].next = 0;
 #if DO_ZEROCOPY
-	if (skb->ip_summed != CHECKSUM_HW)
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
 			vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded);
 	else
 			vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded | AddTCPChksum | AddUDPChksum);

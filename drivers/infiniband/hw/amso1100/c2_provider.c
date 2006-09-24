@@ -49,6 +49,7 @@
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/if_arp.h>
+#include <linux/vmalloc.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

@@ -270,8 +270,7 @@ int __init snd_minor_info_oss_init(void)
 
 int __exit snd_minor_info_oss_done(void)
 {
-	if (snd_minor_info_oss_entry)
-		snd_info_unregister(snd_minor_info_oss_entry);
+	snd_info_free_entry(snd_minor_info_oss_entry);
 	return 0;
 }
 #endif /* CONFIG_PROC_FS */

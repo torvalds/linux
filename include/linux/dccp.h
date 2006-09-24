@@ -438,6 +438,7 @@ struct dccp_ackvec;
  * @dccps_role - Role of this sock, one of %dccp_role
  * @dccps_ndp_count - number of Non Data Packets since last data packet
  * @dccps_hc_rx_ackvec - rx half connection ack vector
+ * @dccps_xmit_timer - timer for when CCID is not ready to send
  */
 struct dccp_sock {
 	/* inet_connection_sock has to be the first member of dccp_sock */
@@ -470,6 +471,7 @@ struct dccp_sock {
 	enum dccp_role			dccps_role:2;
 	__u8				dccps_hc_rx_insert_options:1;
 	__u8				dccps_hc_tx_insert_options:1;
+	struct timer_list		dccps_xmit_timer;
 };
  
 static inline struct dccp_sock *dccp_sk(const struct sock *sk)

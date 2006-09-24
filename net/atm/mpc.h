@@ -50,4 +50,12 @@ int atm_mpoa_delete_qos(struct atm_mpoa_qos *qos);
 struct seq_file;
 void atm_mpoa_disp_qos(struct seq_file *m);
 
+#ifdef CONFIG_PROC_FS
+int mpc_proc_init(void);
+void mpc_proc_clean(void);
+#else
+#define mpc_proc_init() (0)
+#define mpc_proc_clean() do { } while(0)
+#endif
+
 #endif /* _MPC_H_ */

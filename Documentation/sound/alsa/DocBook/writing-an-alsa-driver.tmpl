@@ -1054,9 +1054,8 @@
 
       <para>
       For a device which allows hotplugging, you can use
-      <function>snd_card_free_in_thread</function>.  This one will
-      postpone the destruction and wait in a kernel-thread until all
-      devices are closed.
+      <function>snd_card_free_when_closed</function>.  This one will
+      postpone the destruction until all devices are closed.
       </para>
 
     </section>

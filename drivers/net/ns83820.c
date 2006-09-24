@@ -1153,7 +1153,7 @@ again:
 	if (!nr_frags)
 		frag = NULL;
 	extsts = 0;
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		extsts |= EXTSTS_IPPKT;
 		if (IPPROTO_TCP == skb->nh.iph->protocol)
 			extsts |= EXTSTS_TCPPKT;

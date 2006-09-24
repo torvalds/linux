@@ -98,11 +98,6 @@ static struct notifier_block mpoa_notifier = {
 	0
 };
 
-#ifdef CONFIG_PROC_FS
-extern int mpc_proc_init(void);
-extern void mpc_proc_clean(void);
-#endif
-
 struct mpoa_client *mpcs = NULL; /* FIXME */
 static struct atm_mpoa_qos *qos_head = NULL;
 static DEFINE_TIMER(mpc_timer, NULL, 0, 0);
@@ -1439,12 +1434,8 @@ static __init int atm_mpoa_init(void)
 {
 	register_atm_ioctl(&atm_ioctl_ops);
 
-#ifdef CONFIG_PROC_FS
 	if (mpc_proc_init() != 0)
 		printk(KERN_INFO "mpoa: failed to initialize /proc/mpoa\n");
-	else
-		printk(KERN_INFO "mpoa: /proc/mpoa initialized\n");
-#endif
 
 	printk("mpc.c: " __DATE__ " " __TIME__ " initialized\n");
 
@@ -1457,9 +1448,7 @@ static void __exit atm_mpoa_cleanup(void)
 	struct atm_mpoa_qos *qos, *nextqos;
 	struct lec_priv *priv;
 
-#ifdef CONFIG_PROC_FS
 	mpc_proc_clean();
-#endif
 
 	del_timer(&mpc_timer);
 	unregister_netdevice_notifier(&mpoa_notifier);

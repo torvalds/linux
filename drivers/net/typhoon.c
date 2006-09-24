@@ -830,7 +830,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 	first_txd->addrHi = (u64)((unsigned long) skb) >> 32;
 	first_txd->processFlags = 0;
 
-	if(skb->ip_summed == CHECKSUM_HW) {
+	if(skb->ip_summed == CHECKSUM_PARTIAL) {
 		/* The 3XP will figure out if this is UDP/TCP */
 		first_txd->processFlags |= TYPHOON_TX_PF_TCP_CHKSUM;
 		first_txd->processFlags |= TYPHOON_TX_PF_UDP_CHKSUM;

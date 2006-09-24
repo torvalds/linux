@@ -37,6 +37,7 @@
 #include <sound/control.h>
 #include <sound/hwdep.h>
 #include <sound/info.h>
+#include <sound/tlv.h>
 
 #include "usbaudio.h"
 
@@ -416,6 +417,26 @@ static inline int set_cur_mix_value(struct usb_mixer_elem_info *cval, int channe
 	return set_ctl_value(cval, SET_CUR, (cval->control << 8) | channel, value);
 }
 
+/*
+ * TLV callback for mixer volume controls
+ */
+static int mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
+			 unsigned int size, unsigned int __user *_tlv)
+{
+	struct usb_mixer_elem_info *cval = kcontrol->private_data;
+	DECLARE_TLV_DB_SCALE(scale, 0, 0, 0);
+
+	if (size < sizeof(scale))
+		return -ENOMEM;
+	/* USB descriptions contain the dB scale in 1/256 dB unit
+	 * while ALSA TLV contains in 1/100 dB unit
+	 */
+	scale[2] = (convert_signed_value(cval, cval->min) * 100) / 256;
+	scale[3] = (convert_signed_value(cval, cval->res) * 100) / 256;
+	if (copy_to_user(_tlv, scale, sizeof(scale)))
+		return -EFAULT;
+	return 0;
+}
 
 /*
  * parser routines begin here...
@@ -933,6 +954,12 @@ static void build_feature_ctl(struct mixer_build *state, unsigned char *desc,
 		}
 		strlcat(kctl->id.name + len, control == USB_FEATURE_MUTE ? " Switch" : " Volume",
 			sizeof(kctl->id.name));
+		if (control == USB_FEATURE_VOLUME) {
+			kctl->tlv.c = mixer_vol_tlv;
+			kctl->vd[0].access |= 
+				SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+				SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+		}
 		break;
 
 	default:

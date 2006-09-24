@@ -2169,7 +2169,7 @@ static inline u32 rtl8169_tso_csum(struct sk_buff *skb, struct net_device *dev)
 		if (mss)
 			return LargeSend | ((mss & MSSMask) << MSSShift);
 	}
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const struct iphdr *ip = skb->nh.iph;
 
 		if (ip->protocol == IPPROTO_TCP)

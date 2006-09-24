@@ -475,6 +475,7 @@ config SND_FM801_TEA575X
 	depends on SND_FM801_TEA575X_BOOL
 	default SND_FM801
 	select VIDEO_V4L1
+	select VIDEO_DEV
 
 config SND_HDA_INTEL
 	tristate "Intel HD Audio"
@@ -742,5 +743,18 @@ config SND_YMFPCI
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ymfpci.
+
+config SND_AC97_POWER_SAVE
+	bool "AC97 Power-Saving Mode"
+	depends on SND_AC97_CODEC && EXPERIMENTAL
+	default n
+	help
+	  Say Y here to enable the aggressive power-saving support of
+	  AC97 codecs.  In this mode, the power-mode is dynamically
+	  controlled at each open/close.
+
+	  The mode is activated by passing power_save=1 option to
+	  snd-ac97-codec driver.  You can toggle it dynamically over
+	  sysfs, too.
 
 endmenu

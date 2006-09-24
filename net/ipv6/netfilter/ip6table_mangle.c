@@ -138,7 +138,7 @@ ip6t_route_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ip6t_do_table(pskb, hook, in, out, &packet_mangler, NULL);
+	return ip6t_do_table(pskb, hook, in, out, &packet_mangler);
 }
 
 static unsigned int
@@ -174,18 +174,14 @@ ip6t_local_hook(unsigned int hook,
 	/* flowlabel and prio (includes version, which shouldn't change either */
 	flowlabel = *((u_int32_t *) (*pskb)->nh.ipv6h);
 
-	ret = ip6t_do_table(pskb, hook, in, out, &packet_mangler, NULL);
+	ret = ip6t_do_table(pskb, hook, in, out, &packet_mangler);
 
 	if (ret != NF_DROP && ret != NF_STOLEN 
 		&& (memcmp(&(*pskb)->nh.ipv6h->saddr, &saddr, sizeof(saddr))
 		    || memcmp(&(*pskb)->nh.ipv6h->daddr, &daddr, sizeof(daddr))
 		    || (*pskb)->nfmark != nfmark
-		    || (*pskb)->nh.ipv6h->hop_limit != hop_limit)) {
-
-		/* something which could affect routing has changed */
-
-		DEBUGP("ip6table_mangle: we'd need to re-route a packet\n");
-	}
+		    || (*pskb)->nh.ipv6h->hop_limit != hop_limit))
+		return ip6_route_me_harder(*pskb) == 0 ? ret : NF_DROP;
 
 	return ret;
 }

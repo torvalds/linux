@@ -26,6 +26,7 @@
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 #include "vx222.h"
 
 #define CARD_NAME "VX222"
@@ -72,6 +73,9 @@ MODULE_DEVICE_TABLE(pci, snd_vx222_ids);
 /*
  */
 
+static DECLARE_TLV_DB_SCALE(db_scale_old_vol, -11350, 50, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_akm, -7350, 50, 0);
+
 static struct snd_vx_hardware vx222_old_hw = {
 
 	.name = "VX222/Old",
@@ -81,6 +85,7 @@ static struct snd_vx_hardware vx222_old_hw = {
 	.num_ins = 1,
 	.num_outs = 1,
 	.output_level_max = VX_ANALOG_OUT_LEVEL_MAX,
+	.output_level_db_scale = db_scale_old_vol,
 };
 
 static struct snd_vx_hardware vx222_v2_hw = {
@@ -92,6 +97,7 @@ static struct snd_vx_hardware vx222_v2_hw = {
 	.num_ins = 1,
 	.num_outs = 1,
 	.output_level_max = VX2_AKM_LEVEL_MAX,
+	.output_level_db_scale = db_scale_akm,
 };
 
 static struct snd_vx_hardware vx222_mic_hw = {
@@ -103,6 +109,7 @@ static struct snd_vx_hardware vx222_mic_hw = {
 	.num_ins = 1,
 	.num_outs = 1,
 	.output_level_max = VX2_AKM_LEVEL_MAX,
+	.output_level_db_scale = db_scale_akm,
 };
 
 

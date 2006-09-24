@@ -813,7 +813,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 		if (mss)
 			flags |= LargeSend | ((mss & MSSMask) << MSSShift);
-		else if (skb->ip_summed == CHECKSUM_HW) {
+		else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			const struct iphdr *ip = skb->nh.iph;
 			if (ip->protocol == IPPROTO_TCP)
 				flags |= IPCS | TCPCS;
@@ -867,7 +867,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 			if (mss)
 				ctrl |= LargeSend |
 					((mss & MSSMask) << MSSShift);
-			else if (skb->ip_summed == CHECKSUM_HW) {
+			else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 				if (ip->protocol == IPPROTO_TCP)
 					ctrl |= IPCS | TCPCS;
 				else if (ip->protocol == IPPROTO_UDP)
@@ -898,7 +898,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 		txd->addr = cpu_to_le64(first_mapping);
 		wmb();
 
-		if (skb->ip_summed == CHECKSUM_HW) {
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			if (ip->protocol == IPPROTO_TCP)
 				txd->opts1 = cpu_to_le32(first_eor | first_len |
 							 FirstFrag | DescOwn |

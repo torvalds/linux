@@ -129,10 +129,9 @@ tcp_manip_pkt(struct sk_buff **pskb,
 	if (hdrsize < sizeof(*hdr))
 		return 1;
 
-	hdr->check = ip_nat_cheat_check(~oldip, newip,
-					ip_nat_cheat_check(oldport ^ 0xFFFF,
-							   newport,
-							   hdr->check));
+	hdr->check = nf_proto_csum_update(*pskb, ~oldip, newip, hdr->check, 1);
+	hdr->check = nf_proto_csum_update(*pskb, oldport ^ 0xFFFF, newport,
+					  hdr->check, 0);
 	return 1;
 }
 

@@ -30,9 +30,13 @@
 /* mono volume with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx,  \
+	  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | \
+	  	    SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
+	  	    SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK, \
 	  .info = snd_hda_mixer_amp_volume_info, \
 	  .get = snd_hda_mixer_amp_volume_get, \
 	  .put = snd_hda_mixer_amp_volume_put, \
+	  .tlv = { .c = snd_hda_mixer_amp_tlv },		\
 	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, xindex, direction) }
 /* stereo volume with index */
 #define HDA_CODEC_VOLUME_IDX(xname, xcidx, nid, xindex, direction) \
@@ -63,6 +67,7 @@
 int snd_hda_mixer_amp_volume_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
 int snd_hda_mixer_amp_volume_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 int snd_hda_mixer_amp_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
+int snd_hda_mixer_amp_tlv(struct snd_kcontrol *kcontrol, int op_flag, unsigned int size, unsigned int __user *tlv);
 int snd_hda_mixer_amp_switch_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
 int snd_hda_mixer_amp_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 int snd_hda_mixer_amp_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
@@ -224,7 +229,8 @@ struct auto_pin_cfg {
 	hda_nid_t line_out_pins[5]; /* sorted in the order of Front/Surr/CLFE/Side */
 	int speaker_outs;
 	hda_nid_t speaker_pins[5];
-	hda_nid_t hp_pin;
+	int hp_outs;
+	hda_nid_t hp_pins[5];
 	hda_nid_t input_pins[AUTO_PIN_LAST];
 	hda_nid_t dig_out_pin;
 	hda_nid_t dig_in_pin;

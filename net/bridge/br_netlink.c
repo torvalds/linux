@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/rtnetlink.h>
+#include <net/netlink.h>
 #include "br_private.h"
 
 /*
@@ -76,26 +77,24 @@ rtattr_failure:
 void br_ifinfo_notify(int event, struct net_bridge_port *port)
 {
 	struct sk_buff *skb;
-	int err = -ENOMEM;
+	int payload = sizeof(struct ifinfomsg) + 128;
+	int err = -ENOBUFS;
 
 	pr_debug("bridge notify event=%d\n", event);
-	skb = alloc_skb(NLMSG_SPACE(sizeof(struct ifinfomsg) + 128),
-			GFP_ATOMIC);
-	if (!skb)
-		goto err_out;
+	skb = nlmsg_new(nlmsg_total_size(payload), GFP_ATOMIC);
+	if (skb == NULL)
+		goto errout;
 
-	err = br_fill_ifinfo(skb, port, current->pid, 0, event, 0);
+	err = br_fill_ifinfo(skb, port, 0, 0, event, 0);
+	if (err < 0) {
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	err = rtnl_notify(skb, 0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
+errout:
 	if (err < 0)
-		goto err_kfree;
-
-	NETLINK_CB(skb).dst_group = RTNLGRP_LINK;
-	netlink_broadcast(rtnl, skb, 0, RTNLGRP_LINK, GFP_ATOMIC);
-	return;
-
-err_kfree:
-	kfree_skb(skb);
-err_out:
-	netlink_set_err(rtnl, 0, RTNLGRP_LINK, err);
+		rtnl_set_sk_err(RTNLGRP_LINK, err);
 }
 
 /*

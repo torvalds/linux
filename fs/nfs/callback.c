@@ -19,6 +19,7 @@
 
 #include "nfs4_fs.h"
 #include "callback.h"
+#include "internal.h"
 
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
 
@@ -36,6 +37,21 @@ static struct svc_program nfs4_callback_program;
 
 unsigned int nfs_callback_set_tcpport;
 unsigned short nfs_callback_tcpport;
+static const int nfs_set_port_min = 0;
+static const int nfs_set_port_max = 65535;
+
+static int param_set_port(const char *val, struct kernel_param *kp)
+{
+	char *endp;
+	int num = simple_strtol(val, &endp, 0);
+	if (endp == val || *endp || num < nfs_set_port_min || num > nfs_set_port_max)
+		return -EINVAL;
+	*((int *)kp->arg) = num;
+	return 0;
+}
+
+module_param_call(callback_tcpport, param_set_port, param_get_int,
+		 &nfs_callback_set_tcpport, 0644);
 
 /*
  * This is the callback kernel thread.
@@ -134,10 +150,8 @@ out_err:
 /*
  * Kill the server process if it is not already up.
  */
-int nfs_callback_down(void)
+void nfs_callback_down(void)
 {
-	int ret = 0;
-
 	lock_kernel();
 	mutex_lock(&nfs_callback_mutex);
 	nfs_callback_info.users--;
@@ -149,20 +163,19 @@ int nfs_callback_down(void)
 	} while (wait_for_completion_timeout(&nfs_callback_info.stopped, 5*HZ) == 0);
 	mutex_unlock(&nfs_callback_mutex);
 	unlock_kernel();
-	return ret;
 }
 
 static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 {
-	struct in_addr *addr = &rqstp->rq_addr.sin_addr;
-	struct nfs4_client *clp;
+	struct sockaddr_in *addr = &rqstp->rq_addr;
+	struct nfs_client *clp;
 
 	/* Don't talk to strangers */
-	clp = nfs4_find_client(addr);
+	clp = nfs_find_client(addr, 4);
 	if (clp == NULL)
 		return SVC_DROP;
-	dprintk("%s: %u.%u.%u.%u NFSv4 callback!\n", __FUNCTION__, NIPQUAD(addr));
-	nfs4_put_client(clp);
+	dprintk("%s: %u.%u.%u.%u NFSv4 callback!\n", __FUNCTION__, NIPQUAD(addr->sin_addr));
+	nfs_put_client(clp);
 	switch (rqstp->rq_authop->flavour) {
 		case RPC_AUTH_NULL:
 			if (rqstp->rq_proc != CB_NULL)

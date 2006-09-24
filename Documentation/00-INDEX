@@ -184,6 +184,8 @@ mtrr.txt
 	- how to use PPro Memory Type Range Registers to increase performance.
 nbd.txt
 	- info on a TCP implementation of a network block device.
+netlabel/
+	- directory with information on the NetLabel subsystem.
 networking/
 	- directory with info on various aspects of networking with Linux.
 nfsroot.txt

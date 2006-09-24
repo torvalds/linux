@@ -168,7 +168,7 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 		return -1;
 	if ((unsigned short)csum_fold(desc.csum))
 		return -1;
-	if (unlikely(skb->ip_summed == CHECKSUM_HW))
+	if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE))
 		netdev_rx_csum_fault(skb->dev);
 	return 0;
 no_checksum:

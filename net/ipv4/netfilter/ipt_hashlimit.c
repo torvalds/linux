@@ -478,7 +478,6 @@ hashlimit_checkentry(const char *tablename,
 		     const void *inf,
 		     const struct xt_match *match,
 		     void *matchinfo,
-		     unsigned int matchsize,
 		     unsigned int hook_mask)
 {
 	struct ipt_hashlimit_info *r = matchinfo;
@@ -529,18 +528,46 @@ hashlimit_checkentry(const char *tablename,
 }
 
 static void
-hashlimit_destroy(const struct xt_match *match, void *matchinfo,
-		  unsigned int matchsize)
+hashlimit_destroy(const struct xt_match *match, void *matchinfo)
 {
 	struct ipt_hashlimit_info *r = matchinfo;
 
 	htable_put(r->hinfo);
 }
 
+#ifdef CONFIG_COMPAT
+struct compat_ipt_hashlimit_info {
+	char name[IFNAMSIZ];
+	struct hashlimit_cfg cfg;
+	compat_uptr_t hinfo;
+	compat_uptr_t master;
+};
+
+static void compat_from_user(void *dst, void *src)
+{
+	int off = offsetof(struct compat_ipt_hashlimit_info, hinfo);
+
+	memcpy(dst, src, off);
+	memset(dst + off, 0, sizeof(struct compat_ipt_hashlimit_info) - off);
+}
+
+static int compat_to_user(void __user *dst, void *src)
+{
+	int off = offsetof(struct compat_ipt_hashlimit_info, hinfo);
+
+	return copy_to_user(dst, src, off) ? -EFAULT : 0;
+}
+#endif
+
 static struct ipt_match ipt_hashlimit = {
 	.name		= "hashlimit",
 	.match		= hashlimit_match,
 	.matchsize	= sizeof(struct ipt_hashlimit_info),
+#ifdef CONFIG_COMPAT
+	.compatsize	= sizeof(struct compat_ipt_hashlimit_info),
+	.compat_from_user = compat_from_user,
+	.compat_to_user	= compat_to_user,
+#endif
 	.checkentry	= hashlimit_checkentry,
 	.destroy	= hashlimit_destroy,
 	.me		= THIS_MODULE

@@ -27,8 +27,7 @@ target_v0(struct sk_buff **pskb,
 	  const struct net_device *out,
 	  unsigned int hooknum,
 	  const struct xt_target *target,
-	  const void *targinfo,
-	  void *userinfo)
+	  const void *targinfo)
 {
 	const struct xt_mark_target_info *markinfo = targinfo;
 
@@ -44,8 +43,7 @@ target_v1(struct sk_buff **pskb,
 	  const struct net_device *out,
 	  unsigned int hooknum,
 	  const struct xt_target *target,
-	  const void *targinfo,
-	  void *userinfo)
+	  const void *targinfo)
 {
 	const struct xt_mark_target_info_v1 *markinfo = targinfo;
 	int mark = 0;
@@ -76,7 +74,6 @@ checkentry_v0(const char *tablename,
 	      const void *entry,
 	      const struct xt_target *target,
 	      void *targinfo,
-	      unsigned int targinfosize,
 	      unsigned int hook_mask)
 {
 	struct xt_mark_target_info *markinfo = targinfo;
@@ -93,7 +90,6 @@ checkentry_v1(const char *tablename,
 	      const void *entry,
 	      const struct xt_target *target,
 	      void *targinfo,
-	      unsigned int targinfosize,
 	      unsigned int hook_mask)
 {
 	struct xt_mark_target_info_v1 *markinfo = targinfo;
@@ -112,65 +108,81 @@ checkentry_v1(const char *tablename,
 	return 1;
 }
 
-static struct xt_target ipt_mark_reg_v0 = {
-	.name		= "MARK",
-	.target		= target_v0,
-	.targetsize	= sizeof(struct xt_mark_target_info),
-	.table		= "mangle",
-	.checkentry	= checkentry_v0,
-	.me		= THIS_MODULE,
-	.family		= AF_INET,
-	.revision	= 0,
+#ifdef CONFIG_COMPAT
+struct compat_xt_mark_target_info_v1 {
+	compat_ulong_t	mark;
+	u_int8_t	mode;
+	u_int8_t	__pad1;
+	u_int16_t	__pad2;
 };
 
-static struct xt_target ipt_mark_reg_v1 = {
-	.name		= "MARK",
-	.target		= target_v1,
-	.targetsize	= sizeof(struct xt_mark_target_info_v1),
-	.table		= "mangle",
-	.checkentry	= checkentry_v1,
-	.me		= THIS_MODULE,
-	.family		= AF_INET,
-	.revision	= 1,
-};
+static void compat_from_user_v1(void *dst, void *src)
+{
+	struct compat_xt_mark_target_info_v1 *cm = src;
+	struct xt_mark_target_info_v1 m = {
+		.mark	= cm->mark,
+		.mode	= cm->mode,
+	};
+	memcpy(dst, &m, sizeof(m));
+}
 
-static struct xt_target ip6t_mark_reg_v0 = {
-	.name		= "MARK",
-	.target		= target_v0,
-	.targetsize	= sizeof(struct xt_mark_target_info),
-	.table		= "mangle",
-	.checkentry	= checkentry_v0,
-	.me		= THIS_MODULE,
-	.family		= AF_INET6,
-	.revision	= 0,
+static int compat_to_user_v1(void __user *dst, void *src)
+{
+	struct xt_mark_target_info_v1 *m = src;
+	struct compat_xt_mark_target_info_v1 cm = {
+		.mark	= m->mark,
+		.mode	= m->mode,
+	};
+	return copy_to_user(dst, &cm, sizeof(cm)) ? -EFAULT : 0;
+}
+#endif /* CONFIG_COMPAT */
+
+static struct xt_target xt_mark_target[] = {
+	{
+		.name		= "MARK",
+		.family		= AF_INET,
+		.revision	= 0,
+		.checkentry	= checkentry_v0,
+		.target		= target_v0,
+		.targetsize	= sizeof(struct xt_mark_target_info),
+		.table		= "mangle",
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "MARK",
+		.family		= AF_INET,
+		.revision	= 1,
+		.checkentry	= checkentry_v1,
+		.target		= target_v1,
+		.targetsize	= sizeof(struct xt_mark_target_info_v1),
+#ifdef CONFIG_COMPAT
+		.compatsize	= sizeof(struct compat_xt_mark_target_info_v1),
+		.compat_from_user = compat_from_user_v1,
+		.compat_to_user	= compat_to_user_v1,
+#endif
+		.table		= "mangle",
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "MARK",
+		.family		= AF_INET6,
+		.revision	= 0,
+		.checkentry	= checkentry_v0,
+		.target		= target_v0,
+		.targetsize	= sizeof(struct xt_mark_target_info),
+		.table		= "mangle",
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init xt_mark_init(void)
 {
-	int err;
-
-	err = xt_register_target(&ipt_mark_reg_v0);
-	if (err)
-		return err;
-
-	err = xt_register_target(&ipt_mark_reg_v1);
-	if (err)
-		xt_unregister_target(&ipt_mark_reg_v0);
-
-	err = xt_register_target(&ip6t_mark_reg_v0);
-	if (err) {
-		xt_unregister_target(&ipt_mark_reg_v0);
-		xt_unregister_target(&ipt_mark_reg_v1);
-	}
-
-	return err;
+	return xt_register_targets(xt_mark_target, ARRAY_SIZE(xt_mark_target));
 }
 
 static void __exit xt_mark_fini(void)
 {
-	xt_unregister_target(&ipt_mark_reg_v0);
-	xt_unregister_target(&ipt_mark_reg_v1);
-	xt_unregister_target(&ip6t_mark_reg_v0);
+	xt_unregister_targets(xt_mark_target, ARRAY_SIZE(xt_mark_target));
 }
 
 module_init(xt_mark_init);

@@ -6,13 +6,23 @@ config XFRM
        depends on NET
 
 config XFRM_USER
-	tristate "IPsec user configuration interface"
+	tristate "Transformation user configuration interface"
 	depends on INET && XFRM
 	---help---
-	  Support for IPsec user configuration interface used
-	  by native Linux tools.
+	  Support for Transformation(XFRM) user configuration interface
+	  like IPsec used by native Linux tools.
 
 	  If unsure, say Y.
+
+config XFRM_SUB_POLICY
+	bool "Transformation sub policy support (EXPERIMENTAL)"
+	depends on XFRM && EXPERIMENTAL
+	---help---
+	  Support sub policy for developers. By using sub policy with main
+	  one, two policies can be applied to the same packet at once.
+	  Policy which lives shorter time in kernel should be a sub.
+
+	  If unsure, say N.
 
 config NET_KEY
 	tristate "PF_KEY sockets"

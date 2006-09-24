@@ -189,7 +189,7 @@ static struct tcp_congestion_ops tcp_highspeed = {
 
 static int __init hstcp_register(void)
 {
-	BUG_ON(sizeof(struct hstcp) > ICSK_CA_PRIV_SIZE);
+	BUILD_BUG_ON(sizeof(struct hstcp) > ICSK_CA_PRIV_SIZE);
 	return tcp_register_congestion_control(&tcp_highspeed);
 }
 

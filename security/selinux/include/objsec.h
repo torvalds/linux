@@ -99,7 +99,16 @@ struct netif_security_struct {
 
 struct sk_security_struct {
 	struct sock *sk;		/* back pointer to sk object */
+	u32 sid;			/* SID of this object */
 	u32 peer_sid;			/* SID of peer */
+#ifdef CONFIG_NETLABEL
+	u16 sclass;			/* sock security class */
+	enum {				/* NetLabel state */
+		NLBL_UNSET = 0,
+		NLBL_REQUIRE,
+		NLBL_LABELED,
+	} nlbl_state;
+#endif
 };
 
 struct key_security_struct {

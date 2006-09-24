@@ -50,6 +50,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/inet.h>
+#include <linux/vmalloc.h>
 
 #include <linux/route.h>
 

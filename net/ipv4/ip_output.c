@@ -83,7 +83,7 @@
 #include <linux/netlink.h>
 #include <linux/tcp.h>
 
-int sysctl_ip_default_ttl = IPDEFTTL;
+int sysctl_ip_default_ttl __read_mostly = IPDEFTTL;
 
 /* Generate a checksum for an outgoing IP datagram. */
 __inline__ void ip_send_check(struct iphdr *iph)
@@ -328,6 +328,7 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 			 * keep trying until route appears or the connection times
 			 * itself out.
 			 */
+			security_sk_classify_flow(sk, &fl);
 			if (ip_route_output_flow(&rt, &fl, sk, 0))
 				goto no_route;
 		}
@@ -425,7 +426,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 	int ptr;
 	struct net_device *dev;
 	struct sk_buff *skb2;
-	unsigned int mtu, hlen, left, len, ll_rs;
+	unsigned int mtu, hlen, left, len, ll_rs, pad;
 	int offset;
 	__be16 not_last_frag;
 	struct rtable *rt = (struct rtable*)skb->dst;
@@ -555,14 +556,13 @@ slow_path:
 	left = skb->len - hlen;		/* Space per frame */
 	ptr = raw + hlen;		/* Where to start from */
 
-#ifdef CONFIG_BRIDGE_NETFILTER
 	/* for bridged IP traffic encapsulated inside f.e. a vlan header,
-	 * we need to make room for the encapsulating header */
-	ll_rs = LL_RESERVED_SPACE_EXTRA(rt->u.dst.dev, nf_bridge_pad(skb));
-	mtu -= nf_bridge_pad(skb);
-#else
-	ll_rs = LL_RESERVED_SPACE(rt->u.dst.dev);
-#endif
+	 * we need to make room for the encapsulating header
+	 */
+	pad = nf_bridge_pad(skb);
+	ll_rs = LL_RESERVED_SPACE_EXTRA(rt->u.dst.dev, pad);
+	mtu -= pad;
+
 	/*
 	 *	Fragment the datagram.
 	 */
@@ -679,7 +679,7 @@ ip_generic_getfrag(void *from, char *to, int offset, int len, int odd, struct sk
 {
 	struct iovec *iov = from;
 
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (memcpy_fromiovecend(to, iov, offset, len) < 0)
 			return -EFAULT;
 	} else {
@@ -735,7 +735,7 @@ static inline int ip_ufo_append_data(struct sock *sk,
 		/* initialize protocol header pointer */
 		skb->h.raw = skb->data + fragheaderlen;
 
-		skb->ip_summed = CHECKSUM_HW;
+		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum = 0;
 		sk->sk_sndmsg_off = 0;
 	}
@@ -843,7 +843,7 @@ int ip_append_data(struct sock *sk,
 	    length + fragheaderlen <= mtu &&
 	    rt->u.dst.dev->features & NETIF_F_ALL_CSUM &&
 	    !exthdrlen)
-		csummode = CHECKSUM_HW;
+		csummode = CHECKSUM_PARTIAL;
 
 	inet->cork.length += length;
 	if (((length > mtu) && (sk->sk_protocol == IPPROTO_UDP)) &&
@@ -1366,6 +1366,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 					       { .sport = skb->h.th->dest,
 					         .dport = skb->h.th->source } },
 				    .proto = sk->sk_protocol };
+		security_skb_classify_flow(skb, &fl);
 		if (ip_route_output_key(&rt, &fl))
 			return;
 	}

@@ -33,10 +33,9 @@ static inline void ipip_ecn_decapsulate(struct sk_buff *skb)
  * On exit, skb->h will be set to the start of the payload to be processed
  * by x->type->output and skb->nh will be set to the top IP header.
  */
-static int xfrm4_tunnel_output(struct sk_buff *skb)
+static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
-	struct xfrm_state *x = dst->xfrm;
 	struct iphdr *iph, *top_iph;
 	int flags;
 

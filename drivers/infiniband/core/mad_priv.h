@@ -38,6 +38,7 @@
 #define __IB_MAD_PRIV_H__
 
 #include <linux/completion.h>
+#include <linux/err.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
 #include <rdma/ib_mad.h>

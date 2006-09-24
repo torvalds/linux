@@ -1648,7 +1648,7 @@ static int hamachi_rx(struct net_device *dev)
 						* could do the pseudo myself and return
 						* CHECKSUM_UNNECESSARY
 						*/
-						skb->ip_summed = CHECKSUM_HW;
+						skb->ip_summed = CHECKSUM_COMPLETE;
 					}
 				}	
 			}

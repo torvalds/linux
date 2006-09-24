@@ -467,6 +467,7 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 
 	switch(reason) {
 	case SCTP_RTXR_T3_RTX:
+		SCTP_INC_STATS(SCTP_MIB_T3_RETRANSMITS);
 		sctp_transport_lower_cwnd(transport, SCTP_LOWER_CWND_T3_RTX);
 		/* Update the retran path if the T3-rtx timer has expired for
 		 * the current retran path.
@@ -475,12 +476,15 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 			sctp_assoc_update_retran_path(transport->asoc);
 		break;
 	case SCTP_RTXR_FAST_RTX:
+		SCTP_INC_STATS(SCTP_MIB_FAST_RETRANSMITS);
 		sctp_transport_lower_cwnd(transport, SCTP_LOWER_CWND_FAST_RTX);
 		fast_retransmit = 1;
 		break;
 	case SCTP_RTXR_PMTUD:
-	default:
+		SCTP_INC_STATS(SCTP_MIB_PMTUD_RETRANSMITS);
 		break;
+	default:
+		BUG();
 	}
 
 	sctp_retransmit_mark(q, transport, fast_retransmit);

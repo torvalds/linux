@@ -52,10 +52,9 @@ static void print_amp_caps(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid, int dir)
 {
 	unsigned int caps;
-	if (dir == HDA_OUTPUT)
-		caps = snd_hda_param_read(codec, nid, AC_PAR_AMP_OUT_CAP);
-	else
-		caps = snd_hda_param_read(codec, nid, AC_PAR_AMP_IN_CAP);
+	caps = snd_hda_param_read(codec, nid,
+				  dir == HDA_OUTPUT ?
+				    AC_PAR_AMP_OUT_CAP : AC_PAR_AMP_IN_CAP);
 	if (caps == -1 || caps == 0) {
 		snd_iprintf(buffer, "N/A\n");
 		return;
@@ -74,10 +73,7 @@ static void print_amp_vals(struct snd_info_buffer *buffer,
 	unsigned int val;
 	int i;
 
-	if (dir == HDA_OUTPUT)
-		dir = AC_AMP_GET_OUTPUT;
-	else
-		dir = AC_AMP_GET_INPUT;
+	dir = dir == HDA_OUTPUT ? AC_AMP_GET_OUTPUT : AC_AMP_GET_INPUT;
 	for (i = 0; i < indices; i++) {
 		snd_iprintf(buffer, " [");
 		if (stereo) {

@@ -2846,11 +2846,9 @@ static void snd_pcm_oss_proc_done(struct snd_pcm *pcm)
 	int stream;
 	for (stream = 0; stream < 2; ++stream) {
 		struct snd_pcm_str *pstr = &pcm->streams[stream];
-		if (pstr->oss.proc_entry) {
-			snd_info_unregister(pstr->oss.proc_entry);
-			pstr->oss.proc_entry = NULL;
-			snd_pcm_oss_proc_free_setup_list(pstr);
-		}
+		snd_info_free_entry(pstr->oss.proc_entry);
+		pstr->oss.proc_entry = NULL;
+		snd_pcm_oss_proc_free_setup_list(pstr);
 	}
 }
 #else /* !CONFIG_SND_VERBOSE_PROCFS */
@@ -2931,6 +2929,12 @@ static int snd_pcm_oss_disconnect_minor(struct snd_pcm *pcm)
 			snd_unregister_oss_device(SNDRV_OSS_DEVICE_TYPE_PCM,
 						  pcm->card, 1);
 		}
+		if (dsp_map[pcm->card->number] == (int)pcm->device) {
+#ifdef SNDRV_OSS_INFO_DEV_AUDIO
+			snd_oss_info_unregister(SNDRV_OSS_INFO_DEV_AUDIO, pcm->card->number);
+#endif
+		}
+		pcm->oss.reg = 0;
 	}
 	return 0;
 }
@@ -2938,15 +2942,7 @@ static int snd_pcm_oss_disconnect_minor(struct snd_pcm *pcm)
 static int snd_pcm_oss_unregister_minor(struct snd_pcm *pcm)
 {
 	snd_pcm_oss_disconnect_minor(pcm);
-	if (pcm->oss.reg) {
-		if (dsp_map[pcm->card->number] == (int)pcm->device) {
-#ifdef SNDRV_OSS_INFO_DEV_AUDIO
-			snd_oss_info_unregister(SNDRV_OSS_INFO_DEV_AUDIO, pcm->card->number);
-#endif
-		}
-		pcm->oss.reg = 0;
-		snd_pcm_oss_proc_done(pcm);
-	}
+	snd_pcm_oss_proc_done(pcm);
 	return 0;
 }
 

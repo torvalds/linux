@@ -611,7 +611,7 @@ start_xmit (struct sk_buff *skb, struct net_device *dev)
 	txdesc = &np->tx_ring[entry];
 
 #if 0
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		txdesc->status |=
 		    cpu_to_le64 (TCPChecksumEnable | UDPChecksumEnable |
 				 IPChecksumEnable);

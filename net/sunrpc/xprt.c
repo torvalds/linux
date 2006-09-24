@@ -534,7 +534,7 @@ void xprt_connect(struct rpc_task *task)
 	dprintk("RPC: %4d xprt_connect xprt %p %s connected\n", task->tk_pid,
 			xprt, (xprt_connected(xprt) ? "is" : "is not"));
 
-	if (!xprt->addr.sin_port) {
+	if (!xprt_bound(xprt)) {
 		task->tk_status = -EIO;
 		return;
 	}
@@ -583,13 +583,6 @@ static void xprt_connect_status(struct rpc_task *task)
 	default:
 		dprintk("RPC: %4d xprt_connect_status: error %d connecting to server %s\n",
 				task->tk_pid, -task->tk_status, task->tk_client->cl_server);
-		xprt_release_write(xprt, task);
-		task->tk_status = -EIO;
-		return;
-	}
-
-	/* if soft mounted, just cause this RPC to fail */
-	if (RPC_IS_SOFT(task)) {
 		xprt_release_write(xprt, task);
 		task->tk_status = -EIO;
 	}
@@ -829,6 +822,7 @@ static void xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)
 	req->rq_bufsize = 0;
 	req->rq_xid     = xprt_alloc_xid(xprt);
 	req->rq_release_snd_buf = NULL;
+	xprt_reset_majortimeo(req);
 	dprintk("RPC: %4d reserved req %p xid %08x\n", task->tk_pid,
 			req, ntohl(req->rq_xid));
 }
@@ -887,16 +881,32 @@ void xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long i
 	to->to_exponential = 0;
 }
 
-static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc_timeout *to)
+/**
+ * xprt_create_transport - create an RPC transport
+ * @proto: requested transport protocol
+ * @ap: remote peer address
+ * @size: length of address
+ * @to: timeout parameters
+ *
+ */
+struct rpc_xprt *xprt_create_transport(int proto, struct sockaddr *ap, size_t size, struct rpc_timeout *to)
 {
 	int result;
 	struct rpc_xprt	*xprt;
 	struct rpc_rqst	*req;
 
-	if ((xprt = kzalloc(sizeof(struct rpc_xprt), GFP_KERNEL)) == NULL)
+	if ((xprt = kzalloc(sizeof(struct rpc_xprt), GFP_KERNEL)) == NULL) {
+		dprintk("RPC:      xprt_create_transport: no memory\n");
 		return ERR_PTR(-ENOMEM);
-
-	xprt->addr = *ap;
+	}
+	if (size <= sizeof(xprt->addr)) {
+		memcpy(&xprt->addr, ap, size);
+		xprt->addrlen = size;
+	} else {
+		kfree(xprt);
+		dprintk("RPC:      xprt_create_transport: address too large\n");
+		return ERR_PTR(-EBADF);
+	}
 
 	switch (proto) {
 	case IPPROTO_UDP:
@@ -908,14 +918,15 @@ static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc
 	default:
 		printk(KERN_ERR "RPC: unrecognized transport protocol: %d\n",
 				proto);
-		result = -EIO;
-		break;
+		return ERR_PTR(-EIO);
 	}
 	if (result) {
 		kfree(xprt);
+		dprintk("RPC:      xprt_create_transport: failed, %d\n", result);
 		return ERR_PTR(result);
 	}
 
+	kref_init(&xprt->kref);
 	spin_lock_init(&xprt->transport_lock);
 	spin_lock_init(&xprt->reserve_lock);
 
@@ -928,6 +939,7 @@ static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc
 	xprt->last_used = jiffies;
 	xprt->cwnd = RPC_INITCWND;
 
+	rpc_init_wait_queue(&xprt->binding, "xprt_binding");
 	rpc_init_wait_queue(&xprt->pending, "xprt_pending");
 	rpc_init_wait_queue(&xprt->sending, "xprt_sending");
 	rpc_init_wait_queue(&xprt->resend, "xprt_resend");
@@ -941,41 +953,43 @@ static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc
 
 	dprintk("RPC:      created transport %p with %u slots\n", xprt,
 			xprt->max_reqs);
-	
-	return xprt;
-}
 
-/**
- * xprt_create_proto - create an RPC client transport
- * @proto: requested transport protocol
- * @sap: remote peer's address
- * @to: timeout parameters for new transport
- *
- */
-struct rpc_xprt *xprt_create_proto(int proto, struct sockaddr_in *sap, struct rpc_timeout *to)
-{
-	struct rpc_xprt	*xprt;
-
-	xprt = xprt_setup(proto, sap, to);
-	if (IS_ERR(xprt))
-		dprintk("RPC:      xprt_create_proto failed\n");
-	else
-		dprintk("RPC:      xprt_create_proto created xprt %p\n", xprt);
 	return xprt;
 }
 
 /**
  * xprt_destroy - destroy an RPC transport, killing off all requests.
- * @xprt: transport to destroy
+ * @kref: kref for the transport to destroy
  *
  */
-int xprt_destroy(struct rpc_xprt *xprt)
+static void xprt_destroy(struct kref *kref)
 {
+	struct rpc_xprt *xprt = container_of(kref, struct rpc_xprt, kref);
+
 	dprintk("RPC:      destroying transport %p\n", xprt);
 	xprt->shutdown = 1;
 	del_timer_sync(&xprt->timer);
 	xprt->ops->destroy(xprt);
 	kfree(xprt);
+}
 
-	return 0;
+/**
+ * xprt_put - release a reference to an RPC transport.
+ * @xprt: pointer to the transport
+ *
+ */
+void xprt_put(struct rpc_xprt *xprt)
+{
+	kref_put(&xprt->kref, xprt_destroy);
+}
+
+/**
+ * xprt_get - return a reference to an RPC transport.
+ * @xprt: pointer to the transport
+ *
+ */
+struct rpc_xprt *xprt_get(struct rpc_xprt *xprt)
+{
+	kref_get(&xprt->kref);
+	return xprt;
 }

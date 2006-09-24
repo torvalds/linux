@@ -2167,7 +2167,7 @@ end_copy_pkt:
 			cas_page_unmap(addr);
 	}
 	skb->csum = ntohs(i ^ 0xffff);
-	skb->ip_summed = CHECKSUM_HW;
+	skb->ip_summed = CHECKSUM_COMPLETE;
 	skb->protocol = eth_type_trans(skb, cp->dev);
 	return len;
 }
@@ -2821,7 +2821,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 	}
 
 	ctrl = 0;
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		u64 csum_start_off, csum_stuff_off;
 
 		csum_start_off = (u64) (skb->h.raw - skb->data);
