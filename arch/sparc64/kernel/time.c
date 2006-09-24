@@ -983,7 +983,7 @@ static struct time_interpolator sparc64_cpu_interpolator = {
 };
 
 /* The quotient formula is taken from the IA64 port. */
-#define SPARC64_NSEC_PER_CYC_SHIFT	30UL
+#define SPARC64_NSEC_PER_CYC_SHIFT	10UL
 void __init time_init(void)
 {
 	unsigned long clock = sparc64_init_timers();
