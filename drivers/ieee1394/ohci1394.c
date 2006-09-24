@@ -3529,10 +3529,64 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM
-static int ohci1394_pci_resume (struct pci_dev *pdev)
+static int ohci1394_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	int err;
-	struct ti_ohci *ohci;
+	struct ti_ohci *ohci = pci_get_drvdata(pdev);
+
+	PRINT(KERN_DEBUG, "suspend called");
+	if (!ohci)
+		return -ENXIO;
+
+	/* Clear the async DMA contexts and stop using the controller */
+	hpsb_bus_reset(ohci->host);
+
+	/* See ohci1394_pci_remove() for comments on this sequence */
+	reg_write(ohci, OHCI1394_ConfigROMhdr, 0);
+	reg_write(ohci, OHCI1394_BusOptions,
+		  (reg_read(ohci, OHCI1394_BusOptions) & 0x0000f007) |
+		  0x00ff0000);
+	reg_write(ohci, OHCI1394_IntMaskClear, 0xffffffff);
+	reg_write(ohci, OHCI1394_IntEventClear, 0xffffffff);
+	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, 0xffffffff);
+	reg_write(ohci, OHCI1394_IsoXmitIntEventClear, 0xffffffff);
+	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, 0xffffffff);
+	reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 0xffffffff);
+	set_phy_reg(ohci, 4, ~0xc0 & get_phy_reg(ohci, 4));
+	reg_write(ohci, OHCI1394_LinkControlClear, 0xffffffff);
+	ohci_devctl(ohci->host, RESET_BUS, LONG_RESET_NO_FORCE_ROOT);
+	ohci_soft_reset(ohci);
+
+	err = pci_save_state(pdev);
+	if (err)
+		return err;
+	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (err)
+		return err;
+
+/* PowerMac suspend code comes last */
+#ifdef CONFIG_PPC_PMAC
+	if (machine_is(powermac)) {
+		struct device_node *of_node;
+
+		/* Disable 1394 */
+		of_node = pci_device_to_OF_node (pdev);
+		if (of_node)
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
+	}
+#endif /* CONFIG_PPC_PMAC */
+
+	return 0;
+}
+
+static int ohci1394_pci_resume(struct pci_dev *pdev)
+{
+	int err;
+	struct ti_ohci *ohci = pci_get_drvdata(pdev);
+
+	PRINT(KERN_DEBUG, "resume called");
+	if (!ohci)
+		return -ENXIO;
 
 /* PowerMac resume code comes first */
 #ifdef CONFIG_PPC_PMAC
@@ -3552,99 +3606,15 @@ static int ohci1394_pci_resume (struct pci_dev *pdev)
 	if (err)
 		return err;
 
-	ohci = pci_get_drvdata(pdev);
-	if (!ohci)
-		return -1; /* or which exit status to use? */
-
-	PRINT(KERN_DEBUG, "resume called");
-
-	/* The following lines are copied from ohci1394_pci_probe(): */
-
-	/* Start off with a soft reset, to clear everything to a sane
-	 * state. */
+	/* See ohci1394_pci_probe() for comments on this sequence */
 	ohci_soft_reset(ohci);
-
-	/* Now enable LPS, which we need in order to start accessing
-	 * most of the registers.  In fact, on some cards (ALI M5251),
-	 * accessing registers in the SClk domain without LPS enabled
-	 * will lock up the machine.  Wait 50msec to make sure we have
-	 * full link enabled.  */
 	reg_write(ohci, OHCI1394_HCControlSet, OHCI1394_HCControl_LPS);
-
-	/* Disable and clear interrupts */
 	reg_write(ohci, OHCI1394_IntEventClear, 0xffffffff);
 	reg_write(ohci, OHCI1394_IntMaskClear, 0xffffffff);
-
 	mdelay(50);
-
 	ohci_initialize(ohci);
 
 	return 0;
-}
-
-static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
-{
-	int err;
-	struct ti_ohci *ohci;
-
-	ohci = pci_get_drvdata(pdev);
-	if (!ohci)
-		return -1; /* Not sure if this is the correct return code */
-
-	PRINT(KERN_DEBUG, "suspend called");
-
-	/* clear the async DMA contexts and stop using the controller: */
-	hpsb_bus_reset(ohci->host);
-
-	/* The following calls are from ohci1394_pci_remove(): */
-
-	/* Clear out BUS Options */
-	reg_write(ohci, OHCI1394_ConfigROMhdr, 0);
-	reg_write(ohci, OHCI1394_BusOptions,
-		  (reg_read(ohci, OHCI1394_BusOptions) & 0x0000f007) |
-		  0x00ff0000);
-
-	/* Clear interrupt registers */
-	reg_write(ohci, OHCI1394_IntMaskClear, 0xffffffff);
-	reg_write(ohci, OHCI1394_IntEventClear, 0xffffffff);
-	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, 0xffffffff);
-	reg_write(ohci, OHCI1394_IsoXmitIntEventClear, 0xffffffff);
-	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, 0xffffffff);
-	reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 0xffffffff);
-
-	/* Disable IRM Contender */
-	set_phy_reg(ohci, 4, ~0xc0 & get_phy_reg(ohci, 4));
-
-	/* Clear link control register */
-	reg_write(ohci, OHCI1394_LinkControlClear, 0xffffffff);
-
-	/* Let all other nodes know to ignore us */
-	ohci_devctl(ohci->host, RESET_BUS, LONG_RESET_NO_FORCE_ROOT);
-
-	/* This stops all DMA contexts, disables interrupts,
-	 * and clears linkEnable and LPS: */
-	ohci_soft_reset(ohci);
-
-	err = pci_save_state(pdev);
-	if (err)
-		goto out;
-	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
-	if (err)
-		goto out;
-
-/* PowerMac suspend code comes last */
-#ifdef CONFIG_PPC_PMAC
-	if (machine_is(powermac)) {
-		struct device_node *of_node;
-
-		/* Disable 1394 */
-		of_node = pci_device_to_OF_node (pdev);
-		if (of_node)
-			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
-	}
-#endif /* CONFIG_PPC_PMAC */
-out:
-	return err;
 }
 #endif /* CONFIG_PM */
 
