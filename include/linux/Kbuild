@@ -266,7 +266,6 @@ unifdef-y += netfilter_decnet.h
 unifdef-y += netfilter.h
 unifdef-y += netfilter_ipv4.h
 unifdef-y += netfilter_ipv6.h
-unifdef-y += netfilter_logging.h
 unifdef-y += net.h
 unifdef-y += netlink.h
 unifdef-y += nfs3.h
