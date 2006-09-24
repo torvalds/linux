@@ -18,8 +18,8 @@ config VIDEO_PVRUSB2_29XXX
 	select VIDEO_SAA711X
 	select VIDEO_MSP3400
 	---help---
-	  This option enables support for WinTV-PVR USB2 devices whose 
-	  model number is of the form "29xxx" (leading prefix of "29" 
+	  This option enables support for WinTV-PVR USB2 devices whose
+	  model number is of the form "29xxx" (leading prefix of "29"
 	  followed by 3 digits).
 	  To see if you may need this option, examine the white
 	  sticker on the underside of your device.
@@ -37,14 +37,9 @@ config VIDEO_PVRUSB2_24XXX
 	  form "24xxx" (leading prefix of "24" followed by 3 digits).
 	  To see if you may need this option, examine the white
 	  sticker on the underside of your device.  Enabling this
-	  option will not harm support for older devices, however it
-	  is a separate option because of the experimental nature of
-	  this new feature.
+	  option will not harm support for older devices.
 
-	  If you are in doubt, say N.
-
-	  Note: This feature is _very_ experimental.  You have been
-	  warned.
+	  If you are in doubt, say Y.
 
 config VIDEO_PVRUSB2_SYSFS
 	bool "pvrusb2 sysfs support (EXPERIMENTAL)"
