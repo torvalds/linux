@@ -233,7 +233,7 @@ void cs46xx_dsp_proc_free_scb_desc (struct dsp_scb_descriptor * scb)
 
 		snd_printdd("cs46xx_dsp_proc_free_scb_desc: freeing %s\n",scb->scb_name);
 
-		snd_info_unregister(scb->proc_info);
+		snd_info_free_entry(scb->proc_info);
 		scb->proc_info = NULL;
 
 		snd_assert (scb_info != NULL, return);

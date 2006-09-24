@@ -29,6 +29,7 @@
 #include <sound/core.h>
 #include <sound/ad1848.h>
 #include <sound/control.h>
+#include <sound/tlv.h>
 #include <sound/pcm_params.h>
 
 #include <asm/io.h>
@@ -117,6 +118,8 @@ void snd_ad1848_out(struct snd_ad1848 *chip,
 	printk("codec out - reg 0x%x = 0x%x\n", chip->mce_bit | reg, value);
 #endif
 }
+
+EXPORT_SYMBOL(snd_ad1848_out);
 
 static void snd_ad1848_dout(struct snd_ad1848 *chip,
 			    unsigned char reg, unsigned char value)
@@ -941,6 +944,8 @@ int snd_ad1848_create(struct snd_card *card,
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_ad1848_create);
+
 static struct snd_pcm_ops snd_ad1848_playback_ops = {
 	.open =		snd_ad1848_playback_open,
 	.close =	snd_ad1848_playback_close,
@@ -988,11 +993,15 @@ int snd_ad1848_pcm(struct snd_ad1848 *chip, int device, struct snd_pcm **rpcm)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_ad1848_pcm);
+
 const struct snd_pcm_ops *snd_ad1848_get_pcm_ops(int direction)
 {
 	return direction == SNDRV_PCM_STREAM_PLAYBACK ?
 		&snd_ad1848_playback_ops : &snd_ad1848_capture_ops;
 }
+
+EXPORT_SYMBOL(snd_ad1848_get_pcm_ops);
 
 /*
  *  MIXER part
@@ -1171,7 +1180,8 @@ static int snd_ad1848_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 
 /*
  */
-int snd_ad1848_add_ctl(struct snd_ad1848 *chip, const char *name, int index, int type, unsigned long value)
+int snd_ad1848_add_ctl_elem(struct snd_ad1848 *chip,
+			    const struct ad1848_mix_elem *c)
 {
 	static struct snd_kcontrol_new newctls[] = {
 		[AD1848_MIX_SINGLE] = {
@@ -1196,32 +1206,46 @@ int snd_ad1848_add_ctl(struct snd_ad1848 *chip, const char *name, int index, int
 	struct snd_kcontrol *ctl;
 	int err;
 
-	ctl = snd_ctl_new1(&newctls[type], chip);
+	ctl = snd_ctl_new1(&newctls[c->type], chip);
 	if (! ctl)
 		return -ENOMEM;
-	strlcpy(ctl->id.name, name, sizeof(ctl->id.name));
-	ctl->id.index = index;
-	ctl->private_value = value;
+	strlcpy(ctl->id.name, c->name, sizeof(ctl->id.name));
+	ctl->id.index = c->index;
+	ctl->private_value = c->private_value;
+	if (c->tlv) {
+		ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+		ctl->tlv.p = c->tlv;
+	}
 	if ((err = snd_ctl_add(chip->card, ctl)) < 0)
 		return err;
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_ad1848_add_ctl_elem);
+
+static DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
 
 static struct ad1848_mix_elem snd_ad1848_controls[] = {
 AD1848_DOUBLE("PCM Playback Switch", 0, AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 7, 7, 1, 1),
-AD1848_DOUBLE("PCM Playback Volume", 0, AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 0, 0, 63, 1),
+AD1848_DOUBLE_TLV("PCM Playback Volume", 0, AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 0, 0, 63, 1,
+		  db_scale_6bit),
 AD1848_DOUBLE("Aux Playback Switch", 0, AD1848_AUX1_LEFT_INPUT, AD1848_AUX1_RIGHT_INPUT, 7, 7, 1, 1),
-AD1848_DOUBLE("Aux Playback Volume", 0, AD1848_AUX1_LEFT_INPUT, AD1848_AUX1_RIGHT_INPUT, 0, 0, 31, 1),
+AD1848_DOUBLE_TLV("Aux Playback Volume", 0, AD1848_AUX1_LEFT_INPUT, AD1848_AUX1_RIGHT_INPUT, 0, 0, 31, 1,
+		  db_scale_5bit_12db_max),
 AD1848_DOUBLE("Aux Playback Switch", 1, AD1848_AUX2_LEFT_INPUT, AD1848_AUX2_RIGHT_INPUT, 7, 7, 1, 1),
-AD1848_DOUBLE("Aux Playback Volume", 1, AD1848_AUX2_LEFT_INPUT, AD1848_AUX2_RIGHT_INPUT, 0, 0, 31, 1),
-AD1848_DOUBLE("Capture Volume", 0, AD1848_LEFT_INPUT, AD1848_RIGHT_INPUT, 0, 0, 15, 0),
+AD1848_DOUBLE_TLV("Aux Playback Volume", 1, AD1848_AUX2_LEFT_INPUT, AD1848_AUX2_RIGHT_INPUT, 0, 0, 31, 1,
+		  db_scale_5bit_12db_max),
+AD1848_DOUBLE_TLV("Capture Volume", 0, AD1848_LEFT_INPUT, AD1848_RIGHT_INPUT, 0, 0, 15, 0,
+		  db_scale_rec_gain),
 {
 	.name = "Capture Source",
 	.type = AD1848_MIX_CAPTURE,
 },
 AD1848_SINGLE("Loopback Capture Switch", 0, AD1848_LOOPBACK, 0, 1, 0),
-AD1848_SINGLE("Loopback Capture Volume", 0, AD1848_LOOPBACK, 1, 63, 0)
+AD1848_SINGLE_TLV("Loopback Capture Volume", 0, AD1848_LOOPBACK, 1, 63, 0,
+		  db_scale_6bit),
 };
                                         
 int snd_ad1848_mixer(struct snd_ad1848 *chip)
@@ -1245,12 +1269,7 @@ int snd_ad1848_mixer(struct snd_ad1848 *chip)
 	return 0;
 }
 
-EXPORT_SYMBOL(snd_ad1848_out);
-EXPORT_SYMBOL(snd_ad1848_create);
-EXPORT_SYMBOL(snd_ad1848_pcm);
-EXPORT_SYMBOL(snd_ad1848_get_pcm_ops);
 EXPORT_SYMBOL(snd_ad1848_mixer);
-EXPORT_SYMBOL(snd_ad1848_add_ctl);
 
 /*
  *  INIT part

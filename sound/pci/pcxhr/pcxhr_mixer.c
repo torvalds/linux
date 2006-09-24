@@ -31,6 +31,7 @@
 #include "pcxhr_hwdep.h"
 #include "pcxhr_core.h"
 #include <sound/control.h>
+#include <sound/tlv.h>
 #include <sound/asoundef.h>
 #include "pcxhr_mixer.h"
 
@@ -42,6 +43,9 @@
 #define PCXHR_ANALOG_PLAYBACK_LEVEL_MIN  0	/* -128.0 dB */
 #define PCXHR_ANALOG_PLAYBACK_LEVEL_MAX  128	/*    0.0 dB */
 #define PCXHR_ANALOG_PLAYBACK_ZERO_LEVEL 104	/*  -24.0 dB ( 0.0 dB - fix level +24.0 dB ) */
+
+static DECLARE_TLV_DB_SCALE(db_scale_analog_capture, -9600, 50, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_analog_playback, -12800, 100, 0);
 
 static int pcxhr_update_analog_audio_level(struct snd_pcxhr *chip, int is_capture, int channel)
 {
@@ -130,10 +134,13 @@ static int pcxhr_analog_vol_put(struct snd_kcontrol *kcontrol,
 
 static struct snd_kcontrol_new pcxhr_control_analog_level = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			 SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 	/* name will be filled later */
 	.info =		pcxhr_analog_vol_info,
 	.get =		pcxhr_analog_vol_get,
 	.put =		pcxhr_analog_vol_put,
+	/* tlv will be filled later */
 };
 
 /* shared */
@@ -188,6 +195,7 @@ static struct snd_kcontrol_new pcxhr_control_output_switch = {
 #define PCXHR_DIGITAL_LEVEL_MAX		0x1ff	/* +18 dB */
 #define PCXHR_DIGITAL_ZERO_LEVEL	0x1b7	/*  0 dB */
 
+static DECLARE_TLV_DB_SCALE(db_scale_digital, -10950, 50, 0);
 
 #define MORE_THAN_ONE_STREAM_LEVEL	0x000001
 #define VALID_STREAM_PAN_LEVEL_MASK	0x800000
@@ -343,11 +351,14 @@ static int pcxhr_pcm_vol_put(struct snd_kcontrol *kcontrol,
 static struct snd_kcontrol_new snd_pcxhr_pcm_vol =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			 SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 	/* name will be filled later */
 	/* count will be filled later */
 	.info =		pcxhr_digital_vol_info,		/* shared */
 	.get =		pcxhr_pcm_vol_get,
 	.put =		pcxhr_pcm_vol_put,
+	.tlv = { .p = db_scale_digital },
 };
 
 
@@ -433,10 +444,13 @@ static int pcxhr_monitor_vol_put(struct snd_kcontrol *kcontrol,
 
 static struct snd_kcontrol_new pcxhr_control_monitor_vol = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			 SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 	.name =         "Monitoring Volume",
 	.info =		pcxhr_digital_vol_info,		/* shared */
 	.get =		pcxhr_monitor_vol_get,
 	.put =		pcxhr_monitor_vol_put,
+	.tlv = { .p = db_scale_digital },
 };
 
 /*
@@ -928,6 +942,7 @@ int pcxhr_create_mixer(struct pcxhr_mgr *mgr)
 			temp = pcxhr_control_analog_level;
 			temp.name = "Master Playback Volume";
 			temp.private_value = 0; /* playback */
+			temp.tlv.p = db_scale_analog_playback;
 			if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&temp, chip))) < 0)
 				return err;
 			/* output mute controls */
@@ -963,6 +978,7 @@ int pcxhr_create_mixer(struct pcxhr_mgr *mgr)
 			temp = pcxhr_control_analog_level;
 			temp.name = "Master Capture Volume";
 			temp.private_value = 1; /* capture */
+			temp.tlv.p = db_scale_analog_capture;
 			if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&temp, chip))) < 0)
 				return err;
 

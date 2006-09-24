@@ -2251,6 +2251,16 @@ static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
 	/* ACLink on, 2 channels */
 	cnt = igetdword(chip, ICHREG(GLOB_CNT));
 	cnt &= ~(ICH_ACLINK | ICH_PCM_246_MASK);
+#ifdef CONFIG_SND_AC97_POWER_SAVE
+	/* do cold reset - the full ac97 powerdown may leave the controller
+	 * in a warm state but actually it cannot communicate with the codec.
+	 */
+	iputdword(chip, ICHREG(GLOB_CNT), cnt & ~ICH_AC97COLD);
+	cnt = igetdword(chip, ICHREG(GLOB_CNT));
+	udelay(10);
+	iputdword(chip, ICHREG(GLOB_CNT), cnt | ICH_AC97COLD);
+	msleep(1);
+#else
 	/* finish cold or do warm reset */
 	cnt |= (cnt & ICH_AC97COLD) == 0 ? ICH_AC97COLD : ICH_AC97WARM;
 	iputdword(chip, ICHREG(GLOB_CNT), cnt);
@@ -2265,6 +2275,7 @@ static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
 	return -EIO;
 
       __ok:
+#endif
 	if (probing) {
 		/* wait for any codec ready status.
 		 * Once it becomes ready it should remain ready
@@ -2485,7 +2496,7 @@ static int intel8x0_resume(struct pci_dev *pci)
 		    card->shortname, chip);
 	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
-	snd_intel8x0_chip_init(chip, 1);
+	snd_intel8x0_chip_init(chip, 0);
 
 	/* re-initialize mixer stuff */
 	if (chip->device_type == DEVICE_INTEL_ICH4) {
@@ -2615,6 +2626,7 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 		/* not 48000Hz, tuning the clock.. */
 		chip->ac97_bus->clock = (chip->ac97_bus->clock * 48000) / pos;
 	printk(KERN_INFO "intel8x0: clocking to %d\n", chip->ac97_bus->clock);
+	snd_ac97_update_power(chip->ac97[0], AC97_PCM_FRONT_DAC_RATE, 0);
 }
 
 #ifdef CONFIG_PROC_FS

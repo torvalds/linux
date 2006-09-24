@@ -457,14 +457,10 @@ void snd_ac97_proc_init(struct snd_ac97 * ac97)
 
 void snd_ac97_proc_done(struct snd_ac97 * ac97)
 {
-	if (ac97->proc_regs) {
-		snd_info_unregister(ac97->proc_regs);
-		ac97->proc_regs = NULL;
-	}
-	if (ac97->proc) {
-		snd_info_unregister(ac97->proc);
-		ac97->proc = NULL;
-	}
+	snd_info_free_entry(ac97->proc_regs);
+	ac97->proc_regs = NULL;
+	snd_info_free_entry(ac97->proc);
+	ac97->proc = NULL;
 }
 
 void snd_ac97_bus_proc_init(struct snd_ac97_bus * bus)
@@ -485,8 +481,6 @@ void snd_ac97_bus_proc_init(struct snd_ac97_bus * bus)
 
 void snd_ac97_bus_proc_done(struct snd_ac97_bus * bus)
 {
-	if (bus->proc) {
-		snd_info_unregister(bus->proc);
-		bus->proc = NULL;
-	}
+	snd_info_free_entry(bus->proc);
+	bus->proc = NULL;
 }

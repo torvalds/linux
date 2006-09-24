@@ -73,6 +73,19 @@ config SND_MTPAV
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-mtpav.
 
+config SND_MTS64
+	tristate "ESI Miditerminal 4140 driver"
+	depends on SND && PARPORT
+	select SND_RAWMIDI
+	help
+	  The ESI Miditerminal 4140 is a 4 In 4 Out MIDI Interface with 
+          additional SMPTE Timecode capabilities for the parallel port.
+
+	  Say 'Y' to include support for this device.
+
+	  To compile this driver as a module, chose 'M' here: the module 
+          will be called snd-mts64.
+
 config SND_SERIAL_U16550
 	tristate "UART16550 serial MIDI driver"
 	depends on SND

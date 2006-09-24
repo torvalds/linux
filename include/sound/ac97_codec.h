@@ -27,6 +27,7 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
+#include <linux/workqueue.h>
 #include "pcm.h"
 #include "control.h"
 #include "info.h"
@@ -139,6 +140,20 @@
 #define AC97_GP_DRSS_MASK	0x0c00	/* double rate slot select */
 #define AC97_GP_DRSS_1011	0x0000	/* LR(C) 10+11(+12) */
 #define AC97_GP_DRSS_78		0x0400	/* LR 7+8 */
+
+/* powerdown bits */
+#define AC97_PD_ADC_STATUS	0x0001	/* ADC status (RO) */
+#define AC97_PD_DAC_STATUS	0x0002	/* DAC status (RO) */
+#define AC97_PD_MIXER_STATUS	0x0004	/* Analog mixer status (RO) */
+#define AC97_PD_VREF_STATUS	0x0008	/* Vref status (RO) */
+#define AC97_PD_PR0		0x0100	/* Power down PCM ADCs and input MUX */
+#define AC97_PD_PR1		0x0200	/* Power down PCM front DAC */
+#define AC97_PD_PR2		0x0400	/* Power down Mixer (Vref still on) */
+#define AC97_PD_PR3		0x0800	/* Power down Mixer (Vref off) */
+#define AC97_PD_PR4		0x1000	/* Power down AC-Link */
+#define AC97_PD_PR5		0x2000	/* Disable internal clock usage */
+#define AC97_PD_PR6		0x4000	/* Headphone amplifier */
+#define AC97_PD_EAPD		0x8000	/* External Amplifer Power Down (EAPD) */
 
 /* extended audio ID bit defines */
 #define AC97_EI_VRA		0x0001	/* Variable bit rate supported */
@@ -359,6 +374,7 @@
 #define AC97_SCAP_INV_EAPD	(1<<7)	/* inverted EAPD */
 #define AC97_SCAP_DETECT_BY_VENDOR (1<<8) /* use vendor registers for read tests */
 #define AC97_SCAP_NO_SPDIF	(1<<9)	/* don't build SPDIF controls */
+#define AC97_SCAP_EAPD_LED	(1<<10)	/* EAPD as mute LED */
 
 /* ac97->flags */
 #define AC97_HAS_PC_BEEP	(1<<0)	/* force PC Speaker usage */
@@ -491,6 +507,12 @@ struct snd_ac97 {
 	/* jack-sharing info */
 	unsigned char indep_surround;
 	unsigned char channel_mode;
+
+#ifdef CONFIG_SND_AC97_POWER_SAVE
+	unsigned int power_up;	/* power states */
+	struct workqueue_struct *power_workq;
+	struct work_struct power_work;
+#endif
 	struct device dev;
 };
 
@@ -532,6 +554,15 @@ unsigned short snd_ac97_read(struct snd_ac97 *ac97, unsigned short reg);
 void snd_ac97_write_cache(struct snd_ac97 *ac97, unsigned short reg, unsigned short value);
 int snd_ac97_update(struct snd_ac97 *ac97, unsigned short reg, unsigned short value);
 int snd_ac97_update_bits(struct snd_ac97 *ac97, unsigned short reg, unsigned short mask, unsigned short value);
+#ifdef CONFIG_SND_AC97_POWER_SAVE
+int snd_ac97_update_power(struct snd_ac97 *ac97, int reg, int powerup);
+#else
+static inline int snd_ac97_update_power(struct snd_ac97 *ac97, int reg,
+					int powerup)
+{
+	return 0;
+}
+#endif
 #ifdef CONFIG_PM
 void snd_ac97_suspend(struct snd_ac97 *ac97);
 void snd_ac97_resume(struct snd_ac97 *ac97);
@@ -583,6 +614,7 @@ struct ac97_pcm {
 		     copy_flag: 1,	   /* lowlevel driver must fill all entries */
 		     spdif: 1;		   /* spdif pcm */
 	unsigned short aslots;		   /* active slots */
+	unsigned short cur_dbl;		   /* current double-rate state */
 	unsigned int rates;		   /* available rates */
 	struct {
 		unsigned short slots;	   /* driver input: requested AC97 slot numbers */

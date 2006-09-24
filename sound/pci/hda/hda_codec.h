@@ -479,7 +479,7 @@ struct hda_codec_ops {
 struct hda_amp_info {
 	u32 key;		/* hash key */
 	u32 amp_caps;		/* amp capabilities */
-	u16 vol[2];		/* current volume & mute*/
+	u16 vol[2];		/* current volume & mute */
 	u16 status;		/* update flag */
 	u16 next;		/* next link */
 };
