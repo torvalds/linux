@@ -179,7 +179,7 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 	if (status < 0)
 		goto bail_add;
 
-	inode = ocfs2_iget(OCFS2_SB(dir->i_sb), blkno);
+	inode = ocfs2_iget(OCFS2_SB(dir->i_sb), blkno, 0);
 	if (IS_ERR(inode)) {
 		mlog(ML_ERROR, "Unable to create inode %llu\n",
 		     (unsigned long long)blkno);
@@ -199,9 +199,31 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 	spin_unlock(&oi->ip_lock);
 
 bail_add:
-
 	dentry->d_op = &ocfs2_dentry_ops;
 	ret = d_splice_alias(inode, dentry);
+
+	if (inode) {
+		/*
+		 * If d_splice_alias() finds a DCACHE_DISCONNECTED
+		 * dentry, it will d_move() it on top of ourse. The
+		 * return value will indicate this however, so in
+		 * those cases, we switch them around for the locking
+		 * code.
+		 *
+		 * NOTE: This dentry already has ->d_op set from
+		 * ocfs2_get_parent() and ocfs2_get_dentry()
+		 */
+		if (ret)
+			dentry = ret;
+
+		status = ocfs2_dentry_attach_lock(dentry, inode,
+						  OCFS2_I(dir)->ip_blkno);
+		if (status) {
+			mlog_errno(status);
+			ret = ERR_PTR(status);
+			goto bail_unlock;
+		}
+	}
 
 bail_unlock:
 	/* Don't drop the cluster lock until *after* the d_add --
@@ -414,6 +436,13 @@ static int ocfs2_mknod(struct inode *dir,
 				 OCFS2_I(inode)->ip_blkno, parent_fe_bh,
 				 de_bh);
 	if (status < 0) {
+		mlog_errno(status);
+		goto leave;
+	}
+
+	status = ocfs2_dentry_attach_lock(dentry, inode,
+					  OCFS2_I(dir)->ip_blkno);
+	if (status) {
 		mlog_errno(status);
 		goto leave;
 	}
@@ -725,6 +754,12 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto bail;
 	}
 
+	err = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
+	if (err) {
+		mlog_errno(err);
+		goto bail;
+	}
+
 	atomic_inc(&inode->i_count);
 	dentry->d_op = &ocfs2_dentry_ops;
 	d_instantiate(dentry, inode);
@@ -741,6 +776,23 @@ bail:
 	mlog_exit(err);
 
 	return err;
+}
+
+/*
+ * Takes and drops an exclusive lock on the given dentry. This will
+ * force other nodes to drop it.
+ */
+static int ocfs2_remote_dentry_delete(struct dentry *dentry)
+{
+	int ret;
+
+	ret = ocfs2_dentry_lock(dentry, 1);
+	if (ret)
+		mlog_errno(ret);
+	else
+		ocfs2_dentry_unlock(dentry, 1);
+
+	return ret;
 }
 
 static int ocfs2_unlink(struct inode *dir,
@@ -832,8 +884,7 @@ static int ocfs2_unlink(struct inode *dir,
 	else
 		inode->i_nlink--;
 
-	status = ocfs2_request_unlink_vote(inode, dentry,
-					   (unsigned int) inode->i_nlink);
+	status = ocfs2_remote_dentry_delete(dentry);
 	if (status < 0) {
 		/* This vote should succeed under all normal
 		 * circumstances. */
@@ -1019,7 +1070,6 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct buffer_head *old_inode_de_bh = NULL; // if old_dentry is a dir,
 						    // this is the 1st dirent bh
 	nlink_t old_dir_nlink = old_dir->i_nlink, new_dir_nlink = new_dir->i_nlink;
-	unsigned int links_count;
 
 	/* At some point it might be nice to break this function up a
 	 * bit. */
@@ -1093,23 +1143,26 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 	}
 
-	if (S_ISDIR(old_inode->i_mode)) {
-		/* Directories actually require metadata updates to
-		 * the directory info so we can't get away with not
-		 * doing node locking on it. */
-		status = ocfs2_meta_lock(old_inode, handle, NULL, 1);
-		if (status < 0) {
-			if (status != -ENOENT)
-				mlog_errno(status);
-			goto bail;
-		}
-
-		status = ocfs2_request_rename_vote(old_inode, old_dentry);
-		if (status < 0) {
+	/*
+	 * Though we don't require an inode meta data update if
+	 * old_inode is not a directory, we lock anyway here to ensure
+	 * the vote thread on other nodes won't have to concurrently
+	 * downconvert the inode and the dentry locks.
+	 */
+	status = ocfs2_meta_lock(old_inode, handle, NULL, 1);
+	if (status < 0) {
+		if (status != -ENOENT)
 			mlog_errno(status);
-			goto bail;
-		}
+		goto bail;
+	}
 
+	status = ocfs2_remote_dentry_delete(old_dentry);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	if (S_ISDIR(old_inode->i_mode)) {
 		status = -EIO;
 		old_inode_de_bh = ocfs2_bread(old_inode, 0, &status, 0);
 		if (!old_inode_de_bh)
@@ -1123,14 +1176,6 @@ static int ocfs2_rename(struct inode *old_dir,
 		if (!new_inode && new_dir!=old_dir &&
 		    new_dir->i_nlink >= OCFS2_LINK_MAX)
 			goto bail;
-	} else {
-		/* Ah, the simple case - we're a file so just send a
-		 * message. */
-		status = ocfs2_request_rename_vote(old_inode, old_dentry);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
 	}
 
 	status = -ENOENT;
@@ -1202,13 +1247,7 @@ static int ocfs2_rename(struct inode *old_dir,
 			goto bail;
 		}
 
-		if (S_ISDIR(new_inode->i_mode))
-			links_count = 0;
-		else
-			links_count = (unsigned int) (new_inode->i_nlink - 1);
-
-		status = ocfs2_request_unlink_vote(new_inode, new_dentry,
-						   links_count);
+		status = ocfs2_remote_dentry_delete(new_dentry);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -1387,6 +1426,7 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 	}
 
+	ocfs2_dentry_move(old_dentry, new_dentry, old_dir, new_dir);
 	status = 0;
 bail:
 	if (rename_lock)
@@ -1671,6 +1711,12 @@ static int ocfs2_symlink(struct inode *dir,
 				 le64_to_cpu(fe->i_blkno), parent_fe_bh,
 				 de_bh);
 	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	status = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
+	if (status) {
 		mlog_errno(status);
 		goto bail;
 	}

@@ -540,8 +540,8 @@ static inline void dlm_get_next_cookie(u8 node_num, u64 *cookie)
 
 enum dlm_status dlmlock(struct dlm_ctxt *dlm, int mode,
 			struct dlm_lockstatus *lksb, int flags,
-			const char *name, dlm_astlockfunc_t *ast, void *data,
-			dlm_bastlockfunc_t *bast)
+			const char *name, int namelen, dlm_astlockfunc_t *ast,
+			void *data, dlm_bastlockfunc_t *bast)
 {
 	enum dlm_status status;
 	struct dlm_lock_resource *res = NULL;
@@ -571,7 +571,7 @@ enum dlm_status dlmlock(struct dlm_ctxt *dlm, int mode,
 	recovery = (flags & LKM_RECOVERY);
 
 	if (recovery &&
-	    (!dlm_is_recovery_lock(name, strlen(name)) || convert) ) {
+	    (!dlm_is_recovery_lock(name, namelen) || convert) ) {
 		dlm_error(status);
 		goto error;
 	}
@@ -643,7 +643,7 @@ retry_convert:
 		}
 
 		status = DLM_IVBUFLEN;
-		if (strlen(name) > DLM_LOCKID_NAME_MAX || strlen(name) < 1) {
+		if (namelen > DLM_LOCKID_NAME_MAX || namelen < 1) {
 			dlm_error(status);
 			goto error;
 		}
@@ -659,7 +659,7 @@ retry_convert:
 			dlm_wait_for_recovery(dlm);
 
 		/* find or create the lock resource */
-		res = dlm_get_lock_resource(dlm, name, flags);
+		res = dlm_get_lock_resource(dlm, name, namelen, flags);
 		if (!res) {
 			status = DLM_IVLOCKID;
 			dlm_error(status);

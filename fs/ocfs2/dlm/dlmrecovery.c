@@ -2285,7 +2285,8 @@ again:
 	memset(&lksb, 0, sizeof(lksb));
 
 	ret = dlmlock(dlm, LKM_EXMODE, &lksb, LKM_NOQUEUE|LKM_RECOVERY,
-		      DLM_RECOVERY_LOCK_NAME, dlm_reco_ast, dlm, dlm_reco_bast);
+		      DLM_RECOVERY_LOCK_NAME, DLM_RECOVERY_LOCK_NAME_LEN,
+		      dlm_reco_ast, dlm, dlm_reco_bast);
 
 	mlog(0, "%s: dlmlock($RECOVERY) returned %d, lksb=%d\n",
 	     dlm->name, ret, lksb.status);

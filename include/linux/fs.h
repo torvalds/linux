@@ -92,9 +92,10 @@ extern int dir_notify_enable;
 #define FS_REQUIRES_DEV 1 
 #define FS_BINARY_MOUNTDATA 2
 #define FS_REVAL_DOT	16384	/* Check the paths ".", ".." for staleness */
-#define FS_ODD_RENAME	32768	/* Temporary stuff; will go away as soon
-				  * as nfs_rename() will be cleaned up
-				  */
+#define FS_RENAME_DOES_D_MOVE	32768	/* FS will handle d_move()
+					 * during rename() internally.
+					 */
+
 /*
  * These are the fs-independent mount-flags: up to 32 flags are supported
  */
