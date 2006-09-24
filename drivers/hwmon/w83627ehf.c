@@ -4,6 +4,7 @@
     Copyright (C) 2005  Jean Delvare <khali@linux-fr.org>
     Copyright (C) 2006  Yuan Mu <Ymu@Winbond.com.tw>,
                         Rudolf Marek <r.marek@sh.cvut.cz>
+                        David Hubbard <david.c.hubbard@gmail.com>
 
     Shamelessly ripped from the w83627hf driver
     Copyright (C) 2003  Mark Studebaker
@@ -621,14 +622,6 @@ static struct sensor_device_attribute sda_in_max[] = {
        SENSOR_ATTR(in9_max, S_IWUSR | S_IRUGO, show_in_max, store_in_max, 9),
 };
 
-static void device_create_file_in(struct device *dev, int i)
-{
-	device_create_file(dev, &sda_in_input[i].dev_attr);
-	device_create_file(dev, &sda_in_alarm[i].dev_attr);
-	device_create_file(dev, &sda_in_min[i].dev_attr);
-	device_create_file(dev, &sda_in_max[i].dev_attr);
-}
-
 #define show_fan_reg(reg) \
 static ssize_t \
 show_##reg(struct device *dev, struct device_attribute *attr, \
@@ -755,14 +748,6 @@ static struct sensor_device_attribute sda_fan_div[] = {
 	SENSOR_ATTR(fan4_div, S_IRUGO, show_fan_div, NULL, 3),
 	SENSOR_ATTR(fan5_div, S_IRUGO, show_fan_div, NULL, 4),
 };
-
-static void device_create_file_fan(struct device *dev, int i)
-{
-	device_create_file(dev, &sda_fan_input[i].dev_attr);
-	device_create_file(dev, &sda_fan_alarm[i].dev_attr);
-	device_create_file(dev, &sda_fan_div[i].dev_attr);
-	device_create_file(dev, &sda_fan_min[i].dev_attr);
-}
 
 #define show_temp1_reg(reg) \
 static ssize_t \
@@ -1036,15 +1021,6 @@ static struct sensor_device_attribute sda_tolerance[] = {
 		    store_tolerance, 3),
 };
 
-static void device_create_file_pwm(struct device *dev, int i)
-{
-	device_create_file(dev, &sda_pwm[i].dev_attr);
-	device_create_file(dev, &sda_pwm_mode[i].dev_attr);
-	device_create_file(dev, &sda_pwm_enable[i].dev_attr);
-	device_create_file(dev, &sda_target_temp[i].dev_attr);
-	device_create_file(dev, &sda_tolerance[i].dev_attr);
-}
-
 /* Smart Fan registers */
 
 #define fan_functions(reg, REG) \
@@ -1130,6 +1106,39 @@ static struct sensor_device_attribute sda_sf3_arrays[] = {
 /*
  * Driver and client management
  */
+
+static void w83627ehf_device_remove_files(struct device *dev)
+{
+	/* some entries in the following arrays may not have been used in
+	 * device_create_file(), but device_remove_file() will ignore them */
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays); i++)
+		device_remove_file(dev, &sda_sf3_arrays[i].dev_attr);
+	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan4); i++)
+		device_remove_file(dev, &sda_sf3_arrays_fan4[i].dev_attr);
+	for (i = 0; i < 10; i++) {
+		device_remove_file(dev, &sda_in_input[i].dev_attr);
+		device_remove_file(dev, &sda_in_alarm[i].dev_attr);
+		device_remove_file(dev, &sda_in_min[i].dev_attr);
+		device_remove_file(dev, &sda_in_max[i].dev_attr);
+	}
+	for (i = 0; i < 5; i++) {
+		device_remove_file(dev, &sda_fan_input[i].dev_attr);
+		device_remove_file(dev, &sda_fan_alarm[i].dev_attr);
+		device_remove_file(dev, &sda_fan_div[i].dev_attr);
+		device_remove_file(dev, &sda_fan_min[i].dev_attr);
+	}
+	for (i = 0; i < 4; i++) {
+		device_remove_file(dev, &sda_pwm[i].dev_attr);
+		device_remove_file(dev, &sda_pwm_mode[i].dev_attr);
+		device_remove_file(dev, &sda_pwm_enable[i].dev_attr);
+		device_remove_file(dev, &sda_target_temp[i].dev_attr);
+		device_remove_file(dev, &sda_tolerance[i].dev_attr);
+	}
+	for (i = 0; i < ARRAY_SIZE(sda_temp); i++)
+		device_remove_file(dev, &sda_temp[i].dev_attr);
+}
 
 static struct i2c_driver w83627ehf_driver;
 
@@ -1217,37 +1226,69 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 		data->has_fan |= (1 << 4);
 
 	/* Register sysfs hooks */
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
-		goto exit_detach;
-	}
-
   	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays); i++)
-  		device_create_file(dev, &sda_sf3_arrays[i].dev_attr);
+		if ((err = device_create_file(dev,
+			&sda_sf3_arrays[i].dev_attr)))
+			goto exit_remove;
 
 	/* if fan4 is enabled create the sf3 files for it */
 	if (data->has_fan & (1 << 3))
-		for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan4); i++)
-			device_create_file(dev, &sda_sf3_arrays_fan4[i].dev_attr);
+		for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan4); i++) {
+			if ((err = device_create_file(dev,
+				&sda_sf3_arrays_fan4[i].dev_attr)))
+				goto exit_remove;
+		}
 
 	for (i = 0; i < 10; i++)
-		device_create_file_in(dev, i);
+		if ((err = device_create_file(dev, &sda_in_input[i].dev_attr))
+			|| (err = device_create_file(dev,
+				&sda_in_alarm[i].dev_attr))
+			|| (err = device_create_file(dev,
+				&sda_in_min[i].dev_attr))
+			|| (err = device_create_file(dev,
+				&sda_in_max[i].dev_attr)))
+			goto exit_remove;
 
 	for (i = 0; i < 5; i++) {
 		if (data->has_fan & (1 << i)) {
-			device_create_file_fan(dev, i);
-			if (i != 4) /* we have only 4 pwm */
-				device_create_file_pwm(dev, i);
+			if ((err = device_create_file(dev,
+					&sda_fan_input[i].dev_attr))
+				|| (err = device_create_file(dev,
+					&sda_fan_alarm[i].dev_attr))
+				|| (err = device_create_file(dev,
+					&sda_fan_div[i].dev_attr))
+				|| (err = device_create_file(dev,
+					&sda_fan_min[i].dev_attr)))
+				goto exit_remove;
+			if (i < 4 && /* w83627ehf only has 4 pwm */
+				((err = device_create_file(dev,
+					&sda_pwm[i].dev_attr))
+				|| (err = device_create_file(dev,
+					&sda_pwm_mode[i].dev_attr))
+				|| (err = device_create_file(dev,
+					&sda_pwm_enable[i].dev_attr))
+				|| (err = device_create_file(dev,
+					&sda_target_temp[i].dev_attr))
+				|| (err = device_create_file(dev,
+					&sda_tolerance[i].dev_attr))))
+				goto exit_remove;
 		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(sda_temp); i++)
-		device_create_file(dev, &sda_temp[i].dev_attr);
+		if ((err = device_create_file(dev, &sda_temp[i].dev_attr)))
+			goto exit_remove;
+
+	data->class_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_remove;
+	}
 
 	return 0;
 
-exit_detach:
+exit_remove:
+	w83627ehf_device_remove_files(dev);
 	i2c_detach_client(client);
 exit_free:
 	kfree(data);
@@ -1263,6 +1304,7 @@ static int w83627ehf_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+	w83627ehf_device_remove_files(&client->dev);
 
 	if ((err = i2c_detach_client(client)))
 		return err;
