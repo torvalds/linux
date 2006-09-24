@@ -1364,15 +1364,15 @@ struct compat_ipt_replace {
 };
 
 static inline int compat_copy_match_to_user(struct ipt_entry_match *m,
-		void * __user *dstptr, compat_uint_t *size)
+		void __user **dstptr, compat_uint_t *size)
 {
 	return xt_compat_match_to_user(m, dstptr, size);
 }
 
 static int compat_copy_entry_to_user(struct ipt_entry *e,
-		void * __user *dstptr, compat_uint_t *size)
+		void __user **dstptr, compat_uint_t *size)
 {
-	struct ipt_entry_target __user *t;
+	struct ipt_entry_target *t;
 	struct compat_ipt_entry __user *ce;
 	u_int16_t target_offset, next_offset;
 	compat_uint_t origsize;
