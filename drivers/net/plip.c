@@ -16,7 +16,7 @@
  *		parport-sharing awareness code by Philip Blundell.
  *		SMP locking by Niibe Yutaka.
  *		Support for parallel ports with no IRQ (poll mode),
- *		Modifications to use the parallel port API 
+ *		Modifications to use the parallel port API
  *		by Nimrod Zimerman.
  *
  * Fixes:
@@ -383,7 +383,7 @@ static void
 plip_timer_bh(struct net_device *dev)
 {
 	struct net_local *nl = netdev_priv(dev);
-	
+
 	if (!(atomic_read (&nl->kill_timer))) {
 		plip_interrupt (-1, dev, NULL);
 
@@ -527,7 +527,7 @@ plip_receive(unsigned short nibble_timeout, struct net_device *dev,
 }
 
 /*
- *	Determine the packet's protocol ID. The rule here is that we 
+ *	Determine the packet's protocol ID. The rule here is that we
  *	assume 802.3 if the type field is short enough to be a length.
  *	This is normal practice and works for any 'now in use' protocol.
  *
@@ -537,16 +537,16 @@ plip_receive(unsigned short nibble_timeout, struct net_device *dev,
  *	We can't fix the daddr thing as that quirk (more bug) is embedded
  *	in far too many old systems not all even running Linux.
  */
- 
+
 static __be16 plip_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
 	unsigned char *rawp;
-	
+
 	skb->mac.raw=skb->data;
 	skb_pull(skb,dev->hard_header_len);
 	eth = eth_hdr(skb);
-	
+
 	if(*eth->h_dest&1)
 	{
 		if(memcmp(eth->h_dest,dev->broadcast, ETH_ALEN)==0)
@@ -554,17 +554,17 @@ static __be16 plip_type_trans(struct sk_buff *skb, struct net_device *dev)
 		else
 			skb->pkt_type=PACKET_MULTICAST;
 	}
-	
+
 	/*
 	 *	This ALLMULTI check should be redundant by 1.4
 	 *	so don't forget to remove it.
 	 */
-	 
+
 	if (ntohs(eth->h_proto) >= 1536)
 		return eth->h_proto;
-		
+
 	rawp = skb->data;
-	
+
 	/*
 	 *	This is a magic hack to spot IPX packets. Older Novell breaks
 	 *	the protocol design and runs IPX over 802.3 without an 802.2 LLC
@@ -573,7 +573,7 @@ static __be16 plip_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (*(unsigned short *)rawp == 0xFFFF)
 		return htons(ETH_P_802_3);
-		
+
 	/*
 	 *	Real 802.2 LLC
 	 */
@@ -972,7 +972,7 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	netif_stop_queue (dev);
-	
+
 	if (skb->len > dev->mtu + dev->hard_header_len) {
 		printk(KERN_WARNING "%s: packet too big, %d.\n", dev->name, (int)skb->len);
 		netif_start_queue (dev);
@@ -993,7 +993,7 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 	}
 	schedule_work(&nl->immediate);
 	spin_unlock_irq(&nl->lock);
-	
+
 	return 0;
 }
 
@@ -1032,7 +1032,7 @@ int plip_hard_header_cache(struct neighbour *neigh,
 {
 	struct net_local *nl = neigh->dev->priv;
 	int ret;
-	
+
 	if ((ret = nl->orig_hard_header_cache(neigh, hh)) == 0)
 	{
 		struct ethhdr *eth;
@@ -1041,9 +1041,9 @@ int plip_hard_header_cache(struct neighbour *neigh,
 				       HH_DATA_OFF(sizeof(*eth)));
 		plip_rewrite_address (neigh->dev, eth);
 	}
-	
+
 	return ret;
-}                          
+}
 
 /* Open/initialize the board.  This is called (in the current kernel)
    sometime after booting when the 'ifconfig' program is run.
@@ -1187,7 +1187,7 @@ plip_wakeup(void *handle)
 		else
 			return;
 	}
-	
+
 	if (!(dev->flags & IFF_UP))
 		/* Don't need the port when the interface is down */
 		return;
@@ -1264,7 +1264,7 @@ static void plip_attach (struct parport *port)
 	struct net_local *nl;
 	char name[IFNAMSIZ];
 
-	if ((parport[0] == -1 && (!timid || !port->devices)) || 
+	if ((parport[0] == -1 && (!timid || !port->devices)) ||
 	    plip_searchfor(parport, port->number)) {
 		if (unit == PLIP_MAX) {
 			printk(KERN_ERR "plip: too many devices\n");
@@ -1277,7 +1277,7 @@ static void plip_attach (struct parport *port)
 			printk(KERN_ERR "plip: memory squeeze\n");
 			return;
 		}
-		
+
 		strcpy(dev->name, name);
 
 		SET_MODULE_OWNER(dev);
@@ -1290,7 +1290,7 @@ static void plip_attach (struct parport *port)
 
 		nl = netdev_priv(dev);
 		nl->pardev = parport_register_device(port, name, plip_preempt,
-						 plip_wakeup, plip_interrupt, 
+						 plip_wakeup, plip_interrupt,
 						 0, dev);
 
 		if (!nl->pardev) {
@@ -1384,7 +1384,7 @@ static int __init plip_setup(char *str)
 			/* disable driver on "plip=" or "plip=0" */
 			parport[0] = -2;
 		} else {
-			printk(KERN_WARNING "warning: 'plip=0x%x' ignored\n", 
+			printk(KERN_WARNING "warning: 'plip=0x%x' ignored\n",
 			       ints[1]);
 		}
 	}

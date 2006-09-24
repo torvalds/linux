@@ -337,7 +337,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		hdr_len += 2;
 
 		skb->priority = ieee80211_classify(skb);
-		header.qos_ctl |= skb->priority & IEEE80211_QCTL_TID;
+		header.qos_ctl |= cpu_to_le16(skb->priority & IEEE80211_QCTL_TID);
 	}
 	header.frame_ctl = cpu_to_le16(fc);
 
@@ -530,13 +530,6 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			stats->tx_packets++;
 			stats->tx_bytes += txb->payload_size;
 			return 0;
-		}
-
-		if (ret == NETDEV_TX_BUSY) {
-			printk(KERN_ERR "%s: NETDEV_TX_BUSY returned; "
-			       "driver should report queue full via "
-			       "ieee_device->is_queue_full.\n",
-			       ieee->dev->name);
 		}
 
 		ieee80211_txb_free(txb);

@@ -30,8 +30,8 @@
 */
 
 #define DRV_NAME	"via-rhine"
-#define DRV_VERSION	"1.4.1"
-#define DRV_RELDATE	"July-24-2006"
+#define DRV_VERSION	"1.4.2"
+#define DRV_RELDATE	"Sept-11-2006"
 
 
 /* A few user-configurable values.
@@ -411,7 +411,7 @@ static void rhine_error(struct net_device *dev, int intr_status);
 static void rhine_set_rx_mode(struct net_device *dev);
 static struct net_device_stats *rhine_get_stats(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
 static void rhine_shutdown (struct pci_dev *pdev);
 
@@ -1679,9 +1679,6 @@ static void rhine_set_rx_mode(struct net_device *dev)
 	u8 rx_mode;		/* Note: 0x02=accept runt, 0x01=accept errs */
 
 	if (dev->flags & IFF_PROMISC) {		/* Set promiscuous. */
-		/* Unconditionally log net taps. */
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n",
-		       dev->name);
 		rx_mode = 0x1C;
 		iowrite32(0xffffffff, ioaddr + MulticastFilter0);
 		iowrite32(0xffffffff, ioaddr + MulticastFilter1);
@@ -1799,7 +1796,7 @@ static int rhine_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_settings		= netdev_get_settings,
 	.set_settings		= netdev_set_settings,
@@ -2005,7 +2002,7 @@ static int __init rhine_init(void)
 #ifdef MODULE
 	printk(version);
 #endif
-	return pci_module_init(&rhine_driver);
+	return pci_register_driver(&rhine_driver);
 }
 
 

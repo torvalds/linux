@@ -14,10 +14,10 @@
  * Alphacode 0.82 (96/09/29) for Linux 2.0.0 (or later)
  * Copyrights (c) 1994,1995,1996 by M.Hipp (hippm@informatik.uni-tuebingen.de)
  * --------------------------
- * 
+ *
  * Consult ni52.c for further notes from the original driver.
  *
- * This incarnation currently supports the OBIO version of the i82586 chip 
+ * This incarnation currently supports the OBIO version of the i82586 chip
  * used in certain sun3 models.  It should be fairly doable to expand this
  * to support VME if I should every acquire such a board.
  *
@@ -227,7 +227,7 @@ static int check586(struct net_device *dev,char *where,unsigned size)
 		return 0;
 
 	iscp_addr = (char *)dvma_btov((unsigned long)where);
-	
+
 	p->iscp = (struct iscp_struct *) iscp_addr;
 	memset((char *)p->iscp,0, sizeof(struct iscp_struct));
 
@@ -237,7 +237,7 @@ static int check586(struct net_device *dev,char *where,unsigned size)
 	sun3_reset586();
 	sun3_attn586();
 	DELAY(1);	/* wait a while... */
-	
+
 	if(p->iscp->busy) /* i82586 clears 'busy' after successful init */
 		return 0;
 
@@ -286,7 +286,7 @@ struct net_device * __init sun3_82586_probe(int unit)
 	unsigned long ioaddr;
 	static int found = 0;
 	int err = -ENOMEM;
-	
+
 	/* check that this machine has an onboard 82586 */
 	switch(idprom->id_machtype) {
 	case SM_SUN3|SM_3_160:
@@ -300,12 +300,12 @@ struct net_device * __init sun3_82586_probe(int unit)
 
 	if (found)
 		return ERR_PTR(-ENODEV);
-	
+
 	ioaddr = (unsigned long)ioremap(IE_OBIO, SUN3_82586_TOTAL_SIZE);
 	if (!ioaddr)
 		return ERR_PTR(-ENOMEM);
 	found = 1;
-	
+
 	dev = alloc_etherdev(sizeof(struct priv));
 	if (!dev)
 		goto out;
@@ -379,7 +379,7 @@ static int __init sun3_82586_probe1(struct net_device *dev,int ioaddr)
 		((struct priv *) dev->priv)->num_recv_buffs = NUM_RECV_BUFFS_32;
 
 	printk("Memaddr: 0x%lx, Memsize: %d, IRQ %d\n",dev->mem_start,size, dev->irq);
-	
+
 	dev->open		= sun3_82586_open;
 	dev->stop		= sun3_82586_close;
 	dev->get_stats		= sun3_82586_get_stats;
@@ -479,7 +479,7 @@ static int init586(struct net_device *dev)
 	/*
 	 * TDR, wire check .. e.g. no resistor e.t.c
 	 */
-	 
+
 	tdr_cmd = (struct tdr_cmd_struct *)ptr;
 
 	tdr_cmd->cmd_status	= 0;

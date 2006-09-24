@@ -455,7 +455,7 @@ typedef volatile struct
 /************************************************************************/
 typedef volatile struct
 {
-	ulong		sysbus;	
+	ulong		sysbus;
 	ulong		dummy;
 	I596_ISCP	*iscpp;
 } I596_SCP;

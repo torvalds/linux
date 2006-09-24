@@ -356,7 +356,7 @@ static void lance_tx_timeout (struct net_device *dev);
 
 
 
-
+
 
 static void *slow_memcpy( void *dst, const void *src, size_t len )
 
@@ -549,7 +549,7 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 		memaddr == (unsigned short *)0xffe00000) {
 		/* PAMs card and Riebl on ST use level 5 autovector */
 		if (request_irq(IRQ_AUTO_5, lance_interrupt, IRQ_TYPE_PRIO,
-		            "PAM/Riebl-ST Ethernet", dev)) { 
+		            "PAM/Riebl-ST Ethernet", dev)) {
 			printk( "Lance: request for irq %d failed\n", IRQ_AUTO_5 );
 			return( 0 );
 		}
@@ -639,7 +639,7 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	/* XXX MSch */
 	dev->tx_timeout = lance_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-			
+
 
 #if 0
 	dev->start = 0;
@@ -650,7 +650,7 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	return( 1 );
 }
 
-
+
 static int lance_open( struct net_device *dev )
 
 {	struct lance_private *lp = (struct lance_private *)dev->priv;
@@ -744,7 +744,7 @@ static void lance_tx_timeout (struct net_device *dev)
 {
 	struct lance_private *lp = (struct lance_private *) dev->priv;
 	struct lance_ioreg	 *IO = lp->iobase;
-	
+
 	AREG = CSR0;
 	DPRINTK( 1, ( "%s: transmit timed out, status %04x, resetting.\n",
 			  dev->name, DREG ));
@@ -772,7 +772,7 @@ static void lance_tx_timeout (struct net_device *dev)
 							  -MEM->tx_head[i].length,
 							  MEM->tx_head[i].misc ));
 		}
-#endif 	 
+#endif
 	/* XXX MSch: maybe purge/reinit ring here */
 	/* lance_restart, essentially */
 	lance_init_ring(dev);
@@ -802,12 +802,12 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 	/* PAM-Card has a bug: Can only send packets with even number of bytes! */
 	else if (lp->cardtype == PAM_CARD && (len & 1))
 		++len;
-		
+
 	if (len > skb->len) {
 		if (skb_padto(skb, len))
 			return 0;
 	}
-		
+
 	netif_stop_queue (dev);
 
 	/* Fill in a Tx ring entry */
@@ -1121,7 +1121,7 @@ static void set_multicast_list( struct net_device *dev )
 
 	if (dev->flags & IFF_PROMISC) {
 		/* Log any net taps. */
-		DPRINTK( 1, ( "%s: Promiscuous mode enabled.\n", dev->name ));
+		DPRINTK( 2, ( "%s: Promiscuous mode enabled.\n", dev->name ));
 		REGA( CSR15 ) = 0x8000; /* Set promiscuous mode */
 	} else {
 		short multicast_table[4];
@@ -1175,7 +1175,7 @@ static int lance_set_mac_address( struct net_device *dev, void *addr )
 	return( 0 );
 }
 
-
+
 #ifdef MODULE
 static struct net_device *atarilance_dev;
 
@@ -1195,7 +1195,7 @@ void cleanup_module(void)
 }
 
 #endif /* MODULE */
-
+
 
 /*
  * Local variables:

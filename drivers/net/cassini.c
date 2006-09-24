@@ -43,7 +43,7 @@
  *  -- on page reclamation, the driver swaps the page with a spare page.
  *     if that page is still in use, it frees its reference to that page,
  *     and allocates a new page for use. otherwise, it just recycles the
- *     the page. 
+ *     the page.
  *
  * NOTE: cassini can parse the header. however, it's not worth it
  *       as long as the network stack requires a header copy.
@@ -60,10 +60,10 @@
  * interrupts, but the INT# assignment needs to be set up properly by
  * the BIOS and conveyed to the driver. PCI BIOSes don't know how to do
  * that. also, the two descriptor rings are designed to distinguish between
- * encrypted and non-encrypted packets, but we use them for buffering 
+ * encrypted and non-encrypted packets, but we use them for buffering
  * instead.
  *
- * by default, the selective clear mask is set up to process rx packets.  
+ * by default, the selective clear mask is set up to process rx packets.
  */
 
 
@@ -112,7 +112,7 @@
 #endif
 
 /* select which firmware to use */
-#define USE_HP_WORKAROUND     
+#define USE_HP_WORKAROUND
 #define HP_WORKAROUND_DEFAULT /* select which firmware to use as default */
 #define CAS_HP_ALT_FIRMWARE   cas_prog_null /* alternate firmware */
 
@@ -168,7 +168,7 @@
 #define STOP_TRIES_PHY 1000
 #define STOP_TRIES     5000
 
-/* specify a minimum frame size to deal with some fifo issues 
+/* specify a minimum frame size to deal with some fifo issues
  * max mtu == 2 * page size - ethernet header - 64 - swivel =
  *            2 * page_size - 0x50
  */
@@ -207,7 +207,7 @@ MODULE_PARM_DESC(link_mode, "default link mode");
  * being confused and never showing a link status of "up."
  */
 #define DEFAULT_LINKDOWN_TIMEOUT 5
-/* 
+/*
  * Value in seconds, for user input.
  */
 static int linkdown_timeout = DEFAULT_LINKDOWN_TIMEOUT;
@@ -249,7 +249,7 @@ static inline void cas_lock_tx(struct cas *cp)
 {
 	int i;
 
-	for (i = 0; i < N_TX_RINGS; i++)  
+	for (i = 0; i < N_TX_RINGS; i++)
 		spin_lock(&cp->tx_lock[i]);
 }
 
@@ -278,8 +278,8 @@ static inline void cas_unlock_tx(struct cas *cp)
 {
 	int i;
 
-	for (i = N_TX_RINGS; i > 0; i--)  
-		spin_unlock(&cp->tx_lock[i - 1]);  
+	for (i = N_TX_RINGS; i > 0; i--)
+		spin_unlock(&cp->tx_lock[i - 1]);
 }
 
 static inline void cas_unlock_all(struct cas *cp)
@@ -316,7 +316,7 @@ static void cas_disable_irq(struct cas *cp, const int ring)
 #ifdef USE_PCI_INTD
 		case 3:
 #endif
-			writel(INTRN_MASK_CLEAR_ALL | INTRN_MASK_RX_EN, 
+			writel(INTRN_MASK_CLEAR_ALL | INTRN_MASK_RX_EN,
 			       cp->regs + REG_PLUS_INTRN_MASK(ring));
 			break;
 #endif
@@ -415,7 +415,7 @@ static inline void cas_entropy_reset(struct cas *cp)
 	if ((cp->cas_flags & CAS_FLAG_ENTROPY_DEV) == 0)
 		return;
 
-	writel(BIM_LOCAL_DEV_PAD | BIM_LOCAL_DEV_PROM | BIM_LOCAL_DEV_EXT, 
+	writel(BIM_LOCAL_DEV_PAD | BIM_LOCAL_DEV_PROM | BIM_LOCAL_DEV_EXT,
 	       cp->regs + REG_BIM_LOCAL_DEV_EN);
 	writeb(ENTROPY_RESET_STC_MODE, cp->regs + REG_ENTROPY_RESET);
 	writeb(0x55, cp->regs + REG_ENTROPY_RAND_REG);
@@ -426,7 +426,7 @@ static inline void cas_entropy_reset(struct cas *cp)
 #endif
 }
 
-/* access to the phy. the following assumes that we've initialized the MIF to 
+/* access to the phy. the following assumes that we've initialized the MIF to
  * be in frame rather than bit-bang mode
  */
 static u16 cas_phy_read(struct cas *cp, int reg)
@@ -439,7 +439,7 @@ static u16 cas_phy_read(struct cas *cp, int reg)
 	cmd |= CAS_BASE(MIF_FRAME_REG_ADDR, reg);
 	cmd |= MIF_FRAME_TURN_AROUND_MSB;
 	writel(cmd, cp->regs + REG_MIF_FRAME);
-	
+
 	/* poll for completion */
 	while (limit-- > 0) {
 		udelay(10);
@@ -461,7 +461,7 @@ static int cas_phy_write(struct cas *cp, int reg, u16 val)
 	cmd |= MIF_FRAME_TURN_AROUND_MSB;
 	cmd |= val & MIF_FRAME_DATA_MASK;
 	writel(cmd, cp->regs + REG_MIF_FRAME);
-	
+
 	/* poll for completion */
 	while (limit-- > 0) {
 		udelay(10);
@@ -474,7 +474,7 @@ static int cas_phy_write(struct cas *cp, int reg, u16 val)
 
 static void cas_phy_powerup(struct cas *cp)
 {
-	u16 ctl = cas_phy_read(cp, MII_BMCR);	
+	u16 ctl = cas_phy_read(cp, MII_BMCR);
 
 	if ((ctl & BMCR_PDOWN) == 0)
 		return;
@@ -484,7 +484,7 @@ static void cas_phy_powerup(struct cas *cp)
 
 static void cas_phy_powerdown(struct cas *cp)
 {
-	u16 ctl = cas_phy_read(cp, MII_BMCR);	
+	u16 ctl = cas_phy_read(cp, MII_BMCR);
 
 	if (ctl & BMCR_PDOWN)
 		return;
@@ -495,7 +495,7 @@ static void cas_phy_powerdown(struct cas *cp)
 /* cp->lock held. note: the last put_page will free the buffer */
 static int cas_page_free(struct cas *cp, cas_page_t *page)
 {
-	pci_unmap_page(cp->pdev, page->dma_addr, cp->page_size, 
+	pci_unmap_page(cp->pdev, page->dma_addr, cp->page_size,
 		       PCI_DMA_FROMDEVICE);
 	cas_buffer_dec(page);
 	__free_pages(page->buffer, cp->page_order);
@@ -507,7 +507,7 @@ static int cas_page_free(struct cas *cp, cas_page_t *page)
 #define RX_USED_ADD(x, y)       ((x)->used += (y))
 #define RX_USED_SET(x, y)       ((x)->used  = (y))
 #else
-#define RX_USED_ADD(x, y) 
+#define RX_USED_ADD(x, y)
 #define RX_USED_SET(x, y)
 #endif
 
@@ -602,7 +602,7 @@ static void cas_spare_recover(struct cas *cp, const gfp_t flags)
 	list_splice(&cp->rx_inuse_list, &list);
 	INIT_LIST_HEAD(&cp->rx_inuse_list);
 	spin_unlock(&cp->rx_inuse_lock);
-	
+
 	list_for_each_safe(elem, tmp, &list) {
 		cas_page_t *page = list_entry(elem, cas_page_t, list);
 
@@ -627,7 +627,7 @@ static void cas_spare_recover(struct cas *cp, const gfp_t flags)
 		list_splice(&list, &cp->rx_inuse_list);
 		spin_unlock(&cp->rx_inuse_lock);
 	}
-	
+
 	spin_lock(&cp->rx_spare_lock);
 	needed = cp->rx_spares_needed;
 	spin_unlock(&cp->rx_spare_lock);
@@ -639,7 +639,7 @@ static void cas_spare_recover(struct cas *cp, const gfp_t flags)
 	i = 0;
 	while (i < needed) {
 		cas_page_t *spare = cas_page_alloc(cp, flags);
-		if (!spare) 
+		if (!spare)
 			break;
 		list_add(&spare->list, &list);
 		i++;
@@ -695,12 +695,12 @@ static cas_page_t *cas_page_dequeue(struct cas *cp)
 static void cas_mif_poll(struct cas *cp, const int enable)
 {
 	u32 cfg;
-	
-	cfg  = readl(cp->regs + REG_MIF_CFG); 
+
+	cfg  = readl(cp->regs + REG_MIF_CFG);
 	cfg &= (MIF_CFG_MDIO_0 | MIF_CFG_MDIO_1);
 
 	if (cp->phy_type & CAS_PHY_MII_MDIO1)
-		cfg |= MIF_CFG_PHY_SELECT; 
+		cfg |= MIF_CFG_PHY_SELECT;
 
 	/* poll and interrupt on link status change. */
 	if (enable) {
@@ -708,8 +708,8 @@ static void cas_mif_poll(struct cas *cp, const int enable)
 		cfg |= CAS_BASE(MIF_CFG_POLL_REG, MII_BMSR);
 		cfg |= CAS_BASE(MIF_CFG_POLL_PHY, cp->phy_addr);
 	}
-	writel((enable) ? ~(BMSR_LSTATUS | BMSR_ANEGCOMPLETE) : 0xFFFF, 
-	       cp->regs + REG_MIF_MASK); 
+	writel((enable) ? ~(BMSR_LSTATUS | BMSR_ANEGCOMPLETE) : 0xFFFF,
+	       cp->regs + REG_MIF_MASK);
 	writel(cfg, cp->regs + REG_MIF_CFG);
 }
 
@@ -759,7 +759,7 @@ start_aneg:
 	/*
 	 * WTZ: If the old state was link_up, we turn off the carrier
 	 * to replicate everything we do elsewhere on a link-down
-	 * event when we were already in a link-up state..  
+	 * event when we were already in a link-up state..
 	 */
 	if (oldstate == link_up)
 		netif_carrier_off(cp->dev);
@@ -767,7 +767,7 @@ start_aneg:
 		/*
 		 * WTZ: This branch will simply schedule a full reset after
 		 * we explicitly changed link modes in an ioctl. See if this
-		 * fixes the link-problems we were having for forced mode. 
+		 * fixes the link-problems we were having for forced mode.
 		 */
 		atomic_inc(&cp->reset_task_pending);
 		atomic_inc(&cp->reset_task_pending_all);
@@ -795,7 +795,7 @@ start_aneg:
 	} else {
 		cas_mif_poll(cp, 0);
 		ctl = cas_phy_read(cp, MII_BMCR);
-		ctl &= ~(BMCR_FULLDPLX | BMCR_SPEED100 | 
+		ctl &= ~(BMCR_FULLDPLX | BMCR_SPEED100 |
 			 CAS_BMCR_SPEED1000 | BMCR_ANENABLE);
 		ctl |= cp->link_cntl;
 		if (ctl & BMCR_ANENABLE) {
@@ -818,7 +818,7 @@ static int cas_reset_mii_phy(struct cas *cp)
 {
 	int limit = STOP_TRIES_PHY;
 	u16 val;
-	
+
 	cas_phy_write(cp, MII_BMCR, BMCR_RESET);
 	udelay(100);
 	while (limit--) {
@@ -901,17 +901,17 @@ static void cas_phy_init(struct cas *cp)
 			val = cas_phy_read(cp, BROADCOM_MII_REG4);
 			if (val & 0x0080) {
 				/* link workaround */
-				cas_phy_write(cp, BROADCOM_MII_REG4, 
+				cas_phy_write(cp, BROADCOM_MII_REG4,
 					      val & ~0x0080);
 			}
-			
+
 		} else if (cp->cas_flags & CAS_FLAG_SATURN) {
-			writel((cp->phy_type & CAS_PHY_MII_MDIO0) ? 
-			       SATURN_PCFG_FSI : 0x0, 
+			writel((cp->phy_type & CAS_PHY_MII_MDIO0) ?
+			       SATURN_PCFG_FSI : 0x0,
 			       cp->regs + REG_SATURN_PCFG);
 
 			/* load firmware to address 10Mbps auto-negotiation
-			 * issue. NOTE: this will need to be changed if the 
+			 * issue. NOTE: this will need to be changed if the
 			 * default firmware gets fixed.
 			 */
 			if (PHY_NS_DP83065 == cp->phy_id) {
@@ -930,9 +930,9 @@ static void cas_phy_init(struct cas *cp)
 			      cas_phy_read(cp, MII_ADVERTISE) |
 			      (ADVERTISE_10HALF | ADVERTISE_10FULL |
 			       ADVERTISE_100HALF | ADVERTISE_100FULL |
-			       CAS_ADVERTISE_PAUSE | 
+			       CAS_ADVERTISE_PAUSE |
 			       CAS_ADVERTISE_ASYM_PAUSE));
-		
+
 		if (cp->cas_flags & CAS_FLAG_1000MB_CAP) {
 			/* make sure that we don't advertise half
 			 * duplex to avoid a chip issue
@@ -963,7 +963,7 @@ static void cas_phy_init(struct cas *cp)
 		limit = STOP_TRIES;
 		while (limit-- > 0) {
 			udelay(10);
-			if ((readl(cp->regs + REG_PCS_MII_CTRL) & 
+			if ((readl(cp->regs + REG_PCS_MII_CTRL) &
 			     PCS_MII_RESET) == 0)
 				break;
 		}
@@ -980,7 +980,7 @@ static void cas_phy_init(struct cas *cp)
 		/* Advertise all capabilities except half-duplex. */
 		val  = readl(cp->regs + REG_PCS_MII_ADVERT);
 		val &= ~PCS_MII_ADVERT_HD;
-		val |= (PCS_MII_ADVERT_FD | PCS_MII_ADVERT_SYM_PAUSE | 
+		val |= (PCS_MII_ADVERT_FD | PCS_MII_ADVERT_SYM_PAUSE |
 			PCS_MII_ADVERT_ASYM_PAUSE);
 		writel(val, cp->regs + REG_PCS_MII_ADVERT);
 
@@ -1014,7 +1014,7 @@ static int cas_pcs_link_check(struct cas *cp)
 		     PCS_MII_STATUS_REMOTE_FAULT)) ==
 	    (PCS_MII_STATUS_AUTONEG_COMP | PCS_MII_STATUS_REMOTE_FAULT)) {
 		if (netif_msg_link(cp))
-			printk(KERN_INFO "%s: PCS RemoteFault\n", 
+			printk(KERN_INFO "%s: PCS RemoteFault\n",
 			       cp->dev->name);
 	}
 
@@ -1033,7 +1033,7 @@ static int cas_pcs_link_check(struct cas *cp)
 			if (cp->opened) {
 				cp->lstate = link_up;
 				cp->link_transition = LINK_TRANSITION_LINK_UP;
-				
+
 				cas_set_link_modes(cp);
 				netif_carrier_on(cp->dev);
 			}
@@ -1044,8 +1044,8 @@ static int cas_pcs_link_check(struct cas *cp)
 		    cp->link_transition != LINK_TRANSITION_REQUESTED_RESET &&
 		    !cp->link_transition_jiffies_valid) {
 			/*
-			 * force a reset, as a workaround for the 
-			 * link-failure problem. May want to move this to a 
+			 * force a reset, as a workaround for the
+			 * link-failure problem. May want to move this to a
 			 * point a bit earlier in the sequence. If we had
 			 * generated a reset a short time ago, we'll wait for
 			 * the link timer to check the status until a
@@ -1103,17 +1103,17 @@ static int cas_pcs_link_check(struct cas *cp)
 	return retval;
 }
 
-static int cas_pcs_interrupt(struct net_device *dev, 
+static int cas_pcs_interrupt(struct net_device *dev,
 			     struct cas *cp, u32 status)
 {
 	u32 stat = readl(cp->regs + REG_PCS_INTR_STATUS);
 
-	if ((stat & PCS_INTR_STATUS_LINK_CHANGE) == 0) 
+	if ((stat & PCS_INTR_STATUS_LINK_CHANGE) == 0)
 		return 0;
 	return cas_pcs_link_check(cp);
 }
 
-static int cas_txmac_interrupt(struct net_device *dev, 
+static int cas_txmac_interrupt(struct net_device *dev,
 			       struct cas *cp, u32 status)
 {
 	u32 txmac_stat = readl(cp->regs + REG_MAC_TX_STATUS);
@@ -1168,7 +1168,7 @@ static int cas_txmac_interrupt(struct net_device *dev,
 	return 0;
 }
 
-static void cas_load_firmware(struct cas *cp, cas_hp_inst_t *firmware) 
+static void cas_load_firmware(struct cas *cp, cas_hp_inst_t *firmware)
 {
 	cas_hp_inst_t *inst;
 	u32 val;
@@ -1203,12 +1203,12 @@ static void cas_load_firmware(struct cas *cp, cas_hp_inst_t *firmware)
 
 static void cas_init_rx_dma(struct cas *cp)
 {
-	u64 desc_dma = cp->block_dvma; 
+	u64 desc_dma = cp->block_dvma;
 	u32 val;
 	int i, size;
 
 	/* rx free descriptors */
-	val = CAS_BASE(RX_CFG_SWIVEL, RX_SWIVEL_OFF_VAL); 
+	val = CAS_BASE(RX_CFG_SWIVEL, RX_SWIVEL_OFF_VAL);
 	val |= CAS_BASE(RX_CFG_DESC_RING, RX_DESC_RINGN_INDEX(0));
 	val |= CAS_BASE(RX_CFG_COMP_RING, RX_COMP_RINGN_INDEX(0));
 	if ((N_RX_DESC_RINGS > 1) &&
@@ -1216,27 +1216,27 @@ static void cas_init_rx_dma(struct cas *cp)
 		val |= CAS_BASE(RX_CFG_DESC_RING1, RX_DESC_RINGN_INDEX(1));
 	writel(val, cp->regs + REG_RX_CFG);
 
-	val = (unsigned long) cp->init_rxds[0] - 
+	val = (unsigned long) cp->init_rxds[0] -
 		(unsigned long) cp->init_block;
 	writel((desc_dma + val) >> 32, cp->regs + REG_RX_DB_HI);
 	writel((desc_dma + val) & 0xffffffff, cp->regs + REG_RX_DB_LOW);
 	writel(RX_DESC_RINGN_SIZE(0) - 4, cp->regs + REG_RX_KICK);
 
 	if (cp->cas_flags & CAS_FLAG_REG_PLUS) {
-		/* rx desc 2 is for IPSEC packets. however, 
+		/* rx desc 2 is for IPSEC packets. however,
 		 * we don't it that for that purpose.
 		 */
-		val = (unsigned long) cp->init_rxds[1] - 
+		val = (unsigned long) cp->init_rxds[1] -
 			(unsigned long) cp->init_block;
 		writel((desc_dma + val) >> 32, cp->regs + REG_PLUS_RX_DB1_HI);
-		writel((desc_dma + val) & 0xffffffff, cp->regs + 
+		writel((desc_dma + val) & 0xffffffff, cp->regs +
 		       REG_PLUS_RX_DB1_LOW);
-		writel(RX_DESC_RINGN_SIZE(1) - 4, cp->regs + 
+		writel(RX_DESC_RINGN_SIZE(1) - 4, cp->regs +
 		       REG_PLUS_RX_KICK1);
 	}
-	
+
 	/* rx completion registers */
-	val = (unsigned long) cp->init_rxcs[0] - 
+	val = (unsigned long) cp->init_rxcs[0] -
 		(unsigned long) cp->init_block;
 	writel((desc_dma + val) >> 32, cp->regs + REG_RX_CB_HI);
 	writel((desc_dma + val) & 0xffffffff, cp->regs + REG_RX_CB_LOW);
@@ -1244,11 +1244,11 @@ static void cas_init_rx_dma(struct cas *cp)
 	if (cp->cas_flags & CAS_FLAG_REG_PLUS) {
 		/* rx comp 2-4 */
 		for (i = 1; i < MAX_RX_COMP_RINGS; i++) {
-			val = (unsigned long) cp->init_rxcs[i] - 
+			val = (unsigned long) cp->init_rxcs[i] -
 				(unsigned long) cp->init_block;
-			writel((desc_dma + val) >> 32, cp->regs + 
+			writel((desc_dma + val) >> 32, cp->regs +
 			       REG_PLUS_RX_CBN_HI(i));
-			writel((desc_dma + val) & 0xffffffff, cp->regs + 
+			writel((desc_dma + val) & 0xffffffff, cp->regs +
 			       REG_PLUS_RX_CBN_LOW(i));
 		}
 	}
@@ -1265,21 +1265,21 @@ static void cas_init_rx_dma(struct cas *cp)
 
 		/* 2 is different from 3 and 4 */
 		if (N_RX_COMP_RINGS > 1)
-			writel(INTR_RX_DONE_ALT | INTR_RX_BUF_UNAVAIL_1, 
+			writel(INTR_RX_DONE_ALT | INTR_RX_BUF_UNAVAIL_1,
 			       cp->regs + REG_PLUS_ALIASN_CLEAR(1));
 
-		for (i = 2; i < N_RX_COMP_RINGS; i++) 
-			writel(INTR_RX_DONE_ALT, 
+		for (i = 2; i < N_RX_COMP_RINGS; i++)
+			writel(INTR_RX_DONE_ALT,
 			       cp->regs + REG_PLUS_ALIASN_CLEAR(i));
 	}
 
 	/* set up pause thresholds */
 	val  = CAS_BASE(RX_PAUSE_THRESH_OFF,
 			cp->rx_pause_off / RX_PAUSE_THRESH_QUANTUM);
-	val |= CAS_BASE(RX_PAUSE_THRESH_ON, 
+	val |= CAS_BASE(RX_PAUSE_THRESH_ON,
 			cp->rx_pause_on / RX_PAUSE_THRESH_QUANTUM);
 	writel(val, cp->regs + REG_RX_PAUSE_THRESH);
-	
+
 	/* zero out dma reassembly buffers */
 	for (i = 0; i < 64; i++) {
 		writel(i, cp->regs + REG_RX_TABLE_ADDR);
@@ -1318,7 +1318,7 @@ static void cas_init_rx_dma(struct cas *cp)
 	 * this should be tunable.
 	 */
 	writel(0x0, cp->regs + REG_RX_RED);
-	
+
 	/* receive page sizes. default == 2K (0x800) */
 	val = 0;
 	if (cp->page_size == 0x1000)
@@ -1327,7 +1327,7 @@ static void cas_init_rx_dma(struct cas *cp)
 		val = 0x2;
 	else if (cp->page_size == 0x4000)
 		val = 0x3;
-	
+
 	/* round mtu + offset. constrain to page size. */
 	size = cp->dev->mtu + 64;
 	if (size > cp->page_size)
@@ -1344,11 +1344,11 @@ static void cas_init_rx_dma(struct cas *cp)
 
 	cp->mtu_stride = 1 << (i + 10);
 	val  = CAS_BASE(RX_PAGE_SIZE, val);
-	val |= CAS_BASE(RX_PAGE_SIZE_MTU_STRIDE, i); 
+	val |= CAS_BASE(RX_PAGE_SIZE_MTU_STRIDE, i);
 	val |= CAS_BASE(RX_PAGE_SIZE_MTU_COUNT, cp->page_size >> (i + 10));
 	val |= CAS_BASE(RX_PAGE_SIZE_MTU_OFF, 0x1);
 	writel(val, cp->regs + REG_RX_PAGE_SIZE);
-	
+
 	/* enable the header parser if desired */
 	if (CAS_HP_FIRMWARE == cas_prog_null)
 		return;
@@ -1362,7 +1362,7 @@ static void cas_init_rx_dma(struct cas *cp)
 static inline void cas_rxc_init(struct cas_rx_comp *rxc)
 {
 	memset(rxc, 0, sizeof(*rxc));
-	rxc->word4 = cpu_to_le64(RX_COMP4_ZERO); 
+	rxc->word4 = cpu_to_le64(RX_COMP4_ZERO);
 }
 
 /* NOTE: we use the ENC RX DESC ring for spares. the rx_page[0,1]
@@ -1385,9 +1385,9 @@ static inline cas_page_t *cas_page_spare(struct cas *cp, const int index)
 	}
 	return new;
 }
-				   
+
 /* this needs to be changed if we actually use the ENC RX DESC ring */
-static cas_page_t *cas_page_swap(struct cas *cp, const int ring, 
+static cas_page_t *cas_page_swap(struct cas *cp, const int ring,
 				 const int index)
 {
 	cas_page_t **page0 = cp->rx_pages[0];
@@ -1400,7 +1400,7 @@ static cas_page_t *cas_page_swap(struct cas *cp, const int ring,
 			page1[index] = page0[index];
 			page0[index] = new;
 		}
-	} 
+	}
 	RX_USED_SET(page0[index], 0);
 	return page0[index];
 }
@@ -1424,11 +1424,11 @@ static void cas_clean_rxds(struct cas *cp)
 	for (i = 0; i < size; i++) {
 		cas_page_t *page = cas_page_swap(cp, 0, i);
 		rxd[i].buffer = cpu_to_le64(page->dma_addr);
-		rxd[i].index  = cpu_to_le64(CAS_BASE(RX_INDEX_NUM, i) | 
+		rxd[i].index  = cpu_to_le64(CAS_BASE(RX_INDEX_NUM, i) |
 					    CAS_BASE(RX_INDEX_RING, 0));
 	}
 
-	cp->rx_old[0]  = RX_DESC_RINGN_SIZE(0) - 4; 
+	cp->rx_old[0]  = RX_DESC_RINGN_SIZE(0) - 4;
 	cp->rx_last[0] = 0;
 	cp->cas_flags &= ~CAS_FLAG_RXD_POST(0);
 }
@@ -1533,7 +1533,7 @@ static int cas_rxmac_interrupt(struct net_device *dev, struct cas *cp,
 
 	/* these are all rollovers */
 	spin_lock(&cp->stat_lock[0]);
-	if (stat & MAC_RX_ALIGN_ERR) 
+	if (stat & MAC_RX_ALIGN_ERR)
 		cp->net_stats[0].rx_frame_errors += 0x10000;
 
 	if (stat & MAC_RX_CRC_ERR)
@@ -1579,12 +1579,12 @@ static int cas_mac_interrupt(struct net_device *dev, struct cas *cp,
 	return 0;
 }
 
-	
+
 /* Must be invoked under cp->lock. */
 static inline int cas_mdio_link_not_up(struct cas *cp)
 {
 	u16 val;
-	
+
 	switch (cp->lstate) {
 	case link_force_ret:
 		if (netif_msg_link(cp))
@@ -1595,7 +1595,7 @@ static inline int cas_mdio_link_not_up(struct cas *cp)
 		cp->lstate = link_force_ok;
 		cp->link_transition = LINK_TRANSITION_LINK_CONFIG;
 		break;
-		
+
 	case link_aneg:
 		val = cas_phy_read(cp, MII_BMCR);
 
@@ -1604,7 +1604,7 @@ static inline int cas_mdio_link_not_up(struct cas *cp)
 		 */
 		val &= ~(BMCR_ANRESTART | BMCR_ANENABLE);
 		val |= BMCR_FULLDPLX;
-		val |= (cp->cas_flags & CAS_FLAG_1000MB_CAP) ? 
+		val |= (cp->cas_flags & CAS_FLAG_1000MB_CAP) ?
 			CAS_BMCR_SPEED1000 : BMCR_SPEED100;
 		cas_phy_write(cp, MII_BMCR, val);
 		cp->timer_ticks = 5;
@@ -1646,11 +1646,11 @@ static int cas_mii_link_check(struct cas *cp, const u16 bmsr)
 
 	if (bmsr & BMSR_LSTATUS) {
 		/* Ok, here we got a link. If we had it due to a forced
-		 * fallback, and we were configured for autoneg, we 
+		 * fallback, and we were configured for autoneg, we
 		 * retry a short autoneg pass. If you know your hub is
 		 * broken, use ethtool ;)
 		 */
-		if ((cp->lstate == link_force_try) && 
+		if ((cp->lstate == link_force_try) &&
 		    (cp->link_cntl & BMCR_ANENABLE)) {
 			cp->lstate = link_force_ret;
 			cp->link_transition = LINK_TRANSITION_LINK_CONFIG;
@@ -1690,10 +1690,10 @@ static int cas_mii_link_check(struct cas *cp, const u16 bmsr)
 			printk(KERN_INFO "%s: Link down\n",
 			       cp->dev->name);
 		restart = 1;
-		
+
 	} else if (++cp->timer_ticks > 10)
 		cas_mdio_link_not_up(cp);
-		
+
 	return restart;
 }
 
@@ -1908,7 +1908,7 @@ static inline void cas_tx_ringN(struct cas *cp, int ring, int limit)
 
 		skbs[entry] = NULL;
 		cp->tx_tiny_use[ring][entry].nbufs = 0;
-		
+
 		for (frag = 0; frag <= skb_shinfo(skb)->nr_frags; frag++) {
 			struct cas_tx_desc *txd = txds + entry;
 
@@ -1923,7 +1923,7 @@ static inline void cas_tx_ringN(struct cas *cp, int ring, int limit)
 			if (cp->tx_tiny_use[ring][entry].used) {
 				cp->tx_tiny_use[ring][entry].used = 0;
 				entry = TX_DESC_NEXT(ring, entry);
-			} 
+			}
 		}
 
 		spin_lock(&cp->stat_lock[ring]);
@@ -1964,14 +1964,14 @@ static void cas_tx(struct net_device *dev, struct cas *cp,
 #else
 		limit = readl(cp->regs + REG_TX_COMPN(ring));
 #endif
-		if (cp->tx_old[ring] != limit) 
+		if (cp->tx_old[ring] != limit)
 			cas_tx_ringN(cp, ring, limit);
 	}
 }
 
 
-static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc, 
-			      int entry, const u64 *words, 
+static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
+			      int entry, const u64 *words,
 			      struct sk_buff **skbref)
 {
 	int dlen, hlen, len, i, alloclen;
@@ -1979,19 +1979,19 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 	struct cas_page *page;
 	struct sk_buff *skb;
 	void *addr, *crcaddr;
-	char *p; 
+	char *p;
 
 	hlen = CAS_VAL(RX_COMP2_HDR_SIZE, words[1]);
 	dlen = CAS_VAL(RX_COMP1_DATA_SIZE, words[0]);
 	len  = hlen + dlen;
 
-	if (RX_COPY_ALWAYS || (words[2] & RX_COMP3_SMALL_PKT)) 
+	if (RX_COPY_ALWAYS || (words[2] & RX_COMP3_SMALL_PKT))
 		alloclen = len;
-	else 
+	else
 		alloclen = max(hlen, RX_COPY_MIN);
 
 	skb = dev_alloc_skb(alloclen + swivel + cp->crc_size);
-	if (skb == NULL) 
+	if (skb == NULL)
 		return -1;
 
 	*skbref = skb;
@@ -2003,7 +2003,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 	if (hlen) { /* always copy header pages */
 		i = CAS_VAL(RX_COMP2_HDR_INDEX, words[1]);
 		page = cp->rx_pages[CAS_VAL(RX_INDEX_RING, i)][CAS_VAL(RX_INDEX_NUM, i)];
-		off = CAS_VAL(RX_COMP2_HDR_OFF, words[1]) * 0x100 + 
+		off = CAS_VAL(RX_COMP2_HDR_OFF, words[1]) * 0x100 +
 			swivel;
 
 		i = hlen;
@@ -2019,7 +2019,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 		RX_USED_ADD(page, 0x100);
 		p += hlen;
 		swivel = 0;
-	} 
+	}
 
 
 	if (alloclen < (hlen + dlen)) {
@@ -2070,7 +2070,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 		frag->page = page->buffer;
 		frag->page_offset = off;
 		frag->size = hlen - swivel;
-		
+
 		/* any more data? */
 		if ((words[0] & RX_COMP1_SPLIT_PKT) && ((dlen -= hlen) > 0)) {
 			hlen = dlen;
@@ -2078,8 +2078,8 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 
 			i = CAS_VAL(RX_COMP2_NEXT_INDEX, words[1]);
 			page = cp->rx_pages[CAS_VAL(RX_INDEX_RING, i)][CAS_VAL(RX_INDEX_NUM, i)];
-			pci_dma_sync_single_for_cpu(cp->pdev, page->dma_addr, 
-					    hlen + cp->crc_size, 
+			pci_dma_sync_single_for_cpu(cp->pdev, page->dma_addr,
+					    hlen + cp->crc_size,
 					    PCI_DMA_FROMDEVICE);
 			pci_dma_sync_single_for_device(cp->pdev, page->dma_addr,
 					    hlen + cp->crc_size,
@@ -2087,7 +2087,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 
 			skb_shinfo(skb)->nr_frags++;
 			skb->data_len += hlen;
-			skb->len      += hlen; 
+			skb->len      += hlen;
 			frag++;
 
 			get_page(page->buffer);
@@ -2134,14 +2134,14 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 			RX_USED_ADD(page, cp->mtu_stride);
 		else
 			RX_USED_ADD(page, i);
-	
+
 		/* any more data? */
 		if ((words[0] & RX_COMP1_SPLIT_PKT) && ((dlen -= hlen) > 0)) {
 			p += hlen;
 			i = CAS_VAL(RX_COMP2_NEXT_INDEX, words[1]);
 			page = cp->rx_pages[CAS_VAL(RX_INDEX_RING, i)][CAS_VAL(RX_INDEX_NUM, i)];
-			pci_dma_sync_single_for_cpu(cp->pdev, page->dma_addr, 
-					    dlen + cp->crc_size, 
+			pci_dma_sync_single_for_cpu(cp->pdev, page->dma_addr,
+					    dlen + cp->crc_size,
 					    PCI_DMA_FROMDEVICE);
 			addr = cas_page_map(page->buffer);
 			memcpy(p, addr, dlen + cp->crc_size);
@@ -2149,7 +2149,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 					    dlen + cp->crc_size,
 					    PCI_DMA_FROMDEVICE);
 			cas_page_unmap(addr);
-			RX_USED_ADD(page, dlen + cp->crc_size); 
+			RX_USED_ADD(page, dlen + cp->crc_size);
 		}
 end_copy_pkt:
 		if (cp->crc_size) {
@@ -2174,7 +2174,7 @@ end_copy_pkt:
 
 
 /* we can handle up to 64 rx flows at a time. we do the same thing
- * as nonreassm except that we batch up the buffers. 
+ * as nonreassm except that we batch up the buffers.
  * NOTE: we currently just treat each flow as a bunch of packets that
  *       we pass up. a better way would be to coalesce the packets
  *       into a jumbo packet. to do that, we need to do the following:
@@ -2184,7 +2184,7 @@ end_copy_pkt:
  *          data length and merge the checksums.
  *       3) on flow release, fix up the header.
  *       4) make sure the higher layer doesn't care.
- * because packets get coalesced, we shouldn't run into fragment count 
+ * because packets get coalesced, we shouldn't run into fragment count
  * issues.
  */
 static inline void cas_rx_flow_pkt(struct cas *cp, const u64 *words,
@@ -2192,8 +2192,8 @@ static inline void cas_rx_flow_pkt(struct cas *cp, const u64 *words,
 {
 	int flowid = CAS_VAL(RX_COMP3_FLOWID, words[2]) & (N_RX_FLOWS - 1);
 	struct sk_buff_head *flow = &cp->rx_flows[flowid];
-	
-	/* this is protected at a higher layer, so no need to 
+
+	/* this is protected at a higher layer, so no need to
 	 * do any additional locking here. stick the buffer
 	 * at the end.
 	 */
@@ -2218,19 +2218,19 @@ static void cas_post_page(struct cas *cp, const int ring, const int index)
 	new = cas_page_swap(cp, ring, index);
 	cp->init_rxds[ring][entry].buffer = cpu_to_le64(new->dma_addr);
 	cp->init_rxds[ring][entry].index  =
-		cpu_to_le64(CAS_BASE(RX_INDEX_NUM, index) | 
+		cpu_to_le64(CAS_BASE(RX_INDEX_NUM, index) |
 			    CAS_BASE(RX_INDEX_RING, ring));
 
 	entry = RX_DESC_ENTRY(ring, entry + 1);
 	cp->rx_old[ring] = entry;
-	
+
 	if (entry % 4)
 		return;
 
 	if (ring == 0)
 		writel(entry, cp->regs + REG_RX_KICK);
 	else if ((N_RX_DESC_RINGS > 1) &&
-		 (cp->cas_flags & CAS_FLAG_REG_PLUS)) 
+		 (cp->cas_flags & CAS_FLAG_REG_PLUS))
 		writel(entry, cp->regs + REG_PLUS_RX_KICK1);
 }
 
@@ -2249,7 +2249,7 @@ static int cas_post_rxds_ringN(struct cas *cp, int ring, int num)
 		       cp->dev->name, ring, entry);
 
 	cluster = -1;
-	count = entry & 0x3; 
+	count = entry & 0x3;
 	last = RX_DESC_ENTRY(ring, num ? entry + num - 4: entry - 4);
 	released = 0;
 	while (entry != last) {
@@ -2257,12 +2257,12 @@ static int cas_post_rxds_ringN(struct cas *cp, int ring, int num)
 		if (cas_buffer_count(page[entry]) > 1) {
 			cas_page_t *new = cas_page_dequeue(cp);
 			if (!new) {
-				/* let the timer know that we need to 
+				/* let the timer know that we need to
 				 * do this again
 				 */
 				cp->cas_flags |= CAS_FLAG_RXD_POST(ring);
 				if (!timer_pending(&cp->link_timer))
-					mod_timer(&cp->link_timer, jiffies + 
+					mod_timer(&cp->link_timer, jiffies +
 						  CAS_LINK_FAST_TIMEOUT);
 				cp->rx_old[ring]  = entry;
 				cp->rx_last[ring] = num ? num - released : 0;
@@ -2271,10 +2271,10 @@ static int cas_post_rxds_ringN(struct cas *cp, int ring, int num)
 			spin_lock(&cp->rx_inuse_lock);
 			list_add(&page[entry]->list, &cp->rx_inuse_list);
 			spin_unlock(&cp->rx_inuse_lock);
-			cp->init_rxds[ring][entry].buffer = 
+			cp->init_rxds[ring][entry].buffer =
 				cpu_to_le64(new->dma_addr);
 			page[entry] = new;
-			
+
 		}
 
 		if (++count == 4) {
@@ -2286,13 +2286,13 @@ static int cas_post_rxds_ringN(struct cas *cp, int ring, int num)
 	}
 	cp->rx_old[ring] = entry;
 
-	if (cluster < 0) 
+	if (cluster < 0)
 		return 0;
 
 	if (ring == 0)
 		writel(cluster, cp->regs + REG_RX_KICK);
 	else if ((N_RX_DESC_RINGS > 1) &&
-		 (cp->cas_flags & CAS_FLAG_REG_PLUS)) 
+		 (cp->cas_flags & CAS_FLAG_REG_PLUS))
 		writel(cluster, cp->regs + REG_PLUS_RX_KICK1);
 	return 0;
 }
@@ -2301,14 +2301,14 @@ static int cas_post_rxds_ringN(struct cas *cp, int ring, int num)
 /* process a completion ring. packets are set up in three basic ways:
  * small packets: should be copied header + data in single buffer.
  * large packets: header and data in a single buffer.
- * split packets: header in a separate buffer from data. 
+ * split packets: header in a separate buffer from data.
  *                data may be in multiple pages. data may be > 256
- *                bytes but in a single page. 
+ *                bytes but in a single page.
  *
  * NOTE: RX page posting is done in this routine as well. while there's
  *       the capability of using multiple RX completion rings, it isn't
  *       really worthwhile due to the fact that the page posting will
- *       force serialization on the single descriptor ring. 
+ *       force serialization on the single descriptor ring.
  */
 static int cas_rx_ringN(struct cas *cp, int ring, int budget)
 {
@@ -2319,7 +2319,7 @@ static int cas_rx_ringN(struct cas *cp, int ring, int budget)
 	if (netif_msg_intr(cp))
 		printk(KERN_DEBUG "%s: rx[%d] interrupt, done: %d/%d\n",
 		       cp->dev->name, ring,
-		       readl(cp->regs + REG_RX_COMP_HEAD), 
+		       readl(cp->regs + REG_RX_COMP_HEAD),
 		       cp->rx_new[ring]);
 
 	entry = cp->rx_new[ring];
@@ -2375,7 +2375,7 @@ static int cas_rx_ringN(struct cas *cp, int ring, int budget)
 		 */
 		if (RX_DONT_BATCH || (type == 0x2)) {
 			/* non-reassm: these always get released */
-			cas_skb_release(skb); 
+			cas_skb_release(skb);
 		} else {
 			cas_rx_flow_pkt(cp, words, skb);
 		}
@@ -2396,7 +2396,7 @@ static int cas_rx_ringN(struct cas *cp, int ring, int budget)
 			i = CAS_VAL(RX_INDEX_NUM, i);
 			cas_post_page(cp, dring, i);
 		}
-		
+
 		if (words[0] & RX_COMP1_RELEASE_DATA) {
 			i = CAS_VAL(RX_COMP1_DATA_INDEX, words[0]);
 			dring = CAS_VAL(RX_INDEX_RING, i);
@@ -2412,7 +2412,7 @@ static int cas_rx_ringN(struct cas *cp, int ring, int budget)
 		}
 
 		/* skip to the next entry */
-		entry = RX_COMP_ENTRY(ring, entry + 1 + 
+		entry = RX_COMP_ENTRY(ring, entry + 1 +
 				      CAS_VAL(RX_COMP1_SKIP, words[0]));
 #ifdef USE_NAPI
 		if (budget && (npackets >= budget))
@@ -2436,12 +2436,12 @@ static void cas_post_rxcs_ringN(struct net_device *dev,
 	int last, entry;
 
 	last = cp->rx_cur[ring];
-	entry = cp->rx_new[ring]; 
+	entry = cp->rx_new[ring];
 	if (netif_msg_intr(cp))
 		printk(KERN_DEBUG "%s: rxc[%d] interrupt, done: %d/%d\n",
 		       dev->name, ring, readl(cp->regs + REG_RX_COMP_HEAD),
 		       entry);
-	
+
 	/* zero and re-mark descriptors */
 	while (last != entry) {
 		cas_rxc_init(rxc + last);
@@ -2451,21 +2451,21 @@ static void cas_post_rxcs_ringN(struct net_device *dev,
 
 	if (ring == 0)
 		writel(last, cp->regs + REG_RX_COMP_TAIL);
-	else if (cp->cas_flags & CAS_FLAG_REG_PLUS) 
+	else if (cp->cas_flags & CAS_FLAG_REG_PLUS)
 		writel(last, cp->regs + REG_PLUS_RX_COMPN_TAIL(ring));
 }
 
 
 
-/* cassini can use all four PCI interrupts for the completion ring. 
+/* cassini can use all four PCI interrupts for the completion ring.
  * rings 3 and 4 are identical
  */
 #if defined(USE_PCI_INTC) || defined(USE_PCI_INTD)
-static inline void cas_handle_irqN(struct net_device *dev, 
+static inline void cas_handle_irqN(struct net_device *dev,
 				   struct cas *cp, const u32 status,
 				   const int ring)
 {
-	if (status & (INTR_RX_COMP_FULL_ALT | INTR_RX_COMP_AF_ALT)) 
+	if (status & (INTR_RX_COMP_FULL_ALT | INTR_RX_COMP_AF_ALT))
 		cas_post_rxcs_ringN(dev, cp, ring);
 }
 
@@ -2505,7 +2505,7 @@ static irqreturn_t cas_interruptN(int irq, void *dev_id, struct pt_regs *regs)
 static inline void cas_handle_irq1(struct cas *cp, const u32 status)
 {
 	if (status & INTR_RX_BUF_UNAVAIL_1) {
-		/* Frame arrived, no free RX buffers available. 
+		/* Frame arrived, no free RX buffers available.
 		 * NOTE: we can get this on a link transition. */
 		cas_post_rxds_ringN(cp, 1, 0);
 		spin_lock(&cp->stat_lock[1]);
@@ -2513,8 +2513,8 @@ static inline void cas_handle_irq1(struct cas *cp, const u32 status)
 		spin_unlock(&cp->stat_lock[1]);
 	}
 
-	if (status & INTR_RX_BUF_AE_1) 
-		cas_post_rxds_ringN(cp, 1, RX_DESC_RINGN_SIZE(1) - 
+	if (status & INTR_RX_BUF_AE_1)
+		cas_post_rxds_ringN(cp, 1, RX_DESC_RINGN_SIZE(1) -
 				    RX_AE_FREEN_VAL(1));
 
 	if (status & (INTR_RX_COMP_AF | INTR_RX_COMP_FULL))
@@ -2558,7 +2558,7 @@ static inline void cas_handle_irq(struct net_device *dev,
 		cas_abnormal_irq(dev, cp, status);
 
 	if (status & INTR_RX_BUF_UNAVAIL) {
-		/* Frame arrived, no free RX buffers available. 
+		/* Frame arrived, no free RX buffers available.
 		 * NOTE: we can get this on a link transition.
 		 */
 		cas_post_rxds_ringN(cp, 0, 0);
@@ -2625,7 +2625,7 @@ static int cas_poll(struct net_device *dev, int *budget)
 	todo = min(*budget, dev->quota);
 
 	/* to make sure we're fair with the work we loop through each
-	 * ring N_RX_COMP_RING times with a request of 
+	 * ring N_RX_COMP_RING times with a request of
 	 * todo / N_RX_COMP_RINGS
 	 */
 	enable_intr = 1;
@@ -2784,13 +2784,13 @@ static void cas_write_txd(struct cas *cp, int ring, int entry,
 	txd->buffer = cpu_to_le64(mapping);
 }
 
-static inline void *tx_tiny_buf(struct cas *cp, const int ring, 
+static inline void *tx_tiny_buf(struct cas *cp, const int ring,
 				const int entry)
 {
 	return cp->tx_tiny_bufs[ring] + TX_TINY_BUF_LEN*entry;
 }
 
-static inline dma_addr_t tx_tiny_map(struct cas *cp, const int ring, 
+static inline dma_addr_t tx_tiny_map(struct cas *cp, const int ring,
 				     const int entry, const int tentry)
 {
 	cp->tx_tiny_use[ring][tentry].nbufs++;
@@ -2798,7 +2798,7 @@ static inline dma_addr_t tx_tiny_map(struct cas *cp, const int ring,
 	return cp->tx_tiny_dvma[ring] + TX_TINY_BUF_LEN*entry;
 }
 
-static inline int cas_xmit_tx_ringN(struct cas *cp, int ring, 
+static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 				    struct sk_buff *skb)
 {
 	struct net_device *dev = cp->dev;
@@ -2811,7 +2811,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 	spin_lock_irqsave(&cp->tx_lock[ring], flags);
 
 	/* This is a hard error, log it. */
-	if (TX_BUFFS_AVAIL(cp, ring) <= 
+	if (TX_BUFFS_AVAIL(cp, ring) <=
 	    CAS_TABORT(cp)*(skb_shinfo(skb)->nr_frags + 1)) {
 		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&cp->tx_lock[ring], flags);
@@ -2827,7 +2827,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 		csum_start_off = (u64) (skb->h.raw - skb->data);
 		csum_stuff_off = (u64) ((skb->h.raw + skb->csum) - skb->data);
 
-		ctrl =  TX_DESC_CSUM_EN | 
+		ctrl =  TX_DESC_CSUM_EN |
 			CAS_BASE(TX_DESC_CSUM_START, csum_start_off) |
 			CAS_BASE(TX_DESC_CSUM_STUFF, csum_stuff_off);
 	}
@@ -2845,17 +2845,17 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 	tabort = cas_calc_tabort(cp, (unsigned long) skb->data, len);
 	if (unlikely(tabort)) {
 		/* NOTE: len is always >  tabort */
-		cas_write_txd(cp, ring, entry, mapping, len - tabort, 
+		cas_write_txd(cp, ring, entry, mapping, len - tabort,
 			      ctrl | TX_DESC_SOF, 0);
 		entry = TX_DESC_NEXT(ring, entry);
 
-		memcpy(tx_tiny_buf(cp, ring, entry), skb->data + 
+		memcpy(tx_tiny_buf(cp, ring, entry), skb->data +
 		       len - tabort, tabort);
 		mapping = tx_tiny_map(cp, ring, entry, tentry);
 		cas_write_txd(cp, ring, entry, mapping, tabort, ctrl,
 			      (nr_frags == 0));
 	} else {
-		cas_write_txd(cp, ring, entry, mapping, len, ctrl | 
+		cas_write_txd(cp, ring, entry, mapping, len, ctrl |
 			      TX_DESC_SOF, (nr_frags == 0));
 	}
 	entry = TX_DESC_NEXT(ring, entry);
@@ -2876,10 +2876,10 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 			cas_write_txd(cp, ring, entry, mapping, len - tabort,
 				      ctrl, 0);
 			entry = TX_DESC_NEXT(ring, entry);
-			
+
 			addr = cas_page_map(fragp->page);
 			memcpy(tx_tiny_buf(cp, ring, entry),
-			       addr + fragp->page_offset + len - tabort, 
+			       addr + fragp->page_offset + len - tabort,
 			       tabort);
 			cas_page_unmap(addr);
 			mapping = tx_tiny_map(cp, ring, entry, tentry);
@@ -2898,12 +2898,12 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 	if (netif_msg_tx_queued(cp))
 		printk(KERN_DEBUG "%s: tx[%d] queued, slot %d, skblen %d, "
 		       "avail %d\n",
-		       dev->name, ring, entry, skb->len, 
+		       dev->name, ring, entry, skb->len,
 		       TX_BUFFS_AVAIL(cp, ring));
 	writel(entry, cp->regs + REG_TX_KICKN(ring));
 	spin_unlock_irqrestore(&cp->tx_lock[ring], flags);
 	return 0;
-} 
+}
 
 static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -2912,7 +2912,7 @@ static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* this is only used as a load-balancing hint, so it doesn't
 	 * need to be SMP safe
 	 */
-	static int ring; 
+	static int ring;
 
 	if (skb_padto(skb, cp->min_frame_size))
 		return 0;
@@ -2943,14 +2943,14 @@ static void cas_init_tx_dma(struct cas *cp)
 	/* enable completion writebacks, enable paced mode,
 	 * disable read pipe, and disable pre-interrupt compwbs
 	 */
-	val =   TX_CFG_COMPWB_Q1 | TX_CFG_COMPWB_Q2 | 
+	val =   TX_CFG_COMPWB_Q1 | TX_CFG_COMPWB_Q2 |
 		TX_CFG_COMPWB_Q3 | TX_CFG_COMPWB_Q4 |
-		TX_CFG_DMA_RDPIPE_DIS | TX_CFG_PACED_MODE | 
+		TX_CFG_DMA_RDPIPE_DIS | TX_CFG_PACED_MODE |
 		TX_CFG_INTR_COMPWB_DIS;
 
 	/* write out tx ring info and tx desc bases */
 	for (i = 0; i < MAX_TX_RINGS; i++) {
-		off = (unsigned long) cp->init_txds[i] - 
+		off = (unsigned long) cp->init_txds[i] -
 			(unsigned long) cp->init_block;
 
 		val |= CAS_TX_RINGN_BASE(i);
@@ -2991,7 +2991,7 @@ static u32 cas_setup_multicast(struct cas *cp)
 {
 	u32 rxcfg = 0;
 	int i;
-	
+
 	if (cp->dev->flags & IFF_PROMISC) {
 		rxcfg |= MAC_RX_CFG_PROMISC_EN;
 
@@ -3016,16 +3016,16 @@ static u32 cas_setup_multicast(struct cas *cp)
 				writel(0x0, cp->regs + REG_MAC_ADDRN(i*3 + 2));
 				continue;
 			}
-			writel((dmi->dmi_addr[4] << 8) | dmi->dmi_addr[5], 
+			writel((dmi->dmi_addr[4] << 8) | dmi->dmi_addr[5],
 			       cp->regs + REG_MAC_ADDRN(i*3 + 0));
-			writel((dmi->dmi_addr[2] << 8) | dmi->dmi_addr[3], 
+			writel((dmi->dmi_addr[2] << 8) | dmi->dmi_addr[3],
 			       cp->regs + REG_MAC_ADDRN(i*3 + 1));
-			writel((dmi->dmi_addr[0] << 8) | dmi->dmi_addr[1], 
+			writel((dmi->dmi_addr[0] << 8) | dmi->dmi_addr[1],
 			       cp->regs + REG_MAC_ADDRN(i*3 + 2));
 			dmi = dmi->next;
 		}
 
-		/* use hw hash table for the next series of 
+		/* use hw hash table for the next series of
 		 * multicast addresses
 		 */
 		memset(hash_table, 0, sizeof(hash_table));
@@ -3036,7 +3036,7 @@ static u32 cas_setup_multicast(struct cas *cp)
 			dmi = dmi->next;
 		}
 	    	for (i=0; i < 16; i++)
-			writel(hash_table[i], cp->regs + 
+			writel(hash_table[i], cp->regs +
 			       REG_MAC_HASH_TABLEN(i));
 		rxcfg |= MAC_RX_CFG_HASH_FILTER_EN;
 	}
@@ -3121,23 +3121,23 @@ static void cas_init_mac(struct cas *cp)
 	writel(0x00, cp->regs + REG_MAC_IPG0);
 	writel(0x08, cp->regs + REG_MAC_IPG1);
 	writel(0x04, cp->regs + REG_MAC_IPG2);
-	
+
 	/* change later for 802.3z */
-	writel(0x40, cp->regs + REG_MAC_SLOT_TIME); 
+	writel(0x40, cp->regs + REG_MAC_SLOT_TIME);
 
 	/* min frame + FCS */
 	writel(ETH_ZLEN + 4, cp->regs + REG_MAC_FRAMESIZE_MIN);
 
 	/* Ethernet payload + header + FCS + optional VLAN tag. NOTE: we
-	 * specify the maximum frame size to prevent RX tag errors on 
+	 * specify the maximum frame size to prevent RX tag errors on
 	 * oversized frames.
 	 */
 	writel(CAS_BASE(MAC_FRAMESIZE_MAX_BURST, 0x2000) |
-	       CAS_BASE(MAC_FRAMESIZE_MAX_FRAME, 
-			(CAS_MAX_MTU + ETH_HLEN + 4 + 4)), 
+	       CAS_BASE(MAC_FRAMESIZE_MAX_FRAME,
+			(CAS_MAX_MTU + ETH_HLEN + 4 + 4)),
 	       cp->regs + REG_MAC_FRAMESIZE_MAX);
 
-	/* NOTE: crc_size is used as a surrogate for half-duplex. 
+	/* NOTE: crc_size is used as a surrogate for half-duplex.
 	 * workaround saturn half-duplex issue by increasing preamble
 	 * size to 65 bytes.
 	 */
@@ -3180,7 +3180,7 @@ static void cas_init_mac(struct cas *cp)
 	 * spin_lock_irqsave, but we are called only in cas_init_hw and
 	 * cas_init_hw is protected by cas_lock_all, which calls
 	 * spin_lock_irq (so it doesn't need to save the flags, and
-	 * we should be OK for the writel, as that is the only 
+	 * we should be OK for the writel, as that is the only
 	 * difference).
 	 */
 	cp->mac_rx_cfg = rxcfg = cas_setup_multicast(cp);
@@ -3229,7 +3229,7 @@ static int cas_vpd_match(const void __iomem *p, const char *str)
 {
 	int len = strlen(str) + 1;
 	int i;
-	
+
 	for (i = 0; i < len; i++) {
 		if (readb(p + i) != str[i])
 			return 0;
@@ -3246,7 +3246,7 @@ static int cas_vpd_match(const void __iomem *p, const char *str)
  *     number.
  *  3) fiber cards don't have bridges, so their slot numbers don't
  *     mean anything.
- *  4) we don't actually know we have a fiber card until after 
+ *  4) we don't actually know we have a fiber card until after
  *     the mac addresses are parsed.
  */
 static int cas_get_vpd_info(struct cas *cp, unsigned char *dev_addr,
@@ -3278,15 +3278,15 @@ static int cas_get_vpd_info(struct cas *cp, unsigned char *dev_addr,
 		    (readb(p + i + 1) == 0x43) &&
 		    (readb(p + i + 2) == 0x49) &&
 		    (readb(p + i + 3) == 0x52)) {
-			base = p + (readb(p + i + 8) | 
+			base = p + (readb(p + i + 8) |
 				    (readb(p + i + 9) << 8));
 			break;
-		}		
+		}
 	}
 
 	if (!base || (readb(base) != 0x82))
 		goto use_random_mac_addr;
-	
+
 	i = (readb(base + 1) | (readb(base + 2) << 8)) + 3;
 	while (i < EXPANSION_ROM_SIZE) {
 		if (readb(base + i) != 0x90) /* no vpd found */
@@ -3304,20 +3304,20 @@ static int cas_get_vpd_info(struct cas *cp, unsigned char *dev_addr,
 			char type;
 
 			p += 3;
-			
+
 			/* look for the following things:
 			 * -- correct length == 29
-			 * 3 (type) + 2 (size) + 
-			 * 18 (strlen("local-mac-address") + 1) + 
-			 * 6 (mac addr) 
+			 * 3 (type) + 2 (size) +
+			 * 18 (strlen("local-mac-address") + 1) +
+			 * 6 (mac addr)
 			 * -- VPD Instance 'I'
 			 * -- VPD Type Bytes 'B'
 			 * -- VPD data length == 6
 			 * -- property string == local-mac-address
-			 * 
+			 *
 			 * -- correct length == 24
-			 * 3 (type) + 2 (size) + 
-			 * 12 (strlen("entropy-dev") + 1) + 
+			 * 3 (type) + 2 (size) +
+			 * 12 (strlen("entropy-dev") + 1) +
 			 * 7 (strlen("vms110") + 1)
 			 * -- VPD Instance 'I'
 			 * -- VPD Type String 'B'
@@ -3325,17 +3325,17 @@ static int cas_get_vpd_info(struct cas *cp, unsigned char *dev_addr,
 			 * -- property string == entropy-dev
 			 *
 			 * -- correct length == 18
-			 * 3 (type) + 2 (size) + 
-			 * 9 (strlen("phy-type") + 1) + 
+			 * 3 (type) + 2 (size) +
+			 * 9 (strlen("phy-type") + 1) +
 			 * 4 (strlen("pcs") + 1)
 			 * -- VPD Instance 'I'
 			 * -- VPD Type String 'S'
 			 * -- VPD data length == 4
 			 * -- property string == phy-type
-			 * 
+			 *
 			 * -- correct length == 23
-			 * 3 (type) + 2 (size) + 
-			 * 14 (strlen("phy-interface") + 1) + 
+			 * 3 (type) + 2 (size) +
+			 * 14 (strlen("phy-interface") + 1) +
 			 * 4 (strlen("pcs") + 1)
 			 * -- VPD Instance 'I'
 			 * -- VPD Type String 'S'
@@ -3349,14 +3349,14 @@ static int cas_get_vpd_info(struct cas *cp, unsigned char *dev_addr,
 			type = readb(p + 3);
 			if (type == 'B') {
 				if ((klen == 29) && readb(p + 4) == 6 &&
-				    cas_vpd_match(p + 5, 
+				    cas_vpd_match(p + 5,
 						  "local-mac-address")) {
-					if (mac_off++ > offset) 
+					if (mac_off++ > offset)
 						goto next;
 
 					/* set mac address */
-					for (j = 0; j < 6; j++) 
-						dev_addr[j] = 
+					for (j = 0; j < 6; j++)
+						dev_addr[j] =
 							readb(p + 23 + j);
 					goto found_mac;
 				}
@@ -3366,7 +3366,7 @@ static int cas_get_vpd_info(struct cas *cp, unsigned char *dev_addr,
 				goto next;
 
 #ifdef USE_ENTROPY_DEV
-			if ((klen == 24) && 
+			if ((klen == 24) &&
 			    cas_vpd_match(p + 5, "entropy-dev") &&
 			    cas_vpd_match(p + 17, "vms110")) {
 				cp->cas_flags |= CAS_FLAG_ENTROPY_DEV;
@@ -3384,7 +3384,7 @@ static int cas_get_vpd_info(struct cas *cp, unsigned char *dev_addr,
 					goto found_phy;
 				}
 			}
-			
+
 			if ((klen == 23) && readb(p + 4) == 4 &&
 			    cas_vpd_match(p + 5, "phy-interface")) {
 				if (cas_vpd_match(p + 19, "pcs")) {
@@ -3462,12 +3462,12 @@ static int cas_check_invariants(struct cas *cp)
 	int i;
 
 	/* get page size for rx buffers. */
-	cp->page_order = 0; 
+	cp->page_order = 0;
 #ifdef USE_PAGE_ORDER
 	if (PAGE_SHIFT < CAS_JUMBO_PAGE_SHIFT) {
 		/* see if we can allocate larger pages */
-		struct page *page = alloc_pages(GFP_ATOMIC, 
-						CAS_JUMBO_PAGE_SHIFT - 
+		struct page *page = alloc_pages(GFP_ATOMIC,
+						CAS_JUMBO_PAGE_SHIFT -
 						PAGE_SHIFT);
 		if (page) {
 			__free_pages(page, CAS_JUMBO_PAGE_SHIFT - PAGE_SHIFT);
@@ -3483,15 +3483,15 @@ static int cas_check_invariants(struct cas *cp)
 	cp->tx_fifo_size = readl(cp->regs + REG_TX_FIFO_SIZE) * 64;
 	cp->rx_fifo_size = RX_FIFO_SIZE;
 
-	/* finish phy determination. MDIO1 takes precedence over MDIO0 if 
+	/* finish phy determination. MDIO1 takes precedence over MDIO0 if
 	 * they're both connected.
 	 */
-	cp->phy_type = cas_get_vpd_info(cp, cp->dev->dev_addr, 
+	cp->phy_type = cas_get_vpd_info(cp, cp->dev->dev_addr,
 					PCI_SLOT(pdev->devfn));
 	if (cp->phy_type & CAS_PHY_SERDES) {
 		cp->cas_flags |= CAS_FLAG_1000MB_CAP;
 		return 0; /* no more checking needed */
-	} 
+	}
 
 	/* MII */
 	cfg = readl(cp->regs + REG_MIF_CFG);
@@ -3525,7 +3525,7 @@ static int cas_check_invariants(struct cas *cp)
 done:
 	/* see if we can do gigabit */
 	cfg = cas_phy_read(cp, MII_BMSR);
-	if ((cfg & CAS_BMSR_1000_EXTEND) && 
+	if ((cfg & CAS_BMSR_1000_EXTEND) &&
 	    cas_phy_read(cp, CAS_MII_1000_EXTEND))
 		cp->cas_flags |= CAS_FLAG_1000MB_CAP;
 	return 0;
@@ -3537,7 +3537,7 @@ static inline void cas_start_dma(struct cas *cp)
 	int i;
 	u32 val;
 	int txfailed = 0;
-	
+
 	/* enable dma */
 	val = readl(cp->regs + REG_TX_CFG) | TX_CFG_DMA_EN;
 	writel(val, cp->regs + REG_TX_CFG);
@@ -3563,8 +3563,8 @@ static inline void cas_start_dma(struct cas *cp)
 		val = readl(cp->regs + REG_MAC_RX_CFG);
 		if ((val & MAC_RX_CFG_EN)) {
 			if (txfailed) {
-			  printk(KERN_ERR 
-				 "%s: enabling mac failed [tx:%08x:%08x].\n", 
+			  printk(KERN_ERR
+				 "%s: enabling mac failed [tx:%08x:%08x].\n",
 				 cp->dev->name,
 				 readl(cp->regs + REG_MIF_STATE_MACHINE),
 				 readl(cp->regs + REG_MAC_STATE_MACHINE));
@@ -3573,7 +3573,7 @@ static inline void cas_start_dma(struct cas *cp)
 		}
 		udelay(10);
 	}
-	printk(KERN_ERR "%s: enabling mac failed [%s:%08x:%08x].\n", 
+	printk(KERN_ERR "%s: enabling mac failed [%s:%08x:%08x].\n",
 	       cp->dev->name,
 	       (txfailed? "tx,rx":"rx"),
 	       readl(cp->regs + REG_MIF_STATE_MACHINE),
@@ -3585,11 +3585,11 @@ enable_rx_done:
 	writel(0, cp->regs + REG_RX_COMP_TAIL);
 
 	if (cp->cas_flags & CAS_FLAG_REG_PLUS) {
-		if (N_RX_DESC_RINGS > 1) 
-			writel(RX_DESC_RINGN_SIZE(1) - 4, 
+		if (N_RX_DESC_RINGS > 1)
+			writel(RX_DESC_RINGN_SIZE(1) - 4,
 			       cp->regs + REG_PLUS_RX_KICK1);
 
-		for (i = 1; i < N_RX_COMP_RINGS; i++) 
+		for (i = 1; i < N_RX_COMP_RINGS; i++)
 			writel(0, cp->regs + REG_PLUS_RX_COMPN_TAIL(i));
 	}
 }
@@ -3615,7 +3615,7 @@ static void cas_read_mii_link_mode(struct cas *cp, int *fd, int *spd,
 	*fd = 0;
 	*spd = 10;
 	*pause = 0;
-	
+
 	/* use GMII registers */
 	val = cas_phy_read(cp, MII_LPA);
 	if (val & CAS_LPA_PAUSE)
@@ -3656,7 +3656,7 @@ static void cas_set_link_modes(struct cas *cp)
 		cas_mif_poll(cp, 0);
 		val = cas_phy_read(cp, MII_BMCR);
 		if (val & BMCR_ANENABLE) {
-			cas_read_mii_link_mode(cp, &full_duplex, &speed, 
+			cas_read_mii_link_mode(cp, &full_duplex, &speed,
 					       &pause);
 		} else {
 			if (val & BMCR_FULLDPLX)
@@ -3689,7 +3689,7 @@ static void cas_set_link_modes(struct cas *cp)
 		if (!full_duplex)
 			val |= MAC_XIF_DISABLE_ECHO;
 	}
-	if (full_duplex) 
+	if (full_duplex)
 		val |= MAC_XIF_FDPLX_LED;
 	if (speed == 1000)
 		val |= MAC_XIF_GMII_MODE;
@@ -3709,17 +3709,17 @@ static void cas_set_link_modes(struct cas *cp)
 	/* val now set up for REG_MAC_TX_CFG */
 
 	/* If gigabit and half-duplex, enable carrier extension
-	 * mode.  increase slot time to 512 bytes as well. 
+	 * mode.  increase slot time to 512 bytes as well.
 	 * else, disable it and make sure slot time is 64 bytes.
 	 * also activate checksum bug workaround
 	 */
 	if ((speed == 1000) && !full_duplex) {
-		writel(val | MAC_TX_CFG_CARRIER_EXTEND, 
+		writel(val | MAC_TX_CFG_CARRIER_EXTEND,
 		       cp->regs + REG_MAC_TX_CFG);
 
 		val = readl(cp->regs + REG_MAC_RX_CFG);
 		val &= ~MAC_RX_CFG_STRIP_FCS; /* checksum workaround */
-		writel(val | MAC_RX_CFG_CARRIER_EXTEND, 
+		writel(val | MAC_RX_CFG_CARRIER_EXTEND,
 		       cp->regs + REG_MAC_RX_CFG);
 
 		writel(0x200, cp->regs + REG_MAC_SLOT_TIME);
@@ -3731,7 +3731,7 @@ static void cas_set_link_modes(struct cas *cp)
 	} else {
 		writel(val, cp->regs + REG_MAC_TX_CFG);
 
-		/* checksum bug workaround. don't strip FCS when in 
+		/* checksum bug workaround. don't strip FCS when in
 		 * half-duplex mode
 		 */
 		val = readl(cp->regs + REG_MAC_RX_CFG);
@@ -3744,7 +3744,7 @@ static void cas_set_link_modes(struct cas *cp)
 			cp->crc_size = 4;
 			cp->min_frame_size = CAS_MIN_FRAME;
 		}
-		writel(val & ~MAC_RX_CFG_CARRIER_EXTEND, 
+		writel(val & ~MAC_RX_CFG_CARRIER_EXTEND,
 		       cp->regs + REG_MAC_RX_CFG);
 		writel(0x40, cp->regs + REG_MAC_SLOT_TIME);
 	}
@@ -3772,7 +3772,7 @@ static void cas_set_link_modes(struct cas *cp)
 		val |= MAC_CTRL_CFG_SEND_PAUSE_EN;
 		if (pause & 0x01) { /* symmetric pause */
 			val |= MAC_CTRL_CFG_RECV_PAUSE_EN;
-		} 
+		}
 	}
 	writel(val, cp->regs + REG_MAC_CTRL_CFG);
 	cas_start_dma(cp);
@@ -3804,7 +3804,7 @@ static void cas_init_hw(struct cas *cp, int restart_link)
  */
 static void cas_hard_reset(struct cas *cp)
 {
-	writel(BIM_LOCAL_DEV_SOFT_0, cp->regs + REG_BIM_LOCAL_DEV_EN); 
+	writel(BIM_LOCAL_DEV_SOFT_0, cp->regs + REG_BIM_LOCAL_DEV_EN);
 	udelay(20);
 	pci_restore_state(cp->pdev);
 }
@@ -3822,7 +3822,7 @@ static void cas_global_reset(struct cas *cp, int blkflag)
 		 * need some special handling if the chip is set into a
 		 * loopback mode.
 		 */
-		writel((SW_RESET_TX | SW_RESET_RX | SW_RESET_BLOCK_PCS_SLINK), 
+		writel((SW_RESET_TX | SW_RESET_RX | SW_RESET_BLOCK_PCS_SLINK),
 		       cp->regs + REG_SW_RESET);
 	} else {
 		writel(SW_RESET_TX | SW_RESET_RX, cp->regs + REG_SW_RESET);
@@ -3842,16 +3842,16 @@ static void cas_global_reset(struct cas *cp, int blkflag)
 
 done:
 	/* enable various BIM interrupts */
-	writel(BIM_CFG_DPAR_INTR_ENABLE | BIM_CFG_RMA_INTR_ENABLE | 
+	writel(BIM_CFG_DPAR_INTR_ENABLE | BIM_CFG_RMA_INTR_ENABLE |
 	       BIM_CFG_RTA_INTR_ENABLE, cp->regs + REG_BIM_CFG);
 
 	/* clear out pci error status mask for handled errors.
 	 * we don't deal with DMA counter overflows as they happen
 	 * all the time.
 	 */
-	writel(0xFFFFFFFFU & ~(PCI_ERR_BADACK | PCI_ERR_DTRTO | 
-			       PCI_ERR_OTHER | PCI_ERR_BIM_DMA_WRITE | 
-			       PCI_ERR_BIM_DMA_READ), cp->regs + 
+	writel(0xFFFFFFFFU & ~(PCI_ERR_BADACK | PCI_ERR_DTRTO |
+			       PCI_ERR_OTHER | PCI_ERR_BIM_DMA_WRITE |
+			       PCI_ERR_BIM_DMA_READ), cp->regs +
 	       REG_PCI_ERR_STATUS_MASK);
 
 	/* set up for MII by default to address mac rx reset timeout
@@ -3912,7 +3912,7 @@ static void cas_shutdown(struct cas *cp)
 #else
 	while (atomic_read(&cp->reset_task_pending))
 		schedule();
-#endif	
+#endif
 	/* Actually stop the chip */
 	cas_lock_all_save(cp, flags);
 	cas_reset(cp, 0);
@@ -3942,7 +3942,7 @@ static int cas_change_mtu(struct net_device *dev, int new_mtu)
 	}
 	schedule_work(&cp->reset_task);
 #else
-	atomic_set(&cp->reset_task_pending, (cp->phy_type & CAS_PHY_SERDES) ? 
+	atomic_set(&cp->reset_task_pending, (cp->phy_type & CAS_PHY_SERDES) ?
 		   CAS_RESET_ALL : CAS_RESET_MTU);
 	printk(KERN_ERR "reset called in cas_change_mtu\n");
 	schedule_work(&cp->reset_task);
@@ -3976,7 +3976,7 @@ static void cas_clean_txd(struct cas *cp, int ring)
 			 * needs to be unmapped.
 			 */
 			daddr = le64_to_cpu(txd[ent].buffer);
-			dlen  =  CAS_VAL(TX_DESC_BUFLEN, 
+			dlen  =  CAS_VAL(TX_DESC_BUFLEN,
 					 le64_to_cpu(txd[ent].control));
 			pci_unmap_page(cp->pdev, daddr, dlen,
 				       PCI_DMA_TODEVICE);
@@ -4047,7 +4047,7 @@ static inline int cas_alloc_rx_desc(struct cas *cp, int ring)
 
 	size = RX_DESC_RINGN_SIZE(ring);
 	for (i = 0; i < size; i++) {
-		if ((page[i] = cas_page_alloc(cp, GFP_KERNEL)) == NULL) 
+		if ((page[i] = cas_page_alloc(cp, GFP_KERNEL)) == NULL)
 			return -1;
 	}
 	return 0;
@@ -4114,7 +4114,7 @@ static void cas_reset_task(void *data)
 		 * call to cas_init_hw will restart auto negotiation.
 		 * Setting the second argument of cas_reset to
 		 * !(pending == CAS_RESET_ALL) will set this argument
-		 * to 1 (avoiding reinitializing the PHY for the normal 
+		 * to 1 (avoiding reinitializing the PHY for the normal
 		 * PCS case) when auto negotiation is not restarted.
 		 */
 #if 1
@@ -4151,9 +4151,9 @@ static void cas_link_timer(unsigned long data)
 
 	if (link_transition_timeout != 0 &&
 	    cp->link_transition_jiffies_valid &&
-	    ((jiffies - cp->link_transition_jiffies) > 
+	    ((jiffies - cp->link_transition_jiffies) >
 	      (link_transition_timeout))) {
-		/* One-second counter so link-down workaround doesn't 
+		/* One-second counter so link-down workaround doesn't
 		 * cause resets to occur so fast as to fool the switch
 		 * into thinking the link is down.
 		 */
@@ -4173,10 +4173,10 @@ static void cas_link_timer(unsigned long data)
 #if 1
 	if (atomic_read(&cp->reset_task_pending_all) ||
 	    atomic_read(&cp->reset_task_pending_spare) ||
-	    atomic_read(&cp->reset_task_pending_mtu)) 
+	    atomic_read(&cp->reset_task_pending_mtu))
 		goto done;
 #else
-	if (atomic_read(&cp->reset_task_pending)) 
+	if (atomic_read(&cp->reset_task_pending))
 		goto done;
 #endif
 
@@ -4268,7 +4268,7 @@ done:
 	spin_unlock_irqrestore(&cp->lock, flags);
 }
 
-/* tiny buffers are used to avoid target abort issues with 
+/* tiny buffers are used to avoid target abort issues with
  * older cassini's
  */
 static void cas_tx_tiny_free(struct cas *cp)
@@ -4280,7 +4280,7 @@ static void cas_tx_tiny_free(struct cas *cp)
 		if (!cp->tx_tiny_bufs[i])
 			continue;
 
-		pci_free_consistent(pdev, TX_TINY_BUF_BLOCK, 
+		pci_free_consistent(pdev, TX_TINY_BUF_BLOCK,
 				    cp->tx_tiny_bufs[i],
 				    cp->tx_tiny_dvma[i]);
 		cp->tx_tiny_bufs[i] = NULL;
@@ -4293,7 +4293,7 @@ static int cas_tx_tiny_alloc(struct cas *cp)
 	int i;
 
 	for (i = 0; i < N_TX_RINGS; i++) {
-		cp->tx_tiny_bufs[i] = 
+		cp->tx_tiny_bufs[i] =
 			pci_alloc_consistent(pdev, TX_TINY_BUF_BLOCK,
 					     &cp->tx_tiny_dvma[i]);
 		if (!cp->tx_tiny_bufs[i]) {
@@ -4322,7 +4322,7 @@ static int cas_open(struct net_device *dev)
 		/* Reset the chip */
 		cas_lock_all_save(cp, flags);
 		/* We set the second arg to cas_reset to zero
-		 * because cas_init_hw below will have its second 
+		 * because cas_init_hw below will have its second
 		 * argument set to non-zero, which will force
 		 * autonegotiation to start.
 		 */
@@ -4338,19 +4338,19 @@ static int cas_open(struct net_device *dev)
 	err = -ENOMEM;
 	if (cas_alloc_rxds(cp) < 0)
 		goto err_tx_tiny;
-	
+
 	/* allocate spares */
 	cas_spare_init(cp);
 	cas_spare_recover(cp, GFP_KERNEL);
 
 	/* We can now request the interrupt as we know it's masked
 	 * on the controller. cassini+ has up to 4 interrupts
-	 * that can be used, but you need to do explicit pci interrupt 
+	 * that can be used, but you need to do explicit pci interrupt
 	 * mapping to expose them
 	 */
 	if (request_irq(cp->pdev->irq, cas_interrupt,
 			IRQF_SHARED, dev->name, (void *) dev)) {
-		printk(KERN_ERR "%s: failed to request irq !\n", 
+		printk(KERN_ERR "%s: failed to request irq !\n",
 		       cp->dev->name);
 		err = -EAGAIN;
 		goto err_spare;
@@ -4388,9 +4388,9 @@ static int cas_close(struct net_device *dev)
 
 	/* Stop traffic, mark us closed */
 	cas_lock_all_save(cp, flags);
-	cp->opened = 0;	
+	cp->opened = 0;
 	cas_reset(cp, 0);
-	cas_phy_init(cp); 
+	cas_phy_init(cp);
 	cas_begin_auto_negotiation(cp, NULL);
 	cas_clean_rings(cp);
 	cas_unlock_all_restore(cp, flags);
@@ -4483,7 +4483,7 @@ static struct net_device_stats *cas_get_stats(struct net_device *dev)
 	/* we collate all of the stats into net_stats[N_TX_RING] */
 	if (!cp->hw_running)
 		return stats + N_TX_RINGS;
-	
+
 	/* collect outstanding stats */
 	/* WTZ: the Cassini spec gives these as 16 bit counters but
 	 * stored in 32-bit words.  Added a mask of 0xffff to be safe,
@@ -4493,11 +4493,11 @@ static struct net_device_stats *cas_get_stats(struct net_device *dev)
 	 * that consistent.
 	 */
 	spin_lock_irqsave(&cp->stat_lock[N_TX_RINGS], flags);
-	stats[N_TX_RINGS].rx_crc_errors += 
+	stats[N_TX_RINGS].rx_crc_errors +=
 	  readl(cp->regs + REG_MAC_FCS_ERR) & 0xffff;
-	stats[N_TX_RINGS].rx_frame_errors += 
+	stats[N_TX_RINGS].rx_frame_errors +=
 		readl(cp->regs + REG_MAC_ALIGN_ERR) &0xffff;
-	stats[N_TX_RINGS].rx_length_errors += 
+	stats[N_TX_RINGS].rx_length_errors +=
 		readl(cp->regs + REG_MAC_LEN_ERR) & 0xffff;
 #if 1
 	tmp = (readl(cp->regs + REG_MAC_COLL_EXCESS) & 0xffff) +
@@ -4506,7 +4506,7 @@ static struct net_device_stats *cas_get_stats(struct net_device *dev)
 	stats[N_TX_RINGS].collisions +=
 	  tmp + (readl(cp->regs + REG_MAC_COLL_NORMAL) & 0xffff);
 #else
-	stats[N_TX_RINGS].tx_aborted_errors += 
+	stats[N_TX_RINGS].tx_aborted_errors +=
 		readl(cp->regs + REG_MAC_COLL_EXCESS);
 	stats[N_TX_RINGS].collisions += readl(cp->regs + REG_MAC_COLL_EXCESS) +
 		readl(cp->regs + REG_MAC_COLL_LATE);
@@ -4525,7 +4525,7 @@ static struct net_device_stats *cas_get_stats(struct net_device *dev)
 
 	for (i = 0; i < N_TX_RINGS; i++) {
 		spin_lock(&cp->stat_lock[i]);
-		stats[N_TX_RINGS].rx_length_errors += 
+		stats[N_TX_RINGS].rx_length_errors +=
 			stats[i].rx_length_errors;
 		stats[N_TX_RINGS].rx_crc_errors += stats[i].rx_crc_errors;
 		stats[N_TX_RINGS].rx_packets    += stats[i].rx_packets;
@@ -4550,10 +4550,10 @@ static void cas_set_multicast(struct net_device *dev)
 	u32 rxcfg, rxcfg_new;
 	unsigned long flags;
 	int limit = STOP_TRIES;
-	
+
 	if (!cp->hw_running)
 		return;
-		
+
 	spin_lock_irqsave(&cp->lock, flags);
 	rxcfg = readl(cp->regs + REG_MAC_RX_CFG);
 
@@ -4619,22 +4619,22 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			XCVR_INTERNAL : XCVR_EXTERNAL;
 		cmd->phy_address = cp->phy_addr;
 		cmd->advertising |= ADVERTISED_TP | ADVERTISED_MII |
-			ADVERTISED_10baseT_Half | 
-			ADVERTISED_10baseT_Full | 
-			ADVERTISED_100baseT_Half | 
+			ADVERTISED_10baseT_Half |
+			ADVERTISED_10baseT_Full |
+			ADVERTISED_100baseT_Half |
 			ADVERTISED_100baseT_Full;
 
 		cmd->supported |=
-			(SUPPORTED_10baseT_Half | 
+			(SUPPORTED_10baseT_Half |
 			 SUPPORTED_10baseT_Full |
-			 SUPPORTED_100baseT_Half | 
+			 SUPPORTED_100baseT_Half |
 			 SUPPORTED_100baseT_Full |
 			 SUPPORTED_TP | SUPPORTED_MII);
 
 		if (cp->hw_running) {
 			cas_mif_poll(cp, 0);
 			bmcr = cas_phy_read(cp, MII_BMCR);
-			cas_read_mii_link_mode(cp, &full_duplex, 
+			cas_read_mii_link_mode(cp, &full_duplex,
 					       &speed, &pause);
 			cas_mif_poll(cp, 1);
 		}
@@ -4647,9 +4647,9 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->advertising |= ADVERTISED_FIBRE;
 
 		if (cp->hw_running) {
-			/* pcs uses the same bits as mii */ 
+			/* pcs uses the same bits as mii */
 			bmcr = readl(cp->regs + REG_PCS_MII_CTRL);
-			cas_read_pcs_link_mode(cp, &full_duplex, 
+			cas_read_pcs_link_mode(cp, &full_duplex,
 					       &speed, &pause);
 		}
 	}
@@ -4667,8 +4667,8 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->autoneg = AUTONEG_DISABLE;
 		cmd->speed =
 			(bmcr & CAS_BMCR_SPEED1000) ?
-			SPEED_1000 : 
-			((bmcr & BMCR_SPEED100) ? SPEED_100: 
+			SPEED_1000 :
+			((bmcr & BMCR_SPEED100) ? SPEED_100:
 			 SPEED_10);
 		cmd->duplex =
 			(bmcr & BMCR_FULLDPLX) ?
@@ -4676,7 +4676,7 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 	if (linkstate != link_up) {
 		/* Force these to "unknown" if the link is not up and
-		 * autonogotiation in enabled. We can set the link 
+		 * autonogotiation in enabled. We can set the link
 		 * speed to 0, but not cmd->duplex,
 		 * because its legal values are 0 and 1.  Ethtool will
 		 * print the value reported in parentheses after the
@@ -4783,7 +4783,7 @@ static int cas_get_stats_count(struct net_device *dev)
 
 static void cas_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
-	 memcpy(data, &ethtool_cassini_statnames, 
+	 memcpy(data, &ethtool_cassini_statnames,
 					 CAS_NUM_STAT_KEYS * ETH_GSTRING_LEN);
 }
 
@@ -4812,7 +4812,7 @@ static void cas_get_ethtool_stats(struct net_device *dev,
 	BUG_ON(i != CAS_NUM_STAT_KEYS);
 }
 
-static struct ethtool_ops cas_ethtool_ops = {
+static const struct ethtool_ops cas_ethtool_ops = {
 	.get_drvinfo		= cas_get_drvinfo,
 	.get_settings		= cas_get_settings,
 	.set_settings		= cas_set_settings,
@@ -4833,7 +4833,7 @@ static int cas_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct mii_ioctl_data *data = if_mii(ifr);
 	unsigned long flags;
 	int rc = -EOPNOTSUPP;
-	
+
 	/* Hold the PM mutex while doing ioctl's or we may collide
 	 * with open/close and power management and oops.
 	 */
@@ -4933,11 +4933,11 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE,
 			     &orig_cacheline_size);
 	if (orig_cacheline_size < CAS_PREF_CACHELINE_SIZE) {
-		cas_cacheline_size = 
-			(CAS_PREF_CACHELINE_SIZE < SMP_CACHE_BYTES) ? 
+		cas_cacheline_size =
+			(CAS_PREF_CACHELINE_SIZE < SMP_CACHE_BYTES) ?
 			CAS_PREF_CACHELINE_SIZE : SMP_CACHE_BYTES;
-		if (pci_write_config_byte(pdev, 
-					  PCI_CACHE_LINE_SIZE, 
+		if (pci_write_config_byte(pdev,
+					  PCI_CACHE_LINE_SIZE,
 					  cas_cacheline_size)) {
 			dev_err(&pdev->dev, "Could not set PCI cache "
 			       "line size\n");
@@ -4977,7 +4977,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	cp->orig_cacheline_size = cas_cacheline_size ? orig_cacheline_size: 0;
 #endif
 	cp->dev = dev;
-	cp->msg_enable = (cassini_debug < 0) ? CAS_DEF_MSG_ENABLE : 
+	cp->msg_enable = (cassini_debug < 0) ? CAS_DEF_MSG_ENABLE :
 	  cassini_debug;
 
 	cp->link_transition = LINK_TRANSITION_UNKNOWN;
@@ -5041,13 +5041,13 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
-	for (i = 0; i < N_TX_RINGS; i++) 
+	for (i = 0; i < N_TX_RINGS; i++)
 		cp->init_txds[i] = cp->init_block->txds[i];
 
-	for (i = 0; i < N_RX_DESC_RINGS; i++) 
+	for (i = 0; i < N_RX_DESC_RINGS; i++)
 		cp->init_rxds[i] = cp->init_block->rxds[i];
 
-	for (i = 0; i < N_RX_COMP_RINGS; i++) 
+	for (i = 0; i < N_RX_COMP_RINGS; i++)
 		cp->init_rxcs[i] = cp->init_block->rxcs[i];
 
 	for (i = 0; i < N_RX_FLOWS; i++)
@@ -5087,11 +5087,11 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 
 	i = readl(cp->regs + REG_BIM_CFG);
 	printk(KERN_INFO "%s: Sun Cassini%s (%sbit/%sMHz PCI/%s) "
-	       "Ethernet[%d] ",  dev->name, 
-	       (cp->cas_flags & CAS_FLAG_REG_PLUS) ? "+" : "", 
+	       "Ethernet[%d] ",  dev->name,
+	       (cp->cas_flags & CAS_FLAG_REG_PLUS) ? "+" : "",
 	       (i & BIM_CFG_32BIT) ? "32" : "64",
 	       (i & BIM_CFG_66MHZ) ? "66" : "33",
-	       (cp->phy_type == CAS_PHY_SERDES) ? "Fi" : "Cu", pdev->irq); 
+	       (cp->phy_type == CAS_PHY_SERDES) ? "Fi" : "Cu", pdev->irq);
 
 	for (i = 0; i < 6; i++)
 		printk("%2.2x%c", dev->dev_addr[i],
@@ -5123,7 +5123,7 @@ err_out_free_res:
 
 err_write_cacheline:
 	/* Try to restore it in case the error occured after we
-	 * set it. 
+	 * set it.
 	 */
 	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, orig_cacheline_size);
 
@@ -5157,7 +5157,7 @@ static void __devexit cas_remove_one(struct pci_dev *pdev)
 		/* Restore the cache line size if we had modified
 		 * it.
 		 */
-		pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, 
+		pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE,
 				      cp->orig_cacheline_size);
 	}
 #endif
@@ -5178,7 +5178,7 @@ static int cas_suspend(struct pci_dev *pdev, pm_message_t state)
 	unsigned long flags;
 
 	mutex_lock(&cp->pm_mutex);
-	
+
 	/* If the driver is opened, we stop the DMA */
 	if (cp->opened) {
 		netif_device_detach(dev);
@@ -5245,7 +5245,7 @@ static int __init cas_init(void)
 	else
 		link_transition_timeout = 0;
 
-	return pci_module_init(&cas_driver);
+	return pci_register_driver(&cas_driver);
 }
 
 static void __exit cas_cleanup(void)

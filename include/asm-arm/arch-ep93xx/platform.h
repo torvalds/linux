@@ -11,5 +11,11 @@ void ep93xx_init_devices(void);
 void ep93xx_clock_init(void);
 extern struct sys_timer ep93xx_timer;
 
+struct ep93xx_eth_data
+{
+	unsigned char	dev_addr[6];
+	unsigned char	phy_id;
+};
+
 
 #endif

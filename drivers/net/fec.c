@@ -256,7 +256,7 @@ static mii_list_t	*mii_free;
 static mii_list_t	*mii_head;
 static mii_list_t	*mii_tail;
 
-static int	mii_queue(struct net_device *dev, int request, 
+static int	mii_queue(struct net_device *dev, int request,
 				void (*func)(uint, struct net_device *));
 
 /* Make MII read/write commands for the FEC.
@@ -277,7 +277,7 @@ static int	mii_queue(struct net_device *dev, int request,
 #define MII_REG_SR          1  /* Status Register                          */
 #define MII_REG_PHYIR1      2  /* PHY Identification Register 1            */
 #define MII_REG_PHYIR2      3  /* PHY Identification Register 2            */
-#define MII_REG_ANAR        4  /* A-N Advertisement Register               */ 
+#define MII_REG_ANAR        4  /* A-N Advertisement Register               */
 #define MII_REG_ANLPAR      5  /* A-N Link Partner Ability Register        */
 #define MII_REG_ANER        6  /* A-N Expansion Register                   */
 #define MII_REG_ANNPTR      7  /* A-N Next Page Transmit Register          */
@@ -289,18 +289,18 @@ static int	mii_queue(struct net_device *dev, int request,
 #define PHY_CONF_LOOP	0x0002  /* 1 loopback mode enabled */
 #define PHY_CONF_SPMASK	0x00f0  /* mask for speed */
 #define PHY_CONF_10HDX	0x0010  /* 10 Mbit half duplex supported */
-#define PHY_CONF_10FDX	0x0020  /* 10 Mbit full duplex supported */ 
+#define PHY_CONF_10FDX	0x0020  /* 10 Mbit full duplex supported */
 #define PHY_CONF_100HDX	0x0040  /* 100 Mbit half duplex supported */
-#define PHY_CONF_100FDX	0x0080  /* 100 Mbit full duplex supported */ 
+#define PHY_CONF_100FDX	0x0080  /* 100 Mbit full duplex supported */
 
 #define PHY_STAT_LINK	0x0100  /* 1 up - 0 down */
 #define PHY_STAT_FAULT	0x0200  /* 1 remote fault */
 #define PHY_STAT_ANC	0x0400  /* 1 auto-negotiation complete	*/
 #define PHY_STAT_SPMASK	0xf000  /* mask for speed */
 #define PHY_STAT_10HDX	0x1000  /* 10 Mbit half duplex selected	*/
-#define PHY_STAT_10FDX	0x2000  /* 10 Mbit full duplex selected	*/ 
+#define PHY_STAT_10FDX	0x2000  /* 10 Mbit full duplex selected	*/
 #define PHY_STAT_100HDX	0x4000  /* 100 Mbit half duplex selected */
-#define PHY_STAT_100FDX	0x8000  /* 100 Mbit full duplex selected */ 
+#define PHY_STAT_100FDX	0x8000  /* 100 Mbit full duplex selected */
 
 
 static int
@@ -360,7 +360,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	fep->stats.tx_bytes += skb->len;
 	fep->skb_cur = (fep->skb_cur+1) & TX_RING_MOD_MASK;
-	
+
 	/* Push the data cache so the CPM does not get stale memory
 	 * data.
 	 */
@@ -422,7 +422,7 @@ fec_timeout(struct net_device *dev)
 	bdp = fep->tx_bd_base;
 	printk(" tx: %u buffers\n",  TX_RING_SIZE);
 	for (i = 0 ; i < TX_RING_SIZE; i++) {
-		printk("  %08x: %04x %04x %08x\n", 
+		printk("  %08x: %04x %04x %08x\n",
 		       (uint) bdp,
 		       bdp->cbd_sc,
 		       bdp->cbd_datlen,
@@ -484,7 +484,7 @@ fec_enet_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 			handled = 1;
 			fec_enet_mii(dev);
 		}
-	
+
 	}
 	return IRQ_RETVAL(handled);
 }
@@ -534,20 +534,20 @@ fec_enet_tx(struct net_device *dev)
 		 */
 		if (status & BD_ENET_TX_DEF)
 			fep->stats.collisions++;
-	    
+
 		/* Free the sk buffer associated with this last transmit.
 		 */
 		dev_kfree_skb_any(skb);
 		fep->tx_skbuff[fep->skb_dirty] = NULL;
 		fep->skb_dirty = (fep->skb_dirty + 1) & TX_RING_MOD_MASK;
-	    
+
 		/* Update pointer to next buffer descriptor to be transmitted.
 		 */
 		if (status & BD_ENET_TX_WRAP)
 			bdp = fep->tx_bd_base;
 		else
 			bdp++;
-	    
+
 		/* Since we have freed up a buffer, the ring is no longer
 		 * full.
 		 */
@@ -577,10 +577,10 @@ fec_enet_rx(struct net_device *dev)
 	struct	sk_buff	*skb;
 	ushort	pkt_len;
 	__u8 *data;
-	
+
 #ifdef CONFIG_M532x
 	flush_cache_all();
-#endif	
+#endif
 
 	fep = netdev_priv(dev);
 	fecp = (volatile fec_t*)dev->base_addr;
@@ -606,7 +606,7 @@ while (!((status = bdp->cbd_sc) & BD_ENET_RX_EMPTY)) {
 	/* Check for errors. */
 	if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH | BD_ENET_RX_NO |
 			   BD_ENET_RX_CR | BD_ENET_RX_OV)) {
-		fep->stats.rx_errors++;       
+		fep->stats.rx_errors++;
 		if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH)) {
 		/* Frame too long or too short. */
 			fep->stats.rx_length_errors++;
@@ -670,7 +670,7 @@ while (!((status = bdp->cbd_sc) & BD_ENET_RX_EMPTY)) {
 		bdp = fep->rx_bd_base;
 	else
 		bdp++;
-	
+
 #if 1
 	/* Doing this here will keep the FEC running while we process
 	 * incoming frames.  On a heavily loaded network, we should be
@@ -708,7 +708,7 @@ fec_enet_mii(struct net_device *dev)
 	mii_reg = ep->fec_mii_data;
 
 	spin_lock(&fep->lock);
-	
+
 	if ((mip = mii_head) == NULL) {
 		printk("MII and no head!\n");
 		goto unlock;
@@ -886,14 +886,14 @@ static phy_cmd_t const phy_cmd_lxt970_shutdown[] = { /* disable interrupts */
 		{ mk_mii_end, }
 	};
 static phy_info_t const phy_info_lxt970 = {
-	.id = 0x07810000, 
+	.id = 0x07810000,
 	.name = "LXT970",
 	.config = phy_cmd_lxt970_config,
 	.startup = phy_cmd_lxt970_startup,
 	.ack_int = phy_cmd_lxt970_ack_int,
 	.shutdown = phy_cmd_lxt970_shutdown
 };
-	
+
 /* ------------------------------------------------------------------------- */
 /* The Level one LXT971 is used on some of my custom boards                  */
 
@@ -906,7 +906,7 @@ static phy_info_t const phy_info_lxt970 = {
 #define MII_LXT971_LCR       20  /* LED Control Register      */
 #define MII_LXT971_TCR       30  /* Transmit Control Register */
 
-/* 
+/*
  * I had some nice ideas of running the MDIO faster...
  * The 971 should support 8MHz and I tried it, but things acted really
  * weird, so 2.5 MHz ought to be enough for anyone...
@@ -944,9 +944,9 @@ static void mii_parse_lxt971_sr2(uint mii_reg, struct net_device *dev)
 
 	*s = status;
 }
-	
+
 static phy_cmd_t const phy_cmd_lxt971_config[] = {
-		/* limit to 10MBit because my prototype board 
+		/* limit to 10MBit because my prototype board
 		 * doesn't work with 100. */
 		{ mk_mii_read(MII_REG_CR), mii_parse_cr },
 		{ mk_mii_read(MII_REG_ANAR), mii_parse_anar },
@@ -960,7 +960,7 @@ static phy_cmd_t const phy_cmd_lxt971_startup[] = {  /* enable interrupts */
 		/* Somehow does the 971 tell me that the link is down
 		 * the first read after power-up.
 		 * read here to get a valid value in ack_int */
-		{ mk_mii_read(MII_REG_SR), mii_parse_sr }, 
+		{ mk_mii_read(MII_REG_SR), mii_parse_sr },
 		{ mk_mii_end, }
 	};
 static phy_cmd_t const phy_cmd_lxt971_ack_int[] = {
@@ -976,7 +976,7 @@ static phy_cmd_t const phy_cmd_lxt971_shutdown[] = { /* disable interrupts */
 		{ mk_mii_end, }
 	};
 static phy_info_t const phy_info_lxt971 = {
-	.id = 0x0001378e, 
+	.id = 0x0001378e,
 	.name = "LXT971",
 	.config = phy_cmd_lxt971_config,
 	.startup = phy_cmd_lxt971_startup,
@@ -1015,7 +1015,7 @@ static void mii_parse_qs6612_pcr(uint mii_reg, struct net_device *dev)
 }
 
 static phy_cmd_t const phy_cmd_qs6612_config[] = {
-		/* The PHY powers up isolated on the RPX, 
+		/* The PHY powers up isolated on the RPX,
 		 * so send a command to allow operation.
 		 */
 		{ mk_mii_write(MII_QS6612_PCR, 0x0dc0), NULL },
@@ -1045,7 +1045,7 @@ static phy_cmd_t const phy_cmd_qs6612_shutdown[] = { /* disable interrupts */
 		{ mk_mii_end, }
 	};
 static phy_info_t const phy_info_qs6612 = {
-	.id = 0x00181440, 
+	.id = 0x00181440,
 	.name = "QS6612",
 	.config = phy_cmd_qs6612_config,
 	.startup = phy_cmd_qs6612_startup,
@@ -1093,7 +1093,7 @@ static phy_cmd_t const phy_cmd_am79c874_config[] = {
 static phy_cmd_t const phy_cmd_am79c874_startup[] = {  /* enable interrupts */
 		{ mk_mii_write(MII_AM79C874_ICSR, 0xff00), NULL },
 		{ mk_mii_write(MII_REG_CR, 0x1200), NULL }, /* autonegotiate */
-		{ mk_mii_read(MII_REG_SR), mii_parse_sr }, 
+		{ mk_mii_read(MII_REG_SR), mii_parse_sr },
 		{ mk_mii_end, }
 	};
 static phy_cmd_t const phy_cmd_am79c874_ack_int[] = {
@@ -1135,7 +1135,7 @@ static phy_cmd_t const phy_cmd_ks8721bl_config[] = {
 static phy_cmd_t const phy_cmd_ks8721bl_startup[] = {  /* enable interrupts */
 		{ mk_mii_write(MII_KS8721BL_ICSR, 0xff00), NULL },
 		{ mk_mii_write(MII_REG_CR, 0x1200), NULL }, /* autonegotiate */
-		{ mk_mii_read(MII_REG_SR), mii_parse_sr }, 
+		{ mk_mii_read(MII_REG_SR), mii_parse_sr },
 		{ mk_mii_end, }
 	};
 static phy_cmd_t const phy_cmd_ks8721bl_ack_int[] = {
@@ -1150,7 +1150,7 @@ static phy_cmd_t const phy_cmd_ks8721bl_shutdown[] = { /* disable interrupts */
 		{ mk_mii_end, }
 	};
 static phy_info_t const phy_info_ks8721bl = {
-	.id = 0x00022161, 
+	.id = 0x00022161,
 	.name = "KS8721BL",
 	.config = phy_cmd_ks8721bl_config,
 	.startup = phy_cmd_ks8721bl_startup,
@@ -1420,7 +1420,7 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 	{
 		volatile u16 *gpio_paspar;
 		volatile u8 *gpio_pehlpar;
-  
+
 		gpio_paspar = (volatile u16 *) (MCF_IPSBAR + 0x100056);
 		gpio_pehlpar = (volatile u16 *) (MCF_IPSBAR + 0x100058);
 		*gpio_paspar |= 0x0f00;
@@ -1667,7 +1667,7 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 	/* Setup interrupt handlers. */
 	for (idp = id; idp->name; idp++) {
 		if (request_irq(b+idp->irq,fec_enet_interrupt,0,idp->name,dev)!=0)
-			printk("FEC: Could not allocate %s IRQ(%d)!\n", 
+			printk("FEC: Could not allocate %s IRQ(%d)!\n",
 				idp->name, b+idp->irq);
 	}
 
@@ -1856,10 +1856,10 @@ static void __inline__ fec_set_mii(struct net_device *dev, struct fec_enet_priva
 		immap->im_ioport.iop_pddir = 0x1c58;	/* Pre rev. D */
 	else
 		immap->im_ioport.iop_pddir = 0x1fff;	/* Rev. D and later */
-	
+
 	/* Set MII speed to 2.5 MHz
 	*/
-	fecp->fec_mii_speed = fep->phy_speed = 
+	fecp->fec_mii_speed = fep->phy_speed =
 		((bd->bi_busfreq * 1000000) / 2500000) & 0x7e;
 }
 
@@ -1869,7 +1869,7 @@ static void __inline__ fec_enable_phy_intr(void)
 
 	fecp = fep->hwp;
 
-	/* Enable MII command finished interrupt 
+	/* Enable MII command finished interrupt
 	*/
 	fecp->fec_ivec = (FEC_INTERRUPT/2) << 29;
 }
@@ -1971,7 +1971,7 @@ static void mii_display_config(struct net_device *dev)
 
 	if (status & PHY_CONF_LOOP)
 		printk(", loopback enabled");
-	
+
 	printk(".\n");
 
 	fep->sequence_done = 1;
@@ -1993,7 +1993,7 @@ static void mii_relink(struct net_device *dev)
 
 	if (fep->link) {
 		duplex = 0;
-		if (fep->phy_status 
+		if (fep->phy_status
 		    & (PHY_STAT_100FDX | PHY_STAT_10FDX))
 			duplex = 1;
 		fec_restart(dev, duplex);
@@ -2070,7 +2070,7 @@ mii_discover_phy3(uint mii_reg, struct net_device *dev)
 		printk(" -- %s\n", phy_info[i]->name);
 	else
 		printk(" -- unknown PHY!\n");
-      
+
 	fep->phy = phy_info[i];
 	fep->phy_id_done = 1;
 }
@@ -2090,7 +2090,7 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
 
 	if (fep->phy_addr < 32) {
 		if ((phytype = (mii_reg & 0xffff)) != 0xffff && phytype != 0) {
-			
+
 			/* Got first part of ID, now get remainder.
 			*/
 			fep->phy_id = phytype << 16;
@@ -2227,8 +2227,6 @@ static void set_multicast_list(struct net_device *dev)
 	ep = fep->hwp;
 
 	if (dev->flags&IFF_PROMISC) {
-		/* Log any net taps. */
-		printk("%s: Promiscuous mode enabled.\n", dev->name);
 		ep->fec_r_cntrl |= 0x0008;
 	} else {
 
@@ -2245,7 +2243,7 @@ static void set_multicast_list(struct net_device *dev)
 			*/
 			ep->fec_hash_table_high = 0;
 			ep->fec_hash_table_low = 0;
-            
+
 			dmi = dev->mc_list;
 
 			for (j = 0; j < dev->mc_count; j++, dmi = dmi->next)
@@ -2254,7 +2252,7 @@ static void set_multicast_list(struct net_device *dev)
 				*/
 				if (!(dmi->dmi_addr[0] & 1))
 					continue;
-			
+
 				/* calculate crc32 value of mac address
 				*/
 				crc = 0xffffffff;
@@ -2273,7 +2271,7 @@ static void set_multicast_list(struct net_device *dev)
 				   which point to specific bit in he hash registers
 				*/
 				hash = (crc >> (32 - HASH_BITS)) & 0x3f;
-			
+
 				if (hash > 31)
 					ep->fec_hash_table_high |= 1 << (hash - 32);
 				else

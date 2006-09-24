@@ -457,9 +457,9 @@ L:	linux-hams@vger.kernel.org
 W:	http://www.baycom.org/~tom/ham/ham.html
 S:	Maintained
 
-BCM43XX WIRELESS DRIVER
-P:	Michael Buesch
-M:	mb@bu3sch.de
+BCM43XX WIRELESS DRIVER (SOFTMAC BASED VERSION)
+P:	Larry Finger
+M:	Larry.Finger@lwfinger.net
 P:	Stefano Brivio
 M:	st3@riseup.net
 W:	http://bcm43xx.berlios.de/
@@ -2389,6 +2389,12 @@ M:	linux-driver@qlogic.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 
+QLOGIC QLA3XXX NETWORK DRIVER
+P:	Ron Mercer
+M:	linux-driver@qlogic.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 QNX4 FILESYSTEM
 P:	Anders Larsen
 M:	al@alarsen.net
@@ -2639,6 +2645,18 @@ S:	Maintained
 SMC91x ETHERNET DRIVER
 P:	Nicolas Pitre
 M:	nico@cam.org
+S:	Maintained
+
+SOFTMAC LAYER (IEEE 802.11)
+P:	Johannes Berg
+M:	johannes@sipsolutions.net
+P:	Joe Jezak
+M:	josejx@gentoo.org
+P:	Daniel Drake
+M:	dsd@gentoo.org
+W:	http://softmac.sipsolutions.net/
+L:	softmac-dev@sipsolutions.net
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
@@ -2922,8 +2940,8 @@ W:	http://www.auk.cx/tms380tr/
 S:	Maintained
 
 TULIP NETWORK DRIVER
-P:	Jeff Garzik
-M:	jgarzik@pobox.com
+P:	Valerie Henson
+M:	val_henson@linux.intel.com
 L:	tulip-users@lists.sourceforge.net
 W:	http://sourceforge.net/projects/tulip/
 S:	Maintained
@@ -3372,6 +3390,15 @@ M:	jreuter@yaina.de
 W:	http://yaina.de/jreuter/
 W:	http://www.qsl.net/dl1bke/
 L:	linux-hams@vger.kernel.org
+S:	Maintained
+
+ZD1211RW WIRELESS DRIVER
+P:	Daniel Drake
+M:	dsd@gentoo.org
+P:	Ulrich Kunitz
+M:	kune@deine-taler.de
+W:	http://zd1211.ath.cx/wiki/DriverRewrite
+L:	zd1211-devs@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 ZF MACHZ WATCHDOG

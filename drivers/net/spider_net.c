@@ -403,6 +403,7 @@ spider_net_prepare_rx_descr(struct spider_net_card *card,
 	if (!descr->skb) {
 		if (netif_msg_rx_err(card) && net_ratelimit())
 			pr_err("Not enough memory to allocate rx buffer\n");
+		card->spider_stats.alloc_rx_skb_error++;
 		return -ENOMEM;
 	}
 	descr->buf_size = bufsize;
@@ -423,6 +424,7 @@ spider_net_prepare_rx_descr(struct spider_net_card *card,
 		dev_kfree_skb_any(descr->skb);
 		if (netif_msg_rx_err(card) && net_ratelimit())
 			pr_err("Could not iommu-map rx buffer\n");
+		card->spider_stats.rx_iommu_map_error++;
 		descr->dmac_cmd_status = SPIDER_NET_DESCR_NOT_IN_USE;
 	} else {
 		descr->dmac_cmd_status = SPIDER_NET_DESCR_CARDOWNED |
@@ -651,6 +653,7 @@ spider_net_prepare_tx_descr(struct spider_net_card *card,
 		if (netif_msg_tx_err(card) && net_ratelimit())
 			pr_err("could not iommu-map packet (%p, %i). "
 				  "Dropping packet\n", skb->data, skb->len);
+		card->spider_stats.tx_iommu_map_error++;
 		return -ENOMEM;
 	}
 
@@ -818,6 +821,7 @@ spider_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (spider_net_get_descr_status(descr) != SPIDER_NET_DESCR_NOT_IN_USE) {
+		card->netdev_stats.tx_dropped++;
 		result = NETDEV_TX_LOCKED;
 		goto out;
 	}
@@ -913,6 +917,7 @@ spider_net_pass_skb_up(struct spider_net_descr *descr,
 			pr_err("error in received descriptor found, "
 			       "data_status=x%08x, data_error=x%08x\n",
 			       data_status, data_error);
+		card->spider_stats.rx_desc_error++;
 		return 0;
 	}
 
@@ -1010,9 +1015,11 @@ spider_net_decode_one_descr(struct spider_net_card *card, int napi)
 
 	if ( (status != SPIDER_NET_DESCR_COMPLETE) &&
 	     (status != SPIDER_NET_DESCR_FRAME_END) ) {
-		if (netif_msg_rx_err(card))
+		if (netif_msg_rx_err(card)) {
 			pr_err("%s: RX descriptor with state %d\n",
 			       card->netdev->name, status);
+			card->spider_stats.rx_desc_unk_state++;
+		}
 		goto refill;
 	}
 
@@ -1934,6 +1941,7 @@ spider_net_tx_timeout(struct net_device *netdev)
 		schedule_work(&card->tx_timeout_task);
 	else
 		atomic_dec(&card->tx_timeout_task_counter);
+	card->spider_stats.tx_timeouts++;
 }
 
 /**

@@ -8,9 +8,9 @@
  *
  * This driver is based on the 'hpfepkt' crynwr packet driver.
  *
- * This source/code is public free; you can distribute it and/or modify 
+ * This source/code is public free; you can distribute it and/or modify
  * it under terms of the GNU General Public License (published by the
- * Free Software Foundation) either version two of this License, or any 
+ * Free Software Foundation) either version two of this License, or any
  * later version.
  */
 
@@ -18,7 +18,7 @@
  *  Hardware Constants
  ****************************************************************************/
 
-/* 
+/*
  * Page Identifiers
  * (Swap Paging Register, PAGING, bits 3:0, Offset 0x02)
  */
@@ -143,15 +143,15 @@
 /* ------------------------------------------------------------------------ */
 
 
-/* 
+/*
  * Hardware ID Register I (Always available, HW_ID, Offset 0x00)
  */
 #define HP100_HW_ID_CASCADE     0x4850	/* Identifies Cascade Chip */
 
-/* 
+/*
  * Hardware ID Register 2 & Paging Register
  * (Always available, PAGING, Offset 0x02)
- * Bits 15:4 are for the Chip ID 
+ * Bits 15:4 are for the Chip ID
  */
 #define HP100_CHIPID_MASK        0xFFF0
 #define HP100_CHIPID_SHASTA      0x5350	/* Not 802.12 compliant */
@@ -162,7 +162,7 @@
 					 /* LRF supported */
 
 /*
- *  Option Registers I and II 
+ *  Option Registers I and II
  * (Always available, OPTION_LSW, Offset 0x04-0x05)
  */
 #define HP100_DEBUG_EN		0x8000	/* 0:Dis., 1:Enable Debug Dump Ptr. */
@@ -187,7 +187,7 @@
 					/* NIC reset on 0 to 1 transition */
 
 /*
- *  Option Register III 
+ *  Option Register III
  * (Always available, OPTION_MSW, Offset 0x06)
  */
 #define HP100_PRIORITY_TX	0x0080	/* 1:Do all Tx pkts as priority */
@@ -253,7 +253,7 @@
 #define HP100_BM_PCI_8CLK       0x40	/* ... cycles 8 clocks apart */
 
 
-/* 
+/*
  * Mode Control Register I
  * (Page HW_MAP, MODECTRL1, Offset0x10)
  */
@@ -281,7 +281,7 @@
 #define HP100_EN_BUS_FAIL       0x80	/* Enables bus-fail portion of misc */
 				       /* interrupt */
 
-/* 
+/*
  * PCI Configuration and Control Register I
  * (Page HW_MAP, PCICTRL1, Offset 0x12)
  */
@@ -378,7 +378,7 @@
 
 /*
  * 100MB LAN Control and Configuration Register
- * (Page MAC_CTRL, VG_LAN_CFG_1, Offset 0x0a) 
+ * (Page MAC_CTRL, VG_LAN_CFG_1, Offset 0x0a)
  */
 #define HP100_VG_SEL	        0x80	/* 0:No, 1:Yes use 100 Mbit MAC */
 #define HP100_LINK_UP_ST	0x40	/* 0:No, 1:Yes endnode logged in */
@@ -422,7 +422,7 @@
 #define HP100_MAC1MODE7		HP100_MAC1MODE6 | HP100_ACC_ERRORED
 
 /*
- *  MAC Configuration Register II 
+ *  MAC Configuration Register II
  * (Page MAC_CTRL, MAC_CFG_2, Offset 0x0d)
  */
 #define HP100_TR_MODE		0x80	/* 0:No, 1:Yes support Token Ring formats */
@@ -447,8 +447,8 @@
 #define HP100_MAC2MODE7		KEEP_CRC
 
 /*
- * MAC Configuration Register III 
- * (Page MAC_CTRL, MAC_CFG_3, Offset 0x0e) 
+ * MAC Configuration Register III
+ * (Page MAC_CTRL, MAC_CFG_3, Offset 0x0e)
  */
 #define HP100_PACKET_PACE       0x03	/* Packet Pacing:
 					 * 00: No packet pacing
@@ -461,7 +461,7 @@
 #define HP100_AUTO_MODE         0x10	/* 1: AutoSelect between 10/100 */
 
 /*
- * MAC Configuration Register IV 
+ * MAC Configuration Register IV
  * (Page MAC_CTRL, MAC_CFG_4, Offset 0x0f)
  */
 #define HP100_MAC_SEL_ST        0x01	/* (R): Status of external VGSEL
@@ -469,18 +469,18 @@
 #define HP100_LINK_FAIL_ST      0x02	/* (R): Status of Link Fail portion
 					 * of the Misc. Interrupt */
 
-/* 
- *  100 MB LAN Training Request/Allowed Registers 
+/*
+ *  100 MB LAN Training Request/Allowed Registers
  * (Page MAC_CTRL, TRAIN_REQUEST and TRAIN_ALLOW, Offset 0x14-0x16)(ETR parts only)
  */
-#define HP100_MACRQ_REPEATER         0x0001	/* 1: MAC tells HUB it wants to be 
+#define HP100_MACRQ_REPEATER         0x0001	/* 1: MAC tells HUB it wants to be
 						 *    a cascaded repeater
 						 * 0: ... wants to be a DTE */
 #define HP100_MACRQ_PROMSC           0x0006	/* 2 bits: Promiscious mode
 						 * 00: Rcv only unicast packets
 						 *     specifically addr to this
 						 *     endnode
-						 * 10: Rcv all pckts fwded by 
+						 * 10: Rcv all pckts fwded by
 						 *     the local repeater */
 #define HP100_MACRQ_FRAMEFMT_EITHER  0x0018	/* 11: either format allowed */
 #define HP100_MACRQ_FRAMEFMT_802_3   0x0000	/* 00: 802.3 is requested */
@@ -492,7 +492,7 @@
 						 * 00: Rcv only unicast packets
 						 *     specifically addr to this
 						 *     endnode
-						 * 10: Rcv all pckts fwded by 
+						 * 10: Rcv all pckts fwded by
 						 *     the local repeater */
 #define HP100_MALLOW_FRAMEFMT        0x00e0	/* 2 bits: Frame Format
 						 * 00: 802.3 format will be used
@@ -521,7 +521,7 @@
 #define HP100_LAN_COAX		9	/* lan_type value for Coax */
 #define HP100_LAN_ERR		(-1)	/* lan_type value for link down */
 
-/* 
+/*
  * Bus Master Data Structures  ----------------------------------------------
  */
 
@@ -554,7 +554,7 @@ typedef struct hp100_ring {
 #define HP100_PKT_LEN_MASK	0x1FFF	/* AND with RxLength to get length */
 
 
-/* Receive Packet Status.  Note, the error bits are only valid if ACC_ERRORED 
+/* Receive Packet Status.  Note, the error bits are only valid if ACC_ERRORED
    bit in the MAC Configuration Register 1 is set. */
 #define HP100_RX_PRI		0x8000	/* 0:No, 1:Yes packet is priority */
 #define HP100_SDF_ERR		0x4000	/* 0:No, 1:Yes start of frame error */

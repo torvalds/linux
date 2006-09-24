@@ -53,8 +53,10 @@ struct ieee80211_tkip_data {
 
 	int key_idx;
 
-	struct crypto_blkcipher *tfm_arc4;
-	struct crypto_hash *tfm_michael;
+	struct crypto_blkcipher *rx_tfm_arc4;
+	struct crypto_hash *rx_tfm_michael;
+	struct crypto_blkcipher *tx_tfm_arc4;
+	struct crypto_hash *tx_tfm_michael;
 
 	/* scratch buffers for virt_to_page() (crypto API) */
 	u8 rx_hdr[16], tx_hdr[16];
@@ -86,21 +88,39 @@ static void *ieee80211_tkip_init(int key_idx)
 
 	priv->key_idx = key_idx;
 
-	priv->tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
+	priv->tx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 						CRYPTO_ALG_ASYNC);
-	if (IS_ERR(priv->tfm_arc4)) {
+	if (IS_ERR(priv->tx_tfm_arc4)) {
 		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
 		       "crypto API arc4\n");
-		priv->tfm_arc4 = NULL;
+		priv->tx_tfm_arc4 = NULL;
 		goto fail;
 	}
 
-	priv->tfm_michael = crypto_alloc_hash("michael_mic", 0,
-					      CRYPTO_ALG_ASYNC);
-	if (IS_ERR(priv->tfm_michael)) {
+	priv->tx_tfm_michael = crypto_alloc_hash("michael_mic", 0,
+						 CRYPTO_ALG_ASYNC);
+	if (IS_ERR(priv->tx_tfm_michael)) {
 		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
 		       "crypto API michael_mic\n");
-		priv->tfm_michael = NULL;
+		priv->tx_tfm_michael = NULL;
+		goto fail;
+	}
+
+	priv->rx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
+						CRYPTO_ALG_ASYNC);
+	if (IS_ERR(priv->rx_tfm_arc4)) {
+		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
+		       "crypto API arc4\n");
+		priv->rx_tfm_arc4 = NULL;
+		goto fail;
+	}
+
+	priv->rx_tfm_michael = crypto_alloc_hash("michael_mic", 0,
+						 CRYPTO_ALG_ASYNC);
+	if (IS_ERR(priv->rx_tfm_michael)) {
+		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
+		       "crypto API michael_mic\n");
+		priv->rx_tfm_michael = NULL;
 		goto fail;
 	}
 
@@ -108,10 +128,14 @@ static void *ieee80211_tkip_init(int key_idx)
 
       fail:
 	if (priv) {
-		if (priv->tfm_michael)
-			crypto_free_hash(priv->tfm_michael);
-		if (priv->tfm_arc4)
-			crypto_free_blkcipher(priv->tfm_arc4);
+		if (priv->tx_tfm_michael)
+			crypto_free_hash(priv->tx_tfm_michael);
+		if (priv->tx_tfm_arc4)
+			crypto_free_blkcipher(priv->tx_tfm_arc4);
+		if (priv->rx_tfm_michael)
+			crypto_free_hash(priv->rx_tfm_michael);
+		if (priv->rx_tfm_arc4)
+			crypto_free_blkcipher(priv->rx_tfm_arc4);
 		kfree(priv);
 	}
 
@@ -121,10 +145,16 @@ static void *ieee80211_tkip_init(int key_idx)
 static void ieee80211_tkip_deinit(void *priv)
 {
 	struct ieee80211_tkip_data *_priv = priv;
-	if (_priv && _priv->tfm_michael)
-		crypto_free_hash(_priv->tfm_michael);
-	if (_priv && _priv->tfm_arc4)
-		crypto_free_blkcipher(_priv->tfm_arc4);
+	if (_priv) {
+		if (_priv->tx_tfm_michael)
+			crypto_free_hash(_priv->tx_tfm_michael);
+		if (_priv->tx_tfm_arc4)
+			crypto_free_blkcipher(_priv->tx_tfm_arc4);
+		if (_priv->rx_tfm_michael)
+			crypto_free_hash(_priv->rx_tfm_michael);
+		if (_priv->rx_tfm_arc4)
+			crypto_free_blkcipher(_priv->rx_tfm_arc4);
+	}
 	kfree(priv);
 }
 
@@ -323,7 +353,7 @@ static int ieee80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
 static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
-	struct blkcipher_desc desc = { .tfm = tkey->tfm_arc4 };
+	struct blkcipher_desc desc = { .tfm = tkey->tx_tfm_arc4 };
 	int len;
 	u8 rc4key[16], *pos, *icv;
 	u32 crc;
@@ -357,17 +387,30 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	icv[2] = crc >> 16;
 	icv[3] = crc >> 24;
 
-	crypto_blkcipher_setkey(tkey->tfm_arc4, rc4key, 16);
+	crypto_blkcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
 	sg.page = virt_to_page(pos);
 	sg.offset = offset_in_page(pos);
 	sg.length = len + 4;
 	return crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
 }
 
+/*
+ * deal with seq counter wrapping correctly.
+ * refer to timer_after() for jiffies wrapping handling
+ */
+static inline int tkip_replay_check(u32 iv32_n, u16 iv16_n,
+				    u32 iv32_o, u16 iv16_o)
+{
+	if ((s32)iv32_n - (s32)iv32_o < 0 ||
+	    (iv32_n == iv32_o && iv16_n <= iv16_o))
+		return 1;
+	return 0;
+}
+
 static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
-	struct blkcipher_desc desc = { .tfm = tkey->tfm_arc4 };
+	struct blkcipher_desc desc = { .tfm = tkey->rx_tfm_arc4 };
 	u8 rc4key[16];
 	u8 keyidx, *pos;
 	u32 iv32;
@@ -419,8 +462,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	iv32 = pos[4] | (pos[5] << 8) | (pos[6] << 16) | (pos[7] << 24);
 	pos += 8;
 
-	if (iv32 < tkey->rx_iv32 ||
-	    (iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) {
+	if (tkip_replay_check(iv32, iv16, tkey->rx_iv32, tkey->rx_iv16)) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "TKIP: replay detected: STA=" MAC_FMT
 			       " previous TSC %08x%04x received TSC "
@@ -439,7 +481,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	plen = skb->len - hdr_len - 12;
 
-	crypto_blkcipher_setkey(tkey->tfm_arc4, rc4key, 16);
+	crypto_blkcipher_setkey(tkey->rx_tfm_arc4, rc4key, 16);
 	sg.page = virt_to_page(pos);
 	sg.offset = offset_in_page(pos);
 	sg.length = plen + 4;
@@ -484,13 +526,13 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return keyidx;
 }
 
-static int michael_mic(struct ieee80211_tkip_data *tkey, u8 * key, u8 * hdr,
+static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
 		       u8 * data, size_t data_len, u8 * mic)
 {
 	struct hash_desc desc;
 	struct scatterlist sg[2];
 
-	if (tkey->tfm_michael == NULL) {
+	if (tfm_michael == NULL) {
 		printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
 		return -1;
 	}
@@ -502,10 +544,10 @@ static int michael_mic(struct ieee80211_tkip_data *tkey, u8 * key, u8 * hdr,
 	sg[1].offset = offset_in_page(data);
 	sg[1].length = data_len;
 
-	if (crypto_hash_setkey(tkey->tfm_michael, key, 8))
+	if (crypto_hash_setkey(tfm_michael, key, 8))
 		return -1;
 
-	desc.tfm = tkey->tfm_michael;
+	desc.tfm = tfm_michael;
 	desc.flags = 0;
 	return crypto_hash_digest(&desc, sg, data_len + 16, mic);
 }
@@ -541,7 +583,7 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 * hdr)
 	if (stype & IEEE80211_STYPE_QOS_DATA) {
 		const struct ieee80211_hdr_3addrqos *qoshdr =
 			(struct ieee80211_hdr_3addrqos *)skb->data;
-		hdr[12] = le16_to_cpu(qoshdr->qos_ctl) & IEEE80211_QCTL_TID;
+		hdr[12] = qoshdr->qos_ctl & cpu_to_le16(IEEE80211_QCTL_TID);
 	} else
 		hdr[12] = 0;		/* priority */
 
@@ -563,7 +605,7 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
 
 	michael_mic_hdr(skb, tkey->tx_hdr);
 	pos = skb_put(skb, 8);
-	if (michael_mic(tkey, &tkey->key[16], tkey->tx_hdr,
+	if (michael_mic(tkey->tx_tfm_michael, &tkey->key[16], tkey->tx_hdr,
 			skb->data + hdr_len, skb->len - 8 - hdr_len, pos))
 		return -1;
 
@@ -601,7 +643,7 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		return -1;
 
 	michael_mic_hdr(skb, tkey->rx_hdr);
-	if (michael_mic(tkey, &tkey->key[24], tkey->rx_hdr,
+	if (michael_mic(tkey->rx_tfm_michael, &tkey->key[24], tkey->rx_hdr,
 			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
 		return -1;
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
@@ -631,14 +673,18 @@ static int ieee80211_tkip_set_key(void *key, int len, u8 * seq, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	int keyidx;
-	struct crypto_hash *tfm = tkey->tfm_michael;
-	struct crypto_blkcipher *tfm2 = tkey->tfm_arc4;
+	struct crypto_hash *tfm = tkey->tx_tfm_michael;
+	struct crypto_blkcipher *tfm2 = tkey->tx_tfm_arc4;
+	struct crypto_hash *tfm3 = tkey->rx_tfm_michael;
+	struct crypto_blkcipher *tfm4 = tkey->rx_tfm_arc4;
 
 	keyidx = tkey->key_idx;
 	memset(tkey, 0, sizeof(*tkey));
 	tkey->key_idx = keyidx;
-	tkey->tfm_michael = tfm;
-	tkey->tfm_arc4 = tfm2;
+	tkey->tx_tfm_michael = tfm;
+	tkey->tx_tfm_arc4 = tfm2;
+	tkey->rx_tfm_michael = tfm3;
+	tkey->rx_tfm_arc4 = tfm4;
 	if (len == TKIP_KEY_LEN) {
 		memcpy(tkey->key, key, TKIP_KEY_LEN);
 		tkey->key_set = 1;

@@ -36,7 +36,7 @@ static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION "7.1.9-k4"DRIVERNAPI
+#define DRV_VERSION "7.2.7-k2"DRIVERNAPI
 char e1000_driver_version[] = DRV_VERSION;
 static char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
@@ -99,6 +99,7 @@ static struct pci_device_id e1000_pci_tbl[] = {
 	INTEL_E1000_ETHERNET_DEVICE(0x1098),
 	INTEL_E1000_ETHERNET_DEVICE(0x1099),
 	INTEL_E1000_ETHERNET_DEVICE(0x109A),
+	INTEL_E1000_ETHERNET_DEVICE(0x10A4),
 	INTEL_E1000_ETHERNET_DEVICE(0x10B5),
 	INTEL_E1000_ETHERNET_DEVICE(0x10B9),
 	INTEL_E1000_ETHERNET_DEVICE(0x10BA),
@@ -245,7 +246,7 @@ e1000_init_module(void)
 
 	printk(KERN_INFO "%s\n", e1000_copyright);
 
-	ret = pci_module_init(&e1000_driver);
+	ret = pci_register_driver(&e1000_driver);
 
 	return ret;
 }
@@ -485,7 +486,7 @@ e1000_up(struct e1000_adapter *adapter)
  *
  **/
 
-static void e1000_power_up_phy(struct e1000_adapter *adapter)
+void e1000_power_up_phy(struct e1000_adapter *adapter)
 {
 	uint16_t mii_reg = 0;
 
@@ -682,9 +683,9 @@ e1000_probe(struct pci_dev *pdev,
 	unsigned long flash_start, flash_len;
 
 	static int cards_found = 0;
-	static int e1000_ksp3_port_a = 0; /* global ksp3 port a indication */
+	static int global_quad_port_a = 0; /* global ksp3 port a indication */
 	int i, err, pci_using_dac;
-	uint16_t eeprom_data;
+	uint16_t eeprom_data = 0;
 	uint16_t eeprom_apme_mask = E1000_EEPROM_APME;
 	if ((err = pci_enable_device(pdev)))
 		return err;
@@ -696,21 +697,20 @@ e1000_probe(struct pci_dev *pdev,
 		if ((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) &&
 		    (err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))) {
 			E1000_ERR("No usable DMA configuration, aborting\n");
-			return err;
+			goto err_dma;
 		}
 		pci_using_dac = 0;
 	}
 
 	if ((err = pci_request_regions(pdev, e1000_driver_name)))
-		return err;
+		goto err_pci_reg;
 
 	pci_set_master(pdev);
 
+	err = -ENOMEM;
 	netdev = alloc_etherdev(sizeof(struct e1000_adapter));
-	if (!netdev) {
-		err = -ENOMEM;
+	if (!netdev)
 		goto err_alloc_etherdev;
-	}
 
 	SET_MODULE_OWNER(netdev);
 	SET_NETDEV_DEV(netdev, &pdev->dev);
@@ -725,11 +725,10 @@ e1000_probe(struct pci_dev *pdev,
 	mmio_start = pci_resource_start(pdev, BAR_0);
 	mmio_len = pci_resource_len(pdev, BAR_0);
 
+	err = -EIO;
 	adapter->hw.hw_addr = ioremap(mmio_start, mmio_len);
-	if (!adapter->hw.hw_addr) {
-		err = -EIO;
+	if (!adapter->hw.hw_addr)
 		goto err_ioremap;
-	}
 
 	for (i = BAR_1; i <= BAR_5; i++) {
 		if (pci_resource_len(pdev, i) == 0)
@@ -774,6 +773,7 @@ e1000_probe(struct pci_dev *pdev,
 	if ((err = e1000_sw_init(adapter)))
 		goto err_sw_init;
 
+	err = -EIO;
 	/* Flash BAR mapping must happen after e1000_sw_init
 	 * because it depends on mac_type */
 	if ((adapter->hw.mac_type == e1000_ich8lan) &&
@@ -781,23 +781,12 @@ e1000_probe(struct pci_dev *pdev,
 		flash_start = pci_resource_start(pdev, 1);
 		flash_len = pci_resource_len(pdev, 1);
 		adapter->hw.flash_address = ioremap(flash_start, flash_len);
-		if (!adapter->hw.flash_address) {
-			err = -EIO;
+		if (!adapter->hw.flash_address)
 			goto err_flashmap;
-		}
 	}
 
-	if ((err = e1000_check_phy_reset_block(&adapter->hw)))
+	if (e1000_check_phy_reset_block(&adapter->hw))
 		DPRINTK(PROBE, INFO, "PHY reset is blocked due to SOL/IDER session.\n");
-
-	/* if ksp3, indicate if it's port a being setup */
-	if (pdev->device == E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 &&
-			e1000_ksp3_port_a == 0)
-		adapter->ksp3_port_a = 1;
-	e1000_ksp3_port_a++;
-	/* Reset for multiple KP3 adapters */
-	if (e1000_ksp3_port_a == 4)
-		e1000_ksp3_port_a = 0;
 
 	if (adapter->hw.mac_type >= e1000_82543) {
 		netdev->features = NETIF_F_SG |
@@ -830,7 +819,7 @@ e1000_probe(struct pci_dev *pdev,
 
 	if (e1000_init_eeprom_params(&adapter->hw)) {
 		E1000_ERR("EEPROM initialization failed\n");
-		return -EIO;
+		goto err_eeprom;
 	}
 
 	/* before reading the EEPROM, reset the controller to
@@ -842,7 +831,6 @@ e1000_probe(struct pci_dev *pdev,
 
 	if (e1000_validate_eeprom_checksum(&adapter->hw) < 0) {
 		DPRINTK(PROBE, ERR, "The EEPROM Checksum Is Not Valid\n");
-		err = -EIO;
 		goto err_eeprom;
 	}
 
@@ -855,11 +843,8 @@ e1000_probe(struct pci_dev *pdev,
 
 	if (!is_valid_ether_addr(netdev->perm_addr)) {
 		DPRINTK(PROBE, ERR, "Invalid MAC Address\n");
-		err = -EIO;
 		goto err_eeprom;
 	}
-
-	e1000_read_part_num(&adapter->hw, &(adapter->part_num));
 
 	e1000_get_bus_info(&adapter->hw);
 
@@ -921,7 +906,38 @@ e1000_probe(struct pci_dev *pdev,
 		break;
 	}
 	if (eeprom_data & eeprom_apme_mask)
-		adapter->wol |= E1000_WUFC_MAG;
+		adapter->eeprom_wol |= E1000_WUFC_MAG;
+
+	/* now that we have the eeprom settings, apply the special cases
+	 * where the eeprom may be wrong or the board simply won't support
+	 * wake on lan on a particular port */
+	switch (pdev->device) {
+	case E1000_DEV_ID_82546GB_PCIE:
+		adapter->eeprom_wol = 0;
+		break;
+	case E1000_DEV_ID_82546EB_FIBER:
+	case E1000_DEV_ID_82546GB_FIBER:
+	case E1000_DEV_ID_82571EB_FIBER:
+		/* Wake events only supported on port A for dual fiber
+		 * regardless of eeprom setting */
+		if (E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_FUNC_1)
+			adapter->eeprom_wol = 0;
+		break;
+	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
+	case E1000_DEV_ID_82571EB_QUAD_COPPER:
+		/* if quad port adapter, disable WoL on all but port A */
+		if (global_quad_port_a != 0)
+			adapter->eeprom_wol = 0;
+		else
+			adapter->quad_port_a = 1;
+		/* Reset for multiple quad port adapters */
+		if (++global_quad_port_a == 4)
+			global_quad_port_a = 0;
+		break;
+	}
+
+	/* initialize the wol settings based on the eeprom settings */
+	adapter->wol = adapter->eeprom_wol;
 
 	/* print bus type/speed/width info */
 	{
@@ -964,16 +980,33 @@ e1000_probe(struct pci_dev *pdev,
 	return 0;
 
 err_register:
+	e1000_release_hw_control(adapter);
+err_eeprom:
+	if (!e1000_check_phy_reset_block(&adapter->hw))
+		e1000_phy_hw_reset(&adapter->hw);
+
 	if (adapter->hw.flash_address)
 		iounmap(adapter->hw.flash_address);
 err_flashmap:
+#ifdef CONFIG_E1000_NAPI
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		dev_put(&adapter->polling_netdev[i]);
+#endif
+
+	kfree(adapter->tx_ring);
+	kfree(adapter->rx_ring);
+#ifdef CONFIG_E1000_NAPI
+	kfree(adapter->polling_netdev);
+#endif
 err_sw_init:
-err_eeprom:
 	iounmap(adapter->hw.hw_addr);
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
 	pci_release_regions(pdev);
+err_pci_reg:
+err_dma:
+	pci_disable_device(pdev);
 	return err;
 }
 
@@ -1208,7 +1241,7 @@ e1000_open(struct net_device *netdev)
 
 	err = e1000_request_irq(adapter);
 	if (err)
-		goto err_up;
+		goto err_req_irq;
 
 	e1000_power_up_phy(adapter);
 
@@ -1229,6 +1262,9 @@ e1000_open(struct net_device *netdev)
 	return E1000_SUCCESS;
 
 err_up:
+	e1000_power_down_phy(adapter);
+	e1000_free_irq(adapter);
+err_req_irq:
 	e1000_free_all_rx_resources(adapter);
 err_setup_rx:
 	e1000_free_all_tx_resources(adapter);
@@ -1381,10 +1417,6 @@ setup_tx_desc_die:
  * 				  (Descriptors) for all queues
  * @adapter: board private structure
  *
- * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
- * callers duty to clean those orphaned rings.
- *
  * Return 0 on success, negative on failure
  **/
 
@@ -1398,6 +1430,9 @@ e1000_setup_all_tx_resources(struct e1000_adapter *adapter)
 		if (err) {
 			DPRINTK(PROBE, ERR,
 				"Allocation for Tx Queue %u failed\n", i);
+			for (i-- ; i >= 0; i--)
+				e1000_free_tx_resources(adapter,
+							&adapter->tx_ring[i]);
 			break;
 		}
 	}
@@ -1499,8 +1534,6 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 	} else if (hw->mac_type == e1000_80003es2lan) {
 		tarc = E1000_READ_REG(hw, TARC0);
 		tarc |= 1;
-		if (hw->media_type == e1000_media_type_internal_serdes)
-			tarc |= (1 << 20);
 		E1000_WRITE_REG(hw, TARC0, tarc);
 		tarc = E1000_READ_REG(hw, TARC1);
 		tarc |= 1;
@@ -1639,10 +1672,6 @@ setup_rx_desc_die:
  * 				  (Descriptors) for all queues
  * @adapter: board private structure
  *
- * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
- * callers duty to clean those orphaned rings.
- *
  * Return 0 on success, negative on failure
  **/
 
@@ -1656,6 +1685,9 @@ e1000_setup_all_rx_resources(struct e1000_adapter *adapter)
 		if (err) {
 			DPRINTK(PROBE, ERR,
 				"Allocation for Rx Queue %u failed\n", i);
+			for (i-- ; i >= 0; i--)
+				e1000_free_rx_resources(adapter,
+							&adapter->rx_ring[i]);
 			break;
 		}
 	}
@@ -2442,10 +2474,9 @@ e1000_watchdog(unsigned long data)
 			 * disable receives in the ISR and
 			 * reset device here in the watchdog
 			 */
-			if (adapter->hw.mac_type == e1000_80003es2lan) {
+			if (adapter->hw.mac_type == e1000_80003es2lan)
 				/* reset device */
 				schedule_work(&adapter->reset_task);
-			}
 		}
 
 		e1000_smartspeed(adapter);
@@ -2545,7 +2576,7 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 			cmd_length = E1000_TXD_CMD_IP;
 			ipcse = skb->h.raw - skb->data - 1;
 #ifdef NETIF_F_TSO_IPV6
-		} else if (skb->protocol == ntohs(ETH_P_IPV6)) {
+		} else if (skb->protocol == htons(ETH_P_IPV6)) {
 			skb->nh.ipv6h->payload_len = 0;
 			skb->h.th->check =
 				~csum_ipv6_magic(&skb->nh.ipv6h->saddr,
@@ -3680,7 +3711,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			E1000_DBG("%s: Receive packet consumed multiple"
 				  " buffers\n", netdev->name);
 			/* recycle */
-			buffer_info-> skb = skb;
+			buffer_info->skb = skb;
 			goto next_desc;
 		}
 
@@ -3711,7 +3742,6 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			    netdev_alloc_skb(netdev, length + NET_IP_ALIGN);
 			if (new_skb) {
 				skb_reserve(new_skb, NET_IP_ALIGN);
-				new_skb->dev = netdev;
 				memcpy(new_skb->data - NET_IP_ALIGN,
 				       skb->data - NET_IP_ALIGN,
 				       length + NET_IP_ALIGN);
@@ -3978,13 +4008,13 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 	buffer_info = &rx_ring->buffer_info[i];
 
 	while (cleaned_count--) {
-		if (!(skb = buffer_info->skb))
-			skb = netdev_alloc_skb(netdev, bufsz);
-		else {
+		skb = buffer_info->skb;
+		if (skb) {
 			skb_trim(skb, 0);
 			goto map_skb;
 		}
 
+		skb = netdev_alloc_skb(netdev, bufsz);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			adapter->alloc_rx_buff_failed++;
@@ -4009,18 +4039,16 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 				dev_kfree_skb(skb);
 				dev_kfree_skb(oldskb);
 				break; /* while !buffer_info->skb */
-			} else {
-				/* Use new allocation */
-				dev_kfree_skb(oldskb);
 			}
+
+			/* Use new allocation */
+			dev_kfree_skb(oldskb);
 		}
 		/* Make buffer alignment 2 beyond a 16 byte boundary
 		 * this will result in a 16 byte aligned IP header after
 		 * the 14 byte MAC header is removed
 		 */
 		skb_reserve(skb, NET_IP_ALIGN);
-
-		skb->dev = netdev;
 
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
@@ -4134,8 +4162,6 @@ e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 		 * the 14 byte MAC header is removed
 		 */
 		skb_reserve(skb, NET_IP_ALIGN);
-
-		skb->dev = netdev;
 
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_ps_bsize0;
@@ -4628,7 +4654,7 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 		e1000_set_multi(netdev);
 
 		/* turn on all-multi mode if wake on multicast is enabled */
-		if (adapter->wol & E1000_WUFC_MC) {
+		if (wufc & E1000_WUFC_MC) {
 			rctl = E1000_READ_REG(&adapter->hw, RCTL);
 			rctl |= E1000_RCTL_MPE;
 			E1000_WRITE_REG(&adapter->hw, RCTL, rctl);
@@ -4700,11 +4726,14 @@ e1000_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	uint32_t manc, ret_val;
+	uint32_t manc, err;
 
 	pci_set_power_state(pdev, PCI_D0);
 	e1000_pci_restore_state(adapter);
-	ret_val = pci_enable_device(pdev);
+	if ((err = pci_enable_device(pdev))) {
+		printk(KERN_ERR "e1000: Cannot enable PCI device from suspend\n");
+		return err;
+	}
 	pci_set_master(pdev);
 
 	pci_enable_wake(pdev, PCI_D3hot, 0);
@@ -4782,6 +4811,7 @@ static pci_ers_result_t e1000_io_error_detected(struct pci_dev *pdev, pci_channe
 
 	if (netif_running(netdev))
 		e1000_down(adapter);
+	pci_disable_device(pdev);
 
 	/* Request a slot slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;

@@ -642,7 +642,7 @@ static struct net_device_stats *get_stats(struct net_device *dev);
 static int	netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int	netdev_close(struct net_device *dev);
 static void	netdev_media_change(struct net_device *dev);
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops;
 
 
 #ifdef VLAN_SUPPORT
@@ -1868,7 +1868,7 @@ static void set_msglevel(struct net_device *dev, u32 val)
 	debug = val;
 }
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.begin = check_if_running,
 	.get_drvinfo = get_drvinfo,
 	.get_settings = get_settings,
@@ -1984,7 +1984,7 @@ static int starfire_suspend(struct pci_dev *pdev, pm_message_t state)
 static int starfire_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	
+
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
@@ -2053,7 +2053,7 @@ static int __init starfire_init (void)
 		return -ENODEV;
 	}
 
-	return pci_module_init (&starfire_driver);
+	return pci_register_driver(&starfire_driver);
 }
 
 

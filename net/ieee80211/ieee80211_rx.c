@@ -779,33 +779,44 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-/* Filter out unrelated packets, call ieee80211_rx[_mgt] */
-int ieee80211_rx_any(struct ieee80211_device *ieee,
+/* Filter out unrelated packets, call ieee80211_rx[_mgt]
+ * This function takes over the skb, it should not be used again after calling
+ * this function. */
+void ieee80211_rx_any(struct ieee80211_device *ieee,
 		     struct sk_buff *skb, struct ieee80211_rx_stats *stats)
 {
 	struct ieee80211_hdr_4addr *hdr;
 	int is_packet_for_us;
 	u16 fc;
 
-	if (ieee->iw_mode == IW_MODE_MONITOR)
-		return ieee80211_rx(ieee, skb, stats) ? 0 : -EINVAL;
+	if (ieee->iw_mode == IW_MODE_MONITOR) {
+		if (!ieee80211_rx(ieee, skb, stats))
+			dev_kfree_skb_irq(skb);
+		return;
+	}
+
+	if (skb->len < sizeof(struct ieee80211_hdr))
+		goto drop_free;
 
 	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 
 	if ((fc & IEEE80211_FCTL_VERS) != 0)
-		return -EINVAL;
+		goto drop_free;
 		
 	switch (fc & IEEE80211_FCTL_FTYPE) {
 	case IEEE80211_FTYPE_MGMT:
+		if (skb->len < sizeof(struct ieee80211_hdr_3addr))
+			goto drop_free;
 		ieee80211_rx_mgt(ieee, hdr, stats);
-		return 0;
+		dev_kfree_skb_irq(skb);
+		return;
 	case IEEE80211_FTYPE_DATA:
 		break;
 	case IEEE80211_FTYPE_CTL:
-		return 0;
+		return;
 	default:
-		return -EINVAL;
+		return;
 	}
 
 	is_packet_for_us = 0;
@@ -849,8 +860,14 @@ int ieee80211_rx_any(struct ieee80211_device *ieee,
 	}
 
 	if (is_packet_for_us)
-		return (ieee80211_rx(ieee, skb, stats) ? 0 : -EINVAL);
-	return 0;
+		if (!ieee80211_rx(ieee, skb, stats))
+			dev_kfree_skb_irq(skb);
+	return;
+
+drop_free:
+	dev_kfree_skb_irq(skb);
+	ieee->stats.rx_dropped++;
+	return;
 }
 
 #define MGMT_FRAME_FIXED_PART_LENGTH		0x24
@@ -1061,13 +1078,16 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 
 	while (length >= sizeof(*info_element)) {
 		if (sizeof(*info_element) + info_element->len > length) {
-			IEEE80211_DEBUG_MGMT("Info elem: parse failed: "
-					     "info_element->len + 2 > left : "
-					     "info_element->len+2=%zd left=%d, id=%d.\n",
-					     info_element->len +
-					     sizeof(*info_element),
-					     length, info_element->id);
-			return 1;
+			IEEE80211_ERROR("Info elem: parse failed: "
+					"info_element->len + 2 > left : "
+					"info_element->len+2=%zd left=%d, id=%d.\n",
+					info_element->len +
+					sizeof(*info_element),
+					length, info_element->id);
+			/* We stop processing but don't return an error here
+			 * because some misbehaviour APs break this rule. ie.
+			 * Orinoco AP1000. */
+			break;
 		}
 
 		switch (info_element->id) {
@@ -1166,6 +1186,7 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 
 		case MFIE_TYPE_ERP_INFO:
 			network->erp_value = info_element->data[0];
+			network->flags |= NETWORK_HAS_ERP_VALUE;
 			IEEE80211_DEBUG_MGMT("MFIE_TYPE_ERP_SET: %d\n",
 					     network->erp_value);
 			break;
@@ -1729,5 +1750,6 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 	}
 }
 
+EXPORT_SYMBOL_GPL(ieee80211_rx_any);
 EXPORT_SYMBOL(ieee80211_rx_mgt);
 EXPORT_SYMBOL(ieee80211_rx);

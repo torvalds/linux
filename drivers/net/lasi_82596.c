@@ -5,14 +5,14 @@
    but there were too many hoops which HP wants jumped through to
    keep this code in there in a sane manner.
 
-   3 primary sources of the mess -- 
+   3 primary sources of the mess --
    1) hppa needs *lots* of cacheline flushing to keep this kind of
    MMIO running.
 
    2) The 82596 needs to see all of its pointers as their physical
    address.  Thus virt_to_bus/bus_to_virt are *everywhere*.
 
-   3) The implementation HP is using seems to be significantly pickier 
+   3) The implementation HP is using seems to be significantly pickier
    about when and how the command and RX units are started.  some
    command ordering was changed.
 
@@ -21,7 +21,7 @@
    full rewrite can be my guest.
 
    Split 02/13/2000 Sam Creasey (sammy@oh.verio.com)
-   
+
    02/01/2000  Initial modifications for parisc by Helge Deller (deller@gmx.de)
    03/02/2000  changes for better/correct(?) cache-flushing (deller)
 */
@@ -172,7 +172,7 @@
 #define PORT_ALTSCP		0x02	/* alternate SCB address */
 #define PORT_ALTDUMP		0x03	/* Alternate DUMP address */
 
-static int i596_debug = (DEB_SERIOUS|DEB_PROBE);  
+static int i596_debug = (DEB_SERIOUS|DEB_PROBE);
 
 MODULE_AUTHOR("Richard Hirst");
 MODULE_DESCRIPTION("i82596 driver");
@@ -265,9 +265,9 @@ struct tx_cmd {
 	dma_addr_t dma_addr;
 #ifdef __LP64__
 	u32 cache_pad[6];		/* Total 64 bytes... */
-#else    
+#else
 	u32 cache_pad[1];		/* Total 32 bytes... */
-#endif    
+#endif
 };
 
 struct tdr_cmd {
@@ -301,9 +301,9 @@ struct i596_rfd {
 	unsigned short size;
 	struct i596_rfd *v_next;	/* Address from CPUs viewpoint */
 	struct i596_rfd *v_prev;
-#ifndef __LP64__    
+#ifndef __LP64__
 	u32 cache_pad[2];		/* Total 32 bytes... */
-#endif    
+#endif
 };
 
 struct i596_rbd {
@@ -322,7 +322,7 @@ struct i596_rbd {
 					/* Total 32 bytes... */
 #ifdef __LP64__
     u32 cache_pad[4];
-#endif    
+#endif
 };
 
 /* These values as chosen so struct i596_private fits in one page... */
@@ -605,7 +605,7 @@ static inline void remove_rx_bufs(struct net_device *dev)
 		if (rbd->skb == NULL)
 			break;
 		dma_unmap_single(lp->dev,
-				 (dma_addr_t)WSWAPchar(rbd->b_data), 
+				 (dma_addr_t)WSWAPchar(rbd->b_data),
 				 PKT_BUF_SZ, DMA_FROM_DEVICE);
 		dev_kfree_skb(rbd->skb);
 	}
@@ -643,7 +643,7 @@ static int init_i596_mem(struct net_device *dev)
 		printk("RESET 82596 port: %lx (with IRQ %d disabled)\n",
 		       (dev->base_addr + PA_I82596_RESET),
 		       dev->irq));
-	
+
 	gsc_writel(0, (dev->base_addr + PA_I82596_RESET)); /* Hard Reset */
 	udelay(100);			/* Wait 100us - seems to help */
 
@@ -666,7 +666,7 @@ static int init_i596_mem(struct net_device *dev)
 	CHECK_WBACK(&(lp->scp), sizeof(struct i596_scp));
 	CHECK_WBACK(&(lp->iscp), sizeof(struct i596_iscp));
 
-	MPU_PORT(dev, PORT_ALTSCP, virt_to_dma(lp,&lp->scp));	
+	MPU_PORT(dev, PORT_ALTSCP, virt_to_dma(lp,&lp->scp));
 
 	CA(dev);
 
@@ -755,7 +755,7 @@ static inline int i596_rx(struct net_device *dev)
 		}
 		DEB(DEB_RXFRAME, printk("  rfd %p, rfd.rbd %08x, rfd.stat %04x\n",
 			rfd, rfd->rbd, rfd->stat));
-		
+
 		if (rbd != NULL && ((rfd->stat) & STAT_OK)) {
 			/* a good frame */
 			int pkt_len = rbd->count & 0x3fff;
@@ -996,7 +996,7 @@ static int i596_test(struct net_device *dev)
 
 	tint = (volatile int *)(&(lp->scp));
 	data = virt_to_dma(lp,tint);
-	
+
 	tint[1] = -1;
 	CHECK_WBACK(tint,PAGE_SIZE);
 
@@ -1087,7 +1087,7 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return 0;
 		length = ETH_ZLEN;
 	}
-	
+
 	netif_stop_queue(dev);
 
 	tx_cmd = lp->tx_cmds + lp->next_tx_cmd;
@@ -1194,7 +1194,7 @@ static int __devinit i82596_probe(struct net_device *dev,
 		printk(KERN_INFO "%s: MAC of HP700 LAN read from EEPROM\n", __FILE__);
 	}
 
-	dev->mem_start = (unsigned long) dma_alloc_noncoherent(gen_dev, 
+	dev->mem_start = (unsigned long) dma_alloc_noncoherent(gen_dev,
 		sizeof(struct i596_private), &dma_addr, GFP_KERNEL);
 	if (!dev->mem_start) {
 		printk(KERN_ERR "%s: Couldn't get shared memory\n", __FILE__);
@@ -1233,7 +1233,7 @@ static int __devinit i82596_probe(struct net_device *dev,
 	i = register_netdev(dev);
 	if (i) {
 		lp = dev->priv;
-		dma_free_noncoherent(lp->dev, sizeof(struct i596_private), 
+		dma_free_noncoherent(lp->dev, sizeof(struct i596_private),
 				    (void *)dev->mem_start, lp->dma_addr);
 		return i;
 	};
@@ -1400,7 +1400,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	CHECK_WBACK(&lp->scb, sizeof(struct i596_scb));
 
 	/* DANGER: I suspect that some kind of interrupt
-	 acknowledgement aside from acking the 82596 might be needed 
+	 acknowledgement aside from acking the 82596 might be needed
 	 here...  but it's running acceptably without */
 
 	CA(dev);
@@ -1498,7 +1498,7 @@ static void set_multicast_list(struct net_device *dev)
 		printk("%s: Only %d multicast addresses supported",
 			dev->name, cnt);
 	}
-	
+
 	if (dev->mc_count > 0) {
 		struct dev_mc_list *dmi;
 		unsigned char *cp;
@@ -1539,7 +1539,7 @@ lan_init_chip(struct parisc_device *dev)
 
 	if (num_drivers == 0)
 		printk(KERN_INFO LASI_82596_DRIVER_VERSION "\n");
-	
+
 	if (!dev->irq) {
 		printk(KERN_ERR "%s: IRQ not found for i82596 at 0x%lx\n",
 			__FILE__, dev->hpa.start);
@@ -1602,15 +1602,15 @@ static void __exit lasi_82596_exit(void)
 	for (i=0; i<MAX_DRIVERS; i++) {
 		struct i596_private *lp;
 		struct net_device *netdevice;
-		
+
 		netdevice = netdevs[i];
-		if (!netdevice) 
+		if (!netdevice)
 			continue;
-		
+
 		unregister_netdev(netdevice);
 
 		lp = netdevice->priv;
-		dma_free_noncoherent(lp->dev, sizeof(struct i596_private), 
+		dma_free_noncoherent(lp->dev, sizeof(struct i596_private),
 				       (void *)netdevice->mem_start, lp->dma_addr);
 		free_netdev(netdevice);
 	}

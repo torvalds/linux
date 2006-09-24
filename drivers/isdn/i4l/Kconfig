@@ -5,6 +5,7 @@
 config ISDN_PPP
 	bool "Support synchronous PPP"
 	depends on INET
+	select SLHC
 	help
 	  Over digital connections such as ISDN, there is no need to
 	  synchronize sender and recipient's clocks with start and stop bits

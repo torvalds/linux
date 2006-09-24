@@ -54,8 +54,8 @@
 #include <asm/uaccess.h>
 
 #define DRV_NAME	"natsemi"
-#define DRV_VERSION	"2.0"
-#define DRV_RELDATE	"June 27, 2006"
+#define DRV_VERSION	"2.1"
+#define DRV_RELDATE	"Sept 11, 2006"
 
 #define RX_OFFSET	2
 
@@ -143,9 +143,9 @@ module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
 MODULE_PARM_DESC(mtu, "DP8381x MTU (all boards)");
 MODULE_PARM_DESC(debug, "DP8381x default debug level");
-MODULE_PARM_DESC(rx_copybreak, 
+MODULE_PARM_DESC(rx_copybreak,
 	"DP8381x copy breakpoint for copy-only-tiny-frames");
-MODULE_PARM_DESC(options, 
+MODULE_PARM_DESC(options,
 	"DP8381x: Bits 0-3: media type, bit 17: full duplex");
 MODULE_PARM_DESC(full_duplex, "DP8381x full duplex setting(s) (1)");
 
@@ -244,7 +244,7 @@ enum {
 	MII_EN_SCRM	= 0x0004,	/* enable scrambler (tp) */
 };
 
- 
+
 /* array of board data directly indexed by pci_tbl[x].driver_data */
 static const struct {
 	const char *name;
@@ -414,7 +414,7 @@ enum TxConfig_bits {
 	TxCarrierIgn		= 0x80000000
 };
 
-/* 
+/*
  * Tx Configuration:
  * - 256 byte DMA burst length
  * - fill threshold 512 bytes (i.e. restart DMA when 512 bytes are free)
@@ -647,7 +647,7 @@ static void enable_wol_mode(struct net_device *dev, int enable_intr);
 static int netdev_close(struct net_device *dev);
 static int netdev_get_regs(struct net_device *dev, u8 *buf);
 static int netdev_get_eeprom(struct net_device *dev, u8 *buf);
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops;
 
 static inline void __iomem *ns_ioaddr(struct net_device *dev)
 {
@@ -672,7 +672,7 @@ static void move_int_phy(struct net_device *dev, int addr)
 	void __iomem *ioaddr = ns_ioaddr(dev);
 	int target = 31;
 
-	/* 
+	/*
 	 * The internal phy is visible on the external mii bus. Therefore we must
 	 * move it away before we can send commands to an external phy.
 	 * There are two addresses we must avoid:
@@ -1095,7 +1095,7 @@ static void init_phy_fixup(struct net_device *dev)
 			tmp |= BMCR_SPEED100;
 		if (np->duplex == DUPLEX_FULL)
 			tmp |= BMCR_FULLDPLX;
-		/* 
+		/*
 		 * Note: there is no good way to inform the link partner
 		 * that our capabilities changed. The user has to unplug
 		 * and replug the network cable after some changes, e.g.
@@ -1236,7 +1236,7 @@ static int switch_port_internal(struct net_device *dev)
 	writel(cfg, ioaddr + ChipConfig);
 	readl(ioaddr + ChipConfig);
 	udelay(1);
-	
+
 	/* 2) reset the internal phy: */
 	bmcr = readw(ioaddr+BasicControl+(MII_BMCR<<2));
 	writel(bmcr | BMCR_RESET, ioaddr+BasicControl+(MII_BMCR<<2));
@@ -1276,7 +1276,7 @@ static int find_mii(struct net_device *dev)
 
 	/* Switch to external phy */
 	did_switch = switch_port_external(dev);
-		
+
 	/* Scan the possible phy addresses:
 	 *
 	 * PHY address 0 means that the phy is in isolate mode. Not yet
@@ -1573,7 +1573,7 @@ static void check_link(struct net_device *dev)
 	void __iomem * ioaddr = ns_ioaddr(dev);
 	int duplex;
 	u16 bmsr;
-       
+
 	/* The link status field is latched: it remains low after a temporary
 	 * link failure until it's read. We need the current link status,
 	 * thus read twice.
@@ -2096,7 +2096,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 
 	if (np->hands_off)
 		return IRQ_NONE;
-	
+
 	/* Reading automatically acknowledges. */
 	np->intr_status = readl(ioaddr + IntrStatus);
 
@@ -2106,7 +2106,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 		       dev->name, np->intr_status,
 		       readl(ioaddr + IntrMask));
 
-	if (!np->intr_status) 
+	if (!np->intr_status)
 		return IRQ_NONE;
 
 	prefetch(&np->rx_skbuff[np->cur_rx % RX_RING_SIZE]);
@@ -2141,13 +2141,13 @@ static int natsemi_poll(struct net_device *dev, int *budget)
 		/* Abnormal error summary/uncommon events handlers. */
 		if (np->intr_status & IntrAbnormalSummary)
 			netdev_error(dev, np->intr_status);
-		
+
 		if (np->intr_status &
 		    (IntrRxDone | IntrRxIntr | RxStatusFIFOOver |
 		     IntrRxErr | IntrRxOverrun)) {
 			netdev_rx(dev, &work_done, work_to_do);
 		}
-		
+
 		*budget -= work_done;
 		dev->quota -= work_done;
 
@@ -2387,9 +2387,6 @@ static void __set_rx_mode(struct net_device *dev)
 	u32 rx_mode;
 
 	if (dev->flags & IFF_PROMISC) { /* Set promiscuous. */
-		/* Unconditionally log net taps. */
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n",
-			dev->name);
 		rx_mode = RxFilterEnable | AcceptBroadcast
 			| AcceptAllMulticast | AcceptAllPhys | AcceptMyPhys;
 	} else if ((dev->mc_count > multicast_filter_limit)
@@ -2576,7 +2573,7 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 
 	return res;
 }
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = get_drvinfo,
 	.get_regs_len = get_regs_len,
 	.get_eeprom_len = get_eeprom_len,
@@ -2747,7 +2744,7 @@ static int netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 	 * phy, even if the internal phy is used. This is necessary
 	 * to work around a deficiency of the ethtool interface:
 	 * It's only possible to query the settings of the active
-	 * port. Therefore 
+	 * port. Therefore
 	 * # ethtool -s ethX port mii
 	 * actually sends an ioctl to switch to port mii with the
 	 * settings that are used for the current active port.
@@ -3246,7 +3243,7 @@ static int __init natsemi_init_mod (void)
 	printk(version);
 #endif
 
-	return pci_module_init (&natsemi_driver);
+	return pci_register_driver(&natsemi_driver);
 }
 
 static void __exit natsemi_exit_mod (void)

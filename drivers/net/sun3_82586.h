@@ -12,13 +12,13 @@
  */
 
 /*
- * Cloned from ni52.h, copyright as above.  
+ * Cloned from ni52.h, copyright as above.
  *
  * Modified for Sun3 OBIO i82586 by Sam Creasey (sammy@sammy.net)
  */
 
 
-/* defines for the obio chip (not vme) */ 
+/* defines for the obio chip (not vme) */
 #define IEOB_NORSET 0x80        /* don't reset the board */
 #define IEOB_ONAIR  0x40        /* put us on the air */
 #define IEOB_ATTEN  0x20        /* attention! */
@@ -159,7 +159,7 @@ struct rfd_struct
 /*
  * Receive Buffer Descriptor (RBD)
  */
-struct rbd_struct 
+struct rbd_struct
 {
   unsigned short status;	/* status word,number of used bytes in buff */
   unsigned short next;		/* pointeroffset to next RBD */
@@ -211,7 +211,7 @@ struct nop_cmd_struct
 /*
  * IA Setup command
  */
-struct iasetup_cmd_struct 
+struct iasetup_cmd_struct
 {
   unsigned short cmd_status;
   unsigned short cmd_cmd;
@@ -220,7 +220,7 @@ struct iasetup_cmd_struct
 };
 
 /*
- * Configure command 
+ * Configure command
  */
 struct configure_cmd_struct
 {
@@ -242,9 +242,9 @@ struct configure_cmd_struct
 };
 
 /*
- * Multicast Setup command 
+ * Multicast Setup command
  */
-struct mcsetup_cmd_struct 
+struct mcsetup_cmd_struct
 {
   unsigned short cmd_status;
   unsigned short cmd_cmd;
@@ -265,9 +265,9 @@ struct dump_cmd_struct
 };
 
 /*
- * transmit command 
+ * transmit command
  */
-struct transmit_cmd_struct 
+struct transmit_cmd_struct
 {
   unsigned short cmd_status;
   unsigned short cmd_cmd;

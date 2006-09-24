@@ -148,7 +148,7 @@ static struct flash_spec flash_table[] =
 	 SAIFUN_FLASH_BYTE_ADDR_MASK, 0,
 	 "Entry 0100"},
 	/* Entry 0101: ST M45PE10 (non-buffered flash, TetonII B0) */
-	{0x19000002, 0x5b808201, 0x000500db, 0x03840253, 0xaf020406,        
+	{0x19000002, 0x5b808201, 0x000500db, 0x03840253, 0xaf020406,
 	 0, ST_MICRO_FLASH_PAGE_BITS, ST_MICRO_FLASH_PAGE_SIZE,
 	 ST_MICRO_FLASH_BYTE_ADDR_MASK, ST_MICRO_FLASH_BASE_TOTAL_SIZE*2,
 	 "Entry 0101: ST M45PE10 (128kB non-bufferred)"},
@@ -317,7 +317,7 @@ bnx2_write_phy(struct bnx2 *bp, u32 reg, u32 val)
 		BNX2_EMAC_MDIO_COMM_COMMAND_WRITE |
 		BNX2_EMAC_MDIO_COMM_START_BUSY | BNX2_EMAC_MDIO_COMM_DISEXT;
 	REG_WR(bp, BNX2_EMAC_MDIO_COMM, val1);
-    
+
 	for (i = 0; i < 50; i++) {
 		udelay(10);
 
@@ -585,7 +585,7 @@ bnx2_resolve_flow_ctrl(struct bnx2 *bp)
 	u32 local_adv, remote_adv;
 
 	bp->flow_ctrl = 0;
-	if ((bp->autoneg & (AUTONEG_SPEED | AUTONEG_FLOW_CTRL)) != 
+	if ((bp->autoneg & (AUTONEG_SPEED | AUTONEG_FLOW_CTRL)) !=
 		(AUTONEG_SPEED | AUTONEG_FLOW_CTRL)) {
 
 		if (bp->duplex == DUPLEX_FULL) {
@@ -1087,7 +1087,7 @@ bnx2_setup_serdes_phy(struct bnx2 *bp)
 
 #define PHY_ALL_10_100_SPEED (ADVERTISE_10HALF | ADVERTISE_10FULL | \
 	ADVERTISE_100HALF | ADVERTISE_100FULL | ADVERTISE_CSMA)
-	
+
 #define PHY_ALL_1000_SPEED (ADVERTISE_1000HALF | ADVERTISE_1000FULL)
 
 static int
@@ -1120,7 +1120,7 @@ bnx2_setup_copper_phy(struct bnx2 *bp)
 			new_adv_reg |= ADVERTISE_100FULL;
 		if (bp->advertising & ADVERTISED_1000baseT_Full)
 			new_adv1000_reg |= ADVERTISE_1000FULL;
-		
+
 		new_adv_reg |= ADVERTISE_CSMA;
 
 		new_adv_reg |= bnx2_phy_get_pause_adv(bp);
@@ -1157,7 +1157,7 @@ bnx2_setup_copper_phy(struct bnx2 *bp)
 
 		bnx2_read_phy(bp, MII_BMSR, &bmsr);
 		bnx2_read_phy(bp, MII_BMSR, &bmsr);
-		
+
 		if (bmsr & BMSR_LSTATUS) {
 			/* Force link down */
 			bnx2_write_phy(bp, MII_BMCR, BMCR_LOOPBACK);
@@ -1547,7 +1547,7 @@ bnx2_alloc_bad_rbuf(struct bnx2 *bp)
 }
 
 static void
-bnx2_set_mac_addr(struct bnx2 *bp) 
+bnx2_set_mac_addr(struct bnx2 *bp)
 {
 	u32 val;
 	u8 *mac_addr = bp->dev->dev_addr;
@@ -1556,7 +1556,7 @@ bnx2_set_mac_addr(struct bnx2 *bp)
 
 	REG_WR(bp, BNX2_EMAC_MAC_MATCH0, val);
 
-	val = (mac_addr[2] << 24) | (mac_addr[3] << 16) | 
+	val = (mac_addr[2] << 24) | (mac_addr[3] << 16) |
 		(mac_addr[4] << 8) | mac_addr[5];
 
 	REG_WR(bp, BNX2_EMAC_MAC_MATCH1, val);
@@ -1638,7 +1638,7 @@ bnx2_tx_int(struct bnx2 *bp)
 
 		tx_buf = &bp->tx_buf_ring[sw_ring_cons];
 		skb = tx_buf->skb;
-#ifdef BCM_TSO 
+#ifdef BCM_TSO
 		/* partial BD completions possible with TSO packets */
 		if (skb_is_gso(skb)) {
 			u16 last_idx, last_ring_idx;
@@ -1984,12 +1984,12 @@ bnx2_poll(struct net_device *dev, int *budget)
 
 		if (orig_budget > dev->quota)
 			orig_budget = dev->quota;
-		
+
 		work_done = bnx2_rx_int(bp, orig_budget);
 		*budget -= work_done;
 		dev->quota -= work_done;
 	}
-	
+
 	bp->last_status_idx = bp->status_blk->status_idx;
 	rmb();
 
@@ -2322,7 +2322,7 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.bp = BNX2_RXP_CPU_HW_BREAKPOINT;
 	cpu_reg.spad_base = BNX2_RXP_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
-    
+
 	fw.ver_major = bnx2_RXP_b06FwReleaseMajor;
 	fw.ver_minor = bnx2_RXP_b06FwReleaseMinor;
 	fw.ver_fix = bnx2_RXP_b06FwReleaseFix;
@@ -2374,7 +2374,7 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.bp = BNX2_TXP_CPU_HW_BREAKPOINT;
 	cpu_reg.spad_base = BNX2_TXP_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
-    
+
 	fw.ver_major = bnx2_TXP_b06FwReleaseMajor;
 	fw.ver_minor = bnx2_TXP_b06FwReleaseMinor;
 	fw.ver_fix = bnx2_TXP_b06FwReleaseFix;
@@ -2426,7 +2426,7 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.bp = BNX2_TPAT_CPU_HW_BREAKPOINT;
 	cpu_reg.spad_base = BNX2_TPAT_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
-    
+
 	fw.ver_major = bnx2_TPAT_b06FwReleaseMajor;
 	fw.ver_minor = bnx2_TPAT_b06FwReleaseMinor;
 	fw.ver_fix = bnx2_TPAT_b06FwReleaseFix;
@@ -2478,7 +2478,7 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.bp = BNX2_COM_CPU_HW_BREAKPOINT;
 	cpu_reg.spad_base = BNX2_COM_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
-    
+
 	fw.ver_major = bnx2_COM_b06FwReleaseMajor;
 	fw.ver_minor = bnx2_COM_b06FwReleaseMinor;
 	fw.ver_fix = bnx2_COM_b06FwReleaseFix;
@@ -2741,7 +2741,7 @@ bnx2_enable_nvram_access(struct bnx2 *bp)
 
 	val = REG_RD(bp, BNX2_NVM_ACCESS_ENABLE);
 	/* Enable both bits, even on read. */
-	REG_WR(bp, BNX2_NVM_ACCESS_ENABLE, 
+	REG_WR(bp, BNX2_NVM_ACCESS_ENABLE,
 	       val | BNX2_NVM_ACCESS_ENABLE_EN | BNX2_NVM_ACCESS_ENABLE_WR_EN);
 }
 
@@ -2752,7 +2752,7 @@ bnx2_disable_nvram_access(struct bnx2 *bp)
 
 	val = REG_RD(bp, BNX2_NVM_ACCESS_ENABLE);
 	/* Disable both bits, even after read. */
-	REG_WR(bp, BNX2_NVM_ACCESS_ENABLE, 
+	REG_WR(bp, BNX2_NVM_ACCESS_ENABLE,
 		val & ~(BNX2_NVM_ACCESS_ENABLE_EN |
 			BNX2_NVM_ACCESS_ENABLE_WR_EN));
 }
@@ -3143,7 +3143,7 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 		/* Find the data_start addr */
 		data_start = (written == 0) ? offset32 : page_start;
 		/* Find the data_end addr */
-		data_end = (page_end > offset32 + len32) ? 
+		data_end = (page_end > offset32 + len32) ?
 			(offset32 + len32) : page_end;
 
 		/* Request access to the flash interface. */
@@ -3164,8 +3164,8 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 					cmd_flags |= BNX2_NVM_COMMAND_LAST;
 				}
 				rc = bnx2_nvram_read_dword(bp,
-					page_start + j, 
-					&flash_buffer[j], 
+					page_start + j,
+					&flash_buffer[j],
 					cmd_flags);
 
 				if (rc)
@@ -3192,7 +3192,7 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 		if (bp->flash_info->buffered == 0) {
 			for (addr = page_start; addr < data_start;
 				addr += 4, i += 4) {
-				
+
 				rc = bnx2_nvram_write_dword(bp, addr,
 					&flash_buffer[i], cmd_flags);
 
@@ -3226,7 +3226,7 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 		if (bp->flash_info->buffered == 0) {
 			for (addr = data_end; addr < page_end;
 				addr += 4, i += 4) {
-			
+
 				if (addr == page_end-4) {
 					cmd_flags = BNX2_NVM_COMMAND_LAST;
                 		}
@@ -3351,9 +3351,9 @@ bnx2_init_chip(struct bnx2 *bp)
 	val = BNX2_DMA_CONFIG_DATA_BYTE_SWAP |
 	      BNX2_DMA_CONFIG_DATA_WORD_SWAP |
 #ifdef __BIG_ENDIAN
-	      BNX2_DMA_CONFIG_CNTL_BYTE_SWAP | 
+	      BNX2_DMA_CONFIG_CNTL_BYTE_SWAP |
 #endif
-	      BNX2_DMA_CONFIG_CNTL_WORD_SWAP | 
+	      BNX2_DMA_CONFIG_CNTL_WORD_SWAP |
 	      DMA_READ_CHANS << 12 |
 	      DMA_WRITE_CHANS << 16;
 
@@ -3446,7 +3446,7 @@ bnx2_init_chip(struct bnx2 *bp)
 	REG_WR(bp, BNX2_HC_STATISTICS_ADDR_H,
 	       (u64) bp->stats_blk_mapping >> 32);
 
-	REG_WR(bp, BNX2_HC_TX_QUICK_CONS_TRIP, 
+	REG_WR(bp, BNX2_HC_TX_QUICK_CONS_TRIP,
 	       (bp->tx_quick_cons_trip_int << 16) | bp->tx_quick_cons_trip);
 
 	REG_WR(bp, BNX2_HC_RX_QUICK_CONS_TRIP,
@@ -3511,7 +3511,7 @@ bnx2_init_tx_ring(struct bnx2 *bp)
 	bp->tx_wake_thresh = bp->tx_ring_size / 2;
 
 	txbd = &bp->tx_desc_ring[MAX_TX_DESC_CNT];
-		
+
 	txbd->tx_bd_haddr_hi = (u64) bp->tx_desc_mapping >> 32;
 	txbd->tx_bd_haddr_lo = (u64) bp->tx_desc_mapping & 0xffffffff;
 
@@ -3519,7 +3519,7 @@ bnx2_init_tx_ring(struct bnx2 *bp)
 	bp->tx_cons = 0;
 	bp->hw_tx_cons = 0;
 	bp->tx_prod_bseq = 0;
-	
+
 	val = BNX2_L2CTX_TYPE_TYPE_L2;
 	val |= BNX2_L2CTX_TYPE_SIZE_L2;
 	CTX_WR(bp, GET_CID_ADDR(TX_CID), BNX2_L2CTX_TYPE, val);
@@ -3540,7 +3540,7 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 {
 	struct rx_bd *rxbd;
 	int i;
-	u16 prod, ring_prod; 
+	u16 prod, ring_prod;
 	u32 val;
 
 	/* 8 for CRC and VLAN */
@@ -3552,7 +3552,7 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	bp->rx_cons = 0;
 	bp->hw_rx_cons = 0;
 	bp->rx_prod_bseq = 0;
-		
+
 	for (i = 0; i < bp->rx_max_ring; i++) {
 		int j;
 
@@ -3927,7 +3927,7 @@ bnx2_test_memory(struct bnx2 *bp)
 			return ret;
 		}
 	}
-	
+
 	return ret;
 }
 
@@ -4124,7 +4124,7 @@ bnx2_test_link(struct bnx2 *bp)
 	bnx2_read_phy(bp, MII_BMSR, &bmsr);
 	bnx2_read_phy(bp, MII_BMSR, &bmsr);
 	spin_unlock_bh(&bp->phy_lock);
-		
+
 	if (bmsr & BMSR_LSTATUS) {
 		return 0;
 	}
@@ -4291,7 +4291,7 @@ bnx2_open(struct net_device *dev)
 		bnx2_free_mem(bp);
 		return rc;
 	}
-	
+
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 
 	atomic_set(&bp->intr_sem, 0);
@@ -4431,7 +4431,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		vlan_tag_flags |=
 			(TX_BD_FLAGS_VLAN_TAG | (vlan_tx_tag_get(skb) << 16));
 	}
-#ifdef BCM_TSO 
+#ifdef BCM_TSO
 	if ((mss = skb_shinfo(skb)->gso_size) &&
 		(skb->len > (bp->dev->mtu + ETH_HLEN))) {
 		u32 tcp_opt_len, ip_tcp_len;
@@ -4470,7 +4470,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	mapping = pci_map_single(bp->pdev, skb->data, len, PCI_DMA_TODEVICE);
-	
+
 	tx_buf = &bp->tx_buf_ring[ring_prod];
 	tx_buf->skb = skb;
 	pci_unmap_addr_set(tx_buf, mapping, mapping);
@@ -4600,23 +4600,23 @@ bnx2_get_stats(struct net_device *dev)
 	net_stats->tx_bytes =
 		GET_NET_STATS(stats_blk->stat_IfHCOutOctets);
 
-	net_stats->multicast = 
+	net_stats->multicast =
 		GET_NET_STATS(stats_blk->stat_IfHCOutMulticastPkts);
 
-	net_stats->collisions = 
+	net_stats->collisions =
 		(unsigned long) stats_blk->stat_EtherStatsCollisions;
 
-	net_stats->rx_length_errors = 
+	net_stats->rx_length_errors =
 		(unsigned long) (stats_blk->stat_EtherStatsUndersizePkts +
 		stats_blk->stat_EtherStatsOverrsizePkts);
 
-	net_stats->rx_over_errors = 
+	net_stats->rx_over_errors =
 		(unsigned long) stats_blk->stat_IfInMBUFDiscards;
 
-	net_stats->rx_frame_errors = 
+	net_stats->rx_frame_errors =
 		(unsigned long) stats_blk->stat_Dot3StatsAlignmentErrors;
 
-	net_stats->rx_crc_errors = 
+	net_stats->rx_crc_errors =
 		(unsigned long) stats_blk->stat_Dot3StatsFCSErrors;
 
 	net_stats->rx_errors = net_stats->rx_length_errors +
@@ -4637,7 +4637,7 @@ bnx2_get_stats(struct net_device *dev)
 	}
 
 	net_stats->tx_errors =
-    		(unsigned long) 
+    		(unsigned long)
 		stats_blk->stat_emac_tx_stat_dot3statsinternalmactransmiterrors
 		+
 		net_stats->tx_aborted_errors +
@@ -4698,7 +4698,7 @@ bnx2_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	return 0;
 }
-  
+
 static int
 bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
@@ -4711,7 +4711,7 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (cmd->autoneg == AUTONEG_ENABLE) {
 		autoneg |= AUTONEG_SPEED;
 
-		cmd->advertising &= ETHTOOL_ALL_COPPER_SPEED; 
+		cmd->advertising &= ETHTOOL_ALL_COPPER_SPEED;
 
 		/* allow advertising 1 speed */
 		if ((cmd->advertising == ADVERTISED_10baseT_Half) ||
@@ -4988,7 +4988,7 @@ bnx2_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 	bp->rx_ticks = (u16) coal->rx_coalesce_usecs;
 	if (bp->rx_ticks > 0x3ff) bp->rx_ticks = 0x3ff;
 
-	bp->rx_quick_cons_trip = (u16) coal->rx_max_coalesced_frames; 
+	bp->rx_quick_cons_trip = (u16) coal->rx_max_coalesced_frames;
 	if (bp->rx_quick_cons_trip > 0xff) bp->rx_quick_cons_trip = 0xff;
 
 	bp->rx_ticks_int = (u16) coal->rx_coalesce_usecs_irq;
@@ -5206,46 +5206,46 @@ static const unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
     STATS_OFFSET32(stat_IfHCOutMulticastPkts_hi),
     STATS_OFFSET32(stat_IfHCOutBroadcastPkts_hi),
     STATS_OFFSET32(stat_emac_tx_stat_dot3statsinternalmactransmiterrors),
-    STATS_OFFSET32(stat_Dot3StatsCarrierSenseErrors),                 
-    STATS_OFFSET32(stat_Dot3StatsFCSErrors),                          
-    STATS_OFFSET32(stat_Dot3StatsAlignmentErrors),                    
-    STATS_OFFSET32(stat_Dot3StatsSingleCollisionFrames),              
-    STATS_OFFSET32(stat_Dot3StatsMultipleCollisionFrames),            
-    STATS_OFFSET32(stat_Dot3StatsDeferredTransmissions),              
-    STATS_OFFSET32(stat_Dot3StatsExcessiveCollisions),                
-    STATS_OFFSET32(stat_Dot3StatsLateCollisions),                     
-    STATS_OFFSET32(stat_EtherStatsCollisions),                        
-    STATS_OFFSET32(stat_EtherStatsFragments),                         
-    STATS_OFFSET32(stat_EtherStatsJabbers),                           
-    STATS_OFFSET32(stat_EtherStatsUndersizePkts),                     
-    STATS_OFFSET32(stat_EtherStatsOverrsizePkts),                     
-    STATS_OFFSET32(stat_EtherStatsPktsRx64Octets),                    
-    STATS_OFFSET32(stat_EtherStatsPktsRx65Octetsto127Octets),         
-    STATS_OFFSET32(stat_EtherStatsPktsRx128Octetsto255Octets),        
-    STATS_OFFSET32(stat_EtherStatsPktsRx256Octetsto511Octets),        
-    STATS_OFFSET32(stat_EtherStatsPktsRx512Octetsto1023Octets),       
-    STATS_OFFSET32(stat_EtherStatsPktsRx1024Octetsto1522Octets),      
-    STATS_OFFSET32(stat_EtherStatsPktsRx1523Octetsto9022Octets),      
-    STATS_OFFSET32(stat_EtherStatsPktsTx64Octets),                    
-    STATS_OFFSET32(stat_EtherStatsPktsTx65Octetsto127Octets),         
-    STATS_OFFSET32(stat_EtherStatsPktsTx128Octetsto255Octets),        
-    STATS_OFFSET32(stat_EtherStatsPktsTx256Octetsto511Octets),        
-    STATS_OFFSET32(stat_EtherStatsPktsTx512Octetsto1023Octets),       
-    STATS_OFFSET32(stat_EtherStatsPktsTx1024Octetsto1522Octets),      
-    STATS_OFFSET32(stat_EtherStatsPktsTx1523Octetsto9022Octets),      
-    STATS_OFFSET32(stat_XonPauseFramesReceived),                      
-    STATS_OFFSET32(stat_XoffPauseFramesReceived),                     
-    STATS_OFFSET32(stat_OutXonSent),                                  
-    STATS_OFFSET32(stat_OutXoffSent),                                 
-    STATS_OFFSET32(stat_MacControlFramesReceived),                    
-    STATS_OFFSET32(stat_IfInFramesL2FilterDiscards),                  
-    STATS_OFFSET32(stat_IfInMBUFDiscards),                            
+    STATS_OFFSET32(stat_Dot3StatsCarrierSenseErrors),
+    STATS_OFFSET32(stat_Dot3StatsFCSErrors),
+    STATS_OFFSET32(stat_Dot3StatsAlignmentErrors),
+    STATS_OFFSET32(stat_Dot3StatsSingleCollisionFrames),
+    STATS_OFFSET32(stat_Dot3StatsMultipleCollisionFrames),
+    STATS_OFFSET32(stat_Dot3StatsDeferredTransmissions),
+    STATS_OFFSET32(stat_Dot3StatsExcessiveCollisions),
+    STATS_OFFSET32(stat_Dot3StatsLateCollisions),
+    STATS_OFFSET32(stat_EtherStatsCollisions),
+    STATS_OFFSET32(stat_EtherStatsFragments),
+    STATS_OFFSET32(stat_EtherStatsJabbers),
+    STATS_OFFSET32(stat_EtherStatsUndersizePkts),
+    STATS_OFFSET32(stat_EtherStatsOverrsizePkts),
+    STATS_OFFSET32(stat_EtherStatsPktsRx64Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsRx65Octetsto127Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsRx128Octetsto255Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsRx256Octetsto511Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsRx512Octetsto1023Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsRx1024Octetsto1522Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsRx1523Octetsto9022Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsTx64Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsTx65Octetsto127Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsTx128Octetsto255Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsTx256Octetsto511Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsTx512Octetsto1023Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsTx1024Octetsto1522Octets),
+    STATS_OFFSET32(stat_EtherStatsPktsTx1523Octetsto9022Octets),
+    STATS_OFFSET32(stat_XonPauseFramesReceived),
+    STATS_OFFSET32(stat_XoffPauseFramesReceived),
+    STATS_OFFSET32(stat_OutXonSent),
+    STATS_OFFSET32(stat_OutXoffSent),
+    STATS_OFFSET32(stat_MacControlFramesReceived),
+    STATS_OFFSET32(stat_IfInFramesL2FilterDiscards),
+    STATS_OFFSET32(stat_IfInMBUFDiscards),
     STATS_OFFSET32(stat_FwRxDrop),
 };
 
 /* stat_IfHCInBadOctets and stat_Dot3StatsCarrierSenseErrors are
  * skipped because of errata.
- */               
+ */
 static u8 bnx2_5706_stats_len_arr[BNX2_NUM_STATS] = {
 	8,0,8,8,8,8,8,8,8,8,
 	4,0,4,4,4,4,4,4,4,4,
@@ -5429,7 +5429,7 @@ bnx2_phys_id(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static struct ethtool_ops bnx2_ethtool_ops = {
+static const struct ethtool_ops bnx2_ethtool_ops = {
 	.get_settings		= bnx2_get_settings,
 	.set_settings		= bnx2_set_settings,
 	.get_drvinfo		= bnx2_get_drvinfo,
@@ -5665,7 +5665,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		bp->flags |= PCIX_FLAG;
 
 		clkreg = REG_RD(bp, BNX2_PCICFG_PCI_CLOCK_CONTROL_BITS);
-		
+
 		clkreg &= BNX2_PCICFG_PCI_CLOCK_CONTROL_BITS_PCI_CLK_SPD_DET;
 		switch (clkreg) {
 		case BNX2_PCICFG_PCI_CLOCK_CONTROL_BITS_PCI_CLK_SPD_DET_133MHZ:
@@ -5762,7 +5762,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->tx_quick_cons_trip = 20;
 	bp->tx_ticks_int = 80;
 	bp->tx_ticks = 80;
-		
+
 	bp->rx_quick_cons_trip_int = 6;
 	bp->rx_quick_cons_trip = 6;
 	bp->rx_ticks_int = 18;
@@ -6016,7 +6016,7 @@ static struct pci_driver bnx2_pci_driver = {
 
 static int __init bnx2_init(void)
 {
-	return pci_module_init(&bnx2_pci_driver);
+	return pci_register_driver(&bnx2_pci_driver);
 }
 
 static void __exit bnx2_cleanup(void)

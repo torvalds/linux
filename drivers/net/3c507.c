@@ -294,14 +294,14 @@ static void el16_tx_timeout (struct net_device *dev);
 
 static void hardware_send_packet(struct net_device *dev, void *buf, short length, short pad);
 static void init_82586_mem(struct net_device *dev);
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 static void init_rx_bufs(struct net_device *);
 
 static int io = 0x300;
 static int irq;
 static int mem_start;
 
-
+
 /* Check for a network adaptor of this type, and return '0' iff one exists.
 	If dev->base_addr == 0, probe all likely locations.
 	If dev->base_addr == 1, always return failure.
@@ -379,7 +379,7 @@ static int __init el16_probe1(struct net_device *dev, int ioaddr)
 	if (!request_region(ioaddr, EL16_IO_EXTENT, DRV_NAME))
 		return -ENODEV;
 
-	if ((inb(ioaddr) != '*') || (inb(ioaddr + 1) != '3') || 
+	if ((inb(ioaddr) != '*') || (inb(ioaddr + 1) != '3') ||
 	    (inb(ioaddr + 2) != 'C') || (inb(ioaddr + 3) != 'O')) {
 		retval = -ENODEV;
 		goto out;
@@ -575,7 +575,7 @@ static irqreturn_t el16_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	while (lp->tx_pkts_in_ring) {
 	  unsigned short tx_status = readw(shmem+lp->tx_reap);
 	  if (!(tx_status & 0x8000)) {
-		if (net_debug > 5) 
+		if (net_debug > 5)
 			printk("Tx command incomplete (%#x).\n", lp->tx_reap);
 		break;
 	  }
@@ -825,7 +825,7 @@ static void hardware_send_packet(struct net_device *dev, void *buf, short length
 	}
 
 	/* Grimly block further packets if there has been insufficient reaping. */
-	if (++lp->tx_pkts_in_ring < NUM_TX_BUFS) 
+	if (++lp->tx_pkts_in_ring < NUM_TX_BUFS)
 		netif_wake_queue(dev);
 }
 
@@ -919,7 +919,7 @@ static void netdev_set_msglevel(struct net_device *dev, u32 level)
 	debug = level;
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_msglevel		= netdev_get_msglevel,
 	.set_msglevel		= netdev_set_msglevel,
@@ -953,7 +953,7 @@ cleanup_module(void)
 #endif /* MODULE */
 MODULE_LICENSE("GPL");
 
-
+
 /*
  * Local variables:
  *  compile-command: "gcc -D__KERNEL__ -I/usr/src/linux/net/inet -I/usr/src/linux/drivers/net -Wall -Wstrict-prototypes -O6 -m486 -c 3c507.c"

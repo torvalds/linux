@@ -1883,7 +1883,7 @@ static void emac_ethtool_get_drvinfo(struct net_device *ndev,
 	info->regdump_len = emac_ethtool_get_regs_len(ndev);
 }
 
-static struct ethtool_ops emac_ethtool_ops = {
+static const struct ethtool_ops emac_ethtool_ops = {
 	.get_settings = emac_ethtool_get_settings,
 	.set_settings = emac_ethtool_set_settings,
 	.get_drvinfo = emac_ethtool_get_drvinfo,

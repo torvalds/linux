@@ -821,9 +821,6 @@ static void sis190_set_rx_mode(struct net_device *dev)
 	u16 rx_mode;
 
 	if (dev->flags & IFF_PROMISC) {
-		/* Unconditionally log net taps. */
-		net_drv(tp, KERN_NOTICE "%s: Promiscuous mode enabled.\n",
-			dev->name);
 		rx_mode =
 			AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
 			AcceptAllPhys;
@@ -1750,7 +1747,7 @@ static void sis190_set_msglevel(struct net_device *dev, u32 value)
 	tp->msg_enable = value;
 }
 
-static struct ethtool_ops sis190_ethtool_ops = {
+static const struct ethtool_ops sis190_ethtool_ops = {
 	.get_settings	= sis190_get_settings,
 	.set_settings	= sis190_set_settings,
 	.get_drvinfo	= sis190_get_drvinfo,
@@ -1871,7 +1868,7 @@ static struct pci_driver sis190_pci_driver = {
 
 static int __init sis190_init_module(void)
 {
-	return pci_module_init(&sis190_pci_driver);
+	return pci_register_driver(&sis190_pci_driver);
 }
 
 static void __exit sis190_cleanup_module(void)

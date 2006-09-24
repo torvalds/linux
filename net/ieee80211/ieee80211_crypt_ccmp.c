@@ -263,6 +263,27 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return 0;
 }
 
+/*
+ * deal with seq counter wrapping correctly.
+ * refer to timer_after() for jiffies wrapping handling
+ */
+static inline int ccmp_replay_check(u8 *pn_n, u8 *pn_o)
+{
+	u32 iv32_n, iv16_n;
+	u32 iv32_o, iv16_o;
+
+	iv32_n = (pn_n[0] << 24) | (pn_n[1] << 16) | (pn_n[2] << 8) | pn_n[3];
+	iv16_n = (pn_n[4] << 8) | pn_n[5];
+
+	iv32_o = (pn_o[0] << 24) | (pn_o[1] << 16) | (pn_o[2] << 8) | pn_o[3];
+	iv16_o = (pn_o[4] << 8) | pn_o[5];
+
+	if ((s32)iv32_n - (s32)iv32_o < 0 ||
+	    (iv32_n == iv32_o && iv16_n <= iv16_o))
+		return 1;
+	return 0;
+}
+
 static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_ccmp_data *key = priv;
@@ -315,7 +336,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pn[5] = pos[0];
 	pos += 8;
 
-	if (memcmp(pn, key->rx_pn, CCMP_PN_LEN) <= 0) {
+	if (ccmp_replay_check(pn, key->rx_pn)) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "CCMP: replay detected: STA=" MAC_FMT
 			       " previous PN %02x%02x%02x%02x%02x%02x "
